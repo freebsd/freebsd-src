@@ -1,4 +1,4 @@
-# $id$
+#	$Id$
 
 PROG=	jail
 MAN8=	jail.8
