@@ -41,8 +41,7 @@ network_pass1() {
 	# Generate host.conf for compatibility
 	#
 	if [ -f "/etc/nsswitch.conf" ]; then
-	        echo ''
-		echo 'Generating /etc/host.conf for compatibility'
+		echo -n ' host.conf'
 		generate_host_conf /etc/nsswitch.conf /etc/host.conf
 	fi
 
@@ -880,16 +879,23 @@ BEGIN {
     xlat["files"] = "hosts";
     xlat["dns"] = "bind";
     xlat["nis"] = "nis";
+    cont = 0;
 }
-/^hosts:/ {
-    print "# Auto-generated, do not edit";
-    for (n = 2; n <= NF; ++n)
-        if ($n in xlat)
-            print xlat[$n];
-    quit;
+sub(/^[\t ]*hosts:/, "") || cont {
+    if (!cont)
+	srcs = ""
+    sub(/#.*/, "")
+    gsub(/[][]/, " & ")
+    cont = sub(/\\$/, "")
+    srcs = srcs " " $0
 }
-// {
-    next;
+END {
+    print "# Auto-generated from nsswitch.conf, do not edit"
+    ns = split(srcs, s)
+    for (n = 1; n <= ns; ++n) {
+        if (s[n] in xlat)
+            print xlat[s[n]]
+    }
 }
 ' <$nsswitch_conf >$host_conf
 }
