@@ -94,7 +94,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 	volatile bool ignrdot = smtpmode ? FALSE : IgnrDot;
 	volatile time_t dbto = smtpmode ? TimeOuts.to_datablock : 0;
 	register char *volatile bp;
-	volatile int c = '\0';
+	volatile int c = EOF;
 	volatile bool inputerr = FALSE;
 	bool headeronly;
 	char *volatile buf;
