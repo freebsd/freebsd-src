@@ -8,7 +8,7 @@
 # definitions before the sub-Makefile is processed.
 #
 
-VERSION=	2.9.1
+VERSION=	2.10-anoncvs-20000512
 TARGET_ARCH?=	${MACHINE_ARCH}
 
 .if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
@@ -22,7 +22,7 @@ BINUTIL_ARCH=${TARGET_ARCH}
 # added to it as we descend into subdirectories.
 RELTOP:=	..
 
-RELSRC=		${RELTOP}/../../../contrib/binutils.291
+RELSRC=		${RELTOP}/../../../contrib/binutils
 SRCDIR=		${.CURDIR}/${RELSRC}
 
 CFLAGS+=	-D_GNU_SOURCE
