@@ -194,9 +194,9 @@ unsigned long
 ypxfr_get_order(char *domain, char *map, char *source, const int yplib)
 {
 	if (yplib) {
-		unsigned long order;
+		unsigned int order;
 		int res;
-		if ((res = yp_order(domain, map, (int *)&order))) {
+		if ((res = yp_order(domain, map, &order))) {
 			switch (res) {
 			case YPERR_DOMAIN:
 				yp_errno = YPXFR_NODOM;
