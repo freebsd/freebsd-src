@@ -96,7 +96,6 @@ typedef struct ng_ksocket_private *priv_p;
 #define	KSF_EOFSEEN	0x00000004	/* Have sent 0-length EOF mbuf */
 #define	KSF_CLONED	0x00000008	/* Cloned from an accepting socket */
 #define	KSF_EMBRYONIC	0x00000010	/* Cloned node with no hooks yet */
-#define	KSF_SENDING	0x00000020	/* Sending on socket */
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ksocket_constructor;
@@ -899,7 +898,7 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	struct sa_tag *stag;
 
 	/* Avoid reentrantly sending on the socket */
-	if ((priv->flags & KSF_SENDING) != 0) {
+	if (SOCKBUF_OWNED(&so->so_snd)) {
 		NG_FREE_ITEM(item);
 		return (EDEADLK);
 	}
@@ -919,9 +918,7 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 		sa = &stag->sa;
 
 	/* Send packet */
-	priv->flags |= KSF_SENDING;
 	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, td);
-	priv->flags &= ~KSF_SENDING;
 
 	return (error);
 }
