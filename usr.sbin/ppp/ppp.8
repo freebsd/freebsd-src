@@ -2740,19 +2740,19 @@ level, and any appropriate
 values are honoured as if the peer were responsible for dropping the
 connection.
 .It mppe
-Default: Disabled and Denied.
+Default: Enabled and Accepted.
 This is Microsoft Point to Point Encryption scheme. MPPE key size can be 
 40-, 56- and 128-bits. Refer to
 .Dq set mppe
 command.
 .It MSChapV2|chap81
-Default: Disabled and Denied.
+Default: Disabled and Accepted.
 It is very similar to standard CHAP (type 0x05)
 except that it issues challenges of a fixed 16 bytes in length and uses a
 combination of MD4, SHA-1 and DES to encrypt the challenge rather than using the
 standard MD5 mechanism.
 .It MSChap|chap80nt
-Default: Disabled and Denied.
+Default: Disabled and Accepted
 The use of this authentication protocol
 is discouraged as it partially violates the authentication protocol by
 implementing two different mechanisms (LANMan & NT) under the guise of
