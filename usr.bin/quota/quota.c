@@ -90,12 +90,10 @@ static struct quotause *getprivs(long id, int quotatype);
 static void usage(void);
 static void showuid(u_long uid);
 static void showgid(u_long gid);
-static int alldigits(char *s);
 static void showusrname(char *name);
 static void showgrpname(char *name);
 static void showquotas(int type, u_long id, const char *name);
 static void heading(int type, u_long id, const char *name, const char *tag);
-static struct quotause *getprivs(long id, int quotatype);
 static int ufshasquota(struct fstab *fs, int type, char **qfnamep);
 static int getufsquota(struct fstab *fs, struct quotause *qup, long id,
 	int quotatype);
