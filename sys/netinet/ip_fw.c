@@ -12,14 +12,16 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.37 1996/06/09 23:46:20 alex Exp $
+ *	$Id: ip_fw.c,v 1.38 1996/06/12 19:34:33 gpalmer Exp $
  */
 
 /*
  * Implement IP packet firewall
  */
 
+#ifndef ACTUALLY_LKM_NOT_KERNEL
 #include "opt_ipfw.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
