@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.166 1996/09/06 23:35:54 pst Exp $
+ *  $Id: syscons.c,v 1.8 1996/09/10 09:38:39 asami Exp $
  */
 
 #include "sc.h"
@@ -166,14 +166,17 @@ void    (*current_saver) __P((int blank)) = none_saver;
 #ifdef not_yet_done
 #define VIRTUAL_TTY(x)  (sccons[x] = ttymalloc(sccons[x]))
 struct  CONSOLE_TTY 	(sccons[MAXCONS] = ttymalloc(sccons[MAXCONS]))
-static const int	nsccons = MAXCONS+1;
-struct  tty         	*sccons[MAXCONS+1];
+struct  MOUSE_TTY 	(sccons[MAXCONS+1] = ttymalloc(sccons[MAXCONS+1]))
+struct  tty         	*sccons[MAXCONS+2];
 #else
 #define VIRTUAL_TTY(x)  &sccons[x]
 #define CONSOLE_TTY 	&sccons[MAXCONS]
-static struct tty     	sccons[MAXCONS+1];
+#define MOUSE_TTY 	&sccons[MAXCONS+1]
+static struct tty     	sccons[MAXCONS+2];
 #endif
 
+#define SC_MOUSE 	128
+#define SC_CONSOLE	255
 #ifdef PC98
 static u_char		default_kanji = UJIS;
 u_short         	*Crtat;
@@ -183,6 +186,7 @@ u_short			*Atrat;
 #define CGA_BUF     	pa_to_va(0xB8000)
 u_short         	*Crtat;
 #endif
+static const int	nsccons = MAXCONS+2;
 
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
@@ -198,6 +202,7 @@ static int scattach(struct isa_device *dev);
 static int scparam(struct tty *tp, struct termios *t);
 static int scprobe(struct isa_device *dev);
 static void scstart(struct tty *tp);
+static void scmousestart(struct tty *tp);
 static void scinit(void);
 static u_int scgetc(int noblock);
 static scr_stat *get_scr_stat(dev_t dev);
@@ -589,10 +594,12 @@ struct tty
 
     if (init_done == COLD)
 	return(NULL);
-    if (unit > MAXCONS || unit < 0)
-	return(NULL);
-    if (unit == MAXCONS)
+    if (unit == SC_CONSOLE)
 	return CONSOLE_TTY;
+    if (unit == SC_MOUSE)
+	return MOUSE_TTY;
+    if (unit >= MAXCONS || unit < 0)
+	return(NULL);
     return VIRTUAL_TTY(unit);
 }
 
@@ -601,10 +608,10 @@ static scr_stat
 {
     int unit = minor(dev);
 
-    if (unit > MAXCONS || unit < 0)
-	return(NULL);
-    if (unit == MAXCONS)
+    if (unit == SC_CONSOLE)
 	return console[0];
+    if (unit >= MAXCONS || unit < 0)
+	return(NULL);
     return console[unit];
 }
 
@@ -626,7 +633,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     if (!tp)
 	return(ENXIO);
 
-    tp->t_oproc = scstart;
+    tp->t_oproc = (minor(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
@@ -643,7 +650,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
 	    return(EBUSY);
-    if (!console[minor(dev)])
+    if (minor(dev) < MAXCONS && !console[minor(dev)])
 	console[minor(dev)] = alloc_scp();
     return((*linesw[tp->t_line].l_open)(dev, tp));
 }
@@ -887,7 +894,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		scp->mouse_proc = NULL;
 		scp->mouse_pid = 0;
 	    }
-	    return 0;
+	    break;
 
 	case MOUSE_SHOW:
 	    if (!(scp->status & MOUSE_ENABLED)) {
@@ -924,10 +931,23 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    mouse->u.data.x = scp->mouse_xpos;
 	    mouse->u.data.y = scp->mouse_ypos;
 	    mouse->u.data.buttons = scp->mouse_buttons;
-	    return 0;
+	    break;
 
 	case MOUSE_ACTION:
-	    /* this should maybe only be settable from /dev/console SOS */
+	    /* this should maybe only be settable from /dev/mouse SOS */
+	    /* send out mouse event on /dev/mouse */
+	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
+		u_char buf[5];
+		int i;
+
+		buf[0] = 0x80 | ((~mouse->u.data.buttons) & 0x07);
+		buf[1] = (mouse->u.data.x & 0x1fe >> 1);
+		buf[3] = (mouse->u.data.x & 0x1ff) - buf[1];
+		buf[2] = -(mouse->u.data.y & 0x1fe >> 1);
+		buf[4] = -(mouse->u.data.y & 0x1ff) - buf[2];
+		for (i=0; i<5; i++)
+	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[i],MOUSE_TTY);
+	    }
 	    cur_console->mouse_xpos += mouse->u.data.x;
 	    cur_console->mouse_ypos += mouse->u.data.y;
 	    if (cur_console->mouse_signal) {
@@ -1514,9 +1534,8 @@ scstart(struct tty *tp)
     u_char buf[PCBURST];
     scr_stat *scp = get_scr_stat(tp->t_dev);
 
-    /* XXX who repeats the call when the above flags are cleared? */
     if (scp->status & SLKED || blink_in_progress)
-	return;
+	return; /* XXX who repeats the call when the above flags are cleared? */
     s = spltty();
     if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
 	tp->t_state |= TS_BUSY;
@@ -1526,6 +1545,26 @@ scstart(struct tty *tp)
 	    splx(s);
 	    ansi_put(scp, buf, len);
 	    s = spltty();
+	}
+	tp->t_state &= ~TS_BUSY;
+	ttwwakeup(tp);
+    }
+    splx(s);
+}
+
+static void
+scmousestart(struct tty *tp)
+{
+    struct clist *rbp;
+    int s;
+    u_char buf[PCBURST];
+
+    s = spltty();
+    if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
+	tp->t_state |= TS_BUSY;
+	rbp = &tp->t_outq;
+	while (rbp->c_cc) {
+	    q_to_b(rbp, buf, PCBURST);
 	}
 	tp->t_state &= ~TS_BUSY;
 	ttwwakeup(tp);
@@ -1548,7 +1587,7 @@ sccnprobe(struct consdev *cp)
     }
 
     /* initialize required fields */
-    cp->cn_dev = makedev(CDEV_MAJOR, MAXCONS);
+    cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLE);
     cp->cn_pri = CN_INTERNAL;
 }
 
@@ -2945,7 +2984,7 @@ scinit(void)
     was = *cp;
     *cp = (u_short) 0xA55A;
     if (*cp == 0xA55A) {
-	Crtat = (u_short *)cp;
+	Crtat = (u_short *)CGA_BUF;
 	crtc_addr = COLOR_BASE;
     }
     *cp = was;

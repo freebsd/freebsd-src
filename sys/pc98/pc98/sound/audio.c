@@ -27,13 +27,13 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 #ifndef EXCLUDE_AUDIO
 
-#include "ulaw.h"
-#include "coproc.h"
+#include <i386/isa/sound/ulaw.h>
+#include <i386/isa/sound/coproc.h>
 
 #define ON		1
 #define OFF		0
