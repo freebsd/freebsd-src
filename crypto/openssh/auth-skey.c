@@ -38,7 +38,7 @@ skey_init_ctx(Authctxt *authctxt)
 	return authctxt;
 }
 
-#define PROMPT "\nS/Key Password: "
+#define PROMPT "\nOPIE Password: "
 
 static int
 skey_query(void *ctx, char **name, char **infotxt,
@@ -49,6 +49,8 @@ skey_query(void *ctx, char **name, char **infotxt,
 	int len;
 	struct opie opie;
 
+	if (opie_haskey(authctxt->user) != 0)
+		return -1;
 	if (opiechallenge(&opie, authctxt->user, challenge) == -1)
 		return -1;
 
