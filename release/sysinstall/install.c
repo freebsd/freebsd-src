@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.7 1995/09/25 04:16:19 jkh Exp $
+ * $Id: install.c,v 1.71.2.8 1995/09/25 05:36:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -215,7 +215,7 @@ installFixit(char *str)
 	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&args) != -1)
 	    break;
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
-	    return TRUE;
+	    return FALSE;
     }
     dialog_clear();
     dialog_update();
@@ -233,7 +233,7 @@ installFixit(char *str)
     dialog_update();
     unmount("/mnt2", MNT_FORCE);
     msgConfirm("Please remove the fixit floppy and press return");
-    return TRUE;
+    return FALSE;
 }
 
 int
