@@ -57,52 +57,12 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
-	struct ttyent *ttyfileinfo;
-	struct passwd *pwd;
-	int retval;
-	const char *user, *ttyname;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	retval = pam_get_user(pamh, &user, NULL);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got user: %s", user);
-
-	retval = pam_get_item(pamh, PAM_TTY, (const void **)&ttyname);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	PAM_LOG("Got TTY: %s", ttyname);
-
-	/* Ignore any "/dev/" on the PAM_TTY item */
-	if (strncmp(TTY_PREFIX, ttyname, sizeof(TTY_PREFIX) - 1) == 0)
-		ttyname += sizeof(TTY_PREFIX) - 1;
-
-	/* If the user is not root, secure ttys do not apply */
-	pwd = getpwnam(user);
-	if (pwd == NULL)
-		PAM_RETURN(PAM_IGNORE);
-	else if (pwd->pw_uid != 0)
-		PAM_RETURN(PAM_SUCCESS);
-
-	PAM_LOG("User is not root");
-
-	ttyfileinfo = getttynam(ttyname);
-	if (ttyfileinfo == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
-
-	PAM_LOG("Got ttyfileinfo");
-
-	if (ttyfileinfo->ty_status & TTY_SECURE)
-		PAM_RETURN(PAM_SUCCESS);
-	else {
-		PAM_VERBOSE_ERROR("Not on secure TTY");
-		PAM_RETURN(PAM_PERM_DENIED);
-	}
+	PAM_RETURN(PAM_IGNORE);
 }
 
 PAM_EXTERN
@@ -122,12 +82,45 @@ PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
 {
 	struct options options;
+	struct passwd *pwd;
+	struct ttyent *ty;
+	const char *user, *tty;
+	int pam_err;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	PAM_RETURN(PAM_IGNORE);
+	pam_err = pam_get_user(pamh, &user, NULL);
+	if (pam_err != PAM_SUCCESS)
+		PAM_RETURN(pam_err);
+	if (user == NULL || (pwd = getpwnam(user)) == NULL)
+		PAM_RETURN(PAM_SERVICE_ERR);
+
+	PAM_LOG("Got user: %s", user);
+
+	/* If the user is not root, secure ttys do not apply */
+	if (pwd->pw_uid != 0)
+		PAM_RETURN(PAM_SUCCESS);
+
+	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	if (pam_err != PAM_SUCCESS)
+		PAM_RETURN(pam_err);
+
+	PAM_LOG("Got TTY: %s", tty);
+
+	/* Ignore any "/dev/" on the PAM_TTY item */
+	if (tty != NULL && strncmp(TTY_PREFIX, tty, sizeof(TTY_PREFIX)) == 0) {
+		PAM_LOG("WARNING: PAM_TTY starts with " TTY_PREFIX);
+		tty += sizeof(TTY_PREFIX) - 1;
+	}
+
+	if (tty != NULL && (ty = getttynam(tty)) != NULL &&
+	    (ty->ty_status & TTY_SECURE) != 0)
+		PAM_RETURN(PAM_SUCCESS);
+	
+	PAM_VERBOSE_ERROR("Not on secure TTY");
+	PAM_RETURN(PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
