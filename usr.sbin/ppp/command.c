@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.13 1996/01/11 17:48:41 phk Exp $
+ * $Id: command.c,v 1.14 1996/01/30 20:04:28 phk Exp $
  *
  */
 #include <sys/types.h>
@@ -53,6 +53,7 @@ extern int  SelectSystem();
 extern int  ShowRoute();
 extern void TtyOldMode(), TtyCommandMode();
 extern struct pppvars pppVars;
+extern struct cmdtab const SetCommands[];
 
 struct in_addr ifnetmask;
 
@@ -75,6 +76,8 @@ struct cmdtab *plist;
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++) {
       if (strcmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
+	if (plist == SetCommands)
+		printf("set ");
         printf("%s %s\n", cmd->name, cmd->syntax);
         return(1);
       }
@@ -223,7 +226,7 @@ struct cmdtab const Commands[] = {
   { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
 	"Close connection",		StrNull},
   { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
-  	"delete route",			"dest gateway"},
+	"delete route",                 "ALL | dest gateway [mask]"},
   { "deny",    NULL,    DenyCommand,	LOCAL_AUTH,
   	"Deny option request",		StrOption},
   { "dial",    "call",  DialCommand,	LOCAL_AUTH,
@@ -249,7 +252,7 @@ struct cmdtab const Commands[] = {
   { "term",    NULL,    TerminalCommand,LOCAL_AUTH,
   	"Enter to terminal mode", StrNull},
   { "quit",    "bye",   QuitCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
-  	"Quit PPP program", StrNull},
+	"Quit PPP program", "[all]"},
   { "help",    "?",     HelpCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", "[command]", (void *)Commands },
   { NULL,      "down",  DownCommand,	LOCAL_AUTH,
@@ -838,7 +841,8 @@ int param;
       VarAccmap = map;
       break;
     case VAR_PHONE:
-      strncpy(VarPhone, *argv, sizeof(VarPhone)-1);
+      strncpy(VarPhoneList, *argv, sizeof(VarPhoneList)-1);
+      VarNextPhone = VarPhoneList;
       break;
     }
   }
@@ -886,7 +890,7 @@ struct cmdtab const SetCommands[] = {
   { "escape",   NULL,	  SetEscape, 		LOCAL_AUTH,
 	"Set escape characters", "hex-digit ..."},
   { "ifaddr",   NULL,   SetInterfaceAddr,	LOCAL_AUTH,
-	"Set destination address", "src-addr dst-addr netmask"},
+	"Set destination address", "[src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
 	"Set input filter", "..."},
   { "login",    NULL,     SetVariable,		LOCAL_AUTH,
@@ -900,7 +904,7 @@ struct cmdtab const SetCommands[] = {
   { "parity",   NULL,     SetModemParity,	LOCAL_AUTH,
 	"Set modem parity", "[odd|even|none]"},
   { "phone",    NULL,     SetVariable,		LOCAL_AUTH,
-	"Set telephone number", "phone-number",	(void *)VAR_PHONE },
+	"Set telephone number(s)", "phone1[:phone2[...]]", (void *)VAR_PHONE },
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
 	"Set modem speed", "speed"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
@@ -923,7 +927,7 @@ char **argv;
   if (argc > 0)
     val = FindExec(SetCommands, argc, argv);
   else
-    printf("Use ``set ?'' to get a list.\n");
+    printf("Use `set ?' to get a list or `set ? <var>' for syntax help.\n");
   return(val);
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.11 1996/01/11 17:48:54 phk Exp $
+ * $Id: modem.c,v 1.12 1996/01/30 11:08:43 dfr Exp $
  *
  *  TODO:
  */
@@ -49,7 +49,8 @@ static struct pppTimer ModemTimer;
 static char uucplock[10];
 
 extern int uu_lock(), uu_unlock();
-extern void PacketMode();
+extern void PacketMode(), TtyTermMode(), TtyCommandMode();
+extern int TermMode;
 
 #define	Online	(mbits & TIOCM_CD)
 
@@ -216,6 +217,15 @@ DownConnection()
   CloseModem();
   LcpDown();
   connect_time = 0;
+  if (TermMode) {
+    modem = OpenModem(mode);
+    if (modem < 0) {
+      printf("failed to open modem.\n");
+      modem = 0;
+      TtyCommandMode(1);
+    }
+    TtyTermMode();
+  }
 }
 
 /*
@@ -454,7 +464,7 @@ int mode;
       rstio.c_cflag |= VarParity;
       cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
-    rstio.c_iflag |= (IGNBRK | ISTRIP | IGNPAR | IXON | IXOFF);
+    rstio.c_iflag |= (IGNBRK | IGNPAR | IXON | IXOFF);
     rstio.c_iflag &= ~(BRKINT|ICRNL|IXANY|IMAXBEL);
     rstio.c_lflag = 0;
 
@@ -727,18 +737,23 @@ DialModem()
 
   strcpy(ScriptBuffer, VarDialScript);
   if (DoChat(ScriptBuffer) > 0) {
-    fprintf(stderr, "dial OK!\n");
+    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+      fprintf(stderr, "dial OK!\n");
     strcpy(ScriptBuffer, VarLoginScript);
     if (DoChat(ScriptBuffer) > 0) {
-      fprintf(stderr, "login OK!\n");
+      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+	fprintf(stderr, "login OK!\n");
       return(1);
     } else {
-      fprintf(stderr, "login failed.\n");
+      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+	fprintf(stderr, "login failed.\n");
     }
     ModemTimeout();	/* Dummy call to check modem status */
   }
-  else
-    fprintf(stderr, "dial failed.\n");
+  else {
+    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+      fprintf(stderr, "dial failed.\n");
+  }
   HangupModem(0);
   return(0);
 }
@@ -782,6 +797,6 @@ ShowModemStatus()
   printf("outqlen: %d\n", ModemQlen());
   printf("DialScript  = %s\n", VarDialScript);
   printf("LoginScript = %s\n", VarLoginScript);
-  printf("PhoneNumber = %s\n", VarPhone);
+  printf("PhoneNumber(s) = %s\n", VarPhoneList);
   return(1);
 }
