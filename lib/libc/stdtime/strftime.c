@@ -75,8 +75,10 @@ _fmt(format, t, pt, ptlim)
 	char *pt;
 	const char *const ptlim;
 {
+	int alternative;
 	for ( ; *format; ++format) {
 		if (*format == '%') {
+			alternative = 0;
 label:
 			switch (*++format) {
 			case '\0':
@@ -93,8 +95,9 @@ label:
 					pt, ptlim);
 				continue;
 			case 'B':
-				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ?
-					"?" : Locale->month[t->tm_mon],
+				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ? 
+					"?" : (alternative ? Locale->alt_month :
+					Locale->month)[t->tm_mon],
 					pt, ptlim);
 				continue;
 			case 'b':
@@ -136,6 +139,7 @@ label:
 				** representations.
 				** (ado, 5/24/93)
 				*/
+				alternative = 1;
 				goto label;
 			case 'e':
 				pt = _conv(t->tm_mday, "%2d", pt, ptlim);
