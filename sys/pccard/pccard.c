@@ -55,6 +55,7 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
+#include <i386/include/laptops.h>
 
 extern struct kern_devconf kdc_cpu0;
 
@@ -142,6 +143,7 @@ pccard_add_driver(struct pccard_drv *dp)
 		printf("Driver %s already loaded\n", dp->name);
 		return;
 	}
+	printf("pccard driver %s added\n", dp->name);
 	dp->next = drivers;
 	drivers = dp;
 }
@@ -351,12 +353,6 @@ pccard_alloc_intr(int imask, inthand2_t *hand, int unit, int *maskp)
 	int irq;
 	unsigned int mask;
 
-	imask =  1<< 3;
-	imask |= 1<< 5;
-	imask |= 1<< 9;
-	imask |= 1<<11;
-	imask |= 1<<15;
-
 	for (irq = 1; irq < 16; irq++) {
 		mask = 1ul << irq;
 		if (!(mask & imask))
@@ -535,6 +531,17 @@ inserted(void *arg)
 }
 
 /*
+ *	Insert/Remove beep
+ */
+
+static int beepok = 1;
+
+static void enable_beep(void *dummy)
+{
+	beepok = 1;
+}
+
+/*
  *	Card event callback. Called at splhigh to prevent
  *	device interrupts from interceding.
  */
@@ -559,12 +566,18 @@ int s;
 			sp->state = empty;
 			splx(s);
 			printf("Card removed, slot %d\n", sp->slot);
+			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
+			beepok = 0;
+			timeout(enable_beep, (void *)NULL, hz/5);
 			selwakeup(&sp->selp);
 		}
 		break;
 	case card_inserted:
 		sp->insert_seq = 1;
 		timeout(inserted, (void *)sp, hz/4);
+		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
+		beepok = 0;
+		timeout(enable_beep, (void *)NULL, hz/5);
 		break;
 	}
 }
@@ -726,7 +739,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 int
 crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 {
-	int	s;
+	int	s, err;
 	struct slot *sp = pccard_slots[minor(dev)];
 	struct mem_desc *mp;
 	struct io_desc *ip;
@@ -846,7 +859,12 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCSDRV:
 		if (suser(p->p_ucred, &p->p_acflag))
 			return(EPERM);
-		return(allocate_driver(sp, (struct drv_desc *)data));
+		err = allocate_driver(sp, (struct drv_desc *)data);
+		if (!err)
+			sysbeep(PCCARD_BEEP_PITCH1, PCCARD_BEEP_DURATION1);
+		else
+			sysbeep(PCCARD_BEEP_PITCH2, PCCARD_BEEP_DURATION2);
+		return err;
 		}
 	return(0);
 }
