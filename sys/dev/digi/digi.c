@@ -31,7 +31,6 @@
 
 /*-
  * TODO:
- *	Allow altpin setups again
  *	Figure out what the con bios stuff is supposed to do
  *	Test with *LOTS* more cards - I only have a PCI8r and an ISA Xem.
  */
@@ -674,9 +673,9 @@ digimctl(struct digi_p *port, int bits, int how)
 		bits = TIOCM_LE;
 		if (mstat & port->sc->csigs->rts)
 			bits |= TIOCM_RTS;
-		if (mstat & port->sc->csigs->cd)
+		if (mstat & port->cd)
 			bits |= TIOCM_CD;
-		if (mstat & port->sc->csigs->dsr)
+		if (mstat & port->dsr)
 			bits |= TIOCM_DSR;
 		if (mstat & port->sc->csigs->cts)
 			bits |= TIOCM_CTS;
@@ -825,8 +824,15 @@ open_top:
 		bc->idata = 1;
 		bc->iempty = 1;
 		bc->ilow = 1;
-		bc->mint = port->sc->csigs->cd | port->sc->csigs->ri;
+		bc->mint = port->cd | port->sc->csigs->ri;
 		bc->tin = bc->tout;
+		if (port->ialtpin) {
+			port->cd = sc->csigs->dsr;
+			port->dsr = sc->csigs->cd;
+		} else {
+			port->cd = sc->csigs->cd;
+			port->dsr = sc->csigs->dsr;
+		}
 		port->wopeners++;			/* XXX required ? */
 		error = digiparam(tp, &tp->t_termios);
 		port->wopeners--;
@@ -840,7 +846,7 @@ open_top:
 
 		/* handle fake and initial DCD for callout devices */
 
-		if (bc->mstat & port->sc->csigs->cd || mynor & CALLOUT_MASK)
+		if (bc->mstat & port->cd || mynor & CALLOUT_MASK)
 			linesw[tp->t_line].l_modem(tp, 1);
 	}
 
@@ -944,7 +950,7 @@ digihardclose(struct digi_p *port)
 	bc->ilow = 0;
 	bc->mint = 0;
 	if ((port->tp->t_cflag & HUPCL) ||
-	    (!port->active_out && !(bc->mstat & port->sc->csigs->cd) &&
+	    (!port->active_out && !(bc->mstat & port->cd) &&
 	    !(port->it_in.c_cflag & CLOCAL)) ||
 	    !(port->tp->t_state & TS_ISOPEN)) {
 		digimctl(port, TIOCM_DTR | TIOCM_RTS, DMBIC);
@@ -1162,22 +1168,87 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
-
 			return (0);
+
 		case TIOCGETA:
 			*(struct termios *)data = *ct;
-
 			return (0);
+
 		case TIOCGETD:
 			*(int *)data = TTYDISC;
 			return (0);
+
 		case TIOCGWINSZ:
 			bzero(data, sizeof(struct winsize));
 			return (0);
+
+		case DIGIIO_GETALTPIN:
+			switch (mynor & CONTROL_MASK) {
+			case CONTROL_INIT_STATE:
+				*(int *)data = port->ialtpin;
+				break;
+
+			case CONTROL_LOCK_STATE:
+				*(int *)data = port->laltpin;
+				break;
+
+			default:
+				panic("Confusion when re-testing minor");
+				return (ENODEV);
+			}
+			return (0);
+
+		case DIGIIO_SETALTPIN:
+			switch (mynor & CONTROL_MASK) {
+			case CONTROL_INIT_STATE:
+				if (!port->laltpin) {
+					port->ialtpin = !!*(int *)data;
+					DLOG(DIGIDB_SET, (sc->dev,
+					    "port%d: initial ALTPIN %s\n", pnum,
+					    port->ialtpin ? "set" : "cleared"));
+				}
+				break;
+
+			case CONTROL_LOCK_STATE:
+				port->laltpin = !!*(int *)data;
+				DLOG(DIGIDB_SET, (sc->dev,
+				    "port%d: ALTPIN %slocked\n",
+				    pnum, port->laltpin ? "" : "un"));
+				break;
+
+			default:
+				panic("Confusion when re-testing minor");
+				return (ENODEV);
+			}
+			return (0);
+
 		default:
 			return (ENOTTY);
 		}
 	}
+
+	switch (cmd) {
+	case DIGIIO_GETALTPIN:
+		*(int *)data = !!(port->dsr == sc->csigs->cd);
+		return (0);
+
+	case DIGIIO_SETALTPIN:
+		if (!port->laltpin) {
+			if (*(int *)data) {
+				DLOG(DIGIDB_SET, (sc->dev,
+				    "port%d: ALTPIN set\n", pnum));
+				port->cd = sc->csigs->dsr;
+				port->dsr = sc->csigs->cd;
+			} else {
+				DLOG(DIGIDB_SET, (sc->dev,
+				    "port%d: ALTPIN cleared\n", pnum));
+				port->cd = sc->csigs->cd;
+				port->dsr = sc->csigs->dsr;
+			}
+		}
+		return (0);
+	}
+
 	tp = port->tp;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	term = tp->t_termios;
@@ -1382,9 +1453,9 @@ digiparam(struct tty *tp, struct termios *t)
 	if (t->c_cflag & CCTS_OFLOW)
 		hflow |= sc->csigs->cts;
 	if (t->c_cflag & CDSR_OFLOW)
-		hflow |= sc->csigs->dsr;
+		hflow |= port->dsr;
 	if (t->c_cflag & CCAR_OFLOW)
-		hflow |= sc->csigs->cd;
+		hflow |= port->cd;
 
 	DLOG(DIGIDB_SET, (sc->dev, "port%d: set hflow = 0x%x\n", pnum, hflow));
 	fepcmd_w(port, SETHFLOW, 0xff00 | (unsigned)hflow, 0);
@@ -1587,10 +1658,10 @@ end_of_data:
 			DLOG(DIGIDB_MODEM, (sc->dev, "port %d: MODEMCHG_IND\n",
 			    event.pnum));
 
-			if ((event.mstat ^ event.lstat) & port->sc->csigs->cd) {
+			if ((event.mstat ^ event.lstat) & port->cd) {
 				sc->hidewin(sc);
 				linesw[tp->t_line].l_modem
-				    (tp, event.mstat & port->sc->csigs->cd);
+				    (tp, event.mstat & port->cd);
 				sc->setwin(sc, 0);
 				wakeup(TSA_CARR_ON(tp));
 			}
