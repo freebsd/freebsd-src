@@ -31,19 +31,20 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif
+#endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -52,16 +53,17 @@ static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-u_quad_t tlinect, twordct, tcharct;
+uintmax_t tlinect, twordct, tcharct;
 int doline, doword, dochar;
 
-int cnt __P((const char *));
-void usage __P((void));
+static int	cnt __P((const char *));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -112,22 +114,22 @@ main(argc, argv)
 
 	if (total > 1) {
 		if (doline)
-			(void)printf(" %7qu", tlinect);
+			(void)printf(" %7ju", tlinect);
 		if (doword)
-			(void)printf(" %7qu", twordct);
+			(void)printf(" %7ju", twordct);
 		if (dochar)
-			(void)printf(" %7qu", tcharct);
+			(void)printf(" %7ju", tcharct);
 		(void)printf(" total\n");
 	}
 	exit(errors == 0 ? 0 : 1);
 }
 
-int
+static int
 cnt(file)
 	const char *file;
 {
 	struct stat sb;
-	u_quad_t linect, wordct, charct;
+	uintmax_t linect, wordct, charct;
 	int fd, len;
 	short gotsp;
 	u_char *p;
@@ -162,10 +164,10 @@ cnt(file)
 						++linect;
 			}
 			tlinect += linect;
-			(void)printf(" %7qu", linect);
+			(void)printf(" %7ju", linect);
 			if (dochar) {
 				tcharct += charct;
-				(void)printf(" %7qu", charct);
+				(void)printf(" %7ju", charct);
 			}
 			(void)close(fd);
 			return (0);
@@ -216,21 +218,21 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 	}
 	if (doline) {
 		tlinect += linect;
-		(void)printf(" %7qu", linect);
+		(void)printf(" %7ju", linect);
 	}
 	if (doword) {
 		twordct += wordct;
-		(void)printf(" %7qu", wordct);
+		(void)printf(" %7ju", wordct);
 	}
 	if (dochar) {
 		tcharct += charct;
-		(void)printf(" %7qu", charct);
+		(void)printf(" %7ju", charct);
 	}
 	(void)close(fd);
 	return (0);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: wc [-clw] [file ...]\n");
