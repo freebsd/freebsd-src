@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.76 1997/12/02 21:07:20 phk Exp $
+ *	$Id: vnode_pager.c,v 1.77 1997/12/19 09:03:17 dyson Exp $
  */
 
 /*
@@ -132,6 +132,9 @@ vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
 		tsleep(object, PVM, "vadead", 0);
 	}
 
+	if (vp->v_usecount == 0)
+		panic("vnode_pager_alloc: no vnode reference");
+
 	if (object == NULL) {
 		/*
 		 * And an object of the appropriate size
@@ -142,12 +145,6 @@ vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
 		else
 			object->flags = 0;
 
-		if (vp->v_usecount == 0)
-			panic("vnode_pager_alloc: no vnode reference");
-		/*
-		 * Hold a reference to the vnode and initialize object data.
-		 */
-		vp->v_usecount++;
 		object->un_pager.vnp.vnp_size = (vm_ooffset_t) size * PAGE_SIZE;
 
 		object->handle = handle;
@@ -193,7 +190,6 @@ vnode_pager_dealloc(object)
 
 	vp->v_object = NULL;
 	vp->v_flag &= ~(VTEXT | VVMIO);
-	vrele(vp);
 }
 
 static boolean_t
@@ -319,75 +315,6 @@ vnode_pager_setsize(vp, nsize)
 	object->un_pager.vnp.vnp_size = nsize;
 	object->size = OFF_TO_IDX(nsize + PAGE_MASK);
 }
-
-void
-vnode_pager_umount(mp)
-	register struct mount *mp;
-{
-	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp, *nvp;
-
-loop:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
-		/*
-		 * Vnode can be reclaimed by getnewvnode() while we
-		 * traverse the list.
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-
-		/*
-		 * Save the next pointer now since uncaching may terminate the
-		 * object and render vnode invalid
-		 */
-		nvp = vp->v_mntvnodes.le_next;
-
-		if (vp->v_object != NULL) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			vnode_pager_uncache(vp, p);
-			VOP_UNLOCK(vp, 0, p);
-		}
-	}
-}
-
-/*
- * Remove vnode associated object from the object cache.
- * This routine must be called with the vnode locked.
- *
- * XXX unlock the vnode.
- * We must do this since uncaching the object may result in its
- * destruction which may initiate paging activity which may necessitate
- * re-locking the vnode.
- */
-void
-vnode_pager_uncache(vp, p)
-	struct vnode *vp;
-	struct proc *p;
-{
-	vm_object_t object;
-
-	/*
-	 * Not a mapped vnode
-	 */
-	object = vp->v_object;
-	if (object == NULL)
-		return;
-
-	vm_object_reference(object);
-	vm_freeze_copyopts(object, 0, object->size);
-
-	/*
-	 * XXX We really should handle locking on
-	 * VBLK devices...
-	 */
-	if (vp->v_type != VBLK)
-		VOP_UNLOCK(vp, 0, p);
-	pager_cache(object, FALSE);
-	if (vp->v_type != VBLK)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	return;
-}
-
 
 void
 vnode_pager_freepage(m)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.50 1997/10/26 20:55:24 phk Exp $
+ * $Id: spec_vnops.c,v 1.51 1997/10/27 13:33:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -640,15 +640,8 @@ spec_close(ap)
 		 * sum of the reference counts on all the aliased
 		 * vnodes descends to one, we are on last close.
 		 */
-		if ((vcount(vp) > (vp->v_object?2:1)) &&
-			(vp->v_flag & VXLOCK) == 0)
+		if ((vcount(vp) > 1) && (vp->v_flag & VXLOCK) == 0)
 			return (0);
-
-		if (vp->v_object) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-			vnode_pager_uncache(vp, p);
-			VOP_UNLOCK(vp, 0, p);
-		}
 
 		devclose = bdevsw[major(dev)]->d_close;
 		mode = S_IFBLK;
@@ -796,7 +789,7 @@ spec_getpages(ap)
 
 	/* We definitely need to be at splbio here. */
 	while ((bp->b_flags & B_DONE) == 0)
-		tsleep(bp, PVM, "vnread", 0);
+		tsleep(bp, PVM, "spread", 0);
 
 	splx(s);
 

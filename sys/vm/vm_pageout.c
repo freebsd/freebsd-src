@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.103 1997/12/06 02:23:33 dyson Exp $
+ * $Id: vm_pageout.c,v 1.104 1997/12/24 15:05:25 dyson Exp $
  */
 
 /*
@@ -1322,23 +1322,6 @@ vm_daemon()
 				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				    (vm_pindex_t)(limit >> PAGE_SHIFT) );
 			}
-		}
-
-		/*
-		 * we remove cached objects that have no RSS...
-		 */
-restart:
-		object = TAILQ_FIRST(&vm_object_cached_list);
-		while (object) {
-			/*
-			 * if there are no resident pages -- get rid of the object
-			 */
-			if (object->resident_page_count == 0) {
-				vm_object_reference(object);
-				pager_cache(object, FALSE);
-				goto restart;
-			}
-			object = TAILQ_NEXT(object, cached_list);
 		}
 	}
 }
