@@ -997,7 +997,7 @@ static int
 sbus_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
     int flags, bus_dmamap_t *mapp, bus_size_t size)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
 
 	return (iommu_dvmamem_alloc_size(pdmat, ddmat, &sc->sc_is, vaddr, flags,
 		    mapp, size));
@@ -1017,7 +1017,7 @@ static void
 sbus_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
     bus_dmamap_t map, bus_size_t size)
 {
-	struct sbus_softc *sc = (struct sbus_softc *)pdmat->cookie;
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
 
 	iommu_dvmamem_free_size(pdmat, ddmat, &sc->sc_is, vaddr, map, size);
 }

@@ -674,7 +674,7 @@ iommu_dvmamem_alloc_size(bus_dma_tag_t pt, bus_dma_tag_t dt,
 {
 	int error;
 
-	if (size > dt->maxsize)
+	if (size > dt->dt_maxsize)
 		return (ENOMEM);
 
 	/*
@@ -703,7 +703,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     void **vaddr, int flags, bus_dmamap_t *mapp)
 {
 	return (iommu_dvmamem_alloc_size(pt, dt, is, vaddr, flags, mapp,
-	    dt->maxsize));
+	    dt->dt_maxsize));
 }
 
 void
@@ -720,7 +720,7 @@ void
 iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     void *vaddr, bus_dmamap_t map)
 {
-	iommu_dvmamem_free_size(pt, dt, is, vaddr, map, dt->maxsize);
+	iommu_dvmamem_free_size(pt, dt, is, vaddr, map, dt->dt_maxsize);
 }
 
 int
