@@ -571,7 +571,7 @@ start_softintr(void *dummy)
 
 	if (swi_add(&clk_ithd, "clock", softclock, NULL, SWI_CLOCK,
 		INTR_MPSAFE, &softclock_ih) ||
-	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
+	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, INTR_MPSAFE, &vm_ih))
 		panic("died while creating standard software ithreads");
 
 	p = clk_ithd->it_td->td_proc;
