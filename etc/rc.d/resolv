@@ -107,7 +107,13 @@ echo "+++ create lastlog"
 # Make sure our aliases database is uptodate, the aliases may have
 # been overriden in /conf.
 #
-/usr/bin/newaliases
+case ${sendmail_enable} in
+[Nn][Oo][Nn][Ee])
+	;;
+*)
+	/usr/bin/newaliases
+	;;
+esac
 
 # XXX make sure to create one dir for each printer as requested by lpd
 #
