@@ -83,7 +83,7 @@ extern char *syscallnames[];
 void
 userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 {
-	int sig, s;
+	int sig;
 
 	/* take pending signals */
 	while ((sig = CURSIG(p)) != 0) {
@@ -102,14 +102,12 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 		 * before we switch()'ed, we might not be on the queue
 		 * indicated by our priority.
 		 */
-		s = splstatclock();
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
-		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
 			if (!mtx_owned(&Giant))
 				mtx_lock(&Giant);
@@ -125,11 +123,10 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 		mtx_unlock_spin(&sched_lock);
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock);
-		addupc_task(p, frame->tf_cr_iip,
+		addupc_task(p, TRAPF_PC(frame),
 		    (int)(p->p_sticks - oticks) * psratio);
-	}
-	mtx_unlock_spin(&sched_lock);
+	} else
+		mtx_unlock_spin(&sched_lock);
 }
 
 static const char *ia64_vector_names[] = {
@@ -628,31 +625,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 }
 
 /*
- * Process the tail end of a fork() for the child.
- */
-void
-child_return(p)
-	struct proc *p;
-{
-
-	/*
-	 * Return values in the frame set by cpu_fork().
-	 */
-
-	userret(p, p->p_md.md_tf, 0);
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
-		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
-	}
-#endif
-
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
-}
-
-/*
  * Process an asynchronous software trap.
  * This is relatively easy.
  */
@@ -664,18 +636,25 @@ ast(framep)
 	u_quad_t sticks;
 
 	p = curproc;
+
+	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
+
+	/*
+	 * We check for a pending AST here rather than in assembly as
+	 * acquiring and release mutexes in assembly is not fun.
+	 */
 	mtx_lock_spin(&sched_lock);
+	if (!(astpending(p) || resched_wanted())) {
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
+
 	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
 	p->p_md.md_tf = framep;
 
-	if ((framep->tf_cr_ipsr & IA64_PSR_CPL) != IA64_PSR_CPL_USER)
-		panic("ast and not user");
-
+	astoff(p);
 	cnt.v_soft++;
-
-	PCPU_SET(astpending, 0);
-	mtx_lock_spin(&sched_lock);
+	mtx_intr_enable(&sched_lock);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;
 		mtx_unlock_spin(&sched_lock);
