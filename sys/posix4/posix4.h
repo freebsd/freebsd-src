@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-#include "opt_posix.h"
-
 #include <sys/param.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
