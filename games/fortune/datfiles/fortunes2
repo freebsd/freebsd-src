@@ -8047,15 +8047,6 @@ A wise person makes his own decisions, a weak one obeys public opinion.
 A witty saying proves nothing.
 		-- Voltaire
 %
-"A wizard cannot do everything; a fact most magicians are reticent to admit,
-let alone discuss with prospective clients.  Still, the fact remains that
-there are certain objects, and people, that are, for one reason or another,
-completely immune to any direct magical spell.  It is for this group of
-beings that the magician learns the subtleties of using indirect spells.
-It also does no harm, in dealing with these matters, to carry a large club
-near your person at all times."
-		-- The Teachings of Ebenezum, Volume VIII
-%
 A wizard cannot do everything; a fact most magicians are reticent to admit,
 let alone discuss with prospective clients.  Still, the fact remains that
 there are certain objects, and people, that are, for one reason or another,
@@ -8272,7 +8263,7 @@ About the time we think we can make ends meet, somebody moves the ends.
 %
 About the use of language: it is impossible to sharpen a pencil with a blunt
 ax.  It is equally vain to try to do it with ten blunt axes instead.
-		-- Edsger Dijkstra
+		-- Edsger W. Dijkstra
 %
 Above all else - sky.
 %
@@ -8866,7 +8857,7 @@ Al didn't smile for forty years.  You've got to admire a man like that.
 Alan Turing thought about criteria to settle the question of whether
 machines can think, a question of which we now know that it is about
 as relevant as the question of whether submarines can swim.
-		-- Dijkstra
+		-- Edsger W. Dijkstra
 %
 Alas, how love can trifle with itself!
 		-- William Shakespeare, "The Two Gentlemen of Verona"
@@ -11237,9 +11228,6 @@ never really caught on.
 Back when I was a boy, it was 40 miles to everywhere,
 uphill both ways and it was always snowing.
 %
-Back when I was a boy, it was 40 miles to everywhere, uphill both ways
-and it was always snowing.
-%
 BACKWARD CONDITIONING:
 	Putting saliva in a dog's mouth in an attempt to make a bell ring.
 %
@@ -11491,6 +11479,11 @@ Before I knew the best part of my life had come, it had gone.
 %
 Before marriage the three little words are "I love you," after marriage
 they are "Let's eat out."
+%
+Before really embarking on a sizeable project, in particular before
+starting the large investment of coding, try to kill the project
+first.
+		-- Edsger W. Dijkstra, EWD1308
 %
 Before Xerox, five carbons were the maximum extension of anybody's ego.
 %
@@ -13140,7 +13133,7 @@ COBOL:
 	Completely Over and Beyond reason Or Logic.
 %
 COBOL is for morons.
-		-- E.W. Dijkstra
+		-- Edsger W. Dijkstra
 %
 Cobol programmers are down in the dumps.
 %
@@ -22077,7 +22070,7 @@ I have a theory that it's impossible to prove anything,
 but I can't prove it.
 %
 I have a very small mind and must live with it.
-		-- E. Dijkstra
+		-- Edsger W. Dijkstra
 %
 I have a very strange feeling about this...
 		-- Luke Skywalker
@@ -31794,7 +31787,7 @@ consultants, and at some point you time them out.
 %
 Much of the excitement we get out of our work
 is that we don't really know what we are doing.
-		-- E. Dijkstra
+		-- Edsger W. Dijkstra
 %
 Much to his Mum and Dad's dismay, Horace ate himself one day.
 He didn't stop to say his grace, he just sat down and ate his face.
@@ -31970,10 +31963,6 @@ In better spirits night and day.
 %
 My doctor told me to stop having intimate dinners for four.
 Unless there are three other people.
-		-- Orson Welles
-%
-My doctor told me to stop having intimate dinners for four.  Unless there
-are three other people.
 		-- Orson Welles
 %
 My doctorate's in Literature, but it seems like a pretty good pulse to me.
@@ -41158,7 +41147,7 @@ Test for paraquat:
 	the solution will turn blue-green.
 %
 Testing can show the presense of bugs, but not their absence.
-		-- Dijkstra
+		-- Edsger W. Dijkstra
 %
 Test-tube babies shouldn't throw stones.
 %
@@ -44757,7 +44746,7 @@ for incompetence.
 The problems of business administration in general, and database management in
 particular are much too difficult for people that think in IBMese, compounded
 with sloppy English.
-		-- Edsger Dijkstra
+		-- Edsger W. Dijkstra
 %
 The profession of book writing makes horse racing seem like a solid,
 stable business.
@@ -45693,7 +45682,7 @@ world put together.
 %
 The use of anthropomorphic terminology when dealing with computing systems
 is a symptom of professional immaturity.
-		-- Edsger Dijkstra
+		-- Edsger W. Dijkstra
 %
 The use of COBOL cripples the mind; its teaching should, therefore, be
 regarded as a criminal offence.
@@ -50036,7 +50025,7 @@ We can embody the truth, but we cannot know it.
 %
 We can found no scientific discipline, nor a healthy profession on the
 technical mistakes of the Department of Defense and IBM.
-		-- Edsger Dijkstra
+		-- Edsger W. Dijkstra
 %
 We cannot command nature except by obeying her.
 		-- Sir Francis Bacon
