@@ -214,7 +214,6 @@ ucom_detach(struct ucom_softc *sc)
 			device_printf(sc->sc_dev,
 				      "still open, forcing close\n");
 			(*linesw[tp->t_line].l_close)(tp, 0);
-			tp->t_gen++;
 			ttyclose(tp);
 			ttwakeup(tp);
 			ttwwakeup(tp);

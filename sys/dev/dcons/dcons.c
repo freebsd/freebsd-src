@@ -586,7 +586,6 @@ dcons_detach(int port)
 	if (tp->t_state & TS_ISOPEN) {
 		printf("dcons: still opened\n");
 		(*linesw[tp->t_line].l_close)(tp, 0);
-		tp->t_gen++;
 		ttyclose(tp);
 		ttwakeup(tp);
 		ttwwakeup(tp);

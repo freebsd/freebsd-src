@@ -441,7 +441,6 @@ bad:
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
 					(*linesw[tp->t_line].l_close)(tp, 0);
-					tp->t_gen++;
 					ttyclose(tp);
 					ttwakeup(tp);
 					ttwwakeup(tp);
@@ -478,7 +477,6 @@ USB_DETACH(ubser)
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
 					(*linesw[tp->t_line].l_close)(tp, 0);
-					tp->t_gen++;
 					ttyclose(tp);
 					ttwakeup(tp);
 					ttwwakeup(tp);
