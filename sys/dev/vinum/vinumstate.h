@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.13 1999/02/28 04:58:47 grog Exp grog $
+ * $Id: vinumstate.h,v 1.8 1999/08/15 02:29:14 grog Exp $
  */
 
 /*
@@ -156,6 +156,13 @@ enum sdstate {
      */
     sd_initializing,
 
+    /*
+     * A subdisk entry which has been initialized,
+     * but which can't come up because it would
+     * cause inconsistencies.
+     */
+    sd_initialized,
+
     /* *** The following states represent invalid data */
     /*
      * A subdisk entry which has been created completely.
@@ -244,3 +251,7 @@ enum drivestate {
 
     drive_laststate = drive_up				    /* last value, for table dimensions */
 };
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

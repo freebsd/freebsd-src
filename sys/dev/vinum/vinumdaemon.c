@@ -34,10 +34,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.13 1999/08/15 02:31:19 grog Exp $
  */
 
-#define REALLYKERNEL
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
@@ -93,10 +92,11 @@ vinum_daemon(void)
 		    struct request *rq = request->info.rq;
 
 		    log(LOG_WARNING,
-			"vinumd: recovering I/O request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+			"vinumd: recovering I/O request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 			(u_int) rq,
 			rq->bp->b_flags & B_READ ? "Read" : "Write",
-			rq->bp->b_dev,
+			major(rq->bp->b_dev),
+			minor(rq->bp->b_dev),
 			rq->bp->b_blkno,
 			rq->bp->b_bcount);
 		}
@@ -147,14 +147,20 @@ vinum_daemon(void)
 		wakeup(&vinum_finddaemon);		    /* wake up the caller */
 		break;
 
+	    case daemonrq_closedrive:			    /* close a drive */
+		close_drive(request->info.drive);	    /* do it */
+		break;
+
 	    case daemonrq_init:				    /* initialize a plex */
 		/* XXX */
 	    case daemonrq_revive:			    /* revive a subdisk */
 		/* XXX */
+		/* FALLTHROUGH */
 	    default:
 		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
+	    Free(request);				    /* done with the request */
 	}
     }
 }

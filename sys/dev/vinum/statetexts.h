@@ -35,7 +35,7 @@
  *
  */
 
-/* Created by ./makestatetext on Thu Mar 25 12:50:46 CST 1999. Do not edit */
+/* Created by ./makestatetext on Sun Aug 15 10:34:15 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
@@ -55,6 +55,7 @@ char *sdstatetext[] =
     "init",
     "empty",
     "initializing",
+    "initialized",
     "obsolete",
     "stale",
     "crashed",

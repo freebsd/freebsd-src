@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,17 +35,14 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.11 1999/03/19 06:50:44 grog Exp grog $
+ * $Id: vinumutil.c,v 1.12 1999/08/07 08:14:44 grog Exp $
  */
 
 /* This file contains utility routines used both in kernel and user context */
 
-#ifdef KERNEL
-#include "opt_vinum.h"
-#endif
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/statetexts.h>
-#ifndef REALLYKERNEL
+#ifndef KERNEL
 #include <stdio.h>
 extern jmp_buf command_fail;				    /* return on a failed command */
 #endif
@@ -172,7 +171,10 @@ VolState(char *text)
  *
  * The scale factors are:
  *
- * b    blocks (of 512 bytes)
+ * s    sectors (of 512 bytes)
+ * b    blocks (of 512 bytes).  This unit is deprecated,
+ *      because it's confusing, but maintained to avoid
+ *      confusing Veritas users.
  * k    kilobytes (1024 bytes)
  * m    megabytes (of 1024 * 1024 bytes)
  * g    gigabytes (of 1024 * 1024 * 1024 bytes)
@@ -217,14 +219,14 @@ sizespec(char *spec)
 		return size * sign * 1024 * 1024 * 1024;
 	    }
 	}
-#ifdef REALLYKERNEL
+#ifdef KERNEL
 	throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
 #else
 	fprintf(stderr, "Invalid length specification: %s", spec);
 	longjmp(command_fail, -1);
 #endif
     }
-#ifdef REALLYKERNEL
+#ifdef KERNEL
     throw_rude_remark(EINVAL, "Missing length specification");
 #else
     fprintf(stderr, "Missing length specification");
@@ -241,8 +243,7 @@ sizespec(char *spec)
 int 
 Volno(dev_t dev)
 {
-    int x = (int) dev;
-    return (x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
+    return (minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
 }
 
 /*
@@ -253,8 +254,6 @@ Volno(dev_t dev)
 int 
 Plexno(dev_t dev)
 {
-    int x = (int) dev;
-
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
@@ -264,11 +263,11 @@ Plexno(dev_t dev)
 
     case VINUM_PLEX_TYPE:
     case VINUM_SD_TYPE:
-	return VOL[Volno(x)].plex[(x >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
+	return VOL[Volno(dev)].plex[(minor(dev) >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
 
     case VINUM_RAWPLEX_TYPE:
-	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((x >> VINUM_RAWPLEX_SHIFT)
+	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((minor(dev) >> VINUM_RAWPLEX_SHIFT)
 	    & (MASK(VINUM_RAWPLEX_WIDTH)
 		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
     }
@@ -283,8 +282,6 @@ Plexno(dev_t dev)
 int 
 Sdno(dev_t dev)
 {
-    int x = (int) dev;
-
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
@@ -294,11 +291,11 @@ Sdno(dev_t dev)
 	return -1;
 
     case VINUM_SD_TYPE:
-	return PLEX[Plexno(x)].sdnos[(x >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
+	return PLEX[Plexno(dev)].sdnos[(minor(dev) >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
 
     case VINUM_RAWSD_TYPE:
-	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((x >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
+	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((minor(dev) >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
 		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
     }
     return -1;						    /* compiler paranoia */

@@ -35,7 +35,7 @@
  *
  */
 
-/* $Id: vext.h,v 1.11 1999/03/02 04:10:00 grog Exp grog $ */
+/* $Id: vext.h,v 1.11 1999/08/24 02:35:07 grog Exp $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
@@ -47,13 +47,7 @@ enum {
     GIGABYTE = 1073741824
 };
 
-#if RAID5
-#define VINUMMOD "Vinum"
-#define WRONGMOD "vinum"				    /* don't want this one */
-#else
 #define VINUMMOD "vinum"
-#define WRONGMOD "Vinum"				    /* don't want this one */
-#endif
 
 #define DEFAULT_HISTORYFILE "/var/tmp/vinum_history"	    /* default name for history stuff */
 
@@ -73,6 +67,9 @@ void vinum_info(int argc, char *argv[], char *arg0[]);
 void vinum_set(int argc, char *argv[], char *arg0[]);
 void vinum_rm(int argc, char *argv[], char *arg0[]);
 void vinum_init(int argc, char *argv[], char *arg0[]);
+void initvol(int volno);
+void initplex(int plexno, char *name);
+void initsd(int sdno, int dowait);
 void vinum_resetconfig(int argc, char *argv[], char *arg0[]);
 void vinum_start(int argc, char *argv[], char *arg0[]);
 void continue_revive(int plexno);
@@ -81,6 +78,8 @@ void vinum_makedev(int argc, char *argv[], char *arg0[]);
 void vinum_help(int argc, char *argv[], char *arg0[]);
 void vinum_quit(int argc, char *argv[], char *arg0[]);
 void vinum_setdaemon(int argc, char *argv[], char *arg0[]);
+void vinum_replace(int argc, char *argv[], char *arg0[]);
+void vinum_readpol(int argc, char *argv[], char *arg0[]);
 void reset_volume_stats(int volno, int recurse);
 void reset_plex_stats(int plexno, int recurse);
 void reset_sd_stats(int sdno, int recurse);
@@ -94,21 +93,35 @@ void vinum_replace(int argc, char *argv[], char *argv0[]);
 void vinum_printconfig(int argc, char *argv[], char *argv0[]);
 void printconfig(FILE * of, char *comment);
 void vinum_saveconfig(int argc, char *argv[], char *argv0[]);
+void genvolname();
+struct drive *create_drive(char *devicename);
+void vinum_concat(int argc, char *argv[], char *argv0[]);
+void vinum_stripe(int argc, char *argv[], char *argv0[]);
+void vinum_mirror(int argc, char *argv[], char *argv0[]);
 void vinum_label(int argc, char *argv[], char *arg0[]);
 void vinum_ld(int argc, char *argv[], char *arg0[]);
 void vinum_ls(int argc, char *argv[], char *arg0[]);
 void vinum_lp(int argc, char *argv[], char *arg0[]);
 void vinum_lv(int argc, char *argv[], char *arg0[]);
+void vinum_setstate(int argc, char *argv[], char *argv0[]);
+void vinum_checkparity(int argc, char *argv[], char *argv0[]);
+void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
 void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
 #endif
+struct drive *find_drive_by_devname(char *name);
 void make_devices(void);
+void make_vol_dev(int, int);
+void make_plex_dev(int, int);
+void make_sd_dev(int);
+void list_defective_objects();
 void get_drive_info(struct drive *drive, int index);
 void get_sd_info(struct sd *sd, int index);
 void get_plex_sd_info(struct sd *sd, int plexno, int sdno);
 void get_plex_info(struct plex *plex, int index);
 void get_volume_info(struct volume *volume, int index);
+struct drive *find_drive_by_devname(char *name);
 int find_object(const char *name, enum objecttype *type);
 char *lltoa(long long l, char *s);
 void vinum_ldi(int, int);
@@ -125,8 +138,9 @@ extern int force;					    /* set to 1 to force some dangerous ops */
 extern int verbose;					    /* set verbose operation */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */
-extern int stats;					    /* show statistics */
+extern int sflag;					    /* show statistics */
 extern int dowait;					    /* wait for children to exit */
+extern char *objectname;				    /* name for some functions */
 
 extern FILE *history;					    /* history file */
 
@@ -145,3 +159,5 @@ extern int line;					    /* stdin line number for error messages */
 extern int file_line;					    /* and line in input file (yes, this is tacky) */
 
 extern char buffer[];					    /* buffer to read in to */
+
+#define min(a, b) a < b? a: b

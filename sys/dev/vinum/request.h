@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.14 1999/03/16 03:37:50 grog Exp grog $
+ * $Id: request.h,v 1.11 1999/08/14 06:21:45 grog Exp $
  */
 
 /* Information needed to set up a transfer */
@@ -66,16 +66,17 @@ enum xferinfo {
 };
 
 /*
- * Describe one low-level request, part
- * of a high-level request.  This is an
- * extended struct buf buffer, and the first
- * element *must* be a struct buf.  We pass this structure
- * to the I/O routines instead of a struct buf in oder
- * to be able to locate the high-level request when it
- * completes.
+ * Describe one low-level request, part of a
+ * high-level request.  This is an extended
+ * struct buf buffer, and the first element
+ * *must* be a struct buf.  We pass this
+ * structure to the I/O routines instead of a
+ * struct buf in order to be able to locate the
+ * high-level request when it completes.
  *
- * All offsets and lengths are in "blocks", i.e. sectors 
+ * All offsets and lengths are in sectors.
  */
+
 struct rqelement {
     struct buf b;					    /* buf structure */
     struct rqgroup *rqg;				    /* pointer to our group */
@@ -83,14 +84,14 @@ struct rqelement {
     daddr_t sdoffset;					    /* offset in subdisk */
     int useroffset;					    /* offset in user buffer of normal data */
     /*
-     * dataoffset and datalen refer to "individual"
-     * data transfers (normal read, parityless write)
-     * and also degraded write.
+     * dataoffset and datalen refer to "individual" data
+     * transfers which involve only this drive (normal read,
+     * parityless write) and also degraded write.
      *
-     * groupoffset and grouplen refer to the other
-     * "group" operations (normal write, recovery read)
-     * Both the offsets are relative to the start of the
-     * local buffer 
+     * groupoffset and grouplen refer to the other "group"
+     * operations (normal write, recovery read) which involve
+     * more than one drive.  Both the offsets are relative to
+     * the start of the local buffer.
      */
     int dataoffset;					    /* offset in buffer of the normal data */
     int groupoffset;					    /* offset in buffer of group data */
@@ -104,8 +105,8 @@ struct rqelement {
 };
 
 /*
- * A group of requests built to satisfy a certain
- * component of a user request 
+ * A group of requests built to satisfy an I/O
+ * transfer on a single plex.
  */
 struct rqgroup {
     struct rqgroup *next;				    /* pointer to next group */
@@ -116,11 +117,12 @@ struct rqgroup {
     int badsdno;					    /* index of bad subdisk or -1 */
     enum xferinfo flags;				    /* description of transfer */
     struct rqelement rqe[0];				    /* and the elements of this request */
+    struct rangelock *lock;				    /* lock for this transfer */
 };
 
 /*
  * Describe one high-level request and the
- * work we have to do to satisfy it 
+ * work we have to do to satisfy it.
  */
 struct request {
     struct buf *bp;					    /* pointer to the high-level request */
@@ -150,17 +152,18 @@ struct sdbuf {
 };
 
 /*
- * Values returned by rqe and friends.
- * Be careful with these: they are in order of increasing
- * seriousness.  Some routines check for > REQUEST_RECOVERED
- * to indicate a completely failed request. 
+ * Values returned by rqe and friends.  Be careful
+ * with these: they are in order of increasing
+ * seriousness.  Some routines check for
+ * > REQUEST_RECOVERED to indicate a failed request. XXX
  */
 enum requeststatus {
     REQUEST_OK,						    /* request built OK */
     REQUEST_RECOVERED,					    /* request OK, but involves RAID5 recovery */
-    REQUEST_EOF,					    /* request failed: outside plex */
-    REQUEST_DOWN,					    /* request failed: subdisk down  */
-    REQUEST_ENOMEM					    /* ran out of memory */
+    REQUEST_DEGRADED,					    /* parts of request failed */
+    REQUEST_EOF,					    /* parts of request failed: outside plex */
+    REQUEST_DOWN,					    /* all of request failed: subdisk(s) down */
+    REQUEST_ENOMEM					    /* all of request failed: ran out of memory */
 };
 
 #ifdef VINUMDEBUG
@@ -172,21 +175,30 @@ enum rqinfo_type {
     loginfo_rqe,					    /* user RQE */
     loginfo_iodone,					    /* iodone */
     loginfo_raid5_data,					    /* write RAID-5 data block */
-    loginfo_raid5_parity				    /* write RAID-5 parity block */
+    loginfo_raid5_parity,				    /* write RAID-5 parity block */
+    loginfo_sdio,					    /* subdisk I/O */
+    loginfo_sdiol,					    /* subdisk I/O launch */
+    loginfo_lockwait,					    /* wait for range lock */
+    loginfo_lock,					    /* lock range */
+    loginfo_unlock,					    /* unlock range */
 };
 
 union rqinfou {						    /* info to pass to logrq */
     struct buf *bp;
     struct rqelement *rqe;				    /* address of request, for correlation */
+    struct rangelock *lockinfo;
 };
 
 struct rqinfo {
     enum rqinfo_type type;				    /* kind of event */
     struct timeval timestamp;				    /* time it happened */
     struct buf *bp;					    /* point to user buffer */
+    int devmajor;					    /* major and minor device info */
+    int devminor;
     union {
 	struct buf b;					    /* yup, the *whole* buffer header */
 	struct rqelement rqe;				    /* and the whole rqe */
+	struct rangelock lockinfo;
     } info;
 };
 
@@ -206,6 +218,7 @@ enum daemonrq {
     daemonrq_ping,					    /* show sign of life */
     daemonrq_init,					    /* initialize a plex */
     daemonrq_revive,					    /* revive a subdisk */
+    daemonrq_closedrive,				    /* close a drive */
 };
 
 /* info field for daemon requests */
@@ -213,6 +226,7 @@ union daemoninfo {					    /* and the request information */
     struct request *rq;					    /* for daemonrq_ioerror */
     struct sd *sd;					    /* for daemonrq_revive */
     struct plex *plex;					    /* for daemonrq_init */
+    struct drive *drive;				    /* for daemonrq_closedrive */
     int nothing;					    /* for passing NULL */
 };
 
@@ -231,3 +245,9 @@ enum daemon_option {
     daemon_stopped = 2,
     daemon_noupdate = 4,				    /* don't update the disk config, for recovery */
 };
+
+void freerq(struct request *rq);
+void unlockrange(int plexno, struct rangelock *);
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

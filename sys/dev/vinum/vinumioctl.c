@@ -3,8 +3,12 @@
  * calls to valid<object>
  */
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -37,16 +41,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.6.2.3 1999/04/06 09:05:57 grog Exp $
+ * $Id: vinumioctl.c,v 1.19 1999/08/14 06:27:25 grog Exp $
  */
 
-#define STATIC						    /* nothing while we're testing XXX */
-
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
+
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 #endif
@@ -56,7 +57,7 @@ void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
 
-jmp_buf command_fail;
+jmp_buf command_fail;					    /* return on a failed command */
 
 /* ioctl routine */
 int 
@@ -68,16 +69,16 @@ vinumioctl(dev_t dev,
 {
     unsigned int objno;
     int error = 0;
+    struct sd *sd;
+    struct plex *plex;
     struct volume *vol;
     unsigned int index;					    /* for transferring config info */
     unsigned int sdno;					    /* for transferring config info */
     int fe;						    /* free list element number */
     struct _ioctl_reply *ioctl_reply = (struct _ioctl_reply *) data; /* struct to return */
 
-    struct devcode *device = (struct devcode *) &dev;
-
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* save the address to reply to */
 	error = setjmp(command_fail);			    /* come back here on error */
@@ -219,6 +220,14 @@ vinumioctl(dev_t dev,
 	    setstate((struct vinum_ioctl_msg *) data);	    /* set an object state */
 	    return 0;
 
+	    /*
+	     * Set state by force, without changing
+	     * anything else.
+	     */
+	case VINUM_SETSTATE_FORCE:
+	    setstate_by_force((struct vinum_ioctl_msg *) data);	/* set an object state */
+	    return 0;
+
 #ifdef VINUMDEBUG
 	case VINUM_MEMINFO:
 	    vinum_meminfo(data);
@@ -296,6 +305,7 @@ vinumioctl(dev_t dev,
 	    /* FALLTHROUGH */
 	}
 
+    case VINUM_DRIVE_TYPE:
     default:
 	log(LOG_WARNING,
 	    "vinumioctl: invalid ioctl from process %d (%s): %lx\n",
@@ -304,21 +314,60 @@ vinumioctl(dev_t dev,
 	    cmd);
 	return EINVAL;
 
-    case VINUM_DRIVE_TYPE:
-    case VINUM_PLEX_TYPE:
-	return EAGAIN;					    /* try again next week */
-
     case VINUM_SD_TYPE:
+    case VINUM_RAWSD_TYPE:
 	objno = Sdno(dev);
+
+	sd = &SD[objno];
 
 	switch (cmd) {
 	case VINUM_INITSD:				    /* initialize subdisk */
 	    return initsd(objno);
 
+	case DIOCGDINFO:				    /* get disk label */
+	    get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
+	    break;
+
+	    /*
+	     * We don't have this stuff on hardware,
+	     * so just pretend to do it so that
+	     * utilities don't get upset.
+	     */
+	case DIOCWDINFO:				    /* write partition info */
+	case DIOCSDINFO:				    /* set partition info */
+	    return 0;					    /* not a titty */
+
 	default:
-	    return EINVAL;
+	    return ENOTTY;				    /* not my kind of ioctl */
 	}
+
+	return 0;					    /* pretend we did it */
+
+    case VINUM_RAWPLEX_TYPE:
+    case VINUM_PLEX_TYPE:
+	objno = Plexno(dev);
+
+	plex = &PLEX[objno];
+
+	switch (cmd) {
+	case DIOCGDINFO:				    /* get disk label */
+	    get_volume_label(plex->name, 1, plex->length, (struct disklabel *) data);
 	break;
+
+	    /*
+	     * We don't have this stuff on hardware,
+	     * so just pretend to do it so that
+	     * utilities don't get upset.
+	     */
+	case DIOCWDINFO:				    /* write partition info */
+	case DIOCSDINFO:				    /* set partition info */
+	    return 0;					    /* not a titty */
+
+	default:
+	    return ENOTTY;				    /* not my kind of ioctl */
+	}
+
+	return 0;					    /* pretend we did it */
 
     case VINUM_VOLUME_TYPE:
 	objno = Volno(dev);
@@ -331,16 +380,16 @@ vinumioctl(dev_t dev,
 
 	switch (cmd) {
 	case DIOCGDINFO:				    /* get disk label */
-	    get_volume_label(vol, (struct disklabel *) data);
+	    get_volume_label(vol->name, vol->plexes, vol->size, (struct disklabel *) data);
 	    break;
 
 	    /*
 	     * Care!  DIOCGPART returns *pointers* to
-	     * the caller, so we need to store this crap as well.
-	     * And yes, we need it.
+	     * the caller, so we need to store this crap
+	     * as well.  And yes, we need it.
 	     */
 	case DIOCGPART:					    /* get partition information */
-	    get_volume_label(vol, &vol->label);
+	    get_volume_label(vol->name, vol->plexes, vol->size, &vol->label);
 	    ((struct partinfo *) data)->disklab = &vol->label;
 	    ((struct partinfo *) data)->part = &vol->label.d_partitions[0];
 	    break;
@@ -466,6 +515,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 		plex->writes = 0;			    /* number of writes on this plex */
 		plex->bytes_read = 0;			    /* number of bytes read */
 		plex->bytes_written = 0;		    /* number of bytes written */
+		plex->recovered_reads = 0;		    /* number of recovered read operations */
+		plex->degraded_writes = 0;		    /* number of degraded writes */
+		plex->parityless_writes = 0;		    /* number of parityless writes */
 		plex->multiblock = 0;			    /* requests that needed more than one block */
 		plex->multistripe = 0;			    /* requests that needed more than one stripe */
 		reply->error = 0;
@@ -521,6 +573,19 @@ attachobject(struct vinum_ioctl_msg *msg)
 	    return;
 	plex = validplex(msg->otherobject, reply);
 	if (plex) {
+	    /*
+	     * We should be more intelligent about this.
+	     * We should be able to reattach a dead
+	     * subdisk, but if we want to increase the total
+	     * number of subdisks, we have a lot of reshuffling
+	     * to do. XXX
+	     */
+	    if ((plex->organization != plex_concat)	    /* can't attach to striped and raid-5 */
+	    &&(!msg->force)) {				    /* without using force */
+		reply->error = EINVAL;			    /* no message, the user should check */
+		strcpy(reply->msg, "Can't attach to this plex organization");
+		return;
+	    }
 	    if (sd->plexno >= 0) {			    /* already belong to a plex */
 		reply->error = EBUSY;			    /* no message, the user should check */
 		reply->msg[0] = '\0';
@@ -543,11 +608,6 @@ attachobject(struct vinum_ioctl_msg *msg)
 	plex = validplex(msg->index, reply);		    /* get plex */
 	if (plex == NULL)
 	    return;
-	if (plex->organization != plex_concat) {	    /* can't attach to striped and raid-5 */
-	    reply->error = EINVAL;			    /* no message, the user should check */
-	    reply->msg[0] = '\0';
-	    return;
-	}
 	vol = validvol(msg->otherobject, reply);	    /* and volume information */
 	if (vol) {
 	    if ((vol->plexes == MAXPLEX)		    /* we have too many already */
@@ -635,7 +695,6 @@ detachobject(struct vinum_ioctl_msg *msg)
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
-	    update_sd_config(sd->sdno, 0);
 	    save_config();
 	    reply->error = 0;
 	}
@@ -666,8 +725,11 @@ detachobject(struct vinum_ioctl_msg *msg)
 		    break;
 	    }
 	    if (plexno < (vol->plexes - 1))		    /* not the last one, compact */
-		bcopy(&vol[plexno + 1], &vol[plexno], (vol->plexes - 1 - plexno) * sizeof(int));
+		bcopy(&vol->plex[plexno + 1],
+		    &vol->plex[plexno],
+		    (vol->plexes - 1 - plexno) * sizeof(int));
 	    vol->plexes--;
+	    vol->last_plex_read = 0;			    /* don't go beyond the end */
 	    if (!bcmp(vol->name, plex->name, strlen(vol->name))) { /* this plex is named after the volume */
 		/* First, check if the subdisks are the same */
 		if (msg->recurse) {
@@ -687,7 +749,6 @@ detachobject(struct vinum_ioctl_msg *msg)
 		bcopy("ex-", plex->name, 3);
 		plex->name[MAXPLEXNAME - 1] = '\0';
 	    }
-	    update_plex_config(plex->plexno, 0);
 	    update_volume_config(volno, 0);
 	    save_config();
 	    reply->error = 0;
@@ -773,7 +834,12 @@ renameobject(struct vinum_rename_msg *msg)
     }
 }
 
-/* Replace one object with another */
+/*
+ * Replace one object with another.
+ * Currently only for drives.
+ * message->index is the drive number of the old drive
+ * message->otherobject is the drive number of the new drive
+ */
 void 
 replaceobject(struct vinum_ioctl_msg *msg)
 {
@@ -783,3 +849,7 @@ replaceobject(struct vinum_ioctl_msg *msg)
     strcpy(reply->msg, "replace not implemented yet");
 /*      save_config (); */
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

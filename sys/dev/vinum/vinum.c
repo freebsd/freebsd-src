@@ -2,6 +2,8 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -33,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
+ * $Id: vinum.c,v 1.7.2.3 1999/05/05 05:15:37 grog Exp $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -269,13 +271,12 @@ vinumopen(dev_t dev,
     struct volume *vol;
     struct plex *plex;
     struct sd *sd;
-    struct devcode *device;
+    int devminor;					    /* minor number */
 
-    device = (struct devcode *) &dev;
-
+    devminor = minor(dev);
     error = 0;
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
 	index = Volno(dev);
 	if (index >= vinum_conf.volumes_allocated)
@@ -301,6 +302,9 @@ vinumopen(dev_t dev,
     case VINUM_PLEX_TYPE:
 	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
+	/* FALLTHROUGH */
+
+    case VINUM_RAWPLEX_TYPE:
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
@@ -320,6 +324,10 @@ vinumopen(dev_t dev,
 	if ((Volno(dev) >= vinum_conf.volumes_allocated)    /* no such volume */
 	||(Plexno(dev) >= vinum_conf.plexes_allocated))	    /* or no such plex */
 	    return ENXIO;				    /* no such device */
+
+	/* FALLTHROUGH */
+
+    case VINUM_RAWSD_TYPE:
 	index = Sdno(dev);				    /* get the subdisk number */
 	if ((index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
 	||(SD[index].state < sd_init))			    /* or SD is not real */
@@ -340,24 +348,23 @@ vinumopen(dev_t dev,
 	    return 0;
 	}
 
-	/* Vinum drives are disks.  We already have a disk
-	 * driver, so don't handle them here */
-    case VINUM_DRIVE_TYPE:
-    default:
-	return ENODEV;					    /* don't know what to do with these */
-
     case VINUM_SUPERDEV_TYPE:
 	error = suser(p->p_ucred, &p->p_acflag);	    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
-	    if (dev == VINUM_DAEMON_DEV)		    /* daemon device */
+	    if (devminor == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
-	    else if (dev == VINUM_SUPERDEV)
+	    else if (devminor == VINUM_SUPERDEV)
 		vinum_conf.flags |= VF_OPEN;		    /* we're open */
 	    else
 		error = ENODEV;				    /* nothing, maybe a debug mismatch */
 	}
 	return error;
 
+	/* Vinum drives are disks.  We already have a disk
+	 * driver, so don't handle them here */
+    case VINUM_DRIVE_TYPE:
+    default:
+	return ENODEV;					    /* don't know what to do with these */
     }
 }
 
@@ -370,11 +377,12 @@ vinumclose(dev_t dev,
 {
     unsigned int index;
     struct volume *vol;
-    struct devcode *device = (struct devcode *) &dev;
+    int devminor;
 
+    devminor = minor(dev);
     index = Volno(dev);
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
 	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */
@@ -399,6 +407,9 @@ vinumclose(dev_t dev,
     case VINUM_PLEX_TYPE:
 	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
+	/* FALLTHROUGH */
+
+    case VINUM_RAWPLEX_TYPE:
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
@@ -409,6 +420,9 @@ vinumclose(dev_t dev,
 	if ((Volno(dev) >= vinum_conf.volumes_allocated) || /* no such volume */
 	    (Plexno(dev) >= vinum_conf.plexes_allocated))   /* or no such plex */
 	    return ENXIO;				    /* no such device */
+	/* FALLTHROUGH */
+
+    case VINUM_RAWSD_TYPE:
 	index = Sdno(dev);				    /* get the subdisk number */
 	if (index >= vinum_conf.subdisks_allocated)
 	    return ENXIO;				    /* no such device */
@@ -420,9 +434,9 @@ vinumclose(dev_t dev,
 	 * don't worry about whether we're root:
 	 * nobody else would get this far.
 	 */
-	if (dev == VINUM_SUPERDEV)			    /* normal superdev */
+	if (devminor == VINUM_SUPERDEV)			    /* normal superdev */
 	    vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
-	else if (dev == VINUM_DAEMON_DEV) {		    /* the daemon device */
+	else if (devminor == VINUM_DAEMON_DEV) {	    /* the daemon device */
 	    vinum_conf.flags &= ~VF_DAEMONOPEN;		    /* no longer open */
 	    if (vinum_conf.flags & VF_STOPPING)		    /* we're stopping, */
 		wakeup(&vinumclose);			    /* we can continue stopping now */

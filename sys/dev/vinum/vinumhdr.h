@@ -35,13 +35,11 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.12 1999/01/28 08:58:33 grog Exp grog $ */
+/* $Id: vinumhdr.h,v 1.10 1999/05/07 08:08:02 grog Exp $ */
 
-#ifdef KERNEL
-#define REALLYKERNEL
-#endif
 #include <sys/param.h>
-#ifdef REALLYKERNEL
+#ifdef KERNEL
+#include "opt_vinum.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
@@ -62,11 +60,6 @@
 #include <ufs/ffs/fs.h>
 #include <sys/mount.h>
 #include <sys/device.h>
-#undef KERNEL						    /* XXX */
-#include <sys/disk.h>
-#ifdef REALLYKERNEL
-#define KERNEL
-#endif
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
@@ -86,7 +79,7 @@
 #include <dev/vinum/vinumext.h>
 
 #undef Free						    /* defined in some funny net stuff */
-#ifdef REALLYKERNEL
+#ifdef KERNEL
 #ifdef VINUMDEBUG
 #define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
 #define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
