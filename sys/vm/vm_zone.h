@@ -49,85 +49,12 @@ vm_zone_t	zinit __P((char *name, int size, int nentries, int flags,
 			   int zalloc));
 int		zinitna __P((vm_zone_t z, struct vm_object *obj, char *name,
 			     int size, int nentries, int flags, int zalloc));
-static void *	zalloc __P((vm_zone_t z));
-static void	zfree __P((vm_zone_t z, void *item));
+void *		zalloc __P((vm_zone_t z));
+void		zfree __P((vm_zone_t z, void *item));
 void *		zalloci __P((vm_zone_t z));
 void		zfreei __P((vm_zone_t z, void *item));
 void		zbootinit __P((vm_zone_t z, char *name, int size, void *item,
 			       int nitems));
 void *		_zget __P((vm_zone_t z));
 
-#define ZONE_ERROR_INVALID 0
-#define ZONE_ERROR_NOTFREE 1
-#define ZONE_ERROR_ALREADYFREE 2
-
-#define ZONE_ROUNDING	32
-
-#define ZENTRY_FREE	0x12342378
-/*
- * void *zalloc(vm_zone_t zone) --
- *	Returns an item from a specified zone.
- *
- * void zfree(vm_zone_t zone, void *item) --
- *  Frees an item back to a specified zone.
- */
-static __inline__ void *
-_zalloc(vm_zone_t z)
-{
-	void *item;
-
-#ifdef INVARIANTS
-	if (z == 0)
-		zerror(ZONE_ERROR_INVALID);
-#endif
-
-	if (z->zfreecnt <= z->zfreemin)
-		return _zget(z);
-
-	item = z->zitems;
-	z->zitems = ((void **) item)[0];
-#ifdef INVARIANTS
-	if (((void **) item)[1] != (void *) ZENTRY_FREE)
-		zerror(ZONE_ERROR_NOTFREE);
-	((void **) item)[1] = 0;
-#endif
-
-	z->zfreecnt--;
-	z->znalloc++;
-	return item;
-}
-
-static __inline__ void
-_zfree(vm_zone_t z, void *item)
-{
-	((void **) item)[0] = z->zitems;
-#ifdef INVARIANTS
-	if (((void **) item)[1] == (void *) ZENTRY_FREE)
-		zerror(ZONE_ERROR_ALREADYFREE);
-	((void **) item)[1] = (void *) ZENTRY_FREE;
-#endif
-	z->zitems = item;
-	z->zfreecnt++;
-}
-
-static __inline__ void *
-zalloc(vm_zone_t z)
-{
-#if defined(SMP)
-	return zalloci(z);
-#else
-	return _zalloc(z);
-#endif
-}
-
-static __inline__ void
-zfree(vm_zone_t z, void *item)
-{
-#ifdef SMP
-	zfreei(z, item);
-#else
-	_zfree(z, item);
-#endif
-}
-
-#endif
+#endif /* _SYS_ZONE_H */
