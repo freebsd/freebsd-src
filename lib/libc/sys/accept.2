@@ -189,6 +189,8 @@ user address space.
 .It Bq Er EWOULDBLOCK
 The socket is marked non-blocking and no connections
 are present to be accepted.
+.It Bq Er ECONNABORTED
+The socket has been closed while on the list queue.
 .El
 .Sh SEE ALSO
 .Xr bind 2 ,
