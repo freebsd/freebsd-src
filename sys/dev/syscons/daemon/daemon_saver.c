@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.8 1998/01/16 17:58:43 bde Exp $
+ *	$Id: daemon_saver.c,v 1.9 1998/08/06 09:14:20 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -205,7 +205,7 @@ daemon_saver(int blank)
 			/* clear the screen and set the border color */
 			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
 			      Crtat, scp->xsize * scp->ysize);
-			set_border(0);
+			set_border(scp, 0);
 			xlen = ylen = tlen = 0;
 		}
 		if (scrn_blanked++ < 2)
@@ -322,7 +322,7 @@ daemon_saver(int blank)
 		draw_string(txpos, typos, toff, (char *)message, tlen);
 	} else {
 		if (scrn_blanked > 0) {
-			set_border(scp->border);
+			set_border(scp, scp->border);
 			scrn_blanked = 0;
 		}
 	}
