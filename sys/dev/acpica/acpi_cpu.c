@@ -247,7 +247,7 @@ acpi_cpu_attach(device_t dev)
 
 	    DEBUG_PRINT(TRACE_IO, ("acpi_cpu%d: throttling with P_BLK at 0x%x/%d%s\n", 
 				   device_get_unit(sc->cpu_dev), p_blk, p_blk_length,
-				   sc->cpu_p_blk ? "" : " (shadowed)");
+				   sc->cpu_p_blk ? "" : " (shadowed)"));
 	}
     }
     return_VALUE(0);
@@ -377,7 +377,7 @@ acpi_cpu_speed_sysctl(SYSCTL_HANDLER_ARGS)
 	return(error);
     
     /* range check */
-    if ((arg < 1) || (arg >= cpu_max_state))
+    if ((arg < 1) || (arg > cpu_max_state))
 	return(EINVAL);
 
     /* set new value and possibly switch */
