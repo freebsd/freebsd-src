@@ -890,3 +890,13 @@ ENTRY(copyerr, 0)
 	mov	ret0=EFAULT			// return EFAULT
 	br.ret.sptk.few rp
 END(copyerr)
+
+/*
+ * Support functions for handling of unaligned memory accesses.
+ */
+ENTRY(spillfd, 2)
+	ldfd		f6 = [r32]
+	;;
+	stf.spill	[r33] = f6
+	br.ret.sptk	rp
+END(spillfd)
