@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
-static void	parse_input(int, char **);
-static void	prerun(int, char **);
+static void	parse_input(int, char *[]);
+static void	prerun(int, char *[]);
 static int	prompt(void);
 static void	run(char **);
 static void	usage(void);
@@ -86,7 +86,7 @@ static int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
 extern char *environ[];
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	long arg_max;
 	int ch, Jflag, nargs, nflag, nline;
@@ -238,7 +238,7 @@ main(int argc, char **argv)
 }
 
 static void
-parse_input(int argc, char **argv)
+parse_input(int argc, char *argv[])
 {
 	int ch, foundeof;
 	char **avj;
@@ -387,7 +387,7 @@ addch:		if (p < ebp) {
  * and then call run().
  */
 static void
-prerun(int argc, char **argv)
+prerun(int argc, char *argv[])
 {
 	char **tmp, **tmp2, **avj;
 	int repls;
