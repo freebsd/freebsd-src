@@ -261,7 +261,7 @@ checkfilesys(char *filesys)
 					 * file system is clean;
 					 * skip snapshot and report it clean
 					 */
-					pwarn("FILESYSTEM CLEAN; %s\n",
+					pwarn("FILE SYSTEM CLEAN; %s\n",
 					    "SKIPPING CHECKS");
 					goto clean;
 				}

@@ -285,7 +285,7 @@ ckfini(int markclean)
 			cmd.size = markclean ? -1 : 1;
 			if (sysctlbyname("vfs.ffs.setflags", 0, 0,
 			    &cmd, sizeof cmd) == -1)
-				rwerror("SET FILESYSTEM FLAGS", FS_UNCLEAN);
+				rwerror("SET FILE SYSTEM FLAGS", FS_UNCLEAN);
 			if (!preen) {
 				printf("\n***** FILE SYSTEM MARKED %s *****\n",
 				    markclean ? "CLEAN" : "DIRTY");
