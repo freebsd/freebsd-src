@@ -363,9 +363,9 @@ udp_input(m, off)
 			udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-		INP_INFO_RUNLOCK(&udbinfo);
 		udp_append(last, ip, m, iphlen + sizeof(struct udphdr));
 		INP_UNLOCK(last);
+		INP_INFO_RUNLOCK(&udbinfo);
 		return;
 	}
 	/*
@@ -399,15 +399,15 @@ udp_input(m, off)
 		return;
 	}
 	INP_LOCK(inp);
-	INP_INFO_RUNLOCK(&udbinfo);
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr));
 	INP_UNLOCK(inp);
+	INP_INFO_RUNLOCK(&udbinfo);
 	return;
 
 badheadlocked:
-	INP_INFO_RUNLOCK(&udbinfo);
 	if (inp)
 		INP_UNLOCK(inp);
+	INP_INFO_RUNLOCK(&udbinfo);
 badunlocked:
 	m_freem(m);
 	if (opts)
