@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001 Intel Corporation 
+  Copyright (c) 2001-2002 Intel Corporation 
   All rights reserved. 
   
   Redistribution and use in source and binary forms of the Software, with or 
@@ -52,7 +52,7 @@ em_raise_clock(struct em_shared_adapter *shared,
                   uint32_t *eecd_reg)
 {
     /* Raise the clock input to the EEPROM (by setting the SK bit), and then
-     *  wait 50 microseconds.
+     * wait 50 microseconds.
      */
     *eecd_reg = *eecd_reg | E1000_EECD_SK;
     E1000_WRITE_REG(shared, EECD, *eecd_reg);
@@ -184,11 +184,11 @@ em_setup_eeprom(struct em_shared_adapter *shared)
 
     eecd_reg = E1000_READ_REG(shared, EECD);
 
-    /*  Clear SK and DI  */
+    /* Clear SK and DI */
     eecd_reg &= ~(E1000_EECD_SK | E1000_EECD_DI);
     E1000_WRITE_REG(shared, EECD, eecd_reg);
 
-    /*  Set CS  */
+    /* Set CS */
     eecd_reg |= E1000_EECD_CS;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     return;
@@ -206,22 +206,22 @@ em_standby_eeprom(struct em_shared_adapter *shared)
 
     eecd_reg = E1000_READ_REG(shared, EECD);
 
-    /*  Deselct EEPROM  */
+    /* Deselct EEPROM */
     eecd_reg &= ~(E1000_EECD_CS | E1000_EECD_SK);
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
 
-    /*  Clock high  */
+    /* Clock high */
     eecd_reg |= E1000_EECD_SK;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
 
-    /*  Select EEPROM  */
+    /* Select EEPROM */
     eecd_reg |= E1000_EECD_CS;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
 
-    /*  Clock low  */
+    /* Clock low */
     eecd_reg &= ~E1000_EECD_SK;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
@@ -240,12 +240,12 @@ em_clock_eeprom(struct em_shared_adapter *shared)
 
     eecd_reg = E1000_READ_REG(shared, EECD);
 
-    /*  Rising edge of clock  */
+    /* Rising edge of clock */
     eecd_reg |= E1000_EECD_SK;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
 
-    /*  Falling edge of clock  */
+    /* Falling edge of clock */
     eecd_reg &= ~E1000_EECD_SK;
     E1000_WRITE_REG(shared, EECD, eecd_reg);
     usec_delay(50);
@@ -347,33 +347,23 @@ em_force_mac_fc(struct em_shared_adapter *shared)
      */
 
     switch (shared->fc) {
-    case em_fc_none:        /* 0 */
-
+    case em_fc_none:
         ctrl_reg &= (~(E1000_CTRL_TFCE | E1000_CTRL_RFCE));
         break;
-
-    case em_fc_rx_pause:    /* 1 */
-
+    case em_fc_rx_pause:
         ctrl_reg &= (~E1000_CTRL_TFCE);
         ctrl_reg |= E1000_CTRL_RFCE;
         break;
-
-    case em_fc_tx_pause:    /* 2 */
-
+    case em_fc_tx_pause:
         ctrl_reg &= (~E1000_CTRL_RFCE);
         ctrl_reg |= E1000_CTRL_TFCE;
         break;
-
-    case em_fc_full:        /* 3 */
-
+    case em_fc_full:
         ctrl_reg |= (E1000_CTRL_TFCE | E1000_CTRL_RFCE);
         break;
-
     default:
-
         DEBUGOUT("Flow control param set incorrectly\n");
         ASSERT(0);
-
         break;
     }
 
@@ -397,6 +387,7 @@ em_adapter_stop(struct em_shared_adapter *shared)
 #if DBG
     uint32_t ctrl_reg;
 #endif
+    uint32_t ctrl_ext_reg;
     uint32_t icr_reg;
     uint16_t pci_cmd_word;
 
@@ -435,7 +426,7 @@ em_adapter_stop(struct em_shared_adapter *shared)
      * the global reset.
      */
     E1000_WRITE_REG(shared, RCTL, 0);
-    E1000_WRITE_REG(shared, TCTL, 0);
+    E1000_WRITE_REG(shared, TCTL, E1000_TCTL_PSP);
 
     /* The tbi_compatibility_on Flag must be cleared when Rctl is cleared. */
     shared->tbi_compatibility_on = FALSE;
@@ -460,6 +451,12 @@ em_adapter_stop(struct em_shared_adapter *shared)
     ASSERT(!(ctrl_reg & E1000_CTRL_RST));
 #endif
 
+    /* Force a reload from the EEPROM */
+    ctrl_ext_reg = E1000_READ_REG(shared, CTRL_EXT);
+    ctrl_ext_reg |= E1000_CTRL_EXT_EE_RST;
+    E1000_WRITE_REG(shared, CTRL_EXT, ctrl_ext_reg);
+    msec_delay(2);
+    
     /* Clear interrupt mask to stop board from generating interrupts */
     DEBUGOUT("Masking off all interrupts\n");
     E1000_WRITE_REG(shared, IMC, 0xffffffff);
@@ -567,12 +564,11 @@ em_init_hw(struct em_shared_adapter *shared)
      * is no link.
      */
     em_clear_hw_cntrs(shared);
-    
-    shared->large_eeprom = FALSE;
+
     shared->low_profile = FALSE;
     if(shared->mac_type == em_82544) {
-        i = em_read_eeprom(shared, E1000_EEPROM_LED_LOGIC);
-        if(i & E1000_EEPROM_SWDPIN0)
+        if(em_read_eeprom(shared, E1000_EEPROM_LED_LOGIC) & 
+           E1000_EEPROM_SWDPIN0)
             shared->low_profile = TRUE;
     }
 
@@ -920,10 +916,10 @@ em_setup_fc_and_link(struct em_shared_adapter *shared)
      * signal detection.  So this should be done before em_setup_pcs_link()
      * or em_phy_setup() is called.
      */
-    if(shared->mac_type >= em_82543) {
+    if(shared->mac_type == em_82543) {
         ctrl_ext_reg = ((eecd_reg & EEPROM_WORD0F_SWPDIO_EXT)
                         << SWDPIO__EXT_SHIFT);
-        E1000_WRITE_REG(shared, CTRLEXT, ctrl_ext_reg);
+        E1000_WRITE_REG(shared, CTRL_EXT, ctrl_ext_reg);
     }
 
     /* Call the necessary subroutine to configure the link. */
@@ -954,9 +950,9 @@ em_setup_fc_and_link(struct em_shared_adapter *shared)
         E1000_WRITE_REG(shared, FCRTL, 0);
         E1000_WRITE_REG(shared, FCRTH, 0);
     } else {
-       /* We need to set up the Receive Threshold high and low water
-        * marks as well as (optionally) enabling the transmission of XON frames.
-        */
+        /* We need to set up the Receive Threshold high and low water marks
+         * as well as (optionally) enabling the transmission of XON frames.
+         */
         if(shared->fc_send_xon) {
             E1000_WRITE_REG(shared, FCRTL,
                             (shared->fc_low_water | E1000_FCRTL_XONE));
@@ -1351,25 +1347,26 @@ em_check_for_link(struct em_shared_adapter *shared)
         case M88E1000_12_PHY_ID:
         case M88E1000_14_PHY_ID:
         case M88E1000_I_PHY_ID:
-              /* We have a M88E1000 PHY and Auto-Neg is enabled.  If we
-               * have Si on board that is 82544 or newer, Auto
-               * Speed Detection takes care of MAC speed/duplex
-               * configuration.  So we only need to configure Collision
-               * Distance in the MAC.  Otherwise, we need to force
-               * speed/duplex on the MAC to the current PHY speed/duplex
-               * settings.
-               */
+        case M88E1011_I_PHY_ID:
+            /* We have a M88E1000 PHY and Auto-Neg is enabled.  If we
+             * have Si on board that is 82544 or newer, Auto
+             * Speed Detection takes care of MAC speed/duplex
+             * configuration.  So we only need to configure Collision
+             * Distance in the MAC.  Otherwise, we need to force
+             * speed/duplex on the MAC to the current PHY speed/duplex
+             * settings.
+             */
             if(shared->mac_type >= em_82544) {
                 DEBUGOUT("CFL - Auto-Neg complete.");
                 DEBUGOUT("Configuring Collision Distance.");
                 em_config_collision_dist(shared);
             } else {
-                 /* Read the Phy Specific Status register to get the
-                  * resolved speed/duplex settings.  Then call
-                  * em_config_mac_to_phy which will retrieve
-                  * PHY register information and configure the MAC to
-                  * equal the negotiated speed/duplex.
-                  */
+                /* Read the Phy Specific Status register to get the
+                 * resolved speed/duplex settings.  Then call
+                 * em_config_mac_to_phy which will retrieve
+                 * PHY register information and configure the MAC to
+                 * equal the negotiated speed/duplex.
+                 */
                 phy_data = em_read_phy_reg(shared, 
                                               M88E1000_PHY_SPEC_STATUS);
 
@@ -1378,18 +1375,18 @@ em_check_for_link(struct em_shared_adapter *shared)
                 em_config_mac_to_phy(shared, phy_data);
             }
 
-              /* Configure Flow Control now that Auto-Neg has completed.
-               * We need to first restore the users desired Flow
-               * Control setting since we may have had to re-autoneg
-               * with a different link partner.
-               */
+            /* Configure Flow Control now that Auto-Neg has completed.
+             * We need to first restore the users desired Flow
+             * Control setting since we may have had to re-autoneg
+             * with a different link partner.
+             */
             em_config_fc_after_link_up(shared);
             break;
 
         default:
             DEBUGOUT("CFL - Invalid PHY detected.\r\n");
 
-        }                       /* end switch statement */
+        } /* end switch statement */
 
         /* At this point we know that we are on copper, link is up, 
          * and we are auto-neg'd.  These are pre-conditions for checking
@@ -1484,7 +1481,7 @@ em_check_for_link(struct em_shared_adapter *shared)
     }
 
     return;
-}                               /* CheckForLink */
+}
 
 /******************************************************************************
  * Clears all hardware statistics counters. 
@@ -1621,7 +1618,8 @@ em_get_speed_and_duplex(struct em_shared_adapter *shared,
 #if DBG
     if(shared->phy_id == M88E1000_12_PHY_ID ||
        shared->phy_id == M88E1000_14_PHY_ID ||
-       shared->phy_id == M88E1000_I_PHY_ID) {
+       shared->phy_id == M88E1000_I_PHY_ID  ||
+       shared->phy_id == M88E1011_I_PHY_ID) {
         /* read the phy specific status register */
         phy_data = em_read_phy_reg(shared, M88E1000_PHY_SPEC_STATUS);
         DEBUGOUT1("M88E1000 Phy Specific Status Reg contents = %x\n", phy_data);
@@ -1629,7 +1627,6 @@ em_get_speed_and_duplex(struct em_shared_adapter *shared,
         DEBUGOUT1("Phy MII Status Reg contents = %x\n", phy_data);
         DEBUGOUT1("Device Status Reg contents = %x\n", 
                   E1000_READ_REG(shared, STATUS));
-        /* DisplayMiiContents(Adapter, (uint8_t)Adapter->PhyAddress); */
     }
 #endif
     return;
@@ -1645,9 +1642,26 @@ uint16_t
 em_read_eeprom(struct em_shared_adapter *shared,
                   uint16_t offset)
 {
+    boolean_t large_eeprom = FALSE;
     uint16_t data;
+    uint32_t eecd_reg;
+    uint32_t tmp = 0;
 
+    if((shared->mac_type > em_82544) &&
+       (E1000_READ_REG(shared, EECD) & E1000_EECD_SIZE)) large_eeprom = TRUE;
     
+    /* Request EEPROM Access */
+    if(shared->mac_type > em_82544) {
+        E1000_WRITE_REG(shared, EECD, (uint32_t) E1000_EECD_REQ);
+        eecd_reg = E1000_READ_REG(shared, EECD);
+        while((!(eecd_reg & E1000_EECD_GNT)) && (tmp < 100)) {
+            tmp++;
+            usec_delay(5);
+            eecd_reg = E1000_READ_REG(shared, EECD);
+        }
+        if(!(eecd_reg & E1000_EECD_GNT)) return(FALSE);
+    }
+
     /*  Prepare the EEPROM for reading  */
     em_setup_eeprom(shared);
 
@@ -1656,16 +1670,20 @@ em_read_eeprom(struct em_shared_adapter *shared,
     /* If we have a 256 word EEPROM, there are 8 address bits
      * if we have a 64 word EEPROM, there are 6 address bits
      */
-    if(shared->large_eeprom) 
+    if(large_eeprom) 
         em_shift_out_bits(shared, offset, 8);
     else
         em_shift_out_bits(shared, offset, 6);
 
-    /*  Read the data  */
+    /* Read the data */
     data = em_shift_in_bits(shared);
 
-    /*  End this read operation  */
+    /* End this read operation */
     em_standby_eeprom(shared);
+
+    /* Stop requestiong EEPROM access */
+    if(shared->mac_type > em_82544)
+        E1000_WRITE_REG(shared, EECD, (uint32_t) 0);
 
     return (data);
 }
@@ -1732,46 +1750,74 @@ em_write_eeprom(struct em_shared_adapter *shared,
                    uint16_t offset,
                    uint16_t data)
 {
+    boolean_t large_eeprom = FALSE;
+    uint32_t eecd_reg;
+    uint32_t tmp = 0;
 
-    /*  Prepare the EEPROM for writing  */
+    if((shared->mac_type > em_82544) &&
+       (E1000_READ_REG(shared, EECD) & E1000_EECD_SIZE)) large_eeprom = TRUE;
+    
+    /* Request EEPROM Access */
+    if(shared->mac_type > em_82544) {
+        E1000_WRITE_REG(shared, EECD, (uint32_t) E1000_EECD_REQ);
+        eecd_reg = E1000_READ_REG(shared, EECD);
+        while((!(eecd_reg & E1000_EECD_GNT)) && (tmp < 100)) {
+            tmp++;
+            usec_delay(5);
+            eecd_reg = E1000_READ_REG(shared, EECD);
+        }
+        if(!(eecd_reg & E1000_EECD_GNT)) return(FALSE);
+    }
+
+    /* Prepare the EEPROM for writing  */
     em_setup_eeprom(shared);
 
-    /*  Send the 9-bit EWEN (write enable) command to the EEPROM (5-bit opcode
-     *  plus 4-bit dummy).  This puts the EEPROM into write/erase mode. 
+    /* Send the 9-bit (or 11-bit on large EEPROM) EWEN (write enable) 
+     * command to the EEPROM (5-bit opcode plus 4/6-bit dummy).
+     * This puts the EEPROM into write/erase mode. 
      */
     em_shift_out_bits(shared, EEPROM_EWEN_OPCODE, 5);
-    em_shift_out_bits(shared, 0, 4);
+    if(large_eeprom) 
+        em_shift_out_bits(shared, 0, 6);
+    else
+        em_shift_out_bits(shared, 0, 4);
 
-    /*  Prepare the EEPROM  */
+    /* Prepare the EEPROM */
     em_standby_eeprom(shared);
 
-    /*  Send the Write command (3-bit opcode + addr)  */
+    /* Send the Write command (3-bit opcode + addr) */
     em_shift_out_bits(shared, EEPROM_WRITE_OPCODE, 3);
     /* If we have a 256 word EEPROM, there are 8 address bits
      * if we have a 64 word EEPROM, there are 6 address bits
      */
-    if(shared->large_eeprom) 
+    if(large_eeprom) 
         em_shift_out_bits(shared, offset, 8);
     else
         em_shift_out_bits(shared, offset, 6);
 
-    /*  Send the data  */
+    /* Send the data */
     em_shift_out_bits(shared, data, 16);
-
     em_wait_eeprom_command(shared);
 
-    /*  Recover from write  */
+    /* Recover from write */
     em_standby_eeprom(shared);
 
-    /* Send the 9-bit EWDS (write disable) command to the EEPROM (5-bit
-     * opcode plus 4-bit dummy).  This takes the EEPROM out of write/erase
-     * mode.
+    /* Send the 9-bit  (or 11-bit on large EEPROM) EWDS (write disable) 
+     * command to the EEPROM (5-bit opcode plus 4/6-bit dummy).
+     * This takes the EEPROM out of write/erase mode.
      */
     em_shift_out_bits(shared, EEPROM_EWDS_OPCODE, 5);
-    em_shift_out_bits(shared, 0, 4);
+    if(large_eeprom) 
+        em_shift_out_bits(shared, 0, 6);
+    else
+        em_shift_out_bits(shared, 0, 4);
 
-    /*  Done with writing  */
+    /* Done with writing */
     em_cleanup_eeprom(shared);
+
+    /* Stop requestiong EEPROM access */
+    if(shared->mac_type > em_82544)
+        E1000_WRITE_REG(shared, EECD, (uint32_t) 0);
 
     return (TRUE);
 }
