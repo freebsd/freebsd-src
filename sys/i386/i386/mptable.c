@@ -335,6 +335,7 @@ static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
+static int	apic_int_is_bus_type(int intr, int bus_type);
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -960,7 +961,7 @@ mptable_pass2(void)
 }
 
 
-static void
+void
 assign_apic_irq(int apic, int intpin, int irq)
 {
 	int x;
@@ -980,6 +981,34 @@ assign_apic_irq(int apic, int intpin, int irq)
 		    io_apic_ints[x].dst_apic_id == IO_TO_ID(apic) &&
 		    io_apic_ints[x].dst_apic_int == intpin)
 			io_apic_ints[x].int_vector = irq;
+	}
+}
+
+void
+revoke_apic_irq(int irq)
+{
+	int x;
+	int oldapic;
+	int oldintpin;
+	
+	if (int_to_apicintpin[irq].ioapic == -1)
+		panic("assign_apic_irq: inconsistent table");
+	
+	oldapic = int_to_apicintpin[irq].ioapic;
+	oldintpin = int_to_apicintpin[irq].int_pin;
+
+	int_to_apicintpin[irq].ioapic = -1;
+	int_to_apicintpin[irq].int_pin = 0;
+	int_to_apicintpin[irq].apic_address = NULL;
+	int_to_apicintpin[irq].redirindex = 0;
+	
+	for (x = 0; x < nintrs; x++) {
+		if ((io_apic_ints[x].int_type == 0 || 
+		     io_apic_ints[x].int_type == 3) &&
+		    io_apic_ints[x].int_vector == 0xff &&
+		    io_apic_ints[x].dst_apic_id == IO_TO_ID(oldapic) &&
+		    io_apic_ints[x].dst_apic_int == oldintpin)
+			io_apic_ints[x].int_vector = 0xff;
 	}
 }
 
@@ -1049,37 +1078,66 @@ fix_mp_table(void)
 }
 
 
+/* Assign low level interrupt handlers */
 static void
 setup_apic_irq_mapping(void)
 {
 	int	x;
 	int	int_vector;
 
-	/* Assign low level interrupt handlers */
+	/* Clear array */
 	for (x = 0; x < APIC_INTMAPSIZE; x++) {
 		int_to_apicintpin[x].ioapic = -1;
 		int_to_apicintpin[x].int_pin = 0;
 		int_to_apicintpin[x].apic_address = NULL;
 		int_to_apicintpin[x].redirindex = 0;
 	}
+
+	/* First assign ISA/EISA interrupts */
 	for (x = 0; x < nintrs; x++) {
-		if (io_apic_ints[x].dst_apic_int < APIC_INTMAPSIZE &&
-		    io_apic_ints[x].dst_apic_id == IO_TO_ID(0) &&
+		int_vector = io_apic_ints[x].src_bus_irq;
+		if (int_vector < APIC_INTMAPSIZE &&
 		    io_apic_ints[x].int_vector == 0xff && 
-		    (io_apic_ints[x].int_type == 0 ||
-		     io_apic_ints[x].int_type == 3)) {
-			assign_apic_irq(0, 
+		    int_to_apicintpin[int_vector].ioapic == -1 &&
+		    (apic_int_is_bus_type(x, ISA) ||
+		     apic_int_is_bus_type(x, EISA)) &&
+		    io_apic_ints[x].int_type == 0) {
+			assign_apic_irq(ID_TO_IO(io_apic_ints[x].dst_apic_id), 
 					io_apic_ints[x].dst_apic_int,
-					io_apic_ints[x].dst_apic_int);
+					int_vector);
 		}
 	}
+
+	/* Assign interrupts on first 24 intpins on IOAPIC #0 */
+	for (x = 0; x < nintrs; x++) {
+		int_vector = io_apic_ints[x].dst_apic_int;
+		if (int_vector < APIC_INTMAPSIZE &&
+		    io_apic_ints[x].dst_apic_id == IO_TO_ID(0) &&
+		    io_apic_ints[x].int_vector == 0xff && 
+		    int_to_apicintpin[int_vector].ioapic == -1 &&
+		    (io_apic_ints[x].int_type == 0 ||
+		     io_apic_ints[x].int_type == 3)) {
+			assign_apic_irq(0,
+					io_apic_ints[x].dst_apic_int,
+					int_vector);
+		}
+	}
+	/* 
+	 * Assign interrupts for remaining intpins.
+	 * Skip IOAPIC #0 intpin 0 if the type is ExtInt, since this indicates
+	 * that an entry for ISA/EISA irq 0 exist, and a fallback to mixed mode
+	 * due to 8254 interrupts not being delivered can reuse that low level
+	 * interrupt handler.
+	 */
 	int_vector = 0;
 	while (int_vector < APIC_INTMAPSIZE &&
 	       int_to_apicintpin[int_vector].ioapic != -1)
 		int_vector++;
 	for (x = 0; x < nintrs && int_vector < APIC_INTMAPSIZE; x++) {
 		if ((io_apic_ints[x].int_type == 0 ||
-		     io_apic_ints[x].int_type == 3) &&
+		     (io_apic_ints[x].int_type == 3 &&
+		      (io_apic_ints[x].dst_apic_id != IO_TO_ID(0) ||
+		       io_apic_ints[x].dst_apic_int != 0))) &&
 		    io_apic_ints[x].int_vector == 0xff) {
 			assign_apic_irq(ID_TO_IO(io_apic_ints[x].dst_apic_id),
 					io_apic_ints[x].dst_apic_int,
