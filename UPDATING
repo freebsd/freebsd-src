@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20021010:
+	FreeBSD 4.7-RELEASE.
+
 20020807:
 	COPY is being deprecated.  The 20020703 change was reverted, as
 	it causes far more pain than was expected, and to always compare
