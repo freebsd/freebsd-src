@@ -431,7 +431,7 @@ pmap_map_tsb(void)
 		    TD_P | TD_W;
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
-		stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_IN_REG, data);
+		stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, data);
 		membar(Sync);
 	}
 
