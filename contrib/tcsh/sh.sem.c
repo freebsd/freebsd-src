@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.sem.c,v 3.53 2001/08/06 23:52:03 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -37,7 +37,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $")
+RCSID("$Id: sh.sem.c,v 3.53 2001/08/06 23:52:03 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -319,6 +319,18 @@ execute(t, wanttty, pipein, pipeout)
 		break;
 	}
 
+	/* 
+	 * GrP Executing a command - run jobcmd hook
+	 * Don't run for builtins
+	 * Don't run if we're not in a tty
+	 * Don't run if we're not really executing 
+	 */
+	if (t->t_dtyp == NODE_COMMAND && !bifunc && !noexec && intty) {
+	    Char *cmd = unparse(t);
+	    job_cmd(cmd);
+	    xfree(cmd);
+	}
+	   
 	/*
 	 * We fork only if we are timed, or are not the end of a parenthesized
 	 * list and not a simple builtin function. Simple meaning one that is
@@ -571,7 +583,9 @@ execute(t, wanttty, pipein, pipeout)
 		    if (t->t_dflg & F_NICE) {
 			int nval = SIGN_EXTEND_CHAR(t->t_nice);
 # ifdef BSDNICE
-			(void) setpriority(PRIO_PROCESS, 0, nval);
+			if (setpriority(PRIO_PROCESS, 0, nval) == -1 && errno)
+				stderror(ERR_SYSTEM, "setpriority",
+				    strerror(errno));
 # else /* !BSDNICE */
 			(void) nice(nval);
 # endif /* BSDNICE */

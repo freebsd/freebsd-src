@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.23 2000/11/11 23:03:35 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.xmap.c,v 3.24 2001/04/27 22:37:03 christos Exp $ */
 /*
  * ed.xmap.c: This module contains the procedures for maintaining
  *	      the extended-key map.
@@ -92,7 +92,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.xmap.c,v 3.23 2000/11/11 23:03:35 christos Exp $")
+RCSID("$Id: ed.xmap.c,v 3.24 2001/04/27 22:37:03 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -718,6 +718,9 @@ parseescape(ptr)
 	    break;
 	case 'v':
 	    c = CTL_ESC('\013');         /* Vertical Tab */
+	    break;
+	case '\\':
+	    c = '\\';
 	    break;
 	case '0':
 	case '1':

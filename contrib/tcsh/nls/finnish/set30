@@ -1,4 +1,4 @@
-$ $Id: set30,v 1.1 2000/01/14 22:57:33 christos Exp $
+$ $Id: set30,v 1.2 2001/04/26 19:06:01 kim Exp $
 $ tw.parse.c
 $set 30 
 1 starting_a_command %d\n
@@ -13,4 +13,4 @@ $set 30
 10 not a directory
 11 not found
 12 unreadable
-13 Yy
+13 YyKk

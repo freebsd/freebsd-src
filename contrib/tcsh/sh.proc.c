@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.proc.c,v 3.75 2001/08/06 23:52:03 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $")
+RCSID("$Id: sh.proc.c,v 3.75 2001/08/06 23:52:03 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -803,6 +803,21 @@ static Char command[PMAXLEN + 4];
 static int cmdlen;
 static Char *cmdp;
 
+/* GrP
+ * unparse - Export padd() functionality 
+ */
+Char *
+unparse(t)
+    register struct command *t;
+{
+    cmdp = command;
+    cmdlen = 0;
+    padd(t);
+    *cmdp++ = '\0';
+    return Strsave(command);
+}
+
+
 /*
  * palloc - allocate a process structure and fill it up.
  *	an important assumption is made that the process is running.
@@ -1524,6 +1539,7 @@ dokill(v, c)
 {
     register int signum, len = 0;
     register char *name;
+    Char *sigptr;
     extern int T_Cols;
     extern int nsig;
 
@@ -1544,17 +1560,26 @@ dokill(v, c)
 	    xputchar('\n');
 	    return;
 	}
-	if (Isdigit(v[0][1])) {
-	    signum = atoi(short2str(v[0] + 1));
+ 	sigptr = &v[0][1];
+ 	if (v[0][1] == 's') {
+ 	    if (v[1]) {
+ 		v++;
+ 		sigptr = &v[0][0];
+ 	    } else {
+ 		stderror(ERR_NAME | ERR_TOOFEW);
+ 	    }
+ 	}
+ 	if (Isdigit(*sigptr)) {
+ 	    signum = atoi(short2str(sigptr));
 	    if (signum < 0 || signum > (MAXSIG-1))
 		stderror(ERR_NAME | ERR_BADSIG);
 	}
 	else {
 	    for (signum = 0; signum <= nsig; signum++)
 		if (mesg[signum].iname &&
-		    eq(&v[0][1], str2short(mesg[signum].iname)))
+ 		    eq(sigptr, str2short(mesg[signum].iname)))
 		    goto gotsig;
-	    setname(short2str(&v[0][1]));
+ 	    setname(short2str(sigptr));
 	    stderror(ERR_NAME | ERR_UNKSIG);
 	}
 gotsig:
@@ -1724,6 +1749,12 @@ pstart(pp, foregnd)
     if (!foregnd)
 	pclrcurr(pp);
     (void) pprint(pp, foregnd ? NAME | JOBDIR : NUMBER | NAME | AMPERSAND);
+
+    /* GrP run jobcmd hook if foregrounding */
+    if (foregnd) {
+	job_cmd(pp->p_command);
+    }
+
 #ifdef BSDJOBS
     if (foregnd) {
 	rv = tcsetpgrp(FSHTTY, pp->p_jobid);
@@ -1986,7 +2017,8 @@ pfork(t, wanttty)
 	if (t->t_dflg & F_NICE) {
 	    int nval = SIGN_EXTEND_CHAR(t->t_nice);
 #ifdef BSDNICE
-	    (void) setpriority(PRIO_PROCESS, 0, nval);
+	    if (setpriority(PRIO_PROCESS, 0, nval) == -1 && errno)
+		    stderror(ERR_SYSTEM, "setpriority", strerror(errno));
 #else /* !BSDNICE */
 	    (void) nice(nval);
 #endif /* !BSDNICE */

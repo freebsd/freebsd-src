@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $ */
+/* $Header: /src/pub/tcsh/sh.time.c,v 3.23 2001/03/18 19:06:31 christos Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $")
+RCSID("$Id: sh.time.c,v 3.23 2001/03/18 19:06:31 christos Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>
@@ -177,7 +177,8 @@ donice(v, c)
     else if (*v	== 0 &&	any("+-", cp[0]))
 	nval = getn(cp);
 #ifdef BSDNICE
-    (void) setpriority(PRIO_PROCESS, 0,	nval);
+    if (setpriority(PRIO_PROCESS, 0, nval) == -1 && errno)
+	stderror(ERR_SYSTEM, "setpriority", strerror(errno));
 #else /* BSDNICE */
     (void) nice(nval);
 #endif /* BSDNICE */
