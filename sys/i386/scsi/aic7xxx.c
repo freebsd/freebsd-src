@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.44 1995/11/05 04:50:48 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.45 1995/11/06 05:21:13 gibbs Exp $
  */
 /*
  * TODO:
@@ -1501,8 +1501,9 @@ ahc_init(unit)
 	 * can do 255 concurrent commands.  Right now, we just ID the
 	 * card until we can find out how this is done.
 	 */
-	if(!(ahc->type & AHC_AIC78X0))
-	{
+	switch(ahc->type & ~(AHC_TWIN | AHC_WIDE)) {
+	    case AHC_AIC7770:
+	    {
 		/*
 		 * See if we have a Rev E or higher
 		 * aic7770. Anything below a Rev E will
@@ -1525,13 +1526,24 @@ ahc_init(unit)
 		}
 		else
 			printf("aic7770 <= Rev C, ");
-	}
-	else if(ahc->type & AHC_AIC7880)
+	        break;
+	    }
+	    case AHC_394U:
+	    case AHC_294U:
+	    case AHC_AIC7880:
 		printf("aic7880, ");
-	else if(ahc->type & AHC_AIC7850)
+		break;
+	    case AHC_AIC7850:
 		printf("aic7850, ");
-	else
+		break;
+	    case AHC_394:
+	    case AHC_294:
+	    case AHC_AIC7870:
 		printf("aic7870, ");
+		break;
+	    default:
+		break;
+	}
 	if(ahc->flags & AHC_EXTSCB) {
 		/*
 		 * This adapter has external SCB memory.
