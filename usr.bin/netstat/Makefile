@@ -4,12 +4,14 @@
 PROG=	netstat
 SRCS=	if.c inet.c inet6.c main.c mbuf.c mcast.c mroute.c ipx.c route.c \
 	unix.c atalk.c netgraph.c mroute6.c ipsec.c
+
+WARNS?=	2
+NO_WERROR=
+
 CFLAGS+=-DIPSEC
 .if !defined(NO_INET6)
 CFLAGS+=-DINET6
 .endif
-WARNS?=	2
-NO_WERROR=
 
 BINGRP=	kmem
 BINMODE=2555
