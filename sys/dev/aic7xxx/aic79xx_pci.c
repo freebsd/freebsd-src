@@ -3,7 +3,7 @@
  *	aic7901 and aic7902 SCSI controllers
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2001 Adaptec Inc.
+ * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#33 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#41 $
  *
  * $FreeBSD$
  */
@@ -70,17 +70,19 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 #define ID_AIC7901			0x800F9005FFFF9005ull
 #define ID_AIC7901_IROC			0x80089005FFFF9005ull
-#define ID_AHA_29320			0x8000900500609005ull
-#define ID_AHA_29320LP			0x8000900500409005ull
+#define ID_AIC7901A			0x801E9005FFFF9005ull
+#define ID_AHA_29320A			0x8000900500609005ull
 
 #define ID_AIC7902			0x801F9005FFFF9005ull
 #define ID_AIC7902_IROC			0x80189005FFFF9005ull
 #define ID_AHA_39320			0x8010900500409005ull
 #define ID_AHA_39320D			0x8011900500419005ull
 #define ID_AHA_39320D_CPQ		0x8011900500AC0E11ull
-#define ID_AIC7902_PCI_REV_A3		0x2
+#define ID_AHA_29320			0x8012900500429005ull
+#define ID_AHA_29320B			0x8013900500439005ull
+#define ID_AHA_29320LP			0x8014900500449005ull
 #define ID_AIC7902_PCI_REV_A4		0x3
-#define ID_AIC7902_PCI_REV_B0		0xFF	/* Rev Id not yet known. */
+#define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_CPQ			0x0E11
 
 #define DEVID_9005_TYPE(id) ((id) & 0xF)
@@ -107,20 +109,15 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 static ahd_device_setup_t ahd_aic7901_setup;
 static ahd_device_setup_t ahd_aic7902_setup;
+static ahd_device_setup_t ahd_aic7901A_setup;
 
 struct ahd_pci_identity ahd_pci_ident_table [] =
 {
 	/* aic7901 based controllers */
 	{
-		ID_AHA_29320,
+		ID_AHA_29320A,
 		ID_ALL_MASK,
-		"Adaptec 29320 Ultra320 SCSI adapter",
-		ahd_aic7901_setup
-	},
-	{
-		ID_AHA_29320LP,
-		ID_ALL_MASK,
-		"Adaptec 29320LP Ultra320 SCSI adapter",
+		"Adaptec 29320A Ultra320 SCSI adapter",
 		ahd_aic7901_setup
 	},
 	/* aic7902 based controllers */	
@@ -141,6 +138,30 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ID_ALL_MASK,
 		"Adaptec (Compaq OEM) 39320D Ultra320 SCSI adapter",
 		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_29320,
+		ID_ALL_MASK,
+		"Adaptec 29320 Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_29320B,
+		ID_ALL_MASK,
+		"Adaptec 29320B Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_29320LP,
+		ID_ALL_MASK,
+		"Adaptec 29320LP Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AIC7901A & ID_9005_GENERIC_MASK,
+		ID_9005_GENERIC_MASK,
+		"Adaptec 7901A Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
 	{
@@ -239,7 +260,6 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
 	struct scb_data *shared_scb_data;
 	u_long		 l;
-	u_long		 s;
 	u_int		 command;
 	uint32_t	 devconfig;
 	uint16_t	 subvendor; 
@@ -337,11 +357,6 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	 * Link this softc in with all other ahd instances.
 	 */
 	ahd_softc_insert(ahd);
-
-	ahd_lock(ahd, &s);
-	ahd_intr_enable(ahd, TRUE);
-	ahd_unlock(ahd, &s);
-
 	ahd_list_unlock(&l);
 	return (0);
 }
@@ -400,13 +415,6 @@ ahd_check_extport(struct ahd_softc *ahd)
 		 */
 		ahd_set_scbptr(ahd, 0xFF);
 		nvram_scb = ahd_inb_scbram(ahd, SCB_BASE + NVRAM_SCB_OFFSET);
-		printf("nvram_scb == 0x%x\n", nvram_scb);
-		printf("SCBPTR == 0x%x\n", ahd_get_scbptr(ahd));
-		printf("Signature = %c%c%c%c\n",
-		       ahd_inb_scbram(ahd, SCB_BASE + 0),
-		       ahd_inb_scbram(ahd, SCB_BASE + 1),
-		       ahd_inb_scbram(ahd, SCB_BASE + 2),
-		       ahd_inb_scbram(ahd, SCB_BASE + 3));
 		if (nvram_scb != 0xFF
 		 && ((ahd_inb_scbram(ahd, SCB_BASE + 0) == 'A'
 		   && ahd_inb_scbram(ahd, SCB_BASE + 1) == 'D'
@@ -478,9 +486,11 @@ ahd_configure_termination(struct ahd_softc *ahd, u_int adapter_control)
 
 	devconfig = ahd_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
 	devconfig &= ~STPWLEVEL;
-	if ((ahd->flags & AHD_STPWLEVEL_A) != 0) {
+	if ((ahd->flags & AHD_STPWLEVEL_A) != 0)
 		devconfig |= STPWLEVEL;
-	}
+	if (bootverbose)
+		printf("%s: STPWLEVEL is %s\n",
+		       ahd_name(ahd), (devconfig & STPWLEVEL) ? "on" : "off");
 	ahd_pci_write_config(ahd->dev_softc, DEVCONFIG, devconfig, /*bytes*/4);
  
 	/* Make sure current sensing is off. */
@@ -756,7 +766,7 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 
 	pci = ahd->dev_softc;
 	rev = ahd_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
-	if (rev < ID_AIC7902_PCI_REV_A3) {
+	if (rev < ID_AIC7902_PCI_REV_A4) {
 		printf("%s: Unable to attach to unsupported chip revision %d\n",
 		       ahd_name(ahd), rev);
 		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/1);
@@ -780,9 +790,8 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
 			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
 			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
-			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG;
-		if (rev < ID_AIC7902_PCI_REV_A4)
-			ahd->bugs |= AHD_PCIX_ARBITER_BUG|AHD_PCIX_SPLIT_BUG;
+			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG
+			  |  AHD_PKT_LUN_BUG;
 	}
 
 	ahd->channel = ahd_get_pci_function(pci) + 'A';
@@ -790,3 +799,16 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 	ahd->features = AHD_AIC7902_FE;
 	return (0);
 }
+
+static int
+ahd_aic7901A_setup(struct ahd_softc *ahd)
+{
+	int error;
+
+	error = ahd_aic7902_setup(ahd);
+	if (error != 0)
+		return (error);
+	ahd->chip = AHD_AIC7901A;
+	return (0);
+}
+
