@@ -169,8 +169,9 @@ cpu_fork(td1, p2, flags)
 	 * Create a new fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
+	 * The -16 is so we can expand the trapframe if we go to vm86.
 	 */
-	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	td2->td_frame = (struct trapframe *)((caddr_t)td2->td_pcb - 16) - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
 	td2->td_frame->tf_eax = 0;		/* Child returns zero */
