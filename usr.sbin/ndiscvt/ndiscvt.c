@@ -236,8 +236,10 @@ main(int argc, char *argv[])
 	}
 
 	if (inffile == NULL) {
+		fprintf (outfp, "#ifdef NDIS_REGVALS\n");
 		fprintf (outfp, "ndis_cfg ndis_regvals[] = {\n");
         	fprintf (outfp, "\t{ NULL, NULL, { 0 }, 0 }\n");
+		fprintf (outfp, "#endif /* NDIS_REGVALS */\n");
 
 		fprintf (outfp, "};\n\n");
 	} else {
@@ -250,7 +252,8 @@ main(int argc, char *argv[])
 		fclose(fp);
 	}
 
-	fprintf(outfp, "\n\nextern unsigned char drv_data[];\n\n");
+	fprintf(outfp, "\n#ifdef NDIS_IMAGE\n");
+	fprintf(outfp, "\nextern unsigned char drv_data[];\n\n");
 
 	fprintf(outfp, "__asm__(\".data\");\n");
 	fprintf(outfp, "__asm__(\".type   drv_data, @object\");\n");
@@ -278,6 +281,7 @@ main(int argc, char *argv[])
 
 done:
 
+	fprintf(outfp, "#endif /* NDIS_IMAGE */\n");
 	if (fp != NULL)
 		fclose(fp);
 	fclose(outfp);

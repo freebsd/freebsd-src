@@ -32,10 +32,16 @@
  * $FreeBSD$
  */
 
-struct ndis_type {
+struct ndis_pci_type {
 	uint16_t		ndis_vid;
 	uint16_t		ndis_did;
 	uint32_t		ndis_subsys;
+	char			*ndis_name;
+};
+
+struct ndis_pccard_type {
+	const char		*ndis_vid;
+	const char		*ndis_did;
 	char			*ndis_name;
 };
 
