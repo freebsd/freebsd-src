@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.49.2.2 1997/11/10 14:40:40 nate Exp $
+ *	$Id: apm.c,v 1.49.2.3 1998/07/07 05:22:36 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -112,7 +112,6 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 	u_long cf;
 	__asm __volatile("
 		pushfl
-		cli
 		lcall	_apm_addr
 		movl	$0, %3
 		jnc	1f
