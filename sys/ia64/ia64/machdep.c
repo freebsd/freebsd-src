@@ -392,8 +392,6 @@ identifycpu(void)
 
 extern char kernel_text[], _end[];
 
-#define DEBUG_MD
-
 void
 ia64_init()
 {
@@ -506,7 +504,6 @@ ia64_init()
 	 * the memory descriptors.
 	 */
 
-#define DEBUG_MD
 #ifdef DEBUG_MD
 	printf("Memory descriptor count: %d\n", mdcount);
 #endif
@@ -514,29 +511,31 @@ ia64_init()
 	phys_avail_cnt = 0;
 	for (i = 0, mdp = md; i < mdcount; i++,
 		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
-		size_t size;
 #ifdef DEBUG_MD
 		printf("MD %d: type %d pa 0x%lx cnt 0x%lx\n", i,
 		       mdp->Type,
 		       mdp->PhysicalStart,
 		       mdp->NumberOfPages);
 #endif
-		size = mdp->NumberOfPages * 4096;
+		pfn0 = ia64_btop(round_page(mdp->PhysicalStart));
+		pfn1 = ia64_btop(trunc_page(mdp->PhysicalStart
+					    + mdp->NumberOfPages * 4096));
+		if (pfn1 <= pfn0)
+			continue;
+
 		if (mdp->Type != EfiConventionalMemory) {
-			resvmem += ia64_btop(size);
+			resvmem += (pfn1 - pfn0);
 			continue;
 		}
 
-		totalphysmem += ia64_btop(size);
+		totalphysmem += (pfn1 - pfn0);
 
 		/*
 		 * We have a memory descriptors available for system
 		 * software use.  We must determine if this cluster
 		 * holds the kernel.
 		 */
-		physmem += ia64_btop(size);
-		pfn0 = ia64_btop(mdp->PhysicalStart);
-		pfn1 = pfn0 + ia64_btop(size);
+		physmem += (pfn1 - pfn0);
 		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
 			/*
 			 * Must compute the location of the kernel
@@ -704,6 +703,12 @@ ia64_init()
 		breakpoint();
 	}
 #endif
+}
+
+int
+ia64_running_in_simulator()
+{
+	return bootinfo.bi_systab == 0;
 }
 
 void
