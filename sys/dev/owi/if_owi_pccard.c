@@ -60,7 +60,7 @@
 #include <dev/owi/if_ieee80211.h>
 
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/owi/if_wivar.h>

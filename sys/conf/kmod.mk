@@ -326,16 +326,18 @@ vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
 .endif
 .endfor
 
-.if ${SRCS:Mmiidevs.h} != ""
-CLEANFILES+=	miidevs.h
+.for _i in mii pccard usb
+.if ${SRCS:M${_i}devs.h} != ""
+CLEANFILES+=	${_i}devs.h
 .if !exists(@)
-miidevs.h: @
+${_i}devs.h: @
 .endif
 .if exists(@)
-miidevs.h: @/tools/miidevs2h.awk @/dev/mii/miidevs
+${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
-	${AWK} -f @/tools/miidevs2h.awk @/dev/mii/miidevs
+	${AWK} -f @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
+.endfor # _i
 
 regress:
 
