@@ -33,15 +33,13 @@
 
 #include <dev/sound/pcm/sound.h>
 
-#define __SB_MIXER_C__	/* XXX warning... */
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
-#define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
+#define SB_BUFFSIZE	4096
 
 /* channel interface */
 static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int sbchan_setdir(void *data, int dir);
 static int sbchan_setformat(void *data, u_int32_t format);
 static int sbchan_setspeed(void *data, u_int32_t speed);
 static int sbchan_setblocksize(void *data, u_int32_t blocksize);
@@ -49,58 +47,26 @@ static int sbchan_trigger(void *data, int go);
 static int sbchan_getptr(void *data);
 static pcmchan_caps *sbchan_getcaps(void *data);
 
-static u_int32_t sb_playfmt[] = {
+static u_int32_t sb_fmt[] = {
 	AFMT_U8,
 	0
 };
-static pcmchan_caps sb_playcaps = {4000, 22050, sb_playfmt, 0};
+static pcmchan_caps sb200_playcaps = {4000, 23000, sb_fmt, 0};
+static pcmchan_caps sb200_reccaps = {4000, 13000, sb_fmt, 0};
+static pcmchan_caps sb201_playcaps = {4000, 44100, sb_fmt, 0};
+static pcmchan_caps sb201_reccaps = {4000, 15000, sb_fmt, 0};
 
-static u_int32_t sb_recfmt[] = {
-	AFMT_U8,
-	0
-};
-static pcmchan_caps sb_reccaps = {4000, 13000, sb_recfmt, 0};
-
-static u_int32_t sbpro_playfmt[] = {
+static u_int32_t sbpro_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
 	0
 };
-static pcmchan_caps sbpro_playcaps = {4000, 45000, sbpro_playfmt, 0};
-
-static u_int32_t sbpro_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	0
-};
-static pcmchan_caps sbpro_reccaps = {4000, 15000, sbpro_recfmt, 0};
-
-static u_int32_t sb16_hfmt[] = {
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	0
-};
-static pcmchan_caps sb16_hcaps = {5000, 45000, sb16_hfmt, 0};
-
-static u_int32_t sb16_lfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	0
-};
-static pcmchan_caps sb16_lcaps = {5000, 45000, sb16_lfmt, 0};
-
-static u_int32_t sb16x_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	0
-};
-static pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
+static pcmchan_caps sbpro_playcaps = {4000, 44100, sbpro_fmt, 0};
+static pcmchan_caps sbpro_reccaps = {4000, 44100, sbpro_fmt, 0};
 
 static pcm_channel sb_chantemplate = {
 	sbchan_init,
-	sbchan_setdir,
+	NULL,
 	sbchan_setformat,
 	sbchan_setspeed,
 	sbchan_setblocksize,
@@ -130,8 +96,7 @@ struct sb_chinfo {
 struct sb_info {
     	struct resource *io_base;	/* I/O address for the board */
     	struct resource *irq;
-   	struct resource *drq1;
-    	struct resource *drq2;
+   	struct resource *drq;
     	void *ih;
     	bus_dma_tag_t parent_dmat;
 
@@ -160,13 +125,26 @@ static int sbmix_init(snd_mixer *m);
 static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
 
+static int sbpromix_init(snd_mixer *m);
+static int sbpromix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
+static int sbpromix_setrecsrc(snd_mixer *m, u_int32_t src);
+
 static snd_mixer sb_mixer = {
-    	"SoundBlaster mixer",
+    	"SoundBlaster 2.0 mixer",
     	sbmix_init,
 	NULL,
 	NULL,
     	sbmix_set,
     	sbmix_setrecsrc,
+};
+
+static snd_mixer sbpro_mixer = {
+    	"SoundBlaster Pro mixer",
+    	sbpromix_init,
+	NULL,
+	NULL,
+    	sbpromix_set,
+    	sbpromix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -178,25 +156,18 @@ static devclass_t pcm_devclass;
  * sb_cmd1 write a CMD + 1 byte arg
  * sb_cmd2 write a CMD + 2 byte arg
  * sb_get_byte returns a single byte from the DSP data port
- *
- * ess_write is actually sb_cmd1
- * ess_read access ext. regs via sb_cmd(0xc0, reg) followed by sb_get_byte
  */
 
 static int
 port_rd(struct resource *port, int off)
 {
-	return bus_space_read_1(rman_get_bustag(port),
-				rman_get_bushandle(port),
-				off);
+	return bus_space_read_1(rman_get_bustag(port), rman_get_bushandle(port), off);
 }
 
 static void
 port_wr(struct resource *port, int off, u_int8_t data)
 {
-	return bus_space_write_1(rman_get_bustag(port),
-				 rman_get_bushandle(port),
-				 off, data);
+	return bus_space_write_1(rman_get_bustag(port), rman_get_bushandle(port), off, data);
 }
 
 static int
@@ -323,8 +294,6 @@ sb_reset_dsp(struct sb_info *sb)
 			   rman_get_start(d->io_base)));
 		return ENXIO;	/* Sorry */
     	}
-    	if (sb->bd_flags & BD_F_ESS)
-		sb_cmd(sb, 0xc6);
     	return 0;
 }
 
@@ -337,13 +306,9 @@ sb_release_resources(struct sb_info *sb, device_t dev)
  		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
-    	if (sb->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq1);
-		sb->drq1 = 0;
-    	}
-    	if (sb->drq2) {
-		bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
-		sb->drq2 = 0;
+    	if (sb->drq) {
+		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq);
+		sb->drq = 0;
     	}
     	if (sb->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
@@ -363,240 +328,223 @@ sb_alloc_resources(struct sb_info *sb, device_t dev)
 
 	rid = 0;
 	if (!sb->io_base)
-    		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						 &rid, 0, ~0, 1,
-						 RF_ACTIVE);
+    		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 	rid = 0;
 	if (!sb->irq)
-    		sb->irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-					     &rid, 0, ~0, 1,
-					     RF_ACTIVE);
+    		sb->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 	rid = 0;
-	if (!sb->drq1)
-    		sb->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &rid, 0, ~0, 1,
-					      RF_ACTIVE);
-	rid = 1;
-	if (!sb->drq2)
-        	sb->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &rid, 0, ~0, 1,
-					      RF_ACTIVE);
+	if (!sb->drq)
+    		sb->drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 
-    	if (sb->io_base && sb->drq1 && sb->irq) {
-		int bs = DSP_BUFFSIZE;
+	if (sb->io_base && sb->drq && sb->irq) {
+		int bs = SB_BUFFSIZE;
 
-		isa_dma_acquire(rman_get_start(sb->drq1));
-		isa_dmainit(rman_get_start(sb->drq1), bs);
-
-		if (sb->drq2) {
-			isa_dma_acquire(rman_get_start(sb->drq2));
-			isa_dmainit(rman_get_start(sb->drq2), bs);
-		}
+		isa_dma_acquire(rman_get_start(sb->drq));
+		isa_dmainit(rman_get_start(sb->drq), bs);
 
 		return 0;
 	} else return ENXIO;
 }
 
-static void
-sb16_swap(void *v, int dir)
-{
-	struct sb_info *sb = v;
-	int pb = sb->pch.buffer->dl;
-	int rb = sb->rch.buffer->dl;
-	int pc = sb->pch.buffer->chan;
-	int rc = sb->rch.buffer->chan;
-	int swp = 0;
-
-	if (!pb && !rb) {
-		if (dir == PCMDIR_PLAY && pc < 4)
-			swp = 1;
-		else
-			if (dir == PCMDIR_REC && rc < 4)
-				swp = 1;
-	if (swp) {
-			int t;
-
-			t = sb->pch.buffer->chan;
-			sb->pch.buffer->chan = sb->rch.buffer->chan;
-			sb->rch.buffer->chan = t;
-			sb->pch.buffer->dir = ISADMA_WRITE;
-			sb->rch.buffer->dir = ISADMA_READ;
-		}
-	}
-}
+/************************************************************/
 
 static int
-sb_doattach(device_t dev, struct sb_info *sb)
+sbpromix_init(snd_mixer *m)
 {
-    	char status[SND_STATUSLEN];
-	int bs = DSP_BUFFSIZE;
+    	struct sb_info *sb = mix_getdevinfo(m);
 
-    	if (sb_alloc_resources(sb, dev))
-		goto no;
-    	if (sb_reset_dsp(sb))
-		goto no;
-    	mixer_init(dev, &sb_mixer, sb);
+	mix_setdevs(m, SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE |
+		       SOUND_MASK_MIC | SOUND_MASK_CD | SOUND_MASK_VOLUME);
 
-	bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih);
-    	if ((sb->bd_flags & BD_F_SB16) && !(sb->bd_flags & BD_F_SB16X))
-		pcm_setswap(dev, sb16_swap);
-    	if (!sb->drq2)
-		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
+	mix_setrecdevs(m, SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD);
 
-    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
-			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
-			/*highaddr*/BUS_SPACE_MAXADDR,
-			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/bs, /*nsegments*/1,
-			/*maxsegz*/0x3ffff,
-			/*flags*/0, &sb->parent_dmat) != 0) {
-		device_printf(dev, "unable to create dma tag\n");
-		goto no;
-    	}
-
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
-    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
-		rman_get_start(sb->drq1));
-    	if (sb->drq2)
-		snprintf(status + strlen(status), SND_STATUSLEN - strlen(status),
-			":%ld", rman_get_start(sb->drq2));
-
-    	if (pcm_register(dev, sb, 1, 1))
-		goto no;
-	pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
-	pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
-    	pcm_setstatus(dev, status);
+	sb_setmixer(sb, 0, 1); /* reset mixer */
 
     	return 0;
-
-no:
-    	sb_release_resources(sb, dev);
-    	return ENXIO;
 }
 
 static int
-sb_detach(device_t dev)
+sbpromix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
-	int r;
-	struct sb_info *sb;
+    	struct sb_info *sb = mix_getdevinfo(m);
+    	int reg, max;
+    	u_char val;
 
-	r = pcm_unregister(dev);
-	if (r)
-		return r;
+	max = 7;
+	switch (dev) {
+	case SOUND_MASK_PCM:
+		reg = 0x04;
+		break;
 
-	sb = pcm_getdevinfo(dev);
-    	sb_release_resources(sb, dev);
+	case SOUND_MASK_MIC:
+		reg = 0x0a;
+		max = 3;
+		break;
+
+	case SOUND_MASK_VOLUME:
+		reg = 0x22;
+		break;
+
+	case SOUND_MASK_SYNTH:
+		reg = 0x26;
+		break;
+
+	case SOUND_MASK_CD:
+		reg = 0x28;
+		break;
+
+	case SOUND_MASK_LINE:
+		reg = 0x2e;
+		break;
+
+	default:
+		return -1;
+	}
+
+	left = (left * max) / 100;
+	right = (dev == SOUND_MIXER_MIC)? left : ((right * max) / 100);
+
+	val = (dev == SOUND_MIXER_MIC)? (left << 1) : (left << 5 | right << 1);
+	sb_setmixer(sb, reg, val);
+
+	left = (left * 100) / max;
+	right = (right * 100) / max;
+
+    	return left | (right << 8);
+}
+
+static int
+sbpromix_setrecsrc(snd_mixer *m, u_int32_t src)
+{
+    	struct sb_info *sb = mix_getdevinfo(m);
+    	u_char recdev;
+
+	if      (src == SOUND_MASK_LINE)
+		recdev = 0x06;
+	else if (src == SOUND_MASK_CD)
+		recdev = 0x02;
+	else { /* default: mic */
+	    	src = SOUND_MASK_MIC;
+	    	recdev = 0;
+	}
+	sb_setmixer(sb, RECORD_SRC, recdev | (sb_getmixer(sb, RECORD_SRC) & ~0x07));
+
+	return src;
+}
+
+/************************************************************/
+
+static int
+sbmix_init(snd_mixer *m)
+{
+    	struct sb_info *sb = mix_getdevinfo(m);
+
+	mix_setdevs(m, SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_CD | SOUND_MASK_VOLUME);
+
+	mix_setrecdevs(m, 0);
+
+	sb_setmixer(sb, 0, 1); /* reset mixer */
+
+    	return 0;
+}
+
+static int
+sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+{
+    	struct sb_info *sb = mix_getdevinfo(m);
+    	int reg, max;
+
+	max = 7;
+	switch (dev) {
+	case SOUND_MASK_VOLUME:
+		reg = 0x2;
+		break;
+
+	case SOUND_MASK_SYNTH:
+		reg = 0x6;
+		break;
+
+	case SOUND_MASK_CD:
+		reg = 0x8;
+		break;
+
+	case SOUND_MASK_PCM:
+		reg = 0x0a;
+		max = 3;
+		break;
+
+	default:
+		return -1;
+	}
+
+	left = (left * max) / 100;
+
+	sb_setmixer(sb, reg, left << 1);
+
+	left = (left * 100) / max;
+
+    	return left | (left << 8);
+}
+
+static int
+sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
+{
 	return 0;
 }
+
+/************************************************************/
 
 static void
 sb_intr(void *arg)
 {
     	struct sb_info *sb = (struct sb_info *)arg;
-    	int reason = 3, c;
 
-    	/*
-     	* SB < 4.0 is half duplex and has only 1 bit for int source,
-     	* so we fake it. SB 4.x (SB16) has the int source in a separate
-     	* register.
-     	* The Vibra16X has separate flags for 8 and 16 bit transfers, but
-     	* I have no idea how to tell capture from playback interrupts...
-     	*/
-    	if (sb->bd_flags & BD_F_SB16) {
-    		c = sb_getmixer(sb, IRQ_STAT);
-    		/* this tells us if the source is 8-bit or 16-bit dma. We
-     		* have to check the io channel to map it to read or write...
-     		*/
-    		reason = 0;
-    		if (c & 1) { /* 8-bit dma */
-			if (sb->pch.fmt & AFMT_U8)
-				reason |= 1;
-			if (sb->rch.fmt & AFMT_U8)
-				reason |= 2;
-    		}
-    		if (c & 2) { /* 16-bit dma */
-			if (sb->pch.fmt & AFMT_S16_LE)
-				reason |= 1;
-			if (sb->rch.fmt & AFMT_S16_LE)
-				reason |= 2;
-    		}
-    	} else c = 1;
-#if 0
-    	printf("sb_intr: reason=%d c=0x%x\n", reason, c);
-#endif
-    	if ((reason & 1) && (sb->pch.buffer->dl > 0))
+    	if (sb->pch.buffer->dl > 0)
 		chn_intr(sb->pch.channel);
-    	if ((reason & 2) && (sb->rch.buffer->dl > 0))
+
+    	if (sb->rch.buffer->dl > 0)
 		chn_intr(sb->rch.channel);
-    	if (c & 1)
-		sb_rd(sb, DSP_DATA_AVAIL); /* 8-bit int ack */
-    	if (c & 2)
-		sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
+
+	sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
 }
 
 static int
 sb_speed(struct sb_chinfo *ch)
 {
-    	struct sb_info *sb = ch->parent;
+	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-    	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
-	int speed = ch->spd;
+	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	int speed, tmp, thresh, max;
+	u_char tconst;
 
-    	if (sb->bd_flags & BD_F_SB16) {
-		RANGE(speed, 5000, 45000);
-		sb_cmd(sb, 0x42 - play);
-    		sb_cmd(sb, speed >> 8);
-		sb_cmd(sb, speed & 0xff);
-    	} else {
-		u_char tconst;
-		int max_speed = 45000, tmp;
-        	u_long flags;
+	if (sb->bd_id >= 0x300) {
+		thresh = stereo? 11025 : 23000;
+		max = stereo? 22050 : 44100;
+	} else if (sb->bd_id > 0x200) {
+		thresh = play? 23000 : 13000;
+		max = play? 44100 : 15000;
+	} else {
+		thresh = 999999;
+		max = play? 23000 : 13000;
+	}
 
-    		/* here enforce speed limitations - max 22050 on sb 1.x*/
-    		if (sb->bd_id <= 0x200)
-			max_speed = 22050;
+	speed = ch->spd;
+	if (speed > max)
+		speed = max;
 
-    		/*
-     	 	* SB models earlier than SB Pro have low limit for the
-     	 	* input rate. Note that this is only for input, but since
-     	 	* we do not support separate values for rec & play....
-     	 	*/
-		if (!play) {
-    			if (sb->bd_id <= 0x200)
-				max_speed = 13000;
-    			else
-				if (sb->bd_id < 0x300)
-					max_speed = 15000;
-		}
-    		RANGE(speed, 4000, max_speed);
-    		if (stereo)
-			speed <<= 1;
+	sb->bd_flags &= ~BD_F_HISPEED;
+	if (speed > thresh)
+		sb->bd_flags |= BD_F_HISPEED;
 
-    		/*
-     	 	* Now the speed should be valid. Compute the value to be
-     	 	* programmed into the board.
-     	 	*/
-    		if (speed > 22050) { /* High speed mode on 2.01/3.xx */
-			tconst = (u_char)
-				((65536 - ((256000000 + speed / 2) / speed))
-				>> 8);
-			sb->bd_flags |= BD_F_HISPEED;
-			tmp = 65536 - (tconst << 8);
-			speed = (256000000 + tmp / 2) / tmp;
-    		} else {
-			sb->bd_flags &= ~BD_F_HISPEED;
-			tconst = (256 - ((1000000 + speed / 2) / speed)) & 0xff;
-			tmp = 256 - tconst;
-			speed = (1000000 + tmp / 2) / tmp;
-    		}
-		flags = spltty();
-		sb_cmd1(sb, 0x40, tconst); /* set time constant */
-		splx(flags);
-    		if (stereo)
-			speed >>= 1;
-    	}
+	tmp = 65536 - (256000000 / (speed << stereo));
+	tconst = tmp >> 8;
+
+	sb_cmd1(sb, 0x40, tconst); /* set time constant */
+
+	speed = (256000000 / (65536 - tmp)) >> stereo;
+
 	ch->spd = speed;
-    	return speed;
+	return speed;
 }
 
 static int
@@ -604,36 +552,25 @@ sb_start(struct sb_chinfo *ch)
 {
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-    	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
     	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	int l = ch->buffer->dl;
-	int dh = ch->buffer->chan > 3;
-	u_char i1, i2;
+	u_char i;
 
-	if (b16 || dh)
-		l >>= 1;
 	l--;
 
 	if (play)
 		sb_cmd(sb, DSP_CMD_SPKON);
 
-	if (sb->bd_flags & BD_F_SB16) {
-	    	i1 = DSP_F16_AUTO | DSP_F16_FIFO_ON;
-	        i1 |= play? DSP_F16_DAC : DSP_F16_ADC;
-	    	i1 |= (b16 || dh)? DSP_DMA16 : DSP_DMA8;
-	    	i2 = (stereo? DSP_F16_STEREO : 0) | (b16? DSP_F16_SIGNED : 0);
-	    	sb_cmd(sb, i1);
-	    	sb_cmd2(sb, i2, l);
-	} else {
-	    	if (sb->bd_flags & BD_F_HISPEED)
-			i1 = play? 0x90 : 0x98;
-	    	else
-			i1 = play? 0x1c : 0x2c;
-	    	sb_setmixer(sb, 0x0e, stereo? 2 : 0);
-	    	sb_cmd2(sb, 0x48, l);
-       	    	sb_cmd(sb, i1);
-	}
-	sb->bd_flags |= BD_F_DMARUN << b16;
+	if (sb->bd_flags & BD_F_HISPEED)
+		i = play? 0x90 : 0x98;
+	else
+		i = play? 0x1c : 0x2c;
+
+	sb_setmixer(sb, 0x0e, stereo? 2 : 0);
+	sb_cmd2(sb, 0x48, l);
+       	sb_cmd(sb, i);
+
+	sb->bd_flags |= BD_F_DMARUN;
 	return 0;
 }
 
@@ -642,23 +579,15 @@ sb_stop(struct sb_chinfo *ch)
 {
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-    	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
 
     	if (sb->bd_flags & BD_F_HISPEED)
 		sb_reset_dsp(sb);
-	else {
-		sb_cmd(sb, b16? DSP_CMD_DMAPAUSE_16 : DSP_CMD_DMAPAUSE_8);
-	       /*
-		* The above seems to have the undocumented side effect of
-		* blocking the other side as well. If the other
-		* channel was active (SB16) I have to re-enable it :(
-		*/
-		if (sb->bd_flags & (BD_F_DMARUN << (1 - b16)))
-			sb_cmd(sb, b16? 0xd4 : 0xd6 );
-	}
+	else
+		sb_cmd(sb, DSP_CMD_DMAEXIT_8);
+
 	if (play)
 		sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
-	sb->bd_flags &= ~(BD_F_DMARUN << b16);
+	sb->bd_flags &= ~BD_F_DMARUN;
 	return 0;
 }
 
@@ -668,30 +597,16 @@ sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
-	int dch, dl, dh;
 
 	ch->parent = sb;
 	ch->channel = c;
+	ch->dir = dir;
 	ch->buffer = b;
-	ch->buffer->bufsize = DSP_BUFFSIZE;
+	ch->buffer->bufsize = SB_BUFFSIZE;
+	ch->buffer->chan = rman_get_start(sb->drq);
 	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1)
 		return NULL;
-	dch = (dir == PCMDIR_PLAY)? 1 : 0;
-	if (sb->bd_flags & BD_F_SB16X)
-		dch = !dch;
-	dl = rman_get_start(sb->drq1);
-	dh = sb->drq2? rman_get_start(sb->drq2) : dl;
-	ch->buffer->chan = dch? dh : dl;
 	return ch;
-}
-
-static int
-sbchan_setdir(void *data, int dir)
-{
-	struct sb_chinfo *ch = data;
-
-	ch->dir = dir;
-	return 0;
 }
 
 static int
@@ -748,132 +663,17 @@ sbchan_getcaps(void *data)
 	struct sb_chinfo *ch = data;
 	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 
+	if (ch->parent->bd_id == 0x200)
+		return p? &sb200_playcaps : &sb200_reccaps;
 	if (ch->parent->bd_id < 0x300)
-		return p? &sb_playcaps : &sb_reccaps;
-	else if (ch->parent->bd_id < 0x400)
-		return p? &sbpro_playcaps : &sbpro_reccaps;
-	else if (ch->parent->bd_flags & BD_F_SB16X)
-		return &sb16x_caps;
-	else
-		return (ch->buffer->chan >= 4)? &sb16_hcaps : &sb16_lcaps;
+		return p? &sb201_playcaps : &sb201_reccaps;
+	return p? &sbpro_playcaps : &sbpro_reccaps;
 }
 
 /************************************************************/
 
 static int
-sbmix_init(snd_mixer *m)
-{
-    	struct sb_info *sb = mix_getdevinfo(m);
-
-    	switch (sb->bd_flags & BD_F_MIX_MASK) {
-    	case BD_F_MIX_CT1345: /* SB 3.0 has 1345 mixer */
-		mix_setdevs(m, SBPRO_MIXER_DEVICES);
-		mix_setrecdevs(m, SBPRO_RECORDING_DEVICES);
-		sb_setmixer(sb, 0, 1); /* reset mixer */
-		sb_setmixer(sb, MIC_VOL, 0x6); /* mic volume max */
-		sb_setmixer(sb, RECORD_SRC, 0x0); /* mic source */
-		sb_setmixer(sb, FM_VOL, 0x0); /* no midi */
-		break;
-
-    	case BD_F_MIX_CT1745: /* SB16 mixer ... */
-		mix_setdevs(m, SB16_MIXER_DEVICES);
-		mix_setrecdevs(m, SB16_RECORDING_DEVICES);
-		sb_setmixer(sb, 0x3c, 0x1f); /* make all output active */
-		sb_setmixer(sb, 0x3d, 0); /* make all inputs-l off */
-		sb_setmixer(sb, 0x3e, 0); /* make all inputs-r off */
-    	}
-    	return 0;
-}
-
-static int
-sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
-{
-    	struct sb_info *sb = mix_getdevinfo(m);
-    	int regoffs;
-    	u_char   val;
-    	mixer_tab *iomap;
-
-    	switch (sb->bd_flags & BD_F_MIX_MASK) {
-    	case BD_F_MIX_CT1345:
-		iomap = &sbpro_mix;
-		break;
-
-    	case BD_F_MIX_CT1745:
-		iomap = &sb16_mix;
-		break;
-
-    	default:
-        	return -1;
-    	}
-
-	/* Change left channel */
-    	regoffs = (*iomap)[dev][LEFT_CHN].regno;
-    	if (regoffs != 0) {
-		val = sb_getmixer(sb, regoffs);
-		change_bits(iomap, &val, dev, LEFT_CHN, left);
-		sb_setmixer(sb, regoffs, val);
-	}
-
-	/* Change right channel */
-	regoffs = (*iomap)[dev][RIGHT_CHN].regno;
-	if (regoffs != 0) {
-		val = sb_getmixer(sb, regoffs); /* Read the new one */
-		change_bits(iomap, &val, dev, RIGHT_CHN, right);
-		sb_setmixer(sb, regoffs, val);
-	} else
-		right = left;
-
-    	return left | (right << 8);
-}
-
-static int
-sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
-{
-    	struct sb_info *sb = mix_getdevinfo(m);
-    	u_char recdev;
-
-    	switch (sb->bd_flags & BD_F_MIX_MASK) {
-    	case BD_F_MIX_CT1345:
-		if      (src == SOUND_MASK_LINE)
-			recdev = 0x06;
-		else if (src == SOUND_MASK_CD)
-			recdev = 0x02;
-		else { /* default: mic */
-	    		src = SOUND_MASK_MIC;
-	    		recdev = 0;
-		}
-		sb_setmixer(sb, RECORD_SRC, recdev |
-			    (sb_getmixer(sb, RECORD_SRC) & ~0x07));
-		break;
-
-    	case BD_F_MIX_CT1745: /* sb16 */
-		recdev = 0;
-		if (src & SOUND_MASK_MIC)
-			recdev |= 0x01; /* mono mic */
-		if (src & SOUND_MASK_CD)
-			recdev |= 0x06; /* l+r cd */
-		if (src & SOUND_MASK_LINE)
-			recdev |= 0x18; /* l+r line */
-		if (src & SOUND_MASK_SYNTH)
-			recdev |= 0x60; /* l+r midi */
-		sb_setmixer(sb, SB16_IMASK_L, recdev);
-		sb_setmixer(sb, SB16_IMASK_R, recdev);
-		/*
-	 	* since the same volume controls apply to the input and
-	 	* output sections, the best approach to have a consistent
-	 	* behaviour among cards would be to disable the output path
-	 	* on devices which are used to record.
-	 	* However, since users like to have feedback, we only disable
-	 	* the mic -- permanently.
-	 	*/
-        	sb_setmixer(sb, SB16_OMASK, 0x1f & ~1);
-		break;
-       	}
-    	return src;
-}
-
-static int
-sbsbc_probe(device_t dev)
+sb_probe(device_t dev)
 {
     	char buf[64];
 	uintptr_t func, ver, r, f;
@@ -886,20 +686,22 @@ sbsbc_probe(device_t dev)
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	f = (ver & 0xffff0000) >> 16;
 	ver &= 0x0000ffff;
-	if (f & BD_F_ESS)
+	if ((f & BD_F_ESS) || (ver >= 0x400))
 		return (ENXIO);
 
-	snprintf(buf, sizeof buf, "SB DSP %d.%02d%s", (int) ver >> 8, (int) ver & 0xff,
-		(f & BD_F_SB16X)? " (ViBRA16X)" : "");
+	snprintf(buf, sizeof buf, "SB DSP %d.%02d", (int) ver >> 8, (int) ver & 0xff);
+
     	device_set_desc_copy(dev, buf);
 
 	return 0;
 }
 
 static int
-sbsbc_attach(device_t dev)
+sb_attach(device_t dev)
 {
     	struct sb_info *sb;
+    	char status[SND_STATUSLEN];
+	int bs = SB_BUFFSIZE;
 	uintptr_t ver;
 
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
@@ -911,27 +713,78 @@ sbsbc_attach(device_t dev)
 	sb->bd_id = ver & 0x0000ffff;
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
 
-    	return sb_doattach(dev, sb);
+    	if (sb_alloc_resources(sb, dev))
+		goto no;
+    	if (sb_reset_dsp(sb))
+		goto no;
+    	if (mixer_init(dev, (sb->bd_id < 0x300)? &sb_mixer : &sbpro_mixer, sb))
+		goto no;
+	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
+		goto no;
+
+	pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
+
+    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
+			/*highaddr*/BUS_SPACE_MAXADDR,
+			/*filter*/NULL, /*filterarg*/NULL,
+			/*maxsize*/bs, /*nsegments*/1,
+			/*maxsegz*/0x3ffff,
+			/*flags*/0, &sb->parent_dmat) != 0) {
+		device_printf(dev, "unable to create dma tag\n");
+		goto no;
+    	}
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
+    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq), rman_get_start(sb->drq));
+
+    	if (pcm_register(dev, sb, 1, 1))
+		goto no;
+	pcm_addchan(dev, PCMDIR_REC, &sb_chantemplate, sb);
+	pcm_addchan(dev, PCMDIR_PLAY, &sb_chantemplate, sb);
+
+    	pcm_setstatus(dev, status);
+
+    	return 0;
+
+no:
+    	sb_release_resources(sb, dev);
+    	return ENXIO;
 }
 
-static device_method_t sbsbc_methods[] = {
+static int
+sb_detach(device_t dev)
+{
+	int r;
+	struct sb_info *sb;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sb = pcm_getdevinfo(dev);
+    	sb_release_resources(sb, dev);
+	return 0;
+}
+
+static device_method_t sb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		sbsbc_probe),
-	DEVMETHOD(device_attach,	sbsbc_attach),
+	DEVMETHOD(device_probe,		sb_probe),
+	DEVMETHOD(device_attach,	sb_attach),
 	DEVMETHOD(device_detach,	sb_detach),
 
 	{ 0, 0 }
 };
 
-static driver_t sbsbc_driver = {
+static driver_t sb_driver = {
 	"pcm",
-	sbsbc_methods,
+	sb_methods,
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(snd_sb, sbc, sbsbc_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_sb, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(snd_sb, 1);
+DRIVER_MODULE(snd_sb8, sbc, sb_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_sb8, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_sb8, 1);
 
 
 
