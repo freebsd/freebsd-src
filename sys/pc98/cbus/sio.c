@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.56 1998/05/13 10:42:36 kato Exp $
+ *	$Id: sio.c,v 1.57 1998/05/20 13:39:06 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -182,16 +182,6 @@
 #define enable_intr()	COM_ENABLE_INTR()
 #endif /* SMP */
 
-#ifdef APIC_IO
-/*
- * INTs are masked in the (global) IO APIC,
- *  but the IRR register is in each LOCAL APIC,
- *  so we would have to unmask the INT to be able to "see INT pending".
- * So instead we just look in the 8259 ICU.
- */
-#define isa_irq_pending		icu_irq_pending
-#endif /* APIC_IO */
-
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
@@ -218,8 +208,6 @@
 #define	COM_LLCONSOLE(dev)	((dev)->id_flags & 0x40)
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
-#define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
-#define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
 #define COM_ST16650A(dev)	((dev)->id_flags & 0x20000)
 #define COM_C_NOPROBE     (0x40000)
 #define COM_NOPROBE(dev)  ((dev)->id_flags & COM_C_NOPROBE)
@@ -818,6 +806,8 @@ sioprobe(dev)
 	int		fn;
 	struct isa_device	*idev;
 	Port_t		iobase;
+	intrmask_t	irqmap[4];
+	intrmask_t	irqs;
 	u_char		mcr_image;
 	int		result;
 	struct isa_device	*xdev;
@@ -882,7 +872,7 @@ sioprobe(dev)
 			tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
 			outb( iod.ctrl, tmp|IEN_TxEMP );
 			DELAY(10);
-			ret = isa_irq_pending(dev) ? 4 : 0;
+			ret = isa_irq_pending() ? 4 : 0;
 			outb( iod.ctrl, tmp );
 			COM_INT_ENABLE
 			break;
@@ -983,6 +973,8 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 	outb(iobase + com_ier, 0);
+	DELAY(1000);		/* XXX */
+	irqmap[0] = isa_irq_pending();
 
 	/*
 	 * Attempt to set loopback mode so that we can send a null byte
@@ -1064,12 +1056,10 @@ sioprobe(dev)
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
-	if (idev->id_irq != 0 && !COM_NOTST3(idev))
-		failures[3] = isa_irq_pending(idev) ? 0 : 1;
+	irqmap[1] = isa_irq_pending();
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
-	if (idev->id_irq != 0)
-		failures[5] = isa_irq_pending(idev) ? 1	: 0;
+	irqmap[2] = isa_irq_pending();
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
@@ -1085,20 +1075,35 @@ sioprobe(dev)
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
 	DELAY(1000);		/* XXX */
-	if (idev->id_irq != 0)
-		failures[8] = isa_irq_pending(idev) ? 1	: 0;
+	irqmap[3] = isa_irq_pending();
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	enable_intr();
+
+	/* XXX the magic mask is to discard transient (clock) irqs. */
+	irqs = irqmap[1] & ~irqmap[0] & ~0x0105;
+	if (irqs != idev->id_irq)
+		printf(
+		    "sio%d: probed irq %d does not match configured irq %d\n",
+		    ffs(irqs) - 1, ffs(idev->id_irq) - 1);
+	if (bootverbose)
+		printf("sio%d: irq maps: %04x %04x %04x %04x\n",
+		    dev->id_unit, irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
 	result = IO_COMSIZE;
 	for (fn = 0; fn < sizeof failures; ++fn)
 		if (failures[fn]) {
 			outb(iobase + com_mcr, 0);
 			result = 0;
-			if (COM_VERBOSE(dev))
-				printf("sio%d: probe test %d failed\n",
-				       dev->id_unit, fn);
+			if (bootverbose) {
+				printf("sio%d: probe failed test(s):",
+				    dev->id_unit);
+				for (fn = 0; fn < sizeof failures; ++fn)
+					if (failures[fn])
+						printf(" %d", fn);
+				printf("\n");
+			}
+			break;
 		}
 	return (result);
 }
