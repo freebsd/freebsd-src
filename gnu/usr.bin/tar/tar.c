@@ -169,6 +169,8 @@ struct option long_options[] =
   {"compress", 0, 0, 'Z'},
   {"uncompress", 0, 0, 'Z'},
   {"block-compress", 0, &f_compress_block, 1},
+  {"bzip2", 0, 0, 'y'},
+  {"bunzip2", 0, 0, 'y'},
   {"gzip", 0, 0, 'z'},
   {"ungzip", 0, 0, 'z'},
   {"use-compress-program", 1, 0, 18},
@@ -314,7 +316,7 @@ options (argc, argv)
 
   /* Parse options */
   while ((c = getoldopt (argc, argv,
-	       "-01234567Ab:BcC:df:F:g:GhikK:lL:mMnN:oOpPrRsStT:uvV:wWxX:zZ",
+	       "-01234567Ab:BcC:df:F:g:GhikK:lL:mMnN:oOpPrRsStT:uvV:wWxX:yzZ",
 			 long_options, &ind)) != EOF)
     {
       switch (c)
@@ -635,6 +637,15 @@ options (argc, argv)
 	  add_exclude_file (optarg);
 	  break;
 
+	case 'y':
+	  if (f_compressprog)
+	    {
+	      msg ("Only one compression option permitted\n");
+	      exit (EX_ARGSBAD);
+	    }
+	  f_compressprog = "bzip2";
+	  break;
+
 	case 'z':
 	  if (f_compressprog)
 	    {
@@ -771,6 +782,7 @@ Other options:\n\
 -W, --verify		attempt to verify the archive after writing it\n\
 --exclude FILE		exclude file FILE\n\
 -X, --exclude-from FILE	exclude files listed in FILE\n\
+-y, --bzip2, --bunzip2  filter the archive through bzip2\n\
 -Z, --compress,\n\
     --uncompress      	filter the archive through compress\n\
 -z, --gzip,\n\
