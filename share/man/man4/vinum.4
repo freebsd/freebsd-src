@@ -683,6 +683,210 @@ idea, I'd be grateful for input.
 Detection of differences between the version of the kernel and the kld is not
 yet implemented.
 .El
+.Sh DEBUGGING PROBLEMS WITH VINUM
+.Pp
+Solving problems with
+.Nm
+can be a difficult affair.  This section suggests some approaches.
+.Ss Configuration problems
+.Pp
+It is relatively easy (too easy) to run into problems with the
+.Nm
+configuration.  If you do, the first thing you should do is stop configuration
+updates:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+# vinum setdaemon 4
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+This will stop updates and any further corruption of the on-disk configuration.
+.Pp
+Next, look at the on-disk configuration, using a Bourne-style shell:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+# rm -f log
+# for i in /dev/da0s1h /dev/da1s1h /dev/da2s1h /dev/da3s1h; do
+>    (dd if=/dev/da1h skip=8 count=6|tr -d '\e000-\e011\e200-\e377'; echo) >> log
+>  done
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+The names of the devices are the names of all
+.Nm
+slices.  The file
+.Pa log
+should then contain something like this:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+IN VINOpanic.lemis.comdrive1}6E7~^K6T^Yfoovolume obj state up
+volume src state up
+volume raid state down
+volume r state down
+volume foo state up
+plex name obj.p0 state corrupt org concat vol obj
+plex name obj.p1 state corrupt org striped 128b vol obj
+plex name src.p0 state corrupt org striped 128b vol src
+plex name src.p1 state up org concat vol src
+plex name raid.p0 state faulty org disorg vol raid
+plex name r.p0 state faulty org disorg vol r
+plex name foo.p0 state up org concat vol foo
+plex name foo.p1 state faulty org concat vol foo
+sd name obj.p0.s0 drive drive2 plex obj.p0 state reborn len 409600b driveoffset 265b plexoffset 0b
+sd name obj.p0.s1 drive drive4 plex obj.p0 state up len 409600b driveoffset 265b plexoffset 409600b
+sd name obj.p1.s0 drive drive1 plex obj.p1 state up len 204800b driveoffset 265b plexoffset 0b
+sd name obj.p1.s1 drive drive2 plex obj.p1 state reborn len 204800b driveoffset 409865b plexoffset 128b
+sd name obj.p1.s2 drive drive3 plex obj.p1 state up len 204800b driveoffset 265b plexoffset 256b
+sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 409865b plexoffset 384b
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+The first line contains the
+.Nm 
+label and must start with the text
+.Li IN VINO.
+It also contains the name of the system.  The exact definition is contained in 
+.Pa /usr/src/sys/dev/vinum/vinumvar.h.
+The saved configuration starts in the middle of the line with the text
+.Li volume obj state up
+and starts in sector 9 of the disk.
+The rest of the output shows the remainder of the  on-disk configuration.  It
+may be necessary to increase the
+.Ar count
+argument of
+.Cm dd
+in order to see the complete configuration.
+.Pp
+The configuration on all disks should be the same.  If this is not the case,
+please report the problem with the exact contents of the file
+.Pa log .
+There is probably little that can be done to recover the on-disk configuration,
+but if you keep a copy of the files used to create the objects, you should be
+able to re-create them.  The
+.Cm create
+command does not change the subdisk data, so this will not cause data
+corruption.  You may need to use the
+.Cm resetconfig
+command if you have this kind of trouble.
+.Ss Kernel Panics
+.Pp
+In order to analyse a panic which you suspect comes from
+.Nm
+you will need to build a debug kernel.  See the online handbook for more details
+of how to do this.
+.P
+You will need some additional steps to get symbolic information for the
+.Nm
+kernel loadable module:
+.Bl -enum
+.It
+Make sure that you build the
+.Nm 
+module with debugging information.  This is the normal situation with the
+standard
+.Pa Makefile.
+.It
+After starting 
+.Nm
+issue the following commands:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+echo add-symbol-file /usr/src/sys/modules/vinum/vinum.ko \e
+  0x`objdump --section-headers /modules/vinum.ko \e
+  | grep ' .text' \e
+  | awk '{print $4}'`\+`kldstat \e
+  | grep vinum | awk '{print $3}'`
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+It's easiest to store this in a file, make it executable, and run it.  The
+output will be something like:
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+add-symbol-file /usr/src/sys/modules/vinum/vinum.ko 0x00005e24+0xf0f4e000
+.Ed
+.if t .vs
+.if t .ps
+.It
+Place the file
+.Pa /usr/src/sys/modules/vinum/.gdbinit
+in the directory in which you will be performing the analysis, typically
+.Pa /var/crash.
+If you have built the module elsewhere than
+.Pa /usr/src/sys/modules/vinum,
+you will need to modify
+.Pa .gdbinit 
+accordingly.
+.It
+Either take a dump or use remote
+.Cm gdb
+to analyse the problem.  Enter the output of the shell script above.  The
+following example shows a remote debugging session using the 
+.Ar debug
+command of
+.Nm vinum(8):
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+(kgdb) add-symbol-file /usr/src/sys/modules/vinum/vinum.ko 0x00005e24+0xf0f4e000
+add symbol table from file "/usr/src/sys/modules/vinum/vinum.ko" at text_addr = 0xf0f53e24?
+(y or n) y
+(kgdb) bt
+#0  Debugger (msg=0xf0f661ac "vinum debug") at ../../i386/i386/db_interface.c:318
+#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "", 
+      flag=0x3, p=0xf688e6c0) at 
+      /usr/src/sys/modules/vinum/../../dev/vinum/vinumioctl.c:109
+#2  0xf01833b7 in spec_ioctl (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:424
+#3  0xf0182cc9 in spec_vnoperate (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:129
+#4  0xf01eb3c1 in ufs_vnoperatespec (ap=0xf6923e0c) at ../../ufs/ufs/ufs_vnops.c:2312
+#5  0xf017dbb1 in vn_ioctl (fp=0xf1007ec0, com=0xc008464b, data=0xf6923ed0 "", 
+      p=0xf688e6c0) at vnode_if.h:395
+#6  0xf015dce0 in ioctl (p=0xf688e6c0, uap=0xf6923f84) at ../../kern/sys_generic.c:473
+#7  0xf0214c0b in syscall (frame={tf_es = 0x27, tf_ds = 0x27, tf_edi = 0xefbfcff8, 
+      tf_esi = 0x1, tf_ebp = 0xefbfcf90, tf_isp = 0xf6923fd4, tf_ebx = 0x2, 
+      tf_edx = 0x804b614, tf_ecx = 0x8085d10, tf_eax = 0x36, tf_trapno = 0x7,
+      tf_err = 0x2, tf_eip = 0x8060a34, tf_cs = 0x1f, tf_eflags = 0x286, 
+      tf_esp = 0xefbfcf78, tf_ss = 0x27}) at ../../i386/i386/trap.c:1100
+#8  0xf020a1fc in Xint0x80_syscall ()
+#9  0x804832d in ?? ()
+#10 0x80482ad in ?? ()
+#11 0x80480e9 in ?? ()
+(kgdb) f 1
+#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "",
+    flag=0x3, p=0xf688e6c0) at
+    /usr/src/sys/modules/vinum/../../dev/vinum/vinumioctl.c:109
+Source file is more recent than executable.
+109             Debugger ("vinum debug");
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+When entering from the debugger, it's important that the source of frame 1 (the
+bottom of the example) contains the text
+.if t .ps -3
+.if t .vs -3
+.Bd -literal
+Debugger ("vinum debug");
+.Ed
+.if t .vs
+.if t .ps
+.Pp
+This is an indication that the address specifications are correct.
+.El
+.Pp
+For an initial investigation, the most important information is the output of
+the
+.Nm bt
+(backtrace) command above.
 .Sh AUTHOR
 Greg Lehey
 .Pa <grog@lemis.com> .
