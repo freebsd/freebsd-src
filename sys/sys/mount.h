@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.7 1994/09/19 15:41:56 dfr Exp $
+ * $Id: mount.h,v 1.8 1994/09/21 03:47:31 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -262,7 +262,7 @@ struct vfsops {
 		&vfsops, \
 		#fsname, \
 		index, \
-		1, \
+		0, \
 		flags \
 	}; \
 	extern struct linker_set MODVNOPS; \

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.4 1994/08/20 03:48:54 davidg Exp $
+ * $Id: umap_vnops.c,v 1.5 1994/09/21 03:47:12 wollman Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
