@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.8 1999/03/30 17:07:20 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.15 1999/03/31 04:00:05 wpaul Exp $
  */
 
 
@@ -806,3 +806,9 @@ struct tl_stats {
  */
 #define EEPROM_CTL_READ			0xA1	/* 0101 0001 */
 #define EEPROM_CTL_WRITE		0xA0	/* 0101 0000 */
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
+#endif
