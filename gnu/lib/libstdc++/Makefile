@@ -1,63 +1,57 @@
 #
-# $Id: Makefile,v 1.11 1998/12/27 17:25:27 bde Exp $
+# $Id: Makefile,v 1.19 1999/03/14 22:54:18 obrien Exp $
 #
 
-GPPDIR=	${.CURDIR}/../../../contrib/libg++
+EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 
-.PATH:	${GPPDIR}/libstdc++ ${GPPDIR}/libstdc++/stl ${GPPDIR}/libio \
-	${GPPDIR}/libiberty
+.PATH: ${EGCSDIR}/libstdc++ ${EGCSDIR}/libstdc++/stl ${EGCSDIR}/libio
 
 LIB=		stdc++
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 SHLIB_MINOR=	0
 
-CFLAGS+=	-I${GPPDIR}/include -I${DESTDIR}/usr/include/g++ -I.
-CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
-CXXFLAGS+=	-fno-implicit-templates
+CFLAGS+=	-I${EGCSDIR}/include -I${EGCSDIR}/libio -I.
+CXXFLAGS+=	-I${EGCSDIR}/libstdc++/stl -I${EGCSDIR}/libstdc++ \
+		-I${EGCSDIR}/gcc/cp/inc -I.
+CXXFLAGS+=	-nostdinc++ -fno-implicit-templates
 
 LDADD+=		-lm
 DPADD+=		${LIBM}
 
-DIR=		${GPPDIR}/libstdc++
+DIR=		${EGCSDIR}/libstdc++
 
 HDRS=	cassert cctype cerrno cfloat ciso646 climits clocale cmath complex \
 	csetjmp csignal cstdarg cstddef cstdio cstdlib cstring ctime \
-	cwchar cwctype new stddef string exception stdexcept typeinfo \
-	algorithm deque list map queue set stack vector utility functional \
-	iterator memory numeric \
-	complex.h new.h stl.h
+	cwchar cwctype fstream iomanip iosfwd iostream stdexcept string \
+	strstream complex.h stl.h
 
-SHDRS=	bastring.cc bastring.h cassert.h cctype.h cerrno.h cfloat.h cinst.h \
-	ciso646.h climits.h clocale.h cmath.h complex.h complext.cc \
-	complext.h csetjmp.h csignal.h cstdarg.h cstddef.h cstdio.h \
-	cstdlib.h cstring.h ctime.h cwchar.h cwctype.h dcomplex.h exception.h \
-	fcomplex.h ldcomplex.h new.h sinst.h stddef.h stdexcept.h straits.h \
-	string.h typeinfo.h
+SHDRS=	bastring.cc bastring.h complext.cc complext.h dcomplex.h fcomplex.h \
+	ldcomplex.h straits.h
 
-STLHDRS=algo.h algobase.h bool.h bvector.h defalloc.h deque.h faralloc.h \
-	fdeque.h flist.h fmap.h fmultmap.h fmultset.h fset.h function.h \
-	hdeque.h heap.h hlist.h hmap.h hmultmap.h hmultset.h hset.h \
-	hugalloc.h hvector.h iterator.h lbvector.h ldeque.h list.h llist.h \
-	lmap.h lmultmap.h lmultset.h lngalloc.h lset.h map.h multimap.h \
-	multiset.h neralloc.h nmap.h nmultmap.h nmultset.h nset.h pair.h \
-	projectn.h set.h stack.h tempbuf.h tree.h vector.h
+STLHDRS=algo.h algobase.h algorithm alloc.h bvector.h defalloc.h deque deque.h \
+	function.h functional hash_map hash_map.h hash_set hash_set.h \
+	hashtable.h heap.h iterator iterator.h list list.h map map.h memory \
+	multimap.h multiset.h numeric pair.h pthread_alloc pthread_alloc.h \
+	queue rope rope.h ropeimpl.h set set.h slist slist.h stack stack.h \
+	stl_algo.h stl_algobase.h stl_alloc.h stl_bvector.h stl_config.h \
+	stl_construct.h stl_deque.h stl_function.h stl_hash_fun.h \
+	stl_hash_map.h stl_hash_set.h stl_hashtable.h stl_heap.h \
+	stl_iterator.h stl_list.h stl_map.h stl_multimap.h stl_multiset.h \
+	stl_numeric.h stl_pair.h stl_queue.h stl_raw_storage_iter.h \
+	stl_relops.h stl_rope.h stl_set.h stl_slist.h stl_stack.h \
+	stl_tempbuf.h stl_tree.h stl_uninitialized.h stl_vector.h \
+	tempbuf.h tree.h type_traits.h utility vector vector.h
 
-SRCS+=	newi.cc cstringi.cc stddefi.cc typeinfoi.cc exceptioni.cc \
-	stdexcepti.cc cstdlibi.cc cmathi.cc
+# libstdc++ sources
+SRCS+=	cmathi.cc cstdlibi.cc cstringi.cc stdexcepti.cc stlinst.cc
 
-# stl sources.
-SRCS+=	tempbuf.cc tree.cc random.cc
-
-# "standard" C parts of libiberty (strerror is a superset of the libc version)
-SRCS+=	insque.c strerror.c
-
-# Headers for iostream
+# Headers for iostream / libio
 IHDRS=	PlotFile.h SFile.h builtinbuf.h editbuf.h floatio.h fstream.h \
 	indstream.h iolibio.h iomanip.h iostdio.h iostream.h iostreamP.h \
 	istream.h libio.h libioP.h ostream.h parsestream.h pfstream.h \
 	procbuf.h stdiostream.h stream.h streambuf.h strfile.h strstream.h
 
-# C++ parts of iostream
+# C++ parts of iostream / libio
 SRCS+=	PlotFile.cc SFile.cc builtinbuf.cc editbuf.cc filebuf.cc fstream.cc \
 	indstream.cc ioassign.cc ioextend.cc iomanip.cc iostream.cc \
 	isgetline.cc isgetsb.cc isscan.cc osform.cc parsestream.cc \
@@ -65,29 +59,37 @@ SRCS+=	PlotFile.cc SFile.cc builtinbuf.cc editbuf.cc filebuf.cc fstream.cc \
 	stdiostream.cc stdstrbufs.cc stdstreams.cc stream.cc streambuf.cc \
 	strstream.cc
 
-# C parts of iostream
+# C parts of iostream / libio
 SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
-	iofgetpos.c iofread.c iofscanf.c iofsetpos.c iogetdelim.c iogetline.c \
-	ioignore.c iopadn.c iopopen.c ioprims.c ioprintf.c ioseekoff.c \
-	ioseekpos.c iostrerror.c ioungetc.c iovfprintf.c iovfscanf.c \
-	outfloat.c strops.c
+	iofdopen.c iofeof.c ioferror.c iofflush.c iofflush_u.c iofgetpos.c \
+	iofgets.c iofopen.c iofprintf.c iofputs.c iofread.c iofscanf.c \
+	iofsetpos.c ioftell.c iofwrite.c iogetc.c iogetdelim.c iogetline.c \
+	iogets.c ioignore.c iopadn.c ioperror.c iopopen.c ioprims.c ioprintf.c \
+	ioputc.c ioputs.c ioscanf.c ioseekoff.c ioseekpos.c iosetbuffer.c \
+	iosetvbuf.c iosprintf.c iosscanf.c iostrerror.c ioungetc.c \
+	iovfprintf.c iovfscanf.c iovsprintf.c iovsscanf.c outfloat.c \
+	peekc.c strops.c
 
-SRCS+=	config.h
-CLEANFILES+=	config.h
-
-config.h:
-	touch config.h
-
-beforeinstall:
+beforeinstall: _G_config.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/_G_config.h \
-		${HDRS:S;^;${GPPDIR}/libstdc++/;} \
-		${IHDRS:S;^;${GPPDIR}/libio/;} \
-		${STLHDRS:S;^;${GPPDIR}/libstdc++/stl/;} \
+		_G_config.h \
 		${DESTDIR}/usr/include/g++
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${SHDRS:S;^;${GPPDIR}/libstdc++/std/;} \
+		${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
+		${IHDRS:S;^;${EGCSDIR}/libio/;} \
+		${STLHDRS:S;^;${EGCSDIR}/libstdc++/stl/;} \
+		${DESTDIR}/usr/include/g++
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${SHDRS:S;^;${EGCSDIR}/libstdc++/std/;} \
 		${DESTDIR}/usr/include/g++/std
+
+SRCS+=		_G_config.h
+CLEANFILES+=	_G_config.h dummy.h dummy.c dummy.C
+_G_config.h: Makefile ${EGCSDIR}/libio/gen-params
+	CC="${CC}" CXX="${CXX}" CONFIG_NM="nm" \
+		CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
+		sh ${EGCSDIR}/libio/gen-params \
+		LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
 
 # Lots of special cases
 
@@ -95,11 +97,11 @@ beforeinstall:
 .for file in typeinfoi stdexcepti
 CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
 ${file}.o: ${file}.cc
-	${CXX} ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
+	${CXX} -nostdinc++ ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.So: ${file}.cc
+${file}.so: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -114,17 +116,17 @@ ${file}.po: ${file}.cc
 .for file in exceptioni
 CLEANFILES+=	${file}.o.tmp ${file}.po.tmp ${file}.so.tmp
 ${file}.o: ${file}.cc
-	${CXX} ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+	${CXX} ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.So: ${file}.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+${file}.so: ${file}.cc
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${file}.po: ${file}.cc
-	${CXX} -p ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
+	${CXX} -p ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endfor
@@ -136,7 +138,7 @@ CLEANFILES+=	cstrmain.cc
 cstrmain.cc: sinst.cc
 	echo "#define C 1" > ${.TARGET}
 .for i in REP MAIN TRAITS ADDSS ADDPS ADDCS ADDSP ADDSC  EQSS EQPS EQSP NESS \
-    NEPS NESP LTSS LTPS LTSP GTSS GTPS GTSP  LESS LEPS LESP GESS GEPS GESP
+    NEPS NESP LTSS LTPS LTSP GTSS GTPS GTSP LESS LEPS LESP GESS GEPS GESP
 	echo "#define $i 1" >> ${.TARGET}
 .endfor
 	cat ${.ALLSRC} >> ${.TARGET}
@@ -159,8 +161,8 @@ CLEANFILES+=	fcomplex.cc
 fcomplex.cc: cinst.cc
 	echo "#define F 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR  \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
 	echo "#define $i 1" >> ${.TARGET}
 .endfor
 	cat ${.ALLSRC} >> ${.TARGET}
@@ -183,8 +185,8 @@ CLEANFILES+=	dcomplex.cc
 dcomplex.cc: cinst.cc
 	echo "#define D 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
 	echo "#define $i 1" >> ${.TARGET}
 .endfor
 	cat ${.ALLSRC} >> ${.TARGET}
@@ -207,8 +209,8 @@ CLEANFILES+=	ldcomplex.cc
 ldcomplex.cc: cinst.cc
 	echo "#define LD 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
 	echo "#define $i 1" >> ${.TARGET}
 .endfor
 	cat ${.ALLSRC} >> ${.TARGET}

@@ -1,20 +1,20 @@
 #
-# $Id: Makefile,v 1.12 1997/02/22 15:44:52 peter Exp $
+# $Id: Makefile,v 1.15 1999/03/05 04:55:03 obrien Exp $
 #
+
+.include "../Makefile.inc"
+
+.PATH: ${GCCDIR}
 
 PROG =	cc
 MAN1 =  gcc.1
 SRCS =	gcc.c
 BINDIR=	/usr/bin
-SRCS+=	multilib.h obstack.c version.c
+
 LINKS=	${BINDIR}/cc ${BINDIR}/gcc
-MLINKS= gcc.1 cc.1 gcc.1 c++.1 gcc.1 g++.1
-CLEANFILES+= multilib.h
+MLINKS= gcc.1 cc.1 gcc.1 c++.1 gcc.1 g++.1 gcc.1 CC.1
 
-CFLAGS+= -I.	# I mean it!
-CFLAGS+= -I${.CURDIR}
-
-multilib.h: genmultilib
-	echo '#define MULTILIB_SELECT "aout maout;elf !maout;"' > multilib.h
+DPADD+=	${LIBCC_DRV} 
+LDADD+=	${LIBCC_DRV}
 
 .include <bsd.prog.mk>

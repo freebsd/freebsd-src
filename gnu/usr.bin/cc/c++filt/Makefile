@@ -1,6 +1,10 @@
 #
-# $Id: Makefile,v 1.3 1997/02/22 15:44:50 peter Exp $
+# $Id: Makefile,v 1.5 1999/03/05 04:55:03 obrien Exp $
 #
+
+.include "../Makefile.inc"
+
+.PATH: ${GCCDIR}
 
 PROG =	c++filt
 SRCS =	cplus-dem.c getopt.c getopt1.c underscore.c
