@@ -660,7 +660,9 @@ build-tools:
     ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
     ${_aicasm} usr.bin/awk usr.bin/file usr.sbin/sysinstall
 	${ECHODIR} "===> ${_tool}"; \
-		cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 
 #
