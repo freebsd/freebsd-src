@@ -127,7 +127,7 @@ struct grouplist *lookup(struct member_entry *table[], char *key)
 struct grouplist dummy = { 99999, NULL };
 
 /*
- * Store an group member entry and/or update its grouplist.
+ * Store a group member entry and/or update its grouplist.
  */
 void mstore (struct member_entry *table[], char *key, int gid, int dup)
 {

@@ -915,7 +915,7 @@ wlstart(struct ifnet *ifp)
  *	the local buffer, the contents are copied to an mbuf chain that
  *	is then enqueued onto the appropriate "if" queue.
  *
- * input	: board number, and an frame descriptor address
+ * input	: board number, and a frame descriptor address
  * output	: the packet is put into an mbuf chain, and passed up
  * assumes	: if any errors occur, packet is "dropped on the floor"
  *

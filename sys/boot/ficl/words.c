@@ -4535,7 +4535,7 @@ static void funcname(FICL_VM *pVM)
 /**************************************************************************
                         f i c l W o r d C l a s s i f y
 ** This public function helps to classify word types for SEE
-** and the deugger in tools.c. Given an pointer to a word, it returns
+** and the deugger in tools.c. Given a pointer to a word, it returns
 ** a member of WOR
 **************************************************************************/
 WORDKIND ficlWordClassify(FICL_WORD *pFW)

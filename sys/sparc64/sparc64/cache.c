@@ -78,7 +78,7 @@
 /*
  * Cache routines.
  *
- * UltraSPARCs have an virtually indexed, physically tagged (VIPT) level 1 data
+ * UltraSPARCs have a virtually indexed, physically tagged (VIPT) level 1 data
  * cache (D$) and physically indexed, physically tagged (PIPT) level 1
  * instruction (I$) and Level 2 (E$) caches.
  * D$ is directly mapped, I$ is pseudo 2-way associative. The Level 2 cache (E$)

@@ -3010,7 +3010,7 @@ glchksz(sym_t *sym)
 	if (sym->s_def == TDEF) {
 		if (sym->s_type->t_tspec == FUNC)
 			/*
-			 * this can happen if an syntax error occurred
+			 * this can happen if a syntax error occurred
 			 * after a function declaration
 			 */
 			return;

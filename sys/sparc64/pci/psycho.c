@@ -537,7 +537,7 @@ psycho_attach(device_t dev)
 		 * of a pair of psycho's to arrive here.
 		 *
 		 * We should calculate a TSB size based on amount of RAM
-		 * and number of bus controllers and number an type of
+		 * and number of bus controllers and number and type of
 		 * child devices.
 		 *
 		 * For the moment, 32KB should be more than enough.

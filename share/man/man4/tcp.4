@@ -332,7 +332,7 @@ Enable debugging for the bandwidth delay product algorithm.  This may
 default to on (1) so if you enable the algorithm you should probably also
 disable debugging by setting this variable to 0.
 .It tcp.inflight_min
-This puts an lower bound on the bandwidth delay product window, in bytes.
+This puts a lower bound on the bandwidth delay product window, in bytes.
 A value of 1024 is typically used for debugging.  6000-16000 is more typical
 in a production installation.  Setting this value too low may result in
 slow ramp-up times for bursty connections.  Setting this value too high

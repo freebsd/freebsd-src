@@ -321,7 +321,7 @@
       </qandaentry>
       <qandaentry>
         <question>
-	  <para>When installing on an Dell Poweredge XE, Dell
+	  <para>When installing on a Dell Poweredge XE, Dell
           proprietary RAID controller DSA (Dell SCSI Array) isn't
           recognized.</para>
         </question>

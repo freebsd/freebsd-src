@@ -35,7 +35,7 @@
  * This driver sends two bytes (0x08, 0x00) in front of each packet,
  * to allow us to distinguish another format later.
  *
- * Now added an Linux/Crynwr compatibility mode which is enabled using
+ * Now added a Linux/Crynwr compatibility mode which is enabled using
  * IF_LINK0 - Tim Wilkinson.
  *
  * TODO:

@@ -579,7 +579,7 @@ assign_driver(struct slot *sp, struct card *cp)
 				break;
 			}
 			/*
-			 * Ask the kernel if we have an free irq.
+			 * Ask the kernel if we have a free irq.
 			 */
 			res.min = i;
 			res.max = i;

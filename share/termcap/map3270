@@ -31,6 +31,7 @@
 #
 #	@(#)map3270	8.2 (Berkeley) 4/1/94
 #
+#	$FreeBSD$
 
 # This file contains mappings between characters entered from the keyboard,
 # and 3270 keys, for use by programs (like tn3270) doing 3270 emulation
@@ -925,7 +926,7 @@ tn3270pc | ibm-3278-2 {
 #
 # MAP3270 for the IBM PC
 # Nearly identical to the MS-Kermit UCB 227.14 keyboard which in turn was
-# an modest improvement of the BIJOU Yterm keyboard.
+# a modest improvement of the BIJOU Yterm keyboard.
 # Includes underlying ADM3A keystrokes for full S/1 compatibiliy.
 # Adds some Ctrl-keypad keys to compensate for TN3270 ROMBIOS dependency
 # which prevents separate use of the keypad plus and minus keys, and adds

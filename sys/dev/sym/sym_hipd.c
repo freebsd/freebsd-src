@@ -4028,7 +4028,7 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
  *  the following situations:
  *
  *  - SCSI parity error + Phase mismatch  (PAR|MA)
- *    When an parity error is detected in input phase 
+ *    When a parity error is detected in input phase 
  *    and the device switches to msg-in phase inside a 
  *    block MOV.
  *  - SCSI parity error + Unexpected disconnect (PAR|UDC)
@@ -6118,7 +6118,7 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	};
 
 	/*
-	 * Is it an request from the device?
+	 * Is it a request from the device?
 	 */
 	if (INB (HS_PRT) == HS_NEGOTIATE) {
 		OUTB (HS_PRT, HS_BUSY);

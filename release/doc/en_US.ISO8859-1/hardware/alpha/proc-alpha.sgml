@@ -2249,7 +2249,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
      PCI/EISA bridge that drives things like the serial and 
      parallel ports, keyboard/mouse etc. PCI1 has 4 PCI slots 
-     and an Symbios 810 SCSI chip. VGA console cards must be installed 
+     and a Symbios 810 SCSI chip. VGA console cards must be installed 
      in a slot connected to PCI0.</para>
 
      <para>The current &os; implementation has problems in handling 
@@ -2330,7 +2330,7 @@ cpu	EV5</programlisting>
       There are 2 separate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
       slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
       PCI/EISA bridge that drives things like the serial and parallel ports, 
-      keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an Symbios 810 
+      keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and a Symbios 810 
       SCSI chip. VGA console cards must be installed in a slot 
       connected to PCI0.</para>
 

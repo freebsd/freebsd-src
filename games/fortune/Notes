@@ -1,4 +1,5 @@
 #	@(#)Notes	8.1 (Berkeley) 5/31/93
+#	$FreeBSD$
 
 Warning:
 	The fortunes contained in the fortune database have been collected
@@ -53,7 +54,7 @@ a program which is supposed to be entertaining.  People who run "fortune
 their sensibilities tweaked.  However, they should not have their personal
 worth seriously (i.e., not in jest) assaulted.  Jokes which depend for their
 humor on racist, mysogynist, or homophobic stereotypes *do* seriously
-assault individual personal worth, and in an general entertainment medium
+assault individual personal worth, and in a general entertainment medium
 we should be able to get by without it.
 
 ==> FORMATTING

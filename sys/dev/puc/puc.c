@@ -302,7 +302,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 }
 
 /*
- * This is just an brute force interrupt handler. It just calls all the
+ * This is just a brute force interrupt handler. It just calls all the
  * registered handlers sequencially.
  *
  * Later on we should maybe have a different handler for boards that can

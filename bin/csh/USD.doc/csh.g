@@ -57,20 +57,20 @@ by the command
 .I pwd;
 see also
 .I dirs.
-The current directory `.' is usually the first 
-.I component 
+The current directory `.' is usually the first
+.I component
 of the search path contained in the variable
 .I path ,
 thus commands which are in `.' are found first (2.2).
-The character `.' is also used in separating 
-.I components 
+The character `.' is also used in separating
+.I components
 of filenames
 (1.6).
-The character `.' at the beginning of a 
-.I component 
-of a 
-.I pathname 
-is treated specially and not matched by the 
+The character `.' at the beginning of a
+.I component
+of a
+.I pathname
+is treated specially and not matched by the
 .I "filename expansion"
 metacharacters `?', `*', and `[' `]' pairs (1.6).
 .IP \&\fB..\fR
@@ -91,22 +91,22 @@ The current directory is printed by
 (2.7).
 .IP a.out
 Compilers which create executable images create them, by default, in the
-file 
+file
 .I a.out.
 for historical reasons (2.3).
 .IP "absolute pathname"
 .br
-A 
-.I pathname 
+A
+.I pathname
 which begins with a `/' is
 .I absolute
-since it specifies the 
-.I path 
+since it specifies the
+.I path
 of directories from the beginning
 of the entire directory system \- called the
 .I root
-directory.  
-.I Pathname s 
+directory.
+.I Pathname s
 which are not
 .I absolute
 are called
@@ -122,17 +122,17 @@ command, or a transformation on a command to be performed in
 the shell.
 The shell has a command
 .I alias
-which establishes 
-.I aliases 
+which establishes
+.I aliases
 and can print their current values.
 The command
 .I unalias
-is used to remove 
-.I aliases 
+is used to remove
+.I aliases
 (2.4).
 .IP argument
-Commands in \s-2UNIX\s0 receive a list of 
-.I argument 
+Commands in \s-2UNIX\s0 receive a list of
+.I argument
 words.
 Thus the command
 .DS
@@ -140,11 +140,11 @@ echo a b c
 .DE
 consists of the
 .I "command name"
-`echo' and three 
-.I argument 
+`echo' and three
+.I argument
 words `a', `b' and `c'.
-The set of 
-.I arguments 
+The set of
+.I arguments
 after the
 .I "command name"
 is said to be the
@@ -164,8 +164,8 @@ commands (2.6).
 .IP base
 A filename is sometimes thought of as consisting of a
 .I base
-part, before any `.' character, and an 
-.I extension 
+part, before any `.' character, and an
+.I extension
 \- the part after
 the `.'.  See
 .I filename
@@ -176,17 +176,17 @@ and
 The
 .I bg
 command causes a
-.I suspended 
+.I suspended
 job to continue execution in the
 .I background
 (2.6).
 .IP bin
 A directory containing binaries of programs and shell scripts to be
-executed is typically called a 
-.I bin 
+executed is typically called a
+.I bin
 directory.
-The standard system 
-.I bin 
+The standard system
+.I bin
 directories are `/bin' containing the most
 heavily used commands and `/usr/bin' which contains most other user
 programs.
@@ -195,8 +195,8 @@ written programs live in `/usr/local'.  Games are kept in the directory
 `/usr/games'.
 You can place binaries in any directory.
 If you wish to execute them often, the name of the directories
-should be a 
-.I component 
+should be a
+.I component
 of the variable
 .I path .
 .IP break
@@ -216,8 +216,8 @@ A command executed directly by the shell is called a
 .I builtin
 command.
 Most commands in \s-2UNIX\s0 are not built into the shell,
-but rather exist as files in 
-.I bin 
+but rather exist as files in
+.I bin
 directories.
 These commands are accessible because the directories in which
 they reside are named in the
@@ -234,19 +234,19 @@ Details are given in the shell documentation `csh (1)' (3.7).
 .IP cat
 The
 .I cat
-program catenates a list of specified files on the 
+program catenates a list of specified files on the
 .I "standard output" .
 It is usually used to look at the contents of a single file on the terminal,
 to `cat a file' (1.8, 2.3).
 .IP cd
 The
 .I cd
-command is used to change the 
+command is used to change the
 .I "working directory" .
 With no arguments,
 .I cd
-changes your 
-.I "working directory" 
+changes your
+.I "working directory"
 to be your
 .I home
 directory (2.4, 2.7).
@@ -261,7 +261,7 @@ is usually used because it is easier to type.
 The
 .I chsh
 command is used to change the shell which you use on \s-2UNIX\s0.
-By default, you use an different version of the shell
+By default, you use a different version of the shell
 which resides in `/bin/sh'.
 You can change your shell to `/bin/csh' by doing
 .DS
@@ -285,7 +285,7 @@ For comparing text files the program
 described in `diff (1)' is used.
 .IP command
 A function performed by the system, either by the shell
-(a builtin 
+(a builtin
 .I command )
 or by a program residing in a file in
 a directory within the \s-2UNIX\s0 system, is called a
@@ -302,7 +302,7 @@ command names the function to be performed (1.1).
 .IP "command substitution"
 .br
 The replacement of a command enclosed in `\`' characters
-by the text output by that command 
+by the text output by that command
 is called
 .I "command substitution"
 (4.3).
@@ -311,7 +311,7 @@ A part of a
 .I pathname
 between `/' characters is called a
 .I component
-of that 
+of that
 .I pathname .
 A variable
 which has multiple strings as value is said to have
@@ -337,7 +337,7 @@ on your terminal and simultaneously pressing another character, much like
 the \s-2SHIFT\s0 key is used to produce upper case characters. Thus
 .I control- c
 is produced by holding down the \s-2CONTROL\s0 key while pressing the
-`c' key.  Usually \s-2UNIX\s0 prints an caret (^) followed by the
+`c' key.  Usually \s-2UNIX\s0 prints a caret (^) followed by the
 corresponding letter when you type a
 .I control
 character (e.g. `^C' for
@@ -346,7 +346,7 @@ character (e.g. `^C' for
 .IP "core\ dump"
 When a program terminates abnormally, the system places an image
 of its current state in a file named `core'.
-This 
+This
 .I "core dump"
 can be examined with the system debugger `adb (1)'
 or `sdb (1)' in order to determine what went wrong with the program (1.8).
@@ -356,7 +356,7 @@ Illegal instruction (core dumped)
 .DE
 (where `Illegal instruction' is only one of several possible
 messages), you should report this to the author of the program
-or a system administrator, 
+or a system administrator,
 saving the `core' file.
 .IP cp
 The
@@ -396,8 +396,8 @@ command prints the current date and time (1.3).
 .I Debugging
 is the process of correcting mistakes in programs and shell scripts.
 The shell has several options and variables which may be used
-to aid in shell 
-.I debugging 
+to aid in shell
+.I debugging
 (4.4).
 .IP default:
 The label
@@ -416,37 +416,37 @@ or
 key on the terminal normally causes an interrupt to be sent to the current job.
 Many users change the interrupt character to be ^C.
 .IP detached
-A command that continues running in the 
-.I background 
-after you logout is said to be 
+A command that continues running in the
+.I background
+after you logout is said to be
 .I detached .
 .IP diagnostic
 An error message produced by a program is often referred to as a
 .I diagnostic .
-Most error messages are not written to the 
+Most error messages are not written to the
 .I "standard output" ,
 since that is often directed away from the terminal (1.3, 1.5).
 Error messsages are instead written to the
 .I "diagnostic output"
 which may be directed away from the terminal, but usually is not.
-Thus 
-.I diagnostics 
+Thus
+.I diagnostics
 will usually appear on the terminal (2.5).
 .IP directory
 A structure which contains files.
-At any time you are in one particular 
-.I directory 
-whose names can be printed by the command 
+At any time you are in one particular
+.I directory
+whose names can be printed by the command
 .I pwd .
 The
 .I chdir
-command will change you to another 
-.I directory , 
+command will change you to another
+.I directory ,
 and make the files
-in that 
-.I directory 
-visible. The 
-.I directory 
+in that
+.I directory
+visible. The
+.I directory
 in which you are when you first login is your
 .I home
 directory (1.1, 2.7).
@@ -470,7 +470,7 @@ as the first directory name on the left (2.7).
 The
 .I dirs
 command prints the shell's
-.I "directory stack" 
+.I "directory stack"
 (2.7).
 .IP du
 The
@@ -511,13 +511,13 @@ and whenever a command reads to the end of a file which
 it has been given as input.
 Commands receiving input from a
 .I pipe
-receive an 
-.I "end\f1-\fPof\f1-\fPfile" 
+receive an
+.I "end\f1-\fPof\f1-\fPfile"
 when the command sending them input completes.
-Most commands terminate when they receive an 
+Most commands terminate when they receive an
 .I "end\f1-\fPof\f1-\fPfile" .
-The shell has an option to ignore 
-.I "end\f1-\fPof\f1-\fPfile" 
+The shell has an option to ignore
+.I "end\f1-\fPof\f1-\fPfile"
 from a terminal
 input which may help you keep from logging out accidentally
 by typing too many control-d's (1.1, 1.8, 3.8).
@@ -539,15 +539,15 @@ In this example, \e
 .I escape s
 `*' (1.7).
 There is also a non-printing character called
-.I escape , 
+.I escape ,
 usually labelled
 \s-2ESC\s0
 or
 \s-2ALTMODE\s0
 on terminal keyboards.
 Some older \s-2UNIX\s0 systems use this character to indicate that
-output is to be 
-.I suspended . 
+output is to be
+.I suspended .
 Most systems use control-s to stop the output and control-q to start it.
 .IP /etc/passwd
 This file contains information about the accounts currently on the
@@ -579,7 +579,7 @@ a status of zero being considered
 The
 .I exit
 command can be used to force a shell command script to give a non-zero
-.I "exit status" 
+.I "exit status"
 (3.6).
 .IP expansion
 The replacement of strings in the shell input which contain metacharacters
@@ -589,17 +589,17 @@ Thus the replacement of the word `*' by a sorted list of files
 in the current directory is a `filename expansion'.
 Similarly the replacement of the characters `!!' by the text of
 the last command is a `history expansion'.
-.I Expansions 
+.I Expansions
 are also referred to as
 .I substitutions
 (1.6, 3.4, 4.2).
 .IP expressions
-.I Expressions 
+.I Expressions
 are used in the shell
 to control the conditional structures used in the writing of shell
 scripts and in calculating values for these scripts.
-The operators available in shell 
-.I expressions 
+The operators available in shell
+.I expressions
 are those of the language
 C (3.5).
 .IP extension
@@ -608,8 +608,8 @@ Filenames often consist of a
 name and an
 .I extension
 separated by the character `.'.
-By convention, groups of related files often share the same 
-.I root 
+By convention, groups of related files often share the same
+.I root
 name.
 Thus if `prog.c' were a C program, then the object file for this
 program would be stored in `prog.o'.
@@ -636,28 +636,28 @@ job in the
 Each file in \s-2UNIX\s0 has a name consisting of up to 14 characters
 and not including the character `/' which is used in
 .I pathname
-building.  Most 
+building.  Most
 .I filenames
-do not begin with the character `.', and contain 
+do not begin with the character `.', and contain
 only letters and digits with perhaps a `.' separating the
 .I base
-portion of the 
-.I filename 
-from an 
-.I extension 
+portion of the
+.I filename
+from an
+.I extension
 (1.6).
 .IP "filename expansion"
 .br
-.I "Filename expansion" 
+.I "Filename expansion"
 uses the metacharacters `*', `?' and `[' and `]'
 to provide a convenient mechanism for naming files.
-Using 
-.I "filename expansion" 
+Using
+.I "filename expansion"
 it is easy to name all the files in
-the current directory, or all files which have a common 
-.I root 
-name. Other 
-.I "filename expansion" 
+the current directory, or all files which have a common
+.I root
+name. Other
+.I "filename expansion"
 mechanisms use the metacharacter `~' and allow
 files in other users' directories to be named easily (1.6, 4.2).
 .IP flag
@@ -687,7 +687,7 @@ shell is waiting for them to finish before prompting for another
 command they are said to be
 .I "foreground jobs"
 or
-.I "running in the foreground" \&.  
+.I "running in the foreground" \&.
 This is as opposed to
 .I background .
 .I Foreground
@@ -711,14 +711,14 @@ will print each line in the file
 which contains the string `bill'.
 Actually,
 .I grep
-scans for 
+scans for
 .I "regular expressions"
 in the sense of the editors
 `ed (1)' and `ex (1)'.
 .I Grep
 stands for
-`globally find 
-.I "regular expression" 
+`globally find
+.I "regular expression"
 and print' (2.4).
 .IP head
 The
@@ -742,8 +742,8 @@ is the part after the last `/'.  The `:h' and `:t' modifiers allow the
 .I head
 or
 .I tail
-of a 
-.I pathname 
+of a
+.I pathname
 stored in a shell variable to be used (3.6).
 .IP history
 The
@@ -758,7 +758,7 @@ where these commands are kept, and a
 variable which controls how large this list is (2.3).
 .IP "home\ directory"
 .br
-Each user has a 
+Each user has a
 .I "home directory" ,
 which is given in your entry
 in the password file,
@@ -771,11 +771,11 @@ or
 command with no arguments takes you back to this directory, whose
 name is recorded in the shell variable
 .I home .
-You can also access the 
-.I "home directories" 
+You can also access the
+.I "home directories"
 of other users in forming
-filenames using a 
-.I "filename expansion" 
+filenames using a
+.I "filename expansion"
 notation and the character `~' (1.6).
 .IP if
 A conditional command within the shell, the
@@ -804,26 +804,26 @@ Many commands on \s-2UNIX\s0 take information from the terminal or from
 files which they then act on.
 This information is called
 .I input .
-Commands normally read for 
-.I input 
+Commands normally read for
+.I input
 from their
 .I "standard input"
 which is, by default, the terminal.
-This 
-.I "standard input" 
+This
+.I "standard input"
 can be redirected from a file using a shell metanotation
 with the character `<'.
 Many commands will also read from a file specified as argument.
-Commands placed in 
+Commands placed in
 .I pipelines
 will read from the output of the previous
-command in the 
+command in the
 .I pipeline .
-The leftmost command in a 
-.I pipeline 
+The leftmost command in a
+.I pipeline
 reads from the terminal if
-you neither redirect its 
-.I input 
+you neither redirect its
+.I input
 nor give it a filename to use as
 .I "standard input" .
 Special mechanisms exist for supplying input to commands in shell
@@ -835,18 +835,18 @@ is a signal to a program that is generated by typing ^C. (On older versions
 of UNIX the \s-2RUBOUT\s0 or \s-2DELETE\s0 key were used for this purpose.)
 It causes most programs to stop execution.
 Certain programs, such as the shell and the editors,
-handle an 
-.I interrupt 
+handle an
+.I interrupt
 in special ways, usually by stopping what they
 are doing and prompting for another command.
 While the shell is executing another command and waiting for it
-to finish, the shell does not listen to 
+to finish, the shell does not listen to
 .I interrupts.
-The shell often wakes up when you hit 
-.I interrupt 
+The shell often wakes up when you hit
+.I interrupt
 because many commands
-die when they receive an 
-.I interrupt 
+die when they receive an
+.I interrupt
 (1.8, 3.9).
 .IP job
 One or more commands
@@ -854,7 +854,7 @@ typed on the same input line separated by `|' or `;' characters
 are run together and are called a
 .I job \&.
 Simple commands run by themselves without any `|' or `;' characters
-are the simplest 
+are the simplest
 .I jobs.
 .I Jobs
 are classified as
@@ -922,8 +922,8 @@ The
 .I logout
 command causes a login shell to exit.
 Normally, a login shell will exit when you hit control-d
-generating an 
-.I end\f1-\fPof\f1-\fPfile, 
+generating an
+.I end\f1-\fPof\f1-\fPfile,
 but if you have set
 .I ignoreeof
 in you
@@ -974,7 +974,7 @@ users (1.1, 2.1), whether they are logged on or not.
 The
 .I make
 command is used to maintain one or more related files and to
-organize functions to be performed on these files. 
+organize functions to be performed on these files.
 In many ways
 .I make
 is easier to use, and more helpful than
@@ -983,13 +983,13 @@ shell command scripts (3.2).
 The file containing commands for
 .I make
 is called
-.I makefile 
-or 
+.I makefile
+or
 .I Makefile
 (3.2).
 .IP manual
-The 
-.I manual 
+The
+.I manual
 often referred to is the
 `\s-2UNIX\s0 manual'.
 It contains 8 numbered sections with a description of each \s-2UNIX\s0
@@ -998,8 +998,8 @@ device (section 4), special data structure (section 5), game (section 6),
 miscellaneous item (section 7) and system administration program (section 8).
 There are also supplementary documents (tutorials and reference guides)
 for individual programs which require explanation in more detail.
-An online version of the 
-.I manual 
+An online version of the
+.I manual
 is accessible through the
 .I man
 command.
@@ -1007,7 +1007,7 @@ Its documentation can be obtained online via
 .DS
 man man
 .DE
-If you can't decide what manual page to look in, try the 
+If you can't decide what manual page to look in, try the
 .I apropos (1)
 command.
 The supplementary documents are in subdirectories of /usr/doc.
@@ -1020,17 +1020,17 @@ These characters are called
 If it is necessary to place these characters in arguments to commands
 without them having their special meaning then they must be
 .I quoted .
-An example of a 
-.I metacharacter 
+An example of a
+.I metacharacter
 is the character `>' which is used
 to indicate placement of output into a file.
 For the purposes of the
 .I history
 mechanism,
-most unquoted 
+most unquoted
 .I metacharacters
 form separate words (1.4).
-The appendix to this user's manual lists the 
+The appendix to this user's manual lists the
 .I metacharacters
 in groups by their function.
 .IP mkdir
@@ -1038,13 +1038,13 @@ The
 .I mkdir
 command is used to create a new directory.
 .IP modifier
-Substitutions with the 
-.I history 
+Substitutions with the
+.I history
 mechanism, keyed by the character `!'
 or of variables using the metacharacter `$', are often subjected
 to modifications, indicated by placing the character `:' after the
-substitution and following this with the 
-.I modifier 
+substitution and following this with the
+.I modifier
 itself.
 The
 .I "command substitution"
@@ -1083,55 +1083,55 @@ The
 .I notify
 variable, if set, causes the shell to always report the termination
 of
-.I background 
+.I background
 jobs exactly when they occur (2.6).
 .IP onintr
 The
 .I onintr
 command is built into the shell and is used to control the action
-of a shell command script when an 
-.I interrupt 
+of a shell command script when an
+.I interrupt
 signal is received (3.9).
 .IP output
 Many commands in \s-2UNIX\s0 result in some lines of text which are
 called their
 .I output.
-This 
-.I output 
+This
+.I output
 is usually placed on what is known as the
 .I "standard output"
 which is normally connected to the user's terminal.
 The shell has a syntax using the metacharacter `>' for redirecting
-the 
-.I "standard output" 
+the
+.I "standard output"
 of a command to a file (1.3).
 Using the
 .I pipe
 mechanism and the metacharacter `|' it is also possible for
-the 
-.I "standard output" 
-of one command to become the 
-.I "standard input" 
+the
+.I "standard output"
+of one command to become the
+.I "standard input"
 of another command (1.5).
 Certain commands such as the line printer daemon
 .I p
-do not place their results on the 
-.I "standard output" 
+do not place their results on the
+.I "standard output"
 but rather in more
 useful places such as on the line printer (2.3).
 Similarly the
 .I write
 command places its output on another user's terminal rather than its
-.I "standard output" 
+.I "standard output"
 (2.3).
 Commands also have a
 .I "diagnostic output"
 where they write their error messages.
-Normally these go to the terminal even if the 
-.I "standard output" 
+Normally these go to the terminal even if the
+.I "standard output"
 has been sent to a file or another command, but it is possible
-to direct error diagnostics along with 
-.I "standard output" 
+to direct error diagnostics along with
+.I "standard output"
 using a special metanotation (2.5).
 .IP path
 The shell has a variable
@@ -1162,11 +1162,11 @@ This is normally true because a command of the form
 chmod 755 script
 .DE
 was executed to turn this execute permission on (3.3).
-If you add new commands to a directory in the 
-.I path , 
+If you add new commands to a directory in the
+.I path ,
 you should issue
-the command 
-.I rehash 
+the command
+.I rehash
 (2.2).
 .IP pathname
 A list of names, separated by `/' characters, forms a
@@ -1174,28 +1174,28 @@ A list of names, separated by `/' characters, forms a
 Each
 .I component,
 between successive `/' characters, names a directory
-in which the next 
-.I component 
+in which the next
+.I component
 file resides.
-.I Pathnames 
+.I Pathnames
 which begin with the character `/' are interpreted relative
 to the
 .I root
 directory in the file system.
-Other 
-.I pathnames 
+Other
+.I pathnames
 are interpreted relative to the current directory
 as reported by
 .I pwd.
-The last component of a 
-.I pathname 
+The last component of a
+.I pathname
 may name a directory, but
 usually names a file.
 .IP pipeline
-A group of commands which are connected together, the 
+A group of commands which are connected together, the
 .I "standard output"
-of each connected to the 
-.I "standard input" 
+of each connected to the
+.I "standard input"
 of the next,
 is called a
 .I pipeline.
@@ -1236,18 +1236,18 @@ command is used
 to print the current setting of variables in the environment
 (2.8).
 .IP process
-An instance of a running program is called a 
-.I process 
+An instance of a running program is called a
+.I process
 (2.6).
-\s-2UNIX\s0 assigns each 
-.I process 
-a unique number when it is 
+\s-2UNIX\s0 assigns each
+.I process
+a unique number when it is
 started \- called the
 .I "process number" .
-.I "Process numbers" 
-can be used to stop individual 
+.I "Process numbers"
+can be used to stop individual
 .I processes
-using the 
+using the
 .I kill
 or
 .I stop
@@ -1261,21 +1261,21 @@ Usually synonymous with
 .I command ;
 a binary file or shell command script
 which performs a useful function is often
-called a 
+called a
 .I program .
 .IP prompt
-Many programs will print a 
-.I prompt 
+Many programs will print a
+.I prompt
 on the terminal when they expect input.
 Thus the editor
 `ex (1)' will print a `:' when it expects input.
-The shell 
+The shell
 .I prompts
 for input with `% ' and occasionally with `? ' when
 reading commands from the terminal (1.1).
 The shell has a variable
 .I prompt
-which may be set to a different value to change the shell's main 
+which may be set to a different value to change the shell's main
 .I prompt .
 This is mostly used when debugging the shell (2.8).
 .IP pushd
@@ -1302,14 +1302,14 @@ The command is identified by printing some of the words used
 when it was invoked (2.6).
 Shells, such as the
 .I csh
-you use to run the 
-.I ps 
+you use to run the
+.I ps
 command, are not normally shown in the output.
 .IP pwd
 The
 .I pwd
-command prints the full 
-.I pathname 
+command prints the full
+.I pathname
 of the current
 .I "working directory" \&.
 The
@@ -1348,7 +1348,7 @@ which does not begin with a `/' is called a
 .I "relative pathname"
 since it is interpreted
 .I relative
-to the current 
+to the current
 .I "working directory" .
 The first
 .I component
@@ -1379,18 +1379,18 @@ directories.  The name used in
 .I pathnames
 to indicate the
 .I root
-is `/'.  
-.I Pathnames 
+is `/'.
+.I Pathnames
 starting with `/' are said to be
 .I absolute
 since they start at the
 .I root
 directory.
 .I Root
-is also used as the part of a 
-.I pathname 
+is also used as the part of a
+.I pathname
 that is left after removing
-the 
+the
 .I extension .
 See
 .I filename
@@ -1401,15 +1401,15 @@ key is often used to erase the previously typed character; some users
 prefer the \s-2BACKSPACE\s0 for this purpose.  On older versions of \s-2UNIX\s0
 this key served as the \s-2INTR\s0 character.
 .IP "scratch file"
-Files whose names begin with a `#' are referred to as 
+Files whose names begin with a `#' are referred to as
 .I "scratch files" ,
 since they are automatically removed by the system after a couple of
 days of non-use, or more frequently if disk space becomes tight (1.3).
 .IP script
-Sequences of shell commands placed in a file are called shell command 
+Sequences of shell commands placed in a file are called shell command
 .I scripts .
-It is often possible to perform simple tasks using these 
-.I scripts 
+It is often possible to perform simple tasks using these
+.I scripts
 without writing a program in a language such as C, by
 using the shell to selectively run other programs (3.3, 3.10).
 .IP set
@@ -1418,8 +1418,8 @@ The builtin
 command is used to assign new values to shell variables
 and to show the values of the current variables.
 Many shell variables have special meaning to the shell itself.
-Thus by using the 
-.I set 
+Thus by using the
+.I set
 command the behavior of the shell can be affected (2.1).
 .IP setenv
 Variables in the environment `environ (5)'
@@ -1430,16 +1430,16 @@ The
 .I printenv
 command can be used to print the value of the variables in the environment.
 .IP shell
-A 
-.I shell 
+A
+.I shell
 is a command language interpreter.
-It is possible to write and run your own 
+It is possible to write and run your own
 .I shell ,
-as 
-.I shells 
+as
+.I shells
 are no different than any other programs as far as the
 system is concerned.
-This manual deals with the details of one particular 
+This manual deals with the details of one particular
 .I shell ,
 called
 .I csh.
@@ -1464,8 +1464,8 @@ commands (1.8, 2.6).
 The
 .I sort
 program sorts a sequence of lines in ways that can be controlled
-by argument 
-.I flags 
+by argument
+.I flags
 (1.5).
 .IP source
 The
@@ -1498,22 +1498,22 @@ when it finishes.
 By convention a
 .I status
 of zero indicates that the command succeeded.
-Commands may return non-zero 
-.I status 
+Commands may return non-zero
+.I status
 to indicate that some abnormal event has occurred.
 The shell variable
 .I status
-is set to the 
-.I status 
+is set to the
+.I status
 returned by the last command.
 It is most useful in shell commmand scripts (3.6).
 .IP stop
 The
 .I stop
 command causes a
-.I background 
-job to become 
-.I suspended 
+.I background
+job to become
+.I suspended
 (2.6).
 .IP string
 A sequential group of characters taken together is called a
@@ -1529,14 +1529,14 @@ how your terminal is handled.  See `stty (1)' for a complete description (2.6).
 The shell implements a number of
 .I substitutions
 where sequences indicated by metacharacters are replaced by other sequences.
-Notable examples of this are history 
-.I substitution 
+Notable examples of this are history
+.I substitution
 keyed by the
-metacharacter `!' and variable 
-.I substitution 
+metacharacter `!' and variable
+.I substitution
 indicated by `$'.
-We also refer to 
-.I substitutions 
+We also refer to
+.I substitutions
 as
 .I expansions
 (3.4).
@@ -1572,9 +1572,9 @@ When a command which is being executed finishes we say it undergoes
 .I termination
 or
 .I terminates.
-Commands normally terminate when they read an 
+Commands normally terminate when they read an
 .I end\f1-\fPof\f1-\fPfile
-from their 
+from their
 .I "standard input" .
 It is also possible to terminate commands by sending them
 an
@@ -1642,12 +1642,12 @@ and
 .I expansion
 (2.2, 3.4).
 .IP variables
-.I Variables 
+.I Variables
 in
 .I csh
 hold one or more strings as value.
-The most common use of 
-.I variables 
+The most common use of
+.I variables
 is in controlling the behavior
 of the shell.
 See
@@ -1656,7 +1656,7 @@ See
 and
 .I ignoreeof
 for examples.
-.I Variables 
+.I Variables
 such as
 .I argv
 are also used in writing shell programs (shell command scripts)
@@ -1686,37 +1686,37 @@ A sequence of characters which forms an argument to a command is called
 a
 .I word .
 Many characters which are neither letters, digits, `\-', `.' nor `/'
-form 
-.I words 
+form
+.I words
 all by themselves even if they are not surrounded
 by blanks.
-Any sequence of characters may be made into a 
-.I word 
+Any sequence of characters may be made into a
+.I word
 by surrounding it
 with `\'' characters
 except for the characters `\'' and `!' which require special treatment
 (1.1).
-This process of placing special characters in 
-.I words 
+This process of placing special characters in
+.I words
 without their special meaning is called
 .I quoting .
 .IP "working directory"
 .br
 At any given time you are in one particular directory, called
-your 
+your
 .I "working directory" .
 This directory's name is printed by the
 .I pwd
 command and the files listed by
 .I ls
 are the ones in this directory.
-You can change 
-.I "working directories" 
+You can change
+.I "working directories"
 using
 .I chdir .
 .IP write
 The
 .I write
 command is an obsolete way of communicating with other users who are logged in to
-\s-2UNIX\s0 (you have to take turns typing).  If you are both using display 
+\s-2UNIX\s0 (you have to take turns typing).  If you are both using display
 terminals, use \fItalk\fP(1), which is much more pleasant.
