@@ -1412,11 +1412,11 @@ skip:
 			syslog(LOG_INFO, "ANONYMOUS FTP LOGIN FROM %s, %s",
 			    remotehost, passwd);
 	} else {
-	    if (dochroot)
-		reply(230, "User %s logged in, access restrictions apply.", 
-			pw->pw_name);
-	    else
-		reply(230, "User %s logged in.", pw->pw_name);
+		if (dochroot)
+			reply(230, "User %s logged in, "
+				   "access restrictions apply.", pw->pw_name);
+		else
+			reply(230, "User %s logged in.", pw->pw_name);
 
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
