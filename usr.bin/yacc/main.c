@@ -168,32 +168,15 @@ getargs(argc, argv)
 int argc;
 char *argv[];
 {
-    int i;
-    char *s;
+    int ch;
 
-    for (i = 1; i < argc; ++i)
+    while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1)
     {
-	s = argv[i];
-	if (*s != '-') break;
-	switch (*++s)
+	switch (ch)
 	{
-	case '\0':
-	    input_file = stdin;
-	    if (i + 1 < argc) usage();
-	    return;
-
-	case '-':
-	    ++i;
-	    goto no_more_options;
-
 	case 'b':
-	    if (*++s)
-		 file_prefix = s;
-	    else if (++i < argc)
-		file_prefix = argv[i];
-	    else
-		usage();
-	    continue;
+	    file_prefix = optarg;
+	    break;
 
 	case 'd':
 	    dflag = 1;
@@ -204,22 +187,12 @@ char *argv[];
 	    break;
 
 	case 'o':
-	    if (*++s)
-		output_file_name = s;
-	    else if (++i < argc)
-		output_file_name = argv[i];
-	    else
-		usage();
-	    continue;
+	    output_file_name = optarg;
+	    break;
 
 	case 'p':
-	    if (*++s)
-		symbol_prefix = s;
-	    else if (++i < argc)
-		symbol_prefix = argv[i];
-	    else
-		usage();
-	    continue;
+	    symbol_prefix = optarg;
+	    break;
 
 	case 'r':
 	    rflag = 1;
@@ -236,44 +209,14 @@ char *argv[];
 	default:
 	    usage();
 	}
-
-	for (;;)
-	{
-	    switch (*++s)
-	    {
-	    case '\0':
-		goto end_of_option;
-
-	    case 'd':
-		dflag = 1;
-		break;
-
-	    case 'l':
-		lflag = 1;
-		break;
-
-	    case 'r':
-		rflag = 1;
-		break;
-
-	    case 't':
-		tflag = 1;
-		break;
-
-	    case 'v':
-		vflag = 1;
-		break;
-
-	    default:
-		usage();
-	    }
-	}
-end_of_option:;
     }
 
-no_more_options:;
-    if (i + 1 != argc) usage();
-    input_file_name = argv[i];
+    if (optind + 1 != argc)
+	usage();
+    if (strcmp(argv[optind], "-") == 0)
+	input_file = stdin;
+    else
+	input_file_name = argv[optind];
 }
 
 
