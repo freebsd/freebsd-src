@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: print.c,v 1.2 1994/09/24 02:58:59 davidg Exp $
  */
 
 #ifndef lint
@@ -73,6 +73,9 @@ print(tp, wp, ldisc, fmt)
 			break;
 		case SLIPDISC:	
 			cnt += printf("slip disc; ");
+			break;
+		case PPPDISC:
+			cnt += printf("ppp disc; ");
 			break;
 		default:	
 			cnt += printf("#%d disc; ", ldisc);
@@ -240,13 +243,12 @@ ccval(p, c)
 	static char buf[5];
 	char *bp;
 
-	if (c == _POSIX_VDISABLE)
-		return ("<undef>");
-
 	if (p->sub == VMIN || p->sub == VTIME) {
 		(void)snprintf(buf, sizeof(buf), "%d", c);
 		return (buf);
 	}
+	if (c == _POSIX_VDISABLE)
+		return ("<undef>");
 	bp = buf;
 	if (c & 0200) {
 		*bp++ = 'M';
