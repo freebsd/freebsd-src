@@ -173,7 +173,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	 * soft updates below.
 	 */
 	needextclean = 0;
-	softdepslowdown = softdep_slowdown(ovp);
+	softdepslowdown = DOINGSOFTDEP(ovp) && softdep_slowdown(ovp);
 	extblocks = 0;
 	datablocks = DIP(oip, i_blocks);
 	if (fs->fs_magic == FS_UFS2_MAGIC && oip->i_din2->di_extsize > 0) {
