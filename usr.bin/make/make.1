@@ -1198,9 +1198,8 @@ utility uses the following environment variables, if they exist:
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
 .Ev MAKEOBJDIR ,
-.Ev MAKEOBJDIRPREFIX ,
 and
-.Ev __MAKE_CONF .
+.Ev MAKEOBJDIRPREFIX .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend
@@ -1216,13 +1215,6 @@ system makefile (processed before any other file, including
 .Pa makefile
 and
 .Pa Makefile )
-.It Pa /etc/make.conf
-system make configuration (processed before
-.Pa makefile
-and
-.Pa Makefile ) .
-Can be specified with
-.Ev __MAKE_CONF .
 .It Pa /usr/share/mk
 system makefile directory
 .It /usr/share/doc/psd/12.make
