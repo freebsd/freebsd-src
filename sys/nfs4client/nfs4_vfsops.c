@@ -656,7 +656,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nmp = VFSTONFS(mp);
 	/*
 	 * Goes something like this..
-	 * - Call vflush() to clear out vnodes for this filesystem
+	 * - Call vflush(, td) to clear out vnodes for this filesystem
 	 * - Close the socket
 	 * - Free up the data structures
 	 */
@@ -668,7 +668,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		nfs4dev_purge();
 	}
 
-	error = vflush(mp, 0, flags);
+	error = vflush(mp, 0, flags, td);
 	if (error)
 		return (error);
 
@@ -689,7 +689,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, struct vnode **vpp)
+nfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;

@@ -629,7 +629,7 @@ void	vdropl(struct vnode *);
 int	vfinddev(struct cdev *dev, struct vnode **vpp);
 void	vfs_add_vnodeops(const void *);
 void	vfs_rm_vnodeops(const void *);
-int	vflush(struct mount *mp, int rootrefs, int flags);
+int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
 void	vgonel(struct vnode *vp, struct thread *td);

@@ -91,7 +91,8 @@ static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table
 
 struct iconv_functions *msdosfs_iconv = NULL;
 
-static int	update_mp(struct mount *mp, struct msdosfs_args *argp);
+static int	update_mp(struct mount *mp, struct msdosfs_args *argp,
+		    struct thread *td);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
 		    struct thread *td, struct msdosfs_args *argp);
 static vfs_fhtovp_t	msdosfs_fhtovp;
@@ -103,9 +104,10 @@ static vfs_unmount_t	msdosfs_unmount;
 static vfs_vptofh_t	msdosfs_vptofh;
 
 static int
-update_mp(mp, argp)
+update_mp(mp, argp, td)
 	struct mount *mp;
 	struct msdosfs_args *argp;
+	struct thread *td;
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	int error;
@@ -139,7 +141,7 @@ update_mp(mp, argp)
 		if (FAT32(pmp))
 			pmp->pm_flags |= MSDOSFSMNT_LONGNAME;
 		else {
-			if ((error = msdosfs_root(mp, &rootvp)) != 0)
+			if ((error = msdosfs_root(mp, &rootvp, td)) != 0)
 				return error;
 			pmp->pm_flags |= findwin95(VTODE(rootvp))
 				? MSDOSFSMNT_LONGNAME
@@ -187,7 +189,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			error = vflush(mp, 0, flags);
+			error = vflush(mp, 0, flags, td);
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
@@ -282,7 +284,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 		return (error);
 	}
 
-	error = update_mp(mp, &args);
+	error = update_mp(mp, &args, td);
 	if (error) {
 		msdosfs_unmount(mp, MNT_FORCE, td);
 		return error;
@@ -674,7 +676,7 @@ msdosfs_unmount(mp, mntflags, td)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	error = vflush(mp, 0, flags);
+	error = vflush(mp, 0, flags, td);
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
@@ -741,9 +743,10 @@ msdosfs_unmount(mp, mntflags, td)
 }
 
 static int
-msdosfs_root(mp, vpp)
+msdosfs_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct denode *ndep;

@@ -655,9 +655,10 @@ vop_stdputpages(ap)
  * used to fill the vfs function table to get reasonable default return values.
  */
 int
-vfs_stdroot (mp, vpp)
+vfs_stdroot (mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 
 	return (EOPNOTSUPP);

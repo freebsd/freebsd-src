@@ -894,7 +894,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 			return (error);
 	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 
@@ -912,7 +912,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, struct vnode **vpp)
+nfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;

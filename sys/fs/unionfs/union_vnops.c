@@ -268,7 +268,7 @@ union_lookup1(udvp, pdvp, vpp, cnp)
 			relock_pdvp = 1;
 		vput(dvp);
 		dvp = NULL;
-		error = VFS_ROOT(mp, &dvp);
+		error = VFS_ROOT(mp, &dvp, td);
 
 		vfs_unbusy(mp, td);
 

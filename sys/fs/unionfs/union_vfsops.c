@@ -342,7 +342,7 @@ union_unmount(mp, mntflags, td)
 	 * (d) times, where (d) is the maximum tree depth
 	 * in the filesystem.
 	 */
-	for (freeing = 0; (error = vflush(mp, 0, flags)) != 0;) {
+	for (freeing = 0; (error = vflush(mp, 0, flags, td)) != 0;) {
 		int n;
 
 		/* count #vnodes held on mount list */
@@ -378,9 +378,10 @@ union_unmount(mp, mntflags, td)
 }
 
 static int
-union_root(mp, vpp)
+union_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
 	int error;
