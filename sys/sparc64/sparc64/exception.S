@@ -433,6 +433,7 @@ END(rsf_fatal)
 
 	.macro	tl0_setup	type
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	ba	%xcc, tl0_utrap
 	 mov	\type, %o0
@@ -505,6 +506,7 @@ END(rsf_fatal)
 
 ENTRY(tl0_sfsr_trap)
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
@@ -714,6 +716,7 @@ ENTRY(tl0_immu_miss_trap)
 	 * Save the tag access register, and call common trap code.
 	 */
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl0_trap
@@ -876,6 +879,7 @@ ENTRY(tl0_dmmu_miss_trap)
 	 * Save the tag access register and call common trap code.
 	 */
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl0_trap
@@ -1039,6 +1043,7 @@ ENTRY(tl0_dmmu_prot_trap)
 	 * Save the mmu registers and call common trap code.
 	 */
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
 	mov	%g3, %o4
@@ -1092,6 +1097,7 @@ ENTRY(tl0_sftrap)
 	and	%g1, TSTATE_CWP_MASK, %g1
 	wrpr	%g1, 0, %cwp
 	tl0_split
+	clr	%o1
 	set	trap, %o2
 	b	%xcc, tl0_trap
 	 mov	%g2, %o0
@@ -1113,6 +1119,7 @@ END(tl0_sftrap)
 
 	.macro	tl0_syscall
 	tl0_split
+	clr	%o1
 	set	syscall, %o2
 	ba	%xcc, tl0_trap
 	 mov	T_SYSCALL, %o0
