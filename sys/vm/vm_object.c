@@ -1813,18 +1813,17 @@ again:
  *	The object must *not* be locked.
  */
 boolean_t
-vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t prev_size, vm_size_t next_size)
+vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
+	vm_size_t prev_size, vm_size_t next_size)
 {
 	vm_pindex_t next_pindex;
 
-	GIANT_REQUIRED;
-
-	if (prev_object == NULL) {
+	if (prev_object == NULL)
 		return (TRUE);
-	}
-
+	mtx_lock(&Giant);
 	if (prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) {
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1839,6 +1838,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t p
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 	if (prev_object->backing_object != NULL) {
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1848,6 +1848,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t p
 
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1870,6 +1871,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex, vm_size_t p
 	if (next_pindex + next_size > prev_object->size)
 		prev_object->size = next_pindex + next_size;
 
+	mtx_unlock(&Giant);
 	return (TRUE);
 }
 
