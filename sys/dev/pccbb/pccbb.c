@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2002 M. Warner Losh.
  * Copyright (c) 2000,2001 Jonathan Chen.
  * All rights reserved.
  *
@@ -125,74 +126,58 @@ struct yenta_chipinfo {
 	int	yc_chiptype;
 } yc_chipsets[] = {
 	/* Texas Instruments chips */
-	{PCI_DEVICE_ID_PCIC_TI1031, "TI1031 PCI-PC Card Bridge", CB_TI113X},
-	{PCI_DEVICE_ID_PCIC_TI1130, "TI1130 PCI-CardBus Bridge", CB_TI113X},
-	{PCI_DEVICE_ID_PCIC_TI1131, "TI1131 PCI-CardBus Bridge", CB_TI113X},
+	{PCIC_ID_TI1031, "TI1031 PCI-PC Card Bridge", CB_TI113X},
+	{PCIC_ID_TI1130, "TI1130 PCI-CardBus Bridge", CB_TI113X},
+	{PCIC_ID_TI1131, "TI1131 PCI-CardBus Bridge", CB_TI113X},
 
-	{PCI_DEVICE_ID_PCIC_TI1210, "TI1210 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1211, "TI1211 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1220, "TI1220 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1221, "TI1221 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1225, "TI1225 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1250, "TI1250 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1251, "TI1251 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1251B,"TI1251B PCI-CardBus Bridge",CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1260, "TI1260 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1260B,"TI1260B PCI-CardBus Bridge",CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1410, "TI1410 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1420, "TI1420 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1421, "TI1421 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1450, "TI1450 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI1451, "TI1451 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI4410, "TI4410 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI4450, "TI4450 PCI-CardBus Bridge", CB_TI12XX},
-	{PCI_DEVICE_ID_PCIC_TI4451, "TI4451 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1210, "TI1210 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1211, "TI1211 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1220, "TI1220 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1221, "TI1221 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1225, "TI1225 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1250, "TI1250 PCI-CardBus Bridge", CB_TI125X},
+	{PCIC_ID_TI1251, "TI1251 PCI-CardBus Bridge", CB_TI125X},
+	{PCIC_ID_TI1251B,"TI1251B PCI-CardBus Bridge",CB_TI125X},
+	{PCIC_ID_TI1260, "TI1260 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1260B,"TI1260B PCI-CardBus Bridge",CB_TI12XX},
+	{PCIC_ID_TI1410, "TI1410 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1420, "TI1420 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1421, "TI1421 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1450, "TI1450 PCI-CardBus Bridge", CB_TI125X},
+	{PCIC_ID_TI1451, "TI1451 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1510, "TI1510 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI1520, "TI1520 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI4410, "TI4410 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI4450, "TI4450 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI4451, "TI4451 PCI-CardBus Bridge", CB_TI12XX},
+	{PCIC_ID_TI4510, "TI4510 PCI-CardBus Bridge", CB_TI12XX},
 
 	/* Ricoh chips */
-	{PCI_DEVICE_ID_RICOH_RL5C465, "RF5C465 PCI-CardBus Bridge",
-	    CB_RF5C46X},
-	{PCI_DEVICE_ID_RICOH_RL5C466, "RF5C466 PCI-CardBus Bridge",
-	    CB_RF5C46X},
-	{PCI_DEVICE_ID_RICOH_RL5C475, "RF5C475 PCI-CardBus Bridge",
-	    CB_RF5C47X},
-	{PCI_DEVICE_ID_RICOH_RL5C476, "RF5C476 PCI-CardBus Bridge",
-	    CB_RF5C47X},
-	{PCI_DEVICE_ID_RICOH_RL5C477, "RF5C477 PCI-CardBus Bridge",
-	    CB_RF5C47X},
-	{PCI_DEVICE_ID_RICOH_RL5C478, "RF5C478 PCI-CardBus Bridge",
-	    CB_RF5C47X},
+	{PCIC_ID_RICOH_RL5C465, "RF5C465 PCI-CardBus Bridge", CB_RF5C46X},
+	{PCIC_ID_RICOH_RL5C466, "RF5C466 PCI-CardBus Bridge", CB_RF5C46X},
+	{PCIC_ID_RICOH_RL5C475, "RF5C475 PCI-CardBus Bridge", CB_RF5C47X},
+	{PCIC_ID_RICOH_RL5C476, "RF5C476 PCI-CardBus Bridge", CB_RF5C47X},
+	{PCIC_ID_RICOH_RL5C477, "RF5C477 PCI-CardBus Bridge", CB_RF5C47X},
+	{PCIC_ID_RICOH_RL5C478, "RF5C478 PCI-CardBus Bridge", CB_RF5C47X},
 
 	/* Toshiba products */
-	{PCI_DEVICE_ID_TOSHIBA_TOPIC95, "ToPIC95 PCI-CardBus Bridge",
-	    CB_TOPIC95},
-	{PCI_DEVICE_ID_TOSHIBA_TOPIC95B, "ToPIC95B PCI-CardBus Bridge",
-	    CB_TOPIC95},
-	{PCI_DEVICE_ID_TOSHIBA_TOPIC97, "ToPIC97 PCI-CardBus Bridge",
-	    CB_TOPIC97},
-	{PCI_DEVICE_ID_TOSHIBA_TOPIC100, "ToPIC100 PCI-CardBus Bridge",
-	    CB_TOPIC97},
+	{PCIC_ID_TOPIC95, "ToPIC95 PCI-CardBus Bridge", CB_TOPIC95},
+	{PCIC_ID_TOPIC95B, "ToPIC95B PCI-CardBus Bridge", CB_TOPIC95},
+	{PCIC_ID_TOPIC97, "ToPIC97 PCI-CardBus Bridge", CB_TOPIC97},
+	{PCIC_ID_TOPIC100, "ToPIC100 PCI-CardBus Bridge", CB_TOPIC97},
 
 	/* Cirrus Logic */
-	{PCI_DEVICE_ID_PCIC_CLPD6832, "CLPD6832 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_CLPD6833, "CLPD6833 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_CLPD6834, "CLPD6834 PCI-CardBus Bridge",
-	    CB_CIRRUS},
+	{PCIC_ID_CLPD6832, "CLPD6832 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_CLPD6833, "CLPD6833 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_CLPD6834, "CLPD6834 PCI-CardBus Bridge", CB_CIRRUS},
 
 	/* 02Micro */
-	{PCI_DEVICE_ID_PCIC_OZ6832, "O2Mirco OZ6832/6833 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_OZ6860, "O2Mirco OZ6836/6860 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_OZ6872, "O2Mirco OZ6812/6872 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_OZ6912, "O2Mirco OZ6912/6972 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_OZ6922, "O2Mirco OZ6822 PCI-CardBus Bridge",
-	    CB_CIRRUS},
-	{PCI_DEVICE_ID_PCIC_OZ6933, "O2Mirco OZ6833 PCI-CardBus Bridge",
-	    CB_CIRRUS},
+	{PCIC_ID_OZ6832, "O2Mirco OZ6832/6833 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6860, "O2Mirco OZ6836/6860 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6872, "O2Mirco OZ6812/6872 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6912, "O2Mirco OZ6912/6972 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6922, "O2Mirco OZ6822 PCI-CardBus Bridge", CB_CIRRUS},
+	{PCIC_ID_OZ6933, "O2Mirco OZ6833 PCI-CardBus Bridge", CB_CIRRUS},
 
 	/* sentinel */
 	{0 /* null id */, "unknown", CB_UNKNOWN},
@@ -304,18 +289,6 @@ static __inline void
 pccbb_clrb(struct pccbb_softc *sc, uint32_t reg, uint32_t bits)
 {
 	pccbb_set(sc, reg, pccbb_get(sc, reg) & ~bits);
-}
-
-static __inline uint8_t
-pccbb_pcic_read(struct exca_softc *sc, int reg)
-{
-	return (bus_space_read_1(sc->bst, sc->bsh, sc->offset + reg));
-}
-
-static __inline void
-pccbb_pcic_write(struct exca_softc *sc, int reg, uint8_t val)
-{
-	return (bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val));
 }
 
 static void
@@ -430,6 +403,8 @@ pccbb_probe(device_t brdev)
 static void
 pccbb_chipinit(struct pccbb_softc *sc)
 {
+	uint32_t mux, sysctrl;
+
 	/* Set CardBus latency timer */
 	if (pci_read_config(sc->dev, PCIR_SECLAT_1, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_SECLAT_1, 0x20, 1);
@@ -483,6 +458,35 @@ pccbb_chipinit(struct pccbb_softc *sc)
 		PCI_MASK_CONFIG(sc->dev, CBBR_DEVCTRL,
 		    & ~(CBBM_DEVCTRL_INT_SERIAL |
 		    CBBM_DEVCTRL_INT_PCI), 1);
+		break;
+	case CB_TI12XX:
+		/*
+		 * Some TI 12xx (and [14][45]xx) based pci cards
+		 * sometimes have issues with the MFUNC register not
+		 * being initialized due to a bad EEPROM on board.
+		 * Laptops that this matters on have this register
+		 * properly initialized.
+		 *
+		 * The TI125X parts have a different register.
+		 */
+		mux = pci_read_config(sc->dev, CBBR_MFUNC, 4);
+		sysctrl = pci_read_config(sc->dev, CBBR_SYSCTRL, 4);
+		if (mux == 0) {
+			mux = (mux & ~CBBM_MFUNC_PIN0) |
+			    CBBM_MFUNC_PIN0_INTA;
+			if ((sysctrl & CBBM_SYSCTRL_INTRTIE) == 0)
+				mux = (mux & ~CBBM_MFUNC_PIN1) |
+				    CBBM_MFUNC_PIN1_INTB;
+			pci_write_config(sc->dev, CBBR_MFUNC, mux, 4);
+		}
+		/*FALLTHROUGH*/
+	case CB_TI125X:
+		/*
+		 * Disable zoom video.  Some machines initialize this
+		 * improperly and exerpience has shown that this helps
+		 * on some machines.
+		 */
+		pci_write_config(sc->dev, CBBR_MMCTRL, 0, 4);
 		break;
 	case CB_TOPIC97:
 		/*
@@ -557,7 +561,6 @@ pccbb_attach(device_t brdev)
 {
 	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(brdev);
 	int rid;
-	uint32_t sockbase;
 
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "pccbb", MTX_DEF);
 	cv_init(&sc->cv, "pccbb cv");
@@ -615,12 +618,13 @@ pccbb_attach(device_t brdev)
 			cv_destroy(&sc->cv);
 			return (ENOMEM);
 		}
+#endif
 	}
 
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
-	exca_init(&sc->exca, brdev, &pccbb_pcic_write, &pccbb_pcic_read,
-	  sc->bst, sc->bsh, 0x800);
+	exca_init(&sc->exca, brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
+	sc->exca.flags |= EXCA_HAS_MEMREG_WIN;
 	pccbb_chipinit(sc);
 
 	/* attach children */

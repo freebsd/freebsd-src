@@ -71,12 +71,13 @@ struct pccbb_softc {
 	int		chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
-#define	CB_TI12XX	2		/* TI PCI1250/1220 */
-#define	CB_RF5C47X	3		/* RICOH RF5C475/476/477 */
-#define	CB_RF5C46X	4		/* RICOH RF5C465/466/467 */
-#define	CB_CIRRUS	5		/* Cirrus Logic CLPD683x */
-#define	CB_TOPIC95	6		/* Toshiba ToPIC95 */
-#define	CB_TOPIC97	7		/* Toshiba ToPIC97/100 */
+#define	CB_TI12XX	2		/* TI PCI12xx/14xx/44xx/15xx/45xx */
+#define	CB_TI125X	3		/* TI PCI1250/1251(B)/1450 */
+#define	CB_RF5C47X	4		/* RICOH RF5C475/476/477 */
+#define	CB_RF5C46X	5		/* RICOH RF5C465/466/467 */
+#define	CB_CIRRUS	6		/* Cirrus Logic CLPD683x */
+#define	CB_TOPIC95	7		/* Toshiba ToPIC95 */
+#define	CB_TOPIC97	8		/* Toshiba ToPIC97/100 */
 	SLIST_HEAD(, pccbb_reslist) rl;
 
 	device_t	cbdev;
