@@ -185,7 +185,6 @@ int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
 int	t_or_u_flag = 0;	/* user has specified -t or -u */
-u_long	memleft;		/* virtual memory available */
 #ifdef COMPAT
 char	*disktype;
 int	unlabeled;

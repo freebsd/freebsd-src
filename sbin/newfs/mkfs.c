@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -57,13 +58,6 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-
-#ifndef STANDALONE
-#include <stdlib.h>
-#else
-extern int atoi (char *);
-extern char * getenv (char *);
-#endif
 
 #ifdef FSIRAND
 extern long random (void);
@@ -118,7 +112,6 @@ extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
-extern u_long	memleft;	/* virtual memory available */
 
 union {
 	struct fs fs;
@@ -153,14 +146,6 @@ void setblock (struct fs *, unsigned char *, int);
 void wtfs (daddr_t, int, char *);
 void wtfsflush (void);
 
-#ifndef STANDALONE
-#else
-void free (char *);
-char * calloc (u_long, u_long);
-caddr_t malloc (u_long);
-caddr_t realloc (char *, u_long);
-#endif
-
 void
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -178,9 +163,7 @@ mkfs(pp, fsys, fi, fo)
 	int width;
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
-#ifndef STANDALONE
 	time(&utime);
-#endif
 #ifdef FSIRAND
 	if (!randinit) {
 		randinit = 1;
@@ -1101,94 +1084,6 @@ iput(ip, ino)
 	wtfs(d, sblock.fs_bsize, (char *)buf);
 }
 
-#ifdef STANDALONE
-/*
- * Replace libc function with one suited to our needs.
- */
-caddr_t
-malloc(size)
-	u_long size;
-{
-	char *base, *i;
-	static u_long pgsz;
-	struct rlimit rlp;
-
-	if (pgsz == 0) {
-		base = sbrk(0);
-		pgsz = getpagesize() - 1;
-		i = (char *)((u_long)(base + pgsz) & ~pgsz);
-		base = sbrk(i - base);
-		if (getrlimit(RLIMIT_DATA, &rlp) < 0)
-			warn("getrlimit");
-		rlp.rlim_cur = rlp.rlim_max;
-		if (setrlimit(RLIMIT_DATA, &rlp) < 0)
-			warn("setrlimit");
-		memleft = rlp.rlim_max - (u_long)base;
-	}
-	size = (size + pgsz) & ~pgsz;
-	if (size > memleft)
-		size = memleft;
-	memleft -= size;
-	if (size == 0)
-		return (0);
-	return ((caddr_t)sbrk(size));
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-caddr_t
-realloc(ptr, size)
-	char *ptr;
-	u_long size;
-{
-	void *p;
-
-	if ((p = malloc(size)) == NULL)
-		return (NULL);
-	memmove(p, ptr, size);
-	free(ptr);
-	return (p);
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-char *
-calloc(size, numelm)
-	u_long size, numelm;
-{
-	caddr_t base;
-
-	size *= numelm;
-	if ((base = malloc(size)) == NULL)
-		return (NULL);
-	memset(base, 0, size);
-	return (base);
-}
-
-/*
- * Replace libc function with one suited to our needs.
- */
-void
-free(ptr)
-	char *ptr;
-{
-
-	/* do not worry about it for now */
-}
-
-#else   /* !STANDALONE */
-
-#ifdef __ELF__
-extern char *_etext;
-#define etext _etext
-#else
-extern char *etext;
-#endif
-
-#endif  /* STANDALONE */
-
 /*
  * read a block from the file system
  */
@@ -1307,11 +1202,7 @@ isblock(fs, cp, h)
 		mask = 0x01 << (h & 0x7);
 		return ((cp[h >> 3] & mask) == mask);
 	default:
-#ifdef STANDALONE
-		printf("isblock bad fs_frag %d\n", fs->fs_frag);
-#else
 		fprintf(stderr, "isblock bad fs_frag %d\n", fs->fs_frag);
-#endif
 		return (0);
 	}
 }
@@ -1339,11 +1230,7 @@ clrblock(fs, cp, h)
 		cp[h >> 3] &= ~(0x01 << (h & 0x7));
 		return;
 	default:
-#ifdef STANDALONE
-		printf("clrblock bad fs_frag %d\n", fs->fs_frag);
-#else
 		fprintf(stderr, "clrblock bad fs_frag %d\n", fs->fs_frag);
-#endif
 		return;
 	}
 }
@@ -1371,11 +1258,7 @@ setblock(fs, cp, h)
 		cp[h >> 3] |= (0x01 << (h & 0x7));
 		return;
 	default:
-#ifdef STANDALONE
-		printf("setblock bad fs_frag %d\n", fs->fs_frag);
-#else
 		fprintf(stderr, "setblock bad fs_frag %d\n", fs->fs_frag);
-#endif
 		return;
 	}
 }
