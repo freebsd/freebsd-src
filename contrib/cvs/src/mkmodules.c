@@ -851,7 +851,7 @@ init (argc, argv)
 	usage (init_usage);
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 
@@ -865,12 +865,10 @@ init (argc, argv)
        old cvsinit.sh script did.  Few utilities do that, and a
        non-existent parent directory is as likely to be a typo as something
        which needs to be created.  */
-    mkdir_if_needed (CVSroot_directory);
+    mkdir_if_needed (current_parsed_root->directory);
 
-    adm = xmalloc (strlen (CVSroot_directory) + sizeof (CVSROOTADM) + 10);
-    strcpy (adm, CVSroot_directory);
-    strcat (adm, "/");
-    strcat (adm, CVSROOTADM);
+    adm = xmalloc (strlen (current_parsed_root->directory) + sizeof (CVSROOTADM) + 2);
+    sprintf (adm, "%s/%s", current_parsed_root->directory, CVSROOTADM);
     mkdir_if_needed (adm);
 
     /* This is needed because we pass "fileptr->filename" not "info"

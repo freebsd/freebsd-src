@@ -1,18 +1,35 @@
 dnl configure.in for cvs
 AC_INIT(src/cvs.h)
+AM_INIT_AUTOMAKE(cvs, 1.11.1p1)
 AC_PREREQ(2.13)
 AC_PREFIX_PROGRAM(cvs)
-AC_CONFIG_HEADER(config.h src/options.h)
+AM_CONFIG_HEADER(config.h src/options.h)
 
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
+# Automake's more advanced version of AC_PROG_RANLIB
 AC_PROG_RANLIB
 AC_PROG_YACC
+AC_PROG_LN_S
 
-AC_PATH_PROG(perl_path, perl, no)
-AC_PATH_PROG(csh_path, csh, no)
+AC_PATH_PROG(PERL, perl, no)
+AC_PATH_PROG(CSH, csh, no)
+AC_PATH_PROG(PR, pr, no)
+# For diff/util.c
+if test x"$PR" != xno; then
+	AC_DEFINE_UNQUOTED([PR_PROGRAM], ["$PR"], [Path to the pr utility])
+fi
+
+dnl FIXME This is truly gross.
+missing_dir=`cd $ac_aux_dir && pwd`
+dnl FIXME I pulled this default list from sanity.sh.  Perhaps these lists
+dnl can be stored in one location?
+glocs="$PATH:/usr/local/bin:/usr/contrib/bin:/usr/gnu/bin:/local/bin:/local/gnu/bin:/gnu/bin"
+AC_PATH_PROGS(ROFF, groff roff, $missing_dir/missing roff, $glocs)
+AC_PATH_PROG(PS2PDF, ps2pdf, $missing_dir/missing ps2pdf)
+AC_PATH_PROG(TEXI2DVI, texi2dvi, $missing_dir/missing texi2dvi)
 
 AC_SYS_INTERPRETER
 if test X"$ac_cv_sys_interpreter" != X"yes" ; then
@@ -20,6 +37,34 @@ if test X"$ac_cv_sys_interpreter" != X"yes" ; then
   ac_msg='perl scripts using #! may not be invoked properly'
   AC_MSG_WARN($ac_msg)
 fi
+
+# BSD's logo is a devil for a reason, hey?
+AC_CACHE_CHECK(for BSD VPATH bug in make, ccvs_cv_bsd_make_vpath_bug,
+[if test ! -d ac_test_dir ; then
+	AC_TRY_COMMAND([mkdir ac_test_dir])
+fi
+cat >conftestmake <<EOF
+VPATH = ac_test_dir
+ac_test_target: ac_test_dep
+	echo BSD VPATH bug present >&2
+ac_test_dep: ac_test_dep_dep
+EOF
+touch ac_test_dir/ac_test_dep_dep
+touch ac_test_dir/ac_test_dep
+touch ac_test_target
+# Don't know why, but the following test doesn't work under FreeBSD 4.2
+# without this sleep command
+sleep 1
+if AC_TRY_COMMAND([make -f conftestmake 2>&1 >/dev/null |grep ^BSD\ VPATH\ bug\ present\$ >/dev/null]) ; then
+	ccvs_cv_bsd_make_vpath_bug=yes
+else
+	ccvs_cv_bsd_make_vpath_bug=no
+fi
+AC_TRY_COMMAND([rm -rf ac_test_dir ac_test_target conftestmake])])
+# We also don't need to worry about the bug when $srcdir = $builddir
+AM_CONDITIONAL(MAKE_TARGETS_IN_VPATH, \
+		test $ccvs_cv_bsd_make_vpath_bug = no \
+		|| test $srcdir = .)
 
 AC_AIX
 AC_MINIX
@@ -35,7 +80,7 @@ AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(errno.h unistd.h string.h memory.h utime.h fcntl.h ndbm.h \
 		 limits.h sys/file.h \
                  sys/param.h sys/select.h sys/time.h sys/timeb.h \
-                 io.h direct.h sys/bsdtypes.h sys/resource.h)
+                 io.h direct.h sys/bsdtypes.h sys/resource.h syslog.h)
 AC_HEADER_STAT
 AC_HEADER_TIME
 
@@ -49,7 +94,39 @@ AC_TYPE_SIGNAL
 AC_STRUCT_ST_BLKSIZE
 AC_STRUCT_ST_RDEV
 AC_REPLACE_FUNCS(mkdir rename strstr dup2 strerror valloc waitpid memmove strtoul)
-AC_CHECK_FUNCS(fchmod fsync ftime mktemp putenv vprintf ftruncate timezone getpagesize initgroups fchdir sigaction sigprocmask sigvec sigsetmask sigblock tempnam tzset readlink wait3 mknod getpassphrase)
+AC_CHECK_FUNCS(\
+	fchdir \
+	fchmod \
+	fsync \
+	ftime \
+	ftruncate \
+	getgroups \
+	getpagesize \
+	getpassphrase \
+	gettimeofday \
+	initgroups \
+	mknod \
+	mkstemp \
+	mktemp \
+	putenv \
+	readlink \
+	sigaction \
+	sigblock \
+	sigprocmask \
+	sigsetmask \
+	sigvec \
+	tempnam \
+	timezone \
+	tzset \
+	vprintf \
+	wait3 \
+)
+# we only need one of the following
+AC_CHECK_FUNCS([\
+	nanosleep \
+	usleep \
+	select \
+], [break])
 
 dnl
 dnl The CVS coding standard (as specified in HACKING) is that if it exists
@@ -182,47 +259,7 @@ if test -n "$krb_h"; then
 fi
 AC_CHECK_FUNCS(krb_get_err_text)
 
-dnl
-dnl Use --with-gssapi=DIR to enable GSSAPI support.
-dnl
-GSSAPI=/usr/cygnus/kerbnet
-define(WITH_GSSAPI,[
-AC_ARG_WITH([gssapi],
-  [  --with-gssapi=value     GSSAPI directory],
-  [GSSAPI=$withval],
-)dnl
-echo "default place for GSSAPI is $GSSAPI"
-AC_SUBST(GSSAPI)])dnl
-WITH_GSSAPI
-
-hold_cppflags=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS -I$GSSAPI/include "
-AC_CHECK_HEADERS(krb5.h gssapi.h gssapi/gssapi.h gssapi/gssapi_generic.h)
-CPPFLAGS=$hold_cppflags
-
-if test "$ac_cv_header_krb5_h" = "yes" && 
-   (test "$ac_cv_header_gssapi_h" = "yes" ||
-    test "$ac_cv_header_gssapi_gssapi_h" = "yes"); then
-  AC_DEFINE(HAVE_GSSAPI)
-  includeopt="${includeopt} -I$GSSAPI/include"
-  # FIXME: This is ugly, but these things don't seem to be standardized.
-  if test "$ac_cv_header_gssapi_h" = "yes"; then
-    LIBS="$LIBS -L$GSSAPI/lib -lgssapi -lkrb5 -lasn1 -ldes -lroken"
-  else
-    LIBS="$LIBS -L$GSSAPI/lib -lgssapi_krb5 -lkrb5 -lcrypto -lcom_err"
-  fi
-  save_CPPFLAGS=$CPPFLAGS
-  CPPFLAGS="-I$GSSAPI/include $CPPFLAGS"
-  if test "$ac_cv_header_gssapi_h" = "yes"; then
-    AC_EGREP_HEADER(GSS_C_NT_HOSTBASED_SERVICE, gssapi.h, AC_DEFINE(HAVE_GSS_C_NT_HOSTBASED_SERVICE))
-  else
-    AC_EGREP_HEADER(GSS_C_NT_HOSTBASED_SERVICE, gssapi/gssapi.h, AC_DEFINE(HAVE_GSS_C_NT_HOSTBASED_SERVICE))
-  fi
-  CPPFLAGS=$save_CPPFLAGS
-  # This is necessary on Irix 5.3, in order to link against libkrb5 --
-  # there, an_to_ln.o refers to things defined only in -lgen.
-  AC_CHECK_LIB(gen, compile)
-fi
+ACX_WITH_GSSAPI
 
 dnl
 dnl Use --with-encryption to turn on encryption support
@@ -307,9 +344,38 @@ test -f src/options.h && (
   cp ./src/options.h ./src/options.h-SAVED
 )
 
-AC_OUTPUT(Makefile lib/Makefile src/Makefile zlib/Makefile diff/Makefile doc/Makefile \
-	  man/Makefile tools/Makefile \
+AC_OUTPUT([Makefile \
 	  contrib/Makefile \
-	  windows-NT/Makefile windows-NT/SCC/Makefile \
-	  os2/Makefile emx/Makefile vms/Makefile \
-	  stamp-h)
+	  contrib/clmerge \
+	  contrib/cln_hist \
+	  contrib/commit_prep \
+	  contrib/cvs_acls \
+	  contrib/log \
+	  contrib/log_accum \
+	  contrib/mfpipe \
+	  contrib/rcslock \
+	  contrib/sccs2rcs \
+	  diff/Makefile \
+	  doc/Makefile \
+	  emx/Makefile \
+	  lib/Makefile \
+	  man/Makefile \
+	  os2/Makefile \
+	  src/Makefile \
+	  src/cvsbug \
+	  tools/Makefile \
+	  vms/Makefile \
+	  windows-NT/Makefile \
+	  windows-NT/SCC/Makefile \
+	  zlib/Makefile],
+	  [chmod -f +x \
+	  contrib/clmerge \
+	  contrib/cln_hist \
+	  contrib/commit_prep \
+	  contrib/cvs_acls \
+	  contrib/log \
+	  contrib/log_accum \
+	  contrib/mfpipe \
+	  contrib/rcslock \
+	  contrib/sccs2rcs \
+	  src/cvsbug])

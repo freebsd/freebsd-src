@@ -61,7 +61,7 @@ dir_sort (dir, dirdata)
   if (dir->desc != -1)
     {
       /* Open the directory and check for errors.  */
-      register DIR *reading = opendir (dir->name);
+      register DIR *reading = CVS_OPENDIR (dir->name);
       if (!reading)
 	return -1;
 
@@ -74,7 +74,7 @@ dir_sort (dir, dirdata)
       /* Read the directory entries, and insert the subfiles
 	 into the `data' table.  */
 
-      while ((errno = 0, (next = readdir (reading)) != 0))
+      while ((errno = 0, (next = CVS_READDIR (reading)) != 0))
 	{
 	  char *d_name = next->d_name;
 	  size_t d_size = NAMLEN (next) + 1;
@@ -96,14 +96,14 @@ dir_sort (dir, dirdata)
       if (errno)
 	{
 	  int e = errno;
-	  closedir (reading);
+	  CVS_CLOSEDIR (reading);
 	  errno = e;
 	  return -1;
 	}
 #if CLOSEDIR_VOID
-      closedir (reading);
+      CVS_CLOSEDIR (reading);
 #else
-      if (closedir (reading) != 0)
+      if (CVS_CLOSEDIR (reading) != 0)
 	return -1;
 #endif
     }

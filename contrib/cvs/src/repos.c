@@ -110,7 +110,7 @@ Name_Repository (dir, update_dir)
     {
 	char *newrepos;
 
-	if (CVSroot_original == NULL)
+	if (current_parsed_root == NULL)
 	{
 	    error (0, 0, "in directory %s:", xupdate_dir);
 	    error (0, 0, "must set the CVSROOT environment variable\n");
@@ -123,8 +123,8 @@ Name_Repository (dir, update_dir)
 	    error (0, 0, "`..'-relative repositories are not supported.");
 	    error (1, 0, "illegal source repository");
 	}
-	newrepos = xmalloc (strlen (CVSroot_directory) + strlen (repos) + 10);
-	(void) sprintf (newrepos, "%s/%s", CVSroot_directory, repos);
+	newrepos = xmalloc (strlen (current_parsed_root->directory) + strlen (repos) + 2);
+	(void) sprintf (newrepos, "%s/%s", current_parsed_root->directory, repos);
 	free (repos);
 	repos = newrepos;
     }
@@ -147,10 +147,10 @@ Short_Repository (repository)
 
     /* If repository matches CVSroot at the beginning, strip off CVSroot */
     /* And skip leading '/' in rep, in case CVSroot ended with '/'. */
-    if (strncmp (CVSroot_directory, repository,
-		 strlen (CVSroot_directory)) == 0)
+    if (strncmp (current_parsed_root->directory, repository,
+		 strlen (current_parsed_root->directory)) == 0)
     {
-	char *rep = repository + strlen (CVSroot_directory);
+	char *rep = repository + strlen (current_parsed_root->directory);
 	return (*rep == '/') ? rep+1 : rep;
     }
     else

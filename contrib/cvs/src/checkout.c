@@ -33,6 +33,10 @@
  * edited by the user, if necessary (when the repository is moved, e.g.)
  */
 
+/*
+ * $FreeBSD$
+ */
+
 #include <assert.h>
 #include "cvs.h"
 
@@ -44,7 +48,7 @@ static int checkout_proc PROTO((int argc, char **argv, char *where,
 
 static const char *const checkout_usage[] =
 {
-    "Usage:\n  %s %s [-ANPRcflnps] [-r rev | -D date] [-d dir]\n",
+    "Usage:\n  %s %s [-ANPRcflnps] [-r rev] [-D date] [-d dir]\n",
     "    [-j rev1] [-j rev2] [-k kopt] modules...\n",
     "\t-A\tReset any sticky tags/date/kopts.\n",
     "\t-N\tDon't shorten module paths if -d specified.\n",
@@ -60,7 +64,7 @@ static const char *const checkout_usage[] =
     "\t-r rev\tCheck out revision or tag. (implies -P) (is sticky)\n",
     "\t-D date\tCheck out revisions as of date. (implies -P) (is sticky)\n",
     "\t-d dir\tCheck out into dir instead of module name.\n",
-    "\t-k kopt\tUse RCS kopt -k option on checkout.\n",
+    "\t-k kopt\tUse RCS kopt -k option on checkout. (is sticky)\n",
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
@@ -68,7 +72,7 @@ static const char *const checkout_usage[] =
 
 static const char *const export_usage[] =
 {
-    "Usage: %s %s [-NRfln] [-r rev | -D date] [-d dir] [-k kopt] module...\n",
+    "Usage: %s %s [-NRfln] [-r rev] [-D date] [-d dir] [-k kopt] module...\n",
     "\t-N\tDon't shorten module paths if -d specified.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
@@ -195,7 +199,7 @@ checkout (argc, argv)
 		    shorten = 1;
 		break;
 	    case 's':
-		status = 1;
+		cat = status = 1;
 		break;
 	    case 'f':
 		force_tag_match = 0;
@@ -228,10 +232,10 @@ checkout (argc, argv)
     if (shorten == -1)
 	shorten = 0;
 
-    if ((cat || status) && argc != 0)
+    if (cat && argc != 0)
 	error (1, 0, "-c and -s must not get any arguments");
 
-    if (!(cat || status) && argc == 0)
+    if (!cat && argc == 0)
 	error (1, 0, "must specify at least one module or directory");
 
     if (where && pipeout)
@@ -253,12 +257,12 @@ checkout (argc, argv)
     }
 #endif
 
-    if (!safe_location()) {
+    if (!cat && !safe_location()) {
         error(1, 0, "Cannot check out files into the repository itself");
     }
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	int expand_modules;
 
@@ -274,7 +278,7 @@ checkout (argc, argv)
            below in !expand_modules), those files (CVS/Checkin.prog
            or CVS/Update.prog) don't get created.  Grrr.  */
 	
-	expand_modules = (!cat && !status && !pipeout
+	expand_modules = (!cat && !pipeout
 			  && supported_request ("expand-modules"));
 	
 	if (expand_modules)
@@ -301,7 +305,7 @@ checkout (argc, argv)
 	if (checkout_prune_dirs && m_type == CHECKOUT)
 	    send_arg("-P");
 	client_prune_dirs = checkout_prune_dirs;
-	if (cat)
+	if (cat && !status)
 	    send_arg("-c");
 	if (where != NULL)
 	    option_with_arg ("-d", where);
@@ -334,7 +338,7 @@ checkout (argc, argv)
     }
 #endif /* CLIENT_SUPPORT */
 
-    if (cat || status)
+    if (cat)
     {
 	cat_module (status);
 	if (options)
@@ -372,7 +376,7 @@ checkout (argc, argv)
 
     for (i = 0; i < argc; i++)
 	err += do_module (db, argv[i], m_type, "Updating", checkout_proc,
-			  where, shorten, local, run_module_prog,
+			  where, shorten, local, run_module_prog, !pipeout,
 			  (char *) NULL);
     close_module (db);
     if (options)
@@ -396,13 +400,13 @@ safe_location ()
     /* FIXME-arbitrary limit: should be retrying this like xgetwd.
        But how does readlink let us know that the buffer was too small?
        (by returning sizeof hardpath - 1?).  */
-    x = readlink(CVSroot_directory, hardpath, sizeof hardpath - 1);
+    x = readlink(current_parsed_root->directory, hardpath, sizeof hardpath - 1);
 #else
     x = -1;
 #endif
     if (x == -1)
     {
-        strcpy(hardpath, CVSroot_directory);
+        strcpy(hardpath, current_parsed_root->directory);
     }
     else
     {
@@ -471,8 +475,8 @@ build_one_dir (repository, dirpath, sticky)
 	    error (1, 0, "there is no repository %s", repository);
 
 	if (Create_Admin (".", dirpath, repository,
-			  sticky ? (char *) NULL : tag,
-			  sticky ? (char *) NULL : date,
+			  sticky ? tag : (char *) NULL,
+			  sticky ? date : (char *) NULL,
 
 			  /* FIXME?  This is a guess.  If it is important
 			     for nonbranch to be set correctly here I
@@ -534,11 +538,11 @@ checkout_proc (argc, argv, where_orig, mwhere, mfile, shorten,
     /* Set up the repository (maybe) for the bottom directory.
        Allocate more space than we need so we don't need to keep
        reallocating this string. */
-    repository = xmalloc (strlen (CVSroot_directory)
+    repository = xmalloc (strlen (current_parsed_root->directory)
 			  + strlen (argv[0])
 			  + (mfile == NULL ? 0 : strlen (mfile))
 			  + 10);
-    (void) sprintf (repository, "%s/%s", CVSroot_directory, argv[0]);
+    (void) sprintf (repository, "%s/%s", current_parsed_root->directory, argv[0]);
     Sanitize_Repository_Name (repository);
 
 
@@ -714,11 +718,11 @@ checkout_proc (argc, argv, where_orig, mwhere, mfile, shorten,
 	struct dir_to_build *head;
 	char *reposcopy;
 
-	if (strncmp (repository, CVSroot_directory,
-		     strlen (CVSroot_directory)) != 0)
+	if (strncmp (repository, current_parsed_root->directory,
+		     strlen (current_parsed_root->directory)) != 0)
 	    error (1, 0, "\
 internal error: %s doesn't start with %s in checkout_proc",
-		   repository, CVSroot_directory);
+		   repository, current_parsed_root->directory);
 
 	/* We always create at least one directory, which corresponds to
 	   the entire strings for WHERE and REPOSITORY.  */
@@ -803,7 +807,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 		 bar   -> Emptydir   (generated dir -- not in repos)
 		 baz   -> quux       (finally!) */
 
-	    if (strcmp (reposcopy, CVSroot_directory) == 0)
+	    if (strcmp (reposcopy, current_parsed_root->directory) == 0)
 	    {
 		/* We can't walk up past CVSROOT.  Instead, the
                    repository should be Emptydir. */
@@ -811,55 +815,30 @@ internal error: %s doesn't start with %s in checkout_proc",
 	    }
 	    else
 	    {
-		if ((where_orig != NULL)
-		    && (strcmp (new->dirpath, where_orig) == 0))
-		{
-		    /* It's the case that the user specified a
-		     * destination directory with the "-d" flag.  The
-		     * repository in this directory should be "."
-		     * since the user's command is equivalent to:
-		     *
-		     *   cd <dir>; cvs co blah   */
-
-		    strcpy (reposcopy, CVSroot_directory);
-		    goto allocate_repos;
-		}
-		else if (mwhere != NULL)
-		{
-		    /* This is a generated directory, so point to
-                       CVSNULLREPOS. */
-
-		    new->repository = emptydir_name ();
-		}
-		else
-		{
-		    /* It's a directory in the repository! */
+		/* It's a directory in the repository! */
 		    
-		    char *rp;
+		char *rp;
 		    
-		    /* We'll always be below CVSROOT, but check for
-		       paranoia's sake. */
-		    rp = strrchr (reposcopy, '/');
-		    if (rp == NULL)
-			error (1, 0,
-			       "internal error: %s doesn't contain a slash",
-			       reposcopy);
+		/* We'll always be below CVSROOT, but check for
+		   paranoia's sake. */
+		rp = strrchr (reposcopy, '/');
+		if (rp == NULL)
+		    error (1, 0,
+			   "internal error: %s doesn't contain a slash",
+			   reposcopy);
 			   
-		    *rp = '\0';
-		
-		allocate_repos:
-		    new->repository = xmalloc (strlen (reposcopy) + 5);
-		    (void) strcpy (new->repository, reposcopy);
+		*rp = '\0';
+		new->repository = xmalloc (strlen (reposcopy) + 5);
+		(void) strcpy (new->repository, reposcopy);
 		    
-		    if (strcmp (reposcopy, CVSroot_directory) == 0)
-		    {
-			/* Special case -- the repository name needs
-			   to be "/path/to/repos/." (the trailing dot
-			   is important).  We might be able to get rid
-			   of this after the we check out the other
-			   code that handles repository names. */
-			(void) strcat (new->repository, "/.");
-		    }
+		if (strcmp (reposcopy, current_parsed_root->directory) == 0)
+		{
+		    /* Special case -- the repository name needs
+		       to be "/path/to/repos/." (the trailing dot
+		       is important).  We might be able to get rid
+		       of this after the we check out the other
+		       code that handles repository names. */
+		    (void) strcat (new->repository, "/.");
 		}
 	    }
 	}
@@ -871,7 +850,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 	    int where_is_absolute = isabsolute (where);
 	    
 	    /* The top-level CVSADM directory should always be
-	       CVSroot_directory.  Create it, but only if WHERE is
+	       current_parsed_root->directory.  Create it, but only if WHERE is
 	       relative.  If WHERE is absolute, our current directory
 	       may not have a thing to do with where the sources are
 	       being checked out.  If it does, build_dirs_and_chdir
@@ -885,7 +864,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 	    {
 		/* It may be argued that we shouldn't set any sticky
 		   bits for the top-level repository.  FIXME?  */
-		build_one_dir (CVSroot_directory, ".", argc <= 1);
+		build_one_dir (current_parsed_root->directory, ".", argc <= 1);
 
 #ifdef SERVER_SUPPORT
 		/* We _always_ want to have a top-level admin
@@ -897,7 +876,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 		   will be ignored on the client side.  */
 
 		if (server_active)
-		    server_clear_entstat (".", CVSroot_directory);
+		    server_clear_entstat (".", current_parsed_root->directory);
 #endif
 	    }
 
@@ -1126,11 +1105,11 @@ emptydir_name ()
 {
     char *repository;
 
-    repository = xmalloc (strlen (CVSroot_directory) 
+    repository = xmalloc (strlen (current_parsed_root->directory) 
 			  + sizeof (CVSROOTADM)
 			  + sizeof (CVSNULLREPOS)
-			  + 10);
-    (void) sprintf (repository, "%s/%s/%s", CVSroot_directory,
+			  + 3);
+    (void) sprintf (repository, "%s/%s/%s", current_parsed_root->directory,
 		    CVSROOTADM, CVSNULLREPOS);
     if (!isfile (repository))
     {

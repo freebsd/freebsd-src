@@ -775,7 +775,7 @@ static char const * const option_help[] = {
 "-e  --ed  Output an ed script.",
 "-n  --rcs  Output an RCS format diff.",
 "-y  --side-by-side  Output in two columns.",
-"  -w NUM  --width=NUM  Output at most NUM (default 130) characters per line.",
+"  -W NUM  --width=NUM  Output at most NUM (default 130) characters per line.",
 "  --left-column  Output only the left column of common lines.",
 "  --suppress-common-lines  Do not output common lines.",
 "-DNAME  --ifdef=NAME  Output merged file to show `#ifdef NAME' diffs.",

@@ -192,8 +192,10 @@ do_editor (dir, messagep, repository, changes)
     if (strcmp (Editor, "") == 0 && !editinfo_editor)
 	error(1, 0, "no editor defined, must use -e or -m");
 
-
     /* Create a temporary file */
+    /* FIXME - It's possible we should be relying on cvs_temp_file to open
+     * the file here - we get race conditions otherwise.
+     */
     fname = cvs_temp_name ();
   again:
     if ((fp = CVS_FOPEN (fname, "w+")) == NULL)
@@ -274,7 +276,7 @@ do_editor (dir, messagep, repository, changes)
 	free (editinfo_editor);
     editinfo_editor = (char *) NULL;
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
 	; /* nothing, leave editinfo_editor NULL */
     else
 #endif
@@ -404,7 +406,7 @@ do_verify (messagep, repository)
     struct stat stbuf;
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
 	/* The verification will happen on the server.  */
 	return;
 #endif
@@ -422,13 +424,10 @@ do_verify (messagep, repository)
 	return;
     }
 
-    /* Get a temp filename, open a temporary file, write the message to the 
+    /* open a temporary file, write the message to the 
        temp file, and close the file.  */
 
-    fname = cvs_temp_name ();
-
-    fp = fopen (fname, "w");
-    if (fp == NULL)
+    if ((fp = cvs_temp_file (&fname)) == NULL)
 	error (1, errno, "cannot create temporary file %s", fname);
     else
     {
@@ -849,16 +848,16 @@ logfile_write (repository, filter, message, logfp, changes)
 
 	srepos = Short_Repository (repository);
 
-	prog = xmalloc ((fmt_percent - filter) + strlen (srepos)
-			+ strlen (str_list) + strlen (fmt_continue)
+	prog = cp = xmalloc ((fmt_percent - filter) + 2 * strlen (srepos)
+			+ 2 * strlen (str_list) + strlen (fmt_continue)
 			+ 10);
-	(void) strncpy (prog, filter, fmt_percent - filter);
-	prog[fmt_percent - filter] = '\0';
-	(void) strcat (prog, "'");
-	(void) strcat (prog, srepos);
-	(void) strcat (prog, str_list);
-	(void) strcat (prog, "'");
-	(void) strcat (prog, fmt_continue);
+	(void) memcpy (cp, filter, fmt_percent - filter);
+	cp += fmt_percent - filter;
+	*cp++ = '"';
+	cp = shell_escape (cp, srepos);
+	cp = shell_escape (cp, str_list);
+	*cp++ = '"';
+	(void) strcpy (cp, fmt_continue);
 	    
 	/* To be nice, free up some memory. */
 

@@ -12,6 +12,7 @@
  * release as either a date or a revision number.
  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "getline.h"
 
@@ -189,7 +190,7 @@ patch (argc, argv)
 	options = xstrdup ("");
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	/* We're the client side.  Fire up the remote server.  */
 	start_server ();
@@ -252,7 +253,7 @@ patch (argc, argv)
     db = open_module ();
     for (i = 0; i < argc; i++)
 	err += do_module (db, argv[i], PATCH, "Patching", patch_proc,
-			  (char *) NULL, 0, 0, 0, (char *) NULL);
+			  (char *) NULL, 0, 0, 0, 0, (char *) NULL);
     close_module (db);
     free (options);
     patch_cleanup ();
@@ -282,11 +283,11 @@ patch_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     char *repository;
     char *where;
 
-    repository = xmalloc (strlen (CVSroot_directory) + strlen (argv[0])
-			  + (mfile == NULL ? 0 : strlen (mfile)) + 30);
-    (void) sprintf (repository, "%s/%s", CVSroot_directory, argv[0]);
-    where = xmalloc (strlen (argv[0]) + (mfile == NULL ? 0 : strlen (mfile))
-		     + 10);
+    repository = xmalloc (strlen (current_parsed_root->directory) + strlen (argv[0])
+			  + (mfile == NULL ? 0 : strlen (mfile) + 1) + 2);
+    (void) sprintf (repository, "%s/%s", current_parsed_root->directory, argv[0]);
+    where = xmalloc (strlen (argv[0]) + (mfile == NULL ? 0 : strlen (mfile) + 1)
+		     + 1);
     (void) strcpy (where, argv[0]);
 
     /* if mfile isn't null, we need to set up to do only part of the module */
@@ -307,7 +308,7 @@ patch_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	}
 
 	/* take care of the rest */
-	path = xmalloc (strlen (repository) + strlen (mfile) + 5);
+	path = xmalloc (strlen (repository) + strlen (mfile) + 2);
 	(void) sprintf (path, "%s/%s", repository, mfile);
 	if (isdir (path))
 	{
@@ -502,10 +503,15 @@ patch_fileproc (callerdat, finfo)
     }
 
     /* Create 3 empty files.  I'm not really sure there is any advantage
-       to doing so now rather than just waiting until later.  */
-    tmpfile1 = cvs_temp_name ();
-    fp1 = CVS_FOPEN (tmpfile1, "w+");
-    if (fp1 == NULL)
+     * to doing so now rather than just waiting until later.
+     *
+     * There is - cvs_temp_file opens the file so that it can guarantee that
+     * we have exclusive write access to the file.  Unfortunately we spoil that
+     * by closing it and reopening it again.  Of course any better solution
+     * requires that the RCS functions accept open file pointers rather than
+     * simple file names.
+     */
+    if ((fp1 = cvs_temp_file (&tmpfile1)) == NULL)
     {
 	error (0, errno, "cannot create temporary file %s", tmpfile1);
 	ret = 1;
@@ -514,9 +520,7 @@ patch_fileproc (callerdat, finfo)
     else
 	if (fclose (fp1) < 0)
 	    error (0, errno, "warning: cannot close %s", tmpfile1);
-    tmpfile2 = cvs_temp_name ();
-    fp2 = CVS_FOPEN (tmpfile2, "w+");
-    if (fp2 == NULL)
+    if ((fp2 = cvs_temp_file (&tmpfile2)) == NULL)
     {
 	error (0, errno, "cannot create temporary file %s", tmpfile2);
 	ret = 1;
@@ -525,9 +529,7 @@ patch_fileproc (callerdat, finfo)
     else
 	if (fclose (fp2) < 0)
 	    error (0, errno, "warning: cannot close %s", tmpfile2);
-    tmpfile3 = cvs_temp_name ();
-    fp3 = CVS_FOPEN (tmpfile3, "w+");
-    if (fp3 == NULL)
+    if ((fp3 = cvs_temp_file (&tmpfile3)) == NULL)
     {
 	error (0, errno, "cannot create temporary file %s", tmpfile3);
 	ret = 1;
@@ -580,7 +582,7 @@ patch_fileproc (callerdat, finfo)
 	    (void) utime (tmpfile2, &t);
     }
 
-    switch (diff_exec (tmpfile1, tmpfile2, unidiff ? "-u" : "-c", tmpfile3))
+    switch (diff_exec (tmpfile1, tmpfile2, NULL, NULL, unidiff ? "-u" : "-c", tmpfile3))
     {
 	case -1:			/* fork/wait failure */
 	    error (1, errno, "fork for diff failed on %s", rcs);
@@ -643,13 +645,14 @@ failed to read diff file header %s for %s: end of file", tmpfile3, rcs);
 		    goto out;
 		}
 	    }
-	    if (CVSroot_directory != NULL)
+	    assert (current_parsed_root != NULL);
+	    assert (current_parsed_root->directory != NULL);
 	    {
-		strippath = xmalloc (strlen (CVSroot_directory) + 10);
-		(void) sprintf (strippath, "%s/", CVSroot_directory);
+		strippath = xmalloc (strlen (current_parsed_root->directory) + 2);
+		(void) sprintf (strippath, "%s/", current_parsed_root->directory);
 	    }
-	    else
-		strippath = xstrdup (REPOS_STRIP);
+	    /*else
+		strippath = xstrdup (REPOS_STRIP); */
 	    if (strncmp (rcs, strippath, strlen (strippath)) == 0)
 		rcs += strlen (strippath);
 	    free (strippath);

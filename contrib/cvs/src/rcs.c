@@ -94,11 +94,6 @@ static void expand_keywords PROTO((RCSNode *, RCSVers *, const char *,
 				   size_t, char **, size_t *));
 static void cmp_file_buffer PROTO((void *, const char *, size_t));
 
-enum rcs_delta_op {RCS_ANNOTATE, RCS_FETCH};
-static void RCS_deltas PROTO ((RCSNode *, FILE *, struct rcsbuffer *, char *,
-			       enum rcs_delta_op, char **, size_t *,
-			       char **, size_t *));
-
 /* Routines for reading, parsing and writing RCS files. */
 static RCSVers *getdelta PROTO ((struct rcsbuffer *, char *, char **,
 				 char **));
@@ -2130,7 +2125,7 @@ RCS_getversion (rcs, tag, date, force_tag_match, simple_tag)
  * -- If tag is a branch tag, returns the branch number, not
  *    the revision of the head of the branch.
  * If tag or revision is not valid or does not exist in file,
- * exit with error.
+ * return NULL.
  */
 char *
 RCS_tag2rev (rcs, tag)
@@ -2209,9 +2204,8 @@ RCS_tag2rev (rcs, tag)
     if (rev)
         return rev;
 
-    error (1, 0, "tag `%s' does not exist", tag);
-    /* NOT REACHED -- error (1 ... ) does not return here */
-    return 0;
+    /* Trust the caller to print warnings. */
+    return NULL;
 }
 
 /*
@@ -4184,7 +4178,7 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 	       whether it should be considered an error for `dest' to exist
 	       at this point.  If so, the unlink call should be removed and
 	       `symlink' should signal the error. -twp) */
-	    if (unlink (dest) < 0 && !existence_error (errno))
+	    if (CVS_UNLINK (dest) < 0 && !existence_error (errno))
 		error (1, errno, "cannot remove %s", dest);
 	    if (symlink (info->data, dest) < 0)
 		error (1, errno, "cannot create symbolic link from %s to %s",
@@ -4354,7 +4348,7 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 
 	/* Unlink `dest', just in case.  It's okay if this provokes a
 	   ENOENT error. */
-	if (unlink (dest) < 0 && existence_error (errno))
+	if (CVS_UNLINK (dest) < 0 && existence_error (errno))
 	    error (1, errno, "cannot remove %s", dest);
 	if (mknod (dest, special_file, devnum) < 0)
 	    error (1, errno, "could not create special file %s",
@@ -5297,7 +5291,7 @@ workfile);
 	memset (commitpt->text, 0, sizeof (Deltatext));
 
 	bufsize = 0;
-	switch (diff_exec (workfile, tmpfile, diffopts, changefile))
+	switch (diff_exec (workfile, tmpfile, NULL, NULL, diffopts, changefile))
 	{
 	    case 0:
 	    case 1:
@@ -5345,7 +5339,7 @@ workfile);
 	/* This file is not being inserted at the head, but on a side
 	   branch somewhere.  Make a diff from the previous revision
 	   to the working file. */
-	switch (diff_exec (tmpfile, workfile, diffopts, changefile))
+	switch (diff_exec (tmpfile, workfile, NULL, NULL, diffopts, changefile))
 	{
 	    case 0:
 	    case 1:
@@ -5725,7 +5719,7 @@ RCS_setbranch (rcs, rev)
 int
 RCS_lock (rcs, rev, lock_quiet)
      RCSNode *rcs;
-     const char *rev;
+     char *rev;
      int lock_quiet;
 {
     List *locks;
@@ -5744,32 +5738,16 @@ RCS_lock (rcs, rev, lock_quiet)
     /* A revision number of NULL means lock the head or default branch. */
     if (rev == NULL)
 	xrev = RCS_head (rcs);
-
-    /* If rev is a branch number, lock the latest revision on that
-       branch. I think that if the branch doesn't exist, it's
-       okay to return 0 -- that just means that the branch is new,
-       so we don't need to lock it anyway. -twp */
-    else if (RCS_nodeisbranch (rcs, rev))
-    {
-	xrev = RCS_getbranch (rcs, (char *) rev, 1);
-	if (xrev == NULL)
-	{
-	    if (!lock_quiet)
-		error (0, 0, "%s: branch %s absent", rcs->path, rev);
-	    return 1;
-	}
-    }
-
-    if (xrev == NULL)
-	xrev = xstrdup (rev);
+    else
+	xrev = RCS_gettag (rcs, rev, 1, (int *) NULL);
 
     /* Make sure that the desired revision exists.  Technically,
        we can update the locks list without even checking this,
        but RCS 5.7 did this.  And it can't hurt. */
-    if (findnode (rcs->versions, xrev) == NULL)
+    if (xrev == NULL || findnode (rcs->versions, xrev) == NULL)
     {
 	if (!lock_quiet)
-	    error (0, 0, "%s: revision %s absent", rcs->path, xrev);
+	    error (0, 0, "%s: revision %s absent", rcs->path, rev);
 	free (xrev);
 	return 1;
     }
@@ -5835,7 +5813,7 @@ RCS_lock (rcs, rev, lock_quiet)
 int
 RCS_unlock (rcs, rev, unlock_quiet)
      RCSNode *rcs;
-     const char *rev;
+     char *rev;
      int unlock_quiet;
 {
     Node *lock;
@@ -5885,20 +5863,15 @@ RCS_unlock (rcs, rev, unlock_quiet)
 	    return 0;	/* no lock found, ergo nothing to do */
 	xrev = xstrdup (lock->key);
     }
-    else if (RCS_nodeisbranch (rcs, rev))
+    else
     {
-	/* If rev is a branch number, unlock the latest revision on that
-	   branch. */
-	xrev = RCS_getbranch (rcs, (char *) rev, 1);
+	xrev = RCS_gettag (rcs, rev, 1, (int *) NULL);
 	if (xrev == NULL)
 	{
-	    error (0, 0, "%s: branch %s absent", rcs->path, rev);
+	    error (0, 0, "%s: revision %s absent", rcs->path, rev);
 	    return 1;
 	}
     }
-    else
-	/* REV is an exact revision number. */
-	xrev = xstrdup (rev);
 
     lock = findnode (RCS_getlocks (rcs), xrev);
     if (lock == NULL)
@@ -6420,7 +6393,7 @@ RCS_delete_revs (rcs, tag1, tag2, inclusive)
 		goto delrev_done;
 
 	    outfile = cvs_temp_name();
-	    status = diff_exec (beforefile, afterfile, "-an", outfile);
+	    status = diff_exec (beforefile, afterfile, NULL, NULL, "-an", outfile);
 
 	    if (status == 2)
 	    {
@@ -7059,7 +7032,7 @@ rcs_change_text (name, textbuf, textlen, diffbuf, difflen, retbuf, retlen)
 
    On error, give a fatal error.  */
 
-static void
+void
 RCS_deltas (rcs, fp, rcsbuf, version, op, text, len, log, loglen)
     RCSNode *rcs;
     FILE *fp;
@@ -8418,138 +8391,6 @@ RCS_abandon (rcs)
     rcs->flags |= PARTIAL;
 }
 
-
-/* Annotate command.  In rcs.c for historical reasons (from back when
-   what is now RCS_deltas was part of annotate_fileproc).  */
-
-/* Options from the command line.  */
-
-static int force_tag_match = 1;
-static char *tag = NULL;
-static char *date = NULL;
-
-static int annotate_fileproc PROTO ((void *callerdat, struct file_info *));
-
-static int
-annotate_fileproc (callerdat, finfo)
-    void *callerdat;
-    struct file_info *finfo;
-{
-    FILE *fp = NULL;
-    struct rcsbuffer *rcsbufp = NULL;
-    struct rcsbuffer rcsbuf;
-    char *version;
-
-    if (finfo->rcs == NULL)
-        return (1);
-
-    if (finfo->rcs->flags & PARTIAL)
-    {
-        RCS_reparsercsfile (finfo->rcs, &fp, &rcsbuf);
-	rcsbufp = &rcsbuf;
-    }
-
-    version = RCS_getversion (finfo->rcs, tag, date, force_tag_match,
-			      (int *) NULL);
-    if (version == NULL)
-        return 0;
-
-    /* Distinguish output for various files if we are processing
-       several files.  */
-    cvs_outerr ("Annotations for ", 0);
-    cvs_outerr (finfo->fullname, 0);
-    cvs_outerr ("\n***************\n", 0);
-
-    RCS_deltas (finfo->rcs, fp, rcsbufp, version, RCS_ANNOTATE, NULL,
-		NULL, NULL, NULL);
-    free (version);
-    return 0;
-}
-
-static const char *const annotate_usage[] =
-{
-    "Usage: %s %s [-lRf] [-r rev|-D date] [files...]\n",
-    "\t-l\tLocal directory only, no recursion.\n",
-    "\t-R\tProcess directories recursively.\n",
-    "\t-f\tUse head revision if tag/date not found.\n",
-    "\t-r rev\tAnnotate file as of specified revision/tag.\n",
-    "\t-D date\tAnnotate file as of specified date.\n",
-    "(Specify the --help global option for a list of other help options)\n",
-    NULL
-};
-
-/* Command to show the revision, date, and author where each line of a
-   file was modified.  */
-
-int
-annotate (argc, argv)
-    int argc;
-    char **argv;
-{
-    int local = 0;
-    int c;
-
-    if (argc == -1)
-	usage (annotate_usage);
-
-    optind = 0;
-    while ((c = getopt (argc, argv, "+lr:D:fR")) != -1)
-    {
-	switch (c)
-	{
-	    case 'l':
-		local = 1;
-		break;
-	    case 'R':
-		local = 0;
-		break;
-	    case 'r':
-	        tag = optarg;
-		break;
-	    case 'D':
-	        date = Make_Date (optarg);
-		break;
-	    case 'f':
-	        force_tag_match = 0;
-		break;
-	    case '?':
-	    default:
-		usage (annotate_usage);
-		break;
-	}
-    }
-    argc -= optind;
-    argv += optind;
-
-#ifdef CLIENT_SUPPORT
-    if (client_active)
-    {
-	start_server ();
-	ign_setup ();
-
-	if (local)
-	    send_arg ("-l");
-	if (!force_tag_match)
-	    send_arg ("-f");
-	option_with_arg ("-r", tag);
-	if (date)
-	    client_senddate (date);
-	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
-	send_to_server ("annotate\012", 0);
-	return get_responses_and_close ();
-    }
-#endif /* CLIENT_SUPPORT */
-
-    if (tag != NULL)
-	tag_check_valid (tag, argc, argv, local, 0, "");
-
-    return start_recursion (annotate_fileproc, (FILESDONEPROC) NULL,
-			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			    argc, argv, local, W_LOCAL, 0, 1, (char *)NULL,
-			    1);
-}
-
 /*
  * For a given file with full pathname PATH and revision number REV,
  * produce a file label suitable for passing to diff.  The default
@@ -8559,6 +8400,11 @@ annotate (argc, argv)
  *
  * The date and time used are the revision's last checkin date and time.
  * If REV is NULL, use the working copy's mtime instead.
+ *
+ * /dev/null is not statted but assumed to have been created on the Epoch.
+ * At least using the POSIX.2 definition of patch, this should cause creation
+ * of files on platforms such as Windoze where the null IO device isn't named
+ * /dev/null to be parsed by patch properly.
  */
 char *
 make_file_label (path, rev, rcs)
@@ -8566,37 +8412,45 @@ make_file_label (path, rev, rcs)
     char *rev;
     RCSNode *rcs;
 {
-    char datebuf[MAXDATELEN];
+    char datebuf[MAXDATELEN + 1];
     char *label;
-    char *file;
 
-    file = last_component (path);
     label = (char *) xmalloc (strlen (path)
-			      + (rev == NULL ? 0 : strlen (rev))
-			      + 50);
+			      + (rev == NULL ? 0 : strlen (rev) + 1)
+			      + MAXDATELEN
+			      + 2);
 
     if (rev)
     {
-	char *date;
+	char date[MAXDATELEN + 1];
+	/* revs cannot be attached to /dev/null ... duh. */
+	assert (strcmp(DEVNULL, path));
 	RCS_getrevtime (rcs, rev, datebuf, 0);
-	date = printable_date (datebuf);
+	(void) date_to_internet (date, datebuf);
 	(void) sprintf (label, "-L%s\t%s\t%s", path, date, rev);
-	free (date);
     }
     else
     {
 	struct stat sb;
-	struct tm *wm;
+	struct tm *wm = NULL;
 
-	if (CVS_STAT (file, &sb) < 0)
-	    error (0, 1, "could not get info for `%s'", path);
+	if (strcmp(DEVNULL, path))
+	{
+	    char *file = last_component (path);
+	    if (CVS_STAT (file, &sb) < 0)
+		error (0, 1, "could not get info for `%s'", path);
+	    else
+		wm = gmtime (&sb.st_mtime);
+	}
 	else
 	{
-	    wm = gmtime (&sb.st_mtime);
-	    (void) sprintf (datebuf, "%04d/%02d/%02d %02d:%02d:%02d",
-			    wm->tm_year + 1900, wm->tm_mon + 1,
-			    wm->tm_mday, wm->tm_hour,
-			    wm->tm_min, wm->tm_sec);
+	    time_t t = 0;
+	    wm = gmtime(&t);
+	}
+
+	if (wm)
+	{
+	    (void) tm_to_internet (datebuf, wm);
 	    (void) sprintf (label, "-L%s\t%s", path, datebuf);
 	}
     }
@@ -8677,7 +8531,7 @@ static char *
 getfullCVSname(CVSname, pathstore)
     char *CVSname, **pathstore;
 {
-    if (CVSroot_directory) {
+    if (current_parsed_root->directory) {
 	int rootlen;
 	char *c = NULL;
 	int alen = sizeof(ATTIC) - 1;
@@ -8695,8 +8549,8 @@ getfullCVSname(CVSname, pathstore)
 	    }
 	}
 
-	rootlen = strlen(CVSroot_directory);
-	if (!strncmp(*pathstore, CVSroot_directory, rootlen) &&
+	rootlen = strlen(current_parsed_root->directory);
+	if (!strncmp(*pathstore, current_parsed_root->directory, rootlen) &&
 	    (*pathstore)[rootlen] == '/')
 	    CVSname = (*pathstore + rootlen + 1);
 	else

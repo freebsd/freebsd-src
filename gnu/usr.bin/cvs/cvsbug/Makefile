@@ -6,21 +6,19 @@ MAINTAINER=	peter@FreeBSD.org
 
 .PATH:	${CVSDIR}/src
 .PATH:	${CVSDIR}/man
+.PATH:	${CVSDIR}
 
 SCRIPTS=	cvsbug
 MAN=		cvsbug.8
 
-CLEANFILES+= cvsbug ver
+CLEANFILES+=    version.c    
+VERSION!=       sed < ${CVSDIR}/configure \
+		-e '/^VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
 
-.SUFFIXES: .sh
+version.c: version.c.in
+	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
-ver: version.c
-	echo > ${.TARGET} cvs-`sed < ${.ALLSRC} \
-		    -e '/version_string/!d' \
-		    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
-		    -e q`
-
-.sh: ver
-	sed -e "s,xVERSIONx,`cat ver`,g" ${.IMPSRC} > ${.TARGET}
+cvsbug: cvsbug.in
+	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
