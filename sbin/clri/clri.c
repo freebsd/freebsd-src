@@ -44,9 +44,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)clri.c	8.2 (Berkeley) 9/23/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>
@@ -74,9 +75,7 @@ usage(void)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct fs *sbp;
 	struct ufs1_dinode *dp1;
@@ -105,7 +104,7 @@ main(argc, argv)
 		     (sbp->fs_magic == FS_UFS2_MAGIC &&
 		      sbp->fs_sblockloc == numfrags(sbp, sblock_try[i]))) &&
 		    sbp->fs_bsize <= MAXBSIZE &&
-		    sbp->fs_bsize >= sizeof(struct fs))
+		    sbp->fs_bsize >= (int)sizeof(struct fs))
 			break;
 	}
 	if (sblock_try[i] == -1) {
