@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.1.2.1 1999/10/05 12:59:25 darrenr Exp $
+ * $Id: ipf.h,v 2.9.2.2 2000/05/06 11:20:20 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -37,6 +37,14 @@
 #define	OPT_RAW		0x080000
 #define	OPT_NAT		0x100000
 #define	OPT_GROUPS	0x200000
+#define	OPT_STATETOP	0x400000
+#define	OPT_FLUSH	0x800000
+#define	OPT_CLEAR	0x1000000
+#define	OPT_NODO	0x80000000
+
+#define	OPT_STAT	OPT_FRSTATES
+#define	OPT_LIST	OPT_SHOWLIST
+
 
 #ifndef __P
 # ifdef	__STDC__
@@ -45,6 +53,8 @@
 #  define	__P(x)	()
 # endif
 #endif
+
+struct frpcmp;
 
 #ifdef	ultrix
 extern	char	*strdup __P((char *));
@@ -65,10 +75,26 @@ struct	ipopt_names	{
 };
 
 
+extern	char	*proto;
+extern	char	flagset[];
+extern	u_char	flags[];
+
+extern	u_char	tcp_flags __P((char *, u_char *, int));
+extern	int	countbits __P((u_32_t));
+extern	int	ratoi __P((char *, int *, int, int));
+extern	int	ratoui __P((char *, u_int *, u_int, u_int));
+extern	int	hostmask __P((char ***, u_32_t *, u_32_t *, u_short *, int *,
+			      u_short *, int));
+extern	int	ports __P((char ***, u_short *, int *, u_short *, int));
+extern	char	*portname __P((int, int));
 extern	u_32_t	buildopts __P((char *, char *, int));
-extern	u_32_t	hostnum __P((char *, int *, int));
+extern	int	genmask __P((char *, u_32_t *));
+extern	int	hostnum __P((u_32_t *, char *, int));
 extern	u_32_t	optname __P((char ***, u_short *, int));
 extern	void	printpacket __P((ip_t *));
+extern	void	printportcmp __P((int, struct frpcmp *));
+extern	void	printhostmask __P((int, u_32_t *, u_32_t *));
+extern	void	printbuf __P((char *, int, int));
 #if SOLARIS
 extern	int	inet_aton __P((const char *, struct in_addr *));
 extern	int	gethostname __P((char *, int ));
