@@ -22,12 +22,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#ifndef PC98
 #include <sys/diskmbr.h>
+#endif
 #include <paths.h>
 #include "libdisk.h"
 
+#ifndef PC98
 #define DOSPTYP_EXTENDED        5
 #define DOSPTYP_ONTRACK         84
+#endif
 
 const char *chunk_n[] = {
 	"whole",
