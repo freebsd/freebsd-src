@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.2 1995/08/28 09:18:38 julian Exp $
+ *  $Id: linux_stats.c,v 1.3 1995/11/22 07:43:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
+#include <sys/pipe.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/sysproto.h>
@@ -162,6 +163,9 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args, int *retval)
 	break;
     case DTYPE_SOCKET:
 	error = soo_stat((struct socket *)fp->f_data, &buf);
+	break;
+    case DTYPE_PIPE:
+	error = pipe_stat((struct pipe *)fp->f_data, &buf);
 	break;
     default:
 	panic("LINUX newfstat");
