@@ -86,7 +86,8 @@ char **ap, *argv[10], *inputstring;
 
 for (ap = argv; (*ap = strsep(&inputstring, " \et")) != NULL;)
 	if (**ap != '\e0')
-		++ap;
+		if (++ap >= &argv[10])
+			break;
 .Ed
 .Sh HISTORY
 The
