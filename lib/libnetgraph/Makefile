@@ -8,11 +8,8 @@ SHLIB_MAJOR=	1
 #SHLIB_MINOR=	1
 
 SRCS=		sock.c msg.c debug.c
+INCS=		netgraph.h
 
 CFLAGS+=	-Wall
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/netgraph.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

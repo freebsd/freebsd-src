@@ -8,17 +8,12 @@ CFLAGS+=	-DNDEBUG
 .endif
 SRCS=		fetch.c common.c ftp.c http.c file.c fetch_err.c \
 		fetch_err.h ftperr.h httperr.h
+INCS=		fetch.h ${.OBJDIR}/fetch_err.h
 MAN3=		fetch.3
 CLEANFILES=	fetch_err.c fetch_err.h ftperr.h httperr.h
 
 SHLIB_MAJOR=    1
 SHLIB_MINOR=	0
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
-		${DESTDIR}/usr/include
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 fetch_err.h \
-		${DESTDIR}/usr/include
 
 ftperr.h: ftp.errors
 	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
