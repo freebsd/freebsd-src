@@ -564,16 +564,14 @@ configSecurityExtreme(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
 
-    variable_set2("nfs_server_enable", "NO", 1);
-    variable_set2("sendmail_enable", "NO", 1);
     variable_set2("sshd_enable", "NO", 1);
     variable_set2("kern_securelevel_enable", "YES", 1);
     variable_set2("kern_securelevel", "2", 1);
 
     if (self)
 	msgConfirm("Extreme security settings have been selected.\n\n"
-	    "Sendmail, sshd, and NFS services have been disabled, and\n"
-	    "securelevels have been enabled.\n\n"
+	    "Sshd has been disabled, and kernel security levels have"
+	    "been enabled.\n\n"
 	    "PLEASE NOTE that this still does not save you from having\n"
 	    "to properly secure your system in other ways or exercise\n"
 	    "due diligence in your administration, this simply picks\n"
@@ -589,14 +587,13 @@ configSecurityModerate(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
 
-    variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
     variable_set2("kern_securelevel_enable", "NO", 1);
 
     if (self)
 	msgConfirm("Moderate security settings have been selected.\n\n"
-	    "Sendmail and sshd have been enabled, securelevels are\n"
-	    "disabled, and NFS server settings have been left intact.\n\n"
+	    "Sshd has been enabled and kernel securelevels are disabled;\n"
+	    "all other settings have been left intact.\n\n"
             "PLEASE NOTE that this still does not save you from having\n"
             "to properly secure your system in other ways or exercise\n"
             "due diligence in your administration, this simply picks\n"
