@@ -77,8 +77,6 @@
 
 unsigned int i4b_l3_debug = L3_DEBUG_DEFAULT;
 
-/* this is declared in layer4/i4b_l4mgmt.c, which is always required */
-extern call_desc_t call_desc[N_CALL_DESC];	/* call descriptor array */
 ctrl_desc_t ctrl_desc[MAX_CONTROLLERS];	/* controller description array */
 int utoc_tab[MAX_CONTROLLERS];		/* unit to controller conversion */
 
