@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
+.\"     $Id$
 .\"
 .Dd June 1, 1994
 .Dt EXECVE 2
@@ -239,12 +240,12 @@ The new process requires more virtual memory than
 is allowed by the imposed maximum
 .Pq Xr getrlimit 2 .
 .It Bq Er E2BIG
-The number of bytes in the new process's argument list
+The number of bytes in the new process' argument list
 is larger than the system-imposed limit.
-The limit in the system as released is 65536 bytes
-.Pf ( Dv NCARGS
-in
-.Ao Pa sys/param.h Ac ) .
+This limit is specified by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_ARGMAX .
 .It Bq Er EFAULT
 The new process file is not as long as indicated by
 the size values in its header.
@@ -271,6 +272,7 @@ of a super-user as well.
 .Xr fork 2 ,
 .Xr execl 3 ,
 .Xr exit 3 ,
+.Xr sysctl 3 ,
 .Xr environ 7
 .Sh HISTORY
 The
