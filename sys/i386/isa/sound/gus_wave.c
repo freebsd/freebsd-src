@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_wave.c,v 1.9 1994/08/02 07:40:02 davidg Exp $
+ * $Id: gus_wave.c,v 1.10 1994/10/01 02:16:42 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -35,6 +35,9 @@
 #include "ultrasound.h"
 #endif
 #include "gus_hw.h"
+
+#undef	OUTB
+#define	OUTB(val, port)	outb(port, val)
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
