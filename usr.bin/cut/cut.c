@@ -218,7 +218,8 @@ f_cut(fp, fname)
 	int output;
 	char lbuf[_POSIX2_LINE_MAX + 1];
 
-	for (sep = dchar, output = 0; fgets(lbuf, sizeof(lbuf), fp);) {
+	for (sep = dchar; fgets(lbuf, sizeof(lbuf), fp);) {
+		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
 			if (!(ch = *p))
 				err("%s: line too long.\n", fname);
