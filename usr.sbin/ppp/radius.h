@@ -65,7 +65,8 @@ extern void radius_Destroy(struct radius *);
 
 extern void radius_Show(struct radius *, struct prompt *);
 extern void radius_Authenticate(struct radius *, struct authinfo *,
-                                const char *, const char *, const char *);
+                                const char *, const char *, int,
+                                const char *, int);
 extern void radius_Account(struct radius *, struct radacct *, 
                            struct datalink *, int, struct in_addr *,
                            struct in_addr *, struct pppThroughput *);
