@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.51 1998/03/31 07:53:13 kato Exp $
+ *	$Id: clock.c,v 1.52 1998/04/06 03:38:18 kato Exp $
  */
 
 /*
@@ -143,15 +143,7 @@ int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 #ifndef TIMER_FREQ
 #ifdef PC98
-#ifndef AUTO_CLOCK
-#ifndef PC98_8M
 #define	TIMER_FREQ	2457600;
-#else	/* !PC98_8M */
-#define	TIMER_FREQ	1996800;
-#endif	/* PC98_8M */
-#else	/* AUTO_CLOCK */
-#define	TIMER_FREQ	2457600;
-#endif	/* AUTO_CLOCK */
 #else /* IBM-PC */
 #define	TIMER_FREQ	1193182;
 #endif /* PC98 */
@@ -280,20 +272,12 @@ clkintr(struct clockframe frame)
 			 * See microtime.s for this magic.
 			 */
 #ifdef PC98
-#ifndef AUTO_CLOCK
-#ifndef PC98_8M
-			time.tv_usec += (6667 * timer0_prescaler_count) >> 14;
-#else /* PC98_8M */
-			time.tv_usec += (16411 * timer0_prescaler_count) >> 15;
-#endif /* PC98_8M */
-#else /* AUTO_CLOCK */
 			if (pc98_machine_type & M_8M) {
 				/* PC98_8M */
 				time.tv_usec += (16411 * timer0_prescaler_count) >> 15;
 			} else {
 				time.tv_usec += (6667 * timer0_prescaler_count) >> 14;
 			}
-#endif /* AUTO_CLOCK */
 #else /* IBM-PC */
 			time.tv_usec += (27465 * timer0_prescaler_count) >> 15;
 #endif
@@ -831,22 +815,10 @@ startrtclock()
 
 #ifdef PC98
 	findcpuspeed();
-#ifndef AUTO_CLOCK
-	if (pc98_machine_type & M_8M) {
-#ifndef	PC98_8M
-		printf("you must reconfig a kernel with \"PC98_8M\" option.\n");
-#endif
-	} else {
-#ifdef	PC98_8M
-		printf("You must reconfig a kernel without \"PC98_8M\" option.\n");
-#endif
-	}
-#else /* AUTO_CLOCK */
 	if (pc98_machine_type & M_8M)
 		timer_freq = 1996800L; /* 1.9968 MHz */
 	else
 		timer_freq = 2457600L; /* 2.4576 MHz */
-#endif /* AUTO_CLOCK */
 #endif /* PC98 */
 
 	if (cpu_feature & CPUID_TSC)
