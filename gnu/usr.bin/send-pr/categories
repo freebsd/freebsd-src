@@ -1,3 +1,4 @@
+# $FreeBSD$
 advocacy
 alpha
 bin
@@ -5,7 +6,10 @@ conf
 docs
 gnu
 i386
+ia64
 kern
 misc
 ports
+powerpc
 sparc
+standards
