@@ -200,6 +200,10 @@ static u_char const char_type[] = {
  */
 static SLIST_HEAD(, tty) tty_list;
 
+static int  drainwait = 5*60;
+SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
+	0, "Output drain timeout in seconds");
+
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
@@ -219,7 +223,7 @@ ttyopen(device, tp)
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
 	/* XXX don't hang forever on output */
-	tp->t_timeout = 5*60*hz;
+	tp->t_timeout = drainwait*hz;
 	ttsetwater(tp);
 	splx(s);
 	return (0);
