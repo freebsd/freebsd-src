@@ -643,12 +643,12 @@ configXDesktop(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     if (!strcmp(desk, "kde")) {
-	ret = package_add("kde");
+	ret = package_add("kde-lite");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
 	    write_root_xprofile("exec startkde\n");
     }
     else if (!strcmp(desk, "gnome2")) {
-	ret = package_add("gnome2");
+	ret = package_add("gnome2-lite");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session"))
 	    write_root_xprofile("exec gnome-session\n");
     }
