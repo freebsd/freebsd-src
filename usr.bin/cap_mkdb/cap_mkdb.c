@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	 db_build __P((char **));
-void	 dounlink __P((void));
-void	 usage __P((void));
+void	 db_build(char **);
+void	 dounlink(void);
+void	 usage(void);
 
 DB *capdbp;
 int verbose;

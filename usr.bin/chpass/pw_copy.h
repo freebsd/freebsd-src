@@ -33,4 +33,4 @@
  *	$FreeBSD$
  */
 
-void	 pw_copy __P((int, int, struct passwd *, struct passwd *));
+void	 pw_copy(int, int, struct passwd *, struct passwd *);

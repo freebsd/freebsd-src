@@ -93,10 +93,10 @@ int entries, lflag, mflag, pplan, sflag, oflag, Tflag;
 int d_first = -1;
 char tbuf[1024];
 
-static void loginlist __P((void));
-static int option __P((int, char **));
-static void usage __P((void));
-static void userlist __P((int, char **));
+static void loginlist(void);
+static int option(int, char **);
+static void usage(void);
+static void userlist(int, char **);
 
 static int
 option(argc, argv)

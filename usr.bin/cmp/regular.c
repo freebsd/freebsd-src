@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static u_char *remmap __P((u_char *, int, off_t));
+static u_char *remmap(u_char *, int, off_t);
 #define MMAP_CHUNK (8*1024*1024)
 
 #define ROUNDPAGE(i) ((i) & ~pagemask)

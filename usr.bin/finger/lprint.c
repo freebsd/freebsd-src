@@ -64,9 +64,9 @@ __FBSDID("$FreeBSD$");
 #define	LINE_LEN	80
 #define	TAB_LEN		8		/* 8 spaces between tabs */
 
-static int	demi_print __P((char *, int));
-static void	lprint __P((PERSON *));
-static void     vputc __P((unsigned char));
+static int	demi_print(char *, int);
+static void	lprint(PERSON *);
+static void     vputc(unsigned char);
 
 void
 lflag_print()

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ctags.h"
 
-static void takeprec __P((void));
+static void takeprec(void);
 
 char *lbp;				/* line buffer pointer */
 

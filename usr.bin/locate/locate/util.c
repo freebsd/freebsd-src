@@ -47,13 +47,13 @@
 
 #include "locate.h"
 
-char 	**colon __P((char **, char*, char*));
-char 	*patprep __P((char *));
-void print_matches __P((u_int));
-u_char 	*tolower_word __P((u_char *));
-int 	getwm __P((caddr_t));
-int 	getwf __P((FILE *));
-int	check_bigram_char __P((int));
+char 	**colon(char **, char*, char*);
+char 	*patprep(char *);
+void print_matches(u_int);
+u_char 	*tolower_word(u_char *);
+int 	getwm(caddr_t);
+int 	getwf(FILE *);
+int	check_bigram_char(int);
 
 /* 
  * Validate bigram chars. If the test failed the database is corrupt 

@@ -34,19 +34,19 @@
  * $FreeBSD$
  */
 
-int	append __P((char **));
-void	badfmt __P((void));
-int	compare __P((char *));
-int	contents __P((char **));
-int	delete __P((char **));
-void	error __P((const char *));
-int	extract __P((char **));
-char   *files __P((char **argv));
-int	move __P((char **));
-void	orphans __P((char **argv));
-int	print __P((char **));
-int	replace __P((char **));
-int	tmp __P((void));
+int	append(char **);
+void	badfmt(void);
+int	compare(char *);
+int	contents(char **);
+int	delete(char **);
+void	error(const char *);
+int	extract(char **);
+char   *files(char **argv);
+int	move(char **);
+void	orphans(char **argv);
+int	print(char **);
+int	replace(char **);
+int	tmp(void);
 
 extern char *archive;
 extern char *posarg, *posname;		/* positioning file name */

@@ -43,7 +43,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
-extern void	dump_file __P((const char *));
+extern void	dump_file(const char *);
 extern int	error_count;
 
 void

@@ -55,15 +55,15 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int	main __P((int, char *[]));
-void	current __P((void));
-void	pline __P((struct passwd *));
-void	pretty __P((struct passwd *));
-void	group __P((struct passwd *, int));
-void	usage __P((void));
-void	user __P((struct passwd *));
+int	main(int, char *[]);
+void	current(void);
+void	pline(struct passwd *);
+void	pretty(struct passwd *);
+void	group(struct passwd *, int);
+void	usage(void);
+void	user(struct passwd *);
 struct passwd *
-	who __P((char *));
+	who(char *);
 
 int isgroups, iswhoami;
 

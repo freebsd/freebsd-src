@@ -201,13 +201,13 @@ struct s_zstate {
 #define	FIRST	257		/* First free entry. */
 #define	CLEAR	256		/* Table clear output code. */
 
-static int	cl_block __P((struct s_zstate *));
-static void	cl_hash __P((struct s_zstate *, count_int));
-static code_int	getcode __P((struct s_zstate *));
-static int	output __P((struct s_zstate *, code_int));
-static int	zclose __P((void *));
-static int	zread __P((void *, char *, int));
-static int	zwrite __P((void *, const char *, int));
+static int	cl_block(struct s_zstate *);
+static void	cl_hash(struct s_zstate *, count_int);
+static code_int	getcode(struct s_zstate *);
+static int	output(struct s_zstate *, code_int);
+static int	zclose(void *);
+static int	zread(void *, char *, int);
+static int	zwrite(void *, const char *, int);
 
 /*-
  * Algorithm from "A Technique for High Performance Data Compression",

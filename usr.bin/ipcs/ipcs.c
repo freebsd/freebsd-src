@@ -71,10 +71,9 @@ struct msqid_ds	*msqids;
 struct shminfo	shminfo;
 struct shmid_ds	*shmsegs;
 
-void	sysctlgatherstruct __P((void *addr, size_t size,
-    struct scgs_vector *vec));
-void	kget __P((int idx, void *addr, size_t size));
-void	usage __P((void));
+void	sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vec);
+void	kget(int idx, void *addr, size_t size);
+void	usage(void);
 
 static struct nlist symbols[] = {
 	{"sema"},

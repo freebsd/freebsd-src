@@ -90,13 +90,13 @@ static const char rcsid[] =
 
 int dflag, fflag;
 
-char    *binary_search __P((unsigned char *, unsigned char *, unsigned char *));
-int      compare __P((unsigned char *, unsigned char *, unsigned char *));
-char    *linear_search __P((unsigned char *, unsigned char *, unsigned char *));
-int      look __P((unsigned char *, unsigned char *, unsigned char *));
-void     print_from __P((unsigned char *, unsigned char *, unsigned char *));
+char    *binary_search(unsigned char *, unsigned char *, unsigned char *);
+int      compare(unsigned char *, unsigned char *, unsigned char *);
+char    *linear_search(unsigned char *, unsigned char *, unsigned char *);
+int      look(unsigned char *, unsigned char *, unsigned char *);
+void     print_from(unsigned char *, unsigned char *, unsigned char *);
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
