@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.56 1997/07/16 05:22:42 jkh Exp $
+ * $Id: options.c,v 1.57 1999/02/05 22:15:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -141,6 +141,8 @@ static Option Options[] = {
       OPT_IS_VAR,	GATED_PKG_PROMPT,	VAR_GATED_PKG,		varCheck	},
 { "PCNFSD package",	"The name of the PCNFSD package to install if requested",
       OPT_IS_VAR,	PCNFSD_PKG_PROMPT,	VAR_PCNFSD_PKG,		varCheck	},
+{ "Re-scan Devices",	"Re-run sysinstall's initial device probe",
+      OPT_IS_FUNC,	deviceRescan },
 { "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },

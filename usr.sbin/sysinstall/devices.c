@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.87 1998/12/04 18:01:10 wpaul Exp $
+ * $Id: devices.c,v 1.88 1999/01/09 18:12:06 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,6 +200,25 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 	Devices[++numDevs] = NULL;
     }
     return newdev;
+}
+
+/* Reset the registered device chain */
+void
+deviceReset(void)
+{
+    int i;
+
+    for (i = 0; i < numDevs; i++) {
+	Devices[i]->shutdown(Devices[i]);
+
+	/* XXX this potentially leaks Devices[i]->private if it's being
+	 * used to point to something dynamic, but you're not supposed
+	 * to call this routine at such times that some open instance
+	 * has its private ptr pointing somewhere anyway. XXX
+	 */
+	free(Devices[i]);
+    }
+    Devices[numDevs = 0] = NULL;
 }
 
 /* Get all device information for devices we have attached */
@@ -415,6 +434,14 @@ skipif:
 	}
 	free(names);
     }
+}
+
+/* Rescan all devices, after closing previous set - convenience function */
+void
+deviceRescan(void)
+{
+    deviceReset();
+    deviceGetAll();
 }
 
 /*
