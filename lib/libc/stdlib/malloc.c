@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.27 1997/07/01 18:39:38 phk Exp $
+ * $Id: malloc.c,v 1.28 1997/07/02 19:33:23 phk Exp $
  *
  */
 
@@ -59,7 +59,7 @@
 #endif /* __FreeBSD__ */
 
 #if defined(__sparc__) && defined(sun)
-#   define malloc_pageshirt		12U
+#   define malloc_pageshift		12U
 #   define malloc_minsize		16U
 #   define MAP_ANON			(0)
     static int fdzero;
