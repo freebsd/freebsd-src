@@ -226,8 +226,8 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
+		if (++sc->mii_ticks <= 5)
+			break;
 
 		sc->mii_ticks = 0;
 		ruephy_reset(sc);
