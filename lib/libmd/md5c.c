@@ -152,10 +152,10 @@ MD5Update (context, input, inputLen)
 	const unsigned char *input;
 	unsigned int inputLen;
 {
-	unsigned int i, index, partLen;
+	unsigned int i, idx, partLen;
 
 	/* Compute number of bytes mod 64 */
-	index = (unsigned int)((context->count[0] >> 3) & 0x3F);
+	idx = (unsigned int)((context->count[0] >> 3) & 0x3F);
 
 	/* Update number of bits */
 	if ((context->count[0] += ((u_int32_t)inputLen << 3))
@@ -163,24 +163,24 @@ MD5Update (context, input, inputLen)
 		context->count[1]++;
 	context->count[1] += ((u_int32_t)inputLen >> 29);
 
-	partLen = 64 - index;
+	partLen = 64 - idx;
 
 	/* Transform as many times as possible. */
 	if (inputLen >= partLen) {
-		memcpy((void *)&context->buffer[index], (const void *)input,
+		memcpy((void *)&context->buffer[idx], (const void *)input,
 		    partLen);
 		MD5Transform (context->state, context->buffer);
 
 		for (i = partLen; i + 63 < inputLen; i += 64)
 			MD5Transform (context->state, &input[i]);
 
-		index = 0;
+		idx = 0;
 	}
 	else
 		i = 0;
 
 	/* Buffer remaining input */
-	memcpy ((void *)&context->buffer[index], (const void *)&input[i],
+	memcpy ((void *)&context->buffer[idx], (const void *)&input[i],
 	    inputLen-i);
 }
 
@@ -193,14 +193,14 @@ MD5Pad (context)
 	MD5_CTX *context;
 {
 	unsigned char bits[8];
-	unsigned int index, padLen;
+	unsigned int idx, padLen;
 
 	/* Save number of bits */
 	Encode (bits, context->count, 8);
 
 	/* Pad out to 56 mod 64. */
-	index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-	padLen = (index < 56) ? (56 - index) : (120 - index);
+	idx = (unsigned int)((context->count[0] >> 3) & 0x3f);
+	padLen = (idx < 56) ? (56 - idx) : (120 - idx);
 	MD5Update (context, PADDING, padLen);
 
 	/* Append length (before padding) */
