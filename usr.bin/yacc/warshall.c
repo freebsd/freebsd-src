@@ -34,14 +34,15 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-#ifdef __FBSDID
-__FBSDID("$FreeBSD$");
+#if 0
+#ifndef lint
+static char sccsid[] = "@(#)warshall.c	5.4 (Berkeley) 5/24/93";
+#endif
 #endif
 
-#ifndef lint
-static char const sccsid[] = "@(#)warshall.c	5.4 (Berkeley) 5/24/93";
+#include <sys/cdefs.h>
+#ifdef __FBSDID
+__FBSDID("$FreeBSD$");
 #endif
 
 #include "defs.h"

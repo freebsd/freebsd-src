@@ -27,7 +27,6 @@
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #define _USE_BSD 1

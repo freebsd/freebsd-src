@@ -7,14 +7,15 @@
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifdef LOGIN_ACCESS
+#if 0
 #ifndef lint
-static const char sccsid[] = "%Z% %M% %I% %E% %U%";
+static char sccsid[] = "%Z% %M% %I% %E% %U%";
 #endif
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <ctype.h>
