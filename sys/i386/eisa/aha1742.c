@@ -14,23 +14,18 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.57 1997/02/22 09:31:54 peter Exp $
+ *      $Id: aha1742.c,v 1.58 1997/03/23 06:26:39 bde Exp $
  */
-
-#include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
 #include "opt_ddb.h"
-#include "ahb.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 
@@ -55,7 +50,6 @@
 #endif
 
 typedef unsigned long int physaddr;
-#include <sys/kernel.h>
 
 #define KVTOPHYS(x)   vtophys(x)
 

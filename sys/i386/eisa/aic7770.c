@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.38 1997/02/22 09:31:58 peter Exp $
+ *	$Id: aic7770.c,v 1.39 1997/03/16 07:09:32 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -47,12 +47,9 @@
 #include <machine/intr.h>
 #endif /* defined(__NetBSD__) */
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #if defined(__FreeBSD__)
-
-#include <machine/clock.h>
 
 #include <i386/eisa/eisaconf.h>
 #include <i386/scsi/aic7xxx.h>
