@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.7.2.4 1997/07/10 10:48:38 kato Exp $
+ *	$Id: syscons.h,v 1.7.2.5 1997/10/13 09:00:26 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -118,7 +118,6 @@ static unsigned int BELL_PITCH = 1678;
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
-#define HISTORY_SIZE	100*80
 
 /* defines related to hardware addresses */
 #ifdef PC98
