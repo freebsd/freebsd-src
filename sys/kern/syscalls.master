@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.21 1996/01/03 21:42:20 wollman Exp $
+	$Id: syscalls.master,v 1.22 1996/01/04 20:28:48 wollman Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -274,26 +274,14 @@
 			    struct rtprio *rtp); }
 167	UNIMPL	NOHIDE	nosys
 168	UNIMPL	NOHIDE	nosys
-#ifdef SYSVSEM
 169	STD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
 			    int a5); }
 ; XXX should be		{ int semsys(int which, ...); }
-#else
-169	UNIMPL	NOHIDE	nosys
-#endif
-#ifdef SYSVMSG
 170	STD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
 			    int a5, int a6); }
 ; XXX should be		{ int msgsys(int which, ...); }
-#else
-170	UNIMPL	NOHIDE nosys
-#endif
-#ifdef SYSVSHM
 171	STD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
 ; XXX should be		{ int shmsys(int which, ...); }
-#else
-171	UNIMPL	BSD	nosys
-#endif
 172	UNIMPL	NOHIDE	nosys
 173	UNIMPL	NOHIDE	nosys
 174	UNIMPL	NOHIDE	nosys
@@ -372,20 +360,12 @@
 ;
 ; The following were originally used in NetBSD.
 ;
-#ifdef SYSVSEM
 220	STD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
 			    union semun *arg); }
 221	STD	BSD	{ int semget(key_t key, int nsems, int semflg); }
 222	STD	BSD	{ int semop(int semid, struct sembuf *sops, \
 			    u_int nsops); }
 223	STD	BSD	{ int semconfig(int flag); }
-#else
-220	UNIMPL	BSD	semctl
-221	UNIMPL	BSD	semget
-222	UNIMPL	BSD	semop
-223	UNIMPL	BSD	semconfig
-#endif
-#ifdef SYSVMSG
 224	STD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }
 225	STD	BSD	{ int msgget(key_t key, int msgflg); }
@@ -393,21 +373,8 @@
 			    int msgflg); }
 227	STD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
 			    long msgtyp, int msgflg); }
-#else
-224	UNIMPL	BSD	msgctl
-225	UNIMPL	BSD	msgget
-226	UNIMPL	BSD	msgsnd
-227	UNIMPL	BSD	msgrcv
-#endif
-#ifdef SYSVSHM
 228	STD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
 229	STD	BSD	{ int shmctl(int shmid, int cmd, \
 			    struct shmid_ds *buf); }
 230	STD	BSD	{ int shmdt(void *shmaddr); }
 231	STD	BSD	{ int shmget(key_t key, int size, int shmflg); }
-#else
-228	UNIMPL	BSD	shmat
-229	UNIMPL	BSD	shmctl
-230	UNIMPL	BSD	shmdt
-231	UNIMPL	BSD	shmget
-#endif
