@@ -1247,6 +1247,15 @@ static void dc_reset(sc)
 	CSR_WRITE_4(sc, DC_BUSCTL, 0x00000000);
 	CSR_WRITE_4(sc, DC_NETCFG, 0x00000000);
 
+	/*
+	 * Bring the SIA out of reset. In some cases, it looks
+	 * like failing to unreset the SIA soon enough gets it
+	 * into a state where it will never come out of reset
+	 * until we reset the whole chip again.
+	 */
+	if (DC_IS_INTEL(sc))
+		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
+
         return;
 }
 
@@ -1480,7 +1489,7 @@ static int dc_attach(dev)
 		break;
 	case DC_DEVICEID_82C168:
 		sc->dc_type = DC_TYPE_PNIC;
-		sc->dc_flags |= DC_TX_STORENFWD|DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_TX_STORENFWD|DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_PNIC_RX_BUG_WAR;
 		sc->dc_pnic_rx_buf = malloc(DC_RXLEN * 5, M_DEVBUF, M_NOWAIT);
 		if (revision < DC_REVISION_82C169)
@@ -2220,6 +2229,8 @@ static void dc_intr(arg)
 			if (sc->dc_txthresh == DC_TXTHRESH_160BYTES) {
 				printf("using store and forward mode\n");
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
+			} else if (sc->dc_flags & DC_TX_STORENFWD) {
+				printf("resetting\n");
 			} else {
 				sc->dc_txthresh += 0x4000;
 				printf("increasing TX threshold\n");
@@ -2302,6 +2313,8 @@ static int dc_encap(sc, m_head, txidx)
 	sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_LASTFRAG;
 	if (sc->dc_flags & DC_TX_INTR_FIRSTFRAG)
 		sc->dc_ldata->dc_tx_list[*txidx].dc_ctl |= DC_TXCTL_FINT;
+	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
+		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
 	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
 	sc->dc_ldata->dc_tx_list[*txidx].dc_status = DC_TXSTAT_OWN;
