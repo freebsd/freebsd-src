@@ -1144,7 +1144,7 @@ pmap_pinit(pmap_t pm)
 		m = vm_page_grab(pm->pm_tsb_obj, i,
 		    VM_ALLOC_RETRY | VM_ALLOC_ZERO);
 		if ((m->flags & PG_ZERO) == 0)
-			pmap_zero_page(VM_PAGE_TO_PHYS(m));
+			pmap_zero_page(m);
 
 		m->wire_count++;
 		cnt.v_wire_count++;
@@ -1598,8 +1598,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
  * Zero a page of physical memory by temporarily mapping it into the tlb.
  */
 void
-pmap_zero_page(vm_offset_t pa)
+pmap_zero_page(vm_page_t m)
 {
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 
 	CTR1(KTR_PMAP, "pmap_zero_page: pa=%#lx", pa);
 	dcache_inval_phys(pa, pa + PAGE_SIZE);
@@ -1607,8 +1608,9 @@ pmap_zero_page(vm_offset_t pa)
 }
 
 void
-pmap_zero_page_area(vm_offset_t pa, int off, int size)
+pmap_zero_page_area(vm_page_t m, int off, int size)
 {
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 
 	CTR3(KTR_PMAP, "pmap_zero_page_area: pa=%#lx off=%#x size=%#x",
 	    pa, off, size);
@@ -1621,8 +1623,10 @@ pmap_zero_page_area(vm_offset_t pa, int off, int size)
  * Copy a page of physical memory by temporarily mapping it into the tlb.
  */
 void
-pmap_copy_page(vm_offset_t src, vm_offset_t dst)
+pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
+	vm_offset_t src = VM_PAGE_TO_PHYS(msrc);
+	vm_offset_t dst = VM_PAGE_TO_PHYS(mdst);
 
 	CTR2(KTR_PMAP, "pmap_copy_page: src=%#lx dst=%#lx", src, dst);
 	dcache_inval_phys(dst, dst + PAGE_SIZE);

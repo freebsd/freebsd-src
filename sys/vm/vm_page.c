@@ -455,7 +455,7 @@ vm_page_protect(vm_page_t mem, int prot)
 boolean_t
 vm_page_zero_fill(vm_page_t m)
 {
-	pmap_zero_page(VM_PAGE_TO_PHYS(m));
+	pmap_zero_page(m);
 	return (TRUE);
 }
 
@@ -467,7 +467,7 @@ vm_page_zero_fill(vm_page_t m)
 void
 vm_page_copy(vm_page_t src_m, vm_page_t dest_m)
 {
-	pmap_copy_page(VM_PAGE_TO_PHYS(src_m), VM_PAGE_TO_PHYS(dest_m));
+	pmap_copy_page(src_m, dest_m);
 	dest_m->valid = VM_PAGE_BITS_ALL;
 }
 
@@ -1582,14 +1582,8 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * first block.
 	 */
 	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
-	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0
-	) {
-		pmap_zero_page_area(
-		    VM_PAGE_TO_PHYS(m),
-		    frag,
-		    base - frag
-		);
-	}
+	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0)
+		pmap_zero_page_area(m, frag, base - frag);
 
 	/*
 	 * If the ending offset is not DEV_BSIZE aligned and the 
@@ -1598,14 +1592,9 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 */
 	endoff = base + size;
 	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
-	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0
-	) {
-		pmap_zero_page_area(
-		    VM_PAGE_TO_PHYS(m),
-		    endoff,
-		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1))
-		);
-	}
+	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
+		pmap_zero_page_area(m, endoff,
+		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
 
 	/*
 	 * Set valid, clear dirty bits.  If validating the entire
@@ -1702,11 +1691,8 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 		    (m->valid & (1 << i))
 		) {
 			if (i > b) {
-				pmap_zero_page_area(
-				    VM_PAGE_TO_PHYS(m), 
-				    b << DEV_BSHIFT,
-				    (i - b) << DEV_BSHIFT
-				);
+				pmap_zero_page_area(m, 
+				    b << DEV_BSHIFT, (i - b) << DEV_BSHIFT);
 			}
 			b = i + 1;
 		}
