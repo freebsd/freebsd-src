@@ -2649,7 +2649,9 @@ and the
 .Dv MAC
 address of the local network in which
 .Dv HISADDR
-appears.  The proxy entry cannot be made unless
+appears.  This allows other machines connecteed to the LAN to talk to
+the peer as if the peer itself was connected to the LAN.  The proxy entry
+cannot be made unless
 .Dv HISADDR
 is an address from a LAN.
 .It proxyall
