@@ -71,7 +71,7 @@ popen(program, type)
 		return (NULL);
 
 	if (pipe(pdes) < 0) {
-		(void)free(cur);
+		free(cur);
 		return (NULL);
 	}
 
@@ -79,7 +79,7 @@ popen(program, type)
 	case -1:			/* Error. */
 		(void)close(pdes[0]);
 		(void)close(pdes[1]);
-		(void)free(cur);
+		free(cur);
 		return (NULL);
 		/* NOTREACHED */
 	case 0:				/* Child. */
