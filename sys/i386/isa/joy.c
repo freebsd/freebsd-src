@@ -129,7 +129,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
     int port = joy[unit].port;
     int i, t0, t1;
     int state = 0, x = 0, y = 0;
-    int c[4];
+    struct joystick c;
     
     disable_intr ();
     outb (port, 0xff);
@@ -151,12 +151,12 @@ joyread (dev_t dev, struct uio *uio, int flag)
 	    break;
     }
     enable_intr ();
-    c[0] = x ? joy[unit].x_off[joypart(dev)] + ticks2usec(t0-x) : 0x80000000;
-    c[1] = y ? joy[unit].y_off[joypart(dev)] + ticks2usec(t0-y) : 0x80000000;
+    c.x = x ? joy[unit].x_off[joypart(dev)] + ticks2usec(t0-x) : 0x80000000;
+    c.y = y ? joy[unit].y_off[joypart(dev)] + ticks2usec(t0-y) : 0x80000000;
     state >>= 4;
-    c[2] = ~state & 1;
-    c[3] = ~(state >> 1) & 1;
-    return uiomove (c, 4*sizeof(int), uio);
+    c.b1 = ~state & 1;
+    c.b2 = ~(state >> 1) & 1;
+    return uiomove (&c, sizeof(struct joystick), uio);
 }
 int joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {

@@ -4,6 +4,13 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+struct joystick {
+    int x;
+    int y;
+    int b1;
+    int b2;
+};
+
 #define JOY_SETTIMEOUT    _IOW('J', 1, int)    /* set timeout */
 #define JOY_GETTIMEOUT    _IOR('J', 2, int)    /* get timeout */
 #define JOY_SET_X_OFFSET  _IOW('J', 3, int)    /* set offset on X-axis */
