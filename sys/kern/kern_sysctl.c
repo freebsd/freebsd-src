@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.7 1994/08/10 06:25:02 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.8 1994/08/18 22:35:04 wollman Exp $
  */
 
 /*
@@ -309,6 +309,7 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	struct proc *p;
 {
 	extern char machine[], cpu_model[];
+	extern int hw_float;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1)
@@ -330,6 +331,8 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		    ctob(physmem - cnt.v_wire_count)));
 	case HW_PAGESIZE:
 		return (sysctl_rdint(oldp, oldlenp, newp, PAGE_SIZE));
+	case HW_FLOATINGPT:
+		return (sysctl_rdint(oldp, oldlenp, newp, hw_float));
 	default:
 		return (EOPNOTSUPP);
 	}
