@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 static int	archive_compressor_none_finish(struct archive *a);
 static int	archive_compressor_none_init(struct archive *);
-static ssize_t	archive_compressor_none_write(struct archive *, const void *,
+static int	archive_compressor_none_write(struct archive *, const void *,
 		    size_t);
 
 struct archive_none {
