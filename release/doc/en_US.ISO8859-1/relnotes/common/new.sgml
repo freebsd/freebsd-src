@@ -1764,6 +1764,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>[atm]</literal> tags for addresses on interfaces of
       those types.</para>
 
+    <para>&man.at.1; now supports the <option>-r</option> command-line
+      option to remove jobs and the <option>-t</option> option to
+      specify times in POSIX time format.</para>
+
     <para>&man.atacontrol.8; has been added to control various aspects
       of the &man.ata.4; driver. &merged;</para>
 
@@ -2296,6 +2300,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       The <envar>CLICOLOR</envar> environment variable can be set to
       enable colorized listings by default. &merged;</para>
 
+    <para>&man.ls.1; now accepts a <option>-h</option> flag, which
+      when combined with the <option>-l</option> flag, causes file
+      sizes to be printed with unit suffixes, such that the number of
+      digits printed is less than three. &merged;</para>
+
     <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
       &man.cpp.1;. &merged;</para>
@@ -2545,6 +2554,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       resolve pathnames to their underlying physical
       paths. &merged;</para>
 
+    <para>&man.pwd.1; now supports the <option>-L</option> flag to
+      print the logical current working directory.</para>
+
     <para>The pseudo-random number generator implemented by
       &man.rand.3; has been improved to provide less biased
       results.</para>
@@ -2664,6 +2676,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.split.1; now has the ability to split a file longer
       than 2GB. &merged;</para>
 
+    <para>&man.split.1; now supports a <option>-a</option> option to
+      specify the number of letters to use for the suffix of split
+      files.</para>
+
     <para>In preparation for meeting SUSv2/POSIX
       <filename>&lt;sys/select.h&gt;</filename> requirements,
       <literal>struct selinfo</literal> and related functions have been
@@ -2703,6 +2719,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       rather than <literal>:</literal>.  This feature is useful for
       producing output that can be fed back to
       &man.sysctl.8;. &merged;</para>
+
+    <para>&man.sysctl.8; now accepts a <option>-d</option> to print
+      the descriptions of variables.</para>
 
     <para>&man.sysinstall.8; now properly preserves
       <filename>/etc/mail</filename> during a binary
@@ -2770,7 +2789,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
       sockets. &merged;</para>
 
-    <para>&man.tftp.1; and &man.tftpd.8; now support IPv6.</para>
+    <para>&man.tftp.1; and &man.tftpd.8; now support IPv6. &merged;</para>
 
     <para>&man.tftpd.8; now takes the <option>-c</option> and
       <option>-C</option> options, which allow the server to
@@ -2812,6 +2831,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para><application>UUCP</application> has been removed from the
       base system.  It can be found in the Ports Collection, in
       <filename role="package">net/freebsd-uucp</filename>.</para>
+
+    <para>&man.unexpand.1; now supports a <option>-t</option> to
+      specify tabstabs analogous to &man.expand.1;.</para>
 
     <para>&man.units.1; has received some updates and
       bugfixes. &merged;</para>
