@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.5 1997/05/27 07:19:57 jkh Exp $
+# $Id: ndcedit.awk,v 1.6 1997/06/18 01:55:19 jkh Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
@@ -23,12 +23,16 @@ NR == 3 {
 		getline
 		printf "\t%s\n", $0
 		printf "\t\tfi\n"
+	} else if (/PS=`/) {
+		printf "\tif [ -f /proc/$PID/status ]; then\n"
+		printf "\t\tPS=`cat /proc/$PID/status 2>/dev/null | grep named`\n"
+		printf "\telse\n"
+		gsub("\t", "\t\t", $0);
+		print;
+		printf "\tfi\n"
 	} else {
 	        if (/PATH=/) {
 			gsub(":/usr/ucb:", ":", $0);
-		      	if (!/export/) {
-				$0=$0"\nexport PATH";
-			}
 		} 
 		print;
 	}
