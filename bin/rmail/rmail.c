@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.5 1995/05/30 00:07:08 rgrimes Exp $
+ *	$Id: rmail.c,v 1.6 1995/09/16 18:52:51 pst Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 /*
@@ -262,11 +262,22 @@ main(argc, argv)
 	/*
 	 * Don't copy arguments beginning with - as they will be
 	 * passed to sendmail and could be interpreted as flags.
+	 * To prevent confusion of sendmail wrap < and > around
+	 * the address (helps to pass addrs like @gw1,@gw2:aa@bb)
 	 */
-	do {
-		if (*argv && **argv == '-')
+	while (*argv) {
+		if (**argv == '-')
 			err(EX_USAGE, "dash precedes argument: %s", *argv);
-	} while ((args[i++] = *argv++) != NULL);
+		if (strchr(*argv, ',') == NULL || strchr(*argv, '<') != NULL)
+			args[i++] = *argv;
+		else {
+			if ((args[i] = malloc(strlen(*argv) + 3)) == NULL)
+				err(EX_TEMPFAIL, "Cannot malloc");
+			sprintf (args [i++], "<%s>", *argv);
+		}
+		argv++;
+	} 
+	args[i] = 0;
 
 	if (debug) {
 		(void)fprintf(stderr, "Sendmail arguments:\n");
