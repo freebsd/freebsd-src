@@ -1113,6 +1113,7 @@ lookup_uname(struct bsdtar *bsdtar, uid_t uid)
 	} else if (pwent->pw_name != NULL && pwent->pw_name[0] != '\0') {
 		cache->cache[slot].name = strdup(pwent->pw_name);
 		cache->cache[slot].id = uid;
+		return (cache->cache[slot].name);
 	}
 	return (NULL);
 }
@@ -1146,6 +1147,7 @@ lookup_gname(struct bsdtar *bsdtar, gid_t gid)
 	} else if (grent->gr_name != NULL && grent->gr_name[0] != '\0') {
 		cache->cache[slot].name = strdup(grent->gr_name);
 		cache->cache[slot].id = gid;
+		return (cache->cache[slot].name);
 	}
 	return (NULL);
 }
