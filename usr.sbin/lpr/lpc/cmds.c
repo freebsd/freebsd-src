@@ -328,7 +328,8 @@ cleanpr()
 				n++;
 			}
 			if (n == 0) {
-				strcpy(lp, cp);
+				strncpy(lp, cp, sizeof(line) - strlen(line) - 1);
+				line[sizeof(line) - 1] = '\0';
 				unlinkf(line);
 			}
 		} else {
@@ -337,7 +338,8 @@ cleanpr()
 			 * been skipped above) or a tf file (which can always
 			 * be removed).
 			 */
-			strcpy(lp, cp);
+			strncpy(lp, cp, sizeof(line) - strlen(line) - 1);
+			line[sizeof(line) - 1] = '\0';
 			unlinkf(line);
 		}
      	} while (++i < nitems);
