@@ -37,8 +37,7 @@
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
-#include <i386/linux/linux_util.h>
-
+#include <compat/linux/linux_util.h>
 
 const char      linux_emul_path[] = "/compat/linux";
 

@@ -47,9 +47,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_util.h>
 
 static int
 linux_to_bsd_domain(int domain)
