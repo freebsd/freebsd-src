@@ -795,7 +795,6 @@ void
 exec_unmap_first_page(imgp)
 	struct image_params *imgp;
 {
-	GIANT_REQUIRED;
 
 	if (imgp->firstpage) {
 		pmap_qremove((vm_offset_t)imgp->image_header, 1);
