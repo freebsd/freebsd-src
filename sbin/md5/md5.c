@@ -107,7 +107,7 @@ MDTimeTrial()
 
 	printf
 	    ("MD5 time trial. Digesting %d %d-byte blocks ...",
-	    TEST_BLOCK_LEN, TEST_BLOCK_COUNT);
+	    TEST_BLOCK_COUNT, TEST_BLOCK_LEN);
 
 	/* Initialize block */
 	for (i = 0; i < TEST_BLOCK_LEN; i++)
