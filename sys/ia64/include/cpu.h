@@ -166,6 +166,16 @@ void	switch_trampoline __P((void));				/* MAGIC */
 void	syscall __P((int, u_int64_t *, struct trapframe *));
 void	trap __P((int vector, int imm, struct trapframe *framep));
 
+/*
+ * Return contents of in-cpu fast counter as a sort of "bogo-time"
+ * for non-critical timing.
+ */
+static __inline u_int64_t
+get_cyclecount(void)
+{
+	return (ia64_get_itc());
+}
+
 #endif /* _KERNEL */
 
 #endif /* _MACHINE_CPU_H_ */

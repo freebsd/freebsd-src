@@ -173,6 +173,16 @@ void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *));
 
+/*
+ * Return contents of in-cpu fast counter as a sort of "bogo-time"
+ * for non-critical timing.
+ */
+static __inline u_int64_t
+get_cyclecount(void)
+{
+	return (alpha_rpcc());
+}
+
 #endif /* _KERNEL */
 
 #endif /* _ALPHA_CPU_H_ */
