@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.3 1994/08/23 08:28:31 rich Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.7 1995/09/20 04:53:06 ache Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -40,18 +40,22 @@
 .Nm slattach
 .Nd attach serial lines as network interfaces
 .Sh SYNOPSIS
-.Nm Slattach
-.Op \-a
-.Op \-c
-.Op \-e exit-command
-.Op \-f
-.Op \-h
-.Op \-l
-.Op \-n
-.Op \-r redial-command
-.Op \-s baudrate
-.Op \-u unit-command
-.Op \-z
+.Nm slattach
+.Op Fl a
+.Op Fl c
+.Op Fl e Ar exit-command
+.Op Fl f
+.Op Fl h
+.Op Fl l
+.Op Fl n
+.Op Fl z
+.Op Fl L
+.Op Fl r Ar redial-command
+.Op Fl s Ar baudrate
+.Op Fl u Ar unit-command
+.Op Fl K Ar keepalive
+.Op Fl O Ar outfill
+.Op Fl S Ar unit
 .Ar ttyname 
 .Sh DESCRIPTION
 .Nm Slattach
@@ -60,53 +64,91 @@ and to define the network source and destination addresses.
 The following operands are supported by
 .Nm slattach :
 .Bl -tag -width Ar
-.It Ar \-a
+.It Fl a
 Autoenable the VJ header compression option, if the other end of the link
 is capable of VJ header compression then it will be used otherwise normal
 headers will be used.
-.It Ar \-c
+.It Fl c
 Enables the VJ header compression option.  Note that both ends of the link
 must be able to use VJ header compression for this to work.
-.It Ar \-e exit-command
-Specifies a command to be invoked within a shell (sh -c exit-command)
-before slattach exits.
-.It Ar \-f
-Disables the invocation of daemon() to run slattach in the background.
-.It Ar \-h
+.It Fl e Ar exit-command
+Specifies a command to be invoked within a shell
+.Ql sh \-c Ar exit-command
+before
+.Nm slattach
+exits.
+.It Fl f
+Disables the invocation of daemon() to run
+.Nm slattach
+in the background.
+.It Fl h
 Turn on cts/rts style flow control on the slip port, by default no flow
 control is done.
-.It Ar \-l
+.It Fl l
 disable modem control (CLOCAL) and ignore carrier detect on the slip
-port.  By default the redial-command is invoked upon carrier drop and
-slattach aborts if no redial-command is specified.
-.It Ar \-n
+port.  By default the
+.Ar redial-commmand
+is invoked upon carrier drop and
+.Nm slattach
+aborts if no
+.Ar redial-commmand
+is specified.
+.It Fl n
 Throw away ICMP packets.  The slip interface will ignore ICMP packets
 to prevent slow lines being saturated by ICMP responses.
-.It Ar \-r redial-command
-Specifies a command to be invoked within a shell (sh -c
-redial-command) whenever carrier is lost on the line.
-.It Ar \-s baudrate
+.It Fl r Ar redial-commmand
+Specifies a command to be invoked within a shell
+.Ql sh \-c Ar redial-command
+whenever carrier is lost on the line.
+.It Fl s Ar baudrate
 Specifies the speed of the connection. If not specified, the
 default of 9600 is used.
-.It Ar \-u unit-command
+.It Fl u Ar unit-command
 When the line is switched to slip discipline, run
-.Ql sh \-c unit-command <last> <current> 
-where <last> and <current> are the slip unit numbers when the line was
+.Ql sh \-c Ar unit-command <last> <current>
+where
+.Ar <last>
+and
+.Ar <current>
+are the slip unit numbers when the line was
 last opened and the unit number of the current slip connection
 respecitvely.  The unit number can change after redialing if you are
-using more than one slip line.  Slattach will abort if the unit number
+using more than one slip line.
+.Nm Slattach
+will abort if the unit number
 changes and
-.Ql \-u unit-command
+.Fl u Ar unit-command
 was not specified.
-.It Ar \-z
+.It Fl z
 forces redial
-redial-cmd upon startup irrespective of carrier.
+.Ar redial-command
+upon startup irrespective of carrier.
+.It Fl L
+Use uucp-style device locking. You need it unless you start
+.Nm slattach
+from external program which already does uucp locking.
+Default case is no uucp locking to satisfy such programs.
+.It Fl K Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
+timeout, reconnect occurse. Active "out fill" timeout expected from other
+side.
+Default value is no timeout.
+.It Fl O Ar outfill
+Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
+will be sended during this timeout.
+Needed for "keep alive" timeout on other side.
+Default value is no timeout.
+.It Fl S Ar unit
+Set SLIP unit number directly. Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
 .It Ar ttyname
 Specifies the name of the tty device.
 .Ar Ttyname
 should be a string of the form 
-.Ql ttyXX or
-.Ql /dev/ttyXX.
+.Ql ttyXX
+or
+.Ql /dev/ttyXX .
 .El
 .Pp
 Only the super-user may attach a network interface.
@@ -121,49 +163,63 @@ process using
 is the name that is shown by
 .Xr netstat 1
 .Pp
-To setup slattach to redial the phone when carrier is lost, use the
-.Ql \-r redial-cmd
+To setup
+.Nm slattach
+to redial the phone when carrier is lost, use the
+.Fl r Ar redial-command
 option to specify a script or executable that will reconnect the
 serial line to the slip server.  For example, the script could redial
 the server and log in, etc.
 .Pp
 To reconfigure the network interface in case the slip unit number
 changes, use the
-.Ql \-u unit-cmd
+.Fl u Ar unit-command
 option to specify a script or executable that will be invoked as 
-.Ql sh \-c unit-cmd old new,
-where old and new are the slip unit numbers before and after
+.Ql sh \-c Ar unit-command old new
+where
+.Ar old
+and
+.Ar new
+are the slip unit numbers before and after
 reconnecting the line.  The unit number can change if you have more
 than one line disconnect at the same time.  The first to succeed in
 reconnecting will get the lowest unit number.
 .Pp
-To kill slattach use
+To kill
+.Nm slattach
+use
 .Ql kill -INT
 (SIGINT) which causes it to close the tty and exit.
 .Pp
 To force a redial, use
 .Ql kill -HUP
-(SIGHUP) which causes slattach to think carrier was lost and thus invoke 
-.Ql sh -c redial-command
+(SIGHUP) which causes
+.Nm slattach
+to think carrier was lost and thus invoke
+.Ql sh \-c Ar redial-command
 to reconnect to the server.
 .Pp
 If you use a hard-wired connection rather than a modem, invoke
-slattach with the
-.Ql \-l
+.Nm slattach
+with the
+.Fl l
 option in order to ignore carrier on the slip line.
 .Sh EXAMPLES
 .Bd -literal -offset indent -compact
-slattach ttyh8
-slattach \-s 4800 /dev/tty01
-slattach \-c \-s 38400 /dev/sio01
+slattach ttyd8
+slattach \-s 4800 /dev/ttyd1
+slattach \-c \-s 38400 /dev/cuaa1
 slattach \-r 'kermit -y dial.script >kermit.log 2>&1'
 .Ed
 .Sh DIAGNOSTICS
-Look for error messages in /var/log/messages (slattach is a daemon).
+Look for error messages in /var/log/messages (
+.Nm slattach
+is a daemon).
 Messages indicating the specified interface does not exit, the
 requested address is unknown, the user is not privileged and tried to
-alter an interface's configuration are logged there.  Slattach also
-logs failure to set the controlling terminal or failure to install
+alter an interface's configuration are logged there.
+.Nm Slattach
+also logs failure to set the controlling terminal or failure to install
 signal handlers.  Upon connection and redial the ttyname and baud rate
 are logged and on shutdown the ttyname is logged.
 .Pp
@@ -171,18 +227,21 @@ are logged and on shutdown the ttyname is logged.
 .Pa /var/run/slattach.<tty>.pid ,
 .Pp
 with
-.Aq tty
+.Ar tty
 replaced by the terminal path name component of
 .Ar ttyname .
 This file contains the numerical process ID of the
 .Nm slattach
 process and can be examined by scripts in oder to send a signal to
-.Nm slattch .
+.Nm slattach .
 .Sh SEE ALSO
+.Xr startslip 1 ,
+.Xr sliplogin 8 ,
 .Xr netstat 1 ,
 .Xr netintro 4 ,
 .Xr ifconfig 8 ,
-.Xr rc 8
+.Xr rc 8 ,
+.Xr uustat 1
 .Sh HISTORY
 The
 .Nm

@@ -68,6 +68,7 @@ static char rcsid[] = "$Id";
 void	sighup_handler();	/* SIGHUP handler */
 void	sigint_handler();	/* SIGINT handler */
 void	sigterm_handler();	/* SIGTERM handler */
+void    sigurg_handler();       /* SIGURG handler */
 void	exit_handler(int ret);	/* run exit_cmd iff specified upon exit. */
 void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
@@ -76,14 +77,20 @@ void	acquire_line();		/* get tty device as controling terminal */
 
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
+char    *dvname;                /* basename of dev */
+int     locked = 0;             /* uucp lock active */
 int	flow_control = 0;	/* non-zero to enable hardware flow control. */
 int	modem_control =	HUPCL;	/* !CLOCAL+HUPCL iff we	watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
 int	redial_on_startup = 0;	/* iff non-zero execute redial_cmd on startup */
-int	speed = DEFAULT_BAUD;	/* baud rate of tty */
+speed_t speed = DEFAULT_BAUD;   /* baud rate of tty */
 int	slflags = 0;		/* compression flags */
 int	unit = -1;		/* slip device unit number */
 int	foreground = 0;		/* act as demon if zero, else don't fork. */
+int     keepal = 0;             /* keepalive timeout */
+int     outfill = 0;            /* outfill timeout */
+int     sl_unit = -1;           /* unit number */
+int     uucp_lock = 0;          /* do uucp locking */
 int	exiting = 0;		/* allready running exit_handler */
 
 struct	termios tty;		/* tty configuration/state */
@@ -95,7 +102,8 @@ char	*config_cmd = 0;	/* command to exec if slip unit changes. */
 char	*exit_cmd = 0;		/* command to exec before exiting. */
 
 static char usage_str[] = "\
-usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
+usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
+	  [-L] [-K timeout] [-O timeout] [-S unit] device\n\
   -a      -- autoenable VJ compression\n\
   -c      -- enable VJ compression\n\
   -e ECMD -- run ECMD before exiting\n\
@@ -106,16 +114,20 @@ usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
   -r RCMD -- run RCMD upon loss of carrier\n\
   -s #    -- set baud rate (default 9600)\n\
   -u UCMD -- run 'UCMD <old sl#> <new sl#>' before switch to slip discipline\n\
-  -z      -- run RCMD upon startup irrespective of carrier\n";
+  -z      -- run RCMD upon startup irrespective of carrier\n\
+  -L      -- do uucp-style device locking\n\
+  -K #    -- set SLIP \"keep alive\" timeout (default 0)\n\
+  -O #    -- set SLIP \"out fill\" timeout (default 0)\n\
+  -S #    -- set SLIP unit number (default is dynamic)\n\
+";
 
 int main(int argc, char **argv)
 {
 	int option;
 	extern char *optarg;
 	extern int optind;
-	char *cp;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:z")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != EOF) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;
@@ -152,6 +164,18 @@ int main(int argc, char **argv)
 		case 'z':
 			redial_on_startup = 1;
 			break;
+		case 'L':
+			uucp_lock = 1;
+			break;
+		case 'K':
+			keepal = atoi(optarg);
+			break;
+		case 'O':
+			outfill = atoi(optarg);
+			break;
+		case 'S':
+			sl_unit = atoi(optarg);
+			break;
 		default:
 			fprintf(stderr, "%s: Invalid option -- '%c'\n",
 				argv[0], option);
@@ -181,9 +205,9 @@ int main(int argc, char **argv)
 		strncat(tty_path, dev, 10);
 		dev = tty_path;
 	}
-	cp = strrchr(dev, '/'); /* always succeeds */
-	cp++;			/* trailing tty pathname component */
-	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, cp);
+	dvname = strrchr(dev, '/'); /* always succeeds */
+	dvname++;                   /* trailing tty pathname component */
+	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, dvname);
 	printf("%s\n",pidfilename);
 
 	if (!foreground)
@@ -231,9 +255,14 @@ int main(int argc, char **argv)
 void acquire_line()
 {
 	int ttydisc = TTYDISC;
+	int oflags;
 	FILE *pidfile;
 
-	ioctl(fd, TIOCSETD, &ttydisc); /* reset to tty discipline */
+	/* reset to tty discipline */
+	if (fd >= 0 && ioctl(fd, TIOCSETD, &ttydisc) < 0) {
+		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+		exit_handler(1);
+	}
 
 	(void)close(STDIN_FILENO); /* close FDs before forking. */
 	(void)close(STDOUT_FILENO);
@@ -242,7 +271,10 @@ void acquire_line()
 		(void)close(fd);
 
 	signal(SIGHUP, SIG_IGN); /* ignore HUP signal when parent dies. */
-	daemon(0,0);		/* fork, setsid, chdir /, and close std*. */
+	if (daemon(0,0)) {       /* fork, setsid, chdir /, and close std*. */
+		syslog(LOG_ERR, "daemon(0,0): %m");
+		exit_handler(1);
+	}
 
 	while (getppid () != 1)
 		sleep (1);	/* Wait for parent to die. */
@@ -256,8 +288,26 @@ void acquire_line()
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
+	if (uucp_lock) {
+		/* unlock not needed here, always re-lock with new pid */
+		if (uu_lock(dvname)) {
+			syslog(LOG_ERR, "can't lock %s", dev);
+			exit_handler(1);
+		}
+		locked = 1;
+	}
+
 	if ((fd = open(dev, O_RDWR | O_NONBLOCK, 0)) < 0) {
-		syslog(LOG_ERR, "open(%s) fd=%d: %m", dev, fd);
+		syslog(LOG_ERR, "open(%s) %m", dev);
+		exit_handler(1);
+	}
+	/* Turn off O_NONBLOCK for dumb redialers, if any. */
+	if ((oflags = fcntl(fd, F_GETFL)) == -1) {
+		syslog(LOG_ERR, "fcntl(F_GETFL) failed: %m");
+		exit_handler(1);
+	}
+	if (fcntl(fd, F_SETFL, oflags & ~O_NONBLOCK) == -1) {
+		syslog(LOG_ERR, "fcntl(F_SETFL) failed: %m");
 		exit_handler(1);
 	}
 	(void)dup2(fd, STDIN_FILENO);
@@ -268,8 +318,10 @@ void acquire_line()
 	fd = STDIN_FILENO;
 
 	/* acquire the serial line as a controling terminal. */
-	if (ioctl(fd, TIOCSCTTY, 0) < 0)
-		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %m");
+	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
+		syslog(LOG_ERR,"ioctl(TIOCSCTTY): %m");
+		exit_handler(1);
+	}
 	/* Make us the foreground process group associated with the
 	   slip line which is our controlling terminal. */
 	if (tcsetpgrp(fd, getpid()) < 0)
@@ -282,7 +334,8 @@ void setup_line(int cflag)
 {
 	tty.c_lflag = tty.c_iflag = tty.c_oflag = 0;
 	tty.c_cflag = CREAD | CS8 | flow_control | modem_control | cflag;
-	tty.c_ispeed = tty.c_ospeed = speed;
+	cfsetispeed(&tty, speed);
+	cfsetospeed(&tty, speed);
 	/* set the line speed and flow control */
 	if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
 		syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
@@ -308,6 +361,11 @@ void slip_discipline()
 		exit_handler(1);
 	}
 
+	if (sl_unit >= 0 && ioctl(fd, SLIOCSUNIT, &sl_unit) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSUNIT): %m");
+                exit_handler(1);
+        }
+
 	/* find out what unit number we were assigned */
         if (ioctl(fd, SLIOCGUNIT, (caddr_t)&tmp_unit) < 0) {
                 syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
@@ -316,6 +374,18 @@ void slip_discipline()
 
 	if (tmp_unit < 0) {
 		syslog(LOG_ERR, "bad unit (%d) from ioctl(SLIOCGUNIT)",tmp_unit);
+		exit_handler(1);
+	}
+
+	if (keepal > 0) {
+		signal(SIGURG, sigurg_handler);
+		if (ioctl(fd, SLIOCSKEEPAL, &keepal) < 0) {
+			syslog(LOG_ERR, "ioctl(SLIOCSKEEPAL): %m");
+			exit_handler(1);
+		}
+	}
+	if (outfill > 0 && ioctl(fd, SLIOCSOUTFILL, &outfill) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
 		exit_handler(1);
 	}
 
@@ -376,9 +446,11 @@ void configure_network()
 	}
 }
 
-/* signup_handler() is invoked when carrier drops, eg. before redial. */
+/* sighup_handler() is invoked when carrier drops, eg. before redial. */
 void sighup_handler()
 {
+	int ttydisc = TTYDISC;
+
 	if(exiting) return;
 again:
 	/* invoke a shell for redial_cmd or punt. */
@@ -387,8 +459,21 @@ again:
 		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
+		if (locked) {
+			if (uucp_lock)
+				uu_unlock(dvname);      /* for redial */
+			locked = 0;
+		}
 		if (system(redial_cmd))
 			goto again;
+		if (uucp_lock) {
+			if (uu_lock(dvname)) {
+				syslog(LOG_ERR, "can't relock %s after %s, aborting",
+					dev, redial_cmd);
+				exit_handler(1);
+			}
+			locked = 1;
+		}
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
 			tty.c_cflag &= ~CLOCAL;
@@ -401,8 +486,22 @@ again:
 				/* force a redial if no carrier */
 				goto again;
 			}
-		}
+		} else
+			setup_line(0);
 	} else {
+#if 0
+		/*
+		 * XXX should do this except we are called from main() via
+		 * kill(getpid(), SIGHUP).  Ick.
+		 */
+		syslog(LOG_NOTICE, "SIGHUP on %s (sl%d); exiting", dev, unit);
+		exit_handler(0);
+#endif
+		if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
+			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+			exit_handler(1);
+		}
+		setup_line(0);  /* restore ospeed from hangup (B0) */
 		/* If modem control, just wait for carrier before attaching.
 		   If no modem control, just fall through immediately. */
 		if (!(modem_control & CLOCAL)) {
@@ -421,7 +520,6 @@ again:
 			       dev, unit);
 		}
 	}
-	setup_line(0);
 	slip_discipline();
 	configure_network();
 }
@@ -431,6 +529,28 @@ void sigint_handler()
 	if(exiting) return;
 	syslog(LOG_NOTICE,"SIGINT on %s (sl%d); exiting",dev,unit);
 	exit_handler(0);
+}
+/* Signal handler for SIGURG. */
+void sigurg_handler()
+{
+	int ttydisc = TTYDISC;
+
+	signal(SIGURG, SIG_IGN);
+	if(exiting) return;
+	syslog(LOG_NOTICE,"SIGURG on %s (sl%d); hangup",dev,unit);
+	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
+		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+		exit_handler(1);
+	}
+	cfsetospeed(&tty, B0);
+	if (tcsetattr(fd, TCSANOW, &tty) < 0) {
+		syslog(LOG_ERR, "tcsetattr(TCSANOW): %m");
+		exit_handler(1);
+	}
+	/* Need to go to sighup handler in any case */
+	if (modem_control & CLOCAL)
+		kill (getpid(), SIGHUP);
+
 }
 /* Signal handler for SIGTERM.  We just log and exit. */
 void sigterm_handler()
@@ -450,10 +570,21 @@ void exit_handler(int ret)
 	 */
 	if (fd != -1)
 		close(fd);
+	if (uucp_lock && locked)
+		uu_unlock(dvname);
 
 	/* Remove the PID file */
 	(void)unlink(pidfilename);
 
+	if (config_cmd) {
+		char *s;
+		s = (char*) malloc(strlen(config_cmd) + 32);
+		sprintf (s, "%s %d -1", config_cmd, unit);
+		syslog(LOG_NOTICE, "Deconfiguring %s (sl%d):", dev, unit);
+		syslog(LOG_NOTICE, "  '%s'", s);
+		system(s);
+		free (s);
+	}
 	/* invoke a shell for exit_cmd. */
 	if (exit_cmd) {
 		syslog(LOG_NOTICE,"exiting after running %s", exit_cmd);
