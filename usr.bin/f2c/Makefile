@@ -31,6 +31,6 @@ CLEANFILES+=\
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	  ${INSTALLFLAGS} f77.script ${DESTDIR}${BINDIR}/f77
+	  ${INSTALLFLAGS} ${.CURDIR}/f77.script ${DESTDIR}${BINDIR}/f77
 
 .include <bsd.prog.mk>
