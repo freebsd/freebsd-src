@@ -261,7 +261,7 @@
 #define HAVE_FLOORF 1
 
 /* Define to 1 if you have the `floorl' function. */
-/* #undef HAVE_FLOORL */
+#define HAVE_FLOORL 1
 
 /* Define to 1 if you have the `fmodf' function. */
 #define HAVE_FMODF 1
