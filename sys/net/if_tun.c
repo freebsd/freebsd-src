@@ -38,13 +38,7 @@
 #endif /*DEVFS*/
 #include <sys/conf.h>
 #include <sys/uio.h>
-/*
- * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't
- * exist if we are an LKM.
- */
-#undef KERNEL
 #include <sys/vnode.h>
-#define KERNEL
 
 #include <net/if.h>
 #include <net/netisr.h>
