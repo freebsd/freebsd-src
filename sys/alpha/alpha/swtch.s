@@ -86,6 +86,7 @@ Lsavectx1: LDGP(pv)
 
 IMPORT(want_resched, 4)
 IMPORT(Lev1map, 8)
+IMPORT(sched_lock, 72)
 
 /*
  * cpu_switch()
