@@ -41,14 +41,14 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+	if (pthread->magic != PTHREAD_MAGIC)
 		return (EINVAL);
 
 	UMTX_LOCK(&pthread->lock);
 
-	if (pthread->attr.flags & PTHREAD_DETACHED) {
+	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
 		UMTX_UNLOCK(&pthread->lock);
-		return (EINVAL);
+		return ((pthread->state == PS_DEAD) ? ESRCH : EINVAL);
 	}
 
 	pthread->attr.flags |= PTHREAD_DETACHED;
