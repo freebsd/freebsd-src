@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1996/10/20 09:27:45 markm Exp $
+# $Id: Makefile,v 1.8 1996/10/24 18:00:43 markm Exp $
 #
 
 LIB=	gmp
@@ -88,9 +88,9 @@ mpz mpf mpq:
 	mkdir ${.CURDIR}/$@
 .endif
 
-CLEANDIRS+=	${.OBJDIR}/mpz ${.CURDIR}/mpz \
-		${.OBJDIR}/mpf ${.CURDIR}/mpf \
-		${.OBJDIR}/mpq ${.CURDIR}/mpq
+CLEANDIRS+=	${.OBJDIR}/mpz \
+		${.OBJDIR}/mpf \
+		${.OBJDIR}/mpq
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
