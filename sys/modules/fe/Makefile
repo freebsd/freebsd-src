@@ -7,7 +7,6 @@ SRCS=	if_fe.c if_fe_pccard.c
 
 .if ${MACHINE} == "pc98"
 SRCS+=	if_fe_cbus.c
-CFLAGS+= -DPC98
 .else
 SRCS+=	if_fe_isa.c
 .endif
