@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.89 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)conf.c	8.89.1.3 (Berkeley) 3/7/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -915,7 +915,7 @@ getla()
 
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
-static char  rcsid[] = "@(#)$Id: conf.c,v 1.4 1994/08/05 09:14:29 davidg Exp $";
+static char  rcsid[] = "@(#)$Id: conf.c,v 1.5 1995/02/23 00:46:30 pst Exp $";
 #endif /* !lint */
 
 #ifdef apollo
@@ -1404,8 +1404,8 @@ extern int	optind, opterr;
 int	opterr = 1;		/* if error message should be printed */
 int	optind = 1;		/* index into parent argv vector */
 #endif
-int	optopt;			/* character checked for validity */
-char	*optarg;		/* argument associated with option */
+int	optopt = 0;		/* character checked for validity */
+char	*optarg = NULL;		/* argument associated with option */
 
 #define BADCH	(int)'?'
 #define EMSG	""
@@ -1545,6 +1545,9 @@ usershellok(shell)
 	register char *p;
 	extern char *getusershell();
 
+	if (shell == NULL || shell[0] == '\0')
+		return TRUE;
+
 	setusershell();
 	while ((p = getusershell()) != NULL)
 		if (strcmp(p, shell) == 0 || strcmp(p, WILDCARD_SHELL) == 0)
@@ -1554,6 +1557,9 @@ usershellok(shell)
 #else
 	register FILE *shellf;
 	char buf[MAXLINE];
+
+	if (shell == NULL || shell[0] == '\0')
+		return TRUE;
 
 	shellf = fopen(_PATH_SHELLS, "r");
 	if (shellf == NULL)
@@ -2192,6 +2198,8 @@ strtol(nptr, endptr, base)
 */
 
 #ifdef SOLARIS
+
+extern int	h_errno;
 
 struct hostent *
 solaris_gethostbyname(name)
