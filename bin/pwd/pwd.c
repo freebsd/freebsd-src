@@ -61,18 +61,18 @@ void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int Lflag, Pflag;
+	int physical;
 	int ch;
 	char *p;
 
-	Lflag = Pflag = 0;
+	physical = 0;
 	while ((ch = getopt(argc, argv, "LP")) != -1)
 		switch (ch) {
 		case 'L':
-			Lflag = 1;
+			physical = 0;
 			break;
 		case 'P':
-			Pflag = 1;
+			physical = 1;
 			break;
 		case '?':
 		default:
@@ -81,13 +81,18 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 0 || (Lflag && Pflag))
+	if (argc != 0)
 		usage();
 
-	p = Lflag ? getcwd_logical() : getcwd(NULL, 0);
-	if (p == NULL)
+	/*
+	 * If we're trying to find the logical current directory and that
+	 * fails, behave as if -P was specified.
+	 */
+	if ((!physical && (p = getcwd_logical()) != NULL) ||
+	    (p = getcwd(NULL, 0)) != NULL)
+		printf("%s\n", p);
+	else
 		err(1, ".");
-	(void)printf("%s\n", p);
 
 	exit(0);
 }
@@ -96,7 +101,7 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
+	(void)fprintf(stderr, "usage: pwd [-LP]\n");
   	exit(1);
 }
 
