@@ -86,6 +86,15 @@ int	maxusers;
 
 static void yyerror(char *s);
 
+static char *
+devopt(char *dev)
+{
+	char *ret = malloc(strlen(dev) + 5);
+	
+	sprintf(ret, "DEV_%s", dev);
+	raisestr(ret);
+	return ret;
+}
 
 %}
 %%
@@ -260,12 +269,28 @@ Dev:
 Device_spec:
 	DEVICE Dev
 	      = {
+		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		memset(op, 0, sizeof(*op));
+		op->op_name = devopt($2);
+		op->op_next = opt;
+		op->op_value = ns("1");
+		op->op_line = yyline;
+		opt = op;
+		/* and the device part */
 		cur.d_type = DEVICE;
 		cur.d_name = $2;
 		cur.d_count = UNKNOWN;
 		} |
 	DEVICE Dev NUMBER
 	      = {
+		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		memset(op, 0, sizeof(*op));
+		op->op_name = devopt($2);
+		op->op_next = opt;
+		op->op_value = ns("1");
+		op->op_line = yyline;
+		opt = op;
+		/* and the device part */
 		cur.d_type = DEVICE;
 		cur.d_name = $2;
 		cur.d_count = $3;
