@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.26 1997/04/01 22:57:56 ache Exp $
+#	$Id: Makefile.inc,v 1.27 1997/04/01 23:07:55 ache Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -42,43 +42,18 @@ PSEUDO=	_exit.o _getlogin.o
 
 OBJS+=	${ASM} ${PSEUDO}
 
-${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
+SASM=	${ASM:S/.o/.S/}
 
-PASM=	${ASM:.o=.po}
-${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
+SPSEUDO= ${PSEUDO:S/.o/.S/}
 
-SASM=	${ASM:.o=.so}
-${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+SRCS+=	${SASM} ${SPSEUDO}
 
-${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
+${SASM}:
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
 
-PPSEUDO=${PSEUDO:.o=.po}
-${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
-
-SPSEUDO=${PSEUDO:.o=.so}
-${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+${SPSEUDO}:
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
+	    > ${.TARGET}
 
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/brk.2 sys/chdir.2 sys/chflags.2 sys/chmod.2 sys/chown.2 \
