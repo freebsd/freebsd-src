@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 1999/02/15 15:11:07 ache Exp $
+# $Id: Makefile,v 1.19 1999/03/01 06:05:58 imp Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -19,7 +19,7 @@ LOCALES=	de_DE.DIS_8859-15 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS = \
-	ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC
+	ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC zh_TW.BIG5
 
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
