@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		grops
+PROG_CXX=	grops
 SRCS=		ps.cc psrm.cc
-DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBDRIVER} ${LIBGROFF} -lm -lstdc++
+DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
+LDADD=		${LIBDRIVER} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 .include <bsd.prog.mk>

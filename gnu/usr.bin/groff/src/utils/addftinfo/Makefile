@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		addftinfo
+PROG_CXX=	addftinfo
 SRCS=		addftinfo.cc guess.cc
-DPADD=		${LIBGROFF} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBGROFF} -lstdc++
+DPADD=		${LIBGROFF}
+LDADD=		${LIBGROFF}
 CLEANFILES=	${MAN}
 
 .include <bsd.prog.mk>
