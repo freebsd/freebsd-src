@@ -204,6 +204,20 @@ that can be passed to
 The
 .Fn callout_stop
 function returns non-zero if the callout is still pending or zero otherwise.
+.Sh BUGS
+This API has no way to cancel a callback and ensure that if it was
+cancelled too late that the callback has actually finished.
+.Fn callout_stop 
+only guarantees that the callback has started when it returns 0.
+It does not guarnatee that the callback has finished.
+This can create a race when one wishes to ensure that no threads are
+executing before returning from a driver detach routine.
+The locking scheme currently used ensures that a
+.Fn callout_stop 
+will not return until after the callout has been dequeued or has
+finished running.
+This locking is an accident of the implementation and is not
+guarnateed by the interface.
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 .An Adam M. Costello
