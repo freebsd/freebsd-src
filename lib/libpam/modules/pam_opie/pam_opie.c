@@ -118,7 +118,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	PAM_RETURN(opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR);
+	retval = opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR;
+	PAM_RETURN(retval);
 }
 
 PAM_EXTERN int
@@ -126,7 +127,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
+	pam_std_option(&options, other_options, argc, argv);
 
 	PAM_LOG("Options processed");
 
