@@ -115,6 +115,7 @@ device		pass		# Passthrough device (direct SCSI access)
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		dpt		# DPT Smartcache - See LINT for options!
 device		mly		# Mylex AcceleRAID/eXtremeRAID
+device          ciss		# Compaq SmartRAID 5* series
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
