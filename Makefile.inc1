@@ -137,21 +137,21 @@ INSTALLTMP=	${TMPDIR}/install.${TMPPID}
 #
 # Building a world goes through the following stages
 #
-# bootstrap-tool stage [BMAKE]
+# 1. bootstrap-tool stage [BMAKE]
 #	This stage is responsible for creating programs that
 #	are needed for backward compatibility reasons. They
 #	are not built as cross-tools.
-# build-tool stage [TMAKE]
+# 2. build-tool stage [TMAKE]
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
 #	the build process.
-# cross-tool stage [XMAKE]
+# 3. cross-tool stage [XMAKE]
 #	This stage is responsible for creating any tools that
 #	are needed for cross-builds. A cross-compiler is one
 #	of them.
-# world stage [WMAKE]
+# 4. world stage [WMAKE]
 #	This stage actually builds the world.
-# install stage (optional) [IMAKE]
+# 5. install stage (optional) [IMAKE]
 #	This stage installs a previously built world.
 #
 
