@@ -1,4 +1,4 @@
-# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988
@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.11 2002/12/18 17:15:46 ca Exp $
+#	$Id: README,v 8.355.2.13 2003/01/15 19:17:15 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -291,7 +291,8 @@ SM_CONF_GETOPT	Define this as 0 if you need a reimplementation of getopt(3).
 		On some systems, getopt does very odd things if called
 		to scan the arguments twice.  This flag will ask sendmail
 		to compile in a local version of getopt that works
-		properly.
+		properly.  You may also need this if you build with
+		another library that introduces a non-standard getopt(3).
 NEEDSTRTOL	Define this if your standard C library does not define
 		strtol(3).  This will compile in a local version.
 NEEDFSYNC	Define this if your standard C library does not define
@@ -1793,4 +1794,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.11 $, last update $Date: 2002/12/18 17:15:46 $ )
+(Version $Revision: 8.355.2.13 $, last update $Date: 2003/01/15 19:17:15 $ )

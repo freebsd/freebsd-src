@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197.2.5 2002/11/11 23:22:28 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.6 2002/12/30 05:54:00 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -549,7 +549,7 @@ milter_write(m, cmd, buf, len, to, e)
 **		e -- current envelope.
 **
 **	Returns:
-**		connected socket if sucessful && !parseonly,
+**		connected socket if successful && !parseonly,
 **		0 upon parse success if parseonly,
 **		-1 otherwise.
 */
