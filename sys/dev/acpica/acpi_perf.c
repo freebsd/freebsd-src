@@ -152,6 +152,11 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 		return;
 	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PSS", NULL, NULL)))
 		return;
+
+	/*
+	 * Add a child to every CPU that has the right methods.  In future
+	 * versions of the ACPI spec, CPUs can have different settings.
+	 */
 	if (BUS_ADD_CHILD(parent, 0, "acpi_perf", -1) == NULL)
 		device_printf(parent, "add acpi_perf child failed\n");
 }

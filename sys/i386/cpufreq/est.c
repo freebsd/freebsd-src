@@ -582,6 +582,10 @@ est_identify(driver_t *driver, device_t parent)
 	if ((p[2] & 0x80) == 0)
 		return;
 
+	/*
+	 * We add a child for each CPU since settings must be performed
+	 * on each CPU in the SMP case.
+	 */
 	if (BUS_ADD_CHILD(parent, 0, "est", -1) == NULL)
 		device_printf(parent, "add est child failed\n");
 }

@@ -102,6 +102,17 @@ p4tcc_identify(driver_t *driver, device_t parent)
 
 	if ((cpu_feature & (CPUID_ACPI | CPUID_TM)) != (CPUID_ACPI | CPUID_TM))
 		return;
+
+	/* Make sure we're not being doubly invoked. */
+	if (device_find_child(parent, "p4tcc", -1) != NULL)
+		return;
+
+	/*
+	 * We attach a p4tcc child for every CPU since settings need to
+	 * be performed on every CPU in the SMP case.  See section 13.15.3
+	 * of the IA32 Intel Architecture Software Developer's Manual,
+	 * Volume 3, for more info.
+	 */
 	if (BUS_ADD_CHILD(parent, 0, "p4tcc", -1) == NULL)
 		device_printf(parent, "add p4tcc child failed\n");
 }
