@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: mbuf.h,v 1.2 1994/08/02 07:53:12 davidg Exp $
  */
 
 #ifndef M_WAITOK
@@ -168,8 +168,19 @@ struct mbuf {
  * allocates an mbuf and initializes it to contain a packet header
  * and internal data.
  */
+struct mbuf *mbuffree;
+int mbuffreecnt;
 #define	MGET(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	int s = splimp(); \
+	if (mbuffree == 0) { \
+		splx(s); \
+		MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	} else { \
+		--mbuffreecnt; \
+		(m) = mbuffree; \
+		mbuffree = (m)->m_next; \
+		splx(s); \
+	} \
 	if (m) { \
 		(m)->m_type = (type); \
 		MBUFLOCK(mbstat.m_mtypes[type]++;) \
@@ -182,7 +193,16 @@ struct mbuf {
 }
 
 #define	MGETHDR(m, how, type) { \
-	MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	int s = splimp(); \
+	if (mbuffree == 0) { \
+		splx(s); \
+		MALLOC((m), struct mbuf *, MSIZE, mbtypes[type], (how)); \
+	} else { \
+		--mbuffreecnt; \
+		(m) = mbuffree; \
+		mbuffree = (m)->m_next; \
+		splx(s); \
+	} \
 	if (m) { \
 		(m)->m_type = (type); \
 		MBUFLOCK(mbstat.m_mtypes[type]++;) \
@@ -265,7 +285,15 @@ union mcluster {
 		MCLFREE((m)->m_ext.ext_buf); \
 	  } \
 	  (nn) = (m)->m_next; \
-	  FREE((m), mbtypes[(m)->m_type]); \
+	  if (mbuffreecnt < 256) { \
+		int s = splimp(); \
+		++mbuffreecnt; \
+		(m)->m_next = mbuffree; \
+		mbuffree = (m); \
+		splx(s); \
+	  } else { \
+	  	FREE((m), mbtypes[(m)->m_type]); \
+	  } \
 	}
 #endif
 
