@@ -1247,7 +1247,7 @@
     <varname>background_fsck</varname> option in &man.rc.conf.5;.</para>
 
     <para>A new &man.fsck.msdosfs.8; utility has been added to check
-    the consistency of MS-DOS filesystems.</para>
+    the consistency of MS-DOS filesystems. &merged;</para>
 
     <para>Catching up with most other network utilities in the base
     system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
@@ -1657,10 +1657,10 @@
     consistent output. &merged;</para>
 
     <para>The &man.kldconfig.8; utility has been added to make it easier to
-    manipulate the kernel module search path.</para>
+    manipulate the kernel module search path. &merged;</para>
 
     <para>&man.moused.8; now takes a <option>-a</option> to control
-    mouse acceleration.</para>
+    mouse acceleration. &merged;</para>
 
     <para arch="i386">&man.fdisk.8; no longer attempts to search for
     a device if none has been specified on the command line, but
