@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.33 1994/08/18 22:34:42 wollman Exp $
+ *	$Id: pmap.c,v 1.34 1994/09/02 04:12:06 davidg Exp $
  */
 
 /*
@@ -1928,6 +1928,40 @@ i386_protection_init()
 			break;
 		}
 	}
+}
+
+/*
+ * Map a set of physical memory pages into the kernel virtual
+ * address space. Return a pointer to where it is mapped. This
+ * routine is intended to be used for mapping device memory,
+ * NOT real memory. The non-cacheable bits are set on each
+ * mapped page.
+ */
+void *
+pmap_mapdev(pa, size)
+	vm_offset_t pa;
+	vm_size_t size;
+{
+	vm_offset_t va, tmpva;
+	pt_entry_t *pte;
+
+	pa = trunc_page(pa);
+	size = roundup(size, PAGE_SIZE);
+
+	va = kmem_alloc_pageable(kernel_map, size);
+	if (!va)
+		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+
+	for (tmpva = va; size > 0;) {
+		pte = vtopte(tmpva);
+		*pte = (pt_entry_t) ((int) (pa | PG_RW | PG_V | PG_N));
+		size -= PAGE_SIZE;
+		tmpva += PAGE_SIZE;
+		pa += PAGE_SIZE;
+	}
+	pmap_update();
+
+	return ((void *)va);
 }
 
 #ifdef DEBUG
