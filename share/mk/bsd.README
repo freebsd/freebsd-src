@@ -217,6 +217,9 @@ MAN		Manual pages (should end in .1 - .9).  If no MAN variable
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
 
+PROGNAME	The name that the above program will be installed as, if
+		different from ${PROG}.
+
 SRCS		List of source files to build the program.  If SRCS is not
 		defined, it's assumed to be ${PROG}.c.
 
