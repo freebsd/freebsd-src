@@ -1,4 +1,4 @@
-# @(#)northamerica	7.58
+# @(#)northamerica	7.60
 # also includes Central America and the Caribbean
 
 # $FreeBSD$
@@ -83,12 +83,12 @@
 # From Joseph Gallant <notquite@hotmail.com>, citing
 # George H. Douglas, _The Early Days of Radio Broadcasting_ (1987):
 # At 7 P.M. (Eastern War Time) [on 1945-08-14], the networks were set
-# to switch to London for Atlee's address, but the American people
+# to switch to London for Attlee's address, but the American people
 # never got to hear his speech live. According to one press account,
 # CBS' Bob Trout was first to announce the word of Japan's surrender,
 # but a few seconds later, NBC, ABC and Mutual also flashed the word
 # of surrender, all of whom interrupting the bells of Big Ben in
-# London which were to precede Mr. Atlee's speech.
+# London which were to precede Mr. Attlee's speech.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1918	1919	-	Mar	lastSun	2:00	1:00	D
@@ -187,15 +187,7 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # "Chamorro Standard Time" for time in Guam and the Northern Marianas.
 # See the file "australasia".
 
-# From Ryan Alessi of the Thousand Oaks Star (2001-02-15) via Rives McDow:
-# Brad Sherman, D-Sherman Oaks, introduced a bill in Congress on
-# Wednesday that could have California operating on Denver time as
-# early as this summer....  The options include keeping
-# daylight-saving time all year long, or setting clocks back two hours
-# -- instead of just one -- during the existing daylight-saving time.
-
-
-# US Eastern time, represented by New York
+# US eastern time, represented by New York
 
 # Connecticut, Delaware, District of Columbia, most of Florida,
 # Georgia, far southeastern Indiana, eastern Kentucky, Maine,
@@ -217,7 +209,7 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:00
 			-5:00	NYC	E%sT	1967
 			-5:00	US	E%sT
 
-# US Central time, represented by Chicago
+# US central time, represented by Chicago
 
 # Alabama, Arkansas, Florida panhandle, Illinois, western Indiana
 # corners, Iowa, most of Kansas, western Kentucky, Louisiana,
@@ -241,11 +233,16 @@ Zone America/Chicago	-5:50:36 -	LMT	1883 Nov 18 12:00
 			-6:00	US	C%sT	1946
 			-6:00	Chicago	C%sT	1967
 			-6:00	US	C%sT
+# Oliver County, ND switched from mountain to central time on 1992-10-25.
+Zone America/North_Dakota/Center -6:45:12 - LMT	1883 Nov 18 12:00
+			-7:00	US	M%sT	1992 Oct 25 02:00
+			-6:00	US	C%sT
 
-# US Mountain time, represented by Denver
+# US mountain time, represented by Denver
 #
 # Colorado, southern Idaho, far western Kansas, Montana, western
-# Nebraska, New Mexico, southwestern North Dakota, far eastern Oregon,
+# Nebraska, Nevada border (Jackpot, Owyhee, and Mountain City),
+# New Mexico, southwestern North Dakota, far eastern Oregon,
 # western South Dakota, far western Texas (El Paso County, Hudspeth County,
 # and Pine Springs and Nickel Creek in Culberson County), Utah, Wyoming
 #
@@ -265,7 +262,7 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00
 
 # US Pacific time, represented by Los Angeles
 #
-# California, northern Idaho, Nevada, most of Oregon, and Washington
+# California, northern Idaho, most of Nevada, most of Oregon, and Washington
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	CA	1948	only	-	Mar	14	2:00	1:00	D
@@ -282,13 +279,20 @@ Zone America/Los_Angeles -7:52:58 -	LMT	1883 Nov 18 12:00
 # Alaska
 # AK%sT is the modern abbreviation for -9:00 per USNO.
 #
-# From Paul Eggert (2001-04-01):
+# From Paul Eggert (2001-05-30):
 # Howse writes that Alaska switched from the Julian to the Gregorian calendar,
 # and from east-of-GMT to west-of-GMT days, when the US bought it from Russia.
 # This was on 1867-10-18, a Friday; the previous day was 1867-10-06 Julian,
 # also a Friday.  Include only the time zone part of this transition,
 # ignoring the switch from Julian to Gregorian, since we can't represent
 # the Julian calendar.
+#
+# As far as we know, none of the exact locations mentioned below were
+# permanently inhabited in 1867 by anyone using either calendar.
+# (Yakutat was colonized by the Russians in 1799, but the settlement
+# was destroyed in 1805 by a Yakutat-kon war party.)  However, there
+# were nearby inhabitants in some cases and for our purposes perhaps
+# it's best to simply use the official transition.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Juneau	 15:02:19 -	LMT	1867 Oct 18
@@ -409,7 +413,7 @@ Zone America/Boise	-7:44:49 -	LMT	1883 Nov 18 12:00
 # Pam Belluck reported in the New York Times (2001-01-31) that the
 # Indiana Legislature is considering a bill to adopt DST statewide.
 # Her article mentioned Vevay, whose post office observes a different
-# time zone than Danner's Hardware across the street.
+# time zone from Danner's Hardware across the street.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule Indianapolis 1941	only	-	Jun	22	2:00	1:00	D
@@ -513,6 +517,13 @@ Link America/Louisville America/Kentucky/Louisville
 # Wayne County (central Kentucky) is switching from Central (-0600) to Eastern
 # (-0500) time.  They won't "fall back" this year.  See Sara Shipley,
 # The difference an hour makes, Nando Times (2000-08-29 15:33 -0400).
+#
+# From Paul Eggert (2001-07-16):
+# The final rule was published in the
+# <a href="http://frwebgate.access.gpo.gov/cgi-bin/getdoc.cgi?dbname=2000_register&docid=fr17au00-22">
+# Federal Register 65, 160 (2000-08-17), page 50154-50158.
+# </a>
+# 
 Zone America/Kentucky/Monticello -5:39:24 - LMT	1883 Nov 18 12:00
 			-6:00	US	C%sT	1946
 			-6:00	-	CST	1968
@@ -528,13 +539,20 @@ Zone America/Kentucky/Monticello -5:39:24 - LMT	1883 Nov 18 12:00
 # Oliver County, ND (from MST to CST) ... 1992-10
 # West Wendover, NV (from PST TO MST) ... 1999-10
 # Wayne County, KY (from CST to EST) ... 2000-10
-# There is another change in the offing; Mercer County, ND is looking
-# to change from MT to CT. It is possible that two other ND counties
-# (Sioux and Morton) will look to change also.  If made, the earliest
-# a change would be effective is October 2001.
 #
-# From Paul Eggert (2000-10-02):
-# FIXME: I haven't yet had time to incorporate all the above changes.
+# From Paul Eggert (2001-07-17):
+# We don't know where the line used to be within Kearny County, KS,
+# so omit that change for now.
+# See America/Indiana/Knox for the Starke County, IN change.
+# See America/North_Dakota/Center for the Oliver County, ND change.
+# West Wendover, NV officially switched from Pacific to mountain time on
+# 1999-10-31.  See the
+# <a href="http://frwebgate.access.gpo.gov/cgi-bin/getdoc.cgi?dbname=1999_register&docid=fr21oc99-15">
+# Federal Register 64, 203 (1999-10-21), page 56705-56707.
+# </a>
+# However, the Federal Register says that West Wendover already operated
+# on mountain time, and the rule merely made this official;
+# hence a separate tz entry is not needed.
 
 # Michigan
 #
@@ -591,10 +609,11 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 			-6:00	US	C%sT
 
 # Navassa
+# administered by the US Fish and Wildlife Service
 # claimed by US under the provisions of the 1856 Guano Islands Act
 # also claimed by Haiti
 # occupied 1857/1900 by the Navassa Phosphate Co
-# US lighthouse 1917/1997-01
+# US lighthouse 1917/1996-09
 # currently uninhabited
 # see Mark Fineman, ``An Isle Rich in Guano and Discord'',
 # _Los Angeles Times_ (1998-11-10), A1, A10; it cites
@@ -619,7 +638,7 @@ Link	Pacific/Honolulu	HST
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -1078,9 +1097,9 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 # From Paul Eggert (1999-09-20):
 # <a href="http://www.nunavut.com/basicfacts/english/basicfacts_1territory.html">
 # Basic Facts: The New Territory
-# </a> (1999) reports that Pangnirtung operates on Eastern time,
+# </a> (1999) reports that Pangnirtung operates on eastern time,
 # and that Coral Harbour does not observe DST.  We don't know when
-# Pangnirtung switched to Eastern time; we'll guess 1995.
+# Pangnirtung switched to eastern time; we'll guess 1995.
 # We'll ignore the claim about Coral Harbour for now,
 # since we have no further info.
 
@@ -1335,6 +1354,15 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # References: "Diario de Monterrey" <www.diariodemonterrey.com/index.asp>
 # Palabra <http://palabra.infosel.com/010331/primera/ppri3101.pdf> (2001-03-31)
 
+# From Reuters (2001-09-04):
+# Mexico's Supreme Court on Tuesday declared that daylight savings was
+# unconstitutional in Mexico City, creating the possibility the
+# capital will be in a different time zone from the rest of the nation
+# next year....  The Supreme Court's ruling takes effect at 2:00
+# a.m. (0800 GMT) on Sept. 30, when Mexico is scheduled to revert to
+# standard time. "This is so residents of the Federal District are not
+# subject to unexpected time changes," a statement from the court said.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mexico	1939	only	-	Feb	5	0:00	1:00	D
 Rule	Mexico	1939	only	-	Jun	25	0:00	0	S
@@ -1371,7 +1399,8 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-7:00	-	MST	1931 May  1 23:00
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Apr  1
-			-6:00	Mexico	C%sT
+			-6:00	Mexico	C%sT	2001 Sep 30 02:00
+			-6:00	-	CST
 # Chihuahua
 Zone America/Chihuahua	-7:04:20 -	LMT	1921 Dec 31 23:55:40
 			-7:00	-	MST	1927 Jun 10 23:00
@@ -1672,7 +1701,7 @@ Zone	America/Jamaica	-5:07:12 -	LMT	1890		# Kingston
 # Martinique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
-			-4:04	-	FFMT	1911 May     # Fort-de-France MT
+			-4:04:20 -	FFMT	1911 May     # Fort-de-France MT
 			-4:00	-	AST	1980 Apr  6
 			-4:00	1:00	ADT	1980 Sep 28
 			-4:00	-	AST
@@ -1698,7 +1727,7 @@ Rule	Nic	1992	only	-	Jan	1	4:00	1:00	D
 Rule	Nic	1992	only	-	Sep	24	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Managua	-5:45:08 -	LMT	1890
-			-5:45	-	MMT	1934 Jun 23  # Managua Mean Time
+			-5:45:12 -	MMT	1934 Jun 23 # Managua Mean Time?
 			-6:00	-	CST	1973 May
 			-5:00	-	EST	1975 Feb 16
 			-6:00	Nic	C%sT	1993 Jan 1 4:00
@@ -1708,7 +1737,7 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Panama	-5:18:08 -	LMT	1890
-			-5:20	-	PMT	1908 Apr 22   # Panama Mean Time
+			-5:19:36 -	CMT	1908 Apr 22   # Colon Mean Time
 			-5:00	-	EST
 
 # Puerto Rico
@@ -1727,7 +1756,7 @@ Zone America/St_Kitts	-4:10:52 -	LMT	1912 Mar 2	# Basseterre
 # St Lucia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Lucia	-4:04:00 -	LMT	1890		# Castries
-			-4:04	-	CMT	1912	    # Castries Mean Time
+			-4:04:00 -	CMT	1912	    # Castries Mean Time
 			-4:00	-	AST
 
 # St Pierre and Miquelon

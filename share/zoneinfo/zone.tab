@@ -1,4 +1,4 @@
-# @(#)zone.tab	1.22
+# @(#)zone.tab	1.24
 #
 # $FreeBSD$
 #
@@ -14,7 +14,7 @@
 #     first latitude (+ is north), then longitude (+ is east).
 # 3.  Zone name used in value of TZ environment variable.
 # 4.  Comments; present if and only if the country has multiple rows.
-#     
+#
 # Columns are separated by a single tab.
 # The table is sorted first by country, then an order within the country that
 # (1) makes some geographical sense, and
@@ -122,13 +122,13 @@ CG	-0416+01517	Africa/Brazzaville
 CH	+4723+00832	Europe/Zurich
 CI	+0519-00402	Africa/Abidjan
 CK	-2114-15946	Pacific/Rarotonga
-CL	-3327-07040	America/Santiago	mainland
-CL	-2710-10927	Pacific/Easter	Easter Island
+CL	-3327-07040	America/Santiago	most locations
+CL	-2710-10927	Pacific/Easter	Easter Island & Sala y Gomez
 CM	+0403+00942	Africa/Douala
-CN	+4545+12641	Asia/Harbin	north Manchuria
-CN	+3114+12128	Asia/Shanghai	China coast
-CN	+2934+10635	Asia/Chungking	China mountains
-CN	+4348+08735	Asia/Urumqi	Tibet & Xinjiang
+CN	+3114+12128	Asia/Shanghai	most eastern locations
+CN	+4545+12641	Asia/Harbin	Heilongjiang
+CN	+2934+10635	Asia/Chongqing	central China
+CN	+4348+08735	Asia/Urumqi	Tibet & most of Xinjiang
 CN	+3929+07559	Asia/Kashgar	Eastern Turkestan
 CO	+0436-07405	America/Bogota
 CR	+0956-08405	America/Costa_Rica
@@ -170,9 +170,10 @@ GE	+4143+04449	Asia/Tbilisi
 GF	+0456-05220	America/Cayenne
 GH	+0533-00013	Africa/Accra
 GI	+3608-00521	Europe/Gibraltar
-GL	+7030-02215	America/Scoresbysund	east Greenland
-GL	+6411-05144	America/Godthab	southwest Greenland
-GL	+7634-06847	America/Thule	northwest Greenland
+GL	+6411-05144	America/Godthab	most locations
+GL	+7646-01840	America/Danmarkshavn	Danmarkshavn
+GL	+7030-02215	America/Scoresbysund	Scoresbysund / Ittoqqortoormiit
+GL	+7634-06847	America/Thule	Thule / Pituffik and environs
 GM	+1328-01639	Africa/Banjul
 GN	+0931-01343	Africa/Conakry
 GP	+1614-06132	America/Guadeloupe
@@ -189,7 +190,8 @@ HR	+4548+01558	Europe/Zagreb
 HT	+1832-07220	America/Port-au-Prince
 HU	+4730+01905	Europe/Budapest
 ID	-0610+10648	Asia/Jakarta	Java & Sumatra
-ID	-0507+11924	Asia/Ujung_Pandang	Borneo & Celebes
+ID	-0002+10920	Asia/Pontianak	west & central Borneo
+ID	-0507+11924	Asia/Ujung_Pandang	east & south Borneo, Celebes, Bali, Nusa Tengarra, west Timor
 ID	-0232+14042	Asia/Jayapura	Irian Jaya & the Moluccas
 IE	+5320-00615	Europe/Dublin
 IL	+3146+03514	Asia/Jerusalem
@@ -239,7 +241,8 @@ ML	+1239-00800	Africa/Bamako	southwest Mali
 ML	+1446-00301	Africa/Timbuktu	northeast Mali
 MM	+1647+09610	Asia/Rangoon
 MN	+4755+10653	Asia/Ulaanbaatar	most locations
-MN	+4801+09139	Asia/Hovd	Bayan-Olgiy, Hovd, Uvs
+MN	+4801+09139	Asia/Hovd	Bayan-Olgiy, Govi-Altai, Hovd, Uvs, Zavkhan
+MN	+4804+11430	Asia/Choibalsan	Dornod, Sukhbaatar
 MO	+2214+11335	Asia/Macao
 MP	+1512+14545	Pacific/Saipan
 MQ	+1436-06105	America/Martinique
@@ -305,7 +308,8 @@ RU	+5601+09250	Asia/Krasnoyarsk	Moscow+04 - Yenisei River
 RU	+5216+10420	Asia/Irkutsk	Moscow+05 - Lake Baikal
 RU	+6200+12940	Asia/Yakutsk	Moscow+06 - Lena River
 RU	+4310+13156	Asia/Vladivostok	Moscow+07 - Amur River
-RU	+5934+15048	Asia/Magadan	Moscow+08 - Magadan & Sakhalin
+RU	+4658+14242	Asia/Sakhalin	Moscow+07 - Sakhalin Island
+RU	+5934+15048	Asia/Magadan	Moscow+08 - Magadan
 RU	+5301+15839	Asia/Kamchatka	Moscow+09 - Kamchatka
 RU	+6445+17729	Asia/Anadyr	Moscow+10 - Bering Sea
 RW	-0157+03004	Africa/Kigali
@@ -363,6 +367,7 @@ US	+411745-0863730	America/Indiana/Knox	Eastern Standard Time - Indiana - Starke
 US	+384452-0850402	America/Indiana/Vevay	Eastern Standard Time - Indiana - Switzerland County
 US	+415100-0873900	America/Chicago	Central Time
 US	+450628-0873651	America/Menominee	Central Time - Michigan - Wisconsin border
+US	+470659-1011757	America/North_Dakota/Center	Central Time - North Dakota - Oliver County
 US	+394421-1045903	America/Denver	Mountain Time
 US	+433649-1161209	America/Boise	Mountain Time - south Idaho & east Oregon
 US	+364708-1084111	America/Shiprock	Mountain Time - Navajo
