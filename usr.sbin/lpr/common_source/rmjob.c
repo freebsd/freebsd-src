@@ -88,7 +88,7 @@ rmjob()
 	if (cgetstr(bp,"lo", &LO) < 0)
 		LO = DEFLOCK;
 	cgetstr(bp, "rm", &RM);
-	if (cp = checkremote())
+	if ((cp = checkremote()))
 		printf("Warning: %s\n", cp);
 
 	/*
@@ -325,12 +325,12 @@ rmremote()
 
 	(void)snprintf(buf, sizeof(buf), "\5%s %s", RP, all ? "-all" : person);
 	cp = buf;
-	for (i = 0; i < users; i++) {
+	for (i = 0; i < users && cp-buf+1+strlen(user[i]) < sizeof(buf); i++) {
 		cp += strlen(cp);
 		*cp++ = ' ';
 		strcpy(cp, user[i]);
 	}
-	for (i = 0; i < requests; i++) {
+	for (i = 0; i < requests && cp-buf+10 < sizeof(buf); i++) {
 		cp += strlen(cp);
 		(void) sprintf(cp, " %d", requ[i]);
 	}
