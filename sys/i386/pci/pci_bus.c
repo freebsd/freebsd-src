@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.26 1996/06/18 01:22:28 bde Exp $
+**  $Id: pcibus.c,v 1.27 1996/10/30 22:38:55 asami Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -519,7 +519,7 @@ pcibus_imask_exclude (int irq, unsigned* maskptr)
 	if (! (*maskptr & mask))
 		return (-1);
 
-	*maskptr &= ~mask;
+	INTRUNMASK (*maskptr, mask);
 	update_intr_masks();
 
 	return (0);
