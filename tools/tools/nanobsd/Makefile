@@ -135,7 +135,7 @@ _.md:	_.cs
 	mtree -deU -f ${WD}/etc/mtree/BSD.sendmail.dist -p ${WD}/
 .endif
 	(cd ${WD} && mtree -c -Kmd5digest ) > _.mtree.tmp
-	${.CURDIR}/i386.diskimage \
+	sh -e ${.CURDIR}/i386.diskimage \
 		${SECTS} \
 		${HD} \
 		${SC} \
