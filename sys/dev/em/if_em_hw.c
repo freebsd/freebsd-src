@@ -109,7 +109,11 @@ em_reset_hw(struct em_hw *hw)
      */
     DEBUGOUT("Issuing a global reset to MAC\n");
     ctrl = E1000_READ_REG(hw, CTRL);
-    E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
+
+    if(hw->mac_type > em_82543)
+        E1000_WRITE_REG_IO(hw, CTRL, (ctrl | E1000_CTRL_RST));
+    else
+        E1000_WRITE_REG(hw, CTRL, (ctrl | E1000_CTRL_RST));
 
     /* Force a reload from the EEPROM if necessary */
     if(hw->mac_type < em_82540) {
@@ -161,14 +165,18 @@ em_init_hw(struct em_hw *hw)
     uint32_t i;
     int32_t ret_val;
     uint16_t pci_cmd_word;
+    uint16_t pcix_cmd_word;
+    uint16_t pcix_stat_hi_word;
+    uint16_t cmd_mmrbc;
+    uint16_t stat_mmrbc;
 
     DEBUGFUNC("em_init_hw");
 
     /* Initialize Identification LED */
     ret_val = em_id_led_init(hw);
     if(ret_val < 0) {
-	DEBUGOUT("Error Initializing Identification LED\n");
-	return ret_val;
+        DEBUGOUT("Error Initializing Identification LED\n");
+        return ret_val;
     }
     
     /* Set the Media Type and exit with error if it is not valid. */
@@ -233,6 +241,21 @@ em_init_hw(struct em_hw *hw)
     if(hw->dma_fairness) {
         ctrl = E1000_READ_REG(hw, CTRL);
         E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PRIOR);
+    }
+
+    /* Workaround for PCI-X problem when BIOS sets MMRBC incorrectly. */
+    if(hw->bus_type == em_bus_type_pcix) {
+        em_read_pci_cfg(hw, PCIX_COMMAND_REGISTER, &pcix_cmd_word);
+        em_read_pci_cfg(hw, PCIX_STATUS_REGISTER_HI, &pcix_stat_hi_word);
+        cmd_mmrbc = (pcix_cmd_word & PCIX_COMMAND_MMRBC_MASK) >>
+            PCIX_COMMAND_MMRBC_SHIFT;
+        stat_mmrbc = (pcix_stat_hi_word & PCIX_STATUS_HI_MMRBC_MASK) >>
+            PCIX_STATUS_HI_MMRBC_SHIFT;
+        if(cmd_mmrbc > stat_mmrbc) {
+            pcix_cmd_word &= ~PCIX_COMMAND_MMRBC_MASK;
+            pcix_cmd_word |= stat_mmrbc << PCIX_COMMAND_MMRBC_SHIFT;
+            em_write_pci_cfg(hw, PCIX_COMMAND_REGISTER, &pcix_cmd_word);
+        }
     }
 
     /* Call a subroutine to configure the link and setup flow control. */
@@ -2337,6 +2360,47 @@ em_standby_eeprom(struct em_hw *hw)
     usec_delay(50);
 }
 
+/******************************************************************************
+ * Raises then lowers the EEPROM's clock pin
+ *
+ * hw - Struct containing variables accessed by shared code
+ *****************************************************************************/
+static void
+em_clock_eeprom(struct em_hw *hw)
+{
+    uint32_t eecd;
+
+    eecd = E1000_READ_REG(hw, EECD);
+
+    /* Rising edge of clock */
+    eecd |= E1000_EECD_SK;
+    E1000_WRITE_REG(hw, EECD, eecd);
+    usec_delay(50);
+
+    /* Falling edge of clock */
+    eecd &= ~E1000_EECD_SK;
+    E1000_WRITE_REG(hw, EECD, eecd);
+    usec_delay(50);
+}
+
+/******************************************************************************
+ * Terminates a command by lowering the EEPROM's chip select pin
+ *
+ * hw - Struct containing variables accessed by shared code
+ *****************************************************************************/
+static void
+em_cleanup_eeprom(struct em_hw *hw)
+{
+    uint32_t eecd;
+
+    eecd = E1000_READ_REG(hw, EECD);
+
+    eecd &= ~(E1000_EECD_CS | E1000_EECD_DI);
+
+    E1000_WRITE_REG(hw, EECD, eecd);
+
+    em_clock_eeprom(hw);
+}
 
 /******************************************************************************
  * Reads a 16 bit word from the EEPROM.
@@ -2436,6 +2500,152 @@ em_validate_eeprom_checksum(struct em_hw *hw)
         DEBUGOUT("EEPROM Checksum Invalid\n");    
         return -E1000_ERR_EEPROM;
     }
+}
+
+/******************************************************************************
+ * Calculates the EEPROM checksum and writes it to the EEPROM
+ *
+ * hw - Struct containing variables accessed by shared code
+ *
+ * Sums the first 63 16 bit words of the EEPROM. Subtracts the sum from 0xBABA.
+ * Writes the difference to word offset 63 of the EEPROM.
+ *****************************************************************************/
+int32_t
+em_update_eeprom_checksum(struct em_hw *hw)
+{
+    uint16_t checksum = 0;
+    uint16_t i, eeprom_data;
+
+    DEBUGFUNC("em_update_eeprom_checksum");
+
+    for(i = 0; i < EEPROM_CHECKSUM_REG; i++) {
+        if(em_read_eeprom(hw, i, &eeprom_data) < 0) {
+            DEBUGOUT("EEPROM Read Error\n");
+            return -E1000_ERR_EEPROM;
+        }
+        checksum += eeprom_data;
+    }
+    checksum = (uint16_t) EEPROM_SUM - checksum;
+    if(em_write_eeprom(hw, EEPROM_CHECKSUM_REG, checksum) < 0) {
+        DEBUGOUT("EEPROM Write Error\n");
+        return -E1000_ERR_EEPROM;
+    }
+    return 0;
+}
+
+/******************************************************************************
+ * Writes a 16 bit word to a given offset in the EEPROM.
+ *
+ * hw - Struct containing variables accessed by shared code
+ * offset - offset within the EEPROM to be written to
+ * data - 16 bit word to be writen to the EEPROM
+ *
+ * If em_update_eeprom_checksum is not called after this function, the 
+ * EEPROM will most likely contain an invalid checksum.
+ *****************************************************************************/
+int32_t
+em_write_eeprom(struct em_hw *hw,
+                   uint16_t offset,
+                   uint16_t data)
+{
+    uint32_t eecd;
+    uint32_t i = 0;
+    int32_t status = 0;
+    boolean_t large_eeprom = FALSE;
+
+    DEBUGFUNC("em_write_eeprom");
+
+    /* Request EEPROM Access */
+    if(hw->mac_type > em_82544) {
+        eecd = E1000_READ_REG(hw, EECD);
+        if(eecd & E1000_EECD_SIZE) large_eeprom = TRUE;
+        eecd |= E1000_EECD_REQ;
+        E1000_WRITE_REG(hw, EECD, eecd);
+        eecd = E1000_READ_REG(hw, EECD);
+        while((!(eecd & E1000_EECD_GNT)) && (i < 100)) {
+            i++;
+            usec_delay(5);
+            eecd = E1000_READ_REG(hw, EECD);
+        }
+        if(!(eecd & E1000_EECD_GNT)) {
+            eecd &= ~E1000_EECD_REQ;
+            E1000_WRITE_REG(hw, EECD, eecd);
+            DEBUGOUT("Could not acquire EEPROM grant\n");
+            return -E1000_ERR_EEPROM;
+        }
+    }
+
+    /* Prepare the EEPROM for writing  */
+    em_setup_eeprom(hw);
+
+    /* Send the 9-bit (or 11-bit on large EEPROM) EWEN (write enable) command
+     * to the EEPROM (5-bit opcode plus 4/6-bit dummy). This puts the EEPROM
+     * into write/erase mode. 
+     */
+    em_shift_out_ee_bits(hw, EEPROM_EWEN_OPCODE, 5);
+    if(large_eeprom) 
+        em_shift_out_ee_bits(hw, 0, 6);
+    else
+        em_shift_out_ee_bits(hw, 0, 4);
+
+    /* Prepare the EEPROM */
+    em_standby_eeprom(hw);
+
+    /* Send the Write command (3-bit opcode + addr) */
+    em_shift_out_ee_bits(hw, EEPROM_WRITE_OPCODE, 3);
+    if(large_eeprom) 
+        /* If we have a 256 word EEPROM, there are 8 address bits */
+        em_shift_out_ee_bits(hw, offset, 8);
+    else
+        /* If we have a 64 word EEPROM, there are 6 address bits */
+        em_shift_out_ee_bits(hw, offset, 6);
+
+    /* Send the data */
+    em_shift_out_ee_bits(hw, data, 16);
+
+    /* Toggle the CS line.  This in effect tells to EEPROM to actually execute 
+     * the command in question.
+     */
+    em_standby_eeprom(hw);
+
+    /* Now read DO repeatedly until is high (equal to '1').  The EEEPROM will
+     * signal that the command has been completed by raising the DO signal.
+     * If DO does not go high in 10 milliseconds, then error out.
+     */
+    for(i = 0; i < 200; i++) {
+        eecd = E1000_READ_REG(hw, EECD);
+        if(eecd & E1000_EECD_DO) break;
+        usec_delay(50);
+    }
+    if(i == 200) {
+        DEBUGOUT("EEPROM Write did not complete\n");
+        status = -E1000_ERR_EEPROM;
+    }
+
+    /* Recover from write */
+    em_standby_eeprom(hw);
+
+    /* Send the 9-bit (or 11-bit on large EEPROM) EWDS (write disable) command
+     * to the EEPROM (5-bit opcode plus 4/6-bit dummy). This takes the EEPROM
+     * out of write/erase mode.
+     */
+    em_shift_out_ee_bits(hw, EEPROM_EWDS_OPCODE, 5);
+    if(large_eeprom) 
+        em_shift_out_ee_bits(hw, 0, 6);
+    else
+        em_shift_out_ee_bits(hw, 0, 4);
+
+    /* Done with writing */
+    em_cleanup_eeprom(hw);
+
+    /* Stop requesting EEPROM access */
+    if(hw->mac_type > em_82544) {
+        eecd = E1000_READ_REG(hw, EECD);
+        eecd &= ~E1000_EECD_REQ;
+        E1000_WRITE_REG(hw, EECD, eecd);
+    }
+
+    return status;
 }
 
 /******************************************************************************
@@ -2775,12 +2985,12 @@ em_id_led_init(struct em_hw * hw)
     const uint32_t ledctl_off = E1000_LEDCTL_MODE_LED_OFF;
     uint16_t eeprom_data, i, temp;
     const uint16_t led_mask = 0x0F;
-	
+        
     DEBUGFUNC("em_id_led_init");
     
     if(hw->mac_type < em_82540) {
-	/* Nothing to do */
-	return 0;
+        /* Nothing to do */
+        return 0;
     }
     
     ledctl = E1000_READ_REG(hw, LEDCTL);
@@ -2797,39 +3007,39 @@ em_id_led_init(struct em_hw * hw)
     for(i = 0; i < 4; i++) {
         temp = (eeprom_data >> (i << 2)) & led_mask;
         switch(temp) {
-	case ID_LED_ON1_DEF2:
-	case ID_LED_ON1_ON2:
-	case ID_LED_ON1_OFF2:
+        case ID_LED_ON1_DEF2:
+        case ID_LED_ON1_ON2:
+        case ID_LED_ON1_OFF2:
             hw->ledctl_mode1 &= ~(ledctl_mask << (i << 3));
             hw->ledctl_mode1 |= ledctl_on << (i << 3);
             break;
-	case ID_LED_OFF1_DEF2:
-	case ID_LED_OFF1_ON2:
-	case ID_LED_OFF1_OFF2:
+        case ID_LED_OFF1_DEF2:
+        case ID_LED_OFF1_ON2:
+        case ID_LED_OFF1_OFF2:
             hw->ledctl_mode1 &= ~(ledctl_mask << (i << 3));
             hw->ledctl_mode1 |= ledctl_off << (i << 3);
             break;
-	default:
-	    /* Do nothing */
-	    break;
-	}
-	switch(temp) {
-	case ID_LED_DEF1_ON2:
-	case ID_LED_ON1_ON2:
-	case ID_LED_OFF1_ON2:
+        default:
+            /* Do nothing */
+            break;
+        }
+        switch(temp) {
+        case ID_LED_DEF1_ON2:
+        case ID_LED_ON1_ON2:
+        case ID_LED_OFF1_ON2:
             hw->ledctl_mode2 &= ~(ledctl_mask << (i << 3));
             hw->ledctl_mode2 |= ledctl_on << (i << 3);
             break;
-	case ID_LED_DEF1_OFF2:
-	case ID_LED_ON1_OFF2:
-	case ID_LED_OFF1_OFF2:
+        case ID_LED_DEF1_OFF2:
+        case ID_LED_ON1_OFF2:
+        case ID_LED_OFF1_OFF2:
             hw->ledctl_mode2 &= ~(ledctl_mask << (i << 3));
             hw->ledctl_mode2 |= ledctl_off << (i << 3);
             break;
-	default:
-	    /* Do nothing */
-	    break;
-	}
+        default:
+            /* Do nothing */
+            break;
+        }
     }
     return 0;
 }
@@ -3277,5 +3487,42 @@ em_get_bus_info(struct em_hw *hw)
     }
     hw->bus_width = (status & E1000_STATUS_BUS64) ?
                     em_bus_width_64 : em_bus_width_32;
+}
+/******************************************************************************
+ * Reads a value from one of the devices registers using port I/O (as opposed
+ * memory mapped I/O). Only 82544 and newer devices support port I/O.
+ *
+ * hw - Struct containing variables accessed by shared code
+ * offset - offset to read from
+ *****************************************************************************/
+uint32_t
+em_read_reg_io(struct em_hw *hw,
+                  uint32_t offset)
+{
+    uint32_t io_addr = hw->io_base;
+    uint32_t io_data = hw->io_base + 4;
+
+    em_io_write(hw, io_addr, offset);
+    return em_io_read(hw, io_data);
+}
+
+/******************************************************************************
+ * Writes a value to one of the devices registers using port I/O (as opposed to
+ * memory mapped I/O). Only 82544 and newer devices support port I/O.
+ *
+ * hw - Struct containing variables accessed by shared code
+ * offset - offset to write to
+ * value - value to write
+ *****************************************************************************/
+void
+em_write_reg_io(struct em_hw *hw,
+                   uint32_t offset,
+                   uint32_t value)
+{
+    uint32_t io_addr = hw->io_base;
+    uint32_t io_data = hw->io_base + 4;
+
+    em_io_write(hw, io_addr, offset);
+    em_io_write(hw, io_data, value);
 }
 
