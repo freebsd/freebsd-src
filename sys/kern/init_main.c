@@ -475,6 +475,7 @@ start_init(void *dummy)
 	char *ucp, **uap, *arg0, *arg1;
 	struct thread *td;
 	struct proc *p;
+	int init_does_devfs = 0;
 
 	mtx_lock(&Giant);
 
@@ -491,6 +492,21 @@ start_init(void *dummy)
 	p->p_fd->fd_rdir = rootvnode;
 	VREF(p->p_fd->fd_rdir);
 	VOP_UNLOCK(rootvnode, 0, td);
+
+	if (devfs_present) {
+		/*
+		 * For disk based systems, we probably cannot do this yet
+		 * since the fs will be read-only.  But a NFS root
+		 * might be ok.  It is worth a shot.
+		 */
+		error = vn_mkdir("/dev", 0700, UIO_SYSSPACE, td);
+		if (error == EEXIST)
+			error = 0;
+		if (error == 0)
+			error = vfs_mount(td, "devfs", "/dev", 0, 0);
+		if (error != 0)
+			init_does_devfs = 1;
+	}
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
@@ -541,7 +557,7 @@ start_init(void *dummy)
 		(void)subyte(--ucp, 'C');
 		options = 1;
 #endif
-		if (devfs_present) {
+		if (init_does_devfs) {
 			(void)subyte(--ucp, 'd');
 			options = 1;
 		}
