@@ -23,16 +23,16 @@
  * All rights reserved.
  *
  * Permission to use, copy, modify, and distribute this software and its
- * documentation in source and binary forms for non-commercial purposes
- * and without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both the copyright notice and
- * this permission notice appear in supporting documentation, and that
- * any documentation, advertising materials, and other materials related
- * to such distribution and use acknowledge that the software was
- * developed by the University of Southern California, Information
- * Sciences Institute.  The name of the University may not be used to
- * endorse or promote products derived from this software without
- * specific prior written permission.
+ * documentation in source and binary forms for any purposes and without
+ * fee is hereby granted, provided that the above copyright notice
+ * appear in all copies and that both the copyright notice and this
+ * permission notice appear in supporting documentation, and that any
+ * documentation, advertising materials, and other materials related to
+ * such distribution and use acknowledge that the software was developed
+ * by the University of Southern California, Information Sciences
+ * Institute.  The name of the University may not be used to endorse or
+ * promote products derived from this software without specific prior
+ * written permission.
  *
  * THE UNIVERSITY OF SOUTHERN CALIFORNIA makes no representations about
  * the suitability of this software for any purpose.  THIS SOFTWARE IS
@@ -43,23 +43,87 @@
  * Other copyrights might apply to parts of this software and are so
  * noted when applicable.
  *
- * In particular, parts of the prototype version of this program may
- * have been derived from mrouted programs sources covered by the
- * license in the accompanying file named "LICENSE".
+ * Parts of this software are derived from mrouted, which has the
+ * following license:
+ * 
+ * The mrouted program is covered by the following license.  Use of the
+ * mrouted program represents acceptance of these terms and conditions.
+ * 
+ * 1. STANFORD grants to LICENSEE a nonexclusive and nontransferable
+ * license to use, copy and modify the computer software ``mrouted''
+ * (hereinafter called the ``Program''), upon the terms and conditions
+ * hereinafter set out and until Licensee discontinues use of the Licensed
+ * Program.
+ * 
+ * 2. LICENSEE acknowledges that the Program is a research tool still in
+ * the development state, that it is being supplied ``as is,'' without any
+ * accompanying services from STANFORD, and that this license is entered
+ * into in order to encourage scientific collaboration aimed at further
+ * development and application of the Program.
+ * 
+ * 3. LICENSEE may copy the Program and may sublicense others to use
+ * object code copies of the Program or any derivative version of the
+ * Program.  All copies must contain all copyright and other proprietary
+ * notices found in the Program as provided by STANFORD.  Title to
+ * copyright to the Program remains with STANFORD.
+ * 
+ * 4. LICENSEE may create derivative versions of the Program.  LICENSEE
+ * hereby grants STANFORD a royalty-free license to use, copy, modify,
+ * distribute and sublicense any such derivative works.  At the time
+ * LICENSEE provides a copy of a derivative version of the Program to a
+ * third party, LICENSEE shall provide STANFORD with one copy of the
+ * source code of the derivative version at no charge to STANFORD.
+ * 
+ * 5. STANFORD MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+ * IMPLIED.  By way of example, but not limitation, STANFORD MAKES NO
+ * REPRESENTATION OR WARRANTIES OF MERCHANTABILITY OR FITNESS FOR ANY
+ * PARTICULAR PURPOSE OR THAT THE USE OF THE LICENSED PROGRAM WILL NOT
+ * INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS. STANFORD
+ * shall not be held liable for any liability nor for any direct, indirect
+ * or consequential damages with respect to any claim by LICENSEE or any
+ * third party on account of or arising from this Agreement or use of the
+ * Program.
+ * 
+ * 6. This agreement shall be construed, interpreted and applied in
+ * accordance with the State of California and any legal action arising
+ * out of this Agreement or use of the Program shall be filed in a court
+ * in the State of California.
+ * 
+ * 7. Nothing in this Agreement shall be construed as conferring rights to
+ * use in advertising, publicity or otherwise any trademark or the name
+ * of ``Stanford''.
+ * 
+ * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
+ * Leland Stanford Junior University.
+ *
  */
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mtrace.c,v 3.8.1.12 1996/11/10 22:23:46 fenner Exp $";
+    "@(#) mtrace.c,v 5.1.1.1 1996/12/20 00:43:40 fenner Exp";
 #endif
 
-#include <netdb.h>
-#include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <memory.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
+#include <syslog.h>
+#include <netdb.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/igmp.h>
 #include <sys/ioctl.h>
-#include "defs.h"
+#ifdef SYSV
+#include <sys/sockio.h>
+#endif
 #include <arpa/inet.h>
 #ifdef __STDC__
 #include <stdarg.h>
@@ -70,13 +134,30 @@ static char rcsid[] =
 #include <sys/systeminfo.h>
 #endif
 
+typedef unsigned int u_int32;	/* XXX */
+
+#include "mtrace.h"
+
 #define DEFAULT_TIMEOUT	3	/* How long to wait before retrying requests */
 #define DEFAULT_RETRIES 3	/* How many times to try */
-#define MAXHOPS UNREACHABLE	/* Don't need more hops than max metric */
+#define DEFAULT_EXTRAHOPS 3	/* How many hops past a non-responding rtr */
+#define MAXHOPS 32		/* Don't need more hops than max metric */
 #define UNICAST_TTL 255		/* TTL for unicast response */
 #define MULTICAST_TTL1 127	/* Default TTL for multicast query/response */
 #define MULTICAST_TTL_INC 32	/* TTL increment for increase after timeout */
 #define MULTICAST_TTL_MAX 192	/* Maximum TTL allowed (protect low-BW links */
+
+#define TRUE 1
+#define FALSE 0
+#define DVMRP_ASK_NEIGHBORS2	5	/* DVMRP msg requesting neighbors */
+#define DVMRP_NEIGHBORS2	6	/* reply to above */
+#define DVMRP_NF_DOWN		0x10	/* kernel state of interface */
+#define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
+#define MAX_IP_PACKET_LEN	576
+#define MIN_IP_HEADER_LEN	20
+#define MAX_IP_HEADER_LEN	60
+#define MAX_DVMRP_DATA_LEN \
+		( MAX_IP_PACKET_LEN - MAX_IP_HEADER_LEN - IGMP_MINLEN )
 
 struct resp_buf {
     u_long qtime;		/* Time query was issued */
@@ -97,9 +178,44 @@ struct resp_buf {
 #define ndata u.d
 
 char names[MAXHOPS][40];
-int reset[MAXHOPS];			/* To get around 3.4 bug, ... */
-int swaps[MAXHOPS];			/* To get around 3.6 bug, ... */
-int bogustime[MAXHOPS];			/* To get around 3.5 bug, ... */
+/*
+ * In mrouted 3.3 and 3.4 (and in some Cisco IOS releases),
+ * cache entries can get deleted even if there is traffic
+ * flowing, which will reset the per-source/group counters.
+ */
+#define		BUG_RESET	0x01
+
+/*
+ * Also in mrouted 3.3 and 3.4, there's a bug in neighbor
+ * version processing which can cause them to believe that
+ * the neighbor is constantly resetting.  This causes them
+ * to constantly delete all their state.
+ */
+#define		BUG_RESET2X	0x02
+
+/*
+ * Pre-3.7 mrouted's forget to byte-swap their reports.
+ */
+#define		BUG_SWAP	0x04
+
+/*
+ * Pre-3.9 mrouted's forgot a parenthesis in the htonl()
+ * on the time calculation so supply bogus times.
+ */
+#define		BUG_BOGUSTIME	0x08
+
+#define BUG_NOPRINT	(BUG_RESET | BUG_RESET2X)
+
+int bugs[MAXHOPS];			/* List of bugs noticed at each hop */
+
+struct mtrace {
+	struct mtrace	*next;
+	struct resp_buf	 base, incr[2];
+	struct resp_buf	*new, *prev;
+	int		 nresp;
+	struct timeval	 last;
+	int		 bugs[MAXHOPS];
+};
 
 int timeout = DEFAULT_TIMEOUT;
 int nqueries = DEFAULT_RETRIES;
@@ -112,6 +228,9 @@ int statint = 10;
 int verbose = FALSE;
 int tunstats = FALSE;
 int weak = FALSE;
+int extrahops = DEFAULT_EXTRAHOPS;
+int printstats = TRUE;
+int sendopts = TRUE;
 
 u_int32 defgrp;				/* Default group if not specified */
 u_int32 query_cast;			/* All routers multicast addr */
@@ -134,19 +253,56 @@ u_char rttl = 0;		/* TTL for the response packet */
 u_int32 gwy = 0;		/* User-supplied last-hop router address */
 u_int32 tdst = 0;		/* Address where trace is sent (last-hop) */
 
-vifi_t  numvifs;		/* to keep loader happy */
-				/* (see kern.c) */
+char s1[19];		/* buffers to hold the string representations  */
+char s2[19];		/* of IP addresses, to be passed to inet_fmt() */
+char s3[19];		/* or inet_fmts().                             */
 
-#ifndef SYSV
-extern long random();
+#if !(defined(BSD) && (BSD >= 199103))
+extern int		errno;
+extern int		sys_nerr;
+extern char *		sys_errlist[];
 #endif
-extern int errno;
+
+#define RECV_BUF_SIZE 8192
+char	*send_buf, *recv_buf;
+int	igmp_socket;
+u_int32	allrtrs_group;
+char	router_alert[4];	     	/* Router Alert IP Option	    */
+#ifndef	IPOPT_RA
+#define	IPOPT_RA		148
+#endif
+#ifdef SUNOS5
+char	no_op[4];		     	/* Null IP Option		    */
+int ip_addlen = 0;		     	/* Workaround for Option bug #2     */
+#endif
 
 /*
  * max macro, with weird case to avoid conflicts
  */
 #define	MaX(a,b)	(a) > (b) ? (a) : (b)
 
+#ifndef __P
+#ifdef __STDC__
+#define __P(x)	x
+#else
+#define __P(x)	()
+#endif
+#endif
+
+void			init_igmp __P(());
+void			send_igmp __P((u_int32 src, u_int32 dst, int type,
+						int code, u_int32 group,
+						int datalen));
+int			inet_cksum __P((u_short *addr, u_int len));
+void			k_set_rcvbuf __P((int bufsize));
+void			k_hdr_include __P((int bool));
+void			k_set_ttl __P((int t));
+void			k_set_loop __P((int l));
+void			k_set_if __P((u_int32 ifa));
+void			k_join __P((u_int32 grp, u_int32 ifa));
+void			k_leave __P((u_int32 grp, u_int32 ifa));
+char *			inet_fmt __P((u_int32 addr, char *s));
+char *			inet_fmts __P((u_int32 addr, u_int32 mask, char *s));
 char *			inet_name __P((u_int32 addr));
 u_int32			host_addr __P((char *name));
 /* u_int is promoted u_char */
@@ -156,7 +312,7 @@ char *			flag_type __P((u_int type));
 u_int32			get_netmask __P((int s, u_int32 dst));
 int			get_ttl __P((struct resp_buf *buf));
 int			t_diff __P((u_long a, u_long b));
-u_long			fixtime __P((u_long time));
+u_long			fixtime __P((u_long time, struct resp_buf *base));
 int			send_recv __P((u_int32 dst, int type, int code,
 					int tries, struct resp_buf *save));
 char *			print_host __P((u_int32 addr));
@@ -168,15 +324,400 @@ void			stat_line __P((struct tr_resp *r, struct tr_resp *s,
 					int have_next, int *res));
 void			fixup_stats __P((struct resp_buf *base,
 					struct resp_buf *prev,
-					struct resp_buf *new));
+					struct resp_buf *new,
+					int *bugs));
 int			print_stats __P((struct resp_buf *base,
 					struct resp_buf *prev,
+					struct resp_buf *new,
+					int *bugs));
+int			path_changed __P((struct resp_buf *base,
 					struct resp_buf *new));
 void			check_vif_state __P((void));
 
 int			main __P((int argc, char *argv[]));
+void			log __P((int, int, char *, ...));
 
 
+/*
+ * Open and initialize the igmp socket, and fill in the non-changing
+ * IP header fields in the output packet buffer.
+ */
+void
+init_igmp()
+{
+    struct ip *ip;
+#ifdef SUNOS5
+    u_int32 localhost = htonl(0x7f000001);
+#endif
+
+    recv_buf = (char *)malloc(RECV_BUF_SIZE);
+    if (recv_buf == 0)
+	log(LOG_ERR, 0, "Out of memory allocating recv_buf!");
+    send_buf = (char *)malloc(RECV_BUF_SIZE);
+    if (send_buf == 0)
+	log(LOG_ERR, 0, "Out of memory allocating send_buf!");
+
+    if ((igmp_socket = socket(AF_INET, SOCK_RAW, IPPROTO_IGMP)) < 0) 
+	log(LOG_ERR, errno, "IGMP socket");
+
+    k_hdr_include(TRUE);	/* include IP header when sending */
+    k_set_rcvbuf(48*1024);	/* lots of input buffering        */
+    k_set_ttl(1);		/* restrict multicasts to one hop */
+    k_set_loop(FALSE);		/* disable multicast loopback     */
+
+    ip         = (struct ip *)send_buf;
+    ip->ip_hl  = sizeof(struct ip) >> 2;
+    ip->ip_v   = IPVERSION;
+    ip->ip_tos = 0;
+    ip->ip_off = 0;
+    ip->ip_p   = IPPROTO_IGMP;
+    ip->ip_ttl = MAXTTL;	/* applies to unicasts only */
+
+#ifndef INADDR_ALLRTRS_GROUP
+#define	INADDR_ALLRTRS_GROUP	0xe0000002	/* 224.0.0.2 */
+#endif
+    allrtrs_group  = htonl(INADDR_ALLRTRS_GROUP);
+
+    router_alert[0] = IPOPT_RA;	/* Router Alert */
+    router_alert[1] = 4;	/* 4 bytes */
+    router_alert[2] = 0;
+    router_alert[3] = 0;
+
+#ifdef SUNOS5
+    if (!sendopts)
+	return;
+
+    no_op[0] = IPOPT_EOL;
+    no_op[1] = IPOPT_EOL;
+    no_op[2] = IPOPT_EOL;
+    no_op[3] = IPOPT_EOL;
+
+    setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS, no_op, sizeof(no_op));
+    /*
+     * Check if the kernel adds the options length to the packet
+     * length.  Send myself an IGMP packet of type 0 (illegal),
+     * with 4 IPOPT_EOL options, my PID (for collision detection)
+     * and 4 bytes of zero (so that the checksum works whether
+     * the 4 bytes of zero get truncated or not).
+     */
+    bzero(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN, 8);
+    *(int *)(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN) = getpid();
+    send_igmp(localhost, localhost, 0, 0, 0, 8);
+    while (1) {
+	int recvlen, dummy = 0;
+
+	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
+				0, NULL, &dummy);
+	/* 8 == 4 bytes of options and 4 bytes of PID */
+	if (recvlen >= MIN_IP_HEADER_LEN + IGMP_MINLEN + 8) {
+	    struct ip *ip = (struct ip *)recv_buf;
+	    struct igmp *igmp;
+	    int *p;
+
+	    if (ip->ip_hl != 6 ||
+		ip->ip_p != IPPROTO_IGMP ||
+	        ip->ip_src.s_addr != localhost ||
+		ip->ip_dst.s_addr != localhost)
+		continue;
+
+	    igmp = (struct igmp *)(recv_buf + (ip->ip_hl << 2));
+	    if (igmp->igmp_group.s_addr != 0)
+		continue;
+	    if (igmp->igmp_type != 0 || igmp->igmp_code != 0)
+		continue;
+
+	    p = (int *)((char *)igmp + IGMP_MINLEN);
+	    if (*p != getpid())
+		continue;
+
+	    if (ip->ip_len == IGMP_MINLEN + 4)
+		ip_addlen = 4;
+	    else if (ip->ip_len == IGMP_MINLEN + 8)
+		ip_addlen = 0;
+	    else
+		log(LOG_ERR, 0, "while checking for Solaris bug: Sent %d bytes and got back %d!", IGMP_MINLEN + 8, ip->ip_len);
+
+	    break;
+	}
+    }
+#endif
+}
+
+/*
+ * Construct an IGMP message in the output packet buffer.  The caller may
+ * have already placed data in that buffer, of length 'datalen'.  Then send
+ * the message from the interface with IP address 'src' to destination 'dst'.
+ */
+void
+send_igmp(src, dst, type, code, group, datalen)
+    u_int32 src, dst;
+    int type, code;
+    u_int32 group;
+    int datalen;
+{
+    struct sockaddr_in sdst;
+    struct ip *ip;
+    struct igmp *igmp;
+    int setloop = 0;
+    static int raset = 0;
+    int sendra = 0;
+    int sendlen;
+
+    ip                      = (struct ip *)send_buf;
+    ip->ip_src.s_addr       = src;
+    ip->ip_dst.s_addr       = dst;
+    ip->ip_len              = MIN_IP_HEADER_LEN + IGMP_MINLEN + datalen;
+    sendlen		    = ip->ip_len;
+#ifdef SUNOS5
+    ip->ip_len		   += ip_addlen;
+#endif
+
+    igmp                    = (struct igmp *)(send_buf + MIN_IP_HEADER_LEN);
+    igmp->igmp_type         = type;
+    igmp->igmp_code         = code;
+    igmp->igmp_group.s_addr = group;
+    igmp->igmp_cksum        = 0;
+    igmp->igmp_cksum        = inet_cksum((u_short *)igmp,
+					 IGMP_MINLEN + datalen);
+
+    if (IN_MULTICAST(ntohl(dst))) {
+	k_set_if(src);
+	setloop = 1;
+	k_set_loop(TRUE);
+	if (dst != allrtrs_group)
+	    sendra = 1;
+    }
+
+    if (sendopts && sendra && !raset) {
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			router_alert, sizeof(router_alert));
+	raset = 1;
+    } else if (!sendra && raset) {
+#ifdef SUNOS5
+	/*
+	 * SunOS5 < 5.6 cannot properly reset the IP_OPTIONS "socket"
+	 * option.  Instead, set up a string of 4 no-op's.
+	 */
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			no_op, sizeof(no_op));
+#else
+	setsockopt(igmp_socket, IPPROTO_IP, IP_OPTIONS,
+			NULL, 0);
+#endif
+	raset = 0;
+    }
+
+    bzero(&sdst, sizeof(sdst));
+    sdst.sin_family = AF_INET;
+#if (defined(BSD) && (BSD >= 199103))
+    sdst.sin_len = sizeof(sdst);
+#endif
+    sdst.sin_addr.s_addr = dst;
+    if (sendto(igmp_socket, send_buf, sendlen, 0,
+			(struct sockaddr *)&sdst, sizeof(sdst)) < 0) {
+	    log(LOG_WARNING, errno, "sendto to %s on %s",
+		inet_fmt(dst, s1), inet_fmt(src, s2));
+    }
+
+    if (setloop)
+	    k_set_loop(FALSE);
+
+    log(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
+	type == IGMP_MTRACE ? "mtrace request" : "ask_neighbors",
+	src == INADDR_ANY ? "INADDR_ANY" : inet_fmt(src, s1),
+	inet_fmt(dst, s2));
+}
+
+/*
+ * inet_cksum extracted from:
+ *			P I N G . C
+ *
+ * Author -
+ *	Mike Muuss
+ *	U. S. Army Ballistic Research Laboratory
+ *	December, 1983
+ * Modified at Uc Berkeley
+ *
+ * (ping.c) Status -
+ *	Public Domain.  Distribution Unlimited.
+ *
+ *			I N _ C K S U M
+ *
+ * Checksum routine for Internet Protocol family headers (C Version)
+ *
+ */
+int
+inet_cksum(addr, len)
+	u_short *addr;
+	u_int len;
+{
+	register int nleft = (int)len;
+	register u_short *w = addr;
+	u_short answer = 0;
+	register int sum = 0;
+
+	/*
+	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
+	 *  we add sequential 16 bit words to it, and at the end, fold
+	 *  back all the carry bits from the top 16 bits into the lower
+	 *  16 bits.
+	 */
+	while (nleft > 1)  {
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	/* mop up an odd byte, if necessary */
+	if (nleft == 1) {
+		*(u_char *) (&answer) = *(u_char *)w ;
+		sum += answer;
+	}
+
+	/*
+	 * add back carry outs from top 16 bits to low 16 bits
+	 */
+	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+	sum += (sum >> 16);			/* add carry */
+	answer = ~sum;				/* truncate to 16 bits */
+	return (answer);
+}
+
+void
+k_set_rcvbuf(bufsize)
+    int bufsize;
+{
+    if (setsockopt(igmp_socket, SOL_SOCKET, SO_RCVBUF,
+		   (char *)&bufsize, sizeof(bufsize)) < 0)
+	log(LOG_ERR, errno, "setsockopt SO_RCVBUF %u", bufsize);
+}
+
+
+void
+k_hdr_include(bool)
+    int bool;
+{
+#ifdef IP_HDRINCL
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_HDRINCL,
+		   (char *)&bool, sizeof(bool)) < 0)
+	log(LOG_ERR, errno, "setsockopt IP_HDRINCL %u", bool);
+#endif
+}
+
+void
+k_set_ttl(t)
+    int t;
+{
+    u_char ttl;
+
+    ttl = t;
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_MULTICAST_TTL,
+		   (char *)&ttl, sizeof(ttl)) < 0)
+	log(LOG_ERR, errno, "setsockopt IP_MULTICAST_TTL %u", ttl);
+}
+
+
+void
+k_set_loop(l)
+    int l;
+{
+    u_char loop;
+
+    loop = l;
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_MULTICAST_LOOP,
+		   (char *)&loop, sizeof(loop)) < 0)
+	log(LOG_ERR, errno, "setsockopt IP_MULTICAST_LOOP %u", loop);
+}
+
+void
+k_set_if(ifa)
+    u_int32 ifa;
+{
+    struct in_addr adr;
+
+    adr.s_addr = ifa;
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_MULTICAST_IF,
+		   (char *)&adr, sizeof(adr)) < 0)
+	log(LOG_ERR, errno, "setsockopt IP_MULTICAST_IF %s",
+	    		    inet_fmt(ifa, s1));
+}
+
+void
+k_join(grp, ifa)
+    u_int32 grp;
+    u_int32 ifa;
+{
+    struct ip_mreq mreq;
+
+    mreq.imr_multiaddr.s_addr = grp;
+    mreq.imr_interface.s_addr = ifa;
+
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+		   (char *)&mreq, sizeof(mreq)) < 0)
+	log(LOG_WARNING, errno, "can't join group %s on interface %s",
+				inet_fmt(grp, s1), inet_fmt(ifa, s2));
+}
+
+
+void
+k_leave(grp, ifa)
+    u_int32 grp;
+    u_int32 ifa;
+{
+    struct ip_mreq mreq;
+
+    mreq.imr_multiaddr.s_addr = grp;
+    mreq.imr_interface.s_addr = ifa;
+
+    if (setsockopt(igmp_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+		   (char *)&mreq, sizeof(mreq)) < 0)
+	log(LOG_WARNING, errno, "can't leave group %s on interface %s",
+				inet_fmt(grp, s1), inet_fmt(ifa, s2));
+}
+
+/*
+ * Convert an IP address in u_long (network) format into a printable string.
+ */
+char *
+inet_fmt(addr, s)
+    u_int32 addr;
+    char *s;
+{
+    register u_char *a;
+
+    a = (u_char *)&addr;
+    sprintf(s, "%u.%u.%u.%u", a[0], a[1], a[2], a[3]);
+    return (s);
+}
+
+
+/*
+ * Convert an IP subnet number in u_long (network) format into a printable
+ * string including the netmask as a number of bits.
+ */
+char *
+inet_fmts(addr, mask, s)
+    u_int32 addr, mask;
+    char *s;
+{
+    register u_char *a, *m;
+    int bits;
+
+    if ((addr == 0) && (mask == 0)) {
+	sprintf(s, "default");
+	return (s);
+    }
+    a = (u_char *)&addr;
+    m = (u_char *)&mask;
+    bits = 33 - ffs(ntohl(mask));
+
+    if      (m[3] != 0) sprintf(s, "%u.%u.%u.%u/%d", a[0], a[1], a[2], a[3],
+						bits);
+    else if (m[2] != 0) sprintf(s, "%u.%u.%u/%d",    a[0], a[1], a[2], bits);
+    else if (m[1] != 0) sprintf(s, "%u.%u/%d",       a[0], a[1], bits);
+    else                sprintf(s, "%u/%d",          a[0], bits);
+
+    return (s);
+}
 
 char   *
 inet_name(addr)
@@ -245,6 +786,14 @@ proto_type(type)
 	return ("PIM");
       case PROTO_CBT:
 	return ("CBT");
+      case PROTO_PIM_SPECIAL:
+	return ("PIM/Special");
+      case PROTO_PIM_STATIC:
+	return ("PIM/Static");
+      case PROTO_DVMRP_STATIC:
+	return ("DVMRP/Static");
+      case 0:
+	return ("None");
       default:
 	(void) sprintf(buf, "Unknown protocol code %d", type);
 	return (buf);
@@ -271,12 +820,20 @@ flag_type(type)
 	return ("Hit scope boundary");
       case TR_NO_RTE:
 	return ("No route");
-      case TR_OLD_ROUTER:
-	return ("Next router no mtrace");
       case TR_NO_FWD:
 	return ("Not forwarding");
+      case TR_HIT_RP:
+	return ("Reached RP/Core");
+      case TR_RPF_IF:
+	return ("RPF Interface");
+      case TR_NO_MULTI:
+	return ("Multicast disabled");
+      case TR_OLD_ROUTER:
+	return ("Next router no mtrace");
       case TR_NO_SPACE:
 	return ("No space in packet");
+      case TR_ADMIN_PROHIB:
+	return ("Admin. Prohibited");
       default:
 	(void) sprintf(buf, "Unknown error code %d", type);
 	return (buf);
@@ -290,7 +847,6 @@ flag_type(type)
  * local net, use that one; in either case, verify that the local
  * address is valid.
  */
-
 u_int32
 get_netmask(s, dst)
     int s;
@@ -331,6 +887,9 @@ get_netmask(s, dst)
 }
 
 
+/*
+ * Try to pick a TTL that will get past all the thresholds in the path.
+ */
 int
 get_ttl(buf)
     struct resp_buf *buf;
@@ -374,10 +933,11 @@ t_diff(a, b)
  * so correct and incorrect times will be far apart.
  */
 u_long
-fixtime(time)
+fixtime(time, base)
     u_long time;
+    struct resp_buf *base;
 {
-    if (abs((int)(time-base.qtime)) > 0x3FFFFFFF)
+    if (abs((int)(time-base->qtime)) > 0x3FFFFFFF)
         time = ((time & 0xFFFF0000) + (JAN_1970 << 16)) +
 	       ((time & 0xFFFF) << 14) / 15625;
     return (time);
@@ -418,7 +978,7 @@ send_recv(dst, type, code, tries, save)
 	group = qgrp;
 	datalen = sizeof(struct tr_query);
     } else {
-	group = htonl(MROUTED_LEVEL);
+	group = htonl(0xff03);
 	datalen = 0;
     }
     if (IN_MULTICAST(ntohl(dst))) local = lcl_addr;
@@ -426,14 +986,16 @@ send_recv(dst, type, code, tries, save)
 
     /*
      * If the reply address was not explictly specified, start off
-     * with the unicast address of this host.  Then, if there is no
-     * response after trying half the tries with unicast, switch to
-     * the standard multicast reply address.  If the TTL was also not
-     * specified, set a multicast TTL and if needed increase it for the
-     * last quarter of the tries.
+     * with the standard multicast reply address, or the unicast
+     * address of this host if the unicast flag was specified.
+     * Then, if there is no response after trying half the tries
+     * with multicast, switch to the unicast address of this host
+     * if the multicast flag was not specified.  If the TTL was
+     * also not specified, set a multicast TTL and increase it
+     * for every try.
      */
     query = (struct tr_query *)(send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
-    query->tr_raddr = raddr ? raddr : multicast ? resp_cast : lcl_addr;
+    query->tr_raddr = raddr ? raddr : unicast ? lcl_addr : resp_cast;
     query->tr_rttl  = rttl ? rttl :
       IN_MULTICAST(ntohl(query->tr_raddr)) ? get_ttl(save) : UNICAST_TTL;
     query->tr_src   = qsrc;
@@ -441,11 +1003,18 @@ send_recv(dst, type, code, tries, save)
 
     for (i = tries ; i > 0; --i) {
 	if (tries == nqueries && raddr == 0) {
-	    if (i == ((nqueries + 1) >> 1)) {
-		query->tr_raddr = resp_cast;
-		if (rttl == 0) query->tr_rttl = get_ttl(save);
+	    if (i == (nqueries >> 1)) {
+		if (multicast && unicast) {
+		    query->tr_raddr = resp_cast;
+		    if (!rttl)
+			query->tr_rttl = get_ttl(save);
+		} else if (!multicast) {
+		    query->tr_raddr = lcl_addr;
+		    query->tr_rttl = UNICAST_TTL;
+		}
 	    }
-	    if (i <= ((nqueries + 3) >> 2) && rttl == 0) {
+	    if (i < tries && IN_MULTICAST(ntohl(query->tr_raddr)) &&
+								rttl == 0) {
 		query->tr_rttl += MULTICAST_TTL_INC;
 		if (query->tr_rttl > MULTICAST_TTL_MAX)
 		  query->tr_rttl = MULTICAST_TTL_MAX;
@@ -561,7 +1130,8 @@ send_recv(dst, type, code, tries, save)
 		if (type != IGMP_MTRACE) continue;
 		if (igmpdatalen <= QLEN) continue;
 		if ((igmpdatalen - QLEN)%RLEN) {
-		    printf("packet with incorrect datalen\n");
+		    printf("packet with incomplete responses (%d bytes)\n",
+			igmpdatalen);
 		    continue;
 		}
 
@@ -654,12 +1224,16 @@ passive_mode()
     int ipdatalen, iphdrlen, igmpdatalen;
     int len, recvlen, dummy = 0;
     u_int32 smask;
+    struct mtrace *remembered = NULL, *m, *n, **nn;
+    int pc = 0;
 
     if (raddr) {
 	if (IN_MULTICAST(ntohl(raddr))) k_join(raddr, INADDR_ANY);
     } else k_join(htonl(0xE0000120), INADDR_ANY);
 
     while (1) {
+	fflush(stdout);		/* make sure previous trace is flushed */
+
 	socklen = sizeof(recvaddr);
 	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
 			   0, (struct sockaddr *)&recvaddr, &socklen);
@@ -731,6 +1305,24 @@ passive_mode()
 	    (qgrp != 0 && qgrp != igmp->igmp_group.s_addr))
 	    continue;
 
+	/* XXX This should be a hash table */
+	/* XXX garbage-collection should be more efficient */
+	for (nn = &remembered, n = *nn, m = 0; n; n = *nn) {
+	    if ((n->base.qhdr.tr_src == base.qhdr.tr_src) &&
+		(n->base.qhdr.tr_dst == base.qhdr.tr_dst) &&
+		(n->base.igmp.igmp_group.s_addr == igmp->igmp_group.s_addr))
+		m = n;
+	    if (tr.tv_sec - n->last.tv_sec > 500) { /* XXX don't hardcode */
+		*nn = n->next;
+		free(n);
+	    } else {
+		nn = &n->next;
+	    }
+	}
+
+	if (m)
+	    bcopy(&tr, &m->last, sizeof(tr));
+
 	now = localtime(&tr.tv_sec);
 	strftime(timebuf, sizeof(timebuf) - 1, "%b %e %k:%M:%S", now);
 	printf("Mtrace %s at %s",
@@ -752,8 +1344,10 @@ passive_mode()
 	printf("from %s to %s via group %s (mxhop=%d)\n",
 		inet_fmt(base.qhdr.tr_dst, s1), inet_fmt(base.qhdr.tr_src, s2),
 		inet_fmt(igmp->igmp_group.s_addr, s3), igmp->igmp_code);
-	if (len == 0)
+	if (len == 0) {
+	    printf("\n");
 	    continue;
+	}
 	r = base.resps + base.len - 1;
 	/*
 	 * Some routers will return error messages without
@@ -762,6 +1356,52 @@ passive_mode()
 	 */
 	if (r->tr_outaddr == 0)
 	    r->tr_outaddr = recvaddr.sin_addr.s_addr;
+
+	/*
+	 * If there was a previous trace, it see if this is a
+	 * statistics candidate.
+	 */
+	if (m && base.len == m->base.len &&
+		!(pc = path_changed(&m->base, &base))) {
+	    /*
+	     * Some mtrace responders send multiple copies of the same
+	     * reply.  Skip this packet if it's exactly the same as the
+	     * last one.
+	     */
+	    if (bcmp((char *)&base.igmp, (char *)&m->prev->igmp, ipdatalen) == 0)
+		continue;
+
+	    ++m->nresp;
+
+	    bcopy(&base, m->new, sizeof(base));
+
+	    printf("Results after %d seconds:\n\n",
+		   (int)((m->new->qtime - m->base.qtime) >> 16));
+	    fixup_stats(&m->base, m->prev, m->new, m->bugs);
+	    print_stats(&m->base, m->prev, m->new, m->bugs);
+	    m->prev = m->new;
+	    m->new = &m->incr[(m->nresp & 1)];
+
+	    continue;
+	}
+
+	if (m == NULL) {
+	    m = (struct mtrace *)malloc(sizeof(struct mtrace));
+	    m->next = remembered;
+	    remembered = m;
+	    bcopy(&tr, &m->last, sizeof(tr));
+	}
+
+	/* Either it's a hop-by-hop in progress, or the path changed. */
+	if (pc) {
+	    printf("[Path Changed...]\n");
+	    bzero(m->bugs, sizeof(m->bugs));
+	}
+	bcopy(&base, &m->base, sizeof(base));
+	m->prev = &m->base;
+	m->new = &m->incr[0];
+	m->nresp = 0;
+
 	printf("  0  ");
 	print_host(base.qhdr.tr_dst);
 	printf("\n");
@@ -773,7 +1413,8 @@ passive_mode()
 	    printf("\n");
 	} else if (r->tr_rmtaddr != 0) {
 	    printf("%3d  ", -(base.len+1));
-	    what_kind(&base, r->tr_rflags == TR_OLD_ROUTER ?
+	    print_host(r->tr_rmtaddr);
+	    printf(" %s\n", r->tr_rflags == TR_OLD_ROUTER ?
 				   "doesn't support mtrace"
 				 : "is the next hop");
 	}
@@ -831,9 +1472,10 @@ print_trace(index, buf)
     for (; i <= buf->len; ++i, ++r) {
 	if (index > 0) printf("%3d  ", -i);
 	name = print_host2(r->tr_outaddr, r->tr_inaddr);
-	printf("  %s  thresh^ %d", proto_type(r->tr_rproto), r->tr_fttl);
+	if (r->tr_rflags != TR_NO_RTE)
+	    printf("  %s  thresh^ %d", proto_type(r->tr_rproto), r->tr_fttl);
 	if (verbose) {
-	    hop = t_diff(fixtime(ntohl(r->tr_qarr)), buf->qtime);
+	    hop = t_diff(fixtime(ntohl(r->tr_qarr), &base), buf->qtime);
 	    ms = scale(&hop);
 	    printf("  %d%s", hop, ms);
 	}
@@ -842,13 +1484,16 @@ print_trace(index, buf)
 	    printf(" !RPF!");
 	    print_host((r-1)->tr_rmtaddr);
 	}
-	if (r->tr_smask <= 1)	/* Buggy MASK_TO_VAL() returns 1 for default */
-	    printf(" [default]");
-	else if (verbose) {
-	    u_int32 smask;
+	if (r->tr_rflags != TR_NO_RTE) {
+	    if (r->tr_smask <= 1)    /* MASK_TO_VAL() returns 1 for default */
+		printf(" [default]");
+	    else if (verbose) {
+		u_int32 smask;
 
-	    VAL_TO_MASK(smask, r->tr_smask);
-	    printf(" [%s]", inet_fmts(buf->qhdr.tr_src & smask, smask, s1));
+		VAL_TO_MASK(smask, r->tr_smask);
+		printf(" [%s]", inet_fmts(buf->qhdr.tr_src & smask,
+							smask, s1));
+	    }
 	}
 	printf("\n");
 	memcpy(names[i-1], name, sizeof(names[0]) - 1);
@@ -876,7 +1521,8 @@ what_kind(buf, why)
 	u_int32 version = ntohl(incr[0].igmp.igmp_group.s_addr);
 	u_int32 *p = (u_int32 *)incr[0].ndata;
 	u_int32 *ep = p + (incr[0].len >> 2);
-	char *type = "";
+	char *type = "version ";
+
 	retval = 0;
 	switch (version & 0xFF) {
 	  case 1:
@@ -884,15 +1530,8 @@ what_kind(buf, why)
 	    retval = 1;
 	    break;
 
-	  case 2:
-	  case 3:
-	    if (((version >> 8) & 0xFF) < 3) retval = 1;
-				/* Fall through */
-	  case 4:
-	    type = "mrouted ";
-	    break;
-
 	  case 10:
+	  case 11:
 	    type = "cisco ";
 	}
 	printf(" [%s%d.%d] %s\n",
@@ -943,8 +1582,9 @@ stat_line(r, s, have_next, rst)
     int have_next;
     int *rst;
 {
-    int timediff = (fixtime(ntohl(s->tr_qarr)) -
-			 fixtime(ntohl(r->tr_qarr))) >> 16;
+    /* this may fail in passive statistics mode due to wrong "base". */
+    int timediff = (fixtime(ntohl(s->tr_qarr), &base) -
+			 fixtime(ntohl(r->tr_qarr), &base)) >> 16;
     int v_lost, v_pct;
     int g_lost, g_pct;
     int v_out = ntohl(s->tr_vifout) - ntohl(r->tr_vifout);
@@ -953,28 +1593,40 @@ stat_line(r, s, have_next, rst)
     char v_str[8], g_str[8];
     int vhave = NEITHER;
     int ghave = NEITHER;
+    int gmissing = NEITHER;
     char whochar;
 
     if (timediff == 0) timediff = 1;
     v_pps = v_out / timediff;
     g_pps = g_out / timediff;
 
-    if (v_out && (s->tr_vifout != 0xFFFFFFFF && s->tr_vifout != 0) ||
-		 (r->tr_vifout != 0xFFFFFFFF && r->tr_vifout != 0)) {
+#define STATS_MISSING(x)	((x) == 0xFFFFFFFF || (x) == 0)
+
+    if (v_out && !STATS_MISSING(s->tr_vifout) && !STATS_MISSING(r->tr_vifout))
 	    vhave |= OUTS;
-	    if (!*rst)
-		ghave |= OUTS;
-    }
+    if (STATS_MISSING(s->tr_pktcnt) || STATS_MISSING(r->tr_pktcnt))
+	    gmissing |= OUTS;
+    if (!(*rst & BUG_NOPRINT))
+	    ghave |= OUTS;
 
     if (have_next) {
 	--r,  --s,  --rst;
-	if ((s->tr_vifin != 0xFFFFFFFF && s->tr_vifin != 0) ||
-	    (r->tr_vifin != 0xFFFFFFFF && r->tr_vifin != 0)) {
-	  vhave |= INS;
-	  if (!*rst)
-		ghave |= INS;
-	}
+	if (!STATS_MISSING(s->tr_vifin) && !STATS_MISSING(r->tr_vifin))
+	    vhave |= INS;
+	if (STATS_MISSING(s->tr_pktcnt) || STATS_MISSING(r->tr_pktcnt))
+	    gmissing |= INS;
+	if (!(*rst & BUG_NOPRINT))
+	    ghave |= INS;
     }
+
+    /*
+     * If both hops report as missing, then it's likely that there's just
+     * no traffic flowing.
+     *
+     * If just one hop is missing, then we really don't have it.
+     */
+    if (gmissing != BOTH)
+	ghave &= ~gmissing;
 
     whochar = have_next ? '^' : ' ';
     switch (vhave) {
@@ -1010,11 +1662,11 @@ stat_line(r, s, have_next, rst)
 	break;
 
       case NEITHER:
-	if (vhave != NEITHER)
+	if (ghave != NEITHER)
 	    if (tunstats)
-		printf("                 ");
-	    else
 		printf("   ");
+	    else
+		printf("                 ");
 
 	break;
     }
@@ -1029,10 +1681,8 @@ stat_line(r, s, have_next, rst)
 	  sprintf(g_str, "%3d", g_pct);
 	else memcpy(g_str, " --", 4);
 
-	if (!tunstats)
-	    printf("   ");
-	printf("%6d/%-5d=%s%%%4d pps\n",
-	       g_lost, g_out, g_str, g_pps);
+	printf("%s%6d/%-5d=%s%%%4d pps\n",
+	       tunstats ? "" : "   ", g_lost, g_out, g_str, g_pps);
 	break;
 
 #if 0
@@ -1044,11 +1694,8 @@ stat_line(r, s, have_next, rst)
 #endif
 
       case OUTS:
-	if (!tunstats)
-	    printf("   ");
-
-	printf("     ?/%-5d     %4d pps\n",
-	       g_out, g_pps);
+	printf("%s     ?/%-5d     %4d pps\n",
+	       tunstats ? "" : "   ", g_out, g_pps);
 	break;
 
       case INS:
@@ -1077,25 +1724,25 @@ stat_line(r, s, have_next, rst)
  * byteorder bugs in mrouted 3.6 on little-endian machines.
  */
 void
-fixup_stats(base, prev, new)
+fixup_stats(base, prev, new, bugs)
     struct resp_buf *base, *prev, *new;
+    int *bugs;
 {
     int rno = base->len;
     struct tr_resp *b = base->resps + rno;
     struct tr_resp *p = prev->resps + rno;
     struct tr_resp *n = new->resps + rno;
-    int *r = reset + rno;
-    int *s = swaps + rno;
-    int *t = bogustime + rno;
+    int *r = bugs + rno;
     int res;
 
     /* Check for byte-swappers */
     while (--rno >= 0) {
-	--n; --p; --b; --s; --t;
-	if (*s || abs(ntohl(n->tr_vifout) - ntohl(p->tr_vifout)) > 100000) {
+	--n; --p; --b;
+	if ((*r & BUG_SWAP) ||
+		abs(ntohl(n->tr_vifout) - ntohl(p->tr_vifout)) > 100000) {
 	    /* This host sends byteswapped reports; swap 'em */
-	    if (!*s) {
-		*s = 1;
+	    if (!(*r & BUG_SWAP)) {
+		*r |= BUG_SWAP;
 		b->tr_qarr = byteswap(b->tr_qarr);
 		b->tr_vifin = byteswap(b->tr_vifin);
 		b->tr_vifout = byteswap(b->tr_vifout);
@@ -1120,9 +1767,9 @@ fixup_stats(base, prev, new)
 	 * Odds are against these particular bit patterns
 	 * happening in both prev and new for actual time values.
 	 */
-	if (*t || ((ntohl(n->tr_qarr) & 0xfeff) == 0x0000) &&
-	    ((ntohl(p->tr_qarr) & 0xfeff) == 0x0000)) {
-	    *t = 1;
+	if ((*r & BUG_BOGUSTIME) || (((ntohl(n->tr_qarr) & 0xfeff) == 0x0000) &&
+	    ((ntohl(p->tr_qarr) & 0xfeff) == 0x0000))) {
+	    *r |= BUG_BOGUSTIME;
 	    n->tr_qarr = new->rtime;
 	    p->tr_qarr = prev->rtime;
 	    b->tr_qarr = base->rtime;
@@ -1133,6 +1780,7 @@ fixup_stats(base, prev, new)
     b = base->resps + rno;
     p = prev->resps + rno;
     n = new->resps + rno;
+    r = bugs + rno;
 
     while (--rno >= 0) {
 	--n; --p; --b; --r;
@@ -1140,8 +1788,8 @@ fixup_stats(base, prev, new)
 	       (ntohl(n->tr_pktcnt) < ntohl(p->tr_pktcnt)));
 	if (debug > 2)
     	    printf("\t\tr=%d, res=%d\n", *r, res);
-	if (*r) {
-	    if (res || *r > 1) {
+	if (*r & BUG_RESET) {
+	    if (res || (*r & BUG_RESET2X)) {
 		/*
 		 * This router appears to be a 3.4 with that nasty ol'
 		 * neighbor version bug, which causes it to constantly
@@ -1150,7 +1798,7 @@ fixup_stats(base, prev, new)
 		 * doubt from now on.
 		 */
 		p->tr_pktcnt = b->tr_pktcnt = n->tr_pktcnt;
-		*r++;
+		*r |= BUG_RESET2X;
 	    } else {
 		/*
 		 * This is simply the situation that the original
@@ -1158,11 +1806,12 @@ fixup_stats(base, prev, new)
 		 * 3.3 or 3.4 router deleted a cache entry while
 		 * traffic was still active.
 		 */
-		*r = 0;
+		*r &= ~BUG_RESET;
 		break;
 	    }
 	} else
-	    *r = res;
+	    if (res)
+		*r |= BUG_RESET;
     }
 
     if (rno < 0) return;
@@ -1178,8 +1827,9 @@ fixup_stats(base, prev, new)
  * Print responses with statistics for forward path (from src to dst)
  */
 int
-print_stats(base, prev, new)
+print_stats(base, prev, new, bugs)
     struct resp_buf *base, *prev, *new;
+    int *bugs;
 {
     int rtt, hop;
     char *ms;
@@ -1188,9 +1838,9 @@ print_stats(base, prev, new)
     struct tr_resp *b = base->resps + rno;
     struct tr_resp *p = prev->resps + rno;
     struct tr_resp *n = new->resps + rno;
-    int *r = reset + rno;
+    int *r = bugs + rno;
     u_long resptime = new->rtime;
-    u_long qarrtime = fixtime(ntohl(n->tr_qarr));
+    u_long qarrtime = fixtime(ntohl(n->tr_qarr), base);
     u_int ttl = n->tr_fttl + 1;
     int first = (base == prev);
 
@@ -1200,20 +1850,22 @@ print_stats(base, prev, new)
 	printf("Packet Statistics For     Only For Traffic\n");
     else
 	printf("Overall     Packet Statistics For Traffic From\n");
-    (void)inet_fmt(qsrc, s1);
+    (void)inet_fmt(base->qhdr.tr_src, s1);
     printf("%-15s %-15s  ",
-	   ((b->tr_inaddr & smask) == (qsrc & smask)) ? s1 : "   * * *       ",
+	   ((b->tr_inaddr & smask) == (base->qhdr.tr_src & smask)) ?
+		s1 : "   * * *       ",
 	   inet_fmt(base->qhdr.tr_raddr, s2));
+    (void)inet_fmt(base->igmp.igmp_group.s_addr, s2);
     if (tunstats)
 	printf("All Multicast Traffic     From %s\n", s1);
     else
-	printf("Packet      %s To %s\n", s1, inet_fmt(qgrp, s2));
+	printf("Packet      %s To %s\n", s1, s2);
     rtt = t_diff(resptime, new->qtime);
     ms = scale(&rtt);
     printf("     %c       __/  rtt%5d%s    ",
 	   (first && !verbose) ? 'v' : '|', rtt, ms);
     if (tunstats)
-	printf("Lost/Sent = Pct  Rate       To %s\n",inet_fmt(qgrp, s2));
+	printf("Lost/Sent = Pct  Rate       To %s\n", s2);
     else
 	printf(" Rate       Lost/Sent = Pct  Rate\n");
     if (!first || verbose) {
@@ -1235,17 +1887,20 @@ print_stats(base, prev, new)
 	printf("\t\t\t\tv_in: %ld ", ntohl(n->tr_vifin) - ntohl(b->tr_vifin));
 	printf("v_out: %ld ", ntohl(n->tr_vifout) - ntohl(b->tr_vifout));
 	printf("pkts: %ld\n", ntohl(n->tr_pktcnt) - ntohl(b->tr_pktcnt));
-	printf("\t\t\t\treset: %d\n", *r);
+	printf("\t\t\t\treset: %x\n", *r);
     }
 
     while (TRUE) {
-	if ((n->tr_inaddr != b->tr_inaddr) || (n->tr_outaddr != b->tr_outaddr))
+	if ((n->tr_inaddr != b->tr_inaddr) ||
+	    (n->tr_outaddr != b->tr_outaddr) ||
+	    (n->tr_rmtaddr != b->tr_rmtaddr))
 	  return 1;		/* Route changed */
 
 	if ((n->tr_inaddr != n->tr_outaddr) && n->tr_inaddr)
 	  printf("%-15s\n", inet_fmt(n->tr_inaddr, s1));
 	printf("%-15s %-14s %s%s\n", inet_fmt(n->tr_outaddr, s1), names[rno],
-		 flag_type(n->tr_rflags), *r ? " [reset counters]" : "");
+		 flag_type(n->tr_rflags),
+		 (*r & BUG_NOPRINT) ? " [reset counters]" : "");
 
 	if (rno-- < 1) break;
 
@@ -1254,7 +1909,7 @@ print_stats(base, prev, new)
 	stat_line(p, n, TRUE, r);
 	if (!first || verbose) {
 	    resptime = qarrtime;
-	    qarrtime = fixtime(ntohl((n-1)->tr_qarr));
+	    qarrtime = fixtime(ntohl((n-1)->tr_qarr), base);
 	    hop = t_diff(resptime, qarrtime);
 	    ms = scale(&hop);
 	    printf("     v     |      hop%5d%s", hop, ms);
@@ -1280,8 +1935,35 @@ print_stats(base, prev, new)
 	else
 	    stat_line(b, n, FALSE, r);
     }
-    printf("%-15s %s\n", inet_fmt(qdst, s1), inet_fmt(lcl_addr, s2));
+    /* lcl_addr is 0 in passive mode, where we don't know the query source. */
+    printf("%-15s %s\n", inet_fmt(base->qhdr.tr_dst, s1),
+			lcl_addr ? inet_fmt(lcl_addr, s2) : "   * * *       ");
     printf("  Receiver      Query Source\n\n");
+    return 0;
+}
+
+/*
+ * Determine whether or not the path has changed.
+ */
+int
+path_changed(base, new)
+    struct resp_buf *base, *new;
+{
+    int rno = base->len - 1;
+    struct tr_resp *b = base->resps + rno;
+    struct tr_resp *n = new->resps + rno;
+
+    while (rno-- >= 0) {
+	if ((n->tr_inaddr != b->tr_inaddr) ||
+	    (n->tr_outaddr != b->tr_outaddr) ||
+	    (n->tr_rmtaddr != b->tr_rmtaddr))
+	  return 1;		/* Route changed */
+	if ((b->tr_rflags == TR_NO_RTE) &&
+	    (n->tr_rflags != TR_NO_RTE))
+	  return 1;		/* Route got longer? */
+	--n;
+	--b;
+    }
     return 0;
 }
 
@@ -1309,6 +1991,7 @@ char *argv[];
     int numstats = 1;
     int waittime;
     int seed;
+    int hopbyhop;
 
     if (geteuid() != 0) {
 	fprintf(stderr, "mtrace: must be root\n");
@@ -1347,11 +2030,39 @@ char *argv[];
 	      case 'U':			/* Use unicast for response */
 		unicast = TRUE;
 		break;
+	      case 'O':			/* Don't use IP options */
+		sendopts = FALSE;
+		break;
+	      case 'P':			/* Just watch the path */
+		printstats = FALSE;
+		numstats = 3153600;
+		break;
 	      case 'T':			/* Print confusing tunnel stats */
 		tunstats = TRUE;
 		break;
 	      case 'W':			/* Cisco's "weak" mtrace */
 		weak = TRUE;
+		break;
+	      case 'V':			/* Print version and exit */
+		{
+		    char *p = strchr(rcsid, ',');
+
+		    while (p && *(p+1) != 'v')
+			p = strchr(p + 1, ',');
+
+		    if (p) {
+			char *q;
+
+			p += 3;		/* , v sp */
+			q = strchr(p, ' ');
+			if (q)
+				*q = '\0';
+			fprintf(stderr, "mtrace version %s\n", p);
+		    } else {
+			fprintf(stderr, "mtrace could not determine version number!?\n");
+		    }
+		    exit(1);
+		}
 		break;
 	      case 'l':			/* Loop updating stats indefinitely */
 		numstats = 3153600;
@@ -1404,6 +2115,14 @@ char *argv[];
 		    qttl = atoi(arg);
 		    if (qttl < 1) qttl = 1;
 		    rttl = qttl;
+		    if (arg == argv[0]) argv++, argc--;
+		    break;
+		} else
+		    goto usage;
+	      case 'e':			/* Extra hops past non-responder */
+		if (arg && isdigit(*arg)) {
+		    extrahops = atoi(arg);
+		    if (extrahops < 0) extrahops = 0;
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
@@ -1482,9 +2201,11 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     if (qgrp == 0) {
 	if (!weak)
 	    qgrp = defgrp;
-	/* Stats are useless without a group */
-	fprintf(stderr, "mtrace: WARNING: no multicast group specified, so no statistics printed\n");
-	numstats = 0;
+	if (printstats && numstats != 0 && !tunstats) {
+	    /* Stats are useless without a group */
+	    fprintf(stderr, "mtrace: WARNING: no multicast group specified, so no statistics printed\n");
+	    numstats = 0;
+	}
     } else {
 	if (weak)
 	    fprintf(stderr, "mtrace: WARNING: group was specified so not performing \"weak\" mtrace\n");
@@ -1542,8 +2263,13 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
      * When gateway specified, default destination is that gateway
      *  and default source is local host.
      */
-    if (qdst == 0)
-	qdst = gwy ? gwy : (lcl_addr ? lcl_addr : addr.sin_addr.s_addr);
+    if (qdst == 0) {
+	qdst = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
+	dst_netmask = get_netmask(udp, qdst);
+	if (gwy && (gwy & dst_netmask) != (qdst & dst_netmask) &&
+		!IN_MULTICAST(ntohl(gwy)))
+	    qdst = gwy;
+    }
     if (qsrc == 0 && gwy)
 	qsrc = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
     if (qsrc == 0)
@@ -1602,15 +2328,6 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	if (IN_MULTICAST(ntohl(raddr))) k_join(raddr, lcl_addr);
     } else k_join(resp_cast, lcl_addr);
 
-    restart:
-
-    /*
-     * Zero out bug-avoidance counters
-     */
-    memset(reset, 0, sizeof(reset));
-    memset(swaps, 0, sizeof(swaps));
-    memset(bogustime, 0, sizeof(bogustime));
-
     memset(&base, 0, sizeof(base));
 
     /*
@@ -1657,11 +2374,12 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     /*
      * If the initial query was successful, print it.  Otherwise, if
      * the query max hop count is the default of zero, loop starting
-     * from one until there is no response for four hops.  The extra
-     * hops allow getting past an mtrace-capable mrouter that can't
+     * from one until there is no response for extrahops more hops.  The
+     * extra hops allow getting past an mtrace-capable mrouter that can't
      * send multicast packets because all phyints are disabled.
      */
     if (recvlen) {
+	hopbyhop = FALSE;
 	printf("\n  0  ");
 	print_host(qdst);
 	printf("\n");
@@ -1682,6 +2400,7 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	    }
 	}
     } else if (qno == 0) {
+	hopbyhop = TRUE;
 	printf("switching to hop-by-hop:\n  0  ");
 	print_host(qdst);
 	printf("\n");
@@ -1712,7 +2431,9 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 			 * not-responding router is the first-hop. */
 			break;
 		    }
-		} else if (hops < nexthop + 3) {
+		    if (extrahops == 0)
+			break;
+		} else if (hops < nexthop + extrahops) {
 		    printf("\n");
 		} else {
 		    printf("...giving up\n");
@@ -1720,7 +2441,6 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 		}
 		continue;
 	    }
-	    r = base.resps + base.len - 1;
 	    if (base.len == hops &&
 		(hops == 1 || (base.resps+nexthop-2)->tr_outaddr == lastout)) {
 	    	if (hops == nexthop) {
@@ -1762,6 +2482,8 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 		    print_trace(1, &base);
 		}
 	    }
+continuehop:
+	    r = base.resps + base.len - 1;
 	    lastout = r->tr_outaddr;
 
 	    if (base.len < hops ||
@@ -1828,14 +2550,23 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
     prev = &base;
     new = &incr[numstats&1];
 
+    /*
+     * Zero out bug-avoidance counters
+     */
+    memset(bugs, 0, sizeof(bugs));
+
+    if (!printstats)
+	printf("Monitoring path..");
+
     while (numstats--) {
 	if (waittime < 1) printf("\n");
 	else {
-	    printf("Waiting to accumulate statistics... ");
+	    printf("%s", printstats ? "Waiting to accumulate statistics... "
+				    : ".");
 	    fflush(stdout);
 	    sleep((unsigned)waittime);
 	}
-	rno = base.len;
+	rno = hopbyhop ? base.len : qno ? qno : MAXHOPS;
 	recvlen = send_recv(tdst, IGMP_MTRACE, rno, nqueries, new);
 
 	if (recvlen == 0) {
@@ -1847,31 +2578,31 @@ or multicast at ttl %d doesn't reach its last-hop router for that source\n",
 		exit(1);
 	}
 
-	if (rno != new->len) {
-	    printf("Trace length doesn't match:\n");
-	    /*
-	     * XXX Should this trace result be printed, or is that
-	     * too verbose?  Perhaps it should just say restarting.
-	     * But if the path is changing quickly, this may be the
-	     * only snapshot of the current path.  But, if the path
-	     * is changing that quickly, does the current path really
-	     * matter?
-	     */
+	if (base.len != new->len || path_changed(&base, new)) {
+	    printf("%s", base.len == new->len ? "Route changed" :
+					"Trace length doesn't match");
+	    if (!printstats)
+		printf(" after %d seconds",
+		   (int)((new->qtime - base.qtime) >> 16));
+	    printf(":\n");
+printandcontinue:
 	    print_trace(1, new);
-	    printf("Restarting.\n\n");
 	    numstats++;
-	    goto restart;
+	    bcopy(new, &base, sizeof(base));
+	    nexthop = hops = new->len;
+	    printf("Continuing with hop-by-hop...\n");
+	    goto continuehop;
 	}
 
-	printf("Results after %d seconds:\n\n",
-	       (int)((new->qtime - base.qtime) >> 16));
-	fixup_stats(&base, prev, new);
-	if (print_stats(&base, prev, new)) {
-	    printf("Route changed:\n");
-	    print_trace(1, new);
-	    printf("Restarting.\n\n");
-	    numstats++;
-	    goto restart;
+	if (printstats) {
+	    printf("Results after %d seconds:\n\n",
+		   (int)((new->qtime - base.qtime) >> 16));
+	    fixup_stats(&base, prev, new, bugs);
+	    if (print_stats(&base, prev, new, bugs)) {
+		printf("This should have been detected earlier, but ");
+		printf("Route changed:\n");
+		goto printandcontinue;
+	    }
 	}
 	prev = new;
 	new = &incr[numstats&1];
@@ -1932,7 +2663,7 @@ log(severity, syserr, format, va_alist)
 	    vfprintf(stderr, fmt, ap);
 	    if (syserr == 0)
 		fprintf(stderr, "\n");
-	    else if(syserr < sys_nerr)
+	    else if (syserr < sys_nerr)
 		fprintf(stderr, ": %s\n", sys_errlist[syserr]);
 	    else
 		fprintf(stderr, ": errno %d\n", syserr);
