@@ -237,7 +237,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     /*
      * Lock no longer needed
      */
-    VOP_UNLOCK(vp, p);
+    VOP_UNLOCK(vp, 0, p);
     locked = 0;
 
     /*
@@ -392,7 +392,7 @@ cleanup:
      * Unlock vnode if needed
      */
     if (locked)
-	VOP_UNLOCK(vp, p);
+	VOP_UNLOCK(vp, 0, p);
 
     /*
      * Release the kernel mapping.

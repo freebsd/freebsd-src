@@ -462,8 +462,7 @@ again:
     auio.uio_resid = buflen;
     auio.uio_offset = off - (off_t)blockoff;
 
-    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, (int *) NULL,
-			(u_int **) NULL);
+    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL);
     if (error) {
 	goto out;
     }
@@ -530,7 +529,7 @@ again:
 eof:
     *retval = nbytes - resid;
 out:
-    VOP_UNLOCK(vp, p);
+    VOP_UNLOCK(vp, 0, p);
     free(buf, M_TEMP);
     return error;
 }
