@@ -86,12 +86,12 @@ typedef struct acl	*acl_t;
 /*
  * Possible flags in ae_perm field.
  */
-#define	ACL_PERM_EXEC	0x0001
-#define	ACL_PERM_WRITE	0x0002
-#define	ACL_PERM_READ	0x0004
-#define	ACL_PERM_NONE	0x0000
-#define	ACL_PERM_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
-#define	ACL_POSIX1E_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
+#define	ACL_EXECUTE		0x0001
+#define	ACL_WRITE		0x0002
+#define	ACL_READ		0x0004
+#define	ACL_PERM_NONE		0x0000
+#define	ACL_PERM_BITS		(ACL_EXECUTE | ACL_WRITE | ACL_READ)
+#define	ACL_POSIX1E_BITS	(ACL_EXECUTE | ACL_WRITE | ACL_READ)
 
 #ifdef _KERNEL
 
