@@ -9,10 +9,11 @@
  */
 
 #include "cvs.h"
+#include "save-cwd.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)recurse.c 1.31 94/09/30 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)recurse.c 1.31 94/09/30 $";
+USE(rcsid);
 #endif
 
 static int do_dir_proc PROTO((Node * p, void *closure));
@@ -25,10 +26,10 @@ static void addfile PROTO((List **listp, char *dir, char *file));
 /*
  * Local static versions eliminates the need for globals
  */
-static int (*fileproc) ();
-static int (*filesdoneproc) ();
-static Dtype (*direntproc) ();
-static int (*dirleaveproc) ();
+static FILEPROC fileproc;
+static FILESDONEPROC filesdoneproc;
+static DIRENTPROC direntproc;
+static DIRLEAVEPROC dirleaveproc;
 static int which;
 static Dtype flags;
 static int aflag;
@@ -43,10 +44,10 @@ static List *filelist = NULL; /* holds list of files on which to operate */
 static List *dirlist = NULL; /* holds list of directories on which to operate */
 
 struct recursion_frame {
-  int (*fileproc)();
-  int (*filesdoneproc) ();
-  Dtype (*direntproc) ();
-  int (*dirleaveproc) ();
+  FILEPROC fileproc;
+  FILESDONEPROC filesdoneproc;
+  DIRENTPROC direntproc;
+  DIRLEAVEPROC dirleaveproc;
   Dtype flags;
   int which;
   int aflag;
@@ -61,18 +62,18 @@ struct recursion_frame {
  * we operate.  In the special case of no arguments, we default to
  * ".".
  *
- * The general algorythm is as follows.
+ * The general algorithm is as follows.
  */
 int
 start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 		 argc, argv, local, which, aflag, readlock,
 		 update_preload, dosrcs, wd_is_repos)
-    int (*fileproc) ();
-    int (*filesdoneproc) ();
-    Dtype (*direntproc) ();
-    int (*dirleaveproc) ();
+    FILEPROC fileproc;
+    FILESDONEPROC filesdoneproc;
+    DIRENTPROC 	direntproc;
+    DIRLEAVEPROC dirleaveproc;
     int argc;
-    char *argv[];
+    char **argv;
     int local;
     int which;
     int aflag;
@@ -103,7 +104,10 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 	repository = (char *) NULL;
     }
     if (entries)
-	dellist (&entries);
+    {
+	Entries_Close (entries);
+	entries = NULL;
+    }
     if (srcfiles)
 	dellist (&srcfiles);
     if (filelist)
@@ -122,7 +126,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 	 * process each of the sub-directories, so we pretend like we were
 	 * called with the list of sub-dirs of the current dir as args
 	 */
-	if ((which & W_LOCAL) && !isdir (CVSADM) && !isdir (OCVSADM))
+	if ((which & W_LOCAL) && !isdir (CVSADM))
 	    dirlist = Find_Dirs ((char *) NULL, W_LOCAL);
 	else
 	    addlist (&dirlist, ".");
@@ -151,7 +155,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 	/* if this argument is a directory, then add it to the list of
 	   directories. */
 
-	if (isdir(argv[i]))
+	if (!wrap_name_has (argv[i], WRAP_TOCVS) && isdir (argv[i]))
 	    addlist (&dirlist, argv[i]);
 	else
 	{
@@ -192,7 +196,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 		addfile (&files_by_dir, dir, comp);
 	    else if (isdir (dir))
 	    {
-		if (isdir (CVSADM) || isdir (OCVSADM))
+		if (isdir (CVSADM))
 		{
 		    /* otherwise, look for it in the repository. */
 		    char *save_update_dir;
@@ -209,8 +213,9 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 		    /* look for it in the repository. */
 		    repos = Name_Repository (dir, update_dir);
 		    (void) sprintf (tmp, "%s/%s", repos, comp);
-		
-		    if (isdir(tmp))
+		    free (repos);
+
+		    if (!wrap_name_has (comp, WRAP_TOCVS) && isdir(tmp))
 			addlist (&dirlist, argv[i]);
 		    else
 			addfile (&files_by_dir, dir, comp);
@@ -262,10 +267,10 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 int
 do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
 	      xflags, xwhich, xaflag, xreadlock, xdosrcs)
-    int (*xfileproc) ();
-    int (*xfilesdoneproc) ();
-    Dtype (*xdirentproc) ();
-    int (*xdirleaveproc) ();
+    FILEPROC xfileproc;
+    FILESDONEPROC xfilesdoneproc;
+    DIRENTPROC xdirentproc;
+    DIRLEAVEPROC xdirleaveproc;
     Dtype xflags;
     int xwhich;
     int xaflag;
@@ -291,12 +296,24 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
     readlock = noexec ? 0 : xreadlock;
     dosrcs = xdosrcs;
 
+#if defined(SERVER_SUPPORT) && defined(SERVER_FLOWCONTROL)
+    /*
+     * Now would be a good time to check to see if we need to stop
+     * generating data, to give the buffers a chance to drain to the
+     * remote client.  We should not have locks active at this point.
+     */
+    if (server_active
+	/* If there are writelocks around, we cannot pause here.  */
+	&& (readlock || noexec))
+	server_pause_check();
+#endif
+
     /*
      * Fill in repository with the current repository
      */
     if (which & W_LOCAL)
     {
-	if (isdir (CVSADM) || isdir (OCVSADM))
+	if (isdir (CVSADM))
 	    repository = Name_Repository ((char *) NULL, update_dir);
 	else
 	    repository = NULL;
@@ -350,7 +367,7 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
 	{
 	    /* we will process files, so pre-parse entries */
 	    if (which & W_LOCAL)
-		entries = ParseEntries (aflag);
+		entries = Entries_Open (aflag);
 	}
     }
 
@@ -377,7 +394,8 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
 	/* clean up */
 	dellist (&filelist);
 	dellist (&srcfiles);
-	dellist (&entries);
+	Entries_Close (entries);
+	entries = NULL;
     }
 
     /* call-back files done proc (if any) */
@@ -396,7 +414,7 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
     /* free the saved copy of the pointer if necessary */
     if (srepository)
     {
-	(void) free (srepository);
+	free (srepository);
 	repository = (char *) NULL;
     }
 
@@ -426,7 +444,6 @@ do_dir_proc (p, closure)
     void *closure;
 {
     char *dir = p->key;
-    char savewd[PATH_MAX];
     char newrepos[PATH_MAX];
     List *sdirlist;
     char *srepository;
@@ -434,6 +451,7 @@ do_dir_proc (p, closure)
     Dtype dir_return = R_PROCESS;
     int stripped_dot = 0;
     int err = 0;
+    struct saved_cwd cwd;
 
     /* set up update_dir - skip dots if not at start */
     if (strcmp (dir, ".") != 0)
@@ -477,8 +495,8 @@ do_dir_proc (p, closure)
     if (dir_return != R_SKIP_ALL)
     {
 	/* save our current directory and static vars */
-	if (getwd (savewd) == NULL)
-	    error (1, 0, "could not get working directory: %s", savewd);
+        if (save_cwd (&cwd))
+	    exit (1);
 	sdirlist = dirlist;
 	srepository = repository;
 	dirlist = NULL;
@@ -511,8 +529,9 @@ do_dir_proc (p, closure)
 	    err = dirleaveproc (dir, err, update_dir);
 
 	/* get back to where we started and restore state vars */
-	if (chdir (savewd) < 0)
-	    error (1, errno, "could not chdir to %s", savewd);
+	if (restore_cwd (&cwd, NULL))
+	    exit (1);
+	free_cwd (&cwd);
 	dirlist = sdirlist;
 	repository = srepository;
     }
@@ -554,7 +573,7 @@ addfile (listp, dir, file)
     Node *n;
 
     /* add this dir. */
-    (void) addlist (listp, dir);
+    addlist (listp, dir);
 
     n = findnode (*listp, dir);
     if (n == NULL)
@@ -577,8 +596,8 @@ unroll_files_proc (p, closure)
     struct recursion_frame *frame = (struct recursion_frame *) closure;
     int err = 0;
     List *save_dirlist;
-    char savewd[PATH_MAX];
     char *save_update_dir = NULL;
+    struct saved_cwd cwd;
 
     /* if this dir was also an explicitly named argument, then skip
        it.  We'll catch it later when we do dirs. */
@@ -593,9 +612,8 @@ unroll_files_proc (p, closure)
 
     if (strcmp(p->key, ".") != 0)
     {
-	if (getwd (savewd) == NULL)
-	    error (1, 0, "could not get working directory: %s", savewd);
-
+        if (save_cwd (&cwd))
+	    exit (1);
 	if (chdir (p->key) < 0)
 	    error (1, errno, "could not chdir to %s", p->key);
 
@@ -617,8 +635,9 @@ unroll_files_proc (p, closure)
 	(void) strcpy (update_dir, save_update_dir);
 	free (save_update_dir);
 
-	if (chdir (savewd) < 0)
-	    error (1, errno, "could not chdir to %s", savewd);
+	if (restore_cwd (&cwd, NULL))
+	    exit (1);
+	free_cwd (&cwd);
     }
 
     dirlist = save_dirlist;

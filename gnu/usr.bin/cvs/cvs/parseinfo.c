@@ -9,20 +9,22 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)parseinfo.c 1.18 94/09/23 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)parseinfo.c 1.18 94/09/23 $";
+USE(rcsid);
 #endif
 
 /*
  * Parse the INFOFILE file for the specified REPOSITORY.  Invoke CALLPROC for
- * each line in the file that matches the REPOSITORY.  
+ * the first line in the file that matches the REPOSITORY, or if ALL != 0, any lines
+ * matching "ALL", or if no lines match, the last line matching "DEFAULT".
+ *
  * Return 0 for success, -1 if there was not an INFOFILE, and >0 for failure.
  */
 int
 Parse_Info (infofile, repository, callproc, all)
     char *infofile;
     char *repository;
-    int (*callproc) ();
+    CALLPROC callproc;
     int all;
 {
     int err = 0;
@@ -30,9 +32,10 @@ Parse_Info (infofile, repository, callproc, all)
     char infopath[PATH_MAX];
     char line[MAXLINELEN];
     char *default_value = NULL;
+    char *expanded_value= NULL;
     int callback_done, line_number;
     char *cp, *exp, *value, *srepos;
-    CONST char *regex_err;
+    const char *regex_err;
 
     if (CVSroot == NULL)
     {
@@ -49,6 +52,10 @@ Parse_Info (infofile, repository, callproc, all)
 
     /* strip off the CVSROOT if repository was absolute */
     srepos = Short_Repository (repository);
+
+    if (trace)
+	(void) fprintf (stderr, "-> ParseInfo(%s, %s, %s)\n",
+			infopath, srepos, all ? "ALL" : "not ALL");
 
     /* search the info file for lines that match */
     callback_done = line_number = 0;
@@ -91,6 +98,16 @@ Parse_Info (infofile, repository, callproc, all)
 	if ((cp = strrchr (value, '\n')) != NULL)
 	    *cp = '\0';
 
+	expanded_value = expand_path (value);
+	if (!expanded_value)
+	{
+	    error (0, 0,
+		   "Invalid environmental variable at line %d in file %s",
+		   line_number, infofile);
+	    continue;
+
+	}
+
 	/*
 	 * At this point, exp points to the regular expression, and value
 	 * points to the value to call the callback routine with.  Evaluate
@@ -101,24 +118,28 @@ Parse_Info (infofile, repository, callproc, all)
 	/* save the default value so we have it later if we need it */
 	if (strcmp (exp, "DEFAULT") == 0)
 	{
-	    default_value = xstrdup (value);
+	    default_value = xstrdup (expanded_value);
 	    continue;
 	}
 
 	/*
 	 * For a regular expression of "ALL", do the callback always We may
-	 * execute lots of ALL callbacks in addition to one regular matching
+	 * execute lots of ALL callbacks in addition to *one* regular matching
 	 * callback or default
 	 */
 	if (strcmp (exp, "ALL") == 0)
 	{
 	    if (all)
-		err += callproc (repository, value);
+		err += callproc (repository, expanded_value);
 	    else
 		error(0, 0, "Keyword `ALL' is ignored at line %d in %s file",
 		      line_number, infofile);
 	    continue;
 	}
+
+	if (callback_done)
+	    /* only first matching, plus "ALL"'s */
+	    continue;
 
 	/* see if the repository matched this regular expression */
 	if ((regex_err = re_comp (exp)) != NULL)
@@ -128,10 +149,10 @@ Parse_Info (infofile, repository, callproc, all)
 	    continue;
 	}
 	if (re_exec (srepos) == 0)
-	    continue;			/* no match */
+	    continue;				/* no match */
 
 	/* it did, so do the callback and note that we did one */
-	err += callproc (repository, value);
+	err += callproc (repository, expanded_value);
 	callback_done = 1;
     }
     (void) fclose (fp_info);
@@ -143,6 +164,8 @@ Parse_Info (infofile, repository, callproc, all)
     /* free up space if necessary */
     if (default_value != NULL)
 	free (default_value);
+    if (expanded_value != NULL)
+	free (expanded_value);
 
     return (err);
 }
