@@ -34,7 +34,7 @@
 #include "kuser_locl.h"
 #include "rtbl.h"
 
-RCSID("$Id: klist.c,v 1.67 2002/08/20 09:05:18 joda Exp $");
+RCSID("$Id: klist.c,v 1.67.2.1 2002/10/21 14:31:27 joda Exp $");
 
 static char*
 printable_time(time_t t)
@@ -496,7 +496,7 @@ display_tokens(int do_verbose)
 		break;
 	    continue;
 	}
-	if(parms.out_size >= sizeof(t))
+	if(parms.out_size > sizeof(t))
 	    continue;
 	if(parms.out_size < sizeof(size_secret_tok))
 	    continue;

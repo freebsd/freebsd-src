@@ -1,3 +1,17 @@
+Changes in release 0.5.1
+
+ * kadmind: fix remote exploit
+
+ * kadmind: add option to disable kerberos 4
+
+ * kdc: make sure kaserver token life is positive
+
+ * telnet: use the session key if there is no subkey
+
+ * fix EPSV parsing in ftp
+
+ * other bug fixes
+
 Changes in release 0.5
 
  * add --detach option to kdc
