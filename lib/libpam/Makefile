@@ -24,7 +24,8 @@
 #
 #	$FreeBSD$
 
-SUBDIR+=	libpam
-SUBDIR+=	modules
+# The modules must be built first, because they are built into the
+# static version of libpam.
+SUBDIR+=	modules libpam
 
 .include <bsd.subdir.mk>

@@ -26,17 +26,16 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_kerberosIV.so
+LIB=		pam_kerberosIV
+SHLIB_NAME=	pam_kerberosIV.so
 SRCS=		pam_kerberosIV.c klogin.c
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 CFLAGS+=	-DKERBEROS
-LDFLAGS+=	-shared
-LDFLAGS+=	-L../../libpam
 DPADD+=		${LIBKRB} ${LIBDES} ${LIBGCC_PIC}
-LDADD+=		-lpam -lkrb -ldes -lgcc_pic
-NOMAN=		true
+LDADD+=		-lkrb -ldes -lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

@@ -19,43 +19,24 @@
  *
  */
 
-/* This whole file is only used for PAM_STATIC */
-
-#ifdef PAM_STATIC
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "pam_private.h"
 
-/*
- * Need to include pointers to static modules; this was built by each
- * of the modules that register...
- */
+/* This whole file is only used for PAM_STATIC */
 
-#include "../modules/_static_module_list"
+#ifdef PAM_STATIC
 
-/*
- * and here is a structure that connects libpam to the above static
- * modules
- */
-
-static struct pam_module *static_modules[] = {
-
-#include "../modules/_static_module_entry"
-
-    NULL
-};
-
-/*
- * and now for the functions
- */
+extern struct linker_set _pam_static_modules;
 
 /* Return pointer to data structure used to define a static module */
 struct pam_module * _pam_open_static_handler(char *path) {
     int i;
     char *lpath = path, *end;
+    struct pam_module **static_modules =
+	(struct pam_module **)_pam_static_modules.ls_items;
 
     if (strchr(lpath, '/')) {
         /* ignore path and leading "/" */
@@ -77,11 +58,6 @@ struct pam_module * _pam_open_static_handler(char *path) {
 	    ! strcmp(static_modules[i]->name, lpath)) {
 	    break;
 	}
-    }
-
-    if (static_modules[i] == NULL) {
-	pam_system_log(pamh, NULL, LOG_ERR, "no static module named %s",
-		       lpath);
     }
 
     free(lpath);
