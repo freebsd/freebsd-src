@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.14 1994/08/31 23:36:56 se Exp $
+ *	$Id: autoconf.c,v 1.15 1994/10/22 17:51:45 phk Exp $
  */
 
 /*
@@ -67,6 +67,14 @@ static void setroot(void);
 int	dkn;		/* number of iostat dk numbers assigned so far */
 extern int	cold;		/* cold start flag initialized in locore.s */
 
+extern int (*mountroot) __P((void));
+#ifdef FFS
+int ffs_mountroot __P((void));
+#endif
+#ifdef NFS
+int nfs_mountroot __P((void));
+#endif
+
 /*
  * Determine i/o configuration for a machine.
  */
@@ -84,26 +92,23 @@ configure()
 	pci_configure();
 #endif
 
-#if GENERICxxx 
-	if ((boothowto & RB_ASKNAME) == 0)
-		setroot();
-	setconf();
-#else
-#  ifdef NFS
+#ifdef NFS
 	{
 	extern int nfs_diskless_valid;
 
-	extern int (*mountroot) __P((void));
-	extern int nfs_mountroot(void);
 	if (nfs_diskless_valid)
 		mountroot = nfs_mountroot;
-	else
+	}
+#endif /* NFS */
+#ifdef FFS
+	if (!mountroot) {
+		mountroot = ffs_mountroot;
 		setroot();
 	}
-#  else /* !NFS */
-	setroot();
-#  endif /* NFS */
 #endif
+	if (!mountroot) {
+		panic("Nobody wants to mount my root for me");
+	}
 	/*
 	 * Configure swap area and related system
 	 * parameter based on device(s) used.
