@@ -216,7 +216,7 @@ sithd_loop(void *dummy)
 					continue;
 				ih->ih_need = 0;
 				CTR5(KTR_INTR,
-				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
+				    "sithd_loop pid %d ih=%p: %p(%p) flg=%x",
 				    p->p_pid, (void *)ih,
 				    (void *)ih->ih_handler, ih->ih_argument,
 				    ih->ih_flags);
