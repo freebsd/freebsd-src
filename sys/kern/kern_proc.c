@@ -428,9 +428,10 @@ fill_kinfo_proc(p, kp)
 		kp->ki_uid = p->p_ucred->cr_uid;
 		kp->ki_ruid = p->p_ucred->cr_ruid;
 		kp->ki_svuid = p->p_ucred->cr_svuid;
-		kp->ki_ngroups = p->p_ucred->cr_ngroups;
+		/* XXX bde doesn't like KI_NGROUPS */
+		kp->ki_ngroups = min(p->p_ucred->cr_ngroups, KI_NGROUPS);
 		bcopy(p->p_ucred->cr_groups, kp->ki_groups,
-		    KI_NGROUPS * sizeof(gid_t));
+		    kp->ki_ngroups * sizeof(gid_t));
 		kp->ki_rgid = p->p_ucred->cr_rgid;
 		kp->ki_svgid = p->p_ucred->cr_svgid;
 	}
