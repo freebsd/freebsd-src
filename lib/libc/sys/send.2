@@ -181,6 +181,8 @@ This generally indicates that the interface has stopped sending,
 but may be caused by transient congestion.
 .It Bq Er EHOSTUNREACH
 The remote host was unreachable.
+.It Bq Er EISCONN
+A destination address was specified and the socket is already connected.
 .It Bq Er ECONNREFUSED
 The socket received an ICMP destination unreachable message
 from the last message sent.
