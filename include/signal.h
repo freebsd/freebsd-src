@@ -65,23 +65,6 @@ int	sigpending __P((sigset_t *));
 int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
 
-#ifdef _POSIX4_VISIBLE_HISTORICALLY
-
-/* Async event notification */
-
-union sigval {
-	int	sival_int;
-	void	*sival_ptr;
-};
-struct sigevent {
-	int	sigev_notify;		/* Notification type */
-	int	sigev_signo;		/* Signal number */
-	union sigval sigev_value;	/* Signal value */
-};
-#define	SIGEV_NONE	0		/* No async notification */
-#define	SIGEV_SIGNAL	1		/* Queue signal with value */
-
-#endif /* _POSIX4_VISIBLE_HISTORICALLY */
 
 #ifdef _POSIX4_VISIBLE
 
