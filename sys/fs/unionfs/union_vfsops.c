@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.26 1998/02/10 08:04:31 kato Exp $
+ * $Id: union_vfsops.c,v 1.27 1998/03/01 22:46:25 msmith Exp $
  */
 
 /*
@@ -237,7 +237,7 @@ union_mount(mp, path, data, ndp, p)
 	/*
 	 * Copy in the upper layer's RDONLY flag.  This is for the benefit
 	 * of lookup() which explicitly checks the flag, rather than asking
-	 * the filesystem for it's own opinion.  This means, that an update
+	 * the filesystem for its own opinion.  This means, that an update
 	 * mount of the underlying filesystem to go from rdonly to rdwr
 	 * will leave the unioned view as read-only.
 	 */

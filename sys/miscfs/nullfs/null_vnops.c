@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.25 1997/10/21 21:01:34 roberto Exp $
+ *	$Id: null_vnops.c,v 1.26 1998/01/31 07:23:13 eivind Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.25 1997/10/21 21:01:34 roberto Exp $
+ * $Id: null_vnops.c,v 1.26 1998/01/31 07:23:13 eivind Exp $
  */
 
 /*
@@ -53,7 +53,7 @@
  * name space under a new name.  In this respect, it is
  * similar to the loopback file system.  It differs from
  * the loopback fs in two respects:  it is implemented using
- * a stackable layers techniques, and it's "null-node"s stack above
+ * a stackable layers techniques, and its "null-node"s stack above
  * all lower-layer vnodes, not just over directory vnodes.
  *
  * The null layer has two purposes.  First, it serves as a demonstration

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.3 1998/02/06 12:13:04 eivind Exp $
+ *      $Id: busdma_machdep.c,v 1.4 1998/02/20 13:11:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
-			 * since we have encapsulated all of it's information
+			 * since we have encapsulated all of its information
 			 */
 			newtag->filter = parent->filter;
 			newtag->filterarg = parent->filterarg;

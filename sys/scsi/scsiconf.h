@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.57 1997/09/21 22:03:10 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.58 1997/12/23 19:44:40 brian Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -42,7 +42,7 @@ typedef	int			errval;
  * each individual scsi bus has an array that points to all the scsi_link
  *    structs associated with that scsi bus. Slots with no device have
  *    a NULL pointer.
- * each individual device also knows the address of it's own scsi_link
+ * each individual device also knows the address of its own scsi_link
  *    structure.
  *
  *				-------------

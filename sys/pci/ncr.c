@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.115 1998/02/09 06:10:56 eivind Exp $
+**  $Id: ncr.c,v 1.116 1998/03/30 09:55:09 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1342,7 +1342,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.115 1998/02/09 06:10:56 eivind Exp $\n";
+	"\n$Id: ncr.c,v 1.116 1998/03/30 09:55:09 phk Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5148,7 +5148,7 @@ static void ncr_getsync(ncb_p np, u_char sfac, u_char *fakp, u_char *scntl3p)
 
 /*==========================================================
 **
-**	Switch sync mode for current job and it's target
+**	Switch sync mode for current job and its target
 **
 **==========================================================
 */
@@ -5229,7 +5229,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char scntl3, u_char sxfer)
 
 /*==========================================================
 **
-**	Switch wide mode for current job and it's target
+**	Switch wide mode for current job and its target
 **	SCSI specs say: a SCSI device that accepts a WDTR 
 **	message shall reset the synchronous agreement to 
 **	asynchronous mode.

@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.60 1997/08/21 19:46:13 bde Exp $
+ *      $Id: aha1742.c,v 1.61 1997/09/21 21:35:21 gibbs Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
@@ -670,7 +670,7 @@ ahb_bus_attach(ahb)
 
 /*
  * Return some information to the caller about
- * the adapter and it's capabilities
+ * the adapter and its capabilities
  */
 static u_int32_t
 ahb_adapter_info(unit)
@@ -1051,7 +1051,7 @@ ahb_scsi_cmd(xs)
 	ecb->xs = xs;
 	/*
 	 * If it's a reset, we need to do an 'immediate'
-	 * command, and store it's ecb for later
+	 * command, and store its ecb for later
 	 * if there is already an immediate waiting,
 	 * then WE must wait
 	 */

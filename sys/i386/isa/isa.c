@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.110 1998/02/04 22:32:21 eivind Exp $
+ *	$Id: isa.c,v 1.111 1998/02/06 12:13:17 eivind Exp $
  */
 
 /*
@@ -652,7 +652,7 @@ isa_dmainit(chan, bouncebufsize)
 
 /*
  * Register a DMA channel's usage.  Usually called from a device driver
- * in open() or during it's initialization.
+ * in open() or during its initialization.
  */
 int
 isa_dma_acquire(chan)
@@ -675,7 +675,7 @@ isa_dma_acquire(chan)
 
 /*
  * Unregister a DMA channel's usage.  Usually called from a device driver
- * during close() or during it's shutdown.
+ * during close() or during its shutdown.
  */
 void
 isa_dma_release(chan)

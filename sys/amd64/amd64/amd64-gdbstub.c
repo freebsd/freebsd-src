@@ -3,7 +3,7 @@
 		THIS SOFTWARE IS NOT COPYRIGHTED
 
    HP offers the following for use in the public domain.  HP makes no
-   warranty with regard to the software or it's performance and the
+   warranty with regard to the software or its performance and the
    user accepts the software "AS IS" with all faults.
 
    HP DISCLAIMS ANY WARRANTIES, EXPRESS OR IMPLIED, WITH REGARD
@@ -47,7 +47,7 @@
  *
  *  Because gdb will sometimes write to the stack area to execute function
  *  calls, this program cannot rely on using the supervisor stack so it
- *  uses it's own stack area reserved in the int array remcomStack.
+ *  uses its own stack area reserved in the int array remcomStack.
  *
  *************
  *

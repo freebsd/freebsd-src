@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.48 1998/02/06 12:13:48 eivind Exp $
+ *	$Id: route.c,v 1.49 1998/02/09 06:09:59 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -495,7 +495,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		/*
 		 * Remove any external references we may have.
 		 * This might result in another rtentry being freed if
-		 * we held it's last reference.
+		 * we held its last reference.
 		 */
 		if (rt->rt_gwroute) {
 			rt = rt->rt_gwroute;
@@ -1050,7 +1050,7 @@ rtinit(ifa, cmd, flags)
 			ifa->ifa_refcnt++;
 			/*
 			 * Now ask the protocol to check if it needs
-			 * any special processing in it's new form.
+			 * any special processing in its new form.
 			 */
 			if (ifa->ifa_rtrequest)
 			    ifa->ifa_rtrequest(RTM_ADD, rt, SA(0));

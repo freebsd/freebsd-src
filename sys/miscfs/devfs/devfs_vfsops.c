@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.26 1998/01/02 07:31:06 julian Exp $
+ *	$Id: devfs_vfsops.c,v 1.27 1998/03/01 22:46:08 msmith Exp $
  *
  */
 
@@ -80,7 +80,7 @@ devfs_init(struct vfsconf *vfsp)
  *  ndp  - namei data pointer
  *  p    - proc pointer
  * devfs is special in that it doesn't require any device to be mounted..
- * It makes up it's data as it goes along.
+ * It makes up its data as it goes along.
  * it must be mounted during single user.. until it is, only std{in/out/err}
  * and the root filesystem are available.
  */

@@ -793,7 +793,7 @@ Return:   WordIO_t: I/O address of a channel's TxRx Data register
 
 /***************************************************************************
 Function: sInitChanDefaults
-Purpose:  Initialize a channel structure to it's default state.
+Purpose:  Initialize a channel structure to its default state.
 Call:	  sInitChanDefaults(ChP)
 	  CHANNEL_T *ChP; Ptr to the channel structure
 Comments: This function must be called once for every channel structure

@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.35 1997/09/07 04:21:20 bde Exp $
+ *  $Id: ft.c,v 1.36 1997/09/21 21:41:02 gibbs Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -34,7 +34,7 @@
  *  Got rid of the hard coded device selection.  Moved (some of) the
  *  static variables into a structure for support of multiple devices.
  *  ( still has a way to go for 2 controllers - but closer )
- *  Changed the interface with fd.c so we no longer 'steal' it's
+ *  Changed the interface with fd.c so we no longer 'steal' its
  *  driver routine vectors.
  *
  *  10/30/93 v0.3
