@@ -8,17 +8,19 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
+.if !defined(PROG_CXX)
 CSTD		?=	c99
-.if ${CSTD} == "k&r"
+. if ${CSTD} == "k&r"
 CFLAGS		+=	-traditional
-.elif ${CSTD} == "c89" || ${CSTD} == "c90"
+. elif ${CSTD} == "c89" || ${CSTD} == "c90"
 CFLAGS		+=	-std=iso9899:1990
-.elif ${CSTD} == "c94" || ${CSTD} == "c95"
+. elif ${CSTD} == "c94" || ${CSTD} == "c95"
 CFLAGS		+=	-std=iso9899:199409
-.elif ${CSTD} == "c99"
+. elif ${CSTD} == "c99"
 CFLAGS		+=	-std=iso9899:1999
-.else
+. else
 CFLAGS		+=	-std=${CSTD}
+. endif
 .endif
 
 .if !defined(NO_WARNS)
