@@ -4,7 +4,7 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.11.2 20010719 [FreeBSD]"
+VERSION=	"2.12.0 pre-release snap 20020127 [FreeBSD]"
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 BINUTIL_ARCH= ${TARGET_ARCH}
