@@ -108,7 +108,7 @@ struct __hack
 
 /*
  * This queue is serviced by a software interrupt handler.  To enqueue
- * a task, call taskqueue_enqueue(&taskqueue_swi, &task).
+ * a task, call taskqueue_enqueue(taskqueue_swi, &task).
  */
 TASKQUEUE_DECLARE(swi);
 
