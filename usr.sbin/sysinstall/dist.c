@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.132 1999/01/06 13:55:09 peter Exp $
+ * $Id: dist.c,v 1.133 1999/02/04 03:30:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -109,7 +109,6 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
-{ "ssmailcf",	"/usr/src",		&SrcDists,	DIST_SRC_SMAILCF,	NULL		},
 { NULL },
 };
 
