@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.3 1996/12/12 04:30:06 davidg Exp $
+ *	$Id: machdep.c,v 1.209.2.4 1996/12/14 22:37:51 jkh Exp $
  */
 
 #include "npx.h"
@@ -282,9 +282,9 @@ again:
 	if (nbuf == 0) {
 		nbuf = 30;
 		if( physmem > 1024)
-			nbuf += min((physmem - 1024) / 12, 1024);
+			nbuf += min((physmem - 1024) / 8, 2048);
 	}
-	nswbuf = min(nbuf, 128);
+	nswbuf = max(min(nbuf/4, 128), 16);
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
@@ -322,15 +322,15 @@ again:
 
 #ifdef BOUNCE_BUFFERS
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) +
+			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) +
 				maxbkva + pager_map_size, TRUE);
 	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
 #else
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
+			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
 #endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-				(nbuf*MAXBSIZE), TRUE);
+				(nbuf*BKVASIZE), TRUE);
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
