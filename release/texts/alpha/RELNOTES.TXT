@@ -144,14 +144,18 @@ Technologies VT82C686A sound card/chipsets, and has received some
 other updates.  [MERGED] A driver for the ESS Maestro-3/Allegro has
 been added, however due to the amount of GPL firmware included, it
 will only be built as a module.  Separate drivers for the SoundBlaster
-8 and Soundblaster 16 now replace an older, unified driver.  [MERGED]
-A driver for the CMedia CMI8338/CMI8738 sound chips has been added.
+8 and Soundblaster 16 now replace an older, unified driver.
+A driver for the CMedia CMI8338/CMI8738 sound chips has been added. 
+A driver for the CS4281 sound chip has been added. [MERGED]
 
 Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
 set to the cache size in kilobytes.  The old options are still
 supported for backwards compatibility. [MERGED]
 
-The ahc(4) driver has been updated.  [MERGED]
+The ahc(4) driver has been updated.  Among various improvements are
+improved compatability with chips in "RAID Port" mode and systems with
+AAA and ARO cards installed, as well as performance
+improvements. [MERGED]
 
 ACPI support has been merged in from the FreeBSD-ACPI project.
 
@@ -186,6 +190,10 @@ Note that change affects only random-access writeable devices, not
 sequential-only writeable devices such as CD-R drives, which are
 supported by cdrecord. [MERGED]
 
+The ISO-9660 filesystem now has a hook that supports a loadable
+character conversion routine.  The sysutils/cd9660_unicode port
+contains a set of common conversions. [MERGED]
+
 Support for threads under Linux emulation has been added.
 
 The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
@@ -217,8 +225,9 @@ due to packets sent to open and unopen ports are now limited by
 separate counters.  Each rate limiting queue now has its own
 description.
 
-ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections, as
-controlled by the net.inet.tcp.icmp_may_rst sysctl.
+ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections in the
+SYN_SENT state if the correct sequence numbers are sent back, as
+controlled by the net.inet.tcp.icmp_may_rst sysctl. [MERGED]
 
 TCP has received some bug fixes for its delayed ACK behavior. [MERGED]
 
@@ -273,6 +282,14 @@ ipfw(8) has a new feature ("me") that allows for packet matching on
 interfaces with dynamically-changing IP addresses. [MERGED]
 
 The isp(4) driver has been updated. [MERGED]
+
+The ida disk driver now has crashdump support. [MERGED]
+
+The random(4) device has been rewritten to use the Yarrow algorithm.
+It harvests entropy from a variety of interrupt sources, including the
+console devices, Ethernet and point-to-point network interfaces, and
+mass-storage devices.  Entropy from the random(4) device is now
+periodically saved to files in /var/db/entropy.
 
 
 1.2. SECURITY FIXES
@@ -389,8 +406,7 @@ mtree as a part of an intrusion-detection system.  [MERGED]
 OpenSSL has been upgraded to 0.9.6. [MERGED]
 
 OpenSSL now has support for machine-dependent ASM optimizations,
-activated by the new MACHINE_CPU Makefile variable.  make(1) will
-attempt to set reasonable defaults for this variable.
+activated by the new MACHINE_CPU Makefile variable.
 
 The OPIE one-time-password suite has been updated to 2.32. [MERGED]
 
@@ -696,7 +712,7 @@ default), which can be used to log /dev/console output. [MERGED]
 rpcgen now uses /usr/bin/cpp (as on NetBSD), not /usr/libexec/cpp.
 
 Boot-time syscons configuration was moved to a machine-independent
-rc.syscons.
+rc.syscons. [MERGED]
 
 burncd(8) now supports a -m option for multisession mode (the default
 behavior now is to close disks as single-session).  A -l option to
@@ -708,9 +724,6 @@ including syslog records and /dev/console output. [MERGED]
 
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
 deprecated in favor of MaxStartups. [MERGED]
-
-Entropy from the random(4) device is now periodically saved to files
-in /var/db/entropy.
 
 cdcontrol(1) now uses the CDROM environment variable to pick a default
 device. [MERGED]
@@ -797,6 +810,19 @@ megabytes, or gigabytes, in addition to sectors.
 
 The pseudo-random number generator implemented by rand(3) has been
 improved to provide less biased results.
+
+login(1) now exports environment variables set by PAM
+modules. [MERGED]
+
+wall(1) now supports a -g flag to write a message to all users of a
+given group.
+
+The new CPUTYPE make.conf variable controls the compilation of
+processor-specific optimizations in various pieces of code such as
+OpenSSL.
+
+The default value for the CVS_RSH variable (used by cvs(1)) is now
+ssh, rather than rsh.
 
 
 2. Supported Configurations
