@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 84 $
+ *              $Revision: 85 $
  *
  ******************************************************************************/
 
@@ -122,6 +122,7 @@
 #include "acevents.h"
 #include "acdebug.h"
 #include "acresrc.h"
+#include "acdisasm.h"
 
 #ifdef ENABLE_DEBUGGER
 
@@ -448,7 +449,7 @@ AcpiDbDisassembleAml (
         NumStatements = ACPI_STRTOUL (Statements, NULL, 0);
     }
 
-    AcpiDbDisplayOp (NULL, Op, NumStatements);
+    AcpiDmDisassemble (NULL, Op, NumStatements);
 }
 
 

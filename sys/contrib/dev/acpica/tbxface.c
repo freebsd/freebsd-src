@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 57 $
+ *              $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,6 @@ AcpiLoadTables (void)
 {
     ACPI_POINTER            RsdpAddress;
     ACPI_STATUS             Status;
-    UINT32                  NumberOfTables = 0;
 
 
     ACPI_FUNCTION_TRACE ("AcpiLoadTables");
@@ -175,7 +174,7 @@ AcpiLoadTables (void)
 
     /* Get the RSDT via the RSDP */
 
-    Status = AcpiTbGetTableRsdt (&NumberOfTables);
+    Status = AcpiTbGetTableRsdt ();
     if (ACPI_FAILURE (Status))
     {
         ACPI_REPORT_ERROR (("AcpiLoadTables: Could not load RSDT: %s\n",
@@ -183,9 +182,9 @@ AcpiLoadTables (void)
         goto ErrorExit;
     }
 
-    /* Now get the rest of the tables */
+    /* Now get the tables needed by this subsystem (FADT, DSDT, etc.) */
 
-    Status = AcpiTbGetAllTables (NumberOfTables);
+    Status = AcpiTbGetRequiredTables ();
     if (ACPI_FAILURE (Status))
     {
         ACPI_REPORT_ERROR (("AcpiLoadTables: Error getting required tables (DSDT/FADT/FACS): %s\n",
@@ -252,10 +251,10 @@ AcpiLoadTable (
 
     /* Copy the table to a local buffer */
 
-    Address.PointerType     = ACPI_LOGICAL_POINTER;
+    Address.PointerType     = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
     Address.Pointer.Logical = TablePtr;
 
-    Status = AcpiTbGetTable (&Address, &TableInfo);
+    Status = AcpiTbGetTableBody (&Address, TablePtr, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -266,7 +265,7 @@ AcpiLoadTable (
     Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        /* Free table allocated by AcpiTbGetTable */
+        /* Free table allocated by AcpiTbGetTableBody */
 
         AcpiTbDeleteSingleTable (&TableInfo);
         return_ACPI_STATUS (Status);

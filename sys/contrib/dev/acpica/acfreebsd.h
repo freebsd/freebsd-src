@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 7 $
+ *       $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -126,6 +126,7 @@
 /* FreeBSD uses GCC */
 
 #include "acgcc.h"
+#include <machine/acpica_machdep.h>
 
 #ifdef _KERNEL
 #include <sys/ctype.h>

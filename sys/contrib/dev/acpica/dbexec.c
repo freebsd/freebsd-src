@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  ******************************************************************************/
 
@@ -322,6 +322,9 @@ AcpiDbExecute (
     AcpiGbl_DbMethodInfo.Args = Args;
     AcpiGbl_DbMethodInfo.Flags = Flags;
 
+    ReturnObj.Pointer = NULL;
+    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
+
     AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
     Status = AcpiDbExecuteMethod (&AcpiGbl_DbMethodInfo, &ReturnObj);
 
@@ -362,6 +365,11 @@ AcpiDbExecute (
             AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
                 AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer, ReturnObj.Length);
             AcpiDbDumpObject (ReturnObj.Pointer, 1);
+        }
+        else
+        {
+            AcpiOsPrintf ("No return object from execution of %s\n", 
+                AcpiGbl_DbMethodInfo.Pathname);
         }
     }
 

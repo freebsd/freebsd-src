@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 63 $
+ *              $Revision: 67 $
  *
  ******************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "acnamesp.h"
 #include "actables.h"
 
-#ifdef ENABLE_DEBUGGER
+#if (defined ENABLE_DEBUGGER || defined ACPI_DISASSEMBLER)
 
 #define _COMPONENT          ACPI_DEBUGGER
         ACPI_MODULE_NAME    ("dbfileio")
@@ -180,6 +180,7 @@ AcpiDbMatchArgument (
 }
 
 
+#ifdef ENABLE_DEBUGGER
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbCloseDebugFile
@@ -245,6 +246,7 @@ AcpiDbOpenDebugFile (
 
 #endif
 }
+#endif
 
 
 #ifdef ACPI_APPLICATION
@@ -288,7 +290,7 @@ AcpiDbLoadTable(
 
     Status = AcpiTbValidateTableHeader (&TableHeader);
     if ((ACPI_FAILURE (Status)) ||
-        (TableHeader.Length > 524288))  /* 1/2 Mbyte should be enough */
+        (TableHeader.Length > 0x800000))  /* 8 Mbyte should be enough */
     {
         AcpiOsPrintf ("Table header is invalid!\n");
         return (AE_ERROR);
@@ -383,9 +385,14 @@ AeLocalLoadTable (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Install the new table into the local data structures */
-
     TableInfo.Pointer = TablePtr;
+    Status = AcpiTbRecognizeTable (&TableInfo, ACPI_TABLE_SECONDARY);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Install the new table into the local data structures */
 
     Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
@@ -397,7 +404,7 @@ AeLocalLoadTable (
     }
 
 
-#ifndef PARSER_ONLY
+#if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
     Status = AcpiNsLoadTable (TableInfo.InstalledDesc, AcpiGbl_RootNode);
     if (ACPI_FAILURE (Status))
     {
@@ -433,7 +440,7 @@ AcpiDbGetAcpiTable (
 
     /* Get the entire file */
 
-    AcpiOsPrintf ("Loading Acpi table from file %s\n", Filename);
+    fprintf (stderr, "Loading Acpi table from file %s\n", Filename);
     Status = AcpiDbLoadTable (fp, &AcpiGbl_DbTablePtr, &TableLength);
     fclose(fp);
 
@@ -492,8 +499,8 @@ AcpiDbLoadAcpiTable (
         return (Status);
     }
 
-    AcpiOsPrintf ("%4.4s at %p successfully installed and loaded\n",
-                                AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
+    fprintf (stderr, "Acpi table [%4.4s] successfully installed and loaded\n",
+                                AcpiGbl_DbTablePtr->Signature);
 
     AcpiGbl_AcpiHardwarePresent = FALSE;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 55 $
+ * Module Name: tbgetall - Get all required ACPI tables
+ *              $Revision: 1 $
  *
  *****************************************************************************/
 
@@ -114,210 +114,284 @@
  *
  *****************************************************************************/
 
-#define __TBUTILS_C__
+#define __TBGETALL_C__
 
 #include "acpi.h"
 #include "actables.h"
 
 
 #define _COMPONENT          ACPI_TABLES
-        ACPI_MODULE_NAME    ("tbutils")
+        ACPI_MODULE_NAME    ("tbgetall")
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbHandleToObject
- *
- * PARAMETERS:  TableId             - Id for which the function is searching
- *              TableDesc           - Pointer to return the matching table
- *                                      descriptor.
- *
- * RETURN:      Search the tables to find one with a matching TableId and
- *              return a pointer to that table descriptor.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiTbHandleToObject (
-    UINT16                  TableId,
-    ACPI_TABLE_DESC         **TableDesc)
-{
-    UINT32                  i;
-    ACPI_TABLE_DESC         *ListHead;
-
-
-    ACPI_FUNCTION_NAME ("TbHandleToObject");
-
-
-    for (i = 0; i < ACPI_TABLE_MAX; i++)
-    {
-        ListHead = &AcpiGbl_AcpiTables[i];
-        do
-        {
-            if (ListHead->TableId == TableId)
-            {
-                *TableDesc = ListHead;
-                return (AE_OK);
-            }
-
-            ListHead = ListHead->Next;
-
-        } while (ListHead != &AcpiGbl_AcpiTables[i]);
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "TableId=%X does not exist\n", TableId));
-    return (AE_BAD_PARAMETER);
-}
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbValidateTableHeader
+ * FUNCTION:    AcpiTbGetPrimaryTable
  *
- * PARAMETERS:  TableHeader         - Logical pointer to the table
+ * PARAMETERS:  Address             - Physical address of table to retrieve
+ *              *TableInfo          - Where the table info is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Check an ACPI table header for validity
- *
- * NOTE:  Table pointers are validated as follows:
- *          1) Table pointer must point to valid physical memory
- *          2) Signature must be 4 ASCII chars, even if we don't recognize the
- *             name
- *          3) Table must be readable for length specified in the header
- *          4) Table checksum must be valid (with the exception of the FACS
- *              which has no checksum because it contains variable fields)
+ * DESCRIPTION: Maps the physical address of table into a logical address
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiTbValidateTableHeader (
-    ACPI_TABLE_HEADER       *TableHeader)
+AcpiTbGetPrimaryTable (
+    ACPI_POINTER            *Address,
+    ACPI_TABLE_DESC         *TableInfo)
 {
-    ACPI_NAME               Signature;
+    ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       Header;
 
 
-    ACPI_FUNCTION_NAME ("TbValidateTableHeader");
+    ACPI_FUNCTION_TRACE ("TbGetPrimaryTable");
 
 
-    /* Verify that this is a valid address */
+    /* Ignore a NULL address in the RSDT */
 
-    if (!AcpiOsReadable (TableHeader, sizeof (ACPI_TABLE_HEADER)))
+    if (!Address->Pointer.Value)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Cannot read table header at %p\n", TableHeader));
-        return (AE_BAD_ADDRESS);
+        return_ACPI_STATUS (AE_OK);
     }
 
-    /* Ensure that the signature is 4 ASCII characters */
-
-    ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, TableHeader->Signature);
-    if (!AcpiUtValidAcpiName (Signature))
+    /*
+     * Get the header in order to get signature and table size
+     */
+    Status = AcpiTbGetTableHeader (Address, &Header);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Table signature at %p [%p] has invalid characters\n",
-            TableHeader, &Signature));
-
-        ACPI_REPORT_WARNING (("Invalid table signature found: [%4.4s]\n",
-            (char *) &Signature));
-        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
-        return (AE_BAD_SIGNATURE);
+        return_ACPI_STATUS (Status);
     }
 
-    /* Validate the table length */
+    /* Clear the TableInfo */
 
-    if (TableHeader->Length < sizeof (ACPI_TABLE_HEADER))
+    ACPI_MEMSET (TableInfo, 0, sizeof (ACPI_TABLE_DESC));
+
+    /*
+     * Check the table signature and make sure it is recognized.
+     * Also checks the header checksum
+     */
+    TableInfo->Pointer = &Header;
+    Status = AcpiTbRecognizeTable (TableInfo, ACPI_TABLE_PRIMARY);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Invalid length in table header %p name %4.4s\n",
-            TableHeader, (char *) &Signature));
-
-        ACPI_REPORT_WARNING (("Invalid table header length (0x%X) found\n",
-            TableHeader->Length));
-        ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
-        return (AE_BAD_HEADER);
+        return_ACPI_STATUS (Status);
     }
 
-    return (AE_OK);
-}
+    /* Get the entire table */
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbVerifyTableChecksum
- *
- * PARAMETERS:  *TableHeader            - ACPI table to verify
- *
- * RETURN:      8 bit checksum of table
- *
- * DESCRIPTION: Does an 8 bit checksum of table and returns status.  A correct
- *              table should have a checksum of 0.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiTbVerifyTableChecksum (
-    ACPI_TABLE_HEADER       *TableHeader)
-{
-    UINT8                   Checksum;
-    ACPI_STATUS             Status = AE_OK;
-
-
-    ACPI_FUNCTION_TRACE ("TbVerifyTableChecksum");
-
-
-    /* Compute the checksum on the table */
-
-    Checksum = AcpiTbChecksum (TableHeader, TableHeader->Length);
-
-    /* Return the appropriate exception */
-
-    if (Checksum)
+    Status = AcpiTbGetTableBody (Address, &Header, TableInfo);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_WARNING (("Invalid checksum (%X) in table %4.4s\n",
-            Checksum, TableHeader->Signature));
-
-        Status = AE_BAD_CHECKSUM;
+        return_ACPI_STATUS (Status);
     }
+
+    /* Install the table */
+
+    Status = AcpiTbInstallTable (TableInfo);
     return_ACPI_STATUS (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiTbChecksum
+ * FUNCTION:    AcpiTbGetSecondaryTable
  *
- * PARAMETERS:  Buffer              - Buffer to checksum
- *              Length              - Size of the buffer
+ * PARAMETERS:  Address             - Physical address of table to retrieve
+ *              *TableInfo          - Where the table info is returned
  *
- * RETURNS      8 bit checksum of buffer
+ * RETURN:      Status
  *
- * DESCRIPTION: Computes an 8 bit checksum of the buffer(length) and returns it.
+ * DESCRIPTION: Maps the physical address of table into a logical address
  *
  ******************************************************************************/
 
-UINT8
-AcpiTbChecksum (
-    void                    *Buffer,
-    UINT32                  Length)
+ACPI_STATUS
+AcpiTbGetSecondaryTable (
+    ACPI_POINTER            *Address,
+    ACPI_STRING             Signature,
+    ACPI_TABLE_DESC         *TableInfo)
 {
-    const UINT8             *limit;
-    const UINT8             *rover;
-    UINT8                   sum = 0;
+    ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       Header;
 
 
-    if (Buffer && Length)
+    ACPI_FUNCTION_TRACE_STR ("TbGetSecondaryTable", Signature);
+
+
+    /* Get the header in order to match the signature */
+
+    Status = AcpiTbGetTableHeader (Address, &Header);
+    if (ACPI_FAILURE (Status))
     {
-        /*  Buffer and Length are valid   */
-
-        limit = (UINT8 *) Buffer + Length;
-
-        for (rover = Buffer; rover < limit; rover++)
-        {
-            sum = (UINT8) (sum + *rover);
-        }
+        return_ACPI_STATUS (Status);
     }
-    return (sum);
+
+    /* Signature must match request */
+
+    if (ACPI_STRNCMP (Header.Signature, Signature, ACPI_NAME_SIZE))
+    {
+        ACPI_REPORT_ERROR (("Incorrect table signature - wanted [%s] found [%4.4s]\n",
+            Signature, Header.Signature));
+        return_ACPI_STATUS (AE_BAD_SIGNATURE);
+    }
+
+    /*
+     * Check the table signature and make sure it is recognized.
+     * Also checks the header checksum
+     */
+    TableInfo->Pointer = &Header;
+    Status = AcpiTbRecognizeTable (TableInfo, ACPI_TABLE_SECONDARY);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Get the entire table */
+
+    Status = AcpiTbGetTableBody (Address, &Header, TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Install the table */
+
+    Status = AcpiTbInstallTable (TableInfo);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTbGetRequiredTables
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Load and validate tables other than the RSDT.  The RSDT must
+ *              already be loaded and validated.
+ *
+ *              Get the minimum set of ACPI tables, namely:
+ *
+ *              1) FADT (via RSDT in loop below)
+ *              2) FACS (via FADT)
+ *              3) DSDT (via FADT)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiTbGetRequiredTables (
+    void)
+{
+    ACPI_STATUS             Status = AE_OK;
+    UINT32                  i;
+    ACPI_TABLE_DESC         TableInfo;
+    ACPI_POINTER            Address;     
+
+
+    ACPI_FUNCTION_TRACE ("TbGetRequiredTables");
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%d ACPI tables in RSDT\n", 
+        AcpiGbl_RsdtTableCount));
+
+
+    Address.PointerType   = AcpiGbl_TableFlags | ACPI_LOGICAL_ADDRESSING;
+
+    /*
+     * Loop through all table pointers found in RSDT.
+     * This will NOT include the FACS and DSDT - we must get
+     * them after the loop.
+     *
+     * The only tables we are interested in getting here is the FADT and
+     * any SSDTs.
+     */
+    for (i = 0; i < AcpiGbl_RsdtTableCount; i++)
+    {
+        /* Get the table addresss from the common internal XSDT */
+
+        Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_XSDT->TableOffsetEntry[i]);
+
+        /* 
+         * Get the tables needed by this subsystem (FADT and any SSDTs).
+         * NOTE: All other tables are completely ignored at this time.
+         */
+        AcpiTbGetPrimaryTable (&Address, &TableInfo);
+    }
+
+    /* We must have a FADT to continue */
+
+    if (!AcpiGbl_FADT)
+    {
+        ACPI_REPORT_ERROR (("No FADT present in RSDT/XSDT\n"));
+        return_ACPI_STATUS (AE_NO_ACPI_TABLES);
+    }
+
+    /*
+     * Convert the FADT to a common format.  This allows earlier revisions of the
+     * table to coexist with newer versions, using common access code.
+     */
+    Status = AcpiTbConvertTableFadt ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_REPORT_ERROR (("Could not convert FADT to internal common format\n"));
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Get the FACS (Pointed to by the FADT)
+     */
+    Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_FADT->XFirmwareCtrl);
+
+    Status = AcpiTbGetSecondaryTable (&Address, FACS_SIG, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_REPORT_ERROR (("Could not get/install the FACS, %s\n",
+            AcpiFormatException (Status)));
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Create the common FACS pointer table
+     * (Contains pointers to the original table)
+     */
+    Status = AcpiTbBuildCommonFacs (&TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Get/install the DSDT (Pointed to by the FADT)
+     */
+    Address.Pointer.Value = ACPI_GET_ADDRESS (AcpiGbl_FADT->XDsdt);
+
+    Status = AcpiTbGetSecondaryTable (&Address, DSDT_SIG, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_REPORT_ERROR (("Could not get/install the DSDT\n"));
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Set Integer Width (32/64) based upon DSDT revision */
+
+    AcpiUtSetIntegerWidth (AcpiGbl_DSDT->Revision);
+
+    /* Dump the entire DSDT */
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
+        "Hex dump of entire DSDT, size %d (0x%X), Integer width = %d\n",
+        AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length, AcpiGbl_IntegerBitWidth));
+    ACPI_DUMP_BUFFER ((UINT8 *) AcpiGbl_DSDT, AcpiGbl_DSDT->Length);
+
+    /* Always delete the RSDP mapping, we are done with it */
+
+    AcpiTbDeleteAcpiTable (ACPI_TABLE_RSDP);
+    return_ACPI_STATUS (Status);
 }
 
 

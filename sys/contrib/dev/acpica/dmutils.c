@@ -1,9 +1,9 @@
-/******************************************************************************
+/*******************************************************************************
  *
- * Name: actables.h - ACPI table management
- *       $Revision: 42 $
+ * Module Name: dmutils - AML disassembler utilities
+ *              $Revision: 2 $
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -114,197 +114,292 @@
  *
  *****************************************************************************/
 
-#ifndef __ACTABLES_H__
-#define __ACTABLES_H__
+
+#include "acpi.h"
+#include "amlcode.h"
+#include "acdisasm.h"
 
 
-/* Used in AcpiTbMapAcpiTable for size parameter if table header is to be used */
+#ifdef ACPI_DISASSEMBLER
 
-#define SIZE_IN_HEADER          0
+#define _COMPONENT          ACPI_DEBUGGER
+        ACPI_MODULE_NAME    ("dmutils")
 
 
-ACPI_STATUS
-AcpiTbHandleToObject (
-    UINT16                  TableId,
-    ACPI_TABLE_DESC         **TableDesc);
+
+
+/* Data used in keeping track of fields */
+#if 0
+const NATIVE_CHAR               *AcpiGbl_FENames[NUM_FIELD_NAMES] =
+{
+    "skip",
+    "?access?"
+};              /* FE = Field Element */
+#endif
+
+
+const NATIVE_CHAR               *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
+{
+    "MTR",
+    "MEQ",
+    "MLE",
+    "MLT",
+    "MGE",
+    "MGT"
+};
+
+
+/* Access type decoding */
+
+const NATIVE_CHAR               *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
+{
+    "AnyAcc",
+    "ByteAcc",
+    "WordAcc",
+    "DWordAcc",
+    "QWordAcc",
+    "BufferAcc",
+};
+
+
+/* Lock rule decoding */
+
+const NATIVE_CHAR               *AcpiGbl_LockRule[NUM_LOCK_RULES] =
+{
+    "NoLock",
+    "Lock"
+};
+
+/* Update rule decoding */
+
+const NATIVE_CHAR               *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
+{
+    "Preserve",
+    "WriteAsOnes",
+    "WriteAsZeros"
+};
 
 /*
- * tbconvrt - Table conversion routines
+ * Strings used to decode resource descriptors
  */
+const char                      *AcpiGbl_IoDecode[2] =
+{
+    "Decode10",
+    "Decode16"
+};
 
-ACPI_STATUS
-AcpiTbConvertToXsdt (
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_WordDecode[4] =
+{
+    "WordMemory",
+    "WordIO",
+    "WordBusNumber",
+    "Unknown-resource-type"
+};
 
-ACPI_STATUS
-AcpiTbConvertTableFadt (
-    void);
+const char                      *AcpiGbl_ConsumeDecode[2] =
+{
+    "ResourceProducer",
+    "ResourceConsumer"
+};
 
-ACPI_STATUS
-AcpiTbBuildCommonFacs (
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_MinDecode[2] =
+{
+    "MinNotFixed",
+    "MinFixed"
+};
 
-UINT32
-AcpiTbGetTableCount (
-    RSDP_DESCRIPTOR         *RSDP,
-    ACPI_TABLE_HEADER       *RSDT);
+const char                      *AcpiGbl_MaxDecode[2] =
+{
+    "MaxNotFixed",
+    "MaxFixed"
+};
 
-/*
- * tbget - Table "get" routines
- */
+const char                      *AcpiGbl_DECDecode[2] =
+{
+    "PosDecode",
+    "SubDecode"
+};
 
-ACPI_STATUS
-AcpiTbGetTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_RNGDecode[4] =
+{
+    "InvalidRanges",
+    "NonISAOnlyRanges",
+    "ISAOnlyRanges",
+    "EntireRange"
+};
 
-ACPI_STATUS
-AcpiTbGetTableHeader (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *ReturnHeader);
+const char                      *AcpiGbl_MEMDecode[4] =
+{
+    "NonCacheable",
+    "Cacheable",
+    "WriteCombining",
+    "Prefetchable"
+};
 
-ACPI_STATUS
-AcpiTbGetTableBody (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_RWDecode[2] =
+{
+    "ReadOnly",
+    "ReadWrite"
+};
 
-ACPI_STATUS
-AcpiTbGetThisTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_IrqDecode[2] =
+{
+    "IRQNoFlags",
+    "IRQ"
+};
 
-ACPI_STATUS
-AcpiTbTableOverride (
-    ACPI_TABLE_HEADER       *Header,
-    ACPI_TABLE_DESC         *TableInfo);
+const char                      *AcpiGbl_HEDecode[2] =
+{
+    "Level",
+    "Edge"
+};
 
-ACPI_STATUS
-AcpiTbGetTablePtr (
-    ACPI_TABLE_TYPE         TableType,
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **TablePtrLoc);
+const char                      *AcpiGbl_LLDecode[2] =
+{
+    "ActiveHigh",
+    "ActiveLow"
+};
 
-ACPI_STATUS
-AcpiTbVerifyRsdp (
-    ACPI_POINTER            *Address);
+const char                      *AcpiGbl_SHRDecode[2] =
+{
+    "Exclusive",
+    "Shared"
+};
+
+const char                      *AcpiGbl_TYPDecode[4] =
+{
+    "Compatibility",
+    "TypeA",
+    "TypeB",
+    "TypeF"
+};
+
+const char                      *AcpiGbl_BMDecode[2] =
+{
+    "NotBusMaster",
+    "BusMaster"
+};
+
+const char                      *AcpiGbl_SIZDecode[4] =
+{
+    "Transfer8",
+    "Transfer8_16",
+    "Transfer16",
+    "InvalidSize"
+};
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmIndent
+ *
+ * PARAMETERS:  Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Indent 4 spaces per indentation level.
+ *
+ ******************************************************************************/
 
 void
-AcpiTbGetRsdtAddress (
-    ACPI_POINTER            *OutAddress);
+AcpiDmIndent (
+    UINT32                  Level)
+{
 
-ACPI_STATUS
-AcpiTbValidateRsdt (
-    ACPI_TABLE_HEADER       *TablePtr);
+    if (!Level)
+    {
+        return;
+    }
 
-ACPI_STATUS
-AcpiTbGetRequiredTables (
-    void);
-
-ACPI_STATUS
-AcpiTbGetPrimaryTable (
-    ACPI_POINTER            *Address,
-    ACPI_TABLE_DESC         *TableInfo);
-
-ACPI_STATUS
-AcpiTbGetSecondaryTable (
-    ACPI_POINTER            *Address,
-    ACPI_STRING             Signature,
-    ACPI_TABLE_DESC         *TableInfo);
-
-/*
- * tbinstall - Table installation
- */
-
-ACPI_STATUS
-AcpiTbInstallTable (
-    ACPI_TABLE_DESC         *TableInfo);
-
-ACPI_STATUS
-AcpiTbMatchSignature (
-    NATIVE_CHAR             *Signature,
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                   SearchType);
-
-ACPI_STATUS
-AcpiTbRecognizeTable (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT8                  SearchType);
-
-ACPI_STATUS
-AcpiTbInitTableDescriptor (
-    ACPI_TABLE_TYPE         TableType,
-    ACPI_TABLE_DESC         *TableInfo);
+    AcpiOsPrintf ("%*.s", ACPI_MUL_4 (Level), " ");
+}
 
 
-/*
- * tbremove - Table removal and deletion
- */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmCommaIfListMember
+ *
+ * PARAMETERS:  Op              - Current operator/operand
+ *
+ * RETURN:      TRUE if a comma was inserted
+ *
+ * DESCRIPTION: Insert a comma if this Op is a member of an argument list.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiDmCommaIfListMember (
+    ACPI_PARSE_OBJECT       *Op)
+{
+
+    if (!Op->Common.Next)
+    {
+        return FALSE;
+    }
+
+    if (AcpiDmListType (Op->Common.Parent) & BLOCK_COMMA_LIST)
+    {
+        /* Check for a NULL target operand */
+
+        if ((Op->Common.Next->Common.AmlOpcode == AML_INT_NAMEPATH_OP) &&
+            (!Op->Common.Next->Common.Value.String))
+        {
+            /*
+             * To handle the Divide() case where there are two optional
+             * targets, look ahead one more op.  If null, this null target
+             * is the one and only target -- no comma needed.  Otherwise,
+             * we need a comma to prepare for the next target.
+             */
+            if (!Op->Common.Next->Common.Next)
+            {
+                return FALSE;
+            }
+        }
+
+        if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST) &&
+            (!(Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)))
+        {
+            return FALSE;
+        }
+
+        AcpiOsPrintf (", ");
+        return (TRUE);
+    }
+
+    else if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST) &&
+             (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+    {
+        AcpiOsPrintf (", ");
+        return (TRUE);
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmCommaIfFieldMember
+ *
+ * PARAMETERS:  Op              - Current operator/operand
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Insert a comma if this Op is a member of a Field argument list.
+ *
+ ******************************************************************************/
 
 void
-AcpiTbDeleteAcpiTables (
-    void);
+AcpiDmCommaIfFieldMember (
+    ACPI_PARSE_OBJECT       *Op)
+{
 
-void
-AcpiTbDeleteAcpiTable (
-    ACPI_TABLE_TYPE         Type);
-
-void
-AcpiTbDeleteSingleTable (
-    ACPI_TABLE_DESC         *TableDesc);
-
-ACPI_TABLE_DESC *
-AcpiTbUninstallTable (
-    ACPI_TABLE_DESC         *TableDesc);
-
-void
-AcpiTbFreeAcpiTablesOfType (
-    ACPI_TABLE_DESC         *TableInfo);
+    if (Op->Common.Next)
+    {
+        AcpiOsPrintf (", ");
+    }
+}
 
 
-/*
- * tbrsd - RSDP, RSDT utilities
- */
 
-ACPI_STATUS
-AcpiTbGetTableRsdt (
-    void);
-
-UINT8 *
-AcpiTbScanMemoryForRsdp (
-    UINT8                   *StartAddress,
-    UINT32                  Length);
-
-ACPI_STATUS
-AcpiTbFindRsdp (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT32                  Flags);
-
-
-/*
- * tbutils - common table utilities
- */
-
-ACPI_STATUS
-AcpiTbFindTable (
-    NATIVE_CHAR             *Signature,
-    NATIVE_CHAR             *OemId,
-    NATIVE_CHAR             *OemTableId,
-    ACPI_TABLE_HEADER       **TablePtr);
-
-ACPI_STATUS
-AcpiTbVerifyTableChecksum (
-    ACPI_TABLE_HEADER       *TableHeader);
-
-UINT8
-AcpiTbChecksum (
-    void                    *Buffer,
-    UINT32                  Length);
-
-ACPI_STATUS
-AcpiTbValidateTableHeader (
-    ACPI_TABLE_HEADER       *TableHeader);
-
-
-#endif /* __ACTABLES_H__ */
+#endif

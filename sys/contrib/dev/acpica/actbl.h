@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 52 $
+ *       $Revision: 53 $
  *
  *****************************************************************************/
 
@@ -276,9 +276,15 @@ typedef struct  /* Smart Battery Description Table */
 
 /* Definitions for the Flags bitfield member of ACPI_TABLE_SUPPORT */
 
-#define ACPI_TABLE_SINGLE       0
-#define ACPI_TABLE_MULTIPLE     1
-#define ACPI_TABLE_EXECUTABLE   2
+#define ACPI_TABLE_SINGLE       0x00
+#define ACPI_TABLE_MULTIPLE     0x01
+#define ACPI_TABLE_EXECUTABLE   0x02
+
+#define ACPI_TABLE_ROOT         0x00
+#define ACPI_TABLE_PRIMARY      0x10
+#define ACPI_TABLE_SECONDARY    0x20
+#define ACPI_TABLE_OTHER        0x30
+#define ACPI_TABLE_TYPE_MASK    0x30
 
 /* Data about each known table type */
 

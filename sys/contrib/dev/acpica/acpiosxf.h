@@ -296,7 +296,6 @@ AcpiOsReadPort (
     void                    *Value,
     UINT32                  Width);
 
-
 ACPI_STATUS
 AcpiOsWritePort (
     ACPI_IO_ADDRESS         Address,
@@ -313,7 +312,6 @@ AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
     void                    *Value,
     UINT32                  Width);
-
 
 ACPI_STATUS
 AcpiOsWriteMemory (
@@ -333,7 +331,6 @@ AcpiOsReadPciConfiguration (
     void                    *Value,
     UINT32                  Width);
 
-
 ACPI_STATUS
 AcpiOsWritePciConfiguration (
     ACPI_PCI_ID             *PciId,
@@ -350,7 +347,6 @@ BOOLEAN
 AcpiOsReadable (
     void                    *Pointer,
     UINT32                  Length);
-
 
 BOOLEAN
 AcpiOsWritable (
@@ -379,6 +375,10 @@ void
 AcpiOsVprintf (
     const NATIVE_CHAR       *Format,
     va_list                 Args);
+
+void
+AcpiOsRedirectOutput (
+    void                    *Destination);
 
 
 /*

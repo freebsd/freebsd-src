@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 92 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -129,6 +129,7 @@
         ACPI_MODULE_NAME    ("excreate")
 
 
+#ifndef ACPI_NO_METHOD_EXECUTION
 /*****************************************************************************
  *
  * FUNCTION:    AcpiExCreateAlias
@@ -599,6 +600,7 @@ AcpiExCreatePowerResource (
     return_ACPI_STATUS (Status);
 }
 
+#endif
 
 /*****************************************************************************
  *

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 66 $
+ *              $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -234,6 +234,7 @@ AcpiExLoadTableOp (
     ACPI_FUNCTION_TRACE ("ExLoadTableOp");
 
 
+#if 0
     /*
      * Make sure that the signature does not match one of the tables that
      * is already loaded.
@@ -245,6 +246,7 @@ AcpiExLoadTableOp (
 
         return_ACPI_STATUS (AE_ALREADY_EXISTS);
     }
+#endif
 
     /* Find the ACPI table */
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
- * Module Name: nsnames - Name manipulation and search
- *              $Revision: 78 $
+ * Module Name: dmresrcs.c - "Small" Resource Descriptor disassembly
+ *              $Revision: 2 $
  *
  ******************************************************************************/
 
@@ -114,228 +114,239 @@
  *
  *****************************************************************************/
 
-#define __NSNAMES_C__
 
 #include "acpi.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#include "acdisasm.h"
 
 
-#define _COMPONENT          ACPI_NAMESPACE
-        ACPI_MODULE_NAME    ("nsnames")
+#ifdef ACPI_DISASSEMBLER
+
+#define _COMPONENT          ACPI_DEBUGGER
+        ACPI_MODULE_NAME    ("dbresrcs")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsBuildExternalPath
+ * FUNCTION:    AcpiDmIrqDescriptor
  *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *              Size            - Size of the pathname
- *              *NameBuffer     - Where to return the pathname
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
  *
- * RETURN:      Places the pathname into the NameBuffer, in external format
- *              (name segments separated by path separators)
+ * RETURN:      None
  *
- * DESCRIPTION: Generate a full pathaname
+ * DESCRIPTION: Decode a IRQ descriptor
  *
  ******************************************************************************/
 
 void
-AcpiNsBuildExternalPath (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_SIZE               Size,
-    NATIVE_CHAR             *NameBuffer)
+AcpiDmIrqDescriptor (
+    ASL_IRQ_FORMAT_DESC     *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
 {
-    ACPI_SIZE               Index;
-    ACPI_NAMESPACE_NODE     *ParentNode;
 
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("%s (",
+        AcpiGbl_IrqDecode [Length & 1]);
 
-    ACPI_FUNCTION_NAME ("NsBuildExternalPath");
-
-
-    /* Special case for root */
-
-    Index = Size - 1;
-    if (Index < ACPI_NAME_SIZE)
+    if (Length & 1)
     {
-        NameBuffer[0] = AML_ROOT_PREFIX;
-        NameBuffer[1] = 0;
-        return;
+        AcpiOsPrintf ("%s, %s, %s",
+            AcpiGbl_HEDecode [Resource->Flags & 1],
+            AcpiGbl_LLDecode [(Resource->Flags >> 3) & 1],
+            AcpiGbl_SHRDecode [(Resource->Flags >> 4) & 1]);
     }
 
-    /* Store terminator byte, then build name backwards */
-
-    ParentNode = Node;
-    NameBuffer[Index] = 0;
-
-    while ((Index > ACPI_NAME_SIZE) && (ParentNode != AcpiGbl_RootNode))
-    {
-        Index -= ACPI_NAME_SIZE;
-
-        /* Put the name into the buffer */
-
-        ACPI_MOVE_UNALIGNED32_TO_32 ((NameBuffer + Index), &ParentNode->Name);
-        ParentNode = AcpiNsGetParentNode (ParentNode);
-
-        /* Prefix name with the path separator */
-
-        Index--;
-        NameBuffer[Index] = PATH_SEPARATOR;
-    }
-
-    /* Overwrite final separator with the root prefix character */
-
-    NameBuffer[Index] = AML_ROOT_PREFIX;
-
-    if (Index != 0)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Could not construct pathname; index=%X, size=%X, Path=%s\n",
-            (UINT32) Index, (UINT32) Size, &NameBuffer[Size]));
-    }
-
-    return;
+    AcpiDmBitList (Resource->IrqMask);
 }
 
 
-#ifdef ACPI_DEBUG
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsGetExternalPathname
+ * FUNCTION:    AcpiDmDmaDescriptor
  *
- * PARAMETERS:  Node            - NS node whose pathname is needed
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
  *
- * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
- *              separators.)
+ * RETURN:      None
  *
- * DESCRIPTION: Used for debug printing in AcpiNsSearchTable().
+ * DESCRIPTION: Decode a DMA descriptor
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
-AcpiNsGetExternalPathname (
-    ACPI_NAMESPACE_NODE     *Node)
+void
+AcpiDmDmaDescriptor (
+    ASL_DMA_FORMAT_DESC     *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
 {
-    NATIVE_CHAR             *NameBuffer;
-    ACPI_SIZE               Size;
+
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("DMA (%s, %s, %s",
+            AcpiGbl_TYPDecode [(Resource->Flags >> 5) & 3],
+            AcpiGbl_BMDecode  [(Resource->Flags >> 2) & 1],
+            AcpiGbl_SIZDecode [(Resource->Flags >> 0) & 3]);
+
+    AcpiDmBitList (Resource->DmaChannelMask);
+}
 
 
-    ACPI_FUNCTION_TRACE_PTR ("NsGetExternalPathname", Node);
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmIoDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode an IO descriptor
+ *
+ ******************************************************************************/
+
+void
+AcpiDmIoDescriptor (
+    ASL_IO_PORT_DESC        *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("IO (%s, 0x%4.4X, 0x%4.4X, 0x%2.2X, 0x%2.2X)\n",
+        AcpiGbl_IoDecode [(Resource->Information & 1)],
+        (UINT32) Resource->AddressMin,
+        (UINT32) Resource->AddressMax,
+        (UINT32) Resource->Alignment,
+        (UINT32) Resource->Length);
+}
 
 
-    /* Calculate required buffer size based on depth below root */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmFixedIoDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode a Fixed IO descriptor
+ *
+ ******************************************************************************/
 
-    Size = AcpiNsGetPathnameLength (Node);
+void
+AcpiDmFixedIoDescriptor (
+    ASL_FIXED_IO_PORT_DESC  *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
 
-    /* Allocate a buffer to be returned to caller */
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("FixedIO (0x%4.4X, 0x%2.2X)\n",
+        (UINT32) Resource->BaseAddress,
+        (UINT32) Resource->Length);
+}
 
-    NameBuffer = ACPI_MEM_CALLOCATE (Size);
-    if (!NameBuffer)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmStartDependentDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode a Start Dependendent functions descriptor
+ *
+ ******************************************************************************/
+
+void
+AcpiDmStartDependentDescriptor (
+    ASL_START_DEPENDENT_DESC *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+
+    AcpiDmIndent (Level);
+
+    if (Length & 1)
     {
-        ACPI_REPORT_ERROR (("NsGetTablePathname: allocation failure\n"));
-        return_PTR (NULL);
+        AcpiOsPrintf ("StartDependentFn (0x%2.2X, 0x%2.2X)\n",
+            (UINT32) Resource->Flags & 3,
+            (UINT32) (Resource->Flags >> 2) & 3);
+    }
+    else
+    {
+        AcpiOsPrintf ("StartDependentFnNoPri ()\n");
     }
 
-    /* Build the path in the allocated buffer */
-
-    AcpiNsBuildExternalPath (Node, Size, NameBuffer);
-    return_PTR (NameBuffer);
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("{\n");
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmEndDependentDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode an End Dependent functions descriptor
+ *
+ ******************************************************************************/
+
+void
+AcpiDmEndDependentDescriptor (
+    ASL_START_DEPENDENT_DESC *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("}\n");
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("EndDependentFn ()\n");
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmVendorSmallDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode a Vendor Small Descriptor
+ *
+ ******************************************************************************/
+
+void
+AcpiDmVendorSmallDescriptor (
+    ASL_SMALL_VENDOR_DESC   *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("VendorShort () {");
+
+    AcpiDmDisasmByteList (0, (UINT8 *) Resource->VendorDefined, Length);
+    AcpiOsPrintf ("}\n");
+}
+
 #endif
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetPathnameLength
- *
- * PARAMETERS:  Node        - Namespace node
- *
- * RETURN:      Length of path, including prefix
- *
- * DESCRIPTION: Get the length of the pathname string for this node
- *
- ******************************************************************************/
-
-ACPI_SIZE
-AcpiNsGetPathnameLength (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_SIZE               Size;
-    ACPI_NAMESPACE_NODE     *NextNode;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Compute length of pathname as 5 * number of name segments.
-     * Go back up the parent tree to the root
-     */
-    Size = 0;
-    NextNode = Node;
-
-    while (NextNode && (NextNode != AcpiGbl_RootNode))
-    {
-        Size += PATH_SEGMENT_LENGTH;
-        NextNode = AcpiNsGetParentNode (NextNode);
-    }
-
-    return (Size + 1);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsHandleToPathname
- *
- * PARAMETERS:  TargetHandle            - Handle of named object whose name is
- *                                        to be found
- *              Buffer                  - Where the pathname is returned
- *
- * RETURN:      Status, Buffer is filled with pathname if status is AE_OK
- *
- * DESCRIPTION: Build and return a full namespace pathname
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiNsHandleToPathname (
-    ACPI_HANDLE             TargetHandle,
-    ACPI_BUFFER             *Buffer)
-{
-    ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_SIZE               RequiredSize;
-
-
-    ACPI_FUNCTION_TRACE_PTR ("NsHandleToPathname", TargetHandle);
-
-
-    Node = AcpiNsMapHandleToNode (TargetHandle);
-    if (!Node)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    /* Determine size required for the caller buffer */
-
-    RequiredSize = AcpiNsGetPathnameLength (Node);
-
-    /* Validate/Allocate/Clear caller buffer */
-
-    Status = AcpiUtInitializeBuffer (Buffer, RequiredSize);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Build the path in the caller buffer */
-
-    AcpiNsBuildExternalPath (Node, RequiredSize, Buffer->Pointer);
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X] \n", (char *) Buffer->Pointer, (UINT32) RequiredSize));
-    return_ACPI_STATUS (AE_OK);
-}
 
 
