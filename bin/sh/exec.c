@@ -99,13 +99,13 @@ STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
 int exerrno = 0;			/* Last exec error */
 
 
-STATIC void tryexec __P((char *, char **, char **));
+STATIC void tryexec(char *, char **, char **);
 #ifndef BSD
-STATIC void execinterp __P((char **, char **));
+STATIC void execinterp(char **, char **);
 #endif
-STATIC void printentry __P((struct tblentry *, int));
-STATIC struct tblentry *cmdlookup __P((char *, int));
-STATIC void delete_cmd_entry __P((void));
+STATIC void printentry(struct tblentry *, int);
+STATIC struct tblentry *cmdlookup(char *, int);
+STATIC void delete_cmd_entry(void);
 
 
 
@@ -115,10 +115,7 @@ STATIC void delete_cmd_entry __P((void));
  */
 
 void
-shellexec(argv, envp, path, index)
-	char **argv, **envp;
-	char *path;
-	int index;
+shellexec(char **argv, char **envp, char *path, int index)
 {
 	char *cmdname;
 	int e;
@@ -155,11 +152,8 @@ shellexec(argv, envp, path, index)
 
 
 STATIC void
-tryexec(cmd, argv, envp)
-	char *cmd;
-	char **argv;
-	char **envp;
-	{
+tryexec(char *cmd, char **argv, char **envp)
+{
 	int e;
 #ifndef BSD
 	char *p;
@@ -207,9 +201,8 @@ tryexec(cmd, argv, envp)
 #define NEWARGS 5
 
 STATIC void
-execinterp(argv, envp)
-	char **argv, **envp;
-	{
+execinterp(char **argv, char **envp)
+{
 	int n;
 	char *inp;
 	char *outp;
@@ -285,10 +278,8 @@ break2:;
 char *pathopt;
 
 char *
-padvance(path, name)
-	char **path;
-	char *name;
-	{
+padvance(char **path, char *name)
+{
 	char *p, *q;
 	char *start;
 	int len;
@@ -325,9 +316,7 @@ padvance(path, name)
 
 
 int
-hashcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+hashcmd(int argc __unused, char **argv __unused)
 {
 	struct tblentry **pp;
 	struct tblentry *cmdp;
@@ -372,10 +361,8 @@ hashcmd(argc, argv)
 
 
 STATIC void
-printentry(cmdp, verbose)
-	struct tblentry *cmdp;
-	int verbose;
-	{
+printentry(struct tblentry *cmdp, int verbose)
+{
 	int index;
 	char *path;
 	char *name;
@@ -418,11 +405,7 @@ printentry(cmdp, verbose)
  */
 
 void
-find_command(name, entry, printerr, path)
-	char *name;
-	struct cmdentry *entry;
-	int printerr;
-	char *path;
+find_command(char *name, struct cmdentry *entry, int printerr, char *path)
 {
 	struct tblentry *cmdp;
 	int index;
@@ -553,8 +536,7 @@ success:
  */
 
 int
-find_builtin(name)
-	char *name;
+find_builtin(char *name)
 {
 	const struct builtincmd *bp;
 
@@ -573,7 +555,8 @@ find_builtin(name)
  */
 
 void
-hashcd() {
+hashcd(void)
+{
 	struct tblentry **pp;
 	struct tblentry *cmdp;
 
@@ -595,8 +578,7 @@ hashcd() {
  */
 
 void
-changepath(newval)
-	const char *newval;
+changepath(const char *newval)
 {
 	const char *old, *new;
 	int index;
@@ -640,8 +622,7 @@ changepath(newval)
  */
 
 void
-clearcmdentry(firstchange)
-	int firstchange;
+clearcmdentry(int firstchange)
 {
 	struct tblentry **tblp;
 	struct tblentry **pp;
@@ -679,7 +660,8 @@ SHELLPROC {
 #endif
 
 void
-deletefuncs() {
+deletefuncs(void)
+{
 	struct tblentry **tblp;
 	struct tblentry **pp;
 	struct tblentry *cmdp;
@@ -714,9 +696,7 @@ struct tblentry **lastcmdentry;
 
 
 STATIC struct tblentry *
-cmdlookup(name, add)
-	char *name;
-	int add;
+cmdlookup(char *name, int add)
 {
 	int hashval;
 	char *p;
@@ -753,7 +733,8 @@ cmdlookup(name, add)
  */
 
 STATIC void
-delete_cmd_entry() {
+delete_cmd_entry(void)
+{
 	struct tblentry *cmdp;
 
 	INTOFF;
@@ -765,35 +746,14 @@ delete_cmd_entry() {
 
 
 
-#ifdef notdef
-void
-getcmdentry(name, entry)
-	char *name;
-	struct cmdentry *entry;
-	{
-	struct tblentry *cmdp = cmdlookup(name, 0);
-
-	if (cmdp) {
-		entry->u = cmdp->param;
-		entry->cmdtype = cmdp->cmdtype;
-	} else {
-		entry->cmdtype = CMDUNKNOWN;
-		entry->u.index = 0;
-	}
-}
-#endif
-
-
 /*
  * Add a new command entry, replacing any existing command entry for
  * the same name.
  */
 
 void
-addcmdentry(name, entry)
-	char *name;
-	struct cmdentry *entry;
-	{
+addcmdentry(char *name, struct cmdentry *entry)
+{
 	struct tblentry *cmdp;
 
 	INTOFF;
@@ -812,10 +772,8 @@ addcmdentry(name, entry)
  */
 
 void
-defun(name, func)
-	char *name;
-	union node *func;
-	{
+defun(char *name, union node *func)
+{
 	struct cmdentry entry;
 
 	INTOFF;
@@ -831,9 +789,8 @@ defun(name, func)
  */
 
 int
-unsetfunc(name)
-	char *name;
-	{
+unsetfunc(char *name)
+{
 	struct tblentry *cmdp;
 
 	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->cmdtype == CMDFUNCTION) {
@@ -849,9 +806,7 @@ unsetfunc(name)
  */
 
 int
-typecmd(argc, argv)
-	int argc;
-	char **argv;
+typecmd(int argc, char **argv)
 {
 	struct cmdentry entry;
 	struct tblentry *cmdp;

@@ -77,11 +77,8 @@ char nullstr[1];		/* zero length string */
  */
 
 void
-scopyn(from, to, size)
-	char const *from;
-	char *to;
-	int size;
-	{
+scopyn(const char *from, char *to, int size)
+{
 
 	while (--size > 0) {
 		if ((*to++ = *from++) == '\0')
@@ -96,10 +93,8 @@ scopyn(from, to, size)
  */
 
 int
-prefix(pfx, string)
-	char const *pfx;
-	char const *string;
-	{
+prefix(const char *pfx, const char *string)
+{
 	while (*pfx) {
 		if (*pfx++ != *string++)
 			return 0;
@@ -114,10 +109,8 @@ prefix(pfx, string)
  */
 
 int
-number(s)
-	const char *s;
-	{
-
+number(const char *s)
+{
 	if (! is_number(s))
 		error("Illegal number: %s", (char *)s);
 	return atoi(s);
@@ -130,9 +123,8 @@ number(s)
  */
 
 int
-is_number(p)
-	const char *p;
-	{
+is_number(const char *p)
+{
 	do {
 		if (! is_digit(*p))
 			return 0;

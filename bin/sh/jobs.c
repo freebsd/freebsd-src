@@ -93,17 +93,17 @@ int in_dowait = 0;		/* are we in dowait()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 
 #if JOBS
-STATIC void restartjob __P((struct job *));
+STATIC void restartjob(struct job *);
 #endif
-STATIC void freejob __P((struct job *));
-STATIC struct job *getjob __P((char *));
-STATIC int dowait __P((int, struct job *));
+STATIC void freejob(struct job *);
+STATIC struct job *getjob(char *);
+STATIC int dowait(int, struct job *);
 #if SYSV
-STATIC int onsigchild __P((void));
+STATIC int onsigchild(void);
 #endif
-STATIC int waitproc __P((int, int *));
-STATIC void cmdtxt __P((union node *));
-STATIC void cmdputs __P((char *));
+STATIC int waitproc(int, int *);
+STATIC void cmdtxt(union node *);
+STATIC void cmdputs(char *);
 
 
 /*
@@ -118,8 +118,7 @@ MKINIT int jobctl;
 
 #if JOBS
 void
-setjobctl(on)
-	int on;
+setjobctl(int on)
 {
 #ifdef OLD_TTY_DRIVER
 	int ldisc;
@@ -195,9 +194,7 @@ SHELLPROC {
 
 #if JOBS
 int
-fgcmd(argc, argv)
-	int argc __unused;
-	char **argv;
+fgcmd(int argc __unused, char **argv)
 {
 	struct job *jp;
 	int pgrp;
@@ -221,9 +218,7 @@ fgcmd(argc, argv)
 
 
 int
-bgcmd(argc, argv)
-	int argc;
-	char **argv;
+bgcmd(int argc, char **argv)
 {
 	struct job *jp;
 
@@ -238,8 +233,7 @@ bgcmd(argc, argv)
 
 
 STATIC void
-restartjob(jp)
-	struct job *jp;
+restartjob(struct job *jp)
 {
 	struct procstat *ps;
 	int i;
@@ -260,9 +254,7 @@ restartjob(jp)
 
 
 int
-jobscmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+jobscmd(int argc __unused, char **argv __unused)
 {
 	showjobs(0);
 	return 0;
@@ -279,8 +271,7 @@ jobscmd(argc, argv)
  */
 
 void
-showjobs(change)
-	int change;
+showjobs(int change)
 {
 	int jobno;
 	int procno;
@@ -352,9 +343,8 @@ showjobs(change)
  */
 
 STATIC void
-freejob(jp)
-	struct job *jp;
-	{
+freejob(struct job *jp)
+{
 	struct procstat *ps;
 	int i;
 
@@ -376,9 +366,7 @@ freejob(jp)
 
 
 int
-waitcmd(argc, argv)
-	int argc;
-	char **argv;
+waitcmd(int argc, char **argv)
 {
 	struct job *job;
 	int status, retval;
@@ -432,9 +420,7 @@ waitcmd(argc, argv)
 
 
 int
-jobidcmd(argc, argv)
-	int argc __unused;
-	char **argv;
+jobidcmd(int argc __unused, char **argv)
 {
 	struct job *jp;
 	int i;
@@ -454,9 +440,8 @@ jobidcmd(argc, argv)
  */
 
 STATIC struct job *
-getjob(name)
-	char *name;
-	{
+getjob(char *name)
+{
 	int jobno;
 	struct job *jp;
 	int pid;
@@ -514,9 +499,7 @@ currentjob:
  */
 
 struct job *
-makejob(node, nprocs)
-	union node *node __unused;
-	int nprocs;
+makejob(union node *node __unused, int nprocs)
 {
 	int i;
 	struct job *jp;
@@ -580,10 +563,7 @@ makejob(node, nprocs)
  */
 
 int
-forkshell(jp, n, mode)
-	union node *n;
-	struct job *jp;
-	int mode;
+forkshell(struct job *jp, union node *n, int mode)
 {
 	int pid;
 	int pgrp;
@@ -705,9 +685,7 @@ forkshell(jp, n, mode)
  */
 
 int
-waitforjob(jp, origstatus)
-	struct job *jp;
-	int *origstatus;
+waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
 	int mypgrp = getpgrp();
@@ -764,9 +742,7 @@ waitforjob(jp, origstatus)
  */
 
 STATIC int
-dowait(block, job)
-	int block;
-	struct job *job;
+dowait(int block, struct job *job)
 {
 	int pid;
 	int status;
@@ -906,9 +882,7 @@ STATIC int onsigchild() {
 
 
 STATIC int
-waitproc(block, status)
-	int block;
-	int *status;
+waitproc(int block, int *status)
 {
 #ifdef BSD
 	int flags;
@@ -946,7 +920,7 @@ waitproc(block, status)
  */
 int job_warning = 0;
 int
-stoppedjobs()
+stoppedjobs(void)
 {
 	int jobno;
 	struct job *jp;
@@ -976,9 +950,8 @@ STATIC int cmdnleft;
 #define MAXCMDTEXT	200
 
 char *
-commandtext(n)
-	union node *n;
-	{
+commandtext(union node *n)
+{
 	char *name;
 
 	cmdnextc = name = ckmalloc(MAXCMDTEXT);
@@ -990,9 +963,8 @@ commandtext(n)
 
 
 STATIC void
-cmdtxt(n)
-	union node *n;
-	{
+cmdtxt(union node *n)
+{
 	union node *np;
 	struct nodelist *lp;
 	char *p;
@@ -1119,9 +1091,8 @@ redir:
 
 
 STATIC void
-cmdputs(s)
-	char *s;
-	{
+cmdputs(char *s)
+{
 	char *p, *q;
 	char c;
 	int subtype = 0;

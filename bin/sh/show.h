@@ -34,11 +34,11 @@
  * $FreeBSD$
  */
 
-void showtree __P((union node *));
+void showtree(union node *);
 #ifdef DEBUG
-void sh_trace __P((const char *, ...)) __printflike(1, 2);
-void trargs __P((char **));
-void trputc __P((int));
-void trputs __P((char *));
-void opentrace __P((void));
+void sh_trace(const char *, ...) __printflike(1, 2);
+void trargs(char **);
+void trputc(int);
+void trputs(char *);
+void opentrace(void);
 #endif

@@ -57,7 +57,7 @@ static const char rcsid[] =
  * redirected.
  */
 void
-checkredirect()
+checkredirect(void)
 {
 	struct stat sb1, sb2;
 

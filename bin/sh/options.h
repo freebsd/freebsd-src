@@ -106,12 +106,12 @@ extern char **argptr;		/* argument list for builtin commands */
 extern char *shoptarg;		/* set by nextopt */
 extern char *optptr;		/* used by nextopt */
 
-void procargs __P((int, char **));
-void optschanged __P((void));
-void setparam __P((char **));
-void freeparam __P((struct shparam *));
-int shiftcmd __P((int, char **));
-int setcmd __P((int, char **));
-int getoptscmd __P((int, char **));
-int nextopt __P((char *));
-void getoptsreset __P((const char *));
+void procargs(int, char **);
+void optschanged(void);
+void setparam(char **);
+void freeparam(struct shparam *);
+int shiftcmd(int, char **);
+int setcmd(int, char **);
+int getoptscmd(int, char **);
+int nextopt(char *);
+void getoptsreset(const char *);

@@ -75,9 +75,7 @@ static const char rcsid[] =
  */
 
 int
-readcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+readcmd(int argc __unused, char **argv __unused)
 {
 	char **ap;
 	int backslash;
@@ -219,9 +217,7 @@ readcmd(argc, argv)
 
 
 int
-umaskcmd(argc, argv)
-	int argc __unused;
-	char **argv;
+umaskcmd(int argc __unused, char **argv)
 {
 	char *ap;
 	int mask;
@@ -353,9 +349,7 @@ static const struct limits limits[] = {
 };
 
 int
-ulimitcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+ulimitcmd(int argc __unused, char **argv __unused)
 {
 	int	c;
 	quad_t val = 0;

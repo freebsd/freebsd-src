@@ -55,7 +55,7 @@ struct var {
 	struct var *next;		/* next entry in hash list */
 	int flags;			/* flags are defined above */
 	char *text;			/* name=value */
-	void (*func) __P((const char *));
+	void (*func)(const char *);
 					/* function to be called when  */
 					/* the variable gets set/unset */
 };
@@ -113,21 +113,21 @@ extern struct var vhistsize;
 #endif
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
 
-void initvar __P((void));
-void setvar __P((char *, char *, int));
-void setvareq __P((char *, int));
+void initvar(void);
+void setvar(char *, char *, int);
+void setvareq(char *, int);
 struct strlist;
-void listsetvar __P((struct strlist *));
-char *lookupvar __P((char *));
-char *bltinlookup __P((char *, int));
-char **environment __P((void));
-void shprocvar __P((void));
-int showvarscmd __P((int, char **));
-int exportcmd __P((int, char **));
-int localcmd __P((int, char **));
-void mklocal __P((char *));
-void poplocalvars __P((void));
-int setvarcmd __P((int, char **));
-int unsetcmd __P((int, char **));
-int unsetvar __P((char *));
-int setvarsafe __P((char *, char *, int));
+void listsetvar(struct strlist *);
+char *lookupvar(char *);
+char *bltinlookup(char *, int);
+char **environment(void);
+void shprocvar(void);
+int showvarscmd(int, char **);
+int exportcmd(int, char **);
+int localcmd(int, char **);
+void mklocal(char *);
+void poplocalvars(void);
+int setvarcmd(int, char **);
+int unsetcmd(int, char **);
+int unsetvar(char *);
+int setvarsafe(char *, char *, int);

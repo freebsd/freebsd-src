@@ -67,18 +67,16 @@ static const char rcsid[] =
 #include "show.h"
 #include "cd.h"
 
-STATIC int docd __P((char *, int));
-STATIC char *getcomponent __P((void));
-STATIC void updatepwd __P((char *));
+STATIC int docd(char *, int);
+STATIC char *getcomponent(void);
+STATIC void updatepwd(char *);
 
 char *curdir = NULL;		/* current working directory */
 char *prevdir;			/* previous working directory */
 STATIC char *cdcomppath;
 
 int
-cdcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+cdcmd(int argc __unused, char **argv __unused)
 {
 	char *dest;
 	char *path;
@@ -126,9 +124,7 @@ cdcmd(argc, argv)
  * directory name if "print" is nonzero.
  */
 STATIC int
-docd(dest, print)
-	char *dest;
-	int print;
+docd(char *dest, int print)
 {
 	char *p;
 	char *q;
@@ -191,7 +187,7 @@ docd(dest, print)
  * This routine overwrites the string pointed to by cdcomppath.
  */
 STATIC char *
-getcomponent()
+getcomponent(void)
 {
 	char *p;
 	char *start;
@@ -217,8 +213,7 @@ getcomponent()
  * that the current directory has changed.
  */
 STATIC void
-updatepwd(dir)
-	char *dir;
+updatepwd(char *dir)
 {
 	char *new;
 	char *p;
@@ -277,9 +272,7 @@ updatepwd(dir)
 
 
 int
-pwdcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+pwdcmd(int argc __unused, char **argv __unused)
 {
 	if (!getpwd())
 		error("getcwd() failed: %s", strerror(errno));
@@ -298,7 +291,7 @@ pwdcmd(argc, argv)
  * directory, this routine returns immediately.
  */
 char *
-getpwd()
+getpwd(void)
 {
 	char buf[MAXPWD];
 

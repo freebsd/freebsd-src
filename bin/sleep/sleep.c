@@ -52,13 +52,10 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-int main __P((int, char *[]));
-void usage __P((void));
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct timespec time_to_sleep;
 	long l;
@@ -129,7 +126,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: sleep seconds\n");

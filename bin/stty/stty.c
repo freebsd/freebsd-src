@@ -59,12 +59,8 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
-int main __P((int, char *[]));
-
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct info i;
 	enum FMT fmt;
@@ -160,7 +156,7 @@ args:	argc -= optind;
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: stty [-a|-e|-g] [-f file] [options]\n");

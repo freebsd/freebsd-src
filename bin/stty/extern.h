@@ -34,16 +34,16 @@
  * $FreeBSD$
  */
 
-int	c_cchars __P((const void *, const void *));
-int	c_modes __P((const void *, const void *));
-int	csearch __P((char ***, struct info *));
-void	checkredirect __P((void));
-void	gprint __P((struct termios *, struct winsize *, int));
-void	gread __P((struct termios *, char *));
-int	ksearch __P((char ***, struct info *));
-int	msearch __P((char ***, struct info *));
-void	optlist __P((void));
-void	print __P((struct termios *, struct winsize *, int, enum FMT));
-void	usage __P((void));
+int	c_cchars(const void *, const void *);
+int	c_modes(const void *, const void *);
+int	csearch(char ***, struct info *);
+void	checkredirect(void);
+void	gprint(struct termios *, struct winsize *, int);
+void	gread(struct termios *, char *);
+int	ksearch(char ***, struct info *);
+int	msearch(char ***, struct info *);
+void	optlist(void);
+void	print(struct termios *, struct winsize *, int, enum FMT);
+void	usage(void);
 
 extern struct cchar cchars1[], cchars2[];

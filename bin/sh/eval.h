@@ -49,17 +49,17 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
-int evalcmd __P((int, char **));
-void evalstring __P((char *));
+int evalcmd(int, char **);
+void evalstring(char *);
 union node;	/* BLETCH for ansi C */
-void evaltree __P((union node *, int));
-void evalbackcmd __P((union node *, struct backcmd *));
-int bltincmd __P((int, char **));
-int breakcmd __P((int, char **));
-int returncmd __P((int, char **));
-int falsecmd __P((int, char **));
-int truecmd __P((int, char **));
-int execcmd __P((int, char **));
+void evaltree(union node *, int);
+void evalbackcmd(union node *, struct backcmd *);
+int bltincmd(int, char **);
+int breakcmd(int, char **);
+int returncmd(int, char **);
+int falsecmd(int, char **);
+int truecmd(int, char **);
+int execcmd(int, char **);
 
 /* in_function returns nonzero if we are currently evaluating a function */
 #define in_function()	funcnest

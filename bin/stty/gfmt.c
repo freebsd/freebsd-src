@@ -48,11 +48,10 @@ static const char rcsid[] =
 #include "stty.h"
 #include "extern.h"
 
-static void gerr __P((const char *s));
+static void gerr(const char *s);
 
 static void
-gerr(s)
-	const char *s;
+gerr(const char *s)
 {
 	if (s)
 		errx(1, "illegal gfmt1 option -- %s", s);
@@ -61,10 +60,7 @@ gerr(s)
 }
 
 void
-gprint(tp, wp, ldisc)
-	struct termios *tp;
-	struct winsize *wp __unused;
-	int ldisc __unused;
+gprint(struct termios *tp, struct winsize *wp __unused, int ldisc __unused)
 {
 	struct cchar *cp;
 
@@ -78,9 +74,7 @@ gprint(tp, wp, ldisc)
 }
 
 void
-gread(tp, s)
-	struct termios *tp;
-	char *s;
+gread(struct termios *tp, char *s)
 {
 	struct cchar *cp;
 	char *ep, *p;
