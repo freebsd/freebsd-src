@@ -602,6 +602,7 @@ struct proc {
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
+	lwpid_t		p_xlwpid;	/* (c) Thread corresponding p_xstat. */
 	int		p_numthreads;	/* (j) Number of threads. */
 	int		p_numksegrps;	/* (?) number of ksegrps */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */

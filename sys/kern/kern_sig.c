@@ -1882,6 +1882,7 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
+			p->p_xlwpid = td->td_tid;
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0) {
 				if (TD_IS_SLEEPING(td0) &&
@@ -2011,6 +2012,7 @@ ptracestop(struct thread *td, int sig)
 	    &p->p_mtx.mtx_object, "Stopping for traced signal");
 
 	p->p_xstat = sig;
+	p->p_xlwpid = td->td_tid;
 	PROC_LOCK(p->p_pptr);
 	psignal(p->p_pptr, SIGCHLD);
 	PROC_UNLOCK(p->p_pptr);
@@ -2154,6 +2156,7 @@ issignal(td)
 				    &p->p_mtx.mtx_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
+				p->p_xlwpid = td->td_tid;
 				mtx_lock_spin(&sched_lock);
 				FOREACH_THREAD_IN_PROC(p, td0) {
 					if (TD_IS_SLEEPING(td0) &&
