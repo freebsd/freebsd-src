@@ -204,7 +204,7 @@ main(argc, argv)
 		}
 	if (errno)
 		err(1, "fts_read");
-	exit(0);
+	exit(rval);
 }
 
 typedef struct _ID {
