@@ -61,7 +61,11 @@ setrunelocale(encoding)
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 
-	if (!encoding || strlen(encoding) > ENCODING_LEN)
+	if (!encoding || strlen(encoding) > ENCODING_LEN ||
+	    (encoding[0] == '.' &&
+	     (encoding[1] == '\0' ||
+	      (encoding[1] == '.' && encoding[2] == '\0'))) ||
+	    strchr(encoding, '/') != NULL)
 		return (EINVAL);
 
 	/*
