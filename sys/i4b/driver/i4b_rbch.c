@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jan 12 14:32:16 2001]
+ *	last edit-date: [Sun Mar 17 09:51:03 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -39,45 +39,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <net/if.h>
+#include <sys/filio.h>
 #include <sys/tty.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#if defined (__NetBSD__) || defined (__OpenBSD__)
-extern cc_t ttydefchars;
-#define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
-#endif
-
-#ifdef __FreeBSD__
+#include <net/if.h>
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
 
-#endif /* __FreeBSD__ */
-
-#ifdef __NetBSD__
-#include <sys/filio.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_rbch_ioctl.h>
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_rbch_ioctl.h>
-#include <i4b/i4b_debug.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
@@ -85,21 +63,8 @@ extern cc_t ttydefchars;
 
 #include <i4b/layer4/i4b_l4.h>
 
-#ifdef __bsdi__
-#include <sys/device.h>
-#endif
-
-#ifdef OS_USES_POLL
 #include <sys/ioccom.h>
 #include <sys/poll.h>
-#else
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__FreeBSD__)
-#include <sys/filio.h>
-#endif
 
 static drvr_link_t rbch_drvr_linktab[NI4BRBCH];
 static isdn_link_t *isdn_linktab[NI4BRBCH];
@@ -108,7 +73,6 @@ static isdn_link_t *isdn_linktab[NI4BRBCH];
 #define	I4BRBCHACCTINTVL	2	/* accounting msg interval in secs */
 
 static struct rbch_softc {
-
 	int sc_unit;			/* unit number 		*/
 
 	int sc_devstate;		/* state of driver	*/
@@ -120,9 +84,7 @@ static struct rbch_softc {
 #define ST_NOBLOCK	0x10
 
 	int sc_bprot;			/* B-ch protocol used	*/
-
 	call_desc_t *sc_cd;		/* Call Descriptor */
-
 	struct termios it_in;
 
 	struct ifqueue sc_hdlcq;	/* hdlc read queue	*/
@@ -131,13 +93,7 @@ static struct rbch_softc {
 	struct selinfo selp;		/* select / poll	*/
 
 #if I4BRBCHACCT
-#if defined(__FreeBSD__)
 	struct callout_handle sc_callout;
-#endif	
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-	struct callout	sc_callout;
-#endif
-
 	int		sc_iinb;	/* isdn driver # of inbytes	*/
 	int		sc_ioutb;	/* isdn driver # of outbytes	*/
 	int		sc_linb;	/* last # of bytes rx'd		*/
@@ -153,39 +109,12 @@ static void rbch_disconnect(int unit, void *cdp);
 static void rbch_init_linktab(int unit);
 static void rbch_clrq(int unit);
 
-#ifndef __FreeBSD__
-#define PDEVSTATIC	/* - not static - */
-#define IOCTL_CMD_T	u_long
-void i4brbchattach __P((void));
-int i4brbchopen __P((dev_t dev, int flag, int fmt, struct thread *td));
-int i4brbchclose __P((dev_t dev, int flag, int fmt, struct thread *td));
-int i4brbchread __P((dev_t dev, struct uio *uio, int ioflag));
-int i4brbchwrite __P((dev_t dev, struct uio *uio, int ioflag));
-int i4brbchioctl __P((dev_t dev, IOCTL_CMD_T cmd, caddr_t arg, int flag, struct thread *td));
-#ifdef OS_USES_POLL
-int i4brbchpoll __P((dev_t dev, int events, struct thread *td));
-#else
-PDEVSTATIC int i4brbchselect __P((dev_t dev, int rw, struct thread *td));
-#endif
-#endif
-
-#if BSD > 199306 && defined(__FreeBSD__)
-#define PDEVSTATIC	static
-#define IOCTL_CMD_T	u_long
-
-PDEVSTATIC d_open_t i4brbchopen;
-PDEVSTATIC d_close_t i4brbchclose;
-PDEVSTATIC d_read_t i4brbchread;
-PDEVSTATIC d_read_t i4brbchwrite;
-PDEVSTATIC d_ioctl_t i4brbchioctl;
-
-#ifdef OS_USES_POLL
-PDEVSTATIC d_poll_t i4brbchpoll;
-#define POLLFIELD	i4brbchpoll
-#else
-PDEVSTATIC d_select_t i4brbchselect;
-#define POLLFIELD	i4brbchselect
-#endif
+static 	d_open_t	i4brbchopen;
+static 	d_close_t	i4brbchclose;
+static 	d_read_t	i4brbchread;
+static 	d_read_t	i4brbchwrite;
+static 	d_ioctl_t	i4brbchioctl;
+static 	d_poll_t	i4brbchpoll;
 
 #define CDEV_MAJOR 57
 
@@ -195,7 +124,7 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* read */      i4brbchread,
 	/* write */     i4brbchwrite,
 	/* ioctl */     i4brbchioctl,
-	/* poll */      POLLFIELD,
+	/* poll */      i4brbchpoll,
 	/* mmap */      nommap,
 	/* strategy */  nostrategy,
 	/* name */      "i4brbch",
@@ -224,76 +153,32 @@ i4brbchinit(void *unused)
 SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
 	SI_ORDER_MIDDLE+CDEV_MAJOR, &i4brbchinit, NULL);
 
-#endif /* BSD > 199306 && defined(__FreeBSD__) */
-
-#ifdef __bsdi__
-int i4brbchmatch(struct device *parent, struct cfdata *cf, void *aux);
-void dummy_i4brbchattach(struct device*, struct device *, void *);
-
-#define CDEV_MAJOR 61
-
-static struct cfdriver i4brbchcd =
-	{ NULL, "i4brbch", i4brbchmatch, dummy_i4brbchattach, DV_DULL,
-	  sizeof(struct cfdriver) };
-struct devsw i4brbchsw = 
-	{ &i4brbchcd,
-	  i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
-	  i4brbchioctl,	seltrue,	nommap,		nostrat,
-	  nodump,	nopsize,	0,		nostop
-};
-
-int
-i4brbchmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	printf("i4brbchmatch: aux=0x%x\n", aux);
-	return 1;
-}
-void
-dummy_i4brbchattach(struct device *parent, struct device *self, void *aux)
-{
-	printf("dummy_i4brbchattach: aux=0x%x\n", aux);
-}
-#endif /* __bsdi__ */
-
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC void
-#ifdef __FreeBSD__
+static void
 i4brbchattach(void *dummy)
-#else
-i4brbchattach()
-#endif
 {
 	int i;
 
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4brbch: %d raw B channel access device(s) attached\n", NI4BRBCH);
-#endif
 	
 	for(i=0; i < NI4BRBCH; i++)
 	{
-#if defined(__FreeBSD__)
 		make_dev(&i4brbch_cdevsw, i,
 			UID_ROOT, GID_WHEEL, 0600, "i4brbch%d", i);
-#endif
 
 #if I4BRBCHACCT
-#if defined(__FreeBSD__)
 		callout_handle_init(&rbch_softc[i].sc_callout);
-#endif
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-		callout_init(&rbch_softc[i].sc_callout);
-#endif
 		rbch_softc[i].sc_fn = 1;
 #endif
 		rbch_softc[i].sc_unit = i;
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
-#if defined(__FreeBSD__) && __FreeBSD__ > 4
+
 		if(!mtx_initialized(&rbch_softc[i].sc_hdlcq.ifq_mtx))
 			mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
-#endif		
+
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);
 		rbch_init_linktab(i);
@@ -303,7 +188,7 @@ i4brbchattach()
 /*---------------------------------------------------------------------------*
  *	open rbch device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4brbchopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
@@ -328,7 +213,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	close rbch device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4brbchclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
@@ -349,7 +234,7 @@ i4brbchclose(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	read from rbch device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
@@ -451,7 +336,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 /*---------------------------------------------------------------------------*
  *	write to rbch device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
@@ -556,14 +441,8 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		
 		error = uiomove(m->m_data, m->m_len, uio);
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4		
 		(void) IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL);
-#else
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
-			m_freem(m);
-		else
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-#endif
+
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
 
@@ -575,8 +454,8 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 /*---------------------------------------------------------------------------*
  *	rbch device ioctl handlibg
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct thread *td)
+static int
+i4brbchioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int error = 0;
 	int unit = minor(dev);
@@ -669,12 +548,10 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct thread *
 	return(error);
 }
 
-#ifdef OS_USES_POLL
-
 /*---------------------------------------------------------------------------*
  *	device driver poll
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4brbchpoll(dev_t dev, int events, struct thread *td)
 {
 	int revents = 0;	/* Events we found */
@@ -726,66 +603,6 @@ i4brbchpoll(dev_t dev, int events, struct thread *td)
 	splx(s);
 	return(revents);
 }
-
-#else /* OS_USES_POLL */
-
-/*---------------------------------------------------------------------------*
- *	device driver select
- *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-i4brbchselect(dev_t dev, int rw, struct thread *td)
-{
-	int unit = minor(dev);
-	struct rbch_softc *sc = &rbch_softc[unit];
-        int s;
-
-	s = splhigh();
-
-	if(!(sc->sc_devstate & ST_ISOPEN))
-	{
-		splx(s);
-		NDBGL4(L4_RBCHDBG, "unit %d, not open anymore", unit);
-		return(1);
-	}
-	
-	if(sc->sc_devstate & ST_CONNECTED)
-	{
-		struct ifqueue *iqp;
-
-		switch(rw)
-		{
-			case FREAD:
-				if(sc->sc_bprot == BPROT_RHDLC)
-					iqp = &sc->sc_hdlcq;
-				else
-					iqp = isdn_linktab[unit]->rx_queue;	
-
-				if(!IF_QEMPTY(iqp))
-				{
-					splx(s);
-					return(1);
-				}
-				break;
-
-			case FWRITE:
-				if(!_IF_QFULL(isdn_linktab[unit]->rx_queue))
-				{
-					splx(s);
-					return(1);
-				}
-				break;
-
-			default:
-				splx(s);
-				return 0;
-		}
-	}
-	selrecord(p, &sc->selp);
-	splx(s);
-	return(0);
-}
-
-#endif /* OS_USES_POLL */
 
 #if I4BRBCHACCT
 /*---------------------------------------------------------------------------*
@@ -928,22 +745,10 @@ rbch_rx_data_rdy(int unit)
 
 		m->m_pkthdr.len = m->m_len;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		if (! IF_HANDOFF(&(rbch_softc[unit].sc_hdlcq), m, NULL))
 		{
 			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
 		}
-#else
-                if(IF_QFULL(&(rbch_softc[unit].sc_hdlcq)))
-		{
-			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
-			m_freem(m);
-		}			
-		else
-		{
-			IF_ENQUEUE(&(rbch_softc[unit].sc_hdlcq), m);
-		}
-#endif		
 	}
 
 	if(rbch_softc[unit].sc_devstate & ST_RDWAITDATA)
@@ -1000,24 +805,9 @@ rbch_clrq(int unit)
 {
 	CRIT_VAR;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	CRIT_BEG;
 	IF_DRAIN(&rbch_softc[unit].sc_hdlcq);
 	CRIT_END;
-#else
-	struct mbuf *m;
-        for(;;)
-        {
-                CRIT_BEG;
-                IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
-                CRIT_END;
-
-                if(m)
-                        m_freem(m);
-                else
-                        break;
-        }
-#endif	
 }
 				
 /*---------------------------------------------------------------------------*

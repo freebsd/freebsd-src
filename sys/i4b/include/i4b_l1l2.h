@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,22 +27,16 @@
  *	i4b_l1l2.h - i4b layer 1 / layer 2 interactions
  *	---------------------------------------------------
  *
- *	$Id: i4b_l1l2.h,v 1.11 2000/06/02 16:14:35 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jun  2 14:35:03 2000]
+ *	last edit-date: [Sat Mar  9 15:54:49 2002]
  *
  *---------------------------------------------------------------------------*/
 
 #ifndef _I4B_L1L2_H_
 #define _I4B_L1L2_H_
 
-#ifdef __FreeBSD__
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_trace.h>
-#endif
 
 extern struct i4b_l1l2_func i4b_l1l2_func;
 
@@ -93,4 +87,3 @@ struct i4b_l1l2_func
 };
 	
 #endif /* _I4B_L1L2_H_ */
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_rbch_ioctl.h raw B-channel driver interface ioctls
  *	------------------------------------------------------
  *
- *	$Id: i4b_rbch_ioctl.h,v 1.2 1999/12/13 21:25:28 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:07:12 1999]
+ *      last edit-date: [Sun Mar 17 10:10:25 2002]
  *
  *---------------------------------------------------------------------------*/
 

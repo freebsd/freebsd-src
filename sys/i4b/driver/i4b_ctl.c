@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.37 2000/05/31 08:04:43 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Wed May 31 09:59:01 2000]
+ *	last edit-date: [Sun Mar 17 09:49:24 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -44,43 +42,19 @@
 #if NI4BCTL > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
 
-#endif /* __FreeBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#elif defined(__bsdi__)
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#else
-#include <machine/bus.h>
-#include <sys/device.h>
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
@@ -89,28 +63,20 @@
 
 static int openflag = 0;
 
-#if BSD > 199306 && defined(__FreeBSD__)
 static	d_open_t	i4bctlopen;
 static	d_close_t	i4bctlclose;
 static	d_ioctl_t	i4bctlioctl;
-
-#ifdef OS_USES_POLL
-static d_poll_t		i4bctlpoll;
-#define POLLFIELD	i4bctlpoll
-#else
-#define POLLFIELD	noselect
-#endif
+static	d_poll_t	i4bctlpoll;
 
 #define CDEV_MAJOR 55
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4bctl_cdevsw = {
 	/* open */      i4bctlopen,
 	/* close */     i4bctlclose,
 	/* read */      noread,
 	/* write */     nowrite,
 	/* ioctl */     i4bctlioctl,
-	/* poll */      POLLFIELD,
+	/* poll */      i4bctlpoll,
 	/* mmap */      nommap,
 	/* strategy */  nostrategy,
 	/* name */      "i4bctl",
@@ -119,117 +85,35 @@ static struct cdevsw i4bctl_cdevsw = {
 	/* psize */     nopsize,
 	/* flags */     0,
 };
-#else
-static struct cdevsw i4bctl_cdevsw = 
-	{ i4bctlopen,	i4bctlclose,	noread,		nowrite,
-	  i4bctlioctl,	nostop,		nullreset,	nodevtotty,
-	  POLLFIELD,	nommap,		NULL,	"i4bctl", NULL,	-1 };
-#endif
 
 static void i4bctlattach(void *);
 PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
 
-#define PDEVSTATIC	static
-#endif /* __FreeBSD__ */
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-static void *devfs_token;
-#endif
-#endif
-
-#ifndef __FreeBSD__
-#define PDEVSTATIC	/* */
-void i4bctlattach __P((void));
-int i4bctlopen __P((dev_t dev, int flag, int fmt, struct thread *td));
-int i4bctlclose __P((dev_t dev, int flag, int fmt, struct thread *td));
-#ifdef __bsdi__
-int i4bctlioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
-#else
-int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
-#endif
-#endif	/* !FreeBSD */
-
-#if BSD > 199306 && defined(__FreeBSD__)
 /*---------------------------------------------------------------------------*
  *	initialization at kernel load time
  *---------------------------------------------------------------------------*/
 static void
 i4bctlinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4bctl_cdevsw);
-#else
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &i4bctl_cdevsw, NULL);
-#endif
 }
 
 SYSINIT(i4bctldev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &i4bctlinit, NULL);
 
-#endif /* BSD > 199306 && defined(__FreeBSD__) */
-
-#ifdef __bsdi__
-int i4bctlmatch(struct device *parent, struct cfdata *cf, void *aux);
-void dummy_i4bctlattach(struct device*, struct device *, void *);
-
-#define CDEV_MAJOR 64
-
-static struct cfdriver i4bctlcd =
-	{ NULL, "i4bctl", i4bctlmatch, dummy_i4bctlattach, DV_DULL,
-	  sizeof(struct cfdriver) };
-struct devsw i4bctlsw = 
-	{ &i4bctlcd,
-	  i4bctlopen,	i4bctlclose,	noread,		nowrite,
-	  i4bctlioctl,	seltrue,	nommap,		nostrat,
-	  nodump,	nopsize,	0,		nostop
-};
-
-int
-i4bctlmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	printf("i4bctlmatch: aux=0x%x\n", aux);
-	return 1;
-}
-void
-dummy_i4bctlattach(struct device *parent, struct device *self, void *aux)
-{
-	printf("dummy_i4bctlattach: aux=0x%x\n", aux);
-}
-#endif /* __bsdi__ */
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC void
-#ifdef __FreeBSD__
+static void
 i4bctlattach(void *dummy)
-#else
-i4bctlattach()
-#endif
 {
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4bctl: ISDN system control port attached\n");
-#endif
-
-#if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&i4bctl_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4bctl");
-#endif
-
-#else
 	make_dev(&i4bctl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4bctl");
-#endif
-#endif
 }
 
 /*---------------------------------------------------------------------------*
  *	i4bctlopen - device driver open routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bctlopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	if(minor(dev))
@@ -246,7 +130,7 @@ i4bctlopen(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	i4bctlclose - device driver close routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bctlclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	openflag = 0;
@@ -256,14 +140,8 @@ i4bctlclose(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	i4bctlioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+static int
 i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#elif defined(__bsdi__)
-i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#else
-i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
-#endif
 {
 #if DO_I4B_DEBUG
 	ctl_debug_t *cdbg;	
@@ -354,8 +232,6 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 #endif DO_I4B_DEBUG
 }
 
-#if defined(__FreeBSD__) && defined(OS_USES_POLL)
-
 /*---------------------------------------------------------------------------*
  *	i4bctlpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
@@ -364,7 +240,5 @@ i4bctlpoll (dev_t dev, int events, struct thread *td)
 {
 	return (ENODEV);
 }
-
-#endif
 
 #endif /* NI4BCTL > 0 */

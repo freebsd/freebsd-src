@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,38 +27,23 @@
  *	i4b_l3fsm.c - layer 3 FSM
  *	-------------------------
  *
- *	$Id: i4b_l3fsm.c,v 1.22 2000/08/24 11:48:58 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 12 17:58:35 2000]
+ *      last edit-date: [Sat Mar  9 19:34:39 2002]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "i4bq931.h"
-#else
-#define	NI4BQ931	1
-#endif
+
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_cause.h>
-#endif
 
 #include <i4b/include/i4b_l2l3.h>
 #include <i4b/include/i4b_l3l4.h>
@@ -68,7 +53,6 @@
 #include <i4b/layer3/i4b_l3fsm.h>
 
 #include <i4b/layer4/i4b_l4.h>
-
 
 static void F_00A(call_desc_t *cd), F_00H(call_desc_t *cd), F_00I(call_desc_t *cd);
 static void F_00J(call_desc_t *cd);
