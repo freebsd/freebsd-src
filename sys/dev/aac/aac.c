@@ -2463,7 +2463,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			if (added)
 				bus_generic_attach(sc->aac_dev);
 	
-				break;
+			break;
 
 		default:
 			break;
@@ -2628,23 +2628,23 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 			break;
 		}
 
-		if (co == NULL) {
+	if (co == NULL) {
 			query_disk.Valid = 0;
 			query_disk.Locked = 0;
 			query_disk.Deleted = 1;		/* XXX is this right? */
-		} else {
-			disk = device_get_softc(co->co_disk);
-			query_disk.Valid = 1;
-			query_disk.Locked =
-			    (disk->ad_flags & AAC_DISK_OPEN) ? 1 : 0;
-			query_disk.Deleted = 0;
-			query_disk.Bus = device_get_unit(sc->aac_dev);
-			query_disk.Target = disk->unit;
-			query_disk.Lun = 0;
-			query_disk.UnMapped = 0;
-			bcopy(disk->ad_dev_t->si_name,
-			      &query_disk.diskDeviceName[0], 10);
-		}
+	} else {
+		disk = device_get_softc(co->co_disk);
+		query_disk.Valid = 1;
+		query_disk.Locked =
+		    (disk->ad_flags & AAC_DISK_OPEN) ? 1 : 0;
+		query_disk.Deleted = 0;
+		query_disk.Bus = device_get_unit(sc->aac_dev);
+		query_disk.Target = disk->unit;
+		query_disk.Lun = 0;
+		query_disk.UnMapped = 0;
+		bcopy(disk->ad_dev_t->si_name,
+		      &query_disk.diskDeviceName[0], 10);
+	}
 	AAC_LOCK_RELEASE(&sc->aac_container_lock);
 
 	error = copyout((caddr_t)&query_disk, uptr,
