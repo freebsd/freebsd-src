@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.13 1995/09/20 21:00:58 wollman Exp $
+ *	$Id: tcp_output.c,v 1.14 1995/09/22 20:05:58 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -689,6 +689,18 @@ out:
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
+#ifdef MTUDISC
+		if (error == EMSGSIZE) {
+			/*
+			 * ip_output() will have already fixed the route
+			 * for us.  tcp_mtudisc() will, as its last action,
+			 * initiate retransmission, so it is important to
+			 * not do so here.
+			 */
+			tcp_mtudisc(tp->t_inpcb, 0);
+			return 0;
+		}
+#endif /* MTUDISC */.
 		if ((error == EHOSTUNREACH || error == ENETDOWN)
 		    && TCPS_HAVERCVDSYN(tp->t_state)) {
 			tp->t_softerror = error;

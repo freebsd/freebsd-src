@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.19 1995/10/10 17:45:43 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.20 1995/10/12 17:37:25 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -349,6 +349,9 @@ void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
 void	 tcp_mss __P((struct tcpcb *, int));
 int	 tcp_mssopt __P((struct tcpcb *));
+#ifdef MTUDISC
+void tcp_mtudisc __P((struct inpcb *, int));
+#endif /* MTUDISC */
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
 void	 tcp_notify __P((struct inpcb *, int));

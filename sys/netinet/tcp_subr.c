@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.18 1995/10/10 17:45:40 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.19 1995/10/12 17:37:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -429,10 +429,6 @@ tcp_notify(inp, error)
 	sowwakeup(so);
 }
 
-#ifdef MTUDISC
-static void tcp_mtudisc __P((struct inpcb *, int));
-#endif /* MTUDISC */
-
 void
 tcp_ctlinput(cmd, sa, ip)
 	int cmd;
@@ -481,7 +477,7 @@ tcp_quench(inp, errno)
  * since we know the packet we just sent was dropped.
  * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
-static void
+void
 tcp_mtudisc(inp, errno)
 	struct inpcb *inp;
 	int errno;

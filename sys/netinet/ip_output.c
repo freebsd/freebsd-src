@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.22 1995/07/02 16:45:07 joerg Exp $
+ *	$Id: ip_output.c,v 1.23 1995/07/26 18:05:13 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -331,6 +331,20 @@ sendit:
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = EMSGSIZE;
+#ifdef MTUDISC
+		/*
+		 * This case can happen if the user changed the MTU
+		 * of an interface after enabling IP on it.  Because
+		 * most netifs don't keep track of routes pointing to
+		 * them, there is no way for one to update all its
+		 * routes when the MTU is changed.
+		 */
+		if ((ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST))
+		    && !(ro->ro_rt->rt_rmx.rmx_locks & RTV_MTU)
+		    && (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
+			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
+		}
+#endif /* MTUDISC */
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}
