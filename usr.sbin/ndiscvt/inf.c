@@ -398,7 +398,12 @@ dump_regvals(void)
 	struct section *sec;
 	struct assign *assign;
 	char sname[256];
-	int i, is_winxp = 0, devidx = 0;
+	int i, is_winxp = 0, is_winnt = 0, devidx = 0;
+
+	/* Find signature to check for special case of WinNT. */
+	assign = find_assign("version", "signature");
+	if (strcasecmp(assign->vals[0], "$windows nt$") == 0)
+		is_winnt++;
 
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
@@ -434,6 +439,9 @@ dump_regvals(void)
 			} else {
 				sprintf(sname, "%s.NT", assign->vals[0]);
 				dev = find_assign(sname, "AddReg");
+				if (dev == NULL && is_winnt)
+					dev = find_assign(assign->vals[0],
+					    "AddReg");
 			}
 			/* Section not found. */
 			if (dev == NULL)
