@@ -100,7 +100,9 @@ A value of zero (0) is treated as
 .Em infinity ,
 and will only allow the kernel to pause
 if the queue is empty.
-Only values in the range [0..20] are accepted.
+Only values in the range
+.Bq 0..20
+are accepted.
 .Pp
 The
 .Va kern.random.sys.harvest.ethernet
@@ -139,19 +141,19 @@ These variables are all limited
 in terms of the values they may contain:
 .Bl -tag -width "kern.random.yarrow.gengateinterval" -compact -offset indent
 .It Va kern.random.yarrow.gengateinterval
-[4..64]
+.Bq 4..64
 .It Va kern.random.yarrow.bins
-[2..16]
+.Bq 2..16
 .It Va kern.random.yarrow.fastthresh
-[64..256]
+.Bq 64..256
 .It Va kern.random.yarrow.slowthresh
-[64..256]
+.Bq 64..256
 .It Va kern.random.yarrow.slowoverthresh
-[1..5]
+.Bq 1..5
 .El
 .Pp
 Internal
-.Xr sysctl 9
+.Xr sysctl 3
 handlers force the above variables
 into the stated ranges.
 .Sh FILES
