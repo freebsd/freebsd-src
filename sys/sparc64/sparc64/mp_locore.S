@@ -38,7 +38,7 @@
 	.register	%g3, #ignore
 
 	.text
-	.align	16
+	_ALIGN_TEXT
 1:	rd	%pc, %l0
 	ldx	[%l0 + (4f-1b)], %l1
 	add	%l0, (6f-1b), %l2
@@ -64,7 +64,7 @@
 3:	ldx	[%l0 + (5f-1b)], %l1
 	jmpl	%l1, %g0
 	 nop
-	.align	16
+	_ALIGN_DATA
 4:	.xword	0x0
 5:	.xword	0x0
 6:
