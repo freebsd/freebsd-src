@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: vmstat.8,v 1.8 1997/08/23 21:42:46 steve Exp $
 .\"
 .Dd June 6, 1996
 .Dt VMSTAT 8
@@ -104,7 +104,7 @@ is specified, the default is infinity.
 .El
 .Pp
 By default,
-.Nm vmstat
+.Nm
 displays the following information:
 .Pp
 .Bl -tag -width indent
@@ -159,10 +159,10 @@ Typically paging will be split across the available drives.
 The header of the field is the first character of the disk name and
 the unit number.
 If more than four disk drives are configured in the system,
-.Nm vmstat
+.Nm
 displays only the first four drives.
 To force
-.Nm vmstat
+.Nm
 to display specific drives, their names may be supplied on the command line.
 .It faults
 Trap/interrupt rate averages per second over last 5 seconds.
