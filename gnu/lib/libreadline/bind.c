@@ -87,6 +87,13 @@ extern char **rl_funmap_names ();
 void rl_set_keymap_from_edit_mode ();
 
 static int glean_key_from_name ();
+#if !defined (BSD386) && !defined (NetBSD) && \
+    !defined (FreeBSD) && !defined (_386BSD)
+static int stricmp (), strnicmp ();
+#else
+#define stricmp strcasecmp
+#define strnicmp strncasecmp
+#endif
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
@@ -1410,6 +1417,48 @@ substring_member_of_array (string, array)
     }
   return (0);
 }
+
+#if !defined (BSD386) && !defined (NetBSD) && \
+    !defined (FreeBSD) && !defined (_386BSD)
+/* Whoops, Unix doesn't have strnicmp. */
+
+/* Compare at most COUNT characters from string1 to string2.  Case
+   doesn't matter. */
+static int
+strnicmp (string1, string2, count)
+     char *string1, *string2;
+     int count;
+{
+  register char ch1, ch2;
+
+  while (count)
+    {
+      ch1 = *string1++;
+      ch2 = *string2++;
+      if (to_upper(ch1) == to_upper(ch2))
+	count--;
+      else break;
+    }
+  return (count);
+}
+
+/* strcmp (), but caseless. */
+static int
+stricmp (string1, string2)
+     char *string1, *string2;
+{
+  register char ch1, ch2;
+
+  while (*string1 && *string2)
+    {
+      ch1 = *string1++;
+      ch2 = *string2++;
+      if (to_upper(ch1) != to_upper(ch2))
+	return (1);
+    }
+  return (*string1 | *string2);
+}
+#endif
 
 /* Determine if s2 occurs in s1.  If so, return a pointer to the
    match in s1.  The compare is case insensitive. */
