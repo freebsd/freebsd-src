@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Robert Nordier
  * All rights reserved.
  *
@@ -13,9 +13,8 @@
  * purpose.
  */
 
-/*
- * $FreeBSD$
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>
