@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.2 1993/10/08 20:45:07 rgrimes Exp $
+ *	$Id: genassym.c,v 1.3 1993/10/10 02:09:44 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -96,6 +96,10 @@ main()
 	printf("#define\tCLSIZE %d\n", CLSIZE);
 	printf("#define\tNBPG %d\n", NBPG);
 	printf("#define\tNPTEPG %d\n", NPTEPG);
+	printf("#define\tNKPDE %d\n", NKPDE);
+	printf("#define\tKPTDI %d\n", KPTDI);
+	printf("#define\tPTDPTDI %d\n", PTDPTDI);
+	printf("#define\tAPTDPTDI %d\n", APTDPTDI);
 	printf("#define\tPGSHIFT %d\n", PGSHIFT);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
 	printf("#define\tSYSPTSIZE %d\n", SYSPTSIZE);
