@@ -1765,6 +1765,11 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 #endif
 /* Bus reset */
 	if(stat & OHCI_INT_PHY_BUS_R ){
+		if (fc->status == FWBUSRESET)
+			goto busresetout;
+		/* Disable bus reset interrupt until sid recv. */
+		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_PHY_BUS_R);
+	
 		device_printf(fc->dev, "BUS reset\n");
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
 		OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCSRC);
@@ -1786,6 +1791,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
 
 	}
+busresetout:
 	if((stat & OHCI_INT_DMA_IR )){
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_DMA_IR);
@@ -1849,6 +1855,8 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_SID);
 #endif
+		/* Enable bus reset interrupt */
+		OWRITE(sc, FWOHCI_INTMASK,  OHCI_INT_PHY_BUS_R);
 /*
 ** Checking whether the node is root or not. If root, turn on 
 ** cycle master.
@@ -1928,7 +1936,7 @@ void
 fwohci_intr(void *arg)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)arg;
-	u_int32_t stat;
+	u_int32_t stat, bus_reset = 0;
 
 	if (!(sc->intmask & OHCI_INT_EN)) {
 		/* polling mode */
@@ -1944,6 +1952,10 @@ fwohci_intr(void *arg)
 #ifdef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, stat);
 #endif
+		/* We cannot clear bus reset event during bus reset phase */
+		if ((stat & ~bus_reset) == 0)
+			return;
+		bus_reset = stat & OHCI_INT_PHY_BUS_R;
 		fwohci_intr_body(sc, stat, -1);
 	}
 }
