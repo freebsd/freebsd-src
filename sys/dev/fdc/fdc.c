@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.65 1995/10/04 07:01:23 joerg Exp $
+ *	$Id: fd.c,v 1.66 1995/10/09 15:00:36 joerg Exp $
  *
  */
 
@@ -978,7 +978,6 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
 	fdc_p	fdc;
-	int     st3;
 
 #if NFT > 0
 	/* check for a tape open */
@@ -1260,7 +1259,7 @@ fdintr(fdcu_t fdcu)
 static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
-	int read, format, head, sec = 0, i = 0, sectrac, st0, cyl, st3;
+	int read, format, head, sec = 0, sectrac, st0, cyl, st3;
 	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.9 1995/10/13 19:47:53 wollman Exp $
+ *	$Id: if_zp.c,v 1.10 1995/10/26 20:29:53 julian Exp $
  */
 /*-
  * TODO:
@@ -247,8 +247,6 @@ struct zp_softc {
 
 #ifdef	MACH_KERNEL
 
-static int      send_ID_sequence(), f_is_eeprom_busy();
-static u_short  get_eeprom_data();
 int             zpprobe(), zpopen(), zpoutput(), zpsetinput(), zpgetstat(),
                 zpsetstat(), zpintr();
 void            zpattach(), zpinit(), zpstart(), zpread(), zpreset(),
@@ -292,9 +290,6 @@ struct isa_driver zpdriver = {
     "zp"
 };
 
-static int send_ID_sequence __P((u_short));
-static u_short get_eeprom_data __P((int, int));
-static int f_is_eeprom_busy __P((struct isa_device *));
 
 #endif	/* MACH_KERNEL */
 
@@ -461,12 +456,8 @@ zpprobe(struct isa_device * isa_dev)
 #else	/* MACH_KERNEL */
     struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 #endif	/* MACH_KERNEL */
-    int             i, x;
-    u_int           memsize;
-    u_char          iptr, memwidth, sum, tmp;
     int             slot;
     u_short         k;
-    int             id_port = 0x100;	/* XXX */
     int             re_init_flag;
 
 #ifdef	ZP_DEBUG
@@ -653,9 +644,6 @@ re_init:
     sc->ep_io_addr = isa_dev->id_iobase;
 #endif	/* MACH_KERNEL */
     GO_WINDOW(0);
-#if 0
-    k = get_eeprom_data(BASE, EEPROM_ADDR_CFG);	/* get addr cfg */
-#endif
     k = read_eeprom_data(BASE, EEPROM_ADDR_CFG);	/* get addr cfg */
 #ifndef	ORIGINAL
     sc->if_port = k >> 14;
@@ -1503,7 +1491,6 @@ zpintr(unit)
     struct ifnet   *ifp = &sc->ds_if;
 #else	/* MACH_KERNEL */
     struct ifnet   *ifp = &sc->arpcom.ac_if;
-    struct mbuf    *m;
 #endif	/* MACH_KERNEL */
 
 #ifdef	ZP_DEBUG
@@ -1629,11 +1616,8 @@ zpread(sc)
     struct mbuf    *mcur, *m, *m0, *top;
     int             totlen, lenthisone;
     int             save_totlen;
-    u_short         etype;
-    int             off, resid;
-    int             count, spinwait;
+    int             off;
 #endif	/* MACH_KERNEL */
-    int             i;
 
 #ifdef	ZP_DEBUG
     printf("### zpread ####\n");
@@ -1941,8 +1925,7 @@ zpioctl(ifp, cmd, data)
 {
     register struct ifaddr *ifa = (struct ifaddr *) data;
     struct zp_softc *sc = &zp_softc[ifp->if_unit];
-    struct ifreq   *ifr = (struct ifreq *) data;
-    int             s, error = 0;
+    int             error = 0;
 
 #ifdef	ZP_DEBUG
     printf("### zpioctl ####\n");
@@ -2086,87 +2069,12 @@ zpstop(unit)
 }
 
 
-/*
- * This is adapted straight from the book. There's probably a better way.
- */
-static int
-send_ID_sequence(port)
-    u_short         port;
-{
-    char            cx, al;
-
-#ifdef	ZP_DEBUG2
-    printf("### send_ID_sequence ####\n");
-#ifdef MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-
-    cx = 0x0ff;
-    al = 0x0ff;
-
-    outb(port, 0x0);
-    DELAY(1000);
-    outb(port, 0x0);
-    DELAY(1000);
-
-loop1:cx--;
-    outb(port, al);
-    if (!(al & 0x80)) {
-	al = al << 1;
-	goto loop1;
-    }
-    al = al << 1;
-    al ^= 0xcf;
-    if (cx)
-	goto loop1;
-
-    return (1);
-}
-
-
-/*
- * We get eeprom data from the id_port given an offset into the
- * eeprom.  Basically; after the ID_sequence is sent to all of
- * the cards; they enter the ID_CMD state where they will accept
- * command requests. 0x80-0xbf loads the eeprom data.  We then
- * read the port 16 times and with every read; the cards check
- * for contention (ie: if one card writes a 0 bit and another
- * writes a 1 bit then the host sees a 0. At the end of the cycle;
- * each card compares the data on the bus; if there is a difference
- * then that card goes into ID_WAIT state again). In the meantime;
- * one bit of data is returned in the AX register which is conveniently
- * returned to us by inb().  Hence; we read 16 times getting one
- * bit of data with each read.
- */
-static          u_short
-get_eeprom_data(id_port, offset)
-    int             id_port;
-    int             offset;
-{
-    int             i, data = 0;
-
-#ifdef	ZP_DEBUG2
-    printf("### get_eeprom_data ####\n");
-#ifdef MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-
-    outb(id_port, 0x80 + offset);
-    DELAY(1000);
-    for (i = 0; i < 16; i++)
-	data = (data << 1) | (inw(id_port) & 1);
-    return (data);
-}
-
 
 static          u_short
 read_eeprom_data(id_port, offset)
     int             id_port;
     int             offset;
 {
-    int             i, data = 0;
 
 #ifdef	ZP_DEBUG
     printf("### read_eeprom_data ####\n");
@@ -2182,56 +2090,6 @@ read_eeprom_data(id_port, offset)
 
 
 
-static int
-#ifdef	MACH_KERNEL
-f_is_eeprom_busy(dev)
-    struct bus_device *dev;
-#else	/* MACH_KERNEL */
-f_is_eeprom_busy(is)
-    struct isa_device *is;
-#endif	/* MACH_KERNEL */
-{
-    int             i = 0, j;
-#ifdef	MACH_KERNEL
-    register struct zp_softc *sc = &zp_softc[dev->unit];
-#else	/* MACH_KERNEL */
-    register struct zp_softc *sc = &zp_softc[is->id_unit];
-#endif	/* MACH_KERNEL */
-
-#ifdef	ZP_DEBUG
-    printf("### f_is_eeprom_busy ####\n");
-    printf("BASE: %x\n", BASE);
-#ifdef MACH_KERNEL
-    cngetc();
-#endif	/* MACH_KERNEL */
-#endif	/* ZP_DEBUG */
-
-    while (i++ < 100) {
-	j = inw(BASE + EP_W0_EEPROM_COMMAND);
-	if (j & EEPROM_BUSY)
-	    DELAY(100);
-	else
-	    break;
-    }
-    if (i >= 100) {
-#ifdef	MACH_KERNEL
-	printf("\nzp%d: eeprom failed to come ready.\n", dev->unit);
-#else	/* MACH_KERNEL */
-	printf("\nzp%d: eeprom failed to come ready.\n", is->id_unit);
-#endif	/* MACH_KERNEL */
-	return (1);
-    }
-    if (j & EEPROM_TST_MODE) {
-#ifdef	MACH_KERNEL
-	printf("\nzp%d: 3c589 in test mode. Erase pencil mark!\n", dev->unit);
-#else	/* MACH_KERNEL */
-	printf("\nzp%d: 3c589 in test mode. Erase pencil mark!\n", is->id_unit);
-#endif	/* MACH_KERNEL */
-
-	return (1);
-    }
-    return (0);
-}
 
 #ifndef	MACH_KERNEL
 void

@@ -229,7 +229,6 @@ lnc_stop(int unit)
 void
 lnc_reset(int unit)
 {
-	int s;
 	lnc_init(unit);
 }
 
@@ -825,10 +824,10 @@ lnc_tint(int unit)
 int
 lnc_probe(struct isa_device * isa_dev)
 {
-int nports;
-int vsw;
+	int nports;
 
 #ifdef DIAGNOSTIC
+	int vsw;
 	vsw = inw(isa_dev->id_iobase + PCNET_VSW);
 	printf("Vendor Specific Word = %x\n", vsw);
 #endif
@@ -1120,7 +1119,6 @@ lnc_init(int unit)
 	struct lnc_softc *sc = &lnc_softc[unit];
 	int s, i;
 	char *lnc_mem;
-	struct mbuf *m = 0;
 
 	/* Check that interface has valid address */
 
@@ -1423,7 +1421,6 @@ lnc_start(struct ifnet *ifp)
 	int end_of_packet;
 	struct mbuf *head, *m;
 	int len, chunk;
-	char *buffer;
 	int addr;
 	int no_entries_needed;
 

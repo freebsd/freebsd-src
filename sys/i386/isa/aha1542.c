@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.47 1995/09/19 18:55:04 bde Exp $
+ *      $Id: aha1542.c,v 1.48 1995/10/01 15:09:51 dufault Exp $
  */
 
 /*
@@ -293,7 +293,7 @@ struct	aha_extbios
 int     aha_debug = 1;
 #endif /*AHADEBUG */
 
-struct aha_data {
+static struct aha_data {
 	short   aha_base;	/* base port for each board */
 	/*
 	 * xor this with a physaddr to get a kv addr and visa versa
@@ -318,18 +318,18 @@ struct aha_data {
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
-struct aha_ccb *aha_get_ccb();
-int     ahaprobe();
-void	aha_done();
-int     ahaattach();
-inthand2_t ahaintr;
-int32   aha_scsi_cmd();
-timeout_t aha_timeout;
-void    ahaminphys();
-u_int32 aha_adapter_info();
+inthand2_t		ahaintr;
+static struct aha_ccb	*aha_get_ccb();
+static int		ahaprobe();
+static void		aha_done();
+static int		ahaattach();
+static int32		aha_scsi_cmd();
+static timeout_t	aha_timeout;
+static void		ahaminphys();
+static u_int32		aha_adapter_info();
 
 #ifdef	KERNEL
-struct scsi_adapter aha_switch =
+static struct scsi_adapter aha_switch =
 {
     aha_scsi_cmd,
     ahaminphys,
@@ -341,7 +341,7 @@ struct scsi_adapter aha_switch =
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
-struct scsi_device aha_dev =
+static struct scsi_device aha_dev =
 {
     NULL,			/* Use default error handler */
     NULL,			/* have a queue, served by this */
@@ -393,8 +393,8 @@ static int ahaunit = 0;
 
 #define AHA_RESET_TIMEOUT	2000	/* time to wait for reset (mSec) */
 
-int	aha_poll __P((int, struct scsi_xfer *, struct aha_ccb *));
-int	aha_init __P((int));
+static int	aha_poll __P((int, struct scsi_xfer *, struct aha_ccb *));
+static int	aha_init __P((int));
 
 #ifndef	KERNEL
 main()
@@ -421,7 +421,7 @@ main()
  * commands tells it to read in a scsi command but that one is done
  * separately.  This is only called during set-up.
  */
-int
+static int
 aha_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
 	int unit;
 	int icnt;
@@ -540,7 +540,7 @@ aha_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
  * as an argument, takes the isa_device structure from
  * autoconf.c
  */
-int
+static int
 ahaprobe(dev)
 	struct isa_device *dev;
 {
@@ -619,7 +619,7 @@ ahaprobe(dev)
 /*
  * Attach all the sub-devices we can find
  */
-int
+static int
 ahaattach(dev)
 	struct isa_device *dev;
 {
@@ -658,7 +658,7 @@ ahaattach(dev)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-u_int32
+static u_int32
 aha_adapter_info(unit)
 	int     unit;
 {
@@ -781,7 +781,7 @@ ahaintr(unit)
  * A ccb (and hence a mbx-out) is put onto the
  * free list.
  */
-void
+static void
 aha_free_ccb(unit, ccb, flags)
 	int unit;
 	struct aha_ccb *ccb;
@@ -810,7 +810,7 @@ aha_free_ccb(unit, ccb, flags)
 /*
  * Get a free ccb (and hence mbox-out entry)
  */
-struct aha_ccb *
+static struct aha_ccb *
 aha_get_ccb(unit, flags)
 	int unit;
 	int flags;
@@ -874,7 +874,7 @@ put_host_stat(int host_stat)
  * adaptor, now we look to see how the operation
  * went. Wake up the owner if waiting
  */
-void
+static void
 aha_done(unit, ccb)
 	int	unit;
 	struct	aha_ccb *ccb;
@@ -1002,7 +1002,7 @@ static char *board_rev(int unit, int type)
 /*
  * Start the board, ready for normal operation
  */
-int
+static int
 aha_init(unit)
 	int     unit;
 {
@@ -1262,7 +1262,7 @@ aha_init(unit)
 	return 0;
 }
 
-void
+static void
 ahaminphys(bp)
 	struct buf *bp;
 {
@@ -1273,7 +1273,8 @@ ahaminphys(bp)
 	}
 }
 
-int aha_escape(xs, ccb)
+static int
+aha_escape(xs, ccb)
 	struct scsi_xfer *xs;
 	struct aha_ccb *ccb;
 {
@@ -1363,7 +1364,7 @@ static int physcontig(int kv, int len)
  * the data address. Also needs the unit, target
  * and lu
  */
-int32
+static int32
 aha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1624,7 +1625,7 @@ aha_scsi_cmd(xs)
 /*
  * Poll a particular unit, looking for a particular xs
  */
-int
+static int
 aha_poll(unit, xs, ccb)
 	int     unit;
 	struct scsi_xfer *xs;
@@ -1719,7 +1720,7 @@ static	struct bus_speed
 	{0xff,450}
 };
 
-int
+static int
 aha_set_bus_speed(unit)
 	int	unit;
 {
@@ -1769,7 +1770,7 @@ static char aha_test_string[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijk
 
 u_char  aha_scratch_buf[256];
 
-int
+static int
 aha_bus_speed_check(unit, speed)
 	int     unit, speed;
 {
@@ -1822,7 +1823,7 @@ aha_bus_speed_check(unit, speed)
 }
 #endif	/*TUNE_1542*/
 
-void
+static void
 aha_timeout(void *arg1)
 {
 	struct aha_ccb * ccb = (struct aha_ccb *)arg1;

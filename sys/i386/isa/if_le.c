@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.20 1995/10/13 19:47:49 wollman Exp $
+ * $Id: if_le.c,v 1.21 1995/10/26 20:29:48 julian Exp $
  */
 
 /*
@@ -853,8 +853,7 @@ lemac_probe(
     const le_board_t *bd,
     int *msize)
 {
-    int irq, portval, cksum;
-    long membase;
+    int irq, portval;
 
     LE_OUTB(sc, LEMAC_REG_IOP, LEMAC_IOP_EEINIT);
     DELAY(LEMAC_EEP_DELAY);
@@ -981,7 +980,7 @@ lemac_init(
     int unit)
 {
     le_softc_t *sc = &le_softc[unit];
-    int regval, s;
+    int s;
 
     if ((sc->le_flags & IFF_UP) == 0)
 	return;
@@ -1081,7 +1080,6 @@ lemac_rne_intr(
     le_softc_t *sc)
 {
     int rxcount, rxlen, rxpg;
-    struct mbuf *m;
     u_char *rxptr;
 
     lemac_rne_intrs++;

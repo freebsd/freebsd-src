@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12 1995/05/30 07:58:06 rgrimes Exp $
+ *	$Id: apm.c,v 1.13 1995/07/16 10:11:30 bde Exp $
  */
 
 #include "apm.h"
@@ -202,7 +202,7 @@ apm_enable_disable_pm(struct apm_softc *sc, int enable)
 static void
 apm_driver_version(void)
 {
-	u_long eax, ebx, ecx, i;
+	u_long eax, ebx, ecx;
 
 #ifdef APM_DEBUG
 	eax = (APM_BIOS<<8) | APM_INSTCHECK;
@@ -667,7 +667,6 @@ int
 #ifdef MACH_KERNEL
 	int     unit = devc->unit;
 #endif /* MACH_KERNEL */
-	struct apm_softc *sc = &apm_softc[unit];
 
 	switch (apm_version) {
 	case APMINI_CANTFIND:
@@ -787,7 +786,6 @@ apmattach(struct bus_device *dvp)
 #define APM_KERNBASE	VM_MIN_KERNEL_ADDRESS
 #endif /* MACH_KERNEL */
 	struct apm_softc	*sc = &apm_softc[unit];
-	int	i;
 
 	master_softc = sc;	/* XXX */
 	sc->initialized = 0;
@@ -924,7 +922,6 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc[minor(dev)];
 	int error = 0;
-	int pl;
 
 #ifdef APM_DEBUG
 	printf("APM ioctl: minor = %d, cmd = 0x%x\n", minor(dev), cmd);

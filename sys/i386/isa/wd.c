@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.87 1995/10/14 15:41:10 davidg Exp $
+ *	$Id: wd.c,v 1.88 1995/10/21 00:55:27 phk Exp $
  */
 
 /* TODO:
@@ -122,7 +122,7 @@ static struct kern_devconf kdc_wd[NWD] = { {
 	DC_CLS_DISK		/* class */
 } };
 
-struct kern_devconf kdc_wdc[NWDC] = { {
+static struct kern_devconf kdc_wdc[NWDC] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
 	"wdc", 0, { MDDT_ISA, 0 },
 	isa_generic_externalize, 0, wdc_goaway, ISA_EXTERNALLEN,
@@ -253,7 +253,7 @@ static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
 static void wdustart(struct disk *du);
-void wdstart(int ctrlr);
+static void wdstart(int ctrlr);
 static int wdcontrol(struct buf *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
