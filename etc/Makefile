@@ -1,11 +1,11 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.177 1998/09/25 08:21:15 dima Exp $
+#	$Id: Makefile,v 1.178 1998/10/06 19:24:14 phk Exp $
 
 SUBDIR=	sendmail
 
 BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	fbtab ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf login.conf login.access motd modems networks \
+	inetd.conf auth.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
 	rc rc.atm rc.conf rc.devfs rc.firewall rc.local rc.network rc.pccard \
 	rc.serial rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
