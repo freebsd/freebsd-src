@@ -30,6 +30,11 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /*
  * procctl -- clear the event mask, and continue, any specified processes.
  * This is largely an example of how to use the procfs interface; however,
@@ -38,26 +43,22 @@
  * procfs code, almost certainly; however, this program will still be useful
  * for some annoying circumstances.)
  */
-/*
- * $Id: procctl.c,v 1.2 1997/12/13 03:13:49 sef Exp $
- */
 
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <signal.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
 
+int
 main(int ac, char **av) {
   int fd;
   int i;
-  unsigned int mask;
-  char **command;
-  struct procfs_status pfs;
 
   for (i = 1; i < ac; i++) {
     char buf[32];
@@ -67,18 +68,13 @@ main(int ac, char **av) {
     if (fd == -1) {
       if (errno == ENOENT)
 	continue;
-      fprintf(stderr, "%s:  cannot open pid %s:  %s\n",
-	      av[0], av[i], strerror(errno));
+      warn("cannot open pid %s", av[i]);
       continue;
     }
-    if (ioctl(fd, PIOCBIC, ~0) == -1) {
-      fprintf(stderr, "%s:  cannot clear process %s's event mask: %s\n",
-	      av[0], av[i], strerror(errno));
-    }
-    if (ioctl(fd, PIOCCONT, 0) == -1 && errno != EINVAL) {
-      fprintf(stderr, "%s:  cannot continue process %s:  %s\n",
-	      av[0], av[i], strerror(errno));
-    }
+    if (ioctl(fd, PIOCBIC, ~0) == -1)
+      warn("cannot clear process %s's event mask", av[i]);
+    if (ioctl(fd, PIOCCONT, 0) == -1 && errno != EINVAL)
+      warn("cannot continue process %s", av[i]);
     close(fd);
   }
   return 0;

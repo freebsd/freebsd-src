@@ -1,16 +1,16 @@
-.\" $Id$
+.\" $Id: procctl.8,v 1.2 1997/12/07 02:30:43 peter Exp $
 .Dd Nov 23, 1997
 .Dt PROCCTL 1
 .Os FreeBSD
 .Sh NAME
-.Nm \&procctl
+.Nm procctl
 .Nd clear procfs event flags
-.Sh Synopsis
-.Nm \&procctl
+.Sh SYNOPSIS
+.Nm procctl
 .Ar command
-.Ar [...]
+.Op Ar ...
 .Sh DESCRIPTION
-.Nm \&procctl
+.Nm Procctl
 clears the
 .Xr procfs 5
 event mask used by
@@ -20,11 +20,15 @@ the
 .Xr procfs 5
 events result in a non-killable process.
 The options are a list of process ID's;
-.Nm \&procctl
+.Nm
 goes through the list and clears the event masks for each specified process.
+.Sh SEE ALSO
 .Xr truss 1 ,
 .Xr procfs 5
 .Sh HISTORY
 The
-.Nm procctl
-command was written by Sean Eric Fagan for FreeBSD.
+.Nm
+command was written by
+.An Sean Eric Fagan
+for
+.Bx Free .
