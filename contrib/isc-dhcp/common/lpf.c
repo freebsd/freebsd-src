@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: lpf.c,v 1.1.2.6 1999/02/23 22:09:55 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: lpf.c,v 1.1.2.8 1999/03/29 22:07:13 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -92,10 +92,12 @@ int if_register_lpf (info)
 	if ((sock = socket(PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL))) < 0) {
 		if (errno == ENOPROTOOPT || errno == EPROTONOSUPPORT ||
 		    errno == ESOCKTNOSUPPORT || errno == EPFNOSUPPORT ||
-		    errno == EAFNOSUPPORT)
-			error ("socket: %m - make sure %s %s!",
-			       "CONFIG_PACKET and CONFIG_FILTER are defined",
+		    errno == EAFNOSUPPORT || errno == EINVAL) {
+			warn ("socket: %m");
+			error ("Make sure to set %s %s!",
+			       "CONFIG_PACKET=y and CONFIG_FILTER=y",
 			       "in your kernel configuration");
+		}
 		error("Open a socket for LPF: %m");
 	}
 
@@ -106,10 +108,12 @@ int if_register_lpf (info)
 	if (bind (sock, &sa, sizeof sa)) {
 		if (errno == ENOPROTOOPT || errno == EPROTONOSUPPORT ||
 		    errno == ESOCKTNOSUPPORT || errno == EPFNOSUPPORT ||
-		    errno == EAFNOSUPPORT)
-			error ("socket: %m - make sure %s %s!",
-			       "CONFIG_PACKET and CONFIG_FILTER are defined",
+		    errno == EAFNOSUPPORT || errno == EINVAL) {
+			warn ("bind: %m");
+			error ("Set %s %s!",
+			       "CONFIG_PACKET=y and CONFIG_FILTER=y",
 			       "in your kernel configuration");
+		}
 		error("Bind socket to interface: %m");
 	}
 
@@ -276,6 +280,12 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 }
 
 int can_unicast_without_arp ()
+{
+	return 1;
+}
+
+int can_receive_unicast_unconfigured (ip)
+	struct interface_info *ip;
 {
 	return 1;
 }
