@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.32 1997/10/19 18:41:23 davidg Exp $";
+	"$Id: pstat.c,v 1.33 1997/11/12 05:42:33 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -465,7 +465,7 @@ vnode_print(avnode, vp)
 		*fp++ = 'B';
 	if (flag & VALIASED)
 		*fp++ = 'A';
-	if (flag & VVMIO)
+	if (flag & VOBJBUF)
 		*fp++ = 'V';
 	if (flag & VAGE)
 		*fp++ = 'a';
