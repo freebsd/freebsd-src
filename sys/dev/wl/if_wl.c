@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.12 1998/06/07 17:10:38 dfr Exp $ */
+/* $Id: if_wl.c,v 1.13 1998/06/17 14:58:00 bde Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1082,25 +1082,6 @@ wlread(int unit, u_short fd_p)
 
     m->m_pkthdr.len = clen;
 
-#ifdef NOTYET
-    /* due to fact that controller does not support
-     * all multicast mode, we must filter out unicast packets
-     * that are not for us. 
-     *
-     * if we are in all multicast mode and not promiscuous mode
-     * and packet is unicast and not for us, 
-     * 		toss the packet 
-     *
-     * TBD: also discard packets where NWID does not match.
-     */
-    if ( (sc->mode & MOD_ENAL) && ((sc->mode & MOD_PROM) != 0) &&
-        ((eh.ether_dhost[0] & 1) == 0) /* !mcast and !bcast */ &&
-        (bcmp(eh.ether_dhost, sc->wl_ac.ac_enaddr,
-    	 sizeof(eh.ether_dhost)) != 0) ) {
-        m_freem(m);
-        return 1;
-    }
-#endif
 #if NBPFILTER > 0
     /*
      * Check if there's a BPF listener on this interface. If so, hand off
@@ -1118,24 +1099,35 @@ wlread(int unit, u_short fd_p)
 
 	bpf_mtap(ifp, &m0);
 	
-	/*
-	 * point of this code is that even though we are in promiscuous
-	 * mode, and due to fact that bpf got packet already, we
-	 * do toss unicast packet not to us so that stacks upstairs
-	 * do not need to weed it out
-	 *
-	 * logic: if promiscuous mode AND not multicast/bcast AND
-	 *	not to us, throw away
-	 */
-	if ((sc->wl_ac.ac_if.if_flags & IFF_PROMISC) &&
-	    (eh.ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	    bcmp(eh.ether_dhost, sc->wl_ac.ac_enaddr,
-		 sizeof(eh.ether_dhost)) != 0 ) {
-	    m_freem(m);
-	    return 1;
-	}
     }
 #endif
+    /*
+     * If hw is in promiscuous mode (note that I said hardware, not if
+     * IFF_PROMISC is set in ifnet flags), then if this is a unicast
+     * packet and the MAC dst is not us, drop it.  This check was formerly
+     * inside the bpf if, above, but IFF_MULTI causes hw promisc without
+     * a bpf listener, so this is wrong.
+     *		Greg Troxel <gdt@ir.bbn.com>, 1998-08-07
+     */
+    /*
+     * TBD: also discard packets where NWID does not match.
+     * However, there does not appear to be a way to read the nwid
+     * for a received packet.  -gdt 1998-08-07
+     */
+    if (
+#ifdef WL_USE_IFNET_PROMISC_CHECK /* not defined */
+	(sc->wl_ac.ac_if.if_flags & (IFF_PROMISC|IFF_ALLMULTI))
+#else
+	/* hw is in promisc mode if this is true */
+	(sc->mode & (MOD_PROM | MOD_ENAL))
+#endif
+	&&
+	(eh.ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
+	bcmp(eh.ether_dhost, sc->wl_ac.ac_enaddr,
+	     sizeof(eh.ether_dhost)) != 0 ) {
+      m_freem(m);
+      return 1;
+    }
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
