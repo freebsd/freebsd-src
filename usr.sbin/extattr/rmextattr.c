@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
  * Copyright (c) 2002 Poul-Henning Kamp.
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
  * All rights reserved.
@@ -175,12 +175,11 @@ main(int argc, char *argv[])
 		err(-1, argv[0]);
 	argc--; argv++;
 
-	if (what == EALS) {
-		attrname = "";
-	} else {
+	if (what != EALS) {
 		attrname = argv[0];
 		argc--; argv++;
-	}
+	} else
+		attrname = NULL;
 
 	if (what == EASET) {
 		mkbuf(&buf, &buflen, strlen(argv[0]) + 1);
@@ -213,6 +212,30 @@ main(int argc, char *argv[])
 				continue;
 			break;
 		case EALS:
+			if (flag_nofollow)
+				error = extattr_list_link(argv[arg_counter],
+				    attrnamespace, NULL, 0);
+			else
+				error = extattr_list_file(argv[arg_counter],
+				    attrnamespace, NULL, 0);
+			if (error < 0)
+				break;
+			mkbuf(&buf, &buflen, error);
+			if (flag_nofollow)
+				error = extattr_list_link(argv[arg_counter],
+				    attrnamespace, buf, buflen);
+			else
+				error = extattr_list_file(argv[arg_counter],
+				    attrnamespace, buf, buflen);
+			if (error < 0)
+				break;
+			if (!flag_quiet)
+				printf("%s\t", argv[arg_counter]);
+			for (i = 0; i < error; i += buf[i] + 1)
+			    printf("%s%*.*s", i ? "\t" : "",
+				buf[i], buf[i], buf + i + 1);
+			printf("\n");
+			continue;
 		case EAGET:
 			if (flag_nofollow)
 				error = extattr_get_link(argv[arg_counter],
@@ -233,13 +256,6 @@ main(int argc, char *argv[])
 				break;
 			if (!flag_quiet)
 				printf("%s\t", argv[arg_counter]);
-			if (what == EALS) {
-				for (i = 0; i < error; i += buf[i] + 1)
-				    printf("%s%*.*s", i ? "\t" : "",
-					buf[i], buf[i], buf + i + 1);
-				printf("\n");
-				continue;
-			}
 			if (flag_string) {
 				mkbuf(&visbuf, &visbuflen, error * 4 + 1);
 				strvisx(visbuf, buf, error,
