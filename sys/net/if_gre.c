@@ -385,7 +385,11 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-	/* send it off */
+	/*
+	 * Send it off and with IP_FORWARD flag to prevent it from
+	 * overwriting the ip_id again.  ip_id is already set to the
+	 * ip_id of the encapsulated packet.
+	 */
 	error = ip_output(m, NULL, &sc->route, IP_FORWARDING,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
