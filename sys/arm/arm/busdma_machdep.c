@@ -433,7 +433,7 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
 	if (td != NULL)
 		pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	else
-		pmap = NULL;
+		pmap = pmap_kernel();
 
 	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
@@ -457,7 +457,7 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
 			} else {
 				pte = *ptep;
 				KASSERT((pte & L2_TYPE_MASK) != L2_TYPE_INV,
-				    "INV type");
+				    ("INV type"));
 				if (__predict_false((pte & L2_TYPE_MASK)
 						    == L2_TYPE_L)) {
 					curaddr = (pte & L2_L_FRAME) |
