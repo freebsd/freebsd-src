@@ -1,4 +1,5 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -1622,7 +1623,8 @@ void define_variable(const char *name, double val)
   if (strcmp(name, "scale") == 0) {
     // When the scale changes, reset all scaled pre-defined variables to
     // their default values.
-    for (int i = 0; i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++) 
+    for (unsigned int i = 0;
+	 i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++) 
       if (defaults_table[i].scaled)
 	define_variable(defaults_table[i].name, val*defaults_table[i].val);
   }
@@ -1641,7 +1643,8 @@ void parse_init()
 
 void reset(const char *nm)
 {
-  for (int i = 0; i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++)
+  for (unsigned int i = 0;
+       i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++)
     if (strcmp(nm, defaults_table[i].name) == 0) {
       double val = defaults_table[i].val;
       if (defaults_table[i].scaled) {
@@ -1661,7 +1664,8 @@ void reset_all()
   // aren't scaled because `scale' is not scaled, and changing the
   // value of `scale' will reset all the pre-defined variables that
   // are scaled.
-  for (int i = 0; i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++)
+  for (unsigned int i = 0;
+       i < sizeof(defaults_table)/sizeof(defaults_table[0]); i++)
     if (!defaults_table[i].scaled)
       define_variable(defaults_table[i].name, defaults_table[i].val);
 }

@@ -4655,29 +4655,23 @@ The @code{.a} read-only number register contains the most recent
 @cindex blank lines, disabling
 @cindex lines, blank, disabling
 @Defreq {ns, }
+@Defregx {.ns}
 Enable @dfn{no-space mode}.  In this mode, spacing (either via
 @code{sp} or via blank lines) is disabled.  The @code{bp} request to
 advance to the next page is also disabled, except if it is accompanied
 by a page number (see @ref{Page Control}, for more information).  This
 mode ends when actual text is output or the @code{rs} request is
-encountered.
+encountered.  The read-only number register @code{.ns} is set to@w{ }1.
 
-@cindex top-level diversion
-@cindex diversion, top-level
 This request is useful for macros which want to avoid that subsequent
 macros inadvertently insert some vertical space before the text starts
-(for example, to set up the first paragraph after a section header).  It
-has no effect if not called within the top-level diversion
-(@pxref{Diversions}).
+(for example, to set up the first paragraph after a section header).
 
 @c XXX xref
 @endDefreq
 
-@cindex top-level diversion
-@cindex diversion, top-level
 @Defreq {rs, }
-Disable no-space mode.  It has no effect if not called within the
-top-level diversion (@pxref{Diversions}).
+Disable no-space mode.
 
 @c XXX xref
 @endDefreq
@@ -7409,7 +7403,7 @@ The @code{als} request can make a macro have more than one name.
 This would be called as
 
 @Example
-.vl $Id: groff.texinfo,v 1.74 2001/04/16 14:47:18 wlemb Exp $
+.vl $Id: groff.texinfo,v 1.77 2001/05/07 13:36:24 wlemb Exp $
 @endExample
 @endDefesc
 

@@ -21,6 +21,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "driver.h"
 #include "device.h"
 
+extern "C" const char *Version_string;
+
 #ifndef SHRT_MIN
 #define SHRT_MIN (-32768)
 #endif
@@ -442,7 +444,6 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU grotty (groff) version %s\n", Version_string);
 	exit(0);
 	break;

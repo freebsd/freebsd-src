@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1999-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1999-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -479,3 +479,7 @@ http://www.cs.pdx.edu/~trent/gnu/groff/groff_toc.html
 This manual page was originally written for the Debian GNU/Linux system by
 Susan G. Kleinmann <sgk@debian.org>, corrected and updated by Werner Lemberg
 <wl@gnu.org>, and is now part of the GNU troff distribution.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

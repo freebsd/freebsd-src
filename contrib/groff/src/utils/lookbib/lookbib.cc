@@ -34,6 +34,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 extern "C" {
   int isatty(int);
+  const char *Version_string;
 }
 
 static void usage(FILE *stream)
@@ -76,7 +77,6 @@ int main(int argc, char **argv)
       }
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU lookbib (groff) version %s\n", Version_string);
 	exit(0);
 	break;
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
     int len;
     int count;
     for (count = 0; iter.next(&start, &len); count++) {
-      if (fwrite(start, 1, len, stdout) != len)
+      if (fwrite(start, 1, len, stdout) != (size_t)len)
 	fatal("write error on stdout: %1", strerror(errno));
       // Can happen for last reference in file.
       if (start[len - 1] != '\n')

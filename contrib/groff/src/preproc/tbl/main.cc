@@ -25,6 +25,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define MAX_POINT_SIZE 99
 #define MAX_VERTICAL_SPACING 72
 
+extern "C" const char *Version_string;
+
 static int compatible_flag = 0;
 
 class table_input {
@@ -731,7 +733,7 @@ format *process_format(table_input &in, options *opt,
     int pre_vline = 0;
     int got_format = 0;
     int got_period = 0;
-    format_type t;
+    format_type t = FORMAT_LEFT;
     for (;;) {
       if (c == EOF) {
 	error("end of input while processing format");
@@ -1470,7 +1472,6 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU tbl (groff) version %s\n", Version_string);
 	exit(0);
 	break;

@@ -37,12 +37,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include "nonposix.h"
 
+extern "C" const char *Version_string;
+
+#ifndef HAVE_MKSTEMP_PROTO
 extern "C" {
-  // Solaris 2.5.1 has these functions,
-  // but its stdlib.h fails to declare them.
-  char *mktemp(char *);
-  int mkstemp(char *);
+  extern int mkstemp(char *);
 }
+#endif
 
 #define DEFAULT_HASH_TABLE_SIZE 997
 #define TEMP_INDEX_TEMPLATE "indxbibXXXXXX"
@@ -114,7 +115,6 @@ static char *get_cwd();
 
 extern "C" {
   void cleanup();
-  long dir_name_max(const char *);
   void catch_fatal_signals();
   void ignore_fatal_signals();
 }
@@ -179,12 +179,9 @@ int main(int argc, char **argv)
       parser = do_whole_file;
       break;
     case 'v':
-      {
-	extern const char *Version_string;
-	printf("GNU indxbib (groff) version %s\n", Version_string);
-	exit(0);
-	break;
-      }
+      printf("GNU indxbib (groff) version %s\n", Version_string);
+      exit(0);
+      break;
     case CHAR_MAX + 1: // --help
       usage(stdout);
       exit(0);
@@ -215,24 +212,24 @@ int main(int argc, char **argv)
     basename = optind < argc ? argv[optind] : DEFAULT_INDEX_NAME;
   const char *p = strrchr(basename, DIR_SEPS[0]), *p1;
   const char *sep = &DIR_SEPS[1];
-  while (*sep)
-    {
-      p1 = strrchr(basename, *sep);
-      if (p1 && (!p || p1 > p))
-	p = p1;
-      sep++;
-    }
-  long name_max;
+  while (*sep) {
+    p1 = strrchr(basename, *sep);
+    if (p1 && (!p || p1 > p))
+      p = p1;
+    sep++;
+  }
+  size_t name_max;
   if (p) {
     char *dir = strsave(basename);
     dir[p - basename] = '\0';
-    name_max = dir_name_max(dir);
+    name_max = file_name_max(dir);
     a_delete dir;
   }
   else
-    name_max = dir_name_max(".");
+    name_max = file_name_max(".");
   const char *filename = p ? p + 1 : basename;
-  if (name_max >= 0 && strlen(filename) + sizeof(INDEX_SUFFIX) - 1 > name_max)
+  if (name_max >= 0 &&
+      long(strlen(filename) + sizeof(INDEX_SUFFIX) - 1) > name_max)
     fatal("`%1.%2' is too long for a filename", filename, INDEX_SUFFIX);
   if (p) {
     p++;
@@ -303,23 +300,22 @@ int main(int argc, char **argv)
   strcpy(index_file, basename);
   strcat(index_file, INDEX_SUFFIX);
 #ifdef HAVE_RENAME
-  if (rename(temp_index_file, index_file) < 0)
-    {
+  if (rename(temp_index_file, index_file) < 0) {
 #ifdef __MSDOS__
-      // RENAME could fail on plain MSDOS filesystems because
-      // INDEX_FILE is an invalid filename, e.g. it has multiple dots.
-      char *fname = p ? index_file + (p - basename) : 0;
-      char *dot = 0;
+    // RENAME could fail on plain MSDOS filesystems because
+    // INDEX_FILE is an invalid filename, e.g. it has multiple dots.
+    char *fname = p ? index_file + (p - basename) : 0;
+    char *dot = 0;
 
-      // Replace the dot with an underscore and try again.
-      if (fname
-	  && (dot = strchr(fname, '.')) != 0
-	  && strcmp(dot, INDEX_SUFFIX) != 0)
-	*dot = '_';
-      if (rename(temp_index_file, index_file) < 0)
+    // Replace the dot with an underscore and try again.
+    if (fname
+        && (dot = strchr(fname, '.')) != 0
+        && strcmp(dot, INDEX_SUFFIX) != 0)
+      *dot = '_';
+    if (rename(temp_index_file, index_file) < 0)
 #endif
-	fatal("can't rename temporary index file: %1", strerror(errno));
-    }
+    fatal("can't rename temporary index file: %1", strerror(errno));
+  }
 #else /* not HAVE_RENAME */
   ignore_fatal_signals();
   if (unlink(index_file) < 0) {
@@ -502,7 +498,7 @@ static int do_file(const char *filename)
     // every CR character before a Newline.
     if (c == '\r') {
       int peek = getc(fp);
-      if (peek = '\n') {
+      if (peek == '\n') {
 	byte_count++;
 	c = peek;
       }
@@ -784,7 +780,7 @@ static void write_hash_table()
 
 static void fwrite_or_die(const void *ptr, int size, int nitems, FILE *fp)
 {
-  if (fwrite(ptr, size, nitems, fp) != nitems)
+  if (fwrite(ptr, size, nitems, fp) != (size_t)nitems)
     fatal("fwrite failed: %1", strerror(errno));
 }
 
