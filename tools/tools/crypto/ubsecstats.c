@@ -27,7 +27,7 @@
  */
 #include <stdio.h>
 #include <sys/types.h>
-#include "/sys/dev/ubsec/ubsecvar.h"
+#include "../../../sys/dev/ubsec/ubsecvar.h"
 
 /*
  * Little program to dump the statistics block for the ubsec driver.
