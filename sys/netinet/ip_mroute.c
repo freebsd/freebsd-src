@@ -661,11 +661,15 @@ X_ip_mrouter_done(void)
 
     VIF_LOCK();
     if (encap_cookie) {
-	encap_detach(encap_cookie);
+	const struct encaptab *c = encap_cookie;
 	encap_cookie = NULL;
+	encap_detach(c);
     }
+    VIF_UNLOCK();
+
     callout_stop(&tbf_reprocess_ch);
 
+    VIF_LOCK();
     /*
      * For each phyint in use, disable promiscuous reception of all IP
      * multicasts.
@@ -691,11 +695,11 @@ X_ip_mrouter_done(void)
     /*
      * Free all multicast forwarding cache entries.
      */
-    MFC_LOCK();
     callout_stop(&expire_upcalls_ch);
     callout_stop(&bw_upcalls_ch);
     callout_stop(&bw_meter_ch);
 
+    MFC_LOCK();
     for (i = 0; i < MFCTBLSIZ; i++) {
 	for (rt = mfctable[i]; rt != NULL; ) {
 	    struct mfc *nr = rt->mfc_next;
