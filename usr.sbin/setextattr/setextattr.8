@@ -59,13 +59,13 @@ In order for
 to succeed, the attribute service must be available on the file system,
 and appropriate privilege may be required.
 .Sh EXAMPLES
-.Dl # setextattr system md5 /kernel `md5 -q /kernel`
+.Dl # setextattr system md5 /boot/kernel/kernel `md5 -q /boot/kernel/kernel`
 .Pp
 Set the
 .Dq md5
-extended attribute on the file /kernel to the string
+extended attribute on the file /boot/kernel/kernel to the string
 containing the output of
-.Dq md5 -q /kernel .
+.Dq md5 -q /boot/kernel/kernel .
 .Sh SEE ALSO
 .Xr extattr 2 ,
 .Xr extattr 3 ,
