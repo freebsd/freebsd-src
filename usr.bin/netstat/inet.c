@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.29 1998/06/09 04:13:01 imp Exp $";
+	"$Id: inet.c,v 1.30 1998/07/06 21:01:23 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -170,8 +170,12 @@ protopr(proto, name)
 				"Local Address", "Foreign Address", "(state)");
 			first = 0;
 		}
-		if (Aflag)
-			printf("%8lx ", (u_long)so->so_pcb);
+		if (Aflag) {
+			if (istcp)
+				printf("%8lx ", (u_long)inp->inp_ppcb);
+			else
+				printf("%8lx ", (u_long)so->so_pcb);
+		}
 		printf("%-5.5s %6ld %6ld ", name, so->so_rcv.sb_cc,
 			so->so_snd.sb_cc);
 		if (nflag) {
