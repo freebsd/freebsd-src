@@ -284,12 +284,12 @@
 <sect4>		+	".NH 5+\\n(il"		+
 </sect4>
 
-<heading>		".ds h "
-</heading>	+	"\\*h\n"
+<heading>	+	".ds h "        +
+</heading>		"\\*h\n"
 			".XS \\n%\n"
 			"\\*(SN \\*h\n"
 			".XE\n"		
-			".nr h 1\n"  % set heading flag to true
+			".nr h 1\n" % set heading flag to true
 
 <p>		+	".Pp"			+   
 </p>
@@ -366,7 +366,7 @@
 <cparam>		"\\fI<"
 </cparam>		">\\fR"
 
-<url>			"[NAME] <\\fC[URL]\\fR>"
+<url>			"[NAME] <URL:\\fC[URL]\\fR>"
 </url>
 
 <htmlurl>		"[NAME]"
