@@ -312,17 +312,19 @@ void
 usage()
 {
 #ifndef INET6
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig interface address_family [address [dest_address]]",
 	"                [parameters]",
 	"       ifconfig -a [-d] [-u] [address_family]",
-	"       ifconfig -l [-d] [-u] [address_family]");
+	"       ifconfig -l [-d] [-u] [address_family]",
+	"       ifconfig [-d] [-u]");
 #else
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig [-L] interface address_family [address [dest_address]]",
 	"                [parameters]",
 	"       ifconfig -a [-L] [-d] [-u] [address_family]",
-	"       ifconfig -l [-d] [-u] [address_family]");
+	"       ifconfig -l [-d] [-u] [address_family]",
+	"       ifconfig [-L] [-d] [-u]");
 #endif
 	exit(1);
 }
