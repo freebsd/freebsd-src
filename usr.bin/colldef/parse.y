@@ -232,9 +232,7 @@ sec_sub_item : CHAR {
 ;
 %%
 int
-main(ac, av)
-	int ac;
-	char **av;
+main(int ac, char **av)
 {
 	int ch;
 
@@ -275,7 +273,7 @@ main(ac, av)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: colldef [-o out_file] [-I map_dir] [filename]\n");
 	exit(EX_USAGE);
