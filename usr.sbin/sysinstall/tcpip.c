@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.5 1995/05/17 14:39:58 jkh Exp $
+ * $Id: tcpip.c,v 1.6 1995/05/18 09:02:06 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -68,6 +68,7 @@ typedef struct _interface {
     char	netmask[32];
     char	extras[256]; /* Extra stuff for ifconfig (link0, etc) */
     int		valid;
+    Device	*dptr;
 } Interface;
 
 /* The names and details of the available interfaces, for the list */
@@ -215,6 +216,7 @@ tcpOpenDialog(char *str)
 
     while (devs[n] != NULL) {
 	iface_names[n] = (devs[n])->name;
+	if_list[n].dptr = devs[n];
 	++n;
     }
     n_iface = n;
@@ -506,6 +508,7 @@ tcpOpenDialog(char *str)
 		strcpy(if_list[n_iface].netmask, netmask);
 		strcpy(if_list[n_iface].extras, extras);
 		if_list[n_iface].valid = TRUE;
+		if_list[n_iface].dptr->enabled = TRUE;
 	    } else if (n < max)
 		++n;
 	    else
@@ -556,7 +559,6 @@ tcpOpenDialog(char *str)
 
 	/* Loop over the per-interface data saving data which has been
            validated ... */
-	foo = 0;
 	for (foo = 0 ; foo < INTERFACE_MAX ; foo++) {
 	    if (if_list[foo].valid == TRUE) {
 		char temp[512], ifn[64];
