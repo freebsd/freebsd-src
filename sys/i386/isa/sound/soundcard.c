@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: soundcard.c,v 1.18 1994/08/02 07:40:58 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -72,7 +72,6 @@ unsigned
 long
 get_time(void)
 {
-extern struct timeval time;
 struct timeval timecopy;
 int x;
 
@@ -345,8 +344,7 @@ sound_mem_init (void)
 
 	  for (snd_raw_count[dev] = 0; snd_raw_count[dev] < sound_buffcounts[dev]; snd_raw_count[dev]++)
 	    {
-	      char           *tmpbuf = contigmalloc (sound_buffsizes[dev], M_DEVBUF, M_NOWAIT,
-						     0xFFFFFFul, 0ul, dma_pagesize - 1);
+	      char           *tmpbuf = (char *)vm_page_alloc_contig(sound_buffsizes[dev], 0ul, 0xfffffful, dma_pagesize);
 
 	      if (tmpbuf == NULL)
 		{
