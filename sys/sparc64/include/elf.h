@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 1996-1997 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,33 +27,32 @@
  */
 
 #ifndef	_MACHINE_ELF_H_
-#define	_MACHINE_ELF_H_
+#define _MACHINE_ELF_H_ 1
 
-#include <sys/elf64.h>
+/*
+ * ELF definitions for the sparc64 architecture.
+ */
 
-#define	__ELF_WORD_SIZE	64
+#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+
+#define __ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_SPARCV9
 
-#define	ELF_TARG_CLASS	ELFCLASS64
-#define	ELF_TARG_DATA	ELFDATA2MSB
-#define	ELF_TARG_MACH	ELF_ARCH
-#define	ELF_TARG_VER	1
-
-#define	ELF_MACHINE_OK(m)	((m) == ELF_ARCH)
+#define	ELF_MACHINE_OK(x)	((x) == ELF_ARCH)
 #define	ELF_RTLD_ADDR(vm)	(0)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
  */
 
-typedef	struct {
-	long	a_type;
+typedef struct {	/* Auxiliary vector entry on initial stack */
+	long	a_type;			/* Entry type. */
 	union {
-		long	a_val;
-		void	*a_ptr;
-		void	(*a_fcn)(void);
+		long	a_val;		/* Integer value. */
+		void	*a_ptr;		/* Address. */
+		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
 } Elf64_Auxinfo;
 
@@ -70,20 +69,17 @@ typedef Elf64_Half Elf64_Hashelt;
 
 __ElfType(Hashelt);
 
-/*
- * Values for a_type.
- */
-
-#define AT_NULL		0	/* Terminates the vector. */
-#define AT_IGNORE	1	/* Ignored entry. */
-#define AT_EXECFD	2	/* File descriptor of program to load. */
-#define AT_PHDR		3	/* Program header of program already loaded. */
-#define AT_PHENT	4	/* Size of each program header entry. */
-#define AT_PHNUM	5	/* Number of program header entries. */
-#define AT_PAGESZ	6	/* Page size in bytes. */
-#define AT_BASE		7	/* Interpreter's base address. */
-#define AT_FLAGS	8	/* Flags (unused). */
-#define AT_ENTRY	9	/* Where interpreter should transfer control. */
+/* Values for a_type. */
+#define	AT_NULL		0	/* Terminates the vector. */
+#define	AT_IGNORE	1	/* Ignored entry. */
+#define	AT_EXECFD	2	/* File descriptor of program to load. */
+#define	AT_PHDR		3	/* Program header of program already loaded. */
+#define	AT_PHENT	4	/* Size of each program header entry. */
+#define	AT_PHNUM	5	/* Number of program header entries. */
+#define	AT_PAGESZ	6	/* Page size in bytes. */
+#define	AT_BASE		7	/* Interpreter's base address. */
+#define	AT_FLAGS	8	/* Flags (unused). */
+#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
 
 /*
  * The following non-standard values are used for passing information
@@ -96,6 +92,37 @@ __ElfType(Hashelt);
 #define AT_BRK		10	/* Starting point for sbrk and brk. */
 #define AT_DEBUG	11	/* Debugging level. */
 
+/*
+ * The following non-standard values are used in Linux ELF binaries.
+ */
+#define	AT_NOTELF	10	/* Program is not ELF ?? */
+#define	AT_UID		11	/* Real uid. */
+#define	AT_EUID		12	/* Effective uid. */
+#define	AT_GID		13	/* Real gid. */
+#define	AT_EGID		14	/* Effective gid. */
+
 #define	AT_COUNT	15	/* Count of defined aux entry types. */
 
+/*
+ * Relocation types.
+ */
+
+/* Define "machine" characteristics */
+#define	ELF_TARG_CLASS	ELFCLASS64
+#define	ELF_TARG_DATA	ELFDATA2MSB
+#define	ELF_TARG_MACH	ELF_ARCH
+#define	ELF_TARG_VER	1
+
+#ifdef _KERNEL
+
+/*
+ * On the Sparc64 we load the dynamic linker where a userland call
+ * to mmap(0, ...) would put it.  The rationale behind this
+ * calculation is that it leaves room for the heap to grow to
+ * its maximum allowed size.
+ */
+#define	ELF_RTLD_ADDR(vmspace) \
+    (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
+
+#endif /* _KERNEL */
 #endif /* !_MACHINE_ELF_H_ */
