@@ -164,6 +164,11 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	Users of current not using DEVFS need to run MAKEDEV std.
 	ssh might not work if you don't.
 
+20010303:
+	The ed driver has been updated.  It now allows mii attachments,
+	which means that you must include the miibus in your kernel if
+	you use the ed driver.
+
 20010220:
 	The problems with libc have been corrected.  It is now mostly
 	safe to go back into the water.
