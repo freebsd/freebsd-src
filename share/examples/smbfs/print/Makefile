@@ -1,13 +1,9 @@
 # $FreeBSD$
 
 NOOBJ=	noobj
-BINDIR=	/usr/share/examples
+BINDIR=	/usr/share/examples/smbfs/print
+FILES=	lj6l ljspool printcap.sample tolj
 
-DISTFILES=	lj6l ljspool printcap.sample tolj
-
-beforeinstall:
-	cd ${.CURDIR}/../../../../contrib/smbfs/examples/print; \
-	    ${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-		${DISTFILES} ${DESTDIR}${BINDIR}/smbfs/print
+.PATH: ${.CURDIR}/../../../../contrib/smbfs/examples/print
 
 .include <bsd.prog.mk>
