@@ -75,6 +75,6 @@ name##_getstate(struct name##_state **p)			\
 	return (rv);						\
 }								\
 /* allow the macro invocation to end with a semicolon */	\
-typedef int _##name##_bmVjdGFy
+struct _clashproof_bmVjdGFy
 
 #endif /* _NSS_TLS_H_ */

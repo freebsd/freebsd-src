@@ -316,9 +316,11 @@ nss_configure(void)
 	static pthread_mutex_t conf_lock = PTHREAD_MUTEX_INITIALIZER;
 	static time_t	 confmod;
 	struct stat	 statbuf;
-	int		 result;
+	int		 result, isthreaded;
 	const char	*path;
 
+	result = 0;
+	isthreaded = __isthreaded;
 #if defined(_NSS_DEBUG) && defined(_NSS_SHOOT_FOOT)
 	/* NOTE WELL:  THIS IS A SECURITY HOLE. This must only be built
 	 * for debugging purposes and MUST NEVER be used in production.
@@ -331,16 +333,20 @@ nss_configure(void)
 		return (0);
 	if (statbuf.st_mtime <= confmod)
 		return (0);
-	result = _pthread_mutex_trylock(&conf_lock);
-	if (result != 0)
-		return (0);
-	(void)_pthread_rwlock_unlock(&nss_lock);
-	result = _pthread_rwlock_wrlock(&nss_lock);
-	if (result != 0)
-		goto fin2;
+	if (isthreaded) {
+	    result = _pthread_mutex_trylock(&conf_lock);
+	    if (result != 0)
+		    return (0);
+	    (void)_pthread_rwlock_unlock(&nss_lock);
+	    result = _pthread_rwlock_wrlock(&nss_lock);
+	    if (result != 0)
+		    goto fin2;
+	}
 	_nsyyin = fopen(path, "r");
-	if (_nsyyin == NULL)
+	if (_nsyyin == NULL) {
+		result = errno;
 		goto fin;
+	}
 	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
 	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
@@ -353,10 +359,14 @@ nss_configure(void)
 		(void)atexit(nss_atexit);
 	confmod = statbuf.st_mtime;
 fin:
-	(void)_pthread_rwlock_unlock(&nss_lock);
-	result = _pthread_rwlock_rdlock(&nss_lock);
+	if (isthreaded) {
+	    (void)_pthread_rwlock_unlock(&nss_lock);
+	    if (result == 0)
+		    result = _pthread_rwlock_rdlock(&nss_lock);
+	}
 fin2:
-	(void)_pthread_mutex_unlock(&conf_lock);
+	if (isthreaded)
+		(void)_pthread_mutex_unlock(&conf_lock);
 	return (result);
 }
 
@@ -510,12 +520,17 @@ ns_mod_free(ns_mod *mod)
 static void
 nss_atexit(void)
 {
-	(void)_pthread_rwlock_wrlock(&nss_lock);
+	int isthreaded;
+
+	isthreaded = __isthreaded;
+	if (isthreaded)
+		(void)_pthread_rwlock_wrlock(&nss_lock);
 	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
 	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
-	(void)_pthread_rwlock_unlock(&nss_lock);
+	if (isthreaded)
+		(void)_pthread_rwlock_unlock(&nss_lock);
 }
 
 
@@ -568,13 +583,16 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	const ns_src	*srclist;
 	nss_method	 method;
 	void		*mdata;
-	int		 serrno, i, result, srclistsize;
+	int		 isthreaded, serrno, i, result, srclistsize;
 
+	isthreaded = __isthreaded;
 	serrno = errno;
-	result = _pthread_rwlock_rdlock(&nss_lock);
-	if (result != 0) {
-		result = NS_UNAVAIL;
-		goto fin;
+	if (isthreaded) {
+		result = _pthread_rwlock_rdlock(&nss_lock);
+		if (result != 0) {
+			result = NS_UNAVAIL;
+			goto fin;
+		}
 	}
 	result = nss_configure();
 	if (result != 0) {
@@ -604,7 +622,8 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 				break;
 		}
 	}
-	(void)_pthread_rwlock_unlock(&nss_lock);
+	if (isthreaded)
+		(void)_pthread_rwlock_unlock(&nss_lock);
 fin:
 	errno = serrno;
 	return (result);
