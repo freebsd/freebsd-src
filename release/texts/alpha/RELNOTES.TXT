@@ -45,6 +45,13 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+Support has been added for blocking incoming ICMP redirects, outgoing RST
+frames and incoming SYN|FIN frames in order to lessen or nullify the
+impact of certain kinds of DoS attacks.
+
+Support has been added for forwarding IP datagrams without inspecting or
+decreasing the TTL in order to make gateways and firewalls less visible
+and therefore less exposed to attacks.
 
 1.2. SECURITY FIXES
 -------------------
