@@ -67,8 +67,10 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-typedef	int	ihandle_t;
-typedef int	phandle_t;
+typedef unsigned long cell_t;
+
+typedef	unsigned int	ihandle_t;
+typedef unsigned int	phandle_t;
 
 /*
  * Stuff that is used by the OpenFirmware code.
