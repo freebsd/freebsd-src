@@ -55,7 +55,7 @@ DELAY(int n)
 void
 setstatclockrate(int newhz)
 {
-	TODO;
+	/* TODO; */
 }
 
 int

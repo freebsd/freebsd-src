@@ -816,7 +816,7 @@ void *
 pmap_kenter_temporary(vm_offset_t pa, int i)
 {
 
-	TODO;
+	panic("pmap_kenter_temporary");
 }
 
 /*
@@ -1774,7 +1774,7 @@ pmap_clear_write(vm_page_t m)
 int
 pmap_mincore(pmap_t pm, vm_offset_t addr)
 {
-	TODO;
+	/* TODO; */
 	return (0);
 }
 

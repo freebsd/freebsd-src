@@ -598,7 +598,7 @@ ptrace_set_pc(struct thread *td, u_long addr)
 int
 ptrace_single_step(struct thread *td)
 {
-	TODO;
+	/* TODO; */
 	return (0);
 }
 
