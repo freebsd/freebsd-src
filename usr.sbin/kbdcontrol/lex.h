@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.h,v 1.4 1997/02/22 16:05:57 peter Exp $
+ *	$Id: lex.h,v 1.5 1998/01/07 08:43:27 yokota Exp $
  */
 
 #define TNOP		256
@@ -52,6 +52,7 @@
 #define TBTAB		277
 #define TSUSP		278
 #define TACC		279
+#define TSPSC		280
 
 extern int number;
 extern char letter;
