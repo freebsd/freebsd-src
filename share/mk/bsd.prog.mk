@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.62 1998/02/19 14:53:29 eivind Exp $
+#	$Id: bsd.prog.mk,v 1.63 1998/02/25 02:56:58 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -30,7 +30,7 @@ LDFLAGS+= -static
 DPSRCS+= ${SRCS:M*.h}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
-${PROG}: ${DPSRCS} ${OBJS}
+${PROG}: ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 
 .else !defined(SRCS)
@@ -45,7 +45,7 @@ SRCS=	${PROG}.c
 # - it's useful to keep objects around for crunching.
 OBJS=	${PROG}.o
 
-${PROG}: ${DPSRCS} ${OBJS}
+${PROG}: ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 .endif
 
@@ -151,4 +151,9 @@ all-man:
 .endif
 
 .include <bsd.dep.mk>
+
+.if defined(PROG) && !exists(${DEPENDFILE})
+${OBJS}: ${DPSRCS}
+.endif
+
 .include <bsd.obj.mk>
