@@ -76,8 +76,6 @@
 
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
-struct sf_buf *sf_buf_alloc(void);
-void sf_buf_free(void *addr, void *args);
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
