@@ -35,16 +35,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.30 1998/05/07 04:58:36 msmith Exp $
+ * $Id: union_subr.c,v 1.31 1998/07/15 04:17:44 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <vm/vm.h>
@@ -1138,3 +1141,78 @@ out:
 	VOP_UNLOCK(vp, 0, p);
 	return (nvp);
 }
+
+/*
+ * Module glue to remove #ifdef UNION from vfs_syscalls.c
+ */
+static int
+union_dircheck(struct proc *p, struct vnode **vp, struct file *fp)
+{
+	int error = 0;
+
+	if ((*vp)->v_op == union_vnodeop_p) {
+		struct vnode *lvp;
+
+		lvp = union_dircache(*vp, p);
+		if (lvp != NULLVP) {
+			struct vattr va;
+
+			/*
+			 * If the directory is opaque,
+			 * then don't show lower entries
+			 */
+			error = VOP_GETATTR(*vp, &va, fp->f_cred, p);
+			if (va.va_flags & OPAQUE) {
+				vput(lvp);
+				lvp = NULL;
+			}
+		}
+
+		if (lvp != NULLVP) {
+			error = VOP_OPEN(lvp, FREAD, fp->f_cred, p);
+			if (error) {
+				vput(lvp);
+				return (error);
+			}
+			VOP_UNLOCK(lvp, 0, p);
+			fp->f_data = (caddr_t) lvp;
+			fp->f_offset = 0;
+			error = vn_close(*vp, FREAD, fp->f_cred, p);
+			if (error)
+				return (error);
+			*vp = lvp;
+			return -1;	/* goto unionread */
+		}
+	}
+	if (((*vp)->v_flag & VROOT) && ((*vp)->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = *vp;
+		*vp = (*vp)->v_mount->mnt_vnodecovered;
+		VREF(*vp);
+		fp->f_data = (caddr_t) *vp;
+		fp->f_offset = 0;
+		vrele(tvp);
+		return -1;	/* goto unionread */
+	}
+	return error;
+}
+
+static int union_modevent(module_t mod, modeventtype_t type, void *data)
+{
+	switch (type) {
+	case MOD_LOAD:
+		union_dircheckp = union_dircheck;
+		break;
+	case MOD_UNLOAD:
+		union_dircheckp = NULL;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+static moduledata_t union_mod = {
+	"union_dircheck",
+	union_modevent,
+	NULL
+};
+DECLARE_MODULE(union_dircheck, union_mod, SI_SUB_VFS, SI_ORDER_ANY);
