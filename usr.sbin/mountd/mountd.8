@@ -43,6 +43,7 @@ mount requests
 .Sh SYNOPSIS
 .Nm
 .Op Fl 2dlnr
+.Op Fl p Ar port
 .Op Ar exportsfile
 .Sh DESCRIPTION
 The
@@ -77,6 +78,21 @@ This should only be specified if there are clients such as PC's,
 that require it.
 It will automatically clear the vfs.nfsrv.nfs_privport sysctl flag, which
 controls if the kernel will accept NFS requests from reserved ports only.
+.It Fl p Ar port
+Force
+.Nm
+to bind to the specified port, for both
+.Vt AF_INET
+and
+.Vt AF_INET6
+address families.
+This is typically done to ensure that the port which
+.Nm
+binds to is a known quantity which can be used in firewall rulesets.
+If
+.Nm
+cannot bind to this port, an appropriate error will be recorded in
+the system log, and the daemon will then exit.
 .It Fl r
 Allow mount RPCs requests for regular files to be served.
 Although this seems to violate the mount protocol specification,
