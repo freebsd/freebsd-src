@@ -41,6 +41,11 @@
  *
  **************************************************************************/
 
+/**************************************************************************/
+/* Imported into FreeBSD source repository, and updated to compile under  */
+/* FreeBSD-3.0-DEVELOPMENT, by Stefan Esser <se@FreeBSD.Org>, 1996-12-17  */
+/**************************************************************************/
+
 /* #define REL_2_1_0 */
 #define REL_2_1_5
 
@@ -66,7 +71,6 @@
 #include <vm/vm_extern.h>
 #endif /* KERNEL */
 
-#include <sys/devconf.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
@@ -75,7 +79,7 @@
 
 #include <machine/clock.h>
 
-#include "tek390.h"
+#include "pci/tek390.h"
 
 #define INT32	  int32
 #define U_INT32   u_int32
@@ -130,6 +134,7 @@ static PUCHAR  phystovirt( PSRB pSRB, ULONG xferCnt );
 
 void   DC390_initDCB( PACB pACB, PDCB pDCB, PSCSICMD cmd );
 void   DC390_initSRB( PSRB psrb );
+void   DC390_linkSRB( PACB pACB );
 void   DC390_initACB( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index );
 int    DC390_initAdapter( PACB pACB, ULONG io_port, UCHAR Irq, USHORT index,
 			  pcici_t config_id );
@@ -992,7 +997,7 @@ DC390_timeout( void *arg1)
 }
 
 
-#include "scsiiom.c"
+#include "pci/scsiiom.c"
 
 
 /***********************************************************************
