@@ -47,10 +47,10 @@ for i
     -[eq] | -s*)
       # ignore these options
       ;;
-    -[mrnoT])
+    -[dmrnoT])
       echo "$prog: option $1 requires an argument" >&2
       exit 1 ;;
-    -[iptSUC] | -[mrno]*)
+    -[iptSUC] | -[dmrno]*)
       opts="$opts $1" ;;
     -Tascii | -Tlatin1 | -Tutf8 | -Tcp1047)
       T=$1 ;;
@@ -65,7 +65,8 @@ for i
       echo "GNU nroff (groff) version @VERSION@"
       exit 0 ;;
     --help)
-      echo "usage: nroff [-CchipStUv] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
+      echo "usage: nroff [-CchipStUv] [-dCS] [-mNAME] [-nNUM] [-oLIST] [-rCN]"
+      echo "       [-Tname] [FILE...]"
       exit 0 ;;
     --)
       shift
