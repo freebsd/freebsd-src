@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.66 1997/08/03 13:00:42 peter Exp $
+ * $Id: if_de.c,v 1.67 1997/09/02 20:06:26 bde Exp $
  *
  */
 
@@ -5052,6 +5052,16 @@ tulip_pci_attach(
     if (sc == NULL)
 	return;
     bzero(sc, sizeof(*sc));				/* Zero out the softc*/
+    sc->tulip_rxdescs = (tulip_desc_t *) malloc(sizeof(tulip_desc_t) * TULIP_RXDESCS, M_DEVBUF, M_NOWAIT);
+    sc->tulip_txdescs = (tulip_desc_t *) malloc(sizeof(tulip_desc_t) * TULIP_TXDESCS, M_DEVBUF, M_NOWAIT);
+    if (sc->tulip_rxdescs == NULL || sc->tulip_txdescs == NULL) {
+	if (sc->tulip_rxdescs)
+	    free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
+	if (sc->tulip_rxdescs)
+	    free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
+	free((caddr_t) sc, M_DEVBUF);
+	return;
+    }
 #endif
 
     PCI_GETBUSDEVINFO(sc);
