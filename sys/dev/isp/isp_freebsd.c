@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.c,v 1.10.2.1 1999/05/07 00:43:35 ken Exp $ */
+/* $Id: isp_freebsd.c,v 1.10.2.2 1999/05/11 06:03:27 mjacob Exp $ */
 /* release_5_11_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
@@ -409,13 +409,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-			IDPRINTF(3, ("%s: %d.%d set %s period 0x%x offset 0x%x"
-			    " flags 0x%x\n", isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-			    "current" : "user", 
-			    sdp->isp_devparam[tgt].sync_period,
-			    sdp->isp_devparam[tgt].sync_offset,
-			    sdp->isp_devparam[tgt].dev_flags));
+			if (bootverbose || isp->isp_dblev >= 3)
+				printf("%s: %d.%d set %s period 0x%x offset "
+				    "0x%x flags 0x%x\n", isp->isp_name, bus,
+				    tgt,
+				    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+				    "current" : "user", 
+				    sdp->isp_devparam[tgt].sync_period,
+				    sdp->isp_devparam[tgt].sync_offset,
+				    sdp->isp_devparam[tgt].dev_flags);
 			s = splcam();
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
@@ -452,6 +454,16 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 			sdp += bus;
 			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS) {
+				s = splcam();
+				/*
+				 * First do a refresh to see if things
+				 * have changed recently!
+				 */
+				sdp->isp_devparam[tgt].dev_refresh = 1;
+				isp->isp_update |= (1 << bus);
+				(void) isp_control(isp, ISPCTL_UPDATE_PARAMS,
+				    NULL);
+				(void) splx(s);
 				dval = sdp->isp_devparam[tgt].cur_dflags;
 				oval = sdp->isp_devparam[tgt].cur_offset;
 				pval = sdp->isp_devparam[tgt].cur_period;
@@ -486,10 +498,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
 			splx(s);
-			IDPRINTF(3, ("%s: %d.%d get %s period 0x%x offset 0x%x"
-			    " flags 0x%x\n", isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-			    "current" : "user", pval, oval, dval));
+			if (bootverbose || isp->isp_dblev >= 3)
+				printf("%s: %d.%d get %s period 0x%x offset "
+				    "0x%x flags 0x%x\n", isp->isp_name, bus,
+				    tgt,
+			    	    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+				    "current" : "user", pval, oval, dval);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
