@@ -17,13 +17,16 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.28 1997/11/12 19:48:45 brian Exp $
+ * $Id: ip.c,v 1.29 1997/11/12 21:04:21 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
 #include <sys/param.h>
+#include <sys/time.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -31,6 +34,9 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_tun.h>
 
 #include <alias.h>
 #include <errno.h>
@@ -57,6 +63,7 @@
 #include "vjcomp.h"
 #include "lcp.h"
 #include "modem.h"
+#include "tun.h"
 #include "ip.h"
 
 static struct pppTimer IdleTimer;
@@ -369,9 +376,10 @@ IpInput(struct mbuf * bp)
   u_char *cp;
   struct mbuf *wp;
   int nb, nw;
-  u_char tunbuff[MAX_MRU];
+  struct tun_data tun, *frag;
 
-  cp = tunbuff;
+  tun_fill_header(tun, AF_INET);
+  cp = tun.data;
   nb = 0;
   for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
     memcpy(cp, MBUF_CTOP(wp), wp->cnt);
@@ -383,8 +391,8 @@ IpInput(struct mbuf * bp)
     int iresult;
     char *fptr;
 
-    iresult = VarPacketAliasIn(tunbuff, sizeof tunbuff);
-    nb = ntohs(((struct ip *) tunbuff)->ip_len);
+    iresult = VarPacketAliasIn(tun.data, sizeof tun.data);
+    nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
       LogPrintf(LogERROR, "IpInput: Problem with IP header length\n");
@@ -393,14 +401,15 @@ IpInput(struct mbuf * bp)
     }
     if (iresult == PKT_ALIAS_OK
 	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-      if (PacketCheck(tunbuff, nb, FL_IN) < 0) {
+      if (PacketCheck(tun.data, nb, FL_IN) < 0) {
 	pfree(bp);
 	return;
       }
       ipInOctets += nb;
 
-      nb = ntohs(((struct ip *) tunbuff)->ip_len);
-      nw = write(tun_out, tunbuff, nb);
+      nb = ntohs(((struct ip *) tun.data)->ip_len);
+      nb += sizeof(tun)-sizeof(tun.data);
+      nw = write(tun_out, &tun, nb);
       if (nw != nb)
         if (nw == -1)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
@@ -409,36 +418,41 @@ IpInput(struct mbuf * bp)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = VarPacketAliasGetFragment(tunbuff)) != NULL) {
-	  VarPacketAliasFragmentIn(tunbuff, fptr);
+	while ((fptr = VarPacketAliasGetFragment(tun.data)) != NULL) {
+	  VarPacketAliasFragmentIn(tun.data, fptr);
 	  nb = ntohs(((struct ip *) fptr)->ip_len);
-	  nw = write(tun_out, fptr, nb);
+          frag = (struct tun_data *)((char *)fptr-sizeof(tun)+sizeof(tun.data));
+          nb += sizeof(tun)-sizeof(tun.data);
+	  nw = write(tun_out, frag, nb);
 	  if (nw != nb)
             if (nw == -1)
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
                         strerror(errno));
             else
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
-	  free(fptr);
+	  free(frag);
 	}
       }
     } else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
-      nb = ntohs(((struct ip *) tunbuff)->ip_len);
-      fptr = malloc(nb);
-      if (fptr == NULL)
+      nb = ntohs(((struct ip *) tun.data)->ip_len);
+      nb += sizeof(tun)-sizeof(tun.data);
+      frag = (struct tun_data *)malloc(nb);
+      if (frag == NULL)
 	LogPrintf(LogALERT, "IpInput: Cannot allocate memory for fragment\n");
       else {
-	memcpy(fptr, tunbuff, nb);
-	VarPacketAliasSaveFragment(fptr);
+        tun_fill_header(*frag, AF_INET);
+	memcpy(frag->data, tun.data, nb-sizeof(tun)+sizeof(tun.data));
+	VarPacketAliasSaveFragment(frag->data);
       }
     }
   } else {			/* no aliasing */
-    if (PacketCheck(tunbuff, nb, FL_IN) < 0) {
+    if (PacketCheck(tun.data, nb, FL_IN) < 0) {
       pfree(bp);
       return;
     }
     ipInOctets += nb;
-    nw = write(tun_out, tunbuff, nb);
+    nb += sizeof(tun)-sizeof(tun.data);
+    nw = write(tun_out, &tun, nb);
     if (nw != nb)
       if (nw == -1)
 	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));
