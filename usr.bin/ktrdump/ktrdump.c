@@ -107,7 +107,9 @@ main(int ac, char **av)
 			cflag = 1;
 			break;
 		case 'e':
-			strcpy(execfile, optarg);
+			if (strlcpy(execfile, optarg, sizeof(execfile))
+			    >= sizeof(execfile))
+				errx(1, "%s: File name too long", optarg);
 			eflag = 1;
 			break;
 		case 'f':
@@ -119,7 +121,9 @@ main(int ac, char **av)
 				err(1, "%s", optarg);
 			break;
 		case 'm':
-			strcpy(corefile, optarg);
+			if (strlcpy(corefile, optarg, sizeof(corefile))
+			    >= sizeof(corefile))
+				errx(1, "%s: File name too long", optarg);
 			mflag = 1;
 			break;
 		case 'o':
