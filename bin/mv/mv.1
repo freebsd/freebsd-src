@@ -44,9 +44,11 @@
 .Sh SYNOPSIS
 .Nm mv
 .Op Fl f | Fl i
+.Op Fl v
 .Ar source target
 .Nm mv
 .Op  Fl f | Fl i
+.Op Fl v
 .Ar source ... directory
 .Sh DESCRIPTION
 In its first form, the
@@ -95,6 +97,10 @@ the move is attempted.
 option overrides any previous
 .Fl f
 options.)
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files after they are moved.
 .El
 .Pp
 It is an error for either the
@@ -130,6 +136,10 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr cp 1 ,
 .Xr rm 1 ,
 .Xr symlink 7
+.Sh COMPATIBILITY
+The
+.Fl v
+option is non-standard and its use in scripts is not recommended.
 .Sh STANDARDS
 The
 .Nm
