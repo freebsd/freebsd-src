@@ -608,13 +608,7 @@
 
     &hwlist.vr;
 
-    <para arch="i386,pc98,alpha,amd64">Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast
-    Ethernet NICs (&man.sis.4; driver)
-    </para>
-
-    <para arch="i386,pc98,alpha,amd64">National Semiconductor DP83815 Fast Ethernet NICs
-    (&man.sis.4; driver)
-    </para>
+    &hwlist.sis;
 
     &hwlist.nge;
 
@@ -668,17 +662,7 @@
 
     &hwlist.xe;
 
-    <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
-    cards (snc driver)
-      <itemizedlist>
-        <listitem>
-	  <para>NEC PC-9801-83, -84, -103, and -104</para>
-        </listitem>
-        <listitem>
-	  <para>NEC PC-9801N-25 and -J02R</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snc;
 
     &hwlist.lge;
 
@@ -702,9 +686,7 @@
     <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet adapters
       (&man.bfe.4; driver)</para>
 
-    <para arch="alpha,i386,pc98,amd64">RealTek RTL8139C+, RTL8169, RTL8169S and
-      RTL8110S based PCI Fast Ethernet and Gigabit Ethernet
-      controllers (&man.re.4; driver)</para>
+    &hwlist.re;
 
     &hwlist.ixgb;
 
