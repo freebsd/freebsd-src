@@ -35,9 +35,11 @@
  */
 
 #include <sys/cdefs.h>
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: ldexp.c,v 1.8 1999/08/30 18:28:26 mycroft Exp $");
 #endif /* LIBC_SCCS and not lint */
+#endif
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>

@@ -40,9 +40,11 @@ static char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
+#if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)tverify.c	8.1 (Berkeley) 6/4/93";
-#endif /* not lint */
+#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/file.h>

@@ -29,12 +29,12 @@
  * Mountain View, California  94043
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)xdr.c 1.35 87/08/12";*/
-/*static char *sccsid = "from: @(#)xdr.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$FreeBSD$";
+static char *sccsid = "@(#)xdr.c 1.35 87/08/12";
+static char *sccsid = "@(#)xdr.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * xdr.c, Generic XDR routines implementation.

@@ -3,9 +3,8 @@
  * Public domain.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD$";
-#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ieeefp.h>
 

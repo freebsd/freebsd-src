@@ -1,4 +1,3 @@
-/*	$FreeBSD$        */
 /*	$KAME: getaddrinfo.c,v 1.15 2000/07/09 04:37:24 itojun Exp $	*/
 
 /*
@@ -82,6 +81,9 @@
  * - some of FreeBSD style (#define tabify and others)
  * - classful IPv4 numeric (127.1) is allowed.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>

@@ -9,9 +9,10 @@
  *
  * Redistribution and use under the terms of the COPYRIGHT file at the
  * base of the source tree.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -97,4 +98,3 @@ _int_to_time(int tint)
 	return(_time32_to_time(tint));
     return((time_t)tint);
 }
-

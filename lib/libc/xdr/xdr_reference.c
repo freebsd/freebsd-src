@@ -31,10 +31,12 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint) 
-/*static char *sccsid = "from: @(#)xdr_reference.c 1.11 87/08/11 SMI";*/
-/*static char *sccsid = "from: @(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";*/
+static char *sccsid = "@(#)xdr_reference.c 1.11 87/08/11 SMI";
+static char *sccsid = "@(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";
 static char *rcsid = "$FreeBSD$";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * xdr_reference.c, Generic XDR routines impelmentation.

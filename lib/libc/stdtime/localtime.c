@@ -1,8 +1,6 @@
 /*
 ** This file is in the public domain, so clarified as of
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
-**
-** $FreeBSD$
 */
 
 #ifndef lint
@@ -10,6 +8,8 @@
 static char	elsieid[] = "@(#)localtime.c	7.57";
 #endif /* !defined NOID */
 #endif /* !defined lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
 ** Leap second handling from Bradley White (bww@k.gp.cs.cmu.edu).

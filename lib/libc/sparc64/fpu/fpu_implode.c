@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_implode.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_implode.c,v 1.8 2001/08/26 05:44:46 eeh Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_implode.c,v 1.8 2001/08/26 05:44:46 eeh Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FPU subroutines: `implode' internal format numbers into the machine's

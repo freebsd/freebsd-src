@@ -1,8 +1,3 @@
-#ifndef lint
-static const char *rcsid =
-"$FreeBSD$";
-#endif
-
 /*
  *
  *                      Copyright 1990
@@ -72,6 +67,8 @@ static const char *rcsid =
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

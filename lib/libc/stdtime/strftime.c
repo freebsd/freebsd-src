@@ -15,11 +15,6 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifdef LIBC_RCS
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 #ifndef lint
 #ifndef NOID
 static const char	elsieid[] = "@(#)strftime.c	7.38";
@@ -33,11 +28,11 @@ static const char	elsieid[] = "@(#)strftime.c	7.38";
 #include "namespace.h"
 #include "private.h"
 
-#ifndef LIBC_SCCS
-#ifndef lint
+#if defined(LIBC_SCCS) && !defined(lint)
 static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
-#endif /* !defined lint */
-#endif /* !defined LIBC_SCCS */
+#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "tzfile.h"
 #include <fcntl.h>

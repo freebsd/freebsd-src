@@ -62,11 +62,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: @(#)fpu.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu.c,v 1.11 2000/12/06 01:47:50 mrg Exp
- *
- * $FreeBSD$
+ *	@(#)fpu.c	8.1 (Berkeley) 6/11/93
+ *	$NetBSD: fpu.c,v 1.11 2000/12/06 01:47:50 mrg Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 

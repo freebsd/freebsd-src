@@ -31,12 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94";
 #endif /* LIBC_SCCS and not lint */
-#endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

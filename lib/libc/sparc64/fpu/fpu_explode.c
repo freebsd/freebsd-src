@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_explode.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_explode.c,v 1.5 2000/08/03 18:32:08 eeh Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_explode.c,v 1.5 2000/08/03 18:32:08 eeh Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FPU subroutines: `explode' the machine's `packed binary' format numbers
