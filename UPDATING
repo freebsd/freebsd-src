@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050328:	p6	FreeBSD-SA-05:01.telnet
+	Correct buffer overflows in telnet(1).
+
 20050114:	p5	FreeBSD-EN-05:03.ipi
 	Avoid more than two pending IPI interrupt vectors per local
 	APIC as this may cause deadlocks.
