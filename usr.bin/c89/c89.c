@@ -47,7 +47,7 @@ static const char rcsid[] =
  * benefit of making c89 -D_ANSI_SOURCE do the right thing (or any other
  * -D_FOO_SOURCE feature test macro we support.)
  */
-static char	*args_prepended[] = {
+static const char	*args_prepended[] = {
 	"-std=iso9899:199409",
 	"-pedantic"
 };
@@ -63,15 +63,19 @@ int
 main(int argc, char **argv)
 {
 	int Argc, i;
-	char **Argv;
+	size_t j;
+	union {
+		const char **a;
+		char * const *b;
+	} Argv;
 
 	Argc = 0;
-	Argv = malloc((argc + 1 + N_ARGS_PREPENDED) * sizeof *Argv);
-	if (Argv == NULL)
+	Argv.a = malloc((argc + 1 + N_ARGS_PREPENDED) * sizeof *Argv.a);
+	if (Argv.a == NULL)
 		err(1, "malloc");
-	Argv[Argc++] = argv[0];
-	for (i = 0; i < N_ARGS_PREPENDED; ++i)
-		Argv[Argc++] = args_prepended[i];
+	Argv.a[Argc++] = argv[0];
+	for (j = 0; j < N_ARGS_PREPENDED; ++j)
+		Argv.a[Argc++] = args_prepended[j];
 	while ((i = getopt(argc, argv, "cD:EgI:l:L:o:OsU:")) != -1) {
 		if (i == '?')
 			usage();
@@ -88,10 +92,10 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	/* Append argv[1..] at the end of Argv[]. */
+	/* Append argv[1..] at the end of Argv[].a. */
 	for (i = 1; i <= argc; ++i)
-		Argv[Argc++] = argv[i];
-	(void)execv(CC, Argv);
+		Argv.a[Argc++] = argv[i];
+	(void)execv(CC, Argv.b);
 	err(1, "execv(" CC ")");
 }
 

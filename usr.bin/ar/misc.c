@@ -56,7 +56,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
-char *tname = "temporary file";		/* temporary file "name" */
+const char *tname = "temporary file";		/* temporary file "name" */
 
 int
 tmp()
@@ -134,7 +134,7 @@ badfmt()
 
 void
 error(name)
-	char *name;
+	const char *name;
 {
 
 	err(1, "%s", name);
