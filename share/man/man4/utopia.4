@@ -107,6 +107,30 @@ IDT77155 (155MBit interface)
 .El
 .It Cm phy_name
 This is a string describing the type of the PHY chip.
+.It Cm phy_stats
+Physical and some ATM layer statistics. These are the statistics usually
+provided by the chip. The data is a returned in the following structure:
+.Bd -literal
+struct utopia_stats1 {
+	uint32_t version;	/* version of this struct */
+	uint32_t fill;
+	uint64_t rx_sbip;	/* rx section BIP errors */
+	uint64_t rx_lbip;	/* rx line BIP errors */
+	uint64_t rx_lfebe;	/* rx line far end block errors */
+	uint64_t rx_pbip;	/* rx path BIP errors */
+	uint64_t rx_pfebe;	/* rx path far end block errors */
+	uint64_t rx_cells;	/* received cells */
+	uint64_t rx_corr;	/* correctable cell errors */
+	uint64_t rx_uncorr;	/* uncorrectable cell errors */
+	uint64_t rx_symerr;	/* symbol errors */
+	uint64_t tx_cells;	/* transmitted cells */
+};
+.Ed
+.Pp
+The current version is 1. The statistics are updated from the chip once
+a second. On overflow the counters wrap to zero. Note that not all counters
+are meaningful for all PHY chips. The statistics are cleared by writing an
+arbitrary new value (the value is ignored).
 .El
 .Pp
 The
