@@ -922,6 +922,24 @@ readrest:
 }
 
 /*
+ *	vm_fault_quick:
+ *
+ *	Ensure that the requested virtual address, which may be in userland,
+ *	is valid.  Fault-in the page if necessary.  Return -1 on failure.
+ */
+int
+vm_fault_quick(caddr_t v, int prot)
+{
+	int r;
+
+	if (prot & VM_PROT_WRITE)
+		r = subyte(v, fubyte(v));
+	else
+		r = fubyte(v);
+	return(r);
+}
+
+/*
  *	vm_fault_wire:
  *
  *	Wire down a range of virtual addresses in a map.
