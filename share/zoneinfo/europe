@@ -1,4 +1,4 @@
-# @(#)europe	7.83
+# @(#)europe	7.84
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -23,6 +23,10 @@
 #	Edward W. Whitman, World Time Differences,
 #	Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated),
 #	which I found in the UCLA library.
+#
+#	<a href="http://www.pettswoodvillage.co.uk/Daylight_Savings_William_Willett.pdf">
+#	William Willett, The Waste of Daylight, 19th edition
+#	</a> (1914-03)
 #
 #	Brazil's Departamento Servico da Hora (DSH),
 #	<a href="http://pcdsh01.on.br/HISTHV.htm">
@@ -125,7 +129,7 @@
 # transition date for London, namely 1847-12-01.  We don't know as much
 # about Dublin, so we use 1880-08-02, the legal transition time.
 
-# From Paul Eggert (1999-01-30):
+# From Paul Eggert (2003-07-29):
 # Summer Time was first seriously proposed by William Willett (1857-1915),
 # a London builder and member of the Royal Astronomical Society
 # who circulated a pamphlet ``The Waste of Daylight'' (1907)
@@ -133,14 +137,24 @@
 # and retarding them by the same amount on four Sundays in September.
 # A bill was drafted in 1909 and introduced in Parliament several times,
 # but it met with ridicule and opposition, especially from farming interests.
-# One-hour Summer Time was eventually adopted as a wartime measure in 1916.
-# See:
-# <a href="http://www.the-times.co.uk/news/pages/tim/2000/05/18/x-timcrtcrt01011.html">
-# Summer Time Arrives Early, The Times (2000-05-18)
-# </a>
-# A monument was erected in 1927 to Willett, in an open space in a 45-acre wood
-# near Chiselhurst, Kent that was purchased by popular subscription and open
-# to the public.
+# Later editions of the pamphlet proposed one-hour summer time, and
+# it was eventually adopted as a wartime measure in 1916.
+# See: Summer Time Arrives Early, The Times (2000-05-18).
+# A monument to Willett was unveiled on 1927-05-21, in an open space in
+# a 45-acre wood near Chiselhurst, Kent that was purchased by popular
+# subscription and open to the public.  On the south face of the monolith,
+# designed by G. W. Miller, is the the William Willett Memorial Sundial,
+# which is permanently set to Summer Time.
+
+# From Winston Churchill (1934-04-28):
+# It is one of the paradoxes of history that we should owe the boon of
+# summer time, which gives every year to the people of this country
+# between 160 and 170 hours more daylight leisure, to a war which
+# plunged Europe into darkness for four years, and shook the
+# foundations of civilization throughout the world.
+#	-- <a href="http://www.winstonchurchill.org/fh114willett.htm">
+#	"A Silent Toast to William Willett", Pictorial Weekly
+#	</a>
 
 # From Paul Eggert (1996-09-03):
 # The OED Supplement says that the English originally said ``Daylight Saving''
@@ -1323,7 +1337,7 @@ Zone	Europe/Riga	1:36:24	-	LMT	1880
 			2:00	1:00	EEST	1989 Sep lastSun 2:00s
 			2:00	Latvia	EE%sT	1997 Jan 21
 			2:00	EU	EE%sT	2000 Feb 29
-			2:00	-	EET	2001
+			2:00	-	EET	2001 Jan  2
 			2:00	EU	EE%sT
 
 # Liechtenstein
@@ -1750,8 +1764,10 @@ Rule	Port	1980	only	-	Mar	lastSun	 0:00s	1:00	S
 Rule	Port	1981	1982	-	Mar	lastSun	 1:00s	1:00	S
 Rule	Port	1983	only	-	Mar	lastSun	 2:00s	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Shanks says that the transition from LMT to WET occurred 1911-05-24;
+# Willett says 1912-01-01.  Go with Willett.
 Zone	Europe/Lisbon	-0:36:32 -	LMT	1884
-			-0:36:32 -	LMT	1911 May 24   # Lisbon Mean Time
+			-0:36:32 -	LMT	1912 Jan  1  # Lisbon Mean Time
 			 0:00	Port	WE%sT	1966 Apr  3 2:00
 			 1:00	-	CET	1976 Sep 26 1:00
 			 0:00	Port	WE%sT	1983 Sep 25 1:00s
