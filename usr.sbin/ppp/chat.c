@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11.2.9 1997/06/10 09:43:11 brian Exp $
+ * $Id: chat.c,v 1.11.2.10 1997/06/23 23:14:01 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -553,7 +553,7 @@ ExpectString(char *str)
 }
 
 static jmp_buf ChatEnv;
-static void (*ohup)(int), (*oint)(int);
+static void (*oint)(int);
 
 static void
 StopDial(int sig)
@@ -569,16 +569,12 @@ DoChat(char *script)
   char **argv;
   int argc, n, state;
 
-  /* While we're chatting, we want a HUP/INT to fail us */
+  /* While we're chatting, we want an INT to fail us */
   if (setjmp(ChatEnv)) {
-    signal(SIGHUP, ohup);
     signal(SIGINT, oint);
     return(-1);
   }
-  ohup = signal(SIGHUP, SIG_IGN);
-  oint = signal(SIGINT, SIG_IGN);
-  signal(SIGHUP, StopDial);
-  signal(SIGINT, StopDial);
+  oint = signal(SIGINT, StopDial);
 
   timeout_next = abort_next = 0;
   for (n = 0; AbortStrings[n]; n++) {
@@ -609,12 +605,10 @@ DoChat(char *script)
       HangupModem();
 #endif
     case NOMATCH:
-      signal(SIGHUP, ohup);
       signal(SIGINT, oint);
       return(NOMATCH);
     }
   }
-  signal(SIGHUP, ohup);
   signal(SIGINT, oint);
   return(MATCH);
 }
