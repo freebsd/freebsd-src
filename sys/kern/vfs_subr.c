@@ -822,8 +822,10 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
-		if (numvnodes > desiredvnodes)
+		if (numvnodes > desiredvnodes) {
+			mtx_unlock(&vnode_free_list_mtx);
 			return (ENFILE);
+		}
 	}
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
