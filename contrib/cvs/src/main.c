@@ -519,7 +519,7 @@ main (argc, argv)
 		 * force full group write perms (used for shared checked-out
 		 * source trees, see manual page)
 		 */
-		umask(mask(077) & 007);
+		umask(umask(077) & 007);
 		break;
 	    case 't':
 		trace = 1;
