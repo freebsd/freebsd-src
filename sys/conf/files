@@ -660,6 +660,15 @@ netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
 netgraph/ng_ksocket.c	optional netgraph_ksocket
 netgraph/ng_lmi.c	optional netgraph_lmi
+netgraph/ng_mppc.c	optional netgraph_mppc_compression
+# The next two files (plus the header file net/mppc.h) are proprietary and
+# must be obtained elsewhere in order to enable NETGRAPH_MPPC_COMPRESSION
+net/mppcc.c		optional netgraph_mppc_compression
+net/mppcd.c		optional netgraph_mppc_compression
+netgraph/ng_mppc.c	optional netgraph_mppc_encryption
+crypto/rc4/rc4.c	optional netgraph_mppc_encryption
+crypto/sha1.c		optional netgraph_mppc_encryption
+netgraph/ng_parse.c	optional netgraph
 netgraph/ng_ppp.c	optional netgraph_ppp
 netgraph/ng_pppoe.c	optional netgraph_pppoe
 netgraph/ng_pptpgre.c	optional netgraph_pptpgre
