@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.13 1996/09/24 03:48:10 ache Exp $
+#	$Id: bsd.obj.mk,v 1.14 1996/09/24 04:17:14 ache Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -46,7 +46,7 @@ objwarn:
 .if ${.OBJDIR} == ${.CURDIR}
 	@${ECHO} "Warning: Object directory not changed from original ${.CURDIR}"
 .elif !defined(MAKEOBJDIRPREFIX) && ${.OBJDIR} != ${CANONICALOBJDIR}
-.if !defined(MAKEOBJDIR)
+.if !defined(OBJLINK)
 	@${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
 		canonical ${CANONICALOBJDIR}"
 .endif
