@@ -373,6 +373,8 @@ be written to the standard error output
 in the same format as the standard completion message and
 .Nm
 will exit.
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Check that a disk drive contains no bad blocks:
 .Pp
@@ -390,8 +392,6 @@ Remove parity bit from a file:
 Check for (even) parity errors on a file:
 .Pp
 .Dl "dd if=file conv=pareven | cmp -x - file"
-.Sh DIAGNOSTICS
-.Ex -std
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,

@@ -921,39 +921,6 @@ the file to which
 .Nm
 attempts to write the buffer if the terminal hangs up
 .El
-.Sh SEE ALSO
-.Xr bdes 1 ,
-.Xr sed 1 ,
-.Xr sh 1 ,
-.Xr vi 1 ,
-.Xr regex 3
-.Pp
-USD:12-13
-.Rs
-.%A B. W. Kernighan
-.%A P. J. Plauger
-.%B Software Tools in Pascal
-.%O Addison-Wesley
-.%D 1981
-.Re
-.Sh LIMITATIONS
-The
-.Nm
-utility processes
-.Ar file
-arguments for backslash escapes, i.e., in a filename,
-any characters preceded by a backslash (\\) are
-interpreted literally.
-.Pp
-If a text (non-binary) file is not terminated by a newline character,
-then
-.Nm
-appends one on reading/writing it.
-In the case of a binary file,
-.Nm
-does not append a newline on reading/writing.
-.Pp
-per line overhead: 4 ints
 .Sh DIAGNOSTICS
 When an error occurs,
 .Nm
@@ -994,6 +961,39 @@ or edit another file before writing a modified buffer
 results in an error.
 If the command is entered a second time, it succeeds,
 but any changes to the buffer are lost.
+.Sh SEE ALSO
+.Xr bdes 1 ,
+.Xr sed 1 ,
+.Xr sh 1 ,
+.Xr vi 1 ,
+.Xr regex 3
+.Pp
+USD:12-13
+.Rs
+.%A B. W. Kernighan
+.%A P. J. Plauger
+.%B Software Tools in Pascal
+.%O Addison-Wesley
+.%D 1981
+.Re
+.Sh LIMITATIONS
+The
+.Nm
+utility processes
+.Ar file
+arguments for backslash escapes, i.e., in a filename,
+any characters preceded by a backslash (\\) are
+interpreted literally.
+.Pp
+If a text (non-binary) file is not terminated by a newline character,
+then
+.Nm
+appends one on reading/writing it.
+In the case of a binary file,
+.Nm
+does not append a newline on reading/writing.
+.Pp
+per line overhead: 4 ints
 .Sh HISTORY
 An
 .Nm

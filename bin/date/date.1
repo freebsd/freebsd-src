@@ -282,6 +282,33 @@ Everything but the minutes is optional.
 .Pp
 Time changes for Daylight Saving Time, standard time, leap seconds,
 and leap years are handled automatically.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width Ds
+.It Ev TZ
+The timezone to use when displaying dates.
+The normal format is a pathname relative to
+.Pa /usr/share/zoneinfo .
+For example, the command
+.Dq TZ=America/Los_Angeles date
+displays the current time in California.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/messages -compact
+.It Pa /var/log/wtmp
+record of date resets and time changes
+.It Pa /var/log/messages
+record of the user setting the time
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success, 1 if unable to set the date, and 2
+if able to set the local date, but unable to set it globally.
 .Sh EXAMPLES
 The command:
 .Pp
@@ -359,45 +386,7 @@ Finally the command:
 can be used to parse the output from
 .Nm
 and express it in Epoch time.
-.Sh ENVIRONMENT
-The following environment variables affect the execution of
-.Nm :
-.Bl -tag -width Ds
-.It Ev TZ
-The timezone to use when displaying dates.
-The normal format is a pathname relative to
-.Pa /usr/share/zoneinfo .
-For example, the command
-.Dq TZ=America/Los_Angeles date
-displays the current time in California.
-See
-.Xr environ 7
-for more information.
-.El
-.Sh FILES
-.Bl -tag -width /var/log/messages -compact
-.It Pa /var/log/wtmp
-record of date resets and time changes
-.It Pa /var/log/messages
-record of the user setting the time
-.El
-.Sh SEE ALSO
-.Xr gettimeofday 2 ,
-.Xr strftime 3 ,
-.Xr strptime 3 ,
-.Xr utmp 5 ,
-.Xr timed 8
-.Rs
-.%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
-.%A R. Gusella
-.%A S. Zatti
-.Re
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, 1 if unable to set the date, and 2
-if able to set the local date, but unable to set it globally.
-.Pp
 Occasionally, when
 .Xr timed 8
 synchronizes the time on many hosts, the setting of a new time value may
@@ -414,6 +403,17 @@ between
 and
 .Xr timed 8
 fails.
+.Sh SEE ALSO
+.Xr gettimeofday 2 ,
+.Xr strftime 3 ,
+.Xr strptime 3 ,
+.Xr utmp 5 ,
+.Xr timed 8
+.Rs
+.%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
+.%A R. Gusella
+.%A S. Zatti
+.Re
 .Sh STANDARDS
 The
 .Nm

@@ -147,13 +147,6 @@ If the environment variable
 .Ev BLOCKSIZE
 is set, the block counts will be displayed in units of that size block.
 .El
-.Sh BUGS
-The
-.Fl n
-flag is ignored if a file or file system is specified.
-Also, if a mount
-point is not accessible by the user, it is possible that the file system
-information could be stale.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr quota 1 ,
@@ -169,3 +162,10 @@ A
 .Nm
 command appeared in
 .At v1 .
+.Sh BUGS
+The
+.Fl n
+flag is ignored if a file or file system is specified.
+Also, if a mount
+point is not accessible by the user, it is possible that the file system
+information could be stale.
