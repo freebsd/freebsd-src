@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.30 1994/10/01 02:56:01 davidg Exp $
+ *	$Id: locore.s,v 1.31 1994/10/02 01:32:50 rgrimes Exp $
  */
 
 /*
@@ -135,7 +135,7 @@ _bdb_exists:	.long	0
 #ifdef APM
 	.globl	_apm_current_gdt_pdesc		/* current GDT pseudo desc. */
 _apm_current_gdt_pdesc:
-	.byte	0, 0, 0
+	.word	0, 0, 0
 
 	.globl	_bootstrap_gdt
 _bootstrap_gdt:
