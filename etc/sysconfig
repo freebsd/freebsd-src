@@ -28,6 +28,9 @@ keychange=NO
 # Desired cursor type {normal|blink|destructive}, NO if no change
 cursor=NO
 
+# Desired cursor type {duration.pitch|normal|visual}, NO if no change
+keybell=NO
+
 # Choose screen map from /usr/share/syscons/scrnmaps/* (or NO for none)
 scrnmap=NO
 
