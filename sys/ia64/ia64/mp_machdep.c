@@ -175,7 +175,7 @@ smp_invltlb()
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
 
 static void
-addugd_intr_forwarded(struct proc *p, int id, int *astmap)
+addupc_intr_forwarded(struct proc *p, int id, int *astmap)
 {
 	int i;
 	struct uprof *prof;
@@ -185,10 +185,10 @@ addugd_intr_forwarded(struct proc *p, int id, int *astmap)
 	prof = &p->p_stats->p_prof;
 	if (pc >= prof->pr_off &&
 	    (i = GD_TO_INDEX(pc, prof)) < prof->pr_size) {
-		if ((p->p_flag & P_OWEUPC) == 0) {
+		if ((p->p_sflag & PS_OWEUPC) == 0) {
 			prof->pr_addr = pc;
 			prof->pr_ticks = 1;
-			p->p_flag |= P_OWEUPC;
+			p->p_sflag |= PS_OWEUPC;
 		}
 		*astmap |= (1 << id);
 	}
@@ -211,10 +211,16 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	p = checkstate_curproc[id];
 	cpustate = checkstate_cpustate[id];
 
+	/* XXX */
+	if (p->p_ithd)
+		cpustate = CHECKSTATE_INTR;
+	else if (p == cpuid_to_globaldata[id]->gd_idleproc)
+		cpustate = CHECKSTATE_SYS;
+
 	switch (cpustate) {
 	case CHECKSTATE_USER:
-		if (p->p_flag & P_PROFIL)
-			addugd_intr_forwarded(p, id, astmap);
+		if (p->p_sflag & PS_PROFIL)
+			addupc_intr_forwarded(p, id, astmap);
 		if (pscnt > 1)
 			return;
 		p->p_uticks++;
@@ -226,7 +232,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	case CHECKSTATE_SYS:
 #ifdef GPROF
 		/*
-		 * Kernel statistics are just like addugd_intr, only easier.
+		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
 		if (g->state == GMON_PROF_ON) {
@@ -240,7 +246,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		if (pscnt > 1)
 			return;
 
-		if (!p)
+		if (p == cpuid_to_globaldata[id]->gd_idleproc)
 			cp_time[CP_IDLE]++;
 		else {
 			p->p_sticks++;
@@ -251,7 +257,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	default:
 #ifdef GPROF
 		/*
-		 * Kernel statistics are just like addugd_intr, only easier.
+		 * Kernel statistics are just like addupc_intr, only easier.
 		 */
 		g = &_gmonparam;
 		if (g->state == GMON_PROF_ON) {
@@ -268,20 +274,19 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 			p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
-	if (p != NULL) {
-		schedclock(p);
-		
-		/* Update resource usage integrals and maximums. */
-		if ((pstats = p->p_stats) != NULL &&
-		    (ru = &pstats->p_ru) != NULL &&
-		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += pgtok(vm->vm_tsize);
-			ru->ru_idrss += pgtok(vm->vm_dsize);
-			ru->ru_isrss += pgtok(vm->vm_ssize);
-			rss = pgtok(vmspace_resident_count(vm));
-			if (ru->ru_maxrss < rss)
-				ru->ru_maxrss = rss;
-        	}
+
+	schedclock(p);
+	
+	/* Update resource usage integrals and maximums. */
+	if ((pstats = p->p_stats) != NULL &&
+	    (ru = &pstats->p_ru) != NULL &&
+	    (vm = p->p_vmspace) != NULL) {
+		ru->ru_ixrss += pgtok(vm->vm_tsize);
+		ru->ru_idrss += pgtok(vm->vm_dsize);
+		ru->ru_isrss += pgtok(vm->vm_ssize);
+		rss = pgtok(vmspace_resident_count(vm));
+		if (ru->ru_maxrss < rss)
+			ru->ru_maxrss = rss;
 	}
 }
 
