@@ -46,11 +46,11 @@
 		.set BDA_POS,0x450		# Cursor position
 .endif
 
-		.globl _(crt_putchr)
+		.globl crt_putchr
 
 # void crt_putchr(int c)
 
-_(crt_putchr): 	movb 0x4(%esp,1),%al		# Get character
+crt_putchr: 	movb 0x4(%esp,1),%al		# Get character
 		pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
