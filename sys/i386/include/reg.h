@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.15 1997/06/07 04:36:06 bde Exp $
+ *	$Id: reg.h,v 1.17 1999/04/03 22:19:59 jdp Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -124,7 +124,7 @@ struct fpreg {
  */
 int	set_fpregs __P((struct proc *, struct fpreg *));
 int	set_regs __P((struct proc *p, struct reg *regs));
-void	setregs __P((struct proc *, u_long, u_long));
+void	setregs __P((struct proc *, u_long, u_long, u_long));
 #endif
 
 #endif /* !_MACHINE_REG_H_ */
