@@ -126,7 +126,7 @@ mkfs(struct partition *pp, char *fsys)
 		time(&utime);
 	if (!Rflag && !randinit) {
 		randinit = 1;
-		srandomdev();
+		arc4random_stir();
 	}
 	sblock.fs_old_flags = FS_FLAGS_UPDATED;
 	sblock.fs_flags = 0;
@@ -387,7 +387,7 @@ mkfs(struct partition *pp, char *fsys)
 	sblock.fs_state = 0;
 	sblock.fs_clean = 1;
 	sblock.fs_id[0] = (long)utime;
-	sblock.fs_id[1] = random();
+	sblock.fs_id[1] = arc4random();
 	sblock.fs_fsmnt[0] = '\0';
 	csfrags = howmany(sblock.fs_cssize, sblock.fs_fsize);
 	sblock.fs_dsize = sblock.fs_size - sblock.fs_sblkno -
@@ -649,10 +649,10 @@ initcg(int cylno, time_t utime)
 	dp2 = (struct ufs2_dinode *)(&iobuf[start]);
 	for (i = 0; i < acg.cg_initediblk; i++) {
 		if (sblock.fs_magic == FS_UFS1_MAGIC) {
-			dp1->di_gen = random();
+			dp1->di_gen = arc4random();
 			dp1++;
 		} else {
-			dp2->di_gen = random();
+			dp2->di_gen = arc4random();
 			dp2++;
 		}
 	}
@@ -666,7 +666,7 @@ initcg(int cylno, time_t utime)
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(&iobuf[start]);
 			for (j = 0; j < INOPB(&sblock); j++) {
-				dp1->di_gen = random();
+				dp1->di_gen = arc4random();
 				dp1++;
 			}
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
