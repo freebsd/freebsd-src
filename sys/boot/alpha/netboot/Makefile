@@ -1,3 +1,4 @@
+# $FreeBSD$
 #	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
 
 BASE= 		netboot
