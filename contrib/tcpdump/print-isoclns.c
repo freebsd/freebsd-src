@@ -53,7 +53,7 @@ struct rtentry;
 #define	NLPID_ISIS	131	/* 0x83 */
 #define	NLPID_NULLNS	0
 
-static int osi_cksum(const u_char *, u_int, const u_char *, u_char *, u_char *);
+static int osi_cksum(const u_char *, int, u_char *);
 static void esis_print(const u_char *, u_int);
 static int isis_print(const u_char *, u_int);
 
@@ -73,7 +73,6 @@ isoclns_print(const u_char *p, u_int length, u_int caplen,
 	switch (*p) {
 
 	case NLPID_CLNS:
-		/* esis_print(&p, &length); */
 		printf("iso clns");
 		if (!eflag)
 			(void)printf(" %s > %s",
@@ -97,9 +96,8 @@ isoclns_print(const u_char *p, u_int length, u_int caplen,
 				     etheraddr_string(esrc),
 				     etheraddr_string(edst));
 		(void)printf(" len=%d ", length);
-		if (!isis_print(p, length)) {
+		if (!isis_print(p, length))
 		    default_print_unaligned(p, caplen);
-		}
 		break;
 
 	case NLPID_NULLNS:
@@ -189,9 +187,10 @@ esis_print(const u_char *p, u_int length)
 	}
 	off[0] = eh->cksum[0];
 	off[1] = eh->cksum[1];
-	if (vflag && osi_cksum(p, li, eh->cksum, cksum, off)) {
-		printf(" bad cksum (got %02x%02x want %02x%02x)",
-		       eh->cksum[1], eh->cksum[0], cksum[1], cksum[0]);
+	if (vflag && osi_cksum(p, li, off)) {
+		printf(" bad cksum (got %02x%02x)",
+		       eh->cksum[1], eh->cksum[0]);
+		default_print(p, length);
 		return;
 	}
 	if (eh->version != 1) {
@@ -239,7 +238,8 @@ esis_print(const u_char *p, u_int length)
 		}
 		if (p > snapend)
 			return;
-		printf("\n\t\t\t %s", isonsap_string(is));
+		if (!qflag)
+			printf("\n\t\t\t %s", isonsap_string(is));
 		li = ep - p;
 		break;
 	}
@@ -537,36 +537,23 @@ isis_print (const u_char *p, u_int length)
     return(1);
 }
 
+/*
+ * Verify the checksum.  See 8473-1, Appendix C, section C.4.
+ */
+
 static int
-osi_cksum(register const u_char *p, register u_int len,
-	  const u_char *toff, u_char *cksum, u_char *off)
+osi_cksum(register const u_char *p, register int len, u_char *off)
 {
-	int x, y, f = (len - ((toff - p) + 1));
 	int32_t c0 = 0, c1 = 0;
 
-	if ((cksum[0] = off[0]) == 0 && (cksum[1] = off[1]) == 0)
+	if ((off[0] == 0) && (off[1] == 0))
 		return 0;
 
-	off[0] = off[1] = 0;
 	while (--len >= 0) {
 		c0 += *p++;
-		c1 += c0;
 		c0 %= 255;
+		c1 += c0;
 		c1 %= 255;
 	}
-	x = (c0 * f - c1);
-	if (x < 0)
-		x = 255 - (-x % 255);
-	else
-		x %= 255;
-	y = -1 * (x + c0);
-	if (y < 0)
-		y = 255 - (-y % 255);
-	else
-		y %= 255;
-
-	off[0] = x;
-	off[1] = y;
-
-	return (off[0] != cksum[0] || off[1] != cksum[1]);
+	return (c0 | c1);
 }
