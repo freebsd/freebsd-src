@@ -242,6 +242,8 @@
             meteor
             ..
             netgraph
+                bluetooth
+                ..
             ..
             nwclient
             ..
