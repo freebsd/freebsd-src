@@ -180,6 +180,7 @@ Boot:
 	    <item>IDE
 	    <item>ATA
 
+	    <item>Adaptec 1505 ISA SCSI controller
 	    <item>Adaptec 152x series ISA SCSI controllers
 	    <item>Adaptec 154x series ISA SCSI controllers
 	    <item>Adaptec 174x series EISA SCSI controller in
