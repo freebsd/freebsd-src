@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include <protocols/dumprestore.h>
 
@@ -142,12 +143,10 @@ rmtgetconn()
 	register const char *rmt;
 	static struct servent *sp = NULL;
 	static struct passwd *pwd = NULL;
-#ifdef notdef
-	static int on = 1;
-#endif
 	char *tuser;
 	int size;
 	int throughput;
+	int on;
 
 	if (sp == NULL) {
 		sp = getservbyname(dokerberos ? "kshell" : "shell", "tcp");
@@ -199,11 +198,9 @@ rmtgetconn()
 	if (setsockopt(rmtape, IPPROTO_IP, IP_TOS,
 	    &throughput, sizeof(throughput)) < 0)
 		perror("IP_TOS:IPTOS_THROUGHPUT setsockopt");
-
-#ifdef notdef
+	on = 1;
 	if (setsockopt(rmtape, IPPROTO_TCP, TCP_NODELAY, &on, sizeof (on)) < 0)
 		perror("TCP_NODELAY setsockopt");
-#endif
 }
 
 static int
