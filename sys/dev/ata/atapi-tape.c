@@ -234,7 +234,7 @@ ast_describe(struct ast_softc *stp)
 	printf("\n");
     }
     else {
-	printf("ast%d: TAPE <%.40s> at ata%d-%s using %s\n",
+	printf("ast%d: TAPE <%.40s> at ata%d-%s %s\n",
                stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
 	       device_get_unit(stp->atp->controller->dev),
 	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
