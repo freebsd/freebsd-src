@@ -309,24 +309,15 @@ bad_packet:
 			 * packets....:)
 			 */
 		if (f_prt==IP_FW_F_ICMP)
-			return 0;
+			goto return_0;
 			/*
 			 * Reply to packets rejected
 			 * by entry with this flag
 			 * set only.
 			 */
 		if (!(f->fw_flg&IP_FW_F_ICMPRPL))
-			return 0;
-   		m = m_get(M_DONTWAIT, MT_SOOPTS);
-			/*
-			 * We never retry,we don't want to
-			 * waste time-it is not so critical
-			 * if ICMP unsent.
-			 */
-		if (!m)
-			return 0;
-   		m->m_len = sizeof(struct ip)+64;
-   		bcopy((caddr_t)ip,mtod(m, caddr_t),(unsigned)m->m_len);
+			goto return_0;
+		m = dtom(ip);
 		if (f_prt==IP_FW_F_ALL)
    			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
 		else
@@ -337,8 +328,11 @@ bad_packet:
 		 * If global icmp flag set we will do
 		 * something here...later..
 		 */
-		return 0;
+		return_0;
 	}
+return_0:
+	m_freem(m);
+	return 0;
 good_packet:
 	return 1;
 }
