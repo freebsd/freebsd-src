@@ -233,6 +233,20 @@
       system password file.  Users are strongly urged to upgrade to
       version 3.1.4_1 of this port/package.</para>
 
+    <para>(21 Jan 2004) Some bugs in the IPsec implementation imported
+      from the KAME Project can result in memory objects being freed
+      before all references to them were removed.  Reported symptoms
+      include erratic behavior or kernel panics after flushing the
+      Security Policy Database (SPD).  Some of these problems have
+      been fixed in &os; &release.current; in rev. 1.31 of
+      <filename>src/sys/netinet6/ipsec.c</filename>, rev. 1.136 of
+      <filename>src/sys/netinet/in_pcb.c</filename>, and revs. 1.63
+      and 1.64 of <filename>src/sys/netkey/key.c</filename>.  More
+      information about these problems has been posted to the
+      &a.current;, in particular the thread entitled <ulink 
+      url="http://lists.freebsd.org/pipermail/freebsd-current/2004-January/thread.html#18084">
+      <quote>[PATCH] IPSec fixes</quote></ulink>.</para>
+
 ]]>
 
   </sect1>
