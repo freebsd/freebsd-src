@@ -1,4 +1,3 @@
-/* @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC; from 1.9 88/02/08 SMI */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,6 +25,10 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)rpc.h 1.9 88/02/08 SMI 
+ *	from: @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC
+ *	$Id: rpc.h,v 1.1 1993/10/27 05:40:45 paul Exp $
  */
 
 /*
@@ -34,8 +37,8 @@
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
-#ifndef __RPC_HEADER__
-#define __RPC_HEADER__
+#ifndef _RPC_RPC_H
+#define _RPC_RPC_H
 
 #include <rpc/types.h>		/* some typedefs */
 #include <netinet/in.h>
@@ -56,7 +59,7 @@
  *  Uncomment-out the next line if you are building the rpc library with    
  *  DES Authentication (see the README file in the secure_rpc/ directory).
  */
-/*#include <rpc/auth_des.h>	 * protocol for des style cred */
+/*#include <rpc/auth_des.h>	/* protocol for des style cred */
 
 /* Server side only remote procedure callee */
 #include <rpc/svc.h>		/* service manager and multiplexer */
@@ -75,6 +78,12 @@ struct rpcent {
       int     r_number;       /* rpc program number */
 };
 
-struct rpcent *getrpcbyname(), *getrpcbynumber(), *getrpcent();
+__BEGIN_DECLS
+extern struct rpcent *getrpcbyname	__P((char *));
+extern struct rpcent *getrpcbynumber	__P((int));
+extern struct rpcent *getrpcent		__P((void));
+extern void setrpcent __P((int));
+extern void endrpcent __P((void));
+__END_DECLS
 
-#endif /* ndef __RPC_HEADER__ */
+#endif /* !_RPC_RPC_H */

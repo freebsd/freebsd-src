@@ -1,4 +1,3 @@
-/* @(#)auth_unix.h	2.2 88/07/29 4.0 RPCSRC; from 1.8 88/02/08 SMI */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,8 +25,11 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)auth_unix.h 1.8 88/02/08 SMI
+ *	from: @(#)auth_unix.h	2.2 88/07/29 4.0 RPCSRC
+ *	$Id: auth_unix.h,v 1.1 1993/10/27 05:40:12 paul Exp $
  */
-/*      @(#)auth_unix.h 1.5 86/07/16 SMI      */
 
 /*
  * auth_unix.h, Protocol for UNIX style authentication parameters for RPC
@@ -41,6 +43,10 @@
  * null verifiers or optionally a verifier that suggests a new short hand
  * for the credentials.
  */
+
+#ifndef _RPC_AUTH_UNIX_H
+#define _RPC_AUTH_UNIX_H
+#include <sys/cdefs.h>
 
 /* The machine name is part of a credential; it may not exceed 255 bytes */
 #define MAX_MACHINE_NAME 255
@@ -60,7 +66,9 @@ struct authunix_parms {
 	int	*aup_gids;
 };
 
-extern bool_t xdr_authunix_parms();
+__BEGIN_DECLS
+extern bool_t xdr_authunix_parms __P((XDR *, struct authunix_parms *));
+__END_DECLS
 
 /* 
  * If a response verifier has flavor AUTH_SHORT, 
@@ -70,3 +78,5 @@ extern bool_t xdr_authunix_parms();
 struct short_hand_verf {
 	struct opaque_auth new_cred;
 };
+
+#endif /* !_RPC_AUTH_UNIX_H */
