@@ -2,7 +2,7 @@
 .\"
 .\" Copyright (C) 2001 WIDE Project.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -14,7 +14,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd September 25, 2001
 .Dt IP6ADDRCTL 8
@@ -38,24 +38,24 @@
 .Nd configure address selection policy for IPv6 and IPv4
 .\"
 .Sh SYNOPSIS
-.Nm ip6addrctl
+.Nm
 .Op Cm show
-.Nm ip6addrctl
+.Nm
 .Cm add
 .Ar prefix precedence label
-.Nm ip6addrctl
+.Nm
 .Cm delete
 .Ar prefix
-.Nm ip6addrctl
+.Nm
 .Cm flush
-.Nm ip6addrctl
+.Nm
 .Cm install
 .Ar configfile
 .\"
 .Sh DESCRIPTION
 The
 .Nm
-command manages the policy table of source and destination address
+utility manages the policy table of source and destination address
 selection for outgoing IPv4 and IPv6 packets.
 When
 .Nm
@@ -65,53 +65,59 @@ it prints the content of the policy table currently installed in the
 kernel.
 .Pp
 To modify the table, the following operations are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Cm add Ar prefix precedence label
-add a policy entry.
-.Ar Prefix
+Add a policy entry.
+The
+.Ar prefix
+argument
 is an IPv6 prefix, which is a key for the entry.
 An IPv4 prefix should be specified with an IPv6 prefix using an
 IPv4-mapped IPv6 address.
-.Ar Precedence
+The
+.Ar precedence
 and
 .Ar label
+arguments
 are decimal numbers, which specify the precedence and label values
 for the entry, respectively.
 This operation should be performed without an existing entry for the
 prefix.
 .It Cm delete Ar prefix
-delete a policy entry specified by
+Delete a policy entry specified by
 .Ar prefix ,
 which should be an IPv6 prefix.
 A corresponding entry for the prefix should have already been
 installed.
 .It Cm flush
-delete all existing policy entries in the kernel.
+Delete all existing policy entries in the kernel.
 .It Cm install Ar configfile
-install policy entries from a configuration file named
+Install policy entries from a configuration file named
 .Ar configfile .
 The configuration file should contain a set of policy entries.
 Each entry is specified in a single line which contains an IPv6 prefix,
 a decimal precedence value, and a decimal label value, separated with
 white space or tab characters.
-In the configuration file, lines beginning with the pound-sign (#) are
+In the configuration file, lines beginning with the pound-sign
+.Pq Ql #
+are
 comments and are ignored.
 .El
 .\"
-.Sh RETURN VALUES
-The program exits with 0 on success, non-zero on failures.
+.Sh DIAGNOSTICS
+.Ex -std
 .\"
 .Sh SEE ALSO
-Richard Draves,
-.Do
-Default Address Selection for IPv6
-.Dc ,
-RFC 3484.
+.Rs
+.%A "Richard Draves"
+.%T "Default Address Selection for IPv6"
+.%N RFC 3484
+.Re
 .\"
 .Sh HISTORY
 The
 .Nm
-command first appeared in the KAME IPv6 protocol stack kit.
+utility first appeared in the KAME IPv6 protocol stack kit.
 The original command name was
 .Nm addrselect ,
 but it was then renamed to the current one so that the name would

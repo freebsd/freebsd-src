@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"
 .Dd March 15, 2004
-.Dt ARLCONFIG 8 i386
+.Dt ARLCONTROL 8 i386
 .Os
 .Sh NAME
 .Nm arlcontrol
@@ -40,9 +40,9 @@
 .Nm
 .Ar iface
 .Nm
-.Ar iface Cm country Ar country ( Cm 9-15 )
+.Ar iface Cm country Ar country Pq Cm 9 Ns - Ns Cm 15
 .Nm
-.Ar iface Cm priority Ar priority ( Cm normal, high, highest )
+.Ar iface Cm priority Ar priority Pq Cm normal , high , highest
 .Nm
 .Ar iface Cm txretry Ar txretry
 .Nm
@@ -60,7 +60,7 @@ Most of the parameters that can be changed are related to the
 Aironet protocol which the Aironet Arlan 655 card implements.
 The
 .Nm
-utility can also be used to view the current NIC status, configuration
+utility can also be used to view the current NIC status, configuration,
 and to dump out the values of the card's statistics counters.
 .Pp
 The
@@ -75,48 +75,49 @@ etc.) and must be specified.
 The options are as follows:
 .Bl -tag -width indent
 .It Ar iface
-Display current settings of specified wireless interface. 
-This retrieves current card settings from the driver and prints 
-them out. 
-.It Ar iface Cm country Ar country ( Cm 9-15 )
-Chose 
+Display current settings of the specified wireless interface.
+This retrieves current card settings from the driver and prints
+them out.
+.It Ar iface Cm country Ar country Pq Cm 9 Ns - Ns Cm 15
+Chose
 .Ar country , channel
- parameters that depend on the
-.Ar country 
+parameters that depend on the
+.Ar country
 according to the following table:
-.Bl -column ".Em Country" ".Em Channel" ".Em MHz" -offset indent indent
-.Em "Country      	Ch_Set	MHz"
+.Bl -column ".No North America" ".Em Channel" ".Em MHz"
+.Em "Country	Ch_Set	MHz"
 .It "North America" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
-.It "U.S.A        " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
-.It "Canada       " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
-.It "Mexico       " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
-.IT "New Zealand  " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
-.It "E.T.S.I      " Ta 10 Ta "2412, 2427, 2442, 2457, 2472"
-.It "Japan        " Ta 11 Ta "2484"
-.It "France       " Ta 12 Ta "2457, 2465, 2475"
-.It "Australia    " Ta 13 Ta "2411, 2425, 2439"
-.It "Germany      " Ta 14 Ta "2427, 2442, 2457"
+.It "U.S.A" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Canada" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Mexico" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "New Zealand" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "E.T.S.I" Ta 10 Ta "2412, 2427, 2442, 2457, 2472"
+.It "Japan" Ta 11 Ta "2484"
+.It "France" Ta 12 Ta "2457, 2465, 2475"
+.It "Australia" Ta 13 Ta "2411, 2425, 2439"
+.It "Germany" Ta 14 Ta "2427, 2442, 2457"
 .It "U.K.(MPT1349)" Ta 15 Ta "2460"
-.It "U.K.         " Ta 15 Ta "2460"
-.It "Spain        " Ta 15 Ta "2460"
+.It "U.K." Ta 15 Ta "2460"
+.It "Spain" Ta 15 Ta "2460"
 .El
-.It Ar iface Cm priority Ar priority ( Cm normal, high, highest )
+.It Ar iface Cm priority Ar priority Pq Cm normal , high , highest
 Use the
 .Ar priority
-parameter to set the priority of the Arlan 655 Radio Media Access Control 
-the values are 
+parameter to set the priority of the Arlan 655 Radio Media Access Control
+the values are
 .Cm normal , high
 or
 .Cm highest .
-The higher the priority set, the more likely this unit will be first 
-to successfully transmit a packet when multiple units are trying 
+The higher the priority is set, the more likely this unit will be the first
+to successfully transmit a packet when multiple units are trying
 to transmit at the same time.
 .Pp
 The percentage of units on your network that you set to values other than
-.Dq normal
-should be kept small - 10 percent or less.  
+.Cm normal
+should be kept small - 10 percent or less.
 .It Ar iface Cm txretry Ar txretry
-Set transmit retries. Default is 0.
+Set transmit retries.
+Default is 0.
 .It Ar iface Cm stat
 Print internal Arlan 655 statistics block.
 .It Ar iface Cm quality
@@ -129,31 +130,37 @@ Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
-arlcontrol arl0 country 11 priority high 
-arlcontrol arl0 quality 
+arlcontrol arl0 country 11 priority high
+arlcontrol arl0 quality
 arlcontrol arl0 stat
 arlcontrol arl0
+.Ed
 .Pp
-You can configure the Arlan 655 card from /etc/start_if.arl0.
-For example: 
-.Pp
+You can configure the Arlan 655 card from
+.Pa /etc/start_if.arl0 .
+For example:
+.Bd -literal -offset indent
 #!/bin/sh
 /usr/sbin/arlcontrol country 9 priority highest
+.Ed
 .Sh SEE ALSO
-.Xr arl 4 ,
-.Xr "Arlan 655 ISA Wireless LAN Client Card User Guide" . 
+.Xr arl 4
+.Rs
+.%T "Arlan 655 ISA Wireless LAN Client Card User Guide"
+.Re
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 5.3 .
 .Sh BUGS
-Aironet Arlan 640 bridges and Arlan 630 access points don't understand
+Aironet Arlan 640 bridges and Arlan 630 access points do not understand
 country codes other than 9.
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by
 .Aq ran@styx.aic.net .
-This manpage was written by 
-.An Yuri Kurenkov Aq y.kurenkov@init.ru .  
+This manpage was written by
+.An Yuri Kurenkov Aq y.kurenkov@init.ru .
