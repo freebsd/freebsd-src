@@ -56,6 +56,7 @@ struct specinfo {
 #define SI_STASHED	0x0001	/* created in stashed storage */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
+#define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
@@ -93,7 +94,6 @@ struct specinfo {
 /*
  * Exported shorthand
  */
-#define v_hashchain v_rdev->si_hlist
 #define v_specmountpoint v_rdev->si_mountpoint
 
 /*
@@ -291,7 +291,8 @@ int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 dev_t	make_dev_alias __P((dev_t pdev, char *fmt, ...)) __printflike(2, 3);
-int	lminor __P((dev_t dev));
+int	dev2unit __P((dev_t dev));
+int	unit2minor __P((int unit));
 void	setconf __P((void));
 dev_t	getdiskbyname(char *name);
 

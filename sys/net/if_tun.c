@@ -129,14 +129,14 @@ tuncreate(dev)
 	struct ifnet *ifp;
 
 	dev = make_dev(&tun_cdevsw, minor(dev),
-	    UID_UUCP, GID_DIALER, 0600, "tun%d", lminor(dev));
+	    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
 
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK);
 	bzero(sc, sizeof *sc);
 	sc->tun_flags = TUN_INITED;
 
 	ifp = &sc->tun_if;
-	ifp->if_unit = lminor(dev);
+	ifp->if_unit = dev2unit(dev);
 	ifp->if_name = "tun";
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
