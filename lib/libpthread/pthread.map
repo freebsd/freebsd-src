@@ -150,6 +150,7 @@ global:
 	_sem_init;
 	_sem_open;
 	_sem_post;
+	_sem_timedwait;
 	_sem_trywait;
 	_sem_unlink;
 	_sem_wait;
@@ -305,6 +306,7 @@ global:
 	sem_init;
 	sem_open;
 	sem_post;
+	sem_timedwait;
 	sem_trywait;
 	sem_unlink;
 	sem_wait;
