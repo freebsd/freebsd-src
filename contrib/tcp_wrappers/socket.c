@@ -217,6 +217,23 @@ struct host_info *host;
 
 	STRN_CPY(host->name, hname, sizeof(host->name));
 
+	/* reject numeric addresses */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = sin->sa_family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICHOST;
+	if ((err = getaddrinfo(host->name, NULL, &hints, &res0) == 0)) {
+	    freeaddrinfo(res0);
+	    tcpd_warn("host name/name mismatch: "
+		      "reverse lookup results in non-FQDN %s",
+		      host->name);
+	    strcpy(host->name, paranoid);	/* name is bad, clobber it */
+	}
+	err = !err;
+    }
+    if (!err) {
+	/* we are now sure that this is non-numeric */
+
 	/*
 	 * Verify that the address is a member of the address list returned
 	 * by gethostbyname(hostname).
@@ -245,7 +262,8 @@ struct host_info *host;
 		      host->name,
 		      (sin->sa_family == AF_INET) ? "AF_INET" : "AF_INET6");
 
-	} else if (STR_NE(host->name, res0->ai_canonname)
+	} else if ((res0->ai_canonname == NULL
+		    || STR_NE(host->name, res0->ai_canonname))
 		   && STR_NE(host->name, "localhost")) {
 
 	    /*
@@ -255,7 +273,8 @@ struct host_info *host;
 	     */
 
 	    tcpd_warn("host name/name mismatch: %s != %.*s",
-		      host->name, STRING_LENGTH, res0->ai_canonname);
+		      host->name, STRING_LENGTH,
+		      (res0->ai_canonname == NULL) ? "" : res0->ai_canonname);
 
 	} else {
 
@@ -274,6 +293,11 @@ struct host_info *host;
 		    rap = (char *)&((struct sockaddr_in *)res->ai_addr)->sin_addr;
 		    break;
 		case AF_INET6:
+		    /* need to check scope_id */
+		    if (((struct sockaddr_in6 *)sin)->sin6_scope_id !=
+		        ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id) {
+			continue;
+		    }
 		    rap = (char *)&((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
 		    break;
 		default:
@@ -294,7 +318,8 @@ struct host_info *host;
 	    getnameinfo(sin, salen, hname, sizeof(hname),
 			NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 	    tcpd_warn("host name/address mismatch: %s != %.*s",
-		      hname, STRING_LENGTH, res0->ai_canonname);
+		      hname, STRING_LENGTH,
+		      (res0->ai_canonname == NULL) ? "" : res0->ai_canonname);
 	}
 	strcpy(host->name, paranoid);		/* name is bad, clobber it */
 	if (res0)
