@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2002
+.Dd November 20, 2004
 .Dt SIGNAL 9
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Nm SIG_STOPSIGMASK ,
 .Nm SIG_CONTSIGMASK ,
 .Nm SIGPENDING ,
-.Nm CURSIG ,
+.Nm cursig ,
 .Nm execsigs ,
 .Nm issignal ,
 .Nm killproc ,
@@ -95,11 +95,11 @@
 .Ft int
 .Fn SIGPENDING "struct proc *p"
 .Ft int
-.Fn CURSIG "struct proc *p"
+.Fn cursig "struct thread *td"
 .Ft void
 .Fn execsigs "struct proc *p"
 .Ft int
-.Fn issignal "struct proc *p"
+.Fn issignal "struct thread *td"
 .Ft void
 .Fn killproc "struct proc *p" "char *why"
 .Ft void
@@ -111,9 +111,9 @@
 .Ft void
 .Fn siginit "struct proc *p"
 .Ft void
-.Fn signotify "struct proc *p"
+.Fn signotify "struct thread *td"
 .Ft void
-.Fn trapsignal "struct proc *p" "int sig" "u_long code"
+.Fn trapsignal "struct thread *td" "int sig" "u_long code"
 .Sh DESCRIPTION
 The
 .Fn SIGADDSET
@@ -242,9 +242,9 @@ traced,
 will return true even if the signal is masked.
 .Pp
 The
-.Fn CURSIG
-function returns the signal number that should be delivered to
-.Fa p .
+.Fn cursig
+function returns the signal number that should be delivered to process
+.Fa td->td_proc .
 If there are no signals pending, zero is returned.
 .Pp
 The
@@ -260,33 +260,38 @@ is called.
 .Pp
 The
 .Fn issignal
-function determines if there are any pending signals for
-.Fa p
-that should be caught, cause
-.Fa p
-to terminate or interrupt the
+function determines if there are any pending signals for process
+.Fa td->td_proc
+that should be caught, or cause this process to terminate or interrupt its
 current system call.
-If
-.Fa p
-is currently being traced, ignored signals will be handled and
-.Fa p
+If process
+.Fa td->td_proc
+is currently being traced, ignored signals will be handled and the process
 is always stopped.
 Stop signals are handled and cleared right away by
-.Fn issignal ,
+.Fn issignal
 unless the process is a member of an orphaned process group and the stop
 signal originated from a TTY.
 The
 .Va sched_lock
-lock
-may be acquired and released, and if
+lock may be acquired and released, and if
 .Va Giant
 is held, it may be released and reacquired.
-.Fa p
-must be locked before
+The
+.Vt sigacts
+structure
+.Fa td->td_proc->p_sigacts
+must be locked before calling
 .Fn issignal
-is called and may be released and reacquired during the call; as well,
-.Fa p
-parent's lock may be acquired and released.
+and may be released and reacquired during the call.
+The process lock for
+.Fa td->td_proc
+must be acquired before calling
+.Fn issignal
+and may be released and reacquired during the call.
+The lock for the parent of
+.Fa td->td_proc
+may also be acquired and released.
 Default signal actions are not taken for system processes and init.
 .Pp
 The
@@ -320,7 +325,8 @@ If
 is for a process group (< 0), the process group lock for
 .Fa sigiop->sio_pgrp
 is acquired and released.
-.Fa sigio_lock
+The lock
+.Va sigio_lock
 is acquired and released.
 .Pp
 The
@@ -341,6 +347,11 @@ The lock for process that owns
 must be held before
 .Fn postsig
 is called, and the current process cannot be 0.
+The lock for the
+.Va p_sigacts
+field of the current process must be held before
+.Fn postsig
+is called, and may be released and reacquired.
 .Pp
 The
 .Fn sigexit
@@ -353,9 +364,7 @@ The lock for the process that owns
 .Fa td
 must be held before
 .Fn sigexit
-is called, and
-.Va Giant
-will be acquired if it is not already held.
+is called.
 .Pp
 The
 .Fn siginit
@@ -381,8 +390,8 @@ The
 function flags that there are unmasked signals pending that
 .Fn ast
 should handle.
-The lock for
-.Fa p
+The lock for process
+.Fa td->td_proc
 must be held before
 .Fn signotify
 is called, and
@@ -391,8 +400,8 @@ is acquired and released.
 .Pp
 The
 .Fn trapsignal
-function sends a signal that is the result of a trap to
-.Fa p .
+function sends a signal that is the result of a trap to process
+.Fa td->td_proc .
 If the process is not being traced and the signal can be delivered
 immediately,
 .Fn trapsignal
@@ -401,9 +410,15 @@ will deliver it directly; otherwise,
 will call
 .Xr psignal 9
 to cause the signal to be delivered.
-.Va Giant
-is acquired and released, as is the lock for
-.Fa p .
+The
+.Va sched_lock
+lock is acquired and released, as is the lock for
+.Fa td->td_proc .
+The lock for the
+.Va p_sigacts
+field of
+.Fa td->td_proc
+is acquired and released.
 .Sh RETURN VALUES
 The
 .Fn SIGISMEMBER ,
@@ -416,8 +431,9 @@ and
 macros all return non-zero (true) if the condition they are checking
 is found to be true; otherwise, zero (false) is returned.
 .Pp
-.Fn CURSIG
-returns either a valid signal number or zero.
+The
+.Fn cursig
+function returns either a valid signal number or zero.
 .Pp
 .Fn issignal
 returns either a valid signal number or zero.
