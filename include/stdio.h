@@ -134,11 +134,14 @@ typedef	struct __sFILE {
 	fpos_t	_offset;	/* current lseek offset (see WARNING) */
 } FILE;
 
+#ifndef _STDSTREAM_DECLARED
 __BEGIN_DECLS
 extern FILE *__stdinp;
 extern FILE *__stdoutp;
 extern FILE *__stderrp;
 __END_DECLS
+#define	_STDSTREAM_DECLARED
+#endif
 
 #define	__SLBF	0x0001		/* line buffered */
 #define	__SNBF	0x0002		/* unbuffered */
