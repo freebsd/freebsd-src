@@ -43,7 +43,7 @@
 .Nd change file access and modification times
 .Sh SYNOPSIS
 .Nm
-.Op Fl acfm
+.Op Fl acfhm
 .Op Fl r Ar file
 .Op Fl t Ar [[CC]YY]MMDDhhmm[.SS]
 .Ar
@@ -70,6 +70,9 @@ No error messages are displayed and the exit value is not affected.
 .It Fl f
 Attempt to force the update, even if the file permissions do not
 currently permit it.
+.It Fl h
+If the file is a symbolic link, change the times of the link
+itself rather than the file that the link points to.
 .It Fl m
 Change the modification time of the file.
 The access time of the file is not changed unless the
