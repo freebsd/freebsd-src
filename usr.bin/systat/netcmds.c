@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netcmds.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: netcmds.c,v 1.6 1997/02/22 19:57:16 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -83,8 +83,14 @@ netcmd(cmd, args)
 	char *cmd, *args;
 {
 
-	if (prefix(cmd, "tcp") || prefix(cmd, "udp")) {
-		selectproto(cmd);
+	if (prefix(cmd, "proto")) {
+		if (*args == '\0') {
+			move(CMDLINE, 0);
+			clrtoeol();
+			addstr("which proto?");
+		} else if (!selectproto(args)) {
+			error("%s: Unknown protocol.", args);
+		}
 		return (1);
 	}
 	if (prefix(cmd, "ignore") || prefix(cmd, "display")) {
@@ -166,15 +172,17 @@ static int
 selectproto(proto)
 	char *proto;
 {
-	int new = protos;
 
 	if (proto == 0 || streq(proto, "all"))
-		new = TCP|UDP;
+		protos = TCP | UDP;
 	else if (streq(proto, "tcp"))
-		new = TCP;
+		protos = TCP;
 	else if (streq(proto, "udp"))
-		new = UDP;
-	return (new != protos, protos = new);
+		protos = UDP;
+	else
+		return (0);
+
+	return (protos);
 }
 
 static void
