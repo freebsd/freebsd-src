@@ -21,7 +21,6 @@
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
 #include <sys/types.h>
-#include <sys/ioctl.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
@@ -29,6 +28,12 @@
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
+
+/* This is needed to include support for TIOCGWINSZ and window resizing. */
+#if defined (OSF1) || defined (BSD386) || defined (NetBSD) || \
+    defined (FreeBSD) || defined (_386BSD) || defined (AIX)
+#  include <sys/ioctl.h>
+#endif /* OSF1 || BSD386 */
 
 #include "rldefs.h"
 #include "readline.h"
@@ -360,11 +365,13 @@ get_tty_settings (tty, tiop)
      int tty;
      TIOTYPE *tiop;
 {
+#ifdef TIOCGWINSZ
 /* XXX this prevents to got editing mode from tcsh. Ache */
   struct winsize w;
 
   if (ioctl (tty, TIOCGWINSZ, &w) == 0)
       (void) ioctl (tty, TIOCSWINSZ, &w);
+#endif
 
   while (GETATTR (tty, tiop) < 0)
     {
