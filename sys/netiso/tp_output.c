@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_output.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_output.c,v 1.2 1994/08/02 07:51:17 davidg Exp $
+ * $Id: tp_output.c,v 1.3 1995/04/26 21:32:37 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_output.c,v 1.2 1994/08/02 07:51:17 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_output.c,v 1.3 1995/04/26 21:32:37 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_output.c,v $
  *
  * In here is tp_ctloutput(), the guy called by [sg]etsockopt(),
@@ -107,8 +107,8 @@ SOFTWARE.
  *  the input arguements iff no errors were encountered.
  *  Strict means that no inconsistency will be tolerated.  If it's
  *  not used, checksum and tpdusize inconsistencies will be tolerated.
- *  The reason for this is that in some cases, when we're negotiating down 
- *	from class  4, these options should be changed but should not 
+ *  The reason for this is that in some cases, when we're negotiating down
+ *	from class  4, these options should be changed but should not
  *  cause negotiation to fail.
  *
  * RETURNS
@@ -127,12 +127,12 @@ tp_consistency( tpcb, cmd, param )
 	int 			class_to_use  = tp_mask_to_num(param->p_class);
 
 	IFTRACE(D_SETPARAMS)
-		tptrace(TPPTmisc, 
-		"tp_consist enter class_to_use dontchange param.class cmd", 
+		tptrace(TPPTmisc,
+		"tp_consist enter class_to_use dontchange param.class cmd",
 		class_to_use, param->p_dont_change_params, param->p_class, cmd);
 	ENDTRACE
 	IFDEBUG(D_SETPARAMS)
-		printf("tp_consistency %s %s\n", 
+		printf("tp_consistency %s %s\n",
 			cmd& TP_FORCE?	"TP_FORCE":	"",
 			cmd& TP_STRICT?	"TP_STRICT":"");
 	ENDDEBUG
@@ -140,7 +140,7 @@ tp_consistency( tpcb, cmd, param )
 		cmd &= ~TP_FORCE;
 	}
 	/* can switch net services within a domain, but
-	 * cannot switch domains 
+	 * cannot switch domains
 	 */
 	switch( param->p_netservice) {
 	case ISO_CONS:
@@ -169,7 +169,7 @@ tp_consistency( tpcb, cmd, param )
 	}
 	if( (param->p_class & TP_CLASSES_IMPLEMENTED) == 0 ) {
 		error = EINVAL; goto done;
-	} 
+	}
 	IFDEBUG(D_SETPARAMS)
 		printf("Nretrans 0x%x\n",  param->p_Nretrans );
 	ENDDEBUG
@@ -211,12 +211,12 @@ tp_consistency( tpcb, cmd, param )
 		}
 		if (param->p_tpdusize > TP0_TPDUSIZE)  {
 			if (cmd & TP_STRICT) {
-				error = EINVAL; 
+				error = EINVAL;
 			} else {
 				param->p_tpdusize = TP0_TPDUSIZE;
 			}
 			break;
-		} 
+		}
 
 		/* connect/disc data not allowed for class 0 */
 		if (tpcb->tp_ucddata) {
@@ -228,7 +228,7 @@ tp_consistency( tpcb, cmd, param )
 			}
 		}
 		break;
-		
+
 	case 4:
 		IFDEBUG(D_SETPARAMS)
 			printf("dt_ticks 0x%x\n",  param->p_dt_ticks );
@@ -240,7 +240,7 @@ tp_consistency( tpcb, cmd, param )
 			printf("ref 0x%x\n",  param->p_ref_ticks );
 		ENDDEBUG
 		if( (param->p_class & TP_CLASS_4 ) && (
-			  (param->p_dt_ticks < 1) || (param->p_dr_ticks < 1) || 
+			  (param->p_dt_ticks < 1) || (param->p_dr_ticks < 1) ||
 			  (param->p_x_ticks < 1)	|| (param->p_keepalive_ticks < 1) ||
 			  (param->p_sendack_ticks < 1) || (param->p_ref_ticks < 1) ||
 			  (param->p_inact_ticks < 1) ) ) {
@@ -250,7 +250,7 @@ tp_consistency( tpcb, cmd, param )
 		IFDEBUG(D_SETPARAMS)
 			printf("rx_strat 0x%x\n",  param->p_rx_strat );
 		ENDDEBUG
-		if(param->p_rx_strat > 
+		if(param->p_rx_strat >
 			( TPRX_USE_CW | TPRX_EACH | TPRX_FASTSTART) ) {
 				if(cmd & TP_STRICT) {
 					error = EINVAL;
@@ -280,12 +280,12 @@ tp_consistency( tpcb, cmd, param )
 		}
 		if (param->p_tpdusize > TP_TPDUSIZE)  {
 			if(cmd & TP_STRICT) {
-				error = EINVAL; 
+				error = EINVAL;
 			} else {
 				param->p_tpdusize = TP_TPDUSIZE;
 			}
 			break;
-		} 
+		}
 		break;
 	}
 
@@ -315,7 +315,7 @@ tp_consistency( tpcb, cmd, param )
 done:
 
 	IFTRACE(D_CONN)
-		tptrace(TPPTmisc, "tp_consist returns class xtdfmt cmd", 
+		tptrace(TPPTmisc, "tp_consist returns class xtdfmt cmd",
 			error, tpcb->tp_class, tpcb->tp_xtd_format, cmd);
 	ENDTRACE
 	IFDEBUG(D_CONN)
@@ -330,7 +330,7 @@ done:
  * NAME: 	tp_ctloutput()
  *
  * CALLED FROM:
- * 	[sg]etsockopt(), via so[sg]etopt(). 
+ * 	[sg]etsockopt(), via so[sg]etopt().
  *
  * FUNCTION and ARGUMENTS:
  * 	Implements the socket options at transport level.
@@ -338,18 +338,18 @@ done:
  * 	(so) is the socket.
  * 	(level) is SOL_TRANSPORT (see ../sys/socket.h)
  * 	(optname) is the particular command or option to be set.
- * 	(**mp) is an mbuf structure.  
+ * 	(**mp) is an mbuf structure.
  *
  * RETURN VALUE:
  * 	ENOTSOCK if the socket hasn't got an associated tpcb
- *  EINVAL if 
+ *  EINVAL if
  * 		trying to set window too big
- * 		trying to set illegal max tpdu size 
+ * 		trying to set illegal max tpdu size
  * 		trying to set illegal credit fraction
  * 		trying to use unknown or unimplemented class of TP
  *		structure passed to set timer values is wrong size
- *  	illegal combination of command/GET-SET option, 
- *			e.g., GET w/ TPOPT_CDDATA_CLEAR: 
+ *  	illegal combination of command/GET-SET option,
+ *			e.g., GET w/ TPOPT_CDDATA_CLEAR:
  *  EOPNOTSUPP if the level isn't transport, or command is neither GET nor SET
  *   or if the transport-specific command is not implemented
  *  EISCONN if trying a command that isn't allowed after a connection
@@ -362,7 +362,7 @@ done:
  *
  * NOTES:
  */
-ProtoHook 
+ProtoHook
 tp_ctloutput(cmd, so, level, optname, mp)
 	int 			cmd, level, optname;
 	struct socket	*so;
@@ -375,12 +375,12 @@ tp_ctloutput(cmd, so, level, optname, mp)
 	int			error = 0;
 
 	IFTRACE(D_REQUEST)
-		tptrace(TPPTmisc, "tp_ctloutput cmd so optname mp", 
+		tptrace(TPPTmisc, "tp_ctloutput cmd so optname mp",
 			cmd, so, optname, mp);
 	ENDTRACE
 	IFDEBUG(D_REQUEST)
 		printf(
-	"tp_ctloutput so 0x%x cmd 0x%x optname 0x%x, mp 0x%x *mp 0x%x tpcb 0x%x\n", 
+	"tp_ctloutput so 0x%x cmd 0x%x optname 0x%x, mp 0x%x *mp 0x%x tpcb 0x%x\n",
 			so, cmd, optname, mp, mp?*mp:0, tpcb);
 	ENDDEBUG
 	if( tpcb == (struct tp_pcb *)0 ) {
@@ -408,7 +408,7 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		else if (tpcb->tp_nlproto->nlp_ctloutput == NULL)
 			error = EOPNOTSUPP;
 		else
-			return ((tpcb->tp_nlproto->nlp_ctloutput)(cmd, optname, 
+			return ((tpcb->tp_nlproto->nlp_ctloutput)(cmd, optname,
 				tpcb->tp_npcb, *mp));
 		goto done;
 	} else if ( level == SOL_SOCKET) {
@@ -425,10 +425,10 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		goto done;
 	} else if ( level !=  SOL_TRANSPORT ) {
 		error = EOPNOTSUPP; goto done;
-	} 
+	}
 	if (cmd != PRCO_GETOPT && cmd != PRCO_SETOPT) {
 		error = EOPNOTSUPP; goto done;
-	} 
+	}
 	if ( so->so_error ) {
 		error = so->so_error; goto done;
 	}
@@ -438,17 +438,17 @@ tp_ctloutput(cmd, so, level, optname, mp)
 	 */
 	if ( ((so->so_state & SS_ISCONNECTING)||(so->so_state & SS_ISCONNECTED))
 		&&
-		(cmd == PRCO_SETOPT  && 
-			optname != TPOPT_DISC_DATA && 
-			optname != TPOPT_CFRM_DATA && 
+		(cmd == PRCO_SETOPT  &&
+			optname != TPOPT_DISC_DATA &&
+			optname != TPOPT_CFRM_DATA &&
 			optname != TPOPT_PERF_MEAS &&
 			optname != TPOPT_CDDATA_CLEAR ) ) {
 		error = EISCONN; goto done;
-	} 
+	}
 	/* The only options allowed after disconnection are GET DISC DATA,
 	 * and TPOPT_PSTATISTICS
 	 * and they're not allowed if the ref timer has gone off, because
-	 * the tpcb is gone 
+	 * the tpcb is gone
 	 */
 	if ((so->so_state & (SS_ISCONNECTED | SS_ISCONFIRMING)) ==  0) {
 		if ( so->so_pcb == (caddr_t)0 ) {
@@ -461,7 +461,7 @@ tp_ctloutput(cmd, so, level, optname, mp)
 	}
 
 	value = mtod(*mp, caddr_t);  /* it's aligned, don't worry,
-								  * but lint complains about it 
+								  * but lint complains about it
 								  */
 	val_len = (*mp)->m_len;
 
@@ -534,7 +534,7 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		} else /* cmd == PRCO_SETOPT  */ {
 			if( (val_len > MAX_TSAP_SEL_LEN) || (val_len <= 0 )) {
 				printf("val_len 0x%x (*mp)->m_len 0x%x\n", val_len, (*mp));
-				error = EINVAL; 
+				error = EINVAL;
 			} else {
 				bcopy(value, (caddr_t)tpcb->tp_fsuffix, val_len);
 				tpcb->tp_fsuffixlen = val_len;
@@ -544,10 +544,10 @@ tp_ctloutput(cmd, so, level, optname, mp)
 
 	case TPOPT_FLAGS:
 		IFDEBUG(D_REQUEST)
-			printf("%s TPOPT_FLAGS value 0x%x *value 0x%x, flags 0x%x \n", 
-				cmd==PRCO_GETOPT?"GET":"SET", 
+			printf("%s TPOPT_FLAGS value 0x%x *value 0x%x, flags 0x%x \n",
+				cmd==PRCO_GETOPT?"GET":"SET",
 				value,
-				*value, 
+				*value,
 				tpcb->tp_flags);
 		ENDDEBUG
 
@@ -579,11 +579,11 @@ tp_ctloutput(cmd, so, level, optname, mp)
 			*(struct tp_conn_param *)value = tpcb->_tp_param;
 			(*mp)->m_len = sizeof(tpcb->_tp_param);
 		} else /* cmd == PRCO_SETOPT  */ {
-			if( (error = 
-				tp_consistency(tpcb, TP_STRICT | TP_FORCE, 
+			if( (error =
+				tp_consistency(tpcb, TP_STRICT | TP_FORCE,
 								(struct tp_conn_param *)value))==0) {
-				/* 
-				 * tp_consistency doesn't copy the whole set of params 
+				/*
+				 * tp_consistency doesn't copy the whole set of params
 				 */
 				tpcb->_tp_param = *(struct tp_conn_param *)value;
 				(*mp)->m_len = sizeof(tpcb->_tp_param);
@@ -591,11 +591,11 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		}
 		break;
 
-	case TPOPT_PSTATISTICS: 
+	case TPOPT_PSTATISTICS:
 #ifdef TP_PERF_MEAS
 		if (cmd == PRCO_SETOPT) {
 			error = EINVAL; goto done;
-		} 
+		}
 		IFPERF(tpcb)
 			if (*mp) {
 				struct mbuf * n;
@@ -605,17 +605,17 @@ tp_ctloutput(cmd, so, level, optname, mp)
 				} while (n);
 			}
 			*mp = m_copym(tpcb->tp_p_mbuf, (int)M_COPYALL, M_WAITOK);
-		ENDPERF 
+		ENDPERF
 		else {
 			error = EINVAL; goto done;
-		} 
+		}
 		break;
 #else
 		error = EOPNOTSUPP;
 		goto done;
 #endif /* TP_PERF_MEAS */
-		
-	case TPOPT_CDDATA_CLEAR: 
+
+	case TPOPT_CDDATA_CLEAR:
 		if (cmd == PRCO_GETOPT) {
 			error = EINVAL;
 		} else {
@@ -627,25 +627,25 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		break;
 
 	case TPOPT_CFRM_DATA:
-	case TPOPT_DISC_DATA: 
-	case TPOPT_CONN_DATA: 
+	case TPOPT_DISC_DATA:
+	case TPOPT_CONN_DATA:
 		if( tpcb->tp_class == TP_CLASS_0 ) {
 			error = EOPNOTSUPP;
 			break;
 		}
 		IFDEBUG(D_REQUEST)
 			printf("%s\n", optname==TPOPT_DISC_DATA?"DISC data":"CONN data");
-			printf("m_len 0x%x, vallen 0x%x so_snd.cc 0x%x\n", 
+			printf("m_len 0x%x, vallen 0x%x so_snd.cc 0x%x\n",
 				(*mp)->m_len, val_len, so->so_snd.sb_cc);
 			dump_mbuf(so->so_snd.sb_mb, "tp_ctloutput: sosnd ");
 		ENDDEBUG
 		if (cmd == PRCO_SETOPT) {
 			int len = tpcb->tp_ucddata ?  tpcb->tp_ucddata->m_len : 0;
 			/* can append connect data in several calls */
-			if (len + val_len > 
+			if (len + val_len >
 				(optname==TPOPT_CONN_DATA?TP_MAX_CR_DATA:TP_MAX_DR_DATA) ) {
 				error = EMSGSIZE; goto done;
-			} 
+			}
 			(*mp)->m_next = MNULL;
 			(*mp)->m_act = 0;
 			if (tpcb->tp_ucddata)
@@ -665,7 +665,7 @@ tp_ctloutput(cmd, so, level, optname, mp)
 		}
 		break;
 
-	case TPOPT_PERF_MEAS: 
+	case TPOPT_PERF_MEAS:
 #ifdef TP_PERF_MEAS
 		if (cmd == PRCO_GETOPT) {
 			*value = (u_int)tpcb->tp_perf_on;
@@ -676,7 +676,7 @@ tp_ctloutput(cmd, so, level, optname, mp)
 				error = EINVAL;
 			else  tpcb->tp_perf_on = (*value);
 		}
-		if( tpcb->tp_perf_on ) 
+		if( tpcb->tp_perf_on )
 			error = tp_setup_perf(tpcb);
 #else  /* TP_PERF_MEAS */
 		error = EOPNOTSUPP;
@@ -686,15 +686,15 @@ tp_ctloutput(cmd, so, level, optname, mp)
 	default:
 		error = EOPNOTSUPP;
 	}
-	
+
 done:
 	IFDEBUG(D_REQUEST)
 		dump_mbuf(so->so_snd.sb_mb, "tp_ctloutput sosnd at end");
 		dump_mbuf(*mp, "tp_ctloutput *mp");
 	ENDDEBUG
-	/* 
-	 * sigh: getsockopt looks only at m_len : all output data must 
-	 * reside in the first mbuf 
+	/*
+	 * sigh: getsockopt looks only at m_len : all output data must
+	 * reside in the first mbuf
 	 */
 	if (*mp) {
 		if (cmd == PRCO_SETOPT) {

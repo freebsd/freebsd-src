@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_ip.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
+ * $Id: tp_ip.h,v 1.3 1994/08/21 06:14:24 paul Exp $
  */
 
 #ifndef _NETISO_TP_IP_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,10 +63,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.3 1994/08/21 06:14:24 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_ip.h,v $
  *
  * internet IP-dependent structures and include files
@@ -85,7 +85,7 @@ SOFTWARE.
 #include <netinet/ip_var.h>
 
 
-struct inpcb tp_inpcb;	
+struct inpcb tp_inpcb;
 	/* queue of active inpcbs for tp ; for tp with dod ip */
 
 #endif

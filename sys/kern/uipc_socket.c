@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.8 1995/02/07 02:01:14 wollman Exp $
+ * $Id: uipc_socket.c,v 1.9 1995/02/16 01:07:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -793,7 +793,7 @@ dontblock:
 		splx(s);
 		goto restart;
 	}
-		
+
 	if (flagsp)
 		*flagsp |= flags;
 release:

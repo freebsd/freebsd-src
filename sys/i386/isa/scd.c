@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.3 1995/04/12 20:48:02 wollman Exp $ */
+/* $Id: scd.c,v 1.4 1995/05/09 12:25:58 rgrimes Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -135,7 +135,7 @@ struct scd_data {
 	short	first_track;
 	short	last_track;
 	struct	ioc_play_msf last_play;
-	
+
 	short	audio_status;
 	struct buf head;		/* head of buf queue */
 	struct scd_mbx mbx;
@@ -213,7 +213,7 @@ int scd_attach(struct isa_device *dev)
 {
 	struct scd_data *cd = scd_data + dev->id_unit;
 	int i;
-	
+
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
 	kdc_scd[dev->id_unit].kdc_state = DC_IDLE;
@@ -235,7 +235,7 @@ scdopen(dev_t dev)
 	int unit,part,phys;
 	int rc;
 	struct scd_data *cd;
-	
+
 	unit = scd_unit(dev);
 	if (unit >= NSCD)
 		return ENXIO;
@@ -243,7 +243,7 @@ scdopen(dev_t dev)
 	cd = scd_data + unit;
 	part = scd_part(dev);
 	phys = scd_phys(dev);
-	
+
 	/* not initialized*/
 	if (!(cd->flags & SCDINIT))
 		return ENXIO;
@@ -289,7 +289,7 @@ scdclose(dev_t dev)
 	struct scd_data *cd;
 	int rlen;
 	char rdata[10];
-	
+
 	unit = scd_unit(dev);
 	if (unit >= NSCD)
 		return ENXIO;
@@ -297,8 +297,8 @@ scdclose(dev_t dev)
 	cd = scd_data + unit;
 	part = scd_part(dev);
 	phys = scd_phys(dev);
-	
-	if (!(cd->flags & SCDINIT) || !cd->openflag) 
+
+	if (!(cd->flags & SCDINIT) || !cd->openflag)
 		return ENXIO;
 
 	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
@@ -346,11 +346,11 @@ scdstrategy(struct buf *bp)
 		bp->b_error = EROFS;
 		goto bad;
 	}
-	
+
 	/* no data to read */
 	if (bp->b_bcount == 0)
 		goto done;
-	
+
 	if (!(cd->flags & SCDTOC)) {
 		bp->b_error = EIO;
 		goto bad;
@@ -361,13 +361,13 @@ scdstrategy(struct buf *bp)
 
 	bp->b_pblkno = bp->b_blkno;
 	bp->b_resid = 0;
-	
+
 	/* queue it */
 	qp = &cd->head;
 	s = splbio();
 	disksort(qp,bp);
 	splx(s);
-	
+
 	/* now check whether we can perform processing */
 	scd_start(unit);
 	return;
@@ -388,7 +388,7 @@ scd_start(int unit)
 	struct partition *p;
 	int part;
 	register s = splbio();
-	
+
 	if (cd->flags & SCDMBXBSY) {
 		splx(s);
 		return;
@@ -423,7 +423,7 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 {
 	struct scd_data *cd;
 	int unit,part;
-	
+
 	unit = scd_unit(dev);
 	part = scd_part(dev);
 	cd = scd_data + unit;
@@ -618,7 +618,7 @@ scd_pause(int unit)
 
 	if (send_cmd(unit, CMD_STOP_AUDIO, 0) != 0)
 		return EIO;
-	
+
 	cd->last_play.start_m = subpos.abs_msf[0];
 	cd->last_play.start_s = subpos.abs_msf[1];
 	cd->last_play.start_f = subpos.abs_msf[2];
@@ -831,7 +831,7 @@ trystat:
 			    (caddr_t)SCD_S_WAITSTAT,hz/100); /* XXX */
 			return;
 		}
-			
+
 		process_attention(unit);
 
 		/* reject, if audio active */
@@ -1184,19 +1184,19 @@ get_tl(struct sony_toc *toc, int size)
 	if (tl->track != 0xb0)
 		return tl;
 	(char *)tl += 9;
-	if (tl->track != 0xb1) 
+	if (tl->track != 0xb1)
 		return tl;
 	(char *)tl += 9;
-	if (tl->track != 0xb2) 
+	if (tl->track != 0xb2)
 		return tl;
 	(char *)tl += 9;
-	if (tl->track != 0xb3) 
+	if (tl->track != 0xb3)
 		return tl;
 	(char *)tl += 9;
-	if (tl->track != 0xb4) 
+	if (tl->track != 0xb4)
 		return tl;
 	(char *)tl += 9;
-	if (tl->track != 0xc0) 
+	if (tl->track != 0xc0)
 		return tl;
 	(char *)tl += 9;
 	return tl;
@@ -1368,7 +1368,7 @@ send_cmd(u_int unit, u_char cmd, u_int nargs, ...)
 		XDEBUG(1, ("\nscd%d: wparam timeout\n", unit));
 		return -EIO;
 	}
-	
+
 	va_start(ap, nargs);
 	reg = port + OREG_WPARAMS;
 	for (i = 0; i < nargs; i++) {
@@ -1512,7 +1512,7 @@ scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
 	i = te->starting_track;
 	if (i == SCD_LASTPLUS1)
 		i = cd->last_track + 1;
-      
+
 	/* verify starting track */
 	if (i < cd->first_track || i > cd->last_track+1)
 		return EINVAL;

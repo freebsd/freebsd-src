@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_debug.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: lfs_debug.c,v 1.2 1994/08/02 07:54:33 davidg Exp $
  */
 
 #ifdef DEBUG
@@ -45,7 +45,7 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-void 
+void
 lfs_dump_super(lfsp)
 	struct lfs *lfsp;
 {
@@ -86,7 +86,7 @@ lfs_dump_super(lfsp)
 		"fbmask   ", lfsp->lfs_fbmask,
 		"fbshift  ", lfsp->lfs_fbshift);
 
-	(void)printf("%s%d\t%s%d\t%s%lx\t%s%qx\n", 
+	(void)printf("%s%d\t%s%d\t%s%lx\t%s%qx\n",
 		"sushift  ", lfsp->lfs_sushift,
 		"fsbtodb  ", lfsp->lfs_fsbtodb,
 		"cksum    ", lfsp->lfs_cksum,

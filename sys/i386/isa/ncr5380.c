@@ -80,7 +80,7 @@
 #define PAS16_STAT_DREQ         0x80    /* Pseudo-DMA ready bit */
 #define PAS16_REG(r)            (((r) & 0xc) << 11 | ((r) & 3))
 
-static u_char pas16_irq_magic[] = 
+static u_char pas16_irq_magic[] =
     { 0,  0,  1,  2,  3,  4,  5,  6, 0,  0,  7,  8,  9,  0, 10, 11 };
 
 /*

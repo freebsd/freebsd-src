@@ -24,7 +24,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include <sys/kernel.h>
 
 #include <net/if.h>
@@ -42,13 +42,13 @@
 
 #include <netinet/ip_fw.h>
 
-#ifdef IPFIREWALL_DEBUG 
+#ifdef IPFIREWALL_DEBUG
 #define dprintf1(a)		printf(a)
 #define dprintf2(a1,a2)		printf(a1,a2)
 #define dprintf3(a1,a2,a3)	printf(a1,a2,a3)
 #define dprintf4(a1,a2,a3,a4)	printf(a1,a2,a3,a4)
 #else
-#define dprintf1(a)	
+#define dprintf1(a)
 #define dprintf2(a1,a2)
 #define dprintf3(a1,a2,a3)
 #define dprintf4(a1,a2,a3,a4)
@@ -63,7 +63,7 @@
 #ifdef IPFIREWALL_DEBUG
 #define dprint_ip(a)	print_ip(a)
 #else
-#define dprint_ip(a)	
+#define dprint_ip(a)
 #endif
 
 
@@ -118,13 +118,13 @@ struct ip_fw 	*chain;
 
 		/*
 		 * If the chain is empty
-		 * allow any packet-this is equal 
+		 * allow any packet-this is equal
 		 * to disabling firewall.
 		 */
-    if (!chain) 
-	return(1);    
+    if (!chain)
+	return(1);
 
-		/* 
+		/*
 		 * This way we handle fragmented packets.
 		 * we ignore all fragments but the first one
 		 * so the whole packet can't be reassembled.
@@ -181,7 +181,7 @@ struct ip_fw 	*chain;
 	dprintf1("\n");
 
 
-    for (f=chain;f;f=f->fw_next) 
+    for (f=chain;f;f=f->fw_next)
 	if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
 	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
 
@@ -190,7 +190,7 @@ struct ip_fw 	*chain;
 
 	   if (f->fw_flg&IP_FW_F_IFNAME) {
 
-		if (!f->fw_via_name[0]) 
+		if (!f->fw_via_name[0])
 			goto via_match; /* No name/unit set,match any */
 
 		if (rif->if_unit==f->fw_via_unit &&
@@ -198,9 +198,9 @@ struct ip_fw 	*chain;
 			goto via_match;
 	   } else {
 
-		if (!f->fw_via_ip.s_addr) 
+		if (!f->fw_via_ip.s_addr)
                         goto via_match; /* No via ip set,match any */
-			
+
                 for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
 	                if (!ia_p->ifa_addr||ia_p->ifa_addr->sa_family!=AF_INET)
        	                	continue;
@@ -212,11 +212,11 @@ struct ip_fw 	*chain;
                 }
 
 	   }
-	   /* 
+	   /*
 	    * If we got here,no "via"'s matched,so
 	    * we should continue to the next firewall entry.
 	    */
-           continue; 
+           continue;
 via_match:
 			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
@@ -224,8 +224,8 @@ via_match:
 			goto got_match;
 	    } else {
 	/*
-	 * This is actually buggy as if you set SYN flag 
-	 * on UDp or ICMP firewall it will never work,but 
+	 * This is actually buggy as if you set SYN flag
+	 * on UDp or ICMP firewall it will never work,but
 	 * actually it is a concern of software which sets
 	 * firewall entries.
 	 */
@@ -286,7 +286,7 @@ got_match:
 			break;
 	}
 	print_ip(ip->ip_src);
-	if (ip->ip_p==IPPROTO_TCP || ip->ip_p==IPPROTO_UDP) 
+	if (ip->ip_p==IPPROTO_TCP || ip->ip_p==IPPROTO_UDP)
 	    printf(":%d",src_port);
 	printf(" ");
 	print_ip(ip->ip_dst);
@@ -317,10 +317,10 @@ bad_packet:
 			 */
 		if (!(f->fw_flg&IP_FW_F_ICMPRPL))
 			return 0;
-   		m = m_get(M_DONTWAIT, MT_SOOPTS); 
+   		m = m_get(M_DONTWAIT, MT_SOOPTS);
 			/*
-			 * We never retry,we don't want to 
-			 * waste time-it is not so critical 
+			 * We never retry,we don't want to
+			 * waste time-it is not so critical
 			 * if ICMP unsent.
 			 */
 		if (!m)
@@ -363,8 +363,8 @@ int nh_conv;
     u_short 			f_prt, prt=0;
     char 			rev=0;
 
-    if (!chain) 
-		return;     
+    if (!chain)
+		return;
 
     if (ip->ip_off&IP_OFFMASK)
 		return;
@@ -402,7 +402,7 @@ int nh_conv;
 	}
  	if  ((f->fw_flg&IP_FW_F_BIDIR) &&
 	    ((src.s_addr&f->fw_smsk.s_addr)==f->fw_dst.s_addr
-	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_src.s_addr)) { 
+	&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_src.s_addr)) {
 			rev=1;
 			goto addr_match;
 	}
@@ -410,7 +410,7 @@ int nh_conv;
 addr_match:
 		/*
 		 * We use here same code for "via" matching
-		 * as in firewall.This is wrong and does not do 
+		 * as in firewall.This is wrong and does not do
 		 * much use,because in most cases instead of interface
 		 * passed NULL pointer.Need to be completely
 		 * rewritten.
@@ -420,7 +420,7 @@ addr_match:
 
 	   if (f->fw_flg&IP_FW_F_IFNAME) {
 
-		if (!f->fw_via_name[0]) 
+		if (!f->fw_via_name[0])
 			goto via_match; /* No name/unit set,match any */
 
 		if (rif->if_unit==f->fw_via_unit &&
@@ -428,9 +428,9 @@ addr_match:
 			goto via_match;
 	   } else {
 
-		if (!f->fw_via_ip.s_addr) 
+		if (!f->fw_via_ip.s_addr)
                         goto via_match; /* No via ip set,match any */
-			
+
                 for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
 	                if (!ia_p->ifa_addr||ia_p->ifa_addr->sa_family!=AF_INET)
        	                	continue;
@@ -442,11 +442,11 @@ addr_match:
                 }
 
 	   }
-	   /* 
+	   /*
 	    * If we got here,no "via"'s matched,so
 	    * we should continue to the next firewall entry.
 	    */
-           continue; 
+           continue;
 via_match:
 			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
@@ -457,10 +457,10 @@ via_match:
 						    /*
 						     * Rise byte count,
 						     * if need to convert from
-						     * host to network byte 
+						     * host to network byte
 						     * order,do it.
 						     */
-			if (nh_conv)		    
+			if (nh_conv)
 				f->fw_bcnt+=ntohs(ip->ip_len);
 			else
 				f->fw_bcnt+=ip->ip_len;
@@ -476,7 +476,7 @@ via_match:
 					f->fw_flg&IP_FW_F_SRNG) &&
         port_match(&f->fw_pts[f->fw_nsp],f->fw_ndp,dst_port,
 					f->fw_flg&IP_FW_F_DRNG)))
-	|| ((rev)   
+	|| ((rev)
 	&& (port_match(&f->fw_pts[0],f->fw_nsp,dst_port,
                                         f->fw_flg&IP_FW_F_SRNG)
 	&& port_match(&f->fw_pts[f->fw_nsp],f->fw_ndp,src_port,
@@ -486,10 +486,10 @@ via_match:
 					      /*
 					       * Rise byte count,
 					       * if need to convert from
-					       * host to network byte 
+					       * host to network byte
 					       * order,do it.
 					       */
-		if (nh_conv)		    
+		if (nh_conv)
 			f->fw_bcnt+=ntohs(ip->ip_len);
 		else
 			f->fw_bcnt+=ip->ip_len;
@@ -540,7 +540,7 @@ struct ip_fw *frwl;
     int s=splnet();
     u_long m_src_mask,m_dst_mask;
     u_long n_sa,n_da,o_sa,o_da,o_sm,o_dm,n_sm,n_dm;
-    u_short n_sr,n_dr,o_sr,o_dr; 
+    u_short n_sr,n_dr,o_sr,o_dr;
     u_short oldkind,newkind;
     int addb4=0;
     int n_o,n_n;
@@ -572,7 +572,7 @@ struct ip_fw *frwl;
 		newkind=ftmp->fw_flg & IP_FW_F_KIND;
 		oldkind=chtmp->fw_flg & IP_FW_F_KIND;
 
-		if (newkind!=IP_FW_F_ALL 
+		if (newkind!=IP_FW_F_ALL
 		&&  oldkind!=IP_FW_F_ALL
 		&&  oldkind!=newkind) {
 				chtmp_prev=chtmp;
@@ -596,9 +596,9 @@ struct ip_fw *frwl;
 		m_dst_mask = o_dm & n_dm;
 
 		if ((o_sa & m_src_mask) == (n_sa & m_src_mask)) {
-			if (n_sm > o_sm) 
+			if (n_sm > o_sm)
 				addb4++;
-			if (n_sm < o_sm) 
+			if (n_sm < o_sm)
 				addb4--;
 		}
 
@@ -629,15 +629,15 @@ struct ip_fw *frwl;
 				 * of ports.
 				 */
 
-				if (ftmp->fw_flg & IP_FW_F_SRNG) 
+				if (ftmp->fw_flg & IP_FW_F_SRNG)
 					n_sr=ftmp->fw_pts[1]-ftmp->fw_pts[0];
-				else 
+				else
 					n_sr=(ftmp->fw_nsp)?
 						ftmp->fw_nsp : USHRT_MAX;
-					
-				if (chtmp->fw_flg & IP_FW_F_SRNG) 
+
+				if (chtmp->fw_flg & IP_FW_F_SRNG)
 				     o_sr=chtmp->fw_pts[1]-chtmp->fw_pts[0];
-				else 
+				else
 				     o_sr=(chtmp->fw_nsp)?
 				 	    chtmp->fw_nsp : USHRT_MAX;
 
@@ -645,7 +645,7 @@ struct ip_fw *frwl;
 					addb4++;
 				if (n_sr>o_sr)
 					addb4--;
-					
+
 				n_n=ftmp->fw_nsp;
 				n_o=chtmp->fw_nsp;
 		/*
@@ -657,15 +657,15 @@ struct ip_fw *frwl;
 				    (n_o>(IP_FW_MAX_PORTS-2)))
 					goto skip_check;
 
-				if (ftmp->fw_flg & IP_FW_F_DRNG) 
+				if (ftmp->fw_flg & IP_FW_F_DRNG)
 				       n_dr=ftmp->fw_pts[n_n+1]-ftmp->fw_pts[n_n];
-				else 
+				else
 				       n_dr=(ftmp->fw_ndp)?
 						ftmp->fw_ndp : USHRT_MAX;
 
-				if (chtmp->fw_flg & IP_FW_F_DRNG) 
+				if (chtmp->fw_flg & IP_FW_F_DRNG)
 				     o_dr=chtmp->fw_pts[n_o+1]-chtmp->fw_pts[n_o];
-				else 
+				else
 				       o_dr=(chtmp->fw_ndp)?
 						chtmp->fw_ndp : USHRT_MAX;
 				if (n_dr<o_dr)
@@ -678,7 +678,7 @@ skip_check:
 		}
 		if (addb4>0) {
 			if (chtmp_prev) {
-				chtmp_prev->fw_next=ftmp; 
+				chtmp_prev->fw_next=ftmp;
 				ftmp->fw_next=chtmp;
 			} else {
 				*chainptr=ftmp;
@@ -727,7 +727,7 @@ struct ip_fw *frwl;
     while(ftmp)
     {
      matches=1;
-     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr 
+     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr
      ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
      ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
      ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
@@ -756,12 +756,12 @@ struct ip_fw *frwl;
             }
         else
             {
-             *chainptr=ftmp->fw_next; 
+             *chainptr=ftmp->fw_next;
              free(ftmp,M_IPFW);
              ftmp=*chainptr;
             }
-       
-      }      
+
+      }
     else
       {
        ltmp = ftmp;
@@ -795,7 +795,7 @@ struct ip_fw *frwl;
     while(ftmp)
     {
      matches=1;
-     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr 
+     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr
      ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
      ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
      ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
@@ -885,7 +885,7 @@ if ( stage == IP_ACCT_FLUSH )
        {
 	free_fw_chain(&ip_acct_chain);
 	return(0);
-       }  
+       }
 if ( stage == IP_ACCT_ZERO )
        {
 	zero_fw_chain(ip_acct_chain);
@@ -925,16 +925,16 @@ if ( stage == IP_ACCT_ADD
 #ifdef IPFIREWALL
 int
 ip_fw_ctl(stage,m)
-int stage;	
+int stage;
 struct mbuf *m;
 {
 if ( stage == IP_FW_FLUSH )
        {
 	free_fw_chain(&ip_fw_chain);
 	return(0);
-       }  
+       }
 
-if ( m == 0 )	
+if ( m == 0 )
        {
          printf("ip_fw_ctl:  NULL mbuf ptr\n");
 	 return(EINVAL);
@@ -955,11 +955,11 @@ if ( stage == IP_FW_POLICY )
  * to firewall chain or deleting'em
  */
 
-if ( stage == IP_FW_ADD || 
+if ( stage == IP_FW_ADD ||
      stage == IP_FW_DEL ) {
 
 	    struct ip_fw *frwl;
- 
+
 	    if (!(frwl=check_ipfw_struct(m)))
 			return (EINVAL);
 
@@ -976,7 +976,7 @@ if ( stage == IP_FW_ADD ||
 		return(EINVAL);
 #endif
 	    }
-} 
+}
 
 dprintf2("ip_fw_ctl:  unknown request %d\n",stage);
 return(EINVAL);

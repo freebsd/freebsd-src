@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.9 1995/01/09 16:04:51 davidg Exp $
+ * $Id: kern_physio.c,v 1.10 1995/03/16 18:12:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ physio(strategy, bp, dev, rw, minp, uio)
 			bp->b_saveaddr = sa;
 			bp->b_blkno = btodb(uio->uio_offset);
 
-			
+
 			if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
 				error = EFAULT;
 				goto doerror;
@@ -115,7 +115,7 @@ physio(strategy, bp, dev, rw, minp, uio)
 			/*
 			 * update the uio data
 			 */
-			{ 
+			{
 				int iolen = bp->b_bcount - bp->b_resid;
 
 				if (iolen == 0 && !(bp->b_flags & B_ERROR))

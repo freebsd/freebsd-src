@@ -9,7 +9,7 @@
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
  * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with 
+ * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
  * organisations permission to use or modify this software.
  *
@@ -19,7 +19,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_changer.h,v 1.5 93/08/26 21:09:22 julian Exp Locker: julian $
+ *	$Id: scsi_changer.h,v 1.6 1993/11/18 05:02:53 rgrimes Exp $
  */
 #ifndef _SCSI_SCSI_CHANGER_H
 #define _SCSI_SCSI_CHANGER_H 1
@@ -68,7 +68,7 @@ struct scsi_position_to_element
 	u_char  invert;
 	u_char	control;
 };
-	
+
 /*
  * Opcodes
  */
@@ -76,7 +76,7 @@ struct scsi_position_to_element
 #define MOVE_MEDIUM             0xa5
 #define READ_ELEMENT_STATUS     0xb8
 
-struct scsi_element_status_data 
+struct scsi_element_status_data
 {
 	u_char	first_element_reported[2];
 	u_char	number_of_elements_reported[2];
@@ -84,7 +84,7 @@ struct scsi_element_status_data
 	u_char	byte_count_of_report[3];
 };
 
-struct element_status_page 
+struct element_status_page
 {
 	u_char	element_type_code;
 	u_char	flags;

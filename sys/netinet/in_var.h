@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.8 1995/03/16 18:14:53 bde Exp $
+ * $Id: in_var.h,v 1.9 1995/03/23 18:14:41 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -60,7 +60,7 @@ struct in_ifaddr {
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
-	LIST_HEAD(in_multihead, in_multi) ia_multiaddrs; 
+	LIST_HEAD(in_multihead, in_multi) ia_multiaddrs;
 					/* list of multicast addresses */
 };
 
@@ -80,7 +80,7 @@ struct	in_aliasreq {
 
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
-			
+
 
 #ifdef	KERNEL
 extern	struct	in_ifaddr *in_ifaddr;

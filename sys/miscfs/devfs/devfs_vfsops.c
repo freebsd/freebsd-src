@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /sys/miscfs/devfs/RCS/devfs_vfsops.c,v 1.4 1995/01/07 04:20:25 root Exp root $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.2 1995/04/20 07:34:53 julian Exp $
  *
  *
  */
@@ -26,7 +26,7 @@ int devfs_init(void) /*proto*/
 	devfs_back_init();
 	/* devfs_front_init();*/ /* nothing to do at the moment */
 	return 0; /*XXX*/
-} 
+}
 
 /*
  *  mp	 - pointer to 'mount' structure

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.15 1995/04/17 05:52:17 bde Exp $
+ * $Id: if_le.c,v 1.16 1995/05/09 12:25:55 rgrimes Exp $
  */
 
 /*
@@ -204,7 +204,7 @@ struct le_lance_info {
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *
- * Start of Common Code 
+ * Start of Common Code
  *
  */
 
@@ -258,7 +258,7 @@ struct le_board {
     int (*bd_probe)(le_softc_t *sc, const le_board_t *bd, int *msize);
 };
 
-    
+
 le_softc_t le_softc[NLE];
 
 const le_board_t le_boards[] = {
@@ -374,7 +374,7 @@ le_probe(
 	    return iospace;
 	}
     }
-    printf("%s%d: no board found at 0x%x\n", 
+    printf("%s%d: no board found at 0x%x\n",
 	   sc->le_if.if_name, sc->le_if.if_unit, dvp->id_iobase);
     return 0;
 }
@@ -388,7 +388,7 @@ le_attach(
     struct ifaddr *ifa = ifp->if_addrlist;
 
     ifp->if_mtu = ETHERMTU;
-    printf("%s%d: %s ethernet address %s\n", 
+    printf("%s%d: %s ethernet address %s\n",
 	   ifp->if_name, ifp->if_unit,
 	   sc->le_prodname,
 	   ether_sprintf(sc->le_ac.ac_enaddr));
@@ -400,7 +400,7 @@ le_attach(
     ifp->if_type = IFT_ETHER;
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
-  
+
 #if NBPFILTER > 0
     bpfattach(&sc->le_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
@@ -630,7 +630,7 @@ le_ioctl(
     }
 
     splx(s);
-    kdc_le[ifp->if_unit].kdc_state = (ifp->if_flags & IFF_UP) 
+    kdc_le[ifp->if_unit].kdc_state = (ifp->if_flags & IFF_UP)
       ? DC_BUSY : DC_IDLE;
     return error;
 }
@@ -646,15 +646,15 @@ le_read_macaddr(
     int skippat)
 {
     int cksum, rom_cksum;
-    
+
     if (!skippat) {
 	int idx, idx2, found, octet;
 	static u_char testpat[] = { 0xFF, 0, 0x55, 0xAA, 0xFF, 0, 0x55, 0xAA };
 	idx2 = found = 0;
-    
+
 	for (idx = 0; idx < 32; idx++) {
 	    octet = LE_INB(sc, ioreg);
-	    
+
 	    if (octet == testpat[idx2]) {
 		if (++idx2 == sizeof testpat) {
 		    ++found;
@@ -664,7 +664,7 @@ le_read_macaddr(
 		idx2 = 0;
 	    }
 	}
-	
+
 	if (!found)
 	    return -1;
     }
@@ -691,7 +691,7 @@ le_read_macaddr(
 
     rom_cksum = LE_INB(sc, ioreg);
     rom_cksum |= LE_INB(sc, ioreg) << 8;
-	
+
     if (cksum != rom_cksum)
 	return -1;
     return 0;
@@ -746,7 +746,7 @@ le_multi_op(
     u_int idx, bit, data, crc = 0xFFFFFFFFUL;
 
 #ifdef __alpha
-    for (data = *(__unaligned u_long *) mca, bit = 0; bit < 48; bit++, data >>= 
+    for (data = *(__unaligned u_long *) mca, bit = 0; bit < 48; bit++, data >>=
 1)
         crc = (crc >> 1) ^ (((crc ^ data) & 1) ? LE_CRC32_POLY : 0);
 #else
@@ -756,7 +756,7 @@ le_multi_op(
 #endif
     /*
      * The following two line convert the N bit index into a longword index
-     * and a longword mask.  
+     * and a longword mask.
      */
     crc &= sc->le_mcmask;
     bit = 1 << (crc & (LE_MC_NBPW -1));
@@ -776,7 +776,7 @@ le_multi_op(
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *
- * Start of DEC EtherWORKS III (LEMAC) dependent code 
+ * Start of DEC EtherWORKS III (LEMAC) dependent code
  *
  */
 
@@ -894,7 +894,7 @@ lemac_probe(
     return LEMAC_IOSPACE;
 }
 
-/* 
+/*
  * Do a hard reset of the board;
  */
 static void
@@ -923,7 +923,7 @@ lemac_reset(
      * is important because functions hereafter may rely on information
      * read from the EEPROM.
      */
-    if ((cksum = lemac_read_eeprom(sc)) != LEMAC_EEP_CKSUM) { 
+    if ((cksum = lemac_read_eeprom(sc)) != LEMAC_EEP_CKSUM) {
 	printf("%s%d: reset: EEPROM checksum failed (0x%x)\n",
 	       sc->le_if.if_name, sc->le_if.if_unit, cksum);
 	return;
@@ -1068,7 +1068,7 @@ lemac_rne_intr(
     while (rxcount--) {
 	rxpg = LE_INB(sc, LEMAC_REG_RQ);
 	LE_OUTB(sc, LEMAC_REG_MPN, rxpg);
-	
+
 	rxptr = sc->le_membase;
 	sc->le_if.if_ipackets++;
 	if (*rxptr & LEMAC_RX_OK) {
@@ -1085,7 +1085,7 @@ lemac_rne_intr(
 next:
 	LE_OUTB(sc, LEMAC_REG_FMQ, rxpg);  /* Return this page to Free Memory Queue */
     }  /* end while (recv_count--) */
-    
+
     return;
 }
 
@@ -1140,7 +1140,7 @@ lemac_rxd_intr(
     return;
 }
 
-static void 
+static void
 lemac_start(
     struct ifnet *ifp)
 {
@@ -1381,7 +1381,7 @@ struct {
 #define	LN_WRCSR(sc, val)		(LE_OUTW(sc, sc->lance_rdp, val))
 #define	LN_RDCSR(sc)			(LE_INW(sc, sc->lance_rdp))
 
-					 
+
 #define	LN_ZERO(sc, vaddr, len)		bzero(vaddr, len)
 #define	LN_COPYTO(sc, from, to, len)	bcopy(from, to, len)
 
@@ -1441,7 +1441,7 @@ typedef enum {
     DEPCA_UNKNOWN
 } depca_t;
 
-static const char *depca_signatures[] = { 
+static const char *depca_signatures[] = {
     "DEPCA",
     "DE100", "DE101",
     "EE100",
@@ -1465,7 +1465,7 @@ depca_probe(
      */
     nicsr = DEPCA_RDNICSR(sc);
     nicsr &= ~(DEPCA_NICSR_SHE|DEPCA_NICSR_LED|DEPCA_NICSR_ENABINTR);
-    
+
     if (nicsr & DEPCA_NICSR_32KRAM) {
 	/*
 	 * Make we are going to read the upper
@@ -1558,7 +1558,7 @@ depca_intr(
 }
 
 /*
- * Here's as good a place to describe our paritioning of the 
+ * Here's as good a place to describe our paritioning of the
  * LANCE shared RAM space.  (NOTE: this driver does not yet support
  * the concept of a LANCE being able to DMA).
  *
@@ -1946,7 +1946,7 @@ lance_rx_intr(
 	} else {
 	    /*
 	     * If the packet is bad, increment the
-	     * counters.  
+	     * counters.
 	     */
 	    sc->le_if.if_ierrors++;
 	    if (desc.d_flag & LN_DFLAG_RxBADCRC)
@@ -1991,7 +1991,7 @@ lance_start(
 	IF_DEQUEUE(ifq, m);
 	if (m == NULL)
 	    break;
-    
+
 	/*
 	 * Make the packet meets the minimum size for Ethernet.
 	 * The slop is so that we also use an even number of longwards.
@@ -2020,7 +2020,7 @@ lance_start(
 	    LN_STAT(tx_nospc[0]++);
 	    break;
 	}
-    
+
 	if (len + slop > ri->ri_heapend - ri->ri_outptr) {
 	    /*
 	     * Since the packet won't fit in the end of the transmit
@@ -2039,7 +2039,7 @@ lance_start(
 	    ri->ri_outptr = ri->ri_heap;
 	    LN_STAT(tx_adoptions++);
 	}
-		
+
 	/*
 	 * Initialize the descriptor (saving the buffer address,
 	 * buffer length, and mbuf) and write the packet out
@@ -2106,7 +2106,7 @@ lance_tx_intr(
 	ln_desc_t desc;
 
 	LN_GETDESC(sc, &desc, ri->ri_nextin->di_addr);
-	if (desc.d_flag & LN_DFLAG_OWNER) 
+	if (desc.d_flag & LN_DFLAG_OWNER)
 	    break;
 
 	if (desc.d_flag & (LN_DFLAG_TxONECOLL|LN_DFLAG_TxMULTCOLL))

@@ -3,7 +3,7 @@
  * Copyright (c) 1990, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  * 		 University of Erlangen-Nuremberg, Germany, 1992
- * 
+ *
  * This code is derived from software contributed to Berkeley by the
  * Laboratory for Computation Vision and the Computer Science Department
  * of the the University of British Columbia and the Computer Science
@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25.h	8.1 (Berkeley) 6/10/93
- * $Id: x25.h,v 1.2 1994/08/02 07:47:50 davidg Exp $
+ * $Id: x25.h,v 1.3 1994/08/21 05:44:11 paul Exp $
  */
 
 #ifndef _NETCCITT_X25_H_
@@ -50,7 +50,7 @@
 #define PRC_LINKDOWN	5
 #define PRC_LINKRESET	6
 #define PRC_LINKDONTCOPY	7
-#ifndef PRC_DISCONNECT_REQUEST  
+#ifndef PRC_DISCONNECT_REQUEST
 #define PRC_DISCONNECT_REQUEST 10
 #endif
 #endif

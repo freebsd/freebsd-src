@@ -119,7 +119,7 @@ pcprobe(struct isa_device *dev)
 #endif /* PCVT_NETBSD > 100 */
 {
 	kbd_code_init();
-	
+
 #if PCVT_NETBSD > 9
 	((struct isa_attach_args *)aux)->ia_iosize = 16;
 	return 1;
@@ -148,7 +148,7 @@ pcattach(struct isa_device *dev)
 	int i;
 
 	vt_coldmalloc();		/* allocate memory for screens */
-	
+
 #if PCVT_NETBSD || PCVT_FREEBSD
 
 #if PCVT_NETBSD > 9
@@ -197,11 +197,11 @@ pcattach(struct isa_device *dev)
 		case KB_AT:
 			printf("at-");
 			break;
-			
+
 		case KB_MFII:
 			printf("mf2-");
 			break;
-			
+
 		default:
 			printf("unknown ");
 			break;
@@ -215,7 +215,7 @@ pcattach(struct isa_device *dev)
 	{
 
 #if PCVT_NETBSD
-		pc_tty[i] = ttymalloc();		
+		pc_tty[i] = ttymalloc();
 		vs[i].vs_tty = pc_tty[i];
 #else /* !PCVT_NETBSD */
 		pccons[i] = ttymalloc(pccons[i]);
@@ -240,7 +240,7 @@ pcattach(struct isa_device *dev)
 #endif  /* PCVT_NETBSD */
 
 #endif /* #if PCVT_NETBSD || (PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200) */
-	
+
 #else /* !PCVT_NETBSD && !PCVT_FREEBSD*/
 
 	switch(adaptor_type)
@@ -277,17 +277,17 @@ pcattach(struct isa_device *dev)
 		printf(",color");
 
 	printf(",%d scr,", totalscreens);
-	
+
 	switch(keyboard_type)
 	{
 		case KB_AT:
 			printf("at-");
 			break;
-			
+
 		case KB_MFII:
 			printf("mf2-");
 			break;
-			
+
 		default:
 			printf("unknown ");
 			break;
@@ -310,7 +310,7 @@ pcattach(struct isa_device *dev)
 		pcvt_is_console? DC_IDLE: DC_BUSY;
 	vt_registerdev(dev, (char *)vga_string(vga_type));
 #endif /* PCVT_FREEBSD > 205 */
-	
+
 #if PCVT_NETBSD > 9
 
 	vthand.ih_fun = pcrint;
@@ -388,7 +388,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 	int s, retval;
 	int winsz = 0;
 	int i = minor(dev);
-	
+
 #if PCVT_EMU_MOUSE
 	if(i == totalscreens)
 		vsx = 0;
@@ -413,7 +413,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 #endif /* PCVT_EMU_MOUSE */
 
 	vsx->openf++;
-	
+
 	tp->t_oproc = pcstart;
 	tp->t_param = pcparam;
 	tp->t_dev = dev;
@@ -441,7 +441,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_cflag |= CLOCAL;	/* cannot be a modem (:-) */
 
 	if ((tp->t_state & TS_ISOPEN) == 0)	/* is this a "cold" open ? */
-		winsz = 1;			/* yes, set winsize later  */	
+		winsz = 1;			/* yes, set winsize later  */
 
 #if PCVT_NETBSD || (PCVT_FREEBSD >= 200)
 	retval = ((*linesw[tp->t_line].l_open)(dev, tp));
@@ -450,7 +450,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 #endif /* PCVT_NETBSD || (PCVT_FREEBSD >= 200) */
 
 	if(winsz == 1)
-	{		
+	{
 
 		/*
 		 * The line discipline has clobbered t_winsize if TS_ISOPEN
@@ -465,7 +465,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		tp->t_winsize.ws_row = vsx->screen_rows;
 		tp->t_winsize.ws_xpixel = (vsx->maxcol == 80)? 720: 1056;
 		tp->t_winsize.ws_ypixel = 400;
-	
+
 		splx(s);
 	}
 
@@ -476,7 +476,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		kdc_vt[0].kdc_state = DC_BUSY;
 	}
 #endif
-	
+
 	return(retval);
 }
 
@@ -486,7 +486,7 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 	register struct tty *tp;
 	register struct video_state *vsx;
 	int i = minor(dev);
-	
+
 #if PCVT_EMU_MOUSE
 	if(i == totalscreens)
 		vsx = 0;
@@ -494,7 +494,7 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 #endif /* PCVT_EMU_MOUSE */
 
 	vsx = &vs[i];
-	
+
 	if((tp = get_pccons(dev)) == NULL)
 		return ENXIO;
 
@@ -508,7 +508,7 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 #endif /* PCVT_EMU_MOUSE */
 
 	vsx->openf = 0;
-	
+
 #if PCVT_USL_VT_COMPAT
 #if PCVT_EMU_MOUSE
 
@@ -520,7 +520,7 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 	reset_usl_modes(vsx);
 
 #endif /* PCVT_USL_VT_COMPAT */
-	
+
 #if PCVT_FREEBSD > 205
 	if(!pcvt_is_console)
 	{
@@ -539,7 +539,7 @@ pcread(Dev_t dev, struct uio *uio, int flag)
 
 	if((tp = get_pccons(dev)) == NULL)
 		return ENXIO;
-		
+
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
@@ -618,10 +618,10 @@ pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    int i;
 
 	    (void)usl_vt_ioctl(dev, KDDISABIO, 0, flag, p);
-	  
+
 	    i = KD_TEXT;
 	    (void)usl_vt_ioctl(dev, KDSETMODE, (caddr_t)&i, flag, p);
-	    
+
 	    i = K_XLATE;
 	    (void)usl_vt_ioctl(dev, KDSKBMODE, (caddr_t)&i, flag, p);
 	    return 0;
@@ -678,7 +678,7 @@ pcioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (data)
 		{
 
-#if PCVT_NETBSD		
+#if PCVT_NETBSD
 			sysbeep(((int *)data)[0],
 				((int *)data)[1] * hz / 1000);
 #else /* PCVT_NETBSD */
@@ -877,7 +877,7 @@ pcrint(void)
 		{
 			log (LOG_WARNING, "pcvt: keyboard buffer overflow\n");
 		}
-		else				
+		else
 		{
 			pcvt_kbd_fifo[pcvt_kbd_wptr++] = dt; /* data -> fifo */
 
@@ -912,7 +912,7 @@ pcrint(void)
 
 	if(!(vs[current_video_screen].openf))	/* XXX was vs[minor(dev)] */
 		return 1;
-	
+
 #if PCVT_NULLCHARS
 	if(*cp == '\0')
 	{
@@ -999,14 +999,14 @@ pcstart(struct tty *tp)
 {
 	int s;
 	unsigned char c;
-	
+
 	s = spltty();
 
 	if (tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))
 	{
 		goto out;
 	}
-	
+
 	for(;;)
 	{
 
@@ -1042,7 +1042,7 @@ pcstart(struct tty *tp)
 			ttwwakeup(tp);
 		}
 #endif /* !PCVT_FREEBSD > 114 */
-		
+
 #if !(PCVT_FREEBSD > 111)
 		if (RB_LEN(&tp->t_out) == 0)
 #else
@@ -1091,7 +1091,7 @@ pccnprobe(struct consdev *cp)
 	int maj;
 
 	/* locate the major number */
-	
+
 	for (maj = 0; maj < nchrdev; maj++)
 	{
 		if ((u_int)cdevsw[maj].d_open == (u_int)pcopen)
@@ -1103,7 +1103,7 @@ pccnprobe(struct consdev *cp)
 		/* we are not in cdevsw[], give up */
 		panic("pcvt is not in cdevsw[]");
 	}
-	
+
 	/* initialize required fields */
 
 	cp->cn_dev = makedev(maj, 0);
@@ -1165,7 +1165,7 @@ pccnputc(Dev_t dev, U_char c)
 
 	sput((char *) &c, 1, 1, 0);
 
- 	async_update(UPDATE_KERN);	
+ 	async_update(UPDATE_KERN);
 
 #if PCVT_FREEBSD <= 205
 	return 0;
@@ -1250,10 +1250,10 @@ pcparam(struct tty *tp, struct termios *t)
 
 /* special characters */
 #define bs	8
-#define lf	10	
-#define cr	13	
-#define cntlc	3	
-#define del	0177	
+#define lf	10
+#define cr	13
+#define cntlc	3
+#define del	0177
 #define cntld	4
 
 int
@@ -1318,7 +1318,7 @@ dprintf(unsigned flgs, const char *fmt, ...)
 		va_end(ap);
 
 		if (flgs & DPAUSE || nrow%24 == 23)
-		{ 
+		{
 			int x;
 			x = splhigh();
 			if(nrow%24 == 23)
@@ -1362,7 +1362,7 @@ static int
 pcvt_xmode_set(int on, struct proc *p)
 {
 	static unsigned char *saved_fonts[NVGAFONTS];
-	
+
 #if PCVT_SCREENSAVER
 	static unsigned saved_scrnsv_tmo = 0;
 #endif /* PCVT_SCREENSAVER */
@@ -1442,7 +1442,7 @@ pcvt_xmode_set(int on, struct proc *p)
 
 #if PCVT_SCANSET == 2
 		/* put keyboard to return ancient PC scan codes */
-		kbc_8042cmd(CONTR_WRITE); 
+		kbc_8042cmd(CONTR_WRITE);
 #if PCVT_USEKBDSEC		/* security enabled */
 		outb(CONTROLLER_DATA,
 		 (COMMAND_SYSFLG|COMMAND_IRQEN|COMMAND_PCSCAN));
@@ -1463,7 +1463,7 @@ pcvt_xmode_set(int on, struct proc *p)
 	{
 		if(!pcvt_xmode)		/* verify if in X */
 			return 0;
-			
+
 		pcvt_xmode = pcvt_kbd_raw = 0;
 
 		for(i = 0; i < totalfonts; i++)
@@ -1488,7 +1488,7 @@ pcvt_xmode_set(int on, struct proc *p)
 #endif /* PCVT_SCREENSAVER */
 
 #if PCVT_SCANSET == 2
-		kbc_8042cmd(CONTR_WRITE); 
+		kbc_8042cmd(CONTR_WRITE);
 #if PCVT_USEKBDSEC		/* security enabled */
 		outb(CONTROLLER_DATA,
 		 (COMMAND_SYSFLG|COMMAND_IRQEN));
@@ -1535,7 +1535,7 @@ pcvt_xmode_set(int on, struct proc *p)
 		outb(addr_6845+1, (vsp->Crtat - Crtat) >> 8);
 		outb(addr_6845, CRTC_STARTADRL);
 		outb(addr_6845+1, (vsp->Crtat - Crtat));
-	
+
 		async_update(UPDATE_START);
 	}
 	return 0;

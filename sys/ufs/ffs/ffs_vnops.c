@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.9 1995/04/09 06:03:40 davidg Exp $
+ * $Id: ffs_vnops.c,v 1.10 1995/05/21 21:39:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -267,7 +267,7 @@ loop:
 			panic("ffs_fsync: not dirty");
 
 		if (bp->b_vp != vp || ap->a_waitfor != MNT_NOWAIT) {
-			
+
 			bremfree(bp);
 			bp->b_flags |= B_BUSY;
 			splx(s);

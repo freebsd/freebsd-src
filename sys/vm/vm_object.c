@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.45 1995/05/02 05:57:10 davidg Exp $
+ * $Id: vm_object.c,v 1.46 1995/05/21 21:39:30 davidg Exp $
  */
 
 /*
@@ -171,7 +171,7 @@ vm_object_init(vm_offset_t nothing)
 	vm_object_count = 0;
 	simple_lock_init(&vm_cache_lock);
 	simple_lock_init(&vm_object_list_lock);
-	
+
 	vm_object_cache_max = 84;
 	if (cnt.v_page_count > 1000)
 		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
@@ -592,7 +592,7 @@ startover:
 		TAILQ_INSERT_TAIL(&object->memq, p, listq);
 		pgcount--;
 	}
-	if ((!allclean && (pass == 0)) ||	
+	if ((!allclean && (pass == 0)) ||
 	    (entireobj && (object->flags & OBJ_WRITEABLE))) {
 		pass = 1;
 		if (entireobj)
@@ -604,7 +604,7 @@ startover:
 
 
 void
-vm_object_page_clean(object, start, end, syncio) 
+vm_object_page_clean(object, start, end, syncio)
 	register vm_object_t object;
 	register vm_offset_t start;
 	register vm_offset_t end;
@@ -700,7 +700,7 @@ vm_object_cache_trim()
  *
  *	The object must *not* be locked.
  */
-void 
+void
 vm_object_pmap_copy(object, start, end)
 	register vm_object_t object;
 	register vm_offset_t start;
@@ -772,7 +772,7 @@ again:
  *	May defer the copy until later if the object is not backed
  *	up by a non-default pager.
  */
-void 
+void
 vm_object_copy(src_object, src_offset, size,
     dst_object, dst_offset, src_needs_copy)
 	register vm_object_t src_object;
@@ -840,7 +840,7 @@ vm_object_copy(src_object, src_offset, size,
 	/*
 	 * If the object has a pager, the pager wants to see all of the
 	 * changes.  We need a copy-object for the changed pages.
-	 * 
+	 *
 	 * If there is a copy-object, and it is empty, no changes have been made
 	 * to the object since the copy-object was made.  We can use the same
 	 * copy- object.
@@ -882,7 +882,7 @@ Retry1:
 	 * If the object has a pager, the pager wants to see all of the
 	 * changes.  We must make a copy-object and put the changed pages
 	 * there.
-	 * 
+	 *
 	 * The copy-object is always made large enough to completely shadow the
 	 * original object, since it may have several users who want to shadow
 	 * the original object at different points.
@@ -1013,7 +1013,7 @@ vm_object_shadow(object, offset, length)
  *	specified pager and paging id.
  */
 
-vm_object_t 
+vm_object_t
 vm_object_lookup(pager)
 	vm_pager_t pager;
 {
@@ -1048,7 +1048,7 @@ vm_object_lookup(pager)
  *	the hash table.
  */
 
-void 
+void
 vm_object_enter(object, pager)
 	vm_object_t object;
 	vm_pager_t pager;
@@ -1206,7 +1206,7 @@ vm_object_collapse(object)
 	while (TRUE) {
 		/*
 		 * Verify that the conditions are right for collapse:
-		 * 
+		 *
 		 * The object exists and no pages in it are currently being paged
 		 * out.
 		 */
@@ -1274,7 +1274,7 @@ vm_object_collapse(object)
 			backing_object->flags |= OBJ_DEAD;
 			/*
 			 * We can collapse the backing object.
-			 * 
+			 *
 			 * Move all in-memory pages from backing_object to the
 			 * parent.  Pages that have been paged out will be
 			 * overwritten by any of the parent's pages that
@@ -1289,7 +1289,7 @@ vm_object_collapse(object)
 				 * If the parent has a page here, or if this
 				 * page falls outside the parent, dispose of
 				 * it.
-				 * 
+				 *
 				 * Otherwise, move it as planned.
 				 */
 
@@ -1373,7 +1373,7 @@ vm_object_collapse(object)
 			object->shadow_offset += backing_object->shadow_offset;
 			/*
 			 * Discard backing_object.
-			 * 
+			 *
 			 * Since the backing object has no pages, no pager left,
 			 * and no object references within it, all that is
 			 * necessary is to dispose of it.
@@ -1396,7 +1396,7 @@ vm_object_collapse(object)
 			 * shadowed by the parent object, the parent object no
 			 * longer has to shadow the backing object; it can
 			 * shadow the next one in the chain.
-			 * 
+			 *
 			 * The backing object must not be paged out - we'd have
 			 * to check all of the paged-out pages, as well.
 			 */
@@ -1416,7 +1416,7 @@ vm_object_collapse(object)
 				/*
 				 * If the parent has a page here, or if this
 				 * page falls outside the parent, keep going.
-				 * 
+				 *
 				 * Otherwise, the backing_object must be left in
 				 * the chain.
 				 */
@@ -1586,7 +1586,7 @@ again:
  *	Conditions:
  *	The object must *not* be locked.
  */
-boolean_t 
+boolean_t
 vm_object_coalesce(prev_object, next_object,
     prev_offset, next_offset,
     prev_size, next_size)
@@ -1765,7 +1765,7 @@ vm_object_check() {
 		if( lsize > maxhash)
 			maxhash = lsize;
 	}
-	
+
 	printf("maximum object hash queue size: %d\n",  maxhash);
 
 	/*
@@ -1791,7 +1791,7 @@ vm_object_check() {
 /*
  *	vm_object_print:	[ debug ]
  */
-void 
+void
 vm_object_print(object, full)
 	vm_object_t object;
 	boolean_t full;

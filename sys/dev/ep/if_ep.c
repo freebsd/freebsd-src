@@ -32,13 +32,13 @@
 
 /*
  *	Modified from the FreeBSD 1.1.5.1 version by:
- *		 	Andres Vega Garcia 
+ *		 	Andres Vega Garcia
  *			INRIA - Sophia Antipolis, France
  *			avega@sophia.inria.fr
  */
 
 /*
- *  $Id: if_ep.c,v 1.26 1995/04/12 20:47:49 wollman Exp $
+ *  $Id: if_ep.c,v 1.27 1995/05/27 04:40:57 davidg Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -183,7 +183,7 @@ ep_look_for_board_at(is)
 
     if (ep_current_tag == (EP_LAST_TAG + 1)) {
 	/* Come here just one time */
-   
+
 	/* Look for the EISA boards, leave them activated */
 	for(j = 1; j < 16; j++) {
 	    io_base = (j * EP_EISA_START) | EP_EISA_W0;
@@ -191,7 +191,7 @@ ep_look_for_board_at(is)
 		continue;
 
 	    /* we must found 0x1f if the board is EISA configurated */
-	    if ((inw(io_base + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f) 
+	    if ((inw(io_base + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
 		continue;
 
 	    /* Reset and Enable the card */
@@ -270,7 +270,7 @@ ep_look_for_board_at(is)
     } else {
 	for (i=0; ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE; i++);
 
-	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE) 
+	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE)
 	    return 0;
 
 	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE)
@@ -455,10 +455,10 @@ epattach(is)
     sc->rx_avg_pkt = 128;
 
     /*
-     * NOTE: In all this I multiply everything by 64. 
-     * W_s = the speed the CPU is able to write to the TX FIFO. 
+     * NOTE: In all this I multiply everything by 64.
+     * W_s = the speed the CPU is able to write to the TX FIFO.
      * T_s = the speed the board sends the info to the Ether.
-     * W_s/T_s = 16   (represents 16/64) =>    W_s = 25 % of T_s. 
+     * W_s/T_s = 16   (represents 16/64) =>    W_s = 25 % of T_s.
      * This will give us for a packet of 1500 bytes
      * tx_start_thresh=1125 and for a pkt of 64 bytes tx_start_threshold=48.
      * We prefer to start thinking the CPU is much slower than the Ethernet
@@ -814,7 +814,7 @@ rescan:
 		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_bpf_disc, sc->rx_overrunf,
 		   sc->rx_overrunl, sc->tx_underrun);
 #else
-	    printf("ep%d: Status: %x\n", unit, status); 
+	    printf("ep%d: Status: %x\n", unit, status);
 #endif
 	    epinit(unit);
 	    splx(x);
@@ -865,7 +865,7 @@ rescan:
 
     outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
 
-    if ((status = inw(BASE + EP_STATUS)) & S_5_INTS) 
+    if ((status = inw(BASE + EP_STATUS)) & S_5_INTS)
 	goto rescan;
 
     /* re-enable Ints */
@@ -1195,17 +1195,17 @@ epioctl(ifp, cmd, data)
 	      sizeof(sc->sc_addr));
 	break;
 #endif
-	case SIOCSIFMTU: 
+	case SIOCSIFMTU:
 
 		/*
 		 * Set the interface MTU.
 		 */
-		if (ifr->ifr_mtu > ETHERMTU) {  
-			error = EINVAL; 
+		if (ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL;
 		} else {
-			ifp->if_mtu = ifr->ifr_mtu; 
+			ifp->if_mtu = ifr->ifr_mtu;
 		}
-		break;  
+		break;
 
       default:
 		error = EINVAL;

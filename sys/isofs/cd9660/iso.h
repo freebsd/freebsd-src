@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.3 1994/09/09 11:11:01 dfr Exp $
+ * $Id: iso.h,v 1.4 1995/01/16 17:03:29 joerg Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -189,16 +189,16 @@ struct iso_mnt {
 	int logical_block_size;
 	int im_bshift;
 	int im_bmask;
-	
+
 	int volume_space_size;
 	char im_fsmnt[50];
 	struct netexport im_export;
-	
+
 	char root[ISODCL (157, 190)];
 	int root_extent;
 	int root_size;
 	enum ISO_FTYPE	iso_ftype;
-	
+
 	int rr_skip;
 	int rr_skip0;
 };
@@ -228,13 +228,13 @@ int cd9660_vptofh __P((struct vnode *, struct fid *));
 int cd9660_init __P(());
 
 struct iso_node;
-int iso_blkatoff __P((struct iso_node *ip, long offset, struct buf **bpp)); 
+int iso_blkatoff __P((struct iso_node *ip, long offset, struct buf **bpp));
 int iso_iget __P((struct iso_node *xp, ino_t ino, int relocated,
 		  struct iso_node **ipp, struct iso_directory_record *isodir));
-int iso_iput __P((struct iso_node *ip)); 
-int iso_ilock __P((struct iso_node *ip)); 
-int iso_iunlock __P((struct iso_node *ip)); 
-int cd9660_mountroot __P((void)); 
+int iso_iput __P((struct iso_node *ip));
+int iso_ilock __P((struct iso_node *ip));
+int iso_iunlock __P((struct iso_node *ip));
+int cd9660_mountroot __P((void));
 
 extern int (**cd9660_vnodeop_p)();
 

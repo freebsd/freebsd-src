@@ -31,18 +31,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id: termios.h,v 1.4 1995/04/30 14:56:30 bde Exp $
+ * $Id: termios.h,v 1.5 1995/05/11 07:52:47 bde Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
 #define _SYS_TERMIOS_H_
 
-/* 
- * Special Control Characters 
+/*
+ * Special Control Characters
  *
  * Index into c_cc[] character array.
  *
- *	Name	     Subscript	Enabled by 
+ *	Name	     Subscript	Enabled by
  */
 #define	VEOF		0	/* ICANON */
 #define	VEOL		1	/* ICANON */
@@ -52,7 +52,7 @@
 #define	VERASE		3	/* ICANON */
 #ifndef _POSIX_SOURCE
 #define VWERASE 	4	/* ICANON */
-#endif 
+#endif
 #define VKILL		5	/* ICANON */
 #ifndef _POSIX_SOURCE
 #define	VREPRINT 	6	/* ICANON */
@@ -141,7 +141,7 @@
 #endif
 
 
-/* 
+/*
  * "Local" flags - dumping ground for other state
  *
  * Warning: some flags in this structure begin with
@@ -189,7 +189,7 @@ struct termios {
 	speed_t		c_ospeed;	/* output speed */
 };
 
-/* 
+/*
  * Commands passed to tcsetattr() for setting the termios structure.
  */
 #define	TCSANOW		0		/* make change immediate */

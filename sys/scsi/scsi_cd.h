@@ -4,7 +4,7 @@
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
  * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with 
+ * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
  * organisations permission to use or modify this software.
  *
@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_cd.h,v 1.6 93/08/26 21:09:19 julian Exp Locker: julian $
+ *	$Id: scsi_cd.h,v 1.6 1993/11/18 05:02:52 rgrimes Exp $
  */
 #ifndef	_SCSI_SCSI_CD_H
 #define _SCSI_SCSI_CD_H 1
@@ -89,7 +89,7 @@ struct scsi_play
 	u_char	control;
 };
 
-struct scsi_play_big	
+struct scsi_play_big
 {
 	u_char	op_code;
 	u_char	byte2;	/* same as above */

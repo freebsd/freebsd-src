@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.5 1994/03/07 11:47:30 davidg Exp $
+ *	$Id: in_cksum.c,v 1.6 1994/08/13 03:49:39 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,7 @@
  *
  * This routine is very heavily used in the network
  * code and should be modified for each CPU to be as fast as possible.
- * 
+ *
  * This implementation is 386 version.
  */
 
@@ -83,7 +83,7 @@ in_cksum(m, len)
 			 * last mbuf.
 			 */
 
-			/* su.c[0] is already saved when scanning previous 
+			/* su.c[0] is already saved when scanning previous
 			 * mbuf.  sum was REDUCEd when we found mlen == -1
 			 */
 			su.c[1] = *(u_char *)w;
@@ -149,7 +149,7 @@ in_cksum(m, len)
 			 * memory takes to load the first word(s) addressed.
 			 * These penalties are unavoidable.  Subsequent
 			 * accesses to a cache line being loaded (and to
-			 * other external memory?) are delayed until the 
+			 * other external memory?) are delayed until the
 			 * whole load finishes.  These penalties are mostly
 			 * avoided by not accessing external memory for
 			 * 8 cycles after the ADD(16) and 12 cycles after

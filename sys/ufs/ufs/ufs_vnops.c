@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.22 1995/04/25 03:32:37 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.23 1995/05/15 07:31:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -393,7 +393,7 @@ ufs_setattr(ap)
 	if (vap->va_atime.ts_sec != VNOVAL || vap->va_mtime.ts_sec != VNOVAL) {
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser(cred, &p->p_acflag)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 || 
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
 			return (error);
 		if (vap->va_atime.ts_sec != VNOVAL)
@@ -878,7 +878,7 @@ abortit:
 	 * directory heirarchy above the target, as this would
 	 * orphan everything below the source directory. Also
 	 * the user must have write permission in the source so
-	 * as to be able to change "..". We must repeat the call 
+	 * as to be able to change "..". We must repeat the call
 	 * to namei, as the parent directory is unlocked by the
 	 * call to checkpath().
 	 */
@@ -906,7 +906,7 @@ abortit:
 	}
 	/*
 	 * 2) If target doesn't exist, link the target
-	 *    to the source and unlink the source. 
+	 *    to the source and unlink the source.
 	 *    Otherwise, rewrite the target directory
 	 *    entry to reference the source inode and
 	 *    expunge the original entry's existence.
@@ -966,7 +966,7 @@ abortit:
 		 * (both directories, or both not directories).
 		 */
 		if ((xp->i_mode&IFMT) == IFDIR) {
-			if (!ufs_dirempty(xp, dp->i_number, tcnp->cn_cred) || 
+			if (!ufs_dirempty(xp, dp->i_number, tcnp->cn_cred) ||
 			    xp->i_nlink > 2) {
 				error = ENOTEMPTY;
 				goto bad;
@@ -1061,7 +1061,7 @@ abortit:
 			dp->i_flag |= IN_CHANGE;
 			error = vn_rdwr(UIO_READ, fvp, (caddr_t)&dirbuf,
 				sizeof (struct dirtemplate), (off_t)0,
-				UIO_SYSSPACE, IO_NODELOCKED, 
+				UIO_SYSSPACE, IO_NODELOCKED,
 				tcnp->cn_cred, (int *)0, (struct proc *)0);
 			if (error == 0) {
 #				if (BYTE_ORDER == LITTLE_ENDIAN)
@@ -1366,7 +1366,7 @@ ufs_symlink(ap)
 
 /*
  * Vnode op for reading directories.
- * 
+ *
  * The routine below assumes that the on-disk format of a directory
  * is the same as that defined by <sys/dirent.h>. If the on-disk
  * format changes, then it will be necessary to do a conversion
@@ -1916,7 +1916,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 		break;
 	default:
 		break;
-	
+
 	}
 	if (ip->i_number == ROOTINO)
                 vp->v_flag |= VROOT;
@@ -1953,7 +1953,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if ((mode & IFMT) == 0)
 		mode |= IFREG;
 
-	error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp); 
+	error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
 		free(cnp->cn_pnbuf, M_NAMEI);
 		vput(dvp);

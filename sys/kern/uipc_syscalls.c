@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.4 1994/10/02 17:35:35 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.5 1995/03/16 18:12:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -238,7 +238,7 @@ accept1(p, uap, retval)
 	return (error);
 }
 
-#ifdef COMPAT_OLDSOCK 
+#ifdef COMPAT_OLDSOCK
 int
 accept(p, uap, retval)
 	struct proc *p;
@@ -398,7 +398,7 @@ sendit(p, s, mp, flags, retsize)
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
-	
+
 	error = getsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
@@ -564,7 +564,7 @@ osendmsg(p, uap, retval)
 		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
 			return (EMSGSIZE);
 		MALLOC(iov, struct iovec *,
-		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV, 
+		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
 		      M_WAITOK);
 	} else
 		iov = aiov;
@@ -649,7 +649,7 @@ recvit(p, s, mp, namelenp, retsize)
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
-	
+
 	error = getsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
@@ -1096,7 +1096,7 @@ struct getsockname_args {
 #endif
 };
 
-#ifndef COMPAT_OLDSOCK 
+#ifndef COMPAT_OLDSOCK
 #define	getsockname1	getsockname
 #endif
 
@@ -1178,7 +1178,7 @@ struct getpeername_args {
 };
 
 
-#ifndef COMPAT_OLDSOCK 
+#ifndef COMPAT_OLDSOCK
 #define	getpeername1	getpeername
 #endif
 

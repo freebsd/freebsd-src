@@ -8,7 +8,7 @@
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
  * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with 
+ * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
  * organisations permission to use or modify this software.
  *
@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.11 1995/03/21 11:21:03 dufault Exp $
+ *	$Id: scsi_tape.h,v 1.12 1995/04/29 21:30:26 joerg Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -80,8 +80,8 @@ struct scsi_erase
 	u_char	op_code;
 	u_char	byte2;
 #define	SE_LONG		0x01	/*
-				** Archive Viper 2525 doesn't allow short 
-				** erase, other tapes possibly don't allow 
+				** Archive Viper 2525 doesn't allow short
+				** erase, other tapes possibly don't allow
 				** that, too.
 				*/
 #define	SE_IMMED	0x02
@@ -160,7 +160,7 @@ struct	blk_desc_cipher
  * This structure defines the various mode pages that tapes know about.
  */
 #define PAGE_HEADERLEN 2
-struct	tape_pages 
+struct	tape_pages
 {
 	u_char pg_code;	/* page code    */
 #define ST_PAGE_CONFIGURATION	0x10
@@ -171,9 +171,9 @@ struct	tape_pages
 #define ST_P_CODE	0x3F	/* page code */
 #define ST_P_PS	0x80		/* page savable */
 	u_char pg_length;	/* page length  */
-	union 
+	union
 	{
-		struct 
+		struct
 		{
 			u_char active_format;	/* active format for density*/
 #define ST_P_CAP 0x40	/* change active Partition */
@@ -206,7 +206,7 @@ struct	tape_pages
 			u_char	data_compress_alg; /* 0 = off, 1 = default */
 			u_char	reserved;	/* The standard says so */
 		} configuration;
-		struct 
+		struct
 		{
 #define ST_MAXPARTS 16 /*for now*/
 			u_char	max_add_parts; /* that drive allows */
@@ -232,7 +232,7 @@ struct	tape_pages
 				u_char	low;
 			}part[ST_MAXPARTS];
     		} medium_partition;
-		struct 
+		struct
 		{
 			struct
 			{

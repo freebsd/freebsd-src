@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_dummy.c,v 1.14 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_dummy.c,v 1.1 1994/10/14 08:52:59 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -124,7 +124,7 @@ ibcs2_putmsg(struct proc *p, void *args, int *retval)
 
 /*
  * The following are RFS system calls
- * We don't have RFS. 
+ * We don't have RFS.
  */
 int
 ibcs2_rfdebug(struct proc *p, void *args, int *retval)

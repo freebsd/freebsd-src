@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_iso.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_iso.c,v 1.2 1994/08/02 07:51:14 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,16 +60,16 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_iso.c,v 1.1.1.1 1994/05/24 10:06:52 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_iso.c,v 1.2 1994/08/02 07:51:14 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_iso.c,v $
  *
  * Here is where you find the iso-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff
  * out of the tp source, and everthing here is reached indirectly
- * through a switch table (struct nl_protosw *) tpcb->tp_nlproto 
- * (see tp_pcb.c). 
+ * through a switch table (struct nl_protosw *) tpcb->tp_nlproto
+ * (see tp_pcb.c).
  * The routines here are:
  * 		iso_getsufx: gets transport suffix out of an isopcb structure.
  * 		iso_putsufx: put transport suffix into an isopcb structure.
@@ -79,7 +79,7 @@ SOFTWARE.
  *		iso_recycle_suffix: clear suffix for reuse in isopcb
  * 		tpclnp_ctlinput: handle ER CNLPdu : icmp-like stuff
  * 		tpclnp_mtu: figure out what size tpdu to use
- *		tpclnp_input: take a pkt from clnp, strip off its clnp header, 
+ *		tpclnp_input: take a pkt from clnp, strip off its clnp header,
  *				give to tp
  *		tpclnp_output_dg: package a pkt for clnp given 2 addresses & some data
  *		tpclnp_output: package a pkt for clnp given an isopcb & some data
@@ -197,7 +197,7 @@ iso_putsufx(isop, sufxloc, sufxlen, which)
  * CALLED FROM:
  * 	tp.trans whenever we go into REFWAIT state.
  * FUNCTION and ARGUMENT:
- *	 Called when a ref is frozen, to allow the suffix to be reused. 
+ *	 Called when a ref is frozen, to allow the suffix to be reused.
  * 	(isop) is the net level pcb.  This really shouldn't have to be
  * 	done in a NET level pcb but... for the internet world that just
  * 	the way it is done in BSD...
@@ -220,7 +220,7 @@ iso_recycle_tsuffix(isop)
  * 	Copy a whole net addr from a struct sockaddr (name).
  * 	into an isopcb (isop).
  * 	The argument (which) takes values TP_LOCAL or TP_FOREIGN
- */ 
+ */
 void
 iso_putnetaddr(isop, name, which)
 	register struct isopcb	*isop;
@@ -259,7 +259,7 @@ iso_putnetaddr(isop, name, which)
  * 	compare a whole net addr from a struct sockaddr (name),
  * 	with that implicitly stored in an isopcb (isop).
  * 	The argument (which) takes values TP_LOCAL or TP_FOREIGN.
- */ 
+ */
 iso_cmpnetaddr(isop, name, which)
 	register struct isopcb	*isop;
 	register struct sockaddr_iso	*name;
@@ -298,7 +298,7 @@ iso_cmpnetaddr(isop, name, which)
  * 	Copy a whole net addr from an isopcb (isop) into
  * 	a struct sockaddr (name).
  * 	The argument (which) takes values TP_LOCAL or TP_FOREIGN.
- */ 
+ */
 
 void
 iso_getnetaddr( isop, name, which)
@@ -326,7 +326,7 @@ iso_getnetaddr( isop, name, which)
  * It appears that setting a double pointer to the rtentry associated with
  * the destination, and returning the header size for the network protocol
  * suffices.
- * 
+ *
  * SIDE EFFECTS:
  * Sets tp_routep pointer in pcb.
  *
@@ -385,7 +385,7 @@ tpclnp_output(isop, m0, datalen, nochksum)
 		dump_mbuf(m0, "at tpclnp_output");
 	ENDDEBUG
 
-	return 
+	return
 		clnp_output(m0, isop, datalen,  /* flags */nochksum ? CLNP_NO_CKSUM : 0);
 }
 
@@ -444,13 +444,13 @@ tpclnp_output_dg(laddr, faddr, m0, datalen, ro, nochksum)
 	IncStat(ts_tpdu_sent);
 
 	err = clnp_output(m0, &tmppcb, datalen,  flags);
-	
+
 	/*
 	 *	Free route allocated by clnp (if the route was indeed allocated)
 	 */
 	if (tmppcb.isop_route.ro_rt)
 		RTFREE(tmppcb.isop_route.ro_rt);
-	
+
 	return(err);
 }
 /*
@@ -458,7 +458,7 @@ tpclnp_output_dg(laddr, faddr, m0, datalen, ro, nochksum)
  * 	clnp's input routine, indirectly through the protosw.
  * FUNCTION and ARGUMENTS:
  * Take a packet (m) from clnp, strip off the clnp header and give it to tp
- * No return value.  
+ * No return value.
  */
 ProtoHook
 tpclnp_input(m, src, dst, clnp_len, ce_bit)
@@ -507,7 +507,7 @@ tpclnp_input(m, src, dst, clnp_len, ce_bit)
 	ENDDEBUG
 
 	IFDEBUG(D_TPISO)
-		printf("calling %sinput : src 0x%x, dst 0x%x, src addr:\n", 
+		printf("calling %sinput : src 0x%x, dst 0x%x, src addr:\n",
 			(input == tp_input ? "tp_" : "clts_"), src, dst);
 		dump_isoaddr(src);
 		printf(" dst addr:\n");
@@ -518,9 +518,9 @@ tpclnp_input(m, src, dst, clnp_len, ce_bit)
 				0, tpclnp_output_dg, ce_bit);
 
 	IFDEBUG(D_QUENCH)
-		{ 
+		{
 			if(time.tv_usec & 0x4 && time.tv_usec & 0x40) {
-				printf("tpclnp_input: FAKING %s\n", 
+				printf("tpclnp_input: FAKING %s\n",
 					tp_stat.ts_pkt_rcvd & 0x1?"QUENCH":"QUENCH2");
 				if(tp_stat.ts_pkt_rcvd & 0x1) {
 					tpclnp_ctlinput(PRC_QUENCH, &src);
@@ -573,7 +573,7 @@ tpiso_quench(isop)
  *	It either returns an error status to the user or
  *	it causes all connections on this address to be aborted
  *	by calling the appropriate xx_notify() routine.
- *	(cmd) is the type of ICMP error.   
+ *	(cmd) is the type of ICMP error.
  * 	(siso) is the address of the guy who sent the ER CLNPDU
  */
 ProtoHook

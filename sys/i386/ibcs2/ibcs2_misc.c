@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_misc.c,v 1.3 1995/03/03 15:44:44 nate Exp $
+ *	$Id: ibcs2_misc.c,v 1.4 1995/05/02 17:14:38 ache Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -74,7 +74,7 @@ ibcs2_traceemu(struct proc *p, struct ibcs2_traceemu_args *args, int *retval)
 int
 ibcs2_access(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'access'\n");
 	return access(p, args, retval);
 }
@@ -90,7 +90,7 @@ ibcs2_alarm(struct proc *p, struct ibcs2_alarm_args *args, int *retval)
 	struct itimerval it, oit;
 	int s;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'alarm' secs=%d\n", args->secs);
 	it.it_value.tv_sec = (long)args->secs;
 	it.it_value.tv_usec = 0;
@@ -132,7 +132,7 @@ ibcs2_break(struct proc *p, struct ibcs2_break_args *args, int *retval)
 	int rv, diff;
 	extern int swap_pager_full;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'break' dsend=%x\n",
 			(unsigned int)args->dsend);
 
@@ -169,7 +169,7 @@ ibcs2_break(struct proc *p, struct ibcs2_break_args *args, int *retval)
 int
 ibcs2_chdir(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'chdir'\n");
 	return chdir(p, args, retval);
 }
@@ -177,7 +177,7 @@ ibcs2_chdir(struct proc *p, void *args, int *retval)
 int
 ibcs2_chmod(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'chmod'\n");
 	return chmod(p, args, retval);
 }
@@ -185,7 +185,7 @@ ibcs2_chmod(struct proc *p, void *args, int *retval)
 int
 ibcs2_chown(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'chown'\n");
 	return chown(p, args, retval);
 }
@@ -193,7 +193,7 @@ ibcs2_chown(struct proc *p, void *args, int *retval)
 int
 ibcs2_chroot(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'chroot'\n");
 	return chroot(p, args, retval);
 }
@@ -212,7 +212,7 @@ ibcs2_exec(struct proc *p, struct exec_args *args, int *retval)
 		char **envp;
 	} execve_args;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'exec' name=%s\n", args->name);
 	execve_args.name = args->name;
 	execve_args.argv = args->argv;
@@ -229,7 +229,7 @@ struct ibcs2_exece_args {
 int
 ibcs2_exece(struct proc *p, struct ibcs2_exece_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'exece' name=%s\n", args->name);
 	return execve(p, args, retval);
 }
@@ -237,7 +237,7 @@ ibcs2_exece(struct proc *p, struct ibcs2_exece_args *args, int *retval)
 int
 ibcs2_exit(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'exit'\n");
 	return exit(p, args, retval);
 }
@@ -245,7 +245,7 @@ ibcs2_exit(struct proc *p, void *args, int *retval)
 int
 ibcs2_fork(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'fork'\n");
 	return fork(p, args, retval);
 }
@@ -253,7 +253,7 @@ ibcs2_fork(struct proc *p, void *args, int *retval)
 int
 ibcs2_fsync(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'fsync'\n");
 	return fsync(p, args, retval);
 }
@@ -261,7 +261,7 @@ ibcs2_fsync(struct proc *p, void *args, int *retval)
 int
 ibcs2_getgid(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'getgid'\n");
 	return getgid(p, args, retval);
 }
@@ -281,7 +281,7 @@ ibcs2_getgroups(struct proc *p, struct ibcs2_getgroups_args *args, int *retval)
 	ibcs2_gid_t *ibcs2_gidset;
 	int i, error;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'getgroups'\n");
 
 	tmp.gidsetsize = args->gidsetsize;
@@ -298,7 +298,7 @@ ibcs2_getgroups(struct proc *p, struct ibcs2_getgroups_args *args, int *retval)
 int
 ibcs2_getpid(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'getpid'\n");
 	return getpid(p, args, retval);
 }
@@ -306,7 +306,7 @@ ibcs2_getpid(struct proc *p, void *args, int *retval)
 int
 ibcs2_getuid(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'getuid'\n");
 	return getuid(p, args, retval);
 }
@@ -321,7 +321,7 @@ ibcs2_gtime(struct proc *p, struct gtime_args *args, int *retval)
 	int error = 0;
 	struct timeval tv;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'gtime'\n");
 	microtime(&tv);
 	*retval = tv.tv_sec;
@@ -333,7 +333,7 @@ ibcs2_gtime(struct proc *p, struct gtime_args *args, int *retval)
 int
 ibcs2_link(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'link'\n");
 	return link(p, args, retval);
 }
@@ -341,7 +341,7 @@ ibcs2_link(struct proc *p, void *args, int *retval)
 int
 ibcs2_mkdir(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'mkdir'\n");
 	return mkdir(p, args, retval);
 }
@@ -355,7 +355,7 @@ struct ibcs2_mknod_args {
 int
 ibcs2_mknod(struct proc *p, struct ibcs2_mknod_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'mknod'\n");
 	if (S_ISFIFO(args->fmode))
 		return mkfifo(p, args, retval);
@@ -371,7 +371,7 @@ ibcs2_nice(struct proc *p, struct ibcs2_nice_args *args, int *retval)
 {
 	int error;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'nice'\n");
 	error = donice(p, p, args->niceval);
 	*retval = p->p_nice;
@@ -385,8 +385,8 @@ struct ibcs2_pathconf_args {
 int
 ibcs2_pathconf(struct proc *p, struct ibcs2_pathconf_args *args, int *retval)
 {
-		if (ibcs2_trace & IBCS2_TRACE_MISC) 
-			printf("IBCS2: '(f)pathconf'\n"); 
+		if (ibcs2_trace & IBCS2_TRACE_MISC)
+			printf("IBCS2: '(f)pathconf'\n");
 	    	switch (args->cmd) {
 	    	case 0:	/* _PC_LINK_MAX */
 			*retval = (LINK_MAX);
@@ -435,7 +435,7 @@ ibcs2_pause(struct proc *p, void *args, int *retval)
 {
 	int mask = 0;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'pause'\n");
 	return sigsuspend(p, &mask, retval);
 }
@@ -443,7 +443,7 @@ ibcs2_pause(struct proc *p, void *args, int *retval)
 int
 ibcs2_pipe(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'pipe'\n");
 	return pipe(p, args, retval);
 }
@@ -473,11 +473,11 @@ ibcs2_poll(struct proc *p, struct ibcs2_poll_args *args, int *retval)
 	} tmp_select;
 	int i, error;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'poll'\n");
 	if (args->nfds > FD_SETSIZE)
 		return EINVAL;
-	readfds = (fd_set *)UA_ALLOC(); 
+	readfds = (fd_set *)UA_ALLOC();
 	FD_ZERO(readfds);
 	writefds = (fd_set *)UA_ALLOC() + sizeof(fd_set *);
 	FD_ZERO(writefds);
@@ -516,24 +516,24 @@ ibcs2_poll(struct proc *p, struct ibcs2_poll_args *args, int *retval)
 		return 0;
 	*retval = 0;
 	for (*retval = 0, i = 0; i < args->nfds; i++) {
-		copyin(args->fds + i*sizeof(struct ibcs2_poll), 
+		copyin(args->fds + i*sizeof(struct ibcs2_poll),
 		       &conv, sizeof(conv));
 		conv.revents = 0;
-		if (conv.fd < 0 || conv.fd > FD_SETSIZE) 
+		if (conv.fd < 0 || conv.fd > FD_SETSIZE)
 			/* should check for open as well */
-			conv.revents |= IBCS2_POLLNVAL; 
+			conv.revents |= IBCS2_POLLNVAL;
 		else {
 			if (FD_ISSET(conv.fd, readfds))
 				conv.revents |= IBCS2_POLLIN;
 			if (FD_ISSET(conv.fd, writefds))
 				conv.revents |= IBCS2_POLLOUT;
 			if (FD_ISSET(conv.fd, exceptfds))
-				conv.revents |= IBCS2_POLLERR; 
+				conv.revents |= IBCS2_POLLERR;
 			if (conv.revents)
 				++*retval;
 		}
 		if (error = copyout(&conv,
-				    args->fds + i*sizeof(struct ibcs2_poll), 
+				    args->fds + i*sizeof(struct ibcs2_poll),
 				    sizeof(conv)))
 			return error;
 	}
@@ -548,7 +548,7 @@ struct ibcs2_procids_args {
 int
 ibcs2_procids(struct proc *p, struct ibcs2_procids_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'procids' request=%d,  eax=%x\n",
   			args->req, args->eax);
   	switch (args->req) {
@@ -556,8 +556,8 @@ ibcs2_procids(struct proc *p, struct ibcs2_procids_args *args, int *retval)
     		return getpgrp(p, args, retval);
   	case 1:	/* setpgrp */
 		{
-    			struct setpgid_args { 
-				int pid; 
+    			struct setpgid_args {
+				int pid;
 				int pgid;
 			} tmp;
     			tmp.pid = tmp.pgid = 0;
@@ -575,7 +575,7 @@ ibcs2_procids(struct proc *p, struct ibcs2_procids_args *args, int *retval)
 int
 ibcs2_profil(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'profil'\n");
 	return profil(p, args, retval);
 }
@@ -583,7 +583,7 @@ ibcs2_profil(struct proc *p, void *args, int *retval)
 int
 ibcs2_ptrace(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'ptrace'\n");
 	return ptrace(p, args, retval);
 }
@@ -591,7 +591,7 @@ ibcs2_ptrace(struct proc *p, void *args, int *retval)
 int
 ibcs2_readlink(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'readlink'\n");
 	return readlink(p, args, retval);
 }
@@ -599,7 +599,7 @@ ibcs2_readlink(struct proc *p, void *args, int *retval)
 int
 ibcs2_rename(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'rename'\n");
 	return rename(p, args, retval);
 }
@@ -607,7 +607,7 @@ ibcs2_rename(struct proc *p, void *args, int *retval)
 int
 ibcs2_rmdir(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'rmdir'\n");
 	return rmdir(p, args, retval);
 }
@@ -626,7 +626,7 @@ ibcs2_secure(struct proc *p, struct ibcs2_secure_args *args, int *retval)
 {
   	struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'secure'\n");
 
 	switch (args->cmd) {
@@ -654,7 +654,7 @@ ibcs2_setgid(struct proc *p, struct ibcs2_setgid_args *args, int *retval)
 		gid_t gid;
 	} tmp;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'setgid'\n");
 	tmp.gid = (gid_t) args->gid;
 	return setgid(p, &tmp, retval);
@@ -675,12 +675,12 @@ ibcs2_setgroups(struct proc *p, struct ibcs2_setgroups_args *args, int *retval)
 	ibcs2_gid_t *ibcs2_gidset;
 	int i, error;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'setgroups'\n");
 	tmp.gidsetsize = args->gidsetsize;
 	tmp.gidset = (gid_t *)UA_ALLOC();
 	ibcs2_gidset = (ibcs2_gid_t *)&tmp.gidset[NGROUPS_MAX];
-	if (error = copyin((caddr_t)args->gidset, (caddr_t)ibcs2_gidset, 
+	if (error = copyin((caddr_t)args->gidset, (caddr_t)ibcs2_gidset,
 		           sizeof(ibcs2_gid_t) * tmp.gidsetsize))
 		return error;
 	for (i = 0; i < tmp.gidsetsize; i++)
@@ -699,7 +699,7 @@ ibcs2_setuid(struct proc *p, struct ibcs2_setuid_args *args, int *retval)
 		uid_t uid;
 	} tmp;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'setuid'\n");
 	tmp.uid = (uid_t) args->uid;
 	return setuid(p, &tmp, retval);
@@ -708,7 +708,7 @@ ibcs2_setuid(struct proc *p, struct ibcs2_setuid_args *args, int *retval)
 int
 ibcs2_smount(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'smount'\n");
 	return mount(p, args, retval);
 }
@@ -721,8 +721,8 @@ int
 ibcs2_stime(struct proc *p, struct ibcs2_stime_args *args, int *retval)
 {
 	int error;
-	
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'stime'\n");
 	if (error = suser(p->p_ucred, &p->p_acflag))
 		return error;
@@ -731,12 +731,12 @@ ibcs2_stime(struct proc *p, struct ibcs2_stime_args *args, int *retval)
 		/* WHAT DO WE DO ABOUT PENDING REAL-TIME TIMEOUTS??? */
 		boottime.tv_sec += (long)args->timeptr - time.tv_sec;
 		s = splhigh();
-		time.tv_sec = (long)args->timeptr; 
+		time.tv_sec = (long)args->timeptr;
 		time.tv_usec = 0;
 		splx(s);
 		resettodr();
 #else
-		printf("IBCS2: trying to set system time %d\n", 
+		printf("IBCS2: trying to set system time %d\n",
 		       (long)args->timeptr);
 #endif
 	}
@@ -746,7 +746,7 @@ ibcs2_stime(struct proc *p, struct ibcs2_stime_args *args, int *retval)
 int
 ibcs2_sumount(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'sumount'\n");
 	return unmount(p, args, retval);
 }
@@ -754,7 +754,7 @@ ibcs2_sumount(struct proc *p, void *args, int *retval)
 int
 ibcs2_symlink(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'symlink'\n");
 	return symlink(p, args, retval);
 }
@@ -762,7 +762,7 @@ ibcs2_symlink(struct proc *p, void *args, int *retval)
 int
 ibcs2_sync(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'sync'\n");
 	return sync(p, args, retval);
 }
@@ -770,7 +770,7 @@ ibcs2_sync(struct proc *p, void *args, int *retval)
 int
 ibcs2_sysacct(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'sysacct'\n");
 	return acct(p, args, retval);
 }
@@ -789,7 +789,7 @@ ibcs2_times(struct proc *p, struct ibcs2_tms *args, int *retval)
 	struct timeval tv;
 	struct ibcs2_tms tms;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'times'\n");
 	tms.tms_utime = p->p_uticks;
 	tms.tms_stime = p->p_sticks;
@@ -812,7 +812,7 @@ struct ibcs2_ulimit_args {
 int
 ibcs2_ulimit(struct proc *p, struct ibcs2_ulimit_args *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'ulimit'\n");
 	switch (args->cmd) {
 	case IBCS2_GETFSIZE:
@@ -835,7 +835,7 @@ ibcs2_ulimit(struct proc *p, struct ibcs2_ulimit_args *args, int *retval)
 int
 ibcs2_umask(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'umask'\n");
 	return umask(p, args, retval);
 }
@@ -843,7 +843,7 @@ ibcs2_umask(struct proc *p, void *args, int *retval)
 int
 ibcs2_unlink(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'unlink'\n");
 	return unlink(p, args, retval);
 }
@@ -862,7 +862,7 @@ ibcs2_utime(struct proc *p, struct ibcs2_utime_args *args, int *retval)
 	} bsdutimes;
 	struct timeval tv;
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'utime'\n");
 	tv.tv_sec = (long)args->timeptr;
 	tv.tv_usec = 0;
@@ -889,7 +889,7 @@ ibcs2_utssys(struct proc *p, struct ibcs2_utssys_args *args, int *retval)
 	} ibcs2_uname;
 	extern char ostype[], hostname[], osrelease[], machine[];
 
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'utssys' cmd=%d\n", args->cmd);
 	switch(args->cmd) {
 	case 0:	/* uname */
@@ -934,7 +934,7 @@ ibcs2_wait(struct proc *p, void *args, int *retval)
 
 	tmp.compat = 1;
 	tmp.rusage = 0;
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'wait'\n");
 
   	if ((tf->tf_eflags & (PSL_Z|PSL_PF|PSL_N|PSL_V))

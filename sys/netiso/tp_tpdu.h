@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_tpdu.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_tpdu.h,v 1.2 1994/08/02 07:51:29 davidg Exp $
+ * $Id: tp_tpdu.h,v 1.3 1994/08/21 06:14:31 paul Exp $
  */
 
 #ifndef _NETISO_TP_TPDU_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,10 +63,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.2 1994/08/02 07:51:29 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.3 1994/08/21 06:14:31 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_tpdu.h,v $
  *
  * This ghastly set of macros makes it possible to
@@ -110,7 +110,7 @@ struct tpdu_fixed {
 #define tpdu_type _tpduf._tpduf_type
 #define tpdu_cdt _tpduf._tpduf_cdt
 #define tpdu_dref _tpduf._tpduf_dref
-			
+
 struct tp0du {
 	u_char		_tp0_li,
 				_tp0_cdt_type,		/* same as in tpdu_fixed */
@@ -127,10 +127,10 @@ struct tp0du {
 
 #define tp0du_eot _tp0_eot
 #define tp0du_mbz _tp0_mbz
-			
+
 /*
  * This is used when the extended format seqence numbers are
- * being sent and received. 
+ * being sent and received.
  */
 				/*
 				 * the seqeot field is an int that overlays the seq
@@ -294,4 +294,4 @@ struct tpdu {
 	union 	tpdu_fixed_rest _tpdufr;
 };
 
-#endif 
+#endif

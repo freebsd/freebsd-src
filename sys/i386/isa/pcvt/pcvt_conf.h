@@ -53,7 +53,7 @@
  *
  * Here's an idea how to automatically detect the version of NetBSD pcvt is
  * being compiled on:
- * 
+ *
  * NetBSD 0.8 : NetBSD0_8 defined in <sys/param.h>
  * NetBSD 0.9 : NetBSD0_9 defined in <sys/param.h>
  * NetBSD 1.0 : NetBSD1_0 defined as 1 in <sys/param.h>
@@ -64,7 +64,7 @@
  * This leads to something like this in pcvt_hdr.h (#elif is possible too):
  *
  *---------------------------------------------------------------------------*/
- 
+
 #ifdef NetBSD0_8
 #define PCVT_NETBSD 8
 #endif
@@ -80,7 +80,7 @@
 #define PCVT_NETBSD 100
 #endif
 #endif
- 
+
 /*---------------------------------------------------------------------------
  * Note that each of the options below should rather be overriden by the
  * kernel config file instead of this .h file - this allows for different
@@ -128,7 +128,7 @@
  *======================================================================*
  *			F r e e B S D					*
  *======================================================================*
- *		
+ *
  *	options "PCVT_FREEBSD=xxx" enables support for FreeBSD
  *
  *	select:
@@ -139,7 +139,7 @@
  *		PCVT_FREEBSD = 210	for FreeBSD 2.1-Release
  *
  */
-	
+
 /* -------------------------------------------------------------------- */
 /* ---------------- USER PREFERENCE DRIVER OPTIONS -------------------- */
 /* -------------------------------------------------------------------- */
@@ -160,9 +160,9 @@
 
 #if !defined PCVT_VT220KEYB	/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_VT220KEYB 0	/* this compiles a more vt220-like	*/
-#elif PCVT_VT220KEYB != 0	/* keyboardlayout as described in the	*/	
+#elif PCVT_VT220KEYB != 0	/* keyboardlayout as described in the	*/
 # undef PCVT_VT220KEYB		/* file Keyboard.VT220.			*/
-# define PCVT_VT220KEYB 1	/* if undefined, a more HP-like         */	
+# define PCVT_VT220KEYB 1	/* if undefined, a more HP-like         */
 #endif				/* keyboardlayout is compiled		*/
 				/* try to find out what YOU like !	*/
 
@@ -263,7 +263,7 @@
 #endif				/* keyboard controller chip.		*/
 				/* this is just for some hardcore	*/
 				/* keyboarders ....			*/
-	
+
 /* -------------------------------------------------------------------- */
 /* -------------------- DRIVER OPTIONS -------------------------------- */
 /* -------------------------------------------------------------------- */
@@ -283,7 +283,7 @@
 # define PCVT_PORTIO_DELAY 1	/* accessing the keyboard controller,   */
 #endif				/* otherwise the system delay functions */
 				/* are used.                            */
-				
+
 #if !defined PCVT_PCBURST	/* ---------- DEFAULT: 256 ------------ */
 # define PCVT_PCBURST 256	/* NETBSD and FreeBSD >= 2.0 only: this */
 #endif				/* is the number of output characters	*/
@@ -300,7 +300,7 @@
 #if !defined PCVT_KEYBDID	/* ---------- DEFAULT: ON ------------- */
 # define PCVT_KEYBDID 1		/* check type of keyboard connected. at	*/
 #elif PCVT_KEYBDID != 0		/* least HP-keyboards send an id other	*/
-# undef PCVT_KEYBDID		/* than the industry standard, so it	*/	
+# undef PCVT_KEYBDID		/* than the industry standard, so it	*/
 # define PCVT_KEYBDID 1		/* CAN lead to problems. if you have	*/
 #endif				/* problems with this, TELL ME PLEASE !	*/
 
@@ -312,7 +312,7 @@
 #endif				/* i'm not sure, whether this feature	*/
 				/* has to be in the driver or has to    */
 				/* move as an ioctl call to scon ....	*/
-				
+
 #if !defined PCVT_NULLCHARS	/* ---------- DEFAULT: ON ------------- */
 # define PCVT_NULLCHARS 1	/* allow the keyboard to send null	*/
 #elif PCVT_NULLCHARS != 0	/* (0x00) characters to the calling	*/
@@ -379,7 +379,7 @@
 				/* but introduced another flicker, so	*/
 				/* this is for you to experiment .....	*/
 				/* - see also PCVT_WAITRETRACE below --	*/
-				
+
 #if !defined PCVT_WAITRETRACE	/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_WAITRETRACE 0	/* this option waits for being in a 	*/
 #elif PCVT_WAITRETRACE != 0	/* retrace window prior to accessing	*/
@@ -439,7 +439,7 @@
 # undef PCVT_SLOW_INTERRUPT	/* disabling the processor irq's, if on */
 # define PCVT_SLOW_INTERRUPT 1	/* this is done by spl()/splx() calls.  */
 #endif
-				
+
 #ifdef XSERVER
 
 #if !defined PCVT_USL_VT_COMPAT	/* ---------- DEFAULT: ON ------------- */
@@ -452,7 +452,7 @@
 				/* to run multiple X servers and/or 	*/
 				/* character terminal sessions.		*/
 
-#endif /* XSERVER */				
+#endif /* XSERVER */
 
 /*---------------------------------------------------------------------------*
  *	Kernel messages attribute definitions

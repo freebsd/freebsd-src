@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.126 1995/05/12 19:17:14 wollman Exp $
+ *	$Id: machdep.c,v 1.127 1995/05/25 07:41:20 davidg Exp $
  */
 
 #include "npx.h"
@@ -389,7 +389,7 @@ again:
 			printf(" %x:%08x", i, j);
 			printf(" %d cyl, %d heads, %d sects\n",
 				j >> 16, (j >> 8) & 0xff, j & 0xff);
-				
+
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
@@ -421,7 +421,7 @@ static void
 identifycpu()
 {
 	printf("CPU: ");
-	if (cpu >= 0 
+	if (cpu >= 0
 	    && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
 		cpu_class = i386_cpus[cpu].cpu_class;
 		strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -442,8 +442,8 @@ identifycpu()
 			cpu_model[0] = '\0';
 
 			switch (cpu_id & 0x3000) {
-			case 0x1000: 
-				strcpy(cpu_model, "Overdrive "); 
+			case 0x1000:
+				strcpy(cpu_model, "Overdrive ");
 				break;
 			case 0x2000:
 				strcpy(cpu_model, "Dual ");
@@ -478,7 +478,7 @@ identifycpu()
 			case 0x480:
 				strcat(cpu_model, "DX4"); break;
 #if defined(I586_CPU)
-			case 0x510: 
+			case 0x510:
 				if (pentium_mhz == 60) {
 					strcat(cpu_model, "510\\60");
 				} else if (pentium_mhz == 66) {
@@ -630,7 +630,7 @@ sendsig(catcher, sig, mask, code)
 		return;
 	}
 
-	/* 
+	/*
 	 * Build the argument list for the signal handler.
 	 */
 	if (p->p_sysent->sv_sigtbl) {
@@ -868,7 +868,7 @@ boot(arghowto)
 		if (howto & RB_DUMP) {
 			savectx(&dumppcb, 0);
 			dumppcb.pcb_ptd = rcr3();
-			dumpsys();	
+			dumpsys();
 
 			if (PANIC_REBOOT_WAIT_TIME != 0) {
 				if (PANIC_REBOOT_WAIT_TIME != -1) {
@@ -1321,7 +1321,7 @@ init386(first)
 #ifdef COMPAT_LINUX
  	setidt(0x80, &IDTVEC(linux_syscall),  SDT_SYS386TGT, SEL_UPL);
 #endif
-  
+
 #include	"isa.h"
 #if	NISA >0
 	isa_defaultirq();
@@ -1507,7 +1507,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 
-	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt = 
+	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt =
 		(sizeof(tss))<<16;
 
 	ltr(gsel_tss);

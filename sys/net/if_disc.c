@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.2 1995/03/17 22:02:18 wollman Exp $
+ *	$Id: if_disc.c,v 1.3 1995/03/20 19:20:39 wollman Exp $
  */
 
 /*
@@ -135,7 +135,7 @@ dsoutput(ifp, m, dst, rt)
 		m0.m_next = m;
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
-		
+
 		bpf_mtap(dsif.if_bpf, &m0);
 	}
 #endif

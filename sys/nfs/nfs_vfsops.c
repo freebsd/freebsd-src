@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.12 1995/03/16 20:23:46 wollman Exp $
+ * $Id: nfs_vfsops.c,v 1.13 1995/05/14 03:00:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -198,7 +198,7 @@ nfs_mountroot()
 	if (time.tv_sec == 0)
 		time.tv_sec = 1;
 
-	/* 
+	/*
 	 * XXX splnet, so networks will receive...
 	 */
 	splnet();
@@ -230,11 +230,11 @@ nfs_mountroot()
 	 */
 
 	for (i = strlen(nd->myif.ifra_name) - 1;
-		nd->myif.ifra_name[i] >= '0' && 
+		nd->myif.ifra_name[i] >= '0' &&
 		nd->myif.ifra_name[i] <= '9';
 		nd->myif.ifra_name[i] ++) {
 		error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p);
-		if(!error) 
+		if(!error)
 			break;
 	}
 	if (error)
@@ -281,7 +281,7 @@ nfs_mountroot()
 		vp->v_flag = 0;
 		VREF(vp);
 		swaponvp(p, vp, NODEV, nd->swap_nblks * 2);
-	} 
+	}
 
 	/*
 	 * Create the rootfs mount point.

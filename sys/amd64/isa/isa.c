@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.48 1995/05/11 05:20:43 jkh Exp $
+ *	$Id: isa.c,v 1.49 1995/05/13 00:09:38 jkh Exp $
  */
 
 /*
@@ -334,7 +334,7 @@ isa_configure() {
  * SLIPDISC.  No need to block out ALL ttys during a splimp when only one
  * of them is running slip.
  *
- * XXX actually, blocking all ttys during a splimp doesn't matter so much 
+ * XXX actually, blocking all ttys during a splimp doesn't matter so much
  * with sio because the serial interrupt layer doesn't use tty_imask.  Only
  * non-serial ttys suffer.  It's more stupid that ALL 'net's are blocked
  * during spltty.
@@ -372,8 +372,8 @@ isa_configure() {
 /*
  * Configure an ISA device.
  */
- 
- 
+
+
 static void
 config_isadev(isdp, mp)
      struct isa_device *isdp;
@@ -381,7 +381,7 @@ config_isadev(isdp, mp)
 {
 	config_isadev_c(isdp, mp, 0);
 }
- 
+
 void
 reconfig_isadev(isdp, mp)
 	struct isa_device *isdp;
@@ -400,7 +400,7 @@ config_isadev_c(isdp, mp, reconfig)
 	int id_alive;
 	int last_alive;
 	struct isa_driver *dp = isdp->id_driver;
- 
+
  	checkbits = 0;
 	checkbits |= CC_DRQ;
 	checkbits |= CC_IOADDR;
@@ -464,11 +464,11 @@ config_isadev_c(isdp, mp, reconfig)
 			}
 			printf("\n");
 			/*
-			 * Check for conflicts again.  The driver may have 
-			 * changed *dvp.  We should weaken the early check 
-			 * since the driver may have been able to change 
-			 * *dvp to avoid conflicts if given a chance.  We 
-			 * already skip the early check for IRQs and force 
+			 * Check for conflicts again.  The driver may have
+			 * changed *dvp.  We should weaken the early check
+			 * since the driver may have been able to change
+			 * *dvp to avoid conflicts if given a chance.  We
+			 * already skip the early check for IRQs and force
 			 * a check for IRQs in the next group of checks.
 		 	 */
 			checkbits |= CC_IRQ;
@@ -497,12 +497,12 @@ config_isadev_c(isdp, mp, reconfig)
 				}
 				printf("\n");
 			}
-		}	
+		}
 		else {
 			/* This code has not been tested.... */
 			if (isdp->id_irq) {
 				INTRDIS(isdp->id_irq);
-				unregister_intr(ffs(isdp->id_irq) - 1, 
+				unregister_intr(ffs(isdp->id_irq) - 1,
 						isdp->id_intr);
 				if (mp)
 					INTRUNMASK(*mp, isdp->id_irq);
@@ -593,7 +593,7 @@ eisa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
  * during configuration of kernel, setup interrupt control unit
  */
 void
-isa_defaultirq() 
+isa_defaultirq()
 {
 	int i;
 
@@ -643,7 +643,7 @@ static short dmapageport[8] =
 void isa_dmacascade(unsigned chan)
 {
 	if (chan > 7)
-		panic("isa_dmacascade: impossible request"); 
+		panic("isa_dmacascade: impossible request");
 
 	/* set dma channel mode, and set dma channel mode */
 	if ((chan & 4) == 0) {
@@ -670,7 +670,7 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 	if (    chan > 7
 	    || (chan < 4 && nbytes > (1<<16))
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
-		panic("isa_dmastart: impossible request"); 
+		panic("isa_dmastart: impossible request");
 
 	if (isa_dmarangecheck(addr, nbytes, chan)) {
 		if (dma_bounce[chan] == 0)
@@ -818,7 +818,7 @@ static void (*isaphysmemunblock)(); /* needs to be a list */
  */
 caddr_t
 isa_allocphysmem(caddr_t va, unsigned length, void (*func)()) {
-	
+
 	isaphysmemunblock = func;
 	while (isaphysmemflag & B_BUSY) {
 		isaphysmemflag |= B_WANTED;
@@ -844,7 +844,7 @@ isa_freephysmem(caddr_t va, unsigned length) {
 			(*isaphysmemunblock)();
 	}
 }
-	
+
 #define NMI_PARITY (1 << 7)
 #define NMI_IOCHAN (1 << 6)
 #define ENMI_WATCHDOG (1 << 7)
@@ -856,7 +856,7 @@ isa_freephysmem(caddr_t va, unsigned length) {
  * return true to panic system, false to ignore.
  */
 int
-isa_nmi(cd) 
+isa_nmi(cd)
 	int cd;
 {
 	int isa_port = inb(0x61);
@@ -930,7 +930,7 @@ struct isa_device *find_isadev(table, driverp, unit)
   while ((table->id_driver != driverp) || (table->id_unit != unit)) {
     if (table->id_driver == 0)
       return NULL;
-    
+
     table++;
   }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_pcb.c,v 1.2 1994/08/02 07:50:37 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/iso_pcb.c,v 1.1.1.1 1994/05/24 10:07:10 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/iso_pcb.c,v 1.2 1994/08/02 07:50:37 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/iso_pcb.c,v $
  *
  * Iso address family net-layer(s) pcb stuff. NEH 1/29/87
@@ -102,7 +102,7 @@ struct	iso_addr zeroiso_addr = {
  * FUNCTION:		iso_pcballoc
  *
  * PURPOSE:			creates an isopcb structure in an mbuf,
- *					with socket (so), and 
+ *					with socket (so), and
  *					puts it in the queue with head (head)
  *
  * RETURNS:			0 if OK, ENOBUFS if can't alloc the necessary mbuf
@@ -128,7 +128,7 @@ iso_pcballoc(so, head)
 		so->so_pcb = (caddr_t)isop;
 	return 0;
 }
-	
+
 /*
  * FUNCTION:		iso_pcbbind
  *
@@ -144,7 +144,7 @@ iso_pcballoc(so, head)
  *
  * SIDE EFFECTS:	increments head->isop_lport if it allocates a port #
  *
- * NOTES:			
+ * NOTES:
  */
 #define	satosiso(sa)	((struct sockaddr_iso *)(sa))
 int
@@ -200,12 +200,12 @@ iso_pcbbind(isop, nam)
 		IFDEBUG(D_ISO)
 			printf("iso_pcbbind: bind to NOT zeroisoaddr\n");
 		ENDDEBUG
-		for (ia = iso_ifaddr; ia; ia = ia->ia_next) 
+		for (ia = iso_ifaddr; ia; ia = ia->ia_next)
 			if (SAME_ISOADDR(siso, &ia->ia_addr))
 				break;
 		if (ia == 0)
 			return EADDRNOTAVAIL;
-	} 
+	}
 	if (siso->siso_len <= sizeof (isop->isop_sladdr)) {
 		isop->isop_laddr = &isop->isop_sladdr;
 	} else {
@@ -250,14 +250,14 @@ noname:
  * FUNCTION:		iso_pcbconnect
  *
  * PURPOSE:			Make the isopcb (isop) look like it's connected.
- *					In other words, give it the peer address given in 
+ *					In other words, give it the peer address given in
  *					the mbuf * (nam).   Make sure such a combination
  *					of local, peer addresses doesn't already exist
  *					for this protocol.  Internet mentality prevails here,
  *					wherein a src,dst pair uniquely identifies a connection.
- * 					Both net address and port must be specified in argument 
+ * 					Both net address and port must be specified in argument
  *					(nam).
- * 					If we don't have a local address for this socket yet, 
+ * 					If we don't have a local address for this socket yet,
  *					we pick one by calling iso_pcbbind().
  *
  * RETURNS:			errno E* or 0 if ok.
@@ -265,7 +265,7 @@ noname:
  * SIDE EFFECTS:	Looks up a route, which may cause one to be left
  *					in the isopcb.
  *
- * NOTES:			
+ * NOTES:
  */
 int
 iso_pcbconnect(isop, nam)
@@ -283,7 +283,7 @@ iso_pcbconnect(isop, nam)
 		dump_isoaddr(siso);
 	ENDDEBUG
 	if (nam->m_len < siso->siso_len)
-		return EINVAL; 
+		return EINVAL;
 	if (siso->siso_family != AF_ISO)
 		return EAFNOSUPPORT;
 	if (siso->siso_nlen == 0) {
@@ -302,7 +302,7 @@ iso_pcbconnect(isop, nam)
 	 * particular local interface.  So, if we want to send somebody
 	 * we need to choose a return address.
 	 */
-	local_zero = 
+	local_zero =
 		((isop->isop_laddr == 0) || (isop->isop_laddr->siso_nlen == 0));
 	if (local_zero) {
 		int flags;
@@ -310,7 +310,7 @@ iso_pcbconnect(isop, nam)
 		IFDEBUG(D_ISO)
 			printf("iso_pcbconnect localzero 1\n");
 		ENDDEBUG
-		/* 
+		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
 		 */
@@ -325,7 +325,7 @@ iso_pcbconnect(isop, nam)
 		ENDDEBUG
 	}
 	IFDEBUG(D_ISO)
-		printf("in iso_pcbconnect before lookup isop 0x%x isop->sock 0x%x\n", 
+		printf("in iso_pcbconnect before lookup isop 0x%x isop->sock 0x%x\n",
 			isop, isop->isop_socket);
 	ENDDEBUG
 	if (local_zero) {
@@ -361,7 +361,7 @@ iso_pcbconnect(isop, nam)
 		siso = mtod(nam, struct sockaddr_iso *);
 	}
 	IFDEBUG(D_ISO)
-		printf("in iso_pcbconnect before bcopy isop 0x%x isop->sock 0x%x\n", 
+		printf("in iso_pcbconnect before bcopy isop 0x%x isop->sock 0x%x\n",
 			isop, isop->isop_socket);
 	ENDDEBUG
 	/*
@@ -384,7 +384,7 @@ iso_pcbconnect(isop, nam)
 	}
 	bcopy((caddr_t)siso, (caddr_t)isop->isop_faddr, siso->siso_len);
 	IFDEBUG(D_ISO)
-		printf("in iso_pcbconnect after bcopy isop 0x%x isop->sock 0x%x\n", 
+		printf("in iso_pcbconnect after bcopy isop 0x%x isop->sock 0x%x\n",
 			isop, isop->isop_socket);
 		printf("iso_pcbconnect connected to addr:\n");
 		dump_isoaddr(isop->isop_faddr);
@@ -406,7 +406,7 @@ iso_pcbconnect(isop, nam)
  *
  * SIDE EFFECTS:	May detach the pcb.
  *
- * NOTES:			
+ * NOTES:
  */
 void
 iso_pcbdisconnect(isop)
@@ -442,9 +442,9 @@ iso_pcbdisconnect(isop)
  *
  * RETURNS:			Nada.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 void
 iso_pcbdetach(isop)
@@ -453,7 +453,7 @@ iso_pcbdetach(isop)
 	struct socket *so = isop->isop_socket;
 
 	IFDEBUG(D_ISO)
-		printf("iso_pcbdetach(isop 0x%x socket 0x%x so 0x%x)\n", 
+		printf("iso_pcbdetach(isop 0x%x socket 0x%x so 0x%x)\n",
 			isop, isop->isop_socket, so);
 	ENDDEBUG
 #ifdef TPCONS
@@ -471,7 +471,7 @@ iso_pcbdetach(isop)
 #endif
 	if (so) { /* in the x.25 domain, we sometimes have no socket */
 		so->so_pcb = 0;
-		sofree(so); 
+		sofree(so);
 	}
 	IFDEBUG(D_ISO)
 		printf("iso_pcbdetach 2 \n");
@@ -490,13 +490,13 @@ iso_pcbdetach(isop)
 		struct clnp_cache *clcp =
 			mtod(isop->isop_clnpcache, struct clnp_cache *);
 		IFDEBUG(D_ISO)
-			printf("iso_pcbdetach 3.2: clcp 0x%x freeing clc_hdr x%x\n", 
+			printf("iso_pcbdetach 3.2: clcp 0x%x freeing clc_hdr x%x\n",
 				clcp, clcp->clc_hdr);
 		ENDDEBUG
 		if (clcp->clc_hdr != NULL)
 			m_free(clcp->clc_hdr);
 		IFDEBUG(D_ISO)
-			printf("iso_pcbdetach 3.3: freeing cache x%x\n", 
+			printf("iso_pcbdetach 3.3: freeing cache x%x\n",
 				isop->isop_clnpcache);
 		ENDDEBUG
 		m_free(isop->isop_clnpcache);
@@ -523,7 +523,7 @@ iso_pcbdetach(isop)
  *
  * RETURNS:			Rien.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			(notify) is called at splimp!
  */
@@ -550,7 +550,7 @@ iso_pcbnotify(head, siso, errno, notify)
 			ENDDEBUG
 			continue;
 		}
-		if (errno) 
+		if (errno)
 			isop->isop_socket->so_error = errno;
 		if (notify)
 			(*notify)(isop);
@@ -572,9 +572,9 @@ iso_pcbnotify(head, siso, errno, notify)
  * RETURNS:			ptr to the isopcb if it finds a connection matching
  *					these arguments, o.w. returns zero.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 struct isopcb *
 iso_pcblookup(head, fportlen, fport, laddr)
@@ -588,7 +588,7 @@ iso_pcblookup(head, fportlen, fport, laddr)
 	unsigned int llen = laddr->siso_tlen;
 
 	IFDEBUG(D_ISO)
-		printf("iso_pcblookup(head 0x%x laddr 0x%x fport 0x%x)\n", 
+		printf("iso_pcblookup(head 0x%x laddr 0x%x fport 0x%x)\n",
 			head, laddr, fport);
 	ENDDEBUG
 	for (isop = head->isop_next; isop != head; isop = isop->isop_next) {

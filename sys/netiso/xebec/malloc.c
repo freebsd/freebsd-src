@@ -1,15 +1,15 @@
-/* $Header: malloc.c,v 2.2 88/09/19 12:55:18 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/malloc.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/malloc.c,v 1.1.1.1 1994/05/24 10:07:48 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/malloc.c,v $ */
 /*
  * This code is such a kludge that I don't want to put my name on it.
  * It was a ridiculously fast hack and needs rewriting.
  * However it does work...
  */
 
-/* 
+/*
  * a simple malloc
  * it might be brain-damaged but for the purposes of xebec
- * it's a whole lot faster than the c library malloc 
+ * it's a whole lot faster than the c library malloc
  */
 
 #include <stdio.h>
@@ -72,7 +72,7 @@ int x;
 		if(((unsigned)(hiwat) & 0x3)) {
 			bytesmalloced = 4 - (int) ((unsigned)(hiwat) & 0x3);
 			hiwat = sbrk( bytesmalloced );
-		} else 
+		} else
 			bytesmalloced = 0;
 		firsttime = 0;
 		highend = hiwat;

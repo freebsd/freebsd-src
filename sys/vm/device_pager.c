@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.9 1995/05/10 18:56:01 davidg Exp $
+ * $Id: device_pager.c,v 1.10 1995/05/18 02:59:18 davidg Exp $
  */
 
 /*
@@ -142,7 +142,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	/*
 	 * Check that the specified range of the device allows the desired
 	 * protection.
-	 * 
+	 *
 	 * XXX assumes VM_PROT_* == PROT_*
 	 */
 	npages = atop(round_page(size));

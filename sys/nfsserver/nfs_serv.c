@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.12 1995/03/19 12:04:11 davidg Exp $
+ * $Id: nfs_serv.c,v 1.13 1995/05/29 04:01:08 davidg Exp $
  */
 
 /*
@@ -966,7 +966,7 @@ nfsrv_rename(nfsd, mrep, md, dpos, cred, nam, mrq)
 	fromnd.ni_cnd.cn_cred = cred;
 	fromnd.ni_cnd.cn_nameiop = DELETE;
 	fromnd.ni_cnd.cn_flags = WANTPARENT | SAVESTART;
-	error = nfs_namei(&fromnd, ffhp, len, nfsd->nd_slp, nam, &md, &dpos, 
+	error = nfs_namei(&fromnd, ffhp, len, nfsd->nd_slp, nam, &md, &dpos,
 		nfsd->nd_procp);
 	if(error)
 		nfsm_reply(0);
@@ -1038,7 +1038,7 @@ out:
 			vm_object_deallocate((vm_object_t) fvp->v_vmdata);
 		if (deallocobjto)
 			vm_object_deallocate((vm_object_t) tvp->v_vmdata);
-		
+
 	} else {
 		VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
 		if (tdvp == tvp)
@@ -1574,7 +1574,7 @@ again:
 			nfsm_clget;
 			*tl = txdr_unsigned(nlen);
 			bp += NFSX_UNSIGNED;
-	
+
 			/* And loop around copying the name */
 			xfer = nlen;
 			cp = dp->d_name;
@@ -1594,7 +1594,7 @@ again:
 			for (i = 0; i < rem; i++)
 				*bp++ = '\0';
 			nfsm_clget;
-	
+
 			/* Finish off the record */
 			*tl = txdr_unsigned(*cookiep);
 			bp += NFSX_UNSIGNED;
@@ -1761,7 +1761,7 @@ again:
 		if (dp->d_fileno != 0) {
 			nlen = dp->d_namlen;
 			rem = nfsm_rndup(nlen)-nlen;
-	
+
 			/*
 			 * For readdir_and_lookup get the vnode using
 			 * the file number.
@@ -1827,7 +1827,7 @@ again:
 			nfsm_clget;
 			*tl = txdr_unsigned(nlen);
 			bp += NFSX_UNSIGNED;
-	
+
 			/* And loop around copying the name */
 			xfer = nlen;
 			cp = dp->d_name;
@@ -1847,7 +1847,7 @@ again:
 			for (i = 0; i < rem; i++)
 				*bp++ = '\0';
 			nfsm_clget;
-	
+
 			/* Finish off the record */
 			*tl = txdr_unsigned(*cookiep);
 			bp += NFSX_UNSIGNED;

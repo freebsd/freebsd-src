@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.5 1995/03/16 18:13:31 bde Exp $
+ * $Id: null_vfsops.c,v 1.6 1995/03/16 20:23:39 wollman Exp $
  */
 
 /*
@@ -149,7 +149,7 @@ nullfs_mount(mp, path, data, ndp, p)
 
 	(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
+	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 #ifdef NULLFS_DIAGNOSTIC
@@ -204,7 +204,7 @@ nullfs_unmount(mp, mntflags, p)
 	 * moment, but who knows...
 	 */
 #if 0
-	mntflushbuf(mp, 0); 
+	mntflushbuf(mp, 0);
 	if (mntinvalbuf(mp, 1))
 		return (EBUSY);
 #endif
@@ -216,7 +216,7 @@ nullfs_unmount(mp, mntflags, p)
 
 #ifdef NULLFS_DIAGNOSTIC
 	vprint("alias root of lower", nullm_rootvp);
-#endif	 
+#endif
 	/*
 	 * Release reference on underlying root vnode
 	 */
@@ -327,7 +327,7 @@ nullfs_vget(mp, ino, vpp)
 	ino_t ino;
 	struct vnode **vpp;
 {
-	
+
 	return VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.19 1995/05/15 08:39:37 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.20 1995/05/19 03:26:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -103,7 +103,7 @@ ffs_mountroot()
 	struct ufsmount *ump;
 	u_int size;
 	int error;
-	
+
 	/*
 	 * Get vnode for rootdev.
 	 */
@@ -246,7 +246,7 @@ ffs_mount(mp, path, data, ndp, p)
 	bzero(fs->fs_fsmnt + size, sizeof(fs->fs_fsmnt) - size);
 	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
 	    MNAMELEN);
-	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
+	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)ffs_statfs(mp, &mp->mnt_stat, p);
@@ -706,7 +706,7 @@ loop:
 						0, 0, 0);
 			vput(vp);
 		}
-			
+
 		if ((((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)) &&
 		    vp->v_dirtyblkhd.lh_first == NULL)

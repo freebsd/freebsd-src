@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.18 1995/03/28 07:58:53 bde Exp $
+ * $Id: vm_glue.c,v 1.19 1995/04/16 12:56:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -111,7 +111,7 @@ useracc(addr, len, rw)
 	/*
 	 * XXX - check separately to disallow access to user area and user
 	 * page tables - they are in the map.
-	 * 
+	 *
 	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was once
 	 * only used (as an end address) in trap.c.  Use it as an end address
 	 * here too.  This bogusness has spread.  I just fixed where it was

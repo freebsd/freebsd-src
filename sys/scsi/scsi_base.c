@@ -2,13 +2,13 @@
  * Written By Julian ELischer
  * Copyright julian Elischer 1993.
  * Permission is granted to use or redistribute this file in any way as long
- * as this notice remains. Julian Elischer does not guarantee that this file 
- * is totally correct for any given task and users of this file must 
+ * as this notice remains. Julian Elischer does not guarantee that this file
+ * is totally correct for any given task and users of this file must
  * accept responsibility for any damage that occurs from the application of this
  * file.
- * 
+ *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.27 1995/04/14 15:10:31 dufault Exp $
+ *      $Id: scsi_base.c,v 1.28 1995/04/23 22:07:50 gibbs Exp $
  */
 
 #define SPLSD splbio
@@ -34,7 +34,7 @@ struct scsi_xfer *next_free_xs;
 
 /*
  * Get a scsi transfer structure for the caller. Charge the structure
- * to the device that is referenced by the sc_link structure. If the 
+ * to the device that is referenced by the sc_link structure. If the
  * sc_link structure has no 'credits' then the device already has the
  * maximum number or outstanding operations under way. In this stage,
  * wait on the structure so that when one is freed, we are awoken again
@@ -88,7 +88,7 @@ get_xs(sc_link, flags)
  * return the struct to the free pool and credit the device with it
  * If another process is waiting for an xs, do a wakeup, let it proceed
  */
-void 
+void
 free_xs(xs, sc_link, flags)
 	struct scsi_xfer *xs;
 	struct scsi_link *sc_link;	/* who to credit for returning it */
@@ -117,7 +117,7 @@ free_xs(xs, sc_link, flags)
 /*
  * Find out from the device what its capacity is.
  */
-u_int32 
+u_int32
 scsi_read_capacity(sc_link, blk_size, flags)
 	struct scsi_link *sc_link;
 	u_int32 *blk_size;
@@ -198,7 +198,7 @@ scsi_target_mode(sc_link, on_off)
 /*
  * Get scsi driver to send a "are you ready?" command
  */
-errval 
+errval
 scsi_test_unit_ready(sc_link, flags)
 	struct scsi_link *sc_link;
 	u_int32 flags;
@@ -222,7 +222,7 @@ scsi_test_unit_ready(sc_link, flags)
 /*
  * Do a scsi operation, asking a device to run as SCSI-II if it can.
  */
-errval 
+errval
 scsi_change_def(sc_link, flags)
 	struct scsi_link *sc_link;
 	u_int32 flags;
@@ -248,7 +248,7 @@ scsi_change_def(sc_link, flags)
  * Do a scsi operation asking a device what it is
  * Use the scsi_cmd routine in the switch table.
  */
-errval 
+errval
 scsi_inquire(sc_link, inqbuf, flags)
 	struct scsi_link *sc_link;
 	struct scsi_inquiry_data *inqbuf;
@@ -274,7 +274,7 @@ scsi_inquire(sc_link, inqbuf, flags)
 /*
  * Prevent or allow the user to remove the media
  */
-errval 
+errval
 scsi_prevent(sc_link, type, flags)
 	struct scsi_link *sc_link;
 	u_int32 type, flags;
@@ -298,7 +298,7 @@ scsi_prevent(sc_link, type, flags)
 /*
  * Get scsi driver to send a "start up" command
  */
-errval 
+errval
 scsi_start_unit(sc_link, flags)
 	struct scsi_link *sc_link;
 	u_int32 flags;
@@ -323,7 +323,7 @@ scsi_start_unit(sc_link, flags)
 /*
  * Get scsi driver to send a "stop" command
  */
-errval 
+errval
 scsi_stop_unit(sc_link, eject, flags)
 	struct scsi_link *sc_link;
 	u_int32 eject;
@@ -351,7 +351,7 @@ scsi_stop_unit(sc_link, eject, flags)
 /*
  * This routine is called by the scsi interrupt when the transfer is complete.
  */
-void 
+void
 scsi_done(xs)
 	struct scsi_xfer *xs;
 {
@@ -395,7 +395,7 @@ scsi_done(xs)
 		}
 		/* XXX: This isn't used anywhere. Do you have plans for it,
 		 * Julian? (dufault@hda.com).
-		 * This allows a private 'done' handler to 
+		 * This allows a private 'done' handler to
 		 * resubmit the command if it wants to retry,
 		 * In this case the xs must NOT be freed. (julian)
 		 */
@@ -435,7 +435,7 @@ scsi_done(xs)
  * long the data is supposed to be. If we have  a buf
  * to associate with the transfer, we need that too.
  */
-errval 
+errval
 scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
     retries, timeout, bp, flags)
 	struct scsi_link *sc_link;
@@ -502,7 +502,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 #ifdef BOUNCE_BUFFERS
 		xs->data = (caddr_t) vm_bounce_kva_alloc( (datalen + PAGE_SIZE - 1)/PAGE_SIZE);
 #else
-		xs->data = malloc(datalen, M_TEMP, M_WAITOK); 
+		xs->data = malloc(datalen, M_TEMP, M_WAITOK);
 #endif
 		/* I think waiting is ok *//*XXX */
 		switch ((int)(flags & (SCSI_DATA_IN | SCSI_DATA_OUT))) {
@@ -533,12 +533,12 @@ retry:
 	 * Do the transfer. If we are polling we will return:
 	 * COMPLETE,  Was poll, and scsi_done has been called
 	 * TRY_AGAIN_LATER, Adapter short resources, try again
-	 * 
+	 *
 	 * if under full steam (interrupts) it will return:
 	 * SUCCESSFULLY_QUEUED, will do a wakeup when complete
 	 * TRY_AGAIN_LATER, (as for polling)
 	 * After the wakeup, we must still check if it succeeded
-	 * 
+	 *
 	 * If we have a bp however, all the error proccessing
 	 * and the buffer code both expect us to return straight
 	 * to them, so as soon as the command is queued, return
@@ -710,13 +710,13 @@ errval scsi_retry(xs,delay)
 
 /*
  * handle checking for errors..
- * called at interrupt time from scsi_done() and 
+ * called at interrupt time from scsi_done() and
  * at user time from scsi_scsi_cmd(), depending on whether
  * there was a bp  (basically, if there is a bp, there may be no
  * associated process at the time. (it could be an async operation))
  * lower level routines shouldn't know about xs->bp.. we are the lowest.
  */
-static errval 
+static errval
 sc_err1(xs)
 	struct scsi_xfer *xs;
 {
@@ -870,12 +870,12 @@ void scsi_sense_print(xs)
 
 			printf(" %s", desc);
 		}
-			
+
 		if (ext->extra_len >= 7 && ext->fru) {
 			printf(" field replaceable unit: %x", ext->fru);
 		}
 
-		if (ext->extra_len >= 10 && 
+		if (ext->extra_len >= 10 &&
 		(ext->sense_key_spec_1 & SSD_SCS_VALID)) {
 			printf(" sks:%x,%x", ext->sense_key_spec_1,
 			(ext->sense_key_spec_2 |
@@ -907,7 +907,7 @@ void scsi_sense_print(xs)
  *
  * THIS IS THE DEFAULT SENSE HANDLER
  */
-static errval 
+static errval
 scsi_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
@@ -1083,7 +1083,7 @@ scsi_interpret_sense(xs)
  */
 
 /*
- * convert a physical address to 3 bytes, 
+ * convert a physical address to 3 bytes,
  * MSB at the lowest address,
  * LSB at the highest.
  */

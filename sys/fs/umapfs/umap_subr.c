@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.6 (Berkeley) 1/26/94
  *
- * $Id: umap_subr.c,v 1.2 1994/05/25 09:09:07 rgrimes Exp $
+ * $Id: umap_subr.c,v 1.3 1994/10/10 07:55:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -387,7 +387,7 @@ umap_mapids(v_mount, credp)
 		credp->cr_gid = NULLGROUP;
 #endif
 
-	/* Now we must map each of the set of groups in the cr_groups 
+	/* Now we must map each of the set of groups in the cr_groups
 		structure. */
 
 	i = 0;

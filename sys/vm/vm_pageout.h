@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.10 1995/03/16 18:17:30 bde Exp $
+ * $Id: vm_pageout.h,v 1.11 1995/04/09 06:03:55 davidg Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -103,7 +103,7 @@ pagedaemon_wakeup()
 
 #define VM_WAIT vm_wait()
 
-static inline void 
+static inline void
 vm_wait()
 {
 	int s;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.18 1995/04/02 00:11:48 bde Exp $
+ * $Id: if_sl.c,v 1.19 1995/04/28 18:47:28 ache Exp $
  */
 
 /*
@@ -60,7 +60,7 @@
  * pinging you can use up all your bandwidth).  Made low clist behavior
  * more robust and slightly less likely to hang serial line.
  * Sped up a bunch of things.
- * 
+ *
  * Note that splimp() is used throughout to block both (tty) input
  * interrupts and network activity; thus, splimp must be >= spltty.
  */

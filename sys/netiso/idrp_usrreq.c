@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idrp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: idrp_usrreq.c,v 1.2 1994/08/02 07:50:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ idrp_init()
  * FUNCTION and ARGUMENTS:
  * Take a packet (m) from clnp, strip off the clnp header
  * and mke suitable for the idrp socket.
- * No return value.  
+ * No return value.
  */
 idrp_input(m, src, dst)
 	register struct mbuf *m;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ipc.c,v 1.3 1994/10/12 19:38:03 sos Exp $
+ *	$Id: ibcs2_ipc.c,v 1.1 1994/10/14 08:53:04 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -37,7 +37,7 @@
 int
 ibcs2_msgsys(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'msgsys'\n");
 #ifdef SYSVMSG
 	return msgsys(p, args, retval);
@@ -50,7 +50,7 @@ ibcs2_msgsys(struct proc *p, void *args, int *retval)
 int
 ibcs2_semsys(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'semsys'\n");
 #ifdef SYSVSEM
 	return semsys(p, args, retval);
@@ -63,7 +63,7 @@ ibcs2_semsys(struct proc *p, void *args, int *retval)
 int
 ibcs2_shmsys(struct proc *p, void *args, int *retval)
 {
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
+	if (ibcs2_trace & IBCS2_TRACE_MISC)
 		printf("IBCS2: 'shmsys'\n");
 #ifdef SYSVSHM
 	return shmsys(p, args, retval);

@@ -35,7 +35,7 @@
  *
  *	@(#)umap.h	8.3 (Berkeley) 1/21/94
  *
- * $Id$
+ * $Id: umap.h,v 1.2 1994/08/02 07:45:33 davidg Exp $
  */
 
 #define MAPFILEENTRIES 64
@@ -56,9 +56,9 @@ struct umap_mount {
 	struct vnode	*umapm_rootvp;	/* Reference to root umap_node */
 	int             info_nentries;  /* number of uid mappings */
 	int		info_gnentries;	/* number of gid mappings */
-	u_long		info_mapdata[MAPFILEENTRIES][2]; /* mapping data for 
+	u_long		info_mapdata[MAPFILEENTRIES][2]; /* mapping data for
 	    user mapping in ficus */
-	u_long		info_gmapdata[GMAPFILEENTRIES][2]; /*mapping data for 
+	u_long		info_gmapdata[GMAPFILEENTRIES][2]; /*mapping data for
 	    group mapping in ficus */
 };
 

@@ -1,4 +1,4 @@
-/* 
+/*
  * sctarg: Processor Type driver.
  *
  * Copyright (C) 1995, HD Associates, Inc.
@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.1 1995/04/14 15:10:41 dufault Exp $
+ *      $Id: sctarg.c,v 1.2 1995/05/03 18:09:15 dufault Exp $
  */
 
 /*
@@ -156,7 +156,7 @@ struct scsi_link *sc_link)
  * continues to be drained.
  * sctargstart() is called at splbio
  */
-void 
+void
 sctargstart(unit)
 	u_int32	unit;
 {
@@ -228,7 +228,7 @@ sctargstart(unit)
 	} /* go back and see if we can cram more work in.. */
 }
 
-void 
+void
 sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
@@ -241,9 +241,9 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 
 	opri = splbio();
 
-	/*      
+	/*
 	 * Use a bounce buffer if necessary
-	 */      
+	 */
 #ifdef BOUNCE_BUFFERS
 	if (sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);

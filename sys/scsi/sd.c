@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.63 1995/05/03 18:09:17 dufault Exp $
+ *      $Id: sd.c,v 1.64 1995/05/08 16:53:33 bde Exp $
  */
 
 #define SPLSD splbio
@@ -117,7 +117,7 @@ struct scsi_device sd_switch =
 static struct scsi_xfer sx;
 
 static int
-sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 	       size_t len)
 {
 	return scsi_externalize(SCSI_LINK(&sd_switch, kdc->kdc_unit),
@@ -158,7 +158,7 @@ sd_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-errval 
+errval
 sdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -170,7 +170,7 @@ sdattach(struct scsi_link *sc_link)
 
 	dp = &(sd->params);
 
-	if (sc_link->opennings > SDOUTSTANDING) 
+	if (sc_link->opennings > SDOUTSTANDING)
 		sc_link->opennings = SDOUTSTANDING;
 	/*
 	 * Use the subdriver to request information regarding
@@ -237,7 +237,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 		dev, unit, PARTITION(dev)));
 
 	/*
-	 * "unit attention" errors should occur here if the 
+	 * "unit attention" errors should occur here if the
 	 * drive has been restarted or the pack changed.
 	 * just ingnore the result, it's a decoy instruction
 	 * The error code will act on the error though
@@ -280,7 +280,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	SC_DEBUG(sc_link, SDEV_DB3, ("device ok\n"));
 
 	/*
-	 * Load the physical device parameters 
+	 * Load the physical device parameters
 	 */
 	sd_get_parms(unit, 0);	/* sets SDEV_MEDIA_LOADED */
 	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
@@ -330,7 +330,7 @@ bad:
  * close the device.. only called if we are the LAST occurence of an open
  * device.  Convenient now but usually a pain.
  */
-errval 
+errval
 sd_close(dev, fflag, fmt, p, sc_link)
 	dev_t	dev;
 	int	fflag;
@@ -389,9 +389,9 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	opri = SPLSD();
 	dp = &sd->buf_queue;
 
-	/*      
+	/*
 	 * Use a bounce buffer if necessary
-	 */      
+	 */
 #ifdef BOUNCE_BUFFERS
 	if (sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
@@ -448,7 +448,7 @@ sdstrategy1(struct buf *bp)
  * must be called at the correct (highish) spl level
  * sdstart() is called at SPLSD  from sdstrategy and scsi_done
  */
-void 
+void
 sdstart(u_int32 unit, u_int32 flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
@@ -465,7 +465,7 @@ sdstart(u_int32 unit, u_int32 flags)
 	while (sc_link->opennings) {
 
 		/*
-		 * there is excess capacity, but a special waits 
+		 * there is excess capacity, but a special waits
 		 * It'll need the adapter as soon as we clear out of the
 		 * way and let it run (user level wait).
 		 */
@@ -547,7 +547,7 @@ bad:
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-errval 
+errval
 sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
@@ -587,7 +587,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 /*
  * Find out from the device what it's capacity is
  */
-u_int32 
+u_int32
 sd_size(unit, flags)
 	int	unit, flags;
 {
@@ -630,7 +630,7 @@ sd_size(unit, flags)
 /*
  * Tell the device to map out a defective block
  */
-errval 
+errval
 sd_reassign_blocks(unit, block)
 	int	unit, block;
 {
@@ -663,10 +663,10 @@ sd_reassign_blocks(unit, block)
 
 /*
  * Get the scsi driver to send a full inquiry to the
- * device and use the results to fill out the disk 
+ * device and use the results to fill out the disk
  * parameter structure.
  */
-errval 
+errval
 sd_get_parms(unit, flags)
 	int	unit, flags;
 {
@@ -734,7 +734,7 @@ sd_get_parms(unit, flags)
 		/*
 		 * KLUDGE!!(for zone recorded disks)
 		 * give a number of sectors so that sec * trks * cyls
-		 * is <= disk_size 
+		 * is <= disk_size
 		 * can lead to wasted space! THINK ABOUT THIS !
 		 */
 		disk_parms->heads = scsi_sense.pages.rigid_geometry.nheads;
@@ -780,7 +780,7 @@ sdsize(dev_t dev)
  * This will issue a retry when the device returns a
  * non-media hardware failure.  The CDC-WREN IV does this
  * when you access it during thermal calibrarion, so the drive
- * is pretty useless without this.  
+ * is pretty useless without this.
  *
  * In general, you probably almost always would like to issue a retry
  * for your disk I/O.  It can't hurt too much (the caller only retries
@@ -910,7 +910,7 @@ sddump(dev_t dev)
 		/*
 		 * Fill out the scsi_xfer structure
 		 *    Note: we cannot sleep as we may be an interrupt
-		 * don't use scsi_scsi_cmd() as it may want 
+		 * don't use scsi_scsi_cmd() as it may want
 		 * to wait for an xs.
 		 */
 		bzero(xs, sizeof(sx));

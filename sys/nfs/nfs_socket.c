@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.5 1994/10/17 17:47:35 phk Exp $
+ * $Id: nfs_socket.c,v 1.6 1995/03/16 18:15:37 bde Exp $
  */
 
 /*
@@ -226,7 +226,7 @@ nfs_connect(nmp, rep)
 
 	nmp->nm_so = (struct socket *)0;
 	saddr = mtod(nmp->nm_nam, struct sockaddr *);
-	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype, 
+	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
 		nmp->nm_soproto);
 	if (error)
 		goto bad;
@@ -529,7 +529,7 @@ tryagain:
 		}
 		so = rep->r_nmp->nm_so;
 		if (!so) {
-			error = nfs_reconnect(rep); 
+			error = nfs_reconnect(rep);
 			if (error) {
 				nfs_sndunlock(&rep->r_nmp->nm_flag);
 				return (error);
@@ -739,7 +739,7 @@ nfs_reply(myrep)
 		}
 		if (nam)
 			m_freem(nam);
-	
+
 		/*
 		 * Get the xid and check that it is an rpc reply
 		 */
@@ -1493,7 +1493,7 @@ nfs_realign(m, hsiz)
 		tcp = mtod(m, caddr_t);
 		mnew = m;
 		m2 = m->m_next;
-	
+
 		/*
 		 * If possible, only put the first invariant part
 		 * of the RPC header in the first mbuf.
@@ -1501,7 +1501,7 @@ nfs_realign(m, hsiz)
 		mlen = M_TRAILINGSPACE(m);
 		if (olen <= hsiz && mlen > hsiz)
 			mlen = hsiz;
-	
+
 		/*
 		 * Loop through the mbuf list consolidating data.
 		 */
@@ -1534,7 +1534,7 @@ nfs_realign(m, hsiz)
 				fcp = mtod(m, caddr_t);
 			}
 		}
-	
+
 		/*
 		 * Finally, set m_len == 0 for any trailing mbufs that have
 		 * been copied out of.

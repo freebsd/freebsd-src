@@ -1,13 +1,13 @@
 /*
  * Generic driver for the aic7xxx based adaptec SCSI controllers
- * Copyright (c) 1994, 1995 Justin T. Gibbs.  
+ * Copyright (c) 1994, 1995 Justin T. Gibbs.
  * All rights reserved.
  *
  * Product specific probe and attach routines can be found in:
  * i386/isa/aic7770.c	27/284X and aic7770 motherboard controllers
  * /pci/aic7870.c	294x and aic7870 motherboard controllers
  *
- * Portions of this driver are based on the FreeBSD 1742 Driver: 
+ * Portions of this driver are based on the FreeBSD 1742 Driver:
  *
  * Written by Julian Elischer (julian@tfs.com)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.26 1995/05/11 19:26:26 rgrimes Exp $
+ *      $Id: aic7xxx.c,v 1.27 1995/05/17 07:06:00 davidg Exp $
  */
 /*
  * TODO:
@@ -33,7 +33,7 @@
  *
  *	This driver is very stable, and seems to offer performance
  *	comprable to the 1742 FreeBSD driver.  I have not experienced
- *	any timeouts since the timeout code was written, so in that 
+ *	any timeouts since the timeout code was written, so in that
  *	sense, it is untested.
  */
 
@@ -49,7 +49,7 @@
 #include <machine/clock.h>
 #include <i386/scsi/aic7xxx.h>
 
-#define PAGESIZ 4096  
+#define PAGESIZ 4096
 
 #define MAX_TAGS 4;
 
@@ -61,7 +61,7 @@
 struct ahc_data *ahcdata[NAHC];
 
 int     ahc_init __P((int unit));
-void    ahc_loadseq __P((u_long iobase));     
+void    ahc_loadseq __P((u_long iobase));
 int32   ahc_scsi_cmd();
 timeout_t ahc_timeout;
 void    ahc_done();
@@ -87,7 +87,7 @@ int     ahc_debug = AHC_SHOWMISC;
 #define HWSCSIID	0x0f		/* our SCSI ID if Wide Bus */
 
 struct scsi_adapter ahc_switch =
-{       
+{
         ahc_scsi_cmd,
         ahcminphys,
         0,
@@ -95,8 +95,8 @@ struct scsi_adapter ahc_switch =
         ahc_adapter_info,
         "ahc",
         { 0, 0 }
-};      
-        
+};
+
 /* the below structure is so we have a default dev struct for our link struct */
 struct scsi_device ahc_dev =
 {
@@ -105,24 +105,24 @@ struct scsi_device ahc_dev =
     NULL,                       /* have no async handler */
     NULL,                       /* Use default 'done' routine */
     "ahc",
-    0,  
+    0,
     { 0, 0 }
 };
 
 
 /*
  * All of these should be in a separate header file shared by the sequencer
- * code and the kernel level driver.  The only catch is that we would need to 
- * add an additional 0xc00 offset when using them in the kernel driver.  The 
- * aic7770 assembler must be modified to allow include files as well.  All 
- * page numbers refer to the Adaptec AIC-7770 Data Book availible from 
+ * code and the kernel level driver.  The only catch is that we would need to
+ * add an additional 0xc00 offset when using them in the kernel driver.  The
+ * aic7770 assembler must be modified to allow include files as well.  All
+ * page numbers refer to the Adaptec AIC-7770 Data Book availible from
  * Adaptec's Technical Documents Department 1-800-934-2766
  */
 
 /* -------------------- AIC-7770 offset definitions ----------------------- */
 
-/* 
- * SCSI Sequence Control (p. 3-11).  
+/*
+ * SCSI Sequence Control (p. 3-11).
  * Each bit, when set starts a specific SCSI sequence on the bus
  */
 #define SCSISEQ			0xc00ul
@@ -164,7 +164,7 @@ struct scsi_device ahc_dev =
 #define		ENREQINIT	0x01
 
 /*
- * SCSI Control Signal Read Register (p. 3-15). 
+ * SCSI Control Signal Read Register (p. 3-15).
  * Reads the actual state of the SCSI bus pins
  */
 #define SCSISIGI		0xc03ul
@@ -178,8 +178,8 @@ struct scsi_device ahc_dev =
 #define		ACKI		0x01
 
 /*
- * SCSI Contol Signal Write Register (p. 3-16). 
- * Writing to this register modifies the control signals on the bus.  Only 
+ * SCSI Contol Signal Write Register (p. 3-16).
+ * Writing to this register modifies the control signals on the bus.  Only
  * those signals that are allowed in the current mode (Initiator/Target) are
  * asserted.
  */
@@ -223,7 +223,7 @@ struct scsi_device ahc_dev =
 /*
  * Clear SCSI Interrupt 1 (p. 3-23)
  * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT1.
- */ 
+ */
 #define CLRSINT1		0xc0cul
 #define		CLRSELTIMEO	0x80
 #define		CLRATNO		0x40
@@ -271,7 +271,7 @@ struct scsi_device ahc_dev =
 /*  UNUSED			0x10 */
 #define		SELBUSB		0x08
 /*  UNUSED			0x04 */
-#define		SELWIDE		0x02 
+#define		SELWIDE		0x02
 /*  UNUSED			0x01 */
 
 /*
@@ -298,7 +298,7 @@ struct scsi_device ahc_dev =
 #define SEQRAM			0xc61ul
 
 /*
- * Sequencer Address Registers (p. 3-35) 
+ * Sequencer Address Registers (p. 3-35)
  * Only the first bit of SEQADDR1 holds addressing information
  */
 #define SEQADDR0		0xc62ul
@@ -324,7 +324,7 @@ struct scsi_device ahc_dev =
 
 /*
  * Host Control (p. 3-47) R/W
- * Overal host control of the device.  
+ * Overal host control of the device.
  */
 #define HCNTRL			0xc87ul
 /*    UNUSED			0x80 */
@@ -367,7 +367,7 @@ struct scsi_device ahc_dev =
 
 /*
  * Hard Error (p. 3-53)
- * Reporting of catastrophic errors.  You usually cannot recover from 
+ * Reporting of catastrophic errors.  You usually cannot recover from
  * these without a full board reset.
  */
 #define ERROR			0xc92ul
@@ -388,7 +388,7 @@ struct scsi_device ahc_dev =
 
 /*
  * SCB Auto Increment (p. 3-59)
- * Byte offset into the SCB Array and an optional bit to allow auto 
+ * Byte offset into the SCB Array and an optional bit to allow auto
  * incrementing of the address during download and upload operations
  */
 #define SCBCNT			0xc9aul
@@ -424,7 +424,7 @@ struct scsi_device ahc_dev =
 /* ---------------- END AIC-7770 Register Definitions ----------------- */
 
 /* --------------------- AIC-7870-only definitions -------------------- */
-        
+
 #define DSPCISTATUS		0xc86ul
 
 /* ---------------------- Scratch RAM Offsets ------------------------- */
@@ -462,7 +462,7 @@ struct scsi_device ahc_dev =
 
 /*
  * These are offsets into the card's scratch ram.  Some of the values are
- * specified in the AHA2742 technical reference manual and are initialized 
+ * specified in the AHA2742 technical reference manual and are initialized
  * by the BIOS at boot time.
  */
 #define HA_ARG_1		0xc4aul
@@ -501,17 +501,17 @@ struct scsi_device ahc_dev =
 
 /*
  * Since the sequencer can disable pausing in a critical section, we
- * must loop until it actually stops. 
+ * must loop until it actually stops.
  * XXX Should add a timeout in here??
- */     
+ */
 #define PAUSE_SEQUENCER(ahc)      \
         outb(HCNTRL + ahc->baseport, ahc->pause);   \
 				\
         while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
-                        ;                                               
+                        ;
 
 #define UNPAUSE_SEQUENCER(ahc)    \
-        outb( HCNTRL + ahc->baseport, ahc->unpause ) 
+        outb( HCNTRL + ahc->baseport, ahc->unpause )
 
 /*
  * Restart the sequencer program from address zero
@@ -522,7 +522,7 @@ struct scsi_device ahc_dev =
                 } while (inb(SEQADDR0 + ahc->baseport) != 0 &&   \
 			 inb(SEQADDR1 + ahc->baseport != 0));     \
                                                         \
-                UNPAUSE_SEQUENCER(ahc);                   
+                UNPAUSE_SEQUENCER(ahc);
 
 #ifdef  AHC_DEBUG
 void
@@ -534,11 +534,11 @@ ahc_print_scb(scb)
 	    ,scb->control
 	    ,scb->target_channel_lun
             ,scb->cmdlen
-            ,scb->cmdpointer );    
+            ,scb->cmdpointer );
         printf("        datlen:%d data:0x%x res:0x%x segs:0x%x segp:0x%x\n"
             ,scb->datalen[2] << 16 | scb->datalen[1] << 8 | scb->datalen[0]
             ,scb->data
-	    ,scb->RESERVED[1] << 8 | scb->RESERVED[0] 
+	    ,scb->RESERVED[1] << 8 | scb->RESERVED[0]
             ,scb->SG_segment_count
             ,scb->SG_list_pointer);
 	printf("	sg_addr:%x sg_len:%d\n"
@@ -548,8 +548,8 @@ ahc_print_scb(scb)
 	    ,(int)&(scb->next) - (int)scb);
 }
 
-void                  
-ahc_print_active_scb(ahc)      
+void
+ahc_print_active_scb(ahc)
         struct ahc_data *ahc;
 {
 	int cur_scb_offset;
@@ -568,14 +568,14 @@ ahc_print_active_scb(ahc)
 #define         ILLHADDR        0x01
 
 static struct {
-        u_char errno;            
+        u_char errno;
 	char *errmesg;
 } hard_error[] = {
 	{ ILLHADDR,  "Illegal Host Access" },
 	{ ILLSADDR,  "Illegal Sequencer Address referrenced" },
 	{ ILLOPCODE, "Illegal Opcode in sequencer program" },
 	{ PARERR,    "Sequencer Ram Parity Error" }
-};      
+};
 
 
 /*
@@ -670,11 +670,11 @@ void ahc_scsirate(scsirate, period, offset, unit, target )
         int i;
 
         for (i = 0; i < ahc_num_syncrates; i++) {
-   
+
                 if ((ahc_syncrates[i].period - period) >= 0) {
                         *scsirate = (ahc_syncrates[i].sxfr) | (offset & 0x0f);
 		        printf("ahc%d: target %d synchronous at %sMB/s, "
-			       "offset = 0x%x\n", unit, target, 
+			       "offset = 0x%x\n", unit, target,
 				ahc_syncrates[i].rate, offset );
 #ifdef AHC_DEBUG
 #endif /* AHC_DEBUG */
@@ -693,12 +693,12 @@ void ahc_scsirate(scsirate, period, offset, unit, target )
 
 /*
  * Attach all the sub-devices we can find
- */     
+ */
 int
 ahc_attach(unit)
 	int unit;
 {
-        struct ahc_data *ahc = ahcdata[unit]; 
+        struct ahc_data *ahc = ahcdata[unit];
 
         /*
          * fill in the prototype scsi_link.
@@ -713,66 +713,66 @@ ahc_attach(unit)
 
         /*
          * ask the adapter what subunits are present
-         */     
+         */
 	printf("ahc%d: Probing channel A\n", unit);
-        scsi_attachdevs(&(ahc->sc_link)); 
+        scsi_attachdevs(&(ahc->sc_link));
 	if(ahc->type & AHC_TWIN) {
 		/* Configure the second scsi bus */
 		ahc->sc_link_b = ahc->sc_link;
 		ahc->sc_link_b.fordriver = (void *)0x0008;
 		printf("ahc%d: Probing Channel B\n", unit);
-		scsi_attachdevs(&(ahc->sc_link_b));		
-	}	
+		scsi_attachdevs(&(ahc->sc_link_b));
+	}
         return 1;
 }
 
-void 
+void
 ahc_send_scb( ahc, scb )
         struct ahc_data *ahc;
         struct scb *scb;
-{               
+{
         u_long iobase = ahc->baseport;
-         
+
         PAUSE_SEQUENCER(ahc);
 		outb(QINFIFO + iobase, scb->position);
         UNPAUSE_SEQUENCER(ahc);
 }
 
-static  
+static
 void ahc_getscb(iobase, scb)
 	u_long iobase;
 	struct scb *scb;
-{             
+{
         outb(SCBCNT + iobase, 0x80);     /* SCBAUTO */
-                
+
 	insb(SCBARRAY + iobase, scb, SCB_UP_SIZE);
-                        
+
         outb(SCBCNT + iobase, 0);
 }
 
-/*              
+/*
  * Catch an interrupt from the adaptor
- */     
+ */
 int
 ahcintr(unit)
 	int	unit;
 {
 	int     intstat;
 	u_char	status;
-        struct ahc_data *ahc = ahcdata[unit]; 
+        struct ahc_data *ahc = ahcdata[unit];
         u_long	iobase = ahc->baseport;
 	struct scb *scb = NULL;
-	struct scsi_xfer *xs = NULL; 
+	struct scsi_xfer *xs = NULL;
 
         intstat = inb(INTSTAT + iobase);
- 
+
 	/*
 	 * Is this interrupt for me? or for
 	 * someone who is sharing my interrupt
 	 */
 	if (!(intstat & INT_PEND))
 		return 0;
-        if (intstat & BRKADRINT) { 
+        if (intstat & BRKADRINT) {
 		/* We upset the sequencer :-( */
 
 		/* Lookup the error message */
@@ -781,30 +781,30 @@ ahcintr(unit)
 		for(i = 0; error != 1 && i < num_errors; i++)
 			error >>= 1;
                 panic("ahc%d: brkadrint, %s at seqaddr = 0x%x\n",
-		      unit, hard_error[i].errmesg, 
-		      (inb(SEQADDR1 + iobase) << 8) | 
+		      unit, hard_error[i].errmesg,
+		      (inb(SEQADDR1 + iobase) << 8) |
 		      inb(SEQADDR0 + iobase));
         }
-        if (intstat & SEQINT) { 
+        if (intstat & SEQINT) {
                 unsigned char transfer;
 
                 switch (intstat & SEQINT_MASK) {
                     case BAD_PHASE:
                         panic("ahc%d: unknown scsi bus phase.  "
-			      "Attempting to continue\n", unit);  
-                        break; 
-                    case SEND_REJECT: 
-                        printf("ahc%d: Warning - " 
+			      "Attempting to continue\n", unit);
+                        break;
+                    case SEND_REJECT:
+                        printf("ahc%d: Warning - "
                               "message reject, message type: 0x%x\n", unit,
                               inb(HA_REJBYTE + iobase));
-                        break; 
-                    case NO_IDENT: 
+                        break;
+                    case NO_IDENT:
                         panic("ahc%d: No IDENTIFY message from reconnecting "
 			      "target %d at seqaddr = 0x%lx "
 			      "SAVED_TCL == 0x%x\n",
                               unit, (inb(SELID + iobase) >> 4) & 0xf,
-			      (inb(SEQADDR1 + iobase) << 8) | 
-			      inb(SEQADDR0 + iobase), 
+			      (inb(SEQADDR1 + iobase) << 8) |
+			      inb(SEQADDR0 + iobase),
 			      inb(SAVED_TCL + iobase));
 			break;
                     case NO_MATCH:
@@ -819,7 +819,7 @@ ahcintr(unit)
 				printf("SAVED_TCL == 0x%x\n",
 					inb(SAVED_TCL + iobase));
 				if( tcl & 0x88 ) {
-					/* Second channel stores its info 
+					/* Second channel stores its info
 					 * in byte two of HA_ACTIVE
 					 */
 					active_port++;
@@ -836,11 +836,11 @@ ahcintr(unit)
 			{
 				u_char scsi_id, offset, rate, targ_scratch;
 				u_char maxoffset, mask;
-	                        /* 
-				 * Help the sequencer to translate the 
-				 * negotiated transfer rate.  Transfer is 
-				 * 1/4 the period in ns as is returned by 
-				 * the sync negotiation message.  So, we must 
+	                        /*
+				 * Help the sequencer to translate the
+				 * negotiated transfer rate.  Transfer is
+				 * 1/4 the period in ns as is returned by
+				 * the sync negotiation message.  So, we must
 				 * multiply by four
 				 */
 	                        transfer = inb(HA_ARG_1 + iobase) << 2;
@@ -851,24 +851,24 @@ ahcintr(unit)
 					/* B channel */
 					scsi_id += 8;
 				mask = (0x01 << scsi_id);
-				targ_scratch = inb(HA_TARG_SCRATCH + iobase 
+				targ_scratch = inb(HA_TARG_SCRATCH + iobase
 						   + scsi_id);
 				if(targ_scratch & 0x80)
 					maxoffset = 0x08;
 				else
 					maxoffset = 0x0f;
-				ahc_scsirate(&rate, transfer, 
+				ahc_scsirate(&rate, transfer,
 					MIN(offset,maxoffset), unit, scsi_id);
 				/* Preserve the WideXfer flag */
-				rate |= targ_scratch & 0x80;	
+				rate |= targ_scratch & 0x80;
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, rate);
-				outb(SCSIRATE + iobase, rate); 
-				if( (rate & 0x0f) == 0 ) 
+				outb(SCSIRATE + iobase, rate);
+				if( (rate & 0x0f) == 0 )
 				{
 					/*
 					 * The requested rate was so low
 					 * that asyncronous transfers are
-					 * faster (not to mention the 
+					 * faster (not to mention the
 					 * controller won't support them),
 					 * so we issue a message reject to
 					 * ensure we go to asyncronous
@@ -895,7 +895,7 @@ ahcintr(unit)
 #endif
 					outb(HA_RETURN_1 + iobase, SEND_SDTR);
 				}
-				/* 
+				/*
 				 * Negate the flags
 				 */
 				ahc->needsdtr &= ~mask;
@@ -913,13 +913,13 @@ ahcintr(unit)
 					/* B channel */
 					scsi_id += 8;
 
-				scratch = inb(HA_TARG_SCRATCH + iobase 
+				scratch = inb(HA_TARG_SCRATCH + iobase
 					      + scsi_id);
 
 				if(ahc->wdtrpending & (0x01 << scsi_id))
 				{
-					/* 
-					 * Don't send a WDTR back to the 
+					/*
+					 * Don't send a WDTR back to the
 					 * target, since we asked first.
 					 */
 					outb(HA_RETURN_1 + iobase, 0);
@@ -933,7 +933,7 @@ ahcintr(unit)
 							       "%d using 16Bit "
 							       "transfers\n",
 								unit, scsi_id);
-							scratch |= 0x80;	
+							scratch |= 0x80;
 							break;
 					}
 				}
@@ -955,27 +955,27 @@ ahcintr(unit)
 							       "%d using 16Bit "
 							       "transfers\n",
 								unit, scsi_id);
-							scratch |= 0x80;	
+							scratch |= 0x80;
 							break;
 					}
-					outb(HA_RETURN_1 + iobase, 
+					outb(HA_RETURN_1 + iobase,
 						bus_width | SEND_WDTR);
 				}
 				ahc->needwdtr &= ~(0x01 << scsi_id);
 				ahc->wdtrpending &= ~(0x01 << scsi_id);
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, scratch);
-				outb(SCSIRATE + iobase, scratch); 
+				outb(SCSIRATE + iobase, scratch);
 	                        break;
 			}
 		    case MSG_REJECT:
 			{
-				/* 
+				/*
 				 * What we care about here is if we had an
 				 * outstanding SDTR or WDTR message for this
 				 * target.  If we did, this is a signal that
 				 * the target is refusing negotiation.
 				 */
-				
+
 				u_char targ_scratch;
 				u_char scsi_id = inb(SCSIID + iobase) >> 0x4;
 				u_short mask;
@@ -1024,10 +1024,10 @@ ahcintr(unit)
 				outb(SCSIRATE + iobase, targ_scratch);
 				break;
 			}
-                    case BAD_STATUS:   
+                    case BAD_STATUS:
 			{
 			  int	scb_index;
-			
+
                           /* The sequencer will notify us when a command
                            * has an error that would be of interest to
                            * the kernel.  This allows us to leave the sequencer
@@ -1039,15 +1039,15 @@ ahcintr(unit)
                           scb = ahc->scbarray[scb_index];
 
 			  /*
-			   * Set the default return value to 0 (don't 
+			   * Set the default return value to 0 (don't
 			   * send sense).  The sense code with change
-			   * this if needed and this reduces code 
+			   * this if needed and this reduces code
 			   * duplication.
 			   */
 			  outb(HA_RETURN_1 + iobase, 0);
 		 	  if (!scb || !(scb->flags & SCB_ACTIVE)) {
                               printf("ahc%d: ahcintr - referenced scb not "
-				     "valid during seqint 0x%x scb(%d)\n", 
+				     "valid during seqint 0x%x scb(%d)\n",
 				     unit, intstat, scb_index);
 			      goto clear;
 			  }
@@ -1076,7 +1076,7 @@ ahcintr(unit)
 					,xs->sc_link->dev_unit);
 #endif
 
-				if((xs->error == XS_NOERROR) && 
+				if((xs->error == XS_NOERROR) &&
 				    !(scb->flags & SCB_SENSE)) {
 					u_char flags;
 					u_char head;
@@ -1123,7 +1123,7 @@ ahcintr(unit)
 					tail = inb(WAITING_SCBT + iobase);
 					if(head & SCB_LIST_NULL) {
 						/* List was empty */
-						head = scb->position;	
+						head = scb->position;
 						tail = SCB_LIST_NULL;
 					}
 					else if(tail & SCB_LIST_NULL) {
@@ -1190,7 +1190,7 @@ ahcintr(unit)
 					     (inb(iobase+SCBARRAY+16) << 8) |
 					      inb(iobase+SCBARRAY+15);
 #ifdef AHC_DEBUG
-			printf("ahc: Handled Residual\n"); 
+			printf("ahc: Handled Residual\n");
 #endif
 			break;
 		  }
@@ -1200,10 +1200,10 @@ ahcintr(unit)
 			scb_index = inb(SCBPTR + iobase);
 			scb = ahc->scbarray[scb_index];
 			/*
-			 * We didn't recieve a valid tag back from 
+			 * We didn't recieve a valid tag back from
 			 * the target on a reconnect.
 			 */
-			printf("ahc%d: invalid tag recieved on channel %c "  
+			printf("ahc%d: invalid tag recieved on channel %c "
 			       "target %d, lun %d -- sending ABORT_TAG\n",
 			       unit,
 			       ((u_long)xs->sc_link->fordriver & 0x08)? 'B':'A',
@@ -1236,29 +1236,29 @@ ahcintr(unit)
 					"does not have a waiting message");
 			break;
 		  }
-		  default:  
+		  default:
 			printf("ahc: seqint, "
                               "intstat == 0x%x, scsisigi = 0x%x\n",
                               intstat, inb(SCSISIGI + iobase));
                         break;
-                }             
-clear:                              
-		/*            
+                }
+clear:
+		/*
 		 * Clear the upper byte that holds SEQINT status
 		 * codes and clear the SEQINT bit.
-		 */               
+		 */
 		outb(CLRINT + iobase, CLRSEQINT);
 
-		/*            
+		/*
 		 *  The sequencer is paused immediately on
 		 *  a SEQINT, so we should restart it when
-		 *  we leave this section. 
-		 */                        
+		 *  we leave this section.
+		 */
 		UNPAUSE_SEQUENCER(ahc);
-           }                
+           }
 
 
-	   if (intstat & SCSIINT) { 
+	   if (intstat & SCSIINT) {
 
                 int scb_index = inb(SCBPTR + iobase);
                 status = inb(SSTAT1 + iobase);
@@ -1276,19 +1276,19 @@ clear:
                 }
 		xs = scb->xs;
 
-		if (status & SELTO) { 
+		if (status & SELTO) {
 			u_char active;
 			u_char waiting;
 			u_char flags;
 			u_long active_port = HA_ACTIVE0 + iobase;
                         outb(SCSISEQ + iobase, ENRSELI);
                         xs->error = XS_TIMEOUT;
-			/* 
+			/*
 			 * Clear any pending messages for the timed out
 			 * target, and mark the target as free
 			 */
 			flags = inb( HA_FLAGS + iobase );
-                        outb(HA_FLAGS + iobase, 
+                        outb(HA_FLAGS + iobase,
 				flags & ~ACTIVE_MSG);
 
 			if (scb->target_channel_lun & 0x88)
@@ -1311,9 +1311,9 @@ clear:
 			outb(WAITING_SCBH + iobase, waiting);
 
                         RESTART_SEQUENCER(ahc);
-                }       
-                        
-                else if (status & SCSIPERR) { 
+                }
+
+                else if (status & SCSIPERR) {
                         printf("ahc%d: parity error on channel %c "
 			       "target %d, lun %d\n",
 			       unit,
@@ -1321,15 +1321,15 @@ clear:
                                xs->sc_link->target,
                                xs->sc_link->lun);
                         xs->error = XS_DRIVER_STUFFUP;
-      
+
                         outb(CLRSINT1 + iobase, CLRSCSIPERR);
                         UNPAUSE_SEQUENCER(ahc);
-                         
+
                         outb(CLRINT + iobase, CLRSCSIINT);
 			scb = NULL;
-                }       
+                }
                 else if (!(status & BUSFREE)) {
-                      printf("ahc%d: Unknown SCSIINT. Status = 0x%x\n", 
+                      printf("ahc%d: Unknown SCSIINT. Status = 0x%x\n",
 			     unit, status);
                       outb(CLRSINT1 + iobase, status);
                       UNPAUSE_SEQUENCER(ahc);
@@ -1342,11 +1342,11 @@ clear:
                     ahc_done(unit, scb);
 		}
         }
-cmdcomplete:                         
-        if (intstat & CMDCMPLT) { 
+cmdcomplete:
+        if (intstat & CMDCMPLT) {
                 int   scb_index;
-                         
-                do {    
+
+                do {
                         scb_index = inb(QOUTFIFO + iobase);
                 	scb = ahc->scbarray[scb_index];
                         if (!scb || !(scb->flags & SCB_ACTIVE)) {
@@ -1354,16 +1354,16 @@ cmdcomplete:
                                        "no command for scb %d (cmdcmplt)\n"
 				       "QOUTCNT == %d\n",
 					unit, scb_index, inb(QOUTCNT + iobase));
-                        	outb(CLRINT + iobase, CLRCMDINT);      
+                        	outb(CLRINT + iobase, CLRCMDINT);
                                 continue;
-                        }  
-                               
-                        outb(CLRINT + iobase, CLRCMDINT);      
+                        }
+
+                        outb(CLRINT + iobase, CLRCMDINT);
                         untimeout(ahc_timeout, (caddr_t)scb);
                         ahc_done(unit, scb);
-                        
+
                 } while (inb(QOUTCNT + iobase));
-        }               
+        }
 	return 1;
 }
 
@@ -1386,13 +1386,13 @@ ahc_done(unit, scb)
          */
 	if(scb->flags & SCB_SENSE)
 		xs->error = XS_SENSE;
-        if ((xs->flags & SCSI_ERR_OK) && !(xs->error == XS_SENSE)) {  
+        if ((xs->flags & SCSI_ERR_OK) && !(xs->error == XS_SENSE)) {
 		/* All went correctly  OR errors expected */
                 xs->error = XS_NOERROR;
         }
         xs->flags |= ITSDONE;
 #ifdef AHC_TAGENABLE
-	if(xs->cmd->opcode == 0x12 && xs->error == XS_NOERROR) 
+	if(xs->cmd->opcode == 0x12 && xs->error == XS_NOERROR)
 	{
 		struct ahc_data *ahc = ahcdata[unit];
 		struct scsi_inquiry_data *inq_data;
@@ -1404,7 +1404,7 @@ ahc_done(unit, scb)
 		 * should really be done by the higher level drivers.
 		 */
 		inq_data = (struct scsi_inquiry_data *)xs->data;
-		if(((inq_data->device & SID_TYPE) == 0) 
+		if(((inq_data->device & SID_TYPE) == 0)
 		    && (inq_data->flags & SID_CmdQue)
 		    && !(ahc->tagenable & mask))
 		{
@@ -1421,7 +1421,7 @@ ahc_done(unit, scb)
 	}
 #endif
         ahc_free_scb(unit, scb, xs->flags);
-        scsi_done(xs);  
+        scsi_done(xs);
 }
 
 /*
@@ -1442,8 +1442,8 @@ ahc_init(unit)
 	 */
 
 #ifdef AHC_DEBUG
-	printf("ahc%d: scb %d bytes; SCB_SIZE %d bytes, ahc_dma %d bytes\n", 
-		unit, sizeof(struct scb), SCB_DOWN_SIZE, 
+	printf("ahc%d: scb %d bytes; SCB_SIZE %d bytes, ahc_dma %d bytes\n",
+		unit, sizeof(struct scb), SCB_DOWN_SIZE,
 		sizeof(struct ahc_dma_seg));
 #endif /* AHC_DEBUG */
 	printf("ahc%d: reading board settings\n", unit);
@@ -1486,7 +1486,7 @@ ahc_init(unit)
 		ahc->maxscbs = 0x10;
 		#define DFTHRESH        3
 		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
-		/* 
+		/*
 		 * XXX Hard coded SCSI ID until we can read it from the
 		 * SEEPROM or NVRAM.
 		 */
@@ -1526,16 +1526,16 @@ ahc_init(unit)
 	 * Take the bus led out of diagnostic mode
 	 */
 	outb(SBLKCTL + iobase, sblkctl);
-	/* 
+	/*
 	 * Number of SCBs that will be used. Rev E aic7770s and
 	 * aic7870s have 16.  The rest have 4.
 	 */
 	if(!(ahc->type & AHC_AIC7870))
 	{
-		/* 
+		/*
 		 * See if we have a Rev E or higher
-		 * aic7770. Anything below a Rev E will 
-		 * have a R/O autoflush disable configuration 
+		 * aic7770. Anything below a Rev E will
+		 * have a R/O autoflush disable configuration
 		 * bit.
 		 */
 		u_char sblkctl_orig;
@@ -1566,11 +1566,11 @@ ahc_init(unit)
 		else
 			printf("ahc%d: Using Edge Triggered Interrupts\n",
 				unit);
-	}	
+	}
 	if(!(ahc->type & AHC_AIC7870)){
-	/* 
+	/*
 	 * The 294x cards are PCI, so we get their interrupt from the PCI
-	 * BIOS. 
+	 * BIOS.
 	 */
 
 		intdef = inb(INTDEF + iobase);
@@ -1602,7 +1602,7 @@ ahc_init(unit)
 	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channels */
 	if( ahc->type & AHC_TWIN)
 	{
-		/* 
+		/*
 		 * The device is gated to channel B after a chip reset,
 		 * so set those values first
 		 */
@@ -1622,8 +1622,8 @@ ahc_init(unit)
 	 * Look at the information that board initialization or
 	 * the board bios has left us.  In the lower four bits of each
 	 * target's scratch space any value other than 0 indicates
-	 * that we should initiate syncronous transfers.  If it's zero, 
-	 * the user or the BIOS has decided to disable syncronous 
+	 * that we should initiate syncronous transfers.  If it's zero,
+	 * the user or the BIOS has decided to disable syncronous
 	 * negotiation to that target so we don't activate the needsdr
 	 * flag.
 	 */
@@ -1651,7 +1651,7 @@ ahc_init(unit)
 		}
 		outb(HA_TARG_SCRATCH+i+iobase,target_settings);
 	}
-	/* 
+	/*
 	 * If we are not a WIDE device, forget WDTR.  This
 	 * makes the driver work on some cards that don't
 	 * leave these fields cleared when the BIOS is not
@@ -1665,15 +1665,15 @@ ahc_init(unit)
 	ahc->wdtrpending = 0;
 	ahc->tagenable = 0;
 
-	/* 
+	/*
 	 * Clear the control byte for every SCB so that the sequencer
 	 * doesn't get confused and think that one of them is valid
-	 */	
+	 */
 	for(i = 0; i < ahc->maxscbs; i++) {
 		outb(SCBPTR + iobase, i);
 		outb(SCBARRAY + iobase, 0);
 	}
-	
+
 #ifdef AHC_DEBUG
 	printf("NEEDSDTR == 0x%x\nNEEDWDTR == 0x%x\n", ahc->needsdtr,
 		ahc->needwdtr);
@@ -1695,17 +1695,17 @@ ahc_init(unit)
 	 * Place the aic7770 in fastmode which makes a big
 	 * difference when doing many small block transfers.
          */
-	
+
         printf("ahc%d: Downloading Sequencer Program...", unit);
 	ahc_loadseq(iobase);
 	printf("Done\n");
 
         outb(SEQCTL + iobase, FASTMODE);
 	if (!(ahc->type & AHC_AIC7870))
-		outb(BCTL + iobase, ENABLE); 
+		outb(BCTL + iobase, ENABLE);
 
 	/* Reset the bus */
-	outb(SCSISEQ + iobase, SCSIRSTO); 
+	outb(SCSISEQ + iobase, SCSIRSTO);
 	DELAY(1000);
 	outb(SCSISEQ + iobase, 0);
 
@@ -1720,9 +1720,9 @@ ahc_init(unit)
 
 void
 ahcminphys(bp)
-        struct buf *bp; 
+        struct buf *bp;
 {
-/* 
+/*
  * Even though the card can transfer up to 16megs per command
  * we are limited by the number of segments in the dma segment
  * list that we can hold.  The worst case is that all pages are
@@ -1731,40 +1731,40 @@ ahcminphys(bp)
  */
         if (bp->b_bcount > ((AHC_NSEG - 1) * PAGESIZ)) {
                 bp->b_bcount = ((AHC_NSEG - 1) * PAGESIZ);
-        } 
+        }
 }
 
 /*
  * start a scsi operation given the command and
- * the data address, target, and lun all of which 
+ * the data address, target, and lun all of which
  * are stored in the scsi_xfer struct
  */
 int32
 ahc_scsi_cmd(xs)
         struct scsi_xfer *xs;
 {
-        struct scb *scb = NULL;        
+        struct scb *scb = NULL;
         struct ahc_dma_seg *sg;
         int     seg;            /* scatter gather seg being worked on */
-        int     thiskv; 
+        int     thiskv;
         physaddr thisphys, nextphys;
         int     unit = xs->sc_link->adapter_unit;
-	u_short	mask = (0x01 << (xs->sc_link->target 
+	u_short	mask = (0x01 << (xs->sc_link->target
 				| ((u_long)xs->sc_link->fordriver & 0x08)));
         int     bytes_this_seg, bytes_this_page, datalen, flags;
         struct ahc_data *ahc = ahcdata[unit];
         int     s;
 
         SC_DEBUG(xs->sc_link, SDEV_DB2, ("ahc_scsi_cmd\n"));
-        /* 
+        /*
          * get an scb to use. If the transfer
          * is from a buf (possibly from interrupt time)
          * then we can't allow it to sleep
          */
         flags = xs->flags;
         if (flags & ITSDONE) {
-                printf("ahc%d: Already done?", unit);  
-                xs->flags &= ~ITSDONE;  
+                printf("ahc%d: Already done?", unit);
+                xs->flags &= ~ITSDONE;
         }
         if (!(flags & INUSE)) {
                 printf("ahc%d: Not in use?", unit);
@@ -1776,15 +1776,15 @@ ahc_scsi_cmd(xs)
         }
         SC_DEBUG(xs->sc_link, SDEV_DB3, ("start scb(%p)\n", scb));
         scb->xs = xs;
-        if (flags & SCSI_RESET) 
+        if (flags & SCSI_RESET)
 		scb->flags |= SCB_DEVICE_RESET|SCB_IMMED;
         /*
          * Put all the arguments for the xfer in the scb
-         */     
+         */
 
 	if(ahc->tagenable & mask)
 		scb->control |= SCB_TE;
-	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))     
+	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))
 	{
 		scb->control |= SCB_NEEDWDTR;
 		ahc->wdtrpending |= mask;
@@ -1794,26 +1794,26 @@ ahc_scsi_cmd(xs)
 		scb->control |= SCB_NEEDSDTR;
 		ahc->sdtrpending |= mask;
 	}
-	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) | 
+	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) |
 				  ((u_long)xs->sc_link->fordriver & 0x08) |
 				  (xs->sc_link->lun & 0x07);
         scb->cmdlen = xs->cmdlen;
 	scb->cmdpointer = KVTOPHYS(xs->cmd);
 	xs->resid = 0;
         if (xs->datalen) {      /* should use S/G only if not zero length */
-                scb->SG_list_pointer = KVTOPHYS(scb->ahc_dma); 
+                scb->SG_list_pointer = KVTOPHYS(scb->ahc_dma);
                 sg = scb->ahc_dma;
                 seg = 0;
-                {        
+                {
                         /*
                          * Set up the scatter gather block
-                         */     
+                         */
                         SC_DEBUG(xs->sc_link, SDEV_DB4,
                             ("%ld @%p:- ", xs->datalen, xs->data));
                         datalen = xs->datalen;
                         thiskv = (int) xs->data;
                         thisphys = KVTOPHYS(thiskv);
-        
+
                         while ((datalen) && (seg < AHC_NSEG)) {
                                 bytes_this_seg = 0;
 
@@ -1821,14 +1821,14 @@ ahc_scsi_cmd(xs)
                                 sg->addr = thisphys;
 
                                 SC_DEBUGN(xs->sc_link, SDEV_DB4, ("0x%lx",
-					thisphys));   
-        
+					thisphys));
+
                                 /* do it at least once */
                                 nextphys = thisphys;
                                 while ((datalen) && (thisphys == nextphys)) {
 					/*
-					 * This page is contiguous (physically) 
-					 * with the the last, just extend the 
+					 * This page is contiguous (physically)
+					 * with the the last, just extend the
 					 * length
 					 */
                                         /* how far to the end of the page */
@@ -1837,10 +1837,10 @@ ahc_scsi_cmd(xs)
                                         bytes_this_page = nextphys - thisphys;
                                         /**** or the data ****/
                                         bytes_this_page = min(bytes_this_page
-                                            ,datalen); 
+                                            ,datalen);
                                         bytes_this_seg += bytes_this_page;
                                         datalen -= bytes_this_page;
-                                        
+
                                         /* get more ready for the next page */
                                         thiskv = (thiskv & (~(PAGESIZ - 1)))
                                             + PAGESIZ;
@@ -1851,76 +1851,76 @@ ahc_scsi_cmd(xs)
                                  * next page isn't contiguous, finish the seg
                                  */
                                 SC_DEBUGN(xs->sc_link, SDEV_DB4,
-					("(0x%x)", bytes_this_seg)); 
+					("(0x%x)", bytes_this_seg));
                                 sg->len = bytes_this_seg;
                                 sg++;
                                 seg++;
-                        }   
-                } /*end of iov/kv decision */ 
+                        }
+                } /*end of iov/kv decision */
                 scb->SG_segment_count = seg;
                 SC_DEBUGN(xs->sc_link, SDEV_DB4, ("\n"));
-                if (datalen) { /* there's still data, must have run out of segs! */                    
+                if (datalen) { /* there's still data, must have run out of segs! */
                         printf("ahc_scsi_cmd%d: more than %d DMA segs\n",
                             unit, AHC_NSEG);
                         xs->error = XS_DRIVER_STUFFUP;
                         ahc_free_scb(unit, scb, flags);
                         return (HAD_ERROR);
                 }
-        } 
+        }
 	else {
 		/*
-		 * No data xfer, use non S/G values 
+		 * No data xfer, use non S/G values
 	 	 */
 		scb->SG_segment_count = 0;
 		scb->SG_list_pointer = 0;
 	}
 
-        /*                               
+        /*
          * Usually return SUCCESSFULLY QUEUED
          */
 #ifdef AHC_DEBUG
         if(xs->sc_link->target == DEBUGTARG)
 		ahc_print_scb(scb);
 #endif
-        if (!(flags & SCSI_NOMASK)) {   
-                s = splbio();           
+        if (!(flags & SCSI_NOMASK)) {
+                s = splbio();
 		ahc_send_scb(ahc, scb);
 	        timeout(ahc_timeout, (caddr_t)scb, (xs->timeout * hz) / 1000);
-                splx(s);                
+                splx(s);
                 SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
                 return (SUCCESSFULLY_QUEUED);
-        }                               
-        /*                              
+        }
+        /*
          * If we can't use interrupts, poll on completion
-         */                             
+         */
         ahc_send_scb(ahc, scb);
         SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_wait\n"));
-        do {                            
+        do {
                 if (ahc_poll(unit, xs->timeout)) {
                         if (!(xs->flags & SCSI_SILENT))
                                 printf("cmd fail\n");
 			printf("cmd fail\n");
 			ahc_abort_scb(unit,ahc,scb);
                         return (HAD_ERROR);
-                } 
-        } while (!(xs->flags & ITSDONE));  /* a non command complete intr */               
+                }
+        } while (!(xs->flags & ITSDONE));  /* a non command complete intr */
         if (xs->error) {
                 return (HAD_ERROR);
-        }       
-        return (COMPLETE);  
-}                       
+        }
+        return (COMPLETE);
+}
 
 
-/*      
+/*
  * Return some information to the caller about
- * the adapter and it's capabilities.  
- */     
+ * the adapter and it's capabilities.
+ */
 u_int32
 ahc_adapter_info(unit)
         int     unit;
 {
-        return (2);         /* 2 outstanding requests at a time per device */   
-}   
+        return (2);         /* 2 outstanding requests at a time per device */
+}
 
 /*
  * A scb (and hence an scb entry on the board is put onto the
@@ -1940,7 +1940,7 @@ ahc_free_scb(unit, scb, flags)
         scb->next = ahc->free_scb;
         ahc->free_scb = scb;
 #ifdef AHC_DEBUG
-	ahc->activescbs--; 
+	ahc->activescbs--;
 #endif
         /*
          * If there were none, wake abybody waiting for
@@ -1951,7 +1951,7 @@ ahc_free_scb(unit, scb, flags)
         }
 	splx(opri);
 }
- 
+
 /*
  * Get a free scb
  * If there are none, see if we can allocate a
@@ -1969,7 +1969,7 @@ ahc_get_scb(unit, flags)
         /*
          * If we can and have to, sleep waiting for one to come free
          * but only if we can't allocate a new one.
-         */  
+         */
         while (!(scbp = ahc->free_scb)) {
                 if (ahc->numscbs < ahc->maxscbs) {
                         scbp = (struct scb *) malloc(sizeof(struct scb),
@@ -2034,7 +2034,7 @@ ahc_get_scb(unit, flags)
 #ifdef AHC_DEBUG
 		ahc->activescbs++;
 		if( ahc->activescbs == ahc->maxscbs )
-			printf("ahc%d: Max SCBs active\n", unit); 
+			printf("ahc%d: Max SCBs active\n", unit);
 #endif
         }
 
@@ -2050,7 +2050,7 @@ void ahc_loadseq(iobase)
         static unsigned char seqprog[] = {
 #               include "aic7xxx_seq.h"
         };
- 
+
         outb(SEQCTL + iobase, PERRORDIS|SEQRESET|LOADRAM);
 
 	outsb(SEQRAM + iobase, seqprog, sizeof(seqprog));
@@ -2058,20 +2058,20 @@ void ahc_loadseq(iobase)
         outb(SEQCTL + iobase, FASTMODE|SEQRESET);
         do {
                 outb(SEQCTL + iobase, SEQRESET|FASTMODE);
-                 
+
         } while (inb(SEQADDR0 + iobase) != 0 &&
-		 inb(SEQADDR1 + iobase != 0)); 
+		 inb(SEQADDR1 + iobase != 0));
 }
 
-/*              
+/*
  * Function to poll for command completion when in poll mode
- */     
-int 
+ */
+int
 ahc_poll(int unit, int wait)
 {                               /* in msec  */
-        struct	ahc_data *ahc = ahcdata[unit];  
+        struct	ahc_data *ahc = ahcdata[unit];
         u_long	iobase = ahc->baseport;
-        u_long	stport = INTSTAT + iobase;  
+        u_long	stport = INTSTAT + iobase;
 
         while (--wait) {
                 DELAY(1000);
@@ -2116,7 +2116,7 @@ ahc_abort_scb( unit, ahc, scb )
 		/* Re-insert entries back into the queue */
 		for( queued = 0; queued < i; queued++ )
 			outb(QINFIFO + iobase, saved_queue[queued]);
-			
+
 		if( found ){
 			goto done;
 		}
@@ -2150,8 +2150,8 @@ ahc_abort_scb( unit, ahc, scb )
 	 * Case 3: Currently active command
 	 */
 	if ( (flags = inb(HA_FLAGS + iobase)) & ACTIVE_MSG) {
-		/* 
-		 * If there's a message in progress, 
+		/*
+		 * If there's a message in progress,
 		 * reset the bus and have all devices renegotiate.
 		 */
 		if(scb->target_channel_lun & 0x08){
@@ -2174,20 +2174,20 @@ ahc_abort_scb( unit, ahc, scb )
 		}
 
 		/* Reset the bus */
-		outb(SCSISEQ + iobase, SCSIRSTO); 
+		outb(SCSISEQ + iobase, SCSIRSTO);
 		DELAY(1000);
 		outb(SCSISEQ + iobase, 0);
 		goto done;
-        }        
+        }
 
-	/* 
+	/*
 	 * Otherwise, set up an abort message and have the sequencer
 	 * clean up
 	 */
         outb(HA_FLAGS + iobase, flags | ACTIVE_MSG);
         outb(HA_MSG_LEN + iobase, 1);
         outb(HA_MSG_START + iobase, MSG_ABORT);
- 
+
         outb(SCSISIGO + iobase, inb(HA_SIGSTATE + iobase) | 0x10);
 
 done:
@@ -2199,7 +2199,7 @@ done:
 
 void
 ahc_timeout(void *arg1)
-{               
+{
         struct scb *scb = (struct scb *)arg1;
         int     unit;
         struct ahc_data *ahc;
@@ -2209,11 +2209,11 @@ ahc_timeout(void *arg1)
         ahc = ahcdata[unit];
         printf("ahc%d: target %d, lun %d (%s%d) timed out\n", unit
             ,scb->xs->sc_link->target
-            ,scb->xs->sc_link->lun 
+            ,scb->xs->sc_link->lun
             ,scb->xs->sc_link->device->name
             ,scb->xs->sc_link->dev_unit);
 #ifdef SCSIDEBUG
-	show_scsi_cmd(scb->xs); 
+	show_scsi_cmd(scb->xs);
 #endif
 #ifdef  AHC_DEBUG
         if (ahc_debug & AHC_SHOWSCBS)

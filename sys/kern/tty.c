@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.43 1995/05/07 06:32:28 bde Exp $
+ * $Id: tty.c,v 1.44 1995/05/07 23:53:36 ache Exp $
  */
 
 #include "snp.h"
@@ -208,7 +208,7 @@ ttyclose(tp)
 	clist_free_cblocks(&tp->t_rawq);
 
 #if NSNP > 0
-	if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL) 
+	if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
 		snpdown((struct snoop *)tp->t_sc);
 #endif
 

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.12 1995/03/16 18:12:05 bde Exp $
+ *    $Id: spkr.c,v 1.13 1995/05/05 06:15:11 davidg Exp $
  */
 
 #include "speaker.h"
@@ -48,14 +48,14 @@
  * | SC1  SC0 | RW1  RW0 | M2   M1   M0  | BCD |
  * +----------+----------+---------------+-----+
  *   Counter     Write        Mode 3      Binary
- *  Channel 2  LSB first,  (Square Wave) Encoding 
+ *  Channel 2  LSB first,  (Square Wave) Encoding
  *             MSB second
  */
 #define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
 #define PIT_MODE	0xB6	/* set timer mode for sound generation */
 
 /*
- * Magic numbers for timer control. 
+ * Magic numbers for timer control.
  */
 #define TIMER_CLK	1193180L	/* corresponds to 18.2 MHz tick rate */
 

@@ -13,7 +13,7 @@
  */
 
 /*
- * Dumb definitions which needed when 
+ * Dumb definitions which needed when
  * firewall/accounting module is not loaded.
  */
 
@@ -22,7 +22,7 @@
 #include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include <sys/kernel.h>
 
 #include <net/if.h>

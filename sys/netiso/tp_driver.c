@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: tp_driver.c,v 1.2 1994/08/02 07:50:59 davidg Exp $
  */
 #define _XEBEC_PG static
 
@@ -42,9 +42,9 @@ int 	tp_emit(),
 		tp_goodack(),				tp_goodXack(),
 		tp_stash()
 ;
-void	tp_indicate(),				tp_getoptions(),	
+void	tp_indicate(),				tp_getoptions(),
 		tp_soisdisconnecting(), 	tp_soisdisconnected(),
-		tp_recycle_tsuffix(),		
+		tp_recycle_tsuffix(),
 #ifdef TP_DEBUG_TIMERS
 		tp_etimeout(),				tp_euntimeout(),
 		tp_ctimeout(),				tp_cuntimeout(),
@@ -70,12 +70,12 @@ tp_PCB_ *p;
 {
 switch(a) {
 case -1:  return tp_protocol_error(e,p);
-case 0x1: 
+case 0x1:
 		{
 		(void) tp_emit(DC_TPDU_type, p, 0, 0, MNULL);
 	}
 		 break;
-case 0x2: 
+case 0x2:
 		{
 #		ifdef TP_DEBUG
 		if( e->ev_number != AK_TPDU )
@@ -83,7 +83,7 @@ case 0x2:
 #		endif TP_DEBUG
 	}
 		 break;
-case 0x3: 
+case 0x3:
 		{
 		/* oh, man is this grotesque or what? */
 		(void) tp_goodack(p, e->ev_union.EV_AK_TPDU.e_cdt, e->ev_union.EV_AK_TPDU.e_seq,  e->ev_union.EV_AK_TPDU.e_subseq);
@@ -93,17 +93,17 @@ case 0x3:
 		 */
 	}
 		 break;
-case 0x4: 
+case 0x4:
 		{
 		tp_detach(p);
 	}
 		 break;
-case 0x5: 
+case 0x5:
 		{
 		p->tp_refstate = REF_OPEN; /* has timers ??? */
 	}
 		 break;
-case 0x6: 
+case 0x6:
 		{
 		IFTRACE(D_CONN)
 			tptrace(TPPTmisc, "CR datalen data", e->ev_union.EV_CR_TPDU.e_datalen, e->ev_union.EV_CR_TPDU.e_data,0,0);
@@ -116,13 +116,13 @@ case 0x6:
 
 		if (e->ev_union.EV_CR_TPDU.e_datalen > 0) {
 			/* n/a for class 0 */
-			ASSERT(p->tp_Xrcv.sb_cc == 0); 
+			ASSERT(p->tp_Xrcv.sb_cc == 0);
 			sbappendrecord(&p->tp_Xrcv, e->ev_union.EV_CR_TPDU.e_data);
-			e->ev_union.EV_CR_TPDU.e_data = MNULL; 
-		} 
+			e->ev_union.EV_CR_TPDU.e_data = MNULL;
+		}
 	}
 		 break;
-case 0x7: 
+case 0x7:
 		{
 		IncStat(ts_tp0_conn);
 		IFTRACE(D_CONN)
@@ -136,7 +136,7 @@ case 0x7:
 		p->tp_fcredit = 1;
 	}
 		 break;
-case 0x8: 
+case 0x8:
 		{
 		IncStat(ts_tp4_conn); /* even though not quite open */
 		IFTRACE(D_CONN)
@@ -153,7 +153,7 @@ case 0x8:
 		tp_ctimeout(p, TM_retrans, (int)p->tp_cc_ticks);
 	}
 		 break;
-case 0x9: 
+case 0x9:
 		{
 		IFDEBUG(D_CONN)
 			printf("event: CR_TPDU emit CC failed done " );
@@ -164,7 +164,7 @@ case 0x9:
 		tp_detach(p);
 	}
 		 break;
-case 0xa: 
+case 0xa:
 		{
 		int error;
 		struct mbuf *data = MNULL;
@@ -176,7 +176,7 @@ case 0xa:
 		data =  MCPY(p->tp_ucddata, M_WAIT);
 		if (data) {
 			IFDEBUG(D_CONN)
-				printf("T_CONN_req.trans m_copy cc 0x%x\n", 
+				printf("T_CONN_req.trans m_copy cc 0x%x\n",
 					p->tp_ucddata);
 				dump_mbuf(data, "sosnd @ T_CONN_req");
 			ENDDEBUG
@@ -184,7 +184,7 @@ case 0xa:
 
 		if (error = tp_emit(CR_TPDU_type, p, 0, 0, data) )
 			return error; /* driver WON'T change state; will return error */
-		
+
 		p->tp_refstate = REF_OPEN; /* has timers */
 		if(p->tp_class != TP_CLASS_0) {
 			p->tp_retrans = p->tp_Nretrans;
@@ -192,13 +192,13 @@ case 0xa:
 		}
 	}
 		 break;
-case 0xb: 
+case 0xb:
 		{
 		sbflush(&p->tp_Xrcv); /* purge non-delivered data data */
 		if (e->ev_union.EV_DR_TPDU.e_datalen > 0) {
 			sbappendrecord(&p->tp_Xrcv, e->ev_union.EV_DR_TPDU.e_data);
 			e->ev_union.EV_DR_TPDU.e_data = MNULL;
-		} 
+		}
 		if (p->tp_state == TP_OPEN)
 			tp_indicate(T_DISCONNECT, p, 0);
 		else {
@@ -219,53 +219,53 @@ case 0xb:
 				p->tp_flags &= ~TPF_DELACK;
 			}
 			tp_cuntimeout(p, TM_retrans);
-			if( e->ev_union.EV_DR_TPDU.e_sref !=  0 ) 
+			if( e->ev_union.EV_DR_TPDU.e_sref !=  0 )
 				(void) tp_emit(DC_TPDU_type, p, 0, 0, MNULL);
 		}
 	}
 		 break;
-case 0xc: 
+case 0xc:
 		{
 		if( e->ev_union.EV_DR_TPDU.e_sref != 0 )
-			(void) tp_emit(DC_TPDU_type, p, 0, 0, MNULL); 
+			(void) tp_emit(DC_TPDU_type, p, 0, 0, MNULL);
 		/* reference timer already set - reset it to be safe (???) */
 		tp_euntimeout(p, TM_reference); /* all */
 		tp_etimeout(p, TM_reference, (int)p->tp_refer_ticks);
 	}
 		 break;
-case 0xd: 
-		{	
+case 0xd:
+		{
 		tp_cuntimeout(p, TM_retrans);
 		tp_indicate(ER_TPDU, p, e->ev_union.EV_ER_TPDU.e_reason);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0xe: 
-		{	 
+case 0xe:
+		{
 		tp_cuntimeout(p, TM_retrans);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0xf: 
-		{	 
+case 0xf:
+		{
 		tp_indicate(ER_TPDU, p, e->ev_union.EV_ER_TPDU.e_reason);
 		tp_cuntimeout(p, TM_retrans);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0x10: 
-		{	 
+case 0x10:
+		{
 		tp_cuntimeout(p, TM_retrans);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0x11: 
+case 0x11:
 		{	/* don't ask me why we have to do this - spec says so */
 		(void) tp_emit(DR_TPDU_type, p, 0, E_TP_NO_SESSION, MNULL);
 		/* don't bother with retransmissions of the DR */
 	}
 		 break;
-case 0x12: 
+case 0x12:
 		{
 		tp_soisdisconnecting(p->tp_sock);
 		tp_indicate(ER_TPDU, p, e->ev_union.EV_ER_TPDU.e_reason);
@@ -273,7 +273,7 @@ case 0x12:
 		tp_netcmd( p, CONN_CLOSE );
 	}
 		 break;
-case 0x13: 
+case 0x13:
 		{
 		if (p->tp_state == TP_OPEN) {
 			tp_euntimeout(p, TM_data_retrans); /* all */
@@ -287,18 +287,18 @@ case 0x13:
 		(void) tp_emit(DR_TPDU_type, p, 0, E_TP_PROTO_ERR, MNULL);
 	}
 		 break;
-case 0x14: 
-		{	
+case 0x14:
+		{
 		tp_cuntimeout(p, TM_retrans);
 		IncStat(ts_tp0_conn);
 		p->tp_fcredit = 1;
 		soisconnected(p->tp_sock);
 	}
 		 break;
-case 0x15: 
-		{	
+case 0x15:
+		{
 		IFDEBUG(D_CONN)
-			printf("trans: CC_TPDU in CRSENT state flags 0x%x\n", 
+			printf("trans: CC_TPDU in CRSENT state flags 0x%x\n",
 				(int)p->tp_flags);
 		ENDDEBUG
 		IncStat(ts_tp4_conn);
@@ -327,7 +327,7 @@ case 0x15:
 		tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
 	}
 		 break;
-case 0x16: 
+case 0x16:
 		{
 		struct mbuf *data = MNULL;
 		int error;
@@ -351,16 +351,16 @@ case 0x16:
 		tp_ctimeout(p, TM_retrans, (int)p->tp_cr_ticks);
 	}
 		 break;
-case 0x17: 
-		{ 	
+case 0x17:
+		{
 		IncStat(ts_conn_gaveup);
 		p->tp_sock->so_error = ETIMEDOUT;
 		tp_indicate(T_DISCONNECT, p, ETIMEDOUT);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0x18: 
-		{	
+case 0x18:
+		{
 		int error;
 		struct mbuf *data = MCPY(p->tp_ucddata, M_WAIT);
 
@@ -371,7 +371,7 @@ case 0x18:
 		tp_ctimeout(p, TM_retrans, (int)p->tp_cc_ticks);
 	}
 		 break;
-case 0x19: 
+case 0x19:
 		{
 		int doack;
 
@@ -396,17 +396,17 @@ case 0x19:
 		ENDDEBUG
 
 		if (doack) {
-			(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL ); 
+			(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL );
 			tp_ctimeout(p, TM_sendack, (int)p->tp_keepalive_ticks);
 		} else
 			tp_ctimeout( p, TM_sendack, (int)p->tp_sendack_ticks);
-		
+
 		IFDEBUG(D_DATA)
 			printf("after stash calling sbwakeup\n");
 		ENDDEBUG
 	}
 		 break;
-case 0x1a: 
+case 0x1a:
 		{
 		tp0_stash(p, e);
 		sbwakeup( &p->tp_sock->so_rcv );
@@ -416,7 +416,7 @@ case 0x1a:
 		ENDDEBUG
 	}
 		 break;
-case 0x1b: 
+case 0x1b:
 		{
 		int doack; /* tells if we must ack immediately */
 
@@ -429,17 +429,17 @@ case 0x1b:
 		ENDDEBUG
 
 		if(doack)
-			(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL ); 
+			(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL );
 		else
 			tp_ctimeout_MIN( p, TM_sendack, (int)p->tp_sendack_ticks);
-		
+
 		IFDEBUG(D_DATA)
 			printf("after stash calling sbwakeup\n");
 		ENDDEBUG
 	}
 		 break;
-case 0x1c: 
-		{ 	
+case 0x1c:
+		{
 		IFTRACE(D_DATA)
 			tptrace(TPPTmisc, "NIW seq rcvnxt lcredit ",
 				e->ev_union.EV_DT_TPDU.e_seq, p->tp_rcvnxt, p->tp_lcredit, 0);
@@ -447,10 +447,10 @@ case 0x1c:
 		IncStat(ts_dt_niw);
 		m_freem(e->ev_union.EV_DT_TPDU.e_data);
 		tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
-		(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL ); 
+		(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL );
 	}
 		 break;
-case 0x1d: 
+case 0x1d:
 		{
 		if (p->tp_ucddata) {
 			m_freem(p->tp_ucddata);
@@ -462,10 +462,10 @@ case 0x1d:
 		soisconnected(p->tp_sock);
 		IFTRACE(D_CONN)
 			struct socket *so = p->tp_sock;
-			tptrace(TPPTmisc, 
+			tptrace(TPPTmisc,
 			"called sosiconn: so so_state rcv.sb_sel rcv.sb_flags",
 				so, so->so_state, so->so_rcv.sb_sel, so->so_rcv.sb_flags);
-			tptrace(TPPTmisc, 
+			tptrace(TPPTmisc,
 			"called sosiconn 2: so_qlen so_error so_rcv.sb_cc so_head",
 				so->so_qlen, so->so_error, so->so_rcv.sb_cc, so->so_head);
 		ENDTRACE
@@ -474,7 +474,7 @@ case 0x1d:
 		tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
 	}
 		 break;
-case 0x1e: 
+case 0x1e:
 		{
 		if( p->tp_state == TP_AKWAIT ) {
 			if (p->tp_ucddata) {
@@ -485,7 +485,7 @@ case 0x1e:
 			soisconnected(p->tp_sock);
 			tp_ctimeout(p, TM_sendack, (int)p->tp_keepalive_ticks);
 			tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
-		} 
+		}
 		IFTRACE(D_XPD)
 		tptrace(TPPTmisc, "XPD tpdu accepted Xrcvnxt, e_seq datalen m_len\n",
 				p->tp_Xrcvnxt,e->ev_union.EV_XPD_TPDU.e_seq,  e->ev_union.EV_XPD_TPDU.e_datalen, e->ev_union.EV_XPD_TPDU.e_data->m_len);
@@ -504,15 +504,15 @@ case 0x1e:
 		SEQ_INC(p, p->tp_Xrcvnxt);
 	}
 		 break;
-case 0x1f: 
+case 0x1f:
 		{
 		if( p->tp_Xrcv.sb_cc == 0 ) {
-			/* kludge for select(): */ 
+			/* kludge for select(): */
 			/* p->tp_sock->so_state &= ~SS_OOBAVAIL; */
 		}
 	}
 		 break;
-case 0x20: 
+case 0x20:
 		{
 		IFTRACE(D_XPD)
 			tptrace(TPPTmisc, "XPD tpdu niw (Xrcvnxt, e_seq) or not cdt (cc)\n",
@@ -532,7 +532,7 @@ case 0x20:
 		 */
 	}
 		 break;
-case 0x21: 
+case 0x21:
 		{
 		struct socket *so = p->tp_sock;
 
@@ -547,7 +547,7 @@ case 0x21:
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0x22: 
+case 0x22:
 		{
 		struct socket *so = p->tp_sock;
 		struct mbuf *data = MNULL;
@@ -567,14 +567,14 @@ case 0x22:
 		}
 	}
 		 break;
-case 0x23: 
+case 0x23:
 		{
 		tp_soisdisconnecting(p->tp_sock);
 		tp_netcmd( p, CONN_CLOSE);
 		tp_soisdisconnected(p);
 	}
 		 break;
-case 0x24: 
+case 0x24:
 		{
 		struct mbuf *data = MCPY(p->tp_ucddata, M_WAIT);
 
@@ -586,7 +586,7 @@ case 0x24:
 		}
 		if (data) {
 			IFDEBUG(D_CONN)
-				printf("T_DISC_req.trans tp_ucddata 0x%x\n", 
+				printf("T_DISC_req.trans tp_ucddata 0x%x\n",
 					p->tp_ucddata);
 				dump_mbuf(data, "ucddata @ T_DISC_req");
 			ENDDEBUG
@@ -599,7 +599,7 @@ case 0x24:
 			return tp_emit(DR_TPDU_type, p, 0, e->ev_union.EV_T_DISC_req.e_reason, data);
 	}
 		 break;
-case 0x25: 
+case 0x25:
 		{
 		int error;
 		struct mbuf *data = MCPY(p->tp_ucddata, M_WAIT);
@@ -608,12 +608,12 @@ case 0x25:
 		p->tp_retrans --;
 		p->tp_cong_win = 1 * p->tp_l_tpdusize;
 
-		if( error = tp_emit(CC_TPDU_type, p, 0, 0, data) ) 
+		if( error = tp_emit(CC_TPDU_type, p, 0, 0, data) )
 			p->tp_sock->so_error = error;
 		tp_ctimeout(p, TM_retrans, (int)p->tp_cc_ticks);
 	}
 		 break;
-case 0x26: 
+case 0x26:
 		{
 		IncStat(ts_conn_gaveup);
 		tp_soisdisconnecting(p->tp_sock);
@@ -624,10 +624,10 @@ case 0x26:
 		tp_ctimeout(p, TM_retrans, (int)p->tp_dr_ticks);
 	}
 		 break;
-case 0x27: 
+case 0x27:
 		{
 		tp_euntimeout(p, TM_data_retrans); /* all */
-		tp_cuntimeout(p, TM_inact); 
+		tp_cuntimeout(p, TM_inact);
 		tp_cuntimeout(p, TM_sendack);
 
 		IncStat(ts_conn_gaveup);
@@ -639,7 +639,7 @@ case 0x27:
 		tp_ctimeout(p, TM_retrans, (int)p->tp_dr_ticks);
 	}
 		 break;
-case 0x28: 
+case 0x28:
 		{
 		p->tp_cong_win = 1 * p->tp_l_tpdusize;
 		/* resume XPD */
@@ -649,8 +649,8 @@ case 0x28:
 
 			IFTRACE(D_XPD)
 				tptrace(TPPTmisc, "XPD retrans: Xuna Xsndnxt sndnxt snduna",
-					p->tp_Xuna, p->tp_Xsndnxt, p->tp_sndnxt, 
-					p->tp_snduna); 
+					p->tp_Xuna, p->tp_Xsndnxt, p->tp_sndnxt,
+					p->tp_snduna);
 			ENDTRACE
 			IFDEBUG(D_XPD)
 				dump_mbuf(m, "XPD retrans emitting M");
@@ -663,45 +663,45 @@ case 0x28:
 		}
 	}
 		 break;
-case 0x29: 
-		{	
+case 0x29:
+		{
 		p->tp_rxtshift++;
 		(void) tp_data_retrans(p);
 	}
 		 break;
-case 0x2a: 
-		{	
+case 0x2a:
+		{
 		p->tp_retrans --;
 		(void) tp_emit(DR_TPDU_type, p, 0, E_TP_DR_NO_REAS, MNULL);
 		IncStat(ts_retrans_dr);
 		tp_ctimeout(p, TM_retrans, (int)p->tp_dr_ticks);
 	}
 		 break;
-case 0x2b: 
-		{	
+case 0x2b:
+		{
 		p->tp_sock->so_error = ETIMEDOUT;
 		p->tp_refstate = REF_FROZEN;
 		tp_recycle_tsuffix( p );
 		tp_etimeout(p, TM_reference, (int)p->tp_refer_ticks);
 	}
 		 break;
-case 0x2c: 
+case 0x2c:
 		{
 		tp_freeref(p->tp_lref);
 		tp_detach(p);
 	}
 		 break;
-case 0x2d: 
-		{	
+case 0x2d:
+		{
 		if( p->tp_class != TP_CLASS_0) {
 			tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
 			if ( e->ev_number == CC_TPDU )
-				(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL); 
+				(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 0, MNULL);
 		}
 		/* ignore it if class 0 - state tables are blank for this */
 	}
 		 break;
-case 0x2e: 
+case 0x2e:
 		{
 		IFTRACE(D_DATA)
 			tptrace(TPPTmisc, "T_DATA_req sndnxt snduna fcredit, tpcb",
@@ -711,7 +711,7 @@ case 0x2e:
 		tp_send(p);
 	}
 		 break;
-case 0x2f: 
+case 0x2f:
 		{
 		int error = 0;
 
@@ -724,25 +724,25 @@ case 0x2f:
 
 			IFTRACE(D_XPD)
 				tptrace(TPPTmisc, "XPD req: Xuna Xsndnxt sndnxt snduna",
-					p->tp_Xuna, p->tp_Xsndnxt, p->tp_sndnxt, 
-					p->tp_snduna); 
+					p->tp_Xuna, p->tp_Xsndnxt, p->tp_sndnxt,
+					p->tp_snduna);
 			ENDTRACE
 			IFDEBUG(D_XPD)
 				printf("T_XPD_req: sb_cc 0x%x\n", p->tp_Xsnd.sb_cc);
 				dump_mbuf(m, "XPD req emitting M");
 			ENDDEBUG
-			error = 
+			error =
 				tp_emit(XPD_TPDU_type, p, p->tp_Xuna, 1, m);
 			p->tp_retrans = p->tp_Nretrans;
 
 			tp_ctimeout(p, TM_retrans, (int)p->tp_rxtcur);
 			SEQ_INC(p, p->tp_Xsndnxt);
-		} 
+		}
 		if(trick_hc)
 			return error;
 	}
 		 break;
-case 0x30: 
+case 0x30:
 		{
 		struct sockbuf *sb = &p->tp_sock->so_snd;
 
@@ -758,10 +758,10 @@ case 0x30:
 		ENDDEBUG
 	}
 		 break;
-case 0x31: 
+case 0x31:
 		{
 		IFTRACE(D_ACKRECV)
-			tptrace(TPPTmisc, "BOGUS ACK fcc_present, tp_r_subseq e_subseq", 
+			tptrace(TPPTmisc, "BOGUS ACK fcc_present, tp_r_subseq e_subseq",
 				e->ev_union.EV_AK_TPDU.e_fcc_present, p->tp_r_subseq, e->ev_union.EV_AK_TPDU.e_subseq, 0);
 		ENDTRACE
 		if( p->tp_class != TP_CLASS_0 ) {
@@ -772,11 +772,11 @@ case 0x31:
 				(void) tp_emit(AK_TPDU_type, p, p->tp_rcvnxt, 1, MNULL);
 			}
 			tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
-		} 
+		}
 	}
 		 break;
-case 0x32: 
-		{	
+case 0x32:
+		{
 		tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
 		tp_cuntimeout(p, TM_retrans);
 
@@ -786,21 +786,21 @@ case 0x32:
 		tp_send(p);
 	}
 		 break;
-case 0x33: 
+case 0x33:
 		{
 		IFTRACE(D_ACKRECV)
 			tptrace(TPPTmisc, "BOGUS XACK eventtype ", e->ev_number, 0, 0,0);
 		ENDTRACE
 		if( p->tp_class != TP_CLASS_0 ) {
 			tp_ctimeout(p, TM_inact, (int)p->tp_inact_ticks);
-		} 
+		}
 	}
 		 break;
-case 0x34: 
-		{	
+case 0x34:
+		{
 		int timo;
 		IFTRACE(D_TIMER)
-			tptrace(TPPTsendack, -1, p->tp_lcredit, p->tp_sent_uwe, 
+			tptrace(TPPTsendack, -1, p->tp_lcredit, p->tp_sent_uwe,
 			p->tp_sent_lcdt, 0);
 		ENDTRACE
 		IncPStat(p, tps_n_TMsendack);
@@ -814,14 +814,14 @@ case 0x34:
 		tp_ctimeout(p, TM_sendack, timo);
 	}
 		 break;
-case 0x35: 
+case 0x35:
 		{
 		if (sbspace(&p->tp_sock->so_rcv) > 0)
 			tp0_openflow(p);
 	}
 		 break;
-case 0x36: 
-		{	
+case 0x36:
+		{
 		if( trick_hc ) {
 			SeqNum ack_thresh;
 			/*
@@ -842,13 +842,13 @@ case 0x36:
 		}
 	}
 		 break;
-case 0x37: 
+case 0x37:
 		{
 		if(trick_hc)
 		return ECONNABORTED;
 	}
 		 break;
-case 0x38: 
+case 0x38:
 		{
 		ASSERT( p->tp_state != TP_LISTENING );
 		tp_indicate(T_DISCONNECT, p, ECONNRESET);

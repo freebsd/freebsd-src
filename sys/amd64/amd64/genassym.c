@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.25 1995/02/14 18:01:24 phk Exp $
+ *	$Id: genassym.c,v 1.26 1995/05/25 07:41:18 davidg Exp $
  */
 
 #include <stdio.h>
@@ -43,10 +43,10 @@
 #include <sys/proc.h>
 /* XXX This is just real ugly to have to do, but it is what you have to do! */
 #ifndef	NFS
-#define	NFS 
+#define	NFS
 #include <sys/mount.h>
 #undef	NFS
-#else   
+#else
 #include <sys/mount.h>
 #endif
 #include <sys/mbuf.h>

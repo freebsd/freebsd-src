@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.11 1995/02/21 01:22:45 davidg Exp $
+ * $Id: vm_kern.c,v 1.12 1995/03/15 07:52:06 davidg Exp $
  */
 
 /*
@@ -99,7 +99,7 @@ extern int mb_map_full;
  *	map must be "kernel_map" below.
  */
 
-vm_offset_t 
+vm_offset_t
 kmem_alloc_pageable(map, size)
 	vm_map_t map;
 	register vm_size_t size;
@@ -127,7 +127,7 @@ kmem_alloc_pageable(map, size)
  *	Allocate wired-down memory in the kernel's address map
  *	or a submap.
  */
-vm_offset_t 
+vm_offset_t
 kmem_alloc(map, size)
 	register vm_map_t map;
 	register vm_size_t size;
@@ -162,7 +162,7 @@ kmem_alloc(map, size)
 	 * Guarantee that there are pages already in this object before
 	 * calling vm_map_pageable.  This is to prevent the following
 	 * scenario:
-	 * 
+	 *
 	 * 1) Threads have swapped out, so that there is a pager for the
 	 * kernel_object. 2) The kmsg zone is empty, and so we are
 	 * kmem_allocing a new page for it. 3) vm_map_pageable calls vm_fault;
@@ -171,7 +171,7 @@ kmem_alloc(map, size)
 	 * kmem_alloc. 4) goto 1 5) Even if the kmsg zone is not empty: when
 	 * we get the data back from the pager, it will be (very stale)
 	 * non-zero data.  kmem_alloc is defined to return zero-filled memory.
-	 * 
+	 *
 	 * We're intentionally not activating the pages we allocate to prevent a
 	 * race with page-out.  vm_map_pageable will wire the pages.
 	 */
@@ -212,7 +212,7 @@ kmem_alloc(map, size)
  *	with kmem_alloc, and return the physical pages
  *	associated with that region.
  */
-void 
+void
 kmem_free(map, addr, size)
 	vm_map_t map;
 	register vm_offset_t addr;
@@ -234,7 +234,7 @@ kmem_free(map, addr, size)
  *	min, max	Returned endpoints of map
  *	pageable	Can the region be paged
  */
-vm_map_t 
+vm_map_t
 kmem_suballoc(parent, min, max, size, pageable)
 	register vm_map_t parent;
 	vm_offset_t *min, *max;
@@ -397,7 +397,7 @@ kmem_malloc(map, size, waitflag)
  *	has no room, the caller sleeps waiting for more memory in the submap.
  *
  */
-vm_offset_t 
+vm_offset_t
 kmem_alloc_wait(map, size)
 	vm_map_t map;
 	vm_size_t size;
@@ -434,7 +434,7 @@ kmem_alloc_wait(map, size)
  *	Returns memory to a submap of the kernel, and wakes up any threads
  *	waiting for memory in that map.
  */
-void 
+void
 kmem_free_wakeup(map, addr, size)
 	vm_map_t map;
 	vm_offset_t addr;
@@ -452,7 +452,7 @@ kmem_free_wakeup(map, addr, size)
  * map the range between VM_MIN_KERNEL_ADDRESS and `start' as allocated, and
  * the range between `start' and `end' as free.
  */
-void 
+void
 kmem_init(start, end)
 	vm_offset_t start, end;
 {

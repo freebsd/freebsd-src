@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kern_lkm.c,v 1.12 1995/04/20 05:08:31 wpaul Exp $
  */
 
 /*
@@ -442,7 +442,7 @@ lkmcioctl(dev, cmd, data, flag)
 		statp->size	= curp->size / PAGESIZE;
 		statp->private	= (unsigned long)curp->private.lkm_any;
 		statp->ver	= curp->private.lkm_any->lkm_ver;
-		copystr(curp->private.lkm_any->lkm_name, 
+		copystr(curp->private.lkm_any->lkm_name,
 			  statp->name,
 			  MAXLKMNAME - 2,
 			  NULL);
@@ -547,11 +547,11 @@ _lkm_syscall(lkmtp, cmd)
 
 		/* save old */
 		bcopy(&aout_sysvec.sv_table[i],
-		      &(args->lkm_oldent), 
+		      &(args->lkm_oldent),
 		      sizeof(struct sysent));
 
 		/* replace with new */
-		bcopy(args->lkm_sysent, 
+		bcopy(args->lkm_sysent,
 		      &aout_sysvec.sv_table[i],
 		      sizeof(struct sysent));
 
@@ -565,8 +565,8 @@ _lkm_syscall(lkmtp, cmd)
 		i = args->lkm_offset;
 
 		/* replace current slot contents with old contents */
-		bcopy(&(args->lkm_oldent), 
-		      &aout_sysvec.sv_table[i], 
+		bcopy(&(args->lkm_oldent),
+		      &aout_sysvec.sv_table[i],
 		      sizeof(struct sysent));
 
 		break;
@@ -623,7 +623,7 @@ _lkm_vfs(lkmtp, cmd)
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
 			struct vnodeopv_desc *opv =
 			  (struct vnodeopv_desc *)args->lkm_vnodeops->ls_items[i];
-			*(opv->opv_desc_vector_p) = NULL; 
+			*(opv->opv_desc_vector_p) = NULL;
 		}
 		vfs_opv_init((struct vnodeopv_desc **)args->lkm_vnodeops->ls_items);
 
@@ -813,7 +813,7 @@ _lkm_exec(lkmtp, cmd)
 	struct lkm_exec *args = lkmtp->private.lkm_exec;
 	int i;
 	int err = 0;
-	const struct execsw **execsw = 
+	const struct execsw **execsw =
 		(const struct execsw **)&execsw_set.ls_items[0];
 
 #if 1
@@ -882,7 +882,7 @@ TEXT_SET(execsw_set, lkm_exec_dummy);
  */
 int
 lkmdispatch(lkmtp, cmd)
-	struct lkm_table *lkmtp;	
+	struct lkm_table *lkmtp;
 	int cmd;
 {
 	int err = 0;		/* default = success */

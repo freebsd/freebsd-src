@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.26 1995/05/22 13:32:24 davidg Exp $
+ * $Id: if_de.c,v 1.27 1995/05/26 02:02:44 davidg Exp $
  *
  */
 
@@ -187,7 +187,7 @@ typedef struct {
  * And the number of receive descriptors multiplied by the size
  * of the receive buffers must equal the recevive space.  This
  * is so that we can manipulate the page tables so that even if a
- * packet wraps around the end of the receive space, we can 
+ * packet wraps around the end of the receive space, we can
  * treat it as virtually contiguous.
  *
  * The above used to be true (the stupid restriction is still true)
@@ -257,7 +257,7 @@ struct _tulip_softc_t {
 #ifndef IFF_ALTPHYS
 #define	IFF_ALTPHYS	IFF_LINK0		/* In case it isn't defined */
 #endif
-static const char *tulip_chipdescs[] = { 
+static const char *tulip_chipdescs[] = {
     "DC21040 [10Mb/s]",
     "DC21140 [10-100Mb/s]",
     "DC21041 [10Mb/s]"
@@ -500,7 +500,7 @@ tulip_reset(
     tulip_desc_t *di;
 
     TULIP_WRITE_CSR(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at 
+    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at
 		   33MHz that comes to two microseconds but wait a
 		   bit longer anyways) */
 
@@ -532,7 +532,7 @@ tulip_reset(
 	di->d_status = 0;
 
     /*
-     * We need to collect all the mbufs were on the 
+     * We need to collect all the mbufs were on the
      * receive ring before we reinit it either to put
      * them back on or to know if we have to allocate
      * more.
@@ -648,7 +648,7 @@ tulip_rx_intr(
 
 	if (((volatile tulip_desc_t *) eop)->d_status & TULIP_DSTS_OWNER)
 	    break;
-	
+
 	total_len = ((eop->d_status >> 16) & 0x7FF) - 4;
 	IF_DEQUEUE(&sc->tulip_rxq, m);
 	if ((eop->d_status & TULIP_DSTS_ERRSUM) == 0) {
@@ -1056,8 +1056,8 @@ tulip_idle_srom(
     tulip_softc_t * const sc)
 {
     unsigned bit, csr;
-    
-    csr  = SROMSEL | SROMRD; EMIT;  
+
+    csr  = SROMSEL | SROMRD; EMIT;
     csr ^= SROMCS; EMIT;
     csr ^= SROMCLKON; EMIT;
 
@@ -1073,12 +1073,12 @@ tulip_idle_srom(
     csr  = 0; EMIT;
 }
 
-     
+
 static void
 tulip_read_srom(
     tulip_softc_t * const sc)
-{   
-    int idx; 
+{
+    int idx;
     const unsigned bitwidth = SROM_BITWIDTH;
     const unsigned cmdmask = (SROMCMD_RD << bitwidth);
     const unsigned msb = 1 << (bitwidth + 3 - 1);
@@ -1091,7 +1091,7 @@ tulip_read_srom(
         csr  = SROMSEL | SROMRD;        EMIT;
         csr ^= SROMCSON;                EMIT;
         csr ^=            SROMCLKON;    EMIT;
-    
+
         lastbit = 0;
         for (bits = idx|cmdmask, bit = bitwidth + 3; bit > 0; bit--, bits <<= 1) {
             const unsigned thisbit = bits & msb;
@@ -1106,7 +1106,7 @@ tulip_read_srom(
 
         for (data = 0, bits = 0; bits < 16; bits++) {
             data <<= 1;
-            csr ^= SROMCLKON; EMIT;     /* clock high; data valid */ 
+            csr ^= SROMCLKON; EMIT;     /* clock high; data valid */
             data |= TULIP_READ_CSR(sc, csr_srom_mii) & SROMDIN ? 1 : 0;
             csr ^= SROMCLKOFF; EMIT;    /* clock low; data not valid */
         }
@@ -1227,7 +1227,7 @@ tulip_read_macaddr(
     if (cksum >= 65535) cksum -= 65535;
 
     rom_cksum = *(u_short *) &sc->tulip_rombuf[6];
-	
+
     if (cksum != rom_cksum)
 	return -1;
 
@@ -1274,8 +1274,8 @@ tulip_addr_filter(
 	    ETHER_NEXT_MULTI(step, enm);
 	}
 	sc->tulip_flags |= TULIP_WANTHASH;
-	sp[39] = ((u_short *) sc->tulip_ac.ac_enaddr)[0]; 
-	sp[40] = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
+	sp[39] = ((u_short *) sc->tulip_ac.ac_enaddr)[0];
+	sp[40] = ((u_short *) sc->tulip_ac.ac_enaddr)[1];
 	sp[41] = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
     } else {
 	/*
@@ -1284,8 +1284,8 @@ tulip_addr_filter(
 	i = 0;
 	ETHER_FIRST_MULTI(step, &sc->tulip_ac, enm);
 	for (; enm != NULL; i++) {
-	    *sp++ = ((u_short *) enm->enm_addrlo)[0]; 
-	    *sp++ = ((u_short *) enm->enm_addrlo)[1]; 
+	    *sp++ = ((u_short *) enm->enm_addrlo)[0];
+	    *sp++ = ((u_short *) enm->enm_addrlo)[1];
 	    *sp++ = ((u_short *) enm->enm_addrlo)[2];
 	    ETHER_NEXT_MULTI(step, enm);
 	}
@@ -1302,8 +1302,8 @@ tulip_addr_filter(
 	 * Pad the rest with our hardware address
 	 */
 	for (; i < 16; i++) {
-	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[0]; 
-	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[1]; 
+	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[0];
+	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[1];
 	    *sp++ = ((u_short *) sc->tulip_ac.ac_enaddr)[2];
 	}
     }
@@ -1441,11 +1441,11 @@ tulip_attach(
     ifp->if_ioctl = tulip_ioctl;
     ifp->if_output = ether_output;
     ifp->if_start = tulip_start;
-  
+
 #ifdef __FreeBSD__
     printf("%s%d", sc->tulip_name, sc->tulip_unit);
 #endif
-    printf(": %s%s pass %d.%d Ethernet address %s\n", 
+    printf(": %s%s pass %d.%d Ethernet address %s\n",
 	   sc->tulip_boardsw->bd_description,
 	   tulip_chipdescs[sc->tulip_chipid],
 	   (sc->tulip_revinfo & 0xF0) >> 4,
@@ -1550,7 +1550,7 @@ tulip_pci_shutdown(
     if (kdc->kdc_unit < NDE) {
 	tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(kdc->kdc_unit);
 	TULIP_WRITE_CSR(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-	DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at 
+	DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at
 			   33MHz that comes to two microseconds but wait a
 			   bit longer anyways) */
     }
@@ -1595,7 +1595,7 @@ tulip_pci_shutdown(
 {
     tulip_softc_t * const sc = (tulip_softc_t *) arg;
     TULIP_WRITE_CSR(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at 
+    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at
 			   33MHz that comes to two microseconds but wait a
 			   bit longer anyways) */
 }
@@ -1684,7 +1684,7 @@ tulip_pci_shutdown(
 {
     tulip_softc_t * const sc = (tulip_softc_t *) arg;
     TULIP_WRITE_CSR(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at 
+    DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at
 			   33MHz that comes to two microseconds but wait a
 			   bit longer anyways) */
 }

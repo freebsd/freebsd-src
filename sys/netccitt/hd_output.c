@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_output.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_output.c,v 1.2 1994/08/02 07:47:05 davidg Exp $
+ * $Id: hd_output.c,v 1.3 1995/02/15 06:29:44 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,7 @@
  *      HDLC OUTPUT INTERFACE
  *
  *      This routine is called when the X.25 packet layer output routine
- *      has a information frame (iframe)  to write.   It is  also called 
+ *      has a information frame (iframe)  to write.   It is  also called
  *      by the input and control routines of the HDLC layer.
  */
 
@@ -70,7 +70,7 @@ register struct hdcb *hdp;
 {
 	register struct mbuf *m;
 
-	/* 
+	/*
 	 * The iframe is only transmitted if all these conditions are FALSE.
 	 * The iframe remains queued (hdp->hd_txq) however and will be
 	 * transmitted as soon as these conditions are cleared.
@@ -79,9 +79,9 @@ register struct hdcb *hdp;
 	while (!(hdp->hd_condition & (TIMER_RECOVERY_CONDITION | REMOTE_RNR_CONDITION | REJ_CONDITION))) {
 		if (hdp->hd_vs == (hdp->hd_lastrxnr + hdp->hd_xcp->xc_lwsize) % MODULUS) {
 
-			/* We have now exceeded the  maximum  number  of 
-			   outstanding iframes. Therefore,  we must wait 
-			   until  at least  one is acknowledged if this 
+			/* We have now exceeded the  maximum  number  of
+			   outstanding iframes. Therefore,  we must wait
+			   until  at least  one is acknowledged if this
 			   condition  is not  turned off before we are
 			   requested to write another iframe. */
 			hdp->hd_window_condition++;
@@ -133,7 +133,7 @@ struct mbuf *m0;
 	hd_start (hdp);
 }
 
-/* 
+/*
  *  This procedure is passed a buffer descriptor for an iframe. It builds
  *  the rest of the control part of the frame and then writes it out.  It
  *  also  starts the  acknowledgement  timer and keeps  the iframe in the
@@ -221,7 +221,7 @@ register struct hdcb *hdp;
 }
 
 
-/* 
+/*
  *  This routine gets control when the timer expires because we have not
  *  received an acknowledgement for a iframe.
  */

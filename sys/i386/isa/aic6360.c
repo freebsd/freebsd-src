@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by Jarle Greipsland
- * 4. The name of the author may not be used to endorse or promote products 
+ * 4. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.7 1995/03/28 07:55:24 bde Exp $
+ * $Id: aic6360.c,v 1.8 1995/04/12 20:47:35 wollman Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -43,7 +43,7 @@
 /* TODO list:
  * 1) Get the DMA stuff working.
  * 2) Get the iov/uio stuff working. Is this a good thing ???
- * 3) Get the synch stuff working. 
+ * 3) Get the synch stuff working.
  * 4) Rewrite it to use malloc for the acb structs instead of static alloc.?
  */
 
@@ -56,7 +56,7 @@
 #define AIC_SCSI_HOSTID 7
 #endif
 
-/* Use doubleword transfers to/from SCSI chip.  Note: This requires 
+/* Use doubleword transfers to/from SCSI chip.  Note: This requires
  * motherboard support.  Basicly, some motherboard chipsets are able to
  * split a 32 bit I/O operation into two 16 bit I/O operations,
  * transparently to the processor.  This speeds up some things, notably long
@@ -94,9 +94,9 @@
 #define AIC_MSGI_SPIN	1 	/* Will spinwait upto ?ms for a new msg byte */
 #define AIC_MSGO_SPIN	1
 
-/* Include debug functions?  At the end of this file there are a bunch of 
- * functions that will print out various information regarding queued SCSI 
- * commands, driver state and chip contents.  You can call them from the 
+/* Include debug functions?  At the end of this file there are a bunch of
+ * functions that will print out various information regarding queued SCSI
+ * commands, driver state and chip contents.  You can call them from the
  * kernel debugger.  If you set AIC_DEBUG to 0 they are not included (the
  * kernel uses less memory) but you lose the debugging facilities.
  */
@@ -290,8 +290,8 @@
  * mismatch and phase change interrupts.  But more important:  If there is a
  * phase mismatch the chip will not transfer any data!  This is actually a nice
  * feature as it gives us a bit more control over what is happening when we are
- * bursting data (in) through the FIFOs and the phase suddenly changes from 
- * DATA IN to STATUS or MESSAGE IN.  The transfer will stop and wait for the 
+ * bursting data (in) through the FIFOs and the phase suddenly changes from
+ * DATA IN to STATUS or MESSAGE IN.  The transfer will stop and wait for the
  * proper phase to be set in this register instead of dumping the bits into the
  * FIFOs.
  */
@@ -521,7 +521,7 @@ extern int delaycount;
 #define AIC_NSEG	16
 #define NUM_CONCURRENT	7	/* Only one per target for now */
 
-/* 
+/*
  * ACB. Holds additional information for each SCSI command Comments: We
  * need a separate scsi command block because we may need to overwrite it
  * with a request sense command.  Basicly, we refrain from fiddling with
@@ -546,9 +546,9 @@ struct acb {
 	int 	 stat;		/* SCSI status byte */
 };
 
-/* 
- * Some info about each (possible) target on the SCSI bus.  This should 
- * probably have been a "per target+lunit" structure, but we'll leave it at 
+/*
+ * Some info about each (possible) target on the SCSI bus.  This should
+ * probably have been a "per target+lunit" structure, but we'll leave it at
  * this for now.  Is there a way to reliably hook it up to sc->fordriver??
  */
 struct aic_tinfo {
@@ -655,7 +655,7 @@ struct aic_softc { /* One of these per adapter */
 #define AIC_SHOWMISC 0x08
 #define AIC_SHOWTRAC 0x10
 #define AIC_SHOWSTART 0x20
-int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */ 
+int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 
 #if AIC_DEBUG
 #define AIC_ACBS(str)  do {if (aic_debug & AIC_SHOWACBS) printf str;} while (0)
@@ -771,7 +771,7 @@ aic_registerdev(struct isa_device *id)
 	dev_attach(&kdc_aic[id->id_unit]);
 }
 
-/* 
+/*
  * INITIALIZATION ROUTINES (probe, attach ++)
  */
 
@@ -779,7 +779,7 @@ aic_registerdev(struct isa_device *id)
  * aicprobe: probe for AIC6360 SCSI-controller
  * returns non-zero value if a controller is found.
  */
-int 
+int
 #ifdef __FreeBSD__
 aicprobe(dev)
 	struct isa_device *dev;
@@ -797,7 +797,7 @@ aicprobe(parent, self, aux)
 	struct isa_attach_args *ia = aux;
 #endif
 	int i, len, ic;
-	
+
 #ifdef __FreeBSD__
 	if (unit >= NAIC) {
 		printf("aic%d: unit number too high\n", unit);
@@ -862,7 +862,7 @@ aicprobe(parent, self, aux)
 #endif
 }
 
-/* Do the real search-for-device.  
+/* Do the real search-for-device.
  * Prerequisite: aic->iobase should be set to the proper value
  */
 int
@@ -872,23 +872,23 @@ aic_find(aic)
 #else
 	struct aic_softc *aic;
 #endif
-{	
+{
 	u_short iobase = aic->iobase;
 	char chip_id[sizeof(IDSTRING)];	/* For chips that support it */
 	char *start;
 	int i;
-	
+
 	/* Remove aic6360 from possible powerdown mode */
 	outb(DMACNTRL0, 0);
 
-	/* Thanks to mark@aggregate.com for the new method for detecting 
-	 * whether the chip is present or not.  Bonus: may also work for 
+	/* Thanks to mark@aggregate.com for the new method for detecting
+	 * whether the chip is present or not.  Bonus: may also work for
 	 * the AIC-6260!
  	 */
 	AIC_TRACE(("aic: probing for aic-chip at port 0x%x\n",(int)iobase));
- 	/* 
+ 	/*
  	 * Linux also init's the stack to 1-16 and then clears it,
-     	 *  6260's don't appear to have an ID reg - mpg 
+     	 *  6260's don't appear to have an ID reg - mpg
  	 */
 	/* Push the sequence 0,1,..,15 on the stack */
 #define STSIZE 16
@@ -927,7 +927,7 @@ aicprint()
  * Attach the AIC6360, fill out some high and low level data structures
  */
 #ifdef __FreeBSD__
-int 
+int
 aicattach(dev)
 	struct isa_device *dev;
 #else
@@ -990,7 +990,7 @@ aicattach(parent, self, aux)
  * aicprobe should have succeeded, i.e. the iobase address in aic_data must
  * be valid.
  */
-static void 
+static void
 aic6360_reset(aic)
 #ifdef __FreeBSD__
 	struct aic_data *aic;
@@ -1005,7 +1005,7 @@ aic6360_reset(aic)
 
 	/* Reset SCSI-FIFO and abort any transfers */
 	outb(SXFRCTL0, CHEN|CLRCH|CLRSTCNT);
-	
+
 	/* Reset DMA-FIFO */
 	outb(DMACNTRL0, RSTFIFO);
 	outb(DMACNTRL1, 0);
@@ -1018,11 +1018,11 @@ aic6360_reset(aic)
 
 	outb(SIMODE1, 0x00);		/* Disable some more interrupts */
 	outb(CLRSINT1, 0xef);	/* Clear another slew of interrupts */
-	
+
 	outb(SCSIRATE, 0);	/* Disable synchronous transfers */
 
 	outb(CLRSERR, 0x07);	/* Haven't seen ant errors (yet) */
-	
+
 	outb(SCSIID, AIC_SCSI_HOSTID << OID_S); /* Set our SCSI-ID */
 	outb(BRSTCNTRL, EISA_BRST_TIM);
 }
@@ -1067,7 +1067,7 @@ aic_init(aic)
 	u_short iobase = aic->iobase;
 	struct acb *acb;
 	int r;
-	
+
 				/* Reset the SCSI-bus itself */
 	aic_scsi_reset(aic);
 
@@ -1102,7 +1102,7 @@ aic_init(aic)
 			aic_done(acb);
 		}
 	}
-	
+
 	aic->phase = aic->prevphase = PH_INVALID;
 	aic->hp = 0;
 	for (r = 0; r < 7; r++) {
@@ -1145,7 +1145,7 @@ aic_init(aic)
  * SCSI-commands.
  */
 #ifdef __FreeBSD__
-int32 
+int32
 #else
 int
 #endif
@@ -1163,10 +1163,10 @@ aic_scsi_cmd(xs)
 	int s = 0;
 	int flags;
 	u_short iobase = aic->iobase;
-	
+
 	SC_DEBUG(sc, SDEV_DB2, ("aic_scsi_cmd\n"));
 	AIC_TRACE(("aic_scsi_cmd\n"));
-	AIC_MISC(("[0x%x, %d]->%d ", (int)xs->cmd->opcode, xs->cmdlen, 
+	AIC_MISC(("[0x%x, %d]->%d ", (int)xs->cmd->opcode, xs->cmdlen,
 		  sc->target));
 
 	flags = xs->flags;
@@ -1186,7 +1186,7 @@ aic_scsi_cmd(xs)
 			TAILQ_REMOVE(&aic->free_list, acb, chain);
 		}
 	}
-		
+
 	if (acb == NULL) {
 		xs->error = XS_DRIVER_STUFFUP;
 		AIC_MISC(("TRY_AGAIN_LATER"));
@@ -1201,7 +1201,7 @@ aic_scsi_cmd(xs)
 	acb->daddr = xs->data;
 	acb->dleft = xs->datalen;
 	acb->stat = 0;
-	
+
 	if (!(flags & SCSI_NOMASK))
 		s = splbio();
 
@@ -1228,7 +1228,7 @@ aic_scsi_cmd(xs)
 /*
  * Adjust transfer size in buffer structure
  */
-void 
+void
 aic_minphys(bp)
 	struct buf *bp;
 {
@@ -1240,7 +1240,7 @@ aic_minphys(bp)
 
 
 #ifdef __FreeBSD__
-u_int32 
+u_int32
 aic_adapter_info(unit)
 	int	unit;
 #else
@@ -1310,7 +1310,7 @@ aic_poll(aic, acb)
  * Also peek at SSTAT0[SELDO|SELDI] to detect a passing BUSFREE condition.
  * No longer detect SCSI RESET or PERR here.  They are tested for separately
  * in the interrupt handler.
- * Note: If an exception occur at some critical time during the phase 
+ * Note: If an exception occur at some critical time during the phase
  * determination we'll most likely return something wildly erronous....
  */
 static inline u_short
@@ -1323,11 +1323,11 @@ aicphase(aic)
 {
 	register u_short iobase = aic->iobase;
 	register u_char sstat0, sstat1, scsisig;
-	
+
 	sstat1 = inb(SSTAT1);	/* Look for REQINIT (REQ asserted) */
 	scsisig = inb(SCSISIGI); /* Get the SCSI bus signals */
 	sstat0 = inb(SSTAT0);	/* Get the selection valid status bits */
-	
+
 	if (!(inb(SSTAT0) & (SELDO|SELDI))) /* Selection became invalid? */
 		return PH_BUSFREE;
 
@@ -1359,7 +1359,7 @@ aic_sched(aic)
 	u_short iobase = aic->iobase;
 	int t, l;
 	u_char simode0, simode1, scsiseq;
-	
+
 	AIC_TRACE(("aic_sched\n"));
 	simode0 = ENSELDI;
 	simode1 = ENSCSIRST|ENSCSIPERR|ENREQINIT;
@@ -1376,7 +1376,7 @@ aic_sched(aic)
 			TAILQ_REMOVE(&aic->ready_list, acb, chain);
 			aic->nexus = acb;
 			aic->state = AIC_SELECTING;
-			/* 
+			/*
 			 * Start selection process. Always enable
 			 * reselections.  Note: we don't have a nexus yet, so
 			 * cannot set aic->state = AIC_HASNEXUS.
@@ -1423,10 +1423,10 @@ aic_done(acb)
 	AIC_TRACE(("aic_done "));
 
 	/*
-	 * Now, if we've come here with no error code, i.e. we've kept the 
+	 * Now, if we've come here with no error code, i.e. we've kept the
 	 * initial XS_NOERROR, and the status code signals that we should
-	 * check sense, we'll need to set up a request sense cmd block and 
-	 * push the command back into the ready queue *before* any other 
+	 * check sense, we'll need to set up a request sense cmd block and
+	 * push the command back into the ready queue *before* any other
 	 * commands for this target/lunit, else we lose the sense info.
 	 * We don't support chk sense conditions for the request sense cmd.
 	 */
@@ -1457,7 +1457,7 @@ aic_done(acb)
 			return;
 		}
 	}
-	
+
 	if (xs->flags & SCSI_ERR_OK) {
 		xs->resid = 0;
 		xs->error = XS_NOERROR;
@@ -1467,7 +1467,7 @@ aic_done(acb)
 		xs->resid = acb->dleft;
 	}
 	xs->flags |= ITSDONE;
-	
+
 #if AIC_DEBUG
 	if (aic_debug & AIC_SHOWMISC) {
 		printf("err=0x%02x ",xs->error);
@@ -1581,19 +1581,19 @@ aic_msgin(aic)
 	register u_short iobase = aic->iobase;
 	int spincount, extlen;
 	u_char sstat1;
-	
+
 	AIC_TRACE(("aic_msgin "));
 	outb(SCSISIGO, PH_MSGI);
 	/* Prepare for a new message.  A message should (according to the SCSI
-	 * standard) be transmitted in one single message_in phase.  
+	 * standard) be transmitted in one single message_in phase.
 	 * If we have been in some other phase, then this is a new message.
 	 */
 	if (aic->prevphase != PH_MSGI) {
 		aic->flags &= ~AIC_DROP_MSGI;
 		aic->imlen = 0;
 	}
-	/* 
-	 * Read a whole message but the last byte.  If we shall reject the 
+	/*
+	 * Read a whole message but the last byte.  If we shall reject the
 	 * message, we shall have to do it, by asserting ATNO, during the
 	 * message transfer phase itself.
 	 */
@@ -1613,7 +1613,7 @@ aic_msgin(aic)
 		if (!(aic->flags & AIC_DROP_MSGI)) {
 			/* Get next message byte */
 			aic->imess[aic->imlen] = inb(SCSIDAT);
-			/* 
+			/*
 			 * This testing is suboptimal, but most messages will
 			 * be of the one byte variety, so it should not effect
 			 * performance significantly.
@@ -1642,7 +1642,7 @@ aic_msgin(aic)
 		aic->imlen++;
 
 		/*
-		 * We expect the bytes in a multibyte message to arrive 
+		 * We expect the bytes in a multibyte message to arrive
 		 * relatively close in time, a few microseconds apart.
 		 * Therefore we will spinwait for some small amount of time
 		 * waiting for the next byte.
@@ -1659,7 +1659,7 @@ aic_msgin(aic)
 			return;
 	}
 	/* Now we should have a complete message (1 byte, 2 byte and moderately
-	 * long extended messages).  We only handle extended messages which 
+	 * long extended messages).  We only handle extended messages which
 	 * total length is shorter than AIC_MAX_MSG_LEN.  Longer messages will
 	 * be amputated.  (Return XS_BOBBITT ?)
 	 */
@@ -1774,7 +1774,7 @@ aic_msgin(aic)
 			/* Search wait queue for disconnected cmd
 			 * The list should be short, so I haven't bothered with
 			 * any more sophisticated structures than a simple
-			 * singly linked list. 
+			 * singly linked list.
 			 */
 			lunit = aic->imess[0] & 0x07;
 			for (acb = aic->nexus_list.tqh_first; acb;
@@ -1821,11 +1821,11 @@ aic_msgin(aic)
 
 
 /* The message out (and in) stuff is a bit complicated:
- * If the target requests another message (sequence) without 
- * having changed phase in between it really asks for a 
+ * If the target requests another message (sequence) without
+ * having changed phase in between it really asks for a
  * retransmit, probably due to parity error(s).
  * The following messages can be sent:
- * IDENTIFY	   @ These 3 stems from scsi command activity 
+ * IDENTIFY	   @ These 3 stems from scsi command activity
  * BUS_DEV_RESET   @
  * IDENTIFY + SDTR @
  * MESSAGE_REJECT if MSGI doesn't make sense
@@ -1845,7 +1845,7 @@ aic_msgout(aic)
 	struct acb *acb;
 	u_char dmastat, scsisig;
 
-	/* First determine what to send. If we haven't seen a 
+	/* First determine what to send. If we haven't seen a
 	 * phasechange this is a retransmission request.
 	 */
 	outb(SCSISIGO, PH_MSGO);
@@ -1896,7 +1896,7 @@ aic_msgout(aic)
 		}
 		aic->omp = aic->omess;
 	} else if (aic->omp == &aic->omess[aic->omlen]) {
-		/* Have sent the message at least once, this is a retransmit.  
+		/* Have sent the message at least once, this is a retransmit.
 		 */
 		AIC_MISC(("retransmitting "));
 		if (aic->omlen > 1)
@@ -1925,7 +1925,7 @@ aic_msgout(aic)
 			;
 	} while (aic->omp != &aic->omess[aic->omlen]);
 	aic->progress = aic->omp != aic->omess;
-	/* We get here in two ways: 
+	/* We get here in two ways:
 	 * a) phase != MSGO.  Target is probably going to reject our message
 	 * b) aic->omp == &aic->omess[aic->omlen], i.e. the message has been
 	 *    transmitted correctly and accepted by the target.
@@ -1976,7 +1976,7 @@ aic_dataout(aic)
 	outb(SIMODE1, ENPHASEMIS|ENSCSIRST|ENBUSFREE|ENPHASECHG);
 
 	/* I have tried to make the main loop as tight as possible.  This
-	 * means that some of the code following the loop is a bit more 
+	 * means that some of the code following the loop is a bit more
 	 * complex than otherwise.
 	 */
 	while (aic->dleft) {
@@ -2045,7 +2045,7 @@ phasechange:
 		aic->dp -= amount;
 		AIC_MISC(("+%d ", amount));
 	}
-	
+
 	outb(DMACNTRL0, RSTFIFO|INTEN);
 	LOGLINE(aic);
 	while (inb(SXFRCTL0) & SCSIEN)
@@ -2062,7 +2062,7 @@ phasechange:
  * Precondition: The SCSI bus should be in the DIN phase, with REQ asserted
  * and ACK deasserted (i.e. at least one byte is ready).
  * For now, uses a pretty dumb algorithm, hangs around until all data has been
- * transferred.  This, is OK for fast targets, but not so smart for slow 
+ * transferred.  This, is OK for fast targets, but not so smart for slow
  * targets which don't disconnect or for huge transfers.
  */
 void
@@ -2078,7 +2078,7 @@ aic_datain(aic)
 	struct acb *acb = aic->nexus;
 	int amount, olddleft = aic->dleft;
 #define DINAMOUNT 128		/* Default amount of data to transfer */
-	
+
 	/* Enable DATA IN transfers */
 	outb(SCSISIGO, PH_DIN);
 	outb(CLRSINT1, CLRPHASECHG);
@@ -2154,7 +2154,7 @@ aic_datain(aic)
 
 	aic->progress = olddleft != aic->dleft;
 	/* Some SCSI-devices are rude enough to transfer more data than what
-	 * was requested, e.g. 2048 bytes from a CD-ROM instead of the 
+	 * was requested, e.g. 2048 bytes from a CD-ROM instead of the
 	 * requested 512.  Test for progress, i.e. real transfers.  If no real
 	 * transfers have been performed (acb->dleft is probably already zero)
 	 * and the FIFO is not empty, waste some bytes....
@@ -2193,7 +2193,7 @@ aic_datain(aic)
  * 2) doesn't support synchronous transfers properly (yet)
  */
 
-int 
+int
 #ifdef __FreeBSD__
 aicintr(int unit)
 #else
@@ -2216,14 +2216,14 @@ aicintr(aic)
 
 
 	LOGLINE(aic);
-	/* Clear INTEN.  This is important if we're running with edge 
+	/* Clear INTEN.  This is important if we're running with edge
 	 * triggered interrupts as we don't guarantee that all interrupts will
 	 * be served during one single invocation of this routine, i.e. we may
 	 * need another edge.
 	 */
 	outb(DMACNTRL0, 0);
 	AIC_TRACE(("aicintr\n"));
-	
+
 	/*
 	 * 1st check for abnormal conditions, such as reset or parity errors
 	 */
@@ -2241,18 +2241,18 @@ aicintr(aic)
 			outb(CLRSINT1, CLRSCSIPERR);
 			if (aic->prevphase == PH_MSGI)
 				aic_sched_msgout(SEND_PARITY_ERROR);
-			else 
+			else
 				aic_sched_msgout(SEND_INIT_DET_ERR);
 		}
 	}
 
-	/* 
+	/*
 	 * If we're not already busy doing something test for the following
 	 * conditions:
 	 * 1) We have been reselected by something
 	 * 2) We have selected something successfully
 	 * 3) Our selection process has timed out
-	 * 4) This is really a bus free interrupt just to get a new command 
+	 * 4) This is really a bus free interrupt just to get a new command
 	 *    going?
 	 * 5) Spurious interrupt?
 	 */
@@ -2270,7 +2270,7 @@ aicintr(aic)
 			 *    queue.
 			 */
 			AIC_MISC(("reselect "));
-			/* If we're trying to select a target ourselves, 
+			/* If we're trying to select a target ourselves,
 			 * push our command back into the rdy list.
 			 */
 			if (aic->state == AIC_SELECTING) {
@@ -2351,7 +2351,7 @@ aicintr(aic)
 			sstat0 = inb(SSTAT0);
 			if (sstat0 & SELDO) { /* Still selected!? */
 				outb(SIMODE0, 0);
-				outb(SIMODE1, ENSCSIRST|ENSCSIPERR| 
+				outb(SIMODE1, ENSCSIRST|ENSCSIPERR|
 				     ENBUSFREE|ENREQINIT);
 				aic->state = AIC_HASNEXUS;
 				aic->flags = 0;
@@ -2378,7 +2378,7 @@ aicintr(aic)
 			return 1;
 		} else if (sstat1 & SELTO) {
 			/* Selection timed out. What to do:
-			 * Disable selections out and fail the command with 
+			 * Disable selections out and fail the command with
 			 * code XS_TIMEOUT.
 			 */
 			acb = aic->nexus;
@@ -2413,7 +2413,7 @@ aicintr(aic)
 		}
 	}
 	/* Driver is now in state AIC_HASNEXUS, i.e. we have a current command
-	 * working the SCSI bus.  
+	 * working the SCSI bus.
 	 */
 	acb = aic->nexus;
 	if (aic->state != AIC_HASNEXUS || acb == NULL) {
@@ -2421,7 +2421,7 @@ aicintr(aic)
 		Debugger("aic6360");
 		fatal_if_no_DDB();
 	}
-	
+
 	/* What sort of transfer does the bus signal? */
 	aic->phase = aicphase(aic);
 	if (!(aic->phase & PH_PSBIT)) /* not a pseudo phase */
@@ -2659,7 +2659,7 @@ aic_dump6360()
 	printf("         SIMODE0=%x SIMODE1=%x DMACNTRL0=%x DMACNTRL1=%x DMASTAT=%x\n",
 	    inb(SIMODE0), inb(SIMODE1), inb(DMACNTRL0), inb(DMACNTRL1),
 	    inb(DMASTAT));
-	printf("         FIFOSTAT=%d SCSIBUS=0x%x\n", 
+	printf("         FIFOSTAT=%d SCSIBUS=0x%x\n",
 	    inb(FIFOSTAT), inb(SCSIBUS));
 }
 
@@ -2673,7 +2673,7 @@ aic_dump_driver()
 #endif
 	struct aic_tinfo *ti;
 	int i;
-	
+
 	printf("nexus=%x phase=%x prevphase=%x\n", aic->nexus, aic->phase,
 	    aic->prevphase);
 	printf("state=%x msgin=%x msgpriq=%x msgout=%x imlen=%d omlen=%d\n",

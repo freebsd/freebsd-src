@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.3 1994/10/06 21:06:44 davidg Exp $
+ *	$Id: procfs_subr.c,v 1.4 1995/04/15 02:30:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -103,7 +103,7 @@ loop:
 	/*
 	 * otherwise lock the vp list while we call getnewvnode
 	 * since that can block.
-	 */ 
+	 */
 	if (pfsvplock & PROCFS_LOCKED) {
 		pfsvplock |= PROCFS_WANT;
 		(void) tsleep((caddr_t) &pfsvplock, PINOD, "pfsavp", 0);

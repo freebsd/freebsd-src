@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/03/28 19:22:43 phk Exp $
 #
 
 MPROG=	fbsdboot.exe
@@ -8,7 +8,7 @@ BINMODE=	444
 NOMAN=
 STRIP=
 
-all:	${MPROG}	
+all:	${MPROG}
 
 install:	${MPROG}
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.23 1995/05/09 12:32:06 olah Exp $
+ *	$Id: tcp_input.c,v 1.24 1995/05/11 01:41:06 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -318,7 +318,7 @@ tcp_input(m, iphlen)
 		}
 		optlen = off - sizeof (struct tcphdr);
 		optp = mtod(m, caddr_t) + sizeof (struct tcpiphdr);
-		/* 
+		/*
 		 * Do quick retrieval of timestamp options ("options
 		 * prediction?").  If timestamp is the only option and it's
 		 * formatted as recommended in RFC 1323 appendix A, we
@@ -382,7 +382,7 @@ findpcb:
 		goto dropwithreset;
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
-	
+
 	/* Unscale the window into a 32-bit value. */
 	if ((tiflags & TH_SYN) == 0)
 		tiwin = ti->ti_win << tp->snd_scale;
@@ -447,7 +447,7 @@ findpcb:
 		tcp_dooptions(tp, optp, optlen, ti,
 			&to);
 
-	/* 
+	/*
 	 * Header prediction: check for the two common cases
 	 * of a uni-directional data xfer.  If the packet has
 	 * no control flags, is in-sequence, the window didn't
@@ -480,7 +480,7 @@ findpcb:
 	    tiwin && tiwin == tp->snd_wnd &&
 	    tp->snd_nxt == tp->snd_max) {
 
-		/* 
+		/*
 		 * If last ACK falls within this segment's sequence numbers,
 		 * record the timestamp.
 		 * NOTE that the test is modified according to the latest
@@ -666,7 +666,7 @@ findpcb:
 		tp->cc_recv = to.to_cc;
 		/*
 		 * Perform TAO test on incoming CC (SEG.CC) option, if any.
-		 * - compare SEG.CC against cached CC from the same host, 
+		 * - compare SEG.CC against cached CC from the same host,
 		 *	if any.
 		 * - if SEG.CC > chached value, SYN must be new and is accepted
 		 *	immediately: save new CC in the cache, mark the socket
@@ -794,7 +794,7 @@ findpcb:
 			/* Segment is acceptable, update cache if undefined. */
 			if (taop->tao_ccsent == 0)
 				taop->tao_ccsent = to.to_ccecho;
-			
+
 			tp->rcv_adv += tp->rcv_wnd;
 			tp->snd_una++;		/* SYN is acked */
 			/*
@@ -822,19 +822,19 @@ findpcb:
 		/*
 		 *  Received initial SYN in SYN-SENT[*] state => simul-
 		 *  taneous open.  If segment contains CC option and there is
-		 *  a cached CC, apply TAO test; if it succeeds, connection is 
+		 *  a cached CC, apply TAO test; if it succeeds, connection is
 		 *  half-synchronized.  Otherwise, do 3-way handshake:
 		 *        SYN-SENT -> SYN-RECEIVED
 		 *        SYN-SENT* -> SYN-RECEIVED*
 		 *  If there was no CC option, clear cached CC value.
 		 */
 			tp->t_flags |= TF_ACKNOW;
-			tp->t_timer[TCPT_REXMT] = 0;		    
+			tp->t_timer[TCPT_REXMT] = 0;
 			if (to.to_flag & TOF_CC) {
 				if (taop->tao_cc != 0 &&
 				    CC_GT(to.to_cc, taop->tao_cc)) {
 					/*
-					 * update cache and make transition: 
+					 * update cache and make transition:
 					 *        SYN-SENT -> ESTABLISHED*
 					 *        SYN-SENT* -> FIN-WAIT-1*
 					 */
@@ -852,7 +852,7 @@ findpcb:
 				taop->tao_cc = 0;
 				tp->t_state = TCPS_SYN_RECEIVED;
 			}
-		}				
+		}
 
 trimthenstep6:
 		/*
@@ -877,7 +877,7 @@ trimthenstep6:
 		 *  our data will be ACK'd; if so, enter normal data segment
 		 *  processing in the middle of step 5, ack processing.
 		 *  Otherwise, goto step 6.
-		 */ 
+		 */
  		if (tiflags & TH_ACK)
 			goto process_ACK;
 		goto step6;
@@ -893,8 +893,8 @@ trimthenstep6:
 	 *                  segment, hoping to find new TCPCB in LISTEN state;
 	 *
 	 *		else must be old SYN; drop it.
-	 *      else do normal processing. 
-	 */      
+	 *      else do normal processing.
+	 */
 	case TCPS_LAST_ACK:
 	case TCPS_CLOSING:
 	case TCPS_TIME_WAIT:
@@ -917,7 +917,7 @@ trimthenstep6:
 	 * States other than LISTEN or SYN_SENT.
 	 * First check timestamp, if present.
 	 * Then check the connection count, if present.
-	 * Then check that at least some bytes of segment are within 
+	 * Then check that at least some bytes of segment are within
 	 * receive window.  If segment begins before rcv_nxt,
 	 * drop leading data (and SYN); if nothing left, just ack.
 	 *
@@ -965,7 +965,7 @@ trimthenstep6:
 		if (tiflags & TH_SYN) {
 			tiflags &= ~TH_SYN;
 			ti->ti_seq++;
-			if (ti->ti_urp > 1) 
+			if (ti->ti_urp > 1)
 				ti->ti_urp--;
 			else
 				tiflags &= ~TH_URG;
@@ -1064,7 +1064,7 @@ trimthenstep6:
 	 * NOTE that the test is modified according to the latest
 	 * proposal of the tcplw@cray.com list (Braden 1993/04/26).
 	 */
-	if ((to.to_flag & TOF_TS) != 0 && 
+	if ((to.to_flag & TOF_TS) != 0 &&
 	    SEQ_LEQ(ti->ti_seq, tp->last_ack_sent)) {
 		tp->ts_recent_age = tcp_now;
 		tp->ts_recent = to.to_tsval;
@@ -1125,7 +1125,7 @@ trimthenstep6:
 		else
 			goto drop;
 	}
-	
+
 	/*
 	 * Ack processing.
 	 */
@@ -1159,7 +1159,7 @@ trimthenstep6:
 			taop->tao_cc = tp->cc_recv;
 
 		/*
-		 * Make transitions:  
+		 * Make transitions:
 		 *      SYN-RECEIVED  -> ESTABLISHED
 		 *      SYN-RECEIVED* -> FIN-WAIT-1
 		 */
@@ -1168,7 +1168,7 @@ trimthenstep6:
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else
 			tp->t_state = TCPS_ESTABLISHED;
-		/* 
+		/*
 		 * If segment contains data or ACK, will call tcp_reass()
 		 * later; if not, do so now to pass queued data to user.
 		 */
@@ -1216,7 +1216,7 @@ trimthenstep6:
 				 * the new ssthresh).
 				 *
 				 * Dup acks mean that packets have left the
-				 * network (they're now cached at the receiver) 
+				 * network (they're now cached at the receiver)
 				 * so bump cwnd by the amount in the receiver
 				 * to keep a constant cwnd packets in the
 				 * network.
@@ -1265,11 +1265,11 @@ trimthenstep6:
 			goto dropafterack;
 		}
 		/*
-		 *  If we reach this point, ACK is not a duplicate, 
+		 *  If we reach this point, ACK is not a duplicate,
 		 *     i.e., it ACKs something we sent.
 		 */
 		if (tp->t_flags & TF_NEEDSYN) {
-			/* 
+			/*
 			 *   T/TCP: Connection was half-synchronized, and our
 			 *   SYN has been ACK'd (so connection is now fully
 			 *   synchronized).  Go to non-starred state and
@@ -1422,7 +1422,7 @@ step6:
 	 * Don't look at window if no ACK: TAC's send garbage on first SYN.
 	 */
 	if ((tiflags & TH_ACK) &&
-	    (SEQ_LT(tp->snd_wl1, ti->ti_seq) || 
+	    (SEQ_LT(tp->snd_wl1, ti->ti_seq) ||
 	    (tp->snd_wl1 == ti->ti_seq && (SEQ_LT(tp->snd_wl2, ti->ti_ack) ||
 	     (tp->snd_wl2 == ti->ti_ack && tiwin > tp->snd_wnd))))) {
 		/* keep track of pure window updates */
@@ -1457,14 +1457,14 @@ step6:
 		 * If this segment advances the known urgent pointer,
 		 * then mark the data stream.  This should not happen
 		 * in CLOSE_WAIT, CLOSING, LAST_ACK or TIME_WAIT STATES since
-		 * a FIN has been received from the remote side. 
+		 * a FIN has been received from the remote side.
 		 * In these states we ignore the URG.
 		 *
 		 * According to RFC961 (Assigned Protocols),
 		 * the urgent pointer points to the last octet
 		 * of urgent data.  We continue, however,
 		 * to consider it to indicate the first octet
-		 * of data past the urgent section as the original 
+		 * of data past the urgent section as the original
 		 * spec states (in one of two places).
 		 */
 		if (SEQ_GT(ti->ti_seq+ti->ti_urp, tp->rcv_up)) {
@@ -1532,11 +1532,11 @@ dodata:							/* XXX */
 			 *  (ie SEND_SYN flag on) then delay ACK,
 			 *  so it may be piggybacked when SYN is sent.
 			 *  Otherwise, since we received a FIN then no
-			 *  more input can be expected, send ACK now. 
+			 *  more input can be expected, send ACK now.
 			 */
 			if (tp->t_flags & TF_NEEDSYN)
 				tp->t_flags |= TF_DELACK;
-			else 
+			else
 				tp->t_flags |= TF_ACKNOW;
 			tp->rcv_nxt++;
 		}
@@ -1561,7 +1561,7 @@ dodata:							/* XXX */
 
 	 	/*
 		 * In FIN_WAIT_2 state enter the TIME_WAIT state,
-		 * starting the time-wait timer, turning off the other 
+		 * starting the time-wait timer, turning off the other
 		 * standard timers.
 		 */
 		case TCPS_FIN_WAIT_2:
@@ -1714,7 +1714,7 @@ tcp_dooptions(tp, cp, cnt, ti, to)
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
 			NTOHL(to->to_tsecr);
 
-			/* 
+			/*
 			 * A timestamp received in a SYN makes
 			 * it ok to send timestamp requests and replies.
 			 */
@@ -1731,7 +1731,7 @@ tcp_dooptions(tp, cp, cnt, ti, to)
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
 			NTOHL(to->to_cc);
-			/* 
+			/*
 			 * A CC or CC.new option received in a SYN makes
 			 * it ok to send CC in subsequent segments.
 			 */
@@ -1747,7 +1747,7 @@ tcp_dooptions(tp, cp, cnt, ti, to)
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
 			NTOHL(to->to_cc);
-			/* 
+			/*
 			 * A CC or CC.new option received in a SYN makes
 			 * it ok to send CC in subsequent segments.
 			 */
@@ -1782,7 +1782,7 @@ tcp_pulloutofband(so, ti, m)
 	register struct mbuf *m;
 {
 	int cnt = ti->ti_urp - 1;
-	
+
 	while (cnt >= 0) {
 		if (m->m_len > cnt) {
 			char *cp = mtod(m, caddr_t) + cnt;
@@ -1841,7 +1841,7 @@ tcp_xmit_timer(tp, rtt)
 		if ((tp->t_rttvar += delta) <= 0)
 			tp->t_rttvar = 1;
 	} else {
-		/* 
+		/*
 		 * No rtt measurement yet - use the unsmoothed rtt.
 		 * Set the variance to half the rtt (so our first
 		 * retransmit happens at 3*rtt).
@@ -1865,7 +1865,7 @@ tcp_xmit_timer(tp, rtt)
 	 */
 	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
 	    tp->t_rttmin, TCPTV_REXMTMAX);
-	
+
 	/*
 	 * We received an ack for a packet that wasn't retransmitted;
 	 * it is probably safe to discard any error indications we've

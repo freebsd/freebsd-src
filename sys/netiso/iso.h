@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
- * $Id: iso.h,v 1.2 1994/08/02 07:50:28 davidg Exp $
+ * $Id: iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $
  */
 
 #ifndef _NETISO_ISO_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,19 +63,19 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.2 1994/08/02 07:50:28 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso.h,v $ */
 
 /*
  *	Return true if this is a multicast address
- *	This assumes that the bit transmission is lsb first. This 
+ *	This assumes that the bit transmission is lsb first. This
  *	assumption is valid for 802.3 but not 802.5. There is a
  *	kludge to get around this for 802.5 -- see if_lan.c
  *	where subnetwork header is setup.
  */
 #define	IS_MULTICAST(snpa)\
 	((snpa)[0] & 0x01)
-	
+
 /*
  * Protocols
  */
@@ -171,7 +171,7 @@ struct sockaddr_iso {
 #ifdef KERNEL
 
 extern int iso_netmatch();
-extern int iso_hash(); 
+extern int iso_hash();
 extern int iso_addrmatch();
 extern struct iso_ifaddr *iso_iaonnetof();
 extern	struct domain isodomain;
@@ -194,4 +194,4 @@ __END_DECLS
 
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
 
-#endif 
+#endif

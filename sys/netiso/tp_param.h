@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_param.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_param.h,v 1.2 1994/08/02 07:51:19 davidg Exp $
+ * $Id: tp_param.h,v 1.3 1994/08/21 06:14:26 paul Exp $
  */
 
 #ifndef _NETISO_TP_PARAM_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,10 +63,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_param.h,v 1.2 1994/08/02 07:51:19 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_param.h,v 1.3 1994/08/21 06:14:26 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_param.h,v $
  *
  */
@@ -92,7 +92,7 @@ extern int N_TPREF;
 #define 	TP_TPDUSIZE			0xc		/* 4096 octets for classes 1-4*/
 #define 	TP0_TPDUSIZE		0xb		/* 2048 octets for class 0 */
 #define 	TP_DFL_TPDUSIZE		0x7		/* 128 octets default */
-	/* NOTE: don't ever negotiate 8192 because could get 
+	/* NOTE: don't ever negotiate 8192 because could get
 	 * wraparound in checksumming
 	 * (No mtu is likely to be larger than 4K anyway...)
 	 */
@@ -100,10 +100,10 @@ extern int N_TPREF;
 #define		TP_MAXRXTSHIFT		6		/* factor of 64 */
 #define		TP_MAXPORT			0xefff
 
-/* ALPHA: to be used in the context: gain= 1/(2**alpha), or 
- * put another way, gaintimes(x) (x)>>alpha (forgetting the case alpha==0) 
+/* ALPHA: to be used in the context: gain= 1/(2**alpha), or
+ * put another way, gaintimes(x) (x)>>alpha (forgetting the case alpha==0)
  */
-#define 	TP_RTT_ALPHA		3 
+#define 	TP_RTT_ALPHA		3
 #define 	TP_RTV_ALPHA		2
 #define		TP_REXMTVAL(tpcb)\
 	((tp_rttadd + (tpcb)->tp_rtt + ((tpcb)->tp_rtv) << 2) / tp_rttdiv)
@@ -111,7 +111,7 @@ extern int N_TPREF;
 	((tv = value) > (max) ? (tv = max) : (tv < min ? tv = min : tv))
 
 /*
- * not sure how to treat data on disconnect 
+ * not sure how to treat data on disconnect
  */
 #define 	T_CONN_DATA			0x1
 #define 	T_DISCONNECT		0x2
@@ -144,7 +144,7 @@ extern int N_TPREF;
 #define ACK_REORDER			(1<< _ACK_REORDER_)
 
 /******************************************************
- * constants used in the protocol 
+ * constants used in the protocol
  *****************************************************/
 
 #define		TP_VERSION 			0x1
@@ -164,15 +164,15 @@ extern int N_TPREF;
 #define		TP_NML_FMT_BIT 	0x80
 #define		TP_NML_FMT_MASK	0x7f
 
-/*  
- * values for the tpdu_type field, 2nd byte in a tpdu 
+/*
+ * values for the tpdu_type field, 2nd byte in a tpdu
  */
 
 #define TP_MIN_TPDUTYPE 0x1
 
 #define XPD_TPDU_type	0x1
 #define XAK_TPDU_type	0x2
-#define GR_TPDU_type	0x3	
+#define GR_TPDU_type	0x3
 #define AK_TPDU_type	0x6
 #define ER_TPDU_type	0x7
 #define DR_TPDU_type	0x8
@@ -184,7 +184,7 @@ extern int N_TPREF;
 #define TP_MAX_TPDUTYPE 0xf
 
 /*
- * identifiers for the variable-length options in tpdus 
+ * identifiers for the variable-length options in tpdus
  */
 
 #define		TPP_acktime			0x85
@@ -239,10 +239,10 @@ extern int N_TPREF;
 #ifndef 	MNULL
 #define 	MNULL				(struct mbuf *)0
 #endif 	/* MNULL */
-	/* if ../sys/mbuf.h gets MT_types up to 0x40, these will 
+	/* if ../sys/mbuf.h gets MT_types up to 0x40, these will
 	 * have to be changed:
 	 */
-#define 	MT_XPD 				0x44	
+#define 	MT_XPD 				0x44
 #define 	MT_EOT 				0x40
 
 #define		TP_ENOREF			0x80000000
@@ -272,7 +272,7 @@ typedef		int				ProtoHook;
 		(diffp)->tv_usec = 1000000 - (diffp)->tv_usec;\
 	}\
 }
-			
+
 /******************************************************
  * Some macros used for address families
  *****************************************************/
@@ -326,7 +326,7 @@ bcopy((caddr_t)&(((struct tp_vbp *)(src))->tpv_val),(caddr_t)&(dst),sizeof(type)
 /******************************************************
  * Macro for the local credit:
  * uses max transmission unit for the ll
- * (as modified by the max TPDU size negotiated) 
+ * (as modified by the max TPDU size negotiated)
  *****************************************************/
 
 #if defined(ARGO_DEBUG)&&!defined(LOCAL_CREDIT_EXPAND)
@@ -352,7 +352,7 @@ extern int tp_rttadd, tp_rttdiv;
 #include <sys/syslog.h>
 #define printf logpri(LOG_DEBUG),addlog
 
-#ifndef  tp_NSTATES 
+#ifndef  tp_NSTATES
 
 #include <netiso/tp_states.h>
 #include <netiso/tp_events.h>
@@ -364,4 +364,4 @@ extern int tp_rttadd, tp_rttdiv;
 #endif  /* tp_NSTATES  */
 #endif /* KERNEL */
 
-#endif 
+#endif

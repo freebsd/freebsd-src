@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_error.c,v 1.2 1994/08/02 07:51:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -157,7 +157,7 @@ ns_error(om, type, param)
 	if (idpcksum) {
 		nip->idp_sum = 0;
 		nip->idp_sum = ns_cksum(m, sizeof(*ep));
-	} else 
+	} else
 		nip->idp_sum = 0xffff;
 	(void) ns_output(m, (struct route *)0, 0);
 
@@ -269,7 +269,7 @@ ns_err_input(m)
 		default:
 			idp_ctlinput(code, (caddr_t)ep);
 		}
-		
+
 		goto freeit;
 
 	default:

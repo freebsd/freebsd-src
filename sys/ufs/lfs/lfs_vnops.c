@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.7 1995/03/28 07:58:06 bde Exp $
+ * $Id: lfs_vnops.c,v 1.8 1995/04/09 06:03:42 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -496,7 +496,7 @@ lfs_inactive(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-	
+
         if (ap->a_vp->v_flag & VNINACT) {
 	  return(0);
         }

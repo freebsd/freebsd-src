@@ -134,7 +134,7 @@ eth_probe()
 			}
 		}
 		printf("\r\n");
-			
+
 	}
 #endif
 #ifdef INCLUDE_3COM
@@ -244,7 +244,7 @@ eth_probe()
         /*
          * Clear memory and verify that it worked (we use only 8K)
          */
-                bzero(eth_bmem, 0x2000); 
+                bzero(eth_bmem, 0x2000);
                 for(i = 0; i < 0x2000; ++i)
                         if (*((eth_bmem)+i)) {
                                 printf ("Failed to clear 3c503 shared mem.\r\n");

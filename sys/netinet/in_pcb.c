@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.10 1995/04/10 08:52:45 davidg Exp $
+ * $Id: in_pcb.c,v 1.11 1995/05/03 07:16:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -208,14 +208,14 @@ in_pcbladdr(inp, nam, plocal_sin)
 		register struct route *ro;
 
 		ia = (struct in_ifaddr *)0;
-		/* 
+		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
 		 */
 		ro = &inp->inp_route;
 		if (ro->ro_rt &&
 		    (satosin(&ro->ro_dst)->sin_addr.s_addr !=
-			sin->sin_addr.s_addr || 
+			sin->sin_addr.s_addr ||
 		    inp->inp_socket->so_options & SO_DONTROUTE)) {
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = (struct rtentry *)0;
@@ -276,7 +276,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 	 * and exit to caller, that will do the lookup.
 	 */
 		*plocal_sin = &ia->ia_addr;
-                
+
 	}
 	return(0);
 }
@@ -357,7 +357,7 @@ in_setsockaddr(inp, nam)
 	struct mbuf *nam;
 {
 	register struct sockaddr_in *sin;
-	
+
 	nam->m_len = sizeof (*sin);
 	sin = mtod(nam, struct sockaddr_in *);
 	bzero((caddr_t)sin, sizeof (*sin));
@@ -373,7 +373,7 @@ in_setpeeraddr(inp, nam)
 	struct mbuf *nam;
 {
 	register struct sockaddr_in *sin;
-	
+
 	nam->m_len = sizeof (*sin);
 	sin = mtod(nam, struct sockaddr_in *);
 	bzero((caddr_t)sin, sizeof (*sin));
@@ -470,9 +470,9 @@ in_losing(inp)
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
 		if (rt->rt_flags & RTF_DYNAMIC)
 			(void) rtrequest(RTM_DELETE, rt_key(rt),
-				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 
+				rt->rt_gateway, rt_mask(rt), rt->rt_flags,
 				(struct rtentry **)0);
-		else 
+		else
 		/*
 		 * A new route can be allocated
 		 * the next time output is attempted.

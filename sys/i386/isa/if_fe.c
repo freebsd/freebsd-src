@@ -806,7 +806,7 @@ fe_probe_ati ( struct isa_device * isa_dev, struct fe_softc * sc )
 
 	/*
 	 * Determine the card type.
-	 * There may be a way to identify various models.  FIXME. 
+	 * There may be a way to identify various models.  FIXME.
 	 */
 	sc->type = FE_TYPE_AT1700;
 	sc->typestr = "AT1700/RE2000";
@@ -1552,7 +1552,7 @@ fe_start ( struct ifnet *ifp )
 		 * We *could* do better job by peeking the send queue to
 		 * know the length of the next packet.  Current version just
 		 * tests against the worst case (i.e., longest packet).  FIXME.
-		 * 
+		 *
 		 * When adding the packet-peek feature, don't forget adding a
 		 * test on txb_count against QUEUEING_MAX.
 		 * There is a little chance the packet count exceeds
@@ -1755,7 +1755,7 @@ fe_tint ( struct fe_softc * sc, u_char tstat )
 
 		/*
 		 * The transmitter is no more active.
-		 * Reset output active flag and watchdog timer. 
+		 * Reset output active flag and watchdog timer.
 		 */
 		sc->sc_if.if_flags &= ~IFF_OACTIVE;
 		sc->sc_if.if_timer = 0;
@@ -1879,7 +1879,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 			     "fe%d: received a short packet? (%u bytes)\n",
 			     sc->sc_unit, len );
 		}
-#endif 
+#endif
 
 		/*
 		 * Go get a packet.
@@ -1920,7 +1920,7 @@ feintr ( int unit )
 	 * Loop until there are no more new interrupt conditions.
 	 */
 	for (;;) {
-	
+
 #if FE_DEBUG >= 4
 		fe_dump( LOG_INFO, sc, "intr()" );
 #endif
@@ -2312,7 +2312,7 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
  *
  * If an mbuf chain is too long for an Ethernet frame, it is not sent.
  * Packets shorter than Ethernet minimum are legal, and we pad them
- * before sending out.  An exception is "partial" packets which are 
+ * before sending out.  An exception is "partial" packets which are
  * shorter than mandatory Ethernet header.
  *
  * I wrote a code for an experimental "delayed padding" technique.
@@ -2403,7 +2403,7 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 #endif
 
 	/*
-	 * Transfer the data from mbuf chain to the transmission buffer. 
+	 * Transfer the data from mbuf chain to the transmission buffer.
 	 * MB86960 seems to require that data be transferred as words, and
 	 * only words.  So that we require some extra code to patch
 	 * over odd-length mbufs.
@@ -2503,7 +2503,7 @@ fe_mcaf ( struct fe_softc *sc )
 		log( LOG_INFO, "fe%d: hash(%s) == %d\n",
 			sc->sc_unit, ether_sprintf( enm->enm_addrlo ), index );
 #endif
-		
+
 		filter.data[index >> 3] |= 1 << (index & 7);
 		ETHER_NEXT_MULTI(step, enm);
 	}
@@ -2669,7 +2669,7 @@ fe_setlinkaddr ( struct fe_softc * sc )
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl * sdl;
-	
+
 	/*
 	 * Search down the ifa address list looking for the AF_LINK type entry.
 	 */

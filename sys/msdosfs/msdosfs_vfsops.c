@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.5 1994/10/02 17:48:21 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.6 1994/12/12 12:35:47 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -34,17 +34,17 @@
  */
 /*
  * Written by Paul Popelka (paulp@uts.amdahl.com)
- * 
+ *
  * You can do anything you want with this software, just don't say you wrote
  * it, and don't remove this notice.
- * 
+ *
  * This software is provided "as is".
- * 
+ *
  * The author supplies this software to be publicly redistributed on the
  * understanding that the author is not responsible for the correct
  * functioning of this software in any circumstances and is not liable for
  * any damages caused by this software.
- * 
+ *
  * October 1992
  */
 
@@ -70,9 +70,9 @@
 int msdosfsdoforce = 1;		/* 1 = force unmount */
 
 /*
- * mp - path - addr in user space of mount point (ie /usr or whatever) 
+ * mp - path - addr in user space of mount point (ie /usr or whatever)
  * data - addr in user space of mount params including the name of the block
- * special file to treat as a filesystem. 
+ * special file to treat as a filesystem.
  */
 int
 msdosfs_mount(mp, path, data, ndp, p)
@@ -169,7 +169,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 	crfree(cred);					/* XXX */
 	if (error != 0)
 		return error;
-	
+
 	/*
 	 * Be sure they've given us a block device to treat as a
 	 * filesystem.  And, that its major number is within the bdevsw

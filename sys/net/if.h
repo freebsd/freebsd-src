@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.16 1995/03/16 18:14:24 bde Exp $
+ * $Id: if.h,v 1.17 1995/04/26 18:10:44 pst Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -74,7 +74,7 @@
  */
 struct	mbuf;
 struct	proc;
-struct	rtentry;	
+struct	rtentry;
 struct	socket;
 struct	ether_header;
 #endif
@@ -133,7 +133,7 @@ struct ifnet {
 		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
 		__P((struct ifnet *, int, caddr_t));
-	void	(*if_reset)	
+	void	(*if_reset)
 		__P((int));		/* new autoconfig will permit removal */
 	void	(*if_watchdog)		/* timer routine */
 		__P((int));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.11 1995/04/13 15:27:51 davidg Exp $
+ * $Id: sys_generic.c,v 1.12 1995/04/13 18:24:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -445,7 +445,7 @@ ioctl(p, uap, retval)
 		*(caddr_t *)data = uap->data;
 #ifdef COMPAT_IBCS2
 	else if (com)
-		/* 
+		/*
 		 * Pick up such things as NIOCxx.
 		 * Any copyouts will have to be done prior
 		 * to return by their servicing code.

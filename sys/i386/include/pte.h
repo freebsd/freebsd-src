@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id: pte.h,v 1.6 1994/05/25 08:56:34 rgrimes Exp $
+ *	$Id: pte.h,v 1.7 1994/09/04 23:10:25 davidg Exp $
  */
 
 #ifndef _MACHINE_PTE_H_
@@ -54,7 +54,7 @@
 #ifndef LOCORE
 
 struct pde {
-unsigned int	
+unsigned int
 		pd_v:1,			/* valid bit */
 		pd_prot:2,		/* access control */
 		pd_ncpwt:1,		/* page cache write through */
@@ -67,7 +67,7 @@ unsigned int
 };
 
 struct pte {
-unsigned int	
+unsigned int
 		pg_v:1,			/* valid bit */
 		pg_prot:2,		/* access control */
 		pg_ncpwt:1,		/* page cache write through */
@@ -83,7 +83,7 @@ unsigned int
 #define	PD_MASK		0xffc00000	/* page directory address bits */
 #define	PD_SHIFT	22		/* page directory address bits */
 #define PT_MASK		0x003ff000UL	/* page table address bits */
-#define PG_SHIFT	12		/* page table address shift */  
+#define PG_SHIFT	12		/* page table address shift */
 
 #define	PG_V		0x00000001
 #define PG_RW		0x00000002

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_timer.c,v 1.2 1994/08/02 07:47:09 davidg Exp $
+ * $Id: hd_timer.c,v 1.3 1995/02/15 06:29:46 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@
  */
 
 /*
- *  HDLC TIMER 
+ *  HDLC TIMER
  *
  *  This routine is called every 500ms by the kernel. Decrement timer by this
  *  amount - if expired then process the event.
@@ -83,19 +83,19 @@ hd_timer ()
 			continue;
 
 		switch (hdp->hd_state) {
-		case INIT: 
+		case INIT:
 		case DISC_SENT:
 			hd_writeinternal (hdp, DISC, POLLON);
 			break;
 
-		case ABM: 
+		case ABM:
 			if (hdp->hd_lastrxnr != hdp->hd_vs) {	/* XXX */
 				hdp->hd_timeouts++;
 				hd_resend_iframe (hdp);
 			}
 			break;
 
-		case WAIT_SABM: 
+		case WAIT_SABM:
 			hd_writeinternal (hdp, FRMR, POLLOFF);
 			if (++hdp->hd_retxcnt == hd_n2) {
 				hdp->hd_retxcnt = 0;
@@ -104,7 +104,7 @@ hd_timer ()
 			}
 			break;
 
-		case DM_SENT: 
+		case DM_SENT:
 			if (++hdp->hd_retxcnt == hd_n2) {
 				/* Notify the packet level. */
 				(void) pk_ctlinput (PRC_LINKDOWN, hdp->hd_pkp);
@@ -115,7 +115,7 @@ hd_timer ()
 				hd_writeinternal (hdp, DM, POLLOFF);
 			break;
 
-		case WAIT_UA: 
+		case WAIT_UA:
 			if (++hdp->hd_retxcnt == hd_n2) {
 				hdp->hd_retxcnt = 0;
 				hd_writeinternal (hdp, DM, POLLOFF);
@@ -124,7 +124,7 @@ hd_timer ()
 				hd_writeinternal (hdp, SABM, POLLOFF);
 			break;
 
-		case SABM_SENT: 
+		case SABM_SENT:
 			/* Do this indefinitely. */
 			hd_writeinternal (hdp, SABM, POLLON);
 			break;

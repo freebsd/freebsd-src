@@ -346,16 +346,16 @@ reset(struct ctlr *ctlr)
 	ad_clear(ctlr);
 }
 
-static int 
-labpc_goaway(struct kern_devconf *kdc, int force) 
+static int
+labpc_goaway(struct kern_devconf *kdc, int force)
 {
 	if(force) {
 		dev_detach(kdc);
 		return 0;
-	} else { 
+	} else {
 		return EBUSY;   /* XXX fix */
 	}
-}   
+}
 
 static struct kern_devconf kdc_template = {
       0, 0, 0,                /* filled in by dev_attach */
@@ -626,7 +626,7 @@ tmo_stop(void *p)
 	}
 
 	printf("\n");
-	
+
 	done_and_start_next(ctlr, bp, ETIMEDOUT);
 
 	splx(s);
@@ -681,7 +681,7 @@ static void ad_intr(struct ctlr *ctlr)
 		else	/* FIFO interrupt */
 		{
 			struct buf *bp = ctlr->start_queue.b_actf;
-	
+
 			if (ctlr->data)
 			{
 				*ctlr->data++ = inb(ADFIFO(ctlr));
@@ -761,7 +761,7 @@ labpcopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-int 
+int
 labpcclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ctlr *ctlr = labpcs[UNIT(dev)];
@@ -1034,7 +1034,7 @@ labpcstrategy(struct buf *bp)
 	}
 }
 
-int 
+int
 labpcioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p)
 {
 	struct ctlr *ctlr = labpcs[UNIT(dev)];

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tuba_subr.c,v 1.2 1994/08/02 07:51:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ tuba_output(m, tp)
 	struct	isopcb *isop;
 	struct	addr_arg arg;
 
-	if (tp == 0 || (n = tp->t_template) == 0 || 
+	if (tp == 0 || (n = tp->t_template) == 0 ||
 	    (isop = (struct isopcb *)tp->t_tuba_pcb) == 0) {
 		isop = &tuba_isopcb;
 		n = mtod(m, struct tcpiphdr *);
@@ -231,7 +231,7 @@ tuba_pcbconnect(inp, nam)
  * FUNCTION and ARGUMENTS:
  * Take a packet (m) from clnp, strip off the clnp header
  * and do tcp input processing.
- * No return value.  
+ * No return value.
  */
 tuba_tcpinput(m, src, dst)
 	register struct mbuf *m;
@@ -289,7 +289,7 @@ tuba_tcpinput(m, src, dst)
 		struct mbuf *m0 = m;
 
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
-		if (m == 0) { 
+		if (m == 0) {
 			m = m0;
 			goto drop;
 		}

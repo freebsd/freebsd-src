@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.10 1995/01/21 15:08:57 bde Exp $
+ * $Id: kern_fork.c,v 1.11 1995/03/16 18:12:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -151,7 +151,7 @@ again:
 			}
 			if (p2->p_pid > nextpid && pidchecked > p2->p_pid)
 				pidchecked = p2->p_pid;
-			if (p2->p_pgrp->pg_id > nextpid && 
+			if (p2->p_pgrp->pg_id > nextpid &&
 			    pidchecked > p2->p_pgrp->pg_id)
 				pidchecked = p2->p_pgrp->pg_id;
 		}

@@ -1,7 +1,7 @@
 /*
  * misc.c
- * 
- * This is a collection of several routines from gzip-1.0.3 
+ *
+ * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
  *
  * Ported to 386bsd by Serge Vakulenko
@@ -95,7 +95,7 @@ void flush_window()
 }
 
 /*
- * Code to compute the CRC-32 table. Borrowed from 
+ * Code to compute the CRC-32 table. Borrowed from
  * gzip-1.0.3/makecrc.c.
  * Not copyrighted 1990 Mark Adler
  */
@@ -192,7 +192,7 @@ static void get_method()
 		error("Corrupted input");
 }
 
-void 
+void
 decompress_kernel (void *dest)
 {
 	output_data = dest;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_cons.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_cons.c,v 1.2 1994/08/02 07:50:56 davidg Exp $
+ * $Id: tp_cons.c,v 1.3 1994/11/15 14:26:15 bde Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,16 +60,16 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_cons.c,v 1.2 1994/08/02 07:50:56 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_cons.c,v 1.3 1994/11/15 14:26:15 bde Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_cons.c,v $
  *
  * Here is where you find the iso- and cons-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff
  * out of the tp source, and everthing here is reached indirectly
- * through a switch table (struct nl_protosw *) tpcb->tp_nlproto 
- * (see tp_pcb.c). 
+ * through a switch table (struct nl_protosw *) tpcb->tp_nlproto
+ * (see tp_pcb.c).
  * The routines here are:
  *	tpcons_input: pullup and call tp_input w/ correct arguments
  *	tpcons_output: package a pkt for cons given an isopcb & some data
@@ -136,7 +136,7 @@ register struct mbuf *nam;
 		/* oh, dear, throw packet away */
 		pk_disconnect((struct pklcd *)isop->isop_chan);
 		isop->isop_chan = 0;
-	} else 
+	} else
 		isop->isop_refcnt = 1;
 	return error;
 }
@@ -150,7 +150,7 @@ register struct mbuf *nam;
  */
 ProtoHook
 tpcons_ctlinput(cmd, siso, isop)
-	int cmd; 
+	int cmd;
 	struct sockaddr_iso *siso;
 	struct isopcb *isop;
 {
@@ -173,7 +173,7 @@ tpcons_ctlinput(cmd, siso, isop)
 				register SeqNum	seq =  SEQ_ADD(tpcb, tpcb->tp_snduna, 1);
 
 				IFTRACE(D_DATA)
-					tptrace(TPPTmisc, "FAKE ACK seq cdt 1", 
+					tptrace(TPPTmisc, "FAKE ACK seq cdt 1",
 						seq, 0,0,0);
 				ENDTRACE
 				IFDEBUG(D_DATA)
@@ -207,8 +207,8 @@ tpcons_ctlinput(cmd, siso, isop)
  * 	cons's intr routine
  * FUNCTION and ARGUMENTS:
  * Take a packet (m) from cons, pullup m as required by tp,
- *  ignore the socket argument, and call tp_input. 
- * No return value.  
+ *  ignore the socket argument, and call tp_input.
+ * No return value.
  */
 ProtoHook
 tpcons_input(m, faddr, laddr, channel)

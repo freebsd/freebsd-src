@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.6 1994/10/10 07:55:29 phk Exp $
+ * $Id: null_vnops.c,v 1.7 1995/03/19 14:28:54 davidg Exp $
  */
 
 /*
@@ -88,7 +88,7 @@
  * in the arguments and, if a vnode is return by the operation,
  * stacks a null-node on top of the returned vnode.
  *
- * Although bypass handles most operations, 
+ * Although bypass handles most operations,
  * vop_getattr, _inactive, _reclaim, and _print are not bypassed.
  * Vop_getattr must change the fsid being returned.
  * Vop_inactive and vop_reclaim are not bypassed so that
@@ -109,7 +109,7 @@
  * this or other null vnode stacks.
  *
  * New vnode stacks come into existance as a result of
- * an operation which returns a vnode.  
+ * an operation which returns a vnode.
  * The bypass routine stacks a null-node above the new
  * vnode before returning it to the caller.
  *
@@ -119,7 +119,7 @@
  * the root null-node (which was created when the null layer was mounted).
  * Now consider opening "sys".  A vop_lookup would be
  * done on the root null-node.  This operation would bypass through
- * to the lower layer which would return a vnode representing 
+ * to the lower layer which would return a vnode representing
  * the UFS "sys".  Null_bypass then builds a null-node
  * aliasing the UFS "sys" and returns this to the caller.
  * Later operations on the null-node "sys" will repeat this
@@ -133,13 +133,13 @@
  * then begin modifing the copy.  Sed can be used to easily rename
  * all variables.
  *
- * The umap layer is an example of a layer descended from the 
+ * The umap layer is an example of a layer descended from the
  * null layer.
  *
  *
  * INVOKING OPERATIONS ON LOWER LAYERS
  *
- * There are two techniques to invoke operations on a lower layer 
+ * There are two techniques to invoke operations on a lower layer
  * when the operation cannot be completely bypassed.  Each method
  * is appropriate in different situations.  In both cases,
  * it is the responsibility of the aliasing layer to make
@@ -200,7 +200,7 @@ int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
  *   to determine what implementation of the op should be invoked
  * - all mapped vnodes are of our vnode-type (NEEDSWORK:
  *   problems on rmdir'ing mount points and renaming?)
- */ 
+ */
 int
 null_bypass(ap)
 	struct vop_generic_args /* {
@@ -237,7 +237,7 @@ null_bypass(ap)
 	for (i = 0; i < VDESC_MAX_VPS; reles >>= 1, i++) {
 		if (descp->vdesc_vp_offsets[i] == VDESC_NO_OFFSET)
 			break;   /* bail out at end of list */
-		vps_p[i] = this_vp_p = 
+		vps_p[i] = this_vp_p =
 			VOPARG_OFFSETTO(struct vnode**,descp->vdesc_vp_offsets[i],ap);
 		/*
 		 * We're not guaranteed that any but the first vnode
@@ -257,7 +257,7 @@ null_bypass(ap)
 			if (reles & 1)
 				VREF(*this_vp_p);
 		}
-			
+
 	}
 
 	/*

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.4 1995/03/25 22:06:27 bde Exp $
+ * $Id: if_pdq.c,v 1.5 1995/04/05 08:19:23 davidg Exp $
  *
  */
 
@@ -417,7 +417,7 @@ pdq_ifattach(
     ifp->if_ioctl = pdq_ifioctl;
     ifp->if_output = fddi_output;
     ifp->if_start = pdq_ifstart;
-  
+
     if_attach(ifp);
     fddi_ifattach(ifp);
 #if NBPFILTER > 0

@@ -43,7 +43,7 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$Id$";
+static char id[] = "$Id: aic7xxx_asm.c,v 1.8 1995/04/15 21:45:56 gibbs Exp $";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,7 +70,7 @@ char *filename;
 FILE *ifp, *ofp;
 unsigned char M[MEMORY][4];
 
-void 
+void
 error(char *s)
 {
 	fprintf(stderr, "%s: %s at line %d\n", filename, s, lineno);
@@ -107,7 +107,7 @@ typedef struct sym_t {
 	struct sym_t	*next;		/* MUST BE FIRST */
 	char		*name;
 	int		value;
-	int		npatch; 
+	int		npatch;
 	int		*patch;
 } sym_t;
 
@@ -151,7 +151,7 @@ lookup(char *name)
 	return(NULL);
 }
 
-void 
+void
 patch(sym_t *p, int location)
 {
 	p->npatch += 1;
@@ -244,7 +244,7 @@ rescan:
 			else
 				error("too many tokens");
 		if (quote) {
-			quote++; 
+			quote++;
 			p = strchr(quote, '\"');
 			if (!p)
 				error("unterminated string constant");
@@ -256,7 +256,7 @@ rescan:
 			else
 				error("too many tokens");
 			goto rescan;
-		}		
+		}
 		if (i) {
 			*n = i;
 			return(a);
@@ -336,7 +336,7 @@ struct {
 	{ 0,      0, 0,  0, 	0,			0,	0,	0 }
 };
 
-int 
+int
 eval_operand(char **a, int spec)
 {
 	int i;
@@ -604,7 +604,7 @@ main(int argc, char **argv)
 			}
 			break;
 		    case 'h':
-			printf("usage: %s [-d] [-Dname] [-ooutput] input\n", 
+			printf("usage: %s [-d] [-Dname] [-ooutput] input\n",
 				*argv);
 			exit(EXIT_SUCCESS);
 			break;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_subr.c,v 1.2 1994/08/02 07:51:25 davidg Exp $
+ * $Id: tp_subr.c,v 1.3 1995/04/26 21:32:40 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_subr.c,v 1.2 1994/08/02 07:51:25 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_subr.c,v 1.3 1995/04/26 21:32:40 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_subr.c,v $
  *
  * The main work of data transfer is done here.
@@ -71,7 +71,7 @@ SOFTWARE.
  * They include the routines that check the validity of acks and Xacks,
  * (tp_goodack() and tp_goodXack() )
  * take packets from socket buffers and send them (tp_send()),
- * drop the data from the socket buffers (tp_sbdrop()),  
+ * drop the data from the socket buffers (tp_sbdrop()),
  * and put incoming packet data into socket buffers (tp_stash()).
  */
 
@@ -107,7 +107,7 @@ void	tp_send();
  * CALLED FROM:
  *	tp.trans, when an XAK arrives
  * FUNCTION and ARGUMENTS:
- * 	Determines if the sequence number (seq) from the XAK 
+ * 	Determines if the sequence number (seq) from the XAK
  * 	acks anything new.  If so, drop the appropriate tpdu
  * 	from the XPD send queue.
  * RETURN VALUE:
@@ -116,13 +116,13 @@ void	tp_send();
 int
 tp_goodXack(tpcb, seq)
 	struct tp_pcb	*tpcb;
-	SeqNum 			seq; 
+	SeqNum 			seq;
 {
 
 	IFTRACE(D_XPD)
-		tptraceTPCB(TPPTgotXack, 
-			seq, tpcb->tp_Xuna, tpcb->tp_Xsndnxt, tpcb->tp_sndnew, 
-			tpcb->tp_snduna); 
+		tptraceTPCB(TPPTgotXack,
+			seq, tpcb->tp_Xuna, tpcb->tp_Xsndnxt, tpcb->tp_sndnew,
+			tpcb->tp_snduna);
 	ENDTRACE
 
 	if ( seq == tpcb->tp_Xuna ) {
@@ -141,14 +141,14 @@ tp_goodXack(tpcb, seq)
 			ENDDEBUG
 
 			IFTRACE(D_XPD)
-				tptraceTPCB(TPPTmisc, 
+				tptraceTPCB(TPPTmisc,
 					"goodXack: dropping cc ",
 					(int)(tpcb->tp_Xsnd.sb_cc),
 					0,0,0);
 			ENDTRACE
 			sbdroprecord(&tpcb->tp_Xsnd);
 			return 1;
-	} 
+	}
 	return 0;
 }
 
@@ -194,7 +194,7 @@ register struct tp_pcb *tpcb;
 		if ((tpcb->tp_rtv += ((delta - tpcb->tp_rtv) >> TP_RTV_ALPHA)) <= 0)
 			tpcb->tp_rtv = 1;
 	} else {
-		/* 
+		/*
 		 * No rtt measurement yet - use the unsmoothed rtt.
 		 * Set the variance to half the rtt (so our first
 		 * retransmit happens at 3*rtt)
@@ -228,7 +228,7 @@ register struct tp_pcb *tpcb;
  * CALLED FROM:
  *  tp.trans when an AK arrives
  * FUNCTION and ARGUMENTS:
- * 	Given (cdt), the credit from the AK tpdu, and 
+ * 	Given (cdt), the credit from the AK tpdu, and
  *	(seq), the sequence number from the AK tpdu,
  *  tp_goodack() determines if the AK acknowledges something in the send
  * 	window, and if so, drops the appropriate packets from the retransmission
@@ -250,7 +250,7 @@ tp_goodack(tpcb, cdt, seq, subseq)
 	register SeqNum			seq;
 	u_int					subseq;
 {
-	int 	old_fcredit; 
+	int 	old_fcredit;
 	int 	bang = 0; 	/* bang --> ack for something heretofore unacked */
 	u_int	bytes_acked;
 
@@ -259,8 +259,8 @@ tp_goodack(tpcb, cdt, seq, subseq)
 			tpcb, seq, cdt, tpcb->tp_snduna, tpcb->tp_sndnew, tpcb->tp_sndnxt);
 	ENDDEBUG
 	IFTRACE(D_ACKRECV)
-		tptraceTPCB(TPPTgotack, 
-			seq,cdt, tpcb->tp_snduna,tpcb->tp_sndnew,subseq); 
+		tptraceTPCB(TPPTgotack,
+			seq,cdt, tpcb->tp_snduna,tpcb->tp_sndnew,subseq);
 	ENDTRACE
 
 	IFPERF(tpcb)
@@ -379,7 +379,7 @@ tp_goodack(tpcb, cdt, seq, subseq)
 				tpcb->tp_sndnxt_m = 0;
 		}
 		bang++;
-	} 
+	}
 
 	if( cdt != 0 && old_fcredit == 0 ) {
 		tpcb->tp_sendfcc = 1;
@@ -417,7 +417,7 @@ done:
  *  drops everything up TO but not INCLUDING seq # (seq)
  *  from the retransmission queue.
  */
-tp_sbdrop(tpcb, seq) 
+tp_sbdrop(tpcb, seq)
 	register struct 	tp_pcb 			*tpcb;
 	SeqNum					seq;
 {
@@ -469,7 +469,7 @@ tp_send(tpcb)
 	int						idle, idleticks, off, cong_win;
 #ifdef TP_PERF_MEAS
 	int			 			send_start_time = ticks;
-	SeqNum					oldnxt = tpcb->tp_sndnxt; 
+	SeqNum					oldnxt = tpcb->tp_sndnxt;
 #endif /* TP_PERF_MEAS */
 
 	idle = (tpcb->tp_snduna == tpcb->tp_sndnew);
@@ -488,19 +488,19 @@ tp_send(tpcb)
 	highseq = SEQ(tpcb, tpcb->tp_fcredit + tpcb->tp_snduna);
 	if (tpcb->tp_Xsnd.sb_mb)
 		highseq = SEQ_MIN(tpcb, highseq, tpcb->tp_sndnew);
-		
+
 	IFDEBUG(D_DATA)
 		printf("tp_send enter tpcb 0x%x nxt 0x%x win %d high 0x%x\n",
 				tpcb, tpcb->tp_sndnxt, cong_win, highseq);
 	ENDDEBUG
 	IFTRACE(D_DATA)
-		tptraceTPCB( TPPTmisc, "tp_send sndnew snduna", 
+		tptraceTPCB( TPPTmisc, "tp_send sndnew snduna",
 			tpcb->tp_sndnew,  tpcb->tp_snduna, 0, 0);
-		tptraceTPCB( TPPTmisc, "tp_send tpcb->tp_sndnxt win fcredit congwin", 
+		tptraceTPCB( TPPTmisc, "tp_send tpcb->tp_sndnxt win fcredit congwin",
 			tpcb->tp_sndnxt, cong_win, tpcb->tp_fcredit, tpcb->tp_cong_win);
 	ENDTRACE
 	IFTRACE(D_DATA)
-		tptraceTPCB( TPPTmisc, "tp_send 2 nxt high fcredit congwin", 
+		tptraceTPCB( TPPTmisc, "tp_send 2 nxt high fcredit congwin",
 			tpcb->tp_sndnxt, highseq, tpcb->tp_fcredit, cong_win);
 	ENDTRACE
 
@@ -527,7 +527,7 @@ send:
 			len < (tpcb->tp_l_tpdusize / 2))
 				break;  /* Nagle . . . . . */
 		cong_win -= len;
-		/* make a copy - mb goes into the retransmission list 
+		/* make a copy - mb goes into the retransmission list
 		 * while m gets emitted.  m_copy won't copy a zero-length mbuf.
 		 */
 		mb = m;
@@ -535,8 +535,8 @@ send:
 		if (m == MNULL)
 				break;
 		IFTRACE(D_STASH)
-			tptraceTPCB( TPPTmisc, 
-				"tp_send mcopy nxt high eotsdu len", 
+			tptraceTPCB( TPPTmisc,
+				"tp_send mcopy nxt high eotsdu len",
 				tpcb->tp_sndnxt, highseq, eotsdu, len);
 		ENDTRACE
 
@@ -591,11 +591,11 @@ send:
 
 			npkts = SEQ_SUB(tpcb, tpcb->tp_sndnxt, oldnxt);
 
-			if (npkts > 0) 
+			if (npkts > 0)
 				tpcb->tp_Nwindow++;
 
-			if (npkts > TP_PM_MAX) 
-				npkts = TP_PM_MAX; 
+			if (npkts > TP_PM_MAX)
+				npkts = TP_PM_MAX;
 
 			t = &(tpcb->tp_p_meas->tps_sendtime[npkts]);
 			*t += (t - elapsed) >> TP_RTT_ALPHA;
@@ -608,7 +608,7 @@ send:
 			}
 			now.tv_sec = elapsed / hz;
 			now.tv_usec = (elapsed - (hz * now.tv_sec)) * 1000000 / hz;
-			tpmeas( tpcb->tp_lref, 
+			tpmeas( tpcb->tp_lref,
 					TPsbsend, &elapsed, newseq, tpcb->tp_Nwindow, npkts);
 		}
 	ENDPERF
@@ -616,10 +616,10 @@ send:
 
 
 	IFTRACE(D_DATA)
-		tptraceTPCB( TPPTmisc, 
+		tptraceTPCB( TPPTmisc,
 			"tp_send at end: new nxt eotsdu error",
 			tpcb->tp_sndnew, tpcb->tp_sndnxt, eotsdu, tpcb->tp_sock->so_error);
-		
+
 	ENDTRACE
 }
 
@@ -633,7 +633,7 @@ int eotsdu;
 {
 	register struct mbuf *n;
 	register struct sockbuf *sb = &tpcb->tp_sock->so_snd;
-	int	maxsize = tpcb->tp_l_tpdusize 
+	int	maxsize = tpcb->tp_l_tpdusize
 			- tp_headersize(DT_TPDU_type, tpcb)
 			- (tpcb->tp_use_checksum?4:0) ;
 	int totlen = m->m_pkthdr.len;
@@ -707,18 +707,18 @@ out:
  * CALLED FROM:
  *	tp.trans on arrival of a DT tpdu
  * FUNCTION, ARGUMENTS, and RETURN VALUE:
- * 	Returns 1 if 
+ * 	Returns 1 if
  *		a) something new arrived and it's got eotsdu_reached bit on,
  * 		b) this arrival was caused other out-of-sequence things to be
  *    	accepted, or
  * 		c) this arrival is the highest seq # for which we last gave credit
  *   	(sender just sent a whole window)
- *  In other words, returns 1 if tp should send an ack immediately, 0 if 
+ *  In other words, returns 1 if tp should send an ack immediately, 0 if
  *  the ack can wait a while.
  *
  * Note: this implementation no longer renegs on credit, (except
  * when debugging option D_RENEG is on, for the purpose of testing
- * ack subsequencing), so we don't  need to check for incoming tpdus 
+ * ack subsequencing), so we don't  need to check for incoming tpdus
  * being in a reneged portion of the window.
  */
 
@@ -741,7 +741,7 @@ tp_stash(tpcb, e)
 		n->m_act = 0;
 	}
 		IFDEBUG(D_STASH)
-			dump_mbuf(tpcb->tp_sock->so_rcv.sb_mb, 
+			dump_mbuf(tpcb->tp_sock->so_rcv.sb_mb,
 				"stash: so_rcv before appending");
 			dump_mbuf(E.e_data,
 				"stash: e_data before appending");
@@ -756,12 +756,12 @@ tp_stash(tpcb, e)
 	if (E.e_seq == tpcb->tp_rcvnxt) {
 
 		IFDEBUG(D_STASH)
-			printf("stash EQ: seq 0x%x datalen 0x%x eot 0x%x\n", 
+			printf("stash EQ: seq 0x%x datalen 0x%x eot 0x%x\n",
 			E.e_seq, E.e_datalen, E.e_eot);
 		ENDDEBUG
 
 		IFTRACE(D_STASH)
-			tptraceTPCB(TPPTmisc, "stash EQ: seq len eot", 
+			tptraceTPCB(TPPTmisc, "stash EQ: seq len eot",
 			E.e_seq, E.e_datalen, E.e_eot, 0);
 		ENDTRACE
 
@@ -770,7 +770,7 @@ tp_stash(tpcb, e)
 		sbappend(&tpcb->tp_sock->so_rcv, E.e_data);
 
 		SEQ_INC( tpcb, tpcb->tp_rcvnxt );
-		/* 
+		/*
 		 * move chains from the reassembly queue to the socket buffer
 		 */
 		if (tpcb->tp_rsycnt) {
@@ -791,7 +791,7 @@ tp_stash(tpcb, e)
 			}
 		}
 		IFDEBUG(D_STASH)
-			dump_mbuf(tpcb->tp_sock->so_rcv.sb_mb, 
+			dump_mbuf(tpcb->tp_sock->so_rcv.sb_mb,
 				"stash: so_rcv after appending");
 		ENDDEBUG
 
@@ -800,7 +800,7 @@ tp_stash(tpcb, e)
 		SeqNum uwe;
 
 		IFTRACE(D_STASH)
-			tptraceTPCB(TPPTmisc, "stash Reseq: seq rcvnxt lcdt", 
+			tptraceTPCB(TPPTmisc, "stash Reseq: seq rcvnxt lcdt",
 			E.e_seq, tpcb->tp_rcvnxt, tpcb->tp_lcredit, 0);
 		ENDTRACE
 
@@ -838,9 +838,9 @@ tp_stash(tpcb, e)
 			ack_reason |= ACK_STRAT_FULLWIN;
 
 		IFTRACE(D_STASH)
-			tptraceTPCB(TPPTmisc, 
+			tptraceTPCB(TPPTmisc,
 				"end of stash, eot, ack_reason, sent_uwe ",
-				E.e_eot, ack_reason, tpcb->tp_sent_uwe, 0); 
+				E.e_eot, ack_reason, tpcb->tp_sent_uwe, 0);
 		ENDTRACE
 
 		if ( ack_reason == ACK_DONT ) {
@@ -855,7 +855,7 @@ tp_stash(tpcb, e)
 				} else if(ack_reason & ACK_REORDER) {
 					IncPStat(tpcb, tps_n_ack_cuz_reorder);
 				}
-				tpmeas(tpcb->tp_lref, TPtime_ack_sent, 0, 
+				tpmeas(tpcb->tp_lref, TPtime_ack_sent, 0,
 							SEQ_ADD(tpcb, E.e_seq, 1), 0, 0);
 			ENDPERF
 			{
@@ -863,7 +863,7 @@ tp_stash(tpcb, e)
 
 				/* keep track of all reasons that apply */
 				for( i=1; i<_ACK_NUM_REASONS_ ;i++) {
-					if( ack_reason & (1<<i) ) 
+					if( ack_reason & (1<<i) )
 						IncStat( ts_ackreason[i] );
 				}
 			}

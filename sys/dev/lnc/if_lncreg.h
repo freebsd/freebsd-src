@@ -1,6 +1,6 @@
 /*
  * Am7990, Local Area Network Controller for Ethernet (LANCE)
- * 
+ *
  * Copyright (c) 1994, Paul Richards. This software may be used,
  * modified, copied, distributed, and sold, in both source and binary
  * form provided that the above copyright and these terms are retained.
@@ -35,18 +35,18 @@
 #define MISS	0x1000
 #define MERR	0x0800
 #define RINT	0x0400
-#define TINT	0x0200  
-#define IDON	0x0100  
+#define TINT	0x0200
+#define IDON	0x0100
 #define INTR	0x0080
 #define INEA	0x0040
 #define RXON	0x0020
 #define TXON	0x0010
 #define TDMD	0x0008
-#define STOP	0x0004  
+#define STOP	0x0004
 #define STRT	0x0002
-#define INIT	0x0001   
+#define INIT	0x0001
 
-/* 
+/*
  * CSR3
  *
  * Bits 3-15 are reserved.
@@ -54,12 +54,12 @@
  */
 
 #define BSWP	0x0004
-#define ACON	0x0002 
+#define ACON	0x0002
 #define BCON	0x0001
 
 /* Initialisation block */
 
-struct init_block {  
+struct init_block {
 	u_short mode;		/* Mode register			*/
 	u_char  padr[6];	/* Ethernet address			*/
 	u_char  ladrf[8];	/* Logical address filter (multicast)	*/
@@ -88,7 +88,7 @@ struct init_block {
 #define DTX       0x0002   /* Disable the transmitter */
 #define DRX       0x0001   /* Disable the receiver */
 
-/* 
+/*
  * Message Descriptor Structure
  *
  * Each transmit or receive descriptor ring entry (RDRE's and TDRE's)
@@ -100,14 +100,14 @@ struct init_block {
  * 3. The status information for that particular buffer. The eight most
  *    significant bits of md1 are collectively termed the STATUS of the
  *    descriptor.
- * 
+ *
  * Descriptor md0 contains LADR 0-15, the low order 16 bits of the 24-bit
- * address of the actual data buffer.  Bits 0-7 of descriptor md1 contain 
+ * address of the actual data buffer.  Bits 0-7 of descriptor md1 contain
  * HADR, the high order 8-bits of the 24-bit data buffer address. Bits 8-15
  * of md1 contain the status flags of the buffer. Descriptor md2 contains the
- * buffer byte count in bits 0-11 as a two's complement number and must have 
+ * buffer byte count in bits 0-11 as a two's complement number and must have
  * 1's written to bits 12-15. For the receive entry md3 has the Message Byte
- * Count in bits 0-11, this is the length of the received message and is valid 
+ * Count in bits 0-11, this is the length of the received message and is valid
  * only when ERR is cleared and ENP is set. For the transmit entry it contains
  * more status information.
  *
@@ -116,8 +116,8 @@ struct init_block {
 struct mds {
 	u_short md0;
 	u_short md1;
-	short   md2;   
-	u_short md3;  
+	short   md2;
+	u_short md3;
 };
 
 /* Receive STATUS flags for md1 */
@@ -147,8 +147,8 @@ struct mds {
 #define ONE	0x0800		/* Exactly one retry was needed */
 #define DEF	0x0400		/* Packet transmit deferred -- channel busy */
 
-/* 
- * Transmit status flags for md2 
+/*
+ * Transmit status flags for md2
  *
  * Same as for receive descriptor.
  *

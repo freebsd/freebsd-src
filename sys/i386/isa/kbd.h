@@ -1,14 +1,14 @@
 /*
  * Keyboard definitions
  *	from: unknown origin, 386BSD 0.1
- *	$Id: kbd.h,v 1.2 1993/10/16 13:46:04 rgrimes Exp $
+ *	$Id: kbd.h,v 1.3 1993/11/07 17:44:33 wollman Exp $
  */
 
 #ifndef _I386_ISA_KBD_H_
 #define _I386_ISA_KBD_H_ 1
 
-/* Reference:	IBM AT Technical Reference Manual, 
- * pp. 1-38 to 1-43, 4-3 to 4-22 
+/* Reference:	IBM AT Technical Reference Manual,
+ * pp. 1-38 to 1-43, 4-3 to 4-22
  */
 
 /* commands sent to KBCMDP */

@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.5 1994/10/18 04:40:41 davidg Exp $
+ *	$Id: procfs_mem.c,v 1.6 1995/01/05 03:59:38 davidg Exp $
  */
 
 /*
@@ -108,7 +108,7 @@ procfs_rwmem(p, uio)
 		 * The map we want...
 		 */
 		map = &p->p_vmspace->vm_map;
-  
+
 		/*
 		 * Check the permissions for the area we're interested
 		 * in.
@@ -148,7 +148,7 @@ procfs_rwmem(p, uio)
 		 */
 		if (!error)
 			vm_map_lookup_done(tmap, out_entry);
-  
+
 		/*
 		 * Fault the page in...
 		 */

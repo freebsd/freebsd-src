@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.6 1995/03/04 03:24:45 davidg Exp $
+ * $Id: ufs_bmap.c,v 1.7 1995/03/28 07:58:16 bde Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 
 	devvp = VFSTOUFS(vp->v_mount)->um_devvp;
 	for (bp = NULL, ++xap; --num; ++xap) {
-		/* 
+		/*
 		 * Exit the loop if there is no disk address assigned yet and
 		 * the indirect block isn't in the cache, or if we were
 		 * looking for an indirect block and we've found it.
@@ -242,7 +242,7 @@ ufs_getlbns(vp, bn, ap, nump)
 	if (bn < NDADDR)
 		return (0);
 
-	/* 
+	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
 	 * at the given level of indirection, and NIADDR - i is the number
@@ -262,7 +262,7 @@ ufs_getlbns(vp, bn, ap, nump)
 	else
 		metalbn = -(-realbn - bn + NIADDR - i);
 
-	/* 
+	/*
 	 * At each iteration, off is the offset into the bap array which is
 	 * an array of disk addresses at the current level of indirection.
 	 * The logical block number and the offset in that block are stored

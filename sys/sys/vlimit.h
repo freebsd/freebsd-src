@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vlimit.h	8.1 (Berkeley) 6/2/93
- * $Id: vlimit.h,v 1.2 1994/08/02 07:54:11 davidg Exp $
+ * $Id: vlimit.h,v 1.3 1994/08/21 04:42:13 paul Exp $
  */
 
 #ifndef _SYS_VLIMIT_H_
@@ -52,4 +52,4 @@
 
 #define	INFINITY	0x7fffffff
 
-#endif 
+#endif

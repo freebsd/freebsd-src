@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.4 1995/03/21 23:01:06 se Exp $
+**  $Id: pcivar.h,v 1.5 1995/03/25 21:10:38 bde Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -159,8 +159,8 @@ extern unsigned pci_maxdevice;
 struct pci_info {
 	u_short pi_bus;
 	u_short pi_device;
-};  
-   
+};
+
 #define PCI_EXT_CONF_LEN (16)
 #define PCI_EXTERNAL_LEN (sizeof(struct pci_externalize_buffer))
 

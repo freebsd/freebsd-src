@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: cltp_usrreq.c,v 1.2 1994/08/02 07:49:55 davidg Exp $
+ * $Id: cltp_usrreq.c,v 1.3 1994/11/15 14:26:14 bde Exp $
  */
 
 #ifndef CLTPOVAL_SRC /* XXX -- till files gets changed */
@@ -104,7 +104,7 @@ cltp_input(m0, srcsa, dstsa, cons_channel, output)
 		bcopy((caddr_t)up + 2, TSEL(src), up[1]);
 		up += 2 + src->siso_tlen;
 		continue;
-	
+
 	case CLTPOVAL_DST:
 		dtsap = 2 + (caddr_t)up;
 		dlen = up[1];

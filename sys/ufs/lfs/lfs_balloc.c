@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_balloc.c,v 1.5 1995/03/28 07:58:02 bde Exp $
+ * $Id: lfs_balloc.c,v 1.6 1995/04/09 06:03:41 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -68,7 +68,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 	ip = VTOI(vp);
 	fs = ip->i_lfs;
 
-	/* 
+	/*
 	 * Three cases: it's a block beyond the end of file, it's a block in
 	 * the file that may or may not have been assigned a disk address or
 	 * we're writing an entire block.  Note, if the daddr is unassigned,
@@ -114,7 +114,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 
 	/* Now, we may need to allocate the data block */
 	if (!(bp->b_flags & (B_CACHE | B_DONE | B_DELWRI))) {
-		if (daddr == UNASSIGNED) 
+		if (daddr == UNASSIGNED)
 			if (!ISSPACE(fs, bb, curproc->p_ucred)) {
 				bp->b_flags |= B_INVAL;
 				brelse(bp);

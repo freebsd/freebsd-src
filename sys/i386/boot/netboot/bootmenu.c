@@ -181,7 +181,7 @@ CMD_HOSTNAME - Set my hostname
 cmd_hostname(p)
 	char *p;
 {
-	if (*p) 
+	if (*p)
 		hostnamelen = ((sprintf(&nfsdiskless.my_hostnam,"%s",p) -
 			(char*)&nfsdiskless.my_hostnam) + 3) & ~3;
 	else	printf("Hostname is: %s\r\n",nfsdiskless.my_hostnam);

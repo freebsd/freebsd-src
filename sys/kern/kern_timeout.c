@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.11 1994/12/12 11:58:46 bde Exp $
+ * $Id: kern_clock.c,v 1.12 1995/03/16 18:12:29 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -459,7 +459,7 @@ hardclock(frame)
 		statclock(frame);
 
 	/*
-	 * Increment the time-of-day.  
+	 * Increment the time-of-day.
 	 */
 	ticks++;
 	{
@@ -579,14 +579,14 @@ hardclock(frame)
 		   * replaced.
 		   */
 		  switch (time_state) {
-		    
+
 		  case TIME_OK:
 		    if (time_status & STA_INS)
 		      time_state = TIME_INS;
 		    else if (time_status & STA_DEL)
 		      time_state = TIME_DEL;
 		    break;
-		    
+
 		  case TIME_INS:
 		    if (newtime.tv_sec % 86400 == 0) {
 		      newtime.tv_sec--;
@@ -600,11 +600,11 @@ hardclock(frame)
 		      time_state = TIME_WAIT;
 		    }
 		    break;
-		    
+
 		  case TIME_OOP:
 		    time_state = TIME_WAIT;
 		    break;
-		    
+
 		  case TIME_WAIT:
 		    if (!(time_status & (STA_INS | STA_DEL)))
 		      time_state = TIME_OK;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)argo_debug.h	8.1 (Berkeley) 6/10/93
- * $Id: argo_debug.h,v 1.2 1994/08/02 07:49:31 davidg Exp $
+ * $Id: argo_debug.h,v 1.3 1994/08/21 06:14:11 paul Exp $
  */
 
 #ifndef _NETISO_ARGO_DEBUG_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
- * $Header: /home/ncvs/src/sys/netiso/argo_debug.h,v 1.2 1994/08/02 07:49:31 davidg Exp $
+/*
+ * $Header: /home/ncvs/src/sys/netiso/argo_debug.h,v 1.3 1994/08/21 06:14:11 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/argo_debug.h,v $
  */
 
@@ -75,8 +75,8 @@ SOFTWARE.
  * Lint stuff
  **********************************************/
 #if	defined(lint)
-/* 
- * lint can't handle the flaky vacuous definitions 
+/*
+ * lint can't handle the flaky vacuous definitions
  * of IFDEBUG, ENDDEBUG, etc.
  */
 #endif	/* defined(lint) */
@@ -103,7 +103,7 @@ SOFTWARE.
 unsigned char	argo_debug[128];
 
 #define IFDEBUG(ascii) \
-	if(argo_debug[ascii]) { 
+	if(argo_debug[ascii]) {
 #define ENDDEBUG  ; }
 
 #else  /* ARGO_DEBUG */
@@ -121,7 +121,7 @@ unsigned char	argo_debug[128];
 #endif /* ARGO_DEBUG */
 
 /***********************************************
- * ASSERT 
+ * ASSERT
  **********************************************/
 #ifdef ARGO_DEBUG
 
@@ -162,19 +162,19 @@ if( !(phrase) ) printf("ASSERTION NOT VALID at line %d file %s\n",__LINE__,__FIL
 /* clnp over token ring */
 #define D_ADCOM			'\12'
 /* clnp over the adcom */
-#define D_ISO			'\13'	
+#define D_ISO			'\13'
 /* iso address family */
 #define	D_FORWARD		'\14'
 /* clnp forwarding */
 #define	D_DUMPOUT		'\15'
 /* dump clnp outgoing packets */
-#define	D_DUMPIN		'\16'	
+#define	D_DUMPIN		'\16'
 /* dump clnp input packets */
-#define D_DISCARD		'\17'	
+#define D_DISCARD		'\17'
 /* debug clnp packet discard/er function */
-#define D_FRAG			'\20'	
+#define D_FRAG			'\20'
 /* clnp fragmentation */
-#define	D_REASS			'\21'	
+#define	D_REASS			'\21'
 /* clnp reassembly */
 
 char *clnp_iso_addrp();
@@ -295,4 +295,4 @@ void dump_mbuf();
 
 #endif /* ARGO_DEBUG */
 
-#endif 
+#endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_proto.c,v 1.2 1994/08/02 07:50:42 davidg Exp $
+ * $Id: iso_proto.c,v 1.3 1995/05/11 00:13:20 wollman Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_proto.c,v 1.2 1994/08/02 07:50:42 davidg Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/iso_proto.c,v $ 
+/* $Header: /home/ncvs/src/sys/netiso/iso_proto.c,v 1.3 1995/05/11 00:13:20 wollman Exp $
+ * $Source: /home/ncvs/src/sys/netiso/iso_proto.c,v $
  *
  * iso_proto.c : protocol switch tables in the ISO domain
  *
@@ -95,8 +95,8 @@ int	idrp_input(), idrp_init(), idrp_usrreq();
 int	cltp_input(), cltp_ctlinput(), cltp_init(), cltp_usrreq(), cltp_output();
 
 #ifdef TUBA
-int	tuba_usrreq(), tuba_ctloutput(), tuba_init(), tuba_tcpinput(); 
-int	tuba_slowtimo(), tuba_fasttimo(); 
+int	tuba_usrreq(), tuba_ctloutput(), tuba_init(), tuba_tcpinput();
+int	tuba_slowtimo(), tuba_fasttimo();
 #endif
 
 struct protosw isosw[] = {

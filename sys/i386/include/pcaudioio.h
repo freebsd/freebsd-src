@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudioio.h,v 1.2 1994/05/20 12:22:40 sos Exp $ 
+ *	$Id: pcaudioio.h,v 1.3 1994/09/29 08:31:39 sos Exp $
  */
 
 #ifndef _PCAUDIOIO_H_
@@ -54,7 +54,7 @@ typedef struct audio_prinfo {
 
 typedef struct audio_info {
 	audio_prinfo_t	play;
-	audio_prinfo_t	record;	
+	audio_prinfo_t	record;
 	unsigned	monitor_gain;
 	unsigned	_fill[4];
 } audio_info_t;

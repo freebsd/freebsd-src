@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id: imgact_aout.h,v 1.1 1994/09/24 21:09:18 davidg Exp $
+ *	$Id: imgact_aout.h,v 1.2 1994/12/30 08:06:19 bde Exp $
  */
 
 #ifndef	_IMGACT_AOUT_H_
@@ -84,7 +84,7 @@
 /* Text segment offset. */
 #define	N_TXTOFF(ex) \
 	(N_GETMAGIC(ex) == ZMAGIC ? __LDPGSZ : (N_GETMAGIC(ex) == QMAGIC || \
-	N_GETMAGIC_NET(ex) == ZMAGIC) ? 0 : sizeof(struct exec)) 
+	N_GETMAGIC_NET(ex) == ZMAGIC) ? 0 : sizeof(struct exec))
 
 /* Data segment offset. */
 #define	N_DATOFF(ex) \

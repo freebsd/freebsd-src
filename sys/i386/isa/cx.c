@@ -93,7 +93,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 	unsigned short port;
 	struct tty *tp;
 	int error = 0;
- 
+
 	if (unit == UNIT_CTL) {
 		print (("cx: cxopen /dev/cronyx\n"));
 		return (0);
@@ -226,7 +226,7 @@ int cxclose (dev_t dev, int flag, int mode, struct proc *p)
 	cx_chan_t *c = cxchan[unit];
 	struct tty *tp;
 	int s;
- 
+
 	if (unit == UNIT_CTL)
 		return (0);
 	tp = c->ttyp;
@@ -260,18 +260,18 @@ int cxread (dev_t dev, struct uio *uio, int flag)
 {
 	int unit = UNIT (dev);
 	struct tty *tp;
- 
+
 	if (unit == UNIT_CTL)
 		return (EIO);
 	tp = cxchan[unit]->ttyp;
 	return ((*linesw[tp->t_line].l_read) (tp, uio, flag));
 }
- 
+
 int cxwrite (dev_t dev, struct uio *uio, int flag)
 {
 	int unit = UNIT (dev);
 	struct tty *tp;
- 
+
 	if (unit == UNIT_CTL)
 		return (EIO);
 	tp = cxchan[unit]->ttyp;
@@ -569,7 +569,7 @@ int cxparam (struct tty *tp, struct termios *t)
 	unsigned short port = c->chip->port;
 	int clock, period, s;
 	cx_cor1_async_t cor1;
- 
+
 	if (t->c_ospeed == 0) {
 		/* Clear DTR and RTS. */
 		s = spltty ();
@@ -684,7 +684,7 @@ struct tty *cxdevtotty (dev_t dev)
 
 	return (cxchan[unit]->ttyp);
 }
- 
+
 int cxselect (dev_t dev, int flag, struct proc *p)
 {
 	int unit = UNIT (dev);

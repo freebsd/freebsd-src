@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.9 1995/04/09 01:29:25 davidg Exp $
+ * $Id: tcp_output.c,v 1.10 1995/05/09 13:35:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -226,7 +226,7 @@ again:
 	 * window, then want to send a window update to peer.
 	 */
 	if (win > 0) {
-		/* 
+		/*
 		 * "adv" is the amount we can increase the window,
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
@@ -313,7 +313,7 @@ send:
 			mss = htons((u_short) tcp_mssopt(tp));
 			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
-	 
+
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_RCVD_SCALE))) {
@@ -326,9 +326,9 @@ send:
 			}
 		}
  	}
- 
+
  	/*
-	 * Send a timestamp and echo-reply if this is a SYN and our side 
+	 * Send a timestamp and echo-reply if this is a SYN and our side
 	 * wants to use timestamps (TF_REQ_TSTMP is set) or both our side
 	 * and our peer have sent timestamps in our SYN's.
  	 */
@@ -337,7 +337,7 @@ send:
 	    ((flags & TH_ACK) == 0 ||
 	     (tp->t_flags & TF_RCVD_TSTMP))) {
 		u_long *lp = (u_long *)(opt + optlen);
- 
+
  		/* Form timestamp option as shown in appendix A of RFC 1323. */
  		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
  		*lp++ = htonl(tcp_now);
@@ -373,7 +373,7 @@ send:
 			opt[optlen++] = TCPOPT_CC;
 			opt[optlen++] = TCPOLEN_CC;
 			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
-			
+
 			optlen += 4;
 			break;
 
@@ -408,7 +408,7 @@ send:
 				opt[optlen++] = TCPOPT_NOP;
 				opt[optlen++] = TCPOPT_CC;
 				opt[optlen++] = TCPOLEN_CC;
-				*(u_int32_t *)&opt[optlen] = 
+				*(u_int32_t *)&opt[optlen] =
 					htonl(tp->cc_send);
 				optlen += 4;
 				opt[optlen++] = TCPOPT_NOP;
@@ -424,7 +424,7 @@ send:
  	}
 
  	hdrlen += optlen;
- 
+
 	/*
 	 * Adjust data length if insertion of options will
 	 * bump the packet length beyond the t_maxopd length.
@@ -527,7 +527,7 @@ send:
 	 * window for use in delaying messages about window sizes.
 	 * If resending a FIN, be sure not to use a new sequence number.
 	 */
-	if (flags & TH_FIN && tp->t_flags & TF_SENTFIN && 
+	if (flags & TH_FIN && tp->t_flags & TF_SENTFIN &&
 	    tp->snd_nxt == tp->snd_max)
 		tp->snd_nxt--;
 	/*
@@ -665,7 +665,7 @@ send:
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE, 0);
 #else
-	error = ip_output(m, (struct mbuf *)0, &tp->t_inpcb->inp_route, 
+	error = ip_output(m, (struct mbuf *)0, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE);
 #endif
     }

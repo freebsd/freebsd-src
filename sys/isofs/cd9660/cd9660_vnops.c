@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.12 1995/02/13 06:12:32 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.13 1995/03/28 07:46:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -81,10 +81,10 @@ cd9660_mknod(ndp, vap, cred, p)
 	struct iso_node *ip;
 	struct iso_dnode *dp;
 	int error;
-	
+
 	vp = ndp->ni_vp;
 	ip = VTOI(vp);
-	
+
 	if (ip->i_mnt->iso_ftype != ISO_FTYPE_RRIP
 	    || vap->va_type != vp->v_type
 	    || (vap->va_type != VCHR && vap->va_type != VBLK)) {
@@ -93,7 +93,7 @@ cd9660_mknod(ndp, vap, cred, p)
 		vput(ndp->ni_vp);
 		return EINVAL;
 	}
-	
+
 	dp = iso_dmap(ip->i_dev,ip->i_number,1);
 	if (ip->inode.iso_rdev == vap->va_rdev || vap->va_rdev == VNOVAL) {
 		/* same as the unmapped one, delete the mapping */
@@ -102,7 +102,7 @@ cd9660_mknod(ndp, vap, cred, p)
 	} else
 		/* enter new mapping */
 		dp->d_dev = vap->va_rdev;
-	
+
 	/*
 	 * Remove inode so that it will be reloaded by iget and
 	 * checked to see if it is an alias of an existing entry
@@ -237,7 +237,7 @@ cd9660_read(ap)
 	off_t diff;
 	int rasize, error = 0;
 	long size, n, on;
-	
+
 	if (uio->uio_resid == 0)
 		return (0);
 	if (uio->uio_offset < 0)
@@ -260,7 +260,7 @@ cd9660_read(ap)
 			if (iso_lblktosize(imp, rablock) <= ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 						     lbn, size, NOCRED, &bp);
-			else 
+			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		} else {
 			if (vp->v_lastr + 1 == lbn &&
@@ -380,25 +380,25 @@ iso_uiodir(idp,dp,off)
 	off_t off;
 {
 	int error;
-	
+
 	dp->d_name[dp->d_namlen] = 0;
 	dp->d_reclen = DIRSIZ(dp);
-	
+
 	if (idp->uio->uio_resid < dp->d_reclen) {
 		idp->eof = 0;
 		return -1;
 	}
-	
+
 	if (idp->cookiep) {
 		if (idp->ncookies <= 0) {
 			idp->eof = 0;
 			return -1;
 		}
-		
+
 		*idp->cookiep++ = off;
 		--idp->ncookies;
 	}
-	
+
 	if ((error = uiomove((caddr_t)dp,dp->d_reclen,idp->uio)))
 		return error;
 	idp->uio_off = off;
@@ -413,7 +413,7 @@ iso_shipdir(idp)
 	int cl, sl, assoc;
 	int error;
 	char *cname, *sname;
-	
+
 	cl = idp->current.d_namlen;
 	cname = idp->current.d_name;
 assoc = (cl > 1) && (*cname == ASSOCCHAR);
@@ -421,7 +421,7 @@ assoc = (cl > 1) && (*cname == ASSOCCHAR);
 		cl--;
 		cname++;
 	}
-	
+
 	dp = &idp->saveent;
 	sname = dp->d_name;
 	if (!(sl = dp->d_namlen)) {
@@ -483,10 +483,10 @@ cd9660_readdir(ap)
 	u_short tmplen;
 	int ncookies = 0;
 	u_int *cookies = NULL;
-	
+
 	ip = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
-	
+
 	MALLOC(idp,struct isoreaddir *,sizeof(*idp),M_TEMP,M_WAITOK);
 	idp->saveent.d_namlen = 0;
 	idp->assocent.d_namlen = 0;
@@ -503,7 +503,7 @@ cd9660_readdir(ap)
 		idp->cookiep = 0;
 	idp->eof = 0;
 	idp->curroff = uio->uio_offset;
-	
+
 	entryoffsetinblock = iso_blkoff(imp, idp->curroff);
 	if (entryoffsetinblock != 0) {
 		if ((error = iso_blkatoff(ip, idp->curroff, &bp))) {
@@ -511,16 +511,16 @@ cd9660_readdir(ap)
 			return (error);
 		}
 	}
-	
+
 	endsearch = ip->i_size;
-	
+
 	while (idp->curroff < endsearch) {
 		/*
 		 * If offset is on a block boundary,
 		 * read the next directory block.
 		 * Release previous if it exists.
 		 */
-		
+
 		if (iso_blkoff(imp, idp->curroff) == 0) {
 			if (bp != NULL)
 				brelse(bp);
@@ -531,10 +531,10 @@ cd9660_readdir(ap)
 		/*
 		 * Get pointer to next entry.
 		 */
-		
+
 		ep = (struct iso_directory_record *)
 			(bp->b_un.b_addr + entryoffsetinblock);
-		
+
 		reclen = isonum_711 (ep->length);
 		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
 				      &ep->date[6]: ep->flags);
@@ -544,19 +544,19 @@ cd9660_readdir(ap)
 						imp->logical_block_size);
 			continue;
 		}
-		
+
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE) {
 			error = EINVAL;
 			/* illegal entry, stop */
 			break;
 		}
-		
+
 		if (entryoffsetinblock + reclen > imp->logical_block_size) {
 			error = EINVAL;
 			/* illegal directory, so stop looking */
 			break;
 		}
-		
+
 		/* XXX: be more intelligent if we can */
 		idp->current.d_type = DT_UNKNOWN;
 
@@ -566,13 +566,13 @@ cd9660_readdir(ap)
 		else
 			idp->current.d_fileno = dbtob(bp->b_blkno) +
 				idp->curroff;
-		
+
 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + idp->current.d_namlen) {
 			error = EINVAL;
 			/* illegal entry, stop */
 			break;
 		}
-		
+
 		idp->curroff += reclen;
 		/*
 		 *
@@ -612,10 +612,10 @@ cd9660_readdir(ap)
 		}
 		if (error)
 			break;
-		
+
 		entryoffsetinblock += reclen;
 	}
-	
+
 	if (!error && imp->iso_ftype == ISO_FTYPE_DEFAULT) {
 		idp->current.d_namlen = 0;
 		error = iso_shipdir(idp);
@@ -634,16 +634,16 @@ cd9660_readdir(ap)
 			*ap->a_cookies = cookies;
 		}
 	}
-	
+
 	if (bp)
 		brelse (bp);
 
 	uio->uio_offset = idp->uio_off;
 	if (ap->a_eofflag)
 	    *ap->a_eofflag = idp->eof;
-	
+
 	FREE(idp,M_TEMP);
-	
+
 	return (error);
 }
 
@@ -665,19 +665,19 @@ cd9660_readlink(ap)
 	} */ *ap;
 {
 	ISONODE	*ip;
-	ISODIR	*dirp;			 
+	ISODIR	*dirp;
 	ISOMNT	*imp;
 	struct	buf *bp;
 	u_short	symlen;
 	int	error;
 	char	*symname;
-	
+
 	ip  = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
-	
+
 	if (imp->iso_ftype != ISO_FTYPE_RRIP)
 		return EINVAL;
-	
+
 	/*
 	 * Get parents directory record block that this inode included.
 	 */
@@ -706,7 +706,7 @@ cd9660_readlink(ap)
 	       ip->i_number,
 	       ip->i_number & imp->im_bmask );
 #endif
-	
+
 	/*
 	 * Just make sure, we have a right one....
 	 *   1: Check not cross boundary on block
@@ -716,13 +716,13 @@ cd9660_readlink(ap)
 		brelse(bp);
 		return EINVAL;
 	}
-	
+
 	/*
 	 * Now get a buffer
 	 * Abuse a namei buffer for now.
 	 */
 	MALLOC(symname,char *,MAXPATHLEN,M_NAMEI,M_WAITOK);
-	
+
 	/*
 	 * Ok, we just gathering a symbolic name in SL record.
 	 */
@@ -735,14 +735,14 @@ cd9660_readlink(ap)
 	 * Don't forget before you leave from home ;-)
 	 */
 	brelse(bp);
-	
+
 	/*
 	 * return with the symbolic name to caller's.
 	 */
 	error = uiomove(symname,symlen,ap->a_uio);
-	
+
 	FREE(symname,M_NAMEI);
-	
+
 	return error;
 }
 

@@ -5,8 +5,8 @@
  * portions thereof.
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
- * 
- * $Id: if_el.c,v 1.11 1995/03/28 07:55:29 bde Exp $
+ *
+ * $Id: if_el.c,v 1.12 1995/04/12 20:47:48 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -223,7 +223,7 @@ int el_attach(struct isa_device *idev)
 	 * entry, if any.
 	 */
 	ifa = ifp->if_addrlist;
-	while ((ifa != NULL) && (ifa->ifa_addr != NULL) && 
+	while ((ifa != NULL) && (ifa->ifa_addr != NULL) &&
 	  (ifa->ifa_addr->sa_family != AF_LINK))
 		ifa = ifa->ifa_next;
 	if((ifa != NULL) && (ifa->ifa_addr != NULL)) {
@@ -427,7 +427,7 @@ void el_start(struct ifnet *ifp)
 				}
 				else
 					done = 1;
-			} 
+			}
 			else {
 				sc->arpcom.ac_if.if_opackets++;
 				done = 1;
@@ -558,7 +558,7 @@ void elintr(int unit)
 		stat = inb(base+EL_AS);
 
 		/* If so, do it all again (i.e. don't set done to 1) */
-		if(!(stat & EL_AS_RXBUSY)) 
+		if(!(stat & EL_AS_RXBUSY))
 			dprintf(("<rescan> "));
 		else
 			done = 1;
@@ -723,8 +723,8 @@ el_ioctl(ifp, command, data)
 				ina->x_host =
 					*(union ns_host *)(sc->arpcom.ac_enaddr);
 			else {
-				/* 
-				 * 
+				/*
+				 *
 				 */
 				bcopy((caddr_t)ina->x_host.c_host,
 				      (caddr_t)sc->arpcom.ac_enaddr,

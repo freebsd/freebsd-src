@@ -98,7 +98,7 @@
  * the unit worked).  I suggest saving money and buying the bare TW523
  * rather than the TW523 development kit (what I bought), because if you
  * are running FreeBSD you don't really care about the DOS binaries.
- * 
+ *
  * The interface to the TW-523 consists of four wires on the RJ-11 connector,
  * which are jumpered to somewhat more wires on the DB-25 connector, which
  * in turn is intended to plug into the PC parallel printer port.  I dismantled
@@ -355,7 +355,7 @@ int twopen(dev, flag, mode, p)
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
   int port;
-  
+
   s = spltty();
   if(sc->sc_state == 0) {
     sc->sc_state = TWS_OPEN;
@@ -663,7 +663,7 @@ int h, k, cnt;
  * which is more than the 11 cycles it takes to transmit a full
  * X-10 packet.
  */
- 
+
 static int wait_for_zero(sc)
 struct tw_sc *sc;
 {
@@ -929,7 +929,7 @@ int unit;
     sc->sc_state &= ~TWS_RCVING;
     twputpkt(sc, pkt);
     untimeout((timeout_func_t)twabortrcv, (caddr_t)sc);
-    if(sc->sc_flags & TW_RCV_ERROR) 
+    if(sc->sc_flags & TW_RCV_ERROR)
       log(LOG_ERR, "TWRCV: invalid packet: (%d, %x)\n",
 	  sc->sc_rcount, sc->sc_bits);
     wakeup((caddr_t)sc);

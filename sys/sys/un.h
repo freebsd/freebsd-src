@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.1 (Berkeley) 6/2/93
- * $Id: un.h,v 1.4 1994/08/21 04:42:09 paul Exp $
+ * $Id: un.h,v 1.5 1994/10/02 17:25:03 phk Exp $
  */
 
 #ifndef _SYS_UN_H_
@@ -52,9 +52,9 @@ struct	sockaddr_un {
 
 #ifdef KERNEL
 int	unp_connect2 __P((struct socket*,struct socket*));
-void    unp_detach __P((struct unpcb *)); 
+void    unp_detach __P((struct unpcb *));
 void    unp_disconnect __P((struct unpcb *));
-void    unp_shutdown __P((struct unpcb *)); 
+void    unp_shutdown __P((struct unpcb *));
 void    unp_drop __P((struct unpcb *, int));
 void    unp_gc __P((void));
 void    unp_scan __P((struct mbuf *, void (*)(struct file *)));

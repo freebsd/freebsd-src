@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: elink.c,v 1.3 1994/09/17 16:51:47 se Exp $
+ *	$Id: elink.c,v 1.4 1995/02/26 05:14:46 bde Exp $
  */
 
 /*
@@ -47,7 +47,7 @@
  */
 void
 elink_reset()
-{  
+{
 	static int x = 0;
 
 	if (x == 0) {

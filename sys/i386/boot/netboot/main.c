@@ -197,7 +197,7 @@ load()
 		nfsdiskless.swap_saddr.sin_len = sizeof(struct sockaddr_in);
 		nfsdiskless.swap_saddr.sin_family = AF_INET;
 		nfsdiskless.swap_saddr.sin_port = htons(swap_nfs_port);
-		nfsdiskless.swap_saddr.sin_addr.s_addr = 
+		nfsdiskless.swap_saddr.sin_addr.s_addr =
 			htonl(arptable[ARP_SWAPSERVER].ipaddr);
         	nfsdiskless.swap_args.timeo = 10;
         	nfsdiskless.swap_args.retrans = 100;
@@ -219,7 +219,7 @@ load()
 	nfsdiskless.root_saddr.sin_len = sizeof(struct sockaddr_in);
 	nfsdiskless.root_saddr.sin_family = AF_INET;
 	nfsdiskless.root_saddr.sin_port = htons(root_nfs_port);
-	nfsdiskless.root_saddr.sin_addr.s_addr = 
+	nfsdiskless.root_saddr.sin_addr.s_addr =
 		htonl(arptable[ARP_ROOTSERVER].ipaddr);
         nfsdiskless.root_args.timeo = 10;
         nfsdiskless.root_args.retrans = 100;
@@ -356,7 +356,7 @@ udp_transmit(destip, srcsock, destsock, len, buf)
 	} else {
 		long h_netmask = ntohl(netmask);
 				/* Check to see if we need gateway */
-		if (((destip & h_netmask) != 
+		if (((destip & h_netmask) !=
 			(arptable[ARP_CLIENT].ipaddr & h_netmask)) &&
 			arptable[ARP_GATEWAY].ipaddr)
 				destip = arptable[ARP_GATEWAY].ipaddr;
@@ -507,7 +507,7 @@ await_reply(type, ival, ptr)
 			if ((packetlen < protohdrlen) ||
 			   (((packet[12] << 8) | packet[13]) != IP)) continue;
 			ip = (struct iphdr *)&packet[ETHER_HDR_SIZE];
-			if ((ip->verhdrlen != 0x45) || 
+			if ((ip->verhdrlen != 0x45) ||
 				ipchksum(ip, sizeof(struct iphdr)) ||
 				(ip->protocol != IP_UDP)) continue;
 			udp = (struct udphdr *)&packet[ETHER_HDR_SIZE +

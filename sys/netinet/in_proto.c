@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: in_proto.c,v 1.13 1995/04/09 01:29:20 davidg Exp $
+ *	$Id: in_proto.c,v 1.14 1995/05/11 00:13:17 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -160,7 +160,7 @@ struct protosw inetsw[] = {
 extern int in_inithead(void **, int);
 
 struct domain inetdomain =
-    { AF_INET, "internet", 0, 0, 0, 
+    { AF_INET, "internet", 0, 0, 0,
       inetsw, &inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
       in_inithead, 32, sizeof(struct sockaddr_in)
     };

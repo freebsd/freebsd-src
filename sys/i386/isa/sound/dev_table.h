@@ -2,7 +2,7 @@
  *	dev_table.h
  *
  *	Global definitions for device call tables
- * 
+ *
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.h,v 1.12 1995/03/12 23:33:50 swallace Exp $
+ * $Id: dev_table.h,v 1.13 1995/03/28 07:56:11 bde Exp $
  */
 
 #ifndef _DEV_TABLE_H_
@@ -117,9 +117,9 @@ struct audio_operations {
 	void *devc;		/* Driver specific info */
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
-	void (*output_block) (int dev, unsigned long buf, 
+	void (*output_block) (int dev, unsigned long buf,
 			      int count, int intrflag, int dma_restart);
-	void (*start_input) (int dev, unsigned long buf, 
+	void (*start_input) (int dev, unsigned long buf,
 			     int count, int intrflag, int dma_restart);
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg, int local);
 	int (*prepare_for_input) (int dev, int bufsize, int nbufs);
@@ -197,7 +197,7 @@ struct sound_timer_operations {
 	void (*arm_timer)(int dev, long time);
 };
 
-#ifdef _DEV_TABLE_C_   
+#ifdef _DEV_TABLE_C_
 	struct audio_operations *audio_devs[MAX_AUDIO_DEV] = {NULL}; int num_audiodevs = 0;
 	struct mixer_operations *mixer_devs[MAX_MIXER_DEV] = {NULL}; int num_mixers = 0;
 	struct synth_operations *synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV] = {NULL}; int num_synths = 0;
@@ -205,12 +205,12 @@ struct sound_timer_operations {
 
 #ifndef EXCLUDE_SEQUENCER
 	extern struct sound_timer_operations default_sound_timer;
-	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
-		{&default_sound_timer, NULL}; 
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] =
+		{&default_sound_timer, NULL};
 	int num_sound_timers = 1;
 #else
-	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
-		{NULL}; 
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] =
+		{NULL};
 	int num_sound_timers = 0;
 #endif
 

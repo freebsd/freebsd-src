@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id: fs.h,v 1.3 1994/08/21 07:03:56 paul Exp $
+ * $Id: fs.h,v 1.4 1995/03/10 22:18:16 davidg Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_
@@ -70,7 +70,7 @@
 
 /*
  * Addresses stored in inodes are capable of addressing fragments
- * of `blocks'. File system blocks of at most size MAXBSIZE can 
+ * of `blocks'. File system blocks of at most size MAXBSIZE can
  * be optionally broken into 2, 4, or 8 pieces, each of which is
  * addressible; these pieces may be DEV_BSIZE, or some multiple of
  * a DEV_BSIZE unit.
@@ -100,7 +100,7 @@
 
 /*
  * The path name on which the file system is mounted is maintained
- * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in 
+ * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in
  * the super block for this name.
  * The limit on the amount of summary information per file system
  * is defined by MAXCSBUFS. It is currently parameterized for a
@@ -224,7 +224,7 @@ struct fs {
 	long	fs_cpc;			/* cyl per cycle in postbl */
 	short	fs_opostbl[16][8];	/* old rotation block list head */
 	long	fs_sparecon[50];	/* reserved for future constants */
-	long	fs_contigsumsize;	/* size of cluster summary array */ 
+	long	fs_contigsumsize;	/* size of cluster summary array */
 	long	fs_maxsymlinklen;	/* max length of an internal symlink */
 	long	fs_inodefmt;		/* format of on-disk inodes */
 	u_quad_t fs_maxfilesize;	/* maximum representable file size */
@@ -272,7 +272,7 @@ struct fs {
 /*
  * The size of a cylinder group is calculated by CGSIZE. The maximum size
  * is limited by the fact that cylinder groups are at most one block.
- * Its size is derived from the size of the maps maintained in the 
+ * Its size is derived from the size of the maps maintained in the
  * cylinder group and the (struct cg) size.
  */
 #define CGSIZE(fs) \
