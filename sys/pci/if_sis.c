@@ -1417,13 +1417,11 @@ static void sis_tick(xsc)
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
 
-	if (!sc->sis_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->sis_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				sis_start(ifp);
+	if (!sc->sis_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->sis_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			sis_start(ifp);
 	}
 
 	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
