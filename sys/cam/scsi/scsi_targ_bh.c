@@ -41,7 +41,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>

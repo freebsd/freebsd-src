@@ -52,7 +52,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
@@ -437,8 +436,6 @@ static struct cdevsw sa_cdevsw = {
 	/* flags */	D_TAPE,
 };
 
-static struct extend_array *saperiphs;
-
 static int
 saopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
@@ -455,7 +452,7 @@ saopen(dev_t dev, int flags, int fmt, struct thread *td)
 	density = SADENSITY(dev);
 
 	s = splsoftcam();
-	periph = cam_extend_get(saperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
 		(void) splx(s);
 		return (ENXIO);	
@@ -513,7 +510,7 @@ saclose(dev_t dev, int flag, int fmt, struct thread *td)
 
 	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
-	periph = cam_extend_get(saperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -659,7 +656,6 @@ sastrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
-	u_int  unit;
 	int    s;
 	
 	bp->bio_resid = bp->bio_bcount;
@@ -667,8 +663,7 @@ sastrategy(struct bio *bp)
 		biofinish(bp, NULL, EINVAL);
 		return;
 	}
-	unit = SAUNIT(bp->bio_dev);
-	periph = cam_extend_get(saperiphs, unit);
+	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -779,7 +774,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	error = 0;		/* shut up gcc */
 	spaceop = 0;		/* shut up gcc */
 
-	periph = cam_extend_get(saperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -1254,15 +1249,6 @@ sainit(void)
 	struct cam_path *path;
 
 	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	saperiphs = cam_extend_new();
-	if (saperiphs == NULL) {
-		printf("sa: Failed to alloc extend array!\n");
-		return;
-	}
-	
-	/*
 	 * Install a global async callback.
 	 */
 	status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
@@ -1356,7 +1342,6 @@ sacleanup(struct cam_periph *periph)
 		destroy_dev(softc->devs.mode_devs[i].er_dev);
 	}
 
-	cam_extend_release(saperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	free(softc, M_DEVBUF);
@@ -1438,7 +1423,6 @@ saregister(struct cam_periph *periph, void *arg)
 
 	bioq_init(&softc->bio_queue);
 	periph->softc = softc;
-	cam_extend_set(saperiphs, periph->unit_number, periph);
 
 	/*
 	 * See if this device has any quirks.
@@ -1472,6 +1456,7 @@ saregister(struct cam_periph *periph, void *arg)
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
 	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
+	softc->devs.ctl_dev->si_drv1 = periph;
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
 
@@ -1479,28 +1464,35 @@ saregister(struct cam_periph *periph, void *arg)
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_R),
 		    UID_ROOT, GID_OPERATOR, 0660, "%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
+		softc->devs.mode_devs[i].r_dev->si_drv1 = periph;
 
 		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_NR),
 		    UID_ROOT, GID_OPERATOR, 0660, "n%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
-
+		softc->devs.mode_devs[i].nr_dev->si_drv1 = periph;
 
 		softc->devs.mode_devs[i].er_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_ER),
 		    UID_ROOT, GID_OPERATOR, 0660, "e%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
+		softc->devs.mode_devs[i].er_dev->si_drv1 = periph;
 
 		/*
 		 * Make the (well known) aliases for the first mode.
 		 */
 		if (i == 0) {
-			make_dev_alias(softc->devs.mode_devs[i].r_dev,
+			dev_t alias;
+
+			alias = make_dev_alias(softc->devs.mode_devs[i].r_dev,
 			   "%s%d", periph->periph_name, periph->unit_number);
-			make_dev_alias(softc->devs.mode_devs[i].nr_dev,
+			alias->si_drv1 = periph;
+			alias = make_dev_alias(softc->devs.mode_devs[i].nr_dev,
 			    "n%s%d", periph->periph_name, periph->unit_number);
-			make_dev_alias(softc->devs.mode_devs[i].er_dev,
+			alias->si_drv1 = periph;
+			alias = make_dev_alias(softc->devs.mode_devs[i].er_dev,
 			    "e%s%d", periph->periph_name, periph->unit_number);
+			alias->si_drv1 = periph;
 		}
 	}
 
