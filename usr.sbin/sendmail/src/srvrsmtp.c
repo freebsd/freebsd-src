@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.97 (Berkeley) 11/18/95 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.123 (Berkeley) 10/12/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.97 (Berkeley) 11/18/95 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.123 (Berkeley) 10/12/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -79,9 +79,11 @@ struct cmd
 # define CMDHELO	9	/* helo -- be polite */
 # define CMDHELP	10	/* help -- give usage info */
 # define CMDEHLO	11	/* ehlo -- extended helo (RFC 1425) */
+# define CMDETRN	12	/* etrn -- flush queue */
 /* non-standard commands */
 # define CMDONEX	16	/* onex -- sending one transaction only */
 # define CMDVERB	17	/* verb -- go into verbose mode */
+# define CMDXUSR	18	/* xusr -- initial (user) submission */
 /* use this to catch and log "door handle" attempts on your system */
 # define CMDLOGBOGUS	23	/* bogus command that should be logged */
 /* debugging-only commands, only enabled if SMTPDEBUG is defined */
@@ -90,27 +92,27 @@ struct cmd
 
 static struct cmd	CmdTab[] =
 {
-	"mail",		CMDMAIL,
-	"rcpt",		CMDRCPT,
-	"data",		CMDDATA,
-	"rset",		CMDRSET,
-	"vrfy",		CMDVRFY,
-	"expn",		CMDEXPN,
-	"help",		CMDHELP,
-	"noop",		CMDNOOP,
-	"quit",		CMDQUIT,
-	"helo",		CMDHELO,
-	"ehlo",		CMDEHLO,
-	"verb",		CMDVERB,
-	"onex",		CMDONEX,
-	/*
-	 * remaining commands are here only
-	 * to trap and log attempts to use them
-	 */
-	"showq",	CMDDBGQSHOW,
-	"debug",	CMDDBGDEBUG,
-	"wiz",		CMDLOGBOGUS,
-	NULL,		CMDERROR,
+	{ "mail",	CMDMAIL		},
+	{ "rcpt",	CMDRCPT		},
+	{ "data",	CMDDATA		},
+	{ "rset",	CMDRSET		},
+	{ "vrfy",	CMDVRFY		},
+	{ "expn",	CMDEXPN		},
+	{ "help",	CMDHELP		},
+	{ "noop",	CMDNOOP		},
+	{ "quit",	CMDQUIT		},
+	{ "helo",	CMDHELO		},
+	{ "ehlo",	CMDEHLO		},
+	{ "etrn",	CMDETRN		},
+	{ "verb",	CMDVERB		},
+	{ "onex",	CMDONEX		},
+	{ "xusr",	CMDXUSR		},
+    /* remaining commands are here only to trap and log attempts to use them */
+	{ "showq",	CMDDBGQSHOW	},
+	{ "debug",	CMDDBGDEBUG	},
+	{ "wiz",	CMDLOGBOGUS	},
+
+	{ NULL,		CMDERROR	}
 };
 
 bool	OneXact = FALSE;		/* one xaction only this run */
@@ -122,7 +124,8 @@ static char	*skipword();
 #define MAXBADCOMMANDS	25		/* maximum number of bad commands */
 
 void
-smtp(e)
+smtp(nullserver, e)
+	bool nullserver;
 	register ENVELOPE *volatile e;
 {
 	register char *p;
@@ -141,10 +144,15 @@ smtp(e)
 	volatile int nrcpts = 0;	/* number of RCPT commands */
 	bool doublequeue;
 	volatile int badcommands = 0;	/* count of bad commands */
+	volatile int nverifies = 0;	/* count of VRFY/EXPN commands */
+	volatile int n_etrn = 0;	/* count of ETRN commands */
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
 	extern ENVELOPE BlankEnvelope;
 	extern void help __P((char *));
+	extern void settime __P((ENVELOPE *));
+	extern bool enoughdiskspace __P((long));
+	extern int runinchild __P((char *, ENVELOPE *));
 
 	if (fileno(OutChannel) != fileno(stdout))
 	{
@@ -253,6 +261,11 @@ smtp(e)
 		if (e->e_xfp != NULL)
 			fprintf(e->e_xfp, "<<< %s\n", inp);
 
+#ifdef LOG
+		if (LogLevel >= 15)
+			syslog(LOG_INFO, "<-- %s", inp);
+#endif
+
 		if (e->e_id == NULL)
 			setproctitle("%s: %.80s", CurSmtpClient, inp);
 		else
@@ -282,7 +295,20 @@ smtp(e)
 		/* reset errors */
 		errno = 0;
 
-		/* process command */
+		/*
+		**  Process command.
+		**
+		**	If we are running as a null server, return 550
+		**	to everything.
+		*/
+
+		if (nullserver && c->cmdcode != CMDQUIT)
+		{
+			message("550 Access denied");
+			continue;
+		}
+
+		/* non-null server */
 		switch (c->cmdcode)
 		{
 		  case CMDHELO:		/* hello -- introduce yourself */
@@ -299,7 +325,7 @@ smtp(e)
 			}
 
 			/* check for valid domain name (re 1123 5.2.5) */
-			if (*p == '\0')
+			if (*p == '\0' && !AllowBogusHELO)
 			{
 				message("501 %s requires domain address",
 					cmdbuf);
@@ -325,9 +351,21 @@ smtp(e)
 				}
 				if (*q != '\0')
 				{
-					message("501 Invalid domain name");
+					if (!AllowBogusHELO)
+						message("501 Invalid domain name");
+					else
+						message("250 %s Invalid domain name, accepting anyway",
+							MyHostName);
 					break;
 				}
+			}
+
+			/* check for duplicate HELO/EHLO per RFC 1651 4.2 */
+			if (gothello)
+			{
+				message("503 %s Duplicate HELO/EHLO",
+					MyHostName);
+				break;
 			}
 
 			sendinghost = newstr(p);
@@ -344,7 +382,10 @@ smtp(e)
 			message("250-%s Hello %s, pleased to meet you",
 				MyHostName, CurSmtpClient);
 			if (!bitset(PRIV_NOEXPN, PrivacyFlags))
+			{
 				message("250-EXPN");
+				message("250-VERB");
+			}
 #if MIME8TO7
 			message("250-8BITMIME");
 #endif
@@ -356,8 +397,9 @@ smtp(e)
 			if (SendMIMEErrors)
 				message("250-DSN");
 #endif
-			message("250-VERB");
 			message("250-ONEX");
+			message("250-ETRN");
+			message("250-XUSR");
 			message("250 HELP");
 			break;
 
@@ -391,13 +433,17 @@ smtp(e)
 				finis();
 			}
 
+			p = skipword(p, "from");
+			if (p == NULL)
+				break;
+
 			/* fork a subprocess to process this command */
 			if (runinchild("SMTP-MAIL", e) > 0)
 				break;
 			if (!gothello)
 			{
 				auth_warning(e,
-					"Host %s didn't use HELO protocol",
+					"%s didn't use HELO protocol",
 					CurSmtpClient);
 			}
 #ifdef PICKY_HELO_CHECK
@@ -420,12 +466,10 @@ smtp(e)
 			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
 
 			/* child -- go do the processing */
-			p = skipword(p, "from");
-			if (p == NULL)
-				break;
 			if (setjmp(TopFrame) > 0)
 			{
 				/* this failed -- undo work */
+ undo_subproc:
 				if (InChild)
 				{
 					QuickAbort = FALSE;
@@ -440,9 +484,12 @@ smtp(e)
 			/* must parse sender first */
 			delimptr = NULL;
 			setsender(p, e, &delimptr, FALSE);
-			p = delimptr;
-			if (p != NULL && *p != '\0')
-				*p++ = '\0';
+			if (delimptr != NULL && *delimptr != '\0')
+				*delimptr++ = '\0';
+
+			/* do config file checking of the sender */
+			if (rscheck("check_mail", p, NULL, e) != EX_OK)
+				goto undo_subproc;
 
 			/* check for possible spoofing */
 			if (RealUid != 0 && OpMode == MD_SMTP &&
@@ -456,6 +503,7 @@ smtp(e)
 
 			/* now parse ESMTP arguments */
 			e->e_msgsize = 0;
+			p = delimptr;
 			while (p != NULL && *p != '\0')
 			{
 				char *kp;
@@ -470,7 +518,7 @@ smtp(e)
 				kp = p;
 
 				/* skip to the value portion */
-				while (isascii(*p) && isalnum(*p) || *p == '-')
+				while ((isascii(*p) && isalnum(*p)) || *p == '-')
 					p++;
 				if (*p == '=')
 				{
@@ -534,9 +582,15 @@ smtp(e)
 			a = parseaddr(p, NULLADDR, RF_COPYALL, ' ', &delimptr, e);
 			if (a == NULL)
 				break;
-			p = delimptr;
+			if (delimptr != NULL && *delimptr != '\0')
+				*delimptr++ = '\0';
+
+			/* do config file checking of the recipient */
+			if (rscheck("check_rcpt", p, NULL, e) != EX_OK)
+				break;
 
 			/* now parse ESMTP arguments */
+			p = delimptr;
 			while (p != NULL && *p != '\0')
 			{
 				char *kp;
@@ -551,7 +605,7 @@ smtp(e)
 				kp = p;
 
 				/* skip to the value portion */
-				while (isascii(*p) && isalnum(*p) || *p == '-')
+				while ((isascii(*p) && isalnum(*p)) || *p == '-')
 					p++;
 				if (*p == '=')
 				{
@@ -582,7 +636,7 @@ smtp(e)
 				break;
 
 			/* no errors during parsing, but might be a duplicate */
-			e->e_to = p;
+			e->e_to = a->q_paddr;
 			if (!bitset(QBADADDR, a->q_flags))
 			{
 				message("250 Recipient ok%s",
@@ -698,7 +752,7 @@ smtp(e)
 
 			/* clean up a bit */
 			gotmail = FALSE;
-			dropenvelope(e);
+			dropenvelope(e, TRUE);
 			CurEnv = e = newenvelope(e, CurEnv);
 			e->e_flags = BlankEnvelope.e_flags;
 			break;
@@ -714,12 +768,24 @@ smtp(e)
 
 			/* clean up a bit */
 			gotmail = FALSE;
-			dropenvelope(e);
+			dropenvelope(e, TRUE);
 			CurEnv = e = newenvelope(e, CurEnv);
 			break;
 
 		  case CMDVRFY:		/* vrfy -- verify address */
 		  case CMDEXPN:		/* expn -- expand address */
+			if (++nverifies >= MAXBADCOMMANDS)
+			{
+#ifdef LOG
+				if (nverifies == MAXBADCOMMANDS &&
+				    LogLevel > 5)
+				{
+					syslog(LOG_INFO, "%.100s: VRFY attack?",
+					       CurSmtpClient);
+				}
+#endif
+				sleep(1);
+			}
 			vrfy = c->cmdcode == CMDVRFY;
 			if (bitset(vrfy ? PRIV_NOVRFY : PRIV_NOEXPN,
 						PrivacyFlags))
@@ -778,18 +844,45 @@ smtp(e)
 			}
 			while (vrfyqueue != NULL)
 			{
-				extern void printvrfyaddr __P((ADDRESS *, bool));
+				extern void printvrfyaddr __P((ADDRESS *, bool, bool));
 
 				a = vrfyqueue;
 				while ((a = a->q_next) != NULL &&
 				       bitset(QDONTSEND|QBADADDR, a->q_flags))
 					continue;
 				if (!bitset(QDONTSEND|QBADADDR, vrfyqueue->q_flags))
-					printvrfyaddr(vrfyqueue, a == NULL);
+					printvrfyaddr(vrfyqueue, a == NULL, vrfy);
 				vrfyqueue = vrfyqueue->q_next;
 			}
 			if (InChild)
 				finis();
+			break;
+
+		  case CMDETRN:		/* etrn -- force queue flush */
+			if (strlen(p) <= 0)
+			{
+				message("500 Parameter required");
+				break;
+			}
+
+			/* crude way to avoid denial-of-service attacks */
+			if (n_etrn++ >= 3)
+				sleep(3);
+			id = p;
+			if (*id == '@')
+				id++;
+			else
+				*--id = '@';
+#ifdef LOG
+			if (LogLevel > 5)
+				syslog(LOG_INFO, "%.100s: ETRN %s",
+					CurSmtpClient,
+					shortenstring(id, 203));
+#endif
+			QueueLimitRecipient = id;
+			runqueue(TRUE);
+			QueueLimitRecipient = NULL;
+			message("250 Queuing for node %s started", p);
 			break;
 
 		  case CMDHELP:		/* help -- give user info */
@@ -829,6 +922,11 @@ doquit:
 		  case CMDONEX:		/* doing one transaction only */
 			OneXact = TRUE;
 			message("250 Only one transaction");
+			break;
+
+		  case CMDXUSR:		/* initial (user) submission */
+			UserSubmission = TRUE;
+			message("250 Initial submission");
 			break;
 
 # ifdef SMTPDEBUG
@@ -1112,6 +1210,7 @@ rcpt_esmtp_args(a, kp, vp, e)
 **	Parameters:
 **		a -- the address to print
 **		last -- set if this is the last one.
+**		vrfy -- set if this is a VRFY command.
 **
 **	Returns:
 **		none.
@@ -1121,13 +1220,18 @@ rcpt_esmtp_args(a, kp, vp, e)
 */
 
 void
-printvrfyaddr(a, last)
+printvrfyaddr(a, last, vrfy)
 	register ADDRESS *a;
 	bool last;
+	bool vrfy;
 {
 	char fmtbuf[20];
 
-	strcpy(fmtbuf, "250");
+	if (vrfy && a->q_mailer != NULL &&
+	    !bitnset(M_VRFY250, a->q_mailer->m_flags))
+		strcpy(fmtbuf, "252");
+	else
+		strcpy(fmtbuf, "250");
 	fmtbuf[3] = last ? ' ' : '-';
 
 	if (a->q_fullname == NULL)
