@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.25 1995/12/08 11:19:24 julian Exp $
+ * $Id: conf.h,v 1.26 1995/12/10 13:45:30 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -52,23 +52,20 @@ struct tty;
 struct uio;
 struct vnode;
 
-typedef void d_strategy_t __P((struct buf *));
 typedef int d_open_t __P((dev_t, int, int, struct proc *));
 typedef int d_close_t __P((dev_t, int, int, struct proc *));
+typedef void d_strategy_t __P((struct buf *));
 typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
 typedef int d_dump_t __P((dev_t));
 typedef int d_psize_t __P((dev_t));
-typedef int d_size_t __P((dev_t));
 
 typedef int d_read_t __P((dev_t, struct uio *, int));
 typedef int d_write_t __P((dev_t, struct uio *, int));
-typedef int d_rdwr_t __P((dev_t, struct uio *, int));
 typedef void d_stop_t __P((struct tty *, int));
 typedef int d_reset_t __P((dev_t));
 typedef struct tty *d_devtotty_t __P((dev_t));
 typedef int d_select_t __P((dev_t, int, struct proc *));
 typedef int d_mmap_t __P((dev_t, int, int));
-typedef	struct tty * d_ttycv_t __P((dev_t));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
 typedef int l_close_t __P((struct tty *tp, int flag));
@@ -100,18 +97,18 @@ extern struct bdevsw bdevsw[];
 struct cdevsw {
 	d_open_t	*d_open;
 	d_close_t	*d_close;
-	d_rdwr_t	*d_read;
-	d_rdwr_t	*d_write;
+	d_read_t	*d_read;
+	d_write_t	*d_write;
 	d_ioctl_t	*d_ioctl;
 	d_stop_t	*d_stop;
 	d_reset_t	*d_reset;	/* XXX not used */
-	d_ttycv_t	*d_devtotty;
+	d_devtotty_t	*d_devtotty;
 	d_select_t	*d_select;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
-	char		*d_name;
-	struct bdevsw	*d_bdev; 	/* cross pointer to the bdev */
-	int		d_maj;		/* the major number we were assigned */
+	char		*d_name;	/* see above */
+	struct bdevsw	*d_bdev;
+	int		d_maj;
 };
 
 #ifdef KERNEL
@@ -196,8 +193,8 @@ d_select_t	nxselect;
 d_dump_t	nxdump;
 #define	nxpsize	nopsize		/* one NULL value is as good as another */
 
-d_rdwr_t	rawread;
-d_rdwr_t	rawwrite;
+d_read_t	rawread;
+d_write_t	rawwrite;
 
 l_read_t	l_noread;
 l_write_t	l_nowrite;

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.24 1995/12/08 23:20:41 phk Exp $
+ *	$Id: si.c,v 1.25 1995/12/10 13:39:12 phk Exp $
  */
 
 #ifndef lint
@@ -119,7 +119,7 @@ static	d_read_t	siread;
 static	d_write_t	siwrite;
 static	d_ioctl_t	siioctl;
 static	d_stop_t	sistop;
-static	d_ttycv_t	sidevtotty;
+static	d_devtotty_t	sidevtotty;
 
 #define CDEV_MAJOR 68
 static struct cdevsw si_cdevsw = 
