@@ -2439,7 +2439,7 @@ xl_encap(sc, c, m_head)
 
 		m_new = m_head->m_pkthdr.len > MHLEN ?
 		    m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR) :
-		    m_get(M_DONTWAIT, MT_DATA);
+		    m_gethdr(M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			m_freem(m_head);
 			printf("xl%d: no memory for tx list\n", sc->xl_unit);
