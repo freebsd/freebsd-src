@@ -83,7 +83,9 @@ static void	if_init(void *);
 static void	if_check(void *);
 static int	if_findindex(struct ifnet *);
 static void	if_qflush(struct ifqueue *);
+static void	if_route(struct ifnet *, int flag, int fam);
 static void	if_slowtimo(void *);
+static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static struct	if_clone *if_clone_lookup(const char *, int *);
@@ -1124,7 +1126,7 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
  * the transition.
  * NOTE: must be called at splnet or eqivalent.
  */
-void
+static void
 if_unroute(struct ifnet *ifp, int flag, int fam)
 {
 	struct ifaddr *ifa;
@@ -1143,7 +1145,7 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
  * the transition.
  * NOTE: must be called at splnet or eqivalent.
  */
-void
+static void
 if_route(struct ifnet *ifp, int flag, int fam)
 {
 	struct ifaddr *ifa;
