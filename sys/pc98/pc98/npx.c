@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.41 1998/12/17 08:41:34 kato Exp $
+ *	$Id: npx.c,v 1.42 1999/01/16 11:41:18 kato Exp $
  */
 
 #include "npx.h"
@@ -127,8 +127,10 @@ typedef u_char bool_t;
 static	int	npxattach	__P((struct isa_device *dvp));
 static	int	npxprobe	__P((struct isa_device *dvp));
 static	int	npxprobe1	__P((struct isa_device *dvp));
+#ifdef I586_CPU
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
+#endif /* I586_CPU */
 
 struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
