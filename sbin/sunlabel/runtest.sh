@@ -6,7 +6,7 @@ set -e
 MD=`mdconfig -a -t malloc -s 2m`
 trap "exec 7</dev/null; rm -f ${TMP}* ; mdconfig -d -u ${MD}" EXIT INT TERM
 
-./sunlabel -w $MD auto
+./sunlabel -r -w $MD auto
 
 dd if=/dev/$MD of=${TMP}i0 count=16 > /dev/null 2>&1
 ./sunlabel $MD > ${TMP}l0
@@ -20,6 +20,23 @@ s/3969/1024/
 ' ${TMP}l0 > ${TMP}l1
 
 ./sunlabel -R $MD ${TMP}l1
+if [ -c /dev/${MD}a ] ; then
+	echo "PASS: Created a: partition" 1>&2
+else
+	echo "FAIL: Did not create a: partition" 1>&2
+	exit 2
+fi
+
+# Spoil and rediscover
+
+true > /dev/${MD}
+if [ -c /dev/${MD}a ] ; then
+	echo "PASS: Recreated a: partition after spoilage" 1>&2
+else
+	echo "FAIL: Did not recreate a: partition after spoilage" 1>&2
+	exit 2
+fi
+
 dd if=/dev/$MD of=${TMP}i1 count=16 > /dev/null 2>&1
 sed '
 /  c:/{
