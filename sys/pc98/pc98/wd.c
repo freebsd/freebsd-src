@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.7 1996/09/10 09:38:45 asami Exp $
+ *	$Id: wd.c,v 1.8 1996/10/09 21:46:52 asami Exp $
  */
 
 /* TODO:
@@ -88,6 +88,7 @@
 #include <machine/md_var.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/epsonio.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/wdreg.h>
 #else
@@ -1048,8 +1049,7 @@ oops:
 			}
 		}
 		else {
-			if( (du->dk_status & DKFL_MULTI)
-				   && (inb(du->dk_port) & WDERR_ABORT)) {
+			if( (du->dk_flags & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
 				wderror(bp, du,
 					"reverting to non-multi sector mode");
 				du->dk_multi = 1;

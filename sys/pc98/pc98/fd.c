@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.5 1996/09/03 10:23:25 asami Exp $
+ *	$Id: fd.c,v 1.6 1996/09/10 09:37:50 asami Exp $
  *
  */
 
@@ -72,6 +72,7 @@
 #include <sys/dkstat.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/epsonio.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/fdreg.h>
 #include <pc98/pc98/fdc.h>

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.4 1996/09/12 11:08:45 asami Exp $
+ *	$Id: boot.c,v 1.5 1996/10/09 21:45:21 asami Exp $
  */
 
 
@@ -56,6 +56,9 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <a.out.h>
 #include <sys/reboot.h>
 #include <machine/bootinfo.h>
+#ifdef PROBE_KEYBOARD_LOCK
+#include <machine/cpufunc.h>
+#endif
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
@@ -84,6 +87,17 @@ boot(int drive)
 		loadflags |= RB_SERIAL;
 		printf("\nNo keyboard found.");
 	}
+#endif
+
+#ifndef PC98
+/* notyet */
+#ifdef PROBE_KEYBOARD_LOCK
+	if (!(inb(0x64) & 0x10)) {
+		init_serial();
+		loadflags |= RB_SERIAL;
+		printf("\nKeyboard locked.");
+	}
+#endif
 #endif
 
 #ifdef FORCE_COMCONSOLE

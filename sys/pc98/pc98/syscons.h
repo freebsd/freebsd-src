@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.3 1996/09/04 09:52:31 asami Exp $
+ *	$Id: syscons.h,v 1.4 1996/10/09 21:46:51 asami Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -63,6 +63,7 @@
 #define MOUSE_ENABLED	0x00400
 #define MOUSE_MOVED	0x00800
 #define MOUSE_CUTTING	0x01000
+#define MOUSE_VISIBLE	0x02000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -225,10 +226,11 @@ typedef struct default_attr {
 	int             rev_color;              /* reverse hardware color */
 } default_attr;
 
-void load_palette(void);
+/* misc prototypes used by different syscons related LKM's */
 void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
+void load_palette(void);
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);

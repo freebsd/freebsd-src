@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.i386,v 1.140 1996/09/11 19:53:30 phk Exp $
+#	$Id: files.pc98,v 1.7 1996/09/12 11:09:18 asami Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -50,12 +50,12 @@ i386/i386/in_cksum.c		optional	inet
 # now normal.
 # i386/i386/locore.s		standard
 pc98/i386/machdep.c		standard
-pc98/pc98/pc98_machdep.c	standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 pc98/i386/microtime.s		standard
+i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/perfmon.c		optional	perfmon
-pc98/i386/pmap.c		standard
+i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
@@ -82,6 +82,7 @@ i386/ibcs2/ibcs2_errno.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
+pc98/pc98/pc98_machdep.c	standard
 pc98/pc98/bs/bs.c		optional	bs	device-driver
 pc98/pc98/bs/bsfunc.c		optional	bs	device-driver
 pc98/pc98/bs/bshw.c		optional	bs	device-driver

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.3 1996/09/12 11:08:53 asami Exp $
+ *	$Id: disk.c,v 1.4 1996/10/09 21:45:26 asami Exp $
  */
 
 /*
@@ -79,6 +79,7 @@ static int ra_dev;
 static int ra_end;
 static int ra_first;
 
+static int badsect(int sector);
 
 int
 devopen(void)
@@ -196,7 +197,7 @@ devopen(void)
 			    break;
 			}
 			i += 2;
-		    } while (i < 10 && i < dl->d_nsectors);
+		    } while (i < 10 && (unsigned)i < dl->d_nsectors);
 		    if (!do_bad144)
 		      printf("Bad bad sector table\n");
 		    else
@@ -222,7 +223,7 @@ devread(char *iodest, int sector, int cnt)
 	for (offset = 0; offset < cnt; offset += BPS)
 	{
 		dosdev_copy = dosdev;
-		p = Bread(dosdev_copy, badsect(dosdev_copy, sector++));
+		p = Bread(dosdev_copy, badsect(sector++));
 		bcopy(p, iodest+offset, BPS);
 	}
 }
@@ -253,7 +254,8 @@ Bread(int dosdev, int sector)
 		    nsec = 1;
 		    twiddle();
 		    while (biosread(dosdev, cyl, head, sec, nsec, ra_buf) != 0) {
-			printf("Error: C:%d H:%d S:%d\n", cyl, head, sec);
+			printf("Error: D:0x%x C:%d H:%d S:%d\n",
+			       dosdev, cyl, head, sec);
 			twiddle();
 		    }
 		}
@@ -264,8 +266,8 @@ Bread(int dosdev, int sector)
 	return (ra_buf + (sector - ra_first) * BPS);
 }
 
-int
-badsect(int dosdev, int sector)
+static int
+badsect(int sector)
 {
 #if defined(DO_BAD144) && !defined(RAWBOOT)
 	int i;

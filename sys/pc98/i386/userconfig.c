@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.6 1996/09/12 11:09:38 asami Exp $
+ **      $Id: userconfig.c,v 1.7 1996/10/09 21:46:01 asami Exp $
  **/
 
 /**
@@ -116,7 +116,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <machine/clock.h>
+#include <machine/cons.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
@@ -229,52 +229,14 @@ static DEV_INFO device_info[] = {
 #ifdef PC98
 {"sbic",        "PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
-{"aic",        "Adaptec 152x SCSI and compatible sound cards", 0, CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
+{"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
 {"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
-
-{"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
-{"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
-{"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
-{"fe",         "Fujitsu MD86960A/MB869685A Ethernet adapters", 0, CLS_NETWORK},
-{"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
-{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
-{"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
-{"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
-{"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
-{"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
-{"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
-{"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
-{"zp",          "3COM PCMCIA Etherlink III Ethernet adapter", 0, CLS_NETWORK},
-{"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
-{"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
-
-{"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
-
-{"lpt",         "Parallel printer port",		0,		CLS_COMMS},
-
-{"mse",         "PC-9801 Bus Mouse",			0,		CLS_INPUT},
-{"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
-
-{"pcm",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
-{"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
-{"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
-{"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
-{"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
-{"opl",         "OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
-{"mpu",         "Roland MPU401 MIDI",			0,		CLS_MMEDIA},
-{"pca",         "PC speaker PCM audio driver",	FLG_FIXED,		CLS_MMEDIA},
-
-{"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
-{"npx",	        "Math coprocessor",			FLG_INVISIBLE,	CLS_MISC},
-{"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
-{"vga",		"Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
-{"chip",	"PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
 #else
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
@@ -292,8 +254,13 @@ static DEV_INFO device_info[] = {
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
+#endif
 
+#ifdef PC98
+{"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
+#else
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
+#endif
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
@@ -310,20 +277,31 @@ static DEV_INFO device_info[] = {
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
+#ifndef PC98
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
+#endif
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"nic",         "ISDN driver",				0,		CLS_COMMS},
 {"nnic",        "ISDN driver",				0,		CLS_COMMS},
+#ifndef PC98
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
+#endif
 
+#ifdef PC98
+{"mse",         "Bus Mouse",			0,		CLS_INPUT},
+#else
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
 {"psm",         "PS/2 Mouse",				0,		CLS_INPUT},
+#endif
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
 {"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
 
+#ifdef PC98
+{"pcm",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
+#endif
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
 {"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
@@ -347,7 +325,6 @@ static DEV_INFO device_info[] = {
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 {"vga",		"Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",	"PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
-#endif
 {"","",0,0}};
 
 
@@ -2272,7 +2249,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.6 1996/09/12 11:09:38 asami Exp $
+ *      $Id: userconfig.c,v 1.7 1996/10/09 21:46:01 asami Exp $
  */
 
 #include "scbus.h"
@@ -2633,30 +2610,98 @@ center(int y, char *str)
 static int
 introfunc(CmdParm *parms)
 {
-    int y = 3;
+    int curr_item, first_time;
+    static char *choices[] = {
+	" Skip kernel configuration and continue with installation ",
+	" Start kernel configuration in Visual mode                ",
+	" Start kernel configuration in CLI mode (experts only)    ",
+    };
 
     clear();
-    center(y, "!iKernel Configuration Editor!n");
-    y += 2;
-    putxy(2, y++, "In this next screen, you will be shown a full list of all the device");
-    putxy(2, y++, "drivers which are available in this copy of the OS kernel.  This is");
-    putxy(2, y++, "!inot!n a list of devices which you necessarily have, simply those");
-    putxy(2, y++, "which this kernel is capable of supporting.");
-    ++y;
-    putxy(2, y++, "You should go through each device category and delete all entries");
-    putxy(2, y++, "(using the DELETE key) for devices that you do not have.  This is an");
-    putxy(2, y++, "important step since it minimizes the chance of conflicts and also");
-    putxy(2, y++, "makes the kernel boot faster since there's no time wasted in trying to");
-    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which you");
-    putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
-    putxy(2, y++, "be sure that its configuration parameters match your actual hardware.");
-    putxy(2, y++, "To edit a device's configuration, simply press ENTER while over it.");
-    putxy(2, y++, "Once you are satisfied with your device configuration, press Q to");
-    putxy(2, y++, "proceed with the booting process.");
-    ++y;
-    center(y, "!iPress a key to continue!n");
-    cngetc();
-    return 0;
+    center(2, "!bKernel Configuration Menu!n");
+
+    curr_item = 0;
+    first_time = 1;
+    while (1) {
+	char tmp[80];
+	int c, i, extended = 0;
+
+	for (i = 0; i < 3; i++) {
+	    tmp[0] = '\0';
+	    if (curr_item == i)
+		strcpy(tmp, "!i");
+	    strcat(tmp, choices[i]);
+	    if (curr_item == i)
+		strcat(tmp, "!n");
+	    putxy(10, 5 + i, tmp);
+	}
+
+	if (first_time) {
+	    putxy(2, 10, "Here you have the chance to go into kernel configuration mode, making");
+	    putxy(2, 11, "any changes which may be necessary to properly adjust the kernel to");
+	    putxy(2, 12, "match your hardware configuration.");
+	    putxy(2, 14, "If you are installing FreeBSD for the first time, select Visual Mode");
+	    putxy(2, 15, "(press Down-Arrow then ENTER).");
+	    putxy(2, 17, "If you need to do more specialized kernel configuration and are an");
+	    putxy(2, 18, "experienced FreeBSD user, select CLI mode.");
+	    putxy(2, 20, "If you are !icertain!n that you do not need to configure your kernel");
+	    putxy(2, 21, "then simply press ENTER or Q now.");
+	    first_time = 0;
+	}
+
+	move(0, 0);	/* move the cursor out of the way */
+	c = getchar();
+	if ((extended == 2) || (c == 588) || (c == 596)) {	/* console gives "alternative" codes */
+	    extended = 0;		/* no longer */
+	    switch (c) {
+	    case 588:
+	    case 'A':				/* up */
+		if (curr_item > 0)
+		    --curr_item;
+		break;
+
+	    case 596:
+	    case 'B':				/* down */
+		if (curr_item < 2)
+		    ++curr_item;
+		break;
+	    }
+	}
+	else {
+	    switch(c) {
+	    case '\033':
+		extended = 1;
+		break;
+		    
+	    case '[':				/* cheat : always preceeds cursor move */
+	    case 'O':				/* ANSI application key mode */
+		if (extended == 1)
+		    extended = 2;
+		else
+		    extended = 0;
+		break;
+		
+	    case 'Q':
+	    case 'q':
+		clear();
+		return 1;	/* user requests exit */
+
+	    case '\r':				
+	    case '\n':
+		clear();
+		if (!curr_item)
+		    return 1;
+		else if (curr_item == 1)
+		    return visuserconfig();
+		else {
+		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
+		    move (0, 3);
+		    return 0;
+		}
+		break;
+	    }
+	}
+    }
 }
 #endif
 

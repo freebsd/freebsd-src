@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.3 1996/09/12 11:08:55 asami Exp $
+ *	$Id: io.c,v 1.4 1996/10/09 21:45:29 asami Exp $
  */
 
 #include "boot.h"
@@ -350,9 +350,9 @@ void machine_check(void)
 	u_char epson_machine_id = *(unsigned char *)(0x11624);
 	
 	/* PC98_SYSTEM_PARAMETER(0x501) */
-	ret = ((*(unsigned char*)0x11501) & 0x08) ? M_HIGHRESO : M_NORMAL;
+	ret = ((*(unsigned char*)0x11501) & 0x08) >> 3;
 
-	/* wait V-SYNC */
+	/* Wait V-SYNC */
 	while (inb(0x60) & 0x20) {}
 	while (!(inb(0x60) & 0x20)) {}
 
@@ -390,7 +390,6 @@ void machine_check(void)
 		case 0x22:	/* note W */
 		case 0x27:	/* note AE */
 		case 0x2a:	/* note WR */
-		/*case 0x2:	/* note AR */
 			ret |= M_NOTE;
 			break;
 		default:

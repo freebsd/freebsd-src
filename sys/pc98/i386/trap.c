@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.6 1996/09/07 02:13:36 asami Exp $
+ *	$Id: trap.c,v 1.7 1996/09/12 11:09:36 asami Exp $
  */
 
 /*
@@ -77,13 +77,12 @@
 #include <machine/trap.h>
 #include <machine/../isa/isa_device.h>
 
-#include "isa.h"
-
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
 #include <machine/clock.h>
 #endif
 
+#include "isa.h"
 #include "npx.h"
 
 int (*pmath_emulate) __P((struct trapframe *));
@@ -92,7 +91,7 @@ extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
 
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 #else
 static int trap_pfault __P((struct trapframe *, int));
@@ -193,14 +192,14 @@ trap(frame)
 #ifdef DEBUG
 	u_long eva;
 #endif
-#ifdef CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 	vm_offset_t va;
 #endif
 
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 	/* XXX:
 	 * CYRIX 486 CPU FIX.
 	 * If you use cyrix cpu, you often encouter strange signal 11's?
@@ -211,7 +210,7 @@ trap(frame)
 	va = (vm_offset_t)(rcr2());
 	if( type == T_PAGEFLT && ( frame.tf_eflags & PSL_I ) )
 		asm("sti");
-#endif	/* CYRIX_486DLC */
+#endif	/* CYRIX_486DLC || CYRIX_5X86 */
 
 	if (ISPL(frame.tf_cs) == SEL_UPL) {
 		/* user trap */
@@ -257,7 +256,7 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 			i = trap_pfault(&frame, TRUE, va);
 #else
 			i = trap_pfault(&frame, TRUE);
@@ -333,7 +332,7 @@ trap(frame)
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 			(void) trap_pfault(&frame, FALSE, va);
 #else
 			(void) trap_pfault(&frame, FALSE);
@@ -496,7 +495,7 @@ out:
  * debugging code.
  */
 static int
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 trap_pfault(frame, usermode,faultva)
 	struct trapframe *frame;
 	int usermode;
@@ -520,7 +519,7 @@ trap_pfault(frame, usermode)
 	else
 		ftype = VM_PROT_READ;
 
-#ifdef CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 	eva = faultva;
 #else
 	eva = rcr2();
@@ -606,7 +605,7 @@ nogo:
 #endif
 
 int
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 trap_pfault(frame, usermode,faultva)
 	struct trapframe *frame;
 	int usermode;
@@ -625,7 +624,7 @@ trap_pfault(frame, usermode)
 	int eva;
 	struct proc *p = curproc;
 
-#ifdef	CYRIX_486DLC
+#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
 	eva = faultva;
 #else
 	eva = rcr2();
