@@ -320,7 +320,7 @@ struct mcntfree_lst {
 	struct mbuf *__mmm = (m);					\
 									\
 	_MEXT_ALLOC_CNT(__mmm->m_ext.ref_cnt, (how));			\
-	if (__mmm != NULL)						\
+	if (__mmm->m_ext.ref_cnt != NULL)				\
 		MEXT_ADD_REF(__mmm);					\
 } while (0)
 
@@ -367,7 +367,7 @@ struct mcntfree_lst {
 	mtx_enter(&mmbfree.m_mtx, MTX_DEF);				\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
-		 mbtypes[_mtype]++;					\
+		mbtypes[_mtype]++;					\
 		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
 		_MGET_SETUP(_mm, _mtype);				\
 	} else								\
@@ -394,7 +394,7 @@ struct mcntfree_lst {
 	mtx_enter(&mmbfree.m_mtx, MTX_DEF);				\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
-		 mbtypes[_mtype]++;					\
+		mbtypes[_mtype]++;					\
 		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
 		_MGETHDR_SETUP(_mm, _mtype);				\
 	} else								\
