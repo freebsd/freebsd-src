@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.502 1998/11/08 09:57:28 peter Exp $
+#	$Id: LINT,v 1.503 1998/11/11 21:29:09 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -971,6 +971,14 @@ options         "CMD640"	#Enable work around for CMD640 h/w bug
 #
 options         ATAPI   #Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
+
+#
+# This option allow you to override the default probe time for IDE
+# devices, to get a faster probe.  Setting this below 10000 violate
+# the IDE specs, but may still work for you (it will work for most
+# people).
+#
+options		IDE_DELAY=8000	# Be optimistic about Joe IDE device
 
 # Use either the acd or the wcd device, not both!
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller and ATAPI option

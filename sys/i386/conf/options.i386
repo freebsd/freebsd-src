@@ -1,6 +1,7 @@
-#	$Id: options.i386,v 1.90 1998/10/06 13:16:17 kato Exp $
+#	$Id: options.i386,v 1.91 1998/11/03 21:08:49 msmith Exp $
 
 DISABLE_PSE
+IDE_DELAY
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
