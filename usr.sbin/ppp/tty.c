@@ -260,6 +260,13 @@ LoadLineDiscipline(struct physical *p)
   struct ngm_connect ngc;
   int ldisc, cs, ds, hot, speed;
 
+  /*
+   * Don't use the netgraph line discipline for now.  Using it works, but
+   * carrier cannot be detected via TIOCMGET and the device doesn't become
+   * selectable with 0 bytes to read when carrier is lost :(
+   */
+  return 0;
+
   reply = (struct ng_mesg *)rbuf;
   info = (struct nodeinfo *)reply->data;
 
