@@ -1029,3 +1029,28 @@ configNFSServer(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
+
+int
+configTTYs(dialogMenuItem *self)
+{
+    char cmd[256];
+
+    WINDOW *w = savescr();
+
+    /* Simply prompt for confirmation, then edit away. */
+    if (msgYesNo("Configuration of system TTYs requires editing the /etc/ttys file.\n"
+		 "Typical configuration activities might include enabling getty(8)\n"
+		 "on the first serial port to allow login via serial console after\n"
+		 "reboot, or to enable xdm.  The default ttys file enables normal\n"
+		 "virtual consoles, and most sites will not need to perform manual\n"
+		 "configuration.\n\n"
+		 "To load /etc/ttys in the editor, select [Yes], otherwise, [No].")) {
+    } else {
+	sprintf(cmd, "%s /etc/ttys", variable_get(VAR_EDITOR));
+	dialog_clear();
+	systemExecute(cmd);
+    }
+
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
