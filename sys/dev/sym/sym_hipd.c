@@ -2,7 +2,7 @@
  *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
  *  PCI-SCSI controllers.
  *
- *  Copyright (C) 1999  Gerard Roudier <groudier@club-internet.fr>
+ *  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
  *
  *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
  *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
@@ -58,7 +58,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.1.1-20000101"
+#define SYM_DRIVER_NAME	"sym-1.2.0-20000108"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -816,6 +816,12 @@ struct sym_nvram {
 #define SYM_SCAN_LUNS_DISABLED	(1<<3)
 
 /*
+ *  Host adapter miscellaneous flags.
+ */
+#define SYM_AVOID_BUS_RESET	(1)
+#define SYM_SCAN_TARGETS_HILO	(1<<1)
+
+/*
  *  Device quirks.
  *  Some devices, for example the CHEETAH 2 LVD, disconnects without 
  *  saving the DATA POINTER then reconnect and terminates the IO.
@@ -1373,6 +1379,7 @@ struct sym_hcb {
 	/*
 	 *  Miscellaneous configuration and status parameters.
 	 */
+	u_char		usrflags;	/* Miscellaneous user flags	*/
 	u_char		scsi_mode;	/* Current SCSI BUS mode	*/
 	u_char		verbose;	/* Verbosity for this controller*/
 	u32		cache;		/* Used for cache test at init.	*/
@@ -7412,6 +7419,29 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (chg)	/*  Answer wasn't acceptable. */
 			goto reject_it;
 		sym_setwide (np, cp, wide);
+#if 1
+		/*
+		 * Negotiate for SYNC immediately after WIDE response.
+		 * This allows to negotiate for both WIDE and SYNC on 
+		 * a single SCSI command (Suggested by Justin Gibbs).
+		 */
+		if (tp->tinfo.goal.offset) {
+			np->msgout[0] = M_EXTENDED;
+			np->msgout[1] = 3;
+			np->msgout[2] = M_X_SYNC_REQ;
+			np->msgout[3] = tp->tinfo.goal.period;
+			np->msgout[4] = tp->tinfo.goal.offset;
+
+			if (DEBUG_FLAGS & DEBUG_NEGO) {
+				sym_print_msg(cp, "sync msgout", np->msgout);
+			}
+
+			cp->nego_status = NS_SYNC;
+			OUTB (HS_PRT, HS_NEGOTIATE);
+			OUTL (nc_dsp, SCRIPTH_BA (np, sdtr_resp));
+			return;
+		}
+#endif
 		OUTL (nc_dsp, SCRIPT_BA (np, clrack));
 		return;
 	};
@@ -9281,23 +9311,20 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		tp = &np->target[ccb_h->target_id];
 
 		/*
-		 *  Update user transfer settings if asked by user.
+		 *  Update our transfer settings (basically WIDE/SYNC). 
+		 *  These features are to be handled in a per target 
+		 *  basis according to SCSI specifications.
 		 */
 		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
 			sym_update_trans(np, tp, &tp->tinfo.user, cts);
 
-		/*
-		 *  Update current wished settings if asked by user.
-		 *  Force negotiations if something has changed.
-		 */
 		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
 			sym_update_trans(np, tp, &tp->tinfo.goal, cts);
 
 		/*
-		 *  The guys that have implemented this CAM seem to 
-		 *  have made the common mistake about the CmdQue flag.
-		 *  This feature is a device feature and so must be 
-		 *  handled per logical unit.
+		 *  Update our disconnect and tag settings.
+		 *  SCSI requires CmdQue feature to be handled in a per 
+		 *  device (logical unit) basis.
 		 */
 		lp = sym_lp(np, tp, ccb_h->target_lun);
 		if (lp) {
@@ -9389,6 +9416,10 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_inquiry |= PI_WIDE_16;
 		cpi->target_sprt = 0;
 		cpi->hba_misc = 0;
+		if (np->usrflags & SYM_SCAN_TARGETS_HILO)
+			cpi->hba_misc |= PIM_SCANHILO;
+		if (np->usrflags & SYM_AVOID_BUS_RESET)
+			cpi->hba_misc |= PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (np->features & FE_WIDE) ? 15 : 7;
 		/* Semantic problem:)LUN number max = max number of LUNs - 1 */
@@ -9467,9 +9498,9 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	/*
 	 *  Scale against out limits.
 	 */
-	if (tip->width  > SYM_SETUP_MAX_WIDE)	tip->width  = np->maxwide;
+	if (tip->width  > SYM_SETUP_MAX_WIDE)	tip->width  =SYM_SETUP_MAX_WIDE;
 	if (tip->width  > np->maxwide)		tip->width  = np->maxwide;
-	if (tip->offset > SYM_SETUP_MAX_OFFS)	tip->offset = np->maxoffs;
+	if (tip->offset > SYM_SETUP_MAX_OFFS)	tip->offset =SYM_SETUP_MAX_OFFS;
 	if (tip->offset > np->maxoffs)		tip->offset = np->maxoffs;
 	if (tip->period) {
 		if (tip->period < SYM_SETUP_MIN_SYNC)
@@ -10393,7 +10424,8 @@ static void sym_nvram_setup_host (hcb_p np, struct sym_nvram *nvram)
 {
 #ifdef SYM_CONF_NVRAM_SUPPORT
 	/*
-	 *  Get parity checking, host ID and verbose mode from NVRAM
+	 *  Get parity checking, host ID, verbose mode 
+	 *  and miscellaneous host flags from NVRAM.
 	 */
 	switch(nvram->type) {
 	case SYM_SYMBIOS_NVRAM:
@@ -10402,6 +10434,10 @@ static void sym_nvram_setup_host (hcb_p np, struct sym_nvram *nvram)
 		np->myaddr = nvram->data.Symbios.host_id & 0x0f;
 		if (nvram->data.Symbios.flags & SYMBIOS_VERBOSE_MSGS)
 			np->verbose += 1;
+		if (nvram->data.Symbios.flags1 & SYMBIOS_SCAN_HI_LO)
+			np->usrflags |= SYM_SCAN_TARGETS_HILO;
+		if (nvram->data.Symbios.flags2 & SYMBIOS_AVOID_BUS_RESET)
+			np->usrflags |= SYM_AVOID_BUS_RESET;
 		break;
 	case SYM_TEKRAM_NVRAM:
 		np->myaddr = nvram->data.Tekram.host_id & 0x0f;
@@ -10499,12 +10535,13 @@ void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 	int i;
 
 	/* display Symbios nvram host data */
-	printf("%s: HOST ID=%d%s%s%s%s%s\n",
+	printf("%s: HOST ID=%d%s%s%s%s%s%s\n",
 		sym_name(np), nvram->host_id & 0x0f,
 		(nvram->flags  & SYMBIOS_SCAM_ENABLE)	? " SCAM"	:"",
 		(nvram->flags  & SYMBIOS_PARITY_ENABLE)	? " PARITY"	:"",
 		(nvram->flags  & SYMBIOS_VERBOSE_MSGS)	? " VERBOSE"	:"", 
 		(nvram->flags  & SYMBIOS_CHS_MAPPING)	? " CHS_ALT"	:"", 
+		(nvram->flags2 & SYMBIOS_AVOID_BUS_RESET)?" NO_RESET"	:"",
 		(nvram->flags1 & SYMBIOS_SCAN_HI_LO)	? " HI_LO"	:"");
 
 	/* display Symbios nvram drive data */
