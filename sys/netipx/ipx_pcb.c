@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_var.h>
 
 static struct	ipx_addr zeroipx_addr;
-static u_short	ipxpcb_lport_cache;  
+static u_short	ipxpcb_lport_cache;
 
 int
 ipx_pcballoc(so, head, td)
@@ -73,7 +73,7 @@ ipx_pcballoc(so, head, td)
 	so->so_pcb = (caddr_t)ipxp;
 	return (0);
 }
-	
+
 int
 ipx_pcbbind(ipxp, nam, td)
 	register struct ipxpcb *ipxp;
@@ -185,7 +185,7 @@ ipx_pcbconnect(ipxp, nam, td)
 		    rtalloc_ign(ro, 0);
 	}
 	if (ipx_neteqnn(ipxp->ipxp_laddr.x_net, ipx_zeronet)) {
-		/* 
+		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
 		 */
@@ -214,7 +214,7 @@ ipx_pcbconnect(ipxp, nam, td)
 		ipxp->ipxp_laddr.x_net = satoipx_addr(ia->ia_addr).x_net;
 	}
 	if (ipx_nullhost(ipxp->ipxp_laddr)) {
-		/* 
+		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
 		 */
@@ -286,7 +286,7 @@ ipx_setsockaddr(ipxp, nam)
 	struct sockaddr **nam;
 {
 	struct sockaddr_ipx *sipx, ssipx;
-	
+
 	sipx = &ssipx;
 	bzero((caddr_t)sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);
@@ -301,7 +301,7 @@ ipx_setpeeraddr(ipxp, nam)
 	struct sockaddr **nam;
 {
 	struct sockaddr_ipx *sipx, ssipx;
-	
+
 	sipx = &ssipx;
 	bzero((caddr_t)sipx, sizeof(*sipx));
 	sipx->sipx_len = sizeof(*sipx);

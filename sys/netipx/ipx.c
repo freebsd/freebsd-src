@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  *	@(#)ipx.c
  */
 
@@ -204,7 +204,7 @@ ipx_control(so, cmd, data, ifp, td)
 		}
 		IFAFREE((&oia->ia_ifa));
 		return (0);
-	
+
 	case SIOCAIFADDR:
 		dstIsNew = 0;
 		hostIsNew = 1;
@@ -241,7 +241,7 @@ ipx_control(so, cmd, data, ifp, td)
 static void
 ipx_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
-	register struct ipx_ifaddr *ia; 
+	register struct ipx_ifaddr *ia;
 {
 	if (ia->ia_flags & IFA_ROUTE) {
 		if (ifp->if_flags & IFF_POINTOPOINT) {

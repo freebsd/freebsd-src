@@ -100,7 +100,7 @@ ipx_cksum(struct mbuf *m, int len) {
 			w++;
 			if (--len == 0)
 				break;
-		} 
+		}
 	}
 
 	ipx->ipx_tc = oldtc;
