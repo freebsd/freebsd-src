@@ -124,17 +124,19 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	vm_offset_t pa;
 	uint64_t pgs;
 	size_t sz;
-	int error;
-
-	printf("  region %d:", seqnr);
+	int error, twiddle;
 
 	error = 0;	/* catch case in which mdp->NumberOfPages is 0 */
+	twiddle = 0;
 	pgs = mdp->NumberOfPages;
 	pa = IA64_PHYS_TO_RR7(mdp->PhysicalStart);
+
+	printf("  region %d: %ld pages ", seqnr, (long)pgs);
+
 	while (pgs) {
 		sz = (pgs > (DFLTPHYS >> EFI_PAGE_SHIFT))
 		    ? DFLTPHYS : pgs << EFI_PAGE_SHIFT;
-		printf(" %lld", pgs);
+		printf("%c\b", "|/-\\"[twiddle++ & 3]);
 		error = di->dumper(di->priv, (void*)pa, NULL, dumplo, sz);
 		if (error)
 			break;
@@ -142,7 +144,7 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 		pgs -= sz >> EFI_PAGE_SHIFT;
 		pa += sz;
 	}
-	printf("\n");
+	printf("... %s\n", (error) ? "fail" : "ok");
 	return (error);
 }
 
