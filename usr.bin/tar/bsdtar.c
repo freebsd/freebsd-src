@@ -75,7 +75,7 @@ const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
 #define	OPTION_NODUMP 3
 #define	OPTION_HELP 4
 #define	OPTION_INCLUDE 5
-#define	OPTION_ONE_FILE_SYSTEM 5
+#define	OPTION_ONE_FILE_SYSTEM 6
 
 const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
