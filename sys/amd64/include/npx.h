@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.5 1994/11/04 02:13:15 jkh Exp $
+ *	$Id: npx.h,v 1.6 1994/11/05 22:59:09 bde Exp $
  */
 
 /*
@@ -71,13 +71,18 @@ struct	fpacc87 {
 
 /* Floating point context */
 struct	save87 {
-	struct	env87 sv_env;		/* floating point control/status */
+	struct	env87 sv_env;	/* floating point control/status */
 	struct	fpacc87	sv_ac[8];	/* accumulator contents, 0-7 */
-	u_long	sv_ex_sw;	/* status word for last exception (was pad) */
-	u_long	sv_ex_tw;	/* tag word for last exception (was pad) */
-        u_char  sv_pad[60];	/* needed for the GPL math emulator */
-				/* the whole length of this structure
-				   must match i387_union */
+	u_long	sv_ex_sw;	/* status word for last exception */
+	/*
+	 * Bogus padding for emulators.  Emulators should use their own
+	 * struct and arrange to store into this struct (ending here)
+	 * before it is inspected for ptracing or for core dumps.  Some
+	 * emulators overwrite the whole struct.  We have no good way of
+	 * knowing how much padding to leave.  Leave just enough for the
+	 * GPL emulator's i387_union (176 bytes total).
+	 */
+	u_char	sv_pad[64];	/* padding; used by emulators */
 };
 
 /* Cyrix EMC memory - mapped coprocessor context switch information */
@@ -144,7 +149,7 @@ struct proc;
 
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));
-void	npxinit __P((u_int control));
+void	npxinit __P((int control));
 void	npxintr __P((struct intrframe frame));
 void	npxsave __P((struct save87 *addr));
 #endif
