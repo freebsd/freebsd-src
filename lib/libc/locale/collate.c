@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.1 1995/02/16 04:24:28 ache Exp $
+ * $Id: collate.c,v 1.2 1995/02/17 16:36:12 ache Exp $
  */
 
 #include <rune.h>
@@ -163,16 +163,13 @@ __dead void __collate_err(int ex, const char *f)
 
 	s = __progname;
 	write(STDERR_FILENO, s, strlen(s));
-	s = ": ";
-	write(STDERR_FILENO, s, strlen(s));
+	write(STDERR_FILENO, ": ", 2);
 	s = f;
 	write(STDERR_FILENO, s, strlen(s));
-	s = ": ";
-	write(STDERR_FILENO, s, strlen(s));
+	write(STDERR_FILENO, ": ", 2);
 	s = strerror(serrno);
 	write(STDERR_FILENO, s, strlen(s));
-	s = "\n";
-	write(STDERR_FILENO, s, strlen(s));
+	write(STDERR_FILENO, "\n", 1);
 	exit(ex);
 }
 
