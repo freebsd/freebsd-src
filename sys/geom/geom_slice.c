@@ -76,6 +76,8 @@ static void
 g_slice_free(struct g_slicer *gsp)
 {
 
+	if (gsp == NULL)	/* XXX: phk thinks about this */
+		return;
 	g_free(gsp->slices);
 	if (gsp->hotspot != NULL)
 		g_free(gsp->hotspot);
