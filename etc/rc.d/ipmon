@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ipmon
-# REQUIRE: mountcritlocal hostname sysctl
+# REQUIRE: mountcritlocal hostname sysctl cleanvar
 # BEFORE:  SERVERS
 # KEYWORD: FreeBSD NetBSD
 
