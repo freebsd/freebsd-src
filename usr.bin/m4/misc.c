@@ -35,15 +35,19 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <errno.h>
-#include <unistd.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
@@ -82,7 +86,7 @@ int c;
 	if (bp < endpbb)
 		*bp++ = c;
 	else
-		oops("too many characters pushed back");
+		errx(1, "too many characters pushed back");
 }
 
 /*
@@ -107,7 +111,7 @@ register unsigned char *s;
 		if (zp < endpbb)
 			*zp++ = *es--;
 	if ((bp = zp) == endpbb)
-		oops("too many characters pushed back");
+		errx(1, "too many characters pushed back");
 }
 
 /*
@@ -139,7 +143,7 @@ char c;
 	if (ep < endest)
 		*ep++ = c;
 	else
-		oops("string space overflow");
+		errx(1, "string space overflow");
 }
 
 /*
@@ -153,12 +157,12 @@ int n;
 	register FILE *dfil;
 
 	if (active == outfile[n])
-		oops("%s: diversion still active.", "undivert");
+		errx(1, "undivert: diversion still active");
 	(void) fclose(outfile[n]);
 	outfile[n] = NULL;
 	m4temp[UNIQUE] = n + '0';
 	if ((dfil = fopen(m4temp, "r")) == NULL)
-		oops("%s: cannot undivert.", m4temp);
+		errx(1, "%s: cannot undivert", m4temp);
 	else
 		while ((c = getc(dfil)) != EOF)
 			putc(c, active);
@@ -169,14 +173,14 @@ int n;
 #else
 	if (unlink(m4temp) == -1)
 #endif
-		oops("%s: cannot unlink.", m4temp);
+		errx(1, "%s: cannot unlink", m4temp);
 }
 
 void
 onintr(signo)
 	int signo;
 {
-	oops("interrupted.");
+	errx(1, "interrupted");
 }
 
 /*
@@ -206,7 +210,7 @@ unsigned long n;
 	register char *p = malloc(n);
 
 	if (p == NULL)
-		oops("malloc: %s", strerror(errno));
+		err(1, "malloc");
 	return p;
 }
 
@@ -216,7 +220,7 @@ const char *s;
 {
 	register char *p = strdup(s);
 	if (p == NULL)
-		oops("strdup: %s", strerror(errno));
+		err(1, "strdup");
 	return p;
 }
 
@@ -238,33 +242,4 @@ usage()
 {
 	fprintf(stderr, "usage: m4 [-Dname[=val]] [-Uname]\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-oops(const char *fmt, ...)
-#else
-oops(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "%s: ", progname);
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }

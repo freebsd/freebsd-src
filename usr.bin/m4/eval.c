@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)eval.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -45,11 +49,11 @@ static char sccsid[] = "@(#)eval.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/types.h>
-#include <errno.h>
-#include <unistd.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
@@ -190,7 +194,7 @@ register int td;
 	case INCLTYPE:
 		if (argc > 2)
 			if (!doincl(argv[2]))
-				oops("%s: %s", argv[2], strerror(errno));
+				err(1, "%s", argv[2]);
 		break;
 
 	case SINCTYPE:
@@ -201,7 +205,7 @@ register int td;
 	case PASTTYPE:
 		if (argc > 2)
 			if (!dopaste(argv[2]))
-				oops("%s: %s", argv[2], strerror(errno));
+				err(1, "%s", argv[2]);
 		break;
 
 	case SPASTYPE:
@@ -367,7 +371,7 @@ register int td;
 		break;
 
 	default:
-		oops("%s: major botch.", "eval");
+		errx(1, "eval: major botch");
 		break;
 	}
 }
@@ -455,9 +459,9 @@ register char *defn;
 	register ndptr p;
 
 	if (!*name)
-		oops("null definition.");
+		errx(1, "null definition");
 	if (STREQ(name, defn))
-		oops("%s: recursive definition.", name);
+		errx(1, "%s: recursive definition", name);
 	if ((p = lookup(name)) == nil)
 		p = addent(name);
 	else if (p->defn != null)
@@ -501,9 +505,9 @@ register char *defn;
 	register ndptr p;
 
 	if (!*name)
-		oops("null definition");
+		errx(1, "null definition");
 	if (STREQ(name, defn))
-		oops("%s: recursive definition.", name);
+		errx(1, "%s: recursive definition", name);
 	p = addent(name);
 	if (!*defn)
 		p->defn = null;
@@ -569,7 +573,7 @@ doincl(ifile)
 char *ifile;
 {
 	if (ilevel + 1 == MAXINP)
-		oops("too many include files.");
+		errx(1, "too many include files");
 	if ((infile[ilevel + 1] = fopen(ifile, "r")) != NULL) {
 		ilevel++;
 		bbase[ilevel] = bufbase = bp;
@@ -662,7 +666,7 @@ register int n;
 	if (outfile[n] == NULL) {
 		m4temp[UNIQUE] = n + '0';
 		if ((outfile[n] = fopen(m4temp, "w")) == NULL)
-			oops("%s: cannot divert.", m4temp);
+			errx(1, "%s: cannot divert", m4temp);
 	}
 	oindex = n;
 	active = outfile[n];
