@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.38 1998/03/01 19:39:17 guido Exp $
+ *	$Id: uipc_socket.c,v 1.39 1998/03/28 10:33:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,10 +50,13 @@
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <vm/vm_zone.h>
 
 #include <machine/limits.h>
 
-MALLOC_DEFINE(M_SOCKET, "socket", "socket structure");
+struct	vm_zone *socket_zone;
+so_gen_t	so_gencnt;	/* generation count for sockets */
+
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");
 MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 
@@ -68,7 +71,30 @@ SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn,
  * implement the semantics of socket operations by
  * switching out to the protocol specific routines.
  */
-/*ARGSUSED*/
+
+/*
+ * Get a socket structure from our zone, and initialize it.
+ * We don't implement `waitok' yet (see comments in uipc_domain.c).
+ * Note that it would probably be better to allocate socket
+ * and PCB at the same time, but I'm not convinced that all
+ * the protocols can be easily modified to do this.
+ */
+struct socket *
+soalloc(waitok)
+	int waitok;
+{
+	struct socket *so;
+
+	so = zalloci(socket_zone);
+	if (so) {
+		/* XXX race condition for reentrant kernel */
+		bzero(so, sizeof *so);
+		so->so_gencnt = ++so_gencnt;
+		so->so_zone = socket_zone;
+	}
+	return so;
+}
+
 int
 socreate(dom, aso, type, proto, p)
 	int dom;
@@ -89,12 +115,15 @@ socreate(dom, aso, type, proto, p)
 		return (EPROTONOSUPPORT);
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_WAIT);
-	bzero((caddr_t)so, sizeof(*so));
+	so = soalloc(p != 0);
+	if (so == 0)
+		return (ENOBUFS);
+
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	so->so_uid = p->p_ucred->cr_uid;;
+	if (p != 0)
+		so->so_uid = p->p_ucred->cr_uid;
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
 	if (error) {
@@ -120,14 +149,23 @@ sobind(so, nam, p)
 	return (error);
 }
 
+void
+sodealloc(so)
+	struct socket *so;
+{
+	so->so_gencnt = ++so_gencnt;
+	zfreei(so->so_zone, so);
+}
+
 int
 solisten(so, backlog, p)
 	register struct socket *so;
 	int backlog;
 	struct proc *p;
 {
-	int s = splnet(), error;
+	int s, error;
 
+	s = splnet();
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, p);
 	if (error) {
 		splx(s);
@@ -165,7 +203,7 @@ sofree(so)
 	}
 	sbrelease(&so->so_snd);
 	sorflush(so);
-	FREE(so, M_SOCKET);
+	sodealloc(so);
 }
 
 /*

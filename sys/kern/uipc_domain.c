@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.17 1997/04/27 20:00:42 wollman Exp $
+ *	$Id: uipc_domain.c,v 1.18 1997/09/16 11:43:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,9 @@
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/socketvar.h>
 #include <sys/systm.h>
+#include <vm/vm_zone.h>
 
 /*
  * System initialization
@@ -85,6 +87,21 @@ domaininit(dummy)
 	register struct protosw *pr;
 
 	/*
+	 * Before we do any setup, make sure to initialize the
+	 * zone allocator we get struct sockets from.  The obvious
+	 * maximum number of sockets is `maxfiles', but it is possible
+	 * to have a socket without an open file (e.g., a connection waiting
+	 * to be accept(2)ed).  Rather than think up and define a
+	 * better value, we just use nmbclusters, since that's what people
+	 * are told to increase first when the network runs out of memory.
+	 * Perhaps we should have two pools, one of unlimited size
+	 * for use during socreate(), and one ZONE_INTERRUPT pool for
+	 * use in sonewconn().
+	 */
+	socket_zone = zinit("socket", sizeof(struct socket), maxsockets,
+			    ZONE_INTERRUPT, 0);
+
+	/*
 	 * NB - local domain is always present.
 	 */
 	ADDDOMAIN(local);
@@ -94,26 +111,14 @@ domaininit(dummy)
 		domains = *dpp;
 	}
 
-/* - not in our sources
-#ifdef ISDN
-	ADDDOMAIN(isdn);
-#endif
-*/
-
 	for (dp = domains; dp; dp = dp->dom_next) {
 		if (dp->dom_init)
 			(*dp->dom_init)();
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
-#ifdef PRU_OLDSTYLE
-			/* See comments in uipc_socket2.c. */
-			if (pr->pr_usrreqs == 0 && pr->pr_ousrreq)
-				pr->pr_usrreqs = &pru_oldstyle;
-#else
 			if (pr->pr_usrreqs == 0)
 				panic("domaininit: %ssw[%d] has no usrreqs!",
 				      dp->dom_name, 
 				      (int)(pr - dp->dom_protosw));
-#endif
 			if (pr->pr_init)
 				(*pr->pr_init)();
 		}
@@ -151,7 +156,7 @@ kludge_splx(udata)
 {
 	int	*savesplp = udata;
 
-	splx( *savesplp);
+	splx(*savesplp);
 }
 
 

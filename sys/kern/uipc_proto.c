@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.13 1997/08/02 14:31:42 bde Exp $
+ * $Id: uipc_proto.c,v 1.14 1998/02/20 13:11:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#include <sys/unpcb.h>
 
 #include <net/raw_cb.h>
 
@@ -70,7 +71,7 @@ static struct protosw localsw[] = {
 };
 
 struct domain localdomain =
-    { AF_LOCAL, "local", 0, unp_externalize, unp_dispose,
+    { AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
       localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
 
 SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");

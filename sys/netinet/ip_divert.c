@@ -30,13 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.21 1998/03/24 18:06:15 wollman Exp $
+ *	$Id: ip_divert.c,v 1.22 1998/03/28 10:18:23 bde Exp $
  */
 
 #include "opt_inet.h"
 
 #ifndef INET
-#error IPDIVERT requires INET.
+#error "IPDIVERT requires INET."
 #endif
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ div_init(void)
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
 	divcbinfo.ipi_zone = zinit("divcb", sizeof(struct inpcb),
-				   nmbclusters / 4, ZONE_INTERRUPT, 0);
+				   maxsockets, ZONE_INTERRUPT, 0);
 }
 
 /*
