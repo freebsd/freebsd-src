@@ -974,8 +974,10 @@ check_nexus(dev, num)
 
 	case MACHINE_I386:
 	case MACHINE_PC98:
+#if 0
 		if (!eq(dev->d_name, "isa"))
 			yyerror("only isa's should be connected to the nexus");
+#endif
 		break;
 
 	case MACHINE_NEWS3400:
