@@ -426,7 +426,7 @@ read_configuration(void)
 	char *field;		/* first part, the field name */
 	char *args;		/* second part, arguments */
 	char *trail;		/* remaining part after parsing, should be '' */
-	int len;		/* length of current line */
+	size_t len;		/* length of current line */
 	int i,j;		/* loop counters */
 	action_t *action = NULL;	/* current action */
 
