@@ -76,7 +76,7 @@ getenv_string(const char *name, char *data, int size)
     char *tmp;
 
     tmp = getenv(name);
-    if (tmp == NULL) {
+    if (tmp != NULL) {
 	strncpy(data, tmp, size);
 	data[size - 1] = 0;
 	return (1);
