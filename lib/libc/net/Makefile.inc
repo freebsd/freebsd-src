@@ -6,7 +6,7 @@
 
 SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
-	getnameinfo.c \
+	getifaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
 	getservbyport.c getservent.c herror.c inet_addr.c ifname.c \
@@ -28,7 +28,7 @@ CFLAGS+=-DINET6
 
 .if ${LIB} == "c"
 MAN3+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
-	getipnodebyname.3 \
+	getifaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 if_indextoname.3 \
 	inet.3 inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
 	rcmd.3 resolver.3
@@ -44,6 +44,7 @@ MLINKS+=gethostbyname.3 endhostent.3 gethostbyname.3 gethostbyaddr.3 \
 	gethostbyname.3 gethostbyname2.3 gethostbyname.3 gethostent.3 \
 	gethostbyname.3 herror.3 gethostbyname.3 hstrerror.3 \
 	gethostbyname.3 sethostent.3
+MLINKS+=getifaddrs.3 freeifaddrs.3
 MLINKS+=getipnodebyname.3 getipnodebyaddr.3 getipnodebyname.3 freehostent.3
 MLINKS+=getnetent.3 endnetent.3 getnetent.3 getnetbyaddr.3 \
 	getnetent.3 getnetbyname.3 getnetent.3 setnetent.3
