@@ -196,6 +196,7 @@ acpi_perf_probe(device_t dev)
 		switch (error) {
 		case 0:
 			bus_release_resource(dev, type, rid, res);
+			bus_delete_resource(dev, type, rid);
 			device_set_desc(dev, "ACPI CPU Frequency Control");
 			break;
 		case EOPNOTSUPP:
@@ -354,8 +355,23 @@ acpi_perf_evaluate(device_t dev)
 
 out:
 	if (error) {
-		if (sc->px_states)
+		if (sc->px_states) {
 			free(sc->px_states, M_ACPIPERF);
+			sc->px_states = NULL;
+		}
+		if (sc->perf_ctrl) {
+			bus_release_resource(sc->dev, sc->perf_ctrl_type, 0,
+			    sc->perf_ctrl);
+			bus_delete_resource(sc->dev, sc->perf_ctrl_type, 0);
+			sc->perf_ctrl = NULL;
+		}
+		if (sc->perf_status) {
+			bus_release_resource(sc->dev, sc->perf_sts_type, 1,
+			    sc->perf_status);
+			bus_delete_resource(sc->dev, sc->perf_sts_type, 1);
+			sc->perf_status = NULL;
+		}
+		sc->px_rid = 0;
 		sc->px_count = 0;
 	}
 	if (buf.Pointer)

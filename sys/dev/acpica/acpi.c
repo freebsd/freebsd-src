@@ -1119,19 +1119,15 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth == 0)
 	return (EINVAL);
 
-    /*
-     * Delete any previous resource before setting the new one.  Note this
-     * will panic if the resource is still allocated but that will reveal
-     * any driver bugs.
-     */
-    bus_delete_resource(dev, res_type, *rid);
     bus_set_resource(dev, res_type, *rid, gas->Address,
 	gas->RegisterBitWidth / 8);
     *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE);
     if (*res != NULL) {
 	*type = res_type;
 	error = 0;
-    }
+    } else
+	bus_delete_resource(dev, res_type, *rid);
+
     return (error);
 }
 
