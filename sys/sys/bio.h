@@ -118,6 +118,7 @@ struct bio *bioq_first(struct bio_queue_head *head);
 struct bio *bioq_takefirst(struct bio_queue_head *head);
 void bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error);
 void bioq_init(struct bio_queue_head *head);
+void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
