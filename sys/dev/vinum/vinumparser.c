@@ -59,19 +59,13 @@
 
 #include <sys/param.h>
 #ifdef _KERNEL
+#include <sys/conf.h>
 #include <sys/systm.h>
+#include <machine/setjmp.h>
 #else
 #include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
 #endif
-#include <machine/setjmp.h>
-/* All this mess for a single struct definition */
-#include <sys/uio.h>
-#include <sys/namei.h>
 #include <sys/disklabel.h>
-#include <sys/mount.h>
-#include <sys/conf.h>
 
 #include <dev/vinum/vinumvar.h>
 #include <dev/vinum/vinumkw.h>
@@ -81,7 +75,6 @@
 #ifdef _KERNEL
 #define iswhite(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
 #else /* get it from the headers */
-#include <ctype.h>
 #define iswhite isspace					    /* use the ctype macro */
 #endif
 
