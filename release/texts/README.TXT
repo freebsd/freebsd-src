@@ -1,11 +1,11 @@
    -----------------------------------------
-       FreeBSD 3.2  ---  RELEASE Version               ,        ,
+       FreeBSD 3.3  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a full release of FreeBSD, 3.2-RELEASE,       /- _  `-/  '
+This is a full release of FreeBSD, 3.3-RELEASE,       /- _  `-/  '
 from the 3.0-STABLE branch of the FreeBSD CVS        (/\/ \ \   /\
 repository.  This is the follow-on release to        / /   | `    \
-FreeBSD 3.1-RELEASE, more information being          O O   ) /    |
+FreeBSD 3.2-RELEASE, more information being          O O   ) /    |
 available in RELNOTES.TXT                            `-^--'`<     '
                                                     (_.)  _  )   /
                                                      `.___/`    /
@@ -68,8 +68,8 @@ o Information regarding problems which arise after the CD
   ftp://ftp.freebsd.org/pub/FreeBSD/3.2-RELEASE/ERRATA.TXT
 
 For the most up-to-date software along the RELENG_3 branch
-(also known as 3.2-STABLE) which is now proceeding onwards
-toward the release of FreeBSD 3.3, please install from:
+(also known as 3.3-STABLE) which is now proceeding onwards
+toward the release of FreeBSD 3.4, please install from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
