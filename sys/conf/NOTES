@@ -744,10 +744,8 @@ device		random
 # POSIX P1003.1B
 
 # Real time extensions added in the 1993 Posix
-# P1003_1B: Infrastructure
 # _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
 
-options 	P1003_1B
 options 	_KPOSIX_PRIORITY_SCHEDULING
 # p1003_1b_semaphores are very experimental,
 # user should be ready to assist in debugging if problems arise.
