@@ -80,6 +80,7 @@ struct	nfsmount {
 	short	nm_bufqwant;		/* process wants to add to the queue */
 	int	nm_bufqiods;		/* number of iods processing queue */
 	u_int64_t nm_maxfilesize;	/* maximum file size */
+	struct nfs_rpcops *nm_rpcops;
 
 	/* NFSv4 */
 	uint64_t nm_clientid;

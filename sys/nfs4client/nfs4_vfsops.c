@@ -144,88 +144,19 @@ static struct vfsops nfs_vfsops = {
 };
 VFS_SET(nfs_vfsops, nfs4, VFCF_NETWORK);
 
+static struct nfs_rpcops nfs4_rpcops = {
+	nfs4_readrpc,
+	nfs4_writerpc,
+	nfs4_writebp,
+	nfs4_readlinkrpc,
+	nfs4_invaldir,
+	nfs4_commit,
+};
+
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs4, 1);
 
 void		nfsargs_ntoh(struct nfs_args *);
-
-#ifdef NFS4DISKLESS
-/*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
- */
-struct nfs_diskless nfs_diskless = { { { 0 } } };
-struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
-int nfs_diskless_valid = 0;
-
-SYSCTL_INT(_vfs_nfs4, OID_AUTO, diskless_valid, CTLFLAG_RD,
-	&nfs_diskless_valid, 0, "");
-
-SYSCTL_STRING(_vfs_nfs4, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-	nfsv3_diskless.root_hostnam, 0, "");
-
-SYSCTL_OPAQUE(_vfs_nfs4, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-	&nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
-	"%Ssockaddr_in", "");
-
-SYSCTL_STRING(_vfs_nfs4, OID_AUTO, diskless_swappath, CTLFLAG_RD,
-	nfsv3_diskless.swap_hostnam, 0, "");
-
-SYSCTL_OPAQUE(_vfs_nfs4, OID_AUTO, diskless_swapaddr, CTLFLAG_RD,
-	&nfsv3_diskless.swap_saddr, sizeof nfsv3_diskless.swap_saddr,
-	"%Ssockaddr_in","");
-
-static int	nfs_mountdiskless(char *, char *, int,
-		    struct sockaddr_in *, struct nfs_args *,
-		    struct thread *, struct vnode **, struct mount **);
-static void	nfs_convert_diskless(void);
-static void	nfs_convert_oargs(struct nfs_args *args,
-		    struct onfs_args *oargs);
-
-static void
-nfs_convert_oargs(struct nfs_args *args, struct onfs_args *oargs)
-{
-
-	args->version = NFS_ARGSVERSION;
-	args->addr = oargs->addr;
-	args->addrlen = oargs->addrlen;
-	args->sotype = oargs->sotype;
-	args->proto = oargs->proto;
-	args->fh = oargs->fh;
-	args->fhsize = oargs->fhsize;
-	args->flags = oargs->flags;
-	args->wsize = oargs->wsize;
-	args->rsize = oargs->rsize;
-	args->readdirsize = oargs->readdirsize;
-	args->timeo = oargs->timeo;
-	args->retrans = oargs->retrans;
-	args->maxgrouplist = oargs->maxgrouplist;
-	args->readahead = oargs->readahead;
-	args->deadthresh = oargs->deadthresh;
-	args->hostname = oargs->hostname;
-}
-
-static void
-nfs_convert_diskless(void)
-{
-
-	bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
-		sizeof(struct ifaliasreq));
-	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
-		sizeof(struct sockaddr_in));
-	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
-	nfsv3_diskless.root_fhsize = NFSX_V2FH;
-	bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
-	bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
-		sizeof(struct sockaddr_in));
-	bcopy(nfs_diskless.root_hostnam, nfsv3_diskless.root_hostnam, MNAMELEN);
-	nfsv3_diskless.root_time = nfs_diskless.root_time;
-	bcopy(nfs_diskless.my_hostnam, nfsv3_diskless.my_hostnam,
-		MAXHOSTNAMELEN);
-	nfs_diskless_valid = 3;
-}
-#endif
 
 int
 nfs4_init(struct vfsconf *vfsp)
@@ -632,10 +563,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
+	nmp->nm_rpcops = &nfs4_rpcops;
 	/* XXX */
         mp->mnt_stat.f_iosize = PAGE_SIZE;
 
-	/* XXX - this is to make some other code work.  Sort of ugly. */
 	argp->flags |= (NFSMNT_NFSV3 | NFSMNT_NFSV4);
 
 	nfs_decode_args(nmp, argp);
