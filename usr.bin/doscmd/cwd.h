@@ -45,7 +45,13 @@ ustrcat(u_char *s1, u_char *s2)
 }
 
 static inline u_char *
-ustrncpy(u_char *s1, u_char *s2, unsigned n)
+ustrncat(u_char *s1, u_char *s2, size_t n)
+{
+    return((u_char *)strncat((char *)s1, (char *)s2, n));
+}
+
+static inline u_char *
+ustrncpy(u_char *s1, u_char *s2, size_t n)
 {
     return((u_char *)strncpy((char *)s1, (char *)s2, n));
 }
@@ -57,7 +63,7 @@ ustrcmp(u_char *s1, u_char *s2)
 }
 
 static inline int
-ustrncmp(u_char *s1, u_char *s2, unsigned n)
+ustrncmp(u_char *s1, u_char *s2, size_t n)
 {
     return(strncmp((char *)s1, (char *)s2, n));
 }
