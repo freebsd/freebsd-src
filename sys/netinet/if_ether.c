@@ -596,7 +596,13 @@ match:
 		    inet_ntoa(isaddr));
 		goto drop;
 	}
-	if (isaddr.s_addr == myaddr.s_addr) {
+	/*
+	 * Warn if another host is using the same IP address, but only if the
+	 * IP address isn't 0.0.0.0, which is used for DHCP only, in which
+	 * case we suppress the warning to avoid false positive complaints of
+	 * potential misconfiguration.
+	 */
+	if (isaddr.s_addr == myaddr.s_addr && myaddr.s_addr != 0) {
 		log(LOG_ERR,
 		   "arp: %*D is using my IP address %s!\n",
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
