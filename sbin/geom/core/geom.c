@@ -420,8 +420,10 @@ run_command(int argc, char *argv[])
 	}
 	if (errstr != NULL) {  
 		fprintf(stderr, "%s\n", errstr);
-		gctl_free(req);
-		exit(EXIT_FAILURE);
+		if (strncmp(errstr, "warning: ", strlen("warning: ")) != 0) {
+			gctl_free(req);
+			exit(EXIT_FAILURE);
+		}
 	}
 	if (*buf != '\0')
 		printf("%s", buf);
@@ -460,8 +462,8 @@ load_library(void)
 	}
 	if (*lib_version != G_LIB_VERSION) {
 		dlclose(dlh);
-		errx(EXIT_FAILURE, "%s and %s are not synchronized.", comm,
-		    path);
+		errx(EXIT_FAILURE, "%s and %s are not synchronized.",
+		    getprogname(), path);
 	}
 	version = dlsym(dlh, "version");
 	if (version == NULL) {
