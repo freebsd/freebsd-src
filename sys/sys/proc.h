@@ -817,7 +817,7 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
-extern uma_zone_t proc_zone;
+extern struct uma_zone *proc_zone;
 
 extern int lastpid;
 
