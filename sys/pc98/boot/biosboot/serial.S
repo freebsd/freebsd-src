@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id$
+ *	$Id: serial.S,v 1.4 1997/02/22 09:43:08 peter Exp $
  */
 
 /*
@@ -101,7 +101,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ENTRY(serial_putc)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	mov	$COMCONSOLE + 2, %edx	# line status reg
 1:	inb	%dx, %al
@@ -113,7 +112,6 @@ ENTRY(serial_putc)
 	sub	$2, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
-	pop	%edx
 	pop	%ebp
 	ret
 
@@ -125,7 +123,6 @@ ENTRY(serial_putc)
 ENTRY(serial_getc)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	mov	$COMCONSOLE + 2, %edx	# line status reg
 1:
@@ -141,7 +138,6 @@ ENTRY(serial_getc)
 	jne	2f
 	mov	$0x08, %eax	# look like BS
 2:
-	pop	%edx
 	pop	%ebp
 	ret
 
@@ -152,14 +148,12 @@ ENTRY(serial_getc)
 ENTRY(serial_ischar)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	xorl	%eax, %eax
 	mov	$COMCONSOLE + 2, %edx	# line status reg
 	inb	%dx, %al
 	andb	$0x02, %al		# RX char available?
 
-	pop	%edx
 	pop	%ebp
 	ret
 
@@ -170,7 +164,6 @@ ENTRY(serial_ischar)
 ENTRY(init_serial)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%edx
 
 	/* set 8253 */
 	movb	0xb6, %al
@@ -219,6 +212,5 @@ ENTRY(init_serial)
 	movb	$0x37, %al
 	outb	%al, %dx
 
-	pop	%edx
 	pop	%ebp
 	ret
