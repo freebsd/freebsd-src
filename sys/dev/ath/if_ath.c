@@ -294,7 +294,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_keymax = ath_hal_keycachesize(ah);
 	if (sc->sc_keymax > sizeof(sc->sc_keymap) * NBBY) {
-		if_printf(ifp, "Warning, using only %u of %u key cache slots\n",
+		if_printf(ifp,
+			"Warning, using only %zu of %u key cache slots\n",
 			sizeof(sc->sc_keymap) * NBBY, sc->sc_keymax);
 		sc->sc_keymax = sizeof(sc->sc_keymap) * NBBY;
 	}
@@ -2772,7 +2773,8 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		return NULL;
 	}
 	if (qnum >= N(sc->sc_txq)) {
-		device_printf(sc->sc_dev, "hal qnum %u out of range, max %u!\n",
+		device_printf(sc->sc_dev,
+			"hal qnum %u out of range, max %zu!\n",
 			qnum, N(sc->sc_txq));
 		ath_hal_releasetxqueue(ah, qnum);
 		return NULL;
@@ -2808,7 +2810,7 @@ ath_tx_setup(struct ath_softc *sc, int ac, int haltype)
 	struct ath_txq *txq;
 
 	if (ac >= N(sc->sc_ac2q)) {
-		device_printf(sc->sc_dev, "AC %u out of range, max %u!\n",
+		device_printf(sc->sc_dev, "AC %u out of range, max %zu!\n",
 			ac, N(sc->sc_ac2q));
 		return 0;
 	}
@@ -3578,7 +3580,8 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
 	    __func__, txq->axq_qnum,
-	    (caddr_t) ath_hal_gettxbuf(ah, txq->axq_qnum), txq->axq_link);
+	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, txq->axq_qnum),
+	    txq->axq_link);
 }
 
 /*
