@@ -36,7 +36,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 2, 2003
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -109,7 +109,7 @@ are converted for output.
 These functions return the number of characters printed
 (not including the trailing
 .Ql \e0
-used to end output to strings),
+used to end output to strings) or a negative value if an output error occurs,
 except for
 .Fn snprintf
 and
@@ -574,6 +574,16 @@ char *newfmt(const char *fmt, ...)
 		return (p);
 }
 .Ed
+.Sh ERRORS
+In addition to the errors documented for the
+.Xr write 2
+system call, the
+.Fn printf
+family of functions may fail if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
 .Sh SEE ALSO
 .Xr printf 1 ,
 .Xr scanf 3
