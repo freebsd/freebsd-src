@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.27 1996/01/23 20:36:49 wollman Exp $
+**  $Id: pcisupport.c,v 1.28 1996/01/23 21:31:51 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -104,11 +104,11 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
 		return ("Intel 82434LX (Mercury) PCI cache memory controller");
 	case 0x122d8086:
-		return ("Intel 82437 (Triton)");
+		return ("Intel 82437 (Triton) PCI cache memory controller");
 	case 0x122e8086:
-		return ("Intel 82371 (Triton)");
+		return ("Intel 82371 (Triton) PCI-ISA bridge");
 	case 0x12308086:
-		return ("Intel 82438 (Triton)");
+		return ("Intel 82371 (Triton) Bus-master IDE controller");
 	case 0x04961039:
 		return ("SiS 85c496");
 	case 0x04061039:
