@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.58 1996/04/07 17:39:28 bde Exp $
+ *	$Id: vm_machdep.c,v 1.59 1996/04/18 21:34:28 phk Exp $
  */
 
 #include "npx.h"
@@ -563,6 +563,7 @@ cpu_fork(p1, p2)
 {
 	struct pcb *pcb2 = &p2->p_addr->u_pcb;
 	int sp, offset;
+	volatile int retval;
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.
@@ -578,6 +579,7 @@ cpu_fork(p1, p2)
 	__asm __volatile("movl %%esp,%0" : "=r" (sp));
 	offset = sp - (int)kstack;
 
+	retval = 1;		/* return 1 in child */
 	bcopy((caddr_t)kstack + offset, (caddr_t)p2->p_addr + offset,
 	    (unsigned) ctob(UPAGES) - offset);
 	p2->p_md.md_regs = p1->p_md.md_regs;
@@ -585,12 +587,9 @@ cpu_fork(p1, p2)
 	*pcb2 = p1->p_addr->u_pcb;
 	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
 
-	/*
-	 * Returns (0) in parent, (1) in child.
-	 */
-	sp = 1;
-	savectx(pcb2,&sp);
-	return (sp);
+	retval = 0;		/* return 0 in parent */
+	savectx(pcb2);
+	return (retval);
 }
 
 void

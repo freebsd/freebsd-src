@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.32 1996/04/13 11:24:13 bde Exp $
+ *	$Id: swtch.s,v 1.33 1996/04/18 21:34:26 phk Exp $
  */
 
 #include "apm.h"
@@ -461,6 +461,7 @@ swtch_com:
 2:
 #endif
 
+	movl	$0,%eax
 	sti
 	ret
 
@@ -475,9 +476,6 @@ ENTRY(savectx)
 	/* caller's return address - child won't execute this routine */
 	movl	(%esp),%eax
 	movl	%eax,PCB_EIP(%ecx)
-
-	movl	8(%esp), %eax		/* In parent we put zero */
-	movl	$0,(%eax)
 
 	movl	%ebx,PCB_EBX(%ecx)
 	movl	%esp,PCB_ESP(%ecx)
