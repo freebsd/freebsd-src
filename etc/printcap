@@ -1,5 +1,5 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $Id: printcap,v 1.7 1997/02/23 09:20:44 peter Exp $
+# $Id: printcap,v 1.8 1998/01/04 17:59:24 steve Exp $
 
 #
 # This enables a simple local "raw" printer, hooked up to the first
@@ -35,3 +35,10 @@ lp|local line printer:\
 #remote|sample remote printer:\
 #	:sh:\
 #	:rm=lphost:sd=/var/spool/output/lphost:lf=/var/log/lpd-errs:
+#
+# Simple Russian printer with hardware CP866 character set, output filter
+# used for KOI8-R -> CP866 conversion
+#
+#lp|Russian local line printer:\
+#	:sh:of=/usr/libexec/lpr/ru/koi2alt:\
+#	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:
