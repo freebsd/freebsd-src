@@ -1,0 +1,154 @@
+.\" Copyright (c) 2001 Dima Dorfman <dima@unixfreak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 28, 2001
+.Dt EXTATTR_GET_FILE 2
+.Os
+.Sh NAME
+.Nm extattr_get_file ,
+.Nm extattr_set_file ,
+.Nm extattr_delete_file
+.Nd manipulate VFS extended attributes
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/uio.h>
+.Fd #include <sys/extattr.h>
+.Ft int
+.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
+.Ft int
+.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
+.Ft int
+.Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
+.Sh DESCRIPTION
+Named extended attributes are meta-data associated with vnodes
+representing files and directories.
+They exist as
+.Qq Li name=value
+pairs within a set of namespaces.
+The
+.Fn extattr_get_file
+call retrieves the value of the specified extended attribute into
+.Fa iovp .
+The
+.Fn extattr_set_file
+call sets the value of the specified extended attribute to the data
+described by
+.Fa iovp .
+The
+.Fn extattr_delete_file
+call deletes the extended attribute specified.
+The
+.Fn extattr_get_file
+and
+.Fn extattr_set_file
+calls consume the
+.Fa iovp
+and
+.Fa iovcnt
+arguments in the style of
+.Xr readv 2
+and
+.Xr writev 2 ,
+respectively.
+.Pp
+The following arguments are common to the three system calls:
+.Bl -tag -width attrnamespace
+.It Fa path
+path name to the file or directory associated with the extended
+attribute
+.It Fa attrnamespace
+the namespace in which the extended attribute resides; see
+.Xr extattr 9
+.It Fa attrname
+the name of the extended attribute
+.El
+.Pp
+Named extended attribute semantics vary by filesystem implementing the call.
+Not all operations may be supported for a particular attribute.
+Additionally, the format of the data in
+.Fa iovp
+is attribute-specific.
+.Pp
+For more information on named extended attributes, please see
+.Xr extattr 9 .
+.Sh RETURN VALUES
+If successful, the
+.Fn extattr_get_file
+and
+.Fn extattr_set_file
+calls return the number of bytes
+that were read or written from the
+.Fa iovp ,
+respectively.
+The
+.Fn extattr_delete_file
+call returns 0 on success.
+If any of the calls are unsuccessful, the value \-1 is returned
+and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The following errors may be returned by the system calls themselves.
+Additionally, the filesystem implementing the call may return any
+other errors it desires.
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa attrnamespace ,
+.Fa attrname ,
+or
+.Fa iovp
+point outside the process's allocated address space.
+.It Bq Er ENAMETOOLONG
+The attribute name was longer than
+.Dv EXTATTR_MAXNAMELEN .
+.It Bq Er ENOTDIR
+A component of the path prefix is not a directory.
+.It Bq Er ENAMETOOLONG
+A component of a pathname exceeded 255 characters,
+or an entire path name exceeded 1023 characters.
+.It Bq Er ENOENT
+A component of the path name that must exist does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix.
+.\" XXX are any missing?
+.El
+.Sh SEE ALSO
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr extattr 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_SETEXTATTR 9
+.Sh HISTORY
+Extended attribute support was developed as part of the
+.Tn TrustedBSD
+Project, and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh AUTHORS
+This manual page was written by
+.An Dima Dorfman Aq dima@unixfreak.org .
