@@ -99,6 +99,7 @@ controller	adv0	at isa? port ? cam irq ?
 controller	adw0
 controller	bt0	at isa? port ? cam irq ?
 controller	aha0	at isa? port ? cam irq ?
+controller	aic0	at isa? port ? cam irq ?
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
