@@ -169,6 +169,9 @@
     enables interfaces and functionality intended for use during
     correctness and regression testing.</para>
 
+    <para>The <literal>USER_LDT</literal> kernel option is now
+    activated by default.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -539,7 +542,7 @@
       use this driver, add the following line to
       <filename>/boot/loader.conf</filename>:
 
-        <screen><userinput>maestro3_load="YES"</userinput></screen>
+        <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
 
       </para>
 
