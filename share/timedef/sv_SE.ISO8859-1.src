@@ -58,7 +58,7 @@ Lördag
 #
 # x_fmt
 #
-%d.%m.%Y
+%Y-%m-%d
 #
 # c_fmt
 #
