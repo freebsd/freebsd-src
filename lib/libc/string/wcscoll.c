@@ -79,19 +79,16 @@ wcscoll(const wchar_t *ws1, const wchar_t *ws2)
 static char *
 __mbsdup(const wchar_t *ws)
 {
-	mbstate_t state;
 	const wchar_t *wcp;
 	size_t len;
 	char *mbs;
 
-	memset(&state, 0, sizeof(state));
 	wcp = ws;
-	if ((len = wcsrtombs(NULL, &wcp, 0, &state)) == (size_t)-1)
+	if ((len = wcsrtombs(NULL, &wcp, 0, NULL)) == (size_t)-1)
 		return (NULL);
 	if ((mbs = malloc(len + 1)) == NULL)
 		return (NULL);
-	memset(&state, 0, sizeof(state));
-	wcsrtombs(mbs, &ws, len + 1, &state);
+	wcsrtombs(mbs, &ws, len + 1, NULL);
 
 	return (mbs);
 }
