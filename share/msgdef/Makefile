@@ -53,6 +53,7 @@ DE_LINKS=	de_AT de_CH
 CZ_LINKS=	sk_SK
 IT_LINKS=	it_CH
 NL_LINKS=	nl_BE
+PT_LINKS=	pt_BR
 
 .SUFFIXES: .src .out
 
@@ -107,6 +108,10 @@ afterinstall:
 .for link in ${CZ_LINKS}
 	ln -sf ../cs_CZ.ISO8859-2/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-2/LC_MESSAGES
+.endfor
+.for link in ${PT_LINKS}
+	ln -sf ../pt_PT.ISO8859-1/LC_MESSAGES \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
 .endfor
 .for link in ${ASCIILINKS}
 	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
