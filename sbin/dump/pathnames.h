@@ -35,8 +35,8 @@
 
 #include <paths.h>
 
-#define	_PATH_DEFTAPE	"/dev/rmt8"
+#define	_PATH_DEFTAPE	"/dev/rst0"
 #define	_PATH_DTMP	"/etc/dtmp"
 #define	_PATH_DUMPDATES	"/etc/dumpdates"
 #define	_PATH_LOCK	"/tmp/dumplockXXXXXX"
-#define	_PATH_RMT	"rmt"
+#define	_PATH_RMT	"/etc/rmt"

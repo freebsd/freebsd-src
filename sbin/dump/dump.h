@@ -79,6 +79,7 @@ int	notify;		/* notify operator flag */
 int	blockswritten;	/* number of blocks written on current tape */
 int	tapeno;		/* current tape number */
 time_t	tstart_writing;	/* when started writing the first tape block */
+time_t	tend_writing;	/* after writing the last tape block */
 struct	fs *sblock;	/* the file system super block */
 char	sblock_buf[MAXBSIZE];
 long	dev_bsize;	/* block size of underlying disk device */
