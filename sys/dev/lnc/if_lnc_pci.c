@@ -27,6 +27,17 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#include <sys/socket.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+
+#include <dev/lnc/if_lncvar.h>
+
 #include "lnc.h"
 
 #ifndef COMPAT_OLDPCI
@@ -36,7 +47,8 @@
 #define PCI_DEVICE_ID_PCNet_PCI	0x20001022
 #define PCI_DEVICE_ID_PCHome_PCI 0x20011022
 
-extern void *lnc_attach_ne2100_pci __P((int unit, unsigned iobase));
+extern int pcnet_probe __P((struct lnc_softc *sc));
+extern int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
 
 static const char* lnc_pci_probe __P((pcici_t tag, pcidi_t type));
 static void lnc_pci_attach __P((pcici_t config_id, int unit));
@@ -76,9 +88,10 @@ lnc_pci_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;
 {
+	struct lnc_softc *sc;
 	unsigned iobase;
 	unsigned data;	/* scratch to make this device a bus master*/
-	void *lnc; /* device specific data for interrupt handler ... */
+	int i;
 
 	if ( !pci_map_port(config_id,PCI_MAP_REG_START,(u_short *)&iobase) )
 	    printf("lnc%d: pci_port_map_attach failed?!\n",unit);
@@ -91,13 +104,40 @@ lnc_pci_attach(config_id, unit)
 	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_cfgwrite(config_id, PCIR_COMMAND, data, 4);
 
-	lnc = lnc_attach_ne2100_pci(unit, iobase);
+	sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
-	if (!lnc)
-		return;
-	if(!(pci_map_int(config_id, lncintr_sc, (void *)lnc, &net_imask))) {
-		free (lnc, M_DEVBUF);
-		return;
+	if (sc) {
+		bzero (sc, sizeof *sc);
+
+		sc->rap = iobase + PCNET_RAP;
+		sc->rdp = iobase + PCNET_RDP;
+		sc->bdp = iobase + PCNET_BDP;
+
+		sc->nic.ic = pcnet_probe(sc);
+		if (sc->nic.ic >= PCnet_32) {
+			sc->nic.ident = NE2100;
+			sc->nic.mem_mode = DMA_FIXED;
+  
+			/* XXX - For now just use the defines */
+			sc->nrdre = NRDRE;
+			sc->ntdre = NTDRE;
+
+			/* Extract MAC address from PROM */
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				sc->arpcom.ac_enaddr[i] = inb(iobase + i);
+
+			if (lnc_attach_sc(sc, unit) == 0) {
+				free(sc, M_DEVBUF);
+				sc = NULL;
+			}
+
+			if(!(pci_map_int(config_id, lncintr_sc, (void *)sc, &net_imask))) {
+				free (sc, M_DEVBUF);
+				return;
+			}
+		} else {
+			free(sc, M_DEVBUF);
+		}
 	}
 
 	return;
