@@ -1473,8 +1473,7 @@ thread_single(int force_exit)
 					if (TD_IS_SUSPENDED(td2))
 						continue;
 					/* maybe other inhibitted states too? */
-					if (TD_IS_SLEEPING(td2) &&
-					    (td2->td_flags & TDF_SINTR)) 
+					if (TD_IS_SLEEPING(td2)) 
 						thread_suspend_one(td2);
 				}
 			}
