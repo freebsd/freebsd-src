@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.19 1997/02/22 13:58:42 peter Exp $
+ *	$Id: parser.c,v 1.20 1997/04/28 03:22:09 steve Exp $
  */
 
 #ifndef lint
@@ -1515,8 +1515,8 @@ setprompt(which)
  */
 char *
 getprompt(unused)
-	void *unused;
-	{
+	void *unused __unused;
+{
 	switch (whichprompt) {
 	case 0:
 		return "";

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.9 1997/02/22 13:58:25 peter Exp $
+ *	$Id: exec.c,v 1.10 1997/04/28 03:08:37 steve Exp $
  */
 
 #ifndef lint
@@ -325,8 +325,8 @@ padvance(path, name)
 
 int
 hashcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	struct tblentry **pp;
 	struct tblentry *cmdp;

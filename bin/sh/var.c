@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.9 1997/02/22 13:58:47 peter Exp $
+ *	$Id: var.c,v 1.10 1997/04/28 03:06:39 steve Exp $
  */
 
 #ifndef lint
@@ -500,8 +500,8 @@ shprocvar() {
 
 int
 showvarscmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	struct var **vpp;
 	struct var *vp;
@@ -574,8 +574,8 @@ found:;
 
 int
 localcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char *name;
 
@@ -686,8 +686,8 @@ setvarcmd(argc, argv)
 
 int
 unsetcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char **ap;
 	int i;

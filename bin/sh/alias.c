@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alias.c,v 1.7 1997/02/22 13:58:20 peter Exp $
+ *	$Id: alias.c,v 1.8 1997/04/28 03:06:32 steve Exp $
  */
 
 #ifndef lint
@@ -232,8 +232,8 @@ aliascmd(argc, argv)
 
 int
 unaliascmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	int i;
 

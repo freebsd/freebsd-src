@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.11 1997/02/22 13:58:35 peter Exp $
+ *	$Id: miscbltin.c,v 1.12 1997/04/28 03:06:36 steve Exp $
  */
 
 #ifndef lint
@@ -75,8 +75,8 @@ extern char **argptr;		/* argument list for builtin command */
 
 int
 readcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char **ap;
 	int backslash;
@@ -159,7 +159,7 @@ readcmd(argc, argv)
 
 int
 umaskcmd(argc, argv)
-	int argc;
+	int argc __unused;
 	char **argv;
 {
 	char *ap;
@@ -289,8 +289,8 @@ static const struct limits limits[] = {
 
 int
 ulimitcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	int	c;
 	quad_t val = 0;
