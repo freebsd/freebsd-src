@@ -388,8 +388,7 @@ takers?
 2.3. FDDI
 ---------
 
-DEC FDDI (DEFPA) NICs
-
+- none (DEFPA is currently broken)
 
 2.4. ATM
 --------
