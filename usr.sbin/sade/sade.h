@@ -175,6 +175,7 @@
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
 #define VAR_XF86_CONFIG			"_xf86config"
+#define VAR_TERM			"TERM"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
