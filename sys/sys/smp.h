@@ -22,16 +22,6 @@
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
 #endif /* SMP && !APIC_IO */
 
-/*
- * Maximum number of CPUs we will use.
- * In the !SMP case we save ourselves a litle space.
- */
-#if defined(SMP)
-# define MAXCPU                        16
-#else
-# define MAXCPU                        1
-#endif /* SMP */
-
 #if defined(SMP) || defined(APIC_IO)
 
 #ifndef LOCORE

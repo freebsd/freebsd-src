@@ -130,7 +130,7 @@ extern struct simplelock	mpintr_lock;
 extern struct simplelock	mcount_lock;
 extern struct simplelock	panic_lock;
 
-#if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
+#if !defined(SIMPLELOCK_DEBUG) && MAXCPU > 1
 /*
  * This set of defines turns on the real functions in i386/isa/apic_ipl.s.
  */
@@ -139,7 +139,7 @@ extern struct simplelock	panic_lock;
 #define	simple_lock_try(alp)	s_lock_try(alp)
 #define	simple_unlock(alp)	s_unlock(alp)
 
-#endif /* !SIMPLELOCK_DEBUG && NCPUS > 1 */
+#endif /* !SIMPLELOCK_DEBUG && MAXCPU > 1 */
 
 #endif /* LOCORE */
 

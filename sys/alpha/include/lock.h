@@ -55,7 +55,7 @@ s_unlock(struct simplelock *lkp)
 	lkp->lock_data = 0;
 }
 
-#if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
+#if !defined(SIMPLELOCK_DEBUG) && MAXCPU > 1
 /*
  * This set of defines turns on the real functions in i386/isa/apic_ipl.s.
  */
@@ -64,7 +64,7 @@ s_unlock(struct simplelock *lkp)
 #define	simple_lock_try(alp)	s_lock_try(alp)
 #define	simple_unlock(alp)	s_unlock(alp)
 
-#endif /* !SIMPLELOCK_DEBUG && NCPUS > 1 */
+#endif /* !SIMPLELOCK_DEBUG && MAXCPU > 1 */
 
 #define COM_LOCK()
 #define COM_UNLOCK()
