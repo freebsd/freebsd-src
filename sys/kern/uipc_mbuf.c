@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.15 1995/12/02 18:58:42 bde Exp $
+ * $Id: uipc_mbuf.c,v 1.16 1995/12/07 12:46:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
+
+static void	m_reclaim __P((void));
 
 /* ARGSUSED*/
 static void
@@ -168,7 +170,7 @@ m_retryhdr(i, t)
 	return (m);
 }
 
-void
+static void
 m_reclaim()
 {
 	register struct domain *dp;
@@ -283,7 +285,7 @@ m_prepend(m, len, how)
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
  * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
  */
-int MCFail;
+static int MCFail;
 
 struct mbuf *
 m_copym(m, off0, len, wait)
@@ -495,7 +497,7 @@ m_adj(mp, req_len)
  * If there is room, it will add up to max_protohdr-len extra bytes to the
  * contiguous region in an attempt to avoid being called next time.
  */
-int MPFail;
+static int MPFail;
 
 struct mbuf *
 m_pullup(n, len)

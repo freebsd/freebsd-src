@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.15 1995/11/11 06:57:34 bde Exp $
+ * $Id: sys_generic.c,v 1.16 1995/11/12 06:43:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
 #endif
 #include <vm/vm.h>
 
-int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
+static int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
 
 /*
  * Read system call.
@@ -506,7 +506,8 @@ ioctl(p, uap, retval)
 	return (error);
 }
 
-int	selwait, nselcoll;
+static int	nselcoll;
+int	selwait;
 
 /*
  * Select system call.
@@ -610,7 +611,7 @@ done:
 	return (error);
 }
 
-int
+static int
 selscan(p, ibits, obits, nfd, retval)
 	struct proc *p;
 	fd_set *ibits, *obits;

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.47 1995/12/10 13:36:34 phk Exp $
+ *	$Id: vm_machdep.c,v 1.48 1995/12/11 04:55:01 dyson Exp $
  */
 
 #include "npx.h"
@@ -67,8 +67,6 @@
 
 #include <i386/isa/isa.h>
 
-extern void	pagemove __P((caddr_t from, caddr_t to, int size));
-static void	setredzone __P((u_short *pte, caddr_t vaddr));
 static void	vm_fault_quick __P((caddr_t v, int prot));
 
 #ifdef BOUNCE_BUFFERS
@@ -80,7 +78,7 @@ static vm_offset_t
 		vm_bounce_page_find __P((int count));
 static void	vm_bounce_page_free __P((vm_offset_t pa, int count));
 
-static static volatile int	kvasfreecnt;
+static volatile int	kvasfreecnt;
 
 caddr_t		bouncememory;
 int		bouncepages;
@@ -639,9 +637,7 @@ cpu_coredump(p, vp, cred)
 	    p));
 }
 
-/*
- * Set a red zone in the kernel stack after the u. area.
- */
+#ifdef notyet
 static void
 setredzone(pte, vaddr)
 	u_short *pte;
@@ -656,35 +652,7 @@ setredzone(pte, vaddr)
    used by sched (that has physical memory mapped 1:1 at bottom)
    and take the dump while still in mapped mode */
 }
-
-/*
- * Move pages from one kernel virtual address to another.
- * Both addresses are assumed to reside in the Sysmap,
- * and size must be a multiple of CLSIZE.
- */
-
-static void
-pagemove(from, to, size)
-	register caddr_t from, to;
-	int size;
-{
-	register vm_offset_t pa;
-
-	if (size & CLOFSET)
-		panic("pagemove");
-	while (size > 0) {
-		pa = pmap_kextract((vm_offset_t)from);
-		if (pa == 0)
-			panic("pagemove 2");
-		if (pmap_kextract((vm_offset_t)to) != 0)
-			panic("pagemove 3");
-		pmap_kremove((vm_offset_t)from);
-		pmap_kenter((vm_offset_t)to, pa);
-		from += PAGE_SIZE;
-		to += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-}
+#endif
 
 /*
  * Convert kernel VA to physical address

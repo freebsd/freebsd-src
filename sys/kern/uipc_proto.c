@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.4 1995/08/16 16:13:25 bde Exp $
+ * $Id: uipc_proto.c,v 1.5 1995/12/02 18:58:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@
  * Definitions of protocols supported in the LOCAL domain.
  */
 
-struct protosw localsw[] = {
+static struct protosw localsw[] = {
 { SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
   0,		0,		0,		0,
   uipc_usrreq,

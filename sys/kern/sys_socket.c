@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.4 1994/10/02 17:35:25 phk Exp $
+ * $Id: sys_socket.c,v 1.5 1995/05/30 08:05:59 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -49,11 +49,17 @@
 #include <net/if.h>
 #include <net/route.h>
 
+static int soo_read __P((struct file *fp, struct uio *uio, 
+		struct ucred *cred));
+static int soo_write __P((struct file *fp, struct uio *uio, 
+		struct ucred *cred));
+static int soo_close __P((struct file *fp, struct proc *p));
+
 struct	fileops socketops =
     { soo_read, soo_write, soo_ioctl, soo_select, soo_close };
 
 /* ARGSUSED */
-int
+static int
 soo_read(fp, uio, cred)
 	struct file *fp;
 	struct uio *uio;
@@ -65,7 +71,7 @@ soo_read(fp, uio, cred)
 }
 
 /* ARGSUSED */
-int
+static int
 soo_write(fp, uio, cred)
 	struct file *fp;
 	struct uio *uio;
@@ -191,7 +197,7 @@ soo_stat(so, ub)
 }
 
 /* ARGSUSED */
-int
+static int
 soo_close(fp, p)
 	struct file *fp;
 	struct proc *p;

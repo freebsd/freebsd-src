@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.11 1995/11/12 06:43:02 bde Exp $
+ * $Id: kern_time.c,v 1.12 1995/11/19 00:59:22 bde Exp $
  */
 
 #include <sys/param.h>
@@ -136,7 +136,7 @@ settimeofday(p, uap, retval)
 extern	int tickadj;			/* "standard" clock skew, us./tick */
 int	tickdelta;			/* current clock skew, us. per tick */
 long	timedelta;			/* unapplied time correction, us. */
-long	bigadj = 1000000;		/* use 10x skew above bigadj us. */
+static long	bigadj = 1000000;	/* use 10x skew above bigadj us. */
 
 #ifndef _SYS_SYSPROTO_H_
 struct adjtime_args {
@@ -431,7 +431,7 @@ timevalsub(t1, t2)
 	timevalfix(t1);
 }
 
-void
+static void
 timevalfix(t1)
 	struct timeval *t1;
 {
