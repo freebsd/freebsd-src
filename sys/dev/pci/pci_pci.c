@@ -307,12 +307,21 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 	    if (!pcib_is_isa_io(start)) {
+#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
 		if (start < sc->iobase)
 		    start = sc->iobase;
 		if (end > sc->iolimit)
 		    end = sc->iolimit;
 		if (end < start)
 		    start = 0;
+#else
+		if (start < sc->iobase)
+		    printf("start (%x) < sc->iobase (%x)\n", start, sc->iobase);
+		if (end > sc->iolimit)
+		    printf("end (%x) > sc->iolimit (%x)\n", end, sc->iolimit);
+		if (end < start)
+		    printf("end (%x) < start (%x)\n", end, start);
+#endif
 	    }
 	    if (!pcib_is_isa_io(start) &&
 	      ((start < sc->iobase) || (end > sc->iolimit))) {
@@ -335,12 +344,21 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	     */
 	case SYS_RES_MEMORY:
 	    if (!pcib_is_isa_mem(start)) {
+#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
 		if (start < sc->membase && end > sc->membase)
 		    start = sc->membase;
 		if (end > sc->memlimit)
 		    end = sc->memlimit;
 		if (end < start)
 		    start = 0;
+#else
+		if (start < sc->membase && end > sc->membase)
+		    printf("start (%x) < sc->membase (%x)\n", start, sc->membase);
+		if (end > sc->memlimit)
+		    printf("end (%x) > sc->memlimit (%x)\n", end, sc->memlimit);
+		if (end < start) 
+		    printf("end (%x) < start (%x)\n", end, start);
+#endif
 	    }
 	    if (!pcib_is_isa_mem(start) &&
 	        (((start < sc->membase) || (end > sc->memlimit)) &&
