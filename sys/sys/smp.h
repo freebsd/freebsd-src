@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.27 1997/09/05 18:08:57 smp Exp smp $
+ * $Id: smp.h,v 1.32 1997/09/07 22:01:53 fsmp Exp $
  *
  */
 
@@ -78,6 +78,13 @@ void	try_mpintrlock		__P((void));
 extern u_int			ivectors[];
 extern volatile u_int		stopped_cpus;
 extern volatile u_int		started_cpus;
+
+#ifdef BETTER_CLOCK
+void	forward_statclock	__P((int pscnt));
+void	forward_hardclock	__P((int pscnt));
+extern unsigned int		checkstate_probed_cpus;
+extern unsigned int		checkstate_need_ast;
+#endif
 
 /* global data in apic_ipl.s */
 extern u_int			vec[];
