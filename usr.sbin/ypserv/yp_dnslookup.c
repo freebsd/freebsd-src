@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.13 1997/01/07 04:48:52 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.15 1997/01/12 08:09:28 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.13 1997/01/07 04:48:52 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.15 1997/01/12 08:09:28 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -428,6 +428,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 	int type, len;
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
+	type = -1; len = sizeof(type);
 	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
@@ -446,7 +447,6 @@ ypstat yp_async_lookup_name(rqstp, name)
 	q->ttl = DEF_TTL;
 	q->xprt = rqstp->rq_xprt;
 	q->ypvers = rqstp->rq_vers;
-	type = -1; len = sizeof(type);
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
 		q->xid = svcudp_get_xid(q->xprt);
@@ -486,6 +486,7 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	int type, len;
 
 	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
+	type = -1; len = sizeof(type);
 	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
 					SO_TYPE, &type, &len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
@@ -513,7 +514,6 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	q->xprt = rqstp->rq_xprt;
 	q->ypvers = rqstp->rq_vers;
 	q->domain = NULL;
-	type = -1; len = sizeof(type);
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
 		q->xid = svcudp_get_xid(q->xprt);
