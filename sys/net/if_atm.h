@@ -50,6 +50,10 @@
 #define	ATM_DEVICE_FORELE155	7	/* ForeRunnerLE 155 */
 #define	ATM_DEVICE_NICSTAR25	8	/* other 77211 25.6MBit */
 #define	ATM_DEVICE_NICSTAR155	9	/* other 77211 155MBit */
+#define	ATM_DEVICE_IDTABR25	10	/* 77252 based card 25MBit */
+#define	ATM_DEVICE_IDTABR155	11	/* 77252 based card 155MBit */
+#define	ATM_DEVICE_PROATM25	10	/* 77252 based ProSum card 25MBit */
+#define	ATM_DEVICE_PROATM155	11	/* 77252 based ProSum card 155MBit */
 
 /* map to strings and vendors */
 #define	ATM_DEVICE_NAMES						\
@@ -62,7 +66,11 @@
 	{ "ForeRunnerLE25",	"Fore/Marconi" },			\
 	{ "ForeRunnerLE155",	"Fore/Marconi" },			\
 	{ "IDT77211/25",	"IDT" },				\
-	{ "IDT77211/155",	"IDT" },
+	{ "IDT77211/155",	"IDT" },				\
+	{ "IDT77252/25",	"IDT" },				\
+	{ "IDT77252/155",	"IDT" },				\
+	{ "ProATM/25",		"ProSum" },				\
+	{ "ProATM/155",		"ProSum" },
 
 /*
  * This is the common link layer MIB for all ATM interfaces. Much of the
