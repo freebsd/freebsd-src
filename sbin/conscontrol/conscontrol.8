@@ -33,31 +33,39 @@
 .Nd control physical console devices
 .Sh SYNOPSIS
 .Nm
-.Op list
+.Op Cm list
 .Nm 
-.Ic mute
-.Ar on|off
+.Cm mute on | off
 .Nm
-.Ic add|delete
+.Cm add | delete
 .Ar console
 .Sh DESCRIPTION
-.Nm Conscontrol
-is used to examine and modify the physical devices which back
+The
+.Nm
+utility is used to examine and modify the physical devices which back
 the virtual console console devices.
-If no arguments are specified
+If no arguments
 (or only the
-.Ar list
-argument),
+.Cm list
+command)
+are specified,
 the current console settings are shown.
 .Pp
 There are two types of logical consoles; a high level console which
-is represented by /dev/console, and a low level console.
-The low level console is used for kernel printfs and debugger support,
-while the high level console is used by user programs like syslog.
-Multiple device support is implemented only for the low level console,
+is represented by
+.Pa /dev/console , and a low level console.
+The low level console is used for kernel
+.Xr printf 9
+and
+.Xr ddb 4
+debugger support,
+while the high level console is used by user programs like
+.Xr syslogd 8 .
+Multiple device support is implemented only for the low level console;
 the high level console is set to the first device in the console list.
 .Pp
 Multiple console support may be invoked by passing the kernel the
+.\" XXX The Fl macro doesn't really apply here
 -D
 flag from the boot loader, or by using
 .Nm
@@ -65,23 +73,24 @@ to change the list of console devices after the system has booted.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Cm add|delete Ar console
+.It Cm add | delete Ar console
 Add or delete a physical device from the logical console.
 The device must support low-level console operations.
 Adding a device will place it at the front of the list of console
 devices; the first device is used for the high level console.
-.It Cm mute Ar on|off
-Change the state of the console muting.
+.It Cm mute Cm on | off
+Change the state of console muting.
+All console output is suppressed when console muting is on.
 .El
 .Sh SEE ALSO
-.Xr boot 8 ,
-.Xr loader 8 ,
 .Xr sio 4 ,
-.Xr syscons 4
+.Xr syscons 4 ,
+.Xr boot 8 ,
+.Xr loader 8
 .Sh HISTORY
 The
 .Nm
 command first appeared in
-.Fx 4.5 .
+.Fx 5.0 .
 .Sh AUTHORS
 .An Jonathan Lemon
