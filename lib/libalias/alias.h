@@ -89,13 +89,13 @@ int		PacketUnaliasOut(char *_ptr, int _maxpacketsize);
 
 
 int
-PacketAliasAddServer(struct alias_link *_link,
+PacketAliasAddServer(struct alias_link *_lnk,
     struct in_addr _addr, unsigned short _port);
 struct alias_link *
 PacketAliasRedirectAddr(struct in_addr _src_addr,
     struct in_addr _alias_addr);
-int		PacketAliasRedirectDynamic(struct alias_link *_link);
-void		PacketAliasRedirectDelete(struct alias_link *_link);
+int		PacketAliasRedirectDynamic(struct alias_link *_lnk);
+void		PacketAliasRedirectDelete(struct alias_link *_lnk);
 struct alias_link *
 PacketAliasRedirectPort(struct in_addr _src_addr,
     unsigned short _src_port, struct in_addr _dst_addr,
@@ -140,13 +140,13 @@ int		LibAliasUnaliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
 /* Port and address redirection functions. */
 
 int
-LibAliasAddServer(struct libalias *, struct alias_link *_link,
+LibAliasAddServer(struct libalias *, struct alias_link *_lnk,
     struct in_addr _addr, unsigned short _port);
 struct alias_link *
 LibAliasRedirectAddr(struct libalias *, struct in_addr _src_addr,
     struct in_addr _alias_addr);
-int		LibAliasRedirectDynamic(struct libalias *, struct alias_link *_link);
-void		LibAliasRedirectDelete(struct libalias *, struct alias_link *_link);
+int		LibAliasRedirectDynamic(struct libalias *, struct alias_link *_lnk);
+void		LibAliasRedirectDelete(struct libalias *, struct alias_link *_lnk);
 struct alias_link *
 LibAliasRedirectPort(struct libalias *, struct in_addr _src_addr,
     unsigned short _src_port, struct in_addr _dst_addr,
