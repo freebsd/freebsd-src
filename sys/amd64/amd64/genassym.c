@@ -50,6 +50,7 @@
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 #include <machine/bootinfo.h>
 #include <machine/tss.h>

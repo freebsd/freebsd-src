@@ -128,6 +128,7 @@
 #include <vm/vm_pager.h>
 #include <sys/user.h>
 #include <sys/ptrace.h>
+#include <sys/ucontext.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>
@@ -1506,7 +1507,7 @@ osigreturn(struct thread *td,
 int
 sigreturn(struct thread *td,
 	struct sigreturn_args /* {
-		ucontext_t *sigcntxp;
+		const struct __ucontext *sigcntxp;
 	} */ *uap)
 {
 	ucontext_t uc, *ucp;
