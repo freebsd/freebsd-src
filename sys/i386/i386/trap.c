@@ -148,9 +148,6 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 };
 
-static __inline int userret __P((struct proc *p, struct trapframe *frame,
-				  u_quad_t oticks, int have_giant));
-
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
 #endif
@@ -168,23 +165,21 @@ SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 extern char *syscallnames[];
 #endif
 
-static __inline int
-userret(p, frame, oticks, have_giant)
+void
+userret(p, frame, oticks)
 	struct proc *p;
 	struct trapframe *frame;
 	u_quad_t oticks;
-	int have_giant;
 {
-	int sig, s;
+	int sig;
 
 	while ((sig = CURSIG(p)) != 0) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		postsig(sig);
 	}
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_priority = p->p_usrpri;
 	if (resched_wanted()) {
 		/*
@@ -195,36 +190,34 @@ userret(p, frame, oticks, have_giant)
 		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		s = splhigh();
-		mtx_enter(&sched_lock, MTX_SPIN);
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_exit(&sched_lock, MTX_SPIN);
 		PICKUP_GIANT();
-		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
-			if (have_giant == 0) {
+			if (!mtx_owned(&Giant))
 				mtx_enter(&Giant, MTX_DEF);
-				have_giant = 1;
-			}
 			postsig(sig);
 		}
+		mtx_enter(&sched_lock, MTX_SPIN);
 	}
+
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL) {
-		if (have_giant == 0) {
+	if (p->p_sflag & PS_PROFIL) {
+		mtx_exit(&sched_lock, MTX_SPIN);
+		/* XXX - do we need Giant? */
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
+		mtx_enter(&sched_lock, MTX_SPIN);
 		addupc_task(p, frame->tf_eip,
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	}
 	curpriority = p->p_priority;
-	return(have_giant);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
@@ -254,8 +247,8 @@ trap(frame)
 		 * interrupts and then trapped.  Enabling interrupts
 		 * now is wrong, but it is better than running with
 		 * interrupts disabled until they are accidentally
-		 * enabled later.  XXX Consider whether is this still
-		 * correct.
+		 * enabled later.  XXX This is really bad if we trap
+		 * while holding a spin lock.
 		 */
 		type = frame.tf_trapno;
 		if (ISPL(frame.tf_cs) == SEL_UPL || (frame.tf_eflags & PSL_VM))
@@ -269,6 +262,10 @@ trap(frame)
 			 */
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
+		/*
+		 * We should walk p_heldmtx here and see if any are
+		 * spin mutexes, and not do this if so.
+		 */
 		enable_intr();
 	}
 
@@ -298,7 +295,9 @@ restart:
 	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
 		/* user trap */
 
+		mtx_enter(&sched_lock, MTX_SPIN);
 		sticks = p->p_sticks;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		p->p_md.md_regs = &frame;
 
 		switch (type) {
@@ -649,9 +648,10 @@ restart:
 #endif
 
 user:
-	userret(p, &frame, sticks, 1);
+	userret(p, &frame, sticks);
 out:
-	mtx_exit(&Giant, MTX_DEF);
+	if (mtx_owned(&Giant))
+		mtx_exit(&Giant, MTX_DEF);
 }
 
 #ifdef notyet
@@ -709,7 +709,9 @@ trap_pfault(frame, usermode, eva)
 		 * Keep swapout from messing with us during this
 		 *	critical time.
 		 */
+		PROC_LOCK(p);
 		++p->p_lock;
+		PROC_UNLOCK(p);
 
 		/*
 		 * Grow the stack if necessary
@@ -722,7 +724,9 @@ trap_pfault(frame, usermode, eva)
 		 */
 		if (!grow_stack (p, va)) {
 			rv = KERN_FAILURE;
+			PROC_LOCK(p);
 			--p->p_lock;
+			PROC_UNLOCK(p);
 			goto nogo;
 		}
 		
@@ -731,7 +735,9 @@ trap_pfault(frame, usermode, eva)
 			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
 
+		PROC_LOCK(p);
 		--p->p_lock;
+		PROC_UNLOCK(p);
 	} else {
 		/*
 		 * Don't allow user-mode faults in kernel address space.
@@ -824,7 +830,9 @@ trap_pfault(frame, usermode, eva)
 		 * Keep swapout from messing with us during this
 		 *	critical time.
 		 */
+		PROC_LOCK(p);
 		++p->p_lock;
+		PROC_UNLOCK(p);
 
 		/*
 		 * Grow the stack if necessary
@@ -837,7 +845,9 @@ trap_pfault(frame, usermode, eva)
 		 */
 		if (!grow_stack (p, va)) {
 			rv = KERN_FAILURE;
+			PROC_LOCK(p);
 			--p->p_lock;
+			PROC_UNLOCK(p);
 			goto nogo;
 		}
 
@@ -846,10 +856,13 @@ trap_pfault(frame, usermode, eva)
 			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
 
+		PROC_LOCK(p);
 		--p->p_lock;
+		PROC_UNLOCK(p);
 	} else {
 		/*
-		 * Don't have to worry about process locking or stacks in the kernel.
+		 * Don't have to worry about process locking or stacks in the
+		 * kernel.
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
@@ -1006,10 +1019,14 @@ int trapwrite(addr)
 	p = curproc;
 	vm = p->p_vmspace;
 
+	PROC_LOCK(p);
 	++p->p_lock;
+	PROC_UNLOCK(p);
 
 	if (!grow_stack (p, va)) {
+		PROC_LOCK(p);
 		--p->p_lock;
+		PROC_UNLOCK(p);
 		return (1);
 	}
 
@@ -1018,7 +1035,9 @@ int trapwrite(addr)
 	 */
 	rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
 
+	PROC_LOCK(p);
 	--p->p_lock;
+	PROC_UNLOCK(p);
 
 	if (rv != KERN_SUCCESS)
 		return 1;
@@ -1049,7 +1068,6 @@ syscall2(frame)
 	int error;
 	int narg;
 	int args[8];
-	int have_giant = 0;
 	u_int code;
 
 	atomic_add_int(&cnt.v_syscall, 1);
@@ -1062,13 +1080,9 @@ syscall2(frame)
 	}
 #endif
 
-	/*
-	 * handle atomicy by looping since interrupts are enabled and the 
-	 * MP lock is not held.
-	 */
-	sticks = ((volatile struct proc *)p)->p_sticks;	
-	while (sticks != ((volatile struct proc *)p)->p_sticks)
-		sticks = ((volatile struct proc *)p)->p_sticks;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	sticks = p->p_sticks;
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	p->p_md.md_regs = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
@@ -1118,7 +1132,6 @@ syscall2(frame)
 	if (params && (i = narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
 		mtx_enter(&Giant, MTX_DEF);
-		have_giant = 1;
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
 			ktrsyscall(p->p_tracep, code, narg, args);
@@ -1133,15 +1146,12 @@ syscall2(frame)
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 		mtx_enter(&Giant, MTX_DEF);
-		have_giant = 1;
 	}
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
@@ -1157,11 +1167,6 @@ syscall2(frame)
 	 */
 	switch (error) {
 	case 0:
-		/*
-		 * Reinitialize proc pointer `p' as it may be different
-		 * if this is a child returning from fork syscall.
-		 */
-		p = curproc;
 		frame.tf_eax = p->p_retval[0];
 		frame.tf_edx = p->p_retval[1];
 		frame.tf_eflags &= ~PSL_C;
@@ -1195,10 +1200,8 @@ bad:
 	 * Traced syscall.  trapsignal() is not MP aware.
 	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
 	}
@@ -1206,14 +1209,12 @@ bad:
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	have_giant = userret(p, &frame, sticks, have_giant);
+	userret(p, &frame, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (have_giant == 0) {
+		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
 #endif
@@ -1226,19 +1227,19 @@ bad:
 	STOPEVENT(p, S_SCX, code);
 
 	/*
-	 * Release the MP lock if we had to get it
+	 * Release Giant if we had to get it
 	 */
-	if (have_giant)
+	if (mtx_owned(&Giant))
 		mtx_exit(&Giant, MTX_DEF);
 
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 #ifdef WITNESS
 	if (witness_list(p)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}
 #endif
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 void
@@ -1248,64 +1249,38 @@ ast(frame)
 	struct proc *p = CURPROC;
 	u_quad_t sticks;
 
-	/*
-	 * handle atomicy by looping since interrupts are enabled and the 
-	 * MP lock is not held.
-	 */
-	sticks = ((volatile struct proc *)p)->p_sticks;	
-	while (sticks != ((volatile struct proc *)p)->p_sticks)
-		sticks = ((volatile struct proc *)p)->p_sticks;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	sticks = p->p_sticks;
 	
 	astoff();
 	atomic_add_int(&cnt.v_soft, 1);
-	if (p->p_flag & P_OWEUPC) {
+	if (p->p_sflag & PS_OWEUPC) {
+		p->p_sflag &= ~PS_OWEUPC;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		mtx_enter(&Giant, MTX_DEF);
-		p->p_flag &= ~P_OWEUPC;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
-	if (p->p_flag & P_ALRMPEND) {
+	if (p->p_sflag & PS_ALRMPEND) {
+		p->p_sflag &= ~PS_ALRMPEND;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-		p->p_flag &= ~P_ALRMPEND;
 		psignal(p, SIGVTALRM);
+		mtx_enter(&sched_lock, MTX_SPIN);
 	}
-	if (p->p_flag & P_PROFPEND) {
+	if (p->p_sflag & PS_PROFPEND) {
+		p->p_sflag &= ~PS_PROFPEND;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if (!mtx_owned(&Giant))
 			mtx_enter(&Giant, MTX_DEF);
-		p->p_flag &= ~P_PROFPEND;
 		psignal(p, SIGPROF);
-	}
-	if (userret(p, &frame, sticks, mtx_owned(&Giant)) != 0)
-		mtx_exit(&Giant, MTX_DEF);
-}
+	} else
+		mtx_exit(&sched_lock, MTX_SPIN);
+	
+	userret(p, &frame, sticks);
 
-/*
- * Simplified back end of syscall(), used when returning from fork()
- * directly into user mode.  Giant is not held on entry, and must not
- * be held on return.
- */
-void
-fork_return(p, frame)
-	struct proc *p;
-	struct trapframe frame;
-{
-	int	have_giant;
-
-	frame.tf_eax = 0;		/* Child returns zero */
-	frame.tf_eflags &= ~PSL_C;	/* success */
-	frame.tf_edx = 1;
-
-	have_giant = userret(p, &frame, 0, mtx_owned(&Giant));
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (have_giant == 0) {
-			mtx_enter(&Giant, MTX_DEF);
-			have_giant = 1;
-		}
-		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
-	}
-#endif
-	if (have_giant)
+	if (mtx_owned(&Giant))
 		mtx_exit(&Giant, MTX_DEF);
 }
