@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.47 1997/05/10 01:22:15 brian Exp $
+ * $Id: main.c,v 1.48 1997/05/10 03:39:53 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -168,11 +168,10 @@ int excode;
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
-  if (mode & (MODE_AUTO | MODE_BACKGROUND)) {
+  if (mode & (MODE_AUTO | MODE_BACKGROUND))
     DeleteIfRoutes(1);
-    unlink(pid_filename);
-    unlink(if_filename);
-  }
+  (void)unlink(pid_filename);
+  (void)unlink(if_filename);
   OsInterfaceDown(1);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
@@ -188,6 +187,7 @@ int excode;
     close(server);
     server = -1;
   }
+
   TtyOldMode();
 
   exit(excode);
@@ -306,6 +306,7 @@ main(argc, argv)
 int argc;
 char **argv;
 {
+  FILE *lockfile;
   argc--; argv++;
 
   mode = MODE_INTER;		/* default operation is interactive mode */
@@ -432,7 +433,6 @@ char **argv;
 
     DupLog();
     if (!(mode & MODE_DIRECT)) {
-      FILE *lockfile;
       pid_t bgpid;
 
       bgpid = fork ();
@@ -458,27 +458,28 @@ char **argv;
         exit(c);
       } else if (mode & MODE_BACKGROUND)
           close(BGFiledes[0]);
-
-      snprintf(pid_filename, sizeof (pid_filename), "%s/tun%d.pid",
-		  _PATH_VARRUN, tunno);
-      unlink(pid_filename);
-
-      if ((lockfile = fopen(pid_filename, "w")) != NULL)
-      {
-          fprintf(lockfile, "%d\n", (int)getpid());
-	  fclose(lockfile);
-      }
-
-      snprintf(if_filename, sizeof if_filename, "%s%s.if",
-               _PATH_VARRUN, VarBaseDevice);
-      unlink(if_filename);
-
-      if ((lockfile = fopen(if_filename, "w")) != NULL)
-      {
-          fprintf(lockfile, "tun%d\n", tunno);
-	  fclose(lockfile);
-      }
     }
+
+    snprintf(pid_filename, sizeof (pid_filename), "%s/tun%d.pid",
+             _PATH_VARRUN, tunno);
+    (void)unlink(pid_filename);
+
+    if ((lockfile = fopen(pid_filename, "w")) != NULL) {
+      fprintf(lockfile, "%d\n", (int)getpid());
+      fclose(lockfile);
+    } else
+      logprintf("Warning: Can't create %s: %s\n", pid_filename, strerror(errno));
+
+    snprintf(if_filename, sizeof if_filename, "%s%s.if",
+             _PATH_VARRUN, VarBaseDevice);
+    (void)unlink(if_filename);
+
+    if ((lockfile = fopen(if_filename, "w")) != NULL) {
+      fprintf(lockfile, "tun%d\n", tunno);
+      fclose(lockfile);
+    } else
+      logprintf("Warning: Can't create %s: %s\n", if_filename, strerror(errno));
+
     if (server >= 0)
 	LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
