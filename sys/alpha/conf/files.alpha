@@ -86,16 +86,26 @@ alpha/tlsb/kftxx.c		optional	kft
 alpha/tlsb/mcclock_tlsb.c	optional	gbus
 alpha/tlsb/zs_tlsb.c		optional	gbus
 alpha/tlsb/dwlpx.c		optional	dwlpx
-alpha/tc/tcasic.c		optional	tcasic
-alpha/tc/tc.c			optional	tc
-alpha/tc/ioasic.c		optional	tc
-alpha/tc/mcclock_ioasic.c	optional	tc
-alpha/tc/if_le_ioasic.c		optional	le
-alpha/tc/if_le_dec.c		optional	le
-alpha/tc/am7990.c		optional	le
-alpha/tc/tcds.c			optional	tcds
-alpha/tc/tcds_dma.c		optional	tcds
-alpha/tc/esp.c			optional	esp
+alpha/tc/tcasic.c		optional	dec_3000_300
+alpha/tc/tcasic.c		optional	dec_3000_500
+alpha/tc/tc.c			optional	dec_3000_300
+alpha/tc/tc.c			optional	dec_3000_500
+alpha/tc/ioasic.c		optional	dec_3000_300
+alpha/tc/ioasic.c		optional	dec_3000_500
+alpha/tc/mcclock_ioasic.c	optional	dec_3000_300
+alpha/tc/mcclock_ioasic.c	optional	dec_3000_500
+alpha/tc/if_le_ioasic.c		optional	le dec_3000_300
+alpha/tc/if_le_ioasic.c		optional	le dec_3000_500
+alpha/tc/if_le_dec.c		optional	le dec_3000_300
+alpha/tc/if_le_dec.c		optional	le dec_3000_500
+alpha/tc/am7990.c		optional	le dec_3000_300
+alpha/tc/am7990.c		optional	le dec_3000_500
+alpha/tc/tcds.c			optional	esp dec_3000_300
+alpha/tc/tcds.c			optional	esp dec_3000_500
+alpha/tc/tcds_dma.c		optional	tcds dec_3000_300
+alpha/tc/tcds_dma.c		optional	tcds dec_3000_500
+alpha/tc/esp.c			optional	esp dec_3000_300
+alpha/tc/esp.c			optional	esp dec_3000_500
 dev/dec/mcclock.c		optional	mcclock
 mcclock_if.o			optional	mcclock			\
 	dependency	"mcclock_if.c"					\
@@ -115,17 +125,26 @@ alpha/alpha/elf_machdep.c	standard
 alpha/isa/isa.c			optional	isa
 alpha/isa/isa_dma.c		optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
-alpha/pci/apecs.c		optional	apecs
-alpha/pci/apecs_pci.c		optional	apecs
-alpha/pci/cia.c			optional	cia
-alpha/pci/cia_pci.c		optional	cia
-alpha/pci/lca.c			optional	lca
-alpha/pci/lca_pci.c		optional	lca
-alpha/pci/pci_eb164_intr.s	optional	cia
-alpha/pci/pci_eb64plus_intr.s	optional	apecs
+alpha/pci/apecs.c		optional	dec_2100_a50
+alpha/pci/apecs.c		optional	dec_eb64plus
+alpha/pci/apecs_pci.c		optional	dec_2100_a50
+alpha/pci/apecs_pci.c		optional	dec_eb64plus
+alpha/pci/cia.c			optional	dec_eb164
+alpha/pci/cia.c			optional	dec_kn20aa
+alpha/pci/cia.c			optional	dec_st550
+alpha/pci/cia_pci.c		optional	dec_eb164
+alpha/pci/cia_pci.c		optional	dec_kn20aa
+alpha/pci/cia_pci.c		optional	dec_st550
+alpha/pci/lca.c			optional	dec_axppci_33
+alpha/pci/lca_pci.c		optional	dec_axppci_33
+alpha/pci/pci_eb164_intr.s	optional	dec_eb164
+alpha/pci/pci_eb164_intr.s	optional	dec_kn20aa
+alpha/pci/pci_eb164_intr.s	optional	dec_st550
+alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
+alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
-alpha/pci/tsunami.c		optional	tsunami
-alpha/pci/tsunami_pci.c		optional	tsunami
+alpha/pci/tsunami.c		optional	dec_st6600
+alpha/pci/tsunami_pci.c		optional	dec_st6600
 dev/ata/ata-all.c		optional	ata
 dev/ata/ata-disk.c		optional	atadisk
 dev/ata/ata-dma.c		optional	ata
