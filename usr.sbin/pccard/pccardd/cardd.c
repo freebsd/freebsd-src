@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.8 1996/04/18 04:25:11 nate Exp $
+ * $Id: cardd.c,v 1.9 1996/04/23 16:46:48 nate Exp $
  */
 
 #include <stdio.h>
@@ -156,18 +156,6 @@ dump_config_file(void)
 			pr_cmd(cp->remove);
 		}
 	}
-#if 0
-	for (devp = devlist; devp; devp = devp->next) {
-		if (devp->insert) {
-			printf("Insert commands are:\n");
-			pr_cmd(devp->insert);
-		}
-		if (devp->remove) {
-			printf("Remove commands are:\n");
-			pr_cmd(devp->remove);
-		}
-	}
-#endif
 }
 
 void
