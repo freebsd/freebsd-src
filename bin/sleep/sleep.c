@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 void usage(void);
 
@@ -59,25 +59,15 @@ main(int argc, char *argv[])
 {
 	struct timespec time_to_sleep;
 	long l;
-	int ch, neg;
+	int neg;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch(ch) {
-		case '?':
-		default:
-			usage();
-			/* NOTREACHED */
-		}
-	argc -= optind;
-	argv += optind;
-
-	if (argc != 1) {
+	if (argc != 2) {
 		usage();
 		/* NOTREACHED */
 	}
 
-	p = argv[0];
+	p = argv[1];
 
 	/* Skip over leading whitespaces. */
 	while (isspace((unsigned char)*p))
@@ -88,6 +78,9 @@ main(int argc, char *argv[])
 	if (*p == '-') {
 		neg = 1;
 		++p;
+		if (!isdigit((unsigned char)*p) && *p != '.')
+			usage();
+			/* NOTREACHED */
 	}
 	else if (*p == '+')
 		++p;
@@ -128,7 +121,8 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
+	const char *msg = "usage: sleep seconds\n";
 
-	(void)fprintf(stderr, "usage: sleep seconds\n");
+	write(STDERR_FILENO, msg, strlen(msg));
 	exit(1);
 }
