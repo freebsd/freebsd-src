@@ -96,7 +96,7 @@ fdesc_mount(mp, ndp, td)
 	vfs_getnewfsid(mp);
 
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy("fdesc", mp->mnt_stat.f_mntfromname, sizeof("fdesc"));
+	bcopy("fdescfs", mp->mnt_stat.f_mntfromname, sizeof("fdescfs"));
 	(void)fdesc_statfs(mp, &mp->mnt_stat, td);
 	return (0);
 }
