@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ucred.h	8.2 (Berkeley) 1/4/94
- * $Id: ucred.h,v 1.3 1994/08/18 22:35:51 wollman Exp $
+ * $Id: ucred.h,v 1.4 1994/10/08 22:23:00 phk Exp $
  */
 
 #ifndef _SYS_UCRED_H_
@@ -56,7 +56,7 @@ struct ucred *crget(void);
 struct ucred *crcopy(struct ucred *);
 struct ucred *crdup(struct ucred *);
 extern void crfree(struct ucred *);
-extern int suser(struct ucred *, short *);
+extern int suser(struct ucred *, u_short *);
 int	groupmember __P((gid_t, struct ucred *));
 
 #endif /* KERNEL */

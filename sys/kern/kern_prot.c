@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.4 1994/09/25 19:33:41 phk Exp $
+ * $Id: kern_prot.c,v 1.5 1994/10/13 20:59:49 sos Exp $
  */
 
 /*
@@ -469,7 +469,7 @@ groupmember(gid, cred)
 int
 suser(cred, acflag)
 	struct ucred *cred;
-	short *acflag;
+	u_short *acflag;
 {
 	if (cred->cr_uid == 0) {
 		if (acflag)
