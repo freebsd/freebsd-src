@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
-.\"	$Id: err.3,v 1.6 1997/02/22 14:58:02 peter Exp $
+.\"	$Id: err.3,v 1.7 1997/03/19 00:43:13 bde Exp $
 .\"
 .Dd April 13, 1995
 .Dt ERR 3
@@ -83,18 +83,19 @@ In all cases, the last component of the program name, a colon character,
 and a space are output.
 If the
 .Va fmt
-argument is not NULL, the formatted error message, a colon character,
-and a space are output.
+argument is not NULL, the formatted error message is output.
 In the case of the
 .Fn err ,
 .Fn verr ,
 .Fn warn ,
 and
 .Fn vwarn
-functions, the error message string affiliated with the current value of
+functions,
+the error message string affiliated with the current value of
 the global variable
 .Va errno 
-is output.
+is also output,
+preceded by another colon and space if necessary.
 In all cases, the output is followed by a newline character.
 .Pp
 The
