@@ -1,17 +1,24 @@
 # $FreeBSD$
 
-# Set default baseline values of CPUTYPE based on MACHINE_ARCH -- this is
-# the minimum CPU type we support for each architecture
+# Set default CPU compile flags and baseline CPUTYPE for each arch.  The
+# compile flags must support the minimum CPU type for each architecture but
+# may tune support for more advanced processors.
 
+.if !defined(CPUTYPE)
 .if ${MACHINE_ARCH} == "i386"
-CPUTYPE ?= i386
+_CPUCFLAGS = -mcpu=pentiumpro
+CPUTYPE = i386
 .elif ${MACHINE_ARCH} == "alpha"
-CPUTYPE ?= ev5
+_CPUCFLAGS = -mcpu=ev4 -mtune=ev5
+CPUTYPE = ev4
 .elif ${MACHINE_ARCH} == "ia64"
-CPUTYPE ?= itanium
+_CPUCFLAGS =
+CPUTYPE = itanium
 .elif ${MACHINE_ARCH} == "sparc64"
-CPUTYPE ?= ultrasparc
+_CPUCFLAGS =
+CPUTYPE = ultrasparc
 .endif
+.else
 
 # Handle aliases (not documented in make.conf to avoid user confusion
 # between e.g. i586 and pentium)
@@ -78,6 +85,7 @@ _CPUCFLAGS = -mcpu=ev4		# No -mcpu=ev45 for gcc
 _CPUCFLAGS = -mcpu=ev4
 .  endif
 . endif
+.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
