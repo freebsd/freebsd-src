@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/file.h>
@@ -177,9 +178,11 @@ struct	ubsa_softc {
 
 	u_char			sc_lsr;		/* Local status register */
 	u_char			sc_msr;		/* ubsa status register */
+	void			*sc_swicookie;
 };
 
 Static	void ubsa_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+Static	void ubsa_notify(void *);
 
 Static	void ubsa_get_status(void *, int, u_char *, u_char *);
 Static	void ubsa_set(void *, int, int, int);
@@ -246,6 +249,8 @@ DRIVER_MODULE(ubsa, uhub, ubsa_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_DEPEND(ubsa, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(ubsa, UBSA_MODVER);
+
+static struct ithd *ucom_ithd;
 
 USB_MATCH(ubsa)
 {
@@ -401,6 +406,9 @@ USB_ATTACH(ubsa)
 	DPRINTF(("ubsa: in = 0x%x, out = 0x%x, intr = 0x%x\n",
 	    ucom->sc_bulkin_no, ucom->sc_bulkout_no, sc->sc_intr_number));
 
+	swi_add(&ucom_ithd, "ucom", ubsa_notify, sc, SWI_TTY, 0,
+	    &sc->sc_swicookie);
+ 
 	ucom_attach(ucom);
 
 	free(devinfo, M_USBDEV);
@@ -429,6 +437,8 @@ USB_DETACH(ubsa)
 	sc->sc_ucom.sc_dying = 1;
 
 	rv = ucom_detach(&sc->sc_ucom);
+
+	ithread_remove_handler(sc->sc_swicookie);
 
 	return (rv);
 }
@@ -721,6 +731,16 @@ ubsa_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	DPRINTF(("%s: ubsa lsr = 0x%02x, msr = 0x%02x\n",
 	    USBDEVNAME(sc->sc_ucom.sc_dev), sc->sc_lsr, sc->sc_msr));
 
+	swi_sched(sc->sc_swicookie, 0);
+}
+
+/* Handle delayed events. */
+Static void
+ubsa_notify(void *arg)
+{
+	struct ubsa_softc *sc;
+
+	sc = arg;
 	ucom_status_change(&sc->sc_ucom);
 }
 
