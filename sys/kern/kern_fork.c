@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.45 1997/07/06 02:40:41 dyson Exp $
+ * $Id: kern_fork.c,v 1.46 1997/08/22 15:10:00 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -457,7 +457,8 @@ again:
  * Returns 0 on success or a standard error number.
  */
 int
-at_fork(forklist_fn function)
+at_fork(function)
+	forklist_fn function;
 {
 	fle_p ep;
 
@@ -479,7 +480,8 @@ at_fork(forklist_fn function)
  * Theoretically this value can only be 0 or 1.
  */
 int
-rm_at_fork(forklist_fn function)
+rm_at_fork(function)
+	forklist_fn function;
 {
 	fle_p *epp, ep;
 	int count;
@@ -499,5 +501,3 @@ rm_at_fork(forklist_fn function)
 	}
 	return (count);
 }
-
-
