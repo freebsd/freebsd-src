@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.21 1998/06/27 02:01:25 jdp Exp $
+ * $Id: write_disk.c,v 1.22 1998/09/30 21:40:51 jkh Exp $
  *
  */
 
@@ -38,17 +38,25 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	int i,j;
 	void *p;
 	u_char buf[BBSIZE];
+#ifdef __alpha__
+	u_long *lp, sum;
+#endif
 
 	for(i=0;i<BBSIZE/512;i++) {
 		p = read_block(fd,WHERE(i + c1->offset,new));
 		memcpy(buf+512*i,p,512);
 		free(p);
 	}
+#if defined(__i386__)
 	if(new->boot1)
 		memcpy(buf,new->boot1,512);
 
 	if(new->boot2)
 		memcpy(buf+512,new->boot2,BBSIZE-512);
+#elif defined(__alpha__)
+	if(new->boot1)
+		memcpy(buf+512,new->boot1,BBSIZE-512);
+#endif
 
 	dl = (struct disklabel *) (buf+512*LABELSECTOR+LABELOFFSET);
 	memset(dl,0,sizeof *dl);
@@ -99,6 +107,15 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_magic = DISKMAGIC;
 	dl->d_magic2 = DISKMAGIC;
 	dl->d_checksum = dkcksum(dl);
+
+#ifdef __alpha__
+	/*
+	 * Generate the bootblock checksum for the SRM console.
+	 */
+	for (lp = (u_long *)buf, i = 0, sum = 0; i < 63; i++)
+	    sum += lp[i];
+	lp[63] = sum;
+#endif
 
 	for(i=0;i<BBSIZE/512;i++) {
 		write_block(fd,WHERE(i + c1->offset,new),buf+512*i);
