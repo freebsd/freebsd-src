@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.136 1996/04/03 17:13:57 phk Exp $
+#	$Id: Makefile,v 1.137 1996/06/25 18:05:58 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -30,6 +30,9 @@ PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
 COPYRIGHT=	COPYRIGHT
 FREEBSD=
 FREEBSD+=	${COPYRIGHT}
+
+# Sendmail configuration file for release
+SENDMAILCF?=	freebsd.cf
 
 # Compatibility stuff, remove those links
 LATIN1LINKS = \
@@ -94,6 +97,8 @@ distribution:
 	    ${DESTDIR}/var/log/messages
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/slip.log
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/log/ppp.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/wtmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
@@ -106,8 +111,8 @@ distribution:
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
 	    ${MAKE} objlink; \
-	    ${MAKE} freebsd.cf; \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/freebsd.cf \
+	    ${MAKE} ${SENDMAILCF}; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/${SENDMAILCF} \
 		${DESTDIR}/etc/sendmail.cf)
 	(cd ${.CURDIR}/..; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
