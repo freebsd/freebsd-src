@@ -632,7 +632,7 @@ release.9:
 	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
 .endif
@@ -703,7 +703,7 @@ release.10:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
-	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET_ARCH}/article.txt \
+	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
@@ -726,8 +726,8 @@ ftp.1:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
@@ -765,8 +765,8 @@ cdrom.1:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
