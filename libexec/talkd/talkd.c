@@ -66,6 +66,8 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
+#include "extern.h"
+
 CTL_MSG		request;
 CTL_RESPONSE	response;
 
@@ -78,13 +80,8 @@ char    hostname[MAXHOSTNAMELEN];
 #define TIMEOUT 30
 #define MAXIDLE 120
 
-void process_request __P((CTL_MSG *, CTL_RESPONSE *));
-void timeout();
-
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register CTL_MSG *mp = &request;
 	int cc;
@@ -130,7 +127,7 @@ main(argc, argv)
 }
 
 void
-timeout()
+timeout(int sig __unused)
 {
 	int save_errno = errno;
 

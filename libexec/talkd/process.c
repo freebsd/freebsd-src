@@ -60,23 +60,12 @@ static const char rcsid[] =
 #include <string.h>
 #include <syslog.h>
 
-int announce __P((CTL_MSG *, char *));
-int delete_invite __P((int));
-void do_announce __P((CTL_MSG *, CTL_RESPONSE *));
-CTL_MSG *find_request();
-CTL_MSG *find_match();
-int find_user __P((char *, char *));
-void insert_table __P((CTL_MSG *, CTL_RESPONSE *));
-int new_id __P((void));
-void print_request __P((char *, CTL_MSG *));
-void print_response __P((char *, CTL_RESPONSE *));
+#include "extern.h"
 
 void
-process_request(mp, rp)
-	register CTL_MSG *mp;
-	register CTL_RESPONSE *rp;
+process_request(CTL_MSG *mp, CTL_RESPONSE *rp)
 {
-	register CTL_MSG *ptr;
+	CTL_MSG *ptr;
 	extern int debug;
 	char *s;
 
@@ -151,9 +140,7 @@ process_request(mp, rp)
 }
 
 void
-do_announce(mp, rp)
-	register CTL_MSG *mp;
-	CTL_RESPONSE *rp;
+do_announce(CTL_MSG *mp, CTL_RESPONSE *rp)
 {
 	struct hostent *hp;
 	CTL_MSG *ptr;
@@ -199,8 +186,7 @@ do_announce(mp, rp)
  * Search utmp for the local user
  */
 int
-find_user(name, tty)
-	char *name, *tty;
+find_user(const char *name, char *tty)
 {
 	struct utmp ubuf;
 	int status;

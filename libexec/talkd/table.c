@@ -57,6 +57,8 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
+#include "extern.h"
+
 #define MAX_ID 16000	/* << 2^15 so I don't have sign troubles */
 
 #define NIL ((TABLE_ENTRY *)0)
@@ -74,23 +76,18 @@ struct table_entry {
 	TABLE_ENTRY *last;
 };
 
-TABLE_ENTRY *table = NIL;
+static void delete(TABLE_ENTRY *);
 
-void delete __P((TABLE_ENTRY *));
-CTL_MSG *find_request();
-CTL_MSG *find_match();
-int new_id __P((void));
-void print_request __P((char *, CTL_MSG *));
+TABLE_ENTRY *table = NIL;
 
 /*
  * Look in the table for an invitation that matches the current
  * request looking for an invitation
  */
 CTL_MSG *
-find_match(request)
-	register CTL_MSG *request;
+find_match(CTL_MSG *request)
 {
-	register TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr;
 	time_t current_time;
 
 	gettimeofday(&tp, &txp);
@@ -121,10 +118,9 @@ find_match(request)
  * one as find_match does
  */
 CTL_MSG *
-find_request(request)
-	register CTL_MSG *request;
+find_request(CTL_MSG *request)
 {
-	register TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr;
 	time_t current_time;
 
 	gettimeofday(&tp, &txp);
@@ -159,11 +155,9 @@ find_request(request)
 }
 
 void
-insert_table(request, response)
-	CTL_MSG *request;
-	CTL_RESPONSE *response;
+insert_table(CTL_MSG *request, CTL_RESPONSE *response)
 {
-	register TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr;
 	time_t current_time;
 
 	gettimeofday(&tp, &txp);
@@ -189,7 +183,7 @@ insert_table(request, response)
  * Generate a unique non-zero sequence number
  */
 int
-new_id()
+new_id(void)
 {
 	static int current_id = 0;
 
@@ -204,10 +198,9 @@ new_id()
  * Delete the invitation with id 'id_num'
  */
 int
-delete_invite(id_num)
-	int id_num;
+delete_invite(int id_num)
 {
-	register TABLE_ENTRY *ptr;
+	TABLE_ENTRY *ptr;
 
 	ptr = table;
 	if (debug)
@@ -228,9 +221,8 @@ delete_invite(id_num)
 /*
  * Classic delete from a double-linked list
  */
-void
-delete(ptr)
-	register TABLE_ENTRY *ptr;
+static void
+delete(TABLE_ENTRY *ptr)
 {
 
 	if (debug)
