@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.3 1994/08/21 05:27:27 paul Exp $
+ * $Id: in.h,v 1.4 1994/09/06 22:42:18 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -226,6 +226,7 @@ struct ip_mreq {
 #ifdef notyet
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
+#define IPCTL_RTEXPIRE		5	/* cloned route expiration time */
 #define	IPCTL_MAXID		5
 
 #define	IPCTL_NAMES { \
@@ -234,6 +235,7 @@ struct ip_mreq {
 	{ "redirect", CTLTYPE_INT }, \
 	{ "ttl", CTLTYPE_INT }, \
 	{ "mtu", CTLTYPE_INT }, \
+	{ "rtexpire", CTLTYPE_INT }, \
 }
 
 
@@ -247,3 +249,4 @@ void	 in_socktrim __P((struct sockaddr_in *));
 #endif
 
 #endif
+
