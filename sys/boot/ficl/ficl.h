@@ -857,9 +857,22 @@ extern unsigned int dictIncrease;
 extern int ficl_trace;
 #endif
 
+/*
+** Various FreeBSD goodies
+*/
+
 #if defined(__i386__) && !defined(TESTMAIN)
 extern void ficlOutb(FICL_VM *pVM);
 extern void ficlInb(FICL_VM *pVM);
+#endif
+
+#if !defined(TESTMAIN)
+extern void ficlSetenv(FICL_VM *pVM);
+extern void ficlSetenvq(FICL_VM *pVM);
+extern void ficlGetenv(FICL_VM *pVM);
+extern void ficlUnsetenv(FICL_VM *pVM);
+extern void ficlCopyin(FICL_VM *pVM);
+extern void ficlCopyout(FICL_VM *pVM);
 #endif
 
 #ifdef __cplusplus
