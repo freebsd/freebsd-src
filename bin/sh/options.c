@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.4 1995/08/06 19:35:33 joerg Exp $
+ *	$Id: options.c,v 1.5 1995/10/01 15:11:42 joerg Exp $
  */
 
 #ifndef lint
@@ -106,7 +106,7 @@ procargs(argc, argv)
 		commandname = arg0 = *argptr++;
 		setinputfile(commandname, 0);
 	}
-	if (minusc)
+	if (*argptr && minusc)
 		/* Posix.2: first arg after -c cmd is $0, remainder $1... */
 		arg0 = *argptr++;
 	shellparam.p = argptr;
