@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.38 1997/02/18 20:46:22 wollman Exp $
+ *	$Id: in_proto.c,v 1.39 1997/04/27 20:01:05 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -151,8 +151,9 @@ struct protosw inetsw[] = {
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
   div_input,	0,	 	0,		ip_ctloutput,
-  div_usrreq,
+  0,
   div_init,	0,		0,		0,
+  &div_usrreqs,
 },
 #endif
 #ifdef TPIP
