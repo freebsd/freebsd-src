@@ -101,6 +101,8 @@ exec_svr4_imgact(imgp)
     /* text + data can't exceed file size */
     if (a_out->a_data + a_out->a_text > imgp->attr->va_size)
 	return (EFAULT);
+    /* For p_rlimit below. */
+    mtx_assert(&Giant, MA_OWNED);
     /*
      * text/data/bss must not exceed limits
      */
