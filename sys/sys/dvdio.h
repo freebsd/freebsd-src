@@ -107,4 +107,4 @@ struct dvd_authinfo {
 #define DVDIOCSENDKEY		_IOWR('c', 201, struct dvd_authinfo)
 #define DVDIOCREADSTRUCTURE	_IOWR('c', 202, struct dvd_struct)
 
-#endif _SYS_DVDIO_H_
+#endif /* _SYS_DVDIO_H_ */
