@@ -72,11 +72,12 @@ struct 	vid_info info;
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CdLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
-"                  [-m on | off] [-M char] [-r foreground background] [-s num]",
-"                  [-t N | off] [mode] [foreground [background]] [show]");
+"                  [-M char] [-m on | off] [-r foreground background]",
+"                  [-S on | off] [-s number] [-t N | off] [mode]",
+"                  [foreground [background]] [show]");
 	exit(1);
 }
 
@@ -512,10 +513,27 @@ set_mouse(char *arg)
 	else if (!strcmp(arg, "off"))
 		mouse.operation = MOUSE_HIDE;
 	else {
-		warnx("argument to -m must either on or off");
+		warnx("argument to -m must be either on or off");
 		return;
 	}
 	ioctl(0, CONS_MOUSECTL, &mouse);
+}
+
+void
+set_lockswitch(char *arg)
+{
+	int data;
+
+	if (!strcmp(arg, "off"))
+		data = 0x01;
+	else if (!strcmp(arg, "on"))
+		data = 0x02;
+	else {
+		warnx("argument to -S must be either on or off");
+		return;
+	}
+	if (ioctl(0, VT_LOCKSWITCH, &data) == -1)
+		warn("ioctl(VT_LOCKSWITCH)");
 }
 
 static char
@@ -620,7 +638,7 @@ show_info(char *arg)
 	else if (!strcmp(arg, "mode"))
 		show_mode_info();
 	else {
-		warnx("argument to -i must either adapter or mode");
+		warnx("argument to -i must be either adapter or mode");
 		return;
 	}
 }
@@ -749,7 +767,7 @@ main(int argc, char **argv)
 		/* Not reached */
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:Cc:df:g:h:i:l:LM:m:pPr:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:Cc:df:g:h:i:l:LM:m:pPr:S:s:t:x")) != -1)
 		switch(opt) {
 		case 'b':
 			set_border_color(optarg);
@@ -805,6 +823,9 @@ main(int argc, char **argv)
 			break;
 		case 'r':
 			set_reverse_colors(argc, argv, &optind);
+			break;
+		case 'S':
+			set_lockswitch(optarg);
 			break;
 		case 's':
 			set_console(optarg);
