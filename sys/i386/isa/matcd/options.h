@@ -138,18 +138,6 @@
 #define LOCKDRIVE
 
 
-/*<5>	FREE2		If enabled, the changes are inserted so this
-<5>			module will compile in the world of FreeBSD 2.x.
-<5>			Without this, it is known to work in
-<14>			FreeBSD 1.1.5.1.   FREE2 should be set automatically
-<14>			by using the system version compile symbol below.
-<5>*/
-
-#if __FreeBSD__ >= 2
-#define	FREE2				/*<5>Correct setting for 2.x*/
-#endif /*__FreeBSD__*/
-
-
 /*<14>	KRYTEN		This enables a bug that someone might consider
 <14>			to be a feature.  If KRYTEN is enabled and you are
 <14>			playing audio and you issue the resume-play ioctl,
@@ -279,33 +267,6 @@ static int	port_hints[]={
 
 /*#define 	DEBUGPROBE*/
 
-
-/*	DIAGPORT	If enabled, additional code is added to send
-			debugging state to a debug port.   This should
-			not be enabled in production.  The value
-			can be set to 0x80 or 0x302, depending on what
-			type of debugging board you own.  The global variable
-			diagloop is used to make looping reports on these
-			devices.
-
-			Some other drivers (and possibly the kernel) fiddle
-			with the 0x80 debug port, so it may not be usable
-			for isolating failures that result in a kernel panic.
-			The 0x302 debug board is recommended in these cases.
-			It also displays a word of data, so you get more
-			detail.
-
-<10>			It was discovered the 0x302 board was getting set
-<10>			into a strange state by the probes for other
-<10>			devices.  To resolve this, the display control port
-<10>			(0x300) is reset in our probe and open routines.
-<10>			DO NOT use DIAGPORT 0x302 if an adapter is present
-<10>			at that address.  It could ruin the EEPROM settings
-<10>			on the device.
-*/
-
-/*#define DIAGPORT	0x80*/
-/*#define DIAGPORT	0x302*/
 
 /*End of options.h*/
 
