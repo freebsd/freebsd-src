@@ -172,13 +172,13 @@ looks like and which external variables are of interest.
 The following are defined as macros;
 these names may not be re-used
 without first removing their current definitions with
-.Dv #undef :
+.Ic #undef :
 .Dv BUFSIZ ,
 .Dv EOF ,
 .Dv FILENAME_MAX ,
 .Dv FOPEN_MAX ,
-.Dv L_cuserid ,
 .Dv L_ctermid ,
+.Dv L_cuserid ,
 .Dv L_tmpnam ,
 .Dv NULL ,
 .Dv P_tmpdir ,
@@ -190,12 +190,12 @@ without first removing their current definitions with
 .Dv feof_unlocked ,
 .Dv ferror_unlocked ,
 .Dv fileno_unlocked ,
+.Dv fropen ,
+.Dv fwopen ,
 .Dv getc_unlocked ,
 .Dv getchar_unlocked ,
 .Dv putc_unlocked ,
 .Dv putchar_unlocked ,
-.Dv fropen ,
-.Dv fwopen ,
 .Dv stderr ,
 .Dv stdin
 and
@@ -209,7 +209,7 @@ Function versions of the macro functions
 .Dv getchar_unlocked ,
 .Dv putc_unlocked
 and
-.Dv putchar_unlocked ,
+.Dv putchar_unlocked
 exist and will be used if the macro
 definitions are explicitly removed.
 .Sh SEE ALSO

@@ -342,8 +342,10 @@ file
 A process being started to service a line is exiting quickly
 each time it is started.
 This is often caused by a ringing or noisy terminal line.
-.Em "Init will sleep for 30 seconds" ,
-.Em "then continue trying to start the process" .
+.Bf -emphasis
+Init will sleep for 30 seconds,
+then continue trying to start the process.
+.Ef
 .It "some processes would not die; ps axl advised."
 A process
 is hung and could not be killed when the system was shutting down.
