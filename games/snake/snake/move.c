@@ -96,6 +96,7 @@ static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 7/19/93";
 #else
 #include <varargs.h>
 #endif
+#include <string.h>
 #include "snake.h"
 
 int CMlength;
