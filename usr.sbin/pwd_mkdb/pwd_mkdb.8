@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 28, 2005
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -36,10 +36,7 @@
 .Nd "generate the password databases"
 .Sh SYNOPSIS
 .Nm
-.Op Fl C
-.Op Fl N
-.Op Fl p
-.Op Fl i
+.Op Fl BCiLNp
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -64,10 +61,14 @@ different from the historic Version 7 style format.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
+.It Fl B
+Store data in big-endian format.
 .It Fl C
 Check if the password file is in the correct format.
 Do not
 change, add, or remove any files.
+.It Fl L
+Store data in little-endian format.
 .It Fl N
 Tell
 .Nm
