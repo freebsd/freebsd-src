@@ -45,9 +45,8 @@
  */
 struct globaldata {
 	struct thread	*gd_curthread;		/* current thread */
-	struct proc	*gd_idleproc;		/* idle process */
+	struct thread	*gd_idlethread;		/* idle thread */
 	struct thread	*gd_fpcurthread;	/* fp state owner */
-	struct proc	*gd_fpcurproc;		/* fp state owner */
 	struct pcb	*gd_curpcb;		/* current pcb */
 	struct timeval	gd_switchtime;	
 	int		gd_switchticks;
