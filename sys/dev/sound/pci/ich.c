@@ -41,6 +41,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ICH_DEFAULT_BUFSZ 16384
 #define ICH_MAX_BUFSZ 65536
 
+#define SIS7012ID       0x70121039      /* SiS 7012 needs special handling */
+
 /* buffer descriptor */
 struct ich_desc {
 	volatile u_int32_t buffer;
@@ -69,6 +71,7 @@ struct sc_info {
 	device_t dev;
 	int hasvra, hasvrm, hasmic;
 	unsigned int chnum, bufsz;
+	int sample_size, swap_reg;
 
 	struct resource *nambar, *nabmbar, *irq;
 	int nambarid, nabmbarid, irqid;
@@ -191,7 +194,8 @@ ich_filldtbl(struct sc_chinfo *ch)
 
 	for (i = 0; i < ICH_DTBL_LENGTH; i++) {
 		ch->dtbl[i].buffer = base + (ch->blksz * (i % ch->blkcnt));
-		ch->dtbl[i].length = ICH_BDC_IOC | (ch->blksz / 2);
+		ch->dtbl[i].length = ICH_BDC_IOC
+				   | (ch->blksz / ch->parent->sample_size);
 	}
 }
 
@@ -392,7 +396,9 @@ ich_intr(void *p)
 		if ((ch->imask & gs) == 0) 
 			continue;
 		gs &= ~ch->imask;
-		st = ich_rd(sc, ch->regbase + ICH_REG_X_SR, 2);
+		st = ich_rd(sc, ch->regbase + 
+				(sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
+			    2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
 		if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
 				/* block complete - update buffer */
@@ -414,7 +420,9 @@ ich_intr(void *p)
 
 		}
 		/* clear status bit */
-		ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
+		ich_wr(sc, ch->regbase + 
+			   (sc->swap_reg ? ICH_REG_X_PICB : ICH_REG_X_SR),
+		       st, 2);
 	}
 	if (gs != 0) {
 		device_printf(sc->dev, 
@@ -589,6 +597,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 82801CA (ICH3)");
 		return 0;
 
+	case SIS7012ID:
+		device_set_desc(dev, "SiS 7012");
+		return 0;
+
 	default:
 		return ENXIO;
 	}
@@ -609,6 +621,18 @@ ich_pci_attach(device_t dev)
 
 	bzero(sc, sizeof(*sc));
 	sc->dev = dev;
+
+	/*
+	 * The SiS 7012 register set isn't quite like the standard ich.
+	 * There really should be a general "quirks" mechanism.
+	 */
+	if (pci_get_devid(dev) == SIS7012ID) {
+		sc->swap_reg = 1;
+		sc->sample_size = 1;
+	} else {
+		sc->swap_reg = 0;
+		sc->sample_size = 2;
+	}
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
