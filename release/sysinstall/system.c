@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.12 1995/10/20 07:02:50 jkh Exp $
+ * $Id: system.c,v 1.44.2.13 1995/10/22 14:06:38 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -264,4 +264,39 @@ vsystem(char *fmt, ...)
 	msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
+}
+
+void
+systemCreateHoloshell(void)
+{
+    if (OnVTY) {
+	if (!fork()) {
+	    int i, fd;
+	    struct termios foo;
+	    extern int login_tty(int);
+	    
+	    for (i = 0; i < 64; i++)
+		close(i);
+	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
+	    ioctl(0, TIOCSCTTY, &fd);
+	    dup2(0, 1);
+	    dup2(0, 2);
+	    if (login_tty(fd) == -1)
+		msgDebug("Doctor: I can't set the controlling terminal.\n");
+	    signal(SIGTTOU, SIG_IGN);
+	    if (tcgetattr(fd, &foo) != -1) {
+		foo.c_cc[VERASE] = '\010';
+		if (tcsetattr(fd, TCSANOW, &foo) == -1)
+		    msgDebug("Doctor: I'm unable to set the erase character.\n");
+	    }
+	    else
+		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
+	    printf("Warning: This shell is chroot()'d to /mnt\n");
+	    execlp("sh", "-sh", 0);
+	    msgDebug("Was unable to execute sh for Holographic shell!\n");
+	    exit(1);
+	}
+	else
+	    msgNotify("Starting an emergency holographic shell on VTY4");
+    }
 }

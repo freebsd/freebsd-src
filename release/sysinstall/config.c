@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.23 1995/10/22 17:38:58 jkh Exp $
+ * $Id: config.c,v 1.16.2.24 1995/10/23 13:19:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,11 +233,13 @@ configFstab(void)
  * This sucks in /etc/sysconfig, substitutes anything needing substitution, then
  * writes it all back out.  It's pretty gross and needs re-writing at some point.
  */
+
+#define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 void
 configSysconfig(void)
 {
     FILE *fp;
-    char *lines[5001];	/* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
+    char *lines[MAX_LINES];
     char line[256];
     Variable *v;
     int i, nlines = 0;
@@ -249,27 +251,29 @@ configSysconfig(void)
 		   "rather strangely as a result of this.");
 	return;
     }
-    for (i = 0; i < 5000; i++) {
+    msgNotify("Constructing /etc/sysconfig file..");
+    for (i = 0; i < MAX_LINES; i++) {
 	if (!fgets(line, 255, fp))
 	    break;
 	lines[nlines++] = strdup(line);
     }
-    lines[nlines] = NULL;
     fclose(fp);
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
-	    char modify[256], *cp;
+	    char tmp[256];
+	    char *cp;
 
-	    if (lines[i][0] == '#' || lines[i][0] == ';')
+	    /* Skip the comments */
+	    if (lines[i][0] == '#')
 		continue;
-	    strncpy(modify, lines[i], 255);
-	    cp = index(modify, '=');
+	    strcpy(tmp, lines[i]);
+	    cp = index(tmp, '=');
 	    if (!cp)
 		continue;
 	    *(cp++) = '\0';
-	    if (!strcmp(modify, v->name)) {
+	    if (!strcmp(tmp, v->name)) {
 		free(lines[i]);
-		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 3);
+		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }
 
@@ -284,7 +288,6 @@ configSysconfig(void)
     }
     for (i = 0; i < nlines; i++) {
 	fprintf(fp, lines[i]);
-	free(lines[i]);
 
 	/* Stand by for bogus special case handling - we try to dump the interface specs here */
 	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
@@ -295,14 +298,15 @@ configSysconfig(void)
 	    cnt = deviceCount(devp);
 	    for (j = 0; j < cnt; j++) {
 		if (devp[j]->private) {
-		    char iname[64];
+		    char iname[255];
 
-		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
+		    snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
 		    if (variable_get(iname))
 			fprintf(fp, "%s=\"%s\"\n", iname, variable_get(iname));
 		}
 	    }
 	}
+	free(lines[i]);
     }
     fclose(fp);
 }
@@ -360,8 +364,16 @@ skip:
     /* Tack ourselves at the end of /etc/hosts */
     cp = variable_get(VAR_IPADDR);
     if (cp && *cp != '0' && variable_get(VAR_HOSTNAME)) {
+	char cp2[255];
+
 	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", cp, variable_get(VAR_HOSTNAME));
+	if (!index(cp, '.'))
+	    cp2[0] = '\0';
+	else {
+	    strcpy(cp2, cp);
+	    *(index(cp2, '.')) = '\0';
+	}
+	fprintf(fp, "%s\t\t%s %s\n", cp, variable_get(VAR_HOSTNAME), cp2);
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);

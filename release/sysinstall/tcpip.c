@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.11 1995/10/20 21:57:25 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.13 1995/10/22 21:38:26 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -183,7 +183,7 @@ tcpInstallDevice(char *str)
 	return RET_FAIL;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs && (dp = devs[0])) {
-	char temp[512], ifn[64];
+	char temp[512], ifn[255];
 
 	if (!dp->private) {
 	    DevInfo *di;
@@ -369,7 +369,8 @@ tcpOpenDialog(Device *devp)
 		domainname[strlen(tmp+1)] = '\0';
 		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
-	} else if (n == LAYOUT_IPADDR) {
+	}
+	else if (n == LAYOUT_IPADDR) {
 	    /* Insert a default value for the netmask, 0xffffff00 is
 	       the most appropriate one (entire class C, or subnetted
 	       class A/B network). */
@@ -378,7 +379,13 @@ tcpOpenDialog(Device *devp)
 		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
 	    }
 	}   
-
+	else if (n == LAYOUT_DOMAINNAME) {
+	    if (!index(hostname, '.') && domainname[0]) {
+		strcat(hostname, ".");
+		strcat(hostname, domainname);
+		RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
+	    }
+	}
 	/* Handle special case stuff that libdialog misses. Sigh */
 	switch (ret) {
 	    /* Bail out */
@@ -471,7 +478,7 @@ tcpOpenDialog(Device *devp)
 
     if (!cancel) {
 	DevInfo *di;
-	char temp[512], ifn[64];
+	char temp[512], ifn[255];
 	char *ifaces;
 
 	variable_set2(VAR_HOSTNAME, hostname);

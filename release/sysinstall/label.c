@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.22 1995/10/22 17:39:17 jkh Exp $
+ * $Id: label.c,v 1.32.2.23 1995/10/24 02:18:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -444,34 +444,36 @@ scriptLabel(char *str)
 		    continue;
 		}
 		else {
+		    Chunk *tmp;
+
+		    if (!strcmp(typ, "swap")) {
+			type = PART_SWAP;
+			strcpy(mpoint, "<swap>");
+		    }
+		    else {
+			type = PART_FILESYSTEM;
+			if (!strcmp(mpoint, "/"))
+			    flags |= CHUNK_IS_ROOT;
+		    }
 		    if (!sz)
 			sz = space_free(c1);
-		    if (sz < space_free(c1)) {
+		    if (sz > space_free(c1)) {
 			dialog_clear();
 			msgConfirm("Not enough free space to create partition: %s", mpoint);
 			status = RET_FAIL;
 			continue;
 		    }
-		    if (!strcmp(typ, "swap"))
-			type = PART_SWAP;
-		    else {
-			type = PART_FILESYSTEM;
-			if (c1->private) {
-			    p = (PartInfo *)c1->private;
-			    strcpy(p->mountpoint, mpoint);
-			}
-			else {
-			    p = c1->private = new_part(mpoint, TRUE, sz);
-			    c1->private_free = safe_free;
-			}
-			if (!strcmp(mpoint, "/"))
-			    flags |= CHUNK_IS_ROOT;
-		    }
-		    if (!Create_Chunk_DWIM(d, c1, sz, part, (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags)) {
+		    if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
+						  (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
 			dialog_clear();
 			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
 			status = RET_FAIL;
 			break;
+		    }
+		    else {
+			tmp->private = new_part(mpoint, TRUE, sz);
+			tmp->private_free = safe_free;
+			status = RET_SUCCESS;
 		    }
 		}
 	    }
@@ -497,7 +499,7 @@ scriptLabel(char *str)
 		    strcpy(p->mountpoint, mpoint);
 		}
 		else {
-		    p = c1->private = new_part(mpoint, newfs, 0);
+		    c1->private = new_part(mpoint, newfs, 0);
 		    c1->private_free = safe_free;
 		}
 		if (!strcmp(mpoint, "/"))
@@ -652,6 +654,7 @@ diskLabel(char *str)
 	print_command_summary();
 	if (msg) {
 	    attrset(A_REVERSE); mvprintw(23, 0, msg); attrset(A_NORMAL);
+	    clrtoeol();
 	    beep();
 	    msg = NULL;
 	}
@@ -717,7 +720,7 @@ diskLabel(char *str)
 	    
 	    sz = space_free(label_chunk_info[here].c);
 	    if (sz <= FS_MIN_SIZE) {
-		msg = "Not enough space to create additional FreeBSD partition";
+		msg = "Not enough space to create an additional FreeBSD partition";
 		break;
 	    }
 	{

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.32 1995/10/22 21:38:14 jkh Exp $
+ * $Id: menus.c,v 1.42.2.33 1995/10/23 13:19:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,11 +60,11 @@ first character of the option name you're interested in.  Invoke an\n\
 option by pressing [ENTER].",		/* prompt */
     "Press F1 for usage instructions",			/* help line */
     "usage",						/* help file */
-{ { "Usage",		"Quick start - How to use this menu system.",		/* U */
+{ { "Usage",		"Quick start - How to use this menu system",		/* U */
 	DMENU_DISPLAY_FILE,	"usage", 0, 0			},
-  { "Doc",			"More detailed documentation on FreeBSD.",	/* D */
+  { "Doc",			"More detailed documentation on FreeBSD",	/* D */
 	DMENU_SUBMENU,		&MenuDocumentation, 0, 0	},
-  { "Options",			"Go to options editor.",			/* O */
+  { "Options",			"Go to options editor",				/* O */
 	DMENU_CALL,		optionsEditor, 0, 0		},
   { "Express",			"Begin a quick installation",			/* E */
 	DMENU_CALL,		installExpress, 0, 0		},
@@ -155,7 +155,7 @@ DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Please select the site closest to you or \"other\" if you'd like to\n\
 specify a different choice.  Also note that not every site listed here\n\
 carries more than the base distribution kits. Only the Primary site is\n\
-guaranteed to carry the full range of distributions.",
+guaranteed to carry the full range of possible distributions.",
 "Select a site that's close!",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
@@ -295,9 +295,9 @@ media.",
 	DMENU_CALL,	mediaSetUFS, 0, 0		},
   { "Floppy",	"Install from a floppy disk set",
 	DMENU_CALL,	mediaSetFloppy, 0, 0		},
-  { "FTP Active",	"Install from an FTP server in active mode",
+  { "FTP",		"Install from an FTP server",
 	DMENU_CALL,	mediaSetFTPActive, 0, 0		},
-  { "FTP Passive",	"Install from an FTP server in passive mode",
+  { "FTP Passive",	"Install from an FTP server through a firewall",
 	DMENU_CALL,	mediaSetFTPPassive, 0, 0	},
   { "NFS",		"Install over NFS",
 	DMENU_CALL,	mediaSetNFS, 0, 0		},

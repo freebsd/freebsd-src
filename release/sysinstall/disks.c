@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.23 1995/10/22 12:04:03 jkh Exp $
+ * $Id: disks.c,v 1.31.2.25 1995/10/22 17:39:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -195,7 +195,7 @@ scriptPartition(Device *dev, Disk *d)
 	    }
 	    if (!chunk_info[i]) {
 		dialog_clear();
-		msgConfirm("Unable to find any existing FreeBSD partitons on this disk!");
+		msgConfirm("Unable to find any existing FreeBSD partitions on this disk!");
 		return;
 	    }
 	}

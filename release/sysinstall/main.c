@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.7 1995/10/19 15:55:11 jkh Exp $
+ * $Id: main.c,v 1.13.2.8 1995/10/20 14:24:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,24 @@
 
 #include "sysinstall.h"
 #include <stdio.h>
+#include <sys/signal.h>
+
+static void
+screech(int sig)
+{
+    fprintf(stderr, "\007Fatal signal %d caught!  I'm dead..\n", sig);
+    pause();
+}
 
 int
 main(int argc, char **argv)
 {
     int choice, scroll, curr, max;
 
+    if (getpid() == 1) {
+	signal(SIGBUS, screech);
+	signal(SIGSEGV, screech);
+    }
     if (geteuid() != 0) {
 	fprintf(stderr, "Warning:  This utility should be run as root.\n");
 	sleep(1);

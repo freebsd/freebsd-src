@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.54 1995/10/24 02:17:52 jkh Exp $
+ * $Id: install.c,v 1.71.2.55 1995/10/25 21:18:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -161,18 +161,18 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
     return status;
 }
 
-static Boolean
+static int
 installInitial(void)
 {
     static Boolean alreadyDone = FALSE;
 
     if (alreadyDone)
-	return TRUE;
+	return RET_SUCCESS;
 
     if (!variable_get(DISK_LABELLED)) {
 	dialog_clear();
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
-	return FALSE;
+	return RET_FAIL;
     }
     /* If it's labelled, assume it's also partitioned */
     if (!variable_get(DISK_PARTITIONED))
@@ -185,63 +185,35 @@ installInitial(void)
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 		 "proceeding!\n\n"
 		 "We can take no responsibility for lost disk contents!"))
-	return FALSE;
+	return RET_FAIL;
 
     if (diskLabelCommit(NULL) != RET_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
-	return FALSE;
+	return RET_FAIL;
     }
 
     if (!copy_self()) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
-	return FALSE;
+	return RET_FAIL;
     }
 
     dialog_clear();
     if (chroot("/mnt") == -1) {
 	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - this is bad!");
-	return FALSE;
+	return RET_FAIL;
     }
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
-    /* stick a helpful shell over on the 4th VTY */
-    if (OnVTY) {
-	if (!fork()) {
-	    int i, fd;
-	    struct termios foo;
-	    extern int login_tty(int);
 
-	    for (i = 0; i < 64; i++)
-		close(i);
-	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
-	    ioctl(0, TIOCSCTTY, &fd);
-	    dup2(0, 1);
-	    dup2(0, 2);
-	    if (login_tty(fd) == -1)
-		msgDebug("Doctor: I can't set the controlling terminal.\n");
-	    signal(SIGTTOU, SIG_IGN);
-	    if (tcgetattr(fd, &foo) != -1) {
-		foo.c_cc[VERASE] = '\010';
-		if (tcsetattr(fd, TCSANOW, &foo) == -1)
-		    msgDebug("Doctor: I'm unable to set the erase character.\n");
-	    }
-	    else
-		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
-	    printf("Warning: This shell is chroot()'d to /mnt\n");
-	    execlp("sh", "-sh", 0);
-	    msgDebug("Was unable to execute sh for Holographic shell!\n");
-	    exit(1);
-	}
-	else
-	    msgNotify("Starting an emergency holographic shell on VTY4");
-    }
+    /* stick a helpful shell over on the 4th VTY */
+    systemCreateHoloshell();
     alreadyDone = TRUE;
-    return TRUE;
+    return RET_SUCCESS;
 }
 
 int
@@ -360,12 +332,12 @@ installExpress(char *str)
 		       "unselected as a result.", VAR_DIST_SETS);
 	}
     }
-    else {
+    if (!Dists) {
 	dialog_clear();
-	msgConfirm("Now it is time to select an installation subset.  There are a number of canned\n"
-		   "distributions, ranging from minimal installation sets to full X developer\n"
-		   "oriented configurations.  You can also select a custom software set if none\n"
-		   "of the provided configurations are suitable.");
+	msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
+		   "canned distribution sets, ranging from minimal installation sets to full\n"
+		   "X11 developer oriented configurations.  You can also select a custom set\n"
+		   "of distributions if none of the provided ones are suitable.");
 	while (1) {
 	    if (!dmenuOpenSimple(&MenuDistributions))
 		return RET_FAIL;
