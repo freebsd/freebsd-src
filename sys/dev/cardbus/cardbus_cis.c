@@ -49,11 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
+
 #include <dev/cardbus/cardbusreg.h>
 #include <dev/cardbus/cardbusvar.h>
 #include <dev/cardbus/cardbus_cis.h>
-
-#include <dev/pccard/pccardvar.h>
 
 extern int cardbus_cis_debug;
 
@@ -676,12 +677,6 @@ decode_tuple(device_t cbdev, device_t child, int tupleid, int len,
 			return (callbacks[i].func(cbdev, child, tupleid, len,
 			    tupledata, start, off, &callbacks[i]));
 	}
-
-	if (tupleid < CISTPL_CUSTOMSTART) {
-		device_printf(cbdev, "Undefined tuple encountered, "
-		    "CIS parsing terminated\n");
-		return (EINVAL);
-	}
 	return (callbacks[i].func(cbdev, child, tupleid, len,
 	    tupledata, start, off, NULL));
 }
@@ -1019,43 +1014,17 @@ cardbus_do_cis(device_t cbdev, device_t child)
 {
 	int ret;
 	struct tuple_callbacks init_callbacks[] = {
-		MAKETUPLE(NULL,			generic),
-		MAKETUPLE(DEVICE,		generic),
-		MAKETUPLE(LONG_LINK_CB,		unhandled),
+		MAKETUPLE(LONGLINK_CB,		unhandled),
 		MAKETUPLE(INDIRECT,		unhandled),
-		MAKETUPLE(CONFIG_CB,		generic),
-		MAKETUPLE(CFTABLE_ENTRY_CB,	generic),
 		MAKETUPLE(LONGLINK_MFC,		unhandled),
 		MAKETUPLE(BAR,			bar),
-		MAKETUPLE(PWR_MGMNT,		generic),
-		MAKETUPLE(EXTDEVICE,		generic),
-		MAKETUPLE(CHECKSUM,		generic),
 		MAKETUPLE(LONGLINK_A,		unhandled),
 		MAKETUPLE(LONGLINK_C,		unhandled),
 		MAKETUPLE(LINKTARGET,		linktarget),
-		MAKETUPLE(NO_LINK,		generic),
 		MAKETUPLE(VERS_1,		vers_1),
-		MAKETUPLE(ALTSTR,		generic),
-		MAKETUPLE(DEVICE_A,		generic),
-		MAKETUPLE(JEDEC_C,		generic),
-		MAKETUPLE(JEDEC_A,		generic),
-		MAKETUPLE(CONFIG,		generic),
-		MAKETUPLE(CFTABLE_ENTRY,	generic),
-		MAKETUPLE(DEVICE_OC,		generic),
-		MAKETUPLE(DEVICE_OA,		generic),
-		MAKETUPLE(DEVICE_GEO,		generic),
-		MAKETUPLE(DEVICE_GEO_A,		generic),
 		MAKETUPLE(MANFID,		manfid),
 		MAKETUPLE(FUNCID,		funcid),
 		MAKETUPLE(FUNCE,		funce),
-		MAKETUPLE(SWIL,			generic),
-		MAKETUPLE(VERS_2,		generic),
-		MAKETUPLE(FORMAT,		generic),
-		MAKETUPLE(GEOMETRY,		generic),
-		MAKETUPLE(BYTEORDER,		generic),
-		MAKETUPLE(DATE,			generic),
-		MAKETUPLE(BATTERY,		generic),
-		MAKETUPLE(ORG,			generic),
 		MAKETUPLE(END,			end),
 		MAKETUPLE(GENERIC,		generic),
 	};

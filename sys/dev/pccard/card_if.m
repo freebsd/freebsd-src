@@ -93,14 +93,6 @@ METHOD int detach_card {
 }
 
 #
-# Returns the type of card this is.  Maybe we don't need this.
-#
-METHOD int get_type {
-	device_t  dev;
-	int	  *type;
-}
-
-#
 # Returns the function number for this device.
 #
 METHOD int get_function {
