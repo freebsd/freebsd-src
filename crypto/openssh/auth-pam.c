@@ -28,7 +28,10 @@
 #include <security/pam_appl.h>
 #include "ssh.h"
 #include "xmalloc.h"
+#include "log.h"
 #include "servconf.h"
+#include "readpass.h"
+#include "canohost.h"
 
 RCSID("$FreeBSD$");
 
@@ -52,6 +55,7 @@ static struct pam_conv conv = {
 static pam_handle_t *pamh = NULL;
 static const char *pampasswd = NULL;
 static char *pam_msg = NULL;
+extern ServerOptions options;
 
 /* states for pamconv() */
 typedef enum { INITIAL_LOGIN, OTHER } pamstates;
@@ -162,9 +166,9 @@ void pam_cleanup_proc(void *context)
 }
 
 /* Attempt password authentation using PAM */
-int auth_pam_password(struct passwd *pw, const char *password)
+int auth_pam_password(Authctxt *authctxt, const char *password)
 {
-	extern ServerOptions options;
+	struct passwd *pw = authctxt->pw;
 	int pam_retval;
 
 	/* deny if no user. */
@@ -195,9 +199,10 @@ int do_pam_account(char *username, char *remote_user)
 {
 	int pam_retval;
 	
-	debug("PAM setting rhost to \"%.200s\"", get_canonical_hostname());
+	debug("PAM setting rhost to \"%.200s\"", 
+	    get_canonical_hostname(options.reverse_mapping_check));
 	pam_retval = pam_set_item(pamh, PAM_RHOST, 
-		get_canonical_hostname());
+		get_canonical_hostname(options.reverse_mapping_check));
 	if (pam_retval != PAM_SUCCESS) {
 		fatal("PAM set rhost failed[%d]: %.200s", 
 			pam_retval, PAM_STRERROR(pamh, pam_retval));
