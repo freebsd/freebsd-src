@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.306 1998/08/31 16:18:45 luoqi Exp $
+ *	$Id: machdep.c,v 1.307 1998/09/01 02:04:12 kato Exp $
  */
 
 #include "apm.h"
@@ -210,6 +210,27 @@ sysctl_hw_availpages SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_availpages, "I", "");
+
+static int
+sysctl_machdep_msgbuf SYSCTL_HANDLER_ARGS
+{
+	int error;
+
+	/* Unwind the buffer, so that is linear (possibly starting with
+	 * some initial nulls.
+	 */
+	error=sysctl_handle_opaque(oidp,msgbufp->msg_ptr+msgbufp->msg_bufr,
+		msgbufp->msg_size-msgbufp->msg_bufr,req);
+	if(error) return(error);
+	if(msgbufp->msg_bufr>0) {
+		error=sysctl_handle_opaque(oidp,msgbufp->msg_ptr,
+			msgbufp->msg_bufr,req);
+	}
+	return(error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, msgbuf, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_machdep_msgbuf, "A","");
 
 int bootverbose = 0, Maxmem = 0;
 long dumplo;
