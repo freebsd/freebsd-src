@@ -48,14 +48,18 @@
 The
 .Nm
 driver provides support for all USB devices that do not have
-a special driver.  It supports access to all parts of the device,
+a special driver.
+It supports access to all parts of the device,
 but not in a way that is as convenient as a special purpose driver.
 .Pp
 There can be up to 127 USB devices connected to a USB bus.
-Each USB device can have up to 16 endpoints.  Each of these endpoints
+Each USB device can have up to 16 endpoints.
+Each of these endpoints
 will communicate in one of four different modes: control, isochronous,
-bulk, or interrupt.  Each of the endpoints will have a different
-device node.  The four least significant bits in the minor device
+bulk, or interrupt.
+Each of the endpoints will have a different
+device node.
+The four least significant bits in the minor device
 number determines which endpoint the device accesses and the rest
 of the bits determines which USB device.
 .Pp
@@ -68,71 +72,77 @@ operation on the control endpoint that returns the USB descriptors
 of the device, configurations, interfaces, and endpoints.
 .Pp
 The control transfer mode can only happen on the control endpoint
-which is always endpoint 0.  The control endpoint accepts request
-and may respond with an answer to such request.  Control request
+which is always endpoint 0.
+The control endpoint accepts request
+and may respond with an answer to such request.
+Control request
 are issued by
 .Xr ioctl 2
 calls.
 .\" .Pp
 .\" The isochronous transfer mode can be in or out depending on the
-.\" endpoint.  To perform IO on an isochronous endpoint
+.\" endpoint.
+.\" To perform I/O on an isochronous endpoint
 .\" .Xr read 2
 .\" and
 .\" .Xr write 2
 .\" should be used.
-.\" Before any IO operations can take place the transfer rate in
-.\" bytes/second has to be set.  This is done with
+.\" Before any I/O operations can take place the transfer rate in
+.\" bytes/second has to be set.
+.\" This is done with
 .\" .Xr ioctl 2
 .\" .Dv USB_SET_ISO_RATE .
 .\" Performing this call sets up a buffer corresponding to
 .\" about 1 second of data.
 .Pp
 The bulk transfer mode can be in or out depending on the
-endpoint.  To perform IO on a bulk endpoint
+endpoint.
+To perform I/O on a bulk endpoint
 .Xr read 2
 and
 .Xr write 2
 should be used.
-All IO operations on a bulk endpoint are unbuffered.
+All I/O operations on a bulk endpoint are unbuffered.
 .Pp
 The interrupt transfer mode can only be in.
 To perform input from an interrupt endpoint
 .Xr read 2
-should be used.  A moderate amount of buffering is done
+should be used.
+A moderate amount of buffering is done
 by the driver.
 .Pp
 All endpoints handle the following
 .Xr ioctl 2
 calls:
-.Pp
-.Bl -tag -width indent -compact
-.It Dv USB_SET_SHORT_XFER (int)
-Allow short read transfer.  Normally a transfer from the device
+.Bl -tag -width indent
+.It Dv USB_SET_SHORT_XFER Pq Vt int
+Allow short read transfer.
+Normally a transfer from the device
 which is shorter than the request specified is reported as an
 error.
-.It Dv USB_SET_TIMEOUT (int)
+.It Dv USB_SET_TIMEOUT Pq Vt int
 Set the timeout on the device operations, the time is specified
-in milliseconds.  The value 0 is used to indicate that there is
+in milliseconds.
+The value 0 is used to indicate that there is
 no timeout.
 .El
 .Pp
 The control endpoint (endpoint 0) handles the following
 .Xr ioctl 2
 calls:
-.Pp
-.Bl -tag -width indent -compact
-.It Dv USB_GET_CONFIG (int)
+.Bl -tag -width indent
+.It Dv USB_GET_CONFIG Pq Vt int
 Get the device configuration number.
-.It Dv USB_SET_CONFIG (int)
+.It Dv USB_SET_CONFIG Pq Vt int
 Set the device into the given configuration number.
-.br
+.Pp
 This operation can only be performed when the control endpoint
 is the sole open endpoint.
-.It Dv USB_GET_ALTINTERFACE (struct usb_alt_interface)
+.It Dv USB_GET_ALTINTERFACE Pq Vt "struct usb_alt_interface"
 Get the alternative setting number for the interface with the given
 index.
 The
-.Dv config_index
+.Va config_index
 is ignored in this call.
 .Bd -literal
 struct usb_alt_interface {
@@ -141,22 +151,22 @@ struct usb_alt_interface {
 	int	alt_no;
 };
 .Ed
-.It Dv USB_SET_ALTINTERFACE (struct usb_alt_interface)
+.It Dv USB_SET_ALTINTERFACE Pq Vt "struct usb_alt_interface"
 Set the alternative setting to the given number in the interface with the
 given index.
 The
-.Dv config_index
+.Va config_index
 is ignored in this call.
-.br
+.Pp
 This operation can only be performed when no endpoints for the interface
 are open.
-.It Dv USB_GET_NO_ALT (struct usb_alt_interface)
+.It Dv USB_GET_NO_ALT Pq Vt "struct usb_alt_interface"
 Return the number of different alternate settings in the
-.Dv alt_no
+.Va alt_no
 field.
-.It Dv USB_GET_DEVICE_DESC (usb_device_descriptor_t)
+.It Dv USB_GET_DEVICE_DESC Pq Vt usb_device_descriptor_t
 Return the device descriptor.
-.It Dv USB_GET_CONFIG_DESC (struct usb_config_desc)
+.It Dv USB_GET_CONFIG_DESC Pq Vt "struct usb_config_desc"
 Return the descriptor for the configuration with the given index.
 For convenience the current configuration can be specified by
 .Dv USB_CURRENT_CONFIG_INDEX .
@@ -166,7 +176,7 @@ struct usb_config_desc {
 	usb_config_descriptor_t desc;
 };
 .Ed
-.It Dv USB_GET_INTERFACE_DESC (struct usb_interface_desc)
+.It Dv USB_GET_INTERFACE_DESC Pq Vt "struct usb_interface_desc"
 Return the interface descriptor for an interface specified by its
 configuration index, interface index, and alternative index.
 For convenience the current alternative can be specified by
@@ -179,7 +189,7 @@ struct usb_interface_desc {
 	usb_interface_descriptor_t desc;
 };
 .Ed
-.It Dv USB_GET_ENDPOINT_DESC (struct usb_endpoint_desc)
+.It Dv USB_GET_ENDPOINT_DESC Pq Vt "struct usb_endpoint_desc"
 Return the endpoint descriptor for the endpoint specified by its
 configuration index, interface index, alternative index, and
 endpoint index.
@@ -192,7 +202,7 @@ struct usb_endpoint_desc {
 	usb_endpoint_descriptor_t desc;
 };
 .Ed
-.It Dv USB_GET_FULL_DESC (struct usb_full_desc)
+.It Dv USB_GET_FULL_DESC Pq Vt "struct usb_full_desc"
 Return all the descriptors for the given configuration.
 .Bd -literal
 struct usb_full_desc {
@@ -202,16 +212,17 @@ struct usb_full_desc {
 };
 .Ed
 The
-.Dv data
-field should point to a memory area of of the size given in the
-.Dv size
-field.  The proper size can be determined by first issuing a
+.Va data
+field should point to a memory area of the size given in the
+.Va size
+field.
+The proper size can be determined by first issuing a
 .Dv USB_GET_CONFIG_DESC
 and inspecting the
-.Dv wTotalLength
+.Va wTotalLength
 field.
-.It Dv USB_GET_STRING_DESC (struct usb_string_desc)
-Get a string descriptor for the given language id and
+.It Dv USB_GET_STRING_DESC Pq Vt "struct usb_string_desc"
+Get a string descriptor for the given language ID and
 string index.
 .Bd -literal
 struct usb_string_desc {
@@ -220,20 +231,20 @@ struct usb_string_desc {
 	usb_string_descriptor_t desc;
 };
 .Ed
-.It Dv USB_DO_REQUEST
+.It Dv USB_DO_REQUEST Pq Vt "struct usb_ctl_request"
 Send a USB request to the device on the control endpoint.
 Any data sent to/from the device is located at
-.Dv data .
+.Va data .
 The size of the transferred data is determined from the
-.Dv request .
+.Va request .
 The
-.Dv addr
+.Va addr
 field is ignored in this call.
 The
-.Dv flags
+.Va flags
 field can be used to flag that the request is allowed to
 be shorter than the requested size, and the
-.Dv actlen
+.Va actlen
 will contain the actual size on completion.
 .Bd -literal
 struct usb_ctl_request {
@@ -246,45 +257,49 @@ struct usb_ctl_request {
 };
 .Ed
 This is a dangerous operation in that it can perform arbitrary operations
-on the device.  Some of the most dangerous (e.g., changing the device
+on the device.
+Some of the most dangerous (e.g., changing the device
 address) are not allowed.
-.It Dv USB_GET_DEVICEINFO (struct usb_device_info)
-Get an information summary for the device.  This call will not
+.It Dv USB_GET_DEVICEINFO Pq Vt "struct usb_device_info"
+Get an information summary for the device.
+This call will not
 issue any USB transactions.
 .El
 .Pp
 Note that there are two different ways of addressing configurations, interfaces,
 alternatives, and endpoints: by index or by number.
 The index is the ordinal number (starting from 0) of the descriptor
-as presented by the device.  The number is the respective number of
-the entity as found in its descriptor.  Enumeration of descriptors
+as presented by the device.
+The number is the respective number of
+the entity as found in its descriptor.
+Enumeration of descriptors
 use the index, getting and setting typically uses numbers.
 .Pp
 Example:
-All endpoints (except the control endpoint) for the current configuration
+all endpoints (except the control endpoint) for the current configuration
 can be found by iterating the
-.Dv interface_index
+.Va interface_index
 from 0 to
-.Dv config_desc->bNumInterface-1
+.Va config_desc->bNumInterface Ns \-1
 and for each of these iterating the
-.Dv endpoint_index
+.Va endpoint_index
 from 0 to
-.Dv interface_desc->bNumEndpoints .
+.Va interface_desc->bNumEndpoints .
 The
-.Dv config_index
+.Va config_index
 should set to
 .Dv USB_CURRENT_CONFIG_INDEX
 and
-.Dv alt_index
+.Va alt_index
 should be set to
 .Dv USB_CURRENT_ALT_INDEX .
 .Sh FILES
-.Bl -tag -width Pa
-.It Pa /dev/ugenN.EE
+.Bl -tag -width ".Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar EE" -compact
+.It Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar EE
 Endpoint
-.Pa EE
+.Ar EE
 of device
-.Pa N .
+.Ar N .
 .El
 .Sh SEE ALSO
 .Xr usb 4
