@@ -242,13 +242,15 @@ doing it:-
 <p>
 Create a "link tree" to it using the <tt>lndir(1)</tt> command that
 comes with the <em>XFree86</em> distribution.  Find a location with
-some free space and create a directory there, and make a symbolic link
-from <tt>/usr/ports</tt> to that directory.  Then invoke the
-<tt>lndir(1)</tt> command with the full pathname of the ``ports''
-directory on the CDROM as an argument (this might be, for example,
-something like: <tt>lndir /cdrom/ports</tt>).  Then you can build
-ports directly off the CDROM by building them in the link tree you
-have created.
+some free space, create a directory there and then cd to it.  Then
+invoke the <tt>lndir(1)</tt> command with the full pathname of the ``ports''
+directory on the CDROM as the first argument and . (the current directory)
+as the second.  This might be, for example, something like:
+<verb>
+	lndir /cdrom/ports .
+</verb>
+<p>Then you can build ports directly off the CDROM by building them in the
+link tree you have created.
 <p>
 Note that there are some ports for which we cannot provide the original
 source in the CDROM due to licensing limitations.  In that case,
