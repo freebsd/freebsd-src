@@ -37,11 +37,23 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
+static char copyright[] =
+"@(#) Copyright (c) 1989, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#else
+#if 0
+static char rcsid[] = "$OpenBSD: main.c,v 1.53 2002/04/26 16:15:16 espie Exp $";
+#endif
+#endif
+#endif /* not lint */
+
 #include <sys/cdefs.h>
-__COPYRIGHT("@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
-__SCCSID("@(#)main.c	8.1 (Berkeley) 6/6/93");
-__RCSID_SOURCE("$OpenBSD: main.c,v 1.53 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 /*
