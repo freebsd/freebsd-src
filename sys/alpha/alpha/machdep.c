@@ -2254,7 +2254,6 @@ globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
 	globaldata->gd_next_asn = 0;
 	globaldata->gd_current_asngen = 1;
 #ifdef SMP
-	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuid);
 	globaldata_register(globaldata);
 #endif
 }
