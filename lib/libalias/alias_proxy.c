@@ -347,8 +347,10 @@ ProxyEncodeIpHeader(struct ip *pip,
 #define OPTION_LEN_INT32  2
     u_char option[OPTION_LEN_BYTES];
 
-fprintf(stdout, " ip cksum 1 = %x\n", (u_int) IpChecksum(pip));
-fprintf(stdout, "tcp cksum 1 = %x\n", (u_int) TcpChecksum(pip));
+#ifdef DEBUG
+    fprintf(stdout, " ip cksum 1 = %x\n", (u_int) IpChecksum(pip));
+    fprintf(stdout, "tcp cksum 1 = %x\n", (u_int) TcpChecksum(pip));
+#endif
 
 /* Check to see that there is room to add an IP option */
     if (pip->ip_hl > (0x0f - OPTION_LEN_INT32))
@@ -399,8 +401,10 @@ fprintf(stdout, "tcp cksum 1 = %x\n", (u_int) TcpChecksum(pip));
 #undef OPTION_LEN_BYTES
 #undef OPTION_LEN_INT16
 #undef OPTION_LEN_INT32
-fprintf(stdout, " ip cksum 2 = %x\n", (u_int) IpChecksum(pip));
-fprintf(stdout, "tcp cksum 2 = %x\n", (u_int) TcpChecksum(pip));
+#ifdef DEBUG
+    fprintf(stdout, " ip cksum 2 = %x\n", (u_int) IpChecksum(pip));
+    fprintf(stdout, "tcp cksum 2 = %x\n", (u_int) TcpChecksum(pip));
+#endif
 }
 
 
