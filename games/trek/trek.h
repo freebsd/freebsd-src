@@ -378,3 +378,5 @@ struct
 /* Trace info */
 # define	xTRACE		1
 int	Trace;
+
+extern char	*systemname();
