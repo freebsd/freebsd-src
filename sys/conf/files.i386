@@ -120,7 +120,6 @@ dev/ar/if_ar_isa.c		optional	ar isa
 dev/cm/if_cm_isa.c		optional	cm isa
 dev/dgb/dgb.c			count		dgb
 dev/ed/if_ed_isa.c		optional	ed isa
-dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
