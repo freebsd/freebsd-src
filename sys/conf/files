@@ -395,6 +395,7 @@ dev/cy/cy_isa.c		optional cy isa
 dev/cy/cy_pci.c		optional cy pci
 dev/dcons/dcons.c	optional dcons
 dev/dcons/dcons_crom.c	optional dcons_crom
+dev/dcons/dcons_os.c	optional dcons
 dev/digi/digi.c		optional digi
 dev/digi/digi_isa.c	optional digi isa
 dev/digi/digi_pci.c	optional digi pci
