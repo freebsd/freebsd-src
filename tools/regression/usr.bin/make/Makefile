@@ -38,6 +38,9 @@ all:
 	@echo "Running test modifiers"
 	@${MAKE} modifiers || ${MAKE} failure
 	@echo "PASS: Test modifiers detected no regression."
+	@echo "Running test funny_targets"
+	@${MAKE} funny_targets || ${MAKE} failure
+	@echo "PASS: Test funny_targets detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -79,6 +82,12 @@ modifiers:
 	    grep -q "Unknown modifier 'C'"; then \
 		false; \
 	fi
+.endif
+
+.if make(funny_targets)
+funny_targets: colons::target exclamation!target
+colons::target:
+exclamation!target: 
 .endif
 
 failure:
