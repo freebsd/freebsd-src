@@ -30,14 +30,6 @@
  * $FreeBSD$
  */
 
-/*
- * The typedefs and structures declared in this file
- * clearly violate style(9), the reason for this is to conform to the
- * typedefs/structure-names used in the Intel literature to avoid confusion.
- *
- * It's for your own good. :)
- */
- 
 #include <stand.h>
 
 #include <sys/reboot.h>
@@ -49,62 +41,17 @@
 
 #include <bootstrap.h>
 #include "btxv86.h"
-
-#define	PXENV_GET_CACHED_INFO		0x0071
-#define PXENV_TFTP_OPEN                 0x0020
-#define PXENV_TFTP_CLOSE                0x0021
-#define PXENV_TFTP_READ                 0x0022
+#include "pxe.h"
 
 /*
  * Allocate the PXE buffers statically instead of sticking grimy fingers into
  * BTX's private data area.  The scratch buffer is used to send information to
  * the PXE BIOS, and the data buffer is used to receive data from the PXE BIOS.
  */
-#define PXE_BUFFER_SIZE		0x2000
-#define PXE_TFTP_BUFFER_SIZE	512
-char	scratch_buffer[PXE_BUFFER_SIZE]; 
-char	data_buffer[PXE_BUFFER_SIZE];
-
-#define S_SIZE(s)	s, sizeof(s) - 1
-
-#define IP_STR		"%d.%d.%d.%d"
-#define IP_ARGS(ip)	\
-	(int)(ip >> 24) & 0xff, (int)(ip >> 16) & 0xff, \
-	(int)(ip >> 8) & 0xff, (int)ip & 0xff
-
-#define MAC_STR		"%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARGS(mac) \
-	mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] 
-
-typedef struct {
-	uint16_t	offset;
-	uint16_t	segment;
-} SEGOFF16_t;
-
-typedef uint16_t	PXENV_STATUS;
-
-struct pxenv {
-	char		Signature[6];		/* 'PXENV+' */
-	uint16_t	Version;		/* MSB = major, LSB = minor */
-	uint8_t		Length;			/* structure length */
-	uint8_t		Checksum;		/* checksum pad */
-	SEGOFF16_t	RMEntry;		/* SEG:OFF to PXE entry point */
-	/* don't use PMOffset and PMSelector (from the 2.1 PXE manual) */
-	uint32_t	PMOffset;		/* Protected mode entry */
-	uint16_t	PMSelector;		/* Protected mode selector */
-	uint16_t	StackSeg;		/* Stack segment address */
-	uint16_t	StackSize;		/* Stack segment size (bytes) */
-	uint16_t	BC_CodeSeg;		/* BC Code segment address */
-	uint16_t	BC_CodeSize;		/* BC Code segment size (bytes) */
-	uint16_t	BC_DataSeg;		/* BC Data segment address */
-	uint16_t	BC_DataSize;		/* BC Data segment size (bytes) */
-	uint16_t	UNDIDataSeg;		/* UNDI Data segment address */
-	uint16_t	UNDIDataSize;		/* UNDI Data segment size (bytes) */
-	uint16_t	UNDICodeSeg;		/* UNDI Code segment address */
-	uint16_t	UNDICodeSize;		/* UNDI Code segment size (bytes) */
-	SEGOFF16_t	PXEPtr;			/* SEG:OFF to !PXE struct, 
-						   only present when Version > 2.1 */
-} *pxenv_p = NULL;
+#define	PXE_BUFFER_SIZE		0x2000
+#define	PXE_TFTP_BUFFER_SIZE	512
+static char	scratch_buffer[PXE_BUFFER_SIZE];
+static char	data_buffer[PXE_BUFFER_SIZE];
 
 static uint32_t	myip;		/* my IP address */
 static uint32_t	serverip;	/* where I got my initial bootstrap from */
@@ -113,86 +60,8 @@ static char	*servername = NULL;	/* name of server I DHCP'd from */
 static char	*bootfile = NULL;	/* name of file that I booted with */
 static uint16_t	pxe_return_status;
 static uint16_t pxe_open_status;
-
-#define PACKED	__attribute__ ((packed))
-
-#define MAC_ADDR_LEN	16
-typedef uint8_t	MAC_ADDR[MAC_ADDR_LEN];
-
-/* PXENV_GET_CACHED_INFO request */
-typedef struct {
-	PXENV_STATUS	Status;
-	uint16_t	PacketType;	/* type (defined right here) */
-#	define PXENV_PACKET_TYPE_DHCP_DISCOVER  1
-#	define PXENV_PACKET_TYPE_DHCP_ACK       2
-#	define PXENV_PACKET_TYPE_BINL_REPLY     3
-	uint16_t	BufferSize;	/* max to copy, leave at 0 for pointer */
-	SEGOFF16_t	Buffer;		/* copy to, leave at 0 for pointer */
-	uint16_t	BufferLimit;	/* max size of buffer in BC dataseg ? */
-} PACKED t_PXENV_GET_CACHED_INFO;
-
-
-/*
- * structure filled in by PXENV_GET_CACHED_INFO 
- * (how we determine which IP we downloaded the initial bootstrap from)
- */
-typedef struct {
-	uint8_t		opcode;
-#	define		BOOTP_REQ	1
-#	define		BOOTP_REP	2
-	uint8_t		Hardware;	/* hardware type */
-	uint8_t		Hardlen;	/* hardware addr len */
-	uint8_t		Gatehops;	/* zero it */
-	uint32_t	ident;		/* random number chosen by client */
-	uint16_t	seconds;	/* seconds since did initial bootstrap */
-	uint16_t	flags;	/* seconds since did initial bootstrap */
-#	define		BOOTP_BCAST	0x8000	/* ? */
-	uint32_t	cip;		/* Client IP */
-	uint32_t	yip;		/* Your IP */
-	uint32_t	sip;		/* IP to use for next boot stage */
-	uint32_t	gip;		/* Relay IP ? */
-	MAC_ADDR	CAddr;		/* Client hardware address */
-	char		Sname[64];	/* Server's hostname (Optional) */
-	char		bootfile[128];	/* boot filename */
-	union {
-#		if 1
-#		define BOOTP_DHCPVEND  1024    /* DHCP extended vendor field size */
-#		else
-#		define BOOTP_DHCPVEND  312	/* DHCP standard vendor field size */
-#		endif
-		uint8_t	d[BOOTP_DHCPVEND];	/* raw array of vendor/dhcp options */
-		struct {
-			uint8_t		magic[4];	/* DHCP magic cookie */
-#			define		VM_RFC1048	0x63825363L	/* ? */
-			uint32_t	flags;		/* bootp flags/opcodes */
-			uint8_t		pad[56];	/* I don't think Intel knows what a
-							   union does... */
-		} v;
-	} vendor;
-} PACKED BOOTPLAYER;
-
-/* tftp open */
-typedef struct {
-	uint16_t		status;
-	uint32_t		src_ip;
-	uint32_t		gw_ip;
-	uint8_t			filename[128];
-	uint16_t		tftpport;
-	uint16_t		packetsize;
-} PACKED t_PXENV_TFTP_OPEN;
-
-/* tftp close */
-typedef struct {
-	uint16_t		status;
-} PACKED t_PXENV_TFTP_CLOSE;
-
-/* tftp read */
-typedef struct {
-	uint16_t		status;
-	uint16_t		packetnumber;
-	uint16_t		buffer_size;
-	SEGOFF16_t		buffer;
-} PACKED t_PXENV_TFTP_READ;
+static pxenv_t  *pxenv_p = NULL;        /* PXENV+ */
+static pxe_t    *pxe_p = NULL;          /* !PXE */
 
 void		pxe_enable(void *pxeinfo);
 static int	pxe_init(void);
@@ -242,7 +111,7 @@ struct fs_ops pxe_fsops = {
 void
 pxe_enable(void *pxeinfo)
 {
-	pxenv_p = (struct pxenv *)pxeinfo;
+	pxenv_p = (pxenv_t *)pxeinfo;
 }
 
 /* 
@@ -318,16 +187,16 @@ pxe_tftpopen(uint32_t srcip, uint32_t gateip, char *filename, uint16_t port,
 
 	tftpo_p = (t_PXENV_TFTP_OPEN *)scratch_buffer;
 	bzero(tftpo_p, sizeof(*tftpo_p));
-	tftpo_p->src_ip     = srcip;
-	tftpo_p->gw_ip      = gateip;
-	bcopy(filename, tftpo_p->filename, strlen(filename));
-	tftpo_p->tftpport   = port;
-	tftpo_p->packetsize = pktsize;
+	tftpo_p->ServerIPAddress	= srcip;
+	tftpo_p->GatewayIPAddress	= gateip;
+	tftpo_p->TFTPPort		= port;
+	tftpo_p->PacketSize		= pktsize;
+	bcopy(filename, tftpo_p->FileName, strlen(filename));
 	pxe_call(PXENV_TFTP_OPEN);
-	pxe_return_status = tftpo_p->status;
-	if (tftpo_p->status != 0)
+	pxe_return_status = tftpo_p->Status;
+	if (tftpo_p->Status != 0)
 		return (-1);
-	return (tftpo_p->packetsize);
+	return (tftpo_p->PacketSize);
 }
 
 int
@@ -338,8 +207,8 @@ pxe_tftpclose(void)
 	tftpc_p = (t_PXENV_TFTP_CLOSE *)scratch_buffer;
 	bzero(tftpc_p, sizeof(*tftpc_p));
 	pxe_call(PXENV_TFTP_CLOSE);
-	pxe_return_status = tftpc_p->status;
-	if (tftpc_p->status != 0)
+	pxe_return_status = tftpc_p->Status;
+	if (tftpc_p->Status != 0)
 		return (-1);
 	return (1);
 }
@@ -352,19 +221,19 @@ pxe_tftpread(void *buf)
 	tftpr_p = (t_PXENV_TFTP_READ *)scratch_buffer;
 	bzero(tftpr_p, sizeof(*tftpr_p));
         
-	tftpr_p->buffer.segment = VTOPSEG(data_buffer);
-	tftpr_p->buffer.offset = VTOPOFF(data_buffer);
+	tftpr_p->Buffer.segment	= VTOPSEG(data_buffer);
+	tftpr_p->Buffer.offset	= VTOPOFF(data_buffer);
 
 	pxe_call(PXENV_TFTP_READ);
 
 	/* XXX - I don't know why we need this. */
 	delay(1000);
 
-	pxe_return_status = tftpr_p->status;
-	if (tftpr_p->status != 0)
+	pxe_return_status = tftpr_p->Status;
+	if (tftpr_p->Status != 0)
 		return (-1);
-	bcopy(data_buffer, buf, tftpr_p->buffer_size);
-	return (tftpr_p->buffer_size);
+	bcopy(data_buffer, buf, tftpr_p->BufferSize);
+	return (tftpr_p->BufferSize);
 }
 
 void
