@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.73 1998/08/22 14:31:39 gpalmer Exp $
+#	$Id: Makefile,v 1.74 1998/08/30 01:45:47 jb Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
 #
+# csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
 # libcrypt and libmd must be built before libskey.
 # libm must be built before libtcl.
@@ -12,8 +13,8 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
-	${_compat} ${_csu} libalias libbind libc ${_libc_r} libcalendar \
+SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
+	${_compat} libalias libbind libc ${_libc_r} libcalendar \
 	libcompat libcurses ${_libdisk} libedit libf2c libfetch libftpio \
 	libgnumalloc libipx libkvm libmd libncurses libopie \
 	libpcap libresolv librpcsvc ${_libscsi} libskey libss libstand \
