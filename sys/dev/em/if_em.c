@@ -32,10 +32,9 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-
-$FreeBSD$
 ***************************************************************************
 ***************************************************************************/
+/*$FreeBSD$*/
 
 #include <dev/em/if_em.h>
 
@@ -55,7 +54,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.0.7";
+char em_driver_version[] = "1.0.9";
 
 
 /*********************************************************************
@@ -145,7 +144,8 @@ static int em_get_std_buf __P((struct em_rx_buffer *, struct adapter *,
 /* Jumbo Frame */
 static int em_alloc_jumbo_mem __P((struct adapter *));
 static void *em_jalloc __P((struct adapter *));
-static void em_jfree __P((caddr_t buf, void *args));
+static void em_jref __P((caddr_t buf, u_int size));
+static void em_jfree __P((caddr_t buf, u_int size));
 static int em_get_jumbo_buf __P((struct em_rx_buffer *, struct adapter *,
                                  struct mbuf *));
 /*********************************************************************
@@ -737,7 +737,7 @@ em_set_multi(struct adapter * Adapter)
    u_int8_t  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_LENGTH_OF_ADDRESS];
    u_int16_t PciCommandWord;
    struct ifmultiaddr  *ifma_ptr;
-   int i = 0;
+   int i;
    int multi_cnt = 0;
    struct ifnet   *ifp = &Adapter->interface_data.ac_if;
    
@@ -754,11 +754,13 @@ em_set_multi(struct adapter * Adapter)
        DelayInMilliseconds(5);
     }
 
-    TAILQ_FOREACH(ifma_ptr, &ifp->if_multiaddrs, ifma_link) {
+    for(i = 0, ifma_ptr = ifp->if_multiaddrs.lh_first; 
+        ifma_ptr != NULL; 
+        i++, ifma_ptr = ifma_ptr->ifma_link.le_next) {
+
        multi_cnt++;
        bcopy(LLADDR((struct sockaddr_dl *)ifma_ptr->ifma_addr),
              &mta[i*ETH_LENGTH_OF_ADDRESS], ETH_LENGTH_OF_ADDRESS);
-       i++;
     }
 
     if (multi_cnt > MAX_NUM_MULTICAST_ADDRESSES) {
@@ -1632,10 +1634,12 @@ em_get_jumbo_buf(struct em_rx_buffer *rx_buffer, struct adapter *Adapter,
       }
 
      /* Attach the buffer to the mbuf. */
-      nmp->m_data = (void *)buf;
-      nmp->m_len = nmp->m_pkthdr.len = EM_JUMBO_FRAMELEN;
-      MEXTADD(nmp, buf, EM_JUMBO_FRAMELEN, em_jfree,
-        (struct adapter *)Adapter, 0, EXT_NET_DRV);
+      nmp->m_data = nmp->m_ext.ext_buf = (void *)buf;
+      nmp->m_flags |= M_EXT;
+      nmp->m_len = nmp->m_pkthdr.len =
+         nmp->m_ext.ext_size = EM_JUMBO_FRAMELEN;
+      nmp->m_ext.ext_free = em_jfree;
+      nmp->m_ext.ext_ref = em_jref;  
    } else {
       nmp = mp;
       nmp->m_data = nmp->m_ext.ext_buf;
@@ -1960,8 +1964,13 @@ em_alloc_jumbo_mem(struct adapter *Adapter)
 
    ptr = Adapter->em_jumbo_buf;
    for (i = 0; i < EM_JSLOTS; i++) {
+      u_int64_t               **aptr;
+      aptr = (u_int64_t **)ptr;
+      aptr[0] = (u_int64_t *)Adapter;
+      ptr += sizeof(u_int64_t);
       Adapter->em_jslots[i].em_buf = ptr;
-      ptr += EM_JLEN;
+      Adapter->em_jslots[i].em_inuse = 0;
+      ptr += (EM_JLEN - sizeof(u_int64_t));
       entry = malloc(sizeof(struct em_jpool_entry),
                      M_DEVBUF, M_NOWAIT);
       if (entry == NULL) {
@@ -1996,9 +2005,46 @@ static void *em_jalloc(struct adapter *Adapter)
 
    SLIST_REMOVE_HEAD(&Adapter->em_jfree_listhead, em_jpool_entries);
    SLIST_INSERT_HEAD(&Adapter->em_jinuse_listhead, entry, em_jpool_entries);
+   Adapter->em_jslots[entry->slot].em_inuse = 1;
    return(Adapter->em_jslots[entry->slot].em_buf);
 }
 
+/*********************************************************************
+ *
+ *  Adjust usage count on a jumbo buffer.
+ *
+ *********************************************************************/
+static void 
+em_jref(caddr_t buf, u_int size)
+{
+   struct adapter          *Adapter;
+   u_int64_t               **aptr;
+   register int            i;
+
+   /* Extract the Adapter (softc) struct pointer */
+   aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+   Adapter = (struct adapter *)(aptr[0]);
+
+   if (Adapter == NULL)
+      panic("em_jref: Can't find softc pointer!");
+
+   if (size != EM_JUMBO_FRAMELEN)
+      panic("em_jref: Adjusting reference count of buf of wrong size!");
+
+   /* Calculate the slot this buffer belongs to */
+
+   i = ((vm_offset_t)aptr
+        - (vm_offset_t)Adapter->em_jumbo_buf) / EM_JLEN;
+
+   if ((i < 0) || (i >= EM_JSLOTS))
+      panic("em_jref: Asked to reference buffer that we don't manage!");
+   else if (Adapter->em_jslots[i].em_inuse == 0)
+      panic("em_jref: Buffer already free!");
+   else
+      Adapter->em_jslots[i].em_inuse++;
+
+   return;
+}
 
 /*********************************************************************
  *
@@ -2006,33 +2052,44 @@ static void *em_jalloc(struct adapter *Adapter)
  *
  *********************************************************************/
 static void 
-em_jfree(caddr_t buf, void *args)
+em_jfree(caddr_t buf, u_int size)
 {
    struct adapter *Adapter;
+   u_int64_t               **aptr;
    int                     i;
    struct em_jpool_entry   *entry;
 
    /* Extract the adapter (softc) struct pointer. */
-   Adapter = (struct adapter *)args;
+   aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
+   Adapter = (struct adapter *)(aptr[0]);
 
    if (Adapter == NULL)
       panic("em_jfree: Can't find softc pointer!");
 
+   if (size != EM_JUMBO_FRAMELEN)
+      panic("em_jfree: Freeing buffer of wrong size!");
+
    /* Calculate the slot this buffer belongs to */
-   i = ((vm_offset_t)buf
+   i = ((vm_offset_t)aptr
         - (vm_offset_t)Adapter->em_jumbo_buf) / EM_JLEN;
 
    if ((i < 0) || (i >= EM_JSLOTS))
       panic("em_jfree: Asked to free buffer that we don't manage!");
-
-   entry = SLIST_FIRST(&Adapter->em_jinuse_listhead);
-   if (entry == NULL)
-      panic("em_jfree: Buffer not in use!");
-   entry->slot = i;
-   SLIST_REMOVE_HEAD(&Adapter->em_jinuse_listhead,
-                     em_jpool_entries);
-   SLIST_INSERT_HEAD(&Adapter->em_jfree_listhead,
-                     entry, em_jpool_entries);
+   else if (Adapter->em_jslots[i].em_inuse == 0)
+      panic("em_jfree: Buffer already free!");
+   else {
+      Adapter->em_jslots[i].em_inuse--;
+      if(Adapter->em_jslots[i].em_inuse == 0) {
+         entry = SLIST_FIRST(&Adapter->em_jinuse_listhead);
+         if (entry == NULL)
+            panic("em_jfree: Buffer not in use!");
+         entry->slot = i;
+         SLIST_REMOVE_HEAD(&Adapter->em_jinuse_listhead,
+                           em_jpool_entries);
+         SLIST_INSERT_HEAD(&Adapter->em_jfree_listhead,
+                           entry, em_jpool_entries);
+      }
+   }
 
    return;
 }
