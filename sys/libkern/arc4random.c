@@ -40,8 +40,10 @@ arc4_randomstir (void)
 	u_int8_t key[256];
 	int r, n;
 
-	/* r = read_random(key, sizeof(key)); */
-	r = 0; /* XXX MarkM - revisit this when /dev/random is done */
+	/* XXX read_random() returns unsafe numbers if the entropy
+	 * devce is not loaded - MarkM
+	 */
+	r = read_random(key, sizeof(key));
 	/* if r == 0 || -1, just use what was on the stack */
 	if (r > 0)
 	{
