@@ -685,6 +685,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-S</option> flags, to be used in creating
       <quote>proxy-only</quote> published entries.</para>
 
+      <para>The read timeout feature of &man.bpf.4; now works more
+      correctly with &man.select.2;/&man.poll.2;, and therefore with
+      pthreads. &merged;</para>
+
       <para>&man.bridge.4; and &man.dummynet.4; have received some
       enhancements and bug fixes, and are now loadable
       modules. &merged;</para>
@@ -1951,6 +1955,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     pathnames to be excluded when creating and verifying prototypes.
     This makes it easier to use &man.mtree.8; as a part of an
     intrusion-detection system. &merged;</para>
+
+    <para>&man.natd.8; now supports a
+    <option>-log_ipfw_denied</option> option to log packets that
+    cannot be re-injected because they are blocked by &man.ipfw.8;
+    rules. &merged;</para>
 
     <para>The <quote>in use</quote> percentage metric displayed by
     &man.netstat.1; now really reflects the percentage of network
