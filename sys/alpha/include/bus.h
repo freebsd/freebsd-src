@@ -72,28 +72,13 @@
 #ifndef _ALPHA_BUS_H_
 #define _ALPHA_BUS_H_
 
-#include <machine/cpufunc.h>
-
-/*
- * To remain compatible with NetBSD's interface, default to both memio and
- * pio when neither of them is defined.
- */ 
-#if !defined(_ALPHA_BUS_PIO_H_) && !defined(_ALPHA_BUS_MEMIO_H_)
-#define _ALPHA_BUS_PIO_H_
-#define _ALPHA_BUS_MEMIO_H_
-#endif
-
-/*
- * Values for the alpha bus space tag, not to be used directly by MI code.
- */
-#define	ALPHA_BUS_SPACE_IO	0	/* space is i/o space */
-#define ALPHA_BUS_SPACE_MEM	1	/* space is mem space */
-
 /*
  * Bus address and size types
  */
-typedef u_long bus_addr_t;
-typedef u_long bus_size_t;
+typedef u_int32_t		bus_addr_t;
+typedef u_int32_t		bus_size_t;
+typedef struct alpha_busspace	*bus_space_tag_t;
+typedef u_int32_t		bus_space_handle_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
@@ -104,928 +89,280 @@ typedef u_long bus_size_t;
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
-/*
- * Access methods for bus resources and address space.
- */
-typedef	int bus_space_tag_t;
-typedef	u_long bus_space_handle_t;
+struct alpha_busspace;
 
-/*
- * Map a region of device bus space into CPU virtual address space.
- */
+struct alpha_busspace_ops {
+    u_int8_t	(*abo_read_1)(struct alpha_busspace *space, size_t offset);
+    u_int16_t	(*abo_read_2)(struct alpha_busspace *space, size_t offset);
+    u_int32_t	(*abo_read_4)(struct alpha_busspace *space, size_t offset);
 
-#define	BUS_SPACE_MAP_CACHEABLE		0x01
-#define	BUS_SPACE_MAP_LINEAR		0x02
+    void	(*abo_read_multi_1)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int8_t *addr, size_t count);
+    void	(*abo_read_multi_2)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int16_t *addr, size_t count);
+    void	(*abo_read_multi_4)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int32_t *addr, size_t count);
 
-int	bus_space_map(bus_space_tag_t t, bus_addr_t addr, bus_size_t size,
-		      int flags, bus_space_handle_t *bshp);
+    void	(*abo_read_region_1)(struct alpha_busspace *space,
+				     size_t offset,
+				     u_int8_t *addr, size_t count);
+    void	(*abo_read_region_2)(struct alpha_busspace *space,
+				     size_t offset,
+				     u_int16_t *addr, size_t count);
+    void	(*abo_read_region_4)(struct alpha_busspace *space,
+				     size_t offset,
+				     u_int32_t *addr, size_t count);
 
-/*
- * Unmap a region of device bus space.
- */
+    void	(*abo_write_1)(struct alpha_busspace *space, size_t offset,
+			       u_int8_t value);
+    void	(*abo_write_2)(struct alpha_busspace *space, size_t offset,
+			       u_int16_t value);
+    void	(*abo_write_4)(struct alpha_busspace *space, size_t offset,
+			       u_int32_t value);
 
-void	bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
-			bus_size_t size);
+    void	(*abo_write_multi_1)(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int8_t *addr, size_t count);
+    void	(*abo_write_multi_2)(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int16_t *addr, size_t count);
+    void	(*abo_write_multi_4)(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int32_t *addr, size_t count);
 
-/*
- * Get a new handle for a subregion of an already-mapped area of bus space.
- */
+    void	(*abo_write_region_1)(struct alpha_busspace *space,
+				      size_t offset,
+				      const u_int8_t *addr, size_t count);
+    void	(*abo_write_region_2)(struct alpha_busspace *space,
+				      size_t offset,
+				      const u_int16_t *addr, size_t count);
+    void	(*abo_write_region_4)(struct alpha_busspace *space,
+				      size_t offset,
+				      const u_int32_t *addr, size_t count);
 
-int	bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
-			    bus_size_t offset, bus_size_t size,
-			    bus_space_handle_t *nbshp);
+    void	(*abo_set_multi_1)(struct alpha_busspace *space, size_t offset,
+				   u_int8_t value, size_t count);
+    void	(*abo_set_multi_2)(struct alpha_busspace *space, size_t offset,
+				   u_int16_t value, size_t count);
+    void	(*abo_set_multi_4)(struct alpha_busspace *space, size_t offset,
+				   u_int32_t value, size_t count);
 
-/*
- * Allocate a region of memory that is accessible to devices in bus space.
- */
+    void	(*abo_set_region_1)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int8_t value, size_t count);
+    void	(*abo_set_region_2)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int16_t value, size_t count);
+    void	(*abo_set_region_4)(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int32_t value, size_t count);
 
-int	bus_space_alloc(bus_space_tag_t t, bus_addr_t rstart,
-			bus_addr_t rend, bus_size_t size, bus_size_t align,
-			bus_size_t boundary, int flags, bus_addr_t *addrp,
-			bus_space_handle_t *bshp);
+    void	(*abo_copy_region_1)(struct alpha_busspace *space,
+				     size_t offset1, size_t offset2,
+				     size_t count);
+    void	(*abo_copy_region_2)(struct alpha_busspace *space,
+				     size_t offset1, size_t offset2,
+				     size_t count);
+    void	(*abo_copy_region_4)(struct alpha_busspace *space,
+				     size_t offset1, size_t offset2,
+				     size_t count);
 
-/*
- * Free a region of bus space accessible memory.
- */
+    void	(*abo_barrier)(struct alpha_busspace *space, size_t offset,
+			       size_t len, int flags);
+};
 
-void	bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh,
-		       bus_size_t size);
+struct alpha_busspace {
+    struct alpha_busspace_ops *ab_ops;
+};
 
-#if defined(_ALPHA_BUS_PIO_H_) || defined(_ALPHA_BUS_MEMIO_H_)
+/* Back-compat functions for old ISA drivers */
 
-/*
- * Read a 1, 2, 4, or 8 byte quantity from bus space
- * described by tag/handle/offset.
- */
-static __inline u_int8_t bus_space_read_1(bus_space_tag_t tag,
-					  bus_space_handle_t handle,
-					  bus_size_t offset);
+extern struct alpha_busspace *busspace_isa_io;
+extern struct alpha_busspace *busspace_isa_mem;
 
-static __inline u_int16_t bus_space_read_2(bus_space_tag_t tag,
-					   bus_space_handle_t handle,
-					   bus_size_t offset);
+#define inb(o)		bus_space_read_1(busspace_isa_io, o, 0)
+#define inw(o)		bus_space_read_2(busspace_isa_io, o, 0)
+#define inl(o)		bus_space_read_4(busspace_isa_io, o, 0)
+#define outb(o, v)	bus_space_write_1(busspace_isa_io, o, 0, v)
+#define outw(o, v)	bus_space_write_2(busspace_isa_io, o, 0, v)
+#define outl(o, v)	bus_space_write_4(busspace_isa_io, o, 0, v)
 
-static __inline u_int32_t bus_space_read_4(bus_space_tag_t tag,
-					   bus_space_handle_t handle,
-					   bus_size_t offset);
+#define readb(o)	bus_space_read_1(busspace_isa_mem, o, 0)
+#define readw(o)	bus_space_read_2(busspace_isa_mem, o, 0)
+#define readl(o)	bus_space_read_4(busspace_isa_mem, o, 0)
+#define writeb(o, v)	bus_space_write_1(busspace_isa_mem, o, 0, v)
+#define writew(o, v)	bus_space_write_2(busspace_isa_mem, o, 0, v)
+#define writel(o, v)	bus_space_write_4(busspace_isa_mem, o, 0, v)
 
-static __inline u_int8_t
-bus_space_read_1(bus_space_tag_t tag, bus_space_handle_t handle,
-		 bus_size_t offset)
-{
-#if defined (_ALPHA_BUS_PIO_H_)
-#if defined (_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		return (inb(handle + offset));
-#endif
-#if defined (_ALPHA_BUS_MEMIO_H_)
-	return (readb(handle + offset));
-#endif
-}
+#define insb(o, a, c)	bus_space_read_multi_1(busspace_isa_io, o, 0, \
+					       (void*)a, c)
+#define insw(o, a, c)	bus_space_read_multi_2(busspace_isa_io, o, 0, \
+					       (void*)a, c)
+#define insl(o, a, c)	bus_space_read_multi_4(busspace_isa_io, o, 0, \
+					       (void*)a, c)
 
-static __inline u_int16_t
-bus_space_read_2(bus_space_tag_t tag, bus_space_handle_t handle,
-		 bus_size_t offset)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		return (inw(handle + offset));
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	return (readw(handle + offset));
-#endif
-}
+#define outsb(o, a, c)	bus_space_write_multi_1(busspace_isa_io, o, 0, \
+						(void*)a, c)
+#define outsw(o, a, c)	bus_space_write_multi_2(busspace_isa_io, o, 0, \
+						(void*)a, c)
+#define outsl(o, a, c)	bus_space_write_multi_4(busspace_isa_io, o, 0, \
+						(void*)a, c)
 
-static __inline u_int32_t
-bus_space_read_4(bus_space_tag_t tag, bus_space_handle_t handle,
-		 bus_size_t offset)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		return (inl(handle + offset));
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	return (readl(handle + offset));
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_read_8 */
-#define	bus_space_read_8(t, h, o)	!!! bus_space_read_8 unimplemented !!!
-#endif
-
-/*
- * Read `count' 1, 2, 4, or 8 byte quantities from bus space
- * described by tag/handle/offset and copy into buffer provided.
- */
-static __inline void bus_space_read_multi_1(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int8_t *addr,
-					    size_t count);
-
-static __inline void bus_space_read_multi_2(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int16_t *addr,
-					    size_t count);
-
-static __inline void bus_space_read_multi_4(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int32_t *addr,
-					    size_t count);
-
-static __inline void
-bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int8_t *addr, size_t count)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			*addr++ = inb(bsh + offset);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-	while (count--)
-		*addr++ = readb(bsh + offset);
-#endif
-}
+#define memcpy_fromio(d, s, c) \
+	bus_space_read_region_1(busspace_isa_mem, s, 0, d, c)
+#define memcpy_toio(d, s, c) \
+	bus_space_write_region_1(busspace_isa_mem, d, 0, s, c)
+#define memcpy_io(d, s, c) \
+	bus_space_copy_region_1(busspace_isa_mem, s, 0, d, 0, c)
+#define memset_io(d, v, c) \
+	bus_space_set_region_1(busspace_isa_mem, d, 0, v, c)
+#define memsetw_io(d, v, c) \
+	bus_space_set_region_2(busspace_isa_mem, d, 0, v, c)
 
 static __inline void
-bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int16_t *addr, size_t count)
+memsetw(void *d, int val, size_t size)
 {
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			*addr++ = inw(baddr);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			*addr++ = readw(baddr);
-#endif
+    u_int16_t *sp = d;
+
+    while (size--)
+	*sp++ = val;
 }
 
-static __inline void
-bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int32_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			*addr++ = inl(baddr);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			*addr++ = readl(baddr);
-#endif
-}
+void busspace_generic_read_multi_1(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int8_t *addr, size_t count);
+void busspace_generic_read_multi_2(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int16_t *addr, size_t count);
+void busspace_generic_read_multi_4(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int32_t *addr, size_t count);
+void busspace_generic_read_region_1(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int8_t *addr, size_t count);
+void busspace_generic_read_region_2(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int16_t *addr, size_t count);
+void busspace_generic_read_region_4(struct alpha_busspace *space,
+				    size_t offset,
+				    u_int32_t *addr, size_t count);
+void busspace_generic_write_multi_1(struct alpha_busspace *space,
+				    size_t offset,
+				    const u_int8_t *addr, size_t count);
+void busspace_generic_write_multi_2(struct alpha_busspace *space,
+				    size_t offset,
+				    const u_int16_t *addr, size_t count);
+void busspace_generic_write_multi_4(struct alpha_busspace *space,
+				    size_t offset,
+				    const u_int32_t *addr, size_t count);
+void busspace_generic_write_region_1(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int8_t *addr, size_t count);
+void busspace_generic_write_region_2(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int16_t *addr, size_t count);
+void busspace_generic_write_region_4(struct alpha_busspace *space,
+				     size_t offset,
+				     const u_int32_t *addr, size_t count);
+void busspace_generic_set_multi_1(struct alpha_busspace *space,
+				  size_t offset,
+				  u_int8_t value, size_t count);
+void busspace_generic_set_multi_2(struct alpha_busspace *space,
+				  size_t offset,
+				  u_int16_t value, size_t count);
+void busspace_generic_set_multi_4(struct alpha_busspace *space,
+				  size_t offset,
+				  u_int32_t value, size_t count);
+void busspace_generic_set_region_1(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int8_t value, size_t count);
+void busspace_generic_set_region_2(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int16_t value, size_t count);
+void busspace_generic_set_region_4(struct alpha_busspace *space,
+				   size_t offset,
+				   u_int32_t value, size_t count);
+void busspace_generic_copy_region_1(struct alpha_busspace *space,
+				    size_t offset1,
+				    size_t offset2,
+				    size_t count);
+void busspace_generic_copy_region_2(struct alpha_busspace *space,
+				    size_t offset1,
+				    size_t offset2,
+				    size_t count);
+void busspace_generic_copy_region_4(struct alpha_busspace *space,
+				    size_t offset1,
+				    size_t offset2,
+				    size_t count);
+void busspace_generic_barrier(struct alpha_busspace *space,
+			      size_t offset, size_t len,
+			      int flags);
 
-#if 0	/* Cause a link error for bus_space_read_multi_8 */
-#define	bus_space_read_multi_8	!!! bus_space_read_multi_8 unimplemented !!!
-#endif
-
-/*
- * Read `count' 1, 2, 4, or 8 byte quantities from bus space
- * described by tag/handle and starting at `offset' and copy into
- * buffer provided.
- */
-static __inline void bus_space_read_region_1(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset, u_int8_t *addr,
-					     size_t count);
-
-static __inline void bus_space_read_region_2(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset, u_int16_t *addr,
-					     size_t count);
-
-static __inline void bus_space_read_region_4(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset, u_int32_t *addr,
-					     size_t count);
-
-
-static __inline void
-bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, u_int8_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			*addr++ = inb(baddr);
-			baddr += 1;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			*addr++ = readb(baddr);
-			baddr += 1;
-		}
-#endif
-}
-
-static __inline void
-bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, u_int16_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			*addr++ = inw(baddr);
-			baddr += 2;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			*addr++ = readw(baddr);
-			baddr += 2;
-		}
-#endif
-}
-
-static __inline void
-bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, u_int32_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			*addr++ = inl(baddr);
-			baddr += 4;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			*addr++ = readb(baddr);
-			baddr += 4;
-		}
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_read_region_8 */
-#define	bus_space_read_region_8	!!! bus_space_read_region_8 unimplemented !!!
-#endif
-
-/*
- * Write the 1, 2, 4, or 8 byte value `value' to bus space
- * described by tag/handle/offset.
- */
-
-static __inline void bus_space_write_1(bus_space_tag_t tag,
-				       bus_space_handle_t bsh,
-				       bus_size_t offset, u_int8_t value);
-
-static __inline void bus_space_write_2(bus_space_tag_t tag,
-				       bus_space_handle_t bsh,
-				       bus_size_t offset, u_int16_t value);
-
-static __inline void bus_space_write_4(bus_space_tag_t tag,
-				       bus_space_handle_t bsh,
-				       bus_size_t offset, u_int32_t value);
-
-static __inline void
-bus_space_write_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int8_t value)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		outb(bsh + offset, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		writeb(bsh + offset, value);
-#endif
-}
-
-static __inline void
-bus_space_write_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int16_t value)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		outw(bsh + offset, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		writew(bsh + offset, value);
-#endif
-}
-
-static __inline void
-bus_space_write_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int32_t value)
-{
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		outl(bsh + offset, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		writel(bsh + offset, value);
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_write_8 */
-#define	bus_space_write_8	!!! bus_space_write_8 not implemented !!!
-#endif
-
-/*
- * Write `count' 1, 2, 4, or 8 byte quantities from the buffer
- * provided to bus space described by tag/handle/offset.
- */
-
-static __inline void bus_space_write_multi_1(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset,
-					     const u_int8_t *addr,
-					     size_t count);
-static __inline void bus_space_write_multi_2(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset,
-					     const u_int16_t *addr,
-					     size_t count);
-
-static __inline void bus_space_write_multi_4(bus_space_tag_t tag,
-					     bus_space_handle_t bsh,
-					     bus_size_t offset,
-					     const u_int32_t *addr,
-					     size_t count);
-
-static __inline void
-bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, const u_int8_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outb(baddr, *addr++);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writeb(baddr, *addr++);
-#endif
-}
-
-static __inline void
-bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, const u_int16_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outw(baddr, *addr++);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writew(baddr, *addr++);
-#endif
-}
-
-static __inline void
-bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-			bus_size_t offset, const u_int32_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outl(baddr, *addr++);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writel(baddr, *addr++);
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_write_multi_8 */
-#define	bus_space_write_multi_8(t, h, o, a, c)				\
-			!!! bus_space_write_multi_8 unimplemented !!!
-#endif
-
-/*
- * Write `count' 1, 2, 4, or 8 byte quantities from the buffer provided
- * to bus space described by tag/handle starting at `offset'.
- */
-
-static __inline void bus_space_write_region_1(bus_space_tag_t tag,
-					      bus_space_handle_t bsh,
-					      bus_size_t offset,
-					      const u_int8_t *addr,
-					      size_t count);
-static __inline void bus_space_write_region_2(bus_space_tag_t tag,
-					      bus_space_handle_t bsh,
-					      bus_size_t offset,
-					      const u_int16_t *addr,
-					      size_t count);
-static __inline void bus_space_write_region_4(bus_space_tag_t tag,
-					      bus_space_handle_t bsh,
-					      bus_size_t offset,
-					      const u_int32_t *addr,
-					      size_t count);
-
-static __inline void
-bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-			 bus_size_t offset, const u_int8_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			outb(baddr, *addr++);
-			baddr += 1;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			writeb(baddr, *addr++);
-			baddr += 1;
-		}
-#endif
-}
-
-static __inline void
-bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-			 bus_size_t offset, const u_int16_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			outw(baddr, *addr++);
-			baddr += 2;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			writew(baddr, *addr++);
-			baddr += 2;
-		}
-#endif
-}
-
-static __inline void
-bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-			 bus_size_t offset, const u_int32_t *addr, size_t count)
-{
-	bus_addr_t baddr = bsh + offset;
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--) {
-			outl(baddr, *addr++);
-			baddr += 4;
-		}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--) {
-			writel(baddr, *addr++);
-			baddr += 4;
-		}
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_write_region_8 */
-#define	bus_space_write_region_8					\
-			!!! bus_space_write_region_8 unimplemented !!!
-#endif
-
-/*
- * Write the 1, 2, 4, or 8 byte value `val' to bus space described
- * by tag/handle/offset `count' times.
- */
-
-static __inline void bus_space_set_multi_1(bus_space_tag_t tag,
-					   bus_space_handle_t bsh,
-					   bus_size_t offset,
-					   u_int8_t value, size_t count);
-static __inline void bus_space_set_multi_2(bus_space_tag_t tag,
-					   bus_space_handle_t bsh,
-					   bus_size_t offset,
-					   u_int16_t value, size_t count);
-static __inline void bus_space_set_multi_4(bus_space_tag_t tag,
-					   bus_space_handle_t bsh,
-					   bus_size_t offset,
-					   u_int32_t value, size_t count);
-
-static __inline void
-bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-		      bus_size_t offset, u_int8_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outb(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writeb(addr, value);
-#endif
-}
-
-static __inline void
-bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-		     bus_size_t offset, u_int16_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outw(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writew(addr, value);
-#endif
-}
-
-static __inline void
-bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-		      bus_size_t offset, u_int32_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		while (count--)
-			outl(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		while (count--)
-			writel(addr, value);
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_set_multi_8 */
-#define	bus_space_set_multi_8 !!! bus_space_set_multi_8 unimplemented !!!
-#endif
-
-/*
- * Write `count' 1, 2, 4, or 8 byte value `val' to bus space described
- * by tag/handle starting at `offset'.
- */
-
-static __inline void bus_space_set_region_1(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int8_t value,
-					    size_t count);
-static __inline void bus_space_set_region_2(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int16_t value,
-					    size_t count);
-static __inline void bus_space_set_region_4(bus_space_tag_t tag,
-					    bus_space_handle_t bsh,
-					    bus_size_t offset, u_int32_t value,
-					    size_t count);
-
-static __inline void
-bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int8_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		for (; count != 0; count--, addr++)
-			outb(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		for (; count != 0; count--, addr++)
-			writeb(addr, value);
-#endif
-}
-
-static __inline void
-bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int16_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		for (; count != 0; count--, addr += 2)
-			outw(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		for (; count != 0; count--, addr += 2)
-			writew(addr, value);
-#endif
-}
-
-static __inline void
-bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
-		       bus_size_t offset, u_int32_t value, size_t count)
-{
-	bus_addr_t addr = bsh + offset;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-		for (; count != 0; count--, addr += 4)
-			outl(addr, value);
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-		for (; count != 0; count--, addr += 4)
-			writel(addr, value);
-#endif
-}
-
-#if 0	/* Cause a link error for bus_space_set_region_8 */
-#define	bus_space_set_region_8	!!! bus_space_set_region_8 unimplemented !!!
-#endif
-
-/*
- * Copy `count' 1, 2, 4, or 8 byte values from bus space starting
- * at tag/bsh1/off1 to bus space starting at tag/bsh2/off2.
- */
-
-static __inline void bus_space_copy_region_1(bus_space_tag_t tag,
-					     bus_space_handle_t bsh1,
-					     bus_size_t off1,
-					     bus_space_handle_t bsh2,
-					     bus_size_t off2, size_t count);
-
-static __inline void bus_space_copy_region_2(bus_space_tag_t tag,
-					     bus_space_handle_t bsh1,
-					     bus_size_t off1,
-					     bus_space_handle_t bsh2,
-					     bus_size_t off2, size_t count);
-
-static __inline void bus_space_copy_region_4(bus_space_tag_t tag,
-					     bus_space_handle_t bsh1,
-					     bus_size_t off1,
-					     bus_space_handle_t bsh2,
-					     bus_size_t off2, size_t count);
-
-static __inline void
-bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
-			bus_size_t off1, bus_space_handle_t bsh2,
-			bus_size_t off2, size_t count)
-{
-	bus_addr_t addr1 = bsh1 + off1;
-	bus_addr_t addr2 = bsh2 + off2;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1++, addr2++)
-				outb(addr2, inb(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += (count - 1), addr2 += (count - 1);
-			    count != 0; count--, addr1--, addr2--)
-				outb(addr2, inb(addr1));
-		}
-	}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1++, addr2++)
-				writeb(addr2, readb(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += (count - 1), addr2 += (count - 1);
-			    count != 0; count--, addr1--, addr2--)
-				writeb(addr2, readb(addr1));
-		}
-	}
-#endif
-}
-
-static __inline void
-bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
-			bus_size_t off1, bus_space_handle_t bsh2,
-			bus_size_t off2, size_t count)
-{
-	bus_addr_t addr1 = bsh1 + off1;
-	bus_addr_t addr2 = bsh2 + off2;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1 += 2, addr2 += 2)
-				outw(addr2, inw(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += 2 * (count - 1), addr2 += 2 * (count - 1);
-			    count != 0; count--, addr1 -= 2, addr2 -= 2)
-				outw(addr2, inw(addr1));
-		}
-	}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1 += 2, addr2 += 2)
-				writew(addr2, readw(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += 2 * (count - 1), addr2 += 2 * (count - 1);
-			    count != 0; count--, addr1 -= 2, addr2 -= 2)
-				writew(addr2, readw(addr1));
-		}
-	}
-#endif
-}
-
-static __inline void
-bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
-			bus_size_t off1, bus_space_handle_t bsh2,
-			bus_size_t off2, size_t count)
-{
-	bus_addr_t addr1 = bsh1 + off1;
-	bus_addr_t addr2 = bsh2 + off2;
-
-#if defined(_ALPHA_BUS_PIO_H_)
-#if defined(_ALPHA_BUS_MEMIO_H_)
-	if (tag == ALPHA_BUS_SPACE_IO)
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1 += 4, addr2 += 4)
-				outl(addr2, inl(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += 4 * (count - 1), addr2 += 4 * (count - 1);
-			    count != 0; count--, addr1 -= 4, addr2 -= 4)
-				outl(addr2, inl(addr1));
-		}
-	}
-#endif
-#if defined(_ALPHA_BUS_MEMIO_H_)
-#if defined(_ALPHA_BUS_PIO_H_)
-	else
-#endif
-	{
-		if (addr1 >= addr2) {
-			/* src after dest: copy forward */
-			for (; count != 0; count--, addr1 += 4, addr2 += 4)
-				writel(addr2, readl(addr1));
-		} else {
-			/* dest after src: copy backwards */
-			for (addr1 += 4 * (count - 1), addr2 += 4 * (count - 1);
-			    count != 0; count--, addr1 -= 4, addr2 -= 4)
-				writel(addr2, readl(addr1));
-		}
-	}
-#endif
-}
-
-#endif /* defined(_ALPHA_BUS_PIO_H_) || defined(_ALPHA_MEM_IO_H_) */
-
-#if 0	/* Cause a link error for bus_space_copy_8 */
-#define	bus_space_copy_region_8	!!! bus_space_copy_region_8 unimplemented !!!
-#endif
-
-/*
- * Bus read/write barrier methods.
- *
- *	void bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
- *			       bus_size_t offset, bus_size_t len, int flags);
- *
- */
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
 
-static __inline void
-bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
-		  bus_size_t offset, bus_size_t len, int flags)
-{
-	if (flags & BUS_SPACE_BARRIER_READ)
-		alpha_mb();
-	else
-		alpha_wmb();
-}
+#define bus_space_read_1(t, h, o) \
+	(t)->ab_ops->abo_read_1(t, (h)+(o))
+#define bus_space_read_2(t, h, o) \
+	(t)->ab_ops->abo_read_2(t, (h)+(o))
+#define bus_space_read_4(t, h, o) \
+	(t)->ab_ops->abo_read_4(t, (h)+(o))
+#define bus_space_read_multi_1(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_multi_1(t, (h)+(o), a, c)
+#define bus_space_read_multi_2(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_multi_2(t, (h)+(o), a, c)
+#define bus_space_read_multi_4(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_multi_4(t, (h)+(o), a, c)
+#define bus_space_read_region_1(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_region_1(t, (h)+(o), a, c)
+#define bus_space_read_region_2(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_region_2(t, (h)+(o), a, c)
+#define bus_space_read_region_4(t, h, o, a, c) \
+	(t)->ab_ops->abo_read_region_4(t, (h)+(o), a, c)
 
+#define bus_space_write_1(t, h, o, v) \
+	(t)->ab_ops->abo_write_1(t, (h)+(o), v)
+#define bus_space_write_2(t, h, o, v) \
+	(t)->ab_ops->abo_write_2(t, (h)+(o), v)
+#define bus_space_write_4(t, h, o, v) \
+	(t)->ab_ops->abo_write_4(t, (h)+(o), v)
+#define bus_space_write_multi_1(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_multi_1(t, (h)+(o), a, c)
+#define bus_space_write_multi_2(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_multi_2(t, (h)+(o), a, c)
+#define bus_space_write_multi_4(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_multi_4(t, (h)+(o), a, c)
+#define bus_space_write_region_1(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_region_1(t, (h)+(o), a, c)
+#define bus_space_write_region_2(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_region_2(t, (h)+(o), a, c)
+#define bus_space_write_region_4(t, h, o, a, c) \
+	(t)->ab_ops->abo_write_region_4(t, (h)+(o), a, c)
+#define bus_space_set_multi_1(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_multi_1(t, (h)+(o), v, c)
+#define bus_space_set_multi_2(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_multi_2(t, (h)+(o), v, c)
+#define bus_space_set_multi_4(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_multi_4(t, (h)+(o), v, c)
+#define bus_space_set_region_1(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_region_1(t, (h)+(o), v, c)
+#define bus_space_set_region_2(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_region_2(t, (h)+(o), v, c)
+#define bus_space_set_region_4(t, h, o, v, c) \
+	(t)->ab_ops->abo_set_region_4(t, (h)+(o), v, c)
+
+#define bus_space_copy_region_1(t, h1, o1, h2, o2, c) \
+	(t)->ab_ops->abo_copy_region_1(t, (h1)+(o1), (h2)+(o2), c)
+#define bus_space_copy_region_2(t, h1, o1, h2, o2, c) \
+	(t)->ab_ops->abo_copy_region_2(t, (h1)+(o1), (h2)+(o2), c)
+#define bus_space_copy_region_4(t, h1, o1, h2, o2, c) \
+	(t)->ab_ops->abo_copy_region_4(t, (h1)+(o1), (h2)+(o2), c)
+
+#define bus_space_barrier(t, h, o, l, f) \
+	(t)->ab_ops->abo_barrier(t, (h)+(o), l, f)
 
 /*
  * Flags used in various bus DMA methods.

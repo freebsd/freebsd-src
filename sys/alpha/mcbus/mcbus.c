@@ -220,7 +220,7 @@ static int
 mcbus_setup_intr(device_t dev, device_t child, struct resource *r, int f,
     driver_intr_t *intr, void *a, void **ac)
 {
-	if (strncmp(device_get_name(child), "mcpcia", 6) == 0) {
+	if (strncmp(device_get_name(child), "pcib", 6) == 0) {
 		if (mcbus0_softc->sub_intr == NULL)
 			mcbus0_softc->sub_intr = intr;
 		return (0);
@@ -232,7 +232,7 @@ mcbus_setup_intr(device_t dev, device_t child, struct resource *r, int f,
 static int
 mcbus_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 {
-	if (strncmp(device_get_name(child), "mcpcia", 6) == 0) {
+	if (strncmp(device_get_name(child), "pcib", 6) == 0) {
 		mcbus0_softc->sub_intr = NULL;
 		return (0);
 	} else {
@@ -257,7 +257,7 @@ mcbus_add_child(struct mcbus_softc *mcbus, struct mcbus_device *mdev)
 
 	switch (mdev->ma_type) {
 	case MCBUS_TYPE_PCI:
-		dn = "mcpcia";
+		dn = "pcib";
 		ds = "MCPCIA PCI Bus Bridge";
 		un = mcpciaproto++;
 		break;

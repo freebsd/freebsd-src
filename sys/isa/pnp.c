@@ -37,6 +37,7 @@
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
 
 typedef struct _pnp_id {
 	u_int32_t vendor_id;

@@ -58,6 +58,8 @@
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
+#include "pcib_if.h"
+
 /*---------------------------------------------------------
 **
 **	Intel chipsets for 486 / Pentium processor
@@ -762,7 +764,9 @@ static int pcib_attach(device_t dev)
 
 	secondary = pci_get_secondarybus(dev);
 	if (secondary) {
-		device_add_child(dev, "pci", secondary);
+		device_t child;
+		child = device_add_child(dev, "pci", -1);
+		pcib_set_bus(child, secondary);
 		return bus_generic_attach(dev);
 	} else
 		return 0;
@@ -771,14 +775,53 @@ static int pcib_attach(device_t dev)
 static int
 pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	if (which == PCIB_IVAR_HOSE) {
-		/*
-		 * Pass up to parent bus.
-		 */
-		*result = pci_get_hose(dev);
-		return(0);
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		*result = *(int*) device_get_softc(dev);
+		return 0;
 	}
 	return ENOENT;
+}
+
+static int
+pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		*(int*) device_get_softc(dev) = value;
+		return 0;
+	}
+	return ENOENT;
+}
+
+static int
+pcib_maxslots(device_t dev)
+{
+	return 31;
+}
+
+static u_int32_t
+pcib_read_config(device_t dev, int b, int s, int f,
+		 int reg, int width)
+{
+	/*
+	 * Pass through to the next ppb up the chain (i.e. our
+	 * grandparent).
+	 */
+	return PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)),
+				b, s, f, reg, width);
+}
+
+static void
+pcib_write_config(device_t dev, int b, int s, int f,
+		  int reg, u_int32_t val, int width)
+{
+	/*
+	 * Pass through to the next ppb up the chain (i.e. our
+	 * grandparent).
+	 */
+	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)),
+			  b, s, f, reg, val, width);
 }
 
 static device_method_t pcib_methods[] = {
@@ -792,6 +835,7 @@ static device_method_t pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar,	pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -799,13 +843,18 @@ static device_method_t pcib_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
+	DEVMETHOD(pcib_read_config,	pcib_read_config),
+	DEVMETHOD(pcib_write_config,	pcib_write_config),
+
 	{ 0, 0 }
 };
 
 static driver_t pcib_driver = {
 	"pcib",
 	pcib_methods,
-	1,
+	sizeof(int),
 };
 
 static devclass_t pcib_devclass;

@@ -41,6 +41,7 @@
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <alpha/pci/lcavar.h>
@@ -265,7 +266,8 @@ dec_axppci_33_intr_map(void *arg)
 		return;
 	}
 
-	pirqreg = chipset.cfgreadl(0, 0, 7, 0, SIO_PCIREG_PIRQ_RTCTRL);
+	pirqreg = lca_pcib_read_config(0, 0, 7, 0,
+				       SIO_PCIREG_PIRQ_RTCTRL, 4);
 #if 0
 	printf("dec_axppci_33_intr_map: device %d pin %c: pirq %d, reg = %x\n",
 		device, '@' + cfg->intpin, pirq, pirqreg);

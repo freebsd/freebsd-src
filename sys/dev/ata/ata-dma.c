@@ -43,6 +43,7 @@
 #endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
+#include <machine/bus.h>
 
 #if NPCI > 0
 

@@ -36,6 +36,7 @@
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <alpha/pci/t2var.h>
@@ -56,8 +57,6 @@ static void dec_2100_a500_intr_init  __P((void ));
 extern int siocnattach __P((int, int));
 extern int siogdbattach __P((int, int));
 extern int sccnattach __P((void));
-
-extern vm_offset_t t2_csr_base;
 
 void
 dec_2100_a500_init(cputype)

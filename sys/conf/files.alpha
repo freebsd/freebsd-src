@@ -27,6 +27,7 @@ alpha/alpha/api_up1000.c	optional	api_up1000
 alpha/alpha/atomic.s		standard
 alpha/alpha/autoconf.c		standard
 alpha/alpha/busdma_machdep.c	standard
+alpha/alpha/busspace.c		standard
 alpha/alpha/clock.c		standard
 alpha/alpha/clock_if.m		standard
 alpha/alpha/cpuconf.c		standard
@@ -83,12 +84,14 @@ alpha/isa/mcclock_isa.c		optional	isa
 alpha/mcbus/mcbus.c		optional	dec_kn300
 alpha/mcbus/mcmem.c		optional	dec_kn300
 alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/pci/alphapci_if.m		optional	pci
 alpha/pci/apecs.c		optional	dec_2100_a50
 alpha/pci/apecs.c		optional	dec_eb64plus
 alpha/pci/apecs.c		optional	dec_1000a
 alpha/pci/apecs_pci.c		optional	dec_2100_a50
 alpha/pci/apecs_pci.c		optional	dec_eb64plus
 alpha/pci/apecs_pci.c		optional	dec_1000a
+alpha/pci/bwx.c			optional	pci
 alpha/pci/cia.c			optional	dec_eb164
 alpha/pci/cia.c			optional	dec_kn20aa
 alpha/pci/cia.c			optional	dec_st550
@@ -97,18 +100,17 @@ alpha/pci/cia_pci.c		optional	dec_eb164
 alpha/pci/cia_pci.c		optional	dec_kn20aa
 alpha/pci/cia_pci.c		optional	dec_st550
 alpha/pci/cia_pci.c		optional	dec_1000a
-alpha/pci/dwlpx_pci.c		optional	dec_kn8ae
 alpha/pci/irongate.c		optional	api_up1000
 alpha/pci/irongate_pci.c	optional	api_up1000
 alpha/pci/lca.c			optional	dec_axppci_33
 alpha/pci/lca_pci.c		optional	dec_axppci_33
-alpha/pci/mcpcia_pci.c		optional	dec_kn300
 alpha/pci/pci_eb164_intr.s	optional	dec_eb164
 alpha/pci/pci_eb164_intr.s	optional	dec_kn20aa
 alpha/pci/pci_eb164_intr.s	optional	dec_st550
 alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
 alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
+alpha/pci/swiz.c		optional	pci
 alpha/pci/t2.c			optional	dec_2100_a500
 alpha/pci/t2_pci.c		optional	dec_2100_a500
 alpha/pci/tsunami.c		optional	dec_st6600

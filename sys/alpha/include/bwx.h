@@ -93,11 +93,25 @@ stw_nb(vm_offset_t va, u_int64_t r)
     __asm__ __volatile__ ("stw %1,%0" : "=m"(*(u_int16_t*)va) : "r"(r));
 }
 
-
 static __inline void
 stl_nb(vm_offset_t va, u_int64_t r)
 {
     __asm__ __volatile__ ("stl %1,%0" : "=m"(*(u_int32_t*)va) : "r"(r));
 }
+
+#ifdef _KERNEL
+
+/*
+ * A kernel object for accessing memory-like spaces (port and
+ * memory spaces) using BWX instructions.
+ */
+struct bwx_space {
+	struct alpha_busspace_ops *ops;
+	u_int64_t	base;		/* base address of space */
+};
+
+void bwx_init_space(struct bwx_space *bwx, u_int64_t base);
+
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_BWX_H_ */

@@ -907,6 +907,7 @@ pci/pci_compat.c	optional pci compat_oldpci \
 pci/pcic_p.c		optional pcic pci
 pci/pcisupport.c	optional pci
 pci/pci_if.m		optional pci
+pci/pcib_if.m		optional pci
 pci/simos.c		optional simos
 pci/uhci_pci.c		optional uhci
 pci/xrpu.c		optional xrpu

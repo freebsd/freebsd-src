@@ -5715,7 +5715,7 @@ ahc_setup_data(struct ahc_softc *ahc, struct ccb_scsiio *csio,
 					panic("ahc_setup_data - Transfer size "
 					      "larger than can device max");
 
-				seg.ds_addr = (bus_addr_t)csio->data_ptr;
+				seg.ds_addr = (intptr_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
 				ahc_execute_scb(scb, &seg, 1, 0);
 			}

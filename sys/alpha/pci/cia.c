@@ -116,6 +116,8 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include "alphapci_if.h"
+
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
 static devclass_t	cia_devclass;
@@ -129,533 +131,36 @@ struct cia_softc {
 
 #define CIA_SOFTC(dev)	(struct cia_softc*) device_get_softc(dev)
 
-static alpha_chipset_inb_t	cia_bwx_inb, cia_swiz_inb;
-static alpha_chipset_inw_t	cia_bwx_inw, cia_swiz_inw;
-static alpha_chipset_inl_t	cia_bwx_inl, cia_swiz_inl;
-static alpha_chipset_outb_t	cia_bwx_outb, cia_swiz_outb;
-static alpha_chipset_outw_t	cia_bwx_outw, cia_swiz_outw;
-static alpha_chipset_outl_t	cia_bwx_outl, cia_swiz_outl;
-static alpha_chipset_readb_t	cia_bwx_readb, cia_swiz_readb;
-static alpha_chipset_readw_t	cia_bwx_readw, cia_swiz_readw;
-static alpha_chipset_readl_t	cia_bwx_readl, cia_swiz_readl;
-static alpha_chipset_writeb_t	cia_bwx_writeb, cia_swiz_writeb;
-static alpha_chipset_writew_t	cia_bwx_writew, cia_swiz_writew;
-static alpha_chipset_writel_t	cia_bwx_writel, cia_swiz_writel;
-static alpha_chipset_maxdevs_t	cia_bwx_maxdevs, cia_swiz_maxdevs;
-static alpha_chipset_cfgreadb_t	cia_bwx_cfgreadb, cia_swiz_cfgreadb;
-static alpha_chipset_cfgreadw_t	cia_bwx_cfgreadw, cia_swiz_cfgreadw;
-static alpha_chipset_cfgreadl_t	cia_bwx_cfgreadl, cia_swiz_cfgreadl;
-static alpha_chipset_cfgwriteb_t cia_bwx_cfgwriteb, cia_swiz_cfgwriteb;
-static alpha_chipset_cfgwritew_t cia_bwx_cfgwritew, cia_swiz_cfgwritew;
-static alpha_chipset_cfgwritel_t cia_bwx_cfgwritel, cia_swiz_cfgwritel;
-static alpha_chipset_addrcvt_t   cia_cvt_dense,  cia_cvt_bwx;
 static alpha_chipset_read_hae_t	cia_read_hae;
 static alpha_chipset_write_hae_t cia_write_hae;
 
 static alpha_chipset_t cia_bwx_chipset = {
-	cia_bwx_inb,
-	cia_bwx_inw,
-	cia_bwx_inl,
-	cia_bwx_outb,
-	cia_bwx_outw,
-	cia_bwx_outl,
-	cia_bwx_readb,
-	cia_bwx_readw,
-	cia_bwx_readl,
-	cia_bwx_writeb,
-	cia_bwx_writew,
-	cia_bwx_writel,
-	cia_bwx_maxdevs,
-	cia_bwx_cfgreadb,
-	cia_bwx_cfgreadw,
-	cia_bwx_cfgreadl,
-	cia_bwx_cfgwriteb,
-	cia_bwx_cfgwritew,
-	cia_bwx_cfgwritel,
-	cia_cvt_dense,
-	cia_cvt_bwx,
 	cia_read_hae,
 	cia_write_hae,
 };
 static alpha_chipset_t cia_swiz_chipset = {
-	cia_swiz_inb,
-	cia_swiz_inw,
-	cia_swiz_inl,
-	cia_swiz_outb,
-	cia_swiz_outw,
-	cia_swiz_outl,
-	cia_swiz_readb,
-	cia_swiz_readw,
-	cia_swiz_readl,
-	cia_swiz_writeb,
-	cia_swiz_writew,
-	cia_swiz_writel,
-	cia_swiz_maxdevs,
-	cia_swiz_cfgreadb,
-	cia_swiz_cfgreadw,
-	cia_swiz_cfgreadl,
-	cia_swiz_cfgwriteb,
-	cia_swiz_cfgwritew,
-	cia_swiz_cfgwritel,
-	cia_cvt_dense,
-	NULL,
 	cia_read_hae,
 	cia_write_hae,
 };
 
-static u_int8_t
-cia_bwx_inb(u_int32_t port)
-{
-	alpha_mb();
-	return ldbu(KV(CIA_EV56_BWIO+BWX_EV56_INT1 + port));
-}
-
-static u_int16_t
-cia_bwx_inw(u_int32_t port)
-{
-	alpha_mb();
-	return ldwu(KV(CIA_EV56_BWIO+BWX_EV56_INT2 + port));
-}
-
 static u_int32_t
-cia_bwx_inl(u_int32_t port)
-{
-	alpha_mb();
-	return ldl(KV(CIA_EV56_BWIO+BWX_EV56_INT4 + port));
-}
-
-static void
-cia_bwx_outb(u_int32_t port, u_int8_t data)
-{
-	stb(KV(CIA_EV56_BWIO+BWX_EV56_INT1 + port), data);
-	alpha_wmb();
-}
-
-static void
-cia_bwx_outw(u_int32_t port, u_int16_t data)
-{
-	stw(KV(CIA_EV56_BWIO+BWX_EV56_INT2 + port), data);
-	alpha_wmb();
-}
-
-static void
-cia_bwx_outl(u_int32_t port, u_int32_t data)
-{
-	stl(KV(CIA_EV56_BWIO+BWX_EV56_INT4 + port), data);
-	alpha_wmb();
-}
-
-static u_int8_t
-cia_bwx_readb(u_int32_t pa)
-{
-	alpha_mb();
-	return ldbu(KV(CIA_EV56_BWMEM+BWX_EV56_INT1 + pa));
-}
-
-static u_int16_t
-cia_bwx_readw(u_int32_t pa)
-{
-	alpha_mb();
-	return ldwu(KV(CIA_EV56_BWMEM+BWX_EV56_INT2 + pa));
-}
-
-static u_int32_t
-cia_bwx_readl(u_int32_t pa)
-{
-	alpha_mb();
-	return ldl(KV(CIA_EV56_BWMEM+BWX_EV56_INT4 + pa));
-}
-
-static void
-cia_bwx_writeb(u_int32_t pa, u_int8_t data)
-{
-	stb(KV(CIA_EV56_BWMEM+BWX_EV56_INT1 + pa), data);
-	alpha_wmb();
-}
-
-static void
-cia_bwx_writew(u_int32_t pa, u_int16_t data)
-{
-	stw(KV(CIA_EV56_BWMEM+BWX_EV56_INT2 + pa), data);
-	alpha_wmb();
-}
-
-static void
-cia_bwx_writel(u_int32_t pa, u_int32_t data)
-{
-	stl(KV(CIA_EV56_BWMEM+BWX_EV56_INT4 + pa), data);
-	alpha_wmb();
-}
-
-static int
-cia_bwx_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-
-static void
-cia_clear_abort(void)
-{
-	/*
-	 * Some (apparently-common) revisions of EB164 and AlphaStation
-	 * firmware do the Wrong thing with PCI master and target aborts,
-	 * which are caused by accesing the configuration space of devices
-	 * that don't exist (for example).
-	 *
-	 * To work around this, we clear the CIA error register's PCI
-	 * master and target abort bits before touching PCI configuration
-	 * space and check it afterwards.  If it indicates a master or target
-	 * abort, the device wasn't there so we return 0xffffffff.
-	 */
-	REGVAL(CIA_CSR_CIA_ERR) = CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT;
-	alpha_mb();
-	alpha_pal_draina();	
-}
-
-static int
-cia_check_abort(void)
-{
-	u_int32_t errbits;
-	int ba = 0;
-
-	alpha_pal_draina();	
-	alpha_mb();
-	errbits = REGVAL(CIA_CSR_CIA_ERR);
-	if (errbits & (CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT))
-		ba = 1;
-
-	if (errbits) {
-		REGVAL(CIA_CSR_CIA_ERR) = errbits;
-		alpha_mb();
-		alpha_pal_draina();
-	}
-
-	return ba;
-}
-
-#define CIA_BWX_CFGADDR(b, s, f, r)				\
-	KV(((b) ? CIA_EV56_BWCONF1 : CIA_EV56_BWCONF0)		\
-	   | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
-
-static u_int8_t
-cia_bwx_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	u_int8_t data;
-	cia_clear_abort();
-	if (badaddr((caddr_t)va, 1)) {
-		cia_check_abort();
-		return ~0;
-	}
-	data = ldbu(va+BWX_EV56_INT1);
-	if (cia_check_abort())
-		return ~0;
-	return data;
-}
-
-static u_int16_t
-cia_bwx_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	u_int16_t data;
-	cia_clear_abort();
-	if (badaddr((caddr_t)va, 2)) {
-		cia_check_abort();
-		return ~0;
-	}
-	data = ldwu(va+BWX_EV56_INT2);
-	if (cia_check_abort())
-		return ~0;
-	return data;
-}
-
-static u_int32_t
-cia_bwx_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	u_int32_t data;
-	cia_clear_abort();
-	if (badaddr((caddr_t)va, 4)) {
-		cia_check_abort();
-		return ~0;
-	}
-	data = ldl(va+BWX_EV56_INT4);
-	if (cia_check_abort())
-		return ~0;
-	return data;
-}
-
-static void
-cia_bwx_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	cia_clear_abort();
-	if (badaddr((caddr_t)va, 1)) return;
-	stb(va+BWX_EV56_INT1, data);
-	cia_check_abort();
-}
-
-static void
-cia_bwx_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	if (badaddr((caddr_t)va, 2)) return;
-	stw(va+BWX_EV56_INT2, data);
-	cia_check_abort();
-}
-
-static void
-cia_bwx_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
-	if (badaddr((caddr_t)va, 4)) return;
-	stl(va+BWX_EV56_INT4, data);
-	cia_check_abort();
-}
-
-static u_int8_t
-cia_swiz_inb(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_BYTE(KV(CIA_PCI_SIO1), port);
-}
-
-static u_int16_t
-cia_swiz_inw(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_WORD(KV(CIA_PCI_SIO1), port);
-}
-
-static u_int32_t
-cia_swiz_inl(u_int32_t port)
-{
-	alpha_mb();
-	return SPARSE_READ_LONG(KV(CIA_PCI_SIO1), port);
-}
-
-static void
-cia_swiz_outb(u_int32_t port, u_int8_t data)
-{
-	SPARSE_WRITE_BYTE(KV(CIA_PCI_SIO1), port, data);
-	alpha_wmb();
-}
-
-static void
-cia_swiz_outw(u_int32_t port, u_int16_t data)
-{
-	SPARSE_WRITE_WORD(KV(CIA_PCI_SIO1), port, data);
-	alpha_wmb();
-}
-
-static void
-cia_swiz_outl(u_int32_t port, u_int32_t data)
-{
-	SPARSE_WRITE_LONG(KV(CIA_PCI_SIO1), port, data);
-	alpha_wmb();
-}
-
-static __inline void
-cia_swiz_set_hae_mem(u_int32_t *pa)
+cia_swiz_set_hae_mem(void *arg, u_int32_t pa)
 {
 	/* Only bother with region 1 */
 #define REG1 (7 << 29)
-	if ((cia_hae_mem & REG1) != (*pa & REG1)) {
+	if ((cia_hae_mem & REG1) != (pa & REG1)) {
 		/*
 		 * Seems fairly paranoid but this is what Linux does...
 		 */
-		u_int32_t msb = *pa & REG1;
+		u_int32_t msb = pa & REG1;
 		int s = splhigh();
 		cia_hae_mem = (cia_hae_mem & ~REG1) | msb;
 		REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
 		alpha_mb();
 		cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 		splx(s);
-		*pa -= msb;
 	}
-}
-
-static u_int8_t
-cia_swiz_readb(u_int32_t pa)
-{
-	alpha_mb();
-	cia_swiz_set_hae_mem(&pa);
-	return SPARSE_READ_BYTE(KV(CIA_PCI_SMEM1), pa);
-}
-
-static u_int16_t
-cia_swiz_readw(u_int32_t pa)
-{
-	alpha_mb();
-	cia_swiz_set_hae_mem(&pa);
-	return SPARSE_READ_WORD(KV(CIA_PCI_SMEM1), pa);
-}
-
-static u_int32_t
-cia_swiz_readl(u_int32_t pa)
-{
-	alpha_mb();
-	cia_swiz_set_hae_mem(&pa);
-	return SPARSE_READ_LONG(KV(CIA_PCI_SMEM1), pa);
-}
-
-static void
-cia_swiz_writeb(u_int32_t pa, u_int8_t data)
-{
-	cia_swiz_set_hae_mem(&pa);
-	SPARSE_WRITE_BYTE(KV(CIA_PCI_SMEM1), pa, data);
-	alpha_wmb();
-}
-
-static void
-cia_swiz_writew(u_int32_t pa, u_int16_t data)
-{
-	cia_swiz_set_hae_mem(&pa);
-	SPARSE_WRITE_WORD(KV(CIA_PCI_SMEM1), pa, data);
-	alpha_wmb();
-}
-
-static void
-cia_swiz_writel(u_int32_t pa, u_int32_t data)
-{
-	cia_swiz_set_hae_mem(&pa);
-	SPARSE_WRITE_LONG(KV(CIA_PCI_SMEM1), pa, data);
-	alpha_wmb();
-}
-
-static int
-cia_swiz_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-
-#define CIA_SWIZ_CFGOFF(b, s, f, r) \
-	(((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
-
-/*  when doing a type 1 pci configuration space access, we
- *  must set a bit in the CIA_CSR_CFG register & clear it 
- *  when we're done 
-*/
-
-#define CIA_TYPE1_SETUP(b,s,old_cfg) if((b)) {		\
-        do {						\
-		(s) = splhigh();			\
-		(old_cfg) = REGVAL(CIA_CSR_CFG);	\
-		alpha_mb();				\
-		REGVAL(CIA_CSR_CFG) = (old_cfg) | 0x1;	\
-		alpha_mb();				\
-        } while(0);					\
-}
-
-#define CIA_TYPE1_TEARDOWN(b,s,old_cfg) if((b)) {	\
-        do {						\
-		alpha_mb();				\
-		REGVAL(CIA_CSR_CFG) = (old_cfg);	\
-		alpha_mb();				\
-		splx((s));				\
-        } while(0);					\
-}
-
-/*
- * From NetBSD:
- * Some (apparently-common) revisions of EB164 and AlphaStation
- * firmware do the Wrong thing with PCI master and target aborts,
- * which are caused by accesing the configuration space of devices
- * that don't exist (for example).
- *
- * To work around this, we clear the CIA error register's PCI
- * master and target abort bits before touching PCI configuration
- * space and check it afterwards.  If it indicates a master or target
- * abort, the device wasn't there so we return ~0
- */
-
-
-#define SWIZ_CFGREAD(b, s, f, r, width, type)				\
-	type val = ~0;							\
-	int ipl = 0;							\
-	u_int32_t old_cfg = 0, errbits;					\
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(CIA_PCI_CONF), off); \
-	REGVAL(CIA_CSR_CIA_ERR) = CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT;\
-	alpha_mb();							\
-	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
-	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
-		val = SPARSE_##width##_EXTRACT(off, SPARSE_READ(kv));	\
-	}								\
-        CIA_TYPE1_TEARDOWN(b,ipl,old_cfg);				\
-	errbits = REGVAL(CIA_CSR_CIA_ERR);				\
-	if (errbits & (CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT))	\
-		val = ~0;						\
-	if (errbits) {							\
-		REGVAL(CIA_CSR_CIA_ERR) = errbits;			\
-		alpha_mb();						\
-		alpha_pal_draina();					\
-	}								\
-        return val;
-
-#define SWIZ_CFGWRITE(b, s, f, r, data, width, type)			\
-	int ipl = 0;							\
-	u_int32_t old_cfg = 0;						\
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(CIA_PCI_CONF), off); \
-	alpha_mb();							\
-	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
-	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
-                SPARSE_WRITE(kv, SPARSE_##width##_INSERT(off, data));	\
-		alpha_wmb();						\
-	}								\
-        CIA_TYPE1_TEARDOWN(b,ipl,old_cfg);				\
-	return;							
-
-static u_int8_t
-cia_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, BYTE, u_int8_t);
-}
-
-static u_int16_t
-cia_swiz_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, WORD, u_int16_t);
-}
-
-static u_int32_t
-cia_swiz_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	SWIZ_CFGREAD(b, s, f, r, LONG, u_int32_t);
-}
-
-static void
-cia_swiz_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
-}
-
-static void
-cia_swiz_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
-}
-
-static void
-cia_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
-}
-
-vm_offset_t
-cia_cvt_dense(vm_offset_t addr)
-{
-	addr &= 0xffffffffUL;
-	return (addr | CIA_PCI_DENSE);
-	
-}
-
-vm_offset_t
-cia_cvt_bwx(vm_offset_t addr)
-{
-	addr &= 0xffffffffUL;
-	return (addr |= CIA_EV56_BWMEM);
+	return pa & ~REG1;
 }
 
 static u_int64_t
@@ -668,7 +173,7 @@ static void
 cia_write_hae(u_int64_t hae)
 {
 	u_int32_t pa = hae;
-	cia_swiz_set_hae_mem(&pa);
+	cia_swiz_set_hae_mem(0, pa);
 }
 
 static int cia_probe(device_t dev);
@@ -756,7 +261,7 @@ cia_sgmap_invalidate_pyxis(void)
 }
 
 static void
-cia_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+cia_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 {
 	u_int64_t *sgtable = arg;
 	int index = alpha_btop(ba - CIA_SGMAP_BASE);
@@ -842,6 +347,10 @@ void
 cia_init()
 {
 	static int initted = 0;
+	static union space {
+		struct bwx_space bwx;
+		struct swiz_space swiz;
+	} io_space, mem_space;
 
 	if (initted) return;
 	initted = 1;
@@ -870,16 +379,22 @@ cia_init()
 
 	if (alpha_implver() != ALPHA_IMPLVER_EV5
 	    || alpha_amask(ALPHA_AMASK_BWX)
-	    || !(cia_config & CNFG_BWEN))
+	    || !(cia_config & CNFG_BWEN)) {
+		swiz_init_space(&io_space.swiz, KV(CIA_PCI_SIO1));
+		swiz_init_space_hae(&mem_space.swiz, KV(CIA_PCI_SMEM1),
+				    cia_swiz_set_hae_mem, 0);
+
 		chipset = cia_swiz_chipset;
-	else
+	} else {
+		bwx_init_space(&io_space.bwx, KV(CIA_EV56_BWIO));
+		bwx_init_space(&mem_space.bwx, KV(CIA_EV56_BWMEM));
+
 		chipset = cia_bwx_chipset;
+	}
 	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 
-#if 0
-	chipset = cia_swiz_chipset; /* XXX */
-	cia_ispyxis = 0;
-#endif
+	busspace_isa_io = (struct alpha_busspace *) &io_space;
+	busspace_isa_mem = (struct alpha_busspace *) &mem_space;
 
 	if (platform.pci_intr_init)
 		platform.pci_intr_init();
@@ -888,6 +403,8 @@ cia_init()
 static int
 cia_probe(device_t dev)
 {
+	uintptr_t use_bwx = 1;
+
 	if (cia0)
 		return ENXIO;
 	cia0 = dev;
@@ -897,7 +414,13 @@ cia_probe(device_t dev)
 	isa_init_intr();
 	cia_init_sgmap();
 
+	if (alpha_implver() != ALPHA_IMPLVER_EV5
+	    || alpha_amask(ALPHA_AMASK_BWX)
+	    || !(cia_config & CNFG_BWEN))
+		use_bwx = 0;
+
 	device_add_child(dev, "pcib", 0);
+	device_set_ivars(dev, (void *)use_bwx);
 
 	return 0;
 }
