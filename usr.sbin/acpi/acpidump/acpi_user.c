@@ -96,6 +96,7 @@ static struct ACPIrsdp *
 acpi_get_rsdp(u_long addr)
 {
 	struct ACPIrsdp rsdp;
+	size_t len;
 
 	/* Read in the table signature and check it. */
 	pread(acpi_mem_fd, &rsdp, 8, addr);
@@ -108,12 +109,16 @@ acpi_get_rsdp(u_long addr)
 	/* Run the checksum only over the version 1 header. */
 	if (acpi_checksum(&rsdp, 20))
 		return (NULL);
+
+	/* If the revision is 0, assume a version 1 length. */
 	if (rsdp.revision == 0)
-		return (NULL);
+		len = 20;
+	else
+		len = rsdp.length;
 
 	/* XXX Should handle ACPI 2.0 RSDP extended checksum here. */
 
-	return (acpi_map_physical(addr, rsdp.length));
+	return (acpi_map_physical(addr, len));
 }
 
 /*
