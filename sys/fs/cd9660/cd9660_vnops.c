@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.34 1997/04/14 18:15:47 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.35 1997/04/15 08:05:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/namei.h>
 #include <sys/kernel.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -79,6 +80,17 @@ static int cd9660_unlock __P((struct vop_unlock_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
 static int cd9660_islocked __P((struct vop_islocked_args *));
+
+/*
+ * Sysctl values for the cd9660 filesystem.
+ */
+#define	CD9660_CLUSTERREAD	1	/* cluster reading enabled */
+#define	CD9660_MAXID		2	/* number of valid cd9660 ids */
+
+#define	CD9660_NAMES { \
+	{0, 0}, \
+	{ "doclusterread", CTLTYPE_INT}, \
+}
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -288,20 +300,10 @@ cd9660_getattr(ap)
 	return (0);
 }
 
-#if ISO_DEFAULT_BLOCK_SIZE >= PAGE_SIZE
-#ifdef DEBUG
-extern int doclusterread;
-#else
-#define doclusterread 1
-#endif
-#else
-/* XXX until cluster routines can handle block sizes less than one page */
-#if defined(__FreeBSD__)
-#define doclusterread 1
-#else
-#define doclusterread 0
-#endif
-#endif
+static int	cd9660_doclusterread = 1;
+SYSCTL_NODE(_vfs, MOUNT_CD9660, cd9660, CTLFLAG_RW, 0, "CD9660 filesystem");
+SYSCTL_INT(_vfs_cd9660, CD9660_CLUSTERREAD, doclusterread,
+		   CTLFLAG_RW, &cd9660_doclusterread, 0, "");
 
 /*
  * Vnode op for reading.
@@ -343,7 +345,7 @@ cd9660_read(ap)
 			n = diff;
 		size = blksize(imp, ip, lbn);
 		rablock = lbn + 1;
-		if (doclusterread) {
+		if (cd9660_doclusterread) {
 			if (lblktosize(imp, rablock) <= ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 				         lbn, size, NOCRED, uio->uio_resid,
