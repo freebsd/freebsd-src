@@ -35,16 +35,23 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bdes.c	5.5 (Berkeley) 6/27/91
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char * const rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: cbc.c,v 1.9 1997/02/22 14:03:12 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <errno.h>
 #include <pwd.h>
+#ifdef DES
+#include <time.h>
+#endif
 
 #include "ed.h"
 

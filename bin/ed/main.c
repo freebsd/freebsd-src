@@ -24,8 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: main.c,v 1.9 1997/02/22 14:03:17 peter Exp $
  */
 
 #ifndef lint
@@ -35,7 +33,12 @@ static char * const copyright =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: main.c,v 1.10 1997/03/28 15:24:19 imp Exp $";
+#endif
 #endif /* not lint */
 
 /*
@@ -57,9 +60,9 @@ static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <ctype.h>
-#include <setjmp.h>
-#include <pwd.h>
 #include <locale.h>
+#include <pwd.h>
+#include <setjmp.h>
 
 #include "ed.h"
 
@@ -99,10 +102,6 @@ char *prompt;			/* command-line prompt */
 char *dps = "*";		/* default command-line prompt */
 
 char *usage = "usage: %s [-] [-sx] [-p string] [name]\n";
-
-extern char errmsg[];
-extern int optind;
-extern char *optarg;
 
 /* ed: line editor */
 int
