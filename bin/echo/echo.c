@@ -45,8 +45,7 @@ static char sccsid[] = "@(#)echo.c	8.1 (Berkeley) 5/31/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 
 /* ARGSUSED */
@@ -64,6 +63,9 @@ main(int argc __unused, char *argv[])
 		nflag = 0;
 
 	while (argv[0] != NULL) {
+		size_t len;
+		
+		len = strlen(argv[0]);
 
 		/*
 		 * If the next argument is NULL then this is this
@@ -71,23 +73,20 @@ main(int argc __unused, char *argv[])
 		 * for a trailing \c.
 		 */
 		if (argv[1] == NULL) {
-			size_t len;
-			
-			len = strlen(argv[0]);
 			/* is there room for a '\c' and is there one? */
 			if (len >= 2 &&
 			    argv[0][len - 2] == '\\' &&
 			    argv[0][len - 1] == 'c') {
 				/* chop it and set the no-newline flag. */
-				argv[0][len - 2] = '\0';
+				len -= 2;
 				nflag = 1;
 			}
 		}
-		(void)printf("%s", argv[0]);
+		write(STDOUT_FILENO, argv[0], len);
 		if (*++argv)
-			putchar(' ');
+			write(STDOUT_FILENO, " ", 1);
 	}
 	if (!nflag)
-		putchar('\n');
+		write(STDOUT_FILENO, "\n", 1);
 	return 0;
 }
