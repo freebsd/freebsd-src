@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.8 1997/03/24 14:52:51 ache Exp $
+ * $Id: des_rw.c,v 1.9 1997/06/14 02:29:19 ache Exp $
  */
 
 /*
@@ -216,7 +216,6 @@ des_write(fd, buf, len)
 	char * buf;
 	int len;
 {
-	static	int seeded = 0;
 	char	garbage[8];
 	long	rnd;
 	int	pad_len;
@@ -228,13 +227,9 @@ des_write(fd, buf, len)
 		/*
 		 * Right justify the message in 8 bytes of random garbage.
 		 */
-		if(!seeded) {
-			seeded = 1;
-			srandomdev();
-		}
 
 		for(i = 0 ; i < 8 ; i+= sizeof(long)) {
-			rnd = random();
+			rnd = arc4random();
 			bcopy(&rnd, garbage+i,
 				(i <= (8 - sizeof(long)))?sizeof(long):(8-i));
 		}
