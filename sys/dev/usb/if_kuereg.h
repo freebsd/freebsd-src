@@ -173,5 +173,10 @@ struct kue_softc {
 	struct mtx		kue_mtx;
 };
 
+#if 0
 #define	KUE_LOCK(_sc)		mtx_lock(&(_sc)->kue_mtx)
 #define	KUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->kue_mtx)
+#else
+#define	KUE_LOCK(_sc)
+#define	KUE_UNLOCK(_sc)
+#endif
