@@ -196,7 +196,8 @@ socreate(dom, aso, type, proto, cred, td)
 	else
 		prp = pffindtype(dom, type);
 
-	if (prp == NULL || prp->pr_usrreqs->pru_attach == NULL)
+	if (prp == NULL || prp->pr_usrreqs->pru_attach == NULL ||
+	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
 		return (EPROTONOSUPPORT);
 
 	if (jailed(cred) && jail_socket_unixiproute_only &&
