@@ -113,7 +113,7 @@ atot(p, store)
 	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))
 		goto bad;
 	year = atoi(t);
-	if (day < 1 || day > 31 || month < 1 || month > 12 || !year)
+	if (day < 1 || day > 31 || month < 1 || month > 12)
 		goto bad;
 	/* Allow two digit years 1969-2068 */
 	if (year < 69)
