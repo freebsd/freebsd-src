@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.30 1999/05/09 18:03:48 phk Exp $
+ * $Id: types.h,v 1.31 1999/05/11 19:55:00 phk Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -103,6 +103,7 @@ typedef u_int32_t 	dev_t;
 #else /* !KERNEL */
 
 typedef	u_int32_t	dev_t;		/* device number */
+#define udev_t dev_t
 
 #ifndef _POSIX_SOURCE
 
