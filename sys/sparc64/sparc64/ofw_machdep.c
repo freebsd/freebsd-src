@@ -106,8 +106,8 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 			return (ENXIO);
 		phys = ISA_REG_PHYS(&reg.isa);
 		dummy = phys + 1;
-		type = ofw_isa_map_iorange(range.isa, rsz / sizeof(*range.isa),
-		    &phys, &dummy);
+		type = ofw_isa_range_map(range.isa, rsz / sizeof(*range.isa),
+		    &phys, &dummy, NULL);
 		if (type == SYS_RES_MEMORY) {
 			cs = PCI_CS_MEM32;
 			*space = PCI_MEMORY_BUS_SPACE;
