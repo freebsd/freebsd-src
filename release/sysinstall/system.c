@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.85 1998/11/03 03:38:56 jkh Exp $
+ * $Id: system.c,v 1.86 1999/01/08 00:14:22 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -22,12 +22,12 @@
 #include <machine/console.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/wait.h>
+#include <sys/stat.h>
 
 
 /* Where we stick our temporary expanded doc file */
-#define	DOC_TMP_DIR	"/tmp"
-#define	DOC_TMP_FILE	"/tmp/doc.tmp"
+#define	DOC_TMP_DIR	"/tmp/.doc"
+#define	DOC_TMP_FILE	"/tmp/.doc/doc.tmp"
 
 static pid_t ehs_pid;
 
@@ -53,8 +53,15 @@ expand(char *fname)
 {
     char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
 
-    Mkdir(DOC_TMP_DIR);
-    unlink(DOC_TMP_FILE);
+    if (!directory_exists(DOC_TMP_DIR)) {
+	Mkdir(DOC_TMP_DIR);
+	if (chown(DOC_TMP_DIR, 0, 0) < 0)
+	    return NULL;
+	if (chmod(DOC_TMP_DIR, S_IRWXU) < 0)
+	    return NULL;
+    }
+    else
+	unlink(DOC_TMP_FILE);
     if (!file_readable(fname) || vsystem("%s < %s > %s", gunzip, fname, DOC_TMP_FILE))
 	return NULL;
     return DOC_TMP_FILE;
@@ -131,6 +138,7 @@ systemInitialize(int argc, char **argv)
     if (!getenv("HOME"))
 	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
+    (void)vsystem("rm -rf %s", DOC_TMP_DIR);
 }
 
 /* Close down and prepare to exit */
@@ -153,8 +161,8 @@ systemShutdown(int status)
     /* Shut down curses */
     endwin();
 
-    /* If we have a temporary doc file lying around, nuke it */
-    unlink(DOC_TMP_FILE);
+    /* If we have a temporary doc dir lying around, nuke it */
+    (void)vsystem("rm -rf %s", DOC_TMP_DIR);
 
     /* REALLY exit! */
     if (RunningAsInit) {
