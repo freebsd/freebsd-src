@@ -55,6 +55,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pccard/pccarddevs.h>
 #include "card_if.h"
 
+/*
+ * Set XE_DEBUG to enable debug messages
+ * Larger values increase verbosity
+ */
+#define XE_DEBUG 0
+
 #define XE_VENDOR_ID_XIRCOM 0x0105
 #define XE_VENDOR_ID_COMPAQ_1 0x0138
 #define XE_VENDOR_ID_COMPAQ_2 0x0183
@@ -67,7 +73,7 @@ struct xe_vendor_table {
 } xe_vendor_devs[] = {
 	{ XE_VENDOR_ID_XIRCOM, "Xircom" },
 	{ XE_VENDOR_ID_COMPAQ_1, "Compaq" },
-	{ XE_VENDOR_ID_COMPAQ_2, "Compaq" },
+	{ XE_VENDOR_ID_COMPAQ_2, "Compaq" },   /* Maybe Paralon Techologies, Inc */
 	{ XE_VENDOR_ID_INTEL, "Intel" },
 	{ XE_VENDOR_ID_UNKNOWN, "Unknown" }
 };
@@ -76,18 +82,19 @@ struct xe_vendor_table {
 #define XE_CARD_TYPE_FLAGS_CE2 0x1
 #define XE_CARD_TYPE_FLAGS_MOHAWK 0x2
 #define XE_CARD_TYPE_FLAGS_DINGO 0x4
-#define XE_PROD_UMASK 0x100f
-#define XE_PROD_MODEM_UMASK 0x1000
-#define XE_PROD_SINGLE_ID1 0x1
-#define XE_PROD_SINGLE_ID2 0x2
-#define XE_PROD_SINGLE_ID3 0x3
-#define XE_PROD_MULTI_ID1 0x1001
-#define XE_PROD_MULTI_ID2 0x1002
-#define XE_PROD_MULTI_ID3 0x1003
-#define XE_PROD_MULTI_ID4 0x1004
-#define XE_PROD_MULTI_ID5 0x1005
-#define XE_PROD_MULTI_ID6 0x1006 
-#define XE_PROD_MULTI_ID7 0x1007  
+#define XE_PROD_UMASK 0x11000f
+#define XE_PROD_ETHER_UMASK 0x010000
+#define XE_PROD_MODEM_UMASK 0x100000
+#define XE_PROD_SINGLE_ID1 0x010001
+#define XE_PROD_SINGLE_ID2 0x010002
+#define XE_PROD_SINGLE_ID3 0x010003
+#define XE_PROD_MULTI_ID1 0x110001
+#define XE_PROD_MULTI_ID2 0x110002
+#define XE_PROD_MULTI_ID3 0x110003
+#define XE_PROD_MULTI_ID4 0x110004
+#define XE_PROD_MULTI_ID5 0x110005
+#define XE_PROD_MULTI_ID6 0x110006 
+#define XE_PROD_MULTI_ID7 0x110007  
 
 struct xe_card_type_table {
 	u_int32_t prod_type;
@@ -112,18 +119,19 @@ struct xe_card_type_table {
 /*
  * Prototypes
  */
-static int xe_cem56fix(device_t dev);
+static int xe_cemfix(device_t dev);
 static struct xe_vendor_table *xe_vendor_lookup(u_int32_t devid,
 					struct xe_vendor_table *tbl);
 static struct xe_card_type_table *xe_card_type_lookup(u_int32_t devid,
 					struct xe_card_type_table *tbl);
 
 /*
- * Fixing for RealPort cards - they need a little furtling to get the
- * ethernet working. But this codes don't work well in NEWCARD.
+ * Fixing for CEM2, CEM3 and CEM56/REM56 cards.  These need some magic to
+ * enable the Ethernet function, which isn't mentioned anywhere in the CIS.
+ * Despite the register names, most of this isn't Dingo-specific.
  */
 static int
-xe_cem56fix(device_t dev)
+xe_cemfix(device_t dev)
 {
 	struct xe_softc *sc = (struct xe_softc *) device_get_softc(dev);
 	bus_space_tag_t bst;
@@ -132,7 +140,11 @@ xe_cem56fix(device_t dev)
 	int rid;
 	int ioport;
 
-	device_printf(dev, "Realport port 0x%0lx, size 0x%0lx\n",
+#if XE_DEBUG > 1
+	device_printf(dev, "cemfix\n");
+#endif
+
+	device_printf(dev, "CEM I/O port 0x%0lx, size 0x%0lx\n",
 		bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid));
 
@@ -158,12 +170,14 @@ xe_cem56fix(device_t dev)
 	bus_space_write_1(bst, bsh, DINGO_EBAR0, ioport & 0xff);
 	bus_space_write_1(bst, bsh, DINGO_EBAR1, (ioport >> 8) & 0xff);
 
-	bus_space_write_1(bst, bsh, DINGO_DCOR0, DINGO_DCOR0_SF_INT);
-	bus_space_write_1(bst, bsh, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL |
-						 DINGO_DCOR1_EEDIO);
-	bus_space_write_1(bst, bsh, DINGO_DCOR2, 0x00);
-	bus_space_write_1(bst, bsh, DINGO_DCOR3, 0x00);
-	bus_space_write_1(bst, bsh, DINGO_DCOR4, 0x00);
+	if (sc->dingo) {
+		bus_space_write_1(bst, bsh, DINGO_DCOR0, DINGO_DCOR0_SF_INT);
+		bus_space_write_1(bst, bsh, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL |
+						  DINGO_DCOR1_EEDIO);
+		bus_space_write_1(bst, bsh, DINGO_DCOR2, 0x00);
+		bus_space_write_1(bst, bsh, DINGO_DCOR3, 0x00);
+		bus_space_write_1(bst, bsh, DINGO_DCOR4, 0x00);
+	}
 
 	bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
 
@@ -209,6 +223,27 @@ xe_pccard_probe(device_t dev)
 	struct xe_card_type_table *card_itm;
 	int i;
 
+#if XE_DEBUG > 1
+	char* vendor_str = NULL;
+	char* product_str = NULL;
+	char* cis4_str = NULL;
+	device_printf(dev, "pccard_probe\n");
+	pccard_get_vendor(dev, &vendor);
+	pccard_get_product(dev, &prodid);
+	pccard_get_prodext(dev, &prodext);
+	pccard_get_vendor_str(dev, &vendor_str);
+	pccard_get_product_str(dev, &product_str);
+	pccard_get_cis3_str(dev, &cis3_str);
+	pccard_get_cis4_str(dev, &cis4_str);
+	device_printf(dev, "vendor = 0x%04x\n", vendor);
+	device_printf(dev, "product = 0x%04x\n", prodid);
+	device_printf(dev, "prodext = 0x%02x\n", prodext);
+	device_printf(dev, "vendor_str = %s\n", vendor_str);
+	device_printf(dev, "product_str = %s\n", product_str);
+	device_printf(dev, "cis3_str = %s\n", cis3_str);
+	device_printf(dev, "cis4_str = %s\n", cis4_str);
+#endif
+
 	/*
 	 * PCCARD_CISTPL_MANFID = 0x20
 	 */
@@ -245,7 +280,7 @@ xe_pccard_probe(device_t dev)
 	 */
 	pccard_get_cis3_str(dev, &cis3_str);
 	if (strcmp(scp->card_type, "CE") == 0)
-		if (strcmp(cis3_str, "CE2") ==0)
+		if (cis3_str != NULL && strcmp(cis3_str, "PS-CE2-10") == 0)
 			scp->card_type = "CE2"; /* Look for "CE2" string */
 
 	/*
@@ -274,12 +309,17 @@ xe_pccard_attach(device_t dev)
 	struct xe_softc *scp = device_get_softc(dev);
 	int err;
 
+#if XE_DEBUG > 1
+	device_printf(dev, "pccard_attach\n");
+#endif
+
 	if ((err = xe_activate(dev)) != 0)
 		return (err);
          
 	/* Hack RealPorts into submission */
-	if (scp->dingo && xe_cem56fix(dev) < 0) {
-		device_printf(dev, "Unable to fix your RealPort\n");
+	if (scp->modem && xe_cemfix(dev) < 0) {
+		device_printf(dev, "Unable to fix your %s combo card\n",
+					  scp->card_type);
 		xe_deactivate(dev);
 		return (ENODEV);
 	}
@@ -301,6 +341,10 @@ xe_pccard_detach(device_t dev)
 {
 	struct xe_softc *sc = device_get_softc(dev);
 
+#if XE_DEBUG > 1
+	device_printf(dev, "pccard_detach\n");
+#endif
+
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(&sc->arpcom.ac_if);
 	xe_deactivate(dev);
@@ -309,7 +353,7 @@ xe_pccard_detach(device_t dev)
 
 static const struct pccard_product xe_pccard_products[] = {
 	PCMCIA_CARD(ACCTON, EN2226, 0),
-	PCMCIA_CARD(COMPAQ2, CPQ_10_100, 0),	/* Maybe Paralon Techologies, Inc */
+	PCMCIA_CARD(COMPAQ2, CPQ_10_100, 0),
 	PCMCIA_CARD(INTEL, EEPRO100, 0),
 	PCMCIA_CARD(XIRCOM, CE, 0),
 	PCMCIA_CARD(XIRCOM, CE2, 0),
@@ -327,11 +371,15 @@ xe_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
 
+#if XE_DEBUG > 1
+	device_printf(dev, "pccard_match\n");
+#endif
+
 	if ((pp = pccard_product_lookup(dev, xe_pccard_products,
-	     sizeof(xe_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
-		return (0);
+		sizeof(xe_pccard_products[0]), NULL)) != NULL) {
+	    if (pp->pp_name != NULL)
+					device_set_desc(dev, pp->pp_name);
+			return (0);
 	}
 	return (EIO);
 }
