@@ -150,7 +150,7 @@ g_disk_done(struct bio *bp)
 {
 	struct disk *dp;
 
-	dp = bp->bio_caller1;
+	dp = bp->bio_disk;
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 	if (!(dp->d_flags & DISKFLAG_NOGIANT)) {
 		DROP_GIANT();
@@ -188,7 +188,7 @@ g_disk_start(struct bio *bp)
 		bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 		bp2->bio_bcount = bp2->bio_length;
 		bp2->bio_dev = dev;
-		bp2->bio_caller1 = dp;
+		bp2->bio_disk = dp;
 		g_disk_lock_giant(dp);
 		dp->d_strategy(bp2);
 		g_disk_unlock_giant(dp);
