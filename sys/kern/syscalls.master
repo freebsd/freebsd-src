@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.56 1999/03/27 21:16:33 alc Exp $
+	$Id: syscalls.master,v 1.57 1999/04/04 21:41:16 dt Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -473,3 +473,4 @@
 336	STD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
+338	STD	BSD	{ int jail(struct jail *jail); }
