@@ -114,16 +114,10 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 # Split up the sources, and filter out headers and non-applicable flags.
 ${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
-.if ${SRCS:M*.[sS]} != ""
+.if ${SRCS:M*.[cSs]} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
-	    ${AINC} \
-	    ${.ALLSRC:M*.[sS]}
-.endif
-.if ${SRCS:M*.c} != ""
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
-	    ${.ALLSRC:M*.c}
+	    ${.ALLSRC:M*.[cSs]}
 .endif
 .if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cpp} != "" || \
     ${SRCS:M*.cxx} != ""
