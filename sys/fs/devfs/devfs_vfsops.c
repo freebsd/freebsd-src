@@ -76,7 +76,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 	MALLOC(fmp->dm_dirent, struct devfs_dirent **,
 	    sizeof(struct devfs_dirent *) * NDEVFSINO,
 	    M_DEVFS, M_WAITOK | M_ZERO);
-	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
+	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, 0);
 
 	mp->mnt_flag |= MNT_LOCAL;
 #ifdef MAC
