@@ -2807,9 +2807,10 @@ loop:
 		goto again;
 	}
 	if (waitfor == MNT_WAIT) {
+		VI_LOCK(vp);
 		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			error = tsleep((caddr_t)&vp->v_numoutput,
+			vp->v_iflag |= VI_BWAIT;
+			error = msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
 			    if (nfs_sigintr(nmp, NULL, td)) {
@@ -2822,6 +2823,7 @@ loop:
 			    }
 			}
 		}
+		VI_UNLOCK(vp);
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
 			goto loop;
 		}

@@ -142,11 +142,13 @@ swapdev_strategy(ap)
 	if (bp->b_iocmd == BIO_WRITE) {
 		vp = bp->b_vp;
 		if (vp) {
+			VI_LOCK(vp);
 			vp->v_numoutput--;
-			if ((vp->v_flag & VBWAIT) && vp->v_numoutput <= 0) {
-				vp->v_flag &= ~VBWAIT;
+			if ((vp->v_iflag & VI_BWAIT) && vp->v_numoutput <= 0) {
+				vp->v_iflag &= ~VI_BWAIT;
 				wakeup(&vp->v_numoutput);
 			}
+			VI_UNLOCK(vp);
 		}
 		sp->sw_vp->v_numoutput++;
 	}

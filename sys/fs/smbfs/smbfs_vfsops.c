@@ -293,7 +293,8 @@ smbfs_root(struct mount *mp, struct vnode **vpp)
 	error = smbfs_nget(mp, NULL, "TheRooT", 7, &fattr, &vp);
 	if (error)
 		return error;
-	vp->v_flag |= VROOT;
+	ASSERT_VOP_LOCKED(vp, "smbfs_root");
+	vp->v_vflag |= VV_ROOT;
 	np = VTOSMB(vp);
 	smp->sm_root = np;
 	*vpp = vp;

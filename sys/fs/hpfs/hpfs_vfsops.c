@@ -508,7 +508,7 @@ hpfs_vget(
 	vp->v_data = hp;
 
 	if (ino == (ino_t)hpmp->hpm_su.su_rootfno) 
-		vp->v_flag |= VROOT;
+		vp->v_vflag |= VV_ROOT;
 
 
 	mtx_init(&hp->h_interlock, "hpfsnode interlock", NULL, MTX_DEF);

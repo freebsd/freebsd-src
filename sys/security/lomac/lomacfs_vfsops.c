@@ -121,11 +121,10 @@ lomacfs_unmount(struct mount *mp, int mntflags, struct thread *td) {
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	if (VFSTOLOMAC(mp)->lm_flags & LM_TOOKROOT) {
-		mtx_lock(&crootvp->v_interlock);
-		crootvp->v_flag |= VROOT;
-		mtx_unlock(&crootvp->v_interlock);
-	}
+	ASSERT_VOP_LOCKED(crootvp, "lomacfs_unmount");
+
+	if (VFSTOLOMAC(mp)->lm_flags & LM_TOOKROOT)
+		crootvp->v_vflag |= VV_ROOT;
 
 	error = vflush(mp, 1, flags);	/* have an extra root ref */
 	if (error)
@@ -167,9 +166,10 @@ lomacfs_root(struct mount *mp, struct vnode **vpp) {
 		 * that the mounted-on directory isn't a root vnode if I
 		 * want things like __getcwd() to just fail and not crash.
 		 */
+		mp_fixme("This code needs the vn lock, not interlock.");
 		mtx_lock(&crootvp->v_interlock);
-		if (crootvp->v_flag & VROOT && crootvp == rootvnode) {
-			crootvp->v_flag &= ~VROOT;
+		if (crootvp->v_vflag & VV_ROOT && crootvp == rootvnode) {
+			crootvp->v_vflag &= ~VV_ROOT;
 			VFSTOLOMAC(mp)->lm_flags |= LM_TOOKROOT;
 		}
 		mtx_unlock(&crootvp->v_interlock);

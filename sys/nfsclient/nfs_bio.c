@@ -1063,9 +1063,13 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
 
-	if (vp->v_flag & VXLOCK) {
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_XLOCK) {
+		/* XXX Should we wait here? */
+		VI_UNLOCK(vp);
 		return (0);
 	}
+	VI_UNLOCK(vp);
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
@@ -1340,7 +1344,8 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 			uiop->uio_resid = 0;
 		    }
 		}
-		if (p && (vp->v_flag & VTEXT) &&
+		mp_fixme("Accessing VV_TEXT without a lock.");
+		if (p && (vp->v_vflag & VV_TEXT) &&
 			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
 			uprintf("Process killed due to text file modification\n");
 			PROC_LOCK(p);

@@ -289,7 +289,7 @@ nwfs_getattr(ap)
 	int error;
 	u_int32_t oldsize;
 
-	NCPVNDEBUG("%lx:%d: '%s' %d\n", (long)vp, nmp->n_volume, np->n_name, (vp->v_flag & VROOT) != 0);
+	NCPVNDEBUG("%lx:%d: '%s' %d\n", (long)vp, nmp->n_volume, np->n_name, (vp->v_vflag & VV_ROOT) != 0);
 	error = nwfs_attr_cachelookup(vp, va);
 	if (!error) return 0;
 	NCPVNDEBUG("not in cache\n");
@@ -859,7 +859,7 @@ nwfs_lookup(ap)
 	
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	if ((flags & ISDOTDOT) && (dvp->v_flag & VROOT)) {
+	if ((flags & ISDOTDOT) && (dvp->v_vflag & VV_ROOT)) {
 		printf("nwfs_lookup: invalid '..'\n");
 		return EIO;
 	}
@@ -877,7 +877,7 @@ nwfs_lookup(ap)
 	nmp = VFSTONWFS(mp);
 	dnp = VTONW(dvp);
 /*
-printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_flag & VROOT, (int)flags & ISDOTDOT);
+printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDOTDOT);
 */
 	error = ncp_pathcheck(cnp->cn_nameptr, cnp->cn_namelen, &nmp->m.nls, 
 	    (nameiop == CREATE || nameiop == RENAME) && (nmp->m.nls.opt & NWHP_NOSTRICT) == 0);

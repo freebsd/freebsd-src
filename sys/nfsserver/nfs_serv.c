@@ -2103,7 +2103,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		/*
 		 * The root of a mounted filesystem cannot be deleted.
 		 */
-		if (nd.ni_vp->v_flag & VROOT) {
+		if (nd.ni_vp->v_vflag & VV_ROOT) {
 			error = EBUSY;
 			goto out;
 		}
@@ -2891,7 +2891,7 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * The root of a mounted filesystem cannot be deleted.
 	 */
-	if (vp->v_flag & VROOT)
+	if (vp->v_vflag & VV_ROOT)
 		error = EBUSY;
 out:
 	/*
@@ -4052,7 +4052,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 		 * If there's shared text associated with
 		 * the inode, we can't allow writing.
 		 */
-		if (vp->v_flag & VTEXT)
+		if (vp->v_vflag & VV_TEXT)
 			return (ETXTBSY);
 	}
 	error = VOP_GETATTR(vp, &vattr, cred, td);

@@ -136,7 +136,7 @@ msdosfs_lookup(ap)
 	 * they won't find it.  DOS filesystems don't have them in the root
 	 * directory.  So, we fake it. deget() is in on this scam too.
 	 */
-	if ((vdp->v_flag & VROOT) && cnp->cn_nameptr[0] == '.' &&
+	if ((vdp->v_vflag & VV_ROOT) && cnp->cn_nameptr[0] == '.' &&
 	    (cnp->cn_namelen == 1 ||
 		(cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.'))) {
 		isadir = ATTR_DIRECTORY;

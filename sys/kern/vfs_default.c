@@ -595,7 +595,7 @@ retry:
 	}
 
 	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
-	vp->v_flag |= VOBJBUF;
+	vp->v_vflag |= VV_OBJBUF;
 
 retn:
 	return (error);

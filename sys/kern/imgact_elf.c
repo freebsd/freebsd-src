@@ -500,10 +500,11 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	error = exec_map_first_page(imgp);
 	/*
 	 * Also make certain that the interpreter stays the same, so set
-	 * its VTEXT flag, too.
+	 * its VV_TEXT flag, too.
 	 */
 	if (error == 0)
-		nd->ni_vp->v_flag |= VTEXT;
+		nd->ni_vp->v_vflag |= VV_TEXT;
+
 	VOP_GETVOBJECT(nd->ni_vp, &imgp->object);
 	vm_object_reference(imgp->object);
 
@@ -628,10 +629,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * VTEXT now since from here on out, there are places we can have
 	 * a context switch.  Better safe than sorry; I really don't want
 	 * the file to change while it's being loaded.
+	 *
+	 * XXX We can't really set this flag safely without the vnode lock.
 	 */
-	mtx_lock(&imgp->vp->v_interlock);
-	imgp->vp->v_flag |= VTEXT;
-	mtx_unlock(&imgp->vp->v_interlock);
+	mp_fixme("This needs the vnode lock to be safe.");
+	imgp->vp->v_vflag |= VV_TEXT;
 
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;

@@ -293,7 +293,7 @@ smbfs_close(ap)
 	int error, dolock;
 
 	VI_LOCK(vp);
-	dolock = (vp->v_flag & VXLOCK) == 0;
+	dolock = (vp->v_iflag & VI_XLOCK) == 0;
 	if (dolock)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 	else
@@ -324,7 +324,7 @@ smbfs_getattr(ap)
 	u_int32_t oldsize;
 	int error;
 
-	SMBVDEBUG("%lx: '%s' %d\n", (long)vp, np->n_name, (vp->v_flag & VROOT) != 0);
+	SMBVDEBUG("%lx: '%s' %d\n", (long)vp, np->n_name, (vp->v_vflag & VV_ROOT) != 0);
 	error = smbfs_attr_cachelookup(vp, va);
 	if (!error)
 		return 0;
@@ -1135,7 +1135,7 @@ smbfs_lookup(ap)
 	cnp->cn_flags &= ~PDIRUNLOCK;
 	if (dvp->v_type != VDIR)
 		return ENOTDIR;
-	if ((flags & ISDOTDOT) && (dvp->v_flag & VROOT)) {
+	if ((flags & ISDOTDOT) && (dvp->v_vflag & VV_ROOT)) {
 		SMBFSERR("invalid '..'\n");
 		return EIO;
 	}

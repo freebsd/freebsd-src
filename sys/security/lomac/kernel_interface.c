@@ -374,7 +374,7 @@ set_object_lattr(lomac_object_t *obj, lattr_t lattr) {
 		vp = obj->lo_object.vnode;
 		KASSERT(!VISLOMAC(vp), ("is a LOMACFS vnode"));
 		VI_LOCK(vp);
-		vp->v_flag = (vp->v_flag & ~(UV_LEVEL_MASK | UV_ATTR_MASK)) |
+		vp->v_iflag = (vp->v_iflag & ~(UV_LEVEL_MASK | UV_ATTR_MASK)) |
 		    level2uvnodebits(lattr.level) |
 		    attr2uvnodebits(lattr.flags);
 		VI_UNLOCK(vp);
@@ -453,8 +453,8 @@ get_object_lattr(const lomac_object_t *obj, lattr_t *lattr) {
 		vp = obj->lo_object.vnode;
 		KASSERT(!VISLOMAC(vp), ("is a LOMACFS vnode"));
 		VI_LOCK(vp);
-		lattr->level = uvnodebits2level(vp->v_flag);
-		lattr->flags = uvnodebits2attr(vp->v_flag);
+		lattr->level = uvnodebits2level(vp->v_iflag);
+		lattr->flags = uvnodebits2attr(vp->v_iflag);
 		VI_UNLOCK(vp);
 		break;
 	case LO_TYPE_VM_OBJECT:

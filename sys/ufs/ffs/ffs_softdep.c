@@ -291,7 +291,7 @@ softdep_panic(msg)
 }
 #endif /* DEBUG */
 
-static	int interlocked_sleep(struct lockit *, int, void *, int,
+static	int interlocked_sleep(struct lockit *, int, void *, struct mtx *, int,
 	    const char *, int);
 
 /*
@@ -306,10 +306,11 @@ static	int interlocked_sleep(struct lockit *, int, void *, int,
 #define	LOCKBUF		2
 
 static int
-interlocked_sleep(lk, op, ident, flags, wmesg, timo)
+interlocked_sleep(lk, op, ident, mtx, flags, wmesg, timo)
 	struct lockit *lk;
 	int op;
 	void *ident;
+	struct mtx *mtx;
 	int flags;
 	const char *wmesg;
 	int timo;
@@ -325,7 +326,7 @@ interlocked_sleep(lk, op, ident, flags, wmesg, timo)
 #	endif /* DEBUG */
 	switch (op) {
 	case SLEEP:
-		retval = tsleep(ident, flags, wmesg, timo);
+		retval = msleep(ident, mtx, flags, wmesg, timo);
 		break;
 	case LOCKBUF:
 		retval = BUF_LOCK((struct buf *)ident, flags);
@@ -386,7 +387,8 @@ sema_get(semap, interlock)
 	if (semap->value++ > 0) {
 		if (interlock != NULL) {
 			interlocked_sleep(interlock, SLEEP, (caddr_t)semap,
-			    semap->prio, semap->name, semap->timo);
+			    NULL, semap->prio, semap->name,
+			    semap->timo);
 			FREE_LOCK(interlock);
 		} else {
 			tsleep((caddr_t)semap, semap->prio, semap->name,
@@ -4778,8 +4780,13 @@ softdep_fsync(vp)
 		 * not now, but then the user was not asking to have it
 		 * written, so we are not breaking any promises.
 		 */
-		if (vp->v_flag & VXLOCK)
+		mp_fixme("This operation is not atomic wrt the rest of the code");
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
 			break;
+		} else
+			VI_UNLOCK(vp);
 		/*
 		 * We prevent deadlock by always fetching inodes from the
 		 * root, moving down the directory tree. Thus, when fetching
@@ -5502,7 +5509,7 @@ request_cleanup(resource, islocked)
 	proc_waiting += 1;
 	if (handle.callout == NULL)
 		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
-	interlocked_sleep(&lk, SLEEP, (caddr_t)&proc_waiting, PPAUSE,
+	interlocked_sleep(&lk, SLEEP, (caddr_t)&proc_waiting, NULL, PPAUSE,
 	    "softupdate", 0);
 	proc_waiting -= 1;
 	if (islocked == 0)
@@ -5760,13 +5767,13 @@ getdirtybuf(bpp, waitfor)
 			if (waitfor != MNT_WAIT)
 				return (0);
 			bp->b_xflags |= BX_BKGRDWAIT;
-			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, PRIBIO,
-			    "getbuf", 0);
+			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, NULL,
+			    PRIBIO, "getbuf", 0);
 			continue;
 		}
 		if (waitfor != MNT_WAIT)
 			return (0);
-		error = interlocked_sleep(&lk, LOCKBUF, bp,
+		error = interlocked_sleep(&lk, LOCKBUF, bp, NULL, 
 		    LK_EXCLUSIVE | LK_SLEEPFAIL, 0, 0);
 		if (error != ENOLCK) {
 			FREE_LOCK(&lk);
@@ -5793,11 +5800,13 @@ drain_output(vp, islocked)
 
 	if (!islocked)
 		ACQUIRE_LOCK(&lk);
+	VI_LOCK(vp);
 	while (vp->v_numoutput) {
-		vp->v_flag |= VBWAIT;
-		interlocked_sleep(&lk, SLEEP, (caddr_t)&vp->v_numoutput,
-		    PRIBIO + 1, "drainvp", 0);
+		vp->v_iflag |= VI_BWAIT;
+		interlocked_sleep(&lk, SLEEP, (caddr_t)&vp->v_numoutput, 
+		    VI_MTX(vp), PRIBIO + 1, "drainvp", 0);
 	}
+	VI_UNLOCK(vp);
 	if (!islocked)
 		FREE_LOCK(&lk);
 }

@@ -234,11 +234,13 @@ loop:
 	}
 
 	if (wait) {
+		VI_LOCK(vp);
 		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			(void) tsleep((caddr_t)&vp->v_numoutput,
-					PRIBIO + 4, "ffsfsn", 0);
+			vp->v_iflag |= VI_BWAIT;
+			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
+			    PRIBIO + 4, "ffsfsn", 0);
   		}
+		VI_UNLOCK(vp);
 
 		/* 
 		 * Ensure that any filesystem metatdata associated

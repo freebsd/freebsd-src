@@ -869,7 +869,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	}
 	
 	if (ip->iso_extent == imp->root_extent)
-		vp->v_flag |= VROOT;
+		vp->v_vflag |= VV_ROOT;
 
 	/*
 	 * XXX need generation number?

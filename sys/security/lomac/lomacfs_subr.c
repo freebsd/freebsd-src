@@ -112,7 +112,7 @@ lomacfs_node_alloc(struct mount *mp, struct componentname *cnp,
 	if (error)
 		panic("lomacfs_node_alloc: can't lock new vnode\n");
 	if (cnp == NULL)
-		vp->v_flag |= VROOT;
+		vp->v_vflag |= VV_ROOT;
 	else if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(dvp, vp, cnp);
 

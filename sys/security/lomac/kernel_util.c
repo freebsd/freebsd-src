@@ -400,7 +400,7 @@ unmount(td, uap)
 	/*
 	 * Must be the root of the filesystem
 	 */
-	if ((vp->v_flag & VROOT) == 0) {
+	if ((vp->v_vflag & VV_ROOT) == 0) {
 		vput(vp);
 		return (EINVAL);
 	}
@@ -542,7 +542,8 @@ lomac_getcwd(
 		struct dirent *dp;
 		int direof;
 
-		if (vp->v_flag & VROOT) {
+		ASSERT_VOP_LOCKED(vp, "lomac_getcwd");
+		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_mount == NULL)	/* forced unmount */
 				return (EBADF);
 			dvp = vp->v_mount->mnt_vnodecovered;
