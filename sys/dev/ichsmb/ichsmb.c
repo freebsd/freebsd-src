@@ -42,12 +42,16 @@
 /*
  * Support for the SMBus controller logical device which is part of the
  * Intel 81801AA (ICH) and 81801AB (ICH0) I/O controller hub chips.
+ *
+ * This driver assumes that the generic SMBus code will ensure that
+ * at most one process at a time calls into the SMBus methods below.
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
+#include <sys/mutex.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>
 
@@ -120,11 +124,12 @@ ichsmb_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)) != 0) {
 		log(LOG_ERR, "%s: failed to attach child: %d\n",
 		    device_get_nameunit(dev), error);
-		error = ENXIO;
+		return (ENXIO);
 	}
 
-	/* Done */
-	return (error);
+	/* Create mutex */
+	mtx_init(&sc->mutex, device_get_nameunit(dev), 0);
+	return (0);
 }
 
 /********************************************************************
@@ -155,7 +160,6 @@ ichsmb_quick(device_t dev, u_char slave, int how)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x how=%d\n", slave, how);
 	KASSERT(sc->ich_cmd == -1,
@@ -163,7 +167,7 @@ ichsmb_quick(device_t dev, u_char slave, int how)
 	switch (how) {
 	case SMB_QREAD:
 	case SMB_QWRITE:
-		s = splhigh();
+		mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 		sc->ich_cmd = ICH_HST_CNT_SMB_CMD_QUICK;
 		bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 		    (slave << 1) | (how == SMB_QREAD ?
@@ -171,7 +175,7 @@ ichsmb_quick(device_t dev, u_char slave, int how)
 		bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 		    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 		smb_error = ichsmb_wait(sc);
-		splx(s);
+		mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 		break;
 	default:
 		smb_error = SMB_ENOTSUPP;
@@ -185,12 +189,11 @@ ichsmb_sendb(device_t dev, u_char slave, char byte)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x byte=0x%02x\n", slave, (u_char)byte);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
@@ -198,7 +201,7 @@ ichsmb_sendb(device_t dev, u_char slave, char byte)
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	smb_error = ichsmb_wait(sc);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d\n", smb_error);
 	return (smb_error);
 }
@@ -208,12 +211,11 @@ ichsmb_recvb(device_t dev, u_char slave, char *byte)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x\n", slave);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_READ);
@@ -221,7 +223,7 @@ ichsmb_recvb(device_t dev, u_char slave, char *byte)
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR)
 		*byte = bus_space_read_1(sc->io_bst, sc->io_bsh, ICH_D0);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d byte=0x%02x\n", smb_error, (u_char)*byte);
 	return (smb_error);
 }
@@ -231,13 +233,12 @@ ichsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x byte=0x%02x\n",
 	    slave, (u_char)cmd, (u_char)byte);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE_DATA;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
@@ -246,7 +247,7 @@ ichsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	smb_error = ichsmb_wait(sc);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d\n", smb_error);
 	return (smb_error);
 }
@@ -256,13 +257,12 @@ ichsmb_writew(device_t dev, u_char slave, char cmd, short word)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x word=0x%04x\n",
 	    slave, (u_char)cmd, (u_int16_t)word);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_WORD_DATA;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
@@ -272,7 +272,7 @@ ichsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	smb_error = ichsmb_wait(sc);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d\n", smb_error);
 	return (smb_error);
 }
@@ -282,12 +282,11 @@ ichsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x\n", slave, (u_char)cmd);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BYTE_DATA;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_READ);
@@ -296,7 +295,7 @@ ichsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR)
 		*byte = bus_space_read_1(sc->io_bst, sc->io_bsh, ICH_D0);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d byte=0x%02x\n", smb_error, (u_char)*byte);
 	return (smb_error);
 }
@@ -306,12 +305,11 @@ ichsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x\n", slave, (u_char)cmd);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_WORD_DATA;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_READ);
@@ -324,7 +322,7 @@ ichsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 		  | (bus_space_read_1(sc->io_bst,
 			sc->io_bsh, ICH_D1) << 8);
 	}
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d word=0x%04x\n", smb_error, (u_int16_t)*word);
 	return (smb_error);
 }
@@ -334,13 +332,12 @@ ichsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x sdata=0x%04x\n",
 	    slave, (u_char)cmd, (u_int16_t)sdata);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_PROC_CALL;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
@@ -355,7 +352,7 @@ ichsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 		  | (bus_space_read_1(sc->io_bst,
 			sc->io_bsh, ICH_D1) << 8);
 	}
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d rdata=0x%04x\n", smb_error, (u_int16_t)*rdata);
 	return (smb_error);
 }
@@ -365,7 +362,6 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x count=%d\n", slave, (u_char)cmd, count);
 #if ICHSMB_DEBUG
@@ -392,7 +388,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	sc->block_index = 1;
 	sc->block_write = 1;
 
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_WRITE);
@@ -402,7 +398,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	smb_error = ichsmb_wait(sc);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d\n", smb_error);
 	return (smb_error);
 }
@@ -412,7 +408,6 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
-	int s;
 
 	DBG("slave=0x%02x cmd=0x%02x count=%d\n", slave, (u_char)cmd, count);
 	KASSERT(sc->ich_cmd == -1,
@@ -424,7 +419,7 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	sc->block_index = 0;
 	sc->block_write = 0;
 
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_READ);
@@ -434,7 +429,7 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR)
 		bcopy(sc->block_data, buf, sc->block_count);
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	DBG("smb_error=%d\n", smb_error);
 #if ICHSMB_DEBUG
 #define DISP(ch)	(((ch) < 0x20 || (ch) >= 0x7e) ? '.' : (ch))
@@ -495,9 +490,8 @@ ichsmb_device_intr(void *cookie)
 	u_int8_t ok_bits;
 	int cmd_index;
         int count;
-	int s;
 
-	s = splhigh();
+	mtx_enter(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 	for (count = 0; count < maxloops; count++) {
 
 		/* Get and reset status bits */
@@ -609,7 +603,7 @@ finished:
 		/* Clear status bits and try again */
 		bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_STA, status);
 	}
-	splx(s);
+	mtx_exit(&sc->mutex, MTX_DEF | MTX_NORECURSE);
 
 	/* Too many loops? */
 	if (count == maxloops) {
@@ -620,7 +614,7 @@ finished:
 }
 
 /*
- * Wait for command completion. Assumes splhigh().
+ * Wait for command completion. Assumes mutex is held.
  * Returns an SMB_* error code.
  */
 static int
@@ -631,9 +625,10 @@ ichsmb_wait(sc_p sc)
 
 	KASSERT(sc->ich_cmd != -1,
 	    ("%s: ich_cmd=%d\n", __FUNCTION__ , sc->ich_cmd));
+	mtx_assert(&sc->mutex, MA_OWNED);
 sleep:
-	error = tsleep(sc, PZERO | PCATCH, "ichsmb", hz / 4);
-	DBG("tsleep -> %d\n", error);
+	error = msleep(sc, &sc->mutex, PZERO | PCATCH, "ichsmb", hz / 4);
+	DBG("msleep -> %d\n", error);
 	switch (error) {
 	case ERESTART:
 		if (sc->ich_cmd != -1)
