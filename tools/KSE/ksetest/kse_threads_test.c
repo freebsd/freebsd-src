@@ -59,21 +59,21 @@
 #define THREAD_STACK_SIZE		(32 * 1024)
 
 struct uts_runq {
-	struct thread_mailbox	*head;
+	struct kse_thr_mailbox	*head;
 	struct simplelock	lock;
 };
 
 struct uts_data {
 	struct kse_mailbox	mb;
 	struct uts_runq		*runq;
-	struct thread_mailbox	*cur_thread;
+	struct kse_thr_mailbox	*cur_thread;
 };
 
 static struct uts_runq runq1;
 static struct uts_data data1, data2;
 static struct uts_runq runq2;
 static struct uts_data data3, data4;
-static struct thread_mailbox	*aa;
+static struct kse_thr_mailbox	*aa;
 
 static int progress = 0;
 
@@ -84,13 +84,13 @@ static void	pchar(char c);
 static void	pfmt(const char *fmt, ...);
 static void	pstr(const char *s);
 static void	runq_init(struct uts_runq *q);
-static void	runq_insert(struct uts_runq *q, struct thread_mailbox *tm);
-static struct thread_mailbox *runq_remove(struct uts_runq *q);
-static struct thread_mailbox *runq_remove_nolock(struct uts_runq *q);
+static void	runq_insert(struct uts_runq *q, struct kse_thr_mailbox *tm);
+static struct kse_thr_mailbox *runq_remove(struct uts_runq *q);
+static struct kse_thr_mailbox *runq_remove_nolock(struct uts_runq *q);
 static void	thread_start(struct uts_data *data, const void *func, int arg);
 static void	uts(struct kse_mailbox *km);
 
-extern int uts_to_thread(struct thread_mailbox *tdp, struct thread_mailbox **curthreadp);
+extern int uts_to_thread(struct kse_thr_mailbox *tdp, struct kse_thr_mailbox **curthreadp);
 
 static void
 nano(int len)
@@ -174,7 +174,7 @@ main(void)
 static void
 enter_uts(struct uts_data *data)
 {
-	struct thread_mailbox	*td;
+	struct kse_thr_mailbox	*td;
 
 	/* XXX: We should atomically exchange these two. */
 	td = data->mb.km_curthread;
@@ -189,7 +189,7 @@ enter_uts(struct uts_data *data)
 static void
 init_uts(struct uts_data *data, struct uts_runq *q)
 {
-	struct thread_mailbox *tm;
+	struct kse_thr_mailbox *tm;
 	int mib[2];
 	char	*p;
 	size_t len;
@@ -197,7 +197,7 @@ init_uts(struct uts_data *data, struct uts_runq *q)
 	/*
 	 * Create initial thread.
 	 */
-	tm = (struct thread_mailbox *)calloc(1, sizeof(struct thread_mailbox));
+	tm = (struct kse_thr_mailbox *)calloc(1, sizeof(struct kse_thr_mailbox));
 
 	/* Throw us into its context. */
 	getcontext(&tm->tm_context);
@@ -237,7 +237,7 @@ start_uts(struct uts_data *data, int newgrp)
 	/*
 	 * Start KSE scheduling.
 	 */
-	pfmt("kse_new() -> %d\n", kse_new(&data->mb, newgrp));
+	pfmt("kse_create() -> %d\n", kse_create(&data->mb, newgrp));
 	data->mb.km_curthread = data->cur_thread;
 
 	/*
@@ -332,7 +332,7 @@ runq_init(struct uts_runq *q)
  * Insert a thread into the run queue.
  */
 static void
-runq_insert(struct uts_runq *q, struct thread_mailbox *tm)
+runq_insert(struct uts_runq *q, struct kse_thr_mailbox *tm)
 {
 	simplelock_lock(&q->lock);
 	tm->tm_next = q->head;
@@ -343,10 +343,10 @@ runq_insert(struct uts_runq *q, struct thread_mailbox *tm)
 /*
  * Select and remove a thread from the run queue.
  */
-static struct thread_mailbox *
+static struct kse_thr_mailbox *
 runq_remove(struct uts_runq *q)
 {
-	struct thread_mailbox *tm;
+	struct kse_thr_mailbox *tm;
 
 	simplelock_lock(&q->lock);
 	tm = runq_remove_nolock(q);
@@ -354,10 +354,10 @@ runq_remove(struct uts_runq *q)
 	return tm;
 }
 
-static struct thread_mailbox *
+static struct kse_thr_mailbox *
 runq_remove_nolock(struct uts_runq *q)
 {
-	struct thread_mailbox *p, *p1;
+	struct kse_thr_mailbox *p, *p1;
 	
 	if (q->head == NULL)
 		return (NULL);
@@ -378,7 +378,7 @@ static void
 uts(struct kse_mailbox *km)
 {
 	static struct uts_data *prev_data;
-	struct thread_mailbox *tm, *p;
+	struct kse_thr_mailbox *tm, *p;
 	struct uts_data *data;
 	int ret, i;
 
@@ -444,7 +444,7 @@ uts(struct kse_mailbox *km)
 		uts_to_thread(p, &km->km_curthread);
 		UPSTR("\n-- uts_to_thread() failed --\n");
 	}
-	kse_yield();
+	kse_release();
 	pstr("** uts() exiting **\n");
 	exit(EX_SOFTWARE);
 }
@@ -452,13 +452,13 @@ uts(struct kse_mailbox *km)
 /*
  * Start a thread.
  */
-static struct thread_mailbox *
+static struct kse_thr_mailbox *
 thread_create(const void *func, int arg)
 {
-	struct thread_mailbox *tm;
+	struct kse_thr_mailbox *tm;
 	char *p;
 
-	aa = tm = (struct thread_mailbox *)calloc(1, sizeof(struct thread_mailbox));
+	aa = tm = (struct kse_thr_mailbox *)calloc(1, sizeof(struct kse_thr_mailbox));
 	getcontext(&tm->tm_context);
 	p = (char *)malloc(THREAD_STACK_SIZE);
 	tm->tm_context.uc_stack.ss_sp = p;
@@ -471,8 +471,8 @@ thread_create(const void *func, int arg)
 static void
 thread_start(struct uts_data *data, const void *func, int arg)
 {
-	struct thread_mailbox *tm;
-	struct thread_mailbox *tm2;
+	struct kse_thr_mailbox *tm;
+	struct kse_thr_mailbox *tm2;
 
 	tm = thread_create(func, arg);
 	tm2 = thread_create(enter_uts, (int)data);
