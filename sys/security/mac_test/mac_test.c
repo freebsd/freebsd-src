@@ -224,7 +224,7 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, internalize_count, CTLFLAG_RD,
 #ifdef KDB
 #define	DEBUGGER(x)	kdb_enter(x)
 #else
-#define	DEBUGGER(x)	printf("mac_test: %x\n", (x))
+#define	DEBUGGER(x)	printf("mac_test: %s\n", (x))
 #endif
 
 /*
