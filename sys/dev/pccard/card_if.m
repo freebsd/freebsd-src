@@ -37,14 +37,10 @@ INTERFACE card;
 # the driver activating the resources doesn't necessarily know or need to know
 # these attributes.
 #
-# XXX A nagging doubt in the back of my mind suggests that these sorts of
-# XXX things might be able to be done with ivars.  This nagging doubt doesn't
-# XXX offer a good way to actually do this, but remains nonetheless.
-#
 METHOD int set_resource_attribute {
 	device_t dev;
 	device_t child;
-	int	*rid;
+	int	 rid;
 	u_int	 flags;
 };
 
