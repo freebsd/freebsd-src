@@ -26,6 +26,7 @@
  *
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/param.h>
@@ -33,6 +34,8 @@
 #include <sys/user.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "pthread_private.h"
 
 /* Spare thread stack. */
@@ -144,7 +147,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		 * Use the garbage collector mutex for synchronization of the
 		 * spare stack list.
 		 */
-		if (pthread_mutex_lock(&_gc_mutex) != 0)
+		if (_pthread_mutex_lock(&_gc_mutex) != 0)
 			PANIC("Cannot lock gc mutex");
 
 		if ((spare_stack = LIST_FIRST(&_dstackq)) != NULL) {
@@ -154,7 +157,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		}
 
 		/* Unlock the garbage collector mutex. */
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		if (_pthread_mutex_unlock(&_gc_mutex) != 0)
 			PANIC("Cannot unlock gc mutex");
 	}
 	/*
@@ -167,7 +170,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		 * Use the garbage collector mutex for synchronization of the
 		 * spare stack list.
 		 */
-		if (pthread_mutex_lock(&_gc_mutex) != 0)
+		if (_pthread_mutex_lock(&_gc_mutex) != 0)
 			PANIC("Cannot lock gc mutex");
 
 		LIST_FOREACH(spare_stack, &_mstackq, qe) {
@@ -180,7 +183,7 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 		}
 
 		/* Unlock the garbage collector mutex. */
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		if (_pthread_mutex_unlock(&_gc_mutex) != 0)
 			PANIC("Cannot unlock gc mutex");
 	}
 
