@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.23 1997/12/15 03:09:44 wollman Exp $
+ * $Id: dead_vnops.c,v 1.24 1998/08/23 11:43:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -188,7 +188,7 @@ dead_ioctl(ap)
 {
 
 	if (!chkvnlock(ap->a_vp))
-		return (EBADF);
+		return (ENOTTY);
 	return (VCALL(ap->a_vp, VOFFSET(vop_ioctl), ap));
 }
 
