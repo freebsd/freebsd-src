@@ -1199,15 +1199,11 @@ struct parse *p;
 cset *cs;
 wint_t ch;
 {
-	wint_t *newwides;
+	wint_t nch, *newwides;
 	assert(ch >= 0);
-	if (ch < NC) {
+	if (ch < NC)
 		cs->bmp[ch >> 3] |= 1 << (ch & 7);
-		if (cs->icase) {
-			cs->bmp[towlower(ch) >> 3] |= 1 << (towlower(ch) & 7);
-			cs->bmp[towupper(ch) >> 3] |= 1 << (towupper(ch) & 7);
-		}
-	} else {
+	else {
 		newwides = realloc(cs->wides, (cs->nwides + 1) *
 		    sizeof(*cs->wides));
 		if (newwides == NULL) {
@@ -1216,6 +1212,12 @@ wint_t ch;
 		}
 		cs->wides = newwides;
 		cs->wides[cs->nwides++] = ch;
+	}
+	if (cs->icase) {
+		if ((nch = towlower(ch)) < NC)
+			cs->bmp[nch >> 3] |= 1 << (nch & 7);
+		if ((nch = towupper(ch)) < NC)
+			cs->bmp[nch >> 3] |= 1 << (nch & 7);
 	}
 }
 
@@ -1258,14 +1260,9 @@ wctype_t wct;
 	wint_t i;
 	wctype_t *newtypes;
 
-	for (i = 0; i < NC; i++) {
+	for (i = 0; i < NC; i++)
 		if (iswctype(i, wct))
 			CHadd(p, cs, i);
-		if (cs->icase && i != towlower(i))
-			CHadd(p, cs, towlower(i));
-		if (cs->icase && i != towupper(i))
-			CHadd(p, cs, towupper(i));
-	}
 	newtypes = realloc(cs->types, (cs->ntypes + 1) *
 	    sizeof(*cs->types));
 	if (newtypes == NULL) {
