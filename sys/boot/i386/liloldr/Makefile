@@ -16,8 +16,10 @@ LOADER=	${.OBJDIR}/../loader/loader
 LOADER=	${.CURDIR}/../loader/loader
 .endif
 
+.if exists(${LOADER})
 LOADER_SIZE !=	wc -c ${LOADER} | awk '{print int(($$1 + 15) / 16)}'
 AFLAGS=		--defsym LOADER_SIZE=${LOADER_SIZE}
+.endif
 
 ${BOOT}: ${BSECT} ${LDR} ${LOADER}
 	cat ${BSECT} ${LDR} ${LOADER} > ${.TARGET}.tmp
