@@ -32,10 +32,13 @@
  * Support for POSIX.1e access control lists.
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/lock.h>
@@ -582,7 +585,15 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef MAC
+	error = mac_check_vnode_setacl(td->td_ucred, vp, type, &inkernacl);
+	if (error != 0)
+		goto out;
+#endif
 	error = VOP_SETACL(vp, type, &inkernacl, td->td_ucred, td);
+#ifdef MAC
+out:
+#endif
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return(error);
@@ -600,7 +611,15 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef MAC
+	error = mac_check_vnode_getacl(td->td_ucred, vp, type);
+	if (error != 0)
+		goto out;
+#endif
 	error = VOP_GETACL(vp, type, &inkernelacl, td->td_ucred, td);
+#ifdef MAC
+out:
+#endif
 	VOP_UNLOCK(vp, 0, td);
 	if (error == 0)
 		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
@@ -621,7 +640,15 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_SETACL(vp, type, NULL, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_deleteacl(td->td_ucred, vp, type);
+	if (error)
+		goto out;
+#endif
+	error = VOP_SETACL(vp, type, 0, td->td_ucred, td);
+#ifdef MAC
+out:
+#endif
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
