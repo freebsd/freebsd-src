@@ -103,6 +103,7 @@ struct alpha_pcb {
 #define	ALPHA_PSL_IPL_IO	0x0004		/* I/O dev ints disabled */
 #define	ALPHA_PSL_IPL_CLOCK	0x0005		/* clock ints disabled */
 #define	ALPHA_PSL_IPL_HIGH	0x0006		/* all but mchecks disabled */
+#define	ALPHA_PSL_IPL_MCES	0x0007		/* all interrupts disabled */
 
 #define	ALPHA_PSL_MUST_BE_ZERO	0xfffffffffffffff0
 
