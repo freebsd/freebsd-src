@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.4 1999/02/14 21:26:52 jkh Exp $
+ * $Id: install.c,v 1.223.2.5 1999/02/15 00:49:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -753,11 +753,31 @@ installFixupBin(dialogMenuItem *self)
 		    msgConfirm("Unable to copy /kernel into place!");
 		    return DITEM_FAILURE;
 		}
+#ifndef __alpha__
                 /* Snapshot any boot -c changes back to the new kernel */
-                if (kget("/kernel.config")) {
+                if (kget("/boot/kernel.conf")) {
 		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 			       "to it.  See the debug screen (ALT-F2) for details.");
 		}
+		else {
+		    if (!file_readable("/boot/loader.rc")) {
+			FILE *fp;
+
+			if ((fp = fopen("/boot/loader.rc", "w")) != NULL) {
+			     fprintf(fp, "load /kernel\n");
+			     fprintf(fp, "load -t userconfig_script /boot/kernel.conf\n");
+			     fprintf(fp, "autoboot 5\n");
+			     fclose(fp);
+			}
+		    }
+		    else {
+			msgConfirm("You already have a /boot/loader.rc file so I won't touch it.\n"
+				   "You will need to add a: load -t userconfig_script /boot/kernel.conf\n"
+				   "line to your /boot/loader.rc before your saved kernel changes\n"
+				   "(if any) can go into effect.");
+		    }
+		}
+#endif
 	    }
 	    else {
 		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
