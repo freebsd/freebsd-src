@@ -109,11 +109,12 @@ points outside the process's allocated address space.
 .Xr symlink 7
 .Sh HISTORY
 An
-.Nm
-function call appeared in Version 6 AT&T UNIX.
+.Fn unlink
+function call appeared in
+.At v6 .
 .Pp
 The
-.Nm
+.Fn unlink
 system call traditionally allows the super-user to unlink directories which
 can damage the filesystem integrity.  This implementation no longer permits
 it.

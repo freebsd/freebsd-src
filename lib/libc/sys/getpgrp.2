@@ -67,7 +67,7 @@ are used to get/set the process group of the control terminal.
 .Xr termios 4
 .Sh HISTORY
 The
-.Nm
+.Fn getpgrp
 function call appeared in
 .Bx 4.0 .
 .Sh STANDARDS
@@ -88,14 +88,17 @@ From the
 .St -p1003.1-88
 Rationale:
 .sp
-4.3BSD provides a
+.Bx 4.3
+provides a
 .Fn getpgrp
 function that returns the process group ID for a specified process.
 Although this function is used to support job control, all known
 job-control shells always specify the calling process with this
 function.
-Thus, the simpler System V
+Thus, the simpler
+.At V
 .Fn getpgrp
-suffices, and the added complexity of the 4.3BSD
+suffices, and the added complexity of the
+.Bx 4.3
 .Fn getpgrp
 has been omitted from POSIX.1.

@@ -165,14 +165,16 @@ and the variable
 .Va errno
 is set to indicate the error.
 .Pp
-.Nm Umount
-returns the value 0 if the umount succeeded; otherwise -1 is returned
+The
+.Fn umount
+function returns the value 0 if the umount succeeded; otherwise -1 is returned
 and the variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Mount
-will fail when one of the following occurs:
+The
+.Fn mount
+function will fail when one of the following occurs:
 .Bl -tag -width [ENOTBLK]
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -269,8 +271,9 @@ cylinder group information.
 points outside the process's allocated address space.
 .El
 .Pp
-.Nm Umount
-may fail with one of the following errors:
+The
+.Fn umount
+function may fail with one of the following errors:
 .Bl -tag -width [ENOTBLK]
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -311,4 +314,5 @@ Some of the error codes need translation to more obvious messages.
 .Fn Mount
 and
 .Fn umount
-function calls appeared in Version 6 AT&T UNIX.
+function calls appeared in
+.At v6 .
