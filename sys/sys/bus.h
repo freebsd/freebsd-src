@@ -169,7 +169,7 @@ void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
 
 /*
- * Add a resource entry or modify an existing entry if one exists with 
+ * Add a resource entry or modify an existing entry if one exists with
  * the same type and rid.
  */
 void	resource_list_add(struct resource_list *rl,
@@ -194,11 +194,11 @@ void	resource_list_delete(struct resource_list *rl,
 			     int type, int rid);
 
 /*
- * Implement BUS_ALLOC_RESOURCE by looking up a resource from the list 
+ * Implement BUS_ALLOC_RESOURCE by looking up a resource from the list
  * and passing the allocation up to the parent of bus. This assumes
  * that the first entry of device_get_ivars(child) is a struct
  * resource_list. This also handles 'passthrough' allocations where a
- * child is a remote descendant of bus by passing the allocation up to 
+ * child is a remote descendant of bus by passing the allocation up to
  * the parent of bus.
  */
 struct resource *
@@ -289,11 +289,11 @@ int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
 				     u_int flags);
-int	bus_activate_resource(device_t dev, int type, int rid, 
+int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
-int	bus_release_resource(device_t dev, int type, int rid, 
+int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_intr_t handler, void *arg, void **cookiep);
@@ -329,7 +329,7 @@ void	device_disable(device_t dev);
 void	device_enable(device_t dev);
 device_t	device_find_child(device_t dev, const char *classname,
 				  int unit);
-const char 	*device_get_desc(device_t dev);
+const char	*device_get_desc(device_t dev);
 devclass_t	device_get_devclass(device_t dev);
 driver_t	*device_get_driver(device_t dev);
 u_int32_t	device_get_flags(device_t dev);
@@ -371,7 +371,7 @@ int	devclass_delete_driver(devclass_t dc, kobj_class_t driver);
 devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
 kobj_class_t	devclass_find_driver(devclass_t dc, const char *classname);
-const char 	*devclass_get_name(devclass_t dc);
+const char	*devclass_get_name(devclass_t dc);
 device_t	devclass_get_device(devclass_t dc, int unit);
 void	*devclass_get_softc(devclass_t dc, int unit);
 int	devclass_get_devices(devclass_t dc, device_t **listp, int *countp);
