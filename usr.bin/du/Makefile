@@ -3,7 +3,7 @@
 
 PROG=	du
 WARNS?=	6
-DPADD=	${LIBM}
-LDADD=	-lm
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.prog.mk>

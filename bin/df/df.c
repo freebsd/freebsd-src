@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
 #include <err.h>
-#include <math.h>
+#include <libutil.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,26 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-#define UNITS_SI 1
-#define UNITS_2 2
-
-#define KILO_SZ(n) (n)
-#define MEGA_SZ(n) ((n) * (n))
-#define GIGA_SZ(n) ((n) * (n) * (n))
-#define TERA_SZ(n) ((n) * (n) * (n) * (n))
-#define PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
-
-#define KILO_2_SZ (KILO_SZ(1024ULL))
-#define MEGA_2_SZ (MEGA_SZ(1024ULL))
-#define GIGA_2_SZ (GIGA_SZ(1024ULL))
-#define TERA_2_SZ (TERA_SZ(1024ULL))
-#define PETA_2_SZ (PETA_SZ(1024ULL))
-
-#define KILO_SI_SZ (KILO_SZ(1000ULL))
-#define MEGA_SI_SZ (MEGA_SZ(1000ULL))
-#define GIGA_SI_SZ (GIGA_SZ(1000ULL))
-#define TERA_SI_SZ (TERA_SZ(1000ULL))
-#define PETA_SI_SZ (PETA_SZ(1000ULL))
+#define UNITS_SI	1
+#define UNITS_2		2
 
 /* Maximum widths of various fields. */
 struct maxwidths {
@@ -93,37 +75,14 @@ struct maxwidths {
 	int	ifree;
 };
 
-static uintmax_t vals_si [] = {
-	1,
-	KILO_SI_SZ,
-	MEGA_SI_SZ,
-	GIGA_SI_SZ,
-	TERA_SI_SZ,
-	PETA_SI_SZ
-};
-static uintmax_t vals_base2[] = {
-	1,
-	KILO_2_SZ,
-	MEGA_2_SZ,
-	GIGA_2_SZ,
-	TERA_2_SZ,
-	PETA_2_SZ
-};
-static uintmax_t *valp;
-
-typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
-
-static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
-
 static void	  addstat(struct statfs *, struct statfs *);
 static char	 *getmntpt(const char *);
 static int	  int64width(int64_t);
 static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
-static void	  prthumanval(double);
+static void	  prthumanval(int64_t);
 static void	  prtstat(struct statfs *, struct maxwidths *);
 static size_t	  regetmntinfo(struct statfs **, long, const char **);
-static unit_t	  unit_adjust(double *);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
 static void	  usage(void);
 
@@ -175,11 +134,9 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			hflag = UNITS_SI;
-			valp = vals_si;
 			break;
 		case 'h':
 			hflag = UNITS_2;
-			valp = vals_base2;
 			break;
 		case 'i':
 			iflag = 1;
@@ -359,55 +316,29 @@ regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
 	return (j);
 }
 
-/*
- * Output in "human-readable" format.  Uses 3 digits max and puts
- * unit suffixes at the end.  Makes output compact and easy to read,
- * especially on huge disks.
- *
- */
-static unit_t
-unit_adjust(double *val)
-{
-	double abval;
-	unit_t unit;
-	int unit_sz;
-
-	abval = fabs(*val);
-
-	unit_sz = abval ? ilogb(abval) / 10 : 0;
-
-	if (unit_sz >= (int)UNIT_MAX) {
-		unit = NONE;
-	} else {
-		unit = unitp[unit_sz];
-		*val /= (double)valp[unit_sz];
-	}
-
-	return (unit);
-}
-
 static void
 prthuman(const struct statfs *sfsp, int64_t used)
 {
 
-	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
-	prthumanval((double)used * (double)sfsp->f_bsize);
-	prthumanval((double)sfsp->f_bavail * (double)sfsp->f_bsize);
+	prthumanval(sfsp->f_blocks * sfsp->f_bsize);
+	prthumanval(used * sfsp->f_bsize);
+	prthumanval(sfsp->f_bavail * sfsp->f_bsize);
 }
 
 static void
-prthumanval(double bytes)
+prthumanval(int64_t bytes)
 {
+	char buf[6];
+	int flags;
 
-	unit_t unit;
-	unit = unit_adjust(&bytes);
+	flags = HN_B | HN_NOSPACE | HN_DECIMAL;
+	if (hflag == UNITS_SI)
+		flags |= HN_DIVISOR_1000;
 
-	if (bytes == 0)
-		(void)printf("      0B");
-	else if (bytes > 10)
-		(void)printf(" % 6.0f%c", bytes, "BKMGTPE"[unit]);
-	else
-		(void)printf(" % 6.1f%c", bytes, "BKMGTPE"[unit]);
+	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
+	    bytes, "", HN_AUTOSCALE, flags);
+
+	(void)printf("  %6s", buf);
 }
 
 /*
