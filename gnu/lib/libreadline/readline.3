@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Mon Jun 13 20:06:14 EDT 1994
+.\"	Last Change: Wed Jul 20 16:13:11 EDT 1994
 .\"
-.TH READLINE 3 "1994 June 13" GNU
+.TH READLINE 3 "1994 July 26" GNU
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -22,8 +22,8 @@ readline \- get a line from a user with editing
 .LP
 .nf
 .ft B
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <readline.h>
+#include <history.h>
 .ft
 .fi
 .LP
@@ -78,6 +78,8 @@ int key;
 Keymap keymap;
 .ft
 .fi
+.LP
+.nf
 .ft B
 int rl_macro_bind (keyseq, macro, keymap)
 char *keyseq, *macro;
@@ -737,6 +739,12 @@ cursor position).  With an argument
 insert the \fIn\fPth word from the previous command (the words
 in the previous command begin with word 0).  A negative argument
 inserts the \fIn\fPth word from the end of the previous command.
+.TP
+.B
+yank\-last\-arg (M\-.\^, M\-_\^)
+Insert the last argument to the previous command (the last word on
+the previous line).  With an argument,
+behave exactly like @code{yank-nth-arg}.
 .PD
 .SS Commands for Changing Text
 .PP
@@ -1164,9 +1172,9 @@ VI Command Mode functions
 .SH "SEE ALSO"
 .PD 0
 .TP
-\fIThe Gnu Readline Library\fP, Brian Fox
+\fIThe Gnu Readline Library\fP, Brian Fox and Chet Ramey
 .TP
-\fIThe Gnu History Library\fP, Brian Fox
+\fIThe Gnu History Library\fP, Brian Fox and Chet Ramey
 .TP
 \fIbash\fP(1)
 .PD
