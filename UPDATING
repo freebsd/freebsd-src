@@ -17,13 +17,16 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20021026:	p4
+20021113:	p5	FreeBSD-SA-02:43.bind
+	Correct name server vulnerabilities.
+
+20021026:	p4	FreeBSD-SA-02:41.smrsh
 	smrsh bypass bug.
 
-20021023:       p3
+20021023:	p3	FreeBSD-SA-02:40.kadmind
 	Correct kadmind buffer overflow.
 
-20020911:	p2
+20020911:	p2	FreeBSD-SA-02:39.libkvm
 	The kvm_openfiles/kvm_open functions now mark the returned file
 	descriptors close-on-exec in case set-user-ID/set-group-ID
 	applications are careless.
