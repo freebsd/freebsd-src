@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.59 1997/06/01 03:43:25 brian Exp $
+ * $Id: main.c,v 1.60 1997/06/09 03:27:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -329,7 +329,7 @@ char **argv;
   FILE *lockfile;
   char *name;
 
-  VarTerm = stdout;
+  VarTerm = 0;
   name = rindex(argv[0], '/');
   LogOpen(name ? name+1 : argv[0]);
 
@@ -338,7 +338,8 @@ char **argv;
   netfd = server = modem = tun_in = -1;
   ProcessArgs(argc, argv);
   if (!(mode & MODE_DIRECT))
-    Greetings();
+    VarTerm = stdout;
+  Greetings();
   GetUid();
   IpcpDefAddress();
 
@@ -350,6 +351,7 @@ char **argv;
         if (VarTerm) {
     	  fprintf(VarTerm,LAUTH_M1);
     	  fprintf(VarTerm,LAUTH_M2);
+          fflush(VarTerm);
         }
 	/* Fall down */
     case VALID:
@@ -409,19 +411,15 @@ char **argv;
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
-      if (VarTerm)
-        fprintf(VarTerm, "Destination system not found in conf file.\n");
+      LogPrintf(LogWARN, "Destination system not found in conf file.\n");
       Cleanup(EX_START);
     }
     if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      if (VarTerm)
-        fprintf(VarTerm, "Must specify dstaddr with"
+      LogPrintf(LogWARN, "Must specify dstaddr with"
               " auto, background or ddial mode.\n");
       Cleanup(EX_START);
     }
   }
-  if (mode & MODE_DIRECT)
-    fprintf(VarTerm, "Packet mode enabled.\n");
 
   if (!(mode & MODE_INTER)) {
     int port = SERVER_PORT + tunno;
@@ -511,13 +509,17 @@ char **argv;
 
     if (server >= 0)
 	LogPrintf(LogPHASE, "Listening at %d.\n", port);
+
+    VarTerm = 0;   /* We know it's currently stdin */
+
 #ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT|MODE_DEDICATED))
+    if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
 #else
-    if (mode & MODE_DIRECT)
+    if (mode & MODE_DIRECT) {
 #endif
+      chdir("/");  /* Be consistent with daemon() */
       TtyInit();
-    else
+    } else
       daemon(0,0);
   } else {
     TtyInit();
@@ -743,6 +745,7 @@ DoLoop()
   pgroup = getpgrp();
 
   if (mode & MODE_DIRECT) {
+    LogPrintf(LogDEBUG, "Opening modem\n");
     modem = OpenModem(mode);
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode();
@@ -805,7 +808,22 @@ DoLoop()
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n", modem);
       modem = OpenModem(mode);
       if (modem < 0) {
-	StartRedialTimer(VarRedialTimeout);
+        tries++;
+        if (VarDialTries)
+          LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
+	            tries, VarDialTries);
+        else
+	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u)\n", tries);
+
+	if (VarDialTries && tries >= VarDialTries) {
+	  if (mode & MODE_BACKGROUND)
+	    Cleanup(EX_DIAL);  /* Can't get the modem */
+	  dial_up = FALSE;
+          reconnectState = RECON_UNKNOWN;
+          reconnectCount = 0;
+	  tries = 0;
+        } else
+	  StartRedialTimer(VarRedialTimeout);
       } else {
 	tries++;    /* Tries are per number, not per list of numbers. */
         if (VarDialTries)
