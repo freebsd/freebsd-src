@@ -133,7 +133,7 @@ ENTRY(cpu_switch)
 1:
  
 	/* save sched_lock recursion count */
-	movl	_sched_lock+MTX_RECURSE,%eax
+	movl	_sched_lock+MTX_RECURSECNT,%eax
 	movl    %eax,PCB_SCHEDNEST(%edx)
  
 #ifdef SMP
@@ -313,7 +313,7 @@ cpu_switch_load_gs:
 	 * new process
 	 */
 	movl	PCB_SCHEDNEST(%edx),%eax
-	movl	%eax,_sched_lock+MTX_RECURSE
+	movl	%eax,_sched_lock+MTX_RECURSECNT
 
 	movl	PCPU(CURPROC),%eax
 	movl	%eax,_sched_lock+MTX_LOCK
