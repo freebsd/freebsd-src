@@ -68,6 +68,7 @@ typedef struct prog {
     char *objdir;
     char *objvar;		/* Makefile variable to replace OBJS */
     strlst_t *objs, *objpaths;
+    strlst_t *buildopts;
     strlst_t *keeplist;
     strlst_t *links;
     int goterror;
@@ -332,6 +333,7 @@ void add_prog(char *progname)
 
     p2->ident = p2->srcdir = p2->objdir = NULL;
     p2->links = p2->objs = p2->keeplist = NULL;
+    p2->buildopts = NULL;
     p2->goterror = 0;
     if (list_mode)
         printf("%s\n",progname);
@@ -414,6 +416,11 @@ void add_special(int argc, char **argv)
 	    goto argcount;
 	if((p->objvar = strdup(argv[3])) == NULL)
 	    out_of_memory();
+    }
+    else if (!strcmp(argv[2], "buildopts")) {
+	p->buildopts = NULL;
+	for (i = 3; i < argc; i++)
+		add_string(&p->buildopts, argv[i]);
     }
     else {
 	warnx("%s:%d: bad parameter name `%s', skipping line",
@@ -554,6 +561,7 @@ void fillin_program_objs(prog_t *p, char *path)
     int rc;
     FILE *f;
     char *objvar="OBJS";
+    strlst_t *s;
 
     /* discover the objs from the srcdir Makefile */
 
@@ -575,8 +583,13 @@ void fillin_program_objs(prog_t *p, char *path)
     fprintf(f, "%s=${PROG}.o\n", objvar);
     fprintf(f, ".endif\n");
     fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
-    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(OPTS) $(%s_OPTS) loop\n",
-		tempfname, p->ident);
+
+    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(OPTS) $(%s_OPTS)",
+	tempfname, p->ident);
+    for (s = p->buildopts; s != NULL; s = s->next)
+        fprintf(f, " %s", s->str);
+    fprintf(f, " loop\n");
+
     fclose(f);
 
     sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
@@ -812,6 +825,10 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
+	if (p->buildopts != NULL) {
+		fprintf(outmk, "%s_OPTS+=", p->ident);
+		output_strlst(outmk, p->buildopts);
+	}
 	fprintf(outmk, "%s_make:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
 	if (makeobj)
