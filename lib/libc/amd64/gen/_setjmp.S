@@ -53,15 +53,15 @@ __FBSDID("$FreeBSD$");
 ENTRY(_setjmp)
 	movq	%rdi,%rax
 	movq	0(%rsp),%rdx		/* retval */
-	movq	%rdx, 0(%rax)		/* retval */
-	movq	%rbx, 8(%rax)
-	movq	%rsp,16(%rax)
-	movq	%rbp,24(%rax)
-	movq	%r12,32(%rax)
-	movq	%r13,40(%rax)
-	movq	%r14,48(%rax)
-	movq	%r15,56(%rax)
-	fnstcw	64(%rax)
+	movq	%rdx, 0(%rax)		/* 0; retval */
+	movq	%rbx, 8(%rax)		/* 1; rbx */
+	movq	%rsp,16(%rax)		/* 2; rsp */
+	movq	%rbp,24(%rax)		/* 3; rbp */
+	movq	%r12,32(%rax)		/* 4; r12 */
+	movq	%r13,40(%rax)		/* 5; r13 */
+	movq	%r14,48(%rax)		/* 6; r14 */
+	movq	%r15,56(%rax)		/* 7; r15 */
+	fnstcw	64(%rax)		/* 8; fpu cw */
 	xorq	%rax,%rax
 	ret
 
