@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	500012
+%VERSREQ=	500013
 
 STD8X16FONT?=	iso
 
