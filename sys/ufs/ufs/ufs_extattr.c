@@ -177,7 +177,7 @@ ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
 		panic("ufs_extattr_uepm_destroy: called while still started");
 
 	/*
-	 * XXX: It's not clear that either order for the next two lines is
+	 * It's not clear that either order for the next two lines is
 	 * ideal, and it should never be a problem if this is only called
 	 * during unmount, and with vfs_busy().
 	 */
