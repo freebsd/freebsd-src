@@ -42,6 +42,7 @@
 .ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
 .ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
 .ds doc-str-Lb-libcipher   FreeSec Crypt Library (libcipher, \-lcipher)
+.ds doc-str-Lb-libdevinfo  Device and Resource Information Utility Library (libdevinfo, \-ldevinfo)
 .ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
 .ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
