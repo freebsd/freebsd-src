@@ -44,6 +44,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	running it now, please switch over, replacing the kernel option
 	SCHED_4BSD with SCHED_ULE.
 
+20040125:
+	Move LongRun support out of identcpu.c, where it hardly
+	belongs, into its own file and make it opt-in, not mandatory,
+	depending on CPU_ENABLE_LONGRUN config(8) option.
+
 20031213:
 	src/lib/libc/gen/initgroups.c:1.8 now causes logins to fail
 	if the login process is unable to successfully set the
