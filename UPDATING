@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030728:
+	All current USB and Firewire quirks in da(4) have been deprecated
+	and will be removed for 5.2.  If this causes failure for your
+	umass(4) devices, enable "options DA_OLD_QUIRKS" in your kernel
+	and send the output of "camcontrol inquiry da0" to scsi@freebsd.org
+	so the quirk can be re-enabled.
+
 20030722:
 	FPU-less support has been removed from FreeBSD.  Chances are you won't
 	notice.  386+387 support should still work after this change, but
