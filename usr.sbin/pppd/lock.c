@@ -4,7 +4,7 @@
  * This code is derived from chat.c.
  */
 
-static char rcsid[] = "$Id: lock.c,v 1.1 1994/04/18 23:41:52 paulus Exp $";
+static char rcsid[] = "$Id: lock.c,v 1.2 1994/09/25 02:32:04 wollman Exp $";
 
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: lock.c,v 1.1 1994/04/18 23:41:52 paulus Exp $";
 #endif
 
 #ifndef LOCK_DIR
-# ifdef __NetBSD__
+# if defined(__NetBSD__) || defined(__FreeBSD__)
 # define	PIDSTRING
 # define	LOCK_PREFIX	"/var/spool/lock/LCK.."
 # else
