@@ -288,6 +288,8 @@ int		pthread_getschedparam(pthread_t pthread, int *,
 			struct sched_param *);
 int		pthread_setschedparam(pthread_t, int,
 			const struct sched_param *);
+int		pthread_getconcurrency(void);
+int		pthread_setconcurrency(int);
 __END_DECLS
 
 #endif
