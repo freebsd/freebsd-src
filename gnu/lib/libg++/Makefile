@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.8 1995/03/20 09:38:21 rgrimes Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
@@ -22,6 +22,8 @@ SRCS+=	ACG.cc AllocRing.cc Binomial.cc BitSet.cc BitString.cc Complex.cc \
 	stdiostream.cc stdstrbufs.cc stdstreams.cc str.cc stream.cc \
 	streambuf.cc strstream.cc
 LIB=	g++
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
 CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include \
