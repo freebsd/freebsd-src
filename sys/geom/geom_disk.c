@@ -194,6 +194,10 @@ g_disk_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			error = ENOMEM;
+			break;
+		}
 		bp2->bio_done = g_disk_done;
 		bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
 		bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
