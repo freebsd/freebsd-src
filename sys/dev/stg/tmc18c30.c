@@ -857,7 +857,7 @@ stg_reselected(sc)
 
 	/* XXX:
 	 * We should ack the reselection as soon as possible,
-	 * becuase the target would abort the current reselection seq 
+	 * because the target would abort the current reselection seq 
   	 * due to reselection timeout.
 	 */
 	tout = STG_DELAY_SELECT_POLLING_MAX;

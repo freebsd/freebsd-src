@@ -194,7 +194,7 @@ static void	tcp_discardcb(struct tcpcb *);
 /*
  * XXX
  * Callouts should be moved into struct tcp directly.  They are currently
- * separate becuase the tcpcb structure is exported to userland for sysctl
+ * separate because the tcpcb structure is exported to userland for sysctl
  * parsing purposes, which do not know about callouts.
  */
 struct	tcpcb_mem {
