@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.26 1995/11/29 14:40:36 julian Exp $
+ * $Id: tty_pty.c,v 1.27 1995/12/02 07:30:19 julian Exp $
  */
 
 /*
@@ -756,9 +756,9 @@ static ptc_devsw_installed = 0;
 static void 	ptc_drvinit(void *unused)
 {
 #ifdef DEVFS
-	int i
-	char jnames[] = "pqrsPQRS"
-	char knames[] = "0123456789abcdefghijklmnopqrstuv"
+	int i,j,k;
+	char jnames[] = "pqrsPQRS";
+	char knames[] = "0123456789abcdefghijklmnopqrstuv";
 	char devname[16];
 #define MAXUNITS (8 * 32)
 #endif
@@ -778,7 +778,7 @@ static void 	ptc_drvinit(void *unused)
 #define NPTY MAXUNITS
 #endif
 		for ( i = 0 ; i<NPTY ; i++ ) {
-			int x;
+			void * x;
 
 			j = i / 32;
 			k = i % 32;
