@@ -1139,11 +1139,9 @@ nfs_timer(void *arg)
 	struct nfsmount *nmp;
 	int timeo;
 	int s, error;
-	struct thread *td;
 	struct timeval now;
 
 	getmicrouptime(&now);
-	td = &thread0; /* XXX for credentials, may break if sleep */
 	s = splnet();
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
@@ -1206,10 +1204,10 @@ nfs_timer(void *arg)
 		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, NULL, NULL, td);
+				    (so, 0, m, NULL, NULL, curthread);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, nmp->nm_nam, NULL, td);
+				    (so, 0, m, nmp->nm_nam, NULL, curthread);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;
