@@ -108,9 +108,6 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		case PRS_NEW:
 			state = "new ";
 			break;
-		case PRS_WAIT:
-			state = "wait";
-			break;
 		case PRS_ZOMBIE:
 			state = "zomb";
 			break;

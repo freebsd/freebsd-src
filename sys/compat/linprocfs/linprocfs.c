@@ -578,9 +578,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 				break;
 			}
 			break;
-		case PRS_WAIT:
-			state = "W (waiting)";
-			break;
 		case PRS_ZOMBIE:
 			state = "Z (zombie)";
 			break;
