@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.53 1997/10/12 16:21:15 jkh Exp $
+ * $Id: installUpgrade.c,v 1.54 1997/10/29 07:47:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,7 +203,7 @@ installUpgrade(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
 	else {
-	    /* Enable all the drives befor we start */
+	    /* Enable all the drives before we start */
 	    for (i = 0; i < cnt; i++)
 		devs[i]->enabled = TRUE;
 	}
@@ -274,15 +274,16 @@ installUpgrade(dialogMenuItem *self)
 
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
-	    if (system("chflags noschg /kernel && mv /kernel /kernel.prev")) {
+	    if (system("mv /kernel /kernel.prev")) {
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?  Due to the\n"
 			      "way that this upgrade process works, you will have to reboot\n"
 			      "and start over from the beginning.  Select Yes to reboot now"))
 		    systemShutdown(1);
 	    }
-	    else /* Give us a working kernel in case we crash and reboot */
-		system("cp /kernel.prev /kernel");
+	    else 
+		msgConfirm("NOTICE: Your old kernel is in /kernel.prev should this upgrade\n"
+			   "fail for any reason and you need to boot your old kernel");
 	}
     }
 
