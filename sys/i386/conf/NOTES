@@ -65,11 +65,13 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 # allow that limit to grow to 1GB, and can be increased further
 # with changing the parameters.  MAXDSIZ is the maximum that the
 # limit can be set to, and the DFLDSIZ is the default value for
-# the limit.  You might want to set the default lower than the
-# max, and explicitly set the maximum with a shell command for processes
+# the limit.  MAXSSIZ is the maximum that the stack limit can be
+# set to.  You might want to set the default lower than the max, 
+# and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
 options 	MAXDSIZ="(1024UL*1024*1024)"
+options 	MAXSSIZ="(128UL*1024*1024)"
 options 	DFLDSIZ="(1024UL*1024*1024)"
 
 #

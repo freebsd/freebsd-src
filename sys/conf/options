@@ -241,6 +241,7 @@ DEV_ATAPIFD		opt_ata.h
 # Resource limits.
 DFLDSIZ			opt_rlimit.h
 MAXDSIZ			opt_rlimit.h
+MAXSSIZ			opt_rlimit.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
