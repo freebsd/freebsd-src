@@ -354,6 +354,7 @@ typedef struct {
 	u_int16_t	req_state_flags;
 	u_int16_t	req_status_flags;
 	u_int16_t	req_time;
+#define	req_response_len	req_time	/* FC only */
 	u_int16_t	req_sense_len;
 	u_int32_t	req_resid;
 	u_int8_t	_res1[8];
