@@ -1,3 +1,76 @@
+Changes in release 1.0.5:
+
+* Remember to update version string.
+
+* Build fixes
+
+* multiple local realm fix in krb_verify_user
+
+Changes in release 1.0.4:
+
+* Only allow a small list of environment variables in telnetd
+
+* Fix one buffer overflow in libkrb
+
+* Make su handle multiple local realms
+
+* Build pic-ed archives (to be used with the pam module)
+
+* do not handle environment variables, use krb.extra instead
+
+* Disable KRBCONFDIR environment variable for root
+
+* fix shared libraries building on solaris
+
+Changes in release 1.0.3:
+
+* Handle DoS attacks in the KDC and the admin server better.
+
+* updated config.guess and config.sub
+
+* better db/gdbm discovery
+
+* bug fixes
+
+Changes in release 1.0.2:
+
+* Fix syslog(LOG_FOO, bug) calls in kauthd, kipd
+
+* Fix bug with systems have a 64bit `time_t'
+
+* Port to Solaris 8 (aka SunOS 5.8), HP-UX 11
+
+* Add AIX fix for shared libraries
+
+* Make afslog work with Arla
+
+* Be more paranoid about setuid for the sake of Linux 2.2.15
+
+* Make rshd afslog to the cell of the home directory
+
+* Improved kip/kipd
+
+* syslog with correct level in popper
+
+* install libraries correctly in lib/sl
+
+* more paranoia when overwriting and removing ticket files
+
+Changes in release 1.0.1:
+
+* Fix bug in ftpd when accepting connections
+
+* Make `-d' in kauth not imply `-a'
+
+* Adapt sia to new TKT_ROOT
+
+* Define `sockaddr_storage' in a fashion that works on
+  alignment-restricted architectures
+
+* Rewrite PAM module to work better.
+
+* Make all files in libdes build with CFLAGS
+
 Changes in release 1.0:
 
 * A new configuration option `nat_in_use' in krb.extra to ease use

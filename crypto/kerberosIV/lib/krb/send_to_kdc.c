@@ -22,7 +22,7 @@ or implied warranty.
 #include "krb_locl.h"
 #include <base64.h>
 
-RCSID("$Id: send_to_kdc.c,v 1.71 1999/11/25 02:20:53 assar Exp $");
+RCSID("$Id: send_to_kdc.c,v 1.71.2.1 2000/10/10 12:47:21 assar Exp $");
 
 struct host {
     struct sockaddr_in addr;
@@ -488,6 +488,12 @@ send_recv(KTEXT pkt, KTEXT rpkt, struct host *host)
 	timeout.tv_sec = client_timeout;
 	timeout.tv_usec = 0;
 	FD_ZERO(&readfds);
+	if (s >= FD_SETSIZE) {
+	    if (krb_debug)
+		krb_warning("fd too large\n");
+	    close (s);
+	    return FALSE;
+	}
 	FD_SET(s, &readfds);
 	
 	/* select - either recv is ready, or timeout */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kip.h,v 1.18 1999/12/02 16:58:31 joda Exp $ */
+/* $Id: kip.h,v 1.18.2.1 2000/06/23 02:55:01 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -44,7 +44,6 @@
 #include <errno.h>
 #include <pwd.h>
 #include <signal.h>
-#include <paths.h>
 #include <fcntl.h>
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
@@ -72,13 +71,19 @@
 #include <netinet/tcp.h>
 #endif
 #include <netdb.h>
+#ifdef HAVE_SYS_SOCKIO_H
 #include <sys/sockio.h>
+#endif
 #include <net/if.h>
 #ifdef HAVE_NET_IF_VAR_H
 #include <net/if_var.h>
 #endif
+#ifdef HAVE_NET_IF_TUN_H
 #include <net/if_tun.h>
+#endif
 #include <err.h>
+
+#include <getarg.h>
 
 #ifdef SOCKS
 #include <socks.h>
@@ -90,6 +95,10 @@
 
 #define TUNDEV "tun"
 
+#ifndef TUNMTU
+#define TUNMTU 1500		/* everything is ethernet :) */
+#endif
+
 #define KIPPORT 2112
 
 #define KIP_VERSION "KIPSRV.0"
@@ -100,5 +109,14 @@ copy_packets (int tundev, int netdev, int mtu, des_cblock *iv,
 
 RETSIGTYPE childhandler (int);
 
+extern sig_atomic_t disconnect;
+extern int isserver;
+
 int
-tunnel_open (void);
+tunnel_open (char *, size_t);
+
+void
+fatal (int fd, const char *s, des_key_schedule schedule, des_cblock *iv);
+
+int
+kip_exec (const char *cmd, char *msg, size_t len, ...);

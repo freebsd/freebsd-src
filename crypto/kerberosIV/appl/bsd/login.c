@@ -45,7 +45,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.125 1999/11/30 19:24:01 bg Exp $");
+RCSID("$Id: login.c,v 1.125.2.2 2000/06/23 02:33:07 assar Exp $");
 
 #ifdef OTP
 #include <otp.h>
@@ -596,22 +596,28 @@ main(int argc, char **argv)
 	if (pwd->pw_change || pwd->pw_expire)
 		gettimeofday(&tp, (struct timezone *)NULL);
 
-	if (pwd->pw_change)
+	if (pwd->pw_change) {
+		time_t t;
+
 		if (tp.tv_sec >= pwd->pw_change) {
 			printf("Sorry -- your password has expired.\n");
 			changepass=1;
 		} else if (pwd->pw_change - tp.tv_sec <
-		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
+			   2 * DAYSPERWEEK * SECSPERDAY && !quietlog) {
+			t = pwd->pw_change;
 			printf("Warning: your password expires on %s",
-			    ctime(&pwd->pw_change));
+			       ctime(&t));
+		}
 	if (pwd->pw_expire)
 		if (tp.tv_sec >= pwd->pw_expire) {
 			printf("Sorry -- your account has expired.\n");
 			sleepexit(1);
 		} else if (pwd->pw_expire - tp.tv_sec <
-		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
+			   2 * DAYSPERWEEK * SECSPERDAY && !quietlog) {
+			t = pwd->pw_expire;
 			printf("Warning: your account expires on %s",
-			    ctime(&pwd->pw_expire));
+			       ctime(&t));
+		}
 #endif /* defined(HAVE_PASSWD_CHANGE) && defined(HAVE_PASSWD_EXPIRE) */
 
 	/* Nothing else left to fail -- really log in. */
@@ -788,6 +794,11 @@ main(int argc, char **argv)
 		    if(!rootlogin)
 			    exit(1);
 	    }
+	    if (uid != 0 && setuid(0) != -1) {
+	            syslog(LOG_ALERT | LOG_AUTH,
+			   "Failed to drop privileges for user %d", uid);
+		    errx(1, "Sorry");
+	    }
 	}
 		       
 
@@ -953,6 +964,7 @@ dolastlog(int quiet)
 #if defined(HAVE_LASTLOG_H) || defined(HAVE_LOGIN_H)
 	struct lastlog ll;
 	int fd;
+	time_t t;
 
 	if ((fd = open(_PATH_LASTLOG, O_RDWR, 0)) >= 0) {
 		lseek(fd, (off_t)pwd->pw_uid * sizeof(ll), SEEK_SET);
@@ -966,8 +978,8 @@ dolastlog(int quiet)
                                 sleepexit(1);
                         }
                         if (!quiet) {
-                                printf("Last login: %.*s ",
-                                    24-5, ctime(&ll.ll_time));
+				t = ll.ll_time;
+                                printf("Last login: %.*s ", 24-5, ctime(&t));
                                 if (*ll.ll_host != '\0') {
                                         printf("from %.*s\n",
                                             (int)sizeof(ll.ll_host),
@@ -983,8 +995,8 @@ dolastlog(int quiet)
 		if (!quiet) {
 			if (read(fd, &ll, sizeof(ll)) == sizeof(ll) &&
 			    ll.ll_time != 0) {
-				printf("Last login: %.*s ",
-				    24-5, ctime(&ll.ll_time));
+				t = ll.ll_time;
+				printf("Last login: %.*s ", 24-5, ctime(&t));
 				if (*ll.ll_host != '\0')
 					printf("from %.*s\n",
 					    (int)sizeof(ll.ll_host),
@@ -998,7 +1010,7 @@ dolastlog(int quiet)
 		}
 #endif /* SYSV_SHADOW */
 		memset(&ll, 0, sizeof(ll));
-		time(&ll.ll_time);
+		ll.ll_time = time(NULL);
 		strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
 		if (hostname)
 			strncpy(ll.ll_host, hostname, sizeof(ll.ll_host));

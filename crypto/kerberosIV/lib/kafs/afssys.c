@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afssys.c,v 1.65 1999/12/02 16:58:40 joda Exp $");
+RCSID("$Id: afssys.c,v 1.65.2.1 2000/06/23 03:27:23 assar Exp $");
 
 int _kafs_debug; /* this should be done in a better way */
 
@@ -113,6 +113,9 @@ map_syscall_name_to_number (const char *str, int *res)
     if (f == NULL)
 	return -1;
     while (fgets (buf, sizeof(buf), f) != NULL) {
+	if (buf[0] == '#')
+	    continue;
+
 	if (strncmp (str, buf, str_len) == 0) {
 	    char *begptr = buf + str_len;
 	    char *endptr;

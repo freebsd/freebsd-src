@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.50 1999/09/16 20:41:46 assar Exp $
+# $Id: Makefile.in,v 1.50.2.2 2000/12/07 16:44:12 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -58,8 +58,8 @@ Wall:
 install: all
 	$(MKINSTALLDIRS) $(DESTDIR)$(libdir)
 	@for i in $(LIB); do \
-	echo "$(INSTALL) -m 0555 $$i $(DESTDIR)$(libdir)/$$i" ;\
-	$(INSTALL) -m 0555 $$i $(DESTDIR)$(libdir)/$$i ; done
+	echo "$(INSTALL)  $$i $(DESTDIR)$(libdir)/$$i" ;\
+	$(INSTALL)  $$i $(DESTDIR)$(libdir)/$$i ; done
 	@install_symlink_command@
 
 uninstall:
@@ -83,13 +83,17 @@ distclean: clean
 realclean: distclean
 	rm -f TAGS
 
+$(LIBNAME)_pic.a: $(OBJECTS)
+	rm -f $@
+	$(AR) cr $@ $(OBJECTS)
+	-$(RANLIB) $@
+
 $(LIBNAME).a: $(OBJECTS)
 	rm -f $@
 	$(AR) cr $@ $(OBJECTS)
 	-$(RANLIB) $@
 
-
-$(LIBNAME).$(SHLIBEXT): $(OBJECTS)
+$(LIBNAME).$(SHLIBEXT): $(OBJECTS) $(LIBNAME)_pic.a
 	rm -f $@
 	$(LDSHARED) -o $@ $(OBJECTS) $(LIB_DEPS)
 	@build_symlink_command@
