@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.4 1997/05/10 01:24:40 brian Exp $
+ * $Id: modem.c,v 1.24.2.5 1997/05/10 03:42:35 brian Exp $
  *
  *  TODO:
  */
@@ -48,7 +48,6 @@ static int connect_time;		/* connection time */
 static int connect_count;
 static struct pppTimer ModemTimer;
 
-extern int uu_lock(), uu_unlock();
 extern void PacketMode(), TtyTermMode(), TtyCommandMode();
 extern int TermMode;
 
@@ -382,6 +381,7 @@ int mode;
   struct termios rstio;
   int oldflag;
   char *host, *cp, *port;
+  int res;
 
   mbits = 0;
   if (mode & MODE_DIRECT) {
@@ -395,8 +395,12 @@ int mode;
 	return(modem);
   } else if (modem < 0) {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
-      if (uu_lock(VarBaseDevice) < 0) {
-        LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
+      if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
+        if (res == UU_LOCK_INUSE)
+          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
+        else
+          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use: uu_lock: %s\n",
+                    VarDevice, uu_lockerr(res));
         return(-1);
       }
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
