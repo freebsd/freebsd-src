@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.64 1996/06/10 16:23:30 nate Exp $
+ * $Id: kern_sysctl.c,v 1.65 1996/08/31 14:47:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,10 +73,11 @@ extern struct linker_set sysctl_;
 static int
 sysctl_order_cmp(const void *a, const void *b)
 {
-	const struct sysctl_oid **pa, **pb;
+	struct sysctl_oid const * const *pa;
+	struct sysctl_oid const * const *pb;
 
-	pa = (const struct sysctl_oid **)a;
-	pb = (const struct sysctl_oid **)b;
+	pa = (struct sysctl_oid const * const *)a;
+	pb = (struct sysctl_oid const * const *)b;
 	if (*pa == NULL)
 		return (1);
 	if (*pb == NULL)
