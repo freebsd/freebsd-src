@@ -2,7 +2,7 @@
 
 PROG=	mkastods
 SRCS=	mkastods.c asc_ebc.c ebc_disp.c
-CFLAGS+=-I${.CURDIR}/.. -I.
+CFLAGS+=-I${.CURDIR}/..
 NOMAN=	noman
 .PATH:	${.CURDIR}/../../api
 
