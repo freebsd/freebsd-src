@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH: ../cc_tools ${GCCDIR}/config/${GCC_ARCH} ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
 
 LIB=		cc_int
 NOPROFILE=	YES
@@ -21,7 +21,7 @@ SRCS=	c-aux-info.c c-common.c c-convert.c c-iterate.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dwarf2out.c dyn-string.c except.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
-	${GCC_ARCH}.c
+	${TARGET_ARCH}.c
 .if defined(USE_EGCS_HAIFA) && ${USE_EGCS_HAIFA} == 1
 SRCS+=	haifa-sched.c
 .else
