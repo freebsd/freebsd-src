@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.332 1999/04/28 01:03:21 luoqi Exp $
+ *	$Id: machdep.c,v 1.333 1999/05/06 00:38:41 luoqi Exp $
  */
 
 #include "apm.h"
@@ -1307,8 +1307,9 @@ init386(first)
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
 	dblfault_tss.tss_eip = (int) dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
-	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = 
+	dblfault_tss.tss_ds = dblfault_tss.tss_es =
 	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
 
