@@ -318,7 +318,7 @@ le_probe(
     sc->le_iobase = dvp->id_iobase;
     sc->le_membase = (u_char *) dvp->id_maddr;
     sc->le_irq = dvp->id_irq;
-    sc->le_if.if_name = ledriver.name;
+    sc->le_if.if_name = (char *)(uintptr_t)(const void *)ledriver.name;
     sc->le_if.if_unit = dvp->id_unit;
 
     /*
