@@ -62,6 +62,7 @@ struct cpufreq_softc {
 	int				saved_priority;
 	struct cf_level_lst		all_levels;
 	int				all_count;
+	int				max_mhz;
 	device_t			dev;
 	struct sysctl_ctx_list		sysctl_ctx;
 };
@@ -123,6 +124,7 @@ cpufreq_attach(device_t dev)
 	TAILQ_INIT(&sc->all_levels);
 	sc->curr_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
 	sc->saved_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
+	sc->max_mhz = CPUFREQ_VAL_UNKNOWN;
 
 	/*
 	 * Only initialize one set of sysctls for all CPUs.  In the future,
@@ -430,16 +432,22 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 			goto out;
 	}
 
-	/* If there are no absolute levels, create a fake one at 100%. */
+	/*
+	 * If there are no absolute levels, create a fake one at 100%.  We
+	 * then cache the clockrate for later use as our base frequency.
+	 *
+	 * XXX This assumes that the first time through, if we only have
+	 * relative drivers, the CPU is currently running at 100%.
+	 */
 	if (TAILQ_EMPTY(&sc->all_levels)) {
-		bzero(&sets[0], sizeof(*sets));
-		pc = cpu_get_pcpu(dev);
-		if (pc == NULL) {
-			error = ENXIO;
-			goto out;
+		if (sc->max_mhz == CPUFREQ_VAL_UNKNOWN) {
+			pc = cpu_get_pcpu(dev);
+			cpu_est_clockrate(pc->pc_cpuid, &rate);
+			sc->max_mhz = rate / 1000000;
 		}
-		cpu_est_clockrate(pc->pc_cpuid, &rate);
-		sets[0].freq = rate / 1000000;
+		memset(&sets[0], CPUFREQ_VAL_UNKNOWN, sizeof(*sets));
+		sets[0].freq = sc->max_mhz;
+		sets[0].dev = NULL;
 		error = cpufreq_insert_abs(sc, sets, 1);
 		if (error)
 			goto out;
@@ -737,6 +745,7 @@ out:
 int
 cpufreq_register(device_t dev)
 {
+	struct cpufreq_softc *sc;
 	device_t cf_dev, cpu_dev;
 
 	/*
@@ -744,8 +753,11 @@ cpufreq_register(device_t dev)
 	 * must offer the same levels and be switched at the same time.
 	 */
 	cpu_dev = device_get_parent(dev);
-	if (device_find_child(cpu_dev, "cpufreq", -1))
+	if ((cf_dev = device_find_child(cpu_dev, "cpufreq", -1))) {
+		sc = device_get_softc(cf_dev);
+		sc->max_mhz = CPUFREQ_VAL_UNKNOWN;
 		return (0);
+	}
 
 	/* Add the child device and possibly sysctls. */
 	cf_dev = BUS_ADD_CHILD(cpu_dev, 0, "cpufreq", -1);
@@ -771,7 +783,7 @@ cpufreq_unregister(device_t dev)
 	error = device_get_children(device_get_parent(dev), &devs, &devcount);
 	if (error)
 		return (error);
-	cf_dev = devclass_get_device(cpufreq_dc, 0);
+	cf_dev = device_find_child(device_get_parent(dev), "cpufreq", -1);
 	cfcount = 0;
 	for (i = 0; i < devcount; i++) {
 		if (!device_is_attached(devs[i]))
