@@ -61,8 +61,6 @@
  * both XMACs to operate as independent interfaces.
  */
  
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -78,9 +76,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -1150,9 +1146,7 @@ static int sk_attach_xmac(sc, port)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	return(0);
 }
@@ -1455,10 +1449,8 @@ static void sk_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
-#endif
 	}
 
 	/* Transmit */
@@ -1563,7 +1555,6 @@ static void sk_rxeof(sc_if)
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 
-#if NBPF > 0
 		if (ifp->if_bpf) {
 			bpf_mtap(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
@@ -1573,7 +1564,7 @@ static void sk_rxeof(sc_if)
 				continue;
 			}
 		}
-#endif
+
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
