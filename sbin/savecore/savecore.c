@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 /* The size of the buffer used for I/O. */
 #define	BUFFERSIZE	(1024*1024)
 
-int compress, clear, force, keep, verbose;	/* flags */
+int checkfor, compress, clear, force, keep, verbose;	/* flags */
 int nfound, nsaved, nerr;			/* statistics */
 
 extern FILE *zopen(const char *, const char *);
@@ -321,6 +321,12 @@ DoFile(char *savedir, const char *device)
 		goto closefd;
 	}
 
+	if (checkfor) {
+		printf("A dump exists on %s\n", device);
+		close(fd);
+		exit(0);
+	}
+
 	if (kdhl.panicstring[0])
 		syslog(LOG_ALERT, "reboot after panic: %s", kdhl.panicstring);
 	else
@@ -478,7 +484,7 @@ closefd:
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: savecore [-cfkv] [directory [device...]]\n");
+	fprintf(stderr, "usage: savecore [-Cv|-cfkv] [directory [device...]]\n");
 	exit (1);
 }
 
@@ -496,8 +502,11 @@ main(int argc, char **argv)
 		syslog(LOG_ERR, "Cannot allocate memory");
 		exit(1);
 	}
-	while ((ch = getopt(argc, argv, "cdfkN:vz")) != -1)
+	while ((ch = getopt(argc, argv, "CcdfkN:vz")) != -1)
 		switch(ch) {
+		case 'C':
+			checkfor = 1;
+			break;
 		case 'c':
 			clear = 1;
 			break;
@@ -519,6 +528,8 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+	if (checkfor && (clear || force || keep))
+		usage();
 	argc -= optind;
 	argv += optind;
 	if (argc >= 1) {
@@ -547,8 +558,13 @@ main(int argc, char **argv)
 	}
 
 	/* Emit minimal output. */
-	if (nfound == 0)
+	if (nfound == 0) {
+		if (checkfor) {
+			printf("No dump exists\n");
+			exit(1);
+		}
 		syslog(LOG_WARNING, "no dumps found");
+	}
 	else if (nsaved == 0) {
 		if (nerr != 0)
 			syslog(LOG_WARNING, "unsaved dumps found but not saved");
