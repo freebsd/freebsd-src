@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.48 1995/02/14 19:20:31 sos Exp $
+ *	$Id: trap.c,v 1.49 1995/03/16 18:11:31 bde Exp $
  */
 
 /*
@@ -373,7 +373,7 @@ trap(frame)
 
 	trapsignal(p, i, ucode);
 
-#ifdef DIAGNOSTIC
+#ifdef DEBUG
 	eva = rcr2();
 	if (type <= MAX_TRAP_MSG) {
 		uprintf("fatal process exception: %s", 
