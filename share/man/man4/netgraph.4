@@ -103,7 +103,7 @@ The name must not contain the characters
 or
 .Dq \&:
 and is limited to
-.Dv "NG_NODELEN + 1"
+.Dv "NG_NODESIZ"
 characters (including NUL byte).
 .Pp
 Each node instance has a unique
@@ -134,7 +134,7 @@ or a
 .Dq \&:
 and is
 limited to
-.Dv "NG_HOOKLEN + 1"
+.Dv "NG_HOOKSIZ"
 characters (including NUL byte).
 .It
 A hook is always connected to another hook.
@@ -696,9 +696,9 @@ if
 .Fn ( NG_NODE_NAME "node"
 [0]) ....
 .Pp
-if (strncmp(
+if (strcmp(
 .Fn NG_NODE_NAME "node" ,
-"fred", NG_NODELEN)) ...
+"fred")) ...
 .Pp
 .It
 A node dependent opaque cookie
@@ -815,7 +815,7 @@ and should be used as a starting point for new node writers.
 .Ss Netgraph Message Structure
 Control messages have the following structure:
 .Bd -literal
-#define NG_CMDSTRLEN    15      /* Max command string (16 with null) */
+#define NG_CMDSTRSIZ    32      /* Max command string (including nul) */
 
 struct ng_mesg {
   struct ng_msghdr {
@@ -826,7 +826,7 @@ struct ng_mesg {
     u_long      token;          /* Reply should have the same token */
     u_long      typecookie;     /* Node type understanding this message */
     u_long      cmd;            /* Command identifier */
-    u_char      cmdstr[NG_CMDSTRLEN+1]; /* Cmd string (for debug) */
+    u_char      cmdstr[NG_CMDSTRSIZ]; /* Cmd string (for debug) */
   } header;
   char  data[0];                /* Start of cmd/resp data */
 };
