@@ -34,6 +34,13 @@
  * are collected by the linker into a `struct linker_set' as defined below.
  * For ELF, this is done by constructing a separate segment for each set.
  * For a.out, it is done automatically by the linker.
+ *
+ * In the MAKE_SET macros below, the lines:
+ *
+ *   static void const * const __set_##set##_sym_##sym = &sym;
+ *
+ * are present only to prevent the compiler from producing bogus
+ * warnings about unused symbols.
  */
 #ifdef __ELF__
 
