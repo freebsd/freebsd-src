@@ -7,17 +7,19 @@ MANDIR=/usr/share/man
 formatman()
 {
 	suffix=`echo $1 | sed -e 's/.*\\.//'`
-	echo "	"$1 "->" $*
 	(cd cat$section; rm -f $*)
 	if [ ".$suffix" = "%compext%" ]; then
-		%zcat% man$section/$1 | nroff -man | %compress% > cat$section/$1
+		adds=
+		%zcat% man$section/$1 | nroff -man | %compress% > cat$section/$1$adds
 	else
-		nroff -man < man$section/$1 > cat$section/$1
+		adds=%compext%
+		nroff -man < man$section/$1 | %compress% > cat$section/$1$adds
 	fi
-	catfile=$1; shift
+	echo "  "$* "->" $1$adds
+	catfile=$1$adds; shift
 	while [ $# -gt 0 ]
 	do
-		ln cat$section/$catfile cat$section/$1
+		ln cat$section/$catfile cat$section/$1$adds
 		shift
 	done
 }
