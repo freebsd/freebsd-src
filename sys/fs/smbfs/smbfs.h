@@ -98,7 +98,7 @@ struct smbmount {
 #define	VTOSMBFS(vp)		(VFSTOSMBFS(VTOVFS(vp)))
 
 int smbfs_ioctl(struct vop_ioctl_args *ap);
-int smbfs_doio(struct buf *bp, struct ucred *cr, struct thread *td);
+int smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td);
 int smbfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
 	struct thread *td, int intrflg);
 #endif	/* KERNEL */

@@ -854,8 +854,6 @@ smbfs_strategy (ap)
 	struct thread *td;
 	int error = 0;
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	SMBVDEBUG("\n");
 	if (bp->b_flags & B_ASYNC)
 		td = (struct thread *)0;
@@ -867,7 +865,7 @@ smbfs_strategy (ap)
 		cr = bp->b_wcred;
 
 	if ((bp->b_flags & B_ASYNC) == 0 )
-		error = smbfs_doio(bp, cr, td);
+		error = smbfs_doio(ap->a_vp, bp, cr, td);
 	return error;
 }
 
