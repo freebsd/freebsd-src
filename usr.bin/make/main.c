@@ -448,6 +448,10 @@ chdir_verify_path(path, obpath)
 	return 0;
 }
 
+void
+catch_child(int sig)
+{
+}
 
 /*-
  * main --
@@ -489,6 +493,22 @@ main(argc, argv)
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
+
+	{
+	/*
+	 * Catch SIGCHLD so that we get kicked out of select() when we
+	 * need to look at a child.  This is only known to matter for the
+	 * -j case (perhaps without -P).
+	 *
+	 * XXX this is intentionally misplaced.
+	 */
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	sa.sa_handler = catch_child;
+	sigaction(SIGCHLD, &sa, NULL);
+	}
 
 #ifdef RLIMIT_NOFILE
 	/*
