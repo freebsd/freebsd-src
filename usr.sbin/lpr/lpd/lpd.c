@@ -104,7 +104,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 int	lflag;				/* log requests flag */
-int	pflag;				/* no incoming port flag */
+int	sflag;				/* no incoming port flag */
 int	from_remote;			/* from remote socket */
 
 int		 main(int argc, char **_argv);
@@ -153,7 +153,7 @@ main(int argc, char **argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "cdlpwW46")) != -1)
+	while ((i = getopt(argc, argv, "cdlpswW46")) != -1)
 		switch (i) {
 		case 'c':
 			/* log all kinds of connection-errors to syslog */
@@ -165,8 +165,13 @@ main(int argc, char **argv)
 		case 'l':
 			lflag++;
 			break;
-		case 'p':
-			pflag++;
+		case 'p':		/* letter initially used for -s */
+			/*
+			 * This will probably be removed with 5.0-release.
+			 */
+			/* FALLTHROUGH */
+		case 's':		/* secure (no inet) */
+			sflag++;
 			break;
 		case 'w':		/* netbsd uses -w for maxwait */
 			/*
@@ -206,7 +211,6 @@ main(int argc, char **argv)
 		case 'n':		/* set max num of children */
 		case 'r':		/* allow 'of' for remote ptrs */
 					/* ...[not needed in freebsd] */
-		case 's':		/* secure (no inet), same as -p */
 			/* FALLTHROUGH */
 		default:
 			errs++;
@@ -269,8 +273,8 @@ main(int argc, char **argv)
 #endif
 
 	openlog("lpd", LOG_PID, LOG_LPR);
-	syslog(LOG_INFO, "lpd startup: logging=%d%s", lflag,
-	    socket_debug ? " dbg" : "");
+	syslog(LOG_INFO, "lpd startup: logging=%d%s%s", lflag,
+	    socket_debug ? " dbg" : "", sflag ? " net-secure" : "");
 	(void) umask(0);
 	/*
 	 * NB: This depends on O_NONBLOCK semantics doing the right thing;
@@ -337,7 +341,7 @@ main(int argc, char **argv)
 	FD_ZERO(&defreadfds);
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
-	if (pflag == 0) {
+	if (sflag == 0) {
 		finet = socksetup(family, socket_debug);
 	} else
 		finet = NULL;	/* pretend we couldn't open TCP socket. */
@@ -401,7 +405,7 @@ main(int argc, char **argv)
 			signal(SIGQUIT, SIG_IGN);
 			signal(SIGTERM, SIG_IGN);
 			(void) close(funix);
-			if (pflag == 0 && finet) {
+			if (sflag == 0 && finet) {
                         	for (i = 1; i <= *finet; i++) 
 					(void)close(finet[i]);
 			}
@@ -911,9 +915,9 @@ static void
 usage(void)
 {
 #ifdef INET6
-	fprintf(stderr, "usage: lpd [-cdlpW46] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsW46] [port#]\n");
 #else
-	fprintf(stderr, "usage: lpd [-cdlpW] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsW] [port#]\n");
 #endif
 	exit(EX_USAGE);
 }
