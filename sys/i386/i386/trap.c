@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.55 1995/07/16 05:39:22 davidg Exp $
+ *	$Id: trap.c,v 1.56 1995/07/16 10:31:26 joerg Exp $
  */
 
 /*
@@ -952,13 +952,9 @@ linux_syscall(frame)
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+		ktrsyscall(p->p_tracep, code, callp->sy_narg, (int *)&args);
 #endif
 
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
-#endif
 	rval[0] = 0;
 	rval[1] = frame.tf_edx;
 
