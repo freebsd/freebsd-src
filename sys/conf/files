@@ -1273,7 +1273,6 @@ pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
 pccard/pcic_isa.c	optional pcic card isa
 pccard/pcic_pci.c	optional pcic card pci
-pccard/plxcard.c	optional plxcard pci
 pci/agp.c		optional agp
 pci/agp_if.m		standard
 pci/agp_intel.c		optional agp
