@@ -31,6 +31,8 @@
 .\"
 .\"     @(#)ioctl.2	8.2 (Berkeley) 12/11/93
 .\"
+.\"	$Id: ioctl.2,v 1.6 1998/09/09 01:30:25 jkoshy Exp $
+.\"
 .Dd December 11, 1993
 .Dt IOCTL 2
 .Os BSD 4
@@ -40,7 +42,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/ioctl.h>
 .Ft int
-.Fn ioctl "int d" "unsigned long request" "char *argp"
+.Fn ioctl "int d" "unsigned long request" ...
 .Sh DESCRIPTION
 The
 .Fn ioctl
@@ -53,6 +55,19 @@ requests.
 The argument
 .Fa d
 must be an open file descriptor.
+.Pp
+The third argument to
+.Nm
+is traditionally named
+.Ar "char *argp" .
+Most uses of 
+.Nm
+in
+.Fx 3.0
+however, require the third argument to be a 
+.Ar caddr_t
+or an
+.Ar int .
 .Pp
 An  ioctl
 .Fa request

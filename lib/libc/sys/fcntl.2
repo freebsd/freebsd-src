@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <fcntl.h>
 .Ft int
-.Fn fcntl "int fd" "int cmd" "int arg"
+.Fn fcntl "int fd" "int cmd" "..."
 .Sh DESCRIPTION
 .Fn Fcntl
 provides for control over descriptors.
@@ -48,7 +48,11 @@ The argument
 .Fa fd
 is a descriptor to be operated on by
 .Fa cmd
-as follows:
+as described below.  Depending on the value of
+.Fa cmd ,
+.Nm
+can take an additional third argument
+.Fa "int arg" .
 .Bl -tag -width F_GETOWNX
 .It Dv F_DUPFD
 Return a new descriptor as follows:
