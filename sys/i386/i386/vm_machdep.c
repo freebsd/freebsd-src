@@ -58,12 +58,12 @@
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -260,7 +260,7 @@ cpu_exit(p)
 	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
 	cnt.v_swtch++;
-	cpu_switch();
+	cpu_throw();
 	panic("cpu_exit");
 }
 
