@@ -2467,6 +2467,6 @@ psmresume(void *dummy)
 }
 #endif /* PSM_HOOKAPM */
 
-DEV_DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, psm_cdevsw, 0, 0);
+DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
 
 #endif /* NPSM > 0 */
