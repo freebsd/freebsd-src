@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.27 1999/07/18 14:31:01 phk Exp $
+ *  $Id: linux_file.c,v 1.28 1999/08/12 19:53:32 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -158,6 +158,9 @@ linux_to_bsd_flock(struct linux_flock *linux_flock, struct flock *bsd_flock)
     case LINUX_F_UNLCK:
 	bsd_flock->l_type = F_UNLCK;
 	break;
+    default:
+        bsd_flock->l_type = -1;
+        break;
     }
     bsd_flock->l_whence = linux_flock->l_whence;
     bsd_flock->l_start = (off_t)linux_flock->l_start;
@@ -250,7 +253,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	if (args->arg & LINUX_FASYNC) fcntl_args.arg |= O_ASYNC;
 	fcntl_args.cmd = F_SETFL;
 	return fcntl(p, &fcntl_args);
-    
+
     case LINUX_F_GETLK:
 	if ((error = copyin((caddr_t)args->arg, (caddr_t)&linux_flock,
 		   	    sizeof(struct linux_flock)))) 
