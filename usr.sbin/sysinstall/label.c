@@ -1326,7 +1326,7 @@ diskLabelNonInteractive(Device *dev)
     char *cp;
     PartType type;
     PartInfo *p;
-    u_long flags = 0;
+    u_long flags;
     int i, status;
     Device **devs;
     Disk *d;
@@ -1367,6 +1367,7 @@ diskLabelNonInteractive(Device *dev)
 		} else {
 		    Chunk *tmp;
 
+		    flags = 0;
 		    if (!strcmp(typ, "swap")) {
 			type = PART_SWAP;
 			strcpy(mpoint, "SWAP");
@@ -1374,8 +1375,6 @@ diskLabelNonInteractive(Device *dev)
 			type = PART_FILESYSTEM;
 			if (!strcmp(mpoint, "/"))
 			    flags |= CHUNK_IS_ROOT;
-			else
-			    flags &= ~CHUNK_IS_ROOT;
 		    }
 		    if (!sz)
 			sz = space_free(c1);
