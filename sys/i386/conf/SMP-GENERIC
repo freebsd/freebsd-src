@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.11 1998/04/22 18:18:14 mjacob Exp $
+#	$Id: SMP-GENERIC,v 1.12 1998/04/29 06:58:43 max Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -46,7 +46,8 @@ options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
+options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
+options		SCSI_CAM		#We're using CAM in this kernel
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
@@ -62,6 +63,9 @@ controller	pci0
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
+# Unless you know very well what you're doing, leave ft0 at drive 2, or
+# remove the line entirely if you don't need it.  Trying to configure
+# it on another unit might cause surprises, see PR kern/7176.
 tape		ft0	at fdc0 drive 2
 
 options		"CMD640"	# work around CMD640 chip deficiency
@@ -80,26 +84,34 @@ device		wcd0	#IDE CD-ROM
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
 controller	ncr0
-controller	amd0
+#controller	amd0
 controller	ahb0
 controller	ahc0
 controller	isp0
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
-controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
-controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
-controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
-controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
-controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
-controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
+# This controller offers a number of configuration options, too many to
+# document here  - see the LINT file in this directory and look up the
+# dpt0 entry there for much fuller documentation on this.  The options
+# line following dpt0 here is also currently a *required* option for it.
+# controller      dpt0
+# options DPT_MEASURE_PERFORMANCE
+
+controller	adv0	at isa? port ? cam irq ?
+controller	bt0	at isa? port ? cam irq ?
+controller	aha0	at isa? port ? cam irq ?
+#controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
+#controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
+#controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+#controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
+#controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
 controller	scbus0
 
-device		sd0
+device		da0
 
-device		od0	#See LINT for possible `od' options.
+device		sa0
 
-device		st0
+device		pass0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
@@ -114,7 +126,6 @@ device		scd0	at isa? port 0x230 bio
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		PCVT_FREEBSD=210	# pcvt running on FreeBSD >= 2.0.5
 #options		XSERVER			# include code for XFree86
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
@@ -149,12 +160,13 @@ device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
 # revision 1.20 of this file.
 device de0
 device fxp0
+device tl0
+device tx0
 device vx0
+device xl0
 
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
-device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector ieintr
-device ie1 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 device ex0 at isa? port? net irq? vector exintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
@@ -162,11 +174,11 @@ device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
+device cs0 at isa? port 0x300 net irq ? vector csintr
 
 pseudo-device	loop
 pseudo-device	ether
 pseudo-device	sl	1
-# iijppp uses tun instead of ppp device
 #pseudo-device	ppp	1
 pseudo-device	tun	1
 pseudo-device	pty	16
@@ -177,3 +189,6 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # the costs of each syscall.
 options		KTRACE		#kernel tracing
 
+# This provides support for System V shared memory.
+#
+options         SYSVSHM  

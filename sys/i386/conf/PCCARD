@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.2 1997/11/11 00:47:01 nate Exp $
+#	$Id: PCCARD,v 1.3 1998/09/08 18:09:50 brian Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -29,7 +29,7 @@ options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
+options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.462 1998/09/11 18:50:16 rvb Exp $
+#	$Id: LINT,v 1.463 1998/09/14 19:56:38 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -588,8 +588,8 @@ options		"_KPOSIX_VERSION=199309L"
 
 # This old behavior is maintained as the default behavior.  The unit
 # assignment begins with the first non-wired down unit for a device
-# type.  For example, if you wire a disk as "sd3" then the first
-# non-wired disk will be assigned sd4.
+# type.  For example, if you wire a disk as "da3" then the first
+# non-wired disk will be assigned da4.
 
 # The syntax for wiring down devices is:
 
@@ -597,9 +597,9 @@ options		"_KPOSIX_VERSION=199309L"
 # controller	scbus1 at ahc1 bus 0	# Single bus device
 # controller	scbus3 at ahc2 bus 0	# Twin bus device
 # controller	scbus2 at ahc2 bus 1	# Twin bus device
-# disk 		sd0 at scbus0 target 0 unit 0
-# disk		sd1 at scbus3 target 1
-# disk		sd2 at scbus2 target 3
+# disk 		da0 at scbus0 target 0 unit 0
+# disk		da1 at scbus3 target 1
+# disk		da2 at scbus2 target 3
 # tape		st1 at scbus1 target 6
 # device	cd0 at scbus?
 
@@ -613,47 +613,59 @@ options		"_KPOSIX_VERSION=199309L"
 
 controller	scbus0	#base SCSI code
 device		ch0	#SCSI media changers
-device		sd0	#SCSI disks
-device		st0	#SCSI tapes
+device		da0	#SCSI direct access devices (aka disks)
+device		sa0	#SCSI tapes
 device		cd0	#SCSI CD-ROMs
-device		od0	#SCSI optical disk
+#device		od0	#SCSI optical disk
+device		pass0	#CAM passthrough driver
 
-# The previous devices (ch, sd, st, cd) are recognized by config.
+# The previous devices (ch, da, st, cd) are recognized by config.
 # config doesn't (and shouldn't) know about these newer ones,
 # so we have to specify that they are on a SCSI bus with the "at scbus?"
 # clause.
 
-device worm0 at scbus?	# SCSI worm
 device pt0 at scbus?	# SCSI processor type
 device sctarg0 at scbus? # SCSI target
 
-# SCSI OPTIONS:
-
-# SCSIDEBUG: When defined enables debugging macros
-# NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
+# CAM OPTIONS:
+# debugging options:
+# -- NOTE --  If you specify one of the bus/target/lun options, you must
+#             specify them all!
+# CAMDEBUG: When defined enables debugging macros
+# CAM_DEBUG_BUS:  Debug the given bus.  Use -1 to debug all busses.
+# CAM_DEBUG_TARGET:  Debug the given target.  Use -1 to debug all targets.
+# CAM_DEBUG_LUN:  Debug the given lun.  Use -1 to debug all luns.
+# CAM_DEBUG_FLAGS:  OR together CAM_DEBUG_INFO, CAM_DEBUG_TRACE and
+#                   CAM_DEBUG_SUBTRACE
+# 
+# CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
+# SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
+# SCSI_NO_OP_STRINGS: When defined disables opcode descriptions
 # SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
 #                       of only when booting verbosely.
-options		SCSIDEBUG
-#options	NO_SCSI_SENSE
+options		CAMDEBUG
+options		"CAM_DEBUG_BUS=-1"
+options		"CAM_DEBUG_TARGET=-1"
+options		"CAM_DEBUG_LUN=-1"
+options		"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_SUBTRACE"
+options		"CAM_MAX_HIGHPOWER=4"
+options		SCSI_NO_SENSE_STRINGS
+options		SCSI_NO_OP_STRINGS
 options		SCSI_REPORT_GEOMETRY
 
-# Options for the `od' optical disk driver:
+# Options for the CAM CDROM driver:
+# CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
+# CHANGER_MAX_BUSY_SECONDS: Maximum time quantum per changer LUN, only
+#                           enforced if there is I/O waiting for another LUN
+# The compiled in defaults for these variables are 2 and 10 seconds,
+# respectively.
 #
-# If drive returns sense key as 0x02 with vendor specific additional
-# sense code (ASC) and additional sense code qualifier (ASCQ), or
-# illegal ASC and ASCQ. This cause an error (NOT READY) and retrying.
-# To suppress this, use the following option.
+# These can also be changed on the fly with the following sysctl variables:
+# kern.cam.cd.changer.min_busy_seconds
+# kern.cam.cd.changer.max_busy_seconds
 #
-options		OD_BOGUS_NOT_READY
-#
-# For an automatic spindown, try this.  Again, preferably as an
-# option in your config file.
-# WARNING!  Use at your own risk.  Joerg's ancient SONY SMO drive
-# groks it fine, while Shunsuke's Fujitsu chokes on it and times
-# out.
-#
-options		OD_AUTO_TURNOFF
-
+options		"CHANGER_MIN_BUSY_SECONDS=2"
+options		"CHANGER_MAX_BUSY_SECONDS=10"
 
 
 #####################################################################
@@ -673,10 +685,6 @@ pseudo-device	ccd	4	#Concatenated disk driver
 # These are only for watching for bitrot in old tty code.
 # broken
 #pseudo-device	tb
-
-# These are only for watching for bitrot in old SCSI code.
-pseudo-device	su		#scsi user
-pseudo-device	ssc		#super scsi
 
 # Size of the kernel message buffer.  Should be N * pagesize.
 options		"MSGBUF_SIZE=40960"
@@ -819,6 +827,7 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 #
 # SCSI host adapters: `aha', `aic', `bt', `nca'
 #
+# adv: Most AdvanSys SCSI controllers
 # aha: Adaptec 154x
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
@@ -832,7 +841,8 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
+controller	bt0	at isa? port "IO_BT0" cam irq ?
+controller	adv0	at isa? port ? cam irq ?
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
@@ -1315,13 +1325,6 @@ controller	ahb0
 controller	ahc0
 device		fea0
 
-# enable tagged command queuing, which is a major performance win on
-# devices that support it (and controllers with enough SCB's)
-options	AHC_TAGENABLE
-
-# enable SCB paging - See the ahc.4 man page
-options	AHC_SCBPAGING_ENABLE
-
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
 # this doesn't work on some motherboards, which prevents it from being the
@@ -1598,8 +1601,8 @@ options		PCVT_SCREENSAVER
 options		PCVT_USEKBDSEC
 options		"PCVT_VT220KEYB"
 options		PSM_DEBUG=1
-options		"SCSI_2_DEF"
-options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
+options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
+options		SCSI_CAM	#We're using CAM in this kernel
 options		SCSI_NCR_DEBUG
 options		SCSI_NCR_DFLT_TAGS=4
 options		SCSI_NCR_MAX_SYNC=10000
