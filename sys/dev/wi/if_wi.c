@@ -952,8 +952,10 @@ static int wi_write_data(sc, id, off, buf, len)
 {
 	int			i;
 	u_int16_t		*ptr;
-
 #ifdef WI_HERMES_AUTOINC_WAR
+	int			retries;
+
+	retries = WI_TIMEOUT >> 4;
 again:
 #endif
 
@@ -973,7 +975,12 @@ again:
 
 	if (CSR_READ_2(sc, WI_DATA0) != 0x1234 ||
 	    CSR_READ_2(sc, WI_DATA0) != 0x5678)
-		goto again;
+	{
+		if (--retries >= 0)
+			goto again;
+		device_printf(sc->dev, "wi_write_data device timeout\n");
+		return (EIO);
+	}
 #endif
 
 	return(0);
