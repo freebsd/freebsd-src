@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.356 1997/08/02 05:20:10 msmith Exp $
+#	$Id: LINT,v 1.357 1997/08/14 14:03:25 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -332,12 +332,17 @@ options		NETATALK		#Appletalk communications protocols
 #  included for testing purposes.
 #  The `tun' pseudo-device implements the User Process PPP (iijppp)
 #
+# PPP_BSDCOMP and PPP_DEFLATE are to activate the optional compression
+# modules for kernel ppp. (pppd(8))
+#
 pseudo-device	ether			#Generic Ethernet
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
+options PPP_BSDCOMP			#PPP BSD-compress support
+options PPP_DEFLATE			#PPP zlib/deflate/gzip support
 pseudo-device	bpfilter	4	#Berkeley packet filter
 pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver(user process ppp)
