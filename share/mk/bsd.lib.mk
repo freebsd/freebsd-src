@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.68 1998/03/06 08:08:36 bde Exp $
+#	$Id: bsd.lib.mk,v 1.69 1998/03/07 13:13:41 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -290,6 +290,10 @@ afterinstall: realinstall maninstall
 .else
 afterinstall: realinstall
 .endif
+.endif
+
+.if !target(regress)
+regress:
 .endif
 
 DISTRIBUTION?=	bin

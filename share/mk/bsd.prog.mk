@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.64 1998/03/06 06:48:39 bde Exp $
+#	$Id: bsd.prog.mk,v 1.65 1998/03/06 07:28:01 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -143,6 +143,10 @@ tags: ${SRCS} _SUBDIR
 .elif !target(maninstall)
 maninstall:
 all-man:
+.endif
+
+.if !target(regress)
+regress:
 .endif
 
 .if ${BINFORMAT} != aout || make(checkdpadd)
