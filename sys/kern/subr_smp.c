@@ -115,7 +115,7 @@ static volatile int smp_rv_waiters[2];
  * functions trigger at once and cause multiple CPUs to busywait with
  * interrupts disabled. 
  */
-struct mtx smp_rv_mtx;
+struct mtx smp_ipi_mtx;
 
 /*
  * Let the MD SMP code initialize mp_maxid very early if it can.
@@ -141,7 +141,7 @@ mp_start(void *dummy)
 		return;
 	}
 
-	mtx_init(&smp_rv_mtx, "smp rendezvous", NULL, MTX_SPIN);
+	mtx_init(&smp_ipi_mtx, "smp rendezvous", NULL, MTX_SPIN);
 	cpu_mp_start();
 	printf("FreeBSD/SMP: Multiprocessor System Detected: %d CPUs\n",
 	    mp_ncpus);
@@ -337,7 +337,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	}
 		
 	/* obtain rendezvous lock */
-	mtx_lock_spin(&smp_rv_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -354,7 +354,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_action();
 
 	/* release lock */
-	mtx_unlock_spin(&smp_rv_mtx);
+	mtx_unlock_spin(&smp_ipi_mtx);
 }
 #else /* !SMP */
 

@@ -100,7 +100,7 @@ void	forward_roundrobin(void);
 int	restart_cpus(cpumask_t);
 int	stop_cpus(cpumask_t);
 void	smp_rendezvous_action(void);
-extern	struct mtx smp_rv_mtx;
+extern	struct mtx smp_ipi_mtx;
 #endif /* SMP */
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),
