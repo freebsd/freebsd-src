@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+TARGET_ARCH?= ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+GDB_CROSS_DEBUGGER=
+.endif
+
 LIB=	gdb
 INTERNALLIB=
 SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
@@ -16,11 +21,11 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
 	elfread.c environ.c eval.c event-loop.c event-top.c exec.c \
 	expprint.c \
 	f-exp.y f-lang.c f-typeprint.c f-valprint.c findvar.c \
-	fork-child.c frame-base.c frame-unwind.c frame.c \
+	${_fork_child} frame-base.c frame-unwind.c frame.c \
 	gdb-events.c gdbarch.c gdbtypes.c gnu-v2-abi.c gnu-v3-abi.c \
 	hpacc-abi.c \
-	inf-loop.c infcall.c infcmd.c inflow.c infptrace.c infrun.c \
-	inftarg.c init.c interps.c \
+	inf-loop.c infcall.c infcmd.c inflow.c ${_infptrace} infrun.c \
+	${_inftarg} init.c interps.c \
 	jv-exp.y jv-lang.c jv-typeprint.c jv-valprint.c	\
 	kod-cisco.c kod.c \
 	language.c linespec.c \
@@ -47,11 +52,18 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
 	valarith.c valops.c valprint.c values.c varobj.c \
 	wrapper.c ${LIBSRCS}
 
-GENSRCS= version.c
-
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-LIBSRCS+= fbsd-threads.c
+TARGET_ARCH?= ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+GDB_CROSS_DEBUGGER=
 .endif
+
+.if !defined(GDB_CROSS_DEBUGGER)
+_fork_child= fork-child.c
+_infptrace= infptrace.c
+_inftarg= inftarg.c
+.endif
+
+GENSRCS= version.c
 
 version.c:
 	echo '#include "version.h"' >  ${.TARGET}

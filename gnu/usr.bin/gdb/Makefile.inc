@@ -36,6 +36,12 @@ CFLAGS+= -I${CNTRB_BU}/bfd
 
 GENSRCS+= nm.h tm.h
 
+.if defined(GDB_CROSS_DEBUGGER)
+CFLAGS+= -DCROSS_DEBUGGER
+GDB_SUFFIX= -${TARGET_ARCH}
+NOMAN=
+.endif
+
 .include "${TARGET_SUBDIR}/Makefile"
 
 SRCS+= ${GENSRCS}
