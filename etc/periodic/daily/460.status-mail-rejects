@@ -51,7 +51,7 @@ case "$daily_status_mail_rejects_enable" in
 		done
 		cat /var/log/maillog
 	    } |
-		sed -n -E "s/^$start"'.*ruleset=check_[^ 	]+,[ 	]+arg1=(<[^@]+@)?([^>,]+).*reject=.*/\2/p' |
+		sed -n -E "s/^$start"'.*ruleset=check_[^ \t]+,[ \t]+arg1=<([^@]+@)?([^>,]+).*reject=([^ \t]*)[ \t].*[ \t]([a-zA-Z0-9_.]+)$/\2 (\3... \4)/p' |
 		sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi;;
