@@ -74,7 +74,7 @@
  * linked so that an arbitrary element can be removed without a need to
  * traverse the list. New elements can be added to the list before or
  * after an existing element, at the head of the list, or at the end of
- * the list. A tail queue may only be traversed in the forward direction.
+ * the list. A tail queue may be traversed in either direction.
  *
  * A circle queue is headed by a pair of pointers, one to the head of the
  * list and the other to the tail of the list. The elements are doubly
@@ -97,6 +97,7 @@
  * _PREV		-	-	-	+	+
  * _LAST		-	-	+	+	+
  * _FOREACH		+	+	+	+	+
+ * _FOREACH_REVERSE	-	-	-	+	+
  * _INSERT_HEAD		+	+	+	+	+
  * _INSERT_BEFORE	-	+	-	+	+
  * _INSERT_AFTER	+	+	+	+	+
@@ -332,6 +333,11 @@ struct {								\
 #define TAILQ_FOREACH(var, head, field)					\
 	for (var = TAILQ_FIRST(head); var; var = TAILQ_NEXT(var, field))
 
+#define TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
+	for ((var) = TAILQ_LAST((head), headname);			\
+	     (var);							\
+	     (var) = TAILQ_PREV((var), headname, field))
+
 #define	TAILQ_FIRST(head) ((head)->tqh_first)
 
 #define	TAILQ_LAST(head, headname) \
@@ -416,6 +422,11 @@ struct {								\
 	for((var) = (head)->cqh_first;					\
 	    (var) != (void *)(head);					\
 	    (var) = (var)->field.cqe_next)
+
+#define CIRCLEQ_FOREACH_REVERSE(var, head, field)			\
+	for((var) = (head)->cqh_last;					\
+	    (var) != (void *)(head);					\
+	    (var) = (var)->field.cqe_prev)
 
 #define	CIRCLEQ_INIT(head) do {						\
 	(head)->cqh_first = (void *)(head);				\
