@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.19 1999/03/23 02:57:04 grog Exp grog $
+ * $Id: vinumext.h,v 1.20 1999/06/23 01:53:37 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -177,7 +177,7 @@ void forceup(int plexno);
 void update_plex_state(int plexno);
 void update_volume_state(int volno);
 void invalidate_subdisks(struct plex *, enum sdstate);
-void get_volume_label(struct volume *vol, struct disklabel *lp);
+void get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp);
 int write_volume_label(int);
 void start_object(struct vinum_ioctl_msg *);
 void stop_object(struct vinum_ioctl_msg *);
@@ -185,6 +185,7 @@ void setstate(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
 int initsd(int);
+enum requeststatus sddownstate(struct request *rq);
 
 int restart_plex(int plexno);
 int revive_read(struct sd *sd);
@@ -224,8 +225,7 @@ int lockvol(struct volume *vol);
 void unlockvol(struct volume *vol);
 int lockplex(struct plex *plex);
 void unlockplex(struct plex *plex);
-int lockrange(struct plex *plex, off_t first, off_t last);
-void unlockrange(struct plex *plex, off_t first, off_t last);
+struct rangelock *lockrange(daddr_t stripe, struct buf *bp, struct plex *plex);
 int lock_config(void);
 void unlock_config(void);
 
