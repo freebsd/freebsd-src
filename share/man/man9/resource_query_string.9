@@ -33,47 +33,85 @@
 .Os FreeBSD
 .Sh NAME
 .Nm resource_query_string
-.Nd queries the hints database for matches
+.Nd queries the
+.Dq hints
+database for matches
 .Sh SYNOPSIS
 .Fd #include <sys/bus.h>
 .Ft int
 .Fn resource_query_string "int num" "const char *field" "const char *what"
-.Pp
 .Ft char *
 .Fn resource_query_name "int num"
+.Ft int
+.Fn resource_query_unit "int num"
 .Sh DESCRIPTION
-.Pp
-Queries strings in the hints database that match the
-.Fa what
-field.
-.Pp
 .Fn resouce_query_string 
-is called to see enumerate all possible strings.
-It returns the next one after num that is available,
-or -1 if nothing further is available.
+enumerates all devices in the
+.Dq hints
+database whose
+.Fa field
+value matches the
+.Fa what
+parameter.
+A cookie is returned for use as the
+.Fa num
+parameter in calls to
+.Fn resource_query_name
+and
+.Fn resource_query_unit .
+This cookie should be passed as the
+.Fa num
+parameter on subsequent calls.
+A return value of \-1 means no further matches exist.
+.Pp
 .Fn resource_query_name 
-is passed the return of 
-.Fn resource_query_string 
-and returns its value.
+returns the name of the device matched by
+.Fn resource_query_string .
+.Pp
+.Fn resource_query_unit
+returns the unit of the device matched by
+.Fn resource_query_string .
+.Pp
 .Bl -item
 .It
 .Fa num
-Index to get.
-Set initially to -1 for the first call,
-and to the previous return value of
+is the
+.Dq index
+of the item to lookup.
+Set to \-1 for the first call, and the return value of the previous
 .Fn resource_query_string
 on subsequent calls.
+The
+.Dq index
+is an opaque coookie.
 .It
 .Fa field
-is the name of the field.
+is the name of the field in the
+.Dq hints
+database to query.
 .Pp
 .Fa what
-is the string to look for.
+is the value of
+.Fa field
+in the
+.Dq hints
+database for which to search.
 .Sh RETURN VALUES
--1 on failure, otherwise it is the index to pass
-resource_query_name().
+.Fn resource_query_string
+returns \-1 on failure, otherwise a cookie to pass
+.Fn resource_query_name 
+or
+.Fn resource_query_unit .
+.Pp
+.Fn resource_query_name
+returns the device name matching the cookie.
+.Pp
+.Fn resource_query_unit
+returns the device unit number matching the cookie.
 .Sh EXAMPLES
-The following example will return all the hints that say they are
+The following example will return all the
+.Dq hints
+that say they are
 at gerbil0.
 An example hint would be:
 .Bd -literal
