@@ -49,6 +49,7 @@
 #include <sys/ktr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -375,7 +376,7 @@ statclock(frame)
 		 */
 		if (p->p_flag & P_KSES)
 			thread_add_ticks_intr(1, 1);
-		ke->ke_uticks++;
+		p->p_uticks++;
 		if (ke->ke_ksegrp->kg_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
@@ -394,12 +395,13 @@ statclock(frame)
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
 		if ((td->td_ithd != NULL) || td->td_intr_nesting_level >= 2) {
-			ke->ke_iticks++;
+			p->p_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_KSES)
 				thread_add_ticks_intr(0, 1);
-			ke->ke_sticks++;
+			td->td_sticks++;
+			p->p_sticks++;
 			if (p != PCPU_GET(idlethread)->td_proc)
 				cp_time[CP_SYS]++;
 			else
