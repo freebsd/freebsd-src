@@ -295,9 +295,9 @@ pe_translate_addr(imgbase, rva)
 		fixedlen += ((opt_hdr.ioh_sectalign - 1) -
 		    sect_hdr->ish_misc.ish_vsize) &
 		    (opt_hdr.ioh_sectalign - 1);
-		if (sect_hdr->ish_vaddr <= (u_int32_t)rva &&
+		if (sect_hdr->ish_vaddr <= (uint32_t)rva &&
 		    (sect_hdr->ish_vaddr + fixedlen) >
-		    (u_int32_t)rva)
+		    (uint32_t)rva)
 			break;
 		sect_hdr++;
 	}
