@@ -29,9 +29,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/interrupt.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
@@ -64,28 +64,6 @@ init_taskqueue_list(void *data __unused)
 }
 SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
     NULL);
-
-void
-task_init(struct task *task, int priority, task_fn_t *func, void *context)
-{
-
-	KASSERT(task != NULL, ("task == NULL"));
-
-	mtx_init(&task->ta_mutex, "task", MTX_DEF);
-	mtx_lock(&task->ta_mutex);
-	task->ta_pending = 0;
-	task->ta_priority = priority;
-	task->ta_func = func;
-	task->ta_context = context;
-	mtx_unlock(&task->ta_mutex);
-}
-
-void
-task_destroy(struct task *task)
-{
-
-	mtx_destroy(&task->ta_mutex);
-}
 
 struct taskqueue *
 taskqueue_create(const char *name, int mflags,
@@ -156,10 +134,11 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	struct task *ins;
 	struct task *prev;
 
+	mtx_lock(&queue->tq_mutex);
+
 	/*
 	 * Don't allow new tasks on a queue which is being freed.
 	 */
-	mtx_lock(&queue->tq_mutex);
 	if (queue->tq_draining) {
 		mtx_unlock(&queue->tq_mutex);
 		return EPIPE;
@@ -168,10 +147,8 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	/*
 	 * Count multiple enqueues.
 	 */
-	mtx_lock(&task->ta_mutex);
 	if (task->ta_pending) {
 		task->ta_pending++;
-		mtx_unlock(&task->ta_mutex);
 		mtx_unlock(&queue->tq_mutex);
 		return 0;
 	}
@@ -196,11 +173,11 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
-	mtx_unlock(&task->ta_mutex);
-
 	if (queue->tq_enqueue)
 		queue->tq_enqueue(queue->tq_context);
+
 	mtx_unlock(&queue->tq_mutex);
+
 	return 0;
 }
 
@@ -208,8 +185,6 @@ void
 taskqueue_run(struct taskqueue *queue)
 {
 	struct task *task;
-	task_fn_t *saved_func;
-	void *arg;
 	int pending;
 
 	mtx_lock(&queue->tq_mutex);
@@ -219,16 +194,12 @@ taskqueue_run(struct taskqueue *queue)
 		 * zero its pending count.
 		 */
 		task = STAILQ_FIRST(&queue->tq_queue);
-		mtx_lock(&task->ta_mutex);
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
-		mtx_unlock(&queue->tq_mutex);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
-		saved_func = task->ta_func;
-		arg = task->ta_context;
-		mtx_unlock(&task->ta_mutex);
+		mtx_unlock(&queue->tq_mutex);
 
-		saved_func(arg, pending);
+		task->ta_func(task->ta_context, pending);
 
 		mtx_lock(&queue->tq_mutex);
 	}
