@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1994/11/06 00:21:39 jkh Exp $
+#	$Id: Makefile,v 1.16 1994/11/06 01:19:48 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -19,7 +19,7 @@ CPIO2=  etc/services
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	root_flp cpio_flp_1
+CLEANFILES+=	boot_flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -58,6 +58,7 @@ boot.flp:
 	gzip -9 < boot_flp > ${MNT}/stand/sysinstall
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
+	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	gzip -9 -c ${.CURDIR}/../COPYRIGHT > ${MNT}/COPYRIGHT.gz
 	gzip -9 -c ${.CURDIR}/../README > ${MNT}/README.gz
 	gzip -9 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ > \
