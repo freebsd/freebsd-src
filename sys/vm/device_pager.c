@@ -80,13 +80,12 @@ static vm_page_t dev_pager_getfake(vm_paddr_t);
 static void dev_pager_putfake(vm_page_t);
 
 struct pagerops devicepagerops = {
-	dev_pager_init,
-	dev_pager_alloc,
-	dev_pager_dealloc,
-	dev_pager_getpages,
-	dev_pager_putpages,
-	dev_pager_haspage,
-	NULL
+	.pgo_init =	dev_pager_init,
+	.pgo_alloc =	dev_pager_alloc,
+	.pgo_dealloc =	dev_pager_dealloc,
+	.pgo_getpages =	dev_pager_getpages,
+	.pgo_putpages =	dev_pager_putpages,
+	.pgo_haspage =	dev_pager_haspage,
 };
 
 static void
