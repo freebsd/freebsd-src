@@ -55,8 +55,9 @@ FEATURE(mailertable, `hash -o /etc/mail/mailertable')
 FEATURE(relay_based_on_MX)
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')
 
-dnl Uncomment to activate Realtime Blackhole List (recommended!)
-dnl information available at http://maps.vix.com/rbl/
+dnl Uncomment to activate Realtime Blackhole List
+dnl information available at http://www.mail-abuse.com/
+dnl NOTE: This is a subscription service as of July 31, 2001
 dnl FEATURE(dnsbl)
 dnl Alternatively, you can provide your own rejection message for the RBL:
 dnl FEATURE(dnsbl, `blackholes.mail-abuse.org', `"550 Mail from " $&{client_addr} " rejected, see http://mail-abuse.org/cgi-bin/lookup?" $&{client_addr}')
@@ -64,13 +65,12 @@ dnl FEATURE(dnsbl, `blackholes.mail-abuse.org', `"550 Mail from " $&{client_addr
 dnl Other DNS based black hole lists
 dnl --------------------------------
 dnl MAPS Relay Spam Stopper (RSS): http://mail-abuse.org/rss/
+dnl NOTE: This is a subscription service as of July 31, 2001
 dnl FEATURE(dnsbl, `relays.mail-abuse.org', `"550 Mail from " $&{client_addr} " rejected; see http://mail-abuse.org/cgi-bin/nph-rss?" $&{client_addr}')
 
 dnl MAPS Dial-up User List (DUL): http://maps.vix.com/dul/
+dnl NOTE: This is a subscription service as of July 31, 2001
 dnl FEATURE(dnsbl, `dialups.mail-abuse.org', `"550 Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm"')
-
-dnl ORBS also offers a multitude of DNS based block hole lists.  For more
-dnl information, visit: http://www.orbs.org/usingindex.html
 
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')
