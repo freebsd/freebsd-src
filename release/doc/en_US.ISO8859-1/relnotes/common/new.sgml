@@ -119,6 +119,12 @@
     <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
     primaries for comparisons of file timestamps.</para>
 
+    <para>The performance of the ELF dynamic linker has been
+    improved.</para>
+
+    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
+    notation.</para>
+
     <para>&man.c89.1; has been converted from a shell script to a
     binary executable, fixing some minor bugs.</para>
 
