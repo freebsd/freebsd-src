@@ -21,6 +21,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef lint
+static const char rcsid[] = "$FreeBSD$";
+#endif
 
 #include <dialog.h>
 #include "dialog.priv.h"
@@ -262,9 +265,8 @@ draw:
 	
 	/* Check if key pressed matches first character of any item tag in list */
 	for (i = 0; i < max_choice; i++)
-	    if (toupper(key) == toupper(items[(scroll + i) * 3][0]))
+	    if (isprint(key) && toupper(key) == toupper(items[(scroll + i) * 3][0]))
 		break;
-	
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0' + max_choice)) ||
 	    KEY_IS_UP(key) || KEY_IS_DOWN(key) || key == ' ') {
 	    if (key >= '1' && key <= MIN('9', '0' + max_choice))
