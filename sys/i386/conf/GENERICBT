@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.7 1993/09/21 06:12:20 rgrimes Exp $
+#	$Id: GENERICBT,v 1.8 1993/09/25 15:50:42 jkh Exp $
 #
 
 machine		"i386"
@@ -45,8 +45,7 @@ device		sd3
 device		st0
 device		st1
 
-device		cd0
-device		cd1
+device		cd0	#Only need one of these, the code dynamically grows
 
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
