@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	chpass
-CFLAGS+=-Wall
 SRCS=	chpass.c edit.c field.c pw_copy.c pw_scan.c pw_util.c pw_yp.c \
 	table.c util.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c yppasswd_private.h \

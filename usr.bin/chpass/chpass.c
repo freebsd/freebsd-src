@@ -39,9 +39,10 @@ static const char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -77,10 +78,10 @@ uid_t uid;
 void	baduser(void);
 void	usage(void);
 
+char localhost[] = "localhost";
+
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
 	struct passwd *pw = NULL, lpw, old_pw;
@@ -135,7 +136,7 @@ main(argc, argv)
 #endif
 				yp_domain = optarg;
 				if (yp_server == NULL)
-					yp_server = "localhost";
+					yp_server = localhost;
 #ifdef PARANOID
 			}
 #endif
@@ -280,13 +281,13 @@ main(argc, argv)
 }
 
 void
-baduser()
+baduser(void)
 {
 	errx(1, "%s", strerror(EACCES));
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
