@@ -198,9 +198,9 @@ SUBDIR=	apply \
 	ypmatch \
 	ypwhich
 
-.if defined(RELEASEDIR) || (!exists(${.CURDIR}/../kerberosIV) && \
-    !exists(${.CURDIR}/../secure)) || defined(NOCRYPT) || \
-    !defined(MAKE_KERBEROS4)
+.if defined(RELEASEDIR) || \
+    (!exists(${.CURDIR}/../kerberosIV) && !exists(${.CURDIR}/../secure)) || \
+    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
 # Releases need both this non-crypt telnet and the crypt telnet.
 SUBDIR+=telnet
 .endif
