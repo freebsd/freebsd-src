@@ -324,23 +324,6 @@ done:
 }
 
 /*
- * Compute checksum for disk label.
- */
-u_int
-dkcksum(lp)
-	register struct disklabel *lp;
-{
-	register u_short *start, *end;
-	register u_short sum = 0;
-
-	start = (u_short *)lp;
-	end = (u_short *)&lp->d_partitions[lp->d_npartitions];
-	while (start < end)
-		sum ^= *start++;
-	return (sum);
-}
-
-/*
  * Disk error is the preface to plaintive error messages
  * about failing disk transfers.  It prints messages of the form
 

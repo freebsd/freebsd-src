@@ -180,6 +180,21 @@ struct disklabel {
 #define	p_sgs	__partition_u1.sgs
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
+
+static __inline u_int16_t
+dkcksum(lp)
+	struct disklabel *lp;
+{
+	u_int16_t *start, *end;
+	u_int16_t sum = 0;
+
+	start = (u_int16_t *)lp;
+	end = (u_int16_t *)&lp->d_partitions[lp->d_npartitions];
+	while (start < end)
+		sum ^= *start++;
+	return (sum);
+}
+
 #else /* LOCORE */
 	/*
 	 * offsets for asm boot files.
@@ -449,7 +464,6 @@ int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
 void	diskerr __P((struct bio *bp, char *what, int pri, int blkdone,
 		     struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
-u_int	dkcksum __P((struct disklabel *lp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
 void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
