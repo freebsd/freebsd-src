@@ -1,4 +1,4 @@
-/*	$NetBSD: rcorder.c,v 1.6 2000/07/19 09:58:03 enami Exp $	*/
+/*	$NetBSD: rcorder.c,v 1.7 2000/08/04 07:33:55 enami Exp $	*/
 
 /*
  * Copyright (c) 1998, 1999 Matthew R. Green
@@ -480,7 +480,9 @@ crunch_file(filename)
 	}
 
 	if (!S_ISREG(st.st_mode)) {
+#if 0
 		warnx("%s is not a file", filename);
+#endif
 		fclose(fp);
 		return;
 	}
