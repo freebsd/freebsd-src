@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1996  Peter Wemm <peter@FreeBSD.org>.
  * All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, is permitted provided that the following conditions
@@ -10,6 +17,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -75,6 +85,21 @@ int	realhostname_sa(char *host, size_t hsize, struct sockaddr *addr,
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 #endif
+
+#ifdef _PWD_H_
+int	pw_copy(int _ffd, int _tfd, struct passwd *_pw, struct passwd *_old_pw);
+struct passwd *pw_dup(struct passwd *_pw);
+int	pw_edit(int _notsetuid);
+int	pw_equal(struct passwd *_pw1, struct passwd *_pw2);
+void	pw_fini(void);
+int	pw_init(const char *_dir, const char *_master);
+char	*pw_make(struct passwd *_pw);
+int	pw_mkdb(const char *_user);
+int	pw_lock(void);
+struct passwd *pw_scan(const char *_line, int _flags);
+const char *pw_tempname(void);
+int	pw_tmp(int _mfd);
+#endif
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
@@ -99,5 +124,9 @@ __END_DECLS
 #define	FPARSELN_UNESCCOMM	0x04
 #define	FPARSELN_UNESCREST	0x08
 #define	FPARSELN_UNESCALL	0x0f
+
+/* pw_scan() */
+#define PWSCAN_MASTER		0x01
+#define PWSCAN_WARN		0x02
 
 #endif /* !_LIBUTIL_H_ */
