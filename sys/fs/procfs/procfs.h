@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id$
+ *	$Id: procfs.h,v 1.15 1997/02/22 09:40:26 peter Exp $
  */
 
 /*
@@ -85,6 +85,18 @@ struct pfsnode {
 	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
 
 #define KMEM_GROUP 2
+
+/*
+ * Check to see whether access to target process is allowed
+ * Evaluates to 1 if access is allowed.
+ */
+#define CHECKIO(p1, p2) \
+     ((((p1)->p_cred->pc_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
+       ((p1)->p_cred->p_ruid == (p2)->p_cred->p_ruid) && \
+       ((p1)->p_cred->p_svuid == (p2)->p_cred->p_ruid) && \
+       ((p2)->p_flag & P_SUGID) == 0) || \
+      (suser((p1)->p_cred->pc_ucred, &(p1)->p_acflag) == 0))
+      
 /*
  * Format of a directory entry in /proc, ...
  * This must map onto struct dirent (see <dirent.h>)

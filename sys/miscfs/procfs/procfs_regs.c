@@ -37,7 +37,7 @@
  *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_regs.c,v 1.6 1997/02/22 09:40:29 peter Exp $
+ *	$Id: procfs_regs.c,v 1.7 1997/08/02 14:32:16 bde Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,8 @@ procfs_doregs(curp, p, pfs, uio)
 	char *kv;
 	int kl;
 
+	if (!CHECKIO(curp, p))
+		return EPERM;
 	kl = sizeof(r);
 	kv = (char *) &r;
 
