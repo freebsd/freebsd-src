@@ -116,7 +116,7 @@ typedef struct _i386_insn i386_insn;
 
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful */
-#if defined (TE_I386AIX) || defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+#if defined (TE_I386AIX) || (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && !defined(TE_FreeBSD)
 const char comment_chars[] = "#/";
 #else
 const char comment_chars[] = "#";
@@ -130,7 +130,7 @@ const char comment_chars[] = "#";
    #NO_APP at the beginning of its output. */
 /* Also note that comments started like this one will always work if
    '/' isn't otherwise defined.  */
-#if defined (TE_I386AIX) || defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+#if defined (TE_I386AIX) || (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && !defined(TE_FreeBSD)
 const char line_comment_chars[] = "";
 #else
 const char line_comment_chars[] = "/";
