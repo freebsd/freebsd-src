@@ -25,6 +25,7 @@ SRCS=   sort.c \
 	xstrtoul.c \
 	xstrtoumax.c
 
-CFLAGS+=-I${.CURDIR} -I${SORTDIR}/lib -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR} -I${SORTDIR}/lib -DHAVE_CONFIG_H \
+	-DHAVE_LANGINFO_H=1 -DHAVE_NL_LANGINFO=1 -DLOCALEDIR=\"\"
 
 .include <bsd.prog.mk>
