@@ -65,16 +65,16 @@ METHOD int get_res_flags {
 METHOD int set_memory_offset {
 	device_t  dev;
 	device_t  child;
-        int	  rid;
-        u_int32_t cardaddr;
-        u_int32_t *deltap;
+	int	  rid;
+	u_int32_t cardaddr;
+	u_int32_t *deltap;
 }
 
 METHOD int get_memory_offset {
 	device_t  dev;
 	device_t  child;
-        int	  rid;
-        u_int32_t *offset;
+	int	  rid;
+	u_int32_t *offset;
 }
 
 #
@@ -210,21 +210,21 @@ HEADER {
 	struct cis_tupleinfo {
 		u_int8_t id;
 		int len;
-		char* data;
+		char *data;
 	};
 };
 
 CODE  {
 	static int
 	null_cis_read(device_t dev, device_t child, u_int8_t id,
-		      struct cis_tupleinfo **buff, int* nret)
+	    struct cis_tupleinfo **buff, int *nret)
 	{
 		*nret = 0;
 		*buff = NULL;
 		return ENXIO;
 	}
 	static void
-	null_cis_free(device_t dev, struct cis_tupleinfo *buff, int* nret)
+	null_cis_free(device_t dev, struct cis_tupleinfo *buff, int *nret)
 	{
 		return;
 	}
@@ -235,14 +235,14 @@ METHOD int cis_read {
 	device_t dev;
 	device_t child;
 	u_int8_t id;
-	struct cis_tupleinfo **buff;
-	int* nret;
+	struct	 cis_tupleinfo **buff;
+	int	 *nret;
 } DEFAULT null_cis_read;
 
 METHOD int cis_free {
 	device_t dev;
-	struct cis_tupleinfo *buff;
-	int nret;
+	struct	 cis_tupleinfo *buff;
+	int	 nret;
 } DEFAULT null_cis_free;
 
 
