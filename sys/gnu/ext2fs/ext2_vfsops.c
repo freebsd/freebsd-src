@@ -108,11 +108,10 @@ VFS_SET(ext2fs_vfsops, ext2fs, 0);
 
 static int ext2fs_inode_hash_lock;
 
-static int	ext2_check_sb_compat(struct ext2_super_block *es,
-					  dev_t dev, int ronly);
+static int	ext2_check_sb_compat(struct ext2_super_block *es, dev_t dev,
+		    int ronly);
 static int	compute_sb_data(struct vnode * devvp,
-				     struct ext2_super_block * es,
-				     struct ext2_sb_info * fs);
+		    struct ext2_super_block * es, struct ext2_sb_info * fs);
 
 #ifdef notyet
 static int ext2_mountroot(void);
