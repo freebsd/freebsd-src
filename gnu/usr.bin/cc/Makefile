@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+#	In my absence, bde and jdp have pre-approval for any commit they feel
+#	necessary.
+MAINTAINER=	obrien@FreeBSD.org
+
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
