@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.66.2.5 1997/02/02 18:44:45 joerg Exp $
+#	$Id: termcap.src,v 1.66.2.6 1998/03/07 11:50:01 jkh Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -4124,6 +4124,27 @@ ifmr|Informer D304:\
 	:am:bs:cd=\E/:ce=\EQ:cl=\EZ:cm=\EY%r%+ %+ :co#80:dc=\E\\:\
 	:do=^J:ic=\E[:li#24:nd=\EC:so=\EJ:se=\EK:up=\EA:\
 	:sr=\En:ho=\EH:
+# From Christian Weisgerber, naddy@bigeye.rhein-neckar.de, a TERMCAP entry 
+# for Linux consoles.
+linux|Linux Console:\
+	:am:eo:mi:ms:xn:xo:\
+	:co#80:it#8:li#25:\
+	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:K2=\E[G:\
+	:ae=\E[10m:al=\E[L:as=\E[11m:bl=^G:cd=\E[J:ce=\E[K:\
+	:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:cs=\E[%i%d;%dr:\
+	:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:ei=\E[4l:ho=\E[H:\
+	:im=\E[4h:k1=\E[[A:k2=\E[[B:k3=\E[[C:k4=\E[[D:k5=\E[[E:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:kD=\E[3~:\
+	:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=\177:kd=\E[B:kh=\E[1~:\
+	:kl=\E[D:kr=\E[C:ku=\E[A:le=^H:mb=\E[5m:md=\E[1m:\
+	:me=\E[0;10m:mh=\E[2m:mr=\E[7m:nd=\E[C:nw=^M^J:rc=\E8:\
+	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
+	:ue=\E[24m:up=\E[A:us=\E[4m:vb=200\E[?5h\E[?5l:\
+	:ve=\E[?25h:vi=\E[?25l:
+linux-m|Linux Console no color:\
+	:pa@:Co@:Sf@:Sb@:\
+	:tc=linux:
 #
 # END OF TERMCAP
 #  ------------------------
