@@ -37,7 +37,7 @@
 #     np:ap:  same as np except istrip.
 #
 default:\
-	:cb:ce:ck:lc:fd#1000:im=\r\nFreeBSD (%h) (%t)\r\n\r\n:sp#1200:
+	:cb:ce:ck:lc:fd#1000:im=\r\n%s/%m (%h) (%t)\r\n\r\n:sp#1200:
 
 #
 # Fixed speed entries
