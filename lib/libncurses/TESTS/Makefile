@@ -31,5 +31,5 @@ firework: firework.c
 testcurs: testcurs.c
 scroll: scroll.c
 
-.include "bsd.prog.mk"
+.include <bsd.prog.mk>
 
