@@ -35,6 +35,7 @@
  * Machine-dependent defines for new kernel debugger.
  */
 
+#include "opt_ddb.h"
 #include "opt_simos.h"
 
 #include <sys/param.h>
@@ -47,7 +48,9 @@ typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
 
 typedef struct trapframe db_regs_t;
-db_regs_t		ddb_regs;	/* register state */
+#ifdef	DDB
+extern db_regs_t	ddb_regs;	/* register state */
+#endif
 #define	DDB_REGS	(&ddb_regs)
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_regs[FRAME_PC])

@@ -169,6 +169,7 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 #ifdef DDB
 /* start and end of kernel symbol table */
 void	*ksym_start, *ksym_end;
+db_regs_t	ddb_regs;
 #endif
 
 int	alpha_unaligned_print = 1;	/* warn about unaligned accesses */
