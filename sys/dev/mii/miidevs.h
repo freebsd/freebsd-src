@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.18 2002/04/07 20:55:49 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.20 2002/07/05 11:07:24 benno Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -116,8 +116,14 @@
 #define	MII_STR_AMD_79c978	"Am79c978 HomePNA PHY"
 
 /* Broadcom Corp. PHYs. */
-#define	MII_MODEL_BROADCOM_3c905Cphy	0x0017
-#define	MII_STR_BROADCOM_3c905Cphy	"3c905C 10/100 internal PHY"
+#define	MII_MODEL_BROADCOM_3C905B	0x0012
+#define	MII_STR_BROADCOM_3C905B	"3c905B 10/100 internal PHY"
+#define	MII_MODEL_BROADCOM_3C905C	0x0017
+#define	MII_STR_BROADCOM_3C905C	"3c905C 10/100 internal PHY"
+#define	MII_MODEL_BROADCOM_BCM5201	0x0021
+#define	MII_STR_BROADCOM_BCM5201	"BCM5201 10/100baseTX PHY"
+#define	MII_MODEL_BROADCOM_BCM5221	0x001e
+#define	MII_STR_BROADCOM_BCM5221	"BCM5221 10/100baseTX PHY"
 #define	MII_MODEL_xxBROADCOM_BCM5400	0x0004
 #define	MII_STR_xxBROADCOM_BCM5400	"Broadcom 1000baseTX PHY"
 #define	MII_MODEL_xxBROADCOM_BCM5401	0x0005
