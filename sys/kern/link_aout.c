@@ -40,7 +40,6 @@
 #include <sys/vnode.h>
 #include <sys/linker.h>
 
-#include <vm/vm_zone.h>
 
 #include "linker_if.h"
 

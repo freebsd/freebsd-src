@@ -53,7 +53,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
-#include <vm/vm_zone.h>
 
 /*
  * Indirect driver for multi-controller paging.

@@ -60,7 +60,6 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
-#include <vm/vm_zone.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/bootsect.h>

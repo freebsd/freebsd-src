@@ -44,7 +44,6 @@
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
 
-#include <vm/vm_zone.h>
 
 struct linux_newstat {
 	u_short	stat_dev;

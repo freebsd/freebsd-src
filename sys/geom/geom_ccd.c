@@ -108,7 +108,6 @@
 
 #include <sys/ccdvar.h>
 
-#include <vm/vm_zone.h>
 
 #if defined(CCDDEBUG) && !defined(DEBUG)
 #define DEBUG

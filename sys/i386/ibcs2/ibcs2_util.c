@@ -38,7 +38,6 @@
 
 #include <i386/ibcs2/ibcs2_util.h>
 
-#include <vm/vm_zone.h>
 
 const char      ibcs2_emul_path[] = "/compat/ibcs2";
 

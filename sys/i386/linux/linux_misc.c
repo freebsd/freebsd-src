@@ -54,7 +54,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
