@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.25 1995/03/20 10:19:09 davidg Exp $
+ * $Id: vfs_subr.c,v 1.26 1995/03/21 01:13:16 davidg Exp $
  */
 
 /*
@@ -495,7 +495,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				(void) VOP_BWRITE(bp);
 				break;
 			}
-			bp->b_flags |= (B_INVAL|B_NOCACHE);
+			bp->b_flags |= (B_INVAL|B_NOCACHE|B_RELBUF);
 			brelse(bp);
 		}
 	}
