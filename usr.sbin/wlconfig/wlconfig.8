@@ -14,9 +14,9 @@
 The 
 .Nm
 command can be used to read and set parameters for the NCR/AT&T Wavelan 
-radio LAN card.  Various parameters stored in the nonvolatile Parameter
-Storage Area (PSA) on the card can be modified with this program, which
-obviates the need for the DOS-based
+radio LAN card.  Various parameters stored in the non-volatile Parameter
+Storage Area (PSA) on the card can be modified with this program, replacing
+the DOS-based
 .Nm instconf.exe
 program.  It can also be used to interrogate the optional signal
 strength cache which may have been compiled into the driver.
@@ -53,9 +53,9 @@ parameter) or
 .It nwid
 The NWID is a 2-byte parameter passed to the card's radio modem.
 NWIDs allow multiple logically discrete networks to operate 
-independantly whilse occupying the same airspace.
+independantly whilst occupying the same airspace.
 Packets with a different NWID are simply ignored by the modem.
-In the hardware, NWIDs are stored long-term in non-volative memory
+In the hardware, NWIDs are stored long-term in non-volatile memory
 (called the PSA or programmable storage area), and are loaded by 
 software into the radio modem when the driver is 
 initialized.  This sets the default NWID loaded at startup.
