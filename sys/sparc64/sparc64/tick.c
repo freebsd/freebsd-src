@@ -46,6 +46,7 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
+#include <machine/ver.h>
 #ifdef SMP
 #include <machine/cpu.h>
 #endif
@@ -137,6 +138,8 @@ tick_start_ap(void)
 void
 tick_stop(void)
 {
-	wrpr(tick, 0, 0);
+
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		wr(asr24, 1L << 63, 0);
 	wr(asr23, 1L << 63, 0);
 }

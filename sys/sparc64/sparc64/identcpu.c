@@ -47,8 +47,7 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		manus = NULL;
 		break;
 	}
-	cpu_impl = VER_IMPL(vers);
-	switch (cpu_impl) {
+	switch (VER_IMPL(vers)) {
 	case CPU_IMPL_SPARC64:
 		impls = "SPARC64";
 		break;
