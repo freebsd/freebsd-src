@@ -289,6 +289,10 @@ Create and mount a 32 megabyte swap-backed file system on
 .Pp
 .Dl "mdmfs -s 32m md /tmp"
 .Pp
+The same file system created as an entry in
+.Pa /etc/fstab :
+.Dl "md /tmp mfs rw,-s32m 2 0"
+.Pp
 Create and mount a 16 megabyte malloc-backed file system on
 .Pa /tmp
 using the
