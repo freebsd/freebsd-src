@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <err.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -457,9 +458,23 @@ Disk_Names()
     struct diskslices ds;
     int fd;
     static char **disks;
+    int error;
+    size_t listsize;
+    char *disklist, **dp;
 
     disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
+    error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
+    if (!error) {
+	    disklist = (char *)malloc(listsize);
+	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
+	    if (error) 
+		    err(1, "sysctlbyname(\"kern.disks\") failed");
+	    k = 0;
+	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && k < MAX_NO_DISKS; k++, dp++);
+	    return disks;
+    }
+    warn("kern.disks sysctl not available");
     k = 0;
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < MAX_NO_DISKS; i++) {
