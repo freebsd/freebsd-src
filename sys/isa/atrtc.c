@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.139 1999/07/18 15:19:29 bde Exp $
+ *	$Id: clock.c,v 1.140 1999/07/18 18:32:42 bde Exp $
  */
 
 /*
@@ -70,10 +70,7 @@
 #include <machine/limits.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#include <i386/apm/apm_setup.h>
-#endif
+XXX
 #ifdef APIC_IO
 #include <machine/segments.h>
 #endif
@@ -772,17 +769,16 @@ startrtclock()
 
 #if NAPM > 0
 	/*
-	 * We can not use the TSC if we found an APM bios.  Too many
-	 * of them lie about their ability&intention to fiddle the CPU
-	 * clock for us to rely on this.  Precise timekeeping on an
-	 * APM'ed machine is at best a fools pursuit anyway, since 
+	 * We can not use the TSC if we support APM. Precise timekeeping
+	 * on an APM'ed machine is at best a fools pursuit, since 
 	 * any and all of the time spent in various SMM code can't 
 	 * be reliably accounted for.  Reading the RTC is your only
 	 * source of reliable time info.  The i8254 looses too of course
 	 * but we need to have some kind of time...
+	 * We don't know at this point whether APM is going to be used
+	 * or not, nor when it might be activated.  Play it safe.
 	 */
-	if (apm_version != APMINI_CANTFIND)
-		return;
+	return;
 #endif /* NAPM > 0 */
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
