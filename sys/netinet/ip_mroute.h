@@ -256,11 +256,7 @@ struct sockopt;
 extern int	(*ip_mrouter_set) __P((struct socket *, struct sockopt *));
 extern int	(*ip_mrouter_get) __P((struct socket *, struct sockopt *));
 extern int	(*ip_mrouter_done) __P((void));
-#ifdef MROUTING
 extern int	(*mrt_ioctl) __P((int, caddr_t));
-#else
-extern int	(*mrt_ioctl) __P((int, caddr_t, struct proc *));
-#endif
 
 #endif /* _KERNEL */
 
