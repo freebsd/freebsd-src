@@ -760,69 +760,55 @@ readrest:
 	 * We must verify that the maps have not changed since our last
 	 * lookup.
 	 */
-	if (!fs.lookup_still_valid &&
-		(fs.map->timestamp != map_generation)) {
+	if (!fs.lookup_still_valid) {
 		vm_object_t retry_object;
 		vm_pindex_t retry_pindex;
 		vm_prot_t retry_prot;
 
-		/*
-		 * Unlock vnode before the lookup to avoid deadlock.   E.G.
-		 * avoid a deadlock between the inode and exec_map that can
-		 * occur due to locks being obtained in different orders.
-		 */
-		if (fs.vp != NULL) {
-			vput(fs.vp);
-			fs.vp = NULL;
-		}
-		
-		if (fs.map->infork) {
+		if (!vm_map_trylock_read(fs.map)) {
 			release_page(&fs);
 			unlock_and_deallocate(&fs);
 			goto RetryFault;
-		}
-		VM_OBJECT_UNLOCK(fs.object);
-
-		/*
-		 * To avoid trying to write_lock the map while another process
-		 * has it read_locked (in vm_map_wire), we do not try for
-		 * write permission.  If the page is still writable, we will
-		 * get write permission.  If it is not, or has been marked
-		 * needs_copy, we enter the mapping without write permission,
-		 * and will merely take another fault.
-		 */
-		result = vm_map_lookup(&fs.map, vaddr, fault_type & ~VM_PROT_WRITE,
-		    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
-		map_generation = fs.map->timestamp;
-
-		VM_OBJECT_LOCK(fs.object);
-		/*
-		 * If we don't need the page any longer, put it on the active
-		 * list (the easiest thing to do here).  If no one needs it,
-		 * pageout will grab it eventually.
-		 */
-		if (result != KERN_SUCCESS) {
-			release_page(&fs);
-			unlock_and_deallocate(&fs);
-			return (result);
 		}
 		fs.lookup_still_valid = TRUE;
+		if (fs.map->timestamp != map_generation) {
+			result = vm_map_lookup_locked(&fs.map, vaddr, fault_type,
+			    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
 
-		if ((retry_object != fs.first_object) ||
-		    (retry_pindex != fs.first_pindex)) {
-			release_page(&fs);
-			unlock_and_deallocate(&fs);
-			goto RetryFault;
+			/*
+			 * If we don't need the page any longer, put it on the active
+			 * list (the easiest thing to do here).  If no one needs it,
+			 * pageout will grab it eventually.
+			 */
+			if (result != KERN_SUCCESS) {
+				release_page(&fs);
+				unlock_and_deallocate(&fs);
+
+				/*
+				 * If retry of map lookup would have blocked then
+				 * retry fault from start.
+				 */
+				if (result == KERN_FAILURE)
+					goto RetryFault;
+				return (result);
+			}
+			if ((retry_object != fs.first_object) ||
+			    (retry_pindex != fs.first_pindex)) {
+				release_page(&fs);
+				unlock_and_deallocate(&fs);
+				goto RetryFault;
+			}
+
+			/*
+			 * Check whether the protection has changed or the object has
+			 * been copied while we left the map unlocked. Changing from
+			 * read to write permission is OK - we leave the page
+			 * write-protected, and catch the write fault. Changing from
+			 * write to read permission means that we can't mark the page
+			 * write-enabled after all.
+			 */
+			prot &= retry_prot;
 		}
-		/*
-		 * Check whether the protection has changed or the object has
-		 * been copied while we left the map unlocked. Changing from
-		 * read to write permission is OK - we leave the page
-		 * write-protected, and catch the write fault. Changing from
-		 * write to read permission means that we can't mark the page
-		 * write-enabled after all.
-		 */
-		prot &= retry_prot;
 	}
 	if (prot & VM_PROT_WRITE) {
 		vm_page_lock_queues();
