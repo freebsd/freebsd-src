@@ -64,7 +64,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) vop_null },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
-	{ &vop_lease_desc,		(vop_t *) lease_check },
+	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_mmap_desc,		(vop_t *) vop_einval },
 	{ &vop_open_desc,		(vop_t *) vop_null },
