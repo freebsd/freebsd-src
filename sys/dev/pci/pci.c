@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.50 1996/05/18 17:32:20 se Exp $
+**  $Id: pci.c,v 1.51 1996/06/09 11:58:19 asami Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -77,6 +77,19 @@
 **========================================================
 */
 
+extern struct kern_devconf kdc_cpu0;
+
+struct kern_devconf kdc_pci0 = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"pci", 0, { MDDT_BUS, 0 },
+	0, 0, 0, BUS_EXTERNALLEN,
+	&kdc_cpu0,		/* parent is the CPU */
+	0,			/* no parentdata */
+	DC_BUSY,		/* busses are always busy */
+	"PCI bus",
+	DC_CLS_BUS		/* class */
+};
+
 struct pci_devconf {
 	struct kern_devconf pdc_kdc;
 	struct pci_info     pdc_pi;
@@ -140,6 +153,10 @@ pci_mfdev (int bus, int device);
 unsigned pci_max_burst_len = 3; /* 2=16Byte, 3=32Byte, 4=64Byte, ... */
 unsigned pci_mechanism     = 0;
 unsigned pci_maxdevice     = 0;
+unsigned pciroots          = 0; /* XXX pcisupport.c increments this 
+				 * for the Orion host to PCI bridge
+				 * UGLY hack ... :( Will be changed :)
+				 */
 static struct pcibus* pcibus;
 
 /*--------------------------------------------------------
@@ -151,15 +168,7 @@ static struct pcibus* pcibus;
 
 static	int		pci_conf_count;
 static	int		pci_info_done;
-static	struct pcicb	pcibus0 = {
-    NULL, NULL, NULL,
-    { 0 },
-    0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,	/* real allocation */
-    0, 0xFFFF,			/* iobase/limit */
-    0x2000000, 0xFFFFFFFFu,	/* nonprefetch membase/limit */
-    0x2000000, 0xFFFFFFFFu	/* prefetch membase/limit */
-};
+static	int		pcibusmax;
 static	struct pcicb   *pcicb;
 
 /*-----------------------------------------------------------------
@@ -339,7 +348,7 @@ pci_bridge_config (void)
 		/*
 		**	Get the lowest available bus number.
 		*/
-		pcicb->pcicb_bus = ++pcibus0.pcicb_subordinate;
+		pcicb->pcicb_bus = ++pcibusmax;
 
 		/*
 		**	and configure the bridge
@@ -678,6 +687,7 @@ pci_bus_config (void)
 		pdcp -> pdc_kdc.kdc_internalize = pci_internalize;
 
 		pdcp -> pdc_kdc.kdc_datalen     = PCI_EXTERNAL_LEN;
+		pdcp -> pdc_kdc.kdc_parent	= &kdc_pci0;
 		pdcp -> pdc_kdc.kdc_parentdata  = &pdcp->pdc_pi;
 		pdcp -> pdc_kdc.kdc_state       = DC_UNKNOWN;
 		pdcp -> pdc_kdc.kdc_description = name;
@@ -927,19 +937,40 @@ void pci_configure()
 	**	hello world ..
 	*/
 
-	for (pcicb = &pcibus0; pcicb != NULL;) {
-		pci_bus_config ();
+	dev_attach(&kdc_pci0);
 
-		if (pcicb->pcicb_down) {
-			pcicb = pcicb->pcicb_down;
-			continue;
-		};
+	pciroots = 1;
+	while (pciroots--) {
 
-		while (pcicb && !pcicb->pcicb_next)
-			pcicb = pcicb->pcicb_up;
+		pcicb = malloc (sizeof (struct pcicb), M_DEVBUF, M_WAITOK);
+		if (pcicb == NULL) {
+			return;
+		}
+		bzero (pcicb, sizeof (struct pcicb));
+		pcicb->pcicb_bus	= pcibusmax;
+		pcicb->pcicb_iolimit	= 0xffff;
+		pcicb->pcicb_membase	= 0x02000000;
+		pcicb->pcicb_p_membase	= 0x02000000;
+		pcicb->pcicb_memlimit	= 0xffffffff;
+		pcicb->pcicb_p_memlimit	= 0xffffffff;
 
-		if (pcicb)
-			pcicb = pcicb->pcicb_next;
+		while (pcicb != NULL) {
+			pci_bus_config ();
+
+			if (pcibusmax < pcicb->pcicb_bus)
+				(pcibusmax = pcicb->pcicb_bus);
+
+			if (pcicb->pcicb_down) {
+				pcicb = pcicb->pcicb_down;
+				continue;
+			};
+
+			while (pcicb && !pcicb->pcicb_next)
+				pcicb = pcicb->pcicb_up;
+
+			if (pcicb)
+				pcicb = pcicb->pcicb_next;
+		}
 	}
 	pci_conf_count++;
 }
