@@ -184,7 +184,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: mtree [-LPUcdeinqrux] [-f spec] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"usage: mtree [-LPUcdeinqruxw] [-f spec] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
 "\t[-X excludes]\n");
 	exit(1);
 }
