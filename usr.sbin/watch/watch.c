@@ -25,6 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <err.h>
+#include <errno.h>
 #include <locale.h>
 #include <paths.h>
 #include <signal.h>
@@ -165,8 +166,11 @@ open_snp(void)
 	if (opt_snpdev == NULL)
 		for (c = '0'; c <= '9'; c++) {
 			snp[pos] = c;
-			if ((f = open(snp, mode)) < 0)
-				continue;
+			if ((f = open(snp, mode)) < 0) {
+				if (errno == EBUSY)
+					continue;
+				err(1, "open %s", snp);
+			}
 			return f;
 		}
 	else
@@ -331,8 +335,8 @@ main(int ac, char *av[])
 
 	signal(SIGINT, cleanup);
 
-	setup_scr();
 	snp_io = open_snp();
+	setup_scr();
 
 	if (*(av += optind) == NULL) {
 		if (opt_interactive && !opt_no_switch)
