@@ -9,7 +9,7 @@ MAN=	a.out.5 acct.5 core.5 config.5 devfs.5 device.hints.5 \
 	hosts.5 hosts.equiv.5 hosts.lpd.5 intro.5 libmap.conf.5 link.5 \
 	linprocfs.5 mailer.conf.5 make.conf.5 moduli.5 motd.5 msdosfs.5 \
 	networks.5 \
-	nsswitch.conf.5 \
+	nsmb.conf.5 nsswitch.conf.5 \
 	passwd.5 pbm.5 periodic.conf.5 \
 	phones.5 procfs.5 protocols.5 quota.user.5 \
 	rc.conf.5 remote.5 resolver.5 \
