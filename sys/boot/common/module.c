@@ -262,6 +262,7 @@ mod_loadobj(char *type, char *name)
 	if (got < 0) {				/* error */
 	    sprintf(command_errbuf, "error reading '%s': %s", name, strerror(errno));
 	    free(name);
+	    close(fd);
 	    return(CMD_ERROR);
 	}
 	laddr += got;
@@ -282,6 +283,7 @@ mod_loadobj(char *type, char *name)
 
     /* Add to the list of loaded modules */
     mod_append(mp);
+    close(fd);
     return(CMD_OK);
 }
 
