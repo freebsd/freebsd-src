@@ -283,6 +283,8 @@ netisr_dispatch(int num, struct mbuf *m)
  * Same as above, but always queue.
  * This is either used in places where we are not confident that
  * direct dispatch is possible, or where queueing is required.
+ * It returns (0) on success and ERRNO on failure.  On failure the
+ * mbuf has been free'd.
  */
 int
 netisr_queue(int num, struct mbuf *m)
@@ -295,13 +297,13 @@ netisr_queue(int num, struct mbuf *m)
 	if (ni->ni_queue == NULL) {
 		isrstat.isrs_drop++;
 		m_freem(m);
-		return (1);
+		return (ENXIO);
 	}
 	isrstat.isrs_queued++;
 	if (!IF_HANDOFF(ni->ni_queue, m, NULL))
-		return (0);
+		return (ENOBUFS);	/* IF_HANDOFF has free'd the mbuf */
 	schednetisr(num);
-	return (1);
+	return (0);
 }
 
 static void

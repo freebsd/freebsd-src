@@ -881,15 +881,11 @@ error:
 		BPF_MTAP(&sc->sc_if, &mm);
 	}
 
-	if(! netisr_queue(NETISR_IP, m))
+	if(netisr_queue(NETISR_IP, m))	/* (0) on success. */
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
 		sc->sc_if.if_ierrors++;
 		sc->sc_if.if_iqdrops++;		
-	}
-	else
-	{
-		schednetisr(NETISR_IP);
 	}
 }
 

@@ -915,7 +915,7 @@ vatmpif_harp_recv_drain(Vatmpif_unit *vup, KBuffer *m,
 	/*
 	 * Schedule callback
 	 */
-	if (!netisr_queue(NETISR_ATM, m)) {
+	if ((err = netisr_queue(NETISR_ATM, m))) {	/* (0) on success. */
 		/*
 		 * queue is full. Unable to pass up to the HARP stack
 		 * Update the stats.

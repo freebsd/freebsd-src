@@ -510,7 +510,7 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-		netisr_queue(NETISR_IP, top);
+		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	    goto done;
 	}
@@ -555,7 +555,7 @@ lp_intr (void *arg)
 	    if (top) {
 		if (sc->sc_if.if_bpf)
 		    lptap(&sc->sc_if, top);
-		netisr_queue(NETISR_IP, top);
+		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	}
 	goto done;
