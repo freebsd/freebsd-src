@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.9.2000.1 1996/09/17 14:32:01 peter Exp $
+# $Id: vnode_if.src,v 1.11 1997/02/10 02:11:11 dyson Exp $
 #
 
 #
@@ -59,6 +59,18 @@
 #	especially that *vpp may equal dvp and both may be locked.
 #
 vop_lookup {
+	IN struct vnode *dvp;
+	INOUT struct vnode **vpp;
+	IN struct componentname *cnp;
+};
+
+#
+#% cachedlookup	dvp	L ? ?
+#% cachedlookup	vpp	- L -
+#
+# This must be an exact copy of lookup.  See kern/vfs_cache.c for details.
+#
+vop_cachedlookup {
 	IN struct vnode *dvp;
 	INOUT struct vnode **vpp;
 	IN struct componentname *cnp;
