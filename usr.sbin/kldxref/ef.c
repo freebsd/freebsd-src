@@ -481,13 +481,13 @@ ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 		return (error);
 
 	for (r = ef->ef_rel; r < &ef->ef_rel[ef->ef_relsz]; r++) {
-		error = ef_reloc(ef->ef_efile, r, EF_RELOC_REL, offset, len,
+		error = ef_reloc(ef->ef_efile, r, EF_RELOC_REL, 0, offset, len,
 		    dest);
 		if (error != 0)
 			return (error);
 	}
 	for (a = ef->ef_rela; a < &ef->ef_rela[ef->ef_relasz]; a++) {
-		error = ef_reloc(ef->ef_efile, a, EF_RELOC_RELA, offset, len,
+		error = ef_reloc(ef->ef_efile, a, EF_RELOC_RELA, 0, offset, len,
 		    dest);
 		if (error != 0)
 			return (error);

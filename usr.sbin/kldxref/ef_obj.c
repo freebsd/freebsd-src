@@ -240,9 +240,9 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 	char *memaddr;
 	Elf_Rel *r;
 	Elf_Rela *a;
-	Elf_Off secoff;
+	Elf_Off secbase, dataoff;
 	int error, i, sec;
-	
+
 	if (offset + len > ef->size) {
 		if (ef->ef_verbose)
 			warnx("ef_seg_read_rel(%s): bad offset/len (%lx:%ld)",
@@ -254,6 +254,7 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 	/* Find out which section contains the data. */
 	memaddr = ef->address + offset;
 	sec = -1;
+	secbase = dataoff = 0;
 	for (i = 0; i < ef->nprogtab; i++) {
 		if (ef->progtab[i].addr == NULL)
 			continue;
@@ -261,7 +262,9 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 		     (char *)ef->progtab[i].addr + ef->progtab[i].size)
 			continue;
 		sec = ef->progtab[i].sec;
-		secoff = memaddr - (char *)ef->progtab[i].addr;
+		/* We relocate to address 0. */
+		secbase = (char *)ef->progtab[i].addr - ef->address;
+		dataoff = memaddr - ef->address;
 		break;
 	}
 
@@ -274,8 +277,8 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 			continue;
 		for (r = ef->reltab[i].rel;
 		     r < &ef->reltab[i].rel[ef->reltab[i].nrel]; r++) {
-			error = ef_reloc(ef->ef_efile, r, EF_RELOC_REL, secoff,
-			    len, dest);
+			error = ef_reloc(ef->ef_efile, r, EF_RELOC_REL, secbase,
+			    dataoff, len, dest);
 			if (error != 0)
 				return (error);
 		}
@@ -285,8 +288,8 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 			continue;
 		for (a = ef->relatab[i].rela;
 		     a < &ef->relatab[i].rela[ef->relatab[i].nrela]; a++) {
-			error = ef_reloc(ef->ef_efile, a, EF_RELOC_RELA, secoff,
-			    len, dest);
+			error = ef_reloc(ef->ef_efile, a, EF_RELOC_RELA,
+			    secbase, dataoff, len, dest);
 			if (error != 0)
 				return (error);
 		}
