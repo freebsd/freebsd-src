@@ -33,7 +33,7 @@
 # Note: work only with effective uid due the limit of procfs
 #       (eg. not with suid programs)
 #
-# $Id: killall,v 1.2 1995/06/24 11:12:38 w Exp w $
+# $Id: killall.pl,v 1.1.1.1 1995/06/25 18:08:27 joerg Exp $
 #
 
 $ENV{'PATH'} = "/bin:/usr/bin";
@@ -59,7 +59,7 @@ while ($_ = $ARGV[0], /^-/) {
     elsif (/^-l$/)                  { exec 'kill', '-l' }
     elsif (/^-m$/)		    { $match = 1 }
     elsif (/^-s$/)                  { $show = 1 }
-    elsif (/^-([A-Za-z]+|[0-9]+)$/) { $signal = $1 }
+    elsif (/^-([a-z][a-z0-9]+|[0-9]+)$/i) { $signal = $1 }
 }
 
 $program = $_; &usage unless $program;
