@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.12 1997/06/09 03:27:38 brian Exp $
+ * $Id: systems.c,v 1.6.2.5 1997/06/10 09:44:36 brian Exp $
  *
  *  TODO:
  */
@@ -27,6 +27,7 @@
 #include "ipcp.h"
 #include "pathnames.h"
 #include "vars.h"
+#include "server.h"
 
 extern void DecodeCommand();
 
@@ -56,10 +57,12 @@ SetUserId()
   if (!usermode) {
     if (setreuid(euid, uid) == -1) {
       LogPrintf(LogERROR, "unable to setreuid!\n");
+      ServerClose();
       exit(1);
     }
     if (setregid(egid, gid) == -1) {
       LogPrintf(LogERROR, "unable to setregid!\n");
+      ServerClose();
       exit(1);
     }
     usermode = 1;
@@ -72,10 +75,12 @@ SetPppId()
   if (usermode) {
     if (setreuid(uid, euid) == -1) {
       LogPrintf(LogERROR, "unable to setreuid!\n");
+      ServerClose();
       exit(1);
     }
     if (setregid(gid, egid) == -1) {
       LogPrintf(LogERROR, "unable to setregid!\n");
+      ServerClose();
       exit(1);
     }
     usermode = 0;
@@ -165,6 +170,7 @@ char *file;
       if (wp == NULL) {
 	LogPrintf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
 		filename, linenum);
+        ServerClose();
 	exit(1);
       }
       *wp = '\0';

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.7 1997/06/09 03:27:29 brian Exp $
+ * $Id: mbuf.c,v 1.3.6.2 1997/06/10 09:44:01 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -27,6 +27,7 @@
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "server.h"
 
 struct memmap {
   struct mbuf *queue;
@@ -59,12 +60,14 @@ int type;
   bp = (struct mbuf *)malloc(sizeof(struct mbuf));
   if (bp == NULL) {
     LogPrintf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
+    ServerClose();
     exit(1);
   }
   bzero(bp, sizeof(struct mbuf));
   p = (u_char *)malloc(cnt);
   if (p == NULL) {
     LogPrintf(LogALERT, "failed to allocate memory: %d\n", cnt);
+    ServerClose();
     exit(1);
   }
   MemMap[type].count += cnt;
