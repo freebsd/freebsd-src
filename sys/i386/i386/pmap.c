@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id$
+ *	$Id: pmap.c,v 1.12 1994/01/14 16:23:37 davidg Exp $
  */
 
 /*
@@ -310,6 +310,7 @@ pmap_use_pt(pmap, va, use)
 {
 	vm_offset_t pt, pa;
 	pv_entry_t pv;
+	vm_page_t m;
 
 	if (va >= VM_MAX_ADDRESS)
 		return; 
@@ -323,31 +324,13 @@ pmap_use_pt(pmap, va, use)
 		return;
 	pv = pa_to_pvh(pa);
 	
+	m = PHYS_TO_VM_PAGE(pa);
 	if (use) {
-		pv->pv_wire++;
-	} else if (pv->pv_wire > 0) {
-		pv->pv_wire--;
+		vm_page_wire(m);
 	} else {
-		printf("attempt to decrement wire count below 0: %d\n", pv->pv_wire);
+		vm_page_unwire(m);
 	}
 }
-
-/*
- * see if a page is pmap_wired
- */
-inline int
-pmap_pt_is_used(pa)
-	vm_offset_t pa;
-{
-	pv_entry_t pv;
-	int s;
-
-	if (!pmap_is_managed(pa))
-		return 0;
-	pv = pa_to_pvh(pa);
-	return pv->pv_wire;
-}
-
 
 /* [ macro again?, should I force kstack into user map here? -wfj ] */
 void
@@ -834,13 +817,10 @@ pmap_remove_entry(pmap, pv, va)
 	if (pmap == pv->pv_pmap && va == pv->pv_va) {
 		npv = pv->pv_next;
 		if (npv) {
-			wired = pv->pv_wire;
 			*pv = *npv;
-			pv->pv_wire = wired;
 			free_pv_entry(npv);
 		} else {
 			pv->pv_pmap = NULL;
-			pv->pv_wire = 0; 
 		}
 	} else {
 		for (npv = pv->pv_next; npv; npv = npv->pv_next) {
@@ -1030,9 +1010,6 @@ pmap_remove_all(pa)
 		splx(s);
 	}
 
-	if (pv->pv_wire != 0)
-		panic("pmap_remove_all, wire count != 0\n");
-
 	tlbflush();
 }
 
@@ -1084,6 +1061,9 @@ pmap_protect(pmap, sva, eva, prot)
 
 		pte = ptp + i386_btop(va);
 
+		/*
+		 * scan for a non-empty pte
+		 */
 		{
 			int found=0;
 			int svap = pte - ptp;
@@ -1218,7 +1198,6 @@ pmap_enter(pmap, va, pa, prot, wired)
 			pv->pv_va = va;
 			pv->pv_pmap = pmap;
 			pv->pv_next = NULL;
-			pv->pv_wire = 0;
 		}
 		/*
 		 * There is at least one other VA mapping this page.
@@ -1256,8 +1235,23 @@ validate:
 	 * Now validate mapping with desired protection/wiring.
 	 */
 	npte = (pa & PG_FRAME) | pte_prot(pmap, prot) | PG_V;
+
+	/*
+	 * When forking (copy-on-write, etc):
+	 * A process will turn off write permissions for any of its writable
+	 * pages.  If the data (object) is only referred to by one process, the
+	 * processes map is modified directly as opposed to using the
+	 * object manipulation routine.  When using pmap_protect, the
+	 * modified bits are not kept in the vm_page_t data structure.  
+	 * Therefore, when using pmap_enter in vm_fault to bring back
+	 * writability of a page, there has been no memory of the
+	 * modified or referenced bits except at the pte level.  
+	 * this clause supports the carryover of the modified and
+	 * used (referenced) bits.
+	 */
 	if (pa == opa)
 		npte |= *(int *)pte & (PG_M|PG_U);
+
 	if (wired)
 		npte |= PG_W;
 	if (va < UPT_MIN_ADDRESS)
@@ -1634,19 +1628,6 @@ pmap_is_referenced(pa)
 	vm_offset_t	pa;
 {
 	return(pmap_testbit(pa, PG_U));
-}
-
-/*
- * pmap_is_pageable:
- *
- * Return whether or not the pmap system needs a page wired for its purposes
- */
-
-boolean_t
-pmap_is_wired(pa)
-	vm_offset_t pa;
-{
-	return pmap_pt_is_used(pa)?1:0;
 }
 
 /*

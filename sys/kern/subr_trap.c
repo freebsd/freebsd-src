@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.13 1994/01/03 07:55:24 davidg Exp $
+ *	$Id: trap.c,v 1.14 1994/01/14 16:23:41 davidg Exp $
  */
 
 /*
@@ -390,10 +390,10 @@ skiptoswitch:
 		/* check if page table is mapped, if not, fault it first */
 #define pde_v(v) (PTD[((v)>>PD_SHIFT)&1023].pd_v)
 		{
-			vm_offset_t v = trunc_page(vtopte(va));
 
 			if (map != kernel_map) {
 				vm_offset_t pa;
+				vm_offset_t v = (vm_offset_t) vtopte(va);
 
 				/* Fault the pte only if needed: */
 				*(volatile char *)v += 0;	
@@ -401,16 +401,21 @@ skiptoswitch:
 				/* Get the physical address: */
 				pa = pmap_extract(vm_map_pmap(map), v);
 
-				/* And wire the page at system vm level: */
+				/* And wire the pte page at system vm level: */
 				vm_page_wire(PHYS_TO_VM_PAGE(pa));
 
 				/* Fault in the user page: */
 				rv = vm_fault(map, va, ftype, FALSE);
 
-				/* Unwire the pte page */
+				/* Unwire the pte page: */
 				vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 
 			} else {
+				/*
+				 * Since we know that kernel virtual address addresses
+				 * always have pte pages mapped, we just have to fault
+				 * the page.
+				 */
 				rv = vm_fault(map, va, ftype, FALSE);
 			}
 
@@ -606,10 +611,19 @@ int trapwrite(addr)
 	{
 		vm_offset_t v;
 		v = trunc_page(vtopte(va));
+		/*
+		 * wire the pte page
+		 */
 		if (va < USRSTACK) {
 			vm_map_pageable(&vm->vm_map, v, round_page(v+1), FALSE);
 		}
+		/*
+		 * fault the data page
+		 */
 		rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+		/*
+		 * unwire the pte page
+		 */
 		if (va < USRSTACK) {
 			vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
 		}
