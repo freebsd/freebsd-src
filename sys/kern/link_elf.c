@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
+#include "opt_gdb.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ typedef struct elf_file {
     long		ddbstrcnt;	/* number of bytes in string table */
     caddr_t		symbase;	/* malloc'ed symbold base */
     caddr_t		strbase;	/* malloc'ed string base */
-#ifdef DDB
+#ifdef GDB
     struct link_map	gdb;		/* hooks for gdb */
 #endif
 } *elf_file_t;
@@ -146,7 +146,7 @@ static int		parse_dynamic(elf_file_t ef);
 static int		relocate_file(elf_file_t ef);
 static int		link_elf_preload_parse_symbols(elf_file_t ef);
 
-#ifdef DDB
+#ifdef GDB
 static void		r_debug_state(struct r_debug *dummy_one,
 				      struct link_map *dummy_two);
 
@@ -199,7 +199,7 @@ link_elf_delete_gdb(struct link_map *l)
 	    l->l_next->l_prev = l->l_prev;
     }
 }
-#endif /* DDB */
+#endif /* GDB */
 
 #ifdef __ia64__
 Elf_Addr link_elf_get_gp(linker_file_t);
@@ -223,7 +223,7 @@ link_elf_error(const char *s)
 static int
 link_elf_link_common_finish(linker_file_t lf)
 {
-#ifdef DDB
+#ifdef GDB
     elf_file_t ef = (elf_file_t)lf;
     char *newfilename;
 #endif
@@ -234,7 +234,7 @@ link_elf_link_common_finish(linker_file_t lf)
     if (error)
 	return (error);
 
-#ifdef DDB
+#ifdef GDB
     GDB_STATE(RT_ADD);
     ef->gdb.l_addr = lf->address;
     newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, M_WAITOK);
@@ -295,7 +295,7 @@ link_elf_init(void* arg)
     }
     (void)link_elf_preload_parse_symbols(ef);
 
-#ifdef DDB
+#ifdef GDB
     r_debug.r_map = NULL;
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
@@ -423,7 +423,7 @@ parse_dynamic(elf_file_t ef)
 	    if (plttype != DT_REL && plttype != DT_RELA)
 		return ENOEXEC;
 	    break;
-#ifdef DDB
+#ifdef GDB
 	case DT_DEBUG:
 	    dp->d_un.d_ptr = (Elf_Addr) &r_debug;
 	    break;
@@ -862,7 +862,7 @@ link_elf_unload_file(linker_file_t file)
 {
     elf_file_t ef = (elf_file_t) file;
 
-#ifdef DDB
+#ifdef GDB
     if (ef->gdb.l_ld) {
 	GDB_STATE(RT_DELETE);
 	free((void *)(uintptr_t)ef->gdb.l_name, M_LINKER);
