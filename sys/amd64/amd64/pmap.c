@@ -2944,7 +2944,7 @@ pmap_remove_pages(pmap, sva, eva)
 		if (tpte == 0) {
 			printf("TPTE at %p  IS ZERO @ VA %08x\n",
 							pte, pv->pv_va);
-			panic("bad pte");
+			panic("bad peter");
 		}
 
 /*
