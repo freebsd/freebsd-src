@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)archive.h	8.3 (Berkeley) 4/2/94
+ * $FreeBSD$
  */
 
 /* Ar(1) options. */
@@ -65,9 +66,9 @@ extern u_int options;
 /* File copy structure. */
 typedef struct {
 	int rfd;			/* read file descriptor */
-	char *rname;			/* read name */
+	const char *rname;		/* read name */
 	int wfd;			/* write file descriptor */
-	char *wname;			/* write name */
+	const char *wname;		/* write name */
 #define	NOPAD	0x00			/* don't pad */
 #define	RPAD	0x01			/* pad on reads */
 #define	WPAD	0x02			/* pad on writes */

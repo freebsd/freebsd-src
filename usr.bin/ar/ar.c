@@ -64,8 +64,9 @@ static const char sccsid[] = "@(#)ar.c	8.3 (Berkeley) 4/2/94";
 
 CHDR chdr;
 u_int options;
-char *archive, *envtmp, *posarg, *posname;
-static void badoptions __P((char *));
+char *archive, *posarg, *posname;
+const char *envtmp;
+static void badoptions __P((const char *));
 static void usage __P((void));
 
 /*
@@ -219,7 +220,7 @@ main(argc, argv)
 
 static void
 badoptions(arg)
-	char *arg;
+	const char *arg;
 {
 
 	warnx("illegal option combination for %s", arg);
