@@ -17,4 +17,6 @@ LDADD+= -lcrypt
 SRCS+= crypt.c
 .endif
 
-.include <bsd.prog.mk>
+.include <bsd.prog.mk> 
+.include "../../Makefile.inc"
+
