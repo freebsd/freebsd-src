@@ -233,14 +233,25 @@ linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
 
 	td->td_retval[0] = 0;
 
+	switch (how) {
+	case LINUX_SIG_BLOCK:
+		how = SIG_BLOCK;
+		break;
+	case LINUX_SIG_UNBLOCK:
+		how = SIG_UNBLOCK;
+		break;
+	case LINUX_SIG_SETMASK:
+		how = SIG_SETMASK;
+		break;
+	default:
+		return (EINVAL);
+	}
 	if (new != NULL) {
 		linux_to_bsd_sigset(new, &nmask);
 		nmaskp = &nmask;
 	} else
 		nmaskp = NULL;
-
-	/* Linux sigprocmask flag values are one less than FreeBSD values. */
-	error = kern_sigprocmask(td, how + 1, nmaskp, &omask, 0);
+	error = kern_sigprocmask(td, how, nmaskp, &omask, 0);
 	if (error != 0 && old != NULL)
 		bsd_to_linux_sigset(&omask, old);
 
