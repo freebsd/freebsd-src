@@ -1,13 +1,12 @@
 # $FreeBSD$
 
 DISTRIBUTION?=	crypto
-NOLINT=		true
+NOLINT=
 
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 
-CFLAGS+=	-I${.CURDIR}/../../include -DHAVE_CONFIG_H
-
-CFLAGS+=-DINET6
+CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR}/../../include
+CFLAGS+=	-DINET6
 
 .if defined(WITH_OPENLDAP)
 OPENLDAPBASE?=	/usr/local
