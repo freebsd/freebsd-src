@@ -112,6 +112,7 @@ tty_Timeout(void *data)
       log_Printf(LogDEBUG, "%s: ioctl error (%s)!\n", p->link.name,
                  strerror(errno));
       timer_Stop(&dev->Timer);
+      dev->mbits = TIOCM_CD;
       return;
     }
   } else
@@ -187,8 +188,7 @@ tty_AwaitCarrier(struct physical *p)
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !p->cfg.cd.necessity == CD_REQUIRED ?
-    CARRIER_OK : CARRIER_LOST;
+  return Online(dev) ? CARRIER_OK : CARRIER_LOST;
 }
 
 static int
