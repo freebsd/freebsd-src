@@ -220,6 +220,25 @@ AcpiExSetupRegion (
             FieldDatumByteOffset, ObjDesc->CommonField.AccessByteWidth,
             RgnDesc->Region.Node->Name.Ascii, RgnDesc->Region.Length));
 
+#ifndef ACPICA_PEDANTIC
+        {
+            /*
+             * Allow access to the field if it is within the region size
+             * rounded up to a multiple of the access byte width.  This
+             * overcomes "off-by-one" programming errors in the AML often
+             * found in Toshiba laptops.  These errors were allowed by
+             * the Microsoft ASL compiler.
+             */
+            UINT32 rounded_length = ACPI_ROUND_UP(RgnDesc->Region.Length,
+                ObjDesc->CommonField.AccessByteWidth);
+
+            if (rounded_length >= (ObjDesc->CommonField.BaseByteOffset +
+                                   FieldDatumByteOffset +
+                                   ObjDesc->CommonField.AccessByteWidth)) {
+                return_ACPI_STATUS (AE_OK);
+            }
+        }
+#endif
         return_ACPI_STATUS (AE_AML_REGION_LIMIT);
     }
 
