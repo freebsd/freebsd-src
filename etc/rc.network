@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.40 1999/03/11 16:17:24 jfitz Exp $
+#	$Id: rc.network,v 1.41 1999/03/24 10:28:49 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -149,6 +149,12 @@ network_pass1() {
     if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
 	    echo -n ' tcp extensions=NO'
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
+    fi
+
+    if [ -n "$log_in_vain" -a "x$log_in_vain" != "xNO" ] ; then
+	    echo -n ' log_in_vain=YES'
+	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null 2>&1
+	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null 2>&1
     fi
 
     if [ X"$icmp_bmcastecho" = X"YES" ]; then
