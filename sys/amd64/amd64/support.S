@@ -45,7 +45,7 @@
 	ALIGN_DATA
 	.globl	intrcnt, eintrcnt
 intrcnt:
-	.space	INTRCNT_COUNT * 4
+	.space	INTRCNT_COUNT * 8
 eintrcnt:
 
 	.globl	intrnames, eintrnames
