@@ -614,9 +614,7 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 			if (ia == 0)
 				ia = ifatoia(ifa_ifwithnet(sintosa(&sa)));
 			if (ia == 0)
-				ia = TAILQ_FIRST(&in_ifaddrhead);
-			if (ia == 0)
-				return (EADDRNOTAVAIL);
+				return (ENETUNREACH);
 		}
 		/*
 		 * If the destination address is multicast and an outgoing
