@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.2 1996/01/29 02:57:33 dyson Exp $
+ * $Id: sys_pipe.c,v 1.6 1996/02/04 22:09:05 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -492,9 +492,13 @@ pipe_build_write_buffer(wpipe, uio)
  * and map the buffer
  */
 	if (wpipe->pipe_map.kva == 0) {
+		/*
+		 * We need to allocate space for an extra page because the
+		 * address range might (will) span pages at times.
+		 */
 		wpipe->pipe_map.kva = kmem_alloc_pageable(kernel_map,
-			wpipe->pipe_buffer.size);
-		amountpipekva += wpipe->pipe_buffer.size;
+			wpipe->pipe_buffer.size + PAGE_SIZE);
+		amountpipekva += wpipe->pipe_buffer.size + PAGE_SIZE;
 	}
 	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
 		wpipe->pipe_map.npages);
@@ -527,8 +531,8 @@ struct pipe *wpipe;
 			vm_offset_t kva = wpipe->pipe_map.kva;
 			wpipe->pipe_map.kva = 0;
 			kmem_free(kernel_map, kva,
-				wpipe->pipe_buffer.size);
-			amountpipekva -= wpipe->pipe_buffer.size;
+				wpipe->pipe_buffer.size + PAGE_SIZE);
+			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
 		}
 	}
 	for (i=0;i<wpipe->pipe_map.npages;i++)
@@ -971,10 +975,10 @@ pipeclose(cpipe)
 				cpipe->pipe_buffer.size);
 		}
 		if (cpipe->pipe_map.kva) {
-			amountpipekva -= cpipe->pipe_buffer.size;
+			amountpipekva -= cpipe->pipe_buffer.size + PAGE_SIZE;
 			kmem_free(kernel_map,
 				cpipe->pipe_map.kva,
-				cpipe->pipe_buffer.size);
+				cpipe->pipe_buffer.size + PAGE_SIZE);
 		}
 		free(cpipe, M_TEMP);
 	}
