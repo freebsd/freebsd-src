@@ -132,7 +132,8 @@ devmenu_freedevs(struct devconf ***devpp)
 
 const char *
 devmenu_common(const char *title, const char *hfile, char **devnames,
-	       const char *prompt, const char *none, enum dc_class class)
+	       const char *prompt, const char *none, enum dc_class class,
+	       int states)
 {
 	struct devconf **devs;
 	int s;
@@ -149,6 +150,8 @@ devmenu_common(const char *title, const char *hfile, char **devnames,
 	devs = devmenu_alldevs();
 
 	for (i = 0; devs[i]; i++) {
+		if (states && !((1 << devs[i]->dc_state) & states))
+			continue;
 		if (class && !(devs[i]->dc_class & class))
 			continue;
 		if (devmenu_filter(devs[i], devnames)) {
