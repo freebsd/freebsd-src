@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
+ *	from: @(#)ffs_softdep.c	9.43 (McKusick) 1/9/00
  * $FreeBSD$
  */
 
@@ -207,6 +207,12 @@ static	void add_to_worklist __P((struct worklist *));
 /*
  * Exported softdep operations.
  */
+static	void softdep_disk_io_initiation __P((struct buf *));
+static	void softdep_disk_write_complete __P((struct buf *));
+static	void softdep_deallocate_dependencies __P((struct buf *));
+static	int softdep_fsync __P((struct vnode *));
+static	int softdep_process_worklist __P((struct mount *));
+
 struct bio_ops bioops = {
 	softdep_disk_io_initiation,		/* io_start */
 	softdep_disk_write_complete,		/* io_complete */
@@ -524,7 +530,7 @@ add_to_worklist(wk)
  * ordering ensures that no new <vfsid, inum, lbn> triples will be generated
  * until all the old ones have been purged from the dependency lists.
  */
-int 
+static int 
 softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
@@ -2649,7 +2655,7 @@ handle_workitem_freefile(freefile)
  * The buffer must be locked, thus, no I/O completion operations can occur
  * while we are manipulating its associated dependencies.
  */
-void 
+static void 
 softdep_disk_io_initiation(bp)
 	struct buf *bp;		/* structure describing disk write to occur */
 {
@@ -2909,7 +2915,7 @@ initiate_write_inodeblock(inodedep, bp)
  * procedure, before the block is made available to other
  * processes or other routines are called.
  */
-void 
+static void 
 softdep_disk_write_complete(bp)
 	struct buf *bp;		/* describes the completed disk write */
 {
@@ -3577,7 +3583,7 @@ merge_inode_lists(inodedep)
  * If we are doing an fsync, then we must ensure that any directory
  * entries for the inode have been written after the inode gets to disk.
  */
-int
+static int
 softdep_fsync(vp)
 	struct vnode *vp;	/* the "in_core" copy of the inode */
 {
@@ -4459,7 +4465,7 @@ drain_output(vp, islocked)
  * contains dependencies. This should only happen if an I/O error has
  * occurred. The routine is called with the buffer locked.
  */ 
-void
+static void
 softdep_deallocate_dependencies(bp)
 	struct buf *bp;
 {

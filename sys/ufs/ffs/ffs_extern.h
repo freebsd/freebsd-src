@@ -108,16 +108,13 @@ extern vop_t **ffs_fifoop_p;
  * Soft update function prototypes.
  */
 void	softdep_initialize __P((void));
-int	softdep_process_worklist __P((struct mount *));
 int	softdep_mount __P((struct vnode *, struct mount *, struct fs *,
 	    struct ucred *));
 int	softdep_flushfiles __P((struct mount *, int, struct proc *));
 void	softdep_update_inodeblock __P((struct inode *, struct buf *, int));
 void	softdep_load_inodeblock __P((struct inode *));
-int	softdep_fsync __P((struct vnode *));
 void	softdep_freefile __P((struct vnode *, ino_t, int));
 void	softdep_setup_freeblocks __P((struct inode *, off_t));
-void	softdep_deallocate_dependencies __P((struct buf *));
 void	softdep_setup_inomapdep __P((struct buf *, struct inode *, ino_t));
 void	softdep_setup_blkmapdep __P((struct buf *, struct fs *, ufs_daddr_t));
 void	softdep_setup_allocdirect __P((struct inode *, ufs_lbn_t, ufs_daddr_t,
@@ -126,8 +123,6 @@ void	softdep_setup_allocindir_meta __P((struct buf *, struct inode *,
 	    struct buf *, int, ufs_daddr_t));
 void	softdep_setup_allocindir_page __P((struct inode *, ufs_lbn_t,
 	    struct buf *, int, ufs_daddr_t, ufs_daddr_t, struct buf *));
-void	softdep_disk_io_initiation __P((struct buf *));
-void	softdep_disk_write_complete __P((struct buf *));
 void	softdep_fsync_mountdev __P((struct vnode *));
 int	softdep_sync_metadata __P((struct vop_fsync_args *));
 
