@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.35 1996/01/04 21:13:14 wollman Exp $
+ * $Id: vm_glue.c,v 1.36 1996/01/19 03:59:46 dyson Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -627,7 +627,7 @@ iprintf(fmt /* , va_alist */ )
 	while (--i >= 0)
 		printf(" ");
 	va_start(ap, fmt);
-	printf("%r", fmt, ap);
+	vprintf(fmt, ap);
 	va_end(ap);
 }
 #endif /* DDB */
