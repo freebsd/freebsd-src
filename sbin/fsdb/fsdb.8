@@ -26,7 +26,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: fsdb.8,v 1.6 1997/02/22 14:32:25 peter Exp $
 .\"
 .Dd September 14, 1995
 .Dt FSDB 8
@@ -38,6 +38,7 @@
 .Nm
 .Op Fl d
 .Op Fl f 
+.Op Fl r
 .Ar fsname
 .Sh DESCRIPTION
 .Nm
@@ -66,6 +67,11 @@ code).
 The
 .Fl f
 option is left for historical reasons and has no meaning.
+.Pp
+Option
+.Fl r
+opens the filesystem read/only, and disables all commands that would
+write to it.
 .Sh COMMANDS
 Besides the built-in 
 .Xr libedit 3

@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: fsdb.c,v 1.7 1997/03/13 12:44:51 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -63,10 +63,11 @@ int cmdloop __P((void));
 void 
 usage()
 {
-	errx(1, "usage: %s [-d] -f <fsname>", __progname);
+	errx(1, "usage: %s [-d] [-r] -f <fsname>", __progname);
 }
 
 int returntosingle = 0;
+char nflag = 0;
 
 /*
  * We suck in lots of fsck code, and just pick & choose the stuff we want.
@@ -83,13 +84,16 @@ main(argc, argv)
 	char *fsys = NULL;
 	struct stat stb;
 
-	while (-1 != (ch = getopt(argc, argv, "f:d"))) {
+	while (-1 != (ch = getopt(argc, argv, "f:dr"))) {
 		switch (ch) {
 		case 'f':
 			fsys = optarg;
 			break;
 		case 'd':
 			debug++;
+			break;
+		case 'r':
+			nflag++; /* "no" in fsck, readonly for us */
 			break;
 		default:
 			usage();
@@ -106,15 +110,17 @@ main(argc, argv)
 
 	if (!setup(fsys))
 		errx(1, "cannot set up file system `%s'", fsys);
-	printf("Editing file system `%s'\nLast Mounted on %s\n", fsys,
-	       sblock.fs_fsmnt);
+	printf("%s file system `%s'\nLast Mounted on %s\n",
+	       nflag? "Examining": "Editing", fsys, sblock.fs_fsmnt);
 	rval = cmdloop();
-	sblock.fs_clean = 0;		/* mark it dirty */
-	sbdirty();
-	ckfini(0);
-	printf("*** FILE SYSTEM MARKED DIRTY\n");
-	printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
-	printf("*** IF IT WAS MOUNTED, RE-MOUNT WITH -u -o reload\n");
+	if (!nflag) {
+		sblock.fs_clean = 0;	/* mark it dirty */
+		sbdirty();
+		ckfini(0);
+		printf("*** FILE SYSTEM MARKED DIRTY\n");
+		printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
+		printf("*** IF IT WAS MOUNTED, RE-MOUNT WITH -u -o reload\n");
+	}
 	exit(rval);
 }
 
@@ -150,37 +156,37 @@ CMDFUNC(chinum);			/* Change inode # of dirent */
 CMDFUNC(chname);			/* Change dirname of dirent */
 
 struct cmdtable cmds[] = {
-	{ "help", "Print out help", 1, 1, helpfn },
-	{ "?", "Print out help", 1, 1, helpfn },
-	{ "inode", "Set active inode to INUM", 2, 2, focus },
-	{ "clri", "Clear inode INUM", 2, 2, zapi },
-	{ "lookup", "Set active inode by looking up NAME", 2, 2, focusname },
-	{ "cd", "Set active inode by looking up NAME", 2, 2, focusname },
-	{ "back", "Go to previous active inode", 1, 1, back },
-	{ "active", "Print active inode", 1, 1, active },
-	{ "print", "Print active inode", 1, 1, active },
-	{ "uplink", "Increment link count", 1, 1, uplink },
-	{ "downlink", "Decrement link count", 1, 1, downlink },
-	{ "linkcount", "Set link count to COUNT", 2, 2, linkcount },
-	{ "ls", "List current inode as directory", 1, 1, ls },
-	{ "rm", "Remove NAME from current inode directory", 2, 2, rm },
-	{ "del", "Remove NAME from current inode directory", 2, 2, rm },
-	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, ln },
-	{ "chinum", "Change dir entry number INDEX to INUM", 3, 3, chinum },
-	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, chname },
-	{ "chtype", "Change type of current inode to TYPE", 2, 2, newtype },
-	{ "chmod", "Change mode of current inode to MODE", 2, 2, chmode },
-	{ "chlen", "Change length of current inode to LENGTH", 2, 2, chlen },
-	{ "chown", "Change owner of current inode to OWNER", 2, 2, chowner },
-	{ "chgrp", "Change group of current inode to GROUP", 2, 2, chgroup },
-	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, chaflags },
-	{ "chgen", "Change generation number of current inode to GEN", 2, 2, chgen },
-	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, chmtime },
-	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, chctime },
-	{ "atime", "Change atime of current inode to ATIME", 2, 2, chatime },
-	{ "quit", "Exit", 1, 1, quit },
-	{ "q", "Exit", 1, 1, quit },
-	{ "exit", "Exit", 1, 1, quit },
+	{ "help", "Print out help", 1, 1, FL_RO, helpfn },
+	{ "?", "Print out help", 1, 1, FL_RO, helpfn },
+	{ "inode", "Set active inode to INUM", 2, 2, FL_RO, focus },
+	{ "clri", "Clear inode INUM", 2, 2, FL_WR, zapi },
+	{ "lookup", "Set active inode by looking up NAME", 2, 2, FL_RO, focusname },
+	{ "cd", "Set active inode by looking up NAME", 2, 2, FL_RO, focusname },
+	{ "back", "Go to previous active inode", 1, 1, FL_RO, back },
+	{ "active", "Print active inode", 1, 1, FL_RO, active },
+	{ "print", "Print active inode", 1, 1, FL_RO, active },
+	{ "uplink", "Increment link count", 1, 1, FL_WR, uplink },
+	{ "downlink", "Decrement link count", 1, 1, FL_WR, downlink },
+	{ "linkcount", "Set link count to COUNT", 2, 2, FL_WR, linkcount },
+	{ "ls", "List current inode as directory", 1, 1, FL_RO, ls },
+	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_WR, rm },
+	{ "del", "Remove NAME from current inode directory", 2, 2, FL_WR, rm },
+	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, FL_WR, ln },
+	{ "chinum", "Change dir entry number INDEX to INUM", 3, 3, FL_WR, chinum },
+	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, FL_WR, chname },
+	{ "chtype", "Change type of current inode to TYPE", 2, 2, FL_WR, newtype },
+	{ "chmod", "Change mode of current inode to MODE", 2, 2, FL_WR, chmode },
+	{ "chlen", "Change length of current inode to LENGTH", 2, 2, FL_WR, chlen },
+	{ "chown", "Change owner of current inode to OWNER", 2, 2, FL_WR, chowner },
+	{ "chgrp", "Change group of current inode to GROUP", 2, 2, FL_WR, chgroup },
+	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, FL_WR, chaflags },
+	{ "chgen", "Change generation number of current inode to GEN", 2, 2, FL_WR, chgen },
+	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, FL_WR, chmtime },
+	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
+	{ "atime", "Change atime of current inode to ATIME", 2, 2, FL_WR, chatime },
+	{ "quit", "Exit", 1, 1, FL_RO, quit },
+	{ "q", "Exit", 1, 1, FL_RO, quit },
+	{ "exit", "Exit", 1, 1, FL_RO, quit },
 	{ NULL, 0, 0, 0 },
 };
 
@@ -253,7 +259,10 @@ cmdloop()
 	    known = 0;
 	    for (cmdp = cmds; cmdp->cmd; cmdp++) {
 		if (!strcmp(cmdp->cmd, cmd_argv[0])) {
-		    if (cmd_argc >= cmdp->minargc &&
+		    if ((cmdp->flags & FL_WR) == FL_WR && nflag)
+			warnx("`%s' requires write access", cmd_argv[0]),
+			    rval = 1;
+		    else if (cmd_argc >= cmdp->minargc &&
 			cmd_argc <= cmdp->maxargc)
 			rval = (*cmdp->handler)(cmd_argc, cmd_argv);
 		    else
