@@ -43,6 +43,9 @@ case "$daily_status_mail_rejects_enable" in
 		    elif [ -f /var/log/maillog.$n.gz ]
 		    then
 			zcat -fc /var/log/maillog.$n.gz
+		    elif [ -f /var/log/maillog.$n.bz2 ]
+		    then
+			bzcat -fc /var/log/maillog.$n.bz2
 		    fi
 		    n=$(($n - 1))
 		done
