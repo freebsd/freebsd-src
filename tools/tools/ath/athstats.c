@@ -59,6 +59,7 @@
 #include <nlist.h>
 
 #include "../../../sys/contrib/dev/ath/ah_desc.h"
+#include "../../../sys/net80211/ieee80211_ioctl.h"
 #include "../../../sys/net80211/ieee80211_radiotap.h"
 #include "../../../sys/dev/ath/if_athioctl.h"
 
@@ -163,7 +164,7 @@ getifrate(int s, const char* ifname)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	static const int rates[] = {
-		-1,		/* IFM_AUTO */
+		0,		/* IFM_AUTO */
 		0,		/* IFM_MANUAL */
 		0,		/* IFM_NONE */
 		1,		/* IFM_IEEE80211_FH1 */
@@ -194,6 +195,37 @@ getifrate(int s, const char* ifname)
 	return IFM_SUBTYPE(ifmr.ifm_active) < N(rates) ?
 		rates[IFM_SUBTYPE(ifmr.ifm_active)] : 0;
 #undef N
+}
+
+#define	WI_RID_COMMS_QUALITY	0xFD43
+/*
+ * Technically I don't think there's a limit to a record
+ * length. The largest record is the one that contains the CIS
+ * data, which is 240 words long, so 256 should be a safe
+ * value.
+ */
+#define WI_MAX_DATALEN	512
+
+struct wi_req {
+	u_int16_t	wi_len;
+	u_int16_t	wi_type;
+	u_int16_t	wi_val[WI_MAX_DATALEN];
+};
+
+static u_int
+getrssi(int s, const char *iface)
+{
+	struct ifreq ifr;
+	struct wi_req wreq;
+
+	bzero(&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_COMMS_QUALITY;
+
+	bzero(&ifr, sizeof(ifr));
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
+	ifr.ifr_data = (caddr_t)&wreq;
+	return ioctl(s, SIOCGIFGENERIC, &ifr) == -1 ?  0 : wreq.wi_val[1];
 }
 
 static kvm_t *kvmd;
@@ -313,7 +345,7 @@ main(int argc, char *argv[])
 		signalled = 0;
 		alarm(interval);
 	banner:
-		printf("%8s %8s %7s %7s %6s %6s %6s %6s %6s"
+		printf("%8s %8s %7s %7s %6s %6s %6s %7s %4s %4s"
 			, "input"
 			, "output"
 			, "short"
@@ -322,6 +354,7 @@ main(int argc, char *argv[])
 			, "crcerr"
 			, "crypt"
 			, "phyerr"
+			, "rssi"
 			, "rate"
 		);
 		putchar('\n');
@@ -342,7 +375,7 @@ main(int argc, char *argv[])
 			}
 			if (kread(off, &ifcur, sizeof(ifcur)))
 				err(1, ifr.ifr_name);
-			printf("%8u %8u %7u %7u %6u %6u %6u %6u %5uM\n"
+			printf("%8u %8u %7u %7u %6u %6u %6u %7u %4u %3uM\n"
 				, ifcur.if_ipackets - iftot.if_ipackets
 				, ifcur.if_opackets - iftot.if_opackets
 				, cur.ast_tx_shortretry - total.ast_tx_shortretry
@@ -351,6 +384,7 @@ main(int argc, char *argv[])
 				, cur.ast_rx_crcerr - total.ast_rx_crcerr
 				, cur.ast_rx_badcrypt - total.ast_rx_badcrypt
 				, cur.ast_rx_phyerr - total.ast_rx_phyerr
+				, getrssi(s, ifr.ifr_name)
 				, rate
 			);
 			total = cur;
@@ -369,7 +403,7 @@ main(int argc, char *argv[])
 			}
 			if (kread(off, &iftot, sizeof(iftot)))
 				err(1, ifr.ifr_name);
-			printf("%8u %8u %7u %7u %6u %6u %6u %6u %5uM\n"
+			printf("%8u %8u %7u %7u %6u %6u %6u %7u %4u %3uM\n"
 				, iftot.if_ipackets
 				, iftot.if_opackets
 				, total.ast_tx_shortretry
@@ -378,6 +412,7 @@ main(int argc, char *argv[])
 				, total.ast_rx_crcerr
 				, total.ast_rx_badcrypt
 				, total.ast_rx_phyerr
+				, getrssi(s, ifr.ifr_name)
 				, rate
 			);
 		}
