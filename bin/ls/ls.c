@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.23 1998/08/02 22:47:11 hoek Exp $";
+	"$Id: ls.c,v 1.24 1999/05/08 10:20:30 kris Exp $";
 #endif
 #endif /* not lint */
 
@@ -88,6 +88,7 @@ int f_listdot;			/* list files beginning with . */
 int f_longform;			/* long listing format */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
+int f_numericonly;		/* don't convert uid/gid to name */
 int f_octal;			/* show unprintables as \xxx */
 int f_octal_escape;		/* like f_octal but use C escapes if possible */
 int f_recursive;		/* ls subdirectories also */
@@ -137,7 +138,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgiklnoqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -208,6 +209,9 @@ main(argc, argv)
 			break;
 		case 'k':
 			f_kblocks = 1;
+			break;
+		case 'n':
+			f_numericonly = 1;
 			break;
 		case 'o':
 			f_flags = 1;
@@ -400,7 +404,8 @@ display(p, list)
 	int bcfile, flen, glen, ulen, maxflags, maxgroup, maxuser;
 	char *initmax;
 	int entries, needstats;
-	char *user, *group, *flags, buf[20];	/* 32 bits == 10 digits */
+	char *user, *group, *flags;
+	char nuser[12], ngroup[12], buf[21];	/* 32 bits == 10 digits */
 
 	/*
 	 * If list is NULL there are two possibilities: that the parent
@@ -512,10 +517,19 @@ display(p, list)
 
 			btotal += sp->st_blocks;
 			if (f_longform) {
-				user = user_from_uid(sp->st_uid, 0);
+				if (f_numericonly) {
+					(void)snprintf(nuser, sizeof(nuser),
+					    "%u", sp->st_uid);
+					(void)snprintf(ngroup, sizeof(ngroup),
+					    "%u", sp->st_gid);
+					user = nuser;
+					group = ngroup;
+				} else {
+					user = user_from_uid(sp->st_uid, 0);
+					group = group_from_gid(sp->st_gid, 0);
+				}
 				if ((ulen = strlen(user)) > maxuser)
 					maxuser = ulen;
-				group = group_from_gid(sp->st_gid, 0);
 				if ((glen = strlen(group)) > maxgroup)
 					maxgroup = glen;
 				if (f_flags) {
