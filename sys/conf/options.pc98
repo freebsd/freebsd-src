@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.62 1998/06/06 05:25:37 kato Exp $
+#	$Id: options.pc98,v 1.63 1998/07/02 12:40:01 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -79,6 +79,7 @@ STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
+SC_BAD_FLICKER		opt_syscons.h
 LINE30			opt_syscons.h
 
 PSM_HOOKAPM		opt_psm.h
@@ -123,6 +124,9 @@ PCVT_VT220KEYB		opt_pcvt.h
 GUS_DMA2		opt_sound.h
 GUS_DMA			opt_sound.h
 GUS_IRQ			opt_sound.h
+
+# Video spigot
+SPIGOT_UNSECURE		opt_spigot.h
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
