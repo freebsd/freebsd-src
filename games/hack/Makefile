@@ -26,7 +26,7 @@ hack.onames.h: makedefs def.objects.h
 	./makedefs ${.CURDIR}/def.objects.h > hack.onames.h
 
 makedefs: makedefs.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 beforeinstall:
 	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} /dev/null \
