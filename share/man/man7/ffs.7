@@ -80,7 +80,7 @@ No optimization
 .It Li 1
 VM operations if a request fits
 .It Li 2
-Aggresive optimization (VM used as much as possible)
+Aggressive optimization (VM used as much as possible)
 .El
 .El
 .Ss Quotas
@@ -102,7 +102,7 @@ and
 .Bl -tag -width 2n
 .It Cd options SOFTUPDATES
 The soft updates feature tracks writes to the disk
-and enforces metadata update dependancies
+and enforces metadata update dependencies
 (e.g. updating free block maps)
 to ensure that the file system remains consistent.
 .Pp
@@ -139,7 +139,7 @@ i.e.
 .Bl -tag -width 2n
 .It Cd options UFS_ACL
 Access control lists allow the association of
-fine-grained descretionary access control information
+fine-grained discretionary access control information
 with files and directories.
 This option requires the presence of the
 .Dv UFS_EXTATTR
@@ -208,7 +208,7 @@ MIBs are defined for use with
 .Nm ffs :
 .Bl -hang -width "vfs.ffs.doreallocblk" 
 .It Em vfs.ffs.doasyncfree
-Asynchronously write out modified inode and indirect blocks
+Asynchronously write out modified i-node and indirect blocks
 upon reallocating file system blocks to be contiguous.
 (Default: 1.)
 .It Em vfs.ffs.doreallocblks
