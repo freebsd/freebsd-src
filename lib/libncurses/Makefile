@@ -522,9 +522,10 @@ MLINKS+=curs_termattrs.3 baudrate.3 curs_termattrs.3 erasechar.3 \
 	curs_termattrs.3 has_ic.3 curs_termattrs.3 has_il.3 \
 	curs_termattrs.3 killchar.3 curs_termattrs.3 longname.3 \
 	curs_termattrs.3 termattrs.3 curs_termattrs.3 termname.3
-MLINKS+=curs_termcap.3 tgetent.3 curs_termcap.3 tgetflag.3 \
-	curs_termcap.3 tgetnum.3 curs_termcap.3 tgetstr.3 \
-	curs_termcap.3 tgoto.3 curs_termcap.3 tputs.3
+MLINKS+=curs_termcap.3 termcap.3 curs_termcap.3 tgetent.3 \
+	curs_termcap.3 tgetflag.3 curs_termcap.3 tgetnum.3 \
+	curs_termcap.3 tgetstr.3 curs_termcap.3 tgoto.3 \
+	curs_termcap.3 tputs.3
 MLINKS+=curs_terminfo.3 del_curterm.3 curs_terminfo.3 mvcur.3 \
 	curs_terminfo.3 putp.3 curs_terminfo.3 restartterm.3 \
 	curs_terminfo.3 set_curterm.3 curs_terminfo.3 setterm.3 \
