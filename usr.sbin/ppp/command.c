@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.192 1999/05/08 11:06:21 brian Exp $
+ * $Id: command.c,v 1.193 1999/05/12 09:48:44 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,7 +143,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.21";
-const char VersionDate[] = "$Date: 1999/05/08 11:06:21 $";
+const char VersionDate[] = "$Date: 1999/05/12 09:48:44 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -757,6 +757,8 @@ static struct cmdtab const ShowCommands[] = {
   "Interface status", "show iface"},
   {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
   "IPCP status", "show ipcp"},
+  {"layers", NULL, link_ShowLayers, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Protocol layers", "show layers"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "LCP status", "show lcp"},
   {"link", "datalink", datalink_Show, LOCAL_AUTH | LOCAL_CX,
