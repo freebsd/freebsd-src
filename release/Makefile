@@ -941,7 +941,7 @@ doMODULES:
 	@rm -f ${RD}/kernels/*.ko
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/${MACHINE}/compile/${KERNEL} && \
-			make kernel-depend && \
+			make modules-depend && \
 			make ${KERNEL_FLAGS} modules && \
 			make modules-reinstall DESTDIR=${RD}/kernels && \
 
