@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 static int	LogFile = -1;		/* fd for log */
-static int	connected;		/* have done connect */
+static int	status;			/* connection status */
 static int	opened;			/* have done openlog() */
 static int	LogStat = 0;		/* status bits, set by openlog() */
 static const char *LogTag = NULL;	/* string to tag the entry with */
@@ -69,6 +69,12 @@ static int	LogMask = 0xff;		/* mask of priorities to be logged */
 
 static void	disconnectlog(void); /* disconnect from syslogd */
 static void	connectlog(void);	/* (re)connect to syslogd */
+
+enum {
+	NOCONN = 0,
+	CONNDEF,
+	CONNPRIV,
+};
 
 /*
  * Format of the magic cookie passed through the stdio hook
@@ -247,10 +253,16 @@ vsyslog(pri, fmt, ap)
 	/*
 	 * If the send() failed, there are two likely scenarios: 
 	 *  1) syslogd was restarted
-	 *  2) /var/run/log is out of socket buffer space
+	 *  2) /var/run/log is out of socket buffer space, which
+	 *     in most cases means local DoS.
 	 * We attempt to reconnect to /var/run/log to take care of
 	 * case #1 and keep send()ing data to cover case #2
 	 * to give syslogd a chance to empty its socket buffer.
+	 *
+	 * If we are working with a priveleged socket, then take
+	 * only one attempt, because we don't want to freeze a
+	 * critical application like su(1) or sshd(8).
+	 *
 	 */
 
 	if (send(LogFile, tbuf, cnt, 0) < 0) {
@@ -261,6 +273,8 @@ vsyslog(pri, fmt, ap)
 		do {
 			usleep(1);
 			if (send(LogFile, tbuf, cnt, 0) >= 0)
+				break;
+			if (status == CONNPRIV)
 				break;
 		} while (errno == ENOBUFS);
 	}
@@ -297,7 +311,7 @@ disconnectlog()
 		_close(LogFile);
 		LogFile = -1;
 	}
-	connected = 0;			/* retry connect */
+	status = NOCONN;			/* retry connect */
 }
 
 static void
@@ -310,27 +324,41 @@ connectlog()
 			return;
 		(void)_fcntl(LogFile, F_SETFD, 1);
 	}
-	if (LogFile != -1 && !connected) {
+	if (LogFile != -1 && status == NOCONN) {
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
 		SyslogAddr.sun_family = AF_UNIX;
-		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
-		    sizeof SyslogAddr.sun_path);
-		connected = _connect(LogFile, (struct sockaddr *)&SyslogAddr,
-			sizeof(SyslogAddr)) != -1;
 
-		if (!connected) {
+		/*
+		 * First try priveleged socket. If no success,
+		 * then try default socket.
+		 */
+		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG_PRIV,
+		    sizeof SyslogAddr.sun_path);
+		if (_connect(LogFile, (struct sockaddr *)&SyslogAddr,
+		    sizeof(SyslogAddr)) != -1)
+			status = CONNPRIV;
+
+		if (status == NOCONN) {
+			(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
+			    sizeof SyslogAddr.sun_path);
+			if (_connect(LogFile, (struct sockaddr *)&SyslogAddr,
+			    sizeof(SyslogAddr)) != -1)
+				status = CONNDEF;
+		}
+
+		if (status == NOCONN) {
 			/*
 			 * Try the old "/dev/log" path, for backward
 			 * compatibility.
 			 */
 			(void)strncpy(SyslogAddr.sun_path, _PATH_OLDLOG,
 			    sizeof SyslogAddr.sun_path);
-			connected = _connect(LogFile,
-				(struct sockaddr *)&SyslogAddr,
-				sizeof(SyslogAddr)) != -1;
+			if (_connect(LogFile, (struct sockaddr *)&SyslogAddr,
+			    sizeof(SyslogAddr)) != -1)
+				status = CONNDEF;
 		}
 
-		if (!connected) {
+		if (status == NOCONN) {
 			(void)_close(LogFile);
 			LogFile = -1;
 		}
@@ -360,7 +388,7 @@ closelog()
 	(void)_close(LogFile);
 	LogFile = -1;
 	LogTag = NULL;
-	connected = 0;
+	status = NOCONN;
 }
 
 /* setlogmask -- set the log mask level */
