@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.6 1994/11/05 17:28:03 ache Exp $
+ *	$Id: test.c,v 1.7 1994/11/05 17:31:23 ache Exp $
  */
 
 #ifndef lint
@@ -347,9 +347,12 @@ exist:
 		i = S_IROTH;
 		goto permission;
 	case ISWRITE:
-		if (geteuid() == 0)
-			goto exist;
-		i = S_IWOTH;
+		if (geteuid() != 0)
+			i = S_IWOTH;
+		else {
+			i = S_IWOTH|S_IWGRP|S_IWUSR;
+			goto filebit;
+		}
 		goto permission;
 	case ISEXEC:
 		if (geteuid() != 0) {
