@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_bio 9
+.Dt G_BIO 9
 .Os
 .Sh NAME
 .Nm g_new_bio ,
@@ -46,14 +46,14 @@
 .Fn g_print_bio "struct bio *bp"
 .Sh DESCRIPTION
 A
-.Fa struct bio
+.Vt "struct bio"
 is used by GEOM to describe I/O requests, its
 most important fields are described below:
 .Bl -tag -width ".Va bio_attribute"
 .It Va bio_cmd
 I/O request command.
 There are four I/O requests available in GEOM:
-.Bl -tag -width BIO_GETATTR
+.Bl -tag -width ".Dv BIO_GETATTR"
 .It Dv BIO_READ
 A read request.
 .It Dv BIO_WRITE
@@ -78,7 +78,7 @@ Offset into provider.
 Pointer to data buffer.
 .It Va bio_flags
 Available flags:
-.Bl -tag -width BIO_GETATTR
+.Bl -tag -width ".Dv BIO_GETATTR"
 .It Dv BIO_ERROR
 Request failed (error value is stored in
 .Va bio_error
@@ -91,36 +91,45 @@ Available for private use.
 Available for private use.
 .El
 .It Va bio_error
-Error value when BIO_ERROR is set.
+Error value when
+.Dv BIO_ERROR
+is set.
 .It Va bio_done
 Pointer to function which will be called when the request is finished.
 .It Va bio_driver1
-Private use by the callee (ie: the provider).
+Private use by the callee (i.e., the provider).
 .It Va bio_driver2
-Private use by the callee (ie: the provider).
+Private use by the callee (i.e., the provider).
 .It Va bio_caller1
-Private use by the caller (ie: the consumer).
+Private use by the caller (i.e., the consumer).
 .It Va bio_caller2
-Private use by the caller (ie: the consumer).
+Private use by the caller (i.e., the consumer).
 .It Va bio_attribute
-Attribute string for BIO_GETATTR request.
+Attribute string for
+.Dv BIO_GETATTR
+request.
 .It Va bio_from
 Consumer to use for request (attached to provider stored in
 .Va bio_to
-field) (typically read\-only for a class).
+field) (typically read-only for a class).
 .It Va bio_to
-Destination provider (typically read\-only for a class).
+Destination provider (typically read-only for a class).
 .It Va bio_length
 Request length in bytes.
 .It Va bio_completed
 Number of bytes completed, but they may not be completed from
 the front of the request.
 .It Va bio_children
-Number of bio clones (typically read\-only for a class).
+Number of
+.Vt bio
+clones (typically read-only for a class).
 .It Va bio_inbed
-Number of finished bio clones.
+Number of finished
+.Vt bio
+clones.
 .It Va bio_parent
-Pointer to parent bio.
+Pointer to parent
+.Vt bio .
 .El
 .Pp
 The
@@ -183,13 +192,15 @@ and
 .Fn g_clone_bio
 functions return a pointer to the allocated
 .Vt bio ,
-or NULL if an error occurred.
+or
+.Dv NULL
+if an error occurred.
 .Sh EXAMPLES
 Implementation of
-.Dq Dv NULL Ns \-transformation ,
+.Dq Dv NULL Ns -transformation ,
 meaning that an I/O request is cloned and scheduled down without any
 modifications.
-Let's assume that field
+Let us assume that field
 .Va ex_consumer
 in structure
 .Vt example_softc
