@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.72 1998/01/28 04:05:26 jkh Exp $
+#	$Id: Makefile,v 1.246.2.73 1998/01/30 20:54:25 brian Exp $
 #
 # How to roll a release:
 #
@@ -124,17 +124,9 @@ rerelease release:
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P src
-.if defined(INTCVSROOT)
-	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P src/secure src/eBones
-.endif
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
-.if defined(INTCVSROOT)
-	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
-.endif
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
