@@ -1911,7 +1911,20 @@ SuffFindNormalDeps(gn, slst)
 	targ->cp = Lst_Init(FALSE);
 #endif
 
-	SuffAddLevel(srcs, targ);
+	/*
+	 * Only use the default suffix rules if we don't have commands
+	 * or dependencies defined for this gnode
+	 */
+	if (Lst_IsEmpty(gn->commands) && Lst_IsEmpty(gn->children))
+  	    SuffAddLevel(srcs, targ);
+	else {
+	    if (DEBUG(SUFF))
+		printf("not ");
+	}
+
+	if (DEBUG(SUFF))
+	    printf("adding suffix rules\n");
+
 	(void)Lst_AtEnd(targs, (ClientData)targ);
     }
 
