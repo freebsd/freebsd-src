@@ -131,7 +131,7 @@ main(int argc, char *argv[])
 	usage();
     if (opt_dir) {
 	if (stat(opt_dir, &sb))
-	    err(2, opt_dir);
+	    err(2, "%s", opt_dir);
 	if (!S_ISDIR(sb.st_mode))
 	    errx(2, "%s: not a directory", opt_dir);
     }
@@ -209,9 +209,9 @@ ckdist(const char *path, int type)
 	rval = report(path, NULL, E_UNKNOWN);
     }
     if (ferror(fp))
-	warn(path);
+	warn("%s", path);
     if (fp != stdin && fclose(fp))
-	err(2, path);
+	err(2, "%s", path);
     return rval;
 }
 
@@ -244,7 +244,7 @@ chkmd5(FILE * fp, const char *path)
 		if ((fd = open(dname, O_RDONLY)) == -1)
 		    error = E_ERRNO;
 		else if (close(fd))
-		    err(2, dname);
+		    err(2, "%s", dname);
 	    } else if (!MD5File((char *)dname, chk))
 		error = E_ERRNO;
 	    else if (strcmp(chk, sum))
@@ -301,7 +301,7 @@ chkinf(FILE * fp, const char *path)
 		error = E_CHKSUM;
 	}
 	if (fd != -1 && close(fd))
-	    err(2, dname);
+	    err(2, "%s", dname);
 	if (opt_ignore && error == E_ERRNO && errno == ENOENT)
 	    continue;
 	if (error || (opt_all && cnt >= 0))
