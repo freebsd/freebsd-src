@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.47 1998/11/10 21:45:18 dfr Exp $
+ * $Id: conf.h,v 1.48 1998/11/14 21:58:41 wollman Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -230,7 +230,7 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+major)
 
 #define BDEV_MODULE(name, bdev, cdev, devsw, evh, arg)			\
 static struct bdevsw_module_data name##_bdevsw_mod = {			\
-    evh, arg, mdev == NODEV ? NODEV : makedev(bdev, 0),			\
+    evh, arg, bdev == NODEV ? NODEV : makedev(bdev, 0),			\
     cdev == NODEV ? NODEV :  makedev(cdev, 0), &devsw			\
 };									\
 									\
