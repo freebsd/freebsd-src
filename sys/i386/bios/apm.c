@@ -675,11 +675,11 @@ apm_get_info(apm_info_t aip)
 	sc->bios.r.ecx = 0;
 	sc->bios.r.edx = 0;
 	if (apm_bioscall()) {
-		aip->ai_batteries = -1;	/* Unknown */
+		aip->ai_batteries = 0xffffffff;	/* Unknown */
 		aip->ai_capabilities = 0xff00; /* Unknown, with no bits set */
 	} else {
 		aip->ai_batteries = sc->bios.r.ebx & 0xff;
-		aip->ai_capabilities = sc->bios.r.ecx & 0xf;
+		aip->ai_capabilities = sc->bios.r.ecx & 0xff;
 	}
 
 	bzero(aip->ai_spare, sizeof aip->ai_spare);
