@@ -527,3 +527,6 @@ DEV_BPF			opt_bpf.h
 
 # ed driver
 ED_NO_MIIBUS		opt_ed.h
+
+# Polling device handling
+DEVICE_POLLING		opt_global.h
