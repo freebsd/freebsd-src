@@ -465,6 +465,7 @@ struct mount_args;
 struct nameidata;
 struct sysctl_req;
 
+typedef int vfs_cmount_t(char *path, void *data, int flags, struct thread *td);
 typedef int vfs_omount_t(struct mount *mp, char *path, caddr_t data,
 			 struct thread *td);
 typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
@@ -494,6 +495,7 @@ typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
 	vfs_omount_t		*vfs_omount;
+	vfs_cmount_t		*vfs_cmount;
 	vfs_start_t		*vfs_start;
 	vfs_unmount_t		*vfs_unmount;
 	vfs_root_t		*vfs_root;
@@ -507,7 +509,6 @@ struct vfsops {
 	vfs_init_t		*vfs_init;
 	vfs_uninit_t		*vfs_uninit;
 	vfs_extattrctl_t	*vfs_extattrctl;
-	/* Additions below are not binary compatible with 5.0 and below. */
 	vfs_sysctl_t		*vfs_sysctl;
 };
 
