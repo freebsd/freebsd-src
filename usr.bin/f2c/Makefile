@@ -3,7 +3,7 @@
 PROG=	f2c
 
 g = -O -g
-CFLAGS = $g -DANSI_Libraries
+CFLAGS = $g -DANSI_Libraries -I${.CURDIR} -I.
 SHELL = /bin/sh
 
 SRCSd =	main.c init.c gram.c lex.c proc.c equiv.c data.c format.c \
@@ -12,16 +12,19 @@ SRCSd =	main.c init.c gram.c lex.c proc.c equiv.c data.c format.c \
 	parse_args.c niceprintf.c cds.c sysdep.c version.c
 SRCS =	$(SRCSd) malloc.c
 
-gram.c:	gram.head gram.dcl gram.expr gram.exec gram.io defs.h tokdefs.h
-	( sed <tokdefs.h "s/#define/%token/" ;\
-		cat gram.head gram.dcl gram.expr gram.exec gram.io ) >gram.in
+GRAMFILES = ${.CURDIR}/gram.head ${.CURDIR}/gram.dcl ${.CURDIR}/gram.expr\
+	${.CURDIR}/gram.exec ${.CURDIR}/gram.io
+
+gram.c:	${GRAMFILES} ${.CURDIR}/defs.h tokdefs.h
+	(sed < tokdefs.h "s/#define/%token/" ; \
+	cat ${GRAMFILES}) > gram.in
 	$(YACC) $(YFLAGS) gram.in
 	echo "(expect 4 shift/reduce)"
 	sed 's/^# line.*/\/* & *\//' y.tab.c >gram.c
 	rm -f gram.in y.tab.c
 
-tokdefs.h: tokens
-	grep -n . <tokens | sed "s/\([^:]*\):\(.*\)/#define \2 \1/" >tokdefs.h
+tokdefs.h: ${.CURDIR}/tokens
+	grep -n . <${.CURDIR}/tokens | sed "s/\([^:]*\):\(.*\)/#define \2 \1/" >tokdefs.h
 
 CLEANFILES+=\
 	gram.c tokdefs.h
