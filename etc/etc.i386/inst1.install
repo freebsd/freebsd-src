@@ -71,6 +71,7 @@ while read data; do
 		part_id=
 	elif [  "$part_id" ]; then
 		sysid=`expr "$data" : 'sysid \([0-9]*\)'`
+		sysname=`expr "$data" : 'sysid[^(]*(\([^)]*\)'`
 		if [ "$no_part_table" -o "$sysid" = "0" -o \
 		    "$(expr "$data" : '\(<UNUSED>\)')" = "<UNUSED>" ]; then
 			unused_last_part=$part_id
@@ -79,6 +80,7 @@ while read data; do
 		fi
 		[ "$sysid" = "$OPSYSID" ] && have_opsys_part=$part_id
 		eval sysid${part_id}=$sysid
+		eval sysname${part_id}="$sysname"
 		got_sysid=1
 	else 
 		part_id=`expr "$data" : 'The data[^0-9]*\([0-9]*\)'`
@@ -418,6 +420,38 @@ if [ ! "$partition" ]; then
 			continue
 			;;
 		esac
+
+	elif [ "$part_cnt" -gt 0 ]; then
+		cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
+		disksize=`expr $cylindersize \* $cyls_per_disk`
+		echo
+		echo "Partition	Offset*	Size*	Name"
+		echo "---------	------	----	----"
+		i=0
+		while [ $i -lt $part_cnt ]; do
+			pcyls=
+			poff=
+			eval psize=\$size${i}
+			eval pstart=\$start${i}
+			eval pname=\$sysname${i}
+			[ "$psize" -eq 50000 ] && psize=$disksize
+			if [ "$psize" ]; then
+				poff=`expr $pstart / $cylindersize`
+				padjusted=`expr $poff \* $cylindersize`
+				if [ "$padjusted" -lt "$pstart" ]; then
+					poff=`expr $poff + 1`
+					padjusted=`expr $poff \* $cylindersize`
+					psize=`expr $psize - $padjusted + $pstart`
+				fi
+				pcyls=`expr $psize / $cylindersize`
+			fi
+			echo -n "${i}"
+			echo -n "		${poff:-0}"
+			echo -n "	${pcyls:-0}"
+			echo "	${pname:-(Unused)}"
+			i=`expr $i + 1`
+		done
+		echo "* Sizes and offsets are in units of cylinders."
 	fi
 fi
 echo
