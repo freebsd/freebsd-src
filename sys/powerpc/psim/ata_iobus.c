@@ -37,6 +37,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
