@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * Copyright (c) 1995, David Greenman
+ * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,7 +236,10 @@ struct fxp_cb_tx {
 	volatile u_int8_t tx_threshold;
 	volatile u_int8_t tbd_number;
 	/*
-	 * The following isn't actually part of the TxCB.
+	 * The following structure isn't actually part of the TxCB,
+	 * unless the extended TxCB feature is being used.  In this
+	 * case, the first two elements of the structure below are 
+	 * fetched along with the TxCB.
 	 */
 	volatile struct fxp_tbd tbd[FXP_NTXSEG];
 };
