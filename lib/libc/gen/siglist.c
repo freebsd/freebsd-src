@@ -107,3 +107,4 @@ const char *const sys_siglist[NSIG] = {
 	"User defined signal 1",	/* SIGUSR1 */
 	"User defined signal 2"		/* SIGUSR2 */
 };
+const int sys_nsig = sizeof(sys_siglist) / sizeof(sys_siglist[0]);
