@@ -49,9 +49,9 @@
 .In vm/vm.h
 .In vm/vm_extern.h
 .Ft void
-.Fn vslock "caddr_t addr" "u_int len"
+.Fn vslock "void *addr" "u_int len"
 .Ft void
-.Fn vsunlock "caddr_t addr" "u_int len"
+.Fn vsunlock "void *addr" "u_int len"
 .Sh DESCRIPTION
 The
 .Fn vslock
