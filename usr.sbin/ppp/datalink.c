@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.35 1999/03/04 17:42:15 brian Exp $
+ *	$Id: datalink.c,v 1.25.2.3 1999/03/24 18:03:09 brian Exp $
  */
 
 #include <sys/param.h>
@@ -494,7 +494,7 @@ datalink_LayerUp(void *v, struct fsm *fp)
     lcp->auth_ineed = lcp->want_auth;
     lcp->auth_iwait = lcp->his_auth;
     if (lcp->his_auth || lcp->want_auth) {
-      if (bundle_Phase(dl->bundle) == PHASE_ESTABLISH)
+      if (bundle_Phase(dl->bundle) != PHASE_NETWORK)
         bundle_NewPhase(dl->bundle, PHASE_AUTHENTICATE);
       log_Printf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
                 Auth2Nam(lcp->his_auth, lcp->his_authtype),
