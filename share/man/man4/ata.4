@@ -82,9 +82,11 @@ The currently supported controllers with their maximum speed include:
 .Pp
 .Bl -tag -width "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -compact
 .It Acerlabs Aladdin
-Ultra DMA 33 (UDMA2), 33 MB/sec
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
 .It AMD 756
 Ultra DMA 66 (UDMA4), 66 MB/sec
+.It AMD 766
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It CMD 646
 DMA 2 (WDMA2), 16 MB/sec
 .It CMD 648
@@ -117,6 +119,8 @@ Ultra DMA 33 (UDMA2), 33 MB/sec
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It Promise Ultra/Fasttrak-100
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-100 TX2/TX4
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It ServerWorks ROSB4
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It SiS 5591
@@ -129,7 +133,7 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .El
 .Pp
-All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
+All unknown chipsets are supported at the maximum speed of 16 MB/sec.
 .Pp
 The
 .Nm
