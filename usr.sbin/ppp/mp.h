@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.10 1998/05/01 19:25:28 brian Exp $
+ *	$Id: mp.h,v 1.1.2.11 1998/05/02 21:57:50 brian Exp $
  */
 
 struct mbuf;
@@ -82,7 +82,11 @@ struct mp {
   struct mpserver server;	/* Our ``sharing'' socket */
 
   struct {
-    u_int32_t out;		/* next outgoing seq */
+    u_int32_t seq;		/* next outgoing seq */
+    int link;			/* Next link to send on */
+  } out;
+
+  struct {
     u_int32_t min_in;		/* minimum received incoming seq */
     u_int32_t next_in;		/* next incoming seq to process */
   } seq;

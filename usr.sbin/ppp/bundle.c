@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.68 1998/05/01 19:23:55 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.69 1998/05/02 21:57:42 brian Exp $
  */
 
 #include <sys/types.h>
@@ -836,8 +836,13 @@ bundle_ShowLinks(struct cmdargs const *arg)
 {
   struct datalink *dl;
 
-  for (dl = arg->bundle->links; dl; dl = dl->next)
-    prompt_Printf(arg->prompt, "Name: %s [%s]\n", dl->name, datalink_State(dl));
+  for (dl = arg->bundle->links; dl; dl = dl->next) {
+    prompt_Printf(arg->prompt, "Name: %s [%s]", dl->name, datalink_State(dl));
+    if (dl->physical->link.throughput.rolling)
+      prompt_Printf(arg->prompt, " (%d bytes/sec)",
+                    dl->physical->link.throughput.OctetsPerSecond);
+    prompt_Printf(arg->prompt, "\n");
+  }
 
   return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.19 1998/05/01 19:25:27 brian Exp $
+ *	$Id: mp.c,v 1.1.2.20 1998/05/02 21:57:49 brian Exp $
  */
 
 #include <sys/types.h>
@@ -163,7 +163,8 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 
   peerid_Init(&mp->peer);
 
-  mp->seq.out = 0;
+  mp->out.seq = 0;
+  mp->out.link = 0;
   mp->seq.min_in = 0;
   mp->seq.next_in = 0;
   mp->inbufs = NULL;
@@ -230,7 +231,8 @@ mp_Up(struct mp *mp, struct datalink *dl)
     memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
     memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
 
-    mp->seq.out = 0;
+    mp->out.seq = 0;
+    mp->out.link = 0;
     mp->seq.min_in = 0;
     mp->seq.next_in = 0;
 
@@ -496,19 +498,19 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
     u_int16_t *seq16;
 
     seq16 = (u_int16_t *)MBUF_CTOP(mo);
-    *seq16 = htons((begin << 15) | (end << 14) | (u_int16_t)mp->seq.out);
+    *seq16 = htons((begin << 15) | (end << 14) | (u_int16_t)mp->out.seq);
     mo->cnt = 2;
   } else {
     u_int32_t *seq32;
 
     seq32 = (u_int32_t *)MBUF_CTOP(mo);
-    *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->seq.out);
+    *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->out.seq);
     mo->cnt = 4;
   }
   if (log_IsKept(LogDEBUG))
-    log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on %s\n",
-              mp->seq.out, mbuf_Length(mo), l->name);
-  mp->seq.out = inc_seq(mp, mp->seq.out);
+    log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
+              mp->out.seq, mbuf_Length(mo), l->name);
+  mp->out.seq = inc_seq(mp, mp->out.seq);
 
   hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
 }
@@ -517,63 +519,86 @@ int
 mp_FillQueues(struct bundle *bundle)
 {
   struct mp *mp = &bundle->ncp.mp;
-  struct datalink *dl;
-  int total, add, len, begin, end, looped;
+  struct datalink *dl, *fdl;
+  int total, add, len, begin, end, thislink, nlinks;
   struct mbuf *m, *mo;
 
-  /*
-   * XXX:  This routine is fairly simplistic.  It should re-order the
-   *       links based on the amount of data less than the links weight
-   *       that was queued.  That way we'd ``prefer'' the least used
-   *       links the next time 'round.
-   */
+  thislink = nlinks = 0;
+  for (fdl = NULL, dl = bundle->links; dl; dl = dl->next) {
+    if (!fdl) {
+      if (thislink == mp->out.link)
+        fdl = dl;
+      else
+        thislink++;
+    }
+    nlinks++;
+  }
+
+  if (!fdl) {
+    fdl = bundle->links;
+    thislink = 0;
+  }
 
   total = 0;
-  for (dl = bundle->links; dl; dl = dl->next) {
+  for (dl = fdl; nlinks > 0; dl = dl->next, nlinks--, thislink++) {
+    if (!dl) {
+      dl = bundle->links;
+      thislink = 0;
+    }
+
     if (dl->state != DATALINK_OPEN)
       continue;
+
     if (dl->physical->out)
       /* this link has suffered a short write.  Let it continue */
       continue;
+
     add = link_QueueLen(&dl->physical->link);
     total += add;
     if (add)
       /* this link has got stuff already queued.  Let it continue */
       continue;
+
     if (!link_QueueLen(&mp->link) && !ip_FlushPacket(&mp->link, bundle))
       /* Nothing else to send */
       break;
 
     m = link_Dequeue(&mp->link);
     len = mbuf_Length(m);
-    add += len;
     begin = 1;
     end = 0;
-    looped = 0;
 
-    for (; !end; dl = dl->next) {
-      if (dl == NULL) {
-        /* Keep going 'till we get rid of the whole of `m' */
-        looped = 1;
-        dl = bundle->links;
+    while (!end) {
+      if (dl->state == DATALINK_OPEN) {
+        if (len <= dl->mp.weight + LINK_MINWEIGHT) {
+          /*
+           * XXX: Should we remember how much of our `weight' wasn't sent
+           *      so that we can compensate next time ?
+           */
+          mo = m;
+          end = 1;
+        } else {
+          mo = mbuf_Alloc(dl->mp.weight, MB_MP);
+          mo->cnt = dl->mp.weight;
+          len -= mo->cnt;
+          m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
+        }
+        mp_Output(mp, &dl->physical->link, mo, begin, end);
+        begin = 0;
       }
-      if (dl->state != DATALINK_OPEN)
-        continue;
-      if (len <= dl->mp.weight + LINK_MINWEIGHT) {
-        mo = m;
-        end = 1;
-      } else {
-        mo = mbuf_Alloc(dl->mp.weight, MB_MP);
-        mo->cnt = dl->mp.weight;
-        len -= mo->cnt;
-        m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
+
+      if (!end) {
+        nlinks--;
+        dl = dl->next;
+        if (!dl) {
+          dl = bundle->links;
+          thislink = 0;
+        } else
+          thislink++;
       }
-      mp_Output(mp, &dl->physical->link, mo, begin, end);
-      begin = 0;
     }
-    if (!dl || looped)
-      break;
   }
+  mp->out.link = thislink;		/* Start here next time */
 
   return total;
 }
@@ -602,9 +627,16 @@ mp_ShowStatus(struct cmdargs const *arg)
   struct mp *mp = &arg->bundle->ncp.mp;
 
   prompt_Printf(arg->prompt, "Multilink is %sactive\n", mp->active ? "" : "in");
-  if (mp->active)
+  if (mp->active) {
+    struct mbuf *m;
+    int bufs = 0;
+
     prompt_Printf(arg->prompt, "Socket:         %s\n",
                   mp->server.socket.sun_path);
+    for (m = mp->inbufs; m; m = m->pnext)
+      bufs++;
+    prompt_Printf(arg->prompt, "Pending frags:  %d\n", bufs);
+  }
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");
   if (mp->active) {
@@ -619,7 +651,7 @@ mp_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "\nHis Side:\n");
   if (mp->active) {
     prompt_Printf(arg->prompt, " Auth Name:     %s\n", mp->peer.authname);
-    prompt_Printf(arg->prompt, " Next SEQ:      %u\n", mp->seq.out);
+    prompt_Printf(arg->prompt, " Next SEQ:      %u\n", mp->out.seq);
     prompt_Printf(arg->prompt, " MRRU:          %u\n", mp->peer_mrru);
     prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   mp->peer_is12bit ? "on" : "off");
