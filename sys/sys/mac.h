@@ -348,6 +348,7 @@ int	mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
 int	mac_check_vnode_stat(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
+int	mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_write(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
