@@ -42,7 +42,9 @@
 /*
  * Transmit descriptor list size.  This is arbitrary, but allocate
  * enough descriptors for 64 pending transmissions and 16 segments
- * per packet.
+ * per packet. This limit is not actually enforced (packets with more segments
+ * can be sent, depending on the busdma backend); it is however used as an
+ * estimate for the tx window size.
  */
 #define	GEM_NTXSEGS		16
 

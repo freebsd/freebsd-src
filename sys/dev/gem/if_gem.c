@@ -33,7 +33,9 @@
  * Driver for Sun GEM ethernet controllers.
  */
 
+#if 0
 #define	GEM_DEBUG
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -109,7 +111,7 @@ MODULE_DEPEND(gem, miibus, 1, 1, 1);
 #define	KTR_GEM		KTR_CT2
 #endif
 
-#define	GEM_NSEGS GEM_NTXSEGS
+#define	GEM_NSEGS GEM_NTXDESC
 
 /*
  * gem_attach:
@@ -144,7 +146,7 @@ gem_attach(sc)
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    GEM_TD_BUFSIZE, GEM_NTXSEGS, BUS_SPACE_MAXSIZE_32BIT,
+	    GEM_TD_BUFSIZE, GEM_NTXDESC, BUS_SPACE_MAXSIZE_32BIT,
 	    BUS_DMA_ALLOCNOW, &sc->sc_tdmatag);
 	if (error)
 		goto fail_rtag;
@@ -470,10 +472,12 @@ gem_txdma_callback(xsc, segs, nsegs, totsz, error)
 	 */
 	for (seg = 0; seg < nsegs;
 	     seg++, nexttx = GEM_NEXTTX(nexttx)) {
+#ifdef GEM_DEBUG
 		CTR5(KTR_GEM, "txdma_cb: mapping seg %d (txd %d), len "
 		    "%lx, addr %#lx (%#lx)",  seg, nexttx,
 		    segs[seg].ds_len, segs[seg].ds_addr,
 		    GEM_DMA_WRITE(sc, segs[seg].ds_addr));
+#endif
 
 		if (segs[seg].ds_len == 0)
 			continue;
@@ -483,8 +487,10 @@ gem_txdma_callback(xsc, segs, nsegs, totsz, error)
 		    ("gem_txdma_callback: segment size too large!"));
 		flags = segs[seg].ds_len & GEM_TD_BUFSIZE;
 		if (len == 0) {
+#ifdef GEM_DEBUG
 			CTR2(KTR_GEM, "txdma_cb: start of packet at seg %d, "
 			    "tx %d", seg, nexttx);
+#endif
 			flags |= GEM_TD_START_OF_PACKET;
 			if (++sc->sc_txwin > GEM_NTXSEGS * 2 / 3) {
 				sc->sc_txwin = 0;
@@ -492,8 +498,10 @@ gem_txdma_callback(xsc, segs, nsegs, totsz, error)
 			}
 		}
 		if (len + segs[seg].ds_len == totsz) {
+#ifdef GEM_DEBUG
 			CTR2(KTR_GEM, "txdma_cb: end of packet at seg %d, "
 			    "tx %d", seg, nexttx);
+#endif
 			flags |= GEM_TD_END_OF_PACKET;
 		}
 		sc->sc_txdescs[nexttx].gd_flags = GEM_DMA_WRITE(sc, flags);
@@ -545,7 +553,9 @@ gem_reset(sc)
 	int s;
 
 	s = splnet();
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_reset", device_get_name(sc->sc_dev));
+#endif
 	gem_reset_rx(sc);
 	gem_reset_tx(sc);
 
@@ -592,7 +602,9 @@ gem_stop(ifp, disable)
 	struct gem_softc *sc = (struct gem_softc *)ifp->if_softc;
 	struct gem_txsoft *txs;
 
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_stop", device_get_name(sc->sc_dev));
+#endif
 
 	callout_stop(&sc->sc_tick_ch);
 
@@ -846,7 +858,9 @@ gem_init(xsc)
 
 	s = splnet();
 
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_init: calling stop", device_get_name(sc->sc_dev));
+#endif
 	/*
 	 * Initialization sequence. The numbered steps below correspond
 	 * to the sequence outlined in section 6.3.5.1 in the Ethernet
@@ -857,7 +871,9 @@ gem_init(xsc)
 	/* step 1 & 2. Reset the Ethernet Channel */
 	gem_stop(&sc->sc_arpcom.ac_if, 0);
 	gem_reset(sc);
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_init: restarting", device_get_name(sc->sc_dev));
+#endif
 
 	/* Re-initialize the MIF */
 	gem_mifinit(sc);
@@ -881,8 +897,10 @@ gem_init(xsc)
 
 	bus_space_write_4(t, h, GEM_RX_RING_PTR_HI, 0);
 	bus_space_write_4(t, h, GEM_RX_RING_PTR_LO, GEM_CDRXADDR(sc, 0));
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "loading rx ring %lx, tx ring %lx, cddma %lx",
 	    GEM_CDRXADDR(sc, 0), GEM_CDTXADDR(sc, 0), sc->sc_cddma);
+#endif
 
 	/* step 8. Global Configuration & Interrupt Mask */
 	bus_space_write_4(t, h, GEM_INTMASK,
@@ -978,9 +996,11 @@ gem_load_txmbuf(sc, m0)
 	bus_dmamap_sync(sc->sc_tdmatag, txs->txs_dmamap,
 	    BUS_DMASYNC_PREWRITE);
 
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "load_mbuf: setting firstdesc=%d, lastdesc=%d, "
 	    "ndescs=%d", txs->txs_firstdesc, txs->txs_lastdesc,
 	    txs->txs_ndescs);
+#endif
 	STAILQ_REMOVE_HEAD(&sc->sc_txfreeq, txs_q);
 	STAILQ_INSERT_TAIL(&sc->sc_txdirtyq, txs, txs_q);
 
@@ -989,7 +1009,9 @@ gem_load_txmbuf(sc, m0)
 	return (0);
 
 fail:
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "gem_load_txmbuf failed (%d)", error);
+#endif
 	bus_dmamap_unload(sc->sc_tdmatag, txs->txs_dmamap);
 	return (error);
 }
@@ -1091,7 +1113,7 @@ gem_start(ifp)
 {
 	struct gem_softc *sc = (struct gem_softc *)ifp->if_softc;
 	struct mbuf *m0 = NULL;
-	int firsttx, ntx, ofree, txmfail;
+	int firsttx, ntx = 0, ofree, txmfail;
 
 	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
 		return;
@@ -1103,8 +1125,10 @@ gem_start(ifp)
 	ofree = sc->sc_txfree;
 	firsttx = sc->sc_txnext;
 
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "%s: gem_start: txfree %d, txnext %d",
 	    device_get_name(sc->sc_dev), ofree, firsttx);
+#endif
 
 	/*
 	 * Loop through the send queue, setting up transmit descriptors
@@ -1112,7 +1136,7 @@ gem_start(ifp)
 	 * descriptors.
 	 */
 	txmfail = 0;
-	for (ntx = 0;; ntx++) {
+	do {
 		/*
 		 * Grab a packet off the queue.
 		 */
@@ -1135,15 +1159,18 @@ gem_start(ifp)
 			break;
 		}
 
+		ntx++;
 		/* Kick the transmitter. */
+#ifdef GEM_DEBUG
 		CTR2(KTR_GEM, "%s: gem_start: kicking tx %d",
 		    device_get_name(sc->sc_dev), sc->sc_txnext);
+#endif
 		bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_TX_KICK,
 			sc->sc_txnext);
 
 		if (ifp->if_bpf != NULL)
 			bpf_mtap(ifp->if_bpf, m0);
-	}
+	} while (1);
 
 	if (txmfail == -1 || sc->sc_txfree == 0) {
 		/* No more slots left; notify upper layer. */
@@ -1153,13 +1180,17 @@ gem_start(ifp)
 	if (ntx > 0) {
 		GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
 
+#ifdef GEM_DEBUG
 		CTR2(KTR_GEM, "%s: packets enqueued, OWN on %d",
 		    device_get_name(sc->sc_dev), firsttx);
+#endif
 
 		/* Set a watchdog timer in case the chip flakes out. */
 		ifp->if_timer = 5;
+#ifdef GEM_DEBUG
 		CTR2(KTR_GEM, "%s: gem_start: watchdog %d",
 			device_get_name(sc->sc_dev), ifp->if_timer);
+#endif
 	}
 }
 
@@ -1178,7 +1209,9 @@ gem_tint(sc)
 	int progress = 0;
 
 
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_tint", device_get_name(sc->sc_dev));
+#endif
 
 	/*
 	 * Unload collision counters
@@ -1228,9 +1261,11 @@ gem_tint(sc)
 		 * processed +1.
 		 */
 		txlast = bus_space_read_4(t, mac, GEM_TX_COMPLETION);
+#ifdef GEM_DEBUG
 		CTR3(KTR_GEM, "gem_tint: txs->txs_firstdesc = %d, "
 		    "txs->txs_lastdesc = %d, txlast = %d",
 		    txs->txs_firstdesc, txs->txs_lastdesc, txlast);
+#endif
 		if (txs->txs_firstdesc <= txs->txs_lastdesc) {
 			if ((txlast >= txs->txs_firstdesc) &&
 				(txlast <= txs->txs_lastdesc))
@@ -1242,7 +1277,9 @@ gem_tint(sc)
 				break;
 		}
 
+#ifdef GEM_DEBUG
 		CTR0(KTR_GEM, "gem_tint: releasing a desc");
+#endif
 		STAILQ_REMOVE_HEAD(&sc->sc_txdirtyq, txs_q);
 
 		sc->sc_txfree += txs->txs_ndescs;
@@ -1261,6 +1298,7 @@ gem_tint(sc)
 		progress = 1;
 	}
 
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "gem_tint: GEM_TX_STATE_MACHINE %x "
 		"GEM_TX_DATA_PTR %llx "
 		"GEM_TX_COMPLETION %x",
@@ -1270,6 +1308,7 @@ gem_tint(sc)
 			     bus_space_read_4(sc->sc_bustag, sc->sc_h,
 			GEM_TX_DATA_PTR_LO),
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_COMPLETION));
+#endif
 
 	if (progress) {
 		if (sc->sc_txfree == GEM_NTXDESC - 1)
@@ -1283,8 +1322,10 @@ gem_tint(sc)
 			ifp->if_timer = 0;
 	}
 
+#ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "%s: gem_tint: watchdog %d",
 		device_get_name(sc->sc_dev), ifp->if_timer);
+#endif
 }
 
 #if 0
@@ -1314,7 +1355,9 @@ gem_rint(sc)
 	int i, len, progress = 0;
 
 	callout_stop(&sc->sc_rx_ch);
+#ifdef GEM_DEBUG
 	CTR1(KTR_GEM, "%s: gem_rint", device_get_name(sc->sc_dev));
+#endif
 
 	/*
 	 * Read the completion register once.  This limits
@@ -1322,8 +1365,10 @@ gem_rint(sc)
 	 */
 	rxcomp = bus_space_read_4(t, h, GEM_RX_COMPLETION);
 
+#ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "gem_rint: sc->rxptr %d, complete %d",
 	    sc->sc_rxptr, rxcomp);
+#endif
 	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	for (i = sc->sc_rxptr; i != rxcomp;
 	     i = GEM_NEXTRX(i)) {
@@ -1403,8 +1448,10 @@ gem_rint(sc)
 		bus_space_write_4(t, h, GEM_RX_KICK, GEM_PREVRX(i));
 	}
 
+#ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "gem_rint: done sc->rxptr %d, complete %d",
 		sc->sc_rxptr, bus_space_read_4(t, h, GEM_RX_COMPLETION));
+#endif
 }
 
 
@@ -1481,9 +1528,11 @@ gem_intr(v)
 	u_int32_t status;
 
 	status = bus_space_read_4(t, seb, GEM_STATUS);
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "%s: gem_intr: cplt %x, status %x",
 		device_get_name(sc->sc_dev), (status>>19),
 		(u_int)status);
+#endif
 
 	if ((status & (GEM_INTR_RX_TAG_ERR | GEM_INTR_BERR)) != 0)
 		gem_eint(sc, status);
@@ -1520,6 +1569,7 @@ gem_watchdog(ifp)
 {
 	struct gem_softc *sc = ifp->if_softc;
 
+#ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "gem_watchdog: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
 		"GEM_MAC_RX_CONFIG %x",
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_CONFIG),
@@ -1530,6 +1580,7 @@ gem_watchdog(ifp)
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_CONFIG),
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_TX_STATUS),
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_TX_CONFIG));
+#endif
 
 	device_printf(sc->sc_dev, "device timeout\n");
 	++ifp->if_oerrors;
