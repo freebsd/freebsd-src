@@ -2247,9 +2247,9 @@ createlog(const struct conf_entry *ent)
 		slash = strrchr(tempfile, '/');
 		if (slash != NULL) {
 			*slash = '\0';
-			failed = lstat(tempfile, &st);
+			failed = stat(tempfile, &st);
 			if (failed && errno != ENOENT)
-				err(1, "Error on lstat(%s)", tempfile);
+				err(1, "Error on stat(%s)", tempfile);
 			if (failed)
 				createdir(ent, tempfile);
 			else if (!S_ISDIR(st.st_mode))
