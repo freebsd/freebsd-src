@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.5 1994/10/02 19:36:30 phk Exp $
+ *	$Id: db_machdep.h,v 1.6 1994/10/19 21:13:51 bde Exp $
  */
 
-#ifndef	_I386_DB_MACHDEP_H_
-#define	_I386_DB_MACHDEP_H_
+#ifndef _MACHINE_DB_MACHDEP_H_
+#define	_MACHINE_DB_MACHDEP_H_
 
 /*
  * Machine-dependent defines for new kernel debugger.
@@ -67,11 +67,12 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	db_clear_single_step(regs)	((regs)->tf_eflags &= ~PSL_T)
 #define	db_set_single_step(regs)	((regs)->tf_eflags |=  PSL_T)
 
-/* #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_INT3) */
-/* #define IS_WATCHPOINT_TRAP(type, code)	((type) == T_WATCHPOINT) */
-/* using the FreeBSD values, rather than the Mach ones: */
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
-#define IS_WATCHPOINT_TRAP(type, code)	((type) == T_KDBTRAP)
+/*
+ * Watchpoints are not supported.  The debug exception type is in %dr6
+ * and not yet in the args to this macro.
+ */
+#define IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	I_CALL		0xe8
 #define	I_CALLI		0xff
@@ -116,4 +117,4 @@ void		db_task_name(/* task_t */);
 
 #define db_thread_fp_used(thread)	((thread)->pcb->ims.ifps != 0)
 
-#endif	/* _I386_DB_MACHDEP_H_ */
+#endif /* !_MACHINE_DB_MACHDEP_H_ */
