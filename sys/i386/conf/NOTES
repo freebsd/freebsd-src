@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.260 1996/05/31 00:20:34 peter Exp $
+#	$Id: LINT,v 1.261 1996/06/07 15:50:08 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -217,8 +217,9 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # with mrouted(8).
 #
 # IPFIREWALL enables support for IP firewall construction, in
-# conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE does
-# the obvious thing.
+# conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
+# logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
+# limits the number of times a matching entry can be logged.
 #
 # TCPDEBUG is undocumented.
 #
@@ -227,6 +228,7 @@ options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
+options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
 options		TCPDEBUG
 
 
