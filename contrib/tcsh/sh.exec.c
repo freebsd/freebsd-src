@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.exec.c,v 3.47 1999/04/20 07:48:44 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.exec.c,v 3.48 2000/01/14 22:57:27 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.exec.c,v 3.47 1999/04/20 07:48:44 christos Exp $")
+RCSID("$Id: sh.exec.c,v 3.48 2000/01/14 22:57:27 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -827,7 +827,7 @@ static int
 hashname(cp)
     register Char *cp;
 {
-    register long h;
+    register unsigned long h;
 
     for (h = 0; *cp; cp++)
 	h = hash(h, *cp);

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.89 1999/08/13 16:32:51 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.90 2000/01/14 22:57:27 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -43,7 +43,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.89 1999/08/13 16:32:51 christos Exp $")
+RCSID("$Id: sh.c,v 3.90 2000/01/14 22:57:27 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -2188,7 +2188,7 @@ mailchk()
 #if defined(BSDTIMES) || defined(_SEQUENT_)
 	new = stb.st_mtime > time0.tv_sec;
 #else
-	new = stb.st_mtime > time0;
+	new = stb.st_mtime > seconds0;
 #endif
 	if (S_ISDIR(stb.st_mode)) {
 	    DIR *mailbox;
@@ -2207,7 +2207,7 @@ mailchk()
 #if defined(BSDTIMES) || defined(_SEQUENT_)
 		new = stb.st_mtime > time0.tv_sec;
 #else
-		new = stb.st_mtime > time0;
+		new = stb.st_mtime > seconds0;
 #endif
 		mboxdir = tempfilename;
 	    }

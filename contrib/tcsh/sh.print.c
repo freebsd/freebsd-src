@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.print.c,v 3.18 1999/05/11 13:07:51 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.print.c,v 3.19 2000/01/14 22:57:28 christos Exp $ */
 /*
  * sh.print.c: Primitive Output routines.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.print.c,v 3.18 1999/05/11 13:07:51 christos Exp $")
+RCSID("$Id: sh.print.c,v 3.19 2000/01/14 22:57:28 christos Exp $")
 
 #include "ed.h"
 
@@ -258,6 +258,12 @@ flush()
 #endif
 #ifdef EBADF
 	case EBADF:
+#endif
+#ifdef ESTALE
+	/*
+	 * Lost our file descriptor, exit (IRIS4D)
+	 */
+	case ESTALE:
 #endif
 	/*
 	 * Over our quota, writing the history file

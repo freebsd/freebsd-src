@@ -1,4 +1,4 @@
-# $Id: Makefile.std,v 1.88 1998/10/02 10:56:47 christos Exp $
+# $Id: Makefile.std,v 1.89 2000/01/14 22:57:25 christos Exp $
 #	Makefile.std	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -8,7 +8,7 @@
 # things; Paul Placeway, CIS Dept., Ohio State University
 #
 SHELL=/bin/sh
-VERSION=6.08
+VERSION=6.09
 BUILD=tcsh
 srcdir=.
 
