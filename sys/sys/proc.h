@@ -447,8 +447,9 @@ struct kse {
 #define	KEF_USER	0x00200	/* Process is not officially in the kernel */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
-#define	KEF_ONLOANQ	0x01000 /* KSE is on loan queue */
+#define	KEF_ONLOANQ	0x01000 /* KSE is on loan queue. */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
+#define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
 /*
  * (*) A bound KSE with a bound thread in a KSE process may be lent to
