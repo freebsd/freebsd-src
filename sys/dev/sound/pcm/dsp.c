@@ -455,15 +455,11 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	 * on dsp devices.
 	 */
 
-	if (IOCGROUP(cmd) == 'M') {
-		dev_t pdev;
-
-		pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(PCMUNIT(i_dev), SND_DEV_CTL, 0));
-		return mixer_ioctl(pdev, cmd, arg, mode, td);
-	}
+	d = dsp_get_info(i_dev);
+	if (IOCGROUP(cmd) == 'M')
+		return mixer_ioctl(d->mixer_dev, cmd, arg, mode, td);
 
     	s = spltty();
-	d = dsp_get_info(i_dev);
 	getchns(i_dev, &rdch, &wrch, 0);
 
 	kill = 0;
@@ -580,7 +576,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
 			if (rdch && wrch)
 				p->formats |= (dsp_get_flags(i_dev) & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
-			pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(PCMUNIT(i_dev), SND_DEV_CTL, 0));
+			pdev = d->mixer_dev;
 	    		p->mixers = 1; /* default: one mixer */
 	    		p->inputs = pdev->si_drv1? mix_getdevs(pdev->si_drv1) : 0;
 	    		p->left = p->right = 100;
@@ -1051,12 +1047,26 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 int
 dsp_register(int unit, int channel)
 {
-	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP, channel),
+	dev_t dt;
+	int r;
+
+	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP, channel),
 		 UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d", unit, channel);
-	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16, channel),
+	r = pcm_regdevt(dt, unit, SND_DEV_DSP, channel);
+	if (r)
+		return r;
+
+	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16, channel),
 		 UID_ROOT, GID_WHEEL, 0666, "dspW%d.%d", unit, channel);
-	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO, channel),
+	r = pcm_regdevt(dt, unit, SND_DEV_DSP16, channel);
+	if (r)
+		return r;
+
+	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO, channel),
 		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, channel);
+	r = pcm_regdevt(dt, unit, SND_DEV_AUDIO, channel);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -1064,23 +1074,46 @@ dsp_register(int unit, int channel)
 int
 dsp_registerrec(int unit, int channel)
 {
-	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSPREC, channel),
+	dev_t dt;
+	int r;
+
+	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSPREC, channel),
 		 UID_ROOT, GID_WHEEL, 0666, "dspr%d.%d", unit, channel);
 
-	return 0;
+	r = pcm_regdevt(dt, unit, SND_DEV_DSPREC, channel);
+
+	return r;
 }
 
 int
 dsp_unregister(int unit, int channel)
 {
 	dev_t pdev;
+	int r;
 
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP, channel));
+	pdev = pcm_getdevt(unit, SND_DEV_DSP, channel);
+	if (pdev == NULL)
+		return ENOENT;
 	destroy_dev(pdev);
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, channel));
+	r = pcm_unregdevt(unit, SND_DEV_DSP, channel);
+	if (r)
+		return r;
+
+	pdev = pcm_getdevt(unit, SND_DEV_DSP16, channel);
+	if (pdev == NULL)
+		return ENOENT;
 	destroy_dev(pdev);
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_AUDIO, channel));
+	r = pcm_unregdevt(unit, SND_DEV_DSP16, channel);
+	if (r)
+		return r;
+
+	pdev = pcm_getdevt(unit, SND_DEV_AUDIO, channel);
+	if (pdev == NULL)
+		return ENOENT;
 	destroy_dev(pdev);
+	r = pcm_unregdevt(unit, SND_DEV_AUDIO, channel);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -1089,11 +1122,15 @@ int
 dsp_unregisterrec(int unit, int channel)
 {
 	dev_t pdev;
+	int r;
 
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSPREC, channel));
+	pdev = pcm_getdevt(unit, SND_DEV_DSPREC, channel);
+	if (pdev == NULL)
+		return ENOENT;
 	destroy_dev(pdev);
+	r = pcm_unregdevt(unit, SND_DEV_DSPREC, channel);
 
-	return 0;
+	return r;
 }
 
 #ifdef USING_DEVFS
@@ -1126,7 +1163,7 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	cont = 1;
 	for (i = 0; cont; i++) {
-		pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, devtype, i));
+		pdev = pcm_getdevt(unit, devtype, i);
 		if (pdev->si_flags & SI_NAMED) {
 			if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
 				*dev = pdev;

@@ -234,6 +234,10 @@ u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void *pcm_getdevinfo(device_t dev);
 
+int pcm_regdevt(dev_t dev, unsigned unit, unsigned type, unsigned channel);
+dev_t pcm_getdevt(unsigned unit, unsigned type, unsigned channel);
+int pcm_unregdevt(unsigned unit, unsigned type, unsigned channel);
+
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
@@ -276,16 +280,24 @@ int sndstat_busy(void);
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
  * so that the macro versions of pcm_{,un}lock can dereference them.
+ * we also have to do this now makedev() has gone away.
  */
 
-#ifdef	PCM_DEBUG_MTX
 struct snddev_channel {
 	SLIST_ENTRY(snddev_channel) link;
 	struct pcm_channel *channel;
 };
 
+struct snddev_devt {
+	SLIST_ENTRY(snddev_devt) link;
+	dev_t dev;
+	unsigned channel;
+	unsigned type;
+};
+
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
+	SLIST_HEAD(, snddev_devt) devs;
 	struct pcm_channel *fakechan;
 	unsigned devcount, playcount, reccount, vchancount;
 	unsigned flags;
@@ -297,8 +309,11 @@ struct snddev_info {
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
 	struct mtx *lock;
+	dev_t mixer_dev;
+
 };
 
+#ifdef	PCM_DEBUG_MTX
 #define	pcm_lock(d) mtx_lock(((struct snddev_info *)(d))->lock)
 #define	pcm_unlock(d) mtx_unlock(((struct snddev_info *)(d))->lock)
 #else
