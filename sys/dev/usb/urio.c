@@ -184,7 +184,8 @@ USB_MATCH(urio)
 	    ((UGETW(dd->idVendor) == USB_VENDOR_DIAMOND &&
 	    UGETW(dd->idProduct) == USB_PRODUCT_DIAMOND_RIO500USB) ||
 	    (UGETW(dd->idVendor) == USB_VENDOR_DIAMOND2 &&
-	    UGETW(dd->idProduct) == USB_PRODUCT_DIAMOND2_RIO800USB)))
+	      (UGETW(dd->idProduct) == USB_PRODUCT_DIAMOND2_RIO600USB ||
+	      UGETW(dd->idProduct) == USB_PRODUCT_DIAMOND2_RIO800USB))))
 		return UMATCH_VENDOR_PRODUCT;
 	else
 		return UMATCH_NONE;
