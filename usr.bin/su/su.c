@@ -86,20 +86,20 @@ main(argc, argv)
 	char *targetpass;
 	int iswheelsu;
 #endif /* WHEELSU */
-	char *p, **g, *user, *shell, *username, *cleanenv[20], *nargv[4], **np;
+	char *p, **g, *user, *shell, *username, *cleanenv[20], **nargv, **np;
 	struct group *gr;
 	uid_t ruid;
-	int asme, ch, asthem, fastlogin, prio;
+	int asme, ch, asthem, fastlogin, prio, i;
 	enum { UNSET, YES, NO } iscsh = UNSET;
 	char shellbuf[MAXPATHLEN];
 
-	np = &nargv[3];
-	*np-- = NULL;
 #ifdef WHEELSU
 	iswheelsu =
 #endif /* WHEELSU */
 	asme = asthem = fastlogin = 0;
-	while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
+	user = "root";
+	while(optind < argc)
+	    if((ch = getopt(argc, argv, ARGSTR)) != EOF)
 		switch((char)ch) {
 #ifdef KERBEROS
 		case 'K':
@@ -121,9 +121,24 @@ main(argc, argv)
 		case '?':
 		default:
 			(void)fprintf(stderr, "usage: su [%s] [login]\n",
-			    ARGSTR);
+				      ARGSTR);
 			exit(1);
-		}
+		      }
+	    else
+	    {
+		user = argv[optind++];
+		break;
+	    }
+
+	if((nargv = malloc (sizeof (char *) * (argc + 4))) == NULL) {
+	    errx(1, "malloc failure");
+	}
+
+	nargv[argc + 3] = NULL;
+	for (i = argc; i >= optind; i--)
+	    nargv[i + 3] = argv[i];
+	np = &nargv[i + 3];
+
 	argv += optind;
 
 	errno = 0;
@@ -153,7 +168,6 @@ main(argc, argv)
 		}
 
 	/* get target login information, default to root */
-	user = *argv ? *argv : "root";
 	if ((pwd = getpwnam(user)) == NULL) {
 		errx(1, "unknown login: %s", user);
 	}
