@@ -41,8 +41,12 @@
 
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	446
+#define	DOSPARTSIZE	16
 #define	NDOSPART	4
 #define	NEXTDOSPART	32
+#define	DOSMAGICOFFSET	510
+#define	DOSMAGIC	0xAA55
+
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
@@ -63,7 +67,7 @@ struct dos_partition {
 	u_int32_t	dp_size;	/* partition size in sectors */
 };
 #ifdef CTASSERT
-CTASSERT(sizeof (struct dos_partition) == 16);
+CTASSERT(sizeof (struct dos_partition) == DOSPARTSIZE);
 #endif
 
 void dos_partition_dec(void const *pp, struct dos_partition *d);
