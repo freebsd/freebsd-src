@@ -65,7 +65,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     ACPI_STATUS		status;
     void		*context;
 
-    ACPI_FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
      * Special-case some devices that abuse _PRS/_CRS to mean
