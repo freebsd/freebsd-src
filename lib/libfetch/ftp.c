@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.9 1998/12/16 11:44:31 des Exp $
+ *	$Id: ftp.c,v 1.10 1998/12/16 15:29:03 des Exp $
  */
 
 /*
@@ -289,12 +289,12 @@ _ftp_connect(char *host, int port, char *user, char *pwd, int verbose)
 	}
 	if (q)
 	    *q = 0;
-	sd = fetchConnect(p, pp, verbose);
+	sd = _fetch_connect(p, pp, verbose);
 	if (q)
 	    *q = ':';
     } else {
 	/* no proxy, go straight to target */
-	sd = fetchConnect(host, port, verbose);
+	sd = _fetch_connect(host, port, verbose);
     }
 
     /* check connection */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.8 1998/12/16 10:24:55 des Exp $
+ *	$Id: http.c,v 1.9 1998/12/16 11:44:31 des Exp $
  */
 
 /*
@@ -328,12 +328,12 @@ fetchGetHTTP(struct url *URL, char *flags)
 	host[len] = 0;
 
 	/* connect */
-	sd = fetchConnect(host, port, verbose);
+	sd = _fetch_connect(host, port, verbose);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
-	if ((sd = fetchConnect(URL->host, URL->port, verbose)) == -1)
+	if ((sd = _fetch_connect(URL->host, URL->port, verbose)) == -1)
 	    goto ouch;
     }
 
