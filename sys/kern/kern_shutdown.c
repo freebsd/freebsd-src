@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.57 1999/07/20 21:29:13 green Exp $
+ * $Id: kern_shutdown.c,v 1.58 1999/08/09 10:34:57 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -426,6 +426,7 @@ SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
 static void
 dumpsys(void)
 {
+	int	error;
 
 	if (!dodump)
 		return;
@@ -439,7 +440,16 @@ dumpsys(void)
 	printf("\ndumping to dev (%d,%d), offset %ld\n",
 		major(dumpdev), minor(dumpdev), dumplo);
 	printf("dump ");
-	switch ((*bdevsw(dumpdev)->d_dump)(dumpdev)) {
+	error = (*bdevsw(dumpdev)->d_dump)(dumpdev);
+	if (error == 0) {
+		printf("succeeded\n");
+		return;
+	}
+	printf("failed, reason: ");
+	switch (error) {
+	case ENODEV:
+		printf("device doesn't support a dump routine\n");
+		break;
 
 	case ENXIO:
 		printf("device bad\n");
@@ -462,7 +472,7 @@ dumpsys(void)
 		break;
 
 	default:
-		printf("succeeded\n");
+		printf("unknown, error = %d\n", error);
 		break;
 	}
 }
