@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicename.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
+ *	$Id: devicename.c,v 1.2 1998/08/22 10:31:01 dfr Exp $
  */
 
 #include <stand.h>
@@ -32,7 +32,7 @@
 #include "bootstrap.h"
 #include "libalpha.h"
 
-static int	alpha_parsedev(struct alpha_devdesc **dev, char *devspec, char **path);
+static int	alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **path);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -40,7 +40,7 @@ static int	alpha_parsedev(struct alpha_devdesc **dev, char *devspec, char **path
  * use that.  If not, use the default device.
  */
 int
-alpha_getdev(void **vdev, char *devspec, char **path)
+alpha_getdev(void **vdev, const char *devspec, const char **path)
 {
     struct alpha_devdesc **dev = (struct alpha_devdesc **)vdev;
     int				rv;
@@ -80,12 +80,13 @@ alpha_getdev(void **vdev, char *devspec, char **path)
  * 
  */
 static int
-alpha_parsedev(struct alpha_devdesc **dev, char *devspec, char **path)
+alpha_parsedev(struct alpha_devdesc **dev, const char *devspec, const char **path)
 {
     struct alpha_devdesc *idev;
     struct devsw	*dv;
     int			i, unit, slice, partition, err;
-    char		*cp, *np;
+    char		*cp;
+    const char		*np;
 
     /* minimum length check */
     if (strlen(devspec) < 2)

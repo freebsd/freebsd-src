@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.4 1998/09/14 18:27:05 msmith Exp $
+ *	$Id: libi386.h,v 1.5 1998/09/17 23:52:10 msmith Exp $
  */
 
 
@@ -52,7 +52,7 @@ struct i386_devdesc
     } d_kind;
 };
 
-extern int	i386_getdev(void **vdev, char *devspec, char **path);
+extern int	i386_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*i386_fmtdev(void *vdev);
 extern int	i386_setcurrdev(struct env_var *ev, int flags, void *value);
 

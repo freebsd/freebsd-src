@@ -1,4 +1,4 @@
-/* $Id: libalpha.h,v 1.2 1998/08/31 21:10:40 msmith Exp $ */
+/* $Id: libalpha.h,v 1.3 1998/09/20 21:46:19 dfr Exp $ */
 
 /*
  * Copyright (c) 1996
@@ -58,7 +58,7 @@ struct alpha_devdesc
     } d_kind;
 };
 
-extern int	alpha_getdev(void **vdev, char *devspec, char **path);
+extern int	alpha_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*alpha_fmtdev(void *vdev);
 extern int	alpha_setcurrdev(struct env_var *ev, int flags, void *value);
 
