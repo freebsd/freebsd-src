@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.2 1995/04/29 01:55:21 phk Exp $
+ * $Id: disk.c,v 1.3 1995/04/29 04:00:55 phk Exp $
  *
  */
 
@@ -17,6 +17,7 @@
 #include <string.h>
 #include <err.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
@@ -64,9 +65,11 @@ Int_Open_Disk(char *name, u_long size)
 	if (!size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
-	Add_Chunk(d, 0, size, name,whole,0,0);
+	if (Add_Chunk(d, 0, size, name,whole,0,0))
+		warn("Failed to add 'whole' chunk");
 	if (ds.dss_slices[COMPATIBILITY_SLICE].ds_offset)
-		Add_Chunk(d, 0, 1, "-",reserved,0,0);
+		if (Add_Chunk(d, 0, 1, "-",reserved,0,0))
+			warn("Failed to add MBR chunk");
 	
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
@@ -93,11 +96,13 @@ Int_Open_Disk(char *name, u_long size)
 				break;
 		}	
 		flags |= CHUNK_ALIGN;
-		Add_Chunk(d,ds.dss_slices[i].ds_offset,
-			ds.dss_slices[i].ds_size, sname,ce,subtype,flags);
+		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
+			ds.dss_slices[i].ds_size, sname,ce,subtype,flags))
+			warn("failed to add chunk for slice %d",i - 1);
 		if (ce == extended)
-			Add_Chunk(d,ds.dss_slices[i].ds_offset,
-				1, "-",reserved, subtype, flags);
+			if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
+				1, "-",reserved, subtype, flags))
+				warn("failed to add MBR chunk for slice %d",i - 1);
 		if (ds.dss_slices[i].ds_type == 0xa5) {
 			struct disklabel *dl;
 			int j;
@@ -105,18 +110,26 @@ Int_Open_Disk(char *name, u_long size)
 			dl = read_disklabel(fd,
 				ds.dss_slices[i].ds_offset + LABELSECTOR);
 			if(dl) {
+				char pname[20];
 				for(j=0; j < dl->d_npartitions; j++) {
-					char pname[20];
 					sprintf(pname,"%s%c",sname,j+'a');
-					if (j == 2)
+					if (j == 2 || j == 3)
 						continue;
 					if (!dl->d_partitions[j].p_size)
 						continue;
-					Add_Chunk(d,
+					if (Add_Chunk(d,
 						dl->d_partitions[j].p_offset,
 						dl->d_partitions[j].p_size,
-						pname,part,0,0);
+						pname,part,0,0))
+						warn("Failed to add chunk for partition %c",j + 'a');
 				}
+				sprintf(pname,"%sd",sname);
+				if (!dl->d_partitions[3].p_size)
+					continue;
+				Add_Chunk(d,
+					dl->d_partitions[3].p_offset,
+					dl->d_partitions[3].p_size,
+					pname,part,0,0);
 			}
 			free(dl);
 		}
@@ -138,10 +151,11 @@ Debug_Disk(struct disk *d)
 void
 Free_Disk(struct disk *d)
 {
-	if(d->chunks)
-		Free_Chunk(d->chunks);
-	if(d->name)
-		free(d->name);
+	if(d->chunks) Free_Chunk(d->chunks);
+	if(d->name) free(d->name);
+	if(d->bootmgr) free(d->bootmgr);
+	if(d->boot1) free(d->boot1);
+	if(d->boot2) free(d->boot2);
 	free(d);
 }
 
@@ -155,6 +169,18 @@ Clone_Disk(struct disk *d)
 	*d2 = *d;
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
+	if(d2->bootmgr) {
+		d2->bootmgr = malloc(DOSPARTOFF);
+		memcpy(d2->bootmgr,d->bootmgr,DOSPARTOFF);
+	}
+	if(d2->boot1) {
+		d2->boot1 = malloc(512);
+		memcpy(d2->boot1,d->boot1,512);
+	}
+	if(d2->boot2) {
+		d2->boot2 = malloc(512*7);
+		memcpy(d2->boot2,d->boot2,512*7);
+	}
 	return d2;
 }
 
@@ -164,4 +190,63 @@ Collapse_Disk(struct disk *d)
 
 	while(Collapse_Chunk(d,d->chunks))
 		;
+}
+
+static char * device_list[] = {"wd","sd",0};
+
+char **
+Disk_Names()
+{
+    int i,j,k;
+    char disk[25];
+    char diskname[25];
+    struct stat st;
+    struct diskslices ds;
+    int fd;
+    static char **disks;
+
+    disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
+    memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
+    k = 0;	
+	for (j = 0; device_list[j]; j++) {
+		for (i = 0; i < 10; i++) {
+			sprintf(diskname, "%s%d", device_list[j], i);
+			sprintf(disk, "/dev/r%s", diskname);
+			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
+				continue;
+			if ((fd = open(disk, O_RDWR)) == -1)
+				continue;
+			if (ioctl(fd, DIOCGSLICEINFO, &ds) == -1) {
+				close(fd);
+				continue;
+			}
+			disks[k++] = strdup(diskname);
+			if(k == MAX_NO_DISKS)
+				return disks;
+		}
+	}
+	return disks;
+}
+
+void
+Set_Boot_Mgr(struct disk *d, u_char *b)
+{
+	if (d->bootmgr)
+		free(d->bootmgr);	
+	d->bootmgr = malloc(DOSPARTOFF);
+	if(!d->bootmgr) err(1,"malloc failed");
+	memcpy(d->bootmgr,b,DOSPARTOFF);
+}
+
+void
+Set_Boot_Blocks(struct disk *d, u_char *b1, u_char *b2)
+{
+	if (d->boot1) free(d->boot1);	
+	d->boot1 = malloc(512);
+	if(!d->boot1) err(1,"malloc failed");
+	memcpy(d->boot1,b1,512);
+	if (d->boot2) free(d->boot2);	
+	d->boot2 = malloc(7*512);
+	if(!d->boot2) err(1,"malloc failed");
+	memcpy(d->boot2,b2,7*512);
 }
