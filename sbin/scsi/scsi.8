@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.11 1997/06/18 06:37:23 charnier Exp $
+.\"	$Id: scsi.8,v 1.12 1997/08/24 08:50:25 joerg Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -145,7 +145,7 @@ flag.
 The
 .Fl p
 option can be used against the "super scsi" device
-.Pa /dev/scsi/super
+.Pa /dev/ssc
 to probe all devices with a given SCSI lun on a given SCSI bus.
 The bus can be selected with the
 .Fl b
@@ -153,9 +153,6 @@ option and the default is 0.
 The lun can be selected with the
 .Fl l
 option and the default is 0.
-See
-.Xr scsi 4
-for a description of the "super scsi" device.
 .Pp
 The
 .Fl r
