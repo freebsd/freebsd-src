@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.46 1996/04/08 03:42:01 dyson Exp $
+ * $Id: vm_glue.c,v 1.47 1996/04/09 04:36:58 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -158,22 +158,6 @@ useracc(addr, len, rw)
 	return (rv == TRUE);
 }
 
-#ifdef KGDB
-/*
- * Change protections on kernel pages from addr to addr+len
- * (presumably so debugger can plant a breakpoint).
- * All addresses are assumed to reside in the Sysmap,
- */
-chgkprot(addr, len, rw)
-	register caddr_t addr;
-	int len, rw;
-{
-	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
-
-	vm_map_protect(kernel_map, trunc_page(addr),
-	    round_page(addr + len), prot, FALSE);
-}
-#endif
 void
 vslock(addr, len)
 	caddr_t addr;
