@@ -51,6 +51,7 @@
 #include "opt_noblockrandom.h"
 
 static d_open_t random_open;
+static d_close_t random_close;
 static d_read_t random_read;
 static d_write_t random_write;
 static d_ioctl_t random_ioctl;
@@ -62,7 +63,7 @@ static d_poll_t random_poll;
 
 static struct cdevsw random_cdevsw = {
 	/* open */	random_open,
-	/* close */	(d_close_t *)nullop,
+	/* close */	random_close,
 	/* read */	random_read,
 	/* write */	random_write,
 	/* ioctl */	random_ioctl,
@@ -101,6 +102,14 @@ random_open(dev_t dev, int flags, int fmt, struct proc *p)
 		return EPERM;
 	else
 		return 0;
+}
+
+static int
+random_close(dev_t dev, int flags, int fmt, struct proc *p)
+{
+	if ((flags & FWRITE) && (securelevel > 0 || suser(p)))
+		random_reseed();
+	return 0;
 }
 
 static int
