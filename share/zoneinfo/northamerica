@@ -1,4 +1,4 @@
-# @(#)northamerica	7.61
+# @(#)northamerica	7.62
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -87,6 +87,23 @@
 # but a few seconds later, NBC, ABC and Mutual also flashed the word
 # of surrender, all of whom interrupting the bells of Big Ben in
 # London which were to precede Mr. Attlee's speech.
+
+# From Paul Eggert (2003-02-09): It was Robert St John, not Bob Trout.  From
+# Myrna Oliver's obituary of St John on page B16 of today's Los Angeles Times:
+#
+# ... a war-weary U.S. clung to radios, awaiting word of Japan's surrender.
+# Any announcement from Asia would reach St. John's New York newsroom on a
+# wire service teletype machine, which had prescribed signals for major news.
+# Associated Press, for example, would ring five bells before spewing out
+# typed copy of an important story, and 10 bells for news "of transcendental
+# importance."
+#
+# On Aug. 14, stalling while talking steadily into the NBC networks' open
+# microphone, St. John heard five bells and waited only to hear a sixth bell,
+# before announcing confidently: "Ladies and gentlemen, World War II is over.
+# The Japanese have agreed to our surrender terms."
+#
+# He had scored a 20-second scoop on other broadcasters.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	US	1918	1919	-	Mar	lastSun	2:00	1:00	D
@@ -189,10 +206,11 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # US eastern time, represented by New York
 
 # Connecticut, Delaware, District of Columbia, most of Florida,
-# Georgia, far southeastern Indiana, eastern Kentucky, Maine,
-# Maryland, Massachusetts, New Hampshire, New Jersey, New York, North
-# Carolina, Ohio, Pennsylvania, Rhode Island, South Carolina, eastern
-# Tennessee, Vermont, Virginia, West Virginia
+# Georgia, southeast Indiana (Clark, Dearborn, Floyd, Harrison, and
+# Ohio counties), eastern Kentucky, Maine, Maryland, Massachusetts,
+# New Hampshire, New Jersey, New York, North Carolina, Ohio,
+# Pennsylvania, Rhode Island, South Carolina, eastern Tennessee,
+# Vermont, Virginia, West Virginia
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	NYC	1920	only	-	Mar	lastSun	2:00	1:00	D
@@ -211,10 +229,11 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:00
 # US central time, represented by Chicago
 
 # Alabama, Arkansas, Florida panhandle, Illinois, western Indiana
-# corners, Iowa, most of Kansas, western Kentucky, Louisiana,
-# Minnesota, Mississippi, Missouri, eastern Nebraska, eastern North
-# Dakota, Oklahoma, eastern South Dakota, western Tennessee, most of
-# Texas, Wisconsin
+# (Gibson, Jasper, Lake, LaPorte, Newton, Porter, Posey, Spencer,
+# Vanderburgh, and Warrick counties), Iowa, most of Kansas, western
+# Kentucky, Louisiana, Minnesota, Mississippi, Missouri, eastern
+# Nebraska, eastern North Dakota, Oklahoma, eastern South Dakota,
+# western Tennessee, most of Texas, Wisconsin
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	Chicago	1920	only	-	Jun	13	2:00	1:00	D
@@ -357,12 +376,32 @@ Zone Pacific/Honolulu	-10:31:26 -	LMT	1900 Jan  1 12:00
 # Now we turn to US areas that have diverged from the consensus since 1970.
 
 # Arizona mostly uses MST.
+
+# From Paul Eggert (2002-10-20):
+#
+# The information in the rest of this paragraph is derived from the
+# <a href="http://www.dlapr.lib.az.us/links/daylight.htm">
+# Daylight Saving Time web page (2002-01-23)</a> maintained by the
+# Arizona State Library, Archives and Public Records.
+# Between 1944-01-01 and 1944-04-01 the State of Arizona used standard
+# time, but by federal law railroads, airlines, bus lines, military
+# personnel, and some engaged in interstate commerce continued to
+# observe war (i.e., daylight saving) time.  The 1944-03-17 Phoenix
+# Gazette says that was the date the law changed, and that 04-01 was
+# the date the state's clocks would change.  In 1945 the State of
+# Arizona used standard time all year, again with exceptions only as
+# mandated by federal law.  Arizona observed DST in 1967, but Arizona
+# Laws 1968, ch. 183 (effective 1968-03-21) repealed DST.
+#
+# Shanks says the 1944 experiment came to an end on 1944-03-17.
+# Go with the Arizona State Library instead.
+
 Zone America/Phoenix	-7:28:18 -	LMT	1883 Nov 18 12:00
 			-7:00	US	M%sT	1944 Jan  1 00:01
-			-7:00	-	MST	1944 Mar 17 00:01
+			-7:00	-	MST	1944 Apr  1 00:01
 			-7:00	US	M%sT	1944 Oct  1 00:01
 			-7:00	-	MST	1967
-			-7:00	US	M%sT	1968
+			-7:00	US	M%sT	1968 Mar 21
 			-7:00	-	MST
 # From Arthur David Olson (1988-02-13):
 # A writer from the Inter Tribal Council of Arizona, Inc.,
@@ -522,7 +561,7 @@ Link America/Louisville America/Kentucky/Louisville
 # <a href="http://frwebgate.access.gpo.gov/cgi-bin/getdoc.cgi?dbname=2000_register&docid=fr17au00-22">
 # Federal Register 65, 160 (2000-08-17), page 50154-50158.
 # </a>
-# 
+#
 Zone America/Kentucky/Monticello -5:39:24 - LMT	1883 Nov 18 12:00
 			-6:00	US	C%sT	1946
 			-6:00	-	CST	1968
