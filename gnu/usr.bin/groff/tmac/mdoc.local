@@ -62,14 +62,6 @@
 .\" Default .Os value
 .ds doc-operating-system FreeBSD\~5.0
 .
-.\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-4.4    4.4
-.ds doc-operating-system-FreeBSD-4.5    4.5
-.
-.\" Standards not found in doc-syms
-.ds doc-str-St--p1003.1-2001   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2001
-.as doc-str-St--p1003.1-2001   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
-.
 .
 .ec
 .
