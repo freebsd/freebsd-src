@@ -145,8 +145,8 @@ u_short ns_cksum();
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-extern struct ns_addr ns_addr __P((const char *));
-extern char *ns_ntoa __P((struct ns_addr));
+extern struct ns_addr ns_addr(const char *);
+extern char *ns_ntoa(struct ns_addr);
 __END_DECLS
 
 #endif

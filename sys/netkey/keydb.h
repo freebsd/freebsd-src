@@ -139,21 +139,21 @@ struct key_cb {
 };
 
 /* secpolicy */
-extern struct secpolicy *keydb_newsecpolicy __P((void));
-extern void keydb_delsecpolicy __P((struct secpolicy *));
+extern struct secpolicy *keydb_newsecpolicy(void);
+extern void keydb_delsecpolicy(struct secpolicy *);
 /* secashead */
-extern struct secashead *keydb_newsecashead __P((void));
-extern void keydb_delsecashead __P((struct secashead *));
+extern struct secashead *keydb_newsecashead(void);
+extern void keydb_delsecashead(struct secashead *);
 /* secasvar */
-extern struct secasvar *keydb_newsecasvar __P((void));
-extern void keydb_refsecasvar __P((struct secasvar *));
-extern void keydb_freesecasvar __P((struct secasvar *));
+extern struct secasvar *keydb_newsecasvar(void);
+extern void keydb_refsecasvar(struct secasvar *);
+extern void keydb_freesecasvar(struct secasvar *);
 /* secreplay */
-extern struct secreplay *keydb_newsecreplay __P((size_t));
-extern void keydb_delsecreplay __P((struct secreplay *));
+extern struct secreplay *keydb_newsecreplay(size_t);
+extern void keydb_delsecreplay(struct secreplay *);
 /* secreg */
-extern struct secreg *keydb_newsecreg __P((void));
-extern void keydb_delsecreg __P((struct secreg *));
+extern struct secreg *keydb_newsecreg(void);
+extern void keydb_delsecreg(struct secreg *);
 
 #endif /* _KERNEL */
 

@@ -69,17 +69,17 @@ struct atm_cm_stat	atm_cm_stat = {0};
 /*
  * Local functions
  */
-static void		atm_cm_cpcs_upper __P((int, void *, int, int));
-static void		atm_cm_saal_upper __P((int, void *, int, int));
-static void		atm_cm_sscop_upper __P((int, void *, int, int));
-static Atm_connvc *	atm_cm_share_llc __P((Atm_attributes *));
-static void		atm_cm_closeconn __P((Atm_connection *,
-				struct t_atm_cause *));
-static void		atm_cm_closevc __P((Atm_connvc *));
-static void		atm_cm_timeout __P((struct atm_time *));
-static KTimeout_ret	atm_cm_procinq __P((void *));
-static void		atm_cm_incall __P((Atm_connvc *));
-static int		atm_cm_accept __P((Atm_connvc *, Atm_connection *));
+static void		atm_cm_cpcs_upper(int, void *, int, int);
+static void		atm_cm_saal_upper(int, void *, int, int);
+static void		atm_cm_sscop_upper(int, void *, int, int);
+static Atm_connvc *	atm_cm_share_llc(Atm_attributes *);
+static void		atm_cm_closeconn(Atm_connection *,
+				struct t_atm_cause *);
+static void		atm_cm_closevc(Atm_connvc *);
+static void		atm_cm_timeout(struct atm_time *);
+static KTimeout_ret	atm_cm_procinq(void *);
+static void		atm_cm_incall(Atm_connvc *);
+static int		atm_cm_accept(Atm_connvc *, Atm_connection *);
 
 /*
  * Local variables
@@ -164,7 +164,7 @@ atm_cm_connect(epp, token, ap, copp)
 	struct atm_pif	*pip;
 	struct sigmgr	*smp;
 	struct stack_list	sl;
-	void		(*upf)__P((int, void *, int, int));
+	void		(*upf)(int, void *, int, int);
 	int		s, sli, err, err2;
 
 	*copp = NULL;
@@ -1765,7 +1765,7 @@ atm_cm_accept(cvp, cop)
 	Atm_connection	*cop;
 {
 	struct stack_list	sl;
-	void		(*upf)__P((int, void *, int, int));
+	void		(*upf)(int, void *, int, int);
 	int		sli, err, err2;
 
 

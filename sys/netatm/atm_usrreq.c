@@ -62,10 +62,10 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	atm_dgram_attach __P((struct socket *, int, struct thread *));
-static int	atm_dgram_control __P((struct socket *, u_long, caddr_t, 
-			struct ifnet *, struct thread *));
-static int	atm_dgram_info __P((caddr_t));
+static int	atm_dgram_attach(struct socket *, int, struct thread *);
+static int	atm_dgram_control(struct socket *, u_long, caddr_t, 
+			struct ifnet *, struct thread *);
+static int	atm_dgram_info(caddr_t);
 
 
 /*
