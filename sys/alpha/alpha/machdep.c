@@ -879,8 +879,10 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		msgbufinit(msgbufp, sz);
 
 		/* Remove the last segment if it now has no pages. */
-		if (phys_avail[i] == phys_avail[i+1])
+		if (phys_avail[i] == phys_avail[i+1]) {
 			phys_avail[i] = 0;
+			phys_avail[i+1] = 0;
+		}
 
 		/* warn if the message buffer had to be shrunk */
 		if (sz != round_page(MSGBUF_SIZE))

@@ -748,8 +748,10 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		msgbufinit(msgbufp, sz);
 
 		/* Remove the last segment if it now has no pages. */
-		if (phys_avail[i] == phys_avail[i+1])
+		if (phys_avail[i] == phys_avail[i+1]) {
 			phys_avail[i] = 0;
+			phys_avail[i+] = 0;
+		}
 
 		/* warn if the message buffer had to be shrunk */
 		if (sz != round_page(MSGBUF_SIZE))
