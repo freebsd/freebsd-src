@@ -345,7 +345,7 @@ _cross-tools:
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4.1: populating ${WORLDTMP}/usr/include"
+	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 _libraries:
