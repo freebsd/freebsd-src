@@ -2,6 +2,14 @@
 
 LIB=	kadm5clnt
 
+INCS=	\
+	admin.h			\
+	kadm5-private.h		\
+	kadm5-protos.h		\
+	kadm5_err.h		\
+	private.h
+INCSDIR=${INCLUDEDIR}/kadm5
+
 SRCS=	\
 	chpass_c.c			\
 	common_glue.c			\
