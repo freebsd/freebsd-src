@@ -35,11 +35,48 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/ipc.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
 
-#if defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG)
+void (*semexit_hook)(struct proc *) = NULL;
+void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
+void (*shmexit_hook)(struct proc *) = NULL;
+
+/* called from kern_exit.c */
+void
+semexit(p)
+	struct proc *p;
+{
+
+	if (semexit_hook != NULL)
+		semexit_hook(p);
+	return;
+}
+
+/* called from kern_fork.c */
+void
+shmfork(p1, p2)
+	struct proc *p1, *p2;
+{
+
+	if (shmfork_hook != NULL)
+		shmfork_hook(p1, p2);
+	return;
+}
+
+/* called from kern_exit.c */
+void
+shmexit(p)
+	struct proc *p;
+{
+
+	if (shmexit_hook != NULL)
+		shmexit_hook(p);
+	return;
+}
 
 /*
  * Check for ipc permission
@@ -69,206 +106,3 @@ ipcperm(p, perm, mode)
 		return (0);
 	return ((mode & perm->mode) == mode || suser(p) == 0 ? 0 : EACCES);
 }
-
-#endif /* defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG) */
-
-
-#if !defined(SYSVSEM) || !defined(SYSVSHM) || !defined(SYSVMSG)
-
-#include <sys/proc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
-#include <sys/syslog.h>
-#include <sys/sysproto.h>
-#include <sys/systm.h>
-
-static void sysv_nosys __P((struct proc *p, char *s));
-
-static void 
-sysv_nosys(p, s)
-	struct proc *p;
-	char *s;
-{
-	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
-			p->p_comm, p->p_pid, s);
-}
-
-#if !defined(SYSVSEM)
-
-/*
- * SYSVSEM stubs
- */
-
-int
-semsys(p, uap)
-	struct proc *p;
-	struct semsys_args *uap;
-{
-	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-__semctl(p, uap)
-	struct proc *p;
-	register struct __semctl_args *uap;
-{
-	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-semget(p, uap)
-	struct proc *p;
-	register struct semget_args *uap;
-{
-	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-semop(p, uap)
-	struct proc *p;
-	register struct semop_args *uap;
-{
-	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-/* called from kern_exit.c */
-void
-semexit(p)
-	struct proc *p;
-{
-	return;
-}
-
-#endif /* !defined(SYSVSEM) */
-
-
-#if !defined(SYSVMSG)
-
-/*
- * SYSVMSG stubs
- */
-
-int
-msgsys(p, uap)
-	struct proc *p;
-	/* XXX actually varargs. */
-	struct msgsys_args *uap;
-{
-	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-msgctl(p, uap)
-	struct proc *p;
-	register struct msgctl_args *uap;
-{
-	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-msgget(p, uap)
-	struct proc *p;
-	register struct msgget_args *uap;
-{
-	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-msgsnd(p, uap)
-	struct proc *p;
-	register struct msgsnd_args *uap;
-{
-	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-msgrcv(p, uap)
-	struct proc *p;
-	register struct msgrcv_args *uap;
-{
-	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-#endif /* !defined(SYSVMSG) */
-
-
-#if !defined(SYSVSHM)
-
-/*
- * SYSVSHM stubs
- */
-
-int
-shmdt(p, uap)
-	struct proc *p;
-	struct shmdt_args *uap;
-{
-	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-shmat(p, uap)
-	struct proc *p;
-	struct shmat_args *uap;
-{
-	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-shmctl(p, uap)
-	struct proc *p;
-	struct shmctl_args *uap;
-{
-	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-shmget(p, uap)
-	struct proc *p;
-	struct shmget_args *uap;
-{
-	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-int
-shmsys(p, uap)
-	struct proc *p;
-	/* XXX actually varargs. */
-	struct shmsys_args *uap;
-{
-	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap);
-};
-
-/* called from kern_fork.c */
-void
-shmfork(p1, p2)
-	struct proc *p1, *p2;
-{
-	return;
-}
-
-/* called from kern_exit.c */
-void
-shmexit(p)
-	struct proc *p;
-{
-	return;
-}
-
-#endif /* !defined(SYSVSHM) */
-
-#endif /* !defined(SYSVSEM) || !defined(SYSVSHM) || !defined(SYSVMSG) */
