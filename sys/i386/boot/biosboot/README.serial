@@ -101,6 +101,14 @@ To boot FreeBSD in serial console mode, you must do the following:
   display as the console instead. (Can you say 'toggle' boys and girls? 
   I knew you could. :)
 
+
+Should you wish to force booting off a serial console no matter if
+there's a keyboard connected or not, you can also uncomment the line
+with the ``FORCE_COMCONSOLE'' definition in the Makefile.  Remake and
+reinstall your bootblocks, and finally relabel your disk (disklabel -B)
+to pick up those boot blocks.
+
+
 CAVEATS:
 
 - The idea here is to allow people to set up dedicated servers that require
@@ -144,4 +152,4 @@ CAVEATS:
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.1 1995/01/20 07:48:16 wpaul Exp $
+$Id: README.serial,v 1.2 1995/02/16 07:37:35 wpaul Exp $
