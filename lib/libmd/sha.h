@@ -84,12 +84,14 @@ void	SHA_Update(SHA_CTX *c, const unsigned char *data, size_t len);
 void	SHA_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA_End(SHA_CTX *, char *);
 char   *SHA_File(const char *, char *);
+char   *SHA_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA_Data(const unsigned char *, unsigned int, char *);
 void	SHA1_Init(SHA_CTX *c);
 void	SHA1_Update(SHA_CTX *c, const unsigned char *data, size_t len);
 void	SHA1_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA1_End(SHA_CTX *, char *);
 char   *SHA1_File(const char *, char *);
+char   *SHA1_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA1_Data(const unsigned char *, unsigned int, char *);
 __END_DECLS
 

@@ -18,6 +18,7 @@
 .Nm MDXFinal ,
 .Nm MDXEnd ,
 .Nm MDXFile ,
+.Nm MDXFileChunk ,
 .Nm MDXData
 .Nd calculate the RSA Data Security, Inc., ``MDX'' message digest
 .Sh LIBRARY
@@ -37,6 +38,8 @@
 .Fn MDXEnd "MDX_CTX *context" "char *buf"
 .Ft "char *"
 .Fn MDXFile "const char *filename" "char *buf"
+.Ft "char *"
+.Fn MDXFileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn MDXData "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
@@ -88,6 +91,23 @@ calculates the digest of a file, and uses
 .Fn MDXEnd
 to return the result.
 If the file cannot be opened, a null pointer is returned.
+.Fn MDXFileChunk
+is similar to
+.Fn MDXFile ,
+but it only calculates the digest over a byte-range of the file specified,
+starting at
+.Ar offset
+and spanning
+.Ar length
+bytes.
+If the
+.Ar length
+parameter is specified as 0, or more than the length of the remaining part
+of the file,
+.Fn MDXFileChunk
+calculates the digest from
+.Ar offset
+to the end of file.
 .Fn MDXData
 calculates the digest of a chunk of data in memory, and uses
 .Fn MDXEnd
