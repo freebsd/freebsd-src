@@ -144,6 +144,7 @@
 96	NOPROTO	LINUX	{ int setpriority(int which, int who, int prio); }
 97	STD	LINUX	{ int osf1_socket(int domain, int type, \
 			    int protocol); }
+98	NOPROTO	LINUX	{ int connect(int s, caddr_t name, int namelen); }
 99	NOPROTO	LINUX	{ int oaccept(int s, caddr_t name, int *anamelen); }
 100	UNIMPL	LINUX
 101	NOPROTO	LINUX	{ int osend(int s, caddr_t buf, int len, \
