@@ -1012,15 +1012,9 @@ int trapwrite(addr)
 }
 
 /*
- *	syscall -	MP aware system call request C handler
+ *	syscall -	system call request C handler
  *
- *	A system call is essentially treated as a trap except that the
- *	MP lock is not held on entry or return.  We are responsible for
- *	obtaining the MP lock if necessary and for handling ASTs
- *	(e.g. a task switch) prior to return.
- *
- *	In general, only simple access and manipulation of curproc and
- *	the current stack is allowed without having to hold MP lock.
+ *	A system call is essentially treated as a trap.
  */
 void
 syscall(frame)
@@ -1103,7 +1097,7 @@ syscall(frame)
 	}
 
 	/*
-	 * Try to run the syscall without the MP lock if the syscall
+	 * Try to run the syscall without Giant if the syscall
 	 * is MP safe.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
@@ -1112,7 +1106,7 @@ syscall(frame)
 
 #ifdef KTRACE
 	/*
-	 * We have to obtain the MP lock no matter what if 
+	 * We have to obtain Giant no matter what if 
 	 * we are ktracing
 	 */
 	if (KTRPOINT(p, KTR_SYSCALL)) {
@@ -1124,13 +1118,10 @@ syscall(frame)
 	p->p_retval[0] = 0;
 	p->p_retval[1] = frame.tf_edx;
 
-	STOPEVENT(p, S_SCE, narg);	/* MP aware */
+	STOPEVENT(p, S_SCE, narg);
 
 	error = (*callp->sy_call)(p, args);
 
-	/*
-	 * MP SAFE (we may or may not have the MP lock at this point)
-	 */
 	switch (error) {
 	case 0:
 		frame.tf_eax = p->p_retval[0];
@@ -1163,7 +1154,7 @@ bad:
 	}
 
 	/*
-	 * Traced syscall.  trapsignal() is not MP aware.
+	 * Traced syscall.
 	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
 		if (!mtx_owned(&Giant))
