@@ -1034,9 +1034,9 @@ chip_match(device_t dev)
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
+#if 0
 	case 0x70208086:
 		return ("Intel 82371SB (PIIX3) USB controller");
-#ifdef NWH
 	case 0x71128086:
 		return ("Intel 82371AB/EB (PIIX4) USB controller");
 #endif
@@ -1088,8 +1088,10 @@ chip_match(device_t dev)
 		return ("VIA 82C586B ACPI interface");
 	case 0x05711106:
 		return ("VIA 82C586B IDE controller");
+#if 0
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
+#endif
 
 	/* AMD -- vendor 0x1022 */
 	case 0x70061022:
@@ -1106,15 +1108,17 @@ chip_match(device_t dev)
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x154110b9:
 		return ("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+#if 0
 	case 0x523710b9:
 		return ("AcerLabs M5237 (Aladdin-V) USB controller");
+#endif
 	case 0x710110b9:
 		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* OPTi -- vendor 0x1045 */
 	case 0xc8221045:
 		return ("OPTi 82C822 host to PCI Bridge");
-#ifdef NWH
+#if 0
 	case 0xc8611045:
 		return ("OPTi 82C861 (FireLink) USB controller");
 #endif
@@ -1132,14 +1136,18 @@ chip_match(device_t dev)
 	case 0x002c1033:
 	case 0x003b1033:
 		return NULL;
+#if 0
 	case 0x00351033:
 		return ("NEC uPD 9210 USB controller");
+#endif
 
+#if 0
 	/* CMD Tech -- vendor 0x1095 */
 	case 0x06701095:
 		return ("CMD Tech 670 (USB0670) USB controller");
 	case 0x06731095:
 		return ("CMD Tech 673 (USB0673) USB controller");
+#endif
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1148,6 +1156,7 @@ chip_match(device_t dev)
 	    && pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
 		return pci_bridge_type(dev);
 
+#if 0
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
 		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
@@ -1158,6 +1167,7 @@ chip_match(device_t dev)
 			return ("USB controller");
 		}
 	}
+#endif
 
 	return NULL;
 }
