@@ -73,6 +73,11 @@ Cleanup Routines
 Creates a new thread of execution.
 .It Xo
 .Ft int
+.Fn pthread_cancel "pthread_t thread"
+.Xc
+Cancels execution of a thread.
+.It Xo
+.Ft int
 .Fn pthread_detach "pthread_t thread"
 .Xc
 Marks a thread for deletion.
@@ -93,9 +98,9 @@ Terminates the calling thread.
 Causes the calling thread to wait for the termination of the specified thread.
 .It Xo
 .Ft int
-.Fn pthread_cancel "pthread_t thread"
+.Fn pthread_kill "pthread_t thread" "int sig"
 .Xc
-Cancels execution of a thread.
+Delivers a signal to a specified thread.
 .It Xo
 .Ft int
 .Fn pthread_once "pthread_once_t *once_control" "void (*init_routine)(void)"
@@ -106,6 +111,26 @@ Calls an initialization routine once.
 .Fn pthread_self void
 .Xc
 Returns the thread ID of the calling thread.
+.It Xo
+.Ft int
+.Fn pthread_setcancelstate "int state" "int *oldstate"
+.Xc
+Sets the current thread's cancelability state.
+.It Xo
+.Ft int
+.Fn pthread_setcanceltype "int type" "int *oldtype"
+.Xc
+Sets the current thread's cancelability type.
+.It Xo
+.Ft void
+.Fn pthread_testcancel void
+.Xc
+Creates a cancellation point in the calling thread.
+.It Xo
+.Ft void
+.Fn pthread_yield void
+.Xc
+Allows the scheduler to run another thread instead of the current one.
 .El
 .Sh ATTRIBUTE OBJECT ROUTINES
 .Bl -tag -width Er
@@ -199,9 +224,39 @@ Set the detach state in a thread attributes object.
 Destroy a mutex attributes object.
 .It Xo
 .Ft int
+.Fn pthread_mutexattr_getprioceiling "pthread_mutexattr_t *attr" "int *ceiling"
+.Xc
+Obtain priority ceiling attribute of mutex attribute object.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_getprotocol "pthread_mutexattr_t *attr" "int *protocol"
+.Xc
+Obtain protocol attribute of mutex attribute object.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_gettype "pthread_mutexattr_t *attr" "int *type"
+.Xc
+Obtain the mutex type attribute in the specified mutex attributes object.
+.It Xo
+.Ft int
 .Fn pthread_mutexattr_init "pthread_mutexattr_t *attr"
 .Xc
 Initialize a mutex attributes object with default values.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_setprioceiling "pthread_mutexattr_t *attr" "int ceiling"
+.Xc
+Set priority ceiling attribute of mutex attribute object.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_setprotocol "pthread_mutexattr_t *attr" "int protocol"
+.Xc
+Set protocol attribute of mutex attribute object.
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_settype "pthread_mutexattr_t *attr" "int type"
+.Xc
+Set the mutex type attribute that is used when a mutex is created.
 .It Xo
 .Ft int
 .Fn pthread_mutex_destroy "pthread_mutex_t *mutex"
@@ -233,14 +288,14 @@ Unlock a mutex.
 .Bl -tag -width Er
 .It Xo
 .Ft int
-.Fn pthread_condattr_init "pthread_condattr_t *attr"
-.Xc
-Initialize a condition variable attributes object with default values.
-.It Xo
-.Ft int
 .Fn pthread_condattr_destroy "pthread_condattr_t *attr"
 .Xc
 Destroy a condition variable attributes object.
+.It Xo
+.Ft int
+.Fn pthread_condattr_init "pthread_condattr_t *attr"
+.Xc
+Initialize a condition variable attributes object with default values.
 .It Xo
 .Ft int
 .Fn pthread_cond_broadcast "pthread_cond_t *cond"
@@ -408,6 +463,8 @@ instead of
 .Xr pthread_cond_signal 3 ,
 .Xr pthread_cond_timedwait 3 ,
 .Xr pthread_cond_wait 3 ,
+.Xr pthread_condattr_destroy 3 ,
+.Xr pthread_condattr_init 3 ,
 .Xr pthread_create 3 ,
 .Xr pthread_detach 3 ,
 .Xr pthread_equal 3 ,
@@ -415,11 +472,20 @@ instead of
 .Xr pthread_getspecific 3 ,
 .Xr pthread_join 3 ,
 .Xr pthread_key_delete 3 ,
+.Xr pthread_kill 3 ,
 .Xr pthread_mutex_destroy 3 ,
 .Xr pthread_mutex_init 3 ,
 .Xr pthread_mutex_lock 3 ,
 .Xr pthread_mutex_trylock 3 ,
 .Xr pthread_mutex_unlock 3 ,
+.Xr pthread_mutexattr_destroy 3 ,
+.Xr pthread_mutexattr_getprioceiling 3 ,
+.Xr pthread_mutexattr_getprotocol 3 ,
+.Xr pthread_mutexattr_gettype 3 ,
+.Xr pthread_mutexattr_init 3 ,
+.Xr pthread_mutexattr_setprioceiling 3 ,
+.Xr pthread_mutexattr_setprotocol 3 ,
+.Xr pthread_mutexattr_settype 3 ,
 .Xr pthread_once 3 ,
 .Xr pthread_rwlockattr_destroy 3 ,
 .Xr pthread_rwlockattr_getpshared 3 ,
@@ -431,7 +497,10 @@ instead of
 .Xr pthread_rwlock_unlock 3 ,
 .Xr pthread_rwlock_wrlock 3 ,
 .Xr pthread_self 3 ,
-.Xr pthread_setspecific 3
+.Xr pthread_setcancelstate 3 ,
+.Xr pthread_setcanceltype 3 ,
+.Xr pthread_setspecific 3 ,
+.Xr pthread_testcancel 3
 .Sh STANDARDS
 The functions in
 .Fa libc_r
