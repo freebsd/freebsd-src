@@ -1,4 +1,5 @@
 #	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
+# $FreeBSD$
 
 BASE= 		loader
 PROG= 		${BASE}.exe
@@ -63,7 +64,7 @@ beforeinstall:
 .endif
 
 # Other fragments still to be brought in from ../Makfile.booters?
-start.o:	${.CURDIR}/../lib/arch/${MACHINE}/start.S
+start.o:	${.CURDIR}/../lib/arch/${MACHINE_ARCH}/start.S
 	${CC} -c ${CFLAGS} $<
 
 setdef0.o: setdefs.h

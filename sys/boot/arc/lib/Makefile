@@ -5,7 +5,7 @@ NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 
-.PATH:		${.CURDIR}/arch/${MACHINE}
+.PATH:		${.CURDIR}/arch/${MACHINE_ARCH}
 # XXX hack to pick up stand.h
 LIBSTANDDIR=	${.CURDIR}/../../../../lib/libstand
 CFLAGS=		-I${LIBSTANDDIR}
@@ -22,7 +22,7 @@ CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
 SRCS=	delay.c time.c abort.c setjmperr.c copy.c devicename.c module.c \
 	arcconsole.c arcdisk.c elf_freebsd.c bootinfo.c
 
-.if ${MACHINE} == "alpha"
+.if ${MACHINE_ARCH} == "alpha"
 SRCS+=	rpb.c
 .endif
 

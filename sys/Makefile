@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 # This is the old aout only boot loader.
-.if	exists(${.CURDIR}/${MACHINE}/boot) && ${OBJFORMAT} == "aout"
-SUBDIR=	${MACHINE}/boot
+.if	exists(${.CURDIR}/${MACHINE_ARCH}/boot) && ${OBJFORMAT} == "aout"
+SUBDIR=	${MACHINE_ARCH}/boot
 .elif	exists(${.CURDIR}/boot) && ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
 SUBDIR=	boot
 .endif
