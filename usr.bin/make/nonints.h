@@ -136,6 +136,7 @@ void Var_Set(char *, char *, GNode *);
 void Var_Append(char *, char *, GNode *);
 Boolean Var_Exists(char *, GNode *);
 char *Var_Value(char *, GNode *, char **);
+void Var_AddCmdLine(char *);
 char *Var_Parse(char *, GNode *, Boolean, int *, Boolean *);
 char *Var_Subst(char *, char *, GNode *, Boolean);
 char *Var_GetTail(char *);

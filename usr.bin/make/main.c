@@ -132,6 +132,21 @@ static void		usage(void);
 static char *curdir;			/* startup directory */
 static char *objdir;			/* where we chdir'ed to */
 
+/*
+ * Append a flag with an optional argument to MAKEFLAGS and MFLAGS
+ */
+static void
+MFLAGS_append(char *flag, char *arg)
+{
+	Var_Append(MAKEFLAGS, flag, VAR_GLOBAL);
+	if (arg != NULL)
+		Var_Append(MAKEFLAGS, arg, VAR_GLOBAL);
+
+	Var_Append("MFLAGS", flag, VAR_GLOBAL);
+	if (arg != NULL)
+		Var_Append("MFLAGS", arg, VAR_GLOBAL);
+}
+
 /*-
  * MainParseArgs --
  *	Parse a given argument vector. Called from main() and from
@@ -166,25 +181,22 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, "-D", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-D", optarg);
 			break;
 		case 'I':
 			Parse_AddIncludeDir(optarg);
-			Var_Append(MAKEFLAGS, "-I", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-I", optarg);
 			break;
 		case 'V':
 			(void)Lst_AtEnd(variables, (void *)optarg);
-			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-V", optarg);
 			break;
 		case 'X':
 			expandVars = FALSE;
 			break;
 		case 'B':
 			compatMake = TRUE;
-			Var_Append(MAKEFLAGS, "-B", VAR_GLOBAL);
+			MFLAGS_append("-B", NULL);
 			break;
 #ifdef REMOTE
 		case 'L': {
@@ -196,18 +208,17 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 				    optarg);
 				usage();
 			}
-			Var_Append(MAKEFLAGS, "-L", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-L", optarg);
 			break;
 		}
 #endif
 		case 'P':
 			usePipes = FALSE;
-			Var_Append(MAKEFLAGS, "-P", VAR_GLOBAL);
+			MFLAGS_append("-P", NULL);
 			break;
 		case 'S':
 			keepgoing = FALSE;
-			Var_Append(MAKEFLAGS, "-S", VAR_GLOBAL);
+			MFLAGS_append("-S", NULL);
 			break;
 		case 'd': {
 			char *modules = optarg;
@@ -261,27 +272,25 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 					warnx("illegal argument to d option -- %c", *modules);
 					usage();
 				}
-			Var_Append(MAKEFLAGS, "-d", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-d", optarg);
 			break;
 		}
 		case 'E':
 			p = emalloc(strlen(optarg) + 1);
 			(void)strcpy(p, optarg);
 			(void)Lst_AtEnd(envFirstVars, (void *)p);
-			Var_Append(MAKEFLAGS, "-E", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-E", optarg);
 			break;
 		case 'e':
 			checkEnvFirst = TRUE;
-			Var_Append(MAKEFLAGS, "-e", VAR_GLOBAL);
+			MFLAGS_append("-e", NULL);
 			break;
 		case 'f':
 			(void)Lst_AtEnd(makefiles, (void *)optarg);
 			break;
 		case 'i':
 			ignoreErrors = TRUE;
-			Var_Append(MAKEFLAGS, "-i", VAR_GLOBAL);
+			MFLAGS_append("-i", NULL);
 			break;
 		case 'j': {
 			char *endptr;
@@ -296,43 +305,41 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 #ifndef REMOTE
 			maxLocal = maxJobs;
 #endif
-			Var_Append(MAKEFLAGS, "-j", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-j", optarg);
 			break;
 		}
 		case 'k':
 			keepgoing = TRUE;
-			Var_Append(MAKEFLAGS, "-k", VAR_GLOBAL);
+			MFLAGS_append("-k", NULL);
 			break;
 		case 'm':
 			Dir_AddDir(sysIncPath, optarg);
-			Var_Append(MAKEFLAGS, "-m", VAR_GLOBAL);
-			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			MFLAGS_append("-m", optarg);
 			break;
 		case 'n':
 			noExecute = TRUE;
-			Var_Append(MAKEFLAGS, "-n", VAR_GLOBAL);
+			MFLAGS_append("-n", NULL);
 			break;
 		case 'q':
 			queryFlag = TRUE;
 			/* Kind of nonsensical, wot? */
-			Var_Append(MAKEFLAGS, "-q", VAR_GLOBAL);
+			MFLAGS_append("-q", NULL);
 			break;
 		case 'r':
 			noBuiltins = TRUE;
-			Var_Append(MAKEFLAGS, "-r", VAR_GLOBAL);
+			MFLAGS_append("-r", NULL);
 			break;
 		case 's':
 			beSilent = TRUE;
-			Var_Append(MAKEFLAGS, "-s", VAR_GLOBAL);
+			MFLAGS_append("-s", NULL);
 			break;
 		case 't':
 			touchFlag = TRUE;
-			Var_Append(MAKEFLAGS, "-t", VAR_GLOBAL);
+			MFLAGS_append("-t", NULL);
 			break;
 		case 'v':
 			beVerbose = TRUE;
-			Var_Append(MAKEFLAGS, "-v", VAR_GLOBAL);
+			MFLAGS_append("-v", NULL);
 			break;
 		default:
 		case '?':
@@ -638,6 +645,10 @@ main(int argc, char **argv)
 
 	MainParseArgs(argc, argv);
 
+#ifdef POSIX
+	Var_AddCmdLine(MAKEFLAGS);
+#endif
+
 	/*
 	 * Find where we are...
 	 * All this code is so that we know where we are when we start up
@@ -779,9 +790,6 @@ main(int argc, char **argv)
 		(void)ReadMakefile("Makefile", NULL);
 
 	(void)ReadMakefile(".depend", NULL);
-
-	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
-	free(p1);
 
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
