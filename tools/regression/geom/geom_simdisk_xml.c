@@ -124,6 +124,7 @@ endElement(void *userData, const char *name)
 	char *p;
 	u_char *q;
 	int i, j;
+	off_t o;
 
 	sc = userData;
 
@@ -137,9 +138,11 @@ endElement(void *userData, const char *name)
 		if (*p != '\0')
 			errx(1, "strtoul croaked on sectorsize");
 	} else if (!strcasecmp(name, "mediasize")) {
-		sc->mediasize = strtoull(sbuf_data(sc->sbuf), &p, 0);
+		o = strtoull(sbuf_data(sc->sbuf), &p, 0);
 		if (*p != '\0')
 			errx(1, "strtoul croaked on mediasize");
+		if (o > 0)
+			sc->mediasize = o;
 	} else if (!strcasecmp(name, "fwsectors")) {
 		sc->fwsectors = strtoul(sbuf_data(sc->sbuf), &p, 0);
 		if (*p != '\0')
@@ -219,6 +222,7 @@ g_simdisk_xml_load(char *name, char *file)
 	sc = calloc(1, sizeof *sc);
 	sc->fd = -1;
 	sc->sbuf = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sc->mediasize = 1024 * 1024 * 1024 * (off_t)1024;
 	LIST_INIT(&sc->sectors);
 	TAILQ_INIT(&sc->sort);
 	XML_SetUserData(parser, sc);
