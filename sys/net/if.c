@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.36 1996/08/07 04:09:05 julian Exp $
+ * $Id: if.c,v 1.36.2.1 1997/06/30 10:59:15 peter Exp $
  */
 
 #include <sys/param.h>
@@ -240,6 +240,25 @@ ifa_ifwithnet(addr)
 				    && equal(addr, ifa->ifa_dstaddr))
  					return (ifa);
 			} else {
+				/*
+				 * if we have a special address handler,
+				 * then use it instead of the generic one.
+				 */
+	          		if (ifa->ifa_claim_addr) {
+					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
+						return (ifa);
+					} else {
+						continue;
+					}
+				}
+
+				/*
+				 * Scan all the bits in the ifa's address.
+				 * If a bit dissagrees with what we are
+				 * looking for, mask it with the netmask
+				 * to see if it really matters.
+				 * (A byte at a time)
+				 */
 				if (ifa->ifa_netmask == 0)
 					continue;
 				cp = addr_data;
@@ -532,7 +551,7 @@ ifioctl(so, cmd, data, p)
 	case SIOCSIFPHYS:
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error)
-		        return error;
+			return error;
 		if (!ifp->if_ioctl)
 		        return EOPNOTSUPP;
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
