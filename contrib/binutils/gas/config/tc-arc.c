@@ -1,5 +1,6 @@
 /* tc-arc.c -- Assembler for the ARC
-   Copyright (C) 1994, 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -17,41 +18,90 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #include <stdio.h>
 #include <ctype.h>
+#include "libiberty.h"
 #include "as.h"
 #include "subsegs.h"
 #include "opcode/arc.h"
+#include "../opcodes/arc-ext.h"
 #include "elf/arc.h"
+#include "dwarf2dbg.h"
 
 extern int arc_get_mach PARAMS ((char *));
+extern int arc_operand_type PARAMS ((int));
+extern int arc_insn_not_jl PARAMS ((arc_insn));
+extern int arc_limm_fixup_adjust PARAMS ((arc_insn));
+extern int arc_get_noshortcut_flag PARAMS ((void));
+extern int arc_set_ext_seg PARAMS ((void));
+extern void arc_code_symbol PARAMS ((expressionS *));
 
 static arc_insn arc_insert_operand PARAMS ((arc_insn,
 					    const struct arc_operand *, int,
 					    const struct arc_operand_value *,
 					    offsetT, char *, unsigned int));
 static void arc_common PARAMS ((int));
-static void arc_cpu PARAMS ((int));
-/*static void arc_rename PARAMS ((int));*/
+static void arc_extinst PARAMS ((int));
+static void arc_extoper PARAMS ((int));
+static void arc_option PARAMS ((int));
 static int get_arc_exp_reloc_type PARAMS ((int, int, expressionS *,
 					   expressionS *));
 
-const pseudo_typeS md_pseudo_table[] =
-{
-  { "align", s_align_bytes, 0 },	/* Defaulting is invalid (0) */
+const struct suffix_classes {
+  char *name;
+  int  len;
+} suffixclass[] = {
+  { "SUFFIX_COND|SUFFIX_FLAG",23 },
+  { "SUFFIX_FLAG", 11 },
+  { "SUFFIX_COND", 11 },
+  { "SUFFIX_NONE", 11 }
+};
+
+#define MAXSUFFIXCLASS (sizeof (suffixclass) / sizeof (struct suffix_classes))
+
+const struct syntax_classes {
+  char *name;
+  int  len;
+  int  class;
+} syntaxclass[] = {
+  { "SYNTAX_3OP|OP1_MUST_BE_IMM", 26, SYNTAX_3OP|OP1_MUST_BE_IMM|SYNTAX_VALID },
+  { "OP1_MUST_BE_IMM|SYNTAX_3OP", 26, OP1_MUST_BE_IMM|SYNTAX_3OP|SYNTAX_VALID },
+  { "SYNTAX_2OP|OP1_IMM_IMPLIED", 26, SYNTAX_2OP|OP1_IMM_IMPLIED|SYNTAX_VALID },
+  { "OP1_IMM_IMPLIED|SYNTAX_2OP", 26, OP1_IMM_IMPLIED|SYNTAX_2OP|SYNTAX_VALID },
+  { "SYNTAX_3OP",                 10, SYNTAX_3OP|SYNTAX_VALID },
+  { "SYNTAX_2OP",                 10, SYNTAX_2OP|SYNTAX_VALID }
+};
+
+#define MAXSYNTAXCLASS (sizeof (syntaxclass) / sizeof (struct syntax_classes))
+
+const pseudo_typeS md_pseudo_table[] = {
+  { "align", s_align_bytes, 0 }, /* Defaulting is invalid (0).  */
+  { "comm", arc_common, 0 },
   { "common", arc_common, 0 },
-/*{ "hword", cons, 2 }, - already exists */
+  { "lcomm", arc_common, 1 },
+  { "lcommon", arc_common, 1 },
+  { "2byte", cons, 2 },
+  { "half", cons, 2 },
+  { "short", cons, 2 },
+  { "3byte", cons, 3 },
+  { "4byte", cons, 4 },
   { "word", cons, 4 },
-/*{ "xword", cons, 8 },*/
-  { "cpu", arc_cpu, 0 },
-/*{ "rename", arc_rename, 0 },*/
+  { "option", arc_option, 0 },
+  { "cpu", arc_option, 0 },
+  { "block", s_space, 0 },
+  { "file", dwarf2_directive_file, 0 },
+  { "loc", dwarf2_directive_loc, 0 },
+  { "extcondcode", arc_extoper, 0 },
+  { "extcoreregister", arc_extoper, 1 },
+  { "extauxregister", arc_extoper, 2 },
+  { "extinstruction", arc_extinst, 0 },
   { NULL, 0, 0 },
 };
 
 /* This array holds the chars that always start a comment.  If the
-   pre-processor is disabled, these aren't very useful */
+   pre-processor is disabled, these aren't very useful.  */
 const char comment_chars[] = "#;";
 
 /* This array holds the chars that only start a comment at the beginning of
@@ -59,19 +109,18 @@ const char comment_chars[] = "#;";
    .line and .file directives will appear in the pre-processed output */
 /* Note that input_file.c hand checks for '#' at the beginning of the
    first line of the input file.  This is because the compiler outputs
-   #NO_APP at the beginning of its output. */
+   #NO_APP at the beginning of its output.  */
 /* Also note that comments started like this one will always
-   work if '/' isn't otherwise defined. */
+   work if '/' isn't otherwise defined.  */
 const char line_comment_chars[] = "#";
 
 const char line_separator_chars[] = "";
 
-/* Chars that can be used to separate mant from exp in floating point nums */
+/* Chars that can be used to separate mant from exp in floating point nums.  */
 const char EXP_CHARS[] = "eE";
 
-/* Chars that mean this number is a floating point constant */
-/* As in 0f12.456 */
-/* or    0d1.2345e12 */
+/* Chars that mean this number is a floating point constant
+   As in 0f12.456 or 0d1.2345e12.  */
 const char FLT_CHARS[] = "rRsSfFdD";
 
 /* Byte order.  */
@@ -79,43 +128,69 @@ extern int target_big_endian;
 const char *arc_target_format = DEFAULT_TARGET_FORMAT;
 static int byte_order = DEFAULT_BYTE_ORDER;
 
-/* One of bfd_mach_arc_xxx.  */
-static int arc_mach_type = bfd_mach_arc_base;
+static segT arcext_section;
+
+/* One of bfd_mach_arc_n.  */
+static int arc_mach_type = bfd_mach_arc_6;
 
 /* Non-zero if the cpu type has been explicitly specified.  */
 static int mach_type_specified_p = 0;
 
 /* Non-zero if opcode tables have been initialized.
-   A .cpu command must appear before any instructions.  */
+   A .option command must appear before any instructions.  */
 static int cpu_tables_init_p = 0;
 
 static struct hash_control *arc_suffix_hash = NULL;
 
 const char *md_shortopts = "";
-struct option md_longopts[] =
-{
+struct option md_longopts[] = {
 #define OPTION_EB (OPTION_MD_BASE + 0)
-  {"EB", no_argument, NULL, OPTION_EB},
+  { "EB", no_argument, NULL, OPTION_EB },
 #define OPTION_EL (OPTION_MD_BASE + 1)
-  {"EL", no_argument, NULL, OPTION_EL},
+  { "EL", no_argument, NULL, OPTION_EL },
+#define OPTION_ARC5 (OPTION_MD_BASE + 2)
+  { "marc5", no_argument, NULL, OPTION_ARC5 },
+  { "pre-v6", no_argument, NULL, OPTION_ARC5 },
+#define OPTION_ARC6 (OPTION_MD_BASE + 3)
+  { "marc6", no_argument, NULL, OPTION_ARC6 },
+#define OPTION_ARC7 (OPTION_MD_BASE + 4)
+  { "marc7", no_argument, NULL, OPTION_ARC7 },
+#define OPTION_ARC8 (OPTION_MD_BASE + 5)
+  { "marc8", no_argument, NULL, OPTION_ARC8 },
+#define OPTION_ARC (OPTION_MD_BASE + 6)
+  { "marc", no_argument, NULL, OPTION_ARC },
   { NULL, no_argument, NULL, 0 }
 };
 size_t md_longopts_size = sizeof (md_longopts);
 
-/*
- * md_parse_option
- *
- * Invocation line includes a switch not recognized by the base assembler.
- * See if it's a processor-specific option.
- */
+#define IS_SYMBOL_OPERAND(o) \
+ ((o) == 'b' || (o) == 'c' || (o) == 's' || (o) == 'o' || (o) == 'O')
+
+struct arc_operand_value *get_ext_suffix (char *s);
+
+/* Invocation line includes a switch not recognized by the base assembler.
+   See if it's a processor-specific option.  */
 
 int
 md_parse_option (c, arg)
      int c;
-     char *arg;
+     char *arg ATTRIBUTE_UNUSED;
 {
   switch (c)
     {
+    case OPTION_ARC5:
+      arc_mach_type = bfd_mach_arc_5;
+      break;
+    case OPTION_ARC:
+    case OPTION_ARC6:
+      arc_mach_type = bfd_mach_arc_6;
+      break;
+    case OPTION_ARC7:
+      arc_mach_type = bfd_mach_arc_7;
+      break;
+    case OPTION_ARC8:
+      arc_mach_type = bfd_mach_arc_8;
+      break;
     case OPTION_EB:
       byte_order = BIG_ENDIAN;
       arc_target_format = "elf32-bigarc";
@@ -134,15 +209,16 @@ void
 md_show_usage (stream)
      FILE *stream;
 {
-  fprintf (stream, _("\
-ARC options:\n\
--EB			generate big endian output\n\
--EL			generate little endian output\n"));
+  fprintf (stream, "\
+ARC Options:\n\
+  -marc[5|6|7|8]          select processor variant (default arc%d)\n\
+  -EB                     assemble code for a big endian cpu\n\
+  -EL                     assemble code for a little endian cpu\n", arc_mach_type + 5);
 }
 
 /* This function is called once, at assembler startup time.  It should
    set up all the tables, etc. that the MD part of the assembler will need.
-   Opcode selection is defered until later because we might see a .cpu
+   Opcode selection is deferred until later because we might see a .option
    command.  */
 
 void
@@ -152,30 +228,28 @@ md_begin ()
   target_big_endian = byte_order == BIG_ENDIAN;
 
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_arc, arc_mach_type))
-    as_warn (_("could not set architecture and machine"));
+    as_warn ("could not set architecture and machine");
 
-  /* Assume the base cpu.  This call is necessary because we need to
-     initialize `arc_operand_map' which may be needed before we see the
-     first insn.  */
-  arc_opcode_init_tables (arc_get_opcode_mach (bfd_mach_arc_base,
+  /* This call is necessary because we need to initialize `arc_operand_map'
+     which may be needed before we see the first insn.  */
+  arc_opcode_init_tables (arc_get_opcode_mach (arc_mach_type,
 					       target_big_endian));
 }
 
 /* Initialize the various opcode and operand tables.
    MACH is one of bfd_mach_arc_xxx.  */
-
 static void
 init_opcode_tables (mach)
      int mach;
 {
-  register unsigned int i;
+  int i;
   char *last;
 
   if ((arc_suffix_hash = hash_new ()) == NULL)
-    as_fatal (_("virtual memory exhausted"));
+    as_fatal ("virtual memory exhausted");
 
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_arc, mach))
-    as_warn (_("could not set architecture and machine"));
+    as_warn ("could not set architecture and machine");
 
   /* This initializes a few things in arc-opc.c that we need.
      This must be called before the various arc_xxx_supported fns.  */
@@ -186,8 +260,6 @@ init_opcode_tables (mach)
   last = "";
   for (i = 0; i < arc_suffixes_count; i++)
     {
-      if (! arc_opval_supported (&arc_suffixes[i]))
-	continue;
       if (strcmp (arc_suffixes[i].name, last) != 0)
 	hash_insert (arc_suffix_hash, arc_suffixes[i].name, (PTR) (arc_suffixes + i));
       last = arc_suffixes[i].name;
@@ -196,18 +268,24 @@ init_opcode_tables (mach)
   /* Since registers don't have a prefix, we put them in the symbol table so
      they can't be used as symbols.  This also simplifies argument parsing as
      we can let gas parse registers for us.  The recorded register number is
-     the index in `arc_reg_names'.  */
+     the address of the register's entry in arc_reg_names.
+
+     If the register name is already in the table, then the existing
+     definition is assumed to be from an .ExtCoreRegister pseudo-op.  */
+
   for (i = 0; i < arc_reg_names_count; i++)
     {
-      if (! arc_opval_supported (&arc_reg_names[i]))
+      if (symbol_find (arc_reg_names[i].name))
 	continue;
       /* Use symbol_create here instead of symbol_new so we don't try to
 	 output registers into the object file's symbol table.  */
-      symbol_table_insert (symbol_create (arc_reg_names[i].name, reg_section,
-					  i, &zero_address_frag));
+      symbol_table_insert (symbol_create (arc_reg_names[i].name,
+					  reg_section,
+					  (int) &arc_reg_names[i],
+					  &zero_address_frag));
     }
 
-  /* Tell `s_cpu' it's too late.  */
+  /* Tell `.option' it's too late.  */
   cpu_tables_init_p = 1;
 }
 
@@ -251,7 +329,7 @@ arc_insert_operand (insn, operand, mods, reg, val, file, line)
       if (test < (offsetT) min || test > (offsetT) max)
 	{
 	  const char *err =
-	    _("operand out of range (%s not between %ld and %ld)");
+	    "operand out of range (%s not between %ld and %ld)";
 	  char buf[100];
 
 	  sprint_value (buf, test);
@@ -282,9 +360,8 @@ arc_insert_operand (insn, operand, mods, reg, val, file, line)
    we go, because that would require us to first create the frag, and
    that would screw up references to ``.''.  */
 
-struct arc_fixup
-{
-  /* index into `arc_operands' */
+struct arc_fixup {
+  /* index into `arc_operands'  */
   int opindex;
   expressionS exp;
 };
@@ -300,12 +377,15 @@ md_assemble (str)
      char *str;
 {
   const struct arc_opcode *opcode;
+  const struct arc_opcode *std_opcode;
+  struct arc_opcode *ext_opcode;
   char *start;
+  const char *last_errmsg = 0;
   arc_insn insn;
   static int init_tables_p = 0;
 
   /* Opcode table initialization is deferred until here because we have to
-     wait for a possible .cpu command.  */
+     wait for a possible .option command.  */
   if (!init_tables_p)
     {
       init_opcode_tables (arc_mach_type);
@@ -319,19 +399,26 @@ md_assemble (str)
   /* The instructions are stored in lists hashed by the first letter (though
      we needn't care how they're hashed).  Get the first in the list.  */
 
-  opcode = arc_opcode_lookup_asm (str);
+  ext_opcode = arc_ext_opcodes;
+  std_opcode = arc_opcode_lookup_asm (str);
 
   /* Keep looking until we find a match.  */
 
   start = str;
-  for ( ; opcode != NULL; opcode = ARC_OPCODE_NEXT_ASM (opcode))
+  for (opcode = (ext_opcode ? ext_opcode : std_opcode);
+       opcode != NULL;
+       opcode = (ARC_OPCODE_NEXT_ASM (opcode)
+		 ? ARC_OPCODE_NEXT_ASM (opcode)
+		 : (ext_opcode ? ext_opcode = NULL, std_opcode : NULL)))
     {
       int past_opcode_p, fc, num_suffixes;
+      int fix_up_at = 0;
       char *syn;
       struct arc_fixup fixups[MAX_FIXUPS];
       /* Used as a sanity check.  If we need a limm reloc, make sure we ask
 	 for an extra 4 bytes from frag_more.  */
       int limm_reloc_p;
+      int ext_suffix_p;
       const struct arc_operand_value *insn_suffixes[MAX_SUFFIXES];
 
       /* Is this opcode supported by the selected cpu?  */
@@ -346,10 +433,11 @@ md_assemble (str)
       past_opcode_p = 0;
       num_suffixes = 0;
       limm_reloc_p = 0;
+      ext_suffix_p = 0;
 
       /* We don't check for (*str != '\0') here because we want to parse
 	 any trailing fake arguments in the syntax string.  */
-      for (str = start, syn = opcode->syntax; *syn != '\0'; )
+      for (str = start, syn = opcode->syntax; *syn != '\0';)
 	{
 	  int mods;
 	  const struct arc_operand *operand;
@@ -379,14 +467,14 @@ md_assemble (str)
 
 	  /* We have an operand.  Pick out any modifiers.  */
 	  mods = 0;
-	  while (ARC_MOD_P (arc_operands[arc_operand_map[*syn]].flags))
+	  while (ARC_MOD_P (arc_operands[arc_operand_map[(int) *syn]].flags))
 	    {
-	      mods |= arc_operands[arc_operand_map[*syn]].flags & ARC_MOD_BITS;
+	      mods |= arc_operands[arc_operand_map[(int) *syn]].flags & ARC_MOD_BITS;
 	      ++syn;
 	    }
-	  operand = arc_operands + arc_operand_map[*syn];
+	  operand = arc_operands + arc_operand_map[(int) *syn];
 	  if (operand->fmt == 0)
-	    as_fatal (_("unknown syntax format character `%c'"), *syn);
+	    as_fatal ("unknown syntax format character `%c'", *syn);
 
 	  if (operand->flags & ARC_OPERAND_FAKE)
 	    {
@@ -394,9 +482,25 @@ md_assemble (str)
 	      if (operand->insert)
 		{
 		  insn = (*operand->insert) (insn, operand, mods, NULL, 0, &errmsg);
-		  /* If we get an error, go on to try the next insn.  */
-		  if (errmsg)
-		    break;
+		  if (errmsg != (const char *) NULL)
+		    {
+		      last_errmsg = errmsg;
+		      if (operand->flags & ARC_OPERAND_ERROR)
+			{
+			  as_bad (errmsg);
+			  return;
+			}
+		      else if (operand->flags & ARC_OPERAND_WARN)
+			as_warn (errmsg);
+		      break;
+		    }
+		  if (limm_reloc_p
+		      && (operand->flags && operand->flags & ARC_OPERAND_LIMM)
+		      && (operand->flags &
+			  (ARC_OPERAND_ABSOLUTE_BRANCH | ARC_OPERAND_ADDRESS)))
+		    {
+		      fixups[fix_up_at].opindex = arc_operand_map[operand->fmt];
+		    }
 		}
 	      ++syn;
 	    }
@@ -405,8 +509,9 @@ md_assemble (str)
 	    {
 	      int found;
 	      char c;
-	      char *s,*t;
-	      const struct arc_operand_value *suf,*suffix,*suffix_end;
+	      char *s, *t;
+	      const struct arc_operand_value *suf, *suffix_end;
+	      const struct arc_operand_value *suffix = NULL;
 
 	      if (!(operand->flags & ARC_OPERAND_SUFFIX))
 		abort ();
@@ -439,53 +544,75 @@ md_assemble (str)
 		}
 
 	      /* Pick the suffix out and look it up via the hash table.  */
-	      for (t = s; *t && isalpha (*t); ++t)
+	      for (t = s; *t && isalnum (*t); ++t)
 		continue;
 	      c = *t;
 	      *t = '\0';
-	      suf = hash_find (arc_suffix_hash, s);
-	      *t = c;
+	      if ((suf = get_ext_suffix (s)))
+		ext_suffix_p = 1;
+	      else
+		suf = hash_find (arc_suffix_hash, s);
 	      if (!suf)
 		{
 		  /* This can happen in "blle foo" and we're currently using
 		     the template "b%q%.n %j".  The "bl" insn occurs later in
 		     the table so "lle" isn't an illegal suffix.  */
+		  *t = c;
 		  break;
 		}
 
 	      /* Is it the right type?  Note that the same character is used
-	         several times, so we have to examine all of them.  This is
+		 several times, so we have to examine all of them.  This is
 		 relatively efficient as equivalent entries are kept
 		 together.  If it's not the right type, don't increment `str'
 		 so we try the next one in the series.  */
 	      found = 0;
-	      suffix_end = arc_suffixes + arc_suffixes_count;
-	      for (suffix = suf;
-		   suffix < suffix_end && strcmp (suffix->name, suf->name) == 0;
-		   ++suffix)
+	      if (ext_suffix_p && arc_operands[suf->type].fmt == *syn)
 		{
-		  if (arc_operands[suffix->type].fmt == *syn)
-		    {
-		      /* Insert the suffix's value into the insn.  */
-		      if (operand->insert)
-			insn = (*operand->insert) (insn, operand,
-						   mods, NULL, suffix->value,
-						   NULL);
-		      else
-			insn |= suffix->value << operand->shift;
+		  /* Insert the suffix's value into the insn.  */
+		  *t = c;
+		  if (operand->insert)
+		    insn = (*operand->insert) (insn, operand,
+					       mods, NULL, suf->value,
+					       NULL);
+		  else
+		    insn |= suf->value << operand->shift;
 
-		      str = t;
-		      found = 1;
-		      break;
+		  str = t;
+		  found = 1;
+		}
+	      else
+		{
+		  *t = c;
+		  suffix_end = arc_suffixes + arc_suffixes_count;
+		  for (suffix = suf;
+		       suffix < suffix_end && strcmp (suffix->name, suf->name) == 0;
+		       ++suffix)
+		    {
+		      if (arc_operands[suffix->type].fmt == *syn)
+			{
+			  /* Insert the suffix's value into the insn.  */
+			  if (operand->insert)
+			    insn = (*operand->insert) (insn, operand,
+						       mods, NULL, suffix->value,
+						       NULL);
+			  else
+			    insn |= suffix->value << operand->shift;
+
+			  str = t;
+			  found = 1;
+			  break;
+			}
 		    }
 		}
 	      ++syn;
 	      if (!found)
-		; /* Wrong type.  Just go on to try next insn entry.  */
+		/* Wrong type.  Just go on to try next insn entry.  */
+		;
 	      else
 		{
 		  if (num_suffixes == MAX_SUFFIXES)
-		    as_bad (_("too many suffixes"));
+		    as_bad ("too many suffixes");
 		  else
 		    insn_suffixes[num_suffixes++] = suffix;
 		}
@@ -493,7 +620,6 @@ md_assemble (str)
 	  else
 	    /* This is either a register or an expression of some kind.  */
 	    {
-	      char c;
 	      char *hold;
 	      const struct arc_operand_value *reg = NULL;
 	      long value = 0;
@@ -505,22 +631,8 @@ md_assemble (str)
 	      /* Is there anything left to parse?
 		 We don't check for this at the top because we want to parse
 		 any trailing fake arguments in the syntax string.  */
-	      if (*str == '\0')
+	      if (is_end_of_line[(unsigned char) *str])
 		break;
-#if 0
-	      /* Is this a syntax character?  Eg: is there a '[' present when
-		 there shouldn't be?  */
-	      if (!isalnum (*str)
-		  /* '.' as in ".LLC0" */
-		  && *str != '.'
-		  /* '_' as in "_print" */
-		  && *str != '_'
-		  /* '-' as in "[fp,-4]" */
-		  && *str != '-'
-		  /* '%' as in "%ia(_func)" */
-		  && *str != '%')
-		break;
-#endif
 
 	      /* Parse the operand.  */
 	      hold = input_line_pointer;
@@ -530,37 +642,48 @@ md_assemble (str)
 	      input_line_pointer = hold;
 
 	      if (exp.X_op == O_illegal)
-		as_bad (_("illegal operand"));
+		as_bad ("illegal operand");
 	      else if (exp.X_op == O_absent)
-		as_bad (_("missing operand"));
+		as_bad ("missing operand");
 	      else if (exp.X_op == O_constant)
 		{
 		  value = exp.X_add_number;
 		}
 	      else if (exp.X_op == O_register)
 		{
-		  reg = arc_reg_names + exp.X_add_number;
+		  reg = (struct arc_operand_value *) exp.X_add_number;
 		}
+#define IS_REG_DEST_OPERAND(o) ((o) == 'a')
+	      else if (IS_REG_DEST_OPERAND (*syn))
+		as_bad ("symbol as destination register");
 	      else
 		{
+		  if (!strncmp (str, "@h30", 4))
+		    {
+		      arc_code_symbol (&exp);
+		      str += 4;
+		    }
 		  /* We need to generate a fixup for this expression.  */
 		  if (fc >= MAX_FIXUPS)
-		    as_fatal (_("too many fixups"));
+		    as_fatal ("too many fixups");
 		  fixups[fc].exp = exp;
-
+		  /* We don't support shimm relocs. break here to force
+		     the assembler to output a limm.  */
+#define IS_REG_SHIMM_OFFSET(o) ((o) == 'd')
+		  if (IS_REG_SHIMM_OFFSET (*syn))
+		    break;
 		  /* If this is a register constant (IE: one whose
 		     register value gets stored as 61-63) then this
-		     must be a limm.  We don't support shimm relocs.  */
+		     must be a limm.  */
 		  /* ??? This bit could use some cleaning up.
 		     Referencing the format chars like this goes
 		     against style.  */
-#define IS_REG_OPERAND(o) ((o) == 'a' || (o) == 'b' || (o) == 'c')
-		  if (IS_REG_OPERAND (*syn))
+		  if (IS_SYMBOL_OPERAND (*syn))
 		    {
 		      const char *junk;
-
-		      fixups[fc].opindex = arc_operand_map['L'];
 		      limm_reloc_p = 1;
+		      /* Save this, we don't yet know what reloc to use.  */
+		      fix_up_at = fc;
 		      /* Tell insert_reg we need a limm.  This is
 			 needed because the value at this point is
 			 zero, a shimm.  */
@@ -569,7 +692,7 @@ md_assemble (str)
 			(insn, operand, mods, reg, 0L, &junk);
 		    }
 		  else
-		    fixups[fc].opindex = arc_operand_map[*syn];
+		    fixups[fc].opindex = arc_operand_map[(int) *syn];
 		  ++fc;
 		  value = 0;
 		}
@@ -580,18 +703,18 @@ md_assemble (str)
 		  const char *errmsg = NULL;
 		  insn = (*operand->insert) (insn, operand, mods,
 					     reg, (long) value, &errmsg);
-#if 0
 		  if (errmsg != (const char *) NULL)
-		    as_warn (errmsg);
-#endif
-		  /* FIXME: We want to try shimm insns for limm ones.  But if
-		     the constant won't fit, we must go on to try the next
-		     possibility.  Where do we issue warnings for constants
-		     that are too big then?  At present, we'll flag the insn
-		     as unrecognizable!  Maybe have the "bad instruction"
-		     error message include our `errmsg'?  */
-		  if (errmsg != (const char *) NULL)
-		    break;
+		    {
+		      last_errmsg = errmsg;
+		      if (operand->flags & ARC_OPERAND_ERROR)
+			{
+			  as_bad (errmsg);
+			  return;
+			}
+		      else if (operand->flags & ARC_OPERAND_WARN)
+			as_warn (errmsg);
+		      break;
+		    }
 		}
 	      else
 		insn |= (value & ((1 << operand->bits) - 1)) << operand->shift;
@@ -616,8 +739,8 @@ md_assemble (str)
 	  while (isspace (*str))
 	    ++str;
 
-	  if (*str != '\0')
-	    as_bad (_("junk at end of line: `%s'"), str);
+	  if (!is_end_of_line[(unsigned char) *str])
+	    as_bad ("junk at end of line: `%s'", str);
 
 	  /* Is there a limm value?  */
 	  limm_p = arc_opcode_limm_p (&limm);
@@ -635,19 +758,18 @@ md_assemble (str)
 	    int cc_set_p = 0;
 	    /* 1 if conditional branch, including `b' "branch always" */
 	    int cond_branch_p = opcode->flags & ARC_OPCODE_COND_BRANCH;
-	    int need_cc_nop_p = 0;
 
 	    for (i = 0; i < num_suffixes; ++i)
 	      {
 		switch (arc_operands[insn_suffixes[i]->type].fmt)
 		  {
-		  case 'n' :
+		  case 'n':
 		    delay_slot_type = insn_suffixes[i]->value;
 		    break;
-		  case 'q' :
+		  case 'q':
 		    conditional = insn_suffixes[i]->value;
 		    break;
-		  case 'f' :
+		  case 'f':
 		    cc_set_p = 1;
 		    break;
 		  }
@@ -657,18 +779,22 @@ md_assemble (str)
 	       be legal, but let's warn the user anyway.  Ditto for 8 byte
 	       jumps with delay slots.  */
 	    if (in_delay_slot_p && limm_p)
-	      as_warn (_("8 byte instruction in delay slot"));
-	    if (delay_slot_type != ARC_DELAY_NONE && limm_p)
-	      as_warn (_("8 byte jump instruction with delay slot"));
+	      as_warn ("8 byte instruction in delay slot");
+	    if (delay_slot_type != ARC_DELAY_NONE
+		&& limm_p && arc_insn_not_jl (insn)) /* except for jl  addr */
+	      as_warn ("8 byte jump instruction with delay slot");
 	    in_delay_slot_p = (delay_slot_type != ARC_DELAY_NONE) && !limm_p;
 
 	    /* Warn when a conditional branch immediately follows a set of
 	       the condition codes.  Note that this needn't be done if the
 	       insn that sets the condition codes uses a limm.  */
 	    if (cond_branch_p && conditional != 0 /* 0 = "always" */
-		&& prev_insn_needs_cc_nop_p)
-	      as_warn (_("conditional branch follows set of flags"));
-	    prev_insn_needs_cc_nop_p = cc_set_p && !limm_p;
+		&& prev_insn_needs_cc_nop_p && arc_mach_type == bfd_mach_arc_5)
+	      as_warn ("conditional branch follows set of flags");
+	    prev_insn_needs_cc_nop_p =
+	      /* FIXME: ??? not required:
+		 (delay_slot_type != ARC_DELAY_NONE) &&  */
+	      cc_set_p && !limm_p;
 	  }
 
 	  /* Write out the instruction.
@@ -680,6 +806,7 @@ md_assemble (str)
 	      f = frag_more (8);
 	      md_number_to_chars (f, insn, 4);
 	      md_number_to_chars (f + 4, limm, 4);
+	      dwarf2_emit_insn (8);
 	    }
 	  else if (limm_reloc_p)
 	    {
@@ -690,6 +817,7 @@ md_assemble (str)
 	    {
 	      f = frag_more (4);
 	      md_number_to_chars (f, insn, 4);
+	      dwarf2_emit_insn (4);
 	    }
 
 	  /* Create any fixups.  */
@@ -712,9 +840,14 @@ md_assemble (str)
 
 	      if (arc_operands[fixups[i].opindex].flags & ARC_OPERAND_LIMM)
 		{
+		  /* Modify the fixup addend as required by the cpu.  */
+		  fixups[i].exp.X_add_number += arc_limm_fixup_adjust (insn);
 		  op_type = fixups[i].opindex;
 		  /* FIXME: can we add this data to the operand table?  */
-		  if (op_type == arc_operand_map['L'])
+		  if (op_type == arc_operand_map['L']
+		      || op_type == arc_operand_map['s']
+		      || op_type == arc_operand_map['o']
+		      || op_type == arc_operand_map['O'])
 		    reloc_type = BFD_RELOC_32;
 		  else if (op_type == arc_operand_map['J'])
 		    reloc_type = BFD_RELOC_ARC_B26;
@@ -746,239 +879,661 @@ md_assemble (str)
       /* Try the next entry.  */
     }
 
-  as_bad (_("bad instruction `%s'"), start);
+  if (NULL == last_errmsg)
+    as_bad ("bad instruction `%s'", start);
+  else
+    as_bad (last_errmsg);
 }
 
-/* ??? This was copied from tc-sparc.c, I think.  Is it necessary?  */
+static void
+arc_extoper (opertype)
+     int opertype;
+{
+  char *name;
+  char *mode;
+  char c;
+  char *p;
+  int imode = 0;
+  int number;
+  struct arc_ext_operand_value *ext_oper;
+  symbolS *symbolP;
+
+  segT old_sec;
+  int old_subsec;
+
+  name = input_line_pointer;
+  c = get_symbol_end ();
+  name = xstrdup (name);
+  if (NULL == name)
+    {
+      ignore_rest_of_line ();
+      return;
+    }
+
+  p = name;
+  while (*p)
+    {
+      if (isupper (*p))
+	*p = tolower (*p);
+      p++;
+    }
+
+  /* just after name is now '\0'  */
+  p = input_line_pointer;
+  *p = c;
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer != ',')
+    {
+      as_bad ("expected comma after operand name");
+      ignore_rest_of_line ();
+      free (name);
+      return;
+    }
+
+  input_line_pointer++;		/* skip ','  */
+  number = get_absolute_expression ();
+
+  if (number < 0)
+    {
+      as_bad ("negative operand number %d", number);
+      ignore_rest_of_line ();
+      free (name);
+      return;
+    }
+
+  if (opertype)
+    {
+      SKIP_WHITESPACE ();
+
+      if (*input_line_pointer != ',')
+	{
+	  as_bad ("expected comma after register-number");
+	  ignore_rest_of_line ();
+	  free (name);
+	  return;
+	}
+
+      input_line_pointer++;		/* skip ','  */
+      mode = input_line_pointer;
+
+      if (!strncmp (mode, "r|w", 3))
+	{
+	  imode = 0;
+	  input_line_pointer += 3;
+	}
+      else
+	{
+	  if (!strncmp (mode, "r", 1))
+	    {
+	      imode = ARC_REGISTER_READONLY;
+	      input_line_pointer += 1;
+	    }
+	  else
+	    {
+	      if (strncmp (mode, "w", 1))
+		{
+		  as_bad ("invalid mode");
+		  ignore_rest_of_line ();
+		  free (name);
+		  return;
+		}
+	      else
+		{
+		  imode = ARC_REGISTER_WRITEONLY;
+		  input_line_pointer += 1;
+		}
+	    }
+	}
+      SKIP_WHITESPACE ();
+      if (1 == opertype)
+	{
+	  if (*input_line_pointer != ',')
+	    {
+	      as_bad ("expected comma after register-mode");
+	      ignore_rest_of_line ();
+	      free (name);
+	      return;
+	    }
+
+	  input_line_pointer++;		/* skip ','  */
+
+	  if (!strncmp (input_line_pointer, "cannot_shortcut", 15))
+	    {
+	      imode |= arc_get_noshortcut_flag ();
+	      input_line_pointer += 15;
+	    }
+	  else
+	    {
+	      if (strncmp (input_line_pointer, "can_shortcut", 12))
+		{
+		  as_bad ("shortcut designator invalid");
+		  ignore_rest_of_line ();
+		  free (name);
+		  return;
+		}
+	      else
+		{
+		  input_line_pointer += 12;
+		}
+	    }
+	}
+    }
+
+  if ((opertype == 1) && number > 60)
+    {
+      as_bad ("core register value (%d) too large", number);
+      ignore_rest_of_line ();
+      free (name);
+      return;
+    }
+
+  if ((opertype == 0) && number > 31)
+    {
+      as_bad ("condition code value (%d) too large", number);
+      ignore_rest_of_line ();
+      free (name);
+      return;
+    }
+
+  ext_oper = (struct arc_ext_operand_value *) \
+    xmalloc (sizeof (struct arc_ext_operand_value));
+
+  if (opertype)
+    {
+      /* If the symbol already exists, point it at the new definition.  */
+      if ((symbolP = symbol_find (name)))
+	{
+	  if (S_GET_SEGMENT (symbolP) == reg_section)
+	    S_SET_VALUE (symbolP, (int) &ext_oper->operand);
+	  else
+	    {
+	      as_bad ("attempt to override symbol: %s", name);
+	      ignore_rest_of_line ();
+	      free (name);
+	      free (ext_oper);
+	      return;
+	    }
+	}
+      else
+	{
+	  /* If its not there, add it.  */
+	  symbol_table_insert (symbol_create (name, reg_section,
+					      (int) &ext_oper->operand, &zero_address_frag));
+	}
+    }
+
+  ext_oper->operand.name  = name;
+  ext_oper->operand.value = number;
+  ext_oper->operand.type  = arc_operand_type (opertype);
+  ext_oper->operand.flags = imode;
+
+  ext_oper->next = arc_ext_operands;
+  arc_ext_operands = ext_oper;
+
+  /* OK, now that we know what this operand is, put a description in
+     the arc extension section of the output file.  */
+
+  old_sec    = now_seg;
+  old_subsec = now_subseg;
+
+  arc_set_ext_seg ();
+
+  switch (opertype)
+    {
+    case 0:
+      p = frag_more (1);
+      *p = 3 + strlen (name) + 1;
+      p = frag_more (1);
+      *p = EXT_COND_CODE;
+      p = frag_more (1);
+      *p = number;
+      p = frag_more (strlen (name) + 1);
+      strcpy (p, name);
+      break;
+    case 1:
+      p = frag_more (1);
+      *p = 3 + strlen (name) + 1;
+      p = frag_more (1);
+      *p = EXT_CORE_REGISTER;
+      p = frag_more (1);
+      *p = number;
+      p = frag_more (strlen (name) + 1);
+      strcpy (p, name);
+      break;
+    case 2:
+      p = frag_more (1);
+      *p = 6 + strlen (name) + 1;
+      p = frag_more (1);
+      *p = EXT_AUX_REGISTER;
+      p = frag_more (1);
+      *p = number >> 24 & 0xff;
+      p = frag_more (1);
+      *p = number >> 16 & 0xff;
+      p = frag_more (1);
+      *p = number >>  8 & 0xff;
+      p = frag_more (1);
+      *p = number       & 0xff;
+      p = frag_more (strlen (name) + 1);
+      strcpy (p, name);
+      break;
+    default:
+      as_bad ("invalid opertype");
+      ignore_rest_of_line ();
+      free (name);
+      return;
+      break;
+    }
+
+  subseg_set (old_sec, old_subsec);
+
+  /* Enter all registers into the symbol table.  */
+
+  demand_empty_rest_of_line ();
+}
 
 static void
-arc_common (ignore)
-     int ignore;
+arc_extinst (ignore)
+     int ignore ATTRIBUTE_UNUSED;
+{
+  unsigned char syntax[129];
+  char *name;
+  char *p;
+  char c;
+  int suffixcode = -1;
+  int opcode, subopcode;
+  int i;
+  int class = 0;
+  int name_len;
+  struct arc_opcode *ext_op;
+
+  segT old_sec;
+  int old_subsec;
+
+  name = input_line_pointer;
+  c = get_symbol_end ();
+  name = xstrdup (name);
+  if (NULL == name)
+    {
+      ignore_rest_of_line ();
+      return;
+    }
+  strcpy (syntax, name);
+  name_len = strlen (name);
+
+  /* just after name is now '\0'  */
+  p = input_line_pointer;
+  *p = c;
+
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer != ',')
+    {
+      as_bad ("expected comma after operand name");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  input_line_pointer++;		/* skip ','  */
+  opcode = get_absolute_expression ();
+
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer != ',')
+    {
+      as_bad ("expected comma after opcode");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  input_line_pointer++;		/* skip ','  */
+  subopcode = get_absolute_expression ();
+
+  if (subopcode < 0)
+    {
+      as_bad ("negative subopcode %d", subopcode);
+      ignore_rest_of_line ();
+      return;
+    }
+
+  if (subopcode)
+    {
+      if (3 != opcode)
+	{
+	  as_bad ("subcode value found when opcode not equal 0x03");
+	  ignore_rest_of_line ();
+	  return;
+	}
+      else
+	{
+	  if (subopcode < 0x09 || subopcode == 0x3f)
+	    {
+	      as_bad ("invalid subopcode %d", subopcode);
+	      ignore_rest_of_line ();
+	      return;
+	    }
+	}
+    }
+
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer != ',')
+    {
+      as_bad ("expected comma after subopcode");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  input_line_pointer++;		/* skip ','  */
+
+  for (i = 0; i < (int) MAXSUFFIXCLASS; i++)
+    {
+      if (!strncmp (suffixclass[i].name,input_line_pointer, suffixclass[i].len))
+	{
+	  suffixcode = i;
+	  input_line_pointer += suffixclass[i].len;
+	  break;
+	}
+    }
+
+  if (-1 == suffixcode)
+    {
+      as_bad ("invalid suffix class");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer != ',')
+    {
+      as_bad ("expected comma after suffix class");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  input_line_pointer++;		/* skip ','  */
+
+  for (i = 0; i < (int) MAXSYNTAXCLASS; i++)
+    {
+      if (!strncmp (syntaxclass[i].name,input_line_pointer, syntaxclass[i].len))
+	{
+	  class = syntaxclass[i].class;
+	  input_line_pointer += syntaxclass[i].len;
+	  break;
+	}
+    }
+
+  if (0 == (SYNTAX_VALID & class))
+    {
+      as_bad ("invalid syntax class");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  if ((0x3 == opcode) & (class & SYNTAX_3OP))
+    {
+      as_bad ("opcode 0x3 and SYNTAX_3OP invalid");
+      ignore_rest_of_line ();
+      return;
+    }
+
+  switch (suffixcode)
+    {
+    case 0:
+      strcat (syntax, "%.q%.f ");
+      break;
+    case 1:
+      strcat (syntax, "%.f ");
+      break;
+    case 2:
+      strcat (syntax, "%.q ");
+      break;
+    case 3:
+      strcat (syntax, " ");
+      break;
+    default:
+      as_bad ("unknown suffix class");
+      ignore_rest_of_line ();
+      return;
+      break;
+    };
+
+  strcat (syntax, ((opcode == 0x3) ? "%a,%b" : ((class & SYNTAX_3OP) ? "%a,%b,%c" : "%b,%c")));
+  if (suffixcode < 2)
+    strcat (syntax, "%F");
+  strcat (syntax, "%S%L");
+
+  ext_op = (struct arc_opcode *) xmalloc (sizeof (struct arc_opcode));
+  if (NULL == ext_op)
+    {
+      ignore_rest_of_line ();
+      return;
+    }
+
+  ext_op->syntax = xstrdup (syntax);
+  if (NULL == ext_op->syntax)
+    {
+      ignore_rest_of_line ();
+      return;
+    }
+
+  ext_op->mask  = I (-1) | ((0x3 == opcode) ? C (-1) : 0);
+  ext_op->value = I (opcode) | ((0x3 == opcode) ? C (subopcode) : 0);
+  ext_op->flags = class;
+  ext_op->next_asm = arc_ext_opcodes;
+  ext_op->next_dis = arc_ext_opcodes;
+  arc_ext_opcodes = ext_op;
+
+  /* OK, now that we know what this inst is, put a description in the
+     arc extension section of the output file.  */
+
+  old_sec    = now_seg;
+  old_subsec = now_subseg;
+
+  arc_set_ext_seg ();
+
+  p = frag_more (1);
+  *p = 5 + name_len + 1;
+  p = frag_more (1);
+  *p = EXT_INSTRUCTION;
+  p = frag_more (1);
+  *p = opcode;
+  p = frag_more (1);
+  *p = subopcode;
+  p = frag_more (1);
+  *p = (class & (OP1_MUST_BE_IMM | OP1_IMM_IMPLIED) ? IGNORE_FIRST_OPD : 0);
+  p = frag_more (name_len);
+  strncpy (p, syntax, name_len);
+  p = frag_more (1);
+  *p = '\0';
+
+  subseg_set (old_sec, old_subsec);
+
+  demand_empty_rest_of_line ();
+}
+
+int
+arc_set_ext_seg ()
+{
+  if (!arcext_section)
+    {
+      arcext_section = subseg_new (".arcextmap", 0);
+      bfd_set_section_flags (stdoutput, arcext_section,
+			     SEC_READONLY | SEC_HAS_CONTENTS);
+    }
+  else
+    subseg_set (arcext_section, 0);
+  return 1;
+}
+
+static void
+arc_common (localScope)
+     int localScope;
 {
   char *name;
   char c;
   char *p;
-  int temp, size;
+  int align, size;
   symbolS *symbolP;
 
   name = input_line_pointer;
   c = get_symbol_end ();
-  /* just after name is now '\0' */
+  /* just after name is now '\0'  */
   p = input_line_pointer;
   *p = c;
   SKIP_WHITESPACE ();
+
   if (*input_line_pointer != ',')
     {
-      as_bad (_("expected comma after symbol-name"));
+      as_bad ("expected comma after symbol name");
       ignore_rest_of_line ();
       return;
     }
-  input_line_pointer++;		/* skip ',' */
-  if ((temp = get_absolute_expression ()) < 0)
+
+  input_line_pointer++;		/* skip ','  */
+  size = get_absolute_expression ();
+
+  if (size < 0)
     {
-      as_bad (_(".COMMon length (%d.) <0! Ignored."), temp);
+      as_bad ("negative symbol length");
       ignore_rest_of_line ();
       return;
     }
-  size = temp;
+
   *p = 0;
   symbolP = symbol_find_or_make (name);
   *p = c;
+
   if (S_IS_DEFINED (symbolP) && ! S_IS_COMMON (symbolP))
     {
-      as_bad (_("ignoring attempt to re-define symbol"));
+      as_bad ("ignoring attempt to re-define symbol");
       ignore_rest_of_line ();
       return;
     }
-  if (S_GET_VALUE (symbolP) != 0)
+  if (((int) S_GET_VALUE (symbolP) != 0) \
+      && ((int) S_GET_VALUE (symbolP) != size))
     {
-      if (S_GET_VALUE (symbolP) != size)
-	{
-	  as_warn (_("Length of .comm \"%s\" is already %ld. Not changed to %d."),
-		   S_GET_NAME (symbolP), (long) S_GET_VALUE (symbolP), size);
-	}
+      as_warn ("length of symbol \"%s\" already %ld, ignoring %d",
+	       S_GET_NAME (symbolP), (long) S_GET_VALUE (symbolP), size);
     }
-  assert (symbol_get_frag (symbolP) == &zero_address_frag);
-  if (*input_line_pointer != ',')
-    {
-      as_bad (_("expected comma after common length"));
-      ignore_rest_of_line ();
-      return;
-    }
-  input_line_pointer++;
-  SKIP_WHITESPACE ();
-  if (*input_line_pointer != '"')
-    {
-      temp = get_absolute_expression ();
-      if (temp < 0)
-	{
-	  temp = 0;
-	  as_warn (_("Common alignment negative; 0 assumed"));
-	}
-      if (symbolP->local)
-	{
-	  segT old_sec;
-	  int old_subsec;
-	  char *p;
-	  int align;
+  assert (symbolP->sy_frag == &zero_address_frag);
 
-	allocate_bss:
-	  old_sec = now_seg;
-	  old_subsec = now_subseg;
-	  align = temp;
-	  record_alignment (bss_section, align);
-	  subseg_set (bss_section, 0);
-	  if (align)
-	    frag_align (align, 0, 0);
-	  if (S_GET_SEGMENT (symbolP) == bss_section)
-	    symbol_get_frag (symbolP)->fr_symbol = 0;
-	  symbol_set_frag (symbolP, frag_now);
-	  p = frag_var (rs_org, 1, 1, (relax_substateT) 0, symbolP,
-			(offsetT) size, (char *) 0);
-	  *p = 0;
-	  S_SET_SEGMENT (symbolP, bss_section);
-	  S_CLEAR_EXTERNAL (symbolP);
-	  subseg_set (old_sec, old_subsec);
-	}
-      else
+  /* Now parse the alignment field.  This field is optional for
+     local and global symbols. Default alignment is zero.  */
+  if (*input_line_pointer == ',')
+    {
+      input_line_pointer++;
+      align = get_absolute_expression ();
+      if (align < 0)
 	{
-	allocate_common:
-	  S_SET_VALUE (symbolP, (valueT) size);
-	  S_SET_ALIGN (symbolP, temp);
-	  S_SET_EXTERNAL (symbolP);
-	  S_SET_SEGMENT (symbolP, bfd_com_section_ptr);
+	  align = 0;
+	  as_warn ("assuming symbol alignment of zero");
 	}
     }
   else
+    align = 0;
+
+  if (localScope != 0)
     {
-      input_line_pointer++;
-      /* ??? Some say data, some say bss.  */
-      if (strncmp (input_line_pointer, ".bss\"", 5)
-	  && strncmp (input_line_pointer, ".data\"", 6))
-	{
-	  input_line_pointer--;
-	  goto bad_common_segment;
-	}
-      while (*input_line_pointer++ != '"')
-	;
-      goto allocate_common;
+      segT old_sec;
+      int old_subsec;
+      char *pfrag;
+
+      old_sec    = now_seg;
+      old_subsec = now_subseg;
+      record_alignment (bss_section, align);
+      subseg_set (bss_section, 0);  /* ??? subseg_set (bss_section, 1); ???  */
+
+      if (align)
+	/* Do alignment.  */
+	frag_align (align, 0, 0);
+
+      /* Detach from old frag.  */
+      if (S_GET_SEGMENT (symbolP) == bss_section)
+	symbolP->sy_frag->fr_symbol = NULL;
+
+      symbolP->sy_frag = frag_now;
+      pfrag = frag_var (rs_org, 1, 1, (relax_substateT) 0, symbolP,
+			(offsetT) size, (char *) 0);
+      *pfrag = 0;
+
+      S_SET_SIZE       (symbolP, size);
+      S_SET_SEGMENT    (symbolP, bss_section);
+      S_CLEAR_EXTERNAL (symbolP);
+      symbolP->local = 1;
+      subseg_set (old_sec, old_subsec);
     }
+  else
+    {
+      S_SET_VALUE    (symbolP, (valueT) size);
+      S_SET_ALIGN    (symbolP, align);
+      S_SET_EXTERNAL (symbolP);
+      S_SET_SEGMENT  (symbolP, bfd_com_section_ptr);
+    }
+
+  symbolP->bsym->flags |= BSF_OBJECT;
+
   demand_empty_rest_of_line ();
   return;
-
-  {
-  bad_common_segment:
-    p = input_line_pointer;
-    while (*p && *p != '\n')
-      p++;
-    c = *p;
-    *p = '\0';
-    as_bad (_("bad .common segment %s"), input_line_pointer + 1);
-    *p = c;
-    input_line_pointer = p;
-    ignore_rest_of_line ();
-    return;
-  }
 }
-
+
 /* Select the cpu we're assembling for.  */
 
 static void
-arc_cpu (ignore)
-     int ignore;
+arc_option (ignore)
+     int ignore ATTRIBUTE_UNUSED;
 {
   int mach;
   char c;
   char *cpu;
 
-  /* If an instruction has already been seen, it's too late.  */
-  if (cpu_tables_init_p)
-    {
-      as_bad (_(".cpu command must appear before any instructions"));
-      ignore_rest_of_line ();
-      return;
-    }
-
   cpu = input_line_pointer;
   c = get_symbol_end ();
   mach = arc_get_mach (cpu);
   *input_line_pointer = c;
+
+  /* If an instruction has already been seen, it's too late.  */
+  if (cpu_tables_init_p)
+    {
+      as_bad ("\".option\" directive must appear before any instructions");
+      ignore_rest_of_line ();
+      return;
+    }
+
   if (mach == -1)
     goto bad_cpu;
 
-  demand_empty_rest_of_line ();
-
-  /* The cpu may have been selected on the command line.
-     The choices must match.  */
-  /* ??? This was a command line option early on.  It's gone now, but
-     leave this in.  */
   if (mach_type_specified_p && mach != arc_mach_type)
-    as_bad (_(".cpu conflicts with previous value"));
+    {
+      as_bad ("\".option\" directive conflicts with initial definition");
+      ignore_rest_of_line ();
+      return;
+    }
   else
     {
+      /* The cpu may have been selected on the command line.  */
+      if (mach != arc_mach_type)
+	as_warn ("\".option\" directive overrides command-line (default) value");
       arc_mach_type = mach;
-      mach_type_specified_p = 1;
       if (!bfd_set_arch_mach (stdoutput, bfd_arch_arc, mach))
-	as_warn (_("could not set architecture and machine"));
+	as_fatal ("could not set architecture and machine");
+      mach_type_specified_p = 1;
     }
+  demand_empty_rest_of_line ();
   return;
 
  bad_cpu:
-  as_bad (_("bad .cpu op"));
+  as_bad ("invalid identifier for \".option\"");
   ignore_rest_of_line ();
 }
-
-#if 0
-/* The .rename pseudo-op.  This is used by gcc to implement
-   -mmangle-cpu-libgcc.  */
-
-static void
-arc_rename (ignore)
-     int ignore;
-{
-  char *name,*new;
-  char c;
-  symbolS *sym;
-  int len;
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  sym = symbol_find_or_make (name);
-  *input_line_pointer = c;
-
-  if (*input_line_pointer != ',')
-    {
-      as_bad (_("missing rename string"));
-      ignore_rest_of_line ();
-      return;
-    }
-  ++input_line_pointer;
-  SKIP_WHITESPACE ();
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  if (*name == '\0')
-    {
-      *input_line_pointer = c;
-      as_bad (_("invalid symbol to rename to"));
-      ignore_rest_of_line ();
-      return;
-    }
-  new = (char *) xmalloc (strlen (name) + 1);
-  strcpy (new, name);
-  *input_line_pointer = c;
-  symbol_get_tc (sym)->real_name = new;
-
-  demand_empty_rest_of_line ();
-}
-#endif
 
-/* Turn a string in input_line_pointer into a floating point constant of type
-   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
-   emitted is stored in *sizeP.
-   An error message is returned, or NULL on OK.  */
+/* Turn a string in input_line_pointer into a floating point constant
+   of type TYPE, and store the appropriate bytes in *LITP.  The number
+   of LITTLENUMS emitted is stored in *SIZEP.  An error message is
+   returned, or NULL on OK.  */
 
-/* Equal to MAX_PRECISION in atof-ieee.c */
+/* Equal to MAX_PRECISION in atof-ieee.c  */
 #define MAX_LITTLENUMS 6
 
 char *
@@ -1007,7 +1562,7 @@ md_atof (type, litP, sizeP)
 
     default:
       *sizeP = 0;
-      return _("bad call to md_atof");
+      return "bad call to md_atof";
     }
 
   t = atof_ieee (input_line_pointer, type, words);
@@ -1038,7 +1593,7 @@ md_number_to_chars (buf, val, n)
     number_to_chars_littleendian (buf, val, n);
 }
 
-/* Round up a section size to the appropriate boundary. */
+/* Round up a section size to the appropriate boundary.  */
 
 valueT
 md_section_align (segment, size)
@@ -1054,21 +1609,59 @@ md_section_align (segment, size)
 
 int
 md_estimate_size_before_relax (fragp, seg)
-     fragS *fragp;
-     asection *seg;
+     fragS *fragp ATTRIBUTE_UNUSED;
+     asection *seg ATTRIBUTE_UNUSED;
 {
-  abort ();
+  as_fatal (_("md_estimate_size_before_relax\n"));
+  return 1;
 }
 
 /* Convert a machine dependent frag.  We never generate these.  */
 
 void
 md_convert_frag (abfd, sec, fragp)
-     bfd *abfd;
-     asection *sec;
-     fragS *fragp;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     asection *sec ATTRIBUTE_UNUSED;
+     fragS *fragp ATTRIBUTE_UNUSED;
 {
-  abort ();
+  as_fatal (_("md_convert_frag\n"));
+}
+
+void
+arc_code_symbol (expressionP)
+     expressionS *expressionP;
+{
+  if (expressionP->X_op == O_symbol && expressionP->X_add_number == 0
+      /* I think this test is unnecessary but just as a sanity check...  */
+      && expressionP->X_op_symbol == NULL)
+    {
+      expressionS two;
+      expressionP->X_op = O_right_shift;
+      expressionP->X_add_symbol->sy_value.X_op = O_constant;
+      two.X_op = O_constant;
+      two.X_add_symbol = two.X_op_symbol = NULL;
+      two.X_add_number = 2;
+      expressionP->X_op_symbol = make_expr_symbol (&two);
+    }
+  /* Allow %st(sym1-sym2)  */
+  else if (expressionP->X_op == O_subtract
+	   && expressionP->X_add_symbol != NULL
+	   && expressionP->X_op_symbol != NULL
+	   && expressionP->X_add_number == 0)
+    {
+      expressionS two;
+      expressionP->X_add_symbol = make_expr_symbol (expressionP);
+      expressionP->X_op = O_right_shift;
+      two.X_op = O_constant;
+      two.X_add_symbol = two.X_op_symbol = NULL;
+      two.X_add_number = 2;
+      expressionP->X_op_symbol = make_expr_symbol (&two);
+    }
+  else
+    {
+      as_bad ("expression too complex code symbol");
+      return;
+    }
 }
 
 /* Parse an operand that is machine-specific.
@@ -1079,59 +1672,58 @@ md_convert_frag (abfd, sec, fragp)
 
    ??? We can't create new expression types so we map the %-op's onto the
    existing syntax.  This means that the user could use the chosen syntax
-   to achieve the same effect.  Perhaps put a special cookie in X_add_number
-   to mark the expression as special.  */
+   to achieve the same effect.  */
 
-void 
+void
 md_operand (expressionP)
      expressionS *expressionP;
 {
   char *p = input_line_pointer;
 
-  if (*p == '%' && strncmp (p, "%st(", 4) == 0)
-    {
-      input_line_pointer += 4;
-      expression (expressionP);
-      if (*input_line_pointer != ')')
-	{
-	  as_bad (_("missing ')' in %-op"));
-	  return;
-	}
-      ++input_line_pointer;
-      if (expressionP->X_op == O_symbol
-	  && expressionP->X_add_number == 0
-	  /* I think this test is unnecessary but just as a sanity check... */
-	  && expressionP->X_op_symbol == NULL)
-	{
-	  expressionS two;
+  if (*p == '%')
+    if (strncmp (p, "%st(", 4) == 0)
+      {
+	input_line_pointer += 4;
+	expression (expressionP);
+	if (*input_line_pointer != ')')
+	  {
+	    as_bad ("missing ')' in %%-op");
+	    return;
+	  }
+	++input_line_pointer;
+	arc_code_symbol (expressionP);
+      }
+    else
+      {
+	/* It could be a register.  */
+	int i, l;
+	struct arc_ext_operand_value *ext_oper = arc_ext_operands;
+	p++;
 
-	  expressionP->X_op = O_right_shift;
-	  two.X_op = O_constant;
-	  two.X_add_symbol = two.X_op_symbol = NULL;
-	  two.X_add_number = 2;
-	  expressionP->X_op_symbol = make_expr_symbol (&two);
-	}
-      /* allow %st(sym1-sym2) */
-      else if (expressionP->X_op == O_subtract
-	       && expressionP->X_add_symbol != NULL
-	       && expressionP->X_op_symbol != NULL
-	       && expressionP->X_add_number == 0)
-	{
-	  expressionS two;
-
-	  expressionP->X_add_symbol = make_expr_symbol (expressionP);
-	  expressionP->X_op = O_right_shift;
-	  two.X_op = O_constant;
-	  two.X_add_symbol = two.X_op_symbol = NULL;
-	  two.X_add_number = 2;
-	  expressionP->X_op_symbol = make_expr_symbol (&two);
-	}
-      else
-	{
-	  as_bad (_("expression too complex for %%st"));
-	  return;
-	}
-    }
+	while (ext_oper)
+	  {
+	    l = strlen (ext_oper->operand.name);
+	    if (!strncmp (p, ext_oper->operand.name, l) && !isalnum(*(p + l)))
+	      {
+		input_line_pointer += l + 1;
+		expressionP->X_op = O_register;
+		expressionP->X_add_number = (int) &ext_oper->operand;
+		return;
+	      }
+	    ext_oper = ext_oper->next;
+	  }
+	for (i = 0; i < arc_reg_names_count; i++)
+	  {
+	    l = strlen (arc_reg_names[i].name);
+	    if (!strncmp (p, arc_reg_names[i].name, l) && !isalnum (*(p + l)))
+	      {
+		input_line_pointer += l + 1;
+		expressionP->X_op = O_register;
+		expressionP->X_add_number = (int) &arc_reg_names[i];
+		break;
+	      }
+	  }
+      }
 }
 
 /* We have no need to default values of symbols.
@@ -1140,7 +1732,7 @@ md_operand (expressionP)
 
 symbolS *
 md_undefined_symbol (name)
-     char *name;
+     char *name ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -1155,9 +1747,23 @@ md_undefined_symbol (name)
 void
 arc_parse_cons_expression (exp, nbytes)
      expressionS *exp;
-     int nbytes;
+     unsigned int nbytes ATTRIBUTE_UNUSED;
 {
+  char *p = input_line_pointer;
+  int code_symbol_fix = 0;
+
+  for (; ! is_end_of_line[(unsigned char) *p]; p++)
+    if (*p == '@' && !strncmp (p, "@h30", 4))
+      {
+	code_symbol_fix = 1;
+	strcpy (p, ";   ");
+      }
   expr (0, exp);
+  if (code_symbol_fix)
+    {
+      arc_code_symbol (exp);
+      input_line_pointer = p;
+    }
 }
 
 /* Record a fixup for a cons expression.  */
@@ -1192,7 +1798,7 @@ arc_cons_fix_new (frag, where, nbytes, exp)
 /* The location from which a PC relative jump should be calculated,
    given a PC relative reloc.  */
 
-long 
+long
 md_pcrel_from (fixP)
      fixS *fixP;
 {
@@ -1242,13 +1848,13 @@ get_arc_exp_reloc_type (data_p, default_type, exp, expnew)
 
   if (exp->X_op == O_right_shift
       && exp->X_op_symbol != NULL
-      && symbol_constant_p (exp->X_op_symbol)
-      && S_GET_VALUE (exp->X_op_symbol) == 2
+      && exp->X_op_symbol->sy_value.X_op == O_constant
+      && exp->X_op_symbol->sy_value.X_add_number == 2
       && exp->X_add_number == 0)
     {
       if (exp->X_add_symbol != NULL
-	  && (symbol_constant_p (exp->X_add_symbol)
-	      || symbol_equated_p (exp->X_add_symbol)))
+	  && (exp->X_add_symbol->sy_value.X_op == O_constant
+	      || exp->X_add_symbol->sy_value.X_op == O_symbol))
 	{
 	  *expnew = *exp;
 	  expnew->X_op = O_symbol;
@@ -1256,10 +1862,9 @@ get_arc_exp_reloc_type (data_p, default_type, exp, expnew)
 	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
 	}
       else if (exp->X_add_symbol != NULL
-	       && (symbol_get_value_expression (exp->X_add_symbol)->X_op
-		   == O_subtract))
+	       && exp->X_add_symbol->sy_value.X_op == O_subtract)
 	{
-	  *expnew = *symbol_get_value_expression (exp->X_add_symbol);
+	  *expnew = exp->X_add_symbol->sy_value;
 	  return data_p ? BFD_RELOC_ARC_B26 : arc_operand_map['J'];
 	}
     }
@@ -1282,7 +1887,9 @@ md_apply_fix3 (fixP, valueP, seg)
      valueT *valueP;
      segT seg;
 {
-  /*char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;*/
+#if 0
+  char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
+#endif
   valueT value;
 
   /* FIXME FIXME FIXME: The value we are passed in *valueP includes
@@ -1323,7 +1930,7 @@ md_apply_fix3 (fixP, valueP, seg)
 	    {
 	      /* We can't actually support subtracting a symbol.  */
 	      as_bad_where (fixP->fx_file, fixP->fx_line,
-			    _("expression too complex"));
+			    "expression too complex");
 	    }
 	}
     }
@@ -1372,14 +1979,14 @@ md_apply_fix3 (fixP, valueP, seg)
 		  && operand->shift == 7);
 	  fixP->fx_r_type = BFD_RELOC_ARC_B22_PCREL;
 	}
-      else if (0 && operand->fmt == 'J')
+      else if (operand->fmt == 'J')
 	{
 	  assert ((operand->flags & ARC_OPERAND_ABSOLUTE_BRANCH) != 0
 		  && operand->bits == 24
 		  && operand->shift == 32);
 	  fixP->fx_r_type = BFD_RELOC_ARC_B26;
 	}
-      else if (0 && operand->fmt == 'L')
+      else if (operand->fmt == 'L')
 	{
 	  assert ((operand->flags & ARC_OPERAND_LIMM) != 0
 		  && operand->bits == 32
@@ -1389,7 +1996,7 @@ md_apply_fix3 (fixP, valueP, seg)
       else
 	{
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("unresolved expression that must be resolved"));
+			"unresolved expression that must be resolved");
 	  fixP->fx_done = 1;
 	  return 1;
 	}
@@ -1440,45 +2047,32 @@ md_apply_fix3 (fixP, valueP, seg)
 
 arelent *
 tc_gen_reloc (section, fixP)
-     asection *section;
+     asection *section ATTRIBUTE_UNUSED;
      fixS *fixP;
 {
   arelent *reloc;
 
   reloc = (arelent *) xmalloc (sizeof (arelent));
 
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-  *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
+  reloc->sym_ptr_ptr = &fixP->fx_addsy->bsym;
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
   reloc->howto = bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type);
   if (reloc->howto == (reloc_howto_type *) NULL)
     {
       as_bad_where (fixP->fx_file, fixP->fx_line,
-		    _("internal error: can't export reloc type %d (`%s')"),
-		    fixP->fx_r_type, bfd_get_reloc_code_name (fixP->fx_r_type));
+		    "internal error: can't export reloc type %d (`%s')",
+		    fixP->fx_r_type,
+		    bfd_get_reloc_code_name (fixP->fx_r_type));
       return NULL;
     }
 
   assert (!fixP->fx_pcrel == !reloc->howto->pc_relative);
 
-  reloc->addend = fixP->fx_addnumber;
+  /* Set addend to account for PC being advanced one insn before the
+     target address is computed, drop fx_addnumber as it is handled
+     elsewhere mlm  */
+
+  reloc->addend = (fixP->fx_pcrel ? -4 : 0);
 
   return reloc;
 }
-
-/* Frobbers.  */
-
-#if 0
-/* Set the real name if the .rename pseudo-op was used.
-   Return 1 if the symbol should not be included in the symbol table.  */
-
-int
-arc_frob_symbol (sym)
-     symbolS *sym;
-{
-  if (symbol_get_tc (sym)->real_name != (char *) NULL)
-    S_SET_NAME (sym, symbol_get_tc (sym)->real_name);
-
-  return 0;
-}
-#endif

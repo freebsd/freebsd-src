@@ -1,6 +1,7 @@
 /* CGEN generic disassembler support code.
 
-   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
 
@@ -43,7 +44,7 @@ hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
      CGEN_CPU_DESC cd;
      const CGEN_INSN * insns;
      int count;
-     int entsize;
+     int entsize ATTRIBUTE_UNUSED;
      CGEN_INSN_LIST ** htable;
      CGEN_INSN_LIST * hentbuf;
 {
@@ -64,27 +65,10 @@ hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
 	 to hash on, so set both up.  */
 
       value = CGEN_INSN_BASE_VALUE (insn);
-      switch (CGEN_INSN_MASK_BITSIZE (insn))
-	{
-	case 8:
-	  buf[0] = value;
-	  break;
-	case 16:
-	  if (big_p)
-	    bfd_putb16 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl16 ((bfd_vma) value, buf);
-	  break;
-	case 32:
-	  if (big_p)
-	    bfd_putb32 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl32 ((bfd_vma) value, buf);
-	  break;
-	default:
-	  abort ();
-	}
-
+      bfd_put_bits ((bfd_vma) value,
+		    buf,
+		    CGEN_INSN_MASK_BITSIZE (insn),
+		    big_p);
       hash = (* cd->dis_hash) (buf, value);
       hentbuf->next = htable[hash];
       hentbuf->insn = insn;
@@ -121,27 +105,10 @@ hash_insn_list (cd, insns, htable, hentbuf)
 	 to hash on, so set both up.  */
 
       value = CGEN_INSN_BASE_VALUE (ilist->insn);
-      switch (CGEN_INSN_MASK_BITSIZE (ilist->insn))
-	{
-	case 8:
-	  buf[0] = value;
-	  break;
-	case 16:
-	  if (big_p)
-	    bfd_putb16 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl16 ((bfd_vma) value, buf);
-	  break;
-	case 32:
-	  if (big_p)
-	    bfd_putb32 ((bfd_vma) value, buf);
-	  else
-	    bfd_putl32 ((bfd_vma) value, buf);
-	  break;
-	default:
-	  abort ();
-	}
-
+      bfd_put_bits((bfd_vma) value,
+		   buf,
+		   CGEN_INSN_MASK_BITSIZE (ilist->insn),
+		   big_p);
       hash = (* cd->dis_hash) (buf, value);
       hentbuf->next = htable [hash];
       hentbuf->insn = ilist->insn;

@@ -1,3 +1,29 @@
+2001-10-24  Richard Henderson  <rth@redhat.com>
+
+	* peXXigen.c (_bfd_XX_print_private_bfd_data_common): Copy
+	timestamp to time_t for ctime.
+
+2001-10-24  Richard Henderson  <rth@redhat.com>
+
+	2001-08-23  Jakub Jelinek  <jakub@redhat.com>
+	* elfxx-ia64.c (elfNN_ia64_hash_table_create): Clear ia64_info.
+
+2001-10-06  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* dwarf2.c (comp_unit_find_nearest_line): Check for end of
+	compilation unit.
+
+2001-08-29  Joel Sherrill <joel@OARcorp.com>
+
+	* config.bfd (i[3456]86-*-rtems*, m68*-*-rtems*): Change 
+	default from coff to elf.
+
+2001-08-03  Ben Harris <bjh21@netbsd.org>
+
+	* elf32-arm.h (elf32_arm_final_link_relocate): Include offset of
+	reloc from start of section when computing value for R_ARM_REL32
+	reloc.
+
 2001-07-06  Philip Blundell  <philb@gnu.org>
 
 	* elf32-arm.h (elf32_arm_merge_private_bfd_data): Correct sense of
