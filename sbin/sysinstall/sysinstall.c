@@ -765,6 +765,12 @@ main(int argc, char **argv)
 {
 	int i;
 
+	/* phk's main */
+	if (argc > 1 && !strcmp(argv[1],"phk")) {
+		return Xmain(argc,argv);
+	}
+
+	/* paul's main */
 	/* Are we running as init? */
 	if (getpid() == 1) {
 		close(0); open("/dev/console",O_RDWR);
