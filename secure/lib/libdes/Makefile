@@ -7,7 +7,7 @@ SRCS=	cbc_cksm.c pcbc_enc.c qud_cksm.c cbc3_enc.c \
 	enc_read.c enc_writ.c ofb64ede.c ofb64enc.c ofb_enc.c  \
 	rand_key.c rpc_enc.c  str2key.c  supp.c \
 	xcbc_enc.c cbc_enc.c ncbc_enc.c ecb_enc.c set_key.c \
-	des_enc.c read_pwd.c rnd_keys.c
+	des_enc.c read_pwd.c rnd_keys.c rpw.c read2pwd.c
 HEADER=	des.h
 
 SHLIB_MAJOR=	3
