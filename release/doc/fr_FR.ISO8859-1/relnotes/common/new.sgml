@@ -1051,11 +1051,45 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <sect3>
       <title>Support PCCARD</title>
 
-      <para></para>
+      <para arch="i386">Le gestionnaires de périphériques pccard et 
+      &man.pccardc.8; supporte maintenant différents 
+      <quote>types de sons</quote> lors de l'insertion et l'ejection
+      des cartes&merged;</para>
+
+      <para>Sur les machines modernes, les périphériques PCCARD peuvent 
+      etre configurés pour envoyer indifféremment leurs interruptions 
+      via les interruptions PCI ou ISA. Le gestionnaire de périphériques
+       &man.pcic.4; a été modifié pour supporter ces deux modes 
+       d'interruptions (précedemment juste le mode ISA était supporté).
+       &merged; Dans la plupart des cas, la configuration des périphériques
+       PCMCIA sur des ordinateurs portables est simplifié et plus
+       flexible. De plus, plus de ponts de cartes PCI Cardbus (
+       comme ceux utilisés par les cartes Orinoco PCI) sont supportés.
+       Certaines machines peuvent poser des problèmes, comme des paniques ou
+       des arrets, avec le routage des interruptions PCI; elles peuvent
+       la plupart du temps fonctionner en forçant l'ancien mode
+       de routage des interruptions via le bus ISA. Les lignes suivantes
+       placées dans  le fichier <filename>/boot/loader.conf</filename>,
+       permettent de résoudre ce problème:</para>
+
+      <programlisting>hw.pcic.intr_path="1"
+  hw.pcic.irq="0"</programlisting>
+
+      <para>Lors de l'installation de &os;, taper les lignes suivantes
+       au moment du prompt du gestionnaire de démarrage peut
+       etre très utile pour démarrer pour la première fois &os :</para>
+
+      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+      <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
+
+      <para arch="i386">Le support préliminaire de Cardbus sous NEWCARD
+      a été ajouté. Ce code supporte les cartes TI113X, TI12XX, TI125X, 
+      Ricoh 5C46/5C47, Topic 95/97/100 et Cirrus Logic PD683X. Le
+      support 16-bit PC Card n'est pas encore fonctionnel.</para>
     </sect3>
 
     <sect3>
-      <title>support Multimédia</title>
+      <title>Support Multimédia</title>
 
       <para></para>
     </sect3>
