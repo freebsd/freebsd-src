@@ -327,6 +327,14 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI_I,
 	  RS_NO_CLEAR_UA
 	},
+	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB2IDE, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
+	},
+	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
+	},
 	{ USB_VENDOR_HP, USB_PRODUCT_HP_CDW8200, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI_I,
 	  NO_TEST_UNIT_READY | NO_START_STOP
@@ -340,6 +348,10 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	   */
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_TEST_UNIT_READY
+	},
+	{ USB_VENDOR_MELCO,  USB_PRODUCT_MELCO_DUBPXXG, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
 	},
 	{ USB_VENDOR_MICROTECH, USB_PRODUCT_MICROTECH_DPCM, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_CBI,
@@ -2370,6 +2382,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 
 		if (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
+			if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
+				csio->dxfer_len = SHORT_INQUIRY_LENGTH;
+			}
 			sc->transfer(sc, ccb->ccb_h.target_lun, rcmd, rcmdlen,
 				     csio->data_ptr,
 				     csio->dxfer_len, dir,
@@ -2562,6 +2577,9 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 				    (unsigned char *) &sc->cam_scsi_sense,
 				    sizeof(sc->cam_scsi_sense),
 				    &rcmd, &rcmdlen)) {
+				if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
+					csio->sense_len = SHORT_INQUIRY_LENGTH;
+				}
 				sc->transfer(sc, ccb->ccb_h.target_lun,
 					     rcmd, rcmdlen,
 					     &csio->sense_data,
@@ -2750,6 +2768,15 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 			memset(*rcmd, 0, *rcmdlen);
 			(*rcmd)[0] = START_STOP_UNIT;
 			(*rcmd)[4] = SSS_START;
+			return 1;
+		}
+		/* fallthrough */
+	case INQUIRY:
+		/* some drives wedge when asked for full inquiry information. */
+		if (sc->quirks & FORCE_SHORT_INQUIRY) {
+			memcpy(*rcmd, cmd, cmdlen);
+			*rcmdlen = cmdlen;
+			(*rcmd)[4] = SHORT_INQUIRY_LENGTH;
 			return 1;
 		}
 		/* fallthrough */
