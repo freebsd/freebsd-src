@@ -105,7 +105,7 @@ static void epic_start_activity(epic_softc_t *);
 static void epic_set_rx_mode(epic_softc_t *);
 static void epic_set_tx_mode(epic_softc_t *);
 static void epic_set_mc_table(epic_softc_t *);
-static u_int8_t epic_calchash(caddr_t);
+static u_int32_t tx_mchash(caddr_t);
 static int epic_read_eeprom(epic_softc_t *,u_int16_t);
 static void epic_output_eepromw(epic_softc_t *, u_int16_t);
 static u_int16_t epic_input_eepromw(epic_softc_t *);
@@ -1416,8 +1416,7 @@ epic_set_mc_table(sc)
 #endif
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = epic_calchash(
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = tx_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		filter[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1430,23 +1429,21 @@ epic_set_mc_table(sc)
 /*
  * Synopsis: calculate EPIC's hash of multicast address.
  */
-static u_int8_t
-epic_calchash(addr)
+static u_int32_t
+tx_mchash(addr)
 	caddr_t addr;
 {
 	u_int32_t crc, carry;
-	int i, j;
-	u_int8_t c;
+	int idx, bit;
+	u_int8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}

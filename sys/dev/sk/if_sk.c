@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_sk.c,v 1.33 2003/08/12 05:23:06 nate Exp $	*/
+/*	$OpenBSD: if_sk.c,v 2.33 2003/08/12 05:23:06 nate Exp $	*/
 
 /*
  * Copyright (c) 1997, 1998, 1999, 2000
@@ -226,7 +226,7 @@ static int sk_marv_miibus_writereg	(struct sk_if_softc *, int, int,
 						int);
 static void sk_marv_miibus_statchg	(struct sk_if_softc *);
 
-static u_int32_t sk_calchash	(caddr_t);
+static u_int32_t sk_mchash	(caddr_t);
 static void sk_setfilt		(struct sk_if_softc *, caddr_t, int);
 static void sk_setmulti		(struct sk_if_softc *);
 
@@ -715,10 +715,12 @@ sk_marv_miibus_statchg(sc_if)
 #define SK_BITS		6
 
 static u_int32_t
-sk_calchash(addr)
-	caddr_t			addr;
+sk_mchash(addr)
+	caddr_t		addr;
 {
-	u_int32_t		idx, bit, data, crc;
+	u_int32_t	crc;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -798,7 +800,7 @@ sk_setmulti(sc_if)
 				continue;
 			}
 
-			h = sk_calchash(
+			h = sk_mchash(
 				LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 			if (h < 32)
 				hashes[0] |= (1 << h);

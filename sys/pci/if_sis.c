@@ -156,7 +156,7 @@ static void sis_miibus_statchg	(device_t);
 
 static void sis_setmulti_sis	(struct sis_softc *);
 static void sis_setmulti_ns	(struct sis_softc *);
-static u_int32_t sis_crc	(struct sis_softc *, caddr_t);
+static u_int32_t sis_mchash	(struct sis_softc *, caddr_t);
 static void sis_reset		(struct sis_softc *);
 static int sis_list_rx_init	(struct sis_softc *);
 static int sis_list_tx_init	(struct sis_softc *);
@@ -838,23 +838,21 @@ sis_miibus_statchg(dev)
 }
 
 static u_int32_t
-sis_crc(sc, addr)
+sis_mchash(sc, addr)
 	struct sis_softc	*sc;
 	caddr_t			addr;
 {
 	u_int32_t		crc, carry; 
-	int			i, j;
-	u_int8_t		c;
+	int			idx, bit;
+	u_int8_t		data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -910,7 +908,8 @@ sis_setmulti_ns(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = sis_crc(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = sis_mchash(sc,
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		index = h >> 3;
 		bit = h & 0x1F;
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_FMEM_LO + index);
@@ -960,7 +959,7 @@ sis_setmulti_sis(sc)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-			h = sis_crc(sc,
+			h = sis_mchash(sc,
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 			hashes[h >> 4] |= 1 << (h & 0xf);
 			i++;

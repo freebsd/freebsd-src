@@ -264,8 +264,8 @@ static void dc_miibus_statchg	(device_t);
 static void dc_miibus_mediainit	(device_t);
 
 static void dc_setcfg		(struct dc_softc *, int);
-static u_int32_t dc_crc_le	(struct dc_softc *, const uint8_t *);
-static u_int32_t dc_crc_be	(const uint8_t *);
+static u_int32_t dc_mchash_le	(struct dc_softc *, caddr_t);
+static u_int32_t dc_mchash_be	(caddr_t);
 static void dc_setfilt_21143	(struct dc_softc *);
 static void dc_setfilt_asix	(struct dc_softc *);
 static void dc_setfilt_admtek	(struct dc_softc *);
@@ -1021,9 +1021,11 @@ dc_miibus_mediainit(device_t dev)
 #define DC_BITS_64	6
 
 static u_int32_t
-dc_crc_le(struct dc_softc *sc, const uint8_t *addr)
+dc_mchash_le(struct dc_softc *sc, caddr_t addr)
 {
-	uint32_t idx, bit, data, crc;
+	u_int32_t crc;
+	int idx, bit;
+	u_int8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -1061,21 +1063,20 @@ dc_crc_le(struct dc_softc *sc, const uint8_t *addr)
  * Calculate CRC of a multicast group address, return the lower 6 bits.
  */
 static u_int32_t
-dc_crc_be(const uint8_t *addr)
+dc_mchash_be(caddr_t addr)
 {
-	uint32_t crc, carry;
-	int i, j;
-	uint8_t c;
+	u_int32_t crc, carry;
+	int idx, bit;
+	u_int8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
+			data >>= 1;
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -1133,13 +1134,13 @@ dc_setfilt_21143(struct dc_softc *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = dc_crc_le(sc,
+		h = dc_mchash_le(sc,
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, ifp->if_broadcastaddr);
+		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
@@ -1203,9 +1204,11 @@ dc_setfilt_admtek(struct dc_softc *sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (DC_IS_CENTAUR(sc))
-			h = dc_crc_le(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			h = dc_mchash_le(sc,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		else
-			h = dc_crc_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			h = dc_mchash_be(
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else
@@ -1271,7 +1274,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = dc_crc_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = dc_mchash_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else
@@ -1323,13 +1326,13 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = dc_crc_le(sc,
+		h = dc_mchash_le(sc,
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, ifp->if_broadcastaddr);
+		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 

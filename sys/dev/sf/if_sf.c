@@ -160,7 +160,7 @@ static int sf_setvlan		(struct sf_softc *, int, u_int32_t);
 #endif
 
 static u_int8_t sf_read_eeprom	(struct sf_softc *, int);
-static u_int32_t sf_calchash	(caddr_t);
+static u_int32_t sf_mchash	(caddr_t);
 
 static int sf_miibus_readreg	(device_t, int, int);
 static int sf_miibus_writereg	(device_t, int, int, int);
@@ -260,22 +260,20 @@ csr_write_4(sc, reg, val)
 }
 
 static u_int32_t
-sf_calchash(addr)
-	caddr_t			addr;
+sf_mchash(addr)
+	caddr_t		addr;
 {
-	u_int32_t		crc, carry;
-	int			i, j;
-	u_int8_t		c;
+	u_int32_t	crc, carry;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -332,7 +330,7 @@ sf_sethash(sc, mac, prio)
 	if (mac == NULL)
 		return(EINVAL);
 
-	h = sf_calchash(mac);
+	h = sf_mchash(mac);
 
 	if (prio) {
 		SF_SETBIT(sc, SF_RXFILT_HASH_BASE + SF_RXFILT_HASH_PRIOOFF +

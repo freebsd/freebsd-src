@@ -116,7 +116,7 @@ Static void cue_watchdog(struct ifnet *);
 Static void cue_shutdown(device_ptr_t);
 
 Static void cue_setmulti(struct cue_softc *);
-Static u_int32_t cue_crc(const uint8_t *);
+Static u_int32_t cue_mchash(caddr_t);
 Static void cue_reset(struct cue_softc *);
 
 Static int cue_csr_read_1(struct cue_softc *, int);
@@ -331,9 +331,11 @@ cue_getmac(struct cue_softc *sc, void *buf)
 #define CUE_BITS	9
 
 Static u_int32_t
-cue_crc(const uint8_t *addr)
+cue_mchash(caddr_t addr)
 {
-	uint32_t		idx, bit, data, crc;
+	u_int32_t	crc;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -376,7 +378,7 @@ cue_setmulti(struct cue_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = cue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = cue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);
 	}
 
@@ -386,9 +388,9 @@ cue_setmulti(struct cue_softc *sc)
  	 */
 	if (ifp->if_flags & IFF_BROADCAST) {
 #if __FreeBSD_version >= 500000
-		h = cue_crc(ifp->if_broadcastaddr);
+		h = cue_mchash(ifp->if_broadcastaddr);
 #else
-		h = cue_crc(etherbroadcastaddr);
+		h = cue_mchash(etherbroadcastaddr);
 #endif
 		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);
 	}

@@ -1,7 +1,4 @@
 /* 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -131,7 +128,6 @@ __FBSDID("$FreeBSD$");
  *	All rights reserved.
  *
  */ 
-
 /*
   Copyright 1988, 1989 by Olivetti Advanced Technology Center, Inc.,
 Cupertino, California.
@@ -154,7 +150,6 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT,
 NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUR OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
-
 /*
   Copyright 1988, 1989 by Intel Corporation, Santa Clara, California.
 
@@ -176,6 +171,10 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT,
 NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 /*
  * NOTE:
