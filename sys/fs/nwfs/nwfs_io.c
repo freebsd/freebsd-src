@@ -124,7 +124,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 #if 0
 			if (error && eofflag) {
 			/*	*eofflag = 1;*/
-			        break;
+				break;
 			}
 #endif
 			break;
@@ -137,7 +137,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 				VTONW(newvp)->n_ctime = VTONW(newvp)->n_vattr.va_ctime.tv_sec;
 				cn.cn_nameptr = dp.d_name;
 				cn.cn_namelen = dp.d_namlen;
-			        cache_enter(vp, newvp, &cn);
+				cache_enter(vp, newvp, &cn);
 				vput(newvp);
 			} else
 				error = 0;
@@ -343,7 +343,7 @@ nwfs_doio(bp, cr, td)
 		 * the block is reused. This is indicated by setting
 		 * the B_DELWRI and B_NEEDCOMMIT flags.
 		 */
-    		if (error == EINTR
+		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
@@ -358,7 +358,7 @@ nwfs_doio(bp, cr, td)
 			if ((bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 			splx(s);
-	    	} else {
+		} else {
 			if (error) {
 				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error /*= np->n_error */= error;
@@ -467,7 +467,7 @@ nwfs_getpages(ap)
 			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
 			vm_page_set_validclean(m, 0, nvalid);
 		}
-		
+
 		if (i != ap->a_reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in

@@ -91,21 +91,21 @@ cd9660_setattr(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 
-  	if (vap->va_flags != (u_long)VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	if (vap->va_flags != (u_long)VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
 	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
 	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
 		return (EROFS);
 	if (vap->va_size != (u_quad_t)VNOVAL) {
- 		switch (vp->v_type) {
- 		case VDIR:
- 			return (EISDIR);
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
 		case VLNK:
 		case VREG:
 			return (EROFS);
- 		case VCHR:
- 		case VBLK:
- 		case VSOCK:
- 		case VFIFO:
+		case VCHR:
+		case VBLK:
+		case VSOCK:
+		case VFIFO:
 		case VNON:
 		case VBAD:
 			return (0);
@@ -165,8 +165,8 @@ cd9660_getattr(ap)
 
 {
 	struct vnode *vp = ap->a_vp;
-	register struct vattr *vap = ap->a_vap;
-	register struct iso_node *ip = VTOI(vp);
+	struct vattr *vap = ap->a_vap;
+	struct iso_node *ip = VTOI(vp);
 
 	vap->va_fsid	= dev2udev(ip->i_dev);
 
@@ -237,14 +237,14 @@ cd9660_ioctl(ap)
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
 
-        switch (ap->a_command) {
+	switch (ap->a_command) {
 
-        case FIOGETLBA:
+	case FIOGETLBA:
 		*(int *)(ap->a_data) = ip->iso_start;
 		return 0;
-        default:
-                return (ENOTTY);
-        }
+	default:
+		return (ENOTTY);
+	}
 }
 
 /*
@@ -260,9 +260,9 @@ cd9660_read(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
-	register struct iso_node *ip = VTOI(vp);
-	register struct iso_mnt *imp;
+	struct uio *uio = ap->a_uio;
+	struct iso_node *ip = VTOI(vp);
+	struct iso_mnt *imp;
 	struct buf *bp;
 	daddr_t lbn, rablock;
 	off_t diff;
@@ -293,7 +293,7 @@ cd9660_read(ap)
 		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			if (lblktosize(imp, rablock) < ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
-				         lbn, size, NOCRED, uio->uio_resid,
+					 lbn, size, NOCRED, uio->uio_resid,
 					 (ap->a_ioflag >> 16), &bp);
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
@@ -431,7 +431,7 @@ cd9660_readdir(ap)
 		u_long *a_cookies;
 	} */ *ap;
 {
-	register struct uio *uio = ap->a_uio;
+	struct uio *uio = ap->a_uio;
 	struct isoreaddir *idp;
 	struct vnode *vdp = ap->a_vp;
 	struct iso_node *dp;
@@ -672,7 +672,7 @@ cd9660_readlink(ap)
 		symname = uio->uio_iov->iov_base;
 	else
 		symname = uma_zalloc(namei_zone, M_WAITOK);
-	
+
 	/*
 	 * Ok, we just gathering a symbolic name in SL record.
 	 */
@@ -712,15 +712,15 @@ cd9660_strategy(ap)
 		struct buf *a_bp;
 	} */ *ap;
 {
-	register struct buf *bp = ap->a_bp;
-	register struct vnode *vp = bp->b_vp;
-	register struct iso_node *ip;
+	struct buf *bp = ap->a_bp;
+	struct vnode *vp = bp->b_vp;
+	struct iso_node *ip;
 
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		bp->b_blkno = (ip->iso_start + bp->b_lblkno) << 
+		bp->b_blkno = (ip->iso_start + bp->b_lblkno) <<
 		    (ip->i_mnt->im_bshift - DEV_BSHIFT);
 		if ((long)bp->b_blkno == -1)	/* XXX: cut&paste junk ? */
 			clrbuf(bp);
