@@ -98,7 +98,7 @@ esp_hdrsiz(isr)
 
 	/* sanity check */
 	if (isr == NULL)
-		panic("esp_hdrsiz: NULL was passed.\n");
+		panic("esp_hdrsiz: NULL was passed.");
 
 	sav = isr->sav;
 
