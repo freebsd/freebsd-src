@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $FreeBSD$ src/usr.sbin/burncd/burncd.8,v 1.6.2.2 2000/12/08 15:27:58 ru Exp
+.\" $FreeBSD$
 .\"
 .Dd December 4, 2001
 .Os
@@ -161,6 +161,14 @@ The typical usage for burning a mixed mode CD-R:
 The typical usage for burning from a compressed image file on stdin:
 .Pp
 .Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate"
+.Pp
+In the examples above, the files burned to data CD-Rs are assumed to
+be ISO9660 filesystems.
+.Xr mkisofs 8 ,
+available in the
+.Fx
+Ports Collection, is commonly used to create ISO9660 filesystem images
+from a given directory tree.
 .Sh BUGS
 Probably, please report when found.
 .Sh HISTORY
