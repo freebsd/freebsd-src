@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.25 1994/09/02 01:13:47 jkh Exp $
+# $Id: bsd.port.mk,v 1.26 1994/09/02 01:32:13 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -284,13 +284,13 @@ ${EXTRACT_COOKIE}:
 	   echo ">> Sorry, I can't seem to find: ${DISTFILE}"; \
 	   echo ">> on this system."; \
 	   if [ -f ${NCFTP} ]; then \
-		echo ">> Attempting to fetch ${HOME_LOCATION}.";\
-		if [ ! -d `dirname ${DISTFILE}`; then \
+		echo ">> Attempting to fetch ${HOME_LOCATION}."; \
+		if [ ! -d `dirname ${DISTFILE}` ]; then \
 			mkdir -p `dirname ${DISTFILE}`; \
-		fi \
+		fi; \
 		if cd `dirname ${DISTFILE}`; then \
 			if ${NCFTP} ${HOME_LOCATION}; then \
-				${EXTRACT_CMD} ${EXTRACT_ARGS}; \
+				${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTFILE}; \
 			else \
 				echo ">> Couldn't fetch it - please retreive ${DISTFILE} manually and try again."; \
 				exit 1; \
