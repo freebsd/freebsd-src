@@ -62,7 +62,7 @@ static struct cdevsw snp_cdevsw = {
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
-static struct snoop snoopsw[NSNP];
+MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
 
 static struct tty	*snpdevtotty __P((dev_t dev));
 static int		snp_detach __P((struct snoop *snp));
@@ -79,7 +79,7 @@ snpdevtotty (dev)
 	return (NULL);
 }
 
-#define SNP_INPUT_BUF	5	/* This is even too  much,the maximal
+#define SNP_INPUT_BUF	5	/* This is even too much, the maximal
 				 * interactive mode write is 3 bytes
 				 * length for function keys...
 				 */
@@ -90,8 +90,8 @@ snpwrite(dev, uio, flag)
 	struct uio     *uio;
 	int             flag;
 {
-	int             unit = minor(dev), len, i, error;
-	struct snoop   *snp = &snoopsw[unit];
+	int             len, i, error;
+	struct snoop   *snp = dev->si_drv1;
 	struct tty     *tp;
 	char		c[SNP_INPUT_BUF];
 
@@ -112,11 +112,11 @@ tty_input:
 		return (EIO);
 
 	while (uio->uio_resid > 0) {
-		len = MIN(uio->uio_resid,SNP_INPUT_BUF);
+		len = MIN(uio->uio_resid, SNP_INPUT_BUF);
 		if ((error = uiomove(c, len, uio)) != 0)
 			return (error);
-		for (i=0;i<len;i++) {
-			if (ttyinput(c[i] , tp))
+		for (i=0; i < len; i++) {
+			if (ttyinput(c[i], tp))
 				return (EIO);
 		}
 	}
@@ -131,9 +131,8 @@ snpread(dev, uio, flag)
 	struct uio     *uio;
 	int             flag;
 {
-	int             unit = minor(dev), s;
-	struct snoop   *snp = &snoopsw[unit];
-	int             len, n, nblen, error = 0;
+	struct snoop   *snp = dev->si_drv1; 
+	int             len, n, nblen, s, error = 0;
 	caddr_t         from;
 	char           *nbuf;
 
@@ -150,7 +149,7 @@ snpread(dev, uio, flag)
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
 			snp->snp_flags |= SNOOP_RWAIT;
-			tsleep((caddr_t) snp, (PZERO + 1) | PCATCH, "snoopread", 0);
+			tsleep((caddr_t)snp, (PZERO + 1) | PCATCH, "snprd", 0);
 		}
 	} while (snp->snp_len == 0);
 
@@ -158,7 +157,7 @@ snpread(dev, uio, flag)
 
 	while (snp->snp_len > 0 && uio->uio_resid > 0 && error == 0) {
 		len = MIN(uio->uio_resid, snp->snp_len);
-		from = (caddr_t) (snp->snp_buf + snp->snp_base);
+		from = (caddr_t)(snp->snp_buf + snp->snp_base);
 		if (len == 0)
 			break;
 
@@ -174,9 +173,9 @@ snpread(dev, uio, flag)
 	if (((nblen / 2) >= SNOOP_MINLEN) && (nblen / 2) >= snp->snp_len) {
 		while (((nblen / 2) >= snp->snp_len) && ((nblen / 2) >= SNOOP_MINLEN))
 			nblen = nblen / 2;
-		if ((nbuf = malloc(nblen, M_TTYS, M_NOWAIT)) != NULL) {
+		if ((nbuf = malloc(nblen, M_SNP, M_NOWAIT)) != NULL) {
 			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
-			free(snp->snp_buf, M_TTYS);
+			free(snp->snp_buf, M_SNP);
 			snp->snp_buf = nbuf;
 			snp->snp_blen = nblen;
 			snp->snp_base = 0;
@@ -190,10 +189,10 @@ snpread(dev, uio, flag)
 int
 snpinc(struct snoop *snp, char c)
 {
-        char    buf[1];
+        char    buf;
 
-        buf[0]=c;
-        return (snpin(snp,buf,1));
+	buf = c;
+        return (snpin(snp, &buf, 1));
 }
 
 
@@ -213,12 +212,6 @@ snpin(snp, buf, n)
 	if (n == 0)
 		return 0;
 
-#ifdef DIAGNOSTIC
-	if (!(snp->snp_flags & SNOOP_OPEN)) {
-		printf("Snoop: data coming to closed device.\n");
-		return 0;
-	}
-#endif
 	if (snp->snp_flags & SNOOP_DOWN) {
 		printf("Snoop: more data to down interface.\n");
 		return 0;
@@ -246,9 +239,9 @@ snpin(snp, buf, n)
 			nblen = snp->snp_blen * 2;
 			s_free = nblen - (snp->snp_len + snp->snp_base);
 		}
-		if ((n <= s_free) && (nbuf = malloc(nblen, M_TTYS, M_NOWAIT))) {
+		if ((n <= s_free) && (nbuf = malloc(nblen, M_SNP, M_NOWAIT))) {
 			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
-			free(snp->snp_buf, M_TTYS);
+			free(snp->snp_buf, M_SNP);
 			snp->snp_buf = nbuf;
 			snp->snp_blen = nblen;
 			snp->snp_base = 0;
@@ -256,7 +249,7 @@ snpin(snp, buf, n)
 			snp->snp_flags |= SNOOP_OFLOW;
 			if (snp->snp_flags & SNOOP_RWAIT) {
 				snp->snp_flags &= ~SNOOP_RWAIT;
-				wakeup((caddr_t) snp);
+				wakeup((caddr_t)snp);
 			}
 			splx(s);
 			return 0;
@@ -264,19 +257,19 @@ snpin(snp, buf, n)
 		splx(s);
 	}
 	if (n > s_tail) {
-		from = (caddr_t) (snp->snp_buf + snp->snp_base);
-		to = (caddr_t) (snp->snp_buf);
+		from = (caddr_t)(snp->snp_buf + snp->snp_base);
+		to = (caddr_t)(snp->snp_buf);
 		len = snp->snp_len;
 		bcopy(from, to, len);
 		snp->snp_base = 0;
 	}
-	to = (caddr_t) (snp->snp_buf + snp->snp_base + snp->snp_len);
+	to = (caddr_t)(snp->snp_buf + snp->snp_base + snp->snp_len);
 	bcopy(buf, to, n);
 	snp->snp_len += n;
 
 	if (snp->snp_flags & SNOOP_RWAIT) {
 		snp->snp_flags &= ~SNOOP_RWAIT;
-		wakeup((caddr_t) snp);
+		wakeup((caddr_t)snp);
 	}
 	selwakeup(&snp->snp_sel);
 	snp->snp_sel.si_pid = 0;
@@ -291,26 +284,27 @@ snpopen(dev, flag, mode, p)
 	struct proc    *p;
 {
 	struct snoop   *snp;
-	register int    unit, error;
+	int error;
 
 	if ((error = suser(p)) != 0)
 		return (error);
 
-	if ((unit = minor(dev)) >= NSNP)
-		return (ENXIO);
+	if (dev->si_drv1 == NULL) {
+		int mynor = minor(dev);
 
-	snp = &snoopsw[unit];
-
-	if (snp->snp_flags & SNOOP_OPEN)
-		return (ENXIO);
+		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP, M_WAITOK);
+		bzero(snp, sizeof(*snp));
+		make_dev(&snp_cdevsw, mynor, 0, 0, 0600, "snp%d", mynor);
+	} else
+		return (EBUSY);
 
 	/*
-	 * We intentionally do not OR flags with SNOOP_OPEN,but set them so
+	 * We intentionally do not OR flags with SNOOP_OPEN, but set them so
 	 * all previous settings (especially SNOOP_OFLOW) will be cleared.
 	 */
 	snp->snp_flags = SNOOP_OPEN;
 
-	snp->snp_buf = malloc(SNOOP_MINLEN, M_TTYS, M_WAITOK);
+	snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
 	snp->snp_blen = SNOOP_MINLEN;
 	snp->snp_base = 0;
 	snp->snp_len = 0;
@@ -334,7 +328,7 @@ snp_detach(snp)
 	snp->snp_len = 0;
 
 	/*
-	 * If line disc. changed we do not touch this pointer,SLIP/PPP will
+	 * If line disc. changed we do not touch this pointer, SLIP/PPP will
 	 * change it anyway.
 	 */
 
@@ -356,6 +350,8 @@ snp_detach(snp)
 detach_notty:
 	selwakeup(&snp->snp_sel);
 	snp->snp_sel.si_pid = 0;
+	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
+		free(snp, M_SNP);
 
 	return (0);
 }
@@ -367,12 +363,12 @@ snpclose(dev, flags, fmt, p)
 	int             fmt;
 	struct proc    *p;
 {
-	register int    unit = minor(dev);
-	struct snoop   *snp = &snoopsw[unit];
+	struct snoop   *snp = dev->si_drv1;
 
 	snp->snp_blen = 0;
-	free(snp->snp_buf, M_TTYS);
+	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
+	dev->si_drv1 = NULL;
 
 	return (snp_detach(snp));
 }
@@ -381,9 +377,12 @@ int
 snpdown(snp)
 	struct snoop	*snp;
 {
-	snp->snp_blen = SNOOP_MINLEN;
-	free(snp->snp_buf, M_TTYS);
-	snp->snp_buf = malloc(SNOOP_MINLEN, M_TTYS, M_WAITOK);
+
+	if (snp->snp_blen != SNOOP_MINLEN) {
+		free(snp->snp_buf, M_SNP);
+		snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
+		snp->snp_blen = SNOOP_MINLEN;
+	}
 	snp->snp_flags |= SNOOP_DOWN;
 
 	return (snp_detach(snp));
@@ -398,14 +397,14 @@ snpioctl(dev, cmd, data, flags, p)
 	int             flags;
 	struct proc    *p;
 {
-	int             unit = minor(dev), s;
 	dev_t		tdev;
-	struct snoop   *snp = &snoopsw[unit];
+	struct snoop   *snp = dev->si_drv1;
 	struct tty     *tp, *tpo;
+	int s;
 
 	switch (cmd) {
 	case SNPSTTY:
-		tdev = udev2dev(*((udev_t *) data), 0);
+		tdev = udev2dev(*((udev_t *)data), 0);
 		if (tdev == NODEV)
 			return (snpdown(snp));
 
@@ -413,7 +412,7 @@ snpioctl(dev, cmd, data, flags, p)
 		if (!tp)
 			return (EINVAL);
 
-		if ((tp->t_sc != (caddr_t) snp) && (tp->t_state & TS_SNOOP))
+		if ((tp->t_sc != (caddr_t)snp) && (tp->t_state & TS_SNOOP))
 			return (EBUSY);
 
 		if ((tp->t_line != OTTYDISC) && (tp->t_line != NTTYDISC))
@@ -427,7 +426,7 @@ snpioctl(dev, cmd, data, flags, p)
 				tpo->t_state &= ~TS_SNOOP;
 		}
 
-		tp->t_sc = (caddr_t) snp;
+		tp->t_sc = (caddr_t)snp;
 		tp->t_state |= TS_SNOOP;
 		snp->snp_tty = tp;
 		snp->snp_target = tdev;
@@ -444,17 +443,17 @@ snpioctl(dev, cmd, data, flags, p)
 	case SNPGTTY:
 		/*
 		 * We keep snp_target field specially to make
-		 * SNPGTTY happy,else we can't know what is device
+		 * SNPGTTY happy, else we can't know what is device
 		 * major/minor for tty.
 		 */
-		*((dev_t *) data) = snp->snp_target;
+		*((dev_t *)data) = snp->snp_target;
 		break;
 
 	case FIONBIO:
 		break;
 
 	case FIOASYNC:
-		if (*(int *) data)
+		if (*(int *)data)
 			snp->snp_flags |= SNOOP_ASYNC;
 		else
 			snp->snp_flags &= ~SNOOP_ASYNC;
@@ -463,15 +462,15 @@ snpioctl(dev, cmd, data, flags, p)
 	case FIONREAD:
 		s = spltty();
 		if (snp->snp_tty != NULL)
-			*(int *) data = snp->snp_len;
+			*(int *)data = snp->snp_len;
 		else
 			if (snp->snp_flags & SNOOP_DOWN) {
 				if (snp->snp_flags & SNOOP_OFLOW)
-					*(int *) data = SNP_OFLOW;
+					*(int *)data = SNP_OFLOW;
 				else
-					*(int *) data = SNP_TTYCLOSE;
+					*(int *)data = SNP_TTYCLOSE;
 			} else {
-				*(int *) data = SNP_DETACH;
+				*(int *)data = SNP_DETACH;
 			}
 		splx(s);
 		break;
@@ -489,14 +488,13 @@ snppoll(dev, events, p)
 	int             events;
 	struct proc    *p;
 {
-	int             unit = minor(dev);
-	struct snoop   *snp = &snoopsw[unit];
+	struct snoop   *snp = dev->si_drv1;
 	int		revents = 0;
 
 
 	/*
-	 * If snoop is down,we don't want to poll() forever so we return 1.
-	 * Caller should see if we down via FIONREAD ioctl().The last should
+	 * If snoop is down, we don't want to poll() forever so we return 1.
+	 * Caller should see if we down via FIONREAD ioctl().  The last should
 	 * return -1 to indicate down state.
 	 */
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -514,10 +512,8 @@ static void
 snp_drvinit(unused)
 	void *unused;
 {
-	int	i;
 
-	for (i = 0; i < NSNP; i++) 
-		make_dev(&snp_cdevsw, i, 0, 0, 0600, "snp%d", i);
+	cdevsw_add(&snp_cdevsw);
 }
 
 SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)
