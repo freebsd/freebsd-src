@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: bt.4,v 1.5 1998/03/12 07:30:30 charnier Exp $
+.\"	$Id: bt.4,v 1.6 1998/10/16 21:33:34 ken Exp $
 .\"
 .Dd October 16, 1998
 .Dt BT 4 i386
@@ -99,18 +99,19 @@ a problem with your adapter, contact Mylex technical support and ensure you
 have the latest firmware for your controller.
 .Sh SEE ALSO
 .Xr cd 4 ,
-.Xr scsi 4 ,
 .Xr da 4 ,
-.Xr sa 4
+.Xr sa 4 ,
+.Xr scsi 4
 .Sh AUTHORS
 .An Julian Elischer
 wrote a driver for the Multimaster cards that appeared in the 386BSD
 patch kit.  The driver was rewritten by
 .An Justin T. Gibbs
-to take advantage of new board features and work with the CAM SCSI framework
-in FreeBSD 3.0R.
+to take advantage of new board features and work with the CAM SCSI framework in
+.Fx 3.0 .
 .Pp
-Special thanks to Leonard N. Zubkoff
+Special thanks to 
+.An Leonard N. Zubkoff
 for writing such a complete and well documented Mylex/BusLogic MultiMaster
 driver for Linux.  Support in this driver for the wide range of MultiMaster
 controllers and firmware revisions, with their otherwise undocumented quirks,
@@ -132,4 +133,3 @@ ISA/VL Bus Driver Attachment
 The
 .Nm
 driver first appeared in the 386BSD patch kit.
-
