@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28 1997/12/31 03:58:45 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.7 1998/05/21 01:12:38 brian Exp $
 #
 #################################################################
 
@@ -25,10 +25,9 @@
 #  so that subsequent commands are logged.
 #
 default:
- set log Phase Chat Connect Carrier LCP IPCP CCP tun command
+ set log Phase Chat LCP IPCP CCP tun command
  set device /dev/cuaa1
  set speed 115200
- deny lqr
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" AT OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
 
 # Client side PPP
@@ -43,30 +42,32 @@ default:
 # An on demand example where we have dynamic IP addresses:
 #  If the peer assigns us an arbitrary IP (most ISPs do this) and we
 #  can't predict what their IP will be either, take a wild guess at
-#  some IPs that you can't currently route to.  Ensure that the "delete"
-#  and "add" lines are also present in the pmdemand section of ppp.linkup
-#  so that when we connect, things will be put straight.
-#
-#  This will work with static IP numbers too.  You can also use this entry
-#  if you don't want on-demand dialup.  The "set ifaddr", "delete" and
-#  "add" lines are required for on-demand.  Note, for dynamic IP numbers,
-#  whether dialing manually or on demand, there should *always* be an entry
-#  in ppp.linkup.
+#  some IPs that you can't currently route to.
 #
 #  The /0 bit in "set ifaddr" says that we insist on 0 bits of the
 #  specified IP actually being correct, therefore, the other side can assign
 #  any IP numbers.
 #
-#  The fourth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
+#  The forth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
 #  IP number, forcing the peer to make the decision.
+#
+#  This entry also works with static IP numbers or when not in -auto mode.
+#  The ``add'' line adds a `sticky' default route that will be updated if
+#  and when any of the IP numbers are changed in IPCP negotiations.
+#  The "set ifaddr" is required in -auto mode.
+#
+#  Finally, the ``enable dns'' bit tells ppp to ask the peer for the
+#  nameserver addresses that should be used.  This isn't always supported
+#  by the other side, but if it is, /etc/resolv.conf will automatically be
+#  updated.
 #
 pmdemand:
  set phone 1234567
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
- delete ALL
- add 0 0 HISADDR
+ add default HISADDR
+ enable dns
 
 # When we want to use PAP or CHAP instead of using a unix-style login
 # proceedure, we do the following.  Note, the peer suggests whether we
@@ -79,8 +80,8 @@ PAPorCHAPpmdemand:
  set authkey MyKey
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
- delete ALL
- add 0 0 HISADDR
+ add default HISADDR
+ enable dns
 
 # On demand dialup example with static IP addresses:
 #  Here, the local side uses 192.244.185.226 and the remote side
@@ -88,17 +89,17 @@ PAPorCHAPpmdemand:
 #
 #  # ppp -auto ondemand
 #
-#  It is not necessary to have an entry in ppp.linkup when both IP numbers
-#  are static.  Be warned though, the MYADDR: label is executed from
-#  ppp.linkup if the "ondemand:" and "192.244.176.44" labels are not found.
+#  With static IP numbers, our setup is similar to dynamic:
+#  Remember, ppp.linkup is searched for a "192.244.176.44" label, then
+#  a "ondemand" label, and finally the "MYADDR" label.
 #
 ondemand:
  set phone 1234567
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
- set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
- delete ALL
- add 0 0 HISADDR
+ set ifaddr 192.244.185.226 192.244.176.44
+ add default HISADDR
+ enable dns
 
 #                          Example segments
 #
@@ -114,17 +115,16 @@ examples:
 #
     set phone 12345678|12345679:12345670|12345671
 #
-# When in -auto, -ddial, -direct or -background mode, ppp can accept
-# control instructions from the ``pppctl'' program.  First, you must
-# set up your control socket.  It's safest to use a UNIX domain socket,
-# and watch the permissions:
+# Ppp can accept control instructions from the ``pppctl'' program.
+# First, you must set up your control socket.  It's safest to use
+# a UNIX domain socket, and watch the permissions:
 #
-    set server /var/tmp/internet 0177
+    set server /var/tmp/internet MySecretPassword 0177
 #
 # Although a TCP port may be used if you want to allow control
 # connections from other machines:
 #
-    set server 6670
+    set server 6670 MySecretpassword
 #
 # If you don't like ppp's builtin chat, use an external one:
 #
@@ -144,20 +144,28 @@ examples:
     set log local LCP IPCP CCP
 #
 # If you're seeing a lot of magic number problems and failed connections,
-# try this (check out the FAQ):
+# try this (see the man page):
 #
-    set openmode passive
+    set openmode active 5
 #
 # For noisy lines, we may want to reconnect (up to 20 times) after loss
-# of carrier:
+# of carrier, with 3 second delays between each attempt:
 #
     set reconnect 3 20
 #
-# When playing server for M$ clients, tell them who our name servers are:
+# When playing server for M$ clients, tell them who our NetBIOS name
+# servers are:
 #
-    set ns 10.0.0.1 10.0.0.2
     set nbns 10.0.0.1 10.0.0.2
-    enable msext
+#
+# Inform the client if they ask for our DNS IP numbers:
+#
+    enable dns
+#
+# If you don't want to tell them what's in your /etc/resolf.conf file
+# with `enable dns', override the values:
+#
+    set dns 10.0.0.1 10.0.0.2
 #
 # If we're using the -alias switch, redirect ftp and http to an internal
 # machine:
@@ -174,7 +182,8 @@ examples:
     allow user brian
 #
 # But label `internet' contains passwords that even brian can't have, so
-# I empty out the user access list in that section:
+# I empty out the user access list in that section so that only root can
+# have access:
 #
     allow users
 #
@@ -188,15 +197,19 @@ dodgy:
 #
 # If we don't want ICMP and DNS packets to keep the connection alive:
 #
-    set afilter 0 deny icmp
-    set afilter 1 deny udp src eq 53
-    set afilter 2 deny udp dst eq 53
-    set afilter 3 permit 0/0 0/0
+    set filter alive 0 deny icmp
+    set filter alive 1 deny udp src eq 53
+    set filter alive 2 deny udp dst eq 53
+    set filter alive 3 permit 0 0
 #
 # And we don't want ICMPs to cause a dialup:
 #
-    set dfilter 0 deny icmp
-    set dfilter 1 permit 0/0 0/0
+    set filter dial 0 deny icmp
+    set filter dial 1 permit 0 0
+#
+# or any TCP SYN or RST packets (badly closed TCP channels):
+#
+    set filter dial 2 deny 0 0 tcp syn finrst
 #
 # Once the line's up, allow connections for ident (113), telnet (23),
 # ftp (20 & 21), DNS (53), my place of work (192.244.191.0/24),
@@ -204,28 +217,28 @@ dodgy:
 #
 # Anything else is blocked by default
 #
-    set ifilter 0 permit tcp dst eq 113
-    set ofilter 0 permit tcp src eq 113
-    set ifilter 1 permit tcp src eq 23 estab
-    set ofilter 1 permit tcp dst eq 23
-    set ifilter 2 permit tcp src eq 21 estab
-    set ofilter 2 permit tcp dst eq 21
-    set ifilter 3 permit tcp src eq 20 dst gt 1023
-    set ofilter 3 permit tcp dst eq 20
-    set ifilter 4 permit udp src eq 53
-    set ofilter 4 permit udp dst eq 53
-    set ifilter 5 permit 192.244.191.0/24 0/0
-    set ofilter 5 permit 0/0 192.244.191.0/24
-    set ifilter 6 permit icmp
-    set ofilter 6 permit icmp
-    set ifilter 7 permit udp dst gt 33433
-    set ofilter 7 permit udp dst gt 33433
+    set filter in  0 permit tcp dst eq 113
+    set filter out 0 permit tcp src eq 113
+    set filter in  1 permit tcp src eq 23 estab
+    set filter out 1 permit tcp dst eq 23
+    set filter in  2 permit tcp src eq 21 estab
+    set filter out 2 permit tcp dst eq 21
+    set filter in  3 permit tcp src eq 20 dst gt 1023
+    set filter out 3 permit tcp dst eq 20
+    set filter in  4 permit udp src eq 53
+    set filter out 4 permit udp dst eq 53
+    set filter in  5 permit 192.244.191.0/24 0/0
+    set filter out 5 permit 0/0 192.244.191.0/24
+    set filter in  6 permit icmp
+    set filter out 6 permit icmp
+    set filter in  7 permit udp dst gt 33433
+    set filter out 7 permit udp dst gt 33433
 
 
 # Server side PPP
 #  If you want the remote system to authenticate itself, you insist
 #  that the peer uses CHAP (or PAP) with the "enable" keyword.  Both CHAP and
-#  PAP are disabled by default (we usually only "enable" on of them if the
+#  PAP are disabled by default (we usually only "enable" one of them if the
 #  other side is dialing into our server).
 #  When the peer authenticates itself, we use ppp.secret for verification.
 #
@@ -233,45 +246,55 @@ dodgy:
 #   # ppp -direct CHAPserver
 #
 #  Note:  We can supply a third field in ppp.secret specifying the IP address
-#         for that user.
+#         for that user.  We can even specify a forth field to specify the
+#         ppp.link{up,down} label to use.
 #
 CHAPserver:
  enable chap
  enable proxy
  set ifaddr 192.244.176.44 292.244.184.31
+ accept dns
 
 # If we wish to act as a server, allowing PAP access according to
-# accounts in /etc/passwd, we do this:
+# accounts in /etc/passwd, we do this  (Without `enable passwdauth',
+# you may still enter ``*'' as the users password in ppp.secret and
+# ppp will look it up in the passwd database.  This is useful if you
+# need to assign a special label or IP number or range):
 #
 PAPServerwithPASSWD:
  enable pap
  enable passwdauth
  enable proxy
  set ifaddr 192.244.176.44 292.244.184.31
+ accept dns
 
 
 # Example to connect using a null-modem cable:
 #  The important thing here is to allow the lqr packets on both sides.
 #  Without them enabled, we can't tell if the line's dropped - there
 #  should always be carrier on a direct connection.
-#  Here, the server sends lqr's every 10 seconds and quits if three in a
+#  Here, the server sends lqr's every 10 seconds and quits if five in a
 #  row fail.
 #
 #  Make sure you don't have "deny lqr" in your default: on the client !
+#  If the peer denies LQR, we still send ECHO LQR packets at the given
+#  lqrperiod interval (ppp-style-pings).
 #
 direct-client:
  set dial ""
  set line /dev/cuaa0
  set sp 115200
- set timeout 900 10 3
+ set timeout 900
+ set lqrperiod 10
  set log Phase Chat LQM
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  enable lqr
  accept lqr
  
 direct-server:
- set timeout 900 10 3
+ set timeout 0
+ set lqrperiod 10
  set log Phase LQM
  set ifaddr 10.0.4.1 10.0.4.2
  enable lqr
@@ -283,15 +306,16 @@ direct-server:
 #  configured to run "ppp -direct tcp-server" when it gets a connection on
 #  port 1234.  Read the man page for further details
 #
+#  Note, we assume we're using a binary-clean connection.  If something
+#  such as `rlogin' is involved, you may need to ``set escape 0xff''
+#
 tcp-client:
  set device tcpsrv.mynet:1234
  set dial
  set login
- set escape 0xff
  set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0
 
 tcp-server:
- set escape 0xff
  set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0
 
 # If you want to test ppp, do it through a loopback:
@@ -308,13 +332,52 @@ loop:
  set device localhost:ppploop
  set dial
  set login
- set escape 0xff
  set ifaddr 127.0.0.2 127.0.0.3
- set openmode passive
  set server /var/tmp/loop "" 0177
  
 loop-in:
  set timeout 0
- set log phase chat connect lcp ipcp command
- set escape 0xff
+ set log phase lcp ipcp command
  allow mode direct
+
+# If you wish to connect to a server that will dial back, take advantage
+# of the fact that ppp doesn't look for carrier 'till `set login' is
+# complete:
+#
+# Here, we expect the server to say DIALBACK then disconnect after
+# we've authenticated ourselves.  When this has happened, we wait
+# 60 seconds for a RING.
+#
+dialback:
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATZ OK-ATZ-OK \
+           ATDT\\T TIMEOUT 60 CONNECT"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp TIMEOUT 15 DIALBACK \
+           \"\" NO\\sCARRIER \"\" TIMEOUT 60 RING ATA CONNECT"
+
+# Multilink mode is available (rfc1990).
+# To enable multilink capabilities, you must specify a MRRU.  1500 is
+# a reasonable value.  To create new links, use the ``clone'' command
+# to duplicate an existing link.  If you already have more than one
+# link, you must specify which link you wish to run the command on via
+# the ``link'' command.
+#
+# You can now ``dial'' specific links, or even dial all links at the
+# same time.  The `dial' command may also be prefixed with a specific
+# link that should do the dialing.
+#
+
+mloop:
+ load loop
+ set mode interactive
+ set mrru 1500
+ clone 1 2 3
+ link deflink remove
+ # dial
+ # link 2 dial 
+ # link 3 dial 
+
+mloop-in:
+ set timeout 0
+ set log tun phase
+ allow mode direct
+ set mrru 1500

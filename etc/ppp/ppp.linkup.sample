@@ -12,40 +12,34 @@
 #  3) If no label has been found, use MYADDR if it exists.
 #
 #
-# $Id: ppp.linkup.sample,v 1.12 1997/11/18 18:59:57 brian Exp $
+# $Id: ppp.linkup.sample,v 1.13.2.1 1998/05/05 23:31:45 brian Exp $
 #
 #########################################################################
 
-# By default, simply delete any existing default route and add the peer
-# as default gateway.
+# It is no longer necessary to re-add the default route here as our
+# ppp.conf route is `sticky' (see the man page).
 # If you're into sound effects when the link comes up, you can run
 # ``auplay'' (assuming NAS is installed and configured).
 #
 MYADDR:
- delete 0
- add 0 0 HISADDR
  !bg /usr/X11R6/bin/auplay /etc/ppp/linkup.au
 
 # If we've got 192.244.176.32 as our address, then regard peer as a gateway
-# to 192.244.176.0 network.
+# to 192.244.176.0 network.  This may also be done in ppp.conf instead.
 #
 192.244.176.32:
  add 192.244.176.0 0 HISADDR
 
-# If we are invoked with an argument ``pmdemand'', then
-# delete all existing (wrong) routing entries and add the peer IP
-# as our default gateway.
-# This is vital if you don't already know either sides IP number.
-#
-# We also want to execute a script on startup.  This script can do
+#You may want to execute a script after connecting.  This script can do
 # nice things such as kick off "sendmail -q", "popclient my.isp" and
 # "slurp -d news".  It can be passed MYADDR, HISADDR and INTERFACE
 # as arguments too - useful for informing a DNS of your assigned IP.
 #
+# You may also want some sound effects....
+#
 pmdemand:
- delete ALL
- add 0 0 HISADDR
  !bg /etc/ppp/ppp.etherup.pmdemand
+ ! sh -c "cat /etc/ppp/linkup.au >/dev/audio"
 
 # If your minimum call charge is 5 minutes, you may as well stay on
 # the line for that amount of time.  If we want a 60 second subsequent
