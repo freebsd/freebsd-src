@@ -790,6 +790,7 @@ ndis_write_pci(adapter, slot, offset, buf, len)
  * The errorlog routine uses a variable argument list, so we
  * have to declare it this way.
  */
+#define ERRMSGLEN 512
 static void
 ndis_syslog(ndis_handle adapter, ndis_error_code code,
 	uint32_t numerrors, ...)
@@ -799,12 +800,15 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 	int			i, error;
 	char			*str = NULL, *ustr = NULL;
 	uint16_t		flags;
+	char			msgbuf[ERRMSGLEN];
 
 	block = (ndis_miniport_block *)adapter;
 
 	error = pe_get_message(block->nmb_img, code, &str, &i, &flags);
 	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE) {
-		ndis_unicode_to_ascii((uint16_t *)str, i, &ustr);
+		ustr = msgbuf;
+		ndis_unicode_to_ascii((uint16_t *)str,
+		    ((i / 2)) > (ERRMSGLEN - 1) ? ERRMSGLEN : i, &ustr);
 		str = ustr;
 	}
 	device_printf (block->nmb_dev, "NDIS ERROR: %x (%s)\n", code,
@@ -817,8 +821,6 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 		    va_arg(ap, void *));
 	va_end(ap);
 
-	if (ustr != NULL)
-		free(ustr, M_DEVBUF);
 	return;
 }
 
