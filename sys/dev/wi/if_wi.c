@@ -68,6 +68,8 @@
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
 #include "card.h"
+#undef NCARD
+#define NCARD 0
 #include "wi.h"
 
 #include <sys/param.h>
