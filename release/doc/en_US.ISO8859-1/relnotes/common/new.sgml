@@ -600,6 +600,9 @@
     address (as opposed to using every available one) via the
     <option>-b</option> option.</para>
 
+    <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
+    disable repeated line compression.</para>
+
     <para>Previously, &man.vnconfig.8; was only capable of configuring
     16 devices when invoked with the <option>-f</option>
     (configuration file) option.  This limit has been removed.</para>
