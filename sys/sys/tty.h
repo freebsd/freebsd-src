@@ -67,7 +67,7 @@ struct clist {
 
 struct tty;
 struct pps_state;
-struct cdevsw;
+struct cdev;
 
 typedef int t_open_t(struct tty *, struct cdev *);
 typedef void t_close_t(struct tty *);
