@@ -106,7 +106,7 @@
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
 #define	NPX_PREFER_EMULATOR			(1 << 3)
 
-#ifdef	__GNUC__
+#if defined(__GNUC__) && !defined(lint)
 
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
