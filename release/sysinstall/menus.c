@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.48 1997/09/10 10:16:23 jkh Exp $
+ * $Id: menus.c,v 1.89.2.49 1997/09/16 18:58:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -273,7 +273,6 @@ DMenu MenuIndex = {
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { "Register",		"Register yourself or company as a FreeBSD user.", dmenuVarCheck, configRegister, NULL, "registered" },
-      { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router" },
       { "Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
