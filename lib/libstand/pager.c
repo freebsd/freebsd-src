@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pager.c,v 1.3 1999/02/01 12:32:37 jkh Exp $
+ * $FreeBSD$
  */
 /*
  * Simple paged-output and paged-viewing functions

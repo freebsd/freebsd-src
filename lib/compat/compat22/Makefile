@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1999/05/21 18:37:33 obrien Exp $
+# $FreeBSD$
 
 DISTRIBUTION=	compat22
 

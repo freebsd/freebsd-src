@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_select.c,v 1.5.2.3 1999/08/19 23:29:37 alfred Exp $
+ * $FreeBSD$
  */
 #include <unistd.h>
 #include <errno.h>

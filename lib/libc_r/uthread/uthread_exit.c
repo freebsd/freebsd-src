@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_exit.c,v 1.9 1999/06/20 08:28:17 jb Exp $
+ * $FreeBSD$
  */
 #include <errno.h>
 #include <unistd.h>

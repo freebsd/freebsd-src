@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: libatm.h,v 1.5 1998/08/06 16:56:27 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

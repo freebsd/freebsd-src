@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/12/16 10:24:52 des Exp $
+# $FreeBSD$
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic

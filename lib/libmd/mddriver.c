@@ -1,5 +1,5 @@
 /* MDDRIVER.C - test driver for MD2, MD4 and MD5
- * $Id: mddriver.c,v 1.3 1997/02/22 15:07:24 peter Exp $
+ * $FreeBSD$
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

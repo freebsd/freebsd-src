@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.6 1999/04/06 23:05:59 brian Exp $
+# $FreeBSD$
 
 PROG=	tftpd
 SRCS=	tftpd.c tftpsubs.c

@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $Id: Makefile,v 1.9 1998/08/06 21:36:25 markm Exp $
+# $FreeBSD$
 
 PROG=	rshd
 SRCS=	rshd.c

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.4 1999/06/20 08:28:25 jb Exp $
+ * $FreeBSD$
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *

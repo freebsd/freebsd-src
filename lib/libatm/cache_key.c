@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: cache_key.c,v 1.1 1998/07/09 21:45:27 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -38,7 +38,7 @@
 
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: cache_key.c,v 1.1 1998/07/09 21:45:27 johnc Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>

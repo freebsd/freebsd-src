@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.17 1999/08/05 12:08:09 deischen Exp $
+ * $FreeBSD$
  */
 
 /* Allocate space for global thread variables here: */

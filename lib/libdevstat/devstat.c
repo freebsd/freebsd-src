@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.c,v 1.3 1998/09/20 00:11:09 ken Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
