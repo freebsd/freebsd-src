@@ -1016,7 +1016,7 @@ thread_alloc_spare(struct thread *td)
 	spare = thread_alloc();
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
-	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
+	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
 	spare->td_proc = td->td_proc;
 	spare->td_ucred = crhold(td->td_ucred);
 }
@@ -1046,6 +1046,10 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
 	     td2, td->td_proc->p_pid, td->td_proc->p_comm);
+	/*
+	 * Bzero already done in thread_alloc_spare() because we can't
+	 * do the crhold here because we are in schedlock already.
+	 */
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ku->ku_ksegrp);
@@ -1122,7 +1126,10 @@ thread_switchout(struct thread *td)
 		/*
 		 * Release ownership of upcall, and schedule an upcall
 		 * thread, this new upcall thread becomes the owner of
-		 * the upcall structure.
+		 * the upcall structure. It will be ahead of us in the
+		 * run queue, so as we are stopping, it should either
+		 * start up immediatly, or at least before us if
+		 * we release our slot.
 		 */
 		ku = td->td_upcall;
 		ku->ku_owner = NULL;
@@ -1349,7 +1356,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			if (p->p_flag & P_TRACED)
 				ptrace_clear_single_step(td);
 			error = suword32(&ku->ku_mailbox->km_lwp,
-			                 td->td_tid);
+					td->td_tid);
 			if (error)
 				goto out;
 			error = suword(&ku->ku_mailbox->km_curthread, 0);
