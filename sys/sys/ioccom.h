@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
+ *	@(#)ioccom.h	8.3 (Berkeley) 1/9/95
  */
 
 #ifndef	_SYS_IOCCOM_H_
@@ -46,12 +46,17 @@
 #define	IOCBASECMD(x)	((x) & ~(IOCPARM_MASK << 16))
 #define	IOCGROUP(x)	(((x) >> 8) & 0xff)
 
-#define	IOCPARM_MAX	NBPG		/* max size of ioctl, mult. of NBPG */
-#define	IOC_VOID	0x20000000	/* no parameters */
-#define	IOC_OUT		0x40000000	/* copy out parameters */
-#define	IOC_IN		0x80000000	/* copy in parameters */
+#define	IOCPARM_MAX	NBPG	/* max size of ioctl args, mult. of NBPG */
+				/* no parameters */
+#define	IOC_VOID	(unsigned long)0x20000000
+				/* copy parameters out */
+#define	IOC_OUT		(unsigned long)0x40000000
+				/* copy parameters in */
+#define	IOC_IN		(unsigned long)0x80000000
+				/* copy paramters in and out */
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)
-#define	IOC_DIRMASK	0xe0000000	/* mask for IN/OUT/VOID */
+				/* mask for IN/OUT/VOID */
+#define	IOC_DIRMASK	(unsigned long)0xe0000000
 
 #define	_IOC(inout,group,num,len) \
 	(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))

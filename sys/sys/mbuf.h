@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
+ *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
  */
 
 #ifndef M_WAITOK
@@ -58,25 +58,25 @@
  * mtocl(x) -	convert pointer within cluster to cluster index #
  * cltom(x) -	convert cluster # to ptr to beginning of cluster
  */
-#define mtod(m,t)	((t)((m)->m_data))
-#define	dtom(x)		((struct mbuf *)((int)(x) & ~(MSIZE-1)))
-#define	mtocl(x)	(((u_int)(x) - (u_int)mbutl) >> MCLSHIFT)
-#define	cltom(x)	((caddr_t)((u_int)mbutl + ((u_int)(x) << MCLSHIFT)))
+#define	mtod(m,t)	((t)((m)->m_data))
+#define	dtom(x)		((struct mbuf *)((long)(x) & ~(MSIZE-1)))
+#define	mtocl(x)	(((u_long)(x) - (u_long)mbutl) >> MCLSHIFT)
+#define	cltom(x)	((caddr_t)((u_long)mbutl + ((u_long)(x) << MCLSHIFT)))
 
 /* header at beginning of each mbuf: */
 struct m_hdr {
 	struct	mbuf *mh_next;		/* next buffer in chain */
 	struct	mbuf *mh_nextpkt;	/* next chain in queue/record */
-	int	mh_len;			/* amount of data in this mbuf */
 	caddr_t	mh_data;		/* location of data */
+	int	mh_len;			/* amount of data in this mbuf */
 	short	mh_type;		/* type of data in this mbuf */
 	short	mh_flags;		/* flags; see below */
 };
 
 /* record/packet header in first mbuf of chain; valid if M_PKTHDR set */
 struct	pkthdr {
-	int	len;		/* total packet length */
-	struct	ifnet *rcvif;	/* rcv interface */
+	struct	ifnet *rcvif;		/* rcv interface */
+	int	len;			/* total packet length */
 };
 
 /* description of external storage mapped into mbuf, valid if M_EXT set */
@@ -214,7 +214,7 @@ union mcluster {
 	MBUFLOCK( \
 	  if (mclfree == 0) \
 		(void)m_clalloc(1, (how)); \
-	  if ((p) = (caddr_t)mclfree) { \
+	  if (((p) = (caddr_t)mclfree) != 0) { \
 		++mclrefcnt[mtocl(p)]; \
 		mbstat.m_clfree--; \
 		mclfree = ((union mcluster *)(p))->mcl_next; \
@@ -372,9 +372,11 @@ struct	mbuf *m_prepend __P((struct mbuf *, int, int));
 struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
+void	m_adj __P((struct mbuf *, int));
 int	m_clalloc __P((int, int));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 void	m_freem __P((struct mbuf *));
+void	m_reclaim __P((void));
 
 #ifdef MBTYPES
 int mbtypes[] = {				/* XXX */

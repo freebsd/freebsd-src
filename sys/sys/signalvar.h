@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
+ *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -54,8 +54,8 @@ struct	sigacts {
 	int	ps_flags;		/* signal flags, below */
 	struct	sigaltstack ps_sigstk;	/* sp & on stack state variable */
 	int	ps_sig;			/* for core dump/debugger XXX */
-	int	ps_code;		/* for core dump/debugger XXX */
-	int	ps_addr;		/* for core dump/debugger XXX */
+	long	ps_code;		/* for core dump/debugger XXX */
+	long	ps_addr;		/* for core dump/debugger XXX */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
 };
 
@@ -75,7 +75,7 @@ struct	sigacts {
 /*
  * Determine signal that should be delivered to process p, the current
  * process, 0 if none.  If there is a pending stop signal with default
- * action, the process stops in issig().
+ * action, the process stops in issignal().
  */
 #define	CURSIG(p)							\
 	(((p)->p_siglist == 0 ||					\
@@ -152,16 +152,18 @@ int sigprop[NSIG + 1] = {
 int	coredump __P((struct proc *p));
 void	execsigs __P((struct proc *p));
 void	gsignal __P((int pgid, int sig));
-int	issig __P((struct proc *p));
+int	issignal __P((struct proc *p));
 void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
 void	psignal __P((struct proc *p, int sig));
+void	setsigvec __P((struct proc *p, int signum, struct sigaction *sa));
+void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
-void	trapsignal __P((struct proc *p, int sig, unsigned code));
+void	trapsignal __P((struct proc *p, int sig, u_long code));
 
 /*
  * Machine-dependent functions:
  */
-void	sendsig __P((sig_t action, int sig, int returnmask, unsigned code));
+void	sendsig __P((sig_t action, int sig, int returnmask, u_long code));
 #endif	/* KERNEL */
 #endif	/* !_SYS_SIGNALVAR_H_ */

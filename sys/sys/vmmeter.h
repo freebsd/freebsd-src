@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
+ *	@(#)vmmeter.h	8.2 (Berkeley) 7/10/94
  */
 
 /*
@@ -40,47 +40,47 @@ struct vmmeter {
 	/*
 	 * General system activity.
 	 */
-	unsigned v_swtch;	/* context switches */
-	unsigned v_trap;	/* calls to trap */
-	unsigned v_syscall;	/* calls to syscall() */
-	unsigned v_intr;	/* device interrupts */
-	unsigned v_soft;	/* software interrupts */
-	unsigned v_faults;	/* total faults taken */
+	u_int v_swtch;		/* context switches */
+	u_int v_trap;		/* calls to trap */
+	u_int v_syscall;	/* calls to syscall() */
+	u_int v_intr;		/* device interrupts */
+	u_int v_soft;		/* software interrupts */
+	u_int v_faults;		/* total faults taken */
 	/*
 	 * Virtual memory activity.
 	 */
-	unsigned v_lookups;	/* object cache lookups */
-	unsigned v_hits;	/* object cache hits */
-	unsigned v_vm_faults;	/* number of address memory faults */
-	unsigned v_cow_faults;	/* number of copy-on-writes */
-	unsigned v_swpin;	/* swapins */
-	unsigned v_swpout;	/* swapouts */
-	unsigned v_pswpin;	/* pages swapped in */
-	unsigned v_pswpout;	/* pages swapped out */
-	unsigned v_pageins;	/* number of pageins */
-	unsigned v_pageouts;	/* number of pageouts */
-	unsigned v_pgpgin;	/* pages paged in */
-	unsigned v_pgpgout;	/* pages paged out */
-	unsigned v_intrans;	/* intransit blocking page faults */
-	unsigned v_reactivated;	/* number of pages reactivated from free list */
-	unsigned v_rev;		/* revolutions of the hand */
-	unsigned v_scan;	/* scans in page out daemon */
-	unsigned v_dfree;	/* pages freed by daemon */
-	unsigned v_pfree;	/* pages freed by exiting processes */
-	unsigned v_zfod;	/* pages zero filled on demand */
-	unsigned v_nzfod;	/* number of zfod's created */
+	u_int v_lookups;	/* object cache lookups */
+	u_int v_hits;		/* object cache hits */
+	u_int v_vm_faults;	/* number of address memory faults */
+	u_int v_cow_faults;	/* number of copy-on-writes */
+	u_int v_swpin;		/* swapins */
+	u_int v_swpout;		/* swapouts */
+	u_int v_pswpin;		/* pages swapped in */
+	u_int v_pswpout;	/* pages swapped out */
+	u_int v_pageins;	/* number of pageins */
+	u_int v_pageouts;	/* number of pageouts */
+	u_int v_pgpgin;		/* pages paged in */
+	u_int v_pgpgout;	/* pages paged out */
+	u_int v_intrans;	/* intransit blocking page faults */
+	u_int v_reactivated;	/* number of pages reactivated from free list */
+	u_int v_rev;		/* revolutions of the hand */
+	u_int v_scan;		/* scans in page out daemon */
+	u_int v_dfree;		/* pages freed by daemon */
+	u_int v_pfree;		/* pages freed by exiting processes */
+	u_int v_zfod;		/* pages zero filled on demand */
+	u_int v_nzfod;		/* number of zfod's created */
 	/*
 	 * Distribution of page usages.
 	 */
-	unsigned v_page_size;	/* page size in bytes */
-	unsigned v_kernel_pages;/* number of pages in use by kernel */
-	unsigned v_free_target;	/* number of pages desired free */
-	unsigned v_free_min;	/* minimum number of pages desired free */
-	unsigned v_free_count;	/* number of pages free */
-	unsigned v_wire_count;	/* number of pages wired down */
-	unsigned v_active_count;/* number of pages active */
-	unsigned v_inactive_target; /* number of pages desired inactive */
-	unsigned v_inactive_count;  /* number of pages inactive */
+	u_int v_page_size;	/* page size in bytes */
+	u_int v_kernel_pages;	/* number of pages in use by kernel */
+	u_int v_free_target;	/* number of pages desired free */
+	u_int v_free_min;	/* minimum number of pages desired free */
+	u_int v_free_count;	/* number of pages free */
+	u_int v_wire_count;	/* number of pages wired down */
+	u_int v_active_count;	/* number of pages active */
+	u_int v_inactive_target; /* number of pages desired inactive */
+	u_int v_inactive_count;  /* number of pages inactive */
 };
 #ifdef KERNEL
 struct	vmmeter cnt;
@@ -89,20 +89,20 @@ struct	vmmeter cnt;
 /* systemwide totals computed every five seconds */
 struct vmtotal
 {
-	short	t_rq;		/* length of the run queue */
-	short	t_dw;		/* jobs in ``disk wait'' (neg priority) */
-	short	t_pw;		/* jobs in page wait */
-	short	t_sl;		/* jobs sleeping in core */
-	short	t_sw;		/* swapped out runnable/short block jobs */
-	long	t_vm;		/* total virtual memory */
-	long	t_avm;		/* active virtual memory */
-	long	t_rm;		/* total real memory in use */
-	long	t_arm;		/* active real memory */
-	long	t_vmshr;	/* shared virtual memory */
-	long	t_avmshr;	/* active shared virtual memory */
-	long	t_rmshr;	/* shared real memory */
-	long	t_armshr;	/* active shared real memory */
-	long	t_free;		/* free memory pages */
+	int16_t	t_rq;		/* length of the run queue */
+	int16_t	t_dw;		/* jobs in ``disk wait'' (neg priority) */
+	int16_t	t_pw;		/* jobs in page wait */
+	int16_t	t_sl;		/* jobs sleeping in core */
+	int16_t	t_sw;		/* swapped out runnable/short block jobs */
+	int32_t	t_vm;		/* total virtual memory */
+	int32_t	t_avm;		/* active virtual memory */
+	int32_t	t_rm;		/* total real memory in use */
+	int32_t	t_arm;		/* active real memory */
+	int32_t	t_vmshr;	/* shared virtual memory */
+	int32_t	t_avmshr;	/* active shared virtual memory */
+	int32_t	t_rmshr;	/* shared real memory */
+	int32_t	t_armshr;	/* active shared real memory */
+	int32_t	t_free;		/* free memory pages */
 };
 #ifdef KERNEL
 struct	vmtotal total;
@@ -128,20 +128,20 @@ struct	vmtotal total;
 #define	NRMON	64
 
 /* data and stack size distribution counters */
-unsigned int	dmon[NDMON+1];
-unsigned int	smon[NSMON+1];
+u_int	dmon[NDMON+1];
+u_int	smon[NSMON+1];
 
 /* page in time distribution counters */
-unsigned int	pmon[NPMON+2];
+u_int	pmon[NPMON+2];
 
 /* reclaim time distribution counters */
-unsigned int	rmon[NRMON+2];
+u_int	rmon[NRMON+2];
 
 int	pmonmin;
 int	pres;
 int	rmonmin;
 int	rres;
 
-unsigned rectime;		/* accumulator for reclaim times */
-unsigned pgintime;		/* accumulator for page in times */
+u_int rectime;		/* accumulator for reclaim times */
+u_int pgintime;		/* accumulator for page in times */
 #endif

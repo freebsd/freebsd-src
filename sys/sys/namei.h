@@ -30,11 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)namei.h	8.2 (Berkeley) 1/4/94
+ *	@(#)namei.h	8.5 (Berkeley) 1/9/95
  */
 
 #ifndef _SYS_NAMEI_H_
 #define	_SYS_NAMEI_H_
+
+#include <sys/queue.h>
 
 /*
  * Encapsulation of namei parameters.
@@ -131,6 +133,8 @@ struct nameidata {
 #define MAKEENTRY	0x04000	/* entry is to be added to name cache */
 #define ISLASTCN	0x08000	/* this is last component of pathname */
 #define ISSYMLINK	0x10000	/* symlink needs interpretation */
+#define	ISWHITEOUT	0x20000	/* found whiteout */
+#define	DOWHITEOUT	0x40000	/* do whiteouts */
 #define PARAMASK	0xfff00	/* mask of parameter descriptors */
 /*
  * Initialization of an nameidata structure.
@@ -154,10 +158,8 @@ struct nameidata {
 #define	NCHNAMLEN	31	/* maximum name segment length we bother with */
 
 struct	namecache {
-	struct	namecache *nc_forw;	/* hash chain */
-	struct	namecache **nc_back;	/* hash chain */
-	struct	namecache *nc_nxt;	/* LRU chain */
-	struct	namecache **nc_prev;	/* LRU chain */
+	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
+	TAILQ_ENTRY(namecache) nc_lru;	/* LRU chain */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	u_long	nc_dvpid;		/* capability number of nc_dvp */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
@@ -170,6 +172,8 @@ struct	namecache {
 u_long	nextvnodeid;
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));
+int	relookup __P((struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp));
 #endif
 
 /*

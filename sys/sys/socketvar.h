@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)socketvar.h	8.1 (Berkeley) 6/2/93
+ *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
  */
 
 #include <sys/select.h>			/* for struct selinfo */
@@ -201,7 +201,61 @@ extern	char netio[], netcon[], netcls[];
  */
 int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
-int	soo_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
+int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
+	    struct proc *p));
 int	soo_select __P((struct file *fp, int which, struct proc *p));
 int 	soo_close __P((struct file *fp, struct proc *p));
-#endif
+
+struct mbuf;
+struct sockaddr;
+
+void	sbappend __P((struct sockbuf *sb, struct mbuf *m));
+int	sbappendaddr __P((struct sockbuf *sb, struct sockaddr *asa,
+	    struct mbuf *m0, struct mbuf *control));
+int	sbappendcontrol __P((struct sockbuf *sb, struct mbuf *m0,
+	    struct mbuf *control));
+void	sbappendrecord __P((struct sockbuf *sb, struct mbuf *m0));
+void	sbcheck __P((struct sockbuf *sb));
+void	sbcompress __P((struct sockbuf *sb, struct mbuf *m, struct mbuf *n));
+void	sbdrop __P((struct sockbuf *sb, int len));
+void	sbdroprecord __P((struct sockbuf *sb));
+void	sbflush __P((struct sockbuf *sb));
+void	sbinsertoob __P((struct sockbuf *sb, struct mbuf *m0));
+void	sbrelease __P((struct sockbuf *sb));
+int	sbreserve __P((struct sockbuf *sb, u_long cc));
+int	sbwait __P((struct sockbuf *sb));
+int	sb_lock __P((struct sockbuf *sb));
+int	soabort __P((struct socket *so));
+int	soaccept __P((struct socket *so, struct mbuf *nam));
+int	sobind __P((struct socket *so, struct mbuf *nam));
+void	socantrcvmore __P((struct socket *so));
+void	socantsendmore __P((struct socket *so));
+int	soclose __P((struct socket *so));
+int	soconnect __P((struct socket *so, struct mbuf *nam));
+int	soconnect2 __P((struct socket *so1, struct socket *so2));
+int	socreate __P((int dom, struct socket **aso, int type, int proto));
+int	sodisconnect __P((struct socket *so));
+int	sofree __P((struct socket *so));
+int	sogetopt __P((struct socket *so, int level, int optname,
+	    struct mbuf **mp));
+void	sohasoutofband __P((struct socket *so));
+void	soisconnected __P((struct socket *so));
+void	soisconnecting __P((struct socket *so));
+void	soisdisconnected __P((struct socket *so));
+void	soisdisconnecting __P((struct socket *so));
+int	solisten __P((struct socket *so, int backlog));
+struct socket *
+	sonewconn1 __P((struct socket *head, int connstatus));
+void	soqinsque __P((struct socket *head, struct socket *so, int q));
+int	soqremque __P((struct socket *so, int q));
+int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,
+	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp));
+int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
+void	sorflush __P((struct socket *so));
+int	sosend __P((struct socket *so, struct mbuf *addr, struct uio *uio,
+	    struct mbuf *top, struct mbuf *control, int flags));
+int	sosetopt __P((struct socket *so, int level, int optname,
+	    struct mbuf *m0));
+int	soshutdown __P((struct socket *so, int how));
+void	sowakeup __P((struct socket *so, struct sockbuf *sb));
+#endif /* KERNEL */

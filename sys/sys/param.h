@@ -35,10 +35,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)param.h	8.2 (Berkeley) 1/21/94
+ *	@(#)param.h	8.3 (Berkeley) 4/4/95
  */
 
-#define	BSD	199306		/* System version (year & month). */
+#define	BSD	199506		/* System version (year & month). */
 #define BSD4_3	1
 #define BSD4_4	1
 

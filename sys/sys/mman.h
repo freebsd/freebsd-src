@@ -30,12 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mman.h	8.1 (Berkeley) 6/2/93
+ *	@(#)mman.h	8.2 (Berkeley) 1/9/95
  */
 
 /*
  * Protections are chosen from these bits, or-ed together
  */
+#define	PROT_NONE	0x00	/* no permissions */
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
@@ -59,8 +60,9 @@
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
 
 /*
- * Mapping type; default is map from file.
+ * Mapping type
  */
+#define	MAP_FILE	0x0000	/* map from file (default) */
 #define	MAP_ANON	0x1000	/* allocated from memory, swap space */
 
 /*
@@ -84,6 +86,7 @@ int	munmap __P((caddr_t, size_t));
 int	msync __P((caddr_t, size_t));
 int	mlock __P((caddr_t, size_t));
 int	munlock __P((caddr_t, size_t));
+int	madvise __P((caddr_t, size_t, int));
 __END_DECLS
 
 #endif /* !KERNEL */

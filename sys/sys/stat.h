@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stat.h	8.6 (Berkeley) 3/8/94
+ *	@(#)stat.h	8.12 (Berkeley) 6/16/95
  */
 
 #ifndef _SYS_STAT_H_
@@ -45,46 +45,57 @@
 
 #ifndef _POSIX_SOURCE
 struct ostat {
-	unsigned short	st_dev;		/* inode's device */
-	ino_t	st_ino;			/* inode's number */
-	mode_t	st_mode;		/* inode protection mode */
-	nlink_t	st_nlink;		/* number of hard links */
-	unsigned short	st_uid;		/* user ID of the file's owner */
-	unsigned short	st_gid;		/* group ID of the file's group */
-	unsigned short	st_rdev;	/* device type */
-	long	st_size;		/* file size, in bytes */
+	u_int16_t st_dev;		/* inode's device */
+	ino_t	  st_ino;		/* inode's number */
+	mode_t	  st_mode;		/* inode protection mode */
+	nlink_t	  st_nlink;		/* number of hard links */
+	u_int16_t st_uid;		/* user ID of the file's owner */
+	u_int16_t st_gid;		/* group ID of the file's group */
+	u_int16_t st_rdev;		/* device type */
+	int32_t	  st_size;		/* file size, in bytes */
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
 	struct	timespec st_ctimespec;	/* time of last file status change */
-	long	st_blksize;		/* optimal blocksize for I/O */
-	long	st_blocks;		/* blocks allocated for file */
-	unsigned long	st_flags;	/* user defined flags for file */
-	unsigned long	st_gen;		/* file generation number */
+	int32_t	  st_blksize;		/* optimal blocksize for I/O */
+	int32_t	  st_blocks;		/* blocks allocated for file */
+	u_int32_t st_flags;		/* user defined flags for file */
+	u_int32_t st_gen;		/* file generation number */
 };
 #endif /* !_POSIX_SOURCE */
 
 struct stat {
-	dev_t	st_dev;			/* inode's device */
-	ino_t	st_ino;			/* inode's number */
-	mode_t	st_mode;		/* inode protection mode */
-	nlink_t	st_nlink;		/* number of hard links */
-	uid_t	st_uid;			/* user ID of the file's owner */
-	gid_t	st_gid;			/* group ID of the file's group */
-	dev_t	st_rdev;		/* device type */
+	dev_t	  st_dev;		/* inode's device */
+	ino_t	  st_ino;		/* inode's number */
+	mode_t	  st_mode;		/* inode protection mode */
+	nlink_t	  st_nlink;		/* number of hard links */
+	uid_t	  st_uid;		/* user ID of the file's owner */
+	gid_t	  st_gid;		/* group ID of the file's group */
+	dev_t	  st_rdev;		/* device type */
+#ifndef _POSIX_SOURCE
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
 	struct	timespec st_ctimespec;	/* time of last file status change */
-	off_t	st_size;		/* file size, in bytes */
-	quad_t	st_blocks;		/* blocks allocated for file */
-	unsigned long	st_blksize;	/* optimal blocksize for I/O */
-	unsigned long	st_flags;	/* user defined flags for file */
-	unsigned long	st_gen;		/* file generation number */
-	long	st_lspare;
-	quad_t	st_qspare[2];
+#else
+	time_t	  st_atime;		/* time of last access */
+	long	  st_atimensec;		/* nsec of last access */
+	time_t	  st_mtime;		/* time of last data modification */
+	long	  st_mtimensec;		/* nsec of last data modification */
+	time_t	  st_ctime;		/* time of last file status change */
+	long	  st_ctimensec;		/* nsec of last file status change */
+#endif
+	off_t	  st_size;		/* file size, in bytes */
+	int64_t	  st_blocks;		/* blocks allocated for file */
+	u_int32_t st_blksize;		/* optimal blocksize for I/O */
+	u_int32_t st_flags;		/* user defined flags for file */
+	u_int32_t st_gen;		/* file generation number */
+	int32_t	  st_lspare;
+	int64_t	  st_qspare[2];
 };
+#ifndef _POSIX_SOURCE
 #define st_atime st_atimespec.ts_sec
 #define st_mtime st_mtimespec.ts_sec
 #define st_ctime st_ctimespec.ts_sec
+#endif
 
 #define	S_ISUID	0004000			/* set user id on execution */
 #define	S_ISGID	0002000			/* set group id on execution */
@@ -122,6 +133,7 @@ struct stat {
 #define	S_IFREG	 0100000		/* regular */
 #define	S_IFLNK	 0120000		/* symbolic link */
 #define	S_IFSOCK 0140000		/* socket */
+#define	S_IFWHT  0160000		/* whiteout */
 #define	S_ISVTX	 0001000		/* save swapped text even after use */
 #endif
 
@@ -129,12 +141,13 @@ struct stat {
 #define	S_ISCHR(m)	((m & 0170000) == 0020000)	/* char special */
 #define	S_ISBLK(m)	((m & 0170000) == 0060000)	/* block special */
 #define	S_ISREG(m)	((m & 0170000) == 0100000)	/* regular file */
-#define	S_ISFIFO(m)	((m & 0170000) == 0100000 || \
+#define	S_ISFIFO(m)	((m & 0170000) == 0010000 || \
 			 (m & 0170000) == 0140000)	/* fifo or socket */
 #ifndef _POSIX_SOURCE
 #define	S_ISLNK(m)	((m & 0170000) == 0120000)	/* symbolic link */
-#define	S_ISSOCK(m)	((m & 0170000) == 0100000 || \
+#define	S_ISSOCK(m)	((m & 0170000) == 0010000 || \
 			 (m & 0170000) == 0140000)	/* fifo or socket */
+#define	S_ISWHT(m)	((m & 0170000) == 0160000)	/* whiteout */
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -155,6 +168,7 @@ struct stat {
 #define	UF_NODUMP	0x00000001	/* do not dump file */
 #define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
 #define	UF_APPEND	0x00000004	/* writes to file may only append */
+#define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
 /*
  * Super-user changeable flags.
  */
@@ -167,6 +181,7 @@ struct stat {
 /*
  * Shorthand abbreviations of above.
  */
+#define	OPAQUE		(UF_OPAQUE)
 #define	APPEND		(UF_APPEND | SF_APPEND)
 #define	IMMUTABLE	(UF_IMMUTABLE | SF_IMMUTABLE)
 #endif
