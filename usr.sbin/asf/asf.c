@@ -100,6 +100,7 @@ usage(const char *myname)
 	"\t-a\tappend to outfile)\n"
 	"\t-k\ttake input from kldstat(8)\n"
 	"\t-x\tdon't append \".debug\" to module name\n",
+	"\t-s\tdon't prepend subdir for module path\n",
 	myname);
 }
 
@@ -118,6 +119,7 @@ main(int argc, char *argv[])
     char cwd[MAXPATHLEN];		/* current directory */
     const char *debugname = ".debug";	/* some file names end in this */
     char *token[MAXTOKEN];
+    int nosubdir = 0;
 
     getcwd(cwd, MAXPATHLEN);		/* find where we are */
     kldstat = stdin;
@@ -132,6 +134,8 @@ main(int argc, char *argv[])
 		filemode = "a";
 	    else if (strcmp(argv[i], "-x") == 0) /* no .debug extension */
 		debugname = "";		/* nothing */
+	    else if (strcmp(argv[i], "-s") == 0) /* no subdir */
+		nosubdir = 1;		/* nothing */
 	    else {
 		fprintf(stderr,
 		    "Invalid option: %s, aborting\n",
@@ -174,12 +178,13 @@ main(int argc, char *argv[])
 	    tokens = tokenize(buf, token, MAXTOKEN);
 	    base = strtoll(token[2], NULL, 16);
 	    strcpy(basetoken, token[4]);
-	    basetoken[strlen(basetoken) - 3] = '\0'; /* cut off the .ko */
+	    basetoken[strlen(basetoken) - 3] = '/';
+	    basetoken[strlen(basetoken) - 2] = '\0'; /* cut off the .ko */
 	    snprintf(ocbuf,
 		MAXLINE,
-		"/usr/bin/objdump --section-headers %s/%s/%s%s",
+		"/usr/bin/objdump --section-headers %s/%s%s%s",
 		modules_path,
-		basetoken,
+		nosubdir ? "" : basetoken,
 		token[4],
 		debugname);
 	    if (!(objcopy = popen(ocbuf, "r"))) {
@@ -206,10 +211,10 @@ main(int argc, char *argv[])
 	    }
 	    if (textaddr) {		/* we must have a text address */
 		fprintf(out,
-		    "add-symbol-file %s/%s/%s/%s%s 0x%llx",
+		    "add-symbol-file %s/%s/%s%s%s 0x%llx",
 		    cwd,
 		    modules_path,
-		    basetoken,
+		    nosubdir ? "" : basetoken,
 		    token[4],
 		    debugname,
 		    textaddr);

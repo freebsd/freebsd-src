@@ -31,7 +31,7 @@
 .Nd add symbol files
 .Sh SYNOPSIS
 .Nm
-.Op Fl akx
+.Op Fl aksx
 .Op Ar modules-path Op Ar outfile
 .Sh DESCRIPTION
 By default,
@@ -75,6 +75,8 @@ append to the file rather than overwriting it.
 Instead of reading from standard input, start a
 .Xr kldstat 8
 and read the information from it.
+.It Fl s
+Don't prepend subdirectory of moudle path.
 .It Fl x
 Normally
 .Nm
