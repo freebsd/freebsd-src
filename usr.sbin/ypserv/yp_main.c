@@ -53,7 +53,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
-#include <sys/ttycom.h> /* TIOCNOTTY */
 #ifdef __cplusplus
 #include <sysent.h> /* getdtablesize, open */
 #endif /* __cplusplus */
