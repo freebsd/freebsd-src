@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -242,6 +243,7 @@ p_shell(p, pw, ep)
 	ENTRY *ep;
 {
 	char *t, *ok_shell();
+	struct stat sbuf;
 
 	if (!*p) {
 		pw->pw_shell = _PATH_BSHELL;
@@ -263,6 +265,23 @@ p_shell(p, pw, ep)
 	if (!(pw->pw_shell = strdup(p))) {
 		warnx("can't save entry");
 		return (1);
+	}
+	if (stat(pw->pw_shell, &sbuf) < 0) {
+		if (errno == ENOENT)
+			warnx("WARNING: shell '%s' does not exist",
+			    pw->pw_shell);
+		else
+			warn("WARNING: can't stat shell '%s'",  pw->pw_shell);
+		return (0);
+	}
+	if (!S_ISREG(sbuf.st_mode)) {
+		warnx("WARNING: shell '%s' is not a regular file", 
+			pw->pw_shell);
+		return (0);
+	}
+	if ((sbuf.st_mode & (S_IXOTH | S_IXGRP | S_IXUSR)) == 0) {
+		warnx("WARNING: shell '%s' is not executable", pw->pw_shell);
+		return (0);
 	}
 	return (0);
 }
