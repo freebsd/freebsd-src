@@ -897,6 +897,6 @@ static driver_t als_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_als, pci, als_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_als, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(snd_als, 1);
+DRIVER_MODULE(snd_als4000, pci, als_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_als4000, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_als4000, 1);
