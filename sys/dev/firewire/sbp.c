@@ -41,9 +41,6 @@
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
-#if __FreeBSD_version >= 500000
-#include <machine/bus_dma.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/devicestat.h>	/* for struct devstat */
 
