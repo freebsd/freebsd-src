@@ -604,8 +604,7 @@
 
     &hwlist.rl;
 
-    <para arch="i386,pc98,alpha,amd64">Winbond W89C840F Fast Ethernet NICs (&man.wb.4; driver)
-    </para>
+    &hwlist.wb;
 
     &hwlist.vr;
 
