@@ -65,6 +65,7 @@ struct mlx_command
     struct mlx_softc		*mc_sc;		/* controller that owns us */
     u_int8_t			mc_slot;	/* command slot we occupy */
     u_int16_t			mc_status;	/* command completion status */
+    time_t			mc_timeout;	/* when this command expires */
     u_int8_t			mc_mailbox[16];	/* command mailbox */
     u_int32_t			mc_sgphys;	/* physical address of s/g array in controller space */
     int				mc_nsgent;	/* number of entries in s/g map */
@@ -144,6 +145,8 @@ struct mlx_softc
     int			mlx_check;	/* if >= 0, drive is being checked */
     struct mlx_pause	mlx_pause;	/* pending pause operation details */
 
+    int			mlx_locks;	/* reentrancy avoidance */
+
     /* interface-specific accessor functions */
     int			mlx_iftype;	/* interface protocol */
 #define MLX_IFTYPE_3	3
@@ -155,6 +158,30 @@ struct mlx_softc
 #define MLX_INTACTION_DISABLE		0
 #define MLX_INTACTION_ENABLE		1
 };
+
+/*
+ * Simple (stupid) locks.
+ *
+ * Note that these are designed to avoid reentrancy, not concurrency, and will
+ * need to be replaced with something better.
+ */
+#define MLX_LOCK_COMPLETING	(1<<0)
+#define MLX_LOCK_STARTING	(1<<1)
+
+static __inline int
+mlx_lock_tas(struct mlx_softc *sc, int lock)
+{
+    if ((sc)->mlx_locks & (lock))
+	return(1);
+    atomic_set_int(&sc->mlx_locks, lock);
+    return(0);
+}
+
+static __inline void
+mlx_lock_clr(struct mlx_softc *sc, int lock)
+{
+    atomic_clear_int(&sc->mlx_locks, lock);
+}
 
 /*
  * Interface between bus connections and driver core.
