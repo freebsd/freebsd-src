@@ -100,4 +100,39 @@ __BEGIN_DECLS
 const char *getbootfile(void);
 __END_DECLS
 
+#ifdef RESCUE
+#undef	_PATH_DEFPATH
+#define	_PATH_DEFPATH	"/rescue:/usr/bin:/bin"
+#undef	_PATH_STDPATH
+#define	_PATH_STDPATH	"/rescue:/usr/bin:/bin:/usr/sbin:/sbin"
+#undef	_PATH_SYSPATH
+#define	_PATH_SYSPATH	"/rescue:/sbin:/usr/sbin"
+#undef	_PATH_BSHELL
+#define	_PATH_BSHELL	"/rescue/sh"
+#undef	_PATH_CP
+#define	_PATH_CP	"/rescue/cp"
+#undef	_PATH_CSHELL
+#define	_PATH_CSHELL	"/rescue/csh"
+#undef	_PATH_HALT
+#define	_PATH_HALT	"/rescue/halt"
+#undef	_PATH_IFCONFIG
+#define	_PATH_IFCONFIG	"/rescue/ifconfig"
+#undef	_PATH_MDCONFIG
+#define	_PATH_MDCONFIG	"/rescue/mdconfig"
+#undef	_PATH_MOUNT
+#define	_PATH_MOUNT	"/rescue/mount"
+#undef	_PATH_NEWFS
+#define	_PATH_NEWFS	"/rescue/newfs"
+#undef	_PATH_RCP
+#define	_PATH_RCP	"/rescue/rcp"
+#undef	_PATH_REBOOT
+#define	_PATH_REBOOT	"/rescue/reboot"
+#undef	_PATH_RM
+#define	_PATH_RM	"/rescue/rm"
+#undef	_PATH_VI
+#define	_PATH_VI	"/rescue/vi"
+#undef	_PATH_WALL
+#define	_PATH_WALL	"/rescue/wall"
+#endif /* RESCUE */
+
 #endif /* !_PATHS_H_ */

@@ -63,6 +63,8 @@
     ..
     proc            mode=0555
     ..
+    rescue
+    ..
     root
     ..
     sbin
