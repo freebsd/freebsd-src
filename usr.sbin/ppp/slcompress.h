@@ -17,11 +17,13 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
+ * 
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
+#include "cdefs.h"
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR 128		/* XXX 4bsd-ism: should really be 128 */
@@ -136,7 +138,7 @@ struct slstat {
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
-extern void sl_compress_init(/* struct slcompress * */);
-extern u_char sl_compress_tcp(/* struct mbuf *, struct ip *,
-				struct slcompress *, int compress_cid_flag */);
-extern int sl_uncompress_tcp(/* u_char **, int,  u_char, struct slcompress * */);
+extern void sl_compress_init __P((struct slcompress *));
+extern u_char sl_compress_tcp __P((struct mbuf *, struct ip *,
+				struct slcompress *, int compress_cid_flag));
+extern int sl_uncompress_tcp __P((u_char **, int,  u_int, struct slcompress *));

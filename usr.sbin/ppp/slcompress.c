@@ -18,7 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
@@ -42,8 +42,6 @@ struct slstat slstat;
 #ifndef KERNEL
 #define ovbcopy bcopy
 #endif
-
-static int reason1, reason2, reason3, reason4, reason5;
 
 void
 sl_compress_init(comp)
@@ -214,7 +212,6 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		hlen <<= 2;
 		if (hlen > m->cnt)
 			return(TYPE_IP);
-reason1++;
 		goto uncompressed;
 
 	found:
@@ -256,7 +253,6 @@ reason1++;
 	     BCMP(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
 	    (THOFFSET(th) > 5 &&
 	     BCMP(th + 1, oth + 1, (THOFFSET(th) - 5) << 2))) {
-reason2++;
 		goto uncompressed;
 	}
 
@@ -275,7 +271,6 @@ reason2++;
 		 * implementation should never do this but RFC793
 		 * doesn't prohibit the change so we have to deal
 		 * with it. */
-reason3++;
 		 goto uncompressed;
 	}
 
@@ -288,7 +283,6 @@ reason3++;
 	deltaA = ntohl(th->th_ack) - ntohl(oth->th_ack);
 	if (deltaA) {
 		if (deltaA > 0xffff) {
-reason4++;
 			goto uncompressed;
 		}
 		ENCODE(deltaA);
@@ -298,7 +292,6 @@ reason4++;
 	deltaS = ntohl(th->th_seq) - ntohl(oth->th_seq);
 	if (deltaS) {
 		if (deltaS > 0xffff) {
-			reason4++;
 			goto uncompressed;
 		}
 		ENCODE(deltaS);
@@ -328,7 +321,6 @@ reason4++;
 		 * actual changes match one of our special case encodings --
 		 * send packet uncompressed.
 		 */
-reason5++;
 		goto uncompressed;
 
 	case NEW_S|NEW_A:
@@ -464,7 +456,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	if (changes & NEW_C) {
 		/* Make sure the state index is in range, then grab the state.
 		 * If we have a good state index, clear the 'discard' flag. */
-		if (*cp >= MAX_STATES)
+		if (*cp >= MAX_STATES || comp->last_recv == 255)
 			goto bad;
 
 		comp->flags &=~ SLF_TOSS;
@@ -584,6 +576,5 @@ ReportCompress()
 	slstat.sls_compressedin, slstat.sls_uncompressedin);
   printf("  %d (error),  %d (tossed)\n",
 	slstat.sls_errorin, slstat.sls_tossed);
-  printf("%d, %d, %d, %d, %d\n", reason1, reason2, reason3, reason4, reason5);
   return(1);
 }

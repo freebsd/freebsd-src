@@ -18,13 +18,19 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
- *      TODO:
- *
+ * 
  */
 #include "defs.h"
 #include <time.h>
 #include <netdb.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#ifdef NO_VSPRINTF
+#include <stdio.h>
+#endif
 
 #include "hdlc.h"
 
@@ -118,14 +124,52 @@ LogClose()
 #endif
 }
 
+#ifdef NO_VSPRINTF
 void
-logprintf(format, arg1, arg2, arg3, arg4, arg5, arg6)
-char *format;
-void *arg1, *arg2, *arg3, *arg4, *arg5, *arg6;
+vsprintf(buf, fmt, av)
+char *buf;
+char *fmt;
+va_list av;
 {
-  sprintf(logptr, format, arg1, arg2, arg3, arg4, arg5, arg6);
+  FILE foo;
+
+  foo._cnt = BUFSIZ;
+  foo._base = foo._ptr = buf; /* may have to cast(unsigned char *) */
+  foo._flag = _IOWRT+_IOSTRG;
+  (void) _doprnt(fmt, (va_list)av, &foo);
+  *foo._ptr = '\0'; /* plant terminating null character */
+}
+#endif
+
+static void
+vlogprintf(format, ap)
+char *format;
+va_list ap;
+{
+  vsprintf(logptr, format, ap);
   logptr += strlen(logptr);
   LogFlush();
+}
+
+void
+#ifdef __STDC__
+logprintf(char *format, ...)
+#else
+logprintf(va_alist)
+va_dcl
+#endif
+{
+  va_list ap;
+#ifdef __STDC__
+  va_start(ap, format);
+#else
+  char *format;
+
+  va_start(ap);
+  format = va_arg(ap, char *);
+#endif
+  vlogprintf(format, ap);
+  va_end(ap);
 }
 
 void
@@ -211,13 +255,27 @@ LogTimeStamp()
 }
 
 void
-LogPrintf(level, format, arg1, arg2, arg3, arg4, arg5, arg6)
-int level;
-char *format;
-void *arg1, *arg2, *arg3, *arg4, *arg5, *arg6;
+#ifdef __STDC__
+LogPrintf(int level, char *format, ...)
+#else
+LogPrintf(va_alist)
+va_dcl
+#endif
 {
+  va_list ap;
+#ifdef __STDC__
+  va_start(ap, format);
+#else
+  int level;
+  char *format;
+
+  va_start(ap);
+  int = va_arg(ap, int);
+  format = va_arg(ap, char *);
+#endif
   if (!(loglevel & (1 << level)))
     return;
   LogTimeStamp();
-  logprintf(format, arg1, arg2, arg3, arg4, arg5, arg6);
+  vlogprintf(format, ap);
+  va_end(ap);
 }

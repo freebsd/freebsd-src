@@ -18,7 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *	TODO:
  *		o More RFC1772 backwoard compatibility
  */
@@ -43,15 +43,15 @@ extern struct in_addr ifnetmask;
 struct ipcpstate IpcpInfo;
 struct in_range DefMyAddress, DefHisAddress;
 
-static void IpcpSendConfigReq(struct fsm *);
-static void IpcpSendTerminateAck(struct fsm *);
-static void IpcpSendTerminateReq(struct fsm *);
-static void IpcpDecodeConfig();
-static void IpcpLayerStart(struct fsm *);
-static void IpcpLayerFinish(struct fsm *);
-static void IpcpLayerUp(struct fsm *);
-static void IpcpLayerDown(struct fsm *);
-static void IpcpInitRestartCounter(struct fsm *);
+static void IpcpSendConfigReq __P((struct fsm *));
+static void IpcpSendTerminateAck __P((struct fsm *));
+static void IpcpSendTerminateReq __P((struct fsm *));
+static void IpcpDecodeConfig __P((u_char *, int, int));
+static void IpcpLayerStart __P((struct fsm *));
+static void IpcpLayerFinish __P((struct fsm *));
+static void IpcpLayerUp __P((struct fsm *));
+static void IpcpLayerDown __P((struct fsm *));
+static void IpcpInitRestartCounter __P((struct fsm *));
 
 static struct pppTimer IpcpReportTimer;
 
@@ -174,7 +174,7 @@ static void
 IpcpInitRestartCounter(fp)
 struct fsm *fp;
 {
-  fp->FsmTimer.load = 3 * SECTICKS;
+  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
 
@@ -187,7 +187,8 @@ struct fsm *fp;
 
   cp = ReqBuff;
   LogPrintf(LOG_LCP, "%s: SendConfigReq\n", fp->name);
-  PutConfValue(&cp, cftypes, TY_IPADDR, 6, ntohl(icp->want_ipaddr.s_addr));
+  if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR))
+    PutConfValue(&cp, cftypes, TY_IPADDR, 6, ntohl(icp->want_ipaddr.s_addr));
   if (icp->want_compproto && !REJECTED(icp, TY_COMPPROTO)) {
     if (icp->heis1172)
       PutConfValue(&cp, cftypes, TY_COMPPROTO, 4, icp->want_compproto >> 16);
@@ -288,20 +289,17 @@ struct in_addr ipaddr;
 }
 
 static void
-IpcpDecodeConfig(bp, mode)
-struct mbuf *bp;
+IpcpDecodeConfig(cp, plen, mode)
+u_char *cp;
+int plen;
 int mode;
 {
-  u_char *cp;
-  int plen, type, length;
+  int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr;
   char tbuff[100];
 
-  plen = plength(bp);
-
-  cp = MBUF_CTOP(bp);
   ackp = AckBuff;
   nakp = NakBuff;
   rejp = RejBuff;

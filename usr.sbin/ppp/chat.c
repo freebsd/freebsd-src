@@ -17,9 +17,9 @@
  *		1760 Zollinger Road
  *		Columbus, OH  43221
  *		(614)451-1883
- *
+ * 
  * $Id:$
- *
+ * 
  *  TODO:
  *	o Support more UUCP compatible control sequences.
  *	o Dialing shoud not block monitor process.
@@ -32,13 +32,19 @@
 #endif
 #include <sys/time.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
+
+#define	IBSIZE 200
 
 static int TimeoutSec;
 static int abort_next, timeout_next;
 static int numaborts;
 char *AbortStrings[50];
+char inbuff[IBSIZE];
 
 extern int ChangeParity(char *);
 
@@ -177,15 +183,17 @@ int
 WaitforString(estr)
 char *estr;
 {
-#define	IBSIZE 200
   struct timeval timeout;
   char *s, *str, ch;
   char *inp;
   fd_set rfds;
-  int i, nfds;
+  int i, nfds, nb;
   char buff[200];
-  char inbuff[IBSIZE];
 
+#ifdef SIGALRM
+  int omask;
+  omask = sigblock(sigmask(SIGALRM));
+#endif
   (void) ExpandString(estr, buff, 0);
   LogPrintf(LOG_CHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
@@ -202,45 +210,141 @@ char *estr;
      */
     timeout.tv_sec = TimeoutSec;
     timeout.tv_usec = 0;
-
     i = select(nfds, &rfds, NULL, NULL, &timeout);
 #ifdef notdef
     TimerService();
 #endif
     if (i < 0) {
+#ifdef SIGALRM
+      if (errno == EINTR)
+	continue;
+      sigsetmask(omask);
+#endif
       perror("select");
+      *inp = 0;
       return(NOMATCH);
     } else if (i == 0) { 	/* Timeout reached! */
+      *inp = 0;
+      if (inp != inbuff)
+      LogPrintf(LOG_CHAT, "got: %s\n", inbuff);
       LogPrintf(LOG_CHAT, "can't get (%d).\n", timeout.tv_sec);
+#ifdef SIGALRM
+      sigsetmask(omask);
+#endif
       return(NOMATCH);
     }
     if (FD_ISSET(modem, &rfds)) {	/* got something */
-      read(modem, &ch, 1);
-      *inp++ = ch;
-      if (ch == *s) {
-	s++;
-	if (*s == '\0') {
+      if (DEV_IS_SYNC) {
+        nb = read(modem, inbuff, IBSIZE-1);
+	inbuff[nb] = 0;
+	if (strstr(inbuff, str)) {
+#ifdef SIGALRM
+          sigsetmask(omask);
+#endif
 	  return(MATCH);
 	}
-      } else {
-	s = str;
-	if (inp == inbuff+ IBSIZE) {
-	  bcopy(inp - 100, inbuff, 100);
-	  inp = inbuff + 100;
-	}
-	for (i = 0; i < numaborts; i++) {	/* Look for Abort strings */
-	  int len;
-	  char *s1;
-
-	  s1 = AbortStrings[i];
-	  len = strlen(s1);
-	  if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
-	    LogPrintf(LOG_CHAT, "Abort: %s\n", s1);
+	for (i = 0; i < numaborts; i++) {
+	  if (strstr(inbuff, AbortStrings[i])) {
+	    LogPrintf(LOG_CHAT, "Abort: %s\n", AbortStrings[i]);
+#ifdef SIGALRM
+            sigsetmask(omask);
+#endif
 	    return(ABORT);
 	  }
 	}
+      } else {
+        read(modem, &ch, 1);
+        *inp++ = ch;
+        if (ch == *s) {
+	  s++;
+	  if (*s == '\0') {
+#ifdef SIGALRM
+            sigsetmask(omask);
+#endif
+	    *inp = 0;
+	    return(MATCH);
+	  }
+        } else {
+	  s = str;
+	  if (inp == inbuff+ IBSIZE) {
+	    bcopy(inp - 100, inbuff, 100);
+	    inp = inbuff + 100;
+	  }
+	  for (i = 0; i < numaborts; i++) {	/* Look for Abort strings */
+	    int len;
+	    char *s1;
+
+	    s1 = AbortStrings[i];
+	    len = strlen(s1);
+	    if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
+	      LogPrintf(LOG_CHAT, "Abort: %s\n", s1);
+	      *inp = 0;
+#ifdef SIGALRM
+      	      sigsetmask(omask);
+#endif
+	      return(ABORT);
+	    }
+	  }
+        }
       }
     }
+  }
+#ifdef SIGALRM
+  sigsetmask(omask);
+#endif
+}
+
+void
+ExecStr(command, out)
+char *command, *out;
+{
+  int pid;
+  int fids[2];
+  char *vector[20];
+  int stat, nb;
+  char *cp;
+  char tmp[300];
+  extern int errno;
+
+  cp = inbuff + strlen(inbuff) - 1;
+  while (cp > inbuff) {
+    if (*cp < ' ' && *cp != '\t') {
+      cp++;
+      break;
+    }
+    cp--;
+  }
+  sprintf(tmp, "%s %s", command, cp);
+  (void) MakeArgs(tmp, &vector);
+
+  pipe(fids);
+  pid = fork();
+  if (pid == 0) {
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    close(fids[0]);
+    dup2(fids[1], 1);
+    close(fids[1]);
+    nb = open("/dev/tty", O_RDWR);
+    dup2(nb, 0);
+LogPrintf(LOG_CHAT, "exec: %s\n", command);
+    pid = execvp(command, vector);
+    LogPrintf(LOG_CHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
+    exit(127);
+  } else {
+    close(fids[1]);
+    for (;;) {
+      nb = read(fids[0], out, 1);
+      if (nb <= 0)
+	break;
+      out++;
+    }
+    *out = '\0';
+    close(fids[0]);
+    close(fids[1]);
+    waitpid(pid, &stat, WNOHANG);
   }
 }
 
@@ -248,6 +352,8 @@ void
 SendString(str)
 char *str;
 {
+  char *cp;
+  int nb, on;
   char buff[200];
 
   if (abort_next) {
@@ -260,9 +366,20 @@ char *str;
     if (TimeoutSec <= 0)
       TimeoutSec = 30;
   } else {
-    (void) ExpandString(str, buff, 1);
-    LogPrintf(LOG_CHAT, "sending: %s\n", buff);
-    write(modem, buff, strlen(buff));
+    if (*str == '!') {
+      (void) ExpandString(str+1, buff+2, 0);
+      ExecStr(buff + 2, buff + 2);
+    } else {
+      (void) ExpandString(str, buff+2, 1);
+    }
+    LogPrintf(LOG_CHAT, "sending: %s\n", buff+2);
+    cp = buff;
+    if (DEV_IS_SYNC)
+      bcopy("\377\003", buff, 2);	/* Prepend HDLC header */
+    else
+      cp += 2;
+    on = strlen(cp);
+    nb = write(modem, cp, on);
   }
 }
 

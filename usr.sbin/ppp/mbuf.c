@@ -18,8 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
- *      TODO:
+ * 
  */
 #include "defs.h"
 

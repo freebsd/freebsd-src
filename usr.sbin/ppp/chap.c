@@ -16,11 +16,10 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *	TODO:
- *		o Imprement retransmission timer.
  */
 #include "fsm.h"
 #include "chap.h"
@@ -29,11 +28,14 @@
 #include "hdlc.h"
 #include "phase.h"
 #include "vars.h"
-
-static int chapid;
+#include "auth.h"
 
 static char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONCE", "SUCCESS", "FAILURE"
+};
+
+struct authinfo AuthChapInfo  = {
+  SendChapChallenge,
 };
 
 extern char *AuthGetSecret();
@@ -68,13 +70,13 @@ static char challenge_data[80];
 static int  challenge_len;
 
 void
-SendChapChallenge()
+SendChapChallenge(chapid)
+int chapid;
 {
   int keylen, len, i;
   char *cp;
 
   srandom(time(NULL));
-  ++chapid;
 
   cp = challenge_data;
   *cp++ = challenge_len = random() % 32 + 16;
@@ -91,6 +93,7 @@ void
 DumpDigest(mes, cp, len)
 char *mes;
 char *cp;
+int len;
 {
   int i;
 
@@ -244,8 +247,10 @@ ChapInput(struct mbuf *bp)
       bp->cnt -= sizeof(struct fsmheader);
 
       switch (chp->code) {
-      case CHAP_CHALLENGE:
       case CHAP_RESPONSE:
+	StopAuthTimer(&AuthChapInfo);
+	/* Fall into.. */
+      case CHAP_CHALLENGE:
 	RecvChapTalk(chp, bp);
 	break;
       case CHAP_SUCCESS:

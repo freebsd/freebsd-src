@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *	TODO:
  */
 #include "fsm.h"
@@ -26,6 +26,7 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "lqr.h"
+#include "vars.h"
 
 struct hdlcstat {
   int	badfcs;
@@ -129,7 +130,10 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
       return;
     }
   }
-  mfcs = mballoc(2, MB_HDLCOUT);
+  if (DEV_IS_SYNC)
+    mfcs = NULLBUFF;
+  else
+    mfcs = mballoc(2, MB_HDLCOUT);
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
@@ -172,19 +176,24 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
     LqrChangeOrder(lqr, (struct lqrdata *)(MBUF_CTOP(bp)));
   }
 
-  fcs = HdlcFcs(INITFCS, MBUF_CTOP(mhp), mhp->cnt);
-  fcs = HdlcFcs(fcs, MBUF_CTOP(bp), bp->cnt);
-  fcs = ~fcs;
-  cp = MBUF_CTOP(mfcs);
-  *cp++ = fcs & 0377;	/* Low byte first!! */
-  *cp++ = fcs >> 8;
+  if (!DEV_IS_SYNC) {
+    fcs = HdlcFcs(INITFCS, MBUF_CTOP(mhp), mhp->cnt);
+    fcs = HdlcFcs(fcs, MBUF_CTOP(bp), bp->cnt);
+    fcs = ~fcs;
+    cp = MBUF_CTOP(mfcs);
+    *cp++ = fcs & 0377;	/* Low byte first!! */
+    *cp++ = fcs >> 8;
+  }
 
   LogDumpBp(LOG_HDLC, "HdlcOutput", mhp);
   for (statp = ProtocolStat; statp->number; statp++)
     if (statp->number == proto)
       break;
   statp->out_count++;
-  AsyncOutput(pri, mhp, proto);
+  if (DEV_IS_SYNC)
+    ModemOutput(pri, mhp);
+  else
+    AsyncOutput(pri, mhp, proto);
 }
 
 DecodePacket(proto, bp)
@@ -211,6 +220,9 @@ struct mbuf *bp;
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
     bp = VjCompInput(bp, proto);
+    if (bp == NULLBUFF) {
+      break;
+    }
     /* fall down */
   case PROTO_IP:
     IpInput(bp);
@@ -295,7 +307,10 @@ HdlcInput(struct mbuf *bp)
   struct protostat *statp;
 
   LogDumpBp(LOG_HDLC, "HdlcInput:", bp);
-  fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
+  if (DEV_IS_SYNC)
+    fcs = GOODFCS;
+  else
+    fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
   HisLqrSave.SaveInOctets += bp->cnt + 1;
 
 #ifdef DEBUG
@@ -310,7 +325,8 @@ HdlcInput(struct mbuf *bp)
     pfree(bp);
     return;
   }
-  bp->cnt -= 2;		/* discard FCS part */
+  if (!DEV_IS_SYNC)
+    bp->cnt -= 2;		/* discard FCS part */
   cp = MBUF_CTOP(bp);
 
   ifInPackets++;
