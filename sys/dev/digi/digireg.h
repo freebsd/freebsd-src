@@ -30,52 +30,52 @@
  */
 
 struct global_data {
-	volatile ushort cin;
-	volatile ushort cout;
-	volatile ushort cstart;
-	volatile ushort cmax;
-	volatile ushort ein;
-	volatile ushort eout;
-	volatile ushort istart;
-	volatile ushort imax;
+	volatile u_short cin;
+	volatile u_short cout;
+	volatile u_short cstart;
+	volatile u_short cmax;
+	volatile u_short ein;
+	volatile u_short eout;
+	volatile u_short istart;
+	volatile u_short imax;
 };
 
 
 struct board_chan {
-	volatile ushort tpjmp;
-	volatile ushort tcjmp;
-	volatile ushort fil1;
-	volatile ushort rpjmp;
+	volatile u_short tpjmp;
+	volatile u_short tcjmp;
+	volatile u_short fil1;
+	volatile u_short rpjmp;
 	
-	volatile ushort tseg;
-	volatile ushort tin;
-	volatile ushort tout;
-	volatile ushort tmax;
+	volatile u_short tseg;
+	volatile u_short tin;
+	volatile u_short tout;
+	volatile u_short tmax;
 	
-	volatile ushort rseg;
-	volatile ushort rin;
-	volatile ushort rout;
-	volatile ushort rmax;
+	volatile u_short rseg;
+	volatile u_short rin;
+	volatile u_short rout;
+	volatile u_short rmax;
 	
-	volatile ushort tlow;
-	volatile ushort rlow;
-	volatile ushort rhigh;
-	volatile ushort incr;
+	volatile u_short tlow;
+	volatile u_short rlow;
+	volatile u_short rhigh;
+	volatile u_short incr;
 	
-	volatile ushort dev;
-	volatile ushort edelay;
-	volatile ushort blen;
-	volatile ushort btime;
+	volatile u_short dev;
+	volatile u_short edelay;
+	volatile u_short blen;
+	volatile u_short btime;
 	
-	volatile ushort iflag;
-	volatile ushort oflag;
-	volatile ushort cflag;
-	volatile ushort gmask;
+	volatile u_short iflag;
+	volatile u_short oflag;
+	volatile u_short cflag;
+	volatile u_short gmask;
 	
-	volatile ushort col;
-	volatile ushort delay;
-	volatile ushort imask;
-	volatile ushort tflush;
+	volatile u_short col;
+	volatile u_short delay;
+	volatile u_short imask;
+	volatile u_short tflush;
 
 	volatile u_char _1[16];
 	

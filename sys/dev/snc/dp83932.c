@@ -718,7 +718,7 @@ camdump(sc)
 	wbflush();
 
 	for (i = 0; i < 16; i++) {
-		ushort  ap2, ap1, ap0;
+		u_short  ap2, ap1, ap0;
 		NIC_PUT(sc, SNCR_CEP, i);
 		wbflush();
 		ap2 = NIC_GET(sc, SNCR_CAP2);

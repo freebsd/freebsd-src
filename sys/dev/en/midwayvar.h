@@ -136,7 +136,7 @@ struct en_rxslot {
 struct en_vcc {
 	struct atmio_vcc vcc;		/* required by common code */
 	void		*rxhand;
-	uint		vflags;
+	u_int		vflags;
 	uint32_t	ipackets;
 	uint32_t	opackets;
 	uint32_t	ibytes;

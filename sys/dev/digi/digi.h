@@ -67,8 +67,8 @@ struct digi_p {
 #define PAUSE_RX 16
 
 	int opencnt;
-	ushort txbufsize;
-	ushort rxbufsize;
+	u_short txbufsize;
+	u_short rxbufsize;
 	volatile struct board_chan *bc;
 	struct tty *tp;
 
@@ -151,7 +151,7 @@ struct digi_softc {
 
 	const char *name;
 	enum digi_board_status status;
-	ushort numports;		/* number of ports on card */
+	u_short numports;		/* number of ports on card */
 	u_int port;			/* I/O port */
 	u_int wport;			/* window select I/O port */
 

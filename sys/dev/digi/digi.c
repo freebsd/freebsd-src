@@ -1815,7 +1815,7 @@ fepcmd(struct digi_p *port, int cmd, int op1, int ncmds)
 	head = port->sc->gdata->cin;
 	mem[head + 0] = cmd;
 	mem[head + 1] = port->pnum;
-	*(ushort *)(mem + head + 2) = op1;
+	*(u_short *)(mem + head + 2) = op1;
 
 	head = (head + 4) & port->sc->gdata->cmax;
 	port->sc->gdata->cin = head;

@@ -172,7 +172,7 @@ NDINIT(struct nameidata *ndp,
 #define NDF_NO_FREE_PNBUF	0x00000020
 #define NDF_ONLY_PNBUF		(~NDF_NO_FREE_PNBUF)
 
-void NDFREE(struct nameidata *, const uint);
+void NDFREE(struct nameidata *, const u_int);
 
 int	namei(struct nameidata *ndp);
 int	lookup(struct nameidata *ndp);

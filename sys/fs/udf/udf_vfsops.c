@@ -647,8 +647,8 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 struct ifid {
-	ushort	ifid_len;
-	ushort	ifid_pad;
+	u_short	ifid_len;
+	u_short	ifid_pad;
 	int	ifid_ino;
 	long	ifid_start;
 };
