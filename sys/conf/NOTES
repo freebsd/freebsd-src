@@ -2132,13 +2132,6 @@ options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	UKBD_DFLT_KEYMAP=it.iso
 
 #####################################################################
-# Firewire support
-
-device		firewire	# Firewire bus code
-device		sbp		# SCSI over Firewire (Requires scbus and da)
-device		fwe		# Ethernet over Firewire (non-standard!)
-
-#####################################################################
 # crypto subsystem
 #
 # This is a port of the openbsd crypto framework.  Include this when
