@@ -9,7 +9,7 @@ CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\"
 CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter/netinet
 CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
-WARNS=	0
+WARNS?=	0
 
 MAINTAINER=	darrenr@freebsd.org
 

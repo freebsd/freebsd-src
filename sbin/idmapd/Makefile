@@ -7,7 +7,7 @@ SRCS=	idmapd.c
 MAN=	idmapd.8
 
 CFLAGS+= -DNFS -I/usr/src/sys
-WARNS=	2
+WARNS?=	2
 
 .PATH:
 
