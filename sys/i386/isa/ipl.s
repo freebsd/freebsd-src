@@ -55,10 +55,9 @@
 	SUPERALIGN_TEXT
 	.type	doreti,@function
 doreti:
-
 	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
 doreti_next:
-	/* Check for ASTs that can be handled now. */
+	/* Check if ASTs can be handled now. */
 	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
 	jne	doreti_ast		/* yes, do it now. */
 	testl	$PSL_VM,TF_EFLAGS(%esp) /* kernel mode */
@@ -69,7 +68,7 @@ doreti_next:
 doreti_ast:
 	pushl	%esp			/* pass a pointer to the trapframe */
 	call	ast
-	add	$4, %esp
+	add	$4,%esp
 
 	/*
 	 * doreti_exit:	pop registers, iret.
