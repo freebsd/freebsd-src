@@ -524,6 +524,8 @@ pckbd_read(keyboard_t *kbd, int wait)
 		c = read_kbd_data(((pckbd_state_t *)kbd->kb_data)->kbdc);
 	else
 		c = read_kbd_data_no_wait(((pckbd_state_t *)kbd->kb_data)->kbdc);
+	if (c != -1)
+		++kbd->kb_count;
 	return (KBD_IS_ACTIVE(kbd) ? c : -1);
 }
 
@@ -566,6 +568,11 @@ next_code:
 		if (scancode == -1)
 			return NOKEY;
 	}
+	++kbd->kb_count;
+
+#if 0
+	printf("pckbd_read_char(): scancode:0x%x\n", scancode);
+#endif
 
 	/* return the byte as is for the K_RAW mode */
 	if (state->ks_mode == K_RAW)
@@ -600,23 +607,27 @@ next_code:
 		case 0x42: case 0x43: case 0x44:	/* keypad 7,8,9 */
 			state->ks_composed_char *= 10;
 			state->ks_composed_char += scancode - 0x3B;
+			kbd->kb_prev_key = keycode | (scancode & 0x80);
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
 		case 0x46: case 0x47: case 0x48:	/* keypad 4,5,6 */
 			state->ks_composed_char *= 10;
 			state->ks_composed_char += scancode - 0x42;
+			kbd->kb_prev_key = keycode | (scancode & 0x80);
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
 		case 0x4A: case 0x4B: case 0x4C:	/* keypad 1,2,3 */
 			state->ks_composed_char *= 10;
 			state->ks_composed_char += scancode - 0x49;
+			kbd->kb_prev_key = keycode | (scancode & 0x80);
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
 		case 0x4E:				/* keypad 0 */
 			state->ks_composed_char *= 10;
+			kbd->kb_prev_key = keycode | (scancode & 0x80);
 			if (state->ks_composed_char > UCHAR_MAX)
 				return ERRKEY;
 			goto next_code;
@@ -626,6 +637,7 @@ next_code:
 		case 0xC6: case 0xC7: case 0xC8:	/* keypad 4,5,6 */
 		case 0xCA: case 0xCB: case 0xCC:	/* keypad 1,2,3 */
 		case 0xCE:				/* keypad 0 */
+			kbd->kb_prev_key = keycode | (scancode & 0x80);
 			goto next_code;
 
 		case 0x73:				/* GRPH key */
@@ -635,6 +647,7 @@ next_code:
 			if (state->ks_composed_char > 0) {
 				state->ks_flags &= ~COMPOSE;
 				state->ks_composed_char = 0;
+				kbd->kb_prev_key = keycode | (scancode & 0x80);
 				return ERRKEY;
 			}
 			break;
@@ -644,6 +657,7 @@ next_code:
 	/* keycode to key action */
 	action = genkbd_keyaction(kbd, keycode, scancode & 0x80,
 				  &state->ks_state, &state->ks_accents);
+	kbd->kb_prev_key = keycode | (scancode & 0x80);
 	if (action == NOKEY)
 		goto next_code;
 	else
