@@ -88,7 +88,7 @@ pkg_do(char *pkg)
 {
     Boolean installed = FALSE, isTMP = FALSE;
     char log_dir[FILENAME_MAX];
-    char fname[FILENAME_MAX];
+    char fname[FILENAME_MAX], extrlist[FILENAME_MAX];
     Package plist;
     FILE *fp;
     struct stat sb;
@@ -131,7 +131,21 @@ pkg_do(char *pkg)
 	    goto bail;
 	}
 	Home = make_playpen(PlayPen, sb.st_size / 2);
-	if (unpack(fname, "+*")) {
+	snprintf(extrlist, sizeof(extrlist), "--fast-read %s %s %s",
+		 CONTENTS_FNAME, COMMENT_FNAME, DESC_FNAME);
+	if (Flags & SHOW_DISPLAY)
+	    snprintf(extrlist, sizeof(extrlist), "%s %s", extrlist,
+		     DISPLAY_FNAME);
+	if (Flags & SHOW_INSTALL)
+	    snprintf(extrlist, sizeof(extrlist), "%s %s %s", extrlist,
+		     INSTALL_FNAME, POST_INSTALL_FNAME);
+	if (Flags & SHOW_DEINSTALL)
+	    snprintf(extrlist, sizeof(extrlist), "%s %s %s", extrlist,
+		     DEINSTALL_FNAME, POST_DEINSTALL_FNAME);
+	if (Flags & SHOW_MTREE)
+	    snprintf(extrlist, sizeof(extrlist), "%s %s", extrlist,
+		     MTREE_FNAME);
+	if (unpack(fname, extrlist)) {
 	    warnx("error during unpacking, no info for '%s' available", pkg);
 	    code = 1;
 	    goto bail;
