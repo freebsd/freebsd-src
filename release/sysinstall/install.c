@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.28 1995/06/05 04:39:57 jkh Exp $
+ * $Id: install.c,v 1.70.2.29 1995/06/05 06:53:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -282,6 +282,7 @@ installCommit(char *str)
     }
 
     /* Resurrect /dev */
+    msgNotify("Making all devices.. Please wait!");
     if (vsystem("cd /dev; sh MAKEDEV all"))
 	msgConfirm("MAKEDEV returned non-zero status");
     /* This gives us our slice entries back, which we saved for this */
@@ -289,7 +290,10 @@ installCommit(char *str)
 	msgConfirm("Unable to move all the old devs back.  Hmmm!");
 
     dialog_clear();
-    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    if (Dists)
+	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+    else
+	msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     SystemWasInstalled = TRUE;
     return 0;
 }
