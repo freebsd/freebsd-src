@@ -80,9 +80,6 @@
 #include <machine/tlb.h>
 #include <machine/tstate.h>
 
-extern struct ofw_mem_region sparc64_memreg[];
-extern int sparc64_nmemreg;
-
 PMAP_STATS_VAR(uma_nsmall_alloc);
 PMAP_STATS_VAR(uma_nsmall_alloc_oc);
 PMAP_STATS_VAR(uma_nsmall_free);
