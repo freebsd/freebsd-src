@@ -1,58 +1,54 @@
-#	$Id: BSD.local.dist,v 1.5 1994/05/20 22:50:36 jkh Exp $
+#	$Id$
 #
 
-.	type=dir uname=root gname=wheel mode=0755
-..
-
-/set type=file uname=bin gname=bin mode=0755
-bin	type=dir uname=bin gname=bin mode=0755
-..
-
-etc	type=dir uname=bin gname=bin mode=0755
-..
-
-info	type=dir uname=bin gname=bin mode=0755
-..
-
-lib	type=dir uname=bin gname=bin mode=0755
-..
-
-man	type=dir uname=bin gname=bin mode=0755
-	cat1	type=dir uname=man gname=bin mode=0755
-	..
-	cat2	type=dir uname=man gname=bin mode=0755
-	..
-	cat3	type=dir uname=man gname=bin mode=0755
-	..
-	cat4	type=dir uname=man gname=bin mode=0755
-	..
-	cat5	type=dir uname=man gname=bin mode=0755
-	..
-	cat6	type=dir uname=man gname=bin mode=0755
-	..
-	cat7	type=dir uname=man gname=bin mode=0755
-	..
-	cat8	type=dir uname=man gname=bin mode=0755
-	..
-	catl	type=dir uname=man gname=bin mode=0755
-	..
-	man1	type=dir uname=bin gname=bin mode=0755
-	..
-	man2	type=dir uname=bin gname=bin mode=0755
-	..
-	man3	type=dir uname=bin gname=bin mode=0755
-	..
-	man4	type=dir uname=bin gname=bin mode=0755
-	..
-	man5	type=dir uname=bin gname=bin mode=0755
-	..
-	man6	type=dir uname=bin gname=bin mode=0755
-	..
-	man7	type=dir uname=bin gname=bin mode=0755
-	..
-	man8	type=dir uname=bin gname=bin mode=0755
-	..
-	manl	type=dir uname=bin gname=bin mode=0755
-..
-skel	type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=bin gname=bin mode=0755
+.               uname=root gname=wheel
+    bin            
+    ..
+    etc            
+    ..
+    info           
+    ..
+    lib            
+    ..
+    man            
+        cat1            uname=man
+        ..
+        cat2            uname=man
+        ..
+        cat3            uname=man
+        ..
+        cat4            uname=man
+        ..
+        cat5            uname=man
+        ..
+        cat6            uname=man
+        ..
+        cat7            uname=man
+        ..
+        cat8            uname=man
+        ..
+        catl            uname=man
+        ..
+        man1           
+        ..
+        man2           
+        ..
+        man3           
+        ..
+        man4           
+        ..
+        man5           
+        ..
+        man6           
+        ..
+        man7           
+        ..
+        man8           
+        ..
+        manl           
+        ..
+        skel           
+        ..
+    ..
 ..
