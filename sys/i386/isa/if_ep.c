@@ -426,6 +426,7 @@ epattach(is)
     ifp->if_start = epstart;
     ifp->if_ioctl = epioctl;
     ifp->if_watchdog = epwatchdog;
+	ifp->if_timer=1;
 
     if_attach(ifp);
     ep_registerdev(is);
@@ -491,8 +492,10 @@ epinit(unit)
     register struct ifnet *ifp = &sc->arpcom.ac_if;
     int s, i, j;
 
+	/*
     if (ifp->if_addrlist == (struct ifaddr *) 0)
 	return;
+	*/
 
     s = splimp();
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
@@ -755,6 +758,8 @@ epintr(unit)
     struct ifnet *ifp = &sc->arpcom.ac_if;
     struct mbuf *m;
 
+    outw(BASE + EP_COMMAND, SET_INTR_MASK); /* disable all Ints */
+
 rescan:
 
     while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
@@ -769,6 +774,8 @@ rescan:
 	if (status & S_TX_AVAIL) {
 	    /* we need ACK */
 	    sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	    GO_WINDOW(1);
+	    inw(BASE + EP_W1_FREE_TX);
 	    epstart(&sc->arpcom.ac_if);
 	}
 	if (status & S_CARD_FAILURE) {
@@ -824,6 +831,10 @@ rescan:
 		outb(BASE + EP_W1_TX_STATUS, 0x0);	/* pops up the next
 							 * status */
 	    }			/* while */
+	    sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	    GO_WINDOW(1);
+	    inw(BASE + EP_W1_FREE_TX);
+	    epstart(&sc->arpcom.ac_if);
 	}			/* end TX_COMPLETE */
     }
 
@@ -831,6 +842,10 @@ rescan:
 
     if ((status = inw(BASE + EP_STATUS)) & S_5_INTS) 
 	goto rescan;
+
+    /* re-enable Ints */
+    outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+
 }
 
 void
@@ -1188,11 +1203,21 @@ epwatchdog(unit)
     int unit;
 {
     struct ep_softc *sc = &ep_softc[unit];
+    struct ifnet *ifp=&sc->arpcom.ac_if;
+
+    /*
+    printf("ep: watchdog\n");
 
     log(LOG_ERR, "ep%d: watchdog\n", unit);
     ++sc->arpcom.ac_if.if_oerrors;
+    */
 
-    epreset(unit);
+    /* epreset(unit); */
+    ifp->if_flags &= ~IFF_OACTIVE;
+    epstart(ifp);
+    epintr(unit);
+
+    ifp->if_timer=1;
 }
 
 void
