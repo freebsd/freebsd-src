@@ -244,6 +244,7 @@ extern ACPI_STATUS	acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instanc
 extern ACPI_STATUS	acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname,
 						ACPI_OBJECT_LIST *params, ACPI_BUFFER *buf);
 extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);
+extern ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, int *number);
 extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
 						  void (* func)(ACPI_OBJECT *comp, void *arg),
 						  void *arg);
@@ -362,3 +363,11 @@ extern void	powerprofile_set_state(int state);
 
 typedef void (*powerprofile_change_hook)(void *);
 EVENTHANDLER_DECLARE(powerprofile_change, powerprofile_change_hook);
+
+#ifndef ACPI_NO_THREADS
+/*
+ * ACPI task kernel thread initialization.
+ */
+extern int	acpi_task_thread_init(void);
+#endif
+

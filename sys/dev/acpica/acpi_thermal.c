@@ -51,7 +51,7 @@ MODULE_NAME("THERMAL")
 #define TZ_NOTIFY_DEVICES	0x81
 #define TZ_NOTIFY_LEVELS	0x82
 
-#define TZ_POLLRATE	(hz * 10)	/* every ten seconds */
+#define TZ_POLLRATE	30		/* every 30 seconds by default */
 
 #define TZ_NUMLEVELS	10		/* defined by ACPI spec */
 struct acpi_tz_zone {
@@ -90,6 +90,8 @@ struct acpi_tz_softc {
     struct sysctl_oid		*tz_sysctl_tree;
     
     struct acpi_tz_zone 	tz_zone;		/* thermal zone parameters */
+    ACPI_BUFFER			tz_tmp_buffer;
+    int				tz_tmp_updating;
 };
 
 static int	acpi_tz_probe(device_t dev);
@@ -127,6 +129,7 @@ static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;
 static struct sysctl_oid	*acpi_tz_sysctl_tree;
 
 static int			acpi_tz_min_runtime = 0;/* minimum cooling run time */
+static int			acpi_tz_polling_rate = TZ_POLLRATE;
 
 /*
  * Match an ACPI thermal zone.
@@ -170,6 +173,8 @@ acpi_tz_attach(device_t dev)
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
     sc->tz_requested = TZ_ACTIVE_NONE;
+    bzero(&sc->tz_tmp_buffer, sizeof(sc->tz_tmp_buffer));
+    sc->tz_tmp_updating = 0;
 
     /*
      * Parse the current state of the thermal zone and build control
@@ -199,6 +204,10 @@ acpi_tz_attach(device_t dev)
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 		       OID_AUTO, "min_runtime", CTLFLAG_RD | CTLFLAG_RW,
 		       &acpi_tz_min_runtime, 0, "minimum cooling run time in sec");
+	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
+		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
+		       OID_AUTO, "polling_rate", CTLFLAG_RD | CTLFLAG_RW,
+		       &acpi_tz_polling_rate, 0, "monitor polling rate");
     }
     sysctl_ctx_init(&sc->tz_sysctl_ctx);
     sprintf(oidname, "tz%d", device_get_unit(dev));
@@ -249,7 +258,7 @@ acpi_tz_attach(device_t dev)
      * Start the timeout routine, with enough delay for the rest of the
      * subsystem to come up.
      */
-    sc->tz_timeout = timeout(acpi_tz_timeout, sc, TZ_POLLRATE);
+    sc->tz_timeout = timeout(acpi_tz_timeout, sc, acpi_tz_polling_rate * hz);
 	
     return_VALUE(error);
 }
@@ -288,6 +297,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
 	sprintf(nbuf, "_AC%d", i);
 	acpi_tz_getparam(sc, nbuf, &sc->tz_zone.ac[i]);
 	sprintf(nbuf, "_AL%d", i);
+	bzero(&sc->tz_zone.al[i], sizeof(sc->tz_zone.al[i]));
 	acpi_EvaluateIntoBuffer(sc->tz_handle, nbuf, NULL, &sc->tz_zone.al[i]);
 	obj = (ACPI_OBJECT *)sc->tz_zone.al[i].Pointer;
 	if (obj != NULL) {
@@ -301,6 +311,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     }
     acpi_tz_getparam(sc, "_CRT", &sc->tz_zone.crt);
     acpi_tz_getparam(sc, "_HOT", &sc->tz_zone.hot);
+    bzero(&sc->tz_zone.psl, sizeof(sc->tz_zone.psl));
     acpi_EvaluateIntoBuffer(sc->tz_handle, "_PSL", NULL, &sc->tz_zone.psl);
     acpi_tz_getparam(sc, "_PSV", &sc->tz_zone.psv);
     acpi_tz_getparam(sc, "_TC1", &sc->tz_zone.tc1);
@@ -358,16 +369,29 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 
     ACPI_ASSERTLOCK;
 
+    if (sc->tz_tmp_updating) {
+	goto out;
+    }
+    sc->tz_tmp_updating = 1;
+
     /*
      * Get the current temperature.
      */
-    if ((status = acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp)) != AE_OK) {
+    if ((status = acpi_EvaluateIntoBuffer(sc->tz_handle, "_TMP", NULL, &sc->tz_tmp_buffer)) != AE_OK) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 	    "error fetching current temperature -- %s\n",
 	     AcpiFormatException(status));
 	/* XXX disable zone? go to max cooling? */
-	return_VOID;
+	goto out;
     }
+    if ((status = acpi_ConvertBufferToInteger(&sc->tz_tmp_buffer, &temp)) != AE_OK) {
+	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
+	    "error fetching current temperature -- %s\n",
+	     AcpiFormatException(status));
+	/* XXX disable zone? go to max cooling? */
+	goto out;
+    }
+
     ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
     sc->tz_temperature = temp;
 
@@ -454,6 +478,8 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     }
     sc->tz_thflags = newflags;
 
+out:
+    sc->tz_tmp_updating = 0;
     return_VOID;
 }
 
@@ -693,7 +719,7 @@ acpi_tz_timeout(void *arg)
     /* XXX passive cooling actions? */
 
     /* re-register ourself */
-    sc->tz_timeout = timeout(acpi_tz_timeout, sc, TZ_POLLRATE);
+    sc->tz_timeout = timeout(acpi_tz_timeout, sc, acpi_tz_polling_rate * hz);
 
     ACPI_UNLOCK;
 }

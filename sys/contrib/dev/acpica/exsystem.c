@@ -147,7 +147,7 @@ AcpiExSystemWaitSemaphore (
     ACPI_HANDLE             Semaphore,
     UINT32                  Timeout)
 {
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status, Status2;
 
 
     FUNCTION_TRACE ("ExSystemWaitSemaphore");
@@ -172,12 +172,12 @@ AcpiExSystemWaitSemaphore (
 
         /* Reacquire the interpreter */
 
-        Status = AcpiExEnterInterpreter ();
-        if (ACPI_SUCCESS (Status))
+        Status2 = AcpiExEnterInterpreter ();
+        if (ACPI_FAILURE (Status2))
         {
-            /* Restore the timeout exception */
+            /* Report fatal error, could not acquire interpreter */
 
-            Status = AE_TIME;
+            return_ACPI_STATUS (Status2);
         }
     }
 

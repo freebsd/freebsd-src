@@ -251,7 +251,9 @@ EcLock(struct acpi_ec_softc *sc)
     ACPI_STATUS	status;
 
     status = AcpiAcquireGlobalLock();
-    (sc)->ec_locked = 1;
+    if (status == AE_OK)
+	(sc)->ec_locked = 1;
+
     return(status);
 }
 
