@@ -624,6 +624,7 @@ vn_drvinit(void *unused)
 	dev_t dev;
 #ifdef DEVFS
 	int mynor;
+	char name[32];
 	int unit;
 	struct vn_softc *vn;
 #endif
