@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.13 1999/03/24 20:30:48 brian Exp $
+ *	$Id: natd.c,v 1.14 1999/03/30 10:11:21 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -480,14 +480,14 @@ static void DoAliasing (int fd, int direction)
  * This is a IP packet.
  */
 	ip = (struct ip*) packetBuf;
-	if (direction == DONT_KNOW)
+	if (direction == DONT_KNOW) {
 		if (packetAddr.sin_addr.s_addr == INADDR_ANY)
 			direction = OUTPUT;
 		else
 			direction = INPUT;
+	}
 
 	if (verbose) {
-		
 /*
  * Print packet direction and protocol type.
  */
@@ -1406,10 +1406,10 @@ void SetupPortRedirect (const char* parms)
 	ptr = strtok (NULL, " \t");
 	if (ptr) {
 		separator = strchr (ptr, ':');
-		if (separator)
+		if (separator) {
 		        if (StrToAddrAndPortRange (ptr, &remoteAddr, protoName, &portRange) != 0)
 			        errx (1, "redirect_port: invalid remote port range");
-		else {
+		} else {
 		        SETLOPORT(portRange, 0);
 			SETNUMPORTS(portRange, 1);
 			StrToAddr (ptr, &remoteAddr);
