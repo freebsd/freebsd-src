@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.43 1995/11/04 17:07:08 bde Exp $
+ *      $Id: bt742a.c,v 1.44 1995/12/06 23:50:06 bde Exp $
  */
 
 /*
@@ -382,6 +382,7 @@ struct bt_data {
 	int     bt_dma;			/* DMA channel read of board */
 	int     bt_scsi_dev;		/* adapters scsi id */
 	int     numccbs;		/* how many we have malloc'd */
+	int	bt_bounce;		/* should we bounce? */
 	struct scsi_link sc_link;	/* prototype for devs */
 }      *btdata[NBT];
 
@@ -702,7 +703,7 @@ btattach(dev)
 	bt->sc_link.adapter_targ = bt->bt_scsi_dev;
 	bt->sc_link.adapter = &bt_switch;
 	bt->sc_link.device = &bt_dev;
-	bt->sc_link.flags = SDEV_BOUNCE;
+	bt->sc_link.flags = bt->bt_bounce ? SDEV_BOUNCE : 0;
 
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
@@ -1173,15 +1174,21 @@ bt_init(unit)
 			return (ENXIO);
 			break;
 	}
-	if ( binfo.id[0] == '5' ) {
+	if ( binfo.id[0] == '4' && binfo.id[1] == '4' && binfo.id[2] == '5' &&
+	     binfo.id[3] == 'S' ) {
+		printf("bt%d: Your card cannot DMA above 16MB boundary. Bounce buffering enabled.\n", unit);
+		bt->bt_bounce++;
+	} else if ( binfo.id[0] == '5' ) {
 		printf("bt%d: This driver is designed for using 32 bit addressing\n",unit);
 		printf("bt%d: mode firmware and EISA/PCI/VLB bus architectures\n",unit);
 		printf("bt%d: Bounce-buffering will be used (and is necessary)\n", unit);
 		printf("bt%d: if you have more than 16MBytes memory.\n",unit);
+		bt->bt_bounce++;
 	} else if ( info.bus_type == BT_BUS_TYPE_24bit ) {
 		printf("bt%d: Your board should report a 32bit bus architecture type..\n",unit);
 		printf("bt%d: The firmware on your board may have a problem with over\n",unit);
 		printf("bt%d: 16MBytes memory handling with this driver.\n",unit);
+		bt->bt_bounce++;
 	}
 
 	/*
