@@ -218,7 +218,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		{
 			u_long l = s2.st_size + 2;
 			u_char *cmd = alloca(strlen(buf1)+strlen(buf2)+100);
-			u_char *ob = alloca(l), *p;
+			u_char *ob = malloc(l), *p;
 			int j;
 			FILE *F;
 			
@@ -292,6 +292,7 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 				s_sub_files++;
 				s_sub_bytes += s2.st_size;
 			}
+			free(ob);
 		}
 	    finish:
 		munmap(p1, s1.st_size);
