@@ -129,9 +129,6 @@ ENTRY(sigcode,0)
 	mov	b6=r8			// transfer to a branch register
 	cover
 	;;
-	alloc	r5=ar.pfs,0,0,3,0	// register frame for call
-	;;
-	mov	out0=r14		// signal number
 	add	r8=UC_MCONTEXT_MC_AR_BSP,r16 // address or mc_ar_bsp
 	mov	r9=ar.bsp		// save ar.bsp
 	;;
@@ -149,10 +146,15 @@ ENTRY(sigcode,0)
 	mov	ar.rsc=15		// XXX bogus value - check
 	invala
 	;; 
-1:	mov	out1=r15		// siginfo
+1:	alloc	r5=ar.pfs,0,0,3,0	// register frame for call
+	;;
+	mov	out0=r14		// signal number
+	mov	out1=r15		// siginfo
 	mov	out2=r16		// ucontext
 	mov	r4=r16			// save from call
 	br.call.sptk.few rp=b6		// call the signal handler
+	;; 
+	alloc	r14=ar.pfs,0,0,0,0	// discard call frame
 	;; 
 (p1)	br.cond.sptk.few 2f		// note: p1 is preserved
 	flushrs
@@ -169,9 +171,8 @@ ENTRY(sigcode,0)
 	;;
 	mov	ar.rnat=r9
 	mov	ar.rsc=15
-	
-2:	alloc	r14=ar.pfs,0,0,0,0	// no frame for sigreturn
-	CALLSYS_NOERROR(sigreturn)	// call sigreturn()
+	;; 
+2:	CALLSYS_NOERROR(sigreturn)	// call sigreturn()
 	alloc	r14=ar.pfs,0,0,1,0 ;;
 	mov	out0=ret0		// if that failed, get error code
 	CALLSYS_NOERROR(exit)		// and call exit() with it.
