@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.7 1994/09/13 16:05:50 davidg Exp $
+ * $Id: if_sl.c,v 1.8 1994/10/05 21:22:45 wollman Exp $
  */
 
 /*
@@ -260,7 +260,8 @@ slopen(dev, tp)
 	register int nsl;
 	int error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 
 	if (tp->t_line == SLIPDISC)
@@ -286,9 +287,10 @@ slopen(dev, tp)
  * Line specific close routine.
  * Detach the tty from the sl unit.
  */
-void
-slclose(tp)
+int
+slclose(tp,flag)
 	struct tty *tp;
+	int flag;
 {
 	register struct sl_softc *sc;
 	int s;
@@ -308,6 +310,7 @@ slclose(tp)
 		cblock_free_cblocks(CLISTEXTRA);
 	}
 	splx(s);
+	return 0;
 }
 
 /*
@@ -316,11 +319,12 @@ slclose(tp)
  */
 /* ARGSUSED */
 int
-sltioctl(tp, cmd, data, flag)
+sltioctl(tp, cmd, data, flag, p)
 	struct tty *tp;
 	int cmd;
 	caddr_t data;
 	int flag;
+	struct proc *p;
 {
 	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 
@@ -403,7 +407,7 @@ sloutput(ifp, m, dst, rtp)
  * to send from the interface queue and map it to
  * the interface before starting output.
  */
-void
+int
 slstart(tp)
 	register struct tty *tp;
 {
@@ -428,13 +432,13 @@ slstart(tp)
 		if (tp->t_outq.c_cc != 0) {
 			(*tp->t_oproc)(tp);
 			if (tp->t_outq.c_cc > SLIP_HIWAT)
-				return;
+				return 0;
 		}
 		/*
 		 * This happens briefly when the line shuts down.
 		 */
 		if (sc == NULL)
-			return;
+			return 0;
 
 		/*
 		 * Get a packet and send it to the interface.
@@ -447,7 +451,7 @@ slstart(tp)
 			IF_DEQUEUE(&sc->sc_if.if_snd, m);
 		splx(s);
 		if (m == NULL)
-			return;
+			return 0;
 
 		/*
 		 * We do the header compression here rather than in sloutput
@@ -588,6 +592,7 @@ slstart(tp)
 			sc->sc_if.if_opackets++;
 		}
 	}
+	return 0;
 }
 
 /*
@@ -636,7 +641,7 @@ sl_btom(sc, len)
 /*
  * tty interface receiver interrupt.
  */
-void
+int
 slinput(c, tp)
 	register int c;
 	register struct tty *tp;
@@ -652,11 +657,11 @@ slinput(c, tp)
 	tk_nin++;
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc == NULL)
-		return;
+		return 0;
 	if (c & TTY_ERRORMASK || ((tp->t_state & TS_CARR_ON) == 0 &&
 	    (tp->t_cflag & CLOCAL) == 0)) {
 		sc->sc_flags |= SC_ERROR;
-		return;
+		return 0;
 	}
 	c &= TTY_CHARMASK;
 
@@ -679,8 +684,8 @@ slinput(c, tp)
 				if (++sc->sc_abortcount == 1)
 					sc->sc_starttime = time.tv_sec;
 				if (sc->sc_abortcount >= ABT_COUNT) {
-					slclose(tp);
-					return;
+					slclose(tp,0);
+					return 0;
 				}
 			}
 		} else
@@ -702,7 +707,7 @@ slinput(c, tp)
 
 	case FRAME_ESCAPE:
 		sc->sc_escape = 1;
-		return;
+		return 0;
 
 	case FRAME_END:
 		if(sc->sc_flags & SC_ERROR) {
@@ -792,7 +797,7 @@ slinput(c, tp)
 	if (sc->sc_mp < sc->sc_ep) {
 		*sc->sc_mp++ = c;
 		sc->sc_escape = 0;
-		return;
+		return 0;
 	}
 
 	/* can't put lower; would miss an extra frame */
@@ -803,6 +808,7 @@ error:
 newpack:
 	sc->sc_mp = sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_escape = 0;
+	return 0;
 }
 
 /*

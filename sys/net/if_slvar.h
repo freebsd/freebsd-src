@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.2 1994/08/02 07:46:22 davidg Exp $
+ * $Id: if_slvar.h,v 1.3 1994/08/21 05:11:43 paul Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -72,14 +72,14 @@ struct sl_softc {
 
 #ifdef KERNEL
 void	slattach __P((void));
-void	slclose __P((struct tty *));
-void	slinput __P((int, struct tty *));
+int	slclose __P((struct tty *,int));
+int	slinput __P((int, struct tty *));
 int	slioctl __P((struct ifnet *, int, caddr_t));
+int	sltioctl __P((struct tty *, int, caddr_t, int, struct proc *));
 int	slopen __P((dev_t, struct tty *));
 int	sloutput __P((struct ifnet *,
 	    struct mbuf *, struct sockaddr *, struct rtentry *));
-void	slstart __P((struct tty *));
-int	sltioctl __P((struct tty *, int, caddr_t, int));
+int	slstart __P((struct tty *));
 #endif /* KERNEL */
 
 #endif
