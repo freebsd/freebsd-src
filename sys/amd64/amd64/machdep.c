@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.72 1994/10/10 01:10:22 phk Exp $
+ *	$Id: machdep.c,v 1.73 1994/10/10 18:06:58 phk Exp $
  */
 
 #include "npx.h"
@@ -135,6 +135,7 @@ int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 
 extern int adjkerntz, disable_rtc_set;	/* from	clock.c	*/
+extern int color_display;		/* from	syscons.c */
 
 /*
  * Machine-dependent startup code
@@ -919,6 +920,8 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz));
 	case CPU_DISRTCSET:
 		return (sysctl_int(oldp, oldlenp, newp,	newlen,	&disable_rtc_set));
+	case CPU_COLORDISP:
+		return (sysctl_rdint(oldp, oldlenp, newp, color_display));
 	default:
 		return (EOPNOTSUPP);
 	}
