@@ -53,7 +53,6 @@
  * Per device structure.
  */
 struct isa_device {
-	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
 	int	id_iobase;	/* base i/o address */
 	int	id_iosize;	/* base i/o length */
@@ -82,16 +81,28 @@ struct isa_device {
  * These are used at boot time by the configuration program.
  */
 struct isa_driver {
-	int	(*probe) __P((struct isa_device *idp));
+	int	intrflags;
+	int	(*probe)(struct isa_device *idp);
 					/* test whether device is present */
-	int	(*attach) __P((struct isa_device *idp));
+	int	(*attach)(struct isa_device *idp);
 					/* setup driver for a device */
 	char	*name;			/* device name */
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
 #ifdef _KERNEL
-int	isa_compat_nextid __P((void));
+
+/* Wrappers */
+struct	module;
+int	compat_isa_handler(struct module *, int, void *);
+#define	COMPAT_ISA_DRIVER(name, isadata)				\
+static moduledata_t name##_mod = {					\
+	#name,								\
+	compat_isa_handler,						\
+	&isadata							\
+};									\
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)		\
+
 #endif
 
 #endif	/* COMPAT_OLDISA */
