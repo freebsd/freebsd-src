@@ -8,7 +8,8 @@ NOPIC=
 .PATH:	${.CURDIR}/4.1/${MACHINE} ${.CURDIR}/4.1 \
 	${.CURDIR}/4.3/${MACHINE} ${.CURDIR}/4.3 \
 	${.CURDIR}/4.4/${MACHINE} ${.CURDIR}/4.4 \
-	${.CURDIR}/regexp
+	${.CURDIR}/regexp \
+	${.CURDIR}/SysV
 
 # compat 4.1 sources
 # XXX MISSING:	tell.c vlimit.c vtimes.c
@@ -61,5 +62,11 @@ MAN3+=	regexp/regexp.3
 
 MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regsub.3 \
 	regexp.3 regerror.3
+
+# SysV compat sources
+SRCS+=	ftok.c
+
+MAN3+=	SysV/ftok.3
+
 
 .include <bsd.lib.mk>
