@@ -25,4 +25,14 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/uthread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
+.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
+.if !defined(NOPIC)
+SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libpthread.so
+.endif
+.if !defined(NOPROFILE)
+SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread.a
+.endif
+.endif
+
 .include <bsd.lib.mk>
