@@ -240,40 +240,6 @@ restart:
 	}
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fdidx)) != 0)
 		goto bad;
-	/*
-	 * Make sure that a VM object is created for VMIO support.
-	 */
-	if (vn_canvmio(vp) == TRUE) {
-#ifdef LOOKUP_SHARED
-		int flock;
-
-		if (!exclusive && VOP_GETVOBJECT(vp, NULL) != 0)
-			VOP_LOCK(vp, LK_UPGRADE, td);
-		/*
-		 * In cases where the object is marked as dead object_create
-		 * will unlock and relock exclusive.  It is safe to call in
-		 * here with a shared lock because we only examine fields that
-		 * the shared lock guarantees will be stable.  In the UPGRADE
-		 * case it is not likely that anyone has used this vnode yet
-		 * so there will be no contention.  The logic after this call
-		 * restores the requested locking state.
-		 */
-#endif
-		if ((error = VOP_CREATEVOBJECT(vp, cred, td)) != 0) {
-			VOP_UNLOCK(vp, 0, td);
-			VOP_CLOSE(vp, fmode, cred, td);
-			NDFREE(ndp, NDF_ONLY_PNBUF);
-			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			*flagp = fmode;
-			return (error);
-		}
-#ifdef LOOKUP_SHARED
-		flock = VOP_ISLOCKED(vp, td);
-		if (!exclusive && flock == LK_EXCLUSIVE)
-			VOP_LOCK(vp, LK_DOWNGRADE, td);
-#endif
-	}
 
 	if (fmode & FWRITE)
 		vp->v_writecount++;
