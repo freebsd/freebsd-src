@@ -162,50 +162,6 @@ soisdisconnected(so)
 }
 
 /*
- * Return a random connection that hasn't been serviced yet and
- * is eligible for discard.  There is a one in qlen chance that
- * we will return a null, saying that there are no dropable
- * requests.  In this case, the protocol specific code should drop
- * the new request.  This insures fairness.
- *
- * This may be used in conjunction with protocol specific queue
- * congestion routines.
- */
-struct socket *
-sodropablereq(head)
-	register struct socket *head;
-{
-	register struct socket *so;
-	unsigned int i, j, qlen;
-	static int rnd;
-	static struct timeval old_runtime;
-	static unsigned int cur_cnt, old_cnt;
-	struct timeval tv;
-
-	getmicrouptime(&tv);
-	if ((i = (tv.tv_sec - old_runtime.tv_sec)) != 0) {
-		old_runtime = tv;
-		old_cnt = cur_cnt / i;
-		cur_cnt = 0;
-	}
-
-	so = TAILQ_FIRST(&head->so_incomp);
-	if (!so)
-		return (so);
-
-	qlen = head->so_incqlen;
-	if (++cur_cnt > qlen || old_cnt > qlen) {
-		rnd = (314159 * rnd + 66329) & 0xffff;
-		j = ((qlen + 1) * rnd) >> 16;
-
-		while (j-- && so)
-		    so = TAILQ_NEXT(so, so_list);
-	}
-
-	return (so);
-}
-
-/*
  * When an attempt at a new connection is noted on a socket
  * which accepts connections, sonewconn is called.  If the
  * connection is possible (subject to space constraints, etc.)

@@ -392,8 +392,6 @@ void	soisdisconnected(struct socket *so);
 void	soisdisconnecting(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *
-	sodropablereq(struct socket *head);
-struct socket *
 	sonewconn(struct socket *head, int connstatus);
 int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen);
 int	sooptcopyout(struct sockopt *sopt, void *buf, size_t len);
