@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.h,v 1.5 1999/05/08 14:36:47 phk Exp $
+ *	$Id: isa_compat.h,v 1.6 1999/05/08 21:59:26 dfr Exp $
  */
 
 #include "vt.h"
@@ -261,7 +261,7 @@ static struct old_isa_driver old_drivers[] = {
 	{ INTR_TYPE_BIO, &wtdriver },
 #endif
 #if NFLA > 0
-	{ DRIVER_TYPE_MISC, &fladriver },
+	{ INTR_TYPE_BIO, &fladriver },
 #endif
 
 /* NET */
