@@ -146,7 +146,7 @@ fi
 # generate our hostname
 #
 if [ -z "`hostname -s`" ]; then
-        hostname=`/usr/bin/kenv dhcp.host-name`
+        hostname=`/bin/kenv dhcp.host-name`
         hostname $hostname
 	echo "Hostname is $hostname"
 fi
@@ -155,9 +155,9 @@ fi
 # build the resolv.conf
 #
 if [ ! -e /etc/resolv.conf ]; then
-        echo domain `/usr/bin/kenv dhcp.domain-name` > /etc/resolv.conf
+        echo domain `/bin/kenv dhcp.domain-name` > /etc/resolv.conf
 
-        set `/usr/bin/kenv dhcp.domain-name-servers`
+        set `/bin/kenv dhcp.domain-name-servers`
         for ns in `IFS=','; echo $*`; do
                 echo nameserver $ns >> /etc/resolv.conf;
         done
