@@ -39,51 +39,24 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 
 #include <libufs.h>
 
-ssize_t
-bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
+void
+libufs_printerror(struct uufsd *disk)
 {
-	char *buf;
-	ssize_t cnt;
-
-	DEBUG(NULL);
-
-	/*
-	 * For when we need to work with the data as a buffer.
-	 */
-	buf = data;
-
-	cnt = pread(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
-	/*
-	 * In case of failure, zero data, which must be fs_bsize.
-	 */
-	if (cnt != size) {
-		DEBUG("short read");
-		disk->d_error = "short read from block device";
-		for (cnt = 0; cnt < disk->d_fs.fs_bsize; cnt++)
-			buf[cnt] = 0;
-		return -1;
+	if (disk == NULL) {
+		fprintf(stderr, "no disk\n");
+		return;
 	}
-	return cnt;
-}
-
-ssize_t
-bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
-{
-	ssize_t cnt;
-
-	DEBUG(NULL);
-
-	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
-	if (cnt != size) {
-		DEBUG("short write");
-		disk->d_error = "short write to block device";
-		return -1;
+	if (disk->d_error != NULL) {
+		fprintf(stderr, "disk error: %s", disk->d_error);
+		/*
+		 * XXX
+		 * Should there be a per-disk errno?
+		 */
+		if (errno)
+			fprintf(stderr, ": %s", strerror(errno));
+		fprintf(stderr, "\n");
 	}
-	
-	return cnt;
 }

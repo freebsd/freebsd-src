@@ -73,6 +73,7 @@ struct uufsd {
 		char d_sb[MAXBSIZE];
 				/* superblock as buffer */
 	} d_sbunion;
+	const char *d_error;	/* human readable disk error */
 #define	d_fs	d_sbunion.d_fs
 #define	d_sb	d_sbunion.d_sb
 };
@@ -88,6 +89,11 @@ __BEGIN_DECLS
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);
 ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
+
+/*
+ * error.c
+ */
+void libufs_printerror(struct uufsd *);
 
 /*
  * inode.c
