@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.299 1997/06/12 09:23:54 jkh Exp $
+#	$Id: Makefile,v 1.300 1997/06/21 15:41:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -297,8 +297,8 @@ release.5:
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
 			echo -n "Running $$i dist creation script... "; \
-			env RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status." ; \
-			echo "Done."
+			env RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
+			echo "Done."; \
 		fi \
 	done \
 
