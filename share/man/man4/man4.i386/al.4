@@ -36,25 +36,25 @@
 .Sh NAME
 .Nm al
 .Nd
-ADMtek Inc. AL981 Comet fast ethernet device driver
+ADMtek Inc. AL981 Comet and AN985 Centaur fast ethernet device driver
 .Sh SYNOPSIS
 .Cd "device al0"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for PCI ethernet adapters and embedded
-controllers based on the ADMtek Inc. AL981 Comet fast ethernet
-controller chip.
+controllers based on the ADMtek Inc. AL981 Comet and AN 985
+Centaur fast ethernet controller chips.
 .Pp
 The ADMtek chip uses bus master DMA and is designed to be a
 DEC 21x4x workalike. The only major difference between the DEC
-and ADMtek parts is that the AL981 receiver filter is programmed
+and ADMtek parts is that the ADMtek receiver filter is programmed
 using two special registers where as the DEC chip is programmed
 by uploading a special setup frame via the transmit DMA engine.
-The AL981 receive filter can only be programmed with a single
+The AL981 and AN985 can only be programmed with a single
 perfect filter entry for the local station address and a 64-bit
 multicast hash table; the DEC filter supports several other
-options. The ADMtek fast ethernet controller supports both
+options. The ADMtek fast ethernet controllers support both
 10 and 100Mbps speeds in either full or half duplex using
 an internal MII transceiver.
 .Pp
