@@ -82,6 +82,7 @@ Additional FreeBSD Contributors
 (in alphabetical order by first name, just to be different):
 
 Adam Glass <glass@postgres.berkeley.edu>
+Akito Fujita <fujita@zoo.ncl.omron.co.jp>
 Andreas Klemm <andreas@knobel.GUN.de>
 Andrew Herbert <andrew@werple.apana.org.au>
 Andrew Moore <alm@FreeBSD.org>
@@ -122,6 +123,7 @@ Mark Murray <mark@grondar.za>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
 Matt Thomas <thomas@lkg.dec.com>
+Nobuhiro Yasutomi <nobu@@psrc.isac.co.jp>
 Ollivier Robert <roberto@FreeBSD.org>
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
@@ -130,7 +132,6 @@ Poul-Henning Kamp <phk@login.dkuug.dk>
 Chris Provenzano <proven@athena.mit.edu>
 Rob Shady <rls@id.net>
 Sascha Wildner <swildner@channelz.GUN.de>
-Satoshi Asami <asami@FreeBSD.org>
 Scott Mace <smace@FreeBSD.org>
 Sean Eric Fagan <sef@kithrup.com>
 Serge V. Vakulenko <vak@zebub.msk.su>
@@ -243,4 +244,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.1 1995/03/21 20:19:12 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.2 1995/04/05 10:22:58 jkh Exp $
