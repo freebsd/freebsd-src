@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.5 1994/10/10 00:32:17 ache Exp $
+# $Id: Makefile,v 1.6 1994/10/10 01:03:26 ache Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
@@ -11,7 +11,7 @@ SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
 CLEANFILES+= binorder.c caplist.c capsort.c mkbinorder mkcaplist \
 	mkcapsort mktermhead mkversion readcaps.o version.c
 
-CFLAGS+=-Wall
+CFLAGS+=-Wall -I${.CURDIR}
 
 CAPS=   1000
 
