@@ -405,6 +405,7 @@ int (*compare)();
     register int active_procs;
     register struct kinfo_proc **prefp;
     register struct kinfo_proc *pp;
+    struct kinfo_proc *prev_pp = NULL;
 
     /* these are copied out of sel for speed */
     int show_idle;
@@ -414,8 +415,7 @@ int (*compare)();
     int show_command;
 
     
-    pbase = kvm_getprocs(kd, sel->thread ? KERN_PROC_ALL : KERN_PROC_PROC,
-	0, &nproc);
+    pbase = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
     if (nproc > onproc)
 	pref = (struct kinfo_proc **) realloc(pref, sizeof(struct kinfo_proc *)
 		* (onproc = nproc));
@@ -457,8 +457,21 @@ int (*compare)();
 		 (pp->ki_stat == SRUN)) &&
 		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
 	    {
-		*prefp++ = pp;
-		active_procs++;
+		/*
+		 * When not showing threads, take the first thread
+		 * for output and add the fields that we can from
+		 * the rest of the process's threads rather than
+		 * using the system's mostly-broken KERN_PROC_PROC.
+		 */
+		if (sel->thread || prev_pp == NULL ||
+		    prev_pp->ki_pid != pp->ki_pid)
+		{
+		    *prefp++ = pp;
+		    active_procs++;
+		    prev_pp = pp;
+		} else {
+		    prev_pp->ki_pctcpu += pp->ki_pctcpu;
+		}
 	    }
 	}
     }
