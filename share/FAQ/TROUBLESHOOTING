@@ -53,6 +53,15 @@ Solution:	There are several possible solutions.  The first,
 		your original hardware configuration that didn't work.
 
 ---
+Summary:        My floppy-tape drive isn't probed.
+
+Cause:          Last-minute problems with this driver caused it to be disabled
+                by default.
+
+Solution:       Boot with -c (described above) and set the flags value of
+                fdc0 to 1. This will re-enable the floppy tape driver.
+                Sorry, but it was causing problems for other people!
+---
 
 Summary:	When I boot for the first time, it still looks for /386bsd!
 
