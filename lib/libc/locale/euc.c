@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  */
 
+#ifdef XPG4
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)euc.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
@@ -218,3 +219,4 @@ CodeSet1:
 	}
 	return (len);
 }
+#endif  /* XPG4 */
