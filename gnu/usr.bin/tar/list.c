@@ -558,11 +558,11 @@ void
 print_header ()
 {
   char modes[11];
-  char *timestamp;
+  char timestamp[80];
   char uform[11], gform[11];	/* These hold formatted ints */
   char *user, *group;
   char size[24];		/* Holds a formatted long or maj, min */
-  time_t longie;		/* To make ctime() call portable */
+  time_t longie;
   int pad;
   char *name;
   extern long baserec;
@@ -641,7 +641,7 @@ print_header ()
 
       /* Timestamp */
       longie = hstat.st_mtime;
-      timestamp = ctime (&longie);
+      strftime(timestamp, sizeof(timestamp), "%c", localtime(&longie));
       timestamp[16] = '\0';
       timestamp[24] = '\0';
 
