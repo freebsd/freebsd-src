@@ -34,10 +34,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
+.\"     $Id$
 .\"
-.Dd June 4, 1993
+.Dd August 27, 1996
 .Dt MALLOC 3
-.Os BSD 4
+.Os FreeBSD 2
 .Sh NAME
 .Nm malloc ,
 .Nd general memory allocation function
@@ -55,6 +56,8 @@
 .Fn free "void *ptr"
 .Ft void *
 .Fn realloc "void *ptr" "size_t size"
+.Ft char *
+.Va malloc_options
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -110,11 +113,13 @@ is zero and
 .Fa ptr
 is not a null pointer, the object it points to is freed.
 .Pp
-
-.Sh ENVIRONMENT
-This malloc will check the environment for a variable called
-.Em MALLOC_OPTIONS
-and scan it for flags.
+Malloc will first look for a symbolic link called
+.Pa /etc/malloc.conf
+and next check the environment for a variable called
+.Ev MALLOC_OPTIONS
+and finally for the global variable
+.Va malloc_options
+and scan them for flags in that order.
 Flags are single letters, uppercase means on, lowercase means off.
 .Bl -tag -width indent
 .It A
@@ -130,21 +135,42 @@ rather than when the NULL pointer was accessed.
 ``junk'' fill some junk into the area allocated.
 Currently junk is bytes of 0xd0, this is pronounced ``Duh'' :-)
 
+.It H
+``hint'' pass a hint to the kernel about pages we don't use.  If the
+machine is paging a lot this may help a bit.
+
 .It R
 ``realloc'' always reallocate when
 .Fn realloc
 is called, even if the initial allocation was big enough.
 This can substantially aid in compacting memory.
 
+.It U
+``utrace'' generate entries for ktrace(1) for all operations.
+Consult the source for this one.
+
 .It Z
 ``zero'' fill some junk into the area allocated (see ``J''),
 except for the exact length the user asked for, which is zeroed.
 
+.It <
+``Half the cache size'' Reduce the size of the cache by a factor of two.
+
+.It >
+``Double the cache size'' Double the size of the cache by a factor of two.
 .El
+.Pp
+So to set a systemwide reduction of cache size and coredumps on problems
+one would:
+.Li ln -s 'A<' /etc/malloc.conf
 .Pp
 The ``J'' and ``Z'' is mostly for testing and debugging,
 if a program changes behavior if either of these options are used,
 it is buggy.
+.Pp
+The default cache size is 16 pages.
+.Sh ENVIRONMENT
+See above.
 .Sh RETURN VALUES
 The
 .Fn malloc
@@ -160,12 +186,89 @@ The
 .Fn realloc
 function returns either a null pointer or a pointer
 to the possibly moved allocated space.
+.Sh MESSAGES
+If 
+.Fn malloc ,
+.Fn free
+or 
+.Fn realloc
+detects an error or warning condition,
+a message will be printed to filedescriptor
+2 (not using stdio).
+Errors will always result in the process being 
+.Xr abort 2 'ed,
+If the ``A'' option has been specified, also warnings will
+.Xr abort 2 
+the process.
+.Pp
+Here is a brief description of the error messages and what they mean:
+.Pp
+``(ES): mumble mumble mumble'':
+malloc have been compiled with -DEXTRA_SANITY and something looks
+fishy in there.  Consult sources and or wizards.
+.Pp
+``allocation failed''
+if the ``A'' option is specified it is an error for
+.Fn malloc
+or 
+.Fn realloc
+to return NULL.
+.Pp
+``mmap(2) failed, check limits.''
+This is a rather weird condition that is most likely to mean that
+the system is seriously overloaded or that your ulimits are sick.
+.Pp
+``freelist is destroyed.''
+mallocs internal freelist has been stomped on.
+.Pp
+Here is a brief description of the warning messages and what they mean:
+.Pp
+``chunk/page is already free.''
+A pointer to a free chunk is attempted freed again.
+.Pp
+``junk pointer, too high to make sense.''
+The pointer doesn't make sense.  It's above the area of memory that
+malloc knows something about.
+This could be a pointer from some
+.Xr mmap 2 'ed 
+memory.
+.Pp
+``junk pointer, too low to make sense.''
+The pointer doesn't make sense.  It's below the area of memory that
+malloc knows something about.
+This pointer probably came from your data or bss segments.
+.Pp
+``malloc() has never been called.''
+Nothing has ever been allocated, yet something is being freed or
+realloc'ed.
+.Pp
+``modified (chunk-/page-) pointer.''
+The pointer passed to free or realloc has been modified.
+.Pp
+``pointer to wrong page.''
+The pointer that malloc is trying to free is not pointing to
+a sensible page.
+.Pp
+``recursive call.''
+You have tried to call recursively into these functions.
+I can only imagine this as happening if you call one of these
+functions from a signal function, which happens to be called
+while you're already in here.
+Well, sorry to say: that's not supported.
+If this is a problem for you I'd like to hear about it.  It
+would be possible to add a sigblock() around this package,
+but it would have a performance penalty that is not acceptable
+as the default.
+.Pp
+``unknown char in MALLOC_OPTIONS''
+we found something we didn't understand.
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr alloca 3 ,
 .Xr calloc 3 ,
 .Xr getpagesize 3 ,
 .Xr memory 3
+.Pa /usr/share/doc/papers/malloc.ascii.gz
 .Sh STANDARDS
 The
 .Fn malloc
