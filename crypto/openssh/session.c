@@ -917,7 +917,7 @@ read_environment_file(char ***env, u_int *envsize,
  * Sets any environment variables which have been specified by PAM
  */
 static void
-do_pam_environment(char ***env, int *envsize)
+do_pam_environment(char ***env, u_int *envsize)
 {
 	char *equals, var_name[512], var_val[512];
 	char **pam_env;
@@ -944,33 +944,36 @@ do_pam_environment(char ***env, int *envsize)
 #endif /* USE_PAM */
 
 static char **
-do_setup_env(Session *s, const char *shell)
+do_setup_env(char **env, Session *s, const char *shell)
 {
 	char buf[256];
 	u_int i, envsize;
-	char **env;
 	struct passwd *pw = s->pw;
 
-	/* Initialize the environment. */
-	envsize = 100;
-	env = xmalloc(envsize * sizeof(char *));
-	env[0] = NULL;
+	if (env == NULL) {
+		/* Initialize the environment. */
+		envsize = 100;
+		env = xmalloc(envsize * sizeof(char *));
+		env[0] = NULL;
+	} else {
+		for (envsize = 0; env[envsize] != NULL; ++envsize)
+			;
+		envsize = (envsize < 100) ? 100 : envsize + 50;
+		env = xrealloc(env, envsize * sizeof(char *));
+	}
 
 	if (!options.use_login) {
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
-#ifdef HAVE_LOGIN_CAP
-		(void) setusercontext(lc, pw, pw->pw_uid, LOGIN_SETPATH);
-		child_set_env(&env, &envsize, "PATH", getenv("PATH"));
-#else
+#ifndef LOGIN_CAP
 		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
-#endif
 
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
 		child_set_env(&env, &envsize, "MAIL", buf);
+#endif /* !LOGIN_CAP */
 
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
@@ -1135,17 +1138,47 @@ do_nologin(struct passwd *pw)
 }
 
 /* Set login name, uid, gid, and groups. */
-static void
+static char **
 do_setusercontext(struct passwd *pw)
 {
-	if (getuid() == 0 || geteuid() == 0) {
+	char **env = NULL;
 #ifdef HAVE_LOGIN_CAP
-		if (setusercontext(lc, pw, pw->pw_uid,
-		    (LOGIN_SETALL & ~LOGIN_SETPATH)) < 0) {
-			perror("unable to set user context");
-			exit(1);
-		}
-#else
+	char buf[256];
+	char **tmpenv;
+	u_int envsize;
+	extern char **environ;
+
+	/* Initialize the environment. */
+	envsize = 100;
+	env = xmalloc(envsize * sizeof(char *));
+	env[0] = NULL;
+
+	child_set_env(&env, &envsize, "PATH",
+		      (pw->pw_uid == 0) ?
+		      _PATH_STDPATH : _PATH_DEFPATH);
+
+	snprintf(buf, sizeof buf, "%.200s/%.50s",
+		 _PATH_MAILDIR, pw->pw_name);
+	child_set_env(&env, &envsize, "MAIL", buf);
+
+	if (getenv("TZ"))
+		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
+
+	/* Save parent environment */
+	tmpenv = environ;
+	/* Switch to env */
+	environ = env;
+
+	if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETALL) < 0)
+		fatal("setusercontext failed: %s", strerror(errno));
+
+	/* NOTE: Modified environment now passed to env! */
+	env = environ;
+	/* Restore parent environment */
+	environ = tmpenv;
+
+#else   /* !HAVE_LOGIN_CAP */
+	if (getuid() == 0 || geteuid() == 0) {
 		if (setlogin(pw->pw_name) < 0)
 			error("setlogin failed: %s", strerror(errno));
 		if (setgid(pw->pw_gid) < 0) {
@@ -1161,10 +1194,11 @@ do_setusercontext(struct passwd *pw)
 
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
-#endif
 	}
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
+#endif  /* HAVE_LOGIN_CAP */
+	return env;
 }
 
 /*
@@ -1176,7 +1210,7 @@ void
 do_child(Session *s, const char *command)
 {
 	extern char **environ;
-	char **env;
+	char **env = NULL;
 	char *argv[10];
 	const char *shell, *shell0, *hostname = NULL;
 	struct passwd *pw = s->pw;
@@ -1195,7 +1229,7 @@ do_child(Session *s, const char *command)
 	 */
 	if (!options.use_login) {
 		do_nologin(pw);
-		do_setusercontext(pw);
+		env = do_setusercontext(pw);
 	}
 
 	/*
@@ -1207,7 +1241,7 @@ do_child(Session *s, const char *command)
 	shell = login_getcapstr(lc, "shell", (char *)shell, (char *)shell);
 #endif
 
-	env = do_setup_env(s, shell);
+	env = do_setup_env(env, s, shell);
 
 	/* we have to stash the hostname before we close our socket. */
 	if (options.use_login)
