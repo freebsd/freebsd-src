@@ -228,6 +228,7 @@ struct vid_info {
 	u_short		font_size;
 	u_short		mv_row, mv_col;
 	u_short		mv_rsz, mv_csz;
+	u_short		mv_hsz;
 	struct colors	mv_norm,
 			mv_rev,
 			mv_grfc;
@@ -263,6 +264,8 @@ typedef struct vid_info vid_info_t;
 #define CONS_RELKBD	_IO('c', 111)
 
 struct scrshot {
+	int		x;
+	int		y;
 	int		xsize;
 	int		ysize;
 	u_int16_t*	buf;
