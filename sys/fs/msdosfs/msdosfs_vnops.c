@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.1 1994/09/19 15:41:46 dfr Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.2 1994/09/21 03:47:17 wollman Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -62,6 +62,9 @@
 #include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure */
+#include <sys/signalvar.h>
+
+#include <vm/vm.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
@@ -152,7 +155,6 @@ msdosfs_mknod(ap)
 	} */ *ap;
 {
 	int error;
-	struct denode *pdep = VTODE(ap->a_dvp);
 	
 	switch (ap->a_vap->va_type) {
 	case VDIR:
@@ -382,12 +384,14 @@ msdosfs_setattr(ap)
 	if (vap->va_size != VNOVAL) {
 		if (ap->a_vp->v_type == VDIR)
 			return EISDIR;
-		if (error = detrunc(dep, vap->va_size, 0, cred, ap->a_p))
+		error = detrunc(dep, vap->va_size, 0, cred, ap->a_p);
+		if (error)
 			return error;
 	}
 	if (vap->va_mtime.ts_sec != VNOVAL) {
 		dep->de_flag |= DE_UPDATE;
-		if (error = deupdat(dep, &vap->va_mtime, 1))
+		error = deupdat(dep, &vap->va_mtime, 1);
+		if (error)
 			return error;
 	}
 
@@ -406,7 +410,8 @@ msdosfs_setattr(ap)
 	}
 
 	if (vap->va_flags != VNOVAL) {
-		if (error = suser(cred, &ap->a_p->p_acflag))
+		error = suser(cred, &ap->a_p->p_acflag);
+		if (error)
 			return error;
 		if (cred->cr_uid == 0)
 			dep->de_flag = vap->va_flags;
@@ -433,7 +438,6 @@ msdosfs_read(ap)
 	int isadir;
 	long n;
 	long on;
-	daddr_t bn;
 	daddr_t lbn;
 	daddr_t rablock;
 	int rasize;
@@ -539,7 +543,9 @@ msdosfs_write(ap)
 	struct denode *dep = VTODE(vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct ucred *cred = ap->a_cred;
+	struct timespec ts;
 	
+	TIMEVAL_TO_TIMESPEC(&time, &ts);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_write(vp %08x, uio %08x, ioflag %08x, cred %08x\n",
 	       vp, uio, ioflag, cred);
@@ -627,7 +633,8 @@ msdosfs_write(ap)
 	do {
 		bn = de_blk(pmp, uio->uio_offset);
 		if (isadir) {
-			if (error = pcbmap(dep, bn, &bn, 0))
+			error = pcbmap(dep, bn, &bn, 0);
+			if (error)
 				break;
 		} else if (bn > lastcn) {
 			error = ENOSPC;
@@ -650,8 +657,9 @@ msdosfs_write(ap)
 			 */
 			if (!isadir) {
 				if (bp->b_blkno == bp->b_lblkno) {
-					if (error = pcbmap(dep, bp->b_lblkno,
-							   &bp->b_blkno, 0)) 
+					error = pcbmap(dep, bp->b_lblkno,
+							   &bp->b_blkno, 0); 
+					if (error)
 						bp->b_blkno = -1;
 				}
 				if (bp->b_blkno == -1) {
@@ -665,7 +673,8 @@ msdosfs_write(ap)
 			/*
 			 * The block we need to write into exists, so read it in.
 			 */
-			if (error = bread(thisvp, bn, pmp->pm_bpcluster, cred, &bp))
+			error = bread(thisvp, bn, pmp->pm_bpcluster, cred, &bp);
+			if (error)
 				break;
 		}
 
@@ -719,7 +728,7 @@ errexit:
 				error = 0;
 		}
 	} else {
-		error = deupdat(dep, &time, 1);
+		error = deupdat(dep, &ts, 1);
 	}
 	return error;
 }
@@ -780,7 +789,9 @@ msdosfs_fsync(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int wait = ap->a_waitfor == MNT_WAIT;
-	int error;
+	struct timespec ts;
+
+	TIMEVAL_TO_TIMESPEC(&time, &ts);
 
 #if 0
 	/*
@@ -790,7 +801,7 @@ msdosfs_fsync(ap)
 	 */
 	vflushbuf(vp, wait ? B_SYNC : 0);
 #endif
-	return deupdat(VTODE(vp), &time, wait);
+	return deupdat(VTODE(vp), &ts, wait);
 }
 
 /*
@@ -1004,14 +1015,13 @@ msdosfs_rename(ap)
 		/* doscheckpath() vput()'s tddep */
 		error = doscheckpath(fdep, tddep);
 		tddep = NULL;
-		if (error) {
+		if (error)
 			goto bad;
-		}
 		if ((ap->a_tcnp->cn_flags & SAVESTART) == 0)
 			panic("msdosfs_rename(): lost to startdir");
-		if (error = relookup(ap->a_tdvp, &tvp, ap->a_tcnp)) {
+		error = relookup(ap->a_tdvp, &tvp, ap->a_tcnp);
+		if (error)
 			goto bad;
-		}
 		tddep = VTODE(ap->a_tdvp);
 		tdep = tvp ? VTODE(tvp) : NULL;
 	}
@@ -1039,9 +1049,9 @@ msdosfs_rename(ap)
 		}
 		to_dirclust = tdep->de_dirclust;
 		to_diroffset = tdep->de_diroffset;
-		if (error = removede(tddep,tdep)) {
+		error = removede(tddep,tdep);
+		if (error)
 			goto bad;
-		}
 		vput(ap->a_tvp);
 		tdep = NULL;
 
@@ -1060,15 +1070,15 @@ msdosfs_rename(ap)
 	if (newparent == 0) {
 		/* tddep and fddep point to the same denode here */
 		VOP_LOCK(ap->a_fvp);	/* ap->a_fdvp is already locked */
-		if (error = readep(fddep->de_pmp,
-				   fdep->de_dirclust,
-				   fdep->de_diroffset,
-				   &bp, &ep)) {
+		error = readep(fddep->de_pmp, fdep->de_dirclust,
+				   fdep->de_diroffset, &bp, &ep);
+		if (error) {
 			VOP_UNLOCK(ap->a_fvp);
 			goto bad;
 		}
 		bcopy(toname, ep->deName, 11);
-		if (error = bwrite(bp)) {
+		error = bwrite(bp);
+		if (error) {
 			VOP_UNLOCK(ap->a_fvp);
 			goto bad;
 		}
@@ -1107,16 +1117,16 @@ msdosfs_rename(ap)
 			goto bad;
 		}
 		VOP_LOCK(ap->a_fdvp);
-		if (error = readep(fddep->de_pmp,
-				   fddep->de_fndclust,
-				   fddep->de_fndoffset,
-				   &bp, &ep)) {
+		error = readep(fddep->de_pmp, fddep->de_fndclust,
+				   fddep->de_fndoffset, &bp, &ep);
+		if (error) {
 			VOP_UNLOCK(ap->a_fvp);
 			VOP_UNLOCK(ap->a_fdvp);
 			goto bad;
 		}
 		ep->deName[0] = SLOT_DELETED;
-		if (error = bwrite(bp)) {
+		error = bwrite(bp);
+		if (error) {
 			VOP_UNLOCK(ap->a_fvp);
 			VOP_UNLOCK(ap->a_fdvp);
 			goto bad;
@@ -1171,19 +1181,21 @@ struct {
 	struct direntry dot;
 	struct direntry dotdot;
 }      dosdirtemplate = {
-
-	".       ", "   ",	/* the . entry */
-	ATTR_DIRECTORY,		/* file attribute */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	/* resevered */
-	210, 4, 210, 4,		/* time and date */
-	0, 0,			/* startcluster */
-	0, 0, 0, 0,		/* filesize */
-	"..      ", "   ",	/* the .. entry */
-	ATTR_DIRECTORY,		/* file attribute */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,	/* resevered */
-	210, 4, 210, 4,		/* time and date */
-	0, 0,			/* startcluster */
-	0, 0, 0, 0,		/* filesize */
+    {
+	".       ", "   ",		/* the . entry */
+	ATTR_DIRECTORY,			/* file attribute */
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},	/* resevered */
+	{210, 4}, {210, 4},		/* time and date */
+	{0, 0},				/* startcluster */
+	{0, 0, 0, 0},			/* filesize */
+    },{
+	"..      ", "   ",		/* the .. entry */
+	ATTR_DIRECTORY,			/* file attribute */
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},	/* resevered */
+	{210, 4}, {210, 4},		/* time and date */
+	{0, 0},				/* startcluster */
+	{0, 0, 0, 0},			/* filesize */
+    }
 };
 
 int
@@ -1225,7 +1237,8 @@ msdosfs_mkdir(ap)
 	/*
 	 * Allocate a cluster to hold the about to be created directory.
 	 */
-	if (error = clusteralloc(pmp, 0, 1, CLUST_EOFE, &newcluster, NULL)) {
+	error = clusteralloc(pmp, 0, 1, CLUST_EOFE, &newcluster, NULL);
+	if (error) {
 		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
 		vput(ap->a_dvp);
 		return error;
@@ -1251,7 +1264,8 @@ msdosfs_mkdir(ap)
 	putushort(denp->deStartCluster, pdep->de_StartCluster);
 	putushort(denp->deDate, dDate);
 	putushort(denp->deTime, dTime);
-	if (error = bwrite(bp)) {
+	error = bwrite(bp);
+	if (error) {
 		clusterfree(pmp, newcluster, NULL);
 		free(ap->a_cnp->cn_pnbuf, M_NAMEI);
 		vput(ap->a_dvp);
@@ -1326,7 +1340,8 @@ msdosfs_rmdir(ap)
 	 * up access and eventually msdosfs_reclaim() will be called which
 	 * will remove it from the denode cache.
 	 */
-	if (error = removede(ddep,dep))
+	error = removede(ddep,dep);
+	if (error)
 		goto out;
 
 	/*
@@ -1341,7 +1356,7 @@ msdosfs_rmdir(ap)
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
-	error = detrunc(dep, (u_long) 0, IO_SYNC);
+	error = detrunc(dep, (u_long) 0, IO_SYNC, NOCRED, NULL);
 	cache_purge(DETOV(dep));
 
 out:	;
@@ -1364,8 +1379,6 @@ msdosfs_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	struct denode *pdep = VTODE(ap->a_dvp);
-
 	free(ap->a_cnp->cn_pnbuf, M_NAMEI);
 	vput(ap->a_dvp);
 	return EINVAL;
@@ -1430,7 +1443,6 @@ msdosfs_readdir(ap)
 	struct dirent *prev;
 	struct dirent *crnt;
 	u_char dirbuf[512];	/* holds converted dos directories */
-	int i = 0;
 	struct uio *uio = ap->a_uio;
 	int ncookies = 1;
 	u_int* cookies = NULL;
@@ -1756,7 +1768,6 @@ msdosfs_bmap(ap)
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
-	struct msdosfsmount *pmp = dep->de_pmp;
 
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = dep->de_devvp;
@@ -1789,7 +1800,6 @@ msdosfs_strategy(ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct denode *dep = VTODE(bp->b_vp);
-	struct msdosfsmount *pmp = dep->de_pmp;
 	struct vnode *vp;
 	int error = 0;
 
@@ -1802,7 +1812,8 @@ msdosfs_strategy(ap)
 	 * don't allow files with holes, so we shouldn't ever see this.
 	 */
 	if (bp->b_blkno == bp->b_lblkno) {
-		if (error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0))
+		error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0);
+		if (error)
 			bp->b_blkno = -1;
 		if (bp->b_blkno == -1)
 			clrbuf(bp);
@@ -1831,15 +1842,16 @@ msdosfs_print(ap)
 {
 	struct denode *dep = VTODE(ap->a_vp);
 
-	printf("tag VT_MSDOSFS, startcluster %d, dircluster %d, diroffset %d ",
+	printf(
+	    "tag VT_MSDOSFS, startcluster %d, dircluster %ld, diroffset %ld ",
 	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
 	printf(" dev %d, %d, %s\n",
 	       major(dep->de_dev), minor(dep->de_dev),
 	       dep->de_flag & DE_LOCKED ? "(LOCKED)" : "");
 	if (dep->de_lockholder) {
-		printf("    owner pid %d", dep->de_lockholder);
+		printf("    owner pid %d", (int)dep->de_lockholder);
 		if (dep->de_lockwaiter)
-			printf(" waiting pid %d", dep->de_lockwaiter);
+			printf(" waiting pid %d", (int)dep->de_lockwaiter);
 		printf("\n");
 	}
 	return 0;

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_lookup.c,v 1.1 1994/09/19 15:41:44 dfr Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -53,6 +53,7 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/systm.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
@@ -137,7 +138,8 @@ msdosfs_lookup(ap)
 	 * See if the component of the pathname we are looking for is in
 	 * the directory cache.  If so then do a few things and return.
 	 */
-	if (error = cache_lookup(vdp, vpp, cnp)) {
+	error = cache_lookup(vdp, vpp, cnp);
+	if (error) {
 		int vpid;
 
 		if (error == ENOENT)
@@ -172,7 +174,8 @@ msdosfs_lookup(ap)
 			if (lockparent && pdp != vdp && (flags & ISLASTCN))
 				VOP_UNLOCK(pdp);
 		}
-		if (error = VOP_LOCK(pdp))
+		error = VOP_LOCK(pdp);
+		if (error)
 			return error;
 		vdp = pdp;
 		dp = VTODE(vdp);
@@ -227,12 +230,14 @@ msdosfs_lookup(ap)
 	 */
 	rootreloff = 0;
 	for (frcn = 0;; frcn++) {
-		if (error = pcbmap(dp, frcn, &bn, &cluster)) {
+		error = pcbmap(dp, frcn, &bn, &cluster);
+		if (error) {
 			if (error == E2BIG)
 				break;
 			return error;
 		}
-		if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, &bp))
+		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,NOCRED,&bp);
+		if (error)
 			return error;
 		for (diroff = 0; diroff < pmp->pm_depclust; diroff++) {
 			dep = (struct direntry *) bp->b_data + diroff;
@@ -459,7 +464,6 @@ createde(dep, ddep, depp)
 	struct denode *ddep;
 	struct denode **depp;
 {
-	int bn;
 	int error;
 	u_long dirclust, diroffset;
 	struct direntry *ndep;
@@ -479,7 +483,8 @@ createde(dep, ddep, depp)
 	 * case.
 	 */
 	if (ddep->de_fndclust == (u_long)-1) {
-		if (error = extendfile(ddep, 1, &bp, &dirclust, DE_CLEAR))
+		error = extendfile(ddep, 1, &bp, &dirclust, DE_CLEAR);
+		if (error)
 			return error;
 		ndep = (struct direntry *) bp->b_data;
 		/*
@@ -515,7 +520,8 @@ createde(dep, ddep, depp)
 		if (error)
 			return error;
 	}
-	if (error = bwrite(bp)) {
+	error = bwrite(bp);
+	if (error) {
 		vput(DETOV(*depp));	/* free the vnode we got on error */
 		return error;
 	}
@@ -659,7 +665,6 @@ doscheckpath(source, target)
 	struct denode *target;
 {
 	daddr_t scn;
-	struct denode dummy;
 	struct msdosfsmount *pmp;
 	struct direntry *ep;
 	struct denode *dep;
@@ -737,7 +742,8 @@ readep(pmp, dirclu, dirofs, bpp, epp)
 	daddr_t bn;
 
 	bn = detobn(pmp, dirclu, dirofs);
-	if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, bpp)) {
+	error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, bpp);
+	if (error) {
 		*bpp = NULL;
 		return error;
 	}
