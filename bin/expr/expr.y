@@ -280,6 +280,7 @@ main(int argc, char *argv[])
 	setlocale (LC_ALL, "");
 	if (getenv("EXPR_COMPAT") != NULL) {
 		av = argv + 1;
+		eflag = 1;
 	} else {
 		while ((c = getopt(argc, argv, "e")) != -1)
 			switch (c) {
