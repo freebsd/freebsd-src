@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.20 1997/04/25 07:24:02 hanai Exp $ -->
+<!-- $Id: authors.sgml,v 1.21 1997/05/09 03:07:23 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.65 -->
+<!-- Original revision: 1.67 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -96,6 +96,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.dima  "Dima Ruban
   <tt><htmlurl url='mailto:dima@FreeBSD.ORG'
   name='&lt;dima@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.dirkvangulik  "Dirk-Willem van Gulik
+  <tt><htmlurl url='mailto:Dirk.vanGulik@jrc.it'
+  name='&lt;Dirk.vanGulik@jrc.it&gt;'></tt>">
 
 <!ENTITY a.dufault "Peter Dufault 
   <tt><htmlurl url='mailto:dufault@FreeBSD.ORG' 
@@ -353,6 +357,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:phk@FreeBSD.ORG' 
   name='&lt;phk@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.pjc "Peter Childs
+  <tt><htmlurl url='mailto:pjchilds@imforei.apana.org.au'
+  name='&lt;pjchilds@imforei.apana.org.au&gt;'></tt>">
+
 <!ENTITY a.proven  "Chris Provenzano
   <tt><htmlurl url='mailto:proven@FreeBSD.ORG'
   name='&lt;proven@FreeBSD.ORG&gt;'></tt>">
@@ -404,6 +412,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.sos  "S&oslash;ren Schmidt 
   <tt><htmlurl url='mailto:sos@FreeBSD.ORG'  
   name='&lt;sos@FreeBSD.ORG&gt;'></tt>">  
+
+<!ENTITY a.stark "Gene Stark
+  <tt><htmlurl url='mailto:stark@FreeBSD.ORG'
+  name='&lt;stark@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.stb "Stefan Bethke
   <tt><htmlurl url='mailto:stb@FreeBSD.ORG'
