@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.112 1998/02/06 12:14:26 eivind Exp $
+ * $Id: vm_object.c,v 1.113 1998/02/09 06:11:30 eivind Exp $
  */
 
 /*
@@ -334,21 +334,23 @@ vm_object_deallocate(object)
 					robject->ref_count++;
 
 			retry:
-					s = splvm();
-					if (robject->paging_in_progress) {
-						robject->flags |= OBJ_PIPWNT;
-						tsleep(robject, PVM, "objde1", 0);
-						splx(s);
-						goto retry;
-					}
+					if (robject->paging_in_progress || object->paging_in_progress) {
+						vm_object_pip_sleep(robject, "objde1");
+						if (robject->paging_in_progress) {
+							if (robject->type == OBJT_SWAP) {
+								swap_pager_sync();
+								goto retry;
+							}
+						}
 
-					if (object->paging_in_progress) {
-						object->flags |= OBJ_PIPWNT;
-						tsleep(object, PVM, "objde2", 0);
-						splx(s);
+						vm_object_pip_sleep(object, "objde2");
+						if (object->paging_in_progress) {
+							if (object->type == OBJT_SWAP) {
+								swap_pager_sync();
+							}
+						}
 						goto retry;
 					}
-					splx(s);
 
 					if( robject->ref_count == 1) {
 						robject->ref_count--;
@@ -408,12 +410,7 @@ vm_object_terminate(object)
 	/*
 	 * wait for the pageout daemon to be done with the object
 	 */
-	s = splvm();
-	while (object->paging_in_progress) {
-		object->flags |= OBJ_PIPWNT;
-		tsleep(object, PVM, "objtrm", 0);
-	}
-	splx(s);
+	vm_object_pip_wait(object, "objtrm");
 
 #if defined(DIAGNOSTIC)
 	if (object->paging_in_progress != 0)
