@@ -181,6 +181,7 @@ device		fe
 device		ep
 device		lnc
 device		sn
+device		snc
 
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed

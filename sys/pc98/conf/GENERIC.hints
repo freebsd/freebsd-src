@@ -275,6 +275,11 @@ hint.lnc.0.at="isa"
 hint.lnc.0.port="0x03d0"
 hint.lnc.0.irq="6"
 
+hint.snc.0.at="isa"
+hint.snc.0.port="0x888"
+hint.snc.0.irq="6"
+hint.snc.0.maddr="0xc0000"
+
 # The VoxWare sound drivers
 #hint.sb.0.at="isa"
 #hint.sb.0.port="0x20d2"
