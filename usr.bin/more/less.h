@@ -43,8 +43,6 @@
 #define	EOI		(0)
 #define	READ_INTR	(-2)
 
-#define NO_HORIZ_OFF	(-1)		/* Wrap lines like normal */
-
 /* Special chars used to tell put_line() to do something special */
 #define	UL_CHAR		'\201'		/* Enter underline mode */
 #define	UE_CHAR		'\202'		/* Exit underline mode */
@@ -63,12 +61,15 @@
 /* The return type of runmacro() */
 enum runmacro { OK=0, TOOMACRO, BADMACRO, NOMACRO, BADCOMMAND };
 
+#define NOFLAGS 0
+#define FORCE_OPEN 0         /* edit() flag */
+#define NO_FORCE_OPEN 1      /* edit() flag */
+
 #ifdef DEFINEGLOBALS
 #define GLOBAL(var, val) var = val
 #else
 #define GLOBAL(var, val) extern var
 #endif
-
 
 /*
  * This style of error-reporting (see also command.c) is only used by some
@@ -108,7 +109,7 @@ enum error { E_OK=0, E_AMBIG, E_BADMATH, E_BADVAR, E_BOGCOM, E_CANTPARSE,
 GLOBAL(const char *deferr[], deferrinit_ );
 
 /*
- * It is possible for erreur to become dis-synchronized from errstr if
+ * It is possible for erreur to become unsynchronized from errstr if
  * its users aren't careful.  Access through the macros is considered
  * careful.
  */
@@ -129,7 +130,7 @@ GLOBAL(char *errstr, NULL);  /* must point be null or free()'ble */
  *
  * fmalloc(size, pointer-to-new-memory);
  *
- * Don't compile this puppy with -Wall...
+ * Don't compile this puppy with -Wall or she'll squeel loud!
  */
 
 #define FMALLOC(s,v) ((((v) = malloc(s)) ? 0 : \

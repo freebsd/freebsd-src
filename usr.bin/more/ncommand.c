@@ -40,16 +40,15 @@ static const char rcsid[] =
  * of the command line string passed to command() is then passed to a
  * function corresponding to the given command.  The specific command
  * function evaluates the remainder of the command string with the help
- * of getstr() and getnumb(), both of which also handle variable expansion
- * into a single word.  It may in the future be desirable to add a special
- * getsstring(), get-search-string, function.  Specific command functions
- * should not try grokking the command string by themselves.
+ * of getstr() and getint(), both of which also handle variable expansion
+ * into a single word.  Specific command functions should not try grokking
+ * the command string by themselves.
  *
  * A command and its arguments are terminated by either a NUL or a ';'.
  * This is recognized by both getstr() and getint().  Specific command
  * functions return a pointer to the end of the command (and its arguments)
  * thus allowing command() to accept commands that are chained together
- * by semicolons.  If a specific command fails it returns NULL preventing
+ * by semicolons.  If a specific command fails, it returns NULL preventing
  * any proceeding commands (chained together with ';') from being parsed.
  * This can be considered as a feature.
  * 
@@ -1241,7 +1240,7 @@ caskfile(cident, args)
 	 * file to be re-opened. */
 	/* XXX should modify this() or edit() to handle lists of file, ie.
 	 * the type of lists that I get if I try to glob("*") */
-	(void)edit(glob(buf));
+	(void)edit(glob(buf), FORCE_OPEN);
 
 	return args;
 }
@@ -1500,7 +1499,7 @@ ctags(cident, args)
 	/* Load the tagfile and position ourselves. */
 	if (tagfile == NULL)
 		return NULL;
-	if (edit(tagfile))
+	if (edit(tagfile, NO_FORCE_OPEN))
 		tagsearch();
 	return args;  /* tag stuff still calls error() on its own */
 }
