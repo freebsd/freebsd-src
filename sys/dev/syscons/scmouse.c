@@ -876,13 +876,15 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    if (mouse->u.mouse_char < 0) {
 		mouse->u.mouse_char = scp->sc->mouse_char;
 	    } else {
-		if (mouse->u.mouse_char >= UCHAR_MAX - 4)
+		if (mouse->u.mouse_char > UCHAR_MAX - 3)
 		    return EINVAL;
 		s = spltty();
 		sc_remove_all_mouse(scp->sc);
 #ifndef SC_NO_FONT_LOADING
 		if (ISTEXTSC(cur_scp) && (cur_scp->font != NULL))
-		    sc_load_font(cur_scp, 0, cur_scp->font_size, cur_scp->font,
+		    sc_load_font(cur_scp, 0, cur_scp->font_size,
+				 cur_scp->font + cur_scp->font_size
+				 * cur_scp->sc->mouse_char,
 				 cur_scp->sc->mouse_char, 4);
 #endif
 		scp->sc->mouse_char = mouse->u.mouse_char;
