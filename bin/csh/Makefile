@@ -30,6 +30,8 @@ SRCS+=	tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
 	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
 	tc.who.c tc.h
 SRCS+=	tc.defs.c
+GENHDRS= ed.defns.h sh.err.h tc.const.h
+SRCS+=	${GENHDRS}
 
 MAN1=	csh.1
 MLINKS= csh.1 tcsh.1
@@ -37,17 +39,15 @@ MLINKS= csh.1 tcsh.1
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-DPADD+=		${LIBNCURSES} ${LIBCRYPT}
-LDADD+=		-lncurses -lcrypt
+DPADD=	${LIBNCURSES} ${LIBCRYPT}
+LDADD=	-lncurses -lcrypt
 
 LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 
+CLEANFILES= ${GENHDRS} csh.1
+
 csh.1: tcsh.man
 	ln -sf ${.ALLSRC} ${.TARGET}
-
-GENHDRS+=	ed.defns.h tc.const.h sh.err.h
-SRCS+=		${GENHDRS}
-CLEANFILES+= ${GENHDRS}
 
 ed.defns.h: ed.defns.c
 	@rm -f ${.TARGET}
