@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
@@ -63,9 +64,15 @@ MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
 static struct specinfo devt_stash[DEVT_STASH];
 
-static SLIST_HEAD(devt_hash_head, specinfo) dev_hash[DEVT_HASH];
+static LIST_HEAD(, specinfo) dev_hash[DEVT_HASH];
+
+static LIST_HEAD(, specinfo) dev_free;
 
 devfs_create_t *devfs_create_hook;
+devfs_remove_t *devfs_remove_hook;
+
+static int free_devt;
+SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
 /*
  * Routine to convert from character to block device number.
@@ -230,24 +237,45 @@ makedev(int x, int y)
 
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
-	SLIST_FOREACH(si, &dev_hash[hash], si_hash) {
+	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
 		if (si->si_udev == udev)
 			return (si);
 	}
 	if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT, 
 		    M_USE_RESERVE);
+		bzero(si, sizeof(*si));
+	} else if (LIST_FIRST(&dev_free)) {
+		si = LIST_FIRST(&dev_free);
+		LIST_REMOVE(si, si_hash);
 	} else {
 		si = devt_stash + stashed++;
+		si->si_flags |= SI_STASHED;
 	}
-	bzero(si, sizeof(*si));
 	si->si_udev = udev;
-	if (y > 256)
-		sprintf(si->si_name, "#%d/0x%x", x, y);
-	else
-		sprintf(si->si_name, "#%d/%d", x, y);
-	SLIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
+	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
         return (si);
+}
+
+void
+freedev(dev_t dev)
+{
+	int hash;
+
+	if (!free_devt)
+		return;
+	if (SLIST_FIRST(&dev->si_hlist))
+		return;
+	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2) 
+		return;
+	hash = dev->si_udev % DEVT_HASH;
+	LIST_REMOVE(dev, si_hash);
+	if (dev->si_flags & SI_STASHED) {
+		bzero(dev, sizeof(*dev));
+		LIST_INSERT_HEAD(&dev_free, dev, si_hash);
+	} else {
+		FREE(dev, M_DEVT);
+	}
 }
 
 udev_t
@@ -318,10 +346,31 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	return (dev);
 }
 
+void
+remove_dev(dev_t dev)
+{
+	if (devfs_remove_hook)
+		devfs_remove_hook(dev);
+	dev->si_drv1 = 0;
+	dev->si_drv2 = 0;
+	dev->si_devsw = 0;
+	freedev(dev);
+}
+
 char *
 devtoname(dev_t dev)
 {
+	char *p;
 
+	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
+		p = dev->si_name;
+		if (devsw(dev))
+			sprintf(p, "#%s/", devsw(dev)->d_name);
+		else
+			sprintf(p, "#%d/", major(dev));
+		p += strlen(p);
+		sprintf(p, minor(dev) > 255 ? "0x%x" : "%d", minor(dev));
+	}
 	return (dev->si_name);
 }
 
