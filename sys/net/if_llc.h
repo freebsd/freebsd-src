@@ -1,3 +1,5 @@
+/*	$NetBSD: if_llc.h,v 1.12 1999/11/19 20:41:19 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)if_llc.h	8.1 (Berkeley) 6/10/93
+ *	@(#)if_llc.h	8.1 (Berkeley) 6/10/93
  * $FreeBSD$
  */
 
@@ -41,60 +43,72 @@
  * IEEE 802.2 Link Level Control headers, for use in conjunction with
  * 802.{3,4,5} media access control methods.
  *
- * Headers here do not use bit fields due to shortcomings in many
+ * Headers here do not use bit fields due to shortcommings in many
  * compilers.
  */
 
 struct llc {
-	u_char	llc_dsap;
-	u_char	llc_ssap;
+	u_int8_t llc_dsap;
+	u_int8_t llc_ssap;
 	union {
 	    struct {
-		u_char control;
-		u_char format_id;
-		u_char class;
-		u_char window_x2;
-	    } type_u;
+		u_int8_t control;
+		u_int8_t format_id;
+		u_int8_t class;
+		u_int8_t window_x2;
+	    } type_u __attribute__((__packed__));
 	    struct {
-		u_char num_snd_x2;
-		u_char num_rcv_x2;
-	    } type_i;
+		u_int8_t num_snd_x2;
+		u_int8_t num_rcv_x2;
+	    } type_i __attribute__((__packed__));
 	    struct {
-		u_char control;
-		u_char num_rcv_x2;
-	    } type_s;
+		u_int8_t control;
+		u_int8_t num_rcv_x2;
+	    } type_s __attribute__((__packed__));
 	    struct {
-	        u_char control;
-		struct frmrinfo {
-			u_char rej_pdu_0;
-			u_char rej_pdu_1;
-			u_char frmr_control;
-			u_char frmr_control_ext;
-			u_char frmr_cause;
-		} frmrinfo;
-	    } type_frmr;
+	        u_int8_t control;
+		/*
+		 * We cannot put the following fields in a structure because
+		 * the structure rounding might cause padding.
+		 */
+		u_int8_t frmr_rej_pdu0;
+		u_int8_t frmr_rej_pdu1;
+		u_int8_t frmr_control;
+		u_int8_t frmr_control_ext;
+		u_int8_t frmr_cause;
+	    } type_frmr __attribute__((__packed__));
 	    struct {
-		u_char control;
-		u_char org_code[3];
-		u_short ether_type;
-	    } type_snap;
+		u_int8_t  control;
+		u_int8_t  org_code[3];
+		u_int16_t ether_type;
+	    } type_snap __attribute__((__packed__));
 	    struct {
-		u_char control;
-		u_char control_ext;
-	    } type_raw;
-	} llc_un;
-};
-#define llc_control            llc_un.type_u.control
-#define	llc_control_ext        llc_un.type_raw.control_ext
-#define llc_fid                llc_un.type_u.format_id
-#define llc_class              llc_un.type_u.class
-#define llc_window             llc_un.type_u.window_x2
-#define llc_frmrinfo           llc_un.type_frmr.frmrinfo
-#define llc_frmr_pdu0          llc_un.type_frmr.frmrinfo.rej_pdu0
-#define llc_frmr_pdu1          llc_un.type_frmr.frmrinfo.rej_pdu1
-#define llc_frmr_control       llc_un.type_frmr.frmrinfo.frmr_control
-#define llc_frmr_control_ext   llc_un.type_frmr.frmrinfo.frmr_control_ext
-#define llc_frmr_cause         llc_un.type_frmr.frmrinfo.frmr_control_ext
+		u_int8_t control;
+		u_int8_t control_ext;
+	    } type_raw __attribute__((__packed__));
+	} llc_un /* XXX __attribute__((__packed__)) ??? */;
+} __attribute__((__packed__));
+
+struct frmrinfo {
+	u_int8_t frmr_rej_pdu0;
+	u_int8_t frmr_rej_pdu1;
+	u_int8_t frmr_control;
+	u_int8_t frmr_control_ext;
+	u_int8_t frmr_cause;
+} __attribute__((__packed__));
+
+#define	llc_control		llc_un.type_u.control
+#define	llc_control_ext		llc_un.type_raw.control_ext
+#define	llc_fid			llc_un.type_u.format_id
+#define	llc_class		llc_un.type_u.class
+#define	llc_window		llc_un.type_u.window_x2
+#define	llc_frmrinfo 		llc_un.type_frmr.frmr_rej_pdu0
+#define	llc_frmr_pdu0		llc_un.type_frmr.frmr_rej_pdu0
+#define	llc_frmr_pdu1		llc_un.type_frmr.frmr_rej_pdu1
+#define	llc_frmr_control	llc_un.type_frmr.frmr_control
+#define	llc_frmr_control_ext	llc_un.type_frmr.frmr_control_ext
+#define	llc_frmr_cause		llc_un.type_frmr.frmr_cause
+#define	llc_snap		llc_un.type_snap
 
 /*
  * Don't use sizeof(struct llc_un) for LLC header sizes
@@ -102,6 +116,7 @@ struct llc {
 #define LLC_ISFRAMELEN 4
 #define LLC_UFRAMELEN  3
 #define LLC_FRMRLEN    7
+#define LLC_SNAPFRAMELEN 8
 
 /*
  * Unnumbered LLC format commands
@@ -142,4 +157,4 @@ struct llc {
 #define LLC_SNAP_LSAP	0xaa
 #define LLC_ISO_LSAP	0xfe
 
-#endif
+#endif /* _NET_IF_LLC_H_ */
