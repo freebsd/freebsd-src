@@ -412,11 +412,9 @@ if_attach(struct ifnet *ifp)
 	namelen = strlen(ifp->if_xname);
 	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
-#define ROUNDUP(a) (1 + (((a) - 1) | (sizeof(long) - 1)))
 	if (socksize < sizeof(*sdl))
 		socksize = sizeof(*sdl);
-	socksize = ROUNDUP(socksize);
-#undef ROUNDUP
+	socksize = roundup2(socksize, sizeof(long));
 	ifasize = sizeof(*ifa) + 2 * socksize;
 	ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
 	IFA_LOCK_INIT(ifa);
