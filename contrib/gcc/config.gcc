@@ -298,11 +298,11 @@ xscale-*-*)
 	;;
 i[34567]86-*-*)
 	cpu_type=i386
-	extra_headers="mmintrin.h xmmintrin.h"
+	extra_headers="mmintrin.h xmmintrin.h emmintrin.h pmmintrin.h"
 	;;
 x86_64-*-*)
 	cpu_type=i386
-	extra_headers="mmintrin.h xmmintrin.h"
+	extra_headers="mmintrin.h xmmintrin.h emmintrin.h pmmintrin.h"
 	;;
 ia64-*-*)
 	extra_headers=ia64intrin.h
@@ -961,13 +961,11 @@ hppa*64*-*-hpux11*)
 	then
 		target_cpu_default="${target_cpu_default}|MASK_GNU_LD"
 	fi
-#	if [ x$enable_threads = x ]; then
-#	    enable_threads=$have_pthread_h
-#	fi
-#	if [ x$enable_threads = xyes ]; then
-#		thread_file='dce'
-#		tmake_file="${tmake_file} pa/t-dce-thr"
-#	fi
+	case x${enable_threads} in
+	xyes | xposix )
+		thread_file=posix 
+		;;
+	esac
 	install_headers_dir=install-headers-cpio
 	;;
 hppa1.1-*-hpux11* | hppa2*-*-hpux11*)
@@ -976,13 +974,11 @@ hppa1.1-*-hpux11* | hppa2*-*-hpux11*)
 	xm_defines=POSIX
 	tmake_file="pa/t-pa pa/t-pa-hpux pa/t-hpux-shlib"
 	xmake_file="pa/x-ada"
-#	if test x$enable_threads = x; then
-#	    enable_threads=$have_pthread_h
-#	fi
-#	if test x$enable_threads = xyes; then
-#		thread_file='dce'
-#		tmake_file="${tmake_file} pa/t-dce-thr"
-#	fi
+	case x${enable_threads} in
+	xyes | xposix )
+		thread_file=posix 
+		;;
+	esac
 	install_headers_dir=install-headers-cpio
 	use_collect2=yes
 	;;
@@ -991,13 +987,11 @@ hppa1.0-*-hpux11*)
 	xm_defines=POSIX
 	tmake_file="pa/t-pa pa/t-pa-hpux pa/t-hpux-shlib"
 	xmake_file="pa/x-ada"
-#	if test x$enable_threads = x; then
-#	    enable_threads=$have_pthread_h
-#	fi
-#	if test x$enable_threads = xyes; then
-#		thread_file='dce'
-#		tmake_file="${tmake_file} pa/t-dce-thr"
-#	fi
+	case x${enable_threads} in
+	xyes | xposix )
+		thread_file=posix 
+		;;
+	esac
 	install_headers_dir=install-headers-cpio
 	use_collect2=yes
 	;;
@@ -1244,15 +1238,13 @@ i[34567]86-*-rtems*)
 i[34567]86-*-sco3.2v5*)	# 80386 running SCO Open Server 5
 	xm_defines=POSIX
 	install_headers_dir=install-headers-cpio
-	tm_file="${tm_file} i386/unix.h i386/att.h i386/sco5.h"
+	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h i386/sco5.h"
 	if test x$gas = xyes
 	then
 		tm_file="usegas.h ${tm_file}"
-		tmake_file=i386/t-sco5gas
-	else
-		tmake_file=i386/t-sco5
 	fi
-	extra_parts="crti.o crtbegin.o crtend.o crtbeginS.o crtendS.o"
+	tmake_file=i386/t-sco5
+	extra_parts="crtbegin.o crtend.o"
 	;;
 i[34567]86-*-solaris2*)
 	xm_defines="POSIX SMALL_ARG_MAX"
@@ -1486,14 +1478,19 @@ ia64*-*-linux*)
 	tmake_file="t-slibgcc-elf-ver t-linux ia64/t-ia64 ia64/t-glibc"
 	target_cpu_default="MASK_GNU_AS|MASK_GNU_LD"
 	extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtfastmath.o"
+	if test x"$use_libunwind_exceptions" = xyes; then
+	  tmake_file="$tmake_file t-libunwind"
+	fi
 	;;
 ia64*-*-hpux*)
 	tm_file="${tm_file} dbxelf.h elfos.h svr4.h ia64/sysv4.h ia64/hpux.h ia64/hpux_longdouble.h"
 	tmake_file="ia64/t-ia64 ia64/t-hpux"
 	target_cpu_default="MASK_GNU_AS"
-	if test x$enable_threads = xyes; then
-		thread_file='posix'
-	fi
+	case x$enable_threads in
+	xyes | xposix )
+		thread_file=posix
+		;;
+	esac
 	use_collect2=no
 	c_target_objs="ia64-c.o"
 	cxx_target_objs="ia64-c.o"
@@ -1751,7 +1748,7 @@ m68k-*-rtemscoff*)	# would otherwise be caught by m68k-*-rtems*
 	;;
 m68k-*-rtems*)
 	xm_defines=POSIX
-	tmake_file="m68k/t-m68kbare t-rtems m68k/t-crtstuff"
+	tmake_file="m68k/t-m68kbare m68k/t-crtstuff t-rtems m68k/t-rtems"
 	tm_file="m68k/m68k-none.h m68k/m68kelf.h dbxelf.h elfos.h m68k/m68kemb.h m68k/m68020-elf.h m68k/rtemself.h rtems.h"
 	extra_parts="crtbegin.o crtend.o"
 	if test x$enable_threads = xyes; then
@@ -1968,7 +1965,7 @@ mips64orion-*-rtems*)
 mips*-*-rtems*)
 	xm_defines=POSIX
 	tm_file="${tm_file} mips/elf.h mips/rtems.h rtems.h"
-	tmake_file="mips/t-elf t-rtems"
+	tmake_file="mips/t-elf t-rtems mips/t-rtems"
 	if test x$enable_threads = xyes; then
 	  thread_file='rtems'
 	fi
@@ -2308,7 +2305,7 @@ sh-*-rtems*)
 	fi
 	;;
 sh-*-linux* | sh[2346lbe]*-*-linux*)
-	tmake_file="sh/t-sh sh/t-elf sh/t-linux"
+	tmake_file="sh/t-sh sh/t-elf"
 	case $machine in
 	sh*be-*-* | sh*eb-*-*) ;;
 	*)
@@ -2316,6 +2313,7 @@ sh-*-linux* | sh[2346lbe]*-*-linux*)
 		tmake_file="${tmake_file} sh/t-le"
 		;;
 	esac
+	tmake_file="${tmake_file} sh/t-linux"
 	tm_file="${tm_file} dbxelf.h elfos.h svr4.h sh/elf.h sh/linux.h"
 	gas=yes gnu_ld=yes
 	case $machine in
@@ -2525,7 +2523,7 @@ sparc-*-solaris2*)
 			tm_file="${tm_file} sparc/sol26-sld.h"
 		fi
 		;;
-	*-*-solaris2.[789])
+	*-*-solaris2.[789] | *-*-solaris2.1[0-9])
 		tm_file="sparc/biarch64.h ${tm_file} sparc/sol2-bi.h"
 		if test x$gnu_ld = xyes; then
 			tm_file="${tm_file} sparc/sol2-gld-bi.h"

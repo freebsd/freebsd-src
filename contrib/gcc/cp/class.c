@@ -127,8 +127,9 @@ static int field_decl_cmp PARAMS ((const tree *, const tree *));
 static int method_name_cmp PARAMS ((const tree *, const tree *));
 static void add_implicitly_declared_members PARAMS ((tree, int, int, int));
 static tree fixed_type_or_null PARAMS ((tree, int *, int *));
-static tree resolve_address_of_overloaded_function PARAMS ((tree, tree, int,
-							  int, int, tree));
+static tree resolve_address_of_overloaded_function PARAMS ((tree, tree, 
+							    tsubst_flags_t, 
+							    int, int, tree));
 static tree build_vtable_entry_ref PARAMS ((tree, tree, tree));
 static tree build_vtbl_ref_1 PARAMS ((tree, tree));
 static tree build_vtbl_initializer PARAMS ((tree, tree, tree, tree, int *));
@@ -5042,6 +5043,15 @@ layout_class_type (tree t, tree *virtuals_p)
 	     field to the size of its declared type; the rest of the
 	     field is effectively invisible.  */
 	  DECL_SIZE (field) = TYPE_SIZE (type);
+	  /* We must also reset the DECL_MODE of the field.  */
+	  if (abi_version_at_least (2))
+	    DECL_MODE (field) = TYPE_MODE (type);
+	  else if (warn_abi
+		   && DECL_MODE (field) != TYPE_MODE (type))
+	    /* Versions of G++ before G++ 3.4 did not reset the
+	       DECL_MODE.  */
+	    warning ("the offset of `%D' may not be ABI-compliant and may "
+		     "change in a future version of GCC", field);
 	}
       else
 	{
@@ -5994,13 +6004,13 @@ pop_lang_context ()
 static tree
 resolve_address_of_overloaded_function (target_type, 
 					overload,
-					complain,
+					flags,
 	                                ptrmem,
 					template_only,
 					explicit_targs)
      tree target_type;
      tree overload;
-     int complain;
+     tsubst_flags_t flags;
      int ptrmem;
      int template_only;
      tree explicit_targs;
@@ -6064,7 +6074,7 @@ resolve_address_of_overloaded_function (target_type,
     }
   else 
     {
-      if (complain)
+      if (flags & tf_error)
 	error ("\
 cannot resolve overloaded function `%D' based on conversion to type `%T'", 
 		  DECL_NAME (OVL_FUNCTION (overload)), target_type);
@@ -6093,7 +6103,11 @@ cannot resolve overloaded function `%D' based on conversion to type `%T'",
 	    /* We're looking for a non-static member, and this isn't
 	       one, or vice versa.  */
 	    continue;
-	
+
+	  /* Ignore anticipated decls of undeclared builtins.  */
+	  if (DECL_ANTICIPATED (fn))
+	    continue;
+
 	  /* See if there's a match.  */
 	  fntype = TREE_TYPE (fn);
 	  if (is_ptrmem)
@@ -6184,7 +6198,7 @@ cannot resolve overloaded function `%D' based on conversion to type `%T'",
   if (matches == NULL_TREE)
     {
       /* There were *no* matches.  */
-      if (complain)
+      if (flags & tf_error)
 	{
  	  error ("no matches converting function `%D' to type `%#T'", 
 		    DECL_NAME (OVL_FUNCTION (overload)),
@@ -6205,7 +6219,7 @@ cannot resolve overloaded function `%D' based on conversion to type `%T'",
     {
       /* There were too many matches.  */
 
-      if (complain)
+      if (flags & tf_error)
 	{
 	  tree match;
 
@@ -6232,7 +6246,7 @@ cannot resolve overloaded function `%D' based on conversion to type `%T'",
     {
       static int explained;
       
-      if (!complain)
+      if (!(flags & tf_error))
         return error_mark_node;
 
       pedwarn ("assuming pointer to member `%D'", fn);
@@ -6242,7 +6256,13 @@ cannot resolve overloaded function `%D' based on conversion to type `%T'",
           explained = 1;
         }
     }
-  mark_used (fn);
+
+  /* If we're doing overload resolution purely for the purpose of
+     determining conversion sequences, we should not consider the
+     function used.  If this conversion sequence is selected, the
+     function will be marked as used at this point.  */
+  if (!(flags & tf_conv))
+    mark_used (fn);
 
   if (TYPE_PTRFN_P (target_type) || TYPE_PTRMEMFUNC_P (target_type))
     return build_unary_op (ADDR_EXPR, fn, 0);
@@ -6272,6 +6292,7 @@ instantiate_type (lhstype, rhs, flags)
      tree lhstype, rhs;
      tsubst_flags_t flags;
 {
+  tsubst_flags_t flags_in = flags;
   int complain = (flags & tf_error);
   int strict = (flags & tf_no_attributes)
                ? COMPARE_NO_ATTRIBUTES : COMPARE_STRICT;
@@ -6362,7 +6383,7 @@ instantiate_type (lhstype, rhs, flags)
 	return
 	  resolve_address_of_overloaded_function (lhstype,
 						  fns,
-						  complain,
+						  flags_in,
 	                                          allow_ptrmem,
 						  /*template_only=*/1,
 						  args);
@@ -6372,7 +6393,7 @@ instantiate_type (lhstype, rhs, flags)
       return 
 	resolve_address_of_overloaded_function (lhstype, 
 						rhs,
-						complain,
+						flags_in,
 	                                        allow_ptrmem,
 						/*template_only=*/0,
 						/*explicit_targs=*/NULL_TREE);
@@ -6678,7 +6699,7 @@ maybe_note_name_used_in_class (name, decl)
   splay_tree names_used;
 
   /* If we're not defining a class, there's nothing to do.  */
-  if (!current_class_type || !TYPE_BEING_DEFINED (current_class_type))
+  if (!innermost_scope_is_class_p ())
     return;
   
   /* If there's already a binding for this NAME, then we don't have
