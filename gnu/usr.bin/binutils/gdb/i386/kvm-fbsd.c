@@ -438,7 +438,25 @@ xfer_umem (memaddr, myaddr, len, write)
   return n;
 }
 
-#define	KERNOFF		((unsigned)KERNBASE)
+static CORE_ADDR
+ksym_kernbase()
+{
+  static CORE_ADDR kernbase;
+  struct minimal_symbol *sym;
+
+  if (kernbase == 0)
+    {
+      sym = lookup_minimal_symbol ("kernbase", NULL, NULL);
+      if (sym == NULL) {
+	kernbase = KERNBASE;
+      } else {
+	kernbase = SYMBOL_VALUE_ADDRESS (sym);
+      }
+    }
+  return kernbase;
+}
+
+#define	KERNOFF		(ksym_kernbase())
 #define	INKERNEL(x)	((x) >= KERNOFF)
 
 static CORE_ADDR sbr;
