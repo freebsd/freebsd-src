@@ -1680,7 +1680,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">ASIX Electronics AX88172-based USB Ethernet NICs
+    <para arch="i386,pc98">ASIX Electronics AX88172-based USB Ethernet NICs
       (&man.axe.4; driver)
 
       <itemizedlist>
