@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/sysctl.h>
@@ -58,6 +59,7 @@ static struct proc *g_up_proc;
 
 int g_debugflags;
 int g_collectstats = 1;
+int g_shutdown;
 
 /*
  * G_UP and G_DOWN are the two threads which push I/O through the
@@ -139,6 +141,13 @@ struct kproc_desc g_event_kp = {
 	&g_event_proc,
 };
 
+static void
+geom_shutdown(void *foo __unused)
+{
+
+	g_shutdown = 1;
+}
+
 void
 g_init(void)
 {
@@ -151,6 +160,8 @@ g_init(void)
 	kproc_start(&g_up_kp);
 	kproc_start(&g_down_kp);
 	mtx_unlock(&Giant);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
+		SHUTDOWN_PRI_FIRST);
 }
 
 static int
