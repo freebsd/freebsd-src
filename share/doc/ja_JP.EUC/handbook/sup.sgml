@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: sup.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.20 -->
 
@@ -59,11 +59,12 @@ sup が何をしているかを「冗長に」に見たいなら, 次のように -v を与えてください:
 <verb>
 	sup -v supfile
 </verb>
-以上です! あなたが current を実行しているどうか, standard-supfile で 
+以上です! あなたが current を実行しているかどうか, standard-supfile で 
 sup するときに得られるものが何かを覚えておき, &a.current へ参加して
-ください. -current ユーザとしてのあなたに何かできて何ができないかの
-重要な情報として, <ref id="current" name="最新の FreeBSD を追いかける">を
-読んでおいた方かよいでしょう. stable-supfile をお使いの方は, 
+ください. -current ユーザとしてのあなたに対して, 私たちが何ができて
+何ができないかの重要な情報として, 
+<ref id="current" name="最新の FreeBSD を追いかける">を
+読んでおいた方がよいでしょう. stable-supfile をお使いの方は, 
 &a.stable へ参加し <ref id="stable" name="FreeBSD の安定状態の持続">を
 読んでください. 
 
@@ -71,84 +72,84 @@ sup するときに得られるものが何かを覚えておき, &a.current へ参加して
 
 <p>standard-supfile を使用したメインの FreeBSD 配布ファイルは :
 <verb>
-src-base:      /usr/src/...            /usr/src のトップにあるその他のファイル
-src-bin:       /usr/src/bin            ユーザとシステムのバイナリ
-src-secure:    /usr/src/secure         DES のソース (US/Canada ONLY)
-src-eBones:    /usr/src/eBones         Kerberos と DES (US/Canada ONLY)
-src-etc:       /usr/src/etc            システムファイル
-src-games:     /usr/src/games          ゲーム
-src-gnu:       /usr/src/gnu            GNU Public License 下にあるソース
-src-include:   /usr/src/include        インクルードファイル
-src-sys:       /usr/src/sys            カーネルのソース
-src-lib:       /usr/src/lib            ライブラリ
-src-libexec:   /usr/src/libexec        システムバイナリ
-src-release:   /usr/src/release        release を構築するために必要なソース
-src-share:     /usr/src/share          色々な共有リソース
-src-sbin:      /usr/src/sbin           シングルユーザのシステムバイナリ
-src-tools:     /usr/src/tools          色々な管理ツール
-src-usrbin:    /usr/src/usr.bin        ユーザバイナリ
-src-usrsbin:   /usr/src/usr.sbin       システムバイナリ
+src-base:         /usr/src/...          /usr/src のトップにあるその他のファイル
+src-bin:          /usr/src/bin          ユーザとシステムのバイナリ
+src-secure:       /usr/src/secure       DES のソース (US/Canada ONLY)
+src-eBones:       /usr/src/eBones       Kerberos と DES (US/Canada ONLY)
+src-etc:          /usr/src/etc          システムファイル
+src-games:        /usr/src/games        ゲーム
+src-gnu:          /usr/src/gnu          GNU Public License 下にあるソース
+src-include:      /usr/src/include      インクルードファイル
+src-sys:          /usr/src/sys          カーネルのソース
+src-lib:          /usr/src/lib          ライブラリ
+src-libexec:      /usr/src/libexec      システムバイナリ
+src-release:      /usr/src/release      release を構築するために必要なソース
+src-share:        /usr/src/share        色々な共有リソース
+src-sbin:         /usr/src/sbin         シングルユーザのシステムバイナリ
+src-tools:        /usr/src/tools        色々な管理ツール
+src-usrbin:       /usr/src/usr.bin      ユーザバイナリ
+src-usrsbin:      /usr/src/usr.sbin     システムバイナリ
 </verb>
 
-<p>secure-supfileを使用した国際的なFreeBSD配布ファイルは:
+<p>secure-supfile を使用した国際的な FreeBSD 配布ファイルは:
 <verb>
-src-secure:    /usr/src/secure         DES のソース
-src-eBones:    /usr/src/eBones         Kerberos と DES
+src-secure:       /usr/src/secure       DES のソース
+src-eBones:       /usr/src/eBones       Kerberos と DES
 </verb>
 
 <p>また, 輸出規制のあるソフトウェア (たとえば, <tt>src-secure</tt> と 
 <tt>src-eBones</tt> コレクション) の両方のバージョン (合衆国内または
 国外) を除く, 上記すべてを含むコレクションがあります:
 <verb>
-src-all:       /usr/src                オペレーティングシステム全体 (ほぼすべて)
+src-all:          /usr/src              オペレーティングシステム全体 (ほぼすべて)
 </verb>
 
 <p>そして ports コレクションは:
 <verb>
-ports-base:	  /usr/ports/...	/usr/ports のトップにあるその他のファイル
-ports-archivers:  /usr/ports/archivers	アーカイビングのツール
-ports-astro:	  /usr/ports/astro	天文学関連の ports
-ports-audio:	  /usr/ports/audio	サウンドサポート
-ports-benchmarks: /usr/ports/benchmarks	ベンチマークプログラム
-ports-cad:	  /usr/ports/cad	CAD ツール
+ports-base:       /usr/ports/...        /usr/ports のトップにあるその他のファイル
+ports-archivers:  /usr/ports/archivers  アーカイビングのツール
+ports-astro:      /usr/ports/astro      天文学関連の ports
+ports-audio:      /usr/ports/audio      サウンドサポート
+ports-benchmarks: /usr/ports/benchmarks ベンチマークプログラム
+ports-cad:        /usr/ports/cad        CAD ツール
 ports-chinese:    /usr/ports/chinese    中国語サポート
-ports-comms:	  /usr/ports/comms	通信ソフトウェア
-ports-databases:  /usr/ports/databases	データベース
-ports-devel:	  /usr/ports/devel	開発ユーティリティ
-ports-editors:    /usr/ports/editors	エディタ
-ports-emulators:  /usr/ports/emulators	他の OS のエミュレータ
-ports-games:	  /usr/ports/games	ゲーム
-ports-graphics:	  /usr/ports/graphics	色々なグラフィックユーティリティ
-ports-japanese:	  /usr/ports/japanese	日本語サポート
-ports-lang:	  /usr/ports/lang	プログラミング言語
-ports-mail:	  /usr/ports/mail	メールソフトウェア
-ports-math:	  /usr/ports/math	数値計算ソフトウェア
-ports-mbone:	  /usr/ports/mbone      MBone アプリケーション
-ports-misc:	  /usr/ports/misc	色々なユーティリティ
-ports-net:	  /usr/ports/net	ネットワーキングソフトウェア
-ports-news:	  /usr/ports/news	USENET ニュースのソフトウェア
-ports-plan9:	  /usr/ports/plan9	Plan9 からの色々なプログラム
-ports-print:	  /usr/ports/print	印刷ソフトウェア
+ports-comms:      /usr/ports/comms      通信ソフトウェア
+ports-databases:  /usr/ports/databases  データベース
+ports-devel:      /usr/ports/devel      開発ユーティリティ
+ports-editors:    /usr/ports/editors    エディタ
+ports-emulators:  /usr/ports/emulators  他の OS のエミュレータ
+ports-games:      /usr/ports/games      ゲーム
+ports-graphics:   /usr/ports/graphics   色々なグラフィックユーティリティ
+ports-japanese:   /usr/ports/japanese   日本語サポート
+ports-lang:       /usr/ports/lang       プログラミング言語
+ports-mail:       /usr/ports/mail       メールソフトウェア
+ports-math:       /usr/ports/math       数値計算ソフトウェア
+ports-mbone:      /usr/ports/mbone      MBone アプリケーション
+ports-misc:       /usr/ports/misc       色々なユーティリティ
+ports-net:        /usr/ports/net        ネットワーキングソフトウェア
+ports-news:       /usr/ports/news       USENET ニュースのソフトウェア
+ports-plan9:      /usr/ports/plan9      Plan9 からの色々なプログラム
+ports-print:      /usr/ports/print      印刷ソフトウェア
 ports-russian:    /usr/ports/russian    ロシア語サポート
-ports-security:	  /usr/ports/security	よりよい (悪い?) 「セキュリティ」関連のユーティリティ
-ports-shells:	  /usr/ports/shells	色々な UN*X シェル
-ports-sysutils:	  /usr/ports/sysutils	システムユーティリティ
-ports-www:	  /usr/ports/www	WWW 関連のソフトウェア
-ports-x11:	  /usr/ports/x11	X11 のソフトウェア
+ports-security:   /usr/ports/security   よりよい (悪い?) 「セキュリティ」関連のユーティリティ
+ports-shells:     /usr/ports/shells     色々な UN*X シェル
+ports-sysutils:   /usr/ports/sysutils   システムユーティリティ
+ports-www:        /usr/ports/www        WWW 関連のソフトウェア
+ports-x11:        /usr/ports/x11        X11 のソフトウェア
 </verb>
 
 <p>また, 上記すべてを含むコレクションがあります:
 <verb>
-ports-all:	/usr/ports		ports ツリー全体
+ports-all:        /usr/ports            ports ツリー全体
 </verb>
 
 <p>ports のオリジナルソースを更新し続けたい場合は, 次の行を supfile へ
 追加することができます. ただしこのコレクションは<em>巨大</em>である
 ことに注意してください. そして, FreeBSD ツリー全体を (ある理由で
-「mirror」は使用できませんが) ミラーリングしている FTP サイトでないので
+``mirror'' は使用できませんが) ミラーリングしている FTP サイトでないので
 あれば, あなたは (そして私たちにとっても) これらを収集する sup を使用しな
 い方がずっといいでしょう:
 <verb>
-ports-distfiles: /usr/ports/distfiles	original tarballs
+ports-distfiles:  /usr/ports/distfiles  original tarballs
 </verb>
 
