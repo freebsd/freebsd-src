@@ -278,7 +278,7 @@ scattach(struct isa_device *dev)
 	copy_font(SAVE, FONT_16, font_16);
 	fonts_loaded = FONT_16;
 	scp->font = FONT_16;
-	set_destructive_cursor_size(scp);
+	set_destructive_cursor(scp);
 	save_palette();
     }
 
@@ -1750,7 +1750,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    else if (scp->term.num_param == 2) {
 		scp->cursor_start = scp->term.param[0] & 0x1F; 
 		scp->cursor_end = scp->term.param[1] & 0x1F; 
-		set_destructive_cursor_size(scp);
+		set_destructive_cursor(scp);
 	    }
 	    break;
 
@@ -1793,8 +1793,10 @@ draw_cursor(scr_stat *scp, int show)
 	u_short cursor_image = *(Crtat + (scp->cursor_pos - scp->scr_buf));
 
 	scp->cursor_saveunder = cursor_image;
-	if (configuration & CHAR_CURSOR)
+	if (configuration & CHAR_CURSOR) {
+	    set_destructive_cursor(scp);
 	    cursor_image = (cursor_image & 0xff00) | 0x07;
+	}
 	else {
 	    if ((cursor_image & 0x7000) == 0x7000) {
 		cursor_image &= 0x8fff;
@@ -2048,8 +2050,8 @@ init_scp(scr_stat *scp)
     scp->term.rev_attr = current_default->rev_attr;
     scp->term.cur_attr = scp->term.std_attr;
     scp->border = BG_BLACK;
-    scp->cursor_start = 14;
-    scp->cursor_end = 15;
+    scp->cursor_start = *(char *)pa_to_va(0x461);
+    scp->cursor_end = *(char *)pa_to_va(0x460);
     scp->mouse_xpos = scp->mouse_ypos = 0;
     scp->bell_pitch = BELL_PITCH;
     scp->bell_duration = BELL_DURATION;
@@ -2709,7 +2711,7 @@ setup_mode:
 	    scp->font = FONT_8;
 	    break;
 	}
-	set_destructive_cursor_size(scp);
+	set_destructive_cursor(scp);
 	break;
 
     case M_BG320:     case M_CG320:     case M_BG640:
@@ -2865,33 +2867,38 @@ copy_font(int operation, int font_type, char* font_image)
 }
 
 static void 
-set_destructive_cursor_size(scr_stat *scp)
+set_destructive_cursor(scr_stat *scp)
 {
     u_char cursor[32];
     caddr_t address;
     int i, font_size;
+    char *font_buffer;
 
     switch (scp->font) {
     default:
     case FONT_8:
 	font_size = 8;
-	address = (caddr_t)VIDEOMEM+0x8000;
+	font_buffer = font_8;
+	address = (caddr_t)VIDEOMEM + 0x8000;
 	break;
     case FONT_14:
 	font_size = 14;
-	address = (caddr_t)VIDEOMEM+0x4000;
+	font_buffer = font_14;
+	address = (caddr_t)VIDEOMEM + 0x4000;
 	break;
     case FONT_16:
 	font_size = 16;
+	font_buffer = font_16;
 	address = (caddr_t)VIDEOMEM;
 	break;
     }
+    bcopyw(font_buffer + ((scp->cursor_saveunder & 0xff) * font_size),
+	   cursor, font_size);
     for (i=0; i<32; i++)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) || 
 	    (scp->cursor_start >= font_size && i == font_size - 1))
-	    cursor[i] = 0xff;
-	else
-	    cursor[i] = 0x00;
+	    cursor[i] |= 0xff;
+    while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
     set_font_mode();
     bcopy(cursor, (char *)pa_to_va(address) + 0x07 * 32, 32);
     set_normal_mode();
@@ -2914,13 +2921,13 @@ draw_mouse_image(scr_stat *scp)
 	font_size = 8;
 	font_buffer = font_8;
 	yoffset = scp->mouse_ypos % 8;
-	address = (caddr_t)VIDEOMEM+0x8000;
+	address = (caddr_t)VIDEOMEM + 0x8000;
 	break;
     case FONT_14:
 	font_size = 14;
 	font_buffer = font_14;
 	yoffset = scp->mouse_ypos % 14;
-	address = (caddr_t)VIDEOMEM+0x4000;
+	address = (caddr_t)VIDEOMEM + 0x4000;
 	break;
     case FONT_16:
 	font_size = 16;
@@ -2930,13 +2937,13 @@ draw_mouse_image(scr_stat *scp)
 	break;
     }
 
-    bcopyw(font_buffer+((*(scp->mouse_pos) & 0xff)*font_size),
+    bcopyw(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
 	   &scp->mouse_cursor[0], font_size);
-    bcopyw(font_buffer+((*(scp->mouse_pos+1) & 0xff)*font_size),
+    bcopyw(font_buffer + ((*(scp->mouse_pos+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[32], font_size);
-    bcopyw(font_buffer+((*(scp->mouse_pos+scp->xsize) & 0xff)*font_size),
+    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize) & 0xff) * font_size),
 	   &scp->mouse_cursor[64], font_size);
-    bcopyw(font_buffer+((*(scp->mouse_pos+scp->xsize+1) & 0xff)*font_size),
+    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[96], font_size);
 
     for (i=0; i<font_size; i++) {
