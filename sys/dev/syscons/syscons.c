@@ -2526,7 +2526,6 @@ scinit(int unit, int flags)
 	if (flags & SC_KERNEL_CONSOLE) {
 	    sc->dev = main_devs;
 	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
-	    main_tty.t_timeout = -1;
 	    sc->dev[0]->si_tty = &main_tty;
 	    ttyregister(&main_tty);
 	    scp = &main_console;
