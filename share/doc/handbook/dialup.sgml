@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.11 1996/06/07 15:56:37 alex Exp $
+     $Id: dialup.sgml,v 1.12 1996/08/10 17:51:15 alex Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -68,7 +68,7 @@ If you need more information about these terms and data communications
 in general, the author remembers reading that <em/The RS-232 Bible/
 (anybody have an ISBN?) is a good reference.
 
-When talking about communications data rates, the author does notuse
+When talking about communications data rates, the author does not use
 the term <bf/baud/.  Baud refers to the number of electrical state
 transitions that may be made in a period of time, while <bf/bps/ (bits
 per second) is the ``correct'' term to use (at least it does not seem
