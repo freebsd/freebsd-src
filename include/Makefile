@@ -113,10 +113,12 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
+.if !defined(NO_IPFILTER)
 .if exists(${.CURDIR}/../sys/contrib/ipfilter/netinet)
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/netinet
+.endif
 .endif
 .if exists(${.CURDIR}/../sys/contrib/netsmb/include/netsmb)
 	cd ${.CURDIR}/../sys/contrib/netsmb/include/netsmb; \
