@@ -59,7 +59,7 @@ pam_get_authtok(pam_handle_t *pamh,
 		return (PAM_SYSTEM_ERR);
 
 	r = pam_get_item(pamh, PAM_AUTHTOK, (const void **)authtok);
-	if (r == PAM_SUCCESS)
+	if (r == PAM_SUCCESS && *authtok != NULL)
 		return (PAM_SUCCESS);
 	if (prompt == NULL) {
 		if (pam_get_item(pamh, PAM_AUTHTOK_PROMPT,
