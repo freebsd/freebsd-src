@@ -486,11 +486,8 @@ ndis_ptom(m0, p)
 			*m0 = NULL;
 			return(ENOBUFS);
 		}
-		if (buf->nb_bytecount > buf->nb_size)
-			m->m_len = buf->nb_size;
-		else
-			m->m_len = buf->nb_bytecount;
-		m->m_data = buf->nb_mappedsystemva;
+		m->m_len = buf->nb_bytecount;
+		m->m_data = MDL_VA(buf);
 		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
 		    p->np_rsvd[0], 0, EXT_NDIS);
 		m->m_ext.ext_buf = (void *)p; /* XXX */
@@ -557,8 +554,7 @@ ndis_mtop(m0, p)
 			return(ENOMEM);
 		}
 
-		buf->nb_bytecount = m->m_len;
-		buf->nb_mappedsystemva = m->m_data;
+		MDL_INIT(buf, m->m_data, m->m_len);
 		if (priv->npp_head == NULL)
 			priv->npp_head = buf;
 		else
@@ -628,7 +624,7 @@ ndis_set_info(arg, oid, buf, buflen)
 		tv.tv_sec = 60;
 		tv.tv_usec = 0;
 		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+		    PPAUSE|PCATCH, "ndisset", tvtohz(&tv));
 		rval = sc->ndis_block.nmb_setstat;
 	}
 
@@ -956,7 +952,7 @@ ndis_get_info(arg, oid, buf, buflen)
 		tv.tv_sec = 60;
 		tv.tv_usec = 0;
 		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+		    PPAUSE|PCATCH, "ndisget", tvtohz(&tv));
 		rval = sc->ndis_block.nmb_getstat;
 	}
 

@@ -40,6 +40,20 @@
 #define SPAN_PAGES(ptr, len)					\
 	((uint32_t)((((uintptr_t)(ptr) & (PAGE_SIZE -1)) +	\
 	(len) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
+#define PAGE_ALIGN(ptr)						\
+	((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
+#define BYTE_OFFSET(ptr)					\
+	((uint32_t)((uintptr_t)(ptr) & (PAGE_SIZE - 1)))
+#define MDL_INIT(b, baseva, len)					\
+	(b)->nb_next = NULL;						\
+	(b)->nb_size = (uint16_t)(sizeof(struct ndis_buffer) +		\
+		(sizeof(uint32_t) * SPAN_PAGES((baseva), (len))));	\
+	(b)->nb_flags = 0;						\
+	(b)->nb_startva = (void *)PAGE_ALIGN((baseva));			\
+	(b)->nb_byteoffset = BYTE_OFFSET((baseva));			\
+	(b)->nb_bytecount = (uint32_t)(len);
+#define MDL_VA(b)						\
+	((void *)((char *)((b)->nb_startva) + (b)->nb_byteoffset))
 
 typedef uint32_t kspin_lock;
 
