@@ -69,8 +69,6 @@ struct globaldata {
 	u_int		gd_cpuid;
 	u_int		gd_cpu_lockid;
 	u_int		gd_other_cpus;
-	int		gd_inside_intr;
-	u_int		gd_ss_eflags;
 	pt_entry_t	*gd_prv_CMAP1;
 	pt_entry_t	*gd_prv_CMAP2;
 	pt_entry_t	*gd_prv_CMAP3;
