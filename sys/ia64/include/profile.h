@@ -100,9 +100,9 @@ _mcount:								\n\
  * The following two macros do splhigh and splx respectively.
  */
 #define MCOUNT_ENTER(s) \n\
-	_c = critical_enter()
+	_c = cpu_critical_enter()
 #define MCOUNT_EXIT(s) \n\
-	(void)critical_exit(_c)
+	cpu_critical_exit(_c)
 #define	MCOUNT_DECL(s)	critical_t c;
 #ifdef GUPROF
 struct gmonparam;

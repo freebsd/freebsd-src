@@ -101,8 +101,7 @@ void	mtx_init(struct mtx *m, const char *description, int opts);
 void	mtx_destroy(struct mtx *m);
 void	_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
-void	_mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit,
-		       const char *file, int line);
+void	_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
 int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 void	_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line);
@@ -160,16 +159,13 @@ void	mtx_unlock_giant(int s);
  */
 #ifndef _get_spin_lock
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
-	critical_t _mtx_crit;						\
-	_mtx_crit = critical_enter();					\
+	critical_enter();						\
 	if (!_obtain_lock((mp), (tid))) {				\
 		if ((mp)->mtx_lock == (uintptr_t)(tid))			\
 			(mp)->mtx_recurse++;				\
 		else							\
-			_mtx_lock_spin((mp), (opts), _mtx_crit, (file),	\
-			    (line));					\
-	} else								\
-		(mp)->mtx_savecrit = _mtx_crit;				\
+			_mtx_lock_spin((mp), (opts), (file), (line));	\
+	}								\
 } while (0)
 #endif
 
@@ -189,16 +185,18 @@ void	mtx_unlock_giant(int s);
  * a function call would be too expensive (at least on some architectures).
  * Since spin locks are not _too_ common, inlining this code is not too big 
  * a deal.
+ *
+ * Since we always perform a critical_enter() when attempting to acquire a
+ * spin lock, we need to always perform a matching critical_exit() when
+ * releasing a spin lock.  This includes the recursion cases.
  */
 #ifndef _rel_spin_lock
 #define _rel_spin_lock(mp) do {						\
-	critical_t _mtx_crit = (mp)->mtx_savecrit;			\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
-	else {								\
+	else								\
 		_release_lock_quick((mp));				\
-		critical_exit(_mtx_crit);				\
-	}								\
+	critical_exit();					\
 } while (0)
 #endif
 

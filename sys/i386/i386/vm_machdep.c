@@ -153,10 +153,10 @@ cpu_fork(td1, p2, flags)
 #ifdef DEV_NPX
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
-	savecrit = critical_enter();
+	savecrit = cpu_critical_enter();
 	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(&td1->td_pcb->pcb_save);
-	critical_exit(savecrit);
+	cpu_critical_exit(savecrit);
 #endif
 
 	/* Point the pcb to the top of the stack */

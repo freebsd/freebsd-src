@@ -66,7 +66,6 @@ ASSYM(PC_SWITCHTIME, offsetof(struct pcpu, pc_switchtime));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
 
 ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
 ASSYM(PM_USERSR, offsetof(struct pmap, pm_sr[USER_SR]));

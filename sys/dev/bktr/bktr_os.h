@@ -61,9 +61,9 @@ void            free_bktr_mem(bktr_ptr_t, bus_dmamap_t, vm_offset_t);
 /************************************/
 #if defined(__FreeBSD__)
 #if (__FreeBSD_version >=500000)
-#define	DECLARE_INTR_MASK(s)	critical_t s
-#define DISABLE_INTR(s)		s = critical_enter()
-#define	ENABLE_INTR(s)		critical_exit(s)
+#define	DECLARE_INTR_MASK(s)	/* no need to declare 's' */
+#define DISABLE_INTR(s)		critical_enter()
+#define	ENABLE_INTR(s)		critical_exit()
 #else
 #define DECLARE_INTR_MASK(s)	intrmask_t s
 #define DISABLE_INTR(s)		s=spltty()

@@ -99,13 +99,13 @@ interrupt(a0, a1, a2, framep)
 	 * Find our per-cpu globals.
 	 */
 #ifdef SMP
-	s = critical_enter();
+	s = cpu_critical_enter();
 #endif
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;
-	critical_exit(s);
+	cpu_critical_exit(s);
 #endif
 	atomic_add_int(&td->td_intr_nesting_level, 1);
 #ifndef KSTACK_GUARD

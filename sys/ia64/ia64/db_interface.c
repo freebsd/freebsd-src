@@ -336,7 +336,7 @@ kdb_trap(int vector, struct trapframe *regs)
 
 	__asm __volatile("flushrs"); /* so we can look at them */
 
-	s = critical_enter();
+	s = cpu_critical_enter();
 
 #if 0
 	db_printf("stopping %x\n", PCPU_GET(other_cpus));
@@ -359,7 +359,7 @@ kdb_trap(int vector, struct trapframe *regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	critical_exit(s);
+	cpu_critical_exit(s);
 
 	*regs = ddb_regs;
 

@@ -32,22 +32,7 @@
 #ifndef _MACHINE_MUTEX_H_
 #define _MACHINE_MUTEX_H_
 
-#ifndef LOCORE
-
-#ifdef _KERNEL
-
-#define	mtx_intr_enable(mutex)	do (mutex)->mtx_savecrit |= PSL_EE; while (0)
-
-/*
- * Assembly macros (for internal use only)
- *--------------------------------------------------------------------------
- */
-
-#define	_V(x)	__STRING(x)
-
-#endif	/* _KERNEL */
-
-#else	/* !LOCORE */
+#ifdef LOCORE
 
 /*
  * Simple assembly macros to get and release non-recursive spin locks

@@ -427,8 +427,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
  * is handled inline.
  */
 void
-_mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
-	       int line)
+_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 {
 	int i = 0;
 
@@ -440,7 +439,7 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 			break;
 
 		/* Give interrupts a chance while we spin. */
-		critical_exit(mtx_crit);
+		critical_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
 			if (i++ < 1000000)
 				continue;
@@ -454,10 +453,9 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 			panic("spin lock %s held by %p for > 5 seconds",
 			    m->mtx_object.lo_name, (void *)m->mtx_lock);
 		}
-		mtx_crit = critical_enter();
+		critical_enter();
 	}
 
-	m->mtx_savecrit = mtx_crit;
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 
