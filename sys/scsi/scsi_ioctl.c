@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.11 1995/03/01 22:24:42 dufault Exp $
+ * $Id: scsi_ioctl.c,v 1.12 1995/03/04 20:50:55 dufault Exp $
  *
  *
  */
@@ -97,7 +97,10 @@ struct	scsi_xfer *xs;
 	switch((int)xs->error) {
 	case	XS_NOERROR:
 		SC_DEBUG(xs->sc_link,SDEV_DB3,("no error\n"));
-		screq->datalen_used = xs->datalen - xs->resid; /* probably rubbish */
+		if (xs->flags & SCSI_RESID_VALID)
+			screq->datalen_used = xs->datalen - xs->resid;
+		else
+			screq->datalen_used = xs->datalen;
 		screq->retsts = SCCMD_OK;
 		break;
 
@@ -283,7 +286,7 @@ struct proc *p, struct scsi_link *sc_link)
 			if (len) {
 				struct uio auio;
 				struct iovec aiov;
-				long cnt, error = 0;
+				long cnt;
 
 				aiov.iov_base = d_addr;
 				aiov.iov_len = len;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.20 1995/03/16 18:15:50 bde Exp $
+ *	$Id: scsiconf.h,v 1.21 1995/03/21 11:21:05 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -31,9 +31,11 @@ typedef	unsigned char 		u_int8;
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_driver.h>
 
+#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
+
 /* Minor number fields:
  *
- * OLD STYLE SCSI devices:
+ * NON-FIXED SCSI devices:
  *
  * ???? ???? ???? ???N MMMMMMMM mmmmmmmm
  *
@@ -42,7 +44,7 @@ typedef	unsigned char 		u_int8;
  * M: Major device number.
  * m: old style minor device number.
  *
- * NEW (FIXED) SCSI devices:
+ * FIXED SCSI devices:
  *
  * ???? SBBB LLLI IIIN MMMMMMMM mmmmmmmm
  *
@@ -62,7 +64,7 @@ typedef	unsigned char 		u_int8;
 #define SCSI_BUS(DEV)      (((DEV) & 0x07000000) >> 24)
 #define SCSI_LUN(DEV)      (((DEV) & 0x00E00000) >> 21)
 #define SCSI_ID(DEV)       (((DEV) & 0x001E0000) >> 17)
-#define SCSI_NEW(DEV)      (((DEV) & 0x00010000) >> 16)
+#define SCSI_FIXED(DEV)      (((DEV) & 0x00010000) >> 16)
 
 
 #define SCSI_MKDEV(B, L, I) ( \
@@ -243,8 +245,8 @@ void NAME##strategy(struct buf *bp)	\
 /* A unit, type, etc can be SCCONF_ANY to indicate it is a '?'
  *  in the config.
  */
-#define SCCONF_UNSPEC -1
-#define SCCONF_ANY -2
+#define SCCONF_UNSPEC 255
+#define SCCONF_ANY 254
 
 struct isa_driver;
 struct scsi_ctlr_config
@@ -340,20 +342,25 @@ struct scsi_link
 /* 44+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
 };
 
-/* XXX dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
+/* XXX-HA: dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
  * in an sc_link structure to indicate that this host adapter requires
  * ISA DMA bounce buffers.  I think the link structure should
  * be associated only with the type drive and not the adapter driver,
  * and the bounce flag should be in something associated with the
  * adapter driver.
+ * XXX-HA And I added the "supports residuals properly" flag that ALSO goes
+ * in an adapter structure.  I figure I'll fix both at once.
  */
+
 #define	SDEV_MEDIA_LOADED 	0x0001	/* device figures are still valid */
 #define	SDEV_WAITING	 	0x0002	/* a process is waiting for this */
 #define	SDEV_OPEN	 		0x0004	/* at least 1 open session */
-#define SDEV_BOUNCE			0x0008	/* unit requires DMA bounce buffer */
+#define SDEV_BOUNCE			0x0008	/* XXX-HA: unit needs DMA bounce buffer */
 #define	SDEV_DBX			0x00F0	/* debugging flags (scsi_debug.h) */	
 #define SDEV_ONCE_ONLY		0x0100	/* unit can only be opened once */
 #define SDEV_BOOTVERBOSE	0x0200	/* be noisy during boot */
+#define SDEV_RESIDS_WORK	0x0400	/* XXX-HA: Residuals work */
+#define SDEV_TARGET_OPS 	0x0800	/* XXX-HA: Supports target ops  */
 
 /*
  * One of these is allocated and filled in for each scsi bus.
@@ -406,7 +413,9 @@ struct scsi_xfer
 #define	SCSI_NOMASK	0x02	/* dont allow interrupts.. booting	*/
 #define	SCSI_NOSTART	0x04	/* left over from ancient history	*/
 #define	SCSI_USER	0x08	/* Is a user cmd, call scsi_user_done	*/
+#define	SCSI_ITSDONE	0x10	/* the transfer is as done as it gets	*/
 #define	ITSDONE		0x10	/* the transfer is as done as it gets	*/
+#define	SCSI_INUSE	0x20	/* The scsi_xfer block is in use	*/
 #define	INUSE		0x20	/* The scsi_xfer block is in use	*/
 #define	SCSI_SILENT	0x40	/* Don't report errors to console	*/
 #define SCSI_ERR_OK	0x80	/* An error on this operation is OK.	*/
@@ -416,6 +425,8 @@ struct scsi_xfer
 #define	SCSI_DATA_OUT	0x800	/* expect data to flow OUT of memory	*/
 #define	SCSI_TARGET	0x1000	/* This defines a TARGET mode op.	*/
 #define	SCSI_ESCAPE	0x2000	/* Escape operation			*/
+#define	SCSI_EOF	0x4000	/* The operation should return EOF	*/
+#define	SCSI_RESID_VALID 0x8000	/* The resid field contains valid data	*/
 
 /*
  * Escape op codes.  This provides an extensible setup for operations
@@ -447,10 +458,13 @@ void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
 u_int32 scsi_read_capacity __P(( struct scsi_link *sc_link,
 	u_int32 *blk_size, u_int32 flags));
 errval scsi_test_unit_ready( struct scsi_link *sc_link, u_int32 flags);
+errval scsi_reset_target __P((struct scsi_link *));
+errval scsi_target_mode __P((struct scsi_link *, int));
 errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
 			struct scsi_inquiry_data *inqbuf, u_int32 flags);
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
+errval scsi_probe_bus __P((int, int, int));
 errval scsi_probe_busses __P(( int, int, int));
 errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_stop_unit(struct scsi_link *sc_link, u_int32 eject, u_int32 flags);
@@ -469,9 +483,11 @@ dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev, int flags, int fmt,
 struct proc *p)));
 
 int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
+errval scsi_set_bus __P((int, struct scsi_link *));
 
 char	*scsi_sense_desc	__P((int, int));
 void	scsi_sense_print	__P((struct scsi_xfer *));
+int	scsi_sense_qualifiers	__P((struct scsi_xfer *, int *, int *));
 void	show_scsi_xs		__P((struct scsi_xfer *));
 void	show_scsi_cmd		__P((struct scsi_xfer *));
 void	show_mem		__P((unsigned char * , u_int32));
@@ -494,7 +510,10 @@ void	scsi_device_register __P((struct scsi_device *sd));
 
 extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
-#endif
+void scsi_configure_start __P((void));
+void scsi_configure_finish __P((void));
+
+#endif	/* KERNEL */
 
 #define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
 

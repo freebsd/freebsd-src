@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.16 1995/03/15 14:22:04 dufault Exp $
+ *      $Id: ch.c,v 1.17 1995/03/28 07:57:22 bde Exp $
  */
 
 #include	<sys/types.h>
@@ -128,8 +128,7 @@ ch_registerdev(int unit)
 errval 
 chattach(struct scsi_link *sc_link)
 {
-	u_int32 unit, i;
-	unsigned char *tbl;
+	u_int32 unit;
 
 	struct scsi_data *ch = sc_link->sd;
 
@@ -170,7 +169,7 @@ struct scsi_link *sc_link)
 	 * Only allow one at a time
 	 */
 	if (cd->flags & CH_OPEN) {
-		printf("ch%d: already open\n", unit);
+		printf("ch%ld: already open\n", unit);
 		return EBUSY;
 	}
 	/*
@@ -182,15 +181,15 @@ struct scsi_link *sc_link)
 	/*
 	 * Check that it is still responding and ok.
 	 */
-	if (errcode = (scsi_test_unit_ready(sc_link, 0))) {
-		printf("ch%d: not ready\n", unit);
+	if ( (errcode = (scsi_test_unit_ready(sc_link, 0))) ) {
+		printf("ch%ld: not ready\n", unit);
 		sc_link->flags &= ~SDEV_OPEN;
 		return errcode;
 	}
 	/*
 	 * Make sure data is loaded
 	 */
-	if (errcode = (ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK))) {
+	if ( (errcode = (ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK))) ) {
 		printf("ch%d: scsi changer :- offline\n", unit);
 		sc_link->flags &= ~SDEV_OPEN;
 		return (errcode);
@@ -221,12 +220,8 @@ ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
 struct proc *p, struct scsi_link *sc_link)
 {
 	/* struct ch_cmd_buf *args; */
-	union scsi_cmd *scsi_cmd;
-	register i, j;
-	u_int32 opri;
-	errval  errcode = 0;
 	unsigned char unit;
-	u_int32 number, flags;
+	u_int32 flags;
 	errval  ret;
 	struct scsi_data *cd;
 
@@ -438,7 +433,7 @@ ch_mode_sense(unit, flags)
 	/*
 	 * Read in the pages
 	 */
-	if (errcode = scsi_scsi_cmd(sc_link,
+	if ( (errcode = scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(struct scsi_mode_sense),
 		        (u_char *) & scsi_sense,
@@ -446,9 +441,9 @@ ch_mode_sense(unit, flags)
 		CHRETRIES,
 		5000,
 		NULL,
-		flags | SCSI_DATA_IN) != 0) {
+		flags | SCSI_DATA_IN) != 0) ) {
 		if (!(flags & SCSI_SILENT))
-			printf("ch%d: could not mode sense\n", unit);
+			printf("ch%ld: could not mode sense\n", unit);
 		return (errcode);
 	}
 	sc_link->flags |= SDEV_MEDIA_LOADED;

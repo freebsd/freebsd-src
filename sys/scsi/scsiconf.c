@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.25 1995/03/19 14:29:06 davidg Exp $
+ *      $Id: scsiconf.c,v 1.26 1995/03/21 11:21:04 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -37,6 +37,7 @@
 #include "ch.h"
 
 #include "su.h"
+#include "sctarg.h"
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -312,7 +313,6 @@ static struct scsidevs knowndevs[] =
  */
 struct scsidevs *scsi_probedev();
 struct scsidevs *scsi_selectdev();
-errval scsi_probe_bus(int bus, int targ, int lun);
 
 /* XXX dufault@hda.com
  * This scsi_device doesn't have the scsi_data_size.
@@ -364,11 +364,14 @@ static int next_free_type = T_NTYPES;
  * more than once - the list links are part of the structure.  That is
  * prevented.
  *
- * Unusual devices should always be registered as type "-1".  Then
+ * Custom devices should always be registered as type "-1".  Then
  * the next available type number will be allocated for it.
  *
  * Be careful not to register a type as 0 unless you really mean to
  * replace the disk driver.
+ *
+ * This is usually called only by the "device_init" function generated
+ * automatically in the SCSI_DEVICE_ENTRIES macro.
  */
 
 void
@@ -438,7 +441,7 @@ scsi_init(void)
 
 		/* First call all type initialization functions.
 		 */
-		ukinit();
+		ukinit();	/* We always have the unknown device. */
 
 		for (i = 0; scsi_tinit[i]; i++)
 			(*scsi_tinit[i])();
@@ -472,12 +475,6 @@ scsi_init(void)
 	}
 }
 
-/* Feel free to take this out when everyone is sure this config
- * code works well.  For now it lets us tell new configurations from
- * old ones.
- */
-#define CONFIG_NOISE
-
 /* scsi_bus_conf: Figure out which bus this is.  If it is wired in config
  * use that.  Otherwise use the next free one.
  */
@@ -501,9 +498,9 @@ scsi_bus_conf(sc_link_proto)
 			(sc_link_proto->adapter_unit == scsi_cinit[i].unit) )
 			{
 				bus = scsi_cinit[i].bus;
-#ifdef CONFIG_NOISE
-				printf("Choosing drivers for scbus configured at %d\n", bus);
-#endif
+				if (bootverbose)
+					printf("Choosing drivers for scbus configured at %d\n",
+					bus);
 				break;
 			}
 		}
@@ -535,10 +532,9 @@ scsi_assign_unit(struct scsi_link *sc_link)
 		sc_link->scsibus == scsi_dinit[i].cunit) {
 			sc_link->dev_unit = scsi_dinit[i].unit;
 			found = 1;
-#ifdef CONFIG_NOISE
-			printf("%s is configured at %d\n",
-			sc_link->device->name, sc_link->dev_unit);
-#endif
+			if (bootverbose)
+				printf("%s is configured at %d\n",
+				sc_link->device->name, sc_link->dev_unit);
 			break;
 		}
 	}
@@ -547,6 +543,47 @@ scsi_assign_unit(struct scsi_link *sc_link)
 		sc_link->dev_unit = sc_link->device->free_unit++;
 
 	return sc_link->dev_unit;
+}
+
+
+#if NSCTARG > 0
+/* The SCSI target configuration is simpler.  If an entry is present
+ * we just return the bus, target and lun for that unit.
+ */
+static void
+scsi_sctarg_lookup(char *name, int unit, int *target, int *lun, int *bus)
+{
+	int i;
+
+	*bus = SCCONF_UNSPEC;
+	*target = SCCONF_UNSPEC;
+	*lun = SCCONF_UNSPEC;
+
+	for (i = 0; scsi_dinit[i].name; i++) {
+		if ((strcmp(name, scsi_dinit[i].name) == 0) &&
+		unit == scsi_dinit[i].unit)
+		{
+			*bus = scsi_dinit[i].cunit;
+			*target = scsi_dinit[i].target;
+			*lun = scsi_dinit[i].lun;
+		}
+	}
+}
+#endif /* NSCTARG > 0 */
+
+void scsi_configure_start(void)
+{
+	scsi_init();
+}
+
+void scsi_configure_finish(void)
+{
+
+	static errval scsi_attach_sctarg __P((void));
+#if NSCTARG > 0
+	scsi_attach_sctarg();
+#endif
+
 }
 
 /*
@@ -559,8 +596,6 @@ scsi_attachdevs(sc_link_proto)
 {
 	int scsibus;
 	struct scsibus_data *scbus;
-
-	scsi_init();
 
 	if ( (scsibus = scsi_bus_conf(sc_link_proto)) == -1) {
 		return;
@@ -621,7 +656,6 @@ static int
 scsi_alloc_unit(struct scsi_link *sc_link)
 {
 	u_int32 unit;
-	struct scsi_link **strealloc;
 	struct scsi_data *sd;
 	struct scsi_device *dsw;
 
@@ -667,6 +701,120 @@ scsi_free_unit(struct scsi_link *sc_link)
 	extend_release(sc_link->device->links, sc_link->dev_unit);
 }
 
+#if NSCTARG > 0
+
+/* XXX: It is a bug that the sc_link has this information
+ *      about the adapter in it.  The sc_link should refer to
+ *      a structure that is host adpater specific.  That will also
+ *      pull all knowledge of an sc_link out of the adapter drivers.
+ */
+
+errval
+scsi_set_bus(int bus, struct scsi_link *sc_link)
+{
+	struct scsi_link *ad_link;
+	struct scsibus_data *scsibus_data;
+
+	if (bus < 0 || bus > scbusses->nelem) {
+		return ENXIO;
+	}
+
+	scsibus_data = (struct scsibus_data *)extend_get(scbusses, bus);
+
+	if(!scsibus_data) {
+		return ENXIO;
+	}
+
+	ad_link = scsibus_data->adapter_link;
+
+	sc_link->adapter_unit = ad_link->adapter_unit;
+	sc_link->adapter_targ = ad_link->adapter_targ;
+	sc_link->adapter = ad_link->adapter;
+	sc_link->device = ad_link->device;
+	sc_link->flags = ad_link->flags;
+
+	return 0;
+}
+
+/*
+ * Allocate and attach as many SCSI target devices as configured.
+ * There are two ways that you can configure the target device:
+ * 1. In the configuration file.  That is handled here.
+ * 2. Via the minor number.  That takes precedence over the config file.
+ */
+static errval
+	scsi_attach_sctarg()
+{
+	struct scsi_link *sc_link = NULL;
+	int dev_unit;
+	struct scsi_device *sctarg = scsi_device_lookup(T_TARGET);
+
+	if (sctarg == 0) {
+		return ENXIO;
+	}
+
+	for (dev_unit = 0; dev_unit < NSCTARG; dev_unit++) {
+
+		int target, lun, bus;
+
+		/* If we don't have a link block allocate one.
+		 */
+		if (!sc_link) {
+			sc_link = malloc(sizeof(*sc_link), M_TEMP, M_NOWAIT);
+		}
+
+		scsi_sctarg_lookup(sctarg->name, dev_unit, &target, &lun, &bus);
+
+		if (IS_SPECIFIED(bus)) {
+			struct scsibus_data *scsibus_data;
+
+			if (bus < 0 || bus > scbusses->nelem) {
+				printf("%s%d: configured on illegal bus %d.\n",
+				sctarg->name, dev_unit, bus);
+				continue;
+			}
+
+			scsibus_data = (struct scsibus_data *)extend_get(scbusses, bus);
+
+			if(!scsibus_data) {
+				printf("%s%d: no bus %d.\n", sctarg->name, dev_unit, bus);
+				continue;
+			}
+
+			*sc_link = *scsibus_data->adapter_link;	/* struct copy */
+			sc_link->target = target;
+			sc_link->lun = lun;
+		}
+		else {
+			/* This will be configured in the open routine.
+			 */
+			sc_link->scsibus = SCCONF_UNSPEC;
+			sc_link->target = SCCONF_UNSPEC;
+			sc_link->lun = SCCONF_UNSPEC;
+		}
+
+		sc_link->quirks = 0;
+		sc_link->device = sctarg;
+		sc_link->dev_unit = dev_unit;
+
+		if (scsi_alloc_unit(sc_link)) {
+
+			if (scsi_device_attach(sc_link) == 0) {
+				sc_link = NULL;		/* it's been used */
+			}
+			else
+				scsi_free_unit(sc_link);
+		}
+	}
+
+	if (sc_link) {
+		free(sc_link, M_TEMP);
+	}
+
+	return 0;
+}
+#endif /* NSCTARG > 0 */
+
 /*
  * Probe the requested scsi bus. It must be already set up.
  * targ and lun optionally narrow the search if not -1
@@ -674,7 +822,7 @@ scsi_free_unit(struct scsi_link *sc_link)
 errval
 scsi_probe_bus(int bus, int targ, int lun)
 {
-	struct scsibus_data *scsi ;
+	struct scsibus_data *scsibus_data ;
 	int	maxtarg,mintarg,maxlun,minlun;
 	struct scsi_link *sc_link_proto;
 	u_int8  scsi_addr ;
@@ -686,9 +834,9 @@ scsi_probe_bus(int bus, int targ, int lun)
 	if ((bus < 0 ) || ( bus >= scbusses->nelem)) {
 		return ENXIO;
 	}
-	scsi = (struct scsibus_data *)extend_get(scbusses, bus);
-	if(!scsi) return ENXIO;
-	sc_link_proto = scsi->adapter_link;
+	scsibus_data = (struct scsibus_data *)extend_get(scbusses, bus);
+	if(!scsibus_data) return ENXIO;
+	sc_link_proto = scsibus_data->adapter_link;
 	scsi_addr = sc_link_proto->adapter_targ;
 	if(targ == -1){
 		maxtarg = 7;
@@ -716,7 +864,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 			 * The spot appears to already have something
 			 * linked in, skip past it. Must be doing a 'reprobe'
 			 */
-			if(scsi->sc_link[targ][lun])
+			if(scsibus_data->sc_link[targ][lun])
 			{/* don't do this one, but check other luns */
 				maybe_more = 1;
 				continue;
@@ -751,7 +899,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 				if (scsi_alloc_unit(sc_link)) {
 
 					if (scsi_device_attach(sc_link) == 0) {
-						scsi->sc_link[targ][lun] = sc_link;
+						scsibus_data->sc_link[targ][lun] = sc_link;
 						sc_link = NULL;		/* it's been used */
 					}
 					else
@@ -779,16 +927,33 @@ scsi_link_get(bus, targ, lun)
 	int targ;
 	int lun;
 {
-	struct scsibus_data *scsi =
+	struct scsibus_data *scsibus_data =
 	 (struct scsibus_data *)extend_get(scbusses, bus);
-	return (scsi) ? scsi->sc_link[targ][lun] : 0;
+	return (scsibus_data) ? scsibus_data->sc_link[targ][lun] : 0;
 }
 
-static void rm_spaces(char *text, int n)
+/* make_readable: Make the inquiry data readable.  Anything less than a ' '
+ * is made a '?' and trailing spaces are removed.
+ */
+static void
+make_readable(to, from, n)
+	char *to;
+	char *from;
+	size_t n;
 {
-	while (n && text[n - 1] == ' ')
-		n--;
-	text[n] = 0;	/* Zap */
+	int i;
+
+	for (i = 0; from[i] && i < n - 1; i++) {
+		if (from[i] < ' ')
+			to[i]='?';
+		else
+			to[i] = from[i];
+	}
+
+	while (i && to[i - 1] == ' ')
+		i--;
+
+	to[i] = 0;
 }
 
 /*
@@ -802,20 +967,17 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	struct scsi_link *sc_link;
 	int *type_p;
 {
-	u_int8  unit = sc_link->adapter_unit;
 	u_int8  target = sc_link->target;
 	u_int8  lu = sc_link->lun;
-	struct scsi_adapter *scsi_adapter = sc_link->adapter;
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	char   *dtype = (char *) 0, *desc;
 	char   *qtype;
 	struct scsi_inquiry_data *inqbuf;
 	u_int32 len, qualifier, type;
 	boolean remov;
-	char    manu[32];
-	char    model[32];
-	char    version[32];
-	int	z;
+	char    manu[8 + 1];
+	char    model[16 + 1];
+	char    version[4 + 1];
 
  	inqbuf = &sc_link->inqbuf;
  
@@ -864,7 +1026,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 
 	/*
 	 * Any device qualifier that has the top bit set (qualifier&4 != 0)
-	 * is vendor specific and won't match in this switch.
+	 * is vendor specific and will match in the default of this switch.
 	 */
 
 	switch ((int)qualifier) {
@@ -873,28 +1035,25 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		break;
 
 	case SID_QUAL_LU_OFFLINE:
-		qtype = ", Unit not Connected!";
+		qtype = "Supported device currently not connected";
 		break;
 
-	case SID_QUAL_RSVD:
-		qtype = ", Reserved Peripheral Qualifier!";
+	case SID_QUAL_RSVD:	/* Peripheral qualifier reserved in SCSI-2 spec */
 		*maybe_more = 1;
 		return (struct scsidevs *) 0;
-		break;
 
-	case SID_QUAL_BAD_LU:
+	case SID_QUAL_BAD_LU:	/* Target can not support a device on this unit */
 		/*
 		 * Check for a non-existent unit.  If the device is returning
 		 * this much, then we must set the flag that has
 		 * the searchers keep looking on other luns.
 		 */
-		qtype = ", The Target can't support this Unit!";
 		*maybe_more = 1;
 		return (struct scsidevs *) 0;
 
 	default:
-		dtype = "vendor specific";
-		qtype = "";
+		dtype = "";
+		qtype = "Vendor specific peripheral qualifier";
 		*maybe_more = 1;
 		break;
 	}
@@ -918,40 +1077,34 @@ scsi_probedev(sc_link, maybe_more, type_p)
 			        len = sizeof(struct scsi_inquiry_data) - 1;
 		desc = inqbuf->vendor;
 		desc[len - (desc - (char *) inqbuf)] = 0;
-		strncpy(manu, inqbuf->vendor, 8);
-		strncpy(model, inqbuf->product, 16);
-		strncpy(version, inqbuf->revision, 4);
-		for(z = 0; z < 4; z++) {
-			if (version[z]<' ') version[z]='?';
-		}
-	} else
+		make_readable(manu, inqbuf->vendor, sizeof(manu));
+		make_readable(model, inqbuf->product, sizeof(model));
+		make_readable(version, inqbuf->revision, sizeof(version));
+	} else {
 		/*
 		 * If not advanced enough, use default values
 		 */
-	{
 		desc = "early protocol device";
-		strncpy(manu, "unknown", 8);
-		strncpy(model, "unknown", 16);
-		strncpy(version, "????", 4);
+		make_readable(manu, "unknown", sizeof(manu));
+		make_readable(model, "unknown", sizeof(model));
+		make_readable(version, "????", sizeof(version));
 	}
 
-	rm_spaces(manu, 8);
-	rm_spaces(model, 16);
-	rm_spaces(version, 4);
+	sc_print_start(sc_link);
 
-	sc_print_addr(sc_link);
-
-	printf("\"%s %s %s\" is a ", manu, model, version );
+	printf("\"%s %s %s\" ", manu, model, version );
 	printf("type %ld %sSCSI %d"
 	    ,type
 	    ,remov ? "removable " : "fixed "
 	    ,inqbuf->version & SID_ANSII
 	    );
 	if (qtype[0]) {
-		printf(" qualifier %ld(%s)" ,qualifier ,qtype);
+		sc_print_addr(sc_link);
+		printf(" qualifier %ld: %s" ,qualifier ,qtype);
 	}
 
 	printf("\n");
+	sc_print_finish();
 
 	/*
 	 * Try make as good a match as possible with
