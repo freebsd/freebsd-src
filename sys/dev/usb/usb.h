@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.68 2002/08/22 10:15:12 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.69 2002/09/22 23:20:50 augustss Exp $	*/
 /*	$FreeBSD$    */
 
 /*
@@ -500,7 +500,7 @@ typedef struct {
 /* These are the values from the spec. */
 #define USB_PORT_RESET_DELAY	10  /* ms */
 #define USB_PORT_ROOT_RESET_DELAY 50  /* ms */
-#define USB_PORT_RESET_SETTLE	10  /* ms */
+#define USB_PORT_RESET_RECOVERY	10  /* ms */
 #define USB_PORT_POWERUP_DELAY	100 /* ms */
 #define USB_SET_ADDRESS_SETTLE	2   /* ms */
 #define USB_RESUME_DELAY	(20*5)  /* ms */
@@ -511,7 +511,7 @@ typedef struct {
 /* Allow for marginal (i.e. non-conforming) devices. */
 #define USB_PORT_RESET_DELAY	50  /* ms */
 #define USB_PORT_ROOT_RESET_DELAY 250  /* ms */
-#define USB_PORT_RESET_RECOVERY	50  /* ms */
+#define USB_PORT_RESET_RECOVERY	250  /* ms */
 #define USB_PORT_POWERUP_DELAY	300 /* ms */
 #define USB_SET_ADDRESS_SETTLE	10  /* ms */
 #define USB_RESUME_DELAY	(50*5)  /* ms */
