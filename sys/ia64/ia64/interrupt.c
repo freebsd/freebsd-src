@@ -207,10 +207,11 @@ struct ia64_intr {
     volatile long	*cntp;  /* interrupt counter */
 };
 
-static struct sapic *ia64_sapics[16]; /* XXX make this resizable */
-static int ia64_sapic_count;
 static struct mtx ia64_intrs_lock;
 static struct ia64_intr *ia64_intrs[256];
+
+extern struct sapic *ia64_sapics[];
+extern int ia64_sapic_count;
 
 static void
 ithds_init(void *dummy)
@@ -220,13 +221,6 @@ ithds_init(void *dummy)
 }
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
-void
-ia64_add_sapic(struct sapic *sa)
-{
-
-	ia64_sapics[ia64_sapic_count++] = sa;
-}
-
 static void
 ia64_enable(int vector)
 {
@@ -235,14 +229,11 @@ ia64_enable(int vector)
 	irq = vector - IA64_HARDWARE_IRQ_BASE;
 	for (i = 0; i < ia64_sapic_count; i++) {
 		struct sapic *sa = ia64_sapics[i];
-		if (irq >= sa->sa_base && irq <= sa->sa_limit)
-			sapic_enable(sa, irq - sa->sa_base, vector,
-				     (irq < 16
-				      ? SAPIC_TRIGGER_EDGE
-				      : SAPIC_TRIGGER_LEVEL),
-				     (irq < 16
-				      ? SAPIC_POLARITY_HIGH
-				      : SAPIC_POLARITY_LOW));
+		if (irq < sa->sa_base || irq > sa->sa_limit)
+			continue;
+		sapic_enable(sa, irq - sa->sa_base, vector,
+		    (irq < 16) ? SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL,
+		    (irq < 16) ? SAPIC_POLARITY_HIGH : SAPIC_POLARITY_LOW);
 	}
 }
 
