@@ -94,17 +94,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_bktr.h"		/* Include any kernel config options */
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "opt_bktr.h"
 #include "opt_devfs.h"
 #endif /* __FreeBSD__ */
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include "bktr.h"
-#include "pci.h"
-#endif /* __NetBSD__  || __OpenBSD__ */
 
 #if (                                                            \
        (defined(__FreeBSD__) && (NBKTR > 0))                     \
@@ -137,14 +132,20 @@
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 
+#if (__FreeBSD_version >=300000)
+#include <machine/bus_memio.h>	/* for bus space */
+#include <machine/bus.h>
+#include <sys/bus.h>
+#endif
+
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
 #include <dev/bktr/bktr_audio.h>
-#include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
+#include <dev/bktr/bktr_core.h>
 
 #if (NSMBUS > 0)
 #include <dev/bktr/bktr_i2c.h>
@@ -172,6 +173,21 @@ typedef unsigned int uintptr_t;
 /* *** OpenBSD/NetBSD *** */
 /**************************/
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+
+#include <sys/inttypes.h>		/* uintptr_t */
+#include <dev/ic/ioctl_meteor.h>
+#include <dev/ic/ioctl_bt848.h>		/* extensions to ioctl_meteor.h */
+#include <dev/bktr/bktr_reg.h>
+#include <dev/bktr/bktr_tuner.h>
+#include <dev/bktr/bktr_card.h>
+#include <dev/bktr/bktr_audio.h>
+#include <dev/bktr/bktr_core.h>
+#include <dev/bktr/bktr_os.h>
+
+static int bootverbose = 1;
+
+static int bt848_format = -1;
+
 #endif /* __NetBSD__ || __OpenBSD__ */
 
 
@@ -366,7 +382,7 @@ static u_int		pixfmt_swap_flags( int pixfmt );
  * bt848 RISC programming routines.
  */
 #ifdef BT848_DUMP
-static int	dump_bt848( bt848_ptr_t bt848 );
+static int	dump_bt848( bktr_ptr_t bktr );
 #endif
 
 static void	yuvpack_prog( bktr_ptr_t bktr, char i_flag, int cols,
@@ -400,13 +416,12 @@ static void	remote_read(bktr_ptr_t bktr, struct bktr_remote *remote);
 /*
  * ioctls common to both video & tuner.
  */
-static int	common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848,
-			      int cmd, caddr_t arg );
+static int	common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg );
 
 
 #if ((!defined(__FreeBSD__)) || (NSMBUS == 0) )
 /*
- * i2c primatives for low level control of i2c bus. Added for MSP34xx control
+ * i2c primitives for low level control of i2c bus. Added for MSP34xx control
  */
 static void     i2c_start( bktr_ptr_t bktr);
 static void     i2c_stop( bktr_ptr_t bktr);
@@ -422,10 +437,7 @@ static int      i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last );
 void 
 common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 {
-	bt848_ptr_t	bt848;
 	vm_offset_t	buf;
-
-	bt848 = bktr->base;
 
 /***************************************/
 /* *** OS Specific memory routines *** */
@@ -525,6 +537,7 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 	bktr->bt848_card = -1;
 	bktr->bt848_tuner = -1;
 	bktr->reverse_mute = -1;
+	bktr->slow_msp_audio = 0;
 
 	probeCard( bktr, TRUE, unit );
 
@@ -585,7 +598,6 @@ int
 common_bktr_intr( void *arg )
 { 
 	bktr_ptr_t		bktr;
-	bt848_ptr_t		bt848;
 	u_long			bktr_status;
 	u_char			dstatus;
 	u_long                  field;
@@ -593,30 +605,29 @@ common_bktr_intr( void *arg )
 	u_long                  req_field;
 
 	bktr = (bktr_ptr_t) arg;
-	bt848 = bktr->base;
 
 	/*
 	 * check to see if any interrupts are unmasked on this device.  If
 	 * none are, then we likely got here by way of being on a PCI shared
 	 * interrupt dispatch list.
 	 */
-	if (bt848->int_mask == ALL_INTS_DISABLED)
+	if (INL(bktr, BKTR_INT_MASK) == ALL_INTS_DISABLED)
 	  	return 0;	/* bail out now, before we do something we
 				   shouldn't */
 
 	if (!(bktr->flags & METEOR_OPEN)) {
-		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-		bt848->int_mask = ALL_INTS_DISABLED;
+		OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+		OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 		/* return; ?? */
 	}
 
 	/* record and clear the INTerrupt status bits */
-	bktr_status = bt848->int_stat;
-	bt848->int_stat = bktr_status & ~I2C_BITS;	/* don't touch i2c */
+	bktr_status = INL(bktr, BKTR_INT_STAT);
+	OUTL(bktr, BKTR_INT_STAT, bktr_status & ~I2C_BITS);	/* don't touch i2c */
 
 	/* record and clear the device status register */
-	dstatus = bt848->dstatus;
-	bt848->dstatus = 0x00;
+	dstatus = INB(bktr, BKTR_DSTATUS);
+	OUTB(bktr, BKTR_DSTATUS, 0x00);
 
 #if defined( STATUS_SUM )
 	/* add any new device status or INTerrupt status bits */
@@ -624,7 +635,7 @@ common_bktr_intr( void *arg )
 	status_sum |= ((dstatus & (BT848_DSTATUS_COF|BT848_DSTATUS_LOF)) << 6);
 #endif /* STATUS_SUM */
 	/* printf( " STATUS %x %x %x \n",
-		dstatus, bktr_status, bt848->risc_count );
+		dstatus, bktr_status, INL(bktr, BKTR_RISC_COUNT) );
 	*/
 
 
@@ -637,18 +648,18 @@ common_bktr_intr( void *arg )
 			      BT848_INT_PPERR  |
 			      BT848_INT_RIPERR | BT848_INT_PABORT |
 			      BT848_INT_OCERR  | BT848_INT_SCERR) ) != 0) 
-		|| ((bt848->tdec == 0) && (bktr_status & TDEC_BITS)) ) { 
+		|| ((INB(bktr, BKTR_TDEC) == 0) && (bktr_status & TDEC_BITS)) ) { 
 
-		u_short	tdec_save = bt848->tdec;
+		u_short	tdec_save = INB(bktr, BKTR_TDEC);
 
-		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-		bt848->cap_ctl      = CAPTURE_OFF;
+		OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+		OUTB(bktr, BKTR_CAP_CTL, CAPTURE_OFF);
 
-		bt848->int_mask = ALL_INTS_DISABLED;
+		OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 
-		/*  Reset temporal decimation ctr  */
-		bt848->tdec = 0;
-		bt848->tdec = tdec_save;
+		/*  Reset temporal decimation counter  */
+		OUTB(bktr, BKTR_TDEC, 0);
+		OUTB(bktr, BKTR_TDEC, tdec_save);
 		
 		/*  Reset to no-fields captured state  */
 		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
@@ -665,16 +676,16 @@ common_bktr_intr( void *arg )
 			}
 		}
 
-		bt848->risc_strt_add = vtophys(bktr->dma_prog);
-		bt848->gpio_dma_ctl = FIFO_ENABLED;
-		bt848->gpio_dma_ctl = bktr->capcontrol;
+		OUTL(bktr, BKTR_RISC_STRT_ADD, vtophys(bktr->dma_prog));
+		OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
+		OUTW(bktr, BKTR_GPIO_DMA_CTL, bktr->capcontrol);
 
-		bt848->int_mask = BT848_INT_MYSTERYBIT |
-				  BT848_INT_RISCI      |
-				  BT848_INT_VSYNC      |
-				  BT848_INT_FMTCHG;
+		OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT |
+				    BT848_INT_RISCI      |
+				    BT848_INT_VSYNC      |
+				    BT848_INT_FMTCHG);
 
-		bt848->cap_ctl = bktr->bktr_cap_ctl;
+		OUTB(bktr, BKTR_CAP_CTL, bktr->bktr_cap_ctl);
 		return 1;
 	}
 
@@ -684,9 +695,9 @@ common_bktr_intr( void *arg )
 
 /**
 	printf( "intr status %x %x %x\n",
-		bktr_status, dstatus, bt848->risc_count );
+		bktr_status, dstatus, INL(bktr, BKTR_RISC_COUNT) );
  */
-	
+
 
 	/*
 	 * Disable future interrupts if a capture mode is not selected.
@@ -694,7 +705,7 @@ common_bktr_intr( void *arg )
 	 * changing capture modes, otherwise it shouldn't happen.
 	 */
 	if (!(bktr->flags & METEOR_CAP_MASK))
-		bt848->cap_ctl = CAPTURE_OFF;
+		OUTB(bktr, BKTR_CAP_CTL, CAPTURE_OFF);
 
 
 	/* Determine which field generated this interrupt */
@@ -706,7 +717,9 @@ common_bktr_intr( void *arg )
 	 * both Odd and Even VBI data is captured. Therefore we do this
 	 * in the Even field interrupt handler.
 	 */
-	if ((bktr->vbiflags & VBI_CAPTURE)&&(field==EVEN_F)) {
+	if (  (bktr->vbiflags & VBI_CAPTURE)
+	    &&(bktr->vbiflags & VBI_OPEN)
+            &&(field==EVEN_F)) {
 		/* Put VBI data into circular buffer */
                	vbidecode(bktr);
 
@@ -801,10 +814,10 @@ common_bktr_intr( void *arg )
 		if (bktr->flags & METEOR_SINGLE) {
 
 			/* stop dma */
-			bt848->int_mask = ALL_INTS_DISABLED;
+			OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 
 			/* disable risc, leave fifo running */
-			bt848->gpio_dma_ctl = FIFO_ENABLED;
+			OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
 			wakeup(BKTR_SLEEP);
 		}
 
@@ -859,7 +872,6 @@ extern int bt848_format; /* used to set the default format, PAL or NTSC */
 int
 video_open( bktr_ptr_t bktr )
 {
-	bt848_ptr_t bt848;
 	int frame_rate, video_format=0;
 
 	if (bktr->flags & METEOR_OPEN)		/* device is busy */
@@ -867,17 +879,15 @@ video_open( bktr_ptr_t bktr )
 
 	bktr->flags |= METEOR_OPEN;
 
-	bt848 = bktr->base;
-
 #ifdef BT848_DUMP
 	dump_bt848( bt848 );
 #endif
 
         bktr->clr_on_start = FALSE;
 
-	bt848->dstatus = 0x00;			/* clear device status reg. */
+	OUTB(bktr, BKTR_DSTATUS, 0x00);			/* clear device status reg. */
 
-	bt848->adc = SYNC_LEVEL;
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
 
 #if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
 	video_format = 0;
@@ -892,56 +902,52 @@ video_open( bktr_ptr_t bktr )
 	  video_format = 1;
 
 	if (video_format == 1 ) {
-	  bt848->iform = BT848_IFORM_F_NTSCM;
+	  OUTB(bktr, BKTR_IFORM, BT848_IFORM_F_NTSCM);
 	  bktr->format_params = BT848_IFORM_F_NTSCM;
 
 	} else {
-	  bt848->iform = BT848_IFORM_F_PALBDGHI;
+	  OUTB(bktr, BKTR_IFORM, BT848_IFORM_F_PALBDGHI);
 	  bktr->format_params = BT848_IFORM_F_PALBDGHI;
 
 	}
 
-	bt848->iform |= format_params[bktr->format_params].iform_xtsel;
+	OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | format_params[bktr->format_params].iform_xtsel);
 
 	/* work around for new Hauppauge 878 cards */
 	if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
 	    (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bt848->iform |= BT848_IFORM_M_MUX3;
+		OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX3);
 	else
-		bt848->iform |= BT848_IFORM_M_MUX1;
+		OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX1);
 
-	bt848->adelay = format_params[bktr->format_params].adelay;
-	bt848->bdelay = format_params[bktr->format_params].bdelay;
+	OUTB(bktr, BKTR_ADELAY, format_params[bktr->format_params].adelay);
+	OUTB(bktr, BKTR_BDELAY, format_params[bktr->format_params].bdelay);
 	frame_rate    = format_params[bktr->format_params].frame_rate;
 
 	/* enable PLL mode using 28Mhz crystal for PAL/SECAM users */
 	if (bktr->xtal_pll_mode == BT848_USE_PLL) {
-		bt848->tgctrl=0;
-		bt848->pll_f_lo=0xf9;
-		bt848->pll_f_hi=0xdc;
-		bt848->pll_f_xci=0x8e;
+		OUTB(bktr, BKTR_TGCTRL, 0);
+		OUTB(bktr, BKTR_PLL_F_LO, 0xf9);
+		OUTB(bktr, BKTR_PLL_F_HI, 0xdc);
+		OUTB(bktr, BKTR_PLL_F_XCI, 0x8e);
 	}
 
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
 	bktr->max_clip_node = 0;
 
-	bt848->color_ctl_gamma       = 1;
-	bt848->color_ctl_rgb_ded     = 1;
-	bt848->color_ctl_color_bars  = 0;
-	bt848->color_ctl_ext_frmrate = 0;
-	bt848->color_ctl_swap        = 0;
+	OUTB(bktr, BKTR_COLOR_CTL, BT848_COLOR_CTL_GAMMA | BT848_COLOR_CTL_RGB_DED);
 
-	bt848->e_hscale_lo = 170;
-	bt848->o_hscale_lo = 170;
+	OUTB(bktr, BKTR_E_HSCALE_LO, 170);
+	OUTB(bktr, BKTR_O_HSCALE_LO, 170);
 
-	bt848->e_delay_lo = 0x72;
-	bt848->o_delay_lo = 0x72;
-	bt848->e_scloop = 0;
-	bt848->o_scloop = 0;
+	OUTB(bktr, BKTR_E_DELAY_LO, 0x72);
+	OUTB(bktr, BKTR_O_DELAY_LO, 0x72);
+	OUTB(bktr, BKTR_E_SCLOOP, 0);
+	OUTB(bktr, BKTR_O_SCLOOP, 0);
 
-	bt848->vbi_pack_size = 0;
-	bt848->vbi_pack_del = 0;
+	OUTB(bktr, BKTR_VBI_PACK_SIZE, 0);
+	OUTB(bktr, BKTR_VBI_PACK_DEL, 0);
 
 	bktr->fifo_errors = 0;
 	bktr->dma_errors = 0;
@@ -960,7 +966,7 @@ video_open( bktr_ptr_t bktr )
 
 	bktr->capture_area_enabled = FALSE;
 
-	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* if you take this out triton
+	OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT);	/* if you take this out triton
                                                    based motherboards will 
 						   operate unreliably */
 	return( 0 );
@@ -1007,7 +1013,7 @@ tuner_open( bktr_ptr_t bktr )
 	bktr->tuner.radio_mode = 0;
 
 	/* enable drivers on the GPIO port that control the MUXes */
-	bktr->base->gpio_out_en |= bktr->card.gpio_mux_bits;
+	OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | bktr->card.gpio_mux_bits);
 
 	/* unmute the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
@@ -1027,24 +1033,21 @@ tuner_open( bktr_ptr_t bktr )
 int
 video_close( bktr_ptr_t bktr )
 {
-	bt848_ptr_t	bt848;
-
 	bktr->flags &= ~(METEOR_OPEN     |
 			 METEOR_SINGLE   |
 			 METEOR_CAP_MASK |
 			 METEOR_WANT_MASK);
 
-	bt848 = bktr->base;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-	bt848->cap_ctl = CAPTURE_OFF;
+	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+	OUTB(bktr, BKTR_CAP_CTL, CAPTURE_OFF);
 
 	bktr->dma_prog_loaded = FALSE;
-	bt848->tdec = 0;
-	bt848->int_mask = ALL_INTS_DISABLED;
+	OUTB(bktr, BKTR_TDEC, 0);
+	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 
 /** FIXME: is 0xf magic, wouldn't 0x00 work ??? */
-	bt848->sreset = 0xf;
-	bt848->int_stat = ALL_INTS_CLEARED;
+	OUTL(bktr, BKTR_SRESET, 0xf);
+	OUTL(bktr, BKTR_INT_STAT, ALL_INTS_CLEARED);
 
 	return( 0 );
 }
@@ -1063,7 +1066,7 @@ tuner_close( bktr_ptr_t bktr )
 	set_audio( bktr, AUDIO_MUTE );
 
 	/* disable drivers on the GPIO port that control the MUXes */
-	bktr->base->gpio_out_en = bktr->base->gpio_out_en & ~bktr->card.gpio_mux_bits;
+	OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) & ~bktr->card.gpio_mux_bits);
 
 	return( 0 );
 }
@@ -1083,12 +1086,9 @@ vbi_close( bktr_ptr_t bktr )
 int
 video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 {
-        bt848_ptr_t     bt848;
         int             status;
         int             count;
 
-
-        bt848 = bktr->base;
 
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
 		return( ENOMEM );
@@ -1096,7 +1096,7 @@ video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 	if (bktr->flags & METEOR_CAP_MASK)
 		return( EIO );	/* already capturing */
 
-        bt848->cap_ctl = bktr->bktr_cap_ctl;
+        OUTB(bktr, BKTR_CAP_CTL, bktr->bktr_cap_ctl);
 
 
 	count = bktr->rows * bktr->cols * 
@@ -1110,13 +1110,13 @@ video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 	/* capture one frame */
 	start_capture(bktr, METEOR_SINGLE);
 	/* wait for capture to complete */
-	bt848->int_stat = ALL_INTS_CLEARED;
-	bt848->gpio_dma_ctl = FIFO_ENABLED;
-	bt848->gpio_dma_ctl = bktr->capcontrol;
-	bt848->int_mask = BT848_INT_MYSTERYBIT |
-                          BT848_INT_RISCI      |
-                          BT848_INT_VSYNC      |
-                          BT848_INT_FMTCHG;
+	OUTL(bktr, BKTR_INT_STAT, ALL_INTS_CLEARED);
+	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
+	OUTW(bktr, BKTR_GPIO_DMA_CTL, bktr->capcontrol);
+	OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT |
+                            BT848_INT_RISCI      |
+                            BT848_INT_VSYNC      |
+                            BT848_INT_FMTCHG);
 
 
 	status = tsleep(BKTR_SLEEP, BKTRPRI, "captur", 0);
@@ -1194,9 +1194,8 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
  * video ioctls
  */
 int
-video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
+video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct proc* pr )
 {
-	bt848_ptr_t		bt848;
 	volatile u_char		c_temp;
 	unsigned int		temp;
 	unsigned int		temp_iform;
@@ -1208,8 +1207,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	vm_offset_t		buf;
 	int                     i;
 	char                    char_temp;
-
-	bt848 =	bktr->base;
 
 	switch ( cmd ) {
 
@@ -1272,7 +1269,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	    break;
 
 	case METEORSTATUS:	/* get Bt848 status */
-		c_temp = bt848->dstatus;
+		c_temp = INB(bktr, BKTR_DSTATUS);
 		temp = 0;
 		if (!(c_temp & 0x40)) temp |= METEOR_STATUS_HCLK;
 		if (!(c_temp & 0x10)) temp |= METEOR_STATUS_FIDT;
@@ -1281,10 +1278,10 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	case BT848SFMT:		/* set input format */
 		temp = *(unsigned long*)arg & BT848_IFORM_FORMAT;
-		temp_iform = bt848->iform;
+		temp_iform = INB(bktr, BKTR_IFORM);
 		temp_iform &= ~BT848_IFORM_FORMAT;
 		temp_iform &= ~BT848_IFORM_XTSEL;
-		bt848->iform = (temp_iform | temp | format_params[temp].iform_xtsel);
+		OUTB(bktr, BKTR_IFORM, (temp_iform | temp | format_params[temp].iform_xtsel));
 		switch( temp ) {
 		case BT848_IFORM_F_AUTO:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
@@ -1295,8 +1292,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		case BT848_IFORM_F_NTSCJ:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			bt848->adelay = format_params[temp].adelay;
-			bt848->bdelay = format_params[temp].bdelay;
+			OUTB(bktr, BKTR_ADELAY, format_params[temp].adelay);
+			OUTB(bktr, BKTR_BDELAY, format_params[temp].bdelay);
 			bktr->format_params = temp;
 			break;
 
@@ -1307,8 +1304,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		case BT848_IFORM_F_PALM:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			bt848->adelay = format_params[temp].adelay;
-			bt848->bdelay = format_params[temp].bdelay;
+			OUTB(bktr, BKTR_ADELAY, format_params[temp].adelay);
+			OUTB(bktr, BKTR_BDELAY, format_params[temp].bdelay);
 			bktr->format_params = temp;
 			break;
 
@@ -1317,7 +1314,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	case METEORSFMT:	/* set input format */
-		temp_iform = bt848->iform;
+		temp_iform = INB(bktr, BKTR_IFORM);
 		temp_iform &= ~BT848_IFORM_FORMAT;
 		temp_iform &= ~BT848_IFORM_XTSEL;
 		switch(*(unsigned long *)arg & METEOR_FORM_MASK ) {
@@ -1325,28 +1322,28 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		case METEOR_FMT_NTSC:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			bt848->iform = temp_iform | BT848_IFORM_F_NTSCM | 
-		                        format_params[BT848_IFORM_F_NTSCM].iform_xtsel;
-			bt848->adelay = format_params[BT848_IFORM_F_NTSCM].adelay;
-			bt848->bdelay = format_params[BT848_IFORM_F_NTSCM].bdelay;
+			OUTB(bktr, BKTR_IFORM, temp_iform | BT848_IFORM_F_NTSCM | 
+		                         format_params[BT848_IFORM_F_NTSCM].iform_xtsel);
+			OUTB(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_NTSCM].adelay);
+			OUTB(bktr, BKTR_BDELAY, format_params[BT848_IFORM_F_NTSCM].bdelay);
 			bktr->format_params = BT848_IFORM_F_NTSCM;
 			break;
 
 		case METEOR_FMT_PAL:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			bt848->iform = temp_iform | BT848_IFORM_F_PALBDGHI |
-		                        format_params[BT848_IFORM_F_PALBDGHI].iform_xtsel;
-			bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
-			bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
+			OUTB(bktr, BKTR_IFORM, temp_iform | BT848_IFORM_F_PALBDGHI |
+		                         format_params[BT848_IFORM_F_PALBDGHI].iform_xtsel);
+			OUTB(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_PALBDGHI].adelay);
+			OUTB(bktr, BKTR_BDELAY, format_params[BT848_IFORM_F_PALBDGHI].bdelay);
 			bktr->format_params = BT848_IFORM_F_PALBDGHI;
 			break;
 
 		case METEOR_FMT_AUTOMODE:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_AUTOMODE;
-			bt848->iform = temp_iform | BT848_IFORM_F_AUTO |
-		                        format_params[BT848_IFORM_F_AUTO].iform_xtsel;
+			OUTB(bktr, BKTR_IFORM, temp_iform | BT848_IFORM_F_AUTO |
+		                         format_params[BT848_IFORM_F_AUTO].iform_xtsel);
 			break;
 
 		default:
@@ -1361,7 +1358,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 
 	case BT848GFMT:		/* get input format */
-	        *(u_long *)arg = bt848->iform & BT848_IFORM_FORMAT;
+	        *(u_long *)arg = INB(bktr, BKTR_IFORM) & BT848_IFORM_FORMAT;
 		break;
  
 	case METEORSCOUNT:	/* (re)set error counts */
@@ -1407,44 +1404,48 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	case METEORSHUE:	/* set hue */
-		bt848->hue = (*(u_char *) arg) & 0xff;
+		OUTB(bktr, BKTR_HUE, (*(u_char *) arg) & 0xff);
 		break;
 
 	case METEORGHUE:	/* get hue */
-		*(u_char *)arg = bt848->hue;
+		*(u_char *)arg = INB(bktr, BKTR_HUE);
 		break;
 
 	case METEORSBRIG:	/* set brightness */
 	        char_temp =    ( *(u_char *)arg & 0xff) - 128;
-		bt848->bright = char_temp;
+		OUTB(bktr, BKTR_BRIGHT, char_temp);
 		
 		break;
 
 	case METEORGBRIG:	/* get brightness */
-		*(u_char *)arg = bt848->bright;
+		*(u_char *)arg = INB(bktr, BKTR_BRIGHT);
 		break;
 
 	case METEORSCSAT:	/* set chroma saturation */
 		temp = (int)*(u_char *)arg;
 
-		bt848->sat_u_lo = bt848->sat_v_lo = (temp << 1) & 0xff;
-
-		bt848->e_control &= ~(BT848_E_CONTROL_SAT_U_MSB |
-				      BT848_E_CONTROL_SAT_V_MSB);
-		bt848->o_control &= ~(BT848_O_CONTROL_SAT_U_MSB |
-				      BT848_O_CONTROL_SAT_V_MSB);
+		OUTB(bktr, BKTR_SAT_U_LO, (temp << 1) & 0xff);
+		OUTB(bktr, BKTR_SAT_V_LO, (temp << 1) & 0xff);
+		OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL)
+		                     & ~(BT848_E_CONTROL_SAT_U_MSB
+					 | BT848_E_CONTROL_SAT_V_MSB));
+		OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL)
+		                     & ~(BT848_O_CONTROL_SAT_U_MSB |
+					 BT848_O_CONTROL_SAT_V_MSB));
 
 		if ( temp & BIT_SEVEN_HIGH ) {
-			bt848->e_control |= (BT848_E_CONTROL_SAT_U_MSB |
-					     BT848_E_CONTROL_SAT_V_MSB);
-			bt848->o_control |= (BT848_O_CONTROL_SAT_U_MSB |
-					     BT848_O_CONTROL_SAT_V_MSB);
+		        OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL)
+			                     | (BT848_E_CONTROL_SAT_U_MSB
+						| BT848_E_CONTROL_SAT_V_MSB));
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL)
+			                     | (BT848_O_CONTROL_SAT_U_MSB
+						| BT848_O_CONTROL_SAT_V_MSB));
 		}
 		break;
 
 	case METEORGCSAT:	/* get chroma saturation */
-		temp = (bt848->sat_v_lo >> 1) & 0xff;
-		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+		temp = (INB(bktr, BKTR_SAT_V_LO) >> 1) & 0xff;
+		if ( INB(bktr, BKTR_E_CONTROL) & BT848_E_CONTROL_SAT_V_MSB )
 			temp |= BIT_SEVEN_HIGH;
 		*(u_char *)arg = (u_char)temp;
 		break;
@@ -1452,24 +1453,24 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case METEORSCONT:	/* set contrast */
 		temp = (int)*(u_char *)arg & 0xff;
 		temp <<= 1;
-		bt848->contrast_lo =  temp & 0xff;
-		bt848->e_control &= ~BT848_E_CONTROL_CON_MSB;
-		bt848->o_control &= ~BT848_O_CONTROL_CON_MSB;
-		bt848->e_control |=
-			((temp & 0x100) >> 6 ) & BT848_E_CONTROL_CON_MSB;
-		bt848->o_control |=
-			((temp & 0x100) >> 6 ) & BT848_O_CONTROL_CON_MSB;
+		OUTB(bktr, BKTR_CONTRAST_LO, temp & 0xff);
+		OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_E_CONTROL_CON_MSB);
+		OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) & ~BT848_O_CONTROL_CON_MSB);
+		OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) |
+			(((temp & 0x100) >> 6 ) & BT848_E_CONTROL_CON_MSB));
+		OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) |
+			(((temp & 0x100) >> 6 ) & BT848_O_CONTROL_CON_MSB));
 		break;
 
 	case METEORGCONT:	/* get contrast */
-		temp = (int)bt848->contrast_lo & 0xff;
-		temp |= ((int)bt848->o_control & 0x04) << 6;
+		temp = (int)INB(bktr, BKTR_CONTRAST_LO) & 0xff;
+		temp |= ((int)INB(bktr, BKTR_O_CONTROL) & 0x04) << 6;
 		*(u_char *)arg = (u_char)((temp >> 1) & 0xff);
 		break;
 
 	case BT848SCBUF:	/* set Clear-Buffer-on-start flag */
-	  bktr->clr_on_start = (*(int *)arg != 0);
-	  break;
+		bktr->clr_on_start = (*(int *)arg != 0);
+		break;
 
 	case BT848GCBUF:	/* get Clear-Buffer-on-start flag */
 		*(int *)arg = (int) bktr->clr_on_start;
@@ -1504,29 +1505,29 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			start_capture(bktr, METEOR_SINGLE);
 
 			/* wait for capture to complete */
-			bt848->int_stat = ALL_INTS_CLEARED;
-			bt848->gpio_dma_ctl = FIFO_ENABLED;
-			bt848->gpio_dma_ctl = bktr->capcontrol;
+			OUTL(bktr, BKTR_INT_STAT, ALL_INTS_CLEARED);
+			OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
+			OUTW(bktr, BKTR_GPIO_DMA_CTL, bktr->capcontrol);
 
-			bt848->int_mask = BT848_INT_MYSTERYBIT |
-					  BT848_INT_RISCI      |
-					  BT848_INT_VSYNC      |
-					  BT848_INT_FMTCHG;
+			OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT |
+			     		    BT848_INT_RISCI      |
+					    BT848_INT_VSYNC      |
+					    BT848_INT_FMTCHG);
 
-			bt848->cap_ctl = bktr->bktr_cap_ctl;
+			OUTB(bktr, BKTR_CAP_CTL, bktr->bktr_cap_ctl);
 			error = tsleep(BKTR_SLEEP, BKTRPRI, "captur", hz);
 			if (error && (error != ERESTART)) {
 				/*  Here if we didn't get complete frame  */
 #ifdef DIAGNOSTIC
 				printf( "bktr%d: ioctl: tsleep error %d %x\n",
-					unit, error, bt848->risc_count);
+					unit, error, INL(bktr, BKTR_RISC_COUNT));
 #endif
 
 				/* stop dma */
-				bt848->int_mask = ALL_INTS_DISABLED;
+				OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 
 				/* disable risc, leave fifo running */
-				bt848->gpio_dma_ctl = FIFO_ENABLED;
+				OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
 			}
 
 			bktr->flags &= ~(METEOR_SINGLE|METEOR_WANT_MASK);
@@ -1542,16 +1543,18 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 
 			start_capture(bktr, METEOR_CONTIN);
-			bt848->int_stat = bt848->int_stat;
 
-			bt848->gpio_dma_ctl = FIFO_ENABLED;
-			bt848->gpio_dma_ctl = bktr->capcontrol;
-			bt848->cap_ctl = bktr->bktr_cap_ctl;
+			/* Clear the interrypt status register */
+			OUTL(bktr, BKTR_INT_STAT, INL(bktr, BKTR_INT_STAT));
 
-			bt848->int_mask = BT848_INT_MYSTERYBIT |
-					  BT848_INT_RISCI      |
-					  BT848_INT_VSYNC      |
-					  BT848_INT_FMTCHG;
+			OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
+			OUTW(bktr, BKTR_GPIO_DMA_CTL, bktr->capcontrol);
+			OUTB(bktr, BKTR_CAP_CTL, bktr->bktr_cap_ctl);
+
+			OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT |
+					    BT848_INT_RISCI      |
+			                    BT848_INT_VSYNC      |
+					    BT848_INT_FMTCHG);
 #ifdef BT848_DUMP
 			dump_bt848( bt848 );
 #endif
@@ -1560,9 +1563,9 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		case METEOR_CAP_STOP_CONT:
 			if (bktr->flags & METEOR_CONTIN) {
 				/* turn off capture */
-				bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-				bt848->cap_ctl = CAPTURE_OFF;
-				bt848->int_mask = ALL_INTS_DISABLED;
+				OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+				OUTB(bktr, BKTR_CAP_CTL, CAPTURE_OFF);
+				OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 				bktr->flags &=
 					~(METEOR_CONTIN | METEOR_WANT_MASK);
 
@@ -1635,9 +1638,9 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			return( error );
 
 		bktr->dma_prog_loaded = FALSE;
-		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+		OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
 
-		bt848->int_mask = ALL_INTS_DISABLED;
+		OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 
 		if ((temp=(geo->rows * geo->columns * geo->frames * 2))) {
 			if (geo->oformat & METEOR_GEO_RGB24) temp = temp * 2;
@@ -1727,12 +1730,12 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 				}
 
 				start_capture(bktr, METEOR_CONTIN);
-				bt848->int_stat = bt848->int_stat;
-				bt848->gpio_dma_ctl = FIFO_ENABLED;
-				bt848->gpio_dma_ctl = bktr->capcontrol;
-				bt848->int_mask = BT848_INT_MYSTERYBIT |
-						  BT848_INT_VSYNC      |
-						  BT848_INT_FMTCHG;
+				OUTL(bktr, BKTR_INT_STAT, INL(bktr, BKTR_INT_STAT));
+				OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_ENABLED);
+				OUTW(bktr, BKTR_GPIO_DMA_CTL, bktr->capcontrol);
+				OUTL(bktr, BKTR_INT_MASK, BT848_INT_MYSTERYBIT |
+						    BT848_INT_VSYNC      |
+						    BT848_INT_FMTCHG);
 			}
 		}
 		break;
@@ -1788,7 +1791,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	default:
-		return common_ioctl( bktr, bt848, cmd, arg );
+		return common_ioctl( bktr, cmd, arg );
 	}
 
 	return( 0 );
@@ -1798,9 +1801,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
  * tuner ioctls
  */
 int
-tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
+tuner_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct proc* pr )
 {
-	bt848_ptr_t	bt848;
 	int		tmp_int;
 	unsigned int	temp, temp1;
 	int		offset;
@@ -1811,8 +1813,6 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	int             i2c_addr;
 	int             i2c_port;
 	u_long          data;
-
-	bt848 =	bktr->base;
 
 	switch ( cmd ) {
 
@@ -1910,28 +1910,28 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	/* hue is a 2's compliment number, -90' to +89.3' in 0.7' steps */
 	case BT848_SHUE:	/* set hue */
-		bt848->hue = (u_char)(*(int*)arg & 0xff);
+		OUTB(bktr, BKTR_HUE, (u_char)(*(int*)arg & 0xff));
 		break;
 
 	case BT848_GHUE:	/* get hue */
-		*(int*)arg = (signed char)(bt848->hue & 0xff);
+		*(int*)arg = (signed char)(INB(bktr, BKTR_HUE) & 0xff);
 		break;
 
 	/* brightness is a 2's compliment #, -50 to +%49.6% in 0.39% steps */
 	case BT848_SBRIG:	/* set brightness */
-		bt848->bright = (u_char)(*(int *)arg & 0xff);
+		OUTB(bktr, BKTR_BRIGHT, (u_char)(*(int *)arg & 0xff));
 		break;
 
 	case BT848_GBRIG:	/* get brightness */
-		*(int *)arg = (signed char)(bt848->bright & 0xff);
+		*(int *)arg = (signed char)(INB(bktr, BKTR_BRIGHT) & 0xff);
 		break;
 
 	/*  */
 	case BT848_SCSAT:	/* set chroma saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control;
-		temp1 = bt848->o_control;
+		temp = INB(bktr, BKTR_E_CONTROL);
+		temp1 = INB(bktr, BKTR_O_CONTROL);
 		if ( tmp_int & BIT_EIGHT_HIGH ) {
 			temp |= (BT848_E_CONTROL_SAT_U_MSB |
 				 BT848_E_CONTROL_SAT_V_MSB);
@@ -1945,15 +1945,15 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 				   BT848_O_CONTROL_SAT_V_MSB);
 		}
 
-		bt848->sat_u_lo = (u_char)(tmp_int & 0xff);
-		bt848->sat_v_lo = (u_char)(tmp_int & 0xff);
-		bt848->e_control = temp;
-		bt848->o_control = temp1;
+		OUTB(bktr, BKTR_SAT_U_LO, (u_char)(tmp_int & 0xff));
+		OUTB(bktr, BKTR_SAT_V_LO, (u_char)(tmp_int & 0xff));
+		OUTB(bktr, BKTR_E_CONTROL, temp);
+		OUTB(bktr, BKTR_O_CONTROL, temp1);
 		break;
 
 	case BT848_GCSAT:	/* get chroma saturation */
-		tmp_int = (int)(bt848->sat_v_lo & 0xff);
-		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+		tmp_int = (int)(INB(bktr, BKTR_SAT_V_LO) & 0xff);
+		if ( INB(bktr, BKTR_E_CONTROL) & BT848_E_CONTROL_SAT_V_MSB )
 			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
@@ -1962,8 +1962,8 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case BT848_SVSAT:	/* set chroma V saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control;
-		temp1 = bt848->o_control;
+		temp = INB(bktr, BKTR_E_CONTROL);
+		temp1 = INB(bktr, BKTR_O_CONTROL);
 		if ( tmp_int & BIT_EIGHT_HIGH) {
 			temp |= BT848_E_CONTROL_SAT_V_MSB;
 			temp1 |= BT848_O_CONTROL_SAT_V_MSB;
@@ -1973,14 +1973,14 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			temp1 &= ~BT848_O_CONTROL_SAT_V_MSB;
 		}
 
-		bt848->sat_v_lo = (u_char)(tmp_int & 0xff);
-		bt848->e_control = temp;
-		bt848->o_control = temp1;
+		OUTB(bktr, BKTR_SAT_V_LO, (u_char)(tmp_int & 0xff));
+		OUTB(bktr, BKTR_E_CONTROL, temp);
+		OUTB(bktr, BKTR_O_CONTROL, temp1);
 		break;
 
 	case BT848_GVSAT:	/* get chroma V saturation */
-		tmp_int = (int)bt848->sat_v_lo & 0xff;
-		if ( bt848->e_control & BT848_E_CONTROL_SAT_V_MSB )
+		tmp_int = (int)INB(bktr, BKTR_SAT_V_LO) & 0xff;
+		if ( INB(bktr, BKTR_E_CONTROL) & BT848_E_CONTROL_SAT_V_MSB )
 			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
@@ -1989,8 +1989,8 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case BT848_SUSAT:	/* set chroma U saturation */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control;
-		temp1 = bt848->o_control;
+		temp = INB(bktr, BKTR_E_CONTROL);
+		temp1 = INB(bktr, BKTR_O_CONTROL);
 		if ( tmp_int & BIT_EIGHT_HIGH ) {
 			temp |= BT848_E_CONTROL_SAT_U_MSB;
 			temp1 |= BT848_O_CONTROL_SAT_U_MSB;
@@ -2000,14 +2000,14 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			temp1 &= ~BT848_O_CONTROL_SAT_U_MSB;
 		}
 
-		bt848->sat_u_lo = (u_char)(tmp_int & 0xff);
-		bt848->e_control = temp;
-		bt848->o_control = temp1;
+		OUTB(bktr, BKTR_SAT_U_LO, (u_char)(tmp_int & 0xff));
+		OUTB(bktr, BKTR_E_CONTROL, temp);
+		OUTB(bktr, BKTR_O_CONTROL, temp1);
 		break;
 
 	case BT848_GUSAT:	/* get chroma U saturation */
-		tmp_int = (int)bt848->sat_u_lo & 0xff;
-		if ( bt848->e_control & BT848_E_CONTROL_SAT_U_MSB )
+		tmp_int = (int)INB(bktr, BKTR_SAT_U_LO) & 0xff;
+		if ( INB(bktr, BKTR_E_CONTROL) & BT848_E_CONTROL_SAT_U_MSB )
 			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
@@ -2016,14 +2016,14 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	case BT848_SLNOTCH:	/* set luma notch */
 		tmp_int = (*(int *)arg & 0x7) << 5 ;
-		bt848->e_control &= ~0xe0 ;
-		bt848->o_control &= ~0xe0 ;
-	bt848->e_control |= tmp_int ;
-		bt848->o_control |= tmp_int ;
+		OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~0xe0);
+		OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) & ~0xe0);
+		OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) | tmp_int);
+		OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) | tmp_int);
 		break;
 
 	case BT848_GLNOTCH:	/* get luma notch */
-		*(int *)arg = (int) ( (bt848->e_control & 0xe0) >> 5) ;
+		*(int *)arg = (int) ( (INB(bktr, BKTR_E_CONTROL) & 0xe0) >> 5) ;
 		break;
 
 
@@ -2031,8 +2031,8 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case BT848_SCONT:	/* set contrast */
 		tmp_int = *(int*)arg;
 
-		temp = bt848->e_control;
-		temp1 = bt848->o_control;
+		temp = INB(bktr, BKTR_E_CONTROL);
+		temp1 = INB(bktr, BKTR_O_CONTROL);
 		if ( tmp_int & BIT_EIGHT_HIGH ) {
 			temp |= BT848_E_CONTROL_CON_MSB;
 			temp1 |= BT848_O_CONTROL_CON_MSB;
@@ -2042,14 +2042,14 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			temp1 &= ~BT848_O_CONTROL_CON_MSB;
 		}
 
-		bt848->contrast_lo = (u_char)(tmp_int & 0xff);
-		bt848->e_control = temp;
-		bt848->o_control = temp1;
+		OUTB(bktr, BKTR_CONTRAST_LO, (u_char)(tmp_int & 0xff));
+		OUTB(bktr, BKTR_E_CONTROL, temp);
+		OUTB(bktr, BKTR_O_CONTROL, temp1);
 		break;
 
 	case BT848_GCONT:	/* get contrast */
-		tmp_int = (int)bt848->contrast_lo & 0xff;
-		if ( bt848->e_control & BT848_E_CONTROL_CON_MSB )
+		tmp_int = (int)INB(bktr, BKTR_CONTRAST_LO) & 0xff;
+		if ( INB(bktr, BKTR_E_CONTROL) & BT848_E_CONTROL_CON_MSB )
 			tmp_int |= BIT_EIGHT_HIGH;
 		*(int*)arg = tmp_int;
 		break;
@@ -2059,11 +2059,11 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		/*    using the arg to store the on/off state so           */
 		/*    there's only one ioctl() needed to turn cbars on/off */
 	case BT848_SCBARS:	/* set colorbar output */
-		bt848->color_ctl_color_bars = 1;
+		OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_COLOR_BARS);
 		break;
 
 	case BT848_CCBARS:	/* clear colorbar output */
-		bt848->color_ctl_color_bars = 0;
+		OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) & ~(BT848_COLOR_CTL_COLOR_BARS));
 		break;
 
 	case BT848_GAUDIO:	/* get audio channel */
@@ -2105,19 +2105,19 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
         /* Ioctl's for direct gpio access */
 #ifdef BKTR_GPIO_ACCESS
         case BT848_GPIO_GET_EN:
-                *(int*)arg = bt848->gpio_out_en;
+                *(int*)arg = INL(bktr, BKTR_GPIO_OUT_EN);
                 break;
 
         case BT848_GPIO_SET_EN:
-                bt848->gpio_out_en = *(int*)arg;
+                OUTL(bktr, BKTR_GPIO_OUT_EN, *(int*)arg);
                 break;
 
         case BT848_GPIO_GET_DATA:
-                *(int*)arg = bt848->gpio_data;
+                *(int*)arg = INL(bktr, BKTR_GPIO_DATA);
                 break;
 
         case BT848_GPIO_SET_DATA:
-                bt848->gpio_data = *(int*)arg;
+                OUTL(bktr, BKTR_GPIO_DATA, *(int*)arg);
                 break;
 #endif /* BKTR_GPIO_ACCESS */
 
@@ -2184,7 +2184,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 
 	default:
-		return common_ioctl( bktr, bt848, cmd, arg );
+		return common_ioctl( bktr, cmd, arg );
 	}
 
 	return( 0 );
@@ -2195,7 +2195,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
  * common ioctls
  */
 int
-common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
+common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 {
         int                           pixfmt;
 	unsigned int	              temp;
@@ -2220,18 +2220,19 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		  /* METEOR_INPUT_DEV_RCA: */
 		        bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 			  | METEOR_DEV0;
-			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM)
+			                 & ~BT848_IFORM_MUXSEL);
 
 			/* work around for new Hauppauge 878 cards */
 			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
 				(bktr->id==BROOKTREE_878 ||
 				 bktr->id==BROOKTREE_879) )
-				bt848->iform |= BT848_IFORM_M_MUX3;
+				OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX3);
 			else
-				bt848->iform |= BT848_IFORM_M_MUX1;
+				OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX1);
 
-			bt848->e_control &= ~BT848_E_CONTROL_COMP;
-			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_E_CONTROL_COMP);
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) & ~BT848_O_CONTROL_COMP);
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
 
@@ -2239,10 +2240,10 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV1:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV1;
-			bt848->iform &= ~BT848_IFORM_MUXSEL;
-			bt848->iform |= BT848_IFORM_M_MUX0;
-			bt848->e_control &= ~BT848_E_CONTROL_COMP;
-			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) & ~BT848_IFORM_MUXSEL);
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX0);
+			OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_E_CONTROL_COMP);
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) & ~BT848_O_CONTROL_COMP);
 			set_audio( bktr, AUDIO_TUNER );
 			break;
 
@@ -2250,10 +2251,10 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV2:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV2;
-			bt848->iform &= ~BT848_IFORM_MUXSEL;
-			bt848->iform |= BT848_IFORM_M_MUX2;
-			bt848->e_control &= ~BT848_E_CONTROL_COMP;
-			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) & ~BT848_IFORM_MUXSEL);
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX2);
+			OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_E_CONTROL_COMP);
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_O_CONTROL_COMP);
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
 
@@ -2261,10 +2262,10 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		case METEOR_INPUT_DEV_SVIDEO:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV_SVIDEO;
-			bt848->iform &= ~BT848_IFORM_MUXSEL;
-			bt848->iform |= BT848_IFORM_M_MUX2;
-			bt848->e_control |= BT848_E_CONTROL_COMP;
-			bt848->o_control |= BT848_O_CONTROL_COMP;
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) & ~BT848_IFORM_MUXSEL);
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX2);
+			OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) | BT848_E_CONTROL_COMP);
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) | BT848_O_CONTROL_COMP);
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
 
@@ -2275,18 +2276,18 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		      (bktr->id == BROOKTREE_879) ) {
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV3;
-			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) & ~BT848_IFORM_MUXSEL);
 
 			/* work around for new Hauppauge 878 cards */
 			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
 				(bktr->id==BROOKTREE_878 ||
 				 bktr->id==BROOKTREE_879) )
-				bt848->iform |= BT848_IFORM_M_MUX1;
+				OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX1);
 			else
-				bt848->iform |= BT848_IFORM_M_MUX3;
+				OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX3);
 
-			bt848->e_control &= ~BT848_E_CONTROL_COMP;
-			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) & ~BT848_E_CONTROL_COMP);
+			OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) & ~BT848_O_CONTROL_COMP);
 			set_audio( bktr, AUDIO_EXTERN );
 
 			break;
@@ -2307,7 +2308,8 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			return( EINVAL );
 
 		bktr->pixfmt          = *(int *)arg;
-		bt848->color_ctl_swap = pixfmt_swap_flags( bktr->pixfmt );
+		OUTB(bktr, BKTR_COLOR_CTL, (INB(bktr, BKTR_COLOR_CTL) & 0xf0)
+		     | pixfmt_swap_flags( bktr->pixfmt ));
 		bktr->pixfmt_compat   = FALSE;
 		break;
 	
@@ -2331,12 +2333,15 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 
 #if defined( STATUS_SUM )
 	case BT848_GSTATUS:	/* reap status */
-		disable_intr();
+		{
+                DECLARE_INTR_MASK(s);
+		DISABLE_INTR(s);
 		temp = status_sum;
 		status_sum = 0;
-		enable_intr();
+		ENABLE_INTR(s);
 		*(u_int*)arg = temp;
 		break;
+		}
 #endif /* STATUS_SUM */
 
 	default:
@@ -2359,9 +2364,8 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
  */
 #ifdef BT848_DEBUG 
 static int
-dump_bt848( bt848_ptr_t bt848 )
+dump_bt848( bktr_ptr_t bktr )
 {
-	volatile u_char *bt848r = (u_char *)bt848;
 	int	r[60]={
 			   4,    8, 0xc, 0x8c, 0x10, 0x90, 0x14, 0x94, 
 			0x18, 0x98, 0x1c, 0x9c, 0x20, 0xa0, 0x24, 0xa4,
@@ -2374,15 +2378,15 @@ dump_bt848( bt848_ptr_t bt848 )
 
 	for (i = 0; i < 40; i+=4) {
 		printf(" Reg:value : \t%x:%x \t%x:%x \t %x:%x \t %x:%x\n",
-		       r[i], bt848r[r[i]],
-		       r[i+1], bt848r[r[i+1]],
-		       r[i+2], bt848r[r[i+2]],
-		       r[i+3], bt848r[r[i+3]]);
+		       r[i], INL(bktr, r[i]),
+		       r[i+1], INL(bktr, r[i+1]),
+		       r[i+2], INL(bktr, r[i+2]),
+		       r[i+3], INL(bktr, r[i+3]]));
 	}
 
-	printf(" INT STAT %x \n",  bt848->int_stat);
-	printf(" Reg INT_MASK %x \n",  bt848->int_mask);
-	printf(" Reg GPIO_DMA_CTL %x \n", bt848->gpio_dma_ctl);
+	printf(" INT STAT %x \n",  INL(bktr, BKTR_INT_STAT));
+	printf(" Reg INT_MASK %x \n",  INL(bktr, BKTR_INT_MASK));
+	printf(" Reg GPIO_DMA_CTL %x \n", INW(bktr, BKTR_GPIO_DMA_CTL));
 
 	return( 0 );
 }
@@ -2593,7 +2597,6 @@ static void
 rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 {
 	int			i;
-	bt848_ptr_t		bt848;
 	volatile u_long		target_buffer, buffer, target,width;
 	volatile u_long		pitch;
 	volatile u_long		*dma_prog;	/* DMA prog is an array of 
@@ -2609,31 +2612,28 @@ rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	vbilines   = format_params[bktr->format_params].vbi_num_lines;
 	num_dwords = vbisamples/4;
 
-	bt848 = bktr->base;
+	OUTB(bktr, BKTR_COLOR_FMT, pf_int->color_fmt);
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
+	OUTB(bktr, BKTR_VBI_PACK_SIZE, ((num_dwords)) & 0xff);
+	OUTB(bktr, BKTR_VBI_PACK_DEL, ((num_dwords)>> 8) & 0x01); /* no hdelay    */
+							    /* no ext frame */
 
-	bt848->color_fmt         = pf_int->color_fmt;
-	bt848->adc               = SYNC_LEVEL;
-	bt848->vbi_pack_size     = ((num_dwords))     & 0xff;
-	bt848->vbi_pack_del      = ((num_dwords)>> 8) & 0x01; /* no hdelay    */
-							      /* no ext frame */
+	OUTB(bktr, BKTR_OFORM, 0x00);
 
-	bt848->oform = 0x00;
-
- 	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
- 	bt848->o_vscale_hi |= 0x40;
-	bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
-	bt848->o_vscale_hi &= ~0x80;
+ 	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | 0x40); /* set chroma comb */
+ 	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | 0x40);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x80); /* clear Ycomb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x80);
 
  	/* disable gamma correction removal */
- 	bt848->color_ctl_gamma = 1;
-
+ 	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_GAMMA);
 
 	if (cols > 385 ) {
-	    bt848->e_vtc = 0;
-	    bt848->o_vtc = 0;
+	    OUTB(bktr, BKTR_E_VTC, 0);
+	    OUTB(bktr, BKTR_O_VTC, 0);
 	} else {
-	    bt848->e_vtc = 1;
-	    bt848->o_vtc = 1;
+	    OUTB(bktr, BKTR_E_VTC, 1);
+	    OUTB(bktr, BKTR_O_VTC, 1);
 	}
 	bktr->capcontrol = 3 << 2 |  3;
 
@@ -2779,37 +2779,33 @@ static void
 rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 {
 	int			i;
-	bt848_ptr_t		bt848;
 	volatile u_long		target_buffer, buffer, target,width;
 	volatile u_long		pitch;
 	volatile  u_long	*dma_prog;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
 	u_int                   Bpp = pf_int->public.Bpp;
 
-	bt848 = bktr->base;
+	OUTB(bktr, BKTR_COLOR_FMT, pf_int->color_fmt);
+	OUTB(bktr, BKTR_VBI_PACK_SIZE, 0);
+	OUTB(bktr, BKTR_VBI_PACK_DEL, 0);
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
 
-	bt848->color_fmt         = pf_int->color_fmt;
-	bt848->vbi_pack_size     = 0;	    
-	bt848->vbi_pack_del      = 0;
-	bt848->adc               = SYNC_LEVEL;
+	OUTB(bktr, BKTR_OFORM, 0x00);
 
-	bt848->oform = 0x00;
-
- 	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
- 	bt848->o_vscale_hi |= 0x40;
-	bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
-	bt848->o_vscale_hi &= ~0x80;
+ 	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | 0x40); /* set chroma comb */
+ 	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | 0x40);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x80); /* clear Ycomb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x80);
 
  	/* disable gamma correction removal */
- 	bt848->color_ctl_gamma = 1;
-
+	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_GAMMA);
 
 	if (cols > 385 ) {
-	    bt848->e_vtc = 0;
-	    bt848->o_vtc = 0;
+	    OUTB(bktr, BKTR_E_VTC, 0);
+	    OUTB(bktr, BKTR_O_VTC, 0);
 	} else {
-	    bt848->e_vtc = 1;
-	    bt848->o_vtc = 1;
+	    OUTB(bktr, BKTR_E_VTC, 1);
+	    OUTB(bktr, BKTR_O_VTC, 1);
 	}
 	bktr->capcontrol = 3 << 2 |  3;
 
@@ -2949,21 +2945,17 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	volatile unsigned int	inst;
 	volatile unsigned int	inst3;
 	volatile u_long		target_buffer, buffer;
-	bt848_ptr_t		bt848;
 	volatile  u_long	*dma_prog;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
 	int			b;
 
-	bt848 = bktr->base;
+	OUTB(bktr, BKTR_COLOR_FMT, pf_int->color_fmt);
 
-	bt848->color_fmt         = pf_int->color_fmt;
+	OUTB(bktr, BKTR_E_SCLOOP, INB(bktr, BKTR_E_SCLOOP) | BT848_E_SCLOOP_CAGC); /* enable chroma comb */
+	OUTB(bktr, BKTR_O_SCLOOP, INB(bktr, BKTR_O_SCLOOP) | BT848_O_SCLOOP_CAGC);
 
-	bt848->e_scloop |= BT848_E_SCLOOP_CAGC; /* enable chroma comb */
-	bt848->o_scloop |= BT848_O_SCLOOP_CAGC;
-
-	bt848->color_ctl_rgb_ded = 1;
-	bt848->color_ctl_gamma = 1;
-	bt848->adc = SYNC_LEVEL;
+	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_RGB_DED | BT848_COLOR_CTL_GAMMA);
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
 
 	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
 	bktr->capcontrol = 3 << 2 |  3;
@@ -3067,34 +3059,31 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 	int			i;
 	volatile unsigned int	inst;
 	volatile u_long		target_buffer, t1, buffer;
-	bt848_ptr_t		bt848;
 	volatile u_long		*dma_prog;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
 
-	bt848 = bktr->base;
-
-	bt848->color_fmt         = pf_int->color_fmt;
+	OUTB(bktr, BKTR_COLOR_FMT, pf_int->color_fmt);
 
 	dma_prog = (u_long *) bktr->dma_prog;
 
 	bktr->capcontrol =   1 << 6 | 1 << 4 |	3;
 
-	bt848->adc = SYNC_LEVEL;
-	bt848->oform = 0x00;
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
+	OUTB(bktr, BKTR_OFORM, 0x00);
 
-	bt848->e_control |= BT848_E_CONTROL_LDEC; /* disable luma decimation */
-	bt848->o_control |= BT848_O_CONTROL_LDEC;
+	OUTB(bktr, BKTR_E_CONTROL, INB(bktr, BKTR_E_CONTROL) | BT848_E_CONTROL_LDEC); /* disable luma decimation */
+	OUTB(bktr, BKTR_O_CONTROL, INB(bktr, BKTR_O_CONTROL) | BT848_O_CONTROL_LDEC);
 
-	bt848->e_scloop |= BT848_O_SCLOOP_CAGC;	/* chroma agc enable */
-	bt848->o_scloop |= BT848_O_SCLOOP_CAGC; 
+	OUTB(bktr, BKTR_E_SCLOOP, INB(bktr, BKTR_E_SCLOOP) | BT848_E_SCLOOP_CAGC);	/* chroma agc enable */
+	OUTB(bktr, BKTR_O_SCLOOP, INB(bktr, BKTR_O_SCLOOP) | BT848_O_SCLOOP_CAGC);
 
-	bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
-	bt848->o_vscale_hi &= ~0x80;
-	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
-	bt848->o_vscale_hi |= 0x40;
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x80); /* clear Ycomb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x80);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | ~0x40); /* set chroma comb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | ~0x40);
 
 	/* disable gamma correction removal */
-	bt848->color_ctl_gamma = 1;
+	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_GAMMA);
 
 	/* Construct Write */
 	inst  = OP_WRITE123  | OP_SOL | OP_EOL |  (cols); 
@@ -3184,20 +3173,17 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
 	volatile unsigned int	inst;
 	volatile unsigned int	inst1;
 	volatile u_long		target_buffer, t1, buffer;
-	bt848_ptr_t		bt848;
 	volatile u_long		*dma_prog;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
 
-	bt848 = bktr->base;
-
-	bt848->color_fmt         = pf_int->color_fmt;
+	OUTB(bktr, BKTR_COLOR_FMT, pf_int->color_fmt);
 
 	dma_prog = (u_long *) bktr->dma_prog;
 
 	bktr->capcontrol =   1 << 6 | 1 << 4 |	3;
 
-	bt848->adc = SYNC_LEVEL;
-	bt848->oform = 0x0;
+	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
+	OUTB(bktr, BKTR_OFORM, 0x0);
  
 	/* Construct Write */
  	inst  = OP_WRITE123  | OP_SOL | OP_EOL |  (cols); 
@@ -3294,7 +3280,6 @@ static void
 build_dma_prog( bktr_ptr_t bktr, char i_flag )
 {
 	int			rows, cols,  interlace;
-	bt848_ptr_t		bt848;
 	int			tmp_int;
 	unsigned int		temp;	
 	struct format_params	*fp;
@@ -3302,12 +3287,11 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	
 
 	fp = &format_params[bktr->format_params];
-	
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
+
+	OUTL(bktr, BKTR_INT_MASK,  ALL_INTS_DISABLED);
 
 	/* disable FIFO & RISC, leave other bits alone */
-	bt848->gpio_dma_ctl &= ~FIFO_RISC_ENABLED;
+	OUTW(bktr, BKTR_GPIO_DMA_CTL, INW(bktr, BKTR_GPIO_DMA_CTL) & ~FIFO_RISC_ENABLED);
 
 	/* set video parameters */
 	if (bktr->capture_area_enabled)
@@ -3317,21 +3301,21 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	  temp = ((quad_t ) fp->htotal* (quad_t) fp->scaled_hactive * 4096
 		  / fp->scaled_htotal / bktr->cols) -  4096;
 
-	 /* printf("HSCALE value is %d\n",temp); */
-	bt848->e_hscale_lo = temp & 0xff;
-	bt848->o_hscale_lo = temp & 0xff;
-	bt848->e_hscale_hi = (temp >> 8) & 0xff;
-	bt848->o_hscale_hi = (temp >> 8) & 0xff;
+	/* printf("HSCALE value is %d\n",temp); */
+	OUTB(bktr, BKTR_E_HSCALE_LO, temp & 0xff);
+	OUTB(bktr, BKTR_O_HSCALE_LO, temp & 0xff);
+	OUTB(bktr, BKTR_E_HSCALE_HI, (temp >> 8) & 0xff);
+	OUTB(bktr, BKTR_O_HSCALE_HI, (temp >> 8) & 0xff);
  
 	/* horizontal active */
 	temp = bktr->cols;
 	/* printf("HACTIVE value is %d\n",temp); */
-	bt848->e_hactive_lo = temp & 0xff;
-	bt848->o_hactive_lo = temp & 0xff;
-	bt848->e_crop &= ~0x3;
-	bt848->o_crop  &= ~0x3;
-	bt848->e_crop |= (temp >> 8) & 0x3;
-	bt848->o_crop  |= (temp >> 8) & 0x3;
+	OUTB(bktr, BKTR_E_HACTIVE_LO, temp & 0xff);
+	OUTB(bktr, BKTR_O_HACTIVE_LO, temp & 0xff);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) & ~0x3);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) & ~0x3);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) | ((temp >> 8) & 0x3));
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) | ((temp >> 8) & 0x3));
  
 	/* horizontal delay */
 	if (bktr->capture_area_enabled)
@@ -3343,12 +3327,12 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	temp = temp & 0x3fe;
 
 	/* printf("HDELAY value is %d\n",temp); */
-	bt848->e_delay_lo = temp & 0xff;
-	bt848->o_delay_lo = temp & 0xff;
-	bt848->e_crop &= ~0xc;
-	bt848->o_crop &= ~0xc;
-	bt848->e_crop |= (temp >> 6) & 0xc;
-	bt848->o_crop |= (temp >> 6) & 0xc;
+	OUTB(bktr, BKTR_E_DELAY_LO, temp & 0xff);
+	OUTB(bktr, BKTR_O_DELAY_LO, temp & 0xff);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) & ~0xc);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) & ~0xc);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) | ((temp >> 6) & 0xc));
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) | ((temp >> 6) & 0xc));
 
 	/* vertical scale */
 
@@ -3374,26 +3358,26 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 
 	tmp_int &= 0x1fff;
 	/* printf("VSCALE value is %d\n",tmp_int); */
-	bt848->e_vscale_lo = tmp_int & 0xff;
-	bt848->o_vscale_lo = tmp_int & 0xff;
-	bt848->e_vscale_hi &= ~0x1f;
-	bt848->o_vscale_hi &= ~0x1f;
-	bt848->e_vscale_hi |= (tmp_int >> 8) & 0x1f;
-	bt848->o_vscale_hi |= (tmp_int >> 8) & 0x1f;
+	OUTB(bktr, BKTR_E_VSCALE_LO, tmp_int & 0xff);
+	OUTB(bktr, BKTR_O_VSCALE_LO, tmp_int & 0xff);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x1f);
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x1f);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | ((tmp_int >> 8) & 0x1f));
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | ((tmp_int >> 8) & 0x1f));
 
- 
+
 	/* vertical active */
 	if (bktr->capture_area_enabled)
 	  temp = bktr->capture_area_y_size;
 	else
 	  temp = fp->vactive;
 	/* printf("VACTIVE is %d\n",temp); */
-	bt848->e_crop &= ~0x30;
-	bt848->e_crop |= (temp >> 4) & 0x30;
-	bt848->e_vactive_lo = temp & 0xff;
-	bt848->o_crop &= ~0x30;
-	bt848->o_crop |= (temp >> 4) & 0x30;
-	bt848->o_vactive_lo = temp & 0xff;
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) & ~0x30);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) | ((temp >> 4) & 0x30));
+	OUTB(bktr, BKTR_E_VACTIVE_LO, temp & 0xff);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) & ~0x30);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) | ((temp >> 4) & 0x30));
+	OUTB(bktr, BKTR_O_VACTIVE_LO, temp & 0xff);
  
 	/* vertical delay */
 	if (bktr->capture_area_enabled)
@@ -3401,20 +3385,20 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	else
 	  temp = fp->vdelay;
 	/* printf("VDELAY is %d\n",temp); */
-	bt848->e_crop &= ~0xC0;
-	bt848->e_crop |= (temp >> 2) & 0xC0;
-	bt848->e_vdelay_lo = temp & 0xff;
-	bt848->o_crop &= ~0xC0;
-	bt848->o_crop |= (temp >> 2) & 0xC0;
-	bt848->o_vdelay_lo = temp & 0xff;
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) & ~0xC0);
+	OUTB(bktr, BKTR_E_CROP, INB(bktr, BKTR_E_CROP) | ((temp >> 2) & 0xC0));
+	OUTB(bktr, BKTR_E_VDELAY_LO, temp & 0xff);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) & ~0xC0);
+	OUTB(bktr, BKTR_O_CROP, INB(bktr, BKTR_O_CROP) | ((temp >> 2) & 0xC0));
+	OUTB(bktr, BKTR_O_VDELAY_LO, temp & 0xff);
 
 	/* end of video params */
 
 	if ((bktr->xtal_pll_mode == BT848_USE_PLL)
 	   && (fp->iform_xtsel==BT848_IFORM_X_XT1)) {
-		bt848->tgctrl=8; /* Select PLL mode */
+		OUTB(bktr, BKTR_TGCTRL, BT848_TGCTRL_TGCKI_PLL); /* Select PLL mode */
 	} else {
-		bt848->tgctrl=0; /* Select Normal xtal 0/xtal 1 mode */
+		OUTB(bktr, BKTR_TGCTRL, BT848_TGCTRL_TGCKI_XTAL); /* Select Normal xtal 0/xtal 1 mode */
 	}
 
 	/* capture control */
@@ -3422,68 +3406,71 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	case 1:
 	        bktr->bktr_cap_ctl = 
 		    (BT848_CAP_CTL_DITH_FRAME | BT848_CAP_CTL_EVEN);
-		bt848->e_vscale_hi &= ~0x20;
-		bt848->o_vscale_hi &= ~0x20;
+		OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x20);
+		OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x20);
 		interlace = 1;
 		break;
 	 case 2:
  	        bktr->bktr_cap_ctl =
 			(BT848_CAP_CTL_DITH_FRAME | BT848_CAP_CTL_ODD);
-		bt848->e_vscale_hi &= ~0x20;
-		bt848->o_vscale_hi &= ~0x20;
+		OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x20);
+		OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x20);
 		interlace = 1;
 		break;
 	 default:
  	        bktr->bktr_cap_ctl = 
 			(BT848_CAP_CTL_DITH_FRAME |
 			 BT848_CAP_CTL_EVEN | BT848_CAP_CTL_ODD);
-		bt848->e_vscale_hi |= 0x20;
-		bt848->o_vscale_hi |= 0x20;
+		OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | 0x20);
+		OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | 0x20);
 		interlace = 2;
 		break;
 	}
 
-	bt848->risc_strt_add = vtophys(bktr->dma_prog);
+	OUTL(bktr, BKTR_RISC_STRT_ADD, vtophys(bktr->dma_prog));
 
 	rows = bktr->rows;
 	cols = bktr->cols;
 
 	bktr->vbiflags &= ~VBI_CAPTURE;	/* default - no vbi capture */
 
-	/* If /dev/vbi is already open, then use the rgb_vbi RISC program */
-	if ( (pf_int->public.type == METEOR_PIXTYPE_RGB)
-           &&(bktr->vbiflags & VBI_OPEN) ) {
-		if (i_flag==1) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_EVEN;
-		if (i_flag==2) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_ODD;
-		if (i_flag==3) bktr->bktr_cap_ctl |=
+	/* RGB Grabs. If /dev/vbi is already open, or we are a PAL/SECAM */
+	/* user, then use the rgb_vbi RISC program. */
+	/* Otherwise, use the normal rgb RISC program */
+	if (pf_int->public.type == METEOR_PIXTYPE_RGB) {
+		if ( (bktr->vbiflags & VBI_OPEN)
+		   ||(bktr->format_params == BT848_IFORM_F_PALBDGHI)
+		   ||(bktr->format_params == BT848_IFORM_F_SECAM)
+                   ){
+			bktr->bktr_cap_ctl |=
 		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
-		bktr->bktr_cap_ctl |=
-		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
-		bktr->vbiflags |= VBI_CAPTURE;
-		rgb_vbi_prog(bktr, i_flag, cols, rows, interlace);
-		return;
-	}
-
-	if ( pf_int->public.type == METEOR_PIXTYPE_RGB ) {
-		rgb_prog(bktr, i_flag, cols, rows, interlace);
-		return;
+			bktr->vbiflags |= VBI_CAPTURE;
+			rgb_vbi_prog(bktr, i_flag, cols, rows, interlace);
+			return;
+		} else {
+			rgb_prog(bktr, i_flag, cols, rows, interlace);
+			return;
+		}
 	}
 
 	if ( pf_int->public.type  == METEOR_PIXTYPE_YUV ) {
 		yuv422_prog(bktr, i_flag, cols, rows, interlace);
-		bt848->color_ctl_swap = pixfmt_swap_flags( bktr->pixfmt );
+		OUTB(bktr, BKTR_COLOR_CTL, (INB(bktr, BKTR_COLOR_CTL) & 0xf0)
+		     | pixfmt_swap_flags( bktr->pixfmt ));
 		return;
 	}
 
 	if ( pf_int->public.type  == METEOR_PIXTYPE_YUV_PACKED ) {
 		yuvpack_prog(bktr, i_flag, cols, rows, interlace);
-		bt848->color_ctl_swap = pixfmt_swap_flags( bktr->pixfmt );
+		OUTB(bktr, BKTR_COLOR_CTL, (INB(bktr, BKTR_COLOR_CTL) & 0xf0)
+		     | pixfmt_swap_flags( bktr->pixfmt ));
 		return;
 	}
 
 	if ( pf_int->public.type  == METEOR_PIXTYPE_YUV_12 ) {
 		yuv12_prog(bktr, i_flag, cols, rows, interlace);
-		bt848->color_ctl_swap = pixfmt_swap_flags( bktr->pixfmt );
+		OUTB(bktr, BKTR_COLOR_CTL, (INB(bktr, BKTR_COLOR_CTL) & 0xf0)
+		     | pixfmt_swap_flags( bktr->pixfmt ));
 		return;
 	}
 	return;
@@ -3501,7 +3488,6 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 static void
 start_capture( bktr_ptr_t bktr, unsigned type )
 {
-	bt848_ptr_t		bt848;
 	u_char			i_flag;
 	struct format_params   *fp;
 
@@ -3514,10 +3500,8 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 			pixfmt_table[ bktr->pixfmt ].public.Bpp);
 	}
 
-	bt848 = bktr->base;
-
-	bt848->dstatus = 0;
-	bt848->int_stat = bt848->int_stat;
+	OUTB(bktr, BKTR_DSTATUS,  0);
+	OUTL(bktr, BKTR_INT_STAT, INL(bktr, BKTR_INT_STAT));
 
 	bktr->flags |= type;
 	bktr->flags &= ~METEOR_WANT_MASK;
@@ -3552,7 +3536,7 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 	}
 	
 
-	bt848->risc_strt_add = vtophys(bktr->dma_prog);
+	OUTL(bktr, BKTR_RISC_STRT_ADD, vtophys(bktr->dma_prog));
 
 }
 
@@ -3563,13 +3547,10 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 static void
 set_fps( bktr_ptr_t bktr, u_short fps )
 {
-	bt848_ptr_t	bt848;
 	struct format_params	*fp;
 	int i_flag;
 
 	fp = &format_params[bktr->format_params];
-
-	bt848 = bktr->base;
 
 	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
@@ -3586,16 +3567,16 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 		break;
 	}
 
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-	bt848->int_stat = ALL_INTS_CLEARED;
+	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+	OUTL(bktr, BKTR_INT_STAT, ALL_INTS_CLEARED);
 
 	bktr->fps = fps;
-	bt848->tdec = 0;
+	OUTB(bktr, BKTR_TDEC, 0);
 
 	if (fps < fp->frame_rate)
-		bt848->tdec = i_flag*(fp->frame_rate - fps) & 0x3f;
+		OUTB(bktr, BKTR_TDEC, i_flag*(fp->frame_rate - fps) & 0x3f);
 	else
-		bt848->tdec = 0;
+		OUTB(bktr, BKTR_TDEC, 0);
 	return;
 
 }
@@ -3848,12 +3829,9 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 {
 	u_long		x;
 	u_long		data;
-	bt848_ptr_t	bt848;
-
-	bt848 = bktr->base;
 
 	/* clear status bits */
-	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
+	OUTL(bktr, BKTR_INT_STAT, BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* build the command datum */
 	if (bktr->id == BROOKTREE_848  ||
@@ -3869,16 +3847,16 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	}
 
 	/* write the address and data */
-	bt848->i2c_data_ctl = data;
+	OUTL(bktr, BKTR_I2C_DATA_CTL, data);
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
-		if ( bt848->int_stat & BT848_INT_I2CDONE )
+		if ( INL(bktr, BKTR_INT_STAT) & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !x || !(bt848->int_stat & BT848_INT_RACK) )
+	if ( !x || !(INL(bktr, BKTR_INT_STAT) & BT848_INT_RACK) )
 		return( -1 );
 
 	/* return OK */
@@ -3893,12 +3871,9 @@ int
 i2cRead( bktr_ptr_t bktr, int addr )
 {
 	u_long		x;
-	bt848_ptr_t	bt848;
-
-	bt848 = bktr->base;
 
 	/* clear status bits */
-	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
+	OUTL(bktr, BKTR_INT_STAT, BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* write the READ address */
 	/* The Bt878 and Bt879  differed on the treatment of i2c commands */
@@ -3906,23 +3881,23 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
 	    bktr->id == BROOKTREE_849A) {
-	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, ((addr & 0xff) << 24) | I2C_COMMAND);
 	} else {
-	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND_878;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, ((addr & 0xff) << 24) | I2C_COMMAND_878);
 	}
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
-		if ( bt848->int_stat & BT848_INT_I2CDONE )
+		if ( INL(bktr, BKTR_INT_STAT) & BT848_INT_I2CDONE )
 			break;
 	}
 
 	/* check for ACK */
-	if ( !x || !(bt848->int_stat & BT848_INT_RACK) )
+	if ( !x || !(INL(bktr, BKTR_INT_STAT) & BT848_INT_RACK) )
 		return( -1 );
 
 	/* it was a read */
-	return( (bt848->i2c_data_ctl >> 8) & 0xff );
+	return( (INL(bktr, BKTR_I2C_DATA_CTL) >> 8) & 0xff );
 }
 
 /* The MSP34xx Audio chip require i2c bus writes of up to 5 bytes which the */
@@ -3933,55 +3908,47 @@ i2cRead( bktr_ptr_t bktr, int addr )
 
 #define BITD    40
 static void i2c_start( bktr_ptr_t bktr) {
-        bt848_ptr_t     bt848;
-        bt848 = bktr->base;
-
-        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* release data */
-        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* release clock */
-        bt848->i2c_data_ctl = 2; DELAY( BITD ); /* lower data */
-        bt848->i2c_data_ctl = 0; DELAY( BITD ); /* lower clock */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD ); /* release data */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD ); /* release clock */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 2); DELAY( BITD ); /* lower data */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 0); DELAY( BITD ); /* lower clock */
 }
 
 static void i2c_stop( bktr_ptr_t bktr) {
-        bt848_ptr_t     bt848;
-        bt848 = bktr->base;
-
-        bt848->i2c_data_ctl = 0; DELAY( BITD ); /* lower clock & data */
-        bt848->i2c_data_ctl = 2; DELAY( BITD ); /* release clock */
-        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* release data */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 0); DELAY( BITD ); /* lower clock & data */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 2); DELAY( BITD ); /* release clock */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD ); /* release data */
 }
 
 static int i2c_write_byte( bktr_ptr_t bktr, unsigned char data) {
         int x;
         int status;
-        bt848_ptr_t     bt848;
-        bt848 = bktr->base;
 
         /* write out the byte */
         for ( x = 7; x >= 0; --x ) {
                 if ( data & (1<<x) ) {
-                        bt848->i2c_data_ctl = 1;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
                         DELAY( BITD );          /* assert HI data */
-                        bt848->i2c_data_ctl = 3;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 3);
                         DELAY( BITD );          /* strobe clock */
-                        bt848->i2c_data_ctl = 1;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
                         DELAY( BITD );          /* release clock */
                 }
                 else {
-                        bt848->i2c_data_ctl = 0;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 0);
                         DELAY( BITD );          /* assert LO data */
-                        bt848->i2c_data_ctl = 2;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 2);
                         DELAY( BITD );          /* strobe clock */
-                        bt848->i2c_data_ctl = 0;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 0);
                         DELAY( BITD );          /* release clock */
                 }
         }
 
         /* look for an ACK */
-        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* float data */
-        bt848->i2c_data_ctl = 3; DELAY( BITD ); /* strobe clock */
-        status = bt848->i2c_data_ctl & 1;       /* read the ACK bit */
-        bt848->i2c_data_ctl = 1; DELAY( BITD ); /* release clock */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD ); /* float data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD ); /* strobe clock */
+        status = INL(bktr, BKTR_I2C_DATA_CTL) & 1;       /* read the ACK bit */
+        OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD ); /* release clock */
 
         return( status );
 }
@@ -3990,35 +3957,33 @@ static int i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last ) {
         int x;
         int bit;
         int byte = 0;
-        bt848_ptr_t     bt848;
-        bt848 = bktr->base;
 
         /* read in the byte */
-        bt848->i2c_data_ctl = 1;
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
         DELAY( BITD );                          /* float data */
         for ( x = 7; x >= 0; --x ) {
-                bt848->i2c_data_ctl = 3;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 3);
                 DELAY( BITD );                  /* strobe clock */
-                bit = bt848->i2c_data_ctl & 1;  /* read the data bit */
+                bit = INL(bktr, BKTR_I2C_DATA_CTL) & 1;  /* read the data bit */
                 if ( bit ) byte |= (1<<x);
-                bt848->i2c_data_ctl = 1;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
                 DELAY( BITD );                  /* release clock */
         }
         /* After reading the byte, send an ACK */
         /* (unless that was the last byte, for which we send a NAK */
         if (last) { /* send NAK - same a writing a 1 */
-                bt848->i2c_data_ctl = 1;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
                 DELAY( BITD );                  /* set data bit */
-                bt848->i2c_data_ctl = 3;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 3);
                 DELAY( BITD );                  /* strobe clock */
-                bt848->i2c_data_ctl = 1;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
                 DELAY( BITD );                  /* release clock */
         } else { /* send ACK - same as writing a 0 */
-                bt848->i2c_data_ctl = 0;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 0);
                 DELAY( BITD );                  /* set data bit */
-                bt848->i2c_data_ctl = 2;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 2);
                 DELAY( BITD );                  /* strobe clock */
-                bt848->i2c_data_ctl = 0;
+		OUTL(bktr, BKTR_I2C_DATA_CTL, 0);
                 DELAY( BITD );                  /* release clock */
         }
 
@@ -4134,48 +4099,45 @@ static int
 i2cProbe( bktr_ptr_t bktr, int addr )
 {
 	int		x, status;
-	bt848_ptr_t	bt848;
-
-	bt848 = bktr->base;
 
 	/* the START */
 #if defined( EXTRA_START )
-	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* release data */
-	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* release clock */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD );	/* release data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD );	/* release clock */
 #endif /* EXTRA_START */
-	bt848->i2c_data_ctl = 2; DELAY( BITD );	/* lower data */
-	bt848->i2c_data_ctl = 0; DELAY( BITD );	/* lower clock */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 2); DELAY( BITD );	/* lower data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 0); DELAY( BITD );	/* lower clock */
 
 	/* write addr */
 	for ( x = 7; x >= 0; --x ) {
 		if ( addr & (1<<x) ) {
-			bt848->i2c_data_ctl = 1;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
 			DELAY( BITD );		/* assert HI data */
-			bt848->i2c_data_ctl = 3;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 3);
 			DELAY( BITD );		/* strobe clock */
-			bt848->i2c_data_ctl = 1;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 1);
 			DELAY( BITD );		/* release clock */
 		}
 		else {
-			bt848->i2c_data_ctl = 0;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 0 ;
 			DELAY( BITD );		/* assert LO data */
-			bt848->i2c_data_ctl = 2;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 2);
 			DELAY( BITD );		/* strobe clock */
-			bt848->i2c_data_ctl = 0;
+			OUTL(bktr, BKTR_I2C_DATA_CTL, 0);
 			DELAY( BITD );		/* release clock */
 		}
 	}
 
 	/* look for an ACK */
-	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* float data */
-	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* strobe clock */
-	status = bt848->i2c_data_ctl & 1;	/* read the ACK bit */
-	bt848->i2c_data_ctl = 1; DELAY( BITD );	/* release clock */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD );	/* float data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD );	/* strobe clock */
+	status = INL(bktr, BKTR_I2C_DATA_CTL) & 1;	/* read the ACK bit */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 1); DELAY( BITD );	/* release clock */
 
 	/* the STOP */
-	bt848->i2c_data_ctl = 0; DELAY( BITD );	/* lower clock & data */
-	bt848->i2c_data_ctl = 2; DELAY( BITD );	/* release clock */
-	bt848->i2c_data_ctl = 3; DELAY( BITD );	/* release data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 0); DELAY( BITD );	/* lower clock & data */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 2); DELAY( BITD );	/* release clock */
+	OUTL(bktr, BKTR_I2C_DATA_CTL, 3); DELAY( BITD );	/* release data */
 
 	return( status );
 }

@@ -47,23 +47,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_bktr.h"
+#include "opt_bktr.h"		/* Include any kernel config options */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#ifdef __FreeBSD__
 #include <machine/clock.h>      /* for DELAY */
-
 #include <pci/pcivar.h>
+#endif
 
-#include <machine/ioctl_meteor.h>
+#if (__FreeBSD_version >=300000)
+#include <machine/bus_memio.h>	/* for bus space */
+#include <machine/bus.h>
+#include <sys/bus.h>
+#endif
+
+#ifdef __NetBSD__
+#include <dev/ic/ioctl_meteor.h>	/* NetBSD location for .h files */
+#include <dev/ic/ioctl_bt848.h>
+#else
+#include <machine/ioctl_meteor.h>	/* Traditional location for .h files */
 #include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
+#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
 #include <dev/bktr/bktr_audio.h>
+
+#ifdef __NetBSD__
+static int bootverbose = 1;
+#endif
 
 /* Various defines */
 #define HAUP_REMOTE_INT_WADDR   0x30
@@ -301,9 +317,20 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   /* Tuner, Extern, Intern, Mute, Enabled */
-	   { 0x621000, 0x621000, 0x621000, 0xE21000, 1 },	/* audio MUX values */
+	   { 0x621000, 0x621000, 0x621000, 0xE21000, 1 }, /* audio MUX values */
 	   0xfff000 },				/* GPIO mask */
 
+        {  CARD_TERRATVPLUS,                    /* the card id */
+          "TerraTVplus",                        /* the 'name' */
+           NULL,                                /* the tuner */
+	   0,
+	   0,
+	   0,
+	   0,
+	   0,					/* EEProm type */
+	   0,					/* EEProm size */
+           { 0x20000, 0x00000, 0x30000, 0x40000, 1 }, /* audio MUX values*/
+           0x70000 },                           /* GPIO mask */
 
 };
 
@@ -504,7 +531,6 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 {
 	int		card, i,j, card_found;
 	int		status;
-	bt848_ptr_t	bt848;
 	u_char 		probe_signature[128], *probe_temp;
         int   		any_i2c_devices;
 	u_char 		eeprom[256];
@@ -512,24 +538,22 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	int 		tuner_i2c_address = -1;
 	int 		eeprom_i2c_address = -1;
 
-	bt848 = bktr->base;
-
 	/* Select all GPIO bits as inputs */
-	bt848->gpio_out_en = 0;
+	OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
 	if (bootverbose)
-	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
+	    printf("bktr: GPIO is 0x%08x\n", INL(bktr, BKTR_GPIO_DATA));
 
 #ifdef HAUPPAUGE_MSP_RESET
 	/* Reset the MSP34xx audio chip. This resolves bootup card
 	 * detection problems with old Bt848 based Hauppauge cards with
 	 * MSP34xx stereo audio chips. This must be user enabled because
 	 * at this point the probe function does not know the card type. */
-        bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
-        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+        OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
+        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
         DELAY(2500); /* wait 2.5ms */
-        bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
+        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
         DELAY(2500); /* wait 2.5ms */
-        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
         DELAY(2500); /* wait 2.5ms */
 #endif
 
@@ -581,8 +605,8 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
                 subsystem_vendor_id = (byte_254 << 8) | byte_255;
 
 	        if ( bootverbose ) 
-	            printf("subsytem 0x%04x 0x%04x\n",subsystem_vendor_id,
-		                                  subsystem_id);
+	            printf("subsystem 0x%04x 0x%04x\n",
+			   subsystem_vendor_id, subsystem_id);
 
                 if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
                     bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
@@ -778,7 +802,7 @@ checkTuner:
 
 	switch (card) {
 	case CARD_MIRO:
-	    switch (((bt848->gpio_data >> 10)-1)&7) {
+	    switch (((INL(bktr, BKTR_GPIO_DATA) >> 10)-1)&7) {
 	    case 0: select_tuner( bktr, TEMIC_PAL ); break;
 	    case 1: select_tuner( bktr, PHILIPS_PAL ); break;
 	    case 2: select_tuner( bktr, PHILIPS_NTSC ); break;
@@ -974,6 +998,7 @@ checkTuner:
 			tuner_make, tuner_format);
 	    }
 	    break;
+
 	case CARD_LEADTEK:
 #if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
 	    select_tuner( bktr, PHILIPS_FR1216_PAL );
@@ -1038,12 +1063,12 @@ checkMSP:
 
 #ifndef BKTR_NO_MSP_RESET
 	if (card == CARD_HAUPPAUGE) {
-            bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
-            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+            OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
+            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
             DELAY(2500); /* wait 2.5ms */
-            bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
+            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
             DELAY(2500); /* wait 2.5ms */
-            bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
             DELAY(2500); /* wait 2.5ms */
         }
 #endif
@@ -1080,12 +1105,10 @@ checkMSPEnd:
 
 	if (bktr->card.dpl3518a) {
 		bktr->dpl_addr = DPL3518A_WADDR;
-/*		dpl_read_id( bktr );
+		dpl_read_id( bktr );
 		printf("bktr%d: Detected a DPL%s at 0x%x\n", unit,
 				bktr->dpl_version_string,
 				bktr->dpl_addr);
-*/
-    
 	}
 
 /* Start of Check Remote */
