@@ -29,8 +29,7 @@
 .Dt PMAP_PINIT 9
 .Sh NAME
 .Nm pmap_pinit ,
-.Nm pmap_pinit0 ,
-.Nm pmap_pinit2
+.Nm pmap_pinit0
 .Nd initialize pmap structures
 .Sh SYNOPSIS
 .In sys/param.h
@@ -40,8 +39,6 @@
 .Fn pmap_pinit "pmap_t pmap"
 .Ft void
 .Fn pmap_pinit0 "pmap_t pm"
-.Ft void
-.Fn pmap_pinit2 "pmap_t pmap"
 .Sh DESCRIPTION
 The
 .Fn pmap_pinit
@@ -56,23 +53,6 @@ The
 function initializes the physical map
 .Fa pm ,
 associated with process 0, the first process created in the system.
-.Pp
-The
-.Fn pmap_pinit2
-function wires in kernel global address entries for the physical map
-.Fa pmap ,
-which must be associated with a user process.
-It is called during process creation.
-.Pp
-To avoid a race condition between
-.Fa pmap
-intialization and
-.Fn pmap_growkernel ,
-.Fn pmap_pinit2
-should be called after the vmspace
-is attached to the process but before this
-.Fa pmap
-is activated.
 .Sh IMPLEMENTATION NOTES
 The
 .Fn pmap_pinit2
