@@ -391,7 +391,6 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 u_short *proto)
 {
   static int gfrags;
-  struct ip *pip, *piip;
   int ret, len, nfrags;
   struct mbuf **last;
   char *fptr;
@@ -401,20 +400,11 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
 
   log_Printf(LogDEBUG, "nat_LayerPull: PROTO_IP -> PROTO_IP\n");
   m_settype(bp, MB_NATIN);
-  bp = m_pullup(bp);
-  pip = (struct ip *)MBUF_CTOP(bp);
-  piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
-
-  if (pip->ip_p == IPPROTO_IGMP ||
-      (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
-    return bp;
-
   /* Ensure there's a bit of extra buffer for the NAT code... */
   bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
   ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
-  pip = (struct ip *)MBUF_CTOP(bp);
 
-  bp->m_len = ntohs(pip->ip_len);
+  bp->m_len = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
   if (bp->m_len > MAX_MRU) {
     log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%lu)\n",
                (unsigned long)bp->m_len);
@@ -457,10 +447,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     case PKT_ALIAS_IGNORED:
       if (log_IsKept(LogTCPIP)) {
         log_Printf(LogTCPIP, "NAT engine ignored data:\n");
-        PacketCheck(bundle, (char *)pip, ntohs(pip->ip_len), NULL);
+        PacketCheck(bundle, MBUF_CTOP(bp), bp->m_len, NULL);
       }
-      m_freem(bp);
-      bp = NULL;
       break;
 
     default:
