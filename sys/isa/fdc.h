@@ -47,7 +47,6 @@ enum fdc_type
 struct fdc_data
 {
 	int	fdcu;		/* our unit number */
-	int	baseport;
 	int	dmachan;
 	int	flags;
 #define FDC_ATTACHED	0x01
@@ -60,6 +59,7 @@ struct fdc_data
 #define FDC_PCMCIA	0x40
 #define FDC_UNLOADED	0x80
 #endif
+#define FDC_ISPNP	0x100
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;
@@ -70,8 +70,13 @@ struct fdc_data
 	int	fdc_errs;	/* number of logged errors */
 	struct	buf_queue_head head;
 	struct	buf *bp;	/* active buffer */
-	struct	resource *res_ioport, *res_irq, *res_drq;
-	int	rid_ioport, rid_irq, rid_drq;
+	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
+	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
+	int	port_off;
+	bus_space_tag_t portt;
+	bus_space_handle_t porth;
+	bus_space_tag_t ctlt;
+	bus_space_handle_t ctlh;
 	void	*fdc_intr;
 	struct	device *fdc_dev;
 };
