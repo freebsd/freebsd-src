@@ -33,7 +33,7 @@ ATJOBDIR="/var/at/jobs"
 CRONJOBDIR="/var/cron/tabs"
 MAILSPOOL="/var/mail"
 SIGKILL="-KILL"
-TEMPDIRS="/tmp /var/tmp /var/tmp/vi.recover"
+TEMPDIRS="/tmp /var/tmp"
 THISCMD=`/usr/bin/basename $0`
 
 # err msg
@@ -57,12 +57,8 @@ rm_files() {
 			continue
 		fi
 		echo -n "Removing files owned by ($login) in $_dir:"
-		filecount=0
-		_ownedfiles=`find 2>/dev/null $_dir -maxdepth 1 -user $login -print`
-		for _file in $_ownedfiles ; do
-			rm -fd $_file
-			filecount=`expr $filecount + 1`
-		done
+		filecount=`find 2>/dev/null "$_dir" -user "$login" -delete -print | \
+		    wc -l | sed 's/ *//'`
 		echo " $filecount removed."
 	done
 }
