@@ -496,8 +496,9 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * Now search what's left of the subtree for any cloned
 		 * routes which might have been formed from this node.
 		 */
-		if ((rt->rt_flags & RTF_PRCLONING) && netmask) {
-			rnh->rnh_walktree_from(rnh, dst, netmask,
+		if ((rt->rt_flags & (RTF_CLONING | RTF_PRCLONING)) &&
+		    rt_mask(rt)) {
+			rnh->rnh_walktree_from(rnh, dst, rt_mask(rt),
 					       rt_fixdelete, rt);
 		}
 
@@ -654,7 +655,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 */
 		if (req == RTM_RESOLVE) {
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
-			if ((*ret_nrt)->rt_flags & RTF_PRCLONING) {
+			if ((*ret_nrt)->rt_flags & (RTF_CLONING | RTF_PRCLONING)) {
 				rt->rt_parent = (*ret_nrt);
 				(*ret_nrt)->rt_refcnt++;
 			}
