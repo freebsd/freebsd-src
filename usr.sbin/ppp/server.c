@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.1 1998/02/02 19:32:15 brian Exp $
+ *	$Id: server.c,v 1.16.2.2 1998/02/09 19:24:02 brian Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ server_IsSet(struct descriptor *d, fd_set *fdset)
 #define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
 static void
-server_Read(struct descriptor *d, struct bundle *bundle)
+server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct server *s = descriptor2server(d);
   char hisaddr[ADDRSZ];
@@ -130,7 +130,7 @@ server_Read(struct descriptor *d, struct bundle *bundle)
 }
 
 static void
-server_Write(struct descriptor *d)
+server_Write(struct descriptor *d, const fd_set *fdset)
 {
   /* We never want to write here ! */
   LogPrintf(LogERROR, "server_Write: Internal error: Bad call !\n");

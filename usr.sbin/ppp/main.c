@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.16 1998/02/09 19:21:01 brian Exp $
+ * $Id: main.c,v 1.121.2.17 1998/02/09 19:24:00 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -933,7 +933,7 @@ DoLoop(struct bundle *bundle)
     }
 
     if (descriptor_IsSet(&server.desc, &rfds))
-      descriptor_Read(&server.desc, bundle);
+      descriptor_Read(&server.desc, bundle, &rfds);
 
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
@@ -941,13 +941,13 @@ DoLoop(struct bundle *bundle)
 
     if (descriptor_IsSet(&bundle->physical->desc, &wfds)) {
       /* ready to write into modem */
-      descriptor_Write(&bundle->physical->desc);
+      descriptor_Write(&bundle->physical->desc, &wfds);
       if (!link_IsActive(physical2link(bundle->physical)))
         dial_up = 1;
     }
 
     if (descriptor_IsSet(&bundle->physical->desc, &rfds))
-      descriptor_Read(&bundle->physical->desc, bundle);
+      descriptor_Read(&bundle->physical->desc, bundle, &rfds);
 
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
       /* something to read from tun */

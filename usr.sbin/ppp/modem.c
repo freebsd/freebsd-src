@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.11 1998/02/08 01:31:27 brian Exp $
+ * $Id: modem.c,v 1.77.2.12 1998/02/09 19:21:03 brian Exp $
  *
  *  TODO:
  */
@@ -80,7 +80,8 @@ static void modem_StartOutput(struct link *);
 static int modem_IsActive(struct link *);
 static void modem_Hangup(struct link *, int);
 static void modem_Destroy(struct link *);
-static void modem_DescriptorRead(struct descriptor *, struct bundle *);
+static void modem_DescriptorRead(struct descriptor *, struct bundle *,
+                                 const fd_set *);
 
 struct physical *
 modem_Create(const char *name)
@@ -986,7 +987,8 @@ int mode;
 #endif
 
 static void
-modem_DescriptorRead(struct descriptor *d, struct bundle *bundle)
+modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
+                     const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
   u_char rbuff[MAX_MRU], *cp;
