@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		ext_srvtab
-MAN8=		${KRB4DIR}/man/ext_srvtab.8
+MAN=		${KRB4DIR}/man/ext_srvtab.8
 SRCS=		ext_srvtab.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

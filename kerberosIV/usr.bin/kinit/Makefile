@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kinit
-MAN1=		${KRB4DIR}/man/kinit.1
+MAN=		${KRB4DIR}/man/kinit.1
 SRCS=		kinit.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

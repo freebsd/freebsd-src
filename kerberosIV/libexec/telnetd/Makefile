@@ -4,7 +4,7 @@
 # telnet implementations.
 
 PROG=		telnetd
-MAN8=		telnetd.8
+MAN=		telnetd.8
 
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
