@@ -35,6 +35,11 @@ miidevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/devlist2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule						   \
 	clean		"miidevs.h"
+emu10k1-alsa%diked.h		optional pcm pci			   \
+	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
+	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"emu10k1-alsa%diked.h"
 kern/device_if.m		standard
 kern/bus_if.m			standard
 kern/clock_if.m			optional genclock
@@ -719,8 +724,7 @@ dev/sound/pci/csa.c	optional pcm pci
 dev/sound/pci/csamidi.c	optional midi csa
 dev/sound/pci/csapcm.c	optional pcm pci
 dev/sound/pci/ds1.c	optional pcm pci
-dev/sound/pci/emu10k1.c	optional pcm pci dependency "emu10k1-alsa%diked.h"  \
-			clean "emu10k1-alsa%diked.h"
+dev/sound/pci/emu10k1.c	optional pcm pci dependency "emu10k1-alsa%diked.h"
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/fm801.c	optional pcm pci
 dev/sound/pci/ich.c	optional pcm pci
