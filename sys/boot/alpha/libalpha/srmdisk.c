@@ -279,9 +279,10 @@ bd_open(struct open_file *f, ...)
 	lp = (struct disklabel *) (od->od_buf + LABELOFFSET);
 	if (lp->d_magic != DISKMAGIC) {
 	    D(printf("bd_open: no disklabel\n"));
+#if 0
 	    error = ENOENT;
 	    goto out;
-
+#endif
 	} else if (dev->d_kind.srmdisk.partition >= lp->d_npartitions) {
 
 	    /*
