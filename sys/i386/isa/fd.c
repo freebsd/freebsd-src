@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.37 1994/10/23 21:27:12 wollman Exp $
+ *	$Id: fd.c,v 1.38 1994/10/27 20:44:46 jkh Exp $
  *
  */
 
@@ -80,80 +80,25 @@
 
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
-static int fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
-
-/*
- * Templates for the kern_devconf structures used when we attach.
- */
-static struct kern_devconf kdc_fd[NFD] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fd", 0, { MDDT_DISK, 0 },
-	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN,
-	0,			/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
-	"floppy disk"
-} };
-
-struct kern_devconf kdc_fdc[NFDC] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fdc", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
-	0,			/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
-	"floppy disk/tape controller"
-} };
-
-static inline void
-fd_registerdev(int ctlr, int unit)
-{
-	if(unit != 0)
-		kdc_fd[unit] = kdc_fd[0];
-
-	kdc_fd[unit].kdc_unit = unit;
-	kdc_fd[unit].kdc_parent = &kdc_fdc[ctlr];
-	kdc_fd[unit].kdc_parentdata = 0;
-	dev_attach(&kdc_fd[unit]);
-}
-
-static inline void
-fdc_registerdev(struct isa_device *dvp)
-{
-	int unit = dvp->id_unit;
-
-	if(unit != 0)
-		kdc_fdc[unit] = kdc_fdc[0];
-
-	kdc_fdc[unit].kdc_unit = unit;
-	kdc_fdc[unit].kdc_parent = &kdc_isa0;
-	kdc_fdc[unit].kdc_parentdata = dvp;
-	dev_attach(&kdc_fdc[unit]);
-}
-
-static int
-fdc_goaway(struct kern_devconf *kdc, int force)
-{
-	if(force) {
-		dev_detach(kdc);
-		return 0;
-	} else {
-		return EBUSY;	/* XXX fix */
-	}
-}
-
-static int
-fd_goaway(struct kern_devconf *kdc, int force)
-{
-	dev_detach(kdc);
-	return 0;
-}
+static int fd_externalize(struct proc *, struct kern_devconf *,
+			  void *, size_t);
 
 #define RAW_PART 2
 #define b_cylin b_resid
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
+
+/*
+ * Since several people happen to have problems with their drives,
+ * it might be a good idea to allow a config file override for the
+ * floppy seek settle time; the value is in 1s / FDSEEKWAIT;
+ * Preferrable values are powers of two, since the compiler can
+ * replace the divide operations by simple shifts then!
+ */
+#ifndef FDSEEKWAIT
+#  define FDSEEKWAIT 16		/* has been 32 in FreeBSD 1.1.5.1 */
+#endif
 
 /*
  * this biotab field doubles as a field for the physical unit number
@@ -323,17 +268,87 @@ int	fd_debug = 0;
 
 struct isa_device *fdcdevs[NFDC];
 
+
+/*
+ * Templates for the kern_devconf structures used when we attach.
+ */
+static struct kern_devconf kdc_fd[NFD] = { {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"fd", 0, { MDDT_DISK, 0 },
+	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"floppy disk"
+} };
+
+struct kern_devconf kdc_fdc[NFDC] = { {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"fdc", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"floppy disk/tape controller"
+} };
+
+static inline void
+fd_registerdev(int ctlr, int unit)
+{
+	if(unit != 0)
+		kdc_fd[unit] = kdc_fd[0];
+
+	kdc_fd[unit].kdc_unit = unit;
+	kdc_fd[unit].kdc_parent = &kdc_fdc[ctlr];
+	kdc_fd[unit].kdc_parentdata = 0;
+	dev_attach(&kdc_fd[unit]);
+}
+
+static inline void
+fdc_registerdev(struct isa_device *dvp)
+{
+	int unit = dvp->id_unit;
+
+	if(unit != 0)
+		kdc_fdc[unit] = kdc_fdc[0];
+
+	kdc_fdc[unit].kdc_unit = unit;
+	kdc_fdc[unit].kdc_parent = &kdc_isa0;
+	kdc_fdc[unit].kdc_parentdata = dvp;
+	dev_attach(&kdc_fdc[unit]);
+}
+
+static int
+fdc_goaway(struct kern_devconf *kdc, int force)
+{
+	if(force) {
+		dev_detach(kdc);
+		return 0;
+	} else {
+		return EBUSY;	/* XXX fix */
+	}
+}
+
+static int
+fd_goaway(struct kern_devconf *kdc, int force)
+{
+	dev_detach(kdc);
+	return 0;
+}
+
 /*
  * Provide hw.devconf information.
  */
 static int
-fd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+fd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
+	       size_t len)
 {
 	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, userp, &len);
 }
 
 static int
-fdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+fdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
+		size_t len)
 {
 	return isa_externalize(fdcdevs[kdc->kdc_unit], userp, &len);
 }
@@ -529,10 +544,30 @@ fdsize(dev)
 	return(0);
 }
 
+
 /****************************************************************************/
 /*                            motor control stuff                           */
-/*		remember to not deselect the drive we're working on         */
 /****************************************************************************/
+
+static void
+fdc_gotobed(void *arg1)
+{
+	int fdcu = (int)arg1;
+	int fdout = fdc_data[fdcu].fdout;
+
+	if((fdout & FDO_FRST) == 0)
+		/* huh? */
+		return;
+	
+	/* reset controller */
+	fdout &= ~ (FDO_FRST|FDO_FDMAEN);
+
+	outb(fdc_data[fdcu].baseport+FDOUT, fdout);
+	fdc_data[fdcu].fdout = fdout;
+	TRACE1("[0x%x->FDOUT]", fdout);
+}
+	
+
 static void
 set_motor(fdcu, fdsu, turnon)
 	fdcu_t fdcu;
@@ -541,22 +576,31 @@ set_motor(fdcu, fdsu, turnon)
 {
 	int fdout = fdc_data[fdcu].fdout;
 	int needspecify = 0;
+	int x;
 	
+	/* if a timeout is almost due, avoid killing the FDC */
+	x = splsoftclock();
 	if(turnon) {
+		if((fdout & (FDO_FRST|FDO_FDMAEN)))
+			untimeout(fdc_gotobed, (void *)fdcu);
 		fdout &= ~FDO_FDSEL;		
 		fdout |= (FDO_MOEN0 << fdsu) + fdsu;
 	} else
 		fdout &= ~(FDO_MOEN0 << fdsu);
+	splx(x);
 
-	if(!turnon
-	   && (fdout & (FDO_MOEN0+FDO_MOEN1+FDO_MOEN2+FDO_MOEN3)) == 0)
-		/* gonna turn off the last drive, put FDC to bed */
-		fdout &= ~ (FDO_FRST|FDO_FDMAEN);
-	else {
+	if(turnon) {
 		/* make sure controller is selected and specified */
 		if((fdout & (FDO_FRST|FDO_FDMAEN)) == 0)
 			needspecify = 1;
 		fdout |= (FDO_FRST|FDO_FDMAEN);
+	} else {
+		if((fdout & (FDO_MOEN0+FDO_MOEN1+FDO_MOEN2+FDO_MOEN3)) == 0)
+			/*
+			 * gonna turn off the last drive, schedule a timeout
+			 * to put the FDC to bed later (just for sanity)
+			 */
+			timeout(fdc_gotobed, (void *)fdcu, hz * 60);
 	}
 
 	outb(fdc_data[fdcu].baseport+FDOUT, fdout);
@@ -572,10 +616,10 @@ set_motor(fdcu, fdsu, turnon)
 		out_fdc(fdcu, NE7CMD_SPECIFY);
 		out_fdc(fdcu, NE7_SPEC_1(3, 240));
 		out_fdc(fdcu, NE7_SPEC_2(2, 0));
+		fdc_data[fdcu].state = STARTRECAL; /* need to recalib now */
 	}
 }
 
-/* ARGSUSED */
 static void
 fd_turnoff(void *arg1)
 {
@@ -589,7 +633,6 @@ fd_turnoff(void *arg1)
 	splx(s);
 }
 
-/* ARGSUSED */
 static void
 fd_motor_on(void *arg1)
 {
@@ -615,7 +658,7 @@ fd_turnon(fdu)
 	{
 		fd->flags |= (FD_MOTOR + FD_MOTOR_WAIT);
 		set_motor(fd->fdc->fdcu, fd->fdsu, TURNON);
-		timeout(fd_motor_on, (caddr_t)fdu, hz); /* in 1 sec its ok */
+		timeout(fd_motor_on, (void *)fdu, hz); /* in 1 sec its ok */
 	}
 }
 
@@ -857,7 +900,7 @@ fdstrategy(struct buf *bp)
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
-	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
+	untimeout(fd_turnoff, (void *)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
 	return;
@@ -889,7 +932,6 @@ fdstart(fdcu)
 	splx(s);
 }
 
-/* ARGSUSED */
 static void
 fd_timeout(void *arg1)
 {
@@ -941,7 +983,6 @@ fd_timeout(void *arg1)
 }
 
 /* just ensure it has the right spl */
-/* ARGSUSED */
 static void
 fd_pseudointr(void *arg1)
 {
@@ -1023,8 +1064,8 @@ fdstate(fdcu, fdc)
 	TRACE1("fd%d", fdu);
 	TRACE1("[%s]", fdstates[fdc->state]);
 	TRACE1("(0x%x)", fd->flags);
-	untimeout(fd_turnoff, (caddr_t)fdu);
-	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
+	untimeout(fd_turnoff, (void *)fdu);
+	timeout(fd_turnoff, (void *)fdu, 4 * hz);
 	switch (fdc->state)
 	{
 	case DEVIDLE:
@@ -1055,9 +1096,9 @@ fdstate(fdcu, fdc)
 		}
 		else	/* at least make sure we are selected */
 		{
+			fdc->state = DOSEEK;
 			set_motor(fdcu, fd->fdsu, TURNON);
 		}
-		fdc->state = DOSEEK;
 		break;
 	case DOSEEK:
 		if (bp->b_cylin == fd->track)
@@ -1081,7 +1122,7 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case SEEKWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 32);
+		timeout(fd_pseudointr, (void *)fdcu, hz / FDSEEKWAIT);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
@@ -1121,7 +1162,7 @@ fdstate(fdcu, fdc)
 			{
 				printf(
 		"fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
-				       fdu, descyl, cyl, st0, NE7_ST0BITS);
+				       fdu, descyl, cyl, st0);
 				return(retrier(fdcu));
 			}
 		}
@@ -1207,10 +1248,10 @@ fdstate(fdcu, fdc)
 			out_fdc(fdcu, fd->ft->datalen);  /* data length */
 		}
 		fdc->state = IOCOMPLETE;
-		timeout(fd_timeout, (caddr_t)fdcu, hz);
+		timeout(fd_timeout, (void *)fdcu, hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
-		untimeout(fd_timeout, (caddr_t)fdcu);
+		untimeout(fd_timeout, (void *)fdcu);
 		for(i=0;i<7;i++)
 		{
 			fdc->status[i] = in_fdc(fdcu);
@@ -1283,7 +1324,7 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 32);
+		timeout(fd_pseudointr, (void *)fdcu, hz / FDSEEKWAIT);
 		fdc->state = RECALCOMPLETE;
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
@@ -1322,12 +1363,7 @@ fdstate(fdcu, fdc)
 		{
 			return(0); /* time's not up yet */
 		}
-		/*
-		 * since the controller was off, it has lost its
-		 * idea about the current track it were; thus,
-		 * recalibrate the bastard
-		 */
-		fdc->state = STARTRECAL;
+		fdc->state = DOSEEK;
 		return(1);	/* will return immediatly */
 	default:
 		printf("Unexpected FD int->");
@@ -1452,7 +1488,7 @@ fdformat(dev, finfo, p)
 		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
 
 	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->b_un.b_addr = (caddr_t)finfo;
+	bp->b_un.b_addr = (void *)finfo;
 	
 	/* now do the format */
 	fdstrategy(bp);
@@ -1461,7 +1497,7 @@ fdformat(dev, finfo, p)
 	s = splbio();
 	while(!(bp->b_flags & B_DONE))
 	{
-		rv = tsleep((caddr_t)bp, PRIBIO, "fdform", 20 * hz);
+		rv = tsleep((void *)bp, PRIBIO, "fdform", 20 * hz);
 		if(rv == EWOULDBLOCK)
 			break;
 	}
@@ -1585,6 +1621,15 @@ fdioctl(dev, cmd, addr, flag, p)
 	case FD_SOPTS:			/* set drive options */
 		fd_data[FDUNIT(minor(dev))].options = *(int *)addr;
 		break;
+
+#ifdef DEBUG
+	case FD_DEBUG:
+		/* this is considered harmful; only allow for superuser */
+		if(suser(p->p_ucred, &p->p_acflag) != 0)
+			return EPERM;
+		fd_debug = *(int *)addr;
+		break;
+#endif
 
 	default:
 		error = ENOTTY;
