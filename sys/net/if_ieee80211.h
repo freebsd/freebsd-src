@@ -92,7 +92,7 @@ typedef u_int8_t *	ieee80211_mgt_beacon_t;
 #define	IEEE80211_CAPINFO_CF_POLLABLE		0x04
 #define	IEEE80211_CAPINFO_CF_POLLREQ		0x08
 #define	IEEE80211_CAPINFO_PRIVACY		0x10
-
+#define	IEEE80211_CAPINFO_BITS	"\20\01ESS\02IBSS\03POLLABLE\04POLLREQ\5PRIVACY"
 
 /*
  * Management information elements
