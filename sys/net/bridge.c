@@ -240,6 +240,7 @@ SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, fw_count, CTLFLAG_RW,
 
 static int bdginit(void);
 static void parse_bdg_cfg(void);
+static struct mbuf *bdg_forward(struct mbuf *, struct ifnet *);
 
 static int bdg_ipf;		/* IPFilter enabled in bridge */
 SYSCTL_INT(_net_link_ether_bridge, OID_AUTO, ipf, CTLFLAG_RW,
@@ -760,13 +761,16 @@ bridge_dst_lookup(struct ether_header *eh, struct cluster_softc *c)
  * to fetch more of the packet, or simply drop it completely.
  */
 
-static struct ifnet *
-bridge_in(struct ifnet *ifp, struct ether_header *eh)
+static struct mbuf *
+bridge_in(struct ifnet *ifp, struct mbuf *m)
 {
-    int index;
+    struct ether_header *eh;
     struct ifnet *dst, *old;
     bdg_hash_table *bt;			/* location in hash table */
     int dropit = BDG_MUTED(ifp);
+    int index;
+
+    eh = mtod(m, struct ether_header *);
 
     /*
      * hash the source address
@@ -856,7 +860,28 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	(dst <= BDG_FORWARD) ? bdg_dst_names[(uintptr_t)dst] :
 		dst->if_xname));
 
-    return dst;
+    switch ((uintptr_t)dst) {
+    case (uintptr_t)BDG_DROP:
+	m_freem(m);
+	return (NULL);
+    case (uintptr_t)BDG_LOCAL:
+	return (m);
+    case (uintptr_t)BDG_BCAST:
+    case (uintptr_t)BDG_MCAST:
+        m = bdg_forward(m, dst);
+#ifdef	DIAGNOSTIC	/* glebius: am I right here? */
+	if (m == NULL) {
+		if_printf(ifp, "bridge dropped %s packet\n",
+		     dst == BDG_BCAST ? "broadcast" : "multicast");
+		return (NULL);
+	}
+#endif
+	return (m);
+    default:
+        m = bdg_forward(m, dst);
+    }
+
+    return (NULL); /* not reached */
 }
 
 /*
