@@ -12,7 +12,8 @@ cat krb.?? | tar --unlink -xpzf - -C /
 echo -n "Do you want to install the DES sources (y/n)? "
 read ans
 if [ "$ans" = "y" ]; then
-	cat sebones.?? | tar --unlink -xpzf - -C /usr/src
+	cat scrypto.?? | tar --unlink -xpzf - -C /usr/src
+	cat skerbero.?? | tar --unlink -xpzf - -C /usr/src
 	cat ssecure.?? | tar --unlink -xpzf - -C /usr/src
 fi
 exit 0
