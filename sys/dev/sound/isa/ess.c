@@ -82,7 +82,7 @@ struct ess_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, hwch, stopping, run;
-	u_int32_t fmt, spd;
+	u_int32_t fmt, spd, blksz;
 };
 
 struct ess_info {
@@ -358,7 +358,7 @@ ess_intr(void *arg)
 			printf("ess: play intr while not running\n");
 		if (sc->pch.stopping) {
 			sc->pch.run = 0;
-			buf_isadma(sc->pch.buffer, PCMTRIG_STOP);
+			sndbuf_isadma(sc->pch.buffer, PCMTRIG_STOP);
 			sc->pch.stopping = 0;
 			if (sc->pch.hwch == 1)
 				ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x01);
@@ -373,7 +373,7 @@ ess_intr(void *arg)
 			printf("ess: record intr while not running\n");
 		if (sc->rch.stopping) {
 			sc->rch.run = 0;
-			buf_isadma(sc->rch.buffer, PCMTRIG_STOP);
+			sndbuf_isadma(sc->rch.buffer, PCMTRIG_STOP);
 			sc->rch.stopping = 0;
 			/* XXX: will this stop audio2? */
 			ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x01);
@@ -509,7 +509,7 @@ ess_start(struct ess_chinfo *ch)
 	struct ess_info *sc = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 
-	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->buffer->dl);
+	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->blksz);
 	ch->stopping = 0;
 	if (ch->hwch == 1)
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) | 0x01);
@@ -547,14 +547,13 @@ esschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = ESS_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ESS_BUFFSIZE) == -1)
 		return NULL;
 	ch->dir = dir;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))
 		ch->hwch = 2;
-	ch->buffer->chan = rman_get_start((ch->hwch == 1)? sc->drq1 : sc->drq2);
+	sndbuf_isadmasetup(ch->buffer, (ch->hwch == 1)? sc->drq1 : sc->drq2);
 	return ch;
 }
 
@@ -584,7 +583,10 @@ esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 esschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct ess_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -598,7 +600,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 	switch (go) {
 	case PCMTRIG_START:
 		ch->run = 1;
-		buf_isadma(ch->buffer, go);
+		sndbuf_isadma(ch->buffer, go);
 		ess_start(ch);
 		break;
 
@@ -616,7 +618,7 @@ esschan_getptr(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *

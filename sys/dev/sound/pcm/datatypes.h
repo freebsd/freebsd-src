@@ -57,7 +57,7 @@ struct _snd_mixer {
 
 struct _snd_dbuf {
         u_int8_t *buf;
-        int bufsize;
+        int bufsize, maxsize;
         volatile int dl; /* transfer size */
         volatile int rp, fp; /* pointers to the ready and free area */
 	volatile int rl, fl; /* lenght of ready and free areas. */
@@ -65,12 +65,15 @@ struct _snd_dbuf {
 	volatile u_int32_t int_count, prev_int_count;
 	volatile u_int32_t total, prev_total;
 	int chan, dir;       /* dma channel */
-	int fmt, blksz, blkcnt;
+	int fmt, spd, bps;
+	int blksz, blkcnt;
 	int underflow, overrun;
+	u_int32_t flags;
 	bus_dmamap_t dmamap;
-	bus_dma_tag_t parent_dmat;
+	bus_dma_tag_t dmatag;
 	struct selinfo sel;
 };
+#define	SNDBUF_F_ISADMA		0x00000001
 
 /*****************************************************************************/
 

@@ -80,7 +80,7 @@ struct ess_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, hwch, stopping;
-	u_int32_t fmt, spd;
+	u_int32_t fmt, spd, blksz;
 };
 
 struct ess_info {
@@ -477,7 +477,7 @@ ess_start(struct ess_chinfo *ch)
 	struct ess_info *sc = ch->parent;
 
 	DEB(printf("ess_start\n"););
-	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->buffer->dl);
+	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->blksz);
 	ch->stopping = 0;
 	if (ch->hwch == 1) {
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) | 0x01);
@@ -519,9 +519,8 @@ esschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = ESS_BUFFSIZE;
 	ch->dir = dir;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ESS_BUFFSIZE) == -1)
 		return NULL;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))
@@ -555,7 +554,10 @@ esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 esschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct ess_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -570,7 +572,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 
 	switch (go) {
 	case PCMTRIG_START:
-		ess_dmasetup(sc, ch->hwch, vtophys(ch->buffer->buf), ch->buffer->bufsize, ch->dir);
+		ess_dmasetup(sc, ch->hwch, vtophys(sndbuf_getbuf(ch->buffer)), sndbuf_getsize(ch->buffer), ch->dir);
 		ess_dmatrigger(sc, ch->hwch, 1);
 		ess_start(ch);
 		break;
@@ -780,7 +782,7 @@ ess_dmapos(struct ess_info *sc, int ch)
 					i, p);
 			i = port_rd(sc->vc, 0x4, 2) + 1;
 			p = port_rd(sc->vc, 0x4, 2) + 1;
-		} while ((p > sc->dmasz[ch -1 ] || i < p || (p - i) > 0x8) && j++ < 1000);
+		} while ((p > sc->dmasz[ch - 1] || i < p || (p - i) > 0x8) && j++ < 1000);
 		ess_dmatrigger(sc, ch, 1);
 	}
 	else if (ch == 2)

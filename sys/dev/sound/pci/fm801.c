@@ -331,9 +331,8 @@ fm801ch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = fm801;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = FM801_BUFFSIZE;
 	ch->dir = dir;
-	if( chn_allocbuf(ch->buffer, fm801->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, fm801->parent_dmat, FM801_BUFFSIZE) == -1) return NULL;
 	return (void *)ch;
 }
 
@@ -435,7 +434,7 @@ fm801ch_trigger(kobj_t obj, void *data, int go)
 {
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
-	u_int32_t baseaddr = vtophys(ch->buffer->buf);
+	u_int32_t baseaddr = vtophys(sndbuf_getbuf(ch->buffer));
 	snd_dbuf *b = ch->buffer;
 	u_int32_t k1;
 

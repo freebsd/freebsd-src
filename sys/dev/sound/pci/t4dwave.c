@@ -52,7 +52,7 @@ struct tr_chinfo {
 	u_int32_t eso, delta;
 	u_int32_t rvol, cvol;
 	u_int32_t gvsel, pan, vol, ctrl;
-	int index, ss;
+	int index;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	struct tr_info *parent;
@@ -391,10 +391,9 @@ trchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		ch->index = -1;
 	}
 	ch->buffer = b;
-	ch->buffer->bufsize = TR_BUFFSIZE;
 	ch->parent = tr;
 	ch->channel = c;
-	if (chn_allocbuf(ch->buffer, tr->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1) return NULL;
 	else return ch;
 }
 
@@ -405,9 +404,9 @@ trchan_setdir(kobj_t obj, void *data, int dir)
 	struct tr_info *tr = ch->parent;
 	if (dir == PCMDIR_PLAY && ch->index >= 0) {
 		ch->fmc = ch->fms = ch->ec = ch->alpha = 0;
-		ch->lba = vtophys(ch->buffer->buf);
+		ch->lba = vtophys(sndbuf_getbuf(ch->buffer));
 		ch->cso = 0;
-		ch->eso = ch->buffer->bufsize - 1;
+		ch->eso = sndbuf_getsize(ch->buffer) - 1;
 		ch->rvol = ch->cvol = 0;
 		ch->gvsel = 0;
 		ch->pan = 0;
@@ -423,10 +422,10 @@ trchan_setdir(kobj_t obj, void *data, int dir)
 		i = tr_rd(tr, TR_REG_DMAR11, 1) & 0x03;
 		tr_wr(tr, TR_REG_DMAR11, i | 0x54, 1);
 		/* set up base address */
-	   	tr_wr(tr, TR_REG_DMAR0, vtophys(ch->buffer->buf), 4);
+	   	tr_wr(tr, TR_REG_DMAR0, vtophys(sndbuf_getbuf(ch->buffer)), 4);
 		/* set up buffer size */
 		i = tr_rd(tr, TR_REG_DMAR4, 4) & ~0x00ffffff;
-		tr_wr(tr, TR_REG_DMAR4, i | (ch->buffer->bufsize - 1), 4);
+		tr_wr(tr, TR_REG_DMAR4, i | (sndbuf_getsize(ch->buffer) - 1), 4);
 	} else return -1;
 	return 0;
 }
@@ -438,12 +437,9 @@ trchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	struct tr_info *tr = ch->parent;
 	u_int32_t bits = tr_fmttobits(format);
 
-	ch->ss = 1;
-	ch->ss <<= (format & AFMT_STEREO)? 1 : 0;
-	ch->ss <<= (format & AFMT_16BIT)? 1 : 0;
 	if (ch->index >= 0) {
 		tr_rdch(tr, ch->index, ch);
-		ch->eso = (ch->buffer->bufsize / ch->ss) - 1;
+		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getbps(ch->buffer)) - 1;
 		ch->ctrl = bits | 0x01;
    		tr_wrch(tr, ch->index, ch);
 	} else {
@@ -482,7 +478,7 @@ static int
 trchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
-	return ch->buffer->bufsize / 2;
+	return sndbuf_getsize(ch->buffer) / 2;
 }
 
 static int
@@ -516,8 +512,8 @@ trchan_getptr(kobj_t obj, void *data)
 
 	if (ch->index >= 0) {
 		tr_rdch(tr, ch->index, ch);
-		return ch->cso * ch->ss;
-	} else return tr_rd(tr, TR_REG_DMAR0, 4) - vtophys(ch->buffer->buf);
+		return ch->cso * sndbuf_getbps(ch->buffer);
+	} else return tr_rd(tr, TR_REG_DMAR0, 4) - vtophys(sndbuf_getbuf(ch->buffer));
 }
 
 static pcmchan_caps *

@@ -84,7 +84,7 @@ struct sb_info {
 
     	int bd_id;
     	u_long bd_flags;       /* board-specific flags */
-	int dl, dh, prio, prio16;
+	int prio, prio16;
     	struct sb_chinfo pch, rch;
 };
 
@@ -370,15 +370,15 @@ sb16_release_resources(struct sb_info *sb, device_t dev)
  		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
-    	if (sb->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq1);
-		sb->drq1 = 0;
-    	}
-    	if (sb->drq2) {
+    	if (sb->drq2 && (sb->drq2 != sb->drq2)) {
 		bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
 		sb->drq2 = 0;
     	}
-    	if (sb->io_base) {
+     	if (sb->drq1) {
+		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq1);
+		sb->drq1 = 0;
+    	}
+   	if (sb->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
 		sb->io_base = 0;
     	}
@@ -419,6 +419,9 @@ sb16_alloc_resources(struct sb_info *sb, device_t dev)
 		if (sb->drq2) {
 			isa_dma_acquire(rman_get_start(sb->drq2));
 			isa_dmainit(rman_get_start(sb->drq2), bs);
+		} else {
+			sb->drq2 = sb->drq1;
+			pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 		}
 		return 0;
 	} else return ENXIO;
@@ -458,15 +461,15 @@ sb_intr(void *arg)
     		}
 	} else {
     		if (c & 1) { /* 8-bit dma */
-			if (sb->pch.dch == sb->dl)
+			if (sb->pch.dch == 1)
 				reason |= 1;
-			if (sb->rch.dch == sb->dl)
+			if (sb->rch.dch == 1)
 				reason |= 2;
     		}
     		if (c & 2) { /* 16-bit dma */
-			if (sb->pch.dch == sb->dh)
+			if (sb->pch.dch == 2)
 				reason |= 1;
-			if (sb->rch.dch == sb->dh)
+			if (sb->rch.dch == 2)
 				reason |= 2;
     		}
 	}
@@ -494,38 +497,43 @@ sb_setup(struct sb_info *sb)
 	int l, pprio;
 
 	if (sb->bd_flags & BD_F_DMARUN)
-		buf_isadma(sb->pch.buffer, PCMTRIG_STOP);
+		sndbuf_isadma(sb->pch.buffer, PCMTRIG_STOP);
 	if (sb->bd_flags & BD_F_DMARUN2)
-		buf_isadma(sb->rch.buffer, PCMTRIG_STOP);
+		sndbuf_isadma(sb->rch.buffer, PCMTRIG_STOP);
 	sb->bd_flags &= ~(BD_F_DMARUN | BD_F_DMARUN2);
 
 	sb_reset_dsp(sb);
 
 	if (sb->bd_flags & BD_F_SB16X) {
 		pprio = sb->pch.run? 1 : 0;
-		sb->pch.buffer->chan = pprio? sb->dl : -1;
-		sb->rch.buffer->chan = pprio? sb->dh : sb->dl;
+		sndbuf_isadmasetup(sb->pch.buffer, pprio? sb->drq1 : NULL);
+		sb->pch.dch = pprio? 1 : 0;
+		sndbuf_isadmasetup(sb->rch.buffer, pprio? sb->drq2 : sb->drq1);
+		sb->rch.dch = pprio? 2 : 1;
 	} else {
 		if (sb->pch.run && sb->rch.run) {
 			pprio = (sb->rch.fmt & AFMT_16BIT)? 0 : 1;
-			sb->pch.buffer->chan = pprio? sb->dh : sb->dl;
-			sb->rch.buffer->chan = pprio? sb->dl : sb->dh;
+			sndbuf_isadmasetup(sb->pch.buffer, pprio? sb->drq2 : sb->drq1);
+			sb->pch.dch = pprio? 2 : 1;
+			sndbuf_isadmasetup(sb->rch.buffer, pprio? sb->drq1 : sb->drq2);
+			sb->rch.dch = pprio? 1 : 2;
 		} else {
 			if (sb->pch.run) {
-				sb->pch.buffer->chan = (sb->pch.fmt & AFMT_16BIT)? sb->dh : sb->dl;
-				sb->rch.buffer->chan = (sb->pch.fmt & AFMT_16BIT)? sb->dl : sb->dh;
+				sndbuf_isadmasetup(sb->pch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
+				sb->pch.dch = (sb->pch.fmt & AFMT_16BIT)? 2 : 1;
+				sndbuf_isadmasetup(sb->rch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
+				sb->rch.dch = (sb->pch.fmt & AFMT_16BIT)? 1 : 2;
 			} else if (sb->rch.run) {
-				sb->pch.buffer->chan = (sb->rch.fmt & AFMT_16BIT)? sb->dl : sb->dh;
-				sb->rch.buffer->chan = (sb->rch.fmt & AFMT_16BIT)? sb->dh : sb->dl;
+				sndbuf_isadmasetup(sb->pch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
+				sb->pch.dch = (sb->rch.fmt & AFMT_16BIT)? 1 : 2;
+				sndbuf_isadmasetup(sb->rch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
+				sb->rch.dch = (sb->rch.fmt & AFMT_16BIT)? 2 : 1;
 			}
 		}
 	}
 
-	sb->pch.dch = sb->pch.buffer->chan;
-	sb->rch.dch = sb->rch.buffer->chan;
-
-	sb->pch.buffer->dir = ISADMA_WRITE;
-	sb->rch.buffer->dir = ISADMA_READ;
+	sndbuf_isadmasetdir(sb->pch.buffer, PCMDIR_PLAY);
+	sndbuf_isadmasetdir(sb->rch.buffer, PCMDIR_REC);
 
 	/*
 	printf("setup: [pch = %d, pfmt = %d, pgo = %d] [rch = %d, rfmt = %d, rgo = %d]\n",
@@ -553,7 +561,7 @@ sb_setup(struct sb_info *sb)
 		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
-		buf_isadma(ch->buffer, PCMTRIG_START);
+		sndbuf_isadma(ch->buffer, PCMTRIG_START);
 		sb->bd_flags |= BD_F_DMARUN;
 	}
 
@@ -578,7 +586,7 @@ sb_setup(struct sb_info *sb)
 		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
-		buf_isadma(ch->buffer, PCMTRIG_START);
+		sndbuf_isadma(ch->buffer, PCMTRIG_START);
 		sb->bd_flags |= BD_F_DMARUN2;
 	}
 
@@ -595,10 +603,9 @@ sb16chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = sb;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = SB16_BUFFSIZE;
 	ch->dir = dir;
 
-	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, SB16_BUFFSIZE) == -1)
 		return NULL;
 
 	return ch;
@@ -632,7 +639,7 @@ sb16chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct sb_chinfo *ch = data;
 
 	ch->blksz = blocksize;
-	return blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -659,7 +666,7 @@ sb16chan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *
@@ -749,11 +756,9 @@ sb16_attach(device_t dev)
 	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
 		goto no;
 
-	if (!sb->drq2 || (sb->bd_flags & BD_F_SB16X))
+	if (sb->bd_flags & BD_F_SB16X)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
-	sb->dl = rman_get_start(sb->drq1);
-	sb->dh = sb->drq2? rman_get_start(sb->drq2) : sb->dl;
 	sb->prio = 0;
 
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
@@ -770,7 +775,7 @@ sb16_attach(device_t dev)
     	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq1));
-    	if (sb->drq2)
+    	if (!(pcm_getflags(dev) & SD_F_SIMPLEX))
 		snprintf(status + strlen(status), SND_STATUSLEN - strlen(status),
 			":%ld", rman_get_start(sb->drq2));
 

@@ -85,6 +85,7 @@ struct agg_chinfo {
 	snd_dbuf		*buffer;
 	bus_addr_t		offset;
 	u_int32_t		blocksize;
+	u_int32_t		speed;
 	int			dir;
 	u_int			num;
 	u_int16_t		aputype;
@@ -518,9 +519,9 @@ aggch_start_dac(struct agg_chinfo *ch)
 {
 	u_int wpwa = APU_USE_SYSMEM | (ch->offset >> 9);
 	u_int size = AGG_BUFSIZ >> 1;
-	u_int speed = ch->channel->speed;
+	u_int speed = ch->speed;
 	u_int offset = ch->offset >> 1;
-	u_int cp = ch->buffer->rp >> 1;
+	u_int cp = 0;
 	u_int16_t apuch = ch->num << 1;
 	u_int dv;
 	int pan = 0;
@@ -613,7 +614,7 @@ calc_timer_freq(struct agg_chinfo *ch)
 	if (ch->aputype == APUTYPE_8BITLINEAR)
 		ss >>= 1;
 
-	return (ch->channel->speed * ss + ch->blocksize - 1) / ch->blocksize;
+	return (ch->speed * ss) / ch->blocksize;
 }
 
 static void
@@ -641,6 +642,7 @@ aggch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	struct agg_info *ess = devinfo;
 	struct agg_chinfo *ch;
 	bus_addr_t physaddr;
+	void *p;
 
 	ch = (dir == PCMDIR_PLAY)? ess->pch + ess->playchns : &ess->rch;
 
@@ -650,9 +652,10 @@ aggch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->num = ess->playchns;
 	ch->dir = dir;
 
-	b->buf = dma_malloc(ess, AGG_BUFSIZ, &physaddr);
-	if (b->buf == NULL)
+	p = dma_malloc(ess, AGG_BUFSIZ, &physaddr);
+	if (p == NULL)
 		return NULL;
+	sndbuf_setup(b, p, AGG_BUFSIZ);
 
 	ch->offset = physaddr - ess->baseaddr;
 	if (physaddr < ess->baseaddr || ch->offset > WPWA_MAXADDR) {
@@ -663,7 +666,6 @@ aggch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		return NULL;
 	}
 
-	b->bufsize = AGG_BUFSIZ;
 	ch->wcreg_tpl = (physaddr - 16) & WAVCACHE_CHCTL_ADDRTAG_MASK;
 
 	if (dir == PCMDIR_PLAY) {
@@ -683,7 +685,7 @@ aggch_free(kobj_t obj, void *data)
 	struct agg_info *ess = ch->parent;
 
 	/* free up buffer - called after channel stopped */
-	dma_free(ess, ch->buffer->buf);
+	dma_free(ess, sndbuf_getbuf(ch->buffer));
 
 	/* return 0 if ok */
 	return 0;
@@ -719,7 +721,10 @@ aggch_setplayformat(kobj_t obj, void *data, u_int32_t format)
 static int
 aggch_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
-	return speed;
+	struct agg_chinfo *ch = data;
+
+	ch->speed = speed;
+	return ch->speed;
 }
 
 static int
