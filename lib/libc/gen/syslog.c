@@ -225,6 +225,10 @@ vsyslog(pri, fmt, ap)
 
 	cnt = sizeof(tbuf) - tbuf_cookie.left;
 
+	/* Remove a trailing newline */
+	if (tbuf[cnt - 1] == '\n')
+		cnt--;
+
 	/* Output to stderr if requested. */
 	if (LogStat & LOG_PERROR) {
 		struct iovec iov[2];
