@@ -839,6 +839,7 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
+	vp->v_cachedid = -1;
 
 	splx(s);
 
@@ -2637,73 +2638,96 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 
 #endif /* 1 || COMPAT_PRELITE2 */
 
-#if COMPILING_LINT
-#define KINFO_VNODESLOP	10
+#define KINFO_VNODESLOP		10
 /*
  * Dump vnode list (via sysctl).
- * Copyout address of vnode followed by vnode.
  */
 /* ARGSUSED */
 static int
 sysctl_vnode(SYSCTL_HANDLER_ARGS)
 {
-	struct thread *td = curthread;	/* XXX */
-	struct mount *mp, *nmp;
-	struct vnode *nvp, *vp;
-	int error;
-
-#define VPTRSZ	sizeof (struct vnode *)
-#define VNODESZ	sizeof (struct vnode)
+	struct xvnode *xvn;
+	struct thread *td = req->td;
+	struct mount *mp;
+	struct vnode *vp;
+	int error, len, n;
 
 	req->lock = 0;
-	if (!req->oldptr) /* Make an estimate */
-		return (SYSCTL_OUT(req, 0,
-			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
+	len = (numvnodes + KINFO_VNODESLOP) * sizeof *xvn;
+	if (!req->oldptr)
+		/* Make an estimate */
+		return (SYSCTL_OUT(req, 0, len));
 
 	sysctl_wire_old_buffer(req, 0);
+	xvn = malloc(len, M_TEMP, M_ZERO | M_WAITOK);
+	n = 0;
 	mtx_lock(&mountlist_mtx);
-	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
-			nmp = TAILQ_NEXT(mp, mnt_list);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
 			continue;
-		}
 		mtx_lock(&mntvnode_mtx);
-again:
-		for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-		     vp != NULL;
-		     vp = nvp) {
-			/*
-			 * Check that the vp is still associated with
-			 * this filesystem.  RACE: could have been
-			 * recycled onto the same filesystem.
-			 */
-			if (vp->v_mount != mp)
-				goto again;
-			nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-			mtx_unlock(&mntvnode_mtx);
-			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
-			    (error = SYSCTL_OUT(req, vp, VNODESZ)))
-				return (error);
-			mtx_lock(&mntvnode_mtx);
+		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
+			if (n == len)
+				break;
+			vref(vp);
+			xvn[n].xv_size = sizeof *xvn;
+			xvn[n].xv_vnode = vp;
+#define XV_COPY(field) xvn[n].xv_##field = vp->v_##field
+			XV_COPY(flag);
+			XV_COPY(usecount);
+			XV_COPY(writecount);
+			XV_COPY(holdcnt);
+			XV_COPY(id);
+			XV_COPY(mount);
+			XV_COPY(numoutput);
+			XV_COPY(type);
+#undef XV_COPY
+			switch (vp->v_type) {
+			case VREG:
+			case VDIR:
+			case VLNK:
+				xvn[n].xv_dev = vp->v_cachedfs;
+				xvn[n].xv_ino = vp->v_cachedid;
+				break;
+			case VBLK:
+			case VCHR:
+				if (vp->v_rdev == NULL) {
+					vrele(vp);
+					continue;
+				}
+				xvn[n].xv_dev = dev2udev(vp->v_rdev);
+				break;
+			case VSOCK:
+				xvn[n].xv_socket = vp->v_socket;
+				break;
+			case VFIFO:
+				xvn[n].xv_fifo = vp->v_fifoinfo;
+				break;
+			case VNON:
+			case VBAD:
+			default:
+				/* shouldn't happen? */
+				vrele(vp);
+				continue;
+			}
+			vrele(vp);
+			++n;
 		}
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&mountlist_mtx);
-		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, td);
+		if (n == len)
+			break;
 	}
 	mtx_unlock(&mountlist_mtx);
 
-	return (0);
+	error = SYSCTL_OUT(req, xvn, n * sizeof *xvn);
+	free(xvn, M_TEMP);
+	return (error);
 }
 
-/*
- * XXX
- * Exporting the vnode list on large systems causes them to crash.
- * Exporting the vnode list on medium systems causes sysctl to coredump.
- */
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vnode, "S,vnode", "");
-#endif
 
 /*
  * Check to see if a filesystem is mounted on a block device.
