@@ -187,7 +187,7 @@ CompatInterrupt (int signo)
  *
  * Results:
  *	Returns 1 if a specified line must be executed by the shell,
- *	0 if it can be run via execve, and -1 if the command is a no-op.
+ *	and 0 if it can be run via execve.
  *
  * Side Effects:
  *	None.
@@ -202,7 +202,7 @@ shellneed(char *cmd)
 	int ac;
 
 	av = brk_string(cmd, &ac, TRUE);
-	for(p = sh_builtin; *p != 0; p++)
+	for (p = sh_builtin; *p != 0; p++)
 		if (strcmp(av[1], *p) == 0)
 			return (1);
 	return (0);
@@ -237,9 +237,6 @@ Compat_RunCommand(void *cmdp, void *gnp)
     ReturnStatus  rstat;	/* Status of fork */
     LstNode 	  *cmdNode;  	/* Node where current command is located */
     char    	  **av;	    	/* Argument vector for thing to exec */
-    int	    	  argc;	    	/* Number of arguments in av or 0 if not
-				 * dynamically allocated */
-    int		  internal;	/* Various values.. */
     char	  *cmd = cmdp;
     GNode	  *gn = gnp;
 
@@ -345,25 +342,18 @@ Compat_RunCommand(void *cmdp, void *gnp)
 	shargv[2] = cmd;
 	shargv[3] = NULL;
 	av = shargv;
-	argc = 0;
-    } else if ((internal = shellneed(cmd))) {
+    } else if (shellneed(cmd)) {
 	/*
 	 * This command must be passed by the shell for other reasons..
 	 * or.. possibly not at all.
 	 */
 	static char	*shargv[4];
 
-	if (internal == -1) {
-		/* Command does not need to be executed */
-		return (0);
-	}
-
 	shargv[0] = shellPath;
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
 	shargv[3] = NULL;
 	av = shargv;
-	argc = 0;
     } else {
 	/*
 	 * No meta-characters, so no need to exec a shell. Break the command
@@ -371,7 +361,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
 	 * brk_string sticks our name in av[0], so we have to
 	 * skip over it...
 	 */
-	av = brk_string(cmd, &argc, TRUE);
+	av = brk_string(cmd, NULL, TRUE);
 	av += 1;
     }
 
