@@ -1,4 +1,81 @@
-1997-06-19  Paul Eggert  <eggert@pogo.gnu.ai.mit.edu>
+1997-08-31  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Version 2.5 released.
+
+1997-07-21  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.4.
+	* pch.c (there_is_another_patch), NEWS: Report an error if the patch
+	input contains garbage but no patches.
+
+	* pch.c (open_patch_file):
+	Check for patch file too long (i.e., its size
+	doesn't fit in a `long', and LFS isn't available).
+
+	* inp.c (plan_a):
+	Cast malloc return value, in case malloc returns char *.
+
+1997-07-16  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.3.
+
+	* NEWS, patch.man, pch.c (intuit_diff_type, get_line, pget_line):
+	Now demangles RFC 934 encapsulation.
+	* pch.c (p_rfc934_nesting): New var.
+
+	* pch.c (intuit_diff_type): Don't bother to check file names carefully
+	if we're going to return NO_DIFF.
+
+	* inp.c (plan_a): Count the number of lines before allocating
+	pointer-to-line buffer; this reduces memory requirements
+	considerably (roughly by a factor of 5 on 32-bit hosts).
+	Decrease `size' only when read unexpectedly reports EOF.
+	(i_buffer): New var.
+	(too_many_lines): New fn.
+	(re_input): Free i_buffer if using plan A.
+	Free buffers unconditionally; they can't be zero.
+
+	* inp.c (plan_a, plan_b): Check for overflow of line counter.
+
+	* pch.c (malformed), util.h (memory_fatal, read_fatal, write_fatal):
+	Declare as noreturn.
+
+1997-07-10  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.2.
+
+	* util.c (ok_to_reverse), NEWS: The default answer is now `n';
+	this is better for Emacs.
+
+	* Makefile.in (dist): Use cp -p, not ln;
+	some hosts do the wrong thing with ln if the source is a symbolic link.
+
+	* patch.man: Fix typo: -y -> -Y.
+
+1997-07-05  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (VERSION): Bump to 2.4.1.
+
+	* patch.c: (main, get_some_switches), NEWS, patch.man:
+	Version control is now independent of whether backups are made.
+	* patch.c (option_help): Put version control options together.
+	(get_some_switches): With CVS 1.9 hack, treat -b foo like -b -z foo,
+	not just -z foo.  This change is needed due to recent change in -z.
+	* backupfile.c (find_backup_file_name):
+	backup_type == none causes undefined behavior;
+	this undoes the previous change to this file.
+
+	* patch.c (locate_hunk): Fix bug when locating context diff hunks
+ 	near end of file with nonzero fuzz.
+
+	* util.c (move_file): Don't assume that ENOENT is reported when both
+	ENOENT and EXDEV apply; this isn't true with DJGPP, and
+	Posix doesn't require it.
+
+	* pch.c (there_is_another_patch):
+	Suggest -p when we can't intuit a file.
+
+1997-06-19  Paul Eggert  <eggert@twinsun.com>
 
 	* configure.in (VERSION): Version 2.4 released.
 	* NEWS: Patch is now verbose when patches do not match exactly.
