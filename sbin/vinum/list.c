@@ -22,7 +22,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -84,7 +84,7 @@ vinum_list(int argc, char *argv[], char *argv0[])
     int i;
     enum objecttype type;
 
-    if (stats & (!verbose))				    /* just summary stats, */
+    if (sflag & (!verbose))				    /* just summary stats, */
 	printf("Object\t\t  Reads\t\tBytes\tAverage\tRecover\t Writes\t\tBytes\tAverage\t  Mblock  Mstripe\n\n");
     if (argc == 0)
 	listconfig();					    /* list everything */
@@ -175,10 +175,10 @@ vinum_ldi(int driveno, int recurse)
 			    strerror(errno));
 			longjmp(command_fail, -1);
 		    }
-		    printf("\t\t%9qd\t%9ld\n", freelist.offset, freelist.sectors);
+		    printf("\t\t%9qd\t%9lld\n", freelist.offset, freelist.sectors);
 		}
 	    }
-	} else if (!stats) {
+	} else if (!sflag) {
 	    printf("D %-21s State: %s\tDevice %s\tAvail: %qd/%qd MB",
 		drive.label.name,
 		drive_state(drive.state),
@@ -192,7 +192,7 @@ vinum_ldi(int driveno, int recurse)
 		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
 			/ (drive.label.drive_size - DATASTART)));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    drive.reads,
@@ -270,13 +270,13 @@ vinum_lvi(int volno, int recurse)
 		get_plex_info(&plex, vol.plex[vol.preferred_plex]);
 		printf("plex %d (%s)\n", vol.preferred_plex, plex.name);
 	    }
-	} else if (!stats)				    /* brief */
+	} else if (!sflag)				    /* brief */
 	    printf("V %-21s State: %s\tPlexes: %7d\tSize: %s\n",
 		vol.name,
 		volume_state(vol.state),
 		vol.plexes,
 		roughlength(vol.size << DEV_BSHIFT, 0));
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    vol.reads,
@@ -389,7 +389,7 @@ vinum_lpi(int plexno, int recurse)
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
-	} else if (!stats) {
+	} else if (!sflag) {
 	    char *org = "";				    /* organization */
 
 	    switch (plex.organization) {
@@ -413,7 +413,7 @@ vinum_lpi(int plexno, int recurse)
 		plex.subdisks,
 		roughlength(plex.length << DEV_BSHIFT, 0));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    plex.reads,
@@ -542,7 +542,7 @@ vinum_lsi(int sdno, int recurse)
 		    drive.devicename,
 		    sd.driveoffset * DEV_BSIZE,
 		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
-	} else if (!stats) {				    /* brief listing, no stats */
+	} else if (!sflag) {				    /* brief listing, no stats */
 	    printf("S %-21s State: %s\tPO: %s ",
 		sd.name,
 		sd_state(sd.state),
@@ -550,7 +550,7 @@ vinum_lsi(int sdno, int recurse)
 	    printf("Size: %s\n",
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    sd.reads,
@@ -624,7 +624,7 @@ listconfig()
 	perror("Can't get vinum config");
 	return;
     }
-    if (verbose || (!stats)) {
+    if (verbose || (!sflag)) {
 	printf("Configuration summary\n\n");
 	printf("Drives:\t\t%d (%d configured)\n", vinum_conf.drives_used, vinum_conf.drives_allocated);
 	printf("Volumes:\t%d (%d configured)\n", vinum_conf.volumes_used, vinum_conf.volumes_allocated);
