@@ -78,9 +78,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
-#ifdef USE_PAM
-#include <opie.h>	/* XXX */
-#endif
+#include <opie.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -187,11 +185,11 @@ char	*tty = ttyline;		/* for klogin */
 #ifdef USE_PAM
 static int	auth_pam __P((struct passwd**, const char*));
 pam_handle_t *pamh = NULL;
+#endif
 
-/* Kluge because the conversation mechanism has not been threshed out */
 static struct opie opiedata;
 static char opieprompt[OPIE_CHALLENGE_MAX+1];
-#endif
+static int pwok;
 
 char	*pid_file = NULL;
 
@@ -970,16 +968,21 @@ user(name)
 	}
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
+
+	pwok = 0;
 #ifdef USE_PAM
 	/* XXX Kluge! The conversation mechanism needs to be fixed. */
-	if (opiechallenge(&opiedata, name, opieprompt) == 0)
-		reply(331, "Response to %s required for %s.",
-			   opieprompt, name);
-	else
-		reply(331, "Password required for %s.", name);
-#else
-	reply(331, "Password required for %s.", name);
 #endif
+	if (opiechallenge(&opiedata, name, opieprompt) == 0) {
+		pwok = (pw != NULL) &&
+		       opieaccessfile(remotehost) &&
+		       opiealways(pw->pw_dir);
+		reply(331, "Response to %s %s for %s.",
+		      opieprompt, pwok ? "requested" : "required", name);
+	} else {
+		pwok = 1;
+		reply(331, "Password required for %s.", name);
+	}
 	askpasswd = 1;
 	/*
 	 * Delay before reading passwd after first failed
@@ -1234,6 +1237,7 @@ pass(passwd)
 #ifdef USE_PAM
 	int e;
 #endif
+	char *xpasswd;
 
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
@@ -1247,10 +1251,21 @@ pass(passwd)
 		}
 #ifdef USE_PAM
 		rval = auth_pam(&pw, passwd);
-		if (rval >= 0)
+		opieunlock();   /* XXX */
+		if (rval == 0 || (!pwok && rval > 0))
 			goto skip;
-#endif
-		rval = strcmp(pw->pw_passwd, crypt(passwd, pw->pw_passwd));
+		xpasswd = crypt(passwd, pw->pw_passwd);
+#else /* !USE_PAM */
+		if (opieverify(&opiedata, passwd) == 0)
+			xpasswd = pw->pw_passwd;
+		else if (pwok)
+			xpasswd = crypt(passwd, pw->pw_passwd);
+		else {
+			rval = 1;
+			goto skip;
+		}
+#endif /* !USE_PAM */
+		rval = strcmp(pw->pw_passwd, xpasswd);
 		/* The strcmp does not catch null passwords! */
 		if (*pw->pw_passwd == '\0' ||
 		    (pw->pw_expire && time(NULL) >= pw->pw_expire))
