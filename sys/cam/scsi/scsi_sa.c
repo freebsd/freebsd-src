@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.12 1998/12/28 19:21:12 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.13 1999/01/11 18:26:25 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -178,27 +178,40 @@ struct sa_softc {
 };
 
 struct sa_quirk_entry {
-	struct scsi_inquiry_pattern inq_pat;
-	sa_quirks quirks;
+	struct scsi_inquiry_pattern inq_pat;	/* matching pattern */
+	sa_quirks quirks;	/* specific quirk type */
+	u_int32_t prefblk;	/* preferred blocksize when in fixed mode */
 };
 
 static struct sa_quirk_entry sa_quirk_table[] =
 {
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP
+		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
-		  "VIPER", ""}, SA_QUIRK_FIXED
+		  "VIPER 150*", "*"}, SA_QUIRK_FIXED, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
+		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED, 512
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
-		  "T4000S", ""}, SA_QUIRK_FIXED
+		  "T4000S*", "*"}, SA_QUIRK_FIXED, 512
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
-		  " TDC 3600", "U07:"}, SA_QUIRK_NOCOMP
+		  " TDC 3600", "U07:"}, SA_QUIRK_NOCOMP, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
+		  " TDC 4200", "*"}, SA_QUIRK_NOCOMP, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "WANGTEK",
+		  "5525ES*", "*"}, SA_QUIRK_FIXED, 512
 	}
 };
 
@@ -231,7 +244,8 @@ static int		sagetparams(struct cam_periph *periph,
 static int		sasetparams(struct cam_periph *periph,
 				    sa_params params_to_set,
 				    u_int32_t blocksize, u_int8_t density,
-				    u_int32_t comp_algorithm);
+				    u_int32_t comp_algorithm,
+				    u_int32_t sense_flags);
 static void		saprevent(struct cam_periph *periph, int action);
 static int		sarewind(struct cam_periph *periph);
 static int		saspace(struct cam_periph *periph, int count,
@@ -798,7 +812,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		case MTSETBSIZ:	/* Set block size for device */
 
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE, count,
-					    0, 0);
+					    0, 0, 0);
 			if (error == 0) {
 				softc->last_media_blksize =
 				    softc->media_blksize;
@@ -844,7 +858,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 				break;
 			} else {
 				error = sasetparams(periph, SA_PARAM_DENSITY,
-						    0, count, 0);
+						    0, count, 0, 0);
 			}
 			break;
 		case MTCOMP:	/* enable compression */
@@ -859,7 +873,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 				break;
 			}
 			error = sasetparams(periph, SA_PARAM_COMPRESSION,
-					    0, 0, count);
+					    0, 0, count, 0);
 			break;
 		default:
 			error = EINVAL;
@@ -1087,9 +1101,16 @@ saregister(struct cam_periph *periph, void *arg)
 			       sizeof(sa_quirk_table)/sizeof(*sa_quirk_table),
 			       sizeof(*sa_quirk_table), scsi_inquiry_match);
 
-	if (match != NULL)
+	if (match != NULL) {
 		softc->quirks = ((struct sa_quirk_entry *)match)->quirks;
-	else
+		softc->last_media_blksize =
+		    ((struct sa_quirk_entry *)match)->prefblk;
+#ifdef	CAMDEBUG
+		xpt_print_path(periph->path);
+		printf("found quirk entry %d\n",
+		    ((struct sa_quirk_entry *) match) - sa_quirk_table);
+#endif
+	} else
 		softc->quirks = SA_QUIRK_NONE;
 
 	/*
@@ -1419,17 +1440,11 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		rblim = (struct  scsi_read_block_limits_data *)
 		    malloc(sizeof(*rblim), M_TEMP, M_WAITOK);
 
-		scsi_read_block_limits(csio,
-				       /*retries*/1,
-				       sadone,
-				       MSG_SIMPLE_Q_TAG,
-				       rblim,
-				       SSD_FULL_SIZE,
-				       /*timeout*/5000);
+		scsi_read_block_limits(csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+		    rblim, SSD_FULL_SIZE, 5000);
 
-		error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-					  /*sense_flags*/SF_RETRY_UA,
-					  &softc->device_stats);
+		error = cam_periph_runccb(ccb, saerror, 0,
+		    SF_RETRY_UA, &softc->device_stats);
 
 		xpt_release_ccb(ccb);
 
@@ -1505,10 +1520,12 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 				break;
 			}
 		}
+
 		/*
 		 * If no quirk has determined that this is a device that needs
 		 * to have 2 Filemarks at EOD, now is the time to find out.
 		 */
+
 		if ((softc->quirks & SA_QUIRK_2FM) != 0) {
 			switch (softc->media_density) {
 			case SCSI_DENSITY_HALFINCH_800:
@@ -1543,17 +1560,26 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		 * upon quirks...
 		 */
 tryagain:
+		/*
+		 * If we want to be in FIXED mode and our current blocksize
+		 * is not equal to our last blocksize (if nonzero), try and
+		 * set ourselves to this last blocksize (as the 'preferred'
+		 * block size).  The initial quirkmatch at registry sets the
+		 * initial 'last' blocksize. If, for whatever reason, this
+		 * 'last' blocksize is zero, set the blocksize to 512,
+		 * or min_blk if that's larger.
+		 */
 		if ((softc->quirks & SA_QUIRK_FIXED) &&
-		    (softc->media_blksize == 0)) {
+		    (softc->media_blksize != softc->last_media_blksize)) {
 			softc->media_blksize = softc->last_media_blksize;
 			if (softc->media_blksize == 0) {
-				softc->media_blksize = BLKDEV_IOSIZE;
+				softc->media_blksize = 512;
 				if (softc->media_blksize < softc->min_blk) {
 					softc->media_blksize = softc->min_blk;
 				}
 			}
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
-			    softc->media_blksize, 0, 0);
+			    softc->media_blksize, 0, 0, SF_NO_PRINT);
 			if (error) {
 				xpt_print_path(ccb->ccb_h.path);
 				printf("unable to set fixed blocksize to %d\n",
@@ -1567,22 +1593,22 @@ tryagain:
 			softc->last_media_blksize = softc->media_blksize;
 			softc->media_blksize = 0;
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
-			    0, 0, 0);
+			    0, 0, 0, SF_NO_PRINT);
 			if (error) {
 				/*
 				 * If this fails and we were guessing, just
 				 * assume that we got it wrong and go try
-				 * fixed block mode...
+				 * fixed block mode. Don't even check against
+				 * density code at this point.
 				 */
-				xpt_print_path(ccb->ccb_h.path);
-				if (guessing && softc->media_density ==
-				    SCSI_DEFAULT_DENSITY) {
+				if (guessing) {
 					softc->quirks &= ~SA_QUIRK_VARIABLE;
 					softc->quirks |= SA_QUIRK_FIXED;
 					if (softc->last_media_blksize == 0)
 						softc->last_media_blksize = 512;
 					goto tryagain;
 				}
+				xpt_print_path(ccb->ccb_h.path);
 				printf("unable to set variable blocksize\n");
 				goto exit;
 			}
@@ -1636,7 +1662,7 @@ tryagain:
 
 		if (softc->buffer_mode == SMH_SA_BUF_MODE_NOBUF) {
 			error = sasetparams(periph, SA_PARAM_BUFF_MODE, 0,
-			    0, 0);
+			    0, 0, SF_NO_PRINT);
 			if (error == 0)
 				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
 		}
@@ -2003,7 +2029,8 @@ sagetparamsexit:
  */
 static int
 sasetparams(struct cam_periph *periph, sa_params params_to_set,
-	    u_int32_t blocksize, u_int8_t density, u_int32_t comp_algorithm)
+	    u_int32_t blocksize, u_int8_t density, u_int32_t comp_algorithm,
+	    u_int32_t sense_flags)
 {
 	struct sa_softc *softc;
 	u_int32_t current_blocksize;
@@ -2190,7 +2217,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 			/*timeout*/ 5000);
 
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-				  /*sense_flags*/ 0, &softc->device_stats);
+				  sense_flags, &softc->device_stats);
 
 	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO) ||
 	    params_to_set == SA_PARAM_BUFF_MODE) {
