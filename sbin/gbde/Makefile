@@ -23,13 +23,14 @@ CFLAGS+= -I${.CURDIR}/../../sys
 CLEANFILES+= template.c
 
 MAN=	gbde.8
-LDADD=	-lmd  -lutil -lgeom -lbsdxml -lsbuf
+DPADD=	${LIBMD} ${LIBUTIL} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
+LDADD=	-lmd -lutil -lgeom -lbsdxml -lsbuf
 
-.include <bsd.prog.mk>
-
-template.c:	template.txt
+template.c: template.txt
 	file2c 'const char template[] = {' ',0};' \
 		< ${.CURDIR}/template.txt > template.c
 
-test:	${PROG}
+test: ${PROG}
 	sh ${.CURDIR}/test.sh
+
+.include <bsd.prog.mk>
