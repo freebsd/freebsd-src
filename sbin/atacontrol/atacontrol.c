@@ -249,7 +249,7 @@ int
 main(int argc, char **argv)
 {
 	struct ata_cmd iocmd;
-	int fd;
+	int fd, maxunit, unit;
 
 	if ((fd = open("/dev/ata", O_RDWR)) < 0)
 		err(1, "control device not found");
@@ -278,9 +278,12 @@ main(int argc, char **argv)
 	}
 
 	if (!strcmp(argv[1], "list") && argc == 2) {
-		int unit = 0;
-
-		while (info_print(fd, unit++, 1) != ENXIO);
+		iocmd.cmd = ATAGMAXCHANNEL;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			err(1, "ioctl(ATAGMAXCHANNEL)");
+		maxunit = iocmd.u.maxchan;
+		for (unit = 0; unit < maxunit; unit++)
+			info_print(fd, unit, 1);
 	}
 	else if (!strcmp(argv[1], "info") && argc == 3) {
 		info_print(fd, iocmd.channel, 0);
