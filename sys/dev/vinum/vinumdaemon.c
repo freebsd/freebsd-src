@@ -38,8 +38,8 @@
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>

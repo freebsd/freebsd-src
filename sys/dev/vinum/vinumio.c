@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
+ * $Id: vinumio.c,v 1.7 1999/01/21 00:34:50 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -41,8 +41,8 @@
 #include "opt_vinum.h"
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
