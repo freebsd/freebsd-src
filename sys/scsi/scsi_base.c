@@ -8,13 +8,13 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.1 1993/11/18 05:02:51 rgrimes Exp $
+ *      $Id: scsi_base.c,v 1.2 1993/11/25 06:30:58 davidg Exp $
  */
 
 #define SPLSD splbio
 #define ESUCCESS 0
-#include <sys/types.h>
 #include <sys/param.h>
+#include "systm.h"
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -23,6 +23,9 @@
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 
+static errval sc_err1(struct scsi_xfer *);
+static errval scsi_interpret_sense(struct scsi_xfer *);
+
 #ifdef NetBSD
 #ifdef DDB
 int     Debugger();
@@ -30,9 +33,8 @@ int     Debugger();
 #define Debugger()
 #endif	/* DDB */
 #else /* NetBSD */
-#include <ddb.h>
+#include "ddb.h"
 #if	NDDB > 0
-int     Debugger();
 #else	/* NDDB > 0 */
 #define Debugger()
 #endif	/* NDDB > 0 */
@@ -70,7 +72,7 @@ get_xs(sc_link, flags)
 			return 0;
 		}
 		sc_link->flags |= SDEV_WAITING;
-		sleep(sc_link, PRIBIO);
+		tsleep((caddr_t)sc_link, PRIBIO, "scsiget", 0);
 	}
 	sc_link->opennings--;
 	if (xs = next_free_xs) {
@@ -110,7 +112,7 @@ free_xs(xs, sc_link, flags)
 	/* if was 0 and someone waits, wake them up */
 	if ((!sc_link->opennings++) && (sc_link->flags & SDEV_WAITING)) {
 		sc_link->flags &= ~SDEV_WAITING;
-		wakeup(sc_link); /* remember, it wakes them ALL up */
+		wakeup((caddr_t)sc_link); /* remember, it wakes them ALL up */
 	} else {
 		if (sc_link->device->start) {
 			SC_DEBUG(sc_link, SDEV_DB2, ("calling private start()\n"));
@@ -347,7 +349,7 @@ scsi_done(xs)
 		 * the upper level code to handle error checking
 		 * rather than doing it here at interrupt time
 		 */
-		wakeup(xs);
+		wakeup((caddr_t)xs);
 		return;
 	}
 	/*
@@ -409,7 +411,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	xs->resid = datalen;
 	xs->bp = bp;
 /*XXX*/ /*use constant not magic number */
-	if (datalen && ((caddr_t) data_addr < (caddr_t) 0xfe000000)) {
+	if (datalen && ((caddr_t) data_addr < (caddr_t) 0xfe000000UL)) {
 		if (bp) {
 			printf("Data buffered space not in kernel context\n");
 #ifdef	SCSIDEBUG
@@ -420,7 +422,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 		}
 		xs->data = malloc(datalen, M_TEMP, M_WAITOK);
 		/* I think waiting is ok *//*XXX */
-		switch (flags & (SCSI_DATA_IN | SCSI_DATA_OUT)) {
+		switch ((int)(flags & (SCSI_DATA_IN | SCSI_DATA_OUT))) {
 		case 0:
 			printf("No direction flags, assuming both\n");
 #ifdef	SCSIDEBUG
@@ -466,8 +468,9 @@ retry:
 		if (bp)
 			return retval;	/* will sleep (or not) elsewhere */
 		s = splbio();
-		while (!(xs->flags & ITSDONE))
-			sleep(xs, PRIBIO + 1);
+		while (!(xs->flags & ITSDONE)) {
+			tsleep((caddr_t)xs, PRIBIO + 1, "scsicmd", 0);
+		}
 		splx(s);
 		/* fall through to check success of completed command */
 	case COMPLETE:		/* Polling command completed ok */
@@ -493,7 +496,7 @@ retry:
 	 * and free the memory buffer
 	 */
 	if (datalen && (xs->data != data_addr)) {
-		switch (flags & (SCSI_DATA_IN | SCSI_DATA_OUT)) {
+		switch ((int)(flags & (SCSI_DATA_IN | SCSI_DATA_OUT))) {
 		case 0:
 		case SCSI_DATA_IN | SCSI_DATA_OUT:	/* weird */
 		case SCSI_DATA_IN:
@@ -516,7 +519,7 @@ bad:
 	return (retval);
 }
 
-errval 
+static errval 
 sc_err1(xs)
 	struct scsi_xfer *xs;
 {
@@ -531,7 +534,7 @@ sc_err1(xs)
 	 * errors at inetrrupt time. We have probably
 	 * been called by scsi_done()
 	 */
-	switch (xs->error) {
+	switch ((int)xs->error) {
 	case XS_NOERROR:	/* nearly always hit this one */
 		retval = ESUCCESS;
 		if (bp) {
@@ -560,6 +563,8 @@ sc_err1(xs)
 
 	case XS_BUSY:
 		/*should somehow arange for a 1 sec delay here (how?) */
+		/* XXX tsleep(&localvar, priority, "foo", hz);
+		   that's how! */
 	case XS_TIMEOUT:
 		/*
 		 * If we can, resubmit it to the adapter.
@@ -593,7 +598,7 @@ retry:
  *
  * THIS IS THE DEFAULT ERROR HANDLER
  */
-errval 
+static errval 
 scsi_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
@@ -680,7 +685,7 @@ scsi_interpret_sense(xs)
 			sc_print_addr(sc_link);
 			printf("%s", error_mes[key - 1]);
 			if (sense->error_code & SSD_ERRCODE_VALID) {
-				switch (key) {
+				switch ((int)key) {
 				case 0x2:	/* NOT READY */
 				case 0x5:	/* ILLEGAL REQUEST */
 				case 0x6:	/* UNIT ATTENTION */
@@ -696,7 +701,7 @@ scsi_interpret_sense(xs)
 			}
 			printf("\n");
 		}
-		switch (key) {
+		switch ((int)key) {
 		case 0x0:	/* NO SENSE */
 		case 0x1:	/* RECOVERED ERROR */
 			if (xs->resid == xs->datalen)

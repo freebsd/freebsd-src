@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.5 1993/11/07 17:43:02 wollman Exp $
+ * 	$Id: pmap.h,v 1.6 1993/11/13 02:25:16 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -65,8 +65,8 @@ unsigned int
 		pd_pfnum:20;		/* physical page frame number of pte's*/
 };
 
-#define	PD_MASK		0xffc00000	/* page directory address bits */
-#define	PT_MASK		0x003ff000	/* page table address bits */
+#define	PD_MASK		0xffc00000UL	/* page directory address bits */
+#define	PT_MASK		0x003ff000UL	/* page table address bits */
 #define	PD_SHIFT	22		/* page directory address shift */
 #define	PG_SHIFT	12		/* page table address shift */
 
@@ -94,7 +94,7 @@ unsigned int
 #define	PG_N		0x00000800 /* Non-cacheable */
 #define	PG_M		0x00000040
 #define	PG_U		0x00000020
-#define	PG_FRAME	0xfffff000
+#define	PG_FRAME	0xfffff000UL
 
 #define	PG_NOACC	0
 #define	PG_KR		0x00000000
@@ -199,7 +199,7 @@ extern pmap_t		kernel_pmap;
 #define	PMAP_ACTIVATE(pmapp, pcbp) \
 	if ((pmapp) != NULL /*&& (pmapp)->pm_pdchanged */) {  \
 		(pcbp)->pcb_cr3 = \
-		    pmap_extract(kernel_pmap, (pmapp)->pm_pdir); \
+		    pmap_extract(kernel_pmap, (vm_offset_t)(pmapp)->pm_pdir); \
 		if ((pmapp) == &curproc->p_vmspace->vm_pmap) \
 			load_cr3((pcbp)->pcb_cr3); \
 		(pmapp)->pm_pdchanged = FALSE; \
@@ -231,6 +231,24 @@ pv_entry_t	pv_table;		/* array of entries, one per page */
 #define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
 
 #define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
+
+extern pmap_t pmap_create(vm_size_t);
+extern void pmap_pinit(struct pmap *);
+extern void pmap_destroy(pmap_t);
+extern void pmap_release(struct pmap *);
+extern void pmap_reference(pmap_t);
+extern void pmap_remove(struct pmap *, vm_offset_t, vm_offset_t);
+extern void pmap_protect(struct pmap *, vm_offset_t, vm_offset_t, vm_prot_t);
+extern void pmap_enter(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
+extern void pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
+extern struct pte *pmap_pte(pmap_t, vm_offset_t);
+extern vm_offset_t pmap_extract(pmap_t, vm_offset_t);
+extern void pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
+extern void pmap_collect(pmap_t);
+struct pcb; extern void pmap_activate(pmap_t, struct pcb *);
+extern pmap_t pmap_kernel(void);
+extern void pmap_pageable(pmap_t, vm_offset_t, vm_offset_t, boolean_t);
+
 
 #endif /* KERNEL */
 

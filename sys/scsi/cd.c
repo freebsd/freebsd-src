@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.12 1993/11/18 05:02:46 rgrimes Exp $
+ *      $Id: cd.c,v 1.13 1993/11/25 01:37:28 wollman Exp $
  */
 
 #define SPLCD splbio
@@ -40,11 +40,18 @@
 #include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
 #include <scsi/scsiconf.h>
 
+/* static function prototypes */
+static errval cd_get_parms(int, int);
+static errval cd_get_mode(u_int32, struct cd_mode_data *, u_int32);
+static errval cd_set_mode(u_int32 unit, struct cd_mode_data *);
+static errval cd_read_toc(u_int32, u_int32, u_int32, struct cd_toc_entry *,
+			  u_int32);
+
+
 int32   cdstrats, cdqueues;
 
 #include <ddb.h>
 #if	NDDB > 0
-int     Debugger();
 #else	/* NDDB > 0 */
 #define Debugger()
 #endif	/* NDDB > 0 */
@@ -59,7 +66,6 @@ int     Debugger();
 #define	RAW_PART	3
 #define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
-extern int hz;
 errval  cdstrategy();
 
 void    cdstart();
@@ -509,7 +515,7 @@ cdstart(unit)
 	 */
 	bzero(&cmd, sizeof(cmd));
 	cmd.op_code = READ_BIG;
-	cmd.addr_3 = (blkno & 0xff000000) >> 24;
+	cmd.addr_3 = (blkno & 0xff000000UL) >> 24;
 	cmd.addr_2 = (blkno & 0xff0000) >> 16;
 	cmd.addr_1 = (blkno & 0xff00) >> 8;
 	cmd.addr_0 = blkno & 0xff;
@@ -680,12 +686,14 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		}
 		break;
 	case CDIOREADTOCHEADER:
-		{
+		{		/* ??? useless bcopy? XXX */
 			struct ioc_toc_header th;
-			if (error = cd_read_toc(unit, 0, 0, &th, sizeof(th)))
+			if (error = cd_read_toc(unit, 0, 0, 
+						(struct cd_toc_entry *)&th,
+						sizeof th))
 				break;
 			th.len = (th.len & 0xff) << 8 + ((th.len >> 8) & 0xff);
-			bcopy(&th, addr, sizeof(th));
+			bcopy(&th, addr, sizeof th);
 		}
 		break;
 	case CDIOREADTOCENTRYS:
@@ -971,7 +979,7 @@ cd_size(unit, flags)
 /*
  * Get the requested page into the buffer given
  */
-errval 
+static errval 
 cd_get_mode(unit, data, page)
 	u_int32 unit;
 	struct cd_mode_data *data;
@@ -1218,10 +1226,11 @@ cd_read_subchannel(unit, mode, format, track, data, len)
 /*
  * Read table of contents
  */
-errval 
+static errval 
 cd_read_toc(unit, mode, start, data, len)
-	u_int32 unit, mode, start, len;
+	u_int32 unit, mode, start;
 	struct cd_toc_entry *data;
+	u_int32 len;
 {
 	struct scsi_read_toc scsi_cmd;
 	errval  error;
@@ -1256,7 +1265,7 @@ cd_read_toc(unit, mode, start, data, len)
  * Get the scsi driver to send a full inquiry to the device and use the
  * results to fill out the disk parameter structure.
  */
-errval 
+static errval 
 cd_get_parms(unit, flags)
 	int unit;
 	int flags;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.14 1993/12/16 19:47:42 ache Exp $
+ *	$Id: fd.c,v 1.16 1993/12/19 00:40:49 ache Exp $
  *
  */
 
@@ -164,6 +164,8 @@ typedef int	fdcu_t;
 typedef int	fdsu_t;
 typedef	struct fd_data *fd_p;
 typedef struct fdc_data *fdc_p;
+
+static int retrier(fdcu_t);
 
 #define DEVIDLE		0
 #define FINDWORK	1
@@ -391,7 +393,7 @@ void fdstrategy(struct buf *bp)
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
-	untimeout(fd_turnoff,fdu); /* a good idea */
+	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
 	return;
@@ -762,7 +764,7 @@ fdstate(fdcu, fdc)
 	TRACE1("fd%d",fdu);
 	TRACE1("[%s]",fdstates[fdc->state]);
 	TRACE1("(0x%x)",fd->flags);
-	untimeout(fd_turnoff, fdu);
+	untimeout(fd_turnoff, (caddr_t)fdu);
 	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
 	switch (fdc->state)
 	{
@@ -810,7 +812,7 @@ fdstate(fdcu, fdc)
 		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case SEEKWAIT:
-		untimeout(fd_timeout,fdcu);
+		untimeout(fd_timeout, (caddr_t)fdcu);
 		/* allow heads to settle */
 		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 50);
 		fdc->state = SEEKCOMPLETE;
@@ -883,7 +885,7 @@ fdstate(fdcu, fdc)
 		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
-		untimeout(fd_timeout,fdcu);
+		untimeout(fd_timeout, (caddr_t)fdcu);
 		for(i=0;i<7;i++)
 		{
 			fdc->status[i] = in_fdc(fdcu);
@@ -994,7 +996,7 @@ fdstate(fdcu, fdc)
 	return(1); /* Come back immediatly to new state */
 }
 
-int
+static int
 retrier(fdcu)
 	fdcu_t fdcu;
 {

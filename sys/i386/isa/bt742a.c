@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.10 1993/11/18 05:02:17 rgrimes Exp $
+ *      $Id: bt742a.c,v 1.11 1993/11/25 01:31:27 wollman Exp $
  */
 
 /*
@@ -39,16 +39,11 @@
 
 #ifdef	KERNEL
 #include "ddb.h"
-#if	NDDB > 0
-int     Debugger();
-#else	/* NDDB */
-#define	Debugger() panic("should call debugger here (bt742a.c)")
-#endif	/* NDDB */
+#include "kernel.h"
 #else /*KERNEL */
 #define	NBT 1
 #endif /*KERNEL */
 
-extern int hz;
 typedef unsigned long int physaddr;
 
 /*
@@ -721,7 +716,7 @@ btintr(unit)
 		}
 		wmbi->stat = BT_MBI_FREE;
 		if (ccb) {
-			untimeout(bt_timeout, ccb);
+			untimeout(bt_timeout, (caddr_t)ccb);
 			bt_done(unit, ccb);
 		}
 		/* Set the IN mail Box pointer for next */ bt_nextmbx(wmbi, wmbx, mbi);
@@ -900,7 +895,8 @@ bt_send_mbo(int unit, int flags, int cmd, struct bt_ccb *ccb)
 			return ((BT_MBO *) 0);
 		}
 		outb(BT_CMD_DATA_PORT, 0x01);	/* Enable */
-		sleep(wmbx, PRIBIO);	/*XXX *//*can't do this! */
+		tsleep((caddr_t)wmbx, PRIBIO, "btsend", 0);
+		/* XXX */ /*can't do this! */
 		/* May be servicing an int */
 	}
 	/* Link CCB to the Mail Box */
@@ -1401,7 +1397,7 @@ bt_poll(unit, xs, ccb)
 		 * because we are polling, take out the timeout entry
 		 * bt_timeout made
 		 */
-		untimeout(bt_timeout, ccb);
+		untimeout(bt_timeout, (caddr_t)ccb);
 		count = 2000;
 		while (count) {
 			/*
@@ -1456,7 +1452,7 @@ bt_timeout(caddr_t arg1, int arg2)
 	if (bt_ccb_phys_kv(bt, ccb->mbx->ccb_addr) == ccb &&
 	    ccb->mbx->cmd != BT_MBO_FREE) {
 		printf("bt%d: not taking commands!\n", unit);
-		Debugger();
+		Debugger("bt742a");
 	}
 	/*
 	 * If it has been through before, then

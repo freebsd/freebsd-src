@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.4 1993/11/07 17:42:47 wollman Exp $
+ *	$Id: cpufunc.h,v 1.5 1993/11/25 01:31:07 wollman Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -177,7 +177,34 @@ strlen(s1)
 	return (len);
 }
 
+struct quehead {
+	struct quehead *qh_link;
+	struct quehead *qh_rlink;
+};
+
+static inline void
+insque(void *a, void *b)
+{
+	register struct quehead *element = a, *head = b;
+	element->qh_link = head->qh_link;
+	head->qh_link = (struct quehead *)element;
+	element->qh_rlink = (struct quehead *)head;
+	((struct quehead *)(element->qh_link))->qh_rlink
+	  = (struct quehead *)element;
+}
+
+static inline void
+remque(void *a)
+{
+	register struct quehead *element = a;
+	((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
+	((struct quehead *)(element->qh_rlink))->qh_link = element->qh_link;
+	element->qh_rlink = 0;
+}
+
 #else /* not __GNUC__ */
+extern	void insque __P((void *, void *));
+extern	void remque __P((void *));
 
 int	bdb		__P((void));
 void	disable_intr	__P((void));
@@ -187,17 +214,19 @@ void	outb		__P((u_int port, u_int data));	/* XXX - incompat */
 
 #endif	/* __GNUC__ */
 
-#define	really_u_int	int	/* XXX */
-#define	really_void	int	/* XXX */
-
 void	load_cr0	__P((u_int cr0));
-really_u_int	rcr0	__P((void));
+u_int	rcr0	__P((void));
+void load_cr3(u_long);
+u_long rcr3(void);
+u_long rcr2(void);
 
-#ifdef notyet
-really_void	setidt	__P((int idx, /*XXX*/caddr_t func, int typ, int dpl));
-#endif
-
-#undef	really_u_int
-#undef	really_void
+void	setidt	__P((int, void (*)(), int, int));
+extern u_long kvtop(void *);
+extern void tlbflush(void);
+extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
+extern void outsb(int /*u_short*/, caddr_t, size_t);
+extern void outsw(int /*u_short*/, caddr_t, size_t);
+extern void insw(int /*u_short*/, caddr_t, size_t);
+extern void fillw(int /*u_short*/, caddr_t, size_t);
 
 #endif /* _MACHINE_CPUFUNC_H_ */
