@@ -116,7 +116,8 @@ default addresses are supplied.
 The following options are available:
 .Bl -tag -width indent
 .It Fl s
-Suppress diagnostics. This should be used if
+Suppress diagnostics.
+This should be used if
 .Nm Ns 's
 standard input is from a script.
 .It Fl x
@@ -175,7 +176,8 @@ This means "before the first line,"
 and is legal wherever it makes sense.
 .Pp
 An address range is two addresses separated either by a comma or
-semi-colon. The value of the first address in a range cannot exceed the
+semi-colon.
+The value of the first address in a range cannot exceed the
 value of the second.  If only one address is given in a range, then
 the second address is set to the given address.  If an
 .Em n Ns -tuple
@@ -453,7 +455,8 @@ The current address is set to last line entered.
 .It (.,.)d
 Delete the addressed lines from the buffer.
 If there is a line after the deleted range, then the current address is set
-to this line. Otherwise the current address is set to the line
+to this line.
+Otherwise the current address is set to the line
 before the deleted range.
 .It e Ar file
 Edit
@@ -588,7 +591,8 @@ Print the addressed lines along with
 their line numbers.  The current address is set to the last line
 printed.
 .It (.,.)p
-Print the addressed lines. The current address is set to the last line
+Print the addressed lines.
+The current address is set to the last line
 printed.
 .It P
 Toggle the command prompt on and off.

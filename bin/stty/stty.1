@@ -313,7 +313,8 @@ If
 is set, echo control characters as ^X.  Otherwise control characters
 echo as themselves.
 .It Cm echoprt Pq Fl echoprt
-For printing terminals. If set, echo erased characters backwards within ``\\''
+For printing terminals.
+If set, echo erased characters backwards within ``\\''
 and ``/''.  Otherwise, disable this feature.
 .It Cm noflsh Pq Fl noflsh
 Disable (enable) flush after
@@ -467,7 +468,8 @@ performed by either the terminal hardware or by the remote side connected
 to a pty.
 .It Cm raw Pq Fl raw
 If set, change the modes of the terminal so that no input or output processing
-is performed. If unset, change the modes of the terminal to some reasonable
+is performed.
+If unset, change the modes of the terminal to some reasonable
 state that performs input and output processing.  Note that since the
 terminal driver no longer has a single
 .Dv RAW
