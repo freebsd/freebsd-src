@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.6 1995/10/25 17:29:51 jkh Exp $
+#	$Id: GENERIC,v 1.46.2.7 1996/01/04 08:51:05 gibbs Exp $
 #
 
 machine		"i386"
@@ -85,6 +85,7 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 #options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
 #options		XSERVER			# include code for XFree86
 
+# Mandatory, don't remove
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
