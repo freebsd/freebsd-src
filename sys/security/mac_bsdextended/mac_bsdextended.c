@@ -94,15 +94,6 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_slots, CTLFLAG_RD,
     &rule_slots, 0, "Number of used rule slots\n");
 
 /*
- * This tunable spits out information about what is going on which
- * would be more suited for a log file.  Eventually
- * this will go away as we do not currently use it.
- */
-static int mac_bsdextended_debugging;
-SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, debugging, CTLFLAG_RW,
-    &mac_bsdextended_debugging, 0, "Enable debugging on failure");
-
-/*
  * This is just used for logging purposes as eventually we would like
  * to log much more then failed requests.
  */
@@ -118,7 +109,7 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, logging, CTLFLAG_RW,
 static int
 mac_bsdextended_firstmatch_enabled;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, firstmatch_enabled,
-	CTLFLAG_RW, &mac_bsdextended_firstmatch_enabled, 0,
+	CTLFLAG_RW, &mac_bsdextended_firstmatch_enabled, 1,
 	"Disable/enable match first rule functionality");
 
 static int
