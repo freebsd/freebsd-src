@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.8 1996/01/20 10:31:14 mpp Exp $
+ *	$Id: print.c,v 1.9 1996/12/14 06:03:28 steve Exp $
  */
 
 #ifndef lint
@@ -231,6 +231,10 @@ printtime(ftime)
 {
 	int i;
 	char longstring[80];
+	static time_t now;
+
+	if (now == 0)
+		now = time(NULL);
 
 	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
 	for (i = 4; i < 11; ++i)
@@ -240,7 +244,7 @@ printtime(ftime)
 	if (f_sectime)
 		for (i = 11; i < 24; i++)
 			(void)putchar(longstring[i]);
-	else if (ftime + SIXMONTHS > time(NULL))
+	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
 		for (i = 11; i < 16; ++i)
 			(void)putchar(longstring[i]);
 	else {
