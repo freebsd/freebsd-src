@@ -313,7 +313,6 @@ union_unmount(mp, mntflags, p)
 	struct proc *p;
 {
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
-	struct vnode *um_rootvp;
 	int error;
 	int freeing;
 	int flags = 0;
@@ -322,9 +321,6 @@ union_unmount(mp, mntflags, p)
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-
-	if ((error = union_root(mp, &um_rootvp)) != 0)
-		return (error);
 
 	/*
 	 * Keep flushing vnodes from the mount list.
@@ -335,7 +331,7 @@ union_unmount(mp, mntflags, p)
 	 * (d) times, where (d) is the maximum tree depth
 	 * in the filesystem.
 	 */
-	for (freeing = 0; vflush(mp, um_rootvp, flags) != 0;) {
+	for (freeing = 0; (error = vflush(mp, 0, flags)) != 0;) {
 		struct vnode *vp;
 		int n;
 
@@ -353,15 +349,10 @@ union_unmount(mp, mntflags, p)
 		freeing = n;
 	}
 
-	/* At this point the root vnode should have a single reference */
-	if (um_rootvp->v_usecount > 1) {
-		vput(um_rootvp);
-		return (EBUSY);
-	}
+	/* If the most recent vflush failed, the filesystem is still busy. */
+	if (error)
+		return (error);
 
-#ifdef DEBUG
-	vprint("union root", um_rootvp);
-#endif	 
 	/*
 	 * Discard references to upper and lower target vnodes.
 	 */
@@ -369,14 +360,6 @@ union_unmount(mp, mntflags, p)
 		vrele(um->um_lowervp);
 	vrele(um->um_uppervp);
 	crfree(um->um_cred);
-	/*
-	 * Release reference on underlying root vnode
-	 */
-	vput(um_rootvp);
-	/*
-	 * And blow it away for future re-use
-	 */
-	vgone(um_rootvp);
 	/*
 	 * Finally, throw away the union_mount structure
 	 */

@@ -114,7 +114,6 @@ fdesc_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	struct vnode *rootvp = VFSTOFDESC(mp)->f_root;
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -123,20 +122,13 @@ fdesc_unmount(mp, mntflags, p)
 	 * Clear out buffer cache.  I don't think we
 	 * ever get anything cached at this level at the
 	 * moment, but who knows...
+	 *
+	 * There is 1 extra root vnode reference corresponding
+	 * to f_root.
 	 */
-	if (rootvp->v_usecount > 1)
-		return (EBUSY);
-	if ((error = vflush(mp, rootvp, flags)) != 0)
+	if ((error = vflush(mp, 1, flags)) != 0)
 		return (error);
 
-	/*
-	 * Release reference on underlying root vnode
-	 */
-	vrele(rootvp);
-	/*
-	 * And blow it away for future re-use
-	 */
-	vgone(rootvp);
 	/*
 	 * Finally, throw away the fdescmount structure
 	 */

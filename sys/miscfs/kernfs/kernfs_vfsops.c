@@ -151,7 +151,6 @@ kernfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	struct vnode *rootvp = VFSTOKERNFS(mp)->kf_root;
 
 #ifdef DEBUG
 	printf("kernfs_unmount(mp = %p)\n", (void *)mp);
@@ -165,26 +164,14 @@ kernfs_unmount(mp, mntflags, p)
 	 * ever get anything cached at this level at the
 	 * moment, but who knows...
 	 */
-	if (rootvp->v_usecount > 1)
-		return (EBUSY);
 #ifdef DEBUG
 	printf("kernfs_unmount: calling vflush\n");
 #endif
-	error = vflush(mp, rootvp, flags);
+	/* There is 1 extra root vnode reference (kf_root). */
+	error = vflush(mp, 1, flags);
 	if (error)
 		return (error);
 
-#ifdef DEBUG
-	vprint("kernfs root", rootvp);
-#endif
-	/*
-	 * Release reference on underlying root vnode
-	 */
-	vrele(rootvp);
-	/*
-	 * And blow it away for future re-use
-	 */
-	vgone(rootvp);
 	/*
 	 * Finally, throw away the kernfs_mount structure
 	 */
