@@ -540,6 +540,7 @@ static int
 gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 	struct g_geom *gp2;
+	struct g_consumer *cp;
 	struct gv_softc *sc;
 	struct gv_drive *d, *d2;
 	struct gv_plex *p, *p2;
@@ -560,6 +561,9 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	 */
 	LIST_FOREACH(d, &sc->drives, drive) {
 		gp2 = d->geom;
+		cp = LIST_FIRST(&gp2->consumer);
+		if (cp != NULL)
+			g_access(cp, -1, -1, -1);
 		if (gv_is_open(gp2))
 			return (EBUSY);
 	}
