@@ -1067,12 +1067,13 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 
 	ASSERT_VOP_LOCKED(vp, "nfs_vinvalbuf");
 
-	if (vp->v_iflag & VI_XLOCK) {
-#ifdef INVARIANTS
-		backtrace();
-#endif
+	/*
+	 * XXX This check stops us from needlessly doing a vinvalbuf when
+	 * being called through vclean().  It is not clear that this is
+	 * unsafe.
+	 */
+	if (vp->v_iflag & VI_XLOCK)
 		return (0);
-	}
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
