@@ -64,8 +64,8 @@ static const char rcsid[] =
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/iso88025.h>
 #include <net/route.h>
+#include <net/iso88025.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -537,7 +537,7 @@ print_entry(struct sockaddr_dl *sdl,
 			for (seg = 0;
 			     seg < ((TR_RCF_RIFLEN(trld->trld_rcf) - 2 ) / 2);
 			     seg++) 
-				printf(":%x", ntohs(trld->trld_route[seg]));
+				printf(":%x", ntohs(*(trld->trld_route[seg])));
 		}
                 break;
             case IFT_FDDI:
