@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 SUBDIR=	Doc Etc
 
 FILES=	README.FIRST

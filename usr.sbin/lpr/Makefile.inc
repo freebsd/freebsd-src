@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+=-DINET6
+CFLAGS+= -DINET6
 CWARNFLAGS=	${BDECFLAGS}
 
 .if exists(${.OBJDIR}/../common_source)

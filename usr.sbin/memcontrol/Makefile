@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		memcontrol
-MAN=		memcontrol.8
+PROG=	memcontrol
+MAN=	memcontrol.8
 
 .include <bsd.prog.mk>

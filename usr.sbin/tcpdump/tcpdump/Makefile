@@ -24,16 +24,18 @@ SRCS=	addrtoname.c gmt2local.c machdep.c parsenfsfh.c \
 	print-vjc.c print-vrrp.c print-wb.c \
 	savestr.c setsignal.c smbutil.c tcpdump.c util.c version.c
 CLEANFILES+=	version.c
+
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}/lbl
 CFLAGS+= -DHAVE_CONFIG_H
+
 .if !defined(NOINET6)
-CFLAGS+=	-DINET6
 SRCS+=	print-ip6.c print-ip6opts.c print-ripng.c print-icmp6.c \
 	print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c
+CFLAGS+=	-DINET6
 .endif
 
-DPADD+=	${LIBL} ${LIBPCAP}
-LDADD+=	-ll -lpcap
+DPADD=	${LIBL} ${LIBPCAP}
+LDADD=	-ll -lpcap
 .if exists(../../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && \
 	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DISTRIBUTION=crypto

@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-PROG =	rpc.statd
-SRCS =	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
-MAN =	rpc.statd.8
+PROG=	rpc.statd
+MAN=	rpc.statd.8
+SRCS=	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
+
+CFLAGS+= -I.
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
-
-CFLAGS+= -I.
 
 CLEANFILES= sm_inter_svc.c sm_inter.h
 

@@ -1,15 +1,15 @@
 # $FreeBSD$
 
-LIB=		mrouted
-NOPROFILE=	yes
-NOPIC=		yes
-
 S=	${.CURDIR}/..
-.PATH:	$S
-CFLAGS+= -I$S
+.PATH: $S
 
+LIB=	mrouted
+NOPROFILE= yes
+NOPIC=	yes
+NOMAN=	#true
 SRCS=	igmp.c inet.c kern.c
-NOMAN=
+
+CFLAGS+= -I$S
 
 # nothing to install
 install:

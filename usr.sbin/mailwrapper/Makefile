@@ -3,8 +3,8 @@
 PROG=	mailwrapper
 MAN=	mailwrapper.8
 
-DPADD+=	${LIBUTIL}
-LDADD+=	-lutil
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
 		${BINDIR}/mailwrapper /usr/bin/newaliases \

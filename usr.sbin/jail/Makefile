@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	jail
-WARNS?=	2
 MAN=	jail.8
 
-.include	<bsd.prog.mk>
+WARNS?=	2
+
+.include <bsd.prog.mk>

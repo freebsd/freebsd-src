@@ -1,11 +1,9 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntpd
+.PATH: ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG= ntpd
-
+NOMAN= yes
 SRCS=	map_vme.c	ntp_config.c \
 	ntp_control.c	ntp_filegen.c	ntp_intres.c \
 	ntp_io.c	ntp_loopfilter.c	ntp_monitor.c \
@@ -25,8 +23,6 @@ SRCS=	map_vme.c	ntp_config.c \
 	refclock_wwvb.c	 version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-NOMAN= yes
 
 DPADD=	${LIBPARSE} ${LIBNTP} -lm
 LDADD=	${LIBPARSE} ${LIBNTP} -lm

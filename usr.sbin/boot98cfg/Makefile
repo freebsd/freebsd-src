@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	boot98cfg
-WARNS?=	2
 MAN=	boot98cfg.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

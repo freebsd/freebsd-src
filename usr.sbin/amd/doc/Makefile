@@ -2,13 +2,13 @@
 
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../../contrib/amd/doc
+
 INFO=	am-utils
 
 INFOSECTION=	"AMD Documentation"
 INFOENTRY= 	"* Am-utils: (am-utils).	The Amd automounter suite of utilities"
 
 MAKEINFOFLAGS+=	-I ${.CURDIR}/../../../contrib/amd/doc
-
-.PATH:	${.CURDIR}/../../../contrib/amd/doc
 
 .include <bsd.info.mk>

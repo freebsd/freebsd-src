@@ -4,19 +4,21 @@
 MAINTAINER=	dwmalone
 
 PROG=	inetd
-SRCS=	inetd.c builtins.c
-#WARNS?=	2
 MAN=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
+SRCS=	inetd.c builtins.c
 
+#WARNS?=	2
 COPTS+=	-DLOGIN_CAP
 #COPTS+=	-DSANITY_CHECK
 
-DPADD+=	${LIBUTIL} ${LIBWRAP}
-LDADD+=	-lutil -lwrap
+DPADD=	${LIBUTIL} ${LIBWRAP}
+LDADD=	-lutil -lwrap
+
 .if !defined(RELEASE_CRUNCH)
-CFLAGS+=-DINET6 -DIPSEC
+CFLAGS+= -DINET6 -DIPSEC
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 .endif
+
 .include <bsd.prog.mk>

@@ -3,6 +3,7 @@
 
 PROG=	pciconf
 MAN=	pciconf.8
+
 CFLAGS+= -I${.CURDIR}/../../sys
 
 .include <bsd.prog.mk>

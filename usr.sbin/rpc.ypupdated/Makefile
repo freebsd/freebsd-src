@@ -1,19 +1,14 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../ypserv ${.CURDIR}/../../libexec/ypxfr
+
 PROG=	rpc.ypupdated
+NOMAN=	yes
 SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \
 	yp_error.c update.c ypupdated_server.c \
 	yp_dblookup.c yp_dbwrite.c yp_dbdelete.c yp_dbupdate.c
 
-.PATH: ${.CURDIR}/../ypserv ${.CURDIR}/../../libexec/ypxfr
-
-RPCDIR=	${DESTDIR}/usr/include/rpcsvc
-
-NOMAN= yes
-
-CFLAGS+= -I${.CURDIR}/../ypserv -I.
-CFLAGS+= -I${.CURDIR}/../../libexec/ypxfr
-
+CFLAGS+= -I${.CURDIR}/../ypserv -I. -I${.CURDIR}/../../libexec/ypxfr
 #CFLAGS+= -DYP
 
 DPADD=	${LIBRPCSVC}
@@ -21,6 +16,7 @@ LDADD=	-lrpcsvc
 
 CLEANFILES= ypupdate_prot_svc.c ypupdate_prot.h
 
+RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that

@@ -1,6 +1,7 @@
 # $FreeBSD$
-PROG	 =	isdntelctl
-SRCS	 =	main.c
-MAN	 = 	isdntelctl.8
+
+PROG=	isdntelctl
+MAN= 	isdntelctl.8
+SRCS=	main.c
 
 .include <bsd.prog.mk>

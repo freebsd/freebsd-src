@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-PROG=		lptcontrol
-WARNS?=		2
-MAN=		lptcontrol.8
+PROG=	lptcontrol
+MAN=	lptcontrol.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

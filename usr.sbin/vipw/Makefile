@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	vipw
-SRCS=	pw_util.c vipw.c
 MAN=	vipw.8
+SRCS=	pw_util.c vipw.c
 
 .include <bsd.prog.mk>

@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-PROG= pkg_create
+PROG=	pkg_create
+SRCS=	main.c perform.c pl.c
 
-CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd
-
-SRCS= main.c perform.c pl.c
 
 .include <bsd.prog.mk>

@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	xten
+
 CFLAGS+= -I${.CURDIR}/../../libexec/xtend
 
 .include <bsd.prog.mk>

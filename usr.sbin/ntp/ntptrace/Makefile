@@ -1,16 +1,12 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntptrace
+.PATH: ${.CURDIR}/../../../contrib/ntp/ntptrace
 
-PROG= ntptrace
-
+PROG=	ntptrace
+NOMAN=	yes
 SRCS= 	ntptrace.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-NOMAN= yes
 
 DPADD=	${LIBNTP}
 LDADD=	${LIBNTP}
