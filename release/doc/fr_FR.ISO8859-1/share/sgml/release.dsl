@@ -3,7 +3,7 @@
      The FreeBSD French Documentation Project
 
      $Id$
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/share/sgml/release.dsl,v 1.1.2.5 2003/06/11 21:04:43 hrs Exp $
      Original revision: 1.1.2.6
 -->
 

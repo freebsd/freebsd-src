@@ -31,7 +31,7 @@
  *
  * Character conversion routines
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_nls.c,v 1.4 2000/01/29 02:10:37 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>

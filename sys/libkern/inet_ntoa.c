@@ -27,7 +27,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/inet_ntoa.c,v 1.2.16.1 2000/08/03 01:03:45 peter Exp $
  */
 
 #include <sys/param.h>

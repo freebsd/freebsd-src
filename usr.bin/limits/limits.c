@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/limits/limits.c,v 1.7.2.3 2003/05/22 09:26:57 sheldonh Exp $
  */
 
 #include <err.h>

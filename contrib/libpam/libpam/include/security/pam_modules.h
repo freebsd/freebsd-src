@@ -2,7 +2,7 @@
  * <security/pam_modules.h>
  * 
  * $Id: pam_modules.h,v 1.8 1997/01/04 20:14:42 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/include/security/pam_modules.h,v 1.2.6.2 2001/06/11 15:28:14 markm Exp $
  *
  * This header file documents the PAM SPI --- that is, interface
  * between the PAM library and a PAM service library which is called

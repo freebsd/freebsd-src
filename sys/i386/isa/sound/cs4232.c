@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/cs4232.c,v 1.6 2000/01/24 08:16:15 bde Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>

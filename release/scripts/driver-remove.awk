@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/driver-remove.awk,v 1.2.2.1 2002/08/08 08:38:18 ru Exp $
 # 
 
 function usage()

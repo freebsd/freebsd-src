@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/uaudio/Makefile,v 1.1.2.1 2002/08/24 08:06:13 nsayer Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/usb
 KMOD		= snd_uaudio

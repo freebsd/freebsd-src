@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tdnams_rcsid[] = "$FreeBSD$";
+const char _uuconf_tdnams_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/tdnams.c,v 1.7 1999/08/27 23:33:32 peter Exp $";
 #endif
 
 #include <errno.h>

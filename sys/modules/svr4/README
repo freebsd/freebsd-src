@@ -35,4 +35,4 @@ things)).  Patches will be appreciated (use send-pr).
    - Mark Newton
      newton@atdot.dotat.org
 
-$FreeBSD$
+$FreeBSD: src/sys/modules/svr4/README,v 1.3 1999/08/28 00:47:42 peter Exp $

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/dounsortreloc,v 1.4 1999/08/27 23:34:35 peter Exp $
 # objdump the reloc table, but strip off the headings and reloc
 # numbers and sort the result.  Intended for use in comparing reloc
 # tables that may not be in the same order.

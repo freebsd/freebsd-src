@@ -1,5 +1,5 @@
 ;	From: @(#)localhost.rev	5.1 (Berkeley) 6/30/90
-; $FreeBSD$
+; $FreeBSD: src/etc/namedb/PROTO.localhost-v6.rev,v 1.1.2.1 2002/02/04 18:24:21 ume Exp $
 ;
 ; This file is automatically edited by the `make-localhost' script in
 ; the /etc/namedb directory.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ficl/Makefile,v 1.17.2.6 2002/07/19 18:46:28 ru Exp $
 #
 .PATH:			${.CURDIR}/${MACHINE_ARCH}
 BASE_SRCS=		dict.c ficl.c math64.c stack.c vm.c words.c

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/compat-43/sigcompat.c,v 1.7 2000/01/27 23:06:04 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)sigcompat.c	8.1 (Berkeley) 6/2/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/compat-43/sigcompat.c,v 1.7 2000/01/27 23:06:04 jasone Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

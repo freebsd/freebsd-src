@@ -3,7 +3,7 @@
  */
 
 /* $Id */
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_userdb/conv.c,v 1.1.1.1.2.2 2001/06/11 15:28:33 markm Exp $
 /* Copyright at the end of the file */
 
 #define _BSD_SOURCE

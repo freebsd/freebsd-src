@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/compat4x-install.sh,v 1.1.2.1 2002/05/01 09:51:23 matusita Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

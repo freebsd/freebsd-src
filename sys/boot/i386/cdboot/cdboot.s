@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/cdboot/cdboot.s,v 1.9.2.1 2001/12/21 21:01:41 jhb Exp $
 
 #
 # This program is a freestanding boot program to load an a.out binary

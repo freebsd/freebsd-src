@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.statd/Makefile,v 1.9.2.1 2001/04/25 12:10:45 ru Exp $
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c sm_inter.h statd.c procs.c

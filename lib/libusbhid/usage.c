@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libusbhid/usage.c,v 1.6.2.1 2002/04/03 15:54:00 joe Exp $");
 
 #include <ctype.h>
 #include <err.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/wizard.c,v 1.15.2.5 2002/07/02 21:27:28 jhb Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man7/Makefile,v 1.10.2.7 2002/12/28 19:09:50 dillon Exp $
 
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	ascii.7 build.7 clocks.7 environ.7 hier.7 hostname.7 intro.7 \

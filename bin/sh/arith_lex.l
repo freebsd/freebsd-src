@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/arith_lex.l,v 1.14.2.2 2002/07/19 04:38:51 tjr Exp $";
 #endif /* not lint */
 
 #include "y.tab.h"

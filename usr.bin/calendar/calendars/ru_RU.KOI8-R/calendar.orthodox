@@ -1,7 +1,7 @@
 /*
  * Православные праздники
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/ru_RU.KOI8-R/calendar.orthodox,v 1.5.2.1 2002/01/05 15:43:38 phantom Exp $
  */
 
 #ifndef _ru_RU_KOI8_R_orthodox_

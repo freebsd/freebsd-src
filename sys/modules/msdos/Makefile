@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/msdos/Makefile,v 1.10.2.2 2002/12/01 09:01:08 nyan Exp $
 
 .PATH:	${.CURDIR}/../../msdosfs
 KMOD=	msdos

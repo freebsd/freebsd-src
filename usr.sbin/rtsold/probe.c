@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtsold/probe.c,v 1.2.2.6 2003/08/24 18:34:25 ume Exp $
  */
 
 #include <sys/param.h>

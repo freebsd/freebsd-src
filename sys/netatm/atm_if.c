@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_if.c,v 1.5.2.4 2003/08/08 15:59:48 harti Exp $
  *
  */
 
@@ -39,7 +39,7 @@
 #include <net/bpf.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_if.c,v 1.5.2.4 2003/08/08 15:59:48 harti Exp $");
 #endif
 
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/mga/Makefile,v 1.4.2.1 2003/04/26 07:31:06 anholt Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD	= mga

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)rec_get.c	8.9 (Berkeley) 8/18/94";
 #endif /* LIBC_SCCS and not lint */
 
 #if !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/db/recno/rec_get.c,v 1.2.6.2 2001/01/02 09:11:10 obrien Exp $";
 #endif
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/machine.h,v 1.4.6.1 2002/08/11 17:09:25 dwmalone Exp $
  */
 
 /*

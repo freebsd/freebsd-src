@@ -3,7 +3,7 @@
      The FreeBSD French Documentation Project
 
      $Id$
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.4 2002/12/11 16:53:39 gioria Exp $
      Original revision: 1.13.2.73
 -->
 <!--
@@ -39,7 +39,7 @@
 
 <sect1>
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/fr_FR.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.4 2002/12/11 16:53:39 gioria Exp $</pubdate>
   </sect1info>
 
   <title>P&eacute;riph&eacute;riques support&eacute;s</title>

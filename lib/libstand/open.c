@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/open.c,v 1.2.6.1 2000/09/10 01:32:06 ps Exp $ */
 /*	$NetBSD: open.c,v 1.16 1997/01/28 09:41:03 pk Exp $	*/
 
 /*-

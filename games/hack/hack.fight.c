@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.fight.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.fight.c,v 1.5 1999/11/16 10:26:36 marcel Exp $ */
 
 #include	"hack.h"
 extern struct permonst li_dog, dog, la_dog;

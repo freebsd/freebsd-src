@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/libpc98/Makefile,v 1.3.2.5 2002/07/19 18:46:29 ru Exp $
 #
 LIB=			pc98
 INTERNALLIB=		true

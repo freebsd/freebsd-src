@@ -5,7 +5,7 @@
  * Currently maintained by Andrew G. Morgan <morgan@linux.kernel.org>
  *
  * $Id: pam_handlers.c,v 1.17 1997/04/05 06:55:24 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_handlers.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  */
 

@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/apm/apm.h,v 1.1.2.2 2003/08/19 05:12:26 nyan Exp $
  */
 
 #define APM_NEVENTS 16

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/games/random/randomize_fd.c,v 1.2.2.1 2003/02/15 10:34:35 seanc Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

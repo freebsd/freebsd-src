@@ -1,6 +1,6 @@
 ##
 ## $Id: Makefile,v 1.31 1997/04/05 07:04:25 morgan Exp morgan $
-## $FreeBSD$
+## $FreeBSD: src/contrib/libpam/Makefile,v 1.1.1.1.6.2 2001/06/11 15:28:09 markm Exp $
 ##
 ## $Log: Makefile,v $
 ##

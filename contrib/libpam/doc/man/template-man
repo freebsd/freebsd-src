@@ -1,6 +1,6 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\" $Id: template-man,v 1.1 1997/01/04 18:25:13 morgan Exp $
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/libpam/doc/man/template-man,v 1.1.1.1.6.2 2001/06/11 15:28:11 markm Exp $
 .\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
 .TH PAM_???? 2 "1997 Jan 4" "Linux-PAM 0.55" "Application Programmers' Manual"
 .SH NAME

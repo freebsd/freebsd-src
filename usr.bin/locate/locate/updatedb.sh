@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/locate/locate/updatedb.sh,v 1.17 2000/01/12 08:01:01 kris Exp $
 
 : ${LOCATE_CONFIG="/etc/locate.rc"}
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then

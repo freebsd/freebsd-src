@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 #	From: @(#)Makefile	8.2 (Berkeley) 1/29/94
-# $FreeBSD$
+# $FreeBSD: src/share/man/man0/Makefile,v 1.5 1999/08/28 00:19:38 peter Exp $
 #
 SRCS=	man1 man2 man3 man4 man5 man6 man7 man8
 

@@ -27,7 +27,7 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/ecs.c,v 2.9 93/12/07 10:18:20 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/ecs.c,v 1.5 1999/10/27 07:56:43 obrien Exp $ */
 
 #include "flexdef.h"
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)initquad.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/trek/initquad.c,v 1.4 1999/11/30 03:49:49 billf Exp $";
 #endif /* not lint */
 
 # include	"trek.h"

@@ -36,7 +36,7 @@
  *
  *	@(#)regfree.c	8.3 (Berkeley) 3/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/regfree.c,v 1.1.1.1.14.1 2000/07/31 06:30:37 dcs Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

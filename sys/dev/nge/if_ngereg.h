@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nge/if_ngereg.h,v 1.4.2.5 2002/11/13 12:54:06 simokawa Exp $
  */
 
 #define NGE_CSR			0x00

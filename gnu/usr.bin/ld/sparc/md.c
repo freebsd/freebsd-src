@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/ld/sparc/md.c,v 1.12 1999/08/27 23:36:04 peter Exp $
  */
 
 #include <sys/param.h>

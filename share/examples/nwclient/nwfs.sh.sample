@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/nwclient/nwfs.sh.sample,v 1.1 1999/11/03 12:06:13 bp Exp $
 #
 # Location: /usr/local/etc/rc.d/nwfs.sh
 #

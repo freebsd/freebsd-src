@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mem.c,v 1.79.2.10 2003/08/09 16:21:18 luoqi Exp $
  */
 
 /*

@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)wwerror.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/wwerror.c,v 1.1.1.1.14.2 2001/05/17 09:45:01 obrien Exp $";
 #endif /* not lint */
 
 #include <errno.h>

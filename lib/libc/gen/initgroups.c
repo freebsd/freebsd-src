@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)initgroups.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/initgroups.c,v 1.3.8.1 2001/12/19 15:49:35 tobez Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

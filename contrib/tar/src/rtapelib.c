@@ -32,7 +32,7 @@
    into macros for speed by Jay Fenlason.  Use -DWITH_REXEC for rexec
    code, courtesy of Dan Kegel.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tar/src/rtapelib.c,v 1.2.2.1 2002/07/14 13:19:44 sobomax Exp $ */
 
 #include "system.h"
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)finger.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/finger/finger.h,v 1.4.2.1 2002/07/03 01:14:24 des Exp $
  */
 
 typedef struct person {

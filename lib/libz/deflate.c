@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/deflate.c,v 1.5.2.2 2003/02/01 13:33:12 sobomax Exp $");
 
 /*
  *  ALGORITHM
@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/deflate.c,v 1.5.2.2 2003/02/01 13:33:12 sobomax Exp $ */
 
 #include "deflate.h"
 

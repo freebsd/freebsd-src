@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_execve.c,v 1.11.2.6 2002/11/21 21:53:06 archie Exp $
  */
 #include <errno.h>
 #include <fcntl.h>

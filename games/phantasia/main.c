@@ -4,7 +4,7 @@
  * Edward A. Estes
  * AT&T, March 12, 1986
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/main.c,v 1.8 1999/11/16 02:57:34 billf Exp $
  */
 
 /* DISCLAIMER:

@@ -23,12 +23,12 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/lib/libatm/ip_checksum.c,v 1.3.2.1 2001/09/28 16:52:10 dillon Exp $
  *
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/ip_checksum.c,v 1.3.2.1 2001/09/28 16:52:10 dillon Exp $");
 
 /*
  * User Space Library Functions

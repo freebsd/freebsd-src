@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ispfw/ispfw.c,v 1.2.2.5 2002/10/12 00:13:09 mjacob Exp $ */
 /*
  * ISP Firmware Helper Pseudo Device for FreeBSD
  *

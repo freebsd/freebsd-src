@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfsm_subs.h,v 1.27.2.1 2000/10/28 16:27:27 dwmalone Exp $
  */
 
 

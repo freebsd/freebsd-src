@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)args.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/indent/args.c,v 1.3.2.3 2001/12/06 19:28:47 schweikh Exp $";
 #endif /* not lint */
 
 /*

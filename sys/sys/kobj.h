@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kobj.h,v 1.5.2.1 2001/02/02 19:49:14 cg Exp $
  */
 
 #ifndef _SYS_KOBJ_H_

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 3/31/94
-# $FreeBSD$
+# $FreeBSD: src/games/random/Makefile,v 1.1.1.1.14.2 2003/02/15 10:34:35 seanc Exp $
 
 PROG=	random
 MAN=	random.6

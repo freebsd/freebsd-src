@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/makewhatis/Makefile,v 1.16.2.2 2001/04/25 14:04:13 ru Exp $
 MAINTAINER= wosch
 
 SCRIPTS=makewhatis.perl makewhatis.local.sh

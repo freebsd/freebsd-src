@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tip/tip/Makefile,v 1.10.6.3 2002/07/17 13:25:19 ru Exp $
 #
 # Files are:
 #	/etc/remote		remote host description file

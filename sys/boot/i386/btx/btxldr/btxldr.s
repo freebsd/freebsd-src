@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btxldr/btxldr.s,v 1.8.2.2 2000/07/06 23:04:29 obrien Exp $
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The

@@ -32,7 +32,7 @@
  *
  *	@(#)struct.h	8.1 (Berkeley) 6/2/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/struct.h,v 1.1.1.1.14.1 2001/03/05 13:08:49 obrien Exp $
  */
 
 #ifndef _STRUCT_H_

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_device.h,v 1.1.2.1 2002/08/23 07:15:44 julian Exp $
  *
  */
 

@@ -2,7 +2,7 @@
 
 /*
  * $Id: pam_dispatch.c,v 1.8 1997/01/04 20:04:09 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_dispatch.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * last modified by AGM
  */

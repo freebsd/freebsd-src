@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)err.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/err.h,v 1.8 1999/08/27 23:44:49 peter Exp $
  */
 
 #ifndef _ERR_H_

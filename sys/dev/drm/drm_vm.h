@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_vm.h,v 1.6.2.1 2003/04/26 07:05:29 anholt Exp $
  */
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102

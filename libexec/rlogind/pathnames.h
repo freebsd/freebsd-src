@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rlogind/pathnames.h,v 1.2 1999/09/19 22:05:30 markm Exp $
  */
 
 #include <paths.h>

@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libtelnet/getent.c,v 1.3.6.1 2002/04/13 11:07:12 markm Exp $");
 
 #ifndef lint
 #if 0

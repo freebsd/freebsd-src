@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pst/Makefile,v 1.1.2.1 2003/09/01 04:35:22 scottl Exp $
 
 .PATH: ${.CURDIR}/../../dev/pst
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/gx/if_gxvar.h,v 1.1.2.1 2001/11/15 03:09:23 jlemon Exp $
  */
 
 #if __FreeBSD_version < 500000

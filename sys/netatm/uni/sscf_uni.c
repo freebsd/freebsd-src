@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/sscf_uni.c,v 1.7.2.2 2003/08/07 15:44:59 harti Exp $
  *
  */
 
@@ -41,7 +41,7 @@
 #include <netatm/uni/sscf_uni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/sscf_uni.c,v 1.7.2.2 2003/08/07 15:44:59 harti Exp $");
 #endif
 
 

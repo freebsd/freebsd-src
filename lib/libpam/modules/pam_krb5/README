@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libpam/modules/pam_krb5/README,v 1.1.2.2 2001/07/29 18:57:30 markm Exp $
 
 This is the README for pam_krb5, a PAM module which support Kerberos 5
 authentication.

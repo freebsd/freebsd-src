@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/isa_compat.c,v 1.4.2.1 2001/05/19 02:35:47 nyan Exp $
  */
 
 #include <sys/param.h>

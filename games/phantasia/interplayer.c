@@ -1,7 +1,7 @@
 /*
  * interplayer.c - player to player routines for Phantasia
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/interplayer.c,v 1.6 1999/11/16 02:57:33 billf Exp $
  */
 
 #include <string.h>

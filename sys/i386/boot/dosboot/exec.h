@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/exec.h,v 1.5 1999/08/28 00:43:23 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_

@@ -32,7 +32,7 @@
  *
  *	@(#)snake.h	8.1 (Berkeley) 5/31/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/snake/snake/snake.h,v 1.1.1.1.14.1 2000/08/17 06:21:44 jhb Exp $
  */
 
 # include <stdio.h>

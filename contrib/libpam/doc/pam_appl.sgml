@@ -3,7 +3,7 @@
 <!--
 
  $Id: pam_appl.sgml,v 1.16 1997/04/05 06:49:14 morgan Exp morgan $
- $FreeBSD$
+ $FreeBSD: src/contrib/libpam/doc/pam_appl.sgml,v 1.1.1.1.6.2 2001/06/11 15:28:10 markm Exp $
 
     Copyright (C) Andrew G. Morgan 1996, 1997.  All rights reserved.
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/pager.c,v 1.4.2.1 2001/03/05 06:27:44 kris Exp $
  */
 /*
  * Simple paged-output and paged-viewing functions

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt.c,v 1.3.2.3 2002/09/24 21:37:24 mjacob Exp $ */
 /*
  * Generic routines for LSI '909 FC  adapters.
  * FreeBSD Version.

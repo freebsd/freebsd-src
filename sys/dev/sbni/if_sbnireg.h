@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sbni/if_sbnireg.h,v 1.1.2.1 2001/12/19 20:59:28 fjoe Exp $
  */
 
 /*

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#2 $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/libpam/openpam_borrow_cred.c,v 1.1.2.3 2002/07/03 21:45:44 des Exp $
  */
 
 #include <sys/param.h>

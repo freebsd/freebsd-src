@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/Makefile.inc,v 1.10.2.2 2002/02/18 16:02:39 ru Exp $
 
 BINDIR?=	/usr/games
 FILESDIR?=	${SHAREDIR}/games

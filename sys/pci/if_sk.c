@@ -31,7 +31,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_sk.c,v 1.19.2.10 2003/10/14 18:22:42 wilko Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_sk.c,v 1.19.2.10 2003/10/14 18:22:42 wilko Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {

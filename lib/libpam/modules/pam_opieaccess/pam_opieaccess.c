@@ -31,11 +31,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_opieaccess/pam_opieaccess.c,v 1.10.2.2 2002/07/06 14:11:26 des Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_opieaccess/pam_opieaccess.c,v 1.10.2.2 2002/07/06 14:11:26 des Exp $");
 
 #define _BSD_SOURCE
 

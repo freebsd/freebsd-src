@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/cron/crontab/Makefile,v 1.10.2.1 2001/04/25 12:09:24 ru Exp $
 
 PROG=	crontab
 CFLAGS+=-I${.CURDIR}/../cron

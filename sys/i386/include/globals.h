@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/globals.h,v 1.5.2.3 2003/08/30 15:39:08 tegge Exp $
  */
 
 #ifndef	_MACHINE_GLOBALS_H_

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/dd/dd.h,v 1.15.2.1 2000/08/07 08:30:17 ps Exp $
  */
 
 /* Input/output stream state. */

@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)hexsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/hexdump/hexsyntax.c,v 1.8.2.1 2002/07/23 14:27:06 tjr Exp $");
 
 #include <sys/types.h>
 

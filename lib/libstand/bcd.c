@@ -2,7 +2,7 @@
  * Some data-tables that are often used.
  * Cannot be copyrighted.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/bcd.c,v 1.1.1.1.6.1 2000/09/10 01:25:52 ps Exp $
  */
 
 #include <sys/types.h>

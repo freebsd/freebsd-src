@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)reboot.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/reboot/reboot.c,v 1.9.2.4 2002/04/28 22:50:00 wes Exp $";
 #endif /* not lint */
 
 #include <sys/reboot.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_if.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_if.h,v 1.12.2.1 2002/12/01 14:03:09 sobomax Exp $
  */
 
 #ifndef _NETNS_NS_IF_H_

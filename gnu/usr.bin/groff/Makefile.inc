@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/Makefile.inc,v 2.3.6.3 2003/06/26 13:13:53 ru Exp $
 
 BINDIR?=	/usr/bin
 SHELL=		/bin/sh

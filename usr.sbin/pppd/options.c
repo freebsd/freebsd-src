@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.sbin/pppd/options.c,v 1.20.2.2 2002/08/31 18:16:01 dwmalone Exp $";
 #endif
 
 #include <ctype.h>

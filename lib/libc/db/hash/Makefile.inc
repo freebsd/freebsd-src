@@ -1,5 +1,5 @@
 #       from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/db/hash/Makefile.inc,v 1.3.2.1 2001/10/02 11:15:38 ru Exp $
 
 .PATH: ${.CURDIR}/../libc/db/hash
 

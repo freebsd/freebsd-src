@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btxldr/Makefile,v 1.7.2.1 2000/04/15 03:09:41 ps Exp $
 
 M4?=	m4
 M4FLAGS+=	-DLOADER_ADDRESS=${LOADER_ADDRESS}

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/m4/pathnames.h,v 1.1.1.1.14.2 2002/07/15 02:06:15 jmallett Exp $
  */
 
 /*

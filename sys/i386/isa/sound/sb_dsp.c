@@ -30,7 +30,7 @@
  * 
  * JRA Gibson      April 1995 Code added for MV ProSonic/Jazz 16 in 16 bit mode
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/sb_dsp.c,v 1.42 1999/12/27 04:37:19 tanimura Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>

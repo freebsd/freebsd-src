@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/games/trek/DOC/read_me.nr,v 1.1.1.1.14.1 2001/03/05 12:11:40 kris Exp $
 .de @h
 'sp 4
 'tl 'TREK SETUP INSTRUCTIONS''%'

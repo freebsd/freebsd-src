@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/btx/btx.s,v 1.6.2.5 2001/12/27 16:53:08 nyan Exp $
 
 #
 # Memory layout.

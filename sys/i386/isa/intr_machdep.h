@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/intr_machdep.h,v 1.19.2.3 2003/08/18 20:22:22 jhb Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_

@@ -1,5 +1,5 @@
 /*	create.c		Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/create.c,v 1.4 1999/11/16 02:57:20 billf Exp $ */
 #include "header.h"
 extern char spelknow[],larnlevels[];
 extern char beenhere[],wizard,level;

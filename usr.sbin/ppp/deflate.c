@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/deflate.c,v 1.18.2.4 2002/09/01 02:12:26 brian Exp $
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/tmac/Makefile,v 1.21.2.10 2003/09/10 08:30:47 ru Exp $
 
 TMACOWN?=	${BINOWN}
 TMACGRP?=	${BINGRP}

@@ -110,5 +110,5 @@ __asm__(".previous");
  */
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/csu/alpha/crt1.c,v 1.7.2.2 2001/08/01 09:30:36 obrien Exp $";
 #endif

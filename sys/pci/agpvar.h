@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agpvar.h,v 1.1.2.2 2002/01/10 12:07:08 mdodd Exp $
  */
 
 #ifndef _PCI_AGPVAR_H_

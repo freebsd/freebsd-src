@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/signal.c,v 1.6.2.1 2002/04/25 11:04:51 tg Exp $");
 
 #include "doscmd.h"
 #include "trap.h"

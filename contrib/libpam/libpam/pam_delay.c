@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * $Id: pam_delay.c,v 1.5 1997/04/05 06:54:19 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_delay.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_delay.c,v $
  */

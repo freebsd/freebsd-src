@@ -39,7 +39,7 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#32 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7770.c,v 1.1.2.9 2003/06/10 03:26:07 gibbs Exp $
  */
 
 #ifdef __linux__

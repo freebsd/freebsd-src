@@ -1,5 +1,5 @@
 /*	$OpenBSD: dirname.c,v 1.4 1999/05/30 17:10:30 espie Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/gen/dirname.c,v 1.1.2.2 2001/07/23 10:13:04 dd Exp $	*/
 
 /*
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>

@@ -2,7 +2,7 @@
 # All rights reserved.
 #	@(#)termcap.src	5.88 (Berkeley) 4/30/91
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/termcap,v 1.1.2.4 2002/03/08 12:10:46 luigi Exp $
 #
 # for syscons
 # common entry without semigraphics

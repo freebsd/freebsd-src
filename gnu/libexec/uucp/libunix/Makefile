@@ -1,5 +1,5 @@
 # This subdirectory contains Unix specific support functions.
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/libunix/Makefile,v 1.7.2.1 2002/07/19 18:46:22 ru Exp $
 
 LIB=		unix
 INTERNALLIB=	YES

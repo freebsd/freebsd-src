@@ -12,7 +12,7 @@
 \           3 = found }
 \           4 = end of line
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/jhlocal.fr,v 1.1.6.1 2000/07/06 23:51:46 obrien Exp $
 
 hide
 0 constant zero

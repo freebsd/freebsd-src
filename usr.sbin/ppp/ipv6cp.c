@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ipv6cp.c,v 1.8.2.7 2003/06/28 14:50:25 ume Exp $
  */
 
 #include <sys/param.h>

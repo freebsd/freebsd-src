@@ -6,7 +6,7 @@
  * 
  * Allow user to log in for an authenticating server.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/login.c,v 1.3.2.4 2002/12/19 21:17:56 peter Exp $
  */
 
 #include "cvs.h"

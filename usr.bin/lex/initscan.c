@@ -3,7 +3,7 @@
 
 /* Scanner skeleton version:
  * $Header: /home/daffy/u0/vern/flex/RCS/flex.skl,v 2.91 96/09/10 16:58:48 vern Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/lex/initscan.c,v 1.6 1999/10/27 07:56:45 obrien Exp $
  */
 
 #define FLEX_SCANNER
@@ -1271,7 +1271,7 @@ char *yytext;
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/initscan.c,v 1.6 1999/10/27 07:56:45 obrien Exp $ */
 
 #include "flexdef.h"
 #include "parse.h"

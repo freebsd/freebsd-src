@@ -28,7 +28,7 @@
  *
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_eisa.c#11 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/ahc_eisa.c,v 1.15.2.11 2003/06/10 03:26:07 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx_osm.h>

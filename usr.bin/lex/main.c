@@ -33,7 +33,7 @@ char copyright[] =
 #endif /* not lint */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/main.c,v 2.64 96/05/25 20:42:42 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/main.c,v 1.7 1999/10/27 07:56:45 obrien Exp $ */
 
 
 #include "flexdef.h"

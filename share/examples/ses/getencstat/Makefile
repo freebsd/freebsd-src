@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ses/getencstat/Makefile,v 1.1.2.1 2002/07/29 04:43:56 mjacob Exp $
 #
 # Copyright (c) 2000 by Matthew Jacob
 # All rights reserved.

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ctags/Makefile,v 1.2.6.1 2001/09/18 04:16:53 mikeh Exp $
 
 PROG=	ctags
 CFLAGS+=-Wall

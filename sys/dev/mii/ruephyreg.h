@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/ruephyreg.h,v 1.1.4.1 2003/07/30 13:57:35 akiyama Exp $
  */
 
 #ifndef _RUEPHYREG_H_

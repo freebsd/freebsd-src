@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libusbhid/usbvar.h,v 1.2.2.1 2002/04/03 15:54:00 joe Exp $
  *
  */
 

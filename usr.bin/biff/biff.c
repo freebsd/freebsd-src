@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/biff/biff.c,v 1.6.2.4 2002/08/09 02:56:31 johan Exp $
  */
 
 #ifndef lint

@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)lpdchar.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/lpd/lpdchar.c,v 1.5.2.1 2003/07/29 17:52:24 gad Exp $");
 
 /*
  *	Character set for line printer daemon

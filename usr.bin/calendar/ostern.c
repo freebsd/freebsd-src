@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/calendar/ostern.c,v 1.8.2.2 2002/05/27 12:14:46 dwmalone Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

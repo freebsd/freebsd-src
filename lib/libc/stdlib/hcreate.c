@@ -1,5 +1,5 @@
 /* $NetBSD: hcreate.c,v 1.2 2001/02/19 21:26:04 ross Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/stdlib/hcreate.c,v 1.1.2.2 2001/10/02 11:22:56 ru Exp $ */
 
 /*
  * Copyright (c) 2001 Christopher G. Demetriou

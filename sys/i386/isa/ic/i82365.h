@@ -10,7 +10,7 @@
  *
  * originally by Barry Jaspan; hacked over by Keith Moore
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/i82365.h,v 1.2.16.1 2000/08/03 18:55:42 peter Exp $
  ***********************************************************************/
 
 /*

@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/miscbltin.c,v 1.22.2.3 2002/07/19 04:38:51 tjr Exp $");
 
 /*
  * Miscellaneous builtins.

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ct/bshw_machdep.c,v 1.3.2.1 2001/07/26 02:32:18 nyan Exp $ */
 /*	$NecBSD: bshw_machdep.c,v 1.8.12.6 2001/06/29 06:28:05 honda Exp $	*/
 /*	$NetBSD$	*/
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libgcc/Makefile,v 1.31.2.2 2002/06/20 23:13:29 obrien Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 

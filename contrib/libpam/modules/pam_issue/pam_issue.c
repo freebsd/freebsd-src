@@ -12,7 +12,7 @@
  * same parsing as util-linux's agetty program performs.
  *
  * Released under the GNU LGPL version 2 or later
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_issue/pam_issue.c,v 1.1.1.1.2.2 2001/06/11 15:28:18 markm Exp $
  */
 
 #define _GNU_SOURCE

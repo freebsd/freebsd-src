@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/patch/backupfile.c,v 1.4.6.3 2003/08/23 16:19:36 jwd Exp $");
 
 #include "config.h"
 #include <stdio.h>

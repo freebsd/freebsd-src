@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/natd/README,v 1.1.4.2 2003/06/27 09:31:26 ru Exp $
 
 	A Network Address Translation Daemon for FreeBSD
 

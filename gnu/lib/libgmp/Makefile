@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libgmp/Makefile,v 1.22.2.2 2002/07/22 14:21:44 ru Exp $
 #
 
 LIB=	gmp

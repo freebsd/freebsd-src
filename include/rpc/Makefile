@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/include/rpc/Makefile,v 1.2.2.1 2002/07/22 14:21:46 ru Exp $
 
 NOOBJ=	noobj
 INCS=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_event.c,v 1.2.2.9 2003/05/08 07:47:16 kbyanc Exp $
  */
 
 #include <sys/param.h>

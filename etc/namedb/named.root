@@ -1,5 +1,5 @@
 ;
-; $FreeBSD$
+; $FreeBSD: src/etc/namedb/named.root,v 1.9.2.1 2002/11/06 09:24:12 dougb Exp $
 ;
 
 ;       This file holds the information on root name servers needed to

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/reboot.h,v 1.6 1999/08/28 00:43:24 peter Exp $
  */
 
 #ifndef _SYS_REBOOT_H_

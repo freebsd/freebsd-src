@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	5.6 (Berkeley) 5/24/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/yacc/defs.h,v 1.8.2.1 2001/10/05 03:00:19 obrien Exp $
  */
 
 #include <sys/cdefs.h>	/* for __P macro */

@@ -1,5 +1,5 @@
 /* MD4C.C - RSA Data Security, Inc., MD4 message-digest algorithm
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/md4c.c,v 1.7 1999/08/28 00:05:05 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.

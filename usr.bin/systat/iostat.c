@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/iostat.c,v 1.9.2.1 2000/07/02 10:03:17 ps Exp $
  */
 /*
  * Copyright (c) 1980, 1992, 1993

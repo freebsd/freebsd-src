@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  * All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/advansys.h,v 1.2.2.1 2000/04/14 13:32:48 nyan Exp $
  */
 
 #ifndef _ADVANSYS_H_

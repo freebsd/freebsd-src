@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/gensetdefs/Makefile,v 1.6.2.1 2001/04/25 11:29:21 ru Exp $
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 

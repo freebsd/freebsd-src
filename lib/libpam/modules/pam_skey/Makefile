@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libpam/modules/pam_skey/Makefile,v 1.2.6.4 2002/07/03 21:41:30 des Exp $
 
 
 LIB=		pam_skey

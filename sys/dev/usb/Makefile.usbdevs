@@ -1,6 +1,6 @@
 # The files usbdevs.h and usbdevs_data.h are generated from usbdevs
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/usb/Makefile.usbdevs,v 1.1.2.2 2000/05/07 14:36:41 n_hibma Exp $
 
 AWK=	awk
 UNAME=	uname

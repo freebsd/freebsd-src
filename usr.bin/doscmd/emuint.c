@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/emuint.c,v 1.3.2.2 2002/04/25 11:04:51 tg Exp $");
 
 #include <sys/param.h>
 #include <ctype.h>

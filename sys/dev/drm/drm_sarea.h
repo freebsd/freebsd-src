@@ -25,7 +25,7 @@
  * Authors:
  *    Michel Dänzer <michel@daenzer.net>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_sarea.h,v 1.1.2.1 2003/04/26 07:05:28 anholt Exp $
  */
 
 #ifndef _DRM_SAREA_H_

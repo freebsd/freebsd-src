@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.3 1995/07/04 01:53:05 cgd Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/xlint/lint1/Makefile,v 1.7.2.1 2000/12/07 16:33:35 obrien Exp $
 
 PROG=	lint1
 SRCS=	cgram.y scan.l mem1.c mem.c err.c main1.c decl.c tree.c func.c \

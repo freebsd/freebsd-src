@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/oinit/Makefile,v 1.2 1999/08/28 01:33:57 peter Exp $
 #
 PROG=oinit
 #CFLAGS+=-DUSE_HISTORY

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_tran.h,v 1.1.2.1 2001/05/22 08:32:34 bp Exp $
  */
 
 #ifndef _NETSMB_SMB_TRAN_H_

@@ -4,7 +4,7 @@
  * Maintained by AGM
  *
  * $Id: pam_start.c,v 1.10 1997/04/05 06:58:11 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_start.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_start.c,v $
  */

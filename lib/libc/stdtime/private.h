@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/stdtime/private.h,v 1.6.8.1 2000/08/23 00:19:15 jhb Exp $ */
 
 #ifndef PRIVATE_H
 

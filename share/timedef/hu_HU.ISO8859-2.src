@@ -1,6 +1,6 @@
 # This is a Hungarian LC_TIME file for ISO 8859-2 code-table
 # Made by Gabor Zahemszky <zgabor@CoDe.hu>
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/hu_HU.ISO8859-2.src,v 1.6.2.2 2002/03/12 17:32:20 phantom Exp $
 #
 # Short month names
 #

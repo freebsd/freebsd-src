@@ -29,7 +29,7 @@
  *
  *	$Id: main.c,v 1.12 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnphone/main.c,v 1.1.2.2 2001/12/16 15:13:38 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:53:25 1999]
  *

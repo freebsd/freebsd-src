@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/reboot/Makefile,v 1.6.8.3 2002/02/20 15:26:14 ru Exp $
 
 PROG=	reboot
 WARNS?=	2

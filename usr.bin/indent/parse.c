@@ -36,7 +36,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/indent/parse.c,v 1.3.2.3 2001/12/06 19:28:47 schweikh Exp $";
 #endif /* not lint */
 #endif
 

@@ -30,7 +30,7 @@
  * Acknowledgements:
  * Dec 1999, Richard Henderson <rth@twiddle.net>, move to generic cmpxchg.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm.h,v 1.3.2.1 2003/04/26 07:05:27 anholt Exp $
  */
 
 #ifndef _DRM_H_

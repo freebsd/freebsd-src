@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/crt0.c,v 1.2.2.1 2002/04/25 11:04:50 tg Exp $");
 
 char **environ;
 char *__progname;

@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/rpcgen/rpc_main.c,v 1.11.2.1 2003/08/03 11:07:06 mbr Exp $";
 #endif
 
 /*

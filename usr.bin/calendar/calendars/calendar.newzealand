@@ -1,7 +1,7 @@
 /*
  * New Zealand holidays
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.newzealand,v 1.1.2.2 2003/04/06 20:04:57 dwmalone Exp $
  */
 
 #ifndef _calendar_newzealand_

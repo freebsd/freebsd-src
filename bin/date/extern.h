@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/date/extern.h,v 1.5 1999/08/27 23:13:59 peter Exp $
  */
 
 int	netsettime __P((time_t));

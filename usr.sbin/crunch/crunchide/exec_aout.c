@@ -28,7 +28,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 __RCSID("$NetBSD: exec_aout.c,v 1.6 1997/08/02 21:30:17 perry Exp $");
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/crunch/crunchide/exec_aout.c,v 1.1.6.1 2002/07/25 09:33:17 ru Exp $");
 #endif
  
 #include <unistd.h>

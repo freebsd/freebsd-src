@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/buslogic/bt_pci.c,v 1.11 2000/01/17 12:38:00 nyan Exp $
  */
 
 #include <sys/param.h>

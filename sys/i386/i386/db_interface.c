@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/db_interface.c,v 1.48.2.2 2003/08/09 16:21:17 luoqi Exp $
  */
 
 /*

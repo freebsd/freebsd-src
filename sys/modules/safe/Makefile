@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/safe/Makefile,v 1.1.2.1 2003/07/22 17:58:29 sam Exp $
 #
 
 .PATH:	${.CURDIR}/../../dev/safe

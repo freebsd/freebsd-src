@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ansi.h	7.1 (Berkeley) 3/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/ansi.h,v 1.5 1999/08/28 00:43:19 peter Exp $
  */
 
 #ifndef	_ANSI_H_

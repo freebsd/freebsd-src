@@ -5,7 +5,7 @@
 #
 # Michael K. Johnson <johnsonm@redhat.com> 1996/10/24
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/modules/pam_nologin/Makefile,v 1.3.2.2 2001/06/11 15:28:21 markm Exp $
 #
 
 TITLE=pam_nologin

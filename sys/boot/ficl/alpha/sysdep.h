@@ -32,7 +32,7 @@
 ** send me email at the address above. 
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/alpha/sysdep.h,v 1.5.2.1 2000/07/06 23:51:46 obrien Exp $ */
 
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 

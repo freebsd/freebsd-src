@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/italian/Makefile,v 1.4.2.3 2002/08/07 16:31:38 ru Exp $
 
 NL=     italian
 DL=     it_IT.ISO8859-1

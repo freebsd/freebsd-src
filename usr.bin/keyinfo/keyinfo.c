@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/keyinfo/keyinfo.c,v 1.3.4.1 2001/11/06 03:36:33 imp Exp $
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %static const char rcsid[] =
-%  "$FreeBSD$";
+%  "$FreeBSD: src/include/rpcsvc/ypupdate_prot.x,v 1.3 1999/08/27 23:45:13 peter Exp $";
 %#endif
 #endif
 %

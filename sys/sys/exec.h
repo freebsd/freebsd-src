@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/exec.h,v 1.26 1999/12/29 04:24:40 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/modems,v 1.4 1999/08/27 23:23:42 peter Exp $
 #	@(#)modems	3/24/95
 #
 # modems -- modem configuration data base file

@@ -31,7 +31,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/t4dwave.c,v 1.9.2.11 2002/10/22 08:27:13 cognet Exp $");
 /* -------------------------------------------------------------------- */
 
 #define TDX_PCI_ID 	0x20001023

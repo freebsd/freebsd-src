@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net/if_faith.h,v 1.1.2.2 2001/07/05 14:46:25 ume Exp $	*/
 /*	$KAME: if_faith.h,v 1.1 2000/07/26 05:49:21 itojun Exp $	*/
 
 /*

@@ -26,7 +26,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.sendmail,v 1.3.2.1 2002/04/24 17:28:08 gshapiro Exp $
 #
 
 # This script is used by /etc/rc at boot time to start sendmail.  It

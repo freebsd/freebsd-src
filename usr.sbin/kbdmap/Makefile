@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kbdmap/Makefile,v 1.9.2.2 2001/04/25 14:04:50 ru Exp $
 
 MAINTAINER= wosch
 

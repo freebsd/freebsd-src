@@ -4,7 +4,7 @@
  *   Mink is the former name of the S/KEY authentication system.
  *   Many references for mink  may still be found in this program.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libskey/skeylogin.c,v 1.14.6.1 2000/07/18 11:38:24 sheldonh Exp $
  */
 
 #include <sys/param.h>

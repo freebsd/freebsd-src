@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_dirhash.c,v 1.3.2.6 2002/04/10 21:41:14 dwmalone Exp $
  */
 /*
  * This implements a hash-based lookup scheme for UFS directories.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/vpoio.h,v 1.4.2.2 2001/10/02 05:27:20 nsouch Exp $
  *
  */
 #ifndef __VP0IO_H

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/bltin/echo.c,v 1.9.2.3 2003/01/31 10:40:27 dwmalone Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdlib/reallocf.c,v 1.3 1999/08/28 00:01:37 peter Exp $
  */
 #include <stdlib.h>
 

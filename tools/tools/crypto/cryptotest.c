@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/tools/crypto/cryptotest.c,v 1.3.2.2 2003/06/03 00:14:44 sam Exp $ */
 
 /*
  * This program repeatedly encrypts and decrypts a buffer with the built-in

@@ -60,7 +60,7 @@
  *
  *	This code can be compiled stand-alone for debugging.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_blist.c,v 1.5.2.2 2003/01/12 09:23:12 dillon Exp $
  */
 
 #ifdef _KERNEL

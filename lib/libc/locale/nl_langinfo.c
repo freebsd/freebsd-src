@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/nl_langinfo.c,v 1.13.2.3 2002/03/12 17:23:24 phantom Exp $
  */
 
 #include <locale.h>

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/isa/isa_if.m,v 1.5 1999/10/12 21:35:48 dfr Exp $
 #
 
 CODE {

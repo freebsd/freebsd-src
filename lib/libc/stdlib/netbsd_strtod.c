@@ -1,5 +1,5 @@
 /*	From: NetBSD: strtod.c,v 1.26 1998/02/03 18:44:21 perry Exp */
-/* $FreeBSD$	*/
+/* $FreeBSD: src/lib/libc/stdlib/netbsd_strtod.c,v 1.2.2.2 2001/03/02 17:14:15 tegge Exp $	*/
 
 /****************************************************************
  *

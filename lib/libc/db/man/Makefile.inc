@@ -1,5 +1,5 @@
 #       from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/db/man/Makefile.inc,v 1.8.2.2 2001/04/25 10:04:04 ru Exp $
 
 .PATH: ${.CURDIR}/../libc/db/man
 

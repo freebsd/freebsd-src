@@ -2,7 +2,7 @@
  * pam_auth.c -- PAM authentication
  *
  * $Id: pam_auth.c,v 1.7 1997/04/05 06:53:52 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_auth.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log: pam_auth.c,v $
  * Revision 1.7  1997/04/05 06:53:52  morgan

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ste/Makefile,v 1.7 2000/01/28 11:26:37 bde Exp $
 
 .PATH:	${.CURDIR}/../../pci
 KMOD	= if_ste

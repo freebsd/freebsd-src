@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwcrom.c,v 1.2.2.3 2003/06/20 08:25:27 simokawa Exp $
  */
 
 #include <sys/param.h>

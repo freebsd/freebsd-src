@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/README,v 1.2.6.1 2000/08/13 14:49:04 alex Exp $
 
 This directory tree contains tools used for the maintenance and
 testing of FreeBSD.  There is no toplevel Makefile structure since

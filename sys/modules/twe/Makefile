@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/twe/Makefile,v 1.1.2.2 2000/10/27 06:04:54 msmith Exp $
 
 #
 # The 3ware controller offers a choice of options related to handling of

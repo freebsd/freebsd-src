@@ -1,5 +1,5 @@
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aic7xxx/ahd/Makefile,v 1.2.2.1 2002/09/02 05:47:45 scottl Exp $
 
 .PATH:	${.CURDIR}/../../../dev/aic7xxx
 KMOD=	ahd

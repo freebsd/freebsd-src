@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_filnam_rcsid[] = "$FreeBSD$";
+const char _uuconf_filnam_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/filnam.c,v 1.6 1999/08/27 23:33:19 peter Exp $";
 #endif
 
 /* Return the saved file name.  */

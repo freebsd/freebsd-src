@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi_targ.h,v 1.1.2.2 2002/09/01 23:08:06 mjacob Exp $ */
 /*
  * Copyright (c) 2000, 2001 by LSI Logic Corporation
  *

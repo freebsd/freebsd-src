@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/bitstring.h,v 1.1.1.1.14.1 2000/10/30 11:21:04 dwmalone Exp $
  */
 
 #ifndef _BITSTRING_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_time.c,v 1.68.2.2 2003/06/25 21:20:27 silby Exp $
  */
 
 #include <sys/param.h>

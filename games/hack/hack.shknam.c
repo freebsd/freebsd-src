@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.shknam.c - version 1.0.2 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.shknam.c,v 1.3 1999/11/16 02:57:11 billf Exp $ */
 
 #include "hack.h"
 

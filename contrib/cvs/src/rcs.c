@@ -7,7 +7,7 @@
  * The routines contained in this file do all the rcs file parsing and
  * manipulation
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/rcs.c,v 1.19.2.5 2003/01/21 22:26:44 peter Exp $
  */
 
 #include <assert.h>

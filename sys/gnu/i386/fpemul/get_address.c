@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/get_address.c,v 1.10 1999/10/12 02:23:14 msmith Exp $
  *
  */
 

@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/parser.c,v 1.29.2.10 2003/07/22 13:11:26 dds Exp $");
 
 #include <stdlib.h>
 

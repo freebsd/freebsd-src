@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/README,v 1.1.2.1 2002/04/27 20:04:18 darrenr Exp $
 
 This directory contains various files related to ipfilter.
 

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/mqueue.h,v 1.4 1999/12/29 04:55:02 peter Exp $
  */
 
 #include <sys/_posix.h>

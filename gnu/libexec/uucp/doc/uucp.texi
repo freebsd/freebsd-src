@@ -1,6 +1,6 @@
 \input texinfo   @c -*-texinfo-*-
 
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/libexec/uucp/doc/uucp.texi,v 1.3.8.1 2000/06/03 17:18:09 ume Exp $
 
 @c %**start of header
 @setfilename uucp.info

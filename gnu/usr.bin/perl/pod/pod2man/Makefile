@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/pod/pod2man/Makefile,v 1.2.2.1 2000/10/05 09:54:51 markm Exp $
 #
 
 PROG=	pod2man

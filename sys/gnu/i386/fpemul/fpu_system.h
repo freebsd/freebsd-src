@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_system.h,v 1.7.2.1 2001/08/15 01:23:49 peter Exp $
  *
  */
 

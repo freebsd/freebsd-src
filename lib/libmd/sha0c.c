@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/sha0c.c,v 1.3 1999/08/28 00:05:09 peter Exp $
  */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/unisig_msg.c,v 1.6.2.1 2003/08/08 15:45:37 harti Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #include <netatm/uni/unisig_print.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/unisig_msg.c,v 1.6.2.1 2003/08/08 15:45:37 harti Exp $");
 #endif
 
 

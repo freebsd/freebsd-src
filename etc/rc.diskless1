@@ -1,7 +1,7 @@
 # Copyright (c) 1999-2002  Matt Dillon.  Terms and conditions based on
 # the FreeBSD copyright as found at the base of the source distribution.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.diskless1,v 1.5.2.13 2003/08/11 13:39:48 fjoe Exp $
 #
 # /etc/rc.diskless1 - general BOOTP startup
 #

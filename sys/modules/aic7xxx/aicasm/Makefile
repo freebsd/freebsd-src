@@ -1,5 +1,5 @@
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aic7xxx/aicasm/Makefile,v 1.4.2.1 2002/09/02 05:47:45 scottl Exp $
 
 all: aicasm
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/tmpfile.c,v 1.4.2.2 2003/02/15 05:34:52 kris Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/boot2/Makefile,v 1.4.2.2 2002/08/07 16:31:53 ru Exp $
 #
 
 PROG=	boot

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/gen/fmtcheck.c,v 1.1.2.1 2001/07/05 07:43:42 kris Exp $	*/
 /*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
 
 /*-
@@ -39,7 +39,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/fmtcheck.c,v 1.1.2.1 2001/07/05 07:43:42 kris Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

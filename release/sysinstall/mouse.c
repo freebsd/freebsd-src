@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/mouse.c,v 1.7.2.1 2000/07/14 07:51:47 jhb Exp $
  */
 
 #include "sysinstall.h"

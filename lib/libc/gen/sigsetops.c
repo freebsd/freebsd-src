@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)sigsetops.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/sigsetops.c,v 1.7 1999/10/02 19:37:14 marcel Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>

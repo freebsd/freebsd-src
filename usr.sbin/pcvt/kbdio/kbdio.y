@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/pcvt/kbdio/kbdio.y,v 1.6 1999/09/06 07:39:30 peter Exp $"
 
 /*
  * $Log: kbdio.y,v $

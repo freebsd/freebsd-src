@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/ypxfr/ypxfr_getmap.c,v 1.7.2.2 2002/02/15 00:46:54 des Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

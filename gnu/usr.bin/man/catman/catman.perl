@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/catman/catman.perl,v 1.14.2.5 2002/01/05 16:20:52 phantom Exp $
 
 
 sub usage {

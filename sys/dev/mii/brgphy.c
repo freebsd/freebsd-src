@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/brgphy.c,v 1.1.2.8 2003/07/22 02:12:55 ps Exp $
  */
 
 /*
@@ -61,7 +61,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/brgphy.c,v 1.1.2.8 2003/07/22 02:12:55 ps Exp $";
 #endif
 
 static int brgphy_probe(device_t);

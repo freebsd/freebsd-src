@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/traceroute/FREEBSD-upgrade,v 1.2 1999/12/20 16:07:53 phantom Exp $
 
 This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade

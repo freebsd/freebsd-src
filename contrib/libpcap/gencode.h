@@ -20,7 +20,7 @@
  *
  * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.53 2001/05/10 14:48:02 fenner Exp $ (LBL)
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/gencode.h,v 1.3.2.2 2002/07/05 14:39:58 fenner Exp $
  */
 
 /* Address qualifiers. */

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/fstat/msdosfs.c,v 1.1.2.2 2001/11/21 10:49:37 dwmalone Exp $
  */
 
 #include <sys/param.h>

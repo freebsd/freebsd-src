@@ -39,7 +39,7 @@
  *
  * @(#) $Header: /tcpdump/master/libpcap/bpf/net/bpf.h,v 1.51 2001/11/28 05:50:05 guy Exp $ (LBL)
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/bpf/net/bpf.h,v 1.2.2.2 2002/07/05 14:40:00 fenner Exp $
  */
 
 #ifndef BPF_MAJOR_VERSION

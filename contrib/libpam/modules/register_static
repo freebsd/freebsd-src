@@ -1,5 +1,5 @@
 #!/bin/bash
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/modules/register_static,v 1.1.1.1.6.1 2001/06/11 15:28:16 markm Exp $
 
 if [ `basename $PWD` != "modules" ]; then
 	echo "$0 must be run from the .../modules directory"

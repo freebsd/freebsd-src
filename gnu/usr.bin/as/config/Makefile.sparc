@@ -1,5 +1,5 @@
 #	from: @(#)Makefile.i386	6.1 (Berkeley) 3/3/91
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/config/Makefile.sparc,v 1.5 1999/08/27 23:34:27 peter Exp $
 
 CFLAGS+=	-DNON_BROKEN_WORDS -DPIC
 SRCS+=		tc-sparc.c atof-ieee.c

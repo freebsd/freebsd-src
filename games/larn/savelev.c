@@ -1,5 +1,5 @@
 /* savelev.c		 Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/savelev.c,v 1.3 1999/11/16 02:57:24 billf Exp $ */
 #include "header.h"
 extern struct cel *cell;
 

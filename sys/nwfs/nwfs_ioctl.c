@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/nwfs/nwfs_ioctl.c,v 1.2.2.1 2001/02/22 09:14:12 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

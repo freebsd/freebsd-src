@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/modules/syscons/logo/logo.c,v 1.1.6.1 2000/08/03 01:05:54 peter Exp $ */
 
 #define logo_w 88
 #define logo_h 88

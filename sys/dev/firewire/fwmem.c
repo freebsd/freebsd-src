@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwmem.c,v 1.1.2.11 2003/07/02 03:22:29 simokawa Exp $
  */
 
 #include <sys/param.h>

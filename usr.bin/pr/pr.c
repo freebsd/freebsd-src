@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/pr/pr.c,v 1.9.2.4 2002/04/15 17:16:57 jmallett Exp $
  */
 
 #ifndef lint

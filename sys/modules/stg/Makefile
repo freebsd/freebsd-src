@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/stg/Makefile,v 1.1.2.2 2002/01/02 07:59:12 non Exp $
 
 .PATH: ${.CURDIR}/../../dev/stg
 

@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_quirks.h,v 1.11 2000/04/27 15:26:50 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usb_quirks.h,v 1.11.2.6 2002/08/24 08:00:32 nsayer Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/crypto/Makefile,v 1.2.2.3 2003/07/22 18:01:41 sam Exp $
 
 ALL=	cryptotest cryptokeytest cryptostats \
 	ubsecstats hifnstats ipsecstats safestats

@@ -5,7 +5,7 @@
 # This can be useful for files with names truncated after a file transfer.
 # foo is renamed to foo.gz
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gzip/zforce,v 1.5 1999/08/27 23:35:55 peter Exp $
 
 x=`basename $0`
 if test $# = 0; then

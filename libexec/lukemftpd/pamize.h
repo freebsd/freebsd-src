@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/lukemftpd/pamize.h,v 1.1.4.1 2003/08/24 17:46:47 obrien Exp $ */
 
 
 #ifdef USE_PAM

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtadvd/config.h,v 1.1.2.4 2003/08/22 18:54:21 ume Exp $
  */
 
 extern void getconfig __P((char *));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/sysctlnametomib.c,v 1.1.2.1 2001/03/05 08:13:28 obrien Exp $
  */
 
 #include <sys/types.h>

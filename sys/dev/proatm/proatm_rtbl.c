@@ -8,7 +8,7 @@
  *  Date: 26-06-2003
  *  Version: 1.06
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/proatm/proatm_rtbl.c,v 1.1.2.1 2003/07/22 11:53:20 harti Exp $
  */
 
 /*

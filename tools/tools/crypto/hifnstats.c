@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/crypto/hifnstats.c,v 1.1.4.1 2003/06/03 00:13:13 sam Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>

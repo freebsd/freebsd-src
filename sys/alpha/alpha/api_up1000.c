@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/api_up1000.c,v 1.1.2.3 2000/07/20 06:12:12 obrien Exp $
  */
 
 #include "opt_ddb.h"

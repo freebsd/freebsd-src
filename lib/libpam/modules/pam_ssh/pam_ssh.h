@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_ssh/pam_ssh.h,v 1.1.2.2 2002/07/03 21:41:30 des Exp $
  *
  */
 

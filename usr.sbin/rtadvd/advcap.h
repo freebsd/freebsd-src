@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtadvd/advcap.h,v 1.1.2.3 2003/08/18 07:56:10 ume Exp $
  */
 
 /* Based on Id: termcap.h,v 1.8 1996/09/10 12:42:10 peter Exp */

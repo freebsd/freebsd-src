@@ -1,5 +1,5 @@
 /* $NetBSD$ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/awi/am79c930var.h,v 1.1.2.1 2000/12/07 04:09:39 imp Exp $ */
 
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/an/if_anreg.h,v 1.1.2.8 2003/02/11 03:32:48 ambrisko Exp $
  */
 
 #define AN_TIMEOUT	65536

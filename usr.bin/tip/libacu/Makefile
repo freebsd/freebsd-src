@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tip/libacu/Makefile,v 1.3.12.1 2002/07/19 18:46:29 ru Exp $
 
 LIB=		acu
 INTERNALLIB=	YES

@@ -3,7 +3,7 @@
 # stdandard input
 #
 # $Id: create.pl,v 1.1.1.1 2000/06/20 22:12:09 agmorgan Exp $
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/modules/pam_userdb/create.pl,v 1.1.1.1.2.2 2001/06/11 15:28:33 markm Exp $
 
 use DB_File;
 

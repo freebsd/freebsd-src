@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)odds.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/backgammon/common_source/odds.c,v 1.5 1999/11/30 03:48:26 billf Exp $";
 #endif /* not lint */
 
 #include "back.h"

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext2_alloc.c	8.8 (Berkeley) 2/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_alloc.c,v 1.28.2.2 2002/07/01 00:18:51 iedowse Exp $
  */
 
 #include "opt_quota.h"

@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/libstdc++/FREEBSD-upgrade,v 1.1 1999/11/01 07:24:11 obrien Exp $
 
 For the import of libstdc++, files were pruned by:
 

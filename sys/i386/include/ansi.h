@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ansi.h,v 1.18.2.4 2001/06/03 17:15:54 obrien Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_

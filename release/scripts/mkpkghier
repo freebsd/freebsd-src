@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/mkpkghier,v 1.2.4.1 2003/03/03 08:51:17 murray Exp $
 
 usage()
 {

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/amr/Makefile,v 1.4.2.2 2002/10/28 21:10:06 emoore Exp $
 
 .PATH:		${.CURDIR}/../../dev/amr
 KMOD		= amr

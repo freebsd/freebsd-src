@@ -36,7 +36,7 @@
  ******************************************************************************/
 
 /* 14-02-2003 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/proatm/proatm.h,v 1.1.2.1 2003/07/22 11:53:20 harti Exp $ */
 
 #ifndef _PROATM_H
 #define _PROATM_H

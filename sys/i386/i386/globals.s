@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/globals.s,v 1.13.2.2 2003/08/30 15:39:07 tegge Exp $
  */
 
 #include "opt_user_ldt.h"

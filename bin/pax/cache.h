@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)cache.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/cache.h,v 1.6 1999/08/27 23:14:40 peter Exp $
  */
 
 /*

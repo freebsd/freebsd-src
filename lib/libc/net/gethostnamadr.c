@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$FreeBSD$";
-static char rcsid[] = "$FreeBSD$";
+static char sccsid[] = "@(#)$FreeBSD: src/lib/libc/net/gethostnamadr.c,v 1.15.2.3 2003/08/11 01:08:48 kris Exp $";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/gethostnamadr.c,v 1.15.2.3 2003/08/11 01:08:48 kris Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/ntp/config.h,v 1.4.2.1 2001/12/21 17:42:30 roberto Exp $ */
 /* debugging code */
 #define DEBUG 1
 

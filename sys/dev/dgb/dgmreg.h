@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dgb/dgmreg.h,v 1.4.2.1 2001/09/23 19:54:54 brian Exp $
  *
  *  Digiboard driver.
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/i386/nm.h,v 1.9.4.1 2000/08/22 12:28:19 joerg Exp $ */
 /* Native-dependent definitions for Intel 386 running BSD Unix, for GDB.
    Copyright 1986, 1987, 1989, 1992, 1996 Free Software Foundation, Inc.
 

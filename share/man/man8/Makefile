@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man8/Makefile,v 1.13.2.12 2002/07/16 14:05:30 ru Exp $
 
 .PATH: ${.CURDIR}/../../../release/sysinstall
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hexdump.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/hexdump/hexdump.h,v 1.2.6.1 2002/07/23 14:27:06 tjr Exp $
  */
 
 typedef struct _pr {

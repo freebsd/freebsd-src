@@ -1,5 +1,0 @@
-This Internet-Draft has expired and is no longer available.
-
-Unrevised documents placed in the Internet-Drafts directories have a
-maximum life of six months. After that time, they must be updated, or
-they will be deleted. This document was deleted on July 17, 2000.

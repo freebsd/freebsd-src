@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/mfs.mtree,v 1.1.4.2 2000/11/08 02:08:20 joe Exp $
 #
 /set type=dir uname=root gname=wheel mode=0755
 .              

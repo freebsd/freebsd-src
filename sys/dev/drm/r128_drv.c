@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_drv.c,v 1.5.2.1 2003/04/26 07:05:29 anholt Exp $
  */
 
 #include "dev/drm/r128.h"

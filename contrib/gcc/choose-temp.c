@@ -22,7 +22,7 @@ Boston, MA 02111-1307, USA.  */
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/choose-temp.c,v 1.3 1999/11/04 10:23:25 obrien Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

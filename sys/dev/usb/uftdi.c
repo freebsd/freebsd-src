@@ -1,5 +1,5 @@
 /*	$NetBSD: uftdi.c,v 1.12 2002/07/18 14:44:10 scw Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uftdi.c,v 1.3.2.3 2003/07/21 11:50:06 akiyama Exp $	*/
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

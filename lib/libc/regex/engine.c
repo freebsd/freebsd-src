@@ -36,7 +36,7 @@
  *
  *	@(#)engine.c	8.5 (Berkeley) 3/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/engine.c,v 1.5.8.1 2000/07/31 06:30:37 dcs Exp $
  */
 
 /*

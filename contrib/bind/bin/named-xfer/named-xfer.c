@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/bin/named-xfer/named-xfer.c,v 1.3.2.7 2003/08/25 21:07:50 dougb Exp $ */
 /*
  * The original version of named-xfer by Kevin Dunlap.
  * Completed and integrated with named by David Waitzman

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/340.uucp,v 1.4.2.2 2000/09/20 02:46:15 jkh Exp $
 #
 # Local cleanup of UUCP files.  This is for backwards compatibility,
 # /etc/uuclean.daily doesn't exist by default.

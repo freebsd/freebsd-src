@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/union/union_subr.c,v 1.43.2.3 2003/06/18 07:55:47 das Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/include/ifaddrs.h,v 1.1.2.1 2000/07/15 07:24:05 kris Exp $	*/
 
 /*
  * Copyright (c) 1995, 1999

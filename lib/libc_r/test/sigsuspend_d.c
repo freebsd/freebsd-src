@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/sigsuspend_d.c,v 1.1.2.1 2000/07/17 22:18:32 jasone Exp $
  */
 #include <stdlib.h>
 #include <unistd.h>

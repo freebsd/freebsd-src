@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/bootinfo.c,v 1.9.2.1 2001/03/04 05:20:26 obrien Exp $
  */
 
 #include <stand.h>

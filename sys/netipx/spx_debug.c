@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/spx_debug.c,v 1.14 1999/08/28 00:49:43 peter Exp $
  */
 
 #include "opt_inet.h"

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/ttyname.c,v 1.10.6.2 2002/10/15 19:46:46 fjoe Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/ns_addr.c,v 1.3.6.2 2001/07/04 22:34:51 kris Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/tcpip.c,v 1.103.2.23 2003/07/13 07:04:42 murray Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.

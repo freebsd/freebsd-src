@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/sysparam.h,v 1.5 1999/08/28 00:43:25 peter Exp $
  */
 
 #ifndef _SYS_PARAM_H_

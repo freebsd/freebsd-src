@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/cpuconf.h,v 1.5.2.1 2000/07/04 01:49:34 mjacob Exp $ */
 /*	$NetBSD: cpuconf.h,v 1.7 1997/11/06 00:42:03 thorpej Exp $	*/
 #ifndef	_ALPHA_CPUCONF_H
 #define	_ALPHA_CPUCONF_H

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/libpam/modules/pam_wheel/README,v 1.3.2.2 2001/06/11 15:28:35 markm Exp $
 
 pam_wheel:
 	only permit root authentication too members of wheel group

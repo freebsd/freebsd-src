@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/Makefile.inc,v 1.8.8.1 2002/07/16 18:34:34 ru Exp $
 
 .if exists(${.OBJDIR}/../libunix)
 LIBUNIX=	$(.OBJDIR)/../libunix/libunix.a

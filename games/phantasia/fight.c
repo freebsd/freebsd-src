@@ -1,7 +1,7 @@
 /*
  * fight.c   Phantasia monster fighting routines
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/fight.c,v 1.7 1999/11/16 02:57:33 billf Exp $
  */
 
 #include <string.h>

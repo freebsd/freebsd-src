@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/Makefile.inc,v 1.1.2.1 2001/12/21 17:42:30 roberto Exp $
 
 MAINTAINER=	roberto
 
