@@ -27,9 +27,6 @@
 LIB=		pam_login_access
 SHLIB_NAME=	pam_login_access.so
 SRCS=		pam_login_access.c login_access.c
-CFLAGS+=	-DLOGIN_ACCESS
 MAN=		pam_login_access.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${.CURDIR}/../../../../usr.bin/login
