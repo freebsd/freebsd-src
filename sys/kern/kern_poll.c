@@ -506,7 +506,7 @@ poll_idle(void)
 			mtx_unlock(&Giant);
 			mtx_assert(&Giant, MA_NOTOWNED);
 			mtx_lock_spin(&sched_lock);
-			mi_switch(SW_VOL);
+			mi_switch(SW_VOL, NULL);
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			idlepoll_sleeping = 1;
