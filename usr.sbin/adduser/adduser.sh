@@ -558,6 +558,8 @@ input_interactive() {
 	_random="no"
 	_emptypass="no"
 	_usepass="yes"
+	_logingroup_ok="no"
+	_groups_ok="no"
 	case $passwdtype in
 	none)
 		_emptypass="yes"
@@ -629,7 +631,7 @@ input_interactive() {
 						;;
 					esac
 					passwdtype="yes"
-					[ -n "$configrun" ] && break
+					[ -n "$configflag" ] && break
 					trap 'stty echo; exit' 0 1 2 3 15
 					stty -echo
 					echo -n "Enter password: "
@@ -904,7 +906,11 @@ if [ -n "$fflag" ]; then
 else
 	input_interactive
 	while : ; do
-		echo -n "Add another user? (yes/no): "
+		if [ -z "$configflag" ]; then
+			echo -n "Add another user? (yes/no): "
+		else
+			echo -n "Re-edit the default configuration? (yes/no): "
+		fi
 		read _input
 		case $_input in
 		[Yy][Ee][Ss]|[Yy][Ee]|[Yy])
