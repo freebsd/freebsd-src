@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.58 1999/05/17 00:53:38 alc Exp $
+ *	$Id: imgact_elf.c,v 1.59 1999/07/05 18:38:29 marcel Exp $
  */
 
 #include "opt_rlimit.h"
@@ -588,7 +588,8 @@ exec_elf_imgact(struct image_params *imgp)
 			 brand_info->emul_path, interp);
 		if ((error = elf_load_file(imgp->proc, path, &addr,
 					   &imgp->entry_addr)) != 0) {
-		        if ((error = elf_load_file(imgp->proc, interp, &addr,
+			snprintf(path, sizeof(path), "%s", interp);
+		        if ((error = elf_load_file(imgp->proc, path, &addr,
 						   &imgp->entry_addr)) != 0) {
 			        uprintf("ELF interpreter %s not found\n",
 					path);
