@@ -126,7 +126,6 @@
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 
-
 /*
  * Meaning of flags:
  *
@@ -308,8 +307,6 @@ struct com_s {
 
 	struct tty	*tp;	/* cross reference */
 
-	bool_t	do_timestamp;
-	struct timeval	timestamp;
 	struct	pps_state pps;
 	int	pps_bit;
 #ifdef ALT_BREAK_TO_DEBUGGER
@@ -349,6 +346,8 @@ static	int	espattach(struct com_s *com, Port_t esp_port);
 static	void	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
+static	void	comclose(struct tty *tp);
+static	int	comopen(struct tty *tp, struct cdev *dev);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
 static	void	siointr(void *arg);
@@ -369,9 +368,6 @@ static int	sio_inited;
 devclass_t	sio_devclass;
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit)) /* XXX */
-
-static	t_close_t	sioclose;
-static	t_open_t	sioopen;
 
 int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
@@ -688,10 +684,6 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	if (tp == NULL)
 		return (ENXIO);
 
-	tp = com->tp;
-	if (tp == NULL)
-		return (ENXIO);
-
 	/*
 	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
 	 * (note, the lock rates really are boolean -- if non-zero, disallow
@@ -726,8 +718,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
  *	read and write do not hang.
  */
 int
-siodetach(dev)
-	device_t	dev;
+siodetach(device_t dev)
 {
 	struct com_s	*com;
 
@@ -738,7 +729,7 @@ siodetach(dev)
 	}
 	com->gone = TRUE;
 	if (com->tp)
-		ttygone(com->tp);
+		ttyfree(com->tp);
 	if (com->irqres) {
 		bus_teardown_intr(dev, com->irqres, com->cookie);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, com->irqres);
@@ -746,21 +737,15 @@ siodetach(dev)
 	if (com->ioportres)
 		bus_release_resource(dev, SYS_RES_IOPORT, com->ioportrid,
 				     com->ioportres);
-	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
-		device_printf(dev, "still open, forcing close\n");
-		ttyfree(com->tp);
-	} else {
-		if (com->ibuf != NULL)
-			free(com->ibuf, M_DEVBUF);
+	if (com->ibuf != NULL)
+		free(com->ibuf, M_DEVBUF);
 #ifdef PC98
-		if (com->obuf1 != NULL)
-			free(com->obuf1, M_DEVBUF);
+	if (com->obuf1 != NULL)
+		free(com->obuf1, M_DEVBUF);
 #endif
-		device_set_softc(dev, NULL);
-		if (com->tp)
-			ttyfree(com->tp);
-		free(com, M_DEVBUF);
-	}
+
+	device_set_softc(dev, NULL);
+	free(com, M_DEVBUF);
 	return (0);
 }
 
@@ -1380,12 +1365,12 @@ sioattach(dev, xrid, rclk)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
-	int		minorbase;
 	int		unit;
 	u_int		flags;
 	int		rid;
 	struct resource *port;
 	int		ret;
+	int		error;
 	struct tty	*tp;
 #ifdef PC98
 	u_char		*obuf;
@@ -1504,14 +1489,15 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 #endif
+
 	tp = com->tp = ttyalloc();
-	tp->t_open = sioopen;
-	tp->t_close = sioclose;
 	tp->t_oproc = comstart;
 	tp->t_param = comparam;
 	tp->t_stop = comstop;
 	tp->t_modem = commodem;
 	tp->t_break = combreak;
+	tp->t_close = comclose;
+	tp->t_open = comopen;
 	tp->t_sc = com;
 
 #ifdef PC98
@@ -1523,33 +1509,11 @@ sioattach(dev, xrid, rclk)
 #endif
 	com->rclk = rclk;
 
-	/*
-	 * We don't use all the flags from <sys/ttydefaults.h> since they
-	 * are only relevant for logins.  It's important to have echo off
-	 * initially so that the line doesn't start blathering before the
-	 * echo flag can be turned off.
-	 */
-	tp->t_init_in.c_iflag = 0;
-	tp->t_init_in.c_oflag = 0;
-	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
-	tp->t_init_in.c_lflag = 0;
-	if (unit == comconsole) {
-#ifdef PC98
-		if (IS_8251(com->pc98_if_type))
-			DELAY(100000);
-#endif
-		tp->t_init_in.c_iflag = TTYDEF_IFLAG;
-		tp->t_init_in.c_oflag = TTYDEF_OFLAG;
-		tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
-		tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
-		tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
-		tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
-		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = comdefaultrate;
-	} else
-		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
-	if (siosetwater(com, tp->t_init_in.c_ispeed) != 0) {
-		mtx_unlock_spin(&sio_lock);
+	if (unit == comconsole)
+		ttyconsolemode(tp, comdefaultrate);
+	error = siosetwater(com, tp->t_init_in.c_ispeed);
+	mtx_unlock_spin(&sio_lock);
+	if (error) {
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1558,13 +1522,9 @@ sioattach(dev, xrid, rclk)
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
 	}
-	mtx_unlock_spin(&sio_lock);
-	termioschars(&tp->t_init_in);
-	tp->t_init_out = tp->t_init_in;
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
-
 
 #ifndef PC98
 	if (!COM_ISMULTIPORT(flags) &&
@@ -1766,10 +1726,10 @@ determined_type: ;
 		swi_add(&clk_ithd, "sio", siopoll, NULL, SWI_CLOCK, 0,
 		    &sio_slow_ih);
 	}
-	minorbase = unit2minor(unit);
-	ttycreate(tp, NULL, 0, MINOR_CALLOUT, "d%r", unit);
+
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
+	tp->t_pps = &com->pps;
 
 	if (COM_PPSCTS(flags))
 		com->pps_bit = MSR_CTS;
@@ -1804,18 +1764,19 @@ determined_type: ;
 #endif
 	}
 
+	/* We're ready, open the doors... */
+	ttycreate(tp, NULL, unit, MINOR_CALLOUT, "d%r", unit);
+
 	return (0);
 }
 
 static int
-sioopen(struct tty *tp, struct cdev *dev)
+comopen(struct tty *tp, struct cdev *dev)
 {
 	struct com_s	*com;
+	int i;
 
 	com = tp->t_sc;
-#ifdef PC98
-	if (!IS_8251(com->pc98_if_type))
-#endif
 	com->poll = com->no_irq;
 	com->poll_output = com->loses_outints;
 #ifdef PC98
@@ -1823,17 +1784,13 @@ sioopen(struct tty *tp, struct cdev *dev)
 		com_tiocm_bis(com, TIOCM_DTR|TIOCM_RTS);
 		pc98_msrint_start(dev);
 		if (com->pc98_8251fifo) {
-		    com->pc98_8251fifo_enable = 1;
-		    outb(I8251F_fcr, CTRL8251F_ENABLE |
-			 CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
+			com->pc98_8251fifo_enable = 1;
+			outb(I8251F_fcr, CTRL8251F_ENABLE |
+			     CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
 		}
 	}
 #endif
-	/*
-	 * XXX we should goto open_top if comparam() slept.
-	 */
 	if (com->hasfifo) {
-		int i;
 		/*
 		 * (Re)enable and drain fifos.
 		 *
@@ -1878,17 +1835,16 @@ sioopen(struct tty *tp, struct cdev *dev)
 			DELAY(50);
 			(void) inb(com->data_port);
 		}
-		if (i == 500) {
+		if (i == 500)
 			return (EIO);
-		}
 	}
 
 	mtx_lock_spin(&sio_lock);
 #ifdef PC98
 	if (IS_8251(com->pc98_if_type)) {
-	    com_tiocm_bis(com, TIOCM_LE);
-	    com->pc98_prev_modem_status = pc98_get_modem_status(com);
-	    com_int_Rx_enable(com);
+		com_tiocm_bis(com, TIOCM_LE);
+		com->pc98_prev_modem_status = pc98_get_modem_status(com);
+		com_int_Rx_enable(com);
 	} else {
 #endif
 	(void) inb(com->line_status_port);
@@ -1909,11 +1865,12 @@ sioopen(struct tty *tp, struct cdev *dev)
 #endif
 	mtx_unlock_spin(&sio_lock);
 	siosettimeout();
+	/* XXX: should be generic ? */
 #ifdef PC98
 	if ((IS_8251(com->pc98_if_type) &&
-		(pc98_get_modem_status(com) & TIOCM_CAR)) ||
+	     (pc98_get_modem_status(com) & TIOCM_CAR)) ||
 	    (!IS_8251(com->pc98_if_type) &&
-		(com->prev_modem_status & MSR_DCD)) ||
+	     (com->prev_modem_status & MSR_DCD)) ||
 	    ISCALLOUT(dev))
 		ttyld_modem(tp, 1);
 #else
@@ -1924,17 +1881,16 @@ sioopen(struct tty *tp, struct cdev *dev)
 }
 
 static void
-sioclose(struct tty *tp)
+comclose(tp)
+	struct tty	*tp;
 {
+	int		s;
 	struct com_s	*com;
-	int s;
 
-	com = tp->t_sc;
 	s = spltty();
+	com = tp->t_sc;
 	com->poll = FALSE;
 	com->poll_output = FALSE;
-	com->do_timestamp = FALSE;
-	com->pps.ppsparam.mode = 0;
 #ifdef PC98
 	com_send_break_off(com);
 #else
@@ -2015,6 +1971,7 @@ sioclose(struct tty *tp)
 	tp->t_actout = FALSE;
 	wakeup(&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
+	siosettimeout();
 	splx(s);
 }
 
@@ -2456,8 +2413,8 @@ more_intr:
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
 			else {
-				if (com->do_timestamp)
-					microtime(&com->timestamp);
+				if (com->tp != NULL && com->tp->t_do_timestamp)
+					microtime(&com->tp->t_timestamp);
 				++com_events;
 				swi_sched(sio_slow_ih, SWI_DELAY);
 #if 0 /* for testing input latency vs efficiency */
@@ -3250,9 +3207,7 @@ comstop(tp, rw)
 }
 
 static int
-commodem(tp, sigon, sigoff)
-	struct tty 	*tp;
-	int		sigon, sigoff;
+commodem(struct tty *tp, int sigon, int sigoff)
 {
 	struct com_s	*com;
 	int	bitand, bitor, msr;
