@@ -159,8 +159,10 @@ pxe_init(void)
 		return (0);
 
 	/*  look for "PXENV+" */
-	if (bcmp((void *)pxenv_p->Signature, S_SIZE("PXENV+")))
+	if (bcmp((void *)pxenv_p->Signature, S_SIZE("PXENV+"))) {
+		pxenv_p = NULL;
 		return (0);
+	}
 
 	/* make sure the size is something we can handle */
 	if (pxenv_p->Length > sizeof(*pxenv_p)) {
@@ -307,7 +309,7 @@ pxe_close(struct open_file *f)
 static void
 pxe_print(int verbose)
 {
-	if (pxenv_p != NULL) {
+	if (pxe_p != NULL) {
 		if (*bootplayer.Sname == '\0') {
 			printf("      "IP_STR":%s\n",
 			       IP_ARGS(htonl(bootplayer.sip)),
@@ -387,8 +389,11 @@ static int
 pxe_netif_probe(struct netif *nif, void *machdep_hint)
 {
 	t_PXENV_UDP_OPEN *udpopen_p = (t_PXENV_UDP_OPEN *)scratch_buffer;
-	bzero(udpopen_p, sizeof(*udpopen_p));
 
+	if (pxe_p == NULL)
+		return -1;
+
+	bzero(udpopen_p, sizeof(*udpopen_p));
 	udpopen_p->src_ip = bootplayer.yip;
 	pxe_call(PXENV_UDP_OPEN);
 
