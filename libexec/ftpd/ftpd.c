@@ -1251,9 +1251,10 @@ pass(passwd)
 		}
 #ifdef USE_PAM
 		rval = auth_pam(&pw, passwd);
-		opieunlock();   /* XXX */
-		if (rval >= 0)
+		if (rval >= 0) {
+			opieunlock();
 			goto skip;
+		}
 #endif
 		if (opieverify(&opiedata, passwd) == 0)
 			xpasswd = pw->pw_passwd;
