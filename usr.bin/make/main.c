@@ -911,6 +911,7 @@ ReadMakefile(p, q)
 	extern Lst parseIncPath;
 	FILE *stream;
 	char *name, path[MAXPATHLEN];
+	char *MAKEFILE;
 	int setMAKEFILE;
 
 	if (!strcmp(fname, "-")) {
@@ -924,10 +925,12 @@ ReadMakefile(p, q)
 			(void)snprintf(path, MAXPATHLEN, "%s/%s", curdir, fname);
 			if (realpath(path, path) != NULL &&
 			    (stream = fopen(path, "r")) != NULL) {
+				MAKEFILE = fname;
 				fname = path;
 				goto found;
 			}
 		} else if (realpath(fname, path) != NULL) {
+			MAKEFILE = fname;
 			fname = path;
 			if ((stream = fopen(fname, "r")) != NULL)
 				goto found;
@@ -938,7 +941,7 @@ ReadMakefile(p, q)
 			name = Dir_FindFile(fname, sysIncPath);
 		if (!name || !(stream = fopen(name, "r")))
 			return(FALSE);
-		fname = name;
+		MAKEFILE = fname = name;
 		/*
 		 * set the MAKEFILE variable desired by System V fans -- the
 		 * placement of the setting here means it gets set to the last
@@ -946,7 +949,7 @@ ReadMakefile(p, q)
 		 */
 found:
 		if (setMAKEFILE)
-			Var_Set("MAKEFILE", fname, VAR_GLOBAL);
+			Var_Set("MAKEFILE", MAKEFILE, VAR_GLOBAL);
 		Parse_File(fname, stream);
 		(void)fclose(stream);
 	}
