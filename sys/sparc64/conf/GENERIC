@@ -69,7 +69,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 device		apb			# Sun APB PCI-PCI bridge
 device		ebus
 device		isa
-device		pci	1		# Unit count is for ahc/ahd
+device		pci
 device		sbus
 
 # Floppy drives

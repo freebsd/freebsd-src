@@ -65,7 +65,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 # Standard busses
 device		isa
-device		pci	1		#Unit count is for ahc/ahd
+device		pci
 
 # IA64 uses ACPI
 device 		acpica
