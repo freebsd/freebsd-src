@@ -1216,7 +1216,6 @@ pci/if_tl.c		optional tl
 pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
 pci/if_wb.c		optional wb
-pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
 pci/meteor.c		count meteor pci

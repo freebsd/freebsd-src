@@ -188,7 +188,6 @@ MAN=	aac.4 \
 	wi.4 \
 	witness.4 \
 	worm.4 \
-	wx.4 \
 	xl.4 \
 	xpt.4 \
 	yp.4 \
