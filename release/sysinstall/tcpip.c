@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.31 1997/02/13 00:33:00 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.32 1997/02/14 21:29:27 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -309,6 +309,8 @@ reenter:
     return ret;
 }
 
+static Device *NetDev;
+
 static int
 netHook(dialogMenuItem *self)
 {
@@ -317,33 +319,31 @@ netHook(dialogMenuItem *self)
     devs = deviceFindDescr(self->prompt, self->title, DEVICE_TYPE_NETWORK);
     if (devs) {
 	if (DITEM_STATUS(tcpOpenDialog(devs[0])) != DITEM_FAILURE)
-	    mediaDevice = devs[0];
+	    NetDev = devs[0];
 	else
-	    devs = NULL;
+	    NetDev = NULL;
     }
     return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 /* Get a network device */
-Boolean
+Device *
 tcpDeviceSelect(void)
 {
     DMenu *menu;
-    Device **devs;
+    Device **devs, *rval;
     int cnt;
-    int status;
 
     devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);
     if (!cnt) {
 	msgConfirm("No network devices available!");
-	status = FALSE;
+	rval = NULL;
     }
     else if (cnt == 1) {
 	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
-	    return FALSE;
-	mediaDevice = devs[0];
-	status = TRUE;
+	    return NULL;
+	rval = devs[0];
     }
     else {
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook, NULL);
@@ -351,14 +351,20 @@ tcpDeviceSelect(void)
 	    msgFatal("Unable to create network device menu!  Argh!");
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
+	rval = NetDev;
     }
-    return status;
+    return rval;
 }
 
 /* Do it from a menu that doesn't care about status */
 int
 tcpMenuSelect(dialogMenuItem *self)
 {
-    (void)tcpDeviceSelect();
+    Device *tmp;
+
+    tmp = tcpDeviceSelect();
+    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
+	if (!tmp->init(tmp))
+	    msgConfirm("Initialization of %s device failed.", tmp->name);
     return DITEM_SUCCESS | DITEM_RESTORE;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.45 1997/02/07 04:26:26 jkh Exp $
+ * $Id: media.c,v 1.25.2.46 1997/02/14 21:29:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -335,18 +335,16 @@ mediaSetFTP(dialogMenuItem *self)
 				"would you like to skip over it now?") != 0) {
 	if (networkDev)
 	    networkDev->shutdown(networkDev);
-	networkDev = NULL;
-	if (!tcpDeviceSelect()) {
+	if (!(networkDev = tcpDeviceSelect())) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
-	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	    if (isDebug())
-		msgDebug("mediaSetFTP: Net device init failed.\n");
-	    variable_unset(VAR_FTP_PATH);
-	    return DITEM_FAILURE | what;
-	}
-	networkDev = mediaDevice;
+    }
+    if (!networkDev->init(networkDev)) {
+	if (isDebug())
+	    msgDebug("mediaSetFTP: Net device init failed.\n");
+	variable_unset(VAR_FTP_PATH);
+	return DITEM_FAILURE | what;
     }
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
@@ -448,15 +446,12 @@ mediaSetNFS(dialogMenuItem *self)
 				"would you like to skip over it now?") != 0) {
 	if (networkDev)
 	    networkDev->shutdown(networkDev);
-	networkDev = NULL;
-	if (!tcpDeviceSelect())
+	if (!(networkDev = tcpDeviceSelect()))
 	    return DITEM_FAILURE;
-	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	    if (isDebug())
-		msgDebug("mediaSetNFS: Net device init failed\n");
-	    return DITEM_FAILURE;
-	}
-	networkDev = mediaDevice;
+    }
+    if (!networkDev->init(networkDev)) {
+	if (isDebug())
+	    msgDebug("mediaSetNFS: Net device init failed\n");
     }
     if (variable_get(VAR_NAMESERVER)) {
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.116 1997/02/16 06:48:59 jkh Exp $
+ * $Id: install.c,v 1.71.2.117 1997/02/16 23:36:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -499,12 +499,12 @@ installNovice(dialogMenuItem *self)
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
 	if (!msgYesNo("Would you like to configure any SLIP/PPP or network interface devices?")) {
-	    Device *save = mediaDevice;
+	    Device *tmp;
 
-	    /* This will also set the media device, which we don't want */
-	    tcpDeviceSelect();
-	    /* so we restore our saved value below */
-	    mediaDevice = save;
+	    tmp = tcpDeviceSelect();
+	    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
+		if (!tmp->init(tmp))
+		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	    dialog_clear_norefresh();
 	}
     }
