@@ -1,7 +1,7 @@
 $FreeBSD$
 
 /*
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -169,6 +169,7 @@ vendor ALFADATA		0x079d	Alfadata Computer Corp.
 vendor BE		0x07a4	Be, Inc.
 vendor ADMTEK		0x07a6	ADMtek, Inc.
 vendor COREGA		0x07aa	Corega
+vendor FREECOM		0x07ab	Freecom
 vendor ABOCOM		0x07b8	AboCom Systems, Inc.
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken Corp.
 vendor APG		0x07c5	APG Cash Drawer
@@ -366,6 +367,9 @@ product EPSON PRINTER3		0x0003	ISD USB Smart Cable
 
 /* Gravis products */
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
+
+/* Freecom products */
+product FREECOM DVD		0xfc01	Connector for DVD drive
 
 /* Future Technology Devices products */
 product FUTURE SERIAL		0x8372	Serial converter
