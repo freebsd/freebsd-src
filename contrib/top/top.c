@@ -10,6 +10,8 @@ char *copyright =
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -806,7 +808,7 @@ Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 				{
 				    if ((errmsg = kill_procs(tempbuf2)) != NULL)
 				    {
-					new_message(MT_standout, errmsg);
+					new_message(MT_standout, "%s", errmsg);
 					putchar('\r');
 					no_command = Yes;
 				    }
