@@ -246,7 +246,7 @@ main(int argc, char **argv)
 		unit = -1;
 	} else {
 		unit = strtoul(unitstr, &p, 10);
-		if ((unsigned)unit == ULONG_MAX || *p != '\0')
+		if (unit == (unsigned)ULONG_MAX || *p != '\0')
 			errx(1, "bad device unit: %s", unitstr);
 	}
 
@@ -394,7 +394,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	strncpy(linebuf, linep + mdnamelen, linelen);
 	linebuf[linelen] = '\0';
 	unit = strtoul(linebuf, &p, 10);
-	if ((unsigned)unit == ULONG_MAX || *p != '\n')
+	if (unit == (unsigned)ULONG_MAX || *p != '\n')
 		errx(1, "unexpected output from mdconfig (attach)");
 
 	fclose(sfd);
@@ -513,7 +513,7 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 
 	/* Derive uid. */
 	*uid = strtoul(user, &p, 10);
-	if ((unsigned)*uid == ULONG_MAX)
+	if (*uid == (uid_t)ULONG_MAX)
 		usage();
 	if (*p != '\0') {
 		pw = getpwnam(user);
@@ -525,7 +525,7 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 
 	/* Derive gid. */
 	*gid = strtoul(group, &p, 10);
-	if ((unsigned)*gid == ULONG_MAX)
+	if (*gid == (gid_t)ULONG_MAX)
 		usage();
 	if (*p != '\0') {
 		gr = getgrnam(group);

@@ -118,7 +118,7 @@ p_uid(char *p, struct passwd *pw, ENTRY *ep __unused)
 	}
 	errno = 0;
 	id = strtoul(p, &np, 10);
-	if (*np || (id == ULONG_MAX && errno == ERANGE)) {
+	if (*np || (id == (uid_t)ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal uid");
 		return (-1);
 	}
@@ -148,7 +148,7 @@ p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 	}
 	errno = 0;
 	id = strtoul(p, &np, 10);
-	if (*np || (id == ULONG_MAX && errno == ERANGE)) {
+	if (*np || (id == (uid_t)ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal gid");
 		return (-1);
 	}
