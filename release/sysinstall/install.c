@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.81 1995/11/12 07:27:57 jkh Exp $
+ * $Id: install.c,v 1.71.2.82 1995/11/12 11:12:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -608,9 +608,9 @@ installFixup(char *str)
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
 
-	/* BOGON #3: No /var/db/mountdbtab complains */
+	/* BOGON #3: No /var/db/mountdtab complains */
 	Mkdir("/var/db", NULL);
-	creat("/var/db/mountdbtab", 0644);
+	creat("/var/db/mountdtab", 0644);
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
