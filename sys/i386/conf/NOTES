@@ -690,10 +690,16 @@ options		IFS
 options 	SOFTUPDATES
 
 # Extended attributes allow additional data to be associated with files,
-# and is used for ACLs, Capabilities, and MAC labels
-#
+# and is used for ACLs, Capabilities, and MAC labels.
+# See src/sys/ufs/ufs/README.extattr for more information.
 options		UFS_EXTATTR
 options		UFS_EXTATTR_AUTOSTART
+
+# Access Control List support for UFS filesystems.  The current ACL
+# implementation requires extended attribute support, UFS_EXTATTR,
+# for the underlying filesystem.
+# See src/sys/ufs/ufs/README.acls for more information.
+options 	UFS_ACL
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
