@@ -151,8 +151,8 @@ struct td_sched *thread0_sched = &td_sched;
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz / 10) << 10)
-#define	SCHED_SLP_RUN_THROTTLE	(10)
+#define	SCHED_SLP_RUN_MAX	((hz / 4) << 10)
+#define	SCHED_SLP_RUN_THROTTLE	(2)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(20)
