@@ -10,7 +10,7 @@
 #	-DNO_CRYPT will prevent building of crypt versions
 #	-DNO_MAN do not build the manual pages
 #	-DNO_PROFILE do not build profiled libraries
-#	-DNOGAMES do not go into games subdir
+#	-DNO_GAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNO_INFO do not make or install info files
 #	-DNO_LIBC_R do not build libc_r.
@@ -45,7 +45,7 @@
 # We must do etc last for install/distribute to work.
 #
 SUBDIR=	share/info include lib libexec bin
-.if !defined(NOGAMES)
+.if !defined(NO_GAMES)
 SUBDIR+=games
 .endif
 SUBDIR+=gnu
@@ -798,7 +798,7 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
-.if !defined(NOGAMES)
+.if !defined(NO_GAMES)
 _strfile=	games/fortune/strfile
 .endif
 
