@@ -382,6 +382,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	mutex_init();
 	intr_init2();
 
+	/*
+	 * Finish pmap initialization now that we're ready for mutexes.
+	 */
+	PMAP_LOCK_INIT(kernel_pmap);
+
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 
 	kdb_init();

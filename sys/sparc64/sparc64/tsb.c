@@ -129,6 +129,8 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 			PMAP_STATS_INC(tsb_nenter_u_oc);
 	}
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	if (pm == kernel_pmap) {
 		PMAP_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
@@ -162,9 +164,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	if ((tp->tte_data & TD_V) != 0) {
 		PMAP_STATS_INC(tsb_nrepl);
 		ova = TTE_GET_VA(tp);
-		vm_page_lock_queues();
 		pmap_remove_tte(pm, NULL, tp, ova);
-		vm_page_unlock_queues();
 		tlb_page_demap(pm, ova);
 	}
 
@@ -175,11 +175,9 @@ enter:
 			pm->pm_stats.resident_count++;
 			data |= TD_PV;
 		}
-		vm_page_lock_queues();
 		if (pmap_cache_enter(m, va) != 0)
 			data |= TD_CV;
 		TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
-		vm_page_unlock_queues();
 	} else
 		data |= TD_FAKE | TD_E;
 
