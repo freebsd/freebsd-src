@@ -2392,10 +2392,10 @@ ifflags(flags)
 	strlcpy(buf, "", sizeof(buf));
 #define	IFFLAG(s, f) \
 do { \
-	if (flags & f) { \
+	if (flags & (f)) { \
 		if (buf[0]) \
 			strlcat(buf, ",", sizeof(buf)); \
-		strlcat(buf, s, sizeof(buf)); \
+		strlcat(buf, (s), sizeof(buf)); \
 	} \
 } while (0)
 	IFFLAG("UP", IFF_UP);
