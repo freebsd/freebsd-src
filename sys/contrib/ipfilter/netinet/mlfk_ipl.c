@@ -23,8 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id: mlfk_ipl.c,v 2.1.2.1 2000/04/26 12:17:24 darrenr Exp $
  */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -73,8 +74,8 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,
 	   &fr_ipfrttl, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, ipl_unreach, CTLFLAG_RW,
 	   &ipl_unreach, 0, "");
-SYSCTL_INT(_net_inet_ipf, OID_AUTO, ipl_inited, CTLFLAG_RD,
-	   &ipl_inited, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
+	   &fr_running, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authsize, CTLFLAG_RD,
 	   &fr_authsize, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
@@ -108,7 +109,10 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD :
+
 		error = iplattach();
+		if (error)
+			break;
 
 		c = NULL;
 		for(i=strlen(IPL_NAME); i>0; i--)
@@ -160,7 +164,6 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		destroy_dev(ipf_devs[IPL_LOGNAT]);
 		destroy_dev(ipf_devs[IPL_LOGSTATE]);
 		destroy_dev(ipf_devs[IPL_LOGAUTH]);
-		cdevsw_remove(&ipl_cdevsw);
 		error = ipldetach();
 		break;
 	default:
