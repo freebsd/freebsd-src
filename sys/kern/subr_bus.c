@@ -1576,8 +1576,10 @@ device_delete_child(device_t dev, device_t child)
  * devices which have @p dev as a parent.
  *
  * @param dev		the parent device to search
- * @param unit		the unit number to search for
- * 
+ * @param unit		the unit number to search for.  If the unit is -1,
+ *			return the first child of @p dev which has name
+ *			@p classname (that is, the one with the lowest unit.)
+ *
  * @returns		the device with the given unit number or @c
  *			NULL if there is no such device
  */
@@ -1591,9 +1593,17 @@ device_find_child(device_t dev, const char *classname, int unit)
 	if (!dc)
 		return (NULL);
 
-	child = devclass_get_device(dc, unit);
-	if (child && child->parent == dev)
-		return (child);
+	if (unit != -1) {
+		child = devclass_get_device(dc, unit);
+		if (child && child->parent == dev)
+			return (child);
+	} else {
+		for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
+			child = devclass_get_device(dc, unit);
+			if (child && child->parent == dev)
+				return (child);
+		}
+	}
 	return (NULL);
 }
 
