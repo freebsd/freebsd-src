@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -34,9 +34,9 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- *	$Id: i4b_isppp.c,v 1.20 1998/12/18 14:20:44 hm Exp $
+ *	$Id: i4b_isppp.c,v 1.22 1999/02/14 09:44:55 hm Exp $
  *
- *	last edit-date: [Fri Dec 18 11:47:58 1998]
+ *	last edit-date: [Sun Feb 14 10:02:43 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -341,7 +341,7 @@ i4bisppp_start(struct ifnet *ifp)
 {
 	struct i4bisppp_softc *sc = ifp->if_softc;
 	struct mbuf *m;
-	int s;
+	/* int s; */
 	int unit = IFP2UNIT(ifp);
 
 	if (sppp_isempty(ifp))
@@ -350,9 +350,11 @@ i4bisppp_start(struct ifnet *ifp)
 	if(sc->sc_state != ST_CONNECTED)
 		return;
 
-	s = splimp();
-	/*ifp->if_flags |= IFF_OACTIVE; - need to clear this somewhere */
-	splx(s);
+	/*
+	 * s = splimp();
+	 * ifp->if_flags |= IFF_OACTIVE; // - need to clear this somewhere
+	 * splx(s);
+	 */
 
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
 	{

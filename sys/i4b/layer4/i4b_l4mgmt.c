@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_l4mgmt.c - layer 4 calldescriptor management utilites
  *	-----------------------------------------------------------
  *
- *	$Id: i4b_l4mgmt.c,v 1.23 1998/12/05 18:05:52 hm Exp $ 
+ *	$Id: i4b_l4mgmt.c,v 1.24 1999/02/14 09:45:02 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:35:50 1998]
+ *      last edit-date: [Sun Feb 14 10:35:13 1999]
  *
  *---------------------------------------------------------------------------*/
 

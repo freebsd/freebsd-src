@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,15 +27,17 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.14 1998/12/20 11:07:59 hm Exp $ 
+ *	$Id: i4b_isic_isa.c,v 1.16 1999/02/14 19:51:02 hm Exp $ 
  *
- *      last edit-date: [Fri Dec 18 12:00:26 1998]
+ *      last edit-date: [Sun Feb 14 10:27:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #ifdef __FreeBSD__
 #include "isic.h"
 #include "opt_i4b.h"
+#elif defined(__bsdi__)
+#include "isic.h"
 #else
 #define NISIC 1
 #endif
@@ -56,6 +58,9 @@
 #ifdef __FreeBSD__
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
+#elif defined(__bsdi__)
+#include <sys/device.h>
+#include <i386/isa/isavar.h>
 #else
 #include <sys/device.h>
 #if defined(__NetBSD__) && defined(amiga)
@@ -93,7 +98,7 @@ void isicintr ( int unit );
 void isicintr_sc(struct isic_softc *sc);
 
 static int isicprobe(struct isa_device *dev);
-int isicattach(struct isa_device *dev);
+static int isicattach(struct isa_device *dev);
 
 struct isa_driver isicdriver = {
 	isicprobe,
@@ -105,6 +110,8 @@ struct isa_driver isicdriver = {
 int next_isic_unit = 0;
 struct isic_softc isic_sc[ISIC_MAXUNIT];
 
+#elif defined(__bsdi__)
+	/* XXX */
 #else
 
 #ifdef NetBSD1_3
@@ -196,6 +203,58 @@ isicprobe(struct isa_device *dev)
 	}
 	return(ret);
 }
+#elif defined(__bsdi__)
+/*---------------------------------------------------------------------------*
+ *	isic - non-pnp device driver probe routine
+ *---------------------------------------------------------------------------*/
+int
+isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *ia)
+{
+	int ret = 0;
+
+	switch(cf->cf_flags)
+	{
+#ifdef TEL_S0_8
+		case FLAG_TELES_S0_8:
+			ret = isic_probe_s08(parent, cf, ia);
+			break;
+#endif
+
+#ifdef TEL_S0_16
+		case FLAG_TELES_S0_16:
+			ret = isic_probe_s016(parent, cf, ia);
+			break;
+#endif
+
+#ifdef TEL_S0_16_3
+		case FLAG_TELES_S0_163:
+			ret = isic_probe_s0163(parent, cf, ia);		
+			break;
+#endif
+
+#ifdef AVM_A1
+		case FLAG_AVM_A1:
+			ret = isic_probe_avma1(parent, cf, ia);
+			break;
+#endif
+
+#ifdef USR_STI
+		case FLAG_USR_ISDN_TA_INT:
+			ret = isic_probe_usrtai(parent, cf, ia);		
+			break;
+#endif
+
+#ifdef ITKIX1
+		case FLAG_ITK_IX1:
+			ret = isic_probe_itkix1(parent, cf, ia);
+			break;
+#endif
+
+		default:
+			break;
+	}
+	return(ret);
+}
 
 #else
 
@@ -215,7 +274,7 @@ isicprobe(struct isic_attach_args *args)
 /*---------------------------------------------------------------------------*
  *	isic - non-pnp device driver attach routine
  *---------------------------------------------------------------------------*/
-int
+static int
 isicattach(struct isa_device *dev)
 {
 	return(isic_realattach(dev, 0));
@@ -227,6 +286,13 @@ isicattach(struct isa_device *dev)
 int
 isic_realattach(struct isa_device *dev, unsigned int iobase2)
 
+#elif defined(__bsdi__)
+
+/*---------------------------------------------------------------------------*
+ *	isic - non-pnp device driver attach routine
+ *---------------------------------------------------------------------------*/
+int
+isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia)
 #else /* ! __FreeBSD__ */
 
 int
@@ -242,6 +308,10 @@ isicattach(int flags, struct isic_softc *sc)
 #define	PARM	dev
 #define	PARM2	dev, iobase2
 #define	FLAGS	dev->id_flags
+#elif defined(__bsdi__)
+	struct isic_softc *sc = (struct isic_softc *)self;
+#define	PARM	parent, self, ia
+#define	FLAGS	sc->sc_flags
 #else
 #define PARM	sc
 #define PARM2	sc
@@ -338,12 +408,10 @@ isicattach(int flags, struct isic_softc *sc)
 			break;
 #endif
 
-#ifndef __FreeBSD__
 #ifdef TEL_S0_16_3_P
 		case FLAG_TELES_S0_163_PnP:
 			ret = isic_attach_s0163P(PARM2);
 			break;
-#endif
 #endif
 
 #ifdef CRTX_S0_P

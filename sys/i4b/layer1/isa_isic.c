@@ -33,9 +33,9 @@
  *	isa_isic.c - ISA bus frontend for i4b_isic driver
  *	--------------------------------------------------
  *
- *	$Id: isa_isic.c,v 1.18 1998/12/16 13:39:47 hm Exp $ 
+ *	$Id: isa_isic.c,v 1.21 1999/02/23 14:51:18 hm Exp $ 
  *
- *      last edit-date: [Mon Dec 14 10:53:16 1998]
+ *      last edit-date: [Sun Feb 14 10:29:11 1999]
  *
  *	-mh	original implementation
  *      -hm     NetBSD patches from Martin

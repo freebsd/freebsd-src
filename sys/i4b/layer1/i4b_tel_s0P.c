@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Andrew Gordon. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -38,9 +38,9 @@
  *		EXPERIMENTAL !!!
  *		================
  *
- *	$Id: i4b_tel_s0P.c,v 1.12 1998/12/13 09:52:34 hm Exp $ 
+ *	$Id: i4b_tel_s0P.c,v 1.13 1999/02/14 09:45:00 hm Exp $ 
  *
- *      last edit-date: [Thu Dec 10 07:11:15 1998]
+ *      last edit-date: [Sun Feb 14 10:29:00 1999]
  *
  *	-hm	rudimentary PnP support, hint from Andrew Gordon
  *	-hm	more cleanup

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.1 1998/12/27 21:46:42 phk Exp $
+ *	$Id: i4b_ctl.c,v 1.19 1999/02/14 19:51:01 hm Exp $
  *
- *	last edit-date: [Sat Dec  5 17:59:15 1998]
+ *	last edit-date: [Sun Feb 14 10:02:29 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,6 +70,9 @@
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
+#elif defined(__bsdi__)
+#include <i4b/i4b_debug.h>
+#include <i4b/i4b_ioctl.h>
 #else
 #include <machine/bus.h>
 #include <sys/device.h>
@@ -116,7 +119,11 @@ static void *devfs_token;
 void i4bctlattach __P((void));
 int i4bctlopen __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4bctlclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+#ifdef __bsdi__
+int i4bctlioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+#else
 int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+#endif
 #endif	/* !FreeBSD */
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -137,6 +144,34 @@ SYSINIT(i4bctldev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &i4bctlinit, NULL)
 
 #endif /* BSD > 199306 && defined(__FreeBSD__) */
 
+#ifdef __bsdi__
+int i4bctlmatch(struct device *parent, struct cfdata *cf, void *aux);
+void dummy_i4bctlattach(struct device*, struct device *, void *);
+
+#define CDEV_MAJOR 64
+
+static struct cfdriver i4bctlcd =
+	{ NULL, "i4bctl", i4bctlmatch, dummy_i4bctlattach, DV_DULL,
+	  sizeof(struct cfdriver) };
+struct devsw i4bctlsw = 
+	{ &i4bctlcd,
+	  i4bctlopen,	i4bctlclose,	noread,		nowrite,
+	  i4bctlioctl,	seltrue,	nommap,		nostrat,
+	  nodump,	nopsize,	0,		nostop
+};
+
+int
+i4bctlmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	printf("i4bctlmatch: aux=0x%x\n", aux);
+	return 1;
+}
+void
+dummy_i4bctlattach(struct device *parent, struct device *self, void *aux)
+{
+	printf("dummy_i4bctlattach: aux=0x%x\n", aux);
+}
+#endif /* __bsdi__ */
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
@@ -189,6 +224,8 @@ i4bctlclose(dev_t dev, int flag, int fmt, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+#elif defined(__bsdi__)
 i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #else
 i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)

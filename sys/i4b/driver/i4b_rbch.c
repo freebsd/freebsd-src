@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.23 1998/12/14 09:39:10 hm Exp $
+ *	$Id: i4b_rbch.c,v 1.25 1999/02/14 19:51:01 hm Exp $
  *
- *	last edit-date: [Sun Dec 13 10:19:08 1998]
+ *	last edit-date: [Sun Feb 14 10:02:49 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,7 +40,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || !defined(__FreeBSD__)
+#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || (!defined(__FreeBSD__) && !defined(__bsdi__))
 #include <sys/ioccom.h>
 #include <sys/poll.h>
 #else
@@ -93,6 +93,12 @@ extern cc_t ttydefchars;
 
 #include <i4b/layer4/i4b_l4.h>
 /* initialized by L4 */
+
+#ifdef __bsdi__
+#include <sys/device.h>
+/* XXX FIXME */
+int bootverbose = 0;
+#endif
 
 static drvr_link_t rbch_drvr_linktab[NI4BRBCH];
 static isdn_link_t *isdn_linktab[NI4BRBCH];
@@ -196,6 +202,34 @@ SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
 
 #endif /* BSD > 199306 && defined(__FreeBSD__) */
 
+#ifdef __bsdi__
+int i4brbchmatch(struct device *parent, struct cfdata *cf, void *aux);
+void dummy_i4brbchattach(struct device*, struct device *, void *);
+
+#define CDEV_MAJOR 61
+
+static struct cfdriver i4brbchcd =
+	{ NULL, "i4brbch", i4brbchmatch, dummy_i4brbchattach, DV_DULL,
+	  sizeof(struct cfdriver) };
+struct devsw i4brbchsw = 
+	{ &i4brbchcd,
+	  i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
+	  i4brbchioctl,	seltrue,	nommap,		nostrat,
+	  nodump,	nopsize,	0,		nostop
+};
+
+int
+i4brbchmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	printf("i4brbchmatch: aux=0x%x\n", aux);
+	return 1;
+}
+void
+dummy_i4brbchattach(struct device *parent, struct device *self, void *aux)
+{
+	printf("dummy_i4brbchattach: aux=0x%x\n", aux);
+}
+#endif /* __bsdi__ */
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
@@ -525,7 +559,7 @@ if(bootverbose)printf("EE-rbch%d: attempting dialout (DTR)\n", unit);
 /*---------------------------------------------------------------------------*
  *	device driver poll
  *---------------------------------------------------------------------------*/
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || !defined(__FreeBSD__)
+#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || (!defined(__FreeBSD__) && !defined(__bsdi__))
 
 PDEVSTATIC int
 i4brbchpoll(dev_t dev, int events, struct proc *p)

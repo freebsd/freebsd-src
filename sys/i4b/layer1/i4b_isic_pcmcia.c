@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1998 Matthias Apitz. All rights reserved.
  *
- *   Copyright (c) 1998 Hellmuth Michaelis. All rights reserved. 
+ *   Copyright (c) 1998, 1999 Hellmuth Michaelis. All rights reserved. 
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -35,9 +35,9 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.2 1999/01/12 11:04:59 eivind Exp $
+ *	$Id: i4b_isic_pcmcia.c,v 1.4 1999/02/14 09:44:59 hm Exp $
  *
- *      last edit-date: [Mon Dec 14 17:30:09 1998]
+ *      last edit-date: [Sun Feb 14 10:27:42 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -50,9 +50,11 @@
 #if (NISIC > 0) && (NCARD > 0)
  
 #include "apm.h"
-#include <sys/param.h>
 #include <sys/select.h>
-#include <i386/isa/isa_device.h>
+#include <pccard/card.h>
+#include <pccard/driver.h>
+#include <pccard/slot.h>
+#include <sys/param.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
@@ -63,7 +65,6 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/module.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <machine/clock.h>
@@ -73,10 +74,6 @@
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
 
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-#include <pccard/driver.h>
-
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
@@ -85,9 +82,6 @@
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
  
-extern int isicattach(struct isa_device *dev);
-extern void isicintr(int unit);
-
 /*  
  * PC-Card (PCMCIA) specific code.
  */
@@ -95,7 +89,16 @@ static int  isic_pccard_init    __P((struct pccard_devinfo *));
 static void isic_unload         __P((struct pccard_devinfo *));
 static int  isic_card_intr      __P((struct pccard_devinfo *));
     
-PCCARD_MODULE(isic, isic_pccard_init, isic_unload, isic_card_intr, 0,net_imask);
+static struct pccard_device isic_info = {
+    "isic",
+    isic_pccard_init,
+    isic_unload,
+    isic_card_intr,
+    0,                      /* Attributes - presently unused */
+    &net_imask
+};  
+
+DATA_SET(pccarddrv_set, isic_info);
 
 /*
  * Initialize the device - called from Slot manager.
@@ -107,6 +110,7 @@ static int isic_pccard_init(devi)
 struct pccard_devinfo *devi;
 {   
     	struct isa_device *is = &devi->isahd;
+	struct isic_softc *sc = &isic_sc[is->id_unit];
 
 	if ((1 << is->id_unit) & opened)
 		return(EBUSY);
@@ -115,14 +119,11 @@ struct pccard_devinfo *devi;
 	printf("isic%d: PCMCIA init, irqmask = 0x%x (%d), iobase = 0x%x\n",
                 is->id_unit, is->id_irq, devi->slt->irq, is->id_iobase);
 
-#if 0
-	/* XXX: problems resolving isic_probe_avma1_pcmcia() /phk */
 	/* 
 	 * look if there is really an AVM PCMCIA Fritz!Card and
 	 * setup the card specific stuff
 	 */
 	isic_probe_avma1_pcmcia(is);
-#endif
 
 	/* ap:
 	 * XXX what's to do with the return value?

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro ISA
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1i.c,v 1.1 1998/12/27 21:46:45 phk Exp $
+ *	$Id: i4b_elsa_qs1i.c,v 1.14 1999/02/14 11:02:04 hm Exp $
  *
- *      last edit-date: [Mon Dec 14 17:27:08 1998]
+ *      last edit-date: [Sun Feb 14 11:59:45 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -86,7 +86,7 @@
 #include <i4b/layer1/i4b_hscx.h>
 
 #ifdef __FreeBSD__
-/* static void i4b_eq1i_clrirq(void* base); */
+static void i4b_eq1i_clrirq(void* base);
 #else
 static void i4b_eq1i_clrirq(struct isic_softc *sc);
 void isic_attach_Eqs1pi __P((struct isic_softc *sc));
@@ -125,13 +125,12 @@ void isic_attach_Eqs1pi __P((struct isic_softc *sc));
  *      ELSA QuickStep 1000pro/ISA clear IRQ routine
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
-#ifdef notdef
 static void
 i4b_eq1i_clrirq(void* base)
 {
 	outb((u_int)base + ELSA_OFF_IRQ, 0);
 }
-#endif
+
 #else
 static void
 i4b_eq1i_clrirq(struct isic_softc *sc)
@@ -402,9 +401,7 @@ isic_probe_Eqs1pi(struct isa_device *dev, unsigned int iobase2)
 
 	/* setup access routines */
 
-/* XXX no "sc_clearirq" in sight... /phk
-	sc->sc_clearirq = i4b_eq1i_clrirq;
-*/ 
+	sc->clearirq = i4b_eq1i_clrirq;
 	sc->readreg = eqs1pi_read_reg;
 	sc->writereg = eqs1pi_write_reg;
 

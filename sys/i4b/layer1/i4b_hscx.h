@@ -30,9 +30,9 @@
  *
  *---------------------------------------------------------------------------
  *
- *	$Id: i4b_hscx.h,v 1.3 1998/02/13 17:00:31 hm Exp $ 
+ *	$Id: i4b_hscx.h,v 1.4 1999/02/14 09:44:59 hm Exp $ 
  *
- *      last edit-date: [Thu Feb  5 13:38:50 1998]
+ *      last edit-date: [Sun Feb 14 10:26:56 1999]
  *
  *	-hm	added AVM config register defs
  *	-hm	split up for rewrite of Siemens chipset driver

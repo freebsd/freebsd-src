@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.42 1998/12/18 14:20:44 hm Exp $
+ *	$Id: i4b_ipr.c,v 1.44 1999/02/14 19:51:01 hm Exp $
  *
- *	last edit-date: [Fri Dec 18 11:50:47 1998]
+ *	last edit-date: [Sun Feb 14 10:02:36 1999]
  *
  *---------------------------------------------------------------------------*
  *
@@ -138,6 +138,10 @@
 #define IPR_FMT	"ipr%d: "
 #define	IPR_ARG(sc)	((sc)->sc_if.if_unit)
 #define	PDEVSTATIC	static
+#elif defined(__bsdi__)
+#define IPR_FMT	"ipr%d: "
+#define	IPR_ARG(sc)	((sc)->sc_if.if_unit)
+#define	PDEVSTATIC	/* not static */
 #else
 #define	IPR_FMT	"%s: "
 #define	IPR_ARG(sc)	((sc)->sc_if.if_xname)
@@ -217,7 +221,11 @@ PDEVSTATIC void i4biprattach __P((void));
 static int i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 #endif
 
+#ifdef __bsdi__
+static int iprwatchdog(int unit);
+#else
 static void iprwatchdog(struct ifnet *ifp);
+#endif
 static void ipr_init_linktab(int unit);
 static void ipr_tx_queue_empty(int unit);
 static int i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rtp);
@@ -261,6 +269,9 @@ i4biprattach()
 #if __FreeBSD__ < 3
 		sc->sc_if.if_next = NULL;
 #endif
+		sc->sc_if.if_unit = i;
+#elif defined(__bsdi__)
+		sc->sc_if.if_name = "ipr";
 		sc->sc_if.if_unit = i;
 #else
 		sprintf(sc->sc_if.if_xname, "ipr%d", i);
@@ -354,7 +365,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	s = SPLI4B();
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 	unit = ifp->if_unit;
 	sc = &ipr_softc[unit];
 #else
@@ -482,7 +493,7 @@ static int
 i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 {
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 	struct ipr_softc *sc = &ipr_softc[ifp->if_unit];
 #else
 	struct ipr_softc *sc = ifp->if_softc;
@@ -513,7 +524,7 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if(sc->sc_if.if_flags & IFF_RUNNING)
 				{
 					/* disconnect ISDN line */
-#ifdef	__FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 					i4b_l4_drvrdisc(BDRV_IPR, ifp->if_unit);
 #else
 					i4b_l4_drvrdisc(BDRV_IPR, sc->sc_unit);
@@ -615,12 +626,21 @@ iprclearqueues(struct ipr_softc *sc)
 /*---------------------------------------------------------------------------*
  *	watchdog routine
  *---------------------------------------------------------------------------*/
+#ifdef __bsdi__
+static int
+iprwatchdog(int unit)
+{
+#else
 static void
 iprwatchdog(struct ifnet *ifp)
 {
+#endif
 #ifdef __FreeBSD__
 	int unit = ifp->if_unit;
 	struct ipr_softc *sc = &ipr_softc[unit];
+#elif defined(__bsdi__)
+	struct ipr_softc *sc = &ipr_softc[unit];
+	struct ifnet *ifp = &ipr_softc[unit].sc_if;
 #else
 	struct ipr_softc *sc = ifp->if_softc;
 	int unit = sc->sc_unit;
@@ -652,6 +672,9 @@ iprwatchdog(struct ifnet *ifp)
 			 sc->sc_ioutb, sc->sc_iinb, ro, ri, sc->sc_outb, sc->sc_inb);
  	}
 	sc->sc_if.if_timer = I4BIPRACCTINTVL; 	
+#ifdef __bsdi__
+	return 0;
+#endif
 }
 #endif /* I4BIPRACCT */
 

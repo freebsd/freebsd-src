@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.21 1998/12/05 18:02:59 hm Exp $
+ *	$Id: i4b_l3l4.h,v 1.23 1999/02/15 09:55:47 hm Exp $
  *
- *	last edit-date: [Sat Dec  5 18:04:58 1998]
+ *	last edit-date: [Sun Feb 14 10:04:19 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -200,9 +200,7 @@ typedef struct
 	time_t	max_idle_time;		/* max time without activity	*/
 
 					/* for outgoing connections:	*/	
-	time_t	unitlen_time;		/* length of a charging unit	*/
-	time_t	idle_time;		/* idle time before end of unit	*/
-	time_t	earlyhup_time;		/* safety time zone at end of unit */
+	msg_shorthold_t shorthold_data;	/* shorthold data to use */
 
 	int	aocd_flag;		/* AOCD used for unitlength calc*/
 	time_t	last_aocd_time;		/* last time AOCD received	*/
