@@ -459,7 +459,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 		SIGCHG(star & SAB_STAR_CTS, sig, SER_CTS, SER_DCTS);
 		vstr = uart_getreg(bas, SAB_VSTR);
 		SIGCHG(vstr & SAB_VSTR_CD, sig, SER_DCD, SER_DDCD);
-		pvr = uart_getreg(bas, SAB_PVR);
+		pvr = ~uart_getreg(bas, SAB_PVR);
 		switch (bas->chan) {
 		case 1:
 			pvr &= SAB_PVR_DSR_A;
@@ -468,7 +468,7 @@ sab82532_bus_getsig(struct uart_softc *sc)
 			pvr &= SAB_PVR_DSR_B;
 			break;
 		}
-		SIGCHG(~pvr, sig, SER_DSR, SER_DDSR);
+		SIGCHG(pvr, sig, SER_DSR, SER_DDSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		new = sig & ~UART_SIGMASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
