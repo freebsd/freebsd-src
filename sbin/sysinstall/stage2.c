@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.2 1994/10/20 06:48:40 phk Exp $
+ * $Id: stage2.c,v 1.3 1994/10/20 19:30:53 ache Exp $
  *
  */
 
@@ -33,7 +33,8 @@ stage2()
 	char **p,**q;
 	char pbuf[90];
 	char dbuf[90];
-	int i,j;
+	FILE *f1, *f2;
+	int i;
 
 	for(q=mountpoint,p = devicename; *p; p++,q++) {
 		if(!strcmp(*q,"swap")) 
@@ -41,60 +42,62 @@ stage2()
 		TellEm("newfs /dev/r%s",*p); 
 		strcpy(pbuf, "/dev/r");
 		strcat(pbuf, *p);
-		if (exec("/bin/newfs","/bin/newfs", pbuf, 0) == -1)
-			Fatal(errmsg);
+		i = exec(0, "/bin/newfs", "/bin/newfs", pbuf, 0);
+		if (i) 
+			Fatal("Exec(/bin/newfs) failed, code=%d.",i);
 	}
 
 	for(q=mountpoint,p = devicename; *p; p++,q++) {
+		if(!strcmp(*q,"swap")) 
+			continue;
 		MountUfs(*p, "/mnt", *q, 1);
 	}
 
 	TellEm("cpio -dumpv /mnt < file.list");
-	if (exec("/bin/cpio","/bin/cpio", "-dumpv", "/mnt", 0) == -1)
-		Fatal(errmsg);
+	i = exec(1, "/bin/cpio", "/bin/cpio", "-dumpv", "/mnt", 0);
+	if (i)
+		Fatal("Exec(/bin/cpio) failed, code=%d.",i);
 
-	TellEm("write /mnt/etc/fstab");
-	i = open("/mnt/etc/fstab",O_CREAT|O_TRUNC|O_APPEND|O_WRONLY,0644);
-	if(i < 0) {
-		Fatal("Couldn't open /mnt/etc/fstab for writing");
-	}
+	TellEm("Making /mnt/etc/fstab");
+	f1 = fopen("/mnt/etc/fstab","w");
+	if(!f1)
+		Fatal("Couldn't open /mnt/etc/fstab for writing.");
 
 	/* This file is our own.  It serves several jobs */
-	j = open("/mnt/this_is_hd",O_CREAT|O_TRUNC|O_APPEND|O_WRONLY,0644);
-	if(j < 0) {
-		Fatal("Couldn't open /mnt/this_is_hd for writing");
-	}
+	f2 = fopen("/mnt/this_is_hd","w");
+	if(!f2) 
+		Fatal("Couldn't open /mnt/this_is_hd for writing.");
+
+	TellEm("Writing filesystems");
 	for(q=mountpoint,p = devicename; *p; p++,q++) {
-		sprintf(pbuf,"%s\n%s\n",*p,*q);
-	        write(j,pbuf,strlen(pbuf));
 		if(!strcmp(*q,"swap")) 
 			continue;
-		sprintf(pbuf,"/dev/%s\t\t%s\tufs rw 1 1\n",*p,*q);
-	        write(i,pbuf,strlen(pbuf));
+		fprintf(f2,"%s\n%s\n",*p,*q);
+		fprintf(f1,"/dev/%s\t\t%s\tufs rw 1 1\n",*p,*q);
 	}
+	TellEm("Writing swap-devs");
 	for(q=mountpoint,p = devicename; *p; p++,q++) {
 		if(strcmp(*q,"swap")) 
 			continue;
-		sprintf(pbuf,"/dev/%s\t\tnone\tswap sw 0 0\n",*p);
-		write(i,pbuf,strlen(pbuf));
+		fprintf(f1,"/dev/%s\t\tnone\tswap sw 0 0\n",*p);
 	}
-	close(i);
-	write(j,"\n",1);
-	close(j);
-	sprintf(pbuf,"proc\t\t/proc\tprocfs rw 0 0\n");
-	write(i,pbuf,strlen(pbuf));
+	TellEm("Writing procfs");
+	fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
+	fclose(f1);
+	fclose(f2);
 
 	/* we have to unmount in reverse order */
 	for(p = mountpoint; *p; p++) 
 		continue;
+	TellEm("Unmount disks");
 	
 	for(p--;p >= mountpoint;p--) {
-		if(!strcmp(*q,"swap")) 
+		if(!strcmp(*p,"swap")) 
 			continue;
 		strcpy(dbuf,"/mnt");
 		strcat(dbuf,*p);
 		TellEm("unmount %s",dbuf);
-		if (unmount("/mnt", 0) == -1)
-			Fatal("Error unmounting /mnt: %s", strerror(errno));
+		if (unmount(dbuf, 0) == -1)
+			Fatal("Error unmounting %s.",dbuf);
 	}
 }

@@ -68,8 +68,12 @@ void	*Malloc __P((size_t size));
 char	*StrAlloc __P((char *str));
 void	Fatal __P((char *fmt, ...));
 int	AskAbort __P((char *fmt, ...));
-int	exec __P((char *cmd, char *args, ...));
 void	MountUfs __P((char *device, char *prefix, char *mountpoint, int do_mkdir));
+void	Mkdir __P((char *path));
+
+/* exec.c */
+int	exec __P((int magic, char *cmd, char *args, ...));
+#define EXEC_MAXARG	100
 
 /* stage0.c */
 void	stage0 __P((void));
