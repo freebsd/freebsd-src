@@ -98,10 +98,12 @@ _kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
-	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
-	    env MKDEP_CPP="${CC} -E" CC="${CC}" mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
-	    env MKDEP_CPP="${CC} -E" mkdep -a -f .newdep ${ASM_CFLAGS}
+	MKDEP_CPP="${CC} -E" CC="${CC}" \
+	    ${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | xargs \
+	    mkdep -a -f .newdep ${CFLAGS}
+	MKDEP_CPP="${CC} -E" \
+	    ${MAKE} -V SFILES -V SYSTEM_SFILES | xargs \
+	    mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
 
@@ -178,34 +180,34 @@ reinstall.debug: modules-reinstall.debug
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
-	    env ${MKMODULESENV} ${MAKE} all
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
+	    ${MKMODULESENV} ${MAKE} all
 
 modules-depend:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
-	    env ${MKMODULESENV} ${MAKE} depend
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
+	    ${MKMODULESENV} ${MAKE} depend
 
 modules-clean:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} clean
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} clean
 
 modules-cleandepend:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandepend
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandepend
 
 modules-clobber:	modules-clean
 	rm -rf ${MKMODULESENV}
 
 modules-cleandir:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandir
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} cleandir
 
 modules-tags:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} tags
 
 modules-install modules-reinstall:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} install
 
 modules-install.debug modules-reinstall.debug:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install.debug
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} install.debug
 
 config.o:
 	${NORMAL_C}
