@@ -39,47 +39,43 @@
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
-#define PLXIC_DEVICE2SOFTC(dev)	((struct plxic_slot *) device_get_softc(dev))
+#define PLXCARD_DEVICE2SOFTC(dev)	\
+	((struct plxcard_slot *) device_get_softc(dev))
 
 /*
  *	Prototypes for interrupt handler.
  */
-static driver_intr_t	plxicintr;
-static int		plxic_ioctl(struct slot *, int, caddr_t);
-static int		plxic_power(struct slot *);
-static void		plxic_mapirq(struct slot *, int);
-static timeout_t 	plxic_reset;
-static void		plxic_resume(struct slot *);
-static void		plxic_disable(struct slot *);
-static int		plxic_memory(struct slot *, int);
-static int		plxic_io(struct slot *, int);
+static driver_intr_t	plxcardintr;
+static int		plxcard_ioctl(struct slot *, int, caddr_t);
+static int		plxcard_power(struct slot *);
+static void		plxcard_mapirq(struct slot *, int);
+static timeout_t 	plxcard_reset;
+static void		plxcard_resume(struct slot *);
+static void		plxcard_disable(struct slot *);
+static int		plxcard_memory(struct slot *, int);
+static int		plxcard_io(struct slot *, int);
 
 /*
  *	Per-slot data table.
  */
-struct plxic_slot {
+struct plxcard_slot {
 	int		unit;		/* Unit number */
 	int		slotnum;	/* My slot number */
 	struct slot	*slt;		/* Back ptr to slot */
 	device_t	dev;		/* My device */
-	u_char		last_reg1;	/* Last value of change reg */
 };
 
-static struct slot_ctrl plxic_cinfo = {
-	plxic_mapirq,
-	plxic_memory,
-	plxic_io,
-	plxic_reset,
-	plxic_disable,
-	plxic_power,
-	plxic_ioctl,
-	plxic_resume,
+static struct slot_ctrl plxcard_cinfo = {
+	plxcard_mapirq,
+	plxcard_memory,
+	plxcard_io,
+	plxcard_reset,
+	plxcard_disable,
+	plxcard_power,
+	plxcard_ioctl,
+	plxcard_resume,
 	1,
-#if 0
 	1
-#else
-	2		/* Fake for UE2212 LAN card */
-#endif
 };
 
 static int validunits = 0;
@@ -88,13 +84,13 @@ static int validunits = 0;
  *	For each available slot, allocate a PC-CARD slot.
  */
 static int
-plxic_probe(device_t dev)
+plxcard_probe(device_t dev)
 {
 	return (ENXIO);
 }
 
 static int
-plxic_attach(device_t dev)
+plxcard_attach(device_t dev)
 {
 	int		error;
 	void		*ih;
@@ -102,9 +98,9 @@ plxic_attach(device_t dev)
 	struct resource *r;
 	int		rid;
 	struct slot	*slt;
-	struct plxic_slot *sp;
+	struct plxcard_slot *sp;
 	
-	sp = PLXIC_DEVICE2SOFTC(dev);
+	sp = PLXCARD_DEVICE2SOFTC(dev);
 	sp->unit = validunits++;
 	kid = device_add_child(dev, NULL, -1);
 	if (kid == NULL) {
@@ -112,7 +108,7 @@ plxic_attach(device_t dev)
 		return (ENXIO);
 	}
 	device_probe_and_attach(kid);
-	slt = pccard_init_slot(kid, &plxic_cinfo);
+	slt = pccard_init_slot(kid, &plxcard_cinfo);
 	if (slt == 0) {
 		device_printf(dev, "Can't get pccard info slot 0\n");
 		return (ENXIO);
@@ -125,7 +121,7 @@ plxic_attach(device_t dev)
 	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 	if (r) {
 		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
-		    plxicintr, (void *) sp, &ih);
+		    plxcardintr, (void *) sp, &ih);
 		if (error) {
 			bus_release_resource(dev, SYS_RES_IRQ, rid, r);
 			return (error);
@@ -140,22 +136,22 @@ plxic_attach(device_t dev)
  *	ioctl calls - Controller specific ioctls
  */
 static int
-plxic_ioctl(struct slot *slt, int cmd, caddr_t data)
+plxcard_ioctl(struct slot *slt, int cmd, caddr_t data)
 {
 	return (ENOTTY);
 }
 
 /*
- *	PLXIC Interrupt handler.
+ *	PLXCARD Interrupt handler.
  *	Check the slot and report any changes.
  */
 static void
-plxicintr(void *arg)
+plxcardintr(void *arg)
 {
 }
 
 static int
-plxic_memory(struct slot *slt, int win)
+plxcard_memory(struct slot *slt, int win)
 {
 	struct mem_desc *mp = &slt->mem[win];
 
@@ -166,7 +162,7 @@ plxic_memory(struct slot *slt, int win)
 }
 
 static int
-plxic_io(struct slot *slt, int win)
+plxcard_io(struct slot *slt, int win)
 {
 	struct io_desc *ip = &slt->io[win];
 
@@ -177,37 +173,37 @@ plxic_io(struct slot *slt, int win)
 }
 
 static int
-plxic_power(struct slot *slt)
+plxcard_power(struct slot *slt)
 {
 	return (0);
 }
 
 static void
-plxic_mapirq(struct slot *slt, int irq)
+plxcard_mapirq(struct slot *slt, int irq)
 {
 }
 
 static void
-plxic_reset(void *chan)
+plxcard_reset(void *chan)
 {
 	struct slot *slt = chan;
 	selwakeup(&slt->selp);
 }
 
 static void
-plxic_disable(struct slot *slt)
+plxcard_disable(struct slot *slt)
 {
 	/* null function */
 }
 
 static void
-plxic_resume(struct slot *slt)
+plxcard_resume(struct slot *slt)
 {
-	/* XXX PLXIC How ? */
+	/* XXX PLXCARD How ? */
 }
 
 static int
-plxic_activate_resource(device_t dev, device_t child, int type, int rid,
+plxcard_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -230,7 +226,7 @@ plxic_activate_resource(device_t dev, device_t child, int type, int rid,
 		ip->flags |= IODF_ACTIVE;
 		ip->start = rman_get_start(r);
 		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
-		err = plxic_cinfo.mapio(devi->slt, rid);
+		err = plxcard_cinfo.mapio(devi->slt, rid);
 		if (err)
 			return (err);
 		break;
@@ -250,7 +246,7 @@ plxic_activate_resource(device_t dev, device_t child, int type, int rid,
 		mp->flags |= MDF_ACTIVE;
 		mp->start = (caddr_t) rman_get_start(r);
 		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
-		err = plxic_cinfo.mapmem(devi->slt, rid);
+		err = plxcard_cinfo.mapmem(devi->slt, rid);
 		if (err)
 			return (err);
 		break;
@@ -263,7 +259,7 @@ plxic_activate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-plxic_deactivate_resource(device_t dev, device_t child, int type, int rid,
+plxcard_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -277,7 +273,7 @@ plxic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_IOPORT: {
 		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
-		err = plxic_cinfo.mapio(devi->slt, rid);
+		err = plxcard_cinfo.mapio(devi->slt, rid);
 		if (err)
 			return (err);
 		break;
@@ -287,7 +283,7 @@ plxic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_MEMORY: {
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
-		err = plxic_cinfo.mapmem(devi->slt, rid);
+		err = plxcard_cinfo.mapmem(devi->slt, rid);
 		if (err)
 			return (err);
 		break;
@@ -300,7 +296,7 @@ plxic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-plxic_setup_intr(device_t dev, device_t child, struct resource *irq,
+plxcard_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -309,7 +305,7 @@ plxic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
 	    cookiep);
 	if (err == 0)
-		plxic_cinfo.mapirq(devi->slt, rman_get_start(irq));
+		plxcard_cinfo.mapirq(devi->slt, rman_get_start(irq));
 	else
 		device_printf(dev, "Error %d irq %ld\n", err,
 		    rman_get_start(irq));
@@ -317,17 +313,17 @@ plxic_setup_intr(device_t dev, device_t child, struct resource *irq,
 }
 
 static int
-plxic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+plxcard_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 
-	plxic_cinfo.mapirq(devi->slt, 0);
+	plxcard_cinfo.mapirq(devi->slt, 0);
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
 static int
-plxic_set_res_flags(device_t bus, device_t child, int restype, int rid,
+plxcard_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -350,7 +346,7 @@ plxic_set_res_flags(device_t bus, device_t child, int restype, int rid,
 			mp->flags |= MDF_16BITS;
 			break;
 		}
-		err = plxic_cinfo.mapmem(devi->slt, rid);
+		err = plxcard_cinfo.mapmem(devi->slt, rid);
 		break;
 	}
 	default:
@@ -360,7 +356,7 @@ plxic_set_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 static int
-plxic_get_res_flags(device_t bus, device_t child, int restype, int rid,
+plxcard_get_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long *value)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -387,7 +383,7 @@ plxic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 static int
-plxic_set_memory_offset(device_t bus, device_t child, int rid,
+plxcard_set_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t offset, u_int32_t *deltap)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -396,11 +392,11 @@ plxic_set_memory_offset(device_t bus, device_t child, int rid,
 	mp->card = offset;
 	if (deltap)
 		*deltap = 0;			/* XXX BAD XXX */
-	return (plxic_cinfo.mapmem(devi->slt, rid));
+	return (plxcard_cinfo.mapmem(devi->slt, rid));
 }
 
 static int
-plxic_get_memory_offset(device_t bus, device_t child, int rid,
+plxcard_get_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t *offset)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
@@ -414,10 +410,10 @@ plxic_get_memory_offset(device_t bus, device_t child, int rid,
 	return (0);
 }
 
-static device_method_t plxic_methods[] = {
+static device_method_t plxcard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		plxic_probe),
-	DEVMETHOD(device_attach,	plxic_attach),
+	DEVMETHOD(device_probe,		plxcard_probe),
+	DEVMETHOD(device_attach,	plxcard_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -427,26 +423,26 @@ static device_method_t plxic_methods[] = {
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, plxic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, plxic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	plxic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	plxic_teardown_intr),
+	DEVMETHOD(bus_activate_resource, plxcard_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, plxcard_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	plxcard_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	plxcard_teardown_intr),
 
 	/* Card interface */
-	DEVMETHOD(card_set_res_flags,	plxic_set_res_flags),
-	DEVMETHOD(card_get_res_flags,	plxic_get_res_flags),
-	DEVMETHOD(card_set_memory_offset, plxic_set_memory_offset),
-	DEVMETHOD(card_get_memory_offset, plxic_get_memory_offset),
+	DEVMETHOD(card_set_res_flags,	plxcard_set_res_flags),
+	DEVMETHOD(card_get_res_flags,	plxcard_get_res_flags),
+	DEVMETHOD(card_set_memory_offset, plxcard_set_memory_offset),
+	DEVMETHOD(card_get_memory_offset, plxcard_get_memory_offset),
 
 	{ 0, 0 }
 };
 
-devclass_t	plxic_devclass;
+devclass_t	plxcard_devclass;
 
-static driver_t plxic_driver = {
-	"plxic",
-	plxic_methods,
-	sizeof(struct plxic_slot)
+static driver_t plxcard_driver = {
+	"plxcard",
+	plxcard_methods,
+	sizeof(struct plxcard_slot)
 };
 
-DRIVER_MODULE(plxic, isa, plxic_driver, plxic_devclass, 0, 0);
+DRIVER_MODULE(plxcard, pci, plxcard_driver, plxcard_devclass, 0, 0);
