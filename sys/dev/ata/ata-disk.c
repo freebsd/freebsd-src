@@ -106,7 +106,7 @@ apiomode(struct ata_params *ap)
 static __inline int
 wdmamode(struct ata_params *ap)
 {
-    if ((ap->atavalid & 2) && ad_version(ap->versmajor) >= 2) {
+    if (ap->atavalid & 2) {
 	if (ap->wdmamodes & 4) return 2;
 	if (ap->wdmamodes & 2) return 1;
 	if (ap->wdmamodes & 1) return 0;
@@ -435,7 +435,7 @@ ad_transfer(struct ad_request *request)
 	    request->timeout_handle.callout = NULL;
 	else
 	    request->timeout_handle = 
-		timeout((timeout_t*)ad_timeout, request, 5*hz);
+		timeout((timeout_t*)ad_timeout, request, 10 * hz);
 
 	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
@@ -464,7 +464,6 @@ ad_transfer(struct ad_request *request)
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~AR_F_DMA_USED;
 	if ((adp->flags & AD_F_DMA_ENABLED) &&
-	    !(request->flags & AR_F_FORCE_PIO) &&
 	    !ata_dmasetup(adp->controller, adp->unit, 
 			  (void *)request->data, request->bytecount,
 			  (request->flags & AR_F_READ))) {
