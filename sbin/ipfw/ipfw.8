@@ -1379,6 +1379,15 @@ Packets that match a
 rule should not be immediately accepted, but should continue
 going through the rule list.
 This may be fixed in a later version.
+.Pp
+Packets diverted to userland, and then reinserted by a userland process
+(such as
+.Xr natd 8 )
+will lose various packet attributes, including their source interface.
+If a packet is reinserted in this manner, later rules may be incorrectly
+applied, making the order of
+.Cm divert
+rules in the rule sequence very important.
 .Sh AUTHORS
 .An Ugen J. S. Antsilevich ,
 .An Poul-Henning Kamp ,
