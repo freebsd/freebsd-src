@@ -12,7 +12,7 @@ CFLAGS+=-DOS_REP=\"bsd44\"
 CFLAGS+=-DOS_HDR=\"os-bsd44.h\"
 .PATH: ${.CURDIR}/../rpcx ${.CURDIR}/../amd
 CLEANFILES+=nfs_prot.h
-RPCCOM = rpcgen
+RPCCOM = rpcgen -C
 NFS_PROT_X= ${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 
 nfs_prot.h: ${NFS_PROT_X}
