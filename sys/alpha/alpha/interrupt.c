@@ -434,7 +434,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * that this means that any fast interrupt handler must be MP safe.
 	 */
 	ih = TAILQ_FIRST(&ithd->it_handlers);
-	if ((ih->ih_flags & INTR_FAST) != 0) {
+	if ((ih->ih_flags & IH_FAST) != 0) {
 		ih->ih_handler(ih->ih_argument);
 		return;
 	}
