@@ -100,32 +100,21 @@ static const char rcsid[] =
 #endif
 
 /*
- * Various supported device vendors/types and their names.
+ * Various supported device vendors/products.
  */
 static struct kue_type kue_devs[] = {
-	{ USB_VENDOR_AOX, USB_PRODUCT_AOX_USB101,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC10T,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_EA101,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET2,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_E45,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_USB_T,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C,
-	    "KLSI USB ethernet" },
-	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB,
-	    "KLSI USB ethernet" },
-	{ 0, 0, NULL }
+	{ USB_VENDOR_AOX, USB_PRODUCT_AOX_USB101 },
+	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET },
+	{ USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC10T },
+	{ USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_EA101 },
+	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET },
+	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_ENET2 },
+	{ USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_E45 },
+	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250 },
+	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_USB_T },
+	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C },
+	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB },
+	{ 0, 0 }
 };
 
 static struct usb_qdat kue_qdat;
@@ -376,7 +365,11 @@ static void kue_setmulti(sc)
 static void kue_reset(sc)
 	struct kue_softc	*sc;
 {
-	usbd_set_config_no(sc->kue_udev, 1, 0);
+	if (usbd_set_config_no(sc->kue_udev, KUE_CONFIG_NO, 0)) {
+		printf("kue%d: getting interface handle failed\n",
+		    sc->kue_unit);
+	}
+
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
         return;
@@ -397,7 +390,7 @@ USB_MATCH(kue)
 	dd = &uaa->device->ddesc;
 
 	t = kue_devs;
-	while(t->kue_name != NULL) {
+	while(t->kue_vid) {
 		if (uaa->vendor == t->kue_vid &&
 		    uaa->product == t->kue_did) {
 			/*
@@ -411,7 +404,6 @@ USB_MATCH(kue)
 			 */
 			USETW(dd->bcdDevice, 0x002);
 			uaa->device->quirks = usbd_find_quirk(dd);
-			device_set_desc(self, t->kue_name);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
 		t++;

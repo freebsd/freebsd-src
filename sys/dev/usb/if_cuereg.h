@@ -129,6 +129,8 @@
 #define CUE_CTL_READ		0x01
 #define CUE_CTL_WRITE		0x02
 
+#define CUE_CONFIG_NO		1
+
 /*
  * The interrupt endpoint is currently unused
  * by the KLSI part.
@@ -141,7 +143,6 @@
 struct cue_type {
 	u_int16_t		cue_vid;
 	u_int16_t		cue_did;
-	char			*cue_name;
 };
 
 struct cue_softc;
