@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: manctl.sh,v 1.5 1995/02/15 00:07:59 jkh Exp $
+# $Id: manctl.sh,v 1.6 1996/01/23 23:59:36 wosch Exp $
 #
 # manctl: 
 #	a utility for manipulating manual pages
@@ -46,7 +46,7 @@
 #	symlinks - ignore these - eg: expn is its own man page:
 #			don't want to compress this!
 #
-PATH=/bin:/sbin:/usr/bin:/usr/sbin
+PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH
 
 #
 # purge cat? directories
