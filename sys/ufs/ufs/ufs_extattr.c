@@ -653,7 +653,6 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	}
 
 	ASSERT_VOP_LOCKED(backing_vnode, "ufs_extattr_enable");
-	backing_vnode->v_vflag |= VV_SYSTEM;
 	LIST_INSERT_HEAD(&ump->um_extattr.uepm_list, attribute,
 	    uele_entries);
 
@@ -690,7 +689,6 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY,
 	    td);
 	ASSERT_VOP_LOCKED(uele->uele_backing_vnode, "ufs_extattr_disable");
-	uele->uele_backing_vnode->v_vflag &= ~VV_SYSTEM;
 	VOP_UNLOCK(uele->uele_backing_vnode, 0, td);
 	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
 	    td->td_ucred, td);
