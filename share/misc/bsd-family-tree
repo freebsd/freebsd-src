@@ -246,7 +246,7 @@ BSD Release Announcements collection.
 URL: http://www.de.FreeBSD.ORG/de/ftp/releases/
 
 BSD Hypertext Man Pages
-http://www.de.freebsd.org/de/cgi/man.cgi
+http://www.freebsd.org/cgi/man.cgi
 
 Acknowledgments
 ---------------
@@ -259,4 +259,4 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 --
 Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
-$Date: 1998/05/12 08:04:27 $ $Revision: 1.6 $
+$Date: 1998/05/12 14:33:37 $ $Revision: 1.7 $
