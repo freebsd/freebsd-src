@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	file2c uudecode uuencode xargs
+SUBDIR=	file2c join uudecode uuencode xargs
 
 .include <bsd.subdir.mk>
