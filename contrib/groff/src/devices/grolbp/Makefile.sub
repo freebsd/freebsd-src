@@ -1,0 +1,6 @@
+PROG=grolbp
+MAN1=grolbp.n
+XLIBS=$(LIBDRIVER) $(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=lbp.o
+CCSRCS=$(srcdir)/lbp.cc
