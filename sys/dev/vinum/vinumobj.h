@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumobj.h,v 1.5 2003/04/28 02:54:43 grog Exp $
+ * $Id: vinumobj.h,v 1.7 2003/05/23 01:08:58 grog Exp $
  * $FreeBSD$
  */
 
@@ -108,13 +108,19 @@ struct __vinum_conf
     struct _volume *volume;
 #endif
 
-    /* the number allocated */
+    /* the number allocated of each object */
     int drives_allocated;
     int subdisks_allocated;
     int plexes_allocated;
     int volumes_allocated;
 
     /* and the number currently in use */
+    /*
+     * Note that drives_used is not valid during drive recognition
+     * (vinum_scandisk and friends).  Many invalid drives are added and
+     * later removed; the count isn't correct until we leave
+     * vinum_scandisk.
+     */
     int drives_used;
     int subdisks_used;
     int plexes_used;
@@ -268,7 +274,7 @@ struct _plex
     char name[MAXPLEXNAME];				    /* name of plex */
 #ifdef _KERNEL
     struct rangelock *lock;				    /* ranges of locked addresses */
-    struct mtx lockmtx;
+    struct mtx *lockmtx;				    /* lock mutex, one of plexmutex [] */
     dev_t dev;						    /* associated device */
 #endif
 };
