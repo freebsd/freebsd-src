@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.15 1997/07/15 14:49:35 yokota Exp $
+ *	$Id: snake_saver.c,v 1.16 1998/01/16 17:58:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -109,6 +109,9 @@ static int
 snake_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	int err;
+
+	if (cur_console->mode >= M_VESA_BASE)
+		return ENODEV;
 
 	messagelen = strlen(ostype) + 1 + strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.12 1997/07/15 14:49:39 yokota Exp $
+ *	$Id: star_saver.c,v 1.13 1998/01/16 17:58:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -89,6 +89,9 @@ star_saver(int blank)
 static int
 star_saver_load(struct lkm_table *lkmtp, int cmd)
 {
+	if (cur_console->mode >= M_VESA_BASE)
+		return ENODEV;
+
 	return add_scrn_saver(star_saver);
 }
 
