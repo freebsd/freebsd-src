@@ -41,11 +41,13 @@
  */
 
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -1237,6 +1239,15 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.lock = 1;
 
 	SYSCTL_LOCK();
+
+#ifdef MAC
+	error = mac_check_system_sysctl(td->td_ucred, name, namelen, old,
+	    oldlenp, inkernel, new, newlen);
+	if (error) {
+		SYSCTL_UNLOCK();
+		return (error);
+	}
+#endif
 
 	do {
 	    req2 = req;

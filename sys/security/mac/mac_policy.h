@@ -313,6 +313,9 @@ struct mac_policy_ops {
 	int	(*mpo_check_system_reboot)(struct ucred *cred, int howto);
 	int	(*mpo_check_system_swapon)(struct ucred *cred,
 		    struct vnode *vp, struct label *label);
+	int	(*mpo_check_system_sysctl)(struct ucred *cred, int *name,
+		    u_int namelen, void *old, size_t *oldlenp, int inkernel,
+		    void *new, size_t newlen);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int flags);
 	int	(*mpo_check_vnode_chdir)(struct ucred *cred,
@@ -505,6 +508,7 @@ enum mac_op_constant {
 	MAC_CHECK_SOCKET_VISIBLE,
 	MAC_CHECK_SYSTEM_REBOOT,
 	MAC_CHECK_SYSTEM_SWAPON,
+	MAC_CHECK_SYSTEM_SYSCTL,
 	MAC_CHECK_VNODE_ACCESS,
 	MAC_CHECK_VNODE_CHDIR,
 	MAC_CHECK_VNODE_CHROOT,
