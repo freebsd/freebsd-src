@@ -822,11 +822,18 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     AcpiOsStall(1);
 
     /*
-     * Poll the EC status register to detect completion of the last
-     * command.  First, wait up to 1 ms in chunks of sc->ec_polldelay
-     * microseconds.
+     * If we're up and running, wait up to 1 ms.  Otherwise, burn the entire
+     * timeout value with delays since msleep() is a no-op.
      */
-    for (i = 0; i < 1000 / sc->ec_polldelay; i++) {
+    period = 1000 / sc->ec_polldelay;
+    if (cold)
+	period *= ec_poll_timeout;
+
+    /*
+     * Poll the EC status register to detect completion of the last
+     * command in chunks of ec_polldelay.
+     */
+    for (i = 0; i < period; i++) {
 	EcStatus = EC_GET_CSR(sc);
 	if (EVENT_READY(Event, EcStatus)) {
 	    Status = AE_OK;
@@ -847,10 +854,10 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 	sc->ec_polldelay = 100;
 
     /*
-     * If we still don't have a response, wait up to ec_poll_timeout ms
-     * for completion, sleeping for chunks of 10 ms.
+     * If we still don't have a response and we're up and running, wait up
+     * to ec_poll_timeout ms for completion, sleeping for chunks of 10 ms.
      */
-    if (Status != AE_OK) {
+    if (!cold && Status != AE_OK) {
 	retval = -1;
 	for (i = 0; i < ec_poll_timeout / 10; i++) {
 	    if (retval != 0)
