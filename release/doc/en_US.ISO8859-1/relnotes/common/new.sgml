@@ -802,7 +802,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<varname>kern.polling.user_frac</varname> sysctl indicating
 	the percentage of CPU time to be reserved for userland.  The
 	devices initially supporting polling are &man.dc.4;,
-	&man.fxp.4;, &man.rl.4, and &man.sis.4;.  More details can be found in
+	&man.fxp.4;, &man.rl.4;, and &man.sis.4;.  More details can be found in
 	the &man.polling.4; manual page. &merged;</para>
 
       <para arch="i386">The packet-forwarding performance of certain
