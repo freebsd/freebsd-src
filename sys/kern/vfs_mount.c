@@ -443,9 +443,11 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 		panic("unmount: dangling vnode");
 	vfs_unbusy(mp,td);
 	lockdestroy(&mp->mnt_lock);
-	mtx_destroy(&mp->mnt_mtx);
+	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
+	MNT_IUNLOCK(mp);
+	mtx_destroy(&mp->mnt_mtx);
 #ifdef MAC
 	mac_destroy_mount(mp);
 #endif
@@ -907,9 +909,9 @@ dounmount(mp, flags, td)
 
 	mtx_assert(&Giant, MA_OWNED);
 
-	mtx_lock(&mountlist_mtx);
+	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		mtx_unlock(&mountlist_mtx);
+		MNT_IUNLOCK(mp);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
@@ -917,11 +919,13 @@ dounmount(mp, flags, td)
 	if (flags & MNT_FORCE)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
-	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), &mountlist_mtx, td);
+	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), MNT_MTX(mp), td);
 	if (error) {
+		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
+		MNT_IUNLOCK(mp);
 		return (error);
 	}
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -968,13 +972,13 @@ dounmount(mp, flags, td)
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
-		mtx_lock(&mountlist_mtx);
+		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
-		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK,
-		    &mountlist_mtx, td);
+		lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
+		MNT_IUNLOCK(mp);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
