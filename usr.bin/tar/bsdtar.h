@@ -95,6 +95,7 @@ void	bsdtar_strmode(struct archive_entry *entry, char *bp);
 void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	exclude(struct bsdtar *, const char *pattern);
+void	exclude_from_file(struct bsdtar *, const char *pathname);
 int	excluded(struct bsdtar *, const char *pathname);
 void	include(struct bsdtar *, const char *pattern);
 void	safe_fprintf(FILE *, const char *fmt, ...);

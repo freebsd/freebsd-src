@@ -90,6 +90,7 @@ const struct option tar_longopts[] = {
 	{ "dereference",	no_argument,	   NULL, 'L' },
 	{ "directory",          required_argument, NULL, 'C' },
 	{ "exclude",            required_argument, NULL, OPTION_EXCLUDE },
+	{ "exclude-from",       required_argument, NULL, 'X' },
 	{ "extract",            no_argument,       NULL, 'x' },
 	{ "fast-read",          no_argument,       NULL, OPTION_FAST_READ },
 	{ "file",               required_argument, NULL, 'f' },
@@ -328,6 +329,9 @@ main(int argc, char **argv)
 			break;
 		case 'w': /* SUSv2 */
 			bsdtar->option_interactive = 1;
+			break;
+		case 'X': /* GNU tar */
+			exclude_from_file(bsdtar, optarg);
 			break;
 		case 'x': /* SUSv2 */
 			if (mode != '\0')
