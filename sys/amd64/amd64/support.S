@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.17 1994/09/12 11:38:09 davidg Exp $
+ *	$Id: support.s,v 1.18 1994/09/16 13:33:27 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -56,49 +56,9 @@ ENTRY(__divsi3)
 	idivl 8(%esp)
 	ret
 
-	/*
-	 * I/O bus instructions via C
-	 */
-
-ENTRY(insb)					/* insb(port, addr, cnt) */
-	pushl	%edi
-	movl	8(%esp),%edx
-	movl	12(%esp),%edi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	insb
-	NOP
-	movl	%edi,%eax
-	popl	%edi
-	ret
-
-ENTRY(insw)					/* insw(port, addr, cnt) */
-	pushl	%edi
-	movl	8(%esp),%edx
-	movl	12(%esp),%edi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	insw
-	NOP
-	movl	%edi,%eax
-	popl	%edi
-	ret
-
-ENTRY(insl)					/* insl(port, addr, cnt) */
-	pushl	%edi
-	movl	8(%esp),%edx
-	movl	12(%esp),%edi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	insl
-	NOP
-	movl	%edi,%eax
-	popl	%edi
-	ret
-
+/*
+ * Support for reading real time clock registers
+ */
 ENTRY(rtcin)					/* rtcin(val) */
 	movl	4(%esp),%eax
 	outb	%al,$0x70
@@ -106,45 +66,6 @@ ENTRY(rtcin)					/* rtcin(val) */
 	xorl	%eax,%eax
 	inb	$0x71,%al
 	NOP
-	ret
-
-ENTRY(outsb)					/* outsb(port, addr, cnt) */
-	pushl	%esi
-	movl	8(%esp),%edx
-	movl	12(%esp),%esi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	outsb
-	NOP
-	movl	%esi,%eax
-	popl	%esi
-	ret
-
-ENTRY(outsw)					/* outsw(port, addr, cnt) */
-	pushl	%esi
-	movl	8(%esp),%edx
-	movl	12(%esp),%esi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	outsw
-	NOP
-	movl	%esi,%eax
-	popl	%esi
-	ret
-
-ENTRY(outsl)					/* outsl(port, addr, cnt) */
-	pushl	%esi
-	movl	8(%esp),%edx
-	movl	12(%esp),%esi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	outsl
-	NOP
-	movl	%esi,%eax
-	popl	%esi
 	ret
 
 /*
