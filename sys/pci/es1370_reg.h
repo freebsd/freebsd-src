@@ -131,4 +131,34 @@
 
 #define ES_BUFFSIZE 0x20000		/* We're PCI! Use a large buffer */
 
+struct es_info {
+        bus_space_tag_t st;
+        bus_space_handle_t sh;
+
+        bus_dma_tag_t   parent_dmat;
+        bus_dmamap_t    dmam_in, dmam_out;
+
+        /* Contents of board's registers */
+        u_long          ctrl;
+        u_long          sctrl;
+};
+
+/* es1371.c functions */
+u_int          es1371_wait_src_ready(snddev_info *);
+void           es1371_src_write(snddev_info *, u_short, u_short);
+u_int          es1371_adc_rate(snddev_info *, u_int, int);
+u_int          es1371_dac1_rate(snddev_info *, u_int, int);
+u_int          es1371_dac2_rate(snddev_info *, u_int, int);
+int            mixer_rdch(snddev_info *s, unsigned int ch, int *arg);
+int            mixer_wrch(snddev_info *s, unsigned int ch, int val);
+void           wrcodec(snddev_info *s, unsigned addr, unsigned data);
+unsigned       rdcodec(snddev_info *s, unsigned addr);
+int            mixer_ioctl_1371(snddev_info *, u_long, caddr_t, int,  struct proc *);
+int            es_init_1371(snddev_info *);
+
+#ifndef OSS_GETVERSION
+#define OSS_GETVERSION _IOR ('M', 118, int)
+#endif
+
+int es_debug;	/* set via sysctl to enable debugging messages */
 #endif
