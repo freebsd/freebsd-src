@@ -481,9 +481,14 @@ tcp_free_sackholes(struct tcpcb *tp)
 }
 
 /*
- * Checks for partial ack.  If partial ack arrives, turn off retransmission
- * timer, deflate the window, do not clear tp->t_dupacks, and return 1.
- * If the ack advances at least to tp->snd_recover, return 0.
+ * Partial ack handling within a sack recovery episode. 
+ * Keeping this very simple for now. When a partial ack
+ * is received, force snd_cwnd to a value that will allow
+ * the sender to transmit no more than 2 segments.
+ * If necessary, a better scheme can be adopted at a 
+ * later point, but for now, the goal is to prevent the
+ * sender from bursting a large amount of data in the midst
+ * of sack recovery.
  */
 void
 tcp_sack_partialack(tp, th)
@@ -491,28 +496,19 @@ tcp_sack_partialack(tp, th)
 	struct tcphdr *th;
 {
 	INP_LOCK_ASSERT(tp->t_inpcb);
-	u_long  ocwnd = tp->snd_cwnd;
-	int	sack_bytes_rexmt = 0;
+	int num_segs = 1;
+	int sack_bytes_rxmt = 0;
 
 	callout_stop(tp->tt_rexmt);
 	tp->t_rtttime = 0;
-	/*
-	 * Set cwnd so we can send one more segment (either rexmit based on
-	 * scoreboard or new segment). Set cwnd to the amount of data
-	 * rexmitted from scoreboard plus the amount of new data transmitted
-	 * in this sack recovery episode plus one segment.
-	 */
-	(void)tcp_sack_output(tp, &sack_bytes_rexmt);
-	tp->snd_cwnd = sack_bytes_rexmt + (tp->snd_nxt - tp->sack_newdata) +
-		tp->t_maxseg;
+	/* send one or 2 segments based on how much new data was acked */
+	if (((th->th_ack - tp->snd_una) / tp->t_maxseg) > 2)
+		num_segs = 2;
+	(void)tcp_sack_output(tp, &sack_bytes_rxmt);
+	tp->snd_cwnd = sack_bytes_rxmt + (tp->snd_nxt - tp->sack_newdata) +
+		num_segs * tp->t_maxseg;
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
-	tp->snd_cwnd = ocwnd;
-	/*
-	 * Partial window deflation.  Relies on fact that tp->snd_una
-	 * not updated yet.
-	 */
-	tp->snd_cwnd -= (th->th_ack - tp->snd_una - tp->t_maxseg);
 }
 
 #ifdef TCP_SACK_DEBUG
