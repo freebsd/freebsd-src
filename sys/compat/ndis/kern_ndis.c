@@ -100,6 +100,11 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
+		/* Initialize subsystems */
+		ndis_libinit();
+		ntoskrnl_libinit();
+
+		/* Initialize TX buffer UMA zone. */
 		ndis_packet_zone = uma_zcreate("NDIS packet",
 		    sizeof(ndis_packet), NULL, NULL, NULL,
 		    NULL, UMA_ALIGN_PTR, 0);
@@ -109,6 +114,11 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		break;
 	case MOD_UNLOAD:
 	case MOD_SHUTDOWN:
+		/* Shut down subsystems */
+		ndis_libfini();
+		ntoskrnl_libfini();
+
+		/* Remove zones */
 		uma_zdestroy(ndis_packet_zone);
 		uma_zdestroy(ndis_buffer_zone);
 		break;
@@ -1077,8 +1087,6 @@ ndis_unload_driver(arg)
 	free(sc->ndis_block.nmb_rlist, M_DEVBUF);
 
 	ndis_flush_sysctls(sc);
-	ndis_libfini();
-	ntoskrnl_libfini();
 
 	return(0);
 }
@@ -1118,10 +1126,6 @@ ndis_load_driver(img, arg)
 		if (pe_patch_imports(img, "ntoskrnl", ntoskrnl_functbl))
 			return(ENOEXEC);
 	}
-
-	/* Initialize subsystems */
-	ndis_libinit();
-	ntoskrnl_libinit();
 
         /* Locate the driver entry point */
 	pe_get_optional_header(img, &opt_hdr);
