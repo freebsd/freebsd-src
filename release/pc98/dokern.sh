@@ -36,7 +36,6 @@ sed	-e '/	pty	/d' \
 	-e '/WITNESS/d' \
 	-e '/	pci$/d' \
 	-e '/	adv	/d' \
-	-e '/	agp	/d' \
 	-e '/	ahc	/d' \
 	-e '/	amd	/d' \
 	-e '/	isp	/d' \
