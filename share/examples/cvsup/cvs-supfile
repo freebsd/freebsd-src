@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.2.2.9 1997/12/13 05:59:43 asami Exp $
+# $Id: cvs-supfile,v 1.2.2.10 1998/03/06 13:36:33 jkh Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # CVS development tree of the FreeBSD system.
@@ -110,6 +110,7 @@ ports-all
 #ports-comms
 #ports-converters
 #ports-databases
+#ports-deskutils
 #ports-devel
 #ports-editors
 #ports-emulators
@@ -135,3 +136,8 @@ ports-all
 #ports-vietnamese
 #ports-www
 #ports-x11
+#ports-x11-clocks
+#ports-x11-fm
+#ports-x11-fonts
+#ports-x11-toolkits
+#ports-x11-wm
