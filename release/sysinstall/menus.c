@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: menus.c,v 1.42.2.70 1997/02/07 04:26:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -266,7 +266,7 @@ DMenu MenuIndex = {
       { "Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { "Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
-      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
+      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
@@ -359,8 +359,8 @@ DMenu MenuMouse = {
     "somewhat.  Once you've selected one of the below, you can specify\n"
     "/dev/mouse as your mouse device when running the XFree86 configuration\n"
     "utility (see Configuration menu).  Please note that for PS/2 mice,\n"
-    "a kernel recompile is also required!  See the handbook for more details\n"
-    "on building a kernel.",
+    "you need to enable the psm driver in the kernel configuration menu\n"
+    "when installing for the first time.",
     "For more information, visit the Documentation menu",
     NULL,
     { { "COM1",	"Serial mouse on COM1",	whichMouse, dmenuSystemCommand, NULL,
@@ -1043,7 +1043,7 @@ DMenu MenuConfigure = {
       { "2 Console",	"Customize system console behavior",
 	NULL,	dmenuSubmenu, NULL, &MenuSyscons },
       { "3 Time Zone",	"Set which time zone you're in",
-	NULL,	dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
+	NULL,	dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
       { "4 Media",	"Change the installation media type",
 	NULL,	dmenuSubmenu, NULL, &MenuMedia	},
       { "5 Mouse",	"Select the type of mouse you have",
