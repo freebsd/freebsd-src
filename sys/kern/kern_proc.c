@@ -702,6 +702,12 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_childtime = kp->ki_childstime;
 		timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 	}
+	kp->ki_sflag = p->p_sflag;
+	kp->ki_swtime = p->p_swtime;
+	kp->ki_pid = p->p_pid;
+	kp->ki_nice = p->p_nice;
+	bintime2timeval(&p->p_runtime, &tv);
+	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 	if (p->p_state != PRS_ZOMBIE) {
 #if 0
 		if (td == NULL) {
@@ -740,15 +746,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 			kp->ki_stat = SIDL;
 		}
 
-		kp->ki_sflag = p->p_sflag;
-		kp->ki_swtime = p->p_swtime;
-		kp->ki_pid = p->p_pid;
-		kp->ki_nice = p->p_nice;
 		kg = td->td_ksegrp;
 		ke = td->td_kse;
-		bintime2timeval(&p->p_runtime, &tv);
-		kp->ki_runtime =
-		    tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 
 		/* things in the KSE GROUP */
 		kp->ki_estcpu = kg->kg_estcpu;
