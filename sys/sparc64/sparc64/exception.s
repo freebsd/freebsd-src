@@ -543,19 +543,7 @@ END(tl0_sfsr_trap)
 	.align	32
 	.endm
 
-	.macro	tl0_immu_miss
-	/*
-	 * Force kernel store order.
-	 */
-	wrpr	%g0, PSTATE_MMU, %pstate
-
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
-
+	.macro	immu_miss_user
 	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
@@ -623,13 +611,22 @@ END(tl0_sfsr_trap)
 	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
 	bnz,a,pt %xcc, 1b
 	 nop
+	.endm
+
+	.macro	tl0_immu_miss
+	/*
+	 * Force kernel store order.
+	 */
+	wrpr	%g0, PSTATE_MMU, %pstate
 
 	/*
-	 * Put back the contents of the tag access register, in case we
-	 * faulted.
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
 	 */
-	stxa	%g2, [%g0 + AA_IMMU_TAR] %asi
-	membar	#Sync
+	wr	%g0, ASI_IMMU, %asi
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
+
+	immu_miss_user
 
 	b,a	%xcc, tl0_immu_miss_trap
 	 nop
@@ -658,6 +655,13 @@ END(tl0_immu_miss_set_ref)
 
 ENTRY(tl0_immu_miss_trap)
 	/*
+	 * Put back the contents of the tag access register, in case we
+	 * faulted.
+	 */
+	stxa	%g2, [%g0 + AA_IMMU_TAR] %asi
+	membar	#Sync
+
+	/*
 	 * Switch to alternate globals.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
@@ -677,13 +681,6 @@ ENTRY(tl0_immu_miss_trap)
 END(tl0_immu_miss_trap)
 
 	.macro	dmmu_miss_user
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
 	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
@@ -748,13 +745,6 @@ END(tl0_immu_miss_trap)
 	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
 	bnz,a,pt %xcc, 1b
 	 nop
-
-	/*
-	 * Put back the contents of the tag access register, in case we
-	 * faulted.
-	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
-	membar	#Sync
 	.endm
 
 ENTRY(dmmu_miss_user_set_ref)
@@ -784,6 +774,13 @@ END(dmmu_miss_user_set_ref)
 	wrpr	%g0, PSTATE_MMU, %pstate
 
 	/*
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+
+	/*
 	 * Try a fast inline lookup of the primary tsb.
 	 */
 	dmmu_miss_user
@@ -797,6 +794,13 @@ END(dmmu_miss_user_set_ref)
 	.endm
 
 ENTRY(tl0_dmmu_miss_trap)
+	/*
+	 * Put back the contents of the tag access register, in case we
+	 * faulted.
+	 */
+	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	membar	#Sync
+
 	/*
 	 * Switch to alternate globals.
 	 */
@@ -817,13 +821,6 @@ ENTRY(tl0_dmmu_miss_trap)
 END(tl0_dmmu_miss_trap)
 
 	.macro	dmmu_prot_user
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
 	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
@@ -879,13 +876,6 @@ END(tl0_dmmu_miss_trap)
 	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
 	bnz,a,pt %xcc, 1b
 	 nop
-
-	/*
-	 * Put back the contents of the tag access register, in case we
-	 * faulted.
-	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
-	membar	#Sync
 	.endm
 
 	.macro	tl0_dmmu_prot
@@ -893,6 +883,13 @@ END(tl0_dmmu_miss_trap)
 	 * Force kernel store order.
 	 */
 	wrpr	%g0, PSTATE_MMU, %pstate
+
+	/*
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
 	/*
 	 * Try a fast inline lookup of the tsb.
@@ -936,6 +933,13 @@ ENTRY(dmmu_prot_set_w)
 END(dmmu_prot_set_w)
 
 ENTRY(tl0_dmmu_prot_trap)
+	/*
+	 * Put back the contents of the tag access register, in case we
+	 * faulted.
+	 */
+	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	membar	#Sync
+
 	/*
 	 * Switch to alternate globals.
 	 */
@@ -1330,13 +1334,14 @@ END(tl1_immu_miss_trap)
 	 * the virtual page number.
 	 */
 	sllx	%g6, 64 - TAR_VPN_SHIFT, %g5
-	brnz,pn	%g5, tl1_dmmu_miss_user
-	 srlx	%g6, TAR_VPN_SHIFT, %g6
+	brnz,a,pn %g5, tl1_dmmu_miss_user
+	 mov	%g6, %g2
 
 	/*
 	 * Find the index into the kernel tsb.
 	 */
 	set	TSB_KERNEL_MASK, %g4
+	srlx	%g6, TAR_VPN_SHIFT, %g6
 	and	%g6, %g4, %g3
 
 	/*
@@ -1404,6 +1409,13 @@ ENTRY(tl1_dmmu_miss_user)
 	dmmu_miss_user
 
 	/*
+	 * Put back the contents of the tag access register, in case we
+	 * faulted.
+	 */
+	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	membar	#Sync
+
+	/*
 	 * Switch to alternate globals.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
@@ -1438,13 +1450,14 @@ END(tl1_dmmu_miss_user)
 	 * the virtual page number.
 	 */
 	sllx	%g6, 64 - TAR_VPN_SHIFT, %g5
-	brnz,pn	%g5, tl1_dmmu_prot_user
-	 srlx	%g6, TAR_VPN_SHIFT, %g6
+	brnz,a,pn %g5, tl1_dmmu_prot_user
+	 mov	%g6, %g2
 
 	/*
 	 * Find the index into the kernel tsb.
 	 */
 	set	TSB_KERNEL_MASK, %g4
+	srlx	%g6, TAR_VPN_SHIFT, %g6
 	and	%g6, %g4, %g5
 
 	/*
@@ -1479,6 +1492,12 @@ END(tl1_dmmu_miss_user)
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
+	ba,a	%xcc, tl1_dmmu_prot_cont
+	 nop
+	.align	128
+	.endm
+
+ENTRY(tl1_dmmu_prot_cont)
 	/*
 	 * Set the hardware write bit.
 	 */
@@ -1490,14 +1509,20 @@ END(tl1_dmmu_miss_user)
 	or	%g5, TD_W, %g5
 	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
-	.align	128
-	.endm
+END(tl1_dmmu_prot_cont)
 
 ENTRY(tl1_dmmu_prot_user)
 	/*
 	 * Try a fast inline lookup of the user tsb.
 	 */
 	dmmu_prot_user
+
+	/*
+	 * Put back the contents of the tag access register, in case we
+	 * faulted.
+	 */
+	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	membar	#Sync
 
 	/*
 	 * Switch to alternate globals.
