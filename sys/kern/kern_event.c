@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -319,20 +319,20 @@ kqueue(struct proc *p, struct kqueue_args *uap)
 #ifndef _SYS_SYSPROTO_H_
 struct kevent_args {
 	int	fd;
+	struct	kevent *changelist;
 	int	nchanges;
-	struct	kevent **changelist;
-	int	nevents;
 	struct	kevent *eventlist;
+	int	nevents;
 	struct	timespec *timeout;
 };
 #endif
 int
 kevent(struct proc *p, struct kevent_args *uap)
 {
-        struct filedesc* fdp = p->p_fd;
-	struct kevent kev;
+	struct filedesc* fdp = p->p_fd;
+	struct kevent *kevp;
 	struct kqueue *kq;
-        struct file *fp;
+	struct file *fp;
 	struct timespec ts;
 	int i, n, nerrors, error;
 
@@ -342,8 +342,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 		return (EBADF);
 
 	if (uap->timeout != NULL) {
-		error = copyin((caddr_t)uap->timeout, (caddr_t)&ts,
-		    sizeof(ts));
+		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return error;
 		uap->timeout = &ts;
@@ -354,24 +353,21 @@ kevent(struct proc *p, struct kevent_args *uap)
 
 	while (uap->nchanges > 0) {
 		n = uap->nchanges > KQ_NEVENTS ? KQ_NEVENTS : uap->nchanges;
-		error = copyin((caddr_t)uap->changelist, (caddr_t)kq->kq_kevp,
-		    n * sizeof(struct kevent *));
+		error = copyin(uap->changelist, kq->kq_kev,
+		    n * sizeof(struct kevent));
 		if (error)
 			return (error);
 		for (i = 0; i < n; i++) {
-			error = copyin((caddr_t)kq->kq_kevp[i],
-			    (caddr_t)&kev, sizeof(kev));
-			if (error)
-				return (error);
-			kev.flags &= ~EV_SYSFLAGS;
-			error = kqueue_register(kq, &kev, p);
+			kevp = &kq->kq_kev[i];
+			kevp->flags &= ~EV_SYSFLAGS;
+			error = kqueue_register(kq, kevp, p);
 			if (error) {
 				if (uap->nevents != 0) {
-					kev.flags = EV_ERROR;
-					kev.data = error;
-					(void) copyout((caddr_t)&kev,
+					kevp->flags = EV_ERROR;
+					kevp->data = error;
+					(void) copyout((caddr_t)kevp,
 					    (caddr_t)uap->eventlist,
-					    sizeof(kev));
+					    sizeof(*kevp));
 					uap->eventlist++;
 					uap->nevents--;
 					nerrors++;

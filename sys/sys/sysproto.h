@@ -1015,11 +1015,11 @@ struct	kqueue_args {
 };
 struct	kevent_args {
 	int	fd;	char fd_[PAD_(int)];
+	const struct kevent *	changelist;	char changelist_[PAD_(const struct kevent *)];
 	int	nchanges;	char nchanges_[PAD_(int)];
-	struct kevent **	changelist;	char changelist_[PAD_(struct kevent **)];
-	int	nevents;	char nevents_[PAD_(int)];
 	struct kevent *	eventlist;	char eventlist_[PAD_(struct kevent *)];
-	struct timespec *	timeout;	char timeout_[PAD_(struct timespec *)];
+	int	nevents;	char nevents_[PAD_(int)];
+	const struct timespec *	timeout;	char timeout_[PAD_(const struct timespec *)];
 };
 struct	__cap_get_proc_args {
 	struct cap *	cap_p;	char cap_p_[PAD_(struct cap *)];
