@@ -120,6 +120,8 @@ struct ray_comq_entry {
 	u_int8_t	c_retval;		/* Return value		*/
 	void		*c_wakeup;		/* Sleeping on this	*/
 	size_t		c_ccs;			/* CCS structure	*/
+	struct ray_nw_param
+			c_desired;		/* network settings	*/
 	struct ray_param_req
     			*c_pr;			/* MIB report/update	*/
 	char		*c_mesg;
