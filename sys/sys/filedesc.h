@@ -132,6 +132,8 @@ SLIST_HEAD(sigiolst, sigio);
 
 #ifdef _KERNEL
 
+#define FILEDESC_LOCK_DESC	"filedesc structure"
+
 /* Lock a file descriptor table. */
 #define FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
 #define FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
