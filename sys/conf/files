@@ -1097,16 +1097,18 @@ isa/isahint.c		optional isa
 isa/joy.c		optional joy
 isa/pnp.c		optional isa
 isa/pnpparse.c		optional isa
+#
 dev/sound/isa/ad1816.c	optional pcm isa
 dev/sound/isa/es1888.c	optional pcm isa
 dev/sound/isa/ess.c	optional pcm isa
 dev/sound/isa/gusc.c	optional gusc isa
 dev/sound/isa/gusc.c	optional pcm isa
 dev/sound/isa/mss.c	optional pcm isa
-dev/sound/isa/sb.c	optional pcm isa
+dev/sound/isa/sb16.c	optional pcm isa
+dev/sound/isa/sb8.c	optional pcm isa
 dev/sound/isa/sbc.c	optional pcm isa
 dev/sound/isa/sbc.c	optional sbc isa
-#dev/sound/pci/aureal.c	optional pcm pci
+#
 dev/sound/pci/csa.c	optional csa pci
 dev/sound/pci/csa.c	optional pcm pci
 dev/sound/pci/csapcm.c	optional pcm pci
@@ -1119,7 +1121,70 @@ dev/sound/pci/neomagic.c optional pcm pci
 dev/sound/pci/solo.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 dev/sound/pci/via82c686.c	optional pcm pci
+#
+ac97_if.o		optional pcm					\
+	dependency	"ac97_if.c ac97_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+ac97_if.c		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/ac97_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/sound/pcm/ac97_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"ac97_if.c"
+ac97_if.h		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/ac97_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/sound/pcm/ac97_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"ac97_if.h"
+
+channel_if.o		optional pcm					\
+	dependency	"channel_if.c channel_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+channel_if.c		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/channel_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/sound/pcm/channel_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"channel_if.c"
+channel_if.h		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/channel_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/sound/pcm/channel_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"channel_if.h"
+
+feeder_if.o		optional pcm					\
+	dependency	"feeder_if.c feeder_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+feeder_if.c		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/feeder_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/sound/pcm/feeder_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"feeder_if.c"
+feeder_if.h		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/feeder_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/sound/pcm/feeder_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"feeder_if.h"
+
+mixer_if.o		optional pcm					\
+	dependency	"mixer_if.c mixer_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+mixer_if.c		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/mixer_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/dev/sound/pcm/mixer_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"mixer_if.c"
+mixer_if.h		optional pcm					\
+	dependency	"$S/kern/makeops.pl $S/dev/sound/pcm/mixer_if.m"		\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/sound/pcm/mixer_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"mixer_if.h"
+
+#
 dev/sound/pcm/ac97.c	optional pcm
+dev/sound/pcm/buffer.c	optional pcm
 dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/dsp.c	optional pcm
 dev/sound/pcm/fake.c	optional pcm

@@ -82,20 +82,6 @@ static int	csa_startdsp(csa_res *resp);
 static int	csa_allocres(struct csa_info *scp, device_t dev);
 static void	csa_releaseres(struct csa_info *scp, device_t dev);
 
-/* talk to the codec - called from ac97.c */
-static u_int32_t csa_rdcd(void *, int);
-static void  	 csa_wrcd(void *, int, u_int32_t);
-
-/* channel interface */
-static void *csachan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int csachan_setdir(void *data, int dir);
-static int csachan_setformat(void *data, u_int32_t format);
-static int csachan_setspeed(void *data, u_int32_t speed);
-static int csachan_setblocksize(void *data, u_int32_t blocksize);
-static int csachan_trigger(void *data, int go);
-static int csachan_getptr(void *data);
-static pcmchan_caps *csachan_getcaps(void *data);
-
 static u_int32_t csa_playfmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -116,116 +102,37 @@ static u_int32_t csa_recfmt[] = {
 };
 static pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
 
-static pcm_channel csa_chantemplate = {
-	csachan_init,
-	csachan_setdir,
-	csachan_setformat,
-	csachan_setspeed,
-	csachan_setblocksize,
-	csachan_trigger,
-	csachan_getptr,
-	csachan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
 /* -------------------------------------------------------------------- */
+/* ac97 codec */
 
-/* channel interface */
-static void *
-csachan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+static int
+csa_rdcd(kobj_t obj, void *devinfo, int regno)
 {
-	struct csa_info *csa = devinfo;
-	struct csa_chinfo *ch = (dir == PCMDIR_PLAY)? &csa->pch : &csa->rch;
+	u_int32_t data;
+	struct csa_info *csa = (struct csa_info *)devinfo;
 
-	ch->parent = csa;
-	ch->channel = c;
-	ch->buffer = b;
-	ch->buffer->bufsize = CS461x_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, csa->parent_dmat) == -1) return NULL;
-	return ch;
+	if (csa_readcodec(&csa->res, regno + BA0_AC97_RESET, &data))
+		data = 0;
+
+	return data;
 }
 
 static int
-csachan_setdir(void *data, int dir)
+csa_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
-	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	csa_res *resp;
+	struct csa_info *csa = (struct csa_info *)devinfo;
 
-	resp = &csa->res;
+	csa_writecodec(&csa->res, regno + BA0_AC97_RESET, data);
 
-	if (dir == PCMDIR_PLAY)
-		csa_writemem(resp, BA1_PBA, vtophys(ch->buffer->buf));
-	else
-		csa_writemem(resp, BA1_CBA, vtophys(ch->buffer->buf));
-	ch->dir = dir;
 	return 0;
 }
 
-static int
-csachan_setformat(void *data, u_int32_t format)
-{
-	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	u_long pdtc;
-	csa_res *resp;
-
-	resp = &csa->res;
-
-	if (ch->dir == PCMDIR_REC)
-		csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
-	else {
-		csa->pfie = csa_readmem(resp, BA1_PFIE) & ~0x0000f03f;
-		if (format & AFMT_U8 || format & AFMT_U16_LE || format & AFMT_U16_BE)
-			csa->pfie |= 0x8000;
-		if (format & AFMT_S16_BE || format & AFMT_U16_BE)
-			csa->pfie |= 0x4000;
-		if (!(format & AFMT_STEREO))
-			csa->pfie |= 0x2000;
-		if (format & AFMT_U8 || format & AFMT_S8)
-			csa->pfie |= 0x1000;
-		csa_writemem(resp, BA1_PFIE, csa->pfie);
-		pdtc = csa_readmem(resp, BA1_PDTC) & ~0x000003ff;
-		if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) && (format & AFMT_STEREO))
-			pdtc |= 0x00f;
-		else if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) || (format & AFMT_STEREO))
-			pdtc |= 0x007;
-		else
-			pdtc |= 0x003;
-		csa_writemem(resp, BA1_PDTC, pdtc);
-	}
-	ch->fmt = format;
-	return 0;
-}
-
-static int
-csachan_setspeed(void *data, u_int32_t speed)
-{
-	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-	csa_res *resp;
-
-	resp = &csa->res;
-
-	if (ch->dir == PCMDIR_PLAY)
-		csa_setplaysamplerate(resp, speed);
-	else if (ch->dir == PCMDIR_REC)
-		csa_setcapturesamplerate(resp, speed);
-
-	/* rec/play speeds locked together - should indicate in flags */
-#if 0
-	if (ch->direction == PCMDIR_PLAY) d->rec[0].speed = speed;
-	else d->play[0].speed = speed;
-#endif
-	return speed; /* XXX calc real speed */
-}
+static kobj_method_t csa_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		csa_rdcd),
+    	KOBJMETHOD(ac97_write,		csa_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(csa_ac97);
 
 static void
 csa_setplaysamplerate(csa_res *resp, u_long ulInRate)
@@ -385,40 +292,6 @@ csa_setcapturesamplerate(csa_res *resp, u_long ulOutRate)
 	csa_writemem(resp, BA1_CCST, 0x0000FFFF);
 	csa_writemem(resp, BA1_CSPB, ((65536 * ulOutRate) / 24000));
 	csa_writemem(resp, (BA1_CSPB + 4), 0x0000FFFF);
-}
-
-static int
-csachan_setblocksize(void *data, u_int32_t blocksize)
-{
-#if notdef
-	return blocksize;
-#else
-	struct csa_chinfo *ch = data;
-	return ch->buffer->bufsize / 2;
-#endif /* notdef */
-}
-
-static int
-csachan_trigger(void *data, int go)
-{
-	struct csa_chinfo *ch = data;
-	struct csa_info *csa = ch->parent;
-
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
-		return 0;
-
-	if (ch->dir == PCMDIR_PLAY) {
-		if (go == PCMTRIG_START)
-			csa_startplaydma(csa);
-		else
-			csa_stopplaydma(csa);
-	} else {
-		if (go == PCMTRIG_START)
-			csa_startcapturedma(csa);
-		else
-			csa_stopcapturedma(csa);
-	}
-	return 0;
 }
 
 static void
@@ -638,8 +511,128 @@ csa_startdsp(csa_res *resp)
 	return (0);
 }
 
+/* -------------------------------------------------------------------- */
+/* channel interface */
+
+static void *
+csachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct csa_info *csa = devinfo;
+	struct csa_chinfo *ch = (dir == PCMDIR_PLAY)? &csa->pch : &csa->rch;
+
+	ch->parent = csa;
+	ch->channel = c;
+	ch->buffer = b;
+	if (sndbuf_alloc(ch->buffer, csa->parent_dmat, CS461x_BUFFSIZE) == -1) return NULL;
+	return ch;
+}
+
 static int
-csachan_getptr(void *data)
+csachan_setdir(kobj_t obj, void *data, int dir)
+{
+	struct csa_chinfo *ch = data;
+	struct csa_info *csa = ch->parent;
+	csa_res *resp;
+
+	resp = &csa->res;
+
+	if (dir == PCMDIR_PLAY)
+		csa_writemem(resp, BA1_PBA, vtophys(sndbuf_getbuf(ch->buffer)));
+	else
+		csa_writemem(resp, BA1_CBA, vtophys(sndbuf_getbuf(ch->buffer)));
+	ch->dir = dir;
+	return 0;
+}
+
+static int
+csachan_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct csa_chinfo *ch = data;
+	struct csa_info *csa = ch->parent;
+	u_long pdtc;
+	csa_res *resp;
+
+	resp = &csa->res;
+
+	if (ch->dir == PCMDIR_REC)
+		csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
+	else {
+		csa->pfie = csa_readmem(resp, BA1_PFIE) & ~0x0000f03f;
+		if (format & AFMT_U8 || format & AFMT_U16_LE || format & AFMT_U16_BE)
+			csa->pfie |= 0x8000;
+		if (format & AFMT_S16_BE || format & AFMT_U16_BE)
+			csa->pfie |= 0x4000;
+		if (!(format & AFMT_STEREO))
+			csa->pfie |= 0x2000;
+		if (format & AFMT_U8 || format & AFMT_S8)
+			csa->pfie |= 0x1000;
+		csa_writemem(resp, BA1_PFIE, csa->pfie);
+		pdtc = csa_readmem(resp, BA1_PDTC) & ~0x000003ff;
+		if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) && (format & AFMT_STEREO))
+			pdtc |= 0x00f;
+		else if ((format & AFMT_S16_BE || format & AFMT_U16_BE || format & AFMT_S16_LE || format & AFMT_U16_LE) || (format & AFMT_STEREO))
+			pdtc |= 0x007;
+		else
+			pdtc |= 0x003;
+		csa_writemem(resp, BA1_PDTC, pdtc);
+	}
+	ch->fmt = format;
+	return 0;
+}
+
+static int
+csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct csa_chinfo *ch = data;
+	struct csa_info *csa = ch->parent;
+	csa_res *resp;
+
+	resp = &csa->res;
+
+	if (ch->dir == PCMDIR_PLAY)
+		csa_setplaysamplerate(resp, speed);
+	else if (ch->dir == PCMDIR_REC)
+		csa_setcapturesamplerate(resp, speed);
+
+	/* rec/play speeds locked together - should indicate in flags */
+#if 0
+	if (ch->direction == PCMDIR_PLAY) d->rec[0].speed = speed;
+	else d->play[0].speed = speed;
+#endif
+	return speed; /* XXX calc real speed */
+}
+
+static int
+csachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+{
+	return CS461x_BUFFSIZE / 2;
+}
+
+static int
+csachan_trigger(kobj_t obj, void *data, int go)
+{
+	struct csa_chinfo *ch = data;
+	struct csa_info *csa = ch->parent;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
+	if (ch->dir == PCMDIR_PLAY) {
+		if (go == PCMTRIG_START)
+			csa_startplaydma(csa);
+		else
+			csa_stopplaydma(csa);
+	} else {
+		if (go == PCMTRIG_START)
+			csa_startcapturedma(csa);
+		else
+			csa_stopcapturedma(csa);
+	}
+	return 0;
+}
+
+static int
+csachan_getptr(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
@@ -649,11 +642,11 @@ csachan_getptr(void *data)
 	resp = &csa->res;
 
 	if (ch->dir == PCMDIR_PLAY) {
-		ptr = csa_readmem(resp, BA1_PBA) - vtophys(ch->buffer->buf);
+		ptr = csa_readmem(resp, BA1_PBA) - vtophys(sndbuf_getbuf(ch->buffer));
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	} else {
-		ptr = csa_readmem(resp, BA1_CBA) - vtophys(ch->buffer->buf);
+		ptr = csa_readmem(resp, BA1_CBA) - vtophys(sndbuf_getbuf(ch->buffer));
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	}
@@ -662,12 +655,26 @@ csachan_getptr(void *data)
 }
 
 static pcmchan_caps *
-csachan_getcaps(void *data)
+csachan_getcaps(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
 	return (ch->dir == PCMDIR_PLAY)? &csa_playcaps : &csa_reccaps;
 }
 
+static kobj_method_t csachan_methods[] = {
+    	KOBJMETHOD(channel_init,		csachan_init),
+    	KOBJMETHOD(channel_setdir,		csachan_setdir),
+    	KOBJMETHOD(channel_setformat,		csachan_setformat),
+    	KOBJMETHOD(channel_setspeed,		csachan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	csachan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		csachan_trigger),
+    	KOBJMETHOD(channel_getptr,		csachan_getptr),
+    	KOBJMETHOD(channel_getcaps,		csachan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(csachan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
 csa_intr (void *p)
@@ -833,12 +840,12 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	codec = ac97_create(dev, csa, NULL, csa_rdcd, csa_wrcd);
+	codec = AC97_CREATE(dev, csa, csa_ac97);
 	if (codec == NULL) {
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) {
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
@@ -860,8 +867,8 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	pcm_addchan(dev, PCMDIR_REC, &csa_chantemplate, csa);
-	pcm_addchan(dev, PCMDIR_PLAY, &csa_chantemplate, csa);
+	pcm_addchan(dev, PCMDIR_REC, &csachan_class, csa);
+	pcm_addchan(dev, PCMDIR_PLAY, &csachan_class, csa);
 	pcm_setstatus(dev, status);
 
 	return (0);
@@ -881,28 +888,6 @@ pcmcsa_detach(device_t dev)
 	csa_releaseres(csa, dev);
 
 	return 0;
-}
-
-/* ac97 codec */
-
-static u_int32_t
-csa_rdcd(void *devinfo, int regno)
-{
-	u_int32_t data;
-	struct csa_info *csa = (struct csa_info *)devinfo;
-
-	if (csa_readcodec(&csa->res, regno + BA0_AC97_RESET, &data))
-		data = 0;
-
-	return data;
-}
-
-static void
-csa_wrcd(void *devinfo, int regno, u_int32_t data)
-{
-	struct csa_info *csa = (struct csa_info *)devinfo;
-
-	csa_writecodec(&csa->res, regno + BA0_AC97_RESET, data);
 }
 
 static device_method_t pcmcsa_methods[] = {

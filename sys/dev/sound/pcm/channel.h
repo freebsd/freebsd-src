@@ -26,9 +26,12 @@
  * $FreeBSD$
  */
 
+#include "channel_if.h"
+
 int chn_reinit(pcm_channel *c);
 int chn_write(pcm_channel *c, struct uio *buf);
 int chn_read(pcm_channel *c, struct uio *buf);
+u_int32_t chn_start(pcm_channel *c, int force);
 int chn_sync(pcm_channel *c, int threshold);
 int chn_flush(pcm_channel *c);
 int chn_poll(pcm_channel *c, int ev, struct proc *p);
@@ -46,8 +49,6 @@ int chn_getptr(pcm_channel *c);
 pcmchan_caps *chn_getcaps(pcm_channel *c);
 u_int32_t chn_getformats(pcm_channel *c);
 
-int chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat);
-void chn_freebuf(snd_dbuf *b);
 void chn_resetbuf(pcm_channel *c);
 void chn_intr(pcm_channel *c);
 void chn_checkunderflow(pcm_channel *c);
@@ -56,9 +57,6 @@ int chn_rdfeed(pcm_channel *c);
 int chn_abort(pcm_channel *c);
 
 int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
-
-void buf_isadma(snd_dbuf *b, int go);
-int buf_isadmaptr(snd_dbuf *b);
 
 #define PCMDIR_PLAY 1
 #define PCMDIR_REC -1
@@ -84,7 +82,7 @@ int buf_isadmaptr(snd_dbuf *b);
 #define CHN_F_INIT              0x00008000  /* changed parameters. need init */
 #define CHN_F_MAPPED		0x00010000  /* has been mmap()ed */
 #define CHN_F_DEAD		0x00020000
-
+#define CHN_F_BADSETTING	0x00040000
 
 #define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD)
 
@@ -98,3 +96,7 @@ int buf_isadmaptr(snd_dbuf *b);
 #define CHN_2NDBUFBLKNUM	(32)
 /* The size of a whole secondary buffer. */
 #define CHN_2NDBUFMAXSIZE	(131072)
+
+#define	CHN_DEFAULT_HZ		50
+
+#define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))

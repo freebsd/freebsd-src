@@ -28,6 +28,10 @@
 
 #include <dev/sound/pcm/sound.h>
 
+#include "mixer_if.h"
+
+MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
+
 static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VOLUME]	= 75,
 	[SOUND_MIXER_BASS]	= 50,
@@ -44,144 +48,62 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_OGAIN]	= 50,
 };
 
+static char* snd_mixernames[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+
 static int
-mixer_set(snddev_info *d, unsigned dev, unsigned lev)
+mixer_lookup(char *devname)
 {
-	if (d == NULL || d->mixer.set == NULL) return -1;
-	if ((dev < SOUND_MIXER_NRDEVICES) && (d->mixer.devs & (1 << dev))) {
-		unsigned l = min((lev & 0x00ff), 100);
-		unsigned r = min(((lev & 0xff00) >> 8), 100);
-		int v = d->mixer.set(&d->mixer, dev, l, r);
-		if (v >= 0) d->mixer.level[dev] = l | (r << 8);
-		return 0;
-	} else return -1;
+	int i;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		if (strncmp(devname, snd_mixernames[i],
+		    strlen(snd_mixernames[i])) == 0)
+			return i;
+	return -1;
 }
 
 static int
-mixer_get(snddev_info *d, int dev)
+mixer_set(snd_mixer *mixer, unsigned dev, unsigned lev)
 {
-	if (d == NULL) return -1;
-	if (dev < SOUND_MIXER_NRDEVICES && (d->mixer.devs & (1 << dev)))
-		return d->mixer.level[dev];
+	unsigned l, r;
+	int v;
+
+	if ((dev >= SOUND_MIXER_NRDEVICES) || (0 == (mixer->devs & (1 << dev))))
+		return -1;
+
+	l = min((lev & 0x00ff), 100);
+	r = min(((lev & 0xff00) >> 8), 100);
+
+	v = MIXER_SET(mixer, dev, l, r);
+	if (v < 0)
+		return -1;
+
+	mixer->level[dev] = l | (r << 8);
+	return 0;
+}
+
+static int
+mixer_get(snd_mixer *mixer, int dev)
+{
+	if ((dev < SOUND_MIXER_NRDEVICES) && (mixer->devs & (1 << dev)))
+		return mixer->level[dev];
 	else return -1;
 }
 
 static int
-mixer_setrecsrc(snddev_info *d, u_int32_t src)
+mixer_setrecsrc(snd_mixer *mixer, u_int32_t src)
 {
-	if (d == NULL || d->mixer.setrecsrc == NULL) return -1;
-	src &= d->mixer.recdevs;
-	if (src == 0) src = SOUND_MASK_MIC;
-	d->mixer.recsrc = d->mixer.setrecsrc(&d->mixer, src);
+	src &= mixer->recdevs;
+	if (src == 0)
+		src = SOUND_MASK_MIC;
+	mixer->recsrc = MIXER_SETRECSRC(mixer, src);
 	return 0;
 }
 
 static int
-mixer_getrecsrc(snddev_info *d)
+mixer_getrecsrc(snd_mixer *mixer)
 {
-	if (d == NULL) return -1;
-	return d->mixer.recsrc;
-}
-
-int
-mixer_init(device_t dev, snd_mixer *m, void *devinfo)
-{
-    	snddev_info *d = device_get_softc(dev);
-	if (d == NULL) return -1;
-	d->mixer = *m;
-	d->mixer.devinfo = devinfo;
-	bzero(&d->mixer.level, sizeof d->mixer.level);
-	if (d->mixer.init != NULL && d->mixer.init(&d->mixer) == 0) {
-		int i;
-		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
-			u_int16_t v = snd_mixerdefaults[i];
-			mixer_set(d, i, v | (v << 8));
-		}
-		mixer_setrecsrc(d, SOUND_MASK_MIC);
-		return 0;
-	} else return -1;
-}
-
-int
-mixer_uninit(device_t dev)
-{
-	int i;
-    	snddev_info *d = device_get_softc(dev);
-	if (d == NULL) return -1;
-	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
-		mixer_set(d, i, 0);
-	mixer_setrecsrc(d, SOUND_MASK_MIC);
-	if (d->mixer.uninit != NULL) d->mixer.uninit(&d->mixer);
-	return 0;
-}
-
-int
-mixer_reinit(device_t dev)
-{
-	int i;
-    	snddev_info *d = device_get_softc(dev);
-	if (d == NULL) return -1;
-	if (d->mixer.init != NULL && d->mixer.init(&d->mixer) == 0) {
-		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
-			mixer_set(d, i, d->mixer.level[i]);
-		mixer_setrecsrc(d, d->mixer.recsrc);
-		return 0;
-	} else return -1;
-}
-
-int
-mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
-{
-	int ret, *arg_i = (int *)arg;
-
-	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
-		int j = cmd & 0xff;
-
-		if (j == SOUND_MIXER_RECSRC) ret = mixer_setrecsrc(d, *arg_i);
-		else ret = mixer_set(d, j, *arg_i);
-		return (ret == 0)? 0 : ENXIO;
-	}
-
-    	if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
-		int v = -1, j = cmd & 0xff;
-
-		switch (j) {
-    		case SOUND_MIXER_DEVMASK:
-    		case SOUND_MIXER_CAPS:
-    		case SOUND_MIXER_STEREODEVS:
-			v = d->mixer.devs;
-			break;
-
-    		case SOUND_MIXER_RECMASK:
-			v = d->mixer.recdevs;
-			break;
-
-    		case SOUND_MIXER_RECSRC:
-			v = mixer_getrecsrc(d);
-			break;
-
-		default:
-			v = mixer_get(d, j);
-		}
-		*arg_i = v;
-		return (v != -1)? 0 : ENXIO;
-	}
-	return ENXIO;
-}
-
-int
-mixer_busy(snddev_info *d, int busy)
-{
-	if (d == NULL) return -1;
-	d->mixer.busy = busy;
-	return 0;
-}
-
-int
-mixer_isbusy(snddev_info *d)
-{
-	if (d == NULL) return -1;
-	return d->mixer.busy;
+	return mixer->recsrc;
 }
 
 void
@@ -212,6 +134,223 @@ void *
 mix_getdevinfo(snd_mixer *m)
 {
 	return m->devinfo;
+}
+
+int
+mixer_busy(snd_mixer *m, int busy)
+{
+	m->busy = busy;
+	return 0;
+}
+
+int
+mixer_isbusy(snd_mixer *m)
+{
+	return m->busy;
+}
+
+int
+mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
+{
+    	snddev_info *d;
+	snd_mixer *m;
+	u_int16_t v;
+	int i;
+
+	d = device_get_softc(dev);
+	m = (snd_mixer *)kobj_create(cls, M_MIXER, M_WAITOK | M_ZERO);
+
+	m->name = cls->name;
+	m->devinfo = devinfo;
+
+	if (MIXER_INIT(m))
+		goto bad;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		v = snd_mixerdefaults[i];
+		mixer_set(m, i, v | (v << 8));
+	}
+
+	mixer_setrecsrc(m, SOUND_MASK_MIC);
+
+	d->mixer = m;
+
+	return 0;
+
+bad:	kobj_delete((kobj_t)m, M_MIXER);
+	return -1;
+}
+
+int
+mixer_uninit(device_t dev)
+{
+	int i;
+    	snddev_info *d;
+	snd_mixer *m;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		mixer_set(m, i, 0);
+
+	mixer_setrecsrc(m, SOUND_MASK_MIC);
+
+	MIXER_UNINIT(m);
+
+	kobj_delete((kobj_t)m, M_MIXER);
+	d->mixer = NULL;
+
+	return 0;
+}
+
+int
+mixer_reinit(device_t dev)
+{
+	int i;
+    	snddev_info *d;
+	snd_mixer *m;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+
+	i = MIXER_REINIT(m);
+	if (i)
+		return i;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		mixer_set(m, i, m->level[i]);
+
+	mixer_setrecsrc(m, m->recsrc);
+
+	return 0;
+}
+
+int
+mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
+{
+	int ret, *arg_i = (int *)arg;
+	int v = -1, j = cmd & 0xff;
+	snd_mixer *m;
+
+	m = d->mixer;
+
+	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+		if (j == SOUND_MIXER_RECSRC)
+			ret = mixer_setrecsrc(m, *arg_i);
+		else
+			ret = mixer_set(m, j, *arg_i);
+		return (ret == 0)? 0 : ENXIO;
+	}
+
+    	if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+		switch (j) {
+    		case SOUND_MIXER_DEVMASK:
+    		case SOUND_MIXER_CAPS:
+    		case SOUND_MIXER_STEREODEVS:
+			v = mix_getdevs(m);
+			break;
+
+    		case SOUND_MIXER_RECMASK:
+			v = mix_getrecdevs(m);
+			break;
+
+    		case SOUND_MIXER_RECSRC:
+			v = mixer_getrecsrc(m);
+			break;
+
+		default:
+			v = mixer_get(m, j);
+		}
+		*arg_i = v;
+		return (v != -1)? 0 : ENXIO;
+	}
+	return ENXIO;
+}
+
+static int
+sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
+{
+	char devname[32];
+	int error, dev;
+	snd_mixer *m;
+
+	m = oidp->oid_arg1;
+	strncpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
+	error = sysctl_handle_string(oidp, &devname[0], sizeof(devname), req);
+	if (error == 0 && req->newptr != NULL) {
+		dev = mixer_lookup(devname);
+		if (dev == -1)
+			return EINVAL;
+		else if (dev != m->hwvol_mixer) {
+			m->hwvol_mixer = dev;
+			m->hwvol_muted = 0;
+		}
+	}
+	return error;
+}
+
+int
+mixer_hwvol_init(device_t dev)
+{
+    	snddev_info *d;
+	snd_mixer *m;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+	m->hwvol_mixer = SOUND_MIXER_VOLUME;
+	m->hwvol_step = 5;
+	SYSCTL_ADD_INT(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+            OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
+	SYSCTL_ADD_PROC(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+            OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
+	    sysctl_hw_snd_hwvol_mixer, "A", "")
+	return 0;
+}
+
+void
+mixer_hwvol_mute(device_t dev)
+{
+    	snddev_info *d;
+	snd_mixer *m;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+	if (m->hwvol_muted) {
+		m->hwvol_muted = 0;
+		mixer_set(m, m->hwvol_mixer, m->hwvol_mute_level);
+	} else {
+		m->hwvol_muted++;
+		m->hwvol_mute_level = mixer_get(m, m->hwvol_mixer);
+		mixer_set(m, m->hwvol_mixer, 0);
+	}
+}
+
+void
+mixer_hwvol_step(device_t dev, int left_step, int right_step)
+{
+    	snddev_info *d;
+	snd_mixer *m;
+	int level, left, right;
+
+	d = device_get_softc(dev);
+	m = d->mixer;
+	if (m->hwvol_muted) {
+		m->hwvol_muted = 0;
+		level = m->hwvol_mute_level;
+	} else
+		level = mixer_get(m, m->hwvol_mixer);
+	if (level != -1) {
+		left = level & 0xff;
+		right = level >> 8;
+		left += left_step * m->hwvol_step;
+		if (left < 0)
+			left = 0;
+		right += right_step * m->hwvol_step;
+		if (right < 0)
+			right = 0;
+		mixer_set(m, m->hwvol_mixer, left | right << 8);
+	}
 }
 
 /*

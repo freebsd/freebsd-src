@@ -72,7 +72,6 @@ setchns(snddev_info *d, int chan)
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 	d->flags |= SD_F_DIR_SET;
-	if (d->swap) d->swap(d->devinfo, (d->flags & SD_F_PRIO_WR)? PCMDIR_PLAY : PCMDIR_REC);
 }
 
 int
@@ -152,12 +151,12 @@ dsp_close(snddev_info *d, int chan, int devtype)
 
 	if (rdch) {
 		chn_abort(rdch);
-		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(rdch, 0);
 	}
 	if (wrch) {
 		chn_flush(wrch);
-		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(wrch, 0);
 	}
 	d->aplay[chan] = NULL;
@@ -241,8 +240,10 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGSIZE:	/* get the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) p->play_size = wrch->buffer2nd.blksz;
-	    		if (rdch) p->rec_size = rdch->buffer2nd.blksz;
+	    		if (wrch)
+				p->play_size = wrch->buffer2nd.blksz;
+	    		if (rdch)
+				p->rec_size = rdch->buffer2nd.blksz;
 		}
 		break;
 
@@ -288,14 +289,16 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && wrch)
 				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
-	    		p->inputs = d->mixer.devs;
+	    		p->inputs = mix_getdevs(d->mixer);
 	    		p->left = p->right = 100;
 		}
 		break;
 
     	case AIOSTOP:
-		if (*arg_i == AIOSYNC_PLAY && wrch) *arg_i = chn_abort(wrch);
-		else if (*arg_i == AIOSYNC_CAPTURE && rdch) *arg_i = chn_abort(rdch);
+		if (*arg_i == AIOSYNC_PLAY && wrch)
+			*arg_i = chn_abort(wrch);
+		else if (*arg_i == AIOSYNC_CAPTURE && rdch)
+			*arg_i = chn_abort(rdch);
 		else {
 	   	 	printf("AIOSTOP: bad channel 0x%x\n", *arg_i);
 	    		*arg_i = 0;
@@ -417,7 +420,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && ret == 0)
 				ret = chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
 		}
-		*arg_i = (wrch? wrch->format: rdch->format) & ~AFMT_STEREO;
+		*arg_i = (wrch? wrch->format : rdch->format) & ~AFMT_STEREO;
 		break;
 
     	case SNDCTL_DSP_SUBDIVIDE:
@@ -600,12 +603,18 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			ret = EINVAL;
 		break;
 
+    	case SNDCTL_DSP_POST:
+		if (wrch) {
+			wrch->flags &= ~CHN_F_NOTRIGGER;
+			chn_start(wrch, 1);
+		}
+		break;
+
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
     	case SNDCTL_DSP_SETSYNCRO:
 		/* undocumented */
 
-    	case SNDCTL_DSP_POST:
     	case SOUND_PCM_WRITE_FILTER:
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */

@@ -33,25 +33,24 @@ typedef struct _pcmchan_caps pcmchan_caps;
 typedef struct _pcm_feeder pcm_feeder;
 typedef struct _pcm_channel pcm_channel;
 
-typedef int (mix_set_t)(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-typedef int (mix_recsrc_t)(snd_mixer *m, u_int32_t src);
-typedef int (mix_init_t)(snd_mixer *m);
-typedef int (mix_uninit_t)(snd_mixer *m);
+/*****************************************************************************/
 
 struct _snd_mixer {
-	char name[64];
-	mix_init_t *init;
-	mix_uninit_t *uninit;
-	mix_set_t *set;
-	mix_recsrc_t *setrecsrc;
-
+	KOBJ_FIELDS;
+	const char *name;
 	void *devinfo;
 	int busy;
+	int hwvol_muted;
+	int hwvol_mixer;
+	int hwvol_step;
+	u_int32_t hwvol_mute_level;
 	u_int32_t devs;
 	u_int32_t recdevs;
 	u_int32_t recsrc;
 	u_int16_t level[32];
 };
+
+/*****************************************************************************/
 
 /*
  * descriptor of a dma buffer. See dmabuf.c for documentation.
@@ -62,7 +61,7 @@ struct _snd_mixer {
 
 struct _snd_dbuf {
         u_int8_t *buf;
-        int bufsize;
+        int bufsize, maxsize;
         volatile int dl; /* transfer size */
         volatile int rp, fp; /* pointers to the ready and free area */
 	volatile int rl, fl; /* lenght of ready and free areas. */
@@ -70,18 +69,17 @@ struct _snd_dbuf {
 	volatile u_int32_t int_count, prev_int_count;
 	volatile u_int32_t total, prev_total;
 	int chan, dir;       /* dma channel */
-	int fmt, blksz, blkcnt;
+	int fmt, spd, bps;
+	int blksz, blkcnt;
 	int underflow, overrun;
+	u_int32_t flags;
 	bus_dmamap_t dmamap;
-	bus_dma_tag_t parent_dmat;
+	bus_dma_tag_t dmatag;
 	struct selinfo sel;
 };
+#define	SNDBUF_F_ISADMA		0x00000001
 
-typedef int (pcmfeed_init_t)(pcm_feeder *feeder);
-typedef int (pcmfeed_free_t)(pcm_feeder *feeder);
-typedef int (pcmfeed_feed_t)(pcm_feeder *feeder, pcm_channel *c, u_int8_t *buffer,
-			     u_int32_t count, struct uio *stream);
-typedef int (pcmfeed_set_t)(pcm_feeder *feeder, int what, int value);
+/*****************************************************************************/
 
 struct pcm_feederdesc {
 	u_int32_t type;
@@ -91,16 +89,14 @@ struct pcm_feederdesc {
 };
 
 struct _pcm_feeder {
-	char name[16];
+    	KOBJ_FIELDS;
 	int align;
 	struct pcm_feederdesc *desc;
-	pcmfeed_init_t *init;
-	pcmfeed_free_t *free;
-	pcmfeed_set_t *set;
-	pcmfeed_feed_t *feed;
 	void *data;
 	pcm_feeder *source;
 };
+
+/*****************************************************************************/
 
 struct _pcmchan_caps {
 	u_int32_t minspeed, maxspeed;
@@ -108,36 +104,10 @@ struct _pcmchan_caps {
 	u_int32_t caps;
 };
 
-typedef void *(pcmchan_init_t)(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-typedef int (pcmchan_setdir_t)(void *data, int dir);
-typedef int (pcmchan_setformat_t)(void *data, u_int32_t format);
-typedef int (pcmchan_setspeed_t)(void *data, u_int32_t speed);
-typedef int (pcmchan_setblocksize_t)(void *data, u_int32_t blocksize);
-typedef int (pcmchan_trigger_t)(void *data, int go);
-typedef int (pcmchan_getptr_t)(void *data);
-typedef int (pcmchan_free_t)(void *data);
-typedef pcmchan_caps *(pcmchan_getcaps_t)(void *data);
-
 struct _pcm_channel {
-	pcmchan_init_t *init;
-	pcmchan_setdir_t *setdir;
-	pcmchan_setformat_t *setformat;
-	pcmchan_setspeed_t *setspeed;
-	pcmchan_setblocksize_t *setblocksize;
-	pcmchan_trigger_t *trigger;
-	pcmchan_getptr_t *getptr;
-	pcmchan_getcaps_t *getcaps;
-	pcmchan_free_t *free;
-	void *nop1;
-	void *nop2;
-	void *nop3;
-	void *nop4;
-	void *nop5;
-	void *nop6;
-	void *nop7;
+	kobj_t methods;
 
 	pcm_feeder *feeder;
-	struct pcm_feederdesc *feederdesc;
 	u_int32_t align;
 
 	int volume;
@@ -153,24 +123,29 @@ struct _pcm_channel {
 	void *devinfo;
 };
 
-typedef void (pcm_swap_t)(void *data, int dir);
+/*****************************************************************************/
+
 #define SND_STATUSLEN	64
 /* descriptor of audio device */
 struct _snddev_info {
 	pcm_channel *play, *rec, **aplay, **arec, fakechan;
 	int *ref;
 	unsigned playcount, reccount, chancount, maxchans;
-	snd_mixer mixer;
+	snd_mixer *mixer;
 	u_long magic;
 	unsigned flags;
 	void *devinfo;
-	pcm_swap_t *swap;
 	device_t dev;
 	char status[SND_STATUSLEN];
+	/* sysctl stuff is only used in 5.x */
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
 };
 
+/*****************************************************************************/
+
 /* mixer description structure and macros - these should go away,
- * only sb.[ch] and mss.[ch] use them
+ * only mss.[ch] use them
  */
 struct mixer_def {
     	u_int regno:7;

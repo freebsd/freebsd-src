@@ -38,9 +38,8 @@
 #define TDX_PCI_ID 	0x20001023
 #define TNX_PCI_ID 	0x20011023
 
-#define TR_BUFFSIZE 	0xf000
+#define TR_BUFFSIZE 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
-#define TR_INTSAMPLES	0x2000
 #define TR_MAXPLAYCH	4
 
 struct tr_info;
@@ -52,7 +51,14 @@ struct tr_chinfo {
 	u_int32_t eso, delta;
 	u_int32_t rvol, cvol;
 	u_int32_t gvsel, pan, vol, ctrl;
-	int index, ss;
+	int index, bufhalf;
+	snd_dbuf *buffer;
+	pcm_channel *channel;
+	struct tr_info *parent;
+};
+
+struct tr_rchinfo {
+	u_int32_t delta;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	struct tr_info *parent;
@@ -72,46 +78,8 @@ struct tr_info {
 
 	u_int32_t playchns;
 	struct tr_chinfo chinfo[TR_MAXPLAYCH];
-	struct tr_chinfo recchinfo;
+	struct tr_rchinfo recchinfo;
 };
-
-/* -------------------------------------------------------------------- */
-
-/*
- * prototypes
- */
-
-/* channel interface */
-static void *trchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int trchan_setdir(void *data, int dir);
-static int trchan_setformat(void *data, u_int32_t format);
-static int trchan_setspeed(void *data, u_int32_t speed);
-static int trchan_setblocksize(void *data, u_int32_t blocksize);
-static int trchan_trigger(void *data, int go);
-static int trchan_getptr(void *data);
-static pcmchan_caps *trchan_getcaps(void *data);
-
-/* talk to the codec - called from ac97.c */
-static u_int32_t tr_rdcd(void *, int);
-static void  	 tr_wrcd(void *, int, u_int32_t);
-
-/* stuff */
-static int       tr_init(struct tr_info *);
-static void      tr_intr(void *);
-
-/* talk to the card */
-static u_int32_t tr_rd(struct tr_info *, int, int);
-static void 	 tr_wr(struct tr_info *, int, u_int32_t, int);
-
-/* manipulate playback channels */
-static void 	 tr_clrint(struct tr_info *, char);
-static void 	 tr_enaint(struct tr_info *, char, int);
-static u_int32_t tr_testint(struct tr_info *, char);
-static void	 tr_rdch(struct tr_info *, char, struct tr_chinfo *);
-static void	 tr_wrch(struct tr_info *, char, struct tr_chinfo *);
-static void 	 tr_selch(struct tr_info *, char);
-static void 	 tr_startch(struct tr_info *, char);
-static void 	 tr_stopch(struct tr_info *, char);
 
 /* -------------------------------------------------------------------- */
 
@@ -141,36 +109,7 @@ static u_int32_t tr_playfmt[] = {
 };
 static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
-static pcm_channel tr_chantemplate = {
-	trchan_init,
-	trchan_setdir,
-	trchan_setformat,
-	trchan_setspeed,
-	trchan_setblocksize,
-	trchan_trigger,
-	trchan_getptr,
-	trchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
 /* -------------------------------------------------------------------- */
-
-static u_int32_t
-tr_fmttobits(u_int32_t fmt)
-{
-	u_int32_t bits = 0;
-	bits |= (fmt & AFMT_STEREO)? 0x4 : 0;
-	bits |= (fmt & (AFMT_S8 | AFMT_S16_LE))? 0x2 : 0;
-	bits |= (fmt & (AFMT_S16_LE | AFMT_U16_LE))? 0x8 : 0;
-	return bits;
-}
 
 /* Hardware */
 
@@ -205,10 +144,11 @@ tr_wr(struct tr_info *tr, int regno, u_int32_t data, int size)
 	}
 }
 
+/* -------------------------------------------------------------------- */
 /* ac97 codec */
 
-static u_int32_t
-tr_rdcd(void *devinfo, int regno)
+static int
+tr_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct tr_info *tr = (struct tr_info *)devinfo;
 	int i, j, treg, trw;
@@ -224,7 +164,7 @@ tr_rdcd(void *devinfo, int regno)
 		break;
 	default:
 		printf("!!! tr_rdcd defaulted !!!\n");
-		return 0xffffffff;
+		return -1;
 	}
 
 	regno &= 0x7f;
@@ -235,8 +175,8 @@ tr_rdcd(void *devinfo, int regno)
 	return (j >> TR_CDC_DATA) & 0xffff;
 }
 
-static void
-tr_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct tr_info *tr = (struct tr_info *)devinfo;
 	int i, j, treg, trw;
@@ -252,7 +192,7 @@ tr_wrcd(void *devinfo, int regno, u_int32_t data)
 		break;
 	default:
 		printf("!!! tr_wrcd defaulted !!!");
-		return;
+		return -1;
 	}
 
 	regno &= 0x7f;
@@ -266,64 +206,102 @@ tr_wrcd(void *devinfo, int regno, u_int32_t data)
 	printf(" - wrote %x, now %x\n", data, tr_rdcd(devinfo, regno));
 #endif
 	if (i==0) printf("codec timeout writing %x, data %x\n", regno, data);
+	return (i > 0)? 0 : -1;
 }
 
+static kobj_method_t tr_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		tr_rdcd),
+    	KOBJMETHOD(ac97_write,		tr_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(tr_ac97);
+
+/* -------------------------------------------------------------------- */
 /* playback channel interrupts */
 
+#if 0
 static u_int32_t
-tr_testint(struct tr_info *tr, char channel)
+tr_testint(struct tr_chinfo *ch)
 {
-	return tr_rd(tr, (channel & 0x20)? TR_REG_ADDRINTB : TR_REG_ADDRINTA,
-	             4) & (1<<(channel & 0x1f));
+	struct tr_info *tr = ch->parent;
+	int bank, chan;
+
+	bank = (ch->index & 0x20) ? 1 : 0;
+	chan = ch->index & 0x1f;
+	return tr_rd(tr, bank? TR_REG_ADDRINTB : TR_REG_ADDRINTA, 4) & (1 << chan);
+}
+#endif
+
+static void
+tr_clrint(struct tr_chinfo *ch)
+{
+	struct tr_info *tr = ch->parent;
+	int bank, chan;
+
+	bank = (ch->index & 0x20) ? 1 : 0;
+	chan = ch->index & 0x1f;
+	tr_wr(tr, bank? TR_REG_ADDRINTB : TR_REG_ADDRINTA, 1 << chan, 4);
 }
 
 static void
-tr_clrint(struct tr_info *tr, char channel)
+tr_enaint(struct tr_chinfo *ch, int enable)
 {
-	tr_wr(tr, (channel & 0x20)? TR_REG_ADDRINTB : TR_REG_ADDRINTA,
-	      1<<(channel & 0x1f), 4);
-}
+	struct tr_info *tr = ch->parent;
+       	u_int32_t i, reg;
+	int bank, chan;
 
-static void
-tr_enaint(struct tr_info *tr, char channel, int enable)
-{
-	u_int32_t reg = (channel & 0x20)? TR_REG_INTENB : TR_REG_INTENA;
-	u_int32_t i = tr_rd(tr, reg, 4);
-	channel &= 0x1f;
-	i &= ~(1 << channel);
-	i |= (enable? 1 : 0) << channel;
-	tr_clrint(tr, channel);
+	bank = (ch->index & 0x20) ? 1 : 0;
+	chan = ch->index & 0x1f;
+	reg = bank? TR_REG_INTENB : TR_REG_INTENA;
+
+	i = tr_rd(tr, reg, 4);
+	i &= ~(1 << chan);
+	i |= (enable? 1 : 0) << chan;
+
+	tr_clrint(ch);
 	tr_wr(tr, reg, i, 4);
 }
 
 /* playback channels */
 
 static void
-tr_selch(struct tr_info *tr, char channel)
+tr_selch(struct tr_chinfo *ch)
 {
-	int i=tr_rd(tr, TR_REG_CIR, 4);
+	struct tr_info *tr = ch->parent;
+	int i;
+
+	i = tr_rd(tr, TR_REG_CIR, 4);
 	i &= ~TR_CIR_MASK;
-	i |= channel & 0x3f;
+	i |= ch->index & 0x3f;
 	tr_wr(tr, TR_REG_CIR, i, 4);
 }
 
 static void
-tr_startch(struct tr_info *tr, char channel)
+tr_startch(struct tr_chinfo *ch)
 {
-	tr_wr(tr, (channel & 0x20)? TR_REG_STARTB : TR_REG_STARTA,
-	      1<<(channel & 0x1f), 4);
+	struct tr_info *tr = ch->parent;
+	int bank, chan;
+
+	bank = (ch->index & 0x20) ? 1 : 0;
+	chan = ch->index & 0x1f;
+	tr_wr(tr, bank? TR_REG_STARTB : TR_REG_STARTA, 1 << chan, 4);
 }
 
 static void
-tr_stopch(struct tr_info *tr, char channel)
+tr_stopch(struct tr_chinfo *ch)
 {
-	tr_wr(tr, (channel & 0x20)? TR_REG_STOPB : TR_REG_STOPA,
-	      1<<(channel & 0x1f), 4);
+	struct tr_info *tr = ch->parent;
+	int bank, chan;
+
+	bank = (ch->index & 0x20) ? 1 : 0;
+	chan = ch->index & 0x1f;
+	tr_wr(tr, bank? TR_REG_STOPB : TR_REG_STOPA, 1 << chan, 4);
 }
 
 static void
-tr_wrch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
+tr_wrch(struct tr_chinfo *ch)
 {
+	struct tr_info *tr = ch->parent;
 	u_int32_t cr[TR_CHN_REGS], i;
 
 	ch->gvsel 	&= 0x00000001;
@@ -340,8 +318,8 @@ tr_wrch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
 	ch->lba		&= 0x3fffffff;
 
 	cr[1]=ch->lba;
-	cr[3]=(ch->rvol<<7) | (ch->cvol);
-	cr[4]=(ch->gvsel<<31)|(ch->pan<<24)|(ch->vol<<16)|(ch->ctrl<<12)|(ch->ec);
+	cr[3]=(ch->fmc<<14) | (ch->rvol<<7) | (ch->cvol);
+	cr[4]=(ch->gvsel<<31) | (ch->pan<<24) | (ch->vol<<16) | (ch->ctrl<<12) | (ch->ec);
 
 	switch (tr->type) {
 	case TDX_PCI_ID:
@@ -349,7 +327,6 @@ tr_wrch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
 		ch->eso &= 0x0000ffff;
 		cr[0]=(ch->cso<<16) | (ch->alpha<<4) | (ch->fms);
 		cr[2]=(ch->eso<<16) | (ch->delta);
-		cr[3]|=0x0000c000;
 		break;
 	case TNX_PCI_ID:
 		ch->cso &= 0x00ffffff;
@@ -359,17 +336,22 @@ tr_wrch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
 		cr[3]|=(ch->alpha<<20) | (ch->fms<<16) | (ch->fmc<<14);
 		break;
 	}
-	tr_selch(tr, channel);
+	tr_selch(ch);
 	for (i=0; i<TR_CHN_REGS; i++)
 		tr_wr(tr, TR_REG_CHNBASE+(i<<2), cr[i], 4);
 }
 
 static void
-tr_rdch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
+tr_rdch(struct tr_chinfo *ch)
 {
+	struct tr_info *tr = ch->parent;
 	u_int32_t cr[5], i;
-	tr_selch(tr, channel);
-	for (i=0; i<5; i++) cr[i]=tr_rd(tr, TR_REG_CHNBASE+(i<<2), 4);
+
+	tr_selch(ch);
+	for (i=0; i<5; i++)
+		cr[i]=tr_rd(tr, TR_REG_CHNBASE+(i<<2), 4);
+
+
 	ch->lba=	(cr[1] & 0x3fffffff);
 	ch->fmc=	(cr[3] & 0x0000c000) >> 14;
 	ch->rvol=	(cr[3] & 0x00003f80) >> 7;
@@ -390,180 +372,292 @@ tr_rdch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
 	case TNX_PCI_ID:
 		ch->cso=	(cr[0] & 0x00ffffff);
 		ch->eso=	(cr[2] & 0x00ffffff);
-		ch->delta=	((cr[2] & 0xff000000) >> 16) |
-				((cr[0] & 0xff000000) >> 24);
+		ch->delta=	((cr[2] & 0xff000000) >> 16) | ((cr[0] & 0xff000000) >> 24);
 		ch->alpha=	(cr[3] & 0xfff00000) >> 20;
 		ch->fms=	(cr[3] & 0x000f0000) >> 16;
 		break;
 	}
 }
 
+static u_int32_t
+tr_fmttobits(u_int32_t fmt)
+{
+	u_int32_t bits;
+
+	bits = 0;
+	bits |= (fmt & AFMT_SIGNED)? 0x2 : 0;
+	bits |= (fmt & AFMT_STEREO)? 0x4 : 0;
+	bits |= (fmt & AFMT_16BIT)? 0x8 : 0;
+
+	return bits;
+}
+
+/* -------------------------------------------------------------------- */
 /* channel interface */
 
-void *
-trchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+static void *
+trpchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct tr_info *tr = devinfo;
 	struct tr_chinfo *ch;
-	if (dir == PCMDIR_PLAY) {
-		ch = &tr->chinfo[tr->playchns];
-		ch->index = tr->playchns++;
-	} else {
-		ch = &tr->recchinfo;
-		ch->index = -1;
-	}
+
+	KASSERT(dir == PCMDIR_PLAY, ("trpchan_init: bad direction"));
+	ch = &tr->chinfo[tr->playchns];
+	ch->index = tr->playchns++;
 	ch->buffer = b;
-	ch->buffer->bufsize = TR_BUFFSIZE;
 	ch->parent = tr;
 	ch->channel = c;
-	if (chn_allocbuf(ch->buffer, tr->parent_dmat) == -1) return NULL;
-	else return ch;
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+		return NULL;
+
+	return ch;
 }
 
 static int
-trchan_setdir(void *data, int dir)
+trpchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct tr_chinfo *ch = data;
-	struct tr_info *tr = ch->parent;
-	if (dir == PCMDIR_PLAY && ch->index >= 0) {
-		ch->fmc = ch->fms = ch->ec = ch->alpha = 0;
-		ch->lba = vtophys(ch->buffer->buf);
-		ch->cso = 0;
-		ch->eso = ch->buffer->bufsize - 1;
-		ch->rvol = ch->cvol = 0;
-		ch->gvsel = 0;
-		ch->pan = 0;
-		ch->vol = 0;
-		ch->ctrl = 0x01;
-		ch->delta = 0;
-		tr_wrch(tr, ch->index, ch);
-		tr_enaint(tr, ch->index, 1);
-	} else if (dir == PCMDIR_REC && ch->index == -1) {
-		/* set up dma mode regs */
-		u_int32_t i;
-		tr_wr(tr, TR_REG_DMAR15, 0, 1);
-		i = tr_rd(tr, TR_REG_DMAR11, 1) & 0x03;
-		tr_wr(tr, TR_REG_DMAR11, i | 0x54, 1);
-		/* set up base address */
-	   	tr_wr(tr, TR_REG_DMAR0, vtophys(ch->buffer->buf), 4);
-		/* set up buffer size */
-		i = tr_rd(tr, TR_REG_DMAR4, 4) & ~0x00ffffff;
-		tr_wr(tr, TR_REG_DMAR4, i | (ch->buffer->bufsize - 1), 4);
-	} else return -1;
+
+	ch->ctrl = tr_fmttobits(format) | 0x01;
+
 	return 0;
 }
 
 static int
-trchan_setformat(void *data, u_int32_t format)
+trpchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct tr_chinfo *ch = data;
-	struct tr_info *tr = ch->parent;
-	u_int32_t bits = tr_fmttobits(format);
 
-	ch->ss = 1;
-	ch->ss <<= (format & AFMT_STEREO)? 1 : 0;
-	ch->ss <<= (format & AFMT_16BIT)? 1 : 0;
-	if (ch->index >= 0) {
-		tr_rdch(tr, ch->index, ch);
-		ch->eso = (ch->buffer->bufsize / ch->ss) - 1;
-		ch->ctrl = bits | 0x01;
-   		tr_wrch(tr, ch->index, ch);
-	} else {
-		u_int32_t i;
-		/* set # of samples between interrupts */
-		i = (TR_INTSAMPLES >> ((bits & 0x08)? 1 : 0)) - 1;
-		tr_wr(tr, TR_REG_SBBL, i | (i << 16), 4);
-		/* set sample format */
-		i = 0x18 | (bits << 4);
-		tr_wr(tr, TR_REG_SBCTRL, i, 1);
-	}
-	return 0;
+	ch->delta = (speed << 12) / 48000;
+	return (ch->delta * 48000) >> 12;
 }
 
 static int
-trchan_setspeed(void *data, u_int32_t speed)
+trpchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
-	struct tr_info *tr = ch->parent;
 
-	if (ch->index >= 0) {
-		tr_rdch(tr, ch->index, ch);
-		ch->delta = (speed << 12) / 48000;
-   		tr_wrch(tr, ch->index, ch);
-		return (ch->delta * 48000) >> 12;
-	} else {
-		/* setup speed */
-		ch->delta = (48000 << 12) / speed;
-		tr_wr(tr, TR_REG_SBDELTA, ch->delta, 2);
-		return (48000 << 12) / ch->delta;
-	}
-	return 0;
+	sndbuf_resize(ch->buffer, 2, blocksize);
+	return blocksize;
 }
 
 static int
-trchan_setblocksize(void *data, u_int32_t blocksize)
+trpchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct tr_chinfo *ch = data;
-	return ch->buffer->bufsize / 2;
-}
-
-static int
-trchan_trigger(void *data, int go)
-{
-	struct tr_chinfo *ch = data;
-	struct tr_info *tr = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	if (ch->index >= 0) {
-		if (go == PCMTRIG_START) {
-			tr_rdch(tr, ch->index, ch);
-			ch->cso = 0;
-   			tr_wrch(tr, ch->index, ch);
-			tr_startch(tr, ch->index);
-		} else tr_stopch(tr, ch->index);
-	} else {
-		u_int32_t i = tr_rd(tr, TR_REG_SBCTRL, 1) & ~7;
-		tr_wr(tr, TR_REG_SBCTRL, i | (go == PCMTRIG_START)? 1 : 0, 1);
-	}
+	if (go == PCMTRIG_START) {
+		ch->fmc = 3;
+		ch->fms = 0;
+		ch->ec = 0;
+		ch->alpha = 0;
+		ch->lba = vtophys(sndbuf_getbuf(ch->buffer));
+		ch->cso = 0;
+		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getbps(ch->buffer)) - 1;
+		ch->rvol = ch->cvol = 0x7f;
+		ch->gvsel = 0;
+		ch->pan = 0;
+		ch->vol = 0;
+		ch->bufhalf = 0;
+   		tr_wrch(ch);
+		tr_enaint(ch, 1);
+		tr_startch(ch);
+	} else
+		tr_stopch(ch);
+
 	return 0;
 }
 
 static int
-trchan_getptr(void *data)
+trpchan_getptr(kobj_t obj, void *data)
 {
 	struct tr_chinfo *ch = data;
-	struct tr_info *tr = ch->parent;
 
-	if (ch->index >= 0) {
-		tr_rdch(tr, ch->index, ch);
-		return ch->cso * ch->ss;
-	} else return tr_rd(tr, TR_REG_DMAR0, 4) - vtophys(ch->buffer->buf);
+	tr_rdch(ch);
+	return ch->cso * sndbuf_getbps(ch->buffer);
 }
 
 static pcmchan_caps *
-trchan_getcaps(void *data)
+trpchan_getcaps(kobj_t obj, void *data)
 {
-	struct tr_chinfo *ch = data;
-	return (ch->index >= 0)? &tr_playcaps : &tr_reccaps;
+	return &tr_playcaps;
 }
 
+static kobj_method_t trpchan_methods[] = {
+    	KOBJMETHOD(channel_init,		trpchan_init),
+    	KOBJMETHOD(channel_setformat,		trpchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		trpchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	trpchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		trpchan_trigger),
+    	KOBJMETHOD(channel_getptr,		trpchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		trpchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(trpchan);
+
+/* -------------------------------------------------------------------- */
+/* rec channel interface */
+
+static void *
+trrchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct tr_info *tr = devinfo;
+	struct tr_rchinfo *ch;
+
+	KASSERT(dir == PCMDIR_REC, ("trrchan_init: bad direction"));
+	ch = &tr->recchinfo;
+	ch->buffer = b;
+	ch->parent = tr;
+	ch->channel = c;
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+		return NULL;
+
+	return ch;
+}
+
+static int
+trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct tr_rchinfo *ch = data;
+	struct tr_info *tr = ch->parent;
+	u_int32_t i, bits;
+
+	bits = tr_fmttobits(format);
+	/* set # of samples between interrupts */
+	i = (sndbuf_runsz(ch->buffer) >> ((bits & 0x08)? 1 : 0)) - 1;
+	tr_wr(tr, TR_REG_SBBL, i | (i << 16), 4);
+	/* set sample format */
+	i = 0x18 | (bits << 4);
+	tr_wr(tr, TR_REG_SBCTRL, i, 1);
+
+	return 0;
+
+}
+
+static int
+trrchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct tr_rchinfo *ch = data;
+	struct tr_info *tr = ch->parent;
+
+	/* setup speed */
+	ch->delta = (48000 << 12) / speed;
+	tr_wr(tr, TR_REG_SBDELTA, ch->delta, 2);
+
+	/* return closest possible speed */
+	return (48000 << 12) / ch->delta;
+}
+
+static int
+trrchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+{
+	struct tr_rchinfo *ch = data;
+
+	sndbuf_resize(ch->buffer, 2, blocksize);
+
+	return blocksize;
+}
+
+static int
+trrchan_trigger(kobj_t obj, void *data, int go)
+{
+	struct tr_rchinfo *ch = data;
+	struct tr_info *tr = ch->parent;
+	u_int32_t i;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
+	if (go == PCMTRIG_START) {
+		/* set up dma mode regs */
+		tr_wr(tr, TR_REG_DMAR15, 0, 1);
+		i = tr_rd(tr, TR_REG_DMAR11, 1) & 0x03;
+		tr_wr(tr, TR_REG_DMAR11, i | 0x54, 1);
+		/* set up base address */
+	   	tr_wr(tr, TR_REG_DMAR0, vtophys(sndbuf_getbuf(ch->buffer)), 4);
+		/* set up buffer size */
+		i = tr_rd(tr, TR_REG_DMAR4, 4) & ~0x00ffffff;
+		tr_wr(tr, TR_REG_DMAR4, i | (sndbuf_runsz(ch->buffer) - 1), 4);
+		/* start */
+		tr_wr(tr, TR_REG_SBCTRL, tr_rd(tr, TR_REG_SBCTRL, 1) | 1, 1);
+	} else
+		tr_wr(tr, TR_REG_SBCTRL, tr_rd(tr, TR_REG_SBCTRL, 1) & ~7, 1);
+
+	/* return 0 if ok */
+	return 0;
+}
+
+static int
+trrchan_getptr(kobj_t obj, void *data)
+{
+ 	struct tr_rchinfo *ch = data;
+	struct tr_info *tr = ch->parent;
+
+	/* return current byte offset of channel */
+	return tr_rd(tr, TR_REG_DMAR0, 4) - vtophys(sndbuf_getbuf(ch->buffer));
+}
+
+static pcmchan_caps *
+trrchan_getcaps(kobj_t obj, void *data)
+{
+	return &tr_reccaps;
+}
+
+static kobj_method_t trrchan_methods[] = {
+    	KOBJMETHOD(channel_init,		trrchan_init),
+    	KOBJMETHOD(channel_setformat,		trrchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		trrchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	trrchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		trrchan_trigger),
+    	KOBJMETHOD(channel_getptr,		trrchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		trrchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(trrchan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 
 static void
 tr_intr(void *p)
 {
 	struct tr_info *tr = (struct tr_info *)p;
-	u_int32_t	intsrc = tr_rd(tr, TR_REG_MISCINT, 4);
+	struct tr_chinfo *ch;
+	u_int32_t active, mask, bufhalf, chnum, intsrc;
+	int tmp;
 
+	intsrc = tr_rd(tr, TR_REG_MISCINT, 4);
 	if (intsrc & TR_INT_ADDR) {
-		int i;
-		for (i = 0; i < tr->playchns; i++) {
-			if (tr_testint(tr, i)) {
-				chn_intr(tr->chinfo[i].channel);
-				tr_clrint(tr, i);
-			}
+		chnum = 0;
+		while (chnum < 64) {
+			mask = 0x00000001;
+			active = tr_rd(tr, (chnum < 32)? TR_REG_ADDRINTA : TR_REG_ADDRINTB, 4);
+			bufhalf = tr_rd(tr, (chnum < 32)? TR_REG_CSPF_A : TR_REG_CSPF_B, 4);
+			if (active) {
+				do {
+					if (active & mask) {
+						tmp = (bufhalf & mask)? 1 : 0;
+						if (chnum < tr->playchns) {
+							ch = &tr->chinfo[chnum];
+							/* printf("%d @ %d, ", chnum, trpchan_getptr(NULL, ch)); */
+							if (ch->bufhalf != tmp) {
+								chn_intr(ch->channel);
+								ch->bufhalf = tmp;
+							} else
+								printf("same bufhalf\n");
+
+						}
+					}
+					chnum++;
+					mask <<= 1;
+				} while (chnum & 31);
+			} else
+				chnum += 32;
+
+			tr_wr(tr, (chnum <= 32)? TR_REG_ADDRINTA : TR_REG_ADDRINTB, active, 4);
 		}
 	}
 	if (intsrc & TR_INT_SB) {
@@ -613,7 +707,6 @@ tr_pci_attach(device_t dev)
 	struct tr_info *tr;
 	struct ac97_info *codec = 0;
 	int		i;
-	int		mapped;
 	char 		status[SND_STATUSLEN];
 
 	if ((tr = malloc(sizeof(*tr), M_DEVBUF, M_NOWAIT)) == NULL) {
@@ -629,27 +722,13 @@ tr_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	mapped = 0;
-	/* XXX dfr: is this strictly necessary? */
-	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
-		tr->regid = PCIR_MAPS + i*4;
-		tr->regtype = SYS_RES_MEMORY;
-		tr->reg = bus_alloc_resource(dev, tr->regtype, &tr->regid,
-					     0, ~0, 1, RF_ACTIVE);
-		if (!tr->reg) {
-			tr->regtype = SYS_RES_IOPORT;
-			tr->reg = bus_alloc_resource(dev, tr->regtype,
-						     &tr->regid, 0, ~0, 1,
-						     RF_ACTIVE);
-		}
-		if (tr->reg) {
-			tr->st = rman_get_bustag(tr->reg);
-			tr->sh = rman_get_bushandle(tr->reg);
-			mapped++;
-		}
-	}
-
-	if (mapped == 0) {
+	tr->regid = PCIR_MAPS;
+	tr->regtype = SYS_RES_IOPORT;
+	tr->reg = bus_alloc_resource(dev, tr->regtype, &tr->regid, 0, ~0, 1, RF_ACTIVE);
+	if (tr->reg) {
+		tr->st = rman_get_bustag(tr->reg);
+		tr->sh = rman_get_bushandle(tr->reg);
+	} else {
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
 	}
@@ -659,9 +738,9 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
+	codec = AC97_CREATE(dev, tr, tr_ac97);
 	if (codec == NULL) goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
@@ -682,14 +761,13 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, 64, "at %s 0x%lx irq %ld",
-		 (tr->regtype == SYS_RES_IOPORT)? "io" : "memory",
+	snprintf(status, 64, "at io 0x%lx irq %ld",
 		 rman_get_start(tr->reg), rman_get_start(tr->irq));
 
 	if (pcm_register(dev, tr, TR_MAXPLAYCH, 1)) goto bad;
-	pcm_addchan(dev, PCMDIR_REC, &tr_chantemplate, tr);
+	pcm_addchan(dev, PCMDIR_REC, &trrchan_class, tr);
 	for (i = 0; i < TR_MAXPLAYCH; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &tr_chantemplate, tr);
+		pcm_addchan(dev, PCMDIR_PLAY, &trpchan_class, tr);
 	pcm_setstatus(dev, status);
 
 	return 0;

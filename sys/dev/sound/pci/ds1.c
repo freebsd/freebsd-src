@@ -39,6 +39,8 @@
 
 #define	DS1_CHANS 4
 #define DS1_RECPRIMARY 0
+#define DS1_IRQHZ ((48000 << 8) / 256)
+#define DS1_BUFFSIZE 4096
 
 struct pbank {
 	volatile u_int32_t	Format;
@@ -130,7 +132,6 @@ struct {
 	char *name;
 	u_int32_t *mcode;
 } ds_devs[] = {
-/* Beware, things know the indexes here */
 	{0x00041073, 0, 		"Yamaha DS-1 (YMF724)", CntrlInst},
 	{0x000d1073, 0, 		"Yamaha DS-1E (YMF724F)", CntrlInst1E},
 	{0x00051073, 0, 		"Yamaha DS-1? (YMF734)", CntrlInst},
@@ -139,10 +140,10 @@ struct {
 	{0x00061073, 0, 		"Yamaha DS-1? (YMF738_TEG)", CntrlInst},
 	{0x000a1073, 0x00041073, 	"Yamaha DS-1 (YMF740)", CntrlInst},
 	{0x000a1073, 0x000a1073,  	"Yamaha DS-1 (YMF740B)", CntrlInst},
-/*8*/	{0x000a1073, 0x53328086,	"Yamaha DS-1 (YMF740I)", CntrlInst},
+	{0x000a1073, 0x53328086,	"Yamaha DS-1 (YMF740I)", CntrlInst},
 	{0x000a1073, 0, 		"Yamaha DS-1 (YMF740?)", CntrlInst},
 	{0x000c1073, 0, 		"Yamaha DS-1E (YMF740C)", CntrlInst1E},
-/*11*/	{0x00101073, 0, 		"Yamaha DS-1E (YMF744)", CntrlInst1E},
+	{0x00101073, 0, 		"Yamaha DS-1E (YMF744)", CntrlInst1E},
 	{0x00121073, 0, 		"Yamaha DS-1E (YMF754)", CntrlInst1E},
 	{0, 0, NULL, NULL}
 };
@@ -152,27 +153,6 @@ struct {
 /*
  * prototypes
  */
-
-/* channel interface */
-static void *ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1pchan_setformat(void *data, u_int32_t format);
-static int ds1pchan_setspeed(void *data, u_int32_t speed);
-static int ds1pchan_setblocksize(void *data, u_int32_t blocksize);
-static int ds1pchan_trigger(void *data, int go);
-static int ds1pchan_getptr(void *data);
-static pcmchan_caps *ds1pchan_getcaps(void *data);
-
-static void *ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ds1rchan_setformat(void *data, u_int32_t format);
-static int ds1rchan_setspeed(void *data, u_int32_t speed);
-static int ds1rchan_setblocksize(void *data, u_int32_t blocksize);
-static int ds1rchan_trigger(void *data, int go);
-static int ds1rchan_getptr(void *data);
-static pcmchan_caps *ds1rchan_getcaps(void *data);
-
-/* talk to the codec - called from ac97.c */
-static u_int32_t ds_rdcd(void *, int);
-static void  	 ds_wrcd(void *, int, u_int32_t);
 
 /* stuff */
 static int       ds_init(struct sc_info *);
@@ -205,44 +185,6 @@ static u_int32_t ds_playfmt[] = {
 	0
 };
 static pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
-
-static pcm_channel ds_pchantemplate = {
-	ds1pchan_init,
-	NULL, 			/* setdir */
-	ds1pchan_setformat,
-	ds1pchan_setspeed,
-	ds1pchan_setblocksize,
-	ds1pchan_trigger,
-	ds1pchan_getptr,
-	ds1pchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
-static pcm_channel ds_rchantemplate = {
-	ds1rchan_init,
-	NULL, 			/* setdir */
-	ds1rchan_setformat,
-	ds1rchan_setspeed,
-	ds1rchan_setblocksize,
-	ds1rchan_trigger,
-	ds1rchan_getptr,
-	ds1rchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 /* -------------------------------------------------------------------- */
 /* Hardware */
@@ -284,6 +226,7 @@ wrl(struct sc_info *sc, u_int32_t *ptr, u_int32_t val)
 	bus_space_barrier(sc->st, sc->sh, 0, 0, BUS_SPACE_BARRIER_WRITE);
 }
 
+/* -------------------------------------------------------------------- */
 /* ac97 codec */
 static int
 ds_cdbusy(struct sc_info *sc, int sec)
@@ -301,7 +244,7 @@ ds_cdbusy(struct sc_info *sc, int sec)
 }
 
 static u_int32_t
-ds_initcd(void *devinfo)
+ds_initcd(kobj_t obj, void *devinfo)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	u_int32_t x;
@@ -326,8 +269,8 @@ ds_initcd(void *devinfo)
 	return ds_cdbusy(sc, 0)? 0 : 1;
 }
 
-static u_int32_t
-ds_rdcd(void *devinfo, int regno)
+static int
+ds_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	int sec, cid, i;
@@ -353,8 +296,8 @@ ds_rdcd(void *devinfo, int regno)
 	return ds_rd(sc, reg, 2);
 }
 
-static void
-ds_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+ds_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	int sec, cid;
@@ -364,15 +307,25 @@ ds_wrcd(void *devinfo, int regno, u_int32_t data)
 	regno &= 0xff;
 	cid = sec? (sc->cd2id << 8) : 0;
 	if (sec && cid == 0)
-		return;
+		return ENXIO;
 
 	cmd = YDSXG_AC97WRITECMD | cid | regno;
 	cmd <<= 16;
 	cmd |= data;
 	ds_wr(sc, YDSXGR_AC97CMDDATA, cmd, 4);
 
-	ds_cdbusy(sc, sec);
+	return ds_cdbusy(sc, sec);
 }
+
+static kobj_method_t ds_ac97_methods[] = {
+    	KOBJMETHOD(ac97_init,		ds_initcd),
+    	KOBJMETHOD(ac97_read,		ds_rdcd),
+    	KOBJMETHOD(ac97_write,		ds_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(ds_ac97);
+
+/* -------------------------------------------------------------------- */
 
 static void
 ds_enadsp(struct sc_info *sc, int on)
@@ -480,8 +433,8 @@ ds_setuppch(struct sc_pchinfo *ch)
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	c = stereo? 1 : 0;
-	buf = ch->buffer->buf;
-	sz = ch->buffer->bufsize;
+	buf = sndbuf_getbuf(ch->buffer);
+	sz = sndbuf_getsize(ch->buffer);
 
 	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, buf, sz);
 	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, buf, sz);
@@ -499,8 +452,8 @@ ds_setuprch(struct sc_rchinfo *ch)
 
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
-	buf = ch->buffer->buf;
-	sz = ch->buffer->bufsize;
+	buf = sndbuf_getbuf(ch->buffer);
+	sz = sndbuf_getsize(ch->buffer);
 	pri = (ch->num == DS1_RECPRIMARY)? 1 : 0;
 
 	for (i = 0; i < 2; i++) {
@@ -517,9 +470,10 @@ ds_setuprch(struct sc_rchinfo *ch)
 	ds_wr(sc, pri? YDSXGR_ADCSLOTSR : YDSXGR_RECSLOTSR, y, 4);
 }
 
+/* -------------------------------------------------------------------- */
 /* play channel interface */
 static void *
-ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ds1pchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
@@ -528,14 +482,13 @@ ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 
 	ch = &sc->pch[sc->pchn++];
 	ch->buffer = b;
-	ch->buffer->bufsize = 4096;
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, DS1_BUFFSIZE) == -1)
 		return NULL;
 	else {
 		ch->lsnum = sc->pslotfree;
@@ -548,7 +501,7 @@ ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-ds1pchan_setformat(void *data, u_int32_t format)
+ds1pchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_pchinfo *ch = data;
 
@@ -558,7 +511,7 @@ ds1pchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-ds1pchan_setspeed(void *data, u_int32_t speed)
+ds1pchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_pchinfo *ch = data;
 
@@ -568,14 +521,22 @@ ds1pchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-ds1pchan_setblocksize(void *data, u_int32_t blocksize)
+ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_pchinfo *ch = data;
+	int drate;
+
+	/* irq rate is fixed at 187.5hz */
+	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	blocksize = (drate << 8) / DS1_IRQHZ;
+	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+
 	return blocksize;
 }
 
 /* semantic note: must start at beginning of buffer */
 static int
-ds1pchan_trigger(void *data, int go)
+ds1pchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -601,7 +562,7 @@ ds1pchan_trigger(void *data, int go)
 }
 
 static int
-ds1pchan_getptr(void *data)
+ds1pchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -620,14 +581,27 @@ ds1pchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-ds1pchan_getcaps(void *data)
+ds1pchan_getcaps(kobj_t obj, void *data)
 {
 	return &ds_playcaps;
 }
 
+static kobj_method_t ds1pchan_methods[] = {
+    	KOBJMETHOD(channel_init,		ds1pchan_init),
+    	KOBJMETHOD(channel_setformat,		ds1pchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		ds1pchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	ds1pchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		ds1pchan_trigger),
+    	KOBJMETHOD(channel_getptr,		ds1pchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		ds1pchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(ds1pchan);
+
+/* -------------------------------------------------------------------- */
 /* record channel interface */
 static void *
-ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ds1rchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -637,13 +611,12 @@ ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch = &sc->rch[sc->rchn];
 	ch->num = sc->rchn++;
 	ch->buffer = b;
-	ch->buffer->bufsize = 4096;
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 4096) == -1)
 		return NULL;
 	else {
 		ch->slot = (ch->num == DS1_RECPRIMARY)? sc->rbank + 2: sc->rbank;
@@ -653,7 +626,7 @@ ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-ds1rchan_setformat(void *data, u_int32_t format)
+ds1rchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_rchinfo *ch = data;
 
@@ -663,7 +636,7 @@ ds1rchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-ds1rchan_setspeed(void *data, u_int32_t speed)
+ds1rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_rchinfo *ch = data;
 
@@ -673,14 +646,22 @@ ds1rchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-ds1rchan_setblocksize(void *data, u_int32_t blocksize)
+ds1rchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_rchinfo *ch = data;
+	int drate;
+
+	/* irq rate is fixed at 187.5hz */
+	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	blocksize = (drate << 8) / DS1_IRQHZ;
+	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+
 	return blocksize;
 }
 
 /* semantic note: must start at beginning of buffer */
 static int
-ds1rchan_trigger(void *data, int go)
+ds1rchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -706,7 +687,7 @@ ds1rchan_trigger(void *data, int go)
 }
 
 static int
-ds1rchan_getptr(void *data)
+ds1rchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -715,11 +696,24 @@ ds1rchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-ds1rchan_getcaps(void *data)
+ds1rchan_getcaps(kobj_t obj, void *data)
 {
 	return &ds_reccaps;
 }
 
+static kobj_method_t ds1rchan_methods[] = {
+    	KOBJMETHOD(channel_init,		ds1rchan_init),
+    	KOBJMETHOD(channel_setformat,		ds1rchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		ds1rchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	ds1rchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		ds1rchan_trigger),
+    	KOBJMETHOD(channel_getptr,		ds1rchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		ds1rchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(ds1rchan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
 ds_intr(void *p)
@@ -866,6 +860,7 @@ ds_init(struct sc_info *sc)
 	ds_wr(sc, YDSXGR_NATIVEDACOUTVOL, 0x3fff3fff, 4);
 	ds_wr(sc, YDSXGR_NATIVEADCINVOL, 0x3fff3fff, 4);
 	ds_wr(sc, YDSXGR_NATIVEDACINVOL, 0x3fff3fff, 4);
+
 	return 0;
 }
 
@@ -970,10 +965,10 @@ ds_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, sc, ds_initcd, ds_rdcd, ds_wrcd);
+	codec = AC97_CREATE(dev, sc, ds_ac97);
 	if (codec == NULL)
 		goto bad;
-	mixer_init(dev, &ac97_mixer, codec);
+	mixer_init(dev, ac97_getmixerclass(), codec);
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -990,9 +985,9 @@ ds_pci_attach(device_t dev)
 	if (pcm_register(dev, sc, DS1_CHANS, 2))
 		goto bad;
 	for (i = 0; i < DS1_CHANS; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &ds_pchantemplate, sc);
+		pcm_addchan(dev, PCMDIR_PLAY, &ds1pchan_class, sc);
 	for (i = 0; i < 2; i++)
-		pcm_addchan(dev, PCMDIR_REC, &ds_rchantemplate, sc);
+		pcm_addchan(dev, PCMDIR_REC, &ds1rchan_class, sc);
 	pcm_setstatus(dev, status);
 
 	return 0;

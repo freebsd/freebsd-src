@@ -218,6 +218,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x01100000, "Avance Asound 110"},		/* @@@1001 */
 	{0x01200000, "Avance Logic ALS120"},		/* @@@2001 - ViBRA16X clone */
 
+	{0x81167316, "ESS ES1681"},			/* ESS1681 */
 	{0x02017316, "ESS ES1688"},			/* ESS1688 */
 	{0x68187316, "ESS ES1868"},			/* ESS1868 */
 	{0x03007316, "ESS ES1869"},			/* ESS1869 */
@@ -265,16 +266,20 @@ sbc_probe(device_t dev)
 		if (ver == 0) goto bad2;
 		switch ((ver & 0x00000f00) >> 8) {
 		case 1:
+			device_set_desc(dev, "SoundBlaster 1.0 (not supported)");
+			s = NULL;
+			break;
+
 		case 2:
-			s = "Soundblaster";
+			s = "SoundBlaster 2.0";
 			break;
 
 		case 3:
-			s = (ver & 0x0000f000)? "ESS 488" : "Soundblaster Pro";
+			s = (ver & 0x0000f000)? "ESS 488" : "SoundBlaster Pro";
 			break;
 
 		case 4:
-			s = "Soundblaster 16";
+			s = "SoundBlaster 16";
 			break;
 
 		case 5:
@@ -733,5 +738,3 @@ static driver_t sbc_driver = {
 DRIVER_MODULE(snd_sbc, isa, sbc_driver, sbc_devclass, 0, 0);
 MODULE_DEPEND(snd_sbc, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_sbc, 1);
-
-

@@ -59,6 +59,8 @@
 
 #include <sys/sysctl.h>
 
+#include "mixer_if.h"
+
 static int debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 
@@ -80,7 +82,7 @@ struct es_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, num;
-	u_int32_t fmt;
+	u_int32_t fmt, blksz, bufsz;
 };
 
 struct es_info {
@@ -105,26 +107,13 @@ struct es_info {
 /* prototypes */
 static void     es_intr(void *);
 
-static void	es1371_wrcodec(void *, int, u_int32_t);
-static u_int32_t es1371_rdcodec(void *, int);
 static u_int	es1371_wait_src_ready(struct es_info *);
 static void	es1371_src_write(struct es_info *, u_short, unsigned short);
 static u_int	es1371_adc_rate(struct es_info *, u_int, int);
 static u_int	es1371_dac_rate(struct es_info *, u_int, int);
-static int	es1371_init(struct es_info *es, int);
+static int	es1371_init(struct es_info *, device_t);
 static int      es1370_init(struct es_info *);
 static int      es1370_wrcodec(struct es_info *, u_char, u_char);
-
-/* channel interface */
-static void *eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int   eschan_setdir(void *data, int dir);
-static int   eschan_setformat(void *data, u_int32_t format);
-static int   eschan1370_setspeed(void *data, u_int32_t speed);
-static int   eschan1371_setspeed(void *data, u_int32_t speed);
-static int   eschan_setblocksize(void *data, u_int32_t blocksize);
-static int   eschan_trigger(void *data, int go);
-static int   eschan_getptr(void *data);
-static pcmchan_caps *eschan_getcaps(void *data);
 
 static u_int32_t es_playfmt[] = {
 	AFMT_U8,
@@ -143,60 +132,6 @@ static u_int32_t es_recfmt[] = {
 	0
 };
 static pcmchan_caps es_reccaps = {4000, 48000, es_recfmt, 0};
-
-static pcm_channel es1370_chantemplate = {
-	eschan_init,
-	eschan_setdir,
-	eschan_setformat,
-	eschan1370_setspeed,
-	eschan_setblocksize,
-	eschan_trigger,
-	eschan_getptr,
-	eschan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
-static pcm_channel es1371_chantemplate = {
-	eschan_init,
-	eschan_setdir,
-	eschan_setformat,
-	eschan1371_setspeed,
-	eschan_setblocksize,
-	eschan_trigger,
-	eschan_getptr,
-	eschan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
-/* -------------------------------------------------------------------- */
-
-/* The es1370 mixer interface */
-
-static int es1370_mixinit(snd_mixer *m);
-static int es1370_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src);
-
-static snd_mixer es1370_mixer = {
-	"AudioPCI 1370 mixer",
-	es1370_mixinit,
-	NULL,
-	es1370_mixset,
-	es1370_mixsetrecsrc,
-};
 
 static const struct {
 	unsigned        volidx:4;
@@ -217,6 +152,9 @@ static const struct {
 	[SOUND_MIXER_MIC]	= { 8, 0xe, 0x0, 0, 0x0001, 1 },
 	[SOUND_MIXER_OGAIN]	= { 9, 0xf, 0x0, 0, 0x0000, 1 }
 };
+
+/* -------------------------------------------------------------------- */
+/* The es1370 mixer interface */
 
 static int
 es1370_mixinit(snd_mixer *m)
@@ -275,6 +213,16 @@ es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src)
 	return src;
 }
 
+static kobj_method_t es1370_mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		es1370_mixinit),
+    	KOBJMETHOD(mixer_set,		es1370_mixset),
+    	KOBJMETHOD(mixer_setrecsrc,	es1370_mixsetrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(es1370_mixer);
+
+/* -------------------------------------------------------------------- */
+
 static int
 es1370_wrcodec(struct es_info *es, u_char i, u_char data)
 {
@@ -297,7 +245,7 @@ es1370_wrcodec(struct es_info *es, u_char i, u_char data)
 
 /* channel interface */
 static void *
-eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+eschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct es_info *es = devinfo;
 	struct es_chinfo *ch = (dir == PCMDIR_PLAY)? &es->pch : &es->rch;
@@ -305,39 +253,34 @@ eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = es;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = ES_BUFFSIZE;
+	ch->bufsz = ES_BUFFSIZE;
+	ch->blksz = ch->bufsz / 2;
 	ch->num = ch->parent->num++;
-	if (chn_allocbuf(ch->buffer, es->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) == -1) return NULL;
 	return ch;
 }
 
 static int
-eschan_setdir(void *data, int dir)
+eschan_setdir(kobj_t obj, void *data, int dir)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
 
 	if (dir == PCMDIR_PLAY) {
-		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_DAC2_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff,
-				  vtophys(ch->buffer->buf));
-		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff,
-				  (ch->buffer->bufsize >> 2) - 1);
+		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_DAC2_FRAMEADR >> 8);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	} else {
-		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE,
-				  ES1370_REG_ADC_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff,
-				  vtophys(ch->buffer->buf));
-		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff,
-				  (ch->buffer->bufsize >> 2) - 1);
+		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMEADR >> 8);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	}
 	ch->dir = dir;
 	return 0;
 }
 
 static int
-eschan_setformat(void *data, u_int32_t format)
+eschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
@@ -357,7 +300,7 @@ eschan_setformat(void *data, u_int32_t format)
 }
 
 static int
-eschan1370_setspeed(void *data, u_int32_t speed)
+eschan1370_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
@@ -369,8 +312,8 @@ eschan1370_setspeed(void *data, u_int32_t speed)
 	return speed; /* XXX calc real speed */
 }
 
-int
-eschan1371_setspeed(void *data, u_int32_t speed)
+static int
+eschan1371_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
   	struct es_chinfo *ch = data;
   	struct es_info *es = ch->parent;
@@ -383,56 +326,49 @@ eschan1371_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-eschan_setblocksize(void *data, u_int32_t blocksize)
+eschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+  	struct es_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	ch->bufsz = ch->blksz * 2;
+	sndbuf_resize(ch->buffer, 2, ch->blksz);
+
+	return ch->blksz;
 }
 
 static int
-eschan_trigger(void *data, int go)
+eschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
-	unsigned ss, cnt;
+	unsigned cnt;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	ss = 1;
-	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
-	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
-	cnt = ch->buffer->dl / ss - 1;
+	cnt = (ch->blksz / sndbuf_getbps(ch->buffer)) - 1;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
 			int b = (ch->fmt & AFMT_S16_LE)? 2 : 1;
 			es->ctrl |= CTRL_DAC2_EN;
-			es->sctrl &= ~(SCTRL_P2ENDINC | SCTRL_P2STINC |
-				       SCTRL_P2LOOPSEL | SCTRL_P2PAUSE |
-				       SCTRL_P2DACSEN);
+			es->sctrl &= ~(SCTRL_P2ENDINC | SCTRL_P2STINC | SCTRL_P2LOOPSEL | SCTRL_P2PAUSE | SCTRL_P2DACSEN);
 			es->sctrl |= SCTRL_P2INTEN | (b << SCTRL_SH_P2ENDINC);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_DAC2_SCOUNT, cnt);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_SCOUNT, cnt);
 			/* start at beginning of buffer */
-			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-					  ES1370_REG_DAC2_FRAMECNT >> 8);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_DAC2_FRAMECNT & 0xff,
-				  	  (ch->buffer->bufsize >> 2) - 1);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_DAC2_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 		} else es->ctrl &= ~CTRL_DAC2_EN;
 	} else {
 		if (go == PCMTRIG_START) {
 			es->ctrl |= CTRL_ADC_EN;
 			es->sctrl &= ~SCTRL_R1LOOPSEL;
 			es->sctrl |= SCTRL_R1INTEN;
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_ADC_SCOUNT, cnt);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_SCOUNT, cnt);
 			/* start at beginning of buffer */
-			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE,
-					  ES1370_REG_ADC_FRAMECNT >> 8);
-			bus_space_write_4(es->st, es->sh,
-					  ES1370_REG_ADC_FRAMECNT & 0xff,
-				  	  (ch->buffer->bufsize >> 2) - 1);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMECNT >> 8);
+			bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 		} else es->ctrl &= ~CTRL_ADC_EN;
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
@@ -441,7 +377,7 @@ eschan_trigger(void *data, int go)
 }
 
 static int
-eschan_getptr(void *data)
+eschan_getptr(kobj_t obj, void *data)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
@@ -459,12 +395,39 @@ eschan_getptr(void *data)
 }
 
 static pcmchan_caps *
-eschan_getcaps(void *data)
+eschan_getcaps(kobj_t obj, void *data)
 {
 	struct es_chinfo *ch = data;
 	return (ch->dir == PCMDIR_PLAY)? &es_playcaps : &es_reccaps;
 }
 
+static kobj_method_t eschan1370_methods[] = {
+    	KOBJMETHOD(channel_init,		eschan_init),
+    	KOBJMETHOD(channel_setdir,		eschan_setdir),
+    	KOBJMETHOD(channel_setformat,		eschan_setformat),
+    	KOBJMETHOD(channel_setspeed,		eschan1370_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	eschan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		eschan_trigger),
+    	KOBJMETHOD(channel_getptr,		eschan_getptr),
+    	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(eschan1370);
+
+static kobj_method_t eschan1371_methods[] = {
+    	KOBJMETHOD(channel_init,		eschan_init),
+    	KOBJMETHOD(channel_setdir,		eschan_setdir),
+    	KOBJMETHOD(channel_setformat,		eschan_setformat),
+    	KOBJMETHOD(channel_setspeed,		eschan1371_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	eschan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		eschan_trigger),
+    	KOBJMETHOD(channel_getptr,		eschan_getptr),
+    	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(eschan1371);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
 es_intr(void *p)
@@ -511,9 +474,11 @@ es1370_init(struct es_info *es)
 
 /* ES1371 specific */
 int
-es1371_init(struct es_info *es, int rev)
+es1371_init(struct es_info *es, device_t dev)
 {
 	int idx;
+	int devid = pci_get_devid(dev);
+	int revid = pci_get_revid(dev);
 
 	if (debug > 0) printf("es_init\n");
 
@@ -521,7 +486,7 @@ es1371_init(struct es_info *es, int rev)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	if (rev == 7 || rev >= 9 || rev == 2) {
+	if (revid == 7 || revid >= 9 || (devid == ES1371_PCI_ID3 && revid == 2)) {
 #define ES1371_BINTSUMM_OFF 0x07
 		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
 		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
@@ -563,8 +528,10 @@ es1371_init(struct es_info *es, int rev)
 	return (0);
 }
 
-static void
-es1371_wrcodec(void *s, int addr, u_int32_t data)
+/* -------------------------------------------------------------------- */
+
+static int
+es1371_wrcd(kobj_t obj, void *s, int addr, u_int32_t data)
 {
     	int sl;
     	unsigned t, x;
@@ -599,10 +566,12 @@ es1371_wrcodec(void *s, int addr, u_int32_t data)
 	if (debug > 2) printf("two b_s_w: 0x%x 0x%x 0x%x\n", es->sh, ES1371_REG_SMPRATE, x);
 	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, x);
 	splx(sl);
+
+	return 0;
 }
 
-static u_int32_t
-es1371_rdcodec(void *s, int addr)
+static int
+es1371_rdcd(kobj_t obj, void *s, int addr)
 {
   	int sl;
   	unsigned t, x;
@@ -644,6 +613,15 @@ es1371_rdcodec(void *s, int addr)
   	if (debug > 0) printf("loop 3 t 0x%x 0x%x ret 0x%x\n", t, x, ((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT));
   	return ((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT);
 }
+
+static kobj_method_t es1371_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		es1371_rdcd),
+    	KOBJMETHOD(ac97_write,		es1371_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(es1371_ac97);
+
+/* -------------------------------------------------------------------- */
 
 static u_int
 es1371_src_read(struct es_info *es, u_short reg)
@@ -768,7 +746,7 @@ es_pci_attach(device_t dev)
 	int		mapped;
 	char		status[SND_STATUSLEN];
 	struct ac97_info *codec = 0;
-	pcm_channel     *ct = NULL;
+	kobj_class_t    ct = NULL;
 
 	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -812,24 +790,24 @@ es_pci_attach(device_t dev)
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
 	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
 	    pci_get_devid(dev) == ES1371_PCI_ID3) {
-		if(-1 == es1371_init(es, pci_get_revid(dev))) {
+		if(-1 == es1371_init(es, dev)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 		}
-	  	codec = ac97_create(dev, es, NULL, es1371_rdcodec, es1371_wrcodec);
+		codec = AC97_CREATE(dev, es, es1371_ac97);
 	  	if (codec == NULL) goto bad;
 	  	/* our init routine does everything for us */
 	  	/* set to NULL; flag mixer_init not to run the ac97_init */
 	  	/*	  ac97_mixer.init = NULL;  */
-		if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
-		ct = &es1371_chantemplate;
+		if (mixer_init(dev, ac97_getmixerclass(), codec)) goto bad;
+		ct = &eschan1371_class;
 	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
 	  	if (-1 == es1370_init(es)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 	  	}
-	  	mixer_init(dev, &es1370_mixer, es);
-		ct = &es1370_chantemplate;
+	  	if (mixer_init(dev, &es1370_mixer_class, es)) goto bad;
+		ct = &eschan1370_class;
 	} else goto bad;
 
 	es->irqid = 0;
