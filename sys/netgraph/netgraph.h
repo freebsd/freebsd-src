@@ -224,6 +224,11 @@ DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order)
 /* Special malloc() type for netgraph structs and ctrl messages */
 MALLOC_DECLARE(M_NETGRAPH);
 
+/* XXX Temporarily assign ourself an ISR number (1 seems unused) */
+#ifndef NETISR_NETGRAPH
+#define NETISR_NETGRAPH		1
+#endif
+
 int	ng_bypass(hook_p hook1, hook_p hook2);
 void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node,

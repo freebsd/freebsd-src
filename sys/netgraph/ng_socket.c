@@ -972,7 +972,7 @@ ngs_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Register protocol domain */
-		net_add_domain(&ngdomain);
+		error = net_add_domain(&ngdomain);
 		break;
 	case MOD_UNLOAD:
 		/* Insure there are no open netgraph sockets */
