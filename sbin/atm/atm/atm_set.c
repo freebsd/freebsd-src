@@ -105,7 +105,7 @@ set_arpserver(argc, argv, cmdp)
 	/*
 	 * Get the ARP server's ATM address
 	 */
-	UM_ZERO(&server, sizeof(server));
+	bzero(&server, sizeof(server));
 	if (strcasecmp(argv[0], "local")) {
 		/*
 		 * ARP server NSAP address is provided
@@ -142,7 +142,7 @@ set_arpserver(argc, argv, cmdp)
 		 * list of permitted LIS prefixes.
 		 */
 		len = sizeof(struct air_netif_rsp);
-		UM_ZERO(&air, sizeof(air));
+		bzero(&air, sizeof(air));
 		air.air_opcode = AIOCS_INF_NIF;
 		strcpy(air.air_int_intf, intf);
 		len = do_info_ioctl(&air, len);
@@ -166,7 +166,7 @@ set_arpserver(argc, argv, cmdp)
 		int_info = (struct air_netif_rsp *) air.air_buf_addr;
 		lis = (struct sockaddr_in *)&int_info->anp_proto_addr;
 		prefix_buf[0].ip_addr = lis->sin_addr;
-		UM_FREE(int_info);
+		free(int_info);
 	
 		rc = get_subnet_mask(intf, &if_mask);
 		if (rc) {
@@ -200,7 +200,7 @@ set_arpserver(argc, argv, cmdp)
 	/*
 	 * Build ioctl request
 	 */
-	UM_ZERO(&asr, sizeof(asr));
+	bzero(&asr, sizeof(asr));
 	asr.asr_opcode = AIOCS_SET_ASV;
 	strncpy(asr.asr_arp_intf, intf, sizeof(asr.asr_arp_intf));
 	asr.asr_arp_addr = server;
@@ -310,7 +310,7 @@ set_macaddr(argc, argv, cmdp)
 	 */
 	asr.asr_opcode = AIOCS_SET_MAC;
 	strncpy(asr.asr_mac_intf, intf, sizeof(asr.asr_mac_intf));
-	UM_COPY(&mac, &asr.asr_mac_addr, sizeof(asr.asr_mac_addr));
+	bcopy(&mac, &asr.asr_mac_addr, sizeof(asr.asr_mac_addr));
 
 	/*
 	 * Pass the new address to the kernel
@@ -494,7 +494,7 @@ set_prefix(argc, argv, cmdp)
 	 */
 	asr.asr_opcode = AIOCS_SET_PRF;
 	strncpy(asr.asr_prf_intf, intf, sizeof(asr.asr_prf_intf));
-	UM_COPY(prefix, asr.asr_prf_pref, sizeof(asr.asr_prf_pref));
+	bcopy(prefix, asr.asr_prf_pref, sizeof(asr.asr_prf_pref));
 
 	/*
 	 * Pass the new prefix to the kernel
