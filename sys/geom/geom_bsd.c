@@ -462,7 +462,6 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 
 	/* If we had a label, record it properly. */
 	if (error == 0) {
-		gsp->frontstuff = 16 * secsize;	/* XXX */
 		ms->labeloffset = offset;
 		g_topology_lock();
 		g_slice_conf_hot(gp, 0, offset, g_bsd_ondisk_size());

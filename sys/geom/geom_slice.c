@@ -220,18 +220,6 @@ g_slice_start(struct bio *bp)
 		/* Give the real method a chance to override */
 		if (gsp->start(bp))
 			return;
-		if (!strcmp("GEOM::frontstuff", bp->bio_attribute)) {
-			t = gsp->cfrontstuff;
-			if (gsp->frontstuff > t)
-				t = gsp->frontstuff;
-			t -= gsl->offset;
-			if (t < 0)
-				t = 0;
-			if (t > gsl->length)
-				t = gsl->length;
-			g_handleattr_off_t(bp, "GEOM::frontstuff", t);
-			return;
-		}
 #ifdef _KERNEL
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			struct g_kerneldump *gkd;
@@ -268,10 +256,6 @@ g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct 
 		sbuf_printf(sb, " o %ju", 
 		    (uintmax_t)gsp->slices[pp->index].offset);
 		return;
-	}
-	if (gp != NULL && (pp == NULL && cp == NULL)) {
-		sbuf_printf(sb, "%s<frontstuff>%ju</frontstuff>\n",
-		    indent, (intmax_t)gsp->frontstuff);
 	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
@@ -400,7 +384,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
 	void **vp;
-	int error, i;
+	int error;
 
 	g_topology_assert();
 	vp = (void **)extrap;
@@ -426,11 +410,6 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 		g_destroy_geom(gp);
 		return (NULL);
 	}
-	/* Find out if there are any magic bytes on the consumer */
-	i = sizeof gsp->cfrontstuff;
-	error = g_io_getattr("GEOM::frontstuff", cp, &i, &gsp->cfrontstuff);
-	if (error)
-		gsp->cfrontstuff = 0;
 	*vp = gsp->softc;
 	*cpp = cp;
 	return (gp);

@@ -178,12 +178,6 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (sectorsize != 512)
 			break;
 
-		/*
-		 * Reserve the driver record. XXX Should the partition
-		 * map be included ?
-		 */
-		gsp->frontstuff = sectorsize;
-
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;

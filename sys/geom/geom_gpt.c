@@ -209,9 +209,6 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		tblsz = (hdr->hdr_entries * hdr->hdr_entsz + secsz - 1) &
 		    ~(secsz - 1);
 		buf = g_read_data(cp, hdr->hdr_lba_table * secsz, tblsz, &error);
-
-		gsp->frontstuff = hdr->hdr_lba_start * secsz;
-
 		for (i = 0; i < hdr->hdr_entries; i++) {
 			struct uuid unused = GPT_ENT_TYPE_UNUSED;
 			struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
