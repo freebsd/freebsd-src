@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.28 1997/07/01 06:13:50 jkh Exp $";
+	"$Id: file.c,v 1.29 1997/10/08 07:47:54 charnier Exp $";
 #endif
 
 /*
@@ -294,15 +294,16 @@ fileFindByPath(char *base, char *fname)
     if (base) {
 	strcpy(tmp, base);
 
-	cp = strrchr(fname, '/');
+	cp = strrchr(tmp, '/');
 	if (cp) {
 	    *cp = '\0';	/* chop name */
-	    cp = strrchr(fname, '/');
+	    cp = strrchr(tmp, '/');
 	}
 	if (cp) {
 	    *(cp + 1) = '\0';
 	    strcat(cp, "All/");
 	    strcat(cp, fname);
+	    strcat(cp, ".tgz");
 	    if (fexists(tmp))
 		return tmp;
 	}
