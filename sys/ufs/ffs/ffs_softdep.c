@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.12 1998/06/12 21:21:26 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.13 1998/08/12 20:46:47 julian Exp $
  */
 
 /*
@@ -209,6 +209,7 @@ struct bio_ops bioops = {
 	softdep_disk_io_initiation,		/* io_start */
 	softdep_disk_write_complete,		/* io_complete */
 	softdep_deallocate_dependencies,	/* io_deallocate */
+	softdep_fsync,				/* io_fsync */
 	softdep_process_worklist,		/* io_sync */
 };
 

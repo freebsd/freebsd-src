@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.55 1998/09/05 14:13:12 phk Exp $
+ * $Id: buf.h,v 1.56 1998/09/15 08:55:01 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -48,6 +48,7 @@
 
 struct buf;
 struct mount;
+struct vnode;
 
 /*
  * To avoid including <ufs/ffs/softdep.h> 
@@ -63,6 +64,7 @@ extern struct bio_ops {
 	void	(*io_start) __P((struct buf *));
 	void	(*io_complete) __P((struct buf *));
 	void	(*io_deallocate) __P((struct buf *));
+	int	(*io_fsync) __P((struct vnode *));
 	int	(*io_sync) __P((struct mount *));
 } bioops;
 
