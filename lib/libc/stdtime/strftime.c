@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.11 1996/07/19 15:17:44 wollman Exp $";
+	"$Id: strftime.c,v 1.12 1996/11/26 02:52:52 ache Exp $";
 #endif
 
 #ifndef lint
@@ -509,6 +509,7 @@ __time_load_locale(const char *name)
 
 	if (!_PathLocale)
 		goto no_locale;
+	/* Range checking already done at upper level caller */
 	strcpy(filename, _PathLocale);
 	strcat(filename, "/");
 	strcat(filename, name);
