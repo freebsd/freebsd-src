@@ -141,6 +141,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 'b':
+	    InstalledPkg = optarg;
 	    while ((tmp = strrchr(optarg, (int)'/')) != NULL) {
 		*tmp++ = '\0';
 		/*
