@@ -10,8 +10,8 @@ INSTALL_ONLY_COMPRESSED?=
 # SGML content
 SRCS+=	article.sgml
 SRCS+=	../common/artheader.sgml
+SRCS+=	../common/abstract.sgml
 SRCS+=	../common/install.sgml
-SRCS+=	../common/floppies.sgml
 SRCS+=	../common/layout.sgml
 SRCS+=	../common/trouble.sgml
 SRCS+=	../common/upgrade.sgml
