@@ -14,9 +14,9 @@
 #
 # Usage:
 #
-# mkisoimages.sh [-b] image-label image-name base-bits-dir [extra-bits-dir]
+# mkisoimages.sh [-[e]b] image-label image-name base-bits-dir [extra-bits-dir]
 #
-# Where -b is passed if the ISO image should be made "bootable" by
+# Where -[e]b is passed if the ISO image should be made "bootable" by
 # whatever standards this architecture supports (may be unsupported),
 # image-label is the ISO image label, image-name is the filename of the
 # resulting ISO image, base-bits-dir contains the image contents and
@@ -24,8 +24,10 @@
 # into base-bits-dir as part of making the image.
 
 if [ "x$1" = "x-b" ]; then
-	# This is highly x86-centric and will be used directly below.
 	bootable="-b boot/cdboot -no-emul-boot"
+	shift
+elif [ "x$1" = "x-eb" ]; then
+	bootable="-b floppies/boot.flp -c floppies/boot.catalog"
 	shift
 else
 	bootable=""
