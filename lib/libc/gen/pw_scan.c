@@ -133,7 +133,8 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	pw->pw_gid = id;
 
 	if (flags & _PWSCAN_MASTER ) {
-		pw->pw_class = strsep(&bp, ":");		/* class */
+		if (!(pw->pw_class = strsep(&bp, ":")))		/* class */
+			goto fmt;
 		if(pw->pw_class[0]) pw->pw_fields |= _PWF_CLASS;
 		
 		if (!(p = strsep(&bp, ":")))			/* change */
