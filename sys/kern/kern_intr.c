@@ -61,22 +61,22 @@ struct	int_entropy {
 	uintptr_t vector;
 };
 
-void	*vm_ih;
-void	*softclock_ih;
 struct	ithd *clk_ithd;
 struct	ithd *tty_ithd;
+void	*softclock_ih;
+void	*vm_ih;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
-
-static void	ithread_update(struct ithd *);
-static void	ithread_loop(void *);
-static void	start_softintr(void *);
 
 static int intr_storm_threshold = 500;
 TUNABLE_INT("hw.intr_storm_threshold", &intr_storm_threshold);
 SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RW,
     &intr_storm_threshold, 0,
-    "Number of consecutive interrupts before storm protection is enabled.");
+    "Number of consecutive interrupts before storm protection is enabled");
+
+static void	ithread_loop(void *);
+static void	ithread_update(struct ithd *);
+static void	start_softintr(void *);
 
 u_char
 ithread_priority(enum intr_type flags)
@@ -540,15 +540,16 @@ ithread_loop(void *arg)
 			    intr_storm_threshold) {
 				if (!warned) {
 					printf(
-	"Interrupt storm detected on \"%s\", throttling interrupt source\n",
+	"Interrupt storm detected on \"%s\"; throttling interrupt source\n",
 					    p->p_comm);
 					warned = 1;
 				}
-				tsleep(&count, td->td_priority, "throttle",
+				tsleep(&count, td->td_priority, "istorm",
 				    hz / 10);
 				count = 0;
 			} else
 				count++;
+
 restart:
 			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
