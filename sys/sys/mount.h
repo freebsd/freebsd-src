@@ -341,16 +341,6 @@ struct xvfsconf {
 	struct	vfsconf *vfc_next;	/* next in list */
 };
 
-/* Userland version of the struct vfsconf. */
-struct xvfsconf {
-	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
-	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
-	int	vfc_typenum;		/* historic filesystem type number */
-	int	vfc_refcount;		/* number mounted of this type */
-	int	vfc_flags;		/* permanent flags */
-	struct	vfsconf *vfc_next;	/* next in list */
-};
-
 struct ovfsconf {
 	void	*vfc_vfsops;
 	char	vfc_name[32];
