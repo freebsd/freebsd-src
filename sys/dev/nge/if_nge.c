@@ -161,7 +161,9 @@ static int nge_newbuf		__P((struct nge_softc *,
 static int nge_encap		__P((struct nge_softc *,
 					struct mbuf *, u_int32_t *));
 static void nge_rxeof		__P((struct nge_softc *));
+#ifdef notdef
 static void nge_rxeoc		__P((struct nge_softc *));
+#endif
 static void nge_txeof		__P((struct nge_softc *));
 static void nge_intr		__P((void *));
 static void nge_tick		__P((void *));
@@ -1349,6 +1351,7 @@ static void nge_rxeof(sc)
 	return;
 }
 
+#ifdef notdef
 void nge_rxeoc(sc)
 	struct nge_softc	*sc;
 {
@@ -1360,6 +1363,7 @@ void nge_rxeoc(sc)
 	nge_init(sc);
 	return;
 }
+#endif
 
 /*
  * A frame was downloaded to the chip. It's safe for us to clean up
