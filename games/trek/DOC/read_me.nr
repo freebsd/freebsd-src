@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .de @h
 'sp 4
 'tl 'TREK SETUP INSTRUCTIONS''%'
@@ -195,7 +196,7 @@ There are many neat things
 which could go in,
 if there were only enough space.
 However,
-I have specifically not gone to seperated I/D
+I have specifically not gone to separated I/D
 space.
 The main reason is that I would like future versions
 of the game
