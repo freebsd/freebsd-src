@@ -58,7 +58,7 @@
 
 MODULE_VERSION(agp, 1);
 
-MALLOC_DEFINE(M_AGP, "agp", "AGP data structures");
+static MALLOC_DEFINE(M_AGP, "agp", "AGP data structures");
 
 #define CDEV_MAJOR	148
 				/* agp_drv.c */

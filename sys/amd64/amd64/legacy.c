@@ -73,9 +73,9 @@
 #include <sys/rtprio.h>
 
 #ifdef PC98
-MALLOC_DEFINE(M_BUSSPACEHANDLE, "busspacehandle", "Bus space handle");
+static MALLOC_DEFINE(M_BUSSPACEHANDLE, "busspacehandle", "Bus space handle");
 #endif
-MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
+static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 struct nexus_device {
 	struct resource_list	nx_resources;
 	int			nx_pcibus;

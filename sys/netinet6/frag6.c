@@ -71,7 +71,7 @@ u_int frag6_nfragpackets;
 struct	ip6q ip6q;	/* ip6 reassemble queue */
 
 /* FreeBSD tweak */
-MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
+static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 
 /*
  * Initialise reassembly queue and fragment identifier.

@@ -32,7 +32,7 @@
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 
-MALLOC_DEFINE(M_EVENTHANDLER, "eventhandler", "Event handler records");
+static MALLOC_DEFINE(M_EVENTHANDLER, "eventhandler", "Event handler records");
 
 /* List of 'slow' lists */
 static TAILQ_HEAD(, eventhandler_list)	eventhandler_lists;

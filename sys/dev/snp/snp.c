@@ -61,7 +61,7 @@ static struct cdevsw snp_cdevsw = {
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
-MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
+static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
 
 static struct tty	*snpdevtotty __P((dev_t dev));
 static int		snp_detach __P((struct snoop *snp));

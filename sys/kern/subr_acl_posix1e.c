@@ -46,7 +46,7 @@
 #include <sys/stat.h>
 #include <sys/acl.h>
 
-MALLOC_DEFINE(M_ACL, "acl", "access control list");
+static MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
 static int	vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
