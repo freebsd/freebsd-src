@@ -242,6 +242,7 @@ Connectix QuickCam
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
 Cortex1 frame grabber
+Various Frame grabbers based on Brooktree Bt848 chip.
 
 HP4020i, Philips CDD2000 and PLASMON WORM (CDR) drives.
 
