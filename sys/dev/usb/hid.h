@@ -38,7 +38,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-enum hid_kind { 
+enum hid_kind {
 	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
 };
 
@@ -84,8 +84,8 @@ struct hid_data *hid_start_parse(void *d, int len, int kindset);
 void hid_end_parse(struct hid_data *s);
 int hid_get_item(struct hid_data *s, struct hid_item *h);
 int hid_report_size(void *buf, int len, enum hid_kind k, u_int8_t *id);
-int hid_locate(void *desc, int size, u_int32_t usage, 
-		    enum hid_kind kind, struct hid_location *loc, 
+int hid_locate(void *desc, int size, u_int32_t usage,
+		    enum hid_kind kind, struct hid_location *loc,
 		    u_int32_t *flags);
 u_long hid_get_data(u_char *buf, struct hid_location *loc);
 int hid_is_collection(void *desc, int size, u_int32_t usage);

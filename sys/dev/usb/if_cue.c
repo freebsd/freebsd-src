@@ -365,7 +365,7 @@ cue_setmulti(struct cue_softc *sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = cue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);		
+		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);
 	}
 
 	/*
@@ -374,7 +374,7 @@ cue_setmulti(struct cue_softc *sc)
  	 */
 	if (ifp->if_flags & IFF_BROADCAST) {
 		h = cue_crc(ifp->if_broadcastaddr);
-		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);		
+		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);
 	}
 
 	cue_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,

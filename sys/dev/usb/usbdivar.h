@@ -243,9 +243,9 @@ usbd_status	usbd_setup_pipe(usbd_device_handle dev,
 				usbd_interface_handle iface,
 				struct usbd_endpoint *, int,
 				usbd_pipe_handle *pipe);
-usbd_status	usbd_new_device(device_ptr_t parent, 
+usbd_status	usbd_new_device(device_ptr_t parent,
 				usbd_bus_handle bus, int depth,
-				int lowspeed, int port, 
+				int lowspeed, int port,
 				struct usbd_port *);
 void		usbd_remove_device(usbd_device_handle, struct usbd_port *);
 int		usbd_printBCD(char *cp, int bcd);

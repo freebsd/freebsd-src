@@ -240,7 +240,7 @@ typedef void (*transfer_cb_f)	(struct umass_softc *sc, void *priv,
 
 typedef void (*wire_reset_f)	(struct umass_softc *sc, int status);
 typedef void (*wire_transfer_f)	(struct umass_softc *sc, int lun,
-				void *cmd, int cmdlen, void *data, int datalen, 
+				void *cmd, int cmdlen, void *data, int datalen,
 				int dir, transfer_cb_f cb, void *priv);
 typedef void (*wire_state_f)	(usbd_xfer_handle xfer,
 				usbd_private_handle priv, usbd_status err);
@@ -318,11 +318,11 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	},
 	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB2IDE, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE
 	},
 	{ USB_VENDOR_GENESYS,  USB_PRODUCT_GENESYS_GL641USB, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE
 	},
 	{ USB_VENDOR_HITACHI, USB_PRODUCT_HITACHI_DVDCAM_USB, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI_I,
@@ -344,7 +344,7 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	},
 	{ USB_VENDOR_MELCO,  USB_PRODUCT_MELCO_DUBPXXG, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE 
+	  FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE
 	},
 	{ USB_VENDOR_MICROTECH, USB_PRODUCT_MICROTECH_DPCM, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_CBI,
@@ -425,12 +425,12 @@ struct umass_softc {
 	 * into their derivatives, like UFI, ATAPI, and friends.
 	 */
 	command_transform_f	transform;	/* command transform */
-	
+
 	/* Bulk specific variables for transfers in progress */
 	umass_bbb_cbw_t		cbw;	/* command block wrapper */
 	umass_bbb_csw_t		csw;	/* command status wrapper*/
 	/* CBI specific variables for transfers in progress */
-	umass_cbi_cbl_t		cbl;	/* command block */ 
+	umass_cbi_cbl_t		cbl;	/* command block */
 	umass_cbi_sbl_t		sbl;	/* status block */
 
 	/* generic variables for transfers in progress */
@@ -452,7 +452,7 @@ struct umass_softc {
 #	define XFER_BBB_RESET1		6
 #	define XFER_BBB_RESET2		7
 #	define XFER_BBB_RESET3		8
-	
+
 #	define XFER_CBI_CB		0	/* CBI */
 #	define XFER_CBI_DATA		1
 #	define XFER_CBI_STATUS		2
@@ -469,7 +469,7 @@ struct umass_softc {
 	int			transfer_dir;		/* data direction */
 	void			*transfer_data;		/* data buffer */
 	int			transfer_datalen;	/* (maximum) length */
-	int			transfer_actlen;	/* actual length */ 
+	int			transfer_actlen;	/* actual length */
 	transfer_cb_f		transfer_cb;		/* callback */
 	void			*transfer_priv;		/* for callback */
 	int			transfer_status;
@@ -555,7 +555,7 @@ Static usbd_status umass_setup_transfer	(struct umass_softc *sc,
 Static usbd_status umass_setup_ctrl_transfer	(struct umass_softc *sc,
 				usbd_device_handle udev,
 				usb_device_request_t *req,
-				void *buffer, int buflen, int flags, 
+				void *buffer, int buflen, int flags,
 				usbd_xfer_handle xfer);
 Static void umass_clear_endpoint_stall	(struct umass_softc *sc,
 				u_int8_t endpt, usbd_pipe_handle pipe,
@@ -574,7 +574,7 @@ Static void umass_bbb_state	(usbd_xfer_handle xfer,
 				usbd_status err);
 Static int umass_bbb_get_max_lun
 				(struct umass_softc *sc);
- 
+
 /* CBI related functions */
 Static int umass_cbi_adsc	(struct umass_softc *sc,
 				char *buffer, int buflen,
@@ -728,7 +728,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
 		return(UMATCH_NONE);
-	
+
 	switch (id->bInterfaceSubClass) {
 	case UISUBCLASS_SCSI:
 		sc->proto |= UMASS_PROTO_SCSI;
@@ -1208,7 +1208,7 @@ umass_bbb_reset(struct umass_softc *sc, int status)
 
 	DPRINTF(UDMASS_BBB, ("%s: Bulk Reset\n",
 		USBDEVNAME(sc->sc_dev)));
-	
+
 	sc->transfer_state = TSTATE_BBB_RESET1;
 	sc->transfer_status = status;
 
@@ -1241,7 +1241,7 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 	 * is stored in the buffer pointed to by data.
 	 *
 	 * umass_bbb_transfer initialises the transfer and lets the state
-	 * machine in umass_bbb_state handle the completion. It uses the 
+	 * machine in umass_bbb_state handle the completion. It uses the
 	 * following states:
 	 * TSTATE_BBB_COMMAND
 	 *   -> TSTATE_BBB_DATA
@@ -1453,7 +1453,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 			umass_bbb_reset(sc, STATUS_WIRE_FAILED);
 			return;
 		}
-	
+
 		/* Status transport phase, setup transfer */
 		if (sc->transfer_state == TSTATE_BBB_COMMAND ||
 		    sc->transfer_state == TSTATE_BBB_DATA ||
@@ -1549,7 +1549,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 		} else if (sc->csw.bCSWStatus == CSWSTATUS_PHASE) {
 			printf("%s: Phase Error, residue = %d\n",
 				USBDEVNAME(sc->sc_dev), Residue);
-				
+
 			umass_bbb_reset(sc, STATUS_WIRE_FAILED);
 			return;
 
@@ -1674,7 +1674,7 @@ umass_cbi_adsc(struct umass_softc *sc, char *buffer, int buflen,
 	KASSERT(sc->proto & (UMASS_PROTO_CBI|UMASS_PROTO_CBI_I),
 		("%s: umass_cbi_adsc: wrong sc->proto 0x%02x\n",
 			USBDEVNAME(sc->sc_dev), sc->proto));
-	
+
 	usbd_interface2device_handle(sc->iface, &udev);
 
 	sc->request.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -1699,7 +1699,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 
 	/*
 	 * Command Block Reset Protocol
-	 * 
+	 *
 	 * First send a reset request to the device. Then clear
 	 * any possibly stalled bulk endpoints.
 
@@ -1713,7 +1713,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 
 	DPRINTF(UDMASS_CBI, ("%s: CBI Reset\n",
 		USBDEVNAME(sc->sc_dev)));
-	
+
 	KASSERT(sizeof(sc->cbl) >= SEND_DIAGNOSTIC_CMDLEN,
 		("%s: CBL struct is too small (%ld < %d)\n",
 			USBDEVNAME(sc->sc_dev),
@@ -1753,7 +1753,7 @@ umass_cbi_transfer(struct umass_softc *sc, int lun,
 	 * is stored in the buffer pointed to by data.
 	 *
 	 * umass_cbi_transfer initialises the transfer and lets the state
-	 * machine in umass_cbi_state handle the completion. It uses the 
+	 * machine in umass_cbi_state handle the completion. It uses the
 	 * following states:
 	 * TSTATE_CBI_COMMAND
 	 *   -> XXX fill in
@@ -1835,7 +1835,7 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 			return;
 		}
-		
+
 		sc->transfer_state = TSTATE_CBI_DATA;
 		if (sc->transfer_dir == DIR_IN) {
 			if (umass_setup_transfer(sc, sc->bulkin_pipe,
@@ -1940,7 +1940,7 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 		if (sc->proto & UMASS_PROTO_UFI) {
 			int status;
-			
+
 			/* Section 3.4.3.1.3 specifies that the UFI command
 			 * protocol returns an ASC and ASCQ in the interrupt
 			 * data block.
@@ -2322,7 +2322,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			cmd = (unsigned char *) &csio->cdb_io.cdb_bytes;
 		}
 		cmdlen = csio->cdb_len;
-		rcmd = (unsigned char *) &sc->cam_scsi_command;	
+		rcmd = (unsigned char *) &sc->cam_scsi_command;
 		rcmdlen = sizeof(sc->cam_scsi_command);
 
 		/* sc->transform will convert the command to the command
@@ -2334,7 +2334,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 
 		if (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
-			/* 
+			/*
 			 * Handle EVPD inquiry for broken devices first
 			 * NO_INQUIRY also implies NO_INQUIRY_EVPD
 			 */
@@ -2428,7 +2428,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		umass_reset(sc, umass_cam_cb, (void *) ccb);
 		break;
-	} 
+	}
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;

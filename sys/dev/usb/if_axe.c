@@ -924,7 +924,7 @@ axe_init(void *xsc)
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
-	
+
 	axe_reset(sc);
 
 #ifdef notdef

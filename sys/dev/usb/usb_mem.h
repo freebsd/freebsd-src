@@ -60,7 +60,7 @@ void		usb_freemem(usbd_bus_handle, usb_dma_t *);
 
 #elif defined(__FreeBSD__)
 
-/* 
+/*
  * FreeBSD does not have special functions for dma memory, so let's keep it
  * simple for now.
  */

@@ -253,7 +253,7 @@ vendor MCT		0x0711	MCT
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
-vendor LINKSYS2		0x077b	Linksys 
+vendor LINKSYS2		0x077b	Linksys
 vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk Corp
 vendor BRIMAX		0x078e	Brimax
@@ -819,7 +819,7 @@ product LOGITECH UN58A		0xc030	iFeel Mouse
 product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
-product LOGITECH WMJOY		0xc281	WingMan Force joystick 
+product LOGITECH WMJOY		0xc281	WingMan Force joystick
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
 product LOGITECH MX700		0xc506	Cordless optical mouse
@@ -1007,7 +1007,7 @@ product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
 
 /* Rainbow Technologies products */
-product	RAINBOW IKEY2000	0x1200	i-Key 2000  
+product	RAINBOW IKEY2000	0x1200	i-Key 2000
 
 /* ReakTek products */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet (GREEN HOUSE)
@@ -1113,7 +1113,7 @@ product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
 
 /* Taugagreining products */
 product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
- 
+
 /* TDK products */
 product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664
 product TDK UCA1464		0x0116	USB-cdmaOne Adapter UCA1464
@@ -1162,13 +1162,13 @@ product VISIONEER 6100		0x0231	OneTouch 6100
 product VISIONEER 6200		0x0311	OneTouch 6200
 product VISIONEER 8100		0x0321	OneTouch 8100
 product VISIONEER 8600		0x0331	OneTouch 8600
-								       
+
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
 product WACOM GRAPHIRE		0x0010	Graphire
 product WACOM INTUOSA5		0x0021	Intuos A5
 product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
- 
+
 /* Xirlink products */
 product XIRLINK PCCAM		0x8080	IBM PC Camera
 
