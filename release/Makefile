@@ -706,6 +706,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  ${KERNEL} && \
+			strip --strip-debug ${KERNEL} && \
 			cp ${KERNEL} ${RD}/kernels/${KERNEL}
 
 #
