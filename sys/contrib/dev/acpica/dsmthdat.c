@@ -392,6 +392,7 @@ AcpiDsMethodDataSetValue (
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *NewDesc = Object;
 
 
     ACPI_FUNCTION_TRACE ("DsMethodDataSetValue");
@@ -410,17 +411,32 @@ AcpiDsMethodDataSetValue (
         return_ACPI_STATUS (Status);
     }
 
-    /* 
-     * Increment ref count so object can't be deleted while installed.
-     * NOTE: We do not copy the object in order to preserve the call by
-     * reference semantics of ACPI Control Method invocation.
-     * (See ACPI Specification 2.0C)
+    /*
+     * If the object has just been created and is not attached to anything,
+     * (the reference count is 1), then we can just store it directly into
+     * the arg/local.  Otherwise, we must copy it.
      */
-    AcpiUtAddReference (Object);
+    if (Object->Common.ReferenceCount > 1)
+    {
+        Status = AcpiUtCopyIobjectToIobject (Object, &NewDesc, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+       ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object Copied %p, new %p\n",
+           Object, NewDesc));
+    }
+    else
+    {
+        /* Increment ref count so object can't be deleted while installed */
+
+        AcpiUtAddReference (NewDesc);
+    }
 
     /* Install the object */
 
-    Node->Object = Object;
+    Node->Object = NewDesc;
     return_ACPI_STATUS (Status);
 }
 
