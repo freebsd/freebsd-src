@@ -116,7 +116,8 @@ astattach(struct atapi_softc *atp)
 	return -1;
     }
     ast_describe(stp);
-    if (!strcmp(stp->atp->atapi_parm->model, " OnStream DI-30")) {
+    if (!strcmp(ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+		"OnStream DI-30")) {
 	struct ast_transferpage transfer;
 	struct ast_identifypage identify;
 
@@ -179,13 +180,9 @@ ast_sense(struct ast_softc *stp)
 static void 
 ast_describe(struct ast_softc *stp)
 {
-    int8_t model_buf[40+1];
-    int8_t revision_buf[8+1];
-
-    bpack(stp->atp->atapi_parm->model, model_buf, sizeof(model_buf));
-    bpack(stp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
-    printf("ast%d: <%s/%s> tape drive at ata%d as %s\n",
-	   stp->lun, model_buf, revision_buf,
+    printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
+           stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+           ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
 	   stp->atp->controller->lun,
 	   (stp->atp->unit == ATA_MASTER) ? "master" : "slave ");
     printf("ast%d: ", stp->lun);
@@ -193,7 +190,7 @@ ast_describe(struct ast_softc *stp)
     printf("transfer limit %d blk%s, ", stp->cap.ctl, (stp->cap.ctl>1)?"s":"");
     printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
     printf("%s\n", ata_mode2str(stp->atp->controller->mode[
-                                (stp->atp->unit == ATA_MASTER) ? 0 : 1]));
+                                ATA_DEV(stp->atp->unit)]));
     printf("ast%d: ", stp->lun);
     switch (stp->cap.medium_type) {
 	case 0x00:	printf("Drive empty"); break;
@@ -536,7 +533,7 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 5*60);
+    return atapi_wait_ready(stp->atp, 10*60);
 }
 
 static int32_t

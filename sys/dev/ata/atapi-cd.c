@@ -245,13 +245,10 @@ acd_describe(struct acd_softc *cdp)
 {
     int32_t comma = 0;
     int8_t *mechanism;
-    int8_t model_buf[40+1];
-    int8_t revision_buf[8+1];
 
-    bpack(cdp->atp->atapi_parm->model, model_buf, sizeof(model_buf));
-    bpack(cdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
-    printf("acd%d: <%s/%s> %s drive at ata%d as %s\n",
-	   cdp->lun, model_buf, revision_buf,
+    printf("acd%d: <%.40s/%.8s> %s drive at ata%d as %s\n",
+	   cdp->lun, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model, 
+	   ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->revision,
 	   (cdp->cap.write_dvdr) ? "DVD-R" : 
 		(cdp->cap.write_dvdram) ? "DVD-RAM" : 
 		    (cdp->cap.write_cdrw) ? "CD-RW" :
@@ -280,7 +277,7 @@ acd_describe(struct acd_softc *cdp)
     }
     printf("%s %s\n", 
 	   comma ? "," : "", ata_mode2str(cdp->atp->controller->mode[
-	   (cdp->atp->unit == ATA_MASTER) ? 0 : 1]));
+	   ATA_DEV(cdp->atp->unit)]));
 
     printf("acd%d: Reads:", cdp->lun);
     comma = 0;
@@ -439,23 +436,20 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	return EBUSY;
 
     if (flags & FWRITE) {
-	if ((cdp->flags & F_BOPEN) || cdp->refcnt)
+	if (cdp->refcnt)
 	    return EBUSY;
 	else
 	    cdp->flags |= F_WRITING;
     }
 
     dev->si_bsize_phys = 2048; /* XXX SOS */
-    if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
+    if (!cdp->refcnt) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
 	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
 	    acd_read_toc(cdp);
     }
-    if (fmt == S_IFBLK)
-	cdp->flags |= F_BOPEN;
-    else
-	cdp->refcnt++;
+    cdp->refcnt++;
     return 0;
 }
 
@@ -464,13 +458,10 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
-    if (fmt == S_IFBLK)
-	cdp->flags &= ~F_BOPEN;
-    else
-	cdp->refcnt--;
+    cdp->refcnt--;
 
     /* are we the last open ?? */
-    if (!(cdp->flags & F_BOPEN) && !cdp->refcnt)
+    if (!cdp->refcnt)
 	acd_prevent_allow(cdp, 0);
 
     cdp->flags &= ~(F_LOCKED | F_WRITING);
@@ -533,7 +524,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case CDIOCEJECT:
-	if ((cdp->flags & F_BOPEN) && cdp->refcnt) {
+	if (cdp->refcnt > 1) {
 	    error = EBUSY;
 	    break;
 	}
@@ -541,7 +532,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case CDIOCCLOSE:
-	if ((cdp->flags & F_BOPEN) && cdp->refcnt)
+	if (cdp->refcnt > 1)
 	    break;
 	error = acd_eject(cdp, 1);
 	break;

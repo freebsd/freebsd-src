@@ -109,104 +109,6 @@
 #define ATAPI_MECH_STATUS		0xbd	/* get changer status */
 #define ATAPI_READ_CD			0xbe	/* read data */
 
-/* ATAPI device parameter information */
-struct atapi_params {
-    u_int8_t	cmdsize		:2;		/* packet command size */
-#define		ATAPI_PSIZE_12		0	/* 12 bytes */
-#define		ATAPI_PSIZE_16		1	/* 16 bytes */
-
-    u_int8_t			:3;
-    u_int8_t	drqtype		:2;		/* DRQ type */
-#define		ATAPI_DRQT_MPROC	0	/* cpu	  3 ms delay */
-#define		ATAPI_DRQT_INTR		1	/* intr	 10 ms delay */
-#define		ATAPI_DRQT_ACCEL	2	/* accel 50 us delay */
-
-    u_int8_t	removable	:1;		/* device is removable */
-    u_int8_t	device_type	:5;		/* device type */
-#define		ATAPI_TYPE_DIRECT	0	/* disk/floppy */
-#define		ATAPI_TYPE_TAPE		1	/* streaming tape */
-#define		ATAPI_TYPE_CDROM	5	/* CD-ROM device */
-#define		ATAPI_TYPE_OPTICAL	7	/* optical disk */
-
-    u_int8_t			:1;
-    u_int8_t	proto		:2;		/* command protocol */
-#define		ATAPI_PROTO_ATAPI	2
-
-    int16_t	reserved1;
-    int16_t	reserved2;
-    int16_t	reserved3;
-    int16_t	reserved4;
-    int16_t	reserved5;
-    int16_t	reserved6;
-    int16_t	reserved7;
-    int16_t	reserved8;
-    int16_t	reserved9;
-    int8_t	serial[20];			/* serial number */
-    int16_t	reserved20;
-    int16_t	reserved21;
-    int16_t	reserved22;
-    int8_t	revision[8];			/* firmware revision */
-    int8_t	model[40];			/* model name */
-    int16_t	reserved47;
-    int16_t	reserved48;
-
-    u_int8_t	vendorcap;			/* vendor capabilities */
-    u_int8_t	dmaflag		:1;		/* DMA supported */
-    u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
-    u_int8_t	iordydis	:1;		/* IORDY can be disabled */
-    u_int8_t	iordyflag	:1;		/* IORDY supported */
-    u_int8_t			:1;
-    u_int8_t	ovlapflag	:1;		/* overlap supported */
-    u_int8_t			:1;
-    u_int8_t	idmaflag	:1;		/* interleaved DMA supported */
-    int16_t	capvalidate;			/* validation for above */
-
-    u_int16_t	piotiming;			/* PIO cycle timing */
-    u_int16_t	dmatiming;			/* DMA cycle timing */
-
-    u_int16_t	atavalid;			/* fields valid */
-#define		ATAPI_FLAG_54_58	1	/* words 54-58 valid */
-#define		ATAPI_FLAG_64_70	2	/* words 64-70 valid */
-
-    int16_t	reserved54[8];
-
-    int16_t	sdmamodes;			/* singleword DMA modes */
-    int16_t	wdmamodes;			/* multiword DMA modes */
-    int16_t	apiomodes;			/* advanced PIO modes */ 
-
-    u_int16_t	mwdmamin;			/* min. M/W DMA time/word ns */
-    u_int16_t	mwdmarec;			/* rec. M/W DMA time ns */
-    u_int16_t	pioblind;			/* min. PIO cycle w/o flow */
-    u_int16_t	pioiordy;			/* min. PIO cycle IORDY flow */
-
-    int16_t	reserved69;
-    int16_t	reserved70;
-    u_int16_t	rlsovlap;			/* rel time (us) for overlap */
-    u_int16_t	rlsservice;			/* rel time (us) for service */
-    int16_t	reserved73;
-    int16_t	reserved74;
-    int16_t	queuelen;
-    int16_t	reserved76;
-    int16_t	reserved77;
-    int16_t	reserved78;
-    int16_t	reserved79;
-    int16_t	versmajor;
-    int16_t	versminor;
-    int16_t	featsupp1;
-    int16_t	featsupp2;
-    int16_t	featsupp3;
-    int16_t	featenab1;
-    int16_t	featenab2;
-    int16_t	featenab3;
-    int16_t	udmamodes;			/* UltraDMA modes */
-    int16_t	erasetime;
-    int16_t	enherasetime;
-    int16_t	apmlevel;
-    int16_t	reserved92[34];
-    int16_t	rmvcap;
-    int16_t	securelevel;
-};
-
 /* ATAPI request sense structure */   
 struct atapi_reqsense {
     u_int8_t	error_code	:7;		/* current or deferred errors */
@@ -233,7 +135,6 @@ struct atapi_reqsense {
 
 struct atapi_softc {
     struct ata_softc		*controller;	/* ptr to parent ctrl */
-    struct atapi_params		*atapi_parm;	/* ata device params */
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
     int8_t			*devname;	/* this devices name */
     int8_t			cmd;		/* last cmd executed */
@@ -268,6 +169,7 @@ struct atapi_request {
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
 
+void atapi_attach(struct ata_softc *, int32_t);
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
 int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, void *, struct buf *);
