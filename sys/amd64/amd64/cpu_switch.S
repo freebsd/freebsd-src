@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.4 1997/07/30 22:51:11 smp Exp smp $
+ *	$Id: swtch.s,v 1.5 1997/08/04 17:17:29 smp Exp smp $
  */
 
 #include "npx.h"
@@ -46,6 +46,7 @@
 #ifdef SMP
 #include <machine/pmap.h>
 #include <machine/apic.h>
+#include <machine/smptests.h>		/** GRAB_LOPRIO */
 #endif /* SMP */
 
 #include "assym.s"
@@ -509,6 +510,13 @@ swtch_com:
 	movl	%eax,(%esp)
 
 #ifdef SMP
+#ifdef GRAB_LOPRIO				/* hold LOPRIO for INTs */
+#ifdef CHEAP_TPR
+	movl	$0, lapic_tpr
+#else
+	andl	$~APIC_TPR_PRIO, lapic_tpr
+#endif /** CHEAP_TPR */
+#endif /** GRAB_LOPRIO */
 	movl	_cpuid,%eax
 	movb	%al, P_ONCPU(%ecx)
 #endif /* SMP */

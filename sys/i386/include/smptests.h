@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.19 1997/07/30 22:44:20 smp Exp smp $
+ *	$Id: smptests.h,v 1.20 1997/08/04 17:20:39 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -63,6 +63,12 @@
  * Note: currently broken for INTerrupting ISA cards, including onboard IDE.
  */
 #define PEND_INTS
+
+
+/*
+ * Portions of the old TEST_LOPRIO code, back from the grave!
+ */
+#define GRAB_LOPRIO
 
 
 /*
