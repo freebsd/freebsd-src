@@ -1267,8 +1267,8 @@ bounds_check_with_label(struct bio *bp, struct disklabel *lp, int wlabel)
         return(1);
 
 bad:
-        bp->bio_flags |= BIO_ERROR;
 #endif
+        bp->bio_flags |= BIO_ERROR;
         return(-1);
 
 }
