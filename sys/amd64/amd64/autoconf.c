@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.97 1998/05/12 17:33:58 bde Exp $
+ *	$Id: autoconf.c,v 1.98 1998/06/09 12:52:31 bde Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
 #include "opt_mfs.h"
-#include "opt_nfs.h"
+#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
