@@ -1,6 +1,6 @@
 /*
  * Product specific probe and attach routines for:
- *      294X and aic7870 motherboard SCSI controllers
+ *      2940, aic7870, and aic7850 motherboard SCSI controllers
  *
  * Copyright (c) 1995 Justin T. Gibbs
  * All rights reserved.
@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.10 1995/05/30 08:12:59 rgrimes Exp $
+ *	$Id: aic7870.c,v 1.10.2.1 1995/06/04 09:15:44 davidg Exp $
  */
 
 #include <pci.h>
