@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.136 1998/12/27 12:52:45 phk Exp $
+#	$Id: GENERIC,v 1.137 1998/12/27 13:06:40 phk Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -41,6 +41,15 @@ options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
 
 config		kernel	root on wd0
+
+# To make an SMP kernel, the next two are needed
+#options	SMP			# Symmetric MultiProcessor Kernel
+#options	APIC_IO			# Symmetric (APIC) I/O
+# Optionally these may need tweaked, (defaults shown):
+#options	NCPU=2			# number of CPUs
+#options	NBUS=4			# number of busses
+#options	NAPIC=1			# number of IO APICs
+#options	NINTR=24		# number of INTs
 
 controller	isa0
 controller	eisa0
