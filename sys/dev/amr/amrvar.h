@@ -24,6 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  *      $FreeBSD$
  */
 
@@ -32,13 +39,13 @@
 #endif
 
 #ifdef AMR_DEBUG
-# define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);} while(0)
-# define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __FUNCTION__);} while(0)
+# define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
+# define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
 #else
 # define debug(level, fmt, args...)
 # define debug_called(level)
 #endif
-#define xdebug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
+#define xdebug(fmt, args...)	printf("%s: " fmt "\n", __func__ , ##args)
 
 /*
  * Per-logical-drive datastructure
@@ -103,6 +110,7 @@ struct amr_command
     u_int32_t			ac_ccb_dataphys;
 
     void			(* ac_complete)(struct amr_command *ac);
+    void			*ac_private;
 };
 
 struct amr_command_cluster
@@ -199,8 +207,6 @@ extern int		amr_flush(struct amr_softc *sc);
 extern int		amr_done(struct amr_softc *sc);
 extern void		amr_startio(struct amr_softc *sc);
 
-extern devclass_t	amr_devclass;
-
 /*
  * Command buffer allocation.
  */
@@ -225,7 +231,6 @@ struct amrd_softc
     struct amr_logdrive	*amrd_drive;
     struct disk		amrd_disk;
     struct devstat	amrd_stats;
-    struct disklabel	amrd_label;
     int			amrd_unit;
     int			amrd_flags;
 #define AMRD_OPEN	(1<<0)		/* drive is open (can't detach) */
