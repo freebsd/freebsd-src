@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.242 1999/07/18 10:18:05 jkh Exp $
+ * $Id: install.c,v 1.243 1999/08/05 10:07:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1049,6 +1049,7 @@ installVarDefaults(dialogMenuItem *self)
 	variable_set2(SYSTEM_STATE,		"update", 0);
     else
 	variable_set2(SYSTEM_STATE,		"init", 0);
+    variable_set2(VAR_NEWFS_ARGS,		"-b 8192 -f 1024", 0);
     return DITEM_SUCCESS;
 }
 
