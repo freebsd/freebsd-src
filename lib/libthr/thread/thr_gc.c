@@ -113,6 +113,7 @@ _thread_gc(pthread_addr_t arg)
 			 * the caller to pthread_create() and has not
 			 * been destroyed yet: 
 			 */
+			STACK_LOCK;
 			if (pthread->attr.stackaddr_attr == NULL &&
 			    pthread->stack != NULL) {
 				_thread_stack_free(pthread->stack,
@@ -120,6 +121,7 @@ _thread_gc(pthread_addr_t arg)
 				    pthread->attr.guardsize_attr);
 				pthread->stack = NULL;
 			}
+			STACK_UNLOCK;
 
 			/*
 			 * If the thread has not been detached, leave
