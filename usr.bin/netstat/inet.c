@@ -220,7 +220,7 @@ protopr(proto, name, af)
 				printf("%-14.14s %-22.22s\n",
 					"Listen", "Local Address");
 			else
-				printf(Aflag ?
+				printf((Aflag && !Wflag) ?
 		"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
 		"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
 					"Proto", "Recv-Q", "Send-Q",
@@ -244,7 +244,7 @@ protopr(proto, name, af)
 			} else
 				continue;
 		else {
-			const u_char *vchar;
+			const char *vchar;
 
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV6) != 0)
@@ -695,16 +695,22 @@ inetprint(in, port, proto,numeric)
 	char line[80], *cp;
 	int width;
 
-	sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
+	if (Wflag)
+	    sprintf(line, "%s.", inetname(in));
+	else
+	    sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
 	if (!numeric && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
-		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
+		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d", ntohs((u_short)port));
-	width = Aflag ? 18 : 22;
-	printf("%-*.*s ", width, width, line);
+		sprintf(cp, "%d ", ntohs((u_short)port));
+	width = (Aflag && !Wflag) ? 18 : 22;
+	if (Wflag)
+	    printf("%-*s ", width, line);
+	else
+	    printf("%-*.*s ", width, width, line);
 }
 
 /*
