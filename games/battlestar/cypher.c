@@ -283,10 +283,10 @@ cypher()
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n')
 					sscanf(buffer,"%d", &position);
-				printf("Time (was %d) = ",time);
+				printf("Time (was %d) = ",gtime);
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n')
-					sscanf(buffer,"%d", &time);
+					sscanf(buffer,"%d", &gtime);
 				printf("Fuel (was %d) = ",fuel);
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n')
@@ -303,10 +303,10 @@ cypher()
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n')
 					sscanf(buffer,"%d",&WEIGHT);
-				printf("Clock (was %d) = ",clock);
+				printf("Clock (was %d) = ",gclock);
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n')
-					sscanf(buffer,"%d",&clock);
+					sscanf(buffer,"%d",&gclock);
 				printf("Wizard (was %d, %d) = ",wiz, tempwiz);
 				fgets(buffer,10,stdin);
 				if (*buffer != '\n'){
@@ -324,7 +324,7 @@ cypher()
 			 case SCORE:
 				printf("\tPLEASURE\tPOWER\t\tEGO\n");
 				printf("\t%3d\t\t%3d\t\t%3d\n\n",pleasure,power,ego);
-				printf("This gives you the rating of %s in %d turns.\n",rate(),time);
+				printf("This gives you the rating of %s in %d turns.\n",rate(),gtime);
 				printf("You have visited %d out of %d rooms this run (%d%%).\n",card(beenthere,NUMOFROOMS),NUMOFROOMS,card(beenthere,NUMOFROOMS)*100/NUMOFROOMS);
 				break;
 

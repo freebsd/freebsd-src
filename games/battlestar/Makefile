@@ -8,5 +8,6 @@ MAN6=	battlestar.6
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
+#CFLAGS+= -Wall -W
 
 .include <bsd.prog.mk>
