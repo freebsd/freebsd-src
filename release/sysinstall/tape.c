@@ -68,6 +68,8 @@ mediaGetTape(Device *dev, char *file, Boolean probe)
     int i;
 
     if (!tapeInitted) {
+	WINDOW *w = savescr();
+
 	msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
 	Mkdir(dev->private);
 	if (chdir(dev->private)) {
@@ -88,8 +90,10 @@ mediaGetTape(Device *dev, char *file, Boolean probe)
 	else {
 	    msgConfirm("Tape extract command failed with status %d!\n"
 		       "Unable to use tape media.", i);
+	    restorescr(w);
 	    return (FILE *)IO_ERROR;
 	}
+	restorescr(w);
     }
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
@@ -113,7 +117,7 @@ mediaShutdownTape(Device *dev)
     if (!tapeInitted)
 	return;
     if (file_readable((char *)dev->private)) {
-	msgNotify("Cleaning up results of tape extract in %s..",
+	msgDebug("Cleaning up results of tape extract in %s..",
 		  (char *)dev->private);
 	(void)vsystem("rm -rf %s", (char *)dev->private);
     }

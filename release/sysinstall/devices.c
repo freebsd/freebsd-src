@@ -438,6 +438,7 @@ skipif:
 	}
 	free(names);
     }
+    dialog_clear_norefresh();
 }
 
 /* Rescan all devices, after closing previous set - convenience function */

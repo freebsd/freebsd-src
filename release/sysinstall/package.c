@@ -157,6 +157,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     if (fp) {
 	int i = 0, tot, pfd[2];
 	pid_t pid;
+	WINDOW *w = savescr();
 
 	sigpipe_caught = FALSE;
 	signal(SIGPIPE, catch_pipe);
@@ -176,7 +177,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
 	else {
 	    char buf[BUFSIZ];
-	    WINDOW *w = savescr();
 	    struct timeval start, stop;
 
 	    close(pfd[0]);
