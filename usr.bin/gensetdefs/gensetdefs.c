@@ -27,7 +27,14 @@
  */
 
 #include <sys/types.h>
-#include <elf.h>
+#if defined(arch_i386)
+#define	__ELF_WORD_SIZE	32
+#include <sys/elf32.h>
+#elif defined(arch_alpha)
+#define	__ELF_WORD_SIZE	64
+#include <sys/elf64.h>
+#endif
+#include <sys/elf_generic.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -96,11 +103,10 @@ main(int argc, char **argv)
 	}
 	fclose(fp);
 
-#ifdef __i386__
+#if defined(arch_i386)
 	ptrop = "long";
 	align = 2;
-#endif
-#ifdef __alpha__
+#elif defined(arch_alpha)
 	ptrop = "quad";
 	align = 3;
 #endif
