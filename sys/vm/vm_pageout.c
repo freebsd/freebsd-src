@@ -1121,6 +1121,13 @@ rescan0:
 	/*
 	 * make sure that we have swap space -- if we are low on memory and
 	 * swap -- then kill the biggest process.
+	 *
+	 * We keep the process bigproc locked once we find it to keep anyone
+	 * from messing with it; however, there is a possibility of
+	 * deadlock if process B is bigproc and one of it's child processes
+	 * attempts to propagate a signal to B while we are waiting for A's
+	 * lock while walking this list.  To avoid this, we don't block on
+	 * the process lock but just skip a process if it is already locked.
 	 */
 	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
 		bigproc = NULL;
@@ -1128,16 +1135,19 @@ rescan0:
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			/*
+			 * If this process is already locked, skip it.
+			 */
+			if (PROC_TRYLOCK(p) == 0)
+				continue;
+			/*
 			 * if this is a system process, skip it
 			 */
-			PROC_LOCK(p);
 			if ((p->p_flag & P_SYSTEM) || (p->p_lock > 0) ||
 			    (p->p_pid == 1) ||
 			    ((p->p_pid < 48) && (vm_swap_size != 0))) {
 				PROC_UNLOCK(p);
 				continue;
 			}
-			PROC_UNLOCK(p);
 			/*
 			 * if the process is in a non-running type state,
 			 * don't touch it.
@@ -1145,6 +1155,7 @@ rescan0:
 			mtx_lock_spin(&sched_lock);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
 				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 			mtx_unlock_spin(&sched_lock);
@@ -1157,9 +1168,12 @@ rescan0:
 			 * remember it.
 			 */
 			if (size > bigsize) {
+				if (bigproc != NULL)
+					PROC_UNLOCK(bigproc);
 				bigproc = p;
 				bigsize = size;
-			}
+			} else
+				PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
@@ -1169,6 +1183,7 @@ rescan0:
 			bigproc->p_nice = PRIO_MIN;
 			resetpriority(bigproc);
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(bigproc);
 			wakeup(&cnt.v_free_count);
 		}
 	}
