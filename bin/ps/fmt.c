@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fmt.c,v 1.11 1998/05/15 06:29:15 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <vis.h>
 #include "ps.h"
 
@@ -60,8 +61,16 @@ static char *
 shquote(argv)
 	char **argv;
 {
+	long arg_max;
 	char **p, *dst, *src;
-	static char buf[4*ARG_MAX];		/* XXX */
+	static char *buf = NULL;
+
+	if (buf == NULL) {
+		if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
+			errx(1, "sysconf _SC_ARG_MAX failed");
+		if ((buf = malloc((4 * arg_max)  +  1)) == NULL)
+			errx(1, "malloc failed");
+	}
 
 	if (*argv == 0) {
 		buf[0] = 0;
