@@ -92,6 +92,7 @@ TUNABLE_INT("hw.eisa_slots", &num_eisa_slots);
 
 static devclass_t eisa_devclass;
 
+static int eisa_probe_slot(int slot, eisa_id_t *eisa_id);
 static void eisa_reg_print (device_t, char *, char *, int *);
 static struct irq_node * eisa_find_irq(struct eisa_device *e_dev, int rid);
 static struct resvaddr * eisa_find_maddr(struct eisa_device *e_dev, int rid);
@@ -152,24 +153,31 @@ DRIVER_MODULE(mainboard, eisa, mainboard_driver, mainboard_devclass, 0, 0);
 static int
 eisa_probe(device_t dev)
 {
-	int i,slot;
+	int devices_found, i, slot;
 	struct eisa_device *e_dev;
 	device_t child;
-	int eisaBase = 0xc80;
 	eisa_id_t eisa_id;
-	int devices_found = 0;
 
 	device_set_desc(dev, "EISA bus");
 
-	for (slot = 0; slot < num_eisa_slots; eisaBase+=0x1000, slot++) {
-		int id_size = sizeof(eisa_id);
+	devices_found = 0;
+	for (slot = 0; slot < num_eisa_slots; slot++) {
 		eisa_id = 0;
-    		for( i = 0; i < id_size; i++ ) {
-			outb(eisaBase,0x80 + i); /*Some cards require priming*/
-			eisa_id |= inb(eisaBase+i) << ((id_size-i-1)*CHAR_BIT);
+		if (eisa_probe_slot(i, &eisa_id)) {
+			/*
+			 * If there's no card in the first slot (the
+			 * mainboard), then the system doesn't have EISA.
+			 * We abort the probe early in this case since
+			 * continuing on causes a hang on some systems.
+			 * Interestingly enough, the inb has been seen to
+			 * cause the hang.  However, aborting here causes
+			 * the Adaptec 2842 probe to fail so that driver
+			 * needs to be fixed separately.
+			 */
+			if (slot == 0)
+				break;
+			continue;
 		}
-		if (eisa_id & 0x80000000)
-			continue;  /* no EISA card in slot */
 
 		devices_found++;
 
@@ -182,7 +190,6 @@ eisa_probe(device_t dev)
 		}
 
 		e_dev->id = eisa_id;
-
 		e_dev->ioconf.slot = slot; 
 
 		/* Initialize our lists of reserved addresses */
@@ -200,6 +207,31 @@ eisa_probe(device_t dev)
 	 * should be a motherboard "card" there somewhere.
 	 */
 	return devices_found ? 0 : ENXIO;
+}
+
+static int
+eisa_probe_slot(int slot, eisa_id_t *eisa_id)
+{
+	eisa_id_t probe_id;
+	int base, i, id_size, ret;
+
+	ret = ENXIO;
+	probe_id = 0;
+	id_size = sizeof(probe_id);
+	base = 0x0c80 + (slot * 0x1000);
+
+	for (i = 0; i < id_size; i++) {
+		outb(base, 0x80 + i); /* Some cards require priming. */
+		probe_id |= inb(base + i) << ((id_size - i - 1) * CHAR_BIT);
+	}
+
+	/* If we found a card, return its EISA id. */
+	if ((probe_id & 0x80000000) == 0) {
+		*eisa_id = probe_id;
+		ret = 0;
+	}
+
+	return (ret);
 }
 
 static void
