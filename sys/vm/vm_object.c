@@ -361,22 +361,22 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 void
 vm_object_reference(vm_object_t object)
 {
+	struct vnode *vp;
+	int flags;
+
 	if (object == NULL)
 		return;
-	if (object != kernel_object &&
-	    object != kmem_object)
-		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(object);
 	object->ref_count++;
-	VM_OBJECT_UNLOCK(object);
 	if (object->type == OBJT_VNODE) {
-		while (vget((struct vnode *) object->handle, LK_RETRY, curthread)) {
-			printf("vm_object_reference: delay in getting object\n");
-		}
-	}
-	if (object != kernel_object &&
-	    object != kmem_object)
-		mtx_unlock(&Giant);
+		vp = object->handle;
+		VI_LOCK(vp);
+		VM_OBJECT_UNLOCK(object);
+		for (flags = LK_INTERLOCK; vget(vp, flags, curthread);
+		     flags = 0)
+			printf("vm_object_reference: delay in vget\n");
+	} else
+		VM_OBJECT_UNLOCK(object);
 }
 
 /*
