@@ -33,6 +33,10 @@
  *	@(#)ctags.h	8.3 (Berkeley) 4/2/94
  */
 
+/* Definition for gctags */
+#define GLOBAL	1
+#define YACC	1
+
 #define	bool	char
 
 #define	YES		1

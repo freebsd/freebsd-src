@@ -270,9 +270,9 @@ int	db;
 	tagopen(dbpath, db, 1);
 	for (findopen(); (path = findread(NULL)) != NULL; ) {
 		/*
-		 * GRTAGS and GSYMS doesn't treat asembler.
+		 * GSYMS doesn't treat asembler.
 		 */
-		if (db != GTAGS) {
+		if (db == GSYMS) {
 			char	*p = path + strlen(path) - 1;
 			if ((*p == 's' || *p == 'S') && *(p - 1) == '.')
 				continue;
