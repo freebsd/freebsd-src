@@ -35,7 +35,7 @@
 #define LCMESSAGES_SIZE_MIN \
 		(offsetof(struct lc_messages_T, yesstr) / sizeof(char *))
 
-char empty[] = "";
+static char empty[] = "";
 
 static const struct lc_messages_T _C_messages_locale = {
 	"^[yY]" ,	/* yesexpr */
