@@ -675,7 +675,7 @@ release.9:
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
-	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/article.txt \
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/installation/${MACHINE_ARCH}/article.txt \
 		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
