@@ -80,17 +80,17 @@ extern const char linux_emul_path[];
 int linux_emul_convpath(struct thread *, char *, enum uio_seg, char **, int);
 int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 
-#define CHECKALT(p, sgp, path, i) 					\
+#define CHECKALT(td, sgp, path, i) 					\
 	do {								\
 		int _error;						\
 									\
-		_error = linux_emul_find(p, sgp, path, &path, i);	\
+		_error = linux_emul_find(td, sgp, path, &path, i);	\
 		if (_error == EFAULT)					\
 			return (_error);				\
 	} while (0)
 
-#define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
-#define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
+#define CHECKALTEXIST(td, sgp, path) CHECKALT(td, sgp, path, 0)
+#define CHECKALTCREAT(td, sgp, path) CHECKALT(td, sgp, path, 1)
 
 #define LCONVPATH(td, upath, pathp, i) 					\
 	do {								\
@@ -108,9 +108,9 @@ int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 
 #define DUMMY(s)							\
 int									\
-linux_ ## s(struct thread *p, struct linux_ ## s ## _args *args)	\
+linux_ ## s(struct thread *td, struct linux_ ## s ## _args *args)	\
 {									\
-	return (unimplemented_syscall(p, #s));				\
+	return (unimplemented_syscall(td, #s));				\
 }									\
 struct __hack
 
