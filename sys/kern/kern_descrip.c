@@ -99,6 +99,7 @@ static int do_dup(struct thread *td, enum dup_type type, int old, int new,
 static int	fd_first_free(struct filedesc *, int, int);
 static int	fd_last_used(struct filedesc *, int, int);
 static void	fdgrowtable(struct filedesc *, int);
+static void	fdunused(struct filedesc *fdp, int fd);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -224,7 +225,7 @@ fdused(struct filedesc *fdp, int fd)
 /*
  * Mark a file descriptor as unused.
  */
-void
+static void
 fdunused(struct filedesc *fdp, int fd)
 {
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
@@ -1727,6 +1728,21 @@ setugidsafety(td)
 		}
 	}
 	FILEDESC_UNLOCK(fdp);
+}
+
+void
+fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td)
+{
+
+	FILEDESC_LOCK(fdp);
+	if (fdp->fd_ofiles[idx] == fp) {
+		fdp->fd_ofiles[idx] = NULL;
+		fdunused(fdp, idx);
+		FILEDESC_UNLOCK(fdp);
+		fdrop(fp, td);
+	} else {
+		FILEDESC_UNLOCK(fdp);
+	}
 }
 
 /*

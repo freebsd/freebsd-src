@@ -990,15 +990,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
-		FILEDESC_LOCK(fdp);
-		if (fdp->fd_ofiles[indx] == fp) {
-			fdp->fd_ofiles[indx] = NULL;
-			fdunused(fdp, indx);
-			FILEDESC_UNLOCK(fdp);
-			fdrop(fp, td);
-		} else {
-			FILEDESC_UNLOCK(fdp);
-		}
+		fdclose(fdp, fp, indx, td);
 
 		if (error == ERESTART)
 			error = EINTR;
@@ -1091,15 +1083,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	return (0);
 bad:
 	mtx_unlock(&Giant);
-	FILEDESC_LOCK(fdp);
-	if (fdp->fd_ofiles[indx] == fp) {
-		fdp->fd_ofiles[indx] = NULL;
-		fdunused(fdp, indx);
-		FILEDESC_UNLOCK(fdp);
-		fdrop(fp, td);
-	} else {
-		FILEDESC_UNLOCK(fdp);
-	}
+	fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
 	return (error);
 }
@@ -4018,15 +4002,8 @@ fhopen(td, uap)
 			 * descriptor but handle the case where someone might
 			 * have dup()d or close()d it when we weren't looking.
 			 */
-			FILEDESC_LOCK(fdp);
-			if (fdp->fd_ofiles[indx] == fp) {
-				fdp->fd_ofiles[indx] = NULL;
-				fdunused(fdp, indx);
-				FILEDESC_UNLOCK(fdp);
-				fdrop(fp, td);
-			} else {
-				FILEDESC_UNLOCK(fdp);
-			}
+			fdclose(fdp, fp, indx, td);
+
 			/*
 			 * release our private reference
 			 */
