@@ -42,8 +42,8 @@
 static dev_t null_dev;
 static dev_t zero_dev;
 
-static d_read_t nullwrite;
-static d_read_t zeroread;
+static d_write_t null_write;
+static d_read_t zero_read;
 
 #define CDEV_MAJOR	2
 #define NULL_MINOR	2
@@ -53,7 +53,7 @@ static struct cdevsw null_cdevsw = {
 	/* open */	(d_open_t *)nullop,
 	/* close */	(d_close_t *)nullop,
 	/* read */	(d_read_t *)nullop,
-	/* write */	nullwrite,
+	/* write */	null_write,
 	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -69,8 +69,8 @@ static struct cdevsw null_cdevsw = {
 static struct cdevsw zero_cdevsw = {
 	/* open */	(d_open_t *)nullop,
 	/* close */	(d_close_t *)nullop,
-	/* read */	zeroread,
-	/* write */	nullwrite,
+	/* read */	zero_read,
+	/* write */	null_write,
 	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -86,14 +86,14 @@ static struct cdevsw zero_cdevsw = {
 static void *zbuf;
 
 static int
-nullwrite(dev_t dev, struct uio *uio, int flag)
+null_write(dev_t dev, struct uio *uio, int flag)
 {
 	uio->uio_resid = 0;
 	return 0;
 }
 
 static int
-zeroread(dev_t dev, struct uio *uio, int flag)
+zero_read(dev_t dev, struct uio *uio, int flag)
 {
 	u_int c;
 	int error = 0;
