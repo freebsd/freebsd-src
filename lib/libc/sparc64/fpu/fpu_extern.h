@@ -56,7 +56,7 @@ void __fpu_panic __P((char *msg));
 struct fpn *__fpu_add __P((struct fpemu *));
 
 /* fpu_compare.c */
-void __fpu_compare __P((struct fpemu *, int));
+void __fpu_compare __P((struct fpemu *, int, int));
 
 /* fpu_div.c */
 struct fpn *__fpu_div __P((struct fpemu *));

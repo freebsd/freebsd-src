@@ -156,7 +156,7 @@ struct fpn {
  * Emulator state.
  */
 struct fpemu {
-	int	fe_fsr;			/* fsr copy (modified during op) */
+	u_long	fe_fsr;			/* fsr copy (modified during op) */
 	int	fe_cx;			/* exceptions */
 	struct	fpn fe_f1;		/* operand 1 */
 	struct	fpn fe_f2;		/* operand 2, if required */
