@@ -141,8 +141,8 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 }
 
 void
-ath_rate_tx_complete(struct ath_softc *sc,
-	struct ath_node *an, const struct ath_desc *ds)
+ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
+	const struct ath_desc *ds, const struct ath_desc *ds0)
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
 	int sr = ds->ds_txstat.ts_shortretry;

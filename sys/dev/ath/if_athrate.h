@@ -136,5 +136,5 @@ void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
  * failed (consult the descriptor for details).
  */
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
-		const struct ath_desc *);
+		const struct ath_desc *last, const struct ath_desc *first);
 #endif /* _ATH_RATECTRL_H_ */
