@@ -17,7 +17,7 @@ HEADERS=ncp_cfg.h ncp_lib.h ncp_file.h ncp_rcfile.h
 
 beforeinstall:
 .for hdr in ${HEADERS}
-	install -c -o ${BINOWN} -g ${BINGRP} -m 0444 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 0444 \
 	     ${.CURDIR}/${hdr} ${DESTDIR}/usr/include/netncp
 .endfor
 
