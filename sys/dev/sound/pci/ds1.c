@@ -265,7 +265,7 @@ static void
 wrl(struct sc_info *sc, u_int32_t *ptr, u_int32_t val)
 {
 	*(volatile u_int32_t *)ptr = val;
-	bus_space_barrier(sc->sh, sc->st, 0, 0, BUS_SPACE_BARRIER_WRITE);
+	bus_space_barrier(sc->st, sc->sh, 0, 0, BUS_SPACE_BARRIER_WRITE);
 }
 
 /* ac97 codec */
