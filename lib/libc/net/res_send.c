@@ -665,6 +665,7 @@ read_len:
 				pfd.fd = s;
 				pfd.events = POLLIN;
 				if (use_poll == 1) {
+					bzero(&sa, sizeof(sa));
 					sigemptyset(&sa.sa_mask);
 					sa.sa_flags = 0;
 					sa.sa_handler = SIG_IGN;
