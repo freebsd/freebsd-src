@@ -149,11 +149,7 @@ struct secspacq {
 };
 
 struct ipsecaux {
-	struct socket *so;
 	int hdrs;	/* # of ipsec headers */
-
-	struct secpolicy *sp;
-	struct ipsecrequest *req;
 };
 #endif /* _KERNEL */
 
@@ -335,12 +331,13 @@ extern int ipsec_pcbconn __P((struct inpcbpolicy *));
 extern int ipsec_pcbdisconn __P((struct inpcbpolicy *));
 extern int ipsec_invalpcbcacheall __P((void));
 
+struct inpcb;
+extern struct secpolicy *ipsec4_getpolicybypcb
+	__P((struct mbuf *, u_int, struct inpcb *, int *));
 extern struct secpolicy *ipsec4_getpolicybysock
 	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec4_getpolicybyaddr
 	__P((struct mbuf *, u_int, int, int *));
-extern struct secpolicy *ipsec4_getpolicybytag
-	__P((struct mbuf *, u_int, int *));
 
 struct inpcb;
 extern int ipsec_init_pcbpolicy __P((struct socket *, struct inpcbpolicy **));
@@ -376,8 +373,6 @@ extern int ipsec4_tunnel_validate __P((struct mbuf *, int, u_int,
 	struct secasvar *));
 extern struct mbuf *ipsec_copypkt __P((struct mbuf *));
 extern void ipsec_delaux __P((struct mbuf *));
-extern int ipsec_setsocket __P((struct mbuf *, struct socket *));
-extern struct socket *ipsec_getsocket __P((struct mbuf *));
 extern int ipsec_addhist __P((struct mbuf *, int, u_int32_t));
 extern int ipsec_getnhist __P((struct mbuf *));
 extern void ipsec_clearhist __P((struct mbuf *));
