@@ -1,4 +1,5 @@
 /*	$NetBSD: ieeefp.h,v 1.4 1998/01/09 08:03:43 perry Exp $	*/
+/* $FreeBSD$ */
 
 /* 
  * Written by J.T. Conklin, Apr 6, 1995
@@ -15,12 +16,12 @@
 #include <machine/floatingpoint.h>
 #else /* !__i386__ */
 __BEGIN_DECLS
-extern fp_rnd    fpgetround __P((void));
-extern fp_rnd    fpsetround __P((fp_rnd));
-extern fp_except fpgetmask __P((void));
-extern fp_except fpsetmask __P((fp_except));
-extern fp_except fpgetsticky __P((void));
-extern fp_except fpsetsticky __P((fp_except));
+extern fp_rnd_t    fpgetround __P((void));
+extern fp_rnd_t    fpsetround __P((fp_rnd_t));
+extern fp_except_t fpgetmask __P((void));
+extern fp_except_t fpsetmask __P((fp_except_t));
+extern fp_except_t fpgetsticky __P((void));
+extern fp_except_t fpsetsticky __P((fp_except_t));
 __END_DECLS
 #endif /* __i386__ */
 

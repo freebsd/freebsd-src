@@ -1,4 +1,5 @@
 /*	$NetBSD: fpsetround.c,v 1.1 1995/04/29 05:09:57 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1995 Christopher G. Demetriou
@@ -35,9 +36,9 @@
 #include <ieeefp.h>
 #include <machine/fpu.h>
 
-fp_rnd
+fp_rnd_t
 fpsetround(rnd_dir)
-	fp_rnd rnd_dir;
+	fp_rnd_t rnd_dir;
 {
 	double fpcrval;
 	u_int64_t old, new;

@@ -1,4 +1,5 @@
 /*	$NetBSD: fpgetsticky.c,v 1.1 1995/04/29 05:10:59 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1995 Christopher G. Demetriou
@@ -35,7 +36,7 @@
 #include <ieeefp.h>
 #include <machine/fpu.h>
 
-fp_except
+fp_except_t
 fpgetsticky()
 {
 	double fpcrval;
