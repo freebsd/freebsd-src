@@ -10,6 +10,7 @@ MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+DISTRIBUTION=	crypto
 CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
