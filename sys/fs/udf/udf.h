@@ -57,6 +57,21 @@ struct udf_mnt {
 	struct udf_sparing_table *s_table;
 };
 
+struct udf_dirstream {
+	struct udf_node	*node;
+	struct udf_mnt	*udfmp;
+	struct buf	*bp;
+	uint8_t		*data;
+	uint8_t		*buf;
+	int		fsize;
+	int		off;
+	int		this_off;
+	int		offset;
+	int		size;
+	int		error;
+	int		fid_fragment;
+};
+
 #define	VFSTOUDFFS(mp)	((struct udf_mnt *)((mp)->mnt_data))
 #define	VTON(vp)	((struct udf_node *)((vp)->v_data))
 
@@ -113,3 +128,4 @@ int udf_vget(struct mount *, ino_t, int, struct vnode **);
 
 extern uma_zone_t udf_zone_trans;
 extern uma_zone_t udf_zone_node;
+extern uma_zone_t udf_zone_ds;

@@ -91,6 +91,7 @@ static struct vnodeopv_desc udf_vnodeop_opv_desc =
 VNODEOP_SET(udf_vnodeop_opv_desc);
 
 MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
+MALLOC_DEFINE(M_UDFDS, "UDF DS", "UDF Dirstream structure");
 
 #define INVALID_BMAP	-1
 
@@ -528,6 +529,146 @@ udf_uiodir(struct udf_uiodir *uiodir, int de_size, struct uio *uio, long cookie)
 	return (uiomove((caddr_t)uiodir->dirent, de_size, uio));
 }
 
+static struct udf_dirstream *
+udf_opendir(struct udf_node *node, int offset, int fsize, struct udf_mnt *udfmp)
+{
+	struct udf_dirstream *ds;
+
+	ds = uma_zalloc(udf_zone_ds, M_WAITOK | M_ZERO);
+
+	ds->node = node;
+	ds->offset = offset;
+	ds->udfmp = udfmp;
+	ds->fsize = fsize;
+
+	return (ds);
+}
+
+static struct fileid_desc *
+udf_getfid(struct udf_dirstream *ds)
+{
+	struct fileid_desc *fid;
+	int error, frag_size = 0, total_fid_size;
+
+	/* End of directory? */
+	if (ds->offset + ds->off >= ds->fsize) {
+		ds->error = 0;
+		return (NULL);
+	}
+
+	/* Grab the first extent of the directory */
+	if (ds->off == 0) {
+		ds->size = 0;
+		error = udf_readatoffset(ds->node, &ds->size, ds->offset,
+		    &ds->bp, &ds->data);
+		if (error) {
+			ds->error = error;
+			return (NULL);
+		}
+	}
+
+	/* XXX Is this the right place for this? */
+	if (ds->fid_fragment && ds->buf != NULL) {
+		ds->fid_fragment = 0;
+		FREE(ds->buf, M_UDFFID);
+	}
+
+	fid = (struct fileid_desc*)&ds->data[ds->off];
+
+	/*
+	 * Check to see if the fid is fragmented. The first test
+	 * ensures that we don't wander off the end of the buffer
+	 * looking for the l_iu and l_fi fields.
+	 */
+	if (ds->off + UDF_FID_SIZE > ds->size ||
+	    ds->off + fid->l_iu + fid->l_fi + UDF_FID_SIZE > ds->size) {
+
+		/* Copy what we have of the fid into a buffer */
+		frag_size = ds->size - ds->off;
+		if (frag_size >= ds->udfmp->bsize) {
+			printf("udf: invalid FID fragment\n");
+			ds->error = EINVAL;
+			return (NULL);
+		}
+
+		/*
+		 * File ID descriptors can only be at most one
+		 * logical sector in size.
+		 */
+		MALLOC(ds->buf, uint8_t*, ds->udfmp->bsize, M_UDFFID,
+		     M_WAITOK | M_ZERO);
+		bcopy(fid, ds->buf, frag_size);
+
+		/* Reduce all of the casting magic */
+		fid = (struct fileid_desc*)ds->buf;
+
+		if (ds->bp != NULL)
+			brelse(ds->bp);
+
+		/* Fetch the next allocation */
+		ds->offset += ds->size;
+		ds->size = 0;
+		error = udf_readatoffset(ds->node, &ds->size, ds->offset,
+		    &ds->bp, &ds->data);
+		if (error) {
+			ds->error = error;
+			return (NULL);
+		}
+
+		/*
+		 * If the fragment was so small that we didn't get
+		 * the l_iu and l_fi fields, copy those in.
+		 */
+		if (frag_size < UDF_FID_SIZE)
+			bcopy(ds->data, &ds->buf[frag_size],
+			    UDF_FID_SIZE - frag_size);
+
+		/*
+		 * Now that we have enough of the fid to work with,
+		 * copy in the rest of the fid from the new
+		 * allocation.
+		 */
+		total_fid_size = UDF_FID_SIZE + fid->l_iu + fid->l_fi;
+		if (total_fid_size > ds->udfmp->bsize) {
+			printf("udf: invalid FID\n");
+			ds->error = EIO;
+			return (NULL);
+		}
+		bcopy(ds->data, &ds->buf[frag_size],
+		    total_fid_size - frag_size);
+
+		ds->fid_fragment = 1;
+	} else {
+		total_fid_size = fid->l_iu + fid->l_fi + UDF_FID_SIZE;
+	}
+
+	/*
+	 * Update the offset. Align on a 4 byte boundary because the
+	 * UDF spec says so.  If it was a fragmented entry, clean up.
+	 */
+	ds->this_off = ds->off;
+	if (!ds->fid_fragment) {
+		ds->off += (total_fid_size + 3) & ~0x03;
+	} else {
+		ds->off = (total_fid_size - frag_size + 3) & ~0x03;
+	}
+
+	return (fid);
+}
+
+static void
+udf_closedir(struct udf_dirstream *ds)
+{
+
+	if (ds->bp != NULL)
+		brelse(ds->bp);
+
+	if (ds->fid_fragment && ds->buf != NULL)
+		FREE(ds->buf, M_UDFFID);
+
+	uma_zfree(udf_zone_ds, ds);
+}
+
 /* Prebuild the . and .. dirents.  d_fileno will need to be filled in */
 static struct dirent udf_de_dot =
 	{ 0, sizeof(struct dirent), DT_DIR, 1, "." };
@@ -538,26 +679,20 @@ static int
 udf_readdir(struct vop_readdir_args *a)
 {
 	struct vnode *vp;
-	struct buf *bp;
 	struct uio *uio;
 	struct dirent dir;
 	struct udf_node *node;
-	struct udf_mnt *udfmp;
 	struct fileid_desc *fid;
 	struct udf_uiodir uiodir;
+	struct udf_dirstream *ds;
 	u_long *cookies = NULL;
-	uint8_t *data, *buf;
 	int ncookies;
-	int error = 0, offset, off, size, de_size, fid_size, fsize;
-	int total_fid_size = 0, frag_size = 0, fid_fragment = 0;
+	int error = 0, de_size;
 
 	vp = a->a_vp;
 	uio = a->a_uio;
 	node = VTON(vp);
-	udfmp = node->udfmp;
 	de_size = sizeof(struct dirent);
-	fid_size = UDF_FID_SIZE;
-	fsize = node->fentry->inf_len;
 	uiodir.eofflag = 1;
 
 	if (a->a_ncookies != NULL) {
@@ -579,108 +714,27 @@ udf_readdir(struct vop_readdir_args *a)
 	}
 
 	/*
-	 * offset is the absolute offset into the file data. off is the offset
-	 * into the data, minus the blocks that weren't read because they fell
-	 * before offset.
-	 */
-	offset = uio->uio_offset;
-	off = 0;
-
-	/*
 	 * Iterate through the file id descriptors.  Give the parent dir
 	 * entry special attention.  size will be the size of the extent
 	 * returned in data.  If there is more than one extent, things get
 	 * ugly.
 	 */
-	size = 0;
-	error = udf_readatoffset(node, &size, offset, &bp, &data);
-	if (error) {
-		if (a->a_ncookies != NULL)
-			FREE(cookies, M_TEMP);
-		return (error);
-	}
+	ds = udf_opendir(node, uio->uio_offset, node->fentry->inf_len,
+	    node->udfmp);
 
-	while (offset + off < fsize) {
-
-		fid = (struct fileid_desc*)&data[off];
-
-		/*
-		 * Check to see if the fid is fragmented. The first test
-		 * ensures that we don't wander off the end of the buffer
-		 * looking for the l_iu and l_fi fields.
-		 */
-		if (off + fid_size > size ||
-		    off + fid->l_iu + fid->l_fi + fid_size > size) {
-
-			/* Copy what we have of the fid into a buffer */
-			frag_size = size - off;
-			if (frag_size >= udfmp->bsize) {
-				printf("udf: invalid FID fragment\n");
-				break;
-			}
-
-			/*
-			 * File ID descriptors can only be at most one
-			 * logical sector in size.
-			 */
-			MALLOC(buf, uint8_t*, udfmp->bsize, M_UDFFID,
-			     M_WAITOK | M_ZERO);
-			bcopy(fid, buf, frag_size);
-
-			/* Reduce all of the casting magic */
-			fid = (struct fileid_desc*)buf;
-
-			if (bp != NULL)
-				brelse(bp);
-
-			/* Fetch the next allocation */
-			offset += size;
-			size = 0;
-			error = udf_readatoffset(node, &size, offset, &bp,
-			    &data);
-			if (error)
-				break;
-
-			/*
-			 * If the fragment was so small that we didn't get
-			 * the l_iu and l_fi fields, copy those in.
-			 */
-			if (fid_size > frag_size)
-				bcopy(data, &buf[frag_size],
-				    fid_size - frag_size);
-
-			/*
-			 * Now that we have enough of the fid to work with,
-			 * copy in the rest of the fid from the new
-			 * allocation.
-			 */
-			total_fid_size = fid_size + fid->l_iu + fid->l_fi;
-			if (total_fid_size > udfmp->bsize) {
-				printf("udf: invalid FID\n");
-				break;
-			}
-			bcopy(data, &buf[frag_size],
-			    total_fid_size - frag_size);
-
-			fid_fragment = 1;
-		} else {
-			total_fid_size = fid->l_iu + fid->l_fi + fid_size;
-		}
+	while ((fid = udf_getfid(ds)) != NULL) {
 
 		/* XXX Should we return an error on a bad fid? */
 		if (udf_checktag(&fid->tag, TAGID_FID)) {
 			printf("Invalid FID tag\n");
+			udf_dumpblock(fid, UDF_FID_SIZE);
+			error = EIO;
 			break;
 		}
 
 		/* Is this a deleted file? */
 		if (fid->file_char & UDF_FILE_CHAR_DEL)
-			goto update_offset;
-
-		if (fid->l_iu != 0) {
-			printf("Possibly invalid fid found.\n");
-			goto update_offset;
-		}
+			continue;
 
 		if ((fid->l_fi == 0) && (fid->file_char & UDF_FILE_CHAR_PAR)) {
 			/* Do up the '.' and '..' entries.  Dummy values are
@@ -705,36 +759,28 @@ udf_readdir(struct vop_readdir_args *a)
 			    DT_DIR : DT_UNKNOWN;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
 			uiodir.dirent = &dir;
-			error = udf_uiodir(&uiodir, dir.d_reclen, uio, off);
+			error = udf_uiodir(&uiodir, dir.d_reclen, uio,
+			    ds->this_off);
 		}
 		if (error) {
 			printf("uiomove returned %d\n", error);
 			break;
 		}
 
-update_offset:	/*
-		 * Update the offset. Align on a 4 byte boundary because the
-		 * UDF spec says so.  If it was a fragmented entry, clean up.
-		 */
-		if (fid_fragment) {
-			off = (total_fid_size - frag_size + 3) & ~0x03;
-			FREE(fid, M_UDFFID);
-			fid_fragment = 0;
-		} else {
-			off += (total_fid_size + 3) & ~0x03;
-		}
 	}
 
 	/* tell the calling layer whether we need to be called again */
 	*a->a_eofflag = uiodir.eofflag;
-	uio->uio_offset = offset + off;
+	uio->uio_offset = ds->offset + ds->off;
 
-	if (bp != NULL)
-		brelse(bp);
+	if (!error)
+		error = ds->error;
+
+	udf_closedir(ds);
 
 	if (a->a_ncookies != NULL) {
 		if (error)
-			free(cookies, M_TEMP);
+			FREE(cookies, M_TEMP);
 		else {
 			*a->a_ncookies = uiodir.acookies;
 			*a->a_cookies = cookies;
@@ -834,20 +880,18 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	struct vnode *dvp;
 	struct vnode *tdp = NULL;
 	struct vnode **vpp = a->a_vpp;
-	struct buf *bp = NULL;
 	struct udf_node *node;
 	struct udf_mnt *udfmp;
 	struct fileid_desc *fid = NULL;
+	struct udf_dirstream *ds;
 	struct thread *td;
 	u_long nameiop;
 	u_long flags;
 	char *nameptr;
 	long namelen;
 	ino_t id = 0;
-	uint8_t *data, *buf;
-	int offset, off, error, size;
-	int numdirpasses, fid_size, fsize, icb_len;
-	int total_fid_size = 0, fid_fragment = 0, frag_size = 0;
+	int offset, error = 0;
+	int numdirpasses, fsize;
 
 	dvp = a->a_dvp;
 	node = VTON(dvp);
@@ -856,9 +900,7 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	flags = a->a_cnp->cn_flags;
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
-	fid_size = UDF_FID_SIZE;
 	fsize = node->fentry->inf_len;
-	icb_len = sizeof(struct long_ad);
 	td = a->a_cnp->cn_thread;
 
 	/*
@@ -867,7 +909,7 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	 * directory may need to be searched twice.  For a full description,
 	 * see /sys/isofs/cd9660/cd9660_lookup.c:cd9660_lookup()
 	 */
-	if (nameiop != LOOKUP || node->diroff == 0 || node->diroff > size) {
+	if (nameiop != LOOKUP || node->diroff == 0 || node->diroff > fsize) {
 		offset = 0;
 		numdirpasses = 1;
 	} else {
@@ -881,91 +923,20 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	 * Can this be broken out and shared?
 	 */
 lookloop:
-	size = 0;
-	off = 0;
-	error = udf_readatoffset(node, &size, offset, &bp, &data);
-	if (error)
-		return (error);
+	ds = udf_opendir(node, offset, fsize, udfmp);
 
-	while (offset + off < fsize) {
-		fid = (struct fileid_desc*)&data[off];
-
-		/*
-		 * Check to see if the fid is fragmented. The first test
-		 * ensures that we don't wander off the end of the buffer
-		 * looking for the l_iu and l_fi fields.
-		 */
-		if (off + fid_size > size ||
-		    off + fid_size + fid->l_iu + fid->l_fi > size) {
-
-			frag_size = size - off;
-			if (frag_size >= udfmp->bsize) {
-				printf("udf: invalid FID fragment\n");
-				break;
-			}
-
-			/*
-			 * File ID descriptors can only be at most one
-			 * logical sector in size.
-			 * Copy what we have of the fid into a buffer
-			 */
-			MALLOC(buf, uint8_t*, udfmp->bsize, M_UDFFID,
-			     M_WAITOK | M_ZERO);
-			bcopy(fid, buf, frag_size);
-
-			/* Reduce all of the casting magic */
-			fid = (struct fileid_desc*)buf;
-
-			if (bp != NULL)
-				brelse(bp);
-
-			/* Fetch the next allocation */
-			offset += size;
-			size = 0;
-			error = udf_readatoffset(node, &size, offset, &bp,
-			    &data);
-			if (error)
-				return (error);
-
-			/*
-			 * If the fragment was so small that we didn't get
-			 * the l_iu and l_fi fields, copy those in.
-			 */
-			if (fid_size > frag_size)
-				bcopy(data, &buf[frag_size],
-				    fid_size - frag_size);
-
-			/*
-			 * Now that we have enough of the fid to work with,
-			 * copy the rest of the fid from the new
-			 * allocation.
-			 */
-			total_fid_size = fid_size + fid->l_iu + fid->l_fi;
-			if (total_fid_size > udfmp->bsize) {
-				printf("udf: invalid FID\n");
-				break;
-			}
-			bcopy(data, &buf[frag_size],
-			    total_fid_size - frag_size);
-
-			off = (total_fid_size - frag_size + 3) & ~0x03;
-			fid_fragment = 1;
-		} else {
-			/*
-			 * Update the offset here to avoid looking at this fid
-			 * again on a subsequent lookup.
-			 */	
-			total_fid_size = fid->l_iu + fid->l_fi + fid_size;
-			off += (total_fid_size + 3) & ~0x03;
-		}
+	while ((fid = udf_getfid(ds)) != NULL) {
 
 		/* XXX Should we return an error on a bad fid? */
-		if (udf_checktag(&fid->tag, TAGID_FID))
-			goto continue_lookup;
+		if (udf_checktag(&fid->tag, TAGID_FID)) {
+			printf("udf_lookup: Invalid tag\n");
+			error = EIO;
+			break;
+		}
 
 		/* Is this a deleted file? */
 		if (fid->file_char & UDF_FILE_CHAR_DEL)
-			goto continue_lookup;
+			continue;
 
 		if ((fid->l_fi == 0) && (fid->file_char & UDF_FILE_CHAR_PAR)) {
 			if (flags & ISDOTDOT) {
@@ -979,67 +950,63 @@ lookloop:
 				break;
 			}
 		}
+	}
 
-		/* 
-		 * If we got this far then this fid isn't what we were
-		 * looking for.  It's therefore safe to clean up from a
-		 * fragmented fid.
-		 */
-continue_lookup:
-		if (fid_fragment) {
-			FREE(fid, M_UDFFID);
-			fid_fragment = 0;
-		}
+	if (!error)
+		error = ds->error;
+
+	/* XXX Bail out here? */
+	if (error) {
+		udf_closedir(ds);
+		return (error);
 	}
 
 	/* Did we have a match? */
 	if (id) {
 		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
-		if (bp != NULL)
-			brelse(bp);
-		if (error)
-			return (error);
+		if (!error) {
+			/*
+			 * Remember where this entry was if it's the final
+			 * component.
+			 */
+			if ((flags & ISLASTCN) && nameiop == LOOKUP)
+				node->diroff = ds->offset + ds->off;
+			if (numdirpasses == 2)
+				nchstats.ncs_pass2++;
+			if (!(flags & LOCKPARENT) || !(flags & ISLASTCN)) {
+				a->a_cnp->cn_flags |= PDIRUNLOCK;
+				VOP_UNLOCK(dvp, 0, td);
+			}
 
-		/* Remember where this entry was if it's the final component */
-		if ((flags & ISLASTCN) && nameiop == LOOKUP)
-			node->diroff = offset + off;
-		if (numdirpasses == 2)
-			nchstats.ncs_pass2++;
-		if (!(flags & LOCKPARENT) || !(flags & ISLASTCN)) {
-			a->a_cnp->cn_flags |= PDIRUNLOCK;
-			VOP_UNLOCK(dvp, 0, td);
+			*vpp = tdp;
+
+			/* Put this entry in the cache */
+			if (flags & MAKEENTRY)
+				cache_enter(dvp, *vpp, a->a_cnp);
+		}
+	} else {
+		/* Name wasn't found on this pass.  Do another pass? */
+		if (numdirpasses == 2) {
+			numdirpasses--;
+			offset = 0;
+			udf_closedir(ds);
+			goto lookloop;
 		}
 
-		*vpp = tdp;
-
-		/* Put this entry in the cache */
+		/* Enter name into cache as non-existant */
 		if (flags & MAKEENTRY)
 			cache_enter(dvp, *vpp, a->a_cnp);
 
-		if (fid_fragment)
-			FREE(fid, M_UDFFID);
-
-		return (0);
+		if ((flags & ISLASTCN) &&
+		    (nameiop == CREATE || nameiop == RENAME)) {
+			error = EROFS;
+		} else {
+			error = ENOENT;
+		}
 	}
 
-	/* Name wasn't found on this pass.  Do another pass? */
-	if (numdirpasses == 2) {
-		numdirpasses--;
-		offset = 0;
-		goto lookloop;
-	}
-
-	if (bp != NULL)
-		brelse(bp);
-
-	/* Enter name into cache as non-existant */
-	if (flags & MAKEENTRY)
-		cache_enter(dvp, *vpp, a->a_cnp);
-
-	if ((flags & ISLASTCN) && (nameiop == CREATE || nameiop == RENAME))
-		return (EROFS);
-	return (ENOENT);
-
+	udf_closedir(ds);
+	return (error);
 }
 
 static int
