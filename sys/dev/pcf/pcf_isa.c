@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/resource.h>
 
 #include <machine/bus.h>
@@ -55,17 +56,17 @@ __FBSDID("$FreeBSD$");
 
 #define	PCF_NAME	"pcf"
 
-static void pcf_identify(driver_t *, device_t);
-static int pcf_probe(device_t);
-static int pcf_attach(device_t);
-static int pcf_detach(device_t);
+static void pcf_isa_identify(driver_t *, device_t);
+static int pcf_isa_probe(device_t);
+static int pcf_isa_attach(device_t);
+static int pcf_isa_detach(device_t);
 
-static device_method_t pcf_methods[] = {
+static device_method_t pcf_isa_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_identify,	pcf_identify),
-	DEVMETHOD(device_probe,		pcf_probe),
-	DEVMETHOD(device_attach,	pcf_attach),
-	DEVMETHOD(device_detach,	pcf_detach),
+	DEVMETHOD(device_identify,	pcf_isa_identify),
+	DEVMETHOD(device_probe,		pcf_isa_probe),
+	DEVMETHOD(device_attach,	pcf_isa_attach),
+	DEVMETHOD(device_detach,	pcf_isa_detach),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
@@ -78,16 +79,16 @@ static device_method_t pcf_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t pcf_devclass;
+static devclass_t pcf_isa_devclass;
 
-static driver_t pcf_driver = {
+static driver_t pcf_isa_driver = {
 	PCF_NAME,
-	pcf_methods,
+	pcf_isa_methods,
 	sizeof(struct pcf_softc),
 };
 
 static void
-pcf_identify(driver_t *driver, device_t parent)
+pcf_isa_identify(driver_t *driver, device_t parent)
 {
 	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, PCF_NAME, 0);
 
@@ -95,7 +96,7 @@ pcf_identify(driver_t *driver, device_t parent)
 }
 
 static int
-pcf_probe(device_t dev)
+pcf_isa_probe(device_t dev)
 {
 	u_long		start, count;
 	u_int		rid = 0, port, error;
@@ -116,7 +117,7 @@ pcf_probe(device_t dev)
 }
 
 static int
-pcf_attach(device_t dev)
+pcf_isa_attach(device_t dev)
 {
 	struct pcf_softc *sc;
 	int rv = ENXIO;
@@ -181,7 +182,7 @@ error:
 }
 
 static int
-pcf_detach(device_t dev)
+pcf_isa_detach(device_t dev)
 {
 	struct pcf_softc *sc;
 	int rv;
@@ -207,7 +208,6 @@ pcf_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(pcf, ebus, pcf_driver, pcf_devclass, 0, 0);
-DRIVER_MODULE(pcf, isa, pcf_driver, pcf_devclass, 0, 0);
-MODULE_DEPEND(pcf, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
-MODULE_VERSION(pcf, PCF_MODVER);
+DRIVER_MODULE(pcf_isa, isa, pcf_isa_driver, pcf_isa_devclass, 0, 0);
+MODULE_DEPEND(pcf_isa, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
+MODULE_VERSION(pcf_isa, PCF_MODVER);
