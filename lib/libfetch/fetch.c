@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.1.1.1 1998/07/09 16:52:42 des Exp $
+ *	$Id: fetch.c,v 1.3 1998/07/11 21:29:07 des Exp $
  */
 
 #include <sys/param.h>
@@ -51,26 +51,43 @@
 int fetchLastErrCode;
 const char *fetchLastErrText;
 
+FILE *
+fetchGet(url_t *URL, char *flags)
+{
+    if (strcasecmp(URL->scheme, "file") == 0)
+	return fetchGetFile(URL, flags);
+    else if (strcasecmp(URL->scheme, "http") == 0)
+	return fetchGetHTTP(URL, flags);
+    else if (strcasecmp(URL->scheme, "ftp") == 0)
+	return fetchGetFTP(URL, flags);
+    else return NULL;
+
+}
+
+FILE *
+fetchPut(url_t *URL, char *flags)
+{
+    if (strcasecmp(URL->scheme, "file") == 0)
+	return fetchPutFile(URL, flags);
+    else if (strcasecmp(URL->scheme, "http") == 0)
+	return fetchPutHTTP(URL, flags);
+    else if (strcasecmp(URL->scheme, "ftp") == 0)
+	return fetchPutFTP(URL, flags);
+    else return NULL;
+}
+
 /* get URL */
 FILE *
 fetchGetURL(char *URL, char *flags)
 {
     url_t *u;
     FILE *f;
-    
-    /* parse URL */
+
     if ((u = fetchParseURL(URL)) == NULL)
 	return NULL;
     
-    /* select appropriate function */
-    if (strcasecmp(u->scheme, "file") == 0)
-	f = fetchGetFile(u, flags);
-    else if (strcasecmp(u->scheme, "http") == 0)
-	f = fetchGetHTTP(u, flags);
-    else if (strcasecmp(u->scheme, "ftp") == 0)
-	f = fetchGetFTP(u, flags);
-    else f = NULL;
-
+    f = fetchGet(u, flags);
+    
     fetchFreeURL(u);
     return f;
 }
@@ -83,19 +100,11 @@ fetchPutURL(char *URL, char *flags)
     url_t *u;
     FILE *f;
     
-    /* parse URL */
     if ((u = fetchParseURL(URL)) == NULL)
 	return NULL;
     
-    /* select appropriate function */
-    if (strcasecmp(u->scheme, "file") == 0)
-	f = fetchPutFile(u, flags);
-    else if (strcasecmp(u->scheme, "http") == 0)
-	f = fetchPutHTTP(u, flags);
-    else if (strcasecmp(u->scheme, "ftp") == 0)
-	f = fetchPutFTP(u, flags);
-    else f = NULL;
-
+    f = fetchPut(u, flags);
+    
     fetchFreeURL(u);
     return f;
 }
@@ -202,6 +211,10 @@ fetchConnect(char *host, int port)
     struct hostent *he;
     int sd;
 
+#ifndef NDEBUG
+    fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
+#endif
+    
     /* look up host name */
     if ((he = gethostbyname(host)) == NULL)
 	return -1;
@@ -213,9 +226,9 @@ fetchConnect(char *host, int port)
     sin.sin_port = htons(port);
 
     /* try to connect */
-    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
 	return -1;
-    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) < 0) {
+    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1) {
 	close(sd);
 	return -1;
     }
