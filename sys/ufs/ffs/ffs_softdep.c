@@ -2571,7 +2571,7 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 	bp = getblk(freeblks->fb_devvp, dbn, (int)fs->fs_bsize, 0, 0,
 	    GB_NOCREAT);
 #else
-	bp = incore(freeblks->fb_devvp, dbn);
+	bp = incore(&freeblks->fb_devvp->v_bufobj, dbn);
 #endif
 	ACQUIRE_LOCK(&lk);
 	if (bp != NULL && (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
