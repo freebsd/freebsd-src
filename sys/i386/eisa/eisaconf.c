@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.9 1995/11/29 10:12:34 phk Exp $
+ *	$Id: eisaconf.c,v 1.10 1995/11/29 17:40:47 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -461,19 +461,8 @@ eisa_registerdev(e_dev, driver, kdc_template)
 	return (0);
 }
 
-/*
- * Provide EISA-specific device information to user programs using the
- * hw.devconf interface.
- */
-int
-eisa_externalize(struct eisa_device *e_dev, struct sysctl_req *req)
-{
-	return (SYSCTL_OUT(req, e_dev, sizeof *e_dev));
-}
-
-
 int
 eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-    return eisa_externalize(kdc->kdc_eisa, req);
+    return (SYSCTL_OUT(req, kdc->kdc_eisa, sizeof(struct eisa_device)));
 }
