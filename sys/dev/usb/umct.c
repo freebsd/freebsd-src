@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/tty.h>
-#include <sys/interrupt.h>
+#include <sys/taskqueue.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -82,7 +82,7 @@ struct umct_softc {
 	uint8_t			sc_msr;
 	uint8_t			sc_lcr;
 	uint8_t			sc_mcr;
-	void			*sc_swicookie;
+	struct task		sc_task;
 };
 
 Static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -91,7 +91,7 @@ Static void umct_set(void *, int, int, int);
 Static int  umct_param(void *, int, struct termios *);
 Static int  umct_open(void *, int);
 Static void umct_close(void *, int);
-Static void umct_notify(void *);
+Static void umct_notify(void *, int count);
 
 Static struct ucom_callback umct_callback = {
 	umct_get_status,	/* ucom_get_status */
@@ -137,8 +137,6 @@ DRIVER_MODULE(umct, uhub, umct_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(umct, usb, 1, 1, 1);
 MODULE_DEPEND(umct, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(umct, 1);
-
-Static struct ithd *umct_ithd;
 
 USB_MATCH(umct)
 {
@@ -275,8 +273,7 @@ USB_ATTACH(umct)
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &umct_callback;
 	ucom_attach(ucom);
-	swi_add(&umct_ithd, "ucom", umct_notify, sc, SWI_TTY, 0,
-	    &sc->sc_swicookie);
+	TASK_INIT(&sc->sc_task, 0, umct_notify, sc);
 
 	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -299,7 +296,9 @@ USB_DETACH(umct)
 	}
 
 	sc->sc_ucom.sc_dying = 1;
-	ithread_remove_handler(sc->sc_swicookie);
+#if 0
+	taskqueue_drain(taskqueue_swi_giant);
+#endif
 	rv = ucom_detach(&sc->sc_ucom);
 	return (rv);
 }
@@ -351,11 +350,11 @@ umct_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	 * Defer notifying the ucom layer as it doesn't like to be bothered
          * from an interrupt context.
 	 */
-	swi_sched(sc->sc_swicookie, 0);
+	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 }
 
 Static void
-umct_notify(void *arg)
+umct_notify(void *arg, int count)
 {
 	struct umct_softc *sc;
 
