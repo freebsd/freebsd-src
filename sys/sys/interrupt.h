@@ -33,33 +33,72 @@
  * Describe a hardware interrupt handler.
  *
  * Multiple interrupt handlers for a specific vector can be chained
- * together via the 'next' pointer.
+ * together.
  */
-
-struct intrhand {
-	driver_intr_t	*ih_handler;	/* code address of handler */
-	void		*ih_argument;	/* argument to pass to handler */
-	enum intr_type	 ih_flags;	/* flag bits (sys/bus.h) */
-	char		*ih_name;	/* name of handler */
-	struct ithd	*ih_ithd;	/* handler we're connected to */
-	struct intrhand	*ih_next;	/* next handler for this irq */
-	int		 ih_need;	/* need interrupt */
+struct	intrhand {
+	driver_intr_t	*ih_handler;	/* Handler function. */
+	void		*ih_argument;	/* Argument to pass to handler. */
+	int		 ih_flags;
+	const char	*ih_name;	/* Name of handler. */
+	struct ithd	*ih_ithread;	/* Ithread we are connected to. */
+	int		 ih_need;	/* Needs service. */
+	TAILQ_ENTRY(intrhand) ih_next;	/* Next handler for this vector. */
+	u_char		 ih_pri;	/* Priority of this handler. */
 };
 
-int	ithread_priority __P((int flags));
-void	sched_swi __P((struct intrhand *, int));
+/* Interrupt handle flags kept in ih_flags */
+#define	IH_FAST		0x00000001	/* Fast interrupt. */
+#define	IH_EXCLUSIVE	0x00000002	/* Exclusive interrupt. */
+#define	IH_ENTROPY	0x00000004	/* Device is a good entropy source. */
+#define	IH_MPSAFE	0x80000000	/* Handler does not need Giant. */
+
+/*
+ * Describe an interrupt thread.  There is one of these per interrupt vector.
+ * Note that this actually describes an interrupt source.  There may or may
+ * not be an actual kernel thread attached to a given source.
+ */
+struct	ithd {
+	struct	proc *it_proc;		/* Interrupt process. */
+	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
+	TAILQ_HEAD(, intrhand) it_handlers; /* Interrupt handlers. */
+	struct	ithd *it_interrupted;	/* Who we interrupted. */
+	void	(*it_disable)(int);	/* Enable interrupt source. */
+	void	(*it_enable)(int);	/* Disable interrupt source. */
+	void	*it_md;			/* Hook for MD interrupt code. */
+	int	it_flags;		/* Interrupt-specific flags. */
+	int	it_need;		/* Needs service. */
+	int	it_vector;
+	char	it_name[MAXCOMLEN + 1];
+};
+
+/* Interrupt thread flags kept in it_flags */
+#define	IT_SOFT		0x000001	/* Software interrupt. */
+#define	IT_ENTROPY	0x000002	/* Interrupt is an entropy source. */
+#define	IT_DEAD		0x000004	/* Thread is waiting to exit. */
+
+/* Flags to pass to sched_swi. */
+#define	SWI_NOSWITCH	0x0
 #define	SWI_SWITCH	0x1
-#define	SWI_NOSWITCH	0x2
-#define	SWI_DELAY	0x4	/* implies NOSWITCH */
+#define	SWI_DELAY	0x2	/* implies NOSWITCH */
 
-struct	intrhand * sinthand_add __P((const char *name, struct ithd **,
-    driver_intr_t, void *arg, int pri, int flags));
+extern struct	ithd *tty_ithd;
+extern struct	ithd *clk_ithd;
+extern void	*net_ih;
+extern void	*softclock_ih;
+extern void	*vm_ih;
 
-extern struct ithd *tty_ithd;
-extern struct ithd *clk_ithd;
-
-extern struct intrhand *net_ih;
-extern struct intrhand *softclock_ih;
-extern struct intrhand *vm_ih;
+int	ithread_create __P((struct ithd **ithread, int vector, int flags,
+	    void (*disable)(int), void (*enable)(int), const char *name, ...))
+	    __printflike(6, 7);
+int	ithread_destroy __P((struct ithd *ithread));
+u_char	ithread_priority __P((enum intr_type flags));
+int	ithread_add_handler __P((struct ithd *ithread, const char *name,
+	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
+	    void **cookiep));
+int	ithread_remove_handler __P((void *cookie));
+int     swi_add __P((struct ithd **ithdp, const char *name,
+	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
+	    void **cookiep));
+void	swi_sched __P((void *cookie, int flags));
 
 #endif

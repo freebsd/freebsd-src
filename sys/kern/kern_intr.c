@@ -40,36 +40,42 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/stdarg.h>
 
 #include <net/netisr.h>		/* prototype for legacy_setsoftnet */
 
-struct intrhand *net_ih;
-struct intrhand *vm_ih;
-struct intrhand *softclock_ih;
-struct ithd	*clk_ithd;
-struct ithd	*tty_ithd;
+void	*net_ih;
+void	*vm_ih;
+void	*softclock_ih;
+struct	ithd *clk_ithd;
+struct	ithd *tty_ithd;
 
-static void start_softintr(void *);
-static void swi_net(void *);
+static struct	mtx ithread_list_lock;
 
-int
-ithread_priority(flags)
-	int flags;
+static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
+
+static void	ithread_update(struct ithd *);
+static void	ithread_loop(void *);
+static void	ithread_init(void *);
+static void	start_softintr(void *);
+static void	swi_net(void *);
+
+u_char
+ithread_priority(enum intr_type flags)
 {
-	int pri;
+	u_char pri;
 
-	flags &= ~INTR_MPSAFE;
+	flags &= (INTR_TYPE_TTY | INTR_TYPE_BIO | INTR_TYPE_NET |
+	    INTR_TYPE_CAM | INTR_TYPE_MISC | INTR_TYPE_CLK);
 	switch (flags) {
-	case INTR_TYPE_TTY:             /* keyboard or parallel port */
+	case INTR_TYPE_TTY:
 		pri = PI_TTYLOW;
-		break;
-	case (INTR_TYPE_TTY | INTR_FAST): /* sio */
-		pri = PI_TTYHIGH;
 		break;
 	case INTR_TYPE_BIO:
 		/*
@@ -84,63 +90,238 @@ ithread_priority(flags)
 	case INTR_TYPE_CAM:
 		pri = PI_DISK;          /* XXX or PI_CAM? */
 		break;
+	case INTR_TYPE_CLK:
+		pri = PI_REALTIME;
+		break;
 	case INTR_TYPE_MISC:
 		pri = PI_DULL;          /* don't care */
 		break;
-	/* We didn't specify an interrupt level. */
 	default:
+		/* We didn't specify an interrupt level. */
 		panic("ithread_priority: no interrupt type in flags");
 	}
 
 	return pri;
 }
 
-void sithd_loop(void *);
+/*
+ * Regenerate the name (p_comm) and priority for a threaded interrupt thread.
+ */
+static void
+ithread_update(struct ithd *ithd)
+{
+	struct intrhand *ih;
+	struct proc *p;
+	int entropy;
 
-struct intrhand *
-sinthand_add(const char *name, struct ithd **ithdp, driver_intr_t handler, 
-	    void *arg, int pri, int flags)
+	p = ithd->it_proc;
+	if (p == NULL)
+		return;
+
+	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
+	ih = TAILQ_FIRST(&ithd->it_handlers);
+	if (ih == NULL) {
+		p->p_rtprio.prio = RTP_PRIO_MAX;
+		ithd->it_flags &= ~IT_ENTROPY;
+		return;
+	}
+
+	entropy = 0;
+	p->p_rtprio.prio = ih->ih_pri;
+	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
+		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
+		    sizeof(p->p_comm)) {
+			strcat(p->p_comm, " ");
+			strcat(p->p_comm, ih->ih_name);
+		} else if (strlen(p->p_comm) + 1 == sizeof(p->p_comm)) {
+			if (p->p_comm[sizeof(p->p_comm) - 2] == '+')
+				p->p_comm[sizeof(p->p_comm) - 2] = '*';
+			else
+				p->p_comm[sizeof(p->p_comm) - 2] = '+';
+		} else
+			strcat(p->p_comm, "+");
+		if (ih->ih_flags & IH_ENTROPY)
+			entropy++;
+	}
+
+	if (entropy) {
+		printf("Warning, ithread (%d, %s) is an entropy source.\n",
+		    p->p_pid, p->p_comm);
+		ithd->it_flags |= IT_ENTROPY;
+	}
+	else
+		ithd->it_flags &= ~IT_ENTROPY;
+}
+
+int
+ithread_create(struct ithd **ithread, int vector, int flags,
+    void (*disable)(int), void (*enable)(int), const char *fmt, ...)
+{
+	struct ithd *ithd;
+	struct proc *p;
+	int error;
+	va_list ap;
+
+	ithd = malloc(sizeof(struct ithd), M_ITHREAD, M_WAITOK | M_ZERO);
+	ithd->it_vector = vector;
+	ithd->it_disable = disable;
+	ithd->it_enable = enable;
+	ithd->it_flags = flags;
+	TAILQ_INIT(&ithd->it_handlers);
+
+	va_start(ap, fmt);
+	vsnprintf(ithd->it_name, sizeof(ithd->it_name), fmt, ap);
+	va_end(ap);
+
+	error = kthread_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
+	    ithd->it_name);
+	if (error) {
+		free(ithd, M_ITHREAD);
+		return (error);
+	}
+	p->p_rtprio.type = RTP_PRIO_ITHREAD;
+	p->p_rtprio.prio = RTP_PRIO_MAX;
+	p->p_stat = SWAIT;
+	ithd->it_proc = p;
+	p->p_ithd = ithd;
+	if (ithread != NULL)
+		*ithread = ithd;
+
+	return (0);
+}
+
+int
+ithread_destroy(struct ithd *ithread)
+{
+
+	if (ithread == NULL || !TAILQ_EMPTY(&ithread->it_handlers))
+		return (EINVAL);
+
+	mtx_lock_spin(&sched_lock);
+	ithread->it_flags |= IT_DEAD;
+	if (ithread->it_proc->p_stat == SWAIT) {
+		ithread->it_proc->p_stat = SRUN;
+		setrunqueue(ithread->it_proc);
+	}
+	mtx_unlock_spin(&sched_lock);
+	return (0);
+}
+
+int
+ithread_add_handler(struct ithd* ithread, const char *name,
+    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
+    void **cookiep)
+{
+	struct intrhand *ih, *temp_ih;
+
+	if (ithread == NULL || name == NULL || handler == NULL)
+		return (EINVAL);
+	if ((flags & INTR_FAST) !=0)
+		flags |= INTR_EXCL;
+
+	ih = malloc(sizeof(struct intrhand), M_ITHREAD, M_WAITOK | M_ZERO);
+	ih->ih_handler = handler;
+	ih->ih_argument = arg;
+	ih->ih_name = name;
+	ih->ih_ithread = ithread;
+	ih->ih_pri = pri;
+	if (flags & INTR_FAST)
+		ih->ih_flags = IH_FAST | IH_EXCLUSIVE;
+	else if (flags & INTR_EXCL)
+		ih->ih_flags = IH_EXCLUSIVE;
+	if (flags & INTR_MPSAFE)
+		ih->ih_flags |= IH_MPSAFE;
+	if (flags & INTR_ENTROPY)
+		ih->ih_flags |= IH_ENTROPY;
+
+	mtx_lock_spin(&ithread_list_lock);
+	if ((flags & INTR_EXCL) !=0 && !TAILQ_EMPTY(&ithread->it_handlers))
+		goto fail;
+	if (!TAILQ_EMPTY(&ithread->it_handlers) &&
+	    (TAILQ_FIRST(&ithread->it_handlers)->ih_flags & IH_EXCLUSIVE) != 0)
+		goto fail;
+
+	TAILQ_FOREACH(temp_ih, &ithread->it_handlers, ih_next)
+	    if (temp_ih->ih_pri > ih->ih_pri)
+		    break;
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ithread->it_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	ithread_update(ithread);
+	mtx_unlock_spin(&ithread_list_lock);
+
+	if (cookiep != NULL)
+		*cookiep = ih;
+	return (0);
+
+fail:
+	mtx_unlock_spin(&ithread_list_lock);
+	free(ih, M_ITHREAD);
+	return (EINVAL);
+}
+
+int
+ithread_remove_handler(void *cookie)
+{
+	struct intrhand *handler = (struct intrhand *)cookie;
+	struct ithd *ithread;
+#ifdef INVARIANTS
+	struct intrhand *ih;
+	int found;
+#endif
+
+	if (handler == NULL || (ithread = handler->ih_ithread) == NULL)
+		return (EINVAL);
+
+	mtx_lock_spin(&ithread_list_lock);
+#ifdef INVARIANTS
+	found = 0;
+	TAILQ_FOREACH(ih, &ithread->it_handlers, ih_next)
+		if (ih == handler) {
+			found++;
+			break;
+		}
+	if (found == 0) {
+		mtx_unlock_spin(&ithread_list_lock);
+		return (EINVAL);
+	}
+#endif
+	TAILQ_REMOVE(&ithread->it_handlers, handler, ih_next);
+	ithread_update(ithread);
+	mtx_unlock_spin(&ithread_list_lock);
+
+	free(handler, M_ITHREAD);
+	return (0);
+}
+
+int
+swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler, 
+	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
 	struct proc *p;
 	struct ithd *ithd;
-	struct intrhand *ih;		
-	struct intrhand *this_ih;
+	int error;
 
 	ithd = (ithdp != NULL) ? *ithdp : NULL;
 
-
 	if (ithd == NULL) {
-		int error;
-		ithd = malloc(sizeof (struct ithd), M_DEVBUF, M_WAITOK | M_ZERO);
-		error = kthread_create(sithd_loop, NULL, &p,
-			RFSTOPPED | RFHIGHPID, "swi%d: %s", pri, name);
+		error = ithread_create(&ithd, pri, IT_SOFT, NULL, NULL,
+		    "swi%d:", pri);
 		if (error)
-			panic("inthand_add: Can't create interrupt thread");
-		ithd->it_proc = p;
-		p->p_ithd = ithd;
-		p->p_rtprio.type = RTP_PRIO_ITHREAD;
-		p->p_rtprio.prio = pri + PI_SOFT;	/* soft interrupt */
-		p->p_stat = SWAIT;			/* we're idle */
+			return (error);
+
 		/* XXX - some hacks are _really_ gross */
+		p = ithd->it_proc;
+		PROC_LOCK(p);
 		if (pri == SWI_CLOCK)
 			p->p_flag |= P_NOLOAD;
+		PROC_UNLOCK(p);
 		if (ithdp != NULL)
 			*ithdp = ithd;
 	}
-	this_ih = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK | M_ZERO);
-	this_ih->ih_handler = handler;
-	this_ih->ih_argument = arg;
-	this_ih->ih_flags = flags;
-	this_ih->ih_ithd = ithd;
-	this_ih->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
-	if ((ih = ithd->it_ih)) {
-		while (ih->ih_next != NULL)
-			ih = ih->ih_next;
-		ih->ih_next = this_ih;
-	} else
-		ithd->it_ih = this_ih;
-	strcpy(this_ih->ih_name, name);
-	return (this_ih);
+	return (ithread_add_handler(ithd, name, handler, arg, pri + PI_SOFT,
+		    flags, cookiep));
 }
 
 
@@ -148,14 +329,15 @@ sinthand_add(const char *name, struct ithd **ithdp, driver_intr_t handler,
  * Schedule a heavyweight software interrupt process. 
  */
 void
-sched_swi(struct intrhand *ih, int flag)
+swi_sched(void *cookie, int flags)
 {
-	struct ithd *it = ih->ih_ithd;	/* and the process that does it */
+	struct intrhand *ih = (struct intrhand *)cookie;
+	struct ithd *it = ih->ih_ithread;
 	struct proc *p = it->it_proc;
 
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
-	CTR3(KTR_INTR, "sched_swi pid %d(%s) need=%d",
+	CTR3(KTR_INTR, "swi_sched pid %d(%s) need=%d",
 		p->p_pid, p->p_comm, it->it_need);
 
 	/*
@@ -165,67 +347,86 @@ sched_swi(struct intrhand *ih, int flag)
 	 * there.  In any case, kick everyone so that if the new thread
 	 * is higher priority than their current thread, it gets run now.
 	 */
-	ih->ih_need = 1;
-	if (!(flag & SWI_DELAY)) {
+	atomic_store_rel_int(&ih->ih_need, 1);
+	if (!(flags & SWI_DELAY)) {
 		it->it_need = 1;
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SWAIT) { /* not on run queue */
-			CTR1(KTR_INTR, "sched_swi: setrunqueue %d", p->p_pid);
-/*			membar_lock(); */
+			CTR1(KTR_INTR, "swi_sched: setrunqueue %d", p->p_pid);
 			p->p_stat = SRUN;
 			setrunqueue(p);
-			aston();
+			if (!cold && flags & SWI_SWITCH) {
+				if (curproc != PCPU_GET(idleproc))
+					setrunqueue(curproc);
+				curproc->p_stats->p_ru.ru_nvcsw++;
+				mi_switch();
+			} else
+				need_resched();
 		}
 		else {
-			CTR3(KTR_INTR, "sched_swi %d: it_need %d, state %d",
+			CTR3(KTR_INTR, "swi_sched %d: it_need %d, state %d",
 				p->p_pid, it->it_need, p->p_stat );
 		}
 		mtx_unlock_spin(&sched_lock);
-		need_resched();
 	}
 }
 
 /*
- * This is the main code for soft interrupt threads.
+ * This is the main code for interrupt threads.
  */
 void
-sithd_loop(void *dummy)
+ithread_loop(void *arg)
 {
-	struct ithd *it;		/* our thread context */
+	struct ithd *ithd;		/* our thread context */
 	struct intrhand *ih;		/* and our interrupt handler chain */
+	struct proc *p;
 	
-	struct proc *p = curproc;
-	it = p->p_ithd;			/* point to myself */
+	p = curproc;
+	ithd = (struct ithd *)arg;	/* point to myself */
+	KASSERT(ithd->it_proc == p && p->p_ithd == ithd,
+	    (__func__ ": ithread and proc linkage out of sync"));
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
 	 * list of handlers, giving each one a go at it.
 	 */
 	for (;;) {
-		CTR3(KTR_INTR, "sithd_loop pid %d(%s) need=%d",
-		     p->p_pid, p->p_comm, it->it_need);
-		while (it->it_need) {
+		/*
+		 * If we are an orphaned thread, then just die.
+		 */
+		if (ithd->it_flags & IT_DEAD) {
+			CTR2(KTR_INTR, __func__ ": pid %d: (%s) exiting",
+			    p->p_pid, p->p_comm);
+			p->p_ithd = NULL;
+			mtx_lock(&Giant);
+			free(ithd, M_ITHREAD);
+			kthread_exit(0);
+		}
+
+		CTR3(KTR_INTR, __func__ ": pid %d: (%s) need=%d",
+		     p->p_pid, p->p_comm, ithd->it_need);
+		while (ithd->it_need) {
 			/*
 			 * Service interrupts.  If another interrupt
 			 * arrives while we are running, they will set
 			 * it_need to denote that we should make
 			 * another pass.
 			 */
-			it->it_need = 0;
-			for (ih = it->it_ih; ih != NULL; ih = ih->ih_next) {
-				if (!ih->ih_need)
+			atomic_store_rel_int(&ithd->it_need, 0);
+			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
+				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
 					continue;
-				ih->ih_need = 0;
+				atomic_store_rel_int(&ih->ih_need, 0);
 				CTR5(KTR_INTR,
-				    "sithd_loop pid %d ih=%p: %p(%p) flg=%x",
+				    __func__ ": pid %d ih=%p: %p(%p) flg=%x",
 				    p->p_pid, (void *)ih,
 				    (void *)ih->ih_handler, ih->ih_argument,
 				    ih->ih_flags);
 
-				if ((ih->ih_flags & INTR_MPSAFE) == 0)
+				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_lock(&Giant);
 				ih->ih_handler(ih->ih_argument);
-				if ((ih->ih_flags & INTR_MPSAFE) == 0)
+				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);
 			}
 		}
@@ -237,35 +438,51 @@ sithd_loop(void *dummy)
 		 */
 		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_lock_spin(&sched_lock);
-		if (!it->it_need) {
+		if (!ithd->it_need) {
+			/*
+			 * Should we call this earlier in the loop above?
+			 */
+			if (ithd->it_enable != NULL)
+				ithd->it_enable(ithd->it_vector);
 			p->p_stat = SWAIT; /* we're idle */
-			CTR1(KTR_INTR, "sithd_loop pid %d: done", p->p_pid);
+			CTR1(KTR_INTR, __func__ ": pid %d: done", p->p_pid);
 			mi_switch();
-			CTR1(KTR_INTR, "sithd_loop pid %d: resumed", p->p_pid);
+			CTR1(KTR_INTR, __func__ ": pid %d: resumed", p->p_pid);
 		}
 		mtx_unlock_spin(&sched_lock);
 	}
 }
 
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
+/*
+ * Initialize mutex used to protect ithread handler lists.
+ */
+static void
+ithread_init(void *dummy)
+{
+
+	mtx_init(&ithread_list_lock, "ithread list lock", MTX_SPIN);
+}
+SYSINIT(ithread_init, SI_SUB_INTR, SI_ORDER_FIRST, ithread_init, NULL);
 
 /*
  * Start standard software interrupt threads
  */
 static void
-start_softintr(dummy)
-	void *dummy;
+start_softintr(void *dummy)
 {
-	net_ih = sinthand_add("net", NULL, swi_net, NULL, SWI_NET, 0);
-	softclock_ih = sinthand_add("clock", &clk_ithd, softclock, NULL,
-	    SWI_CLOCK, INTR_MPSAFE);
-	vm_ih = sinthand_add("vm", NULL, swi_vm, NULL, SWI_VM, 0);
+
+	if (swi_add(NULL, "net", swi_net, NULL, SWI_NET, 0, &net_ih) ||
+	    swi_add(&clk_ithd, "clock", softclock, NULL, SWI_CLOCK,
+		INTR_MPSAFE, &softclock_ih) ||
+	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
+		panic("died while creating standard software ithreads");
 }
+SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 
 void
-legacy_setsoftnet()
+legacy_setsoftnet(void)
 {
-	sched_swi(net_ih, SWI_NOSWITCH);
+	swi_sched(net_ih, SWI_NOSWITCH);
 }
 
 /*

@@ -149,6 +149,8 @@ struct	pargs {
  *	- Reads of this value by other processes are locked.
  *	- Reads of this value by the current process need not be locked.
  */
+struct ithd;
+
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
 	TAILQ_ENTRY(proc) p_slpq;	/* (j) Sleep queue. */
@@ -350,21 +352,6 @@ struct	pcred {
 	gid_t	p_svgid;		/* Saved effective group id. */
 	int	p_refcnt;		/* Number of references. */
 	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption. */
-};
-
-/*
- * Describe an interrupt thread.  There is one of these per irq.  BSD/OS makes
- * this a superset of struct proc, i.e. it_proc is the struct itself and not a
- * pointer.  We point in both directions, because it feels good that way.
- */
-struct	ithd {
-	struct	proc *it_proc;		/* Interrupt process. */
-	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
-	int	it_need;		/* Needs service. */
-	int	irq;			/* Vector. */
-	struct	intrhand *it_ih;	/* Interrupt handlers. */
-	struct	ithd *it_interrupted;	/* Who we interrupted. */
-	void	*it_md;			/* Hook for MD interrupt code. */
 };
 
 #ifdef _KERNEL
