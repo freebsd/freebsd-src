@@ -777,18 +777,19 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 static int
 pci_cfgcheck(int maxdev)
 {
-	u_char device;
+	uint32_t id, class;
+	uint8_t header;
+	uint8_t device;
 
 	if (bootverbose) 
 		printf("pci_cfgcheck:\tdevice ");
 
 	for (device = 0; device < maxdev; device++) {
-		unsigned id, class, header;
 		if (bootverbose) 
 			printf("%d ", device);
 
 		id = inl(pci_cfgenable(0, device, 0, 0, 4));
-		if (id == 0 || id == -1)
+		if (id == 0 || id == 0xffffffff)
 			continue;
 
 		class = inl(pci_cfgenable(0, device, 0, 8, 4)) >> 8;
@@ -798,7 +799,7 @@ pci_cfgcheck(int maxdev)
 			continue;
 
 		header = inb(pci_cfgenable(0, device, 0, 14, 1));
-		if (bootverbose) 
+		if (bootverbose)
 			printf("[hdr=%02x] ", header);
 		if ((header & 0x7e) != 0)
 			continue;
@@ -819,13 +820,13 @@ pci_cfgcheck(int maxdev)
 static int
 pcireg_cfgopen(void)
 {
-	unsigned long mode1res,oldval1;
-	unsigned char mode2res,oldval2;
+	uint32_t mode1res, oldval1;
+	uint8_t mode2res, oldval2;
 
 	oldval1 = inl(CONF1_ADDR_PORT);
 
 	if (bootverbose) {
-		printf("pci_open(1):\tmode 1 addr port (0x0cf8) is 0x%08lx\n",
+		printf("pci_open(1):\tmode 1 addr port (0x0cf8) is 0x%08x\n",
 		    oldval1);
 	}
 
@@ -835,12 +836,12 @@ pcireg_cfgopen(void)
 		devmax = 32;
 
 		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-		outb(CONF1_ADDR_PORT +3, 0);
+		outb(CONF1_ADDR_PORT + 3, 0);
 		mode1res = inl(CONF1_ADDR_PORT);
 		outl(CONF1_ADDR_PORT, oldval1);
 
 		if (bootverbose)
-			printf("pci_open(1a):\tmode1res=0x%08lx (0x%08lx)\n", 
+			printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n", 
 			    mode1res, CONF1_ENABLE_CHK);
 
 		if (mode1res) {
@@ -853,7 +854,7 @@ pcireg_cfgopen(void)
 		outl(CONF1_ADDR_PORT, oldval1);
 
 		if (bootverbose)
-			printf("pci_open(1b):\tmode1res=0x%08lx (0x%08lx)\n", 
+			printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n", 
 			    mode1res, CONF1_ENABLE_CHK1);
 
 		if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
