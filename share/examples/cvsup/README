@@ -1,4 +1,4 @@
-# $Id: README,v 1.12 1998/04/20 11:26:27 jb Exp $
+# $Id: README,v 1.13 1998/06/26 01:48:04 jkh Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
@@ -33,59 +33,9 @@ To maintain a copy of the FreeBSD bug database, use the file:
 
     gnats-supfile               FreeBSD bug database
 
-The supfiles contained in this directory all obtain their updates
-from cvsup.FreeBSD.org.  Please choose one of the servers listed
-below for your updates.
+IMPORTANT: Before you use any of the supfiles in this directory,
+you will need to edit in an appropriate "host" setting.  See:
 
-  Argentina:
-    cvsup.ar.FreeBSD.org
+    http://www.freebsd.org/handbook/mirrors.html
 
-  Australia:
-    cvsup.au.FreeBSD.org
-
-  Brazil:
-    cvsup.br.FreeBSD.org
-
-  Canada:
-    cvsup.ca.FreeBSD.org
-
-  Estonia:
-    cvsup.ee.FreeBSD.org
-
-  Germany:
-    cvsup.de.FreeBSD.org
-
-  Japan:
-    cvsup.jp.FreeBSD.org
-
-  Netherlands:
-    cvsup.nl.FreeBSD.org
-
-  Norway:
-    cvsup.no.FreeBSD.org
-
-  Russia:
-    cvsup.ru.FreeBSD.org
-
-  South Africa:
-    cvsup.za.FreeBSD.org
-
-  Taiwan:
-    cvsup.tw.FreeBSD.org
-
-  Ukraine:
-    cvsup2.ua.FreeBSD.org
-
-  United Kingdom:
-    cvsup.uk.FreeBSD.org
-
-  USA:
-    cvsup.FreeBSD.org		(Washington state)
-    cvsup2.FreeBSD.org		(California)
-    cvsup3.FreeBSD.org		(Massachusetts)
-
-  International Crypto Repository:
-    cvsup.internat.FreeBSD.org
-
-  Special CTM-synchronized CVSup site:
-    ctm.FreeBSD.org
+for an up-to-date list of public CVSup mirror sites.
