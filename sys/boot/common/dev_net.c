@@ -1,5 +1,5 @@
 /*	
- * $Id$
+ * $Id: dev_net.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From: $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 
@@ -158,11 +158,7 @@ net_close(f)
     /* Extra close call? */
     if (netdev_opens <= 0)
 	return (0);
-    /*
-     * On SRM boots opening the device the first time takes ages
-     * I don't see the point of doing this every time you load a file
-     */
-    /* netdev_opens--; */
+    netdev_opens--;
     /* Not last close? */
     if (netdev_opens > 0)
 	return(0);

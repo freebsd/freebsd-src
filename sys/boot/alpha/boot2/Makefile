@@ -26,9 +26,9 @@ CFLAGS+=	-Wall
 
 # XXX fix to use "standard" versions
 LIBSTANDDIR=	/home/dfr/FreeBSD/alpha/src/lib/libstand
-LIBSTAND=	${LIBSTANDDIR}/obj/libstand.a
+LIBSTAND=	-lstand
 CFLAGS+=	-I${LIBSTANDDIR}
-LIBALPHA=	${.CURDIR}/../libalpha/obj/libalpha.a
+LIBALPHA=	${.OBJDIR}/../libalpha/libalpha.a
 CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=
