@@ -438,43 +438,19 @@ SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW|CTLFLAG_ANYBODY, 0, 0,
 static int
 sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
 {
-	int *name = (int *) arg1, error;
-	u_int namelen = arg2;
-	int indx;
 	struct sysctl_oid *oid;
-	struct sysctl_oid_list *lsp = &sysctl__children;
+	int error;
 
-	oid = SLIST_FIRST(lsp);
+	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
+	if (error)
+		return (error);
 
-	indx = 0;
-	while (oid && indx < CTL_MAXNAME) {
-		if (oid->oid_number == name[indx]) {
-			indx++;
-			if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-				if (oid->oid_handler)
-					goto found;
-				if (indx == namelen)
-					goto found;
-				lsp = (struct sysctl_oid_list *)oid->oid_arg1;
-				oid = SLIST_FIRST(lsp);
-			} else {
-				if (indx != namelen)
-					return EISDIR;
-				goto found;
-			}
-		} else {
-			oid = SLIST_NEXT(oid, oid_link);
-		}
-	}
-	return ENOENT;
-found:
 	if (!oid->oid_fmt)
-		return ENOENT;
-	error = SYSCTL_OUT(req, 
-		&oid->oid_kind, sizeof(oid->oid_kind));
-	if (!error)
-		error = SYSCTL_OUT(req, oid->oid_fmt, 
-			strlen(oid->oid_fmt)+1);
+		return (ENOENT);
+	error = SYSCTL_OUT(req, &oid->oid_kind, sizeof(oid->oid_kind));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, oid->oid_fmt, strlen(oid->oid_fmt) + 1);
 	return (error);
 }
 
@@ -716,22 +692,14 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 	return (error);
 }
 
-/*
- * Traverse our tree, and find the right node, execute whatever it points
- * at, and return the resulting error code.
- */
-
 int
-sysctl_root SYSCTL_HANDLER_ARGS
+sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
+    int *nindx, struct sysctl_req *req)
 {
-	int *name = (int *) arg1;
-	u_int namelen = arg2;
-	int indx, i;
 	struct sysctl_oid *oid;
-	struct sysctl_oid_list *lsp = &sysctl__children;
+	int indx;
 
-	oid = SLIST_FIRST(lsp);
-
+	oid = SLIST_FIRST(&sysctl__children);
 	indx = 0;
 	while (oid && indx < CTL_MAXNAME) {
 		if (oid->oid_number == name[indx]) {
@@ -739,23 +707,55 @@ sysctl_root SYSCTL_HANDLER_ARGS
 			if (oid->oid_kind & CTLFLAG_NOLOCK)
 				req->lock = 0;
 			if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-				if (oid->oid_handler)
-					goto found;
-				if (indx == namelen)
-					return ENOENT;
-				lsp = (struct sysctl_oid_list *)oid->oid_arg1;
-				oid = SLIST_FIRST(lsp);
+				if (oid->oid_handler != NULL ||
+				    indx == namelen) {
+					*noid = oid;
+					if (nindx != NULL)
+						*nindx = indx;
+					return (0);
+				}
+				oid = SLIST_FIRST(
+				    (struct sysctl_oid_list *)oid->oid_arg1);
+			} else if (indx == namelen) {
+				*noid = oid;
+				if (nindx != NULL)
+					*nindx = indx;
+				return (0);
 			} else {
-				if (indx != namelen)
-					return EISDIR;
-				goto found;
+				return (ENOTDIR);
 			}
 		} else {
 			oid = SLIST_NEXT(oid, oid_link);
 		}
 	}
-	return ENOENT;
-found:
+	return (ENOENT);
+}
+
+/*
+ * Traverse our tree, and find the right node, execute whatever it points
+ * to, and return the resulting error code.
+ */
+
+int
+sysctl_root SYSCTL_HANDLER_ARGS
+{
+	struct sysctl_oid *oid;
+	int error, indx;
+
+	error = sysctl_find_oid(arg1, arg2, &oid, &indx, req);
+	if (error)
+		return (error);
+
+	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		/*
+		 * You can't call a sysctl when it's a node, but has
+		 * no handler.  Inform the user that it's a node.
+		 * The indx may or may not be the same as namelen.
+		 */
+		if (oid->oid_handler == NULL)
+			return (EISDIR);
+	}
+
 	/* If writing isn't allowed */
 	if (req->newptr && (!(oid->oid_kind & CTLFLAG_WR) ||
 	    ((oid->oid_kind & CTLFLAG_SECURE) && securelevel > 0)))
@@ -764,23 +764,20 @@ found:
 	/* Most likely only root can write */
 	if (!(oid->oid_kind & CTLFLAG_ANYBODY) &&
 	    req->newptr && req->p &&
-	    (i = suser_xxx(0, req->p, 
+	    (error = suser_xxx(0, req->p, 
 	    (oid->oid_kind & CTLFLAG_PRISON) ? PRISON_ROOT : 0)))
-		return (i);
+		return (error);
 
 	if (!oid->oid_handler)
 		return EINVAL;
 
-	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-		i = (oid->oid_handler) (oid,
-					name + indx, namelen - indx,
-					req);
-	} else {
-		i = (oid->oid_handler) (oid,
-					oid->oid_arg1, oid->oid_arg2,
-					req);
-	}
-	return (i);
+	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE)
+		error = oid->oid_handler(oid, (int *)arg1 + indx, arg2 - indx,
+		    req);
+	else
+		error = oid->oid_handler(oid, oid->oid_arg1, oid->oid_arg2,
+		    req);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
