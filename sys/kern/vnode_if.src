@@ -63,8 +63,10 @@ vop_islocked {
 };
 
 #
-#% lookup	dvp	L ? ?
-#% lookup	vpp	- L -
+# lookup	dvp	L ? ?
+# lookup	vpp	- L -
+#! lookup	pre	vop_lookup_pre
+#! lookup	post	vop_lookup_post
 #
 # XXX - the lookup locking protocol defies simple description and depends
 #	on the flags and operation fields in the (cnp) structure.  Note
