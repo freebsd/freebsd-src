@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ldconfig.c,v 1.26 1998/09/05 16:20:15 jdp Exp $";
+	"$Id: ldconfig.c,v 1.27 1998/09/06 20:43:25 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <link.h>
+#include <objformat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,16 +65,6 @@ static const char rcsid[] =
 
 #undef major
 #undef minor
-
-enum obj_format { Unknown, Aout, Elf };
-
-#ifndef DEFAULT_FORMAT
-#ifdef __ELF__
-#define DEFAULT_FORMAT	Elf
-#else
-#define DEFAULT_FORMAT	Aout
-#endif
-#endif
 
 static int			verbose;
 static int			nostd;
@@ -100,7 +91,6 @@ static int		buildhints __P((void));
 static int		dodir __P((char *, int));
 int			dofile __P((char *, int));
 static void		enter __P((char *, char *, char *, int *, int));
-static enum obj_format	getobjfmt __P((int *, char **));
 static void		listhints __P((void));
 static int		readhints __P((void));
 static void		usage __P((void));
@@ -112,10 +102,19 @@ char	*argv[];
 {
 	int		i, c;
 	int		rval = 0;
-	enum obj_format	fmt;
+	char		objformat[32];
+	int		is_aout;
 
-	fmt = getobjfmt(&argc, argv);
-	hints_file = fmt == Aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
+	if (getobjformat(objformat, sizeof objformat, &argc, argv) == -1)
+		errx(1, "getobjformat failed: name too long");
+	if (strcmp(objformat, "aout") == 0)
+		is_aout = 1;
+	else if (strcmp(objformat, "elf") == 0)
+		is_aout = 0;
+	else
+		errx(1, "unknown object format \"%s\"", objformat);
+
+	hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
 	while ((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
 		switch (c) {
 		case 'R':
@@ -142,7 +141,7 @@ char	*argv[];
 		}
 	}
 
-	if (fmt == Elf) {
+	if (!is_aout) {
 		if (justread)
 			list_elf_hints(hints_file);
 		else
@@ -202,62 +201,6 @@ char	*argv[];
 	rval |= buildhints();
 
 	return rval;
-}
-
-static enum obj_format
-getobjfmt(argcp, argv)
-	int *argcp;
-	char **argv;
-{
-	enum obj_format	  fmt;
-	char		**src, **dst;
-	const char	 *env;
-	FILE		 *fp;
-
-	fmt = Unknown;
-
-	/* Scan for "-aout" or "-elf" arguments, deleting them as we go. */
-	for (dst = src = argv + 1;  *src != NULL;  src++) {
-		if (strcmp(*src, "-aout") == 0)
-			fmt = Aout;
-		else if (strcmp(*src, "-elf") == 0)
-			fmt = Elf;
-		else
-			*dst++ = *src;
-	}
-	*dst = NULL;
-	*argcp -= src - dst;
-	if (fmt != Unknown)
-		return fmt;
-
-	/* Check the OBJFORMAT environment variable. */
-	if ((env = getenv("OBJFORMAT")) != NULL) {
-		if (strcmp(env, "aout") == 0)
-			return Aout;
-		else if (strcmp(env, "elf") == 0)
-			return Elf;
-	}
-
-	/* Take a look at "/etc/objformat". */
-	if ((fp = fopen("/etc/objformat", "r")) != NULL) {
-		char buf[1024];
-
-		while (fgets(buf, sizeof buf, fp) != NULL) {
-			if (strcmp(buf, "OBJFORMAT=aout\n") == 0)
-				fmt = Aout;
-			else if (strcmp(buf, "OBJFORMAT=elf\n") == 0)
-				fmt = Elf;
-			else
-				warnx("Unrecognized line in /etc/objformat: %s",
-				    buf);
-		}
-		fclose(fp);
-	}
-	if (fmt != Unknown)
-		return fmt;
-
-	/* As a last resort, use the compiled in default. */
-	return DEFAULT_FORMAT;
 }
 
 static void
