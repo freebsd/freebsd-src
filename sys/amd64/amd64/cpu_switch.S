@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.84 1999/07/09 04:15:42 jlemon Exp $
+ *	$Id: swtch.s,v 1.85 1999/07/10 15:27:55 bde Exp $
  */
 
 #include "npx.h"
@@ -58,27 +58,12 @@
 /* Scheduling                                                                */
 /*****************************************************************************/
 
-/*
- * The following primitives manipulate the run queues.
- * _whichqs tells which of the 32 queues _qs
- * have processes in them.  setrunqueue puts processes into queues, Remrq
- * removes them from queues.  The running process is on no queue,
- * other processes are on a queue related to p->p_priority, divided by 4
- * actually to shrink the 0-127 range of priorities into the 32 available
- * queues.
- */
 	.data
-
-	.globl	_whichqs, _whichrtqs, _whichidqs
-
-_whichqs:	.long	0		/* which run queues have data */
-_whichrtqs:	.long	0		/* which realtime run qs have data */
-_whichidqs:	.long	0		/* which idletime run qs have data */
 
 	.globl	_hlt_vector
 _hlt_vector:	.long	_default_halt	/* pointer to halt routine */
 
-	.globl	_qs,_cnt,_panic
+	.globl	_panic
 
 	.globl	_want_resched
 _want_resched:	.long	0		/* we need to re-run the scheduler */
@@ -89,160 +74,6 @@ _tlb_flush_count:	.long	0
 #endif
 
 	.text
-/*
- * setrunqueue(p)
- *
- * Call should be made at spl6(), and p->p_stat should be SRUN
- */
-ENTRY(setrunqueue)
-	movl	4(%esp),%eax
-#ifdef DIAGNOSTIC
-	cmpb	$SRUN,P_STAT(%eax)
-	je	set1
-	pushl	$set2
-	call	_panic
-set1:
-#endif
-	cmpw	$RTP_PRIO_NORMAL,P_RTPRIO_TYPE(%eax) /* normal priority process? */
-	je	set_nort
-
-	movzwl	P_RTPRIO_PRIO(%eax),%edx
-
-	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* RR realtime priority? */
-	je	set_rt				/* RT priority */
-	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority? */
-	jne	set_id				/* must be idle priority */
-	
-set_rt:
-	btsl	%edx,_whichrtqs			/* set q full bit */
-	shll	$3,%edx
-	addl	$_rtqs,%edx			/* locate q hdr */
-	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
-	movl	P_BACK(%edx),%ecx
-	movl	%ecx,P_BACK(%eax)
-	movl	%eax,P_BACK(%edx)
-	movl	%eax,P_FORW(%ecx)
-	ret
-
-set_id:	
-	btsl	%edx,_whichidqs			/* set q full bit */
-	shll	$3,%edx
-	addl	$_idqs,%edx			/* locate q hdr */
-	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
-	movl	P_BACK(%edx),%ecx
-	movl	%ecx,P_BACK(%eax)
-	movl	%eax,P_BACK(%edx)
-	movl	%eax,P_FORW(%ecx)
-	ret
-
-set_nort:                    			/*  Normal (RTOFF) code */
-	movzbl	P_PRI(%eax),%edx
-	shrl	$2,%edx
-	btsl	%edx,_whichqs			/* set q full bit */
-	shll	$3,%edx
-	addl	$_qs,%edx			/* locate q hdr */
-	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
-	movl	P_BACK(%edx),%ecx
-	movl	%ecx,P_BACK(%eax)
-	movl	%eax,P_BACK(%edx)
-	movl	%eax,P_FORW(%ecx)
-	ret
-
-set2:	.asciz	"setrunqueue"
-
-/*
- * Remrq(p)
- *
- * Call should be made at spl6().
- */
-ENTRY(remrq)
-	movl	4(%esp),%eax
-	cmpw	$RTP_PRIO_NORMAL,P_RTPRIO_TYPE(%eax) /* normal priority process? */
-	je	rem_nort
-
-	movzwl	P_RTPRIO_PRIO(%eax),%edx
-
-	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* realtime priority process? */
-	je	rem0rt
-	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority process? */
-	jne	rem_id
-		
-rem0rt:
-	btrl	%edx,_whichrtqs			/* clear full bit, panic if clear already */
-	jb	rem1rt
-	pushl	$rem3rt
-	call	_panic
-rem1rt:
-	pushl	%edx
-	movl	P_FORW(%eax),%ecx		/* unlink process */
-	movl	P_BACK(%eax),%edx
-	movl	%edx,P_BACK(%ecx)
-	movl	P_BACK(%eax),%ecx
-	movl	P_FORW(%eax),%edx
-	movl	%edx,P_FORW(%ecx)
-	popl	%edx
-	movl	$_rtqs,%ecx
-	shll	$3,%edx
-	addl	%edx,%ecx
-	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
-	je	rem2rt
-	shrl	$3,%edx				/* yes, set bit as still full */
-	btsl	%edx,_whichrtqs
-rem2rt:
-	ret
-rem_id:
-	btrl	%edx,_whichidqs			/* clear full bit, panic if clear already */
-	jb	rem1id
-	pushl	$rem3id
-	call	_panic
-rem1id:
-	pushl	%edx
-	movl	P_FORW(%eax),%ecx		/* unlink process */
-	movl	P_BACK(%eax),%edx
-	movl	%edx,P_BACK(%ecx)
-	movl	P_BACK(%eax),%ecx
-	movl	P_FORW(%eax),%edx
-	movl	%edx,P_FORW(%ecx)
-	popl	%edx
-	movl	$_idqs,%ecx
-	shll	$3,%edx
-	addl	%edx,%ecx
-	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
-	je	rem2id
-	shrl	$3,%edx				/* yes, set bit as still full */
-	btsl	%edx,_whichidqs
-rem2id:
-	ret
-
-rem_nort:     
-	movzbl	P_PRI(%eax),%edx
-	shrl	$2,%edx
-	btrl	%edx,_whichqs			/* clear full bit, panic if clear already */
-	jb	rem1
-	pushl	$rem3
-	call	_panic
-rem1:
-	pushl	%edx
-	movl	P_FORW(%eax),%ecx		/* unlink process */
-	movl	P_BACK(%eax),%edx
-	movl	%edx,P_BACK(%ecx)
-	movl	P_BACK(%eax),%ecx
-	movl	P_FORW(%eax),%edx
-	movl	%edx,P_FORW(%ecx)
-	popl	%edx
-	movl	$_qs,%ecx
-	shll	$3,%edx
-	addl	%edx,%ecx
-	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
-	je	rem2
-	shrl	$3,%edx				/* yes, set bit as still full */
-	btsl	%edx,_whichqs
-rem2:
-	ret
-
-rem3:	.asciz	"remrq"
-rem3rt:	.asciz	"remrq.rt"
-rem3id:	.asciz	"remrq.id"
 
 /*
  * When no processes are on the runq, cpu_switch() branches to _idle
@@ -323,12 +154,10 @@ idle_loop:
 	je	1f
 	jmp	2f
 
-1:	cmpl	$0,_whichrtqs			/* real-time queue */
-	jne	3f
-	cmpl	$0,_whichqs			/* normal queue */
-	jne	3f
-	cmpl	$0,_whichidqs			/* 'idle' queue */
-	jne	3f
+1:
+	call	_procrunnable
+	testl	%eax,%eax
+	jnz	3f
 
 	cmpl	$0,_do_page_zero_idle
 	je	2f
@@ -353,12 +182,9 @@ idle_loop:
 3:
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
 	call	_get_mplock
-	cmpl	$0,_whichrtqs			/* real-time queue */
-	CROSSJUMP(jne, sw1a, je)
-	cmpl	$0,_whichqs			/* normal queue */
-	CROSSJUMP(jne, nortqr, je)
-	cmpl	$0,_whichidqs			/* 'idle' queue */
-	CROSSJUMP(jne, idqr, je)
+	call	_procrunnable
+	testl	%eax,%eax
+	CROSSJUMP(jnz, sw1a, jz)
 	call	_rel_mplock
 	jmp	idle_loop
 
@@ -411,12 +237,9 @@ idle_loop:
 	ALIGN_TEXT
 idle_loop:
 	cli
-	cmpl	$0,_whichrtqs			/* real-time queue */
-	CROSSJUMP(jne, sw1a, je)
-	cmpl	$0,_whichqs			/* normal queue */
-	CROSSJUMP(jne, nortqr, je)
-	cmpl	$0,_whichidqs			/* 'idle' queue */
-	CROSSJUMP(jne, idqr, je)
+	call	_procrunnable
+	testl	%eax,%eax
+	CROSSJUMP(jnz, sw1a, jz)
 	call	_vm_page_zero_idle
 	testl	%eax, %eax
 	jnz	idle_loop
@@ -523,90 +346,16 @@ sw1:
 	cmpl	$0,_smp_active
 	jne	1f
 	cmpl	$0,_cpuid
-	je	1f
 	CROSSJUMP(je, _idle, jne)		/* wind down */
 1:
 #endif
 
 sw1a:
-	movl    _whichrtqs,%edi			/* pick next p. from rtqs */
-	testl	%edi,%edi
-	jz	nortqr				/* no realtime procs */
-
-	/* XXX - bsf is sloow */
-	bsfl	%edi,%ebx			/* find a full q */
-	jz	nortqr				/* no proc on rt q - try normal ... */
-
-	/* XX update whichqs? */
-	btrl	%ebx,%edi			/* clear q full status */
-	leal	_rtqs(,%ebx,8),%eax		/* select q */
-	movl	%eax,%esi
-
-	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
-	movl	P_FORW(%ecx),%edx
-	movl	%edx,P_FORW(%eax)
-	movl	P_BACK(%ecx),%eax
-	movl	%eax,P_BACK(%edx)
-
-	cmpl	P_FORW(%ecx),%esi		/* q empty */
-	je	rt3
-	btsl	%ebx,%edi			/* nope, set to indicate not empty */
-rt3:
-	movl	%edi,_whichrtqs			/* update q status */
-	jmp	swtch_com
-
-	/* old sw1a */
-/* Normal process priority's */
-nortqr:
-	movl	_whichqs,%edi
-2:
-	/* XXX - bsf is sloow */
-	bsfl	%edi,%ebx			/* find a full q */
-	jz	idqr				/* if none, idle */
-
-	/* XX update whichqs? */
-	btrl	%ebx,%edi			/* clear q full status */
-	leal	_qs(,%ebx,8),%eax		/* select q */
-	movl	%eax,%esi
-
-	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
-	movl	P_FORW(%ecx),%edx
-	movl	%edx,P_FORW(%eax)
-	movl	P_BACK(%ecx),%eax
-	movl	%eax,P_BACK(%edx)
-
-	cmpl	P_FORW(%ecx),%esi		/* q empty */
-	je	3f
-	btsl	%ebx,%edi			/* nope, set to indicate not empty */
-3:
-	movl	%edi,_whichqs			/* update q status */
-	jmp	swtch_com
-
-idqr: /* was sw1a */
-	movl    _whichidqs,%edi			/* pick next p. from idqs */
-
-	/* XXX - bsf is sloow */
-	bsfl	%edi,%ebx			/* find a full q */
+	call	_chooseproc			/* trash ecx, edx, ret eax*/
+	testl	%eax,%eax
 	CROSSJUMP(je, _idle, jne)		/* if no proc, idle */
+	movl	%eax,%ecx
 
-	/* XX update whichqs? */
-	btrl	%ebx,%edi			/* clear q full status */
-	leal	_idqs(,%ebx,8),%eax		/* select q */
-	movl	%eax,%esi
-
-	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
-	movl	P_FORW(%ecx),%edx
-	movl	%edx,P_FORW(%eax)
-	movl	P_BACK(%ecx),%eax
-	movl	%eax,P_BACK(%edx)
-
-	cmpl	P_FORW(%ecx),%esi		/* q empty */
-	je	id3
-	btsl	%ebx,%edi			/* nope, set to indicate not empty */
-id3:
-	movl	%edi,_whichidqs			/* update q status */
-
-swtch_com:
 	movl	$0,%eax
 	movl	%eax,_want_resched
 
@@ -617,7 +366,6 @@ swtch_com:
 	jne	badsw2
 #endif
 
-	movl	%eax,P_BACK(%ecx) 		/* isolate process to run */
 	movl	P_ADDR(%ecx),%edx
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -749,8 +497,6 @@ cpu_switch_load_gs:
 	sti
 	ret
 
-CROSSJUMPTARGET(idqr)
-CROSSJUMPTARGET(nortqr)
 CROSSJUMPTARGET(sw1a)
 
 #ifdef DIAGNOSTIC
