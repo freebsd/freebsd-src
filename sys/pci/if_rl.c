@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.22 1999/02/23 06:42:42 wpaul Exp $
+ *	$Id: if_rl.c,v 1.30 1999/04/12 21:32:17 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.22 1999/02/23 06:42:42 wpaul Exp $";
+	"$Id: if_rl.c,v 1.30 1999/04/12 21:32:17 wpaul Exp $";
 #endif
 
 /*
@@ -167,12 +167,10 @@ static unsigned long rl_count = 0;
 static const char *rl_probe	__P((pcici_t, pcidi_t));
 static void rl_attach		__P((pcici_t, int));
 
-static int rl_encap		__P((struct rl_softc *, struct rl_chain *,
-						struct mbuf * ));
+static int rl_encap		__P((struct rl_softc *, struct mbuf * ));
 
 static void rl_rxeof		__P((struct rl_softc *));
 static void rl_txeof		__P((struct rl_softc *));
-static void rl_txeoc		__P((struct rl_softc *));
 static void rl_intr		__P((void *));
 static void rl_start		__P((struct ifnet *));
 static int rl_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -748,7 +746,7 @@ static void rl_autoneg_mii(sc, flag, verbose)
 	 	 * our timeout, and we don't want to allow transmission
 		 * during an autoneg session since that can screw it up.
 	 	 */
-		if (sc->rl_cdata.rl_tx_cnt) {
+		if (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx) {
 			sc->rl_want_auto = 1;
 			return;
 		}
@@ -1027,7 +1025,7 @@ rl_attach(config_id, unit)
 	sc = malloc(sizeof(struct rl_softc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL) {
 		printf("rl%d: no memory for softc struct!\n", unit);
-		return;
+		goto fail;
 	}
 	bzero(sc, sizeof(struct rl_softc));
 
@@ -1155,7 +1153,7 @@ rl_attach(config_id, unit)
 	ifp->if_watchdog = rl_watchdog;
 	ifp->if_init = rl_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = RL_TX_LIST_CNT - 1;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	if (sc->rl_type == RL_8129) {
 		if (bootverbose)
@@ -1240,17 +1238,12 @@ static int rl_list_tx_init(sc)
 
 	cd = &sc->rl_cdata;
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
-		cd->rl_tx_chain[i].rl_desc = i * 4;
-		CSR_WRITE_4(sc, RL_TXADDR0 + cd->rl_tx_chain[i].rl_desc, 0);
-		CSR_WRITE_4(sc, RL_TXSTAT0 + cd->rl_tx_chain[i].rl_desc, 0);
-		if (i == (RL_TX_LIST_CNT - 1))
-			cd->rl_tx_chain[i].rl_next = &cd->rl_tx_chain[0];
-		else
-			cd->rl_tx_chain[i].rl_next = &cd->rl_tx_chain[i + 1];
+		cd->rl_tx_chain[i] = NULL;
+		CSR_WRITE_4(sc, RL_TXADDR0 + i, 0x0000000);
 	}
 
-	sc->rl_cdata.rl_tx_cnt = 0;
-	cd->rl_tx_cur = cd->rl_tx_free = &cd->rl_tx_chain[0];
+	sc->rl_cdata.cur_tx = 0;
+	sc->rl_cdata.last_tx = 0;
 
 	return(0);
 }
@@ -1424,7 +1417,6 @@ static void rl_rxeof(sc)
 static void rl_txeof(sc)
 	struct rl_softc		*sc;
 {
-	struct rl_chain		*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		txstat;
 
@@ -1437,84 +1429,33 @@ static void rl_txeof(sc)
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been uploaded.
 	 */
-	if (sc->rl_cdata.rl_tx_free == NULL)
-		return;
-
-	while(sc->rl_cdata.rl_tx_free->rl_mbuf != NULL) {
-		cur_tx = sc->rl_cdata.rl_tx_free;
-		txstat = CSR_READ_4(sc, RL_TXSTAT0 + cur_tx->rl_desc);
-
-		if (!(txstat & RL_TXSTAT_TX_OK))
+	do {
+		txstat = CSR_READ_4(sc, RL_LAST_TXSTAT(sc));
+		if (!(txstat & (RL_TXSTAT_TX_OK|
+		    RL_TXSTAT_TX_UNDERRUN|RL_TXSTAT_TXABRT)))
 			break;
 
-		if (txstat & RL_TXSTAT_COLLCNT)
-			ifp->if_collisions +=
-					(txstat & RL_TXSTAT_COLLCNT) >> 24;
+		ifp->if_collisions += (txstat & RL_TXSTAT_COLLCNT) >> 24;
 
-		sc->rl_cdata.rl_tx_free = cur_tx->rl_next;
-
-		sc->rl_cdata.rl_tx_cnt--;
-		m_freem(cur_tx->rl_mbuf);
-		cur_tx->rl_mbuf = NULL;
-		ifp->if_opackets++;
-	}
-
-	if (!sc->rl_cdata.rl_tx_cnt) {
+		if (RL_LAST_TXMBUF(sc) != NULL) {
+			m_freem(RL_LAST_TXMBUF(sc));
+			RL_LAST_TXMBUF(sc) = NULL;
+		}
+		if (txstat & RL_TXSTAT_TX_OK)
+			ifp->if_opackets++;
+		else {
+			ifp->if_oerrors++;
+			if ((txstat & RL_TXSTAT_TXABRT) ||
+			    (txstat & RL_TXSTAT_OUTOFWIN))
+				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
+		}
+		RL_INC(sc->rl_cdata.last_tx);
 		ifp->if_flags &= ~IFF_OACTIVE;
+	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
+
+	if (sc->rl_cdata.last_tx == sc->rl_cdata.cur_tx) {
 		if (sc->rl_want_auto)
 			rl_autoneg_mii(sc, RL_FLAG_SCHEDDELAY, 1);
-	} else {
-		if (ifp->if_snd.ifq_head != NULL)
-			rl_start(ifp);
-	}
-
-	return;
-}
-
-/*
- * TX error handler.
- */
-static void rl_txeoc(sc)
-	struct rl_softc		*sc;
-{
-	u_int32_t		txstat;
-	struct rl_chain		*cur_tx;
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	if (sc->rl_cdata.rl_tx_free == NULL)
-		return;
-
-	while(sc->rl_cdata.rl_tx_free->rl_mbuf != NULL) {
-		cur_tx = sc->rl_cdata.rl_tx_free;
-		txstat = CSR_READ_4(sc, RL_TXSTAT0 + cur_tx->rl_desc);
-
-		if (!(txstat & RL_TXSTAT_OWN))
-			break;
-
-		if (!(txstat & RL_TXSTAT_TX_OK)) {
-			ifp->if_oerrors++;
-			if (txstat & RL_TXSTAT_COLLCNT)
-				ifp->if_collisions +=
-					(txstat & RL_TXSTAT_COLLCNT) >> 24;
-			CSR_WRITE_4(sc, RL_TXADDR0 + cur_tx->rl_desc,
-				vtophys(mtod(cur_tx->rl_mbuf, caddr_t)));
-			CSR_WRITE_4(sc, RL_TXSTAT0 + cur_tx->rl_desc,
-				RL_TX_EARLYTHRESH |
-					cur_tx->rl_mbuf->m_pkthdr.len);
-			break;
-		} else {
-			if (txstat & RL_TXSTAT_COLLCNT)
-				ifp->if_collisions +=
-					(txstat & RL_TXSTAT_COLLCNT) >> 24;
-			sc->rl_cdata.rl_tx_free = cur_tx->rl_next;
-
-			sc->rl_cdata.rl_tx_cnt--;
-			m_freem(cur_tx->rl_mbuf);
-			cur_tx->rl_mbuf = NULL;
-			ifp->if_opackets++;
-		}
 	}
 
 	return;
@@ -1548,11 +1489,8 @@ static void rl_intr(arg)
 		if (status & RL_ISR_RX_ERR)
 			rl_rxeof(sc);
 
-		if (status & RL_ISR_TX_OK)
+		if ((status & RL_ISR_TX_OK) || (status & RL_ISR_TX_ERR))
 			rl_txeof(sc);
-
-		if (status & RL_ISR_TX_ERR)
-			rl_txeoc(sc);
 
 		if (status & RL_ISR_SYSTEM_ERR) {
 			rl_reset(sc);
@@ -1575,28 +1513,17 @@ static void rl_intr(arg)
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int rl_encap(sc, c, m_head)
+static int rl_encap(sc, m_head)
 	struct rl_softc		*sc;
-	struct rl_chain		*c;
 	struct mbuf		*m_head;
 {
-	struct mbuf		*m;
 	struct mbuf		*m_new = NULL;
 
 	/*
-	 * There are two possible encapsulation mechanisms
-	 * that we can use: an efficient one, and a very lossy
-	 * one. The efficient one only happens very rarely,
-	 * whereas the lossy one can and most likely will happen
-	 * all the time.
-	 * The efficient case happens if:
-	 * - the packet fits in a single mbuf
-	 * - the packet is 32-bit aligned within the mbuf data area
-	 * In this case, we can DMA from the mbuf directly.
-	 * The lossy case covers everything else. Bah.
+	 * The RealTek is brain damaged and wants longword-aligned
+	 * TX buffers, plus we can only have one fragment buffer
+	 * per packet. We have to copy pretty much all the time.
 	 */
-
-	m = m_head;
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
@@ -1625,7 +1552,7 @@ static int rl_encap(sc, c, m_head)
 		m_head->m_len = m_head->m_pkthdr.len;
 	}
 
-	c->rl_mbuf = m_head;
+	RL_CUR_TXMBUF(sc) = m_head;
 
 	return(0);
 }
@@ -1639,7 +1566,6 @@ static void rl_start(ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head = NULL;
-	struct rl_chain		*cur_tx = NULL;
 
 	sc = ifp->if_softc;
 
@@ -1648,28 +1574,12 @@ static void rl_start(ifp)
 		return;
 	}
 
-	/*
-	 * Check for an available queue slot. If there are none,
-	 * punt.
-	 */
-	if (sc->rl_cdata.rl_tx_cur->rl_mbuf != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
-		return;
-	}
-
-	while(sc->rl_cdata.rl_tx_cur->rl_mbuf == NULL) {
+	while(RL_CUR_TXMBUF(sc) == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
-
-		/* Pick a descriptor off the free list. */
-		cur_tx = sc->rl_cdata.rl_tx_cur;
-		sc->rl_cdata.rl_tx_cur = cur_tx->rl_next;
-		sc->rl_cdata.rl_tx_cnt++;
-
-		/* Pack the data into the descriptor. */
-		rl_encap(sc, cur_tx, m_head);
+		rl_encap(sc, m_head);
 
 #if NBPFILTER > 0
 		/*
@@ -1677,16 +1587,26 @@ static void rl_start(ifp)
 		 * to him.
 		 */
 		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->rl_mbuf);
+			bpf_mtap(ifp, RL_CUR_TXMBUF(sc));
 #endif
 		/*
 		 * Transmit the frame.
 	 	 */
-		CSR_WRITE_4(sc, RL_TXADDR0 + cur_tx->rl_desc,
-				vtophys(mtod(cur_tx->rl_mbuf, caddr_t)));
-		CSR_WRITE_4(sc, RL_TXSTAT0 + cur_tx->rl_desc,
-			RL_TX_EARLYTHRESH | cur_tx->rl_mbuf->m_pkthdr.len);
+		CSR_WRITE_4(sc, RL_CUR_TXADDR(sc),
+		    vtophys(mtod(RL_CUR_TXMBUF(sc), caddr_t)));
+		CSR_WRITE_4(sc, RL_CUR_TXSTAT(sc),
+		    RL_TX_EARLYTHRESH | RL_CUR_TXMBUF(sc)->m_pkthdr.len);
+
+		RL_INC(sc->rl_cdata.cur_tx);
 	}
+
+	/*
+	 * We broke out of the loop because all our TX slots are
+	 * full. Mark the NIC as busy until it drains some of the
+	 * packets from the queue.
+	 */
+	if (RL_CUR_TXMBUF(sc) != NULL)
+		ifp->if_flags |= IFF_OACTIVE;
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -1741,8 +1661,9 @@ static void rl_init(xsc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 
 	/*
-	 * Set the buffer size values.
+	 * Set the initial TX and RX configuration.
 	 */
+	CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
 	CSR_WRITE_4(sc, RL_RXCFG, RL_RXCFG_CONFIG);
 
 	/* Set the individual bit to receive frames for this host only. */
@@ -1931,7 +1852,6 @@ static void rl_watchdog(ifp)
 	if (!(rl_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
 		printf("rl%d: no carrier - transceiver cable problem?\n",
 								sc->rl_unit);
-	rl_txeoc(sc);
 	rl_txeof(sc);
 	rl_rxeof(sc);
 	rl_init(sc);
@@ -1959,11 +1879,10 @@ static void rl_stop(sc)
 	 * Free the TX list buffers.
 	 */
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
-		if (sc->rl_cdata.rl_tx_chain[i].rl_mbuf != NULL) {
-			m_freem(sc->rl_cdata.rl_tx_chain[i].rl_mbuf);
-			sc->rl_cdata.rl_tx_chain[i].rl_mbuf = NULL;
-			CSR_WRITE_4(sc, RL_TXADDR0 +
-			sc->rl_cdata.rl_tx_chain[i].rl_desc, 0x00000000);
+		if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
+			m_freem(sc->rl_cdata.rl_tx_chain[i]);
+			sc->rl_cdata.rl_tx_chain[i] = NULL;
+			CSR_WRITE_4(sc, RL_TXADDR0 + i, 0x0000000);
 		}
 	}
 
