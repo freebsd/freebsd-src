@@ -180,6 +180,7 @@ ip_output(m0, opt, ro, flags, imo)
 #endif
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+            ia = (struct in_ifaddr *)ro->ro_rt->rt_ifa;
             goto sendit;
         } else
             rule = NULL ;
