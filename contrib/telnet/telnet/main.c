@@ -105,10 +105,10 @@ usage()
 	fprintf(stderr, "Usage: %s %s%s%s%s\n",
 	    prompt,
 #ifdef	AUTHENTICATION
-	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
+	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-c] [-d]",
 	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
 #else
-	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
+	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-c] [-d] [-e char] [-l user]",
 	    "\n\t[-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
@@ -126,7 +126,7 @@ usage()
 	    "[-P policy]"
 #endif
 #ifdef	ENCRYPTION
-	    "[-x] [host-name [port]]"
+	    "[-y] [host-name [port]]"
 #else	/* ENCRYPTION */
 	    "[host-name [port]]"
 #endif	/* ENCRYPTION */
@@ -167,7 +167,12 @@ main(argc, argv)
 	user = NULL;
 
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
-	autologin = -1;
+	autologin = 1;
+
+#if defined(ENCRYPTION)
+	encrypt_auto(1);
+	decrypt_auto(1);
+#endif
 
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 #define IPSECOPT	"P:"
@@ -175,7 +180,7 @@ main(argc, argv)
 #define IPSECOPT
 #endif
 	while ((ch = getopt(argc, argv,
-			    "468EKLNS:X:acde:fFk:l:n:rs:t:x" IPSECOPT)) != -1)
+			    "468EKLNS:X:acde:fFk:l:n:rs:t:xy" IPSECOPT)) != -1)
 #undef IPSECOPT
 	{
 		switch(ch) {
@@ -227,7 +232,7 @@ main(argc, argv)
 #endif
 			break;
 		case 'a':
-			autologin = 1;
+			/* It's the default now, so ignore */
 			break;
 		case 'c':
 			skiprc = 1;
@@ -283,9 +288,6 @@ main(argc, argv)
 #endif
 			break;
 		case 'l':
-			autologin = 1;
-			if(autologin == 0)
-				autologin = -1;
 			user = optarg;
 			break;
 		case 'n':
@@ -321,13 +323,12 @@ main(argc, argv)
 #endif
 			break;
 		case 'x':
+			/* This is the default now, so ignore it */
+			break;
+		case 'y':
 #ifdef	ENCRYPTION
-			encrypt_auto(1);
-			decrypt_auto(1);
-#else	/* ENCRYPTION */
-			fprintf(stderr,
-			    "%s: Warning: -x ignored, no ENCRYPT support.\n",
-								prompt);
+			encrypt_auto(0);
+			decrypt_auto(0);
 #endif	/* ENCRYPTION */
 			break;
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
@@ -346,19 +347,6 @@ main(argc, argv)
 			/* NOTREACHED */
 		}
 	}
-
-	if (autologin == -1) {		/* esc@magic.fi; force  */
-#if defined(AUTHENTICATION)
-		autologin = 1;
-#endif
-#if defined(ENCRYPTION)
-		encrypt_auto(1);
-		decrypt_auto(1);
-#endif
-	}
-
-	if (autologin == -1)
-		autologin = (rlogin == _POSIX_VDISABLE) ? 0 : 1;
 
 	argc -= optind;
 	argv += optind;
