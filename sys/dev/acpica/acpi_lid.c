@@ -37,12 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUTTON
 ACPI_MODULE_NAME("LID")
 
@@ -81,13 +78,13 @@ DRIVER_MODULE(acpi_lid, acpi, acpi_lid_driver, acpi_lid_devclass, 0, 0);
 static int
 acpi_lid_probe(device_t dev)
 {
-    if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) && 
-	!acpi_disabled("lid") &&
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("lid") &&
 	acpi_MatchHid(dev, "PNP0C0D")) {
+
 	device_set_desc(dev, "Control Method Lid Switch");
-	return(0);
+	return (0);
     }
-    return(ENXIO);
+    return (ENXIO);
 }
 
 static int
@@ -101,12 +98,12 @@ acpi_lid_attach(device_t dev)
     sc->lid_dev = dev;
     sc->lid_handle = acpi_get_handle(dev);
 
-    /*
-     * Install notification handler
-     */
-    AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY, acpi_lid_notify_handler, sc);
+    /* Install notification handler */
+    AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY,
+			     acpi_lid_notify_handler, sc);
     acpi_device_enable_wake_capability(sc->lid_handle, 1);
-    return_VALUE(0);
+
+    return_VALUE (0);
 }
 
 static int
@@ -130,6 +127,7 @@ acpi_lid_notify_status_changed(void *arg)
 {
     struct acpi_lid_softc	*sc;
     struct acpi_softc		*acpi_sc;
+    ACPI_STATUS			status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -140,22 +138,21 @@ acpi_lid_notify_status_changed(void *arg)
      *	Zero:		The lid is closed
      *	Non-zero:	The lid is open
      */
-    if (ACPI_FAILURE(acpi_EvaluateInteger(sc->lid_handle, "_LID", &sc->lid_status)))
+    status = acpi_EvaluateInteger(sc->lid_handle, "_LID", &sc->lid_status);
+    if (ACPI_FAILURE(status))
 	return_VOID;
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
-    if (acpi_sc == NULL) {
+    if (acpi_sc == NULL)
         return_VOID;
-    }
 
-    ACPI_VPRINT(sc->lid_dev, acpi_sc,
-	"Lid %s\n", sc->lid_status ? "opened" : "closed");
+    ACPI_VPRINT(sc->lid_dev, acpi_sc, "Lid %s\n",
+		sc->lid_status ? "opened" : "closed");
 
-    if (sc->lid_status == 0) {
+    if (sc->lid_status == 0)
 	EVENTHANDLER_INVOKE(acpi_sleep_event, acpi_sc->acpi_lid_switch_sx);
-    } else {
+    else
 	EVENTHANDLER_INVOKE(acpi_wakeup_event, acpi_sc->acpi_lid_switch_sx);
-    }
 
     return_VOID;
 }
@@ -172,11 +169,13 @@ acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 
     switch (notify) {
     case ACPI_NOTIFY_STATUS_CHANGED:
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_lid_notify_status_changed, sc);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
+				acpi_lid_notify_status_changed, sc);
 	break;
     default:
-	break;		/* unknown notification value */
+	break;
     }
+
     return_VOID;
 }
 
