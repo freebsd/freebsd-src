@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.16 1998/09/15 09:59:58 gibbs Exp $
+ *	$Id: table.c,v 1.17 1998/10/10 14:30:05 bde Exp $
  */
 
 /*
@@ -136,5 +136,5 @@ struct pseudo_desc Idtr_real = { 0x400 - 1, 0x0, 0x0 };
  * All initialized data is defined in one file to reduce space wastage from
  * fragmentation.
  */
-char *devs[] = { "wd", "dk", "fd", "wt", "da", 0 };
+char *devs[] = { "wd", "ad", "dk", "fd", "wt", "da", 0 };
 unsigned tw_chars = 0x5C2D2F7C;	/* "\-/|" */
