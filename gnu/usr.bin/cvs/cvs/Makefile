@@ -40,16 +40,12 @@ DISTRIBUTION=	krb4
 CFLAGS+= -DENCRYPTION
 .endif
 
-CLEANFILES+=	version.c ver
+CLEANFILES+=	version.c
+VERSION!=	sed < ${CVSDIR}/configure \
+		-e '/^VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
 
-ver:	configure
-	echo > ${.TARGET} `sed < ${.ALLSRC} \
-		-e '/^VERSION=/!d' \
-		-e 's/.*=\(.*\)/\1/' \
-		-e q`
-
-version.c: ver version.c.in
-	sed -e "s,@VERSION@,`cat ver`,g" ${CVSDIR}/src/version.c.in > ${.TARGET}
+version.c: version.c.in
+	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
 #
 # Regression test support
