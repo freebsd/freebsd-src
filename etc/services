@@ -4,11 +4,11 @@
 # Note that it is presently the policy of IANA to assign a single well-known
 # port number for both TCP and UDP; hence, most entries here have two entries
 # even if the protocol doesn't support UDP operations.
-# Updated from RFC 1700, ``Assigned Numbers'' (October 1994).  All ports
-# are included.
 #
 # The latest IANA port assignments can be gotten from
+#
 #	http://www.isi.edu/in-notes/iana/assignments/port-numbers 
+#
 # The Well Known Ports are those from 0 through 1023.
 # The Registered Ports are those from 1024 through 49151
 # The Dynamic and/or Private Ports are those from 49152 through 65535
@@ -1089,8 +1089,12 @@ npmp-local	610/tcp
 npmp-local	610/udp
 npmp-gui	611/tcp
 npmp-gui	611/udp
+sshell		614/tcp	   #SSLshell
+sshell		614/udp
 ginad		634/tcp
 ginad		634/udp
+ldaps		636/tcp    sldap #ldap protocol over TLS/SSL
+ldaps		636/udp    sldap
 mdqs		666/tcp 
 mdqs		666/udp 
 #PROBLEMS!===============================================
@@ -1191,13 +1195,22 @@ mdbs_daemon	800/udp
 device		801/tcp
 device		801/udp
 supfilesrv	871/tcp			# for SUP
+rsync		873/tcp
+rsync		873/udp
 accessbuilder	888/tcp
 accessbuilder	888/udp
-telnets		992/tcp
-imaps		993/tcp
+ftps-data	989/tcp			# ftp protocol, data, over TLS/SSL
+ftps-data	989/udp
+ftps		990/tcp			# ftp protocol, control, over TLS/SSL
+ftps		990/udp
+telnets		992/tcp			# telnet protocol over TLS/SSL
+telnets		992/udp
+imaps		993/tcp			# imap4 protocol over TLS/SSL
+imaps		993/udp
 ircs		994/tcp			# irc protocol over TLS/SSL
-ircs		994/udp			# irc protocol over TLS/SSL
-pop3s		995/tcp
+ircs		994/udp
+pop3s		995/tcp	spop3		# pop3 protocol over TLS/SSL
+pop3s		995/udp	spop3
 vsinet		996/tcp
 vsinet		996/udp
 maitrd		997/tcp
