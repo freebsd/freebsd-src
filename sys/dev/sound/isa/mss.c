@@ -34,6 +34,12 @@
 
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
+#include <dev/sound/chip.h>
+
+#include "gusc.h"
+#if notyet
+#include "midi.h"
+#endif /* notyet */
 
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 
@@ -172,6 +178,7 @@ static pcm_channel mss_chantemplate = {
 #define	MD_OPTI931	0xB1
 #define MD_OPTI925	0xB2
 #define	MD_GUSPNP	0xB8
+#define MD_GUSMAX	0xB9
 #define	MD_YM0020	0xC1
 #define	MD_VIVO		0xD1
 
@@ -241,7 +248,7 @@ opti_rd(struct mss_info *mss, u_char reg)
     	return port_rd(mss->conf_base, mss->opti_offset + 1);
 }
 
-#if NPNP > 0
+#if NPNP > 0 || NGUSC > 0
 static void
 gus_wr(struct mss_info *mss, u_char reg, u_char value)
 {
@@ -255,7 +262,7 @@ gus_rd(struct mss_info *mss, u_char reg)
     	port_wr(mss->conf_base, 3, reg);
     	return port_rd(mss->conf_base, 5);
 }
-#endif
+#endif	/* NPNP > 0 || NGUSC > 0 */
 
 static void
 mss_release_resources(struct mss_info *mss, device_t dev)
@@ -329,6 +336,64 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
     	return ok;
 }
 
+#if NGUSC > 0
+/*
+ * XXX This might be better off in the gusc driver.
+ */
+static void
+gusmax_setup(struct mss_info *mss, device_t dev, struct resource *alt)
+{
+	static const unsigned char irq_bits[16] = {
+		0, 0, 0, 3, 0, 2, 0, 4, 0, 1, 0, 5, 6, 0, 0, 7
+	};
+	static const unsigned char dma_bits[8] = {
+		0, 1, 0, 2, 0, 3, 4, 5
+	};
+	device_t parent = device_get_parent(dev);
+	unsigned char irqctl, dmactl;
+	int s;
+
+	s = splhigh();
+
+	port_wr(alt, 0x0f, 0x05);
+	port_wr(alt, 0x00, 0x0c);
+	port_wr(alt, 0x0b, 0x00);
+
+	port_wr(alt, 0x0f, 0x00);
+
+	irqctl = irq_bits[isa_get_irq(parent)];
+#if notyet
+#if NMIDI > 0
+	/* Share the IRQ with the MIDI driver.  */
+	irqctl |= 0x40;
+#endif /* NMIDI > 0 */
+#endif /* notyet */
+	dmactl = dma_bits[isa_get_drq(parent)];
+	if (device_get_flags(parent) & DV_F_DUAL_DMA)
+		dmactl |= dma_bits[device_get_flags(parent) & DV_F_DRQ_MASK]
+		    << 3;
+
+	/*
+	 * Set the DMA and IRQ control latches.
+	 */
+	port_wr(alt, 0x00, 0x0c);
+	port_wr(alt, 0x0b, dmactl | 0x80);
+	port_wr(alt, 0x00, 0x4c);
+	port_wr(alt, 0x0b, irqctl);
+
+	port_wr(alt, 0x00, 0x0c);
+	port_wr(alt, 0x0b, dmactl);
+	port_wr(alt, 0x00, 0x4c);
+	port_wr(alt, 0x0b, irqctl);
+
+	port_wr(mss->conf_base, 2, 0);
+	port_wr(alt, 0x00, 0x0c);
+	port_wr(mss->conf_base, 2, 0);
+
+	splx(s);
+}
+#endif	/* NGUSC > 0 */
+
 static int
 mss_init(struct mss_info *mss, device_t dev)
 {
@@ -356,8 +421,11 @@ mss_init(struct mss_info *mss, device_t dev)
     		opti_wr(mss, 6, 2);  /* MCIR6: mss enable, sb disable */
     		opti_wr(mss, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
 		break;
+#endif	/* NPNP > 0 */
 
+#if NPNP > 0 || NGUSC > 0
 	case MD_GUSPNP:
+	case MD_GUSMAX:
 		gus_wr(mss, 0x4c /* _URSTI */, 0);/* Pull reset */
     		DELAY(1000 * 30);
     		/* release reset  and enable DAC */
@@ -368,7 +436,15 @@ mss_init(struct mss_info *mss, device_t dev)
 		rid = 0;
     		alt = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
     				     0, ~0, 1, RF_ACTIVE);
+		if (alt == NULL) {
+			printf("XXX couldn't init GUS PnP/MAX\n");
+			break;
+		}
     		port_wr(alt, 0, 0xC); /* enable int and dma */
+#if NGUSC > 0
+		if (mss->bd_id == MD_GUSMAX)
+			gusmax_setup(mss, dev, alt);
+#endif
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, alt);
 
     		/*
@@ -389,7 +465,8 @@ mss_init(struct mss_info *mss, device_t dev)
     		gus_wr(mss, 0x5b, tmp | 1);
     		BVDDB(printf("GUS: silicon rev %c\n", 'A' + ((tmp & 0xf) >> 4)));
 		break;
-#endif
+#endif	/* NPNP > 0 || NGUSC > 0 */
+
     	case MD_YM0020:
          	conf_wr(mss, OPL3SAx_DMACONF, 0xa9); /* dma-b rec, dma-a play */
         	r6 = conf_rd(mss, OPL3SAx_DMACONF);
@@ -1015,7 +1092,22 @@ wait_for_calibration(struct mss_info *mss)
     	n = ad_wait_init(mss, 1000);
     	if (n & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
 
-    	for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
+	/*
+	 * There is no guarantee that we'll ever see ACI go on,
+	 * calibration may finish before we get here.
+	 *
+	 * XXX Are there docs that even state that it might ever be
+	 * visible off before calibration starts using any chip?
+	 */
+	if (mss->bd_id == MD_GUSMAX) {
+		/* 10 ms of busy-waiting is not reasonable normal behavior */
+		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--)
+			;
+		if (t > 0 && t != 100)
+			printf("debug: ACI turned on: t = %d\n", t);
+	} else {
+		for (t = 100; t > 0 && (ad_read(mss, 11) & 0x20) == 0; t--) DELAY(100);
+	}
     	for (t = 100; t > 0 && ad_read(mss, 11) & 0x20; t--) DELAY(100);
 }
 
@@ -1290,9 +1382,11 @@ pnpmss_probe(device_t dev)
  		s = "OPTi925";
  		break;
 
+#if 0
     	case 0x0000561e:
  		s = "GusPnP";
  		break;
+#endif
 
     	case 0x01000000:
 		if (vend_id == 0x0100a90d) s = "CMI8330";
@@ -1361,6 +1455,7 @@ pnpmss_attach(device_t dev)
 	    mss->bd_id = MD_OPTI925;
 	    break;
 
+#if 0
 	case 0x0100561e:	/* guspnp */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
             mss->io_rid = 2;
@@ -1369,6 +1464,7 @@ pnpmss_attach(device_t dev)
 	    mss->drq2_rid = 0;
             mss->bd_id = MD_GUSPNP;
 	    break;
+#endif
 
         default:
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
@@ -1453,6 +1549,91 @@ opti931_intr(void *arg)
 
 #endif	/* NPNP > 0 */
 
+#if NGUSC > 0
+
+static int
+guspcm_probe(device_t dev)
+{
+	struct sndcard_func *func;
+
+	func = device_get_ivars(dev);
+	if (func == NULL || func->func != SCF_PCM)
+		return ENXIO;
+
+	device_set_desc(dev, "GUS CS4231");
+	return 0;
+}
+
+static int
+guspcm_attach(device_t dev)
+{
+	device_t parent = device_get_parent(dev);
+	struct mss_info *mss;
+	int base, flags;
+	unsigned char ctl;
+
+	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT);
+	if (mss == NULL)
+		return ENOMEM;
+	bzero(mss, sizeof *mss);
+
+	mss->bd_flags = BD_F_MSS_OFFSET;
+	mss->io_rid = 2;
+	mss->conf_rid = 1;
+	mss->irq_rid = 0;
+	mss->drq1_rid = 1;
+	mss->drq2_rid = -1;
+
+	if (isa_get_vendorid(parent) == 0)
+		mss->bd_id = MD_GUSMAX;
+	else {
+		mss->bd_id = MD_GUSPNP;
+		mss->drq2_rid = 0;
+		goto skip_setup;
+	}
+
+	flags = device_get_flags(parent);
+	if (flags & DV_F_DUAL_DMA)
+		mss->drq2_rid = 0;
+
+	mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->conf_rid,
+					    0, ~0, 8, RF_ACTIVE);
+
+	if (mss->conf_base == NULL) {
+		mss_release_resources(mss, dev);
+		return ENXIO;
+	}
+
+	base = isa_get_port(parent);
+
+	ctl = 0x40;			/* CS4231 enable */
+	if (isa_get_drq(dev) > 3)
+		ctl |= 0x10;		/* 16-bit dma channel 1 */
+	if ((flags & DV_F_DUAL_DMA) != 0 && (flags & DV_F_DRQ_MASK) > 3)
+		ctl |= 0x20;		/* 16-bit dma channel 2 */
+	ctl |= (base >> 4) & 0x0f;	/* 2X0 -> 3XC */
+	port_wr(mss->conf_base, 6, ctl);
+
+skip_setup:
+	return mss_doattach(dev, mss);
+}
+
+static device_method_t guspcm_methods[] = {
+	DEVMETHOD(device_probe,		guspcm_probe),
+	DEVMETHOD(device_attach,	guspcm_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t guspcm_driver = {
+	"pcm",
+	guspcm_methods,
+	sizeof(snddev_info),
+};
+
+DRIVER_MODULE(guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
+#endif	/* NGUSC > 0 */
+
 static int
 mssmix_init(snd_mixer *m)
 {
@@ -1472,6 +1653,7 @@ mssmix_init(snd_mixer *m)
 		break;
 
 	case MD_GUSPNP:
+	case MD_GUSMAX:
 		/* this is only necessary in mode 3 ... */
 		ad_write(mss, 22, 0x88);
 		ad_write(mss, 23, 0x88);
@@ -1631,6 +1813,7 @@ msschan_getcaps(void *data)
 		break;
 
 	case MD_GUSPNP:
+	case MD_GUSMAX:
 		return &guspnp_caps;
 		break;
 
