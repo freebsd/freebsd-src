@@ -137,6 +137,7 @@ enum auth_stat {
 	/*
 	 * kerberos errors
 	 */
+	,
 	AUTH_KERB_GENERIC = 8,		/* kerberos generic error */
 	AUTH_TIMEEXPIRE = 9,		/* time of credential expired */
 	AUTH_TKT_FILE = 10,		/* something wrong with ticket file */
@@ -190,7 +191,7 @@ typedef struct __auth {
 		/* destroy this structure */
 		void	(*ah_destroy) (struct __auth *);
 	} *ah_ops;
-	caddr_t ah_private;
+	void *ah_private;
 } AUTH;
 
 
