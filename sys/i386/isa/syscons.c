@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.279 1998/09/23 09:59:00 yokota Exp $
+ *	$Id: syscons.c,v 1.280 1998/09/26 03:34:08 yokota Exp $
  */
 
 #include "sc.h"
@@ -157,8 +157,8 @@ static  char        	blink_in_progress = FALSE;
 static  int        	blinkrate = 0;
 	u_int       	crtc_addr = MONO_BASE;
 	char		crtc_type = KD_MONO;
-	char        	crtc_vga = FALSE;
-static	int		adp_flags = 0;
+static	char        	crtc_vga = FALSE;
+static	int		adp_flags;
 static  u_char      	shfts = 0, ctls = 0, alts = 0, agrs = 0, metas = 0;
 static  u_char		accents = 0;
 static  u_char      	nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
@@ -187,9 +187,9 @@ extern
 #endif
 	u_char		font_16[256*16];
 	u_char        	palette[256*3];
-static	u_char 		*cut_buffer = NULL;
-static	int		cut_buffer_size = 0;
-static	int		mouse_level = 0;	/* sysmouse protocol level */
+static	u_char 		*cut_buffer;
+static	int		cut_buffer_size;
+static	int		mouse_level;		/* sysmouse protocol level */
 static	mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
@@ -233,8 +233,8 @@ u_short         	*Crtat;
 static const int	nsccons = MAXCONS+2;
 
 #define WRAPHIST(scp, pointer, offset)\
-    ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
-    + (offset)) % (scp->history_size)))
+    ((scp)->history + ((((pointer) - (scp)->history) + (scp)->history_size \
+    + (offset)) % (scp)->history_size))
 #define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 /* prototypes */
@@ -320,9 +320,6 @@ static	struct cdevsw	sc_cdevsw = {
 	D_TTY,
 };
 
-/*
- * These functions need to be before calls to them so they can be inlined.
- */
 static void
 draw_cursor_image(scr_stat *scp)
 {
@@ -476,7 +473,7 @@ sckbdprobe(int unit, int flags)
         return ((flags & DETECT_KBD) ? FALSE : TRUE);
     }
 
-    /* discard anything left after UserConfig */
+    /* flush any noise in the buffer */
     empty_both_buffers(sc_kbdc, 10);
 
     /* save the current keyboard controller command byte */
@@ -920,8 +917,9 @@ scparam(struct tty *tp, struct termios *t)
 int
 scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
+    u_int delta_ehs;
     int error;
-    u_int i;
+    int i;
     struct tty *tp;
     scr_stat *scp;
     video_adapter_t *adp;
@@ -1005,9 +1003,9 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    lines0 = (scp->history != NULL) ? 
 		      scp->history_size / scp->xsize : scp->ysize;
 	    if (lines0 > imax(sc_history_size, scp->ysize))
-		i = lines0 - imax(sc_history_size, scp->ysize);
+		delta_ehs = lines0 - imax(sc_history_size, scp->ysize);
 	    else
-		i = 0;
+		delta_ehs = 0;
 	    /*
 	     * syscons unconditionally allocates buffers upto SC_HISTORY_SIZE
 	     * lines or scp->ysize lines, whichever is larger. A value 
@@ -1015,11 +1013,11 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	     */
 	    if (lines > imax(sc_history_size, scp->ysize))
 		if (lines - imax(sc_history_size, scp->ysize) >
-		    extra_history_size + i)
+		    extra_history_size + delta_ehs)
 		    return EINVAL;
             if (cur_console->status & BUFFER_SAVED)
                 return EBUSY;
-	    sc_alloc_history_buffer(scp, lines, i, TRUE);
+	    sc_alloc_history_buffer(scp, lines, delta_ehs, TRUE);
 	    return 0;
 	}
 	else
@@ -1029,9 +1027,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case OLD_CONS_MOUSECTL:
     {
 	/* MOUSE_BUTTON?DOWN -> MOUSE_MSC_BUTTON?UP */
-	static butmap[8] = {
-            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP 
-		| MOUSE_MSC_BUTTON3UP,
+	static int butmap[8] = {
+            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP | MOUSE_MSC_BUTTON3UP,
             MOUSE_MSC_BUTTON2UP | MOUSE_MSC_BUTTON3UP,
             MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON3UP,
             MOUSE_MSC_BUTTON3UP,
@@ -1048,7 +1045,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENODEV;
 	
 	if (cmd == OLD_CONS_MOUSECTL) {
-	    static unsigned char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 	    old_mouse_info_t *old_mouse = (old_mouse_info_t *)data;
 
 	    mouse = &buf;
@@ -2983,7 +2980,7 @@ outloop:
     /* do we have to scroll ?? */
     if (scp->cursor_pos >= scp->scr_buf + scp->ysize * scp->xsize) {
 	remove_cutmarking(scp);
-	if (scp->history) {
+	if (scp->history != NULL) {
 	    bcopy(scp->scr_buf, scp->history_head,
 		   scp->xsize * sizeof(u_short));
 	    scp->history_head += scp->xsize;
