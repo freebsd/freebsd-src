@@ -4005,7 +4005,7 @@ extattrctl(td, uap)
  */
 static int
 extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
-    const void *data, size_t nbytes, struct thread *td)
+    void *data, size_t nbytes, struct thread *td)
 {
 	struct mount *mp;
 	struct uio auio;
