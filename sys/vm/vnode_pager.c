@@ -374,9 +374,11 @@ vnode_pager_addr(vp, address, run)
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	vblock = address / bsize;
 	voffset = address % bsize;
+	mtx_unlock(&vm_mtx);
 
 	err = VOP_BMAP(vp, vblock, &rtvp, &block, run, NULL);
 
+	mtx_lock(&vm_mtx);
 	if (err || (block == -1))
 		rtaddress = -1;
 	else {
@@ -425,10 +427,11 @@ vnode_pager_input_smlfs(object, m)
 		return VM_PAGER_BAD;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-
+	mtx_unlock(&vm_mtx);
 
 	VOP_BMAP(vp, 0, &dp, 0, NULL, NULL);
 
+	mtx_lock(&vm_mtx);
 	kva = vm_pager_map_page(m);
 
 	for (i = 0; i < PAGE_SIZE / bsize; i++) {
@@ -439,6 +442,7 @@ vnode_pager_input_smlfs(object, m)
 		fileaddr = vnode_pager_addr(vp,
 			IDX_TO_OFF(m->pindex) + i * bsize, (int *)0);
 		if (fileaddr != -1) {
+			mtx_unlock(&vm_mtx);
 			bp = getpbuf(&vnode_pbuf_freecnt);
 
 			/* build a minimal buffer header */
@@ -474,6 +478,7 @@ vnode_pager_input_smlfs(object, m)
 			 * free the buffer header back to the swap buffer pool
 			 */
 			relpbuf(bp, &vnode_pbuf_freecnt);
+			mtx_lock(&vm_mtx);
 			if (error)
 				break;
 
@@ -507,6 +512,7 @@ vnode_pager_input_old(object, m)
 	int error;
 	int size;
 	vm_offset_t kva;
+	struct vnode *vp;
 
 	mtx_assert(&Giant, MA_OWNED);
 	error = 0;
@@ -527,6 +533,8 @@ vnode_pager_input_old(object, m)
 		 */
 		kva = vm_pager_map_page(m);
 
+		vp = object->handle;
+		mtx_unlock(&vm_mtx);
 		aiov.iov_base = (caddr_t) kva;
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
@@ -537,7 +545,7 @@ vnode_pager_input_old(object, m)
 		auio.uio_resid = size;
 		auio.uio_procp = curproc;
 
-		error = VOP_READ(object->handle, &auio, 0, curproc->p_ucred);
+		error = VOP_READ(vp, &auio, 0, curproc->p_ucred);
 		if (!error) {
 			register int count = size - auio.uio_resid;
 
@@ -546,6 +554,7 @@ vnode_pager_input_old(object, m)
 			else if (count != PAGE_SIZE)
 				bzero((caddr_t) kva + count, PAGE_SIZE - count);
 		}
+		mtx_lock(&vm_mtx);
 		vm_pager_unmap_page(kva);
 	}
 	pmap_clear_modify(m);
@@ -631,7 +640,9 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
+	mtx_unlock(&vm_mtx);
 	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
+		mtx_lock(&vm_mtx);
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vm_page_free(m[i]);
@@ -648,6 +659,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
+		mtx_lock(&vm_mtx);
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vm_page_free(m[i]);
@@ -657,6 +669,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		cnt.v_vnodepgsin++;
 		return vnode_pager_input_smlfs(object, m[reqpage]);
 	}
+	mtx_lock(&vm_mtx);
 
 	/*
 	 * If we have a completely valid page available to us, we can
@@ -757,6 +770,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * and map the pages to be read into the kva
 	 */
 	pmap_qenter(kva, m, count);
+	mtx_unlock(&vm_mtx);
 
 	/* build a minimal buffer header */
 	bp->b_iocmd = BIO_READ;
@@ -794,6 +808,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		if (size != count * PAGE_SIZE)
 			bzero((caddr_t) kva + size, PAGE_SIZE * count - size);
 	}
+	mtx_lock(&vm_mtx);
 	pmap_qremove(kva, count);
 
 	/*
@@ -977,6 +992,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 			}
 		}
 	}
+	mtx_unlock(&vm_mtx);
 
 	/*
 	 * pageouts are already clustered, use IO_ASYNC t o force a bawrite()
@@ -997,6 +1013,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	auio.uio_resid = maxsize;
 	auio.uio_procp = (struct proc *) 0;
 	error = VOP_WRITE(vp, &auio, ioflags, curproc->p_ucred);
+	mtx_lock(&vm_mtx);
 	cnt.v_vnodeout++;
 	cnt.v_vnodepgsout += ncount;
 
