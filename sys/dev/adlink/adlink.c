@@ -221,6 +221,7 @@ adlink_loran(void *arg)
 
 	sc = arg;
 	idx = 0;
+	mtx_lock(&Giant);
 	for (;;) {
 		while (sc->stat[idx] == 0)
 			msleep(sc, NULL, PRIBIO, "loran", 1);
@@ -234,6 +235,7 @@ adlink_loran(void *arg)
 		idx++;
 		idx %= NRING;
 	}
+	mtx_unlock(&Giant);
 	kthread_exit(0);
 }
 
