@@ -855,14 +855,27 @@ linux_link(struct proc *p, struct linux_link_args *args)
 int
 linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
 {
-    struct __getcwd_args bsd;
+	struct __getcwd_args bsd;
+	caddr_t sg;
+	int error, len;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): getcwd(%p, %ld)\n",
-	   p->p_pid, args->buf, args->bufsize);
+	printf("Linux-emul(%ld): getcwd(%p, %ld)\n", (long)p->p_pid,
+	       args->buf, args->bufsize);
 #endif
 
-    bsd.buf = args->buf;
-    bsd.buflen = args->bufsize;
-    return __getcwd(p, &bsd);
+	sg = stackgap_init();
+	bsd.buf = stackgap_alloc(&sg, SPARE_USRSPACE);
+	bsd.buflen = SPARE_USRSPACE;
+	error = __getcwd(p, &bsd);
+	if (!error) {
+		len = strlen(bsd.buf) + 1;
+		if (len <= args->bufsize) {
+			p->p_retval[0] = len;
+			error = copyout(bsd.buf, args->buf, len);
+		}
+		else
+			error = ERANGE;
+	}
+	return (error);
 }
