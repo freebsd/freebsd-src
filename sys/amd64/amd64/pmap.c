@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.52 1995/03/10 08:05:00 davidg Exp $
+ *	$Id: pmap.c,v 1.53 1995/03/16 18:11:28 bde Exp $
  */
 
 /*
@@ -1856,7 +1856,7 @@ pmap_testbit(pa, bit)
 /*
  * this routine is used to modify bits in ptes
  */
-__inline void
+static __inline void
 pmap_changebit(pa, bit, setem)
 	vm_offset_t pa;
 	int bit;
