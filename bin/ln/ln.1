@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: ln.1,v 1.5 1997/02/22 14:03:48 peter Exp $
+.\"	$Id: ln.1,v 1.6 1998/05/15 06:19:02 charnier Exp $
 .\"
 .Dd December 30, 1993
 .Dt LN 1
@@ -64,7 +64,7 @@ to the original copy.
 There are two types of links; hard links and symbolic links.
 How a link
 .Dq points
-to a file is one of the differences between a hard or symbolic link.
+to a file is one of the differences between a hard and symbolic link.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
@@ -74,13 +74,13 @@ Unlink any already existing file, permitting the link to occur.
 Create a symbolic link.
 .El
 .Pp
-By default
+By default,
 .Nm
 makes
 .Em hard
 links.
 A hard link to a file is indistinguishable from the original directory entry;
-any changes to a file are effective independent of the name used to reference
+any changes to a file are effectively independent of the name used to reference
 the file.
 Hard links may not normally refer to directories and may not span file systems.
 .Pp
@@ -126,7 +126,7 @@ The links made will have the same name as the files being linked to.
 .Xr symlink 2 ,
 .Xr symlink 7
 .Sh HISTORY
-A
+An
 .Nm
 command appeared in
 .At v1 .
