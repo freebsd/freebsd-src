@@ -334,9 +334,10 @@ ng_bridge_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
-	/* Start timer by faking a timeout event */
-	NG_NODE_REF(node); /* because the timeout will drop a reference */
-	ng_bridge_timeout(node);
+	/* Start timer; timer is always running while node is alive */
+	callout_reset(&priv->timer, hz, ng_bridge_timeout, priv->node);
+
+	/* Done */
 	return (0);
 }
 
@@ -766,13 +767,17 @@ ng_bridge_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
+	/*
+	 * Shut down everything except the timer. There's no way to
+	 * avoid another possible timeout event (it may have already
+	 * been dequeued), so we can't free the node yet.
+	 */
 	KASSERT(priv->numLinks == 0 && priv->numHosts == 0,
 	    ("%s: numLinks=%d numHosts=%d",
 	    __func__, priv->numLinks, priv->numHosts));
 	FREE(priv->tab, M_NETGRAPH_BRIDGE);
-	FREE(priv, M_NETGRAPH_BRIDGE);
-	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(node);
+
+	/* NG_INVALID flag is now set so node will be freed at next timeout */
 	return (0);
 }
 
@@ -967,6 +972,8 @@ ng_bridge_remove_hosts(priv_p priv, int linkNum)
  * we decrement link->loopCount for those links being muted due to
  * a detected loopback condition, and we remove any hosts from
  * the hashtable whom we haven't heard from in a long while.
+ *
+ * If the node has the NG_INVALID flag set, out job is to kill it.
  */
 static void
 ng_bridge_timeout(void *arg)
@@ -977,9 +984,11 @@ ng_bridge_timeout(void *arg)
 	int counter = 0;
 	int linkNum;
 
-	/* Avoid race condition with ng_bridge_shutdown() */
+	/* If node was shut down, this is the final lingering timeout */
 	s = splnet();
-	if ((NG_NODE_NOT_VALID(node)) || priv == NULL) {
+	if (NG_NODE_NOT_VALID(node)) {
+		FREE(priv, M_NETGRAPH);
+		NG_NODE_SET_PRIVATE(node, NULL);
 		NG_NODE_UNREF(node);
 		splx(s);
 		return;
