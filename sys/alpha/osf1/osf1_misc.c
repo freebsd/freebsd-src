@@ -272,6 +272,11 @@ osf1_getsysinfo(p, uap)
 	error = retval = 0;
 
 	switch(uap->op) {
+	case OSF_GET_MAX_UPROCS:
+		error = copyout(&maxprocperuid, uap->buffer,
+		    sizeof(maxprocperuid));
+		retval = 1;
+		break;
 	case OSF_GET_IEEE_FP_CONTROL:
 		error = copyout(&p->p_addr->u_pcb.pcb_fp_control,uap->buffer,
 		    sizeof(p->p_addr->u_pcb.pcb_fp_control));
