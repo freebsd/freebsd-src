@@ -285,6 +285,7 @@ information.
 .It KERN\_POSIX1	integer	no
 .It KERN\_PROC	struct proc	no
 .It KERN\_PROF	node	not applicable
+.It KERN\_QUANTUM	integer	yes
 .It KERN\_SAVED\_IDS	integer	no
 .It KERN\_SECURELVL	integer	raise only
 .It KERN\_UPDATEINTERVAL	integer	no
@@ -409,6 +410,11 @@ describing destination of calls and their counts.
 Structure giving the sizes of the above arrays.
 .El
 .ne 1i
+.It Li KERN_QUANTUM
+Reduce to gives interactive users better response at the expense of other
+long running heavy tasks such as big parallel makes. 
+.\" (this comment from something sent in german to
+.\"  de-bsd-chat@DE.FreeBSD.ORG from Bernd Walter <ticso@cicely.de> )
 .It Li KERN_SAVED_IDS
 Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
