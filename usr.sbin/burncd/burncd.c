@@ -64,7 +64,7 @@ int write_file(struct track_info *);
 int roundup_blocks(struct track_info *);
 void cue_ent(struct cdr_cue_entry *, int, int, int, int, int, int, int);
 void cleanup(int);
-void usage(const char *);
+void usage(void);
 
 int
 main(int argc, char **argv)
@@ -73,9 +73,8 @@ main(int argc, char **argv)
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
 	int speed = 4, test_write = 0;
 	int block_size = 0, block_type = 0, cdopen = 0;
-	char *devname = "/dev/acd0c", *prog_name;
+	char *devname = "/dev/acd0c";
 
-	prog_name = argv[0];
 	while ((ch = getopt(argc, argv, "def:lmpqs:tv")) != -1) {
 		switch (ch) {
 		case 'd':
@@ -121,14 +120,14 @@ main(int argc, char **argv)
 			break;
 
 		default: 
-			usage(prog_name);
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc == 0)
-		usage(prog_name);
+		usage();
 
 	if ((fd = open(devname, O_RDWR, 0)) < 0)
 		err(EX_NOINPUT, "open(%s)", devname);
@@ -536,9 +535,10 @@ cleanup(int dummy)
 }
 
 void
-usage(const char *prog_name)
+usage(void)
 {
-	fprintf(stderr, "Usage: %s [-f device] [-s speed] [-e] [-l] [-m] [-p]\n"
-		"\t[-q] [command] [command filename...]\n", prog_name);
+	fprintf(stderr,
+	    "Usage: burncd [-delmpqtv] [-f device] [-s speed] [command]"
+	    " [command file ...]\n");
 	exit(EX_USAGE);
 }
