@@ -1,5 +1,5 @@
 /*      $NetBSD: ukbd.c,v 1.22 1999/01/09 12:10:36 drochner Exp $        */
-/*	FreeBSD $Id: ukbd.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -87,7 +87,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ukbddebug) printf x
 #define DPRINTFN(n,x)	if (ukbddebug>(n)) printf x
-int	ukbddebug = 0;
+int	ukbddebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
