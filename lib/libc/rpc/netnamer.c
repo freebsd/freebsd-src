@@ -292,7 +292,8 @@ getnetid(key, ret)
 			lookup[len] = 0;
 			strcpy(ret, lookup);
 			free(lookup);
-			fclose(fd);
+			if (fd != NULL)
+				fclose(fd);
 			return (2);
 #else	/* YP */
 #ifdef DEBUG
