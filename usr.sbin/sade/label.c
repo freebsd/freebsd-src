@@ -63,7 +63,7 @@
 
 /* The default root filesystem size */
 #ifdef __alpha__
-#define ROOT_DEFAULT_SIZE		110
+#define ROOT_DEFAULT_SIZE		120
 #else
 #define ROOT_DEFAULT_SIZE		100
 #endif
