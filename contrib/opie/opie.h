@@ -2,7 +2,7 @@
 	system that a program might need.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Added symbolic flag names for
+		opiepasswd(). Added __opieparsechallenge() prototype.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection.
 	Modified by cmetz for OPIE 2.3. Renamed PTR to VOIDPTR. Added
 		re-init key and extension file fields to struct opie. Added
@@ -31,6 +33,8 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skey.h).
+
+$FreeBSD$
 */
 #ifndef _OPIE_H
 #define _OPIE_H 1
@@ -117,6 +121,11 @@ FILE *__opieopen __P((char *, int, int));
 #endif /* EOF */
 int __opiereadrec __P((struct opie *));
 int __opiewriterec __P((struct opie *));
+int __opieparsechallenge __P((char *buffer, int *algorithm, int *sequence, char **seed, int *exts));
 __END_DECLS
 #endif /* _OPIE */
+
+#define OPIEPASSWD_CONSOLE 1
+#define OPIEPASSWD_FORCE   2
+
 #endif /* _OPIE_H */
