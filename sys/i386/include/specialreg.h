@@ -112,7 +112,7 @@
 #define	CPUID_PBE	0x80000000
 
 /*
- *CPUID instruction 1 ebx info
+ * CPUID instruction 1 ebx info
  */
 #define	CPUID_BRAND_INDEX	0x000000ff
 #define	CPUID_CLFUSH_SIZE	0x0000ff00
