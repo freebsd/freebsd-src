@@ -59,11 +59,9 @@ struct mly_user_health
  */
 
 #define MLYQ_FREE	0
-#define MLYQ_CCB	1
-#define MLYQ_READY	2
-#define MLYQ_BUSY	3
-#define MLYQ_COMPLETE	4
-#define MLYQ_COUNT	5
+#define MLYQ_BUSY	1
+#define MLYQ_COMPLETE	2
+#define MLYQ_COUNT	3
 
 struct mly_qstat 
 {
