@@ -9,7 +9,8 @@ SRCS=	perlmain.c config.h
 # NOSHARED= no
 DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
-LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5
+LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
+	${BINDIR}/${PROG} ${BINDIR}/perl5.00502
 
 CLEANFILES=	config.h config.sh config_h.sh writemain writemain.sh \
 		Config.pm cflags cflags.sh myconfig perlmain.c miniperlmain.c \
