@@ -771,7 +771,7 @@ status(argc, argv)
 	register char *cp1, *cp2;
 	char prbuf[100];
 
-	if (argc == 1) {
+	if (argc == 1 || argc == 2 && !strcmp(argv[1], "all")) {
 		printer = prbuf;
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
