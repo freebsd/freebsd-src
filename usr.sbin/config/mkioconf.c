@@ -605,6 +605,8 @@ i386_ioconf()
 	register int uba_n, slave;
 	int dev_id;
 	FILE *fp;
+	static struct device olddev;
+	struct device *old = &olddev;
 
 	fp = fopen(path("ioconf.c"), "w");
 	if (fp == 0) {
@@ -638,8 +640,9 @@ i386_ioconf()
 			if (mp == 0 || mp == TO_NEXUS ||
 			    !eq(mp->d_name, "isa"))
 				continue;
-			fprintf(fp, "extern struct isa_driver %3.3sdriver;",
-				dp->d_name);
+			if(!old->d_name || strcmp(old->d_name, dp->d_name))
+				fprintf(fp, "extern struct isa_driver %3.3sdriver;",
+					dp->d_name);
 			if(eq(dp->d_name, "wdc")) seen_wdc++;
 			if(eq(dp->d_name, "fdc")) seen_fdc++;
 			if (dp->d_irq == 2)
@@ -647,9 +650,15 @@ i386_ioconf()
 				fprintf(stderr, "remapped irq 2 to irq 9, please update your config file\n");
 				dp->d_irq = 9;
 				}
-			if (dp->d_vec != NULL && dp->d_vec->id != NULL)
-				fprintf(fp, " inthand2_t %s;", shandler(dp));
+			if (dp->d_vec != NULL && dp->d_vec->id != NULL) {
+				char buf[32];
+
+				strcpy(buf, shandler(old));
+				if(!old->d_name || strcmp(buf, shandler(dp)))
+					fprintf(fp, " inthand2_t %s;", shandler(dp));
+			}
 			fprintf(fp, "\n");
+			old = dp;
 		}
 #ifdef STATCLOCK
 		dev_id = 2;
