@@ -2140,7 +2140,7 @@ static void xl_stats_update(xsc)
 	XL_SEL_WIN(4);
 	CSR_READ_1(sc, XL_W4_BADSSD);
 
-	if (mii != NULL)
+	if ((mii != NULL) && (!sc->xl_stats_no_timeout))
 		mii_tick(mii);
 
 	XL_SEL_WIN(7);
