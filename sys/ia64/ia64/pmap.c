@@ -220,8 +220,11 @@ static u_int64_t pmap_ptc_e_stride2 = 0x100000000;
 /*
  * Data for the RID allocator
  */
-static u_int64_t *pmap_ridbusy;
-static int pmap_ridmax, pmap_ridcount;
+static int pmap_ridcount;
+static int pmap_rididx;
+static int pmap_ridmapsz;
+static int pmap_ridmax;
+static u_int64_t *pmap_ridmap;
 struct mtx pmap_ridmutex;
 
 /*
@@ -322,6 +325,24 @@ pmap_bootstrap()
 
 	/*
 	 * Setup RIDs. RIDs 0..7 are reserved for the kernel.
+	 *
+	 * We currently need at least 19 bits in the RID because PID_MAX
+	 * can only be encoded in 17 bits and we need RIDs for 5 regions
+	 * per process. With PID_MAX equalling 99999 this means that we
+	 * need to be able to encode 499995 (=5*PID_MAX).
+	 * The Itanium processor only has 18 bits and the architected
+	 * minimum is exactly that. So, we cannot use a PID based scheme
+	 * in those cases. Enter pmap_ridmap...
+	 * We should avoid the map when running on a processor that has
+	 * implemented enough bits. This means that we should pass the
+	 * process/thread ID to pmap. This we currently don't do, so we
+	 * use the map anyway. However, we don't want to allocate a map
+	 * that is large enough to cover the range dictated by the number
+	 * of bits in the RID, because that may result in a RID map of
+	 * 2MB in size for a 24-bit RID. A 64KB map is enough.
+	 * The bottomline: we create a 32KB map when the processor only
+	 * implements 18 bits (or when we can't figure it out). Otherwise
+	 * we create a 64KB map.
 	 */
 	res = ia64_call_pal_static(PAL_VM_SUMMARY, 0, 0, 0);
 	if (res.pal_status != 0) {
@@ -332,14 +353,17 @@ pmap_bootstrap()
 		ridbits = (res.pal_result[1] >> 8) & 0xff;
 		if (bootverbose)
 			printf("Processor supports %d Region ID bits\n",
-			       ridbits);
+			    ridbits);
 	}
+	if (ridbits > 19)
+		ridbits = 19;
+
 	pmap_ridmax = (1 << ridbits);
+	pmap_ridmapsz = pmap_ridmax / 64;
+	pmap_ridmap = (u_int64_t *)pmap_steal_memory(pmap_ridmax / 8);
+	pmap_ridmap[0] |= 0xff;
+	pmap_rididx = 0;
 	pmap_ridcount = 8;
-	pmap_ridbusy = (u_int64_t *)
-		pmap_steal_memory(pmap_ridmax / 8);
-	bzero(pmap_ridbusy, pmap_ridmax / 8);
-	pmap_ridbusy[0] |= 0xff;
 	mtx_init(&pmap_ridmutex, "RID allocator lock", NULL, MTX_DEF);
 
 	/*
@@ -630,16 +654,31 @@ pmap_invalidate_all(pmap_t pmap)
 static u_int32_t
 pmap_allocate_rid(void)
 {
+	uint64_t bit, bits;
 	int rid;
 
+	mtx_lock(&pmap_ridmutex);
 	if (pmap_ridcount == pmap_ridmax)
 		panic("pmap_allocate_rid: All Region IDs used");
 
-	do {
-		rid = arc4random() & (pmap_ridmax - 1);
-	} while (pmap_ridbusy[rid / 64] & (1L << (rid & 63)));
-	pmap_ridbusy[rid / 64] |= (1L << (rid & 63));
+	/* Find an index with a free bit. */
+	while ((bits = pmap_ridmap[pmap_rididx]) == ~0UL) {
+		pmap_rididx++;
+		if (pmap_rididx == pmap_ridmapsz)
+			pmap_rididx = 0;
+	}
+	rid = pmap_rididx * 64;
+
+	/* Find a free bit. */
+	bit = 1UL;
+	while (bits & bit) {
+		rid++;
+		bit <<= 1;
+	}
+
+	pmap_ridmap[pmap_rididx] |= bit;
 	pmap_ridcount++;
+	mtx_unlock(&pmap_ridmutex);
 
 	return rid;
 }
@@ -647,36 +686,15 @@ pmap_allocate_rid(void)
 static void
 pmap_free_rid(u_int32_t rid)
 {
+	uint64_t bit;
+	int idx;
+
+	idx = rid / 64;
+	bit = ~(1UL << (rid & 63));
+
 	mtx_lock(&pmap_ridmutex);
-	pmap_ridbusy[rid / 64] &= ~(1L << (rid & 63));
+	pmap_ridmap[idx] &= bit;
 	pmap_ridcount--;
-	mtx_unlock(&pmap_ridmutex);
-}
-
-static void
-pmap_ensure_rid(pmap_t pmap, vm_offset_t va)
-{
-	int rr;
-
-	rr = va >> 61;
-
-	/*
-	 * We get called for virtual addresses that may just as well be
-	 * kernel addresses (ie region 5, 6 or 7). Since the pm_rid field
-	 * only holds region IDs for user regions, we have to make sure
-	 * the region is within bounds.
-	 */
-	if (rr >= 5)
-		return;
-
-	if (pmap->pm_rid[rr])
-		return;
-
-	mtx_lock(&pmap_ridmutex);
-	pmap->pm_rid[rr] = pmap_allocate_rid();
-	if (pmap == PCPU_GET(current_pmap))
-		ia64_set_rr(IA64_RR_BASE(rr),
-			    (pmap->pm_rid[rr] << 8)|(PAGE_SHIFT << 2)|1);
 	mtx_unlock(&pmap_ridmutex);
 }
 
@@ -867,6 +885,10 @@ pmap_pinit(struct pmap *pmap)
 void
 pmap_pinit2(struct pmap *pmap)
 {
+	int i;
+
+	for (i = 0; i < 5; i++)
+		pmap->pm_rid[i] = pmap_allocate_rid();
 }
 
 /***************************************************
@@ -1666,8 +1688,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap == NULL)
 		return;
 
-	pmap_ensure_rid(pmap, va);
-
 	oldpmap = pmap_install(pmap);
 
 	va &= ~PAGE_MASK;
@@ -1783,8 +1803,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
-
-	pmap_ensure_rid(pmap, va);
 
 	oldpmap = pmap_install(pmap);
 
