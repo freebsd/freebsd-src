@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.46 1996/07/03 01:31:07 jkh Exp $
+ * $Id: disks.c,v 1.55 1996/07/09 03:07:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -349,6 +349,7 @@ diskPartition(Device *dev, Disk *d)
 	    Free_Disk(dev->private);
 	    dev->private = d;
 	    variable_unset(DISK_PARTITIONED);
+	    variable_unset(DISK_LABELLED);
 	    record_chunks(d);
 	    break;
 
