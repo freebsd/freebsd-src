@@ -1,9 +1,9 @@
-<!-- $Id: slipc.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: slipc.sgml,v 1.2 1995/06/30 17:37:49 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a SLIP client<label id="slipc"></heading>
 
-<p><em>Contributed by &a.asami;.</em>
+<p><em>Contributed by &a.asami;<newline>8 Aug 1995.</em>
 
 The following is one way to set up a FreeBSD machine for SLIP on a
 static host network.  For dynamic hostname assignments (i.e., your
@@ -16,36 +16,23 @@ just for your reference, I'm no expert in SLIP nor networking so your
 mileage may vary.
 -->
 
-Note: for 1.1 systems (not 1.1.5), you need to use /dev/tty01 instead
-of /dev/cuaa1. 
+First, determine which serial port your modem is connected to.  I have
+a symbolic link /dev/modem -> cuaa1, and only use the modem name in my
+configuration files.  It can become quite cumbersome when you need to
+fix a bunch of files in /etc and .kermrc's all over the system!  (Note
+that /dev/cuaa0 is COM1, cuaa1 is COM2, etc.)
 
-Note: the default 1.1.5(.1) system only comes with cua/ttyd pairs for
-the last two ports (2 and 3), so if your modem is at sio0/sio1
-(COM1/COM2), you need to make the devices.  Try "cd /dev; sh MAKEDEV
-cuaa1" to make the new special files for sio1 (ditto for sio0).  This
-will delete tty01, but you shouldn't need it anymore...or you can make
-a symbolic link /dev/tty01 -> ttyd1 if you don't want to hunt down all
-occurences of tty01 in your setup files.
-
-I actually have a symbolic link /dev/modem -> cuaa1 (and /dev/mouse ->
-ttyd0). I use only the modem/mouse names in my configuration files.
-This helped a lot when I switched from 1.1 to 1.1.5.1 (tty01 => cuaa1)
-and when I had to move my modem temporarily to sio2 to enable the
-RS-232C port on the serial card.  It can become quite cumbersome when
-you need to fix a bunch of files in /etc and .kermrc's all over the
-system!
-
-First, make sure you have
+Make sure you have
 <verb>
-pseudo-device   sl      2
+pseudo-device   sl      1
 </verb>
-in your kernel's config file.  It is included in the GENERIC, GENERICAH
-and GENERICBT kernels, so this won't be a problem unless you deleted it.
+in your kernel's config file.  It is included in the GENERIC kernel,
+so this won't be a problem unless you deleted it.
 
 <sect1><heading>Things you have to do only once</heading>
 
 <p><enum>
-<item> Add your home machine, the gateway and nameservers to your
+<item>Add your home machine, the gateway and nameservers to your
     /etc/hosts file.  Mine looks like this:
 <verb>
 127.0.0.1               localhost loghost
@@ -58,48 +45,70 @@ and GENERICBT kernels, so this won't be a problem unless you deleted it.
     By the way, silvia is the name of the car that I had when I was
     back in Japan (it's called 2?0SX here in U.S.).
 
-<item> Make sure you have "hosts" before "bind" in your /etc/host.conf.
+<item>Make sure you have "hosts" before "bind" in your /etc/host.conf.
     Otherwise, funny things may happen.
 
-<item> Edit the /etc/netstart and add this to the end of the file:
+<item>Edit the file /etc/sysconfig.
+<enum>
+<item>Set your hostname by editing the line that says:
 <verb>
-# set up slip
-gateway=slip-gateway
-ifconfig sl0 inet $hostname $gateway netmask 0xffffff00
-route add default $gateway
+hostname=myname.my.domain
 </verb>
-    Note that because of the "slip-gateway" entry in /etc/hosts, there
-    is no local dependency in the netstart file.  Also, you might want
-    to un-comment the "<verb>route add $hostname localhost</verb>" line.
+    You should give it your full Internet hostname.
 
-<item> Make a file /etc/resolv.conf which contains:
+<item>Add sl0 to the list of network interfaces by changing the line
+that says:
+<verb>
+network_interfaces="lo0"
+</verb>
+to:
+<verb>
+network_interfaces="lo0 sl0"
+</verb>
+
+<item>Set the startup flags of sl0 by adding a line:
+<verb>
+ifconfig_sl0="inet ${hostname} slip-gateway netmask 0xffffff00 up"            
+</verb>
+
+<item>Designate the default router by changing the line:
+<verb>
+defaultrouter=NO
+</verb>
+to:
+<verb>
+defaultrouter=slip-gateway
+</verb>
+</enum>
+
+<item>Make a file /etc/resolv.conf which contains:
 <verb>
 domain HIP.Berkeley.EDU
 nameserver 128.32.136.9
 nameserver 128.32.136.12
 </verb>
     As you can see, these set up the nameserver hosts.  Of course, the
-    actual addresses depend on your environment.
+    actual domain names and addresses depend on your environment.
 
-<item> Set the password for root and toor (and any other accounts that
+<item>Set the password for root and toor (and any other accounts that
     doesn't have a password).  Use passwd, don't edit the passwd or
     passwd.master files!
 
-<item> Edit /etc/myname and reboot the machine.
+<item>Reboot your machine and make sure it comes up with the correct
+    hostname.
 </enum>
-
 
 <sect1><heading>Making a SLIP connection</heading>
 
 <p><enum>
-<item> Dial up, type "slip" at the prompt, enter your machine name and
+<item>Dial up, type "slip" at the prompt, enter your machine name and
     password.  The things you need to enter depends on your
     environment.  I use kermit, with a script like this:
 <verb>
 # kermit setup
 set modem hayes
-set line /dev/cuaa1
-set speed 57600
+set line /dev/modem
+set speed 115200
 set parity none
 set flow rts/cts
 set terminal bytesize 8
@@ -118,27 +127,21 @@ output ***\x0d, echo \x0aCONNECTED\x0a
     filesystem is generally a BAD idea.  Do it at your own risk.  I'm
     just too lazy.
 
-    Note: If you have an 1.1 machine, and kermit doesn't give you a
-    prompt, try "stty -f /dev/tty01 clocal".  I put this in
-    /etc/rc.local so that it works the first time I boot the machine.
-    This doesn't apply to 1.1.5(.1) systems, as cua0? are already
-    configured for dialouts.
-
-<item> Leave the kermit there (you can suspend it by "z") and as root,
+<item>Leave the kermit there (you can suspend it by "z") and as root,
     type
 <verb>
-slattach -h -c -s 57600 /dev/cuaa1
+slattach -h -c -s 115200 /dev/modem
 </verb>
-    if you are able to "ping" hosts on campus, you are connected!
-    If it doesn't work, you might want to try "-a" instead of "-c".
+    if you are able to "ping" hosts on the other side of the router,
+    you are connected! If it doesn't work, you might want to try "-a"
+    instead of "-c" as an argument to slattach.
 </enum>
 
 <sect1><heading>How to shutdown the connection</heading>
 
-    <p>Type "ps gx" (as root) to find out the PID of slattach, and use
-    "kill -INT" to kill it.
-    Then go back to kermit ("fg" if you suspended it) and exit from it
-    ("q").
+    <p>Type "kill -INT `cat /var/run/slattach.modem.pid`" (as root) to
+    kill slattach.  Then go back to kermit ("fg" if you suspended it)
+    and exit from it ("q").
 
     The slattach man page says you have to use "ifconfig sl0 down" to
     mark the interface down, but this doesn't seem to make any
@@ -148,24 +151,19 @@ slattach -h -c -s 57600 /dev/cuaa1
     often does).  In that case, simply start kermit and quit it again.
     It usually goes out on the second try.
 
-    When you want to connect again, go back to (XXX).  You may have to
-    watch out for clocal mode.  If "stty -f /dev/tty01" doesn't tell
-    you it's clocal, you need to re-set it before kermitting.  Again,
-    this is only for 1.1 machines.
-
 <sect1><heading>Troubleshooting</heading>
 
 <p>If it doesn't work, feel free to ask me.  The things that people
 tripped over so far:
 <itemize>
-<item> Not using "-c" or "-a" in slattach (I have no idea why this can be
+<item>Not using "-c" or "-a" in slattach (I have no idea why this can be
   fatal, but adding this flag solved the problem for at least one
   person)
 
-<item> Using "s10" instead of "sl0" (might be hard to see the difference on
+<item>Using "s10" instead of "sl0" (might be hard to see the difference on
   some fonts.
 
-<item> Try "ifconfig sl0" to see your interface status.  I get:
+<item>Try "ifconfig sl0" to see your interface status.  I get:
 <verb>
 silvia# ifconfig sl0
 sl0: flags=10<POINTOPOINT>
