@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mbuf.h>
 #include <sys/uio.h>
+#include <sys/ktr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -563,6 +564,41 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		(*callback)(callback_arg, dm_segments, nsegs + 1,
 		    m0->m_pkthdr.len, error);
 	}
+	return (error);
+}
+
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct mbuf *m0, bus_dma_segment_t *segs, int *nsegs,
+			int flags)
+{
+	int error = 0;
+	M_ASSERTPKTHDR(m0);
+
+	flags |= BUS_DMA_NOWAIT;
+	*nsegs = -1;
+	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		vm_offset_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			if (m->m_len > 0) {
+				error = bus_dmamap_load_buffer(dmat, segs, map,
+						m->m_data, m->m_len,
+						pmap_kernel(), flags, &lastaddr,
+						nsegs);
+				first = 0;
+			}
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	/* XXX FIXME: Having to increment nsegs is really annoying */
+	++*nsegs;
+	CTR4(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
+	    "error %d nsegs %d", dmat, dmat->flags, error, *nsegs);
 	return (error);
 }
 
