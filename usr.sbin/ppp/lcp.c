@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.52 1998/01/11 17:50:35 brian Exp $
+ * $Id: lcp.c,v 1.53 1998/01/11 17:53:19 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -120,12 +120,13 @@ struct fsm LcpFsm = {
   "LCP",			/* Name of protocol */
   PROTO_LCP,			/* Protocol Number */
   LCP_MAXCODE,
-  OPEN_ACTIVE,
+  1,				/* Open mode delay */
   ST_INITIAL,			/* State of machine */
   0, 0, 0,
   0,
-  {0, 0, 0, NULL, NULL, NULL},
-  {0, 0, 0, NULL, NULL, NULL},
+  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
+  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
+  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
   LogLCP,
 
   LcpLayerUp,
@@ -179,8 +180,11 @@ ReportLcpStatus(struct cmdargs const *arg)
           lcp->want_acfcomp, (u_long)lcp->want_magic, lcp->my_reject);
   fprintf(VarTerm, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
           VarMRU, (u_long)VarAccmap);
-  fprintf(VarTerm, "Open Mode: %s\n",
-          (VarOpenMode == OPEN_ACTIVE) ? "active" : "passive");
+  fprintf(VarTerm, "Open Mode: %s",
+          (VarOpenMode == OPEN_PASSIVE) ? "passive" : "active");
+  if (VarOpenMode > 0)
+    fprintf(VarTerm, " (delay %d)", VarOpenMode);
+  fputc('\n', VarTerm);
   return 0;
 }
 

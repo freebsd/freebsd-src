@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.94 1998/01/05 01:35:20 brian Exp $
+.\" $Id: ppp.8,v 1.95 1998/01/18 20:49:22 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2254,16 +2254,23 @@ will be negotiated.
 .It set nbns x.x.x.x y.y.y.y
 This option allows the setting of the Microsoft NetBIOS DNS servers that
 will be negotiated.
-.It set openmode active|passive
+.It set openmode active|passive Op delay
 By default,
 .Ar openmode
 is always
-.Ar active .
+.Ar active
+with a one second
+.Ar delay .
 That is,
 .Nm
-will always initiate LCP/IPCP/CCP negotiation.  If you want to wait
-for the peer to initiate negotiations, you may use the value
+will always initiate LCP/IPCP/CCP negotiation one second after the line
+comes up.  If you want to wait for the peer to initiate negotiations, you
+can use the value
 .Ar passive .
+If you want to initiate negotiations immediately or after more than one
+second, the appropriate
+.Ar delay
+may be specified here in seconds.
 .It set parity odd|even|none|mark
 This allows the line parity to be set.  The default value is
 .Ar none .
@@ -2328,6 +2335,10 @@ log all state transitions.
 The default value is zero, where
 .Nm
 doesn't time out in the stopped state.
+.Pp
+This value should not be set to less than the openmode delay (see
+.Dq set openmode
+above).
 .It set server|socket TcpPort|LocalName|none [password] [mask]
 This command tells
 .Nm

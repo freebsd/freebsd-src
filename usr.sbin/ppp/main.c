@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.116 1998/01/08 23:47:52 brian Exp $
+ * $Id: main.c,v 1.117 1998/01/11 17:53:21 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -573,7 +573,7 @@ main(int argc, char **argv)
  *  Turn into packet mode, where we speak PPP.
  */
 void
-PacketMode()
+PacketMode(int delay)
 {
   if (RawModem() < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
@@ -586,7 +586,7 @@ PacketMode()
   CcpInit();
   LcpUp();
 
-  LcpOpen(VarOpenMode);
+  LcpOpen(delay);
   if (mode & MODE_INTER)
     TtyCommandMode(1);
   if (VarTerm) {
@@ -660,10 +660,8 @@ ReadTty(void)
 	/*
 	 * XXX: Should check carrier.
 	 */
-	if (LcpFsm.state <= ST_CLOSED) {
-	  VarOpenMode = OPEN_ACTIVE;
-	  PacketMode();
-	}
+	if (LcpFsm.state <= ST_CLOSED)
+	  PacketMode(0);
 	break;
       case '.':
 	TermMode = 1;
@@ -779,7 +777,7 @@ DoLoop(void)
     if (OpenModem() < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
-    PacketMode();
+    PacketMode(VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
       while (OpenModem() < 0)
@@ -829,8 +827,7 @@ DoLoop(void)
 	}
 	reconnectState = RECON_ENVOKED;
       } else if (mode & MODE_DEDICATED)
-        if (VarOpenMode == OPEN_ACTIVE)
-          PacketMode();
+        PacketMode(VarOpenMode);
     }
 
     /*
@@ -864,9 +861,8 @@ DoLoop(void)
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
 	if ((res = DialModem()) == EX_DONE) {
-	  nointr_sleep(1);		/* little pause to allow peer starts */
 	  ModemTimeout(NULL);
-	  PacketMode();
+	  PacketMode(VarOpenMode);
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  tries = 0;
@@ -1047,7 +1043,7 @@ DoLoop(void)
 	      write(modem, rbuff, cp - rbuff);
 	      write(modem, "\r\n", 2);
 	    }
-	    PacketMode();
+	    PacketMode(0);
 	  } else
 	    write(fileno(VarTerm), rbuff, n);
 	}
