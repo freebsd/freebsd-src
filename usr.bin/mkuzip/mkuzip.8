@@ -7,8 +7,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2001
-.Dt MDGZIP 8
+.Dd September 10, 2004
+.Dt MKUZIP 8
 .Os
 .Sh NAME
 .Nm mkuzip
@@ -29,8 +29,8 @@ utility compresses a disk image file in such a way that the
 class will be able to decompress resulting image in run-time.
 This allows for significant reduction of size of disk image at
 the expense of some CPU time required to decompress the data each
-time it is read.  Internally, operation is done in two phases as
-follows:
+time it is read.
+Internally, operation is done in two phases as follows:
 .Bl -enum
 .It
 An
@@ -44,28 +44,30 @@ output file.
 .El
 .Pp
 The options are:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl o Ar outfile
 Name the output file
 .Ar outfile .
 The default is to use the input name with the suffix
-.Sq .uzip .
+.Pa .uzip .
 .It Fl s Ar cluster_size
 Use
 .Ar cluster_size
-as the size of chunks the file being split up into.  Default value
-is 16384 bytes.  The
+as the size of chunks the file being split up into.
+Default value is 16384 bytes.
+The
 .Ar cluster_size
-should be multiple of 512 bytes.
+should be a multiple of 512 bytes.
 .It Fl v
 Display verbose messages.
 .El
 .Sh NOTES
-Compression ratio largely depends on the cluster size used. For
-large cluster sizes (16K and higher) typical compression ratios
+Compression ratio largely depends on the cluster size used.
+For large cluster sizes (16K and higher), typical compression ratios
 are only 1-2% less than those achieved with the
 .Xr gzip 1
-utlity.  However, it should be kept in mind that larger cluster
+utlity.
+However, it should be kept in mind that larger cluster
 sizes lead to higher overhead in the
 .Xr geom_uzip 4
 class, as the class has to decompress the whole cluster even if
@@ -75,26 +77,27 @@ The
 .Nm
 inserts tiny shell script at the beginning of the generated image,
 which makes it possible to
-.Qq run
-the image just like any other shell script.  This script tries
+.Dq run
+the image just like any other shell script.
+This script tries
 to load
 .Xr geom_uzip 4
-class if it is not loaded, configure image as a
+class if it is not loaded, configure image as an
 .Xr md 4
 disk device using
 .Xr mdconfig 8
-utility and automatically mount it using
+utility, and automatically mount it using
 .Xr mount_cd9660 8
 utility to the mount point provided as a first argument.
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr zlib 3 ,
-.Xr geom_uzip 4 ,
 .Xr geom 4 ,
+.Xr geom_uzip 4 ,
 .Xr md 4 ,
 .Xr mdconfig 8 ,
-.Xr mount_cd9660 8 .
+.Xr mount_cd9660 8
 .Sh DIAGNOSTICS
-Exit status is 0 on success and >0 on error.
+.Ex -std
 .Sh AUTHORS
-.An Maxim Sobolev Aq sobomax@FreeBSD.org .
+.An Maxim Sobolev Aq sobomax@FreeBSD.org
