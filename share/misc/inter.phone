@@ -1,6 +1,6 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
-#	$Id: inter.phone,v 1.9 1997/01/03 11:37:28 wosch Exp $
+#	$Id: inter.phone,v 1.11 1997/01/05 06:34:19 adam Exp $
 #
 7:095:Moscow:Russia
 20:2:Cairo:Egypt, Arab Rep. of
@@ -90,8 +90,8 @@
 39:91:Palermo:Italy
 39:95:Catania:Italy
 39:99:Taranto:Italy
-40:0:Bucharest:Romania, Soc. Rep. of
-41:1:Zurich:Switzerland
+40:0:Bucharest:Romania
+41:1:Zuerich:Switzerland
 41:21:Lausanne:Switzerland
 41:21:Montreaux:Switzerland
 41:22:Geneva:Switzerland
