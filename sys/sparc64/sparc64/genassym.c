@@ -54,6 +54,7 @@
 #include <machine/tte.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>
+#include <machine/tstate.h>
 
 /*
  * XXX: gas, as of version 2.11.2, does not know this ASI (and some other
@@ -75,6 +76,9 @@ ASSYM(PSTATE_PEF, PSTATE_PEF);
 ASSYM(PSTATE_MG, PSTATE_MG);
 ASSYM(PSTATE_IG, PSTATE_IG);
 
+ASSYM(VER_MAXWIN_MASK, VER_MAXWIN_MASK);
+
+ASSYM(TSTATE_CWP_MASK, TSTATE_CWP_MASK);
 ASSYM(TSTATE_AG, TSTATE_AG);
 ASSYM(TSTATE_IE, TSTATE_IE);
 ASSYM(TSTATE_PRIV, TSTATE_PRIV);
@@ -153,7 +157,14 @@ ASSYM(P_FRAME, offsetof(struct proc, p_frame));
 ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
 ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
+ASSYM(PCB_Y, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+ASSYM(PCB_INWINOP, offsetof(struct pcb, pcb_inwinop));
+ASSYM(PCB_CWP, offsetof(struct pcb, pcb_cwp));
+ASSYM(PCB_WS_INUSE, offsetof(struct pcb, pcb_ws_inuse));
+ASSYM(PCB_WSCRATCH, offsetof(struct pcb, pcb_wscratch));
+
+ASSYM(PCB_CWP_EMPTY, PCB_CWP_EMPTY);
 
 ASSYM(U_PCB, offsetof(struct user, u_pcb));
 
@@ -186,6 +197,26 @@ ASSYM(F_I6, offsetof(struct frame, f_in[6]));
 ASSYM(F_I7, offsetof(struct frame, f_in[7]));
 ASSYM(CCFSZ, sizeof(struct frame));
 ASSYM(SPOFF, SPOFF);
+
+ASSYM(WSF_L0, offsetof(struct wsframe, wsf_local[0]));
+ASSYM(WSF_L1, offsetof(struct wsframe, wsf_local[1]));
+ASSYM(WSF_L2, offsetof(struct wsframe, wsf_local[2]));
+ASSYM(WSF_L3, offsetof(struct wsframe, wsf_local[3]));
+ASSYM(WSF_L4, offsetof(struct wsframe, wsf_local[4]));
+ASSYM(WSF_L5, offsetof(struct wsframe, wsf_local[5]));
+ASSYM(WSF_L6, offsetof(struct wsframe, wsf_local[6]));
+ASSYM(WSF_L7, offsetof(struct wsframe, wsf_local[7]));
+ASSYM(WSF_I0, offsetof(struct wsframe, wsf_in[0]));
+ASSYM(WSF_I1, offsetof(struct wsframe, wsf_in[1]));
+ASSYM(WSF_I2, offsetof(struct wsframe, wsf_in[2]));
+ASSYM(WSF_I3, offsetof(struct wsframe, wsf_in[3]));
+ASSYM(WSF_I4, offsetof(struct wsframe, wsf_in[4]));
+ASSYM(WSF_I5, offsetof(struct wsframe, wsf_in[5]));
+ASSYM(WSF_I6, offsetof(struct wsframe, wsf_in[6]));
+ASSYM(WSF_I7, offsetof(struct wsframe, wsf_in[7]));
+ASSYM(WSF_SP, offsetof(struct wsframe, wsf_sp));
+ASSYM(WSF_INUSE, offsetof(struct wsframe, wsf_inuse));
+ASSYM(WSF_SIZEOF, sizeof(struct wsframe));
 
 ASSYM(KF_FP, offsetof(struct kdbframe, kf_fp));
 ASSYM(KF_SIZEOF, sizeof(struct kdbframe));
