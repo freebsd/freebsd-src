@@ -239,13 +239,15 @@ The backslash character
 is used for continuation.
 In this case, no characters are permitted
 after the backslash character.
-.Sh EXIT STATUS
+.Sh DIAGNOSTICS
 .Nm Colldef
 exits with the following values:
-.Ar 0
-No  errors  were   found   and   the   output   was successfully created.
-.Ar !=0
+.Bl -tag -width indent
+.It Li 0
+No errors were found and the output was successfully created.
+.It Li !=0
 Errors were found.
+.El
 .Sh FILES
 .Ar /usr/share/locale/<language>/LC_COLLATE
 standard shared location  for  collation  orders
