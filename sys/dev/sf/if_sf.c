@@ -792,11 +792,13 @@ sf_attach(dev)
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
 	    sf_intr, sc, &sc->sf_intrhand);
 
 	if (error) {
 		printf("sf%d: couldn't set up irq\n", unit);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -807,6 +809,13 @@ fail:
 	return(error);
 }
 
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 sf_detach(dev)
 	device_t		dev;
@@ -819,13 +828,14 @@ sf_detach(dev)
 	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
+	/* These should only be active if attach succeeded */
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev))
-			sf_stop(sc);
+		sf_stop(sc);
 		ether_ifdetach(ifp);
-		device_delete_child(dev, sc->sf_miibus);
-		bus_generic_detach(dev);
 	}
+	if (sc->sf_miibus)
+		device_delete_child(dev, sc->sf_miibus);
+	bus_generic_detach(dev);
 
 	if (sc->sf_intrhand)
 		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
