@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.34 1996/02/12 15:15:01 gclarkii Exp $
+<date> $Id: freebsd-faq.sgml,v 1.35 1996/02/21 00:07:39 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2219,6 +2219,37 @@ SMC             EtherPower (Model 8432)
 TopWare         TE-3500P
 Zynx            ZX342
 </code>
+      </sect1>
+      <sect1>
+        <heading>I'm in <tt>foo.bar.edu</tt>, and I can no longer reach hosts in <tt>bar.edu</tt> by their short names</heading>
+        <p>
+	  The current version of <em>BIND</em> that ships with FreeBSD
+	  does no longer provide default abbreviations for non-fully
+	  qualified domain names other than the domain you are in.
+	  So an unqualified host <tt>mumble</tt> must either be found
+	  as <tt>mumble.foo.bar.edu</tt>, or it will be searched for
+	  in the root domain.
+	<p>
+	  This is different from the previous behaviour, where the
+	  search did continue across <tt>mumble.bar.edu</tt>, and
+	  <tt>mumble.edu</tt>.  Have a look at RFC 1535 for why this
+	  has been considered bad practice and even a security hole.
+	<p>
+	  As a good workaround, you can place the line
+<p><tt>
+search foo.bar.edu bar.edu
+</tt><p>
+	  instead of the previous
+
+<p><tt>
+domain foo.bar.edu
+</tt><p>
+	  into your <tt>/etc/resolv.conf</tt>.  However, make sure
+	  that the search order does not go beyond the ``boundary
+	  between local and public administration'', as RFC 1535
+	  calls ist.
+
+      </sect1>
 
     <sect>
       <heading>Serial Communications</heading>
