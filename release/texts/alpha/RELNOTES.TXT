@@ -10,11 +10,11 @@ directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.0-stable snapshots, you should always see:
+For the latest of these 4.x-stable snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-If you wish to get the latest post-4.0-RELEASE technology.
+If you wish to get the latest post-4.x-RELEASE technology.
 
 Table of contents:
 ------------------
@@ -53,6 +53,8 @@ changes in sockets, pipes, fifos, and files are present, as well as
 for signals and processes. 
 
 FreeBSD/alpha now posseses a loader with FICL (Forth support) builtin. 
+
+Parallel ports are now supported.
 
 1.2. SECURITY FIXES
 -------------------
