@@ -48,10 +48,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <alpha/pci/tsunamivar.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void st6600_init(void);
 static void st6600_cons_init(void);
@@ -59,10 +66,6 @@ static void st6600_intr_init(void);
 
 #define ST6600_PCI_IRQ_BEGIN 8
 #define ST6600_PCI_MAX_IRQ  63
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
 
 void
 st6600_init()
@@ -79,38 +82,38 @@ st6600_init()
 	platform.pci_intr_init = st6600_intr_init;
 }
 
-extern int comconsole;
-
 static void
 st6600_cons_init()
 {
 	struct ctb *ctb;
 
 	tsunami_init();
+
+#ifndef NO_SIO
 #ifdef DDB
 	siogdbattach(0x2f8, 57600);
+#endif
 #endif
 
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
-		/* XXX */
-		{
-			/*
-			 * Delay to allow PROM putchars to complete.
-			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10))
-			 */
-			DELAY(160000000 / comcnrate);
-			comconsole = 0;
-			if (siocnattach(0x3f8, comcnrate))
-				panic("can't init serial console");
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10))
+		 */
+		DELAY(160000000 / comcnrate);
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-			boothowto |= RB_SERIAL;
-			break;
-		}
+		boothowto |= RB_SERIAL;
+#endif
+		break;
 
 	case 3:
 		/* display console ... */

@@ -68,10 +68,16 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void dec_eb64plus_init(void);
 static void dec_eb64plus_cons_init(void);
@@ -82,9 +88,6 @@ extern void eb64plus_intr_disable(int irq);	/* ../pci/pci_eb64plus_intr.s */
 
 extern const char * bootdev_protocol(void);
 extern int bootdev_boot_dev_type(void);
-
-extern int siocnattach(int, int);
-extern int sccnattach(void);
 
 const struct alpha_variation_table dec_eb64plus_variations[] = {
 	{ 0, "DEC EB64-plus" },
@@ -116,8 +119,6 @@ dec_eb64plus_init()
 
 }
 
-/* XXX for forcing comconsole when srm serial console is used */
-extern int comconsole;
 
 /* init the console, serial or graphics */
 static void
@@ -131,27 +132,26 @@ dec_eb64plus_cons_init()
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
-		/* XXX */
-		{
-			/*
-			 * Delay to allow PROM putchars to complete.
-			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10))
-			 */
-			DELAY(160000000 / comcnrate);
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10))
+		 */
+		DELAY(160000000 / comcnrate);
 
-			/*
-			 * force a comconsole on com1 if the SRM has a serial
-			 * console.
-			 */
-			comconsole = 0;
-			if (siocnattach(0x3f8, comcnrate))
-				panic("can't init serial console");
+		/*
+		 * force a comconsole on com1 if the SRM has a serial
+		 * console.
+		 */
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-			boothowto |= RB_SERIAL;
-			break;
-		}
+		boothowto |= RB_SERIAL;
+#endif
+		break;
 
 	case 3:
 #ifdef DEV_SC

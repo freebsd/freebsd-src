@@ -56,10 +56,17 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void st550_init(void);
 static void st550_cons_init(void);
@@ -71,10 +78,6 @@ static void st550_intr_disable(int);
 static void st550_intr_map(void *);
 #define ST550_PCI_IRQ_BEGIN 8
 #define ST550_PCI_MAX_IRQ  47
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
 
 void
 st550_init()
@@ -95,8 +98,6 @@ st550_init()
 	platform.pci_intr_enable = st550_intr_enable;
 }
 
-extern int comconsole;
-
 static void
 st550_cons_init()
 {
@@ -104,14 +105,17 @@ st550_cons_init()
 
 	cia_init();
 
+#ifndef NO_SIO
 #ifdef DDB
 	siogdbattach(0x2f8, 57600);
+#endif
 #endif
 
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
 		/* XXX */
 		/*
@@ -125,6 +129,7 @@ st550_cons_init()
 			panic("can't init serial console");
 
 		boothowto |= RB_SERIAL;
+#endif
 		break;
 
 	case 3:

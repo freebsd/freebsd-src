@@ -51,10 +51,17 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void dec_kn20aa_init(void);
 static void dec_kn20aa_cons_init(void);
@@ -62,10 +69,6 @@ static void dec_kn20aa_intr_init(void);
 static void dec_kn20aa_intr_map(void *);
 static void dec_kn20aa_intr_disable(int);
 static void dec_kn20aa_intr_enable(int);
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
 
 #if 0
 static void dec_kn20aa_device_register(struct device *, void *);
@@ -75,7 +78,6 @@ const struct alpha_variation_table dec_kn20aa_variations[] = {
 	{ 0, "AlphaStation 500 or 600 (KN20AA)" },
 	{ 0, NULL },
 };
-extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
 
 void
 dec_kn20aa_init()
@@ -106,29 +108,31 @@ dec_kn20aa_cons_init()
 
 	cia_init();
 
+#ifndef NO_SIO
 #ifdef DDB
 	siogdbattach(0x2f8, 9600);
 #endif
+#endif
+
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
-		/* XXX */
-		{
-			/*
-			 * Delay to allow PROM putchars to complete.
-			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10))
-			 */
-			DELAY(160000000 / comcnrate);
-			comconsole = 0;
-			if (siocnattach(0x3f8, comcnrate))
-				panic("can't init serial console");
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10))
+		 */
+		DELAY(160000000 / comcnrate);
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-			boothowto |= RB_SERIAL;
-			break;
-		}
+		boothowto |= RB_SERIAL;
+#endif
+		break;
 
 	case 3:
 		/* display console ... */
