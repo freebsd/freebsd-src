@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.125 1995/03/23 20:42:42 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.127 1995/03/28 01:14:29 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -33,6 +33,10 @@
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
 # MAINTAINER	- The e-mail address of the contact person for this port
 #				  (default: ports@FreeBSD.ORG).
+# CATEGORIES	- A list of descriptive categories into which this port falls
+#				  (no default - optional).
+# KEYWORDS		- A list of descriptive keywords that might index well for this
+#				  port (no default - optional).
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
@@ -256,7 +260,11 @@ PATCH_SITES=	${MASTER_SITE_OVERRIDE}
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGNAME?=		${DISTNAME}
+
+# Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
+CATEGORIES?=	orphans
+KEYWORDS?=		orphans
 
 .if exists(${PACKAGES})
 PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
@@ -368,7 +376,7 @@ describe:
 	else \
 		echo -n "|/dev/null"; \
 	fi
-	@echo -n "|${MAINTAINER}"
+	@echo -n "|${MAINTAINER}|${CATEGORIES}|${KEYWORDS}"
 	@echo ""
 .endif
 
