@@ -504,7 +504,7 @@ decode_header (header, st, stdp, wantug)
 long
 from_oct (digs, where)
      register int digs;
-     register unsigned char *where;
+     register char *where;
 {
   register long value;
 
