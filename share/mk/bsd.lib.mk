@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.24.4.1 1995/08/27 03:12:58 davidg Exp $
+#	$Id: bsd.lib.mk,v 1.24.4.4 1996/06/05 02:53:55 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -233,7 +233,7 @@ cleandir:	_LIBSUBDIR
 
 .if defined(SRCS)
 afterdepend:
-	@(TMP=/tmp/_depend$$$$; \
+	@(TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < .depend > $$TMP; \
 	mv $$TMP .depend)
 .endif
