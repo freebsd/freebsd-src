@@ -117,14 +117,6 @@ realinstall:	beforeinstall
 all:		all-nls
 install:	realinstall afterinstall
 
-DISTRIBUTION?=	base
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR}; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
-
 .if !target(beforeinstall)
 beforeinstall:
 .endif
