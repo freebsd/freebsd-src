@@ -641,6 +641,10 @@ emit_call_1 (funexp, fndecl, funtype, stack_size, rounded_stack_size,
      if the context of the call as a whole permits.  */
   inhibit_defer_pop = old_inhibit_defer_pop;
 
+  /* Don't bother cleaning up after a noreturn function.  */
+  if (ecf_flags & (ECF_NORETURN | ECF_LONGJMP))
+    return;
+
   if (n_popped > 0)
     {
       if (!already_popped)
@@ -3101,6 +3105,7 @@ expand_call (exp, target, ignore)
 
       /* Verify that we've deallocated all the stack we used.  */
       if (pass
+	  && ! (flags & (ECF_NORETURN | ECF_LONGJMP))
 	  && old_stack_allocated != stack_pointer_delta - pending_stack_adjust)
 	abort ();
 
@@ -3194,6 +3199,10 @@ expand_call (exp, target, ignore)
 	    }
 
 	  emit_barrier_after (last);
+
+	  /* Stack adjustments after a noreturn call are dead code.  */
+	  stack_pointer_delta = old_stack_allocated;
+	  pending_stack_adjust = 0;
 	}
 
       if (flags & ECF_LONGJMP)
@@ -4017,9 +4026,23 @@ emit_library_call_value_1 (retval, orgfun, value, fn_type, outmode, nargs, p)
 		       (save_mode,
 			plus_constant (argblock,
 				       argvec[argnum].offset.constant)));
-		  argvec[argnum].save_area = gen_reg_rtx (save_mode);
+		  if (save_mode == BLKmode)
+		    {
+		      argvec[argnum].save_area
+			= assign_stack_temp (BLKmode,
+				             argvec[argnum].size.constant, 0);
 
-		  emit_move_insn (argvec[argnum].save_area, stack_area);
+		      emit_block_move (validize_mem (argvec[argnum].save_area),
+			  	       stack_area,
+				       GEN_INT (argvec[argnum].size.constant),
+				       BLOCK_OP_CALL_PARM);
+		    }
+		  else
+		    {
+		      argvec[argnum].save_area = gen_reg_rtx (save_mode);
+
+		      emit_move_insn (argvec[argnum].save_area, stack_area);
+		    }
 		}
 	    }
 
@@ -4259,7 +4282,13 @@ emit_library_call_value_1 (retval, orgfun, value, fn_type, outmode, nargs, p)
 			      plus_constant (argblock,
 					     argvec[count].offset.constant)));
 
-	    emit_move_insn (stack_area, argvec[count].save_area);
+	    if (save_mode == BLKmode)
+	      emit_block_move (stack_area,
+		  	       validize_mem (argvec[count].save_area),
+			       GEN_INT (argvec[count].size.constant),
+			       BLOCK_OP_CALL_PARM);
+	    else
+	      emit_move_insn (stack_area, argvec[count].save_area);
 	  }
 
       highest_outgoing_arg_in_use = initial_highest_arg_in_use;

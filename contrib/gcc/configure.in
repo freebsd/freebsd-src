@@ -797,6 +797,25 @@ objext='.o'
 AC_SUBST(manext)
 AC_SUBST(objext)
 
+# With Setjmp/Longjmp based exception handling.
+AC_ARG_ENABLE(sjlj-exceptions,
+[  --enable-sjlj-exceptions
+                          arrange to use setjmp/longjmp exception handling],
+[sjlj=`if test $enableval = yes; then echo 1; else echo 0; fi`
+AC_DEFINE_UNQUOTED(CONFIG_SJLJ_EXCEPTIONS, $sjlj,
+  [Define 0/1 to force the choice for exception handling model.])])
+
+AC_CHECK_LIB(unwind, main, use_libunwind_default=yes, use_libunwind_default=no)
+# Use libunwind based exception handling.
+AC_ARG_ENABLE(libunwind-exceptions,
+[  --enable-libunwind-exceptions  force use libunwind for exceptions],
+use_libunwind_exceptions=$enableval,
+use_libunwind_exceptions=$use_libunwind_default)
+if test x"$use_libunwind_exceptions" = xyes; then
+   AC_DEFINE(USE_LIBUNWIND_EXCEPTIONS, 1,
+	[Define if gcc should use -lunwind.])
+fi
+
 target_gtfiles=
 build_xm_file=
 build_xm_defines=
@@ -1641,6 +1660,9 @@ changequote(,)dnl
 			fi
 		fi
 changequote([,])dnl
+	else
+		# non-GNU linkers don't seem to support .hidden yet
+		gcc_cv_as_hidden=no
 	fi
 fi
 if test x"$gcc_cv_as_hidden" = xyes; then
@@ -1649,19 +1671,6 @@ if test x"$gcc_cv_as_hidden" = xyes; then
 fi
 AC_MSG_RESULT($gcc_cv_as_hidden)
 libgcc_visibility=$gcc_cv_as_hidden
-case "$target" in
-  mips-sgi-irix6*)
-    if test x"$gnu_ld_flag" = x"no"; then
-      # Even if using gas with .hidden support, the resulting object files
-      # cannot be linked with the IRIX 6 O32 linker.  With the N32 and
-      # N64 linkers, the problem is that the linker refuses to accept
-      # -call_shared (passed by default to the linker) and -r (used to
-      # link the object file generated without .hidden directives with
-      # one that hides symbols), so we also lose.
-      libgcc_visibility=no
-    fi
-    ;;
-esac
 AC_SUBST(libgcc_visibility)
 
 AC_MSG_CHECKING(assembler leb128 support)
@@ -2131,6 +2140,21 @@ changequote([,])dnl
     fi
     AC_MSG_RESULT($gcc_cv_as_instructions)
 
+    AC_MSG_CHECKING(cmov syntax)
+    gcc_cv_as_ix86_cmov_sun_syntax=no
+    if test x$gcc_cv_as != x; then
+	echo 'cmovl.l %edx, %eax' > conftest.s
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		    gcc_cv_as_ix86_cmov_sun_syntax=yes
+	fi
+	rm -f conftest.s conftest.o
+    fi
+    if test "x$gcc_cv_as_ix86_cmov_sun_syntax" = xyes; then
+	AC_DEFINE(HAVE_AS_IX86_CMOV_SUN_SYNTAX, 1,
+          [Define if your assembler supports the Sun syntax for cmov.])
+    fi
+    AC_MSG_RESULT($gcc_cv_as_ix86_cmov_sun_syntax)
+
     AC_MSG_CHECKING(assembler GOTOFF in data directives)
     gcc_cv_as_gotoff_in_data=no
     if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x
@@ -2580,24 +2604,6 @@ else
   MAINT='#'
 fi
 AC_SUBST(MAINT)dnl
-
-# With Setjmp/Longjmp based exception handling.
-AC_ARG_ENABLE(sjlj-exceptions,
-[  --enable-sjlj-exceptions
-                          arrange to use setjmp/longjmp exception handling],
-[sjlj=`if test $enableval = yes; then echo 1; else echo 0; fi`
-AC_DEFINE_UNQUOTED(CONFIG_SJLJ_EXCEPTIONS, $sjlj,
-  [Define 0/1 to force the choice for exception handling model.])])
-
-# Use libunwind based exception handling.
-AC_ARG_ENABLE(libunwind-exceptions,
-[  --enable-libunwind-exceptions  force use libunwind for exceptions],
-use_libunwind_exceptions=$enableval,
-use_libunwind_exceptions=no)
-if test x"$use_libunwind_exceptions" = xyes; then
-   AC_DEFINE(USE_LIBUNWIND_EXCEPTIONS, 1,
-	[Define if gcc should use -lunwind.])
-fi
 
 # Make empty files to contain the specs and options for each language.
 # Then add #include lines to for a compiler that has specs and/or options.
