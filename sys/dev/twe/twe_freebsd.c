@@ -953,6 +953,7 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
 	break;
     default:
 	/* no s/g list, nothing to do */
+	break;
     }
 }
 

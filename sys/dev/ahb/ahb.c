@@ -425,6 +425,7 @@ ahbfree(struct ahb_softc *ahb)
 	case 1:
 		bus_dma_tag_destroy(ahb->buffer_dmat);
 	case 0:
+		break;
 	}
 	free(ahb, M_DEVBUF);
 }
