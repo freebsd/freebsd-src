@@ -1,11 +1,76 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.48 1999/10/30 23:50:43 itojun Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.55 2001/01/10 04:10:33 guy Exp $ (LBL)
 
-Sun Oct 19 JST 1999  itojun@iijlab.net
-	* bring in KAME IPv6/IPsec bpf compiler.
+Tuesday January 9, 2001. guy@alum.mit.edu. Summary for 0.6 release
 
-Sometime in 1999
-	* tcpdump.org imported LBL 0.4
+	New Linux libpcap implementation, which, in 2.2 and later
+	kernels, uses PF_PACKET sockets and supports kernel packet
+	filtering (if compiled into the kernel), and supports the "any"
+	device for capturing on all interfaces.  Cleans up promiscuous
+	mode better on pre-2.2 kernels, and has various other fixes
+	(handles 2.4 ARPHRD_IEEE802_TR, handles ISDN devices better,
+	doesn't show duplicate packets on loopback interface, etc.).
 
+	Fixed HP-UX libpcap implementation to correctly get the PPA for
+	an interface, to allow interfaces to be opened by interface name.
+
+	libpcap savefiles have system-independent link-layer type values
+	in the header, rather than sometimes platform-dependent DLT_
+	values, to make it easier to exchange capture files between
+	different OSes.
+
+	Non-standard capture files produced by some Linux tcpdumps, e.g.
+	the one from Red Hat Linux 6.2 and later, can now be read.
+
+	Updated autoconf stock files.
+
+	Filter expressions can filter on VLAN IDs and various OSI
+	protocols, and work on Token Ring (with non-source-routed
+	packets).
+
+	"pcap_open_dead()" added to allow compiling filter expressions
+	to pcap code without opening a capture device or capture file.
+
+	Header files fixed to allow use in C++ programs.
+
+	Removed dependancy on native headers for packet layout.
+	Removed Linux specific headers that were shipped.
+
+	Security fixes: Strcpy replaced with strlcpy, sprintf replaced
+	with snprintf.
+
+	Fixed bug that could cause subsequent "pcap_compile()"s to fail
+	erroneously after one compile failed.
+
+	Assorted other bug fixes.
+
+	README.aix and README.linux files added to describe
+	platform-specific issues.
+
+	"getifaddrs()" rather than SIOCGIFCONF used, if available.
+
+v0.5 Sat Jun 10 11:09:15 PDT 2000
+
+itojun@iijlab.net
+- Brought in KAME IPv6/IPsec bpf compiler.
+- Fixes for NetBSD.
+- Support added for OpenBSD DLT_LOOP and BSD/OS DLT_C_HDLC (Cisco HDLC),
+  and changes to work around different BSDs having different DLT_ types
+  with the same numeric value.
+
+Assar Westerlund  <assar@sics.se>
+- Building outside the source code tree fixed.
+- Changed to write out time stamps with 32-bit seconds and microseconds
+  fields, regardless of whether those fields are 32 bits or 64 bits in
+  the OS's native "struct timeval".
+- Changed "pcap_lookupdev()" to dynamically grow the buffer into which
+  the list of interfaces is read as necessary in order to hold the
+  entire list.
+
+Greg Troxel <gdt@ir.bbn.com>
+- Added a new "pcap_compile_nopcap()", which lets you compile a filter
+  expression into a BPF program without having an open live capture or
+  capture file.
+  
 v0.4 Sat Jul 25 12:40:09 PDT 1998
 
 - Fix endian problem with DLT_NULL devices. From FreeBSD via Bill

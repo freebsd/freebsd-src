@@ -25,7 +25,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-snit.c,v 1.45.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snit.c,v 1.54 2000/10/28 00:01:30 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -56,16 +60,12 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <errno.h>
-#ifdef HAVE_MALLOC_H
-#include <malloc.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "pcap-int.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -110,7 +110,7 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (cc < 0) {
 			if (errno == EWOULDBLOCK)
 				return (0);
-			sprintf(p->errbuf, "pcap_read: %s",
+			snprintf(p->errbuf, sizeof(p->errbuf), "pcap_read: %s",
 				pcap_strerror(errno));
 			return (-1);
 		}
@@ -182,7 +182,8 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 		si.ic_len = sizeof(timeout);
 		si.ic_dp = (char *)&timeout;
 		if (ioctl(fd, I_STR, (char *)&si) < 0) {
-			sprintf(ebuf, "NIOCSTIME: %s", pcap_strerror(errno));
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "NIOCSTIME: %s",
+			    pcap_strerror(errno));
 			return (-1);
 		}
 	}
@@ -193,7 +194,8 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 	si.ic_len = sizeof(flags);
 	si.ic_dp = (char *)&flags;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		sprintf(ebuf, "NIOCSFLAGS: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "NIOCSFLAGS: %s",
+		    pcap_strerror(errno));
 		return (-1);
 	}
 	return (0);
@@ -211,7 +213,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	p = (pcap_t *)malloc(sizeof(*p));
 	if (p == NULL) {
-		strcpy(ebuf, pcap_strerror(errno));
+		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		return (NULL);
 	}
 
@@ -221,20 +223,23 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		 */
 		snaplen = 96;
 
-	bzero(p, sizeof(*p));
+	memset(p, 0, sizeof(*p));
 	p->fd = fd = open(dev, O_RDONLY);
 	if (fd < 0) {
-		sprintf(ebuf, "%s: %s", dev, pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s: %s", dev,
+		    pcap_strerror(errno));
 		goto bad;
 	}
 
 	/* arrange to get discrete messages from the STREAM and use NIT_BUF */
 	if (ioctl(fd, I_SRDOPT, (char *)RMSGD) < 0) {
-		sprintf(ebuf, "I_SRDOPT: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "I_SRDOPT: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	if (ioctl(fd, I_PUSH, "nbuf") < 0) {
-		sprintf(ebuf, "push nbuf: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "push nbuf: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	/* set the chunksize */
@@ -243,7 +248,8 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	si.ic_len = sizeof(chunksize);
 	si.ic_dp = (char *)&chunksize;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		sprintf(ebuf, "NIOCSCHUNK: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "NIOCSCHUNK: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 
@@ -254,7 +260,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	si.ic_len = sizeof(ifr);
 	si.ic_dp = (char *)&ifr;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		sprintf(ebuf, "NIOCBIND: %s: %s",
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "NIOCBIND: %s: %s",
 			ifr.ifr_name, pcap_strerror(errno));
 		goto bad;
 	}
@@ -264,7 +270,8 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	si.ic_len = sizeof(snaplen);
 	si.ic_dp = (char *)&snaplen;
 	if (ioctl(fd, I_STR, (char *)&si) < 0) {
-		sprintf(ebuf, "NIOCSSNAP: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "NIOCSSNAP: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	p->snapshot = snaplen;
@@ -280,7 +287,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	p->bufsize = BUFSPACE;
 	p->buffer = (u_char *)malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		strcpy(ebuf, pcap_strerror(errno));
+		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		goto bad;
 	}
 	return (p);
@@ -295,6 +302,7 @@ int
 pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 {
 
-	p->fcode = *fp;
+	if (install_bpf_program(p, fp) < 0)
+		return (-1);
 	return (0);
 }
