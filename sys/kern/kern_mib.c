@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.8 1997/03/04 18:31:54 bde Exp $
+ * $Id: kern_mib.c,v 1.9 1997/06/25 07:31:47 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -106,6 +106,10 @@ SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
 SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 0, BYTE_ORDER, "");
 
 SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD, 0, PAGE_SIZE, "");
+
+static char	machine_arch[] = MACHINE_ARCH;
+SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
+			  machine_arch, 0, "");
 
 char hostname[MAXHOSTNAMELEN];
 
