@@ -103,7 +103,6 @@ MAIN:{
 
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
-	    my $have_logs = 0;
 	    my $html =  "      <tr>
         <td>$arch</td>
         <td>$machine</td>
@@ -133,12 +132,10 @@ MAIN:{
 		    $html .= "        <td>n/a</td>\n";
 		} else {
 		    $html .= "        <td>$links</td>\n";
-		    $have_logs++;
 		}
 	    }
 	    $html .= "      </tr>\n";
-	    print $html
-		if $have_logs > 0;
+	    print $html;
 	}
     }
     my $date = strftime("%Y-%m-%d %H:%M UTC", gmtime());
