@@ -461,8 +461,14 @@ mem_ioctl(dev, cmd, data, flags, p)
  * memory range attributes.
  */
 void
-mem_range_attr_get(struct mem_range_desc *mrd, int *arg)
+mem_range_attr_get(mrd, arg)
+	struct mem_range_desc *mrd;
+	int *arg;
 {
+	/* can we handle this? */
+	if (mem_range_softc.mr_op == NULL)
+		return(EOPNOTSUPP);
+
 	if (*arg == 0) {
 		*arg = mem_range_softc.mr_ndesc;
 	} else {
@@ -471,8 +477,14 @@ mem_range_attr_get(struct mem_range_desc *mrd, int *arg)
 }
 
 int
-mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
+mem_range_attr_set(mrd, arg)
+	struct mem_range_desc *mrd;
+	int *arg;
 {
+	/* can we handle this? */
+	if (mem_range_softc.mr_op == NULL)
+		return(EOPNOTSUPP);
+
 	return(mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
 
