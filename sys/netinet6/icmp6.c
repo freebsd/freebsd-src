@@ -551,6 +551,7 @@ icmp6_input(mp, offp, proto)
 		 || n->m_len < off + sizeof(struct icmp6_hdr)) {
 			struct mbuf *n0 = n;
 			const int maxlen = sizeof(*nip6) + sizeof(*nicmp6);
+			int n0len;
 
 			/*
 			 * Prepare an internal mbuf. m_pullup() doesn't
@@ -574,6 +575,7 @@ icmp6_input(mp, offp, proto)
 				m_freem(n0);
 				break;
 			}
+			n0len = n0->m_pkthdr.len;	/* save for use below */
 			M_MOVE_PKTHDR(n, n0);
 			/*
 			 * Copy IPv6 and ICMPv6 only.
@@ -583,14 +585,15 @@ icmp6_input(mp, offp, proto)
 			nicmp6 = (struct icmp6_hdr *)(nip6 + 1);
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			noff = sizeof(struct ip6_hdr);
-			n->m_pkthdr.len = n->m_len =
-				noff + sizeof(struct icmp6_hdr);
+			/* new mbuf contains only ipv6+icmpv6 headers */
+			n->m_len = noff + sizeof(struct icmp6_hdr);
 			/*
 			 * Adjust mbuf. ip6_plen will be adjusted in
 			 * ip6_output().
 			 */
 			m_adj(n0, off + sizeof(struct icmp6_hdr));
-			n->m_pkthdr.len += n0->m_pkthdr.len;
+			/* recalculate complete packet size */
+			n->m_pkthdr.len = n0len + (noff - off);
 			n->m_next = n0;
 		} else {
 			nip6 = mtod(n, struct ip6_hdr *);
