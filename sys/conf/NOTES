@@ -115,6 +115,7 @@ options 	PQ_CACHESIZE=512	# color for 512k/16k cache
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 options 	GEOM_AES
+options 	GEOM_BDE
 options 	GEOM_BSD
 options 	GEOM_GPT
 options 	GEOM_MBR
