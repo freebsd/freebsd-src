@@ -1271,6 +1271,8 @@ xl_attach(dev)
 		    XL_FLAG_INVERT_LED_PWR | XL_FLAG_INVERT_MII_PWR;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
 		sc->xl_flags |= XL_FLAG_8BITROM;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
+		sc->xl_flags |= XL_FLAG_NO_XCVR_PWR;
 
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575A ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
@@ -1622,6 +1624,11 @@ xl_attach(dev)
 		ifmedia_set(&sc->ifmedia, media);
 
 done:
+
+	if (sc->xl_flags & XL_FLAG_NO_XCVR_PWR) {
+		XL_SEL_WIN(0);
+		CSR_WRITE_2(sc, XL_W0_MFG_ID, XL_NO_XCVR_PWR_MAGICBITS);
+	}
 
 	/*
 	 * Call MI attach routine.
