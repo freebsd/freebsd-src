@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.8 1997/12/13 02:37:32 brian Exp $
+ * $Id: route.h,v 1.9 1997/12/30 02:45:48 brian Exp $
  *
  */
 
@@ -26,3 +26,4 @@ extern int ShowRoute(struct cmdargs const *);
 extern void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr,int);
 extern void DeleteIfRoutes(int);
 extern struct in_addr ChooseHisAddr(const struct in_addr);
+extern const char *Index2Nam(int);
