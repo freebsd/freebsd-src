@@ -148,9 +148,9 @@ bus_space_map(t, addr, size, flags, bshp) ! not implemented !
  * Get a new handle for a subregion of an already-mapped area of bus space.
  */
 
-#define	bus_space_subregion(t, bsh, offset, size, bshp)			\
-	((*(bshp) = (bus_space_handle_t)__ppc_ba(t, bsh, offset)), 0)
-
+#define	bus_space_subregion(t, bsh, offset, size, bshp)	\
+	((*(bshp) = (bus_space_handle_t)__ppc_ba(	\
+	    (t & ~PPC_BUS_MEM_MASK), bsh, offset)), 0)
 /*
  *	int bus_space_alloc(bus_space_tag_t t, bus_addr_t rstart,
  *	    bus_addr_t rend, bus_size_t size, bus_size_t align,

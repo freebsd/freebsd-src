@@ -49,14 +49,9 @@ MACIO_ACCESSOR(node,            NODE,                   phandle_t)
 MACIO_ACCESSOR(name,            NAME,                   char *)
 MACIO_ACCESSOR(devtype,         DEVTYPE,                char *)
 MACIO_ACCESSOR(nregs,           NREGS,                  u_int)
-MACIO_ACCESSOR(regs,            REGS,                   u_int *)
+MACIO_ACCESSOR(regs,            REGS,                   struct macio_reg *)
 
 #undef MACIO_ACCESSOR
-
-/*
- * Upper limit on OpenFirmware reg array
- */
-#define MACIO_MAXREG  16
 
 /*
  * The addr space size
@@ -76,6 +71,14 @@ struct macio_softc {
 };
 
 /*
+ * Format of a macio reg property entry.
+ */
+struct macio_reg {
+	u_int32_t	mr_base;
+	u_int32_t	mr_size;
+};
+
+/*
  * Per macio device structure.
  */
 struct macio_devinfo {
@@ -86,7 +89,7 @@ struct macio_devinfo {
 	int	   mdi_ninterrupts;
 	int        mdi_base;
 	int        mdi_nregs;
-	u_int      mdi_reg[MACIO_MAXREG];
+	struct macio_reg *mdi_regs;
 	struct resource_list mdi_resources;
 };
 
