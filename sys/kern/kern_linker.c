@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.20 1999/01/19 16:26:32 peter Exp $
+ *	$Id: kern_linker.c,v 1.21 1999/01/19 22:26:46 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -680,14 +680,14 @@ kldunload(struct proc* p, struct kldunload_args* uap)
     if (lf) {
 	KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 	if (lf->userrefs == 0) {
-	    printf("linkerunload: attempt to unload file which was not loaded by user\n");
+	    printf("linkerunload: attempt to unload file that was loaded by the kernel\n");
 	    error = EBUSY;
 	    goto out;
 	}
+	lf->userrefs--;
 	error = linker_file_unload(lf);
 	if (error)
-	    goto out;
-	lf->userrefs--;
+	    lf->userrefs++;
     } else
 	error = ENOENT;
 
