@@ -1,15 +1,38 @@
 .\"  -*- nroff -*-
 .\"
-.\" sshd.8.in
-.\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
-.\"
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
 .\"                    All rights reserved
 .\"
-.\" Created: Sat Apr 22 21:55:14 1995 ylo
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
 .\"
-.\" $Id: sshd.8,v 1.51 2000/05/08 17:42:31 hugh Exp $
+.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .Dd September 25, 1999
 .Dt SSHD 8
@@ -26,6 +49,7 @@
 .Op Fl h Ar host_key_file
 .Op Fl k Ar key_gen_time
 .Op Fl p Ar port
+.Op Fl u Ar len
 .Op Fl V Ar client_protocol_id
 .Sh DESCRIPTION
 .Nm
@@ -104,7 +128,7 @@ into the machine).
 .Pp
 .Ss SSH protocol version 2
 .Pp
-Version 2 works similar:
+Version 2 works similarly:
 Each host has a host-specific DSA key used to identify the host.
 However, when the daemon starts, it does not generate a server key.
 Forward security is provided through a Diffie-Hellman key agreement.
@@ -211,6 +235,22 @@ Quiet mode.
 Nothing is sent to the system log.
 Normally the beginning,
 authentication, and termination of each connection is logged.
+.It Fl u Ar len
+This option is used to specify the size of the field
+in the
+.Li utmp
+structure that holds the remote host name.
+If the resolved host name is longer than
+.Ar len ,
+the dotted decimal value will be used instead.
+This allows hosts with very long host names that
+overflow this field to still be uniquely identified.
+Specifying
+.Fl u0
+indicates that only dotted decimal addresses
+should be put into the
+.Pa utmp
+file.
 .It Fl Q
 Do not print an error message if RSA support is missing.
 .It Fl V Ar client_protocol_id
@@ -257,7 +297,7 @@ and
 .Ql ?
 can be used as
 wildcards in the patterns.
-Only group names are valid, a numerical group ID isn't recognized.
+Only group names are valid; a numerical group ID isn't recognized.
 By default login is allowed regardless of the primary group.
 .Pp
 .It Cm AllowUsers
@@ -270,7 +310,7 @@ and
 .Ql ?
 can be used as
 wildcards in the patterns.
-Only user names are valid, a numerical user ID isn't recognized.
+Only user names are valid; a numerical user ID isn't recognized.
 By default login is allowed regardless of the user name.
 .Pp
 .It Cm Ciphers
@@ -294,7 +334,7 @@ and
 .Ql ?
 can be used as
 wildcards in the patterns.
-Only group names are valid, a numerical group ID isn't recognized.
+Only group names are valid; a numerical group ID isn't recognized.
 By default login is allowed regardless of the primary group.
 .Pp
 .It Cm DenyUsers
@@ -305,7 +345,7 @@ Login is disallowed for user names that match one of the patterns.
 and
 .Ql ?
 can be used as wildcards in the patterns.
-Only user names are valid, a numerical user ID isn't recognized.
+Only user names are valid; a numerical user ID isn't recognized.
 By default login is allowed regardless of the user name.
 .It Cm DSAAuthentication
 Specifies whether DSA authentication is allowed.
@@ -321,7 +361,7 @@ or
 .Dq no .
 The default is
 .Dq no .
-.It Cm HostDsaKey
+.It Cm HostDSAKey
 Specifies the file containing the private DSA host key (default
 .Pa /etc/ssh_host_dsa_key )
 used by SSH protocol 2.0.
@@ -383,7 +423,8 @@ Specifies whether Kerberos authentication is allowed.
 This can be in the form of a Kerberos ticket, or if
 .Cm PasswordAuthentication
 is yes, the password provided by the user will be validated through
-the Kerberos KDC.
+the Kerberos KDC.  To use this option, the server needs a 
+Kerberos servtab which allows the verification of the KDC's identity.
 Default is
 .Dq yes .
 .It Cm KerberosOrLocalPasswd
@@ -435,11 +476,36 @@ QUIET, FATAL, ERROR, INFO, VERBOSE and DEBUG.
 The default is INFO.
 Logging with level DEBUG violates the privacy of users
 and is not recommended.
+.It Cm MaxStartups
+Specifies the maximum number of concurrent unauthenticated connections to the
+.Nm
+daemon.
+Additional connections will be dropped until authentication succeeds or the
+.Cm LoginGraceTime
+expires for a connection.
+The default is 10.
+.Pp
+Alternatively, random early drop can be enabled by specifying
+the three colon separated values
+.Dq start:rate:full
+(e.g. "10:30:60").
+.Nm
+will refuse connection attempts with a probabillity of
+.Dq rate/100
+(30%)
+if there are currently
+.Dq start
+(10)
+unauthenticated connections.
+The probabillity increases linearly and all connection attempts
+are refused if the number of unauthenticated connections reaches
+.Dq full
+(60).
 .It Cm PasswordAuthentication
 Specifies whether password authentication is allowed.
 The default is
 .Dq yes .
-Note that this option applies to both protocol version 1 and 2.
+Note that this option applies to both protocol versions 1 and 2.
 .It Cm PermitEmptyPasswords
 When password authentication is allowed, it specifies whether the
 server allows login to accounts with empty password strings.
@@ -543,6 +609,16 @@ This is normally desirable because novices sometimes accidentally leave their
 directory or files world-writable.
 The default is
 .Dq yes .
+.It Cm Subsystem
+Configures an external subsystem (e.g. file transfer daemon).
+Arguments should be a subsystem name and a command to execute upon subsystem request. 
+The command
+.Xr sftp-server 8
+implements the
+.Dq sftp
+file transfer subsystem.
+By default no subsystems are defined.
+Note that this option applies to protocol version 2 only.
 .It Cm SyslogFacility
 Gives the facility code that is used when logging messages from
 .Nm sshd .
@@ -552,7 +628,10 @@ The default is AUTH.
 .It Cm UseLogin
 Specifies whether
 .Xr login 1
-is used.
+is used for interactive login sessions.
+Note that
+.Xr login 1
+is never used for remote command execution.
 The default is
 .Dq no .
 .It Cm X11DisplayOffset
@@ -569,6 +648,12 @@ The default is
 .Dq no .
 Note that disabling X11 forwarding does not improve security in any
 way, as users can always install their own forwarders.
+.It Cm XAuthLocation
+Specifies the location of the
+.Xr xauth 1
+program.
+The default is
+.Pa /usr/X11R6/bin/xauth .
 .El
 .Sh LOGIN PROCESS
 When a user successfully logs in,
@@ -644,7 +729,7 @@ You don't want to type them in; instead, copy the
 .Pa identity.pub
 file and edit it.
 .Pp
-The options (if present) consists of comma-separated option
+The options (if present) consist of comma-separated option
 specifications.
 No spaces are permitted, except within double quotes.
 The following option specifications are supported:
@@ -718,7 +803,7 @@ and
 files contain host public keys for all known hosts.
 The global file should
 be prepared by the administrator (optional), and the per-user file is
-maintained automatically: whenever the user connects an unknown host
+maintained automatically: whenever the user connects from an unknown host
 its key is added to the per-user file.
 .Pp
 Each line in these files contains the following fields: hostnames,
@@ -793,7 +878,7 @@ Contains the process ID of the
 listening for connections (if there are several daemons running
 concurrently for different ports, this contains the pid of the one
 started last).
-The contents of this file are not sensitive; it can be world-readable.
+The content of this file is not sensitive; it can be world-readable.
 .It Pa $HOME/.ssh/authorized_keys
 Lists the RSA keys that can be used to log into the user's account.
 This file must be readable by root (which may on some machines imply
@@ -821,7 +906,7 @@ These files are consulted when using rhosts with RSA host
 authentication to check the public key of the host.
 The key must be listed in one of these files to be accepted.
 The client uses the same files
-to verify that the remote host is the one we intended to connect.
+to verify that the remote host is the one it intended to connect.
 These files should be writable only by root/the owner.
 .Pa /etc/ssh_known_hosts
 should be world-readable, and
@@ -860,7 +945,7 @@ this file is exactly the same as for
 .Pa .rhosts .
 However, this file is
 not used by rlogin and rshd, so using this permits access using SSH only.
-.Pa /etc/hosts.equiv
+.It Pa /etc/hosts.equiv
 This file is used during
 .Pa .rhosts
 authentication.
@@ -940,6 +1025,7 @@ Like
 This can be used to specify
 machine-specific login-time initializations globally.
 This file should be writable only by root, and should be world-readable.
+.El
 .Sh AUTHOR
 OpenSSH
 is a derivative of the original (free) ssh 1.2.12 release by Tatu Ylonen,
@@ -968,16 +1054,13 @@ supports one-time password authentication with
 .Xr skey 1 .
 .El
 .Pp
-The libraries described in
-.Xr ssl 8
-are required for proper operation.
-.Pp
 OpenSSH has been created by Aaron Campbell, Bob Beck, Markus Friedl,
 Niels Provos, Theo de Raadt, and Dug Song.
 .Pp
 The support for SSH protocol 2 was written by Markus Friedl.
 .Sh SEE ALSO
 .Xr scp 1 ,
+.Xr sftp-server 8 ,
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,

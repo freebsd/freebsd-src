@@ -1,22 +1,20 @@
 /*
- *
- * auth-rhosts.c
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Fri Mar 17 05:12:18 1995 ylo
- *
  * Rhosts authentication.  This file contains code to check whether to admit
  * the login based on rhosts authentication.  This file also processes
  * /etc/hosts.equiv.
  *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$Id: auth-rhosts.c,v 1.13 2000/04/14 10:30:29 markus Exp $");
+RCSID("$OpenBSD: auth-rhosts.c,v 1.15 2000/09/07 20:27:49 deraadt Exp $");
 
 #include "packet.h"
 #include "ssh.h"

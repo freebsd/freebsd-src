@@ -1,4 +1,14 @@
 /*
+ * read_bignum():
+ * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+ *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
+ *
+ *
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -9,11 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -26,10 +31,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * read_bignum():
- * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
- */
 
 #include "includes.h"
 #include "ssh.h"
@@ -40,6 +41,8 @@
 #include "key.h"
 #include "dsa.h"
 #include "uuencode.h"
+
+RCSID("$OpenBSD: key.c,v 1.11 2000/09/07 20:27:51 deraadt Exp $");
 
 #define SSH_DSS "ssh-dss"
 
@@ -121,8 +124,6 @@ key_equal(Key *a, Key *b)
 	return 0;
 }
 
-#define FPRINT "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
-
 /*
  * Generate key fingerprint in ascii format.
  * Based on ideas and code from Bjoern Groenvall <bg@sics.se>
@@ -130,7 +131,7 @@ key_equal(Key *a, Key *b)
 char *
 key_fingerprint(Key *k)
 {
-	static char retval[80];
+	static char retval[(EVP_MAX_MD_SIZE+1)*3];
 	unsigned char *blob = NULL;
 	int len = 0;
 	int nlen, elen;
@@ -151,15 +152,22 @@ key_fingerprint(Key *k)
 		fatal("key_fingerprint: bad key type %d", k->type);
 		break;
 	}
+	retval[0] = '\0';
+
 	if (blob != NULL) {
-		unsigned char d[16];
-		EVP_MD_CTX md;
-		EVP_DigestInit(&md, EVP_md5());
-		EVP_DigestUpdate(&md, blob, len);
-		EVP_DigestFinal(&md, d, NULL);
-		snprintf(retval, sizeof(retval), FPRINT,
-		    d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
-		    d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
+		int i;
+		unsigned char digest[EVP_MAX_MD_SIZE];
+		EVP_MD *md = EVP_md5();
+		EVP_MD_CTX ctx;
+		EVP_DigestInit(&ctx, md);
+		EVP_DigestUpdate(&ctx, blob, len);
+		EVP_DigestFinal(&ctx, digest, NULL);
+		for(i = 0; i < md->md_size; i++) {
+			char hex[4];
+			snprintf(hex, sizeof(hex), "%02x:", digest[i]);
+			strlcat(retval, hex, sizeof(retval));
+		}
+		retval[strlen(retval) - 1] = '\0';
 		memset(blob, 0, len);
 		xfree(blob);
 	}
@@ -327,4 +335,16 @@ key_type(Key *k)
 		break;
 	}
 	return "unknown";
+}
+unsigned int
+key_size(Key *k){
+	switch (k->type) {
+	case KEY_RSA:
+		return BN_num_bits(k->rsa->n);
+		break;
+	case KEY_DSA:
+		return BN_num_bits(k->dsa->p);
+		break;
+	}
+	return 0;
 }
