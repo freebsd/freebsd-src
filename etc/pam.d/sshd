@@ -5,19 +5,27 @@
 #
 
 # auth
-auth		required	pam_nologin.so	no_warn
-auth		sufficient	pam_opie.so	no_warn no_fake_prompts
-auth		required	pam_opieaccess.so	no_warn
-#auth		sufficient	pam_krb5.so	no_warn try_first_pass
-auth		required	pam_unix.so	no_warn try_first_pass
+auth		required	pam_nologin.so		no_warn
+auth		sufficient	pam_opie.so		no_warn no_fake_prompts
+auth		requisite	pam_opieaccess.so	no_warn
+#auth		sufficient	pam_kerberosIV.so	no_warn try_first_pass
+#auth		sufficient	pam_krb5.so		no_warn try_first_pass
+#auth		sufficient	pam_ssh.so		no_warn try_first_pass
+auth		required	pam_unix.so		no_warn try_first_pass
 
 # account
+#account 	required	pam_kerberosIV.so
+#account 	required	pam_krb5.so
 account		required	pam_login_access.so
-#account		required	pam_krb5.so
 account		required	pam_unix.so
 
 # session
+#session 	required	pam_kerberosIV.so
+#session 	required	pam_krb5.so
+#session 	optional	pam_ssh.so
 session		required	pam_permit.so
 
 # password
-password	required	pam_permit.so
+#password	sufficient	pam_kerberosIV.so	no_warn try_first_pass
+#password	sufficient	pam_krb5.so		no_warn try_first_pass
+password	required	pam_unix.so		no_warn try_first_pass

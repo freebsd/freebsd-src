@@ -5,49 +5,22 @@
 #
 
 # auth
-auth		sufficient	pam_rootok.so	no_warn
-auth		sufficient	pam_self.so	no_warn
-auth		requisite	pam_group.so	no_warn root_only fail_safe
-#auth		sufficient	pam_kerberosIV.so	no_warn
-#auth		sufficient	pam_krb5.so	no_warn try_first_pass auth_as_self
-auth		sufficient	pam_opie.so	no_warn no_fake_prompts
+auth		sufficient	pam_rootok.so		no_warn
+auth		sufficient	pam_self.so		no_warn
+auth		requisite	pam_group.so		no_warn root_only fail_safe
+auth		sufficient	pam_opie.so		no_warn no_fake_prompts
 auth		requisite	pam_opieaccess.so	no_warn
-#auth		required	pam_ssh.so	no_warn try_first_pass
-auth		required	pam_unix.so	no_warn try_first_pass nullok
+#auth		sufficient	pam_kerberosIV.so	no_warn
+#auth		sufficient	pam_krb5.so		no_warn try_first_pass auth_as_self
+#auth		required	pam_ssh.so		no_warn try_first_pass
+auth		required	pam_unix.so		no_warn try_first_pass nullok
 
 # account
-#account	required	pam_kerberosIV.so
-#account	required	pam_krb5.so
+#account 	required	pam_kerberosIV.so
+#account 	required	pam_krb5.so
 account		required	pam_unix.so
 
 # session
-#session	required	pam_kerberosIV.so
-#session	required	pam_krb5.so
-#session	required	pam_ssh.so
-
-# password
-password	required	pam_permit.so
-
-
-# If you want a "WHEELSU"-type su(1), then comment out the
-# above, and uncomment the entries below.
-## auth
-#auth		sufficient	pam_rootok.so	no_warn
-##auth		sufficient	pam_kerberosIV.so	no_warn
-##auth		sufficient	pam_krb5.so	no_warn
-#auth		required	pam_opie.so	no_warn auth_as_self no_fake_prompts
-#auth		required	pam_unix.so	no_warn try_first_pass auth_as_self
-
-## account
-##account	required	pam_kerberosIV.so
-##account	required	pam_krb5.so
-#account	required	pam_unix.so
-
-## session
-##session	required	pam_kerberosIV.so
-##session	required	pam_krb5.so
-##session	required	pam_ssh.so
-#session	required	pam_unix.so
-
-## password
-#password	required	pam_permit.so
+#session 	required	pam_kerberosIV.so
+#session 	required	pam_krb5.so
+#session 	optional	pam_ssh.so
