@@ -37,7 +37,7 @@ if [ $# -lt 3 ]; then
 fi
 
 type mkisofs 2>&1 | grep " is " >/dev/null
-if [ $? -eq 0 ]; then
+if [ $? -ne 0 ]; then
 	echo The mkisofs port is not installed.  Trying to get it now.
 	if ! pkg_add -r mkisofs; then
 		echo "Could not get it via pkg_add - please go install this"
