@@ -901,11 +901,6 @@ info()
 #
 debug()
 {
-	# This subroutine is provided as a convenience to script writers, who
-	# should enable debugging in /etc/rc.conf.
-	#
-	[ -f /etc/rc.conf ] && . /etc/rc.conf
-
 	case ${rc_debug} in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
         	_echo 1>&2 "DEBUG" "$*"
