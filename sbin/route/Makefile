@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 
 PROG=	route
-MAN8=	route.0
+MAN8=	route.8
 SRCS=	route.c ccitt_addr.c
 CFLAGS+=-I.
 CLEANFILES+=keywords.h
@@ -17,6 +17,8 @@ keywords.h: keywords
 			    $$2, NR, $$1, $$2 }' \
 	    > ${.TARGET}
 	rm -f _keywords.tmp
+
+./keywords.h:	keywords.h
 
 .include <bsd.prog.mk>
 

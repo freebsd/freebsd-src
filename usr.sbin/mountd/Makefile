@@ -2,8 +2,8 @@
 
 PROG=	mountd
 CFLAGS+=-DNFS -DMFS -DCD9660
-MAN5=	exports.0 netgroup.0
-MAN8=	mountd.0
+MAN5=	exports.5 netgroup.5
+MAN8=	mountd.8
 DPADD=	${LIBRPC}
 LDADD=	-lrpc
 

@@ -2,7 +2,7 @@
 
 PROG=	newfs
 SRCS=	dkcksum.c getmntopts.c newfs.c mkfs.c
-MAN8=	newfs.0
+MAN8=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-DMFS -I${MOUNT}

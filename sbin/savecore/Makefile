@@ -2,7 +2,7 @@
 
 PROG=	savecore
 SRCS=	savecore.c zopen.c
-MAN8=	savecore.0
+MAN8=	savecore.8
 .PATH:	${.CURDIR}/../../usr.bin/compress
 
 .include <bsd.prog.mk>
