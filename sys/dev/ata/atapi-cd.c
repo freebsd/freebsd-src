@@ -79,7 +79,7 @@ static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static void acd_start(struct acd_softc *);
 static int32_t acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
-static void acd_contruct_label(struct acd_softc *);
+static void acd_construct_label(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
 static int32_t acd_open_track(struct acd_softc *, struct cdr_track *);
@@ -485,7 +485,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	else
 	    atapi_test_ready(cdp->atp);
     }
-    acd_contruct_label(cdp);
+    acd_construct_label(cdp);
     return 0;
 }
 
@@ -1239,7 +1239,7 @@ acd_read_toc(struct acd_softc *cdp)
 }
 
 static void
-acd_contruct_label(struct acd_softc *cdp)
+acd_construct_label(struct acd_softc *cdp)
 {
     bzero(&cdp->disklabel, sizeof(struct disklabel));
     strncpy(cdp->disklabel.d_typename, "               ", 
