@@ -347,6 +347,11 @@ tcp_trace(act, ostate, atp, tp, ti, req)
 		    tp->snd_wl2, tp->snd_wnd);
 	}
 	/* print out timers? */
+#if 0
+	/*
+	 * XXX 
+	 * kernel now uses callouts, not integer time values.
+	 */
 	if (tflag) {
 		register char *cp = "\t";
 		register int i;
@@ -362,6 +367,7 @@ tcp_trace(act, ostate, atp, tp, ti, req)
 		if (*cp != '\t')
 			putchar('\n');
 	}
+#endif
 }
 
 int
