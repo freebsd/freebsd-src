@@ -45,6 +45,9 @@ union IEEEf2bits {
 	} bits;
 };
 
+#define	DBL_MANH_SIZE	20
+#define	DBL_MANL_SIZE	32
+
 union IEEEd2bits {
 	double	d;
 	struct {
