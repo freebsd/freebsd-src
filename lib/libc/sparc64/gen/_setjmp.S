@@ -58,42 +58,26 @@ __FBSDID("$FreeBSD$");
  * will generate a "return(v?v:1)" from
  * the last call to
  *	_setjmp(a)
- * by unwinding the call stack.
+ * by restoring the previous context.
  * The previous signal state is NOT restored.
  */
 
 ENTRY(_setjmp)
 	stx	%sp, [%o0 + _JB_SP]
 	stx	%o7, [%o0 + _JB_PC]
-	stx	%fp, [%o0 + _JB_FP]
 	retl
 	 clr	%o0
 END(_setjmp)
 
-ENTRY(_longjmp)
-	mov	1, %g1
-	movrnz	%o1, %o1, %g1			! compute v ? v : 1
-	mov	%o0, %g2
-	ldx	[%g2 + _JB_FP], %g3		! fetch callers frame
-1:	cmp	%fp, %g3			! compare against desired frame
-	bl,a	1b				! if below,
-	 restore				!    pop frame and loop
-	be,a	2f				! if there,
-	 ldx	[%g2 + _JB_SP], %o0		!    fetch return %sp
-
-.Lbotch:
-	call	CNAME(longjmperror)
-	 nop
-	call	CNAME(abort)
-	 nop
-	illtrap
-
-2:	cmp	%o0, %sp			! %sp must not decrease
-	bge,a	3f
-	 mov	%o0, %sp			! it is OK, put it in place
-	b,a	.Lbotch
-	 nop
-3:	ldx	[%g2 + _JB_PC], %o7		! fetch return address
-	retl
-	 mov	%g1, %o0			! return v ? v : 1;
-END(_longjmp)
+	.weak	CNAME(_longjmp)
+	.set	CNAME(_longjmp),CNAME(___longjmp)
+ENTRY(___longjmp)
+	save	%sp, -CCFSZ, %sp
+	flushw
+	ldx	[%i0 + _JB_SP], %fp
+	ldx	[%i0 + _JB_PC], %i7
+	mov	1, %i0
+	movrnz	%i1, %i1, %i0
+	ret
+	 restore
+END(___longjmp)
