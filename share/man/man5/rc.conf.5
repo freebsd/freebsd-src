@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.26 1998/12/12 23:26:52 dillon Exp $
+.\"     $Id: rc.conf.5,v 1.27 1999/01/14 09:13:00 jkh Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -125,6 +125,9 @@ must be given.
 (bool) Set to 
 .Ar YES
 to disable the display of ipfw rules on the console during boot.
+.It Ar natd_program
+(str) path to
+.Xr natd 8 .
 .It Ar natd_enable
 (bool) Set to
 .Ar YES
