@@ -6,6 +6,26 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20001115:
+	FreeBSD 4.2 RELEASE.
+
+20001020:
+	****************************** WARNING ******************************
+				Sendmail has been updated.
+	****************************** WARNING ******************************
+	o mail.local(8) is no longer installed as a set-user-id binary.
+	o sendmail(8) is now built with STARTTLS support unless NO_OPENSSL
+	  is set.
+	o The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY
+	  commands.
+	o Now using sendmail's version of vacation(1).
+	o The sendmail cf building tools (contrib/sendmail/cf) are installed
+	  in /usr/share/sendmail/cf.
+	o sendmail.cw changed to local-host-names
+
+	More details can be found at
+		http://people.freebsd.org/~imp/UPDATING/sendmail-20001010
+
 20001009:
 	The ports tree's new layout is in place.  Be sure to update
 	your entire ports tree, or you will have problems.
@@ -19,18 +39,8 @@ prior to 4.0 Release.
 	FreeBSD 4.1.1 RELEASE.
 
 20000907:
-	Networking defaults have been tightened.  Anybody upgrading
-	/etc/defaults/rc.conf needs to add the following lines to
-	/etc/rc.conf if they want to have the same setup
-	afterwards (unless the variables already are set, of course):
-		# Enable network daemons for user convenience.
-		inetd_enable="YES"
-		portmap_enable="YES"
-		sendmail_enable="YES"
-
-20000907:
 	Changes to libkvm requires a recompile of the usual suspects.
-	(find /usr/src -name Makefile | xargs egrep LIBKVM)
+	(find /usr/src -name Makefile | xargs egrep -l LIBKVM)
 	This means that your world must match your kernel around this
 	point.
 
