@@ -46,9 +46,13 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#	com*	standard PC COM ports (really makes tty* entries for com)
 #	sio*	fast interrupt PC COM ports (really makes tty* entries for sio)
 #	tty*	alias for sio ports, this is what the system really wants
+#	com*	standard PC COM ports (really makes tty* entries for com)
+#		Note that the `com' driver is not configured in the 
+#		supplied kernels and is usually not what you want.  In
+#		a future release it may be completely desupported.  Fair
+#		warning.
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -67,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.13 1993/10/23 22:24:35 jkh Exp $
+#	$Id: MAKEDEV,v 1.14 1993/10/28 09:59:27 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
