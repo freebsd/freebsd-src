@@ -57,7 +57,6 @@ MLINKS+=	sr.4 ../sr.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	tx.4 ../tx.4
 MLINKS+=	vx.4 ../vx.4
-MLINKS+=	wb.4 ../wb.4
 MLINKS+=	wd.4 ../wd.4
 MLINKS+=	wfd.4 ../wfd.4
 MLINKS+=	wi.4 ../wi.4
