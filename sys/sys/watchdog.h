@@ -30,6 +30,12 @@
 
 #include <sys/ioccom.h>
 
+#ifdef I_HAVE_TOTALLY_LOST_MY_SENSE_OF_HUMOUR
+#define	_PATH_WATCHDOG	"watchdog"
+#else
+#define	_PATH_WATCHDOG	"fido"
+#endif
+
 #define WDIOCPATPAT	_IOW('W', 42, u_int)
 
 #define WD_ACTIVE	0x8000000
@@ -56,10 +62,6 @@
 	 * NB: Expect variance in the +/- 10-20% range.
 	 */
 
-#ifdef _KERNEL
-#define __WD_LEGAL	(WD_ACTIVE | WD_PASSIVE | WD_INTERVAL)
-#endif
-
 /* Handy macros for humans not used to power of two nanoseconds */
 #define WD_TO_NEVER	0
 #define WD_TO_1MS	20
@@ -72,5 +74,14 @@
 #define WD_TO_8SEC	33
 #define WD_TO_16SEC	34
 #define WD_TO_32SEC	35
+
+#ifdef _KERNEL
+
+#include <sys/eventhandler.h>
+
+typedef void (*watchdog_fn)(void *, u_int, int *);
+
+EVENTHANDLER_DECLARE(watchdog_list, watchdog_fn);
+#endif
 
 #endif /* _SYS_WATCHDOG_H */
