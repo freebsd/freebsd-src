@@ -57,10 +57,12 @@
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
 
-int firewire_debug=0;
-SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
+int firewire_debug=0, try_bmr=1;
 SYSCTL_INT(_debug, OID_AUTO, firewire_debug, CTLFLAG_RW, &firewire_debug, 0,
 	"FireWire driver debug flag");
+SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
+SYSCTL_INT(_hw_firewire, OID_AUTO, try_bmr, CTLFLAG_RW, &try_bmr, 0,
+	"Try to be a bus manager");
 
 #define FW_MAXASYRTY 4
 #define FW_MAXDEVRCNT 4
@@ -1195,32 +1197,29 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 			printf("\n");
 	}
 
-	if((fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == 0x3f) ){
-		if(fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)){
+	if (try_bmr && (fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == 0x3f)) {
+		if (fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)) {
 			fc->status = FWBUSMGRDONE;
 			CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, fc->irm);
-		}else{
+		} else {
 			fc->status = FWBUSMGRELECT;
-			fc->bmrhandle = timeout((timeout_t *)fw_try_bmr,(void *)fc, hz / 8);
+			fc->bmrhandle = timeout((timeout_t *)fw_try_bmr,
+							(void *)fc, hz / 8);
 		}
-	}else{
+	} else {
 		fc->status = FWBUSMGRDONE;
+#if 0
 		device_printf(fc->bdev, "BMR = %x\n",
 				CSRARC(fc, BUS_MGR_ID));
+#endif
 	}
 	free(buf, M_DEVBUF);
-#if 1
-	/* XXX optimize gap_count, if I am BMGR */
+	/* Optimize gap_count, if I am BMGR */
 	if(fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)){
 		fw_phy_config(fc, -1, gap_cnt[fc->max_hop]);
 	}
-#endif
-#if 1
 	callout_reset(&fc->busprobe_callout, hz/4,
 			(void *)fw_bus_probe, (void *)fc);
-#else
-	fw_bus_probe(fc);
-#endif
 }
 
 /*

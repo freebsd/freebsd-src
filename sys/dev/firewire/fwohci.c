@@ -660,7 +660,11 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		device_printf(dev, "sid_buf alloc failed.\n");
 		return ENOMEM;
 	}
-
+	if (((u_int32_t) sc->fc.sid_buf & (OHCI_SIDSIZE - 1)) != 0) {
+		device_printf(dev, "sid_buf(%p) not aligned.\n",
+							sc->fc.sid_buf);
+		return ENOMEM;
+	}
 	
 	fwohci_db_init(&sc->arrq);
 	if ((sc->arrq.flags & FWOHCI_DBCH_INIT) == 0)
@@ -1541,6 +1545,7 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
 	int err = 0;
 	unsigned short tag, ich;
+	u_int32_t stat;
 
 	if(!(sc->ir[dmach].xferq.flag & FWXFERQ_RUNNING)){
 		tag = (sc->ir[dmach].xferq.flag >> 6) & 3;
@@ -1566,7 +1571,8 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	if(err)
 		return err;
 
-	if(OREAD(sc, OHCI_IRCTL(dmach)) & OHCI_CNTL_DMA_ACTIVE){
+	stat = OREAD(sc, OHCI_IRCTL(dmach));
+	if (stat & OHCI_CNTL_DMA_ACTIVE) {
 		if(sc->ir[dmach].xferq.stdma2 != NULL){
 			((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma->end))->db[sc->ir[dmach].ndesc - 1].db.desc.depend =
 	    vtophys(((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma2->start))->db) | sc->ir[dmach].ndesc;
@@ -1575,8 +1581,10 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 			((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma2->end))->db[sc->ir[dmach].ndesc - 1].db.desc.depend &= ~0xf;
 			((struct fwohcidb_tr *)(sc->ir[dmach].xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
 		}
-	}else if(!(OREAD(sc, OHCI_IRCTL(dmach)) & OHCI_CNTL_DMA_ACTIVE)
-		&& !(sc->ir[dmach].xferq.flag & FWXFERQ_PACKET)){
+	} else if (!(stat & OHCI_CNTL_DMA_ACTIVE)
+		&& !(sc->ir[dmach].xferq.flag & FWXFERQ_PACKET)) {
+		if (firewire_debug)
+			device_printf(sc->fc.dev, "IR DMA stat %x\n", stat);
 		fw_rbuf_update(&sc->fc, dmach, 0);
 
 		OWRITE(sc, OHCI_IRCTLCLR(dmach), OHCI_CNTL_DMA_RUN);
@@ -1829,6 +1837,10 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		fc->nodeid = OREAD(sc, FWOHCI_NODEID) & 0x3f;
 
 		plen = OREAD(sc, OHCI_SID_CNT) & OHCI_SID_CNT_MASK;
+		if (plen < 4 || plen > OHCI_SIDSIZE) {
+			device_printf(fc->dev, "invalid SID len = %d\n", plen);
+			goto sidout;
+		}
 		plen -= 4; /* chop control info */
 		buf = malloc(OHCI_SIDSIZE, M_DEVBUF, M_NOWAIT);
 		if(buf == NULL) goto sidout;
