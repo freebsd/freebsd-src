@@ -1,12 +1,305 @@
+2003-02-05  Release Manager
+
+	* GCC 3.2.2 Released.
+
+2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* include/Makefile.am (install-data-local): Prepend
+	$(DESTDIR) to destination paths in all (un)installation
+	commands.  Use ${c_base_builddir} and ${std_builddir}
+	as destination subdirectories to achieve consistency with
+	preceding mkinstalldirs commands.  No effect because both
+	variables contain "." only.
+	* include/Makefile.in: Regenerate.
+
+2003-01-28  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR c++/9433
+	* libsupc++/tinfo.cc (__vmi_class_type_info::__do_dyncast): Cope
+	with bases which are very ambiguous.
+
+2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
+
+	* acinclude.m4 (glibcpp_toolexeclibdir): Instead of
+	$(MULTISUBDIR), use `$CC -print-multi-os-directory`, unless
+	version_specific_libs is enabled.
+	* aclocal.m4, configure: Rebuilt.
+
+2003-01-23  Phil Edwards  <pme@gcc.gnu.org>
+
+	Bulk documentation merge (copy) from trunk.
+	* docs/doxygen/TODO, docs/doxygen/run_doxygen,
+	docs/doxygen/stdheader.cc, docs/doxygen/style.css,
+	docs/doxygen/tables.html, docs/doxygen/user.cfg.in,
+	docs/html/configopts.html, docs/html/debug.html,
+	docs/html/documentation.html, docs/html/explanations.html,
+	docs/html/install.html, docs/html/17_intro/contribute.html,
+	docs/html/17_intro/howto.html, docs/html/17_intro/license.html,
+	docs/html/17_intro/porting.html, docs/html/17_intro/porting.texi,
+	docs/html/18_support/howto.html, docs/html/19_diagnostics/howto.html,
+	docs/html/20_util/howto.html, docs/html/21_strings/howto.html,
+	docs/html/22_locale/codecvt.html, docs/html/22_locale/ctype.html,
+	docs/html/22_locale/howto.html, docs/html/22_locale/locale.html,
+	docs/html/22_locale/messages.html, docs/html/24_iterators/howto.html,
+	docs/html/25_algorithms/howto.html, docs/html/26_numerics/howto.html,
+	docs/html/27_io/howto.html, docs/html/ext/lwg-active.html,
+	docs/html/ext/lwg-defects.html, docs/html/ext/sgiexts.html,
+	docs/html/faq/index.html, docs/html/faq/index.txt:  Merge from trunk.
+
+2003-01-23  Petur Runolfsson  <peturr02@ru.is>
+
+	PR libstdc++/9322
+	* include/std/std_streambuf.h
+	(basic_streambuf::basic_streambuf,
+	basic_streambuf::~basic_streambuf,
+	basic_streambuf::getloc, basic_streambuf::imbue):
+	Remove _M_buf_locale_init use.
+	* include/bits/fstream.tcc (basic_filebuf::imbue):  Likewise
+	* testsuite/27_io/filebuf_virtuals.cc (test08):  Add.
+	* testsuite/27_io/streambuf_members.cc (test08):  Add.
+	* testsuite/27_io/stringbuf_virtuals.cc (test08):  Add.
+
+2003-01-23  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Synch with 3_3-branch.
+
+2003-01-10  Benjamin Kosnik  <bkoz@redhat.com>
+	    Sysoltsev Slawa  <Vyatcheslav.Sysoltsev@intel.com>
+
+	PR libstdc++/9269
+	* include/std/std_fstream.h (basic_filebuf::uflow): Declare.
+	(basic_filebuf::underflow): Declare.
+	Move definitions.
+
+2003-01-07  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/8707
+	* Makefile.am (distclean-multi): Fix.
+	* Makefile.in: Regenerate.
+
+2003-01-06  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.h (messages): Move ctor, dtor
+	definitions to..
+	(__timepunct): Same.
+	* config/locale/gnu/messages_members.h (messages): Add dtor, ctor
+	definitions. Conditionalize for GNU systems.
+	* config/locale/generic/messages_members.h (messages): Add dtor, ctor
+	definitions.
+	* config/locale/gnu/time_members.h (messages): New. Add dtor, ctor
+	definitions. Conditionalize for GNU systems.
+	* config/locale/generic/time_members.h (messages): New. Add dtor, ctor
+	definitions.
+	* include/bits/localefwd.h (locale::facet::_S_c_name): Add.
+	* src/locale.cc: Define.
+	* src/localename.cc (locale::_Impl::_Impl(facet**, size_t, bool):
+	Use it.
+	* config/locale/gnu/time_members.h: Use it.
+	* config/locale/gnu/messages_members.h: Use it.
+	* config/linker-map.gnu: Add locale::facets details.	
+	* include/Makefile.am (target_headers_extra): Add time_members.h.
+	* include/Makefile.in: Regenerate.
+	* acinclude.m4: Export CTIME_H.
+	* aclocal.m4: Regenerate.
+	* configure: Regnerate.
+
+2003-01-06  Paolo Carlini  <pcarlini@unitus.it>
+
+	* src/codecvt.cc
+        (codecvt<char, char, mbstate_t>::do_in, do_out):
+        Tweak parameters to avoid unused parameter warnings.
+
+2003-01-06  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/9151
+	* include/bits/locale_facets.cc (num_put::_M_convert_float):
+	Limit __prec to digits10 + 2, not digits10 + 1, taking into
+	account the possibility of %{g,G} conversion specifiers
+	inside _S_format_float.
+	* testsuite/27_io/ostream_inserter_arith.cc (test06): Add.
+
+2003-01-06  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* testsuite/lib/libstdc++-v3-dg.exp (libstdc++-v3-init):
+	Additionally handle files one level deeper in glob patterns.
+	* testsuite/libstdc++-v3.dg/dg.exp: Likewise.
+	
+	* testsuite/27_io/istream_extractor_arith.cc: Delete, split...
+	* testsuite/27_io/istream_extractor_arith/01.cc,
+	testsuite/27_io/istream_extractor_arith/02.cc,
+	testsuite/27_io/istream_extractor_arith/03.cc,
+	testsuite/27_io/istream_extractor_arith/06.cc,
+	testsuite/27_io/istream_extractor_arith/07.cc,
+	testsuite/27_io/istream_extractor_arith/08.cc,
+	testsuite/27_io/istream_extractor_arith/09.cc,
+	testsuite/27_io/istream_extractor_arith/10.cc,
+	testsuite/27_io/istream_extractor_arith/11.cc,
+	testsuite/27_io/istream_extractor_arith/12.cc,
+	testsuite/27_io/istream_extractor_arith/13.cc: ... to new files.
+	* testsuite/27_io/istream_extractor_arith/12.cc: Add XFAIL for
+	sparc*-*-solaris2*.
+
+2003-01-05  Paolo Carlini <pcarlini@unitus.it>
+
+	PR libstdc++/9168
+	* src/codecvt.cc
+	(codecvt<char, char, mbstate_t>::do_in, do_out):
+	Implement the resolution of DR19 (TC).
+	* testsuite/22_locale/codecvt_members_char_char.cc
+	(test01): Tweak.
+
+2002-12-18  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* testsuite/23_containers/vector_capacity.cc (test03): Move ...
+	* testsuite/23_containers/vector_resize.cc: ...here as a new file.
+	Pass in -lmalloc for irix6.
+	* testsuite/27_io/ios_base_storage.cc: Pass in -lmalloc for irix6.
+
+2002-12-11  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/8887
+	* config/locale/generic/time_members.cc
+	(__timepunct<char>::_M_initialize_timepunct): Fix typos
+	in _M_date_format and _M_date_era_format string literals.
+
+2002-12-07  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* include/bits/slice_array.h (slice_array<>::operator=): Fix typo.
+
+2002-12-05  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Put _S_force_new into GLIBCPP_3.2.2.
+	* testsuite/abi_check.cc: Add GLIBCPP_3.2.2.
+
+2002-12-05  Benjamin Kosnik  <bkoz@redhat.com>
+            Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	PR libstdc++/8230
+	* include/bits/stl_alloc.h: Use builtin_expect for the most
+	obvious limit checks.
+	(__default_alloc_template::allocate): Check for null, throw
+	bad_alloc.
+	* testsuite/20_util/allocator_members.cc (test02): Add.
+	* testsuite/23_containers/vector_capacity.cc (test03): Add.
+
+2002-12-05  Loren J. Rittle  <ljrittle@acm.org>
+	    Brad Spencer  <spencer@infointeractive.com> 
+	    (provided alternate patch and improvements)
+
+	PR libstdc++/8708
+	* docs/html/23_containers/howto.html (GLIBCPP_FORCE_NEW): Document
+	new environment variable which replaces all uses of __USE_MALLOC
+	macro.
+	* docs/html/ext/howto.html (GLIBCPP_FORCE_NEW): Likewise.
+	(__mem_interface): Remove all references to old internal typedef.
+	* include/backward/alloc.h (__USE_MALLOC): Remove it and all
+	guarded code.
+	* include/bits/c++config (__USE_MALLOC): Update related error
+	message and comment.
+	* include/bits/stl_alloc.h (__USE_MALLOC): Remove it and all
+	guarded code.  Update all related comments.
+	(__mem_interface): Unconditionally replace it with __new_alloc.
+	However, leave the typedef around in case anyone used it.
+	(__default_alloc_template<>::_S_force_new): New class static.
+	(__default_alloc_template<>::allocate, deallocate): Add
+	run-time controlled feature similar to what __USE_MALLOC code
+	path had provided.
+	* src/stl-inst.cc (__USE_MALLOC): Remove it and all
+	guarded code.
+	* testsuite/21_strings/capacity.cc: Remove reference to __USE_MALLOC.
+	Add documentation on GLIBCPP_FORCE_NEW environment variable.
+	* testsuite/ext/allocators.cc: Likewise.
+
+2002-12-05  Paolo Carlini  <pcarlini@unitus.it>
+            Nathan Myers  <ncm@cantrip.org>
+
+	PR libstdc++/8790
+	* src/localename.cc
+	(locale::_Impl::_Impl(const char*, size_t)):
+	Avoid strtok for thread safety.
+
+2002-12-04  Loren J. Rittle  <ljrittle@acm.org>
+
+	PR libstdc++/7445
+	* src/locale.cc (std::locale::classic()): Weaken locking protocol.
+
+2002-12-03  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/streambuf.tcc (basic_streambuf::sputbackc):  Prefix
+	"this->" to call to pbackfail.
+
+2002-12-02  Benjamin Kosnik  <bkoz@redhat.com>
+            Jonathan Lennox  <lennox@cs.columbia.edu>
+
+	* include/bits/streambuf.tcc (__copy_streambufs):
+	Revert previous fix for the interactive half of
+	libstdc++/6745, use _M_buf_size_opt to set dynamically
+	the correct buffer size.
+
+2002-12-02  Jonathan Lennox  <lennox@cs.columbia.edu>
+
+	* include/bits/streambuf.tcc (__copy_streambufs): verify
+	__sbin->gptr() + __bufsize < __sbin->egptr() before using.
+	* testsuite/27_io/ostream_inserter_other.cc (test_buffer_4): Add.
+	(test05): Use test_buffer_4. Delete unused ostringstream
+	variables.
+
+2002-12-02  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/6745 (continued)
+	* include/bits/streambuf.tcc (__copy_streambufs):
+	Deal with interactive input by using isatty as in the
+	fix for libstdc++/8399.
+
+2002-12-02  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* src/ios.cc [_GLIBCPP_HAVE_UNISTD_H]: Include unistd.h.
+
+2002-12-02  Paolo Carlini  <pcarlini@unitus.it>
+            Loren J. Rittle <ljrittle@acm.org>
+
+	PR libstdc++/8399
+	* acinclude.m4
+	(GLIBCPP_CHECK_UNISTD_DECL_AND_LINKAGE_1): New macro to
+	check for unistd.h functions.
+	(GLIBCPP_CHECK_UNISTD_SUPPORT): New macro, check for isatty
+	in unistd.h.
+	* configure.in: Call here.
+	* src/ios.cc (ios_base::Init::_S_ios_create(bool)):
+	Use _GLIBCPP_HAVE_ISATTY: ifdef, in case of interactive
+	input __in_size = 1 even when sync_with_stdio is false;
+	otherwise fall back to __in_size = 1.
+	* aclocal.m4: Regenerate.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+
+2002-12-02  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* acconfig.h (HAVE_DRAND48): Add.
+	(HAVE_GETPAGESIZE): Add.
+	(HAVE_SETENV): Add.	
+	(HAVE_SIGSETJMP): Add.		
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+
+2002-12-02  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/8230
+        * include/bits/stl_vector.h (vector::reserve): Throw length_error if
+        requested size is bigger than max_size().
+        * include/bits/stl_bvector.h (vector<bool>::reserve): Same.
+        * testsuite/23_containers/vector_capacity.cc (test02): Add.
+
+2002-12-02  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* configure.in (libtool_VERSION): Update to 5:2:0.
+	* configure: Regenerate.
+	
+2002-11-26  David Edelsohn  <edelsohn@gnu.org>
+
+	* testsuite/abi_check.cc: Remove guards kludge.
+
 2002-11-19  Release Manager
-
-	* GCC 3.2.1 Released.
-
-2002-11-19  Release Manager
-
-	* GCC 3.2.1 Released.
-
-2002-11-18  Release Manager
 
 	* GCC 3.2.1 Released.
 
@@ -22,7 +315,7 @@
 	
 2002-11-06  David Edelsohn  <edelsohn@gnu.org>
 
-	PR 8362
+	PR libstdc++/8362
 	* testsuite/abi_check.cc: Add guards to prevent -mpower ICE.
 
 2002-11-05  Jonathan Wakely  <cow@compsoc.man.ac.uk>
