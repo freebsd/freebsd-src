@@ -24,7 +24,6 @@ cpu		SUN4U
 #####################################################################
 # HARDWARE BUS CONFIGURATION
 
-device		apb			# Sun APB PCI-PCI bridge
 device		ebus
 device		isa
 device		pci
