@@ -471,10 +471,12 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		senderr(ESRCH);
 	/*
 	 * If we are adding a host route then we don't want to put
-	 * a netmask in the tree
+	 * a netmask in the tree, nor do we want to clone it.
 	 */
-	if (flags & RTF_HOST)
+	if (flags & RTF_HOST) {
 		netmask = 0;
+		flags &= ~(RTF_CLONING | RTF_PRCLONING);
+	}
 	switch (req) {
 	case RTM_DELETE:
 		/*
