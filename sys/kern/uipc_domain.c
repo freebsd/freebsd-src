@@ -90,7 +90,7 @@ net_init_domain(struct domain *dp)
 			(*pr->pr_init)();
 	}
 	/*
-	 * update global informatio about maximums
+	 * update global information about maximums
 	 */
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
