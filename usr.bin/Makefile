@@ -244,7 +244,8 @@ SUBDIR+=usbhidaction \
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
-SUBDIR+=doscmd \
+SUBDIR+=bluetooth \
+	doscmd \
 	ncplist \
 	ncplogin \
 	sasc \

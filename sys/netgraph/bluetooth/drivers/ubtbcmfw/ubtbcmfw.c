@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ubtbcmfw.c,v 1.1 2003/04/27 00:20:15 max Exp $
+ * $Id: ubtbcmfw.c,v 1.3 2003/10/10 19:15:08 max Exp $
  * $FreeBSD$
  */
 

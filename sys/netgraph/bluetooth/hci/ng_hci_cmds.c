@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_cmds.c,v 1.3 2003/04/01 18:15:25 max Exp $
+ * $Id: ng_hci_cmds.c,v 1.4 2003/09/08 18:57:51 max Exp $
  * $FreeBSD$
  */
 
@@ -355,11 +355,17 @@ complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 
 	/* 
 	 * Now we can remove command timeout, dequeue completed command
-	 * and return command parameters. Note: ng_hci_command_untimeout() 
-	 * will drop NG_HCI_UNIT_COMMAND_PENDING flag.
+	 * and return command parameters. ng_hci_command_untimeout will
+	 * drop NG_HCI_UNIT_COMMAND_PENDING flag.
+	 * Note: if ng_hci_command_untimeout() fails (returns non-zero)
+	 * then timeout aready happened and timeout message went info node
+	 * queue. In this case we ignore command completion and pretend
+	 * there is a timeout.
 	 */
 
-	ng_hci_command_untimeout(unit);
+	if (ng_hci_command_untimeout(unit) != 0)
+		return (ETIMEDOUT);
+
 	NG_BT_MBUFQ_DEQUEUE(&unit->cmdq, *cp);
 	m_adj(*cp, sizeof(ng_hci_cmd_pkt_t));
 
@@ -373,17 +379,24 @@ complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 void
 ng_hci_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	ng_hci_unit_p	 unit = (ng_hci_unit_p) arg1;
+	ng_hci_unit_p	 unit = NULL;
 	struct mbuf	*m = NULL;
 	u_int16_t	 opcode;
 
-	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING) {
-		NG_BT_MBUFQ_DEQUEUE(&unit->cmdq, m);
+	if (NG_NODE_NOT_VALID(node)) {
+		printf("%s: Netgraph node is not valid\n", __func__);
+		return;
+	}
 
+	unit = (ng_hci_unit_p) NG_NODE_PRIVATE(node);
+
+	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING) {
+		unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
+
+		NG_BT_MBUFQ_DEQUEUE(&unit->cmdq, m);
 		if (m == NULL) {
-			KASSERT(0,
-("%s: %s - command queue is out of sync!\n",
-				__func__, NG_NODE_NAME(unit->node)));
+			NG_HCI_ALERT(
+"%s: %s - command queue is out of sync!\n", __func__, NG_NODE_NAME(unit->node));
 
 			return;
 		}
@@ -396,18 +409,12 @@ ng_hci_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 			__func__, NG_NODE_NAME(unit->node), NG_HCI_OGF(opcode),
 			NG_HCI_OCF(opcode));
 
-		/* 
-		 * Try to send more commands
-		 */
-
+		/* Try to send more commands */
  		NG_HCI_BUFF_CMD_SET(unit->buffer, 1);
-
-		unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
 		ng_hci_send_command(unit);
 	} else
-		KASSERT(0,
-("%s: %s - no pending command, state=%#x\n",
-			__func__, NG_NODE_NAME(unit->node), unit->state));
+		NG_HCI_ALERT(
+"%s: %s - no pending command\n", __func__, NG_NODE_NAME(unit->node));
 } /* ng_hci_process_command_timeout */
 
 /* 
@@ -615,6 +622,10 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 
 		while (!LIST_EMPTY(&unit->con_list)) {
 			con = LIST_FIRST(&unit->con_list);
+
+			/* Remove all timeouts (if any) */
+			if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
+				ng_hci_con_untimeout(con);
 
 			/* Connection terminated by local host */
 			ng_hci_lp_discon_ind(con, 0x16);

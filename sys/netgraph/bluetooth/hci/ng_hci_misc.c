@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_misc.c,v 1.4 2003/04/26 22:35:21 max Exp $
+ * $Id: ng_hci_misc.c,v 1.5 2003/09/08 18:57:51 max Exp $
  * $FreeBSD$
  */
 
@@ -50,9 +50,6 @@
  **                              Utility routines
  ******************************************************************************
  ******************************************************************************/
-
-static void	ng_hci_command_queue_timeout		(void *);
-static void	ng_hci_con_queue_timeout		(void *);
 
 /*
  * Give packet to RAW hook
@@ -144,6 +141,10 @@ ng_hci_unit_clean(ng_hci_unit_p unit, int reason)
 	/* Clean up connection list */
 	while (!LIST_EMPTY(&unit->con_list)) {
 		ng_hci_unit_con_p	con = LIST_FIRST(&unit->con_list);
+
+		/* Remove all timeouts (if any) */
+		if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
+			ng_hci_con_untimeout(con);
 
 		/*
 		 * Notify upper layer protocol and destroy connection 
@@ -253,12 +254,32 @@ ng_hci_new_con(ng_hci_unit_p unit, int link_type)
 {
 	ng_hci_unit_con_p	con = NULL;
 	int			num_pkts;
+	static int		fake_con_handle = 0x0f00;
 
 	MALLOC(con, ng_hci_unit_con_p, sizeof(*con), M_NETGRAPH_HCI,
 		M_NOWAIT | M_ZERO);
 	if (con != NULL) {
 		con->unit = unit;
 		con->state = NG_HCI_CON_CLOSED;
+
+		/*
+		 * XXX
+		 *
+		 * Assign fake connection handle to the connection descriptor.
+		 * Bluetooth specification marks 0x0f00 - 0x0fff connection
+		 * handles as reserved. We need this fake connection handles
+		 * for timeouts. Connection handle will be passed as argument
+		 * to timeout so when timeout happens we can find the right
+		 * connection descriptor. We can not pass pointers, because
+		 * timeouts are external (to Netgraph) events and there might
+		 * be a race when node/hook goes down and timeout event already
+		 * went into node's queue
+		 */
+
+		con->con_handle = fake_con_handle ++;
+		if (fake_con_handle > 0x0fff)
+			fake_con_handle = 0x0f00;
+
 		con->link_type = link_type;
 
 		if (con->link_type == NG_HCI_LINK_ACL)
@@ -284,10 +305,6 @@ void
 ng_hci_free_con(ng_hci_unit_con_p con)
 { 
 	LIST_REMOVE(con, next);
-
-	/* Remove all timeouts (if any) */
-	if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
-		ng_hci_con_untimeout(con);
 
 	/*
 	 * If we have pending packets then assume that Host Controller has 
@@ -340,102 +357,83 @@ ng_hci_con_by_bdaddr(ng_hci_unit_p unit, bdaddr_p bdaddr, int link_type)
 
 /*
  * Set HCI command timeout
+ * XXX FIXME: check unit->cmd_timo.callout != NULL
  */
 
-void
+int
 ng_hci_command_timeout(ng_hci_unit_p unit)
 {
-	if (!(unit->state & NG_HCI_UNIT_COMMAND_PENDING)) {
-		NG_NODE_REF(unit->node);
-		unit->state |= NG_HCI_UNIT_COMMAND_PENDING;
-		unit->cmd_timo = timeout(ng_hci_command_queue_timeout, unit, 
-					bluetooth_hci_command_timeout());
-	} else
-		KASSERT(0,
-("%s: %s - Duplicated command timeout!\n", __func__, NG_NODE_NAME(unit->node)));
+	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING)
+		panic(
+"%s: %s - Duplicated command timeout!\n", __func__, NG_NODE_NAME(unit->node));
+
+	unit->state |= NG_HCI_UNIT_COMMAND_PENDING;
+	unit->cmd_timo = ng_timeout(unit->node, NULL,
+				bluetooth_hci_command_timeout(),
+				ng_hci_process_command_timeout, NULL, 0);
+
+	return (0);
 } /* ng_hci_command_timeout */
 
 /*
  * Unset HCI command timeout
  */
 
-void
+int
 ng_hci_command_untimeout(ng_hci_unit_p unit)
 {
-	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING) {
-		unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
-		untimeout(ng_hci_command_queue_timeout, unit, unit->cmd_timo);
-		NG_NODE_UNREF(unit->node);
-	} else
-		KASSERT(0,
-("%s: %s - No command timeout!\n", __func__, NG_NODE_NAME(unit->node)));
+	if (!(unit->state & NG_HCI_UNIT_COMMAND_PENDING))
+		panic(
+"%s: %s - No command timeout!\n", __func__, NG_NODE_NAME(unit->node));
+
+	if (ng_untimeout(unit->cmd_timo, unit->node) == 0)
+		return (ETIMEDOUT);
+
+	unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
+
+	return (0);
 } /* ng_hci_command_untimeout */
 
 /*
- * OK timeout has happend, so queue timeout processing function
- */
-
-static void
-ng_hci_command_queue_timeout(void *context)
-{
-	ng_hci_unit_p	unit = (ng_hci_unit_p) context;
-	node_p		node = unit->node;
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node,NULL,&ng_hci_process_command_timeout,unit,0);
-
-	NG_NODE_UNREF(node);
-} /* ng_hci_command_queue_timeout */
-
-/*
  * Set HCI connection timeout
+ * XXX FIXME: check unit->cmd_timo.callout != NULL
  */
 
-void
+int
 ng_hci_con_timeout(ng_hci_unit_con_p con)
 {
-	if (!(con->flags & NG_HCI_CON_TIMEOUT_PENDING)) {
-		NG_NODE_REF(con->unit->node);
-		con->flags |= NG_HCI_CON_TIMEOUT_PENDING;
-		con->con_timo = timeout(ng_hci_con_queue_timeout, con, 
-					bluetooth_hci_connect_timeout());
-	} else
-		KASSERT(0,
-("%s: %s - Duplicated connection timeout!\n",
-			__func__, NG_NODE_NAME(con->unit->node)));
+	if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
+		panic(
+"%s: %s - Duplicated connection timeout!\n",
+			__func__, NG_NODE_NAME(con->unit->node));
+
+	con->flags |= NG_HCI_CON_TIMEOUT_PENDING;
+	con->con_timo = ng_timeout(con->unit->node, NULL,
+				bluetooth_hci_connect_timeout(),
+				ng_hci_process_con_timeout, NULL,
+				con->con_handle);
+
+	return (0);
 } /* ng_hci_con_timeout */
 
 /*
  * Unset HCI connection timeout
  */
 
-void
+int
 ng_hci_con_untimeout(ng_hci_unit_con_p con)
 {
-	if (con->flags & NG_HCI_CON_TIMEOUT_PENDING) {
-		con->flags &= ~NG_HCI_CON_TIMEOUT_PENDING;
-		untimeout(ng_hci_con_queue_timeout, con, con->con_timo);
-		NG_NODE_UNREF(con->unit->node);
-	} else
-		KASSERT(0,
-("%s: %s - No connection timeout!\n", __func__, NG_NODE_NAME(con->unit->node)));
+	if (!(con->flags & NG_HCI_CON_TIMEOUT_PENDING))
+		panic(
+"%s: %s - No connection timeout!\n", __func__, NG_NODE_NAME(con->unit->node));
+
+	if (ng_untimeout(con->con_timo, con->unit->node) == 0)
+		return (ETIMEDOUT);
+
+	con->flags &= ~NG_HCI_CON_TIMEOUT_PENDING;
+
+	return (0);
 } /* ng_hci_con_untimeout */
-
-/*
- * OK timeout has happend, so queue timeout processing function
- */
-
-static void
-ng_hci_con_queue_timeout(void *context)
-{
-	ng_hci_unit_con_p	con = (ng_hci_unit_con_p) context;
-	node_p			node = con->unit->node;
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node, NULL, &ng_hci_process_con_timeout, con, 0);
-
-	NG_NODE_UNREF(node);
-} /* ng_hci_con_queue_timeout */
 
 #if 0
 /*

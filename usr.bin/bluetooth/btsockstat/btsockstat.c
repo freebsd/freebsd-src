@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: btsockstat.c,v 1.4 2003/03/29 22:28:18 max Exp $
+ * $Id: btsockstat.c,v 1.8 2003/05/21 22:40:25 max Exp $
  * $FreeBSD$
  */
 
@@ -39,19 +39,16 @@
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
 
-#include <ng_bluetooth.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
-#include <ng_btsocket_hci_raw.h>
-#include <ng_btsocket_l2cap.h>
-#include <ng_btsocket_rfcomm.h>
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_btsocket_hci_raw.h>
+#include <netgraph/bluetooth/include/ng_btsocket_l2cap.h>
+#include <netgraph/bluetooth/include/ng_btsocket_rfcomm.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +61,8 @@ static void	l2cappr    (kvm_t *kvmd, u_long addr);
 static void	l2caprtpr  (kvm_t *kvmd, u_long addr);
 static void	rfcommpr   (kvm_t *kvmd, u_long addr);
 static void	rfcommpr_s (kvm_t *kvmd, u_long addr);
+
+static char *	bdaddrpr   (bdaddr_p const ba, char *str, int len);
 
 static kvm_t *	kopen      (char const *memf);
 static int	kread      (kvm_t *kvmd, u_long addr, char *buffer, int size);
@@ -99,6 +98,8 @@ static struct nlist	nl[] = {
  * Main
  */
 
+static int	numeric_bdaddr = 0;
+
 int
 main(int argc, char *argv[])
 {
@@ -106,8 +107,12 @@ main(int argc, char *argv[])
 	kvm_t	*kvmd = NULL;
 	char	*memf = NULL;
 
-	while ((opt = getopt(argc, argv, "hM:p:r")) != -1) {
+	while ((opt = getopt(argc, argv, "hnM:p:r")) != -1) {
 		switch (opt) {
+		case 'n':
+			numeric_bdaddr = 1;
+			break;
+
 		case 'M':
 			memf = optarg;
 			break;
@@ -265,7 +270,6 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 	ng_btsocket_l2cap_raw_pcb_t	pcb;
 	struct socket			so;
 	int				first = 1;
-	char				bdaddr[32];
 
 	if (addr == 0)
 		return;
@@ -293,22 +297,13 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 				"Local address");
 		}
 
-		if (memcmp(&pcb.src, NG_HCI_BDADDR_ANY, sizeof(pcb.src)) == 0) {
-			bdaddr[0] = '*';
-			bdaddr[1] = 0;
-		} else
-			snprintf(bdaddr, sizeof(bdaddr),
-"%02x:%02x:%02x:%02x:%02x:%02x",
-				pcb.src.b[5], pcb.src.b[4], pcb.src.b[3],
-				pcb.src.b[2], pcb.src.b[1], pcb.src.b[0]);
-
 		fprintf(stdout,
 "%-8.8x %-8.8x %6d %6d %-17.17s\n",
 			(int) pcb.so,
 			(int) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
-			bdaddr);
+			bdaddrpr(&pcb.src, NULL, 0));
 	}
 } /* l2caprawpr */
 
@@ -331,7 +326,7 @@ l2cappr(kvm_t *kvmd, u_long addr)
 	ng_btsocket_l2cap_pcb_t	pcb;
 	struct socket		so;
 	int			first = 1;
-	char			local[32], remote[32];
+	char			local[24], remote[24];
 
 	if (addr == 0)
 		return;
@@ -361,31 +356,14 @@ l2cappr(kvm_t *kvmd, u_long addr)
 				"State");
 		}
 
-		if (memcmp(&pcb.src, NG_HCI_BDADDR_ANY, sizeof(pcb.src)) == 0)
-			snprintf(local, sizeof(local), "*/%d", pcb.psm);
-		else
-			snprintf(local, sizeof(local),
-"%02x:%02x:%02x:%02x:%02x:%02x/%d",
-				pcb.src.b[5], pcb.src.b[4], pcb.src.b[3],
-				pcb.src.b[2], pcb.src.b[1], pcb.src.b[0],
-				pcb.psm);
-
-		if (memcmp(&pcb.dst, NG_HCI_BDADDR_ANY, sizeof(pcb.dst)) == 0) {
-			remote[0] = '*';
-			remote[1] = 0;
-		} else
-			snprintf(remote, sizeof(remote),
-"%02x:%02x:%02x:%02x:%02x:%02x",
-				pcb.dst.b[5], pcb.dst.b[4], pcb.dst.b[3],
-				pcb.dst.b[2], pcb.dst.b[1], pcb.dst.b[0]);
-
 		fprintf(stdout,
-"%-8.8x %6d %6d %-23.23s %-17.17s %-5d %s\n",
+"%-8.8x %6d %6d %-17.17s/%-5d %-17.17s %-5d %s\n",
 			(int) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
-			local,
-			remote,
+			bdaddrpr(&pcb.src, local, sizeof(local)),
+			pcb.psm,
+			bdaddrpr(&pcb.dst, remote, sizeof(remote)),
 			pcb.cid,
 			(so.so_options & SO_ACCEPTCONN)?
 				"LISTEN" : state2str(pcb.state));
@@ -402,7 +380,6 @@ l2caprtpr(kvm_t *kvmd, u_long addr)
 	ng_btsocket_l2cap_rtentry_p	this = NULL, next = NULL;
 	ng_btsocket_l2cap_rtentry_t	rt;
 	int				first = 1;
-	char				bdaddr[32];
 
 	if (addr == 0)
 		return;
@@ -426,19 +403,11 @@ l2caprtpr(kvm_t *kvmd, u_long addr)
 				"BD_ADDR");
 		}
 
-		if (memcmp(&rt.src, NG_HCI_BDADDR_ANY, sizeof(rt.src)) == 0) {
-			bdaddr[0] = '-';
-			bdaddr[1] = 0;
-		} else
-			snprintf(bdaddr, sizeof(bdaddr),
-"%02x:%02x:%02x:%02x:%02x:%02x", rt.src.b[5], rt.src.b[4], rt.src.b[3],
-				 rt.src.b[2], rt.src.b[1], rt.src.b[0]);
-
 		fprintf(stdout,
 "%-8.8x %-8.8x %-17.17s\n",
 			(int) this,
 			(int) rt.hook,
-			bdaddr);
+			bdaddrpr(&rt.src, NULL, 0));
 	}
 } /* l2caprtpr */
 
@@ -462,7 +431,7 @@ rfcommpr(kvm_t *kvmd, u_long addr)
 	ng_btsocket_rfcomm_pcb_t	pcb;
 	struct socket			so;
 	int				first = 1;
-	char				local[32], remote[32];
+	char				local[24], remote[24];
 
 	if (addr == 0)
 		return;
@@ -493,31 +462,13 @@ rfcommpr(kvm_t *kvmd, u_long addr)
 				"State");
 		}
 
-		if (memcmp(&pcb.src, NG_HCI_BDADDR_ANY, sizeof(pcb.src)) == 0) {
-			local[0] = '*';
-			local[1] = 0;
-		} else
-			snprintf(local, sizeof(local),
-"%02x:%02x:%02x:%02x:%02x:%02x",
-				pcb.src.b[5], pcb.src.b[4], pcb.src.b[3],
-				pcb.src.b[2], pcb.src.b[1], pcb.src.b[0]);
-
-		if (memcmp(&pcb.dst, NG_HCI_BDADDR_ANY, sizeof(pcb.dst)) == 0) {
-			remote[0] = '*';
-			remote[1] = 0;
-		} else
-			snprintf(remote, sizeof(remote),
-"%02x:%02x:%02x:%02x:%02x:%02x",
-				pcb.dst.b[5], pcb.dst.b[4], pcb.dst.b[3],
-				pcb.dst.b[2], pcb.dst.b[1], pcb.dst.b[0]);
-
 		fprintf(stdout,
 "%-8.8x %6d %6d %-17.17s %-17.17s %-4d %-4d %s\n",
 			(int) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
-			local,
-			remote,
+			bdaddrpr(&pcb.src, local, sizeof(local)),
+			bdaddrpr(&pcb.dst, remote, sizeof(remote)),
 			pcb.channel,
 			pcb.dlci,
 			(so.so_options & SO_ACCEPTCONN)?
@@ -587,6 +538,40 @@ rfcommpr_s(kvm_t *kvmd, u_long addr)
 } /* rfcommpr_s */
 
 /*
+ * Return BD_ADDR as string
+ */
+
+static char *
+bdaddrpr(bdaddr_p const ba, char *str, int len)
+{
+	static char	 buffer[MAXHOSTNAMELEN];
+	struct hostent	*he = NULL;
+
+	if (str == NULL) {
+		str = buffer;
+		len = sizeof(buffer);
+	}
+
+	if (memcmp(ba, NG_HCI_BDADDR_ANY, sizeof(*ba)) == 0) {
+		str[0] = '*';
+		str[1] = 0;
+
+		return (str);
+	}
+
+	if (!numeric_bdaddr &&
+	    (he = bt_gethostbyaddr((char *)ba, sizeof(*ba), AF_BLUETOOTH)) != NULL) {
+		strlcpy(str, he->h_name, len);
+
+		return (str);
+	}
+
+	bt_ntoa(ba, str);
+
+	return (str);
+} /* bdaddrpr */
+
+/*
  * Open kvm
  */
 
@@ -652,7 +637,7 @@ kread(kvm_t *kvmd, u_long addr, char *buffer, int size)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: btsockstat [-M core ] [-p proto] [-r]\n");
+	fprintf(stdout, "Usage: btsockstat [-M core ] [-n] [-p proto] [-r]\n");
 	exit(255);
 } /* usage */
 

@@ -25,14 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: status.c,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: status.c,v 1.2 2003/05/21 22:40:30 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <errno.h>
-#include <ng_hci.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
 #include <stdio.h>
 #include "hccontrol.h"
 

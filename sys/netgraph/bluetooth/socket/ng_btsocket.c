@@ -25,12 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_btsocket.c,v 1.3 2003/01/19 00:19:04 max Exp $
+ * $Id: ng_btsocket.c,v 1.4 2003/09/14 23:29:06 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/errno.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
@@ -41,7 +42,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/bitstring.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include "ng_bluetooth.h"

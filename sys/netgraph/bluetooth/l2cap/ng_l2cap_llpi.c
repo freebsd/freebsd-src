@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_llpi.c,v 1.4 2003/04/28 21:44:59 max Exp $
+ * $Id: ng_l2cap_llpi.c,v 1.5 2003/09/08 19:11:45 max Exp $
  * $FreeBSD$
  */
 
@@ -114,7 +114,9 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
 	if (error != 0) {
-		ng_l2cap_lp_untimeout(con);
+		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
+			return (error);
+
 		ng_l2cap_free_con(con);
 	}
 	
@@ -168,10 +170,13 @@ ng_l2cap_lp_con_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 
 	/*
 	 * Looks like it is our confirmation. It is safe now to cancel 
-	 * connection timer and notify upper layer.
+	 * connection timer and notify upper layer. If timeout already
+	 * happened then ignore connection confirmation and let timeout
+	 * handle that.
  	 */
 
-	ng_l2cap_lp_untimeout(con);
+	if ((error = ng_l2cap_lp_untimeout(con)) != 0)
+		goto out;
 
 	if (ep->status == 0) {
 		con->state = NG_L2CAP_CON_OPEN;
@@ -259,7 +264,9 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, rsp, l2cap->hci, NULL);
 	if (error != 0) {
-		ng_l2cap_lp_untimeout(con);
+		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
+			goto out;
+
 		ng_l2cap_free_con(con);
 	}
 out:
@@ -311,9 +318,16 @@ ng_l2cap_lp_discon_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		goto out;
 	}
 
-	/* Notify upper layer and remove connection */
+	/*
+	 * Notify upper layer and remove connection
+	 * Note: The connection could have auto disconnect timeout set. Try
+	 * to remove it. If auto disconnect timeout happened then ignore
+	 * disconnect indication and let timeout handle that.
+	 */
+
 	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
-		ng_l2cap_discon_untimeout(con);
+		if ((error = ng_l2cap_discon_untimeout(con)) != 0)
+			return (error);
 
 	ng_l2cap_con_fail(con, ep->reason);
 out:
@@ -791,13 +805,33 @@ drop:
  */
 
 void
-ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
 {
-	ng_l2cap_con_p	con = (ng_l2cap_con_p) arg1;
-	ng_l2cap_p	l2cap = con->l2cap;
+	ng_l2cap_p	l2cap = NULL;
+	ng_l2cap_con_p	con = NULL;
 
-	NG_L2CAP_ERR(
-"%s: %s - ACL connection timeout\n", __func__, NG_NODE_NAME(l2cap->node));
+	if (NG_NODE_NOT_VALID(node)) {
+		printf("%s: Netgraph node is not valid\n", __func__);
+		return;
+	}
+
+	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+	con = ng_l2cap_con_by_handle(l2cap, con_handle);
+
+	if (con == NULL) {
+		NG_L2CAP_ALERT(
+"%s: %s - could not find connection, con_handle=%d\n",
+			__func__, NG_NODE_NAME(node), con_handle);
+		return;
+	}
+
+	if (!(con->flags & NG_L2CAP_CON_LP_TIMO)) {
+		NG_L2CAP_ALERT(
+"%s: %s - no pending LP timeout, con_handle=%d, state=%d, flags=%#x\n",
+			__func__, NG_NODE_NAME(node), con_handle, con->state,
+			con->flags);
+		return;
+	}
 
 	/*
 	 * Notify channels that connection has timed out. This will remove 
@@ -814,13 +848,36 @@ ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int arg2)
  */
 
 void
-ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
 {
-	ng_l2cap_con_p		 con = (ng_l2cap_con_p) arg1;
-	ng_l2cap_p		 l2cap = con->l2cap;
+	ng_l2cap_p		 l2cap = NULL;
+	ng_l2cap_con_p		 con = NULL;
 	struct ng_mesg		*msg = NULL;
 	ng_hci_lp_discon_req_ep	*ep = NULL;
 	int			 error;
+
+	if (NG_NODE_NOT_VALID(node)) {
+		printf("%s: Netgraph node is not valid\n", __func__);
+		return;
+	}
+
+	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+	con = ng_l2cap_con_by_handle(l2cap, con_handle);
+
+	if (con == NULL) {
+		NG_L2CAP_ALERT(
+"%s: %s - could not find connection, con_handle=%d\n",
+			__func__, NG_NODE_NAME(node), con_handle);
+		return;
+	}
+
+	if (!(con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)) {
+		NG_L2CAP_ALERT(
+"%s: %s - no pending disconnect timeout, con_handle=%d, state=%d, flags=%#x\n",
+			__func__, NG_NODE_NAME(node), con_handle, con->state,
+			con->flags);
+		return;
+	}
 
 	con->flags &= ~NG_L2CAP_CON_AUTO_DISCON_TIMO;
 
@@ -829,7 +886,6 @@ ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 		NG_L2CAP_ERR(
 "%s: %s - hook \"%s\" is not connected or valid\n",
 			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
-
 		return;
 	}
 

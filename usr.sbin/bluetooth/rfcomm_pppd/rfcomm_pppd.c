@@ -25,18 +25,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rfcomm_pppd.c,v 1.3 2003/04/26 23:59:49 max Exp $
+ * $Id: rfcomm_pppd.c,v 1.5 2003/09/07 18:32:11 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <bitstring.h>
+#include <bluetooth.h>
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
+#include <sdp.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -46,6 +44,10 @@
 #include <unistd.h>
 
 #define RFCOMM_PPPD	"rfcomm_pppd"
+
+int		rfcomm_channel_lookup	(bdaddr_t const *local,
+					 bdaddr_t const *remote,
+					 int service, int *channel, int *error);
 
 static void	exec_ppp	(int s, char *label);
 static void	sighandler	(int s);
@@ -58,41 +60,49 @@ int
 main(int argc, char *argv[])
 {
 	struct sockaddr_rfcomm   sock_addr;
-	char			*label = NULL;
+	char			*label = NULL, *ep = NULL;
 	bdaddr_t		 addr;
-	int			 s, channel, detach, server;
+	int			 s, channel, detach, server, service;
 	pid_t			 pid;
 
 	memcpy(&addr, NG_HCI_BDADDR_ANY, sizeof(addr));
 	channel = 0;
 	detach = 1;
 	server = 0;
+	service = 0;
 
 	/* Parse command line arguments */
 	while ((s = getopt(argc, argv, "a:cC:dhl:s")) != -1) {
 		switch (s) {
-		case 'a': { /* BDADDR */
-			int	a0, a1, a2, a3, a4, a5;
+		case 'a': /* BDADDR */
+			if (!bt_aton(optarg, &addr)) {
+				struct hostent	*he = NULL;
 
-			if (sscanf(optarg, "%x:%x:%x:%x:%x:%x",
-					&a5, &a4, &a3, &a2, &a1, &a0) != 6)
-				usage();
-				/* NOT REACHED */
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
 
-			addr.b[0] = a0 & 0xff;
-			addr.b[1] = a1 & 0xff;
-			addr.b[2] = a2 & 0xff;
-			addr.b[3] = a3 & 0xff;
-			addr.b[4] = a4 & 0xff;
-			addr.b[5] = a5 & 0xff;
-			} break;
+				memcpy(&addr, he->h_addr, sizeof(addr));
+			}
+			break;
 
 		case 'c': /* client */
 			server = 0;
 			break;
 
 		case 'C': /* RFCOMM channel */
-			channel = atoi(optarg);
+			channel = strtoul(optarg, &ep, 10);
+			if (*ep != 0) {
+				channel = 0;
+				switch (tolower(optarg[0])) {
+				case 'd': /* DialUp Networking */
+					service = SDP_SERVICE_CLASS_DIALUP_NETWORKING;
+					break;
+
+				case 'l': /* LAN Access Using PPP */
+					service = SDP_SERVICE_CLASS_LAN_ACCESS_USING_PPP;
+					break;
+				}
+			}
 			break;
 
 		case 'd': /* do not detach */
@@ -115,10 +125,22 @@ main(int argc, char *argv[])
 	}
 
 	/* Check if we got everything we wanted */
-	if ((channel <= 0 || channel > 30) || label == NULL ||
-	    (!server && memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0))
-		usage();
-		/* NOT REACHED */
+	if (label == NULL)
+                errx(1, "Must specify PPP label");
+
+	if (!server) {
+		if (memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0)
+                	errx(1, "Must specify server BD_ADDR");
+
+		/* Check channel, if was not set then obtain it via SDP */
+		if (channel == 0 && service != 0)
+			if (rfcomm_channel_lookup(NULL, &addr, service,
+							&channel, &s) != 0)
+				errc(1, s, "Could not obtain RFCOMM channel");
+	}
+
+        if (channel <= 0 || channel > 30)
+                errx(1, "Invalid RFCOMM channel number %d", channel);
 
 	openlog(RFCOMM_PPPD, LOG_PID | LOG_PERROR | LOG_NDELAY, LOG_USER);
 

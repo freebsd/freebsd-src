@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_misc.c,v 1.4 2003/04/28 21:44:59 max Exp $
+ * $Id: ng_l2cap_misc.c,v 1.5 2003/09/08 19:11:45 max Exp $
  * $FreeBSD$
  */
 
@@ -47,10 +47,7 @@
 #include "ng_l2cap_ulpi.h"
 #include "ng_l2cap_misc.h"
 
-static u_int16_t	ng_l2cap_get_cid		(ng_l2cap_p);
-static void		ng_l2cap_queue_discon_timeout	(void *);
-static void		ng_l2cap_queue_lp_timeout	(void *);
-static void		ng_l2cap_queue_command_timeout	(void *);
+static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p);
 
 /******************************************************************************
  ******************************************************************************
@@ -101,6 +98,7 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 ng_l2cap_con_p
 ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 {
+	static int	fake_con_handle = 0x0f00;
 	ng_l2cap_con_p	con = NULL;
 
 	/* Create new connection descriptor */
@@ -111,6 +109,24 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 
 	con->l2cap = l2cap;
 	con->state = NG_L2CAP_CON_CLOSED;
+
+	/*
+	 * XXX
+	 *
+	 * Assign fake connection handle to the connection descriptor.
+	 * Bluetooth specification marks 0x0f00 - 0x0fff connection 
+	 * handles as reserved. We need this fake connection handles 
+	 * for timeouts. Connection handle will be passed as argument
+	 * to timeout so when timeout happens we can find the right
+	 * connection descriptor. We can not pass pointers, because
+	 * timeouts are external (to Netgraph) events and there might
+	 * be a race when node/hook goes down and timeout event already
+	 * went into node's queue
+	 */
+
+	con->con_handle = fake_con_handle ++;
+	if (fake_con_handle > 0x0fff)
+		fake_con_handle = 0x0f00;
 
 	bcopy(bdaddr, &con->remote, sizeof(con->remote));
 	callout_handle_init(&con->con_timo);
@@ -136,8 +152,10 @@ ng_l2cap_con_ref(ng_l2cap_con_p con)
 	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO) {
 		if ((con->state != NG_L2CAP_CON_OPEN) ||
 		    (con->flags & NG_L2CAP_CON_OUTGOING) == 0)
-			panic("%s: %s - bad auto disconnect timeout\n",
-				__func__, NG_NODE_NAME(con->l2cap->node));
+			panic(
+"%s: %s - bad auto disconnect timeout, state=%d, flags=%#x\n",
+				__func__, NG_NODE_NAME(con->l2cap->node),
+				con->state, con->flags);
 
 		ng_l2cap_discon_untimeout(con);
 	}
@@ -153,8 +171,8 @@ ng_l2cap_con_unref(ng_l2cap_con_p con)
 	con->refcnt --;
 
 	if (con->refcnt < 0)
-		panic("%s: %s - con->refcnt < 0\n",
-			__func__, NG_NODE_NAME(con->l2cap->node));
+		panic(
+"%s: %s - con->refcnt < 0\n", __func__, NG_NODE_NAME(con->l2cap->node));
 
 	/*
 	 * Set auto disconnect timer only if the following conditions are met:
@@ -167,60 +185,53 @@ ng_l2cap_con_unref(ng_l2cap_con_p con)
 	if ((con->refcnt == 0) &&
 	    (con->state == NG_L2CAP_CON_OPEN) &&
 	    (con->flags & NG_L2CAP_CON_OUTGOING) && 
-	    (con->l2cap->discon_timo > 0)) {
-		if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
-			panic("%s: %s - duplicated auto disconnect timeout\n",
-				__func__, NG_NODE_NAME(con->l2cap->node));
-
+	    (con->l2cap->discon_timo > 0))
 		ng_l2cap_discon_timeout(con);
-	}
 } /* ng_l2cap_con_unref */
 
 /*
  * Set auto disconnect timeout
+ * XXX FIXME: check con->con_timo.callout != NULL
  */
 
-void
+int
 ng_l2cap_discon_timeout(ng_l2cap_con_p con)
 {
 	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
-		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+		panic(
+"%s: %s - invalid timeout, state=%d, flags=%#x\n",
 			__func__, NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
 
-	NG_NODE_REF(con->l2cap->node);
 	con->flags |= NG_L2CAP_CON_AUTO_DISCON_TIMO;
-	con->con_timo = timeout(ng_l2cap_queue_discon_timeout, con,
-					con->l2cap->discon_timo * hz);
+	con->con_timo = ng_timeout(con->l2cap->node, NULL,
+				con->l2cap->discon_timo * hz,
+				ng_l2cap_process_discon_timeout, NULL,
+				con->con_handle);
+
+	return (0);
 } /* ng_l2cap_discon_timeout */
 
 /*
  * Unset auto disconnect timeout
  */
 
-void
+int
 ng_l2cap_discon_untimeout(ng_l2cap_con_p con)
 {
-	untimeout(ng_l2cap_queue_discon_timeout, con, con->con_timo);
+	if (!(con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO))
+		panic(
+"%s: %s - no disconnect timeout, state=%d, flags=%#x\n",
+			__func__,  NG_NODE_NAME(con->l2cap->node),
+			con->state, con->flags);
+	
+	if (ng_untimeout(con->con_timo, con->l2cap->node) == 0)
+		return (ETIMEDOUT);
+
 	con->flags &= ~NG_L2CAP_CON_AUTO_DISCON_TIMO;
-	NG_NODE_UNREF(con->l2cap->node);
+
+	return (0);
 } /* ng_l2cap_discon_untimeout */
-
-/*
- *  Queue auto disconnect timeout
- */
-
-static void
-ng_l2cap_queue_discon_timeout(void *context)
-{
-	ng_l2cap_con_p	con = (ng_l2cap_con_p) context;
-	node_p		node = con->l2cap->node;
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node,NULL,&ng_l2cap_process_discon_timeout,con,0);
-
-	NG_NODE_UNREF(node);
-} /* ng_l2cap_queue_discon_timeout */
 
 /*
  * Free connection descriptor. Will unlink connection and free everything.
@@ -231,20 +242,13 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 {
 	ng_l2cap_chan_p f = NULL, n = NULL;
 
-	if (con->flags & NG_L2CAP_CON_LP_TIMO)
-		ng_l2cap_lp_untimeout(con);
-	else if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)
-		ng_l2cap_discon_untimeout(con);
-
 	con->state = NG_L2CAP_CON_CLOSED;
 
-	if (con->tx_pkt != NULL) {
-		while (con->tx_pkt != NULL) {
-			struct mbuf	*m = con->tx_pkt->m_nextpkt;
+	while (con->tx_pkt != NULL) {
+		struct mbuf	*m = con->tx_pkt->m_nextpkt;
 
-			m_freem(con->tx_pkt);
-			con->tx_pkt = m;
-		}
+		m_freem(con->tx_pkt);
+		con->tx_pkt = m;
 	}
 
 	NG_FREE_M(con->rx_pkt);
@@ -262,6 +266,8 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 		ng_l2cap_cmd_p	cmd = TAILQ_FIRST(&con->cmd_list);
 
 		ng_l2cap_unlink_cmd(cmd);
+		if (cmd->flags & NG_L2CAP_CMD_PENDING)
+			ng_l2cap_command_untimeout(cmd);
 		ng_l2cap_free_cmd(cmd);
 	}
 
@@ -378,6 +384,8 @@ ng_l2cap_free_chan(ng_l2cap_chan_p ch)
 
 		if (f->ch == ch) {
 			ng_l2cap_unlink_cmd(f);
+			if (f->flags & NG_L2CAP_CMD_PENDING)
+				ng_l2cap_command_untimeout(f);
 			ng_l2cap_free_cmd(f);
 		}
 
@@ -422,7 +430,7 @@ ng_l2cap_new_cmd(ng_l2cap_con_p con, ng_l2cap_chan_p ch, u_int8_t ident,
 } /* ng_l2cap_new_cmd */
  
 /*
- * Get L2CAP command descriptor by ident
+ * Get pending (i.e. initiated by local side) L2CAP command descriptor by ident
  */
 
 ng_l2cap_cmd_p
@@ -430,114 +438,107 @@ ng_l2cap_cmd_by_ident(ng_l2cap_con_p con, u_int8_t ident)
 {
 	ng_l2cap_cmd_p	cmd = NULL;
 
-	TAILQ_FOREACH(cmd, &con->cmd_list, next)
-		if (cmd->ident == ident)
+	TAILQ_FOREACH(cmd, &con->cmd_list, next) {
+		if ((cmd->flags & NG_L2CAP_CMD_PENDING) && cmd->ident == ident) {
+			KASSERT((cmd->con == con),
+("%s: %s - invalid connection pointer!\n",
+				__func__, NG_NODE_NAME(con->l2cap->node)));
+
 			break;
+		}
+	}
 
 	return (cmd);
 } /* ng_l2cap_cmd_by_ident */
 
 /*
  * Set LP timeout
+ * XXX FIXME: check con->con_timo.callout != NULL
  */
 
-void
+int
 ng_l2cap_lp_timeout(ng_l2cap_con_p con)
 {
 	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
-		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+		panic(
+"%s: %s - invalid timeout, state=%d, flags=%#x\n",
 			__func__, NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
 
-	NG_NODE_REF(con->l2cap->node);
 	con->flags |= NG_L2CAP_CON_LP_TIMO;
-	con->con_timo = timeout(ng_l2cap_queue_lp_timeout, con,
-				bluetooth_hci_connect_timeout());
+	con->con_timo = ng_timeout(con->l2cap->node, NULL,
+				bluetooth_hci_connect_timeout(),
+				ng_l2cap_process_lp_timeout, NULL,
+				con->con_handle);
+
+	return (0);
 } /* ng_l2cap_lp_timeout */
 
 /*
  * Unset LP timeout
  */
 
-void
+int
 ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 {
-	untimeout(ng_l2cap_queue_lp_timeout, con, con->con_timo);
+	if (!(con->flags & NG_L2CAP_CON_LP_TIMO))
+		panic(
+"%s: %s - no LP connection timeout, state=%d, flags=%#x\n",
+			__func__,  NG_NODE_NAME(con->l2cap->node),
+			con->state, con->flags);
+	
+	if (ng_untimeout(con->con_timo, con->l2cap->node) == 0)
+		return (ETIMEDOUT);
+
 	con->flags &= ~NG_L2CAP_CON_LP_TIMO;
-	NG_NODE_UNREF(con->l2cap->node);
+
+	return (0);
 } /* ng_l2cap_lp_untimeout */
 
 /*
- * OK, timeout has happend so queue LP timeout processing function
- */
-
-static void
-ng_l2cap_queue_lp_timeout(void *context)
-{
-	ng_l2cap_con_p	con = (ng_l2cap_con_p) context;
-	node_p		node = con->l2cap->node;
-
-	/*
-	 * We need to save node pointer here, because ng_send_fn()
-	 * can execute ng_l2cap_process_lp_timeout() without putting
-	 * item into node's queue (if node can be locked). Once 
-	 * ng_l2cap_process_lp_timeout() executed the con pointer 
-	 * is no longer valid.
-	 */
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node, NULL, &ng_l2cap_process_lp_timeout, con, 0);
-
-	NG_NODE_UNREF(node);
-} /* ng_l2cap_queue_lp_timeout */
-
-/*
  * Set L2CAP command timeout
+ * XXX FIXME: check cmd->timo.callout != NULL
  */
 
-void
+int
 ng_l2cap_command_timeout(ng_l2cap_cmd_p cmd, int timo)
 {
-	NG_NODE_REF(cmd->con->l2cap->node);
+	int	arg;
+
+	if (cmd->flags & NG_L2CAP_CMD_PENDING)
+		panic(
+"%s: %s - duplicated command timeout, code=%#x, flags=%#x\n",
+			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
+			cmd->code, cmd->flags);
+
+	arg = ((cmd->ident << 16) | cmd->con->con_handle);
 	cmd->flags |= NG_L2CAP_CMD_PENDING;
-	cmd->timo = timeout(ng_l2cap_queue_command_timeout, cmd, timo);
+	cmd->timo = ng_timeout(cmd->con->l2cap->node, NULL, timo,
+				ng_l2cap_process_command_timeout, NULL, arg);
+
+	return (0);
 } /* ng_l2cap_command_timeout */
 
 /*
  * Unset L2CAP command timeout
  */
 
-void
+int
 ng_l2cap_command_untimeout(ng_l2cap_cmd_p cmd)
 {
+	if (!(cmd->flags & NG_L2CAP_CMD_PENDING))
+		panic(
+"%s: %s - no command timeout, code=%#x, flags=%#x\n",
+			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
+			cmd->code, cmd->flags);
+
+	if (ng_untimeout(cmd->timo, cmd->con->l2cap->node) == 0)
+		return (ETIMEDOUT);
+
 	cmd->flags &= ~NG_L2CAP_CMD_PENDING;
-	untimeout(ng_l2cap_queue_command_timeout, cmd, cmd->timo);
-	NG_NODE_UNREF(cmd->con->l2cap->node);
+
+	return (0);
 } /* ng_l2cap_command_untimeout */
-
-/*
- * OK, timeout has happend so queue L2CAP command timeout processing function
- */
-
-static void
-ng_l2cap_queue_command_timeout(void *context)
-{
-	ng_l2cap_cmd_p	cmd = (ng_l2cap_cmd_p) context;
-	node_p		node = cmd->con->l2cap->node;
-
-	/*
-	 * We need to save node pointer here, because ng_send_fn()
-	 * can execute ng_l2cap_process_command_timeout() without
-	 * putting item into node's queue (if node can be locked).
-	 * Once ng_l2cap_process_command_timeout() executed the
-	 * cmd pointer is no longer valid.
-	 */
-
-	if (NG_NODE_IS_VALID(node))
-		ng_send_fn(node,NULL,&ng_l2cap_process_command_timeout,cmd,0);
-
-	NG_NODE_UNREF(node);
-} /* ng_l2cap_queue_command_timeout */
 
 /*
  * Prepend "m"buf with "size" bytes

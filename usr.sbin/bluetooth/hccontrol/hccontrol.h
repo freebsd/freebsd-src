@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hccontrol.h,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: hccontrol.h,v 1.2 2003/05/19 17:29:29 max Exp $
  * $FreeBSD$
  */
 
@@ -70,6 +70,7 @@ char const * const hci_features2str    (u_int8_t *, char *, int);
 char const * const hci_cc2str          (int);
 char const * const hci_con_state2str   (int);
 char const * const hci_status2str      (int);
+char const * const hci_bdaddr2str      (bdaddr_t const *);
 
 #endif /* _HCCONTROL_H_ */
 

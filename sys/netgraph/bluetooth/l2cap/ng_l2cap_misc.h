@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_misc.h,v 1.2 2003/04/28 21:44:59 max Exp $
+ * $Id: ng_l2cap_misc.h,v 1.3 2003/09/08 19:11:45 max Exp $
  * $FreeBSD$
  */
 
@@ -71,9 +71,6 @@ do { \
 
 #define ng_l2cap_free_cmd(cmd) \
 do { \
-	if ((cmd)->flags & NG_L2CAP_CMD_PENDING) \
-		ng_l2cap_command_untimeout((cmd)); \
-	\
 	NG_FREE_M((cmd)->aux); \
 	bzero((cmd), sizeof(*(cmd))); \
 	FREE((cmd), M_NETGRAPH_L2CAP); \
@@ -88,12 +85,12 @@ u_int8_t       ng_l2cap_get_ident    (ng_l2cap_con_p);
  * Timeout
  */
 
-void ng_l2cap_discon_timeout    (ng_l2cap_con_p);
-void ng_l2cap_discon_untimeout  (ng_l2cap_con_p);
-void ng_l2cap_lp_timeout        (ng_l2cap_con_p);
-void ng_l2cap_lp_untimeout      (ng_l2cap_con_p);
-void ng_l2cap_command_timeout   (ng_l2cap_cmd_p, int);
-void ng_l2cap_command_untimeout (ng_l2cap_cmd_p);
+int ng_l2cap_discon_timeout    (ng_l2cap_con_p);
+int ng_l2cap_discon_untimeout  (ng_l2cap_con_p);
+int ng_l2cap_lp_timeout        (ng_l2cap_con_p);
+int ng_l2cap_lp_untimeout      (ng_l2cap_con_p);
+int ng_l2cap_command_timeout   (ng_l2cap_cmd_p, int);
+int ng_l2cap_command_untimeout (ng_l2cap_cmd_p);
 
 /*
  * Other stuff

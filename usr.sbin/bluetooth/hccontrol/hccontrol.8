@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: hccontrol.8,v 1.3 2003/04/27 19:45:23 max Exp $
+.\" $Id: hccontrol.8,v 1.6 2003/08/06 21:26:38 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd June 14, 2002
@@ -33,7 +33,7 @@
 .Nd HCI configuration utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
+.Op Fl hN
 .Fl n Ar HCI_node_name
 .Ar command
 .Op Ar parameters ...
@@ -53,6 +53,11 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl h
 Display usage message and exit.
+.It Fl N
+Show Bluetooth addresses as numbers.
+Normally
+.Nm
+attempts to resolve Bluetooth addresses, and display them symbolically.
 .It Fl n Ar HCI_node_name
 Connect to the specified HCI Netgraph node.
 .It Ar command
@@ -118,6 +123,10 @@ are:
 .It Cm Write_SCO_Flow_Control_Enable
 .It Cm Read_Link_Supervision_Timeout
 .It Cm Write_Link_Supervision_Timeout
+.It Cm Read_Page_Scan_Period_Mode
+.It Cm Write_Page_Scan_Period_Mode
+.It Cm Read_Page_Scan_Mode
+.It Cm Write_Page_Scan_Mode
 .It Cm Read_Local_Version_Information
 .It Cm Read_Local_Supported_Features
 .It Cm Read_Buffer_Size

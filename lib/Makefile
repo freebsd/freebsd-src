@@ -23,12 +23,13 @@
 
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libncurses libradius librpcsvc libsbuf libtacplus libutil libypclnt \
-	${_compat} libalias ${_libatm} ${_libbind} libbz2 libc ${_libc_r} \
+	${_compat} libalias ${_libatm} ${_libbind} \
+	${_libbluetooth} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
 	libipx libisc libkiconv libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
-	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
+	${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
 	libstand libtelnet ${_libthr} libufs libugidfw ${_libusbhid} \
 	${_libvgl} libwrap libxpg4 liby libz
 
@@ -68,7 +69,9 @@ _libusbhid=	libusbhid
 
 .if ${MACHINE_ARCH} == "i386"
 _compat=	compat
+_libbluetooth=	libbluetooth
 _libncp=	libncp
+_libsdp=	libsdp
 _libsmb=	libsmb
 _libvgl=	libvgl
 .endif

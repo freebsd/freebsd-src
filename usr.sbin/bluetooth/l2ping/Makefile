@@ -1,12 +1,12 @@
-# $Id: Makefile,v 1.2 2003/03/15 03:07:49 max Exp $
+# $Id: Makefile,v 1.6 2003/08/14 20:06:24 max Exp $
 # $FreeBSD$
 
-DESTDIR=	/usr/sbin/
-MANDIR=		../share/man/man
 PROG=		l2ping
-MAN8=		l2ping.8
+MAN=		l2ping.8
 SRCS=		l2ping.c
 WARNS?=		2
-CFLAGS+=	-g -I${.CURDIR}/../../../sys/netgraph/bluetooth/include
+
+DPADD=		${LIBBLUETOOTH}
+LDADD=		-lbluetooth
 
 .include <bsd.prog.mk>

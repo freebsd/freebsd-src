@@ -25,14 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: host_controller_baseband.c,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: host_controller_baseband.c,v 1.4 2003/08/18 19:19:53 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/endian.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
 #include <stdio.h>
 #include <string.h>
 #include "hccontrol.h"
@@ -189,7 +187,7 @@ hci_read_stored_link_key(int s, int argc, char **argv)
 		}					ep;
 	} __attribute__ ((packed))			event;
 
-	int						n,a0,a1,a2,a3,a4,a5;
+	int						n, n1;
 
 	/* Send command */
 	memset(&cmd, 0, sizeof(cmd));
@@ -201,16 +199,14 @@ hci_read_stored_link_key(int s, int argc, char **argv)
 	switch (argc) {
 	case 1:
 		/* parse BD_ADDR */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x", &a5, &a4, &a3, &a2,
-				&a1, &a0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cmd.cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cmd.cp.bdaddr.b[0] = (a0 & 0xff);
-		cmd.cp.bdaddr.b[1] = (a1 & 0xff);
-		cmd.cp.bdaddr.b[2] = (a2 & 0xff);
-		cmd.cp.bdaddr.b[3] = (a3 & 0xff);
-		cmd.cp.bdaddr.b[4] = (a4 & 0xff);
-		cmd.cp.bdaddr.b[5] = (a5 & 0xff);
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cmd.cp.bdaddr, he->h_addr, sizeof(cmd.cp.bdaddr));
+		}
 		break;
 
 	default:
@@ -269,13 +265,11 @@ again:
 
 		k = (struct _key *)(event.ep.b + sizeof(event.ep.key));
 		for (n = 0; n < event.ep.key.num_keys; n++) {
-			fprintf(stdout, "\t%d: %02x:%02x:%02x:%02x:%02x:%02x ",
-				n + 1,
-				k->bdaddr.b[5], k->bdaddr.b[4], k->bdaddr.b[3],
-				k->bdaddr.b[2], k->bdaddr.b[1], k->bdaddr.b[0]);
+			fprintf(stdout, "\t%d: %s ",
+				n + 1, hci_bdaddr2str(&k->bdaddr));
 
-			for (a0 = 0; a0 < sizeof(k->key); a0++)
-				fprintf(stdout, "%02x", k->key[a0]);
+			for (n1 = 0; n1 < sizeof(k->key); n1++)
+				fprintf(stdout, "%02x", k->key[n1]);
 			fprintf(stdout, "\n");
 
 			k ++;
@@ -302,7 +296,7 @@ hci_write_stored_link_key(int s, int argc, char **argv)
 		u_int8_t			key[NG_HCI_KEY_SIZE];
 	}					cp;
 	ng_hci_write_stored_link_key_rp		rp;
-	int32_t					n, a0, a1, a2, a3, a4, a5;
+	int32_t					n;
 
 	memset(&cp, 0, sizeof(cp));
 
@@ -311,16 +305,14 @@ hci_write_stored_link_key(int s, int argc, char **argv)
 		cp.p.num_keys_write = 1;
 
 		/* parse BD_ADDR */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
-				&a5, &a4, &a3, &a2, &a1, &a0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cp.bdaddr.b[0] = (a0 & 0xff);
-		cp.bdaddr.b[1] = (a1 & 0xff);
-		cp.bdaddr.b[2] = (a2 & 0xff);
-		cp.bdaddr.b[3] = (a3 & 0xff);
-		cp.bdaddr.b[4] = (a4 & 0xff);
-		cp.bdaddr.b[5] = (a5 & 0xff);
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cp.bdaddr, he->h_addr, sizeof(cp.bdaddr));
+		}
 
 		/* parse key */
 		if (hci_hexstring2array(argv[1], cp.key, sizeof(cp.key)) < 0)
@@ -357,23 +349,21 @@ hci_delete_stored_link_key(int s, int argc, char **argv)
 {
 	ng_hci_delete_stored_link_key_cp	cp;
 	ng_hci_delete_stored_link_key_rp	rp;
-	int32_t					n, a0, a1, a2, a3, a4, a5;
+	int32_t					n;
 
 	memset(&cp, 0, sizeof(cp));
 
 	switch (argc) {
 	case 1:
 		/* parse BD_ADDR */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
-				&a5, &a4, &a3, &a2, &a1, &a0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cp.bdaddr.b[0] = (a0 & 0xff);
-		cp.bdaddr.b[1] = (a1 & 0xff);
-		cp.bdaddr.b[2] = (a2 & 0xff);
-		cp.bdaddr.b[3] = (a3 & 0xff);
-		cp.bdaddr.b[4] = (a4 & 0xff);
-		cp.bdaddr.b[5] = (a5 & 0xff);
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cp.bdaddr, he->h_addr, sizeof(cp.bdaddr));
+		}
 		break;
 
 	default:
@@ -1372,6 +1362,131 @@ hci_write_link_supervision_timeout(int s, int argc, char **argv)
 	return (OK);
 } /* hci_write_link_supervision_timeout */
 
+/* Send Read_Page_Scan_Period_Mode command to the unit */
+static int
+hci_read_page_scan_period_mode(int s, int argc, char **argv)
+{
+	ng_hci_read_page_scan_period_rp	rp;
+	int				n;
+
+	n = sizeof(rp);
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_READ_PAGE_SCAN_PERIOD),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "Page scan period mode: %#02x\n",
+		rp.page_scan_period_mode);
+
+	return (OK);
+} /* hci_read_page_scan_period_mode */
+
+/* Send Write_Page_Scan_Period_Mode command to the unit */
+static int
+hci_write_page_scan_period_mode(int s, int argc, char **argv)
+{
+	ng_hci_write_page_scan_period_cp	cp;
+	ng_hci_write_page_scan_period_rp	rp;
+	int					n;
+
+	/* parse command arguments */
+	switch (argc) {
+	case 1:
+		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 2)
+			return (USAGE);
+	
+		cp.page_scan_period_mode = (n & 0xff);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+	/* send command */
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_WRITE_PAGE_SCAN_PERIOD),
+			(char const *) &cp, sizeof(cp),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+} /* hci_write_page_scan_period_mode */
+
+/* Send Read_Page_Scan_Mode command to the unit */
+static int
+hci_read_page_scan_mode(int s, int argc, char **argv)
+{
+	ng_hci_read_page_scan_rp	rp;
+	int				n;
+
+	n = sizeof(rp);
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_READ_PAGE_SCAN),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "Page scan mode: %#02x\n", rp.page_scan_mode);
+
+	return (OK);
+} /* hci_read_page_scan_mode */
+
+/* Send Write_Page_Scan_Mode command to the unit */
+static int
+hci_write_page_scan_mode(int s, int argc, char **argv)
+{
+	ng_hci_write_page_scan_cp	cp;
+	ng_hci_write_page_scan_rp	rp;
+	int				n;
+
+	/* parse command arguments */
+	switch (argc) {
+	case 1:
+		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 3)
+			return (USAGE);
+	
+		cp.page_scan_mode = (n & 0xff);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+	/* send command */
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND,
+			NG_HCI_OCF_WRITE_PAGE_SCAN),
+			(char const *) &cp, sizeof(cp),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+} /* hci_write_page_scan_mode */
+
 struct hci_command	host_controller_baseband_commands[] = {
 {
 "reset",
@@ -1707,6 +1822,55 @@ struct hci_command	host_controller_baseband_commands[] = {
 "\t<connection_handle> - dddd; connection handle\n" \
 "\t<timeout>           - dddd; timeout measured in number of baseband slots\n",
 &hci_write_link_supervision_timeout
+},
+{
+"read_page_scan_period_mode",
+"\nThis command is used to read the mandatory Page_Scan_Period_Mode of the\n" \
+"local Bluetooth device. Every time an inquiry response message is sent, the\n"\
+"Bluetooth device will start a timer (T_mandatory_pscan), the value of which\n"\
+"is dependent on the Page_Scan_Period_Mode. As long as this timer has not\n" \
+"expired, the Bluetooth device will use the Page_Scan_Period_Mode for all\n" \
+"following page scans.",
+&hci_read_page_scan_period_mode
+},
+{
+"write_page_scan_period_mode <page_scan_period_mode>",
+"\nThis command is used to write the mandatory Page_Scan_Period_Mode of the\n" \
+"local Bluetooth device. Every time an inquiry response message is sent, the\n"\
+"Bluetooth device will start a timer (T_mandatory_pscan), the value of which\n"\
+"is dependent on the Page_Scan_Period_Mode. As long as this timer has not\n" \
+"expired, the Bluetooth device will use the Page_Scan_Period_Mode for all\n" \
+"following page scans.\n\n" \
+"\t<page_scan_period_mode> - dd; page scan period mode:\n" \
+"\t0x00 - P0 (Default)\n" \
+"\t0x01 - P1\n" \
+"\t0x02 - P2",
+&hci_write_page_scan_period_mode
+},
+{
+"read_page_scan_mode",
+"\nThis command is used to read the default page scan mode of the local\n" \
+"Bluetooth device. The Page_Scan_Mode parameter indicates the page scan mode\n"\
+"that is used for the default page scan. Currently one mandatory page scan\n"\
+"mode and three optional page scan modes are defined. Following an inquiry\n" \
+"response, if the Baseband timer T_mandatory_pscan has not expired, the\n" \
+"mandatory page scan mode must be applied.",
+&hci_read_page_scan_mode
+},
+{
+"write_page_scan_mode <page_scan_mode>",
+"\nThis command is used to write the default page scan mode of the local\n" \
+"Bluetooth device. The Page_Scan_Mode parameter indicates the page scan mode\n"\
+"that is used for the default page scan. Currently, one mandatory page scan\n"\
+"mode and three optional page scan modes are defined. Following an inquiry\n"\
+"response, if the Baseband timer T_mandatory_pscan has not expired, the\n" \
+"mandatory page scan mode must be applied.\n\n" \
+"\t<page_scan_mode> - dd; page scan mode:\n" \
+"\t0x00 - Mandatory Page Scan Mode (Default)\n" \
+"\t0x01 - Optional Page Scan Mode I\n" \
+"\t0x02 - Optional Page Scan Mode II\n" \
+"\t0x03 - Optional Page Scan Mode III",
+&hci_write_page_scan_mode
 },
 { NULL, }
 };
