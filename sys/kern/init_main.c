@@ -43,6 +43,7 @@
  */
 
 #include "opt_init_path.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -496,6 +497,10 @@ start_init(void *dummy)
 
 #ifdef BOOTCDROM
 		(void)subyte(--ucp, 'C');
+		options = 1;
+#endif
+#ifdef DEVFS
+		(void)subyte(--ucp, 'd');
 		options = 1;
 #endif
 		if (options == 0)

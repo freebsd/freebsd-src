@@ -10,6 +10,8 @@
  *
  */
 
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -21,6 +23,12 @@
 #include <sys/sysctl.h>
 #include <machine/md_var.h>
 
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#include <sys/ctype.h>
+#endif
+
 MALLOC_DEFINE(M_DISK, "disk", "disk data");
 
 static d_strategy_t diskstrategy;
@@ -30,7 +38,65 @@ static d_ioctl_t diskioctl;
 static d_psize_t diskpsize;
 
 static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
- 
+
+#ifdef DEVFS
+static void
+disk_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	struct disk *dp;
+	char const *d;
+	int i, u, s, p;
+	dev_t pdev;
+
+	if (*dev != NODEV)
+		return;
+
+	LIST_FOREACH(dp, &disklist, d_list) {
+		d = dp->d_devsw->d_name;
+		i = strlen(d);
+		if (bcmp(d, name, i) != 0)
+			continue;
+		u = 0;
+		if (!isdigit(name[i]))
+			continue;
+		while (isdigit(name[i])) {
+			u *= 10;
+			u += name[i++] - '0';
+		}
+		p = RAW_PART;
+		s = WHOLE_DISK_SLICE;
+		pdev = makedev(dp->d_devsw->d_maj, dkmakeminor(u, s, p));
+		if (pdev->si_disk == NULL)
+			continue;
+		if (name[i] != '\0') {
+			if (name[i] == 's') {
+				s = 0;
+				i++;
+				if (!isdigit(name[i]))
+					continue;
+				while (isdigit(name[i])) {
+					s *= 10;
+					s += name[i++] - '0';
+				}
+				s += BASE_SLICE - 1;
+			} else {
+				s = COMPATIBILITY_SLICE;
+			}
+			if (name[i] == '\0')
+				;
+			else if (name[i] < 'a' || name[i] > 'h')
+				continue;
+			else
+				p = name[i] - 'a';
+		}
+
+		*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+		    UID_ROOT, GID_OPERATOR, 0640, name);
+		return;
+	}
+}
+#endif
+
 static void
 inherit_raw(dev_t pdev, dev_t dev)
 {
@@ -45,6 +111,7 @@ inherit_raw(dev_t pdev, dev_t dev)
 dev_t
 disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
 {
+	static int once;
 	dev_t dev;
 
 	bzero(dp, sizeof(*dp));
@@ -63,13 +130,19 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	if (bootverbose)
 		printf("Creating DISK %s%d\n", cdevsw->d_name, unit);
 	dev = make_dev(proto, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
-	    0, 0, 0, "%s%d", cdevsw->d_name, unit);
+	    UID_ROOT, GID_OPERATOR, 0640, "%s%d", cdevsw->d_name, unit);
 
 	dev->si_disk = dp;
 	dp->d_dev = dev;
 	dp->d_dsflags = flags;
 	dp->d_devsw = cdevsw;
 	LIST_INSERT_HEAD(&disklist, dp, d_list);
+	if (!once) {
+#ifdef DEVFS
+		EVENTHANDLER_REGISTER(devfs_clone, disk_clone, 0, 1000);
+#endif
+		once++;
+	}
 	return (dev);
 }
 

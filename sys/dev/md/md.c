@@ -11,7 +11,8 @@
  */
 
 #include "opt_mfs.h"		/* We have adopted some tasks from MFS */
-#include "opt_md.h"		/* We have adopted some tasks from MFS */
+#include "opt_md.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -23,6 +24,12 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/linker.h>
+#include <sys/queue.h>
+
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -52,7 +59,7 @@ static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 
 static int mdrootready;
 
-static void mdcreate_malloc(void);
+static void mdcreate_malloc(int unit);
 
 #define CDEV_MAJOR	95
 #define BDEV_MAJOR	22
@@ -82,8 +89,11 @@ static struct cdevsw md_cdevsw = {
 
 static struct cdevsw mddisk_cdevsw;
 
+static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
+
 struct md_s {
 	int unit;
+	LIST_ENTRY(md_s) list;
 	struct devstat stats;
 	struct bio_queue_head bio_queue;
 	struct disk disk;
@@ -114,8 +124,10 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 			devtoname(dev), flag, fmt, p);
 
 	sc = dev->si_drv1;
+#ifndef DEVFS
 	if (sc->unit + 1 == mdunits)
-		mdcreate_malloc();
+		mdcreate_malloc(-1);
+#endif
 
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
@@ -341,13 +353,21 @@ mdstrategy_preload(struct bio *bp)
 }
 
 static struct md_s *
-mdcreate(void)
+mdcreate(int unit)
 {
 	struct md_s *sc;
 
+	if (unit == -1)
+		unit = mdunits++;
+	/* Make sure this unit isn't already in action */
+	LIST_FOREACH(sc, &md_softc_list, list) {
+		if (sc->unit == unit)
+			return (NULL);
+	}
 	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK);
 	bzero(sc, sizeof(*sc));
-	sc->unit = mdunits++;
+	LIST_INSERT_HEAD(&md_softc_list, sc, list);
+	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
 	devstat_add_entry(&sc->stats, "md", sc->unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
@@ -363,7 +383,7 @@ mdcreate_preload(u_char *image, unsigned length)
 {
 	struct md_s *sc;
 
-	sc = mdcreate();
+	sc = mdcreate(-1);
 	sc->type = MD_PRELOAD;
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
@@ -374,11 +394,14 @@ mdcreate_preload(u_char *image, unsigned length)
 }
 
 static void
-mdcreate_malloc(void)
+mdcreate_malloc(int unit)
 {
 	struct md_s *sc;
 
-	sc = mdcreate();
+	sc = mdcreate(unit);
+	if (sc == NULL)
+		return;
+
 	sc->type = MD_MALLOC;
 
 	sc->nsect = MD_NSECT;	/* for now */
@@ -387,6 +410,28 @@ mdcreate_malloc(void)
 	sc->nsecp = 1;
 	printf("md%d: Malloc disk\n", sc->unit);
 }
+
+#ifdef DEVFS
+static void
+md_clone (void *arg, char *name, int namelen, dev_t *dev)
+{
+	int i, u;
+
+	if (*dev != NODEV)
+		return;
+	i = devfs_stdclone(name, NULL, "md", &u);
+	if (i == 0)
+		return;
+	/* XXX: should check that next char is [\0sa-h] */
+	/*
+	 * Now we cheat: We just create the disk, but don't match.
+	 * Since we run before it, subr_disk.c::disk_clone() will
+	 * find our disk and match the sought for device.
+	 */
+	mdcreate_malloc(u);
+	return;
+}
+#endif
 
 static void
 md_drvinit(void *unused)
@@ -418,7 +463,11 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		mdcreate_preload(ptr, len);
 	} 
-	mdcreate_malloc();
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, md_clone, 0, 999);
+#else
+	mdcreate_malloc(-1);
+#endif
 }
 
 SYSINIT(mddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, md_drvinit,NULL)
@@ -433,3 +482,4 @@ md_takeroot(void *junk)
 
 SYSINIT(md_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, md_takeroot, NULL);
 #endif
+

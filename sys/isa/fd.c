@@ -52,6 +52,7 @@
  */
 
 #include "opt_fdc.h"
+#include "opt_devfs.h"
 #include "card.h"
 
 #include <sys/param.h>
@@ -82,6 +83,12 @@
 #include <isa/fdreg.h>
 #include <isa/fdc.h>
 #include <isa/rtc.h>
+
+#ifdef DEVFS
+#include <sys/ctype.h>
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 /* misuse a flag to identify format operation */
 
@@ -945,6 +952,67 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
+#ifdef DEVFS
+static void fd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static struct {
+	char *match;
+	int minor;
+	int link;
+} fd_suffix[] = {
+	{ "a",		0,	1 },
+	{ "b",		0,	1 },
+	{ "c",		0,	1 },
+	{ "d",		0,	1 },
+	{ "e",		0,	1 },
+	{ "f",		0,	1 },
+	{ "g",		0,	1 },
+	{ "h",		0,	1 },
+	{ ".1720",	1,	0 },
+	{ ".1480",	2,	0 },
+	{ ".1440",	3,	0 },
+	{ ".1200",	4,	0 },
+	{ ".820",	5,	0 },
+	{ ".800",	6,	0 },
+	{ ".720",	7,	0 },
+	{ ".360",	8,	0 },
+	{ ".640",	9,	0 },
+	{ ".1232",	10,	0 },
+	{ 0, 0 }
+};
+static void
+fd_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u, d, i;
+	char *n;
+	dev_t pdev;
+
+	if (*dev != NODEV)
+		return;
+	if (devfs_stdclone(name, &n, "fd", &u) != 2)
+		return;
+	for (i = 0; ; i++) {
+		if (fd_suffix[i].match == NULL)
+			return;
+		if (strcmp(n, fd_suffix[i].match))
+			continue;
+		d = fd_suffix[i].minor;
+		break;
+	}
+	if (fd_suffix[i].link == 0) {
+		*dev = make_dev(&fd_cdevsw, (u << 6) + d,
+			UID_ROOT, GID_OPERATOR, 0640, name);
+	} else {
+		pdev = makedev(fd_cdevsw.d_maj, (u << 6) + d);
+		*dev = make_dev_alias(pdev, name);
+	}
+}
+#endif
+
 /******************************************************************/
 /*
  * devices attached to the controller section.  
@@ -1095,26 +1163,22 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-#if 0
-	int	i;
-	int	mynor;
-	int	typemynor;
-	int	typesize;
-#endif
-	static int cdevsw_add_done = 0;
 
 	fd = device_get_softc(dev);
 
+#ifndef DEVFS
+	{
+	static int cdevsw_add_done = 0;
 	if (!cdevsw_add_done) {
 	    cdevsw_add(&fd_cdevsw);	/* XXX */
 	    cdevsw_add_done++;
 	}
-	make_dev(&fd_cdevsw, (fd->fdu << 6),
-		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
-
-#if 0
-	/* Other make_dev() go here. */
+	}
+#else
+	EVENTHANDLER_REGISTER(devfs_clone, fd_clone, 0, 1000);
 #endif
+	make_dev(&fd_cdevsw, (fd->fdu << 6),
+		UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 
 	/*
 	 * Export the drive to the devstat interface.

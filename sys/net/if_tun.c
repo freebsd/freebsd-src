@@ -17,6 +17,7 @@
  */
 
 #include "opt_inet.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -49,6 +50,11 @@
 
 #include <net/if_tunvar.h>
 #include <net/if_tun.h>
+
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 static MALLOC_DEFINE(M_TUN, "tun", "Tunnel Interface");
 
@@ -91,12 +97,40 @@ static struct cdevsw tun_cdevsw = {
 	/* bmaj */	-1
 };
 
+#ifdef DEVFS
+static void tun_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static void
+tun_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (devfs_stdclone(name, NULL, "tun", &u) != 1)
+		return;
+	/* XXX: minor encoding if u > 255 */
+	*dev = make_dev(&tun_cdevsw, u,
+	    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
+
+}
+#endif
+	
+
 static void
 tunattach(dummy)
 	void *dummy;
 {
 
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, tun_clone, 0, 1000);
+#else
 	cdevsw_add(&tun_cdevsw);
+#endif
 }
 
 static void

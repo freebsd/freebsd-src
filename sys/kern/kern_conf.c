@@ -195,22 +195,12 @@ makebdev(int x, int y)
 	return (makedev(bmaj2cmaj[x], y));
 }
 
-dev_t
-makedev(int x, int y)
+static dev_t
+allocdev(void)
 {
-	struct specinfo *si;
-	udev_t	udev;
-	int hash;
 	static int stashed;
+	struct specinfo *si;
 
-	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
-		Debugger("makedev of NOUDEV");
-	udev = (x << 8) | y;
-	hash = udev % DEVT_HASH;
-	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
-		if (si->si_udev == udev)
-			return (si);
-	}
 	if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
 		    M_USE_RESERVE);
@@ -222,6 +212,26 @@ makedev(int x, int y)
 		si = devt_stash + stashed++;
 		si->si_flags |= SI_STASHED;
 	}
+	LIST_INIT(&si->si_names);
+	return (si);
+}
+
+dev_t
+makedev(int x, int y)
+{
+	struct specinfo *si;
+	udev_t	udev;
+	int hash;
+
+	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
+		Debugger("makedev of NOUDEV");
+	udev = (x << 8) | y;
+	hash = udev % DEVT_HASH;
+	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
+		if (si->si_udev == udev)
+			return (si);
+	}
+	si = allocdev();
 	si->si_udev = udev;
 	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
         return (si);
@@ -230,7 +240,7 @@ makedev(int x, int y)
 void
 freedev(dev_t dev)
 {
-	int hash;
+	dev_t adev;
 
 	if (!free_devt)
 		return;
@@ -238,7 +248,11 @@ freedev(dev_t dev)
 		return;
 	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2)
 		return;
-	hash = dev->si_udev % DEVT_HASH;
+	while (!LIST_EMPTY(&dev->si_names)) {
+		adev = LIST_FIRST(&dev->si_names);
+		adev->si_drv1 = NULL;
+		freedev(adev);
+	}
 	LIST_REMOVE(dev, si_hash);
 	if (dev->si_flags & SI_STASHED) {
 		bzero(dev, sizeof(*dev));
@@ -304,9 +318,34 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	dev->si_name[i] = '\0';
 	va_end(ap);
 	dev->si_devsw = devsw;
+	dev->si_uid = uid;
+	dev->si_gid = gid;
+	dev->si_mode = perms;
 
 	if (devfs_create_hook)
-		devfs_create_hook(dev, uid, gid, perms);
+		devfs_create_hook(dev);
+	return (dev);
+}
+
+dev_t
+make_dev_alias(dev_t pdev, char *fmt, ...)
+{
+	dev_t	dev;
+	va_list ap;
+	int i;
+
+	dev = allocdev();
+	dev->si_flags |= SI_ALIAS;
+	dev->si_drv1 = pdev;
+	LIST_INSERT_HEAD(&pdev->si_names, dev, si_hash);
+
+	va_start(ap, fmt);
+	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
+	dev->si_name[i] = '\0';
+	va_end(ap);
+
+	if (devfs_create_hook)
+		devfs_create_hook(dev);
 	return (dev);
 }
 

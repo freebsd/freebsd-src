@@ -62,9 +62,6 @@ extern cc_t ttydefchars;
 #include "opt_devfs.h"
 #endif
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #endif /* __FreeBSD__ */
 
@@ -137,9 +134,6 @@ static struct rbch_softc {
 	struct selinfo selp;		/* select / poll	*/
 
 #if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-	void *devfs_token;		/* device filesystem	*/
-#endif	
 #endif
 
 #if I4BRBCHACCT
@@ -298,12 +292,6 @@ i4brbchattach()
 #if defined(__FreeBSD__)
 #if __FreeBSD__ == 3
 
-#ifdef DEVFS
-		rbch_softc[i].devfs_token =
-			devfs_add_devswf(&i4brbch_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4brbch%d", i);
-#endif
 
 #else
 		make_dev(&i4brbch_cdevsw, i,

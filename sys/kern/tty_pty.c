@@ -39,6 +39,7 @@
  * (Actually two drivers, requiring two entries in 'cdevsw')
  */
 #include "opt_compat.h"
+#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -54,12 +55,17 @@
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
 
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
+
 MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
 static void ptsstart __P((struct tty *tp));
 static void ptsstop __P((struct tty *tp, int rw));
 static void ptcwakeup __P((struct tty *tp, int flag));
-static void ptyinit __P((int n));
+static dev_t ptyinit __P((int n));
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -135,7 +141,7 @@ struct	pt_ioctl {
  * XXX: define and add mapping of upper minor bits to allow more 
  *      than 256 ptys.
  */
-static void
+static dev_t
 ptyinit(n)
 	int n;
 {
@@ -145,7 +151,7 @@ ptyinit(n)
 
 	/* For now we only map the lower 8 bits of the minor */
 	if (n & ~0xff)
-		return;
+		return (NODEV);
 
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK);
 	bzero(pt, sizeof(*pt));
@@ -157,6 +163,7 @@ ptyinit(n)
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;
 	ttyregister(&pt->pt_tty);
+	return (devc);
 }
 
 /*ARGSUSED*/
@@ -168,24 +175,25 @@ ptsopen(dev, flag, devtype, p)
 {
 	register struct tty *tp;
 	int error;
-	int minr;
-	dev_t nextdev;
 	struct pt_ioctl *pti;
 
+#ifndef DEVFS
+	{
+	int minr = lminor(dev);
 	/*
-	 * XXX: Gross hack for DEVFS:
 	 * If we openned this device, ensure we have the
 	 * next one too, so people can open it.
 	 */
-	minr = lminor(dev);
 	if (minr < 255) {
-		nextdev = makedev(major(dev), minr + 1);
+		dev_t nextdev = makedev(major(dev), minr + 1);
 		if (!nextdev->si_drv1) {
 			ptyinit(minr + 1);
 		}
 	}
 	if (!dev->si_drv1)
 		ptyinit(minor(dev));
+	}
+#endif
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	pti = dev->si_drv1;
@@ -347,8 +355,10 @@ ptcopen(dev, flag, devtype, p)
 	register struct tty *tp;
 	struct pt_ioctl *pti;
 
+#ifndef DEVFS
 	if (!dev->si_drv1)
 		ptyinit(minor(dev));
+#endif
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	tp = dev->si_tty;
@@ -816,14 +826,59 @@ ptyioctl(dev, cmd, data, flag, p)
 
 static void ptc_drvinit __P((void *unused));
 
+#ifdef DEVFS
+static void pty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static void
+pty_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (bcmp(name, "pty", 3) != 0)
+		return;
+	if (name[5] != '\0')
+		return;
+	switch (name[3]) {
+	case 'p': u =   0; break;
+	case 'q': u =  32; break;
+	case 'r': u =  64; break;
+	case 's': u =  96; break;
+	case 'P': u = 128; break;
+	case 'Q': u = 160; break;
+	case 'R': u = 192; break;
+	case 'S': u = 224; break;
+	default: return;
+	}
+	if (name[4] >= '0' && name[4] <= '9')
+		u += name[4] - '0';
+	else if (name[4] >= 'a' && name[4] <= 'v')
+		u += name[4] - 'a' + 10;
+	else
+		return;
+	*dev = ptyinit(u);
+	return;
+}
+
+
+#endif
+
 static void
 ptc_drvinit(unused)
 	void *unused;
 {
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, pty_clone, 0, 1000);
+#else
 	cdevsw_add(&pts_cdevsw);
 	cdevsw_add(&ptc_cdevsw);
-	/* XXX: Gross hack for DEVFS */
 	ptyinit(0);
+#endif
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
