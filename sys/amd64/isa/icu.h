@@ -61,10 +61,8 @@ void	INTRDIS			__P((u_int));
 
 #ifdef APIC_IO
 extern	unsigned apic_imen;	/* APIC interrupt mask enable */
-#define APIC_IMEN_BITS	32	/* number of bits in apic_imen */
 #else
 extern	unsigned imen;		/* interrupt mask enable */
-#define IMEN_BITS	16	/* number of bits in imen */
 #endif
 
 #endif /* LOCORE */
@@ -108,7 +106,6 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	IRQ_SLAVE	0x0080
 #endif
 
-
 /*
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
@@ -116,14 +113,16 @@ extern	unsigned imen;		/* interrupt mask enable */
 
 #ifdef APIC_IO
 
-/* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ31 */
+/* 32-47: ISA IRQ0-IRQ15, 48-63: IO APIC IRQ16-IRQ31 */
 #define	ICU_LEN		32
 #define	HWI_MASK	0xffffffff	/* bits for h/w interrupts */
+#define	NHWI		32
 
 #else
 
 #define	ICU_LEN		16		/* 32-47 are ISA interrupts */
 #define	HWI_MASK	0xffff		/* bits for h/w interrupts */
+#define	NHWI		16
 
 #endif /* APIC_IO */
 
