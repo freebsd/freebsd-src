@@ -78,8 +78,16 @@ struct nbpcb {
 /*
  * Nominal space allocated per a NETBIOS socket.
  */
-#define	NB_SNDQ		(10 * 1024)
-#define	NB_RCVQ		(20 * 1024)
+#define	NB_SNDQ		(64 * 1024)
+#define	NB_RCVQ		(64 * 1024)
+
+/*
+ * TCP slowstart presents a problem in conjunction with large
+ * reads.  To ensure a steady stream of ACKs while reading using
+ * large transaction sizes, we call soreceive() with a smaller
+ * buffer size.  See nbssn_recv().
+ */
+#define NB_SORECEIVE_CHUNK	(8 * 1024)
 
 extern struct smb_tran_desc smb_tran_nbtcp_desc;
 
