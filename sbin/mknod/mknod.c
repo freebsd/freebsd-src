@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mknod.c,v 1.8 1998/07/06 07:06:15 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -71,7 +71,7 @@ main(argc, argv)
 {
 	dev_t dev;
 	char *endp;
-	long major, minor;
+	long mymajor, myminor;
 	mode_t mode;
 	int range_error;
 
@@ -87,17 +87,17 @@ main(argc, argv)
 		errx(1, "node must be type 'b' or 'c'");
 
 	errno = 0;
-	major = (long)strtoul(argv[3], &endp, 0);
+	mymajor = (long)strtoul(argv[3], &endp, 0);
 	if (endp == argv[3] || *endp != '\0')
 		errx(1, "%s: non-numeric major number", argv[3]);
 	range_error = errno;
 	errno = 0;
-	minor = (long)strtoul(argv[4], &endp, 0);
+	myminor = (long)strtoul(argv[4], &endp, 0);
 	if (endp == argv[4] || *endp != '\0')
 		errx(1, "%s: non-numeric minor number", argv[4]);
 	range_error |= errno;
-	dev = makedev(major, minor);
-	if (range_error || major(dev) != major || minor(dev) != minor)
+	dev = makedev(mymajor, myminor);
+	if (range_error || major(dev) != mymajor || minor(dev) != myminor)
 		errx(1, "major or minor number too large");
 
 	if (mknod(argv[1], mode, dev) != 0)
