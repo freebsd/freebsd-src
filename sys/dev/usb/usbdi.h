@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.33 1999/11/17 23:00:50 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.39 2000/01/19 00:23:59 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -70,18 +70,23 @@ typedef enum {		/* keep in sync with usbd_status_msgs */
 	USBD_ERROR_MAX,		/* must be last */
 } usbd_status;
 
-typedef int usbd_lock_token;
-
 typedef void (*usbd_callback) __P((usbd_xfer_handle, usbd_private_handle,
 				   usbd_status));
 
 /* Open flags */
 #define USBD_EXCLUSIVE_USE	0x01
 
+/* Use default (specified by ep. desc.) interval on interrupt pipe */
+#define USBD_DEFAULT_INTERVAL	(-1)
+
 /* Request flags */
 #define USBD_NO_COPY		0x01	/* do not copy data to DMA buffer */
 #define USBD_SYNCHRONOUS	0x02	/* wait for completion */
 /* in usb.h #define USBD_SHORT_XFER_OK	0x04*/	/* allow short reads */
+#define USBD_FORCE_SHORT_XFER	0x08	/* force last short packet on write */
+
+/* XXX Temporary hack XXX */
+#define USBD_NO_TSLEEP		0x80	/* XXX use busy wait */
 
 #define USBD_NO_TIMEOUT 0
 #define USBD_DEFAULT_TIMEOUT 5000 /* ms = 5 s */
@@ -137,7 +142,7 @@ usbd_status usbd_open_pipe_intr
 	__P((usbd_interface_handle iface, u_int8_t address,
 	     u_int8_t flags, usbd_pipe_handle *pipe,
 	     usbd_private_handle priv, void *buffer,
-	     u_int32_t length, usbd_callback));
+	     u_int32_t length, usbd_callback, int));
 usbd_status usbd_do_request 
 	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_async
@@ -171,6 +176,13 @@ void usbd_set_polling __P((usbd_interface_handle iface, int on));
 const char *usbd_errstr __P((usbd_status err));
 
 void usbd_add_event __P((int, usbd_device_handle));
+
+void usbd_devinfo __P((usbd_device_handle, int, char *));
+struct usbd_quirks *usbd_get_quirks __P((usbd_device_handle));
+usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
+	__P((usbd_interface_handle iface, u_int8_t address));
+
+usbd_status usbd_reload_device_desc __P((usbd_device_handle));
 
 /* NetBSD attachment information */
 
@@ -231,17 +243,17 @@ struct usb_attach_arg {
 
 #endif
 
-void usbd_devinfo __P((usbd_device_handle, int, char *));
-struct usbd_quirks *usbd_get_quirks __P((usbd_device_handle));
-usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
-	__P((usbd_interface_handle iface, u_int8_t address));
-
 #if defined(__FreeBSD__)
 int usbd_driver_load    __P((module_t mod, int what, void *arg));
 #endif
 
+/*
+ * XXX
+ * splusb MUST be the lowest level interrupt so that within USB callbacks
+ * the level can be raised the appropriate level.
+ * XXX Should probably use a softsplusb.
+ */
 /* XXX */
 #define splusb splbio
 #define IPL_USB IPL_BIO
 /* XXX */
-

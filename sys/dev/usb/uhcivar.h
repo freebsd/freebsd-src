@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcivar.h,v 1.16 1999/10/13 08:10:56 augustss Exp $	*/
+/*	$NetBSD: uhcivar.h,v 1.21 2000/01/18 20:11:01 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -92,7 +92,7 @@ struct uhci_soft_td {
 };
 /* 
  * Make the size such that it is a multiple of UHCI_TD_ALIGN.  This way
- * we can pack a number of soft TD together and have the real TS well
+ * we can pack a number of soft TD together and have the real TD well
  * aligned.
  * NOTE: Minimum size is 32 bytes.
  */
@@ -116,7 +116,7 @@ struct uhci_soft_qh {
 #define UHCI_SQH_CHUNK 128 /*(PAGE_SIZE / UHCI_QH_SIZE)*/
 
 /*
- * Information about an entry in the virtial frame list.
+ * Information about an entry in the virtual frame list.
  */
 struct uhci_vframe {
 	uhci_soft_td_t *htd;		/* pointer to dummy TD */
@@ -140,31 +140,34 @@ typedef struct uhci_softc {
 	uhci_soft_qh_t *sc_bulk_start;	/* dummy QH for bulk */
 	uhci_soft_qh_t *sc_bulk_end;	/* last bulk transfer */
 
-	uhci_soft_td_t *sc_freetds;
-	uhci_soft_qh_t *sc_freeqhs;
+	uhci_soft_td_t *sc_freetds;	/* TD free list */
+	uhci_soft_qh_t *sc_freeqhs;	/* QH free list */
+
+	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers; /* free xfers */
 
 	u_int8_t sc_addr;		/* device address */
 	u_int8_t sc_conf;		/* device configuration */
 
 	char sc_isreset;
-
 	char sc_suspend;
-	usbd_xfer_handle sc_has_timo;
 
 	LIST_HEAD(, uhci_intr_info) sc_intrhead;
 
 	/* Info for the root hub interrupt channel. */
-	int sc_ival;
+	int sc_ival;			/* time between root hug intrs */
+	usbd_xfer_handle sc_has_timo;	/* root hub interrupt transfer */
 
-	char sc_vflock;
+	char sc_vflock;			/* for lock virtual frame list */
 #define UHCI_HAS_LOCK 1
 #define UHCI_WANT_LOCK 2
 
-	char sc_vendor[16];
-	int sc_id_vendor;
+	char sc_vendor[16];		/* vendor string for root hub */
+	int sc_id_vendor;		/* vendor ID for root hub */
 
-	void *sc_powerhook;
-	device_ptr_t sc_child;
+	void *sc_powerhook;		/* cookie from power hook */
+	void *sc_shutdownhook;		/* cookie from shutdown hook */
+
+	device_ptr_t sc_child;		/* /dev/usb device */
 } uhci_softc_t;
 
 usbd_status	uhci_init __P((uhci_softc_t *));

@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.41 1999/11/18 23:32:37 augustss Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.46 2000/01/19 01:16:40 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -55,6 +55,9 @@ struct usbd_bus_methods {
 	usbd_status	      (*allocm)__P((struct usbd_bus *, usb_dma_t *,
 					    u_int32_t bufsize));
 	void		      (*freem)__P((struct usbd_bus *, usb_dma_t *));
+	struct usbd_xfer *    (*allocx)__P((struct usbd_bus *));
+	void		      (*freex)__P((struct usbd_bus *,
+					   struct usbd_xfer *));
 };
 
 struct usbd_pipe_methods {
@@ -114,26 +117,26 @@ struct usbd_bus {
 };
 
 struct usbd_device {
-	struct usbd_bus	       *bus;
-	struct usbd_pipe       *default_pipe;
-	u_int8_t		address;
-	u_int8_t		depth;
-	u_int8_t		lowspeed;
-	u_int16_t		power;
-	u_int8_t		self_powered;
-	int			config;
-	int			langid;	/* language to use for strings */
+	struct usbd_bus	       *bus;           /* our controller */
+	struct usbd_pipe       *default_pipe;  /* pipe 0 */
+	u_int8_t		address;       /* device addess */
+	u_int8_t		config;	       /* current configuration # */
+	u_int8_t		depth;         /* distance from root hub */
+	u_int8_t		lowspeed;      /* lowspeed flag */
+	u_int8_t		self_powered;  /* flag for self powered */
+	u_int16_t		power;         /* mA the device uses */
+	int16_t			langid;	       /* language for strings */
 #define USBD_NOLANG (-1)
-	usb_event_cookie_t	cookie;	/* unique connection id */
-	struct usbd_port       *powersrc;
-	struct usbd_endpoint	def_ep;	/* for pipe 0 */
+	usb_event_cookie_t	cookie;	       /* unique connection id */
+	struct usbd_port       *powersrc;      /* upstream hub port, or 0 */
+	struct usbd_endpoint	def_ep;	       /* for pipe 0 */
 	usb_endpoint_descriptor_t def_ep_desc; /* for pipe 0 */
-	struct usbd_interface  *ifaces;
-	usb_device_descriptor_t ddesc;
-	usb_config_descriptor_t *cdesc;	/* full config descr */
-	struct usbd_quirks     *quirks;
-	struct usbd_hub	       *hub; /* only if this is a hub */
-	device_ptr_t	       *subdevs;	/* sub-devices, 0 terminated */
+	struct usbd_interface  *ifaces;        /* array of all interfaces */
+	usb_device_descriptor_t ddesc;         /* device descriptor */
+	usb_config_descriptor_t *cdesc;	       /* full config descr */
+	struct usbd_quirks     *quirks;        /* device quirks, always set */
+	struct usbd_hub	       *hub;           /* only if this is a hub */
+	device_ptr_t	       *subdevs;       /* sub-devices, 0 terminated */
 };
 
 struct usbd_interface {
@@ -155,8 +158,9 @@ struct usbd_pipe {
 	SIMPLEQ_HEAD(, usbd_xfer) queue;
 	LIST_ENTRY(usbd_pipe)	next;
 
-	usbd_xfer_handle     intrxfer; /* used for repeating requests */
+	usbd_xfer_handle	intrxfer; /* used for repeating requests */
 	char			repeat;
+	int			interval;
 
 	/* Filled by HC driver. */
 	struct usbd_pipe_methods *methods;
@@ -193,7 +197,7 @@ struct usbd_xfer {
 	SIMPLEQ_ENTRY(usbd_xfer) next;
 
 	void		       *hcpriv; /* private use by the HC driver */
-	int			hcprivint; /* ditto */
+	int			hcprivint;
 
 #if defined(__FreeBSD__)
 	struct callout_handle  timo_handle;
@@ -211,7 +215,7 @@ usbd_status	usbd_reset_port __P((usbd_device_handle dev,
 				     int port, usb_port_status_t *ps));
 usbd_status	usbd_setup_pipe __P((usbd_device_handle dev,
 				     usbd_interface_handle iface,
-				     struct usbd_endpoint *,
+				     struct usbd_endpoint *, int,
 				     usbd_pipe_handle *pipe));
 usbd_status	usbd_new_device __P((device_ptr_t parent, 
 				     usbd_bus_handle bus, int depth,

@@ -73,7 +73,6 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdevs.h>
-#include <dev/usb/usb_quirks.h>
 #include <dev/usb/usb_ethersubr.h>
 
 #include <dev/usb/if_cuereg.h>
@@ -165,6 +164,9 @@ static int csr_read_1(sc, reg)
 	u_int8_t		val = 0;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -173,7 +175,8 @@ static int csr_read_1(sc, reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(sc->cue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -192,6 +195,9 @@ static int csr_read_2(sc, reg)
 	u_int16_t		val = 0;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -200,7 +206,8 @@ static int csr_read_2(sc, reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request(sc->cue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -218,6 +225,9 @@ static int csr_write_1(sc, reg, val)
 	usbd_status		err;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -226,7 +236,8 @@ static int csr_write_1(sc, reg, val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	err = usbd_do_request(sc->cue_udev, &req, NULL);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -245,6 +256,9 @@ static int csr_write_2(sc, reg, val)
 	usbd_status		err;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -253,7 +267,8 @@ static int csr_write_2(sc, reg, val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	err = usbd_do_request(sc->cue_udev, &req, NULL);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, &val, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -275,6 +290,9 @@ static int cue_mem(sc, cmd, addr, buf, len)
 	usbd_status		err;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	if (cmd == CUE_CMD_READSRAM)
@@ -286,7 +304,8 @@ static int cue_mem(sc, cmd, addr, buf, len)
 	USETW(req.wIndex, addr);
 	USETW(req.wLength, len);
 
-	err = usbd_do_request(sc->cue_udev, &req, buf);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, &buf, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -304,6 +323,9 @@ static int cue_getmac(sc, buf)
 	usbd_status		err;
 	int			s;
 
+	if (sc->cue_gone)
+		return(0);
+
 	s = splusb();
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -312,7 +334,8 @@ static int cue_getmac(sc, buf)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, ETHER_ADDR_LEN);
 
-	err = usbd_do_request(sc->cue_udev, &req, buf);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, buf, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -395,6 +418,9 @@ static void cue_reset(sc)
 	usbd_status		err;
 	int			s;
 
+	if (sc->cue_gone)
+		return;
+
 	s = splusb();
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -402,7 +428,8 @@ static void cue_reset(sc)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
-	err = usbd_do_request(sc->cue_udev, &req, NULL);
+	err = usbd_do_request_flags(sc->cue_udev,
+	    &req, NULL, USBD_NO_TSLEEP, NULL);
 
 	splx(s);
 
@@ -421,19 +448,14 @@ USB_MATCH(cue)
 {
 	USB_MATCH_START(cue, uaa);
 	struct cue_type			*t;
-	usb_device_descriptor_t		*dd;
 
 	if (!uaa->iface)
 		return(UMATCH_NONE);
-
-	dd = &uaa->device->ddesc;
 
 	t = cue_devs;
 	while(t->cue_vid) {
 		if (uaa->vendor == t->cue_vid &&
 		    uaa->product == t->cue_did) {
-			USETW(dd->bcdDevice, 0x220);
-			uaa->device->quirks = usbd_find_quirk(dd);
 			return(UMATCH_VENDOR_PRODUCT);
 		}
 		t++;
@@ -539,6 +561,7 @@ USB_ATTACH(cue)
 	callout_handle_init(&sc->cue_stat_ch);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	usb_register_netisr();
+	sc->cue_gone = 0;
 
 	splx(s);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -556,6 +579,7 @@ static int cue_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+	sc->cue_gone = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
 	if_detach(ifp);
 
@@ -1023,7 +1047,7 @@ static void cue_init(xsc)
 		c = &sc->cue_cdata.cue_rx_chain[i];
 		usbd_setup_xfer(c->cue_xfer, sc->cue_ep[CUE_ENDPT_RX],
 		    c, mtod(c->cue_mbuf, char *), CUE_CUTOFF,
-	    	USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT, cue_rxeof);
+		    USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT, cue_rxeof);
 		usbd_transfer(c->cue_xfer);
 	}
 
@@ -1099,16 +1123,7 @@ static void cue_watchdog(ifp)
 	ifp->if_oerrors++;
 	printf("cue%d: watchdog timeout\n", sc->cue_unit);
 
-	/*
-	 * The polling business is a kludge to avoid allowing the
-	 * USB code to call tsleep() in usbd_delay_ms(), which will
-	 * kill us since the watchdog routine is invoked from
-	 * interrupt context.
-	 */
-	sc->cue_udev->bus->use_polling++;
-	cue_stop(sc);
 	cue_init(sc);
-	sc->cue_udev->bus->use_polling--;
 
 	if (ifp->if_snd.ifq_head != NULL)
 		cue_start(ifp);
