@@ -27,8 +27,8 @@ int fd;
 xchar lev;
 {
 #ifndef NOWORM
-	register struct wseg *wtmp, *wtmp2;
-	register tmp;
+	struct wseg *wtmp, *wtmp2;
+	tmp;
 #endif NOWORM
 
 	if(fd < 0) panic("Save on bad file!");	/* impossible */
@@ -72,9 +72,9 @@ xchar lev;
 }
 
 bwrite(fd,loc,num)
-register fd;
-register char *loc;
-register unsigned num;
+fd;
+char *loc;
+unsigned num;
 {
 /* lint wants the 3rd arg of write to be an int; lint -p an unsigned */
 	if(write(fd, loc, (int) num) != num)
@@ -82,10 +82,10 @@ register unsigned num;
 }
 
 saveobjchn(fd,otmp)
-register fd;
-register struct obj *otmp;
+fd;
+struct obj *otmp;
 {
-	register struct obj *otmp2;
+	struct obj *otmp2;
 	unsigned xl;
 	int minusone = -1;
 
@@ -101,10 +101,10 @@ register struct obj *otmp;
 }
 
 savemonchn(fd,mtmp)
-register fd;
-register struct monst *mtmp;
+fd;
+struct monst *mtmp;
 {
-	register struct monst *mtmp2;
+	struct monst *mtmp2;
 	unsigned xl;
 	int minusone = -1;
 	struct permonst *monbegin = &mons[0];
@@ -124,10 +124,10 @@ register struct monst *mtmp;
 }
 
 savegoldchn(fd,gold)
-register fd;
-register struct gold *gold;
+fd;
+struct gold *gold;
 {
-	register struct gold *gold2;
+	struct gold *gold2;
 	while(gold) {
 		gold2 = gold->ngold;
 		bwrite(fd, (char *) gold, sizeof(struct gold));
@@ -138,10 +138,10 @@ register struct gold *gold;
 }
 
 savetrapchn(fd,trap)
-register fd;
-register struct trap *trap;
+fd;
+struct trap *trap;
 {
-	register struct trap *trap2;
+	struct trap *trap2;
 	while(trap) {
 		trap2 = trap->ntrap;
 		bwrite(fd, (char *) trap, sizeof(struct trap));
@@ -155,12 +155,12 @@ getlev(fd,pid,lev)
 int fd,pid;
 xchar lev;
 {
-	register struct gold *gold;
-	register struct trap *trap;
+	struct gold *gold;
+	struct trap *trap;
 #ifndef NOWORM
-	register struct wseg *wtmp;
+	struct wseg *wtmp;
 #endif NOWORM
-	register tmp;
+	tmp;
 	long omoves;
 	int hpid;
 	xchar dlvl;
@@ -188,7 +188,7 @@ xchar lev;
 
 	/* regenerate animals while on another level */
 	{ long tmoves = (moves > omoves) ? moves-omoves : 0;
-	  register struct monst *mtmp, *mtmp2;
+	  struct monst *mtmp, *mtmp2;
 	  extern char genocided[];
 
 	  for(mtmp = fmon; mtmp; mtmp = mtmp2) {
@@ -256,11 +256,11 @@ xchar lev;
 }
 
 mread(fd, buf, len)
-register fd;
-register char *buf;
-register unsigned len;
+fd;
+char *buf;
+unsigned len;
 {
-	register int rlen;
+	int rlen;
 	extern boolean restoring;
 
 	rlen = read(fd, buf, (int) len);

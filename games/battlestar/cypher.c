@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)cypher.c	8.1 (Berkeley) 5/31/93";
 
 cypher()
 {
-	register int n;
+	int n;
 	int junk;
 	int lflag = -1;
 	char buffer[10];

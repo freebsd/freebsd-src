@@ -55,8 +55,8 @@ double	offset;
 char	x, y;
 char	z;
 {
-	register struct event	*e;
-	register int		i;
+	struct event	*e;
+	int		i;
 	double			date;
 
 	date = Now.date + offset;
@@ -95,7 +95,7 @@ struct event	*e1;
 double		offset;
 {
 	double			date;
-	register struct event	*e;
+	struct event	*e;
 
 	e = e1;
 
@@ -119,7 +119,7 @@ double		offset;
 unschedule(e1)
 struct event	*e1;
 {
-	register struct event	*e;
+	struct event	*e;
 
 	e = e1;
 
@@ -147,7 +147,7 @@ int	ev1;
 int	factor;
 int	x, y, z;
 {
-	register int	ev;
+	int	ev;
 
 	ev = ev1;
 	return (schedule(ev, -Param.eventdly[ev] * Param.time * log(franf()) / factor, x, y, z));
@@ -166,8 +166,8 @@ struct event	*e1;
 int		ev1;
 int		factor;
 {
-	register int		ev;
-	register struct event	*e;
+	int		ev;
+	struct event	*e;
 
 	ev = ev1;
 	e = e1;

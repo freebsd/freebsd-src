@@ -47,13 +47,13 @@ static char sccsid[] = "@(#)comp.c	8.1 (Berkeley) 5/31/93";
 
 calcmove()
 {
-	register CARD		card;
-	register int		*value;
-	register PLAY		*pp, *op;
-	register bool		foundend, cango, canstop, foundlow;
-	register unsgn int	i, count200, badcount, nummin, nummax, diff;
-	register int		curmin, curmax;
-	register CARD		safe, oppos;
+	CARD		card;
+	int		*value;
+	PLAY		*pp, *op;
+	bool		foundend, cango, canstop, foundlow;
+	unsgn int	i, count200, badcount, nummin, nummax, diff;
+	int		curmin, curmax;
+	CARD		safe, oppos;
 	int			valbuf[HAND_SZ], count[NUM_CARDS];
 	bool			playit[HAND_SZ];
 
@@ -401,9 +401,9 @@ play_it:
  * Return true if the given player could conceivably win with his next card.
  */
 onecard(pp)
-register PLAY	*pp;
+PLAY	*pp;
 {
-	register CARD	bat, spd, card;
+	CARD	bat, spd, card;
 
 	bat = pp->battle;
 	spd = pp->speed;
@@ -433,8 +433,8 @@ register PLAY	*pp;
 }
 
 canplay(pp, op, card)
-register PLAY	*pp, *op;
-register CARD	card;
+PLAY	*pp, *op;
+CARD	card;
 {
 	switch (card) {
 	  case C_200:

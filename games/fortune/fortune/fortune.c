@@ -241,8 +241,8 @@ void
 display(fp)
 FILEDESC	*fp;
 {
-	register char   *p;
-	register unsigned char ch;
+	char   *p;
+	unsigned char ch;
 	char	line[BUFSIZ];
 
 	open_fp(fp);
@@ -274,7 +274,7 @@ FILEDESC	*fp;
 int
 fortlen()
 {
-	register int	nchar;
+	int	nchar;
 	char		line[BUFSIZ];
 
 	if (!(Fortfile->tbl.str_flags & (STR_RANDOM | STR_ORDERED)))
@@ -296,12 +296,12 @@ fortlen()
  */
 void
 getargs(argc, argv)
-register int	argc;
-register char	**argv;
+int	argc;
+char	**argv;
 {
-	register int	ignore_case;
+	int	ignore_case;
 # ifndef NO_REGEX
-	register char	*pat;
+	char	*pat;
 # endif	/* NO_REGEX */
 	extern char *optarg;
 	extern int optind;
@@ -400,11 +400,11 @@ register char	**argv;
  */
 int
 form_file_list(files, file_cnt)
-register char	**files;
-register int	file_cnt;
+char	**files;
+int	file_cnt;
 {
-	register int	i, percent;
-	register char	*sp;
+	int	i, percent;
+	char	*sp;
 
 	if (file_cnt == 0) {
 		if (Find_files) {
@@ -465,16 +465,16 @@ register int	file_cnt;
 int
 add_file(percent, file, dir, head, tail, parent)
 int		percent;
-register char	*file;
+char	*file;
 char		*dir;
 FILEDESC	**head, **tail;
 FILEDESC	*parent;
 {
-	register FILEDESC	*fp;
-	register int		fd;
-	register char		*path, *offensive;
-	register bool		was_malloc;
-	register bool		isdir;
+	FILEDESC	*fp;
+	int		fd;
+	char		*path, *offensive;
+	bool		was_malloc;
+	bool		isdir;
 
 	if (dir == NULL) {
 		path = file;
@@ -595,7 +595,7 @@ over:
 FILEDESC *
 new_fp()
 {
-	register FILEDESC	*fp;
+	FILEDESC	*fp;
 
 	fp = (FILEDESC *) do_malloc(sizeof *fp);
 	fp->datfd = -1;
@@ -648,12 +648,12 @@ char	*file;
  */
 void
 all_forts(fp, offensive)
-register FILEDESC	*fp;
+FILEDESC	*fp;
 char			*offensive;
 {
-	register char		*sp;
-	register FILEDESC	*scene, *obscene;
-	register int		fd;
+	char		*sp;
+	FILEDESC	*scene, *obscene;
+	int		fd;
 	auto char		*datfile, *posfile;
 
 	if (fp->child != NULL)	/* this is a directory, not a file */
@@ -698,10 +698,10 @@ char			*offensive;
  */
 int
 add_dir(fp)
-register FILEDESC	*fp;
+FILEDESC	*fp;
 {
-	register DIR		*dir;
-	register struct dirent	*dirent;
+	DIR		*dir;
+	struct dirent	*dirent;
 	auto FILEDESC		*tailp;
 	auto char		*name;
 
@@ -759,9 +759,9 @@ is_fortfile(file, datp, posp, check_for_offend)
 char	*file, **datp, **posp;
 int	check_for_offend;
 {
-	register int	i;
-	register char	*sp;
-	register char	*datfile;
+	int	i;
+	char	*sp;
+	char	*datfile;
 	static char	*suflist[] = {	/* list of "illegal" suffixes" */
 				"dat", "pos", "c", "h", "p", "i", "f",
 				"pas", "ftn", "ins.c", "ins,pas",
@@ -886,8 +886,8 @@ void	*ptr;
 void
 init_prob()
 {
-	register FILEDESC       *fp, *last = NULL;
-	register int		percent, num_noprob, frac;
+	FILEDESC       *fp, *last = NULL;
+	int		percent, num_noprob, frac;
 
 	/*
 	 * Distribute the residual probability (if any) across all
@@ -958,8 +958,8 @@ init_prob()
 void
 get_fort()
 {
-	register FILEDESC	*fp;
-	register int		choice;
+	FILEDESC	*fp;
+	int		choice;
 
 	if (File_list->next == NULL || File_list->percent == NO_PROB)
 		fp = File_list;
@@ -1022,8 +1022,8 @@ FILEDESC *
 pick_child(parent)
 FILEDESC	*parent;
 {
-	register FILEDESC	*fp;
-	register int		choice;
+	FILEDESC	*fp;
+	int		choice;
 
 	if (Equal_probs) {
 		choice = random() % parent->num_children;
@@ -1057,7 +1057,7 @@ FILEDESC	*parent;
  */
 void
 sum_noprobs(fp)
-register FILEDESC	*fp;
+FILEDESC	*fp;
 {
 	static bool	did_noprobs = FALSE;
 
@@ -1074,7 +1074,7 @@ register FILEDESC	*fp;
 
 int
 max(i, j)
-register int	i, j;
+int	i, j;
 {
 	return (i >= j ? i : j);
 }
@@ -1148,7 +1148,7 @@ get_tbl(fp)
 FILEDESC	*fp;
 {
 	auto int		fd;
-	register FILEDESC	*child;
+	FILEDESC	*child;
 
 	if (fp->read_tbl)
 		return;
@@ -1185,7 +1185,7 @@ FILEDESC	*fp;
  */
 void
 zero_tbl(tp)
-register STRFILE	*tp;
+STRFILE	*tp;
 {
 	tp->str_numstr = 0;
 	tp->str_longlen = 0;
@@ -1198,7 +1198,7 @@ register STRFILE	*tp;
  */
 void
 sum_tbl(t1, t2)
-register STRFILE	*t1, *t2;
+STRFILE	*t1, *t2;
 {
 	t1->str_numstr += t2->str_numstr;
 	if (t1->str_longlen < t2->str_longlen)
@@ -1225,7 +1225,7 @@ print_file_list()
  */
 void
 print_list(list, lev)
-register FILEDESC	*list;
+FILEDESC	*list;
 int			lev;
 {
 	while (list != NULL) {
@@ -1251,11 +1251,11 @@ int			lev;
  */
 char *
 conv_pat(orig)
-register char	*orig;
+char	*orig;
 {
-	register char		*sp;
-	register unsigned int	cnt;
-	register char		*new;
+	char		*sp;
+	unsigned int	cnt;
+	char		*new;
 
 	cnt = 1;	/* allow for '\0' */
 	for (sp = orig; *sp != '\0'; sp++)
@@ -1314,8 +1314,8 @@ int
 maxlen_in_list(list)
 FILEDESC	*list;
 {
-	register FILEDESC	*fp;
-	register int		len, maxlen;
+	FILEDESC	*fp;
+	int		len, maxlen;
 
 	maxlen = 0;
 	for (fp = list; fp != NULL; fp = fp->next) {
@@ -1340,8 +1340,8 @@ void
 matches_in_list(list)
 FILEDESC	*list;
 {
-	register char           *sp, *p;
-	register FILEDESC	*fp;
+	char           *sp, *p;
+	FILEDESC	*fp;
 	int			in_file;
 	unsigned char           ch;
 

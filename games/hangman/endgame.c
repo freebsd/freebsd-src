@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)endgame.c	8.1 (Berkeley) 5/31/93";
  */
 endgame()
 {
-	register char	ch;
+	char	ch;
 
 	prman();
 	if (Errors >= MAXERRS)

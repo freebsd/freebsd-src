@@ -51,8 +51,8 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int c;
-	register char *p;
+	int c;
+	char *p;
 
 	(void) puts("___________");
 	if (argc > 1)
@@ -67,9 +67,9 @@ main(argc, argv)
 
 static void
 putppt(c)
-	register int c;
+	int c;
 {
-	register int i;
+	int i;
 
 	(void) putchar('|');
 	for (i = 7; i >= 0; i--) {

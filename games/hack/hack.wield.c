@@ -5,14 +5,14 @@
 #include	"hack.h"
 extern struct obj zeroobj;
 
-setuwep(obj) register struct obj *obj; {
+setuwep(obj) struct obj *obj; {
 	setworn(obj, W_WEP);
 }
 
 dowield()
 {
-	register struct obj *wep;
-	register int res = 0;
+	struct obj *wep;
+	int res = 0;
 
 	multi = 0;
 	if(!(wep = getobj("#-)", "wield"))) /* nothing */;
@@ -56,11 +56,11 @@ corrode_weapon(){
 }
 
 chwepon(otmp,amount)
-register struct obj *otmp;
-register amount;
+struct obj *otmp;
+amount;
 {
-register char *color = (amount < 0) ? "black" : "green";
-register char *time;
+char *color = (amount < 0) ? "black" : "green";
+char *time;
 	if(!uwep || uwep->olet != WEAPON_SYM) {
 		strange_feeling(otmp,
 			(amount > 0) ? "Your hands twitch."

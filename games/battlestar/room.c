@@ -43,7 +43,7 @@ writedes()
 {
 	int compass;
 	const char *p;
-	register c;
+	int c;
 
 	printf("\n\t%s\n", location[position].name);
 	if (beenthere[position] < 3) {
@@ -61,8 +61,8 @@ writedes()
 
 printobjs()
 {
-	register int *p = location[position].objects;
-	register n;
+	int *p = location[position].objects;
+	int n;
 
 	printf("\n");
 	for (n = 0; n < NUMOFOBJECTS; n++)

@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 5/31/93";
 
 main() {
 
-	reg int	i, j, count;
+	int	i, j, count;
 
 	printf("   %16s -> %5s %5s %4s %s\n", "Card", "cards", "count", "need", "opposite");
 	for (i = 0; i < NUM_CARDS - 1; i++) {

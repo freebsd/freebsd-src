@@ -147,12 +147,12 @@ int main(ac, av)
 int	ac;
 char	**av;
 {
-	register char		*sp, dc;
-	register FILE		*inf, *outf;
-	register long           last_off, length, pos, *p;
-	register int		first, cnt;
-	register char		*nsp;
-	register STR		*fp;
+	char		*sp, dc;
+	FILE		*inf, *outf;
+	long           last_off, length, pos, *p;
+	int		first, cnt;
+	char		*nsp;
+	STR		*fp;
 	static char		string[257];
 
 	(void) setlocale(LC_ALL, "");
@@ -349,9 +349,9 @@ long    off;
  */
 void do_order()
 {
-	register int	i;
-	register long   *lp;
-	register STR	*fp;
+	int	i;
+	long   *lp;
+	STR	*fp;
 
 	Sort_1 = fopen(Infile, "r");
 	Sort_2 = fopen(Infile, "r");
@@ -390,8 +390,8 @@ static int collate_range_cmp (c1, c2)
 int cmp_str(p1, p2)
 STR	*p1, *p2;
 {
-	register int	c1, c2;
-	register int	n1, n2;
+	int	c1, c2;
+	int	n1, n2;
 	int r;
 
 # define	SET_N(nf,ch)	(nf = (ch == '\n'))
@@ -441,9 +441,9 @@ STR	*p1, *p2;
  */
 void randomize()
 {
-	register int	cnt, i;
-	register long   tmp;
-	register long   *sp;
+	int	cnt, i;
+	long   tmp;
+	long   *sp;
 
 	srandomdev();
 

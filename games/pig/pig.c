@@ -59,7 +59,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int len;
+	int len;
 	int ch;
 	char buf[1024];
 
@@ -95,7 +95,7 @@ pigout(buf, len)
 	char *buf;
 	int len;
 {
-	register int ch, start;
+	int ch, start;
 	int olen;
 
 	/*

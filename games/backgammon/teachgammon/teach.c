@@ -82,7 +82,7 @@ int	argc;
 char	**argv;
 
 {
-	register int	i;
+	int	i;
 
 	/* revoke privs */
 	setgid(getgid());
@@ -160,7 +160,7 @@ char	**argv;
 }
 
 leave()  {
-	register int i;
+	int i;
 	if (tflag)
 		clear();
 	else

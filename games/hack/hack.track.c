@@ -24,8 +24,8 @@ settrack(){
 }
 
 coord *
-gettrack(x,y) register x,y; {
-register int i,cnt,dist;
+gettrack(x,y) x,y; {
+int i,cnt,dist;
 coord tc;
 	cnt = utcnt;
 	for(i = utpnt-1; cnt--; i--){

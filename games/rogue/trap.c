@@ -81,7 +81,7 @@ extern boolean sustain_strength;
 extern short blind;
 
 trap_at(row, col)
-register row, col;
+row, col;
 {
 	short i;
 

@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)allow.c	8.1 (Berkeley) 5/31/93";
 
 movallow ()  {
 
-	register int	i, m, iold;
+	int		i, m, iold;
 	int		r;
 
 	if (d0)

@@ -96,9 +96,9 @@ int	argc;
 char	**argv;
 
 {
-	register int	i;		/* non-descript index */
-	register int	l;		/* non-descript index */
-	register char	c;		/* non-descript character storage */
+	int	i;		/* non-descript index */
+	int	l;		/* non-descript index */
+	char	c;		/* non-descript character storage */
 
 	/* revoke privs */
 	setgid(getgid());

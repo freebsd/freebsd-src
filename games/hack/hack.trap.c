@@ -22,9 +22,9 @@ char *traps[] = {
 
 struct trap *
 maketrap(x,y,typ)
-register x,y,typ;
+x,y,typ;
 {
-	register struct trap *ttmp;
+	struct trap *ttmp;
 
 	ttmp = newtrap();
 	ttmp->ttyp = typ;
@@ -37,8 +37,8 @@ register x,y,typ;
 	return(ttmp);
 }
 
-dotrap(trap) register struct trap *trap; {
-	register int ttype = trap->ttyp;
+dotrap(trap) struct trap *trap; {
+	int ttype = trap->ttyp;
 
 	nomul(0);
 	if(trap->tseen && !rn2(5) && ttype != PIT)
@@ -86,7 +86,7 @@ if(uarmh) pline("Fortunately, you are wearing a helmet!");
 			    stackobj(fobj);
 			    if(Invisible) newsym(u.ux, u.uy);
 			} else {
-			    register int newlevel = dlevel + 1;
+			    int newlevel = dlevel + 1;
 				while(!rn2(4) && newlevel < 29)
 					newlevel++;
 				pline("A trap door opens up under you!");
@@ -136,16 +136,16 @@ if(uarmh) pline("Fortunately, you are wearing a helmet!");
 	}
 }
 
-mintrap(mtmp) register struct monst *mtmp; {
-	register struct trap *trap = t_at(mtmp->mx, mtmp->my);
-	register int wasintrap = mtmp->mtrapped;
+mintrap(mtmp) struct monst *mtmp; {
+	struct trap *trap = t_at(mtmp->mx, mtmp->my);
+	int wasintrap = mtmp->mtrapped;
 
 	if(!trap) {
 		mtmp->mtrapped = 0;	/* perhaps teleported? */
 	} else if(wasintrap) {
 		if(!rn2(40)) mtmp->mtrapped = 0;
 	} else {
-	    register int tt = trap->ttyp;
+	    int tt = trap->ttyp;
 	    int in_sight = cansee(mtmp->mx,mtmp->my);
 	    extern char mlarge[];
 
@@ -248,7 +248,7 @@ float_up(){
 }
 
 float_down(){
-	register struct trap *trap;
+	struct trap *trap;
 	pline("You float gently to the ground.");
 	if(trap = t_at(u.ux,u.uy))
 		switch(trap->ttyp) {
@@ -265,10 +265,10 @@ float_down(){
 
 vtele() {
 #include "def.mkroom.h"
-	register struct mkroom *croom;
+	struct mkroom *croom;
 	for(croom = &rooms[0]; croom->hx >= 0; croom++)
 	    if(croom->rtype == VAULT) {
-		register x,y;
+		x,y;
 
 		x = rn2(2) ? croom->lx : croom->hx;
 		y = rn2(2) ? croom->ly : croom->hy;
@@ -283,7 +283,7 @@ vtele() {
 tele() {
 	extern coord getpos();
 	coord cc;
-	register int nux,nuy;
+	int nux,nuy;
 
 	if(Teleport_control) {
 		pline("To what position do you want to be teleported?");
@@ -304,7 +304,7 @@ tele() {
 }
 
 teleds(nux, nuy)
-register int nux,nuy;
+int nux,nuy;
 {
 	if(Punished) unplacebc();
 	unsee();
@@ -326,7 +326,7 @@ register int nux,nuy;
 	if(!Blind) read_engr_at(u.ux,u.uy);
 }
 
-teleok(x,y) register int x,y; {	/* might throw him into a POOL */
+teleok(x,y) int x,y; {	/* might throw him into a POOL */
 	return( isok(x,y) && !IS_ROCK(levl[x][y].typ) && !m_at(x,y) &&
 		!sobj_at(ENORMOUS_ROCK,x,y) && !t_at(x,y)
 	);
@@ -381,7 +381,7 @@ unplacebc(){
 }
 
 level_tele() {
-register int newlevel;
+int newlevel;
 	if(Teleport_control) {
 	    char buf[BUFSZ];
 
@@ -432,7 +432,7 @@ drown()
 	pline("You can't swim!");
 	if(rn2(3) < u.uluck+2) {
 		/* most scrolls become unreadable */
-		register struct obj *obj;
+		struct obj *obj;
 
 		for(obj = invent; obj; obj = obj->nobj)
 			if(obj->olet == SCROLL_SYM && rn2(12) > u.uluck)

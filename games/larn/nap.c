@@ -14,7 +14,7 @@
  *	routine to take a nap for n milliseconds
  */
 nap(x)
-	register int x;
+	int x;
 	{
 	if (x<=0) return; /* eliminate chance for infinite loop */
 	lflush();
@@ -93,7 +93,7 @@ static napms(time)
 	struct timeb _gtime;
 	time_t matchtime;
 	unsigned short matchmilli;
-	register struct timeb *tp = & _gtime;
+	struct timeb *tp = & _gtime;
 
 	if (time <= 0) return;
 	ftime(tp);

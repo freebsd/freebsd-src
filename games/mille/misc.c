@@ -71,7 +71,7 @@ char	*str;
 CARD
 getcard()
 {
-	reg int		c, c1;
+	int		c, c1;
 
 	for (;;) {
 		while ((c = readch()) == '\n' || c == '\r' || c == ' ')
@@ -118,7 +118,7 @@ cont:		;
 }
 
 check_ext(forcomp)
-reg bool	forcomp; {
+bool	forcomp; {
 
 
 	if (End == 700)
@@ -137,8 +137,8 @@ done:
 			}
 		}
 		else {
-			reg PLAY	*pp, *op;
-			reg int		i, safe, miles;
+			PLAY	*pp, *op;
+			int		i, safe, miles;
 
 			pp = &Player[COMP];
 			op = &Player[PLAYER];
@@ -172,9 +172,9 @@ done:
  * also allowed.  Return TRUE if the answer was yes, FALSE if no.
  */
 getyn(promptno)
-register int	promptno; {
+int	promptno; {
 
-	reg char	c;
+	char	c;
 
 	Saved = FALSE;
 	for (;;) {
@@ -245,7 +245,7 @@ check_more()
 
 readch()
 {
-	reg int		cnt;
+	int		cnt;
 	static char	c;
 
 	for (cnt = 0; read(0, &c, 1) <= 0; cnt++)

@@ -6,27 +6,27 @@
 #define RND(x)  (random() % x)
 
 rn1(x,y)
-register x,y;
+x,y;
 {
 	return(RND(x)+y);
 }
 
 rn2(x)
-register x;
+x;
 {
 	return(RND(x));
 }
 
 rnd(x)
-register x;
+x;
 {
 	return(RND(x)+1);
 }
 
 d(n,x)
-register n,x;
+n,x;
 {
-	register tmp = n;
+	tmp = n;
 
 	while(n--) tmp += RND(x);
 	return(tmp);

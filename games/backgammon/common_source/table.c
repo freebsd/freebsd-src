@@ -81,8 +81,8 @@ checkmove (ist)
 int	ist;
 
 {
-	register int	j, n;
-	register char	c;
+	int	j, n;
+	char	c;
 	char		a;
 
 domove:
@@ -202,10 +202,10 @@ dochar:
 
 dotable (c,i)
 char		c;
-register int	i;
+int	i;
 
 {
-	register int	a, j;
+	int	a, j;
 	int		test;
 
 	test = (c == 'R');
@@ -298,7 +298,7 @@ register int	i;
 }
 
 rsetbrd ()  {
-	register int	i, j, n;
+	int	i, j, n;
 
 	n = 0;
 	mvl = 0;

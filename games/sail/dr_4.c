@@ -40,9 +40,9 @@ static char sccsid[] = "@(#)dr_4.c	8.1 (Berkeley) 5/31/93";
 #include "externs.h"
 
 ungrap(from, to)
-register struct ship *from, *to;
+struct ship *from, *to;
 {
-	register k;
+	k;
 	char friend;
 
 	if ((k = grappled2(from, to)) == 0)
@@ -57,7 +57,7 @@ register struct ship *from, *to;
 }
 
 grap(from, to)
-register struct ship *from, *to;
+struct ship *from, *to;
 {
 	if (capship(from)->nationality != capship(to)->nationality && die() > 2)
 		return;

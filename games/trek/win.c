@@ -60,7 +60,7 @@ win()
 	extern jmp_buf		env;
 	extern long		score();
 	extern struct cvntab	Skitab[];
-	register struct cvntab	*p;
+	struct cvntab	*p;
 
 	sleep(1);
 	printf("\nCongratulations, you have saved the Federation\n");

@@ -43,11 +43,11 @@ table(rig, shot, hittable, on, from, roll)
 struct ship *on, *from;
 int rig, shot, hittable, roll;
 {
-	register int hhits = 0, chits = 0, ghits = 0, rhits = 0;
+	int hhits = 0, chits = 0, ghits = 0, rhits = 0;
 	int Ghit = 0, Hhit = 0, Rhit = 0, Chit = 0;
 	int guns, car, pc, hull;
 	int crew[3];
-	register int n;
+	int n;
 	int rigg[4];
 	char *message;
 	struct Tables *tp;
@@ -225,7 +225,7 @@ int rig, shot, hittable, roll;
 }
 
 Cleansnag(from, to, all, flag)
-register struct ship *from, *to;
+struct ship *from, *to;
 char all, flag;
 {
 	if (flag & 1) {
@@ -251,7 +251,7 @@ char all, flag;
 }
 
 strike(ship, from)
-register struct ship *ship, *from;
+struct ship *ship, *from;
 {
 	int points;
 

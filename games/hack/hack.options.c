@@ -9,7 +9,7 @@ extern char *eos();
 
 initoptions()
 {
-	register char *opts;
+	char *opts;
 
 	flags.time = flags.nonews = flags.notombstone = flags.end_own =
 	flags.standout = flags.nonull = FALSE;
@@ -24,10 +24,10 @@ initoptions()
 }
 
 parseoptions(opts, from_env)
-register char *opts;
+char *opts;
 boolean from_env;
 {
-	register char *op,*op2;
+	char *op,*op2;
 	unsigned num;
 	boolean negated;
 
@@ -193,7 +193,7 @@ doset()
 			flags.end_top, flags.end_around);
 		if(flags.end_own) (void) strcat(buf, "/own scores");
 	    } else {
-		register char *eop = eos(buf);
+		char *eop = eos(buf);
 		if(*--eop == ',') *eop = 0;
 	    }
 	    pline(buf);

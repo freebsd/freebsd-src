@@ -10,10 +10,10 @@ extern struct monst *makemon();
  *	  returns 1 if monster dies (e.g. 'y', 'F'), 0 otherwise
  */
 mhitu(mtmp)
-register struct monst *mtmp;
+struct monst *mtmp;
 {
-	register struct permonst *mdat = mtmp->data;
-	register int tmp, ctmp;
+	struct permonst *mdat = mtmp->data;
+	int tmp, ctmp;
 
 	nomul(0);
 
@@ -294,7 +294,7 @@ register struct monst *mtmp;
 		(void) hitu(mtmp,rnd(5));
 		break;
 	case 'x':
-		{ register long side = rn2(2) ? RIGHT_SIDE : LEFT_SIDE;
+		{ long side = rn2(2) ? RIGHT_SIDE : LEFT_SIDE;
 		  pline("%s pricks in your %s leg!",
 			Monnam(mtmp), (side == RIGHT_SIDE) ? "right" : "left");
 		  set_wounded_legs(side, rnd(50));
@@ -319,10 +319,10 @@ register struct monst *mtmp;
 }
 
 hitu(mtmp,dam)
-register struct monst *mtmp;
-register dam;
+struct monst *mtmp;
+dam;
 {
-	register tmp, res;
+	tmp, res;
 
 	nomul(0);
 	if(u.uswallow) return(0);
@@ -330,7 +330,7 @@ register dam;
 	if(mtmp->mhide && mtmp->mundetected) {
 		mtmp->mundetected = 0;
 		if(!Blind) {
-			register struct obj *obj;
+			struct obj *obj;
 			extern char * Xmonnam();
 			if(obj = o_at(mtmp->mx,mtmp->my))
 				pline("%s was hidden under %s!",

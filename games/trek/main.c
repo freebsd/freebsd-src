@@ -157,10 +157,10 @@ int	argc;
 char	**argv;
 {
 	/* extern FILE		*f_log; */
-	register char		opencode;
+	char		opencode;
 	int			prio;
-	register int		ac;
-	register char		**av;
+	int		ac;
+	char		**av;
 	struct	sgttyb		argp;
 
 	/* revoke */

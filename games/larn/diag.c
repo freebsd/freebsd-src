@@ -18,7 +18,7 @@ static struct tms cputime;
 static int rndcount[16];
 diag()
 	{
-	register int i,j;
+	int i,j;
 	int hit,dam;
 	cursors();  lwclose();
 	if (lcreat(diagfile) < 0)	/*	open the diagnostic file	*/
@@ -113,7 +113,7 @@ diag()
 dcount(l)
 	int l;
 	{
-	register int i,j,p;
+	int i,j,p;
 	int k;
 	k=0;
 	for (i=0; i<MAXX; i++)
@@ -128,7 +128,7 @@ dcount(l)
  */
 diagdrawscreen()
 	{
-	register int i,j,k;
+	int i,j,k;
 
 	for (i=0; i<MAXY; i++)
 
@@ -148,8 +148,8 @@ static time_t zzz=0;
 savegame(fname)
 	char *fname;
 	{
-	register int i,k;
-	register struct sphere *sp;
+	int i,k;
+	struct sphere *sp;
 	struct stat statbuf;
 	nosignal=1;  lflush();	savelevel();
 	ointerest();
@@ -194,8 +194,8 @@ savegame(fname)
 restoregame(fname)
 	char *fname;
 	{
-	register int i,k;
-	register struct sphere *sp,*sp2;
+	int i,k;
+	struct sphere *sp,*sp2;
 	struct stat filetimes;
 	cursors(); lprcat("\nRestoring . . .");  lflush();
 	if (lopen(fname) <= 0)

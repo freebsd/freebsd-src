@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)getword.c	8.1 (Berkeley) 5/31/93";
  */
 getword()
 {
-	register FILE		*inf;
-	register char		*wp, *gp;
-	register long		 pos;
+	FILE		*inf;
+	char		*wp, *gp;
+	long		 pos;
 
 	inf = Dict;
 	for (;;) {

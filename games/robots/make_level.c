@@ -45,10 +45,10 @@ static char sccsid[] = "@(#)make_level.c	8.1 (Berkeley) 5/31/93";
  */
 make_level()
 {
-	register int	i;
-	register COORD	*cp;
-	register WINDOW	*wp;
-	register int	x, *endp;
+	int	i;
+	COORD	*cp;
+	WINDOW	*wp;
+	int	x, *endp;
 
 	reset_count();
 	for (i = 1; i < Y_FIELDSIZE; i++)

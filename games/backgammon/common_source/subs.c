@@ -63,7 +63,7 @@ const char  *const descr[] = {
 };
 
 errexit (s)
-register char	*s;
+char	*s;
 {
 	write (2,"\n",1);
 	perror (s);
@@ -71,7 +71,7 @@ register char	*s;
 }
 
 int addbuf (c)
-register int	c;
+int	c;
 
 {
 	buffnum++;
@@ -169,7 +169,7 @@ proll ()   {
 wrint (n)
 int	n;
 {
-	register int	i, j, t;
+	int	i, j, t;
 
 	for (i = 4; i > 0; i--)  {
 		t = 1;
@@ -182,7 +182,7 @@ int	n;
 }
 
 gwrite()  {
-	register int	r, c;
+	int	r, c;
 
 	if (tflag)  {
 		r = curr;
@@ -224,7 +224,7 @@ gwrite()  {
 }
 
 quit ()  {
-	register int	i;
+	int	i;
 
 	if (tflag)  {
 		curmove (20,0);
@@ -245,10 +245,10 @@ quit ()  {
 }
 
 yorn (special)
-register char	special;			/* special response */
+char	special;			/* special response */
 {
-	register char	c;
-	register int	i;
+	char	c;
+	int	i;
 
 	i = 1;
 	while ( (c = readc()) != 'Y' && c != 'N')  {
@@ -275,7 +275,7 @@ register char	special;			/* special response */
 }
 
 wrhit (i)
-register int	i;
+int	i;
 {
 	writel ("Blot hit on ");
 	wrint (i);
@@ -284,7 +284,7 @@ register int	i;
 }
 
 nexturn ()  {
-	register int	c;
+	int	c;
 
 	cturn = -cturn;
 	c = cturn/abs(cturn);
@@ -299,11 +299,11 @@ nexturn ()  {
 }
 
 getarg (argc, argv)
-register int    argc;
-register char	**argv;
+int    argc;
+char	**argv;
 
 {
-	register char	ch;
+	char	ch;
 	extern int optind;
 	extern char *optarg;
 	int i;
@@ -384,7 +384,7 @@ register char	**argv;
 }
 
 init ()  {
-	register int	i;
+	int	i;
 	for (i = 0; i < 26;)
 		board[i++] = 0;
 	board[1] = 2;
@@ -435,9 +435,9 @@ getout ()  {
 	exit(0);
 }
 roll ()  {
-	register char	c;
-	register int	row;
-	register int	col;
+	char	c;
+	int	row;
+	int	col;
 
 	if (iroll)  {
 		if (tflag)  {

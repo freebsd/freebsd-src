@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)done.c	8.1 (Berkeley) 5/31/93";
 #include "hdr.h"
 
 score()                                         /* sort of like 20000   */
-{       register int scor,i;
+{       int scor,i;
 	mxscor=scor=0;
 	for (i=50; i<=maxtrs; i++)
 	{	if (ptext[i].txtlen==0) continue;
@@ -85,7 +85,7 @@ score()                                         /* sort of like 20000   */
 
 done(entry)     /* entry=1 means goto 13000 */  /* game is over         */
 int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
-{       register int i,sc;
+{       int i,sc;
 	if (entry==1) mspeak(1);
 	if (entry==3) rspeak(136);
 	printf("\n\n\nYou scored %d out of a ",(sc=score()));
@@ -114,7 +114,7 @@ int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
 void
 die(entry)                                      /* label 90             */
 int entry;
-{       register int i;
+{       int i;
 	if (entry != 99)
 	{       rspeak(23);
 		oldlc2=loc;

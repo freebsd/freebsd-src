@@ -66,7 +66,7 @@ convert(tothis)		/* Converts day to night and vice versa. 	    */
 int tothis;		/* Day objects are permanent.  Night objects are added*/
 {			/* at dusk, and subtracted at dawn.		*/
 	const struct objs *p;
-	register i, j;
+	int i, j;
 
 	if (tothis == TONIGHT) {
 		for (i = 1; i <= NUMOFROOMS; i++)
@@ -87,7 +87,7 @@ int tothis;		/* Day objects are permanent.  Night objects are added*/
 
 news()
 {
-	register int n;
+	int n;
 	int hurt;
 
 	if (gtime > 30 && position < 32){

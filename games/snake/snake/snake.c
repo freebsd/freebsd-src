@@ -417,7 +417,7 @@ setup(){	/*
 
 drawbox()
 {
-	register int i;
+	int i;
 	struct point p;
 
 	p.line = -1;
@@ -446,7 +446,7 @@ snrand(sp)
 struct point *sp;
 {
 	struct point p;
-	register int i;
+	int i;
 
 	for (;;) {
 		p.col = random() % ccnt;

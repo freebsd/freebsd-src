@@ -12,7 +12,7 @@ extern short oldx,oldy;
  */
 makeplayer()
 	{
-	register int i;
+	int i;
 	scbr();  clear();
 	c[HPMAX]=c[HP]=10;		/*	start player off with 15 hit points	*/
 	c[LEVEL]=1;				/*	player starts at level one			*/
@@ -45,9 +45,9 @@ makeplayer()
 	Note that it is here we remove genocided monsters from the present level.
  */
 newcavelevel(x)
-	register int x;
+	int x;
 	{
-	register int i,j;
+	int i,j;
 	if (beenhere[level]) savelevel();	/* put the level back into storage	*/
 	level = x;				/* get the new level and put in working storage */
 	if (beenhere[x]==0) for (i=0; i<MAXY; i++) for (j=0; j<MAXX; j++) know[j][i]=mitem[j][i]=0;
@@ -76,7 +76,7 @@ static int mx,mxl,mxh,my,myl,myh,tmp2;
  makemaze(k)
 	int k;
 	{
-	register int i,j,tmp;
+	int i,j,tmp;
 	int z;
 	if (k > 1 && (rnd(17)<=4 || k==MAXLEVEL-1 || k==MAXLEVEL+MAXVLEVEL-1))
 		{
@@ -118,9 +118,9 @@ static int mx,mxl,mxh,my,myl,myh,tmp2;
 	function to eat away a filled in maze
  */
 eat(xx,yy)
-	register int xx,yy;
+	int xx,yy;
 	{
-	register int dir,try;
+	int dir,try;
 	dir = rnd(4);	try=2;
 	while (try)
 		{
@@ -166,7 +166,7 @@ cannedlevel(k)
 	int k;
 	{
 	char *row,*lgetl();
-	register int i,j;
+	int i,j;
 	int it,arg,mit,marg;
 	if (lopen(larnlevels)<0)
 		{
@@ -217,9 +217,9 @@ cannedlevel(k)
 	level V3 has potion of cure dianthroritis and demon prince
  */
 treasureroom(lv)
-	register int lv;
+	int lv;
 	{
-	register int tx,ty,xsize,ysize;
+	int tx,ty,xsize,ysize;
 
 	for (tx=1+rnd(10);  tx<MAXX-10;  tx+=10)
 	  if ( (lv==MAXLEVEL-1) || (lv==MAXLEVEL+MAXVLEVEL-1) || rnd(13)==2)
@@ -240,7 +240,7 @@ treasureroom(lv)
 troom(lv,xsize,ysize,tx,ty,glyph)
 	int lv,xsize,ysize,tx,ty,glyph;
 	{
-	register int i,j;
+	int i,j;
 	int tp1,tp2;
 	for (j=ty-1; j<=ty+ysize; j++)
 		for (i=tx-1; i<=tx+xsize; i++)			/* clear out space for room */
@@ -286,9 +286,9 @@ static void fillroom();
 	subroutine to create the objects in the maze for the given level
  */
 makeobject(j)
-	register int j;
+	int j;
 	{
-	register int i;
+	int i;
 	if (j==0)
 		{
 		fillroom(OENTRANCE,0);		/*	entrance to dungeon			*/
@@ -377,7 +377,7 @@ fillmroom(n,what,arg)
 	int n,arg;
 	char what;
 	{
-	register int i;
+	int i;
 	for (i=0; i<n; i++)		fillroom(what,arg);
 	}
 froom(n,itm,arg)
@@ -394,7 +394,7 @@ fillroom(what,arg)
 	int arg;
 	char what;
 	{
-	register int x,y;
+	int x,y;
 
 #ifdef EXTRA
 	c[FILLROOM]++;
@@ -422,7 +422,7 @@ fillroom(what,arg)
 fillmonst(what)
 	char what;
 	{
-	register int x,y,trys;
+	int x,y,trys;
 	for (trys=5; trys>0; --trys) /* max # of creation attempts */
 	  {
 	  x=rnd(MAXX-2);  y=rnd(MAXY-2);
@@ -443,7 +443,7 @@ fillmonst(what)
 sethp(flg)
 	int flg;
 	{
-	register int i,j;
+	int i,j;
 	if (flg) for (i=0; i<MAXY; i++) for (j=0; j<MAXX; j++) stealth[j][i]=0;
 	if (level==0) { c[TELEFLAG]=0; return; } /*	if teleported and found level 1 then know level we are on */
 	if (flg)   j = rnd(12) + 2 + (level>>1);   else   j = (level>>1) + 1;
@@ -456,7 +456,7 @@ sethp(flg)
  */
 checkgen()
 	{
-	register int x,y;
+	int x,y;
 	for (y=0; y<MAXY; y++)
 		for (x=0; x<MAXX; x++)
 			if (monster[mitem[x][y]].genocided)

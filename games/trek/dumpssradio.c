@@ -45,9 +45,9 @@ static char sccsid[] = "@(#)dumpssradio.c	8.1 (Berkeley) 5/31/93";
 
 dumpssradio()
 {
-	register struct event	*e;
-	register int		j;
-	register int		chkrest;
+	struct event	*e;
+	int		j;
+	int		chkrest;
 
 	chkrest = 0;
 	for (j = 0; j < MAXEVENTS; j++)

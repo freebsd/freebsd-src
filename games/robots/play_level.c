@@ -45,8 +45,8 @@ static char sccsid[] = "@(#)play_level.c	8.1 (Berkeley) 5/31/93";
  */
 play_level()
 {
-	register COORD	*cp;
-	register int	y, x, bonus;
+	COORD	*cp;
+	int	y, x, bonus;
 
 	move(My_pos.y, My_pos.x);
 	addch(PLAYER);

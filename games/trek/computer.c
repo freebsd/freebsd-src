@@ -103,7 +103,7 @@ struct cvntab	Cputab[] =
 computer()
 {
 	int			ix, iy;
-	register int		i, j;
+	int		i, j;
 	int			numout;
 	int			tqx, tqy;
 	struct cvntab		*r;
@@ -112,7 +112,7 @@ computer()
 	double			dist, time;
 	double			warpfact;
 	struct quad		*q;
-	register struct event	*e;
+	struct event	*e;
 
 	if (check_out(COMPUTER))
 		return;
@@ -317,7 +317,7 @@ double	*dist;
 	double			dx, dy;
 	double			quadsize;
 	double			angle;
-	register int		course;
+	int		course;
 
 	/* normalize to quadrant distances */
 	quadsize = NSECTS;

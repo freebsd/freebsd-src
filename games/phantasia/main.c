@@ -524,7 +524,7 @@ double	x;			/* desired new x coordinate */
 double	y;			/* desired new y coordinate */
 double	temp;			/* for temporary calculations */
 FILE	*fp;			/* for opening files */
-register int	loop;		/* a loop counter */
+int	loop;		/* a loop counter */
 bool	hasmoved = FALSE;	/* set if player has moved */
 
     ch = inputoption();
@@ -752,7 +752,7 @@ bool	hasmoved = FALSE;	/* set if player has moved */
 
 titlelist()
 {
-register FILE	*fp;		/* used for opening various files */
+FILE	*fp;		/* used for opening various files */
 bool	councilfound = FALSE;	/* set if we find a member of the council */
 bool	kingfound = FALSE;	/* set if we find a king */
 double	hiexp, nxtexp;		/* used for finding the two highest players */
@@ -887,7 +887,7 @@ long
 recallplayer()
 {
 long	loc = 0L;		/* location in player file */
-register int	loop;		/* loop counter */
+int	loop;		/* loop counter */
 int	ch;			/* input */
 
     clear();
@@ -1106,8 +1106,8 @@ int	ch;	/* input */
 genchar(type)
 int	type;
 {
-register int	subscript;		/* used for subscripting into Stattable */
-register struct charstats	*statptr;/* for pointing into Stattable */
+int	subscript;		/* used for subscripting into Stattable */
+struct charstats	*statptr;/* for pointing into Stattable */
 
     subscript = type - '1';
 

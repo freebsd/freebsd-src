@@ -42,9 +42,9 @@ static char sccsid[] = "@(#)dr_5.c	8.1 (Berkeley) 5/31/93";
 subtract(from, totalfrom, crewfrom, fromcap, pcfrom)
 struct ship *from, *fromcap;
 int pcfrom;
-register int  totalfrom, crewfrom[3];
+int  totalfrom, crewfrom[3];
 {
-	register int n;
+	int n;
 
 	if (fromcap == from && totalfrom) {		/* if not captured */
 		for (n = 0; n < 3; n++) {
@@ -70,9 +70,9 @@ int crew[3], *pc;
 char isdefense;
 {					/* returns # of crew squares sent */
 	int men = 0;
-	register int n;
+	int n;
 	int c1, c2, c3;
-	register struct BP *bp;
+	struct BP *bp;
 
 	*pc = from->file->pcrew;
 	*captured = from->file->captured;

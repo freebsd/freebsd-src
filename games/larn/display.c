@@ -28,7 +28,7 @@ static void botsub();
 
 bot_linex()
 	{
-	register int i;
+	int i;
 	if (cbak[SPELLS] <= -50 || (always))
 		{
 		cursor( 1,18);
@@ -132,7 +132,7 @@ static struct bot_side_def
 
 botside()
 	{
-	register int i,idx;
+	int i,idx;
 	for (i=0; i<17; i++)
 		{
 		idx = bot_data[i].typ;
@@ -149,10 +149,10 @@ botside()
 
 static void
 botsub(idx,str)
-	register int idx;
+	int idx;
 	char *str;
 	{
-	register int x,y;
+	int x,y;
 	y = idx & 0xff;		x = (idx>>8) & 0xff;	  idx >>= 16;
 	if (c[idx] != cbak[idx])
 		{ cbak[idx]=c[idx];  cursor(x,y);  lprintf(str,(long)c[idx]); }
@@ -167,7 +167,7 @@ int d_xmin=0,d_xmax=MAXX,d_ymin=0,d_ymax=MAXY;	/* for limited screen drawing */
 draws(xmin,xmax,ymin,ymax)
 	int xmin,xmax,ymin,ymax;
 	{
-	register int i,idx;
+	int i,idx;
 	if (xmin==0 && xmax==MAXX) /* clear section of screen as needed */
 		{
 		if (ymin==0) cl_up(79,ymax);
@@ -198,7 +198,7 @@ draws(xmin,xmax,ymin,ymax)
 char screen[MAXX][MAXY],d_flag;	/* template for the screen */
 drawscreen()
 	{
-	register int i,j,k;
+	int i,j,k;
 	int lastx,lasty;  /* variables used to optimize the object printing */
 	if (d_xmin==0 && d_xmax==MAXX && d_ymin==0 && d_ymax==MAXY)
 		{
@@ -268,7 +268,7 @@ drawscreen()
 showcell(x,y)
 	int x,y;
 	{
-	register int i,j,k,m;
+	int i,j,k,m;
 	if (c[BLINDCOUNT])  return;	/* see nothing if blind		*/
 	if (c[AWARENESS]) { minx = x-3;	maxx = x+3;	miny = y-3;	maxy = y+3; }
 			else	  { minx = x-1;	maxx = x+1;	miny = y-1;	maxy = y+1; }
@@ -350,7 +350,7 @@ moveplayer(dir)
 							[6-northwest] [7-southeast] [8-southwest]
 						if direction=0, don't move--just show where he is */
 	{
-	register int k,m,i,j;
+	int k,m,i,j;
 	if (c[CONFUSE]) if (c[LEVEL]<rnd(30)) dir=rund(9); /*if confused any dir*/
 	k = playerx + diroffx[dir];		m = playery + diroffy[dir];
 	if (k<0 || k>=MAXX || m<0 || m>=MAXY) { nomove=1; return(yrepcount = 0); }
@@ -376,7 +376,7 @@ static int lincount,count;
 seemagic(arg)
 	int arg;
 	{
-	register int i,number;
+	int i,number;
 	count = lincount = 0;  nosignal=1;
 
 	if (arg== -1) /* if display spells while casting one */

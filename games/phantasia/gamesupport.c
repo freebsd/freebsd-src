@@ -58,8 +58,8 @@ bool	ingameflag;
 {
 static char	flag[2] = /* for printing values of bools */
 	{'F', 'T'};
-register struct player	*playerp;/* pointer to structure to alter */
-register char	*prompt;	/* pointer to prompt string */
+struct player	*playerp;/* pointer to structure to alter */
+char	*prompt;	/* pointer to prompt string */
 int	c;			/* input */
 int	today;			/* day of year of today */
 int	temp;			/* temporary variable */
@@ -515,7 +515,7 @@ BALTER:
 
 monstlist()
 {
-register int 	count = 0;		/* count in file */
+int 	count = 0;		/* count in file */
 
     puts(" #)  Name                 Str  Brain  Quick  Energy  Exper  Treas  Type  Flock%\n");
     fseek(Monstfp, 0L, 0);
@@ -552,7 +552,7 @@ register int 	count = 0;		/* count in file */
 scorelist()
 {
 struct	scoreboard	sbuf;	/* for reading entries */
-register FILE	*fp;		/* to open the file */
+FILE	*fp;		/* to open the file */
 
     if ((fp = fopen(_PATH_SCORE, "r")) != NULL)
 	{

@@ -136,7 +136,7 @@ newturn()
 /*VARARGS2*/
 Signal(fmt, ship, a, b, c, d)
 char *fmt;
-register struct ship *ship;
+struct ship *ship;
 int a, b, c, d;
 {
 	if (!done_curses)
@@ -160,7 +160,7 @@ Scroll()
 }
 
 prompt(p, ship)
-register char *p;
+char *p;
 struct ship *ship;
 {
 	static char buf[60];
@@ -189,7 +189,7 @@ char *p;
 struct ship *ship;
 char flag;
 {
-	register c;
+	c;
 
 	prompt(p, ship);
 	blockalarm();
@@ -205,11 +205,11 @@ char flag;
 
 sgetstr(pr, buf, n)
 char *pr;
-register char *buf;
-register n;
+char *buf;
+n;
 {
-	register c;
-	register char *p = buf;
+	c;
+	char *p = buf;
 
 	prompt(pr, (struct ship *)0);
 	sc_buf = buf;
@@ -252,7 +252,7 @@ draw_screen()
 
 draw_view()
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	(void) werase(view_w);
 	foreachship(sp) {
@@ -385,7 +385,7 @@ draw_slot()
 
 draw_board()
 {
-	register int n;
+	int n;
 
 	(void) clear();
 	(void) werase(view_w);

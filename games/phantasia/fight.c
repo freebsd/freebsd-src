@@ -1166,7 +1166,7 @@ struct monster	Othermonster;		/* to find a name for mimics */
 
 awardtreasure()
 {
-register int	whichtreasure;		/* calculated treasure to grant */
+int	whichtreasure;		/* calculated treasure to grant */
 int	temp;				/* temporary */
 int	ch;				/* input */
 double	treasuretype;			/* monster's treasure type */
@@ -1659,8 +1659,8 @@ scramblestats()
 {
 double	dbuf[6];		/* to put statistic in */
 double	dtemp1, dtemp2;		/* for swapping values */
-register int	first, second;	/* indices for swapping */
-register double  *dptr;		/* pointer for filling and emptying buf[] */
+int	first, second;	/* indices for swapping */
+double  *dptr;		/* pointer for filling and emptying buf[] */
 
     /* fill buffer */
     dptr = &dbuf[0];

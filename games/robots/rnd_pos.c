@@ -51,7 +51,7 @@ rnd_pos()
 {
 	static COORD	pos;
 	static int	call = 0;
-	register int	i = 0;
+	int	i = 0;
 
 	do {
 		pos.y = rnd(Y_FIELDSIZE - 1) + 1;

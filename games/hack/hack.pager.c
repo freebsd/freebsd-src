@@ -21,7 +21,7 @@ dowhatis()
 {
 	FILE *fp;
 	char bufr[BUFSZ+6];
-	register char *buf = &bufr[6], *ep, q;
+	char *buf = &bufr[6], *ep, q;
 	extern char readchar();
 
 	if(!(fp = fopen(DATAFILE, "r")))
@@ -71,7 +71,7 @@ page_more(fp,strip)
 FILE *fp;
 int strip;	/* nr of chars to be stripped from each line (0 or 1) */
 {
-	register char *bufr, *ep;
+	char *bufr, *ep;
 	sig_t prevsig = signal(SIGINT, intruph);
 
 	set_pager(0);
@@ -103,7 +103,7 @@ set_whole_screen() {	/* called in termcap as soon as LI is known */
 
 #ifdef NEWS
 readnews() {
-	register int ret;
+	int ret;
 
 	whole_screen = TRUE;	/* force a docrt(), our first */
 	ret = page_file(NEWS, TRUE);
@@ -113,7 +113,7 @@ readnews() {
 #endif NEWS
 
 set_pager(mode)
-register int mode;	/* 0: open  1: wait+close  2: close */
+int mode;	/* 0: open  1: wait+close  2: close */
 {
 	static boolean so;
 	if(mode == 0) {
@@ -143,7 +143,7 @@ register int mode;	/* 0: open  1: wait+close  2: close */
 }
 
 page_line(s)		/* returns 1 if we should quit */
-register char *s;
+char *s;
 {
 	extern char morc;
 
@@ -190,7 +190,7 @@ char *text;
 	} *texthead, *texttail;
 	static int maxlen;
 	static int linect;
-	register struct line *tl;
+	struct line *tl;
 
 	if(mode == 0) {
 		texthead = 0;
@@ -204,7 +204,7 @@ char *text;
 	}
 
 	if(mode == 1) {
-	    register int len;
+	    int len;
 
 	    if(!text) return;	/* superfluous, just to be sure */
 	    linect++;
@@ -229,7 +229,7 @@ char *text;
 		pline(texthead->line_text);
 	else
 	if(mode == 2) {
-	    register int curline, lth;
+	    int curline, lth;
 
 	    if(flags.toplin == 1) more();	/* ab@unido */
 	    remember_topl();
@@ -290,14 +290,14 @@ dohelp()
 }
 
 page_file(fnam, silent)	/* return: 0 - cannot open fnam; 1 - otherwise */
-register char *fnam;
+char *fnam;
 boolean silent;
 {
 #ifdef DEF_PAGER			/* this implies that UNIX is defined */
       {
 	/* use external pager; this may give security problems */
 
-	register int fd = open(fnam, 0);
+	int fd = open(fnam, 0);
 
 	if(fd < 0) {
 		if(!silent) pline("Cannot open %s.", fnam);
@@ -341,7 +341,7 @@ boolean silent;
 #ifdef UNIX
 #ifdef SHELL
 dosh(){
-register char *str;
+char *str;
 	if(child(0)) {
 		if(str = getenv("SHELL"))
 			execl(str, str, (char *) 0);
@@ -375,7 +375,7 @@ union wait {		/* used only for the cast  (union wait *) 0  */
 
 child(wt) {
 	int status;
-	register int f;
+	int f;
 
 	f = fork();
 	if(f == 0){		/* child */

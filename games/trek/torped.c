@@ -62,11 +62,11 @@ static char sccsid[] = "@(#)torped.c	8.1 (Berkeley) 5/31/93";
 
 torped()
 {
-	register int		ix, iy;
+	int		ix, iy;
 	double			x, y, dx, dy;
 	double			angle;
 	int			course, course2;
-	register int		k;
+	int		k;
 	double			bigger;
 	double			sectsize;
 	int			burst;
@@ -221,7 +221,7 @@ randcourse(n)
 int	n;
 {
 	double			r;
-	register int		d;
+	int		d;
 
 	d = ((franf() + franf()) - 1.0) * 20;
 	if (abs(d) > 12)

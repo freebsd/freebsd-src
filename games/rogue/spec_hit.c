@@ -372,7 +372,7 @@ object *monster;
 }
 
 imitating(row, col)
-register short row, col;
+short row, col;
 {
 	if (dungeon[row][col] & MONSTER) {
 		object *object_at(), *monster;

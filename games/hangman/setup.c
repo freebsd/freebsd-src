@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
  */
 setup()
 {
-	register char		**sp;
+	char		**sp;
 	static struct stat	sbuf;
 
 	noecho();

@@ -60,9 +60,9 @@ char	*Movenames[] = {
 
 domove()
 {
-	reg PLAY	*pp;
-	reg int		i, j;
-	reg bool	goodplay;
+	PLAY	*pp;
+	int		i, j;
+	bool	goodplay;
 
 	pp = &Player[Play];
 	if (Play == PLAYER)
@@ -163,9 +163,9 @@ acc:
  */
 check_go() {
 
-	reg CARD	card;
-	reg PLAY	*pp, *op;
-	reg int		i;
+	CARD	card;
+	PLAY	*pp, *op;
+	int		i;
 
 	for (pp = Player; pp < &Player[2]; pp++) {
 		op = (pp == &Player[COMP] ? &Player[PLAYER] : &Player[COMP]);
@@ -192,10 +192,10 @@ check_go() {
 }
 
 playcard(pp)
-reg PLAY	*pp;
+PLAY	*pp;
 {
-	reg int		v;
-	reg CARD	card;
+	int		v;
+	CARD	card;
 
 	/*
 	 * check and see if player has picked
@@ -342,7 +342,7 @@ protected:
 
 getmove()
 {
-	reg char	c, *sp;
+	char	c, *sp;
 #ifdef EXTRAP
 	static bool	last_ex = FALSE;	/* set if last command was E */
 
@@ -471,9 +471,9 @@ ret:
  * return whether or not the player has picked
  */
 haspicked(pp)
-reg PLAY	*pp; {
+PLAY	*pp; {
 
-	reg int	card;
+	int	card;
 
 	if (Topcard <= Deck)
 		return TRUE;
@@ -490,9 +490,9 @@ reg PLAY	*pp; {
 }
 
 account(card)
-reg CARD	card; {
+CARD	card; {
 
-	reg CARD	oppos;
+	CARD	oppos;
 
 	if (card == C_INIT)
 		return;
@@ -546,10 +546,10 @@ int	promptno;
 }
 
 sort(hand)
-reg CARD	*hand;
+CARD	*hand;
 {
-	reg CARD	*cp, *tp;
-	reg CARD	temp;
+	CARD	*cp, *tp;
+	CARD	temp;
 
 	cp = hand;
 	hand += HAND_SZ;

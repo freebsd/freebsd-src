@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)out.c	8.1 (Berkeley) 5/31/93";
 out(dev)
 int	dev;
 {
-	register struct device	*d;
+	struct device	*d;
 
 	d = &Device[dev];
 	printf("%s reports %s ", d->person, d->name);

@@ -9,9 +9,9 @@ extern struct monst *makemon();
 findit()	/* returns number of things found */
 {
 	int num;
-	register xchar zx,zy;
-	register struct trap *ttmp;
-	register struct monst *mtmp;
+	xchar zx,zy;
+	struct trap *ttmp;
+	struct monst *mtmp;
 	xchar lx,hx,ly,hy;
 
 	if(u.uswallow) return(0);
@@ -51,9 +51,9 @@ findit()	/* returns number of things found */
 
 dosearch()
 {
-	register xchar x,y;
-	register struct trap *trap;
-	register struct monst *mtmp;
+	xchar x,y;
+	struct trap *trap;
+	struct monst *mtmp;
 
 	if(u.uswallow)
 		pline("What are you looking for? The exit?");
@@ -98,8 +98,8 @@ dosearch()
 }
 
 doidtrap() {
-register struct trap *trap;
-register int x,y;
+struct trap *trap;
+int x,y;
 	if(!getdir(1)) return(0);
 	x = u.ux + u.dx;
 	y = u.uy + u.dy;
@@ -116,7 +116,7 @@ register int x,y;
 }
 
 wakeup(mtmp)
-register struct monst *mtmp;
+struct monst *mtmp;
 {
 	mtmp->msleep = 0;
 	setmangry(mtmp);
@@ -125,7 +125,7 @@ register struct monst *mtmp;
 
 /* NOTE: we must check if(mtmp->mimic) before calling this routine */
 seemimic(mtmp)
-register struct monst *mtmp;
+struct monst *mtmp;
 {
 		mtmp->mimic = 0;
 		mtmp->mappearance = 0;

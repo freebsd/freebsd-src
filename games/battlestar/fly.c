@@ -178,7 +178,7 @@ visual()
 
 screen()
 {
-	register int r,c,n;
+	int r,c,n;
 	int i;
 
 	clear();
@@ -194,7 +194,7 @@ screen()
 
 target()
 {
-	register int n;
+	int n;
 
 	move(MIDR,MIDC-10);
 	addstr("-------   +   -------");
@@ -206,7 +206,7 @@ target()
 
 notarget()
 {
-	register int n;
+	int n;
 
 	move(MIDR,MIDC-10);
 	addstr("                     ");
@@ -218,7 +218,7 @@ notarget()
 
 blast()
 {
-	register int n;
+	int n;
 
 	alarm(0);
 	move(LINES-1, 24);

@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)impulse.c	8.1 (Berkeley) 5/31/93";
 impulse()
 {
 	int			course;
-	register int		power;
+	int		power;
 	double			dist, time;
-	register int		percent;
+	int		percent;
 	extern double		move();
 
 	if (Ship.cond == DOCKED)

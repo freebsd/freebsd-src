@@ -56,8 +56,8 @@ static char sccsid[] = "@(#)nova.c	8.1 (Berkeley) 5/31/93";
 nova(x, y)
 int	x, y;
 {
-	register int		i, j;
-	register int		se;
+	int		i, j;
+	int		se;
 
 	if (Sect[x][y] != STAR || Quad[Ship.quadx][Ship.quady].stars < 0)
 		return;
