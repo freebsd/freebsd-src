@@ -26,6 +26,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	if_carp placeholder.  All kernel modules implementing network
 	interfaces must be recompiled as a result.
 
+20040806:
+	Module loading has been fixed.  Some older installations will
+	drop proper module_path initalization and modules will fail to
+	load properly.  If you have a line in /boot/loader.rc that says:
+	"initialize drop", do (i386 only):
+		cp /usr/src/sys/boot/i386/loader/loader.rc /boot/loader.rc
+		chown root:wheel /boot/loader.rc
+		chmod 444 /boot/loader.rc
+
 20040802:
 	making /dev/(null|zero) into a module proved to be too unpopular,
 	so this bit has been revoked from the previous (20040801) entry.
