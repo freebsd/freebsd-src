@@ -240,6 +240,17 @@ slisunitfree(int unit)
 	return (1);
 }
 
+static struct sl_softc *
+sl_for_tty(struct tty *tp)
+{
+	struct sl_softc *nc;
+
+	LIST_FOREACH(nc, &sl_list, sl_next) {
+		if (nc->sc_ttyp == tp)
+			return (nc);
+	}
+	return (NULL);
+}
 static int
 slisstatic(int unit)
 {
@@ -359,7 +370,6 @@ slopen(struct cdev *dev, register struct tty *tp)
 		return (ENOBUFS);
 
 	tp->t_hotchar = FRAME_END;
-	tp->t_sc = (caddr_t)sc;
 	sc->sc_ttyp = tp;
 	sc->sc_if.if_baudrate = tp->t_ospeed;
 	ttyflush(tp, FREAD | FWRITE);
@@ -417,7 +427,7 @@ slclose(struct tty *tp, int flag)
 	 */
 	s = splimp();		/* actually, max(spltty, splnet) */
 	clist_free_cblocks(&tp->t_outq);
-	sc = (struct sl_softc *)tp->t_sc;
+	sc = sl_for_tty(tp);
 	if (sc != NULL) {
 		if (sc->sc_outfill) {
 			sc->sc_outfill = 0;
@@ -429,7 +439,6 @@ slclose(struct tty *tp, int flag)
 		}
 		if_down(&sc->sc_if);
 		sc->sc_ttyp = NULL;
-		tp->t_sc = NULL;
 		sldestroy(sc);
 	}
 	splx(s);
@@ -445,7 +454,7 @@ static int
 sltioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
+	struct sl_softc *sc = sl_for_tty(tp);
 	int s, unit, wasup;
 
 	s = splimp();
@@ -599,7 +608,7 @@ slstart(struct ifnet *ifp)
 static int
 sltstart(struct tty *tp)
 {
-	register struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
+	register struct sl_softc *sc = sl_for_tty(tp);
 	register struct mbuf *m;
 	register u_char *cp;
 	register struct ip *ip;
@@ -844,7 +853,7 @@ slinput(int c, struct tty *tp)
 	u_char chdr[CHDR_LEN];
 
 	tk_nin++;
-	sc = (struct sl_softc *)tp->t_sc;
+	sc = sl_for_tty(tp);
 	if (sc == NULL)
 		return 0;
 	if (c & TTY_ERRORMASK || (tp->t_state & TS_CONNECTED) == 0) {
