@@ -179,6 +179,7 @@ struct aac_command
 	void			*cm_private;
 	time_t			cm_timestamp;	/* command creation time */
 	int			cm_queue;
+	int			cm_index;
 };
 
 struct aac_fibmap {
