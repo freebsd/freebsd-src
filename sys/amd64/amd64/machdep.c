@@ -712,11 +712,11 @@ sigreturn(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	ucontext_t *ucp;
+	const ucontext_t *ucp;
 	int cs, eflags;
 
 	ucp = uap->sigcntxp;
-	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
+	if (!useracc((caddr_t)(uintptr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
 	regs = td->td_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
