@@ -1,0 +1,198 @@
+$Id$
+
+Obtaining FreeBSD
+   
+   The official sources for FreeBSD available via anonymous FTP from:
+   
+     ftp://ftp.FreeBSD.org/pub/FreeBSD
+     
+   and on CD-ROM from Walnut Creek CDROM:
+   
+     Walnut Creek CDROM
+     1547 Palos Verdes Mall, Suite 260
+     Walnut Creek CA 94596 USA
+     Phone: +1 510 674-0783
+     Fax: +1 510 674-0821
+     Email: info@cdrom.com
+     WWW: http://www.cdrom.com/
+   
+   
+   Additionally, FreeBSD is available via anonymous FTP from the
+   following mirror sites. If you choose to obtain FreeBSD via anonymous
+   FTP, please try to use a site near you.
+   
+   Australia
+          
+          + ftp://ftp.physics.usyd.edu.au/FreeBSD
+            Contact: dawes@xfree86.org.
+            
+          + ftp://minnie.cs.adfa.oz.au/FreeBSD
+            Contact: wkt@dolphin.cs.adfa.oz.au.
+            
+   Canada
+          
+          + ftp://ftp.synapse.net/contrib/FreeBSD
+            Contact: evanc@synapse.net.
+            
+   Finland
+          
+          + ftp://nic.funet.fi/pub/unix/FreeBSD
+            Contact: count@nic.funet.fi.
+            
+   France
+          
+          + ftp://ftp.ibp.fr/pub/FreeBSD
+            Contact: Remy.Card@ibp.fr.
+            
+   Germany
+          
+          + ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD
+            Contact: ftp@ftp.fb9dv.uni-duisburg.de.
+            
+          + ftp://gil.physik.rwth-aachen.de/pub/FreeBSD
+            Contact: kuku@gil.physik.rwth-aachen.de.
+            
+          + ftp://ftp.uni-paderborn.de/freebsd
+            Contact: ftp@uni-paderborn.de.
+            
+          + ftp://ftp.leo.org/pub/comp/os/bsd/FreeBSD
+            Contact: bsd@leo.org.
+            
+          + ftp://ftp.tu-dresden.de/pub/soft/unix/bsd/FreeBSD
+            Contact: pdsowner@rcs1.urz.tu-dresden.de.
+            
+   Ireland
+          
+          + ftp://ftp.internet-eireann.ie/pub/FreeBSD
+            Contact: ftpadmin@internet-eireann.ie.
+            
+   Israel
+          
+          
+          + ftp://orgchem.weizmann.ac.il/pub/FreeBSD
+            Contact: serg@klara.weizmann.ac.il.
+            
+   Hong Kong
+          
+          + ftp://ftp.hk.super.net/pub/FreeBSD
+            Contact: ftp-admin@HK.Super.NET.
+            
+   Korea
+          
+          + ftp://ftp.cau.ac.kr/pub/FreeBSD
+            Contact: ftpadm@ftp.cau.ac.kr.
+            
+   Netherlands
+          
+          + ftp://ftp.nl.net/pub/os/FreeBSD
+            Contact: archive@nl.net.
+            
+   Russia
+          
+          + ftp://ftp.kiae.su/FreeBSD
+            Contact: ftp@ftp.kiae.su.
+            
+   Sweden
+          
+          + ftp://ftp.luth.se/pub/FreeBSD
+            Contact: ragge@ludd.luth.se.
+            
+   Taiwan
+          
+          + ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD
+            Contact: freebsd@NCTUCCCA.edu.tw.
+            
+          + ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD
+            Contact: ftp@netbsd.csie.nctu.edu.tw.
+            
+   Thailand
+          
+          + ftp://ftp.nectec.or.th/pub/FreeBSD
+            Contact: ftpadmin@ftp.nectec.or.th.
+            
+   USA
+          
+          + ftp://gatekeeper.dec.com/pub/BSD/FreeBSD
+            Contact: hubbard@gatekeeper.dec.com.
+            
+          + ftp://ftp.cybernetics.net/pub/FreeBSD
+            Contact: michael@Cybernetics.NET.
+            
+          + ftp://ftp.neosoft.com/systems/FreeBSD
+            Contact: smace@NeoSoft.COM.
+            
+          + ftp://kryten.atinc.com/pub/FreeBSD
+            Contact: jmb@kryten.atinc.com.
+            
+          + ftp://ftp.dataplex.net/pub/FreeBSD
+            Contact: rkw@dataplex.net.
+            
+          + ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org
+            Contact: ftpadmin@cps.cmich.edu.
+            
+          + ftp://ftp.cslab.vt.edu/pub/FreeBSD
+            Contact: ftp@ftp.cslab.vt.edu.
+            
+   Japan
+          
+          + ftp://ftp.tokyonet.ad.jp/pub/FreeBSD
+            Contact: ftpadmin@TokyoNet.AD.JP.
+            
+          + ftp://ftp.tut.ac.jp/FreeBSD
+            Contact: ashida@ftp.tut.ac.jp.
+            
+          + ftp://ftp.sra.co.jp/pub/os/FreeBSD
+            Contact: ftp-admin@sra.co.jp.
+            
+          + ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org
+            Contact: ftp-admin@ftp.ee.uec.ac.jp.
+            
+          + ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD
+            Contact: tanig@isl.mei.co.jp.
+            
+          + ftp://ftp.waseda.ac.jp/pub/FreeBSD
+            Contact: ftp-admin@waseda.ac.jp.
+            
+          + ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD
+            Contact: Yoshihiko USUI usui@pu-toyama.ac.jp.
+            
+          + ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD
+            Contact: ftp-admin@u-aizu.ac.jp.
+            
+   UK
+          
+          + ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD
+            Contact: wizards@doc.ic.ac.uk.
+            
+          + ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD
+            Contact: archive-admin@unix.hensa.ac.uk.
+            
+          + ftp://ftp.demon.co.uk/pub/BSD/FreeBSD
+            Contact: uploads@demon.net.
+            
+   
+   
+   The latest versions of export-restricted code for FreeBSD (2.0C or
+   later) (eBones and secure) are being made available at the following
+   locations. If you are outside the U.S. or Canada, please get secure
+   (DES) and eBones (Kerberos) from one of the following foreign
+   distribution sites:
+   
+   SouthAfrica
+          
+          + ftp://ftp.internat.freebsd.org/pub/FreeBSD
+            Contact: Mark Murray mark@grondar.za.
+            
+          + ftp://storm.sea.uct.ac.za/pub/FreeBSD
+            Contact: Shaun Courtney ftp@storm.sea.uct.ac.za.
+            
+   Brazil
+          
+          + ftp://ftp.iqm.unicamp.br/pub/FreeBSD
+            Contact: Pedro A M Vazquez vazquez@iqm.unicamp.br.
+            
+   Finland
+          
+          + ftp://nic.funet.fi/pub/unix/FreeBSD/eurocrypt
+            Contact: count@nic.funet.fi.
+            
