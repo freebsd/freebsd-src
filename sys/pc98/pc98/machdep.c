@@ -1761,7 +1761,7 @@ init386(first)
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
-	pc = &SMP_prvspace[0];
+	pc = &SMP_prvspace[0].pcpu;
 	gdt_segs[GPRIV_SEL].ssd_limit =
 		atop(sizeof(struct privatespace) - 1);
 #else
@@ -2081,6 +2081,8 @@ fill_fpregs_xmm(sv_xmm, sv_87)
 	register struct env87 *penv_87 = &sv_87->sv_env;
 	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
 	int i;
+
+	bzero(sv_87, sizeof(*sv_87));
 
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
