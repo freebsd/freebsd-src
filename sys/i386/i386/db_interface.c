@@ -334,5 +334,6 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
+	db_printf("APIC ID      = %d\n", pc->pc_apic_id);
 	db_printf("currentldt   = 0x%x\n", pc->pc_currentldt);
 }
