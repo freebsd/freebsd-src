@@ -78,7 +78,7 @@
  */
 
 	/* max length of data in RR data field */
-#define MAXDATA		(2*MAXDNAME + 5*INT32SZ)
+#define MAXDATA		(3*MAXDNAME + 5*INT32SZ)
 
 	/* max length of data in a TXT RR segment */
 #define MAXCHARSTRING 255

@@ -66,7 +66,7 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 	u_int16_t atype;
 	u_char *sp, *cp1;
 	u_char data[MAXDATA];
-	size_t len = sizeof data;
+	u_char *eod = data + sizeof(data);
 #endif
 
 	nameserIncr(from.sin_addr, nssRcvdNXD);
@@ -186,7 +186,7 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 		rdatap = cp;
 
 		/* origin */
-		n = dn_expand(msg, msg + msglen, cp, (char*)data, len);
+		n = dn_expand(msg, msg + msglen, cp, (char*)data, eod - data);
 		if (n < 0) {
 			ns_debug(ns_log_ncache, 3,
 				 "ncache: origin form error");
@@ -195,9 +195,8 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 		cp += n;
 		n = strlen((char*)data) + 1;
 		cp1 = data + n;
-		len -= n;
 		/* mail */
-		n = dn_expand(msg, msg + msglen, cp, (char*)cp1, len);
+		n = dn_expand(msg, msg + msglen, cp, (char*)cp1, eod - cp1);
 		if (n < 0) {
 			ns_debug(ns_log_ncache, 3, "ncache: mail form error");
 			return;
@@ -205,20 +204,20 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 		cp += n;
 		n = strlen((char*)cp1) + 1;
 		cp1 += n;
-		len -= n;
 		n = 5 * INT32SZ;
+		if (n > (eod - cp1))	/* Can't happen. See MAXDATA. */
+			return;
 		BOUNDS_CHECK(cp, n);
 		memcpy(cp1, cp, n);
 		/* serial, refresh, retry, expire, min */
 		cp1 += n;
-		len -= n;
 		cp += n;
 		if (cp != rdatap + dlen) {
 			ns_debug(ns_log_ncache, 3, "ncache: form error");
 			return;
 		}
 		/* store the zone of the soa record */
-		n = dn_expand(msg, msg + msglen, sp, (char*)cp1, len);
+		n = dn_expand(msg, msg + msglen, sp, (char*)cp1, eod - cp1);
 		if (n < 0) {
 			ns_debug(ns_log_ncache, 3, "ncache: form error 2");
 			return;
