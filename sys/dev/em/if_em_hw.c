@@ -377,7 +377,9 @@ em_reset_hw(struct em_hw *hw)
         case em_82544:
         case em_82540:
         case em_82545:
+#ifndef __arm__
         case em_82546:
+#endif
         case em_82541:
         case em_82541_rev_2:
             /* These controllers can't ack the 64-bit write when issuing the
