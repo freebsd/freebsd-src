@@ -834,7 +834,6 @@ int
 exec_check_permissions(imgp)
 	struct image_params *imgp;
 {
-	struct proc *p = imgp->proc;
 	struct vnode *vp = imgp->vp;
 	struct vattr *attr = imgp->attr;
 	struct thread *td;
