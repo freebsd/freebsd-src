@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/12/28 11:06:21 sos Exp $
+#	$Id: Makefile,v 1.4 1998/12/28 16:32:39 peter Exp $
 
 PROG=	vinum
 SRCS=	v.c list.c vinumparser.c vinumutil.c vext.h commands.c
@@ -8,7 +8,7 @@ CFLAGS+=	-I${.CURDIR}/../../sys -g -Wall -DVINUMDEBUG -DRAID5
 DPADD=		${LIBUTIL} ${LIBREADLINE} ${LIBTERMCAP}
 LDADD=		-lutil -lreadline -ltermcap
 BINGRP=		kmem
-BINMODE=	2555
+BINMODE=	555
 
 .PATH: ${.CURDIR}/../../sys/dev/vinum
 
