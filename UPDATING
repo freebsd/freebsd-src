@@ -2,18 +2,38 @@ Updating Information for FreeBSD current users
 
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.  For commonly
-done items, please see the end of the file.  Search for COMMON ITEMS:
+done items, please see the end of the file.  Search for 'COMMON
+ITEMS:'
+
+20000201:
+	The rcmd related fucntions have been aligned with other BSD
+	implementations.  rlogind and rshd have been changed to use
+	the new API.  A make world is recommended to keep them in sync
+	with the libraries they use.
+
+	http://www.FreeBSD.org/cgi/cvsweb.cgi/src/lib/libc/net/rcmd.c
+	has the details.
 
 20000129:
 	{set,get}flags have been added to the tree for rather dubious
 	reasons.  An unintended side effect of this is that you must
-	rebuild install before the rest of the world.
+	rebuild install before the rest of the world.  You need to
+	build it static install before you make world:
 
 		cd src/usr.bin/xinstall
-		make depend all install clean
+		make depend all install NOSHARED=yes
 
-	before make world or buildworld.  This issue may be resolved
-	before 4.0 goes out.
+	If you encounter an error in installworld after doing a build
+	world, then do the following:
+		cd src/usr.bin/xinstall
+		make install
+	This issue may be resolved before 4.0 goes out.
+
+20000125:
+	rcmd_af() is added for multiple address family support.  rsh
+	and rlogin have been updated to use this to support INET6.  A
+	make world is recommended to keep them in sync with the
+	libraries they use.
 
 20000124:
 	The default way that virtual tables in our default C++
@@ -122,13 +142,7 @@ done items, please see the end of the file.  Search for COMMON ITEMS:
 	the future.  fsck is unable to cope with dirty file systems
 	after this change, so it may work for you or it may not.
 
-	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
-	starting the following:
-
-		For N in the list of disks
-			MAKEDEV N			# eg ad0
-			for M in the list of slices
-				MAKEDEV NsMa		# eg ad0s1a
+	See "To rebuild disk /dev entries" at the end of the file.
 
 	*** All uses of block devices must be converted to char devices.
 	*** Likely the only thing impacted is dumpdev in /etc/rc.conf
@@ -146,13 +160,8 @@ done items, please see the end of the file.  Search for COMMON ITEMS:
 	simple.  You may also need to create /dev entries for the da
 	devices as well.
 
-	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
-	starting the following:
+	See "To rebuild disk /dev entries" at the end of the file.
 
-		For N in the list of da disks on your system
-			MAKEDEV daN
-			for M in the list of slices
-				MAKEDEV daNsMa
 19991203:
 	BAD144 support has been removed.  Cope or replace the hardware.
 
@@ -572,6 +581,22 @@ COMMON ITEMS:
 		config YOUR_KERNEL_HERE
 		cd ../../compile/YOUR_KERNEL_HERE
 		make depend && make
+
+	To rebuild disk /dev entries
+	----------------------------
+
+	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
+	starting the following:
+
+		For N in the list of disks
+			MAKEDEV N			# eg ad0
+			for M in the list of slices
+				MAKEDEV NsMa		# eg ad0s1a
+
+
+	To rebuild everything
+	---------------------
+	make world.
 
 FORMAT:
 
