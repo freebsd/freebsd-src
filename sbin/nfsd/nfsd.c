@@ -588,6 +588,8 @@ main(argc, argv, envp)
 			if (select(maxsock + 1,
 			    &ready, NULL, NULL, NULL) < 1) {
 				syslog(LOG_ERR, "select failed: %m");
+				if (errno == EINTR)
+					continue;
 				exit(1);
 			}
 		}
@@ -596,6 +598,9 @@ main(argc, argv, envp)
 			if ((msgsock = accept(tcpsock,
 			    (struct sockaddr *)&inetpeer, &len)) < 0) {
 				syslog(LOG_ERR, "accept failed: %m");
+				if (errno == ECONNABORTED ||
+				    errno == EINTR)
+					continue;
 				exit(1);
 			}
 			memset(inetpeer.sin_zero, 0, sizeof(inetpeer.sin_zero));
@@ -615,6 +620,9 @@ main(argc, argv, envp)
 			if ((msgsock = accept(tp4sock,
 			    (struct sockaddr *)&isopeer, &len)) < 0) {
 				syslog(LOG_ERR, "accept failed: %m");
+				if (errno == ECONNABORTED ||
+				    errno == EINTR)
+					continue;
 				exit(1);
 			}
 			if (setsockopt(msgsock, SOL_SOCKET,
