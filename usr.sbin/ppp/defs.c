@@ -23,14 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.15 1998/05/29 18:32:11 brian Exp $
+ *	$Id: defs.c,v 1.16 1998/06/15 19:06:41 brian Exp $
  */
 
 
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
+#if !defined(__FreeBSD__) || __FreeBSD__ < 3
 #include <time.h>
+#endif
 #include <unistd.h>
 
 #include "defs.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.48 1998/06/15 19:06:38 brian Exp $
+ *	$Id: chat.c,v 1.49 1998/06/24 19:33:31 brian Exp $
  */
 
 #include <sys/types.h>
@@ -35,7 +35,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

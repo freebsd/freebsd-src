@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.58 1998/06/25 22:33:25 brian Exp $
+ * $Id: ipcp.c,v 1.59 1998/06/27 14:17:27 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -58,7 +58,6 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
-#include "loadalias.h"
 #include "vjcomp.h"
 #include "lqr.h"
 #include "hdlc.h"

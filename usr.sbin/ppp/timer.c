@@ -17,17 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.29 1998/06/15 19:06:56 brian Exp $
+ * $Id: timer.c,v 1.30 1998/06/20 01:36:38 brian Exp $
  *
  *  TODO:
  */
 
-#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <unistd.h>
 
 #include "log.h"
 #include "sig.h"
