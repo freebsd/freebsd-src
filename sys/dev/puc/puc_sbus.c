@@ -51,7 +51,7 @@ puc_sbus_probe(device_t dev)
 	const char *nm;
 
 	nm = ofw_bus_get_name(dev);
-	if (!strcmp(nm, "zs") && device_get_unit(dev) == 0) {
+	if (!strcmp(nm, "zs")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
 		return (0);
 	}
