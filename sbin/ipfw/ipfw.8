@@ -376,7 +376,9 @@ is not a directly-reachable address, the route as found in
 the local routing table for that IP is used instead.
 If
 .Ar ipaddr
-is a local address, then on a packet matching a fwd rule,
+is a local address, then on a packet matching a
+.Cm fwd
+rule,
 it will be diverted to
 .Ar port
 on the local machine, keeping the local address of the socket
@@ -395,10 +397,15 @@ packet is used, so that a packet for an external machine port
 Y would be forwarded to local port Y.
 The kernel must have been compiled with the
 .Dv IPFIREWALL_FORWARD
-option. Bridging interferes with forwarding of packets not destined
-to the local system as they bypass ip_input() and ip_output() where
-forwarding is implimented. The
-.Ar fwd
+option.
+Bridging interferes with forwarding of packets not destined
+to the local system as they bypass
+.Fn ip_input
+and
+.Fn ip_output
+where forwarding is implemented.
+The
+.Cm fwd
 action does not change the contents of the packet at all so
 packets forwarded to another system will usually be rejected by that system
 unless there is a matching rule on that system to capture them.
