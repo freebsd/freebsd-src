@@ -285,7 +285,7 @@ _pnpinfo=	pnpinfo
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif
-_sicontrol=	sicontrol
+# _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _wlconfig=	wlconfig
 _zzz=		zzz
@@ -317,7 +317,7 @@ _mptable=	mptable
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif
-_sicontrol=	sicontrol
+# _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
 .endif
