@@ -551,7 +551,8 @@ conf_printf(char *name, struct address_info * hw_config)
     if (!trace_init)
 	return;
 
-    printf("<%s> ", name);
+    printf("snd0: <%s> ", name);
+#if 0
     if (hw_config->io_base != -1 ) 
     printf("at 0x%03x", hw_config->io_base);
 
@@ -563,7 +564,7 @@ conf_printf(char *name, struct address_info * hw_config)
 	if (hw_config->dma2 != -1)
 	    printf(",%d", hw_config->dma2);
     }
-
+#endif
 
 }
 
@@ -573,7 +574,10 @@ conf_printf2(char *name, int base, int irq, int dma, int dma2)
     if (!trace_init)
 	return;
 
-    printf("<%s> at 0x%03x", name, base);
+    printf("snd0: <%s> ", name);
+#if 0
+    if (hw_config->io_base != -1 ) 
+    printf("at 0x%03x", hw_config->io_base);
 
     if (irq)
 	printf(" irq %d", irq);
@@ -583,7 +587,7 @@ conf_printf2(char *name, int base, int irq, int dma, int dma2)
 	if (dma2 != -1)
 	    printf(",%d", dma2);
     }
-
+#endif
 
 }
 
