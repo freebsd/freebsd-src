@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.83 1999/06/17 01:25:25 julian Exp $
+ * $Id: vfs_cluster.c,v 1.84 1999/06/26 02:46:08 mckusick Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -252,7 +252,8 @@ single_block_read:
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
 		bp->b_flags &= ~(B_ERROR|B_INVAL);
-		BUF_KERNPROC(bp);
+		if (bp->b_flags & (B_ASYNC|B_CALL))
+			BUF_KERNPROC(bp);
 		error = VOP_STRATEGY(vp, bp);
 		curproc->p_stats->p_ru.ru_inblock++;
 	}
@@ -286,7 +287,8 @@ single_block_read:
 			if ((rbp->b_flags & B_CLUSTER) == 0)
 				vfs_busy_pages(rbp, 0);
 			rbp->b_flags &= ~(B_ERROR|B_INVAL);
-			BUF_KERNPROC(rbp);
+			if (rbp->b_flags & (B_ASYNC|B_CALL))
+				BUF_KERNPROC(rbp);
 			(void) VOP_STRATEGY(vp, rbp);
 			curproc->p_stats->p_ru.ru_inblock++;
 		}
@@ -414,6 +416,11 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 		}
+		/*
+		 * XXX fbp from caller may not be B_ASYNC, but we are going
+		 * to biodone() it in cluster_callback() anyway
+		 */
+		BUF_KERNPROC(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
 		for (j = 0; j < tbp->b_npages; j += 1) {
@@ -788,6 +795,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
 			++tbp->b_vp->v_numoutput;
 			splx(s);
+			BUF_KERNPROC(tbp);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 				tbp, b_cluster.cluster_entry);
 		}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.72 1999/06/27 09:13:19 peter Exp $
+ * $Id: buf.h,v 1.73 1999/06/27 11:40:03 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -315,17 +315,8 @@ static __inline void BUF_KERNPROC __P((struct buf *));
 static __inline void
 BUF_KERNPROC(struct buf *bp)
 {
-	struct buf *nbp;
-	int s;
 
-	s = splbio();
-	if (bp->b_flags & B_ASYNC)
-		bp->b_lock.lk_lockholder = LK_KERNPROC;
-	for (nbp = TAILQ_FIRST(&bp->b_cluster.cluster_head);
-	     nbp; nbp = TAILQ_NEXT(&nbp->b_cluster, cluster_entry))
-		if (nbp->b_flags & B_ASYNC)
-			nbp->b_lock.lk_lockholder = LK_KERNPROC;
-	splx(s);
+	bp->b_lock.lk_lockholder = LK_KERNPROC;
 }
 /*
  * Find out the number of references to a lock.
