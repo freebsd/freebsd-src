@@ -155,12 +155,12 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	 */
 	sofs = we->we_nbytes;
 	vofs = we->we_wordc;
-	if ((flags & (WRDE_DOOFS|WRDE_APPEND)) == (WRDE_DOOFS|WRDE_APPEND))
+	if ((flags & (WRDE_DOOFFS|WRDE_APPEND)) == (WRDE_DOOFFS|WRDE_APPEND))
 		vofs += we->we_offs;
 	we->we_wordc += nwords;
 	we->we_nbytes += nbytes;
 	if ((nwv = realloc(we->we_wordv, (we->we_wordc + 1 +
-	    (flags & WRDE_DOOFS ?  we->we_offs : 0)) *
+	    (flags & WRDE_DOOFFS ?  we->we_offs : 0)) *
 	    sizeof(char *))) == NULL) {
 		_close(pdes[0]);
 		_waitpid(pid, &status, 0);
@@ -194,7 +194,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	 * Break the null-terminated expanded word strings out into
 	 * the vector.
 	 */
-	if (vofs == 0 && flags & WRDE_DOOFS)
+	if (vofs == 0 && flags & WRDE_DOOFFS)
 		while (vofs < we->we_offs)
 			we->we_wordv[vofs++] = NULL;
 	p = we->we_strings + sofs;
