@@ -12,7 +12,7 @@
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/powerpc/conf/Makefile.powerpc
+#	/sys/conf/Makefile.powerpc
 # after which config should be rerun for all machines.
 #
 

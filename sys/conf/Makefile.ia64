@@ -11,6 +11,8 @@
 #	/sys/ia64/conf/``machineid''
 # after which you should do
 #	 config machineid
+# Generic makefile changes should be made in
+#	/sys/conf/Makefile.ia64
 # after which config should be rerun for all machines.
 #
 
