@@ -1,5 +1,5 @@
 /*
- * ntp_filegen.h,v 3.7 1994/01/25 19:04:16 kardel Exp
+ * ntp_filegen.h,v 3.8 1994/05/30 09:48:53 kardel Exp
  *
  * definitions for NTP file generations support
  *
@@ -40,12 +40,12 @@ typedef struct FILEGEN
 	  char   *prefix;	/* filename prefix and basename to be used*/
 	  char   *basename;	/* for constructing filename of generation file */
 				/* WARNING: must be malloced !!! will be fed to free()*/
-	  U_LONG  id;		/* id of current generation */
+	  u_long  id;		/* id of current generation */
 	  u_char  type;		/* type of file generation */
 	  u_char  flag;		/* flags modifying processing of file generation */
 	}	FILEGEN;
 
-extern	void	filegen_setup	P((FILEGEN *, U_LONG));
+extern	void	filegen_setup	P((FILEGEN *, u_long));
 extern	void	filegen_config	P((FILEGEN *, char *, u_int, u_int));
 extern	FILEGEN *filegen_get	P((char *));
 extern	void	filegen_register P((char *, FILEGEN *));

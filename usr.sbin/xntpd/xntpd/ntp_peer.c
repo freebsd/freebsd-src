@@ -1,4 +1,4 @@
-/* ntp_peer.c,v 3.1 1993/07/06 01:11:22 jbj Exp
+/*
  * ntp_peer.c - management of data maintained for peer associations
  */
 #include <stdio.h>
@@ -49,11 +49,11 @@ u_short current_association_ID;
 /*
  * Miscellaneous statistic counters which may be queried.
  */
-U_LONG peer_timereset;		/* time stat counters were zeroed */
-U_LONG findpeer_calls;		/* number of calls to findpeer */
-U_LONG assocpeer_calls;		/* number of calls to findpeerbyassoc */
-U_LONG peer_allocations;	/* number of allocations from the free list */
-U_LONG peer_demobilizations;	/* number of structs freed to free list */
+u_long peer_timereset;		/* time stat counters were zeroed */
+u_long findpeer_calls;		/* number of calls to findpeer */
+u_long assocpeer_calls;		/* number of calls to findpeerbyassoc */
+u_long peer_allocations;	/* number of allocations from the free list */
+u_long peer_demobilizations;	/* number of structs freed to free list */
 int total_peer_structs;		/* number of peer structs in circulation */
 
 /*
@@ -64,7 +64,7 @@ extern struct interface *any_interface;
 /*
  * Timer queue and current time.  Imported from the timer module.
  */
-extern U_LONG current_time;
+extern u_long current_time;
 extern struct event timerqueue[];
 
 /*
@@ -77,7 +77,7 @@ static struct peer init_peer_alloc[INIT_PEER_ALLOC];
  * we try to get their poll update timers initialized to different values
  * to prevent us from sending big clumps of data all at once.
  */
-U_LONG init_peer_starttime;
+u_long init_peer_starttime;
 extern int initializing;
 extern int debug;
 
@@ -192,12 +192,14 @@ findexistingpeer(addr, start_peer)
  * findpeer - find and return a peer in the hash table.
  */
 struct peer *
-findpeer(srcadr, dstadr)
+findpeer(srcadr, dstadr, fd)
 	struct sockaddr_in *srcadr;
 	struct interface *dstadr;
+	int fd;
 {
 	register struct peer *any_inter_peer;
 	register struct peer *peer;
+	register struct peer *best = (struct peer *) 0;
 	int hash;
 
 	findpeer_calls++;
@@ -207,9 +209,16 @@ findpeer(srcadr, dstadr)
 	for (peer = peer_hash[hash]; peer != 0; peer = peer->next) {
 		if (NSRCADR(srcadr) == NSRCADR(&peer->srcadr)
 		    && NSRCPORT(srcadr) == NSRCPORT(&peer->srcadr)) {
-			if (peer->dstadr == dstadr)
-				return peer;	/* got it! */
+			if (peer->dstadr == dstadr) {
+				int rfd = (peer->cast_flags & MDF_BCAST) ?
+				    dstadr->bfd : dstadr->fd;
+
+				if (rfd == fd)
+					return peer;	/* got it! */
+				best = peer;
+			}
 			if (peer->dstadr == any_interface) {
+
 				/*
 				 * We shouldn't have more than one
 				 * instance of the peer in the table,
@@ -223,8 +232,21 @@ findpeer(srcadr, dstadr)
 		"two instances of default interface for %s in hash table",
 					    ntoa(srcadr));
 			}
+
+			/* 
+			 * Multicast hacks to determine peer when a 
+			 * packet arrives and there exists an assoc.
+			 * with src in client/server mode
+			 */
+ 			if (((dstadr == any_interface) || (peer->cast_flags &
+			     MDF_MCAST)) && peer->flags & FLAG_MCAST2)
+				return peer;
 		}
 	}
+
+ 	if(best) {
+ 		return best;
+ 	}
 
 	/*
 	 * If we didn't find the specific peer but found a wild card,
@@ -349,13 +371,13 @@ peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, flags, ttl, key)
 	int maxpoll;
 	int flags;
 	int ttl;
-	U_LONG key;
+	u_long key;
 {
 	register struct peer *peer;
 
 #ifdef DEBUG
 	if (debug)
-		printf("peer_config: addr %s mode %d version %d minpoll %d maxpoll %d flags %d ttl %d key %u\n",
+		printf("peer_config: addr %s mode %d version %d minpoll %d maxpoll %d flags %d ttl %d key %lu\n",
 		    ntoa(srcadr), hmode, version, minpoll, maxpoll, flags,
 		    ttl, key);
 #endif
@@ -387,8 +409,10 @@ peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, flags, ttl, key)
 		peer->maxpoll = (u_char)maxpoll;
 		peer->hpoll = peer->minpoll;
 		peer->ppoll = peer->minpoll;
-		peer->flags = ((u_char)(flags|FLAG_CONFIG))
-		    |(peer->flags & (FLAG_REFCLOCK|FLAG_DEFBDELAY));
+		peer->flags = ((u_char)(flags | FLAG_CONFIG)) |
+		    (peer->flags & FLAG_REFCLOCK);
+		peer->cast_flags = (hmode == MODE_BROADCAST) ?
+			IN_CLASSD(ntohl(srcadr->sin_addr.s_addr)) ? MDF_MCAST : MDF_BCAST : MDF_UCAST;
 		peer->ttl = (u_char)ttl;
 		peer->keyid = key;
 		return peer;
@@ -418,7 +442,7 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 	int minpoll;
 	int maxpoll;
 	int ttl;
-	U_LONG key;
+	u_long key;
 {
 	register struct peer *peer;
 	register int i;
@@ -427,8 +451,8 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 	 * Some dirt here.  Some of the initialization requires
 	 * knowlege of our system state.
 	 */
-	extern U_LONG sys_bdelay;
-	extern LONG sys_clock;
+	extern s_fp sys_bdelay;
+	extern long sys_clock;
 	
 	if (peer_free_count == 0)
 		getmorepeermem();
@@ -453,6 +477,11 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 		peer->dstadr = findbcastinter(srcadr);
 	else
 		peer->dstadr = any_interface;
+	peer->cast_flags = (hmode == MODE_BROADCAST) ?
+		(IN_CLASSD(ntohl(srcadr->sin_addr.s_addr))) ? MDF_MCAST : MDF_BCAST :
+		(hmode == MODE_BCLIENT || hmode == MODE_MCLIENT) ?
+		(peer->dstadr->flags & INT_MULTICAST) ? MDF_MCAST : MDF_BCAST :
+		MDF_UCAST;
 	peer->hmode = (u_char)hmode;
 	peer->version = (u_char)version;
 	peer->minpoll = (u_char)minpoll;
@@ -462,7 +491,6 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 	peer->ttl = ttl;
 	peer->keyid = key;
 	peer->estbdelay = sys_bdelay;
-	peer->flags |= FLAG_DEFBDELAY;
 	peer->leap = LEAP_NOTINSYNC;
 	peer->precision = DEFPRECISION;
 	peer->dispersion = NTP_MAXDISPERSE;
@@ -616,8 +644,6 @@ peer_reset(peer)
 	peer->processed = 0;
 	peer->badauth = 0;
 	peer->bogusorg = 0;
-	peer->bogusrec = 0;
-	peer->bogusdelay = 0;
 	peer->oldpkt = 0;
 	peer->seldisptoolarge = 0;
 	peer->selbroken = 0;

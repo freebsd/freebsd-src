@@ -1,4 +1,4 @@
-/* caltontp.c,v 3.1 1993/07/06 01:08:04 jbj Exp
+/*
  * caltontp - convert a julian date to an NTP time
  */
 #include <sys/types.h>
@@ -25,13 +25,13 @@ static u_short calmonthtab[12] = {
 	(MAR+APR+MAY+JUN+JUL+AUG+SEP+OCT+NOV+DEC+JAN),	/* February */
 };
 
-U_LONG
+u_long
 caltontp(jt)
 	register const struct calendar *jt;
 {
 	register int cyear;
 	register int resyear;
-	register U_LONG nt;
+	register u_long nt;
 	register int yearday;
 
 	/*
@@ -77,14 +77,14 @@ caltontp(jt)
 		}
 	}
 
-	nt = TIMESDPERC((U_LONG)cyear);
+	nt = TIMESDPERC((u_long)cyear);
 	while (resyear-- > 0)
 		nt += DAYSPERYEAR;
-	nt += (U_LONG) (yearday - 1);
+	nt += (u_long) (yearday - 1);
 
-	nt = TIMES24(nt) + (U_LONG)jt->hour;
-	nt = TIMES60(nt) + (U_LONG)jt->minute;
-	nt = TIMES60(nt) + (U_LONG)jt->second;
+	nt = TIMES24(nt) + (u_long)jt->hour;
+	nt = TIMES60(nt) + (u_long)jt->minute;
+	nt = TIMES60(nt) + (u_long)jt->second;
 
 	return nt + MAR1900;
 }

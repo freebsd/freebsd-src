@@ -13,7 +13,7 @@
 
 char *
 numtohost(netnum)
-	U_LONG netnum;
+	u_long netnum;
 {
 	char *bp;
 	struct hostent *hp;

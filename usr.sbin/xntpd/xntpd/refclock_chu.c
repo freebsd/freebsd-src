@@ -1,7 +1,7 @@
 /*
  * refclock_chu - clock driver for the CHU time code
  */
-#if defined(REFCLOCK) && (defined(CHU) || defined(CHUCLK) || defined(CHUPPS))
+#if defined(REFCLOCK) && defined(CHU)
 
 #include <stdio.h>
 #include <ctype.h>
@@ -11,28 +11,7 @@
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
-
-#if defined(HAVE_BSD_TTYS)
-#include <sgtty.h>
-#endif /* HAVE_BSD_TTYS */
-
-#if defined(HAVE_SYSV_TTYS)
-#include <termio.h>
-#endif /* HAVE_SYSV_TTYS */
-
-#if defined(HAVE_TERMIOS)
-#include <termios.h>
-#endif
-#if defined(STREAM)
-#include <stropts.h>
-#endif /* STREAM */
-
-#if defined (CHUPPS)
-#include <sys/ppsclock.h>
-#endif /* CHUPPS */
-
 #include <sys/chudefs.h>
-
 #include "ntp_stdlib.h"
 
 /*
@@ -79,29 +58,30 @@
  * in this nibble.
  *
  * The start bit in each character has a precise relationship to
- * the on-time second.  Most often UART's synchronize themselves to the
+ * the on-time second. Most often UART's synchronize themselves to the
  * start bit and will post an interrupt at the center of the first stop
  * bit.  Thus each character's interrupt should occur at a fixed offset
- * from the on-time second.  This means that a timestamp taken at the
+ * from the on-time second. This means that a timestamp taken at the
  * arrival of each character in the code will provide an independent
  * estimate of the offset.  Since there are 10 characters in the time
- * code and the code is sent 9 times per minute, this means you potentially
- * get 90 offset samples per minute.  Much of the code in here is dedicated
- * to producing a single offset estimate from these samples.
+ * code and the code is sent 9 times per minute, this means you
+ * potentially get 90 offset samples per minute. Much of the code in
+ * here is dedicated to producing a single offset estimate from these
+ * samples.
  *
- * A note about the line discipline.  It is possible to receive the
- * CHU time code in raw mode, but this has disadvantages.  In particular,
+ * A note about the line discipline. It is possible to receive the
+ * CHU time code in raw mode, but this has disadvantages. In particular,
  * this puts a lot of code between the interrupt and the time you freeze
- * a time stamp, decreasing precision.  It is also expensive in terms of
+ * a time stamp, decreasing precision. It is also expensive in terms of
  * context switches, and made even more expensive by the way I do I/O.
  * Worse, since you are listening directly to the output of your radio,
  * CHU is noisy and will make you spend a lot of time receiving noise.
  *
- * The line discipline fixes a lot of this.  It knows that the CHU time
+ * The line discipline fixes a lot of this. It knows that the CHU time
  * code consists of 10 bytes which arrive with an intercharacter
  * spacing of about 37 ms, and that the data is BCD, and filters on this
- * basis.  It delivers block of ten characters plus their associated time
- * stamps all at once.  The time stamps are hence about as accurate as
+ * basis. It delivers block of ten characters plus their associated time
+ * stamps all at once. The time stamps are hence about as accurate as
  * a Unix machine can get them, and much of the noise disappears in the
  * kernel with no context switching cost.
  *
@@ -112,13 +92,18 @@
  */
 
 /*
- * Definitions
+ * CHU definitions
  */
-#define	MAXUNITS	4	/* maximum number of CHU units permitted */
-#define	CHUDEV	"/dev/chu%d"	/* device we open.  %d is unit number */
-#define SPEED232 B300		/* uart speed (300 baud) */
+#define	DEVICE		"/dev/chu%d" /* device name and unit */
+#define SPEED232 	B300	/* uart speed (300 baud) */
+#define	PRECISION	(-9)	/* what the heck */
+#define	REFID		"CHU\0"	/* reference ID */
+#define	DESCRIPTION	"Scratchbuilt CHU Receiver" /* WRU */
+
 #define	NCHUCODES	8	/* expect 8 CHU codes per minute */
+#ifndef CHULDISC
 #define CHULDISC	10	/* XXX temp CHU line discipline */
+#endif
 
 /*
  * To compute a quality for the estimate (a pseudo dispersion) we add a
@@ -127,14 +112,6 @@
  * estimated sample offset.
  */
 #define	CHUDELAYPENALTY	0x0000028f
-
-/*
- * Other constant stuff
- */
-#define	CHUPRECISION	(-9)	/* what the heck */
-#define	CHUREFID	"CHU\0"
-#define	CHUDESCRIPTION	"Direct synchronized to CHU timecode"
-#define	CHUHSREFID	0x7f7f070a /* 127.127.7.10 refid for hi strata */
 
 /*
  * Default fudge factors
@@ -160,37 +137,27 @@
 static char hexstring[]="0123456789abcdef";
 
 /*
- * CHU unit control structure.
+ * Unit control structure.
  */
 struct chuunit {
-	struct peer *peer;		/* associated peer structure */
-	struct event chutimer;		/* timeout timer structure */
-	struct refclockio chuio;	/* given to the I/O handler */
-	l_fp offsets[NCHUCODES];	/* offsets computed from each code */
-	l_fp rectimes[NCHUCODES];	/* times we received this stuff */
-	U_LONG reftimes[NCHUCODES];	/* time of last code received */
-	u_char lastcode[NCHUCHARS*4];	/* last code we received */
-        u_char asciicode[NCHUCHARS*4+1]; /* last code translated to ascii */
-	u_char expect;			/* the next offset expected */
-	u_char unit;			/* unit number for this guy */
-	u_short haveoffset;		/* flag word indicating valid offsets */
-	u_short flags;			/* operational flags */
-	u_char status;			/* clock status */
-	u_char lastevent;		/* last clock event */
-	u_char unused[2];
-	U_LONG lastupdate;		/* last time data received */
-	U_LONG responses;		/* number of responses */
-	U_LONG badformat;		/* number of bad format responses */
-	U_LONG baddata;			/* number of invalid time codes */
-	U_LONG timestarted;		/* time we started this */
-	u_char leap;			/* leap status */
+	struct	peer *peer;	/* peer structure pointer */
+	struct	event chutimer;	/* timeout timer structure */
+	l_fp	offsets[NCHUCODES]; /* offsets computed from each code */
+	l_fp	rectimes[NCHUCODES]; /* times we received this stuff */
+	u_long	reftimes[NCHUCODES]; /* time of last code received */
+	u_char	lastcode[NCHUCHARS * 4]; /* last code we received */
+	u_char	expect;		/* the next offset expected */
+	u_short	haveoffset;	/* flag word indicating valid offsets */
+	u_short	flags;		/* operational flags */
+	u_long	responses;	/* number of responses */
+	int	pollcnt;	/* poll message counter */
 };
 
-#define	CHUTIMERSET	0x1		/* timer is set to fire */
+#define	CHUTIMERSET	0x1	/* timer is set to fire */
 
 
 /*
- * The CHU table.  This gives the expected time of arrival of each
+ * The CHU table. This gives the expected time of arrival of each
  * character after the on-time second and is computed as follows:
  * The CHU time code is sent at 300 bps.  Your average UART will
  * synchronize at the edge of the start bit and will consider the
@@ -198,12 +165,11 @@ struct chuunit {
  * 0.031667 ms later (some UARTS may complete the character at the
  * end of the stop bit instead of the middle, but you can fudge this).
  * Thus the expected time of each interrupt is the start bit time plus
- * 0.031667 seconds.  These times are in chutable[].  To this we add
- * such things as propagation delay and delay fudge factor.
+ * 0.031667 seconds. These times are in chutable[].
  */
 #define	CHARDELAY	0x081b4e82
 
-static U_LONG chutable[NCHUCHARS] = {
+static u_long chutable[NCHUCHARS] = {
 	0x22222222 + CHARDELAY,		/* 0.1333333333 */
 	0x2b851eb8 + CHARDELAY,		/* 0.170 (exactly) */
 	0x34e81b4e + CHARDELAY,		/* 0.2066666667 */
@@ -217,39 +183,10 @@ static U_LONG chutable[NCHUCHARS] = {
 };
 
 /*
- * Data space for the unit structures.  Note that we allocate these on
- * the fly, but never give them back.
- */
-static struct chuunit *chuunits[MAXUNITS];
-static u_char unitinuse[MAXUNITS];
-
-/*
- * Keep the fudge factors separately so they can be set even
- * when no clock is configured.
- */
-static l_fp propagation_delay[MAXUNITS];
-static l_fp fudgefactor[MAXUNITS];
-static l_fp offset_fudge[MAXUNITS];
-static u_char stratumtouse[MAXUNITS];
-static u_char sloppyclockflag[MAXUNITS];
-
-/*
- * We keep track of the start of the year, watching for changes.
- * We also keep track of whether the year is a leap year or not.
- * All because stupid CHU doesn't include the year in the time code.
- */
-static U_LONG yearstart;
-
-/*
  * Imported from the timer module
  */
-extern U_LONG current_time;
+extern u_long current_time;
 extern struct event timerqueue[];
-
-/*
- * Imported from ntp_loopfilter module
- */
-extern int fdpps;		/* pps file descriptor */
 
 /*
  * Imported from ntpd module
@@ -257,59 +194,27 @@ extern int fdpps;		/* pps file descriptor */
 extern int debug;		/* global debug flag */
 
 /*
- * Event reporting.  This optimizes things a little.
+ * Function prototypes
  */
-#define	chu_event(chu, evcode) \
-	do { \
-		if ((chu)->status != (u_char)(evcode)) \
-			chu_report_event((chu), (evcode)); \
-	} while (0)
-
-static	void	chu_init	P((void));
-static	int	chu_start	P((u_int, struct peer *));
-static	void	chu_shutdown	P((int));
-static	void	chu_report_event	P((struct chuunit *, int));
+static	int	chu_start	P((int, struct peer *));
+static	void	chu_shutdown	P((int, struct peer *));
 static	void	chu_receive	P((struct recvbuf *));
 static	void	chu_process	P((struct chuunit *));
 static	void	chu_poll	P((int, struct peer *));
-static	void	chu_control	P((u_int, struct refclockstat *, struct refclockstat *));
 static	void	chu_timeout	P((struct peer *));
 
 /*
  * Transfer vector
  */
 struct	refclock refclock_chu = {
-	chu_start, chu_shutdown, chu_poll,
-	chu_control, chu_init, noentry, NOFLAGS
+	chu_start,		/* start up driver */
+	chu_shutdown,		/* shut down driver */
+	chu_poll,		/* transmit poll message */
+	noentry,		/* not used (old chu_control) */
+	noentry,		/* initialize driver (not used) */
+	noentry,		/* not used (old chu_buginfo) */
+	NOFLAGS			/* not used */
 };
-
-/*
- * chu_init - initialize internal chu driver data
- */
-static void
-chu_init()
-{
-	register int i;
-	/*
-	 * Just zero the data arrays
-	 */
-	memset((char *)chuunits, 0, sizeof chuunits);
-	memset((char *)unitinuse, 0, sizeof unitinuse);
-
-	/*
-	 * Initialize fudge factors to default.
-	 */
-	for (i = 0; i < MAXUNITS; i++) {
-		propagation_delay[i].l_ui = 0;
-		propagation_delay[i].l_uf = DEFPROPDELAY;
-		fudgefactor[i].l_ui = 0;
-		fudgefactor[i].l_uf = DEFFILTFUDGE;
-		offset_fudge[i] = propagation_delay[i];
-		L_ADD(&offset_fudge[i], &fudgefactor[i]);
-		stratumtouse[i] = 0;
-		sloppyclockflag[i] = 0;
-	}
-}
 
 
 /*
@@ -317,248 +222,71 @@ chu_init()
  */
 static int
 chu_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
-	register struct chuunit *chu;
-	register int i;
-	int fd232;
-	char chudev[20];
-	l_fp ts;
+	register struct chuunit *up;
+	struct refclockproc *pp;
+	int fd;
+	char device[20];
 
 	/*
-	 * Check configuration info
+	 * Open serial port and set CHU line discipline
 	 */
-	if (unit >= MAXUNITS) {
-		syslog(LOG_ERR, "chu_start: unit %d invalid", unit);
-		return 0;
+	(void) sprintf(device, DEVICE, unit);
+	if (!(fd = refclock_open(device, SPEED232, LDISC_CHU)))
+		return (0);
+
+	/*
+	 * Allocate and initialize unit structure
+	 */
+	if (!(up = (struct chuunit *)
+	    emalloc(sizeof(struct chuunit)))) {
+		(void) close(fd);
+		return (0);
 	}
-	if (unitinuse[unit]) {
-		syslog(LOG_ERR, "chu_start: unit %d in use", unit);
-		return 0;
+	memset((char *)up, 0, sizeof(struct chuunit));
+	up->chutimer.peer = (struct peer *)up;
+	up->chutimer.event_handler = chu_timeout;
+	up->peer = peer;
+	pp = peer->procptr;
+	pp->io.clock_recv = chu_receive;
+	pp->io.srcclock = (caddr_t)peer;
+	pp->io.datalen = 0;
+	pp->io.fd = fd;
+	if (!io_addclock(&pp->io)) {
+		(void) close(fd);
+		free(up);
+		return (0);
 	}
+	pp->unitptr = (caddr_t)up;
 
 	/*
-	 * Open serial port
+	 * Initialize miscellaneous variables
 	 */
-	(void) sprintf(chudev, CHUDEV, unit);
-	fd232 = open(chudev, O_RDONLY, 0777);
-	if (fd232 == -1) {
-		syslog(LOG_ERR, "chu_start: open of %s: %m", chudev);
-		return 0;
-	}
-
-#if defined(HAVE_SYSV_TTYS)
-	/*
-	 * System V serial line parameters (termio interface)
-	 */
-	CHU SUPPORT NOT AVAILABLE IN TERMIO INTERFACE
-#endif /* HAVE_SYSV_TTYS */
-#if defined(HAVE_TERMIOS)
-	/*
-	 * POSIX serial line parameters (termios interface)
-	 *
-	 * The CHUCLK support uses a 300-baud modem and level converter
-	 * (gadget box). It requires the chu_clk streams module and
-	 * SunOS 4.1.1 or later.
-	 *
-	 * The CHUPPS option provides timestamping at the driver level.
-	 * It uses a 1-pps signal and level converter (gadget box) and
-	 * requires the ppsclock streams module and SunOS 4.1.1 or
-	 * later.
-	 */
-    {	struct termios ttyb, *ttyp;
-
-	ttyp = &ttyb;
-	if (tcgetattr(fd232, ttyp) < 0) {
-                syslog(LOG_ERR,
-		    "chu_start: tcgetattr(%s): %m", chudev);
-                goto screwed;
-        }
-        ttyp->c_iflag = IGNBRK|IGNPAR;
-        ttyp->c_oflag = 0;
-        ttyp->c_cflag = SPEED232|CS8|CLOCAL|CREAD;
-        ttyp->c_lflag = 0;
-	ttyp->c_cc[VERASE] = ttyp->c_cc[VKILL] = '\0';
-	ttyp->c_cc[VMIN] = 1;
-	ttyp->c_cc[VTIME] = 0;
-        if (tcsetattr(fd232, TCSANOW, ttyp) < 0) {
-                syslog(LOG_ERR,
-		    "chu_start: tcsetattr(%s): %m", chudev);
-                goto screwed;
-        }
-        if (tcflush(fd232, TCIOFLUSH) < 0) {
-                syslog(LOG_ERR,
-		    "chu_start: tcflush(%s): %m", chudev);
-                goto screwed;
-        }
-    }
-#endif /* HAVE_TERMIOS */
-#ifdef STREAM
-    while (ioctl(fd232, I_POP, 0 ) >= 0) ;
-    if (ioctl(fd232, I_PUSH, "chu" ) < 0) {
-	    syslog(LOG_ERR,
-		"chu_start: ioctl(%s, I_PUSH, chu): %m", chudev);
-	    goto screwed;
-    }
-#if defined(CHUPPS)
-    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-	    syslog(LOG_ERR,
-		"chu_start: ioctl(%s, I_PUSH, ppsclock): %m", chudev);
-    else
-	    fdpps = fd232;
-#endif /* CHUPPS */
-#endif /* STREAM */
-#if defined(HAVE_BSD_TTYS)
-	/*
-	 * 4.3bsd serial line parameters (sgttyb interface)
-	 *
-	 * The CHUCLK support uses a 300-baud modem and level converter
-	 * (gadget box). It requires the chu_clk streams module and
-	 * 4.3bsd or later.
-	 */
-    {	struct sgttyb ttyb;
-	int ldisc = CHULDISC;
-
-	if (ioctl(fd232, TIOCGETP, &ttyb) < 0) {
-		syslog(LOG_ERR,
-		    "chu_start: ioctl(%s, TIOCGETP): %m", chudev);
-		goto screwed;
-	}
-	ttyb.sg_ispeed = ttyb.sg_ospeed = SPEED232;
-	ttyb.sg_erase = ttyb.sg_kill = '\r';
-	ttyb.sg_flags = RAW;
-	if (ioctl(fd232, TIOCSETP, &ttyb) < 0) {
-		syslog(LOG_ERR,
-		    "chu_start: ioctl(%s, TIOCSETP): %m", chudev);
-		goto screwed;
-	}
-	if (ioctl(fd232, TIOCSETD, &ldisc) < 0) {
-		syslog(LOG_ERR,
-		    "chu_start: ioctl(%s, TIOCSETD): %m",chudev);
-		goto screwed;
-	}
-    }
-#endif /* HAVE_BSD_TTYS */
-
-	/*
-	 * Allocate unit structure
-	 */
-	if (chuunits[unit] != 0) {
-		chu = chuunits[unit];	/* The one we want is okay */
-	} else {
-		for (i = 0; i < MAXUNITS; i++) {
-			if (!unitinuse[i] && chuunits[i] != 0)
-				break;
-		}
-		if (i < MAXUNITS) {
-			/*
-			 * Reclaim this one
-			 */
-			chu = chuunits[i];
-			chuunits[i] = 0;
-		} else {
-			chu = (struct chuunit *)emalloc(sizeof(struct chuunit));
-		}
-	}
-	memset((char *)chu, 0, sizeof(struct chuunit));
-	chuunits[unit] = chu;
-
-	/*
-	 * Set up the structure
-	 */
-	chu->peer = peer;
-	chu->unit = (u_char)unit;
-	chu->timestarted = current_time;
-
-	chu->chutimer.peer = (struct peer *)chu;
-	chu->chutimer.event_handler = chu_timeout;
-
-	chu->chuio.clock_recv = chu_receive;
-	chu->chuio.srcclock = (caddr_t)chu;
-	chu->chuio.datalen = sizeof(struct chucode);
-	chu->chuio.fd = fd232;
-
-	/*
-	 * Initialize the year from the system time in case this is the
-	 * first open.
-	 */
-	get_systime(&ts);
-	yearstart = calyearstart(ts.l_ui);
-	if (!io_addclock(&chu->chuio)) {
-		goto screwed;
-	}
-
-	/*
-	 * All done.  Initialize a few random peer variables, then
-	 * return success.
-	 */
-	peer->precision = CHUPRECISION;
-	peer->rootdelay = 0;
-	peer->rootdispersion = 0;
-	peer->stratum = stratumtouse[unit];
-	if (stratumtouse[unit] <= 1)
-		memmove((char *)&peer->refid, CHUREFID, 4);
-	else
-		peer->refid = htonl(CHUHSREFID);
-	unitinuse[unit] = 1;
+	peer->precision = PRECISION;
+	pp->clockdesc = DESCRIPTION;
+	memcpy((char *)&pp->refid, REFID, 4);
+	up->pollcnt = 2;
 	return (1);
-
-	/*
-	 * Something broke; abandon ship.
-	 */
-screwed:
-	(void) close(fd232);
-	return (0);
 }
 
 
 /*
- * chu_shutdown - shut down a CHU clock
+ * chu_shutdown - shut down the clock
  */
 static void
-chu_shutdown(unit)
+chu_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
-	register struct chuunit *chu;
+	register struct chuunit *up;
+	struct refclockproc *pp;
 
-	if (unit >= MAXUNITS) {
-		syslog(LOG_ERR, "chu_shutdown: unit %d invalid", unit);
-		return;
-	}
-	if (!unitinuse[unit]) {
-		syslog(LOG_ERR, "chu_shutdown: unit %d not in use", unit);
-		return;
-	}
-
-	/*
-	 * Tell the I/O module to turn us off, and dequeue timer
-	 * if any.  We're history.
-	 */
-	chu = chuunits[unit];
-	if (chu->flags & CHUTIMERSET)
-		TIMER_DEQUEUE(&chu->chutimer);
-	io_closeclock(&chu->chuio);
-	unitinuse[unit] = 0;
-}
-
-/*
- * chu_report_event - record an event and report it
- */
-static void
-chu_report_event(chu, code)
-	struct chuunit *chu;
-	int code;
-{
-	/*
-	 * Trap support isn't up to handling this, so just
-	 * record it.
-	 */
-	if (chu->status != (u_char)code) {
-		chu->status = (u_char)code;
-		if (code != CEVNT_NOMINAL)
-			chu->lastevent = (u_char)code;
-	}
+	pp = peer->procptr;
+	up = (struct chuunit *)pp->unitptr;
+	io_closeclock(&pp->io);
+	free(up);
 }
 
 
@@ -570,14 +298,16 @@ static void
 chu_receive(rbufp)
 	struct recvbuf *rbufp;
 {
-	register int i;
-	register U_LONG date_ui;
-	register U_LONG tmp;
-	register u_char *code;
-	register struct chuunit *chu;
-	register struct chucode *chuc;
+	register struct chuunit *up;
+	struct refclockproc *pp;
+	struct peer *peer;
+	int i;
+	u_long date_ui;
+	u_long tmp;
+	u_char *code;
+	struct chucode *chuc;
 	int isneg;
-	U_LONG reftime;
+	u_long reftime;
 	l_fp off[NCHUCHARS];
 	int day, hour, minute, second;
 
@@ -585,7 +315,8 @@ chu_receive(rbufp)
 	 * Do a length check on the data.  Should be what we asked for.
 	 */
 	if (rbufp->recv_length != sizeof(struct chucode)) {
-		syslog(LOG_ERR, "chu_receive: received %d bytes, expected %d",
+		syslog(LOG_ERR,
+		    "chu_receive: received %d bytes, expected %d",
 		    rbufp->recv_length, sizeof(struct chucode));
 		return;
 	}
@@ -593,27 +324,39 @@ chu_receive(rbufp)
 	/*
 	 * Get the clock this applies to and a pointer to the data
 	 */
-	chu = (struct chuunit *)rbufp->recv_srcclock;
+	peer = (struct peer *)rbufp->recv_srcclock;
+	pp = peer->procptr;
+	up = (struct chuunit *)pp->unitptr;
 	chuc = (struct chucode *)&rbufp->recv_space;
-	chu->responses++;
-	chu->lastupdate = current_time;
+	up->responses++;
 
 	/*
 	 * Just for fun, we can debug the whole frame if
 	 * we want.
 	 */
+	for (i = 0; i < NCHUCHARS; i++) {
+		pp->lastcode[2 * i] = hexstring[chuc->codechars[i] &
+		    0xf];
+		pp->lastcode[2 * i + 1] = hexstring[chuc->codechars[i]
+		    >> 4];
+	}
+	pp->lencode = 2 * i;
+	pp->lastcode[pp->lencode] = '\0';
+#ifdef DEBUG
+	if (debug > 3) {
+		printf("chu: %s packet\n", (chuc->chutype == CHU_YEAR)?
+		    "year":"time");
+		for (i = 0; i < NCHUCHARS; i++) {
+			char c[64];
 
-#ifdef CHU_DEBUG
-	syslog(LOG_DEBUG, "CHU %s packet:", (chuc->chutype == CHU_YEAR)?
-	    "year":"time");
-	for (i=0; i < NCHUCHARS; i++) {
-		char c[64];
-
-		sprintf(c,"%c%c %s",hexstring[chuc->codechars[i]&0xf],
-		    hexstring[chuc->codechars[i]>>4],
-		    ctime(&(chuc->codetimes[i].tv_sec)));
-		c[strlen(c)-1]=0;	/* ctime() adds a damn \n */
-		syslog(LOG_DEBUG, "%s .%06d", c, chuc->codetimes[i].tv_usec);
+			sprintf(c,"%c%c %s",
+			    hexstring[chuc->codechars[i] & 0xf],
+			    hexstring[chuc->codechars[i] >> 4],
+			    ctime(&(chuc->codetimes[i].tv_sec)));
+			c[strlen(c) - 1] = 0;	/* ctime() adds \n */
+			printf("chu: %s .%06d\n", c,
+			    chuc->codetimes[i].tv_usec);
+		}
 	}
 #endif
 
@@ -633,7 +376,7 @@ chu_receive(rbufp)
 	 	 * Break out the code into the BCD nibbles.
 		 * Put it in the half of lastcode.
 		 */
-		code = chu->lastcode;
+		code = up->lastcode;
 		code += 2*NCHUCHARS;
 		for (i = 0; i < NCHUCHARS; i++) {
 			*code++ = chuc->codechars[i] & 0xf;
@@ -651,8 +394,7 @@ chu_receive(rbufp)
 		parity = (parity ^ (parity>>1))&0x1;
 		if (parity)
 		{
-			chu->badformat++;
-			chu_event(chu, CEVNT_BADREPLY);
+			refclock_report(peer, CEVNT_BADREPLY);
 			return;
 		}
 
@@ -660,15 +402,14 @@ chu_receive(rbufp)
 		 * This just happens to work. :-)
 		 */
 
-		chu->leap = (leapbits >> 1) & 0x3;
+		pp->leap = (leapbits >> 1) & 0x3;
 
 		return;
 	}
 
 	if (chuc->chutype != CHU_TIME)
 	{
-		chu->badformat++;
-		chu_event(chu, CEVNT_BADREPLY);
+		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 	}
 
@@ -677,7 +418,7 @@ chu_receive(rbufp)
 	 * with the first half since both are identical.  Note the first
 	 * BCD character is the low order nibble, the second the high order.
 	 */
-	code = chu->lastcode;
+	code = up->lastcode;
 	for (i = 0; i < NCHUCHARS; i++) {
 		*code++ = chuc->codechars[i] & 0xf;
 		*code++ = (chuc->codechars[i] >> 4) & 0xf;
@@ -688,19 +429,18 @@ chu_receive(rbufp)
 	 * There's really no need for this, but it can't hurt.
 	 */
 	for (i = 0; i < NCHUCHARS/2; i++)
-		if (chuc->codechars[i] != chuc->codechars[i+(NCHUCHARS/2)]) {
-			chu->badformat++;
-			chu_event(chu, CEVNT_BADREPLY);
+		if (chuc->codechars[i] !=
+		    chuc->codechars[i+(NCHUCHARS/2)]) {
+			refclock_report(peer, CEVNT_BADREPLY);
 			return;
 		}
 
 	/*
 	 * If the first nibble isn't a 6, we're up the creek
 	 */
-	code = chu->lastcode;
+	code = up->lastcode;
 	if (*code++ != 6) {
-		chu->badformat++;
-		chu_event(chu, CEVNT_BADREPLY);
+		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 	}
 
@@ -725,11 +465,11 @@ chu_receive(rbufp)
 	if (day < 1 || day > 366
 	    || hour > 23 || minute > 59
 	    || second < 32 || second > 39) {
-		chu->baddata++;
+		pp->baddata++;
 		if (day < 1 || day > 366) {
-			chu_event(chu, CEVNT_BADDATE);
+			refclock_report(peer, CEVNT_BADDATE);
 		} else {
-			chu_event(chu, CEVNT_BADTIME);
+			refclock_report(peer, CEVNT_BADTIME);
 		}
 		return;
 	}
@@ -740,8 +480,8 @@ chu_receive(rbufp)
 	 * date as bad and forget it.
 	 */
 	if (!clocktime(day, hour, minute, second, 0,
-	    rbufp->recv_time.l_ui, &yearstart, &reftime)) {
-		chu_event(chu, CEVNT_BADDATE);
+	    rbufp->recv_time.l_ui, &pp->yearstart, (U_LONG *)&reftime)) {
+		refclock_report(peer, CEVNT_BADDATE);
 		return;
 	}
 	date_ui = reftime;;
@@ -752,7 +492,7 @@ chu_receive(rbufp)
 	 * the offsets for each character.
 	 */
 	for (i = 0; i < NCHUCHARS; i++) {
-		register U_LONG tmp2;
+		register u_long tmp2;
 
 		off[i].l_ui = date_ui;
 		off[i].l_uf = chutable[i];
@@ -761,7 +501,7 @@ chu_receive(rbufp)
 		M_SUB(off[i].l_ui, off[i].l_uf, tmp, tmp2);
 	}
 
-	if (!sloppyclockflag[chu->unit]) {
+	if (!pp->sloppyclockflag) {
 		u_short ord[NCHUCHARS];
 		/*
 		 * In here we assume the clock has adequate bits
@@ -798,7 +538,7 @@ chu_receive(rbufp)
 		for (tmp = 0; tmp < (NCHUCHARS-1); tmp++) {
 			for (i = (int)tmp+1; i < NCHUCHARS; i++) {
 				if (!L_ISGEQ(&off[ord[i]], &off[ord[tmp]])) {
-					date_ui = (U_LONG)ord[i];
+					date_ui = (u_long)ord[i];
 					ord[i] = ord[tmp];
 					ord[tmp] = (u_short)date_ui;
 				}
@@ -853,8 +593,8 @@ chu_receive(rbufp)
 		 * out of a 64 bit product, even after rounding.
 		 */
 		if (date_ui < 9 || date_ui > 0xfffffff7) {
-			register U_LONG prod_ui;
-			register U_LONG prod_uf;
+			register u_long prod_ui;
+			register u_long prod_uf;
 	
 			prod_ui = prod_uf = 0;
 			/*
@@ -881,10 +621,10 @@ chu_receive(rbufp)
 			 * date_ui is integral part, tmp is fraction.
 			 */
 		} else {
-			register U_LONG prod_ovr;
-			register U_LONG prod_ui;
-			register U_LONG prod_uf;
-			register U_LONG highbits;
+			register u_long prod_ovr;
+			register u_long prod_ui;
+			register u_long prod_uf;
+			register u_long highbits;
 
 			prod_ovr = prod_ui = prod_uf = 0;
 			if (isneg)
@@ -902,7 +642,7 @@ chu_receive(rbufp)
 			}
 
 			if (prod_uf & 0x80000000)
-				M_ADDUF(prod_ovr, prod_ui, (U_LONG)1);
+				M_ADDUF(prod_ovr, prod_ui, (u_long)1);
 			date_ui = prod_ovr;
 			tmp = prod_ui;
 		}
@@ -914,56 +654,50 @@ chu_receive(rbufp)
 	 * it in the structure.
 	 */
 	i = second - 32;	/* gives a value 0 through 8 */
-	if (i < (int)chu->expect) {
+	if (i < (int)up->expect) {
 		/*
 		 * This shouldn't actually happen, but might if a single
 		 * bit error occurred in the code which fooled us.
 		 * Throw away all previous data.
 		 */
-		chu->expect = 0;
-		chu->haveoffset = 0;
-		if (chu->flags & CHUTIMERSET) {
-			TIMER_DEQUEUE(&chu->chutimer);
-			chu->flags &= ~CHUTIMERSET;
+		up->expect = 0;
+		up->haveoffset = 0;
+		if (up->flags & CHUTIMERSET) {
+			TIMER_DEQUEUE(&up->chutimer);
+			up->flags &= ~CHUTIMERSET;
 		}
 	}
 
-	/*
-	 * Add in fudge factor.
-	 */
-	M_ADD(date_ui, tmp, offset_fudge[chu->unit].l_ui,
-	    offset_fudge[chu->unit].l_uf);
+	up->offsets[i].l_ui = date_ui;
+	up->offsets[i].l_uf = tmp;
+	up->rectimes[i] = rbufp->recv_time;
+	up->reftimes[i] = reftime;
 
-	chu->offsets[i].l_ui = date_ui;
-	chu->offsets[i].l_uf = tmp;
-	chu->rectimes[i] = rbufp->recv_time;
-	chu->reftimes[i] = reftime;
+	up->expect = i + 1;
+	up->haveoffset |= (1 << i);
 
-	chu->expect = i + 1;
-	chu->haveoffset |= (1<<i);
-
-	if (chu->expect >= NCHUCODES) {
+	if (up->expect >= NCHUCODES) {
 		/*
 		 * Got a full second's worth.  Dequeue timer and
 		 * process this.
 		 */
-		if (chu->flags & CHUTIMERSET) {
-			TIMER_DEQUEUE(&chu->chutimer);
-			chu->flags &= ~CHUTIMERSET;
+		if (up->flags & CHUTIMERSET) {
+			TIMER_DEQUEUE(&up->chutimer);
+			up->flags &= ~CHUTIMERSET;
 		}
-		chu_process(chu);
-	} else if (!(chu->flags & CHUTIMERSET)) {
+		chu_process(up);
+	} else if (!(up->flags & CHUTIMERSET)) {
 		/*
 		 * Try to take an interrupt sometime after the
 		 * 42 second mark (leaves an extra 2 seconds for
 		 * slop).  Round it up to an even multiple of
 		 * 4 seconds.
 		 */
-		chu->chutimer.event_time =
-		    current_time + (U_LONG)(10 - i) + (1<<EVENT_TIMEOUT);
-		chu->chutimer.event_time &= ~((1<<EVENT_TIMEOUT) - 1);
-		TIMER_INSERT(timerqueue, &chu->chutimer);
-		chu->flags |= CHUTIMERSET;
+		up->chutimer.event_time =
+		    current_time + (u_long)(10 - i) + (1<<EVENT_TIMEOUT);
+		up->chutimer.event_time &= ~((1<<EVENT_TIMEOUT) - 1);
+		TIMER_INSERT(timerqueue, &up->chutimer);
+		up->flags |= CHUTIMERSET;
 	}
 }
 
@@ -990,62 +724,57 @@ chu_timeout(fakepeer)
  *		 the results on to the NTP clock filters.
  */
 static void
-chu_process(chu)
-	register struct chuunit *chu;
+chu_process(up)
+	register struct chuunit *up;
 {
-	register int i;
-	register s_fp bestoff;
-	register s_fp tmpoff;
+	struct peer *peer;
+	struct refclockproc *pp;
+	int i;
+	s_fp bestoff;
+	s_fp tmpoff;
 	u_fp dispersion;
 	int imax;
-	l_fp ts;
 
 	/*
 	 * The most positive offset.
 	 */
+	peer = up->peer;
+	pp = peer->procptr;
 	imax = NCHUCODES;
 	for (i = 0; i < NCHUCODES; i++)
-		if (chu->haveoffset & (1<<i))
-			if (i < imax || L_ISGEQ(&chu->offsets[i],
-			    &chu->offsets[imax]))
+		if (up->haveoffset & (1<<i))
+			if (i < imax || L_ISGEQ(&up->offsets[i],
+			    &up->offsets[imax]))
 				imax = i;
 
 	/*
 	 * The most positive estimate is our best bet.  Go through
 	 * the list again computing the dispersion.
 	 */
-	bestoff = LFPTOFP(&chu->offsets[imax]);
+	bestoff = LFPTOFP(&up->offsets[imax]);
 	dispersion = 0;
 	for (i = 0; i < NCHUCODES; i++) {
-		if (chu->haveoffset & (1<<i)) {
-			tmpoff = LFPTOFP(&chu->offsets[i]);
+		if (up->haveoffset & (1<<i)) {
+			tmpoff = LFPTOFP(&up->offsets[i]);
 			dispersion += (bestoff - tmpoff);
 		} else {
 			dispersion += CHUDELAYPENALTY;
 		}
 	}
 
-	/*
-	 * Make up a reference time stamp, then give it to the
-	 * reference clock support code for further processing.
-	 */
-	ts.l_ui = chu->reftimes[imax];
-	ts.l_uf = chutable[NCHUCHARS-1];
-
-	for (i = 0; i < NCHUCHARS*4; i++) {
-		chu->asciicode[i] = hexstring[chu->lastcode[i]];
-	}
-	chu->asciicode[i] = '\0';
-	record_clock_stats(&(chu->peer->srcadr), chu->asciicode);
-	refclock_receive(chu->peer, &chu->offsets[imax], 0,
-	    dispersion, &ts, &chu->rectimes[imax], chu->leap);
+	pp->lasttime = current_time;
+	up->pollcnt = 2;
+	record_clock_stats(&peer->srcadr, pp->lastcode);
+	refclock_receive(peer, &up->offsets[imax], 0,
+	    dispersion, &up->rectimes[imax], &up->rectimes[imax],
+	    pp->leap);
 	
 	/*
 	 * Zero out unit for next code series
 	 */
-	chu->haveoffset = 0;
-	chu->expect = 0;
-	chu_event(chu, CEVNT_NOMINAL);
+	up->haveoffset = 0;
+	up->expect = 0;
+	refclock_report(peer, CEVNT_NOMINAL);
 }
 
 
@@ -1057,103 +786,15 @@ chu_poll(unit, peer)
 	int unit;
 	struct peer *peer;
 {
-	if (unit >= MAXUNITS) {
-		syslog(LOG_ERR, "chu_poll: unit %d invalid", unit);
-		return;
-	}
-	if (!unitinuse[unit]) {
-		syslog(LOG_ERR, "chu_poll: unit %d not in use", unit);
-		return;
-	}
+	register struct chuunit *up;
+	struct refclockproc *pp;
 
-	if ((current_time - chuunits[unit]->lastupdate) > 150) {
-		chu_event(chuunits[unit], CEVNT_PROP);
-	}
+	pp = peer->procptr;
+	up = (struct chuunit *)pp->unitptr;
+	if (up->pollcnt == 0)
+		refclock_report(peer, CEVNT_TIMEOUT);
+	else
+		up->pollcnt--;
 }
 
-
-
-/*
- * chu_control - set fudge factors, return statistics
- */
-static void
-chu_control(unit, in, out)
-	u_int unit;
-	struct refclockstat *in;
-	struct refclockstat *out;
-{
-	register struct chuunit *chu;
-	U_LONG npolls;
-
-	if (unit >= MAXUNITS) {
-		syslog(LOG_ERR, "chu_control: unit %d invalid", unit);
-		return;
-	}
-
-	if (in != 0) {
-		if (in->haveflags & CLK_HAVETIME1)
-			propagation_delay[unit] = in->fudgetime1;
-		if (in->haveflags & CLK_HAVETIME2)
-			fudgefactor[unit] = in->fudgetime2;
-		offset_fudge[unit] = propagation_delay[unit];
-		L_ADD(&offset_fudge[unit], &fudgefactor[unit]);
-		if (in->haveflags & CLK_HAVEVAL1) {
-			stratumtouse[unit] = (u_char)(in->fudgeval1 & 0xf);
-			if (unitinuse[unit]) {
-				struct peer *peer;
-
-				/*
-				 * Should actually reselect clock, but
-				 * will wait for the next timecode
-				 */
-				peer = chuunits[unit]->peer;
-				peer->stratum = stratumtouse[unit];
-				if (stratumtouse[unit] <= 1)
-					memmove((char *)&peer->refid,
-						CHUREFID, 4);
-				else
-					peer->refid = htonl(CHUHSREFID);
-			}
-		}
-		if (in->haveflags & CLK_HAVEFLAG1) {
-			sloppyclockflag[unit] = in->flags & CLK_FLAG1;
-		}
-	}
-
-	if (out != 0) {
-		out->type = REFCLK_CHU;
-		out->flags = 0;
-		out->haveflags
-		    = CLK_HAVETIME1|CLK_HAVETIME2|CLK_HAVEVAL1|
-		      CLK_HAVEVAL2|CLK_HAVEFLAG1;
-		out->clockdesc = CHUDESCRIPTION;
-		out->fudgetime1 = propagation_delay[unit];
-		out->fudgetime2 = fudgefactor[unit];
-		out->fudgeval1 = (long)stratumtouse[unit];
-		out->flags = sloppyclockflag[unit];
-		if (unitinuse[unit]) {
-			chu = chuunits[unit];
-			out->lencode = NCHUCHARS*4;
-			out->fudgeval2 = chu->lastcode[2*NCHUCHARS+1];
-			out->fudgeval2 *= (chu->lastcode[2*NCHUCHARS]&1)?-1:1;
-			out->lastcode = chu->asciicode;
-			out->timereset = current_time - chu->timestarted;
-			npolls = out->timereset / 6;	/* **divide** */
-			out->polls = npolls;
-			out->noresponse = (npolls - chu->responses);
-			out->badformat = chu->badformat;
-			out->baddata = chu->baddata;
-			out->lastevent = chu->lastevent;
-			out->currentstatus = chu->status;
-		} else {
-			out->fudgeval2 = 0;
-			out->lencode = 0;
-			out->lastcode = "";
-			out->polls = out->noresponse = 0;
-			out->badformat = out->baddata = 0;
-			out->timereset = 0;
-			out->currentstatus = out->lastevent = CEVNT_NOMINAL;
-		}
-	}
-}
 #endif

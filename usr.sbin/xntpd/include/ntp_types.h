@@ -1,4 +1,4 @@
-/* ntp_types.h,v 3.1 1993/07/06 01:07:00 jbj Exp
+/*
  *  ntp_types.h - defines how LONG and U_LONG are treated.  For 64 bit systems
  *  like the DEC Alpha, they has to be defined as int and u_int.  for 32 bit
  *  systems, define them as long and u_long

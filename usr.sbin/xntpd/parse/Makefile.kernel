@@ -2,7 +2,7 @@
 # very simple makefile (SunOS!)
 #
 # Possible defines:
-# DEBUG_DCF:	include debug code (STREAMS mechanism and parsing)
+# DEBUG_PARSE:	include debug code (STREAMS mechanism and parsing)
 # DEBUG_CD:	include signal propagation to sun4c LED (sun4c only)
 #
 # Possible defines (parsestreams variants only):
@@ -30,19 +30,19 @@ parse: parsesolaris.c libparse_kernel.a ../lib/libntp.a
 	ld -r -o parse parsesolaris.o libparse_kernel.a ../lib/libntp.a
 	@echo "--- Install 'parse' in /kernel/strmod for automatic loading"
 
-mparsestreams.o: mparsestreams.o.$(KARCH)
-	@echo "--- You may load mparsestreams.o.$(KARCH) via 'modload mparsestreams.o.$(KARCH)' into the kernel"
+mparsestreams.o: mparsestreams.$(KARCH).o
+	@echo "--- You may load mparsestreams.$(KARCH).o via 'modload mparsestreams.$(KARCH).o' into the kernel"
 
-mparsestreams.o.$(KARCH): parsestreams.c microtime.o ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+mparsestreams.$(KARCH).o: parsestreams.c microtime.o ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
 	cc -c -DMICROTIME $(DEFS) -I../include parsestreams.c
 	ld -r -o $@ parsestreams.o ../lib/libntp.a libparse_kernel.a \
 		    microtime.o
 	rm -f parsestreams.o
 
-parsestreams.o: parsestreams.o.$(KARCH)
-	@echo "--- You may load parsestreams.o.$(KARCH) via 'modload parsestreams.o' (put in e.g. /sys/<karch>/OBJ) into the kernel"
+parsestreams.o: parsestreams.$(KARCH).o
+	@echo "--- You may load parsestreams.$(KARCH).o via 'modload parsestreams.o' (put in e.g. /sys/<karch>/OBJ) into the kernel"
 
-parsestreams.o.$(KARCH): parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+parsestreams.$(KARCH).o: parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
 	cc -c $(DEFS) -I../include parsestreams.c
 	ld -r -o $@ parsestreams.o ../lib/libntp.a libparse_kernel.a
 	rm -f parsestreams.o

@@ -112,7 +112,9 @@ archive.
 The distribution has been compiled and run on at least the following
 machines, operating systems and compilers. In all known cases, if
 the gcc compiler eats it with some success, the cc compiler also enjoys
-the meal. The converse is not always true.
+the meal. The converse is not always true. See the conf directory for
+test suites known to compile with various radio clocks; however, not all
+the combinations that compile have been tested.
 
 	VAX-11/785 4.3 tahoe	cc	no REFCLOCK		(dm 93/11/20)
 	Sun3	SunOS 4.1.1	gcc	no REFCLOCK		(pb 93/10/25)

@@ -1,4 +1,4 @@
-/* ntp_calendar.h,v 3.1 1993/07/06 01:06:48 jbj Exp
+/*
  * ntp_calendar.h - definitions for the calendar time-of-day routine
  */
 
@@ -66,8 +66,8 @@ struct calendar {
  * STARTCYCLE22 seconds after the start of cycle 0.
  */
 #define	CYCLE22		(22)
-#define	STARTCYCLE22	(U_LONG)(0xa586b500)	/* 2777068800 */
-#define	MAR1988		(U_LONG)(STARTCYCLE22 + (U_LONG)MAR1900)
+#define	STARTCYCLE22	(u_long)(0xa586b500)	/* 2777068800 */
+#define	MAR1988		(u_long)(STARTCYCLE22 + (u_long)MAR1900)
 
 /*
  * The length of January + February in leap and non-leap years.
@@ -75,6 +75,6 @@ struct calendar {
 #define	JANFEBNOLEAP	((JAN+FEB) * SECSPERDAY)
 #define	JANFEBLEAP	((JAN+FEBLEAP) * SECSPERDAY)
 
-extern	void	caljulian	P((U_LONG, struct calendar *));
-extern	U_LONG	caltontp	P((const struct calendar *));
+extern	void	caljulian	P((u_long, struct calendar *));
+extern	u_long	caltontp	P((const struct calendar *));
 

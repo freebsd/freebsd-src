@@ -1,4 +1,4 @@
-/* makeIPFP.c,v 3.1 1993/07/06 01:04:58 jbj Exp
+/*
  * makeIPFP - make fast DES IP and FP tables
  */
 
@@ -9,13 +9,13 @@
 
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
-U_LONG IPL[256];
-U_LONG FPL[256];
+u_long IPL[256];
+u_long FPL[256];
 
 char *progname;
 int debug;
 
-static	void	perm	P((u_char *, u_char *, U_LONG *, U_LONG *));
+static	void	perm	P((u_char *, u_char *, u_long *, u_long *));
 static	void	doit	P((void));
 
 /*
@@ -138,11 +138,11 @@ static void
 perm(databits, permtab, leftp, rightp)
 	u_char *databits;
 	u_char *permtab;
-	U_LONG *leftp;
-	U_LONG *rightp;
+	u_long *leftp;
+	u_long *rightp;
 {
-	register U_LONG left;
-	register U_LONG right;
+	register u_long left;
+	register u_long right;
 	register u_char *PT;
 	register u_char *bits;
 	register int i;
@@ -175,8 +175,8 @@ static void
 doit()
 {
 	u_char bits[64];
-	U_LONG left;
-	U_LONG right;
+	u_long left;
+	u_long right;
 	int tabno;
 	int i;
 	int ind0, ind1, ind2, ind3;
@@ -190,7 +190,7 @@ doit()
 	 * this as well as printing them.  Note that this is the
 	 * left-half table, the right half table will be identical.
 	 */
-	printf("static U_LONG IP[256] = {");
+	printf("static u_long IP[256] = {");
 	for (tabno = 0; tabno < 4; tabno++) {
 		i = tabno * 8;
 		ind7 = IPLbits[i] - 1;
@@ -258,7 +258,7 @@ doit()
 	/*
 	 * Next is the FP table, in big endian order
 	 */
-	printf("#if BYTE_ORDER == LITTLE_ENDIAN\nstatic U_LONG FP[256] = {");
+	printf("#if BYTE_ORDER == LITTLE_ENDIAN\nstatic u_long FP[256] = {");
 	for (tabno = 3; tabno >= 0; tabno--) {
 		i = tabno * 8;
 		ind7 = FPLbits[i] - 1;
@@ -327,7 +327,7 @@ doit()
 	 * Now reouput the FP table in order appropriate for little
 	 * endian machines
 	 */
-	printf("#else\nstatic U_LONG FP[256] = {");
+	printf("#else\nstatic u_long FP[256] = {");
 	for (octbits = 0; octbits < 256; octbits++) {
 		left = ((FPL[octbits] >> 24) & 0x000000ff)
 		     | ((FPL[octbits] >>  8) & 0x0000ff00)

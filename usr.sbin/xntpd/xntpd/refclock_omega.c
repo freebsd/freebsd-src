@@ -83,12 +83,10 @@
 #define	OMEGAMAXDISPERSE (FP_SECOND/32) /* max allowed sample dispersion */
 #define	OMEGAPRECISION	(-10)	/* precision assumed (about 1 ms) */
 #define	OMEGAREFID	"VLF\0"	/* reference id */
-#define	OMEGAHSREFID	0x7f7f0b0a /* 127.127.11.10 refid hi strata */
 #define LENOMEGA	13	/* length of standard response */
 #define GMT		0	/* hour offset from Greenwich */
 #define	NSTAMPS		9	/* samples collected when polled */
 #define NSKEEP		5	/* samples to keep after discards */
-#define BMAX		50	/* timecode buffer length */
 
 /*
  * The OM-DC puts out the start bit of the <CR> on the second, but
@@ -167,7 +165,7 @@ struct omegaunit {
 	u_char leap;			/* leap indicators */
 	u_short msec;			/* millisecond of second */
 	u_char quality;			/* quality char from last timecode */
-	U_LONG yearstart;		/* start of current year */
+	u_long yearstart;		/* start of current year */
 	/*
 	 * Status tallies
  	 */
@@ -193,18 +191,19 @@ static l_fp fudgefactor1[MAXUNITS];
 static l_fp fudgefactor2[MAXUNITS];
 static u_char stratumtouse[MAXUNITS];
 static u_char readonlyclockflag[MAXUNITS];
+static U_LONG refid[MAXUNITS];
 
 /*
  * Function prototypes
  */
 static	void	omega_init	P((void));
-static	int	omega_start	P((u_int, struct peer *));
-static	void	omega_shutdown	P((int));
+static	int	omega_start	P((int, struct peer *));
+static	void	omega_shutdown	P((int, struct peer *));
 static	void	omega_report_event	P((struct omegaunit *, int));
 static	void	omega_receive	P((struct recvbuf *));
 static	char	omega_process	P((struct omegaunit *, l_fp *, u_fp *));
 static	void	omega_poll	P((int, struct peer *));
-static	void	omega_control	P((u_int, struct refclockstat *, struct refclockstat *));
+static	void	omega_control	P((int, struct refclockstat *, struct refclockstat *));
 static	void	omega_buginfo	P((int, struct refclockbug *));
 static	void	omega_send	P((struct omegaunit *, char *));
 
@@ -239,6 +238,7 @@ omega_init()
 		fudgefactor2[i].l_uf = 0;
 		stratumtouse[i] = 0;
 		readonlyclockflag[i] = 0;
+		memcpy((char *)&refid[i], OMEGAREFID, 4);
 	}
 }
 
@@ -248,7 +248,7 @@ omega_init()
  */
 static int
 omega_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
 	register struct omegaunit *omega;
@@ -443,10 +443,7 @@ omega_start(unit, peer)
 	peer->rootdelay = 0;
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
-	if (stratumtouse[unit] <= 1)
-		memmove((char *)&peer->refid, OMEGAREFID, 4);
-	else
-		peer->refid = htonl(OMEGAHSREFID);
+	peer->refid = refid[unit];
 	unitinuse[unit] = 1;
 	return 1;
 
@@ -463,8 +460,9 @@ screwed:
  * omega_shutdown - shut down a OMEGA clock
  */
 static void
-omega_shutdown(unit)
+omega_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
 	register struct omegaunit *omega;
 
@@ -898,7 +896,7 @@ omega_poll(unit, peer)
  */
 static void
 omega_control(unit, in, out)
-	u_int unit;
+	int unit;
 	struct refclockstat *in;
 	struct refclockstat *out;
 {
@@ -914,41 +912,30 @@ omega_control(unit, in, out)
 			fudgefactor1[unit] = in->fudgetime1;
 		if (in->haveflags & CLK_HAVETIME2)
 			fudgefactor2[unit] = in->fudgetime2;
-		if (in->haveflags & CLK_HAVEVAL1) {
-			stratumtouse[unit] = (u_char)(in->fudgeval1 & 0xf);
-			if (unitinuse[unit]) {
-				struct peer *peer;
-
-				/*
-				 * Should actually reselect clock, but
-				 * will wait for the next timecode
-				 */
-				omega = omegaunits[unit];
-				peer = omega->peer;
-				peer->stratum = stratumtouse[unit];
-				if (stratumtouse[unit] <= 1)
-					memmove((char *)&peer->refid,
-						OMEGAREFID, 4);
-				else
-					peer->refid = htonl(OMEGAHSREFID);
-			}
-		}
-		if (in->haveflags & CLK_HAVEFLAG1) {
+		if (in->haveflags & CLK_HAVEVAL1)
+			stratumtouse[unit] = (u_char)(in->fudgeval1);
+		if (in->haveflags & CLK_HAVEVAL2)
+			refid[unit] = in->fudgeval2;
+		if (in->haveflags & CLK_HAVEFLAG1)
 			readonlyclockflag[unit] = in->flags & CLK_FLAG1;
+		if (unitinuse[unit]) {
+			struct peer *peer;
+
+			peer = omegaunits[unit]->peer;
+			peer->stratum = stratumtouse[unit];
+			peer->refid = refid[unit];
 		}
 	}
 
 	if (out != 0) {
 		out->type = REFCLK_OMEGA_TRUETIME;
-		out->haveflags
-		    = CLK_HAVETIME1|CLK_HAVETIME2|
-			CLK_HAVEVAL1|CLK_HAVEVAL2|
-			CLK_HAVEFLAG1|CLK_HAVEFLAG2;
+		out->haveflags = CLK_HAVETIME1 | CLK_HAVETIME2 | CLK_HAVEVAL1 |
+		    CLK_HAVEVAL2| CLK_HAVEFLAG1;
 		out->clockdesc = OMEGADESCRIPTION;
 		out->fudgetime1 = fudgefactor1[unit];
 		out->fudgetime2 = fudgefactor2[unit];
 		out->fudgeval1 = (LONG)stratumtouse[unit];
-		out->fudgeval2 = 0;
+		out->fudgeval2 = refid[unit];
 		out->flags = readonlyclockflag[unit];
 		if (unitinuse[unit]) {
 			omega = omegaunits[unit];
@@ -962,13 +949,6 @@ omega_control(unit, in, out)
 			out->baddata = omega->baddata;
 			out->lastevent = omega->lastevent;
 			out->currentstatus = omega->status;
-		} else {
-			out->lencode = 0;
-			out->lastcode = "";
-			out->polls = out->noresponse = 0;
-			out->badformat = out->baddata = 0;
-			out->timereset = 0;
-			out->currentstatus = out->lastevent = CEVNT_NOMINAL;
 		}
 	}
 }

@@ -87,7 +87,7 @@ fi
 (cp $source $destination &&
   chmod $mode $destination &&
   chown $owner $destination &&
-  chgrp $group $destination) || exit 1
+  chgrp $group $destination) || true # exit 1
 
 # /bin/rm -f $OLDdestination
 

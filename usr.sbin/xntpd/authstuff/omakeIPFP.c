@@ -1,4 +1,4 @@
-/* omakeIPFP.c,v 3.1 1993/07/06 01:05:10 jbj Exp
+/*
  * makeIPFP - make fast DES IP and FP tables
  *
  * This is an older version which generated tables half the size of
@@ -15,13 +15,13 @@
 
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
-U_LONG IPL[8][16];
-U_LONG FPL[8][16];
+u_long IPL[8][16];
+u_long FPL[8][16];
 
 char *progname;
 int debug;
 
-static	void	perm	P((u_char *, u_char *, U_LONG *, U_LONG *));
+static	void	perm	P((u_char *, u_char *, u_long *, u_long *));
 static	void	doit	P((void));
 
 /*
@@ -144,11 +144,11 @@ static void
 perm(databits, permtab, leftp, rightp)
 	u_char *databits;
 	u_char *permtab;
-	U_LONG *leftp;
-	U_LONG *rightp;
+	u_long *leftp;
+	u_long *rightp;
 {
-	register U_LONG left;
-	register U_LONG right;
+	register u_long left;
+	register u_long right;
 	register u_char *PT;
 	register u_char *bits;
 	register int i;
@@ -181,8 +181,8 @@ static void
 doit()
 {
 	u_char bits[64];
-	U_LONG left;
-	U_LONG right;
+	u_long left;
+	u_long right;
 	int tabno;
 	int i;
 	int ind0, ind1, ind2, ind3;
@@ -195,7 +195,7 @@ doit()
 	 * this as well as printing them.  Note that this is the
 	 * left-half table.
 	 */
-	printf("static U_LONG IP[8][16] = {");
+	printf("static u_long IP[8][16] = {");
 	for (tabno = 0; tabno < 8; tabno++) {
 		i = tabno * 4;
 		ind3 = IPLbits[i] - 1;
@@ -279,7 +279,7 @@ doit()
 	/*
 	 * Next are the FP tables
 	 */
-	printf("static U_LONG FP[8][16] = {");
+	printf("static u_long FP[8][16] = {");
 	for (tabno = 0; tabno < 8; tabno++) {
 		i = tabno * 4;
 		ind3 = FPLbits[i] - 1;

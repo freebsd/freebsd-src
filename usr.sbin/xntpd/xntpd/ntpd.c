@@ -1,4 +1,4 @@
-/* ntpd.c,v 3.1 1993/07/06 01:11:32 jbj Exp
+/*
  * ntpd.c - main program for the fixed point NTP daemon
  */
 #include <stdio.h>
@@ -75,7 +75,7 @@ extern char *Version;
  */
 extern int alarm_flag;
 
-#if !defined(SYS_386BSD) && !defined(SYS_BSDI)
+#if !defined(SYS_386BSD) && !defined(SYS_BSDI) && !defined(SYS_44BSD)
 /*
  * We put this here, since the argument profile is syscall-specific
  */
@@ -130,7 +130,7 @@ main(argc, argv)
 			exit(0);
 
 		{
-                        unsigned long s;
+                        u_long s;
 			int max_fd;
 #if defined(NTP_POSIX_SOURCE) && !defined(SYS_386BSD)
     			max_fd = sysconf(_SC_OPEN_MAX);
@@ -169,7 +169,7 @@ main(argc, argv)
 
 				fid = open("/dev/tty", 2);
 				if (fid >= 0) {
-					(void) ioctl(fid, (U_LONG) TIOCNOTTY,
+					(void) ioctl(fid, (u_long) TIOCNOTTY,
 						(char *) 0);
 					(void) close(fid);
 				}
@@ -279,6 +279,13 @@ main(argc, argv)
 #endif 	/* DEBUG */
 
 	/*
+	 * Set up signals we should never pay attention to.
+	 */
+#ifdef SIGPIPE
+	(void) signal_no_reset(SIGPIPE, SIG_IGN);
+#endif	/* SIGPIPE */
+
+	/*
 	 * Call the init_ routines to initialize the data structures.
 	 * Note that init_systime() may run a protocol to get a crude
 	 * estimate of the time as an NTP client when running on the
@@ -306,6 +313,9 @@ main(argc, argv)
 	init_proto();
 	init_io();
 	init_loopfilter();
+
+	mon_start(MON_ON);      /* monitor on by default now      */
+				/* turn off in config if unwanted */
 
 	/*
 	 * Get configuration.  This (including argument list parsing) is
@@ -361,10 +371,8 @@ main(argc, argv)
 
         			get_systime(&ts);
         			(void)input_handler(&ts);
-			}
-			else if (nfound == -1 && errno != EINTR) {
+			} else if (nfound == -1 && errno != EINTR)
 				syslog(LOG_ERR, "select() error: %m");
-			}
 #else
 			wait_for_signal();
 #endif

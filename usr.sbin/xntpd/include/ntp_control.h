@@ -1,4 +1,4 @@
-/* ntp_control.h,v 3.1 1993/07/06 01:06:50 jbj Exp
+/*
  * ntp_control.h - definitions related to NTP mode 6 control messages
  */
 
@@ -236,10 +236,10 @@ struct ntp_control {
 struct ctl_trap {
 	struct sockaddr_in tr_addr;	/* address of trap recipient */
 	struct interface *tr_localaddr;	/* interface to send this through */
-	U_LONG tr_settime;		/* time trap was set */
-	U_LONG tr_count;		/* async messages sent to this guy */
-	U_LONG tr_origtime;		/* time trap was originally set */
-	U_LONG tr_resets;		/* count of resets for this trap */
+	u_long tr_settime;		/* time trap was set */
+	u_long tr_count;		/* async messages sent to this guy */
+	u_long tr_origtime;		/* time trap was originally set */
+	u_long tr_resets;		/* count of resets for this trap */
 	u_short tr_sequence;		/* trap sequence id */
 	u_char tr_flags;		/* trap flags */
 	u_char tr_version;		/* version number of trapper */
