@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.10 1995/02/07 06:19:56 davidg Exp $
+ * $Id: route.h,v 1.11 1995/02/07 19:05:12 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -154,7 +154,8 @@ struct ortentry {
 #define RTF_WASCLONED	0x20000		/* route generated through cloning */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 #define RTF_CHAINDELETE	0x80000		/* chain is being deleted (internal) */
-					/* 0x100000 and up unassigned */
+#define RTF_PINNED	0x100000	/* future use */
+					/* 0x200000 and up unassigned */
 
 /*
  * Routing statistics.
