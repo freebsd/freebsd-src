@@ -95,6 +95,104 @@ TUNABLE_INT_DECL("hw.snd.unit", 0, snd_unit);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 
+#ifndef USING_MUTEX
+#define	SPLSTACK_MAX	32
+struct splstack {
+	int depth;
+	u_int32_t stack[SPLSTACK_MAX];
+};
+#endif
+
+void *
+snd_mtxcreate(const char *desc)
+{
+#ifdef USING_MUTEX
+	struct mtx *m;
+
+	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (m == NULL)
+		return NULL;
+	mtx_init(m, desc, MTX_RECURSE);
+	return m;
+#else
+	struct splstack *s;
+
+	s = malloc(sizeof(*s), M_DEVBUF, M_WAITOK | M_ZERO);
+	s->depth = 0;
+	return s;
+#endif
+}
+
+void
+snd_mtxfree(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_assert(mtx, MA_OWNED);
+	mtx_destroy(mtx);
+	free(mtx, M_DEVBUF);
+#else
+	struct splstack *s = m;
+
+	free(s, M_DEVBUF);
+#endif
+}
+
+void
+snd_mtxassert(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_assert(mtx, MA_OWNED);
+#else
+	KASSERT(((struct splstack *)s)->depth > 0, ("splstack depth <= 0"));
+#endif
+}
+
+void
+snd_mtxlock(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_lock(mtx);
+#else
+	struct splstack *s = m;
+
+	KASSERT((s->depth >= 0) && (s->depth < SPLSTACK_MAX), ("bad depth %d", s->depth));
+	s->stack[s->depth++] = spltty();
+#endif
+}
+
+void
+snd_mtxunlock(void *m)
+{
+#ifdef USING_MUTEX
+	struct mtx *mtx = m;
+
+	mtx_unlock(mtx);
+#else
+	struct splstack *s = m;
+
+	KASSERT((s->depth >= 1) && (s->depth < SPLSTACK_MAX), ("bad depth %d", s->depth));
+	splx(s->stack[s->depth--]);
+#endif
+}
+
+int
+snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand, void *param, void **cookiep)
+{
+#ifdef USING_MUTEX
+	flags &= INTR_MPSAFE;
+	flags |= INTR_TYPE_TTY;
+#else
+	flags = INTR_TYPE_TTY;
+#endif
+	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
+}
+
 #ifdef USING_DEVFS
 static void
 pcm_makelinks(void *dummy)
