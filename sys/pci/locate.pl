@@ -1,8 +1,21 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 # $FreeBSD$
 
-$errpos = hex($ARGV[0])/4;
-$ofs=0;
+use strict;
+
+if (!defined($ARGV[0])) {
+    print(
+"
+Perl script to convert NCR script address into label+offset.
+Useful to find the failed NCR instruction ...
+
+usage: $0 <address>
+");
+    exit(1);
+}
+
+my $errpos = hex($ARGV[0])/4;
+my $ofs=0;
 
 open (INPUT, "cc -E ncr.c 2>/dev/null |");
 
@@ -14,9 +27,9 @@ while ($_ = <INPUT>)
 while ($_ = <INPUT>)
 {
     last if /^\}\;/;
-    ($label, $size) = /ncrcmd\s+(\S+)\s+\[([^]]+)/;
+    my ($label, $size) = /ncrcmd\s+(\S+)\s+\[([^]]+)/;
     $size = eval($size);
-    if ($label) {
+    if (defined($label) && $label) {
 	if ($errpos) {
 	    if ($ofs + $size > $errpos) {
 		printf ("%4x: %s\n", $ofs * 4, $label);
