@@ -24,9 +24,7 @@ MLINKS+=	lex.1 lex++.1
 
 CLEANFILES=	scan.c skel.c
 
-.if !defined(NOLIB)
 SUBDIR=		lib
-.endif
 
 skel.c: mkskel.sh flex.skl
 	sh ${.CURDIR}/mkskel.sh ${.CURDIR}/flex.skl > skel.c
