@@ -157,26 +157,28 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
-			v &= ~PAGE_MASK;
-			pmap_kenter((vm_offset_t)ptvmmap, v);
-			o = (int)uio->uio_offset & PAGE_MASK;
-			c = (u_long)(PAGE_SIZE - ((long)iov->iov_base & PAGE_MASK));
-			c = min(c, (u_int)(PAGE_SIZE - o));
-			c = min(c, (u_int)iov->iov_len);
-			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-			pmap_qremove((vm_offset_t)ptvmmap, 1);
+kmemphys:
+			o = v & PAGE_MASK;
+			c = min(uio->uio_resid, (u_int)(PAGE_SIZE - o));
+			error = uiomove((void *)PHYS_TO_DMAP(v), (int)c, uio);
 			continue;
 
 /* minor device 1 is kernel memory */
 		case 1:
-			c = iov->iov_len;
+			v = uio->uio_offset;
 
+			if (v >= DMAP_MIN_ADDRESS && v < DMAP_MAX_ADDRESS) {
+				v = DMAP_TO_PHYS(v);
+				goto kmemphys;
+			}
+
+			c = iov->iov_len;
 			/*
 			 * Make sure that all of the pages are currently resident so
 			 * that we don't create any zero-fill pages.
 			 */
-			addr = trunc_page(uio->uio_offset);
-			eaddr = round_page(uio->uio_offset + c);
+			addr = trunc_page(v);
+			eaddr = round_page(v + c);
 
 			if (addr < (vm_offset_t)KERNBASE)
 				return (EFAULT);
@@ -184,11 +186,12 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return (EFAULT);
 
-			if (!kernacc((caddr_t)(long)uio->uio_offset, c,
+			if (!kernacc((caddr_t)(long)v, c,
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
-			error = uiomove((caddr_t)(long)uio->uio_offset, (int)c, uio);
+
+			error = uiomove((caddr_t)(long)v, (int)c, uio);
 			continue;
 
 		default:
