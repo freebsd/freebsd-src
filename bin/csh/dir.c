@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dir.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: dir.c,v 1.6 1997/02/22 14:01:42 peter Exp $";
+	"$Id: dir.c,v 1.7 1997/08/07 21:42:05 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -705,8 +705,7 @@ dcanon(cp, p)
 	     */
 	    *--sp = 0;		/* form the pathname for readlink */
 	    if (sp != cp && !adrof(STRignore_symlinks) &&
-		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+		(cc = readlink(short2str(cp), tlink, sizeof(tlink) - 1)) >= 0) {
 		(void) Strcpy(link, str2short(tlink));
 		link[cc] = '\0';
 
@@ -790,8 +789,7 @@ dcanon(cp, p)
 
 	    if (sp != cp && adrof(STRchase_symlinks) &&
 		!adrof(STRignore_symlinks) &&
-		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+		(cc = readlink(short2str(cp), tlink, sizeof(tlink) - 1)) >= 0) {
 		(void) Strcpy(link, str2short(tlink));
 		link[cc] = '\0';
 
