@@ -2,7 +2,7 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.12 1995/12/08 11:19:03 julian Exp $
+ *      $Id: uk.c,v 1.13 1995/12/08 23:22:30 phk Exp $
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.
@@ -40,7 +40,7 @@ struct scsi_device uk_switch =
 	"uk",
 	0,
 	{0, 0},
-	SDEV_ONCE_ONLY,	/* Only one open allowed */
+	SDEV_ONCE_ONLY|SDEV_UK,	/* Only one open allowed */
 	0,
 	"Unknown",
 	ukopen,

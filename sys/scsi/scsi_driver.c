@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.11 1995/12/05 04:41:20 julian Exp $
+ * $Id: scsi_driver.c,v 1.12 1995/12/05 07:14:23 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -120,7 +120,7 @@ struct scsi_device *device)
 	/*
 	 * Check the unit is legal
 	 */
-	if (sc_link == 0 || sc_link->sd == 0)
+	if (sc_link == 0 || (sc_link->sd == 0 && !(sc_link->flags & SDEV_UK)))
 		return ENXIO;
 
 	/* If it is a "once only" device that is already open return EBUSY.
