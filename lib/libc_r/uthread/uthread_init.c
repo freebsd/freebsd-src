@@ -376,7 +376,7 @@ _thread_init(void)
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+		act.sa_flags = SA_SIGINFO | SA_RESTART;
 
 		/* Clear pending signals for the process: */
 		sigemptyset(&_process_sigpending);
