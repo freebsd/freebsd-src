@@ -56,7 +56,7 @@
 ## --Copyright--
 
 PROG=	named
-MAN8=	named.8 named.restart.8 named.reload.8
+MAN8=	named.8
 LDADD=	-lutil
 SRCS=	db_dump.c db_load.c db_lookup.c db_reload.c db_save.c db_update.c \
 	db_secure.c db_glue.c \
