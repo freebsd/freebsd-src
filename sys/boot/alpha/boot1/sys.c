@@ -44,18 +44,24 @@ struct fs *fs;
 struct inode inode;
 int boff = 0;
 
-#if 0
-/* #define BUFSIZE 4096 */
-#define BUFSIZE MAXBSIZE
+/*
+ * We use 4k `virtual' blocks for filesystem data, whatever the actual
+ * filesystem block size. FFS blocks are always a multiple of 4k.
+ */
+#define VBLKSIZE	4096
+#define VBLKMASK	(VBLKSIZE - 1)
+#define DBPERVBLK	(VBLKSIZE / DEV_BSIZE)
+#define IPERVBLK	(VBLKSIZE / sizeof(struct dinode))
+#define INDIRPERVBLK	(VBLKSIZE / sizeof(ufs_daddr_t))
+#define INO_TO_VBA(fs, x) (fsbtodb(fs, ino_to_fsba(fs, x)) + \
+    (ino_to_fsbo(fs, x) / IPERVBLK) * DBPERVBLK)
+#define INO_TO_VBO(fs, x) (ino_to_fsbo(fs, x) % IPERVBLK)
+#define FS_TO_VBA(fs, fsb, off) (fsbtodb(fs, fsb) + \
+    ((off) / VBLKSIZE) * DBPERVBLK)
+#define FS_TO_VBO(fs, fsb, off) ((off) & VBLKMASK)
 
-static char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
-#endif
-
-#define BUFSIZE 8192
-#define MAPBUFSIZE BUFSIZE
-static char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
-
-static char mapbuf[MAPBUFSIZE];
+static char fsbuf[SBSIZE], iobuf[VBLKSIZE];
+ufs_daddr_t mapbuf[VBLKSIZE / sizeof(ufs_daddr_t)];
 static int mapblock;
 
 int poff;
@@ -71,7 +77,7 @@ int
 readit(char *buffer, int count)
 {
     int logno, off, size;
-    int cnt2, bnum2;
+    int cnt2, fsblk, bnum2;
     struct fs *fs_copy;
     int n = 0;
 
@@ -81,8 +87,13 @@ readit(char *buffer, int count)
 	fs_copy = fs;
 	off = blkoff(fs_copy, poff);
 	logno = lblkno(fs_copy, poff);
-	cnt2 = size = blksize(fs_copy, &inode, logno);
-	bnum2 = fsbtodb(fs_copy, block_map(logno)) + boff;
+	fsblk = block_map(logno);
+	cnt2 = blksize(fs_copy, &inode, logno) - (off & ~VBLKMASK);
+	if (cnt2 > VBLKSIZE)
+		cnt2 = VBLKSIZE;
+	size = cnt2;
+	bnum2 = FS_TO_VBA(fs_copy, fsblk, off) + boff;
+	off = FS_TO_VBO(fs_copy, fsblk, off);
 	if (	(!off)  && (size <= count)) {
 	    devread(buffer, bnum2, cnt2);
 	} else {
@@ -104,14 +115,14 @@ static int
 find(char *path)
 {
     char *rest, ch;
-    int block, off, loc, ino = ROOTINO;
+    int block, blklen, fsboff, off, loc, ino = ROOTINO;
     struct dirent *dp;
     char list_only;
 
     list_only = (path[0] == '?' && path[1] == '\0');
  loop:
-    devread(iobuf, fsbtodb(fs, ino_to_fsba(fs, ino)) + boff, fs->fs_bsize);
-    bcopy((void *)&((struct dinode *)iobuf)[ino % fs->fs_inopb],
+    devread(iobuf, INO_TO_VBA(fs, ino) + boff, VBLKSIZE);
+    bcopy((void *)&((struct dinode *)iobuf)[INO_TO_VBO(fs, ino)],
 	  (void *)&inode.i_din,
 	  sizeof (struct dinode));
     if (!*path)
@@ -132,10 +143,14 @@ find(char *path)
 		return 0;
 	    }
 	}
-	if (!(off = blkoff(fs, loc))) {
+	if (!(off = (loc & VBLKMASK))) {
 	    block = lblkno(fs, loc);
-	    devread(iobuf, fsbtodb(fs, block_map(block)) + boff,
-		    blksize(fs, &inode, block));
+	    fsboff = blkoff(fs, loc);
+	    blklen = blksize(fs, &inode, block) - fsboff;
+	    if (blklen > VBLKSIZE)
+		blklen = VBLKSIZE;
+	    devread(iobuf, FS_TO_VBA(fs, block_map(block), fsboff) + boff,
+		blklen);
 	}
 	dp = (struct dirent *)(iobuf + off);
 	loc += dp->d_reclen;
@@ -156,11 +171,13 @@ block_map(int file_block)
 	int bnum;
 	if (file_block < NDADDR)
 		return(inode.i_db[file_block]);
-	if ((bnum=fsbtodb(fs, inode.i_ib[0])+boff) != mapblock) {
-		devread(mapbuf, bnum, fs->fs_bsize);
+	bnum = FS_TO_VBA(fs, inode.i_ib[0], sizeof(mapbuf[0]) *
+	    ((file_block - NDADDR) % NINDIR(fs))) + boff;
+	if (bnum != mapblock) {
+		devread(mapbuf, bnum, VBLKSIZE);
 		mapblock = bnum;
 	}
-	return (((int *)mapbuf)[(file_block - NDADDR) % NINDIR(fs)]);
+	return (mapbuf[(file_block - NDADDR) % INDIRPERVBLK]);
 }
 
 #ifdef COMPAT_UFS
