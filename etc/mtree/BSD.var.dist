@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.20 1994/09/19 01:40:40 rgrimes Exp $
+#	$Id: BSD.var.dist,v 1.21 1995/02/15 01:51:18 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -7,9 +7,9 @@
     ..
 /set type=dir uname=root gname=wheel mode=0755
     at             
-        jobs           
-        ..
-        spool          
+	jobs		uname=daemon
+	..
+	spool		uname=daemon
         ..
     ..
     backups         mode=0750
