@@ -76,9 +76,14 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
 #define	SPLASSERT(level, msg)	__CONCAT(__CONCAT(spl,level),assert)(msg)
+#define	CONDSPLASSERT(cond, level, msg) do {				\
+	if (cond)							\
+		SPLASSERT(level, msg);					\
+} while (0)
 #else
 #define	KASSERT(exp,msg)
-#define SPLASSERT(level, msg)
+#define	SPLASSERT(level, msg)
+#define	CONDSPLASSERT(cond, level, msg)
 #endif
 
 /*
