@@ -48,11 +48,6 @@
 #define	__END_DECLS
 #endif
 
-/* XXX: should have __STDC_VERSION__ < 199901 */
-#if !defined(__GNUC__) || defined(__cplusplus)
-#define	__func__	NULL
-#endif
-
 /*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
  * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
@@ -131,6 +126,11 @@
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused	__attribute__((__unused__))
+#endif
+
+/* XXX: should use `#if __STDC_VERSION__ < 199901'. */
+#if !(__GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3)
+#define	__func__	NULL
 #endif
 
 /*
