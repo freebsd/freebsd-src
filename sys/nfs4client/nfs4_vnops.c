@@ -682,7 +682,7 @@ nfs4_close(struct vop_close_args *ap)
 
 	if (np->n_flag & NMODIFIED) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
-		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		VOP_UNLOCK(vp, 0, ap->a_td);
 		np->n_attrstamp = 0;
 	}
@@ -820,11 +820,9 @@ nfs4_setattr(struct vop_setattr_args *ap)
 
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
- 				error = nfs_vinvalbuf(vp, 0,
- 					ap->a_cred, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, 0, ap->a_td, 1);
  			    else
- 				error = nfs_vinvalbuf(vp, V_SAVE,
- 					ap->a_cred, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
  			    if (error) {
 				vnode_pager_setsize(vp, np->n_size);
  				return (error);
@@ -841,8 +839,7 @@ nfs4_setattr(struct vop_setattr_args *ap)
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
 		vp->v_type == VREG &&
-  		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-		 ap->a_td, 1)) == EINTR)
+  		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1)) == EINTR)
 		return (error);
 
 	if (vap->va_size != VNOVAL && np->n_wfc.refcnt == 0) {
@@ -1669,7 +1666,7 @@ nfs4_remove(struct vop_remove_args *ap)
 		 * throw away biocache buffers, mainly to avoid
 		 * unnecessary delayed writes later.
 		 */
-		error = nfs_vinvalbuf(vp, 0, cnp->cn_cred, cnp->cn_thread, 1);
+		error = nfs_vinvalbuf(vp, 0, cnp->cn_thread, 1);
 		/* Do the rpc */
 		if (error != EINTR)
 			error = nfs4_removerpc(dvp, cnp->cn_nameptr,

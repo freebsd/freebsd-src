@@ -265,8 +265,7 @@ int	nfs_sndlock(struct nfsreq *);
 void	nfs_sndunlock(struct nfsreq *);
 #endif /* ! NFS4_USE_RPCCLNT */
 
-int	nfs_vinvalbuf(struct vnode *, int, struct ucred *, struct thread *,
-	    int);
+int	nfs_vinvalbuf(struct vnode *, int, struct thread *, int);
 int	nfs_readrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_writerpc(struct vnode *, struct uio *, struct ucred *, int *,
 	    int *);
