@@ -170,6 +170,8 @@ umapfs_mount(mp, path, data, ndp, td)
 	if (args.nentries > MAPFILEENTRIES || args.gnentries >
 	    GMAPFILEENTRIES) {
 		vput(lowerrootvp);
+		free(amp, M_UMAPFSMNT);
+		/* XXX missing error = EINVAL ? */
 		return (error);
 	}
 
@@ -177,8 +179,10 @@ umapfs_mount(mp, path, data, ndp, td)
 	amp->info_gnentries = args.gnentries;
 	error = copyin(args.mapdata, (caddr_t)amp->info_mapdata,
 	    2*sizeof(u_long)*args.nentries);
-	if (error)
+	if (error) {
+		free(amp, M_UMAPFSMNT);
 		return (error);
+	}
 
 #ifdef DEBUG
 	printf("umap_mount:nentries %d\n",args.nentries);
@@ -189,8 +193,10 @@ umapfs_mount(mp, path, data, ndp, td)
 
 	error = copyin(args.gmapdata, (caddr_t)amp->info_gmapdata,
 	    2*sizeof(u_long)*args.gnentries);
-	if (error)
+	if (error) {
+		free(amp, M_UMAPFSMNT);
 		return (error);
+	}
 
 #ifdef DEBUG
 	printf("umap_mount:gnentries %d\n",args.gnentries);
