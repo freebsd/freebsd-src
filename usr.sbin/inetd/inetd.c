@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] __attribute__ ((unused)) =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
-static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.15.2.3 1997/05/10 19:57:55 davidn Exp $";
+#if 0
+static char sccsid[] = "@(#)from: inetd.c     8.4 (Berkeley) 4/13/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -115,6 +117,7 @@ static char inetd_c_rcsid[] __attribute__ ((unused)) =
 #include <rpc/pmap_clnt.h>
 
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -397,13 +400,12 @@ main(argc, argv, envp)
 	        if (sep->se_fd != -1 && FD_ISSET(sep->se_fd, &readable)) {
 		    n--;
 		    if (debug)
-			    fprintf(stderr, "someone wants %s\n",
-				sep->se_service);
+			    warnx("someone wants %s", sep->se_service);
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM) {
 			    ctrl = accept(sep->se_fd, (struct sockaddr *)0,
 				(int *)0);
 			    if (debug)
-				    fprintf(stderr, "accept, ctrl %d\n", ctrl);
+				    warnx("accept, ctrl %d", ctrl);
 			    if (ctrl < 0) {
 				    if (errno != EINTR)
 					    syslog(LOG_WARNING,
@@ -485,8 +487,7 @@ main(argc, argv, envp)
 		    if (pid == 0) {
 			    if (dofork) {
 				if (debug)
-					fprintf(stderr, "+ Closing from %d\n",
-						maxsock);
+					warnx("+ closing from %d", maxsock);
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
 						(void) close(tmpint);
@@ -496,8 +497,8 @@ main(argc, argv, envp)
 				/* NOTREACHED */
 			    } else {
 				if (debug)
-					fprintf(stderr, "%d execl %s\n",
-					    getpid(), sep->se_server);
+					warnx("%d execl %s",
+						getpid(), sep->se_server);
 				dup2(ctrl, 0);
 				close(ctrl);
 				dup2(0, 1);
@@ -609,8 +610,7 @@ reapchild(signo)
 		if (pid <= 0)
 			break;
 		if (debug)
-			fprintf(stderr, "%d reaped, status %#x\n",
-				pid, status);
+			warnx("%d reaped, status %#x", pid, status);
 		for (sep = servtab; sep; sep = sep->se_next) {
 			for (k = 0; k < sep->se_numchild; k++)
 				if (sep->se_pids[k] == pid)
@@ -811,9 +811,8 @@ setup(sep)
 
 	if ((sep->se_fd = socket(AF_INET, sep->se_socktype, 0)) < 0) {
 		if (debug)
-			fprintf(stderr, "socket failed on %s/%s: %s\n",
-				sep->se_service, sep->se_proto,
-				strerror(errno));
+			warn("socket failed on %s/%s",
+				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
 		return;
@@ -833,9 +832,8 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sizeof (sep->se_ctrladdr)) < 0) {
 		if (debug)
-			fprintf(stderr, "bind failed on %s/%s: %s\n",
-				sep->se_service, sep->se_proto,
-				strerror(errno));
+			warn("bind failed on %s/%s",
+				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: bind: %m",
 		    sep->se_service, sep->se_proto);
 		(void) close(sep->se_fd);
@@ -872,7 +870,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		listen(sep->se_fd, 64);
 	enable(sep);
 	if (debug) {
-		fprintf(stderr, "registered %s on %d\n",
+		warnx("registered %s on %d",
 			sep->se_server, sep->se_fd);
 	}
 }
@@ -919,7 +917,7 @@ void
 enable(struct servtab *sep)
 {
 	if (debug)
-		fprintf(stderr,
+		warnx(
 		    "enabling %s, fd %d", sep->se_service, sep->se_fd);
 #ifdef SANITY_CHECK
 	if (sep->se_fd < 0) {
@@ -948,7 +946,7 @@ void
 disable(struct servtab *sep)
 {
 	if (debug)
-		fprintf(stderr,
+		warnx(
 		    "disabling %s, fd %d", sep->se_service, sep->se_fd);
 #ifdef SANITY_CHECK
 	if (sep->se_fd < 0) {
@@ -1516,7 +1514,7 @@ machtime()
 
 	if (gettimeofday(&tv, (struct timezone *)0) < 0) {
 		if (debug)
-			fprintf(stderr, "Unable to get time of day\n");
+			warnx("unable to get time of day");
 		return (0L);
 	}
 #define	OFFSET ((u_long)25567 * 24*60*60)
@@ -1666,7 +1664,7 @@ tcpmux(s)
 	service[len] = '\0';
 
 	if (debug)
-		fprintf(stderr, "tcpmux: someone wants %s\n", service);
+		warnx("tcpmux: someone wants %s", service);
 
 	/*
 	 * Help is a required command, and lists available services,
