@@ -595,13 +595,11 @@ ubsec_intr(void *arg)
 			for (i = 0; i < npkts; i++) {
 				if(q->q_stacked_mcr[i]) {
 					ubsec_callback(sc, q->q_stacked_mcr[i]);
-					ubsecstats.hst_opackets++;
 				} else {
 					break;
 				}
 			}
 			ubsec_callback(sc, q);
-			ubsecstats.hst_opackets++;
 		}
 
 		/*
@@ -1516,6 +1514,9 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 	struct cryptop *crp = (struct cryptop *)q->q_crp;
 	struct cryptodesc *crd;
 	struct ubsec_dma *dmap = q->q_dma;
+
+	ubsecstats.hst_opackets++;
+	ubsecstats.hst_obytes += dmap->d_alloc.dma_size;
 
 	ubsec_dma_sync(&dmap->d_alloc,
 	    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
