@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.36 1997/06/25 08:05:02 msmith Exp $
+#	$Id: Makefile.inc,v 1.37 1997/07/12 11:16:17 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -28,6 +28,10 @@ SRCS+=	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
 
 # machine-dependent gen sources
 .include "${.CURDIR}/../libc/${MACHINE}/gen/Makefile.inc"
+
+.if defined(BINFORMAT) && ${BINFORMAT} == elf
+CFLAGS+=-D_NLIST_DO_ELF
+.endif
 
 .if (${MACHINE} == "tahoe" || ${MACHINE} == "vax")
 errlst.o errlst.po:
