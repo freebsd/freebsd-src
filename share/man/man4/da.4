@@ -56,7 +56,7 @@ devices on the
 .Tn SCSI
 bus to particular units of the
 .Nm
-decice; refer to
+device; refer to
 .Xr scsi 4
 for details on kernel configuration.
 .Sh PARTITIONING
@@ -111,11 +111,11 @@ disks as well as to other disks.  They are defined in the header file
 Usually used to set up a bad-block mapping system on the disk. 
 .Tn SCSI
 drive incorporate their own bad-block mapping so this command is not
-implimented.
+implemented.
 .It Dv DIOCGDINFO
 Read, from the kernel, the in-core copy of the disklabel for the
-drive. This may be a ficticious disklabel if the drive has never
-been initialised, in which case it will contain information read
+drive. This may be a fictitious disklabel if the drive has never
+been initialized, in which case it will contain information read
 from the
 .Tn SCSI
 inquiry commands.

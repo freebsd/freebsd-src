@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.4 1995/12/10 04:46:38 wpaul Exp $
+.\"	$Id: ypserv.8,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -68,7 +68,7 @@ using the
 command. The clients must also run
 .Xr ypbind 8
 in order to attach to a particular server, since it is possible to
-have serveral servers within a single NIS domain.
+have several servers within a single NIS domain.
 .Pp
 The databases distributed by
 .Nm ypserv
@@ -114,7 +114,7 @@ To make up for this, the FreeBSD version of
 handles the
 .Pa master.passwd.byname
 and
-.Pa master.basswd.byuid
+.Pa master.passwd.byuid
 maps in a special way. When the server receives a request to access
 either of these two maps, it will check the TCP port from which the
 request originated and return an error if the port number is greater
@@ -125,7 +125,7 @@ Any requests made by non-privileged users are therefore rejected.
 .Pp
 Furthermore, the
 .Xr getpwent 3
-routines in FreeBSD's standard C libarary will only attempt to retrieve
+routines in FreeBSD's standard C library will only attempt to retrieve
 data from the
 .Pa master.passwd.byname
 and
@@ -167,7 +167,7 @@ This will cause the standard
 and
 .Pa passwd.byuid
 maps to be generated with valid encrypted password fields, which is
-neccesary in order for non-FreeBSD clients to perform user
+necessary in order for non-FreeBSD clients to perform user
 authentication through NIS.
 .El
 .Pp
@@ -187,7 +187,7 @@ you can easily recompile
 with them, thereby enabling its 'securenets' features: you can
 configure
 .Nm ypserv
-to only handle resquests from machines listed
+to only handle requests from machines listed
 in the
 .Pa tcpwrapper
 configuration files, which would help limit vulnerability to the
@@ -236,7 +236,7 @@ will construct a fake database record and return it to the client,
 thereby making it seem as though the client's yp_match request
 succeeded.
 .Pp
-This feature is provided for compatiblity with SunOS 4.1.x,
+This feature is provided for compatibility with SunOS 4.1.x,
 which has brain-damaged resolver functions in its standard C
 library that depend on NIS for hostname and address resolution.
 FreeBSD's resolver can be configured to do DNS
@@ -250,7 +250,7 @@ using the
 .Xr syslog 3
 facility. In debug mode, the server does not background
 itself and prints extra status messages to stderr for each
-request that it revceives. Also, while running in debug mode,
+request that it receives. Also, while running in debug mode,
 .Nm ypserv
 will not spawn any additional subprocesses as it normally does
 when handling yp_all requests or doing DNS lookups. (These actions

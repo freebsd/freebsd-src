@@ -1,5 +1,5 @@
 .TH FILE 1 "Copyright but distributable"
-.\# $Id: file.1,v 1.2 1994/09/03 19:31:15 csgr Exp $
+.\# $Id: file.1,v 1.3 1996/01/23 12:40:09 mpp Exp $
 .SH NAME
 file
 \- determine file type
@@ -144,7 +144,7 @@ can be used to set the default magic number files.
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
 contained therein. 
-Its behaviour is mostly compatible with the System V program of the same name.
+Its behavior is mostly compatible with the System V program of the same name.
 This version knows more magic, however, so it will produce
 different (albeit more accurate) output in many cases. 
 .PP
@@ -323,7 +323,7 @@ The list of keywords in
 probably belongs in the Magic file.
 This could be done by using some keyword like `*' for the offset value.
 .PP
-Another optimisation would be to sort
+Another optimization would be to sort
 the magic file so that we can just run down all the
 tests for the first byte, first word, first long, etc, once we
 have fetched it.  Complain about conflicts in the magic file entries.

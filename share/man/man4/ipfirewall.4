@@ -69,7 +69,7 @@ Options in the kernel configuration file:
 .Sh DESCRIPTION
 Ipfirewall (later ipfw) is a system facility,which allows filtering
 of incoming and/or forwarding packets on the protocol+source/destination
-adress/ports base.
+address/ports base.
 Ipaccounting (later ipacct) is a system facility,which allows counting
 of incoming,outgoing and forwarding traffic by packet/byte count.
 
@@ -90,9 +90,9 @@ searching chain for matching entry the first matching is the best match,
 [ or at least one of them :^) ].
  That means:
   * First in chain entries with specific protocol and small ranges
-    of src/dst adresses and ports. 
-  * Later go entries with wider ranges of ports and adresses.
-  * Later entries matching every port for some adress range.
+    of src/dst addresses and ports. 
+  * Later go entries with wider ranges of ports and addresses.
+  * Later entries matching every port for some address range.
   * Later universal entries matching any protocol.
 
 While deleting entry , every entry which equal to that passed to 
@@ -102,14 +102,14 @@ Flush removes all entries.
 Every entry have several fields,by which packets matched:
    struct ip_fw *next - next entry in chain.(Set internally)
 
-   struct in_addr src - source adress to be matched.
-   struct in_addr src_mask  - source adress mask.
-           To match whole networks/subnets or adress groups
+   struct in_addr src - source address to be matched.
+   struct in_addr src_mask  - source address mask.
+           To match whole networks/subnets or address groups
            mask bits should be zeroed here and also
            in src_mask field. Valuable bits should be set
            in src_mask field.
-   struct in_addr dst - destination adress to be matched.
-   struct in_addr dst_mask - destination adress mask. 
+   struct in_addr dst - destination address to be matched.
+   struct in_addr dst_mask - destination address mask. 
 
    u_short flags  - flags field.See exact description of flags meaning
                     in description later.
@@ -139,9 +139,9 @@ b) If entry protocol set to TCP/UDP/ICMP and packet protocol
    different - no match,if packet protocol and entry protocol
    same - continue.
      
-c) If source addres pattern does not equal to packets sources adress
+c) If source address pattern does not equal to packets sources address
    masked with src_mask , or destination pattern not equal to packets
-   destination adress masked with dst_mask - no match.
+   destination address masked with dst_mask - no match.
    If they does and protocol set to ALL/ICMP - got match.
    If they does and protocol set to TCP/UDP - continue.
 
@@ -152,7 +152,7 @@ In ipfw packet matched consequently against every chain entry.
 Search continues untill first matching entry found.If IP_FW_F_ACCEPT
 flag set - packet accepted.If it is not set - packet denied.
 If no matching entry found , all unmatched packets ever accepted or
-denied depending on global polici value. It can be set with
+denied depending on global policy value. It can be set with
 IP_FW_POLICY raw socket option. Deny value is 0, other values
 (default 1) is accept.
 
@@ -175,7 +175,7 @@ entries rised.p_cnt rises by 1 and b_cnt by ip_len value of ip packet.
 Thus all traffic size counted including IP headers.
 
 If IP_FW_F_BIDIR flag is set in accounting entry,packets counted are
-those which match entry in standart way along with packets which match
+those which match entry in standard way along with packets which match
 entry while their source and destination addr/port pairs swapped.
 
 Zero option allows all accounting to be cleared.
@@ -198,9 +198,9 @@ been tracked,some less important ones expected.
  This man page is mostly out of date and should be rewritten. 
 
 .Sh HISTORY
- Ipfw facility has been intitially written as package to BSDI
+ Ipfw facility has been initially written as package to BSDI
 by Daniel Boulet <danny@BouletFermat.ab.ca>.
- It has been havily modified and ported to FreeBSD 2.0 
+ It has been heavily modified and ported to FreeBSD 2.0 
 by Ugen J.S.Antsilevich <ugen@NetVision.net.il>
  Ipacct facility written for FreeBSD 2.0 
 by Ugen J.S.Antsilevich <ugen@NetVision.net.il>
