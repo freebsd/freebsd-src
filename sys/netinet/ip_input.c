@@ -124,6 +124,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
+int	ip_send_unreach = 1;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, send_unreach, CTLFLAG_RW, &ip_send_unreach, 
+	0, "Send ICMP unreach when packet not for us rx, and forwarding disabled");
+
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
@@ -585,7 +589,14 @@ pass:
 	 */
 	if (ipforwarding == 0) {
 		ipstat.ips_cantforward++;
-		m_freem(m);
+		/*
+		 * If we receive a packet not for us, and forwarding disabled
+		 * send a ICMP host unreachable back to the source.
+		 */
+		if (ip_send_unreach)
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
+		else
+			m_freem(m);
 	} else
 		ip_forward(m, 0);
 #ifdef IPFIREWALL_FORWARD
