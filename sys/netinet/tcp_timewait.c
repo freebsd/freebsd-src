@@ -976,41 +976,46 @@ tcp_ctlinput(cmd, sa, vip)
 {
 	struct ip *ip = vip;
 	struct tcphdr *th;
+	struct in_addr faddr;
+	struct inpcb *inp;
+	struct tcpcb *tp;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
-	tcp_seq tcp_sequence = 0;
-	int tcp_seq_check = 0;
+	tcp_seq icmp_seq;
+	int s;
+
+	faddr = ((struct sockaddr_in *)sa)->sin_addr;
+	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+		return;
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-	else if (icmp_may_rst && cmd == PRC_UNREACH_ADMIN_PROHIB && ip) {
-		tcp_seq_check = 1;
+	else if (icmp_may_rst && cmd == PRC_UNREACH_ADMIN_PROHIB && ip)
 		notify = tcp_drop_syn_sent;
-	} else if (cmd == PRC_MSGSIZE)
+	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (PRC_IS_REDIRECT(cmd)) {
-		/*
-		 * Redirects go to all references to the destination,
-		 * and use in_rtchange to invalidate the route cache.
-		 */
 		ip = 0;
 		notify = in_rtchange;
 	} else if (cmd == PRC_HOSTDEAD)
-		/*
-		 * Dead host indications: notify all references to the
-		 * destination.
-		 */
 		ip = 0;
 	else if ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
+		s = splnet();
 		th = (struct tcphdr *)((caddr_t)ip 
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
-		if (tcp_seq_check == 1)
-			tcp_sequence = ntohl(th->th_seq);
-		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
-			cmd, notify, tcp_sequence, tcp_seq_check);
+		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
+		    ip->ip_src, th->th_sport, 0, NULL);
+		if (inp != NULL && inp->inp_socket != NULL) {
+			icmp_seq = htonl(th->th_seq);
+			tp = intotcpcb(inp);
+			if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
+			    SEQ_LT(icmp_seq, tp->snd_max))
+				(*notify)(inp, inetctlerrmap[cmd]);
+		}
+		splx(s);
 	} else
-		in_pcbnotifyall(&tcb, sa, cmd, notify);
+		in_pcbnotifyall(&tcb, faddr, inetctlerrmap[cmd], notify);
 }
 
 #ifdef INET6
@@ -1095,30 +1100,6 @@ tcp6_ctlinput(cmd, sa, d)
 			      0, cmd, notify);
 }
 #endif /* INET6 */
-
-/*
- * Check if the supplied TCP sequence number is a sequence number
- * for a sent but unacknowledged packet on the given TCP session.
- */
-int
-tcp_seq_vs_sess(inp, tcp_sequence)
-	struct inpcb *inp;
-	tcp_seq tcp_sequence;
-{
-	struct tcpcb *tp = intotcpcb(inp);
-	/*
-	 * If the sequence number is less than that of the last 
-	 * unacknowledged packet, or greater than that of the 
-	 * last sent, the given sequence number is not that
-	 * of a sent but unacknowledged packet for this session.
-	 */
-	if (SEQ_LT(tcp_sequence, tp->snd_una) ||
-			SEQ_GT(tcp_sequence, tp->snd_max)) {
-		return(0);
-	} else {
-		return(1);
-	}
-}
 
 /*
  * When a source quench is received, close congestion window
