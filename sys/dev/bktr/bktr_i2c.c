@@ -159,10 +159,18 @@ bt848_i2c_attach(int unit, bt848_ptr_t base, struct bktr_i2c_softc *i2c_sc)
 	btdata[unit].base = base;
 
 	/* XXX add the I2C interface to the root_bus until pcibus is ready */
+#if (__FreeBSD_version < 400000)
+	interface = device_add_child(root_bus, "bti2c", unit, NULL);
+#else
 	interface = device_add_child(root_bus, "bti2c", unit);
+#endif
 
 	/* add bit-banging generic code onto bti2c interface */
+#if (__FreeBSD_version < 400000)
+	bitbang = device_add_child(interface, "iicbb", -1, NULL);
+#else
 	bitbang = device_add_child(interface, "iicbb", -1);
+#endif
 
 	/* probe and attach the interface, we need it NOW
 	 * bit-banging code is also probed and attached */

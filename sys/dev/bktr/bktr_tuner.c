@@ -599,19 +599,36 @@ static int xussr[] = {
  * Australian broadcast channels
  */
 #define OFFSET	7.00
+#define IF_FREQ 38.90 
 static int australia[] = {
-	83,	(int)( 45.00 * FREQFACTOR),	0,
-	28,	(int)(521.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	/* ch 14?? what's this, cable? Air channels are 0-11 and 28-69 */
-	14,	(int)(471.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	10,	(int)(203.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 6,	(int)(169.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 4,	(int)( 89.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 3,	(int)( 80.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 1,	(int)( 51.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 0
+       83,     (int)(IF_FREQ * FREQFACTOR),    0,
+       28,     (int)(527.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+       10,     (int)(209.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+        6,     (int)(175.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+        4,     (int)( 95.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+        3,     (int)( 86.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+        1,     (int)( 57.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+        0
 };
 #undef OFFSET
+#undef IF_FREQ
+
+/* 
+ * France broadcast channels
+ */
+#define OFFSET 8.00
+#define IF_FREQ 38.90
+static int france[] = {
+        69,     (int)(IF_FREQ * FREQFACTOR),     0,
+        21,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR), /* 21 -> 69 */
+         5,     (int)(176.00 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR), /* 5 -> 10 */
+         4,     (int)( 63.75 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR), /* 4    */
+         3,     (int)( 60.50 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR), /* 3    */
+         1,     (int)( 47.75 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR), /* 1  2 */
+         0
+}; 
+#undef OFFSET
+#undef IF_FREQ
 
 static struct {
         int     *ptr;
@@ -626,6 +643,7 @@ static struct {
         {jpncable,      "jpncable"},
         {xussr,         "xussr"},
         {australia,     "australia"},
+        {france,        "france"},
  
 };
 
