@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	msgs
+WARNS?=	2
 DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
 
