@@ -1,7 +1,10 @@
-#	$Id: Makefile,v 1.8 1998/06/01 13:55:12 peter Exp $
+#	$Id: Makefile,v 1.9 1998/06/12 14:11:15 peter Exp $
 
 PROG=		ldd
-SRCS=		ldd.c sods.c
-CFLAGS+=	-Wall -DFREEBSD_AOUT
+SRCS=		ldd.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=		sods.c
+.endif
+CFLAGS+=	-Wall
 
 .include <bsd.prog.mk>
