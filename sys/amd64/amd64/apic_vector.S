@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.38 1997/12/04 19:46:26 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.24 1997/12/08 22:59:34 fsmp Exp $
  */
 
 
@@ -649,7 +649,7 @@ ihandlers:
  */
 	.long	swi_tty, swi_net
 	.long	dummycamisr, dummycamisr
-	.long	0, 0
+	.long	_swi_vm, 0
 	.long	_softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
@@ -657,7 +657,7 @@ imasks:				/* masks for interrupt handlers */
 
 	.long	SWI_TTY_MASK, SWI_NET_MASK
 	.long	SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	0, 0
+	.long	SWI_VM_MASK, 0
 	.long	SWI_CLOCK_MASK, SWI_AST_MASK
 
 /*
