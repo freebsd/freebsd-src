@@ -24,7 +24,7 @@
  * Number of timecounters used to implement stable storage
  */
 #ifndef NTIMECOUNTER
-#define NTIMECOUNTER	45
+#define NTIMECOUNTER	hz
 #endif
 
 static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
@@ -80,7 +80,7 @@ static struct timecounter dummy_timecounter = {
 	"dummy"
 };
 
-struct timecounter *timecounter = &dummy_timecounter;
+struct timecounter *volatile timecounter = &dummy_timecounter;
 
 static __inline unsigned
 tco_delta(struct timecounter *tc)
@@ -263,6 +263,7 @@ tc_init(struct timecounter *tc)
 	tc->tc_other = t1;
 	*t1 = *tc;
 	t2 = t1;
+	t3 = NULL;
 	for (i = 1; i < NTIMECOUNTER; i++) {
 		MALLOC(t3, struct timecounter *, sizeof *t3,
 		    M_TIMECOUNTER, M_WAITOK);
