@@ -19,8 +19,11 @@ BIN1=	amd.map apmd.conf auth.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+.if !defined(NO_LPR)
+BIN1+=	printcap
+.endif
 
-.if !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
@@ -79,11 +82,6 @@ distribution:
 	cd ${.CURDIR}/pam.d; ${MAKE} install
 .if !defined(NO_I4B)
 	cd ${.CURDIR}/isdn; ${MAKE} install
-.endif
-.if !defined(NO_LPR)
-	cd ${.CURDIR}; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		printcap ${DESTDIR}/etc
 .endif
 .if !defined(NO_SENDMAIL)
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
