@@ -11,7 +11,7 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
 	env error expand f2c false file find finger fmt fold fpr from \
-	fsplit fstat ftp gcore gprof head hexdump id indent ipcs \
+	fsplit fstat ftp gcore gprof head hexdump id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
 	m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
