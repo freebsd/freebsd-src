@@ -100,6 +100,7 @@ int		nflag;		/* true if -n flag: don't convert addrs */
 int		dflag;		/* true if -d flag: output debug info */
 int		sortidle;	/* sort by idle time */
 int		use_ampm;	/* use AM/PM time */
+int             use_comma;      /* use comma as floats separator */
 char	      **sel_users;	/* login array of particular users selected */
 char		domain[MAXHOSTNAMELEN];
 
@@ -143,6 +144,7 @@ main(argc, argv)
 
 	(void)setlocale(LC_ALL, "");
 	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
+	use_comma = (*nl_langinfo(RADIXCHAR) != ',');
 
 	/* Are we w(1) or uptime(1)? */
 	if (this_is_uptime(argv[0]) == 0) {
@@ -476,8 +478,11 @@ pr_header(nowp, nusers)
 		(void)printf(", no load average information available\n");
 	else {
 		(void)printf(", load averages:");
-		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++)
-			(void)printf("  %.2f", avenrun[i]);
+		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++) {
+			if (use_comma && i > 0)
+				(void)printf(",");
+			(void)printf(" %.2f", avenrun[i]);
+		}
 		(void)printf("\n");
 	}
 }
