@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rdmap.c,v 1.8 1997/10/06 11:35:55 charnier Exp $";
+	"$Id: rdmap.c,v 1.9 1997/11/18 21:08:07 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -78,7 +78,7 @@ scan(slot)
 	struct slotstate st;
 
 	sprintf(name, CARD_DEVICE, slot);
-	fd = open(name, 0);
+	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		return;
 	ioctl(fd, PIOCGSTATE, &st);
