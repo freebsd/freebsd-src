@@ -162,6 +162,40 @@ if [ $? -eq 0 -a "${IPFW_LOG_LIMIT}" -ne 0 ]; then
 	fi
 fi
 
+# Show IPv6 denied packets
+#
+if ip6fw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
+	if [ ! -f ${LOG}/ip6fw.today ]; then
+		[ $rc -lt 1 ] && rc=1
+		separator
+		echo "No ${LOG}/ip6fw.today"
+		cp ${TMP} ${LOG}/ip6fw.today || rc=3
+	fi
+
+	if ! cmp ${LOG}/ip6fw.today ${TMP} >/dev/null; then
+		[ $rc -lt 1 ] && rc=1
+		separator
+		echo "${host} IPv6 denied packets:"
+		diff -b ${LOG}/ip6fw.today ${TMP} | egrep "^>"
+		mv ${LOG}/ip6fw.today ${LOG}/ip6fw.yesterday || rc=3
+		mv ${TMP} ${LOG}/ip6fw.today || rc=3
+	fi
+fi
+
+# Show ip6fw rules which have reached the log limit
+#
+IP6FW_LOG_LIMIT=`sysctl -n net.inet6.ip6.fw.verbose_limit 2> /dev/null`
+if [ $? -eq 0 -a "${IP6FW_LOG_LIMIT}" -ne 0 ]; then
+	ip6fw -a l | grep " log " | perl -n -e \
+		'/^\d+\s+(\d+)/; print if ($1 >= '$IP6FW_LOG_LIMIT')' > ${TMP}
+	if [ -s "${TMP}" ]; then
+		[ $rc -lt 1 ] && rc=1
+		separator
+		echo 'ip6fw log limit reached:'
+		cat ${TMP}
+	fi
+fi
+
 # Show kernel log messages
 #
 if dmesg -a 2>/dev/null > ${TMP}; then
