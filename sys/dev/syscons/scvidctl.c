@@ -581,6 +581,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENODEV;	/* XXX */
 	return fb_ioctl(adp, cmd, data);
 
+    case FBIO_BLANK:
+	if (scp != scp->sc->cur_scp)
+	    return ENODEV;	/* XXX */
+	return fb_ioctl(adp, cmd, data);
+
 #ifndef SC_NO_MODE_CHANGE
     /* generic text modes */
     case SW_TEXT_80x25:	case SW_TEXT_80x30:
