@@ -191,8 +191,10 @@ g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 		h0h0.error = -1;
 		/* XXX: Does this reference register with our selfdestruct code ? */
 		error = g_access_rel(cp, 1, 1, 1);
-		if (error)
+		if (error) {
+			g_free(label);
 			return (error);
+		}
 		g_topology_unlock();
 		g_waitfor_event(g_sunlabel_callconfig, &h0h0, M_WAITOK, gp, NULL);
 		g_topology_lock();
@@ -205,8 +207,10 @@ g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 			return (EINVAL);
 		/* XXX: Does this reference register with our selfdestruct code ? */
 		error = g_access_rel(cp, 1, 1, 1);
-		if (error)
+		if (error) {
+			g_free(label);
 			return (error);
+		}
 		for (i = 0; i < SUN_NPART; i++) {
 			if (gsp->slices[i].length <= SUN_BOOTSIZE)
 				continue;
@@ -259,6 +263,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			break;
 		
 		g_sunlabel_modify(gp, ms, buf);
+		g_free(buf);
 
 		break;
 	} while (0);
