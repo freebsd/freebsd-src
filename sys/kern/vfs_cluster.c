@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.58 1998/03/16 01:55:24 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.59 1998/03/16 18:39:41 julian Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -150,7 +150,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					(i == (maxra - 1)))
 					tbp->b_flags |= B_RAM;
 
-				if ((tbp->b_usecount < 5) &&
+				if ((tbp->b_usecount < 1) &&
 					((tbp->b_flags & B_BUSY) == 0) &&
 					(tbp->b_qindex == QUEUE_LRU)) {
 					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], tbp, b_freelist);
@@ -167,6 +167,10 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	} else {
 		off_t firstread;
 		firstread = bp->b_offset;
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("cluster_read: no buffer offset");
+#endif
 		if (firstread + totread > filesize)
 			totread = filesize - firstread;
 		if (totread > size) {
@@ -194,7 +198,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 
 			bp = cluster_rbuild(vp, filesize, lblkno,
 				blkno, size, nblks, bp);
-			lblkno += nblks;
+			lblkno += (bp->b_bufsize / size);
 		} else {
 single_block_read:
 			/*
@@ -348,6 +352,10 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
 	bp->b_offset = tbp->b_offset;
+#ifdef DIAGNOSTIC
+	if (bp->b_offset == NOOFFSET)
+		panic("cluster_rbuild: no buffer offset");
+#endif
 	pbgetvp(vp, bp);
 
 	TAILQ_INIT(&bp->b_cluster.cluster_head);
@@ -510,6 +518,11 @@ cluster_write(bp, filesize)
 		lblocksize = bp->b_bufsize;
 	}
 	lbn = bp->b_lblkno;
+
+#ifdef DIAGNOSTIC
+	if (bp->b_offset == NOOFFSET)
+		panic("cluster_write: no buffer offset");
+#endif
 
 	/* Initialize vnode to beginning of file. */
 	if (lbn == 0)
@@ -687,7 +700,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		(vm_offset_t) bp->b_data |=
 			((vm_offset_t) tbp->b_data) & PAGE_MASK;
 		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
-				(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
+				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
 		/*
@@ -712,10 +725,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * characteristics, don't cluster with it.
 				 */
 				if ((tbp->b_flags &
-				  (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|
-				    B_DELWRI|B_NEEDCOMMIT))
-				  != (B_DELWRI|B_CLUSTEROK|
-				    (bp->b_flags & (B_VMIO|B_NEEDCOMMIT)))) {
+				  (B_VMIO | B_CLUSTEROK | B_INVAL | B_BUSY |
+				    B_DELWRI | B_NEEDCOMMIT))
+				  != (B_DELWRI | B_CLUSTEROK |
+				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT)))) {
 					splx(s);
 					break;
 				}
@@ -732,7 +745,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 */
 				if ((tbp->b_bcount != size) ||
 				  ((bp->b_blkno + (dbsize * i)) !=
-				    (tbp->b_blkno)) ||
+				    tbp->b_blkno) ||
 				  ((tbp->b_npages + bp->b_npages) >
 				    (vp->v_maxio / PAGE_SIZE))) {
 					splx(s);
@@ -784,10 +797,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 			--numdirtybuffers;
 			tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
 			tbp->b_flags |= B_ASYNC;
-			s = splbio();
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
 			++tbp->b_vp->v_numoutput;
-			splx(s);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 				tbp, b_cluster.cluster_entry);
 		}

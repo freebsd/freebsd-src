@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.157 1998/03/17 08:41:28 kato Exp $
+ * $Id: vfs_bio.c,v 1.158 1998/03/17 17:36:05 dyson Exp $
  */
 
 /*
@@ -183,7 +183,6 @@ bufinit()
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
-		bp->b_generation = 0;
 		LIST_INIT(&bp->b_dep);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -367,7 +366,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 int
 bwrite(struct buf * bp)
 {
-	int oldflags = bp->b_flags;
+	int oldflags;
 	struct vnode *vp;
 	struct mount *mp;
 
@@ -376,8 +375,11 @@ bwrite(struct buf * bp)
 		brelse(bp);
 		return (0);
 	}
+
+	oldflags = bp->b_flags;
+
 #if !defined(MAX_PERF)
-	if (!(bp->b_flags & B_BUSY))
+	if ((bp->b_flags & B_BUSY) == 0)
 		panic("bwrite: buffer is not busy???");
 #endif
 
@@ -414,10 +416,6 @@ bwrite(struct buf * bp)
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
-
-		if (oldflags & B_DELWRI) {
-			reassignbuf(bp, bp->b_vp);
-		}
 		brelse(bp);
 		return (rtval);
 	}
@@ -466,9 +464,7 @@ bdwrite(struct buf * bp)
 	bp->b_flags &= ~(B_READ|B_RELBUF);
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI;
-		s = splbio();
 		reassignbuf(bp, bp->b_vp);
-		splx(s);
 		++numdirtybuffers;
 	}
 
@@ -532,9 +528,7 @@ bdirty(bp)
 	bp->b_flags &= ~(B_READ|B_RELBUF); /* XXX ??? check this */
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI; /* why done? XXX JRE */
-		s = splbio();
 		reassignbuf(bp, bp->b_vp);
-		splx(s);
 		++numdirtybuffers;
 	}
 }
@@ -652,6 +646,7 @@ brelse(struct buf * bp)
 
 		for (i = 0; i < bp->b_npages; i++) {
 			m = bp->b_pages[i];
+			m->flags &= ~PG_ZERO;
 			if (m == bogus_page) {
 
 				obj = (vm_object_t) vp->v_object;
@@ -673,7 +668,6 @@ brelse(struct buf * bp)
 				if ((bp->b_flags & B_INVAL) == 0) {
 					pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 				}
-				break;
 			}
 			if (bp->b_flags & (B_NOCACHE|B_ERROR)) {
 				int poffset = foff & PAGE_MASK;
@@ -709,7 +703,6 @@ brelse(struct buf * bp)
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 		kvafreespace += bp->b_kvasize;
-		bp->b_generation++;
 
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
@@ -719,7 +712,6 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
-		bp->b_generation++;
 
 	/* buffers that are locked */
 	} else if (bp->b_flags & B_LOCKED) {
@@ -748,7 +740,7 @@ brelse(struct buf * bp)
 
 	/* unlock */
 	bp->b_flags &= ~(B_ORDERED | B_WANTED | B_BUSY |
-				B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+		B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
 }
 
@@ -841,6 +833,7 @@ vfs_vmio_release(bp)
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
+					m->flags &= ~PG_ZERO;
 				} else if (m->hold_count == 0) {
 					m->flags |= PG_BUSY;
 					vm_page_protect(m, VM_PROT_NONE);
@@ -852,6 +845,7 @@ vfs_vmio_release(bp)
 				 * act_count.
 				 */
 				m->act_count = 0;
+				m->flags &= ~PG_ZERO;
 			}
 		}
 	}
@@ -942,11 +936,12 @@ vfs_bio_awrite(struct buf * bp)
 	}
 
 	bremfree(bp);
+	bp->b_flags |= B_BUSY | B_ASYNC;
+
 	splx(s);
 	/*
 	 * default (old) behavior, writing out only one block
 	 */
-	bp->b_flags |= B_BUSY | B_ASYNC;
 	nwritten = bp->b_bufsize;
 	(void) VOP_BWRITE(bp);
 	return nwritten;
@@ -1121,7 +1116,6 @@ trytofreespace:
 		brelvp(bp);
 
 fillbuf:
-	bp->b_generation++;
 
 	/* we are not free, nor do we contain interesting data */
 	if (bp->b_rcred != NOCRED) {
@@ -1145,7 +1139,7 @@ fillbuf:
 	bp->b_dev = NODEV;
 	bp->b_vp = NULL;
 	bp->b_blkno = bp->b_lblkno = 0;
-	bp->b_offset = 0;
+	bp->b_offset = NOOFFSET;
 	bp->b_iodone = 0;
 	bp->b_error = 0;
 	bp->b_resid = 0;
@@ -1359,8 +1353,10 @@ vfs_setdirty(struct buf *bp) {
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
 		 */
-		for (i = 0; i < bp->b_npages; i++)
+		for (i = 0; i < bp->b_npages; i++) {
+			bp->b_pages[i]->flags &= ~PG_ZERO;
 			vm_page_test_dirty(bp->b_pages[i]);
+		}
 
 		/*
 		 * scan forwards for the first page modified
@@ -1428,7 +1424,6 @@ loop:
 	}
 
 	if ((bp = gbincore(vp, blkno))) {
-		generation = bp->b_generation;
 loop1:
 		if (bp->b_flags & B_BUSY) {
 
@@ -1438,9 +1433,7 @@ loop1:
 
 			if (!tsleep(bp,
 				(PRIBIO + 4) | slpflag, "getblk", slptimeo)) {
-				if (bp->b_generation != generation)
-					goto loop;
-				goto loop1;
+				goto loop;
 			}
 
 			splx(s);
@@ -1457,7 +1450,6 @@ loop1:
 		 */
 
 		if (bp->b_bcount != size) {
-			bp->b_generation++;
 			if ((bp->b_flags & B_VMIO) && (size <= bp->b_kvasize)) {
 				allocbuf(bp, size);
 			} else {
@@ -1477,22 +1469,31 @@ loop1:
 			}
 		}
 
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("getblk: no buffer offset");
+#endif
+
 		/*
 		 * Check that the constituted buffer really deserves for the
-		 * B_CACHE bit to be set.
+		 * B_CACHE bit to be set.  B_VMIO type buffers might not
+		 * contain fully valid pages.  Normal (old-style) buffers
+		 * should be fully valid.
 		 */
-		checksize = bp->b_bufsize;
-		for (i = 0; i < bp->b_npages; i++) {
-			int resid;
-			int poffset;
-			poffset = bp->b_offset & PAGE_MASK;
-			resid = (checksize > (PAGE_SIZE - poffset)) ?
-				(PAGE_SIZE - poffset) : checksize;
-			if (!vm_page_is_valid(bp->b_pages[i], poffset, resid)) {
-				bp->b_flags &= ~(B_CACHE | B_DONE);
-				break;
+		if (bp->b_flags & B_VMIO) {
+			checksize = bp->b_bufsize;
+			for (i = 0; i < bp->b_npages; i++) {
+				int resid;
+				int poffset;
+				poffset = bp->b_offset & PAGE_MASK;
+				resid = (checksize > (PAGE_SIZE - poffset)) ?
+					(PAGE_SIZE - poffset) : checksize;
+				if (!vm_page_is_valid(bp->b_pages[i], poffset, resid)) {
+					bp->b_flags &= ~(B_CACHE | B_DONE);
+					break;
+				}
+				checksize -= resid;
 			}
-			checksize -= resid;
 		}
 
 		if (bp->b_usecount < BUF_MAXUSE)
@@ -1528,6 +1529,7 @@ loop1:
 		 * be found by incore.
 		 */
 		bp->b_blkno = bp->b_lblkno = blkno;
+
 		if (vp->v_type != VBLK)
 			bp->b_offset = (off_t) blkno * maxsize;
 		else
@@ -1744,6 +1746,11 @@ allocbuf(struct buf * bp, int size)
 					tinc = bsize;
 
 				off = bp->b_offset;
+#ifdef DIAGNOSTIC
+				if (bp->b_offset == NOOFFSET)
+					panic("allocbuf: no buffer offset");
+#endif
+
 				curbpnpages = bp->b_npages;
 		doretry:
 				bp->b_validoff = orig_validoff;
@@ -1801,6 +1808,7 @@ allocbuf(struct buf * bp, int size)
 							bytesinpage = newbsize - toff;
 						if (bp->b_flags & B_CACHE)
 							vfs_buf_set_valid(bp, off, toff, bytesinpage, m);
+						m->flags &= ~PG_ZERO;
 						vm_page_wire(m);
 					}
 					bp->b_pages[pageindex] = m;
@@ -1890,9 +1898,11 @@ biodone(register struct buf * bp)
 	if ((bp->b_flags & B_READ) == 0) {
 		vwakeup(bp);
 	}
+
 #ifdef BOUNCE_BUFFERS
-	if (bp->b_flags & B_BOUNCE)
+	if (bp->b_flags & B_BOUNCE) {
 		vm_bounce_free(bp);
+	}
 #endif
 
 	/* call optional completion function if requested */
@@ -1930,6 +1940,10 @@ biodone(register struct buf * bp)
 #endif
 
 		foff = bp->b_offset;
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("biodone: no buffer offset");
+#endif
 
 #if !defined(MAX_PERF)
 		if (!obj) {
@@ -1976,6 +1990,7 @@ biodone(register struct buf * bp)
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
 				vfs_page_set_valid(bp, foff, i, m);
 			}
+			m->flags &= ~PG_ZERO;
 
 			/*
 			 * when debugging new filesystems or buffer I/O methods, this
@@ -2107,6 +2122,7 @@ vfs_unbusy_pages(struct buf * bp)
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			--obj->paging_in_progress;
+			m->flags &= ~PG_ZERO;
 			PAGE_BWAKEUP(m);
 		}
 		if (obj->paging_in_progress == 0 &&
@@ -2211,6 +2227,10 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		vm_ooffset_t foff;
 
 		foff = bp->b_offset;
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("vfs_busy_pages: no buffer offset");
+#endif
 
 		vfs_setdirty(bp);
 
@@ -2224,6 +2244,7 @@ retry:
 		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 
+			m->flags &= ~PG_ZERO;
 			if ((bp->b_flags & B_CLUSTER) == 0) {
 				obj->paging_in_progress++;
 				m->busy++;
@@ -2257,6 +2278,11 @@ vfs_clean_pages(struct buf * bp)
 		vm_ooffset_t foff;
 		foff = bp->b_offset;
 
+#ifdef DIAGNOSTIC
+		if (bp->b_offset == NOOFFSET)
+			panic("vfs_clean_pages: no buffer offset");
+#endif
+
 		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 			vfs_page_set_valid(bp, foff, i, m);
@@ -2267,13 +2293,15 @@ vfs_clean_pages(struct buf * bp)
 void
 vfs_bio_clrbuf(struct buf *bp) {
 	int i;
-	if( bp->b_flags & B_VMIO) {
+	if (((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) ||
+		((bp->b_flags & (B_VMIO | B_MALLOC)) == 0) && (bp->b_npages > 0) ) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE)) {
 			int mask;
 			mask = 0;
 			for(i=0;i<bp->b_bufsize;i+=DEV_BSIZE)
 				mask |= (1 << (i/DEV_BSIZE));
-			if( bp->b_pages[0]->valid != mask) {
+			if(((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
+				(bp->b_pages[0]->valid != mask)) {
 				bzero(bp->b_data, bp->b_bufsize);
 			}
 			bp->b_pages[0]->valid = mask;
@@ -2290,11 +2318,13 @@ vfs_bio_clrbuf(struct buf *bp) {
 			} else {
 				int j;
 				for(j=0;j<PAGE_SIZE/DEV_BSIZE;j++) {
-					if( (bp->b_pages[i]->valid & (1<<j)) == 0)
+					if (((bp->b_pages[i]->flags & PG_ZERO) == 0) &&
+						(bp->b_pages[i]->valid & (1<<j)) == 0)
 						bzero(bp->b_data + (i << PAGE_SHIFT) + j * DEV_BSIZE, DEV_BSIZE);
 				}
 			}
 			bp->b_pages[i]->valid = VM_PAGE_BITS_ALL;
+			bp->b_pages[i]->flags &= ~PG_ZERO;
 		}
 		bp->b_resid = 0;
 	} else {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.143 1998/03/17 06:30:52 dyson Exp $
+ * $Id: vfs_subr.c,v 1.144 1998/03/19 18:46:58 dyson Exp $
  */
 
 /*
@@ -601,7 +601,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			if (bp->b_flags & B_BUSY) {
 				bp->b_flags |= B_WANTED;
 				error = tsleep((caddr_t) bp,
-				    slpflag | (PRIBIO + 1), "vinvalbuf",
+				    slpflag | (PRIBIO + 4), "vinvalbuf",
 				    slptimeo);
 				if (error) {
 					splx(s);
@@ -609,28 +609,34 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				}
 				break;
 			}
-			bremfree(bp);
-			bp->b_flags |= B_BUSY;
 			/*
 			 * XXX Since there are no node locks for NFS, I
 			 * believe there is a slight chance that a delayed
 			 * write will occur while sleeping just above, so
-			 * check for it.
+			 * check for it.  Note that vfs_bio_awrite expects
+			 * buffers to reside on a queue, while VOP_BWRITE and
+			 * brelse do not.
 			 */
-			if ((bp->b_flags & B_DELWRI) && (flags & V_SAVE)) {
+			if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
+				(flags & V_SAVE)) {
+
 				if (bp->b_vp == vp) {
 					if (bp->b_flags & B_CLUSTEROK) {
 						vfs_bio_awrite(bp);
 					} else {
-						bp->b_flags |= B_ASYNC;
+						bremfree(bp);
+						bp->b_flags |= (B_BUSY | B_ASYNC);
 						VOP_BWRITE(bp);
 					}
 				} else {
+					bremfree(bp);
+					bp->b_flags |= B_BUSY;
 					(void) VOP_BWRITE(bp);
 				}
 				break;
 			}
-			bp->b_flags |= (B_INVAL|B_NOCACHE|B_RELBUF);
+			bremfree(bp);
+			bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF | B_BUSY);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 		}
@@ -679,7 +685,7 @@ vtruncbuf(vp, cred, p, length, blksize)
 {
 	register struct buf *bp;
 	struct buf *nbp, *blist;
-	int s, error, anyfreed, anymetadirty;
+	int s, error, anyfreed;
 	vm_object_t object;
 	int trunclbn;
 
@@ -687,7 +693,6 @@ vtruncbuf(vp, cred, p, length, blksize)
 	 * Round up to the *next* lbn.
 	 */
 	trunclbn = (length + blksize - 1) / blksize;
-	anymetadirty = 0;
 
 	s = splbio();
 restart:
@@ -701,17 +706,18 @@ restart:
 			if (bp->b_lblkno >= trunclbn) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
-					tsleep((caddr_t) bp, PRIBIO, "vtrb1", 0);
-					nbp = bp;
+					tsleep(bp, PRIBIO + 4, "vtrb1", 0);
+					goto restart;
 				} else {
 					bremfree(bp);
-					bp->b_flags |= (B_BUSY|B_INVAL|B_NOCACHE|B_RELBUF);
+					bp->b_flags |= (B_BUSY | B_INVAL | B_RELBUF);
 					bp->b_flags &= ~B_ASYNC;
 					brelse(bp);
 					anyfreed = 1;
 				}
 				if (nbp && 
-					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) || (nbp->b_vp != vp) ||
+					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) ||
+					 (nbp->b_vp != vp) ||
 					 (nbp->b_flags & B_DELWRI))) {
 					goto restart;
 				}
@@ -725,28 +731,27 @@ restart:
 			if (bp->b_lblkno >= trunclbn) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
-					tsleep((caddr_t) bp, PRIBIO, "vtrb2", 0);
-					nbp = bp;
+					tsleep(bp, PRIBIO + 4, "vtrb2", 0);
+					goto restart;
 				} else {
 					bremfree(bp);
-					bp->b_flags |= (B_BUSY|B_INVAL|B_NOCACHE|B_RELBUF);
+					bp->b_flags |= (B_BUSY | B_INVAL | B_RELBUF);
 					bp->b_flags &= ~B_ASYNC;
 					brelse(bp);
 					anyfreed = 1;
 				}
 				if (nbp && 
-					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) || (nbp->b_vp != vp) ||
+					((LIST_NEXT(nbp, b_vnbufs) == NOLIST) ||
+					 (nbp->b_vp != vp) ||
 					 (nbp->b_flags & B_DELWRI) == 0)) {
 					goto restart;
 				}
-			} else if (bp->b_lblkno < 0) {
-				anymetadirty++;
 			}
 		}
 	}
 
-rescan:
-	if ((length > 0) && anymetadirty) {
+	if (length > 0) {
+restartsync:
 		for (bp = LIST_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 
 			nbp = LIST_NEXT(bp, b_vnbufs);
@@ -754,16 +759,20 @@ rescan:
 			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
 				if (bp->b_flags & B_BUSY) {
 					bp->b_flags |= B_WANTED;
-					tsleep((caddr_t) bp, PRIBIO, "vtrb3", 0);
-					nbp = bp;
-					continue;
+					tsleep(bp, PRIBIO, "vtrb3", 0);
 				} else {
 					bremfree(bp);
-					bp->b_flags |= B_ASYNC | B_BUSY;
+					bp->b_flags |= B_BUSY;
+					if (bp->b_vp == vp) {
+						bp->b_flags |= B_ASYNC;
+					} else {
+						bp->b_flags &= ~B_ASYNC;
+					}
 					VOP_BWRITE(bp);
-					goto rescan;
 				}
+				goto restartsync;
 			}
+
 		}
 	}
 
@@ -771,7 +780,6 @@ rescan:
 		vp->v_flag |= VBWAIT;
 		tsleep(&vp->v_numoutput, PVM, "vbtrunc", 0);
 	}
-
 
 	splx(s);
 
