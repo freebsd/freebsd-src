@@ -102,12 +102,14 @@ static int ufs_strategy __P((struct vop_strategy_args *));
 static int ufs_symlink __P((struct vop_symlink_args *));
 static int ufs_whiteout __P((struct vop_whiteout_args *));
 static int ufsfifo_close __P((struct vop_close_args *));
+static int ufsfifo_kqfilter __P((struct vop_kqfilter_args *));
 static int ufsfifo_read __P((struct vop_read_args *));
 static int ufsfifo_write __P((struct vop_write_args *));
 static int ufsspec_close __P((struct vop_close_args *));
 static int ufsspec_read __P((struct vop_read_args *));
 static int ufsspec_write __P((struct vop_write_args *));
 static int filt_ufsread __P((struct knote *kn, long hint));
+static int filt_ufswrite __P((struct knote *kn, long hint));
 static int filt_ufsvnode __P((struct knote *kn, long hint));
 static void filt_ufsdetach __P((struct knote *kn));
 static int ufs_kqfilter __P((struct vop_kqfilter_args *ap));
@@ -1974,6 +1976,23 @@ ufsfifo_close(ap)
 }
 
 /*
+ * Kqfilter wrapper for fifos.
+ *
+ * Fall through to ufs kqfilter routines if needed 
+ */
+int
+ufsfifo_kqfilter(ap)
+	struct vop_kqfilter_args *ap;
+{
+	int error;
+
+	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_kqfilter), ap);
+	if (error)
+		error = ufs_kqfilter(ap);
+	return (error);
+}
+
+/*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
 int
@@ -2206,6 +2225,8 @@ ufs_missingop(ap)
 
 static struct filterops ufsread_filtops = 
 	{ 1, NULL, filt_ufsdetach, filt_ufsread };
+static struct filterops ufswrite_filtops = 
+	{ 1, NULL, filt_ufsdetach, filt_ufswrite };
 static struct filterops ufsvnode_filtops = 
 	{ 1, NULL, filt_ufsdetach, filt_ufsvnode };
 
@@ -2222,6 +2243,9 @@ ufs_kqfilter(ap)
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		kn->kn_fop = &ufsread_filtops;
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &ufswrite_filtops;
 		break;
 	case EVFILT_VNODE:
 		kn->kn_fop = &ufsvnode_filtops;
@@ -2268,6 +2292,22 @@ filt_ufsread(struct knote *kn, long hint)
 
         kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
         return (kn->kn_data != 0);
+}
+
+/*ARGSUSED*/
+static int
+filt_ufswrite(struct knote *kn, long hint)
+{
+
+	/*
+	 * filesystem is gone, so set the EOF flag and schedule 
+	 * the knote for deletion.
+	 */
+	if (hint == NOTE_REVOKE)
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+
+        kn->kn_data = 0;
+        return (1);
 }
 
 static int
@@ -2357,6 +2397,7 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_kqfilter_desc,		(vop_t *) ufsfifo_kqfilter },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
