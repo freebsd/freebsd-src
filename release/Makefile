@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.203 1996/01/13 23:31:44 phk Exp $
+#	$Id: Makefile,v 1.204 1996/01/14 19:10:15 phk Exp $
 #
 # How to roll a release:
 #
@@ -248,6 +248,14 @@ release.5:
 			mv $$i \
 				${RD}/trees/proflibs/usr/lib ; \
 		fi ; \
+	done
+	# Create symlinks for the MD5-based crypt lib, too.  The
+	# automatically created links still point to the DES stuff,
+	# which went into its own distribution.
+	for i in ${RD}/trees/bin/usr/lib/libscrypt* ; do \
+		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
+		rm -f $$c ; \
+		ln -s `basename $$i` $$c ; \
 	done
 	# Remove some files we can faster regen after installing.
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
