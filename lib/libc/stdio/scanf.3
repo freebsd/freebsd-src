@@ -36,7 +36,7 @@
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2002
+.Dd January 4, 2003
 .Dt SCANF 3
 .Os
 .Sh NAME
@@ -530,3 +530,9 @@ The
 and
 .Cm \&%A
 floating-point formats are not implemented.
+.Pp
+The
+.Nm
+family of functions do not correctly handle multibyte characters in the
+.Fa format
+argument.
