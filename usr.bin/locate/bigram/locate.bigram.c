@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.bigram.c,v 1.1 1996/09/13 13:23:48 wosch Exp wosch $
+ * 	$Id: locate.bigram.c,v 1.7 1996/09/14 20:15:49 wosch Exp $
  */
 
 #ifndef lint
@@ -60,7 +61,7 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 
 u_char buf1[MAXPATHLEN] = " ";
 u_char buf2[MAXPATHLEN];
-u_int bigram[UCHAR_MAX][UCHAR_MAX];
+u_int bigram[UCHAR_MAX + 1][UCHAR_MAX + 1];
 
 int
 main(void)
@@ -84,7 +85,7 @@ main(void)
 				break;
 
 		while (*cp != '\0' && *(cp + 1) != '\0') {
-			bigram[(u_int)*cp][(u_int)*(cp + 1)]++;
+			bigram[(u_char)*cp][(u_char)*(cp + 1)]++;
 			cp += 2;
 		}
 

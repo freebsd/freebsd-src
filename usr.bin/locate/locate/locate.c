@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.4 1996/08/31 23:14:53 wosch Exp $
+ *      $Id: locate.c,v 1.5 1996/09/16 01:17:25 wosch Exp $
  */
 
 #ifndef lint
@@ -60,6 +60,7 @@ static char sccsid[] = "@(#)locate.c    8.1 (Berkeley) 6/6/93";
  *
  *      0-28    likeliest differential counts + offset to make nonnegative
  *      30      switch code for out-of-range count to follow in next word
+ *      31      an 8 bit char followed
  *      128-255 bigram codes (128 most common, as determined by 'updatedb')
  *      32-127  single character (printable) ascii residue (ie, literal)
  *
@@ -76,19 +77,22 @@ static char sccsid[] = "@(#)locate.c    8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/param.h>
-#include <fnmatch.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <err.h>
+#include <fnmatch.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #ifdef MMAP
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <sys/mman.h>
 #  include <fcntl.h>
 #endif
-#include <err.h>
+
 
 #ifdef sun
 #include <netinet/in.h> /* SunOS byteorder(3) htohl(3) */
@@ -148,6 +152,7 @@ main(argc, argv)
 #ifdef MMAP
         f_mmap = 1;		/* mmap is default */
 #endif
+	(void) setlocale(LC_ALL, "");
 
         while ((ch = getopt(argc, argv, "Scd:il:ms")) != EOF)
                 switch(ch) {
@@ -198,7 +203,7 @@ main(argc, argv)
         }
 
         if (f_icase && UCHAR_MAX < 4096) /* init tolower lookup table */
-                for (ch = 0; ch <= UCHAR_MAX; ch++)
+                for (ch = 0; ch < UCHAR_MAX + 1; ch++)
                         myctype[ch] = tolower(ch);
 
         /* foreach database ... */
