@@ -452,7 +452,7 @@ nsphw_start_selection(sc, cb)
 				continue;
 			}
 
-				SCSI_LOW_DELAY(1);
+			SCSI_LOW_DELAY(1);
 			ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_BSY) != 0)
 			{
@@ -1168,21 +1168,35 @@ WriteLoop:
 				 * is ready to recieve data without
 				 * heavy delays. 
 				 */
-				acount = nsp_fifo_count(sc);
-				rcount = nsp_request_count(sc);
-				if (rcount <= acount)
+				if ((slp->sl_scp.scp_datalen % suspendio) == 0)
 				{
+					/* Step I:
+					 * fill the nsp fifo, and waiting for
+					 * the fifo empty.
+					 */
 					nsp_write_fifo(sc, 0);
-#ifdef	NSP_STATICS
-					nsp_statics.device_busy ++;
-#endif	/* NSP_STATICS */
 				}
 				else
 				{
-					nsp_write_fifo(sc, suspendio);
+					/* Step II:
+					 * check the request singals.
+					 */
+					acount = nsp_fifo_count(sc);
+					rcount = nsp_request_count(sc);
+					if (rcount <= acount)
+					{
+						nsp_write_fifo(sc, 0);
 #ifdef	NSP_STATICS
-					nsp_statics.device_data_write ++;
+						nsp_statics.device_busy ++;
 #endif	/* NSP_STATICS */
+					}
+					else
+					{
+						nsp_write_fifo(sc, suspendio);
+#ifdef	NSP_STATICS
+						nsp_statics.device_data_write ++;
+#endif	/* NSP_STATICS */
+					}
 				}
 			}
 			else
