@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.23 1998/10/31 17:21:31 peter Exp $
+ * $Id: vm_zone.c,v 1.24 1998/12/04 22:54:57 archie Exp $
  */
 
 #include <sys/param.h>
@@ -194,7 +194,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zitems = NULL;
 	for (i = 0; i < nitems; i++) {
 		((void **) item)[0] = z->zitems;
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 		((void **) item)[1] = (void *) ZENTRY_FREE;
 #endif
 		z->zitems = item;
@@ -357,7 +357,7 @@ _zget(vm_zone_t z)
 		nitems -= 1;
 		for (i = 0; i < nitems; i++) {
 			((void **) item)[0] = z->zitems;
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 			((void **) item)[1] = (void *) ZENTRY_FREE;
 #endif
 			z->zitems = item;
@@ -367,7 +367,7 @@ _zget(vm_zone_t z)
 	} else if (z->zfreecnt > 0) {
 		item = z->zitems;
 		z->zitems = ((void **) item)[0];
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANTS)
 		if (((void **) item)[1] != (void *) ZENTRY_FREE)
 			zerror(ZONE_ERROR_NOTFREE);
 		((void **) item)[1] = 0;
@@ -432,7 +432,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	return (0);
 }
 
-#if defined(DIAGNOSTIC)
+#if defined(INVARIANT_SUPPORT)
 void
 zerror(int error)
 {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.56 1998/11/11 10:03:54 truckman Exp $
+ * $Id: kern_descrip.c,v 1.57 1998/11/11 10:55:56 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -845,7 +845,7 @@ ffree(fp)
 {
 	LIST_REMOVE(fp, f_list);
 	crfree(fp->f_cred);
-#ifdef DIAGNOSTIC
+#if defined(DIAGNOSTIC) || defined(INVARIANTS)
 	fp->f_count = 0;
 #endif
 	nfiles--;

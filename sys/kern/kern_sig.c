@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.50 1998/12/02 01:53:48 eivind Exp $
+ * $Id: kern_sig.c,v 1.51 1998/12/19 02:55:33 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -1183,10 +1183,8 @@ postsig(signum)
 	register sig_t action;
 	int code, mask, returnmask;
 
-#ifdef DIAGNOSTIC
-	if (signum == 0)
-		panic("postsig");
-#endif
+	KASSERT(signum != 0, ("postsig"));
+
 	mask = sigmask(signum);
 	p->p_siglist &= ~mask;
 	action = ps->ps_sigact[signum];
@@ -1214,10 +1212,8 @@ postsig(signum)
 		/*
 		 * If we get here, the signal must be caught.
 		 */
-#ifdef DIAGNOSTIC
-		if (action == SIG_IGN || (p->p_sigmask & mask))
-			panic("postsig action");
-#endif
+		KASSERT(action != SIG_IGN && (p->p_sigmask & mask) == 0,
+			("postsig action"));
 		/*
 		 * Set the new mask value and also defer further
 		 * occurences of this signal.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.48 1998/10/25 17:44:51 phk Exp $
+ * $Id: kern_malloc.c,v 1.49 1998/11/10 08:46:24 peter Exp $
  */
 
 #include "opt_vm.h"
@@ -64,7 +64,7 @@ static char *kmembase;
 static char *kmemlimit;
 static int vm_kmem_size;
 
-#ifdef DIAGNOSTIC
+#if defined(INVARIANTS)
 /*
  * This structure provides a set of masks to catch unaligned frees.
  */
@@ -94,11 +94,11 @@ struct freelist {
 	long	spare1;
 	caddr_t	next;
 };
-#else /* !DIAGNOSTIC */
+#else /* !INVARIANTS */
 struct freelist {
 	caddr_t	next;
 };
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 
 /*
  * Allocate a block of memory
@@ -115,7 +115,7 @@ malloc(size, type, flags)
 	long indx, npg, allocsize;
 	int s;
 	caddr_t va, cp, savedlist;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	long *end, *lp;
 	int copysize;
 	char *savedtype;
@@ -138,7 +138,7 @@ malloc(size, type, flags)
 		tsleep((caddr_t)ksp, PSWP+2, type->ks_shortdesc, 0);
 	}
 	ksp->ks_size |= 1 << indx;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	copysize = 1 << indx < MAX_COPY ? 1 << indx : MAX_COPY;
 #endif
 	if (kbp->kb_next == NULL) {
@@ -174,7 +174,7 @@ malloc(size, type, flags)
 		kbp->kb_next = cp = va + (npg * PAGE_SIZE) - allocsize;
 		for (;;) {
 			freep = (struct freelist *)cp;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			/*
 			 * Copy in known text to detect modification
 			 * after freeing.
@@ -183,7 +183,7 @@ malloc(size, type, flags)
 			for (lp = (long *)cp; lp < end; lp++)
 				*lp = WEIRD_ADDR;
 			freep->type = M_FREE;
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			if (cp <= va)
 				break;
 			cp -= allocsize;
@@ -195,7 +195,7 @@ malloc(size, type, flags)
 	}
 	va = kbp->kb_next;
 	kbp->kb_next = ((struct freelist *)va)->next;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	freep = (struct freelist *)va;
 	savedtype = (char *) type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
@@ -219,7 +219,7 @@ malloc(size, type, flags)
 		break;
 	}
 	freep->spare0 = 0;
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	kup = btokup(va);
 	if (kup->ku_indx != indx)
 		panic("malloc: wrong bucket");
@@ -251,7 +251,7 @@ free(addr, type)
 	register struct freelist *freep;
 	long size;
 	int s;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	struct freelist *fp;
 	long *end, *lp, alloc, copysize;
 #endif
@@ -260,16 +260,13 @@ free(addr, type)
 	if (!type->ks_next)
 		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
-#ifdef DIAGNOSTIC
-	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
-		panic("free: address %p out of range", (void *)addr);
-	}
-#endif
+	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
+		("free: address %p out of range", (void *)addr));
 	kup = btokup(addr);
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
 	s = splmem();
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	/*
 	 * Check for returns of data that do not point to the
 	 * beginning of the allocation.
@@ -281,7 +278,7 @@ free(addr, type)
 	if (((uintptr_t)(void *)addr & alloc) != 0)
 		panic("free: unaligned addr %p, size %ld, type %s, mask %ld",
 		    (void *)addr, size, type->ks_shortdesc, alloc);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	if (size > MAXALLOCSAVE) {
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
 		size = kup->ku_pagecnt << PAGE_SHIFT;
@@ -297,7 +294,7 @@ free(addr, type)
 		return;
 	}
 	freep = (struct freelist *)addr;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	/*
 	 * Check for multiple frees. Use a quick check to see if
 	 * it looks free before laboriously searching the freelist.
@@ -306,11 +303,9 @@ free(addr, type)
 		fp = (struct freelist *)kbp->kb_next;
 		while (fp) {
 			if (fp->spare0 != WEIRD_ADDR) {
-				printf("trashed free item %p\n", fp);
-				panic("free: free item modified");
+				panic("free: free item %p modified", fp);
 			} else if (addr == (caddr_t)fp) {
-				printf("multiple freed item %p\n", addr);
-				panic("free: multiple free");
+				panic("free: multiple freed item %p", addr);
 			}
 			fp = (struct freelist *)fp->next;
 		}
@@ -326,7 +321,7 @@ free(addr, type)
 	for (lp = (long *)addr; lp < end; lp++)
 		*lp = WEIRD_ADDR;
 	freep->type = type;
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	kup->ku_freecnt++;
 	if (kup->ku_freecnt >= kbp->kb_elmpercl)
 		if (kup->ku_freecnt > kbp->kb_elmpercl)

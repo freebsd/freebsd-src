@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.35 1998/11/08 12:39:07 dfr Exp $
+ * $Id: device_pager.c,v 1.36 1998/12/07 21:58:50 archie Exp $
  */
 
 #include <sys/param.h>
@@ -208,10 +208,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		panic("dev_pager_getpage: no map function");
 
 	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
-#ifdef DIAGNOSTIC
-	if (paddr == -1)
-		panic("dev_pager_getpage: map function returns error");
-#endif
+	KASSERT(paddr != -1,("dev_pager_getpage: map function returns error"));
 	/*
 	 * Replace the passed in reqpage page with our own fake page and free up the
 	 * all of the original pages.

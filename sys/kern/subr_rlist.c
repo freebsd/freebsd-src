@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.26 1998/04/15 17:46:25 bde Exp $
+ *	$Id: subr_rlist.c,v 1.27 1998/08/05 14:06:04 dg Exp $
  */
 
 #include <sys/param.h>
@@ -137,16 +137,14 @@ rlist_free(rlh, start, end)
 	while (cur_rlp != NULL) {
 		if (start < cur_rlp->rl_start)
 			break;
-#ifdef DIAGNOSTIC
 		if (prev_rlp) {
-			if (prev_rlp->rl_end + 1 == cur_rlp->rl_start)
-				panic("rlist_free: missed coalesce opportunity");
-			if (prev_rlp->rl_end ==  cur_rlp->rl_start)
-				panic("rlist_free: entries overlap");
-			if (prev_rlp->rl_end > cur_rlp->rl_start)
-				panic("entries out of order");
+			KASSERT(prev_rlp->rl_end + 1 != cur_rlp->rl_start,
+				("rlist_free: missed coalesce opportunity"));
+			KASSERT(prev_rlp->rl_end != cur_rlp->rl_start,
+				("rlist_free: entries overlap"));
+			KASSERT(prev_rlp->rl_end <= cur_rlp->rl_start,
+				("entries out of order"));
 		}
-#endif
 		prev_rlp = cur_rlp;
 		cur_rlp = cur_rlp->rl_next;
 	}
