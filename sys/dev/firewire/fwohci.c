@@ -62,8 +62,10 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <machine/cpufunc.h>            /* for rdtsc proto for clock.h below */
-#include <machine/clock.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>		/* for DELAY() */
+#endif
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
@@ -144,7 +146,6 @@ static void fwohci_irx_post __P((struct firewire_comm *, u_int32_t *));
 static int fwohci_itxbuf_enable __P((struct firewire_comm *, int));
 static int fwohci_itx_disable __P((struct firewire_comm *, int));
 static void fwohci_timeout __P((void *));
-static void fwohci_poll __P((struct firewire_comm *, int, int));
 static void fwohci_set_intr __P((struct firewire_comm *, int));
 
 static int fwohci_add_rx_buf __P((struct fwohci_dbch *, struct fwohcidb_tr *, int, struct fwdma_alloc *));
@@ -550,10 +551,17 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	/* Initialize async TX */
 	OWRITE(sc, OHCI_ATQCTLCLR, OHCI_CNTL_DMA_RUN | OHCI_CNTL_DMA_DEAD);
 	OWRITE(sc, OHCI_ATSCTLCLR, OHCI_CNTL_DMA_RUN | OHCI_CNTL_DMA_DEAD);
+
 	/* AT Retries */
 	OWRITE(sc, FWOHCI_RETRY,
 		/* CycleLimit   PhyRespRetries ATRespRetries ATReqRetries */
 		(0xffff << 16 ) | (0x0f << 8) | (0x0f << 4) | 0x0f) ;
+
+	sc->atrq.top = STAILQ_FIRST(&sc->atrq.db_trq);
+	sc->atrs.top = STAILQ_FIRST(&sc->atrs.db_trq);
+	sc->atrq.bottom = sc->atrq.top;
+	sc->atrs.bottom = sc->atrs.top;
+
 	for( i = 0, db_tr = sc->atrq.top; i < sc->atrq.ndb ;
 				i ++, db_tr = STAILQ_NEXT(db_tr, link)){
 		db_tr->xfer = NULL;
@@ -1682,6 +1690,9 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 			| OHCI_INT_DMA_PRRQ | OHCI_INT_DMA_PRRS
 			| OHCI_INT_DMA_ARRQ | OHCI_INT_DMA_ARRS 
 			| OHCI_INT_PHY_BUS_R);
+
+	fw_drain_txq(&sc->fc);
+
 /* XXX Link down?  Bus reset? */
 	return 0;
 }
@@ -1690,14 +1701,22 @@ int
 fwohci_resume(struct fwohci_softc *sc, device_t dev)
 {
 	int i;
+	struct fw_xferq *ir;
+	struct fw_bulkxfer *chunk;
 
 	fwohci_reset(sc, dev);
 	/* XXX resume isochronus receive automatically. (how about TX?) */
 	for(i = 0; i < sc->fc.nisodma; i ++) {
-		if((sc->ir[i].xferq.flag & FWXFERQ_RUNNING) != 0) {
+		ir = &sc->ir[i].xferq;
+		if((ir->flag & FWXFERQ_RUNNING) != 0) {
 			device_printf(sc->fc.dev,
 				"resume iso receive ch: %d\n", i);
-			sc->ir[i].xferq.flag &= ~FWXFERQ_RUNNING;
+			ir->flag &= ~FWXFERQ_RUNNING;
+			/* requeue stdma to stfree */
+			while((chunk = STAILQ_FIRST(&ir->stdma)) != NULL) {
+				STAILQ_REMOVE_HEAD(&ir->stdma, link);
+				STAILQ_INSERT_TAIL(&ir->stfree, chunk, link);
+			}
 			sc->fc.irx_enable(&sc->fc, i);
 		}
 	}
@@ -2010,7 +2029,7 @@ again:
 #endif
 }
 
-static void
+void
 fwohci_poll(struct firewire_comm *fc, int quick, int count)
 {
 	int s;

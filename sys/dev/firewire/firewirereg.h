@@ -121,6 +121,7 @@ struct firewire_comm{
 	SLIST_HEAD(, csrdir) ongocsr;
 	SLIST_HEAD(, csrdir) csrfree;
 	u_int32_t status;
+#define	FWBUSNOTREADY	(-1)
 #define	FWBUSRESET	0
 #define	FWBUSINIT	1
 #define	FWBUSCYMELECT	2

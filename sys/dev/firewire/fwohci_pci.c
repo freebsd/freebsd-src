@@ -47,6 +47,10 @@
 #include <sys/malloc.h>
 #include <machine/resource.h>
 
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>		/* for DELAY() */
+#endif
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
@@ -317,8 +321,9 @@ fwohci_pci_attach(device_t self)
 	 * Clear the bus reset event flag to start transactions even when
 	 * interrupt is disabled during the boot process.
 	 */
+	DELAY(250); /* 2 cycles */
 	s = splfw();
-	fwohci_intr((void *)sc);
+	fwohci_poll((void *)sc, 0, -1);
 	splx(s);
 
 	return 0;
@@ -379,13 +384,14 @@ fwohci_pci_detach(device_t self)
 static int
 fwohci_pci_suspend(device_t dev)
 {
+	fwohci_softc_t *sc = device_get_softc(dev);
 	int err;
 
 	device_printf(dev, "fwohci_pci_suspend\n");
 	err = bus_generic_suspend(dev);
 	if (err)
 		return err;
-	/* fwohci_stop(dev); */
+	fwohci_stop(sc, dev);
 	return 0;
 }
 
@@ -396,6 +402,7 @@ fwohci_pci_resume(device_t dev)
 
 	device_printf(dev, "fwohci_pci_resume: power_state = 0x%08x\n",
 					pci_get_powerstate(dev));
+	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	fwohci_pci_init(dev);
 	fwohci_resume(sc, dev);
 	return 0;
