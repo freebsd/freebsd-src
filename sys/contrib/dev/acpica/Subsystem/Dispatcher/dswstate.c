@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 36 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,30 +128,6 @@
         MODULE_NAME         ("dswstate")
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDsResultStackClear
- *
- * PARAMETERS:  WalkState           - Current Walk state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Reset this walk's result stack pointers to zero, thus setting
- *              the stack to zero.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-xxxAcpiDsResultStackClear (
-    ACPI_WALK_STATE         *WalkState)
-{
-/*
-    WalkState->NumResults = 0;
-    WalkState->CurrentResult = 0;
-*/
-    return (AE_OK);
-}
-
 
 /*******************************************************************************
  *
@@ -259,7 +235,7 @@ AcpiDsResultRemove (
         DEBUG_PRINT (ACPI_ERROR,
             ("DsResultStackRemove: Null operand! State=%p #Ops=%X, Index=%X\n",
             WalkState, State->Results.NumResults, Index));
-        return (AE_AML_NO_OPERAND);
+        return (AE_AML_NO_RETURN_VALUE);
     }
 
     /* Remove the object */
@@ -311,9 +287,9 @@ AcpiDsResultPop (
     if (!State->Results.NumResults)
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("DsResultPop: No result objects! State=%p\n",
+            ("DsResultPop: Result stack is empty! State=%p\n",
             WalkState));
-        return (AE_STACK_UNDERFLOW);
+        return (AE_AML_NO_RETURN_VALUE);
     }
 
     /* Remove top element */
@@ -342,12 +318,12 @@ AcpiDsResultPop (
     DEBUG_PRINT (ACPI_ERROR,
         ("DsResultPop: No result objects! State=%p\n",
         WalkState));
-    return (AE_STACK_UNDERFLOW);
+    return (AE_AML_NO_RETURN_VALUE);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDsResultPop
+ * FUNCTION:    AcpiDsResultPopFromBottom
  *
  * PARAMETERS:  Object              - Where to return the popped object
  *              WalkState           - Current Walk state
@@ -383,7 +359,7 @@ AcpiDsResultPopFromBottom (
         DEBUG_PRINT (ACPI_ERROR,
             ("DsResultPopFromBottom: No result objects! State=%p\n",
             WalkState));
-        return (AE_STACK_UNDERFLOW);
+        return (AE_AML_NO_RETURN_VALUE);
     }
 
     /* Remove Bottom element */
@@ -407,7 +383,7 @@ AcpiDsResultPopFromBottom (
         DEBUG_PRINT (ACPI_ERROR,
             ("DsResultPopFromBottom: Null operand! State=%p #Ops=%X, Index=%X\n",
             WalkState, State->Results.NumResults, Index));
-        return (AE_AML_NO_OPERAND);
+        return (AE_AML_NO_RETURN_VALUE);
     }
 
     DEBUG_PRINT (TRACE_EXEC,
@@ -422,15 +398,14 @@ AcpiDsResultPopFromBottom (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDsResultPop
+ * FUNCTION:    AcpiDsResultPush
  *
  * PARAMETERS:  Object              - Where to return the popped object
  *              WalkState           - Current Walk state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Pop an object off the bottom of this walk's result stack.  In
- *              other words, this is a FIFO.
+ * DESCRIPTION: Push an object onto the current result stack
  *
  ******************************************************************************/
 
@@ -445,7 +420,9 @@ AcpiDsResultPush (
     State = WalkState->Results;
     if (!State)
     {
-        return (AE_OK);
+        DEBUG_PRINT (ACPI_ERROR,
+            ("DsResultPush: No result stack frame\n"));
+        return (AE_AML_INTERNAL);
     }
 
     if (State->Results.NumResults == OBJ_NUM_OPERANDS)
@@ -964,6 +941,7 @@ AcpiDsCreateWalkState (
     ACPI_WALK_LIST          *WalkList)
 {
     ACPI_WALK_STATE         *WalkState;
+    ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("DsCreateWalkState");
@@ -987,7 +965,7 @@ AcpiDsCreateWalkState (
         DEBUG_PRINT (TRACE_EXEC, ("DsCreateWalkState: State %p from cache\n", WalkState));
 
         AcpiCmReleaseMutex (ACPI_MTX_CACHES);
-   }
+    }
 
     else
     {
@@ -1014,6 +992,15 @@ AcpiDsCreateWalkState (
 #ifndef _ACPI_ASL_COMPILER
     AcpiDsMethodDataInit (WalkState);
 #endif
+
+    /* Create an initial result stack entry */
+
+    Status = AcpiDsResultStackPush (WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        return_VALUE (NULL);
+    }
+
 
     /* Put the new state at the head of the walk list */
 

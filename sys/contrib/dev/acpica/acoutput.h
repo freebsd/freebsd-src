@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 67 $
+ *       $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,6 +149,7 @@
 #define BATTERY                     0x00040000
 
 #define DEBUGGER                    0x00100000
+#define COMPILER                    0x00200000
 #define ALL_COMPONENTS              0x001FFFFF
 
 #define COMPONENT_DEFAULT           (ALL_COMPONENTS)

@@ -1,7 +1,8 @@
+
 /******************************************************************************
  *
- * Module Name: hwacpi - ACPI hardware functions - mode and timer
- *              $Revision: 34 $
+ * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -9,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -239,7 +240,7 @@ AcpiHwInitialize (
          * block is not fixed, so the buffer must be allocated with malloc
          */
 
-        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) && 
+        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) &&
             AcpiGbl_FADT->Gpe0BlkLen)
         {
             /* GPE0 specified in FADT  */
@@ -265,7 +266,7 @@ AcpiHwInitialize (
             AcpiGbl_Gpe0EnableRegisterSave = NULL;
         }
 
-        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) && 
+        if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) &&
             AcpiGbl_FADT->Gpe1BlkLen)
         {
             /* GPE1 defined */
@@ -442,54 +443,4 @@ AcpiHwGetModeCapabilities (void)
     return_VALUE (AcpiGbl_SystemFlags & SYS_MODES_MASK);
 }
 
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiHwPmtTicks
- *
- * PARAMETERS:  none
- *
- * RETURN:      Current value of the ACPI PMT (timer)
- *
- * DESCRIPTION: Obtains current value of ACPI PMT
- *
- ******************************************************************************/
-
-UINT32
-AcpiHwPmtTicks (void)
-{
-    UINT32                   Ticks;
-
-    FUNCTION_TRACE ("AcpiPmtTicks");
-
-    Ticks = AcpiOsIn32 ((ACPI_IO_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address));
-
-    return_VALUE (Ticks);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiHwPmtResolution
- *
- * PARAMETERS:  none
- *
- * RETURN:      Number of bits of resolution in the PMT (either 24 or 32)
- *
- * DESCRIPTION: Obtains resolution of the ACPI PMT (either 24bit or 32bit)
- *
- ******************************************************************************/
-
-UINT32
-AcpiHwPmtResolution (void)
-{
-    FUNCTION_TRACE ("AcpiPmtResolution");
-
-    if (0 == AcpiGbl_FADT->TmrValExt)
-    {
-        return_VALUE (24);
-    }
-
-    return_VALUE (32);
-}
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 20 $
+ *              $Revision: 21 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -182,8 +182,8 @@ AcpiDbExecuteMethod (
     {
         for (i = 0; Info->Args[i] && i < MTH_NUM_ARGS; i++)
         {
-            Params[i].Type              = ACPI_TYPE_NUMBER;
-            Params[i].Number.Value      = STRTOUL (Info->Args[i], NULL, 16);
+            Params[i].Type              = ACPI_TYPE_INTEGER;
+            Params[i].Integer.Value     = STRTOUL (Info->Args[i], NULL, 16);
         }
 
         ParamObjects.Pointer        = Params;
@@ -194,8 +194,8 @@ AcpiDbExecuteMethod (
     {
         /* Setup default parameters */
 
-        Params[0].Type              = ACPI_TYPE_NUMBER;
-        Params[0].Number.Value      = 0x01020304;
+        Params[0].Type              = ACPI_TYPE_INTEGER;
+        Params[0].Integer.Value     = 0x01020304;
 
         Params[1].Type              = ACPI_TYPE_STRING;
         Params[1].String.Length     = 12;
