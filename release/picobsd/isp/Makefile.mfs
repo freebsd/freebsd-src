@@ -1,0 +1,44 @@
+#
+# $Id: Makefile.mfs,v 1.1 1999/08/22 21:43:32 dwhite Exp $
+#
+
+DESTDIR?=/mnt
+
+STAND_LINKS= bin sbin
+USR_LINKS= bin sbin libexec
+PL_LOCALE_LINKS= pl polish
+MY_DEVS= std tun2 vty10 fd0 wd0s1h pty0 \
+	cuaa0 cuaa1 cuaa2 cuaa3 cuaa4 \
+	cuaa5 cuaa6 cuaa7 cuaa8 cuaa9
+
+all: tree links
+
+tree:
+	mtree -deU -f mfs.mtree -p ${DESTDIR}
+
+links: tree
+	(cd ${DESTDIR}; \
+		for i in ${STAND_LINKS}; \
+		do \
+			ln -s /stand $${i}; \
+		done; \
+		cd var/run; \
+		ln -s /dev/null log; \
+		cd ../../usr; \
+		for i in ${USR_LINKS}; \
+		do \
+			ln -s /stand $${i}; \
+		done; \
+		cd share/misc;\
+		ln -s /etc/termcap termcap; )
+
+
+# We don't do it under 'all' because it's needed only on non-DEVFS systems
+devnodes: tree
+	(cd ${DESTDIR}/dev; \
+	ln -s /dev/MAKEDEV; \
+	./MAKEDEV ${MY_DEVS} ; \
+	rm MAKEDEV)
+
+clean:
+
