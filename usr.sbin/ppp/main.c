@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.30 1997/06/29 13:55:58 brian Exp $
+ * $Id: main.c,v 1.22.2.31 1997/07/01 21:33:44 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -51,6 +51,7 @@
 #include "ip.h"
 #include "sig.h"
 #include "server.h"
+#include "lcpproto.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: Manipulation is allowed by anyone\n"
@@ -1013,6 +1014,27 @@ DoLoop()
         LogPrintf(LogERROR, "read from tun: %s", strerror(errno));
 	continue;
       }
+
+      if (((struct ip *)rbuff)->ip_dst.s_addr == IpcpInfo.want_ipaddr.s_addr) {
+	/* we've been asked to send something addressed *to* us :( */
+	if (VarLoopback) {
+	  pri = PacketCheck(rbuff, n, FL_IN);
+	  if (pri >= 0) {
+	    struct mbuf *bp;
+	    if (mode & MODE_ALIAS) {
+	      VarPacketAliasIn(rbuff, sizeof rbuff);
+	      n = ntohs(((struct ip *)rbuff)->ip_len);
+	    }
+	    bp = mballoc(n, MB_IPIN);
+	    bcopy(rbuff, MBUF_CTOP(bp), n);
+	    IpInput(bp);
+	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
+	  }
+	  continue;
+        } else
+	  LogPrintf(LogDEBUG, "Oops - forwarding packet addressed to myself\n");
+      }
+
       /*
        *  Process on-demand dialup. Output packets are queued within tunnel
        *  device until IPCP is opened.

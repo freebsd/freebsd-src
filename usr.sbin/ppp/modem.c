@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.14 1997/06/23 23:14:12 brian Exp $
+ * $Id: modem.c,v 1.24.2.15 1997/08/14 01:49:12 brian Exp $
  *
  *  TODO:
  */
@@ -730,6 +730,7 @@ DialModem()
       fprintf(VarTerm, "dial OK!\n");
     strncpy(ScriptBuffer, VarLoginScript,sizeof(ScriptBuffer)-1);
     if ((excode = DoChat(ScriptBuffer)) > 0) {
+      VarAltPhone = NULL;
       if (VarTerm)
         fprintf(VarTerm, "login OK!\n");
       return EX_DONE;

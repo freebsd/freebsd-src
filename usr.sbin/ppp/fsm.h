@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.8 1997/06/09 03:27:21 brian Exp $
+ * $Id: fsm.h,v 1.5.2.1 1997/06/10 09:43:25 brian Exp $
  *
  *	TODO:
  */
@@ -64,6 +64,19 @@ struct fsm {
 
   int     reqcode;		/* Request code sent */
   struct pppTimer FsmTimer;	/* Restart Timer */
+
+  /*
+   * This timer times the ST_STOPPED state out after the given value
+   * (specified via "set stopped ...").  Although this isn't
+   * specified in the rfc, the rfc *does* say that "the application
+   * may use higher level timers to avoid deadlock".
+   * The StoppedTimer takes effect when the other side ABENDs rather
+   * than going into ST_ACKSENT (and sending the ACK), causing ppp to
+   * time out and drop into ST_STOPPED.  At this point, nothing will
+   * change this state :-(
+   */
+  struct pppTimer StoppedTimer;
+  int LogLevel;
 
   void	  (*LayerUp)(struct fsm *);
   void	  (*LayerDown)(struct fsm *);

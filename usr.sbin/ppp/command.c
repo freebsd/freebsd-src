@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.30 1997/08/21 01:21:13 brian Exp $
+ * $Id: command.c,v 1.24.2.31 1997/08/21 17:08:44 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -73,7 +73,9 @@ int randinit;
 static int ShowCommand(), TerminalCommand(), QuitCommand();
 static int CloseCommand(), DialCommand(), DownCommand();
 static int SetCommand(), AddCommand(), DeleteCommand();
-static int ShellCommand();
+static int BgShellCommand(struct cmdtab *, int, char **);
+static int FgShellCommand(struct cmdtab *, int, char **);
+static int ShellCommand(struct cmdtab *, int, char **, int);
 
 static int
 HelpCommand(list, argc, argv, plist)
@@ -183,10 +185,32 @@ char **argv;
 }
 
 static int
-ShellCommand(cmdlist, argc, argv)
-struct cmdtab *cmdlist;
-int argc;
-char **argv;
+SetLoopback(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  if (argc == 1)
+    if (!strcasecmp(*argv, "on"))
+      VarLoopback = 1;
+    else if (!strcasecmp(*argv, "off"))
+      VarLoopback = 0;
+  return -1;
+}
+
+static int
+BgShellCommand(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  if (argc == 0)
+    return -1;
+  return ShellCommand(cmdlist, argc, argv, 1);
+}
+
+static int
+FgShellCommand(struct cmdtab *cmdlist, int argc, char **argv)
+{
+  return ShellCommand(cmdlist, argc, argv, 0);
+}
+
+static int
+ShellCommand(struct cmdtab *cmdlist, int argc, char **argv, int bg)
 {
   const char *shell;
   pid_t shpid;
@@ -210,11 +234,16 @@ char **argv;
   }
 #endif
 
-  if(argc == 0 && !(mode & MODE_INTER)) {
-    LogPrintf(LogWARN, "Can only start an interactive shell in"
-	      " interactive mode\n");
-    return 1;
-  }
+  if(argc == 0)
+    if (!(mode & MODE_INTER)) {
+      LogPrintf(LogWARN, "Can only start an interactive shell in"
+	        " interactive mode\n");
+      return 1;
+    } else if (bg) {
+      LogPrintf(LogWARN, "Can only start an interactive shell in"
+	        " the foreground mode\n");
+      return 1;
+    }
 
   if((shell = getenv("SHELL")) == 0)
     shell = _PATH_BSHELL;
@@ -266,6 +295,14 @@ char **argv;
            argv[i] = strdup(IfDevName);
          else if (strcasecmp(argv[i], "MYADDR") == 0)
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
+       if (bg) {
+         pid_t p;
+         p = getpid();
+         if (daemon(1,1) == -1) {
+           LogPrintf(LogERROR, "%d: daemon: %s", p, strerror(errno));
+           exit(1);
+         }
+       }
        (void)execvp(argv[0], argv);
      }
      else
@@ -292,6 +329,8 @@ struct cmdtab const Commands[] = {
   	"accept option request",	"accept option .."},
   { "add",     NULL,	AddCommand,	LOCAL_AUTH,
 	"add route",			"add dest mask gateway"},
+  { "bg",   "!bg",      BgShellCommand,   LOCAL_AUTH,
+	"Run a command in the background",  "[!]bg command"},
   { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
 	"Close connection",		"close"},
   { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
@@ -314,7 +353,7 @@ struct cmdtab const Commands[] = {
   	"Save settings", "save"},
   { "set",     "setup", SetCommand,	LOCAL_AUTH,
   	"Set parameters",  "set[up] var value"},
-  { "shell",   "!",     ShellCommand,   LOCAL_AUTH,
+  { "shell",   "!",     FgShellCommand,   LOCAL_AUTH,
 	"Run a subshell",  "shell|! [sh command]"},
   { "show",    NULL,    ShowCommand,	LOCAL_AUTH,
   	"Show status and statictics", "show var"},
@@ -339,6 +378,15 @@ extern int ReportCompress();
 extern int ShowModemStatus();
 extern int ReportHdlcStatus();
 extern int ShowMemMap();
+
+static int
+ShowLoopback()
+{
+  if (VarTerm)
+    fprintf(VarTerm, "Local loopback is %s\n", VarLoopback ? "on" : "off");
+
+  return 0;
+}
 
 static int ShowLogLevel()
 {
@@ -380,6 +428,34 @@ static int ShowTimeout()
   fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
           "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
           VarRetryTimeout);
+  return 1;
+}
+
+static int ShowStopped()
+{
+  if (!VarTerm)
+    return 0;
+
+  fprintf(VarTerm, " Stopped Timer:  LCP: ");
+  if (!LcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
+  else
+    fprintf(VarTerm, "%ld secs", LcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, ", IPCP: ");
+  if (!IpcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
+  else
+    fprintf(VarTerm, "%ld secs", IpcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, ", CCP: ");
+  if (!CcpFsm.StoppedTimer.load)
+    fprintf(VarTerm, "Disabled");
+  else
+    fprintf(VarTerm, "%ld secs", CcpFsm.StoppedTimer.load / SECTICKS);
+
+  fprintf(VarTerm, "\n");
+
   return 1;
 }
 
@@ -498,6 +574,8 @@ struct cmdtab const ShowCommands[] = {
 	"Show IPCP status", "show ipcp"},
   { "lcp",      NULL,     ReportLcpStatus,	LOCAL_AUTH,
 	"Show LCP status", "show lcp"},
+  { "loopback",	NULL,	  ShowLoopback,	LOCAL_AUTH,
+	"Show current loopback setting", "show loopback"},
   { "log",	NULL,	  ShowLogLevel,	LOCAL_AUTH,
 	"Show current log level", "show log"},
   { "mem",      NULL,     ShowMemMap,		LOCAL_AUTH,
@@ -520,6 +598,8 @@ struct cmdtab const ShowCommands[] = {
 	"Show routing table", "show route"},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", "show timeout"},
+  { "stopped",  NULL,	  ShowStopped,		LOCAL_AUTH,
+	"Show STOPPED timeout value", "show stopped"},
 #ifndef NOMSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
 	"Show MS PPP extentions", "show msext"},
@@ -831,6 +911,29 @@ char **argv;
     return 0;
   }
 
+  return -1;
+}
+
+static int
+SetStoppedTimeout(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  LcpFsm.StoppedTimer.load = 0;
+  IpcpFsm.StoppedTimer.load = 0;
+  CcpFsm.StoppedTimer.load = 0;
+  if (argc <= 3) {
+    if (argc > 0) {
+      LcpFsm.StoppedTimer.load = atoi(argv[0]) * SECTICKS;
+      if (argc > 1) {
+        IpcpFsm.StoppedTimer.load = atoi(argv[1]) * SECTICKS;
+        if (argc > 2)
+          CcpFsm.StoppedTimer.load = atoi(argv[2]) * SECTICKS;
+      }
+    }
+    return 0;
+  }
   return -1;
 }
 
@@ -1269,6 +1372,8 @@ struct cmdtab const SetCommands[] = {
 	"Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
 	"Set input filter", "set ifilter ..."},
+  { "loopback", NULL,	  SetLoopback,		LOCAL_AUTH,
+	"Set loopback facility", "set loopback on|off"},
   { "log",    NULL,	  SetLogLevel,	LOCAL_AUTH,
 	"Set log level", "set log [+|-]value..."},
   { "login",    NULL,     SetVariable,		LOCAL_AUTH,
@@ -1289,6 +1394,8 @@ struct cmdtab const SetCommands[] = {
 	"Set Reconnect timeout", "set reconnect value ntries"},
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
 	"Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
+  { "stopped",   NULL,     SetStoppedTimeout,	LOCAL_AUTH,
+	"Set STOPPED timeouts", "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
   { "server",    "socket",     SetServer,	LOCAL_AUTH,
 	"Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.9 1997/06/11 03:59:34 brian Exp $
+ * $Id: vars.h,v 1.7.2.10 1997/08/14 01:49:17 brian Exp $
  *
  *	TODO:
  */
@@ -68,6 +68,7 @@ struct pppvars {
   int    redial_timeout;	/* Redial timeout value */
   int    redial_next_timeout;	/* Redial next timeout value */
   int    dial_tries;		/* Dial attempts before giving up, 0 == inf */
+  int    loopback;		/* Turn around packets addressed to me */
   char   modem_dev[40];		/* Name of device / host:port */
   char  *base_modem_dev;        /* Pointer to base of modem_dev */
   int	 open_mode;		/* LCP open mode */
@@ -84,6 +85,7 @@ struct pppvars {
   char   phone_numbers[200];    /* Telephone Numbers */
   char   phone_copy[200];       /* copy for strsep() */
   char   *next_phone;           /* Next phone from the list */
+  char   *alt_phone;           /* Next phone from the list */
   char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
   char hangup_script[200];      /* Hangup script before modem is closed */
   struct aliasHandlers handler; /* Alias function pointers */
@@ -110,12 +112,14 @@ struct pppvars {
 #define VarPhoneList    pppVars.phone_numbers
 #define VarPhoneCopy    pppVars.phone_copy
 #define VarNextPhone    pppVars.next_phone
+#define VarAltPhone    pppVars.alt_phone
 #define	VarShortHost	pppVars.shostname
 #define VarReconnectTimer pppVars.reconnect_timer
 #define VarReconnectTries pppVars.reconnect_tries
 #define VarRedialTimeout pppVars.redial_timeout
 #define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
+#define VarLoopback	pppVars.loopback
 #define VarTerm		pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
