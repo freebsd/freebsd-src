@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id: rshd.8,v 1.10 1997/12/02 12:29:56 charnier Exp $
+.\"	$Id: rshd.8,v 1.11 1997/12/18 07:39:27 charnier Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -40,7 +40,7 @@
 .Nd remote shell server
 .Sh SYNOPSIS
 .Nm rshd
-.Op Fl alnL
+.Op Fl alnDL
 .Sh DESCRIPTION
 The
 .Nm
@@ -162,6 +162,11 @@ Transport-level keepalive messages are enabled unless the
 option is present.
 The use of keepalive messages allows sessions to be timed out
 if the client crashes or becomes unreachable.
+.Pp
+The
+.Fl D
+option sets the TCP_NODELAY socket option which improves performance of small back-to-back
+writes at the expense of additional network traffic.
 .Pp
 The
 .Fl L
