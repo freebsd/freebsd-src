@@ -1045,7 +1045,7 @@ pci_add_resources(device_t dev, pcicfgregs* cfg)
 			       (unsigned int) base, ln2size);
 		}
 	}
-	if (cfg->intline)
+	if (cfg->intline != 255)
 		resource_list_add(rl, SYS_RES_IRQ, 0,
 				  cfg->intline, cfg->intline, 1);
 }
