@@ -1551,6 +1551,9 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 			start = cbb_start_mem;
 		if (end < start)
 			end = start;
+		if (RF_ALIGNMENT(flags) < CBB_MEMALIGN_BITS)
+			flags = (flags & ~RF_ALIGNMENT_MASK) |
+			    rman_make_alignment_flags(CBB_MEMALIGN);
 		break;
 	}
 
