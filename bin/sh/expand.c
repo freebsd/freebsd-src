@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif
 static const char rcsid[] =
-	"$Id: expand.c,v 1.23 1998/09/06 21:13:09 tegge Exp $";
+	"$Id: expand.c,v 1.24 1998/09/13 19:24:57 tegge Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -110,7 +110,7 @@ STATIC void expmeta __P((char *, char *));
 STATIC void addfname __P((char *));
 STATIC struct strlist *expsort __P((struct strlist *));
 STATIC struct strlist *msort __P((struct strlist *, int));
-STATIC int pmatch __P((char *, char *));
+STATIC int pmatch __P((char *, char *, int));
 STATIC char *cvtnum __P((int, char *));
 STATIC int collate_range_cmp __P((int, int));
 
@@ -517,6 +517,7 @@ subevalvar(p, str, strloc, subtype, startloc, varflags)
 {
 	char *startp;
 	char *loc = NULL;
+	char *q;
 	int c = 0;
 	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
@@ -555,43 +556,65 @@ subevalvar(p, str, strloc, subtype, startloc, varflags)
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp)) {
+			if (patmatch(str, startp, varflags & VSQUOTE)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
+			if ((varflags & VSQUOTE) && *loc == CTLESC)
+				loc++;
 		}
 		return 0;
 
 	case VSTRIMLEFTMAX:
-		for (loc = str - 1; loc >= startp; loc--) {
+		for (loc = str - 1; loc >= startp;) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp)) {
+			if (patmatch(str, startp, varflags & VSQUOTE)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
+			loc--;
+			if ((varflags & VSQUOTE) && loc > startp &&
+			    *(loc - 1) == CTLESC) {
+				for (q = startp; q < loc; q++)
+					if (*q == CTLESC)
+						q++;
+				if (q > loc)
+					loc--;
+			}
 		}
 		return 0;
 
 	case VSTRIMRIGHT:
-		for (loc = str - 1; loc >= startp; loc--) {
-			if (patmatch(str, loc)) {
+		for (loc = str - 1; loc >= startp;) {
+			if (patmatch(str, loc, varflags & VSQUOTE)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
+			}
+			loc--;
+			if ((varflags & VSQUOTE) && loc > startp &&
+			    *(loc - 1) == CTLESC) { 
+				for (q = startp; q < loc; q++)
+					if (*q == CTLESC)
+						q++;
+				if (q > loc)
+					loc--;
 			}
 		}
 		return 0;
 
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
-			if (patmatch(str, loc)) {
+			if (patmatch(str, loc, varflags & VSQUOTE)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
 			}
+			if ((varflags & VSQUOTE) && *loc == CTLESC)
+				loc++;
 		}
 		return 0;
 
@@ -1206,7 +1229,7 @@ expmeta(enddir, name)
 	while (! int_pending() && (dp = readdir(dirp)) != NULL) {
 		if (dp->d_name[0] == '.' && ! matchdot)
 			continue;
-		if (patmatch(start, dp->d_name)) {
+		if (patmatch(start, dp->d_name, 0)) {
 			if (atend) {
 				scopy(dp->d_name, enddir);
 				addfname(expdir);
@@ -1315,23 +1338,25 @@ msort(list, len)
  */
 
 int
-patmatch(pattern, string)
+patmatch(pattern, string, squoted)
 	char *pattern;
 	char *string;
+	int squoted;	/* string might have quote chars */
 	{
 #ifdef notdef
 	if (pattern[0] == '!' && pattern[1] == '!')
 		return 1 - pmatch(pattern + 2, string);
 	else
 #endif
-		return pmatch(pattern, string);
+		return pmatch(pattern, string, squoted);
 }
 
 
 STATIC int
-pmatch(pattern, string)
+pmatch(pattern, string, squoted)
 	char *pattern;
 	char *string;
+	int squoted;
 	{
 	char *p, *q;
 	char c;
@@ -1343,12 +1368,16 @@ pmatch(pattern, string)
 		case '\0':
 			goto breakloop;
 		case CTLESC:
+			if (squoted && *q == CTLESC)
+				q++;
 			if (*q++ != *p++)
 				return 0;
 			break;
 		case CTLQUOTEMARK:
 			continue;
 		case '?':
+			if (squoted && *q == CTLESC)
+				q++;
 			if (*q++ == '\0')
 				return 0;
 			break;
@@ -1359,14 +1388,21 @@ pmatch(pattern, string)
 			if (c != CTLESC &&  c != CTLQUOTEMARK &&
 			    c != '?' && c != '*' && c != '[') {
 				while (*q != c) {
+					if (squoted && *q == CTLESC &&
+					    q[1] == c)
+						break;
 					if (*q == '\0')
 						return 0;
+					if (squoted && *q == CTLESC)
+						q++;
 					q++;
 				}
 			}
 			do {
-				if (pmatch(p, q))
+				if (pmatch(p, q, squoted))
 					return 1;
+				if (squoted && *q == CTLESC)
+					q++;
 			} while (*q++ != '\0');
 			return 0;
 		case '[': {
@@ -1394,6 +1430,8 @@ pmatch(pattern, string)
 			}
 			found = 0;
 			chr = *q++;
+			if (squoted && chr == CTLESC)
+				chr = *q++;
 			if (chr == '\0')
 				return 0;
 			c = *p++;
@@ -1423,6 +1461,8 @@ pmatch(pattern, string)
 			break;
 		}
 dft:	        default:
+			if (squoted && *q == CTLESC)
+				q++;
 			if (*q++ != c)
 				return 0;
 			break;
@@ -1486,7 +1526,7 @@ casematch(pattern, val)
 	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE);
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
-	result = patmatch(p, val);
+	result = patmatch(p, val, 0);
 	popstackmark(&smark);
 	return result;
 }
