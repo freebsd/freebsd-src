@@ -393,6 +393,11 @@ efficiency of the nfsnode hash tables. [MERGED]
 The syscons(4) driver now supports keyboard-controlled pasting, by
 default bound to Shift-Insert.
 
+Support for file system Access Control Lists (ACLs) has been
+introduced, allowing more fine-grained control of discretionary access
+control on files and directories.  This support was integrated from
+the TrustedBSD Project.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -1036,6 +1041,9 @@ lockd has been imported from NetBSD.
 
 rc(8) now has an framework for handling dependencies between
 rc.conf(5) variables. [MERGED]
+
+The setfacl(1) and getfacl(1) commands have been added to manage
+file system Access Control Lists.
 
 
 2. Supported Configurations
