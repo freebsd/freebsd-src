@@ -401,6 +401,12 @@
     (create directories) and <option>-C</option> (copy changed files
     only) are used together.</para>
 
+    <para>The &os; <filename>Makefile</filename> infrastructure now
+    supports the <varname>WARNS</varname> directive from NetBSD.  This
+    directive controls the addition of compiler warning flags to
+    <varname>CFLAGS</varname> in a relatively compiler-neutral
+    manner.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -411,6 +417,13 @@
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2.</para>
+
+      <para>&man.gcc.1; now supports the environment variable
+      <varname>GCC_OPTIONS</varname>, which can hold a set of default
+      options for <application>GCC</application>.</para>
+
+      <para><application>GNATS</application> has been updated to
+      3.113.</para>
 
       <para><application>groff</application> and its related utilities
       have been updated to FSF version 1.17. This import brings in a
