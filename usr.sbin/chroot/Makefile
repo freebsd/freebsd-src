@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	chroot
-MAN=	chroot.8
-
 WARNS?=	2
+MAN=	chroot.8
 
 .include <bsd.prog.mk>
