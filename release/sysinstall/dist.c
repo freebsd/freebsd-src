@@ -222,12 +222,6 @@ distVerifyFlags(void)
 	Dists |= DIST_XF86;
 #ifdef __i386__
 	Dists |= DIST_COMPAT22;	/* For certain old X applications */
-#if __FreeBSD__ > 3
-	Dists |= DIST_COMPAT3X;
-#endif
-#if __FreeBSD__ >= 4
-	Dists |= DIST_COMPAT4X;
-#endif
 #endif
     }
     if (isDebug())
