@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.31 1995/02/24 02:36:01 ache Exp $
+ * $Id: tty.c,v 1.32 1995/02/25 20:09:29 pst Exp $
  */
 
 #include "snp.h"
@@ -1484,6 +1484,18 @@ read:
 		 */
 		if (CCEQ(cc[VEOF], c) && ISSET(lflag, ICANON))
 			break;
+		
+#if NSNP > 0
+		/*
+		 * Only when tty echoes characters , we want to
+		 * feed them to the snoop device.Else they will come
+		 * there if the application would like to.
+		 */
+                if (ISSET(tp->t_lflag, ECHO))
+                        if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
+                                snpinc((struct snoop *)tp->t_sc, (char)c);
+#endif
+
 		/*
 		 * Give user character.
 		 */

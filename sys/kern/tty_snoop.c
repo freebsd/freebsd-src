@@ -49,6 +49,52 @@ devtotty (dev)
 	return (*cdevsw[major(dev)].d_devtotty)(dev);
 }
 
+#define SNP_INPUT_BUF	5	/* This is even too  much,the maximal
+				 * interactive mode write is 3 bytes
+				 * length for function keys...
+				 */
+
+int
+snpwrite(dev, uio, flag)
+	dev_t           dev;
+	struct uio     *uio;
+	int             flag;
+{
+	int             unit = minor(dev), len, i, error;
+	struct snoop   *snp = &snoopsw[unit];
+	struct tty     *tp;
+	char		c[SNP_INPUT_BUF];	
+
+	if (snp->snp_tty == NULL)
+		return (EIO);
+
+	tp = snp->snp_tty;
+
+	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
+	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC)) 
+		goto tty_input;
+
+	printf("Snoop: attempt to write to bad tty.\n");
+	return (EIO);
+
+tty_input:
+	if (!(tp->t_state & TS_ISOPEN)) 
+		return (EIO);
+	
+	while (uio->uio_resid > 0) {
+		len = MIN(uio->uio_resid,SNP_INPUT_BUF);
+		if ((error = uiomove(c, len, uio)) != 0)
+			return (error);
+		for (i=0;i<len;i++) {
+			if (ttyinput(c[i] , tp))
+				return (EIO);
+		}
+	}
+	return 0;
+	
+}
+
+
 int
 snpread(dev, uio, flag)
 	dev_t           dev;
@@ -66,7 +112,7 @@ snpread(dev, uio, flag)
 		panic("snoop buffer error");
 #endif
 
-	if (snp->snp_target == -1)
+	if (snp->snp_tty == NULL)
 		return (EIO);
 
 	snp->snp_flags &= ~SNOOP_RWAIT;
@@ -112,6 +158,17 @@ snpread(dev, uio, flag)
 	splx(s);
 
 	return error;
+}
+
+int
+snpinc(snp, c)
+        struct snoop    *snp;
+        char            c;
+{
+        char    buf[1];
+
+        buf[0]=c;
+        return (snpin(snp,buf,1));
 }
 
 
@@ -237,8 +294,9 @@ snpopen(dev, flag, mode, p)
 	snp->snp_len = 0;
 
 	/*
-	 * unit == -1  is for inactive snoop devices.
+	 * snp_tty == NULL  is for inactive snoop devices.
 	 */
+	snp->snp_tty = NULL;
 	snp->snp_target = -1;
 	return (0);
 }
@@ -258,11 +316,11 @@ snp_detach(snp)
 	 * change it anyway.
 	 */
 
-	if (snp->snp_target == -1)
+	if (snp->snp_tty == NULL)
 		goto detach_notty;
 
-	tp = devtotty(snp->snp_target);
-		
+	tp = snp->snp_tty;
+
 	if (tp && (tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
 	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC)) {
 		tp->t_sc = NULL;
@@ -270,6 +328,7 @@ snp_detach(snp)
 	} else
 		printf("Snoop: bad attached tty data.\n");
 
+	snp->snp_tty = NULL;
 	snp->snp_target = -1;
 
 detach_notty:
@@ -338,13 +397,14 @@ snpioctl(dev, cmd, data, flag)
 		s = spltty();
 
 		if (snp->snp_target == -1) {
-			tpo = devtotty(snp->snp_target);
+			tpo = snp->snp_tty;
 			if (tpo)
 				tpo->t_state &= ~TS_SNOOP;
 		}
 
 		tp->t_sc = (caddr_t) snp;
 		tp->t_state |= TS_SNOOP;
+		snp->snp_tty = tp;
 		snp->snp_target = tdev;
 
 		/*
@@ -357,6 +417,11 @@ snpioctl(dev, cmd, data, flag)
 		break;
 
 	case SNPGTTY:
+		/*
+		 * We keep snp_target field specially to make
+		 * SNPGTTY happy,else we can't know what is device
+		 * major/minor for tty.
+		 */
 		*((dev_t *) data) = snp->snp_target;
 		break;
 
@@ -376,7 +441,7 @@ snpioctl(dev, cmd, data, flag)
 
 	case FIONREAD:
 		s = spltty();
-		if (snp->snp_target != -1)
+		if (snp->snp_tty != NULL)
 			*(int *) data = snp->snp_len;
 		else 
 			if (snp->snp_flags & SNOOP_DOWN) {
@@ -407,7 +472,7 @@ snpselect(dev, rw, p)
 	struct snoop   *snp = &snoopsw[unit];
 
 	if (rw != FREAD)
-		return 0;
+		return 1;
 	
 	if (snp->snp_len > 0)
 		return 1;
