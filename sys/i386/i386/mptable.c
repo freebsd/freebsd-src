@@ -22,10 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.54 1997/09/21 15:03:57 peter Exp $
+ *	$Id: mp_machdep.c,v 1.56 1997/10/06 02:11:32 dyson Exp $
  */
 
 #include "opt_smp.h"
+#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

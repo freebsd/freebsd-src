@@ -30,10 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.22 1997/09/07 19:26:26 smp Exp smp $
+ *	$Id: exception.s,v 1.44 1997/09/07 22:03:37 fsmp Exp $
  */
 
+
 #include "npx.h"				/* NNPX */
+#include "opt_vm86.h"
+
 #include "assym.s"				/* system defines */
 #include <machine/ipl.h>			/* SWI_AST_MASK ... */
 #include <machine/psl.h>			/* PSL_I */
