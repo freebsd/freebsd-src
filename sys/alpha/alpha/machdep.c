@@ -1510,7 +1510,8 @@ sigreturn(struct thread *td,
 		const struct __ucontext *sigcntxp;
 	} */ *uap)
 {
-	ucontext_t uc, *ucp;
+	ucontext_t uc;
+	const ucontext_t *ucp;
 	struct pcb *pcb;
 	unsigned long val;
 	struct proc *p;
@@ -1530,7 +1531,7 @@ sigreturn(struct thread *td,
 	 * so even if copyin() faults, we may have actually gotten a complete
 	 * struct osigcontext.
 	 */
-	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t))) {
+	if (copyin(ucp, &uc, sizeof(ucontext_t))) {
 #ifdef COMPAT_43
 		if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
 			return osigreturn(td, (struct osigreturn_args *)uap);
