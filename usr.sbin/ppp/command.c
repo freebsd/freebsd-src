@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.5.4.3 1996/02/05 17:02:52 dfr Exp $
+ * $Id: command.c,v 1.5.4.4 1996/06/10 09:41:49 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -825,18 +825,23 @@ int param;
     switch (param) {
     case VAR_AUTHKEY:
       strncpy(VarAuthKey, *argv, sizeof(VarAuthKey)-1);
+      VarAuthKey[sizeof(VarAuthKey)-1] = '\0';
       break;
     case VAR_AUTHNAME:
       strncpy(VarAuthName, *argv, sizeof(VarAuthName)-1);
+      VarAuthName[sizeof(VarAuthName)-1] = '\0';
       break;
     case VAR_DIAL:
       strncpy(VarDialScript, *argv, sizeof(VarDialScript)-1);
+      VarDialScript[sizeof(VarDialScript)-1] = '\0';
       break;
     case VAR_LOGIN:
       strncpy(VarLoginScript, *argv, sizeof(VarDialScript)-1);
+      VarLoginScript[sizeof(VarLoginScript)-1] = '\0';
       break;
     case VAR_DEVICE:
       strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
+      VarDevice[sizeof(VarDevice)-1] = '\0';
       break;
     case VAR_ACCMAP:
       sscanf(*argv, "%lx", &map);
@@ -844,6 +849,7 @@ int param;
       break;
     case VAR_PHONE:
       strncpy(VarPhone, *argv, sizeof(VarPhone)-1);
+      VarPhone[sizeof(VarPhone)-1] = '\0';
       break;
     }
   }

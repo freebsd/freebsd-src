@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.4.4.2 1996/06/10 09:41:45 ache Exp $
+ * $Id: chat.c,v 1.4.4.3 1996/12/15 20:47:21 pst Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -110,23 +110,31 @@ char **pvect;
 }
 
 /*
+ *  \c	don't add a cr
+ *  \d  Sleep a little (delay 2 seconds
+ *  \n  Line feed character
+ *  \P  Auth Key password
+ *  \p  pause 0.25 sec
  *  \r	Carrige return character
  *  \s  Space character
  *  \n  Line feed character
  *  \T  Telephone number (defined via `set phone'
  *  \t  Tab character
+ *  \U  Auth User
  */
 char *
-ExpandString(str, result, sendmode)
+ExpandString(str, result, reslen, sendmode)
 char *str;
 char *result;
+int reslen;
 int sendmode;
 {
   int addcr = 0;
 
+  result[--reslen] = '\0';
   if (sendmode)
     addcr = 1;
-  while (*str) {
+  while (*str && reslen > 0) {
     switch (*str) {
     case '\\':
       str++;
@@ -140,43 +148,55 @@ int sendmode;
       case 'p':
         usleep(250000); break;	/* Pause 0.25 sec */
       case 'n':
-	*result++ = '\n'; break;
+	*result++ = '\n'; reslen--; break;
       case 'r':
-	*result++ = '\r'; break;
+	*result++ = '\r'; reslen--; break;
       case 's':
-	*result++ = ' '; break;
+	*result++ = ' '; reslen--; break;
       case 't':
-	*result++ = '\t'; break;
+	*result++ = '\t'; reslen--; break;
       case 'P':
-	bcopy(VarAuthKey, result, strlen(VarAuthKey));
-	result += strlen(VarAuthKey);
+        strncpy(result, VarAuthKey, reslen);
+	reslen -= strlen(result);
+	result += strlen(result);
 	break;
       case 'T':
-	bcopy(VarPhone, result, strlen(VarPhone));
-	result += strlen(VarPhone);
+	strncpy(result, VarPhone, reslen);
+	reslen -= strlen(result);
+	result += strlen(result);
 	break;
       case 'U':
-	bcopy(VarAuthName, result, strlen(VarAuthName));
-	result += strlen(VarAuthName);
+	strncpy(result, VarAuthName, reslen);
+	reslen -= strlen(result);
+	result += strlen(result);
 	break;
       default:
-	*result++ = *str; break;
+	reslen--;
+	*result++ = *str; 
+	break;
       }
-      if (*str) str++;
+      if (*str) 
+          str++;
       break;
     case '^':
       str++;
-      if (*str)
-	*result++ = *str++ & 0x1f;
+      if (*str) {
+  	*result++ = *str++ & 0x1f;
+	reslen--;
+      }
       break;
     default:
       *result++ = *str++;
+      reslen--;
       break;
     }
   }
-  if (addcr)
-    *result++ = '\r';
-  *result++ = '\0';
+  if (--reslen > 0) {
+    if (addcr)
+      *result++ = '\r';
+  }
+  if (--reslen > 0)
+    *result++ = '\0';
   return(result);
 }
 
@@ -195,7 +215,7 @@ char *estr;
   int omask;
   omask = sigblock(sigmask(SIGALRM));
 #endif
-  (void) ExpandString(estr, buff, 0);
+  (void) ExpandString(estr, buff, sizeof(buff), 0);
   LogPrintf(LOG_CHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
@@ -368,7 +388,7 @@ char *str;
 
   if (abort_next) {
     abort_next = 0;
-    ExpandString(str, buff, 0);
+    ExpandString(str, buff, sizeof(buff), 0);
     AbortStrings[numaborts++] = strdup(buff);
   } else if (timeout_next) {
     timeout_next = 0;
@@ -377,10 +397,10 @@ char *str;
       TimeoutSec = 30;
   } else {
     if (*str == '!') {
-      (void) ExpandString(str+1, buff+2, 0);
+      (void) ExpandString(str+1, buff+2, sizeof(buff)-2, 0);
       ExecStr(buff + 2, buff + 2);
     } else {
-      (void) ExpandString(str, buff+2, 1);
+      (void) ExpandString(str, buff+2, sizeof(buff)-2, 1);
     }
     if (strstr(str, "\\P")) { /* Do not log the password itself. */
       LogPrintf(LOG_CHAT, "sending: %s\n", str);

@@ -18,12 +18,12 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.5 1995/09/02 17:20:50 amurai Exp $
+ * $Id: chat.h,v 1.1 1996/01/11 17:48:39 phk Exp $
  *
  */
 #ifndef _CHAT_H_
 #define	_CHAT_H_
 #include "cdefs.h"
-extern char * ExpandString __P((char *, char *, int));
+extern char * ExpandString __P((char *, char *, int, int));
 extern int MakeArgs __P((char *, char **));
 #endif
