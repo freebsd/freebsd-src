@@ -165,22 +165,7 @@ label:
 			goto label;
 
 		case 'F':
-			if (!Ealternative)
-				buf = _strptime(buf, "%Y-%m-%d", tm);
-			else
-				buf = _strptime(buf,
-						*(tptr->md_order) == 'd' ?
-						"%e %B" : "%B %e", tm);
-			if (buf == 0)
-				return 0;
-			break;
-
-		case 'f':
-			if (!Ealternative)
-				break;
-			buf = _strptime(buf,
-				 *(tptr->md_order) == 'd' ? "%e %b" : "%b %e",
-				 tm);
+			buf = _strptime(buf, "%Y-%m-%d", tm);
 			if (buf == 0)
 				return 0;
 			break;
