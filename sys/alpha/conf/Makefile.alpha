@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.10 1998/09/18 18:41:49 dfr Exp $
+#	$Id: Makefile.alpha,v 1.11 1998/10/29 17:09:36 dima Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300008
+%VERSREQ=	300009
 
 BINFORMAT?=	elf
 

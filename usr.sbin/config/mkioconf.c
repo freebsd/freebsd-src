@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.43 1998/10/16 15:00:18 bde Exp $";
+	"$Id: mkioconf.c,v 1.44 1998/10/23 17:05:06 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1145,7 +1145,7 @@ write_device_resources(FILE *fp, struct device *dp)
 {
     int count = 0;
 
-    fprintf(fp, "struct resource %s_resources[] = {\n", devstr(dp));
+    fprintf(fp, "struct config_resource %s_resources[] = {\n", devstr(dp));
     if (dp->d_conn) {
 	fprintf(fp, "\t\"at\",\tRES_STRING,\t(long)\"%s\",\n",
 		devstr(dp->d_conn));
