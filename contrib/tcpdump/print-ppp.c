@@ -47,11 +47,54 @@ struct rtentry;
 #include <signal.h>
 #include <stdio.h>
 
+#include <netinet/if_ether.h>
+#include "ethertype.h"
+
+#include <net/ppp_defs.h>
 #include "interface.h"
 #include "addrtoname.h"
 
-/* XXX This goes somewhere else. */
-#define PPP_HDRLEN 4
+struct protonames {
+	u_short protocol;
+	char *name;
+};
+
+static struct protonames protonames[] = {
+	/*
+	 * Protocol field values.
+	 */
+	PPP_IP,		"IP",		/* Internet Protocol */
+	PPP_XNS,	"XNS",		/* Xerox NS */
+	PPP_IPX,	"IPX",		/* IPX Datagram (RFC1552) */
+	PPP_VJC_COMP,	"VJC_UNCOMP",	/* VJ compressed TCP */
+	PPP_VJC_UNCOMP,	"VJC_UNCOMP",	/* VJ uncompressed TCP */
+	PPP_COMP,	"COMP",		/* compressed packet */
+	PPP_IPCP,	"IPCP",		/* IP Control Protocol */
+	PPP_IPXCP,	"IPXCP",	/* IPX Control Protocol (RFC1552) */
+	PPP_CCP,	"CCP",		/* Compression Control Protocol */
+	PPP_LCP,	"LCP",		/* Link Control Protocol */
+	PPP_PAP,	"PAP",		/* Password Authentication Protocol */
+	PPP_LQR,	"LQR",		/* Link Quality Report protocol */
+	PPP_CHAP,	"CHAP",		/* Cryptographic Handshake Auth. Proto*/
+};
+
+void
+ppp_hdlc_print(const u_char *p, int length)
+{
+	int proto = PPP_PROTOCOL(p);
+	int i;
+
+	printf("%4d %02x ", length, PPP_CONTROL(p));
+
+	for (i = (sizeof(protonames) / sizeof(protonames[0])) - 1; i >= 0; --i){
+		if (proto == protonames[i].protocol) {
+			printf("%s: ", protonames[i].name);
+			break;
+		}
+	}
+	if (i < 0)
+		printf("%04x: ", proto);
+}
 
 void
 ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
@@ -59,7 +102,6 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
-	const struct ip *ip;
 
 	ts_print(&h->ts);
 
@@ -77,15 +119,31 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	snapend = p + caplen;
 
 	if (eflag)
-		printf("%c %4d %02x %04x: ", p[0] ? 'O' : 'I', length,
-		       p[1], ntohs(*(u_short *)&p[2]));
+		ppp_hdlc_print(p, length);
 
 	length -= PPP_HDRLEN;
-	ip = (struct ip *)(p + PPP_HDRLEN);
-	ip_print((const u_char *)ip, length);
+
+	switch(PPP_PROTOCOL(p)) {
+	case PPP_IP:
+	case ETHERTYPE_IP:
+		ip_print((const u_char *)(p + PPP_HDRLEN), length);
+		break;
+	case PPP_IPX:
+	case ETHERTYPE_IPX:
+		ipx_print((const u_char *)(p + PPP_HDRLEN), length);
+		break;
+
+	default:
+		if(!eflag)
+			ppp_hdlc_print(p, length);
+		if(!xflag)
+			default_print((const u_char *)(p + PPP_HDRLEN),
+					caplen - PPP_HDRLEN);
+	}
 
 	if (xflag)
-		default_print((const u_char *)ip, caplen - PPP_HDRLEN);
+		default_print((const u_char *)(p + PPP_HDRLEN),
+				caplen - PPP_HDRLEN);
 out:
 	putchar('\n');
 }
