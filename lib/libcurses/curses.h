@@ -81,7 +81,13 @@
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>           /* For sgttyb and related */
 
+/* XSI and SVr4 specify that curses implements 'bool'.  However, C++ may also
+ * implement it.  If so, we must use the C++ compiler's type to avoid conflict
+ * with other interfaces.
+ */
+#ifndef __cplusplus
 #define	bool	char
+#endif
 #define	reg	register
 
 #ifndef TRUE
