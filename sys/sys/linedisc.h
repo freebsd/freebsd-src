@@ -175,23 +175,7 @@ typedef int dumper_t(
 	off_t offset,		/* Byte-offset to write at. */
 	size_t length);		/* Number of bytes to dump. */
 
-#define BIO_STRATEGY(bp)						\
-	do {								\
-	if ((!(bp)->bio_cmd) || ((bp)->bio_cmd & ((bp)->bio_cmd - 1)))	\
-		Debugger("bio_cmd botch");				\
-	(*devsw((bp)->bio_dev)->d_strategy)(bp);			\
-	} while (0)
-
-#define DEV_STRATEGY(bp)						\
-	do {								\
-	if ((bp)->b_flags & B_PHYS)					\
-		(bp)->b_io.bio_offset = (bp)->b_offset;			\
-	else								\
-		(bp)->b_io.bio_offset = dbtob((bp)->b_blkno);		\
-	(bp)->b_io.bio_done = bufdonebio;				\
-	(bp)->b_io.bio_caller2 = (bp);					\
-	BIO_STRATEGY(&(bp)->b_io);					\
-	} while (0)
+#define DEV_STRATEGY(bp) dev_strategy(bp)
 
 #endif /* _KERNEL */
 
@@ -296,6 +280,7 @@ struct cdevsw *devsw(dev_t _dev);
 const char *devtoname(dev_t _dev);
 int	dev_named(dev_t _pdev, const char *_name);
 void	dev_depends(dev_t _pdev, dev_t _cdev);
+void	dev_strategy(struct buf *bp);
 void	freedev(dev_t _dev);
 dev_t	makebdev(int _maj, int _min);
 dev_t	make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
