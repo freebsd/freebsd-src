@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.151 1997/11/26 22:48:24 joerg Exp $
+ * $Id: menus.c,v 1.152 1998/01/27 14:01:19 yokota Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -632,8 +632,8 @@ DMenu MenuNetworkDevice = {
     "If you're using SLIP over a serial device then the expectation is\n"
     "that you have a HARDWIRED connection.\n\n"
     "You can also install over a parallel port using a special \"laplink\"\n"
-    "cable to another machine running a fairly recent (2.0R or later) version\n"
-    "of FreeBSD.",
+    "cable to another machine running a fairly recent (2.0R or later)\n"
+    "version of FreeBSD.",
     "Press F1 to read network configuration manual",
     "network_device",
     { { NULL } },
