@@ -1285,26 +1285,7 @@ settings_out:
 	}
 
 	case XPT_CALC_GEOMETRY: { /* not yet HN2 */
-		struct	  ccb_calc_geometry *ccg;
-		u_int32_t size_mb;
-		u_int32_t secs_per_cylinder;
-		int       extended;
-
-		extended = 1;
-		ccg = &ccb->ccg;
-		size_mb = ccg->volume_size
-			/ ((1024L * 1024L) / ccg->block_size);
-		
-		if (size_mb > 1024 && extended) {
-		        ccg->heads = 255;
-		        ccg->secs_per_track = 63;
-		} else {
-		        ccg->heads = 64;
-		        ccg->secs_per_track = 32;
-		}
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		cam_calc_geometry(&ccb->ccg, /*extended*/1);
 		xpt_done(ccb);
 		break;
 	}
