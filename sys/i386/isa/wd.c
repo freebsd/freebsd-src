@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.49 1994/10/07 21:17:41 phk Exp $
+ *	$Id: wd.c,v 1.51 1994/10/16 05:02:37 wollman Exp $
  */
 
 /* TODO:
@@ -116,7 +116,7 @@ static int wdc_goaway(struct kern_devconf *, int);
  */
 static struct kern_devconf kdc_wd_template = {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-	"wd", 0, { "wdc0", MDDT_WDC, 0 },
+	"wd", 0, { "wdc0", MDDT_DISK, 0 },
 	0, 0, 0, wd_goaway
 };
 
