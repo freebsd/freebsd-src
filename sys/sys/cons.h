@@ -78,8 +78,7 @@ struct consdev {
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
 #ifdef _KERNEL
-extern	int cons_unavail;
-extern	struct consdev *cn_tab;
+extern int cons_unavail;
 
 #define CONS_DRIVER(name, probe, init, term, getc, checkc, putc, dbctl)	\
 	static struct consdev name##_consdev = {			\
@@ -88,12 +87,14 @@ extern	struct consdev *cn_tab;
 	DATA_SET(cons_set, name##_consdev)
 
 /* Other kernel entry points. */
-int	cncheckc __P((void));
-int	cngetc __P((void));
-void	cninit __P((void));
-void	cninit_finish __P((void));
-void	cndbctl __P((int));
-void	cnputc __P((int));
+void	cninit(void);
+int	cnadd(struct consdev *);
+void	cnremove(struct consdev *);
+void	cnselect(struct consdev *);
+int	cncheckc(void);
+int	cngetc(void);
+void	cndbctl(int);
+void	cnputc(int);
 
 #endif /* _KERNEL */
 
