@@ -25,6 +25,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include <sys/types.h>		/* Needed for typedefs in tar.h */
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include "getopt.h"
 
 /*
@@ -197,6 +200,10 @@ main (argc, argv)
      char **argv;
 {
   extern char version_string[];
+
+#ifdef __FreeBSD__
+  (void) setlocale (LC_ALL, "");
+#endif
 
   tar = argv[0];		/* JF: was "tar" Set program name */
   filename_terminator = '\n';
