@@ -53,13 +53,9 @@
 #ifndef _MACHINE_EEPROM_H_
 #define _MACHINE_EEPROM_H_
 
-struct eeprom_softc {
-	struct mk48txx_softc *sc_mksoftc;
-};
-
 extern devclass_t eeprom_devclass;
 
 int eeprom_probe(device_t);
-int eeprom_attach(device_t, bus_space_tag_t, bus_space_handle_t);
+int eeprom_attach(device_t);
 
 #endif /* _MACHINE_EEPROM_H_ */
