@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.48 2000/12/13 04:05:14 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.49 2001/01/21 02:39:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -228,6 +228,20 @@ USB_ATTACH(usb)
 
 	ue.u.ue_ctrlr.ue_bus = USBDEVUNIT(sc->sc_dev);
 	usb_add_event(USB_EVENT_CTRLR_ATTACH, &ue);
+
+#ifdef USB_USE_SOFTINTR
+#ifdef __HAVE_GENERIC_SOFT_INTERRUPTS
+	/* XXX we should have our own level */
+	sc->sc_bus->soft = softintr_establish(IPL_SOFTNET, 
+	    sc->sc_bus->methods->soft_intr, sc->sc_bus);
+	if (sc->sc_bus->soft == NULL) {
+		printf("%s: can't register softintr\n", USBDEVNAME(sc->sc_dev));
+		sc->sc_dying = 1;
+	}
+#else
+	callout_init(&sc->sc_bus->softi);
+#endif
+#endif
 
 	err = usbd_new_device(USBDEV(sc->sc_dev), sc->sc_bus, 0, 0, 0,
 		  &sc->sc_port);
@@ -703,9 +717,23 @@ usb_add_event(int type, struct usb_event *uep)
 }
 
 void
-usb_schedsoftintr(struct usbd_bus *bus)
+usb_schedsoftintr(usbd_bus_handle bus)
 {
+#ifdef USB_USE_SOFTINTR
+	if (bus->use_polling) {
+		bus->methods->soft_intr(bus);
+	} else {
+#ifdef __HAVE_GENERIC_SOFT_INTERRUPTS
+		softintr_schedule(bus->soft);
+#else
+		if (!callout_pending(&bus->softi))
+			callout_reset(&bus->softi, 0, bus->methods->soft_intr,
+			    bus);
+#endif /* __HAVE_GENERIC_SOFT_INTERRUPTS */
+	}
+#else
        bus->methods->soft_intr(bus);
+#endif
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -756,6 +784,17 @@ usb_detach(device_ptr_t self, int flags)
 	}
 
 	usbd_finish();
+
+#ifdef USB_USE_SOFTINTR
+#ifdef __HAVE_GENERIC_SOFT_INTERRUPTS
+	if (sc->sc_bus->soft != NULL) {
+		softintr_disestablish(sc->sc_bus->soft);
+		sc->sc_bus->soft = NULL;
+	}
+#else
+	callout_stop(&sc->sc_bus->softi);
+#endif
+#endif
 
 	ue.u.ue_ctrlr.ue_bus = USBDEVUNIT(sc->sc_dev);
 	usb_add_event(USB_EVENT_CTRLR_DETACH, &ue);

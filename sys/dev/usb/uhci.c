@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.132 2001/01/20 23:36:02 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.133 2001/01/21 02:39:52 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -237,7 +237,7 @@ Static void		uhci_root_intr_done(usbd_xfer_handle);
 
 Static usbd_status	uhci_open(usbd_pipe_handle);
 Static void		uhci_poll(struct usbd_bus *);
-Static void		uhci_softintr(struct usbd_bus *);
+Static void		uhci_softintr(void *);
 
 Static usbd_status	uhci_device_request(usbd_xfer_handle xfer);
 
@@ -1228,9 +1228,9 @@ uhci_intr(void *arg)
 }
 
 void
-uhci_softintr(struct usbd_bus *bus)
+uhci_softintr(void *v)
 {
-	uhci_softc_t *sc = (uhci_softc_t *)bus;
+	uhci_softc_t *sc = v;
 	uhci_intr_info_t *ii;
 
 	DPRINTFN(10,("%s: uhci_softintr\n", USBDEVNAME(sc->sc_bus.bdev)));

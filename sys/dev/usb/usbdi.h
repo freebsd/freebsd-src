@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.46 2001/01/18 20:28:23 jdolecek Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.47 2001/01/21 02:39:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -249,14 +249,11 @@ struct usb_attach_arg {
 int usbd_driver_load(module_t mod, int what, void *arg);
 #endif
 
-/*
- * XXX
- * splusb MUST be the lowest level interrupt so that within USB callbacks
- * the level can be raised the appropriate level.
- * XXX Should probably use a softsplusb.
- */
-/* XXX */
+/* XXX Perhaps USB should have its own levels? */
+#ifdef USB_USE_SOFTINTR
+#define splusb splsoftnet
+#else
 #define splusb splbio
+#endif
 #define splhardusb splbio
 #define IPL_USB IPL_BIO
-/* XXX */
