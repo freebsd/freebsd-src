@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ctx.c,v 1.24 2002/04/13 14:35:28 bp Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -408,7 +409,7 @@ smb_ctx_opt(struct smb_ctx *ctx, int opt, const char *arg)
 			    &ctx->ct_sh.ioc_group);
 		}
 		if (*p && error == 0) {
-			error = smb_parse_owner(cp, &ctx->ct_ssn.ioc_owner,
+			error = smb_parse_owner(p, &ctx->ct_ssn.ioc_owner,
 			    &ctx->ct_ssn.ioc_group);
 		}
 		free(p);
