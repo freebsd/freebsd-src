@@ -159,7 +159,7 @@ extract_plist(const char *home, Package *pkg)
 			PUSHOUT(Directory);
 		    }
 		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "'%s' ", p->name);
-		    if (add_count > maxargs - perm_count) {
+		    if (add_count < 0 || add_count > maxargs - perm_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
 		    }
@@ -179,7 +179,7 @@ extract_plist(const char *home, Package *pkg)
 			PUSHOUT(Directory);
 		    }
 		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " '%s'", p->name);
-		    if (add_count > maxargs - where_count) {
+		    if (add_count < 0 || add_count > maxargs - where_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
 		    }
@@ -187,7 +187,7 @@ extract_plist(const char *home, Package *pkg)
 		    add_count = snprintf(&perm_args[perm_count],
 					 maxargs - perm_count,
 					 "'%s' ", p->name);
-		    if (add_count > maxargs - perm_count) {
+		    if (add_count < 0 || add_count > maxargs - perm_count) {
 			cleanup(0);
 			errx(2, "%s: oops, miscounted strings!", __func__);
 		    }
