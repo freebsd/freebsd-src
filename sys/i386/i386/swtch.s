@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.16 1994/10/25 07:25:56 davidg Exp $
+ *	$Id: swtch.s,v 1.17 1994/10/30 20:09:13 bde Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -250,13 +250,19 @@ _idle:
 	ALIGN_TEXT
 idle_loop:
 	cli
+	movb	$1,_intr_nesting_level		/* charge Intr if we leave */
 	cmpl	$0,_whichrtqs			/* real-time queue */
 	jne	sw1a
 	cmpl	$0,_whichqs			/* normal queue */
 	jne	nortqr
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	jne	idqr
+	movb	$0,_intr_nesting_level		/* charge Idle for this loop */
 #ifdef APM
+	/*
+	 * XXX it breaks the rules to call a function while interrupts are
+	 * disabled.  How long before apm enables them?
+	 */
 	call	_apm_cpu_idle
 	call	_apm_cpu_busy
 #else
@@ -294,24 +300,24 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 
+	movb	_intr_nesting_level,%al
+	movb	%al,PCB_INL(%ecx)
+
 #if NNPX > 0
 	/* have we used fp, and need a save? */
 	mov	_curproc,%eax
 	cmp	%eax,_npxproc
 	jne	1f
-	pushl	%ecx				/* h/w bugs make saving complicated */
-	leal	PCB_SAVEFPU(%ecx),%eax
-	pushl	%eax
+	addl	$PCB_SAVEFPU,%ecx		/* h/w bugs make saving complicated */
+	pushl	%ecx
 	call	_npxsave			/* do it in a big C function */
 	popl	%eax
-	popl	%ecx
 1:
 #endif	/* NNPX > 0 */
 
-	movl	$0,_curproc			/*  out of process */
+	movb	$1,_intr_nesting_level		/* charge Intr, not Sys/Idle */
 
-#	movw	_cpl,%ax
-#	movw	%ax,PCB_IML(%ecx)		/* save ipl */
+	movl	$0,_curproc			/* out of process */
 
 	/* save is done, now choose a new process or idle */
 sw1:
@@ -436,8 +442,11 @@ swtch_com:
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
 
-	movl	%ecx,_curproc			/* into next process */
 	movl	%edx,_curpcb
+	movl	%ecx,_curproc			/* into next process */
+
+	movb	PCB_INL(%edx),%al
+	movb	%al,_intr_nesting_level
 
 #ifdef	USER_LDT
 	cmpl	$0, PCB_USERLDT(%edx)
@@ -454,46 +463,12 @@ swtch_com:
 2:
 #endif
 
-	pushl	%edx				/* save p to return */
-/*
- * XXX - 0.0 forgot to save it - is that why this was commented out in 0.1?
- * I think restoring the cpl is unnecessary, but we must turn off the cli
- * now that spl*() don't do it as a side affect.
- */
-	pushl	PCB_IML(%edx)
 	sti
-#if 0
-	call	_splx
-#endif
-	addl	$4,%esp
-/*
- * XXX - 0.0 gets here via swtch_to_inactive().  I think 0.1 gets here in the
- * same way.  Better return a value.
- */
-	popl	%eax				/* return(p); */
 	ret
 
 ENTRY(mvesp)
 	movl	%esp,%eax
 	ret
-/*
- * struct proc *swtch_to_inactive(struct proc *p);
- *
- * At exit of a process, move off the address space of the
- * process and onto a "safe" one. Then, on a temporary stack
- * return and run code that disposes of the old state.
- * Since this code requires a parameter from the "old" stack,
- * pass it back as a return value.
- */
-ENTRY(swtch_to_inactive)
-	popl	%edx				/* old pc */
-	popl	%eax				/* arg, our return value */
-	movl	_IdlePTD,%ecx
-	movl	%ecx,%cr3			/* good bye address space */
- #write buffer?
-	movl	$tmpstk,%esp			/* temporary stack, compensated for call */
-	MEXITCOUNT
-	jmp	%edx				/* return, execute remainder of cleanup */
 
 /*
  * savectx(pcb, altreturn)
@@ -502,8 +477,6 @@ ENTRY(swtch_to_inactive)
  */
 ENTRY(savectx)
 	movl	4(%esp),%ecx
-	movw	_cpl,%ax
-	movw	%ax,PCB_IML(%ecx)
 	movl	(%esp),%eax
 	movl	%eax,PCB_EIP(%ecx)
 	movl	%ebx,PCB_EBX(%ecx)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.19 1994/10/26 22:01:11 bde Exp $
+ *	$Id: genassym.c,v 1.20 1994/11/18 05:27:32 phk Exp $
  */
 
 #include <stdio.h>
@@ -164,8 +164,7 @@ main()
 	printf("#define\tPCB_SAVEFPU %d\n", &pcb->pcb_savefpu);
 	printf("#define\tFP_USESEMC %d\n", FP_USESEMC);
 	printf("#define\tPCB_SAVEEMC %d\n", &pcb->pcb_saveemc);
-	printf("#define\tPCB_CMAP2 %d\n", &pcb->pcb_cmap2);
-	printf("#define\tPCB_IML %d\n", &pcb->pcb_iml);
+	printf("#define\tPCB_INL %d\n", &pcb->pcb_inl);
 	printf("#define\tPCB_ONFAULT %d\n", &pcb->pcb_onfault);
 
 	printf("#define\tTF_ES %d\n", &tf->tf_es);

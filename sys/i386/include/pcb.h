@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.6 1994/08/13 03:49:50 wollman Exp $
+ *	$Id: pcb.h,v 1.7 1994/10/08 22:21:33 phk Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -73,10 +73,10 @@ struct pcb {
 #endif
 #define	FP_USESEMC	0x08	/* process uses EMC memory-mapped mode */
 #define	FP_SOFTFP	0x20	/* process using software fltng pnt emulator */
-	short	pcb_iml;	/* interrupt mask level */
+	u_char	pcb_inl;	/* intr_nesting_level at context switch */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	long	pcb_sigc[8];	/* XXX signal code trampoline */
-	int	pcb_cmap2;	/* XXX temporary PTE - will prefault instead */
+	int	pad2;		/* XXX unused - remove it if you change struct */
 };
 
 /*
