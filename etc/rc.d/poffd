@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-# $NetBSD$
+# $NetBSD: poffd,v 1.1 2001/01/14 15:37:22 minoura Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: poffd

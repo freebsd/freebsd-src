@@ -1,16 +1,36 @@
 #!/bin/sh
 #
-# $NetBSD: route6d,v 1.3 2000/05/13 08:45:09 lukem Exp $
+# $NetBSD: route6d,v 1.5 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: route6d
 # REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="route6d"
-rcvar=$name
-command="/usr/sbin/${name}"
 
+# XXX - Executable may be in a different location. The $name variable
+#       is different from the variable in rc.conf(5) so the
+#       subroutines in rc.subr won't catch it. In this case, it
+#	is also needed by the eval statement in the FreeBSD conditional.
+#
 load_rc_config $name
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	rcvar="ipv6_router_enable"
+	command="${ipv6_router:-/usr/sbin/${name}}"
+	required_vars="ipv6_gateway_enable"
+	eval ${name}_flags=\"${ipv6_router_flags}\"
+	;;
+NetBSD)
+	rcvar=$name
+	command="/usr/sbin/${name}"
+	;;
+esac
+
 run_rc_command "$1"

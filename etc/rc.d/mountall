@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-# $NetBSD: mountall,v 1.2 2000/04/27 21:00:50 veego Exp $
+# $NetBSD: mountall,v 1.3 2000/05/13 08:45:07 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: mountall

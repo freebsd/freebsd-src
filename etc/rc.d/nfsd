@@ -1,17 +1,44 @@
 #!/bin/sh
 #
-# $NetBSD: nfsd,v 1.2 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: nfsd,v 1.4 2001/06/16 06:13:10 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: nfsd
 # REQUIRE: mountd
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="nfsd"
-rcvar="nfs_server"
-command="/usr/sbin/${name}"
-required_vars="rpcbind"
+rcvar=`set_rcvar nfs_server`
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	command="/sbin/nfsd"
+	command_args="${nfs_server_flags}"
+	required_vars="portmap_enable"
+	start_precmd="nfsd_precmd"
+	;;
+NetBSD)
+	command="/usr/sbin/${name}"
+	required_vars="mountd rpcbind"
+	start_precmd=
+	;;
+esac
+
+nfsd_precmd()
+{
+	if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
+		force_depend nfsserver || return 1
+	fi
+
+	if checkyesno nfs_reserved_port_only ; then
+		echo -n ' NFS on reserved port only=YES'
+		sysctl vfs.nfsrv.nfs_privport=1 > /dev/null
+	fi
+	return 0
+}
 
 load_rc_config $name
 run_rc_command "$1"

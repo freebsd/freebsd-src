@@ -1,6 +1,7 @@
 #!/bin/sh
 #
-# $NetBSD: lkm1,v 1.5 2000/09/19 13:04:38 lukem Exp $
+# $NetBSD: lkm1,v 1.6 2000/10/09 06:11:38 nisimura Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: beforenetlkm

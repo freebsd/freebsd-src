@@ -1,10 +1,12 @@
 #!/bin/sh
 #
-# $NetBSD: mountcritlocal,v 1.3 2000/07/26 00:11:49 lukem Exp $
+# $NetBSD: mountcritlocal,v 1.7 2002/04/29 12:29:53 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: mountcritlocal
 # REQUIRE: root
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
@@ -14,16 +16,52 @@ stop_cmd=":"
 
 mountcritlocal_start()
 {
-	#	mount critical local filesystems
-	#	(as specified in $critical_filesystems_beforenet)
-	#
-	mount_critical_filesystems local
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		# Set up the list of network filesystem types for which mounting
+		# should be delayed until after network initialization.
+		networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL'
+		case ${extra_netfs_types} in
+		[Nn][Oo])
+			;;
+		*)
+			networkfs_types="${networkfs_types} ${extra_netfs_types}"
+			;;
+		esac
 
-	#	clean up left-over files.
-	#	this could include the cleanup of lock files and /var/run, etc.
-	#
-	rm -f /etc/nologin /var/spool/lock/LCK.* /var/spool/uucp/STST/*
-	(cd /var/run && rm -rf -- *)
+		# Mount everything except nfs filesystems.
+		mount_excludes='no'
+		for i in ${networkfs_types}; do
+			fstype=${i%:*}
+			mount_excludes="${mount_excludes}${fstype},"
+		done
+		mount_excludes=${mount_excludes%,}
+		mount -a -t ${mount_excludes}
+
+		case $? in
+		0)
+			;;
+		*)
+			echo 'Mounting /etc/fstab filesystems failed,' \
+			    ' startup aborted'
+			exit 1
+			;;
+		esac
+		;;
+	NetBSD)
+		#	Mount critical filesystems that are `local'
+		#	(as specified in $critical_filesystems_local)
+		#	This usually includes /var.
+		#
+		mount_critical_filesystems local
+
+		#	clean up left-over files.
+		#	this could include the cleanup of lock files and /var/run, etc.
+		#
+		rm -f /etc/nologin /var/spool/lock/LCK.* /var/spool/uucp/STST/*
+		(cd /var/run && rm -rf -- *)
+		;;
+	esac
 }
 
 load_rc_config $name

@@ -1,19 +1,124 @@
 #!/bin/sh
 #
-# $NetBSD: named,v 1.5 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: named,v 1.10 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: named
 # REQUIRE: SERVERS
+# BEFORE:  DAEMON
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="named"
-rcvar=$name
+rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
-
+start_precmd="named_precmd"
+required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
 
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	nuser=bind
+	ngroup=bind
+	;;
+NetBSD)
+	nuser=named
+	ngroup=named
+	;;
+esac
+
+# If running in a chroot cage, ensure that the appropriate files
+# exist inside the cage, as well as helper symlinks into the cage
+# from outside.
+#
+# As this is called after the is_running and required_dir checks
+# are made in run_rc_command(), we can safely assume ${named_chrootdir}
+# exists and named isn't running at this point (unless forcestart
+# is used).
+#
+chroot_autoupdate()
+{
+	# If the named-xfer in the system is newer than the one in the
+	# chroot directory or if it (in the chrootdir) doesn't exist
+	# copy it over
+	#
+	if [ ! -x "${named_chrootdir}/usr/libexec/named-xfer" -o \
+	    "${named_chrootdir}/usr/libexec/named-xfer" -ot \
+	    /usr/libexec/named-xfer ]; then
+		rm -f "${named_chrootdir}/usr/libexec/named-xfer"
+		cp -p /usr/libexec/named-xfer "${named_chrootdir}/usr/libexec"
+	fi
+
+        # Copy /dev/null over, if neccessary. Preserve everything (perms,
+        # ownership, mod times).
+        #
+        if [ ! -c "${named_chrootdir}/dev/null" ]; then
+        rm -f "${named_chrootdir}/dev/null"
+                ( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
+        fi
+
+        # Copy local timezone information if it's not up-to-date.
+        #
+        if [ -f /etc/localtime ]; then
+                cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" || \
+		cp -p /etc/localtime "${named_chrootdir}/etc/localtime"
+	fi
+}
+
+# Make symlinks to the correct pid and ndc socket files
+#
+make_symlinks()
+{
+	ln -fs "${named_chrootdir}/var/run/named.pid" /var/run/named.pid
+	ln -fs "${named_chrootdir}/var/run/ndc" /var/run/ndc
+
+}
+
+named_precmd()
+{
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		! checkyesno named_rcng && return 0
+		# Is the user using a sandbox?
+		if [ -z "$named_chrootdir" ]; then
+			rc_flags="-u $nuser -g $ngroup rc_flags"
+			return 0
+		fi
+
+		# Do the following checks only if the user wants them done
+		checkyesno named_chroot_autoupdate && chroot_autoupdate
+		;;
+	NetBSD)
+		chroot_autoupdate
+		;;
+	esac
+
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		# Make the symlinks only if the user wants them done.
+		checkyesno named_symlink_enable && make_symlinks
+		;;
+	NetBSD)
+		make_symlinks
+		;;
+	esac
+
+	#       Change run_rc_commands()'s internal copy of $named_flags
+	#
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		! checkyesno named_rcng && return
+		;;
+	esac
+	rc_flags="-u $nuser -g $ngroup -t ${named_chrootdir} $rc_flags"
+}
+
 load_rc_config $name
+# The following variable requires that rc.conf be loaded first
+#
+required_dirs="$named_chrootdir"	# if it is set, it must exist
+
 run_rc_command "$1"

@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kadmin
+# REQUIRE: kerberos
+# BEFORE: DAEMON
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="kadmindIV"
+
+# XXX - The rc.conf files must be sourced early so that several
+#	variables can be set properly.
+#
+load_rc_config $name
+
+rcvar=`set_rcvar kadmind4_server`
+checkyesno kerberos_stash && stash='-n' || stash=
+start_cmd="( sleep 20; ${kadmind4_server} ${stash} > /dev/null 2>&1 & ) &"
+required_vars="kerberos4_server_enable"
+
+run_rc_command "$1"
+
+name="kadmind5"
+rcvar="kadmind5_server_enable"
+start_cmd="${kadmind5_server} &"
+required_vars="kerberos5_server_enable"
+
+run_rc_command "$1"

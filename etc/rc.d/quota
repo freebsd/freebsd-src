@@ -1,23 +1,34 @@
 #!/bin/sh
 #
-# $NetBSD: quota,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+# $FreeBSD$
+#
+
+# Enable/Check the quotas (must be after ypbind if using NIS)
 #
 
 # PROVIDE: quota
-# REQUIRE: mountall
+# REQUIRE: mountcritremote
+# BEFORE: DAEMON
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
 name="quota"
+rcvar="enable_quotas"
 start_cmd="quota_start"
 stop_cmd="/usr/sbin/quotaoff -a"
 
 quota_start()
 {
-	echo -n "Checking quotas:"
-	/usr/sbin/quotacheck -a
-	echo " done."
-	/usr/sbin/quotaon -a
+	if checkyesno check_quotas ; then 
+		echo -n 'Checking quotas:'
+		quotacheck -a
+		echo ' done.'
+	fi
+
+	echo -n 'Enabling quotas:'
+	quotaon -a
+	echo ' done.'
 }
 
 load_rc_config $name

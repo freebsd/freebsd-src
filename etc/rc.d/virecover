@@ -1,27 +1,71 @@
 #!/bin/sh
 #
-# $NetBSD: virecover,v 1.3 2000/07/26 00:11:49 lukem Exp $
+# $NetBSD: virecover,v 1.6 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: virecover
 # REQUIRE: mountcritremote
+# BEFORE:  DAEMON
+# KEYWORD: FreeBSD NetBSD
 #
 # XXX: should require `mail'!
 
 . /etc/rc.subr
 
 name="virecover"
-start_cmd="virecover_start" 
 stop_cmd=":"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	start_cmd="virecover_start"
+	;;
+NetBSD)
+	command="/usr/libexec/${name}"
+	;;
+esac
 
 virecover_start()
 {
-	recover=`find /var/tmp/vi.recover -name 'recover.*' -type f -print`
-	if [ -n "$recover" ]; then
-		echo "Preserving editor files."
-		for i in $recover; do
-			sendmail -t < $i
+	find /var/tmp/vi.recover ! -type f -a ! -type d -delete
+	vibackup=`echo /var/tmp/vi.recover/vi.*`
+	if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
+		echo -n 'Recovering vi editor sessions:'
+		for i in /var/tmp/vi.recover/vi.*; do
+			# Only test files that are readable.
+			if [ ! -r "${i}" ]; then
+				continue
+			fi
+
+			# Unmodified nvi editor backup files either have the
+			# execute bit set or are zero length.  Delete them.
+			if [ -x "${i}" -o ! -s "${i}" ]; then
+				rm -f "${i}"
+			fi
 		done
+
+		# It is possible to get incomplete recovery files, if the editor
+		# crashes at the right time.
+		virecovery=`echo /var/tmp/vi.recover/recover.*`
+		if [ "${virecovery}" != "/var/tmp/vi.recover/recover.*" ]; then
+			for i in /var/tmp/vi.recover/recover.*; do
+				# Only test files that are readable.
+				if [ ! -r "${i}" ]; then
+					continue
+				fi
+
+				# Delete any recovery files that are zero length,
+				# corrupted, or that have no corresponding backup file.
+				# Else send mail to the user.
+				recfile=`awk '/^X-vi-recover-path:/{print $2}' < "${i}"`
+				if [ -n "${recfile}" -a -s "${recfile}" ]; then
+					sendmail -t < "${i}"
+				else
+					rm -f "${i}"
+				fi
+			done
+		fi
+		echo '.'
 	fi
 }
 
