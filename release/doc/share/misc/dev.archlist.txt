@@ -106,6 +106,7 @@ twa	i386,amd64
 twe	i386,amd64
 txp	i386,pc98,alpha,amd64
 ubsa	i386,pc98,amd64
+ucycom	i386,pc98,amd64
 udav	i386,pc98,amd64
 uftdi	i386,pc98,amd64
 uhci	i386,pc98,alpha,ia64,amd64
