@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.49 1996/11/30 23:51:49 mpp Exp $ -->
+<!-- $Id: hw.sgml,v 1.50 1996/12/03 23:40:11 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -135,7 +135,7 @@ Slippery when wet.  Beware of dog.
     the <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (also
     released in a caddy-less model called the XM-5401B) drive has always
     performed well for me, I'm now a great fan of the <htmlurl
-    url="http://www.plasmon.com" name="Plasmon"> PX-12CS drive.  It's
+    url="http://www.plextor.com" name="Plextor"> PX-12CS drive.  It's
     a 12 speed drive with excellent performance and reliability.
 
     <p>Generally speaking, most SCSI CDROM drives I've seen have been of
