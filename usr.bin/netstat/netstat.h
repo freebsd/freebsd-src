@@ -60,94 +60,94 @@ extern int	unit;	/* unit number for above */
 
 extern int	af;	/* address family */
 
-int	kread (u_long addr, char *buf, int size);
-const char *plural (int);
-const char *plurales (int);
+int	kread(u_long addr, char *buf, int size);
+const char *plural(int);
+const char *plurales(int);
 
-void	protopr (u_long, const char *, int);
-void	tcp_stats (u_long, const char *, int);
-void	udp_stats (u_long, const char *, int);
-void	ip_stats (u_long, const char *, int);
-void	icmp_stats (u_long, const char *, int);
-void	igmp_stats (u_long, const char *, int);
-void	pim_stats (u_long, const char *, int);
+void	protopr(u_long, const char *, int);
+void	tcp_stats(u_long, const char *, int);
+void	udp_stats(u_long, const char *, int);
+void	ip_stats(u_long, const char *, int);
+void	icmp_stats(u_long, const char *, int);
+void	igmp_stats(u_long, const char *, int);
+void	pim_stats(u_long, const char *, int);
 #ifdef IPSEC
-void	ipsec_stats (u_long, const char *, int);
+void	ipsec_stats(u_long, const char *, int);
 #endif
 
 #ifdef INET6
-void	ip6_stats (u_long, const char *, int);
-void	ip6_ifstats (char *);
-void	icmp6_stats (u_long, const char *, int);
-void	icmp6_ifstats (char *);
-void	pim6_stats (u_long, const char *, int);
-void	rip6_stats (u_long, const char *, int);
-void	mroute6pr (u_long, u_long);
-void	mrt6_stats (u_long);
+void	ip6_stats(u_long, const char *, int);
+void	ip6_ifstats(char *);
+void	icmp6_stats(u_long, const char *, int);
+void	icmp6_ifstats(char *);
+void	pim6_stats(u_long, const char *, int);
+void	rip6_stats(u_long, const char *, int);
+void	mroute6pr(u_long, u_long);
+void	mrt6_stats(u_long);
 
 struct sockaddr_in6;
 struct in6_addr;
-char *routename6 (struct sockaddr_in6 *);
-const char *netname6 (struct sockaddr_in6 *, struct in6_addr *);
-void	inet6print (struct in6_addr *, int, const char *, int);
+char *routename6(struct sockaddr_in6 *);
+const char *netname6(struct sockaddr_in6 *, struct in6_addr *);
+void	inet6print(struct in6_addr *, int, const char *, int);
 #endif /*INET6*/
 
 #ifdef IPSEC
-void	pfkey_stats (u_long, const char *, int);
+void	pfkey_stats(u_long, const char *, int);
 #endif
 
-void	bdg_stats (u_long, const char *, int);
+void	bdg_stats(u_long, const char *, int);
 
-void	mbpr (u_long, u_long, u_long, u_long, u_long, u_long,
+void	mbpr(u_long, u_long, u_long, u_long, u_long, u_long,
 	      u_long, u_long, u_long, u_long, u_long);
 
-void	hostpr (u_long, u_long);
-void	impstats (u_long, u_long);
+void	hostpr(u_long, u_long);
+void	impstats(u_long, u_long);
 
-void	intpr (int, u_long, void (*)(char *));
+void	intpr(int, u_long, void (*)(char *));
 
-void	pr_rthdr (int);
-void	pr_family (int);
-void	rt_stats (u_long, u_long);
-char	*ipx_pnet (struct sockaddr *);
-char	*ipx_phost (struct sockaddr *);
-char	*ns_phost (struct sockaddr *);
-void	upHex (char *);
+void	pr_rthdr(int);
+void	pr_family(int);
+void	rt_stats(u_long, u_long);
+char	*ipx_pnet(struct sockaddr *);
+char	*ipx_phost(struct sockaddr *);
+char	*ns_phost(struct sockaddr *);
+void	upHex(char *);
 
-char	*routename (u_long);
-char	*netname (u_long, u_long);
-char	*atalk_print (struct sockaddr *, int);
-char	*atalk_print2 (struct sockaddr *, struct sockaddr *, int);
-char	*ipx_print (struct sockaddr *);
-char	*ns_print (struct sockaddr *);
-void	routepr (u_long);
+char	*routename(u_long);
+char	*netname(u_long, u_long);
+char	*atalk_print(struct sockaddr *, int);
+char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
+char	*ipx_print(struct sockaddr *);
+char	*ns_print(struct sockaddr *);
+void	routepr(u_long);
 
-void	ipxprotopr (u_long, const char *, int);
-void	spx_stats (u_long, const char *, int);
-void	ipx_stats (u_long, const char *, int);
-void	ipxerr_stats (u_long, const char *, int);
+void	ipxprotopr(u_long, const char *, int);
+void	spx_stats(u_long, const char *, int);
+void	ipx_stats(u_long, const char *, int);
+void	ipxerr_stats(u_long, const char *, int);
 
-void	nsprotopr (u_long, const char *, int);
-void	spp_stats (u_long, const char *, int);
-void	idp_stats (u_long, const char *, int);
-void	nserr_stats (u_long, const char *, int);
+void	nsprotopr(u_long, const char *, int);
+void	spp_stats(u_long, const char *, int);
+void	idp_stats(u_long, const char *, int);
+void	nserr_stats(u_long, const char *, int);
 
-void	atalkprotopr (u_long, const char *, int);
-void	ddp_stats (u_long, const char *, int);
+void	atalkprotopr(u_long, const char *, int);
+void	ddp_stats(u_long, const char *, int);
 
-void	netgraphprotopr (u_long, const char *, int);
+void	netgraphprotopr(u_long, const char *, int);
 
-void	unixpr (void);
+void	unixpr(void);
 
-void	esis_stats (u_long, const char *, int);
-void	clnp_stats (u_long, const char *, int);
-void	cltp_stats (u_long, const char *, int);
-void	iso_protopr (u_long, const char *, int);
-void	iso_protopr1 (u_long, int);
-void	tp_protopr (u_long, const char *, int);
-void	tp_inproto (u_long);
-void	tp_stats (caddr_t, caddr_t);
+void	esis_stats(u_long, const char *, int);
+void	clnp_stats(u_long, const char *, int);
+void	cltp_stats(u_long, const char *, int);
+void	iso_protopr(u_long, const char *, int);
+void	iso_protopr1(u_long, int);
+void	tp_protopr(u_long, const char *, int);
+void	tp_inproto(u_long);
+void	tp_stats(caddr_t, caddr_t);
 
-void	mroutepr (u_long, u_long);
-void	mrt_stats (u_long);
+void	mroutepr(u_long, u_long);
+void	mrt_stats(u_long);
 
