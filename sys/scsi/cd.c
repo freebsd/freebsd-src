@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.63 1996/02/01 17:35:15 ache Exp $
+ *      $Id: cd.c,v 1.64 1996/02/02 20:43:11 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -769,8 +769,8 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len, readlen, idx, num;
-			u_int32 starting_track = te->starting_track, readtrack;
+			u_int32 len;
+			u_int32 starting_track = te->starting_track;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
 			    || (te->data_len % sizeof(struct cd_toc_entry)) != 0
@@ -805,45 +805,13 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
-			num = len / sizeof(struct cd_toc_entry);
-
-			/* calculate reading track/length without leadout entry */
-			readtrack = starting_track;
-			if (readtrack == th->ending_track + 1)
-				readtrack--;
-			readlen = (th->ending_track - readtrack + 1) *
-				  sizeof(struct cd_toc_entry);
-			if (readlen > len)
-				readlen = len;
 
 			error = cd_read_toc(unit, te->address_format,
-				readtrack,
+				starting_track,
 				(struct cd_toc_entry *)&data,
-				readlen + sizeof (*th));
+				len + sizeof (*th));
 			if (error)
 				break;
-
-			/* make fake leadout entry if needed */
-			idx = starting_track + num - 1;
-			if (idx == th->ending_track + 1) {
-				idx -= starting_track; /* now offset in the entries */
-				if (idx > 0) {
-					data.entries[idx].control = data.entries[idx-1].control;
-					data.entries[idx].addr_type = data.entries[idx-1].addr_type;
-				}
-				data.entries[idx].track = 170; /* magic */
-				switch (te->address_format) {
-				case CD_MSF_FORMAT:
-					lba2msf (cd->params.disksize,
-					    &data.entries[idx].addr.msf.minute,
-					    &data.entries[idx].addr.msf.second,
-					    &data.entries[idx].addr.msf.frame);
-					break;
-				case CD_LBA_FORMAT:
-					data.entries[idx].addr.lba = htonl(cd->params.disksize);
-					break;
-				}
-			}
 
 			error = copyout(data.entries, te->data, len);
 		}
