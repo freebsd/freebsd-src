@@ -111,6 +111,7 @@ static int	acpi_get_resource(device_t dev, device_t child, int type, int rid, u_
 static struct resource *acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					    u_long start, u_long end, u_long count, u_int flags);
 static int	acpi_release_resource(device_t bus, device_t child, int type, int rid, struct resource *r);
+static u_int32_t acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids);
 
 static void	acpi_probe_children(device_t bus);
@@ -211,6 +212,13 @@ acpi_identify(driver_t *driver, device_t parent)
     }
 
     /*
+     * Check that we haven't been disabled with a hint.
+     */
+    if (!resource_int_value("acpi", 0, "disabled", &error) &&
+	(error != 0))
+	return_VOID;
+
+    /*
      * Make sure we're not being doubly invoked.
      */
     if (device_find_child(parent, "acpi", 0) != NULL)
@@ -280,6 +288,8 @@ acpi_attach(device_t dev)
     struct acpi_softc	*sc;
     ACPI_STATUS		status;
     int			error;
+    UINT32		flags;
+    
 #ifdef ENABLE_DEBUGGER
     char		*debugpoint = getenv("debug.acpi.debugger");
 #endif
@@ -326,17 +336,23 @@ acpi_attach(device_t dev)
     /*
      * Bring ACPI fully online.
      *
-     * Note that we request that device _STA and _INI methods not be run (ACPI_NO_DEVICE_INIT)
-     * and the final object initialisation pass be skipped (ACPI_NO_OBJECT_INIT). 
+     * Note that some systems (specifically, those with namespace evaluation issues
+     * that require the avoidance of parts of the namespace) must avoid running _INI
+     * and _STA on everything, as well as dodging the final object init pass.
      *
-     * XXX We need to arrange for the object init pass after we have attached all our 
-     *     child devices.
+     * For these devices, we set ACPI_NO_DEVICE_INIT and ACPI_NO_OBJECT_INIT).
+     *
+     * XXX We should arrange for the object init pass after we have attached all our 
+     *     child devices, but on many systems it works here.
      */
 #ifdef ENABLE_DEBUGGER
     if (debugpoint && !strcmp(debugpoint, "enable"))
 	acpi_EnterDebugger();
 #endif
-    if ((status = AcpiEnableSubsystem(ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT)) != AE_OK) {
+    flags = 0;
+    if (getenv("debug.acpi.disable") != NULL)
+	flags = ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
+    if ((status = AcpiEnableSubsystem(flags)) != AE_OK) {
 	device_printf(dev, "could not enable ACPI: %s\n", AcpiFormatException(status));
 	goto out;
     }
@@ -513,6 +529,17 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	*(void **)result = ad->ad_private;
 	break;
 
+	/* ISA compatibility */
+    case ISA_IVAR_VENDORID:
+    case ISA_IVAR_SERIAL:
+    case ISA_IVAR_COMPATID:
+	*(int *)result = -1;
+	break;
+
+    case ISA_IVAR_LOGICALID:
+	*(int *)result = acpi_isa_get_logicalid(child);
+	break;
+
     default:
 	panic("bad ivar read request (%d)\n", index);
 	return(ENOENT);
@@ -614,14 +641,38 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid, struct re
 	 | (PNP_HEXTONUM(s[6]) << 24)		\
 	 | (PNP_HEXTONUM(s[5]) << 28))
 
-int
-acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
+static u_int32_t
+acpi_isa_get_logicalid(device_t dev)
 {
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
     u_int32_t		pnpid;
+
+    FUNCTION_TRACE(__func__);
+
+    pnpid = 0;
+    ACPI_LOCK;
+    
+    /* fetch and validate the HID */
+    if ((h = acpi_get_handle(dev)) == NULL)
+	goto out;
+    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+	goto out;
+    if (!(devinfo.Valid & ACPI_VALID_HID))
+	goto out;
+
+    pnpid = PNP_EISAID(devinfo.HardwareId);
+out:
+    ACPI_UNLOCK;
+    return_VALUE(pnpid);
+}
+
+static int
+acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
+{
     int			result;
+    u_int32_t		pnpid;
 
     FUNCTION_TRACE(__func__);
 
@@ -631,18 +682,9 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
      * that to happen, so don't ever return it.
      */
     result = ENXIO;
-    ACPI_LOCK;
-
-    /* fetch and validate the HID */
-    if ((h = acpi_get_handle(child)) == NULL)
-	goto out;
-    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
-	goto out;
-    if (!(devinfo.Valid & ACPI_VALID_HID))
-	goto out;
 
     /* scan the supplied IDs for a match */
-    pnpid = PNP_EISAID(devinfo.HardwareId);
+    pnpid = acpi_isa_get_logicalid(child);
     while (ids && ids->ip_id) {
 	if (pnpid == ids->ip_id) {
 	    result = 0;
@@ -651,7 +693,6 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 	ids++;
     }
  out:
-    ACPI_UNLOCK;
     return_VALUE(result);
 }
 
@@ -1713,7 +1754,6 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_NAMES",		ACPI_LV_NAMES},
     {"ACPI_LV_OPREGION",	ACPI_LV_OPREGION},
     {"ACPI_LV_BFIELD",		ACPI_LV_BFIELD},
-    {"ACPI_LV_TRASH",		ACPI_LV_TRASH},
     {"ACPI_LV_TABLES",		ACPI_LV_TABLES},
     {"ACPI_LV_FUNCTIONS",	ACPI_LV_FUNCTIONS},
     {"ACPI_LV_VALUES",		ACPI_LV_VALUES},
