@@ -5,9 +5,9 @@
 Welcome to the 2.2 RELEASE branch of FreeBSD!         /- _  `-/  '
                                                      (/\/ \ \   /\
 This is a full release on the RELENG_2_2 branch,     / /   | `    \
-part  of a new cycle of FreeBSD release              O O   ) /    |
-technology which takes over from where 2.1.7         `-^--'`<     '
-left off.                                           (_.)  _  )   /
+part of a new cycle of FreeBSD release technology    O O   ) /    |
+which takes over from where the 2.1 branch left      `-^--'`<     '
+off.                                                (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
