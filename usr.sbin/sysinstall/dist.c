@@ -521,7 +521,7 @@ distExtractTarball(char *path, char *dist, char *my_dir, int is_base)
 {
     char *buf = NULL, fname[PATH_MAX];
     struct timeval start, stop;
-    int i, j, status, total, intr, unmounted_dev;
+    int i, j, status, total, intr;
     int cpid, zpid, fd2, chunk, numchunks;
     properties dist_attr = NULL;
     const char *tmp;
@@ -600,12 +600,6 @@ getinfo:
     total = 0;
     (void)gettimeofday(&start, (struct timezone *)NULL);
 
-    if (is_base && RunningAsInit && !Fake) {
-	unmounted_dev = 1;
-	unmount("/dev", MNT_FORCE);
-    } else
-	unmounted_dev = 0;
- 
     /* We have one or more chunks, initialize unpackers... */
     mediaExtractDistBegin(root_bias(my_dir), &fd2, &zpid, &cpid);
 
@@ -722,21 +716,6 @@ done:
 	status = mediaExtractDistEnd(zpid, cpid);
     else
 	(void)mediaExtractDistEnd(zpid, cpid);
-
-    if (unmounted_dev) {
-	struct iovec iov[4];
-
-	iov[0].iov_base = "fstype";
-	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = "devfs";
-	iov[1].iov_len = sizeof("devfs");
-	iov[2].iov_base = "fspath";
-	iov[2].iov_len = sizeof("fstype");
-	iov[3].iov_base = "/dev";
-	iov[3].iov_len = sizeof("/dev");
-	(void)nmount(iov, 4, 0);
-	unmounted_dev = 0;
-    }
 
     safe_free(buf);
     return (status);
