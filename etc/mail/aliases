@@ -65,6 +65,10 @@ ftp-bugs: 	ftp
 # webmaster: 	root
 # www: 		webmaster
 
+# NOTE: /var/msgs and /var/msgs/bounds must be owned by sendmail's
+#       DefaultUser (defaults to mailnull) for the msgs alias to work.
+#
 # msgs: "| /usr/bin/msgs -s"
+
 # bit-bucket: /dev/null
 # dev-null: bit-bucket
