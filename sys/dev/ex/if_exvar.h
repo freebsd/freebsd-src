@@ -67,6 +67,8 @@ struct ex_softc {
 					/* frame in the chain.		*/
 };
 
+extern devclass_t ex_devclass;
+
 extern char	irq2eemap[];
 extern u_char	ee2irqmap[];
 extern char	plus_irq2eemap[];

@@ -82,6 +82,8 @@ static int exintr_count = 0;
 # define DODEBUG(level, action)
 #endif
 
+devclass_t ex_devclass;
+
 char irq2eemap[] =
 	{ -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
 u_char ee2irqmap[] =
