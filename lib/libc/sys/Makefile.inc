@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.20.2.4 1997/06/24 19:23:09 julian Exp $
+#	$Id: Makefile.inc,v 1.20.2.5 1997/09/03 06:58:46 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -11,6 +11,11 @@ SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
 
 # glue to provide compatibility between GCC 1.X and 2.X
 SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
+
+# Build __error() into libc, but not libc_r which has it's own:
+.if ${LIB} == "c"
+SRCS+=	__error.c
+.endif
 
 # modules with default implementations on all architectures:
 ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
