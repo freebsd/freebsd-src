@@ -1,0 +1,64 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ttack	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+Acknowledgements
+.PP
+I am deeply indebted to J. F. Ossanna,
+the author of
+.UL troff ,
+for his repeated patient explanations
+of
+fine points,
+and for his continuing willingness to
+adapt
+.UL troff
+to make other uses easier.
+I am also grateful to Jim Blinn, Ted Dolotta,
+Doug McIlroy, Mike Lesk and Joel Sturman
+for helpful comments on this paper.
+.SH
+References
+.LP
+.IP [1]
+J. F. Ossanna,
+.ul
+.UC NROFF/TROFF
+User's Manual,
+Bell Laboratories
+Computing Science Technical Report 54, 1976.
+.IP [2]
+B. W. Kernighan,
+.ul
+A System for Typesetting Mathematics _ User's Guide
+.ul
+(Second Edition),
+Bell Laboratories
+Computing Science Technical Report 17, 1977.
+.IP [3]
+M. E. Lesk,
+.ul
+TBL _ A Program to Format Tables,
+Bell Laboratories
+Computing Science Technical Report 49, 1976.
+.IP [4]
+M. E. Lesk,
+.ul
+Typing Documents on UNIX,
+Bell Laboratories, 1978.
+.IP [5]
+J. R. Mashey and D. W. Smith,
+.ul
+PWB/MM _
+.ul
+Programmer's Workbench Memorandum Macros,
+Bell Laboratories internal memorandum.
+.IP [6]
+Eric P. Allman,
+.ul
+Writing Papers with NROFF using -me,
+University of California, Berkeley.
