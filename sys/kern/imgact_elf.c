@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.32 1998/09/15 21:46:34 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.31 1998/09/14 22:46:04 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -59,7 +59,6 @@
 #include <vm/pmap.h>
 #include <sys/lock.h>
 #include <vm/vm_map.h>
-#include <vm/vm_object.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_extern.h>
 
@@ -685,40 +684,13 @@ elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
  * Code for generating ELF core dumps.
  */
 
-typedef void (*segment_callback) __P((vm_map_entry_t, void *));
-
-/* Closure for cb_put_phdr(). */
-struct phdr_closure {
-	Elf_Phdr *phdr;		/* Program header to fill in */
-	Elf_Off offset;		/* Offset of segment in core file */
-};
-
-/* Closure for cb_size_segment(). */
-struct sseg_closure {
-	int count;		/* Count of writable segments. */
-	size_t size;		/* Total size of all writable segments. */
-};
-
-/* Closure for cb_write_segment(). */
-struct wseg_closure {
-	struct proc *p;
-	struct vnode *vp;
-	struct ucred *cred;
-	off_t offset;		/* Position in file at which to write. */
-	int error;
-};
-
-static void cb_put_phdr __P((vm_map_entry_t, void *));
-static void cb_size_segment __P((vm_map_entry_t, void *));
-static void cb_write_segment __P((vm_map_entry_t, void *));
-static void each_writable_segment __P((struct proc *, segment_callback,
-    void *));
-static int elf_corehdr __P((struct proc *, struct vnode *, struct ucred *,
-    int, size_t));
-static void elf_puthdr __P((struct proc *, void *, size_t *,
-    const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int));
-static void elf_putnote __P((void *, size_t *, const char *, int,
-    const void *, size_t));
+static int elf_corehdr __P((struct proc *, struct vnode *, struct ucred *));
+static size_t elf_hdrsize(void);
+static void elf_puthdr(void *, size_t *, const prstatus_t *,
+    const prfpregset_t *, const prpsinfo_t *, const void *, size_t,
+    const void *, size_t);
+static void elf_putnote(void *, size_t *, const char *, int, const void *,
+    size_t);
 
 extern int osreldate;
 
@@ -733,30 +705,15 @@ elf_coredump(p)
 	struct vattr vattr;
 	int error, error1;
 	char *name;			/* name of corefile */
-	struct sseg_closure seginfo;
 	size_t hdrsize;
 
 	STOPEVENT(p, S_CORE, 0);
 
 	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
 		return (EFAULT);
-
-	/* Size the program segments. */
-	seginfo.count = 0;
-	seginfo.size = 0;
-	each_writable_segment(p, cb_size_segment, &seginfo);
-
-	/*
-	 * Calculate the size of the core file header area by making
-	 * a dry run of generating it.  Nothing is written, but the
-	 * size is calculated.
-	 */
-	hdrsize = 0;
-	elf_puthdr((struct proc *)NULL, (void *)NULL, &hdrsize,
-	    (const prstatus_t *)NULL, (const prfpregset_t *)NULL,
-	    (const prpsinfo_t *)NULL, seginfo.count);
-
-	if (hdrsize + seginfo.size >= p->p_rlimit[RLIMIT_CORE].rlim_cur)
+	hdrsize = elf_hdrsize();
+	if (hdrsize + ctob(vm->vm_dsize + vm->vm_ssize) >=
+	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
 		return (EFAULT);
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
@@ -780,20 +737,17 @@ elf_coredump(p)
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, p);
 	p->p_acflag |= ACORE;
-	error = elf_corehdr(p, vp, cred, seginfo.count, hdrsize);
-	if (error == 0) {
-		struct wseg_closure wsc;
-
-		wsc.p = p;
-		wsc.vp = vp;
-		wsc.cred = cred;
-		wsc.offset = hdrsize;
-		wsc.error = 0;
-
-		each_writable_segment(p, cb_write_segment, &wsc);
-		error = wsc.error;
-	}
-
+	error = elf_corehdr(p, vp, cred);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
+		    (int)ctob(vm->vm_dsize), (off_t)hdrsize, UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp,
+		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    round_page(ctob(vm->vm_ssize)),
+		    (off_t)hdrsize + ctob(vm->vm_dsize), UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
 out:
 	VOP_UNLOCK(vp, 0, p);
 	error1 = vn_close(vp, FWRITE, cred, p);
@@ -802,132 +756,15 @@ out:
 	return (error);
 }
 
-/*
- * A callback for each_writable_segment() to write out the segment's
- * program header entry.
- */
-static void
-cb_put_phdr(entry, closure)
-	vm_map_entry_t entry;
-	void *closure;
-{
-	struct phdr_closure *phc = (struct phdr_closure *)closure;
-	Elf_Phdr *phdr = phc->phdr;
-
-	phc->offset = round_page(phc->offset);
-
-	phdr->p_type = PT_LOAD;
-	phdr->p_offset = phc->offset;
-	phdr->p_vaddr = entry->start;
-	phdr->p_paddr = 0;
-	phdr->p_filesz = phdr->p_memsz = entry->end - entry->start;
-	phdr->p_align = PAGE_SIZE;
-	phdr->p_flags = 0;
-	if (entry->protection & VM_PROT_READ)
-		phdr->p_flags |= PF_R;
-	if (entry->protection & VM_PROT_WRITE)
-		phdr->p_flags |= PF_W;
-	if (entry->protection & VM_PROT_EXECUTE)
-		phdr->p_flags |= PF_X;
-
-	phc->offset += phdr->p_filesz;
-	phc->phdr++;
-}
-
-/*
- * A callback for each_writable_segment() to gather information about
- * the number of segments and their total size.
- */
-static void
-cb_size_segment(entry, closure)
-	vm_map_entry_t entry;
-	void *closure;
-{
-	struct sseg_closure *ssc = (struct sseg_closure *)closure;
-
-	ssc->count++;
-	ssc->size += entry->end - entry->start;
-}
-
-/*
- * A callback for each_writable_segment() to write out the segment contents.
- */
-static void
-cb_write_segment(entry, closure)
-	vm_map_entry_t entry;
-	void *closure;
-{
-	struct wseg_closure *wsc = (struct wseg_closure *)closure;
-
-	if (wsc->error == 0) {
-		wsc->error = vn_rdwr(UIO_WRITE, wsc->vp, (caddr_t)entry->start,
-		    entry->end - entry->start, wsc->offset, UIO_USERSPACE,
-		    IO_NODELOCKED|IO_UNIT, wsc->cred, (int *)NULL, wsc->p);
-		if (wsc->error == 0)
-			wsc->offset += entry->end - entry->start;
-	}
-}
-
-/*
- * For each writable segment in the process's memory map, call the given
- * function with a pointer to the map entry and some arbitrary
- * caller-supplied data.
- */
-static void
-each_writable_segment(p, func, closure)
-	struct proc *p;
-	segment_callback func;
-	void *closure;
-{
-	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry;
-
-	if (map != &curproc->p_vmspace->vm_map)
-		vm_map_lock_read(map);
-
-	for (entry = map->header.next;  entry != &map->header;
-	    entry = entry->next) {
-		vm_object_t obj;
-		vm_object_t backobj;
-
-		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP) ||
-		    (entry->protection & (VM_PROT_READ|VM_PROT_WRITE)) !=
-		    (VM_PROT_READ|VM_PROT_WRITE))
-			continue;
-
-		/* Find the deepest backing object. */
-		backobj = obj = entry->object.vm_object;
-		if (backobj != NULL)
-			while (backobj->backing_object != NULL)
-				backobj = backobj->backing_object;
-
-		/* Ignore memory-mapped devices and such things. */
-		if (backobj->type != OBJT_DEFAULT &&
-		    backobj->type != OBJT_SWAP &&
-		    backobj->type != OBJT_VNODE)
-			continue;
-
-		(*func)(entry, closure);
-	}
-
-	if (map != &curproc->p_vmspace->vm_map)
-		vm_map_unlock_read(map);
-}
-
-/*
- * Write the core file header to the file, including padding up to
- * the page boundary.
- */
 static int
-elf_corehdr(p, vp, cred, numsegs, hdrsize)
+elf_corehdr(p, vp, cred)
 	struct proc *p;
 	struct vnode *vp;
 	struct ucred *cred;
-	int numsegs;
-	size_t hdrsize;
 {
 	struct vmspace *vm = p->p_vmspace;
 	size_t off;
+	size_t hdrsize;
 	prstatus_t status;
 	prfpregset_t fpregset;
 	prpsinfo_t psinfo;
@@ -951,10 +788,10 @@ elf_corehdr(p, vp, cred, numsegs, hdrsize)
 	psinfo.pr_version = PRPSINFO_VERSION;
 	psinfo.pr_psinfosz = sizeof(prpsinfo_t);
 	strncpy(psinfo.pr_fname, p->p_comm, MAXCOMLEN);
-	/* XXX - We don't fill in the command line arguments properly yet. */
-	strncpy(psinfo.pr_psargs, p->p_comm, PRARGSZ);
+	psinfo.pr_psargs[0] = '\0';	/* XXX - args not implemented yet */
 
 	/* Allocate memory for building the header. */
+	hdrsize = elf_hdrsize();
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
 	if (hdr == NULL)
 		return EINVAL;
@@ -962,7 +799,10 @@ elf_corehdr(p, vp, cred, numsegs, hdrsize)
 
 	/* Fill in the header. */
 	off = 0;
-	elf_puthdr(p, hdr, &off, &status, &fpregset, &psinfo, numsegs);
+	elf_puthdr(hdr, &off, &status, &fpregset, &psinfo,
+	    vm->vm_daddr, ctob(vm->vm_dsize),
+	    (void *)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+	    ctob(vm->vm_ssize));
 
 	/* Write it to the core file. */
 	error = vn_rdwr(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
@@ -972,20 +812,34 @@ elf_corehdr(p, vp, cred, numsegs, hdrsize)
 	return error;
 }
 
+static size_t
+elf_hdrsize(void)
+{
+	size_t off;
+
+	off = 0;
+	elf_puthdr(NULL, &off, NULL, NULL, NULL, NULL, 0, NULL, 0);
+	return off;
+}
+
 static void
-elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
-    const prfpregset_t *fpregset, const prpsinfo_t *psinfo, int numsegs)
+elf_puthdr(void *dst, size_t *off, const prstatus_t *status,
+    const prfpregset_t *fpregset, const prpsinfo_t *psinfo,
+    const void *data, size_t datasz, const void *stack, size_t stacksz)
 {
 	size_t ehoff;
 	size_t phoff;
 	size_t noteoff;
 	size_t notesz;
+	size_t dataoff;
+	size_t stackoff;
+	int numsegs = 3;
 
 	ehoff = *off;
 	*off += sizeof(Elf_Ehdr);
 
 	phoff = *off;
-	*off += (numsegs + 1) * sizeof(Elf_Phdr);
+	*off += numsegs * sizeof(Elf_Phdr);
 
 	noteoff = *off;
 	elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
@@ -996,13 +850,12 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 	    sizeof *psinfo);
 	notesz = *off - noteoff;
 
-	/* Align up to a page boundary for the program segments. */
+	/* Align up to a page boundary for the data segment. */
 	*off = round_page(*off);
 
 	if (dst != NULL) {
 		Elf_Ehdr *ehdr;
 		Elf_Phdr *phdr;
-		struct phdr_closure phc;
 
 		/*
 		 * Fill in the ELF header.
@@ -1026,7 +879,7 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 		ehdr->e_flags = 0;
 		ehdr->e_ehsize = sizeof(Elf_Ehdr);
 		ehdr->e_phentsize = sizeof(Elf_Phdr);
-		ehdr->e_phnum = numsegs + 1;
+		ehdr->e_phnum = numsegs;
 		ehdr->e_shentsize = sizeof(Elf_Shdr);
 		ehdr->e_shnum = 0;
 		ehdr->e_shstrndx = SHN_UNDEF;
@@ -1047,10 +900,25 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 		phdr->p_align = 0;
 		phdr++;
 
-		/* All the writable segments from the program. */
-		phc.phdr = phdr;
-		phc.offset = *off;
-		each_writable_segment(p, cb_put_phdr, &phc);
+		/* The data segment. */
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = *off;
+		phdr->p_vaddr = (Elf_Addr)data;
+		phdr->p_paddr = 0;
+		phdr->p_filesz = phdr->p_memsz = datasz;
+		phdr->p_align = PAGE_SIZE;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+		phdr++;
+
+		/* The stack segment. */
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = *off + datasz;
+		phdr->p_vaddr = (Elf_Addr)stack;
+		phdr->p_paddr = 0;
+		phdr->p_filesz = phdr->p_memsz = stacksz;
+		phdr->p_align = PAGE_SIZE;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+		phdr++;
 	}
 }
 
