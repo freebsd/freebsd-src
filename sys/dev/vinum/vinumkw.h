@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.15 1999/12/30 07:14:20 grog Exp grog $
+ * $Id: vinumkw.h,v 1.16 2000/02/19 06:52:46 grog Exp grog $
  * $FreeBSD$
  */
 
