@@ -67,4 +67,6 @@ typedef	unsigned long long	u_int64_t;
 
 typedef	int32_t			register_t;
 
+typedef int32_t			ufs_daddr_t;
+
 #endif /* !_MACHINE_TYPES_H_ */

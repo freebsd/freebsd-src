@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
+ *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
  * $FreeBSD$
  */
 
@@ -121,7 +121,7 @@ static struct vfsops nfs_vfsops = {
 	nfs_vget,
 	nfs_fhtovp,
 	nfs_vptofh,
-	nfs_init,
+	nfs_init
 };
 VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
 
@@ -152,8 +152,10 @@ SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_swapaddr, CTLFLAG_RD,
 
 
 void nfsargs_ntoh __P((struct nfs_args *));
-static struct mount *nfs_mountdiskless __P((char *, char *, int,
-    struct sockaddr_in *, struct nfs_args *, register struct vnode **));
+static int nfs_mountdiskless __P((char *, char *, int,
+				  struct sockaddr_in *, struct nfs_args *,
+				  struct proc *, struct vnode **,
+				  struct mount **));
 
 static int nfs_iosize(nmp)
 	struct nfsmount* nmp;
@@ -329,8 +331,8 @@ nfs_fsinfo(nmp, vp, cred, p)
 int
 nfs_mountroot()
 {
-	register struct mount *mp;
-	register struct nfs_diskless *nd = &nfs_diskless;
+	struct mount *mp, *swap_mp;
+	struct nfs_diskless *nd = &nfs_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct proc *p = curproc;		/* XXX */
@@ -406,6 +408,7 @@ nfs_mountroot()
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
 
+	swap_mp = NULL;
 	if (nd->swap_nblks) {
 
 		/* Convert to DEV_BSIZE instead of Kilobyte */
@@ -426,8 +429,10 @@ nfs_mountroot()
 			(l >> 24) & 0xff, (l >> 16) & 0xff,
 			(l >>  8) & 0xff, (l >>  0) & 0xff,nd->swap_hostnam);
 		printf("NFS SWAP: %s\n",buf);
-		(void) nfs_mountdiskless(buf, "/swap", 0,
-		    &nd->swap_saddr, &nd->swap_args, &vp);
+		if (error = nfs_mountdiskless(buf, "/swap", 0,
+		    &nd->swap_saddr, &nd->swap_args, p, &vp, &swap_mp))
+			return (error);
+		vfs_unbusy(swap_mp, p);
 
 		VTONFS(vp)->n_size = VTONFS(vp)->n_vattr.va_size = 
 				nd->swap_nblks * DEV_BSIZE ;
@@ -455,16 +460,22 @@ nfs_mountroot()
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
 	printf("NFS ROOT: %s\n",buf);
-	mp = nfs_mountdiskless(buf, "/", MNT_RDONLY,
-	    &nd->root_saddr, &nd->root_args, &vp);
+	if (error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
+	    &nd->root_saddr, &nd->root_args, p, &vp, &mp)) {
+		if (swap_mp) {
+			mp->mnt_vfc->vfc_refcount--;
+			free(swap_mp, M_MOUNT);
+		}
+		return (error);
+	}
 
-	if (vfs_lock(mp))
-		panic("nfs_mountroot: vfs_lock");
+	simple_lock(&mountlist_slock);
 	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	simple_unlock(&mountlist_slock);
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
-	vfs_unlock(mp);
 	rootvp = vp;
+	vfs_unbusy(mp, p);
 
 	/*
 	 * This is not really an nfs issue, but it is much easier to
@@ -483,39 +494,65 @@ nfs_mountroot()
 /*
  * Internal version of mount system call for diskless setup.
  */
-static struct mount *
-nfs_mountdiskless(path, which, mountflag, sin, args, vpp)
+static int
+nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	char *path;
 	char *which;
 	int mountflag;
 	struct sockaddr_in *sin;
 	struct nfs_args *args;
-	register struct vnode **vpp;
+	struct proc *p;
+	struct vnode **vpp;
+	struct mount **mpp;
 {
-	register struct mount *mp;
-	register struct mbuf *m;
-	register int error;
+	struct mount *mp;
+	struct mbuf *m;
+	int error;
 
-	mp = (struct mount *)malloc((u_long)sizeof(struct mount),
-	    M_MOUNT, M_NOWAIT);
-	if (mp == NULL)
-		panic("nfs_mountroot: %s mount malloc", which);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	mp->mnt_op = &nfs_vfsops;
+	if (error = vfs_rootmountalloc("nfs", path, &mp)) {
+		printf("nfs_mountroot: NFS not configured");
+		return (error);
+	}
 	mp->mnt_flag = mountflag;
-
-	MGET(m, MT_SONAME, M_DONTWAIT);
-	if (m == NULL)
-		panic("nfs_mountroot: %s mount mbuf", which);
+	MGET(m, MT_SONAME, M_WAITOK);
 	bcopy((caddr_t)sin, mtod(m, caddr_t), sin->sin_len);
 	m->m_len = sin->sin_len;
-	error = mountnfs(args, mp, m, which, path, vpp);
-	if (error)
-		panic("nfs_mountroot: mount %s on %s: %d", path, which, error);
-
-	return (mp);
+	if (error = mountnfs(args, mp, m, which, path, vpp)) {
+		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
+		mp->mnt_vfc->vfc_refcount--;
+		vfs_unbusy(mp, p);
+		free(mp, M_MOUNT);
+		return (error);
+	}
+	(void) copystr(which, mp->mnt_stat.f_mntonname, MNAMELEN - 1, 0);
+	*mpp = mp;
+	return (0);
 }
 
+#ifdef COMPAT_PRELITE2
+/*
+ * Old arguments to mount NFS
+ */
+struct onfs_args {
+	struct sockaddr	*addr;		/* file server address */
+	int		addrlen;	/* length of address */
+	int		sotype;		/* Socket type */
+	int		proto;		/* and Protocol */
+	u_char		*fh;		/* File handle to be mounted */
+	int		fhsize;		/* Size, in bytes, of fh */
+	int		flags;		/* flags */
+	int		wsize;		/* write size in bytes */
+	int		rsize;		/* read size in bytes */
+	int		readdirsize;	/* readdir size in bytes */
+	int		timeo;		/* initial timeout in .1 secs */
+	int		retrans;	/* times to retry send */
+	int		maxgrouplist;	/* Max. size of group list */
+	int		readahead;	/* # of blocks to readahead */
+	int		leaseterm;	/* Term (sec) of lease */
+	int		deadthresh;	/* Retrans threshold */
+	char		*hostname;	/* server's name */
+};
+#endif
 
 /*
  * VFS Operations.
@@ -546,6 +583,39 @@ nfs_mount(mp, path, data, ndp, p)
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
 	if (error)
 		return (error);
+	if (args.version != NFS_ARGSVERSION) {
+#ifdef COMPAT_PRELITE2
+		/*
+		 * If the argument version is unknown, then assume the
+		 * caller is a pre-lite2 4.4BSD client and convert its
+		 * arguments.
+		 */
+		struct onfs_args oargs;
+		error = copyin(data, (caddr_t)&oargs, sizeof (struct onfs_args));
+		if (error)
+			return (error);
+		args.version = NFS_ARGSVERSION;
+		args.addr = oargs.addr;
+		args.addrlen = oargs.addrlen;
+		args.sotype = oargs.sotype;
+		args.proto = oargs.proto;
+		args.fh = oargs.fh;
+		args.fhsize = oargs.fhsize;
+		args.flags = oargs.flags;
+		args.wsize = oargs.wsize;
+		args.rsize = oargs.rsize;
+		args.readdirsize = oargs.readdirsize;
+		args.timeo = oargs.timeo;
+		args.retrans = oargs.retrans;
+		args.maxgrouplist = oargs.maxgrouplist;
+		args.readahead = oargs.readahead;
+		args.leaseterm = oargs.leaseterm;
+		args.deadthresh = oargs.deadthresh;
+		args.hostname = oargs.hostname;
+#else  /* COMPAT_PRELITE2 */
+		return (EPROGMISMATCH);
+#endif /* COMPAT_PRELITE2 */
+	}
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
 	if (error)
 		return (error);
@@ -595,7 +665,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = (qaddr_t)nmp;
 	}
-	getnewfsid(mp, MOUNT_NFS);
+	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
 	nmp->nm_flag = argp->flags;
 	if (nmp->nm_flag & NFSMNT_NQNFS)
@@ -619,15 +689,6 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	nmp->nm_inprog = NULLVP;
 	nmp->nm_fhsize = argp->fhsize;
 	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
-#ifdef __NetBSD__
-#ifdef COMPAT_09
-	mp->mnt_stat.f_type = 2;
-#else
-	mp->mnt_stat.f_type = 0;
-#endif
-#else
-	mp->mnt_stat.f_type = MOUNT_NFS;
-#endif
 	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
 	nmp->nm_nam = nam;
@@ -741,7 +802,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	/*
 	 * Lose the lock but keep the ref.
 	 */
-	VOP_UNLOCK(*vpp);
+	VOP_UNLOCK(*vpp, 0, curproc);
 
 	return (0);
 bad:
@@ -765,11 +826,8 @@ nfs_unmount(mp, mntflags, p)
 	struct vnode *vp;
 	int error, flags = 0;
 
-	if (mntflags & MNT_FORCE) {
-		if (!doforce)
-			return (EINVAL);
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	}
 	nmp = VFSTONFS(mp);
 	/*
 	 * Goes something like this..
@@ -846,7 +904,7 @@ nfs_root(mp, vpp)
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, curproc);
 	if (vp->v_type == VNON)
 	    vp->v_type = VDIR;
 	vp->v_flag = VROOT;
@@ -885,7 +943,7 @@ loop:
 			goto loop;
 		if (VOP_ISLOCKED(vp) || vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto loop;
 		error = VOP_FSYNC(vp, cred, waitfor, p);
 		if (error)
@@ -969,4 +1027,3 @@ nfs_quotactl(mp, cmd, uid, arg, p)
 
 	return (EOPNOTSUPP);
 }
-

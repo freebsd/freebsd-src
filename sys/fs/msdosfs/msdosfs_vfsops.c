@@ -130,10 +130,10 @@ msdosfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp))
+			if (vfs_busy(mp, LK_NOWAIT, 0, p))
 				return EBUSY;
 			error = vflush(mp, NULLVP, flags);
-			vfs_unbusy(mp);
+			vfs_unbusy(mp, p);
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
@@ -707,7 +707,7 @@ loop:
 		if ((dep->de_flag & (DE_MODIFIED | DE_UPDATE)) == 0 &&
 		    vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
-		if (vget(vp, 1))	/* not there anymore?	 */
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))	/* not there anymore?	 */
 			goto loop;
 		error = VOP_FSYNC(vp, cred, waitfor, p);
 		if (error)

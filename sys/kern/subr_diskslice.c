@@ -63,6 +63,7 @@
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #define TRACE(str)	do { if (ds_debug) printf str; } while (0)

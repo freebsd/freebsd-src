@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1989, 1991, 1993
+ * Copyright (c) 1982, 1986, 1989, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
+ *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
  * $FreeBSD$
  */
 
@@ -47,9 +47,10 @@
 /*
  * Structures associated with inode cacheing.
  */
-struct inode **ihashtbl;
+LIST_HEAD(ihashhead, inode) *ihashtbl;
 u_long	ihash;		/* size of hash table - 1 */
-#define	INOHASH(device, inum)	(((device) + (inum)) & ihash)
+#define	INOHASH(device, inum)	(&ihashtbl[((device) + (inum)) & ihash])
+struct simplelock ufs_ihash_slock;
 
 /*
  * Initialize inode hash table.
@@ -59,6 +60,7 @@ ufs_ihashinit()
 {
 
 	ihashtbl = hashinit(desiredvnodes, M_UFSMNT, &ihash);
+	simple_lock_init(&ufs_ihash_slock);
 }
 
 /*
@@ -66,19 +68,21 @@ ufs_ihashinit()
  * to it. If it is in core, return it, even if it is locked.
  */
 struct vnode *
-ufs_ihashlookup(device, inum)
-	dev_t device;
+ufs_ihashlookup(dev, inum)
+	dev_t dev;
 	ino_t inum;
 {
-	register struct inode *ip;
+	struct inode *ip;
 
-	for (ip = ihashtbl[INOHASH(device, inum)];; ip = ip->i_next) {
-		if (ip == NULL)
-			return (NULL);
-		if (inum == ip->i_number && device == ip->i_dev)
-			return (ITOV(ip));
-	}
-	/* NOTREACHED */
+	simple_lock(&ufs_ihash_slock);
+	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
+		if (inum == ip->i_number && dev == ip->i_dev)
+			break;
+	simple_unlock(&ufs_ihash_slock);
+
+	if (ip)
+		return (ITOV(ip));
+	return (NULLVP);
 }
 
 /*
@@ -86,36 +90,28 @@ ufs_ihashlookup(device, inum)
  * to it. If it is in core, but locked, wait for it.
  */
 struct vnode *
-ufs_ihashget(device, inum)
-	dev_t device;
+ufs_ihashget(dev, inum)
+	dev_t dev;
 	ino_t inum;
 {
-	register struct inode *ip;
+	struct proc *p = curproc;	/* XXX */
+	struct inode *ip;
 	struct vnode *vp;
 
-	for (;;)
-		for (ip = ihashtbl[INOHASH(device, inum)];; ip = ip->i_next) {
-			if (ip == NULL)
-				return (NULL);
-			if (inum == ip->i_number && device == ip->i_dev) {
-				if (ip->i_flag & IN_LOCKED) {
-					if( curproc->p_pid != ip->i_lockholder) {
-						ip->i_flag |= IN_WANTED;
-						(void) tsleep(ip, PINOD, "uihget", 0);
-						break;
-					} else if (ip->i_flag & IN_RECURSE) {
-						ip->i_lockcount++;
-					} else {
-						panic("ufs_ihashget: recursive lock not expected -- pid %d\n", ip->i_lockholder);
-					}
-				}
-				vp = ITOV(ip);
-				if (!vget(vp, 1))
-					return (vp);
-				break;
-			}
+loop:
+	simple_lock(&ufs_ihash_slock);
+	for (ip = INOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next) {
+		if (inum == ip->i_number && dev == ip->i_dev) {
+			vp = ITOV(ip);
+			simple_lock(&vp->v_interlock);
+			simple_unlock(&ufs_ihash_slock);
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+				goto loop;
+			return (vp);
 		}
-	/* NOTREACHED */
+	}
+	simple_unlock(&ufs_ihash_slock);
+	return (NULL);
 }
 
 /*
@@ -125,26 +121,16 @@ void
 ufs_ihashins(ip)
 	struct inode *ip;
 {
-	struct inode **ipp, *iq;
+	struct proc *p = curproc;		/* XXX */
+	struct ihashhead *ipp;
 
-	ipp = &ihashtbl[INOHASH(ip->i_dev, ip->i_number)];
-	iq = *ipp;
-	if (iq)
-		iq->i_prev = &ip->i_next;
-	ip->i_next = iq;
-	ip->i_prev = ipp;
-	*ipp = ip;
-	if ((ip->i_flag & IN_LOCKED) &&
-		((ip->i_flag & IN_RECURSE) == 0 ||
-			(!curproc || (curproc && (ip->i_lockholder != curproc->p_pid)))))
-		panic("ufs_ihashins: already locked");
-	if (curproc)  {
-		ip->i_lockcount += 1;
-		ip->i_lockholder = curproc->p_pid;
-	} else {
-		ip->i_lockholder = -1;
-	}
-	ip->i_flag |= IN_LOCKED;
+	/* lock the inode, then put it on the appropriate hash list */
+	lockmgr(&ip->i_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
+
+	simple_lock(&ufs_ihash_slock);
+	ipp = INOHASH(ip->i_dev, ip->i_number);
+	LIST_INSERT_HEAD(ipp, ip, i_hash);
+	simple_unlock(&ufs_ihash_slock);
 }
 
 /*
@@ -152,16 +138,13 @@ ufs_ihashins(ip)
  */
 void
 ufs_ihashrem(ip)
-	register struct inode *ip;
+	struct inode *ip;
 {
-	register struct inode *iq;
-
-	iq = ip->i_next;
-	if (iq)
-		iq->i_prev = ip->i_prev;
-	*ip->i_prev = iq;
+	simple_lock(&ufs_ihash_slock);
+	LIST_REMOVE(ip, i_hash);
 #ifdef DIAGNOSTIC
-	ip->i_next = NULL;
-	ip->i_prev = NULL;
+	ip->i_hash.le_next = NULL;
+	ip->i_hash.le_prev = NULL;
 #endif
+	simple_unlock(&ufs_ihash_slock);
 }

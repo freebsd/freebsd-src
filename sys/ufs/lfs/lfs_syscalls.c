@@ -115,7 +115,7 @@ lfs_markv(p, uap, retval)
 
 	if (error = copyin(uap->fsidp, &fsid, sizeof(fsid_t)))
 		return (error);
-	if ((mntp = getvfs(&fsid)) == NULL)
+	if ((mntp = vfs_getvfs(&fsid)) == NULL)
 		return (EINVAL);
 
 	cnt = uap->blkcnt;
@@ -286,7 +286,7 @@ lfs_bmapv(p, uap, retval)
 
 	if (error = copyin(uap->fsidp, &fsid, sizeof(fsid_t)))
 		return (error);
-	if ((mntp = getvfs(&fsid)) == NULL)
+	if ((mntp = vfs_getvfs(&fsid)) == NULL)
 		return (EINVAL);
 
 	cnt = uap->blkcnt;
@@ -347,7 +347,7 @@ lfs_segclean(p, uap, retval)
 
 	if (error = copyin(uap->fsidp, &fsid, sizeof(fsid_t)))
 		return (error);
-	if ((mntp = getvfs(&fsid)) == NULL)
+	if ((mntp = vfs_getvfs(&fsid)) == NULL)
 		return (EINVAL);
 
 	fs = VFSTOUFS(mntp)->um_lfs;
@@ -413,14 +413,14 @@ lfs_segwait(p, uap, retval)
 	if (fsid == (fsid_t)-1)
 		addr = &lfs_allclean_wakeup;
 	else {
-		if ((mntp = getvfs(&fsid)) == NULL)
+		if ((mntp = vfs_getvfs(&fsid)) == NULL)
 			return (EINVAL);
 		addr = &VFSTOUFS(mntp)->um_lfs->lfs_nextseg;
 	}
 #else
 	if (error = copyin(uap->fsidp, &fsid, sizeof(fsid_t)))
 		return (error);
-	if ((mntp = getvfs(&fsid)) == NULL)
+	if ((mntp = vfs_getvfs(&fsid)) == NULL)
 		addr = &lfs_allclean_wakeup;
 	else
 		addr = &VFSTOUFS(mntp)->um_lfs->lfs_nextseg;

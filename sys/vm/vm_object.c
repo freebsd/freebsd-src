@@ -81,7 +81,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -130,6 +130,7 @@ int vm_object_cache_max;
 struct object_q vm_object_cached_list;
 static int vm_object_cached;
 struct object_q vm_object_list;
+struct simplelock vm_object_list_lock;
 static long vm_object_count;
 vm_object_t kernel_object;
 vm_object_t kmem_object;
@@ -182,6 +183,7 @@ vm_object_init()
 {
 	TAILQ_INIT(&vm_object_cached_list);
 	TAILQ_INIT(&vm_object_list);
+	simple_lock_init(&vm_object_list_lock);
 	vm_object_count = 0;
 	
 	vm_object_cache_max = 84;
@@ -388,16 +390,18 @@ vm_object_terminate(object)
 	 */
 	if (object->type == OBJT_VNODE) {
 		struct vnode *vp = object->handle;
+		struct proc *p = curproc;	/* XXX */
 		int waslocked;
 
 		waslocked = VOP_ISLOCKED(vp);
 		if (!waslocked)
-			VOP_LOCK(vp);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		vm_object_page_clean(object, 0, 0, TRUE, FALSE);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 		if (!waslocked)
-			VOP_UNLOCK(vp);
-	} 
+			VOP_UNLOCK(vp, 0, p);
+	}
+
 	/*
 	 * Now free the pages. For internal objects, this also removes them
 	 * from paging queues.
@@ -415,8 +419,10 @@ vm_object_terminate(object)
 	 */
 	vm_pager_deallocate(object);
 
+	simple_lock(&vm_object_list_lock);
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
 	vm_object_count--;
+	simple_unlock(&vm_object_list_lock);
 
 	wakeup(object);
 
@@ -458,6 +464,7 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 	vm_page_t maf[vm_pageout_page_count];
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
+	struct proc *pproc = curproc;	/* XXX */
 
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
@@ -466,7 +473,7 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 	vp = object->handle;
 
 	if (lockflag)
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, pproc);
 	object->flags |= OBJ_CLEANING;
 
 	tstart = start;
@@ -584,7 +591,7 @@ rescan:
 	VOP_FSYNC(vp, NULL, syncio, curproc);
 
 	if (lockflag)
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, pproc);
 	object->flags &= ~OBJ_CLEANING;
 	return;
 }

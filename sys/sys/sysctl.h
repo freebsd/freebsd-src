@@ -272,9 +272,6 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 /*
  * CTL_VFS identifiers
  */
-#define VFS_VFSCONF		0	/* get configured filesystems */
-#define VFS_MAXID		1	/* number of items */
-
 #define CTL_VFS_NAMES { \
 	{ "vfsconf", CTLTYPE_STRUCT }, \
 }

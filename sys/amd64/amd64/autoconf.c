@@ -53,6 +53,7 @@
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/vnode.h>
 #include <sys/sysctl.h>
 
 #include <machine/bootinfo.h>
@@ -88,31 +89,15 @@
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
-#ifdef MFS_ROOT
-extern struct vfsops	mfs_vfsops;
-#endif
-#ifdef FFS
-extern struct vfsops	ufs_vfsops;
-#endif
-#ifdef LFS
-extern struct vfsops	lfs_vfsops;
-#endif
-#ifdef NFS
-extern int	nfs_mountroot __P((void *));
-#endif
-#ifdef CD9660
-extern int	cd9660_mountroot __P((void *));
-#endif
-#ifdef MSDOSFS
-extern int	msdosfs_mountroot __P((void *));
-#endif
-
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
 
 #ifdef CD9660
+
+#include <isofs/cd9660/iso.h>
+
 /* We need to try out all our potential CDROM drives, so we need a table. */
 static struct {
 	char *name;
@@ -138,7 +123,7 @@ find_cdrom_root(dummy)
 			rootdev = makedev(try_cdrom[k].major,j*8);
 			printf("trying rootdev=0x%lx (%s%d)\n",
 				rootdev, try_cdrom[k].name,j);
-			i = (*cd9660_mountroot)((void *)NULL);
+			i = (*cd9660_mountroot)();
 			if (!i) return i;
 		}
 	return EINVAL;
@@ -176,6 +161,11 @@ configure(dummy)
         enable_intr();
         INTREN(IRQ_SLAVE);
 
+#if NCRD > 0
+	/* Before isa_configure to avoid ISA drivers finding our cards */
+	pccard_configure();
+#endif
+
 #if NEISA > 0
 	eisa_configure();
 #endif
@@ -186,11 +176,6 @@ configure(dummy)
 
 #if NISA > 0
 	isa_configure();
-#endif
-
-#if NCRD > 0
-	/* After everyone else has a chance at grabbing resources */
-	pccard_configure();
 #endif
 
 	if (setdumpdev(dumpdev) != 0)
@@ -235,19 +220,26 @@ configure(dummy)
 	}
 
 #ifdef CD9660
-	if ((boothowto & RB_CDROM) && !mountroot) {
+	if ((boothowto & RB_CDROM)) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
-		mountroot = find_cdrom_root;
+		mountrootfsname = "cd9660";
 	}
 #endif
 
+#ifdef NFS
+	if (!mountrootfsname && nfs_diskless_valid) {
+		if (bootverbose)
+			printf("Considering NFS root f/s.\n");
+		mountrootfsname = "nfs";
+	}
+#endif /* NFS */
+
 #ifdef MFS_ROOT
-	if (!mountroot) {
+	if (!mountrootfsname) {
 		if (bootverbose)
 			printf("Considering MFS root f/s.\n");
-		mountroot = vfs_mountroot;	/* XXX goes away*/
-		mountrootvfsops = &mfs_vfsops;
+		mountrootfsname = "mfs";
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
 		 * with a generic root/swap configuration: if we skip
@@ -260,21 +252,11 @@ configure(dummy)
 			setroot();
 	}
 #endif
-
-#ifdef NFS
-	if (!mountroot && nfs_diskless_valid) {
-		if (bootverbose)
-			printf("Considering NFS root f/s.\n");
-		mountroot = nfs_mountroot;
-	}
-#endif /* NFS */
-
 #ifdef FFS
-	if (!mountroot) {
+	if (!mountrootfsname) {
+		mountrootfsname = "ufs";
 		if (bootverbose)
 			printf("Considering FFS root f/s.\n");
-		mountroot = vfs_mountroot;	/* XXX goes away*/
-		mountrootvfsops = &ufs_vfsops;
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
 		 * with a generic root/swap configuration: if we skip
@@ -288,11 +270,10 @@ configure(dummy)
 	}
 #endif
 #ifdef LFS
-	if (!mountroot) {
+	if (!mountrootfsname) {
 		if (bootverbose)
 			printf("Considering LFS root f/s.\n");
-		mountroot = vfs_mountroot;	/* XXX goes away*/
-		mountrootvfsops = &lfs_vfsops;
+		mountrootfsname = "lfs";
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
 		 * with a generic root/swap configuration: if we skip
@@ -305,8 +286,7 @@ configure(dummy)
 			setroot();
 	}
 #endif
-
-	if (!mountroot) {
+	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
 
@@ -417,4 +397,4 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "I", "");

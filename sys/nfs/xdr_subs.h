@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)xdr_subs.h	8.1 (Berkeley) 6/10/93
+ *	@(#)xdr_subs.h	8.3 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_XDR_SUBS_H_
 #define _NFS_XDR_SUBS_H_

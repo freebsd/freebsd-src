@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -33,18 +33,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
+ *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
  * $FreeBSD$
  */
 
 #ifndef _NFS_NFS_H_
 #define _NFS_NFS_H_
 
-#include <nfs/rpcv2.h>
-
 /*
  * Tunable constants for nfs
  */
+
+#ifdef KERNEL
 
 #define	NFS_MAXIOVEC	34
 #define NFS_TICKINTVL	5		/* Desired time for a tick (msec) */
@@ -69,7 +69,7 @@
 #define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
 #define	NFS_MAXRAHEAD	4		/* Max. read ahead # blocks */
 #define	NFS_MAXUIDHASH	64		/* Max. # of hashed uid entries/mp */
-#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runnable */
+#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runable */
 #define NFS_MAXGATHERDELAY	100	/* Max. write gather delay (msec) */
 #ifndef NFS_GATHERDELAY
 #define NFS_GATHERDELAY		10	/* Default write gather delay (msec) */
@@ -89,48 +89,13 @@
 
 /*
  * XXX
- * sys/buf.h should be edited to change B_APPENDWRITE --> B_NEEDCOMMIT, but
- * until then...
- * Same goes for sys/malloc.h, which needs M_NFSDIROFF,
- * M_NFSRVDESC and M_NFSBIGFH added.
- * The VA_EXCLUSIVE flag should be added for va_vaflags and set for an
- * exclusive create.
  * The B_INVAFTERWRITE flag should be set to whatever is required by the
  * buffer cache code to say "Invalidate the block after it is written back".
  */
-#ifndef B_NEEDCOMMIT
-#define B_NEEDCOMMIT	B_APPENDWRITE
-#endif
-#ifndef M_NFSRVDESC
-#define M_NFSRVDESC	M_TEMP
-#endif
-#ifndef M_NFSDIROFF
-#define M_NFSDIROFF	M_TEMP
-#endif
-#ifndef M_NFSBIGFH
-#define M_NFSBIGFH	M_TEMP
-#endif
-#ifndef VA_EXCLUSIVE
-#define VA_EXCLUSIVE	0
-#endif
 #ifdef __FreeBSD__
 #define	B_INVAFTERWRITE	B_NOCACHE
 #else
 #define	B_INVAFTERWRITE	B_INVAL
-#endif
-
-/*
- * These ifdefs try to handle the differences between the various 4.4BSD-Lite
- * based vfs interfaces.
- * btw: NetBSD-current does have a VOP_LEASDE(), but I don't know how to
- * differentiate between NetBSD-1.0 and NetBSD-current, so..
- * I also don't know about BSDi's 2.0 release.
- */
-#if !defined(HAS_VOPLEASE) && !defined(__FreeBSD__) && !defined(__NetBSD__)
-#define	HAS_VOPLEASE	1
-#endif
-#if !defined(HAS_VOPREVOKE) && !defined(__FreeBSD__) && !defined(__NetBSD__)
-#define HAS_VOPREVOKE	1
 #endif
 
 /*
@@ -164,13 +129,114 @@
 #define NFS_SVCALLOC	256
 #define NFS_UIDALLOC	128
 
+#endif /* KERNEL */
+
+/*
+ * NFS mount option flags
+ */
+#define	NFSMNT_SOFT		0x00000001  /* soft mount (hard is default) */
+#define	NFSMNT_WSIZE		0x00000002  /* set write size */
+#define	NFSMNT_RSIZE		0x00000004  /* set read size */
+#define	NFSMNT_TIMEO		0x00000008  /* set initial timeout */
+#define	NFSMNT_RETRANS		0x00000010  /* set number of request retries */
+#define	NFSMNT_MAXGRPS		0x00000020  /* set maximum grouplist size */
+#define	NFSMNT_INT		0x00000040  /* allow interrupts on hard mount */
+#define	NFSMNT_NOCONN		0x00000080  /* Don't Connect the socket */
+#define	NFSMNT_NQNFS		0x00000100  /* Use Nqnfs protocol */
+#define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
+#define	NFSMNT_KERB		0x00000400  /* Use Kerberos authentication */
+#define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
+#define	NFSMNT_LEASETERM	0x00001000  /* set lease term (nqnfs) */
+#define	NFSMNT_READAHEAD	0x00002000  /* set read ahead */
+#define	NFSMNT_DEADTHRESH	0x00004000  /* set dead server retry thresh */
+#define	NFSMNT_RESVPORT		0x00008000  /* Allocate a reserved port */
+#define	NFSMNT_RDIRPLUS		0x00010000  /* Use Readdirplus for V3 */
+#define	NFSMNT_READDIRSIZE	0x00020000  /* Set readdir size */
+#define	NFSMNT_INTERNAL		0xfffc0000  /* Bits set internally */
+#define NFSMNT_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
+#define NFSMNT_GOTPATHCONF	0x00080000  /* Got the V3 pathconf info */
+#define NFSMNT_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
+#define	NFSMNT_MNTD		0x00200000  /* Mnt server for mnt point */
+#define	NFSMNT_DISMINPROG	0x00400000  /* Dismount in progress */
+#define	NFSMNT_DISMNT		0x00800000  /* Dismounted */
+#define	NFSMNT_SNDLOCK		0x01000000  /* Send socket lock */
+#define	NFSMNT_WANTSND		0x02000000  /* Want above */
+#define	NFSMNT_RCVLOCK		0x04000000  /* Rcv socket lock */
+#define	NFSMNT_WANTRCV		0x08000000  /* Want above */
+#define	NFSMNT_WAITAUTH		0x10000000  /* Wait for authentication */
+#define	NFSMNT_HASAUTH		0x20000000  /* Has authenticator */
+#define	NFSMNT_WANTAUTH		0x40000000  /* Wants an authenticator */
+#define	NFSMNT_AUTHERR		0x80000000  /* Authentication error */
+
+/*
+ * Arguments to mount NFS
+ */
+#define NFS_ARGSVERSION	3		/* change when nfs_args changes */
+struct nfs_args {
+	int		version;	/* args structure version number */
+	struct sockaddr	*addr;		/* file server address */
+	int		addrlen;	/* length of address */
+	int		sotype;		/* Socket type */
+	int		proto;		/* and Protocol */
+	u_char		*fh;		/* File handle to be mounted */
+	int		fhsize;		/* Size, in bytes, of fh */
+	int		flags;		/* flags */
+	int		wsize;		/* write size in bytes */
+	int		rsize;		/* read size in bytes */
+	int		readdirsize;	/* readdir size in bytes */
+	int		timeo;		/* initial timeout in .1 secs */
+	int		retrans;	/* times to retry send */
+	int		maxgrouplist;	/* Max. size of group list */
+	int		readahead;	/* # of blocks to readahead */
+	int		leaseterm;	/* Term (sec) of lease */
+	int		deadthresh;	/* Retrans threshold */
+	char		*hostname;	/* server's name */
+};
+
+/*
+ * NFS mount option flags
+ */
+#define	NFSMNT_SOFT		0x00000001  /* soft mount (hard is default) */
+#define	NFSMNT_WSIZE		0x00000002  /* set write size */
+#define	NFSMNT_RSIZE		0x00000004  /* set read size */
+#define	NFSMNT_TIMEO		0x00000008  /* set initial timeout */
+#define	NFSMNT_RETRANS		0x00000010  /* set number of request retries */
+#define	NFSMNT_MAXGRPS		0x00000020  /* set maximum grouplist size */
+#define	NFSMNT_INT		0x00000040  /* allow interrupts on hard mount */
+#define	NFSMNT_NOCONN		0x00000080  /* Don't Connect the socket */
+#define	NFSMNT_NQNFS		0x00000100  /* Use Nqnfs protocol */
+#define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
+#define	NFSMNT_KERB		0x00000400  /* Use Kerberos authentication */
+#define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
+#define	NFSMNT_LEASETERM	0x00001000  /* set lease term (nqnfs) */
+#define	NFSMNT_READAHEAD	0x00002000  /* set read ahead */
+#define	NFSMNT_DEADTHRESH	0x00004000  /* set dead server retry thresh */
+#define	NFSMNT_RESVPORT		0x00008000  /* Allocate a reserved port */
+#define	NFSMNT_RDIRPLUS		0x00010000  /* Use Readdirplus for V3 */
+#define	NFSMNT_READDIRSIZE	0x00020000  /* Set readdir size */
+#define	NFSMNT_INTERNAL		0xfffc0000  /* Bits set internally */
+#define NFSMNT_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
+#define NFSMNT_GOTPATHCONF	0x00080000  /* Got the V3 pathconf info */
+#define NFSMNT_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
+#define	NFSMNT_MNTD		0x00200000  /* Mnt server for mnt point */
+#define	NFSMNT_DISMINPROG	0x00400000  /* Dismount in progress */
+#define	NFSMNT_DISMNT		0x00800000  /* Dismounted */
+#define	NFSMNT_SNDLOCK		0x01000000  /* Send socket lock */
+#define	NFSMNT_WANTSND		0x02000000  /* Want above */
+#define	NFSMNT_RCVLOCK		0x04000000  /* Rcv socket lock */
+#define	NFSMNT_WANTRCV		0x08000000  /* Want above */
+#define	NFSMNT_WAITAUTH		0x10000000  /* Wait for authentication */
+#define	NFSMNT_HASAUTH		0x20000000  /* Has authenticator */
+#define	NFSMNT_WANTAUTH		0x40000000  /* Wants an authenticator */
+#define	NFSMNT_AUTHERR		0x80000000  /* Authentication error */
+
 /*
  * Structures for the nfssvc(2) syscall. Not that anyone but nfsd and mount_nfs
  * should ever try and use it.
  */
 struct nfsd_args {
 	int	sock;		/* Socket to serve */
-	caddr_t	name;		/* Client address for connection based sockets */
+	caddr_t	name;		/* Client addr for connection based sockets */
 	int	namelen;	/* Length of name */
 };
 
@@ -199,6 +265,10 @@ struct nfsd_cargs {
 	NFSKERBKEY_T	ncd_key;	/* Session key */
 };
 
+/*
+ * XXX to allow amd to include nfs.h without nfsproto.h
+ */
+#ifdef NFS_NPROCS
 /*
  * Stats structure
  */
@@ -237,6 +307,7 @@ struct nfsstats {
 	int	srvnqnfs_getleases;
 	int	srvvop_writes;
 };
+#endif
 
 /*
  * Flags for nfssvc() system call.
@@ -267,7 +338,7 @@ struct nfsstats {
  * such as SIGALRM will not expect file I/O system calls to be interrupted
  * by them and break.
  */
-#if defined(KERNEL) || defined(_KERNEL)
+#ifdef KERNEL
 
 struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
 
@@ -482,6 +553,8 @@ extern int nfsd_head_flag;
  	 !bcmp((caddr_t)&(o)->nd_cr, (caddr_t)&(n)->nd_cr, \
 		sizeof (struct ucred)))
 
+
+int	nfs_init __P((struct vfsconf *vfsp));
 int	nfs_reply __P((struct nfsreq *));
 int	nfs_getreq __P((struct nfsrv_descript *,struct nfsd *,int));
 int	nfs_send __P((struct socket *,struct mbuf *,struct mbuf *,struct nfsreq *));
@@ -516,14 +589,12 @@ int	nfs_adv __P((struct mbuf **,caddr_t *,int,int));
 void	nfs_nhinit __P((void));
 void	nfs_timer __P((void*));
 u_long nfs_hash __P((nfsfh_t *,int));
-void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 int	nfsrv_dorec __P((struct nfssvc_sock *,struct nfsd *,struct nfsrv_descript **));
-void	nfsrv_cleancache __P((void));
 int	nfsrv_getcache __P((struct nfsrv_descript *,struct nfssvc_sock *,struct mbuf **));
-int	nfs_init __P((void));
 void	nfsrv_updatecache __P((struct nfsrv_descript *,int,struct mbuf *));
+void	nfsrv_cleancache __P((void));
 int	nfs_connect __P((struct nfsmount *,struct nfsreq *));
-void	nfs_disconnect __P((struct nfsmount *nmp));
+void	nfs_disconnect __P((struct nfsmount *));
 int	nfs_getattrcache __P((struct vnode *,struct vattr *));
 int	nfsm_strtmbuf __P((struct mbuf **,char **,char *,long));
 int	nfs_bioread __P((struct vnode *,struct uio *,int,struct ucred *));
@@ -531,7 +602,6 @@ int	nfsm_uiotombuf __P((struct uio *,struct mbuf **,int,caddr_t *));
 void	nfsrv_init __P((int));
 void	nfs_clearcommit __P((struct mount *));
 int	nfsrv_errmap __P((struct nfsrv_descript *, int));
-void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
 void	nfsrvw_sort __P((gid_t [],int));
 void	nfsrv_setcred __P((struct ucred *,struct ucred *));
 int	nfs_writebp __P((struct buf *,int));
@@ -594,8 +664,8 @@ int	nfsrv_symlink __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			   struct proc *procp, struct mbuf **mrq));
 int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
-
-
+void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
+void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 #endif	/* KERNEL */
 
 #endif

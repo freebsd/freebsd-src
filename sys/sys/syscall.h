@@ -191,6 +191,7 @@
 #define	SYS_mlock	203
 #define	SYS_munlock	204
 #define	SYS_utrace	205
+#define	SYS_undelete	206
 #define	SYS___semctl	220
 #define	SYS_semget	221
 #define	SYS_semop	222

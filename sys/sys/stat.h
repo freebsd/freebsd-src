@@ -194,9 +194,7 @@ struct stat {
 
 #endif /* !_POSIX_SOURCE */
 
-#ifdef KERNEL
-void    cvtstat __P((struct stat *, struct ostat *));
-#else /* KERNEL */
+#ifndef KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -214,6 +212,6 @@ int	lstat __P((const char *, struct stat *));
 #endif
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* !KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
+ *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
  * $FreeBSD$
  */
 
@@ -79,8 +79,10 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)spec_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)spec_read },		/* read */
 	{ &vop_write_desc, (vop_t *)spec_write },	/* write */
+	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
@@ -148,9 +150,10 @@ spec_open(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct proc *p = ap->a_p;
 	struct vnode *bvp, *vp = ap->a_vp;
 	dev_t bdev, dev = (dev_t)vp->v_rdev;
-	register int maj = major(dev);
+	int maj = major(dev);
 	int error;
 
 	/*
@@ -171,7 +174,9 @@ spec_open(ap)
 			 * When running in very secure mode, do not allow
 			 * opens for writing of any disk character devices.
 			 */
-			if (securelevel >= 2 && isdisk(dev, VCHR))
+			if (securelevel >= 2
+			    && cdevsw[maj]->d_bdev
+			    && cdevsw[maj]->d_bdev->d_flags == D_DISK)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens
@@ -189,9 +194,20 @@ spec_open(ap)
 					return (EPERM);
 			}
 		}
-		VOP_UNLOCK(vp);
-		error = (*cdevsw[maj]->d_open)(dev, ap->a_mode, S_IFCHR, ap->a_p);
-		VOP_LOCK(vp);
+#if 0
+		/*
+		 * Lite2 stuff.  We will almost certainly do this
+		 * differently with devfs.  The only use of this flag
+		 * is in dead_read to make ttys return EOF instead of
+		 * EIO when they are dead.  Pre-lite2 FreeBSD returns
+		 * EOF for all character devices.
+		 */
+		if (cdevsw[maj]->d_type == D_TTY)
+			vp->v_flag |= VISTTY;
+#endif
+		VOP_UNLOCK(vp, 0, p);
+		error = (*cdevsw[maj]->d_open)(dev, ap->a_mode, S_IFCHR, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -204,7 +220,7 @@ spec_open(ap)
 		 * opens for writing of any disk block devices.
 		 */
 		if (securelevel >= 2 && ap->a_cred != FSCRED &&
-		    (ap->a_mode & FWRITE) && isdisk(dev, VBLK))
+		    (ap->a_mode & FWRITE) && bdevsw[maj]->d_flags == D_DISK)
 			return (EPERM);
 		/*
 		 * Do not allow opens of block devices that are
@@ -213,9 +229,7 @@ spec_open(ap)
 		error = vfs_mountedon(vp);
 		if (error)
 			return (error);
-		return ((*bdevsw[maj]->d_open)(dev, ap->a_mode, S_IFBLK, ap->a_p));
-	default:
-		break;
+		return ((*bdevsw[maj]->d_open)(dev, ap->a_mode, S_IFBLK, p));
 	}
 	return (0);
 }
@@ -257,10 +271,10 @@ spec_read(ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		error = (*cdevsw[major(vp->v_rdev)]->d_read)
 			(vp->v_rdev, uio, ap->a_ioflag);
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -335,10 +349,10 @@ spec_write(ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		error = (*cdevsw[major(vp->v_rdev)]->d_write)
 			(vp->v_rdev, uio, ap->a_ioflag);
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -408,7 +422,7 @@ spec_ioctl(ap)
 
 	case VBLK:
 		if (ap->a_command == 0 && (int)ap->a_data == B_TAPE)
-			if (bdevsw[major(dev)]->d_flags & B_TAPE)
+			if (bdevsw[major(dev)]->d_flags == D_TAPE)
 				return (0);
 			else
 				return (1);
@@ -498,6 +512,18 @@ loop:
 	return (0);
 }
 
+int
+spec_inactive(ap)
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	return (0);
+}
+
 /*
  * Just call the device strategy routine
  */
@@ -539,31 +565,6 @@ spec_bmap(ap)
 }
 
 /*
- * At the moment we do not do any locking.
- */
-/* ARGSUSED */
-int
-spec_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (0);
-}
-
-/* ARGSUSED */
-int
-spec_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (0);
-}
-
-/*
  * Device close routine
  */
 /* ARGSUSED */
@@ -577,6 +578,7 @@ spec_close(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
+	struct proc *p = ap->a_p;
 	dev_t dev = vp->v_rdev;
 	d_close_t *devclose;
 	int mode, error;
@@ -631,8 +633,11 @@ spec_close(ap)
 			(vp->v_flag & VXLOCK) == 0)
 			return (0);
 
-		if (vp->v_object)
-			vnode_pager_uncache(vp);
+		if (vp->v_object) {
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vnode_pager_uncache(vp, p);
+			VOP_UNLOCK(vp, 0, p);
+		}
 
 		devclose = bdevsw[major(dev)]->d_close;
 		mode = S_IFBLK;

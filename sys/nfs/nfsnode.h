@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
+ *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_NFSNODE_H_
 #define _NFS_NFSNODE_H_
@@ -161,26 +162,16 @@ extern	vop_t	**spec_nfsv2nodeop_p;
  * Prototypes for NFS vnode operations
  */
 int	nfs_write __P((struct vop_write_args *));
-#ifdef HAS_VOPLEASE
 #define	nfs_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
-#define nqnfs_vop_lease_check	lease_check
-#else
-#ifdef __FreeBSD__
-#define nqnfs_lease_check	nfs_lease_check
-#else
-#define nqnfs_lease_check	lease_check
-#endif
-#endif
-#ifdef HAS_VOPREVOKE
+int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
 #define nfs_revoke vop_revoke
-#endif
 #define nfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
 int	nfs_abortop __P((struct vop_abortop_args *));
 int	nfs_inactive __P((struct vop_inactive_args *));
 int	nfs_reclaim __P((struct vop_reclaim_args *));
-int	nfs_lock __P((struct vop_lock_args *));
-int	nfs_unlock __P((struct vop_unlock_args *));
-int	nfs_islocked __P((struct vop_islocked_args *));
+#define nfs_lock ((int (*) __P((struct vop_lock_args *)))vop_nolock)
+#define nfs_unlock ((int (*) __P((struct vop_unlock_args *)))vop_nounlock)
+#define nfs_islocked ((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define nfs_reallocblks \
 	((int (*) __P((struct  vop_reallocblks_args *)))eopnotsupp)
 
@@ -190,11 +181,7 @@ int	nfs_nget __P((struct mount *,nfsfh_t *,int,struct nfsnode **));
 nfsuint64 *nfs_getcookie __P((struct nfsnode *, off_t, int));
 void nfs_invaldir __P((struct vnode *));
 
-#ifdef __FreeBSD__
 #define nqnfs_lease_updatetime	nfs_lease_updatetime
-#else
-#define nqnfs_lease_updatetime	lease_updatetime
-#endif
 
 #endif /* KERNEL */
 

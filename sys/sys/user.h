@@ -49,7 +49,7 @@
 #include <vm/vm.h>		/* XXX */
 #include <vm/vm_param.h>	/* XXX */
 #include <vm/pmap.h>		/* XXX */
-#include <vm/lock.h>		/* XXX */
+#include <sys/lock.h>		/* XXX */
 #include <vm/vm_map.h>		/* XXX */
 #else
 #include <vm/vm.h>		/* XXX */

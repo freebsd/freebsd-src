@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
+ *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_NQNFS_H_
 #define _NFS_NQNFS_H_

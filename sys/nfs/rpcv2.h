@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
+ *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_RPCV2_H_
 #define _NFS_RPCV2_H_

@@ -34,8 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
+ *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
+ * From:
  *	$FreeBSD$
  */
 
@@ -142,7 +143,7 @@ procfs_dostatus(curp, p, pfs, uio)
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
-	xlen = min(xlen, uio->uio_resid);
+	xlen = imin(xlen, uio->uio_resid);
 	if (xlen <= 0)
 		error = 0;
 	else

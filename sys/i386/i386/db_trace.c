@@ -34,7 +34,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <ddb/ddb.h>

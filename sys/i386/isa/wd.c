@@ -236,7 +236,7 @@ static	d_psize_t	wdsize;
 static struct cdevsw wd_cdevsw;
 static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
-	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
+	  wddump,	wdsize,		D_DISK,	"wd",	&wd_cdevsw,	-1 };
 
 /*
  * Probe for controller.

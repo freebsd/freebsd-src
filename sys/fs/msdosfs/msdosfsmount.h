@@ -169,3 +169,15 @@ struct msdosfsmount {
 	(((size) + (pmp)->pm_bpcluster - 1) >> (pmp)->pm_cnshift)
 
 int msdosfs_init __P((void));
+
+/*
+ *  Arguments to mount MSDOS filesystems.
+ */
+struct msdosfs_args {
+	char	*fspec;		/* blocks special holding the fs to mount */
+	struct	export_args export;	/* network export information */
+	uid_t	uid;		/* uid that owns msdosfs files */
+	gid_t	gid;		/* gid that owns msdosfs files */
+	mode_t	mask;		/* mask to be applied for msdosfs perms */
+};
+

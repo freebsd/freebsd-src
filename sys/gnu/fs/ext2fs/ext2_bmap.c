@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
+ *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
  * $FreeBSD$
  */
 
@@ -63,9 +63,9 @@ int
 ufs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		daddr_t  a_bn;
+		ufs_daddr_t a_bn;
 		struct vnode **a_vpp;
-		daddr_t *a_bnp;
+		ufs_daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
 	} */ *ap;
@@ -100,8 +100,8 @@ ufs_bmap(ap)
 int
 ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct vnode *vp;
-	register daddr_t bn;
-	daddr_t *bnp;
+	ufs_daddr_t bn;
+	ufs_daddr_t *bnp;
 	struct indir *ap;
 	int *nump;
 	int *runp;
@@ -113,7 +113,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct mount *mp;
 	struct vnode *devvp;
 	struct indir a[NIADDR+1], *xap;
-	daddr_t daddr;
+	ufs_daddr_t daddr;
 	long metalbn;
 	int error, maxrun = 0, num;
 
@@ -209,12 +209,13 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			}
 		}
 
-		daddr = ((daddr_t *)bp->b_data)[xap->in_off];
+		daddr = ((ufs_daddr_t *)bp->b_data)[xap->in_off];
 		if (num == 1 && daddr && runp) {
 			for (bn = xap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
-			    is_sequential(ump, ((daddr_t *)bp->b_data)[bn - 1],
-			    ((daddr_t *)bp->b_data)[bn]);
+			    is_sequential(ump,
+			    ((ufs_daddr_t *)bp->b_data)[bn - 1],
+			    ((ufs_daddr_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
 			bn = xap->in_off;
 			if (runb && bn) {
@@ -245,7 +246,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 int
 ufs_getlbns(vp, bn, ap, nump)
 	struct vnode *vp;
-	register daddr_t bn;
+	ufs_daddr_t bn;
 	struct indir *ap;
 	int *nump;
 {

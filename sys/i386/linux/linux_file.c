@@ -450,7 +450,7 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
     buflen = max(DIRBLKSIZ, nbytes + blockoff);
     buflen = min(buflen, MAXBSIZE);
     buf = malloc(buflen, M_TEMP, M_WAITOK);
-    VOP_LOCK(vp);
+    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 again:
     aiov.iov_base = buf;
     aiov.iov_len = buflen;
@@ -530,7 +530,7 @@ again:
 eof:
     *retval = nbytes - resid;
 out:
-    VOP_UNLOCK(vp);
+    VOP_UNLOCK(vp, p);
     free(buf, M_TEMP);
     return error;
 }
