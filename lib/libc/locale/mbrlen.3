@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 4, 2002
+.Dd November 11, 2002
 .Dt MBRLEN 3
 .Os
 .Sh NAME
@@ -40,7 +40,22 @@ The
 .Fn mbrlen
 function determines the the number of bytes constituting the
 multibyte character sequence pointed to by
-.Fa s .
+.Fa s ,
+examining at most
+.Fa n
+bytes.
+.Pp
+The
+.Ft mbstate_t
+argument,
+.Fa ps ,
+is used to keep track of the shift state.
+If it is
+.Dv NULL ,
+.Fn mbrlen
+uses an internal, static
+.Ft mbstate_t
+object.
 .Pp
 It is equivalent to:
 .Pp
