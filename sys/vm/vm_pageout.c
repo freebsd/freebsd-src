@@ -613,25 +613,25 @@ vm_pageout_map_deactivate_pages(map, desired)
 #endif		/* !defined(NO_SWAPPING) */
 
 /*
- * Don't try to be fancy - being fancy can lead to VOP_LOCK's and therefore
- * to vnode deadlocks.  We only do it for OBJT_DEFAULT and OBJT_SWAP objects
- * which we know can be trivially freed.
+ * Warning! The page queue lock is released and reacquired.
  */
 static void
 vm_pageout_page_free(vm_page_t m)
 {
 	vm_object_t object = m->object;
-	int type = object->type;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
-		vm_object_reference(object);
 	vm_page_busy(m);
+	vm_page_unlock_queues();
+	/*
+	 * Avoid a lock order reversal.  The page must be busy.
+	 */
+	VM_OBJECT_LOCK(object);
+	vm_page_lock_queues();
 	pmap_remove_all(m);
 	vm_page_free(m);
+	VM_OBJECT_UNLOCK(object);
 	cnt.v_dfree++;
-	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
-		vm_object_deallocate(object);
 }
 
 /*
