@@ -358,12 +358,13 @@ raidtest_test(int argc, char *argv[])
 			break;
 		}
 	}
+	close(fdf);
 	printf("Read %ju requests from %s.\n", nreqs, file);
 	printf("Number of READ requests: %ju.\n", nrreqs);
 	printf("Number of WRITE requests: %ju.\n", nwreqs);
 	printf("Number of bytes to transmit: %ju.\n", nbytes);
 	printf("Number of processes: %u.\n", nprocs);
-	close(fdf);
+	fflush(stdout);
 	reqs_per_proc = nreqs / nprocs;
 	nstart = 0;
 	gettimeofday(&tstart, NULL);
@@ -376,7 +377,6 @@ raidtest_test(int argc, char *argv[])
 			free(iorqs);
 			close(fdd);
 			exit(EXIT_SUCCESS);
-			break;
 		case -1:
 			fprintf(stderr, "Cannot create process %u: %s\n",
 			    (unsigned)i, strerror(errno));
