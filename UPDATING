@@ -31,15 +31,6 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	an alternative MTA.  Setting mta_start_script to "" will
 	also prevent any MTA from being started at boot.
 
-20020404:
-	Due to the import of sendmail 8.12.2 (see 20020217 entry), a new
-	user and group are required in order for sendmail to run as a
-	set-group-ID binary.  A 'make installworld' will use the new user
-	and group to set the owner and group of /var/spool/clientmqueue
-	and will fail if the new user and group do not exist.  The 'smmsp'
-	user and group must be merged from src/etc/group and
-	src/etc/master.passwd before using 'make installworld'.
-
 20020315:
 	FreeBSD 5.0 DP-1 was basically branched today.
 
@@ -54,6 +45,18 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
 	and /etc/mail) and read /etc/mail/README for more details.
 
+	Due to the import of sendmail 8.12.2, a new user and group are
+	required in order for sendmail to run as a set-group-ID
+	binary.  A 'make installworld' will use the new user and group
+	to set the owner and group of /var/spool/clientmqueue and will
+	fail if the new user and group do not exist.  The 'smmsp' user
+	and group must be merged from src/etc/group and
+	src/etc/master.passwd before using 'make installworld'.
+	'mergemaster -p' will do this.  You may need to install
+	mergemaster before this will work if you are updating from a
+	very old version of current.  The updating recipe has changed
+	as of this date.
+
 20020112:
 	The preferred configuration method for PAM is now /etc/pam.d/
 	rather than /etc/pam.conf.  If you have an unmodified
@@ -64,7 +67,6 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 
 	Please see the following url for more details:
 http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<xzp6667fyoa.fsf@flood.ping.uio.no>
-
 20011229:
 	If anyone here is already using the new rc.conf(5) variable
 	networkfs_types, please note that it has changed
@@ -931,6 +933,7 @@ COMMON ITEMS:
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot in single user [3]
+	mergemaster -p		[5]
 	make installworld
 	mergemaster		[4]
 	[1]
@@ -969,6 +972,13 @@ COMMON ITEMS:
 	that pursue this avenue should read this file carefully, as well
 	as the archives of freebsd-current and freebsd-hackers mailing lists
 	for potential gotchas.
+
+	[5] Usually this step is a noop.  However, from time to time
+	you may need to do this if you get unknown user in the following
+	step.  It never hurts to do it all the time.  You may need to
+	install a new mergemaster (cd src/usr.sbin/mergemaster && make
+	install) after the buildworld before this step if you last updated
+	from current before 20020224 or from -stable before 20020408.
 
 FORMAT:
 
