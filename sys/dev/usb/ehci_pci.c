@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #define PCI_EHCI_VENDORID_NEC		0x1033
 #define PCI_EHCI_VENDORID_OPTI		0x1045
 #define PCI_EHCI_VENDORID_SIS		0x1039
+#define PCI_EHCI_VENDORID_NVIDIA	0x12D2
+#define PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 
 #define PCI_EHCI_DEVICEID_NEC		0x00e01033
 static const char *ehci_device_nec = "NEC uPD 720100 USB 2.0 controller";
@@ -209,6 +211,10 @@ ehci_pci_attach(device_t self)
 		break;
 	case PCI_EHCI_VENDORID_SIS:
 		sprintf(sc->sc_vendor, "SiS");
+		break;
+	case PCI_EHCI_VENDORID_NVIDIA:
+	case PCI_EHCI_VENDORID_NVIDIA2:
+		sprintf(sc->sc_vendor, "nVidia");
 		break;
 	default:
 		if (bootverbose)
