@@ -86,8 +86,8 @@ MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	getrusage.2 getsid.2 getsockname.2 \
 	getsockopt.2 gettimeofday.2 getuid.2 \
 	intro.2 ioctl.2 issetugid.2 jail.2 kill.2 \
-	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldunload.2 \
-	ktrace.2 kqueue.2 link.2 listen.2 lseek.2 \
+	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldsym.2 \
+	kldunload.2 ktrace.2 kqueue.2 link.2 listen.2 lseek.2 \
 	madvise.2 mincore.2 minherit.2 mkdir.2 mkfifo.2 mknod.2 mlock.2 mmap.2 \
 	modfind.2 modnext.2 modstat.2 \
 	mount.2 mprotect.2 msync.2 munmap.2 nanosleep.2 \
