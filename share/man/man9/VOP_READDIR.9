@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_READDIR.9,v 1.2 1997/03/04 10:02:25 dfr Exp $
+.\" $Id: VOP_READDIR.9,v 1.3 1997/03/07 03:32:28 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -35,10 +35,11 @@
 .Nm VOP_READDIR
 .Nd read contents of a directory
 .Sh SYNOPSIS
-.Fd #include <sys/vnode.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/dirent.h>
+.Fd #include <sys/vnode.h>
 .Ft int
-.Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "u_int **cookies"
+.Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "u_long **cookies"
 .Sh DESCRIPTION
 Read directory entries.
 .Bl -tag -width ncookies
