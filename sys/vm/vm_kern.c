@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.45 1998/02/23 08:22:29 dyson Exp $
+ * $Id: vm_kern.c,v 1.46 1998/03/01 04:18:20 dyson Exp $
  */
 
 /*
@@ -295,7 +295,7 @@ kmem_malloc(map, size, waitflag)
 		vm_map_unlock(map);
 		if (map == mb_map) {
 			mb_map_full = TRUE;
-			log(LOG_ERR, "Out of mbuf clusters - increase maxusers!\n");
+			printf("Out of mbuf clusters - adjust NMBCLUSTERS or increase maxusers!\n");
 			return (0);
 		}
 		if (waitflag == M_WAITOK)
