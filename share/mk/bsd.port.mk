@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227 1996/11/01 07:22:35 asami Exp $
+# $Id: bsd.port.mk,v 1.228 1996/11/03 07:51:59 obrien Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -47,8 +47,7 @@
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
 # MAINTAINER	- The e-mail address of the contact person for this port
 #				  (default: ports@FreeBSD.ORG).
-# CATEGORIES	- A list of descriptive categories into which this port falls
-#				  (default: orphans).
+# CATEGORIES	- A list of descriptive categories into which this port falls.
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
@@ -190,18 +189,23 @@
 # PATCH_DEBUG	- If set, print out more information about the patches as
 #				  it attempts to apply them.
 #
-# Variables that serve as convenient "aliases" for your *-install targets:
-#
+# Variables that serve as convenient "aliases" for your *-install targets.
 # Use these like: "${INSTALL_PROGRAM} ${WRKSRC}/prog ${PREFIX}/bin".
+#
 # INSTALL_PROGRAM - A command to install binary executables.
 # INSTALL_SCRIPT - A command to install executable scripts.
 # INSTALL_DATA	- A command to install sharable data.
 # INSTALL_MAN	- A command to install manpages (doesn't compress).
 #
-# And another for compressing manpages -- it is conditionalized on the
-# variable NOMANCOMPRESS so you can just list the manpage filenames
-# after this.
-# COMPRESS_MAN	- A command to compress manpages (if necessary).
+# If your port doesn't automatically compress manpages, set the following.
+# Depending on the setting of NOMANCOMPRESS, the make rules will compress
+# the manpages for you.
+#
+# MAN<sect>		- A list of manpages, categorized by section.  For
+#				  example, if your port has "man/man1/foo.1" and
+#				  "man/mann/bar.n", set "MAN1=foo.1" and "MANN=bar.n".
+#				  The available sections chars are "123456789LN".
+# MANPREFIX		- The directory prefix for ${MAN<sect>} (default: ${PREFIX}).
 #
 # Default targets and their behaviors:
 #
@@ -370,11 +374,6 @@ INSTALL_DATA= \
 	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE}
 INSTALL_MAN= \
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
-.if defined(NOMANCOMPRESS)
-COMPRESS_MAN=	@${DO_NADA}
-.else
-COMPRESS_MAN=	gzip -9nf
-.endif
 
 # The user can override the NO_PACKAGE by specifying this from
 # the make command line
@@ -417,11 +416,15 @@ CP?=		/bin/cp
 SETENV?=	/usr/bin/env
 RM?=		/bin/rm
 MKDIR?=		/bin/mkdir -p
-GZCAT?=		/usr/bin/gzcat
-BASENAME?=	/usr/bin/basename
-SED?=		/usr/bin/sed
-GREP?=		/usr/bin/grep
+RMDIR?=		/bin/rmdir
 AWK?=		/usr/bin/awk
+BASENAME?=	/usr/bin/basename
+FALSE?=		/usr/bin/false
+GREP?=		/usr/bin/grep
+GZCAT?=		/usr/bin/gzcat
+GZIP?=		-9
+GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
+SED?=		/usr/bin/sed
 
 # Used to print all the '===>' style prompts - override this to turn them off.
 ECHO_MSG?=		${ECHO}
@@ -433,6 +436,30 @@ INSTALL_TARGET?=	install
 .if defined(MASTER_SITE_FREEBSD)
 MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .endif
+
+# Popular master sites
+MASTER_SITE_XCONTRIB?=	\
+	ftp://ftp.x.org/contrib/${MASTER_SITE_SUBDIR}/ \
+	ftp://crl.dec.com/pub/X11/contrib/${MASTER_SITE_SUBDIR}/
+
+MASTER_SITE_GNU?=	\
+	ftp://prep.ai.mit.edu/pub/gnu/${MASTER_SITE_SUBDIR}/ \
+	ftp://wuarchive.wustl.edu/systems/gnu/${MASTER_SITE_SUBDIR}/
+
+MASTER_SITE_PERL_CPAN?=	\
+	ftp://ftp.digital.com/pub/plan/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/ \
+	ftp://ftp.cdrom.com/pub/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/
+
+MASTER_SITE_TEX_CTAN?=  \
+        ftp://ftp.cdrom.com/pub/tex/ctan/${MASTER_SITE_SUBDIR}/  \
+        ftp://wuarchive.wustl.edu/packages/TeX/${MASTER_SITE_SUBDIR}/  \
+        ftp://ftp.funet.fi/pub/TeX/CTAN/${MASTER_SITE_SUBDIR}/  \
+        ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/
+
+MASTER_SITE_SUNSITE?=	\
+	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
+	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
+	ftp://ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
 
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
@@ -467,7 +494,12 @@ EXTRACT_ONLY?=	${DISTFILES}
 
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
-CATEGORIES?=	orphans
+
+.if !defined(CATEGORIES)
+.BEGIN:
+	@${ECHO_MSG} "CATEGORIES is mandatory."
+	@${FALSE}
+.endif
 
 # Note this has to start with a capital letter (or more accurately, it
 #  shouldn't match "[a-z]*"), see the target "delete-package-links" below.
@@ -484,6 +516,22 @@ CONFIGURE_SCRIPT?=	configure
 .if defined(GNU_CONFIGURE)
 CONFIGURE_ARGS+=	--prefix=${PREFIX}
 HAS_CONFIGURE=		yes
+.endif
+
+MANPREFIX?=	${PREFIX}
+
+.for sect in 1 2 3 4 5 6 7 8 9
+.if defined(MAN${sect})
+_MANPAGES+=	${MAN${sect}:S.^.man/${MANLANG}/man${sect}/.}
+.endif
+.endfor
+
+.if defined(MANL)
+_MANPAGES+=	${MANL:S.^.man/${MANLANG}/manl/.}
+.endif
+
+.if defined(MANN)
+_MANPAGES+=	${MANN:S.^.man/${MANLANG}/mann/.}
 .endif
 
 .MAIN: all
@@ -889,7 +937,12 @@ _PORT_USE: .USE
 		  X11BASE=${X11BASE} \
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
-.if make(real-install)  && !defined(NO_PKG_REGISTER)
+.if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
+.for manpage in ${_MANPAGES}
+	${GZIP_CMD} ${MANPREFIX}/${manpage}
+.endfor
+.endif
+.if make(real-install) && !defined(NO_PKG_REGISTER)
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fake-pkg
 .endif
 .if !make(real-fetch) \
@@ -1015,11 +1068,29 @@ pre-clean:
 
 .if !target(clean)
 clean: pre-clean
+.if !defined(NOCLEANDEPENDS)
+	@${MAKE} clean-depends
+.endif
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
 .if !defined(NO_WRKDIR)
 	@${RM} -rf ${WRKDIR}
 .else
 	@${RM} -f ${WRKDIR}/.*_done
+.endif
+.endif
+
+.if !target(pre-distclean)
+pre-distclean:
+	@${DO_NADA}
+.endif
+
+.if !target(distclean)
+distclean: pre-distclean clean
+	@${ECHO_MSG} "===>  Dist cleaning for ${PKGNAME}"
+	@(cd ${DISTDIR}; \
+	${RM} -f ${DISTFILES} ${PATCHFILES})
+.if defined(DIST_SUBDIR)
+	@${RMDIR} ${DISTDIR}  
 .endif
 .endif
 
@@ -1254,11 +1325,25 @@ misc-depends:
 
 .endif
 
+.if !target(clean-depends)
+clean-depends:
+	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
+		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
+		(cd $$dir; ${MAKE} clean); \
+	done
+	@for dir in ${DEPENDS}; do \
+		(cd $$dir; ${MAKE} clean); \
+	done
+.endif
+
 .if !target(depends-list)
 depends-list:
-	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
+	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
 		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
-		(cd $$dir ; ${MAKE} package-name depends-list); \
+		(cd $$dir; ${MAKE} package-name depends-list); \
+	done
+	@for dir in ${DEPENDS}; do \
+		(cd $$dir; ${MAKE} package-name depends-list); \
 	done
 .endif
 
