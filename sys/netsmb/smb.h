@@ -267,6 +267,7 @@ enum smb_dialects {
  * Set PATH/FILE information levels
  */
 #define	SMB_SET_FILE_BASIC_INFO		0x101
+#define	SMB_SET_FILE_END_OF_FILE_INFO	0x104
 
 /*
  * LOCKING_ANDX LockType flags
