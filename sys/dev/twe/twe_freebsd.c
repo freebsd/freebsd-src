@@ -90,7 +90,7 @@ static struct cdevsw twe_cdevsw = {
  * Accept an open operation on the control device.
  */
 static int
-twe_open(dev_t dev, int flags, int fmt, struct thread *td)
+twe_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -103,7 +103,7 @@ twe_open(dev_t dev, int flags, int fmt, struct thread *td)
  * Accept the last close on the control device.
  */
 static int
-twe_close(dev_t dev, int flags, int fmt, struct thread *td)
+twe_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -116,7 +116,7 @@ twe_close(dev_t dev, int flags, int fmt, struct thread *td)
  * Handle controller-specific control operations.
  */
 static int
-twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
     
@@ -513,6 +513,26 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
 }
 
 /********************************************************************************
+ * Clear a PCI parity error.
+ */
+void
+twe_clear_pci_parity_error(struct twe_softc *sc)
+{
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_PARITY_ERROR);
+    pci_write_config(sc->twe_dev, PCIR_STATUS, TWE_PCI_CLEAR_PARITY_ERROR, 2);
+}
+
+/********************************************************************************
+ * Clear a PCI abort.
+ */
+void
+twe_clear_pci_abort(struct twe_softc *sc)
+{
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_PCI_ABORT);
+    pci_write_config(sc->twe_dev, PCIR_STATUS, TWE_PCI_CLEAR_PCI_ABORT, 2);
+}
+
+/********************************************************************************
  ********************************************************************************
                                                                       Disk device
  ********************************************************************************
@@ -599,7 +619,7 @@ static int		disks_registered = 0;
  * for opens on subdevices (eg. slices, partitions).
  */
 static int
-twed_open(dev_t dev, int flags, int fmt, struct thread *td)
+twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
     struct disklabel	*label;
@@ -632,7 +652,7 @@ twed_open(dev_t dev, int flags, int fmt, struct thread *td)
  * Handle last close of the disk device.
  */
 static int
-twed_close(dev_t dev, int flags, int fmt, struct thread *td)
+twed_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
 

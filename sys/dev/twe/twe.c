@@ -115,6 +115,7 @@ int
 twe_setup(struct twe_softc *sc)
 {
     struct twe_request	*tr;
+    u_int32_t		status_reg;
     int			i;
 
     debug_called(4);
@@ -147,6 +148,12 @@ twe_setup(struct twe_softc *sc)
 	 */
 	twe_release_request(tr);
     }
+
+    /*
+     * Check status register for errors, clear them.
+     */
+    status_reg = TWE_STATUS(sc);
+    twe_check_bits(sc, status_reg);
 
     /*
      * Wait for the controller to come ready.
@@ -566,6 +573,8 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	twe_reset(sc);
 	break;
 
+	/* XXX implement ATA PASSTHROUGH */
+
 	/* nothing we understand */
     default:	
 	error = ENOTTY;
@@ -919,12 +928,16 @@ twe_reset(struct twe_softc *sc)
     struct twe_request	*tr;
     int			i, s;
 
-    twe_printf(sc, "controller reset in progress...\n");
+    /*
+     * Sleep for a short period to allow AENs to be signalled.
+     */
+    tsleep(NULL, PRIBIO, "twereset", hz);
 
     /*
      * Disable interrupts from the controller, and mask any accidental entry
      * into our interrupt handler.
      */
+    twe_printf(sc, "controller reset in progress...\n");
     twe_disable_interrupts(sc);
     s = splbio();
 
@@ -1178,10 +1191,11 @@ twe_soft_reset(struct twe_softc *sc)
 
     TWE_SOFT_RESET(sc);
 
-    if (twe_wait_status(sc, TWE_STATUS_ATTENTION_INTERRUPT, 15)) {
+    if (twe_wait_status(sc, TWE_STATUS_ATTENTION_INTERRUPT, 30)) {
 	twe_printf(sc, "no attention interrupt\n");
 	return(1);
     }
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_ATTENTION_INTERRUPT);
     if (twe_drain_aen_queue(sc)) {
 	twe_printf(sc, "can't drain AEN queue\n");
 	return(1);
@@ -1586,6 +1600,14 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 	    lastwarn[1] = time_second;
 	}
 	result = 1;
+	if (status_reg & TWE_STATUS_PCI_PARITY_ERROR) {
+	    twe_printf(sc, "PCI parity error: Reseat card, move card or buggy device present.");
+	    twe_clear_pci_parity_error(sc);
+	}
+	if (status_reg & TWE_STATUS_PCI_ABORT) {
+	    twe_printf(sc, "PCI abort, clearing.");
+	    twe_clear_pci_abort(sc);
+	}
     }
 
     return(result);
@@ -1616,7 +1638,7 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 	if (!bootverbose)
 	    return(NULL);
 	/* FALLTHROUGH */
-    case 'p':
+    case 'a':
 	return(msg);
 
     case 'c':
@@ -1627,6 +1649,12 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 		    msg, TWE_AEN_UNIT(aen));
 	}
 	return(buf);
+
+    case 'p':
+	sprintf(buf, "twe%d: port %d: %s", device_get_unit(sc->twe_dev), TWE_AEN_UNIT(aen),
+		msg);
+	return(buf);
+
 	
     case 'x':
     default:
@@ -1660,25 +1688,41 @@ twe_report_request(struct twe_request *tr)
     } else if (cmd->generic.status > TWE_STATUS_FATAL) {
 	/*
 	 * Fatal errors that don't require controller reset.
+	 *
+	 * We know a few special flags values.
 	 */
-	twe_printf(sc, "command returned fatal status - %s (flags = 0x%x)\n",
-		   twe_describe_code(twe_table_status, cmd->generic.status),
-		   cmd->generic.flags);
-	result = 1;
+	switch (cmd->generic.flags) {
+	case 0x1b:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "drive timeout");
+	    break;
+	case 0x51:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "unrecoverable drive error");
+	    break;
+	default:
+	    device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+			  "controller error - %s (flags = 0x%x)\n",
+			  twe_describe_code(twe_table_status, cmd->generic.status),
+			  cmd->generic.flags);
+	    result = 1;
+	}
     } else if (cmd->generic.status > TWE_STATUS_WARNING) {
 	/*
 	 * Warning level status.
 	 */
-	twe_printf(sc, "command returned warning status - %s (flags = 0x%x)\n",
-		   twe_describe_code(twe_table_status, cmd->generic.status),
-		   cmd->generic.flags);
+	device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+		      "warning - %s (flags = 0x%x)\n",
+		      twe_describe_code(twe_table_status, cmd->generic.status),
+		      cmd->generic.flags);
     } else if (cmd->generic.status > 0x40) {
 	/*
 	 * Info level status.
 	 */
-	twe_printf(sc, "command returned info status: %s (flags = 0x%x)\n",
-		   twe_describe_code(twe_table_status, cmd->generic.status),
-		   cmd->generic.flags);
+	device_printf(sc->twe_drive[cmd->generic.unit].td_disk,
+		      "attention - %s (flags = 0x%x)\n",
+		      twe_describe_code(twe_table_status, cmd->generic.status),
+		      cmd->generic.flags);
     }
     
     return(result);
