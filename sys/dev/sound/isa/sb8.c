@@ -39,6 +39,8 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#define ESS_BUFFSIZE (65536 - 256)
+
 /* channel interface */
 static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
 static int sbchan_setdir(void *data, int dir);
@@ -50,9 +52,7 @@ static int sbchan_getptr(void *data);
 static pcmchan_caps *sbchan_getcaps(void *data);
 
 /* channel interface for ESS */
-#ifdef notyet
 static void *esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-#endif
 static int esschan_setdir(void *data, int dir);
 static int esschan_setformat(void *data, u_int32_t format);
 static int esschan_setspeed(void *data, u_int32_t speed);
@@ -127,7 +127,7 @@ static pcm_channel sb_chantemplate = {
 };
 
 static pcm_channel ess_chantemplate = {
-	sbchan_init,
+	esschan_init,
 	esschan_setdir,
 	esschan_setformat,
 	esschan_setspeed,
@@ -888,13 +888,20 @@ sbchan_getcaps(void *data)
 		return (ch->buffer->chan >= 4)? &sb16_hcaps : &sb16_lcaps;
 }
 /* channel interface for ESS18xx */
-#ifdef notyet
 static void *
 esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
-	/* the same as sbchan_init()? */
+	struct sb_info *sb = devinfo;
+	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
+
+	ch->parent = sb;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->buffer->bufsize = ESS_BUFFSIZE;
+	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1) return NULL;
+	ch->buffer->chan = rman_get_start(sb->drq1);
+	return ch;
 }
-#endif
 
 static int
 esschan_setdir(void *data, int dir)
