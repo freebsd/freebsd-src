@@ -45,11 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 int
-vsnprintf(str, n, fmt, ap)
-	char *str;
-	size_t n;
-	const char *fmt;
-	_BSD_VA_LIST_ ap;
+vsnprintf(char *__restrict str, size_t n, const char *__restrict fmt,
+    _BSD_VA_LIST_ ap)
 {
 	size_t on;
 	int ret;

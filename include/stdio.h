@@ -250,14 +250,17 @@ int	 sscanf(const char *, const char *, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
-int	 vfprintf(FILE *, const char *, _BSD_VA_LIST_);
-int	 vprintf(const char *, _BSD_VA_LIST_);
-int	 vsprintf(char *, const char *, _BSD_VA_LIST_);
+int	 vfprintf(FILE *__restrict, const char *__restrict,
+	    _BSD_VA_LIST_);
+int	 vprintf(const char *__restrict, _BSD_VA_LIST_);
+int	 vsprintf(char *__restrict, const char *__restrict,
+	    _BSD_VA_LIST_);
 
 #if __ISO_C_VISIBLE >= 1999
-int	 snprintf(char *__restrict, size_t, const char *__restrict, ...) __printflike(3, 4);
-int	 vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_)
-	    __printflike(3, 0);
+int	 snprintf(char *__restrict, size_t, const char *__restrict,
+	    ...) __printflike(3, 4);
+int	 vsnprintf(char *__restrict, size_t, const char *__restrict,
+	    _BSD_VA_LIST_) __printflike(3, 0);
 #endif
 
 /*

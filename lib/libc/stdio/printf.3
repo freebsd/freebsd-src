@@ -59,13 +59,13 @@
 .Fn asprintf "char **ret" "const char *format" ...
 .In stdarg.h
 .Ft int
-.Fn vprintf "const char *format" "va_list ap"
+.Fn vprintf "const char *restrict format" "va_list ap"
 .Ft int
-.Fn vfprintf "FILE *stream" "const char *format" "va_list ap"
+.Fn vfprintf "FILE *restrict stream" "const char *restrict format" "va_list ap"
 .Ft int
-.Fn vsprintf "char *str" "const char *format" "va_list ap"
+.Fn vsprintf "char *restrict str" "const char *restrict format" "va_list ap"
 .Ft int
-.Fn vsnprintf "char *str" "size_t size" "const char *format" "va_list ap"
+.Fn vsnprintf "char *restrict str" "size_t size" "const char *restrict format" "va_list ap"
 .Ft int
 .Fn vasprintf "char **ret" "const char *format" "va_list ap"
 .Sh DESCRIPTION
