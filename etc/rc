@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.148 1998/08/10 19:53:50 brian Exp $
+#	$Id: rc,v 1.149 1998/08/14 06:49:05 phk Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -76,9 +76,7 @@ fi
 
 umount -a >/dev/null 2>&1
 
-echo -n "Mounting NFS file systems"
 mount -a -t nonfs
-echo .
 if [ $? != 0 ]; then
 	echo "Filesystem mount failed, startup aborted"
 	exit 1
@@ -139,7 +137,9 @@ if [ -f /etc/rc.network ]; then
 	network_pass1
 fi
 
+echo -n "Mounting NFS file systems"
 mount -a -t nfs
+echo .
 
 # Whack the pty perms back into shape.
 chmod 666 /dev/tty[pqrsPQRS]*
