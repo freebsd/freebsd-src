@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.47 1998/08/12 18:32:42 bde Exp $
+ * $Id: if_le.c,v 1.48 1998/10/22 05:58:39 bde Exp $
  */
 
 /*
@@ -1126,7 +1126,7 @@ lemac_start(
 	/*
 	 * The first four bytes of each transmit buffer are for
 	 * control information.  The first byte is the control
-	 * byte, then the length (why not word aligned??), then
+	 * byte, then the length (why not word aligned?), then
 	 * the off to the buffer.
 	 */
 
