@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.5 1997/05/11 18:01:23 tegge Exp $
+ *	$Id: autoconf.c,v 1.56.2.6 1997/08/17 14:13:07 joerg Exp $
  */
 
 /*
@@ -77,8 +77,8 @@
 #include <pci/pcivar.h>
 #endif
 
-#include "crd.h"
-#if NCRD > 0
+#include "card.h"
+#if NCARD > 0
 #include <pccard/driver.h>
 #endif
 
@@ -218,7 +218,7 @@ configure(dummy)
 	isa_configure();
 #endif
 
-#if NCRD > 0
+#if NCARD > 0
 	/* After everyone else has a chance at grabbing resources */
 	pccard_configure();
 #endif

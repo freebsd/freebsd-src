@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.24 1996/10/30 22:38:39 asami Exp $
+ * $Id: aic6360.c,v 1.24.2.1 1997/10/21 18:14:10 nate Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -700,79 +700,55 @@ static struct scsi_device aic_dev = {
 
 
 /* PCCARD suport */
-#include "crd.h"
-#if NCRD > 0
+#include "card.h"
+#if NCARD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
-static int aic_card_intr(struct pccard_dev *); /* Interrupt handler */
-void aicunload(struct pccard_dev *);           /* Disable driver */
-void aicsuspend(struct pccard_dev *);          /* Suspend driver */
-static int aicinit(struct pccard_dev *, int);  /* init device */
+static int aicinit(struct pccard_devinfo *);		/* init device */
+void aicunload(struct pccard_devinfo *);		/* Disable driver */
+static int aic_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
 
-static struct pccard_drv aic_info = {
+static struct pccard_device aic_info = {
 	"aic",
-	aic_card_intr,
-	aicunload,
-	aicsuspend,
 	aicinit,
+	aicunload,
+	aic_card_intr,
 	0,			/* Attributes - presently unused */
 	&bio_imask		/* Interrupt mask for device */
 };
 
-/*
- * Called when a power down is wanted. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * feinit with first=0. This is called when the user suspends
- * the system, or the APM code suspends the system.
- */
-void
-aicsuspend(struct pccard_dev *dp)
-{
-	printf("aic%d: suspending\n", dp->isahd.id_unit);
-}
+DATA_SET(pccarddrv_set, aic_info);
 
 /*
  * Initialize the device - called from Slot manager.
- * if first is set, then initially check for
- * the device's existence before initialising it.
- * Once initialised, the device table may be set up.
  */
 int
-aicinit(struct pccard_dev *dp, int first)
+aicinit(struct pccard_devinfo *devi)
 {
 	static int already_aicinit[NAIC];
-	/* validate unit number */
-	if (first) {
-		if (dp->isahd.id_unit >= NAIC)
-			return(ENODEV);
-		/* Make sure it isn't already initialised */
-		if (already_aicinit[dp->isahd.id_unit] == 1) {
-			if (aicattach(&dp->isahd) == 0)
-				return(ENXIO);
-			return(0);
-               }
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		if (aicprobe(&dp->isahd) == 0)
-			return(ENXIO);
 
-		if (aicattach(&dp->isahd) == 0)
+	/* validate unit number */
+	if (devi->isahd.id_unit >= NAIC)
+		return(ENODEV);
+	/* Make sure it isn't already initialised */
+	if (already_aicinit[devi->isahd.id_unit] == 1) {
+		if (aicattach(&devi->isahd) == 0)
 			return(ENXIO);
+		return(0);
 	}
 	/*
-	 * XXX TODO:
-	 * If it was already inited before, the device structure
-	 * should be already initialised. Here we should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
-	already_aicinit[dp->isahd.id_unit] = 1;
+	if (aicprobe(&devi->isahd) == 0)
+		return(ENXIO);
+
+	if (aicattach(&devi->isahd) == 0)
+		return(ENXIO);
+	already_aicinit[devi->isahd.id_unit] = 1;
 	return(0);
 }
 
@@ -786,11 +762,11 @@ aicinit(struct pccard_dev *dp, int first)
  * read and write do not hang.
  */
 void
-aicunload(struct pccard_dev *dp)
+aicunload(struct pccard_devinfo *devi)
 {
-	printf("aic%d: unload\n", dp->isahd.id_unit);
+	printf("aic%d: unload\n", devi->isahd.id_unit);
 #if 0
-	aicstop(dp->isahd.id_unit);
+	aicstop(devi->isahd.id_unit);
 #endif
 }
 
@@ -798,12 +774,12 @@ aicunload(struct pccard_dev *dp)
  * card_intr - Shared interrupt called from front end of PC-Card handler.
  */
 static int
-aic_card_intr(struct pccard_dev *dp)
+aic_card_intr(struct pccard_devinfo *devi)
 {
-	aicintr(dp->isahd.id_unit);
+	aicintr(devi->isahd.id_unit);
 	return(1);
 }
-#endif /* NCRD > 0 */ 
+#endif /* NCARD > 0 */ 
 
 /*
  * INITIALIZATION ROUTINES (probe, attach ++)
@@ -818,10 +794,9 @@ aicprobe(dev)
 	struct isa_device *dev;
 {
 	struct aic_data *aic;
-#if NCRD > 0
+#if NCARD > 0
 	int     unit = dev->id_unit;
 	int     aic_reg_drv[NAIC];
-	static int aic_already_init;
 #else
 	int	unit = aicunit;
 #endif
@@ -832,15 +807,9 @@ aicprobe(dev)
 	}
 	dev->id_unit = unit;
 
-#if NCRD > 0
+#if NCARD > 0
 	if (!aic_reg_drv[unit])
 		aic_reg_drv[unit] = 1;
-
-	/* If PC-Card probe required, then register with  slot manager. */
-	if (!aic_already_init) {
-		pccard_add_driver(&aic_info);
-		aic_already_init = 1;
-	}
 #endif
 
 	/*
@@ -1408,7 +1377,7 @@ aic_done(acb)
 	 * longer busy.  This code is sickening, but it works.
 	 */
 	if (acb == aic->nexus) {
-#if NAPM > 0 && NCRD > 0
+#if NAPM > 0 && NCARD > 0
 		/* SlimSCSI dies without this when it resumes from suspend */
 		aic->nexus = NULL;
 #endif
