@@ -1,11 +1,12 @@
 #---------------------------------------------------------------------------
 #
-#	german holidays file 2001 / bundeseinheitliche Feiertage 2001
+#	german national holidays 2002/2003/2004
+#	bundeseinheitliche Feiertage 2002/2003/2004
 #	-------------------------------------------------------------
 #
-#	last edit-date: [Wed Jan 10 13:24:19 2001]
+#	last edit-date: [Sat Apr 13 14:22:43 2002]
 #
-#	ref: http://hamburg.de/Services/ferien/ferien.htm
+#	got from: http://www.ferienkalender.com/
 #
 #	This file is only of value for installations which are
 #	using the german Telekom "T-ISDN XXL" tariff where calls
@@ -21,14 +22,30 @@
 # same day/month each year
 #
 1.1		Neujahr
-1.5		1. Mai
+1.5		Tag der Arbeit
 3.10		Tag der deutschen Einheit
 25.12		1. Weihnachtsfeiertag
 26.12		2. Weihnachtsfeiertag
 #
-# different day/month each year
+# 2002 - different day/month each year
 #
-13.4.2001	Karfreitag
-16.4.2001	Ostermontag
-24.5.2001	Himmelfahrt
-4.6.2001	Pfingstmontag
+29.3.2002	Karfreitag
+1.4.2002	Ostermontag
+9.5.2002	Christi Himmelfahrt
+20.5.2002	Pfingstmontag
+#
+# 2003 - different day/month each year
+#
+18.4.2003	Karfreitag
+21.4.2003	Ostermontag
+29.5.2003	Christi Himmelfahrt
+9.6.2003	Pfingstmontag
+#
+# 2004 - different day/month each year
+#
+9.4.2004	Karfreitag
+12.4.2004	Ostermontag
+20.5.2004	Christi Himmelfahrt
+31.5.2004	Pfingstmontag
+#
+# EOF
