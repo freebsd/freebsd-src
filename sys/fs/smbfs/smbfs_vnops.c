@@ -1244,6 +1244,9 @@ smbfs_lookup(ap)
 		 * Handle RENAME or CREATE case...
 		 */
 		if ((nameiop == CREATE || nameiop == RENAME) && wantparent && islastcn) {
+			error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, p);
+			if (error)
+				return error;
 			cnp->cn_flags |= SAVENAME;
 			if (!lockparent) {
 				VOP_UNLOCK(dvp, 0, p);
