@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.180 1998/05/25 17:34:34 sos Exp $
+#	$Id: Makefile,v 1.181 1998/05/26 20:12:43 sos Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -208,6 +208,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 #	want that - all compile-time library paths should be resolved by gcc.
 #	It fails for set[ug]id executables (are any used?).
 COMPILER_ENV=	BISON_SIMPLE=${WORLDTMP}/usr/share/misc/bison.simple \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		GCC_EXEC_PREFIX=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib/ \
 		LD_LIBRARY_PATH=${WORLDTMP}${SHLIBDIR} \
