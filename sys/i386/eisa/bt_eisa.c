@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.5 1999/04/20 09:53:05 dfr Exp $
+ *	$Id: bt_eisa.c,v 1.6 1999/04/24 06:46:10 peter Exp $
  */
 
 #include "eisa.h"
@@ -333,7 +333,6 @@ static device_method_t bt_eisa_methods[] = {
 static driver_t bt_eisa_driver = {
 	"bt",
 	bt_eisa_methods,
-	DRIVER_TYPE_CAM,
 	sizeof(struct bt_softc),
 };
 

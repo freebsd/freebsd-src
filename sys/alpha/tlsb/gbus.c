@@ -101,7 +101,6 @@ static device_method_t gbus_methods[] = {
 static driver_t gbus_driver = {
 	"gbus",
 	gbus_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

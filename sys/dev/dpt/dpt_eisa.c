@@ -33,7 +33,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.4 1998/09/15 08:33:35 gibbs Exp $
+ * $Id: dpt_eisa.c,v 1.5 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -174,7 +174,7 @@ dpt_eisa_attach(device_t dev)
 
 	/* Register with the XPT */
 	dpt_attach(dpt);
-	bus_setup_intr(dev, irq, dpt_intr, dpt, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_CAM, dpt_intr, dpt, &ih);
 
 	splx(s);
 
@@ -250,7 +250,6 @@ static device_method_t dpt_eisa_methods[] = {
 static driver_t dpt_eisa_driver = {
 	"dpt",
 	dpt_eisa_methods,
-	DRIVER_TYPE_CAM,
 	1,			/* unused */
 };
 

@@ -99,7 +99,6 @@ static device_method_t uhubroot_methods[] = {
 static driver_t uhubroot_driver = {
         "uhub",
         uhubroot_methods,
-        DRIVER_TYPE_MISC,
         sizeof(struct uhub_softc)
 };
 #endif

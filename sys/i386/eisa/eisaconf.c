@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.41 1999/04/19 13:34:25 peter Exp $
+ *	$Id: eisaconf.c,v 1.42 1999/05/06 22:17:26 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -132,7 +132,6 @@ static device_method_t mainboard_methods[] = {
 static driver_t mainboard_driver = {
 	"mainboard",
 	mainboard_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 
@@ -483,7 +482,6 @@ static device_method_t eisa_methods[] = {
 static driver_t eisa_driver = {
 	"eisa",
 	eisa_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

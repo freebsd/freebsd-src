@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.5 1999/04/18 15:12:11 peter Exp $
+ * $Id: psm.c,v 1.6 1999/05/07 10:10:40 phk Exp $
  */
 
 /*
@@ -305,7 +305,6 @@ static device_method_t psm_methods[] = {
 static driver_t psm_driver = {
     "psm",
     psm_methods,
-    DRIVER_TYPE_TTY,
     sizeof(struct psm_softc),
 };
 
@@ -1082,8 +1081,8 @@ psmattach(device_t dev)
     BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
     res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
 			     RF_SHAREABLE | RF_ACTIVE);
-    BUS_SETUP_INTR(device_get_parent(dev), dev, res, psmintr, sc,
-		   &ih);
+    BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
+		   psmintr, sc, &ih);
 
     return (0);
 }

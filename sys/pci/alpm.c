@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpm.c,v 1.1 1999/02/13 17:51:46 nsouch Exp $
+ *	$Id: alpm.c,v 1.2 1999/04/24 20:13:58 peter Exp $
  *
  */
 
@@ -190,7 +190,6 @@ static device_method_t alsmb_methods[] = {
 static driver_t alsmb_driver = {
 	"alsmb",
 	alsmb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct alsmb_softc),
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.15 1999/03/28 17:52:17 dfr Exp $
+ *	$Id: cia.c,v 1.16 1999/04/16 21:21:39 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -644,7 +644,8 @@ cia_write_hae(u_int64_t hae)
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
-static int cia_setup_intr(device_t dev, device_t child, struct resource *irq,
+static int cia_setup_intr(device_t dev, device_t child,
+			  struct resource *irq, int flags,
 			  driver_intr_t *intr, void *arg, void **cookiep);
 static int cia_teardown_intr(device_t dev, device_t child,
 			     struct resource *irq, void *cookie);
@@ -669,7 +670,6 @@ static device_method_t cia_methods[] = {
 static driver_t cia_driver = {
 	"cia",
 	cia_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct cia_softc),
 };
 
@@ -815,7 +815,7 @@ cia_attach(device_t dev)
 
 static int
 cia_setup_intr(device_t dev, device_t child,
-	       struct resource *irq,
+	       struct resource *irq, int flags,
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error;

@@ -1,4 +1,4 @@
-/* $Id: kftxx.c,v 1.3 1998/07/12 16:23:17 dfr Exp $ */
+/* $Id: kftxx.c,v 1.4 1998/11/15 18:25:16 dfr Exp $ */
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
@@ -98,7 +98,6 @@ static device_method_t kft_methods[] = {
 static driver_t kft_driver = {
 	"kft",
 	kft_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.10 1999/04/16 21:21:37 peter Exp $
+ *	$Id: isa.c,v 1.11 1999/04/21 07:26:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,6 @@ static device_method_t isa_methods[] = {
 static driver_t isa_driver = {
 	"isa",
 	isa_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 
@@ -680,7 +679,7 @@ isa_handle_intr(void *arg)
 
 int
 isa_setup_intr(device_t dev, device_t child,
-	       struct resource *irq,
+	       struct resource *irq, int flags,
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct isa_intr *ii;

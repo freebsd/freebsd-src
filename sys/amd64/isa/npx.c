@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.69 1999/05/06 12:47:21 peter Exp $
+ *	$Id: npx.c,v 1.70 1999/05/08 18:14:09 peter Exp $
  */
 
 #include "npx.h"
@@ -363,7 +363,8 @@ npx_probe1(dev)
 				if (r == 0)
 					panic("npx: can't get IRQ");
 				BUS_SETUP_INTR(device_get_parent(dev),
-					       dev, r, npx_intr, 0, &intr);
+					       dev, r, INTR_TYPE_MISC,
+					       npx_intr, 0, &intr);
 				if (intr == 0)
 					panic("npx: can't create intr");
 
@@ -717,7 +718,6 @@ static device_method_t npx_methods[] = {
 static driver_t npx_driver = {
 	"npx",
 	npx_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

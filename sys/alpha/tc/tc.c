@@ -1,4 +1,4 @@
-/* $Id: tc.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $Id: tc.c,v 1.2 1999/04/16 21:21:40 peter Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -88,7 +88,6 @@ static device_method_t tc_methods[] = {
 static driver_t tc_driver = {
 	"tc",
 	tc_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct tc_softc),
 };
 

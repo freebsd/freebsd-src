@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.66 1999/03/20 04:51:25 wes Exp $
+ *	$Id: if_fxp.c,v 1.67 1999/04/16 21:22:51 peter Exp $
  */
 
 /*
@@ -556,7 +556,8 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->irq, fxp_intr, sc, &sc->ih);
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+			       fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		goto fail;
@@ -690,7 +691,6 @@ static device_method_t fxp_methods[] = {
 static driver_t fxp_driver = {
 	"fxp",
 	fxp_methods,
-	DRIVER_TYPE_NET,
 	sizeof(struct fxp_softc),
 };
 
