@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.97 1995/01/30 21:36:28 sos Exp $
+ *	$Id: syscons.c,v 1.101 1995/02/07 11:53:27 sos Exp $
  */
 
 #include "sc.h"
@@ -2125,10 +2125,10 @@ draw_cursor(scr_stat *scp, int show)
 			if ((cursor_image & 0x7000) == 0x7000) {
 				cursor_image &= 0x8fff;
 				if(!(cursor_image & 0x0700))
-					cursor_image |= 0x0f00;
+					cursor_image |= 0x0700;
 			} else {
 				cursor_image |= 0x7000;
-				if ((cursor_image & 0x0f00) == 0x0f00)
+				if ((cursor_image & 0x0700) == 0x0700)
 					cursor_image &= 0xf0ff;
 			}
 		}
