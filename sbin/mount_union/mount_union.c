@@ -73,6 +73,7 @@ main(argc, argv)
 {
 	struct union_args args;
 	int ch, mntflags;
+	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
@@ -106,9 +107,12 @@ main(argc, argv)
 	if (realpath(argv[0], target) == 0)
 		err(EX_OSERR, "%s", target);
 
-	if (subdir(target, argv[1]) || subdir(argv[1], target))
-		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
-		    argv[0], target, argv[1]);
+	if (realpath(argv[1], source) == 0)
+		err(EX_OSERR, "%s", target);
+
+	if (subdir(target, source) || subdir(source, target))
+		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
+		    argv[0], target, argv[1], source);
 
 	args.target = target;
 
@@ -122,7 +126,7 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "union filesystem is not available");
 
-	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
+	if (mount(vfc.vfc_name, source, mntflags, &args))
 		err(EX_OSERR, target);
 	exit(0);
 }
