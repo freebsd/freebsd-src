@@ -56,7 +56,7 @@ development at this time.
 .Sh RETURN VALUES
 Upon successful completion, this function shall return a cap_t value.
 Otherwise, a value of
-.Va (cap_t)NULL
+.Dv NULL
 shall be returned and
 .Va errno
 shall be set to indicate the error.
@@ -64,14 +64,14 @@ shall be set to indicate the error.
 If any of the following conditions occur, the
 .Fn cap_get_proc
 function shall return
-.Va (cap_t)NULL
+.Dv NULL
 and set
 .Va errno
 to the corresponding value:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The capability state to be returned requires more memory than is allowed
-by the hardware or system-imposed memory management constrains.
+by the hardware or system-imposed memory management constraints.
 .El
 .Sh SEE ALSO
 .Xr cap 3 ,
