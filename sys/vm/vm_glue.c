@@ -1029,8 +1029,9 @@ retry:
 			}
 
 			/*
-			 * If the process has been asleep for awhile and had
-			 * most of its pages taken away already, swap it out.
+			 * If the pageout daemon didn't free enough pages,
+			 * or if this process is idle and the system is
+			 * configured to swap proactively, swap it out.
 			 */
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
