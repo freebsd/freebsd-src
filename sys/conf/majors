@@ -84,7 +84,6 @@
 170	pst		Promise SuperTrak (uses 168 in RELENG_4)
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
-173	*devctl		Devd control device <imp>
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
 180	nvidia		NVIDIA (nvidiaN/nvidiactl) <mdodd>
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
