@@ -2507,15 +2507,16 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return EBUSY; /* already in use on this VT */
 		}
 
-		if (ISSIGVALID(newmode->relsig) && ISSIGVALID(newmode->acqsig)
-		    && ISSIGVALID(newmode->frsig)) {
-			vsp->smode = newmode;
-			vsp->proc = p;
-			vsp->pid = p->p_pid;
-		} else {
+		if (!ISSIGVALID(newmode.relsig) || !ISSIGVALID(newmode.acqsig)
+		    || !ISSIGVALID(newmode.frsig))
+		{
 			splx(opri);
 			return EINVAL;
 		}
+
+		vsp->smode = newmode;
+		vsp->proc = p;
+		vsp->pid = p->p_pid;
 
 #if PCVT_FREEBSD > 206
 		/*
