@@ -95,6 +95,8 @@ struct cacheinfo {
 	u_int	ec_l2linesize;
 };
 
+#ifdef _KERNEL
+
 typedef void dcache_page_inval_t(vm_paddr_t pa);
 typedef void icache_page_inval_t(vm_paddr_t pa);
 
@@ -109,5 +111,7 @@ extern dcache_page_inval_t *dcache_page_inval;
 extern icache_page_inval_t *icache_page_inval;
 
 extern struct cacheinfo cache;
+
+#endif
 
 #endif	/* !_MACHINE_CACHE_H_ */
