@@ -3,10 +3,10 @@
                       Frequently Asked Questions
                            For Version 2.0 
 
-Please mail all suggestions and additions to <FreeBSD-FAQ@freefall.cdrom.com>
+Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.2 1994/09/16 18:24:37 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.3 1994/10/01 15:04:58 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -36,7 +36,7 @@ the most frequently asked questions about FreeBSD 2.0.
 If there's something you're having trouble with and you do not see it
 here, please send email to:
 
-        <FreeBSD-questions@freefall.cdrom.com>
+    	            <FreeBSD-questions@FreeBSD.ORG>
 
 
 Some of the instructions here will also refer to auxiliary utilities
@@ -45,12 +45,12 @@ who've grabbed the FreeBSD 2.0 `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-current
+               ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current
 
 Or you can grab only those files you're interested in straight out of
 the FreeBSD-current distribution in:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-current/src
+              ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current/src
 
 0.1:  What is FreeBSD?  
 
@@ -66,9 +66,7 @@ the entire system, some of the highlights of which are:
    Much improved virtual memory code
    Better console driver support
    Network booting (diskless) support
-   /proc filesystem
    Yellow Pages support
-   `LDT' support for WINE (primitive but developing Windows emulation)
    Full support of the PCI bus
    Loadable kernel modules
    Too many additional utilities and applications to mention
@@ -78,7 +76,7 @@ the entire system, some of the highlights of which are:
 
 The following mailing lists are provided for FreeBSD users and
 developers.  For more information, send to
-<majordomo@freefall.cdrom.com> and include a single line saying
+<majordomo@FreeBSD.ORG> and include a single line saying
 ``help'' in the body of your message.
 
 FreeBSD-announce:  For announcements about or on FreeBSD.
@@ -424,7 +422,7 @@ also be installed or deinstalled again easily without having to know
 the gory details.  CDROM people will have a packages/ directory on
 their CD, others can get the currently available packages from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/packages
+                ftp.FreeBSD.ORG:pub/FreeBSD/packages
 
 Note that all ports may not be available as packages, and that new
 packages are constantly being added.  It is always a good idea to
@@ -455,13 +453,13 @@ sites in sync with our central development sources.
 To use it, you need to have direct internet connectivity (not just
 mail or news).  First, pick up the sup_bin.tgz package from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/packages
+        ftp.FreeBSD.ORG:pub/FreeBSD/packages
 
 Second, read the file /usr/src/contrib/FAQ/FreeBSD.sup.faq.
 
 This file describes how to setup sup on your machine.  You may also
 want to look at /usr/src/contrib/FAQ/FreeBSD.*.supfile,
-which are a set of supfiles for supping from freefall.cdrom.com
+which are a set of supfiles for supping from FreeBSD.ORG. 
 
 
 5.3:  How do I create customized installation disks that I can give
@@ -583,7 +581,7 @@ Recompile and install.
 Several different groups have expressed interest in working on
 multi-architecture support for FreeBSD.  If you are interested in
 doing so, please contact the developers at
-<FreeBSD-hackers@freefall.cdrom.com> for more information on our
+<FreeBSD-hackers@FreeBSD.ORG> for more information on our
 strategy for porting.
 
 
@@ -599,7 +597,7 @@ any special files your device uses.  If you do not, or are unable to
 because of licensing restrictions, then character major number 32 and
 block major number 8 have been reserved specifically for this purpose;
 please use them.  In any case, we'd appreciate hearing about your
-driver on <FreeBSD-hackers@freefall.cdrom.com>.
+driver on <FreeBSD-hackers@FreeBSD.ORG>.
 
 
 
@@ -728,7 +726,7 @@ NOTE: Anyone wishing to submit a FAQ entry on how to get tip and cu working
 
 -----------------------------------------------------------------------------
 If you see a problem with this FAQ, or wish to submit an entry, please
-mail us at <FreeBSD-FAQ@freefall.cdrom.com>.  We appreciate your
+mail us at <FreeBSD-FAQ@FreeBSD.ORG>.  We appreciate your
 feedback, and cannot make this a better FAQ without your help!
 
 

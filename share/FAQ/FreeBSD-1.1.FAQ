@@ -3,10 +3,10 @@
                       Frequently Asked Questions
                       For Versions 1.1 and above
 
-Please mail all suggestions and additions to <FreeBSD-FAQ@freefall.cdrom.com>
+Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.1 1994/09/11 10:56:02 jkh Exp $
+Revision: $Id: FreeBSD-1.1.FAQ,v 1.1 1994/09/16 18:24:36 gclarkii Exp $
 
 All entries are assumed to be relevant to both FreeBSD 1.1 and FreeBSD 1.1.5,
 unless otherwise noted.
@@ -36,7 +36,7 @@ the most frequently asked questions about FreeBSD 1.1 (or later,
 unless specifically indicated).  If there's something you're having
 trouble with and you just don't see it here, then please send mail to:
 
-        <FreeBSD-questions@freefall.cdrom.com>
+        <questions@FreeBSD.ORG>
 
 
 Some of the instructions here will also refer to auxiliary utilities
@@ -45,12 +45,12 @@ who've grabbed the FreeBSD 1.1 `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-1.1
+        ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-1.1
 
 Or you can grab only those files you're interested in straight out of
 the FreeBSD-current distribution in:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-current/src
+        ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current/src
 
 0.1:  What is FreeBSD?  
 
@@ -104,22 +104,22 @@ merge effort as the situation progresses.
 
 The following mailing lists are provided for FreeBSD users and
 developers.  For more information, send to
-<majordomo@freefall.cdrom.com> and include a single line saying
+<majordomo@FreeBSD.ORG> and include a single line saying
 ``help'' in the body of your message.
 
-FreeBSD-announce:  For announcements about or on FreeBSD.
-FreeBSD-hackers:   Useful for persons wishing to work on the internals. 
-FreeBSD-questions: General questions on FreeBSD. 
-FreeBSD-bugs:      Where bugs should be sent.
-FreeBSD-commit:    This list carries the commit messages for freefall.  Useful
-                   for tracking ongoing work.
-FreeBSD-SCSI:      Mailing list for SCSI developers. 
-FreeBSD-current:   This list is for persons wishing to run FreeBSD-current
-                   and carries announcements and discussions on current.
+announce:  	For announcements about or on FreeBSD.
+hackers:   	Useful for persons wishing to work on the internals. 
+questions: 	General questions on FreeBSD. 
+bugs:      	Where bugs should be sent.
+commit:    	This list carries the commit messages for freefall.  Useful
+                for tracking ongoing work.
+SCSI:      	Mailing list for SCSI developers. 
+current:   	This list is for persons wishing to run FreeBSD-current
+                and carries announcements and discussions on current.
 
 Please see also the FreeBSD mailing list FAQ in:
 
-        /usr/src/contrib/FAQ/OTHER-FAQS/FreeBSD.mailing-list.FAQ
+        /usr/src/share/FAQ/FreeBSD.mailing-list.FAQ
 
 0.4:  What are the various FreeBSD news groups? 
 
@@ -423,7 +423,7 @@ clones.
        want an idea of what other people are running.  Is there list
        of other systems anywhere? 
 
-Yes.  Please look at the file FAQ/OTHER-FAQS/Systems.FAQ.  This file
+Yes.  Please look at the file FAQ/Systems-1.1.FAQ.  This file
 is a listing of hardware that people are running in their machines.
 Please note, this is a raw listing of equipment that other users
 have sent in.
@@ -506,7 +506,7 @@ many megabytes of other types of useful goodies.  CDROM people will
 probably have the ports collection already in /usr/ports, other folks
 can get at the latest snapshot of the entire collection in:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-current/ports
+        ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current/ports
 
 Note that this FTP server permits getting entire directories as one
 (optionally gzipped or compressed) tar file.  Read the FTP welcome
@@ -524,7 +524,7 @@ also be installed or deinstalled again easily without having to know
 the gory details.  CDROM people will have a packages/ directory on
 their CD, others can get the currently available packages from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/packages-1.1
+        ftp.FreeBSD.ORG:pub/FreeBSD/packages-1.1
 
 Note that all ports may not be available as packages, and that new
 packages are constantly being added.  It is always a good idea to
@@ -548,7 +548,7 @@ be ignored.
 5.1:  I've heard of something called FreeBSD-current.  How do I run it, and
       where can I get more information?
 
-Read the file /usr/src/contrib/FAQ/OTHER-FAQS/FreeBSD.current.policy,
+Read the file /usr/src/share/FAQ/FreeBSD.current.policy,
 it will tell you all you need to know.
 
 
@@ -561,13 +561,13 @@ sites in sync with our central development sources.
 To use it, you need to have direct internet connectivity (not just
 mail or news).  First, pick up the sup_bin.tgz package from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/packages
+        ftp.FreeBSD.ORG:pub/FreeBSD/packages-1.1
 
-Second, read the file /usr/src/contrib/FAQ/OTHER-FAQS/FreeBSD.sup.faq.
+Second, read the file /usr/src/share/FAQ/FreeBSD.sup.faq.
 
 This file describes how to setup sup on your machine.  You may also
-want to look at /usr/src/contrib/FAQ/OTHER-FAQS/FreeBSD.*.supfile,
-which are a set of supfiles for supping from freefall.cdrom.com
+want to look at /usr/src/contrib/FAQ/FreeBSD.*.supfile,
+which are a set of supfiles for supping from FreeBSD.ORG
 
 
 5.3:  How do I create customized installation disks that I can give
@@ -641,7 +641,7 @@ The part you are concerned with are the major and minor device numbers.
       browse the system dumps.  The normal kernel is stripped and
       I don't want to run a bloated kernel.  What can I do?
 
-Please retrieve the file FAQ/OTHER-FAQS/FreeBSD.kdebug.FAQ.  This
+Please retrieve the file FAQ/FreeBSD.kdebug.FAQ.  This
 file covers the instructions for looking at system dumps.
 
 
@@ -713,7 +713,7 @@ do.  For a friendlier front-end to the process, see
 Several different groups have expressed interest in working on
 multi-architecture support for FreeBSD.  If you are interested in
 doing so, please contact the developers at
-<FreeBSD-hackers@freefall.cdrom.com> for more information on our
+<hackers@FreeBSD.ORG> for more information on our
 strategy for porting.
 
 
@@ -729,7 +729,7 @@ any special files your device uses.  If you do not, or are unable to
 because of licensing restrictions, then character major number 32 and
 block major number 8 have been reserved specifically for this purpose;
 please use them.  In any case, we'd appreciate hearing about your
-driver on <FreeBSD-hackers@freefall.cdrom.com>.
+driver on <hackers@FreeBSD.ORG>.
 
 6.7:  I'm wanting to switch console drivers to Syscons.  I changed my
       kernel config file to run Syscons, but when I reboot the system
@@ -792,7 +792,7 @@ try picking up the printcap01 sources in:
 
 NOTE: We're looking for printcap entries for all printers.  If you
 have one, or a filter for one, please send it or mail us a pointer to
-<FreeBSD-FAQ@freefall.cdrom.com>.  Thanks!
+<FreeBSD-FAQ@FreeBSD.ORG>.  Thanks!
 
 7.3:	Help!  I've lost my root password!  How do I log in now?
 	Alternatively:  I botched something bad in my root partition
@@ -862,7 +862,7 @@ usage.
 There is a standard `router floppy' that you can boot on a FreeBSD
 machine to configure it as a network router.  Please look in:
 
-        freefall.cdrom.com:pub/incoming/freertr
+        FreeBSD.ORG:pub/incoming/freertr
 
 and follow the instructions.
 
@@ -873,7 +873,7 @@ Yes.  See the man pages for slattach(8) and/or pppd(8) if you're using
 FreeBSD to connect to another site.  If you're using FreeBSD as a
 server for other machines, look at the man page for sliplogin(8).
 You may also want to take a look at the slip FAQ in:
-             FAQ/OTHER-FAQS/FreeBSD.slip.dialup.faq
+             FAQ/FreeBSD.slip.dialup.faq
 
 8.4:  How do I set up NTP?
 
@@ -912,7 +912,7 @@ use either `ifconfig ed0 altphys' if it was off, or `ifconfig ed0
 
 Certain PC network cards are better than others (to put it mildly) and
 can sometimes cause problems with network intensive applications like
-NFS.  See /usr/src/contrib/FAQ/OTHER-FAQS/NFS for more information on this
+NFS.  See /usr/src/share/FAQ/NFS.FAQ for more information on this
 topic.
 
 8.8:  I want to enable IP multicast support on my FreeBSD box, how do I do it?
@@ -970,7 +970,7 @@ NOTE: Anyone wishing to submit a FAQ entry on how to get tip and cu working
 
 -----------------------------------------------------------------------------
 If you see a problem with this FAQ, or wish to submit an entry, please
-mail us at <FreeBSD-FAQ@freefall.cdrom.com>.  We appreciate your
+mail us at <FreeBSD-FAQ@FreeBSD.ORG>.  We appreciate your
 feedback, and cannot make this a better FAQ without your help!
 
 
