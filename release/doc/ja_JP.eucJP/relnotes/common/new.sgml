@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.286
+    Original revision: 1.290
 -->
 
 <articleinfo>
@@ -127,6 +127,8 @@
     <para>&man.eaccess.2; システムコールが追加されました.
       &man.access.2; と似ていますが, 後者は実権限を使うのに対して,
       前者は実効権限を使います.</para>
+
+    <para arch="sparc64">EBus ベースのデバイスがサポートされました.</para>
 
     <para arch="i386">Intel 82801AA (ICH) SMBus コントローラおよびその互換品に対応した
       &man.ichsmb.4; ドライバが追加されました. &merged;</para>
@@ -284,6 +286,8 @@
     <para>カーネルオプション <literal>options REGRESSION</literal>
       が新たに追加されました.  これは動作検証やレグレションテスト時に有用な
       インターフェイスや機能を提供します.</para>
+
+    <para arch="sparc64">SBus ベースのデバイスがサポートされました.</para>
 
     <para arch="i386">&man.spic.4; ドライバが追加されました.
       これは Sony
@@ -583,7 +587,7 @@
       <para>&man.dc.4; ドライバは, Xircom 3201 と Conexant
 	LANfinity RS7112 チップベースの NIC に対応しました.</para>
 
-      <para>&man.dc.4; ドライバが VLAN に対応しました.</para>
+      <para>&man.dc.4; ドライバが VLAN に対応しました. &merged;</para>
 
       <para>&man.de.4; ドライバは, 21143 において受信ユニットに
 	優先度を与えるのではなく, 受信/送信ユニット間で
@@ -651,12 +655,20 @@
 	この機能は &man.ifconfig.8; の <option>link0</option>
 	オプションで有効にできます. &merged;</para>
 
+      <para arch="sparc64">Sun GEM ギガビットイーサネット,
+	ERI ファストイーサネットアダプタに対応する gem ドライバが
+	追加されました.</para>
+
       <para>&man.gx.4; ドライバが追加され, Intel 82542 と 82543
 	のギガビットイーサネットコントローラチップがサポートされました.
 	ファイバと銅線の両方のカードがサポートされています.
 	VLAN タグ付け/挿入は両方のチップでサポートされ, 82543 では
 	さらに TCP/IP チェックサム offload をサポートしています.
 	&merged;</para>
+
+      <para arch="sparc64">多くの Sun Ultra シリーズにオンボードで
+	搭載されている Sun HME ファストイーサネットアダプタ
+	に対応する hme ドライバが追加されました.</para>
 
       <para>Level 1 LXT1001 NetCellerator
         ギガビットイーサネットコントローラチップに対応する
@@ -981,6 +993,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>TCP 実装において, 送信側が大きさ 0 のウィンドウ
 	を受け取ったときに接続が固まってしまうというバグが
 	修正されました. &merged;</para>
+
+      <para>TCP 実装が, IP 層のブロードキャストアドレスに向けられたパケットを
+	正しく無視するようになりました. &merged;</para>
     </sect3>
 
     <sect3>
@@ -1947,12 +1962,18 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.dump.8; は自動的なバックアップを監視する際に便利なように,
-      進行状況をプロセスタイトルに表示するようになりました.</para>
+      進行状況をプロセスタイトルに表示するようになりました. &merged;</para>
 
     <para>&man.edquota.8; に新しいオプション <option>-f</option>
       が追加されました. これは (オプション <option>-p</option>
       で指定される) quota プロトタイプの設定対象を,
       一つのファイルシステムに限定するために使われます. &merged;</para>
+
+    <para>ローカルのカスタマイズや管理を楽にするために,
+      <filename>/etc/security</filename> の機能は &man.periodic.8;
+      フレームワークの配下の一連のスクリプトに分割されました.
+      これらのスクリプトは <filename>/etc/periodic/security/</filename>
+      に置かれています. &merged;</para>
 
     <para>&man.fbtab.5; はターゲットデバイスとして, 特定のデバイスや
       ディレクトリだけではなく, グロブマッチングパターンも受け付ける
@@ -3063,12 +3084,16 @@ hw.pcic.irq="0"</programlisting>
         <filename>pam_wheel</filename> が追加されました.</para>
 
       <para>&os; の &man.ftp.1; プログラムが
-	<application>lukemftp</application> に置き換えられました.
+	<application>lukemftp</application> (NetBSD からの FTP クライアント) に置き換えられました.
 	これにより, より自動化された動作や, 標準への準拠, 転送レート制御,
 	カスタマイズ可能なコマンドラインプロンプトなどが
 	提供されます.
 	いくつかの環境変数やコマンドライン引数が変更となっています.</para>
       
+      <para>NetBSD からの FTP デーモンである
+	<application>lukemftpd</application> がインポートされ,
+	&man.lukemftpd.8; として利用できるようになりました.</para>
+
       <para><application>ncurses</application> がバージョン
         5.2-20010512 に更新されました.</para>
 
