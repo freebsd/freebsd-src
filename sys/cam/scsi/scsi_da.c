@@ -458,11 +458,45 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * SanDisk ImageMate II compact flash
+		 * Casio QV-R3 USB camera (uses Pentax chip as above)
+		 * PR: kern/46545
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE,
+		 "CASIO", "DIGITAL_CAMERA", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * M-Systems DiskOnKey USB flash key
+		 * PR: kern/47793
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "M-Sys", "DiskOnKey", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * SanDisk ImageMate (I, II, ...) compact flash
 		 * PR: kern/47877
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SanDisk", "ImageMate*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Feiya "slider" dual-slot flash reader. The vendor field
+		 * is blank so this may match other devices.
+		 * PR: kern/50020
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "", "USB CARD READER", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * SmartDisk (Mitsumi) USB floppy drive
+		 * PR: kern/50226
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MITSUMI", "USB FDD", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
 };
 
