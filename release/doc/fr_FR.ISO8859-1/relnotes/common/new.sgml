@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.284
+     Original revision: 1.22.2.285
 -->
 
 <articleinfo>
@@ -120,6 +120,23 @@
     qui couvre l'espace m&eacute;moire virtuel d'un processus, incluant l'espace
     &man.mmap.2;. Cette limite est configurable dans &man.login.conf.5;
     via la variable <varname>vmemoryuse</varname>.</para>
+
+    <para>Le timer de retransmission du protocole &man.tcp.4; 
+    peut maintenant etre manipul&eacute; via les variables sysctl :
+      <varname>net.inet.tcp.rexmit_min</varname> et
+      <varname>net.inet.tcp.rexmit_slop</varname>.  La valeur par
+      d&eacute;faut a &eacute;t&eacute; r&eacute;duite de une seconde
+      &agrave; 200ms (similaire &agrave; la valeur par d&eacute;faut de Linux)
+      dans le but de mieux g&eacute;rer les hocquetemment sur les connexions
+      interactive, et pour am&eacute;liorer la r&eacute;cup&eacute;ration 
+      &agrave; travers les connexions rapides ayant beaucoup de pertes,
+       comme les liens sans fil.</para>
+
+    <para>Le procotole  &man.tcp.4; dispose de la possibilit&eacute; de 
+    limiter dynamiquement la fen&ecirc;tre d'envoi pour maximiser
+    la bande passante et r&eacute;duire les temps de transit. Cette
+    fonctionnalit&eacute; est activable via la variable sysctl 
+   <varname>net.inet.tcp.inflight_enable</varname></para>
 
     <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.ucom.4; a &eacute;t&eacute; ajout&eacute;, pour 
     permettre de g&eacute;rer les modems, p&eacute;riph&eacute;riques s&eacute;rie, et les autres
