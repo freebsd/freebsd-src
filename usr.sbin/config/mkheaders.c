@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkheaders.c,v 1.6 1997/09/15 06:37:09 charnier Exp $";
+	"$Id: mkheaders.c,v 1.7 1997/10/28 07:21:02 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -93,7 +93,7 @@ do_count(dev, hname, search)
 	 */
 	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next)
 		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
-			if (dp->d_type == PSEUDO_DEVICE) {
+			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 				count =
 				    dp->d_slave != UNKNOWN ? dp->d_slave : 1;
 				dp->d_type |= DEVDONE;
