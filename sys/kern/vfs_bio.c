@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.123 1997/08/21 01:35:37 dyson Exp $
+ * $Id: vfs_bio.c,v 1.124 1997/08/26 04:36:16 dyson Exp $
  */
 
 /*
@@ -140,8 +140,8 @@ SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW,
 SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD,
 	&bufmallocspace, 0, "");
 
-static struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
-static struct bqueues bufqueues[BUFFER_QUEUES];
+static LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
+static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 extern int vm_swap_size;
 
