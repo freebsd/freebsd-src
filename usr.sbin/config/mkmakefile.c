@@ -206,12 +206,19 @@ makefile(void)
 	ofp = fopen(path("hints.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("hints.c.new"));
+#if 0
+	/*
+	 * This is causing more pain than it is worth.  And besides, the
+	 * release has been fixed so that this isn't necessary anymore.
+	 * The boot floppies load hints now.
+	 */
 	if (hintmode == 0) {
 		snprintf(line, sizeof(line), "%s.hints", PREFIX);
 		ifp = fopen(line, "r");
 		if (ifp)
 			hintmode = 2;
 	}
+#endif
 	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
 	if (ifp) {
