@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.14 1995/12/22 07:09:24 davidg Exp $
+ *	$Id: db_trace.c,v 1.15 1996/03/27 17:06:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -127,7 +127,7 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 	while (narg) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
-		db_printf("%x", db_get_value((int)argp, 4, FALSE));
+		db_printf("%n", db_get_value((int)argp, 4, FALSE));
 		argp++;
 		if (--narg != 0)
 			db_printf(",");
@@ -147,7 +147,7 @@ db_nextframe(fp, ip)
 {
 	struct trapframe *tf;
 	int frame_type;
-	int eip, ebp;
+	int eip, esp, ebp;
 	db_expr_t offset;
 	char *sym, *name;
 
@@ -189,21 +189,24 @@ db_nextframe(fp, ip)
 	 */
 	tf = (struct trapframe *) ((int)*fp + 8);
 
+	esp = (ISPL(tf->tf_cs) == SEL_UPL) ?  tf->tf_esp : (int)&tf->tf_esp;
 	switch (frame_type) {
 	case TRAP:
 		if (INKERNEL((int) tf)) {
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
-			db_printf("--- trap %d, eip = 0x%x, ebp = 0x%x ---\n",
-			    tf->tf_trapno, eip, ebp);
+			db_printf(
+		    "--- trap %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
+			    tf->tf_trapno, eip, esp, ebp);
 		}
 		break;
 	case SYSCALL:
 		if (INKERNEL((int) tf)) {
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
-			db_printf("--- syscall %d, eip = 0x%x, ebp = 0x%x ---\n",
-			    tf->tf_eax, eip, ebp);
+			db_printf(
+		    "--- syscall %#n, eip = %#n, esp = %#n, ebp = %#n ---\n",
+			    tf->tf_eax, eip, esp, ebp);
 		}
 		break;
 	case INTERRUPT:
@@ -211,7 +214,9 @@ db_nextframe(fp, ip)
 		if (INKERNEL((int) tf)) {
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
-			db_printf("--- interrupt, eip = 0x%x, ebp = 0x%x ---\n", eip, ebp);
+			db_printf(
+		    "--- interrupt, eip = %#n, esp = %#n, ebp = %#n ---\n",
+			    eip, esp, ebp);
 		}
 		break;
 	default:
