@@ -198,6 +198,7 @@ dos_makepath(u_char *where, u_char *newpath)
     u_char *np;
     Path_t *d;
     u_char tmppath[1024];
+    u_char snewpath = newpath;
 
     if (where[0] != '\0' && where[1] == ':') {
 	drive = drlton(*where);
@@ -252,7 +253,7 @@ dos_makepath(u_char *where, u_char *newpath)
 	} else {
     	    if (np[-1] != '\\')
 		*np++ = '\\';
-	    while (*np = *dir++)
+	    while (*np = *dir++ && np - snewpath < 1023)
 		++np;
     	}
     }
