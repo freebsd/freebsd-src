@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#16 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#17 $
  */
 
 #include <sys/param.h>
@@ -145,10 +145,10 @@ pam_get_authtok(pam_handle_t *pamh,
  *
  * The =item argument must have one of the following values:
  *
- *	=PAM_AUTHTOK
+ *	=PAM_AUTHTOK:
  *		Returns the current authentication token, or the new token
  *		when changing authentication tokens.
- *	=PAM_OLDAUTHTOK
+ *	=PAM_OLDAUTHTOK:
  *		Returns the previous authentication token when changing
  *		authentication tokens.
  *

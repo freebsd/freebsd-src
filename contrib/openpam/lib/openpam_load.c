@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_load.c#12 $
+ * $P4: //depot/projects/openpam/lib/openpam_load.c#13 $
  */
 
 #include <dlfcn.h>
@@ -156,7 +156,7 @@ openpam_destroy_chain(pam_chain_t *chain)
  */
 
 int
-openpam_add_module(pam_handle_t *pamh,
+openpam_add_module(pam_chain_t *policy[],
 	int chain,
 	int flag,
 	const char *modpath,
@@ -178,12 +178,12 @@ openpam_add_module(pam_handle_t *pamh,
 		openpam_destroy_chain(new);
 		return (PAM_OPEN_ERR);
 	}
-	if ((iterator = pamh->chains[chain]) != NULL) {
+	if ((iterator = policy[chain]) != NULL) {
 		while (iterator->next != NULL)
 			iterator = iterator->next;
 		iterator->next = new;
 	} else {
-		pamh->chains[chain] = new;
+		policy[chain] = new;
 	}
 	return (PAM_SUCCESS);
 
@@ -199,12 +199,12 @@ openpam_add_module(pam_handle_t *pamh,
  */
 
 void
-openpam_clear_chains(pam_handle_t *pamh)
+openpam_clear_chains(pam_chain_t *policy[])
 {
 	int i;
 
 	for (i = 0; i < PAM_NUM_CHAINS; ++i)
-		openpam_destroy_chain(pamh->chains[i]);
+		openpam_destroy_chain(policy[i]);
 }
 
 /*

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#18 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#19 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -159,6 +159,14 @@ openpam_log(int _level,
 struct pam_message;
 struct pam_response;
 int openpam_ttyconv(int _n,
+	const struct pam_message **_msg,
+	struct pam_response **_resp,
+	void *_data);
+
+/*
+ * Null conversation function
+ */
+int openpam_nullconv(int _n,
 	const struct pam_message **_msg,
 	struct pam_response **_resp,
 	void *_data);
