@@ -125,13 +125,14 @@ main(int argc, const char **argv)
 				else
 					j = i;
 				if (j != i)
-					printf("\nWrite error at %jd/%d\n",
-					    lp->start, i);
+					printf("\nWrite error at %jd/%jd\n",
+					    lp->start, (intmax_t)i);
 				lp->start += i;
 				lp->len -= i;
 				continue;
 			}
-			printf("\n%jd %d failed %d\n", lp->start, i, errno);
+			printf("\n%jd %jd failed %d\n",
+			    lp->start, (intmax_t)i, errno);
 			new_lump(lp->start, i, lp->state + 1);
 			lp->start += i;
 			lp->len -= i;
