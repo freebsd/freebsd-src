@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.15 1994/11/20 05:44:16 jkh Exp $
+# $Id: instdist.sh,v 1.16 1994/11/20 12:16:48 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -97,17 +97,16 @@ media_select_ftp_site()
 {
 	dialog $clear --title "Please specify an ftp site" \
 	--menu \
-"FreeBSD is distributed from a number of sites on the Internet \n\
-in order to more evenly distribute network load and increase \n\
-its availability users who might be far from the main ftp sites \n\
-or unable to get a connection.  Please select the site closest \n\
-to you or select \"other\" if you'd like to specify your own \n\
-choice.  Also note that not all sites carry the optional package \n\
-or XFree86 3.1 distributions!  These are only guaranteed to be \n\
-available from the primary U.S. ftp site.\n\n" -1 -1 9 \
+"FreeBSD is distributed from a number of sites on the Internet.\n\
+Please select the site closest to you or \"other\" if you'd like\n\
+to specify another choice.  Also note that not all sites carry\n\
+every possible distribution!  Distributions other than the basic\n\
+binary set are only guaranteed to be available from the Primary site.\n\n" \
+-1 -1 10 \
    "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
    "U.S-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
    "U.S-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
+   "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
    "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" \
@@ -130,6 +129,10 @@ available from the primary U.S. ftp site.\n\n" -1 -1 9 \
 
 	U.S-3)
 		ftp_path="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
+	;;
+
+   	U.S-4)
+		ftp_path="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	Taiwan)
