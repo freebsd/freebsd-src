@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces 
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.3 1995/02/07 05:04:53 wpaul Exp $
+**	$Id: server.c,v 1.4 1995/04/01 19:31:12 wpaul Exp $
 **
 */
 
@@ -528,7 +528,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     ** XXX Perhaps this should be done in a sub-process for performance
     **     reasons. Later.
     */
-    if (result.stat != YP_TRUE && dns_flag)
+    if (result.stat != YP_TRUE && strstr(key->map, "hosts") && dns_flag)
     {
 	char *cp = NULL;
 
