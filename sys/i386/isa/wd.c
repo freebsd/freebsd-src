@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.119.2.10 1998/01/16 22:28:44 pst Exp $
+ *	$Id: wd.c,v 1.157 1998/04/18 13:25:49 obrien Exp $
  */
 
 /* TODO:
@@ -61,10 +61,14 @@
 #endif
 
 #include "wdc.h"
-#include "opt_wd.h"
-#include "opt_atapi.h"
 
 #if     NWDC > 0
+
+#include "opt_atapi.h"
+#include "opt_devfs.h"
+#include "opt_hw_wdog.h"
+#include "opt_wd.h"
+#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/dkbad.h>
@@ -110,6 +114,8 @@ extern void wdstart(int ctrlr);
 				/* can't handle that in all cases */
 #define WDOPT_32BIT	0x8000
 #define WDOPT_SLEEPHACK	0x4000
+#define WDOPT_DMA	0x2000
+#define WDOPT_LBA	0x1000
 #define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
 
@@ -156,11 +162,13 @@ struct disk {
 #endif
 	int	dk_unit;	/* physical unit number */
 	int	dk_lunit;	/* logical unit number */
+	int	dk_interface;	/* interface (two ctrlrs per interface) */
 	char	dk_state;	/* control state */
 	u_char	dk_status;	/* copy of status reg. */
 	u_char	dk_error;	/* copy of error reg. */
 	u_char	dk_timeout;	/* countdown to next timeout */
 	int	dk_port;	/* i/o port base */
+	int	dk_altport;	/* altstatus port base */
 #ifdef	DEVFS
 	void	*dk_bdev;	/* devfs token for whole disk */
 	void	*dk_cdev;	/* devfs token for raw whole disk */
@@ -173,12 +181,18 @@ struct disk {
 #define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
 #define	DKFL_MULTI	0x00200	/* use multi-i/o mode */
 #define	DKFL_BADSCAN	0x00400	/* report all errors */
+#define DKFL_USEDMA	0x00800	/* use DMA for data transfers */
+#define DKFL_DMA	0x01000 /* using DMA on this transfer-- DKFL_SINGLE
+				 * overrides this
+				 */
+#define DKFL_LBA	0x02000	/* use LBA for data transfers */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* disk stats unit number */
 	int	dk_multi;	/* multi transfers */
 	int	dk_currentiosize;	/* current io size */
 	struct diskgeom dk_dd;	/* device configuration data */
 	struct diskslices *dk_slices;	/* virtual drives */
+	void	*dk_dmacookie;	/* handle for DMA services */
 };
 
 #define WD_COUNT_RETRIES
@@ -187,7 +201,6 @@ static int wdtest = 0;
 static struct disk *wddrives[NWD];	/* table of units */
 static struct buf_queue_head drive_queue[NWD];	/* head of queue per drive */
 static struct {
-	int	b_errcnt;
 	int	b_active;
 } wdutab[NWD];
 /*
@@ -199,7 +212,7 @@ static struct {
 	int	b_active;
 } wdtab[NWDC];
 
-struct wddma wddma;
+struct wddma wddma[NWDC];
 
 #ifdef notyet
 static struct buf rwdbuf[NWD];	/* buffers for raw IO */
@@ -215,6 +228,7 @@ static int wdsetctlr(struct disk *du);
 #if 0
 static int wdwsetctlr(struct disk *du);
 #endif
+static int wdsetmode(int mode, void *wdinfo);
 static int wdgetctlr(struct disk *du);
 static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
@@ -241,7 +255,7 @@ static	d_psize_t	wdsize;
 static struct cdevsw wd_cdevsw;
 static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
-	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
+	  wddump,	wdsize,		D_DISK,	"wd",	&wd_cdevsw,	-1 };
 
 #ifdef CMD640
 static int      atapictrlr;
@@ -270,6 +284,7 @@ static int
 wdprobe(struct isa_device *dvp)
 {
 	int	unit = dvp->id_unit;
+	int	interface;
 	struct disk *du;
 
 	if (unit >= NWDC)
@@ -280,8 +295,21 @@ wdprobe(struct isa_device *dvp)
 		return (0);
 	bzero(du, sizeof *du);
 	du->dk_ctrlr = dvp->id_unit;
+	interface = du->dk_ctrlr / 2;
+	du->dk_interface = interface;
+#if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
+	if (wddma[interface].wdd_candma) {
+		du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+		du->dk_port = dvp->id_iobase;
+		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
+	} else {
+		du->dk_port = dvp->id_iobase;
+		du->dk_altport = du->dk_port + wd_ctlr;
+	}
+#else
 	du->dk_port = dvp->id_iobase;
-
+	du->dk_altport = du->dk_port + wd_ctlr;
+#endif
 
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
@@ -311,14 +339,16 @@ wdprobe(struct isa_device *dvp)
 		goto reset_ok;
 #endif
 	DELAY(RECOVERYTIME);
-	if (wdreset(du) != 0)
+	if (wdreset(du) != 0) {
 		goto nodevice;
+	}
 reset_ok:
 
 	/* execute a controller only command */
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_DIAGNOSE) != 0
-	    || wdwait(du, 0, TIMEOUT) < 0)
+	    || wdwait(du, 0, TIMEOUT) < 0) {
 		goto nodevice;
+	}
 
 	/*
 	 * drive(s) did not time out during diagnostic :
@@ -332,7 +362,6 @@ reset_ok:
 	 * drive 2.  (This seems to contradict the ATA spec.)
 	 */
 	du->dk_error = inb(du->dk_port + wd_error);
-	/* printf("Error : %x\n", du->dk_error); */
 	if(du->dk_error != 0x01 && du->dk_error != 0) {
 		if(du->dk_error & 0x80) { /* drive 1 failure */
 
@@ -381,6 +410,7 @@ wdattach(struct isa_device *dvp)
 	int	unit, lunit;
 	struct isa_device *wdup;
 	struct disk *du;
+	struct wdparams *wp;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
@@ -389,13 +419,13 @@ wdattach(struct isa_device *dvp)
 	if (eide_quirks & Q_CMD640B) {
 		if (dvp->id_unit == PRIMARY) {
 			printf("wdc0: CMD640B workaround enabled\n");
-			TAILQ_INIT( &wdtab[PRIMARY].controller_queue);
+			bufq_init(&wdtab[PRIMARY].controller_queue);
 		}
 	} else
-		TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
+		bufq_init(&wdtab[dvp->id_unit].controller_queue);
 
 #else
-	TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
+	bufq_init(&wdtab[dvp->id_unit].controller_queue);
 #endif
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
@@ -413,7 +443,7 @@ wdattach(struct isa_device *dvp)
 		if (wddrives[lunit] != NULL)
 			panic("drive attached twice");
 		wddrives[lunit] = du;
-		TAILQ_INIT( &drive_queue[lunit]);
+		bufq_init(&drive_queue[lunit]);
 		bzero(du, sizeof *du);
 		du->dk_ctrlr = dvp->id_unit;
 #ifdef CMD640
@@ -427,6 +457,7 @@ wdattach(struct isa_device *dvp)
 		du->dk_lunit = lunit;
 		du->dk_port = dvp->id_iobase;
 
+		du->dk_altport = du->dk_port + wd_ctlr;
 		/*
 		 * Use the individual device flags or the controller
 		 * flags.
@@ -443,6 +474,10 @@ wdattach(struct isa_device *dvp)
 				dvp->id_unit, unit, lunit,
 				sizeof du->dk_params.wdp_model,
 				du->dk_params.wdp_model);
+			if (du->dk_flags & DKFL_LBA)
+				printf(", LBA");
+			if (du->dk_flags & DKFL_USEDMA)
+				printf(", DMA");
 			if (du->dk_flags & DKFL_32BIT)
 				printf(", 32-bit");
 			if (du->dk_multi > 1)
@@ -465,6 +500,17 @@ wdattach(struct isa_device *dvp)
 			       du->dk_dd.d_nsectors,
 			       du->dk_dd.d_secsize);
 
+			if (bootverbose) {
+			    wp = &du->dk_params;
+			    printf(
+"wd%d: ATA INQUIRE valid = %04x, dmamword = %04x, apio = %04x, udma = %04x\n",
+				du->dk_lunit,
+				wp->wdp_atavalid,
+				wp->wdp_dmamword,
+				wp->wdp_eidepiomodes,
+				wp->wdp_udmamode);
+			  }
+
 			/*
 			 * Start timeout routine for this drive.
 			 * XXX timeout should be per controller.
@@ -472,15 +518,15 @@ wdattach(struct isa_device *dvp)
 			wdtimeout(du);
 
 #ifdef DEVFS
-			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+			mynor = dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART);
 			du->dk_bdev = devfs_add_devswf(&wd_bdevsw, mynor,
 						       DV_BLK, UID_ROOT,
 						       GID_OPERATOR, 0640,
-						       "wd%d", unit);
+						       "wd%d", lunit);
 			du->dk_cdev = devfs_add_devswf(&wd_cdevsw, mynor,
 						       DV_CHR, UID_ROOT,
 						       GID_OPERATOR, 0640,
-						       "rwd%d", unit);
+						       "rwd%d", lunit);
 #endif
 
 			if (dk_ndrive < DK_NDRIVE) {
@@ -596,7 +642,7 @@ wdstrategy(register struct buf *bp)
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
-	tqdisksort(&drive_queue[lunit], bp);
+	bufqdisksort(&drive_queue[lunit], bp);
 
 	if (wdutab[lunit].b_active == 0)
 		wdustart(du);	/* start drive */
@@ -670,14 +716,14 @@ wdustart(register struct disk *du)
 		return;
 
 
-	bp = drive_queue[du->dk_lunit].tqh_first;
+	bp = bufq_first(&drive_queue[du->dk_lunit]);
 	if (bp == NULL) {	/* yes, an assign */
 		return;
 	}
-	TAILQ_REMOVE( &drive_queue[du->dk_lunit], bp, b_act);
+	bufq_remove(&drive_queue[du->dk_lunit], bp);
 
 	/* link onto controller queue */
-	TAILQ_INSERT_TAIL( &wdtab[ctrlr].controller_queue, bp, b_act);
+	bufq_insert_tail(&wdtab[ctrlr].controller_queue, bp);
 
 	/* mark the drive unit as busy */
 	wdutab[du->dk_lunit].b_active = 1;
@@ -719,7 +765,7 @@ wdstart(int ctrlr)
 		return;
 #endif
 	/* is there a drive for the controller to do a transfer with? */
-	bp = wdtab[ctrlr].controller_queue.tqh_first;
+	bp = bufq_first(&wdtab[ctrlr].controller_queue);
 	if (bp == NULL) {
 #ifdef ATAPI
 #ifdef CMD640
@@ -757,7 +803,7 @@ wdstart(int ctrlr)
 		       (bp->b_flags & B_READ) ? "read" : "write",
 		       bp->b_bcount, blknum);
 	else
-		printf(" %d)%x", du->dk_skip, inb(du->dk_port + wd_altsts));
+		printf(" %d)%x", du->dk_skip, inb(du->dk_altport));
 #endif
 
 	lp = &du->dk_dd;
@@ -794,12 +840,23 @@ wdstart(int ctrlr)
 		u_int	count1;
 		long	cylin, head, sector;
 
-		cylin = blknum / secpercyl;
-		head = (blknum % secpercyl) / secpertrk;
-		sector = blknum % secpertrk;
-
+		if (du->dk_flags & DKFL_LBA) {
+			sector = (blknum >> 0) & 0xff; 
+			cylin = (blknum >> 8) & 0xffff;
+			head = ((blknum >> 24) & 0xf) | WDSD_LBA; 
+		}
+		else {
+			cylin = blknum / secpercyl;
+			head = (blknum % secpercyl) / secpertrk;
+			sector = blknum % secpertrk;
+		}
+		/* 
+		 * XXX this looks like an attempt to skip bad sectors
+		 * on write.
+		 */
 		if (wdtab[ctrlr].b_errcnt && (bp->b_flags & B_READ) == 0)
 			du->dk_bc += DEV_BSIZE;
+
 		count1 = howmany( du->dk_bc, DEV_BSIZE);
 
 		du->dk_flags &= ~DKFL_MULTI;
@@ -819,7 +876,19 @@ wdstart(int ctrlr)
 				count1 = 1;
 				du->dk_currentiosize = 1;
 			} else {
-				if( (count1 > 1) && (du->dk_multi > 1)) {
+				if((du->dk_flags & DKFL_USEDMA) &&
+				   wddma[du->dk_interface].wdd_dmaverify(du->dk_dmacookie,
+				   	(void *)((int)bp->b_data + 
+					     du->dk_skip * DEV_BSIZE),
+					du->dk_bc,
+					bp->b_flags & B_READ)) {
+					du->dk_flags |= DKFL_DMA;
+					if( bp->b_flags & B_READ)
+						command = WDCC_READ_DMA;
+					else
+						command = WDCC_WRITE_DMA;
+					du->dk_currentiosize = count1;
+				} else if( (count1 > 1) && (du->dk_multi > 1)) {
 					du->dk_flags |= DKFL_MULTI;
 					if( bp->b_flags & B_READ) {
 						command = WDCC_READ_MULTI;
@@ -855,6 +924,14 @@ wdstart(int ctrlr)
 		if(du->dk_dkunit >= 0) {
 			dk_busy |= 1 << du->dk_dkunit;
 		}
+
+		if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
+			wddma[du->dk_interface].wdd_dmaprep(du->dk_dmacookie,
+					   (void *)((int)bp->b_data + 
+						    du->dk_skip * DEV_BSIZE),
+					   du->dk_bc,
+					   bp->b_flags & B_READ);
+		}
 		while (wdcommand(du, cylin, head, sector, count1, command)
 		       != 0) {
 			wderror(bp, du,
@@ -864,8 +941,8 @@ wdstart(int ctrlr)
 #ifdef WDDEBUG
 		printf("cylin %ld head %ld sector %ld addr %x sts %x\n",
 		       cylin, head, sector,
-		       (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
-		       inb(du->dk_port + wd_altsts));
+		       (int)bp->b_data + du->dk_skip * DEV_BSIZE,
+		       inb(du->dk_altport));
 #endif
 	}
 
@@ -873,6 +950,9 @@ wdstart(int ctrlr)
 	 * Schedule wdtimeout() to wake up after a few seconds.  Retrying
 	 * unmarked bad blocks can take 3 seconds!  Then it is not good that
 	 * we retry 5 times.
+	 *
+	 * On the first try, we give it 10 seconds, for drives that may need
+	 * to spin up.
 	 *
 	 * XXX wdtimeout() doesn't increment the error count so we may loop
 	 * forever.  More seriously, the loop isn't forever but causes a
@@ -883,7 +963,16 @@ wdstart(int ctrlr)
 	 * think).  Discarding them would be OK if the (special) file offset
 	 * was not advanced.
 	 */
-	du->dk_timeout = 1 + 3;
+	if (wdtab[ctrlr].b_errcnt == 0)
+		du->dk_timeout = 1 + 10;
+	else
+		du->dk_timeout = 1 + 3;
+
+	/* if this is a DMA op, start DMA and go away until it's done. */
+	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
+		wddma[du->dk_interface].wdd_dmastart(du->dk_dmacookie);
+		return;
+	}
 
 	/* If this is a read operation, just go away until it's done. */
 	if (bp->b_flags & B_READ)
@@ -915,11 +1004,11 @@ wdstart(int ctrlr)
 
 	if (du->dk_flags & DKFL_32BIT)
 		outsl(du->dk_port + wd_data,
-		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(long));
 	else
 		outsw(du->dk_port + wd_data,
-		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(short));
 	du->dk_bc -= DEV_BSIZE * count;
 	if (du->dk_dkunit >= 0) {
@@ -939,11 +1028,13 @@ wdstart(int ctrlr)
  * the next request.  Also check for a partially done transfer, and
  * continue with the next chunk if so.
  */
+
 void
 wdintr(int unit)
 {
 	register struct	disk *du;
 	register struct buf *bp;
+	int dmastat = 0;			/* Shut up GCC */
 
 #ifdef CMD640
 	int ctrlr_atapi;
@@ -985,10 +1076,21 @@ wdintr(int unit)
 		return;
 	}
 #endif
-	bp = wdtab[unit].controller_queue.tqh_first;
+	bp = bufq_first(&wdtab[unit].controller_queue);
 	du = wddrives[dkunit(bp->b_dev)];
+
+	/* finish off DMA */
+	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
+		/* XXX SMP boxes sometimes generate an early intr.  Why? */
+		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
+		    == 0)
+			return;
+		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
+	}
+
 	du->dk_timeout = 0;
 
+	/* check drive status/failure */
 	if (wdwait(du, 0, TIMEOUT) < 0) {
 		wderror(bp, du, "wdintr: timeout waiting for status");
 		du->dk_status |= WDCS_ERR;	/* XXX */
@@ -1009,16 +1111,32 @@ wdintr(int unit)
 	}
 
 	/* have we an error? */
-	if (du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) {
+	if ((du->dk_status & (WDCS_ERR | WDCS_ECCCOR))
+	    || (((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
+		&& dmastat != WDDS_INTERRUPT)) {
+
+		unsigned int errstat;
 oops:
 		/*
-		 * XXX bogus inb() here, register 0 is assumed and intr status
-		 * is reset.
+		 * XXX bogus inb() here
 		 */
-		if( (du->dk_flags & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
+		errstat = inb(du->dk_port + wd_error);
+
+		if(((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) &&
+		   (errstat & WDERR_ABORT)) {
+			wderror(bp, du, "reverting to PIO mode");
+			du->dk_flags &= ~DKFL_USEDMA;
+		} else if((du->dk_flags & DKFL_MULTI) &&
+                    (errstat & WDERR_ABORT)) {
 			wderror(bp, du, "reverting to non-multi sector mode");
 			du->dk_multi = 1;
 		}
+
+		if (!(du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) &&
+		    (((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) && 
+		     (dmastat != WDDS_INTERRUPT)))
+			printf("wd%d: DMA failure, DMA status %b\n", 
+			       du->dk_lunit, dmastat, WDDS_BITS);
 #ifdef WDDEBUG
 		wderror(bp, du, "wdintr");
 #endif
@@ -1045,7 +1163,7 @@ oops:
 				bp->b_error = EIO;
 				bp->b_flags |= B_ERROR;	/* flag the error */
 			}
-		} else
+		} else if (du->dk_status & WDCS_ECCCOR)
 			wderror(bp, du, "soft ecc");
 	}
 
@@ -1053,6 +1171,7 @@ oops:
 	 * If this was a successful read operation, fetch the data.
 	 */
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
+            && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		int	chk, dummy, multisize;
 		multisize = chk = du->dk_currentiosize * DEV_BSIZE;
@@ -1076,11 +1195,11 @@ oops:
 		/* suck in data */
 		if( du->dk_flags & DKFL_32BIT)
 			insl(du->dk_port + wd_data,
-			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(long));
 		else
 			insw(du->dk_port + wd_data,
-			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(short));
 		du->dk_bc -= chk;
 
@@ -1092,6 +1211,20 @@ oops:
 
 		if (du->dk_dkunit >= 0)
 			dk_wds[du->dk_dkunit] += chk >> 6;
+	}
+
+	/* final cleanup on DMA */
+	if (((bp->b_flags & B_ERROR) == 0)
+            && ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
+	    && wdtab[unit].b_active) {
+		int iosize;
+
+		iosize = du->dk_currentiosize * DEV_BSIZE;
+
+		du->dk_bc -= iosize;
+
+		if (du->dk_dkunit >= 0)
+			dk_wds[du->dk_dkunit] += iosize >> 6;
 	}
 
 outt:
@@ -1125,12 +1258,11 @@ outt:
 
 done: ;
 		/* done with this transfer, with or without error */
-		du->dk_flags &= ~DKFL_SINGLE;
-		TAILQ_REMOVE(&wdtab[unit].controller_queue, bp, b_act);
+		du->dk_flags &= ~(DKFL_SINGLE|DKFL_DMA);
+		bufq_remove( &wdtab[unit].controller_queue, bp);
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
-		wdutab[du->dk_lunit].b_errcnt = 0;
 		du->dk_skip = 0;
 		biodone(bp);
 	}
@@ -1147,7 +1279,7 @@ done: ;
 	/* anything more for controller to do? */
 #ifndef ATAPI
 	/* This is not valid in ATAPI mode. */
-	if (wdtab[unit].controller_queue.tqh_first)
+	if (bufq_first(&wdtab[unit].controller_queue) != NULL)
 #endif
 		wdstart(unit);
 }
@@ -1180,6 +1312,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	du->dk_flags &= ~DKFL_BADSCAN;
 
+	/* spin waiting for anybody else reading the disk label */
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
 #if 1
@@ -1434,15 +1567,20 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 		return (1);
 	if( command == WDCC_FEATURES) {
 		outb(wdc + wd_features, count);
+		if ( count == WDFEA_SETXFER )
+			outb(wdc + wd_seccnt, sector);
 	} else {
 		outb(wdc + wd_precomp, du->dk_dd.d_precompcyl / 4);
 		outb(wdc + wd_cyl_lo, cylinder);
 		outb(wdc + wd_cyl_hi, cylinder >> 8);
 		outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
-		outb(wdc + wd_sector, sector + 1);
+		if (head & WDSD_LBA)
+			outb(wdc + wd_sector, sector);
+		else
+			outb(wdc + wd_sector, sector + 1);
 		outb(wdc + wd_seccnt, count);
 	}
-	if (wdwait(du, command == WDCC_DIAGNOSE || command == WDCC_IDC
+	if (wdwait(du, (command == WDCC_DIAGNOSE || command == WDCC_IDC)
 		       ? 0 : WDCS_READY, TIMEOUT) < 0)
 		return (1);
 	outb(wdc + wd_command, command);
@@ -1486,42 +1624,44 @@ wdsetctlr(struct disk *du)
 	       du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks,
 	       du->dk_dd.d_nsectors);
 #endif
-	if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
-		struct wdparams *wp;
-
-		printf("wd%d: can't handle %lu heads from partition table ",
-		       du->dk_lunit, du->dk_dd.d_ntracks);
-		/* obtain parameters */
-		wp = &du->dk_params;
-		if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
-			printf("(controller value %u restored)\n",
-				wp->wdp_heads);
-			du->dk_dd.d_ntracks = wp->wdp_heads;
+	if (!(du->dk_flags & DKFL_LBA)) {
+		if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
+			struct wdparams *wp;
+	
+			printf("wd%d: can't handle %lu heads from partition table ",
+		       	du->dk_lunit, du->dk_dd.d_ntracks);
+			/* obtain parameters */
+			wp = &du->dk_params;
+			if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
+				printf("(controller value %u restored)\n",
+					wp->wdp_heads);
+				du->dk_dd.d_ntracks = wp->wdp_heads;
+			}
+			else {
+				printf("(truncating to 16)\n");
+				du->dk_dd.d_ntracks = 16;
+			}
 		}
-		else {
-			printf("(truncating to 16)\n");
-			du->dk_dd.d_ntracks = 16;
+	
+		if (du->dk_dd.d_nsectors == 0 || du->dk_dd.d_nsectors > 255) {
+			printf("wd%d: cannot handle %lu sectors (max 255)\n",
+		       	du->dk_lunit, du->dk_dd.d_nsectors);
+			error = 1;
 		}
-	}
-
-	if (du->dk_dd.d_nsectors == 0 || du->dk_dd.d_nsectors > 255) {
-		printf("wd%d: cannot handle %lu sectors (max 255)\n",
-		       du->dk_lunit, du->dk_dd.d_nsectors);
-		error = 1;
-	}
-	if (error) {
+		if (error) {
 #ifdef CMD640 
-		wdtab[du->dk_ctrlr_cmd640].b_errcnt += RETRIES;
+			wdtab[du->dk_ctrlr_cmd640].b_errcnt += RETRIES;
 #else
-		wdtab[du->dk_ctrlr].b_errcnt += RETRIES;
+			wdtab[du->dk_ctrlr].b_errcnt += RETRIES;
 #endif
-		return (1);
-	}
-	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
-		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
-	    || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
-		wderror((struct buf *)NULL, du, "wdsetctlr failed");
-		return (1);
+			return (1);
+		}
+		if (wdcommand(du, du->dk_dd.d_ncylinders, 						      du->dk_dd.d_ntracks - 1, 0,
+		      	      du->dk_dd.d_nsectors, WDCC_IDC) != 0
+	    		      || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
+			wderror((struct buf *)NULL, du, "wdsetctlr failed");
+			return (1);
+		}
 	}
 
 	wdsetmulti(du);
@@ -1556,6 +1696,26 @@ wdwsetctlr(struct disk *du)
 	return (stat);
 }
 #endif
+
+/*
+ * gross little callback function for wdddma interface. returns 1 for
+ * success, 0 for failure.
+ */
+static int
+wdsetmode(int mode, void *wdinfo)
+{
+    int i;
+    struct disk *du;
+
+    du = wdinfo;
+    if (bootverbose)
+	printf("wd%d: wdsetmode() setting transfer mode to %02x\n", 
+	       du->dk_lunit, mode);
+    i = wdcommand(du, 0, 0, mode, WDFEA_SETXFER, 
+		  WDCC_FEATURES) == 0 &&
+	wdwait(du, WDCS_READY, TIMEOUT) == 0;
+    return i;
+}
 
 /*
  * issue READP to drive to ask it what it is.
@@ -1712,6 +1872,23 @@ failed:
 	du->dk_multi = wp->wdp_nsecperint & 0xff;
 	wdsetmulti(du);
 
+	/*
+	 * check drive's DMA capability
+	 */
+	if (wddma[du->dk_interface].wdd_candma) {
+		du->dk_dmacookie = wddma[du->dk_interface].wdd_candma(du->dk_port, du->dk_ctrlr);
+	/* does user want this? */
+		if ((du->cfg_flags & WDOPT_DMA) &&
+	    /* have we got a DMA controller? */
+		     du->dk_dmacookie &&
+		    /* can said drive do DMA? */
+		     wddma[du->dk_interface].wdd_dmainit(du->dk_dmacookie, wp, wdsetmode, du)) {
+		    du->dk_flags |= DKFL_USEDMA;
+		}
+	} else {
+		du->dk_dmacookie = NULL;
+	}
+
 #ifdef WDDEBUG
 	printf(
 "\nwd(%d,%d): wdgetctlr: gc %x cyl %d trk %d sec %d type %d sz %d model %s\n",
@@ -1722,11 +1899,40 @@ failed:
 
 	/* update disklabel given drive information */
 	du->dk_dd.d_secsize = DEV_BSIZE;
-	du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
-	du->dk_dd.d_ntracks = wp->wdp_heads;
-	du->dk_dd.d_nsectors = wp->wdp_sectors;
-	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
-	du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	if ((du->cfg_flags & WDOPT_LBA) && wp->wdp_lbasize) {
+		du->dk_dd.d_nsectors = 63;
+		if (wp->wdp_lbasize < 16*63*1024) {		/* <=528.4 MB */
+			du->dk_dd.d_ntracks = 16;
+		}
+		else if (wp->wdp_lbasize < 32*63*1024) {	/* <=1.057 GB */
+			du->dk_dd.d_ntracks = 32;
+		}
+		else if (wp->wdp_lbasize < 64*63*1024) {	/* <=2.114 GB */
+			du->dk_dd.d_ntracks = 64;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=4.228 GB */
+			du->dk_dd.d_ntracks = 128;
+		}
+		else if (wp->wdp_lbasize < 128*63*1024) {	/* <=8.422 GB */
+			du->dk_dd.d_ntracks = 255;
+		}
+		else {						/* >8.422 GB */
+			du->dk_dd.d_ntracks = 255;		/* XXX */
+		}
+		du->dk_dd.d_secpercyl= du->dk_dd.d_ntracks*du->dk_dd.d_nsectors;
+		du->dk_dd.d_ncylinders = wp->wdp_lbasize/du->dk_dd.d_secpercyl;
+		du->dk_dd.d_secperunit = wp->wdp_lbasize;
+		du->dk_flags |= DKFL_LBA;
+	}
+	else {
+		du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
+		du->dk_dd.d_ntracks = wp->wdp_heads;
+		du->dk_dd.d_nsectors = wp->wdp_sectors;
+		du->dk_dd.d_secpercyl = 
+			du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
+		du->dk_dd.d_secperunit = 
+			du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	}
 	if (WDOPT_FORCEHD(du->cfg_flags)) {
 		du->dk_dd.d_ntracks = WDOPT_FORCEHD(du->cfg_flags);
 		du->dk_dd.d_secpercyl = 
@@ -1770,7 +1976,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	wdsleep(du->dk_ctrlr, "wdioct");
 	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices,
 			wdstrategy1, (ds_setgeom_t *)NULL);
-	if (error != -1)
+	if (error != ENOIOCTL)
 		return (error);
 
 	switch (cmd) {
@@ -2073,25 +2279,28 @@ wdflushirq(struct disk *du, int old_ipl)
 static int
 wdreset(struct disk *du)
 {
-	int     wdc, err = 0;
+	int     err = 0;
 
-	wdc = du->dk_port;
+	if ((du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) && du->dk_dmacookie)
+		wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
+
 	(void)wdwait(du, 0, TIMEOUT);
-	outb(wdc + wd_ctlr, WDCTL_IDS | WDCTL_RST);
+	outb(du->dk_altport, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
-	outb(wdc + wd_ctlr, WDCTL_IDS);
+	outb(du->dk_altport, WDCTL_IDS);
 #ifdef ATAPI
 	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 		err = 1;                /* no IDE drive found */
-	du->dk_error = inb(wdc + wd_error);
+	du->dk_error = inb(du->dk_port + wd_error);
 	if (du->dk_error != 0x01)
 		err = 1;                /* the drive is incompatible */
 #else
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
-	    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
+	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0) {
+		printf("wdreset: error1: 0x%x\n", du->dk_error);
 		return (1);
+	}
 #endif
-	outb(wdc + wd_ctlr, WDCTL_4BIT);
+	outb(du->dk_altport, WDCTL_4BIT);
 	return (err);
 }
 
@@ -2123,11 +2332,19 @@ wdtimeout(void *cdu)
 	du = (struct disk *)cdu;
 	x = splbio();
 	if (du->dk_timeout != 0 && --du->dk_timeout == 0) {
-		if(timeouts++ == 5)
-			wderror((struct buf *)NULL, du,
-   "Last time I say: interrupt timeout.  Probably a portable PC.");
-		else if(timeouts++ < 5)
-			wderror((struct buf *)NULL, du, "interrupt timeout");
+		if(timeouts++ <= 5) {
+			char *msg;
+
+			msg = (timeouts > 5) ?
+"Last time I say: interrupt timeout.  Probably a portable PC." :
+"interrupt timeout";
+			wderror((struct buf *)NULL, du, msg);
+			if (du->dk_dmacookie)
+				printf("wd%d: wdtimeout() DMA status %b\n", 
+				       du->dk_lunit,
+				       wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie), 
+				       WDDS_BITS);
+		}
 		wdunwedge(du);
 		wdflushirq(du, x);
 		du->dk_skip = 0;
@@ -2236,8 +2453,9 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 				 * command completion.
 				 */
 			}
-			if ((status & bits_wanted) == bits_wanted)
+			if ((status & bits_wanted) == bits_wanted) {
 				return (status & WDCS_ERR);
+			}
 		}
 		if (timeout < TIMEOUT)
 			/*
@@ -2259,6 +2477,8 @@ static void 	wd_drvinit(void *unused)
 {
 
 	if( ! wd_devsw_installed ) {
+		if (wd_bdevsw.d_maxio == 0)
+			wd_bdevsw.d_maxio = 248 * 512;
 		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_bdevsw);
 		wd_devsw_installed = 1;
     	}
