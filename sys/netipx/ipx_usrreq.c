@@ -82,7 +82,7 @@ static	int ipx_connect(struct socket *so, struct sockaddr *nam,
 static	int ipx_detach(struct socket *so);
 static	int ipx_disconnect(struct socket *so);
 static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct sockaddr *addr, struct mbuf *control, 
+		     struct sockaddr *addr, struct mbuf *control,
 		     struct thread *td);
 static	int ipx_shutdown(struct socket *so);
 static	int ripx_attach(struct socket *so, int proto, struct thread *td);
@@ -130,7 +130,7 @@ ipx_input(m, ipxp)
 	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp != NULL) {
 		register struct ifaddr *ifa;
 
-		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa != NULL; 
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa != NULL;
 		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			if (ifa->ifa_addr->sa_family == AF_IPX) {
 				ipx_ipx.sipx_addr.x_net =
@@ -203,7 +203,7 @@ ipx_output(ipxp, m0)
 	/*
 	 * Make sure packet is actually of even length.
 	 */
-	
+
 	if (len & 1) {
 		m = mprev;
 		if ((m->m_flags & M_EXT) == 0 &&
@@ -286,7 +286,7 @@ ipx_output(ipxp, m0)
 						&satoipx_addr(ro->ro_dst);
 				dst->x_host = ipx->ipx_dna.x_host;
 			}
-			/* 
+			/*
 			 * Otherwise, we go through the same gateway
 			 * and dst is already set up.
 			 */
@@ -329,7 +329,7 @@ ipx_ctloutput(so, sopt)
 		case SO_IPX_CHECKSUM:
 			mask = IPXP_CHECKSUM;
 			goto get_flags;
-			
+
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
 		get_flags:
@@ -348,7 +348,7 @@ ipx_ctloutput(so, sopt)
 			break;
 
 		case SO_SEQNO:
-			error = sooptcopyout(sopt, &ipx_pexseq, 
+			error = sooptcopyout(sopt, &ipx_pexseq,
 					     sizeof ipx_pexseq);
 			ipx_pexseq++;
 			break;

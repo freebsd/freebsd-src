@@ -74,9 +74,9 @@ static struct	spx 	spx_savesi;
 static struct	spx_istat spx_istat;
 
 /* Following was struct spxstat spxstat; */
-#ifndef spxstat 
+#ifndef spxstat
 #define spxstat spx_istat.newstats
-#endif  
+#endif
 
 static const int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
@@ -103,7 +103,7 @@ static	int spx_listen(struct socket *so, struct thread *td);
 static	int spx_rcvd(struct socket *so, int flags);
 static	int spx_rcvoob(struct socket *so, struct mbuf *m, int flags);
 static	int spx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct sockaddr *addr, struct mbuf *control, 
+		     struct sockaddr *addr, struct mbuf *control,
 		     struct thread *td);
 static	int spx_shutdown(struct socket *so);
 static	int spx_sp_attach(struct socket *so, int proto, struct thread *td);
@@ -904,7 +904,7 @@ again:
 	if (rcv_win > 0) {
 		u_short delta =  1 + cb->s_alo - cb->s_ack;
 		int adv = rcv_win - (delta * cb->s_mtu);
-		
+
 		if ((so->so_rcv.sb_cc == 0 && adv >= (2 * cb->s_mtu)) ||
 		    (100 * adv / so->so_rcv.sb_hiwat >= 35)) {
 			spxstat.spxs_sndwinup++;
@@ -959,7 +959,7 @@ send:
 	if (rcv_win < 0)
 		rcv_win = 0;
 	alo = cb->s_ack - 1 + (rcv_win / ((short)cb->s_mtu));
-	if (SSEQ_LT(alo, cb->s_alo)) 
+	if (SSEQ_LT(alo, cb->s_alo))
 		alo = cb->s_alo;
 
 	if (si != NULL) {
@@ -1013,7 +1013,7 @@ send:
 		if (cb->s_force != (1 + SPXT_PERSIST) ||
 		    cb->s_timer[SPXT_PERSIST] == 0) {
 			/*
-			 * If this is a new packet and we are not currently 
+			 * If this is a new packet and we are not currently
 			 * timing anything, time this one.
 			 */
 			if (SSEQ_LT(cb->s_smax, si->si_seq)) {
@@ -1157,12 +1157,12 @@ spx_ctloutput(so, sopt)
 			break;
 
 		case SO_LAST_HEADER:
-			error = sooptcopyout(sopt, &cb->s_rhdr, 
+			error = sooptcopyout(sopt, &cb->s_rhdr,
 					     sizeof cb->s_rhdr);
 			break;
 
 		case SO_DEFAULT_HEADERS:
-			error = sooptcopyout(sopt, &cb->s_shdr, 
+			error = sooptcopyout(sopt, &cb->s_shdr,
 					     sizeof cb->s_shdr);
 			break;
 
@@ -1340,7 +1340,7 @@ spx_attach(so, proto, td)
 	SPXT_RANGESET(cb->s_rxtcur,
 	    ((SPXTV_SRTTBASE >> 2) + (SPXTV_SRTTDFLT << 2)) >> 1,
 	    SPXTV_MIN, SPXTV_REXMTMAX);
-	ipxp->ipxp_pcb = (caddr_t)cb; 
+	ipxp->ipxp_pcb = (caddr_t)cb;
 spx_attach_end:
 	splx(s);
 	return (error);
@@ -1351,14 +1351,14 @@ spx_bind(so, nam, td)
 	struct socket *so;
 	struct sockaddr *nam;
 	struct thread *td;
-{  
+{
 	struct ipxpcb *ipxp;
 
 	ipxp = sotoipxpcb(so);
 
 	return (ipx_pcbbind(ipxp, nam, td));
-}  
-   
+}
+
 /*
  * Initiate connection to peer.
  * Enter SYN_SENT state, and mark socket as connecting.
@@ -1568,7 +1568,7 @@ spx_send_end:
 
 static int
 spx_shutdown(so)
-	struct socket *so;            
+	struct socket *so;
 {
 	int error;
 	int s;

@@ -221,7 +221,7 @@ ipxintr(struct mbuf *m)
 			 */
 			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
 				if((ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) &&
-				   ipx_neteq(ia->ia_addr.sipx_addr, 
+				   ipx_neteq(ia->ia_addr.sipx_addr,
 					     ipx->ipx_dna))
 					goto ours;
 
@@ -485,8 +485,8 @@ struct ifnet *ifp;
 				if (ifp == ia->ia_ifp)
 					break;
 			if (ia == NULL)
-				ipx->ipx_sna.x_host = ipx_zerohost;  
-			else 
+				ipx->ipx_sna.x_host = ipx_zerohost;
+			else
 				ipx->ipx_sna.x_host =
 				    ia->ia_addr.sipx_addr.x_host;
 
