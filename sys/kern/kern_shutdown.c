@@ -255,6 +255,7 @@ doadump(void)
 static void
 boot(int howto)
 {
+	static int first_buf_printf = 1;
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
@@ -281,18 +282,7 @@ boot(int howto)
 		int subiter;
 #endif
 
-		for (nbusy = 0, bp = &buf[nbuf]; --bp >= buf; )
-			if (((bp->b_flags & B_INVAL) == 0 &&
-			    BUF_REFCNT(bp) > 0) ||
-			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI))
-				nbusy++;
-		if (nbusy == 0) {
-			printf("Skipping final sync, no buffers remaining\n");
-			goto unmountall;
-		}
-
 		waittime = 0;
-		printf("Syncing disks, buffers remaining... ");
 
 		sync(&thread0, NULL);
 
@@ -313,8 +303,15 @@ boot(int howto)
 					nbusy++;
 				}
 			}
-			if (nbusy == 0)
+			if (nbusy == 0) {
+				if (first_buf_printf)
+					printf("No buffers busy after final sync");
 				break;
+			}
+			if (first_buf_printf) {
+				printf("Syncing disks, buffers remaining... ");
+				first_buf_printf = 0;
+			}
 			printf("%d ", nbusy);
 			if (nbusy < pbusy)
 				iter = 0;
@@ -345,7 +342,6 @@ boot(int howto)
 #endif
 		}
 		printf("\n");
-
 		/*
 		 * Count only busy local buffers to prevent forcing 
 		 * a fsck if we're just a client of a wedged NFS server
@@ -374,13 +370,14 @@ boot(int howto)
 			 * Failed to sync all blocks. Indicate this and don't
 			 * unmount filesystems (thus forcing an fsck on reboot).
 			 */
-			printf("giving up on %d buffers\n", nbusy);
+			printf("Giving up on %d buffers\n", nbusy);
 			DELAY(5000000);	/* 5 seconds */
 		} else {
+			if (!first_buf_printf)
+				printf("Final sync complete\n");
 			/*
 			 * Unmount filesystems
 			 */
-unmountall:
 			if (panicstr == 0)
 				vfs_unmountall();
 		}
