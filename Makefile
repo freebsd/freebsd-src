@@ -217,7 +217,7 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
-	@if ! (cd ${.CURDIR}/tools/regression/usr.bin/make && \
+	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
