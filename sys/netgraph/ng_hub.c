@@ -92,7 +92,7 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 				meta2 = NULL;
 			NG_SEND_DATA(error, hook2, m2, meta2);
 			if (error)
-				break;
+				continue;	/* don't give up */
 		}
 	}
 
