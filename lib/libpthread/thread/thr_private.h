@@ -1232,6 +1232,8 @@ int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 
 /* #include <sys/socket.h> */
 #ifdef _SYS_SOCKET_H_
+int	__sys_accept(int, struct sockaddr *, socklen_t *);
+int	__sys_connect(int, const struct sockaddr *, socklen_t);
 int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *,
 	    off_t *, int);
 #endif

@@ -2,7 +2,9 @@
 LIBTHREAD_1_0 {
 global:
 	___creat;
+	__accept;
 	__close;
+	__connect;
 	__error;
 	__fcntl;
 	__fsync;
@@ -167,8 +169,10 @@ global:
 	_vfork;
 	_wait;
 	_waitpid;
+	accept;
 	aio_suspend;
 	close;
+	connect;
 	creat;
 	fcntl;
 	fork;
