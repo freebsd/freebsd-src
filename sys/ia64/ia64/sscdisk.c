@@ -95,7 +95,7 @@ static struct cdevsw ssc_cdevsw = {
         /* poll */      nopoll,
         /* mmap */      nommap,
         /* strategy */  sscstrategy,
-        /* name */      "ssc",
+        /* name */      "sscdisk",
         /* maj */       CDEV_MAJOR,
         /* dump */      nodump,
         /* psize */     nopsize,
@@ -135,7 +135,7 @@ sscopen(dev_t dev, int flag, int fmt, struct thread *td)
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
 	dl->d_secsize = DEV_BSIZE;
-	dl->d_nsectors = 1024;
+	dl->d_nsectors = sc->nsect > 63 ? 63 : sc->nsect;
 	dl->d_ntracks = 1;
 	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
 	dl->d_secperunit = sc->nsect;
@@ -237,6 +237,12 @@ static struct ssc_s *
 ssccreate(int unit)
 {
 	struct ssc_s *sc;
+	int fd;
+
+	fd = ssc(ia64_tpa((u_int64_t) SKI_ROOT_FILESYSTEM),
+		 1, 0, 0, SSC_OPEN);
+	if (fd == -1)
+		return (NULL);
 
 	if (unit == -1)
 		unit = sscunits++;
@@ -249,22 +255,21 @@ ssccreate(int unit)
 	LIST_INSERT_HEAD(&ssc_softc_list, sc, list);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
-	devstat_add_entry(&sc->stats, "ssc", sc->unit, DEV_BSIZE,
+	devstat_add_entry(&sc->stats, "sscdisk", sc->unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
-	sc->dev = disk_create(sc->unit, &sc->disk,
-			      DSO_ONESLICE|DSO_NOLABELS,
+	sc->dev = disk_create(sc->unit, &sc->disk, 0,
 			      &ssc_cdevsw, &sscdisk_cdevsw);
 	sc->dev->si_drv1 = sc;
 	sc->nsect = SSC_NSECT;
-	sc->fd = ssc(ia64_tpa((u_int64_t) SKI_ROOT_FILESYSTEM),
-		     1, 0, 0, SSC_OPEN);
+	sc->fd = fd;
 	if (sc->unit == 0) 
 		sscrootready = 1;
 	return (sc);
 }
 
+#if 0
 static void
 ssc_clone (void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -284,6 +289,7 @@ ssc_clone (void *arg, char *name, int namelen, dev_t *dev)
 	ssccreate(u);
 	return;
 }
+#endif
 
 static void
 ssc_drvinit(void *unused)
@@ -300,7 +306,7 @@ static void
 ssc_takeroot(void *junk)
 {
 	if (sscrootready)
-		rootdevnames[0] = "ufs:/dev/ssc0";
+		rootdevnames[0] = "ufs:/dev/sscdisk0c";
 }
 
 SYSINIT(ssc_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, ssc_takeroot, NULL);
