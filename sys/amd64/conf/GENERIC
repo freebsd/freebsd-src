@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.48 1995/10/25 16:43:00 jkh Exp $
+#	$Id: GENERIC,v 1.49 1995/10/31 16:59:59 joerg Exp $
 #
 
 machine		"i386"
@@ -26,6 +26,7 @@ options		UCONSOLE		#Allow users to grab the console
 config		kernel	root on wd0 
 
 controller	isa0
+controller	eisa0
 controller	pci0
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
@@ -46,10 +47,10 @@ device          wcd0    #IDE CD-ROM
 
 controller	ncr0
 controller	ahc0
+controller	ahc1
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
-controller	ahc1	at isa? bio irq ? vector ahcintr
 controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
