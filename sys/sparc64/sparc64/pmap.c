@@ -825,24 +825,18 @@ pmap_new_proc(struct proc *p)
 	u_int i;
 
 	/*
-	 * Allocate object for the upages.
+	 * Allocate object for the upage.
 	 */
-	upobj = p->p_upages_obj;
-	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
-		p->p_upages_obj = upobj;
-	}
+	upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+	p->p_upages_obj = upobj;
 
 	/*
 	 * Get a kernel virtual address for the U area for this process.
 	 */
-	up = (vm_offset_t)p->p_uarea;
-	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
-		if (up == 0)
-			panic("pmap_new_proc: upage allocation failed");
-		p->p_uarea = (struct user *)up;
-	}
+	up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
+	if (up == 0)
+		panic("pmap_new_proc: upage allocation failed");
+	p->p_uarea = (struct user *)up;
 
 	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
@@ -892,16 +886,8 @@ pmap_dispose_proc(struct proc *p)
 		vm_page_free(m);
 	}
 	pmap_qremove(up, UAREA_PAGES);
-
-	/*
-	 * If the process got swapped out some of its UPAGES might have gotten
-	 * swapped.  Just get rid of the object to clean up the swap use
-	 * proactively.  NOTE! might block waiting for paging I/O to complete.
-	 */
-	if (upobj->type == OBJT_SWAP) {
-		p->p_upages_obj = NULL;
-		vm_object_deallocate(upobj);
-	}
+	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
+	vm_object_deallocate(upobj);
 }
 
 /*
@@ -976,27 +962,21 @@ pmap_new_thread(struct thread *td)
 	/*
 	 * Allocate object for the kstack,
 	 */
-	ksobj = td->td_kstack_obj;
-	if (ksobj == NULL) {
-		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
-		td->td_kstack_obj = ksobj;
-	}
+	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	td->td_kstack_obj = ksobj;
 
 	/*
 	 * Get a kernel virtual address for the kstack for this thread.
 	 */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map,
-		   (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
-		if (ks == 0)
-			panic("pmap_new_thread: kstack allocation failed");
-		if (KSTACK_GUARD_PAGES != 0) {
-			tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
-			ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
-		}
-		td->td_kstack = ks;
+	ks = kmem_alloc_nofault(kernel_map,
+	   (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	if (ks == 0)
+		panic("pmap_new_thread: kstack allocation failed");
+	if (KSTACK_GUARD_PAGES != 0) {
+		tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
+		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 	}
+	td->td_kstack = ks;
 
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
@@ -1046,16 +1026,9 @@ pmap_dispose_thread(struct thread *td)
 		vm_page_free(m);
 	}
 	pmap_qremove(ks, KSTACK_PAGES);
-
-	/*
-	 * If the thread got swapped out some of its KSTACK might have gotten
-	 * swapped.  Just get rid of the object to clean up the swap use
-	 * proactively.  NOTE! might block waiting for paging I/O to complete.
-	 */
-	if (ksobj->type == OBJT_SWAP) {
-		td->td_kstack_obj = NULL;
-		vm_object_deallocate(ksobj);
-	}
+	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
+	    (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	vm_object_deallocate(ksobj);
 }
 
 /*
