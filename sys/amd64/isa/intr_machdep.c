@@ -709,6 +709,7 @@ inthand_remove(struct intrhand *idesc)
 			mtx_exit(&sched_lock, MTX_SPIN);
 		}
 	}
+	free(idesc->ih_name, M_DEVBUF);
 	free(idesc, M_DEVBUF);
 	return (0);
 }
