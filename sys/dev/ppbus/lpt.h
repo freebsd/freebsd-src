@@ -34,7 +34,7 @@
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *	From Id: nlpt.h,v 1.3 1999/01/10 12:04:54 nsouch Exp
  *
- *	$Id: lpt.h,v 1.1 1999/02/14 11:59:59 nsouch Exp $
+ *	$Id: lpt.h,v 1.2 1999/02/14 16:19:16 nsouch Exp $
  */
 
 /*
@@ -50,16 +50,17 @@
 /* machine independent definitions, it shall only depend on the ppbus
  * parallel port model */
 
-#define	LPS_NERR		0x08	/* printer no error */
-#define	LPS_SEL			0x10	/* printer selected */
-#define	LPS_OUT			0x20	/* printer out of paper */
-#define	LPS_NACK		0x40	/* printer no ack of data */
-#define	LPS_NBSY		0x80	/* printer no ack of data */
+					/* PIN */
+#define	LPS_NERR		0x08	/* 15  printer no error */
+#define	LPS_SEL			0x10	/* 13  printer selected */
+#define	LPS_OUT			0x20	/* 12  printer out of paper */
+#define	LPS_NACK		0x40	/* 10  printer no ack of data */
+#define	LPS_NBSY		0x80	/* 11  printer busy */
 
-#define	LPC_STB			0x01	/* strobe data to printer */
-#define	LPC_AUTOL		0x02	/* automatic linefeed */
-#define	LPC_NINIT		0x04	/* initialize printer */
-#define	LPC_SEL			0x08	/* printer selected */
-#define	LPC_ENA			0x10	/* enable IRQ */
+#define	LPC_STB			0x01	/*  1  strobe data to printer */
+#define	LPC_AUTOL		0x02	/* 14  automatic linefeed */
+#define	LPC_NINIT		0x04	/* 16  initialize printer */
+#define	LPC_SEL			0x08	/* 17  printer selected */
+#define	LPC_ENA			0x10	/*  -  enable IRQ */
 
 #endif
