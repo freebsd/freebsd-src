@@ -80,11 +80,11 @@ ed_pci_probe (device_t dev)
 static int
 ed_pci_attach(device_t dev)
 {
-        struct ed_softc *sc = device_get_softc(dev);
-        int flags = 0;
-        int error;
+        struct	ed_softc *sc = device_get_softc(dev);
+        int	flags = 0;
+        int	error;
 
-        error = ed_probe_Novell_generic(dev, PCIR_MAPS, flags);
+        error = ed_probe_Novell(dev, PCIR_MAPS, flags);
         if (error)
                 return (error);
 

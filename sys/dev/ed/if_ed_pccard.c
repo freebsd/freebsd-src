@@ -31,6 +31,10 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/uio.h>
+#include <sys/select.h>
+#include <machine/clock.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -41,8 +45,13 @@
 #include <net/if_arp.h>
 #include <net/if_mib.h>
 
+#include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
+#include <pccard/cardinfo.h>
+#include <pccard/slot.h>
+
+#define CARD_MAJOR	50
 
 /*
  *      PC-Card (PCMCIA) specific code.
@@ -50,6 +59,10 @@
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 static int	ed_pccard_detach(device_t);
+
+static void	ax88190_geteprom(struct ed_softc *);
+static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
+static int	ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size);
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -106,14 +119,52 @@ ed_pccard_detach(device_t dev)
 static int
 ed_pccard_probe(device_t dev)
 {
-	int     error;
+	struct	ed_softc *sc = device_get_softc(dev);
+	int	flags = device_get_flags(dev);
+	int	error;
 
-	error = ed_probe_Novell(dev);
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_AX88190) {
+		/* Special setup for AX88190 */
+		u_char rdbuf[4];
+		int iobase;
+		int attr_ioport;
+
+		/* XXX Allocate the port resource during setup. */
+		error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
+		if (error)
+			return (error);
+
+		sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
+		sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
+
+		sc->chip_type = ED_CHIP_TYPE_AX88190;
+
+		/*
+		 * Check & Set Attribute Memory IOBASE Register
+		 */
+		ed_pccard_memread(dev, ED_AX88190_IOBASE0, rdbuf, 4);
+		attr_ioport = rdbuf[2] << 8 | rdbuf[0];
+		iobase = rman_get_start(sc->port_res);
+		if (attr_ioport != iobase) {
+#if notdef
+			printf("AX88190 IOBASE MISMATCH %04x -> %04x Setting\n", attr_ioport, iobase);
+#endif /* notdef */
+			ed_pccard_memwrite(dev, ED_AX88190_IOBASE0,
+					   iobase & 0xff);
+			ed_pccard_memwrite(dev, ED_AX88190_IOBASE1,
+					   (iobase >> 8) & 0xff);
+		}
+		ax88190_geteprom(sc);
+
+		ed_release_resources(dev);
+	}
+
+	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_WD80x3(dev);
+	error = ed_probe_WD80x3(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
@@ -160,4 +211,105 @@ ed_pccard_attach(device_t dev)
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
 	return (error);
-} 
+}
+
+static void
+ax88190_geteprom(struct ed_softc *sc)
+{
+	int prom[16],i;
+	u_char tmp;
+	struct {
+		unsigned char offset, value;
+	} pg_seq[] = {
+		{ED_P0_CR, ED_CR_RD2|ED_CR_STP},	/* Select Page0 */
+		{ED_P0_DCR, 0x01},
+		{ED_P0_RBCR0, 0x00},	/* Clear the count regs. */
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_IMR, 0x00},	/* Mask completion irq. */
+		{ED_P0_ISR, 0xff},
+		{ED_P0_RCR, ED_RCR_MON | ED_RCR_INTT},	/* Set To Monitor */
+		{ED_P0_TCR, ED_TCR_LB0},	/* loopback mode. */
+		{ED_P0_RBCR0, 32},
+		{ED_P0_RBCR1, 0x00},
+		{ED_P0_RSAR0, 0x00},
+		{ED_P0_RSAR1, 0x04},
+		{ED_P0_CR ,ED_CR_RD0 | ED_CR_STA},
+	};
+
+	/* Reset Card */
+	tmp = ed_asic_inb(sc, ED_NOVELL_RESET);
+	ed_asic_outb(sc, ED_NOVELL_RESET, tmp);
+	DELAY(5000);
+	ed_asic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
+	DELAY(5000);
+
+	/* Card Settings */
+	for (i = 0; i < sizeof(pg_seq) / sizeof(pg_seq[0]); i++)
+		ed_nic_outb(sc, pg_seq[i].offset, pg_seq[i].value);
+
+	/* Get Data */
+	for (i = 0; i < 16; i++)
+		prom[i] = ed_asic_inb(sc, 0);
+/*
+	for (i = 0; i < 16; i++)
+		printf("ax88190 eprom [%02d] %02x %02x\n",
+			i,prom[i] & 0xff,prom[i] >> 8);
+*/
+	sc->arpcom.ac_enaddr[0] = prom[0] & 0xff;
+	sc->arpcom.ac_enaddr[1] = prom[0] >> 8;
+	sc->arpcom.ac_enaddr[2] = prom[1] & 0xff;
+	sc->arpcom.ac_enaddr[3] = prom[1] >> 8;
+	sc->arpcom.ac_enaddr[4] = prom[2] & 0xff;
+	sc->arpcom.ac_enaddr[5] = prom[2] >> 8;
+}
+
+/* XXX: Warner-san, any plan to provide access to the attribute memory? */
+static int
+ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
+{
+	struct pccard_devinfo *devi;
+	dev_t d;
+	struct iovec iov;
+	struct uio uios;
+
+	devi = device_get_ivars(dev);
+
+	iov.iov_base = &byte;
+	iov.iov_len = sizeof(byte);
+
+	uios.uio_iov = &iov;
+	uios.uio_iovcnt = 1;
+	uios.uio_offset = offset;
+	uios.uio_resid = sizeof(byte);
+	uios.uio_segflg = UIO_SYSSPACE;
+	uios.uio_rw = UIO_WRITE;
+	uios.uio_procp = 0;
+
+	d = makedev(CARD_MAJOR, devi->slt->slotnum);
+	return devsw(d)->d_write(d, &uios, 0);
+}
+
+static int
+ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size)
+{
+	struct pccard_devinfo *devi;
+	dev_t d;
+	struct iovec iov;
+	struct uio uios;
+
+	devi = device_get_ivars(dev);
+
+	iov.iov_base = buf;
+	iov.iov_len = size;
+
+	uios.uio_iov = &iov;
+	uios.uio_iovcnt = 1;
+	uios.uio_offset = offset;
+	uios.uio_resid = size;
+	uios.uio_segflg = UIO_SYSSPACE;
+	uios.uio_rw = UIO_READ;
+	uios.uio_procp = 0;
+
+	d = makedev(CARD_MAJOR, devi->slt->slotnum);
+	return devsw(d)->d_read(d, &uios, 0);
+}
