@@ -31,7 +31,9 @@
 .Nd convert collation sequence source definition
 .Sh SYNOPSIS
 .Nm colldef
-.Ar [-o out_file] [filename]
+.Op Fl I Ar map_dir
+.Op Fl o Ar out_file
+.Op Ar filename
 .Sh DESCRIPTION
 .Ar colldef
 converts a collation sequence source definition
@@ -61,27 +63,46 @@ The output file produced contains the
 database with collating sequence information in a form
 usable by system commands and routines.
 .Pp
+Options list:
+.Bl -tag -width 4n
+.It Cm Fl I Ar map_dir
+This option set directory name where
+.Ar charmap
+files can be found, current directory by default.
+.It Cm Fl o Ar out_file
+This option set output file name,
+.Ar LC_COLLATE
+by default.
+.El
+.Pp
 The collation sequence definition specifies a set of collating elements and
 the rules defining how strings containing these should be ordered.
 This is most useful for different language definitions.
 .Pp
 The specification file can consist of three statements:
-.Ar charmap
-,
+.Ar charmap ,
 .Ar substitute
-, and
+and
+.Ar order .
+.Pp
+Of these, only the
 .Ar order
-. Of these, only the order
-statement is required. When charmap or substitute is
+statement is required. When
+.Ar charmap
+or
+.Ar substitute
+is
 supplied, these statements must be ordered as above. Any
 statements after the order statement are ignored.
 .Pp
-Lines in the specification file beginning with a # are
+Lines in the specification file beginning with a
+.Ar #
+are
 treated as comments and are ignored. Blank lines are also
 ignored.
 .Pp
 .Ar charmap charmapfile
-
+.Pp
 .Ar charmap
 defines where a mapping of the character
 and collating element symbols to the actual
@@ -92,84 +113,106 @@ The format of
 is shown below. Symbol
 names are separated from their values by TAB or
 SPACE characters. symbol-value can be specified in
-a hexadecimal (\ex??) or octal (\e???)
+a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
 representation, and can be only one character in length.
 .Pp
 .Ar symbol-name1 symbol-value1
-
+.br
 .Ar symbol-name2 symbol-value2
-
+.br
 .Ar ...
-
 .Pp
-Symbol names cannot be specified in substitute
+Symbol names cannot be specified in
+.Ar substitute
 fields. Symbol names also cannot be combined with
 any other representation, such as, <c>h, c<h>,
 <c>\ex68, or <c><h>. Symbol names can be used with
 primary and secondary ordering as in the following
 example.
 .Pp
-The charmap statement is optional.
+The
+.Ar charmap
+statement is optional.
 .Pp
-.Ar substitute char with repl
+.Ar substitute
+"\fIchar\fR"
+.Ar with
+"\fIrepl\fR"
+.Pp
 The
 .Ar substitute
 statement substitutes the character
-
 .Ar char
 with the string
-.Ar repl
-.
+.Ar repl .
 .Pp
-The substitute statement is optional.
+The
+.Ar substitute
+statement is optional.
 .Pp
 .Ar order order_list
-
+.Pp
 .Ar order_list
 is a list of symbols, separated by semi colons, that defines the collating sequence. The
-special symbol,
+special symbol
 .Ar ...
-, specifies, in a short-hand
+specifies, in a short-hand
 form, symbols that are sequential in machine code
 order.
 .Pp
 A symbol can be up to two characters in length and
 can be represented in any one of the following
 ways:
-.Bl -tag -width XX
-.It o The symbol itself (for example,
+.Bl -bullet
+.It
+The symbol itself (for example,
 .Ar a
 for the lower-case letter
-.Ar a
-).
-.It o The symbol chain (for example,
-.Ar abc
-)
-.It o In octal representation (for example,
+.Ar a )
+.It
+The symbol chain (for example,
+.Ar abc )
+.It
+In octal representation (for example,
 .Ar \e141
 for the letter
-.Ar a
-).
-.It o In hexadecimal representation (for example,
+.Ar a )
+.It
+In hexadecimal representation (for example,
 .Ar \ex61
 for the letter
-.Ar a
-).
-.It o The symbol name as defined in the charmap file (for example,
+.Ar a )
+.It
+The symbol name as defined in the
+.Ar charmap
+file (for example,
 .Ar <abc>
 for
-.Ar \e023 abc
+.Ar abc \e023
 record in
-.Ar charmapfile
-).
-.It o Symbols
-.Ar \ea, \eb, \ef, \en, \er, \ev
-are permitted in its usual C-language meaning.
+.Ar charmapfile ) .
+If character map name have
+.Ar >
+character, it must be escaped as
+.Ar /> ,
+single
+.Ar /
+must be escaped as
+.Ar // .
+.It
+Symbols
+.Ar \ea ,
+.Ar \eb ,
+.Ar \ef ,
+.Ar \en ,
+.Ar \er ,
+.Ar \ev
+are permitted in its usual C-language meaning
 .El
 .Pp
-The backslash character,
+The backslash character
 .Ar \e
-, is used for continuation. In this case, no characters are permitted
+is used for continuation. In this case, no characters are permitted
 after the backslash character. And as a quotation mark.
 .Pp
 Symbols enclosed in parentheses are assigned the
