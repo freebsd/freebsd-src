@@ -363,7 +363,7 @@ static int
 wlprobe(struct isa_device *id)
 {
     struct wl_softc	*sc = &wl_softc[id->id_unit];	
-    register short	base = id->id_iobase;
+    short		base = id->id_iobase;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
     unsigned long	oldpri;
@@ -434,10 +434,10 @@ static int
 wlattach(struct isa_device *id)
 {
     struct wl_softc	*sc = (struct wl_softc *) &wl_softc[id->id_unit];
-    register short	base = id->id_iobase;
+    short		base = id->id_iobase;
     int			i,j;
     u_char		unit = id->id_unit;
-    register struct ifnet	*ifp = &sc->wl_if;
+    struct ifnet	*ifp = &sc->wl_if;
 
 #ifdef WLDEBUG
     printf("wlattach: base %x, unit %d\n", base, unit);
@@ -526,7 +526,7 @@ wlattach(struct isa_device *id)
 static void
 wldump(int unit)
 {
-    register struct wl_softc *sp = WLSOFTC(unit);
+    struct wl_softc *sp = WLSOFTC(unit);
     int		base = sp->base;
     int		i;
 	
@@ -555,7 +555,7 @@ wldump(int unit)
 static void
 wlinitmmc(int unit)
 {
-    register struct wl_softc *sp = WLSOFTC(unit);
+    struct wl_softc *sp = WLSOFTC(unit);
     int		base = sp->base;
     int		configured;
     int		mode = sp->mode;
@@ -664,7 +664,7 @@ wlinitmmc(int unit)
 static void
 wlinit(void *xsc)
 {
-    register struct wl_softc *sc = xsc;
+    struct wl_softc	*sc = xsc;
     struct ifnet	*ifp = &sc->wl_if;
     int			stat;
     u_long		oldpri;
@@ -708,7 +708,7 @@ wlinit(void *xsc)
 static int
 wlhwrst(int unit)
 {
-    register struct wl_softc	*sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -754,14 +754,14 @@ wlhwrst(int unit)
 static void
 wlbldcu(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
     scp_t		scp;
     iscp_t		iscp;
     scb_t		scb;
     ac_t		cb;
     tbd_t		tbd;
-    int		i;
+    int			i;
 
     bzero(&scp, sizeof(scp));
     scp.scp_sysbus = 0;
@@ -831,11 +831,11 @@ wlbldcu(int unit)
 static void
 wlstart(struct ifnet *ifp)
 {
-    int				unit = ifp->if_unit;
-    struct mbuf			*m;
-    register struct wl_softc	*sc = WLSOFTC(unit);
-    short			base = sc->base;
-    int				scb_status, cu_status, scb_command;
+    int			unit = ifp->if_unit;
+    struct mbuf		*m;
+    struct wl_softc	*sc = WLSOFTC(unit);
+    short		base = sc->base;
+    int			scb_status, cu_status, scb_command;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -923,16 +923,16 @@ wlstart(struct ifnet *ifp)
 static int
 wlread(int unit, u_short fd_p)
 {
-    register struct wl_softc	*sc = WLSOFTC(unit);
-    register struct ifnet	*ifp = &sc->wl_if;
-    short			base = sc->base;
-    fd_t			fd;
-    struct ether_header		*eh;
-    struct mbuf			*m;
-    rbd_t			rbd;
-    u_char			*mb_p;
-    u_short			mlen, len;
-    u_short			bytes_in_msg, bytes_in_mbuf, bytes;
+    struct wl_softc	*sc = WLSOFTC(unit);
+    struct ifnet	*ifp = &sc->wl_if;
+    short		base = sc->base;
+    fd_t		fd;
+    struct ether_header	*eh;
+    struct mbuf		*m;
+    rbd_t		rbd;
+    u_char		*mb_p;
+    u_short		mlen, len;
+    u_short		bytes_in_msg, bytes_in_mbuf, bytes;
 
 
 #ifdef WLDEBUG
@@ -1088,9 +1088,9 @@ wlread(int unit, u_short fd_p)
 static int
 wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    register struct ifreq	*ifr = (struct ifreq *)data;
-    int				unit = ifp->if_unit;
-    register struct wl_softc	*sc = WLSOFTC(unit);
+    struct ifreq	*ifr = (struct ifreq *)data;
+    int			unit = ifp->if_unit;
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
     short		mode = 0;
     int			opri, error = 0;
@@ -1347,7 +1347,7 @@ static void
 wlintr(unit)
 int unit;
 {
-    register struct wl_softc *sc = &wl_softc[unit];
+    struct wl_softc	*sc = &wl_softc[unit];
     short		base = sc->base;
     int			ac_status;
     u_short		int_type, int_type1;
@@ -1492,7 +1492,7 @@ int unit;
 static void
 wlrcv(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc *sc = WLSOFTC(unit);
     short	base = sc->base;
     u_short	fd_p, status, offset, link_offset;
 
@@ -1552,7 +1552,7 @@ wlrcv(int unit)
 static int
 wlrequeue(int unit, u_short fd_p)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
     fd_t		fd;
     u_short		l_rbdp, f_rbdp, rbd_offset;
@@ -1615,18 +1615,18 @@ static int xmt_debug = 0;
 static void
 wlxmt(int unit, struct mbuf *m)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
-    register u_short		xmtdata_p = OFFSET_TBUF;
-    register u_short		xmtshort_p;
-    struct	mbuf			*tm_p = m;
-    register struct ether_header	*eh_p = mtod(m, struct ether_header *);
-    u_char				*mb_p = mtod(m, u_char *) + sizeof(struct ether_header);
-    u_short				count = m->m_len - sizeof(struct ether_header);
-    ac_t				cb;
-    u_short				tbd_p = OFFSET_TBD;
-    u_short				len, clen = 0;
-    short				base = sc->base;
-    int					spin;
+    struct wl_softc	*sc = WLSOFTC(unit);
+    u_short		xmtdata_p = OFFSET_TBUF;
+    u_short		xmtshort_p;
+    struct mbuf		*tm_p = m;
+    struct ether_header	*eh_p = mtod(m, struct ether_header *);
+    u_char		*mb_p = mtod(m, u_char *) + sizeof(struct ether_header);
+    u_short		count = m->m_len - sizeof(struct ether_header);
+    ac_t		cb;
+    u_short		tbd_p = OFFSET_TBD;
+    u_short		len, clen = 0;
+    short		base = sc->base;
+    int			spin;
 	
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -1769,7 +1769,7 @@ wlxmt(int unit, struct mbuf *m)
 static u_short
 wlbldru(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc *sc = WLSOFTC(unit);
     short	base = sc->base;
     fd_t	fd;
     rbd_t	rbd;
@@ -1827,7 +1827,7 @@ wlbldru(int unit)
 static void
 wlrustrt(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
     u_short		rfa;
 
@@ -1861,9 +1861,9 @@ wlrustrt(int unit)
 static int
 wldiag(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
-    short status;
+    short		status;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -1900,8 +1900,8 @@ wldiag(int unit)
 static int
 wlconfig(int unit)
 {
-    configure_t	configure;
-    register struct wl_softc *sc = WLSOFTC(unit);
+    configure_t		configure;
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
 
 #if	MULTICAST
@@ -2007,7 +2007,7 @@ wlconfig(int unit)
 static int
 wlcmd(int unit, char *str)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc *sc = WLSOFTC(unit);
     short	base = sc->base;
     int i;
 	
@@ -2056,8 +2056,8 @@ static int
 wlack(int unit)
 {
     int i;
-    register u_short cmd;
-    register struct wl_softc *sc = WLSOFTC(unit);
+    u_short cmd;
+    struct wl_softc *sc = WLSOFTC(unit);
     short base = sc->base;
 
     outw(PIOR1(base), OFFSET_SCB);
@@ -2081,7 +2081,7 @@ wlack(int unit)
 static void
 wltbd(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc	*sc = WLSOFTC(unit);
     short		base = sc->base;
     u_short		tbd_p = OFFSET_TBD;
     tbd_t		tbd;
@@ -2107,9 +2107,9 @@ static void
 wlhdwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
 {
     struct mbuf	*tm_p = *tm_pp;
-    u_char		*mb_p = *mb_pp;
-    u_short		count = 0;
-    u_char		*cp;
+    u_char	*mb_p = *mb_pp;
+    u_short	count = 0;
+    u_char	*cp;
     int		len;
 
     /*
@@ -2154,9 +2154,9 @@ static void
 wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
 {
     struct mbuf	*tm_p = *tm_pp;
-    u_short		count = 0;
-    u_char		*cp = (u_char *) t_packet;
-    int			len;
+    u_short	count = 0;
+    u_char	*cp = (u_char *) t_packet;
+    int		len;
 
     /* we need to copy */
     for (;;) {
@@ -2177,7 +2177,7 @@ wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
 static void
 wlmmcstat(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc *sc = WLSOFTC(unit);
     short	base = sc->base;
     u_short tmp;
 
@@ -2260,7 +2260,7 @@ wlgetpsa(int base, u_char *buf)
 static void
 wlsetpsa(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
+    struct wl_softc *sc = WLSOFTC(unit);
     short	base = sc->base;
     int		i, oldpri;
     u_short	crc;
@@ -2367,7 +2367,7 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_cache_iponly, CTLFLAG_RW,
 static void
 wl_cache_zero(int unit)
 {
-        register struct wl_softc	*sc = WLSOFTC(unit);
+        struct wl_softc	*sc = WLSOFTC(unit);
 
 	bzero(&sc->w_sigcache[0], sizeof(struct w_sigcache) * MAXCACHEITEMS);
 	sc->w_sigitems = 0;
@@ -2389,7 +2389,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
 	int i;
 	int signal, silence;
 	int w_insertcache;   /* computed index for cache entry storage */
-        register struct wl_softc *sc = WLSOFTC(unit);
+        struct wl_softc *sc = WLSOFTC(unit);
 	int ipflag = wl_cache_iponly;
 
 	/* filters:
