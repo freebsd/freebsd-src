@@ -1975,7 +1975,11 @@ Job_CatchChildren(Boolean block)
  * -----------------------------------------------------------------------
  */
 void
+#ifdef USE_KQUEUE
+Job_CatchOutput(int flag __unused)
+#else
 Job_CatchOutput(int flag)
+#endif
 {
     int           	  nfds;
 #ifdef USE_KQUEUE
