@@ -987,7 +987,8 @@ tcp_ctlinput(cmd, sa, vip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-	else if (icmp_may_rst && cmd == PRC_UNREACH_ADMIN_PROHIB && ip)
+	else if (icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
+		cmd == PRC_UNREACH_PORT) && ip)
 		notify = tcp_drop_syn_sent;
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
