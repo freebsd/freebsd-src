@@ -1,4 +1,4 @@
-#	$Id: options,v 1.110 1998/12/05 03:19:48 dillon Exp $
+#	$Id: options,v 1.111 1998/12/14 17:46:15 luigi Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -264,6 +264,10 @@ PQ_MEDIUMCACHE	opt_vmpage.h
 PQ_LARGECACHE	opt_vmpage.h
 PQ_HUGECACHE	opt_vmpage.h
 
+# Standard SMP options
+SMP			opt_global.h
+NCPU			opt_smp.h
+NBUS			opt_smp.h
 
 # sys/netkey
 KEY
