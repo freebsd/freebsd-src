@@ -125,7 +125,7 @@ static char RCSid[] = "$Id";
 
 #include "pathnames.h"
 
-#define	TOOMANY		40		/* don't start more than TOOMANY */
+#define	TOOMANY		256		/* don't start more than TOOMANY */
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 
@@ -133,6 +133,7 @@ static char RCSid[] = "$Id";
 
 
 int	debug = 0;
+int	log = 0;
 int	nsock, maxsock;
 fd_set	allsock;
 int	options;
@@ -249,6 +250,8 @@ main(argc, argv, envp)
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
+	struct  sockaddr_in peer;
+	int i;
 
 	Argv = argv;
 	if (envp == 0 || *envp == 0)
@@ -259,11 +262,14 @@ main(argc, argv, envp)
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "dR:")) != EOF)
+	while ((ch = getopt(argc, argv, "dlR:")) != EOF)
 		switch(ch) {
 		case 'd':
 			debug = 1;
 			options |= SO_DEBUG;
+			break;
+		case 'l':
+			log = 1;
 			break;
 		case 'R': {	/* invocation rate */
 			char *p;
@@ -280,7 +286,7 @@ main(argc, argv, envp)
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-d] [-R rate] [conf-file]");
+				"usage: inetd [-dl] [-R rate] [conf-file]");
 			exit(1);
 		}
 	argc -= optind;
@@ -346,6 +352,19 @@ main(argc, argv, envp)
 						"accept (for %s): %m",
 						sep->se_service);
 				    continue;
+			    }
+			    if(log) {
+				i = sizeof peer;
+				if(getpeername(ctrl, (struct sockaddr *)
+						&peer, &i)) {
+					syslog(LOG_WARNING,
+						"getpeername(for %s): %m",
+						sep->se_service);
+					continue;
+				}
+				syslog(LOG_INFO,"%s from %s",
+					sep->se_service,
+					inet_ntoa(peer.sin_addr));
 			    }
 			    /*
 			     * Call tcpmux to find the real service to exec.
