@@ -87,8 +87,8 @@ bktr_mem_modevent(module_t mod, int type, void *unused){
 		}
 	case MOD_UNLOAD:
 		{
-		printf("bktr_mem: memory holder unloaded\n");
-		return 0;
+		printf("bktr_mem: memory holder cannot be unloaded\n");
+		return EBUSY;
 		}
 	default:
 		break;
@@ -169,6 +169,7 @@ static moduledata_t bktr_mem_mod = {
         bktr_mem_modevent,
         0
 };
-/* The load order is First so bktr_mem loads (and initialises) before bktr */
-DECLARE_MODULE(bktr_mem, bktr_mem_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
+/* The load order is First and module type is Driver to make sure bktr_mem
+   loads (and initialises) before bktr when both are loaded together */
+DECLARE_MODULE(bktr_mem, bktr_mem_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(bktr_mem, 1);
