@@ -200,6 +200,7 @@ cmd
 			port_check_v6("pcmd");
 #endif
 		port_done:
+			42;	/* Life, the universe and everything! */
 		}
 	| LPRT check_login SP host_long_port CRLF
 		{
@@ -221,6 +222,7 @@ cmd
 				goto lprt_done;
 #endif
 		lprt_done:
+			42;	/* Life, the universe and everything! */
 		}
 	| EPRT check_login SP STRING CRLF
 		{
