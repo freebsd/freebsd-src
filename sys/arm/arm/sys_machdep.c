@@ -81,6 +81,22 @@ arm32_drain_writebuf(struct thread *td, void *args)
 	return(0);
 }
 
+static int
+arm32_set_tp(struct thread *td, void *args)
+{
+
+	td->td_md.md_tp = args;
+	return (0);
+}
+
+static int
+arm32_get_tp(struct thread *td, void *args)
+{
+
+	td->td_retval[0] = (uint32_t)td->td_md.md_tp;
+	return (0);
+}
+
 int
 sysarch(td, uap)
 	struct thread *td;
@@ -96,7 +112,12 @@ sysarch(td, uap)
 	case ARM_DRAIN_WRITEBUF : 
 		error = arm32_drain_writebuf(td, uap->parms);
 		break;
-		
+	case ARM_SET_TP:
+		error = arm32_set_tp(td, uap->parms);
+		break;
+	case ARM_GET_TP:
+		error = arm32_get_tp(td, uap->parms);
+		break;
 	default:
 		error = EINVAL;
 		break;
