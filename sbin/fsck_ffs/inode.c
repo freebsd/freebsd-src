@@ -310,9 +310,9 @@ ginode(inumber)
  * Special purpose version of ginode used to optimize first pass
  * over all the inodes in numerical order.
  */
-ino_t nextino, lastinum, lastvalidinum;
-long readcnt, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
-struct dinode *inodebuf;
+static ino_t nextino, lastinum, lastvalidinum;
+static long readcnt, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
+static struct dinode *inodebuf;
 
 struct dinode *
 getnextinode(inumber)
