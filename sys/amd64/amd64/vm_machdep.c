@@ -522,8 +522,7 @@ swi_vm(void *dummy)
  */
 
 int
-is_physical_memory(addr)
-	vm_offset_t addr;
+is_physical_memory(vm_paddr_t addr)
 {
 
 #ifdef DEV_ISA
