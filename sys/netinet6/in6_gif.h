@@ -34,7 +34,12 @@
 
 #define	GIF_HLIM	30
 
-int in6_gif_input __P((struct mbuf **, int *, int));
-int in6_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
+struct	mbuf;
+struct	ifnet;
+struct	rtentry;
+
+int	in6_gif_input __P((struct mbuf **, int *, int));
+int	in6_gif_output __P((struct ifnet *, int, struct mbuf *,
+			    struct rtentry *));
 
 #endif /*_NETINET6_IN6_GIF_H_*/
