@@ -1048,12 +1048,29 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				if (lsent == l && !send_to_all) 
 					break;
 			}
+			dprintf("lsent/l: %d/%d\n", lsent, l);
 			if (lsent != l) {
 				int e = errno;
-				(void)close(f->f_file);
-				errno = e;
-				f->f_type = F_UNUSED;
 				logerror("sendto");
+				errno = e;
+				switch (errno) {
+				case EHOSTUNREACH:
+				case EHOSTDOWN:
+					break;
+				/* case EBADF: */
+				/* case EACCES: */
+				/* case ENOTSOCK: */
+				/* case EFAULT: */
+				/* case EMSGSIZE: */
+				/* case EAGAIN: */
+				/* case ENOBUFS: */
+				/* case ECONNREFUSED: */
+				default:
+					dprintf("removing entry\n", e);
+					(void)close(f->f_file);
+					f->f_type = F_UNUSED;
+					break;
+				}
 			}
 		}
 		break;
