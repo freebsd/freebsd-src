@@ -75,11 +75,6 @@ static const char rcsid[] =
 #include <machine/spr.h>
 #include <machine/sr.h>
 
-/* These definitions should probably be somewhere else			XXX */
-#define	FIRSTARG	3		/* first argument is in reg 3 */
-#define	NARGREG		8		/* 8 args are in registers */
-#define	MOREARGS(sp)	((caddr_t)((int)(sp) + 8)) /* more args go here */
-
 #ifndef MULTIPROCESSOR
 extern int intr_depth;
 #endif

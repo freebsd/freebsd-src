@@ -136,4 +136,9 @@ struct spillframe {
 	register_t	r0;		/* 48 */
 };
 
+/* Definitions for syscalls */
+#define	FIRSTARG	3				/* first arg in reg 3 */
+#define	NARGREG		8				/* 8 args in regs */
+#define	MOREARGS(sp)	((caddr_t)((int)(sp) + 8))	/* more args go here */
+
 #endif	/* _MACHINE_FRAME_H_ */
