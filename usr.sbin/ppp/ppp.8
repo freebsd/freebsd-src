@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.181 1999/07/27 13:47:59 brian Exp $
+.\" $Id: ppp.8,v 1.182 1999/07/27 23:44:00 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -305,7 +305,7 @@ will read the
 .Dq default
 system from
 .Pa /etc/ppp/ppp.conf
-at startup, followed by each of the systems specifed on the command line.
+at startup, followed by each of the systems specified on the command line.
 .Pp
 Only one of the
 .Fl auto ,
@@ -758,7 +758,7 @@ which runs a script in the background after the connection is established
 .Dq shell
 and
 .Dq bg
-commands below for a description of possible substition strings).  Similarly,
+commands below for a description of possible substitution strings).  Similarly,
 when a connection is closed, the contents of the
 .Pa /etc/ppp/ppp.linkdown
 file are executed.  Both of these files have the same format as
@@ -887,7 +887,7 @@ only after a successful connection is established.  The default value for
 .Ar inc
 is zero.
 .It Ar max
-is the maximun number of times
+is the maximum number of times
 .Nm
 should increment
 .Ar secs .
@@ -1450,7 +1450,7 @@ the new rule number (rather than the next rule number).
 .Pp
 The
 .Ar action
-may optionally be followed with an exclaimation mark
+may optionally be followed with an exclamation mark
 .Pq Dq ! ,
 telling
 .Nm
@@ -2873,7 +2873,7 @@ must be of the same size.
 .Pp
 If
 .Ar remoteIP
-is specified, only data comming from that IP number is redirected.
+is specified, only data coming from that IP number is redirected.
 .Ar remotePort
 must either be
 .Dq 0
@@ -2882,7 +2882,7 @@ or a range of ports the same size as the other ranges.
 .Pp
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
-one interior machine per souce machine and target port are possible.
+one interior machine per source machine and target port are possible.
 .It alias pptp Op Ar addr
 This tells
 .Nm
@@ -3160,7 +3160,7 @@ much the same as running
 .It iface help Op Ar sub-command
 This command, when invoked without
 .Ar sub-command ,
-will show a list of possbile
+will show a list of possible
 .Dq iface
 sub-commands and a brief synopsis for each.  When invoked with
 .Ar sub-command ,
@@ -4044,7 +4044,7 @@ not terminated and it is therefore invalid to specify
 .Ar trmtries
 for PAP or CHAP.
 .Pp
-In order to avoid netogiations with the peer that will never converge,
+In order to avoid negotiations with the peer that will never converge,
 .Nm
 will only send at most 3 times the configured number of
 .Ar reqtries
@@ -4472,7 +4472,7 @@ environment variable.  Otherwise, the given
 .Ar command
 is executed.  Word replacement is done in the same way as for the
 .Dq !bg
-commanad as described above.
+command as described above.
 .Pp
 Use of the ! character
 requires a following space as with any of the other commands.  You should
@@ -4560,7 +4560,7 @@ and
 .Dq show ?
 to get online information about what's available.
 .It
-The following urls contain useful information:
+The following URLs contain useful information:
 .Bl -bullet -compact
 .It
 http://www.FreeBSD.org/FAQ/userppp.html
