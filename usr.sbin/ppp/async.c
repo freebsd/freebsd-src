@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.11 1997/08/25 00:29:05 brian Exp $
+ * $Id: async.c,v 1.12 1997/10/26 01:02:05 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -129,7 +129,7 @@ AsyncOutput(int pri, struct mbuf *bp, int proto)
   cnt = cp - hs->xbuff;
   LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
   WriteModem(pri, (char *) hs->xbuff, cnt);
-  OsAddOutOctets(cnt);
+  ModemAddOutOctets(cnt);
   pfree(bp);
 }
 
@@ -181,7 +181,7 @@ AsyncInput(u_char *buff, int cnt)
 {
   struct mbuf *bp;
 
-  OsAddInOctets(cnt);
+  ModemAddInOctets(cnt);
   if (DEV_IS_SYNC) {
     bp = mballoc(cnt, MB_ASYNC);
     memcpy(MBUF_CTOP(bp), buff, cnt);

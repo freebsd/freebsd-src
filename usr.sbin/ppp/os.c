@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.27 1997/09/03 02:08:20 brian Exp $
+ * $Id: os.c,v 1.28 1997/10/26 01:03:26 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -240,13 +240,12 @@ OsLinkdown()
   int Level;
 
   if (linkup) {
-    FsmDown(&CcpFsm);	/* CCP must come down */
-
     s = (char *) inet_ntoa(peer_addr);
     Level = LogIsKept(LogLINK) ? LogLINK : LogIPCP;
     LogPrintf(Level, "OsLinkdown: %s\n", s);
 
     FsmDown(&IpcpFsm);	/* IPCP must come down */
+    FsmDown(&CcpFsm);	/* CCP must come down */
 
     if (!(mode & MODE_AUTO))
       DeleteIfRoutes(0);
@@ -392,20 +391,4 @@ OpenTunnel(int *ptun)
   LogPrintf(LogPHASE, "Using interface: %s\n", IfDevName);
   close(s);
   return (0);
-}
-
-void
-OsCloseLink(int flag)
-{
-  HangupModem(flag);
-}
-
-void
-OsAddInOctets(int cnt)
-{
-}
-
-void
-OsAddOutOctets(int cnt)
-{
 }
