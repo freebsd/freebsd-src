@@ -304,7 +304,7 @@ static int wi_pccard_attach(device_t dev)
 		return (error);
 	}
 
-	mtx_init(&sc->wi_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->wi_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	WI_LOCK(sc);
 
 	/* Reset the NIC. */

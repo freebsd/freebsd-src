@@ -817,7 +817,7 @@ static int wb_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
-	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	WB_LOCK(sc);
 
 	/*

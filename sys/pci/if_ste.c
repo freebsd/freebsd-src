@@ -917,7 +917,7 @@ static int ste_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ste_softc));
 
-	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	STE_LOCK(sc);
 
 	/*

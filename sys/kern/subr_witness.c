@@ -259,7 +259,7 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 	case MTX_DEF:
 		if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
 			m->mtx_recurse++;
-			atomic_set_ptr(&m->mtx_lock, MTX_RECURSE);
+			atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 			if ((type & MTX_QUIET) == 0)
 				CTR1(KTR_LOCK, "mtx_enter: 0x%p recurse", m);
 			return;
@@ -434,9 +434,9 @@ mtx_exit_hard(struct mtx *m, int type)
 	switch (type) {
 	case MTX_DEF:
 	case MTX_DEF | MTX_NOSWITCH:
-		if (m->mtx_recurse != 0) {
+		if (mtx_recursed(m)) {
 			if (--(m->mtx_recurse) == 0)
-				atomic_clear_ptr(&m->mtx_lock, MTX_RECURSE);
+				atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
 			if ((type & MTX_QUIET) == 0)
 				CTR1(KTR_LOCK, "mtx_exit: 0x%p unrecurse", m);
 			return;
@@ -501,7 +501,7 @@ mtx_exit_hard(struct mtx *m, int type)
 		break;
 	case MTX_SPIN:
 	case MTX_SPIN | MTX_FIRST:
-		if (m->mtx_recurse != 0) {
+		if (mtx_recursed(m)) {
 			m->mtx_recurse--;
 			return;
 		}
@@ -515,7 +515,7 @@ mtx_exit_hard(struct mtx *m, int type)
 		}
 		break;
 	case MTX_SPIN | MTX_TOPHALF:
-		if (m->mtx_recurse != 0) {
+		if (mtx_recursed(m)) {
 			m->mtx_recurse--;
 			return;
 		}
@@ -655,7 +655,7 @@ mtx_destroy(struct mtx *m)
 	if (!mtx_owned(m)) {
 		MPASS(m->mtx_lock == MTX_UNOWNED);
 	} else {
-		MPASS((m->mtx_lock & (MTX_RECURSE|MTX_CONTESTED)) == 0);
+		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 	}
 	mtx_validate(m, MV_DESTROY);		/* diagnostic */
 #endif
@@ -701,8 +701,9 @@ struct witness {
 	u_char		 w_Giant_squawked:1;
 	u_char		 w_other_squawked:1;
 	u_char		 w_same_squawked:1;
-	u_char		 w_sleep:1;
-	u_char		 w_spin:1;	/* this is a spin mutex */
+	u_char		 w_sleep:1;	/* MTX_DEF type mutex. */
+	u_char		 w_spin:1;	/* MTX_SPIN type mutex. */
+	u_char		 w_recurse:1;	/* MTX_RECURSE mutex option. */
 	u_int		 w_level;
 	struct witness	*w_children[WITNESS_NCHILDREN];
 };
@@ -838,11 +839,16 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	p = CURPROC;
 
 	if (flags & MTX_SPIN) {
-		if (!w->w_spin)
+		if (!(w->w_spin))
 			panic("mutex_enter: MTX_SPIN on MTX_DEF mutex %s @"
 			    " %s:%d", m->mtx_description, file, line);
-		if (m->mtx_recurse != 0)
+		if (mtx_recursed(m)) {
+			if (!(w->w_recurse))
+				panic("mutex_enter: recursion on non-recursive"
+				    " mutex %s @ %s:%d", m->mtx_description,
+				    file, line);
 			return;
+		}
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		i = PCPU_GET(witness_spin_check);
 		if (i != 0 && w->w_level < i) {
@@ -864,8 +870,13 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		panic("mutex_enter: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
 		    m->mtx_description, file, line);
 
-	if (m->mtx_recurse != 0)
+	if (mtx_recursed(m)) {
+		if (!(w->w_recurse))
+			panic("mutex_enter: recursion on non-recursive"
+			    " mutex %s @ %s:%d", m->mtx_description,
+			    file, line);
 		return;
+	}
 	if (witness_dead)
 		goto out;
 	if (cold)
@@ -971,11 +982,16 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 	w = m->mtx_witness;
 
 	if (flags & MTX_SPIN) {
-		if (!w->w_spin)
+		if (!(w->w_spin))
 			panic("mutex_exit: MTX_SPIN on MTX_DEF mutex %s @"
 			    " %s:%d", m->mtx_description, file, line);
-		if (m->mtx_recurse != 0)
+		if (mtx_recursed(m)) {
+			if (!(w->w_recurse))
+				panic("mutex_exit: recursion on non-recursive"
+				    " mutex %s @ %s:%d", m->mtx_description,
+				    file, line); 
 			return;
+		}
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		PCPU_SET(witness_spin_check,
 		    PCPU_GET(witness_spin_check) & ~w->w_level);
@@ -986,8 +1002,13 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 		panic("mutex_exit: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
 		    m->mtx_description, file, line);
 
-	if (m->mtx_recurse != 0)
+	if (mtx_recursed(m)) {
+		if (!(w->w_recurse))
+			panic("mutex_exit: recursion on non-recursive"
+			    " mutex %s @ %s:%d", m->mtx_description,
+			    file, line); 
 		return;
+	}
 
 	if ((flags & MTX_NOSWITCH) == 0 && !mtx_legal2block() && !cold)
 		panic("switchable mtx_exit() of %s when not legal @ %s:%d",
@@ -1005,12 +1026,17 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 	if (panicstr)
 		return;
 	if (flags & MTX_SPIN) {
-		if (!w->w_spin)
+		if (!(w->w_spin))
 			panic("mutex_try_enter: "
 			    "MTX_SPIN on MTX_DEF mutex %s @ %s:%d",
 			    m->mtx_description, file, line);
-		if (m->mtx_recurse != 0)
+		if (mtx_recursed(m)) {
+			if (!(w->w_recurse))
+				panic("mutex_try_enter: recursion on"
+				    " non-recursive mutex %s @ %s:%d",
+				    m->mtx_description, file, line);
 			return;
+		}
 		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		PCPU_SET(witness_spin_check,
 		    PCPU_GET(witness_spin_check) | w->w_level);
@@ -1026,9 +1052,13 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 		panic("mutex_try_enter: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
 		    m->mtx_description, file, line);
 
-	if (m->mtx_recurse != 0)
+	if (mtx_recursed(m)) {
+		if (!(w->w_recurse))
+			panic("mutex_try_enter: recursion on non-recursive"
+			    " mutex %s @ %s:%d", m->mtx_description, file,
+			    line);
 		return;
-
+	}
 	w->w_file = file;
 	w->w_line = line;
 	m->mtx_line = line;
@@ -1156,7 +1186,12 @@ enroll(const char *description, int flag)
 		if (*order == NULL)
 			panic("spin lock %s not in order list", description);
 		w->w_level = i; 
-	}
+	} else
+		w->w_sleep = 1;
+
+	if (flag & MTX_RECURSE)
+		w->w_recurse = 1;
+
 	return (w);
 }
 
@@ -1270,7 +1305,7 @@ witness_levelall (void)
 	struct witness *w, *w1;
 
 	for (w = w_all; w; w = w->w_next)
-		if (!w->w_spin)
+		if (!(w->w_spin))
 			w->w_level = 0;
 	for (w = w_all; w; w = w->w_next) {
 		if (w->w_spin)
