@@ -170,12 +170,24 @@ ibcs2_wait(td, uap)
 		if(error)
 		  return error;
 
-		/* convert status/signal result */
-		if(WIFSTOPPED(status))
+		/*
+		 * Convert status/signal result. We must validate the
+		 * signal number stored in the exit status in case
+		 * the user changed it between wait4()'s copyout()
+		 * and our copyin().
+		 */
+		if (WIFSTOPPED(status)) {
+			if (WSTOPSIG(status) <= 0 ||
+			    WSTOPSIG(status) > IBCS2_SIGTBLSZ)
+				return (EINVAL);
 			status =
 			  IBCS2_STOPCODE(bsd_to_ibcs2_sig[_SIG_IDX(WSTOPSIG(status))]);
-		else if(WIFSIGNALED(status))
+		} else if (WIFSIGNALED(status)) {
+			if (WTERMSIG(status) <= 0 ||
+			    WTERMSIG(status) > IBCS2_SIGTBLSZ)
+				return (EINVAL);
 			status = bsd_to_ibcs2_sig[_SIG_IDX(WTERMSIG(status))];
+		}
 		/* else exit status -- identical */
 
 		/* record result/status */
@@ -647,6 +659,10 @@ ibcs2_getgroups(td, uap)
 	gid_t *gp;
 	caddr_t sg = stackgap_init();
 
+	if (uap->gidsetsize < 0)
+		return (EINVAL);
+	if (uap->gidsetsize > NGROUPS_MAX)
+		uap->gidsetsize = NGROUPS_MAX;
 	sa.gidsetsize = uap->gidsetsize;
 	if (uap->gidsetsize) {
 		sa.gidset = stackgap_alloc(&sg, NGROUPS_MAX *
@@ -679,6 +695,8 @@ ibcs2_setgroups(td, uap)
 	gid_t *gp;
 	caddr_t sg = stackgap_init();
 
+	if (uap->gidsetsize < 0 || uap->gidsetsize > NGROUPS_MAX)
+		return (EINVAL);
 	sa.gidsetsize = uap->gidsetsize;
 	sa.gidset = stackgap_alloc(&sg, sa.gidsetsize *
 					    sizeof(gid_t *));

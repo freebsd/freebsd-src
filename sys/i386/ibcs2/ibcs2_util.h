@@ -68,7 +68,10 @@ stackgap_alloc(sgp, sz)
 	size_t   sz;
 {
 	void	*p = (void *) *sgp;
-	*sgp += ALIGN(sz);
+	sz = ALIGN(sz);
+	if (*sgp + sz > (caddr_t)(PS_STRINGS - szsigcode))
+		return NULL;
+	*sgp += sz;
 	return p;
 }
 

@@ -187,8 +187,10 @@ ibcs2_setipdomainname(td, uap)
 	if ( ptr != NULL ) {
 		ptr++;
 		*ptr = '\0';
-	} else
-		strcat(hname, ".");
+	} else {
+		if (strlcat(hname, ".", sizeof(hname)) >= sizeof(hname))
+			return (EINVAL);
+	}
 
 	/* Set ptr to the end of the string so we can append to it */
 	hlen = strlen(hname);
@@ -197,7 +199,7 @@ ibcs2_setipdomainname(td, uap)
                 return EINVAL;
 
 	/* Append the ipdomain to the end */
-	error = copyin((caddr_t)uap->ipdomainname, ptr, uap->len);
+	error = copyinstr((caddr_t)uap->ipdomainname, ptr, uap->len, NULL);
 	if (error)
 		return (error);
 
