@@ -23,19 +23,24 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
+.\"
 .Dd May 8, 2003
 .Dt UTOPIA 9
 .Os
 .Sh NAME
 .Nm utopia
-.Nd Driver module for ATM PHY chips
+.Nd "driver module for ATM PHY chips"
 .Sh SYNOPSIS
 .In dev/utopia/utopia.h
 .Ft int
-.Fn utopia_attach "struct utopia *utp" "struct ifatm *ifatm" "struct ifmedia *media" "struct mtx *lock" "struct sysctl_ctx_list *ctx" "struct sysctl_oid_list *tree" "const struct utopia_methods *vtab"
+.Fo utopia_attach
+.Fa "struct utopia *utp" "struct ifatm *ifatm" "struct ifmedia *media"
+.Fa "struct mtx *lock" "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *tree" "const struct utopia_methods *vtab"
+.Fc
 .Ft void
 .Fn utopia_detach "struct utopia *utp"
 .Ft int
@@ -68,8 +73,8 @@ PHY chips to provide uniform functionality.
 The module implements status monitoring in either interrupt or polling mode,
 media option handling and application access to PHY registers.
 .Pp
-To use this interface a driver must implement two functions for reading and
-writing PHY registers and initialize the following structure with pointers
+To use this interface, a driver must implement two functions for reading and
+writing PHY registers, and initialize the following structure with pointers
 to these functions:
 .Bd -literal -offset indent
 struct utopia_methods {
@@ -87,10 +92,10 @@ function should read PHY registers starting at register
 The maximum number of registers to read is given by the integer pointed
 to by
 .Fa n .
-The function should either return 0 on success or an error code.
-In the first case
+The function should either return 0 on success, or an error code.
+In the first case,
 .Fa *n
-should be set to the actual number of registers red.
+should be set to the actual number of registers read.
 The
 .Fn writereg
 function should write one register.
@@ -98,9 +103,11 @@ It must change all bits for which the corresponding bit in
 .Fa mask
 is 1 to the value of the corresponding bit in
 .Fa val .
-It returns either 0 on success or an error code.
+It returns either 0 on success, or an error code.
 .Pp
-The ATM driver's private state block (softc) must begin with a
+The ATM driver's private state block
+.Pq Va softc
+must begin with a
 .Vt "struct ifatm" .
 .Pp
 The
@@ -122,12 +129,13 @@ struct utopia {
 };
 .Ed
 The public accessible fields have the following functions:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Va ifatm
-Pointer to the driver's private data (softc).
+Pointer to the driver's private data
+.Pq Va softc .
 .It Va media
 Pointer to the driver's media structure.
-.Ir Va lock
+.It Va lock
 Pointer to a mutex provided by the driver.
 This mutex is used to synchronize
 with the kernel thread that handles device polling.
@@ -139,12 +147,14 @@ In
 .Fn utopia_detach
 the mutex is locked to sleep and wait for the kernel thread to remove the
 .Vt "struct utopia"
-from the list of all utopia devices.
+from the list of all
+.Nm
+devices.
 Before returning to the caller the mutex is unlocked.
 .It
 In the
 .Nm
-kernel thread the mutex is locked and the
+kernel thread the mutex is locked, and the
 .Fn utopia_carrier_update
 function is called with this mutex locked.
 This will result in the driver's
@@ -158,26 +168,28 @@ or
 functions.
 .El
 .It Va flags
-Flags set by either the driver or the utopia module.
+Flags set by either the driver or the
+.Nm
+module.
 The following flags are
 defined:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Dv UTP_FL_NORESET
-If this flag is set the module will not try to write the
+If this flag is set, the module will not try to write the
 SUNI master reset register.
-(set by the driver)
+(Set by the driver.)
 .It Dv UTP_FL_POLL_CARRIER
-If this flag is set the module will periodically poll the carrier state
+If this flag is set, the module will periodically poll the carrier state
 (as opposed to interrupt driven carrier state changes).
-(set by the driver)
+(Set by the driver.)
 .El
 .It Va state
-Flags describing the current state of the phy chip.
+Flags describing the current state of the PHY chip.
 These are managed
 by the module:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Dv UTP_ST_ACTIVE
-The driver is active and the phy registers can be accessed.
+The driver is active and the PHY registers can be accessed.
 This is set by calling
 .Fn utopia_start ,
 which should be called either in the attach routine of the driver or
@@ -190,14 +202,15 @@ Interface is producing unassigned cells instead of idle cells.
 .It Dv UTP_ST_NOSCRAMB
 Cell scrambling is switched off.
 .It Dv UTP_ST_DETACH
-(internal use) interface is currently detaching.
+(Internal use.)
+Interface is currently detaching.
 .It Dv UTP_ST_ATTACHED
 The attach routine has been run successfully.
 .El
 .It Va carrier
 The carrier state of the interface.
 This field can have one of three values:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Dv UTP_CARR_UNKNOWN
 Carrier state is still unknown.
 .It Dv UTP_CARR_OK
@@ -207,12 +220,12 @@ Carrier has been lost.
 .El
 .It Va loopback
 This is the current loopback mode of the interface.
-Note, that not all
+Note that not all
 chips support all loopback modes.
 Refer to the chip documentation.
 The
 following modes may be supported:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Dv UTP_LOOP_NONE
 No loopback, normal operation.
 .It Dv UTP_LOOP_TIME
@@ -230,19 +243,20 @@ Twisted pair diagnostic loopback.
 Diagnostic path loopback.
 .El
 .It Va chip
-This points the a function vector for chip specific functions.
+This points to a function vector for chip specific functions.
 Two fields
 in this vector are publically available:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Va type
 This is the type of the detected PHY chip.
 One of:
-.Bl -tag -width XXX
-.It Dv UTP_TYPE_UNKNOWN (0)
-.It Dv UTP_TYPE_SUNI_LITE (1)
-.It Dv UTP_TYPE_SUNI_ULTRA (2)
-.It Dv UTP_TYPE_SUNI_622 (3)
-.It Dv UTP_TYPE_IDT77105 (4)
+.Pp
+.Bl -tag -width indent -compact
+.It Dv UTP_TYPE_UNKNOWN Pq No 0
+.It Dv UTP_TYPE_SUNI_LITE Pq No 1
+.It Dv UTP_TYPE_SUNI_ULTRA Pq No 2
+.It Dv UTP_TYPE_SUNI_622 Pq No 3
+.It Dv UTP_TYPE_IDT77105 Pq No 4
 .El
 .It Va name
 This is a string with the name of the PHY chip.
@@ -251,22 +265,27 @@ This is a string with the name of the PHY chip.
 .Pp
 The following functions are used by the driver during attach/detach and/or
 initialisation/stopping the interface:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Fn utopia_attach
 Attach the PHY chip.
 This is called with a preallocated
 .Vt "struct utopia"
-(which may be part of the driver's softc).
-The module initializes all fields of the utopia state and the media field.
+(which may be part of the driver's
+.Va softc ) .
+The module initializes all fields of the
+.Nm
+state and the media field.
 User settable flags should be set after the call to
 .Fn utopia_attach .
 This function may fail due to the inability to install the sysctl handlers.
-In this case it will return -1.
-On success 0 is returned and the
+In this case it will return \-1.
+On success, 0 is returned and the
 .Dv UTP_ST_ATTACHED
 flag is set.
 .It Fn utopia_detach
-Remove the utopia attachment from the system.
+Remove the
+.Nm
+attachment from the system.
 This cancels all outstanding polling
 timeouts.
 .It Fn utopia_start
@@ -290,45 +309,45 @@ This may be called to remove all media information from the ifmedia field.
 .Pp
 The following functions can be used to modify the PHY state while the interface
 is running:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Fn utopia_reset
 Reset the operational parameters to the default state (SONET, idle cells,
 scrambling enabled).
-Returns 0 on success, an error code otherwise leaving
+Returns 0 on success, an error code otherwise, leaving
 the state undefined.
 .It Fn utopia_set_sdh
 If the argument is zero the chip is switched to Sonet mode, if it is non-zero
 the chip is switched to SDH mode.
-Returns 0 on success, an error code otherwise
+Returns 0 on success, an error code otherwise,
 leaving the previous state.
 .It Fn utopia_set_unass
 If the argument is zero the chip is switched to produce idle cells, if it is
 non-zero the chip is switched to produce unassigned cells.
 Returns 0 on success,
-an error code otherwise leaving the previous state.
+an error code otherwise, leaving the previous state.
 .It Fn utopia_set_noscramb
 If the argument is zero enables scrambling, if it is
 non-zero disables scrambling.
 Returns 0 on success,
-an error code otherwise leaving the previous state.
+an error code otherwise, leaving the previous state.
 .It Fn utopia_update_carrier
 Check the carrier state and update the carrier field in the state structure.
-This will generate a message to the netgraph stack if the carrier state changes.
+This will generate a message to the Netgraph stack if the carrier state changes.
 For chips that are polled this is called automatically, for interrupt
 driven attachments this must be called on interrupts from the PHY chip.
 .It Fn utopia_set_loopback
 Set the loopback mode of the chip.
 Returns 0 on success, an error code
-otherwise leaving the previous state.
+otherwise, leaving the previous state.
 .It Fn utopia_intr
 Called when an interrupt from the PHY chip is detected.
 This resets the
 interrupt state by reading all registers and, if the interrupt was from the
 RSOP, checks the carrier state.
 .It Fn utopia_update_stats
-Update the statistics with counters red from the chip.
+Update the statistics with counters read from the chip.
 .El
 .Sh SEE ALSO
 .Xr utopia 4
-.Sh AUTHOR
-.An Harti Brandt Aq harti@freebsd.org .
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org

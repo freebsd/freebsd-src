@@ -68,16 +68,16 @@ The logging facility runs in a separate kernel thread, which services
 all log entry requests.
 .Pp
 An
-.Dq asynchronous log entry ,
+.Dq asynchronous log entry
 is defined as
 .Vt "struct ale" ,
 which has the following members:
-.Bd -literal
-	struct ale {
-		struct ale	*ae_next;	/* Next Entry */
-		char		*ae_data;	/* Entry buffer */
-		int		ae_flags;	/* Entry flags */
-	};
+.Bd -literal -offset indent
+struct ale {
+	struct ale	*ae_next;	/* Next Entry */
+	char		*ae_data;	/* Entry buffer */
+	int		ae_flags;	/* Entry flags */
+};
 .Ed
 .Pp
 The
@@ -93,7 +93,7 @@ function creates a new logging queue.
 .Pp
 The
 .Fa file
-argument is the name of the file to open for logging,
+argument is the name of the file to open for logging.
 The size of each entry in the queue is determined by
 .Fa size .
 The
@@ -144,9 +144,9 @@ call is made.
 In the event that
 .Fn alq_get
 could not retrieve an entry immediately, it will
-.Xr tsleep 2
+.Xr tsleep 9
 with the
-.Dq alqget
+.Dq Li alqget
 wait message.
 .Pp
 The
@@ -205,7 +205,7 @@ was provided as a value to
 .Fa waitok
 and either the queue is full, or when the system is shutting down.
 .Pp
-NOTE, invalid arguments to non-void functions will result in
+NOTE: invalid arguments to non-void functions will result in
 undefined behaviour.
 .Sh SEE ALSO
 .Xr syslog 3 ,
@@ -216,7 +216,7 @@ undefined behaviour.
 .Sh HISTORY
 The
 Asynchronous Logging Queues (ALQ) facility first appeared in
-.Fx 5.0
+.Fx 5.0 .
 .Sh AUTHORS
 .An -nosplit
 The
