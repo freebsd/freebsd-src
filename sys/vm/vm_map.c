@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.154 1999/03/07 21:25:42 alc Exp $
+ * $Id: vm_map.c,v 1.155 1999/03/08 03:53:07 alc Exp $
  */
 
 /*
@@ -1233,7 +1233,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		current = current->next;
 	}
 
-	map->timestamp++;
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1336,7 +1335,6 @@ vm_map_madvise(map, pmap, start, end, advise)
 		}
 	}
 
-	map->timestamp++;
 	vm_map_simplify_entry(map, entry);
 	vm_map_unlock(map);
 	return;
@@ -1386,7 +1384,6 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 
 	vm_map_simplify_entry(map, temp_entry);
-	map->timestamp++;
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -2240,7 +2237,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 				vm_object_collapse(src_object);
 				if ((src_object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
 					vm_map_split(src_entry);
-					src_map->timestamp++;
 					src_object = src_entry->object.vm_object;
 				}
 			}
@@ -2370,7 +2366,6 @@ vmspace_fork(vm1)
 
 	new_map->size = old_map->size;
 	vm_map_unlock(old_map);
-	old_map->timestamp++;
 
 	return (vm2);
 }
