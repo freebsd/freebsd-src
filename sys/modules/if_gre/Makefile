@@ -14,7 +14,7 @@ opt_ns.h:
 	echo "#define NS 1" > ${.TARGET}
 
 opt_atalk.h:
-	echo "#define NETATALK" > ${.TARGET}
+	echo "#define NETATALK 1" > ${.TARGET}
 
 bpf.h:
 	echo "#define NBPF 1" > ${.TARGET}
