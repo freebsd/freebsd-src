@@ -38,6 +38,7 @@ static char *dores_com PARAMS ((char *, bfd *, int));
 static char *get_name PARAMS ((char *, char **));
 static int process_embedded_commands
   PARAMS ((bfd *, struct bfd_link_info *, bfd *));
+static void mark_relocs PARAMS ((struct coff_final_link_info *, bfd *));
 
 /* Create an entry in a COFF linker hash table.  */
 
@@ -243,6 +244,9 @@ coff_link_check_ar_symbols (abfd, info, pneeded)
       bfd_coff_swap_sym_in (abfd, (PTR) esym, (PTR) &sym);
 
       if ((sym.n_sclass == C_EXT
+#ifdef C_SYSTEM
+	   || sym.n_sclass == C_SYSTEM
+#endif
 	   || (sym_is_global && (*sym_is_global) (abfd, &sym)))
 	  && (sym.n_scnum != 0 || sym.n_value != 0))
 	{
@@ -333,6 +337,9 @@ coff_link_add_symbols (abfd, info)
       bfd_coff_swap_sym_in (abfd, (PTR) esym, (PTR) &sym);
 
       if (sym.n_sclass == C_EXT
+#ifdef C_SYSTEM
+	  || sym.n_sclass == C_SYSTEM
+#endif
 	  || (sym_is_global && (*sym_is_global) (abfd, &sym)))
 	{
 	  const char *name;
@@ -373,7 +380,8 @@ coff_link_add_symbols (abfd, info)
 	    {
 	      flags = BSF_EXPORT | BSF_GLOBAL;
 	      section = coff_section_from_bfd_index (abfd, sym.n_scnum);
-	      value -= section->vma;
+	      if (! obj_pe (abfd))
+		value -= section->vma;
 	    }
 
 	  if (! (bfd_coff_link_add_one_symbol
@@ -530,6 +538,7 @@ _bfd_coff_final_link (abfd, info)
   finfo.contents = NULL;
   finfo.external_relocs = NULL;
   finfo.internal_relocs = NULL;
+  finfo.global_to_static = false;
   debug_merge_allocated = false;
 
   coff_data (abfd)->link_info = info;
@@ -759,7 +768,7 @@ _bfd_coff_final_link (abfd, info)
 		  == bfd_target_coff_flavour))
 	    {
 	      sub = p->u.indirect.section->owner;
-	      if (! sub->output_has_begun)
+	      if (! bfd_coff_link_output_has_begun (sub))
 		{
 		  if (! _bfd_coff_link_input_bfd (&finfo, sub))
 		    goto error_return;
@@ -780,6 +789,9 @@ _bfd_coff_final_link (abfd, info)
 	}
     }
 
+  if (! bfd_coff_final_link_postscript (abfd, & finfo))
+    goto error_return;
+  
   /* Free up the buffers used by _bfd_coff_link_input_bfd.  */
 
   coff_debug_merge_hash_table_free (&finfo.debug_merge);
@@ -836,6 +848,18 @@ _bfd_coff_final_link (abfd, info)
 		    SEEK_SET) != 0
 	  || bfd_write (finfo.outsyms, symesz, 1, abfd) != symesz)
 	return false;
+    }
+
+  /* If doing task linking (ld --task-link) then make a pass through the
+     global symbols, writing out any that are defined, and making them
+     static. */
+  if (info->task_link)
+    {
+      finfo.failed = false;
+      coff_link_hash_traverse (coff_hash_table (info), _bfd_coff_write_task_globals,
+			       (PTR) &finfo);
+      if (finfo.failed)
+	goto error_return;
     }
 
   /* Write out the global symbols.  */
@@ -1117,6 +1141,60 @@ process_embedded_commands (output_bfd, info,  abfd)
   return 1;
 }
 
+/* Place a marker against all symbols which are used by relocations.
+   This marker can be picked up by the 'do we skip this symbol ?'
+   loop in _bfd_coff_link_input_bfd() and used to prevent skipping
+   that symbol. 
+   */
+
+static void
+mark_relocs (finfo, input_bfd)
+     struct coff_final_link_info *	finfo;
+     bfd * 				input_bfd;
+{
+  asection * a;
+
+  if ((bfd_get_file_flags (input_bfd) & HAS_SYMS) == 0)
+    return;
+  
+  for (a = input_bfd->sections; a != (asection *) NULL; a = a->next)
+    {
+      struct internal_reloc *	internal_relocs;
+      struct internal_reloc *	irel;
+      struct internal_reloc *	irelend;
+
+      
+      if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1)
+	continue;
+
+      /* Read in the relocs.  */
+      internal_relocs = _bfd_coff_read_internal_relocs
+	(input_bfd, a, false,
+	 finfo->external_relocs,
+	 finfo->info->relocateable,
+	 (finfo->info->relocateable
+	  ? (finfo->section_info[ a->output_section->target_index ].relocs + a->output_section->reloc_count)
+	  : finfo->internal_relocs)
+	);
+      
+      if (internal_relocs == NULL)
+	continue;
+
+      irel     = internal_relocs;
+      irelend  = irel + a->reloc_count;
+
+      /* Place a mark in the sym_indices array (whose entries have
+	 been initialised to 0) for all of the symbols that are used
+	 in the relocation table.  This will then be picked up in the
+	 skip/don't pass */
+      
+      for (; irel < irelend; irel++)
+	{
+	  finfo->sym_indices[ irel->r_symndx ] = -1;
+	}
+    }
+}
+
 /* Link an input file into the linker output file.  This function
    handles all the sections and relocations of the input file at once.  */
 
@@ -1190,11 +1268,25 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	return false;
     }
 
+  /* If we are going to perform relocations and also strip/discard some symbols
+     then we must make sure that we do not strip/discard those symbols that are
+     going to be involved in the relocations */
+  if ((   finfo->info->strip   != strip_none
+       || finfo->info->discard != discard_none)
+      && finfo->info->relocateable)
+    {
+      /* mark the symbol array as 'not-used' */
+      memset (indexp, 0, obj_raw_syment_count (input_bfd) * sizeof * indexp); 
+       
+      mark_relocs (finfo, input_bfd);
+    }
+
   while (esym < esym_end)
     {
       struct internal_syment isym;
       boolean skip;
       boolean global;
+      boolean dont_skip_symbol;
       int add;
 
       bfd_coff_swap_sym_in (input_bfd, (PTR) esym, (PTR) isymp);
@@ -1215,6 +1307,15 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	    *secpp = bfd_com_section_ptr;
 	}
 
+      /* Extract the flag indicating if this symbol is used by a
+         relocation.  */
+      if ((finfo->info->strip != strip_none
+	   || finfo->info->discard != discard_none)
+	  && finfo->info->relocateable)
+	dont_skip_symbol = *indexp;
+      else
+	dont_skip_symbol = false;
+      
       *indexp = -1;
 
       skip = false;
@@ -1222,12 +1323,15 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
       add = 1 + isym.n_numaux;
 
       /* If we are stripping all symbols, we want to skip this one.  */
-      if (finfo->info->strip == strip_all)
+      if (finfo->info->strip == strip_all && ! dont_skip_symbol)
 	skip = true;
 
       if (! skip)
 	{
 	  if (isym.n_sclass == C_EXT
+#ifdef C_SYSTEM
+	      || isym.n_sclass == C_SYSTEM
+#endif
 	      || (sym_is_global && (*sym_is_global) (input_bfd, &isym)))
 	    {
 	      /* This is a global symbol.  Global symbols come at the
@@ -1242,16 +1346,29 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	    {
 	      /* This is a local symbol.  Skip it if we are discarding
                  local symbols.  */
-	      if (finfo->info->discard == discard_all)
+	      if (finfo->info->discard == discard_all && ! dont_skip_symbol)
 		skip = true;
 	    }
 	}
 
       /* If we stripping debugging symbols, and this is a debugging
-         symbol, then skip it.  */
+         symbol, then skip it.  FIXME: gas sets the section to N_ABS
+         for some types of debugging symbols; I don't know if this is
+         a bug or not.  In any case, we handle it here.  */
       if (! skip
 	  && finfo->info->strip == strip_debugger
-	  && isym.n_scnum == N_DEBUG)
+	  && ! dont_skip_symbol
+	  && (isym.n_scnum == N_DEBUG
+	      || (isym.n_scnum == N_ABS
+		  && (isym.n_sclass == C_AUTO
+		      || isym.n_sclass == C_REG
+		      || isym.n_sclass == C_MOS
+		      || isym.n_sclass == C_MOE
+		      || isym.n_sclass == C_MOU
+		      || isym.n_sclass == C_ARG
+		      || isym.n_sclass == C_REGPARM
+		      || isym.n_sclass == C_FIELD
+		      || isym.n_sclass == C_EOS))))
 	skip = true;
 
       /* If some symbols are stripped based on the name, work out the
@@ -1267,12 +1384,13 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	  if (name == NULL)
 	    return false;
 
-	  if ((finfo->info->strip == strip_some
-	       && (bfd_hash_lookup (finfo->info->keep_hash, name, false,
+	  if (! dont_skip_symbol
+	      && ((finfo->info->strip == strip_some
+		   && (bfd_hash_lookup (finfo->info->keep_hash, name, false,
 				    false) == NULL))
-	      || (! global
-		  && finfo->info->discard == discard_l
-		  && bfd_is_local_label_name (input_bfd, name)))
+		   || (! global
+		       && finfo->info->discard == discard_l
+		       && bfd_is_local_label_name (input_bfd, name))))
 	    skip = true;
 	}
 
@@ -1472,9 +1590,11 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	  if (isym.n_scnum > 0)
 	    {
 	      isym.n_scnum = (*secpp)->output_section->target_index;
-	      isym.n_value += ((*secpp)->output_section->vma
-			       + (*secpp)->output_offset
-			       - (*secpp)->vma);
+	      isym.n_value += (*secpp)->output_offset;
+	      if (! obj_pe (input_bfd))
+		isym.n_value -= (*secpp)->vma;
+	      if (! obj_pe (finfo->output_bfd))
+		isym.n_value += (*secpp)->output_section->vma;
 	    }
 
 	  /* The value of a C_FILE symbol is the symbol index of the
@@ -1524,6 +1644,12 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	      finfo->last_file_index = output_index;
 	      finfo->last_file = isym;
 	    }
+
+	  /* If doing task linking, convert normal global function symbols to
+	     static functions. */
+
+	  if (finfo->info->task_link && isym.n_sclass == C_EXT)
+	    isym.n_sclass = C_STAT;
 
 	  /* Output the symbol.  */
 
@@ -2066,9 +2192,10 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 			  char buf[SYMNMLEN + 1];
 
 			  /* This reloc is against a symbol we are
-                             stripping.  It would be possible to
-                             handle this case, but I don't think it's
-                             worth it.  */
+                             stripping.  This should have been handled
+			     by the 'dont_skip_symbol' code in the while
+			     loop at the top of this function. */
+			  
 			  is = finfo->internal_syms + irel->r_symndx;
 
 			  name = (_bfd_coff_internal_syment_name
@@ -2166,8 +2293,9 @@ _bfd_coff_write_global_sym (h, data)
 	else
 	  isym.n_scnum = sec->target_index;
 	isym.n_value = (h->root.u.def.value
-			+ sec->vma
 			+ h->root.u.def.section->output_offset);
+	if (! obj_pe (finfo->output_bfd))
+	  isym.n_value += sec->vma;
       }
       break;
 
@@ -2209,6 +2337,18 @@ _bfd_coff_write_global_sym (h, data)
   if (isym.n_sclass == C_NULL)
     isym.n_sclass = C_EXT;
 
+  /* If doing task linking and this is the pass where we convert defined globals to
+     statics, then do that conversion now.  If the symbol is not being converted,
+     just ignore it and it will be output during a later pass. */
+  if (finfo->global_to_static)
+    {
+      if (isym.n_sclass != C_EXT)
+	{
+	  return true;
+	}
+      isym.n_sclass = C_STAT;
+    }
+
   isym.n_numaux = h->numaux;
   
   bfd_coff_swap_sym_out (output_bfd, (PTR) &isym, (PTR) finfo->outsyms);
@@ -2245,6 +2385,37 @@ _bfd_coff_write_global_sym (h, data)
     }
 
   return true;
+}
+
+/* Write out task global symbols, converting them to statics.  Called
+   via coff_link_hash_traverse.  Calls bfd_coff_write_global_sym to do
+   the dirty work, if the symbol we are processing needs conversion. */
+
+boolean
+_bfd_coff_write_task_globals (h, data)
+     struct coff_link_hash_entry *h;
+     PTR data;
+{
+  struct coff_final_link_info *finfo = (struct coff_final_link_info *) data;
+  boolean rtnval = true;
+  boolean save_global_to_static;
+
+  if (h->indx < 0)
+    {
+      switch (h->root.type)
+	{
+	case bfd_link_hash_defined:
+	case bfd_link_hash_defweak:
+	  save_global_to_static = finfo->global_to_static;
+	  finfo->global_to_static = true;
+	  rtnval = _bfd_coff_write_global_sym (h, data);
+	  finfo->global_to_static = save_global_to_static;
+	  break;
+	default:
+	  break;
+	}
+    }
+  return (rtnval);
 }
 
 /* Handle a link order which is supposed to generate a reloc.  */
@@ -2465,8 +2636,9 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 	      sec = sections[symndx];
               val = (sec->output_section->vma
 		     + sec->output_offset
-		     + sym->n_value
-		     - sec->vma);
+		     + sym->n_value);
+	      if (! obj_pe (input_bfd))
+		val -= sec->vma;
 	    }
 	}
       else
@@ -2494,19 +2666,26 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
       if (info->base_file)
 	{
 	  /* Emit a reloc if the backend thinks it needs it. */
-	  if (sym && pe_data(output_bfd)->in_reloc_p(output_bfd, howto))
+	  if (sym && pe_data (output_bfd)->in_reloc_p (output_bfd, howto))
 	    {
-	      /* relocation to a symbol in a section which
-		 isn't absolute - we output the address here 
-		 to a file */
-	      bfd_vma addr = rel->r_vaddr 
-		- input_section->vma 
-		+ input_section->output_offset 
-		  + input_section->output_section->vma;
-	      if (coff_data(output_bfd)->pe)
+	      /* Relocation to a symbol in a section which isn't
+		 absolute.  We output the address here to a file.
+		 This file is then read by dlltool when generating the
+		 reloc section.  Note that the base file is not
+		 portable between systems.  We write out a long here,
+		 and dlltool reads in a long.  */
+	      long addr = (rel->r_vaddr 
+			   - input_section->vma 
+			   + input_section->output_offset 
+			   + input_section->output_section->vma);
+	      if (coff_data (output_bfd)->pe)
 		addr -= pe_data(output_bfd)->pe_opthdr.ImageBase;
-	      /* FIXME: Shouldn't 4 be sizeof (addr)?  */
-	      fwrite (&addr, 1,4, (FILE *) info->base_file);
+	      if (fwrite (&addr, 1, sizeof (long), (FILE *) info->base_file)
+		  != sizeof (long))
+		{
+		  bfd_set_error (bfd_error_system_call);
+		  return false;
+		}
 	    }
 	}
   

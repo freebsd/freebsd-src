@@ -1,5 +1,6 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -15,7 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include "bfd.h"
 #include "progress.h"
@@ -33,6 +35,17 @@
 #endif /* HAVE_UTIMES */
 #endif /* ! HAVE_GOOD_UTIME_H */
 
+/* A list of symbols to explicitly strip out, or to keep.  A linked
+   list is good enough for a small number from the command line, but
+   this will slow things down a lot if many symbols are being
+   deleted. */
+
+struct symlist
+{
+  const char *name;
+  struct symlist *next;
+};
+
 static void copy_usage PARAMS ((FILE *, int));
 static void strip_usage PARAMS ((FILE *, int));
 static flagword parse_flags PARAMS ((const char *));
@@ -40,9 +53,9 @@ static struct section_list *find_section_list PARAMS ((const char *, boolean));
 static void setup_section PARAMS ((bfd *, asection *, PTR));
 static void copy_section PARAMS ((bfd *, asection *, PTR));
 static void get_sections PARAMS ((bfd *, asection *, PTR));
-static int compare_section_vma PARAMS ((const PTR, const PTR));
-static void add_strip_symbol PARAMS ((const char *));
-static boolean is_strip_symbol PARAMS ((const char *));
+static int compare_section_lma PARAMS ((const PTR, const PTR));
+static void add_specific_symbol PARAMS ((const char *, struct symlist **));
+static boolean is_specified_symbol PARAMS ((const char *, struct symlist *));
 static boolean is_strip_section PARAMS ((bfd *, asection *));
 static unsigned int filter_symbols
   PARAMS ((bfd *, bfd *, asymbol **, asymbol **, long));
@@ -55,7 +68,7 @@ static void copy_file
   PARAMS ((const char *, const char *, const char *, const char *));
 static int simple_copy PARAMS ((const char *, const char *));
 static int smart_rename PARAMS ((const char *, const char *));
-static void make_same_dates PARAMS ((const char *, const char *));
+static void set_times PARAMS ((const char *, const struct stat *));
 static int strip_main PARAMS ((int, char **));
 static int copy_main PARAMS ((int, char **));
 
@@ -166,6 +179,17 @@ static boolean change_leading_char = false;
 
 static boolean remove_leading_char = false;
 
+/* List of symbols to strip, keep, localize, and weaken.  */
+
+static struct symlist *strip_specific_list = NULL;
+static struct symlist *keep_specific_list = NULL;
+static struct symlist *localize_specific_list = NULL;
+static struct symlist *weaken_specific_list = NULL;
+
+/* If this is true, we weaken global symbols (set BSF_WEAK).  */
+
+static boolean weaken = false;
+
 /* 150 isn't special; it's just an arbitrary non-ASCII char value.  */
 
 #define OPTION_ADD_SECTION 150
@@ -235,6 +259,7 @@ static struct option copy_options[] =
   {"output-target", required_argument, 0, 'O'},
   {"pad-to", required_argument, 0, OPTION_PAD_TO},
   {"preserve-dates", no_argument, 0, 'p'},
+  {"localize-symbol", required_argument, 0, 'L'},
   {"remove-leading-char", no_argument, 0, OPTION_REMOVE_LEADING_CHAR},
   {"remove-section", required_argument, 0, 'R'},
   {"set-section-flags", required_argument, 0, OPTION_SET_SECTION_FLAGS},
@@ -247,6 +272,7 @@ static struct option copy_options[] =
   {"verbose", no_argument, 0, 'v'},
   {"version", no_argument, 0, 'V'},
   {"weaken", no_argument, 0, OPTION_WEAKEN},
+  {"weaken-symbol", required_argument, 0, 'W'},
   {0, no_argument, 0, 0}
 };
 
@@ -278,11 +304,12 @@ Usage: %s [-vVSpgxX] [-I bfdname] [-O bfdname] [-F bfdname] [-b byte]\n\
        [--adjust-warnings] [--no-adjust-warnings]\n\
        [--set-section-flags=section=flags] [--add-section=sectionname=filename]\n\
        [--keep-symbol symbol] [-K symbol] [--strip-symbol symbol] [-N symbol]\n\
-       [--change-leading-char] [--remove-leading-char] [--weaken] [--verbose]\n\
-       [--version] [--help] in-file [out-file]\n");
+       [--localize-symbol symbol] [-L symbol] [--weaken-symbol symbol]\n\
+       [-W symbol] [--change-leading-char] [--remove-leading-char] [--weaken]\n\
+       [--verbose] [--version] [--help] in-file [out-file]\n");
   list_supported_targets (program_name, stream);
   if (exit_status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
   exit (exit_status);
 }
 
@@ -301,7 +328,7 @@ Usage: %s [-vVsSpgxX] [-I bfdname] [-O bfdname] [-F bfdname] [-R section]\n\
 	   program_name);
   list_supported_targets (program_name, stream);
   if (exit_status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
   exit (exit_status);
 }
 
@@ -329,14 +356,31 @@ parse_flags (s)
 	  ++snext;
 	}
 
-#define PARSE_FLAG(fname,fval) if (strncmp (fname, s, len) == 0) ret |= fval;
+      if (0) ;
+#define PARSE_FLAG(fname,fval) \
+  else if (strncasecmp (fname, s, len) == 0) ret |= fval
       PARSE_FLAG ("alloc", SEC_ALLOC);
       PARSE_FLAG ("load", SEC_LOAD);
       PARSE_FLAG ("readonly", SEC_READONLY);
       PARSE_FLAG ("code", SEC_CODE);
       PARSE_FLAG ("data", SEC_DATA);
       PARSE_FLAG ("rom", SEC_ROM);
+      PARSE_FLAG ("contents", SEC_HAS_CONTENTS);
 #undef PARSE_FLAG
+      else
+	{
+	  char *copy;
+
+	  copy = xmalloc (len + 1);
+	  strncpy (copy, s, len);
+	  copy[len] = '\0';
+	  fprintf (stderr, "%s: unrecognized section flag `%s'\n",
+		   program_name, copy);
+	  fprintf (stderr,
+		   "%s: supported flags: alloc, load, readonly, code, data, rom, contents\n",
+		   program_name);
+	  exit (1);
+	}
 
       s = snext;
     }
@@ -376,59 +420,37 @@ find_section_list (name, add)
   return p;
 }
 
-/* Make a list of symbols to explicitly strip out, or to keep.  A
-   linked list is good enough for a small number from the command
-   line, but this will slow things down a lot if many symbols are
-   being deleted. */
-
-struct symlist
-{
-  const char *name;
-  struct symlist *next;
-};
-
-/* List of symbols to strip.  */
-
-static struct symlist *strip_specific_list = NULL;
-
-/* If this is false, we strip the symbols in strip_specific_list.
-   Otherwise, we keep only the symbols in the list.  */
-
-static boolean keep_symbols = false;
-
-/* If this is true, we weaken global symbols (set BSF_WEAK).  */
-
-static boolean weaken = false;
-
 /* Add a symbol to strip_specific_list.  */
 
 static void 
-add_strip_symbol (name)
+add_specific_symbol (name, list)
      const char *name;
+     struct symlist **list;
 {
   struct symlist *tmp_list;
 
   tmp_list = (struct symlist *) xmalloc (sizeof (struct symlist));
   tmp_list->name = name;
-  tmp_list->next = strip_specific_list;
-  strip_specific_list = tmp_list;
+  tmp_list->next = *list;
+  *list = tmp_list;
 }
 
 /* See whether a symbol should be stripped or kept based on
    strip_specific_list and keep_symbols.  */
 
 static boolean
-is_strip_symbol (name)
+is_specified_symbol (name, list)
      const char *name;
+     struct symlist *list;
 {
   struct symlist *tmp_list;
 
-  for (tmp_list = strip_specific_list; tmp_list; tmp_list = tmp_list->next)
+  for (tmp_list = list; tmp_list; tmp_list = tmp_list->next)
     {
       if (strcmp (name, tmp_list->name) == 0)
-	return keep_symbols ? false : true;
+	return true;
     }
-  return keep_symbols;
+  return false;
 }
 
 /* See if a section is being removed.  */
@@ -472,28 +494,28 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
     {
       asymbol *sym = from[src_count];
       flagword flags = sym->flags;
+      const char *name = bfd_asymbol_name (sym);
       int keep;
 
       if (change_leading_char
 	  && (bfd_get_symbol_leading_char (abfd)
 	      != bfd_get_symbol_leading_char (obfd))
 	  && (bfd_get_symbol_leading_char (abfd) == '\0'
-	      || (bfd_asymbol_name (sym)[0]
-		  == bfd_get_symbol_leading_char (abfd))))
+	      || (name[0] == bfd_get_symbol_leading_char (abfd))))
 	{
 	  if (bfd_get_symbol_leading_char (obfd) == '\0')
-	    bfd_asymbol_name (sym) = bfd_asymbol_name (sym) + 1;
+	    name = bfd_asymbol_name (sym) = name + 1;
 	  else
 	    {
 	      char *n;
 
-	      n = xmalloc (strlen (bfd_asymbol_name (sym)) + 2);
+	      n = xmalloc (strlen (name) + 2);
 	      n[0] = bfd_get_symbol_leading_char (obfd);
 	      if (bfd_get_symbol_leading_char (abfd) == '\0')
-		strcpy (n + 1, bfd_asymbol_name (sym));
+		strcpy (n + 1, name);
 	      else
-		strcpy (n + 1, bfd_asymbol_name (sym) + 1);
-	      bfd_asymbol_name (sym) = n;
+		strcpy (n + 1, name + 1);
+	      name = bfd_asymbol_name (sym) = n;
 	    }
 	}
 
@@ -502,8 +524,8 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 	      || (flags & BSF_WEAK) != 0
 	      || bfd_is_und_section (bfd_get_section (sym))
 	      || bfd_is_com_section (bfd_get_section (sym)))
-	  && bfd_asymbol_name (sym)[0] == bfd_get_symbol_leading_char (abfd))
-	bfd_asymbol_name (sym) = bfd_asymbol_name (sym) + 1;
+	  && name[0] == bfd_get_symbol_leading_char (abfd))
+	name = bfd_asymbol_name (sym) = name + 1;
 
       if ((flags & BSF_KEEP) != 0)		/* Used in relocation.  */
 	keep = 1;
@@ -522,15 +544,24 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 		    && (discard_locals != locals_start_L
 			|| ! bfd_is_local_label (abfd, sym))));
 
-      if (keep && is_strip_symbol (bfd_asymbol_name (sym)))
+      if (keep && is_specified_symbol (name, strip_specific_list))
 	keep = 0;
+      if (!keep && is_specified_symbol (name, keep_specific_list))
+	keep = 1;
       if (keep && is_strip_section (abfd, bfd_get_section (sym)))
 	keep = 0;
 
-      if (keep && weaken && (flags & BSF_GLOBAL) != 0)
+      if (keep && (flags & BSF_GLOBAL) != 0
+	  && (weaken || is_specified_symbol (name, weaken_specific_list)))
 	{
 	  sym->flags &=~ BSF_GLOBAL;
 	  sym->flags |= BSF_WEAK;
+	}
+      if (keep && (flags & (BSF_GLOBAL | BSF_WEAK))
+	  && is_specified_symbol (name, localize_specific_list))
+	{
+	  sym->flags &= ~(BSF_GLOBAL | BSF_WEAK);
+	  sym->flags |= BSF_LOCAL;
 	}
 
       if (keep)
@@ -678,7 +709,7 @@ copy_object (ibfd, obfd)
       set = osections;
       bfd_map_over_sections (obfd, get_sections, (void *) &set);
 
-      qsort (osections, c, sizeof (asection *), compare_section_vma);
+      qsort (osections, c, sizeof (asection *), compare_section_lma);
 
       gaps = (bfd_size_type *) xmalloc (c * sizeof (bfd_size_type));
       memset (gaps, 0, c * sizeof (bfd_size_type));
@@ -697,8 +728,8 @@ copy_object (ibfd, obfd)
 		continue;
 
 	      size = bfd_section_size (obfd, osections[i]);
-	      gap_start = bfd_section_vma (obfd, osections[i]) + size;
-	      gap_stop = bfd_section_vma (obfd, osections[i + 1]);
+	      gap_start = bfd_section_lma (obfd, osections[i]) + size;
+	      gap_stop = bfd_section_lma (obfd, osections[i + 1]);
 	      if (gap_start < gap_stop)
 		{
 		  if (! bfd_set_section_size (obfd, osections[i],
@@ -720,15 +751,15 @@ copy_object (ibfd, obfd)
 
       if (pad_to_set)
 	{
-	  bfd_vma vma;
+	  bfd_vma lma;
 	  bfd_size_type size;
 
-	  vma = bfd_section_vma (obfd, osections[c - 1]);
+	  lma = bfd_section_lma (obfd, osections[c - 1]);
 	  size = bfd_section_size (obfd, osections[c - 1]);
-	  if (vma + size < pad_to)
+	  if (lma + size < pad_to)
 	    {
 	      if (! bfd_set_section_size (obfd, osections[c - 1],
-					  pad_to - vma))
+					  pad_to - lma))
 		{
 		  fprintf (stderr, "%s: Can't add padding to %s: %s\n",
 			   program_name,
@@ -738,12 +769,12 @@ copy_object (ibfd, obfd)
 		}
 	      else
 		{
-		  gaps[c - 1] = pad_to - (vma + size);
-		  if (max_gap < pad_to - (vma + size))
-		    max_gap = pad_to - (vma + size);
+		  gaps[c - 1] = pad_to - (lma + size);
+		  if (max_gap < pad_to - (lma + size))
+		    max_gap = pad_to - (lma + size);
 		}
 	    }
-	}	      
+	}
     }
 
   /* Symbol filtering must happen after the output sections have
@@ -778,6 +809,9 @@ copy_object (ibfd, obfd)
 	  || strip_symbols == strip_unneeded
 	  || discard_locals != locals_undef
 	  || strip_specific_list != NULL
+	  || keep_specific_list != NULL
+	  || localize_specific_list != NULL
+	  || weaken_specific_list != NULL
 	  || sections_removed
 	  || convert_debugging
 	  || change_leading_char
@@ -904,7 +938,11 @@ copy_archive (ibfd, obfd, output_target)
   char *dir = make_tempname (bfd_get_filename (obfd));
 
   /* Make a temp directory to hold the contents.  */
+#if defined (_WIN32) && !defined (__CYGWIN32__)
+  if (mkdir (dir) != 0)
+#else
   if (mkdir (dir, 0700) != 0)
+#endif
     {
       fatal ("cannot mkdir %s for archive copying (error: %s)",
 	     dir, strerror (errno));
@@ -1257,6 +1295,22 @@ copy_section (ibfd, isection, obfdarg)
 	}
       free (memhunk);
     }
+  else if (p != NULL && p->set_flags && (p->flags & SEC_HAS_CONTENTS) != 0)
+    {
+      PTR memhunk = (PTR) xmalloc ((unsigned) size);
+
+      /* We don't permit the user to turn off the SEC_HAS_CONTENTS
+	 flag--they can just remove the section entirely and add it
+	 back again.  However, we do permit them to turn on the
+	 SEC_HAS_CONTENTS flag, and take it to mean that the section
+	 contents should be zeroed out.  */
+
+      memset (memhunk, 0, size);
+      if (! bfd_set_section_contents (obfd, osection, memhunk, (file_ptr) 0,
+				      size))
+	nonfatal (bfd_get_filename (obfd));
+      free (memhunk);
+    }
 }
 
 /* Get all the sections.  This is used when --gap-fill or --pad-to is
@@ -1279,7 +1333,7 @@ get_sections (obfd, osection, secppparg)
    sections to the front, where they are easier to ignore.  */
 
 static int
-compare_section_vma (arg1, arg2)
+compare_section_lma (arg1, arg2)
      const PTR arg1;
      const PTR arg2;
 {
@@ -1304,13 +1358,13 @@ compare_section_vma (arg1, arg2)
 	return 1;
     }
 
-  /* Sort sections by VMA.  */
-  if ((*sec1)->vma > (*sec2)->vma)
+  /* Sort sections by LMA.  */
+  if ((*sec1)->lma > (*sec2)->lma)
     return 1;
-  else if ((*sec1)->vma < (*sec2)->vma)
+  else if ((*sec1)->lma < (*sec2)->lma)
     return -1;
 
-  /* Sort sections with the same VMA by size.  */
+  /* Sort sections with the same LMA by size.  */
   if ((*sec1)->_raw_size > (*sec2)->_raw_size)
     return 1;
   else if ((*sec1)->_raw_size < (*sec2)->_raw_size)
@@ -1506,6 +1560,24 @@ smart_rename (from, to)
   if (lstat (to, &s))
     return -1;
 
+#if defined (_WIN32) && !defined (__CYGWIN32__)
+  /* Win32, unlike unix, will not erase `to' in `rename(from, to)' but
+     fail instead.  Also, chown is not present.  */
+
+  if (stat (to, &s) == 0)
+    remove (to);
+
+  ret = rename (from, to);
+  if (ret != 0)
+    {
+      /* We have to clean up here. */
+      int saved = errno;
+      fprintf (stderr, "%s: %s: ", program_name, to);
+      errno = saved;
+      perror ("rename");
+      unlink (from);
+    }
+#else
   /* Use rename only if TO is not a symbolic link and has
      only one hard link.  */
   if (!S_ISLNK (s.st_mode) && s.st_nlink == 1)
@@ -1550,47 +1622,41 @@ smart_rename (from, to)
 	}
       unlink (from);
     }
+#endif /* _WIN32 && !__CYGWIN32__ */
+
   return ret;
 }
 
-/* Set the date of the file DESTINATION to be the same as the date of
-   the file SOURCE.  */
+/* Set the times of the file DESTINATION to be the same as those in
+   STATBUF.  */
 
 static void
-make_same_dates (source, destination)
-     const char *source;
+set_times (destination, statbuf)
      const char *destination;
+     const struct stat *statbuf;
 {
-  struct stat statbuf;
   int result;
-
-  if (stat (source, &statbuf) < 0)
-    {
-      fprintf (stderr, "%s: ", source);
-      perror ("cannot stat");
-      return;
-    }
 
   {
 #ifdef HAVE_GOOD_UTIME_H
     struct utimbuf tb;
 
-    tb.actime = statbuf.st_atime;
-    tb.modtime = statbuf.st_mtime;
+    tb.actime = statbuf->st_atime;
+    tb.modtime = statbuf->st_mtime;
     result = utime (destination, &tb);
 #else /* ! HAVE_GOOD_UTIME_H */
 #ifndef HAVE_UTIMES
     long tb[2];
 
-    tb[0] = statbuf.st_atime;
-    tb[1] = statbuf.st_mtime;
+    tb[0] = statbuf->st_atime;
+    tb[1] = statbuf->st_mtime;
     result = utime (destination, tb);
 #else /* HAVE_UTIMES */
     struct timeval tv[2];
 
-    tv[0].tv_sec = statbuf.st_atime;
+    tv[0].tv_sec = statbuf->st_atime;
     tv[0].tv_usec = 0;
-    tv[1].tv_sec = statbuf.st_mtime;
+    tv[1].tv_sec = statbuf->st_mtime;
     tv[1].tv_usec = 0;
     result = utimes (destination, tv);
 #endif /* HAVE_UTIMES */
@@ -1646,23 +1712,10 @@ strip_main (argc, argv)
 	  strip_symbols = strip_unneeded;
 	  break;
 	case 'K':
-	  if (! keep_symbols && strip_specific_list != NULL)
-	    {
-	      fprintf (stderr, "%s: Can not specify both -K and -N\n",
-		       program_name);
-	      strip_usage (stderr, 1);
-	    }
-	  keep_symbols = true;
-	  add_strip_symbol (optarg);
+	  add_specific_symbol (optarg, &keep_specific_list);
 	  break;
 	case 'N':
-	  if (keep_symbols)
-	    {
-	      fprintf (stderr, "%s: Can not specify both -K and -N\n",
-		       program_name);
-	      strip_usage (stderr, 1);
-	    }
-	  add_strip_symbol (optarg);
+	  add_specific_symbol (optarg, &strip_specific_list);
 	  break;
 	case 'o':
 	  output_file = optarg;
@@ -1711,18 +1764,30 @@ strip_main (argc, argv)
   for (; i < argc; i++)
     {
       int hold_status = status;
+      struct stat statbuf;
       char *tmpname;
+
+      if (preserve_dates)
+	{
+	  if (stat (argv[i], &statbuf) < 0)
+	    {
+	      fprintf (stderr, "%s: ", argv[i]);
+	      perror ("cannot stat");
+	      continue;
+	    }
+	}
 
       if (output_file != NULL)
 	tmpname = output_file;
       else
 	tmpname = make_tempname (argv[i]);
       status = 0;
+
       copy_file (argv[i], tmpname, input_target, output_target);
       if (status == 0)
 	{
 	  if (preserve_dates)
-	    make_same_dates (argv[i], tmpname);
+	    set_times (tmpname, &statbuf);
 	  if (output_file == NULL)
 	    smart_rename (tmpname, argv[i]);
 	  status = hold_status;
@@ -1748,8 +1813,9 @@ copy_main (argc, argv)
   boolean preserve_dates = false;
   int c;
   struct section_list *p;
+  struct stat statbuf;
 
-  while ((c = getopt_long (argc, argv, "b:i:I:K:N:s:O:d:F:R:SpgxXVv",
+  while ((c = getopt_long (argc, argv, "b:i:I:K:N:s:O:d:F:L:R:SpgxXVvW:",
 			   copy_options, (int *) 0)) != EOF)
     {
       switch (c)
@@ -1798,23 +1864,16 @@ copy_main (argc, argv)
 	  strip_symbols = strip_unneeded;
 	  break;
 	case 'K':
-	  if (! keep_symbols && strip_specific_list != NULL)
-	    {
-	      fprintf (stderr, "%s: Can not specify both -K and -N\n",
-		       program_name);
-	      strip_usage (stderr, 1);
-	    }
-	  keep_symbols = true;
-	  add_strip_symbol (optarg);
+	  add_specific_symbol (optarg, &keep_specific_list);
 	  break;
 	case 'N':
-	  if (keep_symbols)
-	    {
-	      fprintf (stderr, "%s: Can not specify both -K and -N\n",
-		       program_name);
-	      strip_usage (stderr, 1);
-	    }
-	  add_strip_symbol (optarg);
+	  add_specific_symbol (optarg, &strip_specific_list);
+	  break;
+	case 'L':
+	  add_specific_symbol (optarg, &localize_specific_list);
+	  break;
+	case 'W':
+	  add_specific_symbol (optarg, &weaken_specific_list);
 	  break;
 	case 'p':
 	  preserve_dates = true;
@@ -2038,6 +2097,16 @@ copy_main (argc, argv)
   if (output_target == (char *) NULL)
     output_target = input_target;
 
+  if (preserve_dates)
+    {
+      if (stat (input_filename, &statbuf) < 0)
+	{
+	  fprintf (stderr, "%s: ", input_filename);
+	  perror ("cannot stat");
+	  exit (1);
+	}
+    }
+
   /* If there is no destination file then create a temp and rename
      the result into the input.  */
 
@@ -2049,7 +2118,7 @@ copy_main (argc, argv)
       if (status == 0)
 	{	
 	  if (preserve_dates)
-	    make_same_dates (input_filename, tmpname);
+	    set_times (tmpname, &statbuf);
 	  smart_rename (tmpname, input_filename);
 	}
       else
@@ -2059,7 +2128,7 @@ copy_main (argc, argv)
     {
       copy_file (input_filename, output_filename, input_target, output_target);
       if (status == 0 && preserve_dates)
-	make_same_dates (input_filename, output_filename);
+	set_times (output_filename, &statbuf);
     }
 
   if (adjust_warn)

@@ -1,5 +1,6 @@
 /* BFD semi-generic back-end for a.out binaries.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -715,11 +716,11 @@ NAME(aout,machine_type) (arch, machine, unknown)
 
   case bfd_arch_m68k:
     switch (machine) {
-    case 0:		arch_flags = M_68010; break;
-    case 68000:		arch_flags = M_UNKNOWN;	*unknown = false; break;
-    case 68010:		arch_flags = M_68010; break;
-    case 68020:		arch_flags = M_68020; break;
-    default:		arch_flags = M_UNKNOWN; break;
+    case 0:		  arch_flags = M_68010; break;
+    case bfd_mach_m68000: arch_flags = M_UNKNOWN; *unknown = false; break;
+    case bfd_mach_m68010: arch_flags = M_68010; break;
+    case bfd_mach_m68020: arch_flags = M_68020; break;
+    default:		  arch_flags = M_UNKNOWN; break;
     }
     break;
 
@@ -3880,10 +3881,29 @@ NAME(aout,final_link) (abfd, info, callback)
   obj_datasec (abfd)->reloc_count =
     exec_hdr (abfd)->a_drsize / obj_reloc_entry_size (abfd);
 
-  /* Write out the string table.  */
-  if (bfd_seek (abfd, obj_str_filepos (abfd), SEEK_SET) != 0)
-    goto error_return;
-  return emit_stringtab (abfd, aout_info.strtab);
+  /* Write out the string table, unless there are no symbols.  */
+  if (abfd->symcount > 0)
+    {
+      if (bfd_seek (abfd, obj_str_filepos (abfd), SEEK_SET) != 0
+	  || ! emit_stringtab (abfd, aout_info.strtab))
+	goto error_return;
+    }
+  else if (obj_textsec (abfd)->reloc_count == 0
+	   && obj_datasec (abfd)->reloc_count == 0)
+    {
+      bfd_byte b;
+
+      b = 0;
+      if (bfd_seek (abfd,
+		    (obj_datasec (abfd)->filepos
+		     + exec_hdr (abfd)->a_data
+		     - 1),
+		    SEEK_SET) != 0
+	  || bfd_write (&b, 1, 1, abfd) != 1)
+	goto error_return;
+    }
+
+  return true;
 
  error_return:
   if (aout_info.contents != NULL)

@@ -14,7 +14,7 @@ ar \- create, modify, and extract from archives.
 .hy 0
 .na
 .BR ar " [\|" "-" "\|]"\c
-.I {dmpqrtx}[abcilosuvV] \c
+.I {dmpqrtx}[abcilosSuvV] \c
 [\|\c
 .I membername\c
 \&\|] \c
@@ -215,6 +215,15 @@ index is not updated, even if it already existed; you can use `\|\c
 .B ranlib\c
 \& explicitly to update the symbol table index.
 
+However, too many different systems assume quick append rebuilds the
+index, so GNU
+.B ar
+implements `\|\c
+.B q\c
+\|' as a synonym for `\|\c
+.B r\c
+\|'.
+
 .TP
 .B r
 Insert \c
@@ -414,6 +423,19 @@ flag either with any operation, or alone.  Running `\|\c
 archive is equivalent to running `\|\c
 .B ranlib\c
 \|' on it.
+
+.TP
+.B S
+Do not generate an archive symbol table.  This can speed up building a
+large library in several steps.  The resulting archive can not be used
+with the linker.  In order to build a symbol table, you must omit the
+`\|\c
+.B S\c
+\|' modifier on the last execution of `\|\c
+.B ar\c
+\|', or you must run `\|\c
+.B ranlib\c
+\|' on the archive.
 
 .TP
 .B u

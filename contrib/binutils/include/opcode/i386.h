@@ -1,5 +1,5 @@
 /* i386-opcode.h -- Intel 80386 opcode table
-   Copyright 1989, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation.
+   Copyright 1989, 91, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation.
 
 This file is part of GAS, the GNU Assembler, and GDB, the GNU Debugger.
 
@@ -32,7 +32,12 @@ static const template i386_optab[] = {
 { "mov", 2, 0x88, _, DW|Modrm, { Reg, Reg|Mem, 0 } },
 { "mov", 2, 0xb0, _, ShortFormW, { Imm, Reg, 0 } },
 { "mov", 2, 0xc6, _,  W|Modrm,  { Imm, Reg|Mem, 0 } },
-{ "mov", 2, 0x8c, _, D|Modrm,  { SReg3|SReg2, Reg16|Mem, 0 } },
+/* The next instruction accepts WordReg so that `movl %gs,%esi' can be
+   used to move a segment register to a 32 bit register without using
+   a size prefix.  This will set the upper 16 bits of the 32 bit
+   register to an implementation defined value (on the Pentium Pro,
+   the implementation defined value is zero).  */
+{ "mov", 2, 0x8c, _, D|Modrm,  { SReg3|SReg2, WordReg|WordMem, 0 } },
 /* move to/from control debug registers */
 { "mov", 2, 0x0f20, _, D|Modrm, { Control, Reg32, 0} },
 { "mov", 2, 0x0f21, _, D|Modrm, { Debug, Reg32, 0} },
@@ -343,17 +348,10 @@ static const template i386_optab[] = {
 {"jnle", 1, 0x7f, _, Jump, { Disp, 0, 0} },
 {"jg", 1, 0x7f, _, Jump, { Disp, 0, 0} },
 
-#if 0  /* XXX where are these macros used?
-	  To get them working again, they need to take
-	  an entire template as the parameter,
-	  and check for Data16/Data32 flags.  */
-/* these turn into pseudo operations when disp is larger than 8 bits */
 #define IS_JUMP_ON_CX_ZERO(o) \
-  (o == 0x66e3)
-#define IS_JUMP_ON_ECX_ZERO(o) \
   (o == 0xe3)
-#endif
 
+/* jcxz vs. jecxz is chosen on the basis of the address size prefix.  */
 {"jcxz", 1, 0xe3, _, JumpByte|Data16, { Disp, 0, 0} },
 {"jecxz", 1, 0xe3, _, JumpByte|Data32, { Disp, 0, 0} },
 
@@ -528,19 +526,19 @@ static const template i386_optab[] = {
 /* comparison (without pop) */
 {"fcom", 1, 0xd8d0, _, ShortForm, { FloatReg, 0, 0} },
 {"fcoms", 1, 0xd8, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem float  */
-{"ficoml", 1, 0xda, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem word  */
+{"ficoml", 1, 0xda, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem dword  */
 {"fcoml", 1, 0xdc, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem double  */
 {"fcoml", 1, 0xd8d0, _, ShortForm, { FloatReg, 0, 0} },
-{"ficoms", 1, 0xde, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem dword */
+{"ficoms", 1, 0xde, 2, Modrm, { Mem, 0, 0} },	/* compare %st0, mem word */
 
 /* comparison (with pop) */
 {"fcomp", 1, 0xd8d8, _, ShortForm, { FloatReg, 0, 0} },
 {"fcomp", 0, 0xd8d9, _, NoModrm, {0, 0, 0} },   /* fcomp %st, %st(1) */
 {"fcomps", 1, 0xd8, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem float  */
-{"ficompl", 1, 0xda, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem word  */
+{"ficompl", 1, 0xda, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem dword  */
 {"fcompl", 1, 0xdc, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem double  */
 {"fcompl", 1, 0xd8d8, _, ShortForm, { FloatReg, 0, 0} },
-{"ficomps", 1, 0xde, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem dword */
+{"ficomps", 1, 0xde, 3, Modrm, { Mem, 0, 0} },	/* compare %st0, mem word */
 {"fcompp", 0, 0xded9, _, NoModrm, { 0, 0, 0} },	/* compare %st0, %st1 & pop 2 */
 
 /* unordered comparison (with pop) */
@@ -705,36 +703,38 @@ static const template i386_optab[] = {
 {"fabs", 0, 0xd9e1, _, NoModrm, { 0, 0, 0} },
 
 /* processor control */
-{"fninit", 0, 0xdbe3, _, NoModrm, { 0, 0, 0} },
-{"finit", 0, 0x9bdbe3, _, NoModrm, { 0, 0, 0} },
-{"fldcw", 1, 0xd9, 5, Modrm, { Mem, 0, 0} },
-{"fnstcw", 1, 0xd9, 7, Modrm, { Mem, 0, 0} },
-{"fstcw", 1, 0x9bd9, 7, Modrm, { Mem, 0, 0} },
-{"fnstsw", 1, 0xdfe0, _, NoModrm, { Acc, 0, 0} },
-{"fnstsw", 1, 0xdd, 7, Modrm, { Mem, 0, 0} },
-{"fnstsw", 0, 0xdfe0, _, NoModrm, { 0, 0, 0} },
-{"fstsw", 1, 0x9bdfe0, _, NoModrm, { Acc, 0, 0} },
-{"fstsw", 1, 0x9bdd, 7, Modrm, { Mem, 0, 0} },
-{"fstsw", 0, 0x9bdfe0, _, NoModrm, { 0, 0, 0} },
-{"fnclex", 0, 0xdbe2, _, NoModrm, { 0, 0, 0} },
-{"fclex", 0, 0x9bdbe2, _, NoModrm, { 0, 0, 0} },
-/*
- We ignore the short format (287) versions of fstenv/fldenv & fsave/frstor
- instructions;  i'm not sure how to add them or how they are different.
- My 386/387 book offers no details about this.
-*/
-{"fnstenv", 1, 0xd9, 6, Modrm, { Mem, 0, 0} },
-{"fstenv", 1, 0x9bd9, 6, Modrm, { Mem, 0, 0} },
-{"fldenv", 1, 0xd9, 4, Modrm, { Mem, 0, 0} },
-{"fnsave", 1, 0xdd, 6, Modrm, { Mem, 0, 0} },
-{"fsave", 1, 0x9bdd, 6, Modrm, { Mem, 0, 0} },
-{"frstor", 1, 0xdd, 4, Modrm, { Mem, 0, 0} },
+{"fninit", 0, 0xdbe3, _, NoModrm,	{ 0, 0, 0} },
+{"finit",  0, 0xdbe3, _, FWait|NoModrm, { 0, 0, 0} },
+{"fldcw",  1,	0xd9, 5, Modrm,		{ Mem, 0, 0} },
+{"fnstcw", 1,	0xd9, 7, Modrm,		{ Mem, 0, 0} },
+{"fstcw",  1,	0xd9, 7, FWait|Modrm,	{ Mem, 0, 0} },
+{"fnstsw", 1, 0xdfe0, _, NoModrm,	{ Acc, 0, 0} },
+{"fnstsw", 1,	0xdd, 7, Modrm,		{ Mem, 0, 0} },
+{"fnstsw", 0, 0xdfe0, _, NoModrm,	{ 0, 0, 0} },
+{"fstsw",  1, 0xdfe0, _, FWait|NoModrm,	{ Acc, 0, 0} },
+{"fstsw",  1,	0xdd, 7, FWait|Modrm,	{ Mem, 0, 0} },
+{"fstsw",  0, 0xdfe0, _, FWait|NoModrm,	{ 0, 0, 0} },
+{"fnclex", 0, 0xdbe2, _, NoModrm,	{ 0, 0, 0} },
+{"fclex",  0, 0xdbe2, _, FWait|NoModrm,	{ 0, 0, 0} },
+{"fnstenv",1,	0xd9, 6, Modrm,		{ Mem, 0, 0} },
+{"fstenv", 1,	0xd9, 6, FWait|Modrm,	{ Mem, 0, 0} },
+{"fldenv", 1,	0xd9, 4, Modrm,		{ Mem, 0, 0} },
+{"fnsave", 1,	0xdd, 6, Modrm,		{ Mem, 0, 0} },
+{"fsave",  1,	0xdd, 6, FWait|Modrm,	{ Mem, 0, 0} },
+{"frstor", 1,	0xdd, 4, Modrm,		{ Mem, 0, 0} },
+/* Short forms of fldenv, fstenv use data size prefix. (At least I
+   think so.  The PentPro prog ref I have says address size in one
+   place, operand size elsewhere).  FIXME: Are these the right names?  */
+{"fnstenvs",1,	0xd9, 6, Modrm|Data16,	{ Mem, 0, 0} },
+{"fstenvs", 1,	0xd9, 6, FWait|Modrm|Data16, { Mem, 0, 0} },
+{"fldenvs", 1,	0xd9, 4, Modrm|Data16,	{ Mem, 0, 0} },
 
-{"ffree", 1, 0xddc0, _, ShortForm, { FloatReg, 0, 0} },
+{"ffree",  1, 0xddc0, _, ShortForm,	{ FloatReg, 0, 0} },
 /* P6:free st(i), pop st */
-{"ffreep", 1, 0xdfc0, _, ShortForm, { FloatReg, 0, 0} },
-{"fnop", 0, 0xd9d0, _, NoModrm, { 0, 0, 0} },
-{"fwait", 0, 0x9b, _, NoModrm, { 0, 0, 0} },
+{"ffreep", 1, 0xdfc0, _, ShortForm,	{ FloatReg, 0, 0} },
+{"fnop",   0, 0xd9d0, _, NoModrm,	{ 0, 0, 0} },
+#define FWAIT_OPCODE 0x9b
+{"fwait",  0,	0x9b, _, NoModrm,	{ 0, 0, 0} },
 
 /*
   opcode prefixes; we allow them as seperate insns too
@@ -778,7 +778,7 @@ static const template i386_optab[] = {
 /* Pentium Pro extensions */
 {"rdpmc", 0, 0x0f33, _, NoModrm, { 0, 0, 0} },
 
-{"ud2", 0, 0x0fff, _, NoModrm, {0, 0, 0} }, /* official undefined instr. */
+{"ud2", 0, 0x0f0b, _, NoModrm, {0, 0, 0} }, /* official undefined instr. */
 
 {"cmovo",  2, 0x0f40, _, Modrm|ReverseRegRegmem, { WordReg|WordMem, WordReg, 0} },
 {"cmovno", 2, 0x0f41, _, Modrm|ReverseRegRegmem, { WordReg|WordMem, WordReg, 0} },
@@ -828,7 +828,7 @@ static const template i386_optab[] = {
 {"paddsw",    2, 0x0fed, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
 {"paddusb",   2, 0x0fdc, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
 {"paddusw",   2, 0x0fdd, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
-{"pand",      2, 0x0fda, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
+{"pand",      2, 0x0fdb, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
 {"pandn",     2, 0x0fdf, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
 {"pcmpeqb",   2, 0x0f74, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
 {"pcmpeqw",   2, 0x0f75, _, Modrm, { RegMMX|WordMem, RegMMX, 0 } },
@@ -950,9 +950,9 @@ static const seg_entry *const two_byte_segment_defaults[] = {
   /* mode 0 */
   &ds, &ds, &ds, &ds, &ss, &ds, &ds, &ds,
   /* mode 1 */
-  &ds, &ds, &ds, &ds, &ss, &ds, &ds, &ds,
+  &ds, &ds, &ds, &ds, &ss, &ss, &ds, &ds,
   /* mode 2 */
-  &ds, &ds, &ds, &ds, &ss, &ds, &ds, &ds,
+  &ds, &ds, &ds, &ds, &ss, &ss, &ds, &ds,
   /* mode 3 --- not a memory reference; never referenced */
 };
 

@@ -1,5 +1,6 @@
 /* BFD back-end data structures for a.out (and similar) files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -228,6 +229,9 @@ enum machine_type {
   M_68K4K_NETBSD = 136,	/* NetBSD/m68k4k binary */
   M_532_NETBSD = 137,	/* NetBSD/ns32k binary */
   M_SPARC_NETBSD = 138,	/* NetBSD/sparc binary */
+  M_PMAX_NETBSD = 139,	/* NetBSD/pmax (MIPS little-endian) binary */
+  M_VAX_NETBSD = 140,	/* NetBSD/vax binary */
+  M_ALPHA_NETBSD = 141,	/* NetBSD/alpha binary */
   M_SPARCLET_1 = 147,	/* 0x93, reserved */
   M_MIPS1 = 151,        /* MIPS R2000/R3000 binary */
   M_MIPS2 = 152,        /* MIPS R4000/R6000 binary */

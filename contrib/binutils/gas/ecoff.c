@@ -1,5 +1,5 @@
 /* ECOFF debugging support.
-   Copyright (C) 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
    good deal of it comes directly from mips-tfile.c, by Michael
@@ -768,12 +768,23 @@ enum aux_type {
    If PAGE_SIZE is > 4096, the string length in the shash_t structure
    can't be represented (assuming there are strings > 4096 bytes).  */
 
+/* FIXME: Yes, there can be such strings while emitting C++ class debug
+   info.  Templates are the offender here, the test case in question 
+   having a mangled class name of
+
+     t7rb_tree4Z4xkeyZt4pair2ZC4xkeyZt7xsocket1Z4UserZt9select1st2Zt4pair\
+     2ZC4xkeyZt7xsocket1Z4UserZ4xkeyZt4less1Z4xkey
+
+   Repeat that a couple dozen times while listing the class members and
+   you've got strings over 4k.  Hack around this for now by increasing
+   the page size.  A proper solution would abandon this structure scheme
+   certainly for very large strings, and possibly entirely.  */
+
 #ifndef PAGE_SIZE
-#define PAGE_SIZE 4096		/* size of varray pages */
+#define PAGE_SIZE (8*1024)	/* size of varray pages */
 #endif
 
 #define PAGE_USIZE ((unsigned long) PAGE_SIZE)
-
 
 #ifndef MAX_CLUSTER_PAGES	/* # pages to get from system */
 #define MAX_CLUSTER_PAGES 63
@@ -1046,13 +1057,13 @@ typedef union page {
   forward_t	forward	[ PAGE_SIZE / sizeof (forward_t)     ];
   thead_t	thead	[ PAGE_SIZE / sizeof (thead_t)	     ];
   lineno_list_t	lineno	[ PAGE_SIZE / sizeof (lineno_list_t) ];
-} page_t;
+} page_type;
 
 
 /* Structure holding allocation information for small sized structures.  */
 typedef struct alloc_info {
   char		*alloc_name;	/* name of this allocation type (must be first) */
-  page_t	*cur_page;	/* current page being allocated from */
+  page_type	*cur_page;	/* current page being allocated from */
   small_free_t	 free_list;	/* current free list if any */
   int		 unallocated;	/* number of elements unallocated on page */
   int		 total_alloc;	/* total number of allocations */
@@ -1469,8 +1480,8 @@ static unsigned long ecoff_build_fdr
   PARAMS ((const struct ecoff_debug_swap *backend, char **buf, char **bufend,
 	   unsigned long offset));
 static void ecoff_setup_ext PARAMS ((void));
-static page_t *allocate_cluster PARAMS ((unsigned long npages));
-static page_t *allocate_page PARAMS ((void));
+static page_type *allocate_cluster PARAMS ((unsigned long npages));
+static page_type *allocate_page PARAMS ((void));
 static scope_t *allocate_scope PARAMS ((void));
 static void free_scope PARAMS ((scope_t *ptr));
 static vlinks_t *allocate_vlinks PARAMS ((void));
@@ -1482,7 +1493,6 @@ static forward_t *allocate_forward PARAMS ((void));
 static thead_t *allocate_thead PARAMS ((void));
 static void free_thead PARAMS ((thead_t *ptr));
 static lineno_list_t *allocate_lineno_list PARAMS ((void));
-static void generate_ecoff_stab PARAMS ((int, const char *, int, int, int));
 
 /* This function should be called when the assembler starts up.  */
 
@@ -1526,7 +1536,7 @@ add_varray_page (vp)
 
 #ifdef MALLOC_CHECK
   if (vp->object_size > 1)
-    new_links->datum = (page_t *) xcalloc (1, vp->object_size);
+    new_links->datum = (page_type *) xcalloc (1, vp->object_size);
   else
 #endif
     new_links->datum = allocate_page ();
@@ -2215,11 +2225,14 @@ add_file (file_name, indx, fake)
       as_where (&file, (unsigned int *) NULL);
       file_name = (const char *) file;
 
-      if (! symbol_table_frozen)
-	generate_asm_lineno = 1;
+      /* Automatically generate ECOFF debugging information, since I
+         think that's what other ECOFF assemblers do.  We don't do
+         this if we see a .file directive with a string, since that
+         implies that some sort of debugging information is being
+         provided.  */
+      if (! symbol_table_frozen && debug_type == DEBUG_NONE)
+	debug_type = DEBUG_ECOFF;
     }
-  else
-      generate_asm_lineno = 0;
 
 #ifndef NO_LISTING
   if (listing)
@@ -2319,23 +2332,6 @@ add_file (file_name, indx, fake)
       fil_ptr->int_type = add_aux_sym_tir (&int_type_info,
 					   hash_yes,
 					   &cur_file_ptr->thash_head[0]);
-      /* gas used to have a bug that if the file does not have any
-	 symbol, it either will abort or will not build the file,
-	 the following is to get around that problem. ---kung*/
-#if 0
-      if (generate_asm_lineno)
-	{
-	  mark_stabs (0);
-          (void) add_ecoff_symbol (file_name, st_Nil, sc_Nil,
-				   symbol_new ("L0\001", now_seg,
-					       (valueT) frag_now_fix (),
-					       frag_now),
-				   (bfd_vma) 0, 0, ECOFF_MARK_STAB (N_SO));
-          (void) add_ecoff_symbol ("void:t1=1", st_Nil, sc_Nil,
-				   (symbolS *) NULL, (bfd_vma) 0, 0,
-				   ECOFF_MARK_STAB (N_LSYM));
-	}
-#endif
     }
 }
 
@@ -2350,7 +2346,11 @@ ecoff_new_file (name)
   if (cur_file_ptr != NULL && strcmp (cur_file_ptr->name, name) == 0)
     return;
   add_file (name, 0, 0);
-  generate_asm_lineno = 1;
+
+  /* This is a hand coded assembler file, so automatically turn on
+     debugging information.  */
+  if (debug_type == DEBUG_NONE)
+    debug_type = DEBUG_ECOFF;
 }
 
 #ifdef ECOFF_DEBUG
@@ -3058,25 +3058,11 @@ ecoff_directive_end (ignore)
   if (ent == (symbolS *) NULL)
     as_warn (".end directive names unknown symbol");
   else
-    {
-      (void) add_ecoff_symbol ((const char *) NULL, st_End, sc_Text,
-			       symbol_new ("L0\001", now_seg,
-					   (valueT) frag_now_fix (),
-					   frag_now),
-			       (bfd_vma) 0, (symint_t) 0, (symint_t) 0);
-
-      if (stabs_seen && generate_asm_lineno)
-	{
-	char *n;
-
-	  n = xmalloc (strlen (name) + 4);
-	  strcpy (n, name);
-	  strcat (n, ":F1");
-	  (void) add_ecoff_symbol ((const char *) n, stGlobal, scText, 
-				   ent, (bfd_vma) 0, 0,
-				   ECOFF_MARK_STAB (N_FUN));
-	}
-    }
+    (void) add_ecoff_symbol ((const char *) NULL, st_End, sc_Text,
+			     symbol_new ("L0\001", now_seg,
+					 (valueT) frag_now_fix (),
+					 frag_now),
+			     (bfd_vma) 0, (symint_t) 0, (symint_t) 0);
 
   cur_proc_ptr = (proc_t *) NULL;
 
@@ -4297,6 +4283,11 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			  && local)
 			sym_ptr->ecoff_sym.asym.index = isym - ifilesym - 1;
 		      sym_ptr->ecoff_sym.ifd = fil_ptr->file_index;
+
+		      /* Don't try to merge an FDR which has an
+                         external symbol attached to it.  */
+		      if (S_IS_EXTERNAL (as_sym) || S_IS_WEAK (as_sym))
+			fil_ptr->fdr.fMerge = 0;
 		    }
 		}
 	    }
@@ -4841,11 +4832,11 @@ ecoff_build_debug (hdr, bufp, backend)
 
 #ifndef MALLOC_CHECK
 
-static page_t *
+static page_type *
 allocate_cluster (npages)
      unsigned long npages;
 {
-  register page_t *value = (page_t *) xmalloc (npages * PAGE_USIZE);
+  register page_type *value = (page_type *) xmalloc (npages * PAGE_USIZE);
 
 #ifdef ECOFF_DEBUG
   if (debug > 3)
@@ -4858,14 +4849,14 @@ allocate_cluster (npages)
 }
 
 
-static page_t *cluster_ptr = NULL;
+static page_type *cluster_ptr = NULL;
 static unsigned long pages_left = 0;
 
 #endif /* MALLOC_CHECK */
 
 /* Allocate one page (which is initialized to 0).  */
 
-static page_t *
+static page_type *
 allocate_page ()
 {
 #ifndef MALLOC_CHECK
@@ -4881,7 +4872,7 @@ allocate_page ()
 
 #else	/* MALLOC_CHECK */
 
-  page_t *ptr;
+  page_type *ptr;
 
   ptr = xmalloc (PAGE_USIZE);
   memset (ptr, 0, PAGE_USIZE);
@@ -4906,7 +4897,7 @@ allocate_scope ()
   else
     {
       register int unallocated	= alloc_counts[(int)alloc_type_scope].unallocated;
-      register page_t *cur_page	= alloc_counts[(int)alloc_type_scope].cur_page;
+      register page_type *cur_page	= alloc_counts[(int)alloc_type_scope].cur_page;
 
       if (unallocated == 0)
 	{
@@ -4957,7 +4948,7 @@ allocate_vlinks ()
 #ifndef MALLOC_CHECK
 
   register int unallocated = alloc_counts[(int)alloc_type_vlinks].unallocated;
-  register page_t *cur_page = alloc_counts[(int)alloc_type_vlinks].cur_page;
+  register page_type *cur_page = alloc_counts[(int)alloc_type_vlinks].cur_page;
 
   if (unallocated == 0)
     {
@@ -4991,7 +4982,7 @@ allocate_shash ()
 #ifndef MALLOC_CHECK
 
   register int unallocated = alloc_counts[(int)alloc_type_shash].unallocated;
-  register page_t *cur_page = alloc_counts[(int)alloc_type_shash].cur_page;
+  register page_type *cur_page = alloc_counts[(int)alloc_type_shash].cur_page;
 
   if (unallocated == 0)
     {
@@ -5025,7 +5016,7 @@ allocate_thash ()
 #ifndef MALLOC_CHECK
 
   register int unallocated = alloc_counts[(int)alloc_type_thash].unallocated;
-  register page_t *cur_page = alloc_counts[(int)alloc_type_thash].cur_page;
+  register page_type *cur_page = alloc_counts[(int)alloc_type_thash].cur_page;
 
   if (unallocated == 0)
     {
@@ -5064,7 +5055,7 @@ allocate_tag ()
   else
     {
       register int unallocated = alloc_counts[(int)alloc_type_tag].unallocated;
-      register page_t *cur_page = alloc_counts[(int)alloc_type_tag].cur_page;
+      register page_type *cur_page = alloc_counts[(int)alloc_type_tag].cur_page;
 
       if (unallocated == 0)
 	{
@@ -5115,7 +5106,7 @@ allocate_forward ()
 #ifndef MALLOC_CHECK
 
   register int unallocated = alloc_counts[(int)alloc_type_forward].unallocated;
-  register page_t *cur_page = alloc_counts[(int)alloc_type_forward].cur_page;
+  register page_type *cur_page = alloc_counts[(int)alloc_type_forward].cur_page;
 
   if (unallocated == 0)
     {
@@ -5154,7 +5145,7 @@ allocate_thead ()
   else
     {
       register int unallocated = alloc_counts[(int)alloc_type_thead].unallocated;
-      register page_t *cur_page = alloc_counts[(int)alloc_type_thead].cur_page;
+      register page_type *cur_page = alloc_counts[(int)alloc_type_thead].cur_page;
 
       if (unallocated == 0)
 	{
@@ -5203,7 +5194,7 @@ allocate_lineno_list ()
 #ifndef MALLOC_CHECK
 
   register int unallocated = alloc_counts[(int)alloc_type_lineno].unallocated;
-  register page_t *cur_page = alloc_counts[(int)alloc_type_lineno].cur_page;
+  register page_type *cur_page = alloc_counts[(int)alloc_type_lineno].cur_page;
 
   if (unallocated == 0)
     {
@@ -5243,103 +5234,6 @@ ecoff_set_gp_prolog_size (sz)
   cur_proc_ptr->pdr.gp_used = 1;
 }
 
-static void
-generate_ecoff_stab (what, string, type, other, desc)
-     int what;
-     const char *string;
-     int type;
-     int other;
-     int desc;
-{
-  efdr_t *save_file_ptr = cur_file_ptr;
-  symbolS *sym;
-  symint_t value;
-  st_t st;
-  sc_t sc;
-  symint_t indx;
-  localsym_t *hold = NULL;
-
-  /* We don't handle .stabd.  */
-  if (what != 's' && what != 'n')
-    {
-      as_bad (".stab%c is not supported", what);
-      return;
-    }
-
-  /* We ignore the other field.  */
-  if (other != 0)
-    as_warn (".stab%c: ignoring non-zero other field", what);
-
-  /* Make sure we have a current file.  */
-  if (cur_file_ptr == (efdr_t *) NULL)
-    {
-      add_file ((const char *) NULL, 0, 1);
-      save_file_ptr = cur_file_ptr;
-    }
-
-  /* For stabs in ECOFF, the first symbol must be @stabs.  This is a
-     signal to gdb.  */
-  if (stabs_seen == 0)
-    mark_stabs (0);
-
-  /* Line number stabs are handled differently, since they have two
-     values, the line number and the address of the label.  We use the
-     index field (aka desc) to hold the line number, and the value
-     field to hold the address.  The symbol type is st_Label, which
-     should be different from the other stabs, so that gdb can
-     recognize it.  */
-  if (type == N_SLINE)
-    {
-      SYMR dummy_symr;
-
-#ifndef NO_LISTING
-      if (listing)
-	listing_source_line ((unsigned int) desc);
-#endif
-
-      dummy_symr.index = desc;
-      if (dummy_symr.index != desc)
-	{
-	  as_warn ("Line number (%d) for .stab%c directive cannot fit in index field (20 bits)",
-		   desc, what);
-	  return;
-	}
-
-      sym = symbol_find_or_make ((char *)string);
-      value = 0;
-      st = st_Label;
-      sc = sc_Text;
-      indx = desc;
-    }
-  else
-    {
-#ifndef NO_LISTING
-      if (listing && (type == N_SO || type == N_SOL))
-	listing_source_file (string);
-#endif
-
-      sym = symbol_find_or_make ((char *)string);
-      sc = sc_Nil;
-      st = st_Nil;
-      value = 0;
-      indx = ECOFF_MARK_STAB (type);
-    }
-
-  /* Don't store the stabs symbol we are creating as the type of the
-     ECOFF symbol.  We want to compute the type of the ECOFF symbol
-     independently.  */
-  if (sym != (symbolS *) NULL)
-    hold = sym->ecoff_symbol;
-
-  (void) add_ecoff_symbol (string, st, sc, sym, (bfd_vma) 0, value, indx);
-
-  if (sym != (symbolS *) NULL)
-    sym->ecoff_symbol = hold;
-
-  /* Restore normal file type.  */
-  cur_file_ptr = save_file_ptr;
-}
-
 int 
 ecoff_no_current_file ()
 {
@@ -5353,18 +5247,9 @@ ecoff_generate_asm_lineno (filename, lineno)
 {
   lineno_list_t *list;
 
-  /* this potential can cause problem, when we start to see stab half the 
-     way thru the file */
-/*
-  if (stabs_seen)
-    ecoff_generate_asm_line_stab(filename, lineno);
-*/
-
-  if (current_stabs_filename == (char *)NULL || strcmp (current_stabs_filename, filename))
-    {
-      add_file (filename, 0, 1);
-      generate_asm_lineno = 1;
-    }
+  if (current_stabs_filename == (char *)NULL
+      || strcmp (current_stabs_filename, filename))
+    add_file (filename, 0, 1);
 
   list = allocate_lineno_list ();
 
@@ -5396,31 +5281,6 @@ ecoff_generate_asm_lineno (filename, lineno)
       *last_lineno_ptr = list;
       last_lineno_ptr = &list->next;
     }
-}
-
-static int line_label_cnt = 0;
-void
-ecoff_generate_asm_line_stab (filename, lineno)
-    char *filename;
-    int lineno;
-{
-  char *ll;
-
-  if (strcmp (current_stabs_filename, filename)) 
-    {
-      add_file (filename, 0, 1);
-      generate_asm_lineno = 1;
-    }
-
-  line_label_cnt++;
-  /* generate local label $LMnn */
-  ll = xmalloc(10);
-  sprintf(ll, "$LM%d", line_label_cnt);
-  colon (ll);
-
-  /* generate stab for the line */
-  generate_ecoff_stab ('n', ll, N_SLINE, 0, lineno); 
-
 }
 
 #endif /* ECOFF_DEBUGGING */

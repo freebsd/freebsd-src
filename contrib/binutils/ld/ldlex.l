@@ -1,6 +1,7 @@
 %{
 
-/* Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+/* Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -15,8 +16,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GLD; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /*
 This was written by steve chamberlain
@@ -47,9 +49,6 @@ This was written by steve chamberlain
 /* The type of top-level parser input.
    yylex and yyparse (indirectly) both check this.  */
 input_type parser_input;
-
-/* Radix to use for bfd_scan_vma -- 0 (default to base 10) or 16.  */
-int hex_mode;
 
 /* Line number in the current input file.
    (FIXME Actually, it doesn't appear to get reset for each file?)  */
@@ -115,7 +114,7 @@ WHITE		[ \t\n\r]+
 NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
-V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
+V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 
 %s SCRIPT
 %s EXPRESSION
@@ -179,17 +178,18 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 								  ibase);
 				   return INT;
 				 }
-<SCRIPT,DEFSYMEXP,MRI,BOTH,EXPRESSION>"$"?"0x"?([0-9A-Fa-f])+(M|K|m|k)? {
-				  yylval.integer = bfd_scan_vma (yytext, 0,
-								 hex_mode);
-				  if (yytext[yyleng-1]=='M'
-					|| yytext[yyleng-1] == 'm') {
-				      yylval.integer *= 1024*1024;
-				    }	
-				  if (yytext[yyleng-1]=='K' 
-				|| yytext[yyleng-1]=='k') {
-				      yylval.integer *= 1024;
-				    }		
+<SCRIPT,DEFSYMEXP,MRI,BOTH,EXPRESSION>((("$"|"0x")([0-9A-Fa-f])+)|(([0-9])+))(M|K|m|k)? {
+				  char *s = yytext;
+
+				  if (*s == '$')
+				    ++s;
+				  yylval.integer = bfd_scan_vma (s, 0, 0);
+				  if (yytext[yyleng-1] == 'M'
+				      || yytext[yyleng-1] == 'm')
+				    yylval.integer *= 1024 * 1024;
+				  if (yytext[yyleng-1] == 'K' 
+				      || yytext[yyleng-1]=='k')
+				    yylval.integer *= 1024;
 				  return INT;
 				}
 <BOTH,SCRIPT,EXPRESSION,MRI>"]"		{ RTOKEN(']');}
@@ -232,7 +232,7 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 <BOTH,SCRIPT,EXPRESSION,MRI>";"		{ RTOKEN(';');}
 <BOTH,SCRIPT>"MEMORY"		{ RTOKEN(MEMORY);}
 <BOTH,SCRIPT>"ORIGIN"		{ RTOKEN(ORIGIN);}
-<BOTH,SCRIPT>"VERSION"		{ RTOKEN(VERSION);}
+<BOTH,SCRIPT>"VERSION"		{ RTOKEN(VERSIONK);}
 <EXPRESSION,BOTH,SCRIPT>"BLOCK"		{ RTOKEN(BLOCK);}
 <EXPRESSION,BOTH,SCRIPT>"BIND"		{ RTOKEN(BIND);}
 <BOTH,SCRIPT>"LENGTH"		{ RTOKEN(LENGTH);}
@@ -265,6 +265,7 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 <BOTH,SCRIPT>"SYSLIB"		{ RTOKEN(SYSLIB);}
 <BOTH,SCRIPT>"FLOAT"			{ RTOKEN(FLOAT);}
 <BOTH,SCRIPT>"QUAD"			{ RTOKEN( QUAD);}
+<BOTH,SCRIPT>"SQUAD"			{ RTOKEN( SQUAD);}
 <BOTH,SCRIPT>"LONG"			{ RTOKEN( LONG);}
 <BOTH,SCRIPT>"SHORT"			{ RTOKEN( SHORT);}
 <BOTH,SCRIPT>"BYTE"			{ RTOKEN( BYTE);}
@@ -284,9 +285,8 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 <BOTH,SCRIPT>"PHDRS"			{ RTOKEN (PHDRS); }
 <EXPRESSION,BOTH,SCRIPT>"AT"			{ RTOKEN(AT);}
 <EXPRESSION,BOTH,SCRIPT>"PROVIDE"		{ RTOKEN(PROVIDE); }
-<MRI>"#".*\n?\r?		{ ++ lineno; }
+<MRI>"#".*\n?			{ ++ lineno; }
 <MRI>"\n"	                { ++ lineno;  RTOKEN(NEWLINE); }
-<MRI>"\r"	                { ++ lineno;  RTOKEN(NEWLINE); }
 <MRI>"*".*			{ /* Mri comment line */ }
 <MRI>";".*			{ /* Mri comment line */ }
 <MRI>"END"                      { RTOKEN(ENDWORD); }
@@ -341,7 +341,22 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 				  yylval.name = buystring (yytext + 2);
 				  return LNAME;
 				}
-<SCRIPT>{WILDCHAR}* { yylval.name = buystring(yytext); return NAME; }
+<SCRIPT>{WILDCHAR}* {
+		/* Annoyingly, this pattern can match comments, and we have
+		   longest match issues to consider.  So if the first two
+		   characters are a comment opening, put the input back and
+		   try again.  */
+		if (yytext[0] == '/' && yytext[1] == '*')
+		  {
+		    yyless(2);
+		    comment ();
+		  }
+		else
+		  {
+		    yylval.name = buystring(yytext);
+		    return NAME;
+		  }
+	}
 
 <EXPRESSION,BOTH,SCRIPT>"\""[^\"]*"\"" {
 					/* No matter the state, quotes
@@ -351,8 +366,7 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 					return NAME;
 				}
 <BOTH,SCRIPT,EXPRESSION>"\n"		{ lineno++;}
-<BOTH,SCRIPT,EXPRESSION>"\r"		{ lineno++;}
-<MRI,BOTH,SCRIPT,EXPRESSION>[ \t]
+<MRI,BOTH,SCRIPT,EXPRESSION>[ \t\r]+	{ }
 
 <VERS_NODE,VERS_SCRIPT>[:,;]	{ return *yytext; }
 
@@ -371,11 +385,11 @@ V_IDENTIFIER [*?$_a-zA-Z][*?_a-zA-Z0-9]*
 <VERS_SCRIPT>"{"		{ BEGIN(VERS_NODE); return *yytext; }
 <VERS_SCRIPT,VERS_NODE>"}"	{ BEGIN(VERS_SCRIPT); return *yytext; }
 
-<VERS_START,VERS_NODE,VERS_SCRIPT>[\n\r]	{ lineno++; }
+<VERS_START,VERS_NODE,VERS_SCRIPT>[\n]		{ lineno++; }
 
 <VERS_START,VERS_NODE,VERS_SCRIPT>#.*		{ /* Eat up comments */ }
 
-<VERS_START,VERS_NODE,VERS_SCRIPT>[ \t]+   	{ /* Eat up whitespace */ }
+<VERS_START,VERS_NODE,VERS_SCRIPT>[ \t\r]+   	{ /* Eat up whitespace */ }
 
 <<EOF>> {
   include_stack_ptr--;
@@ -562,7 +576,7 @@ yy_input (buf, result, max_size)
 	{
 	  *result = read (fileno (yyin), (char *) buf, max_size);
 	  if (*result < 0) 
-	    einfo ("%F%P: read in flex scanner failed");
+	    einfo ("%F%P: read in flex scanner failed\n");
 	}
     }
 }
@@ -579,7 +593,7 @@ comment ()
     c = input();
     while (c != '*' && c != EOF) 
     {
-      if (c == '\n' || c == '\r')
+      if (c == '\n')
 	lineno++;
       c = input();
     }
@@ -593,7 +607,7 @@ comment ()
        break;			/* found the end */
     }
 
-    if (c == '\n' || c == '\r')
+    if (c == '\n')
       lineno++;
 
     if (c == EOF)

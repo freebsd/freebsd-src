@@ -201,6 +201,19 @@ for i in `${CC-gcc} --print-multi-lib 2>/dev/null`; do
 done
 
 case "${target}" in
+arc-*-elf*)
+	if [ x$enable_biendian != xyes ]
+	then
+	  old_multidirs=${multidirs}
+	  multidirs=""
+	  for x in ${old_multidirs}; do
+	    case "${x}" in
+	      *be*) : ;;
+	      *) multidirs="${multidirs} ${x}" ;;
+	    esac
+	  done
+	fi
+	;;
 m68*-*-*)
 	if [ x$enable_softfloat = xno ]
 	then
@@ -295,17 +308,6 @@ powerpc*-*-* | rs6000*-*-*)
 	    esac
 	  done
 	fi
-	if [ x$enable_commoncpu = xno ]
-	then
-	  old_multidirs="${multidirs}"
-	  multidirs=""
-	  for x in ${old_multidirs}; do
-	    case "$x" in
-	      *common* ) : ;;
-	      *) multidirs="${multidirs} ${x}" ;;
-	    esac
-	  done
-	fi
 	if [ x$enable_powercpu = xno ]
 	then
 	  old_multidirs="${multidirs}"
@@ -313,17 +315,6 @@ powerpc*-*-* | rs6000*-*-*)
 	  for x in ${old_multidirs}; do
 	    case "$x" in
 	      power | */power | */power/* ) : ;;
-	      *) multidirs="${multidirs} ${x}" ;;
-	    esac
-	  done
-	fi
-	if [ x$enable_power2cpu = xno ]
-	then
-	  old_multidirs="${multidirs}"
-	  multidirs=""
-	  for x in ${old_multidirs}; do
-	    case "$x" in
-	      *power2* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -339,13 +330,13 @@ powerpc*-*-* | rs6000*-*-*)
 	    esac
 	  done
 	fi
-	if [ x$enable_601cpu = xno ]
+	if [ x$enable_powerpcos = xno ]
 	then
 	  old_multidirs="${multidirs}"
 	  multidirs=""
 	  for x in ${old_multidirs}; do
 	    case "$x" in
-	      *601* ) : ;;
+	      *mcall-linux* | *mcall-solaris* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -356,18 +347,7 @@ powerpc*-*-* | rs6000*-*-*)
 	  multidirs=""
 	  for x in ${old_multidirs}; do
 	    case "$x" in
-	      *endian* ) : ;;
-	      *) multidirs="${multidirs} ${x}" ;;
-	    esac
-	  done
-	fi
-	if [ x$enable_relocatable = xno ]
-	then
-	  old_multidirs="${multidirs}"
-	  multidirs=""
-	  for x in ${old_multidirs}; do
-	    case "$x" in
-	      *relocatable* ) : ;;
+	      *mlittle* | *mbig* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -378,7 +358,7 @@ powerpc*-*-* | rs6000*-*-*)
 	  multidirs=""
 	  for x in ${old_multidirs}; do
 	    case "$x" in
-	      *sysv* ) : ;;
+	      *mcall-sysv* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -389,7 +369,7 @@ powerpc*-*-* | rs6000*-*-*)
 	  multidirs=""
 	  for x in ${old_multidirs}; do
 	    case "$x" in
-	      *aix* ) : ;;
+	      *mcall-aix* ) : ;;
 	      *) multidirs="${multidirs} ${x}" ;;
 	    esac
 	  done
@@ -428,6 +408,7 @@ multi-do:
 				CXXFLAGS="$(CXXFLAGS) $${flags}" \
 				LIBCFLAGS="$(LIBCFLAGS) $${flags}" \
 				LIBCXXFLAGS="$(LIBCXXFLAGS) $${flags}" \
+				LDFLAGS="$(LDFLAGS) $${flags}" \
 				$(DO)); then \
 		  true; \
 		else \

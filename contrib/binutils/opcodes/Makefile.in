@@ -1,78 +1,89 @@
-#    Makefile template for Configure for the opcodes library.
-#    Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
-#    Free Software Foundation, Inc.
-#    Written by Cygnus Support.
-# 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
+# Makefile.in generated automatically by automake 1.2e from Makefile.am
+
+# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
 # This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
-VPATH = @srcdir@
+
+SHELL = @SHELL@
+
 srcdir = @srcdir@
-
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
 prefix = @prefix@
-
-program_transform_name = @program_transform_name@
 exec_prefix = @exec_prefix@
+
 bindir = @bindir@
-libdir = @libdir@
-
+sbindir = @sbindir@
+libexecdir = @libexecdir@
 datadir = @datadir@
-mandir = @mandir@
-man1dir = $(mandir)/man1
-man2dir = $(mandir)/man2
-man3dir = $(mandir)/man3
-man4dir = $(mandir)/man4
-man5dir = $(mandir)/man5
-man6dir = $(mandir)/man6
-man7dir = $(mandir)/man7
-man8dir = $(mandir)/man8
-man9dir = $(mandir)/man9
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
 infodir = @infodir@
+mandir = @mandir@
 includedir = @includedir@
+oldincludedir = /usr/include
 
-SHELL = /bin/sh
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = .
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
 
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
 
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
 AR = @AR@
-AR_FLAGS = rc
+BFD_MACHINES = @BFD_MACHINES@
 CC = @CC@
-CFLAGS = @CFLAGS@
-MAKEINFO = makeinfo
+EXEEXT = @EXEEXT@
+HDEFINES = @HDEFINES@
+LD = @LD@
+LIBTOOL = @LIBTOOL@
+LN_S = @LN_S@
+MAINT = @MAINT@
+MAKEINFO = @MAKEINFO@
+NM = @NM@
+PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
+VERSION = @VERSION@
+archdefs = @archdefs@
 
-ALLLIBS = @ALLLIBS@
-
-PICFLAG = @PICFLAG@
-SHLIB = @SHLIB@
-SHLIB_CC = @SHLIB_CC@
-SHLIB_CFLAGS = @SHLIB_CFLAGS@
-SHLIB_LIBS = @SHLIB_LIBS@
-COMMON_SHLIB = @COMMON_SHLIB@
-SHLIB_DEP = @SHLIB_DEP@
-SHLINK = @SHLINK@
-
-SONAME = lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`
+AUTOMAKE_OPTIONS = cygnus
 
 INCDIR = $(srcdir)/../include
 BFDDIR = $(srcdir)/../bfd
-CSEARCH = -I. -I$(srcdir) -I../bfd -I$(INCDIR) -I$(BFDDIR)
 DEP = mkdep
 
-TARGETLIB = libopcodes.a
+lib_LTLIBRARIES = libopcodes.la
 
 # This is where bfd.h lives.
 BFD_H = ../bfd/bfd.h
@@ -123,226 +134,372 @@ CFILES = \
 	sh-dis.c \
 	sparc-dis.c \
 	sparc-opc.c \
+	tic30-dis.c \
 	w65-dis.c \
 	z8k-dis.c \
 	z8kgen.c
 
 ALL_MACHINES = \
-	a29k-dis.o \
-	alpha-dis.o \
-	alpha-opc.o \
-	arm-dis.o \
-	cgen-asm.o \
-	cgen-dis.o \
-	cgen-opc.o \
-	d10v-dis.o \
-	d10v-opc.o \
-	h8300-dis.o \
-	h8500-dis.o \
-	hppa-dis.o \
-	i386-dis.o \
-	i960-dis.o \
-	m32r-asm.o \
-	m32r-dis.o \
-	m32r-opc.o \
-	m68k-dis.o \
-	m68k-opc.o \
-	m88k-dis.o \
-	m10200-dis.o \
-	m10200-opc.o \
-	m10300-dis.o \
-	m10300-opc.o \
-	mips-dis.o \
-	mips-opc.o \
-	mips16-opc.o \
-	ppc-dis.o \
-	ppc-opc.o \
-	ns32k-dis.o \
-	sh-dis.o \
-	sparc-dis.o \
-	sparc-opc.o \
-	w65-dis.o \
-	z8k-dis.o
+	a29k-dis.lo \
+	alpha-dis.lo \
+	alpha-opc.lo \
+	arc-dis.lo \
+	arc-opc.lo \
+	arm-dis.lo \
+	cgen-asm.lo \
+	cgen-dis.lo \
+	cgen-opc.lo \
+	d10v-dis.lo \
+	d10v-opc.lo \
+	h8300-dis.lo \
+	h8500-dis.lo \
+	hppa-dis.lo \
+	i386-dis.lo \
+	i960-dis.lo \
+	m32r-asm.lo \
+	m32r-dis.lo \
+	m32r-opc.lo \
+	m68k-dis.lo \
+	m68k-opc.lo \
+	m88k-dis.lo \
+	m10200-dis.lo \
+	m10200-opc.lo \
+	m10300-dis.lo \
+	m10300-opc.lo \
+	mips-dis.lo \
+	mips-opc.lo \
+	mips16-opc.lo \
+	ppc-dis.lo \
+	ppc-opc.lo \
+	ns32k-dis.lo \
+	sh-dis.lo \
+	sparc-dis.lo \
+	sparc-opc.lo \
+	tic30-dis.lo \
+	v850-dis.lo \
+	v850-opc.lo \
+	w65-dis.lo \
+	z8k-dis.lo
 
-OFILES = @BFD_MACHINES@ dis-buf.o disassemble.o
+OFILES = @BFD_MACHINES@
 
-FLAGS_TO_PASS = \
-	"against=$(against)" \
-	"AR=$(AR)" \
-	"AR_FLAGS=$(AR_FLAGS)" \
-	"CC=$(CC)" \
-	"CFLAGS=$(CFLAGS)" \
-	"RANLIB=$(RANLIB)" \
-	"MAKEINFO=$(MAKEINFO)" \
-	"INSTALL=$(INSTALL)" \
-	"INSTALL_DATA=$(INSTALL_DATA)" \
-	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)"
+INCLUDES = -D_GNU_SOURCE -I. -I$(srcdir) -I../bfd -I$(INCDIR) -I$(BFDDIR) @HDEFINES@
 
-ALL_CFLAGS = -D_GNU_SOURCE $(CSEARCH) @HDEFINES@ $(CFLAGS)
+libopcodes_la_SOURCES =  dis-buf.c disassemble.c
+libopcodes_la_DEPENDENCIES = $(OFILES)
+libopcodes_la_LIBADD = $(OFILES)
+libopcodes_la_LDFLAGS = -release $(VERSION)
+
+# libtool will build .libs/libopcodes.a.  We create libopcodes.a in
+# the build directory so that we don't have to convert all the
+# programs that use libopcodes.a simultaneously.  This is a hack which
+# should be removed if everything else starts using libtool.  FIXME.
+
+noinst_LIBRARIES = libopcodes.a
+
+CLEANFILES = libopcodes.a stamp-lib dep.sed .dep .dep1
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES = 
+LIBRARIES =  $(noinst_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I.
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+libopcodes_a_LIBADD = 
+libopcodes_a_SOURCES = libopcodes.a.c
+libopcodes_a_OBJECTS =  libopcodes.a.o
+LTLIBRARIES =  $(lib_LTLIBRARIES)
+
+libopcodes_la_OBJECTS =  dis-buf.lo disassemble.lo
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LINK = $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+DIST_COMMON =  ChangeLog Makefile.am Makefile.in acconfig.h acinclude.m4 \
+aclocal.m4 config.in configure configure.in stamp-h.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP = --best
+SOURCES = libopcodes.a.c $(libopcodes_la_SOURCES)
+OBJECTS = libopcodes.a.o $(libopcodes_la_OBJECTS)
+
+default: all
+
+.SUFFIXES:
+.SUFFIXES: .S .c .lo .o .s
+$(srcdir)/Makefile.in: @MAINT@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --cygnus Makefile
+
+Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+$(ACLOCAL_M4): @MAINT@ configure.in  acinclude.m4
+	cd $(srcdir) && $(ACLOCAL)
+
+config.status: $(srcdir)/configure
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: @MAINT@$(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
+
+config.h: stamp-h
+	@:
+stamp-h: $(srcdir)/config.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h:config.in \
+	     $(SHELL) ./config.status
+	@echo timestamp > stamp-h
+$(srcdir)/config.in: @MAINT@$(srcdir)/stamp-h.in
+$(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) acconfig.h
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@echo timestamp > $(srcdir)/stamp-h.in
+
+mostlyclean-hdr:
+
+clean-hdr:
+
+distclean-hdr:
+	-rm -f config.h
+
+maintainer-clean-hdr:
+
+mostlyclean-noinstLIBRARIES:
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+distclean-noinstLIBRARIES:
+
+maintainer-clean-noinstLIBRARIES:
 
 .c.o:
-	if [ -n "$(PICFLAG)" ]; then \
-	  $(CC) -c $(PICFLAG) $(ALL_CFLAGS) $< -o pic/$@; \
-	else true; fi
-	$(CC) -c $(ALL_CFLAGS) $<
+	$(COMPILE) -c $<
 
-all: $(ALLLIBS)
+.s.o:
+	$(COMPILE) -c $<
 
-.NOEXPORT:
+.S.o:
+	$(COMPILE) -c $<
 
-installcheck check:
+mostlyclean-compile:
+	-rm -f *.o core *.core
 
-info:
-clean-info:
-install-info:
-dvi:
+clean-compile:
 
-# HDEPFILES comes from the host config; TDEPFILES from the target config.
+distclean-compile:
+	-rm -f *.tab.c
 
-$(TARGETLIB): $(OFILES)
-	 rm -f $(TARGETLIB)
-	 $(AR) $(AR_FLAGS) $(TARGETLIB) $(OFILES)
-	 $(RANLIB) $(TARGETLIB)
+maintainer-clean-compile:
 
-LIBIBERTY_LISTS = ../libiberty/required-list ../libiberty/needed-list
-BFD_PICLIST = @BFD_PICLIST@
+.c.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
 
-stamp-piclist: Makefile $(LIBIBERTY_LISTS) $(BFD_PICLIST)
-	rm -f tpiclist
-	if [ -n "$(PICFLAG)" ]; then \
-	  echo $(OFILES) | sed -e 's,\([^ ][^ ]*\),pic/\1,g' > tpiclist; \
-	else \
-	  echo $(OFILES) > tpiclist; \
-	fi
-	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
-	  lobjs=`cat $(LIBIBERTY_LISTS)`; \
-	  if [ -n "$(PICFLAG)" ]; then \
-	    lobjs=`echo $$lobjs | sed -e 's,\([^ ][^ ]*\),pic/\1,g'`; \
-	  fi; \
-	  lobjs=`echo $$lobjs | sed -e 's,\([^ ][^ ]*\),../libiberty/\1,g'`; \
-	  echo $$lobjs >> tpiclist; \
-	  sed -e 's,\([^ ][^ ]*\),../bfd/\1,g' $(BFD_PICLIST) >> tpiclist; \
-	else true; fi
-	$(srcdir)/../move-if-change tpiclist piclist
-	touch stamp-piclist
+.s.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
 
-piclist: stamp-piclist ; @true
+.S.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
 
-$(SHLIB): stamp-picdir $(OFILES) piclist $(SHLIB_DEP)
-	rm -f $(SHLIB)
-	$(SHLIB_CC) $(SHLIB_CFLAGS) -o $(SHLIB) `cat piclist` $(SHLIB_LIBS)
+mostlyclean-libtool:
+	-rm -f *.lo
 
-$(SHLINK): $(SHLIB)
-	ts=lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed -e '$(program_transform_name)'`; \
-	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
-	  ts=../bfd/$$ts; \
-	fi; \
-	if [ "$$ts" != "$(SHLIB)" ]; then \
-	  rm -f $$ts; \
-	  ln -s `echo $(SHLIB) | sed -e 's,^\.\./bfd/,,'` $$ts; \
-	else true; fi
-	rm -f $(SHLINK)
-	ln -s `echo $(SHLIB) | sed -e 's,^\.\./bfd/,,'` $(SHLINK)
+clean-libtool:
+	-rm -rf .libs _libs
 
-# This target creates libTARGET-opcodes.so.VERSION as a symlink to
-# libopcodes.so.VERSION.  It is used on SunOS, which does not have SONAME.
-stamp-tshlink: $(SHLIB)
-	tf=lib`echo $(SHLIB) | sed -e 's,\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
-	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
-	  tf=../bfd/$$tf; \
-	fi; \
-	if [ "$$tf" != "$(SHLIB)" ]; then \
-	  rm -f $$tf; \
-	  ln -s $(SHLIB) $$tf; \
-	else true; fi
-	if [ "$(COMMON_SHLIB)" = "yes" ]; then \
-	  tf=lib`echo $(TARGETLIB) | sed -e 's/^lib//' | sed '$(program_transform_name)'`; \
-	  if [ "$$tf" != "$(TARGETLIB)" ]; then \
-	    rm -f $$tf; \
-	    ln -s $(TARGETLIB) $$tf; \
-	  else true; fi; \
-	else true; fi
-	touch stamp-tshlink
+distclean-libtool:
 
-$(OFILES): stamp-picdir
+maintainer-clean-libtool:
 
-disassemble.o: disassemble.c $(INCDIR)/dis-asm.h
-	if [ -n "$(PICFLAG)" ]; then \
-	  $(CC) -c @archdefs@ $(PICFLAG) $(ALL_CFLAGS) $(srcdir)/disassemble.c -o pic/disassemble.o; \
-	else true; fi
-	$(CC) -c @archdefs@ $(ALL_CFLAGS) $(srcdir)/disassemble.c
+mostlyclean-libLTLIBRARIES:
 
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
 
-tags etags: TAGS
+distclean-libLTLIBRARIES:
 
-TAGS: force
-	etags $(INCDIR)/*.h $(srcdir)/*.h $(srcdir)/*.c
+maintainer-clean-libLTLIBRARIES:
 
-MOSTLYCLEAN = *.o core *.E *.p *.ip pic/*.o
-mostlyclean:
-	rm -rf $(MOSTLYCLEAN)
-clean:
-	rm -f *.a $(MOSTLYCLEAN) $(SHLIB) $(SHLINK) piclist stamp-piclist
-distclean: clean
-	rm -rf Makefile config.status TAGS config.cache config.h stamp-h \
-	       pic stamp-picdir config.log
-clobber realclean maintainer-clean: distclean
-
-# Mark everything as depending on config.status, since the timestamp on
-# sysdep.h might actually move backwards if we reconfig and relink it
-# to a different hosts/h-xxx.h file.  This will force a recompile anyway.
-RECONFIG = config.status
-
-# This target should be invoked before building a new release.
-# 'VERSION' file must be present and contain a string of the form "x.y"
-#
-roll:
-	@V=`cat VERSION`		; \
-	MAJ=`sed 's/\..*//' VERSION`	; \
-	MIN=`sed 's/.*\.//' VERSION`	; \
-	V=$$MAJ.`expr $$MIN + 1`	; \
-	rm -f VERSION			; \
-	echo $$V >VERSION		; \
-	echo Version $$V
-
-# Dummy target to force execution of dependent targets.
-#
-force:
-
-install: $(ALLLIBS)
-	for f in $(ALLLIBS); do \
-	  if [ "$$f" = "stamp-tshlink" ]; then \
-	    continue; \
-	  fi; \
-	  tf=lib`echo $$f | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
-	  rm -f $(libdir)/$$tf; \
-	  if [ "$$f" = "$(SHLINK)" ]; then \
-	    ts=lib`echo $(SHLIB) | sed -e 's,^\.\./bfd/,,' -e 's/^lib//' | sed '$(program_transform_name)'`; \
-	    ln -s $$ts $(libdir)/$$tf; \
-	  elif [ "$$f" = "$(SHLIB)" ]; then \
-	    @INSTALL_SHLIB@ \
-	  else \
-	    $(INSTALL_DATA) $$f $(libdir)/$$tf; \
-	    $(RANLIB) $(libdir)/$$tf; \
-	    chmod a-x $(libdir)/$$tf; \
-	  fi; \
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(libdir)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo "$(LIBTOOL)  --mode=install $(INSTALL_DATA) $$p $(libdir)/$$p"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL_DATA) $$p $(libdir)/$$p; \
+	  else :; fi; \
 	done
 
-Makefile: Makefile.in config.status
-	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
+uninstall-libLTLIBRARIES:
+	$(NORMAL_UNINSTALL)
+	list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  $(LIBTOOL)  --mode=uninstall rm -f $(libdir)/$$p; \
+	done
 
-config.h: stamp-h ; @true
-stamp-h: config.in config.status
-	CONFIG_FILES= CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
+libopcodes.la: $(libopcodes_la_OBJECTS) $(libopcodes_la_DEPENDENCIES)
+	$(LINK) -rpath $(libdir) $(libopcodes_la_LDFLAGS) $(libopcodes_la_OBJECTS) $(libopcodes_la_LIBADD) $(LIBS)
 
-config.status: configure $(srcdir)/../bfd/configure.host $(srcdir)/../bfd/config.bfd $(srcdir)/../bfd/VERSION
-	$(SHELL) config.status --recheck
+tags: TAGS
 
-stamp-picdir:
-	if [ -n "$(PICFLAG)" ] && [ ! -d pic ]; then \
-	  mkdir pic; \
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES) config.in $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)config.in$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.in $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
+
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-rm -rf $(distdir)
+	GZIP=$(GZIP) $(TAR) zxf $(distdir).tar.gz
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+	cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	  && $(MAKE) \
+	  && $(MAKE) dvi \
+	  && $(MAKE) check \
+	  && $(MAKE) install \
+	  && $(MAKE) installcheck \
+	  && $(MAKE) dist
+	-rm -rf $(distdir)
+	@echo "========================"; \
+	echo "$(distdir).tar.gz is ready for distribution"; \
+	echo "========================"
+dist: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+dist-all: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	@for file in $(DISTFILES); do \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  test -f $(distdir)/$$file \
+	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	  || cp -p $$d/$$file $(distdir)/$$file; \
+	done
+info:
+dvi:
+check:
+	$(MAKE)
+installcheck:
+install-info:
+install-exec: install-libLTLIBRARIES
+	@$(NORMAL_INSTALL)
+
+install-data: 
+	@$(NORMAL_INSTALL)
+
+install: install-exec install-data all
+	@:
+
+uninstall: uninstall-libLTLIBRARIES
+
+all: Makefile $(LIBRARIES) $(LTLIBRARIES) config.h
+
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+installdirs:
+	$(mkinstalldirs)  $(libdir)
+
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean:  mostlyclean-hdr mostlyclean-noinstLIBRARIES \
+		mostlyclean-compile mostlyclean-libtool \
+		mostlyclean-libLTLIBRARIES mostlyclean-tags \
+		mostlyclean-generic
+
+clean:  clean-hdr clean-noinstLIBRARIES clean-compile clean-libtool \
+		clean-libLTLIBRARIES clean-tags clean-generic \
+		mostlyclean
+
+distclean:  distclean-hdr distclean-noinstLIBRARIES distclean-compile \
+		distclean-libtool distclean-libLTLIBRARIES \
+		distclean-tags distclean-generic clean
+	-rm -f config.status
+	-rm -f libtool
+
+maintainer-clean:  maintainer-clean-hdr maintainer-clean-noinstLIBRARIES \
+		maintainer-clean-compile maintainer-clean-libtool \
+		maintainer-clean-libLTLIBRARIES maintainer-clean-tags \
+		maintainer-clean-generic distclean
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f config.status
+
+.PHONY: default mostlyclean-hdr distclean-hdr clean-hdr \
+maintainer-clean-hdr mostlyclean-noinstLIBRARIES \
+distclean-noinstLIBRARIES clean-noinstLIBRARIES \
+maintainer-clean-noinstLIBRARIES mostlyclean-compile distclean-compile \
+clean-compile maintainer-clean-compile mostlyclean-libtool \
+distclean-libtool clean-libtool maintainer-clean-libtool \
+mostlyclean-libLTLIBRARIES distclean-libLTLIBRARIES \
+clean-libLTLIBRARIES maintainer-clean-libLTLIBRARIES \
+uninstall-libLTLIBRARIES install-libLTLIBRARIES tags mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags distdir info dvi \
+installcheck install-info install-exec install-data install uninstall \
+all installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+disassemble.lo: disassemble.c $(INCDIR)/dis-asm.h
+	$(LIBTOOL) --mode=compile $(COMPILE) -c @archdefs@ $(srcdir)/disassemble.c
+
+stamp-lib: libopcodes.la
+	if [ -f .libs/libopcodes.a ]; then \
+	  cp .libs/libopcodes.a libopcodes.tmp; \
+	  $(SHELL) $(srcdir)/../move-if-change libopcodes.tmp libopcodes.a; \
 	else true; fi
-	touch stamp-picdir
+	touch stamp-lib
+
+libopcodes.a: stamp-lib ; @true
 
 # This dependency stuff is copied from BFD.
 
@@ -355,7 +512,7 @@ stamp-picdir:
 	rm -f .dep2 .dep2a
 	echo '# DO NOT DELETE THIS LINE -- mkdep uses it.' > .dep2
 	echo > .dep2a
-	$(DEP) -f .dep2a $(ALL_CFLAGS) $?
+	$(DEP) -f .dep2a $(INCLUDES) $(CFLAGS) $?
 	sed -e '/DO NOT DELETE/d' -e '/^$$/d' < .dep2a >> .dep2
 	rm -f .dep2a
 	$(srcdir)/../move-if-change .dep2 .dep1
@@ -377,80 +534,92 @@ dep-in: .dep
 	cat .dep >> tmp-Makefile.in
 	$(srcdir)/../move-if-change tmp-Makefile.in $(srcdir)/Makefile.in
 
-.PHONY: dep dep-in
+dep-am: .dep
+	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < $(srcdir)/Makefile.am > tmp-Makefile.am
+	cat .dep >> tmp-Makefile.am
+	$(srcdir)/../move-if-change tmp-Makefile.am $(srcdir)/Makefile.am
+
+.PHONY: dep dep-in dep-am
 
 # What appears below is generated by a hacked mkdep using gcc -MM.
 
 # DO NOT DELETE THIS LINE -- mkdep uses it.
 # DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
-a29k-dis.o: a29k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+a29k-dis.lo: a29k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h $(INCDIR)/opcode/a29k.h
-alpha-dis.o: alpha-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+alpha-dis.lo: alpha-dis.c $(INCDIR)/ansidecl.h sysdep.h \
   config.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/opcode/alpha.h
-alpha-opc.o: alpha-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/alpha.h \
+alpha-opc.lo: alpha-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/alpha.h \
   $(BFD_H)
-arm-dis.o: arm-dis.c $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/ansidecl.h \
-  arm-opc.h
-cgen-asm.o: cgen-asm.c config.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
-cgen-dis.o: cgen-dis.c config.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
-cgen-opc.o: cgen-opc.c config.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h $(BFD_H) $(INCDIR)/opcode/cgen.h
-d10v-dis.o: d10v-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h \
+arm-dis.lo: arm-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h arm-opc.h $(INCDIR)/coff/internal.h \
+  $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+cgen-asm.lo: cgen-asm.c sysdep.h config.h $(INCDIR)/libiberty.h \
+  $(BFD_H) $(INCDIR)/symcat.h $(INCDIR)/opcode/cgen.h
+cgen-dis.lo: cgen-dis.c sysdep.h config.h $(INCDIR)/libiberty.h \
+  $(BFD_H) $(INCDIR)/symcat.h $(INCDIR)/opcode/cgen.h
+cgen-opc.lo: cgen-opc.c sysdep.h config.h $(INCDIR)/libiberty.h \
+  $(BFD_H) $(INCDIR)/symcat.h $(INCDIR)/opcode/cgen.h
+d10v-dis.lo: d10v-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h \
   $(INCDIR)/dis-asm.h $(BFD_H)
-d10v-opc.o: d10v-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h
-dis-buf.o: dis-buf.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+d10v-opc.lo: d10v-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/d10v.h
+dis-buf.lo: dis-buf.c sysdep.h config.h $(INCDIR)/dis-asm.h \
   $(BFD_H)
-disassemble.o: disassemble.c $(INCDIR)/ansidecl.h $(INCDIR)/dis-asm.h \
-  $(BFD_H)
-h8300-dis.o: h8300-dis.c $(INCDIR)/opcode/h8300.h $(INCDIR)/dis-asm.h \
+disassemble.lo: disassemble.c $(INCDIR)/ansidecl.h \
+  $(INCDIR)/dis-asm.h $(BFD_H)
+h8300-dis.lo: h8300-dis.c $(INCDIR)/opcode/h8300.h \
+  $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/ansidecl.h
+h8500-dis.lo: h8500-dis.c h8500-opc.h $(INCDIR)/dis-asm.h \
   $(BFD_H) $(INCDIR)/ansidecl.h
-h8500-dis.o: h8500-dis.c h8500-opc.h $(INCDIR)/dis-asm.h \
-  $(BFD_H) $(INCDIR)/ansidecl.h
-hppa-dis.o: hppa-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+hppa-dis.lo: hppa-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
   $(BFD_H) $(BFDDIR)/libhppa.h $(INCDIR)/opcode/hppa.h
-i386-dis.o: i386-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+i386-dis.lo: i386-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h sysdep.h config.h
-i960-dis.o: i960-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+i960-dis.lo: i960-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h
-m32r-asm.o: m32r-asm.c $(INCDIR)/ansidecl.h $(BFD_H) \
-  m32r-opc.h $(INCDIR)/opcode/cgen.h
-m32r-dis.o: m32r-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/dis-asm.h \
-  $(BFD_H) m32r-opc.h $(INCDIR)/opcode/cgen.h
-m32r-opc.o: m32r-opc.c config.h $(INCDIR)/ansidecl.h \
-  $(INCDIR)/libiberty.h $(BFD_H) m32r-opc.h $(INCDIR)/opcode/cgen.h
-m68k-dis.o: m68k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+m32r-asm.lo: m32r-asm.c sysdep.h config.h $(BFD_H) \
+  $(INCDIR)/symcat.h m32r-opc.h $(INCDIR)/opcode/cgen.h
+m32r-dis.lo: m32r-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/symcat.h m32r-opc.h $(INCDIR)/opcode/cgen.h
+m32r-opc.lo: m32r-opc.c sysdep.h config.h $(INCDIR)/libiberty.h \
+  $(BFD_H) $(INCDIR)/symcat.h m32r-opc.h $(INCDIR)/opcode/cgen.h
+m68k-dis.lo: m68k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h $(INCDIR)/floatformat.h $(INCDIR)/opcode/m68k.h
-m68k-opc.o: m68k-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/m68k.h
-m88k-dis.o: m88k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+m68k-opc.lo: m68k-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/m68k.h
+m88k-dis.lo: m88k-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h $(INCDIR)/opcode/m88k.h
-mips-dis.o: mips-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+mips-dis.lo: mips-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
   $(BFD_H) $(INCDIR)/opcode/mips.h $(BFDDIR)/elf-bfd.h \
   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
   $(INCDIR)/bfdlink.h $(INCDIR)/elf/mips.h
-mips-opc.o: mips-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
-mips16-opc.o: mips16-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
-m10200-dis.o: m10200-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h \
+mips-opc.lo: mips-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
+mips16-opc.lo: mips16-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mips.h
+m10200-dis.lo: m10200-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h \
   $(INCDIR)/dis-asm.h $(BFD_H)
-m10200-opc.o: m10200-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h
-m10300-dis.o: m10300-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h \
+m10200-opc.lo: m10200-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10200.h
+m10300-dis.lo: m10300-dis.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h \
   $(INCDIR)/dis-asm.h $(BFD_H)
-m10300-opc.o: m10300-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h
-ns32k-dis.o: ns32k-dis.c $(BFD_H) $(INCDIR)/ansidecl.h \
+m10300-opc.lo: m10300-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/mn10300.h
+ns32k-dis.lo: ns32k-dis.c $(BFD_H) $(INCDIR)/ansidecl.h \
   sysdep.h config.h $(INCDIR)/dis-asm.h $(INCDIR)/opcode/ns32k.h
-ppc-dis.o: ppc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+ppc-dis.lo: ppc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
   config.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/opcode/ppc.h
-ppc-opc.o: ppc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/ppc.h
-sh-dis.o: sh-dis.c sh-opc.h $(INCDIR)/dis-asm.h $(BFD_H) \
+ppc-opc.lo: ppc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/ppc.h
+sh-dis.lo: sh-dis.c sh-opc.h $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/ansidecl.h
-sparc-dis.o: sparc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
+sparc-dis.lo: sparc-dis.c $(INCDIR)/ansidecl.h sysdep.h \
   config.h $(INCDIR)/opcode/sparc.h $(INCDIR)/dis-asm.h \
   $(BFD_H) $(INCDIR)/libiberty.h
-sparc-opc.o: sparc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/sparc.h
-w65-dis.o: w65-dis.c w65-opc.h $(INCDIR)/dis-asm.h \
+sparc-opc.lo: sparc-opc.c $(INCDIR)/ansidecl.h $(INCDIR)/opcode/sparc.h
+tic30-dis.lo: tic30-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/opcode/tic30.h
+w65-dis.lo: w65-dis.c w65-opc.h $(INCDIR)/dis-asm.h \
   $(BFD_H) $(INCDIR)/ansidecl.h
-z8k-dis.o: z8k-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+z8k-dis.lo: z8k-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
   $(BFD_H) z8k-opc.h
-z8kgen.o: z8kgen.c sysdep.h config.h
+z8kgen.lo: z8kgen.c sysdep.h config.h
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

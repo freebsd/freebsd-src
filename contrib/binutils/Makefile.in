@@ -1,6 +1,7 @@
 #
 # Makefile for directory with subdirs to build.
-#   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation
+#   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+#   Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,16 +21,25 @@
 srcdir = .
 
 prefix = /usr/local
-
 exec_prefix = $(prefix)
-bindir = $(exec_prefix)/bin
-libdir = $(exec_prefix)/lib
+
+bindir=${exec_prefix}/bin
+sbindir=${exec_prefix}/sbin
+libexecdir=${exec_prefix}/libexec
+datadir=${prefix}/share
+sysconfdir=${prefix}/etc
+sharedstatedir=${prefix}/com
+localstatedir=${prefix}/var
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+oldincludedir=/usr/include
+infodir=${prefix}/info
+mandir=${prefix}/man
+
 tooldir = $(exec_prefix)/$(target)
 
 program_transform_name =
 
-datadir = $(prefix)/share
-mandir = $(prefix)/man
 man1dir = $(mandir)/man1
 man2dir = $(mandir)/man2
 man3dir = $(mandir)/man3
@@ -39,16 +49,18 @@ man6dir = $(mandir)/man6
 man7dir = $(mandir)/man7
 man8dir = $(mandir)/man8
 man9dir = $(mandir)/man9
-infodir = $(prefix)/info
-includedir = $(prefix)/include
 GDB_NLM_DEPS = 
 
 SHELL = /bin/sh
 
-INSTALL = $$s/install.sh -c
-INSTALL_PROGRAM = $(INSTALL)
+# INSTALL_PROGRAM_ARGS is changed by configure.in to use -x for a
+# cygwin32 host.
+INSTALL_PROGRAM_ARGS =
+
+INSTALL = $(SHELL) $$s/install-sh -c
+INSTALL_PROGRAM = $(INSTALL) $(INSTALL_PROGRAM_ARGS)
+INSTALL_SCRIPT = $(INSTALL)
 INSTALL_DATA = $(INSTALL) -m 644
-INSTALL_XFORM = $(INSTALL) -t='$(program_transform_name)'
 
 INSTALL_DOSREL = install-dosrel-fake
 
@@ -63,9 +75,10 @@ HOST_CC = $(CC_FOR_BUILD)
 HOST_PREFIX = 
 HOST_PREFIX_1 = loser-
 
-# We don't specify -g -O because many compilers don't support -g -O,
-# and/or -O is broken in and of itself.
+# These flag values are normally overridden by the configure script.
 CFLAGS = -g
+CXXFLAGS = -g -O2
+
 LIBCFLAGS = $(CFLAGS)
 CFLAGS_FOR_TARGET = $(CFLAGS)
 LDFLAGS_FOR_TARGET = 
@@ -73,10 +86,9 @@ LIBCFLAGS_FOR_TARGET = $(CFLAGS_FOR_TARGET)
 PICFLAG = 
 PICFLAG_FOR_TARGET = 
 
-CXX = gcc
+CXX = c++
 
 # Use -O2 to stress test the compiler.
-CXXFLAGS = -g -O2
 LIBCXXFLAGS = $(CXXFLAGS) -fno-implicit-templates
 CXXFLAGS_FOR_TARGET = $(CXXFLAGS)
 LIBCXXFLAGS_FOR_TARGET = $(CXXFLAGS_FOR_TARGET) -fno-implicit-templates
@@ -84,8 +96,12 @@ LIBCXXFLAGS_FOR_TARGET = $(CXXFLAGS_FOR_TARGET) -fno-implicit-templates
 RANLIB = ranlib
 
 DLLTOOL = dlltool
+WINDRES = windres
 
 NM = nm
+
+LD = ld
+
 # Not plain GZIP, since gzip looks there for extra command-line options.
 GZIPPROG = gzip
 
@@ -93,7 +109,20 @@ GZIPPROG = gzip
 DEFAULT_YACC = yacc
 DEFAULT_LEX = lex
 
-BISON = bison -y
+BISON = `if [ -f $$r/bison/bison ] ; then \
+	    echo $$r/bison/bison -L $$s/bison/ ; \
+	 else \
+	    echo bison ; \
+	 fi`
+
+YACC = `if [ -f $$r/bison/bison ] ; then \
+	    echo $$r/bison/bison -y -L $$s/bison/ ; \
+	elif [ -f $$r/byacc/byacc ] ; then \
+	    echo $$r/byacc/byacc ; \
+	else \
+	    echo ${DEFAULT_YACC} ; \
+	fi`
+
 LEX = `if [ -f $$r/flex/flex ] ; \
 	then echo $$r/flex/flex ; \
 	else echo ${DEFAULT_LEX} ; fi`
@@ -130,7 +159,7 @@ OTHERS =
 
 # This is set by the configure script to the list of directories which
 # should be built using the target tools.
-TARGET_CONFIGDIRS = libiberty libgloss newlib libio librx libstdc++ libg++ winsup
+TARGET_CONFIGDIRS = libiberty libgloss newlib libio librx libstdc++ libg++ winsup opcodes cygmon
 
 # Target libraries are put under this directory:
 # Changed by configure to $(target_alias) if cross.
@@ -153,11 +182,11 @@ REALLY_SET_LIB_PATH = \
   export $(RPATH_ENVVAR);
 
 ALL = all.normal
-INSTALL_TARGET = install-dirs \
+INSTALL_TARGET = installdirs \
+	install-gcc \
 	$(INSTALL_MODULES) \
 	$(INSTALL_TARGET_MODULES) \
 	$(INSTALL_X11_MODULES) \
-	install-gcc \
 	$(INSTALL_DOSREL)
 
 
@@ -165,7 +194,7 @@ CC_FOR_TARGET = ` \
   if [ -f $$r/gcc/xgcc ] ; then \
     if [ -f $$r/$(TARGET_SUBDIR)/newlib/Makefile ] ; then \
       if [ -f $$r/$(TARGET_SUBDIR)/winsup/Makefile ] ; then \
-        echo $$r/gcc/xgcc -B$$r/gcc/ -B$$r/newlib/ -L$$r/winsup -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
+        echo $$r/gcc/xgcc -B$$r/gcc/ -B$$r/$(TARGET_SUBDIR)/newlib/ -L$$r/$(TARGET_SUBDIR)/winsup -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
       else \
         echo $$r/gcc/xgcc -B$$r/gcc/ -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
       fi; \
@@ -191,7 +220,7 @@ CXX_FOR_TARGET = ` \
   if [ -f $$r/gcc/xgcc ] ; then \
     if [ -f $$r/$(TARGET_SUBDIR)/newlib/Makefile ] ; then \
       if [ -f $$r/$(TARGET_SUBDIR)/winsup/Makefile ] ; then \
-        echo $$r/gcc/xgcc -B$$r/gcc/ -B$$r/newlib/ -L$$r/winsup -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
+        echo $$r/gcc/xgcc -B$$r/gcc/ -B$$r/$(TARGET_SUBDIR)/newlib/ -L$$r/winsup -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
       else \
         echo $$r/gcc/xgcc -B$$r/gcc/ -idirafter $$r/$(TARGET_SUBDIR)/newlib/targ-include -idirafter $$s/newlib/libc/include -nostdinc; \
       fi; \
@@ -202,13 +231,13 @@ CXX_FOR_TARGET = ` \
     if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
       echo $(CXX); \
     else \
-      t='$(program_transform_name)'; echo gcc | sed -e 's/x/x/' $$t; \
+      t='$(program_transform_name)'; echo c++ | sed -e 's/x/x/' $$t; \
     fi; \
   fi`
 
 AS_FOR_TARGET = ` \
-  if [ -f $$r/gas/as.new ] ; then \
-    echo $$r/gas/as.new ; \
+  if [ -f $$r/gas/as-new ] ; then \
+    echo $$r/gas/as-new ; \
   else \
     if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
       echo $(AS); \
@@ -218,8 +247,8 @@ AS_FOR_TARGET = ` \
   fi`
 
 LD_FOR_TARGET = ` \
-  if [ -f $$r/ld/ld.new ] ; then \
-    echo $$r/ld/ld.new ; \
+  if [ -f $$r/ld/ld-new ] ; then \
+    echo $$r/ld/ld-new ; \
   else \
     if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
       echo $(LD); \
@@ -236,6 +265,17 @@ DLLTOOL_FOR_TARGET = ` \
       echo $(DLLTOOL); \
     else \
        t='$(program_transform_name)'; echo dlltool | sed -e 's/x/x/' $$t ; \
+    fi; \
+  fi`
+
+WINDRES_FOR_TARGET = ` \
+  if [ -f $$r/binutils/windres ] ; then \
+    echo $$r/binutils/windres ; \
+  else \
+    if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
+      echo $(WINDRES); \
+    else \
+       t='$(program_transform_name)'; echo windres | sed -e 's/x/x/' $$t ; \
     fi; \
   fi`
 
@@ -262,8 +302,8 @@ RANLIB_FOR_TARGET = ` \
   fi`
 
 NM_FOR_TARGET = ` \
-  if [ -f $$r/binutils/nm.new ] ; then \
-    echo $$r/binutils/nm.new ; \
+  if [ -f $$r/binutils/nm-new ] ; then \
+    echo $$r/binutils/nm-new ; \
   else \
     if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
       echo $(NM); \
@@ -294,7 +334,7 @@ BASE_FLAGS_TO_PASS = \
 	"INSTALL=$(INSTALL)" \
 	"INSTALL_DATA=$(INSTALL_DATA)" \
 	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
-	"INSTALL_XFORM=$(INSTALL_XFORM)" \
+	"INSTALL_SCRIPT=$(INSTALL_SCRIPT)" \
 	"LDFLAGS=$(LDFLAGS)" \
 	"LEX=$(LEX)" \
 	"LD_FOR_TARGET=$(LD_FOR_TARGET)" \
@@ -309,14 +349,29 @@ BASE_FLAGS_TO_PASS = \
 	"PICFLAG=$(PICFLAG)" \
 	"PICFLAG_FOR_TARGET=$(PICFLAG_FOR_TARGET)" \
 	"RANLIB_FOR_TARGET=$(RANLIB_FOR_TARGET)" \
+	"RPATH_ENVVAR=$(RPATH_ENVVAR)" \
 	"SHELL=$(SHELL)" \
 	"EXPECT=$(EXPECT)" \
 	"RUNTEST=$(RUNTEST)" \
 	"RUNTESTFLAGS=$(RUNTESTFLAGS)" \
-	"YACC=$(BISON)" \
+	"WINDRES_FOR_TARGET=$(WINDRES_FOR_TARGET)" \
+	"YACC=$(YACC)" \
+	"bindir=$(bindir)" \
+	"datadir=$(datadir)" \
 	"exec_prefix=$(exec_prefix)" \
+	"includedir=$(includedir)" \
+	"infodir=$(infodir)" \
+	"libdir=$(libdir)" \
+	"libexecdir=$(libexecdir)" \
+	"lispdir=$(lispdir)" \
+	"localstatedir=$(localstatedir)" \
+	"mandir=$(mandir)" \
+	"oldincludedir=$(oldincludedir)" \
 	"prefix=$(prefix)" \
-	"tooldir=$(tooldir)" 
+	"sbindir=$(sbindir)" \
+	"sharedstatedir=$(sharedstatedir)" \
+	"sysconfdir=$(sysconfdir)" \
+	"tooldir=$(tooldir)"
 
 # Flags to pass down to most sub-makes, in which we're building with
 # the host environment.
@@ -327,9 +382,10 @@ EXTRA_HOST_FLAGS = \
 	'CC=$(CC)' \
 	'CXX=$(CXX)' \
 	'DLLTOOL=$(DLLTOOL)' \
+	'LD=$(LD)' \
 	'NM=$(NM)' \
-	'RANLIB=$(RANLIB)' 
-
+	'RANLIB=$(RANLIB)' \
+	'WINDRES=$(WINDRES)'
 
 FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_HOST_FLAGS)
 
@@ -362,7 +418,8 @@ EXTRA_TARGET_FLAGS = \
 	'LIBCXXFLAGS=$$(LIBCXXFLAGS_FOR_TARGET)' \
 	'NM=$$(NM_FOR_TARGET)' \
 	'PICFLAG=$$(PICFLAG_FOR_TARGET)' \
-	'RANLIB=$$(RANLIB_FOR_TARGET)'
+	'RANLIB=$$(RANLIB_FOR_TARGET)' \
+	'WINDRES=$$(WINDRES_FOR_TARGET)'
 
 TARGET_FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_TARGET_FLAGS)
 
@@ -383,16 +440,17 @@ EXTRA_GCC_FLAGS = \
 	'HOST_PREFIX_1=$(HOST_PREFIX_1)' \
 	'NM=$(NM)' \
 	'RANLIB=$$(RANLIB_FOR_TARGET)' \
+	'WINDRES=$$(WINDRES_FOR_TARGET)' \
 	"GCC_FOR_TARGET=$(GCC_FOR_TARGET)" \
-	`if test x"$(LANGUAGES)" != x; then echo "LANGUAGES=$(LANGUAGES)"; fi` \
-	`if test x"$(STMP_FIXPROTO)" != x; then echo "STMP_FIXPROTO=$(STMP_FIXPROTO)"; fi` \
-	`if test x"$(LIMITS_H_TEST)" != x; then echo "LIMITS_H_TEST=$(LIMITS_H_TEST)"; fi` \
-	`if test x"$(LIBGCC1_TEST)" != x; then echo "LIBGCC1_TEST=$(LIBGCC1_TEST)"; fi` \
-	`if test x"$(LIBGCC2_CFLAGS)" != x; then echo "LIBGCC2_CFLAGS=$(LIBGCC2_CFLAGS)"; fi` \
-	`if test x"$(LIBGCC2_DEBUG_CFLAGS)" != x; then echo "LIBGCC2_DEBUG_CFLAGS=$(LIBGCC2_DEBUG_CFLAGS)"; fi` \
-	`if test x"$(LIBGCC2_INCLUDES)" != x; then echo "LIBGCC2_INCLUDES=$(LIBGCC2_INCLUDES)"; fi` \
-	`if test x"$(ENQUIRE)" != x; then echo "ENQUIRE=$(ENQUIRE)"; fi` \
-	`if test x"$(BOOT_CFLAGS)" != x; then echo "BOOT_CFLAGS=$(BOOT_CFLAGS)"; fi`
+	"`if test x'$(LANGUAGES)' != x; then echo 'LANGUAGES=$(LANGUAGES)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(STMP_FIXPROTO)' != x; then echo 'STMP_FIXPROTO=$(STMP_FIXPROTO)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(LIMITS_H_TEST)' != x; then echo 'LIMITS_H_TEST=$(LIMITS_H_TEST)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(LIBGCC1_TEST)' != x; then echo 'LIBGCC1_TEST=$(LIBGCC1_TEST)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(LIBGCC2_CFLAGS)' != x; then echo 'LIBGCC2_CFLAGS=$(LIBGCC2_CFLAGS)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(LIBGCC2_DEBUG_CFLAGS)' != x; then echo 'LIBGCC2_DEBUG_CFLAGS=$(LIBGCC2_DEBUG_CFLAGS)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(LIBGCC2_INCLUDES)' != x; then echo 'LIBGCC2_INCLUDES=$(LIBGCC2_INCLUDES)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(ENQUIRE)' != x; then echo 'ENQUIRE=$(ENQUIRE)'; else echo 'XFOO=bar'; fi`" \
+	"`if test x'$(BOOT_CFLAGS)' != x; then echo 'BOOT_CFLAGS=$(BOOT_CFLAGS)'; else echo 'XFOO=bar'; fi`"
 
 GCC_FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_GCC_FLAGS)
 
@@ -401,11 +459,13 @@ GCC_FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_GCC_FLAGS)
 ALL_MODULES = \
 	all-apache \
 	all-autoconf \
+	all-automake \
 	all-bash \
 	all-bfd \
 	all-binutils \
+	all-bison \
 	all-byacc \
-	all-cvs \
+	all-cvssrc \
 	all-db \
 	all-dejagnu \
 	all-diff \
@@ -417,6 +477,8 @@ ALL_MODULES = \
 	all-flex \
 	all-gas \
 	all-gawk \
+	all-gettext \
+	all-gnuserv \
 	all-gprof \
 	all-grep \
 	all-grez \
@@ -424,9 +486,11 @@ ALL_MODULES = \
 	all-hello \
 	all-indent \
 	all-inet \
+	all-intl \
 	all-ispell \
 	all-itcl \
 	all-ld \
+	all-libgui \
 	all-libiberty \
 	all-m4 \
 	all-make \
@@ -443,7 +507,7 @@ ALL_MODULES = \
 	all-send-pr \
 	all-shellutils \
 	all-sim \
-	all-sn \
+	all-snavigator \
 	all-tar \
 	all-tcl \
 	all-texinfo \
@@ -460,16 +524,18 @@ ALL_MODULES = \
 # are tested as part of the host's native tool-chain, and not
 # tested in a cross configuration.
 NATIVE_CHECK_MODULES = \
+	check-bison \
 	check-byacc \
 	check-flex
 
 CROSS_CHECK_MODULES = \
 	check-apache \
 	check-autoconf \
+	check-automake \
 	check-bash \
 	check-bfd \
 	check-binutils \
-	check-cvs \
+	check-cvssrc \
 	check-db \
 	check-dejagnu \
 	check-diff \
@@ -479,15 +545,19 @@ CROSS_CHECK_MODULES = \
 	check-find \
 	check-gas \
 	check-gawk \
+	check-gettext \
+	check-gnuserv \
 	check-gprof \
 	check-grep \
 	check-gzip \
 	check-hello \
 	check-indent \
 	check-inet \
+	check-intl \
 	check-ispell \
 	check-itcl \
 	check-ld \
+	check-libgui \
 	check-libiberty \
 	check-m4 \
 	check-make \
@@ -502,7 +572,7 @@ CROSS_CHECK_MODULES = \
 	check-sed \
 	check-send-pr \
 	check-shellutils \
-	check-sn \
+	check-snavigator \
 	check-sim \
 	check-tar \
 	check-tcl \
@@ -520,15 +590,19 @@ CHECK_MODULES=$(NATIVE_CHECK_MODULES) $(CROSS_CHECK_MODULES)
 # We put install-opcodes before install-binutils because the installed
 # binutils might be on PATH, and they might need the shared opcodes
 # library.
+# We put install-tcl before install-itcl because itcl wants to run a
+# program on installation which uses the Tcl libraries.
 INSTALL_MODULES = \
 	install-apache \
 	install-autoconf \
+	install-automake \
 	install-bash \
 	install-bfd \
 	install-opcodes \
 	install-binutils \
+	install-bison \
 	install-byacc \
-	install-cvs \
+	install-cvssrc \
 	install-db \
 	install-dejagnu \
 	install-diff \
@@ -540,6 +614,8 @@ INSTALL_MODULES = \
 	install-flex \
 	install-gas \
 	install-gawk \
+	install-gettext \
+	install-gnuserv \
 	install-gprof \
 	install-grep \
 	install-grez \
@@ -547,9 +623,12 @@ INSTALL_MODULES = \
 	install-hello \
 	install-indent \
 	install-inet \
+	install-intl \
 	install-ispell \
+	install-tcl \
 	install-itcl \
 	install-ld \
+	install-libgui \
 	install-libiberty \
 	install-m4 \
 	install-make \
@@ -564,9 +643,8 @@ INSTALL_MODULES = \
 	install-send-pr \
 	install-shellutils \
 	install-sim \
-	install-sn \
+	install-snavigator \
 	install-tar \
-	install-tcl \
 	install-textutils \
 	install-tgas \
 	install-time \
@@ -583,7 +661,8 @@ ALL_X11_MODULES = \
 	all-gash \
 	all-guile \
 	all-tclX \
-	all-tk
+	all-tk \
+	all-tix
 
 # This is a list of the check targets for all of the modules which are
 # compiled using $(X11_FLAGS_TO_PASS).
@@ -593,7 +672,9 @@ CHECK_X11_MODULES = \
 	check-guile \
 	check-expect \
 	check-gash \
-	check-tclX
+	check-tclX \
+	check-tk \
+	check-tix
 
 # This is a list of the install targets for all the modules which are
 # compiled using $(X11_FLAGS_TO_PASS).
@@ -605,7 +686,8 @@ INSTALL_X11_MODULES = \
 	install-expect \
 	install-gash \
 	install-tclX \
-	install-tk
+	install-tk \
+	install-tix
 
 # This is a list of the targets for all of the modules which are compiled
 # using $(TARGET_FLAGS_TO_PASS).
@@ -618,7 +700,9 @@ ALL_TARGET_MODULES = \
 	all-target-winsup \
 	all-target-libgloss \
 	all-target-libiberty \
-	all-target-examples
+	all-target-gperf \
+	all-target-examples \
+	all-target-cygmon
 
 # This is a list of the configure targets for all of the modules which
 # are compiled using the target tools.
@@ -631,7 +715,9 @@ CONFIGURE_TARGET_MODULES = \
 	configure-target-winsup \
 	configure-target-libgloss \
 	configure-target-libiberty \
-	configure-target-examples
+	configure-target-gperf \
+	configure-target-examples \
+	configure-target-cygmon
 
 # This is a list of the check targets for all of the modules which are
 # compiled using $(TARGET_FLAGS_TO_PASS).
@@ -641,7 +727,8 @@ CHECK_TARGET_MODULES = \
 	check-target-libg++ \
 	check-target-newlib \
 	check-target-winsup \
-	check-target-libiberty
+	check-target-libiberty \
+	check-target-gperf
 
 # This is a list of the install targets for all of the modules which are
 # compiled using $(TARGET_FLAGS_TO_PASS).
@@ -652,17 +739,20 @@ INSTALL_TARGET_MODULES = \
 	install-target-newlib \
 	install-target-winsup \
 	install-target-libgloss \
-	install-target-libiberty
+	install-target-libiberty \
+	install-target-gperf
 
 # This is a list of the targets for which we can do a clean-{target}.
 CLEAN_MODULES = \
 	clean-apache \
 	clean-autoconf \
+	clean-automake \
 	clean-bash \
 	clean-bfd \
 	clean-binutils \
+	clean-bison \
 	clean-byacc \
-	clean-cvs \
+	clean-cvssrc \
 	clean-db \
 	clean-dejagnu \
 	clean-diff \
@@ -674,6 +764,8 @@ CLEAN_MODULES = \
 	clean-flex \
 	clean-gas \
 	clean-gawk \
+	clean-gettext \
+	clean-gnuserv \
 	clean-gprof \
 	clean-grep \
 	clean-grez \
@@ -681,9 +773,11 @@ CLEAN_MODULES = \
 	clean-hello \
 	clean-indent \
 	clean-inet \
+	clean-intl \
 	clean-ispell \
 	clean-itcl \
 	clean-ld \
+	clean-libgui \
 	clean-libiberty \
 	clean-m4 \
 	clean-make \
@@ -700,7 +794,7 @@ CLEAN_MODULES = \
 	clean-send-pr \
 	clean-shellutils \
 	clean-sim \
-	clean-sn \
+	clean-snavigator \
 	clean-tar \
 	clean-tcl \
 	clean-texinfo \
@@ -720,7 +814,9 @@ CLEAN_TARGET_MODULES = \
 	clean-target-winsup \
 	clean-target-libgloss \
 	clean-target-libiberty \
-	clean-target-examples
+	clean-target-gperf \
+	clean-target-examples \
+	clean-target-cygmon
 
 # All of the x11 modules that can be cleaned
 CLEAN_X11_MODULES = \
@@ -731,7 +827,8 @@ CLEAN_X11_MODULES = \
 	clean-gash \
 	clean-guile \
 	clean-tclX \
-	clean-tk
+	clean-tk \
+	clean-tix
 
 # The first rule in the file had better be this one.  Don't put any above it.
 all: all.normal
@@ -741,8 +838,8 @@ all: all.normal
 .PHONY: all.normal
 all.normal: \
 	$(ALL_MODULES) \
-	$(ALL_TARGET_MODULES) \
 	$(ALL_X11_MODULES) \
+	$(ALL_TARGET_MODULES) \
 	all-gcc
 
 # Do a target for all the subdirectories.  A ``make do-X'' will do a
@@ -782,12 +879,12 @@ $(DO_X):
 	      done; \
 	      ;; \
 	    esac ; \
-	    export AR AS CC CXX NM RANLIB DLLTOOL; \
+	    export AR AS CC CXX LD NM RANLIB DLLTOOL WINDRES; \
 	    if (cd ./$$i; \
 	        $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-			"CC=$${CC}" "CXX=$${CXX}" "NM=$${NM}" \
+			"CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
 			"RANLIB=$${RANLIB}" \
-			"DLLTOOL=$${DLLTOOL}" \
+			"DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" \
 			$${target}); \
 	    then true; else exit 1; fi; \
 	  else true; fi; \
@@ -801,12 +898,12 @@ $(DO_X):
 	    for flag in $(EXTRA_TARGET_FLAGS); do \
 		eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'|"`; \
 	    done; \
-	    export AR AS CC CXX NM RANLIB DLLTOOL; \
+	    export AR AS CC CXX LD NM RANLIB DLLTOOL WINDRES; \
 	    if (cd $(TARGET_SUBDIR)/$$i; \
 	        $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-			"CC=$${CC}" "CXX=$${CXX}" "NM=$${NM}" \
+			"CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
 			"RANLIB=$${RANLIB}" \
-			"DLLTOOL=$${DLLTOOL}" \
+			"DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" \
 			$${target}); \
 	    then true; else exit 1; fi; \
 	  else true; fi; \
@@ -889,7 +986,7 @@ check: $(CHECK_MODULES) \
 # Installation targets.
 
 .PHONY: install uninstall source-vault binary-vault vault-install
-install: $(INSTALL_TARGET) install-info
+install: $(INSTALL_TARGET) 
 
 uninstall:
 	@echo "the uninstall target is not supported in this tree"
@@ -929,7 +1026,7 @@ inet-install:
 # the fixed header files.
 .PHONY: install-no-fixedincludes
 install-no-fixedincludes: \
-	install-dirs \
+	installdirs \
 	$(INSTALL_MODULES) \
 	$(INSTALL_TARGET_MODULES) \
 	$(INSTALL_X11_MODULES) \
@@ -955,6 +1052,7 @@ gcc-no-fixedincludes:
 	  rm -rf gcc/include; \
 	  mv gcc/tmp-include gcc/include 2>/dev/null; \
 	else true; fi
+
 
 # This rule is used to build the modules which use FLAGS_TO_PASS.  To
 # build a target all-X means to cd to X and make all.
@@ -1006,7 +1104,7 @@ $(CROSS_CHECK_MODULES):
 # This rule is used to install the modules which use FLAGS_TO_PASS.
 # To build a target install-X means to cd to X and make install.
 .PHONY: $(INSTALL_MODULES)
-$(INSTALL_MODULES): install-dirs
+$(INSTALL_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
 	  r=`pwd`; export r; \
@@ -1061,6 +1159,7 @@ $(CONFIGURE_TARGET_MODULES):
             LDFLAGS="$(LDFLAGS_FOR_TARGET)"; export LDFLAGS; \
 	    NM="$(NM_FOR_TARGET)"; export NM; \
 	    RANLIB="$(RANLIB_FOR_TARGET)"; export RANLIB; \
+	    WINDRES="$(WINDRES_FOR_TARGET)"; export WINDRES; \
 	    echo Configuring in $(TARGET_SUBDIR)/$${dir}; \
 	    cd $(TARGET_SUBDIR)/$${dir}; \
 	    case $(srcdir) in \
@@ -1144,7 +1243,7 @@ $(CHECK_TARGET_MODULES):
 # TARGET_FLAGS_TO_PASS.  To build a target install-X means to cd to X
 # and make install.
 .PHONY: $(INSTALL_TARGET_MODULES)
-$(INSTALL_TARGET_MODULES): install-dirs
+$(INSTALL_TARGET_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-target-//'`; \
 	if [ -f $(TARGET_SUBDIR)/$${dir}/Makefile ] ; then \
 	  r=`pwd`; export r; \
@@ -1189,7 +1288,7 @@ $(CHECK_X11_MODULES):
 # This rule is used to install the modules which use X11_FLAGS_TO_PASS.
 # To build a target install-X means to cd to X and make install.
 .PHONY: $(INSTALL_X11_MODULES)
-$(INSTALL_X11_MODULES):
+$(INSTALL_X11_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
 	  r=`pwd`; export r; \
@@ -1251,7 +1350,7 @@ install-gcc:
 # This rule is used to install the modules which use FLAGS_TO_PASS.
 # To build a target install-X means to cd to X and make install.
 .PHONY: install-dosrel
-install-dosrel: install-dirs info
+install-dosrel: installdirs info
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
 	  r=`pwd`; export r; \
@@ -1267,17 +1366,21 @@ install-dosrel-fake:
 
 # This is a list of inter-dependencies among modules.
 all-apache:
-all-autoconf: all-m4
+all-autoconf: all-m4 all-texinfo
+all-automake:
 all-bash:
 all-bfd:
-all-binutils: all-libiberty all-opcodes all-bfd all-flex all-byacc
+all-binutils: all-libiberty all-opcodes all-bfd all-flex all-bison all-byacc
+all-bison: all-texinfo
 all-byacc:
-all-cvs:
+all-cvssrc:
+configure-target-cygmon: $(ALL_GCC)
+all-target-cygmon: configure-target-cygmon all-gas all-ld all-gcc all-target-libiberty all-target-newlib all-target-libio
 all-db:
 all-dejagnu: all-tcl all-expect all-tk
 all-diff: all-libiberty
 all-emacs:
-all-emacs19: all-byacc
+all-emacs19: all-bison all-byacc
 all-etc:
 configure-target-examples: $(ALL_GCC)
 all-target-examples: configure-target-examples
@@ -1285,15 +1388,19 @@ all-expect: all-tcl all-tk
 all-fileutils: all-libiberty
 all-findutils:
 all-find:
-all-flex: all-libiberty all-byacc
+all-flex: all-libiberty all-bison all-byacc
 all-gas: all-libiberty all-opcodes all-bfd
 all-gash: all-tcl
 all-gawk:
 ALL_GCC = all-gcc
-all-gcc: all-libiberty all-byacc all-binutils all-gas all-ld
-all-bootstrap: all-libiberty all-byacc all-binutils all-gas all-ld
-GDB_TK = all-tk all-tcl
-all-gdb: all-libiberty all-opcodes all-bfd all-mmalloc all-readline all-byacc all-sim $(gdbnlmrequirements) $(GDB_TK)
+all-gcc: all-bison all-byacc all-binutils all-gas all-ld
+all-bootstrap: all-libiberty all-bison all-byacc all-binutils all-gas all-ld
+GDB_TK = all-tk all-tcl all-itcl all-tix all-libgui
+all-gdb: all-libiberty all-opcodes all-bfd all-mmalloc all-readline all-bison all-byacc all-sim $(gdbnlmrequirements) $(GDB_TK)
+all-gettext:
+all-gnuserv:
+configure-target-gperf: $(ALL_GCC)
+all-target-gperf: configure-target-gperf all-target-libiberty all-target-libstdc++
 all-gprof: all-libiberty all-bfd all-opcodes
 all-grep: all-libiberty
 all-grez: all-libiberty all-bfd all-opcodes
@@ -1303,15 +1410,18 @@ all-gzip: all-libiberty
 all-hello: all-libiberty
 all-indent:
 all-inet: all-tcl all-send-pr all-perl
+all-intl:
 all-ispell: all-emacs19
 all-itcl: all-tcl all-tk
-all-ld: all-libiberty all-bfd all-opcodes all-byacc all-flex
+all-ld: all-libiberty all-bfd all-opcodes all-bison all-byacc all-flex
 configure-target-libg++: $(ALL_GCC) configure-target-librx
 all-target-libg++: configure-target-libg++ all-gas all-ld all-gcc all-target-libiberty all-target-newlib all-target-libio all-target-librx all-target-libstdc++
 configure-target-libgloss: $(ALL_GCC)
 all-target-libgloss: configure-target-libgloss configure-target-newlib
 configure-target-libio: $(ALL_GCC)
 all-target-libio: configure-target-libio all-gas all-ld all-gcc all-target-libiberty all-target-newlib
+check-target-libio: all-target-libstdc++
+all-libgui: all-tcl all-tk all-itcl
 all-libiberty:
 configure-target-librx: $(ALL_GCC) configure-target-newlib
 all-target-librx: configure-target-librx
@@ -1332,8 +1442,8 @@ all-recode: all-libiberty
 all-sed: all-libiberty
 all-send-pr: all-prms
 all-shellutils:
-all-sim: all-libiberty all-bfd all-opcodes
-all-sn: all-tcl all-tk all-itcl all-db
+all-sim: all-libiberty all-bfd all-opcodes all-readline
+all-snavigator: all-tcl all-tk all-tix all-itcl all-db all-grep
 all-tar: all-libiberty
 all-tcl:
 all-tclX: all-tcl all-tk
@@ -1342,38 +1452,24 @@ all-texinfo: all-libiberty
 all-textutils:
 all-tgas: all-libiberty all-bfd all-opcodes
 all-time:
+all-tix: all-tcl all-tk
 all-wdiff:
-all-target-winsup: all-target-newlib all-target-libiberty all-target-librx all-target-libio configure-target-winsup 
+all-target-winsup: all-target-newlib all-target-libiberty all-target-libio configure-target-winsup 
 configure-target-winsup: configure-target-newlib
 all-uudecode: all-libiberty
 configure-target-libiberty: $(ALL_GCC)
 all-target-libiberty: configure-target-libiberty all-gcc all-ld all-target-newlib
 all-target: $(ALL_TARGET_MODULES)
 install-target: $(INSTALL_TARGET_MODULES)
-
+install-gdbtk: install-tcl install-tk install-itcl install-tix install-libgui install-gdb
 ### other supporting targets
 
 MAKEDIRS= \
 	$(prefix) \
 	$(exec_prefix)
-.PHONY: install-dirs
-install-dirs:
-	@for i in .. $(MAKEDIRS) ; do \
-	    if [ x$$i != x.. ]; then \
-		echo Making $$i... ; \
-		parent=`echo $$i | sed -e 's@/[^/]*$$@@' | sed -e 's@^$$@/@'`; \
-		if [ -d $$parent ] ; then true ; else mkdir $$parent ; fi ; \
-		if [ ! -d $$i ] ; then \
-			if mkdir $$i ; then \
-				true ; \
-			else \
-				exit 1 ; \
-			fi ; \
-		else \
-			true ; \
-		fi ; \
-	    else true; fi; \
-	done
+.PHONY: installdirs
+installdirs: mkinstalldirs
+	$(SHELL) $(srcdir)/mkinstalldirs $(MAKEDIRS)
 
 dir.info: do-install-info
 	if [ -f $(srcdir)/texinfo/gen-info-dir ] ; then \
@@ -1410,37 +1506,26 @@ Makefile: Makefile.in configure.in $(host_makefile_frag) $(target_makefile_frag)
 DEVO_SUPPORT= README Makefile.in configure configure.in \
 	config.guess config.sub config move-if-change \
 	mpw-README mpw-build.in mpw-config.in mpw-configure mpw-install \
-	COPYING COPYING.LIB install.sh config-ml.in symlink-tree
+	COPYING COPYING.LIB install-sh config-ml.in symlink-tree \
+	mkinstalldirs ltconfig ltmain.sh missing ylwrap
 
 # Files in devo/etc used in any net release.
 # ChangeLog omitted because it may refer to files which are not in this
 # distribution (perhaps it would be better to include it anyway).
-ETC_SUPPORT= Makefile.in cfg-paper.texi configure configure.in configure.man \
-	configure.texi standards.texi make-stds.texi \
-	configure.info* standards.info* cfg-paper.info*
+ETC_SUPPORT= Makefile.in configure configure.in standards.texi \
+	make-stds.texi standards.info*
 
 # When you use `make setup-dirs' or `make taz' you should always redefine
 # this macro.
 SUPPORT_FILES = list-of-support-files-for-tool-in-question
-# Files where "byacc" (Cygnus version) should be changed to "bison -y" (FSF).
-DISTBISONFILES= binutils/Makefile.in gas/Makefile.in gdb/Makefile.in ld/Makefile.in
 
 .PHONY: taz
 
 taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) \
   texinfo/texinfo.tex texinfo/gpl.texinfo texinfo/lgpl.texinfo
-	# Make sure "diststuff" files get built properly.
-	for f in $(DISTBISONFILES) ; do \
-	  if [ -r $$f ]; then \
-	    sed '/^BISON *=.*$$/s/.*/BISON = bison -y/' <$$f >tmp ; \
-	    mv -f tmp $$f ; \
-	  else true; fi ; \
-	done
 	# Take out texinfo from a few places; make simple BISON=bison line.
 	sed -e '/^all\.normal: /s/\all-texinfo //' \
 	    -e '/^	install-texinfo /d' \
-	    -e '/^BISON = `if/,/^$$/d' \
-	    -e '/^# BISON:/s/.*/BISON = bison -y/' \
 	<Makefile.in >tmp
 	mv -f tmp Makefile.in
 	#
@@ -1489,8 +1574,12 @@ taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) \
 	  ln -s ../../../texinfo/util/tex3patch	proto-toplev/texinfo/util ; \
 	else true; fi
 	chmod og=u `find . -print`
-	$(MAKE) -f Makefile.in do-tar-gz TOOL=$(TOOL) \
-		VER=`sed <$(TOOL)/Makefile.in -n 's/^VERSION *= *//p'`
+	if grep AM_INIT_AUTOMAKE $(TOOL)/configure.in >/dev/null 2>&1; then \
+	  ver=`sed < $(TOOL)/configure.in -n 's/AM_INIT_AUTOMAKE[^,]*, *\([^)]*\))/\1/p'`; \
+	else \
+	  ver=`sed <$(TOOL)/Makefile.in -n 's/^VERSION *= *//p'`; \
+	fi; \
+	$(MAKE) -f Makefile.in do-tar-gz TOOL=$(TOOL) VER=$$ver
 
 do-tar-gz:
 	echo "==> Making $(TOOL)-$(VER).tar.gz"

@@ -8,9 +8,6 @@
 #  HOSTING_CRT0		crt0.o file used for bootstrapping
 #  HOSTING_LIBS		libraries used for bootstrapping
 #  NATIVE_LIB_DIRS	library directories to search on this host
-#  HLDFLAGS		link flags to use on this host
-#  HLDENV		environment variable to set when linking for the host
-#  RPATH_ENVVAR		environment variable used to find shared libraries
 
 HDEFINES=
 HOSTING_CRT0=/lib/crt0.o
@@ -19,11 +16,21 @@ NATIVE_LIB_DIRS=
 
 case "${host}" in
 
-alpha-*-linux*)
+alpha*-*-linux-gnu*)
+  HOSTING_CRT0='-dynamic-linker `egrep "ld[^ ]*\.so" \`gcc --print-file-name=specs\` | sed -e "s,.*-dynamic-linker[ 	][ 	]*\(.*/ld[^ ]*.so..\).*,\1,"` `gcc --print-file-name=crt1.o` `gcc --print-file-name=crti.o` `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else gcc --print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -L`dirname \`gcc --print-file-name=libc.so\`` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else gcc --print-file-name=crtend.o; fi` `gcc --print-file-name=crtn.o`'
+  ;;
+
+alpha*-*-netbsd*)
+  # The new BSD `make' has a bug: it doesn't pass empty arguments in
+  # shell commands.  So we need to make this value non-empty in order
+  # for the genscripts.sh call to work.  There's nothing magic about
+  # the value `/lib'; it's just a dummy.
+  NATIVE_LIB_DIRS=/lib
   HOSTING_CRT0=/usr/lib/crt0.o
   ;;
 
-alpha-*-*)
+alpha*-*-*)
   HOSTING_CRT0=/usr/ccs/lib/crt0.o
   NATIVE_LIB_DIRS=/usr/ccs/lib
   ;;
@@ -78,9 +85,14 @@ i[3456]86-*-linux*aout* | i[3456]86-*-linuxoldld)
   HOSTING_CRT0=/usr/lib/crt0.o
   ;;
 
-i[3456]86-*-linux*)
+i[3456]86-*-linux*libc1*)
   HOSTING_CRT0='-dynamic-linker /lib/ld-linux.so.1 /usr/lib/crt1.o /usr/lib/crti.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; elif [ -f /usr/lib/crtbegin.o ]; then echo /usr/lib/crtbegin.o; else gcc --print-file-name=crtbegin.o; fi`'
   HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; elif [ -f /usr/lib/crtend.o ]; then echo /usr/lib/crtend.o; else gcc --print-file-name=crtend.o; fi` /usr/lib/crtn.o'
+  ;;
+
+i[3456]86-*-linux-gnu*)
+  HOSTING_CRT0='-dynamic-linker `fgrep ld-linux.so \`gcc --print-file-name=specs\` | sed -e "s,.*-dynamic-linker[ 	][ 	]*\(.*/ld-linux.so..\).*,\1,"` `gcc --print-file-name=crt1.o` `gcc --print-file-name=crti.o` `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else gcc --print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -L`dirname \`gcc --print-file-name=libc.so\`` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else gcc --print-file-name=crtend.o; fi` `gcc --print-file-name=crtn.o`'
   ;;
 
 i[3456]86-*-lynxos*)
@@ -106,9 +118,14 @@ m68*-*-linux*aout*)
   HOSTING_CRT0=/usr/lib/crt0.o
   ;;
 
-m68*-*-linux*)
+m68*-*-linux*libc1*)
   HOSTING_CRT0='-dynamic-linker /lib/ld-linux.so.1 /usr/lib/crt1.o /usr/lib/crti.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; elif [ -f /usr/lib/crtbegin.o ]; then echo /usr/lib/crtbegin.o; else gcc --print-file-name=crtbegin.o; fi`'
   HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; elif [ -f /usr/lib/crtend.o ]; then echo /usr/lib/crtend.o; else gcc --print-file-name=crtend.o; fi` /usr/lib/crtn.o'
+  ;;
+
+m68*-*-linux-gnu*)
+  HOSTING_CRT0='-dynamic-linker /lib/ld.so.1 /usr/lib/crt1.o /usr/lib/crti.o `if [ -f ../gcc/crtbegin.o ]; then echo ../gcc/crtbegin.o; else gcc --print-file-name=crtbegin.o; fi`'
+  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else gcc --print-file-name=crtend.o; fi` /usr/lib/crtn.o'
   ;;
 
 m68*-*-lynxos*)
@@ -146,53 +163,4 @@ sparc*-*-solaris2*)
   NATIVE_LIB_DIRS=/usr/ccs/lib
   ;;
 
-esac
-
-HLDFLAGS=
-HLDENV=
-RPATH_ENVVAR=LD_LIBRARY_PATH
-# If we have shared libraries, try to set rpath reasonably.
-if test "${shared}" = "true"; then
-  case "${host}" in
-  *-*-hpux*)
-    HLDFLAGS='-Wl,+s,+b,$(libdir)'
-    RPATH_ENVVAR=SHLIB_PATH
-    ;;
-  *-*-irix[56]*)
-    HLDFLAGS='-Wl,-rpath,$(libdir)'
-    ;;
-  *-*-linux*aout*)
-    ;;
-  *-*-linux*)
-    HLDFLAGS='-Wl,-rpath,$(libdir)'
-    ;;
-  *-*-solaris*)
-    HLDFLAGS='-R $(libdir)'
-    ;;
-  *-*-sysv4*)
-    HLDENV='if test -z "$${LD_RUN_PATH}"; then LD_RUN_PATH=$(libdir); else LD_RUN_PATH=$${LD_RUN_PATH}:$(libdir); fi; export LD_RUN_PATH;'
-    ;;
-  esac
-fi
-
-# On SunOS, if the linker supports the -rpath option, use it to
-# prevent ../bfd and ../opcodes from being included in the run time
-# search path.
-case "${host}" in
-  *-*-sunos*)
-    echo 'main () { }' > conftest.c
-    ${CC} -o conftest -Wl,-rpath= conftest.c >/dev/null 2>conftest.t
-    if grep 'unrecognized' conftest.t >/dev/null 2>&1; then
-      :
-    elif grep 'No such file' conftest.t >/dev/null 2>&1; then
-      :
-    elif grep 'do not mix' conftest.t >/dev/null 2>&1; then
-      :
-    elif test "${shared}" = "true"; then
-      HLDFLAGS='-Wl,-rpath=$(libdir)'
-    else
-      HLDFLAGS='-Wl,-rpath='
-    fi
-    rm -f conftest.t conftest.c conftest
-    ;;
 esac

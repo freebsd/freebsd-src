@@ -9,7 +9,7 @@ limit (often as low as 20 open files).  The module in
 the required BFD is open. If not, then it chooses a file to
 close, closes it and opens the one wanted, returning its file
 handle.
-@*
+
 @findex BFD_CACHE_MAX_OPEN macro
 @subsubsection @code{BFD_CACHE_MAX_OPEN macro}
 @strong{Description}@*
@@ -18,7 +18,7 @@ one time.
 @example
 #define BFD_CACHE_MAX_OPEN 10
 @end example
-@*
+
 @findex bfd_last_cache
 @subsubsection @code{bfd_last_cache}
 @strong{Synopsis}
@@ -29,7 +29,7 @@ extern bfd *bfd_last_cache;
 Zero, or a pointer to the topmost BFD on the chain.  This is
 used by the @code{bfd_cache_lookup} macro in @file{libbfd.h} to
 determine when it can avoid a function call.
-@*
+
 @findex bfd_cache_lookup
 @subsubsection @code{bfd_cache_lookup}
 @strong{Description}@*
@@ -43,7 +43,7 @@ otherwise, it has to perform the complicated lookup function.
       (FILE*)(bfd_last_cache->iostream): \
        bfd_cache_lookup_worker(x))
 @end example
-@*
+
 @findex bfd_cache_init
 @subsubsection @code{bfd_cache_init}
 @strong{Synopsis}
@@ -52,7 +52,7 @@ boolean bfd_cache_init (bfd *abfd);
 @end example
 @strong{Description}@*
 Add a newly opened BFD to the cache.
-@*
+
 @findex bfd_cache_close
 @subsubsection @code{bfd_cache_close}
 @strong{Synopsis}
@@ -62,11 +62,11 @@ boolean bfd_cache_close (bfd *abfd);
 @strong{Description}@*
 Remove the BFD @var{abfd} from the cache. If the attached file is open,
 then close it too.
-@*
+
 @strong{Returns}@*
 @code{false} is returned if closing the file fails, @code{true} is
 returned if all is well.
-@*
+
 @findex bfd_open_file
 @subsubsection @code{bfd_open_file}
 @strong{Synopsis}
@@ -79,7 +79,7 @@ Call the OS to open a file for @var{abfd}.  Return the @code{FILE *}
 BFD so that future accesses know the file is open. If the @code{FILE *}
 returned is @code{NULL}, then it won't have been put in the
 cache, so it won't have to be removed from it.
-@*
+
 @findex bfd_cache_lookup_worker
 @subsubsection @code{bfd_cache_lookup_worker}
 @strong{Synopsis}
@@ -92,4 +92,4 @@ quick answer.  Find a file descriptor for @var{abfd}.  If
 necessary, it open it.  If there are already more than
 @code{BFD_CACHE_MAX_OPEN} files open, it tries to close one first, to
 avoid running out of file descriptors.
-@*
+

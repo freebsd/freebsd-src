@@ -1,22 +1,30 @@
+dnl Process this file with autoconf to produce a configure script.
+dnl
+
 AC_PREREQ(2.5)
 AC_INIT(z8k-dis.c)
-#    configure.in script for the opcodes library.
-#    Copyright (C) 1995, 1996 Free Software Foundation, Inc.
-#    Written by Cygnus Support.
-# 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+AC_CANONICAL_SYSTEM
+
+# We currently only use the version number for the name of any shared
+# library.  For user convenience, we always use the same version
+# number that BFD is using.
+changequote(,)dnl
+BFD_VERSION=`grep INIT_AUTOMAKE ${srcdir}/../bfd/configure.in | sed -n -e 's/[ 	]//g' -e 's/^.*,\(.*\)).*$/\1/p'`
+changequote([,])dnl
+
+AM_INIT_AUTOMAKE(opcodes, ${BFD_VERSION})
+
+dnl These must be called before AM_PROG_LIBTOOL, because it may want
+dnl to call AC_CHECK_PROG.
+AC_CHECK_TOOL(AR, ar)
+AC_CHECK_TOOL(RANLIB, ranlib, :)
+
+dnl Default to a non shared library.  This may be overridden by the
+dnl configure option --enable-shared.
+AM_DISABLE_SHARED
+
+AM_PROG_LIBTOOL
 
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
@@ -26,14 +34,6 @@ AC_ARG_ENABLE(targets,
   no)       enable_targets= ;;
   *)        enable_targets=$enableval ;;
 esac])dnl
-AC_ARG_ENABLE(shared,
-[  --enable-shared         build shared opcodes library],
-[case "${enableval}" in
-  yes) shared=true ;;
-  no)  shared=false ;;
-  *opcodes*) shared=true ;;
-  *) shared=false ;;
-esac])dnl
 AC_ARG_ENABLE(commonbfdlib,
 [  --enable-commonbfdlib   build shared BFD/opcodes/libiberty library],
 [case "${enableval}" in
@@ -42,79 +42,28 @@ AC_ARG_ENABLE(commonbfdlib,
   *)   AC_MSG_ERROR([bad value ${enableval} for opcodes commonbfdlib option]) ;;
 esac])dnl
 
-AC_CONFIG_HEADER(config.h:config.in)
+AM_CONFIG_HEADER(config.h:config.in)
 
-AC_CONFIG_AUX_DIR(`cd $srcdir/..;pwd`)
-AC_CANONICAL_SYSTEM
 if test -z "$target" ; then
     AC_MSG_ERROR(Unrecognized target system type; please check config.sub.)
 fi
 AC_ARG_PROGRAM
 
-# host-specific stuff:
+AM_MAINTAINER_MODE
+AM_CYGWIN32
+AM_EXEEXT
 
-ALLLIBS='$(TARGETLIB)'
-PICFLAG=
-SHLIB=unused-shlib
-SHLINK=unused-shlink
-if test "${shared}" = "true"; then
-  ALLLIBS='$(TARGETLIB) $(SHLIB) $(SHLINK)'
-  PICFLAG=-fpic
-  if test "${commonbfdlib}" = "true"; then
-changequote(,)dnl
-    SHLIB=../bfd/libbfd.so.`sed -e 's/[^0-9]*\([0-9.]*\).*/\1/' ${srcdir}/../bfd/VERSION`
-changequote([,])dnl
-    SHLINK=../bfd/libbfd.so
-  else
-changequote(,)dnl
-    SHLIB=libopcodes.so.`sed -e 's/[^0-9]*\([0-9.]*\).*/\1/' ${srcdir}/../bfd/VERSION`
-changequote([,])dnl
-    SHLINK=libopcodes.so
-  fi
-fi
+# host-specific stuff:
 
 AC_PROG_CC
 
 . ${srcdir}/../bfd/configure.host
 
 AC_SUBST(HDEFINES)
-AC_CHECK_TOOL(AR, ar)
-AC_CHECK_TOOL(RANLIB, ranlib, :)
-AC_PROG_INSTALL
-
-if test "${shared}" = "true"; then
-  if test "${GCC}" != "yes" && test "${shared_non_gcc}" != "yes"; then
-    AC_MSG_WARN([opcodes --enable-shared only supported when using gcc])
-    shared=false
-    ALLLIBS='$(TARGETLIB)'
-    PICFLAG=
-    SHLIB=unused-shlib
-  fi
-fi
-
-AC_SUBST(ALLLIBS)
-AC_SUBST(PICFLAG)
-AC_SUBST(SHLIB)
-AC_SUBST(SHLIB_CC)
-AC_SUBST(SHLIB_CFLAGS)
-AC_SUBST(SHLIB_LIBS)
-if test "${commonbfdlib}" = "true"; then
-  COMMON_SHLIB=yes
-  # Rebuild the shared library if libiberty or libbfd changes.
-  SHLIB_DEP="../libiberty/libiberty.a ../bfd/libbfd.a"
-  BFD_PICLIST=../bfd/piclist
-else
-  COMMON_SHLIB=
-  SHLIB_DEP=
-  BFD_PICLIST=
-fi
-AC_SUBST(COMMON_SHLIB)
-AC_SUBST(SHLIB_DEP)
-AC_SUBST(BFD_PICLIST)
-AC_SUBST(SHLINK)
-AC_SUBST(INSTALL_SHLIB)
+AM_PROG_INSTALL
 
 AC_CHECK_HEADERS(string.h strings.h stdlib.h)
+
 
 # target-specific stuff:
 
@@ -146,7 +95,7 @@ done
 
 # Utility var, documents generic cgen support files.
 
-cgen_files="cgen-opc.o cgen-asm.o cgen-dis.o"
+cgen_files="cgen-opc.lo cgen-asm.lo cgen-dis.lo"
 
 # We don't do any links based on the target system, just makefile config.
 
@@ -160,36 +109,39 @@ if test x${all_targets} = xfalse ; then
 	ad=`echo $arch | sed -e s/bfd_//g -e s/_arch//g`
 	archdefs="$archdefs -DARCH_$ad"
 	case "$arch" in
-	bfd_a29k_arch)		ta="$ta a29k-dis.o" ;;
+	bfd_a29k_arch)		ta="$ta a29k-dis.lo" ;;
 	bfd_alliant_arch)	;;
-	bfd_alpha_arch)		ta="$ta alpha-dis.o alpha-opc.o" ;;
-	bfd_arm_arch)		ta="$ta arm-dis.o" ;;
+	bfd_alpha_arch)		ta="$ta alpha-dis.lo alpha-opc.lo" ;;
+	bfd_arc_arch)		ta="$ta arc-dis.lo arc-opc.lo" ;;
+	bfd_arm_arch)		ta="$ta arm-dis.lo" ;;
 	bfd_convex_arch)	;;
-	bfd_d10v_arch)		ta="$ta d10v-dis.o d10v-opc.o" ;;
-	bfd_h8300_arch)		ta="$ta h8300-dis.o" ;;
-	bfd_h8500_arch)		ta="$ta h8500-dis.o" ;;
-	bfd_hppa_arch)		ta="$ta hppa-dis.o" ;;
-	bfd_i386_arch)		ta="$ta i386-dis.o" ;;
+	bfd_d10v_arch)		ta="$ta d10v-dis.lo d10v-opc.lo" ;;
+	bfd_h8300_arch)		ta="$ta h8300-dis.lo" ;;
+	bfd_h8500_arch)		ta="$ta h8500-dis.lo" ;;
+	bfd_hppa_arch)		ta="$ta hppa-dis.lo" ;;
+	bfd_i386_arch)		ta="$ta i386-dis.lo" ;;
 	bfd_i860_arch)		;;
-	bfd_i960_arch)		ta="$ta i960-dis.o" ;;
-	bfd_m32r_arch)		ta="$ta $cgen_files m32r-opc.o m32r-asm.o m32r-dis.o" ;;
-	bfd_m68k_arch)		ta="$ta m68k-dis.o m68k-opc.o" ;;
-	bfd_m88k_arch)		ta="$ta m88k-dis.o" ;;
-	bfd_mips_arch)		ta="$ta mips-dis.o mips-opc.o mips16-opc.o" ;;
-	bfd_mn10200_arch)	ta="$ta m10200-dis.o m10200-opc.o" ;;
-	bfd_mn10300_arch)	ta="$ta m10300-dis.o m10300-opc.o" ;;
-	bfd_ns32k_arch)		ta="$ta ns32k-dis.o" ;;
-	bfd_powerpc_arch)	ta="$ta ppc-dis.o ppc-opc.o" ;;
+	bfd_i960_arch)		ta="$ta i960-dis.lo" ;;
+	bfd_m32r_arch)		ta="$ta $cgen_files m32r-opc.lo m32r-asm.lo m32r-dis.lo" ;;
+	bfd_m68k_arch)		ta="$ta m68k-dis.lo m68k-opc.lo" ;;
+	bfd_m88k_arch)		ta="$ta m88k-dis.lo" ;;
+	bfd_mips_arch)		ta="$ta mips-dis.lo mips-opc.lo mips16-opc.lo" ;;
+	bfd_mn10200_arch)	ta="$ta m10200-dis.lo m10200-opc.lo" ;;
+	bfd_mn10300_arch)	ta="$ta m10300-dis.lo m10300-opc.lo" ;;
+	bfd_ns32k_arch)		ta="$ta ns32k-dis.lo" ;;
+	bfd_powerpc_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_pyramid_arch)	;;
 	bfd_romp_arch)		;;
-	bfd_rs6000_arch)	ta="$ta ppc-dis.o ppc-opc.o" ;;
-	bfd_sh_arch)		ta="$ta sh-dis.o" ;;
-	bfd_sparc_arch)		ta="$ta sparc-dis.o sparc-opc.o" ;;
+	bfd_rs6000_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
+	bfd_sh_arch)		ta="$ta sh-dis.lo" ;;
+	bfd_sparc_arch)		ta="$ta sparc-dis.lo sparc-opc.lo" ;;
 	bfd_tahoe_arch)		;;
+	bfd_tic30_arch)		ta="$ta tic30-dis.lo" ;;
+	bfd_v850_arch)		ta="$ta v850-opc.lo v850-dis.lo" ;;
 	bfd_vax_arch)		;;
-	bfd_w65_arch)		ta="$ta w65-dis.o" ;;
+	bfd_w65_arch)		ta="$ta w65-dis.lo" ;;
 	bfd_we32k_arch)		;;
-	bfd_z8k_arch)		ta="$ta z8k-dis.o" ;;
+	bfd_z8k_arch)		ta="$ta z8k-dis.lo" ;;
 
 	"")			;;
 	*)		AC_MSG_ERROR(*** unknown target architecture $arch) ;;
@@ -226,5 +178,4 @@ fi
 AC_SUBST(archdefs)
 AC_SUBST(BFD_MACHINES)
 
-AC_OUTPUT(Makefile,
-[case x$CONFIG_HEADERS in xconfig.h:config.in) echo > stamp-h ;; esac])
+AC_OUTPUT(Makefile)

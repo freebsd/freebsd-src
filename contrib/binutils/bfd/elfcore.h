@@ -35,7 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 static boolean bfd_prstatus PARAMS ((bfd *, char *, int, long, int));
 static boolean bfd_prpsinfo PARAMS ((bfd *, char *, int, long));
 static boolean bfd_fpregset PARAMS ((bfd *, char *, int, long, int));
-static boolean elf_corefile_note PARAMS ((bfd *, Elf_Internal_Phdr *));
 
 #else
 #define bfd_prstatus(abfd, descdata, descsz, filepos, thread) true
@@ -43,6 +42,8 @@ static boolean elf_corefile_note PARAMS ((bfd *, Elf_Internal_Phdr *));
 #define bfd_prpsinfo(abfd, descdata, descsz, filepos) true
 #define get_thread(STATUS) (1)
 #endif
+
+static boolean elf_corefile_note PARAMS ((bfd *, Elf_Internal_Phdr *));
 
 #ifdef HAVE_SYS_PROCFS_H
 
@@ -77,7 +78,7 @@ bfd_prstatus (abfd, descdata, descsz, filepos, thread)
       newsect->_raw_size = sizeof (status->pr_reg);
       newsect->filepos = filepos + (long) &status->pr_reg;
       newsect->flags = SEC_HAS_CONTENTS;
-      newsect->alignment_power = 2;
+      newsect->alignment_power = LOG_FILE_ALIGN;
       if ((core_prstatus (abfd) = bfd_alloc (abfd, descsz)) != NULL)
 	{
 	  memcpy (core_prstatus (abfd), descdata, descsz);

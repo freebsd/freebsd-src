@@ -1,6 +1,6 @@
 @section Targets
 
-@*
+
 @strong{Description}@*
 Each port of BFD to a different machine requries the creation
 of a target back end. All the back end provides to the root
@@ -54,12 +54,12 @@ type is tried to see if it recognizes the specified format.
 @menu
 * bfd_target::
 @end menu
-@*
+
 @node bfd_target,  , Targets, Targets
 
 @subsection bfd_target
 
-@*
+
 @strong{Description}@*
 This structure contains everything that BFD knows about a
 target. It includes things like its byte order, name, and which
@@ -253,10 +253,10 @@ CAT(NAME,_bfd_set_private_flags),\
 CAT(NAME,_bfd_print_private_bfd_data)\
    /* Called to copy BFD general private data from one object file
      to another.  */
-  boolean	 (*_bfd_copy_private_bfd_data) PARAMS ((bfd *, bfd *));
+  boolean       (*_bfd_copy_private_bfd_data) PARAMS ((bfd *, bfd *));
    /* Called to merge BFD general private data from one object file
      to a common output file when linking.  */
-  boolean	 (*_bfd_merge_private_bfd_data) PARAMS ((bfd *, bfd *));
+  boolean       (*_bfd_merge_private_bfd_data) PARAMS ((bfd *, bfd *));
    /* Called to copy BFD private section data from one object file
      to another.  */
   boolean       (*_bfd_copy_private_section_data) PARAMS ((bfd *, sec_ptr,
@@ -264,9 +264,9 @@ CAT(NAME,_bfd_print_private_bfd_data)\
    /* Called to copy BFD private symbol data from one symbol 
      to another.  */
   boolean       (*_bfd_copy_private_symbol_data) PARAMS ((bfd *, asymbol *,
-							   bfd *, asymbol *));
+                                                          bfd *, asymbol *));
    /* Called to set private backend flags */
-  boolean	 (*_bfd_set_private_flags) PARAMS ((bfd *, flagword));
+  boolean       (*_bfd_set_private_flags) PARAMS ((bfd *, flagword));
 
    /* Called to print private BFD data */
   boolean       (*_bfd_print_private_bfd_data) PARAMS ((bfd *, PTR));
@@ -335,7 +335,7 @@ CAT(NAME,_minisymbol_to_symbol)
                                       struct symbol_cache_entry *,
                                       symbol_info *));
 #define bfd_get_symbol_info(b,p,e) BFD_SEND(b, _bfd_get_symbol_info, (b,p,e))
-  boolean	 (*_bfd_is_local_label_name) PARAMS ((bfd *, const char *));
+  boolean       (*_bfd_is_local_label_name) PARAMS ((bfd *, const char *));
 
   alent *    (*_get_lineno) PARAMS ((bfd *, struct symbol_cache_entry *));
   boolean    (*_bfd_find_nearest_line) PARAMS ((bfd *abfd,
@@ -436,7 +436,7 @@ in this structure.
  PTR backend_data;
 @} bfd_target;
 @end example
-@*
+
 @findex bfd_set_default_target
 @subsubsection @code{bfd_set_default_target}
 @strong{Synopsis}
@@ -447,7 +447,7 @@ boolean bfd_set_default_target (const char *name);
 Set the default target vector to use when recognizing a BFD.
 This takes the name of the target, which may be a BFD target
 name or a configuration triplet.
-@*
+
 @findex bfd_find_target
 @subsubsection @code{bfd_find_target}
 @strong{Synopsis}
@@ -464,7 +464,7 @@ variable to "default" will cause the first entry in the target
 list to be returned, and "target_defaulted" will be set in the
 BFD.  This causes @code{bfd_check_format} to loop over all the
 targets to find the one that matches the file being read.
-@*
+
 @findex bfd_target_list
 @subsubsection @code{bfd_target_list}
 @strong{Synopsis}
@@ -475,4 +475,4 @@ const char **bfd_target_list(void);
 Return a freshly malloced NULL-terminated
 vector of the names of all the valid BFD targets. Do not
 modify the names.
-@*
+

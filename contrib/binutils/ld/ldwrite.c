@@ -1,5 +1,6 @@
 /* ldwrite.c -- write out the linked file
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain sac@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -48,6 +49,7 @@ build_link_order (statement)
 	asection *output_section;
 	struct bfd_link_order *link_order;
 	bfd_vma value;
+	boolean big_endian = false;
 
 	output_section = statement->data_statement.output_section;
 	ASSERT (output_section->owner == output_bfd);
@@ -67,25 +69,39 @@ build_link_order (statement)
 	   By convention, the bfd_put routines for an unknown
 	   endianness are big endian, so we must swap here if the
 	   input file is little endian.  */
-	if (! bfd_big_endian (output_bfd)
-	    && ! bfd_little_endian (output_bfd))
+	if (bfd_big_endian (output_bfd))
+	  big_endian = true;
+	else if (bfd_little_endian (output_bfd))
+	  big_endian = false;
+	else
 	  {
 	    boolean swap;
 
 	    swap = false;
-	    if (command_line.endian == ENDIAN_LITTLE)
-	      swap = true;
+	    if (command_line.endian == ENDIAN_BIG)
+	      big_endian = true;
+	    else if (command_line.endian == ENDIAN_LITTLE)
+	      {
+		big_endian = false;
+		swap = true;
+	      }
 	    else if (command_line.endian == ENDIAN_UNSET)
 	      {
-		LANG_FOR_EACH_INPUT_STATEMENT (s)
-		  {
-		    if (s->the_bfd != NULL)
-		      {
-			if (bfd_little_endian (s->the_bfd))
-			  swap = true;
-			break;
-		      }
-		  }
+		big_endian = true;
+		{
+		  LANG_FOR_EACH_INPUT_STATEMENT (s)
+		    {
+		      if (s->the_bfd != NULL)
+			{
+			  if (bfd_little_endian (s->the_bfd))
+			    {
+			      big_endian = false;
+			      swap = true;
+			    }
+			  break;
+			}
+		    }
+		}
 	      }
 
 	    if (swap)
@@ -95,9 +111,14 @@ build_link_order (statement)
 		switch (statement->data_statement.type)
 		  {
 		  case QUAD:
-		    bfd_putl64 (value, buffer);
-		    value = bfd_getb64 (buffer);
-		    break;
+		  case SQUAD:
+		    if (sizeof (bfd_vma) >= QUAD_SIZE)
+		      {
+			bfd_putl64 (value, buffer);
+			value = bfd_getb64 (buffer);
+			break;
+		      }
+		    /* Fall through.  */
 		  case LONG:
 		    bfd_putl32 (value, buffer);
 		    value = bfd_getb32 (buffer);
@@ -118,7 +139,26 @@ build_link_order (statement)
 	switch (statement->data_statement.type)
 	  {
 	  case QUAD:
-	    bfd_put_64 (output_bfd, value, link_order->u.data.contents);
+	  case SQUAD:
+	    if (sizeof (bfd_vma) >= QUAD_SIZE)
+	      bfd_put_64 (output_bfd, value, link_order->u.data.contents);
+	    else
+	      {
+		bfd_vma high;
+
+		if (statement->data_statement.type == QUAD)
+		  high = 0;
+		else if ((value & 0x80000000) == 0)
+		  high = 0;
+		else
+		  high = (bfd_vma) -1;
+		bfd_put_32 (output_bfd, high,
+			    (link_order->u.data.contents
+			     + (big_endian ? 0 : 4)));
+		bfd_put_32 (output_bfd, value,
+			    (link_order->u.data.contents
+			     + (big_endian ? 4 : 0)));
+	      }
 	    link_order->size = QUAD_SIZE;
 	    break;
 	  case LONG:

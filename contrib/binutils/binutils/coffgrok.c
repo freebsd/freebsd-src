@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright (C) 1994, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -142,7 +142,7 @@ do_sections_p1 (head)
       head->sections[i].data = section->flags & SEC_DATA;
       if (strcmp (section->name, ".bss") == 0)
 	head->sections[i].data = 1;
-      head->sections[i].address = section->vma;
+      head->sections[i].address = section->lma;
       head->sections[i].size = section->_raw_size;
       head->sections[i].number = idx;
       head->sections[i].nrelocs = section->reloc_count;
@@ -166,7 +166,8 @@ do_sections_p2 (head)
   asection *section;
   for (section = abfd->sections; section; section = section->next)
     {
-      int j;
+      unsigned int j;
+
       for (j = 0; j < section->reloc_count; j++)
 	{
 	  int idx;
@@ -248,7 +249,8 @@ do_lines (i, name)
 {
   struct coff_line *res = (struct coff_line *) xcalloc (sizeof (struct coff_line), 1);
   asection *s;
-  int l;
+  unsigned int l;
+
   /* Find out if this function has any line numbers in the table */
   for (s = abfd->sections; s; s = s->next)
     {

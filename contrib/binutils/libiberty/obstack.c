@@ -39,6 +39,23 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
+/* CYGNUS LOCAL (not to be elided!) */
+
+int
+_obstack_memory_used (h)
+     struct obstack *h;
+{
+  register struct _obstack_chunk* lp;
+  register int nbytes = 0;
+
+  for (lp = h->chunk; lp != 0; lp = lp->prev)
+    {
+      nbytes += lp->limit - (char *) lp;
+    }
+  return nbytes;
+}
+
+/* END CYGNUS LOCAL */
 
 #ifndef ELIDE_CODE
 
@@ -378,24 +395,6 @@ obstack_free (h, obj)
     /* obj is not in any of the chunks! */
     abort ();
 }
-
-/* CYGNUS LOCAL */
-
-int
-_obstack_memory_used (h)
-     struct obstack *h;
-{
-  register struct _obstack_chunk* lp;
-  register int nbytes = 0;
-
-  for (lp = h->chunk; lp != 0; lp = lp->prev)
-    {
-      nbytes += lp->limit - (char *) lp;
-    }
-  return nbytes;
-}
-
-/* END CYGNUS LOCAL */
 
 #if 0
 /* These are now turned off because the applications do not use it

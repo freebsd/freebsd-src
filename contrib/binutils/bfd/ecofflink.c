@@ -706,17 +706,18 @@ bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 	  struct string_hash_entry *fh;
 
 	  /* We look up a string formed from the file name and the
-	     number of symbols.  Sometimes an include file will
-	     conditionally define a typedef or something based on the
-	     order of include files.  Using the number of symbols as a
-	     hash reduces the chance that we will merge symbol
-	     information that should not be merged.  */
+	     number of symbols and aux entries.  Sometimes an include
+	     file will conditionally define a typedef or something
+	     based on the order of include files.  Using the number of
+	     symbols and aux entries as a hash reduces the chance that
+	     we will merge symbol information that should not be
+	     merged.  */
 	  name = input_debug->ss + fdr.issBase + fdr.rss;
 
 	  lookup = (char *) bfd_malloc (strlen (name) + 20);
 	  if (lookup == NULL)
 	    return false;
-	  sprintf (lookup, "%s %lx", name, fdr.csym);
+	  sprintf (lookup, "%s %lx %lx", name, fdr.csym, fdr.caux);
 
 	  fh = string_hash_lookup (&ainfo->fdr_hash, lookup, true, true);
 	  free (lookup);
