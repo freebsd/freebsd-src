@@ -1,4 +1,4 @@
-/*	$Id:$	*/
+/*	$Id: bootp_subr.c,v 1.1.4.1 1997/05/11 18:01:25 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -112,6 +112,10 @@ static int md_lookup_swap __P((struct sockaddr_in *mdsin,char *path,
 			       u_char *fhp, int *fhsizep, 
 			       struct nfs_args *args,
 			       struct proc *procp));
+static int setfs __P((struct sockaddr_in *addr, char *path, char *p));
+static int getdec __P((char **ptr));
+static char *substr __P((char *a,char *b));
+static void mountopts __P((struct nfs_args *args, char *p)); 
 
 #ifdef BOOTP_DEBUG
 void bootpboot_p_sa(struct sockaddr *sa,struct sockaddr *ma);
@@ -622,59 +626,92 @@ bootpc_adjust_interface(struct ifreq *ireq,struct socket *so,
   return 0;
 }
 
-void bootp_expand_path(char *str,size_t len,char *hostname,
-		       struct in_addr addr);
-void bootp_expand_path(char *str,size_t len,char *hostname,
-		       struct in_addr addr)
+static int setfs(addr, path, p)
+	struct sockaddr_in *addr;
+	char *path;
+	char *p;
 {
-  char tmpbuf[128];
-  char tmpaddr[20];
+	unsigned ip = 0;
+	int val;
 
-  char *p,*q,*savep;
-  q = tmpbuf;
+	if (((val = getdec(&p)) < 0) || (val > 255)) return(0);
+	ip = val << 24;
+	if (*p != '.') return(0);
+	p++;
+	if (((val = getdec(&p)) < 0) || (val > 255)) return(0);
+	ip |= (val << 16);
+	if (*p != '.') return(0);
+	p++;
+	if (((val = getdec(&p)) < 0) || (val > 255)) return(0);
+	ip |= (val << 8);
+	if (*p != '.') return(0);
+	p++;
+	if (((val = getdec(&p)) < 0) || (val > 255)) return(0);
+	ip |= val;
+	if (*p != ':') return(0);
+	p++;
 
-  savep = NULL;
-  sprintf(tmpaddr,"%d.%d.%d.%d",
-	  ((unsigned char *) &addr)[0],
-	  ((unsigned char *) &addr)[1],
-	  ((unsigned char *) &addr)[2],
-	  ((unsigned char *) &addr)[3]);
-  
-  for (p=str;*p;) {
-    switch(*p) {
-    case '%':
-      if (!savep) {
-	switch(*++p) {
-	case 'H':
-	  savep = ++p;
-	  p= hostname;
-	  break;
-	case 'I':
-	  savep = ++p;
-	  p = tmpaddr;
-	  break;
-	default:
-	  goto arnej;
+	addr->sin_addr.s_addr = htonl(ip);
+	addr->sin_len = sizeof(struct sockaddr_in);
+	addr->sin_family = AF_INET;
+
+	strncpy(path,p,MNAMELEN-1);
+	return(1);
+}
+
+static int getdec(ptr)
+	char **ptr;
+{
+	char *p = *ptr;
+	int ret=0;
+	if ((*p < '0') || (*p > '9')) return(-1);
+	while ((*p >= '0') && (*p <= '9')) {
+		ret = ret*10 + (*p - '0');
+		p++;
 	}
-	break;
-      }
-    default:
-    arnej:
-      if (q+1>=tmpbuf+sizeof(tmpbuf))
-	panic("bootp_expand_path: Cannot expand %s\n",str);
-      else
-	*q++ = *p++;
-      if (!*p && savep) {
-	p = savep;
-	savep = NULL;
-      }
-    }
-  }
-  *q++ = 0;
-  if (q-tmpbuf>len) {
-    panic("bootp_expand_path: Too long expansion: %s\n",tmpbuf);
-  }
-  strcpy(str,tmpbuf);
+	*ptr = p;
+	return(ret);
+}
+
+static char *substr(a,b)
+	char *a,*b;
+{
+	char *loc1;
+	char *loc2;
+
+        while (*a != '\0') {
+                loc1 = a;
+                loc2 = b;
+                while (*loc1 == *loc2++) {
+                        if (*loc1 == '\0') return (0);
+                        loc1++;
+                        if (*loc2 == '\0') return (loc1);
+                }
+        a++;
+        }
+        return (0);
+}
+
+static void mountopts(args,p)
+	struct nfs_args *args;
+	char *p;
+{
+	char *tmp;
+  
+	args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
+	args->sotype = SOCK_DGRAM;
+	if ((tmp = (char *)substr(p,"rsize=")))
+		args->rsize=getdec(&tmp);
+	if ((tmp = (char *)substr(p,"wsize=")))
+		args->wsize=getdec(&tmp);
+	if ((tmp = (char *)substr(p,"intr")))
+		args->flags |= NFSMNT_INT;
+	if ((tmp = (char *)substr(p,"soft")))
+		args->flags |= NFSMNT_SOFT;
+	if ((tmp = (char *)substr(p,"noconn")))
+		args->flags |= NFSMNT_NOCONN;
+	if ((tmp = (char *)substr(p, "tcp")))
+	    args->sotype = SOCK_STREAM;
 }
 
 void
@@ -688,20 +725,19 @@ bootpc_init(void)
   struct ifnet *ifp;
   struct socket *so;
   int error;
-  int code,len;
+  int code,ncode,len;
   int i,j;
-  char rootpath[65];
-  char swappath[65];
+  char *p;
+  unsigned int ip;
 
   struct sockaddr_in myaddr;
   struct sockaddr_in netmask;
   struct sockaddr_in gw;
-  struct sockaddr_in server;
   int gotgw=0;
   int gotnetmask=0;
-  int gotserver=0;
   int gotrootpath=0;
   int gotswappath=0;
+  char lookup_path[24];
 
 #define EALEN 6
   unsigned char ea[EALEN];
@@ -806,7 +842,6 @@ bootpc_init(void)
   bzero(&myaddr,sizeof(myaddr));
   bzero(&netmask,sizeof(netmask));
   bzero(&gw,sizeof(gw));
-  bzero(&server,sizeof(server));
 
   myaddr.sin_len = sizeof(myaddr);
   myaddr.sin_family = AF_INET;
@@ -817,15 +852,35 @@ bootpc_init(void)
   gw.sin_len = sizeof(gw);
   gw.sin_family= AF_INET;
 
-  server.sin_len = sizeof(gw);
-  server.sin_family= AF_INET;
+  nd->root_args.rsize = 8192;
+  nd->root_args.wsize = 8192;
+  nd->root_args.sotype = SOCK_DGRAM;
+  nd->root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | NFSMNT_RESVPORT);
 
-  printf("My new ip address is %x\n",htonl(reply.yiaddr.s_addr));
+  nd->swap_saddr.sin_len = sizeof(gw);
+  nd->swap_saddr.sin_family = AF_INET;
 
+  nd->swap_args.rsize = 8192;
+  nd->swap_args.wsize = 8192;
+  nd->swap_args.sotype = SOCK_DGRAM;
+  nd->swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | NFSMNT_RESVPORT);
+  
   myaddr.sin_addr = reply.yiaddr;
 
-  printf("Server ip address is %x\n",htonl(reply.siaddr.s_addr));
-  printf("Gateway ip address is %x\n",htonl(reply.giaddr.s_addr));
+  ip = ntohl(myaddr.sin_addr.s_addr);
+  printf("My ip address is %d.%d.%d.%d\n",
+	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+
+  sprintf(lookup_path,"swap.%d.%d.%d.%d",
+	  ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+
+  ip = ntohl(reply.siaddr.s_addr);
+  printf("Server ip address is %d.%d.%d.%d\n",
+	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+
+  ip = ntohl(reply.giaddr.s_addr);
+  printf("Gateway ip address is %d.%d.%d.%d\n",
+	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
 
   gw.sin_addr = reply.giaddr;
 
@@ -836,11 +891,12 @@ bootpc_init(void)
   if (reply.vend[0]==99 && reply.vend[1]==130 &&
       reply.vend[2]==83 && reply.vend[3]==99) {
     j=4;
+    ncode = reply.vend[j];
     while (j<sizeof(reply.vend)) {
-      code = reply.vend[j];
-      if (reply.vend[j]==255)
+      code = reply.vend[j] = ncode;
+      if (code==255)
 	break;
-      if (reply.vend[j]==0) {
+      if (code==0) {
 	j++;
 	continue;
       }
@@ -850,6 +906,9 @@ bootpc_init(void)
 	printf("Truncated field");
 	break;
       }
+      ncode = reply.vend[j+len];
+      reply.vend[j+len]='\0';
+      p = &reply.vend[j];
       switch (code) {
       case 1:
 	if (len!=4) 
@@ -881,36 +940,16 @@ bootpc_init(void)
 		 reply.vend[j+i+3]);
 	}
 	break;
-      case 6:
-	/* Domain Name servers */
-	if (len % 4) 
-	  panic("bootpc: DNS Len is %d",len);
-	for (i=0;i<len;i+=4) {
-	  printf("DNS server is %d.%d.%d.%d\n",
-		 reply.vend[j+i],
-		 reply.vend[j+i+1],
-		 reply.vend[j+i+2],
-		 reply.vend[j+i+3]);
-	}
+      case 6:/* Domain Name servers. Unused */
 	break;
-      case 16:
-	if (len!=4)
-	  panic("bootpc: swap server len is %d",len);
-	bcopy(&reply.vend[j],&server.sin_addr,4);
-	gotserver=1;
-	printf("Swap server (also used as root path server) is %d.%d.%d.%d\n",
-	       reply.vend[j],
-	       reply.vend[j+1],
-	       reply.vend[j+2],
-	       reply.vend[j+3]);
+      case 16: /* Swap server IP address. unused */
 	break;
       case 17:
-	if (len>=sizeof(rootpath))
-	  panic("bootpc: rootpath >=%d bytes",sizeof(rootpath));
-	strncpy(rootpath,&reply.vend[j],len);
-	rootpath[len]=0;
-	gotrootpath=1;
-	printf("Rootpath is %s\n",rootpath);
+	if (setfs(&nd->root_saddr, nd->root_hostnam, p)) {
+	  printf("rootfs is %s\n",p);
+	  gotrootpath=1;
+	} else 
+	  panic("Failed to set rootfs to %s",p);
 	break;
       case 12:
 	if (len>=MAXHOSTNAMELEN)
@@ -922,12 +961,11 @@ bootpc_init(void)
 	printf("Hostname is %s\n",hostname);
 	break;
       case 128:
-	if (len>=sizeof(swappath))
-	  panic("bootpc: swappath >=%d bytes",sizeof(swappath));
-	strncpy(swappath,&reply.vend[j],len);
-	swappath[len]=0;
-	gotswappath=1;
-	printf("Swappath is %s\n",swappath);
+	if (setfs(&nd->swap_saddr, nd->swap_hostnam, p)) {
+	  gotswappath=1;
+	  printf("swapfs is %s\n",p);
+	} else
+	  panic("Failed to set swapfs to %s",p);
 	break;
       case 129:
 	{
@@ -939,6 +977,12 @@ bootpc_init(void)
 	  printf("bootpc: Swap size is %d KB\n",nd->swap_nblks);
 	}
 	break;
+      case 130:	/* root mount options */
+	mountopts(&nd->root_args,p);
+	break;
+      case 131:	/* swap mount options */
+	mountopts(&nd->swap_args,p);
+	break;
       default:
 	printf("Ignoring field type %d\n",code);
       }
@@ -946,29 +990,13 @@ bootpc_init(void)
     }
   }
 
-  if (gotrootpath) {
-    bootp_expand_path(rootpath,sizeof(rootpath),
-		      hostname,
-		      myaddr.sin_addr);
-    printf("Rootpath is expanded to %s\n",rootpath);
-    if (gotswappath) {
-      bootp_expand_path(swappath,sizeof(swappath),
-			hostname,
-			myaddr.sin_addr);
-      printf("Swappath is expanded to %s\n",swappath);
-    }
-    else 
-      nd->swap_nblks = 0;
-  } else {
+  if (!gotswappath)
+    nd->swap_nblks = 0;
 #ifdef BOOTP_NFSROOT
+  if (!gotrootpath)
     panic("bootpc: No root path offered");
 #endif
-  }
 
-  if (!gotserver) {
-    server.sin_addr = reply.siaddr ;
-  }
-    
   if (!gotnetmask) {
     if (IN_CLASSA(myaddr.sin_addr.s_addr))
       netmask.sin_addr.s_addr = IN_CLASSA_NET;
@@ -996,60 +1024,24 @@ bootpc_init(void)
   bootpboot_p_rtlist();
 #endif
 
-  nd->root_args.rsize = 8192;
-  nd->root_args.wsize = 8192;
-  nd->root_args.sotype = SOCK_DGRAM;
-  nd->root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
-			 NFSMNT_RESVPORT | NFSMNT_NOCONN);
-
-  nd->swap_args.rsize = 8192;
-  nd->swap_args.wsize = 8192;
-  nd->swap_args.sotype = SOCK_DGRAM;
-  nd->swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
-			 NFSMNT_RESVPORT | NFSMNT_NOCONN);
-  
   if (gotrootpath) {
-    if (server.sin_addr.s_addr != reply.siaddr.s_addr ) {
-      sprintf(nd->root_hostnam,"%d.%d.%d.%d",
-	      ((unsigned char *) &server.sin_addr)[0],
-	      ((unsigned char *) &server.sin_addr)[1],
-	      ((unsigned char *) &server.sin_addr)[2],
-	      ((unsigned char *) &server.sin_addr)[3]);
-    } else 
-      strcpy(nd->root_hostnam,reply.sname);
-    bcopy(&server, &nd->root_saddr,sizeof(server));
-    
-    error = md_mount(&nd->root_saddr, rootpath, nd->root_fh, &nd->root_fhsize,
+
+    error = md_mount(&nd->root_saddr, nd->root_hostnam, 
+		     nd->root_fh, &nd->root_fhsize,
 		     &nd->root_args,procp);
     if (error)
       panic("nfs_boot: mountd root, error=%d", error);
-
+    
     if (gotswappath) {
 
-      char *p = swappath;
-
-      while (*p) 
-	p++;
-      while (p>=swappath && *p != '/')
-	p--;
-
-      strcpy(nd->swap_hostnam, nd->root_hostnam);
-      
-      bcopy(&server, &nd->swap_saddr,sizeof(server));
-
-      if (p>swappath) 
-	*p = '\0';
       error = md_mount(&nd->swap_saddr, 
-		       (p>swappath) ? swappath:"/",
+		       nd->swap_hostnam,
 		       nd->swap_fh, &nd->swap_fhsize,&nd->swap_args,procp);
       if (error)
 	panic("nfs_boot: mountd swap, error=%d", error);
-      if (p>swappath)
-	*p = '/';
       
-      if (p>=swappath)
-	error = md_lookup_swap(&nd->swap_saddr,p+1,nd->swap_fh, 
-			       &nd->swap_fhsize, &nd->swap_args,procp);
+      error = md_lookup_swap(&nd->swap_saddr,lookup_path,nd->swap_fh, 
+			     &nd->swap_fhsize, &nd->swap_args,procp);
       if (error)
 	panic("nfs_boot: lookup swap, error=%d", error);
     }
