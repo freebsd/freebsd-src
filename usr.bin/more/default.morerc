@@ -9,6 +9,9 @@
 # is recompiled).  The correct way to change the global defaults is by
 # adding a /etc/dot.morerc global initialization file.
 #
+# In general, the average user is not expected have any interest in changing
+# default keybindings.
+# 
 # If you use an ~/.morerc that is dependent on specific features of this
 # default morerc, you should copy this default morerc to ~/.defmorerc so that
 # possible future changes in this file do not cause problems for you.  The
@@ -20,17 +23,40 @@
 # compiled into more(1)) is missing or away without leave (chroot directory,
 # fs crash, badly written rescue floppy, or any other reason).
 #
-# BUGS: a) There is no documentation.
+# BUGS: a) There is no documentation (this is arguably a feature).
 #       b) There is no "map" command.
 #
 # $FreeBSD$
 #
 
-# required -- initialize more(1)
+# The "deftog" is required to initialize more(1).
+#
+# Each of the toggle variables in the proceeding list will be initialized.
+# A toggle variable "togvar" will be initialized into two variables:
+# ${togvar_s} and ${togvar_n}.  The _s variant will hold a string representing
+# the toggle state, and the _n variant will hold a number representing the
+# toggle state.  The toggle states are numbered from 0 to n, in the order
+# listed for the toggle.
+#
+# _ls_direction		forw back	direction of last search
+# _ls_sense		noinvert invert	find match/non-matching to last search
+# _wraplines		off on		currently wrapping lines?
+# _statprompt		on off		currently displaying the long prompt?
+#
+# If the fact that "off on" is in a different order from "on off" bothers
+# you, then you are probably abusing the variables.
+#
+# Additionally, the following variables are set,
+#
+# ${_curhscroll}	number of columns scrolled horizontally
+# ${_ls_regexp}		regular expression from the last search
+#
+
 deftog
 
+
 #
-# basic internal initialization
+# basic internal initialization for things used inside this file
 #
 set lsthscr 1
 # Add "set hkey_scroll true" to ~/.morerc to enable all the hjkl keys (but
@@ -124,8 +150,8 @@ macro 0 \'	'gomark ?'
 macro 0 :t	'asktag'
 macro 1 t	'nexttag ${number}'
 macro 1 T	'prevtag ${number}'
-macro 0 ""	'stat (${_stat_n} + 1)'
-macro 0 =	'stat (${_stat_n} + 1)'
+macro 0 ""	'stat (${_statprompt_n} + 1)'
+macro 0 =	'stat (${_statprompt_n} + 1)'
 macro 0 q	'quit'
 macro 0 :q	'quit'
 macro 0 ZZ	'quit'
