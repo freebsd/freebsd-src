@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1998/03/06 13:34:36 bde Exp $
+# $Id: Makefile,v 1.8 1998/03/08 05:29:49 peter Exp $
 #
 
 #
@@ -130,18 +130,15 @@ ${COMMONHDRS}:
 	echo '#include "f2c-specs.h"'                   >> specs.h
 
 SRCS+=	${COMMONHDRS}
-CLEANFILES+=	elf aout
 
 #-----------------------------------------------------------------------
 # Everything in ${SRCS} is generated
 CLEANFILES+=	${SRCS}
 
 #-----------------------------------------------------------------------
-all:		${COMMONHDRS} ${SRCS}
+all:		${SRCS}
 
 #-----------------------------------------------------------------------
-beforedepend:	${COMMONHDRS}
-
 # We kept ${LOCOBJS} separate from ${OBJS} because adding all the
 # objects to ${OBJS} would give too many (cyclic) dependencies.
 # Add just enough dependencies for `make -j 1000' to work.
