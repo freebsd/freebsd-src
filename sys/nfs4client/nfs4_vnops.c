@@ -681,9 +681,7 @@ nfs4_close(struct vop_close_args *ap)
 		return (0);
 
 	if (np->n_flag & NMODIFIED) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-		VOP_UNLOCK(vp, 0, ap->a_td);
 		np->n_attrstamp = 0;
 	}
 
