@@ -1544,9 +1544,23 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREREAD);
 
-	/* setup descriptors */
+	/*
+	 * Setup descriptors.  For receive we always terminate
+	 * the descriptor list with a self-linked entry so we'll
+	 * not get overrun under high load (as can happen with a
+	 * 5212 when ANI processing enables PHY errors).
+	 *
+	 * To insure the last descriptor is self-linked we create
+	 * each descriptor as self-linked and add it to the end.  As
+	 * each additional descriptor is added the previous self-linked
+	 * entry is ``fixed'' naturally.  This should be safe even
+	 * if DMA is happening.  When processing RX interrupts we
+	 * never remove/process the last, self-linked, entry on the
+	 * descriptor list.  This insures the hardware always has
+	 * someplace to write a new frame.
+	 */
 	ds = bf->bf_desc;
-	ds->ds_link = 0;
+	ds->ds_link = bf->bf_daddr;	/* link to self */
 	ds->ds_data = bf->bf_segs[0].ds_addr;
 	ath_hal_setuprxdesc(ah, ds
 		, m->m_len		/* buffer size */
@@ -1584,12 +1598,16 @@ ath_rx_proc(void *arg, int npending)
 			if_printf(ifp, "ath_rx_proc: no buffer!\n");
 			break;
 		}
+		ds = bf->bf_desc;
+		if (ds->ds_link == bf->bf_daddr) {
+			/* NB: never process the self-linked entry at the end */
+			break;
+		}
 		m = bf->bf_m;
 		if (m == NULL) {		/* NB: shouldn't happen */
 			if_printf(ifp, "ath_rx_proc: no mbuf!\n");
 			continue;
 		}
-		ds = bf->bf_desc;
 		status = ath_hal_rxprocdesc(ah, ds);
 #ifdef AR_DEBUG
 		if (ath_debug > 1)
