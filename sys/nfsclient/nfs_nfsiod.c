@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.4 1994/10/02 17:27:02 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.5 1994/10/17 17:47:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -319,7 +319,7 @@ nfssvc_addsock(fp, mynam)
 		siz = NFS_MAXPACKET + sizeof (u_long);
 	else
 		siz = NFS_MAXPACKET;
-	error = soreserve(so, siz, siz); 
+	error = soreserve(so, siz, siz);
 	if (error) {
 		m_freem(mynam);
 		return (error);

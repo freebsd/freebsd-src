@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.9 1995/03/28 07:58:05 bde Exp $
+ * $Id: lfs_segment.c,v 1.10 1995/05/11 19:26:51 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ lfs_reclaim_buffers() {
 		reclaimed = 1;
 		if( lfs_freebufs[i].address ){
                 	splx(s);
-                	free(lfs_freebufs[i].address, M_SEGMENT); 
+                	free(lfs_freebufs[i].address, M_SEGMENT);
                 	s = splhigh();
 		}
 		lfs_total_io_size -= lfs_freebufs[i].size;
@@ -133,8 +133,8 @@ lfs_alloc_buffer(int size) {
 	rtval = malloc(size, M_SEGMENT, M_WAITOK);
 	return rtval;
 }
-		
-	
+
+
 /*
  * Determine if it's OK to start a partial in this segment, or if we need
  * to go on to a new segment.
@@ -187,14 +187,14 @@ lfs_vflush(vp)
 	int error;
 
 	fs = VFSTOUFS(vp->v_mount)->um_lfs;
-	/* XXX 
-	 * lfs_segwrite uses lfs_writevnodes to flush dirty vnodes.  
-	 * lfs_writevnodes (by way of a check with lfs_vref) passes over 
+	/* XXX
+	 * lfs_segwrite uses lfs_writevnodes to flush dirty vnodes.
+	 * lfs_writevnodes (by way of a check with lfs_vref) passes over
 	 * locked vnodes.  Since we usually come here with vp locked, anytime
 	 * we just happen to call lfs_vflush and we are past the "MAX_ACTIVE"
 	 * threshold, we used to call lfs_seqwrite and assume it would take
-	 * care of the problem... but of course it didn't.  Now the question 
-	 * remains, is this the right thing to do, or should lfs_seqwrite or 
+	 * care of the problem... but of course it didn't.  Now the question
+	 * remains, is this the right thing to do, or should lfs_seqwrite or
 	 * lfs_writevnodes be fixed to handle locked vnodes??
 	 */
 	if (fs->lfs_nactive > MAX_ACTIVE){
@@ -283,7 +283,7 @@ loop:
 			(void) lfs_writeinode(fs, sp, ip);
 		}
 		vp->v_flag &= ~VDIROP;
-		lfs_vunref(vp); 
+		lfs_vunref(vp);
 	}
 }
 
@@ -338,7 +338,7 @@ lfs_segwrite(mp, flags)
 	if (fs->lfs_dirops && (error =
 	    tsleep(&fs->lfs_writer, PRIBIO + 1, "lfs writer", 0))) {
 		free(sp->bpp, M_SEGMENT);
-		free(sp, M_SEGMENT); 
+		free(sp, M_SEGMENT);
 		fs->lfs_writer = 0;
 		return (error);
 	}
@@ -360,7 +360,7 @@ lfs_segwrite(mp, flags)
 			segusep = (SEGUSE *)bp->b_data;
 			for (i = fs->lfs_sepb; i--; segusep++)
 				segusep->su_flags &= ~SEGUSE_ACTIVE;
-				
+
 			error = VOP_BWRITE(bp);
 		}
 
@@ -526,7 +526,7 @@ lfs_writeinode(fs, sp, ip)
 	 * No need to update segment usage if there was no former inode address
 	 * or if the last inode address is in the current partial segment.
 	 */
-	if (daddr != LFS_UNUSED_DADDR && 
+	if (daddr != LFS_UNUSED_DADDR &&
 	    !(daddr >= fs->lfs_lastpseg && daddr <= bp->b_blkno)) {
 		LFS_SEGENTRY(sup, fs, datosn(fs, daddr), bp);
 #ifdef DIAGNOSTIC
@@ -576,7 +576,7 @@ lfs_gatherblock(sp, bp, sptr)
 		sp->fip->fi_ino = VTOI(sp->vp)->i_number;
 		/* Add the current file to the segment summary. */
 		++((SEGSUM *)(sp->segsum))->ss_nfinfo;
-		sp->sum_bytes_left -= 
+		sp->sum_bytes_left -=
 		    sizeof(struct finfo) - sizeof(daddr_t);
 
 		if (sptr)
@@ -644,7 +644,7 @@ lfs_updatemeta(sp)
 
 	vp = sp->vp;
 	nblocks = &sp->fip->fi_blocks[sp->fip->fi_nblocks] - sp->start_lbp;
-	if (vp == NULL || nblocks == 0) 
+	if (vp == NULL || nblocks == 0)
 		return;
 
 	/* Sort the blocks. */
@@ -1171,7 +1171,7 @@ int
 lfs_vref(vp)
 	register struct vnode *vp;
 {
-    if ((vp->v_flag & VXLOCK) || 
+    if ((vp->v_flag & VXLOCK) ||
 	(vp->v_usecount == 0 &&
 	 vp->v_freelist.tqe_prev == (struct vnode **)0xdeadb))
       return(1);

@@ -8,7 +8,7 @@ Author: Martin Renters.
   Andres Vega Garcia's if_ep.c driver.
 
  Copyright (C) 1993-1994, David Greenman, Martin Renters.
- Copyright (C) 1993-1995, Andres Vega Garcia. 
+ Copyright (C) 1993-1995, Andres Vega Garcia.
  Copyright (C) 1995, Serge Babkin.
   This software may be used, modified, copied, distributed, and sold, in
   both source and binary form provided that the above copyright and these
@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$Id: 3c509.c,v 1.1 1995/04/11 05:37:59 root Exp root $
+$Id: 3c509.c,v 1.1 1995/04/12 20:14:56 martin Exp $
 
 ***************************************************************************/
 
@@ -158,7 +158,7 @@ eth_probe()
 				eth_vendor=VENDOR_NONE;
 				goto no3c509;
 				}
-				
+
 			break;
 		case 1:
 			if(i & IS_AUI)
@@ -168,7 +168,7 @@ eth_probe()
 				eth_vendor=VENDOR_NONE;
 				goto no3c509;
 				}
-				
+
 			break;
 		case 3:
 			if(i & IS_BNC) {
@@ -180,7 +180,7 @@ eth_probe()
 				eth_vendor=VENDOR_NONE;
 				goto no3c509;
 				}
-				
+
 			break;
 		default:
 			printf("unknown connector\r\n");
@@ -240,8 +240,8 @@ eth_reset()
 	outw(BASE + EP_COMMAND, SET_INTR_MASK);
 	outw(BASE + EP_COMMAND, SET_RX_FILTER);
 
-	/* 
-	/* initialize card 
+	/*
+	/* initialize card
 	*/
 	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 

@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.1 (Berkeley) 6/2/93
- * $Id: dirent.h,v 1.2 1994/08/02 07:52:47 davidg Exp $
+ * $Id: dirent.h,v 1.3 1994/08/21 04:41:38 paul Exp $
  */
 
 #ifndef _SYS_DIRENT_H_
 #define _SYS_DIRENT_H_
 
 /*
- * The dirent structure defines the format of directory entries returned by 
+ * The dirent structure defines the format of directory entries returned by
  * the getdirentries(2) system call.
  *
  * A directory entry has a struct dirent at the front of it, containing its

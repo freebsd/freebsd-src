@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.h,v 1.4 1994/10/22 11:40:38 phk Exp $
+ * $Id: inflate.h,v 1.5 1995/04/15 06:54:04 phk Exp $
  *
  */
 #ifndef	_SYS_INFLATE_H_
@@ -27,7 +27,7 @@ struct inflate {
 
 	/* This pointer is passed along to the two functions below */
 	void           *gz_private;
-					
+
 	/* Fetch next character to be uncompressed */
 	int             (*gz_input) (void *);
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_er.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_er.c,v 1.2 1994/08/02 07:49:36 davidg Exp $
+ * $Id: clnp_er.c,v 1.3 1994/11/15 14:26:10 bde Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_er.c,v 1.2 1994/08/02 07:49:36 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_er.c,v 1.3 1994/11/15 14:26:10 bde Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_er.c,v $ */
 
 #include <sys/param.h>
@@ -98,11 +98,11 @@ static struct clnp_fixed er_template = {
  *
  * PURPOSE:			Process an ER pdu.
  *
- * RETURNS:			
+ * RETURNS:
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_er_input(m, src, reason)
 struct mbuf		*m;		/* ptr to packet itself */
@@ -113,7 +113,7 @@ u_char			reason;	/* reason code of er */
 	extern u_char clnp_protox[];
 
 	IFDEBUG(D_CTLINPUT)
-		printf("clnp_er_input: m x%x, src %s, reason x%x\n", m, 
+		printf("clnp_er_input: m x%x, src %s, reason x%x\n", m,
 			clnp_iso_addrp(src), reason);
 	ENDDEBUG
 
@@ -122,29 +122,29 @@ u_char			reason;	/* reason code of er */
 		case GEN_NOREAS:
 		case GEN_PROTOERR:
 			break;
-		case GEN_BADCSUM:		
+		case GEN_BADCSUM:
 			cmd = PRC_PARAMPROB;
 			break;
-		case GEN_CONGEST:		
+		case GEN_CONGEST:
 			cmd = PRC_QUENCH;
 			break;
-		case GEN_HDRSYNTAX:		
+		case GEN_HDRSYNTAX:
 			cmd = PRC_PARAMPROB;
 			break;
-		case GEN_SEGNEEDED:		
-			cmd = PRC_MSGSIZE; 
+		case GEN_SEGNEEDED:
+			cmd = PRC_MSGSIZE;
 			break;
-		case GEN_INCOMPLETE:	
-			cmd = PRC_PARAMPROB; 		
+		case GEN_INCOMPLETE:
+			cmd = PRC_PARAMPROB;
 			break;
-		case GEN_DUPOPT:		
-			cmd = PRC_PARAMPROB;		
+		case GEN_DUPOPT:
+			cmd = PRC_PARAMPROB;
 			break;
-		case ADDR_DESTUNREACH:	
-			cmd = PRC_UNREACH_HOST; 	
+		case ADDR_DESTUNREACH:
+			cmd = PRC_UNREACH_HOST;
 			break;
-		case ADDR_DESTUNKNOWN:	
-			cmd = PRC_UNREACH_PROTOCOL; 
+		case ADDR_DESTUNKNOWN:
+			cmd = PRC_UNREACH_PROTOCOL;
 			break;
 		case SRCRT_UNSPECERR:
 		case SRCRT_SYNTAX:
@@ -152,20 +152,20 @@ u_char			reason;	/* reason code of er */
 		case SRCRT_BADPATH:
 			cmd = PRC_UNREACH_SRCFAIL;
 			break;
-		case TTL_EXPTRANSIT:	
-			cmd = PRC_TIMXCEED_INTRANS;	
+		case TTL_EXPTRANSIT:
+			cmd = PRC_TIMXCEED_INTRANS;
 			break;
-		case TTL_EXPREASS:		
-			cmd = PRC_TIMXCEED_REASS;	
+		case TTL_EXPREASS:
+			cmd = PRC_TIMXCEED_REASS;
 			break;
 		case DISC_UNSUPPOPT:
 		case DISC_UNSUPPVERS:
 		case DISC_UNSUPPSECURE:
 		case DISC_UNSUPPSRCRT:
 		case DISC_UNSUPPRECRT:
-			cmd = PRC_PARAMPROB; 
+			cmd = PRC_PARAMPROB;
 			break;
-		case REASS_INTERFERE:	
+		case REASS_INTERFERE:
 			cmd = PRC_TIMXCEED_REASS;
 			break;
 	}
@@ -224,7 +224,7 @@ char					reason;	/* reason for discard */
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Takes responsibility for freeing mbuf passed
  *					This function may be called with a packet that
@@ -260,7 +260,7 @@ char					reason;	/* reason for discard */
 		(clnp->cnf_hdr_len > CLNP_HDR_MAX) ||
 		(clnp->cnf_hdr_len > m->m_len))
 		goto bad;
-	
+
 	/* extract src, dest address */
 	hend = (caddr_t)clnp + clnp->cnf_hdr_len;
 	hoff = (caddr_t)clnp + sizeof(struct clnp_fixed);
@@ -272,14 +272,14 @@ char					reason;	/* reason for discard */
 	if (hoff == (caddr_t)0) {
 		goto bad;
 	}
-	
+
 	/*
 	 *	Do not send ER if we generated the packet.
 	 */
 	if (clnp_ours(&src))
 		goto bad;
 
-	/* 
+	/*
 	 *	Trim mbuf to hold only the header.
 	 *	This mbuf will be the 'data' of the er pdu
 	 */
@@ -308,7 +308,7 @@ char					reason;	/* reason for discard */
 	ENDDEBUG
 
 	IFDEBUG(D_DISCARD)
-		printf("clnp_emit_er: packet routed to %s\n", 
+		printf("clnp_emit_er: packet routed to %s\n",
 			clnp_iso_addrp(&((struct sockaddr_iso *)first_hop)->siso_addr));
 	ENDDEBUG
 
@@ -316,7 +316,7 @@ char					reason;	/* reason for discard */
 	MGET(m0, M_DONTWAIT, MT_HEADER);
 	if (m0 == 0)
 		goto bad;
-	
+
 	m0->m_next = m;
 	er = mtod(m0, struct clnp_fixed *);
 	*er = er_template;
@@ -349,7 +349,7 @@ char					reason;	/* reason for discard */
 	/* trim packet if too large for interface */
 	if (total_len > ifp->if_mtu)
 		m_adj(m0, -(total_len - ifp->if_mtu));
-	
+
 	/* send packet */
 	INCSTAT(cns_er_outhist[clnp_er_index(reason)]);
 	(void) (*ifp->if_output)(ifp, m0, first_hop, route.ro_rt);

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: lemac.h,v 1.1 1994/08/01 16:03:42 thomas Exp $
+ *      $Id: lemac.h,v 1.1 1994/08/12 06:51:12 davidg Exp $
  */
 #ifndef _LEMAC_H_
 #define	_LEMAC_H_
@@ -128,7 +128,7 @@
 
 /* Transmit Done Queue Status Definitions */
 
-#define	LEMAC_TDQ_COL		0x03	/* Collision Mask */ 
+#define	LEMAC_TDQ_COL		0x03	/* Collision Mask */
 #define	LEMAC_TDQ_NOCOL		0x00	/*   No Collisions */
 #define	LEMAC_TDQ_ONECOL	0x01	/*   One Collision */
 #define	LEMAC_TDQ_MULCOL	0x02	/*   Multiple Collisions */

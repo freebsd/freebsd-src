@@ -29,11 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.3 1994/11/18 05:26:52 phk Exp $
+ *	$Id: bootinfo.h,v 1.4 1995/01/25 21:40:32 bde Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
-#define	_MACHINE_BOOTINFO_H_ 
+#define	_MACHINE_BOOTINFO_H_
 
 /* Only change the version number if you break compatibility. */
 #define	BOOTINFO_VERSION	1

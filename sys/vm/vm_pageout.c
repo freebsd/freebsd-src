@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.49 1995/05/10 18:56:06 davidg Exp $
+ * $Id: vm_pageout.c,v 1.50 1995/05/21 21:39:31 davidg Exp $
  */
 
 /*
@@ -121,10 +121,10 @@ vm_pageout_clean(m, sync)
 {
 	/*
 	 * Clean the page and remove it from the laundry.
-	 * 
+	 *
 	 * We set the busy bit to cause potential page faults on this page to
 	 * block.
-	 * 
+	 *
 	 * And we set pageout-in-progress to keep the object from disappearing
 	 * during pageout.  This guarantees that the page won't move from the
 	 * inactive queue.  (However, any other page on the inactive queue may
@@ -234,7 +234,7 @@ vm_pageout_clean(m, sync)
 				pageout_count += b_pageout_count;
 			}
 		}
-			
+
 		/*
 		 * we allow reads during pageouts...
 		 */

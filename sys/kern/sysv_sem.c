@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.3 1994/10/02 17:35:27 phk Exp $ */
+/*	$Id: sysv_sem.c,v 1.4 1994/10/06 21:06:32 davidg Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -620,7 +620,7 @@ semop(p, uap, retval)
 		return(eval);
 	}
 
-	/* 
+	/*
 	 * Loop trying to satisfy the vector of requests.
 	 * If we reach a point where we must wait, any requests already
 	 * performed are rolled back and we go to sleep until some other

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) University of British Columbia, 1984
- * Copyright (C) Computer Science Department IV, 
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1992
  * Copyright (c) 1991, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_usrreq.c,v 1.2 1994/08/02 07:47:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@
 static old_to_new();
 static new_to_old();
 /*
- * 
+ *
  *  X.25 Packet level protocol interface to socket abstraction.
  *
  *  Process an X.25 user request on a logical channel.  If this is a send
@@ -100,12 +100,12 @@ struct mbuf *control;
 */
 
 	switch (req) {
-	/* 
+	/*
 	 *  X.25 attaches to socket via PRU_ATTACH and allocates a logical
 	 *  channel descriptor.  If the socket is to  receive connections,
 	 *  then the LISTEN state is entered.
 	 */
-	case PRU_ATTACH: 
+	case PRU_ATTACH:
 		if (lcp) {
 			error = EISCONN;
 			/* Socket already connected. */
@@ -116,37 +116,37 @@ struct mbuf *control;
 			error = ENOBUFS;
 		break;
 
-	/* 
+	/*
 	 *  Detach a logical channel from the socket. If the state of the
-	 *  channel is embryonic, simply discard it. Otherwise we have to 
+	 *  channel is embryonic, simply discard it. Otherwise we have to
 	 *  initiate a PRU_DISCONNECT which will finish later.
 	 */
-	case PRU_DETACH: 
+	case PRU_DETACH:
 		pk_disconnect (lcp);
 		break;
 
-	/* 
+	/*
 	 *  Give the socket an address.
 	 */
-	case PRU_BIND: 
+	case PRU_BIND:
 		if (nam -> m_len == sizeof (struct x25_sockaddr))
 			old_to_new (nam);
 		error = pk_bind (lcp, nam);
 		break;
 
-	/* 
+	/*
 	 *  Prepare to accept connections.
 	 */
-	case PRU_LISTEN: 
+	case PRU_LISTEN:
 		error = pk_listen (lcp);
 		break;
 
-	/* 
+	/*
 	 *  Initiate a CALL REQUEST to peer entity. Enter state SENT_CALL
-	 *  and mark the socket as connecting. Set timer waiting for 
+	 *  and mark the socket as connecting. Set timer waiting for
 	 *  CALL ACCEPT or CLEAR.
 	 */
-	case PRU_CONNECT: 
+	case PRU_CONNECT:
 		if (nam -> m_len == sizeof (struct x25_sockaddr))
 			old_to_new (nam);
 		if (pk_checksockaddr (nam))
@@ -154,20 +154,20 @@ struct mbuf *control;
 		error = pk_connect (lcp, mtod (nam, struct sockaddr_x25 *));
 		break;
 
-	/* 
+	/*
 	 *  Initiate a disconnect to peer entity via a CLEAR REQUEST packet.
 	 *  The socket will be disconnected when we receive a confirmation
 	 *  or a clear collision.
 	 */
-	case PRU_DISCONNECT: 
+	case PRU_DISCONNECT:
 		pk_disconnect (lcp);
 		break;
 
-	/* 
+	/*
 	 *  Accept an INCOMING CALL. Most of the work has already been done
 	 *  by pk_input. Just return the callers address to the user.
 	 */
-	case PRU_ACCEPT: 
+	case PRU_ACCEPT:
 		if (lcp -> lcd_craddr == NULL)
 			break;
 		bcopy ((caddr_t)lcp -> lcd_craddr, mtod (nam, caddr_t),
@@ -177,17 +177,17 @@ struct mbuf *control;
 			new_to_old (nam);
 		break;
 
-	/* 
+	/*
 	 *  After a receive, we should send a RR.
 	 */
-	case PRU_RCVD: 
+	case PRU_RCVD:
 		pk_flowcontrol (lcp, /*sbspace (&so -> so_rcv) <= */ 0, 1);
 		break;
 
-	/* 
+	/*
 	 *  Send INTERRUPT packet.
 	 */
-	case PRU_SENDOOB: 
+	case PRU_SENDOOB:
 		if (m == 0) {
 			MGETHDR(m, M_WAITOK, MT_OOBDATA);
 			m -> m_pkthdr.len = m -> m_len = 1;
@@ -201,10 +201,10 @@ struct mbuf *control;
 		MCHTYPE(m, MT_OOBDATA);
 		/* FALLTHROUGH */
 
-	/* 
+	/*
 	 *  Do send by placing data on the socket output queue.
 	 */
-	case PRU_SEND: 
+	case PRU_SEND:
 		if (control) {
 			register struct cmsghdr *ch = mtod (m, struct cmsghdr *);
 			control -> m_len -= sizeof (*ch);
@@ -216,25 +216,25 @@ struct mbuf *control;
 			error = pk_send (lcp, m);
 		break;
 
-	/* 
+	/*
 	 *  Abort a virtual circuit. For example all completed calls
 	 *  waiting acceptance.
 	 */
-	case PRU_ABORT: 
+	case PRU_ABORT:
 		pk_disconnect (lcp);
 		break;
 
 	/* Begin unimplemented hooks. */
 
-	case PRU_SHUTDOWN: 
+	case PRU_SHUTDOWN:
 		error = EOPNOTSUPP;
 		break;
 
-	case PRU_CONTROL: 
+	case PRU_CONTROL:
 		error = EOPNOTSUPP;
 		break;
 
-	case PRU_SENSE: 
+	case PRU_SENSE:
 #ifdef BSD4_3
 		((struct stat *)m) -> st_blksize = so -> so_snd.sb_hiwat;
 #else
@@ -244,7 +244,7 @@ struct mbuf *control;
 
 	/* End unimplemented hooks. */
 
-	case PRU_SOCKADDR: 
+	case PRU_SOCKADDR:
 		if (lcp -> lcd_ceaddr == 0)
 			return (EADDRNOTAVAIL);
 		nam -> m_len = sizeof (struct sockaddr_x25);
@@ -265,10 +265,10 @@ struct mbuf *control;
 			new_to_old (nam);
 		break;
 
-	/* 
+	/*
 	 *  Receive INTERRUPT packet.
 	 */
-	case PRU_RCVOOB: 
+	case PRU_RCVOOB:
 		if (so -> so_options & SO_OOBINLINE) {
 			register struct mbuf *n  = so -> so_rcv.sb_mb;
 			if (n && n -> m_type == MT_OOBDATA) {
@@ -287,7 +287,7 @@ struct mbuf *control;
 		*mtod (m, char *) = lcp -> lcd_intrdata;
 		break;
 
-	default: 
+	default:
 		panic ("pk_usrreq");
 	}
 release:
@@ -296,7 +296,7 @@ release:
 	return (error);
 }
 
-/* 
+/*
  * If you want to use UBC X.25 level 3 in conjunction with some
  * other X.25 level 2 driver, have the ifp -> if_ioctl routine
  * assign pk_start to ia -> ia_start when called with SIOCSIFCONF_X25.
@@ -394,7 +394,7 @@ p		 * is its first address, and to validate the address.
 		ia -> ia_start = pk_start;
 		s = splimp();
 		if (ifp -> if_ioctl)
-			error = (*ifp -> if_ioctl)(ifp, SIOCSIFCONF_X25, 
+			error = (*ifp -> if_ioctl)(ifp, SIOCSIFCONF_X25,
 						   (caddr_t) ifa);
 		if (error)
 			ifp -> if_flags &= ~IFF_UP;
@@ -441,7 +441,7 @@ int cmd, level, optname;
 	case PK_RTATTACH:
 		error = pk_rtattach (so, m);
 		break;
-	    
+
 	case PK_PRLISTEN:
 		error = pk_user_protolisten (mtod (m, u_char *));
 	}

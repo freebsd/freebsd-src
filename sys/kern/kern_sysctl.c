@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.23 1995/03/16 18:12:37 bde Exp $
+ * $Id: kern_sysctl.c,v 1.24 1995/05/12 19:17:31 wollman Exp $
  */
 
 /*
@@ -230,7 +230,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		 * `tsleep' takes a timeout argument of 0 as meaning
 		 * `no timeout'.
 		 */
-		error = sysctl_int(oldp, oldlenp, newp, newlen, 
+		error = sysctl_int(oldp, oldlenp, newp, newlen,
 				   &vfs_update_interval);
 		if(!error) {
 			wakeup(&vfs_update_wakeup);
@@ -671,7 +671,7 @@ again:
 		}
 		if (buflen >= sizeof(struct kinfo_proc)) {
 			fill_eproc(p, &eproc);
-			error = copyout((caddr_t)p, &dp->kp_proc, 
+			error = copyout((caddr_t)p, &dp->kp_proc,
 			    sizeof(struct proc));
 			if (error)
 				return (error);
@@ -747,7 +747,7 @@ fill_eproc(p, ep)
 		ep->e_tsess = tp->t_session;
 	} else
 		ep->e_tdev = NODEV;
-	if (ep->e_sess && ep->e_sess->s_ttyvp) 
+	if (ep->e_sess && ep->e_sess->s_ttyvp)
 		ep->e_flag = EPROC_CTTY;
 	if (SESS_LEADER(p))
 		ep->e_flag |= EPROC_SLEADER;

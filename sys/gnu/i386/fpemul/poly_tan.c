@@ -56,8 +56,8 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id: poly_tan.c,v 1.3 1994/04/29 21:23:31 gclarkii Exp $
- * 
+ *      $Id: poly_tan.c,v 1.4 1994/06/10 07:44:42 rich Exp $
+ *
  */
 
 #include "exception.h"

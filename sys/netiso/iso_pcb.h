@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $
+ * $Id: iso_pcb.h,v 1.3 1994/08/21 06:14:20 paul Exp $
  */
 
 #ifndef _NETISO_ISO_PCB_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.3 1994/08/21 06:14:20 paul Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso_pcb.h,v $ */
 
 #define	MAXX25CRUDLEN	16	/* 16 bytes of call request user data */
@@ -73,7 +73,7 @@ SOFTWARE.
  */
 struct isopcb {
 	struct	isopcb			*isop_next,*isop_prev; /* pointers to other pcb's */
-	struct	isopcb			*isop_head;	/* pointer back to chain of pcbs for 
+	struct	isopcb			*isop_head;	/* pointer back to chain of pcbs for
 								this protocol */
 	struct	socket			*isop_socket;	/* back pointer to socket */
 	struct	sockaddr_iso	*isop_laddr;

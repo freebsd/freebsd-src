@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.34 1995/04/29 21:30:29 joerg Exp $
+ * $Id: st.c,v 1.35 1995/05/03 18:09:19 dufault Exp $
  */
 
 /*
@@ -285,7 +285,7 @@ struct scsi_device st_switch =
 			ST_FM_WRITTEN | ST_2FM_AT_EOD | ST_PER_ACTION)
 
 static int
-st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 	       size_t len)
 {
 	return scsi_externalize(SCSI_LINK(&st_switch, kdc->kdc_unit),
@@ -319,7 +319,7 @@ st_registerdev(int unit)
  * a device suitable for this driver
  */
 
-errval 
+errval
 stattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -507,7 +507,7 @@ st_loadquirks(sc_link)
 /*
  * open the device.
  */
-errval 
+errval
 st_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -568,7 +568,7 @@ struct scsi_link *sc_link)
 		st_unmount(unit, NOEJECT);
 	}
 	/*
-	 * If we are not mounted, then we should start a new 
+	 * If we are not mounted, then we should start a new
 	 * mount session.
 	 */
 	if (!(st->flags & ST_MOUNTED)) {
@@ -593,7 +593,7 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval 
+errval
 st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
@@ -760,7 +760,7 @@ st_unmount(int unit, boolean eject)
  * initial operation, make a decision as to how we should be set
  * to run (regarding blocking and EOD marks)
  */
-errval 
+errval
 st_decide_mode(unit, first_read)
 	u_int32	unit;
 	boolean	first_read;
@@ -896,7 +896,7 @@ done:
  * The transfer is described by a buf and will include
  * only one physical transfer.
  */
-void 
+void
 st_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
@@ -935,9 +935,9 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	}
 	opri = splbio();
 
-	/*      
+	/*
 	 * Use a bounce buffer if necessary
-	 */      
+	 */
 #ifdef BOUNCE_BUFFERS
 	if (sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
@@ -988,7 +988,7 @@ done:
  * continues to be drained.
  * ststart() is called at splbio
  */
-void 
+void
 ststart(unit, flags)
 	u_int32	unit;
 	u_int32 flags;
@@ -1117,7 +1117,7 @@ badnews:
  * Perform special action on behalf of the user;
  * knows about the internals of this device
  */
-errval 
+errval
 st_ioctl(dev_t dev, int cmd, caddr_t arg, int	flag,
 struct proc *p, struct scsi_link *sc_link)
 {
@@ -1282,7 +1282,7 @@ try_new_value:
 	/*
 	 * As the drive liked it, if we are setting a new default,
 	 * set it into the structures as such.
-	 * 
+	 *
 	 * The means for deciding this are not finalised yet
 	 */
 	if (IS_CTLMODE(dev)) {
@@ -1305,7 +1305,7 @@ try_new_value:
 /*
  * Do a synchronous read.
  */
-errval 
+errval
 st_read(unit, buf, size, flags)
 	u_int32 unit, size, flags;
 	char   *buf;
@@ -1348,7 +1348,7 @@ st_read(unit, buf, size, flags)
 /*
  * Ask the drive what it's min and max blk sizes are.
  */
-errval 
+errval
 st_rd_blk_lim(unit, flags)
 	u_int32 unit, flags;
 {
@@ -1394,7 +1394,7 @@ st_rd_blk_lim(unit, flags)
 
 /*
  * Get the scsi driver to send a full inquiry to the
- * device and use the results to fill out the global 
+ * device and use the results to fill out the global
  * parameter structure.
  *
  * called from:
@@ -1402,7 +1402,7 @@ st_rd_blk_lim(unit, flags)
  * open
  * ioctl (to reset original blksize)
  */
-static errval 
+static errval
 st_mode_sense(unit, flags, page, pagelen, pagecode)
 	u_int32 unit, flags;
 	struct tape_pages *page;
@@ -1442,7 +1442,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
 		+ sizeof(struct blk_desc)
 		+ (page ? pagelen : 0);
 	/*
-	 * Set up a mode sense 
+	 * Set up a mode sense
 	 */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SENSE;
@@ -1450,7 +1450,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
 	scsi_cmd.length = dat_len;
 
 	/*
-	 * do the command, 
+	 * do the command,
 	 * use the results to set blksiz, numblks and density
 	 * or if we need it as a template for the mode select
 	 * store it away.
@@ -1489,7 +1489,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
  * Send a filled out parameter structure to the drive to
  * set it into the desire modes etc.
  */
-errval 
+errval
 st_mode_select(unit, flags, page, pagelen)
 	u_int32 unit, flags;
 	struct tape_pages *page;
@@ -1604,7 +1604,7 @@ u_int32 unit,mode;
 /*
  * skip N blocks/filemarks/seq filemarks/eom
  */
-errval 
+errval
 st_space(unit, number, what, flags)
 	u_int32 unit, what, flags;
 	int32   number;
@@ -1689,7 +1689,7 @@ st_space(unit, number, what, flags)
 /*
  * write N filemarks
  */
-errval 
+errval
 st_write_filemarks(unit, number, flags)
 	u_int32 unit, flags;
 	int32   number;
@@ -1741,7 +1741,7 @@ st_write_filemarks(unit, number, flags)
  * nmarks returns the number of marks to skip (or, if position
  * true, which were skipped) to get back original position.
  */
-int32 
+int32
 st_chkeod(unit, position, nmarks, flags)
 	u_int32 unit;
 	boolean position;
@@ -1771,7 +1771,7 @@ st_chkeod(unit, position, nmarks, flags)
 /*
  * load/unload (with retension if true)
  */
-errval 
+errval
 st_load(unit, type, flags)
 	u_int32 unit, type, flags;
 {
@@ -1807,7 +1807,7 @@ st_load(unit, type, flags)
 /*
  *  Rewind the device
  */
-errval 
+errval
 st_rewind(unit, immed, flags)
 	u_int32 unit, flags;
 	boolean immed;
@@ -1838,8 +1838,8 @@ st_rewind(unit, immed, flags)
 
 /*
 **  Erase the device
-*/ 
-errval 
+*/
+errval
 st_erase(unit, immed, flags)
 	u_int32 unit, flags;
 	boolean immed;
@@ -1883,7 +1883,7 @@ st_erase(unit, immed, flags)
  * The unix error number to pass back... (0 = report no error)
  *                            (SCSIRET_CONTINUE = continue processing)
  */
-errval 
+errval
 st_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
@@ -1929,7 +1929,7 @@ st_interpret_sense(xs)
 				    	,info);
 				/*XXX*/ /* is this how it works ? */
 				/* check def of ILI for fixed blk tapes */
-	
+
 				/*
 			 	 * This quirk code helps the drive read
 			 	 * the first tape block, regardless of

@@ -1,29 +1,29 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.9 1994/09/27 03:34:52 phk Exp $
+ *	$Id: db_aout.c,v 1.10 1995/01/25 21:37:04 bde Exp $
  */
 
 /*
@@ -243,7 +243,7 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	    if (sp->n_value <= off && (off - sp->n_value) <= sodiff &&
 		NEWSRC(sp->n_un.n_name)) {
 #endif
-	    if ((sp->n_type & N_TYPE) == N_FN || NEWSRC(sp->n_un.n_name)) { 
+	    if ((sp->n_type & N_TYPE) == N_FN || NEWSRC(sp->n_un.n_name)) {
 		sodiff = lndiff = -1UL;
 		ln = 0;
 		fname = NULL;
@@ -392,7 +392,7 @@ read_symtab_from_file(fp, symtab_name)
 	X_db_sym_init((int *)symtab,
 			(char *)(symtab + table_size),
 			symtab_name);
-	
+
 }
 #endif
 

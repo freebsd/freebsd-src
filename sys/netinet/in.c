@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.12 1995/04/25 19:50:20 wollman Exp $
+ * $Id: in.c,v 1.13 1995/04/26 18:10:54 pst Exp $
  */
 
 #include <sys/param.h>
@@ -209,7 +209,7 @@ in_control(so, cmd, data, ifp)
 				    ifra->ifra_addr.sin_addr.s_addr)
 					break;
 			}
-			if ((ifp->if_flags & IFF_POINTOPOINT) 
+			if ((ifp->if_flags & IFF_POINTOPOINT)
 			    && (cmd == SIOCAIFADDR)
 			    && (ifra->ifra_dstaddr.sin_addr.s_addr
 				== INADDR_ANY)) {
@@ -411,7 +411,7 @@ in_control(so, cmd, data, ifp)
 		IFP_TO_IA(oia->ia_ifp, ia);
 		if (ia) {	/* there is another address */
 			struct in_multi *inm;
-			for(inm = oia->ia_multiaddrs.lh_first; inm; 
+			for(inm = oia->ia_multiaddrs.lh_first; inm;
 			    inm = inm->inm_entry.le_next) {
 				IFAFREE(&inm->inm_ia->ia_ifa);
 				ia->ia_ifa.ifa_refcnt++;
@@ -426,7 +426,7 @@ in_control(so, cmd, data, ifp)
 			LIST_INIT(&mk->mk_head);
 			mk->mk_ifp = ifp;
 
-			for(inm = oia->ia_multiaddrs.lh_first; inm; 
+			for(inm = oia->ia_multiaddrs.lh_first; inm;
 			    inm = inm->inm_entry.le_next) {
 				LIST_INSERT_HEAD(&mk->mk_head, inm, inm_entry);
 			}
@@ -437,7 +437,7 @@ in_control(so, cmd, data, ifp)
 				FREE(mk, M_IPMADDR);
 			}
 		}
-		
+
 		IFAFREE((&oia->ia_ifa));
 		break;
 
@@ -551,20 +551,20 @@ in_ifinit(ifp, ia, sin, scrub)
 
 		/*
 		 * Continuation of multicast address hack:
-		 * If there was a multicast group list previously saved 
+		 * If there was a multicast group list previously saved
 		 * for this interface, then we re-attach it to the first
 		 * address configured on the i/f.
 		 */
 		for(mk = in_mk.lh_first; mk; mk = mk->mk_entry.le_next) {
 			if(mk->mk_ifp == ifp) {
 				struct in_multi *inm;
-				
-				for(inm = mk->mk_head.lh_first; inm; 
+
+				for(inm = mk->mk_head.lh_first; inm;
 				    inm = inm->inm_entry.le_next) {
 					IFAFREE(&inm->inm_ia->ia_ifa);
 					ia->ia_ifa.ifa_refcnt++;
 					inm->inm_ia = ia;
-					LIST_INSERT_HEAD(&ia->ia_multiaddrs, 
+					LIST_INSERT_HEAD(&ia->ia_multiaddrs,
 							 inm, inm_entry);
 				}
 				LIST_REMOVE(mk, mk_entry);

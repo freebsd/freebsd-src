@@ -44,9 +44,9 @@
  * so that the entire packet being decompressed doesn't have
  * to be in contiguous memory (just the compressed header).
  *
- *	$Id: pppcompress.c,v 1.2 1994/09/23 00:13:21 wollman Exp $
+ *	$Id: pppcompress.c,v 1.3 1994/11/01 09:03:20 pst Exp $
  */
-  
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>

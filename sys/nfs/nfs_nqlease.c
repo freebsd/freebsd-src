@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.9 1995/01/29 06:37:13 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.10 1995/02/15 03:39:58 davidg Exp $
  */
 
 /*
@@ -821,7 +821,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	int cachable;
 	u_quad_t frev;
-	
+
 	nfsstats.rpccnt[NQNFSPROC_GETLEASE]++;
 	mb = mreq = nfsm_reqh(vp, NQNFSPROC_GETLEASE, NFSX_FH+2*NFSX_UNSIGNED,
 		 &bpos);
@@ -862,7 +862,7 @@ nqnfs_vacated(vp, cred)
 	struct mbuf *mreq, *mb, *mb2, *mheadend;
 	struct nfsmount *nmp;
 	struct nfsreq myrep;
-	
+
 	nmp = VFSTONFS(vp->v_mount);
 	nfsstats.rpccnt[NQNFSPROC_VACATED]++;
 	nfsm_reqhead(vp, NQNFSPROC_VACATED, NFSX_FH);

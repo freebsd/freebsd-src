@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id$
+ *	$Id: radix.c,v 1.8 1995/04/28 23:01:34 pst Exp $
  */
 
 /*
@@ -76,18 +76,18 @@ static char *rn_zeros, *rn_ones;
  * We define the index of a route to associated with the mask to be
  * the first bit number in the mask where 0 occurs (with bit number 0
  * representing the highest order bit).
- * 
+ *
  * We say a mask is normal if every bit is 0, past the index of the mask.
  * If a node n has a descendant (k, m) with index(m) == index(n) == rn_b,
  * and m is a normal mask, then the route applies to every descendant of n.
  * If the index(m) < rn_b, this implies the trailing last few bits of k
  * before bit b are all 0, (and hence consequently true of every descendant
  * of n), so the route applies to all descendants of the node as well.
- * 
+ *
  * Similar logic shows that a non-normal mask m such that
  * index(m) <= index(n) could potentially apply to many children of n.
  * Thus, for each non-host route, we attach its mask to a list at an internal
- * node as high in the tree as we can go. 
+ * node as high in the tree as we can go.
  *
  * The present version of the code makes use of normal routes in short-
  * circuiting an explict mask and compare operation when testing whether
@@ -300,7 +300,7 @@ on1:
 	} while (t != top);
 	return 0;
 };
-		
+
 #ifdef RN_DEBUG
 int	rn_nodenum;
 struct	radix_node *rn_clist;
@@ -364,7 +364,7 @@ on1:
 	cp = v;
 	do {
 		p = x;
-		if (cp[x->rn_off] & x->rn_bmask) 
+		if (cp[x->rn_off] & x->rn_bmask)
 			x = x->rn_r;
 		else x = x->rn_l;
 	} while (b > (unsigned) x->rn_b); /* x->rn_b < b && x->rn_b >= 0 */
@@ -452,7 +452,7 @@ rn_addmask(n_arg, search, skip)
 	for (cp = netmask + skip; (cp < cplim) && *(u_char *)cp == 0xff;)
 		cp++;
 	if (cp != cplim) {
-		for (j = 0x80; (j & *cp) != 0; j >>= 1)  
+		for (j = 0x80; (j & *cp) != 0; j >>= 1)
 			b++;
 		if (*cp != normal_chars[b] || cp != (cplim - 1))
 			isnormal = 0;
@@ -472,7 +472,7 @@ rn_lexobetter(m_arg, n_arg)
 
 	if (*mp > *np)
 		return 1;  /* not really, but need to check longer one first */
-	if (*mp == *np) 
+	if (*mp == *np)
 		for (lim = mp + *mp; mp < lim;)
 			if (*mp++ > *np++)
 				return 1;
@@ -594,7 +594,7 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 	b_leaf = -1 - t->rn_b;
 	if (t->rn_r == saved_tt) x = t->rn_l; else x = t->rn_r;
 	/* Promote general routes from below */
-	if (x->rn_b < 0) { 
+	if (x->rn_b < 0) {
 	    for (mp = &t->rn_mklist; x; x = x->rn_dupedkey)
 		if (x->rn_mask && (x->rn_b >= b_leaf) && x->rn_mklist == 0) {
 			*mp = m = rn_new_radix_mask(x, 0);
@@ -691,7 +691,7 @@ rn_delete(v_arg, netmask_arg, head)
 			log(LOG_ERR, "rn_delete: inconsistent annotation\n");
 			return 0;  /* dangling ref could cause disaster */
 		}
-	} else { 
+	} else {
 		if (m->rm_mask != tt->rn_mask) {
 			log(LOG_ERR, "rn_delete: inconsistent annotation\n");
 			goto on1;
@@ -865,7 +865,7 @@ rn_walktree_from(h, a, m, f, w)
 	 * while applying the function f to it, so we need to calculate
 	 * the successor node in advance.
 	 */
-	while (rn->rn_b >= 0) 
+	while (rn->rn_b >= 0)
 		rn = rn->rn_l;
 
 	while (!stopping) {
@@ -875,7 +875,7 @@ rn_walktree_from(h, a, m, f, w)
 		while (rn->rn_p->rn_r == rn && !(rn->rn_flags & RNF_ROOT)) {
 			rn = rn->rn_p;
 
-			/* if went up beyond last, stop */ 
+			/* if went up beyond last, stop */
 			if (rn->rn_b < lastb) {
 				stopping = 1;
 				/* printf("up too far\n"); */
@@ -890,7 +890,7 @@ rn_walktree_from(h, a, m, f, w)
 		while ((rn = base) != 0) {
 			base = rn->rn_dupedkey;
 			/* printf("leaf %p\n", rn); */
-			if (!(rn->rn_flags & RNF_ROOT) 
+			if (!(rn->rn_flags & RNF_ROOT)
 			    && (error = (*f)(rn, w)))
 				return (error);
 		}

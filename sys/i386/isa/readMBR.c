@@ -15,7 +15,7 @@
  * written by julian elischer (julian@tfs.com)
  *
  *	@(#)readMBR.c	8.5 (tfs) 1/21/94
- * $Id: readMBR.c,v 1.3 1994/11/08 10:35:52 phk Exp $
+ * $Id: readMBR.c,v 1.4 1994/11/14 13:22:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -34,7 +34,7 @@
  * to make sure it's reading absolute sectors.
  * On exit:
  * Leaves the disklabel set up with the various partitions
- * in the last 4 entries, 
+ * in the last 4 entries,
  * the A partition pointing to the BSD part
  * the C partition set as the BSD partition, (read the disklabel from there) and
  * the D partition set as the whole disk for beating up
@@ -122,7 +122,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 		 * partition.
 		 */
 		for (i = 0; i < NDOSPART; i++, dp++,pseudopart++) {
-		
+
 		        if (!dp->dp_size)
 				continue;
 		        /*
@@ -132,7 +132,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 				dp->dp_size;
 		        lp->d_partitions[pseudopart].p_offset =
 				dp->dp_start;
-		
+
 		        /*
 		         * make sure the D part can hold it all
 		         */
@@ -141,7 +141,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 				lp->d_partitions[3].p_size
 				        = (dp->dp_start + dp->dp_size);
 		        }
-		
+
 		        /*
 		         * If we haven't seen a *BSD partition then
 		         * check if this is a valid part..
@@ -171,7 +171,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 					seenBSD = 1;
 					*cyl = DPCYL(dp->dp_scyl,
 						dp->dp_ssect);
-	
+
 					/*
 					 * Note which part we are in (?)
 					 */
@@ -203,7 +203,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 						= FS_MSDOS;
 				break;
 			}
-	
+
 			/*
 			 * Try deduce the geometry, working
 			 * on the principle that  this
@@ -231,6 +231,6 @@ bad:
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	return msg;
-}			
+}
 
 

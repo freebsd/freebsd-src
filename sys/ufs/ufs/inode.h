@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.4 1994/12/27 13:59:14 bde Exp $
+ * $Id: inode.h,v 1.5 1995/04/24 05:13:11 dyson Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -57,7 +57,7 @@
  * file in the UFS filesystem. It is composed of two types of
  * information. The first part is the information that is needed
  * only while the file is active (such as the identity of the file
- * and linkage to speed its lookup). The second part is the 
+ * and linkage to speed its lookup). The second part is the
  * permannent meta-data associated with the file which is read
  * in from the permanent dinode from long term storage when the
  * file becomes active, and is put back when the file is no longer

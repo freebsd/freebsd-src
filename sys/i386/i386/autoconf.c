@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.31 1995/05/14 02:59:51 davidg Exp $
+ *	$Id: autoconf.c,v 1.32 1995/05/29 04:08:13 davidg Exp $
  */
 
 /*
  * Setup the system to run on the current machine.
  *
- * Configure() is called at boot time and initializes the vba 
+ * Configure() is called at boot time and initializes the vba
  * device tables and the memory controller monitoring.  Available
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
@@ -237,7 +237,7 @@ setdumpdev(dev)
 	dumpdev = dev;
 	dumplo = newdumplo;
 	return (0);
-}	
+}
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vsio.h	8.1 (Berkeley) 6/2/93
- * $Id: vsio.h,v 1.2 1994/08/02 07:54:14 davidg Exp $
+ * $Id: vsio.h,v 1.3 1994/08/21 04:42:16 paul Exp $
  */
 
 #ifndef _SYS_VSIO_H_
@@ -58,16 +58,16 @@
  * 									    *
  *									    *
  ****************************************************************************/
-/* 
+/*
  * vsio.h - VS100 I/O command definitions
- * 
+ *
  * Author:	Christopher A. Kent
  *		Digital Equipment Corporation
  *		Western Research Lab
  * Date:	Tue Jun 21 1983
  */
 
-/* 
+/*
  * Possible ioctl calls
  */
 
@@ -92,7 +92,7 @@
 #define	VS_FIB_FINITE	1		/* finite retries */
 #define	VS_FIB_INFINITE	2		/* infinite retries */
 
-/* 
+/*
  * Event queue entries
  */
 

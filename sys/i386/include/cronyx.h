@@ -82,7 +82,7 @@ typedef struct {		/* async channel option register 6 */
 	unsigned icrnl : 1;	/* translate CR to NL on input */
 	unsigned igncr : 1;	/* discard CR on input */
 } cx_cor6_async_t;
-		
+
 typedef struct {		/* async channel option register 7 */
 	unsigned ocrnl : 1;	/* translate CR to NL on output */
 	unsigned onlcr : 1;	/* translate NL to CR on output */

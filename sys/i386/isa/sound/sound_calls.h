@@ -1,7 +1,7 @@
 /*
  *	DMA buffer calls
  *
- * $Id: sound_calls.h,v 1.11 1995/03/28 07:56:13 bde Exp $
+ * $Id: sound_calls.h,v 1.12 1995/05/07 06:38:48 pst Exp $
  */
 
 #ifndef _MACHINE_ISA_SOUND_H_
@@ -87,7 +87,7 @@ long  CMIDI_init  (long mem_start);
 int   CMIDI_open  (int dev, struct fileinfo *file);
 int   CMIDI_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
 int   CMIDI_read  (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
-int   CMIDI_close (int dev, struct fileinfo *file); 
+int   CMIDI_close (int dev, struct fileinfo *file);
 
 /*
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_input.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_input.c,v 1.4 1995/03/16 18:15:20 bde Exp $
+ * $Id: clnp_input.c,v 1.5 1995/05/11 00:13:20 wollman Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /a/ncvs/src/sys/netiso/clnp_input.c,v 1.4 1995/03/16 18:15:20 bde Exp $ */
-/* $Source: /a/ncvs/src/sys/netiso/clnp_input.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_input.c,v 1.5 1995/05/11 00:13:20 wollman Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/clnp_input.c,v $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -114,7 +114,7 @@ int	x25esis_input();
  * SIDE EFFECTS:	fills in clnp_protox table with correct offsets into
  *					the isosw table.
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_init()
 {
@@ -148,9 +148,9 @@ clnp_init()
  *
  * RETURNS:			nothing.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 void
 clnlintr(void)
@@ -238,7 +238,7 @@ next:
 	/*
 	 *	Drop packet if the length of the header is not reasonable.
 	 */
-	if ((clnl->cnf_hdr_len < CLNP_HDR_MIN) || 
+	if ((clnl->cnf_hdr_len < CLNP_HDR_MIN) ||
 		(clnl->cnf_hdr_len > CLNP_HDR_MAX)) {
 		INCSTAT(cns_badhlen);	/* TODO: use clnl stats */
 		m_freem(m);
@@ -279,9 +279,9 @@ NETISR_SET(NETISR_ISO, clnlintr);
  * RETURNS:			nothing
  *
  * SIDE EFFECTS:	increments fields of clnp_stat structure.
- *					
+ *
  * NOTES:
- *	TODO: I would like to make seg_part a pointer into the mbuf, but 
+ *	TODO: I would like to make seg_part a pointer into the mbuf, but
  *	will it be correctly aligned?
  */
 clnp_input(m, shp)
@@ -301,14 +301,14 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 	struct clnp_optidx			oidx, *oidxp = NULL;	/* option index */
 	extern int 					iso_systype;	/* used by ESIS config resp */
 	extern struct sockaddr_iso	blank_siso;		/* used for initializing */
-	int							need_afrin = 0; 
+	int							need_afrin = 0;
 										/* true if congestion experienced */
 										/* which means you need afrin nose */
 										/* spray. How clever! */
 
 	IFDEBUG(D_INPUT)
 		printf(
-		   "clnp_input: proccessing dg; First mbuf m_len %d, m_type x%x, %s\n", 
+		   "clnp_input: proccessing dg; First mbuf m_len %d, m_type x%x, %s\n",
 			m->m_len, m->m_type, IS_CLUSTER(m) ? "cluster" : "normal");
 	ENDDEBUG
 	need_afrin = 0;
@@ -321,7 +321,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 		clnp_discard(m, ADDR_DESTUNREACH);
 		return;
 	}
-	
+
 	INCSTAT(cns_total);
 	clnp = mtod(m, struct clnp_fixed *);
 
@@ -359,11 +359,11 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 	CTOH(clnp->cnf_seglen_msb, clnp->cnf_seglen_lsb, seg_len);
 	if ((m = clnp_data_ck(m, seg_len)) == 0)
 		return;
-	
+
 	clnp = mtod(m, struct clnp_fixed *);
 	hend = (caddr_t)clnp + clnp->cnf_hdr_len;
 
-	/* 
+	/*
 	 *	extract the source and destination address
 	 *	drop packet on failure
 	 */
@@ -426,7 +426,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 			errcode = DISC_UNSUPPSECURE;
 
 		/* the er option is valid with ER pdus only */
-		if ((errcode == 0) && (oidxp->cni_er_reason != ER_INVALREAS) && 
+		if ((errcode == 0) && (oidxp->cni_er_reason != ER_INVALREAS) &&
 			((clnp->cnf_type & CNF_TYPE) != CLNP_ER))
 			errcode = DISC_UNSUPPOPT;
 
@@ -452,7 +452,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 			return;
 		}
 	}
-	
+
 	/*
 	 *	check if this packet is for us. if not, then forward
 	 */
@@ -497,7 +497,7 @@ struct snpa_hdr	*shp;	/* subnetwork header */
 			return;
 		}
 	}
-	
+
 	/*
 	 *	give the packet to the higher layer
 	 *

@@ -1,5 +1,5 @@
 /*
- * $Id: tp_events.h,v 1.2 1994/08/02 07:51:05 davidg Exp $
+ * $Id: tp_events.h,v 1.3 1994/08/21 06:14:24 paul Exp $
  */
 
 #ifndef _NETISO_TP_EVENTS_H_
@@ -7,7 +7,7 @@
 
 struct tp_event {
 	int ev_number;
-	 struct timeval e_time; 
+	 struct timeval e_time;
 #define TM_inact 0x0
 #define TM_retrans 0x1
 #define TM_sendack 0x2
@@ -46,23 +46,23 @@ struct { struct mbuf 	*e_data;	/* first field */
 				} EV_CC_TPDU;
 
 #define CC_TPDU 0xa
-struct { u_int			e_cdt;	
-				  SeqNum 	 	e_seq;		
-				  SeqNum 	 	e_subseq;		
-				  u_char 	 	e_fcc_present;		
+struct { u_int			e_cdt;
+				  SeqNum 	 	e_seq;
+				  SeqNum 	 	e_subseq;
+				  u_char 	 	e_fcc_present;
 				} EV_AK_TPDU;
 
 #define AK_TPDU 0xb
 struct { struct mbuf	*e_data; 	/* first field */
 				  int 			e_datalen; /* 2nd field */
 				  u_int 		e_eot;
-				  SeqNum		e_seq; 
+				  SeqNum		e_seq;
 				} EV_DT_TPDU;
 
 #define DT_TPDU 0xc
 struct { struct mbuf 	*e_data;	/* first field */
 				  int 			e_datalen; 	/* 2nd field */
-				  SeqNum 		e_seq;	
+				  SeqNum 		e_seq;
 				} EV_XPD_TPDU;
 
 #define XPD_TPDU 0xd

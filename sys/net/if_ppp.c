@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.11 1995/03/20 19:20:42 wollman Exp $ */
+/* $Id: if_ppp.c,v 1.12 1995/03/29 20:34:17 ache Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -273,7 +273,7 @@ pppdealloc(sc)
     }
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
 }
-    
+
 /*
  * Line specific open routine for async tty devices.
  * Attach the given tty to the first available ppp unit.
@@ -304,7 +304,7 @@ pppopen(dev, tp)
 	m_freem(sc->sc_outm);
 	sc->sc_outm = NULL;
     }
-	
+
     if (pppgetm(sc) == 0) {
 	sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
 	return (ENOBUFS);
@@ -670,7 +670,7 @@ pppoutput(ifp, m0, dst, rt)
 	    error = ENETDOWN;
 	    goto bad;
 	}
-	
+
 	/*
 	 * If this is a TCP packet to or from an "interactive" port,
 	 * put the packet on the fastq instead.
@@ -1314,7 +1314,7 @@ pppinput(c, tp)
 	sc->sc_ilen = 0;
 	sc->sc_if.if_ibytes = sc->sc_bytesrcvd;
 
-	if (sc->sc_rawin_count > 0) 
+	if (sc->sc_rawin_count > 0)
 	    ppplogchar(sc, -1);
 
 	/*

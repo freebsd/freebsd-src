@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.22 1995/04/16 12:56:18 davidg Exp $
+ * $Id: vm_mmap.c,v 1.23 1995/05/18 02:59:24 davidg Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ mmap(p, uap, retval)
 	/*
 	 * XXX if no hint provided for a non-fixed mapping place it after the
 	 * end of the largest possible heap.
-	 * 
+	 *
 	 * There should really be a pmap call to determine a reasonable location.
 	 */
 	if (addr == 0 && (flags & MAP_FIXED) == 0)
@@ -760,7 +760,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 				vm_object_deallocate(user_object);
 				goto out;
 			}
-			
+
 			/*
 			 * this is a consistancy check, gets the map entry, and should
 			 * never fail

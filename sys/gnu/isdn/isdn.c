@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.2 1995/02/15 06:28:29 jkh Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.3 1995/03/28 07:54:44 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.2 1995/02/15 06:28:29 jkh Exp $
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.3  1995/03/28  07:54:44  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.2  1995/02/15  06:28:29  jkh
  * Fix up include paths, nuke some warnings.
  *
@@ -28,9 +33,9 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.2 1995/02/15 06:28:29 jkh Exp $
 /*
  * Copyright (c) 1994 Dietmar Friede (dietmar@friede.de) All rights reserved.
  * FSF/FSAG GNU Copyright applies
- * 
+ *
  * An intermediate level for ISDN Drivers.
- * 
+ *
  */
 
 #include "isdn.h"
@@ -187,7 +192,7 @@ isdn_ctrl_attach(int n)
 
 /*
  * isdnopen() New open on device.
- * 
+ *
  * I forbid all but one open per application. The only programs opening the
  *  isdn device are the ISDN-daemon
  */
@@ -560,7 +565,7 @@ isdn_check()
 		timeout(isdn_check,0,hz/2);
 	}
 }
-					
+
 void
 isdn_conn_ind(int an, int cn, int dial)
 {

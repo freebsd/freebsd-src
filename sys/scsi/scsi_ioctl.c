@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 1992, 1993, 1994, HD Associates, Inc.
  * PO Box 276
  * Pepperell, MA 01463
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.14 1995/05/03 18:09:12 dufault Exp $
+ * $Id: scsi_ioctl.c,v 1.15 1995/05/09 02:38:15 dyson Exp $
  *
  *
  */
@@ -142,7 +142,7 @@ struct	scsi_xfer *xs;
 /* Pseudo strategy function
  * Called by scsi_do_ioctl() via physio/physstrat if there is to
  * be data transfered, and directly if there is no data transfer.
- * 
+ *
  * Can't be used with block devices or raw_read/raw_write directly
  * from the cdevsw/bdevsw tables because they couldn't have added
  * the screq structure. [JRE]

@@ -159,7 +159,7 @@ struct kbd_ovlkey				/* complete definition of a key */
 /*	Max value for keynum field	*/
 
 #define	KBDMAXKEYS	128		/* Max No. of Keys */
-	
+
 /*	Values for type field	*/
 
 #define	KBD_NONE	0	/* no function, key is disabled */
@@ -185,11 +185,11 @@ struct kbd_ovlkey				/* complete definition of a key */
 
 
 #define	KBD_OVERLOAD	0x8000	/* Key is overloaded, ignored in ioctl */
-#define	KBD_MASK	(~KBD_OVERLOAD)	/* mask for type */ 
+#define	KBD_MASK	(~KBD_OVERLOAD)	/* mask for type */
 
 #define KBDGCKEY	_IOWR('K',16, struct kbd_ovlkey)	/* get current key values */
 #define KBDSCKEY	_IOW('K',17, struct kbd_ovlkey)		/* set new key assignment values*/
-#define KBDGOKEY	_IOWR('K',18, struct kbd_ovlkey) 	/* get original key assignment values*/ 
+#define KBDGOKEY	_IOWR('K',18, struct kbd_ovlkey) 	/* get original key assignment values*/
 
 #define KBDRMKEY	_IOW('K',19, int)	/* remove a key assignment */
 #define KBDDEFAULT	_IO('K',20)		/* remove all key assignments */
@@ -496,7 +496,7 @@ struct pcvtinfo {			/* compile time option values */
  * which would be identical to KBDGLEDS above. Since this command is not
  * necessary for XFree86 2.0, we omit it.
  */
-  
+
 /* #define KDGKBMODE 	_IOR('K', 6, int) */ /* not yet implemented */
 
 #define KDSKBMODE 	_IO('K', 7 /*, int */)
@@ -517,7 +517,7 @@ struct pcvtinfo {			/* compile time option values */
 #define KDDISABIO	_IO('K', 61)
 
 #define KDGETLED	_IOR('K', 65, int)
-#define KDSETLED	_IO('K', 66 /*, int */) 
+#define KDSETLED	_IO('K', 66 /*, int */)
 #define LED_CAP		1
 #define LED_NUM		2
 #define LED_SCR		4
@@ -534,7 +534,7 @@ struct pcvtinfo {			/* compile time option values */
 #define GIO_KEYMAP 	_IOR('k', 6, keymap_t)
 
 #define VT_OPENQRY	_IOR('v', 1, int)
-#define VT_SETMODE	_IOW('v', 2, vtmode_t)	
+#define VT_SETMODE	_IOW('v', 2, vtmode_t)
 #define VT_GETMODE	_IOR('v', 3, vtmode_t)
 
 #define VT_RELDISP	_IO('v', 4 /*, int */)

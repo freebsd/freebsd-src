@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_meas.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_meas.h,v 1.2 1994/08/02 07:51:16 davidg Exp $
+ * $Id: tp_meas.h,v 1.3 1994/08/21 06:14:25 paul Exp $
  */
 
 #ifndef _NETISO_TP_MEAS_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -86,11 +86,11 @@ extern struct tp_Meas tp_Meas[];
  */
 #define TPtime_from_session	0x01
 #define TPtime_to_session	0x02
-#define TPtime_ack_rcvd		0x03 
+#define TPtime_ack_rcvd		0x03
 #define TPtime_ack_sent		0x04
 #define TPtime_from_ll		0x05
 #define TPtime_to_ll		0x06
-#define TPsbsend			0x07 
+#define TPsbsend			0x07
 #define TPtime_open			0x08
 #define TPtime_open_X		0x28 /* xtd format */
 #define TPtime_close		0x09

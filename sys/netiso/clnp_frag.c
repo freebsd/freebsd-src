@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_frag.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_frag.c,v 1.2 1994/08/02 07:49:37 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_frag.c,v 1.1.1.1 1994/05/24 10:07:25 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_frag.c,v 1.2 1994/08/02 07:49:37 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_frag.c,v $ */
 
 #include <sys/param.h>
@@ -96,12 +96,12 @@ struct mbuf	*clnp_comp_pdu();
  * RETURNS:			success - 0
  *					failure - unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			If there is an error sending the packet, clnp_discard
  *					is called to discard the packet and send an ER. If
  *					clnp_fragment was called from clnp_output, then
- *					we generated the packet, and should not send an 
+ *					we generated the packet, and should not send an
  *					ER -- clnp_emit_er will check for this. Otherwise,
  *					the packet was fragmented during forwarding. In this
  *					case, we ought to send an ER back.
@@ -153,20 +153,20 @@ struct rtentry *rt;			/* route if direct ether */
 				int tot_mlen = 0;
 				printf("clnp_fragment: total_len %d:\n", total_len);
 				while (mdump != NULL) {
-					printf("\tmbuf x%x, m_len %d\n", 
+					printf("\tmbuf x%x, m_len %d\n",
 						mdump, mdump->m_len);
 					tot_mlen += mdump->m_len;
 					mdump = mdump->m_next;
 				}
 				printf("clnp_fragment: sum of mbuf chain %d:\n", tot_mlen);
 			ENDDEBUG
-			
+
 			frag_size = min(total_len, frag_size);
 			if ((remaining = total_len - frag_size) == 0)
 				last_frag = 1;
 			else {
 				/*
-				 *  If this fragment will cause the last one to 
+				 *  If this fragment will cause the last one to
 				 *	be less than 8 bytes, shorten this fragment a bit.
 				 *  The obscure test on frag_size above ensures that
 				 *  frag_size will be positive.
@@ -175,17 +175,17 @@ struct rtentry *rt;			/* route if direct ether */
 				if (remaining < 8)
 						frag_size -= 8;
 			}
-			
+
 
 			IFDEBUG(D_FRAG)
-				printf("clnp_fragment: seg off %d, size %d, remaining %d\n", 
+				printf("clnp_fragment: seg off %d, size %d, remaining %d\n",
 					ntohs(seg_part.cng_off), frag_size, total_len-frag_size);
 				if (last_frag)
 					printf("clnp_fragment: last fragment\n");
 			ENDDEBUG
 
 			if (last_frag) {
-				/* 
+				/*
 				 *	this is the last fragment; we don't need to get any other
 				 *	mbufs.
 				 */
@@ -210,7 +210,7 @@ struct rtentry *rt;			/* route if direct ether */
 
 			if (!last_frag)
 				clnp->cnf_type |= CNF_MORE_SEGS;
-			
+
 			/* link together */
 			m_cat(frag_hdr, frag_data);
 
@@ -248,7 +248,7 @@ struct rtentry *rt;			/* route if direct ether */
 #endif	/* TROLL */
 
 			/*
-			 *	Tough situation: if the error occured on the last 
+			 *	Tough situation: if the error occured on the last
 			 *	fragment, we can not send an ER, as the if_output
 			 *	routine consumed the packet. If the error occured
 			 *	on any intermediate packets, we can send an ER
@@ -256,7 +256,7 @@ struct rtentry *rt;			/* route if direct ether */
 			 */
 			if (error) {
 				if (frag_hdr != hdr) {
-					/* 
+					/*
 					 *	The error was not on the last fragment. We must
 					 *	free hdr and m before returning
 					 */
@@ -278,7 +278,7 @@ struct rtentry *rt;			/* route if direct ether */
 			if ((trollctl.tr_ops & TR_DUPEND) && (!last_frag)) {
 				int num_bytes = frag_size;
 
-				if (trollctl.tr_dup_size > 0) 
+				if (trollctl.tr_dup_size > 0)
 					num_bytes *= trollctl.tr_dup_size;
 				else
 					num_bytes *= troll_random();
@@ -309,16 +309,16 @@ struct rtentry *rt;			/* route if direct ether */
  *					are present), then return a pointer to an mbuf chain
  *					containing the reassembled packet. This packet will
  *					appear in the mbufs as if it had just arrived in
- *					one piece. 
+ *					one piece.
  *
  *					If reassembly fails, then save this fragment and
  *					return 0.
  *
  * RETURNS:			Ptr to assembled packet, or 0
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  *		clnp_slowtimo can not affect this code because clnpintr, and thus
  *		this code, is called at a higher priority than clnp_slowtimo.
  */
@@ -334,7 +334,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 	/* look for other fragments of this datagram */
 	for (cfh = clnp_frags; cfh != NULL; cfh = cfh->cfl_next) {
 		if (seg->cng_id == cfh->cfl_id &&
-		    iso_addrmatch1(src, &cfh->cfl_src) && 
+		    iso_addrmatch1(src, &cfh->cfl_src) &&
 			iso_addrmatch1(dst, &cfh->cfl_dst)) {
 			IFDEBUG(D_REASS)
 				printf("clnp_reass: found packet\n");
@@ -379,7 +379,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
  *
  * RETURNS:			non-zero if it succeeds, zero if fails.
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Failure is only due to insufficient resources.
  */
@@ -392,10 +392,10 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 	register struct clnp_fragl		*cfh;
 	register struct clnp_fixed		*clnp;
 	struct mbuf 					*m0;
-	
+
 	clnp = mtod(m, struct clnp_fixed *);
 
-	/* 
+	/*
 	 *	Allocate new clnp fragl structure to act as header of all fragments
 	 *	for this datagram.
 	 */
@@ -405,7 +405,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 	}
 	cfh = mtod(m0, struct clnp_fragl *);
 
-	/* 
+	/*
 	 *	Duplicate the header of this fragment, and save in cfh.
 	 *	Free m0 and return if m_copy does not succeed.
 	 */
@@ -413,7 +413,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 		m_freem(m0);
 		return (0);
 	}
-	
+
 	/* Fill in rest of fragl structure */
 	bcopy((caddr_t)src, (caddr_t)&cfh->cfl_src, sizeof(struct iso_addr));
 	bcopy((caddr_t)dst, (caddr_t)&cfh->cfl_dst, sizeof(struct iso_addr));
@@ -439,7 +439,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
  *
  * RETURNS:			nothing
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			This is the 'guts' of the reassembly algorithm.
  *					Each fragment in this list contains a clnp_frag
@@ -459,7 +459,7 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 	u_short						first;	/* offset of first byte of initial pdu*/
 	u_short						last;	/* offset of last byte of initial pdu */
 	u_short						fraglen;/* length of fragment */
-	
+
 	clnp = mtod(m, struct clnp_fixed *);
 	first = seg->cng_off;
 	CTOH(clnp->cnf_seglen_msb, clnp->cnf_seglen_lsb, fraglen);
@@ -490,12 +490,12 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 			printf("clnp_insert_frag: Previous frag is ");
 			if (cf_prev == NULL)
 				printf("NULL\n");
-			else 
+			else
 				printf("[%d ... %d]\n", cf_prev->cfr_first, cf_prev->cfr_last);
 			printf("clnp_insert_frag: Subsequent frag is ");
 			if (cf_sub == NULL)
 				printf("NULL\n");
-			else 
+			else
 				printf("[%d ... %d]\n", cf_sub->cfr_first, cf_sub->cfr_last);
 		ENDDEBUG
 
@@ -569,10 +569,10 @@ struct clnp_segment	*seg;	/* segment part of fragment header */
 	/*
 	 *	Insert the new fragment beween cf_prev and cf_sub
 	 *
-	 *	Note: the clnp hdr is still in the mbuf. 
+	 *	Note: the clnp hdr is still in the mbuf.
 	 *	If the data of the mbuf is not word aligned, shave off enough
 	 *	so that it is. Then, cast the clnp_frag structure on top
-	 *	of the clnp header. 
+	 *	of the clnp header.
 	 *	The clnp_hdr will not be used again (as we already have
 	 *	saved a copy of it).
 	 *
@@ -655,7 +655,7 @@ struct clnp_fragl	*cfh;		/* fragment header */
 
 		IFDEBUG(D_REASS)
 			printf("clnp_comp_pdu: comparing: [%d ... %d] to [%d ... %d]\n",
-				cf->cfr_first, cf->cfr_last, cf_next->cfr_first, 
+				cf->cfr_first, cf->cfr_last, cf_next->cfr_first,
 				cf_next->cfr_last);
 		ENDDEBUG
 
@@ -677,7 +677,7 @@ struct clnp_fragl	*cfh;		/* fragment header */
 				struct mbuf *mdump;
 				int l;
 				printf("clnp_comp_pdu: merging fragments\n");
-				printf("clnp_comp_pdu: 1st: [%d ... %d] (bytes %d)\n", 
+				printf("clnp_comp_pdu: 1st: [%d ... %d] (bytes %d)\n",
 					cf->cfr_first, cf->cfr_last, cf->cfr_bytes);
 				mdump = cf->cfr_data;
 				l = 0;
@@ -687,7 +687,7 @@ struct clnp_fragl	*cfh;		/* fragment header */
 					mdump = mdump->m_next;
 				}
 				printf("\ttotal len: %d\n", l);
-				printf("clnp_comp_pdu: 2nd: [%d ... %d] (bytes %d)\n", 
+				printf("clnp_comp_pdu: 2nd: [%d ... %d] (bytes %d)\n",
 					cf_next->cfr_first, cf_next->cfr_last, cf_next->cfr_bytes);
 				mdump = cf_next->cfr_data;
 				l = 0;
@@ -705,7 +705,7 @@ struct clnp_fragl	*cfh;		/* fragment header */
 			 *	have adjusted the clnp_frag structure away...
 			 */
 			IFDEBUG(D_REASS)
-				printf("clnp_comp_pdu: shaving off %d bytes\n", 
+				printf("clnp_comp_pdu: shaving off %d bytes\n",
 					cf_next_hdr.cfr_bytes);
 			ENDDEBUG
 			m_adj(cf_next_hdr.cfr_data, (int)cf_next_hdr.cfr_bytes);
@@ -792,7 +792,7 @@ static int troll_cnt;
  *
  * RETURNS:			the random number
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			This is based on the clock.
  */
@@ -816,7 +816,7 @@ float troll_random()
  *
  * RETURNS:			0, or unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			The operation of this procedure is regulated by the
  *					troll control structure (Troll).

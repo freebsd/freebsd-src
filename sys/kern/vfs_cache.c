@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.13 1995/04/04 02:01:13 davidg Exp $
+ * $Id: vfs_cache.c,v 1.14 1995/04/15 00:49:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -99,15 +99,15 @@ u_long	nchnbr;
 		NCHNBR(ncp); } }
 
 /*
- * Lookup an entry in the cache 
+ * Lookup an entry in the cache
  *
- * We don't do this if the segment name is long, simply so the cache 
+ * We don't do this if the segment name is long, simply so the cache
  * can avoid holding long names (which would either waste space, or
  * add greatly to the complexity).
  *
  * Lookup is called with dvp pointing to the directory to search,
  * cnp pointing to the name of the entry being sought.
- * If the lookup succeeds, the vnode is returned in *vpp, and a status 
+ * If the lookup succeeds, the vnode is returned in *vpp, and a status
  * of -1 is returned.
  * If the lookup determines that the name does not exist (negative cacheing),
  * a status of ENOENT is returned.
@@ -161,7 +161,7 @@ cache_lookup(dvp, vpp, cnp)
 		nchstats.ncs_badhits++;
 		PURGE(ncp);
 		return (0);
-	} 
+	}
 
 	/* We found a "positive" match, return the vnode */
         if (ncp->nc_vp != &nchENOENT) {
@@ -254,7 +254,7 @@ nchinit()
 
 /*
  * Invalidate a all entries to particular vnode.
- * 
+ *
  * We actually just increment the v_id, that will do it.  The entries will
  * be purged by lookup as they get found.
  * If the v_id wraps around, we need to ditch the entire cache, to avoid

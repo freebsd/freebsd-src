@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.71 1995/05/12 22:39:40 davidg Exp $
+ * $Id: if_ed.c,v 1.72 1995/05/14 11:01:20 davidg Exp $
  */
 
 #include "ed.h"
@@ -363,11 +363,11 @@ ed_probe_WD80x3(isa_dev)
 			isa16bit = 1;
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
-			sc->kdc.kdc_description = 
+			sc->kdc.kdc_description =
 				"Ethernet adapter: WD 8013EP";
 		} else {
 			sc->type_str = "WD8003EP";
-			sc->kdc.kdc_description = 
+			sc->kdc.kdc_description =
 				"Ethernet adapter: WD 8003EP";
 		}
 		break;
@@ -407,7 +407,7 @@ ed_probe_WD80x3(isa_dev)
 		break;
 	case ED_TYPE_SMC8216T:
 		sc->type_str = "SMC8216T";
-		sc->kdc.kdc_description = 
+		sc->kdc.kdc_description =
 			"Ethernet adapter: SMC 8216T";
 
 		outb(sc->asic_addr + ED_WD790_HWR,
@@ -1376,7 +1376,7 @@ ed_init(unit)
 	/*
 	 * Enable the following interrupts: receive/transmit complete,
 	 * receive/transmit error, and Receiver OverWrite.
-	 * 
+	 *
 	 * Counter overflow and Remote DMA complete are *not* enabled.
 	 */
 	outb(sc->nic_addr + ED_P0_IMR,
@@ -2060,8 +2060,8 @@ ed_ioctl(ifp, command, data)
 				ed_init(ifp->if_unit);
 		}
 		/* UP controls BUSY/IDLE */
-		sc->kdc.kdc_state = ((ifp->if_flags & IFF_UP) 
-				     ? DC_BUSY 
+		sc->kdc.kdc_state = ((ifp->if_flags & IFF_UP)
+				     ? DC_BUSY
 				     : DC_IDLE);
 
 #if NBPFILTER > 0
@@ -2327,7 +2327,7 @@ ed_pio_write_mbufs(sc, m, dst)
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
   /*
-   * Transfer the mbuf chain to the NIC memory. 
+   * Transfer the mbuf chain to the NIC memory.
    * 16-bit cards require that data be transferred as words, and only words.
    * So that case requires some extra code to patch over odd-length mbufs.
    */
@@ -2336,7 +2336,7 @@ ed_pio_write_mbufs(sc, m, dst)
 		/* NE1000s are easy */
 		while (m) {
 			if (m->m_len) {
-				outsb(sc->asic_addr + ED_NOVELL_DATA, 
+				outsb(sc->asic_addr + ED_NOVELL_DATA,
 				      m->m_data, m->m_len);
 			}
 			m = m->m_next;
@@ -2346,7 +2346,7 @@ ed_pio_write_mbufs(sc, m, dst)
 		unsigned char *data;
 		int len, wantbyte;
 		unsigned char savebyte[2];
-    
+
 		wantbyte = 0;
 
 		while (m) {
@@ -2363,7 +2363,7 @@ ed_pio_write_mbufs(sc, m, dst)
 				}
 				/* output contiguous words */
 				if (len > 1) {
-					outsw(sc->asic_addr + ED_NOVELL_DATA, 
+					outsw(sc->asic_addr + ED_NOVELL_DATA,
 					      data, len >> 1);
 					data += len & ~1;
 					len &= 1;

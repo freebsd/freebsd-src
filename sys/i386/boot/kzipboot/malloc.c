@@ -54,5 +54,5 @@ void
 free(cp, junk) /* junk not used */
 	void *cp;
 	int junk;
-{   
+{
 }

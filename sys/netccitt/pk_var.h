@@ -1,10 +1,10 @@
-/* 
- * Copyright (c) Computing Centre, University of British Columbia, 1985 
- * Copyright (C) Computer Science Department IV, 
+/*
+ * Copyright (c) Computing Centre, University of British Columbia, 1985
+ * Copyright (C) Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1990, 1991, 1992
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by the
  * Laboratory for Computation Vision and the Computer Science Department
  * of the the University of British Columbia and the Computer Science
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_var.h	8.1 (Berkeley) 6/10/93
- * $Id: pk_var.h,v 1.3 1994/08/21 05:44:10 paul Exp $
+ * $Id: pk_var.h,v 1.4 1995/03/16 18:14:40 bde Exp $
  */
 
 #ifndef _NETCCITT_PK_VAR_H_
@@ -130,7 +130,7 @@ struct	pkcb {
 #define	PQEMPTY		(pkcb_q.q_forw == &pkcb_q)
 
 /*
- *	Interface address, x25 version. Exactly one of these structures is 
+ *	Interface address, x25 version. Exactly one of these structures is
  *	allocated for each interface with an x25 address.
  *
  *	The ifaddr structure conatins the protocol-independent part

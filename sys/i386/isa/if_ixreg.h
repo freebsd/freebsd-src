@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ixreg.h,v 1.4 1995/03/02 07:40:27 rgrimes Exp $
+ *	$Id: if_ixreg.h,v 1.5 1995/05/10 15:19:29 rgrimes Exp $
  */
 
 /*
@@ -126,7 +126,7 @@
  *		Receive Frame Descriptors
  *		Receive Frames
  *		SCB_ADDR	System Control Block
- *		ISCP_ADDR	Intermediate System Configuration Pointer 
+ *		ISCP_ADDR	Intermediate System Configuration Pointer
  * High:	SCP_ADDR	System Configuration Pointer
  */
 #define	SCP_ADDR	(sc->msize - sizeof(scp_t))
@@ -275,7 +275,7 @@ typedef	struct /* command block - transmit command */
 	u_char	byte[16];	/* XXX stupid fill tell I fix the ixinit
 				 * code for the special cb's */
 	}	cb_transmit_t;
-	
+
 typedef	struct /* command block - tdr command */
 	{
 	cb_t	common;		/* common part of all command blocks */

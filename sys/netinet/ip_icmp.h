@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_icmp.h,v 1.2 1994/08/02 07:48:35 davidg Exp $
+ * $Id: ip_icmp.h,v 1.3 1994/08/21 05:27:31 paul Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_
@@ -60,7 +60,7 @@ struct icmp {
 
 		/* ICMP_UNREACH_NEEDFRAG -- Path MTU Discovery (RFC1191) */
 		struct ih_pmtu {
-			n_short ipm_void;    
+			n_short ipm_void;
 			n_short ipm_nextmtu;
 		} ih_pmtu;
 	} icmp_hun;

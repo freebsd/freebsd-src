@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_stats.c,v 1.11 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_stats.c,v 1.1 1994/10/14 08:53:09 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -99,7 +99,7 @@ ibcs2_stat(struct proc *p, struct ibcs2_stat_args *args, int *retval)
   	struct ibcs2_stat tbuf;
   	struct nameidata nd;
   	int error;
-  
+
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'stat' path=%s\n", args->path);
 
@@ -129,7 +129,7 @@ ibcs2_lstat(struct proc *p, struct ibcs2_stat_args *args, int *retval)
   	struct ibcs2_stat tbuf;
   	struct nameidata nd;
   	int error;
-  
+
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'lstat' path=%s\n", args->path);
   	nd.ni_cnd.cn_nameiop = LOOKUP;
@@ -147,7 +147,7 @@ ibcs2_lstat(struct proc *p, struct ibcs2_stat_args *args, int *retval)
 
   	if (!error)
 		error = stat_copyout(&buf, args->buf);
-  	
+
     	return error;
 }
 
@@ -164,10 +164,10 @@ ibcs2_fstat(struct proc *p, struct ibcs2_fstat_args *args, int *retval)
   	struct file *fp;
   	struct stat buf;
   	int error;
-  
+
 	if (ibcs2_trace & IBCS2_TRACE_STATS)
 		printf("IBCS2: 'fstat' fd=%d\n", args->fd);
-  	if ((unsigned)args->fd >= fdp->fd_nfiles 
+  	if ((unsigned)args->fd >= fdp->fd_nfiles
 	    || (fp = fdp->fd_ofiles[args->fd]) == NULL)
     		return EBADF;
 
@@ -175,11 +175,11 @@ ibcs2_fstat(struct proc *p, struct ibcs2_fstat_args *args, int *retval)
   	case DTYPE_VNODE:
     		error = vn_stat((struct vnode *)fp->f_data, &buf, p);
     		break;
-    
+
   	case DTYPE_SOCKET:
     		error = soo_stat((struct socket *)fp->f_data, &buf);
     		break;
-    
+
   	default:
     		panic("IBCS2 fstat");
     		/*NOTREACHED*/
@@ -280,6 +280,6 @@ ibcs2_fstatfs(struct proc *p, struct ibcs2_fstatfs_args *args, int *retval)
 	tmp.f_files = sp->f_files;
 	bcopy (sp->f_mntonname, tmp.f_fname, 6);
 	bcopy (sp->f_mntfromname, tmp.f_fpack, 6);
-	return copyout((caddr_t)&tmp, (caddr_t)args->buf, 
+	return copyout((caddr_t)&tmp, (caddr_t)args->buf,
 		       sizeof(struct statfs));
 }

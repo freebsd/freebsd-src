@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tuba_usrreq.c,v 1.2 1994/08/02 07:51:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -170,7 +170,7 @@ tuba_usrreq(so, req, m, nam, control)
 			error = EINVAL;
 			break;
 		}
-		if ((error = iso_pcbbind(isop, nam)) || 
+		if ((error = iso_pcbbind(isop, nam)) ||
 		    (siso = isop->isop_laddr) == 0)
 			break;
 		bcopy(TSEL(siso), &inp->inp_lport, 2);
@@ -216,7 +216,7 @@ tuba_usrreq(so, req, m, nam, control)
 		}
 		bcopy(TSEL(isop->isop_faddr), &inp->inp_fport, 2);
 		if (inp->inp_laddr.s_addr == 0 &&
-		     (inp->inp_laddr.s_addr = 
+		     (inp->inp_laddr.s_addr =
 			    tuba_lookup(isop->isop_laddr, M_WAITOK)) == 0)
 			goto unconnect;
 		if ((tp->t_template = tcp_template(tp)) == 0)

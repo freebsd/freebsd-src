@@ -5,14 +5,14 @@
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
- * these terms are retained. Under no circumstances is the author 
- * responsible for the proper functioning of this software, nor does 
- * the author assume any responsibility for damages incurred with its 
+ * these terms are retained. Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with its
  * use.
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_segments.h,v 1.2 1994/10/01 05:13:37 davidg Exp $
+ *	$Id: apm_segments.h,v 1.3 1995/02/17 02:22:46 phk Exp $
  */
 
 #ifndef _MACHINE_APM_SEGMENTS_H

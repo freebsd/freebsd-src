@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: if_ppp.h,v 1.5 1994/01/25 05:56:08 deraadt Exp $
+ * $Id: if_ppp.h,v 1.2 1994/09/23 00:13:20 wollman Exp $
  */
 
 #ifndef _IF_PPP_H_
@@ -86,7 +86,7 @@ struct ppp_softc {
 	u_int	sc_bytessent;	/* count of octets sent */
 	u_int	sc_bytesrcvd;	/* count of octets received */
 	caddr_t	sc_bpf;		/* hook for BPF */
-	
+
 	/* Device-dependent part for async lines. */
 	ext_accm sc_asyncmap;	/* async control character map */
 	u_long	sc_rasyncmap;	/* receive async control char map */

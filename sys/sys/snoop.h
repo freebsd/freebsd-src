@@ -22,13 +22,13 @@
 						 * usage there is no need to
 						 * allocate more.
 						 */
-#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough 
+#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough
 						 * If we grow more,something
 						 * really bad in this world..
 						 */
 
 /*
- * This is the main snoop per-device 
+ * This is the main snoop per-device
  * structure...
  */
 

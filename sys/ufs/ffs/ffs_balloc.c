@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
- * $Id: ffs_balloc.c,v 1.7 1995/04/09 06:03:36 davidg Exp $
+ * $Id: ffs_balloc.c,v 1.8 1995/05/28 04:32:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ ffs_balloc(ip, bn, size, cred, bpp, flags)
 	nb = ip->i_ib[indirs[0].in_off];
 	if (nb == 0) {
 		pref = ffs_blkpref(ip, lbn, 0, (daddr_t *)0);
-	        error = ffs_alloc(ip, lbn, pref, 
+	        error = ffs_alloc(ip, lbn, pref,
 			(int)fs->fs_bsize, cred, &newb);
 	        if (error)
 			return (error);

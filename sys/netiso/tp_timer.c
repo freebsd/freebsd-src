@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_timer.c,v 1.2 1994/08/02 07:51:27 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_timer.c,v 1.1.1.1 1994/05/24 10:06:44 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_timer.c,v 1.2 1994/08/02 07:51:27 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_timer.c,v $
  *
  */
@@ -92,7 +92,7 @@ struct	tp_pcb *tp_ftimeolist = (struct tp_pcb *)&tp_ftimeolist;
 
 /*
  * CALLED FROM:
- *  at autoconfig time from tp_init() 
+ *  at autoconfig time from tp_init()
  * 	a combo of event, state, predicate
  * FUNCTION and ARGUMENTS:
  *  initialize data structures for the timers
@@ -197,7 +197,7 @@ tp_slowtimo()
 	IncStat(ts_Cticks);
 	/* tp_ref[0] is never used */
 	for (rp = tp_ref + tp_refinfo.tpr_maxopen; rp > tp_ref; rp--) {
-		if ((tpcb = rp->tpr_pcb) == 0 || tpcb->tp_refstate < REF_OPEN) 
+		if ((tpcb = rp->tpr_pcb) == 0 || tpcb->tp_refstate < REF_OPEN)
 			continue;
 		/* check the timers */
 		for (t = 0; t < TM_NTIMERS; t++) {
@@ -309,11 +309,11 @@ tp_fasttimo()
 void
 tp_ctimeout(tpcb, which, ticks)
 	register struct tp_pcb	*tpcb;
-	int 					which, ticks; 
+	int 					which, ticks;
 {
 
 	IFTRACE(D_TIMER)
-		tptrace(TPPTmisc, "tp_ctimeout ref which tpcb active", 
+		tptrace(TPPTmisc, "tp_ctimeout ref which tpcb active",
 			tpcb->tp_lref, which, tpcb, tpcb->tp_timer[which]);
 	ENDTRACE
 	if(tpcb->tp_timer[which])
@@ -326,18 +326,18 @@ tp_ctimeout(tpcb, which, ticks)
 
 /*
  * CALLED FROM:
- *  tp.trans 
+ *  tp.trans
  * FUNCTION and ARGUMENTS:
- * 	Version of tp_ctimeout that resets the C-type time if the 
+ * 	Version of tp_ctimeout that resets the C-type time if the
  * 	parameter (ticks) is > the current value of the timer.
  */
 void
 tp_ctimeout_MIN(tpcb, which, ticks)
 	register struct tp_pcb	*tpcb;
-	int						which, ticks; 
+	int						which, ticks;
 {
 	IFTRACE(D_TIMER)
-		tptrace(TPPTmisc, "tp_ctimeout_MIN ref which tpcb active", 
+		tptrace(TPPTmisc, "tp_ctimeout_MIN ref which tpcb active",
 			tpcb->tp_lref, which, tpcb, tpcb->tp_timer[which]);
 	ENDTRACE
 	IncStat(ts_Cset);
@@ -365,7 +365,7 @@ tp_cuntimeout(tpcb, which)
 	ENDDEBUG
 
 	IFTRACE(D_TIMER)
-		tptrace(TPPTmisc, "tp_cuntimeout ref which, active", refp-tp_ref, 
+		tptrace(TPPTmisc, "tp_cuntimeout ref which, active", refp-tp_ref,
 			which, tpcb->tp_timer[which], 0);
 	ENDTRACE
 

@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.6 1995/03/16 18:13:38 bde Exp $
+ * $Id: portal_vfsops.c,v 1.7 1995/03/16 20:23:41 wollman Exp $
  */
 
 /*
@@ -172,7 +172,7 @@ portal_unmount(mp, mntflags, p)
 	 * moment, but who knows...
 	 */
 #ifdef notyet
-	mntflushbuf(mp, 0); 
+	mntflushbuf(mp, 0);
 	if (mntinvalbuf(mp, 1))
 		return (EBUSY);
 #endif

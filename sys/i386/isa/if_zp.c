@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.4 1995/03/31 06:10:22 jkh Exp $
+ *	$Id: if_zp.c,v 1.5 1995/04/20 07:22:04 phk Exp $
  */
 /*-
  * TODO:
@@ -443,7 +443,7 @@ zp_find_adapter(unsigned char *scratch, int reconfig)
  *	or # of i/o addresses used (if found)
  */
 #ifdef	MACH_KERNEL
-int 
+int
 zpprobe(port, dev)
     struct bus_device *dev;
 #else	/* MACH_KERNEL */
@@ -521,7 +521,7 @@ re_init:
      * space by 0x20000.  normally we could get this offset from the card
      * information structure, but I'm too lazy and am not quite sure if I
      * understand the CIS anyway.
-     * 
+     *
      * XXX IF YOU'RE TRYING TO PORT THIS DRIVER FOR A DIFFERENT PCMCIA CARD, the
      * most likely thing to change is the constant 0x20000 in the next
      * statement.  Oh yes, also change the card id string that we probe for.
@@ -542,7 +542,7 @@ re_init:
      * respond to any i/o signals until we do this; it uses the Memory Only
      * interface (whatever that is; it's not documented). Also turn on
      * "level" (not pulse) interrupts.
-     * 
+     *
      * XXX probably should init the socket and copy register also, so that we
      * can deal with multiple instances of the same card.
      */
@@ -567,10 +567,10 @@ re_init:
 
     /*
      * (4) map i/o ports.
-     * 
+     *
      * XXX is it possible that the config file leaves this unspecified, in which
      * case we have to pick one?
-     * 
+     *
      * At least one PCMCIA device driver I'v seen maps a block of 32 consecutive
      * i/o ports as two windows of 16 ports each. Maybe some other pcic chips
      * are restricted to 16-port windows; the 82365SL doesn't seem to have
@@ -589,7 +589,7 @@ re_init:
 
     /*
      * (5) configure the card for the desired interrupt
-     * 
+     *
      * XXX is it possible that the config file leaves this unspecified?
      */
     pcic_map_irq(slot, ffs(isa_dev->id_irq) - 1);
@@ -743,7 +743,7 @@ zp_resume(isa_dev)
  */
 
 #ifdef	MACH_KERNEL
-void 
+void
 zpattach(dev)
     struct bus_device *dev;
 #else	/* MACH_KERNEL */
@@ -1414,7 +1414,7 @@ readcheck:
 }
 
 #ifdef	MACH_KERNEL
-int 
+int
 zpopen(dev, flag)
     dev_t           dev;
     int             flag;
@@ -1433,7 +1433,7 @@ zpopen(dev, flag)
     return (0);
 }
 
-int 
+int
 zpoutput(dev, ior)
     dev_t           dev;
     io_req_t        ior;
@@ -1455,7 +1455,7 @@ zpoutput(dev, ior)
     return (result);
 }
 
-int 
+int
 zpsetinput(dev, receive_port, priority, filter, filter_count)
     dev_t           dev;
     mach_port_t     receive_port;
@@ -1858,7 +1858,7 @@ out:outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 
 #ifdef	MACH_KERNEL
 
-int 
+int
 zpgetstat(dev, flavor, status, count)
     dev_t           dev;
     int             flavor;
@@ -1877,7 +1877,7 @@ zpgetstat(dev, flavor, status, count)
     return (net_getstat(&zp_softc[unit].ds_if, flavor, status, count));
 }
 
-int 
+int
 zpsetstat(dev, flavor, status, count)
     dev_t           dev;
     int             flavor;

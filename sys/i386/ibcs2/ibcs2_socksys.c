@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_socksys.c,v 1.1 1994/10/14 08:53:08 sos Exp $
+ *	$Id: ibcs2_socksys.c,v 1.2 1994/10/17 22:13:08 sos Exp $
  */
 
 #include <sys/param.h>
@@ -116,7 +116,7 @@ ss_syscall(arg, p)
 	else {
 		if(cmd == CMD_SO_SS_DEBUG)
 			printf("%s ","ss_debug");
-		else 
+		else
 			printf("%s ",ss_syscall_strings[cmd]);
 	}
 	printf("(%d) <0x%x,0x%x,0x%x,0x%x,0x%x,0x%x>\n",
@@ -717,7 +717,7 @@ sockioctl(dev, cmd, arg, fflag, p)
 	default:
 		cmd_type = '?';
 			break;
-		
+
 	}
 	ioctl_type = (0xe0000000 & cmd) >> 29;
 	ioctl_len = (cmd >> 16) & SS_IOCPARM_MASK;
@@ -1177,7 +1177,7 @@ ss_getsockopt(arg, ret, p)
 
 	return (ENOPROTOOPT);
 }
-                
+
 #define	SS_CONVERT
 int	system_type = SS_FREEBSD; /* FreeBSD */
 

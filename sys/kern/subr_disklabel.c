@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.13 1995/03/18 06:38:04 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.14 1995/03/18 07:06:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -255,7 +255,7 @@ readdisklabel(dev, strat, lp, dp, bdp)
 	 * will be relative to the base of the BSD part.
 	 */
 	msgMSP = readMSPtolabel(dev, strat, lp, dp, &cyl );
-	
+
 	/*
 	 * next, dig out disk label, relative to either the base of the
 	 * BSD part, or block 0, depending on if an MSP was found.
@@ -481,7 +481,7 @@ writedisklabel(dev, strat, lp)
 	 * force OURPART to start at block 0 as a default in case there is NO
 	 * MSP.
 	 * readMSPtolabel() will reset it to start at the start of the BSD
-	 * part if it exists 
+	 * part if it exists
 	 * At this time this is an error contition but I've left support for it
 	 */
 	lp->d_npartitions = OURPART + 1;
@@ -491,7 +491,7 @@ writedisklabel(dev, strat, lp)
 
 	msg = readMSPtolabel(dev, strat, lp, 0, &cyl );
 	/*
-	 * If we want to be able to install without an Machine Specific 
+	 * If we want to be able to install without an Machine Specific
 	 * Partitioning , then
 	 * the failure of readMSPtolabel() should be made non fatal.
 	 */
@@ -515,7 +515,7 @@ writedisklabel(dev, strat, lp)
 	/*
 	 * get all the other bits back from the good new disklabel
 	 * (the user wouldn't try confuse us would he?)
-	 * With the exception of the OURPART which now points to the 
+	 * With the exception of the OURPART which now points to the
 	 * BSD partition.
 	 */
 	BSDstart = lp->d_partitions[OURPART].p_offset;

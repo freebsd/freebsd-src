@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_trace.c,v 1.2 1994/08/02 07:51:30 davidg Exp $
+ * $Id: tp_trace.c,v 1.3 1995/04/26 21:32:41 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,10 +60,10 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_trace.c,v 1.2 1994/08/02 07:51:30 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_trace.c,v 1.3 1995/04/26 21:32:41 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_trace.c,v $
  *
  * The whole protocol trace module.
@@ -110,7 +110,7 @@ tpTrace(tpcb, event, arg, src, len, arg4, arg5)
 	struct tp_pcb	*tpcb;
 	u_int 			event, arg;
 	u_int	 		src;
-	u_int	 		len; 
+	u_int	 		len;
 	u_int	 		arg4;
 	u_int	 		arg5;
 {
@@ -137,27 +137,27 @@ tpTrace(tpcb, event, arg, src, len, arg4, arg5)
 	case TPPTmisc:
 
 		/* arg is a string */
-		bcopy((caddr_t)arg, (caddr_t)tp->tpt_str, 
+		bcopy((caddr_t)arg, (caddr_t)tp->tpt_str,
 			(unsigned)MIN(1+strlen((caddr_t) arg), TPTRACE_STRLEN));
-		tp->tpt_m2 = src; 
+		tp->tpt_m2 = src;
 		tp->tpt_m3 = len;
 		tp->tpt_m4 = arg4;
 		tp->tpt_m1 = arg5;
 		break;
 
-	case TPPTgotXack: 
-	case TPPTXack: 
-	case TPPTsendack: 
-	case TPPTgotack: 
-	case TPPTack: 
-	case TPPTindicate: 
+	case TPPTgotXack:
+	case TPPTXack:
+	case TPPTsendack:
+	case TPPTgotack:
+	case TPPTack:
+	case TPPTindicate:
 	default:
-	case TPPTdriver: 
-		tp->tpt_m2 = arg; 
+	case TPPTdriver:
+		tp->tpt_m2 = arg;
 		tp->tpt_m3 = src;
 		tp->tpt_m4 = len;
 		tp->tpt_m5 = arg4;
-		tp->tpt_m1 = arg5; 
+		tp->tpt_m1 = arg5;
 		break;
 	case TPPTparam:
 		bcopy((caddr_t)src, (caddr_t)&tp->tpt_param, sizeof(struct tp_param));

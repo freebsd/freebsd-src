@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.24 1995/03/16 18:11:44 bde Exp $
+ * 	$Id: pmap.h,v 1.25 1995/03/26 23:42:55 davidg Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -108,12 +108,12 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
 #define	kvtopte(va)	vtopte(va)
-#define	ptetov(pt)	(i386_ptob(pt - PTmap)) 
+#define	ptetov(pt)	(i386_ptob(pt - PTmap))
 #define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 #define	ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
-#define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
+#define	ptetoav(pt)	(i386_ptob(pt - APTmap))
 #define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 
 #ifdef KERNEL

@@ -1,13 +1,13 @@
 /*
  *
- *	Copyright (C) 1994, Paul S. LaFollette, Jr. This software may be used, 
- *	modified, copied, distributed, and sold, in both source and binary form 
- *	provided that the above copyright and these terms are retained. Under 
+ *	Copyright (C) 1994, Paul S. LaFollette, Jr. This software may be used,
+ *	modified, copied, distributed, and sold, in both source and binary form
+ *	provided that the above copyright and these terms are retained. Under
  *	no circumstances is the author responsible for the proper functioning
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- *	$Id$
+ *	$Id: ctxreg.h,v 1.1 1994/10/01 17:59:42 davidg Exp $
  */
 
 /*

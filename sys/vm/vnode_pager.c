@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.38 1995/05/10 18:56:09 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.39 1995/05/18 02:59:26 davidg Exp $
  */
 
 /*
@@ -314,11 +314,11 @@ vnode_pager_haspage(pager, offset)
 	/*
 	 * Read the index to find the disk block to read from.  If there is no
 	 * block, report that we don't have this data.
-	 * 
+	 *
 	 * Assumes that the vnode has whole page or nothing.
 	 */
 	err = VOP_BMAP(vp, block, (struct vnode **) 0, &bn, 0);
-	if (err) 
+	if (err)
 		return (TRUE);
 	return ((long) bn < 0 ? FALSE : TRUE);
 }

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_socksys.h,v 1.1 1994/10/14 08:53:16 sos Exp $
+ *	$Id: ibcs2_socksys.h,v 1.2 1994/10/17 22:13:10 sos Exp $
  */
 
 struct ss_call {
@@ -46,10 +46,10 @@ struct alien_in_addr {
 };
 
 #define	__ALIEN_SOCK_SIZE__	16	/* sizeof(struct alien_sockaddr)*/
-struct alien_sockaddr_in { 
+struct alien_sockaddr_in {
   short int		sin_family;	/* Address family               */
   unsigned short int	sin_port;	/* Port number                  */
-  struct alien_in_addr	sin_addr;	/* Internet address             */ 
+  struct alien_in_addr	sin_addr;	/* Internet address             */
   unsigned char         __filling[__ALIEN_SOCK_SIZE__ - sizeof(short int) -
                         sizeof(unsigned short int) - sizeof(struct alien_in_addr)];
 };

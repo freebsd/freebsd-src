@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.4 1994/10/23 21:27:11 wollman Exp $
+ *	$Id: ctx.c,v 1.5 1995/04/12 20:47:40 wollman Exp $
  */
 
 /*
@@ -59,7 +59,7 @@
  *	    the benefits to me are great (I need more than one board
  *	    in my machine, and 0xE0000 is the only address choice that
  *	    doesn't conflict with anything) so I adopt this strategy here.
- *		
+ *
  *	    XXX-Note... this driver has only been tested for the
  *	    XXX base = 0xE0000 case!
  *
@@ -175,7 +175,7 @@ ctx_registerdev(struct isa_device *id)
 	dev_attach(&kdc_ctx[id->id_unit]);
 }
 
-int 
+int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
@@ -189,7 +189,7 @@ ctxprobe(struct isa_device * devp)
 	return (status);
 }
 
-int 
+int
 ctxattach(struct isa_device * devp)
 {
 	struct ctx_soft_registers *sr;
@@ -205,7 +205,7 @@ ctxattach(struct isa_device * devp)
 	return (1);
 }
 
-int 
+int
 ctxopen(dev_t dev, int flag)
 {
 	struct ctx_soft_registers *sr;
@@ -261,7 +261,7 @@ ctxopen(dev_t dev, int flag)
 	return (0);	/* successful open.  All ready to go. */
 }
 
-int 
+int
 ctxclose(dev_t dev, int flag)
 {
 	int     unit;
@@ -274,7 +274,7 @@ ctxclose(dev_t dev, int flag)
 	return (0);
 }
 
-int 
+int
 ctxwrite(dev_t dev, struct uio * uio)
 {
 	int     unit, status = 0;
@@ -319,7 +319,7 @@ ctxwrite(dev_t dev, struct uio * uio)
 		return (status);
 }
 
-int 
+int
 ctxread(dev_t dev, struct uio * uio)
 {
 	int     unit, status = 0;
@@ -362,7 +362,7 @@ ctxread(dev_t dev, struct uio * uio)
 		return (status);
 }
 
-int 
+int
 ctxioctl(dev_t dev, int cmd, caddr_t data, int flag)
 {
 	int     error;
@@ -425,7 +425,7 @@ ctxioctl(dev_t dev, int cmd, caddr_t data, int flag)
 	return (error);
 }
 
-int 
+int
 waitvb(short port)
 {				/* wait for a vertical blank,  */
 	if (inb(port) == 0xff)	/* 0xff means no board present */

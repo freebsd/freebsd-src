@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.c,v 1.2 1994/08/02 07:46:34 davidg Exp $
+ * $Id: raw_cb.c,v 1.3 1994/10/08 22:38:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
 #include <netinet/in.h>
 
 /*
- * Routines to manage the raw protocol control blocks. 
+ * Routines to manage the raw protocol control blocks.
  *
  * TODO:
  *	hash lookups by protocol family/protocol + address family

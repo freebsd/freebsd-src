@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.4 1994/08/18 22:35:01 wollman Exp $
+ * $Id: kern_ktrace.c,v 1.5 1994/10/02 17:35:15 phk Exp $
  */
 
 #ifdef KTRACE
@@ -53,7 +53,7 @@ ktrgetheader(type)
 	register struct ktr_header *kth;
 	struct proc *p = curproc;	/* XXX */
 
-	MALLOC(kth, struct ktr_header *, sizeof (struct ktr_header), 
+	MALLOC(kth, struct ktr_header *, sizeof (struct ktr_header),
 		M_TEMP, M_WAITOK);
 	kth->ktr_type = type;
 	microtime(&kth->ktr_time);
@@ -143,7 +143,7 @@ ktrgenio(vp, fd, rw, iov, len, error)
 	register caddr_t cp;
 	register int resid = len, cnt;
 	struct proc *p = curproc;	/* XXX */
-	
+
 	if (error)
 		return;
 	p->p_traceflag |= KTRFAC_ACTIVE;
@@ -289,7 +289,7 @@ ktrace(curp, uap, retval)
 		error = EINVAL;
 		goto done;
 	}
-	/* 
+	/*
 	 * do it
 	 */
 	if (uap->pid < 0) {
@@ -304,9 +304,9 @@ ktrace(curp, uap, retval)
 		for (p = pg->pg_mem; p != NULL; p = p->p_pgrpnxt)
 			if (descend)
 				ret |= ktrsetchildren(curp, p, ops, facs, vp);
-			else 
+			else
 				ret |= ktrops(curp, p, ops, facs, vp);
-					
+
 	} else {
 		/*
 		 * by pid
@@ -340,7 +340,7 @@ ktrops(curp, p, ops, facs, vp)
 	if (!ktrcanset(curp, p))
 		return (0);
 	if (ops == KTROP_SET) {
-		if (p->p_tracep != vp) { 
+		if (p->p_tracep != vp) {
 			/*
 			 * if trace file already in use, relinquish
 			 */
@@ -352,7 +352,7 @@ ktrops(curp, p, ops, facs, vp)
 		p->p_traceflag |= facs;
 		if (curp->p_ucred->cr_uid == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
-	} else {	
+	} else {
 		/* KTROP_CLEAR */
 		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0) {
 			/* no more tracing */
@@ -453,7 +453,7 @@ ktrwrite(vp, kth)
  * Return true if caller has permission to set the ktracing state
  * of target.  Essentially, the target can't possess any
  * more permissions than the caller.  KTRFAC_ROOT signifies that
- * root previously set the tracing status on the target process, and 
+ * root previously set the tracing status on the target process, and
  * so, only root may further change it.
  *
  * TODO: check groups.  use caller effective gid.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: idp_usrreq.c,v 1.2 1994/08/02 07:51:41 davidg Exp $
+ * $Id: idp_usrreq.c,v 1.3 1994/11/15 14:26:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,7 @@ idp_output(nsp, m0)
 	/*
 	 * Make sure packet is actually of even length.
 	 */
-	
+
 	if (len & 1) {
 		m = mprev;
 		if ((m->m_flags & M_EXT) == 0 &&
@@ -244,7 +244,7 @@ idp_output(nsp, m0)
 						&satons_addr(ro->ro_dst);
 				dst->x_host = idp->idp_dna.x_host;
 			}
-			/* 
+			/*
 			 * Otherwise, we go through the same gateway
 			 * and dst is already set up.
 			 */
@@ -291,7 +291,7 @@ idp_ctloutput(req, so, level, name, value)
 		case SO_HEADERS_ON_INPUT:
 			mask = NSP_RAWIN;
 			goto get_flags;
-			
+
 		case SO_HEADERS_ON_OUTPUT:
 			mask = NSP_RAWOUT;
 		get_flags:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.13 1995/03/16 18:15:41 bde Exp $
+ * $Id: nfs_vnops.c,v 1.14 1995/03/23 09:43:40 davidg Exp $
  */
 
 /*
@@ -252,7 +252,7 @@ nfs_null(vp, cred, procp)
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb;
-	
+
 	nfsm_reqhead(vp, NFSPROC_NULL, 0);
 	nfsm_request(vp, NFSPROC_NULL, procp, cred);
 	nfsm_reqdone;
@@ -436,7 +436,7 @@ nfs_getattr(ap)
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	
+
 	/*
 	 * Update local times for special files.
 	 */
@@ -497,7 +497,7 @@ nfs_setattr(ap)
 			break;
 		default:
 			if (np->n_flag & NMODIFIED) {
-				error = nfs_vinvalbuf(vp, 
+				error = nfs_vinvalbuf(vp,
 					vap->va_size ? V_SAVE : 0,
 					ap->a_cred, ap->a_p, 1);
 				if (error)
@@ -1666,11 +1666,11 @@ nfs_readdirrpc(vp, uiop, cred)
 		siz = 0;
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED);
 		more_dirs = fxdr_unsigned(int, *tl);
-	
+
 		/* Save the position so that we can do nfsm_mtouio() later */
 		dpos2 = dpos;
 		md2 = md;
-	
+
 		/* loop thru the dir entries, doctoring them to 4bsd form */
 #ifdef lint
 		dp = (struct dirent *)0;
@@ -1817,7 +1817,7 @@ nfs_readdirlookrpc(vp, uiop, cred)
 		nfsm_request(vp, NQNFSPROC_READDIRLOOK, uiop->uio_procp, cred);
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED);
 		more_dirs = fxdr_unsigned(int, *tl);
-	
+
 		/* loop thru the dir entries, doctoring them to 4bsd form */
 		bigenough = 1;
 		while (more_dirs && bigenough) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_errno.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_errno.h,v 1.3 1994/08/21 06:14:20 paul Exp $
+ * $Id: iso_errno.h,v 1.4 1994/11/27 20:58:30 ats Exp $
  */
 
 #ifndef _NETISO_ISO_ERRNO_H_
@@ -42,13 +42,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -67,7 +67,7 @@ SOFTWARE.
 #define ISO_ERROR_MASK 	0x8000
 #define BSD_ERROR_MASK 	0x0000
 #define	TP_ERROR_MASK	0x8800	/* transport layer */
-#define	CONL_ERROR_MASK	0x8400	/* co network layer */ 
+#define	CONL_ERROR_MASK	0x8400	/* co network layer */
 #define	CLNL_ERROR_MASK	0x8200	/* cl network layer */
 #define TP_ERROR_SNDC	0x10000	/* kludge to force DC's on certain errors */
 
@@ -251,7 +251,7 @@ SOFTWARE.
 #define E_CO_RPOAOOO		(CONL_ERROR_MASK | 0x115)  /* RPOA out of order */
 #define E_CO_NOREVCHG		(CONL_ERROR_MASK | 0x119) /* Revs chg not accepted*/
 #define E_CO_INCOMPAT		(CONL_ERROR_MASK | 0x121) /* Incompatible dest */
-#define E_CO_NOFASTSEL		(CONL_ERROR_MASK | 0x129) 
+#define E_CO_NOFASTSEL		(CONL_ERROR_MASK | 0x129)
 	/* Fast select accpt not subscribed */
 #define E_CO_NOSHIP			(CONL_ERROR_MASK | 0x139)  /* ship absent */
 #define E_CO_GWPROCERR		(CONL_ERROR_MASK | 0x1c1)  /* Gateway-detected err*/
@@ -272,4 +272,4 @@ SOFTWARE.
 
 #define CONL_ERROR_MAX 0x1c3
 
-#endif 
+#endif

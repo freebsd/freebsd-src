@@ -1,5 +1,5 @@
-/* $Header: debug.h,v 2.1 88/09/19 12:56:16 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/debug.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/debug.h,v 1.1.1.1 1994/05/24 10:07:51 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/debug.h,v $ */
 
 #define OUT stdout
 
@@ -9,10 +9,10 @@ extern int	debug[128];
 extern int column;
 
 #define IFDEBUG(letter) \
-	if(debug['letter']) { 
+	if(debug['letter']) {
 #define ENDDEBUG  ; (void) fflush(stdout);}
 
-#else 
+#else
 
 #define STAR *
 #define IFDEBUG(letter)	 //*beginning of comment*/STAR

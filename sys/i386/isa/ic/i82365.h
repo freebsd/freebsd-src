@@ -16,7 +16,7 @@
  * PCIC Registers
  *     Each register is given a name, and most of the bits are named too.
  *     I should really name them all.
- * 
+ *
  *     Finally, since the banks can be addressed with a regular syntax,
  *     some macros are provided for that purpose.
  */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.6 1995/04/29 05:09:19 jkh Exp $
+ * $Id: subr_log.c,v 1.7 1995/04/29 11:36:47 jkh Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ logwakeup()
 	selwakeup(&logsoftc.sc_selp);
 	if (logsoftc.sc_state & LOG_ASYNC) {
 		if (logsoftc.sc_pgid < 0)
-			gsignal(-logsoftc.sc_pgid, SIGIO); 
+			gsignal(-logsoftc.sc_pgid, SIGIO);
 		else if ((p = pfind(logsoftc.sc_pgid)))
 			psignal(p, SIGIO);
 	}

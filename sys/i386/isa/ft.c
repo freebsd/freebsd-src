@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.20 1995/04/12 20:47:43 wollman Exp $
+ *  $Id: ft.c,v 1.21 1995/05/06 19:34:28 joerg Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -34,9 +34,9 @@
  *  Got rid of the hard coded device selection.  Moved (some of) the
  *  static variables into a structure for support of multiple devices.
  *  ( still has a way to go for 2 controllers - but closer )
- *  Changed the interface with fd.c so we no longer 'steal' it's 
+ *  Changed the interface with fd.c so we no longer 'steal' it's
  *  driver routine vectors.
- * 
+ *
  *  10/30/93 v0.3
  *  Fixed a couple more bugs.  Reading was sometimes looping when an
  *  an error such as address-mark-missing was encountered.  Both
@@ -92,7 +92,7 @@
 /* Enable or disable debugging messages. */
 #define FTDBGALL 0			/* 1 if you want everything */
 /*#define DPRT(a) printf a		*/
-#define DPRT(a) 
+#define DPRT(a)
 
 /* Constants private to the driver */
 #define FTPRI		(PRIBIO)	/* sleep priority */
@@ -401,7 +401,7 @@ segio_free(ft_p ft, SegReq *sp)
   DPRT(("segio_free: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
 }
 
-static int ft_externalize(struct proc *, struct kern_devconf *, void *, 
+static int ft_externalize(struct proc *, struct kern_devconf *, void *,
 			  size_t);
 
 extern struct kern_devconf kdc_fdc[];
@@ -503,7 +503,7 @@ ftattach(isadev, fdup, unithasfd)
      * enabled and therefore risks attached floppy disk drives to jam.
      * Probe only if explicitly requested by a flag 0x1 from config
      */
-    
+
     /*
      *  FT_INSIGHT - insight style
      *
@@ -519,7 +519,7 @@ ftattach(isadev, fdup, unithasfd)
 	goto out;
     }
   }
-  
+
 out:
   tape_end(ftu);
   if (ft->type != NO_TYPE) {
@@ -697,7 +697,7 @@ restate:
 			} else {
 				DPRT(("ft%d: async_status failed: retval=$%04x nbits=%d\n",
 						ftu, retval,nbits));
-				async_ret = -2; 
+				async_ret = -2;
 			}
 			goto complete;
 		}
@@ -1335,7 +1335,7 @@ restate:
 			/*
 			 *  Retries failed.  Note the unrecoverable error.
 			 *  Marking the block as bad is useless right now.
-			 */ 
+			 */
 			printf("ft%d: unrecoverable write error on block %d\n",
 					ftu, ft->xblk);
 			ft->segh->reqcrc |= (1 << ft->xcnt);
@@ -1756,7 +1756,7 @@ tape_end(ftu_t ftu)
   /* set transfer speed */
   outb(fdc->baseport+FDCTL, FDC_500KBPS);
   DELAY(10);
-  fdc->flags &= ~FDC_TAPE_BUSY; 
+  fdc->flags &= ~FDC_TAPE_BUSY;
 
   DPRT(("tape_end end\n"));
 }
@@ -1905,7 +1905,7 @@ set_fdcmode(dev_t dev, int newmode)
 	/* Wake up the tape drive */
 	switch (ft->type) {
 	    case NO_TYPE:
-		fdc->flags &= ~FDC_TAPE_BUSY; 
+		fdc->flags &= ~FDC_TAPE_BUSY;
 		return(ENXIO);
 	    case FT_NONE:
 		tape_start(ftu, 0);
@@ -2089,19 +2089,19 @@ ftopen(dev_t dev, int arg2) {
   fdc_p fdc;
 
   /* check bounds */
-  if (ftu >= NFT) 
+  if (ftu >= NFT)
 	return(ENXIO);
   fdc = ft_data[ftu].fdc;
   if ((fdc == NULL) || (ft_data[ftu].type == NO_TYPE))
 	  return(ENXIO);
   /* check for controller already busy with tape */
   if (fdc->flags & FDC_TAPE_BUSY)
-	return(EBUSY); 
+	return(EBUSY);
   /* make sure we found a tape when probed */
   if (!(fdc->flags & FDC_HASFTAPE))
 	return(ENODEV);
   fdc->fdu = ftu;
-  fdc->flags |= FDC_TAPE_BUSY; 
+  fdc->flags |= FDC_TAPE_BUSY;
   kdc_ft[ftu].kdc_state = DC_BUSY;
   return(set_fdcmode(dev, FDC_TAPE_MODE)); /* try to switch to tape */
 }
@@ -2541,7 +2541,7 @@ ftreq_hdr(ftu_t ftu, int cmd, QIC_Segment *sp)
 	if (h->qh_sig != QCV_HDRMAGIC) return(EIO);
 	copyout(ft->hdr->buff, sp->sg_data, QCV_SEGSIZE);
   }
-  return(0);	
+  return(0);
 }
 
 /*

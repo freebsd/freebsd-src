@@ -86,15 +86,15 @@ struct ip_fw {
 #define IP_FW_F_IFNAME	0x200	/* Use interface name/unit (not IP)   */
 #define IP_FW_F_MASK	0x3FF	/* All possible flag bits mask        */
 
-/*    
+/*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
- */     
+ */
 #define IP_FW_BASE_CTL	53
 
 #define IP_FW_ADD     (IP_FW_BASE_CTL)
 #define IP_FW_DEL     (IP_FW_BASE_CTL+4)
 #define IP_FW_FLUSH   (IP_FW_BASE_CTL+6)
-#define IP_FW_POLICY  (IP_FW_BASE_CTL+7) 
+#define IP_FW_POLICY  (IP_FW_BASE_CTL+7)
 
 #define IP_ACCT_ADD   (IP_FW_BASE_CTL+10)
 #define IP_ACCT_DEL   (IP_FW_BASE_CTL+11)

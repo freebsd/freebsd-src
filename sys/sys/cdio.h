@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.6 1994/02/05 09:14:24 swallace Exp $
+ *	$Id: cdio.h,v 1.7 1995/04/09 15:50:48 jkh Exp $
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
@@ -20,7 +20,7 @@
 	2-Apr-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 */
 
-		
+
 /* Shared between kernel & process */
 #ifndef _SYS_CDIO_H_
 #define _SYS_CDIO_H_
@@ -46,8 +46,8 @@ struct cd_toc_entry {
 };
 
 struct cd_sub_channel_header {
-	u_char	:8;   
-	u_char	audio_status; 
+	u_char	:8;
+	u_char	audio_status;
 #define CD_AS_AUDIO_INVALID        0x00
 #define CD_AS_PLAY_IN_PROGRESS     0x11
 #define CD_AS_PLAY_PAUSED          0x12
@@ -74,7 +74,7 @@ struct cd_sub_channel_media_catalog {
         u_char  :8;
         u_char  :7;
         u_char  mc_valid:1;
-        u_char  mc_number[15]; 
+        u_char  mc_number[15];
 };
 
 struct cd_sub_channel_track_info {
@@ -83,8 +83,8 @@ struct cd_sub_channel_track_info {
         u_char  track_number;
         u_char  :8;
         u_char  :7;
-        u_char  ti_valid:1;   
-        u_char  ti_number[15]; 
+        u_char  ti_valid:1;
+        u_char  ti_number[15];
 };
 
 struct cd_sub_channel_info {
@@ -92,7 +92,7 @@ struct cd_sub_channel_info {
 	union {
 		struct cd_sub_channel_position_data position;
 		struct cd_sub_channel_media_catalog media_catalog;
-		struct cd_sub_channel_track_info track_info;	
+		struct cd_sub_channel_track_info track_info;
 	} what;
 };
 

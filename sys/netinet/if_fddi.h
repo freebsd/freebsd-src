@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_fddi.h	8.1 (Berkeley) 6/10/93
- * $Id: if_fddi.h,v 1.1 1995/03/10 17:43:45 thomas Exp $
+ * $Id: if_fddi.h,v 1.1 1995/03/14 09:14:14 davidg Exp $
  */
 
 #ifndef _NETINET_IF_FDDI_H_
@@ -77,7 +77,7 @@ struct	fddi_header {
 void    fddi_ifattach __P((struct ifnet *));
 void    fddi_input __P((struct ifnet *, struct fddi_header *, struct mbuf *));
 int     fddi_output __P((struct ifnet *,
-           struct mbuf *, struct sockaddr *, struct rtentry *)); 
+           struct mbuf *, struct sockaddr *, struct rtentry *));
 
 #endif
 

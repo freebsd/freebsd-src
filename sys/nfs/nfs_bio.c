@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.12 1995/04/16 05:05:25 davidg Exp $
+ * $Id: nfs_bio.c,v 1.13 1995/05/21 21:39:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -185,7 +185,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 			error = nfs_readdirrpc(vp, uio, cred);
 			break;
 		default:
-			printf(" NQNFSNONCACHE: type %x unexpected\n",	
+			printf(" NQNFSNONCACHE: type %x unexpected\n",
 				vp->v_type);
 			break;
 		};
@@ -694,7 +694,7 @@ nfs_asyncio(bp, cred)
 				bp->b_wcred = cred;
 			}
 		}
-	
+
 		TAILQ_INSERT_TAIL(&nfs_bufq, bp, b_freelist);
 		nfs_iodwant[i] = (struct proc *)0;
 		wakeup((caddr_t)&nfs_iodwant[i]);

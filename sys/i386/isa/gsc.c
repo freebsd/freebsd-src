@@ -152,14 +152,14 @@ struct gsc_unit {
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
   struct  _sbuf hbuf;     /* buffer for pnm header data */
-} unittab[NGSC];                                 
+} unittab[NGSC];
 
 /* I could not find a reasonable buffer size limit other than by
  * experiments. MAXPHYS is obviously too much, while DEV_BSIZE and
  * PAGE_SIZE are really too small. There must be something wrong
  * with isa_dmastart/isa_dmarangecheck HELP!!!
  */
-#define MAX_BUFSIZE 0x3000 
+#define MAX_BUFSIZE 0x3000
 #define DEFAULT_BLEN 59
 
 /***********************************************************************
@@ -197,7 +197,7 @@ lookup_geometry(struct gsc_geom geom, const struct gsc_unit *scu)
   for(i=0; i<GEOMTAB_SIZE; i++)
     {
       tab = geomtab[i];
-      
+
       if ( ( ( geom.dpi   != INVALID ) && ( tab.dpi   == geom.dpi   ) ) ||
 	   ( ( geom.dpl   != INVALID ) && ( tab.dpl   == geom.dpl   ) ) ||
 	   ( ( geom.g_res != INVALID ) && ( tab.g_res == geom.g_res ) ) ||
@@ -213,7 +213,7 @@ lookup_geometry(struct gsc_geom geom, const struct gsc_unit *scu)
   lprintf("gsc.lookup_geometry: "
 	 "geometry lookup failed on {%d, %d, 0x%02x, 0x%02x}\n",
 	 geom.dpi, geom.dpl, geom.g_res, geom.s_res);
-  
+
   return INVALID;
 }
 
@@ -229,12 +229,12 @@ static int
 get_geometry(const struct gsc_unit *scu)
 {
   struct gsc_geom geom = NEW_GEOM;
-  
+
   lprintf("gsc.get_geometry: get geometry at 0x%03x\n", scu->stat);
 
   if ( ( geom.g_res = inb(scu->stat) ) == FAIL )
-    return INVALID;    
-  
+    return INVALID;
+
   geom.g_res &= GSC_RES_MASK;
 
   return lookup_geometry(geom, scu);
@@ -306,7 +306,7 @@ buffer_read(struct gsc_unit *scu)
   int delay;
 
   lprintf("gsc.buffer_read: begin\n");
-  
+
   if (scu->ctrl_byte == INVALID)
     {
       lprintf("gsc.buffer_read: invalid ctrl_byte\n");
@@ -318,9 +318,9 @@ buffer_read(struct gsc_unit *scu)
   outb( scu->ctrl, scu->ctrl_byte | GSC_POWER_ON );
   outb( scu->clrp, 0 );
   stb = inb( scu->stat );
-  
+
   isa_dmastart(B_READ, scu->sbuf.base, scu->sbuf.size, scu->channel);
-  
+
   chan_bit = 0x01 << scu->channel;
 
   for(delay=0; !(inb(DMA1_READY) & 0x01 << scu->channel); delay += LONG)
@@ -331,7 +331,7 @@ buffer_read(struct gsc_unit *scu)
 	  lprintf("gsc.buffer_read: timeout\n");
 	  res = EWOULDBLOCK;
 	  break;
-	}	  
+	}
       res = tsleep((caddr_t)scu, GSCPRI | PCATCH, "gscread", LONG);
       if ( ( res == 0 ) || ( res == EWOULDBLOCK ) )
 	res = SUCCESS;
@@ -390,7 +390,7 @@ gscprobe (struct isa_device *isdp)
 	 isdp->id_drq,
 	 isdp->id_maddr,
 	 isdp->id_msize);
-  
+
   if ( isdp->id_iobase < 0 )
     {
       lprintf("gsc%d.probe: no iobase given\n", unit);
@@ -451,7 +451,7 @@ gscprobe (struct isa_device *isdp)
       lprintf("gsc%d.probe: status 0x%02x, %ddpi\n",
 	     unit, stb, geomtab[scu->geometry].dpi);
 
-      outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);      
+      outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);
     }
 
   lprintf("gsc%d.probe: ok\n", unit);
@@ -485,7 +485,7 @@ gscattach(struct isa_device *isdp)
 	 isdp->id_drq,
 	 isdp->id_maddr,
 	 isdp->id_msize);
-  
+
   printf("gsc%d: GeniScan GS-4500 at %ddpi\n",
 	 unit, geomtab[scu->geometry].dpi);
 
@@ -516,7 +516,7 @@ int gscopen  (dev_t dev, int flag)
 {
   int unit = UNIT(minor(dev)) & UNIT_MASK;
   struct gsc_unit *scu = unittab + unit;
-  
+
   if ( minor(dev) & DBUG_MASK )
     scu->flags |= DEBUG;
   else
@@ -535,7 +535,7 @@ int gscopen  (dev_t dev, int flag)
     lprintf("gsc%d.open: gray maps are not yet supported", unit);
     return ENXIO;
   }
-  
+
   lprintf("gsc%d.open: minor %d\n",
 	 unit, minor(dev));
 
@@ -545,15 +545,15 @@ int gscopen  (dev_t dev, int flag)
 	     unit, scu->flags);
       return ENXIO;
     }
-  
+
   if ( scu->flags & OPEN )
     {
       lprintf("gsc%d.open: already open", unit);
       return EBUSY;
     }
 
-  scu->flags |= OPEN;      
-  
+  scu->flags |= OPEN;
+
   return SUCCESS;
 }
 
@@ -579,7 +579,7 @@ int gscclose (dev_t dev, int flag)
 	     unit, scu->flags);
       return ENXIO;
     }
-  
+
   outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);
 
   if ( scu->sbuf.base != NULL ) free( scu->sbuf.base, M_DEVBUF );
@@ -589,7 +589,7 @@ int gscclose (dev_t dev, int flag)
   scu->sbuf.poi  = INVALID;
 
   scu->flags &= ~(DEBUG | OPEN | READING);
-  
+
   return SUCCESS;
 }
 
@@ -604,7 +604,7 @@ int gscread  (dev_t dev, struct uio *uio)
   struct gsc_unit *scu = unittab + unit;
   size_t nbytes;
   int res;
-  
+
   lprintf("gsc%d.read: minor %d\n", unit, minor(dev));
 
   if ( unit >= NGSC || !( scu->flags & ATTACHED ) )
@@ -645,7 +645,7 @@ int gscread  (dev_t dev, struct uio *uio)
 	    }
 	}
     }
-  
+
   lprintf("gsc%d.read(before buffer_read): "
 	  "size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
 	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
@@ -653,7 +653,7 @@ int gscread  (dev_t dev, struct uio *uio)
   if ( scu->sbuf.poi == scu->sbuf.size )
     if ( (res = buffer_read(scu)) != SUCCESS )
       return res;
-  
+
   lprintf("gsc%d.read(after buffer_read): "
 	  "size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
 	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
@@ -662,22 +662,22 @@ int gscread  (dev_t dev, struct uio *uio)
 
   if ( (scu->flags & PBM_MODE) )
     nbytes = MIN( nbytes, scu->bcount );
-  
+
   lprintf("gsc%d.read: transferring 0x%x bytes", nbytes);
-  
+
   res = uiomove(scu->sbuf.base + scu->sbuf.poi, nbytes, uio);
   if ( res != SUCCESS )
     {
       lprintf("gsc%d.read: uiomove failed %d", unit, res);
       return res;
     }
-  
+
   scu->sbuf.poi += nbytes;
   if ( scu->flags & PBM_MODE ) scu->bcount -= nbytes;
-  
+
   lprintf("gsc%d.read: size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
 	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
-  
+
   return SUCCESS;
 }
 
@@ -701,12 +701,12 @@ int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	     unit, scu->flags);
       return ENXIO;
     }
-  
+
   switch(cmd) {
   case GSC_SRESSW:
     lprintf("gsc%d.ioctl:GSC_SRESSW\n", unit);
     if ( scu->flags & READING )
-      { 
+      {
 	lprintf("gsc%d:ioctl on already reading unit\n", unit);
 	return EBUSY;
       }
@@ -715,11 +715,11 @@ int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
   case GSC_GRES:
     *(int *)data=geomtab[scu->geometry].dpi;
     lprintf("gsc%d.ioctl:GSC_GRES %ddpi\n", unit, *(int *)data);
-    return SUCCESS;    
+    return SUCCESS;
   case GSC_GWIDTH:
     *(int *)data=geomtab[scu->geometry].dpl;
     lprintf("gsc%d.ioctl:GSC_GWIDTH %d\n", unit, *(int *)data);
-    return SUCCESS;    
+    return SUCCESS;
   case GSC_SRES:
   case GSC_SWIDTH:
     lprintf("gsc%d.ioctl:GSC_SRES or GSC_SWIDTH %d\n",
@@ -742,7 +742,7 @@ int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
   case GSC_SHEIGHT:
     lprintf("gsc%d.ioctl:GSC_SHEIGHT %d\n", unit, *(int *)data);
     if ( scu->flags & READING )
-      { 
+      {
 	lprintf("gsc%d:ioctl on already reading unit\n", unit);
 	return EBUSY;
       }

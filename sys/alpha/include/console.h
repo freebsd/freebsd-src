@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.15 1995/01/20 08:35:18 sos Exp $
+ *	$Id: console.h,v 1.18 1995/01/28 22:15:30 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -47,7 +47,7 @@
 #define KIOCSOUND	_IO('K', 63)
 #define KDGKBTYPE	_IOR('K', 64, int)
 #define KDGETLED	_IOR('K', 65, int)
-#define KDSETLED	_IO('K', 66) 
+#define KDSETLED	_IO('K', 66)
 #define KDSETRAD	_IO('K', 67)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
@@ -79,14 +79,14 @@
 #define CONS_GETVERS	_IOR('c', 74, int)
 
 #define VT_OPENQRY	_IOR('v', 1, int)
-#define VT_SETMODE	_IOW('v', 2, vtmode_t)	
+#define VT_SETMODE	_IOW('v', 2, vtmode_t)
 #define VT_GETMODE	_IOR('v', 3, vtmode_t)
 #define VT_RELDISP	_IO('v', 4)
 #define VT_ACTIVATE	_IO('v', 5)
 #define VT_WAITACTIVE	_IO('v', 6)
 #define VT_GETACTIVE	_IOR('v', 7, int)
 
-#define VT_FALSE	0	
+#define VT_FALSE	0
 #define VT_TRUE		1
 #define VT_ACKACQ	2
 
@@ -135,7 +135,7 @@ struct mouse_info {
 #define NLKED		2		/* Num locked			*/
 #define SLKED		4		/* Scroll locked		*/
 #define ALKED		8		/* AltGr locked			*/
-#define LED_CAP		1		/* Caps lock LED 		*/ 
+#define LED_CAP		1		/* Caps lock LED 		*/
 #define LED_NUM		2		/* Num lock LED 		*/
 #define LED_SCR		4		/* Scroll lock LED 		*/
 

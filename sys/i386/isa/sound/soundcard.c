@@ -1,8 +1,8 @@
 /*
  * sound/386bsd/soundcard.c
- * 
+ *
  * Soundcard driver for FreeBSD.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.24 1995/03/12 23:34:10 swallace Exp $
+ * $Id: soundcard.c,v 1.25 1995/05/11 19:26:24 rgrimes Exp $
  */
 
 #include "sound_config.h"
@@ -91,7 +91,7 @@ int x;
    return timecopy.tv_usec/(1000000/HZ) +
 	  (unsigned long)timecopy.tv_sec*HZ;
 }
- 
+
 
 int
 sndread (int dev, struct uio *buf)
@@ -243,7 +243,7 @@ sndprobe (struct isa_device *dev)
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
-  
+
   if(unit)
     return sndtable_probe (unit, &hw_config);
   else
@@ -256,7 +256,7 @@ sndattach (struct isa_device *dev)
   int             i, unit;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
-  static int 	  generic_midi_initialized = 0; 
+  static int 	  generic_midi_initialized = 0;
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 

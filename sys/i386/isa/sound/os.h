@@ -35,7 +35,7 @@
  *
  * If you have to make changes to other than these two files, please contact me
  * before making the changes. It's possible that I have already made the
- * change. 
+ * change.
  *
  * os.h,v 1.13 1994/10/01 02:16:53 swallace Exp
  */
@@ -64,7 +64,7 @@
  */
 #ifdef CONFIGURE_SOUNDCARD
 
-/* 
+/*
  * select() is currently implemented in Linux specific way. Don't enable.
  * I don't remember what the SHORT_BANNERS means so forget it.
  */
@@ -79,18 +79,18 @@
  * Here is the first portability problem. Every OS has it's own way to
  * pass a pointer to the buffer in read() and write() calls. In Linux it's
  * just a char*. In BSD it's struct uio. This parameter is passed to
- * all functions called from read() or write(). Since nothing can be 
+ * all functions called from read() or write(). Since nothing can be
  * assumed about this structure, the driver uses set of macros for
- * accessing the user buffer. 
+ * accessing the user buffer.
  *
  * The driver reads/writes bytes in the user buffer sequentially which
  * means that calls like uiomove() can be used.
  *
  * snd_rw_buf is the type which is passed to the device file specific
  * read() and write() calls.
- * 
+ *
  * The following macros are used to move date to and from the
- * user buffer. These macros should be used only when the 
+ * user buffer. These macros should be used only when the
  * target or source parameter has snd_rw_buf type.
  * The offs parameter is a offset relative to the beginning of
  * the user buffer. In Linux the offset is required but for example
@@ -115,7 +115,7 @@ typedef struct uio snd_rw_buf;
 	do { if (uiomove(source, count, (struct uio *)target)) { \
 		printf ("sb: Bad copyout()!\n"); \
 	} } while(0)
-/* 
+/*
  * The following macros are like COPY_*_USER but work just with one byte (8bit),
  * short (16 bit) or long (32 bit) at a time.
  * The same restrictions apply than for COPY_*_USER
@@ -194,7 +194,7 @@ struct snd_wait {
  * the process is resumed if it receives a signal. The following is propably
  * not the way how it should be done on 386bsd.
  * The on_what parameter is a wait_queue defined with DEFINE_WAIT_QUEUE(),
- * and the second is a workarea parameter. The third is a timeout 
+ * and the second is a workarea parameter. The third is a timeout
  * in ticks. Zero means no timeout.
  */
 #define DO_SLEEP(q, f, time_limit)	\
@@ -220,10 +220,10 @@ struct snd_wait {
 #define HZ	hz
 #endif
 
-/* 
+/*
  * GET_TIME() returns current value of the counter incremented at timer
  * ticks.  This can overflow, so the timeout might be real big...
- * 
+ *
  */
 extern unsigned long get_time(void);
 #define GET_TIME() get_time()
@@ -250,7 +250,7 @@ extern unsigned long get_time(void);
  */
 
 #define INB			inb
-/*  
+/*
  * The outb(0, 0x80) is just for slowdown. It's bit unsafe since
  * this address could be used for something usefull.
  */
@@ -267,9 +267,9 @@ extern unsigned long get_time(void);
 
 #define RET_ERROR(err)		-(err)
 
-/* 
-   KERNEL_MALLOC() allocates requested number of memory  and 
-   KERNEL_FREE is used to free it. 
+/*
+   KERNEL_MALLOC() allocates requested number of memory  and
+   KERNEL_FREE is used to free it.
    These macros are never called from interrupt, in addition the
    nbytes will never be more than 4096 bytes. Generally the driver
    will allocate memory in blocks of 4k. If the kernel has just a

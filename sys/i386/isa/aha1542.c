@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.43 1995/04/12 20:47:32 wollman Exp $
+ *      $Id: aha1542.c,v 1.44 1995/04/14 15:13:46 dufault Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ struct aha_cmd_buf {
 #define AHA_MBIF		0x01	/* MBX in full */
 
 /*
- * Mail box defs 
+ * Mail box defs
  */
 
 #define AHA_MBX_SIZE		16	/* mail box size */
@@ -295,7 +295,7 @@ struct aha_data {
 	short   aha_base;	/* base port for each board */
 	/*
 	 * xor this with a physaddr to get a kv addr and visa versa
-	 * for items in THIS STRUCT only. 
+	 * for items in THIS STRUCT only.
 	 * Used to get the CCD's physical and kv addresses from each
 	 * other.
 	 */
@@ -335,7 +335,7 @@ struct scsi_adapter aha_switch =
     0,
     aha_adapter_info,
     "aha",
-    { 0, 0 } 
+    { 0, 0 }
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
@@ -596,7 +596,7 @@ ahaprobe(dev)
 	 * to change addresses within the structure
 	 * from physical to virtual easily, as long as
 	 * the structure is less than 1 page in size.
-	 * This is used to recognise CCBs which are in 
+	 * This is used to recognise CCBs which are in
 	 * this struct and which are refered to by the
 	 * hardware using physical addresses.
 	 * (assumes malloc returns a chunk that doesn't
@@ -646,7 +646,7 @@ ahaattach(dev)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-u_int32 
+u_int32
 aha_adapter_info(unit)
 	int     unit;
 {
@@ -669,7 +669,7 @@ ahaintr(unit)
 #endif /*AHADEBUG */
 	/*
 	 * First acknowledge the interrupt, Then if it's not telling about
-	 * a completed operation just return. 
+	 * a completed operation just return.
 	 */
 	stat = inb(AHA_INTR_PORT);
 	outb(AHA_CTRL_STAT_PORT, AHA_IRST);
@@ -767,7 +767,7 @@ ahaintr(unit)
 }
 
 /*
- * A ccb (and hence a mbx-out) is put onto the 
+ * A ccb (and hence a mbx-out) is put onto the
  * free list.
  */
 void
@@ -991,7 +991,7 @@ aha_init(unit)
 	aha->sg_opcode = AHA_INIT_SCAT_GATH_CCB;
 
 	/*
-	 * reset board, If it doesn't respond, assume 
+	 * reset board, If it doesn't respond, assume
 	 * that it's not there.. good for the probe
 	 */
 
@@ -1190,7 +1190,7 @@ aha_init(unit)
 #ifdef TUNE_1542
 	/*
 	 * Initialize memory transfer speed
-	 * Not compiled in by default because it breaks some machines 
+	 * Not compiled in by default because it breaks some machines
 	 */
 	if (!(aha_set_bus_speed(unit))) {
 		return (EIO);
@@ -1199,7 +1199,7 @@ aha_init(unit)
 	printf (" (bus speed defaulted)\n");
 #endif	/*TUNE_1542*/
 	/*
-	 * Initialize mail box 
+	 * Initialize mail box
 	 */
 	scsi_uto3b(KVTOPHYS(&aha->aha_mbx), ad);
 
@@ -1227,7 +1227,7 @@ aha_init(unit)
 	return 0;
 }
 
-void 
+void
 ahaminphys(bp)
 	struct buf *bp;
 {
@@ -1256,7 +1256,7 @@ int aha_escape(xs, ccb)
 
 			case SCSI_OP_TARGET:
 			s= splbio();
-			aha_cmd(xs->sc_link->adapter_unit, 2, 0, 0, 0, AHA_TARGET_EN, 
+			aha_cmd(xs->sc_link->adapter_unit, 2, 0, 0, 0, AHA_TARGET_EN,
 			(int)xs->cmd->bytes[0], (int)1);
 			splx(s);
 			ret = COMPLETE;
@@ -1328,7 +1328,7 @@ static int physcontig(int kv, int len)
  * the data address. Also needs the unit, target
  * and lu
  */
-int32 
+int32
 aha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1589,7 +1589,7 @@ aha_scsi_cmd(xs)
 /*
  * Poll a particular unit, looking for a particular xs
  */
-int 
+int
 aha_poll(unit, xs, ccb)
 	int     unit;
 	struct scsi_xfer *xs;
@@ -1619,7 +1619,7 @@ aha_poll(unit, xs, ccb)
 		/*
 		 * We timed out, so call the timeout handler
 		 * manually, accout  for the fact that the
-		 * clock is not running yet by taking out the 
+		 * clock is not running yet by taking out the
 		 * clock queue entry it makes
 		 */
 		aha_timeout((caddr_t)ccb);
@@ -1665,7 +1665,7 @@ aha_poll(unit, xs, ccb)
  * speed that fails, back off one notch from the last working
  * speed (unless there is no other notch).
  * Returns the nSEC value of the time used
- * or 0 if it could get a working speed (or the NEXT speed 
+ * or 0 if it could get a working speed (or the NEXT speed
  * failed)
  */
 static	struct bus_speed
@@ -1684,7 +1684,7 @@ static	struct bus_speed
 	{0xff,450}
 };
 
-int	
+int
 aha_set_bus_speed(unit)
 	int	unit;
 {
@@ -1734,7 +1734,7 @@ static char aha_test_string[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijk
 
 u_char  aha_scratch_buf[256];
 
-int 
+int
 aha_bus_speed_check(unit, speed)
 	int     unit, speed;
 {
@@ -1770,20 +1770,20 @@ aha_bus_speed_check(unit, speed)
 	 	* board.
 	 	*/
 		bzero(aha_scratch_buf, 54);	/* 54 bytes transfered by test */
-	
+
 		aha_cmd(unit, 3, 0, 0, 0, AHA_READ_FIFO, ad[0], ad[1], ad[2]);
-	
+
 		/*
 	 	* Compare the original data and the final data and
 	 	* return the correct value depending upon the result
 	 	*/
-		if (strcmp(aha_test_string, aha_scratch_buf)) 	
+		if (strcmp(aha_test_string, aha_scratch_buf))
 			return 0; /* failed test */
 	}
 			/* copy succeded assume speed ok */
 
 	return (aha_bus_speeds[speed].nsecs);
-	
+
 }
 #endif	/*TUNE_1542*/
 

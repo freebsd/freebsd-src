@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.20 1995/03/23 18:07:29 wollman Exp $
+ *	$Id: route.c,v 1.22 1995/04/25 19:12:07 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -146,7 +146,7 @@ void
 rtfree(rt)
 	register struct rtentry *rt;
 {
-	register struct radix_node_head *rnh = 
+	register struct radix_node_head *rnh =
 		rt_tables[rt_key(rt)->sa_family];
 	register struct ifaddr *ifa;
 
@@ -237,7 +237,7 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 		goto create;
 	/*
 	 * Don't listen to the redirect if it's
-	 * for a route to an interface. 
+	 * for a route to an interface.
 	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
 		if (((rt->rt_flags & RTF_HOST) == 0) && (flags & RTF_HOST)) {
@@ -510,7 +510,7 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 	struct rtentry *rt0 = vp;
 
 	if (rt->rt_parent == rt0 && !(rt->rt_flags & RTF_PINNED)) {
-		return rtrequest(RTM_DELETE, rt_key(rt), 
+		return rtrequest(RTM_DELETE, rt_key(rt),
 				 (struct sockaddr *)0, rt_mask(rt),
 				 rt->rt_flags, (struct rtentry **)0);
 	}
@@ -519,13 +519,13 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 
 /*
  * This routine is called from rt_setgate() to do the analogous thing for
- * adds and changes.  There is the added complication in this case of a 
+ * adds and changes.  There is the added complication in this case of a
  * middle insert; i.e., insertion of a new network route between an older
  * network route and (cloned) host routes.  For this reason, a simple check
  * of rt->rt_parent is insufficient; each candidate route must be tested
  * against the (mask, value) of the new route (passed as before in vp)
  * to see if the new route matches it.  Unfortunately, this has the obnoxious
- * property of also triggering for insertion /above/ a pre-existing network 
+ * property of also triggering for insertion /above/ a pre-existing network
  * route and clones.  Sigh.  This may be fixed some day.
  *
  * XXX - it may be possible to do fixdelete() for changes and reserve this
@@ -562,7 +562,7 @@ rt_fixchange(struct radix_node *rn, void *vp)
 #ifdef DEBUG
 		if(rtfcdebug) printf("parent match\n");
 #endif
-		return rtrequest(RTM_DELETE, rt_key(rt), 
+		return rtrequest(RTM_DELETE, rt_key(rt),
 				 (struct sockaddr *)0, rt_mask(rt),
 				 rt->rt_flags, (struct rtentry **)0);
 	}
@@ -570,7 +570,7 @@ rt_fixchange(struct radix_node *rn, void *vp)
 	/*
 	 * There probably is a function somewhere which does this...
 	 * if not, there should be.
-	 */	
+	 */
 	len = imin(((struct sockaddr *)rt_key(rt0))->sa_len,
 		   ((struct sockaddr *)rt_key(rt))->sa_len);
 
@@ -655,7 +655,7 @@ rt_setgate(rt0, dst, gate)
 		struct rtfc_arg arg;
 		arg.rnh = rnh;
 		arg.rt0 = rt;
-		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt), 
+		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixchange, &arg);
 	}
 

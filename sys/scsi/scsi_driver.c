@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 1995, HD Associates, Inc.
  * PO Box 276
  * Pepperell, MA 01463
@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.8 1995/04/14 15:10:33 dufault Exp $
+ * $Id: scsi_driver.c,v 1.9 1995/05/03 18:09:11 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -102,7 +102,7 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	return errcode;
 }
 
-int 
+int
 scsi_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_device *device)
 {
@@ -117,7 +117,7 @@ struct scsi_device *device)
 	sc_link = SCSI_LINK(device, unit);
 
 	/*
-	 * Check the unit is legal 
+	 * Check the unit is legal
 	 */
 	if (sc_link == 0 || sc_link->sd == 0)
 		return ENXIO;
@@ -143,7 +143,7 @@ struct scsi_device *device)
 	return errcode;
 }
 
-int 
+int
 scsi_close(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_device *device)
 {
@@ -162,7 +162,7 @@ struct scsi_device *device)
 	return errcode;
 }
 
-int 
+int
 scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int flags, struct proc *p,
 struct scsi_device *device)
 {
@@ -177,7 +177,7 @@ struct scsi_device *device)
 	return errcode;
 }
 
-void 
+void
 scsi_minphys(struct buf *bp, struct scsi_device *device)
 {
 	struct scsi_link *sc_link = SCSI_LINK(device, GETUNIT(device, bp->b_dev));

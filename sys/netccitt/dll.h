@@ -1,5 +1,5 @@
-/* 
- * Copyright (C) Dirk Husemann, Computer Science Department IV, 
+/*
+ * Copyright (C) Dirk Husemann, Computer Science Department IV,
  * 		 University of Erlangen-Nuremberg, Germany, 1990, 1991, 1992
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,13 +33,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)dll.h	8.1 (Berkeley) 6/10/93
- * $Id: dll.h,v 1.2 1994/08/02 07:46:56 davidg Exp $
+ * $Id: dll.h,v 1.3 1994/08/21 05:44:06 paul Exp $
  */
 
 #ifndef _NETCCITT_DLL_H_
 #define _NETCCITT_DLL_H_
 
-/* 
+/*
  * We define the additional PRC_* codes in here
  */
 #ifdef KERNEL

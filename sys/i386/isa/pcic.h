@@ -4,7 +4,7 @@
  * [2] parse tuples to find out where to map the shared memory buffer,
  *     and what to write into the configuration register
  * [3] move pcic-specific code into a separate module.
- * 
+ *
  * Device driver for IBM PCMCIA Credit Card Adapter for Ethernet,
  * if_ze.c
  *
@@ -49,7 +49,7 @@
 /*
  * Each PCIC chip (82365SL or clone) can handle two card slots, and there
  * can be up to four PCICs in a system.  (On some machines, not all of the
- * address lines are decoded, so a card may appear to be in more than one 
+ * address lines are decoded, so a card may appear to be in more than one
  * slot.)
  */
 #define MAXSLOT 8
@@ -61,8 +61,8 @@
  * the value from or to the DATA register for that controller.
  *
  * The first pair of chips shares I/O addresss for DATA and INDEX,
- * as does the second pair.   (To the programmer, it looks like each 
- * pair is a single chip.)  The i/o port addresses are hard-wired 
+ * as does the second pair.   (To the programmer, it looks like each
+ * pair is a single chip.)  The i/o port addresses are hard-wired
  * into the PCIC; so the following addresses should be valid for
  * any machine that uses this chip.
  */
@@ -167,7 +167,7 @@ void pcic_map_memory (int slot, int window, unsigned long sys_addr,
                       unsigned long card_addr, unsigned long length,
                       enum memtype type, int width);
 void pcic_unmap_memory (int slot, int window);
-void pcic_map_io (int slot, int window, unsigned short base, 
+void pcic_map_io (int slot, int window, unsigned short base,
                   unsigned short length, unsigned short width);
 #ifdef TEST
 void pcic_unmap_io (int slot, int window);

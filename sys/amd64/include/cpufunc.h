@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.35 1995/05/11 07:24:35 bde Exp $
+ *	$Id: cpufunc.h,v 1.36 1995/05/14 22:25:11 davidg Exp $
  */
 
 /*
@@ -279,7 +279,7 @@ read_eflags(void)
 {
 	u_long	ef;
 
-	__asm __volatile("pushfl; popl %0" : "=r" (ef)); 
+	__asm __volatile("pushfl; popl %0" : "=r" (ef));
 	return (ef);
 }
 

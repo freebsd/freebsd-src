@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.2 1995/04/20 07:34:55 julian Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.3 1995/05/03 23:06:31 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -107,7 +107,7 @@ struct	devnode	/* the equivalent of an INODE */
 			dn_p	parent;
 			devnm_p	myname;
 			int	entrycount;
-		}Dir;	
+		}Dir;
 		struct {
 			char	*name;	/* must be allocated separatly */
 			int	namelen;

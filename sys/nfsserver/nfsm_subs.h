@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.4 1994/10/02 17:27:05 phk Exp $
+ * $Id: nfsm_subs.h,v 1.5 1994/10/17 17:47:42 phk Exp $
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
@@ -167,7 +167,7 @@ extern struct mbuf *nfsm_reqh();
 		mb = mreq = nfsm_reqh((v),(a),(s),&bpos)
 
 #define nfsm_reqdone	m_freem(mrep); \
-		nfsmout: 
+		nfsmout:
 
 #define nfsm_rndup(a)	(((a)+3)&(~0x3))
 

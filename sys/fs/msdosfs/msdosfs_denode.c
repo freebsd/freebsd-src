@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.10 1995/03/19 12:11:13 davidg Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.11 1995/04/11 17:13:17 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -34,17 +34,17 @@
  */
 /*
  * Written by Paul Popelka (paulp@uts.amdahl.com)
- * 
+ *
  * You can do anything you want with this software, just don't say you wrote
  * it, and don't remove this notice.
- * 
+ *
  * This software is provided "as is".
- * 
+ *
  * The author supplies this software to be publicly redistributed on the
  * understanding that the author is not responsible for the correct
  * functioning of this software in any circumstances and is not liable for
  * any damages caused by this software.
- * 
+ *
  * October 1992
  */
 
@@ -83,7 +83,7 @@ msdosfs_hashget(dev, dirclust, diroff)
 	u_long diroff;
 {
 	struct denode *dep;
-	
+
 	for (;;)
 		for (dep = dehashtbl[DEHASH(dev, dirclust + diroff)];;
 		     dep = dep->de_next) {
@@ -111,7 +111,7 @@ msdosfs_hashins(dep)
 	struct denode *dep;
 {
 	struct denode **depp, *deq;
-	
+
 	depp = &dehashtbl[DEHASH(dep->de_dev, dep->de_dirclust + dep->de_diroffset)];
 	deq = *depp;
 	if (deq)
@@ -137,17 +137,17 @@ msdosfs_hashrem(dep)
 }
 
 /*
- * If deget() succeeds it returns with the gotten denode locked(). 
+ * If deget() succeeds it returns with the gotten denode locked().
  *
  * pmp	     - address of msdosfsmount structure of the filesystem containing
  *	       the denode of interest.  The pm_dev field and the address of
- *	       the msdosfsmount structure are used. 
+ *	       the msdosfsmount structure are used.
  * dirclust  - which cluster bp contains, if dirclust is 0 (root directory)
  *	       diroffset is relative to the beginning of the root directory,
- *	       otherwise it is cluster relative. 
- * diroffset - offset past begin of cluster of denode we want 
+ *	       otherwise it is cluster relative.
+ * diroffset - offset past begin of cluster of denode we want
  * direntptr - address of the direntry structure of interest. If direntptr is
- *	       NULL, the block is read if necessary. 
+ *	       NULL, the block is read if necessary.
  * depp	     - returns the address of the gotten denode.
  */
 int
@@ -187,7 +187,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	 * the directory entry to compute the hash value. For subdir use
 	 * address of "." entry. for root dir use cluster MSDOSFSROOT,
 	 * offset MSDOSFSROOT_OFS
-	 * 
+	 *
 	 * NOTE: The check for de_refcnt > 0 below insures the denode being
 	 * examined does not represent an unlinked but still open file.
 	 * These files are not to be accessible even when the directory
@@ -337,7 +337,7 @@ deupdat(dep, tp, waitfor)
 	 * update.
 	 */
 	error = readde(dep, &bp, &dirp);
-	if (error) 
+	if (error)
 		return error;
 
 	/*
@@ -535,7 +535,7 @@ deextend(dep, length, cred)
 	u_long count;
 	int error;
 	struct timespec ts;
-	
+
 	/*
 	 * The root of a DOS filesystem cannot be extended.
 	 */
@@ -554,7 +554,7 @@ deextend(dep, length, cred)
 
 	if (length <= dep->de_FileSize)
 		panic("deextend: file too large");
-	
+
 	/*
 	 * Compute the number of clusters to allocate.
 	 */
@@ -569,7 +569,7 @@ deextend(dep, length, cred)
 			return error;
 		}
 	}
-		
+
 	dep->de_flag |= DE_UPDATE;
 	dep->de_FileSize = length;
 	TIMEVAL_TO_TIMESPEC(&time, &ts);
@@ -606,7 +606,7 @@ msdosfs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	
+
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_reclaim(): dep %p, file %s, refcnt %ld\n",
 	    dep, dep->de_Name, dep->de_refcnt);
@@ -630,10 +630,10 @@ msdosfs_reclaim(ap)
 	}
 
 	dep->de_flag = 0;
-	
+
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
-	
+
 	return 0;
 }
 
@@ -647,7 +647,7 @@ msdosfs_inactive(ap)
 	struct denode *dep = VTODE(vp);
 	int error = 0;
 	struct timespec ts;
-	
+
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_inactive(): dep %p, de_Name[0] %x\n", dep, dep->de_Name[0]);
 #endif

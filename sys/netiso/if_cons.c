@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_cons.c	8.1 (Berkeley) 6/10/93
- * $Id: if_cons.c,v 1.2 1994/08/02 07:50:20 davidg Exp $
+ * $Id: if_cons.c,v 1.3 1994/12/13 22:33:04 wollman Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -61,18 +61,18 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/if_cons.c,v 1.2 1994/08/02 07:50:20 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/if_cons.c,v 1.3 1994/12/13 22:33:04 wollman Exp $
  * $Source: /home/ncvs/src/sys/netiso/if_cons.c,v $
  *
  * cons.c - Connection Oriented Network Service:
- * including support for a) user transport-level service, 
+ * including support for a) user transport-level service,
  *	b) COSNS below CLNP, and c) CONS below TP.
  */
 
 #ifdef TPCONS
 #ifdef KERNEL
 #ifdef ARGO_DEBUG
-#define Static  
+#define Static
 unsigned LAST_CALL_PCB;
 #else /* ARGO_DEBUG */
 #define Static static
@@ -121,7 +121,7 @@ unsigned LAST_CALL_PCB;
 
 #define DONTCLEAR	 -1
 
-/*********************************************************************	
+/*********************************************************************
  * cons.c - CONS interface to the x.25 layer
  *
  * TODO: figure out what resources we might run out of besides mbufs.
@@ -129,21 +129,21 @@ unsigned LAST_CALL_PCB;
  *  lru x% of the connections, for some parameter x.
  *
  * There are 2 interfaces from above:
- * 1) from TP0: 
+ * 1) from TP0:
  *    cons CO network service
  *    TP associates a transport connection with a network connection.
- * 	  cons_output( isop, m, len, isdgm==0 ) 
+ * 	  cons_output( isop, m, len, isdgm==0 )
  *        co_flags == 0
  * 2) from TP4:
  *	  It's a datagram service, like clnp is. - even though it calls
- *			cons_output( isop, m, len, isdgm==1 ) 
+ *			cons_output( isop, m, len, isdgm==1 )
  *	  it eventually goes through
  *			cosns_output(ifp, m, dst).
- *    TP4 permits multiplexing (reuse, possibly simultaneously) of the 
+ *    TP4 permits multiplexing (reuse, possibly simultaneously) of the
  *	  network connections.
  *    This means that many sockets (many tpcbs) may be associated with
  *    this pklcd, hence cannot have a back ptr from pklcd to a tpcb.
- *        co_flags & CONSF_DGM 
+ *        co_flags & CONSF_DGM
  *    co_socket is null since there may be many sockets that use this pklcd.
  *
 NOTE:
@@ -151,7 +151,7 @@ NOTE:
 NOTE:
 	PVCs could be handled by config-ing a cons with an address and with the
 	IFF_POINTTOPOINT flag on.  This code would then have to skip the
-	connection setup stuff for pt-to-pt links.  
+	connection setup stuff for pt-to-pt links.
 
 
  *********************************************************************/
@@ -205,7 +205,7 @@ nibble_copy(src_octet, src_nibble, dst_octet, dst_nibble, len)
 	register 	unsigned dshift, sshift;
 
 	IFDEBUG(D_CADDR)
-		printf("nibble_copy ( 0x%x, 0x%x, 0x%x, 0x%x 0x%x)\n", 
+		printf("nibble_copy ( 0x%x, 0x%x, 0x%x, 0x%x 0x%x)\n",
 		 src_octet, src_nibble, dst_octet, dst_nibble, len);
 	ENDDEBUG
 #define SHIFT 0x4
@@ -252,7 +252,7 @@ nibble_match( src_octet, src_nibble, dst_octet, dst_nibble, len)
 	u_char		nibble_a, nibble_b;
 
 	IFDEBUG(D_CADDR)
-		printf("nibble_match ( 0x%x, 0x%x, 0x%x, 0x%x 0x%x)\n", 
+		printf("nibble_match ( 0x%x, 0x%x, 0x%x, 0x%x 0x%x)\n",
 		 src_octet, src_nibble, dst_octet, dst_nibble, len);
 	ENDDEBUG
 #define SHIFT 0x4
@@ -294,7 +294,7 @@ cons_init()
 	int tp_incoming(), clnp_incoming();
 
 
-	CLNP_proto = pffindproto(AF_ISO, ISOPROTO_CLNP, SOCK_DGRAM); 
+	CLNP_proto = pffindproto(AF_ISO, ISOPROTO_CLNP, SOCK_DGRAM);
 	X25_proto = pffindproto(AF_ISO, ISOPROTO_X25, SOCK_STREAM);
 	TP_proto = pffindproto(AF_ISO, ISOPROTO_TP0, SOCK_SEQPACKET);
 	IFDEBUG(D_CCONS)
@@ -375,7 +375,7 @@ struct pklcd *lcp;
 			cmd = PRC_ROUTEDEAD;
 		}
 		tpcons_ctlinput(cmd, isop->isop_faddr, isop);
-		if (cmd = PRC_ROUTEDEAD && isop->isop_refcnt == 0) 
+		if (cmd = PRC_ROUTEDEAD && isop->isop_refcnt == 0)
 			iso_pcbdetach(isop);
 	}
 }
@@ -383,7 +383,7 @@ struct pklcd *lcp;
 /*
  * NAME:	cons_connect()
  * CALLED FROM:
- *	tpcons_pcbconnect() when opening a new connection.  
+ *	tpcons_pcbconnect() when opening a new connection.
  * FUNCTION anD ARGUMENTS:
  *  Figures out which device to use, finding a route if one doesn't
  *  already exist.
@@ -411,8 +411,8 @@ cons_connect(isop)
 	IFDEBUG(D_CCONN)
 		printf(
 		"calling make_partial_x25_packet( 0x%x, 0x%x, 0x%x)\n",
-			&lcp->lcd_faddr, &lcp->lcd_laddr, 
-			isop->isop_socket->so_proto->pr_protocol); 
+			&lcp->lcd_faddr, &lcp->lcd_laddr,
+			isop->isop_socket->so_proto->pr_protocol);
 	ENDDEBUG
 	if ((error = make_partial_x25_packet(isop, lcp, m)) == 0)
 		error = pk_connect(lcp, &lcp->lcd_faddr);
@@ -424,7 +424,7 @@ cons_connect(isop)
  */
 
 
-/* 
+/*
  * NAME:	cons_ctlinput()
  * CALLED FROM:
  *  lower layer when ECN_CLEAR occurs : this routine is here
@@ -486,8 +486,8 @@ find_error_reason( xp )
 			case 0x0d:
 			case 0x95: /* RPOA out of order */
 			case 0x15:
-				/* take out bit 8 
-				 * so we don't have to have so many perror entries 
+				/* take out bit 8
+				 * so we don't have to have so many perror entries
 				 */
 				error = (CONL_ERROR_MASK | 0x100 | (cause & ~0x80));
 				goto done;
@@ -497,8 +497,8 @@ find_error_reason( xp )
 
 				error = (CONL_ERROR_MASK | 0x100 | cause);
 				goto done;
-		} 
-	} 
+		}
+	}
 	/* otherwise, a *hopefully* valid perror exists in the e_reason field */
 	error = xp->packet_data;
 	if (error = 0) {
@@ -506,7 +506,7 @@ find_error_reason( xp )
 			pk_decode(xp),
 			cause);
 		error = E_CO_HLI_DISCA;
-	} 
+	}
 
 done:
 	return error;
@@ -530,9 +530,9 @@ done:
  *	  m+1		facil param len (for >2-byte facilities) in octets
  *	  m+2..p	facil param field
  *  q			user data (protocol identification octet)
- * 
  *
- * RETURNS: 
+ *
+ * RETURNS:
  *  0 if OK
  *  E* if failed.
  *
@@ -541,7 +541,7 @@ done:
  * routine knows where to look for it.
  */
 
-#ifdef X25_1984 
+#ifdef X25_1984
 int cons_use_facils = 1;
 #else /* X25_1984  */
 int cons_use_facils = 0;
@@ -589,14 +589,14 @@ make_partial_x25_packet(isop, lcp)
 		return ENOBUFS;
 	buf = mtod(m, caddr_t);
 	ptr = buf;
-	
+
 	/* ptr now points to facil length (len of whole facil field in OCTETS */
 	facil_len = ptr ++;
 	m->m_len = 0;
 	pk_build_facilities(m, &lcp->lcd_faddr, 0);
 
 	IFDEBUG(D_CADDR)
-		printf("make_partial  calling: ptr 0x%x, len 0x%x\n", ptr, 
+		printf("make_partial  calling: ptr 0x%x, len 0x%x\n", ptr,
 				isop->isop_laddr->siso_addr.isoa_len);
 	ENDDEBUG
 	if (cons_use_facils) {
@@ -615,7 +615,7 @@ make_partial_x25_packet(isop, lcp)
 		ptr += len;
 
 		IFDEBUG(D_CADDR)
-			printf("make_partial  called: ptr 0x%x, len 0x%x\n", ptr, 
+			printf("make_partial  called: ptr 0x%x, len 0x%x\n", ptr,
 					isop->isop_faddr->siso_addr.isoa_len);
 		ENDDEBUG
 		*ptr = 0xc9; /* called facility code */
@@ -641,7 +641,7 @@ make_partial_x25_packet(isop, lcp)
 	IFDEBUG(D_CDUMP_REQ)
 		register int i;
 
-		printf("ECN_CONNECT DATA buf 0x%x len %d (0x%x)\n", 
+		printf("ECN_CONNECT DATA buf 0x%x len %d (0x%x)\n",
 			buf, buflen, buflen);
 		for( i=0; i < buflen; ) {
 			printf("+%d: %x %x %x %x    %x %x %x %x\n",
@@ -652,7 +652,7 @@ make_partial_x25_packet(isop, lcp)
 		}
 	ENDDEBUG
 	IFDEBUG(D_CADDR)
-		printf("make_partial returns buf 0x%x size 0x%x bytes\n", 
+		printf("make_partial returns buf 0x%x size 0x%x bytes\n",
 			mtod(m, caddr_t), buflen);
 	ENDDEBUG
 
@@ -668,7 +668,7 @@ make_partial_x25_packet(isop, lcp)
  * NAME:	NSAPtoDTE()
  * CALLED FROM:
  *  make_partial_x25_packet()
- * FUNCTION and ARGUMENTS: 
+ * FUNCTION and ARGUMENTS:
  *  get a DTE address from an NSAP-address (struct sockaddr_iso)
  *  (dst_octet) is the octet into which to begin stashing the DTE addr
  *  (dst_nibble) takes 0 or 1.  1 means begin filling in the DTE addr
@@ -761,7 +761,7 @@ FACILtoNSAP(addr, buf)
 	u_char		buf_len = (len_in_nibbles + 1) >> 1;; /* in bytes */
 
 	IFDEBUG(D_CADDR)
-		printf("FACILtoNSAP( 0x%x, 0x%x, 0x%x )\n", 
+		printf("FACILtoNSAP( 0x%x, 0x%x, 0x%x )\n",
 			buf, buf_len, addr );
 	ENDDEBUG
 
@@ -807,7 +807,7 @@ register struct sockaddr_iso *siso;
  * FUNCTION and ARGUMENTS:
  *  Creates a type 37 NSAP in the sockaddr_iso (addr)
  * 	from a DTE address found in a sockaddr_x25.
- *  
+ *
  * RETURNS:
  *  0 if ok; E* otherwise.
  */
@@ -867,15 +867,15 @@ parse_facil(lcp, isop, buf, buf_len)
 	int 			facil_param_len, facil_len;
 
 	IFDEBUG(D_CADDR)
-		printf("parse_facil(0x%x, 0x%x, 0x%x, 0x%x)\n", 
+		printf("parse_facil(0x%x, 0x%x, 0x%x, 0x%x)\n",
 			lcp, isop, buf, buf_len);
 		dump_buf(buf, buf_len);
 	ENDDEBUG
 
-	/* find the beginnings of the facility fields in buf 
+	/* find the beginnings of the facility fields in buf
 	 * by skipping over the called & calling DTE addresses
 	 * i <- # nibbles in called + # nibbles in calling
-	 * i += 1 so that an odd nibble gets rounded up to even  
+	 * i += 1 so that an odd nibble gets rounded up to even
 	 * before dividing by 2, then divide by two to get # octets
 	 */
 	i = (int)(*ptr >> 4) + (int)(*ptr&0xf);
@@ -919,7 +919,7 @@ parse_facil(lcp, isop, buf, buf_len)
 			case 0x02:  /* throughput class */
 			case 0x03:  case 0x47:  /* CUG shit */
 			case 0x0b:  /* expedited data negot */
-			case 0x01:  /* Fast select or reverse charging 
+			case 0x01:  /* Fast select or reverse charging
 						(example of intelligent protocol design) */
 			case 0x04: 	/* charging info : requesting service */
 			case 0x08: 	/* called line addr modified notification */
@@ -951,7 +951,7 @@ parse_facil(lcp, isop, buf, buf_len)
 		}
 		if (facil_param_len == -1)
 			return E_CO_REG_ICDA;
-		if (facil_param_len == 0) /* variable length */ 
+		if (facil_param_len == 0) /* variable length */
 			facil_param_len = (int)*ptr++; /* 1 + the real facil param */
 		ptr += facil_param_len;
 	}

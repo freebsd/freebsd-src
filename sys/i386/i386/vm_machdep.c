@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.37 1995/05/01 23:32:30 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.38 1995/05/18 09:17:07 davidg Exp $
  */
 
 #include "npx.h"
@@ -232,7 +232,7 @@ more:
  * same as vm_bounce_kva -- but really allocate (but takes pages as arg)
  */
 vm_offset_t
-vm_bounce_kva_alloc(count) 
+vm_bounce_kva_alloc(count)
 int count;
 {
 	int i;
@@ -308,7 +308,7 @@ vm_bounce_alloc(bp)
  *		printf("size: %d, count: %d\n", bp->b_bufsize, bp->b_bcount);
  *	}
  */
-		
+
 
 	vastart = (vm_offset_t) bp->b_data;
 	vaend = (vm_offset_t) bp->b_data + bp->b_bufsize;
@@ -332,7 +332,7 @@ vm_bounce_alloc(bp)
 	if (dobounceflag == 0)
 		return;
 
-	if (bouncepages < dobounceflag) 
+	if (bouncepages < dobounceflag)
 		panic("Not enough bounce buffers!!!");
 
 /*
@@ -445,7 +445,7 @@ vm_bounce_free(bp)
 /*
  * free the bounce allocation
  */
-			
+
 /*
 			printf("(kva: %x, pa: %x)", bouncekva, mybouncepa);
 */
@@ -463,7 +463,7 @@ vm_bounce_free(bp)
 /*
  * add the old kva into the "to free" list
  */
-	
+
 	bouncekva= i386_trunc_page((vm_offset_t) bp->b_data);
 	bouncekvaend= i386_round_page((vm_offset_t)bp->b_data + bp->b_bufsize);
 
@@ -491,7 +491,7 @@ vm_bounce_init()
 
 	if (bouncepages == 0)
 		return;
-	
+
 	bounceallocarraysize = (bouncepages + BITS_IN_UNSIGNED - 1) / BITS_IN_UNSIGNED;
 	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
 
@@ -552,7 +552,7 @@ cpu_fork(p1, p2)
 	int offset;
 
 	/*
-	 * Copy pcb and stack from proc p1 to p2. 
+	 * Copy pcb and stack from proc p1 to p2.
 	 * We do this as cheaply as possible, copying only the active
 	 * part of the stack.  The stack and pcb need to agree;
 	 * this is tricky, as the final pcb is constructed by savectx,
@@ -571,7 +571,7 @@ cpu_fork(p1, p2)
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
-	 * 
+	 *
 	 * Arrange for a non-local goto when the new process
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
@@ -588,7 +588,7 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-	
+
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
@@ -765,7 +765,7 @@ vunmapbuf(bp)
 		addr < bp->b_data + bp->b_bufsize;
 		addr += NBPG)
 		pmap_kremove((vm_offset_t) addr);
-		
+
 	bp->b_data = bp->b_saveaddr;
 	bp->b_saveaddr = NULL;
 
@@ -806,7 +806,7 @@ cpu_reset() {
 	bzero((caddr_t) PTD, NBPG);
 
 	/* "good night, sweet prince .... <THUNK!>" */
-	pmap_update(); 
+	pmap_update();
 	/* NOTREACHED */
 	while(1);
 }

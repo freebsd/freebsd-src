@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.13 1995/04/21 02:58:49 dyson Exp $
+ * $Id: nfs_subs.c,v 1.14 1995/05/29 04:01:09 davidg Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ nfsm_reqh(vp, procid, hsiz, bposp)
 		MCLGET(mb, M_WAIT);
 	mb->m_len = 0;
 	bpos = mtod(mb, caddr_t);
-	
+
 	/*
 	 * For NQNFS, add lease request.
 	 */
@@ -723,7 +723,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	}
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
-	 * n_mtime fields. Check to see if it represents a special 
+	 * n_mtime fields. Check to see if it represents a special
 	 * device, and if so, check for a possible alias. Once the
 	 * correct vnode has been obtained, fill in the rest of the
 	 * information.

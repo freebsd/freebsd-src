@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_options.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_options.c,v 1.2 1994/08/02 07:49:40 davidg Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_options.c,v 1.1.1.1 1994/05/24 10:07:23 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_options.c,v 1.2 1994/08/02 07:49:40 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_options.c,v $ */
 
 #ifdef ISO
@@ -90,7 +90,7 @@ SOFTWARE.
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			If source routing has been terminated, do nothing.
  */
@@ -111,9 +111,9 @@ struct clnp_optidx	*oidx;		/* ptr to option index */
 	len = CLNPSRCRT_CLEN(oidx, options);
 	bcopy(CLNPSRCRT_CADDR(oidx, options), (caddr_t)&isoa, len);
 	isoa.isoa_len = len;
-		
+
 	IFDEBUG(D_OPTIONS)
-		printf("clnp_update_srcrt: current src rt: %s\n", 
+		printf("clnp_update_srcrt: current src rt: %s\n",
 			clnp_iso_addrp(&isoa));
 	ENDDEBUG
 
@@ -137,9 +137,9 @@ struct clnp_optidx	*oidx;		/* ptr to option index */
  *
  * RETURNS:			none
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_dooptions(options, oidx, ifp, isoa)
 struct mbuf			*options;	/* ptr to options mbuf */
@@ -173,7 +173,7 @@ struct iso_addr		*isoa;		/* ptr to our address for this ifp */
 		/* proceed only if recording has not been terminated */
 		if (off != 0xff) {
 			int new_addrlen = isoa->isoa_len + 1;
-			/* 
+			/*
 			 *	if there is insufficient room to store the next address,
 			 *	then terminate recording. Plus 1 on isoa_len is for the
 			 *	length byte itself
@@ -211,9 +211,9 @@ struct iso_addr		*isoa;		/* ptr to our address for this ifp */
  *
  * RETURNS:			unix error code
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
- * NOTES:			
+ * NOTES:
  */
 clnp_set_opts(options, data)
 struct mbuf	**options;	/* target for option information */
@@ -239,7 +239,7 @@ struct mbuf	**data;		/* source of option information */
 		 *
 		 *	The QOS parameter is checked for the DECBIT.
 		 */
-		if ((clnp_opt_sanity(*data, mtod(*data, caddr_t), (*data)->m_len, 
+		if ((clnp_opt_sanity(*data, mtod(*data, caddr_t), (*data)->m_len,
 			&dummy) != 0) ||
 				(dummy.cni_securep) ||
 				(dummy.cni_priorp) ||
@@ -257,13 +257,13 @@ struct mbuf	**data;		/* source of option information */
  * FUNCTION:		clnp_opt_sanity
  *
  * PURPOSE:			Check the options (beginning at opts for len bytes) for
- *					sanity. In addition, fill in the option index structure 
+ *					sanity. In addition, fill in the option index structure
  *					in with information about each option discovered.
  *
  * RETURNS:			success (options check out) - 0
  *					failure - an ER pdu error code describing failure
  *
- * SIDE EFFECTS:	
+ * SIDE EFFECTS:
  *
  * NOTES:			Each pointer field of the option index is filled in with
  *					the offset from the beginning of the mbuf data, not the
@@ -280,7 +280,7 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 	caddr_t	opts_end;		/* ptr to end of options */
 	u_char	pad = 0, secure = 0, srcrt = 0, recrt = 0, qos = 0, prior = 0;
 							/* flags for catching duplicate options */
-	
+
 	IFDEBUG(D_OPTIONS)
 		printf("clnp_opt_sanity: checking %d bytes of data:\n", len);
 		dump_buf(opts, len);
@@ -302,7 +302,7 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 		/* must have at least 2 bytes per option (opcode and len) */
 		if (opts + 2 > opts_end)
 			return(GEN_INCOMPLETE);
-		
+
 		opcode = *opts++;
 		oplen = *opts++;
 		IFDEBUG(D_OPTIONS)
@@ -381,17 +381,17 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 
 				if (srcrt++)					/* duplicate ? */
 					return(GEN_DUPOPT);
-				/* 
+				/*
 				 *	source route: There must be 2 bytes following the length
 				 *	field: type and offset. The type must be either
 				 *	partial route or complete route. The offset field must
 				 *	be within the option. A single exception is made, however.
-				 *	The offset may be 1 greater than the length. This case 
-				 *	occurs when the last source route record is consumed. 
+				 *	The offset may be 1 greater than the length. This case
+				 *	occurs when the last source route record is consumed.
 				 *	In this case, we ignore the source route option.
 				 *	RAH? You should be able to set offset to 'ff' like in record
 				 *	route!
-				 *	Following this is a series of address fields. 
+				 *	Following this is a series of address fields.
 				 *	Each address field is composed of a (length, address) pair.
 				 *	Insure that the offset and each address length is reasonable
 				 */
@@ -407,13 +407,13 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 				/* type must be partial or complete */
 				if (!((type == CLNPOVAL_PARTRT) || (type == CLNPOVAL_COMPRT)))
 					return(SRCRT_SYNTAX);
-				
+
 				oidx->cni_srcrt_s = CLNP_OPTTOOFF(m, opts);
 				oidx->cni_srcrt_len = oplen;
 
 				opts += offset-1;	/*set opts to first addr in rt */
 
-				/* 
+				/*
 				 *	Offset must be reasonable:
 				 *	less than end of options, or equal to end of options
 				 */
@@ -423,7 +423,7 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 							printf("clnp_opt_sanity: end of src route info\n");
 						ENDDEBUG
 						break;
-					} else 
+					} else
 						return(SRCRT_SYNTAX);
 				}
 
@@ -461,7 +461,7 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 				/* type must be partial or complete */
 				if (!((type == CLNPOVAL_PARTRT) || (type == CLNPOVAL_COMPRT)))
 					return(GEN_HDRSYNTAX);
-				
+
 				/* offset must be reasonable */
 				if ((offset < 0xff) && (opts + offset > record_end))
 					return(GEN_HDRSYNTAX);
@@ -481,10 +481,10 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 				 *	remaining octets indicate actual qos.
 				 */
 				if (((format & 0xc0) == 0) ||	/* high 2 bits zero ? */
-					(((format & 0xc0) != CLNPOVAL_GLOBAL) && 
+					(((format & 0xc0) != CLNPOVAL_GLOBAL) &&
 						((format & 0x3f) > 0))) /* not global,low bits used ? */
 					return(GEN_HDRSYNTAX);
-				
+
 				oidx->cni_qos_formatp = CLNP_OPTTOOFF(m, opts);
 				oidx->cni_qos_len = oplen;
 
@@ -499,7 +499,7 @@ struct clnp_optidx	*oidx;	/* RETURN: filled in with option idx info */
 				 */
 				if (oplen != 1)
 					return(GEN_HDRSYNTAX);
-				
+
 				oidx->cni_priorp = CLNP_OPTTOOFF(m, opts);
 
 				opts += oplen;

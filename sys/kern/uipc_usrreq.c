@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.7 1995/02/15 11:30:35 davidg Exp $
+ *	$Id: uipc_usrreq.c,v 1.8 1995/05/11 00:13:06 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ uipc_usrreq(so, req, m, nam, control)
 					break;
 				}
 			}
-				
+
 			if (so->so_state & SS_CANTSENDMORE) {
 				error = EPIPE;
 				break;
@@ -348,7 +348,7 @@ unp_attach(so)
 	register struct mbuf *m;
 	register struct unpcb *unp;
 	int error;
-	
+
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		switch (so->so_type) {
 
@@ -379,7 +379,7 @@ void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
-	
+
 	if (unp->unp_vnode) {
 		unp->unp_vnode->v_socket = 0;
 		vrele(unp->unp_vnode);

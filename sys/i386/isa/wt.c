@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.15 1995/03/28 07:55:56 bde Exp $
+ * $Id: wt.c,v 1.16 1995/04/12 20:48:13 wollman Exp $
  *
  */
 
@@ -28,17 +28,17 @@
  * All rights reserved.
  *
  * Authors: Robert Baron
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -740,7 +740,7 @@ static int wtcmd (wtinfo_t *t, int cmd)
 	        splx(x);
 		return (0);
 	}
-	
+
 	outb (t->CMDPORT, cmd);                         /* output the command */
 
 	outb (t->CTLPORT, t->REQUEST | t->ONLINE);      /* set request */

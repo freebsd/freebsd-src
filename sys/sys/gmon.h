@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.4 1995/03/16 18:16:17 bde Exp $
+ * $Id: gmon.h,v 1.5 1995/05/14 03:00:04 davidg Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -76,7 +76,7 @@ struct gmonhdr {
  *	calls	$0,(r0)
  *	calls	$0,(r0)
  *
- * which is separated by only three bytes, thus HASHFRACTION is 
+ * which is separated by only three bytes, thus HASHFRACTION is
  * calculated as:
  *
  *	HASHFRACTION = 3 / (2 * 2 - 1) = 1
@@ -84,9 +84,9 @@ struct gmonhdr {
  * Note that the division above rounds down, thus if MIN_SUBR_FRACTION
  * is less than three, this algorithm will not work!
  *
- * In practice, however, call instructions are rarely at a minimal 
+ * In practice, however, call instructions are rarely at a minimal
  * distance.  Hence, we will define HASHFRACTION to be 2 across all
- * architectures.  This saves a reasonable amount of space for 
+ * architectures.  This saves a reasonable amount of space for
  * profiling data structures without (in practice) sacrificing
  * any granularity.
  */
@@ -112,7 +112,7 @@ struct tostruct {
 };
 
 /*
- * a raw arc, with pointers to the calling site and 
+ * a raw arc, with pointers to the calling site and
  * the called site and a count.
  */
 struct rawarc {

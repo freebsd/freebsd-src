@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.35 1995/03/22 19:45:22 se Exp $
+**  $Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1216,7 +1216,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.35 1995/03/22 19:45:22 se Exp $\n";
+	"\n$Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -2941,7 +2941,7 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 
 	start = src;
 	end = src + (sizeof(struct script) / 4);
-	
+
 	while (src < end) {
 
 		*dst++ = opcode = *src++;
@@ -3449,7 +3449,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	int	i, oldspl, segments, flags = xp->flags;
 	u_char	ptr, nego, idmsg;
 	u_long  msglen, msglen2;
-	
+
 
 
 	/*---------------------------------------------
@@ -3592,7 +3592,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		/*
 		**	negotiate synchronous transfers?
 		*/
-	
+
 		if (!tp->period) {
 			if (tp->inqdata[7] & INQ7_SYNC) {
 				nego = NS_SYNC;
@@ -4560,7 +4560,7 @@ static void ncr_setmaxtags (tcb_p tp, u_long usrtags)
 static void ncr_settags (tcb_p tp, lcb_p lp)
 {
 	u_char reqtags, tmp;
-	
+
 	if ((!tp) || (!lp)) return;
 
 	/*
@@ -6050,9 +6050,9 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 		tp->getscr[4] = vtophys (&tp->wval);
 		tp->getscr[5] = np->paddr + offsetof (struct ncr_reg, nc_scntl3);
 
-		assert (( (offsetof(struct ncr_reg, nc_sxfer) ^ 
+		assert (( (offsetof(struct ncr_reg, nc_sxfer) ^
 			offsetof(struct tcb    , sval    )) &3) == 0);
-		assert (( (offsetof(struct ncr_reg, nc_scntl3) ^ 
+		assert (( (offsetof(struct ncr_reg, nc_scntl3) ^
 			offsetof(struct tcb    , wval    )) &3) == 0);
 
 		tp->call_lun.l_cmd   = (SCR_CALL);

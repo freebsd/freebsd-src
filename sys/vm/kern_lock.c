@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.4 1995/03/01 21:37:37 davidg Exp $
+ * $Id: kern_lock.c,v 1.5 1995/04/16 12:56:12 davidg Exp $
  */
 
 /*
@@ -114,14 +114,14 @@ typedef int *thread_t;
  *	may only be used for exclusive locks.
  */
 
-void 
+void
 simple_lock_init(l)
 	simple_lock_t l;
 {
 	*(boolean_t *) l = FALSE;
 }
 
-void 
+void
 simple_lock(l)
 	simple_lock_t l;
 {
@@ -129,14 +129,14 @@ simple_lock(l)
 		continue;
 }
 
-void 
+void
 simple_unlock(l)
 	simple_lock_t l;
 {
 	*(boolean_t *) l = FALSE;
 }
 
-boolean_t 
+boolean_t
 simple_lock_try(l)
 	simple_lock_t l;
 {
@@ -167,7 +167,7 @@ int lock_wait_time;
  *		variables and then initialize them, rather
  *		than getting a new one from this module.
  */
-void 
+void
 lock_init(l, can_sleep)
 	lock_t l;
 	boolean_t can_sleep;
@@ -182,7 +182,7 @@ lock_init(l, can_sleep)
 	l->recursion_depth = 0;
 }
 
-void 
+void
 lock_sleepable(l, can_sleep)
 	lock_t l;
 	boolean_t can_sleep;
@@ -199,7 +199,7 @@ lock_sleepable(l, can_sleep)
  *	for the lock.  These work on uniprocessor systems.
  */
 
-void 
+void
 lock_write(l)
 	register lock_t l;
 {
@@ -252,7 +252,7 @@ lock_write(l)
 	simple_unlock(&l->interlock);
 }
 
-void 
+void
 lock_done(l)
 	register lock_t l;
 {
@@ -274,7 +274,7 @@ lock_done(l)
 	simple_unlock(&l->interlock);
 }
 
-void 
+void
 lock_read(l)
 	register lock_t l;
 {
@@ -318,7 +318,7 @@ lock_read(l)
  *
  *		Returns TRUE if the upgrade *failed*.
  */
-boolean_t 
+boolean_t
 lock_read_to_write(l)
 	register lock_t l;
 {
@@ -368,7 +368,7 @@ lock_read_to_write(l)
 	return (FALSE);
 }
 
-void 
+void
 lock_write_to_read(l)
 	register lock_t l;
 {
@@ -398,7 +398,7 @@ lock_write_to_read(l)
  *		Returns FALSE if the lock is not held on return.
  */
 
-boolean_t 
+boolean_t
 lock_try_write(l)
 	register lock_t l;
 {
@@ -437,7 +437,7 @@ lock_try_write(l)
  *		Returns FALSE if the lock is not held on return.
  */
 
-boolean_t 
+boolean_t
 lock_try_read(l)
 	register lock_t l;
 {
@@ -470,7 +470,7 @@ lock_try_read(l)
  *
  *		Returns FALSE if the upgrade *failed*.
  */
-boolean_t 
+boolean_t
 lock_try_read_to_write(l)
 	register lock_t l;
 {
@@ -507,7 +507,7 @@ lock_try_read_to_write(l)
  *	Allow a process that has a lock for write to acquire it
  *	recursively (for read, write, or update).
  */
-void 
+void
 lock_set_recursive(l)
 	lock_t l;
 {
@@ -522,7 +522,7 @@ lock_set_recursive(l)
 /*
  *	Prevent a lock from being re-acquired.
  */
-void 
+void
 lock_clear_recursive(l)
 	lock_t l;
 {

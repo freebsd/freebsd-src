@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_egreg.h,v 1.1 1995/04/08 09:39:36 phk Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 
 /*
  * Host Status Register bits
- * EG_STAT_HRDY - Data Register ready 
+ * EG_STAT_HRDY - Data Register ready
  * EG_STAT_HCRE - Host Command Register empty
  * EG_STAT_ACRF - Adapter Command register full
  * EG_STAT_DIR  - Direction flag, 0 = host -> adapter, 1 = adapter -> host
@@ -82,7 +82,7 @@
 #define EG_STAT_ASF2 0x02
 #define EG_STAT_ASF1 0x01
 
-#define EG_PCB_ACCEPT	1 
+#define EG_PCB_ACCEPT	1
 #define EG_PCB_REJECT	2
 #define EG_PCB_DONE	3
 #define EG_PCB_STAT(x)	((x)&3)

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.7 1994/08/21 04:41:47 paul Exp $
+ *	$Id: imgact.h,v 1.8 1994/10/02 17:24:45 phk Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -60,4 +60,4 @@ struct image_params {
 int	exec_extract_strings __P((struct image_params *));
 int	exec_new_vmspace __P((struct image_params *));
 #endif
-#endif 
+#endif

@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.11 1995/04/02 19:26:50 ache Exp $
+ * $Id: tty_compat.c,v 1.12 1995/04/11 17:54:25 ache Exp $
  */
 
-/* 
+/*
  * mapping routines for old line discipline (yuck)
  */
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -146,7 +146,7 @@ int ttsetcompat(tp, com, data, term)
 		if (*com == TIOCLSET)
 			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
 		else {
-			tp->t_flags = 
+			tp->t_flags =
 			 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
 			if (*com == TIOCLBIS)
 				tp->t_flags |= *(int *)data<<16;
@@ -228,7 +228,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCLGET:
 		tp->t_flags =
-		 (ttcompatgetflags(tp) & 0xffff0000UL) 
+		 (ttcompatgetflags(tp) & 0xffff0000UL)
 		   | (tp->t_flags & 0xffff);
 		*(int *)data = tp->t_flags>>16;
 		if (ttydebug)
@@ -242,7 +242,7 @@ ttcompat(tp, com, data, flag)
 	case OTIOCSETD: {
 		int ldisczero = 0;
 
-		return (ttioctl(tp, TIOCSETD, 
+		return (ttioctl(tp, TIOCSETD,
 			*(int *)data == 2 ? (caddr_t)&ldisczero : data, flag));
 	    }
 
@@ -284,8 +284,8 @@ ttcompatgetflags(tp)
 		} else
 			flags |= EVENP | ODDP;
 	}
-	
-	if ((lflag&ICANON) == 0) {	
+
+	if ((lflag&ICANON) == 0) {
 		/* fudge */
 		if (iflag&(INPCK|ISTRIP|IXON) || lflag&(IEXTEN|ISIG)
 		    || cflag&(CSIZE|PARENB) != CS8)
@@ -355,7 +355,7 @@ ttcompatsetflags(tp, t)
 		lflag |= ECHO;
 	else
 		lflag &= ~ECHO;
-		
+
 	cflag &= ~(CSIZE|PARENB);
 	if (flags&(RAW|LITOUT|PASS8)) {
 		cflag |= CS8;
@@ -379,7 +379,7 @@ ttcompatsetflags(tp, t)
 	} else if ((flags&(EVENP|ODDP)) == ODDP) {
 		iflag |= INPCK;
 		cflag |= PARODD;
-	} else 
+	} else
 		iflag &= ~INPCK;
 	if (flags&TANDEM)
 		iflag |= IXOFF;

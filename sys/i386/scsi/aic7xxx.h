@@ -1,6 +1,6 @@
 /*
- * Interface to the generic driver for the aic7xxx based adaptec 
- * SCSI controllers.  This is used to implement product specific 
+ * Interface to the generic driver for the aic7xxx based adaptec
+ * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
  * Copyright (c) 1994, 1995 Justin T. Gibbs.
@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.7 1995/04/27 17:47:17 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.8 1995/05/17 07:06:02 davidg Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -44,7 +44,7 @@ struct ahc_dma_seg {
         physaddr addr;
             long len;
 };
- 
+
 typedef u_char ahc_type;
 #define	AHC_NONE	0x00
 #define	AHC_WIDE	0x02	/* Wide Channel */
@@ -62,7 +62,7 @@ typedef u_char ahc_type;
  * boundaries since the first 26 bytes of this structure must have the correct
  * offsets for the hardware to find them.  The driver is further optimized
  * so that we only have to download the first 19 bytes since as long
- * as we always use S/G, the last fields should be zero anyway.  
+ * as we always use S/G, the last fields should be zero anyway.
  */
 struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
@@ -86,18 +86,18 @@ struct scb {
 /*18*/	u_char residual_data_count[3];
 /*19*/	u_char residual_SG_segment_count;
 #define	SCB_DOWN_SIZE 19		/* amount to actually download */
-#define SCB_BZERO_SIZE 19		/* 
+#define SCB_BZERO_SIZE 19		/*
 					 * amount we need to clear between
 					 * commands
 					 */
 /*23*/	physaddr data			 __attribute__ ((packed));
 /*26*/  u_char datalen[3];
-#define SCB_UP_SIZE 26			/* 
+#define SCB_UP_SIZE 26			/*
 					 * amount we need to upload to perform
 					 * a request sense.
 					 */
 /*30*/	physaddr host_scb			 __attribute__ ((packed));
-/*31*/	u_char next_waiting;		/* Used to thread SCBs awaiting 
+/*31*/	u_char next_waiting;		/* Used to thread SCBs awaiting
 					 * selection
 					 */
 #define SCB_LIST_NULL 0x10		/* SCB list equivelent to NULL */
@@ -122,7 +122,7 @@ struct scb {
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */
 };
- 
+
 struct ahc_data {
 	ahc_type type;
 	int      flags;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.17 1995/04/26 18:10:55 pst Exp $
+ * $Id: ip_output.c,v 1.18 1995/05/09 13:35:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1065,7 +1065,7 @@ ip_getmoptions(optname, imo, mp)
 
 	switch (optname) {
 
-	case IP_MULTICAST_VIF: 
+	case IP_MULTICAST_VIF:
 		if (imo != NULL)
 			*(mtod(*mp, int *)) = imo->imo_multicast_vif;
 		else

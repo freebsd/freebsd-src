@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp $
+ * $Id: tp_pcb.c,v 1.4 1995/04/26 21:32:38 pst Exp $
  */
 
 /***********************************************************
@@ -39,13 +39,13 @@
 
                       All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the name of IBM not be
 used in advertising or publicity pertaining to distribution of the
-software without specific, written prior permission.  
+software without specific, written prior permission.
 
 IBM DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -60,20 +60,20 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* 
+/*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.4 1995/04/26 21:32:38 pst Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.c,v $
  *
  *
- * This is the initialization and cleanup stuff - 
+ * This is the initialization and cleanup stuff -
  * for the tp machine in general as well as  for the individual pcbs.
  * tp_init() is called at system startup.  tp_attach() and tp_getref() are
  * called when a socket is created.  tp_detach() and tp_freeref()
- * are called during the closing stage and/or when the reference timer 
- * goes off. 
- * tp_soisdisconnecting() and tp_soisdisconnected() are tp-specific 
+ * are called during the closing stage and/or when the reference timer
+ * goes off.
+ * tp_soisdisconnecting() and tp_soisdisconnected() are tp-specific
  * versions of soisconnect*
  * and are called (obviously) during the closing phase.
  *
@@ -102,10 +102,10 @@ SOFTWARE.
 #include <netiso/tp_seq.h>
 #include <netiso/tp_clnp.h>
 
-/* ticks are in units of: 
+/* ticks are in units of:
  * 500 nano-fortnights ;-) or
- * 500 ms or 
- * 1/2 second 
+ * 500 ms or
+ * 1/2 second
  */
 
 struct tp_conn_param tp_conn_param[] = {
@@ -131,7 +131,7 @@ struct tp_conn_param tp_conn_param[] = {
 		TP_TPDUSIZE, 			/* u_char p_tpdusize */
 
 		TPACK_WINDOW, 			/* 4 bits p_ack_strat */
-		TPRX_USE_CW | TPRX_FASTSTART, 
+		TPRX_USE_CW | TPRX_FASTSTART,
 								/* 4 bits p_rx_strat*/
 		TP_CLASS_4 | TP_CLASS_0,/* 5 bits p_class */
 		1,						/* 1 bit xtd format */
@@ -166,7 +166,7 @@ struct tp_conn_param tp_conn_param[] = {
 		TP_TPDUSIZE, 			/* u_char p_tpdusize */
 
 		TPACK_WINDOW, 			/* 4 bits p_ack_strat */
-		TPRX_USE_CW | TPRX_FASTSTART, 
+		TPRX_USE_CW | TPRX_FASTSTART,
 								/* 4 bits p_rx_strat*/
 		TP_CLASS_4,				/* 5 bits p_class */
 		1,						/* 1 bit xtd format */
@@ -197,7 +197,7 @@ struct tp_conn_param tp_conn_param[] = {
 		0,		/* n/a */		/* short p_inact_ticks;	*/
 
 		/* Use tp4 defaults just in case the user changes ONLY
-		 * the class 
+		 * the class
 		 */
 		(short) 100, 			/* short p_lcdtfract */
 		(short) TP0_SOCKBUFSIZE,	/* short p_winsize */
@@ -238,7 +238,7 @@ struct tp_conn_param tp_conn_param[] = {
 		TP0_TPDUSIZE, 			/* u_char p_tpdusize */
 
 		TPACK_WINDOW, 			/* 4 bits p_ack_strat */
-		TPRX_USE_CW ,			/* No fast start */ 
+		TPRX_USE_CW ,			/* No fast start */
 								/* 4 bits p_rx_strat*/
 		TP_CLASS_4 | TP_CLASS_0,/* 5 bits p_class */
 		0,						/* 1 bit xtd format */
@@ -257,37 +257,37 @@ struct tp_conn_param tp_conn_param[] = {
 int		in_putnetaddr();
 int		in_getnetaddr();
 int		in_cmpnetaddr();
-int 	in_putsufx(); 
-int 	in_getsufx(); 
-int 	in_recycle_tsuffix(); 
-int 	tpip_mtu(); 
-int 	in_pcbbind(); 
-int 	in_pcbconnect(); 
+int 	in_putsufx();
+int 	in_getsufx();
+int 	in_recycle_tsuffix();
+int 	tpip_mtu();
+int 	in_pcbbind();
+int 	in_pcbconnect();
 #if 0
 /* XXX these are now declared as returning void in <netinet/in_pcb.h>. */
-int 	in_pcbdisconnect(); 
-int 	in_pcbdetach(); 
+int 	in_pcbdisconnect();
+int 	in_pcbdetach();
 #endif
-int 	in_pcballoc(); 
-int 	tpip_output(); 
-int 	tpip_output_dg(); 
+int 	in_pcballoc();
+int 	tpip_output();
+int 	tpip_output_dg();
 struct inpcb	tp_inpcb;
 #endif /* INET */
 #ifdef ISO
 int		iso_putnetaddr();
 int		iso_getnetaddr();
 int		iso_cmpnetaddr();
-int 	iso_putsufx(); 
-int 	iso_getsufx(); 
-int 	iso_recycle_tsuffix(); 
-int		tpclnp_mtu(); 
-int		iso_pcbbind(); 
-int		iso_pcbconnect(); 
-int		iso_pcbdisconnect(); 
-int 	iso_pcbdetach(); 
-int 	iso_pcballoc(); 
-int 	tpclnp_output(); 
-int 	tpclnp_output_dg(); 
+int 	iso_putsufx();
+int 	iso_getsufx();
+int 	iso_recycle_tsuffix();
+int		tpclnp_mtu();
+int		iso_pcbbind();
+int		iso_pcbconnect();
+int		iso_pcbdisconnect();
+int 	iso_pcbdetach();
+int 	iso_pcballoc();
+int 	tpclnp_output();
+int 	tpclnp_output_dg();
 int		iso_nlctloutput();
 struct isopcb	tp_isopcb;
 #endif /* ISO */
@@ -295,16 +295,16 @@ struct isopcb	tp_isopcb;
 int		iso_putnetaddr();
 int		iso_getnetaddr();
 int		iso_cmpnetaddr();
-int 	iso_putsufx(); 
-int 	iso_getsufx(); 
-int 	iso_recycle_tsuffix(); 
-int		iso_pcbbind(); 
-int		tpcons_pcbconnect(); 
+int 	iso_putsufx();
+int 	iso_getsufx();
+int 	iso_recycle_tsuffix();
+int		iso_pcbbind();
+int		tpcons_pcbconnect();
 int		tpclnp_mtu();
-int		iso_pcbdisconnect(); 
-int 	iso_pcbdetach(); 
-int 	iso_pcballoc(); 
-int 	tpcons_output(); 
+int		iso_pcbdisconnect();
+int 	iso_pcbdetach();
+int 	iso_pcballoc();
+int 	tpcons_output();
 struct isopcb	tp_isopcb;
 #endif /* TPCONS */
 
@@ -371,7 +371,7 @@ u_long tp_recvspace = 1024 * 4;
  * RETURNS:  Nada
  *
  * SIDE EFFECTS:
- * 
+ *
  * NOTES:
  */
 int
@@ -439,7 +439,7 @@ tp_soisdisconnecting(so)
  * NAME: tp_soisdisconnected()
  *
  * CALLED FROM:
- *	tp.trans	
+ *	tp.trans
  *
  * FUNCTION and ARGUMENTS:
  *  Set state of the socket (so) to reflect that fact that we're disconnectED
@@ -474,7 +474,7 @@ tp_soisdisconnected(tpcb)
 		bcopy ((caddr_t)ttpcb->tp_fsuffix, (caddr_t)&fsufx, sizeof(u_int) );
 		bcopy ((caddr_t)ttpcb->tp_lsuffix, (caddr_t)&lsufx, sizeof(u_int) );
 
-		tpmeas(ttpcb->tp_lref, TPtime_close, 
+		tpmeas(ttpcb->tp_lref, TPtime_close,
 		   &time, &lsufx, &fsufx, ttpcb->tp_fref);
 		tpcb->tp_perf_on = 0; /* turn perf off */
 	ENDPERF
@@ -497,7 +497,7 @@ tp_soisdisconnected(tpcb)
  *  Frees the reference represented by (r) for re-use.
  *
  * RETURNS: Nothing
- * 
+ *
  * SIDE EFFECTS:
  *
  * NOTES:	better be called at clock priority !!!!!
@@ -511,7 +511,7 @@ RefNum n;
 
 	tpcb = r->tpr_pcb;
 	IFDEBUG(D_TIMER)
-		printf("tp_freeref called for ref %d pcb %x maxrefopen %d\n", 
+		printf("tp_freeref called for ref %d pcb %x maxrefopen %d\n",
 		n, tpcb, tp_refinfo.tpr_maxopen);
 	ENDDEBUG
 	IFTRACE(D_TIMER)
@@ -545,7 +545,7 @@ RefNum n;
  *
  * FUNCTION and ARGUMENTS:
  *  obtains the next free reference and allocates the appropriate
- *  ref structure, links that structure to (tpcb) 
+ *  ref structure, links that structure to (tpcb)
  *
  * RETURN VALUE:
  *	a reference number
@@ -556,7 +556,7 @@ RefNum n;
  * NOTES:
  */
 u_long
-tp_getref(tpcb) 
+tp_getref(tpcb)
 	register struct tp_pcb *tpcb;
 {
 	register struct tp_ref	*r, *rlim;
@@ -587,7 +587,7 @@ got_one:
 	r->tpr_pcb = tpcb;
 	tpcb->tp_refstate = REF_OPENING;
 	i = r - tp_refinfo.tpr_base;
-	if (tp_refinfo.tpr_maxopen < i) 
+	if (tp_refinfo.tpr_maxopen < i)
 		tp_refinfo.tpr_maxopen = i;
 	return (u_long)i;
 }
@@ -663,7 +663,7 @@ tp_attach(so, protocol)
 		tptrace(TPPTmisc, "tp_attach:dom so", dom, so, 0, 0);
 	ENDTRACE
 
-	if (so->so_pcb != NULL) { 
+	if (so->so_pcb != NULL) {
 		return EISCONN;	/* socket already part of a connection*/
 	}
 
@@ -681,8 +681,8 @@ tp_attach(so, protocol)
 	}
 	bzero( (caddr_t)tpcb, sizeof (struct tp_pcb) );
 
-	if ( ((lref = tp_getref(tpcb)) &  TP_ENOREF) != 0 ) { 
-		error = ETOOMANYREFS; 
+	if ( ((lref = tp_getref(tpcb)) &  TP_ENOREF) != 0 ) {
+		error = ETOOMANYREFS;
 		goto bad3;
 	}
 	tpcb->tp_lref = lref;
@@ -708,13 +708,13 @@ tp_attach(so, protocol)
 		   /* Spec says default is 128 octets,
 			* that is, if the tpdusize argument never appears, use 128.
 			* As the initiator, we will always "propose" the 2048
-			* size, that is, we will put this argument in the CR 
+			* size, that is, we will put this argument in the CR
 			* always, but accept what the other side sends on the CC.
 			* If the initiator sends us something larger on a CR,
 			* we'll respond w/ this.
 			* Our maximum is 4096.  See tp_chksum.c comments.
 			*/
-	tpcb->tp_cong_win = 
+	tpcb->tp_cong_win =
 		tpcb->tp_l_tpdusize = 1 << tpcb->tp_tpdusize;
 
 	tpcb->tp_seqmask  = TP_NML_FMT_MASK;
@@ -764,7 +764,7 @@ bad2:
  * CALLED FROM:
  *	tp.trans, on behalf of a user close request
  *  and when the reference timer goes off
- * (if the disconnect  was initiated by the protocol entity 
+ * (if the disconnect  was initiated by the protocol entity
  * rather than by the user)
  *
  * FUNCTION and ARGUMENTS:
@@ -793,7 +793,7 @@ tp_detach(tpcb)
 			tpcb,so);
 	ENDDEBUG
 	IFTRACE(D_CONN)
-		tptraceTPCB(TPPTmisc, "tp_detach tpcb so lsufx", 
+		tptraceTPCB(TPPTmisc, "tp_detach tpcb so lsufx",
 			tpcb, so, *(u_short *)(tpcb->tp_lsuffix), 0);
 	ENDTRACE
 
@@ -825,9 +825,9 @@ tp_detach(tpcb)
 	tpcb->tp_notdetached = 0;
 
 	IFDEBUG(D_CONN)
-		printf("calling (...nlproto->...)(0x%x, so 0x%x)\n", 
+		printf("calling (...nlproto->...)(0x%x, so 0x%x)\n",
 			tpcb->tp_npcb, so);
-		printf("so 0x%x so_head 0x%x,  qlen %d q0len %d qlimit %d\n", 
+		printf("so 0x%x so_head 0x%x,  qlen %d q0len %d qlimit %d\n",
 		so,  so->so_head,
 		so->so_q0len, so->so_qlen, so->so_qlimit);
 	ENDDEBUG
@@ -858,11 +858,11 @@ tp_detach(tpcb)
 		tp_freeref(tpcb->tp_lref);
 	}
 #ifdef TP_PERF_MEAS
-	/* 
+	/*
 	 * Get rid of the cluster mbuf allocated for performance measurements, if
-	 * there is one.  Note that tpcb->tp_perf_on says nothing about whether or 
-	 * not a cluster mbuf was allocated, so you have to check for a pointer 
-	 * to one (that is, we need the TP_PERF_MEASs around the following section 
+	 * there is one.  Note that tpcb->tp_perf_on says nothing about whether or
+	 * not a cluster mbuf was allocated, so you have to check for a pointer
+	 * to one (that is, we need the TP_PERF_MEASs around the following section
 	 * of code, not the IFPERFs)
 	 */
 	if (tpcb->tp_p_mbuf) {

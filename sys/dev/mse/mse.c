@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.10 1995/03/28 07:55:44 bde Exp $
+ * $Id: mse.c,v 1.11 1995/04/12 20:47:59 wollman Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -114,9 +114,9 @@ struct mse_softc {
 #define	MSE_SETUP	0x91	/* What does this mean? */
 				/* The definition for the control port */
 				/* is as follows: */
-				
+
 				/* D7 	 =  Mode set flag (1 = active) 	*/
-				/* D6,D5 =  Mode selection (port A) 	*/	
+				/* D6,D5 =  Mode selection (port A) 	*/
 				/* 	    00 = Mode 0 = Basic I/O 	*/
 				/* 	    01 = Mode 1 = Strobed I/O 	*/
 				/* 	    10 = Mode 2 = Bi-dir bus 	*/
@@ -129,7 +129,7 @@ struct mse_softc {
 				/* D1	 =  Port B direction (1 = input)*/
 				/* D0	 =  Port C (lower 4 bits)	*/
 				/*	    direction. (1 = input)	*/
-				
+
 				/* So 91 means Basic I/O on all 3 ports,*/
 				/* Port A is an input port, B is an 	*/
 				/* output port, C is split with upper	*/
@@ -288,7 +288,7 @@ mseclose(dev, flag)
 	return(0);
 }
 
-/* 
+/*
  * mseread: return mouse info using the MSC serial protocol, but without
  * using bytes 4 and 5.
  * (Yes this is cheesy, but it makes the X386 server happy, so...)
@@ -404,10 +404,10 @@ mseintr(unit)
 	 */
 	if (sc->sc_deltax != 0 || sc->sc_deltay != 0 ||
 	    (sc->sc_obuttons ^ sc->sc_buttons) != 0) {
-		if (sc->sc_flags & MSESC_WANT) {	
-			sc->sc_flags &= ~MSESC_WANT;	
-			wakeup((caddr_t)sc);	
-		}	
+		if (sc->sc_flags & MSESC_WANT) {
+			sc->sc_flags &= ~MSESC_WANT;
+			wakeup((caddr_t)sc);
+		}
 		selwakeup(&sc->sc_selp);
 	}
 }
@@ -437,7 +437,7 @@ mse_probelogi(idp)
 		outb(idp->id_iobase + MSE_PORTC, MSE_DISINTR);
 		return(1);
 	} else {
-		printf("mse%d: wrong signature %x\n",idp->id_unit,sig); 
+		printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
 		return(0);
 	}
 }

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.14 1995/03/18 20:01:10 swallace Exp $
+ * $Id: dmabuf.c,v 1.15 1995/05/07 06:38:47 pst Exp $
  */
 
 #include "sound_config.h"
@@ -435,7 +435,7 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
       break;
 
     case SNDCTL_DSP_SETBLKSIZE:
-      { 
+      {
         int     size = IOCTL_IN (arg);
 
         if(!(dmap->flags & DMA_ALLOC_DONE) && size)
@@ -921,7 +921,7 @@ DMAbuf_input_ready(int dev)
 {
   int	h,i,r;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
-          
+
   r = 0;
   if(dmap->qlen)
     {
@@ -931,13 +931,13 @@ DMAbuf_input_ready(int dev)
             {
               h = (dmap->qhead + i) % dmap->nbufs;
               r += dmap->fragment_size - dmap->counts[h];
-              if(r >= dmap->fragment_size) 
+              if(r >= dmap->fragment_size)
                  break;
-            } 
+            }
           if(r < dmap->fragment_size)
             r = 0;
           else
-            r = 1; 
+            r = 1;
         }
       else
           r = 1;

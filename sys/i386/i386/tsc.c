@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.32 1995/03/16 18:11:58 bde Exp $
+ *	$Id: clock.c,v 1.33 1995/05/11 07:44:40 bde Exp $
  */
 
 /*
@@ -193,7 +193,7 @@ int
 acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 {
 	if (timer0_state || TIMER_DIV(rate) < TIMER0_MIN_MAX_COUNT ||
-	    !function) 	
+	    !function)
 		return -1;
 	new_function = function;
 	new_rate = rate;
@@ -204,7 +204,7 @@ acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 int
 acquire_timer2(int mode)
 {
-	if (timer2_state) 	
+	if (timer2_state)
 		return -1;
 	timer2_state = 1;
 	outb(TIMER_MODE, TIMER_SEL2 | (mode &0x3f));
@@ -265,7 +265,7 @@ printrtc(void)
 #endif
 
 static int
-getit() 
+getit()
 {
 	int high, low;
 
@@ -307,7 +307,7 @@ calibrate_cyclecounter(void)
 
 /*
  * Wait "n" microseconds.
- * Relies on timer 1 counting down from (TIMER_FREQ / hz) 
+ * Relies on timer 1 counting down from (TIMER_FREQ / hz)
  * Note: timer had better have been programmed before this is first used!
  */
 void
@@ -339,7 +339,7 @@ DELAY(int n)
 	prev_tick = getit(0, 0);
 	n -= 20;
 	/*
-	 * Calculate (n * (TIMER_FREQ / 1e6)) without using floating point 
+	 * Calculate (n * (TIMER_FREQ / 1e6)) without using floating point
 	 * and without any avoidable overflows.
 	 */
 	sec = n / 1000000;
@@ -375,11 +375,11 @@ sysbeepstop(void *chan)
 	beeping = 0;
 }
 
-int 
+int
 sysbeep(int pitch, int period)
 {
 
-	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT)) 
+	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
 		return -1;
 	disable_intr();
 	outb(TIMER_CNTR2, pitch);
@@ -426,7 +426,7 @@ readrtc(int port)
  * XXX initialization of other timers is unintentionally left blank.
  */
 void
-startrtclock() 
+startrtclock()
 {
 	timer0_max_count = hardclock_max_count = TIMER_DIV(hz);
 	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;

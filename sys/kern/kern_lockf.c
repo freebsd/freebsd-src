@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.2 1994/09/25 19:33:37 phk Exp $
+ * $Id: kern_lockf.c,v 1.3 1994/10/25 11:27:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -146,7 +146,7 @@ lf_advlock(ap, head, size)
 		error = lf_getlock(lock, fl);
 		FREE(lock, M_LOCKF);
 		return (error);
-	
+
 	default:
 		free(lock, M_LOCKF);
 		return (EINVAL);
@@ -747,7 +747,7 @@ lf_print(tag, lock)
 	char *tag;
 	register struct lockf *lock;
 {
-	
+
 	printf("%s: lock 0x%lx for ", tag, lock);
 	if (lock->lf_flags & F_POSIX)
 		printf("proc %d", ((struct proc *)(lock->lf_id))->p_pid);
