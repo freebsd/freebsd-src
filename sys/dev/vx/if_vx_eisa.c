@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/eisa/eisaconf.h>
 
 #include <dev/vx/if_vxreg.h>
+#include <dev/vx/if_vxvar.h>
 
 #define EISA_DEVICE_ID_3COM_3C592	0x506d5920
 #define EISA_DEVICE_ID_3COM_3C597_TX	0x506d5970
@@ -139,8 +140,8 @@ vx_eisa_attach(device_t dev)
     sc = device_get_softc(dev);
 
     sc->vx_res = io;
-    sc->vx_bhandle = rman_get_bushandle(io);
-    sc->vx_btag = rman_get_bustag(io);
+    sc->bst = rman_get_bustag(io);
+    sc->bsh = rman_get_bushandle(io);
 
     rid = 0;
     irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
