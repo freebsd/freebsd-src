@@ -38,7 +38,8 @@ static char rcsid[] = "ypset.c,v 1.3 1993/06/12 00:02:37 deraadt Exp";
 #include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
-#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/yp.h>
+struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
 #include <arpa/inet.h>
 
@@ -72,17 +73,20 @@ char *dom, *server;
 
 	if( (hp = gethostbyname (server)) != NULL ) {
 		/* is this the most compatible way?? */
-		bcopy (hp->h_addr_list[0], &ypsd.ypsetdom_addr,
-		       sizeof (ypsd.ypsetdom_addr));
+		bcopy (hp->h_addr_list[0],
+		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
+		       sizeof (unsigned long));
 	} else if( (long)(server_addr = inet_addr (server)) == -1) {
 		fprintf(stderr, "can't find address for %s\n", server);
 		exit(1);
 	} else
-		bcopy (&server_addr, &ypsd.ypsetdom_addr,
+		bcopy (&server_addr,
+		       *(u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
 		       sizeof (server_addr));
 
-	strncpy(ypsd.ypsetdom_domain, dom, sizeof ypsd.ypsetdom_domain);
-	ypsd.ypsetdom_port = port;
+/*	strncpy(ypsd.ypsetdom_domain, dom, sizeof ypsd.ypsetdom_domain); */
+	ypsd.ypsetdom_domain = dom;
+	*(u_long *)&ypsd.ypsetdom_binding.ypbind_binding_port = port;
 	ypsd.ypsetdom_vers = YPVERS;
 
 	tv.tv_sec = 15;
