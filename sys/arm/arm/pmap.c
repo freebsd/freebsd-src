@@ -2896,6 +2896,15 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	return (sva);
 }
 
+static void
+pmap_wb_page(vm_page_t m)
+{
+	struct pv_entry *pv;
+
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
+		pmap_dcache_wb_range(pv->pv_pmap, pv->pv_va, PAGE_SIZE, FALSE,
+		    (pv->pv_flags & PVF_WRITE) == 0);
+}
 
 /*
  * Add a list of wired pages to the kva
@@ -2911,11 +2920,11 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
+		pmap_wb_page(m[i]);
 		pmap_kenter_internal(va, VM_PAGE_TO_PHYS(m[i]), 
 		    KENTER_CACHE);
 		va += PAGE_SIZE;
 	}
-	cpu_dcache_wbinv_all(); /* XXX: shouldn't be needed */
 }
 
 
