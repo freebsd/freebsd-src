@@ -56,3 +56,4 @@ TIMER_FREQ			opt_clock.h
 
 # SKI emulator options
 SKI_ROOT_FILESYSTEM	opt_ski.h
+SSC_NSECT		opt_ski.h
