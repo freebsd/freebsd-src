@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.5 1999/06/17 13:38:59 ru Exp $
+ *	$Id: ip_fw.c,v 1.103.2.6 1999/08/16 17:29:50 luigi Exp $
  */
 
 /*
@@ -874,7 +874,7 @@ static int
 add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 {
 	struct ip_fw *ftmp = 0;
-	struct ip_fw_ext *ftmp_ext = 0 
+	struct ip_fw_ext *ftmp_ext = 0 ;
 	struct ip_fw_chain *fwc = 0, *fcp, *fcpl = 0;
 	u_short nbr = 0;
 	int s;
