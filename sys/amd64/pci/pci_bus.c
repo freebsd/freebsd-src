@@ -441,7 +441,7 @@ nexus_pcib_attach(device_t dev)
 {
 	device_t child;
 
-	child = device_add_child(dev, "pci", device_get_unit(dev));
+	child = device_add_child(dev, "pci", pcib_get_bus(dev));
 
 	return bus_generic_attach(dev);
 }
