@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.21 1994/08/18 23:36:40 phk Exp $
+ *      $Id: ultra14f.c,v 1.22 1994/08/19 00:32:52 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -47,9 +47,7 @@
 
 /* */
 
-#ifdef	KERNEL
-#include "ddb.h"
-#else /*KERNEL */
+#ifndef	KERNEL
 #define NUHA 1
 #endif /*KERNEL */
 

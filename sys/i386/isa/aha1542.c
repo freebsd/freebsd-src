@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.32 1994/08/20 03:48:37 davidg Exp $
+ *      $Id: aha1542.c,v 1.33 1994/08/23 07:52:00 paul Exp $
  */
 
 /*
@@ -37,7 +37,6 @@
 #include <scsi/scsiconf.h>
 
 #ifdef	KERNEL
-#include "ddb.h"
 #include <sys/kernel.h>
 #else /*KERNEL */
 #define NAHA 1

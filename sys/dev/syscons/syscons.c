@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.51 1994/08/17 19:32:23 sos Exp $
+ *	$Id: syscons.c,v 1.52 1994/08/20 03:48:42 davidg Exp $
  */
 
 #include "sc.h"
@@ -278,10 +278,6 @@ struct	tty 		pccons[NCONS+1];
 #define	timeout_t	timeout_func_t
 #define	MONO_BUF	(KERNBASE+0xB0000)
 #define	CGA_BUF		(KERNBASE+0xB8000)
-#include "ddb.h"
-#if NDDB > 0
-#define DDB	1
-#endif
 u_short			*Crtat = (u_short *)MONO_BUF;
 void 	consinit(void) 	{scinit();}
 
@@ -2412,7 +2408,7 @@ next_code:
 				shutdown_nice();
 				break;	
 			case DBG:
-#if DDB > 0			/* try to switch to console 0 */
+#ifdef DDB			/* try to switch to console 0 */
 				if (cur_console->smode.mode == VT_AUTO &&
 		    		    console[0].smode.mode == VT_AUTO)
 					switch_scr(0); 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.6 1994/08/13 03:49:16 wollman Exp $
+ *	$Id: db_command.c,v 1.7 1994/08/18 22:34:20 wollman Exp $
  */
 
 /*
@@ -306,15 +306,15 @@ db_command(last_cmdp, cmd_table)
 
 extern void	db_show_one_thread(), db_show_all_threads();
 extern void	vm_page_print();
-/* extern void	db_ps(); */
+extern void	db_ps();
 extern void	ipc_port_print();
 void		db_show_help();
 
 struct command db_show_all_cmds[] = {
 #if 0
 	{ "threads",	db_show_all_threads,	0,	0 },
-	{ "procs",	db_ps,			0,	0 },
 #endif
+	{ "procs",	db_ps,			0,	0 },
 	{ (char *)0 }
 };
 
@@ -363,9 +363,7 @@ struct command db_command_table[] = {
 	{ "trace",	db_stack_trace_cmd,	0,	0 },
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
-#if 0
 	{ "ps",		db_ps,			0,	0 },
-#endif
 	{ (char *)0, }
 };
 
