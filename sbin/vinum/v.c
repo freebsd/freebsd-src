@@ -36,9 +36,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: v.c,v 1.27 1999/10/12 05:41:10 grog Exp grog $
+ * $FreeBSD$
  */
-
-/* $FreeBSD$ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -82,10 +82,11 @@ int inerror;						    /* set to 1 to exit after end of config file */
 int debug = 0;						    /* debug flag, usage varies */
 #endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
-int verbose = 0;					    /* set verbose operation */
+int vflag = 0;						    /* set verbose operation or verify */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
 int sflag = 0;						    /* show statistics */
+int SSize = 0;						    /* sector size for revive */
 int dowait = 0;						    /* wait for completion */
 char *objectname;					    /* name to be passed for -n flag */
 
@@ -288,7 +289,7 @@ parseline(int args, char *argv[])
     command = get_keyword(argv[0], &keyword_set);
     dowait = 0;						    /* initialize flags */
     force = 0;						    /* initialize flags */
-    verbose = 0;					    /* initialize flags */
+    vflag = 0;						    /* initialize flags */
     Verbose = 0;					    /* initialize flags */
     recurse = 0;					    /* initialize flags */
     sflag = 0;						    /* initialize flags */
@@ -315,8 +316,8 @@ parseline(int args, char *argv[])
 
 	    case 'n':					    /* -n: get name */
 		if (i == args - 1) {			    /* last arg */
-		    printf("-n requires a name parameter\n");
-		    exit(1);
+		    fprintf(stderr, "-n requires a name parameter\n");
+		    return;
 		}
 		objectname = argv[++i];			    /* pick it up */
 		j = strlen(argv[i]);			    /* skip the next parm */
@@ -330,12 +331,22 @@ parseline(int args, char *argv[])
 		sflag = 1;
 		break;
 
+	    case 'S':
+		SSize = 0;
+		if (argv[i][j + 1] != '\0')		    /* operand follows, */
+		    SSize = atoi(&argv[i][j + 1]);	    /* use it */
+		else if (args > (i + 1))		    /* another following, */
+		    SSize = atoi(argv[++i]);		    /* use it */
+		if (SSize == 0)				    /* nothing valid, */
+		    fprintf(stderr, "-S: no size specified\n");
+		break;
+
 	    case 'v':					    /* -v: verbose */
-		verbose++;
+		vflag++;
 		break;
 
 	    case 'V':					    /* -V: Very verbose */
-		verbose++;
+		vflag++;
 		Verbose++;
 		break;
 
@@ -793,7 +804,7 @@ start_daemon(void)
 	setproctitle(VINUMMOD " daemon");		    /* show what we're doing */
 	status = ioctl(superdev, VINUM_FINDDAEMON, NULL);
 	if (status != 0) {				    /* no daemon, */
-	    ioctl(superdev, VINUM_DAEMON, &verbose);	    /* we should hang here */
+	    ioctl(superdev, VINUM_DAEMON, &vflag);	    /* we should hang here */
 	    syslog(LOG_ERR | LOG_KERN, "%s", strerror(errno));
 	    exit(1);
 	}
