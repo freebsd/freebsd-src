@@ -159,6 +159,8 @@ Disable write clustering.
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
 special devices for architectures other than its own.
+This option is set automatically when the user does not have super-user
+privileges.
 .It Cm noexec
 Do not allow execution of any binaries on the mounted file system.
 This option is useful for a server that has file systems containing
@@ -169,6 +171,7 @@ Note: this option is worthless if a public available suid or sgid
 wrapper like
 .Xr suidperl 1
 is installed on your system.
+It is set automatically when the user does not have super-user privileges.
 .It Cm nosymfollow
 Do not follow symlinks
 on the mounted file system.
@@ -430,6 +433,7 @@ file system table
 .Xr mount_udf 8 ,
 .Xr mount_umapfs 8 ,
 .Xr mount_unionfs 8 ,
+.Xr sysctl 8 ,
 .Xr umount 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
