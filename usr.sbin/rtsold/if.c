@@ -35,23 +35,12 @@
 #include <sys/ioctl.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-#ifdef __FreeBSD__
-# include <net/ethernet.h>
-#endif
-#ifdef __NetBSD__
-#include <net/if_ether.h>
-#endif
-#if defined(__bsdi__) || defined(__OpenBSD__)
-# include <netinet/in.h>
-# include <netinet/if_ether.h>
-#endif
+#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
 
@@ -359,13 +348,7 @@ getifa(char *name, struct in6_ifaddr *ifap)
 		KREAD(ifp, &ifnet, struct ifnet);
 		if (ifnet.if_index == index)
 			break;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		ifp = TAILQ_NEXT(&ifnet, if_list);
-#elif defined(__FreeBSD__) && __FreeBSD__ >= 3
 		ifp = TAILQ_NEXT(&ifnet, if_link);
-#else
-		ifp = ifnet.if_next;
-#endif
 	}
 	if (!ifp) {
 		warnmsg(LOG_ERR, __FUNCTION__, "interface \"%s\" not found",
@@ -373,13 +356,7 @@ getifa(char *name, struct in6_ifaddr *ifap)
 		goto bad;
 	}
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	ifa = (struct in6_ifaddr *)TAILQ_FIRST(&ifnet.if_addrlist);
-#elif defined(__FreeBSD__) && __FreeBSD__ >= 3
 	ifa = (struct in6_ifaddr *)TAILQ_FIRST(&ifnet.if_addrhead);
-#else
-	ifa = (struct in6_ifaddr *)ifnet.if_addrlist;
-#endif
 	while (ifa) {
 		KREAD(ifa, ifap, *ifap);
 		if (ifap->ia_addr.sin6_family == AF_INET6
@@ -388,15 +365,8 @@ getifa(char *name, struct in6_ifaddr *ifap)
 			return 0;
 		}
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		ifa = (struct in6_ifaddr *)
-			TAILQ_NEXT((struct ifaddr *)ifap, ifa_list);
-#elif defined(__FreeBSD__) && __FreeBSD__ >= 3
 		ifa = (struct in6_ifaddr *)
 			TAILQ_NEXT((struct ifaddr *)ifap, ifa_link);
-#else
-		ifa = (struct in6_ifaddr *)(((struct ifaddr *)ifap)->ifa_next);
-#endif
 	}
 	warnmsg(LOG_ERR, __FUNCTION__, "no IPv6 link-local address for %s",
 	       name);
