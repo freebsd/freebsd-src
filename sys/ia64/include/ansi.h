@@ -72,7 +72,7 @@
 #define	_BSD_OFF_T_	long			/* file offset */
 #define	_BSD_PID_T_	int			/* process [group] */
 
-#if defined(__GNUC__)
+#ifdef __GNUC__
 #define	_BSD_VA_LIST_	__builtin_va_list	/* internally known to gcc */
 typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #else
