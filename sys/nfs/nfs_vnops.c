@@ -2840,9 +2840,9 @@ again:
 		 * If we can't get memory (for whatever reason), we will end up
 		 * committing the buffers one-by-one in the loop below.
 		 */
+		if (bvec != NULL && bvec != bvec_on_stack)
+			free(bvec, M_TEMP);
 		if (bveccount > NFS_COMMITBVECSIZ) {
-			if (bvec != NULL && bvec != bvec_on_stack)
-				free(bvec, M_TEMP);
 			bvec = (struct buf **)
 				malloc(bveccount * sizeof(struct buf *),
 				       M_TEMP, M_NOWAIT);
