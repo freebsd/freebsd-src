@@ -25,9 +25,7 @@ Boston, MA 02111-1307, USA.  */
 /* $FreeBSD$ */
 
 #undef  CC1_SPEC
-#define CC1_SPEC "%(cc1_cpu) %{profile:-p} \
-  %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
-  "
+#define CC1_SPEC "%(cc1_cpu) %{profile:-p}"
 
 #undef  ASM_SPEC
 #define ASM_SPEC	"%{v*: -v}"
