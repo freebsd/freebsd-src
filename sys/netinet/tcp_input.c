@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54.2.3 1997/09/16 18:37:01 joerg Exp $
+ *	$Id: tcp_input.c,v 1.54.2.4 1997/09/30 16:43:38 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -752,8 +752,6 @@ findpcb:
 		}
 
 	/*
-	 * If the state is SYN_RECEIVED:
-	 *	do just the ack and RST checks from SYN_SENT state.
 	 * If the state is SYN_SENT:
 	 *	if seg contains an ACK, but not for our SYN, drop the input.
 	 *	if seg contains a RST, then drop the connection.
@@ -765,7 +763,6 @@ findpcb:
 	 *	arrange for segment to be acked (eventually)
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
-	case TCPS_SYN_RECEIVED:
 	case TCPS_SYN_SENT:
 		if ((taop = tcp_gettaocache(inp)) == NULL) {
 			taop = &tao_noncached;
@@ -793,8 +790,6 @@ findpcb:
 				tp = tcp_drop(tp, ECONNREFUSED);
 			goto drop;
 		}
-		if (tp->t_state == TCPS_SYN_RECEIVED)
-			break;
 		if ((tiflags & TH_SYN) == 0)
 			goto drop;
 		tp->snd_wnd = ti->ti_win;	/* initial send window */
