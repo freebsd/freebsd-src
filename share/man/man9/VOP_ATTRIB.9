@@ -60,7 +60,7 @@ the thread
 .El
 .Pp
 Attributes which are not being modified by
-.Xr VOP_SETATTR 9
+.Fn VOP_SETATTR
 should be set to the value
 .Dv VNOVAL ;
 .Fn VATTR_NULL
@@ -69,21 +69,21 @@ the contents of
 .Fa *vap
 prior to setting specific values.
 .Sh LOCKS
-.Xr VOP_GETATTR 9
+.Fn VOP_GETATTR
 expects the vnode to be locked on entry and will leave the vnode locked on
 return.
 The lock type can be either shared or exclusive.
 .Pp
-.Xr VOP_SETATTR 9
+.Fn VOP_SETATTR
 expects the vnode to be locked on entry and will leave the vnode locked on
 return.
 The lock type must be exclusive.
 .Sh RETURN VALUES
-.Xr VOP_GETATTR 9
+.Fn VOP_GETATTR
 returns 0 if it was able to retrieve the attribute data via
 .Fa *vap ,
 otherwise an appropriate error is returned.
-.Xr VOP_SETATTR 9
+.Fn VOP_SETATTR
 returns zero if the attributes were changed successfully, otherwise an
 appropriate error is returned.
 .Sh PSEUDOCODE
