@@ -15,7 +15,7 @@ researchers or folks who simply want to see how it all works.
 A large collection of 3rd party ported software (the "ports
 collection") is also provided to make it easier for you to obtain and
 install all your favorite traditional UNIX utilities for FreeBSD.
-Over 3000 ports, from editors to programming languages to graphical
+Over 4500 ports, from editors to programming languages to graphical
 applications, make FreeBSD a powerful and comprehensive operating
 environment that extends far beyond what's provided by many commercial
 versions of UNIX.
