@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.23 1998/02/20 13:37:38 bde Exp $
+ * $Id: kern_ktrace.c,v 1.24 1998/11/10 09:16:29 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -473,7 +473,7 @@ ktrwrite(vp, kth)
 	aiov[0].iov_len = sizeof(struct ktr_header);
 	auio.uio_resid = sizeof(struct ktr_header);
 	auio.uio_iovcnt = 1;
-	auio.uio_procp = (struct proc *)0;
+	auio.uio_procp = curproc;
 	if (kth->ktr_len > 0) {
 		auio.uio_iovcnt++;
 		aiov[1].iov_base = kth->ktr_buf;
