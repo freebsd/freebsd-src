@@ -50,13 +50,14 @@
 #if 0
 #define PFS_TRACE(foo) \
 	do { \
-		printf("pseudofs: %s(): ", __FUNCTION__); \
+		printf("pseudofs: %s(): line %d: ", __FUNCTION__, __LINE__); \
 		printf foo ; \
 		printf("\n"); \
 	} while (0)
 #define PFS_RETURN(err) \
 	do { \
-		printf("pseudofs: %s(): returning %d\n", __FUNCTION__, err); \
+		printf("pseudofs: %s(): line %d: returning %d\n", \
+		    __FUNCTION__, __LINE__, err); \
 		return (err); \
 	} while (0)
 #else
@@ -101,12 +102,10 @@ static int
 pfs_access(struct vop_access_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
-	struct pfs_node *pn = pvd->pvd_pn;
 	struct vattr vattr;
 	int error;
 	
-	PFS_TRACE((pn->pn_name));
+	PFS_TRACE((((struct pfs_vdata *)vn->v_data)->pvd_pn->pn_name));
 	
 	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
@@ -251,7 +250,7 @@ pfs_lookup(struct vop_lookup_args *va)
 	}
 
 	/* named node */
-	for (pn = pd->pn_nodes; pn->pn_type; ++pn)
+	for (pn = pd->pn_nodes; pn != NULL; pn = pn->pn_next)
 		if (pn->pn_type == pfstype_procdir)
 			pdn = pn;
 		else if (pn->pn_name[namelen] == '\0'
@@ -343,6 +342,9 @@ pfs_read(struct vop_read_args *va)
 	if (!(pn->pn_flags & PFS_RD))
 		PFS_RETURN (EBADF);
 
+	if (pn->pn_func == NULL)
+		error = EIO;
+	
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
@@ -396,26 +398,27 @@ pfs_read(struct vop_read_args *va)
  * Iterate through directory entries
  */
 static int
-pfs_iterate(struct thread *td, pid_t pid, struct pfs_node **pn, struct proc **p)
+pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
+            struct pfs_node **pn, struct proc **p)
 {
-	if ((*pn)->pn_type == pfstype_none)
-		return (-1);
-
+	if ((*pn) == NULL)
+		*pn = pd->pn_nodes;
+	else
  again:
 	if ((*pn)->pn_type != pfstype_procdir)
-		++*pn;
+		*pn = (*pn)->pn_next;
 	
-	while ((*pn)->pn_type == pfstype_procdir) {
+	while (*pn != NULL && (*pn)->pn_type == pfstype_procdir) {
 		if (*p == NULL)
 			*p = LIST_FIRST(&allproc);
 		else
 			*p = LIST_NEXT(*p, p_list);
 		if (*p != NULL)
 			break;
-		++*pn;
+		*pn = (*pn)->pn_next;
 	}
 	
-	if ((*pn)->pn_type == pfstype_none)
+	if ((*pn) == NULL)
 		return (-1);
 
 	if (!pfs_visible(td, *pn, *p ? (*p)->p_pid : pid))
@@ -460,13 +463,16 @@ pfs_readdir(struct vop_readdir_args *va)
 
 	/* skip unwanted entries */
 	sx_slock(&allproc_lock);
-	for (pn = pd->pn_nodes, p = NULL; offset > 0; offset -= PFS_DELEN)
-		if (pfs_iterate(curthread, pid, &pn, &p) == -1)
-			break;
+	for (pn = NULL, p = NULL; offset > 0; offset -= PFS_DELEN)
+		if (pfs_iterate(curthread, pid, pd, &pn, &p) == -1) {
+			/* nothing left... */
+			sx_sunlock(&allproc_lock);
+			PFS_RETURN (0);
+		}
 	
 	/* fill in entries */
 	entry.d_reclen = PFS_DELEN;
-	while (pfs_iterate(curthread, pid, &pn, &p) != -1 && resid > 0) {
+	while (pfs_iterate(curthread, pid, pd, &pn, &p) != -1 && resid > 0) {
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
 		if (!pn->pn_fileno)
@@ -504,6 +510,7 @@ pfs_readdir(struct vop_readdir_args *va)
 			sx_sunlock(&allproc_lock);
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
+		PFS_TRACE((entry.d_name));
 		if ((error = uiomove((caddr_t)&entry, PFS_DELEN, uio))) {
 			sx_sunlock(&allproc_lock);
 			PFS_RETURN (error);
@@ -537,6 +544,9 @@ pfs_readlink(struct vop_readlink_args *va)
 	if (vn->v_type != VLNK)
 		PFS_RETURN (EINVAL);
 
+	if (pn->pn_func == NULL)
+		error = EIO;
+	
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (EIO);
@@ -573,11 +583,7 @@ pfs_readlink(struct vop_readlink_args *va)
 static int
 pfs_reclaim(struct vop_reclaim_args *va)
 {
-	struct vnode *vn = va->a_vp;
-	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
-	struct pfs_node *pn = pvd->pvd_pn;
-
-	PFS_TRACE((pn->pn_name));
+	PFS_TRACE((((struct pfs_vdata *)va->a_vp->v_data)->pvd_pn->pn_name));
 	
 	return (pfs_vncache_free(va->a_vp));
 }
@@ -588,11 +594,7 @@ pfs_reclaim(struct vop_reclaim_args *va)
 static int
 pfs_setattr(struct vop_setattr_args *va)
 {
-	struct vnode *vn = va->a_vp;
-	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
-	struct pfs_node *pn = pvd->pvd_pn;
-
-	PFS_TRACE((pn->pn_name));
+	PFS_TRACE((((struct pfs_vdata *)va->a_vp->v_data)->pvd_pn->pn_name));
 	
 	if (va->a_vap->va_flags != (u_long)VNOVAL)
 		PFS_RETURN (EOPNOTSUPP);
@@ -622,6 +624,9 @@ pfs_write(struct vop_read_args *va)
 	if (!(pn->pn_flags & PFS_WR))
 		PFS_RETURN (EBADF);
 
+	if (pn->pn_func == NULL)
+		error = EIO;
+	
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.

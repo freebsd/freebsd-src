@@ -44,8 +44,193 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
+static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
+
 SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
     "pseudofs");
+
+/*
+ * Add a node to a directory
+ */
+static int
+_pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
+{
+	KASSERT(parent != NULL,
+	    (__FUNCTION__ "(): parent is NULL"));
+	KASSERT(parent->pn_info != NULL,
+	    (__FUNCTION__ "(): parent has no pn_info"));
+	KASSERT(parent->pn_type == pfstype_dir ||
+	    parent->pn_type == pfstype_procdir ||
+	    parent->pn_type == pfstype_root,
+	    (__FUNCTION__ "(): parent is not a directory"));
+
+	/* XXX should check for duplicate names etc. */
+	
+	mtx_lock(&parent->pn_info->pi_mutex);
+	node->pn_info = parent->pn_info;
+	node->pn_parent = parent;
+	node->pn_next = parent->pn_nodes;
+	parent->pn_nodes = node;
+	mtx_unlock(&parent->pn_info->pi_mutex);
+	
+	return (0);
+}
+
+/*
+ * Add . and .. to a directory
+ */
+static int
+_pfs_fixup_dir(struct pfs_node *parent)
+{
+	struct pfs_node *dir;
+	
+	MALLOC(dir, struct pfs_node *, sizeof *dir,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	dir->pn_name[0] = '.';
+	dir->pn_type = pfstype_this;
+	
+	if (_pfs_add_node(parent, dir) != 0) {
+		FREE(dir, M_PFSNODES);
+		return (-1);
+	}
+	
+	MALLOC(dir, struct pfs_node *, sizeof *dir,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	dir->pn_name[0] = dir->pn_name[1] = '.';
+	dir->pn_type = pfstype_parent;
+	
+	if (_pfs_add_node(parent, dir) != 0) {
+		FREE(dir, M_PFSNODES);
+		return (-1);
+	}
+
+	return (0);
+}
+
+/*
+ * Create a directory
+ */
+struct pfs_node	*
+pfs_create_dir(struct pfs_node *parent, char *name,
+	       pfs_attr_t attr, pfs_vis_t vis, int flags)
+{
+	struct pfs_node *dir;
+
+	KASSERT(strlen(name) < PFS_NAMELEN,
+	    (__FUNCTION__ "(): node name is too long"));
+
+	MALLOC(dir, struct pfs_node *, sizeof *dir,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	strcpy(dir->pn_name, name);
+	dir->pn_type = (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir;
+	dir->pn_attr = attr;
+	dir->pn_vis = vis;
+	dir->pn_flags = flags & ~PFS_PROCDEP;
+
+	if (_pfs_add_node(parent, dir) != 0) {
+		FREE(dir, M_PFSNODES);
+		return (NULL);
+	}
+
+	if (_pfs_fixup_dir(dir) != 0) {
+		pfs_destroy(dir);
+		return (NULL);
+	}
+	
+	return (dir);
+}
+
+/*
+ * Create a file
+ */
+struct pfs_node	*
+pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
+                pfs_attr_t attr, pfs_vis_t vis, int flags)
+{
+	struct pfs_node *node;
+
+	KASSERT(strlen(name) < PFS_NAMELEN,
+	    (__FUNCTION__ "(): node name is too long"));
+
+	MALLOC(node, struct pfs_node *, sizeof *node,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	strcpy(node->pn_name, name);
+	node->pn_type = pfstype_file;
+	node->pn_func = fill;
+	node->pn_attr = attr;
+	node->pn_vis = vis;
+	node->pn_flags = flags;
+
+	if (_pfs_add_node(parent, node) != 0) {
+		FREE(node, M_PFSNODES);
+		return (NULL);
+	}
+	
+	return (node);
+}
+
+/*
+ * Create a symlink
+ */
+struct pfs_node	*
+pfs_create_link(struct pfs_node *parent, char *name, pfs_fill_t fill,
+                pfs_attr_t attr, pfs_vis_t vis, int flags)
+{
+	struct pfs_node *node;
+
+	node = pfs_create_file(parent, name, fill, attr, vis, flags);
+	if (node == NULL)
+		return (NULL);
+	node->pn_type = pfstype_symlink;
+	return (node);
+}
+
+/*
+ * Destroy a node or a tree of nodes
+ */
+int
+pfs_destroy(struct pfs_node *node)
+{
+	struct pfs_node *parent, *rover;
+	
+	KASSERT(node != NULL,
+	    (__FUNCTION__ "(): node is NULL"));
+	KASSERT(node->pn_info != NULL,
+	    (__FUNCTION__ "(): node has no pn_info"));
+
+	/* destroy children */
+	if (node->pn_type == pfstype_dir ||
+	    node->pn_type == pfstype_procdir ||
+	    node->pn_type == pfstype_root)
+		while (node->pn_nodes != NULL)
+			pfs_destroy(node->pn_nodes);
+
+	/* unlink from parent */
+	if ((parent = node->pn_parent) != NULL) {
+		KASSERT(parent->pn_info == node->pn_info,
+		    (__FUNCTION__ "(): parent has different pn_info"));
+		mtx_lock(&node->pn_info->pi_mutex);
+		if (parent->pn_nodes == node) {
+			parent->pn_nodes = node->pn_next;
+		} else {
+			rover = parent->pn_nodes;
+			while (rover->pn_next != NULL) {
+				if (rover->pn_next == node) {
+					rover->pn_next = node->pn_next;
+					break;
+				}
+				rover = rover->pn_next;
+			}
+		}
+		mtx_unlock(&node->pn_info->pi_mutex);
+	}
+
+	/* revoke vnodes and release memory */
+	pfs_disable(node);
+	FREE(node, M_PFSNODES);
+
+	return (0);
+}
 
 /*
  * Mount a pseudofs instance
@@ -121,7 +306,32 @@ pfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 int
 pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 {
+	struct pfs_node *root;
+	int error;
+
 	mtx_init(&pi->pi_mutex, "pseudofs", MTX_DEF);
+	
+	/* set up the root diretory */
+	MALLOC(root, struct pfs_node *, sizeof *root,
+	    M_PFSNODES, M_WAITOK|M_ZERO);
+	root->pn_type = pfstype_root;
+	root->pn_name[0] = '/';
+	root->pn_info = pi;
+	if (_pfs_fixup_dir(root) != 0) {
+		FREE(root, M_PFSNODES);
+		return (ENODEV); /* XXX not really the right errno */
+	}
+	pi->pi_root = root;
+
+	/* construct file hierarchy */
+	error = (pi->pi_init)(pi, vfc);
+	if (error) {
+		pfs_destroy(root);
+		pi->pi_root = NULL;
+		mtx_destroy(&pi->pi_mutex);
+		return (error);
+	}
+	
 	pfs_fileno_init(pi);
 	if (bootverbose)
 		printf("%s registered\n", pi->pi_name);
@@ -134,11 +344,16 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 int
 pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
+	int error;
+	
 	pfs_fileno_uninit(pi);
+	pfs_destroy(pi->pi_root);
+	pi->pi_root = NULL;
 	mtx_destroy(&pi->pi_mutex);
 	if (bootverbose)
 		printf("%s unregistered\n", pi->pi_name);
-	return (0);
+	error = (pi->pi_uninit)(pi, vfc);
+	return (error);
 }
 
 /*
