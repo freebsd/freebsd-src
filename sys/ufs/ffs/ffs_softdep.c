@@ -2029,7 +2029,7 @@ free_newdirblk(newdirblk)
 	for (i = 0; i < DAHASHSZ; i++)
 		if (LIST_FIRST(&pagedep->pd_diraddhd[i]) != NULL)
 			break;
-	if (i == DAHASHSZ) {
+	if (i == DAHASHSZ && (pagedep->pd_state & ONWORKLIST) == 0) {
 		LIST_REMOVE(pagedep, pd_hash);
 		WORKITEM_FREE(pagedep, D_PAGEDEP);
 	}
