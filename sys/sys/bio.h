@@ -103,6 +103,16 @@ biodone(struct bio *bp)
 	bp->bio_done(bp);
 }
 
+static __inline__ void
+bioerror(struct bio *bp, int error, int complete)
+{
+	if (complete)
+		bp->bio_resid = bp->bio_bcount;
+	bp->bio_error = error;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+}
+
 struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
 	daddr_t	last_pblkno;
