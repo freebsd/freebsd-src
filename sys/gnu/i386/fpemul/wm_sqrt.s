@@ -235,7 +235,7 @@ sqrt_stage_2_finish:
 /* It should be possible to get here only if the arg is ffff....ffff*/
 	cmp	$0xffffffff,fsqrt_arg_1
 	jnz	sqrt_stage_2_error
-#endif PARANOID
+#endif /* PARANOID */
 
 /* The best rounded result.*/
 	xorl	%eax,%eax
@@ -249,7 +249,7 @@ sqrt_stage_2_finish:
 sqrt_stage_2_error:
 	pushl	EX_INTERNAL|0x213
 	call	EXCEPTION
-#endif PARANOID
+#endif /* PARANOID */
 
 sqrt_stage_2_done:
 
@@ -304,7 +304,7 @@ sqrt_stage_3_error:
 	call	EXCEPTION
 
 sqrt_stage_3_no_error:
-#endif PARANOID
+#endif /* PARANOID */
 
 	movl	accum_2,%edx
 	movl	accum_1,%eax
@@ -407,7 +407,7 @@ sqrt_near_exact:
 	call	EXCEPTION
 
 sqrt_near_exact_ok:
-#endif PARANOID
+#endif /* PARANOID */
 
 	or	%ebx,%ebx
 	js	sqrt_near_exact_small
@@ -467,7 +467,7 @@ sqrt_get_more_precision:
 	call	EXCEPTION
 
 sqrt_more_prec_ok:
-#endif PARANOID
+#endif /* PARANOID */
 
 	or	%ebx,%ebx
 	js	sqrt_more_prec_small
