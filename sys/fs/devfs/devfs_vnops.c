@@ -67,16 +67,18 @@ static int	devfs_setattr __P((struct vop_setattr_args *ap));
 static int	devfs_symlink __P((struct vop_symlink_args *ap));
 
 
-static int
+int
 devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p)
 {
 	int error;
 	struct vnode *vp;
 
+	if (p == NULL)
+		p = curproc; /* XXX */
 loop:
 	vp = de->de_vnode;
 	if (vp != NULL) {
-		if (vget(vp, 0, p ? p : curproc))
+		if (vget(vp, LK_EXCLUSIVE, p ? p : curproc))
 			goto loop;
 		*vpp = vp;
 		return (0);
@@ -101,146 +103,8 @@ loop:
 	vp->v_data = de;
 	de->de_vnode = vp;
 	vhold(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	*vpp = vp;
-	return (0);
-}
-/*
- * vp is the current namei directory
- * ndp is the name to locate in that directory...
- */
-static int
-devfs_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
-{
-	struct componentname *cnp = ap->a_cnp;
-	struct vnode **vpp = ap->a_vpp;
-	struct vnode *dvp = ap->a_dvp;
-	char *pname = cnp->cn_nameptr;
-	struct proc *p = cnp->cn_proc;
-	struct devfs_dirent *dd;
-	struct devfs_dirent *de;
-	struct devfs_mount *dmp;
-	dev_t cdev;
-	int error, cloned, i;
-	char specname[SPECNAMELEN + 1];
-
-	*vpp = NULLVP;
-
-#if 0
-	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_proc);
-	if (error)
-		return (error);
-#endif
-
-	VOP_UNLOCK(dvp, 0, p);
-	if (cnp->cn_namelen == 1 && *pname == '.') {
-		*vpp = dvp;
-		VREF(dvp);
-		vn_lock(dvp, LK_SHARED | LK_RETRY, p);
-		return (0);
-	}
-
-	cloned = 0;
-
-	dmp = VFSTODEVFS(dvp->v_mount);
-again:
-
-	devfs_populate(dmp);
-	dd = dvp->v_data;
-	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
-		if (cnp->cn_namelen != de->de_dirent->d_namlen)
-			continue;
-		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name, de->de_dirent->d_namlen) != 0)
-			continue;
-		goto found;
-	}
-
-	if (!cloned) {
-		/*
-		 * OK, we didn't have an entry for the name we were asked for
-		 * so we try to see if anybody can create it on demand.
-		 * We need to construct the full "devname" for this device
-		 * relative to "basedir" or the clone functions would not
-		 * be able to tell "/dev/foo" from "/dev/bar/foo"
-		 */
-		i = SPECNAMELEN;
-		specname[i] = '\0';
-		i -= cnp->cn_namelen;
-		if (i < 0)
-			 goto noclone;
-		bcopy(cnp->cn_nameptr, specname + i, cnp->cn_namelen);
-		de = dd;
-		while (de != dmp->dm_basedir) {
-			i--;
-			if (i < 0)
-				 goto noclone;
-			specname[i] = '/';
-			i -= de->de_dirent->d_namlen;
-			if (i < 0)
-				 goto noclone;
-			bcopy(de->de_dirent->d_name, specname + i,
-			    de->de_dirent->d_namlen);
-			de = TAILQ_FIRST(&de->de_dlist);	/* "." */
-			de = TAILQ_NEXT(de, de_list);		/* ".." */
-			de = de->de_dir;
-		}
-
-#if 0
-		printf("Finished specname: %d \"%s\"\n", i, specname + i);
-#endif
-		cdev = NODEV;
-		EVENTHANDLER_INVOKE(devfs_clone, specname + i, 
-		    strlen(specname + i), &cdev);
-#if 0
-		printf("cloned %s -> %p %s\n", specname + i, cdev,
-		    cdev == NODEV ? "NODEV" : cdev->si_name);
-#endif
-		if (cdev != NODEV) {
-			cloned = 1;
-			goto again;
-		}
-	}
-
-noclone:
-	/* No luck, too bad. */
-
-	if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
-	    (cnp->cn_flags & ISLASTCN)) {
-		cnp->cn_flags |= SAVENAME;
-		if (!(cnp->cn_flags & LOCKPARENT))
-			VOP_UNLOCK(dvp, 0, p);
-		return (EJUSTRETURN);
-	} else {
-		vn_lock(dvp, LK_SHARED | LK_RETRY, p);
-		return (ENOENT);
-	}
-
-
-found:
-
-	error = devfs_allocv(de, dvp->v_mount, vpp, p);
-	if (error != 0) {
-		vn_lock(dvp, LK_SHARED | LK_RETRY, p);
-		return (error);
-	}
-	if ((cnp->cn_nameiop == DELETE) && (cnp->cn_flags & ISLASTCN)) {
-		if (*vpp == dvp) {
-			VREF(dvp);
-			*vpp = dvp;
-			return (0);
-		}
-		VREF(*vpp);
-		if (!(cnp->cn_flags & LOCKPARENT))
-			VOP_UNLOCK(dvp, 0, p);
-		return (0);
-	}
-	vn_lock(*vpp, LK_SHARED | LK_RETRY, p);
-	if (!(cnp->cn_flags & LOCKPARENT))
-		VOP_UNLOCK(dvp, 0, p);
 	return (0);
 }
 
@@ -323,43 +187,186 @@ devfs_getattr(ap)
 }
 
 static int
-devfs_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct proc *a_p;
+devfs_lookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode * a_dvp;
+		struct vnode ** a_vpp;
+		struct componentname * a_cnp;
 	} */ *ap;
 {
-	struct devfs_dirent *de;
-	int c;
+	struct componentname *cnp;
+	struct vnode *dvp, **vpp;
+	struct proc *p;
+	struct devfs_dirent *de, *dd;
+	struct devfs_mount *dmp;
+	dev_t cdev;
+	int error, cloned, i, flags, nameiop;
+	char specname[SPECNAMELEN + 1], *pname;
 
-	de = ap->a_vp->v_data;
-	if (ap->a_vp->v_type == VDIR) 
-		de = de->de_dir;
+	cnp = ap->a_cnp;
+	vpp = ap->a_vpp;
+	dvp = ap->a_dvp;
+	pname = cnp->cn_nameptr;
+	p = cnp->cn_proc;
+	flags = cnp->cn_flags;
+	nameiop = cnp->cn_nameiop;
+	dmp = VFSTODEVFS(dvp->v_mount);
+	cloned = 0;
+	dd = dvp->v_data;
+	
+	*vpp = NULLVP;
 
-	c = 0;
-	if (ap->a_vap->va_flags != VNOVAL)
+	if (nameiop == RENAME)
 		return (EOPNOTSUPP);
-	if (ap->a_vap->va_uid != (uid_t)VNOVAL) {
-		de->de_uid = ap->a_vap->va_uid;
-		c = 1;
-	}
-	if (ap->a_vap->va_gid != (gid_t)VNOVAL) {
-		de->de_gid = ap->a_vap->va_gid;
-		c = 1;
-	}
-	if (ap->a_vap->va_mode != (mode_t)VNOVAL) {
-		de->de_mode = ap->a_vap->va_mode;
-		c = 1;
-	}
-	if (ap->a_vap->va_atime.tv_sec != VNOVAL)
-		de->de_atime = ap->a_vap->va_atime;
-	if (ap->a_vap->va_mtime.tv_sec != VNOVAL)
-		de->de_mtime = ap->a_vap->va_mtime;
 
-	if (c)
-		getnanotime(&de->de_ctime);
+	if (dvp->v_type != VDIR)
+		return (ENOTDIR);
+
+	if ((flags & ISDOTDOT) && (dvp->v_flag & VROOT))
+		return (EIO);
+
+	error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, cnp->cn_proc);
+	if (error)
+		return (error);
+
+	if (cnp->cn_namelen == 1 && *pname == '.') {
+		if (nameiop != LOOKUP)
+			return (EINVAL);
+		*vpp = dvp;
+		VREF(dvp);
+		return (0);
+	}
+
+	if (flags & ISDOTDOT) {
+		if (nameiop != LOOKUP)
+			return (EINVAL);
+		VOP_UNLOCK(dvp, 0, p);
+		de = TAILQ_FIRST(&dd->de_dlist);	/* "." */
+		de = TAILQ_NEXT(de, de_list);		/* ".." */
+		de = de->de_dir;
+		error = devfs_allocv(de, dvp->v_mount, vpp, p);
+		if (error) {
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
+			return (error);
+		}
+		if ((flags & LOCKPARENT) && (flags & ISLASTCN)) 
+			error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		if (error)
+			vput(*vpp);
+		return (error);
+	}
+
+	devfs_populate(dmp);
+	dd = dvp->v_data;
+	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
+		if (cnp->cn_namelen != de->de_dirent->d_namlen)
+			continue;
+		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
+		    de->de_dirent->d_namlen) != 0)
+			continue;
+		goto found;
+	}
+
+	/*
+	 * OK, we didn't have an entry for the name we were asked for
+	 * so we try to see if anybody can create it on demand.
+	 * We need to construct the full "devname" for this device
+	 * relative to "basedir" or the clone functions would not
+	 * be able to tell "/dev/foo" from "/dev/bar/foo"
+	 */
+	i = SPECNAMELEN;
+	specname[i] = '\0';
+	i -= cnp->cn_namelen;
+	if (i < 0)
+		 goto notfound;
+	bcopy(cnp->cn_nameptr, specname + i, cnp->cn_namelen);
+	de = dd;
+	while (de != dmp->dm_basedir) {
+		i--;
+		if (i < 0)
+			 goto notfound;
+		specname[i] = '/';
+		i -= de->de_dirent->d_namlen;
+		if (i < 0)
+			 goto notfound;
+		bcopy(de->de_dirent->d_name, specname + i,
+		    de->de_dirent->d_namlen);
+		de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+		de = TAILQ_NEXT(de, de_list);		/* ".." */
+		de = de->de_dir;
+	}
+
+#if 0
+	printf("Finished specname: %d \"%s\"\n", i, specname + i);
+#endif
+	cdev = NODEV;
+	EVENTHANDLER_INVOKE(devfs_clone, specname + i, 
+	    strlen(specname + i), &cdev);
+#if 0
+	printf("cloned %s -> %p %s\n", specname + i, cdev,
+	    cdev == NODEV ? "NODEV" : cdev->si_name);
+#endif
+	if (cdev == NODEV) 
+		goto notfound;
+
+	devfs_populate(dmp);
+	dd = dvp->v_data;
+	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
+		if (cnp->cn_namelen != de->de_dirent->d_namlen)
+			continue;
+		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
+		    de->de_dirent->d_namlen) != 0)
+			continue;
+		goto found;
+	}
+
+notfound:
+
+	if ((nameiop == CREATE || nameiop == RENAME) &&
+	    (flags & (LOCKPARENT | WANTPARENT)) && (flags & ISLASTCN)) {
+		cnp->cn_flags |= SAVENAME;
+		if (!(flags & LOCKPARENT))
+			VOP_UNLOCK(dvp, 0, p);
+		return (EJUSTRETURN);
+	}
+	return (ENOENT);
+
+
+found:
+
+	if ((cnp->cn_nameiop == DELETE) && (flags & ISLASTCN)) {
+		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, p);
+		if (error)
+			return (error);
+		if (*vpp == dvp) {
+			VREF(dvp);
+			*vpp = dvp;
+			return (0);
+		}
+		error = devfs_allocv(de, dvp->v_mount, vpp, p);
+		if (error)
+			return (error);
+		if (!(flags & LOCKPARENT))
+			VOP_UNLOCK(dvp, 0, p);
+		return (0);
+	}
+	error = devfs_allocv(de, dvp->v_mount, vpp, p);
+	if (error)
+		return (error);
+	if (!(flags & LOCKPARENT) || !(flags & ISLASTCN))
+		VOP_UNLOCK(dvp, 0, p);
+	return (0);
+}
+
+/* ARGSUSED */
+static int
+devfs_print(ap)
+	struct vop_print_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+
+	printf("tag VT_DEVFS, devfs vnode\n");
 	return (0);
 }
 
@@ -516,6 +523,47 @@ devfs_revoke(ap)
 }
 
 static int
+devfs_setattr(ap)
+	struct vop_setattr_args /* {
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct devfs_dirent *de;
+	int c;
+
+	de = ap->a_vp->v_data;
+	if (ap->a_vp->v_type == VDIR) 
+		de = de->de_dir;
+
+	c = 0;
+	if (ap->a_vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
+	if (ap->a_vap->va_uid != (uid_t)VNOVAL) {
+		de->de_uid = ap->a_vap->va_uid;
+		c = 1;
+	}
+	if (ap->a_vap->va_gid != (gid_t)VNOVAL) {
+		de->de_gid = ap->a_vap->va_gid;
+		c = 1;
+	}
+	if (ap->a_vap->va_mode != (mode_t)VNOVAL) {
+		de->de_mode = ap->a_vap->va_mode;
+		c = 1;
+	}
+	if (ap->a_vap->va_atime.tv_sec != VNOVAL)
+		de->de_atime = ap->a_vap->va_atime;
+	if (ap->a_vap->va_mtime.tv_sec != VNOVAL)
+		de->de_mtime = ap->a_vap->va_mtime;
+
+	if (c)
+		getnanotime(&de->de_ctime);
+	return (0);
+}
+
+static int
 devfs_symlink(ap)
 	struct vop_symlink_args /* {
 		struct vnode *a_dvp;
@@ -530,7 +578,7 @@ devfs_symlink(ap)
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 
-	dmp = (struct devfs_mount *)ap->a_dvp->v_mount->mnt_data;
+	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
 	dd = ap->a_dvp->v_data;
 	de = devfs_newdirent(ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen);
 	de->de_uid = 0;
@@ -543,27 +591,11 @@ devfs_symlink(ap)
 	bcopy(ap->a_target, de->de_symlink, i);
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
-	VREF(*(ap->a_vpp));
 	return (0);
 }
 
 /*
- * Print out the contents of a devfs vnode.
- */
-/* ARGSUSED */
-static int
-devfs_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag VT_DEVFS, devfs vnode\n");
-	return (0);
-}
-
-/*
- * Kernfs "should never get here" operation
+ * DEVFS "should never get here" operation
  */
 static int
 devfs_badop()
