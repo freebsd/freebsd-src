@@ -38,6 +38,7 @@
 #include "setlocale.h"
 
 int __collate_load_error = 1;
+int __collate_substitute_nontrivial;
 char __collate_version[STR_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
@@ -59,7 +60,7 @@ __collate_load_tables(encoding)
 {
 	char buf[PATH_MAX];
 	FILE *fp;
-	int save_load_error;
+	int i, save_load_error;
 
 	save_load_error = __collate_load_error;
 	__collate_load_error = 1;
@@ -95,6 +96,16 @@ __collate_load_tables(encoding)
 	      fp);
 	fclose(fp);
 	__collate_load_error = 0;
+	
+	__collate_substitute_nontrivial = 0;
+	for (i = 0; i < UCHAR_MAX + 1; i++) {
+		if (__collate_substitute_table[i][0] != i ||
+		    __collate_substitute_table[i][1] != 0) {
+			__collate_substitute_nontrivial = 1;
+			break;
+		}
+	}
+
 	return 0;
 }
 
@@ -128,7 +139,7 @@ __collate_substitute(s)
 
 void
 __collate_lookup(t, len, prim, sec)
-	u_char *t;
+	const u_char *t;
 	int *len, *prim, *sec;
 {
 	struct __collate_st_chain_pri *p2;
