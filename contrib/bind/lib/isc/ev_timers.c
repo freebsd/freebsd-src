@@ -112,7 +112,6 @@ evNowTime() {
 
 	if (gettimeofday(&now, NULL) < 0)
 		return (evConsTime(0, 0));
-	INSIST(now.tv_usec >= 0 && now.tv_usec < 1000000);
 	return (evTimeSpec(now));
 }
 
