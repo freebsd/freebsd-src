@@ -547,7 +547,7 @@ i386_set_ldt(td, args)
 
 	/* Fill in range */
 	savecrit = intr_disable();
-	bcopy(uap->descs, 
+	bcopy(descs, 
 	    &((union descriptor *)(pldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
 	td->td_retval[0] = uap->start;
