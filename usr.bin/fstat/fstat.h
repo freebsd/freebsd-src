@@ -48,7 +48,7 @@ typedef struct devs {
 	struct	devs *next;
 	long	fsid;
 	ino_t	ino;
-	char	*name;
+	const char	*name;
 } DEVS;
 
 struct  filestat {
