@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: if_tun.c,v 1.14 1994/06/29 06:36:25 cgd Exp $	*/
 
 /*
@@ -390,6 +391,8 @@ tunioctl(dev, cmd, data, flag, p)
 	switch (cmd) {
  	case TUNSIFINFO:
  	        tunp = (struct tuninfo *)data;
+		if (tunp->mtu < IF_MINMTU)
+			return (EINVAL);
  		tp->tun_if.if_mtu = tunp->mtu;
  		tp->tun_if.if_type = tunp->type;
  		tp->tun_if.if_baudrate = tunp->baudrate;

@@ -231,6 +231,14 @@ int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
 #endif
 
 #endif
+
+/*
+ * 72 was chosen below because it is the size of a TCP/IP
+ * header (40) + the minimum mss (32).
+ */
+#define	IF_MINMTU	72
+#define	IF_MAXMTU	65535
+
 #endif /* KERNEL */
 
 /*
