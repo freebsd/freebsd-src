@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.23 1997/02/22 13:55:43 peter Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -15,7 +15,7 @@ SHARED?=	copies
 
 all clean cleandir depend lint tags:
 
-beforeinstall: ${SHARED}
+beforeinstall: etc-examples ${SHARED}
 
 .for dir in ${DIRS}
 FILES!=	find -L ${dir} \( -name CVS -prune \) -o -type f -print
@@ -29,5 +29,8 @@ copies::
 symlinks::
 	rm -rf ${DDIR}/${dir}; ln -s ${.CURDIR}/${dir} ${DDIR}
 .endfor
+
+etc-examples:
+	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
 
 .include <bsd.prog.mk>

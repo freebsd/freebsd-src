@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146.2.4 1999/06/05 03:15:39 julian Exp $
+#	$Id: BSD.usr.dist,v 1.146.2.5 1999/06/09 02:48:36 foxfair Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -320,6 +320,8 @@
             drivers
             ..
             etc
+		defaults
+		..
 	    ..
 	    find_interface
             ..
