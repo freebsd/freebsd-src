@@ -318,10 +318,7 @@ int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
 	i->vector = vector;
 	i->intr = intr;
 	i->arg = arg;
-	if (cntp)
-		i->cntp = cntp;
-	else
-		i->cntp = NULL;
+	i->cntp = cntp;
 
 	s = splhigh();
 	LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
