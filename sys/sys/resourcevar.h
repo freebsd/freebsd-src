@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id: resourcevar.h,v 1.7 1996/02/25 07:23:03 hsu Exp $
+ * $Id: resourcevar.h,v 1.7 1996/03/11 02:20:13 hsu Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -77,13 +77,7 @@ struct plimit {
 	int	p_refcnt;		/* number of references */
 };
 
-/* add user profiling from AST */
-#define	ADDUPROF(p)							\
-	addupc_task(p,							\
-	    (p)->p_stats->p_prof.pr_addr, (p)->p_stats->p_prof.pr_ticks)
-
 #ifdef KERNEL
-int	 addupc __P((int pc, struct uprof *up, int ticks));
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
 void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,

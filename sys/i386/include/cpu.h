@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.23 1996/04/05 03:36:23 ache Exp $
+ *	$Id: cpu.h,v 1.24 1996/04/07 16:44:28 bde Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -83,9 +83,11 @@
 #define	need_resched()	{ want_resched = 1; aston(); }
 
 /*
- * Give a profiling tick to the current process from the softclock
- * interrupt.  On tahoe, request an ast to send us through trap(),
- * marking the proc as needing a profiling tick.
+ * Arrange to handle pending profiling ticks before returning to user mode.
+ *
+ * XXX this is now poorly named and implemented.  It used to handle only a
+ * single tick and the P_OWEUPC flag served as a counter.  Now there is a
+ * counter in the proc table and flag isn't really necessary.
  */
 #define	need_proftick(p)	{ (p)->p_flag |= P_OWEUPC; aston(); }
 
