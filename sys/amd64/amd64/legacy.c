@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.7 1999/05/08 21:34:34 peter Exp $
+ *	$Id: nexus.c,v 1.8 1999/05/08 21:59:22 dfr Exp $
  */
 
 /*
@@ -99,6 +99,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
@@ -398,6 +400,8 @@ static device_method_t nexus_pcib_methods[] = {
 	DEVMETHOD(device_probe,		nexus_pcib_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.101 1999/05/09 15:54:04 peter Exp $
+ * $Id: pci.c,v 1.102 1999/05/09 20:27:26 peter Exp $
  *
  */
 
@@ -1344,6 +1344,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe,		pci_new_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pci_print_child),
