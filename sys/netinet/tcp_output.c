@@ -883,7 +883,7 @@ send:
 	 * Trace.
 	 */
 	if (so->so_options & SO_DEBUG) {
-		u_short save;
+		u_short save = 0;
 #ifdef INET6
 		if (!isipv6)
 #endif
