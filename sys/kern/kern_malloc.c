@@ -72,7 +72,7 @@ static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
-static int vm_kmem_size;
+static u_int vm_kmem_size;
 
 #ifdef INVARIANTS
 /*
@@ -408,9 +408,9 @@ kmeminit(dummy)
 	void *dummy;
 {
 	register long indx;
-	int npg;
-	int mem_size;
-	int xvm_kmem_size;
+	u_long npg;
+	u_long mem_size;
+	u_long xvm_kmem_size;
 
 #if	((MAXALLOCSAVE & (MAXALLOCSAVE - 1)) != 0)
 #error "kmeminit: MAXALLOCSAVE not power of 2"
@@ -450,8 +450,14 @@ kmeminit(dummy)
 	/* Allow final override from the kernel environment */
 	TUNABLE_INT_FETCH("kern.vm.kmem.size", xvm_kmem_size, vm_kmem_size);
 
-	if (vm_kmem_size > 2 * (cnt.v_page_count * PAGE_SIZE))
-		vm_kmem_size = 2 * (cnt.v_page_count * PAGE_SIZE);
+	/*
+	 * Limit kmem virtual size to twice the physical memory.
+	 * This allows for kmem map sparseness, but limits the size
+	 * to something sane. Be careful to not overflow the 32bit
+	 * ints while doing the check.
+	 */
+	if ((vm_kmem_size / 2) > (cnt.v_page_count * PAGE_SIZE))
+		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
 	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + vm_kmem_size)
 		/ PAGE_SIZE;
