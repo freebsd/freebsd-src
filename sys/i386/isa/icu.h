@@ -80,6 +80,25 @@ extern	unsigned imen;		/* interrupt mask enable */
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
  */
+#ifdef PC98
+#define	IRQ0		0x0001
+#define	IRQ1		0x0002
+#define	IRQ2		0x0004
+#define	IRQ3		0x0008
+#define	IRQ4		0x0010
+#define	IRQ5		0x0020
+#define	IRQ6		0x0040
+#define	IRQ7		0x0080
+#define	IRQ_SLAVE	0x0080
+#define	IRQ8		0x0100
+#define	IRQ9		0x0200
+#define	IRQ10		0x0400
+#define	IRQ11		0x0800
+#define	IRQ12		0x1000
+#define	IRQ13		0x2000
+#define	IRQ14		0x4000
+#define	IRQ15		0x8000
+#else
 #define	IRQ0		0x0001		/* highest priority - timer */
 #define	IRQ1		0x0002
 #define	IRQ_SLAVE	0x0004
@@ -97,18 +116,21 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	IRQ5		0x0020
 #define	IRQ6		0x0040
 #define	IRQ7		0x0080		/* lowest - parallel printer */
-
-#ifdef PC98
-#undef	IRQ2
-#define IRQ2		0x0004
-#undef	IRQ_SLAVE
-#define	IRQ_SLAVE	0x0080
 #endif
 
 /*
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
+
+#ifdef PC98
+#define	ICU_IMR_OFFSET	2
+#define	ICU_SLAVEID	7
+#else
+#define	ICU_IMR_OFFSET	1
+#define	ICU_SLAVEID	2
+#endif
+#define	ICU_EOI		0x20
 
 #ifdef APIC_IO
 
