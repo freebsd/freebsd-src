@@ -36,7 +36,6 @@
 .Nm zfree ,
 .Nm zalloci ,
 .Nm zfreei ,
-.Nm zdestroy
 .Nd zone allocator
 .Sh SYNOPSIS
 .In sys/param.h
@@ -56,8 +55,6 @@
 .Fn zalloci "vm_zone_t z"
 .Ft void
 .Fn zfreei "vm_zone_t z" "void *item"
-.Ft void
-.Fn zdestroy "vm_zone_t z"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -180,19 +177,6 @@ Use the corresponding
 .Fn zfreei
 function if the allocation was done using
 .Fn zalloci .
-.Pp
-Zones created with
-.Fn zinit
-or
-.Fn zinitna
-can be destroyed using
-.Fn zdestroy ,
-freeing all memory that was allocated for the zone.
-All items allocated from the zone with
-.Fn zalloc
-must have been freed with
-.Fn zfree
-before.
 .Sh RETURN VALUES
 The
 .Fn zinitna
