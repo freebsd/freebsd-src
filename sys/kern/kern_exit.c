@@ -120,19 +120,19 @@ exit1(td, rv)
 	register struct thread *td;
 	int rv;
 {
-	struct proc *p = td->td_proc;
-	register struct proc *q, *nq;
+	struct exitlist *ep;
+	struct proc *p, *nq, *q;
+	struct tty *tp;
+	struct vnode *ttyvp;
 	register struct vmspace *vm;
 	struct vnode *vtmp;
-	struct exitlist *ep;
-	struct vnode *ttyvp;
-	struct tty *tp;
 #ifdef KTRACE
 	struct vnode *tracevp;
 #endif
 
 	GIANT_REQUIRED;
 
+	p = td->td_proc;
 	if (p->p_pid == 1) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
@@ -388,7 +388,9 @@ exit1(td, rv)
 	 */
 	PROC_LOCK(p->p_pptr);
 	if (p->p_pptr->p_procsig->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
-		struct proc *pp = p->p_pptr;
+		struct proc *pp;
+
+		pp = p->p_pptr;
 		PROC_UNLOCK(pp);
 		proc_reparent(p, initproc);
 		PROC_LOCK(p->p_pptr);
@@ -496,8 +498,9 @@ wait1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
+	struct rusage ru;
 	register int nfound;
-	register struct proc *q, *p, *t;
+	register struct proc *p, *q, *t;
 	int status, error;
 
 	q = td->td_proc;
@@ -573,8 +576,6 @@ loop:
 				PROC_LOCK(p);
 			}
 			if (uap->rusage) {
-				struct rusage ru;
-
 				bcopy(p->p_ru, &ru, sizeof(ru));
 				PROC_UNLOCK(p);
 				if ((error = copyout((caddr_t)&ru,
