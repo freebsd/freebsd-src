@@ -138,6 +138,7 @@ struct devsw {
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
     void	(*dv_print)(int verbose);	/* print device information */
+    void	(*dv_cleanup)();
 };
 
 extern int errno;
