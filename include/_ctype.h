@@ -39,6 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ctype.h	8.4 (Berkeley) 1/21/94
+ *      $FreeBSD$
  */
 
 #ifndef _CTYPE_H_
@@ -81,10 +82,16 @@ int	tolower __P((int));
 int	toupper __P((int));
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+int	digittoint __P((int));
 int	isascii __P((int));
 int	isblank __P((int));
+int	ishexnumber __P((int));
+int	isideogram __P((int));
+int	isnumber __P((int));
+int	isphonogram __P((int));
+int	isrune __P((int));
+int	isspecial __P((int));
 int	toascii __P((int));
-int	digittoint __P((int));
 #endif
 __END_DECLS
 
@@ -105,18 +112,16 @@ __END_DECLS
 #define	toupper(c)	__toupper(c)
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#define	digittoint(c)	__maskrune((c), 0xFF)
 #define	isascii(c)	(((c) & ~0x7F) == 0)
 #define	isblank(c)	__istype((c), _B)
-#define	toascii(c)	((c) & 0x7F)
-#define	digittoint(c)	__maskrune((c), 0xFF)
-
-/* XXX the following macros are not backed up by functions. */
 #define	ishexnumber(c)	__istype((c), _X)
 #define	isideogram(c)	__istype((c), _I)
 #define	isnumber(c)	__istype((c), _D)
 #define	isphonogram(c)	__istype((c), _Q)
 #define	isrune(c)	__istype((c), 0xFFFFFF00L)
 #define	isspecial(c)	__istype((c), _T)
+#define	toascii(c)	((c) & 0x7F)
 #endif
 
 /* See comments in <machine/ansi.h> about _BSD_CT_RUNE_T_. */
