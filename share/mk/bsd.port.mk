@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.154 1995/05/04 13:14:16 jkh Exp $
+# $Id: bsd.port.mk,v 1.155 1995/05/04 18:53:26 adam Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -782,6 +782,7 @@ reinstall: pre-reinstall install
 
 pre-reinstall:
 	@rm -f ${INSTALL_COOKIE}
+	@rm -f ${PACKAGE_COOKIE}
 .endif
 
 ################################################################
