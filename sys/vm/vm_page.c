@@ -524,8 +524,6 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t root;
 
-	GIANT_REQUIRED;
-
 	if (m->object != NULL)
 		panic("vm_page_insert: already inserted");
 
@@ -535,6 +533,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	m->object = object;
 	m->pindex = pindex;
 
+	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
 	/*
 	 * Now link into the object's ordered list of backed pages.
 	 */
@@ -645,8 +644,7 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	GIANT_REQUIRED;
-
+	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
 	m = vm_page_splay(pindex, object->root);
 	if ((object->root = m) != NULL && m->pindex != pindex)
 		m = NULL;
