@@ -475,7 +475,7 @@ db_command_loop()
 
 void
 db_error(s)
-	char *s;
+	const char *s;
 {
 	if (s)
 	    db_printf("%s", s);
