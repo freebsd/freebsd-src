@@ -1010,7 +1010,6 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf *m0)
 		return (-1);
 	if ((m0->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
 		hme_txcksum(m0, &cflags);
-	td->htx_m = m0;
 	cba.hta_sc = sc;
 	cba.hta_htx = td;
 	if ((error = bus_dmamap_load_mbuf(sc->sc_tdmatag, td->htx_dmamap,
@@ -1025,6 +1024,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf *m0)
 
 	STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txfreeq, htx_q);
 	STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txbusyq, td, htx_q);
+	td->htx_m = m0;
 
 	/* Turn descriptor ownership to the hme, back to forth. */
 	ri = sc->sc_rb.rb_tdhead;
