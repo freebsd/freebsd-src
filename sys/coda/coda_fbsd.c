@@ -27,11 +27,11 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.5 1998/09/25 17:38:31 rvb Exp $
+ *  $Id: coda_fbsd.c,v 1.6 1998/09/28 20:52:57 rvb Exp $
  * 
  */
 
-#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#ifdef	VFS_LKM
 #define NVCODA 4
 #else
 #include "vcoda.h"
@@ -223,7 +223,7 @@ coda_fbsd_putpages(v)
 
 SYSINIT(codadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,vc_drvinit,NULL)
 
-#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#ifdef	VFS_LKM
 
 #include <sys/mount.h>
 #include <sys/lkm.h>
