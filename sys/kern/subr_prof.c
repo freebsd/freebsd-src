@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.9 1995/09/09 18:10:05 davidg Exp $
+ * $Id: subr_prof.c,v 1.10 1995/11/12 06:43:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -98,15 +98,11 @@ kmstartup(udata)
 /*
  * Return kernel profiling information.
  */
-int
-sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
+static int
+sysctl_kern_prof SYSCTL_HANDLER_ARGS
 {
+	int *name = (int *) arg1;
+	u_int namelen = arg2;
 	struct gmonparam *gp = &_gmonparam;
 	int error;
 
@@ -116,7 +112,7 @@ sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen)
 
 	switch (name[0]) {
 	case GPROF_STATE:
-		error = sysctl_int(oldp, oldlenp, newp, newlen, &gp->state);
+		error = sysctl_handle_int(oidp, &gp->state, 0, req);
 		if (error)
 			return (error);
 		if (gp->state == GMON_PROF_OFF)
@@ -125,21 +121,23 @@ sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen)
 			startprofclock(&proc0);
 		return (0);
 	case GPROF_COUNT:
-		return (sysctl_struct(oldp, oldlenp, newp, newlen,
-		    gp->kcount, gp->kcountsize));
+		return (sysctl_handle_opaque(oidp, 
+			gp->kcount, gp->kcountsize, req));
 	case GPROF_FROMS:
-		return (sysctl_struct(oldp, oldlenp, newp, newlen,
-		    gp->froms, gp->fromssize));
+		return (sysctl_handle_opaque(oidp, 
+			gp->froms, gp->fromssize, req));
 	case GPROF_TOS:
-		return (sysctl_struct(oldp, oldlenp, newp, newlen,
-		    gp->tos, gp->tossize));
+		return (sysctl_handle_opaque(oidp, 
+			gp->tos, gp->tossize, req));
 	case GPROF_GMONPARAM:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, gp, sizeof *gp));
+		return (sysctl_handle_opaque(oidp, gp, sizeof *gp, req));
 	default:
 		return (EOPNOTSUPP);
 	}
 	/* NOTREACHED */
 }
+
+SYSCTL_NODE(_kern, KERN_PROF, prof, CTLFLAG_RW, sysctl_kern_prof, "");
 #endif /* GPROF */
 
 /*

@@ -18,11 +18,12 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.6 1995/11/09 22:43:25 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.7 1995/11/10 01:32:12 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
@@ -464,25 +465,14 @@ eisa_registerdev(e_dev, driver, kdc_template)
  * hw.devconf interface.
  */
 int
-eisa_externalize(e_dev, userp, maxlen)
-	struct eisa_device *e_dev;
-	void *userp;
-	size_t *maxlen;
+eisa_externalize(struct eisa_device *e_dev, struct sysctl_req *req)
 {
-	if (*maxlen < sizeof *e_dev) {
-		return ENOMEM;
-	}
-	*maxlen -= sizeof *e_dev;
-	return (copyout(e_dev, userp, sizeof *e_dev));
+	return (SYSCTL_OUT(req, e_dev, sizeof *e_dev));
 }
 
 
 int
-eisa_generic_externalize(p, kdc, userp, l)
-	struct proc *p;
-	struct kern_devconf *kdc;
-	void *userp;
-	size_t l;
+eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-    return eisa_externalize(kdc->kdc_eisa, userp, &l);
+    return eisa_externalize(kdc->kdc_eisa, req);
 }

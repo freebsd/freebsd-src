@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.5 1995/04/12 20:47:13 wollman Exp $
+ *	$Id: devconf.h,v 1.6 1995/04/13 20:37:51 wollman Exp $
  */
 
 /*
@@ -99,14 +99,13 @@ struct kern_devconf;		/* forward declaration */
  * EXTERNALIZE: convert internal representation to external and copy out
  * into user space.
  */
-typedef int (*kdc_externalize_t)(struct proc *, struct kern_devconf *, void *,
-				 size_t);
+struct sysctl_req;
+typedef int (*kdc_externalize_t)(struct kern_devconf *, struct sysctl_req *);
 /*
  * INTERNALIZE: copy in from user space, convert to internal representation,
  * validate, and set configuration.
  */
-typedef int (*kdc_internalize_t)(struct proc *, struct kern_devconf *, void *,
-				 size_t);
+typedef int (*kdc_internalize_t)(struct kern_devconf *, struct sysctl_req *);
 /*
  * GOAWAY: shut the device down, if possible, and prepare to exit.
  */

@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.3 1995/11/05 04:42:50 gibbs Exp $
+ *	$Id: eisaconf.h,v 1.4 1995/11/06 05:21:01 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -85,9 +85,10 @@ int eisa_reg_iospace __P((struct eisa_device *, u_long, int));
 int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *, struct kern_devconf *));
 
 
-extern int eisa_externalize __P((struct eisa_device *, void *, size_t *));
+struct sysctl_req;
+int eisa_externalize (struct eisa_device *, struct sysctl_req*);
 
-extern int eisa_generic_externalize __P((struct proc *,struct kern_devconf *, void *, size_t));
+int eisa_generic_externalize (struct kern_devconf *, struct sysctl_req *);
 extern struct kern_devconf kdc_eisa0;
 
 #define EISA_EXTERNALLEN (sizeof(struct eisa_device))
