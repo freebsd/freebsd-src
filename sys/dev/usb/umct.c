@@ -81,7 +81,9 @@ struct umct_softc {
 	uint8_t			sc_msr;
 	uint8_t			sc_lcr;
 	uint8_t			sc_mcr;
+#if __FreeBSD_version >= 500000
 	void			*sc_swicookie;
+#endif
 };
 
 Static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -136,7 +138,9 @@ MODULE_DEPEND(umct, usb, 1, 1, 1);
 MODULE_DEPEND(umct, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(umct, 1);
 
+#if __FreeBSD_version >= 500000
 Static struct ithd *umct_ithd;
+#endif
 
 USB_MATCH(umct)
 {
@@ -273,8 +277,11 @@ USB_ATTACH(umct)
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &umct_callback;
 	ucom_attach(ucom);
+
+#if __FreeBSD_version >= 500000
 	swi_add(&umct_ithd, "ucom", umct_notify, sc, SWI_TTY, 0,
 	    &sc->sc_swicookie);
+#endif
 
 	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -297,7 +304,10 @@ USB_DETACH(umct)
 	}
 
 	sc->sc_ucom.sc_dying = 1;
+
+#if __FreeBSD_version >= 500000
 	ithread_remove_handler(sc->sc_swicookie);
+#endif
 	rv = ucom_detach(&sc->sc_ucom);
 	return (rv);
 }
@@ -349,7 +359,11 @@ umct_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	 * Defer notifying the ucom layer as it doesn't like to be bothered
          * from an interrupt context.
 	 */
+#if __FreeBSD_version >= 500000
 	swi_sched(sc->sc_swicookie, 0);
+#else
+	umct_notify(sc);
+#endif
 }
 
 Static void

@@ -1358,6 +1358,7 @@ dev/usb/ubsa.c		optional ubsa ucom
 dev/usb/uftdi.c		optional uftdi ucom
 dev/usb/ugen.c		optional ugen
 dev/usb/uhid.c		optional uhid
+dev/usb/umct.c		optional umct ucom
 dev/usb/ums.c		optional ums
 dev/usb/uplcom.c	optional uplcom ucom
 dev/usb/urio.c		optional urio
