@@ -27,6 +27,13 @@ SUBDIR=	IPXrouted \
 	fdwrite \
 	inetd \
 	iostat \
+	ipfstat \
+	ipftest \
+	ipmon \
+	ipnat \
+	ipresend \
+	ipsend \
+	iptest \
 	jail \
 	kbdcontrol \
 	kbdmap \

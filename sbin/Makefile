@@ -20,6 +20,7 @@ SUBDIR=	adjkerntz \
 	fsirand \
 	ifconfig \
 	init \
+	ipf \
 	ipfw \
 	kldload \
 	kldstat \
