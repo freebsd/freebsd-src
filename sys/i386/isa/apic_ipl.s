@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.21 1998/08/11 15:08:12 bde Exp $
+ *	$Id: apic_ipl.s,v 1.22 1998/09/06 22:41:41 tegge Exp $
  */
 
 
@@ -246,12 +246,14 @@ ENTRY(INTREN)
 	shll	$4, %ecx
 	movl	CNAME(int_to_apicintpin) + 8(%ecx), %edx
 	movl	CNAME(int_to_apicintpin) + 12(%ecx), %ecx
+	testl	%edx, %edx
+	jz	1f
 
 	movl	%ecx, (%edx)		/* write the target register index */
 	movl	16(%edx), %eax		/* read the target register data */
 	andl	$~IOART_INTMASK, %eax	/* clear mask bit */
 	movl	%eax, 16(%edx)		/* write the APIC register data */
-
+1:	
 	IMASK_UNLOCK			/* exit critical reg */
 	popfl				/* restore old state of EI flag */
 	ret
@@ -276,12 +278,14 @@ ENTRY(INTRDIS)
 	shll	$4, %ecx
 	movl	CNAME(int_to_apicintpin) + 8(%ecx), %edx
 	movl	CNAME(int_to_apicintpin) + 12(%ecx), %ecx
+	testl	%edx, %edx
+	jz	1f
 
 	movl	%ecx, (%edx)		/* write the target register index */
 	movl	16(%edx), %eax		/* read the target register data */
 	orl	$IOART_INTMASK, %eax	/* set mask bit */
 	movl	%eax, 16(%edx)		/* write the APIC register data */
-
+1:	
 	IMASK_UNLOCK			/* exit critical reg */
 	popfl				/* restore old state of EI flag */
 	ret
