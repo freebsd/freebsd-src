@@ -17,6 +17,15 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
 
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+	source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
 # Check if /var/db/mounttab is clean.
 case $1 in
 reboot)
@@ -28,8 +37,34 @@ esac
 
 echo -n "Shutting down daemon processes:"
 
-# Insert shutdown procedures here
+# for each valid dir in $local_startup, search for init scripts matching *.sh
+case ${local_startup} in
+[Nn][Oo] | '')
+	;;
+*)
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for script in ${dir}/*.sh; do
+				if [ -x "${script}" ]; then
+					grep -wq stop ${script} || oldscripts="${oldscripts} ${script}"
+# XXX not yet
+#					(set -T
+#					 trap 'exit 1' 2
+#					 ${script} stop)
+				fi
+			done
+		fi
+	done
+	if [ ! -z ${oldscripts} ]; then
+		echo 'You still seem to have old-style rc.d scripts:'
+		echo ${oldscripts}
+		echo 'Please change them to recognize the "stop" option.'
+	fi
+	echo .
+	;;
+esac
 
+# Insert other shutdown procedures here
 
 echo '.'
 exit 0
