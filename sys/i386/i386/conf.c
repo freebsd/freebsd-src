@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.72 1995/03/02 04:06:20 jkh Exp $
+ *	$Id: conf.c,v 1.73 1995/03/02 07:33:59 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -206,6 +206,24 @@ d_psize_t	scdsize;
 #define	scdioctl	nxioctl
 #define	scddump		nxdump
 #define	scdsize		zerosize
+#endif
+
+#include "matcd.h"
+#if NMATCD > 0
+d_open_t  matcdopen;
+d_close_t matcdclose;
+d_strategy_t matcdstrategy;
+d_ioctl_t matcdioctl;
+d_dump_t matcddump;
+d_psize_t matcdsize;
+#define       matcddump       nxdump
+#else
+#define       matcdopen       nxopen
+#define       matcdclose      nxclose
+#define       matcdstrategy   nxstrategy
+#define       matcdioctl      nxioctl
+#define       matcddump       nxdump
+#define       matcdsize       (d_psize_t *)0
 #endif
 
 #include "ch.h"
@@ -884,23 +902,6 @@ d_ioctl_t ispyioctl;
 #define ispyread        nxread
 #define ispywrite       nxwrite
 #define ispyioctl       nxioctl
-#endif
-
-#include "matcd.h"
-#if NMATCD > 0
-d_open_t  matcdopen;
-d_close_t matcdclose;
-d_strategy_t matcdstrategy;
-d_ioctl_t matcdioctl;
-d_psize_t matcdsize;
-#define       matcddump       nxdump
-#else
-#define       matcdopen       nxopen
-#define       matcdclose      nxclose
-#define       matcdstrategy   nxstrategy
-#define       matcdioctl      nxioctl
-#define       matcddump       nxdump
-#define       matcdsize       (d_psize_t *)0
 #endif
 
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
