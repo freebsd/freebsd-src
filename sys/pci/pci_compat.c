@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.14 1998/12/04 22:54:56 archie Exp $
+ * $Id: pci_compat.c,v 1.15 1998/12/07 21:58:48 archie Exp $
  *
  */
 
@@ -451,7 +451,7 @@ int pci_register_lkm (struct pci_device *dvp, int if_revision)
 		return (-1);
 	}
 	lkm = malloc (sizeof (*lkm), M_DEVBUF, M_WAITOK);
-	if (lkm != NULL) {
+	if (lkm == NULL) {
 		return (-1);
 	}
 
