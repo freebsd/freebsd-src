@@ -35,8 +35,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Rdv
-.Op Fl f Ar file
-.Op Ar path ...
+.Op Fl f Ar hintsfile
+.Ar path ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,14 +52,14 @@ file is created, and the preexisting hint file (if there was one in
 that directory) is removed.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl f Ar file"
+.Bl -tag -width indent
 .It Fl R
 Recurse into subdirectories.
 .It Fl d
 Do not generate a hint file, but print module metadata on standard
 output.
-.It Fl f Ar file
-Specify a different name for the hint files than
+.It Fl f Ar hintsfile
+Specify a different name for the hints files than
 .Pa linker.hints .
 .It Fl v
 Operate in verbose mode.
