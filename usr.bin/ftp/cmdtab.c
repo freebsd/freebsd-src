@@ -130,6 +130,7 @@ struct cmd cmdtab[] = {
 	{ "dir",	dirhelp,	1,	1,	1,	ls },
 	{ "disconnect",	disconhelp,	0,	1,	1,	disconnect },
 	{ "form",	formhelp,	0,	1,	1,	setform },
+	{ "ftp",	connecthelp,	0,	0,	1,	setpeer },
 	{ "get",	receivehelp,	1,	1,	1,	get },
 	{ "glob",	globhelp,	0,	0,	0,	setglob },
 	{ "hash",	hashhelp,	0,	0,	0,	sethash },
