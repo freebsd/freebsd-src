@@ -2620,7 +2620,8 @@ tcp_mss(tp, offer)
 		bufsize = roundup(bufsize, mss);
 		if (bufsize > sb_max)
 			bufsize = sb_max;
-		(void)sbreserve(&so->so_snd, bufsize, so, NULL);
+		if (bufsize > so->so_snd.sb_hiwat)
+			(void)sbreserve(&so->so_snd, bufsize, so, NULL);
 	}
 	tp->t_maxseg = mss;
 
@@ -2632,7 +2633,8 @@ tcp_mss(tp, offer)
 		bufsize = roundup(bufsize, mss);
 		if (bufsize > sb_max)
 			bufsize = sb_max;
-		(void)sbreserve(&so->so_rcv, bufsize, so, NULL);
+		if (bufsize > so->so_rcv.sb_hiwat)
+			(void)sbreserve(&so->so_rcv, bufsize, so, NULL);
 	}
 
 	/*
