@@ -23,16 +23,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.18 1998/07/15 02:32:08 bde Exp $
+ * $Id: kern_intr.c,v 1.19 1998/08/11 15:08:13 bde Exp $
  *
  */
 
-#ifdef __i386__
-
-/*
- * This file is pretty i386 specific.  I might be able to make it more
- * portable in the future but for now turn it off for non-i386 ports.
- */
 
 #include <sys/types.h>
 #include <sys/malloc.h>
@@ -44,12 +38,16 @@
 
 #include <machine/ipl.h>
 
+#ifdef __i386__
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
+#endif
 
 #include <sys/interrupt.h>
 
 #include <stddef.h>
+
+#ifdef __i386__
 
 typedef struct intrec {
 	intrmask_t	mask;
@@ -62,13 +60,18 @@ typedef struct intrec {
 	int		flags;
 } intrec;
 
+static intrec *intreclist_head[NHWI];
+
+#endif
+
 struct swilist {
 	swihand_t	*sl_handler;
 	struct swilist	*sl_next;
 };
 
-static intrec *intreclist_head[NHWI];
 static struct swilist swilists[NSWI];
+
+#ifdef __i386__
 
 /*
  * The interrupt multiplexer calls each of the handlers in turn,
@@ -443,6 +446,8 @@ unregister_intr(int intr, inthand2_t handler)
 	return (EINVAL);
 }
 
+#endif /* __i386__ */
+
 void
 register_swi(intr, handler)
 	int intr;
@@ -528,4 +533,3 @@ unregister_swi(intr, handler)
 	splx(s);
 }
 
-#endif /* __i386__ */
