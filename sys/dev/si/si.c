@@ -1016,18 +1016,12 @@ siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		si_write_enable(pp, 0);
 	}
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
+	error = ttyioctl(dev, cmd, data, flag, td);
+	si_disc_optim(tp, &tp->t_termios, pp);
+	if (error != ENOTTY)
 		goto out;
 
 	oldspl = spltty();
-
-	error = ttioctl(tp, cmd, data, flag);
-	si_disc_optim(tp, &tp->t_termios, pp);
-	if (error != ENOIOCTL) {
-		splx(oldspl);
-		goto out;
-	}
 
 	error = 0;
 	switch (cmd) {

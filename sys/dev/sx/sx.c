@@ -804,18 +804,13 @@ sxioctl(
 		sx_write_enable(pp, 0);
 	}
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error != ENOIOCTL)
+	error = ttyioctl(dev, cmd, data, flag, p);
+	sx_disc_optim(tp, &tp->t_termios, pp);
+	if (error != ENOTTY)
 		goto out;
 
 	oldspl = spltty();
 
-	error = ttioctl(tp, cmd, data, flag);
-	sx_disc_optim(tp, &tp->t_termios, pp);
-	if (error != ENOIOCTL) {
-		splx(oldspl);
-		goto out;
-	}
 	sc = PP2SC(pp);			/* Need this to do I/O to the card.   */
 	error = 0;
 	switch (cmd) {

@@ -1275,22 +1275,13 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		if (lt->c_ospeed != 0)
 			dt->c_ospeed = tp->t_ospeed;
 	}
-	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, td);
+	error = ttyioctl(dev, cmd, data, flag, td);
 	if (error == 0 && cmd == TIOCGETA)
 		((struct termios *)data)->c_iflag |= port->c_iflag;
-
-	if (error >= 0 && error != ENOIOCTL)
+	digi_disc_optim(tp, &tp->t_termios, port);
+	if (error >= 0 && error != ENOTTY)
 		return (error);
 	s = spltty();
-	error = ttioctl(tp, cmd, data, flag);
-	if (error == 0 && cmd == TIOCGETA)
-		((struct termios *)data)->c_iflag |= port->c_iflag;
-
-	digi_disc_optim(tp, &tp->t_termios, port);
-	if (error >= 0 && error != ENOIOCTL) {
-		splx(s);
-		return (error);
-	}
 	sc->setwin(sc, 0);
 	switch (cmd) {
 	case DIGIIO_RING:

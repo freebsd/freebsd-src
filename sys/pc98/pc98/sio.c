@@ -3021,16 +3021,11 @@ sioioctl(dev, cmd, data, flag, td)
 		if (lt->c_ospeed != 0)
 			dt->c_ospeed = tp->t_ospeed;
 	}
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
+	error = ttyioctl(dev, cmd, data, flag, td);
+	disc_optim(tp, &tp->t_termios, com);
+	if (error != ENOTTY)
 		return (error);
 	s = spltty();
-	error = ttioctl(tp, cmd, data, flag);
-	disc_optim(tp, &tp->t_termios, com);
-	if (error != ENOIOCTL) {
-		splx(s);
-		return (error);
-	}
 #ifdef PC98
 	if (IS_8251(com->pc98_if_type)) {
 	    switch (cmd) {
