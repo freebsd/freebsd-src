@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.310 1999/06/29 17:30:33 yokota Exp $
+ *	$Id: syscons.c,v 1.311 1999/07/01 20:29:25 peter Exp $
  */
 
 #include "sc.h"
@@ -101,11 +101,13 @@ static	char		sc_malloc = FALSE;
 static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
+#if NSPLASH > 0
 static	int     	scrn_blanked;		/* # of blanked screen */
 static	int		sticky_splash = FALSE;
 
 static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
+#endif
 
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
@@ -2942,9 +2944,11 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
 {
     u_char *ptr = buf;
 
+#if NSPLASH > 0
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp)
 	run_scrn_saver = FALSE;
+#endif
 
 outloop:
     scp->sc->write_in_progress++;
@@ -3426,7 +3430,9 @@ scshutdown(int howto, void *arg)
 int
 sc_clean_up(scr_stat *scp)
 {
+#if NSPLASH > 0
     int error;
+#endif /* NSPLASH */
 
     sc_touch_scrn_saver();
 #if NSPLASH > 0
