@@ -70,6 +70,12 @@ static __inline int name(void)				\
 	return s;					\
     } else						\
 	return cpl;					\
+}							\
+							\
+static __inline int					\
+is_##name(void)					\
+{							\
+    return (getcpl() >= ALPHA_PSL_IP_L##pri);		\
 }
 
 SPLUP(splsoftcam, SOFT)
