@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef __i386__
-static u_int16_t get_eeprom_data(int, int);
+static uint16_t get_eeprom_data(int, int);
 static void ep_isa_identify(driver_t *, device_t);
 #endif
 
@@ -65,10 +65,10 @@ static int ep_isa_attach(device_t);
 static int ep_eeprom_cksum(struct ep_softc *);
 
 struct isa_ident {
-	u_int32_t id;
+	uint32_t id;
 	char *name;
 };
-const char *ep_isa_match_id(u_int32_t, struct isa_ident *);
+const char *ep_isa_match_id(uint32_t, struct isa_ident *);
 
 #define ISA_ID_3C509_XXX   0x0506d509
 #define ISA_ID_3C509_TP    0x506d5090
@@ -119,11 +119,11 @@ static struct isa_pnp_id ep_ids[] = {
  * read 16 times getting one bit of data with each read.
  */
 #ifdef __i386__
-static u_int16_t
+static uint16_t
 get_eeprom_data(int id_port, int offset)
 {
 	int i;
-	u_int16_t data = 0;
+	uint16_t data = 0;
 
 	outb(id_port, EEPROM_CMD_RD | offset);
 	DELAY(BIT_DELAY_MULTIPLE * 1000);
@@ -136,7 +136,7 @@ get_eeprom_data(int id_port, int offset)
 #endif
 
 const char *
-ep_isa_match_id(u_int32_t id, struct isa_ident *isa_devs)
+ep_isa_match_id(uint32_t id, struct isa_ident *isa_devs)
 {
 	struct isa_ident *i = isa_devs;
 
@@ -164,10 +164,10 @@ ep_isa_identify(driver_t * driver, device_t parent)
 	int i;
 	int j;
 	const char *desc;
-	u_int16_t data;
-	u_int32_t irq;
-	u_int32_t ioport;
-	u_int32_t isa_id;
+	uint16_t data;
+	uint32_t irq;
+	uint32_t ioport;
+	uint32_t isa_id;
 	device_t child;
 
 	outb(ELINK_ID_PORT, 0);
@@ -356,10 +356,10 @@ ep_eeprom_cksum(struct ep_softc *sc)
 {
 	int i;
 	int error;
-	u_int16_t val;
-	u_int16_t cksum;
-	u_int8_t cksum_high = 0;
-	u_int8_t cksum_low = 0;
+	uint16_t val;
+	uint16_t cksum;
+	uint8_t cksum_high = 0;
+	uint8_t cksum_low = 0;
 
 	error = get_e(sc, 0x0f, &val);
 	if (error)
@@ -374,16 +374,16 @@ ep_eeprom_cksum(struct ep_softc *sc)
 		case 0x08:
 		case 0x09:
 		case 0x0d:
-			cksum_low ^= (u_int8_t) (val & 0x00ff) ^
-			    (u_int8_t)((val & 0xff00) >> 8);
+			cksum_low ^= (uint8_t) (val & 0x00ff) ^
+			    (uint8_t)((val & 0xff00) >> 8);
 			break;
 		default:
-			cksum_high ^= (u_int8_t) (val & 0x00ff) ^
-			    (u_int8_t)((val & 0xff00) >> 8);
+			cksum_high ^= (uint8_t) (val & 0x00ff) ^
+			    (uint8_t)((val & 0xff00) >> 8);
 			break;
 		}
 	}
-	return (cksum != ((u_int16_t)cksum_low | (u_int16_t)(cksum_high << 8)));
+	return (cksum != ((uint16_t)cksum_low | (uint16_t)(cksum_high << 8)));
 }
 
 static device_method_t ep_isa_methods[] = {

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1993 Herb Peyerl (hpeyerl@novatel.ca) All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ int ep_detach(device_t);
 void ep_get_media(struct ep_softc *);
 int ep_attach(struct ep_softc *);
 void ep_intr(void *);
-int get_e(struct ep_softc *, u_int16_t, u_int16_t *);
+int get_e(struct ep_softc *, uint16_t, uint16_t *);
 int ep_get_macaddr(struct ep_softc *, u_char *);
 
 #define CSR_READ_1(sc, off) (bus_space_read_1((sc)->bst, (sc)->bsh, off))

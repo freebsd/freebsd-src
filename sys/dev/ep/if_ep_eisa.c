@@ -173,7 +173,7 @@ ep_eisa_attach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
 	struct resource *eisa_io = NULL;
-	u_int32_t eisa_iobase;
+	uint32_t eisa_iobase;
 	int irq;
 	int error = 0;
 	int rid;

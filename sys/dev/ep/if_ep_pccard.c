@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ep/if_epvar.h>
 
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 #include "card_if.h"
 #include "pccarddevs.h"
@@ -71,7 +72,7 @@ ep_pccard_probe(device_t dev)
 	struct ep_softc *sc = device_get_softc(dev);
 	struct ep_board *epb = &sc->epb;
 	const char *desc;
-	u_int16_t result;
+	uint16_t result;
 	int error;
 
 	error = ep_alloc(dev);
@@ -148,7 +149,6 @@ ep_pccard_identify(u_short id)
 	case 0x0035:
 		return ("3Com 3CCEM556");
 	default:
-		printf("Unknown ID: 0x%x\n", id);
 		return (NULL);
 	}
 }
@@ -160,7 +160,7 @@ ep_pccard_card_attach(struct ep_board * epb)
 	switch (epb->prod_id) {
 	case 0x6055:		/* 3C556 */
 	case 0x2b57:		/* 3C572BT */
-	case 0x4057:		/* 3C574 */
+	case 0x4057:		/* 3C574, 3C574-TX */
 	case 0x4b57:		/* 3C574B */
 		epb->mii_trans = 1;
 		return (1);
@@ -179,7 +179,7 @@ static int
 ep_pccard_attach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
-	u_int16_t result;
+	uint16_t result;
 	int error = 0;
 
 	if ((error = ep_alloc(dev))) {
@@ -266,6 +266,15 @@ static int
 ep_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
+	int		error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
 	if ((pp = pccard_product_lookup(dev, ep_pccard_products,
 		    sizeof(ep_pccard_products[0]), NULL)) != NULL) {
