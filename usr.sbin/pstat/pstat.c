@@ -179,6 +179,7 @@ struct {
 	{ MNT_NODEV, "nodev" },
 	{ MNT_UNION, "union" },
 	{ MNT_ASYNC, "async" },
+	{ MNT_NOATIME, "noatime" },
 	{ MNT_EXRDONLY, "exrdonly" },
 	{ MNT_EXPORTED, "exported" },
 	{ MNT_DEFEXPORTED, "defexported" },
@@ -187,21 +188,15 @@ struct {
 	{ MNT_LOCAL, "local" },
 	{ MNT_QUOTA, "quota" },
 	{ MNT_ROOTFS, "rootfs" },
+	{ MNT_USER, "user" },
 	{ MNT_UPDATE, "update" },
 	{ MNT_DELEXPORT },
 	{ MNT_UPDATE, "update" },
 	{ MNT_DELEXPORT, "delexport" },
 	{ MNT_RELOAD, "reload" },
 	{ MNT_FORCE, "force" },
-#if 0
-	{ MNT_MLOCK, "mlock" },
-#endif
-	{ MNT_WAIT, "wait" },
-#if 0
-	{ MNT_MPBUSY, "mpbusy" },
-	{ MNT_MPWANT, "mpwant" },
-#endif
 	{ MNT_UNMOUNT, "unmount" },
+	{ MNT_MWAIT, "mwait" },
 	{ MNT_WANTRDWR, "wantrdwr" },
 	{ 0 }
 };
@@ -484,12 +479,6 @@ ufs_print(vp)
 
 	KGETRET(VTOI(vp), &inode, sizeof(struct inode), "vnode's inode");
 	flag = ip->i_flag;
-#if 0	/* XXX */
-	if (flag & IN_LOCKED)
-		*flags++ = 'L';
-	if (flag & IN_WANTED)
-		*flags++ = 'W';
-#endif
 	if (flag & IN_RENAME)
 		*flags++ = 'R';
 	if (flag & IN_UPDATE)
@@ -504,10 +493,6 @@ ufs_print(vp)
 		*flags++ = 'S';
 	if (flag & IN_EXLOCK)
 		*flags++ = 'E';
-#if 0
-	if (flag & IN_LWAIT)
-		*flags++ = 'Z';
-#endif
 	if (flag == 0)
 		*flags++ = '-';
 	*flags = '\0';
@@ -686,8 +671,8 @@ kinfo_vnodes(avnodes)
 	int *avnodes;
 {
 	struct mntlist mountlist;
-	struct mount *mp, mount;
-	struct vnode *vp, vnode;
+	struct mount *mp, mount, *mp_next;
+	struct vnode *vp, vnode, *vp_next;
 	char *vbuf, *evbuf, *bp;
 	int num, numvnodes;
 
@@ -700,11 +685,13 @@ kinfo_vnodes(avnodes)
 	bp = vbuf;
 	evbuf = vbuf + (numvnodes + 20) * (VPTRSZ + VNODESZ);
 	KGET(V_MOUNTLIST, mountlist);
-	for (num = 0, mp = mountlist.cqh_first; ; mp = mp->mnt_list.cqe_next) {
+	for (num = 0, mp = mountlist.cqh_first; ; mp = mp_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
+		mp_next = mount.mnt_list.cqe_next;
 		for (vp = mount.mnt_vnodelist.lh_first;
-		    vp != NULL; vp = vp->v_mntvnodes.le_next) {
+		    vp != NULL; vp = vp_next) {
 			KGET2(vp, &vnode, sizeof(vnode), "vnode");
+			vp_next = vnode.v_mntvnodes.le_next;
 			if ((bp + VPTRSZ + VNODESZ) > evbuf)
 				/* XXX - should realloc */
 				errx(1, "no more room for vnodes");
