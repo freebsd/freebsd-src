@@ -178,7 +178,7 @@ vm_paging_target(void)
 }
 
 /*
- * Return a positive number if the pagedaemon needs to be woken up.
+ * Returns TRUE if the pagedaemon needs to be woken up.
  */
 
 static __inline 

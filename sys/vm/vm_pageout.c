@@ -1440,7 +1440,7 @@ vm_pageout()
 		 * waste a lot of cpu.
 		 */
 		if (vm_pages_needed && !vm_page_count_min()) {
-			if (vm_paging_needed() <= 0)
+			if (!vm_paging_needed())
 				vm_pages_needed = 0;
 			wakeup(&cnt.v_free_count);
 		}
@@ -1484,8 +1484,9 @@ vm_pageout()
 void
 pagedaemon_wakeup()
 {
+
 	if (!vm_pages_needed && curthread->td_proc != pageproc) {
-		vm_pages_needed++;
+		vm_pages_needed = 1;
 		wakeup(&vm_pages_needed);
 	}
 }
