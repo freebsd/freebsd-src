@@ -513,6 +513,7 @@ configSecurityExtreme(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+int
 configSecurityModerate(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
