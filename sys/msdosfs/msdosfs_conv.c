@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.9 1996/04/05 18:59:06 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.10 1996/09/19 18:20:43 nate Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -101,7 +101,7 @@ unix2dostime(tsp, ddp, dtp)
 				days -= inc;
 			}
 			months = year & 0x03 ? regyear : leapyear;
-			for (month = 0; days > months[month]; month++)
+			for (month = 0; days >= months[month]; month++)
 				;
 			if (month > 0)
 				days -= months[month - 1];

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.14 1996/03/11 02:17:11 hsu Exp $
+ *	$Id: uipc_usrreq.c,v 1.15 1996/03/11 15:12:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -658,6 +658,9 @@ unp_externalize(rights)
 	int newfds = (cm->cmsg_len - sizeof(*cm)) / sizeof (int);
 	int f;
 
+	/*
+	 * if the new FD's will not fit, then we free them all
+	 */
 	if (!fdavail(p, newfds)) {
 		for (i = 0; i < newfds; i++) {
 			fp = *rp;
@@ -666,6 +669,12 @@ unp_externalize(rights)
 		}
 		return (EMSGSIZE);
 	}
+	/*
+	 * now change each pointer to an fd in the global table to 
+	 * an integer that is the index to the local fd table entry
+	 * that we set up to point to the global one we are transferring.
+	 * XXX this assumes a pointer and int are the same size...!
+	 */
 	for (i = 0; i < newfds; i++) {
 		if (fdalloc(p, 0, &f))
 			panic("unp_externalize");
@@ -694,6 +703,10 @@ unp_internalize(control, p)
 	    cm->cmsg_len != control->m_len)
 		return (EINVAL);
 	oldfds = (cm->cmsg_len - sizeof (*cm)) / sizeof (int);
+	/*
+	 * check that all the FDs passed in refer to legal OPEN files
+	 * If not, reject the entire operation.
+	 */
 	rp = (struct file **)(cm + 1);
 	for (i = 0; i < oldfds; i++) {
 		fd = *(int *)rp++;
@@ -701,6 +714,11 @@ unp_internalize(control, p)
 		    fdp->fd_ofiles[fd] == NULL)
 			return (EBADF);
 	}
+	/*
+	 * Now replace the integer FDs with pointers to
+	 * the associated global file table entry..
+	 * XXX this assumes a pointer and an int are the same size!
+	 */
 	rp = (struct file **)(cm + 1);
 	for (i = 0; i < oldfds; i++) {
 		fp = fdp->fd_ofiles[*(int *)rp];
@@ -726,22 +744,52 @@ unp_gc()
 		return;
 	unp_gcing = 1;
 	unp_defer = 0;
+	/* 
+	 * before going through all this, set all FDs to 
+	 * be NOT defered and NOT externally accessible
+	 */
 	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next)
 		fp->f_flag &= ~(FMARK|FDEFER);
 	do {
 		for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
+			/*
+			 * If the file is not open, skip it
+			 */
 			if (fp->f_count == 0)
 				continue;
+			/*
+			 * If we already marked it as 'defer'  in a
+			 * previous pass, then try process it this time
+			 * and un-mark it
+			 */
 			if (fp->f_flag & FDEFER) {
 				fp->f_flag &= ~FDEFER;
 				unp_defer--;
 			} else {
+				/*
+				 * if it's not defered, then check if it's
+				 * already marked.. if so skip it
+				 */
 				if (fp->f_flag & FMARK)
 					continue;
+				/* 
+				 * If all references are from messages
+				 * in transit, then skip it. it's not 
+				 * externally accessible.
+				 */ 
 				if (fp->f_count == fp->f_msgcount)
 					continue;
+				/* 
+				 * If it got this far then it must be
+				 * externally accessible.
+				 */
 				fp->f_flag |= FMARK;
 			}
+			/*
+			 * either it was defered, or it is externally 
+			 * accessible and not already marked so.
+			 * Now check if it is possibly one of OUR sockets.
+			 */ 
 			if (fp->f_type != DTYPE_SOCKET ||
 			    (so = (struct socket *)fp->f_data) == 0)
 				continue;
@@ -764,6 +812,13 @@ unp_gc()
 				goto restart;
 			}
 #endif
+			/*
+			 * So, Ok, it's one of our sockets and it IS externally
+			 * accessible (or was defered). Now we look
+			 * to see if we hold any file descriptors in it's
+			 * message buffers. Follow those links and mark them 
+			 * as accessible too.
+			 */
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 		}
 	} while (unp_defer);
@@ -810,14 +865,26 @@ unp_gc()
 	for (nunref = 0, fp = filehead.lh_first, fpp = extra_ref; fp != 0;
 	    fp = nextfp) {
 		nextfp = fp->f_list.le_next;
+		/* 
+		 * If it's not open, skip it
+		 */
 		if (fp->f_count == 0)
 			continue;
+		/* 
+		 * If all refs are from msgs, and it's not marked accessible
+		 * then it must be referenced from some unreachable cycle
+		 * of (shut-down) FDs, so include it in our
+		 * list of FDs to remove
+		 */
 		if (fp->f_count == fp->f_msgcount && !(fp->f_flag & FMARK)) {
 			*fpp++ = fp;
 			nunref++;
 			fp->f_count++;
 		}
 	}
+	/* 
+	 * for each FD on our hit list, do the following two things
+	 */
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		sorflush((struct socket *)(*fpp)->f_data);
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
