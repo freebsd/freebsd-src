@@ -53,6 +53,7 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <vm/uma.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -101,6 +102,7 @@ SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
+static uma_zone_t vlan_zone;		/* for vlan packet tags */
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 static LIST_HEAD(, ifvlan) ifv_list;
 
@@ -217,6 +219,9 @@ vlan_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD: 
 		LIST_INIT(&ifv_list);
 		VLAN_LOCK_INIT();
+		vlan_zone = uma_zcreate("vlan",
+			sizeof(struct m_tag)+sizeof(u_int),
+			NULL, NULL, NULL, NULL, UMA_ALIGN_INT, 0);
 		vlan_input_p = vlan_input;
 		if_clone_attach(&vlan_cloner);
 		break; 
@@ -225,6 +230,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_input_p = NULL;
 		while (!LIST_EMPTY(&ifv_list))
 			vlan_clone_destroy(&LIST_FIRST(&ifv_list)->ifv_if);
+		uma_zdestroy(vlan_zone);
 		VLAN_LOCK_DESTROY();
 		break;
 	} 
@@ -295,6 +301,25 @@ vlan_ifinit(void *foo)
 }
 
 static void
+vlan_tag_free(struct m_tag *t)
+{
+	uma_zfree(vlan_zone, t);
+}
+
+struct m_tag *
+vlan_tag_alloc(int flags)
+{
+	struct m_tag *mtag;
+
+	mtag = uma_zalloc(vlan_zone, flags);
+	if (mtag) {
+		m_tag_setup(mtag, MTAG_VLAN, MTAG_VLAN_TAG, sizeof(u_int));
+		mtag->m_tag_free = vlan_tag_free;
+	}
+	return mtag;
+}
+
+static void
 vlan_start(struct ifnet *ifp)
 {
 	struct ifvlan *ifv;
@@ -331,10 +356,7 @@ vlan_start(struct ifnet *ifp)
 		 * packet tag that holds it.
 		 */
 		if (p->if_capabilities & IFCAP_VLAN_HWTAGGING) {
-			struct m_tag *mtag = m_tag_alloc(MTAG_VLAN,
-							 MTAG_VLAN_TAG,
-							 sizeof (u_int),
-							 M_NOWAIT);
+			struct m_tag *mtag = vlan_tag_alloc(M_NOWAIT);
 			if (mtag == NULL) {
 				ifp->if_oerrors++;
 				m_freem(m);
