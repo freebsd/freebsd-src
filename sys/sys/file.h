@@ -194,8 +194,8 @@ fo_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 
 	return ((*fp->f_ops->fo_read)(fp, uio, active_cred, flags, td));
