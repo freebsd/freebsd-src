@@ -15,14 +15,14 @@ crunch.mk: crunch1.conf crunch.inc
 
 crunch1.mk: crunch.mk
 	@sed -e "s@make depend@make obj \&\& make depend@" \
-		-e "s/@/usr/obj/@${COMMOBJ}@" crunch.mk > ${.TARGET}
+		-e "s@/usr/obj/@${COMMOBJ}@" crunch.mk > ${.TARGET}
 
 crunch: crunch1.mk
-	@if [! -d build ]; then mkdir build; fi
+	@if [ ! -d build ]; then mkdir build; fi
 	@cp crunch1.c build/
 	@(cd build && env MAKEOBJDIRPREFIX=${COMMOBJ} \
 	    ${MAKE} -f ../crunch1.mk -DNOPAM all \
-	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT") #2>&1 >/dev/null
 
 clean:
 	rm -rf build
