@@ -1089,7 +1089,7 @@ gai_addr2scopetype(sa)
 		     (((u_char *)&sa4->sin_addr)[1] & 0xf0) == 16) ||
 		    (((u_char *)&sa4->sin_addr)[0] == 192 &&
 		     ((u_char *)&sa4->sin_addr)[1] == 168))
-			return(5);
+			return(14);	/* XXX: It should be 5 unless NAT */
 		/* Loopback addresses have link-local scope. */
 		if (((u_char *)&sa4->sin_addr)[0] == 127)
 			return(2);
