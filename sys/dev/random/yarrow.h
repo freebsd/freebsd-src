@@ -52,8 +52,6 @@ void write_random(void *, u_int);
 
 /* This is the beastie that needs protecting. It contains all of the
  * state that we are excited about.
- * This is a biiig structure. It may move over to a malloc(9)ed
- * replacement.
  */
 struct random_state {
 	u_int64_t counter;	/* C */
