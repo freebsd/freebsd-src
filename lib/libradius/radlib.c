@@ -48,6 +48,7 @@ static void	 clear_password(struct rad_handle *);
 static void	 generr(struct rad_handle *, const char *, ...)
 		    __printflike(2, 3);
 static void	 insert_scrambled_password(struct rad_handle *, int);
+static void	 insert_request_authenticator(struct rad_handle *, int);
 static int	 is_valid_response(struct rad_handle *, int,
 		    const struct sockaddr_in *);
 static int	 put_password_attr(struct rad_handle *, int,
@@ -108,6 +109,23 @@ insert_scrambled_password(struct rad_handle *h, int srv)
 			h->request[h->pass_pos + pos + i] =
 			    md5[i] ^= h->pass[pos + i];
 	}
+}
+
+static void
+insert_request_authenticator(struct rad_handle *h, int srv)
+{
+	MD5_CTX ctx;
+	const struct rad_server *srvp;
+
+	srvp = &h->servers[srv];
+
+	/* Create the request authenticator */
+	MD5Init(&ctx);
+	MD5Update(&ctx, &h->request[POS_CODE], POS_AUTH - POS_CODE);
+	MD5Update(&ctx, memset(&h->request[POS_AUTH], 0, LEN_AUTH), LEN_AUTH);
+	MD5Update(&ctx, &h->request[POS_ATTRS], h->req_len - POS_ATTRS);
+	MD5Update(&ctx, srvp->secret, strlen(srvp->secret));
+	MD5Final(&h->request[POS_AUTH], &ctx);
 }
 
 /*
@@ -229,9 +247,14 @@ rad_add_server(struct rad_handle *h, const char *host, int port,
 	else {
 		struct servent *sent;
 
-		srvp->addr.sin_port =
-		    (sent = getservbyname("radius", "udp")) != NULL ?
-			sent->s_port : htons(RADIUS_PORT);
+		if (h->type == RADIUS_AUTH)
+			srvp->addr.sin_port =
+			    (sent = getservbyname("radius", "udp")) != NULL ?
+				sent->s_port : htons(RADIUS_PORT);
+		else
+			srvp->addr.sin_port =
+			    (sent = getservbyname("radacct", "udp")) != NULL ?
+				sent->s_port : htons(RADACCT_PORT);
 	}
 	if ((srvp->secret = strdup(secret)) == NULL) {
 		generr(h, "Out of memory");
@@ -278,18 +301,21 @@ rad_config(struct rad_handle *h, const char *path)
 	linenum = 0;
 	while (fgets(buf, sizeof buf, fp) != NULL) {
 		int len;
-		char *fields[4];
+		char *fields[5];
 		int nfields;
 		char msg[ERRSIZE];
+		char *type;
 		char *host;
 		char *port_str;
 		char *secret;
 		char *timeout_str;
 		char *maxtries_str;
 		char *end;
+		char *wanttype;
 		unsigned long timeout;
 		unsigned long maxtries;
 		int port;
+		int i;
 
 		linenum++;
 		len = strlen(buf);
@@ -307,7 +333,7 @@ rad_config(struct rad_handle *h, const char *path)
 		buf[len - 1] = '\0';
 
 		/* Extract the fields from the line. */
-		nfields = split(buf, fields, 4, msg, sizeof msg);
+		nfields = split(buf, fields, 5, msg, sizeof msg);
 		if (nfields == -1) {
 			generr(h, "%s:%d: %s", path, linenum, msg);
 			retval = -1;
@@ -315,16 +341,41 @@ rad_config(struct rad_handle *h, const char *path)
 		}
 		if (nfields == 0)
 			continue;
-		if (nfields < 2) {
+		/*
+		 * The first field should contain "auth" or "acct" for
+		 * authentication or accounting, respectively.  But older
+		 * versions of the file didn't have that field.  Default
+		 * it to "auth" for backward compatibility.
+		 */
+		if (strcmp(fields[0], "auth") != 0 &&
+		    strcmp(fields[0], "acct") != 0) {
+			if (nfields >= 5) {
+				generr(h, "%s:%d: invalid service type", path,
+				    linenum);
+				retval = -1;
+				break;
+			}
+			nfields++;
+			for (i = nfields;  --i > 0;  )
+				fields[i] = fields[i - 1];
+			fields[0] = "auth";
+		}
+		if (nfields < 3) {
 			generr(h, "%s:%d: missing shared secret", path,
 			    linenum);
 			retval = -1;
 			break;
 		}
-		host = fields[0];
-		secret = fields[1];
-		timeout_str = fields[2];
-		maxtries_str = fields[3];
+		type = fields[0];
+		host = fields[1];
+		secret = fields[2];
+		timeout_str = fields[3];
+		maxtries_str = fields[4];
+
+		/* Ignore the line if it is for the wrong service type. */
+		wanttype = h->type == RADIUS_AUTH ? "auth" : "acct";
+		if (strcmp(type, wanttype) != 0)
+			continue;
 
 		/* Parse and validate the fields. */
 		host = strtok(host, ":");
@@ -421,9 +472,13 @@ rad_continue_send_request(struct rad_handle *h, int selected, int *fd,
 		if (++h->srv >= h->num_servers)
 			h->srv = 0;
 
-	/* Insert the scrambled password into the request */
-	if (h->pass_pos != 0)
-		insert_scrambled_password(h, h->srv);
+	if (h->request[POS_CODE] == RAD_ACCOUNTING_REQUEST)
+		/* Insert the request authenticator into the request */
+		insert_request_authenticator(h, h->srv);
+	else
+		/* Insert the scrambled password into the request */
+		if (h->pass_pos != 0)
+			insert_scrambled_password(h, h->srv);
 
 	/* Send the request */
 	n = sendto(h->fd, h->request, h->req_len, 0,
@@ -552,14 +607,22 @@ rad_init_send_request(struct rad_handle *h, int *fd, struct timeval *tv)
 		}
 	}
 
-	/* Make sure the user gave us a password */
-	if (h->pass_pos == 0 && !h->chap_pass) {
-		generr(h, "No User or Chap Password attributes given");
-		return -1;
-	}
-	if (h->pass_pos != 0 && h->chap_pass) {
-		generr(h, "Both User and Chap Password attributes given");
-		return -1;
+	if (h->request[POS_CODE] == RAD_ACCOUNTING_REQUEST) {
+		/* Make sure no password given */
+		if (h->pass_pos || h->chap_pass) {
+			generr(h, "User or Chap Password in accounting request");
+			return -1;
+		}
+	} else {
+		/* Make sure the user gave us a password */
+		if (h->pass_pos == 0 && !h->chap_pass) {
+			generr(h, "No User or Chap Password attributes given");
+			return -1;
+		}
+		if (h->pass_pos != 0 && h->chap_pass) {
+			generr(h, "Both User and Chap Password attributes given");
+			return -1;
+		}
 	}
 
 	/* Fill in the length field in the message */
@@ -591,7 +654,7 @@ rad_init_send_request(struct rad_handle *h, int *fd, struct timeval *tv)
  * In that case, it returns NULL.
  */
 struct rad_handle *
-rad_open(void)
+rad_auth_open(void)
 {
 	struct rad_handle *h;
 
@@ -606,8 +669,26 @@ rad_open(void)
 		h->pass_len = 0;
 		h->pass_pos = 0;
 		h->chap_pass = 0;
+		h->type = RADIUS_AUTH;
 	}
 	return h;
+}
+
+struct rad_handle *
+rad_acct_open(void)
+{
+	struct rad_handle *h;
+
+	h = rad_open();
+	if (h != NULL)
+	        h->type = RADIUS_ACCT;
+	return h;
+}
+
+struct rad_handle *
+rad_open(void)
+{
+    return rad_auth_open();
 }
 
 int
