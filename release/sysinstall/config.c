@@ -749,16 +749,13 @@ skip:
     if (!fp)
 	return DITEM_FAILURE;
     /* Add an entry for localhost */
-    if (!variable_cmp(VAR_IPV6_ENABLE, "YES")) {
-	if (dp)
-	    fprintf(fp, "::1\t\t\tlocalhost.%s localhost\n", dp);
-	else
-	    fprintf(fp, "::1\t\t\tlocalhost\n");
-    }
-    if (dp)
+    if (dp) {
+	fprintf(fp, "::1\t\t\tlocalhost.%s localhost\n", dp);
 	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
-    else
+    } else {
+	fprintf(fp, "::1\t\t\tlocalhost\n");
 	fprintf(fp, "127.0.0.1\t\tlocalhost\n");
+    }
     /* Now the host entries, if applicable */
     if (((cp && cp[0] != '0') || (c6p && c6p[0] != '0')) && hp) {
 	char cp2[255];
