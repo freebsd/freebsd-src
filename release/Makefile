@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.84 1998/03/24 11:00:03 jkh Exp $
+#	$Id: Makefile,v 1.246.2.85 1998/03/30 08:28:48 jkh Exp $
 #
 # How to roll a release:
 #
@@ -518,6 +518,7 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${CD_DISC1}/TROUBLE.TXT
 	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${CD_DISC1}/UPGRADE.TXT
 .if !defined(NOPORTS)
+	-rm -rf /usr/ports/distfiles/*
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 	  mkdir -p ${CD_DISC1}/ports && \
 	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
