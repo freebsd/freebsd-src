@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.19 1995/12/17 06:59:36 bde Exp $
+ *	$Id: sys_process.c,v 1.20 1996/01/19 03:58:04 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,10 @@
 #include <vm/vm_extern.h>
 
 #include <sys/user.h>
+#include <miscfs/procfs/procfs.h>
 
+/* use the equivalent procfs code */
+#if 0
 static int
 pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	int		rv;
@@ -193,6 +196,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 			VM_PROT_READ|VM_PROT_EXECUTE, 0);
 	return rv;
 }
+#endif
 
 /*
  * Process debugging system call.
@@ -213,62 +217,159 @@ ptrace(curp, uap, retval)
 	int *retval;
 {
 	struct proc *p;
+	struct iovec iov;
+	struct uio uio;
 	int error = 0;
+	int write;
+	int s;
 
-	*retval = 0;
-	if (uap->req == PT_TRACE_ME) {
-		curp->p_flag |= P_TRACED;
-		return 0;
+	if (uap->req == PT_TRACE_ME)
+		p = curp;
+	else {
+		if ((p = pfind(uap->pid)) == NULL)
+			return ESRCH;
 	}
-	if ((p = pfind(uap->pid)) == NULL) {
-		return ESRCH;
-	}
 
-#ifdef PT_ATTACH
-	if (uap->req != PT_ATTACH && (
-			(p->p_flag & P_TRACED) == 0 ||
-			(p->p_tptr && curp != p->p_tptr) ||
-			(!p->p_tptr && curp != p->p_pptr)))
+	/*
+	 * Permissions check
+	 */
+	switch (uap->req) {
+	case PT_TRACE_ME:
+		/* Always legal. */
+		break;
 
-		return ESRCH;
+	case PT_ATTACH:
+		/* Self */
+		if (p->p_pid == curp->p_pid)
+			return EINVAL;
+
+		/* Already traced */
+		if (p->p_flag & P_TRACED)
+			return EBUSY;
+
+		/* not owned by you, has done setuid (unless you're root) */
+		if ((p->p_cred->p_ruid != curp->p_cred->p_ruid) ||
+		     (p->p_flag & P_SUGID)) {
+			if (error = suser(curp->p_ucred, &curp->p_acflag))
+				return error;
+		}
+
+		/* OK */
+		break;
+
+	case PT_READ_I:
+	case PT_READ_D:
+	case PT_READ_U:
+	case PT_WRITE_I:
+	case PT_WRITE_D:
+	case PT_WRITE_U:
+	case PT_CONTINUE:
+	case PT_KILL:
+	case PT_STEP:
+	case PT_DETACH:
+#ifdef PT_GETREGS
+	case PT_GETREGS:
 #endif
-#ifdef PT_ATTACH
-	if (uap->req != PT_ATTACH) {
+#ifdef PT_SETREGS
+	case PT_SETREGS:
 #endif
+#ifdef PT_GETFPREGS
+	case PT_GETFPREGS:
+#endif
+#ifdef PT_SETFPREGS
+	case PT_SETFPREGS:
+#endif
+		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0)
 			return EPERM;
+
+		/* not being traced by YOU */
+		if (p->p_pptr != curp)
+			return EBUSY;
+
+		/* not currently stopped */
 		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0)
 			return EBUSY;
-#ifdef PT_ATTACH
+
+		/* OK */
+		break;
+
+	default:
+		return EINVAL;
 	}
-#endif
+
+#ifdef FIX_SSTEP
 	/*
-	 * XXX The PT_ATTACH code is completely broken.  It will
-	 * be obsoleted by a /proc filesystem, so is it worth it
-	 * to fix it?  (Answer, probably.  So that'll be next,
-	 * I guess.)
+	 * Single step fixup ala procfs
+	 */
+	FIX_SSTEP(p);
+#endif
+
+	/*
+	 * Actually do the requests
 	 */
 
-	switch (uap->req) {
-#ifdef PT_ATTACH
-	case PT_ATTACH:
-		if (curp->p_ucred->cr_uid != 0 && (
-			curp->p_ucred->cr_uid != p->p_ucred->cr_uid ||
-			curp->p_ucred->cr_uid != p->p_cred->p_svuid))
-			return EACCES;
+	write = 0;
+	*retval = 0;
 
-		p->p_tptr = curp;
+	switch (uap->req) {
+	case PT_TRACE_ME:
+		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
-		psignal(p, SIGSTOP);
+		p->p_oppid = p->p_pptr->p_pid;
 		return 0;
 
+	case PT_ATTACH:
+		/* security check done above */
+		p->p_flag |= P_TRACED;
+		p->p_oppid = p->p_pptr->p_pid;
+		if (p->p_pptr != curp)
+			proc_reparent(p, curp);
+		uap->data = SIGSTOP;
+		goto sendsig;	/* in PT_CONTINUE below */
+
+	case PT_STEP:
+	case PT_CONTINUE:
 	case PT_DETACH:
 		if ((unsigned)uap->data >= NSIG)
 			return EINVAL;
-		p->p_flag &= ~P_TRACED;
-		p->p_tptr = NULL;
-		psignal(p->p_pptr, SIGCHLD);
-		wakeup((caddr_t)p->p_pptr);
+
+		PHOLD(p);
+
+		if (uap->req == PT_STEP) {
+			if ((error = ptrace_single_step (p))) {
+				PRELE(p);
+				return error;
+			}
+		}
+
+		if (uap->addr != (caddr_t)1) {
+			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			if ((error = ptrace_set_pc (p, (u_int)uap->addr))) {
+				PRELE(p);
+				return error;
+			}
+		}
+		PRELE(p);
+
+		if (uap->req == PT_DETACH) {
+			/* reset process parent */
+			if (p->p_oppid != p->p_pptr->p_pid) {
+				struct proc *pp;
+
+				pp = pfind(p->p_oppid);
+				proc_reparent(p, pp ? pp : initproc);
+			}
+
+			p->p_flag &= ~(P_TRACED | P_WAITED);
+			p->p_oppid = 0;
+
+			/* should we send SIGCHLD? */
+
+		}
+
+	sendsig:
+		/* deliver or queue signal */
 		s = splhigh();
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
@@ -279,83 +380,109 @@ ptrace(curp, uap, retval)
 		splx(s);
 		return 0;
 
-# ifdef PT_INHERIT
-	case PT_INHERIT:
-		if ((p->p_flag & P_TRACED) == 0)
-			return ESRCH;
-		return 0;
-# endif	/* PT_INHERIT */
-#endif	/* PT_ATTACH */
-
-	case PT_READ_I:
-	case PT_READ_D:
-		if ((error = pread (p, (unsigned int)uap->addr, retval)))
-			return error;
-		return 0;
 	case PT_WRITE_I:
 	case PT_WRITE_D:
-		if ((error = pwrite (p, (unsigned int)uap->addr,
-				    (unsigned int)uap->data)))
-			return error;
-		return 0;
-	case PT_STEP:
-		if ((error = ptrace_single_step (p)))
-			return error;
+		write = 1;
 		/* fallthrough */
-	case PT_CONTINUE:
-		/*
-		 * Continue at addr uap->addr with signal
-		 * uap->data; if uap->addr is 1, then we just
-		 * let the chips fall where they may.
-		 *
-		 * The only check I'll make right now is for
-		 * uap->data to be larger than NSIG; if so, we return
-		 * EINVAL.
-		 */
-		if (uap->data >= NSIG)
-			return EINVAL;
+	case PT_READ_I:
+	case PT_READ_D:
+		/* write = 0 set above */
+		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)retval;
+		iov.iov_len = sizeof(int);
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = (off_t)(u_long)uap->addr;
+		uio.uio_resid = sizeof(int);
+		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
+		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
+		uio.uio_procp = p;
+		return(procfs_domem(curp, p, NULL, &uio));
 
-		if (uap->addr != (caddr_t)1) {
-			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			if ((error = ptrace_set_pc (p, (u_int)uap->addr)))
-				return error;
-		}
-
-		p->p_xstat = uap->data;
-
-/*		if (p->p_stat == SSTOP) */
-		setrunnable (p);
-		return 0;
 	case PT_READ_U:
 		if ((u_int)uap->addr > (UPAGES * NBPG - sizeof(int))) {
 			return EFAULT;
 		}
-		p->p_addr->u_kproc.kp_proc = *p;
-		fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-		*retval = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
-		return 0;
+		error = 0;
+		PHOLD(p);	/* user had damn well better be incore! */
+		if (p->p_flag & P_INMEM) {
+			p->p_addr->u_kproc.kp_proc = *p;
+			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			*retval = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
+		} else {
+			*retval = 0;
+			error = EFAULT;
+		}
+		PRELE(p);
+		return error;
+
 	case PT_WRITE_U:
-		p->p_addr->u_kproc.kp_proc = *p;
-		fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-		return ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
+		PHOLD(p);	/* user had damn well better be incore! */
+		if (p->p_flag & P_INMEM) {
+			p->p_addr->u_kproc.kp_proc = *p;
+			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			error = ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
+		} else {
+			error = EFAULT;
+		}
+		PRELE(p);
+		return error;
+
 	case PT_KILL:
-		p->p_xstat = SIGKILL;
-		setrunnable(p);
-		return 0;
+		uap->data = SIGKILL;
+		goto sendsig;	/* in PT_CONTINUE above */
+
+#ifdef PT_SETREGS
+	case PT_SETREGS:
+		write = 1;
+		/* fallthrough */
+#endif /* PT_SETREGS */
 #ifdef PT_GETREGS
 	case PT_GETREGS:
-		/*
-		 * copyout the registers into addr.  There's no
-		 * size constraint!!! *GRRR*
-		 */
-		return ptrace_getregs(p, uap->addr);
-	case PT_SETREGS:
-		/*
-		 * copyin the registers from addr.  Again, no
-		 * size constraint!!! *GRRRR*
-		 */
-		return ptrace_setregs (p, uap->addr);
-#endif /* PT_GETREGS */
+		/* write = 0 above */
+#endif /* PT_SETREGS */
+#if defined(PT_SETREGS) || defined(PT_GETREGS)
+		if (!procfs_validregs(p))	/* no P_SYSTEM procs please */
+			return EINVAL;
+		else {
+			iov.iov_base = uap->addr;
+			iov.iov_len = sizeof(struct reg);
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_offset = 0;
+			uio.uio_resid = sizeof(struct reg);
+			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
+			uio.uio_procp = curp;
+			return (procfs_doregs(curp, p, NULL, &uio));
+		}
+#endif /* defined(PT_SETREGS) || defined(PT_GETREGS) */
+
+#ifdef PT_SETFPREGS
+	case PT_SETFPREGS:
+		write = 1;
+		/* fallthrough */
+#endif /* PT_SETFPREGS */
+#ifdef PT_GETFPREGS
+	case PT_GETFPREGS:
+		/* write = 0 above */
+#endif /* PT_SETFPREGS */
+#if defined(PT_SETFPREGS) || defined(PT_GETFPREGS)
+		if (!procfs_validfpregs(p))	/* no P_SYSTEM procs please */
+			return EINVAL;
+		else {
+			iov.iov_base = uap->addr;
+			iov.iov_len = sizeof(struct fpreg);
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_offset = 0;
+			uio.uio_resid = sizeof(struct fpreg);
+			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
+			uio.uio_procp = curp;
+			return (procfs_dofpregs(curp, p, NULL, &uio));
+		}
+#endif /* defined(PT_SETFPREGS) || defined(PT_GETFPREGS) */
+
 	default:
 		break;
 	}
