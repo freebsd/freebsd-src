@@ -449,9 +449,6 @@ long rows = 22;		/* scroll length: ws_row - 2 */
 int
 exec_command(void)
 {
-	extern long u_current_addr;
-	extern long u_addr_last;
-
 	static pattern_t *pat = NULL;
 	static int sgflag = 0;
 	static long sgnum = 0;
