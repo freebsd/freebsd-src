@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: yppush.c,v 1.1 1995/01/31 09:47:10 wpaul Exp $
+	$Id: yppush.c,v 1.2 1995/02/05 21:48:00 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -53,6 +53,8 @@ struct dom_binding {
 #ifndef _PATH_YP
 #define _PATH_YP "/var/yp"
 #endif
+
+char *progname;
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 HASHINFO openinfo = {
@@ -114,7 +116,7 @@ _svc_run( void)
 			perror("svc_run: - select failed");
 			return;
 		case 0:
-			fprintf(stderr, "YPPUSH: Callback timed out\n");
+			fprintf(stderr, "%sh: callback timed out\n, progname");
 			exit(0);
 		default:
 			svc_getreqset(&readfds);
@@ -125,7 +127,8 @@ _svc_run( void)
 static void
 Usage(void)
 {
-	fprintf(stderr, "Usage: yppush [ -d domain ] [ -v ] mapname ...\n");
+	fprintf(stderr, "Usage: %s [ -d domain ] [ -v ] mapname ...\n",
+								progname);
 	exit(1);
 }
 
@@ -135,7 +138,8 @@ getHostName( void)
 	static char hostname[MAXHOSTNAMELEN+1];
 	struct hostent *h;
 	if (gethostname(hostname, sizeof hostname)!=0) {
-		perror("YPPUSH: gethostname");
+		fprintf(stderr,"%s:", progname);
+		perror("gethostname");
 		return NULL;
 	}
 	h=gethostbyname(hostname);
@@ -161,22 +165,22 @@ getOrderNum( void)
 	strcat(mapPath, MapName);
 	if ((db = dbopen(mapPath, O_RDWR|O_EXCL, PERM_SECURE, DB_HASH,
 		&openinfo)) == NULL) {
-		fprintf(stderr, "YPPUSH: %s: Cannot open\n", mapPath);
+		fprintf(stderr, "%s: %s: cannot open\n", progname, mapPath);
 		return -1;
 	}
 	
 	o.data="YP_LAST_MODIFIED"; o.size=strlen(o.data);
 	(db->get)(db,&o,&d,0);
 	if (d.data==NULL) {
-		fprintf(stderr, "YPPUSH: %s: Cannot determine order number\n",
-			MapName);
+		fprintf(stderr, "%s: %s: cannot determine order number\n",
+			progname, MapName);
 		return -1;
 	}
 
 	for (i=0; i<d.size; i++) {
 		if (!isdigit(*((char *)d.data+i))) {
-			fprintf(stderr, "YPPUSH: %s: Invalid order number '%s'\n",
-				MapName, d.data);
+			fprintf(stderr, "%s: %s: Invalid order number '%s'\n",
+				progname, MapName, d.data);
 			return -1;
 		}
 	}
@@ -203,13 +207,13 @@ doPushClient( const char *targetHost)
 			req.map_parms.map, req.map_parms.ordernum,
 			req.map_parms.peer, targetHost,
 			req.map_parms.domain);
-	switch (clnt_call(PushClient, YPPROC_XFR, __xdr_ypreq_xfr, &req,
+	switch (clnt_call(PushClient, YPPROC_XFR, xdr_ypreq_xfr, &req,
 		xdr_void, NULL, tv)) {
 	case RPC_SUCCESS:
 	case RPC_TIMEDOUT:
 		break;
 	default:
-		clnt_perror(PushClient, "YPPUSH: Cannot call YPPROC_XFR");
+		clnt_perror(PushClient, "yppush: cannot call YPPROC_XFR");
 		kill(CallbackTransid, SIGTERM);
 	}
 	return;
@@ -224,7 +228,8 @@ registerServer(void)
 	s=RPC_ANYSOCK;
 	CallbackXprt=svcudp_create(s);
 	if (CallbackXprt==NULL) {
-		fprintf(stderr, "YPPUSH: Cannot create callback transport.\n");
+		fprintf(stderr, "%s: Cannot create callback transport.\n",
+								progname);
 		return FALSE;
 	}
 	for (CallbackProg=0x40000000; CallbackProg<0x5fffffff; CallbackProg++) {
@@ -240,7 +245,7 @@ createClient(const char *targetHost)
 {
 	PushClient=clnt_create((char *)targetHost, YPPROG, YPVERS, "tcp");
 	if (PushClient==NULL) {
-		clnt_pcreateerror("YPPUSH: Cannot create client");
+		clnt_pcreateerror("yppush: cannot create client");
 		return FALSE;
 	}
 	return TRUE;
@@ -259,7 +264,8 @@ doPush( const char *targetHost)
 
 	switch (CallbackTransid=fork()) {
 	case -1:
-		perror("YPPUSH: Cannot fork");
+		fprintf(stderr, "%s:", progname);
+		perror("fork");
 		exit(1);
 	case 0:
 		_svc_run();
@@ -305,11 +311,11 @@ main(int argc, char **argv)
 	struct ypall_callback f;
 	enum ypstat y;
 	struct sigaction a;
-	
+
+	progname = argv[0];
+
 	a.sa_handler=intrHandler;
 	a.sa_mask=0;
-	/* a.sa_flags=SA_NOMASK;
-	a.sa_restorer=NULL; */
 	sigaction(SIGINT, &a, NULL);
 
 	while((c=getopt(argc, argv, "d:v"))!=EOF) {
@@ -330,14 +336,16 @@ main(int argc, char **argv)
 
 	if (DomainName==NULL) {
 		if (yp_get_default_domain(&DomainName)!=0) {
-			fprintf(stderr, "YPPUSH: Cannot get default domain\n");
+			fprintf(stderr, "%s: cannot get default domain\n,
+								progname");
 			exit(1);
 		}
 	}
 
 	ThisHost=getHostName();
 	if (ThisHost==NULL) {
-		fprintf(stderr, "YPPUSH: Cannot determine local hostname\n");
+		fprintf(stderr, "%s: cannot determine local hostname\n,
+								progname");
 		exit(1);
 	}
 
@@ -349,8 +357,8 @@ main(int argc, char **argv)
 		f.foreach=yppushForeach;
 		y=yp_all(DomainName, "ypservers", &f);
 		if (y && y!=YP_NOMORE) {
-			fprintf(stderr, "YPPUSH: Could not read ypservers: %d %s\n",
-				y, yperr_string(y));
+			fprintf(stderr, "%s: could not read ypservers map: %d %s\n",
+				progname, y, yperr_string(y));
 			exit(1);
 		}
 	}
