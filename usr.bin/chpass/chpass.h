@@ -46,6 +46,7 @@ typedef struct _entry {
 #define	E_HPHONE	9
 #define	E_LOCATE	10
 #define	E_NAME		7
+#define	E_OTHER		11
 #define	E_SHELL		12
 
 extern ENTRY list[];
