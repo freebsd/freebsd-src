@@ -54,6 +54,7 @@ struct pccbb_reslist {
 
 struct pccbb_softc {
 	device_t	sc_dev;
+	struct exca_softc exca;
 	struct		resource *sc_base_res;
 	struct		resource *sc_irq_res;
 	void		*sc_intrhand;
@@ -63,8 +64,6 @@ struct pccbb_softc {
 	u_int8_t	sc_subbus;
 	struct		mtx sc_mtx;
 	u_int32_t	sc_flags;
-#define	PCCBB_PCIC_IO_RELOC	0x01
-#define	PCCBB_PCIC_MEM_32	0x02
 #define	PCCBB_16BIT_CARD	0x02000000
 #define	PCCBB_KTHREAD_RUNNING	0x04000000
 #define	PCCBB_KTHREAD_DONE	0x08000000
@@ -82,12 +81,6 @@ struct pccbb_softc {
 
 	device_t	sc_cbdev;
 	device_t	sc_pccarddev;
-
-	/* PC Card stuff */
-	int		memalloc;
-	struct		pccard_mem_handle mem[PCIC_MEM_WINS];
-	int		ioalloc;
-	struct		pccard_io_handle io[PCIC_IO_WINS];
 
 	/* kthread staff */
 	struct		proc *event_thread;
