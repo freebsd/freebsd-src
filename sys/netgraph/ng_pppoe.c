@@ -1,4 +1,4 @@
-#define SIGNOFF "session closed"
+
 /*
  * ng_pppoe.c
  *
@@ -59,6 +59,8 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_pppoe.h>
+
+#define SIGNOFF "session closed"
 
 /*
  * This section contains the netgraph method declarations for the
