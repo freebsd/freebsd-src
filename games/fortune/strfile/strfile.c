@@ -69,6 +69,7 @@ static const char rcsid[] =
  *
  *	% strfile [-iorsx] [ -cC ] sourcefile [ datafile ]
  *
+ *	C - Allow comments marked by a double delimiter at line's beginning
  *	c - Change delimiting character from '%' to 'C'
  *	s - Silent.  Give no summary of data processed at the end of
  *	    the run.
@@ -112,6 +113,7 @@ char	*Infile		= NULL,		/* input file name */
 	Outfile[MAXPATHLEN] = "",	/* output file name */
 	Delimch		= '%';		/* delimiting character */
 
+int	Cflag		= FALSE;	/* embedded comments */
 int	Sflag		= FALSE;	/* silent run flag */
 int	Oflag		= FALSE;	/* ordering flag */
 int	Iflag		= FALSE;	/* ignore case flag */
@@ -214,6 +216,9 @@ char	**av;
 	(void) fclose(inf);
 	Tbl.str_numstr = Num_pts - 1;
 
+	if (Cflag)
+		Tbl.str_flags |= STR_COMMENTS;
+
 	if (Oflag)
 		do_order();
 	else if (Rflag)
@@ -261,8 +266,11 @@ char	**argv;
 	extern int	optind;
 	int	ch;
 
-	while ((ch = getopt(argc, argv, "c:iorsx")) != EOF)
+	while ((ch = getopt(argc, argv, "Cc:iorsx")) != EOF)
 		switch(ch) {
+		case 'C':			/* embedded comments */
+			Cflag++;
+			break;
 		case 'c':			/* new delimiting char */
 			Delimch = *optarg;
 			if (!isascii(Delimch)) {
