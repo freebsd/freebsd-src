@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.485 1999/05/15 11:51:39 jkh Exp $
+#	$Id: Makefile,v 1.486 1999/05/15 19:05:40 phk Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -47,7 +47,7 @@ DOCPORTS=	textproc/docproj
 DISTFILES?=	${.CURDIR}/../../ports/distfiles
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
-           INSTALL.TXT RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
+           RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -281,7 +281,7 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../kerberosIV) && !defined(NOKERBEROS)
+.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../kerberosIV && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
@@ -443,7 +443,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
-	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
+	for i in README.TXT RELNOTES.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
