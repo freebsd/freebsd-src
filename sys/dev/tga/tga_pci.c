@@ -27,6 +27,8 @@
  * Copyright (c) 2000 Andrew Miklic, Andrew Gallatin, and Thomas V. Crimi
  */
 
+#include "opt_fb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -62,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/tga/tga_pci.h>
 #include <dev/fb/gfb.h>
 #include <dev/gfb/gfb_pci.h>
-
-#include "opt_fb.h"
 
 static int tga_probe(device_t);
 static int tga_attach(device_t);
@@ -110,10 +110,10 @@ static struct cdevsw tga_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
+	/* kqfilter */	nokqfilter
 };
 
-#endif /*FB_INSTALL_CDEV*/
+#endif /* FB_INSTALL_CDEV */
 
 static int
 tga_probe(device_t dev)
@@ -144,7 +144,6 @@ tga_attach(device_t dev)
 	error = 0;
 	unit = device_get_unit(dev);
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct gfb_softc));
 	sc->driver_name = TGA_DRIVER_NAME;
 	switch(pci_get_device(dev)) {
 	case DEC_DEVICEID_TGA2:
@@ -192,7 +191,7 @@ tga_attach(device_t dev)
 #ifdef FB_INSTALL_CDEV
 	sc->cdevsw = &tga_cdevsw;
 	sc->devt = make_dev(sc->cdevsw, unit, 0, 0, 02660, "tga%x", unit);
-#endif /*FB_INSTALL_CDEV*/
+#endif /* FB_INSTALL_CDEV */
 	goto done;
 fail:
 	if(sc->intrhand != NULL) {
