@@ -556,9 +556,6 @@ rt_getmetrics(struct rt_metrics_lite *in, struct rt_metrics *out)
 #undef metric
 }
 
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-
 /*
  * Extract the addresses of the passed sockaddrs.
  * Do a little sanity checking so as to avoid bad memory references.
@@ -567,9 +564,8 @@ rt_getmetrics(struct rt_metrics_lite *in, struct rt_metrics *out)
 static int
 rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 {
-#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
-	register struct sockaddr *sa;
-	register int i;
+	struct sockaddr *sa;
+	int i;
 
 	for (i = 0; i < RTAX_MAX && cp < cplim; i++) {
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
@@ -593,10 +589,9 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 		}
 		/* accept it */
 		rtinfo->rti_info[i] = sa;
-		ADVANCE(cp, sa);
+		cp += SA_SIZE(sa);
 	}
 	return (0);
-#undef ADVANCE
 }
 
 static struct mbuf *
@@ -651,7 +646,7 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 		if ((sa = rtinfo->rti_info[i]) == NULL)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
-		dlen = ROUNDUP(sa->sa_len);
+		dlen = SA_SIZE(sa);
 		m_copyback(m, len, dlen, (caddr_t)sa);
 		len += dlen;
 	}
@@ -701,7 +696,7 @@ again:
 		if ((sa = rtinfo->rti_info[i]) == 0)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
-		dlen = ROUNDUP(sa->sa_len);
+		dlen = SA_SIZE(sa);
 		if (cp) {
 			bcopy((caddr_t)sa, cp, (unsigned)dlen);
 			cp += dlen;
