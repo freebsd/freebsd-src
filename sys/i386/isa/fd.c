@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.61.2.1 1995/06/08 10:26:23 davidg Exp $
+ *	$Id: fd.c,v 1.62 1995/06/11 19:31:19 rgrimes Exp $
  *
  */
 
@@ -1574,6 +1574,13 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		fdc->state = STARTRECAL;
 		break;
 	case STARTRECAL:
+		/* XXX clear the fdc results from the last reset, if any. */
+		{
+			int i;
+			for (i = 0; i < 4; i++)
+				(void)fd_sense_int(fdc, &st0, &cyl);
+		}
+
 		if(fd_cmd(fdcu,
 			  2, NE7CMD_RECAL, fdu,
 			  0)) /* Recalibrate Function */
