@@ -19,3 +19,18 @@ if [ "x$pccard_ifconfig" != "xNO" ] ; then
 		ifconfig $interface $pccard_ifconfig $*
 	fi
 fi
+
+if [ "x$defaultrouter" != "xNO" ] ; then
+	static_routes="default ${static_routes}"
+	route_default="default ${defaultrouter}"
+fi
+    
+# Set up any static routes.
+if [ "x${static_routes}" != "x" ]; then
+	# flush beforehand, just in case....
+        route -n flush
+	for i in ${static_routes}; do
+		eval route_args=\$route_${i}
+		route add ${route_args}
+	done
+fi
