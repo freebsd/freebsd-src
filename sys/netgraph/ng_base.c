@@ -2139,6 +2139,13 @@ ng_snd_item(item_p item, int queue)
 		 * the node is derivable from the hook.
 		 * References are held on both by the item.
 		 */
+
+		/* Protect nodes from sending NULL pointers
+		 * to each other
+		 */
+		if (m == NULL)
+			return (EINVAL);
+
 		CHECK_DATA_MBUF(NGI_M(item));
 		if (hook == NULL) {
 			NG_FREE_ITEM(item);
