@@ -86,7 +86,6 @@ struct union_node {
 	struct vnode		*un_dirvp;	/* Parent dir of uppervp */
 	struct vnode		*un_pvp;	/* Parent vnode */
 	char			*un_path;	/* saved component name */
-	int			un_hash;	/* saved un_path hash value */
 	int			un_openl;	/* # of opens on lowervp */
 	int			un_exclcnt;	/* exclusive count */
 	unsigned int		un_flags;
