@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2002
+.Dd March 1, 2005
 .Dt SMP 4
 .Os
 .Sh NAME
@@ -57,6 +57,18 @@ The
 .Xr mptable 1
 command may be used to view the status of multi-processor support.
 .Pp
+The number of CPUs detected by the system is available in
+the read-only sysctl variable
+.Va hw.ncpu .
+.Pp
+.Fx
+allows specific CPUs on a multi-processor system to be disabled.
+The sysctl variable
+.Va machdep.hlt_cpus
+is an integer bitmask denoting CPUs to halt, counting from 0.
+Setting a bit to 1 will result in the corresponding CPU being
+disabled.
+.Pp
 .Fx
 supports hyperthreading on Intel CPU's on the i386 platform.
 Since using logical CPUs can cause performance penalties under certain loads,
@@ -65,6 +77,7 @@ the logical CPUs can be disabled by setting the
 sysctl to one.
 .Sh SEE ALSO
 .Xr mptable 1 ,
+.Xr sysctl 8 ,
 .Xr condvar 9 ,
 .Xr msleep 9 ,
 .Xr mtx_pool 9 ,
