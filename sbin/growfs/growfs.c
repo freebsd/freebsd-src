@@ -2048,8 +2048,7 @@ main(int argc, char **argv)
 		rdfs(sblockloc, (size_t)SBLOCKSIZE, (void *)&(osblock), fsi);
 		if ((osblock.fs_magic == FS_UFS1_MAGIC ||
 		     (osblock.fs_magic == FS_UFS2_MAGIC &&
-		      osblock.fs_sblockloc ==
-			  numfrags(&osblock, sblock_try[i]))) &&
+		      osblock.fs_sblockloc == sblock_try[i])) &&
 		    osblock.fs_bsize <= MAXBSIZE &&
 		    osblock.fs_bsize >= sizeof(struct fs))
 			break;
