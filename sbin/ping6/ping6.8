@@ -407,6 +407,35 @@ and non-zero if the arguments are incorrect or the host is not responding.
 .%D October 22, 1999
 .%O work in progress material
 .Re
+.Sh BUGS
+There have been many discussions on why we separate
+.Xr ping6 8
+and
+.Xr ping 8 .
+Some people argued that it would be more convenient to uniform the
+ping command for both IPv4 and IPv6.
+The followings are an answer to the request.
+.Pp
+From a developer's point of view:
+since the underling API is totally different between IPv4 and IPv6,
+we would end up having two types of code base.
+There would actually be less benefit to uniform the two commands
+into a single command from the developer's standpoint.
+.Pp
+From an operator's point of view: unlike ordinary network applications
+like remote login tools, we are usually aware of address family when using
+network management tools.
+We do not just want to know the reachability to the host, but want to know the
+reachability to the host via a particular network protocol such as
+IPv6.
+Thus, even if we had a unified
+.Xr ping 8
+command for both IPv4 and IPv6, we would usually type a
+.Fl 6
+or
+.Fl 4
+option (or something like those) to specify the particular address family.
+This essentially means that we have two different commands.
 .Sh HISTORY
 The
 .Nm ping
