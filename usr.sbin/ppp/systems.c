@@ -17,13 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.20 1997/11/09 13:18:18 brian Exp $
+ * $Id: systems.c,v 1.21 1997/11/09 14:18:53 brian Exp $
  *
  *  TODO:
  */
 #include <sys/param.h>
 #include <netinet/in.h>
 
+#include <ctype.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +44,8 @@
 #include "vars.h"
 #include "server.h"
 #include "systems.h"
+
+#define issep(ch) ((ch) == ' ' || (ch) == '\t')
 
 FILE *
 OpenSecret(char *file)
@@ -62,6 +66,105 @@ CloseSecret(FILE * fp)
   fclose(fp);
 }
 
+/* Move string from ``from'' to ``to'', interpreting ``~'' and $.... */
+static void
+InterpretArg(char *from, char *to)
+{
+  const char *env;
+  char *ptr, *startto, *endto;
+  int len;
+
+  startto = to;
+  endto = to + LINE_LEN - 1;
+
+  while(issep(*from))
+    from++;
+  if (*from == '~') {
+    ptr = strchr(++from, '/');
+    len = ptr ? ptr - from : strlen(from);
+    if (len == 0) {
+      if ((env = getenv("HOME")) == NULL)
+        env = _PATH_PPP;
+      strncpy(to, env, endto - to);
+    } else {
+      struct passwd *pwd;
+
+      strncpy(to, from, len);
+      to[len] = '\0';
+      pwd = getpwnam(to);
+      if (pwd)
+        strncpy(to, pwd->pw_dir, endto-to);
+      else
+        strncpy(to, _PATH_PPP, endto - to);
+      endpwent();
+    }
+    *endto = '\0';
+    to += strlen(to);
+    from += len;
+  }
+
+  while (to < endto && *from != '\0') {
+    if (*from == '$') {
+      if (from[1] == '$') {
+        *to = '\0';	/* For an empty var name below */
+        from += 2;
+      } else if (from[1] == '{') {
+        ptr = strchr(from+2, '}');
+        if (ptr) {
+          len = ptr - from - 2;
+          if (endto - to < len )
+            len = endto - to;
+          if (len) {
+            strncpy(to, from+2, len);
+            to[len] = '\0';
+            from = ptr+1;
+          } else {
+            *to++ = *from++;
+            continue;
+          }
+        } else {
+          *to++ = *from++;
+          continue;
+        }
+      } else {
+        ptr = to;
+        for (from++; (isalnum(*from) || *from == '_') && ptr < endto; from++)
+          *ptr++ = *from;
+        *ptr = '\0';
+      }
+      if (*to == '\0')
+        *to++ = '$';
+      else if ((env = getenv(to)) != NULL) {
+        strncpy(to, env, endto - to);
+        *endto = '\0';
+        to += strlen(to);
+      }
+    } else
+      *to++ = *from++;
+  }
+  while (to > startto) {
+    to--;
+    if (!issep(*to)) {
+      to++;
+      break;
+    }
+  }
+  *to = '\0';
+}
+
+#define CTRL_UNKNOWN (0)
+#define CTRL_INCLUDE (1)
+
+static int
+DecodeCtrlCommand(char *line, char *arg)
+{
+  if (!strncasecmp(line, "include", 7) && issep(line[7])) {
+    InterpretArg(line+8, arg);
+    return CTRL_INCLUDE;
+  }
+  return CTRL_UNKNOWN;
+}
+
 int
 SelectSystem(char *name, char *file)
 {
@@ -73,7 +176,10 @@ SelectSystem(char *name, char *file)
   char filename[200];
   int linenum;
 
-  snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
+  if (*file == '/')
+    snprintf(filename, sizeof filename, "%s", file);
+  else
+    snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
   fp = ID0fopen(filename, "r");
   if (fp == NULL) {
     LogPrintf(LogDEBUG, "SelectSystem: Can't open %s.\n", filename);
@@ -100,10 +206,24 @@ SelectSystem(char *name, char *file)
 	exit(1);
       }
       *wp = '\0';
-      if (strcmp(cp, name) == 0) {
+      if (*cp == '!') {
+        char arg[LINE_LEN];
+        switch (DecodeCtrlCommand(cp+1, arg)) {
+        case CTRL_INCLUDE:
+          LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
+          n = SelectSystem(name, arg);
+          LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
+          if (!n)
+            return 0;	/* got it */
+          break;
+        default:
+          LogPrintf(LogCOMMAND, "%s: %s: Invalid command\n", name, cp);
+          break;
+        }
+      } else if (strcmp(cp, name) == 0) {
 	while (fgets(line, sizeof(line), fp)) {
 	  cp = line;
-	  if (*cp == ' ' || *cp == '\t') {
+          if (issep(*cp)) {
 	    n = strspn(cp, " \t");
 	    cp += n;
             len = strlen(cp);

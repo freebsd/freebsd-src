@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.74 1997/11/09 06:22:46 brian Exp $
+.\" $Id: ppp.8,v 1.75 1997/11/09 13:18:51 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -350,25 +350,32 @@ See the example definitions in
 .Pa /etc/ppp/ppp.conf
 is pretty simple).
 
+Each line contains one comment, inclusion, label or command:
+
 .Bl -bullet -compact
-
-.It
-Each line contains one command, label or comment.
-
 .It
 A line starting with a
-.Sq #
+.Pq Dq #
 character is treated as a comment line.
 
 .It
+An inclusion is a line beginning with the word
+.Sq !include .
+It must have one argument - the file to include.  You may wish to
+.Dq !include ~/.ppp.conf
+for compatibility with older versions of
+.Nm ppp .
+
+.It
 A label name starts in the first column and is followed by
-a colon (:).
+a colon
+.Pq Dq \&: .
 
 .It
 A command line must contain a space or tab in the first column.
-
 .El
 
+.Pp
 The
 .Pa /etc/ppp/ppp.conf
 file should consist of at least a
@@ -423,11 +430,19 @@ connection is established.  See the provided
 .Dq pmdemand
 example in
 .Pa /etc/ppp/ppp.conf.sample
-which adds a default route.  The string HISADDR is available as the IP
-address of the remote peer.  Similarly, when a connection is closed, the
+which adds a default route.  The strings
+.Dv HISADDR ,
+.Dv MYADDR
+and
+.Dv INTERFACE
+are available as the relevent IP addresses and interface name.
+Similarly, when a connection is closed, the
 contents of the
 .Pa /etc/ppp/ppp.linkdown
 file are executed.
+
+Both of these files have the same format as
+.Pa /etc/ppp/ppp.conf .
 
 .Sh BACKGROUND DIALING
 
