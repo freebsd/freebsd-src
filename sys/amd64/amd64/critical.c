@@ -94,6 +94,7 @@ i386_unpend(void)
 
 	frame.cf_cs = SEL_KPL;
 	frame.cf_eip = (register_t)i386_unpend;
+	frame.cf_eflags = PSL_KERNEL;
 	KASSERT(curthread->td_critnest == 0, ("unpend critnest != 0"));
 	KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled1"));
 	curthread->td_critnest = 1;
