@@ -1,7 +1,7 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.5 2002/04/06 22:21:14 ue Exp $
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.6 2002/05/12 11:47:57 mheinen Exp $
 basiert auf: 1.14
 
 install.sgml
@@ -253,7 +253,7 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="alpha">Die einfachste Variante ist die Installation
       von CD.  Wenn Sie die &os; Installations-CD und ein
       unterst&uuml;tztes CDROM haben, k&ouml;nnen Sie &os; einfach
-      von der CD starten.  Legen Sie CD ins Laufwerk ein und geben Sie
+      von der CD starten.  Legen Sie CD in das Laufwerk ein und geben Sie
       den folgenden Befehl ein, um die Installation zu beginnen (den
       Namen des CDROM Laufwerks m&uuml;ssen Sie eventuell
       anpassen):</para>
