@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.2 1998/06/10 20:13:32 dfr Exp $ */
+/* $Id: interrupt.c,v 1.3 1998/07/05 12:22:56 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -41,11 +41,14 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
+#include <sys/malloc.h>
 
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/cpuconf.h>
 #include <machine/bwx.h>
+#include <machine/intr.h>
 
 #if 0
 #ifdef EVCNT_COUNTERS
@@ -270,4 +273,45 @@ badaddr_read(addr, size, rptr)
 	}
 	/* Return non-zero (i.e. true) if it's a bad address. */
 	return (mc_received);
+}
+
+#define HASHVEC(vector)	((vector) % 31)
+
+static struct alpha_intr_list alpha_intr_hash[31];
+
+struct alpha_intr *
+alpha_create_intr(int vector, driver_intr_t *intr, void *arg)
+{
+	struct alpha_intr *i;
+
+	i = malloc(sizeof(struct alpha_intr), M_DEVBUF, M_NOWAIT);
+	if (!i)
+		return NULL;
+	i->vector = vector;
+	i->intr = intr;
+	i->arg = arg;
+	return i;
+}
+
+int
+alpha_connect_intr(struct alpha_intr *i)
+{
+	int h = HASHVEC(i->vector);
+	int s;
+
+	s = splhigh();
+	LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
+	splx(s);
+	
+	return 0;
+}
+
+void
+alpha_dispatch_intr(int vector)
+{
+	struct alpha_intr *i;
+	int h = HASHVEC(vector);
+	for (i = LIST_FIRST(&alpha_intr_hash[h]); i; i = LIST_NEXT(i, list))
+		if (i->vector == vector)
+			i->intr(i->arg);
 }
