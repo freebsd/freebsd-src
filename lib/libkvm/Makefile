@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 LIB=	kvm
-CFLAGS+=-DLIBC_SCCS -I/sys
+CFLAGS+=-DLIBC_SCCS -I${DESTDIR}/sys
 SRCS=	kvm.c kvm_${MACHINE}.c kvm_file.c kvm_getloadavg.c kvm_proc.c
 
 MAN3=	kvm.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 kvm_getprocs.3 \
