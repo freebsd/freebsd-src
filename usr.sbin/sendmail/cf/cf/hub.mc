@@ -34,14 +34,48 @@ divert(-1)
 #
 
 #
-#  This the prototype for a "null client" -- that is, a client that
-#  does nothing except forward all mail to a mail hub, plus an extra
-#  line to make the email all appear as coming from "FreeBSD.org".
+# This file is the configuration for hub.freebsd.org, the project's mail
+# server.  It needs to handle some ugly mail volumes.
 #
 
 divert(0)dnl
 VERSIONID(`$Id$')
 
-OSTYPE(bsd4.4)
-FEATURE(nullclient, hub.$m)
-MASQUERADE_AS(FreeBSD.org)
+OSTYPE(bsd4.4)dnl
+DOMAIN(generic)dnl
+MAILER(local)dnl
+MAILER(smtp)dnl
+MASQUERADE_AS(FreeBSD.ORG)dnl
+FEATURE(mailertable, `hash -o /etc/mailertable')dnl
+FEATURE(masquerade_envelope)dnl
+EXPOSED_USER(root)dnl
+EXPOSED_USER(mailman)dnl
+define(`UUCP_RELAY', uunet.uu.net)dnl
+define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
+define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
+define(`confCW_FILE', `-o /etc/sendmail.cw')dnl
+define(`confCHECKPOINT_INTERVAL', `4')dnl
+define(`confAUTO_REBUILD', `True')dnl
+define(`confMIN_FREE_BLOCKS', `1024')dnl
+define(`confSMTP_MAILER', `smtp8')dnl
+define(`confME_TOO', `True')dnl
+define(`confMCI_CACHE_TIMEOUT', `10m')dnl
+define(`confTO_QUEUEWARN', `1d')dnl
+define(`confTO_QUEUEWARN_NORMAL', `1d')dnl
+define(`confTO_RCPT', `10m')dnl
+define(`confTO_DATABLOCK', `10m')dnl
+define(`confTO_DATAFINAL', `10m')dnl
+define(`confTO_COMMAND', `10m')dnl
+define(`confTO_HOSTSTATUS', `30m')dnl
+define(`confMIN_QUEUE_AGE', `30m')dnl
+define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
+define(`confTRUSTED_USERS', `majordom')dnl
+define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
+          by $j ($v/$Z)$?r with $r$. id $i$?u$|;$.
+          $?ufor $u; $.$b')dnl
+define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
+define(`confMAX_DAEMON_CHILDREN', `8')dnl
+define(`confCONNECTION_THROTTLE_RATE', `1')dnl
+
+LOCAL_CONFIG
+Cw localhost freefall.freebsd.org
