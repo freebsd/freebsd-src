@@ -39,6 +39,11 @@ portupgrade.  Important recent entries: 20040724 (default X changes).
 	unless an snmp implementation is using this value (I know of
 	none at this point.)
 
+20050227:
+	The default "world" build no longer supports running on an
+	80386 CPU.  In order to build a world for an 80386 CPU, one
+	needs to set CPUTYPE=i386 in /etc/make.conf.
+
 20050225:
 	The cpufreq framework has been merged.  As part of this, the sysctls
 	for acpi(4) throttling have been removed.  See cpufreq(4) for the
