@@ -36,42 +36,46 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <machine/bus.h>	/* XXX Shouldn't really be required ! */
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/intrq.h>
-
 #ifdef INET
 #include <netinet/in.h>
 #endif
-
 #include <net/bpf.h>
-
 #include <net/if_tunvar.h>
 #include <net/if_tun.h>
 
-static MALLOC_DEFINE(M_TUN, "tun", "Tunnel Interface");
-
-static void tuncreate __P((dev_t dev));
-
 #define TUNDEBUG	if (tundebug) printf
+#define	TUNNAME		"tun"
+#define	TUN_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
+
+static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
 static int tundebug = 0;
 static struct tun_softc *tunhead = NULL;
+static struct rman tununits[1];
+static udev_t tunbasedev = NOUDEV;
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
-static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
-	    struct rtentry *rt));
-static int tunifioctl __P((struct ifnet *, u_long, caddr_t));
-static int tuninit __P((struct ifnet *));
-static void tunstart __P((struct ifnet *));
+static void	tunclone(void *arg, char *name, int namelen, dev_t *dev);
+static void	tuncreate(dev_t dev);
+static int	tunifioctl(struct ifnet *, u_long, caddr_t);
+static int	tuninit(struct ifnet *);
+static int	tunmodevent(module_t, int, void *);
+static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *rt);
+static void	tunstart(struct ifnet *);
 
-static	d_open_t	tunopen;
-static	d_close_t	tunclose;
-static	d_read_t	tunread;
-static	d_write_t	tunwrite;
-static	d_ioctl_t	tunioctl;
-static	d_poll_t	tunpoll;
+static d_open_t		tunopen;
+static d_close_t	tunclose;
+static d_read_t		tunread;
+static d_write_t	tunwrite;
+static d_ioctl_t	tunioctl;
+static d_poll_t		tunpoll;
 
 #define CDEV_MAJOR 52
 static struct cdevsw tun_cdevsw = {
@@ -83,35 +87,53 @@ static struct cdevsw tun_cdevsw = {
 	/* poll */	tunpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
-	/* name */	"tun",
+	/* name */	TUNNAME,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
 };
 
-static void tun_clone __P((void *arg, char *name, int namelen, dev_t *dev));
-
 static void
-tun_clone(arg, name, namelen, dev)
-	void *arg;
-	char *name;
-	int namelen;
-	dev_t *dev;
+tunclone(void *arg, char *name, int namelen, dev_t *dev)
 {
+	struct resource *r;
+	int err;
 	int u;
 
 	if (*dev != NODEV)
 		return;
-	if (dev_stdclone(name, NULL, "tun", &u) != 1)
-		return;
+
+	if (strcmp(name, TUNNAME) == 0) {
+		r = rman_reserve_resource(tununits, 0, TUN_MAXUNIT, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		u = rman_get_start(r);
+		err = rman_release_resource(r);
+		KASSERT(err == 0, ("Unexpected failure releasing resource"));
+		*dev = makedev(CDEV_MAJOR, unit2minor(u));
+		if ((*dev)->si_flags & SI_NAMED)
+			return;	/* Already make_dev()d */
+	} else if (dev_stdclone(name, NULL, TUNNAME, &u) != 1)
+		return;	/* Don't recognise the name */
+
 	*dev = make_dev(&tun_cdevsw, unit2minor(u),
 	    UID_ROOT, GID_WHEEL, 0600, "tun%d", u);
-	(*dev)->si_flags |= SI_CHEAPCLONE;
+
+	/*
+	 * All devices depend on tunbasedev so that we can simply
+	 * destroy_dev() this device at module unload time to get
+	 * rid of all our make_dev()d resources.
+	 */
+	if (tunbasedev == NOUDEV)
+		tunbasedev = (*dev)->si_udev;
+	else {
+		(*dev)->si_flags |= SI_CHEAPCLONE;
+		dev_depends(udev2dev(tunbasedev, 0), *dev);
+	}
 }
 
 static int
-tun_modevent(module_t mod, int type, void *data) 
+tunmodevent(module_t mod, int type, void *data) 
 {
 	static eventhandler_tag tag;
 	struct tun_softc *tp;
@@ -120,19 +142,44 @@ tun_modevent(module_t mod, int type, void *data)
 
 	switch (type) { 
 	case MOD_LOAD: 
-		tag = EVENTHANDLER_REGISTER(dev_clone, tun_clone, 0, 1000);
+		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
-		err = cdevsw_add(&tun_cdevsw);
+		if (!devfs_present) {
+			err = cdevsw_add(&tun_cdevsw);
+			if (err != 0) {
+				EVENTHANDLER_DEREGISTER(dev_clone, tag);
+				return (err);
+			}
+		}
+		tununits->rm_type = RMAN_ARRAY;
+		tununits->rm_descr = "open if_tun units";
+		err = rman_init(tununits);
 		if (err != 0) {
+			cdevsw_remove(&tun_cdevsw);
+			EVENTHANDLER_DEREGISTER(dev_clone, tag);
+			return (err);
+		}
+		err = rman_manage_region(tununits, 0, TUN_MAXUNIT);
+		if (err != 0) {
+			printf("%s: tununits: rman_manage_region: Failed %d\n",
+			    TUNNAME, err);
+			rman_fini(tununits);
+			cdevsw_remove(&tun_cdevsw);
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
 		break; 
 	case MOD_UNLOAD: 
+		err = rman_fini(tununits);
+		if (err != 0)
+			return (err);
+		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+
 		while (tunhead != NULL) {
-			if (tunhead->tun_flags & TUN_OPEN)
-				return (EBUSY);
+			KASSERT((tunhead->tun_flags & TUN_OPEN) == 0,
+			    ("tununits is out of sync - unit %d",
+			    tunhead->tun_if.if_unit));
 			tp = tunhead;
 			dev = makedev(tun_cdevsw.d_maj,
 			    unit2minor(tp->tun_if.if_unit));
@@ -141,11 +188,18 @@ tun_modevent(module_t mod, int type, void *data)
 			bpfdetach(&tp->tun_if);
 			if_detach(&tp->tun_if);
 			KASSERT(dev->si_flags & SI_NAMED, ("Missing make_dev"));
-			destroy_dev(dev);
 			FREE(tp, M_TUN);
 		}
-		cdevsw_remove(&tun_cdevsw);
-		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+
+		/*
+		 * Destroying tunbasedev results in all of our make_dev()s
+		 * conveniently going away.
+		 */
+		if (tunbasedev != NOUDEV)
+			destroy_dev(udev2dev(tunbasedev, 0));
+
+		if (!devfs_present)
+			cdevsw_remove(&tun_cdevsw);
 		break;
 	} 
 	return 0; 
@@ -153,15 +207,14 @@ tun_modevent(module_t mod, int type, void *data)
 
 static moduledata_t tun_mod = { 
 	"if_tun", 
-	tun_modevent, 
+	tunmodevent, 
 	0
 }; 
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static void
-tunstart(ifp)
-	struct ifnet *ifp;
+tunstart(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 
@@ -175,8 +228,7 @@ tunstart(ifp)
 }
 
 static void
-tuncreate(dev)
-	dev_t dev;
+tuncreate(dev_t dev)
 {
 	struct tun_softc *sc;
 	struct ifnet *ifp;
@@ -192,7 +244,7 @@ tuncreate(dev)
 
 	ifp = &sc->tun_if;
 	ifp->if_unit = dev2unit(dev);
-	ifp->if_name = "tun";
+	ifp->if_name = TUNNAME;
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
@@ -206,31 +258,35 @@ tuncreate(dev)
 	dev->si_drv1 = sc;
 }
 
-/*
- * tunnel open.  We assume that any tun_clone() call is immediately
- * followed by a call to tunopen() - otherwise nothing will ever
- * destroy_dev() the specinfo.
- */
-static	int
-tunopen(dev, flag, mode, p)
-	dev_t	dev;
-	int	flag, mode;
-	struct proc *p;
+static int
+tunopen(dev_t dev, int flag, int mode, struct proc *p)
 {
+	struct resource *r;
 	struct ifnet	*ifp;
 	struct tun_softc *tp;
+	int unit;
+
+	unit = dev2unit(dev);
+	if (unit > TUN_MAXUNIT)
+		return (ENXIO);
+
+	r = rman_reserve_resource(tununits, unit, unit, 1,
+	    RF_ALLOCATED | RF_ACTIVE, NULL);
+	if (r == NULL)
+		return (EBUSY);
 
 	tp = dev->si_drv1;
 	if (!tp) {
 		tuncreate(dev);
 		tp = dev->si_drv1;
 	}
-	if (tp->tun_flags & TUN_OPEN)
-		return EBUSY;
+	KASSERT(!(tp->tun_flags & TUN_OPEN), ("Resource & flags out-of-sync"));
+	tp->r_unit = r;
 	tp->tun_pid = p->p_pid;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
 	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
+
 	return (0);
 }
 
@@ -239,19 +295,18 @@ tunopen(dev, flag, mode, p)
  * routing info
  */
 static	int
-tunclose(dev, foo, bar, p)
-	dev_t dev;
-	int foo;
-	int bar;
-	struct proc *p;
+tunclose(dev_t dev, int foo, int bar, struct proc *p)
 {
-	register int	s;
 	struct tun_softc *tp;
-	struct ifnet	*ifp;
+	struct ifnet *ifp;
+	int s;
+	int err;
 
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
 
+	err = rman_release_resource(tp->r_unit);
+	KASSERT(err == 0, ("Unit %d not marked open", ifp->if_unit));
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
@@ -287,8 +342,7 @@ tunclose(dev, foo, bar, p)
 }
 
 static int
-tuninit(ifp)
-	struct ifnet *ifp;
+tuninit(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	register struct ifaddr *ifa;
@@ -327,10 +381,7 @@ tuninit(ifp)
  * Process an ioctl request.
  */
 int
-tunifioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long	cmd;
-	caddr_t	data;
+tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct tun_softc *tp = ifp->if_softc;
@@ -374,11 +425,11 @@ tunifioctl(ifp, cmd, data)
  * tunoutput - queue packets from higher level ready to put out.
  */
 int
-tunoutput(ifp, m0, dst, rt)
-	struct ifnet   *ifp;
-	struct mbuf    *m0;
-	struct sockaddr *dst;
-	struct rtentry *rt;
+tunoutput(
+	struct ifnet *ifp,
+	struct mbuf *m0,
+	struct sockaddr *dst,
+	struct rtentry *rt)
 {
 	struct tun_softc *tp = ifp->if_softc;
 
@@ -465,12 +516,7 @@ tunoutput(ifp, m0, dst, rt)
  * the cdevsw interface is now pretty minimal.
  */
 static	int
-tunioctl(dev, cmd, data, flag, p)
-	dev_t		dev;
-	u_long		cmd;
-	caddr_t		data;
-	int		flag;
-	struct proc	*p;
+tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	int		s;
 	int		error;
@@ -583,10 +629,7 @@ tunioctl(dev, cmd, data, flag, p)
  * least as much of a packet as can be read.
  */
 static	int
-tunread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+tunread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
@@ -640,10 +683,7 @@ tunread(dev, uio, flag)
  * the cdevsw write interface - an atomic write is a packet - or else!
  */
 static	int
-tunwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+tunwrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
@@ -749,10 +789,7 @@ tunwrite(dev, uio, flag)
  * anyway, it either accepts the packet or drops it.
  */
 static	int
-tunpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+tunpoll(dev_t dev, int events, struct proc *p)
 {
 	int		s;
 	struct tun_softc *tp = dev->si_drv1;
