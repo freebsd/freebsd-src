@@ -54,7 +54,9 @@
 .Nm
 .Op Fl L
 .Sh DESCRIPTION
-.Nm Ps
+The
+.Nm
+utility
 displays a header line followed by lines containing information about your
 processes that have controlling terminals.
 This information is sorted by controlling terminal, then by process
@@ -347,7 +349,9 @@ When printing using the command keyword, a process that has exited and
 has a parent that has not yet waited for the process (in other words, a zombie)
 is listed as ``<defunct>'', and a process which is blocked while trying
 to exit is listed as ``<exiting>''.
-.Nm Ps
+The
+.Nm
+utility
 makes an educated guess as to the file name and arguments given when the
 process was created by examining memory or the swap area.
 The method is inherently somewhat unreliable and in any event a process
