@@ -64,7 +64,7 @@
 
 /* ATAPI commands */
 #define ATAPI_TEST_UNIT_READY		0x00	/* check if device is ready */
-#define ATAPI_REWIND			0x01	/* rewind */
+#define ATAPI_REZERO			0x01	/* rewind */
 #define ATAPI_REQUEST_SENSE		0x03	/* get sense data */
 #define ATAPI_FORMAT			0x04	/* format unit */
 #define ATAPI_READ			0x08	/* read data */
@@ -172,6 +172,7 @@ struct atapi_request {
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
 #define		ATPR_F_INTERNAL		0x0008
+#define		ATPR_F_QUIET		0x0010
 
     caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */

@@ -82,6 +82,7 @@ static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_
 static void acd_select_slot(struct acd_softc *);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
 static int acd_close_track(struct acd_softc *);
+static int acd_open_disk(struct acd_softc *);
 static int acd_close_disk(struct acd_softc *, int);
 static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
@@ -95,6 +96,7 @@ static int acd_pause_resume(struct acd_softc *, int);
 static int acd_mode_sense(struct acd_softc *, int, caddr_t, int);
 static int acd_mode_select(struct acd_softc *, caddr_t, int);
 static int acd_set_speed(struct acd_softc *cdp, int);
+static void acd_get_cap(struct acd_softc *);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
@@ -105,7 +107,7 @@ acdattach(struct atapi_softc *atp)
 {
     struct acd_softc *cdp;
     struct changer *chp;
-    int count, error = 0;
+    int error = 0;
     static int acd_cdev_done = 0;
 
     if (!acd_cdev_done) {
@@ -118,22 +120,7 @@ acdattach(struct atapi_softc *atp)
 	return -1;
     }
 
-    /* get drive capabilities, some drives needs this repeated */
-    for (count = 0 ; count < 5 ; count++) {
-	if (!(error = acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
-				     (caddr_t)&cdp->cap, sizeof(cdp->cap))))
-	    break;
-    }
-    if (error) {
-	free(cdp, M_ACD);
-	return -1;
-    }
-    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
-    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
-    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
-    cdp->cap.cur_write_speed = ntohs(cdp->cap.cur_write_speed);
-    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
-    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+    acd_get_cap(cdp);
 
     /* if this is a changer device, allocate the neeeded lun's */
     if (cdp->cap.mech == MST_MECH_CHANGER) {
@@ -808,7 +795,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		args->end_track = cdp->toc.hdr.ending_track + 1;
 	    t1 = args->start_track - cdp->toc.hdr.starting_track;
 	    t2 = args->end_track - cdp->toc.hdr.starting_track;
-	    if (t1 < 0 || t2 < 0) {
+	    if (t1 < 0 || t2 < 0 ||
+		t1 > (cdp->toc.hdr.ending_track-cdp->toc.hdr.starting_track)) {
 		error = EINVAL;
 		break;
 	    }
@@ -836,7 +824,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	    int32_t lba;
 	    caddr_t buffer, ubuf = args->buffer;
 	    int8_t ccb[16];
-	    int frames, error = 0;
+	    int frames;
 
 	    if (!cdp->toc.hdr.ending_track) {
 		error = EIO;
@@ -996,6 +984,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
  
     case CDRIOCOPENDISK:
+	error = acd_open_disk(cdp);
 	break;
 
     case CDRIOCOPENTRACK:
@@ -1144,7 +1133,7 @@ acd_start(struct atapi_softc *atp)
     }
     else {
 	blocksize = cdp->block_size;
-	lastlba = cdp->info.volsize;
+	lastlba = cdp->disk_size;
     }
 
     if (bp->b_bcount % blocksize != 0) {
@@ -1224,7 +1213,6 @@ acd_read_toc(struct acd_softc *cdp)
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
-    bzero(&cdp->info, sizeof(cdp->info));
     bzero(ccb, sizeof(ccb));
 
     atapi_test_ready(cdp->atp);
@@ -1235,8 +1223,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len, ATPR_F_READ,
-			30, NULL, NULL)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len,
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
@@ -1251,34 +1239,26 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len, ATPR_F_READ,
-			30, NULL, NULL)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len,
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
-
     cdp->toc.hdr.len = ntohs(cdp->toc.hdr.len);
 
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_READ_CAPACITY;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->info, sizeof(cdp->info), 
-			ATPR_F_READ, 30, NULL, NULL))
-	bzero(&cdp->info, sizeof(cdp->info));
-
-    cdp->info.volsize = ntohl(cdp->info.volsize);
-    cdp->info.blksize = ntohl(cdp->info.blksize);
     cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
+    cdp->disk_size = ntohl(cdp->toc.tab[cdp->toc.hdr.ending_track].addr.lba);
 
 #ifdef ACD_DEBUG
-    if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
+    if (cdp->disk_size && cdp->toc.hdr.ending_track) { 
 	printf("acd%d: ", cdp->lun);
 	if (cdp->toc.tab[0].control & 4)
-	    printf("%dMB ", cdp->info.volsize / 512);
+	    printf("%dMB ", cdp->disk_size / 512);
 	else
-	    printf("%d:%d audio ", cdp->info.volsize / 75 / 60,
-		cdp->info.volsize / 75 % 60);
+	    printf("%d:%d audio ", cdp->disk_size / 75 / 60,
+		cdp->disk_size / 75 % 60);
 	printf("(%d sectors (%d bytes)), %d tracks\n", 
-	    cdp->info.volsize, cdp->info.blksize,
+	    cdp->disk_size, cdp->block_size,
 	    cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
     }
 #endif
@@ -1296,18 +1276,18 @@ acd_construct_label(struct acd_softc *cdp)
 		sizeof(cdp->disklabel.d_typename) - 1));
     strncpy(cdp->disklabel.d_packname, "unknown        ", 
     	    sizeof(cdp->disklabel.d_packname));
-    cdp->disklabel.d_secsize = cdp->info.blksize;
+    cdp->disklabel.d_secsize = cdp->block_size;
     cdp->disklabel.d_nsectors = 100;
     cdp->disklabel.d_ntracks = 1;
-    cdp->disklabel.d_ncylinders = (cdp->info.volsize/100)+1;
+    cdp->disklabel.d_ncylinders = (cdp->disk_size / 100) + 1;
     cdp->disklabel.d_secpercyl = 100;
-    cdp->disklabel.d_secperunit = cdp->info.volsize;
+    cdp->disklabel.d_secperunit = cdp->disk_size;
     cdp->disklabel.d_rpm = 300;
     cdp->disklabel.d_interleave = 1;
     cdp->disklabel.d_flags = D_REMOVABLE;
     cdp->disklabel.d_npartitions = 1;
     cdp->disklabel.d_partitions[0].p_offset = 0;
-    cdp->disklabel.d_partitions[0].p_size = cdp->info.volsize;
+    cdp->disklabel.d_partitions[0].p_size = cdp->disk_size;
     cdp->disklabel.d_partitions[0].p_fstype = FS_BSDFFS;
     cdp->disklabel.d_magic = DISKMAGIC;
     cdp->disklabel.d_magic2 = DISKMAGIC;
@@ -1369,6 +1349,20 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int
+acd_open_disk(struct acd_softc *cdp)
+{
+    int8_t ccb[16];
+    
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_REZERO;
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 60, NULL, NULL);
+    ccb[0] = ATAPI_SEND_OPC_INFO;
+    ccb[1] = 0x01;
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 30, NULL, NULL);
+    return 0;
+}
+
+static int
 acd_close_disk(struct acd_softc *cdp, int multisession)
 {
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
@@ -1381,12 +1375,13 @@ acd_close_disk(struct acd_softc *cdp, int multisession)
 				(caddr_t)&param, sizeof(param))))
 	return error;
 
+    param.data_length = 0;
     if (multisession)
 	param.session_type = CDR_SESS_MULTI;
     else
 	param.session_type = CDR_SESS_NONE;
 
-    if ((error = acd_mode_select(cdp, (caddr_t)&param, sizeof(param))))
+    if ((error = acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10)))
 	return error;
 
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
@@ -1410,11 +1405,12 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 				(caddr_t)&param, sizeof(param))))
 	return error;
 
+    param.data_length = 0;
     param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
     param.page_length = 0x32;
     param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
-    param.session_type = CDR_SESS_MULTI;
+    param.session_type = CDR_SESS_NONE;
     param.fp = 0;
     param.packet_size = 0;
 
@@ -1476,7 +1472,7 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 	break;
     }
 
-    return acd_mode_select(cdp, (caddr_t)&param, sizeof(param));
+    return acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10);
 }
 
 static int
@@ -1849,5 +1845,28 @@ acd_set_speed(struct acd_softc *cdp, int speed)
     int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff, speed>>8, speed, 
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    int error;
+
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    if (!error)
+	acd_get_cap(cdp);
+    return error;
 }
+
+static void
+acd_get_cap(struct acd_softc *cdp)
+{
+    int retry = 5;
+    
+    /* get drive capabilities, some drives needs this repeated */
+    while (retry-- && acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
+                                     (caddr_t)&cdp->cap, sizeof(cdp->cap)))
+    
+    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
+    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
+    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
+    cdp->cap.cur_write_speed = max(ntohs(cdp->cap.cur_write_speed), 177);
+    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
+    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+}
+

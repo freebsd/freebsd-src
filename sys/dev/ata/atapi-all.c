@@ -423,7 +423,8 @@ op_finished:
 	request->ccb[0] = ATAPI_REQUEST_SENSE;
 	request->ccb[4] = sizeof(struct atapi_reqsense);
 	request->bytecount = sizeof(struct atapi_reqsense);
-	request->flags = ATPR_F_READ | ATPR_F_INTERNAL;
+	request->flags &= ATPR_F_QUIET;
+	request->flags |= ATPR_F_READ | ATPR_F_INTERNAL;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
     else {
@@ -456,6 +457,11 @@ op_finished:
 		break;
 
 	    default: 
+		request->error = EIO;
+
+		if (request->flags & ATPR_F_QUIET)
+		    break;
+
 		printf("%s: %s - %s asc=%02x ascq=%02x ",
 		       atp->devname, atapi_cmd2str(atp->cmd), 
 		       atapi_skey2str(request->sense.sense_key), 
@@ -466,7 +472,6 @@ op_finished:
 			   request->sense.sk_specific1,
 			   request->sense.sk_specific2);
 		printf("error=%02x\n", request->result & ATAPI_E_MASK);
-		request->error = EIO;
 	    }
 	}
 	else
