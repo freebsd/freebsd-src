@@ -155,6 +155,7 @@ MAN=	aac.4 \
 	netintro.4 \
 	ng_async.4 \
 	ng_atm.4 \
+	ngatmbase.4 \
 	ng_atmllc.4 \
 	ng_atmpif.4 \
 	ng_bluetooth.4 \
