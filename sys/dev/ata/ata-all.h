@@ -193,6 +193,7 @@ struct ata_request {
 	    u_int8_t		ccb[16];	/* ATAPI command block */
 	    struct atapi_sense	sense_data;	/* ATAPI request sense data */
 	    u_int8_t		sense_key;	/* ATAPI request sense key */
+	    u_int8_t		sense_cmd;	/* ATAPI saved command */
 	} atapi;
     } u;
 
