@@ -206,7 +206,7 @@ nmdmopen(dev, flag, devtype, p)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != p->p_prison) {
+	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
 		return (EBUSY);
 	}
 
