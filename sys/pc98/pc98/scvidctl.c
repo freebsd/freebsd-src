@@ -410,8 +410,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		? ENODEV : 0);
 
     case CONS_FINDMODE:		/* find a matching video mode */
-	return ((*vidsw[scp->ad]->query_mode)(scp->adp, (video_info_t *)data) 
-		? ENODEV : 0);
+	return (*vidsw[scp->ad]->query_mode)(scp->adp, (video_info_t *)data);
 
     case CONS_SETWINORG:
 	return ((*vidsw[scp->ad]->set_win_org)(scp->adp, *(u_int *)data) 
