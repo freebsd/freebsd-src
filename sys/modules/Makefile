@@ -168,7 +168,6 @@ SUBDIR+=aac \
 .if ${MACHINE_ARCH} == "ia64"
 SUBDIR+=aic \
 	arcnet \
-	bktr \
 	ciss \
 	cm \
 	coff \
