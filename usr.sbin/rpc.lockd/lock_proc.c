@@ -318,8 +318,8 @@ transmit_result(opcode, result, addr)
 		timeo.tv_sec = 0; /* No timeout - not expecting response */
 		timeo.tv_usec = 0;
 
-		success = clnt_call(cli, opcode, xdr_nlm_res, result, xdr_void,
-		    &dummy, timeo);
+		success = clnt_call(cli, opcode, (xdrproc_t)xdr_nlm_res, result,
+		    (xdrproc_t)xdr_void, &dummy, timeo);
 
 		if (debug_level > 2)
 			syslog(LOG_DEBUG, "clnt_call returns %d(%s)",
@@ -349,8 +349,9 @@ transmit4_result(opcode, result, addr)
 		timeo.tv_sec = 0; /* No timeout - not expecting response */
 		timeo.tv_usec = 0;
 
-		success = clnt_call(cli, opcode, xdr_nlm4_res, result, xdr_void,
-		    &dummy, timeo);
+		success = clnt_call(cli, opcode,
+		    (xdrproc_t)xdr_nlm4_res, result,
+		    (xdrproc_t)xdr_void, &dummy, timeo);
 
 		if (debug_level > 2)
 			syslog(LOG_DEBUG, "clnt_call returns %d(%s)",
@@ -479,8 +480,9 @@ nlm_test_msg_1_svc(arg, rqstp)
 		timeo.tv_sec = 0; /* No timeout - not expecting response */
 		timeo.tv_usec = 0;
 
-		success = clnt_call(cli, NLM_TEST_RES, xdr_nlm_testres,
-		    &res, xdr_void, &dummy, timeo);
+		success = clnt_call(cli, NLM_TEST_RES,
+		    (xdrproc_t)xdr_nlm_testres, &res,
+		    (xdrproc_t)xdr_void, &dummy, timeo);
 
 		if (debug_level > 2)
 			syslog(LOG_DEBUG, "clnt_call returns %d", success);
@@ -979,8 +981,9 @@ nlm4_test_msg_4_svc(arg, rqstp)
 		timeo.tv_sec = 0; /* No timeout - not expecting response */
 		timeo.tv_usec = 0;
 
-		success = clnt_call(cli, NLM4_TEST_RES, xdr_nlm4_testres,
-		    &res, xdr_void, &dummy, timeo);
+		success = clnt_call(cli, NLM4_TEST_RES,
+		    (xdrproc_t)xdr_nlm4_testres, &res,
+		    (xdrproc_t)xdr_void, &dummy, timeo);
 
 		if (debug_level > 2)
 			syslog(LOG_DEBUG, "clnt_call returns %d", success);
