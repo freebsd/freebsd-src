@@ -50,7 +50,7 @@ case "$daily_status_mail_rejects_enable" in
 	    } |
 		perl -ne "print \"\$2\n\"
 		    if (/reject=/ and /^$start.*ruleset=check_\S+,\s+arg1=(<[^@]+@)?([^>,]+).*reject=/o);" |
-		sort | uniq -c | sort -nr | tee /dev/stderr | wc -l)
+		sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi;;
 
