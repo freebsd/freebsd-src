@@ -375,7 +375,7 @@ flushsh(void)
 		return;
 	mesgwrit = fopen(strings, old ? "r+" : "w");
 	if (mesgwrit == NULL)
-		perror(strings), exit(4);
+		err(4, "%s", strings);
 	for (i = 0; i < BUCKETS; i++)
 		for (hp = bucket[i].hnext; hp != NULL; hp = hp->hnext) {
 			found(hp->hnew, hp->hpt, hp->hstr);
