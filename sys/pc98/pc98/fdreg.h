@@ -38,14 +38,13 @@
  * AT floppy controller registers and bitfields
  */
 
-#ifdef PC98
 /* uses NEC765 controller */
-#include <pc98/pc98/ic/nec765.h>
+#include <i386/isa/ic/nec765.h>
 
+#ifdef PC98
+/* registers */
 #define	FDSTS	0	/* NEC 765 Main Status Register (R) */
 #define	FDDATA	2	/* NEC 765 Data Register (R/W) */
-
-/* registers */
 #define	FDOUT	4	/* Digital Output Register (W) */
 #define	FDO_RST		0x80	/*  FDC RESET */
 #define	FDO_FRY		0x40	/*  force READY */
@@ -69,10 +68,6 @@
 #define	FDP_PORTEXC	0x01	/*  PORT Exchane 1:1M 0:640K */
 
 #else
-
-/* uses NEC765 controller */
-#include <i386/isa/ic/nec765.h>
-
 /* registers */
 #define	FDOUT	2	/* Digital Output Register (W) */
 #define	FDO_FDSEL	0x03	/*  floppy device select */

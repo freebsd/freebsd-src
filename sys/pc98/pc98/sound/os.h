@@ -312,13 +312,8 @@ extern unsigned long get_time(void);
  * The rest of this file is not complete yet. The functions using these
  * macros will not work
  */
-#ifdef PC98
-#define ALLOC_DMA_CHN(chn,deviceID) (pc98_dma_acquire(chn))
-#define RELEASE_DMA_CHN(chn) (pc98_dma_release(chn))
-#else
 #define ALLOC_DMA_CHN(chn,deviceID) (isa_dma_acquire(chn))
 #define RELEASE_DMA_CHN(chn) (isa_dma_release(chn))
-#endif
 #define DMA_MODE_READ		0
 #define DMA_MODE_WRITE		1
 #define RELEASE_IRQ(irq_no)

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.2 1996/08/31 15:07:42 asami Exp $
+ * $Id: soundcard.c,v 1.3 1996/09/03 10:24:21 asami Exp $
  */
 
 #include "sound_config.h"
@@ -267,17 +267,10 @@ driver_to_voxunit(struct isa_driver *driver)
     return(SNDCARD_GUS);
   else if(driver == &mpudriver)
     return(SNDCARD_MPU401);
-#ifdef PC98
   else if(driver == &sbxvidriver)
     return(SNDCARD_SB16);
   else if(driver == &sbmididriver)
     return(SNDCARD_SB16MIDI);
-#else
-  else if(driver == &sbxvidriver)
-    return(SNDCARD_SB16);
-  else if(driver == &sbmididriver)
-    return(SNDCARD_SB16MIDI);
-#endif
   else if(driver == &uartdriver)
     return(SNDCARD_UART6850);
   else if(driver == &gusdriver)
