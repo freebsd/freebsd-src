@@ -40,11 +40,11 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -59,12 +59,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void	a_gid __P((const char *));
-void	a_uid __P((const char *));
-void	chownerr __P((const char *));
-u_long	id __P((const char *, const char *));
-void	usage __P((void));
-int	main __P((int argc, char *argv[]));
+void	a_gid(const char *);
+void	a_uid(const char *);
+void	chownerr(const char *);
+u_long	id(const char *, const char *);
+void	usage(void);
 
 uid_t uid;
 gid_t gid;
@@ -72,9 +71,7 @@ int ischown;
 const char *gname;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -205,8 +202,7 @@ main(argc, argv)
 }
 
 void
-a_gid(s)
-	const char *s;
+a_gid(const char *s)
 {
 	struct group *gr;
 
@@ -217,8 +213,7 @@ a_gid(s)
 }
 
 void
-a_uid(s)
-	const char *s;
+a_uid(const char *s)
 {
 	struct passwd *pw;
 
@@ -228,8 +223,7 @@ a_uid(s)
 }
 
 u_long
-id(name, type)
-	const char *name, *type;
+id(const char *name, const char *type)
 {
 	u_long val;
 	char *ep;
@@ -248,8 +242,7 @@ id(name, type)
 }
 
 void
-chownerr(file)
-	const char *file;
+chownerr(const char *file)
 {
 	static uid_t euid = -1;
 	static int ngroups = -1;
@@ -276,7 +269,7 @@ chownerr(file)
 }
 
 void
-usage()
+usage(void)
 {
 
 	if (ischown)
