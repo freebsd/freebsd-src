@@ -45,12 +45,11 @@ es1888_dspwr(u_int32_t port, u_char val)
     	for (i = 0; i < 1000; i++) {
 		if (es1888_dspready(port)) {
 	    		outb(port + SBDSP_CMD, val);
-	    		return 1;
+	    		return 0;
 		}
 		if (i > 10) DELAY((i > 100)? 1000 : 10);
     	}
-    	printf("es1888_dspwr(0x%02x) timed out.\n", val);
-    	return 0;
+    	return ENXIO;
 }
 
 static u_int
@@ -74,8 +73,6 @@ es1888_reset(u_int32_t port)
     	DELAY(100);
     	outb(port + SBDSP_RST, 0);
     	if (es1888_get_byte(port) != 0xAA) {
-        	DEB(printf("sb_reset_dsp 0x%lx failed\n",
-			   rman_get_start(d->io_base)));
 		return ENXIO;	/* Sorry */
     	}
     	return 0;
@@ -119,26 +116,28 @@ es1888_identify(driver_t *driver, device_t parent)
 	device_t dev;
 
 	es1888_set_port(0x220);
-	es1888_reset(0x220);
+	if (es1888_reset(0x220))
+		return;
 
 	/*
 	 * Check identification bytes for es1888.
 	 */
-	es1888_dspwr(0x220, 0xe7);
+	if (es1888_dspwr(0x220, 0xe7))
+		return;
 	hi = es1888_get_byte(0x220);
 	lo = es1888_get_byte(0x220);
-	printf("es1888_identify: 0x%02x%02x\n", hi, lo);
 	if (hi != 0x68 || (lo & 0xf0) != 0x80)
 		return;
 
 	/*
 	 * Program irq and drq.
 	 */
-	es1888_dspwr(0x220, 0xc6); /* enter extended mode */
-	es1888_dspwr(0x220, 0xb1); /* write register b1 */
-	es1888_dspwr(0x220, 0x14); /* enable irq 5 */
-	es1888_dspwr(0x220, 0xb2); /* write register b1 */
-	es1888_dspwr(0x220, 0x18); /* enable drq 1 */
+	if (es1888_dspwr(0x220, 0xc6) /* enter extended mode */
+	    || es1888_dspwr(0x220, 0xb1) /* write register b1 */
+	    || es1888_dspwr(0x220, 0x14) /* enable irq 5 */
+	    || es1888_dspwr(0x220, 0xb2) /* write register b1 */
+	    || es1888_dspwr(0x220, 0x18)) /* enable drq 1 */
+		return;
 
 	/*
 	 * Create the device and program its resources.
