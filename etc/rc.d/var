@@ -29,10 +29,20 @@
 
 # PROVIDE: diskless
 # REQUIRE: initdiskless mountcritlocal
+# BEFORE: addswap random
+# KEYWORD: FreeBSD
 
+dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+[ ${dlv:=0} -eq 0 ] && exit 0
+
+name="diskless2"
+
+# Provide a function for normalizing the mounting of memory
+# filesystems.  This should allow the rest of the code here to remain
+# as close as possible between 5-current and 4-stable.
 #   $1 = size
 #   $2 = mount point
-	/sbin/newfs /dev/md$3c
+#   $3 = md unit number (ignored in pre 5.0 systems)
 #   $4 = (optional) bytes-per-inode
 mount_md()
 {
@@ -46,7 +56,7 @@ mount_md()
 }
 
 echo "+++ mfs_mount of /var"
-mount_md ${varsize:=65536} /var 2
+mount_md ${varsize:=65536} /var 1
 if [ -r /etc/rc.subr ]; then
         . /etc/rc.subr
         load_rc_config $name
@@ -63,11 +73,11 @@ fi
 if [ -d /conf/default/etc ]; then
 	newaliases
 fi
-# We assume that /tmp is symlinked to /var/tmp on the shared root
-# partition. mount_null seems to have problems.
-#if [ ! -h /tmp -a ! -h /var/tmp ]; then
-#	mount_null /var/tmp /tmp
-#fi
+
+#
+# /var/tmp, otherwise, use a small memory filesystem for /tmp.
+	mount_md ${tmpsize:=20480} /tmp 2
+# so if /var/tmp == /tmp, then you don't get a vi.recover.
 #
 if [ ! -h /tmp ]; then
 	mount_md ${tmpsize:=64m} /tmp 2
@@ -75,7 +85,7 @@ if [ ! -h /tmp ]; then
 fi
 
 if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
-	mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+	# we have DEVFS, no worries...
 	true
 else
 	# extract a list of device entries, then copy them to a writable fs
