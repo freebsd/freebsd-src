@@ -75,6 +75,7 @@ struct wi_req {
 #define WI_RID_MGMT_XMIT	0x0200
 #define WI_RID_ZERO_CACHE	0x0300
 #define WI_RID_READ_CACHE	0x0400
+#define WI_RID_FWDOWNLOAD	0x0500
 
 struct wi_80211_hdr {
 	u_int16_t		frame_ctl;
@@ -145,6 +146,22 @@ struct wi_sigcache {
 	int	signal;		/* signal strength of the packet */
 	int	noise;		/* noise value */
 	int	quality;	/* quality of the packet */
+};
+
+/*
+ * Firmware downloading API.  We support downloading into RAM and into
+ * flash.  We copy the entire .hex file for both the primary and secondary
+ * firmware into the kernel, which is minorly gross, but matches the
+ * format of the compiled in firmware.
+ */
+struct wi_fwdownload {
+	int	type;		/* What type of download. */
+#define WI_FW_RAM	1
+#define WI_FW_FLASH	2
+	size_t	pri_len;	/* Primary firmware length */
+	size_t	sec_len;	/* Secondary firmware length */
+	caddr_t	pri_data;	/* Pointer (user) to primary data */
+	caddr_t sec_data;	/* Pointer (user) to secondary data */
 };
 
 #ifndef _KERNEL
