@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.15 1996/03/02 19:37:37 peter Exp $
+ *	$Id: exception.s,v 1.16 1996/04/12 12:22:14 phk Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -77,12 +77,7 @@ bdb_/**/name/**/_ljmp: ; \
 #define BDBTRAP(name)
 #endif
 
-#ifdef KGDB
-#  define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; \
-			pushl $(a) ; jmp _bpttraps
-#else
-#  define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; TRAP(a)
-#endif
+#define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; TRAP(a)
 
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
@@ -189,27 +184,6 @@ calltrap:
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
-
-#ifdef KGDB
-/*
- * This code checks for a kgdb trap, then falls through
- * to the regular trap code.
- */
-	SUPERALIGN_TEXT
-_bpttraps:
-	pushal
-	pushl	%ds
-	pushl	%es
-	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	movl	%ax,%es
-	FAKE_MCOUNT(12*4(%esp))
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp) /* non-kernel mode? */
-	jne	calltrap			/* yes */
-	call	_kgdb_trap_glue
-	MEXITCOUNT
-	jmp	calltrap
-#endif
 
 /*
  * Call gate entry for syscall.

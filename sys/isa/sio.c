@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.140 1996/04/13 14:55:18 bde Exp $
+ *	$Id: sio.c,v 1.141 1996/04/23 18:36:56 nate Exp $
  */
 
 #include "opt_comconsole.h"
@@ -342,14 +342,6 @@ static struct tty	*sio_tty[NSIO];
 static struct tty	sio_tty[NSIO];
 #endif
 static	const int	nsio_tty = NSIO;
-
-#ifdef KGDB
-#include <machine/remote-sl.h>
-
-extern	int	kgdb_dev;
-extern	int	kgdb_rate;
-extern	int	kgdb_debug_init;
-#endif
 
 static	struct speedtab comspeedtab[] = {
 	{ 0,		0 },
@@ -1012,40 +1004,6 @@ determined_type: ;
 
 	kdc_sio[unit].kdc_state = (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
-#ifdef KGDB
-	if (kgdb_dev == makedev(CDEV_MAJOR, unit)) {
-		if (unit == comconsole)
-			kgdb_dev = -1;	/* can't debug over console port */
-		else {
-			int	divisor;
-
-			/*
-			 * XXX now unfinished and broken.  Need to do
-			 * something more like a full open().  There's no
-			 * suitable interrupt handler so don't enable device
-			 * interrupts.  Watch out for null tp's.
-			 */
-			outb(iobase + com_cfcr, CFCR_DLAB);
-			divisor = ttspeedtab(kgdb_rate, comspeedtab);
-			outb(iobase + com_dlbl, divisor & 0xFF);
-			outb(iobase + com_dlbh, (u_int) divisor >> 8);
-			outb(iobase + com_cfcr, CFCR_8BITS);
-			outb(com->modem_ctl_port,
-			     com->mcr_image |= MCR_DTR | MCR_RTS);
-
-			if (kgdb_debug_init) {
-				/*
-				 * Print prefix of device name,
-				 * let kgdb_connect print the rest.
-				 */
-				printf("sio%d: ", unit);
-				kgdb_connect(1);
-			} else
-				printf("sio%d: kgdb enabled\n", unit);
-		}
-	}
-#endif
-
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
@@ -1300,10 +1258,6 @@ comhardclose(com)
 	com->poll_output = FALSE;
 	com->do_timestamp = 0;
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-#ifdef KGDB
-	/* do not disable interrupts or hang up if debugging */
-	if (kgdb_dev != makedev(CDEV_MAJOR, unit))
-#endif
 	{
 		outb(iobase + com_ier, 0);
 		tp = com->tp;
@@ -1509,16 +1463,6 @@ siointr1(com)
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
 				setsofttty();
-#ifdef KGDB
-			/* trap into kgdb? (XXX - needs testing and optim) */
-			if (recv_data == FRAME_END
-			    && (   com->tp == NULL
-				|| !(com->tp->t_state & TS_ISOPEN))
-			    && kgdb_dev == makedev(CDEV_MAJOR, unit)) {
-				kgdb_connect(0);
-				continue;
-			}
-#endif /* KGDB */
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
