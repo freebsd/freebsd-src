@@ -1158,7 +1158,7 @@ isp_handle_ctio2(isp, ct)
 		 * CTIO rejected by the firmware because an invalid RX_ID.
 		 * Just print a message.
 		 */
-		PRINTF("%s: CTIO2 completed with Invalid RX_ID 0x%x",
+		PRINTF("%s: CTIO2 completed with Invalid RX_ID 0x%x\n",
 		    isp->isp_name, ct->ct_rxid);
 		break;
 
