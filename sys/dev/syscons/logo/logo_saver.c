@@ -44,7 +44,11 @@ static u_char *vid;
 static int banksize, scrmode, bpsl, scrw, scrh;
 static int blanked;
 
-#include "logo.c"
+extern unsigned int logo_w;
+extern unsigned int logo_h;
+extern unsigned char logo_pal[];
+extern unsigned char logo_img[];
+extern unsigned int logo_img_size;
 
 static void
 logo_blit(video_adapter_t *adp, int x, int y)
@@ -55,7 +59,7 @@ logo_blit(video_adapter_t *adp, int x, int y)
 	o += banksize;
     set_origin(adp, o);
 
-    for (d = 0; d < sizeof logo_img; d += logo_w) {
+    for (d = 0; d < logo_img_size; d += logo_w) {
 	if (p + logo_w < banksize) {
 	    bcopy(logo_img + d, vid + p, logo_w);
 	    p += bpsl;
