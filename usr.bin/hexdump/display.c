@@ -69,7 +69,7 @@ display()
 	off_t saveaddress;
 	u_char savech, *savebp;
 
-	while (bp = get())
+	while ((bp = get()))
 	    for (fs = fshead, savebp = bp, saveaddress = address; fs;
 		fs = fs->nextfs, bp = savebp, address = saveaddress)
 		    for (fu = fs->nextfu; fu; fu = fu->nextfu) {
@@ -208,7 +208,7 @@ void
 bpad(pr)
 	PR *pr;
 {
-	static char *spec = " -0+#";
+	static char spec[] = " -0+#";
 	register char *p1, *p2;
 
 	/*
@@ -220,7 +220,7 @@ bpad(pr)
 	pr->cchar[1] = '\0';
 	for (p1 = pr->fmt; *p1 != '%'; ++p1);
 	for (p2 = ++p1; *p1 && index(spec, *p1); ++p1);
-	while (*p2++ = *p1++);
+	while ((*p2++ = *p1++));
 }
 
 static char **_argv;
@@ -228,7 +228,6 @@ static char **_argv;
 u_char *
 get()
 {
-	extern enum _vflag vflag;
 	extern int length;
 	static int ateof = 1;
 	static u_char *curp, *savp;
@@ -255,7 +254,7 @@ get()
 		 * and no other files are available, zero-pad the rest of the
 		 * block and set the end flag.
 		 */
-		if (!length || ateof && !next((char **)NULL)) {
+		if (!length || (ateof && !next((char **)NULL))) {
 			if (need == blocksize)
 				return((u_char *)NULL);
 			if (vflag != ALL && 
@@ -340,7 +339,7 @@ next(argv)
 
 void
 doskip(fname, statok)
-	char *fname;
+	const char *fname;
 	int statok;
 {
 	register int cnt;
