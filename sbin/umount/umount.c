@@ -249,7 +249,7 @@ checkname(char *name, char **typelist)
 	 */
 	if (sfs == NULL) {
 		len = strlen(name);
-		while (len > 0 && name[len - 1] == '/')
+		while (len > 1 && name[len - 1] == '/')
 			name[--len] = '\0';
 		sfs = checkmntlist(name);
 	}
@@ -262,7 +262,7 @@ checkname(char *name, char **typelist)
 		snprintf(buf, sizeof(buf), "%s:%.*s", delimp + 1, delimp - name,
 		    name);
 		len = strlen(buf);
-		while (len > 0 && buf[len - 1] == '/')
+		while (len > 1 && buf[len - 1] == '/')
 			buf[--len] = '\0';
 		sfs = checkmntlist(buf);
 	}
@@ -566,7 +566,7 @@ parsehexfsid(const char *hex, fsid_t *fsid)
 	if (strlen(hex) != sizeof(*fsid) * 2)
 		return (-1);
 	hexbuf[2] = '\0';
-	for (i = 0; i < sizeof(*fsid); i++) {
+	for (i = 0; i < (int)sizeof(*fsid); i++) {
 		hexbuf[0] = hex[i * 2];
 		hexbuf[1] = hex[i * 2 + 1];
 		if (!isxdigit(hexbuf[0]) || !isxdigit(hexbuf[1]))
