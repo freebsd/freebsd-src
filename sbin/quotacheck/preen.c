@@ -45,6 +45,7 @@ static const char sccsid[] = "@(#)preen.c	8.1 (Berkeley) 6/5/93";
 #include <unistd.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <fstab.h>
 #include "fsck.h"
 
 struct part {
@@ -292,7 +293,8 @@ blockcheck(name)
 {
 	struct stat stslash, stblock, stchar;
 	char *raw;
-	int retried = 0;
+	struct fstab *fsinfo;
+	int retried = 0, l;
 
 	hotroot = 0;
 	if (stat("/", &stslash) < 0) {
@@ -323,6 +325,19 @@ retry:
 		}
 	} else if ((stblock.st_mode & S_IFMT) == S_IFCHR && !retried) {
 		name = unrawname(name);
+		retried++;
+		goto retry;
+	} else if ((stblock.st_mode & S_IFMT) == S_IFDIR && !retried) {
+		l = strlen(name) - 1;
+		if (l > 0 && name[l] == '/')
+			/* remove trailing slash */
+			name[l] = '\0';
+		if(!(fsinfo=getfsfile(name))) {
+			printf("Can't resolve %s to character special device",
+			    name);
+			return (0);
+		}
+		name = fsinfo->fs_spec;
 		retried++;
 		goto retry;
 	}
