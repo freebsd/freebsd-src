@@ -59,16 +59,37 @@ static struct proc *g_up_proc;
 
 int g_debugflags;
 
+/*
+ * G_UP and G_DOWN are the two threads which push I/O through the
+ * stack.
+ *
+ * Things are procesed in a FIFO order, but these threads could be
+ * part of I/O prioritization by deciding which bios/bioqs to service
+ * in what order.
+ *
+ * We have only one thread in each direction, it is belived that until
+ * a very non-trivial workload in the UP/DOWN path this will be enough,
+ * but more than one can actually be run without problems.
+ *
+ * Holding the "mymutex" is a debugging feature:  It prevents people
+ * from sleeping in the UP/DOWN I/O path by mistake or design (doing
+ * so almost invariably result in deadlocks since it stalls all I/O
+ * processing in the given direction.
+ */
+
 static void
 g_up_procbody(void)
 {
 	struct proc *p = g_up_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
+	struct mtx mymutex;
 
+	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
+	mtx_lock(&mymutex);
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_up(tp);
-		tsleep(&g_wait_up, PRIBIO, "g_up", hz/10);
+		msleep(&g_wait_up, &mymutex, PRIBIO, "g_up", hz/10);
 	}
 }
 
@@ -85,11 +106,14 @@ g_down_procbody(void)
 {
 	struct proc *p = g_down_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
+	struct mtx mymutex;
 
+	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
+	mtx_lock(&mymutex);
 	curthread->td_base_pri = PRIBIO;
 	for(;;) {
 		g_io_schedule_down(tp);
-		tsleep(&g_wait_down, PRIBIO, "g_down", hz/10);
+		msleep(&g_wait_down, &mymutex, PRIBIO, "g_down", hz/10);
 	}
 }
 
