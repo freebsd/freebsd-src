@@ -196,9 +196,8 @@
 	preferable to subscribe instead to the &a.announce;.</para>
 
       <para>All of the mailing lists can be freely joined by anyone
-	wishing to do so.  Send mail to &a.majordomo; and include the
-	keyword <literal>help</literal> on a line by itself somewhere
-	in the body of the message.  This will give you more
+	wishing to do so. Visit <ulink url="http://www.FreeBSD.org/mailman/listinfo">
+	FreeBSD Mailman Info Page</ulink>.  This will give you more
 	information on joining the various lists, accessing archives,
 	etc.  There are a number of mailing lists targeted at special
 	interest groups not mentioned here; more information can be

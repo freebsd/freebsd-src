@@ -1,4 +1,4 @@
-<!-- 
+<!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification
@@ -218,6 +218,13 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
 &prompt.root; <userinput>mv patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_i \
 patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
 </userinput></screen>
+
+
+    <para>Recently the mailing lists were changed from majordomo
+      to the currently used Mailman list server.  More information
+      about using the new mailing lists can be found by visiting the
+      <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
+      Mailman Info Page</ulink>.</para>
 
 ]]>
   </sect1>
