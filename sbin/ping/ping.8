@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AQRadfnoqrv
+.Op Fl ADQRadfnoqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -52,6 +52,7 @@ packets to network hosts
 .Op Fl s Ar packetsize
 .Op Fl S Ar src_addr
 .Op Fl t Ar timeout
+.Op Fl z Ar tos
 .Bo
 .Ar host |
 .Op Fl L
@@ -111,6 +112,8 @@ will operate until interrupted.
 Set the
 .Dv SO_DEBUG
 option on the socket being used.
+.It Fl D
+Set the Don't Fragment bit.
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -252,6 +255,8 @@ Verbose output.
 packets other than
 .Tn ECHO_RESPONSE
 that are received are listed.
+.It Fl z Ar tos
+Use the specified type of service.
 .El
 .Pp
 When using
