@@ -419,7 +419,7 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	va = TLB_TAR_VA(tf->tf_tar);
 
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
-	    td, p->p_vmspace->vm_pmap.pm_context, va, ctx);
+	    td, p->p_vmspace->vm_pmap.pm_context[PCPU_GET(cpuid)], va, ctx);
 
 	if (type == T_DATA_PROTECTION) {
 		prot = VM_PROT_WRITE;
