@@ -85,7 +85,7 @@ open(const char *fname, int mode)
 {
     struct open_file	*f;
     int			fd, i, error, besterror;
-    char		*file;
+    const char		*file;
 
     if ((fd = o_gethandle()) == -1) {
 	errno = EMFILE;

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zalloc_defs.h,v 1.1 1998/09/26 01:42:39 msmith Exp $
  */
 
 /*
@@ -43,8 +43,14 @@
 #include <string.h>
 #include "stand.h"
 
+#ifdef __i386__
 typedef unsigned int iaddr_t;	/* unsigned int same size as pointer	*/
 typedef int saddr_t;		/* signed int same size as pointer	*/
+#endif
+#ifdef __alpha__
+typedef unsigned long iaddr_t;	/* unsigned int same size as pointer	*/
+typedef long saddr_t;		/* signed int same size as pointer	*/
+#endif
 
 #include "zalloc_mem.h"
 
