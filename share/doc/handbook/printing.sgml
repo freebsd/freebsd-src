@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.5 1996/01/31 19:03:00 mpp Exp $
+     $Id: printing.sgml,v 1.6 1996/05/16 23:18:12 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -26,7 +26,7 @@
 
         In order to use printers with FreeBSD, you will need to set
 	them up to work with the Berkeley line printer spooling
-	system, also known as the LPD spooling system.  It iss the
+	system, also known as the LPD spooling system.  It is the
 	standard printer control system in FreeBSD.  This section
 	introduces the LPD spooling system, often simply called LPD.
 
@@ -2455,7 +2455,7 @@ exit 2
 
 	      <tt/dvilj2p/ makes the filter <tt/hpdf/ quite complex
 	      since <tt/dvilj2p/ cannot read from standard input.  It
-	      wants to work with a filename.  What iss worse, the
+	      wants to work with a filename.  What is worse, the
 	      filename has to end in <tt/.dvi/ so using
 	      <tt>/dev/fd/0</tt> for standard input is problematic.
 	      We can get around that problem by linking (symbolically)
