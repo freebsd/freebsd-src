@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.86 1995/01/27 06:24:35 jkh Exp $
+#	$Id: Makefile,v 1.87 1995/01/27 07:37:41 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -171,7 +171,6 @@ release20:
 EXTRADISTRIBUTIONS=	secure games manpages proflibs dict info
 DISTRIBUTIONS=	bin src ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
-SECRSRC=	src/secure src/eBones
 
 jkhdist:
 	@echo "--> Making all"
@@ -309,7 +308,7 @@ srcsecure-tarball:
 	(cd ${RELEASEDIR}/src/usr/src; \
 		mkdir -p ${RELEASEDIR}/tarballs/secure; \
 		tar -cf - secure | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secure.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secrsrc.)
 
 srclkm-tarball:
 	(cd ${RELEASEDIR}/src/usr/src; \
@@ -359,5 +358,9 @@ src:	srcbase-tarball srcbin-tarball srcetc-tarball \
 	srcsbin-tarball srcshare-tarball srcsys-tarball \
 	srcusrbin-tarball srcusrsbin-tarball srcrelease-tarball \
 	srcebones-tarball srclkm-tarball srcrelease-tarball
+	( cd ${RELEASEDIR}/tarballs/src; \
+		sh -e ${.CURDIR}/scripts/mkchecksums.sh ) ; \
+	cp ${.CURDIR}/scripts/extract_src.sh \
+		${RELEASEDIR}/tarballs/$${i}/extract.sh;\
 
 .include <bsd.prog.mk>
