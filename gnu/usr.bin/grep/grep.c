@@ -33,6 +33,12 @@
 # include <sys/time.h>
 # include <sys/resource.h>
 #endif
+#if defined HAVE_WCTYPE_H && defined HAVE_WCHAR_H && defined HAVE_MBRTOWC
+/* We can handle multibyte string.  */
+# define MBS_SUPPORT
+# include <wchar.h>
+# include <wctype.h>
+#endif
 #include <stdio.h>
 #include "system.h"
 #include "getopt.h"
@@ -1804,6 +1810,37 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"))
 
   if (!install_matcher (matcher) && !install_matcher ("default"))
     abort ();
+
+#ifdef MBS_SUPPORT
+  if (MB_CUR_MAX != 1 && match_icase)
+    {
+      wchar_t wc;
+      mbstate_t cur_state, prev_state;
+      int i, len = strlen(keys);
+
+      memset(&cur_state, 0, sizeof(mbstate_t));
+      for (i = 0; i <= len ;)
+	{
+	  size_t mbclen;
+	  mbclen = mbrtowc(&wc, keys + i, len - i, &cur_state);
+	  if (mbclen == (size_t) -1 || mbclen == (size_t) -2 || mbclen == 0)
+	    {
+	      /* An invalid sequence, or a truncated multibyte character.
+		 We treat it as a singlebyte character.  */
+	      mbclen = 1;
+	    }
+	  else
+	    {
+	      if (iswupper((wint_t)wc))
+		{
+		  wc = towlower((wint_t)wc);
+		  wcrtomb(keys + i, wc, &cur_state);
+		}
+	    }
+	  i += mbclen;
+	}
+    }
+#endif /* MBS_SUPPORT */
 
   (*compile)(keys, keycc);
 
