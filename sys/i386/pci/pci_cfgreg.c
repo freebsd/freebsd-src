@@ -34,24 +34,54 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/pc/bios.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
 
 #define PRVERB(a) do {							\
 	if (bootverbose)						\
 		printf a ;						\
 } while(0)
 
+#define PCIE_CACHE 8
+struct pcie_cfg_elem {
+	TAILQ_ENTRY(pcie_cfg_elem)	elem;
+	vm_offset_t	vapage;
+	vm_paddr_t	papage;
+};
+
+enum {
+	CFGMECH_NONE = 0,
+	CFGMECH_1,
+	CFGMECH_2,
+	CFGMECH_PCIE,
+};
+
+static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
+static uint32_t pciebar;
 static int cfgmech;
 static int devmax;
+static struct mtx pcicfg_mtx;
 
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
-static struct mtx pcicfg_mtx;
+static int	pciereg_cfgopen(void);
+static int	pciereg_cfgread(int bus, int slot, int func, int reg,
+				int bytes);
+static void	pciereg_cfgwrite(int bus, int slot, int func, int reg,
+				 int data, int bytes);
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -96,6 +126,7 @@ int
 pci_cfgregopen(void)
 {
 	static int		opened = 0;
+	u_int16_t		vid, did;
 	u_int16_t		v;
 
 	if (opened)
@@ -114,6 +145,24 @@ pci_cfgregopen(void)
 	/* $PIR requires PCI BIOS 2.10 or greater. */
 	if (v >= 0x0210)
 		pci_pir_open();
+
+	/*
+	 * Grope around in the PCI config space to see if this is a
+	 * chipset that is capable of doing memory-mapped config cycles.
+	 * This also implies that it can do PCIe extended config cycles.
+	 */
+
+	/* Check for the Intel 7520 and 925 chipsets */
+	vid = pci_cfgregread(0, 0, 0, 0x0, 2);
+	did = pci_cfgregread(0, 0, 0, 0x2, 2);
+	if ((vid == 0x8086) && (did == 0x3590)) {
+		pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
+		pciereg_cfgopen();
+	} else if ((vid == 0x8086) && (did == 0x2580)) {
+		pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
+		pciereg_cfgopen();
+	}
+
 	return(1);
 }
 
@@ -165,13 +214,13 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	    && (unsigned) bytes <= 4
 	    && (reg & (bytes - 1)) == 0) {
 		switch (cfgmech) {
-		case 1:
+		case CFGMECH_1:
 			outl(CONF1_ADDR_PORT, (1 << 31)
 			    | (bus << 16) | (slot << 11) 
 			    | (func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);
 			break;
-		case 2:
+		case CFGMECH_2:
 			outb(CONF2_ENABLE_PORT, 0xf0 | (func << 1));
 			outb(CONF2_FORWARD_PORT, bus);
 			dataport = 0xc000 | (slot << 8) | reg;
@@ -186,10 +235,10 @@ static void
 pci_cfgdisable(void)
 {
 	switch (cfgmech) {
-	case 1:
+	case CFGMECH_1:
 		outl(CONF1_ADDR_PORT, 0);
 		break;
-	case 2:
+	case CFGMECH_2:
 		outb(CONF2_ENABLE_PORT, 0);
 		outb(CONF2_FORWARD_PORT, 0);
 		break;
@@ -201,6 +250,11 @@ pcireg_cfgread(int bus, int slot, int func, int reg, int bytes)
 {
 	int data = -1;
 	int port;
+
+	if (cfgmech == CFGMECH_PCIE) {
+		data = pciereg_cfgread(bus, slot, func, reg, bytes);
+		return (data);
+	}
 
 	mtx_lock_spin(&pcicfg_mtx);
 	port = pci_cfgenable(bus, slot, func, reg, bytes);
@@ -226,6 +280,11 @@ static void
 pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 {
 	int port;
+
+	if (cfgmech == CFGMECH_PCIE) {
+		pciereg_cfgwrite(bus, slot, func, reg, data, bytes);
+		return;
+	}
 
 	mtx_lock_spin(&pcicfg_mtx);
 	port = pci_cfgenable(bus, slot, func, reg, bytes);
@@ -309,7 +368,7 @@ pcireg_cfgopen(void)
 
 	if ((oldval1 & CONF1_ENABLE_MSK) == 0) {
 
-		cfgmech = 1;
+		cfgmech = CFGMECH_1;
 		devmax = 32;
 
 		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
@@ -349,7 +408,7 @@ pcireg_cfgopen(void)
 
 	if ((oldval2 & 0xf0) == 0) {
 
-		cfgmech = 2;
+		cfgmech = CFGMECH_2;
 		devmax = 16;
 
 		outb(CONF2_ENABLE_PORT, CONF2_ENABLE_CHK);
@@ -369,8 +428,152 @@ pcireg_cfgopen(void)
 		}
 	}
 
-	cfgmech = 0;
+	cfgmech = CFGMECH_NONE;
 	devmax = 0;
 	return (cfgmech);
 }
 
+static int
+pciereg_cfgopen(void)
+{
+	struct pcie_cfg_list *pcielist;
+	struct pcie_cfg_elem *pcie_array, *elem;
+#ifdef SMP
+	struct pcpu *pc;
+#endif
+	vm_offset_t va;
+	int i;
+
+	if (bootverbose)
+		printf("Setting up PCIe mappings for BAR 0x%x\n", pciebar);
+
+#ifdef SMP
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
+#endif
+	{
+
+		pcie_array = malloc(sizeof(struct pcie_cfg_elem) * PCIE_CACHE,
+		    M_DEVBUF, M_NOWAIT);
+		if (pcie_array == NULL)
+			return (0);
+
+		va = kmem_alloc_nofault(kernel_map, PCIE_CACHE * PAGE_SIZE);
+		if (va == 0) {
+			free(pcie_array, M_DEVBUF);
+			return (0);
+		}
+
+#ifdef SMP
+		pcielist = &pcie_list[pc->pc_cpuid];
+#else
+		pcielist = &pcie_list[0];
+#endif
+		TAILQ_INIT(pcielist);
+		for (i = 0; i < PCIE_CACHE; i++) {
+			elem = &pcie_array[i];
+			elem->vapage = va + (i * PAGE_SIZE);
+			elem->papage = 0;
+			TAILQ_INSERT_HEAD(pcielist, elem, elem);
+		}
+	}
+
+	
+	cfgmech = CFGMECH_PCIE;
+	devmax = 32;
+	return (1);
+}
+
+#define PCIE_PADDR(bar, reg, bus, slot, func)	\
+	((bar)				|	\
+	(((bus) & 0xff) << 20)		|	\
+	(((slot) & 0x1f) << 15)		|	\
+	(((func) & 0x7) << 12)		|	\
+	((reg) & 0xfff))
+
+/*
+ * Find an element in the cache that matches the physical page desired, or
+ * create a new mapping from the least recently used element.
+ * A very simple LRU algorithm is used here, does it need to be more
+ * efficient?
+ */
+static __inline struct pcie_cfg_elem *
+pciereg_findelem(vm_paddr_t papage)
+{
+	struct pcie_cfg_list *pcielist;
+	struct pcie_cfg_elem *elem;
+
+	critical_enter();
+	pcielist = &pcie_list[PCPU_GET(cpuid)];
+	TAILQ_FOREACH(elem, pcielist, elem) {
+		if (elem->papage == papage)
+			break;
+	}
+
+	if (elem == NULL) {
+		elem = TAILQ_LAST(pcielist, pcie_cfg_list);
+		if (elem->papage != 0) {
+			pmap_kremove(elem->vapage);
+			invlpg(elem->vapage);
+		}
+		pmap_kenter(elem->vapage, papage);
+		elem->papage = papage;
+	}
+
+	if (elem != TAILQ_FIRST(pcielist)) {
+		TAILQ_REMOVE(pcielist, elem, elem);
+		TAILQ_INSERT_HEAD(pcielist, elem, elem);
+	}
+	critical_exit();
+	return (elem);
+}
+
+static int
+pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
+{
+	struct pcie_cfg_elem *elem;
+	volatile vm_offset_t va;
+	vm_paddr_t pa, papage;
+
+	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
+	papage = pa & ~PAGE_MASK;
+	elem = pciereg_findelem(papage);
+	va = elem->vapage | (pa & PAGE_MASK);
+
+	switch (bytes) {
+	case 4:
+		return (*(volatile uint32_t *)(va));
+	case 2:
+		return (*(volatile uint16_t *)(va));
+	case 1:
+		return (*(volatile uint8_t *)(va));
+	default:
+		panic("pciereg_cfgread: invalid width");
+	}
+}
+
+static void
+pciereg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
+{
+	struct pcie_cfg_elem *elem;
+	volatile vm_offset_t va;
+	vm_paddr_t pa, papage;
+
+	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
+	papage = pa & ~PAGE_MASK;
+	elem = pciereg_findelem(papage);
+	va = elem->vapage | (pa & PAGE_MASK);
+
+	switch (bytes) {
+	case 4:
+		*(volatile uint32_t *)(va) = data;
+		break;
+	case 2:
+		*(volatile uint16_t *)(va) = data;
+		break;
+	case 1:
+		*(volatile uint8_t *)(va) = data;
+		break;
+	default:
+		panic("pciereg_cfgwrite: invalid width");
+	}
+}
