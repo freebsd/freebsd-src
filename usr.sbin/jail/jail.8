@@ -69,7 +69,7 @@ appropriate IP address, and so forth.  Add the following to
 in the host environment:
 .Bd -literal -offset indent
 sendmail_enable="NO"
-inetd_flas="-wW -a 192.168.11.23"
+inetd_flags="-wW -a 192.168.11.23"
 portmap_enable="NO"
 .Ed
 .Pp
@@ -219,3 +219,6 @@ The jail feature was written by Poul-Henning Kamp for
 R&D Associates
 .Dq Li http://www.rndassociates.com/
 who contributed it to FreeBSD.
+
+Robert Watson wrote the extended documentation, found a few bugs, added
+a few new features, and cleaned up the userland jail environment.
