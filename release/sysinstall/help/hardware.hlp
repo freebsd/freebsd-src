@@ -105,7 +105,8 @@ ex0     dyn     dyn     dyn     dyn     Intel EtherExpress Pro/10 cards
 le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
-                                        (Isolan, Novell NE2100, NE32-VL)
+                                        (Isolan, Novell NE2100, NE32-VL,
+					 some PCnet-PCI cards)
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
 xl0	dyn	dyn	n/a	dyn	3Com 3c900, 3c905 and 3c905B
 					((Fast) Etherlink XL)
