@@ -111,7 +111,7 @@ char	*kernel;
 char	*dirname;			/* directory to save dumps in */
 char	*ddname;			/* name of dump device */
 dev_t	dumpdev;			/* dump device */
-int	dumpfd;				/* read/write descriptor on block dev */
+int	dumpfd;				/* read/write descriptor on char dev */
 time_t	now;				/* current date */
 char	panic_mesg[1024];
 int	panicstr;
@@ -134,7 +134,6 @@ void	 log __P((int, char *, ...));
 void	 Lseek __P((int, off_t, int));
 int	 Open __P((const char *, int rw));
 int	 Read __P((int, void *, int));
-char	*rawname __P((char *s));
 void	 save_core __P((void));
 void	 usage __P((void));
 void	 Write __P((int, void *, int));
@@ -314,6 +313,7 @@ clear_dump()
 	newdumplo = 0;
 	DumpWrite(dumpfd, &newdumplo, sizeof(newdumplo),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
+	close(dumpfd);
 }
 
 int
@@ -340,7 +340,7 @@ save_core()
 {
 	register FILE *fp;
 	register int bounds, ifd, nr, nw, ofd;
-	char *rawp, path[MAXPATHLEN];
+	char path[MAXPATHLEN];
 	mode_t oumask;
 
 	/*
@@ -379,15 +379,8 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	(void)umask(oumask);
 
-	/* Open the raw device. */
-	rawp = rawname(ddname);
-	if ((ifd = open(rawp, O_RDONLY)) == -1) {
-		syslog(LOG_WARNING, "%s: %m; using block device", rawp);
-		ifd = dumpfd;
-	}
-
 	/* Seek to the start of the core. */
-	Lseek(ifd, (off_t)dumplo, L_SET);
+	Lseek(dumpfd, (off_t)dumplo, L_SET);
 
 	/* Copy the core file. */
 	syslog(LOG_NOTICE, "writing %score to %s",
@@ -395,13 +388,13 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	for (; dumpsize > 0; dumpsize -= nr) {
 		(void)printf("%6dK\r", dumpsize / 1024);
 		(void)fflush(stdout);
-		nr = read(ifd, buf, MIN(dumpsize, sizeof(buf)));
+		nr = read(dumpfd, buf, MIN(dumpsize, sizeof(buf)));
 		if (nr <= 0) {
 			if (nr == 0)
 				syslog(LOG_WARNING,
 				    "WARNING: EOF on dump device");
 			else
-				syslog(LOG_ERR, "%s: %m", rawp);
+				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
 		if (compress)
@@ -417,7 +410,7 @@ err2:			syslog(LOG_WARNING,
 			exit(1);
 		}
 	}
-	(void)close(ifd);
+
 	if (compress)
 		(void)fclose(fp);
 	else
@@ -460,6 +453,7 @@ err2:			syslog(LOG_WARNING,
 		(void)fclose(fp);
 	else
 		(void)close(ofd);
+	close(ifd);
 }
 
 char *
@@ -497,25 +491,6 @@ find_dev(dev)
 	closedir(dfd);
 	syslog(LOG_ERR, "can't find device %d/%d", major(dev), minor(dev));
 	exit(1);
-}
-
-char *
-rawname(s)
-	char *s;
-{
-	char *sl, name[MAXPATHLEN];
-
-	if ((sl = rindex(s, '/')) == NULL || sl[1] == '0') {
-		syslog(LOG_ERR,
-		    "can't make raw dump device name from %s", s);
-		return (s);
-	}
-	snprintf(name, sizeof(name), "%.*s/r%s", (int)(sl - s), s, sl + 1);
-	if ((sl = strdup(name)) == NULL) {
-		syslog(LOG_ERR, "%s", strerror(errno));
-		exit(1);
-	}
-	return (sl);
 }
 
 int
