@@ -92,7 +92,7 @@ _RuneLocale _DefaultRuneLocale = {
 		_C,		_C,		_C,		_C,
 	/*98*/	_C,		_C,		_C,		_C,
 		_C,		_C,		_C,		_C,
-	/*A0*/	_R|_G,		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
+	/*A0*/	_R,		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
 	/*A8*/	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
