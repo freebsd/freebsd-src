@@ -58,7 +58,6 @@ static const char rcsid[] =
 #include "pathnames.h"
 #include <syslog.h>
 #include <time.h>
-#include <varargs.h>
 
 #define	MAXUSRARGS	100
 #define	MAXGLOBARGS	1000

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
-#include <varargs.h>
 
 #define	TIMEOUT	15
 
