@@ -1,7 +1,7 @@
-This file is part of the ssh software.
+This file is part of the OpenSSH software.
 
-The licences which components of this software falls under are as
-follows.  First, we will summarize and say that that all components
+The licences which components of this software fall under are as
+follows.  First, we will summarize and say that all components
 are under a BSD licence, or a licence more free than that.
 
 OpenSSH contains no GPL code.
@@ -29,7 +29,7 @@ OpenSSH contains no GPL code.
     have been removed from OpenSSH, ie.
 
      - RSA is no longer included, found in the OpenSSL library
-     - IDEA is no longer included, it's use is depricated
+     - IDEA is no longer included, its use is deprecated
      - DES is now external, in the OpenSSL library
      - GMP is no longer used, and instead we call BN code from OpenSSL
      - Zlib is now external, in a library

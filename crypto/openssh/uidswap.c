@@ -12,9 +12,9 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: uidswap.c,v 1.9 2000/09/07 20:27:55 deraadt Exp $");
+RCSID("$OpenBSD: uidswap.c,v 1.16 2001/04/20 16:32:22 markus Exp $");
 
-#include "ssh.h"
+#include "log.h"
 #include "uidswap.h"
 
 /*
@@ -26,58 +26,80 @@ RCSID("$OpenBSD: uidswap.c,v 1.9 2000/09/07 20:27:55 deraadt Exp $");
  * POSIX saved uids or not.
  */
 
-#ifdef _POSIX_SAVED_IDS
 /* Lets assume that posix saved ids also work with seteuid, even though that
    is not part of the posix specification. */
-#define SAVED_IDS_WORK_WITH_SETEUID
-#endif /* _POSIX_SAVED_IDS */
 
 /* Saved effective uid. */
-static uid_t saved_euid = 0;
+static int	privileged = 0;
+static int	temporarily_use_uid_effective = 0;
+static uid_t	saved_euid = 0;
+static gid_t	saved_egid;
+static gid_t	saved_egroups[NGROUPS_MAX], user_groups[NGROUPS_MAX];
+static int	saved_egroupslen = -1, user_groupslen = -1;
 
 /*
  * Temporarily changes to the given uid.  If the effective user
  * id is not root, this does nothing.  This call cannot be nested.
  */
 void
-temporarily_use_uid(uid_t uid)
+temporarily_use_uid(struct passwd *pw)
 {
-#ifdef SAVED_IDS_WORK_WITH_SETEUID
-	/* Save the current euid. */
+	/* Save the current euid, and egroups. */
 	saved_euid = geteuid();
+	debug("temporarily_use_uid: %d/%d (e=%d)",
+	    pw->pw_uid, pw->pw_gid, saved_euid);
+	if (saved_euid != 0) {
+		privileged = 0;
+		return;
+	}
+	privileged = 1;
+	temporarily_use_uid_effective = 1;
+	saved_egid = getegid();                                                       
+	saved_egroupslen = getgroups(NGROUPS_MAX, saved_egroups);                           
+	if (saved_egroupslen < 0)
+		fatal("getgroups: %.100s", strerror(errno));
 
+	/* set and save the user's groups */
+	if (user_groupslen == -1) {
+		if (initgroups(pw->pw_name, pw->pw_gid) < 0)
+			fatal("initgroups: %s: %.100s", pw->pw_name,
+			    strerror(errno));
+		user_groupslen = getgroups(NGROUPS_MAX, user_groups);                           
+		if (user_groupslen < 0)
+			fatal("getgroups: %.100s", strerror(errno));
+	}
 	/* Set the effective uid to the given (unprivileged) uid. */
-	if (seteuid(uid) == -1)
-		debug("seteuid %u: %.100s", (u_int) uid, strerror(errno));
-#else /* SAVED_IDS_WORK_WITH_SETUID */
-	/* Propagate the privileged uid to all of our uids. */
-	if (setuid(geteuid()) < 0)
-		debug("setuid %u: %.100s", (u_int) geteuid(), strerror(errno));
-
-	/* Set the effective uid to the given (unprivileged) uid. */
-	if (seteuid(uid) == -1)
-		debug("seteuid %u: %.100s", (u_int) uid, strerror(errno));
-#endif /* SAVED_IDS_WORK_WITH_SETEUID */
+	if (setgroups(user_groupslen, user_groups) < 0)
+		fatal("setgroups: %.100s", strerror(errno));
+	pw->pw_gid = pw->pw_gid;
+	if (setegid(pw->pw_gid) < 0)
+		fatal("setegid %u: %.100s", (u_int) pw->pw_gid,
+		    strerror(errno));
+	if (seteuid(pw->pw_uid) == -1)
+		fatal("seteuid %u: %.100s", (u_int) pw->pw_uid,
+		    strerror(errno));
 }
 
 /*
- * Restores to the original uid.
+ * Restores to the original (privileged) uid.
  */
 void
-restore_uid()
+restore_uid(void)
 {
-#ifdef SAVED_IDS_WORK_WITH_SETEUID
-	/* Set the effective uid back to the saved uid. */
+	debug("restore_uid");
+	/* it's a no-op unless privileged */
+	if (!privileged)
+		return;
+	if (!temporarily_use_uid_effective)
+		fatal("restore_uid: temporarily_use_uid not effective");
+	/* Set the effective uid back to the saved privileged uid. */
 	if (seteuid(saved_euid) < 0)
-		debug("seteuid %u: %.100s", (u_int) saved_euid, strerror(errno));
-#else /* SAVED_IDS_WORK_WITH_SETEUID */
-	/*
-	 * We are unable to restore the real uid to its unprivileged value.
-	 * Propagate the real uid (usually more privileged) to effective uid
-	 * as well.
-	 */
-	setuid(getuid());
-#endif /* SAVED_IDS_WORK_WITH_SETEUID */
+		fatal("seteuid %u: %.100s", (u_int) saved_euid, strerror(errno));
+	if (setgroups(saved_egroupslen, saved_egroups) < 0)
+		fatal("setgroups: %.100s", strerror(errno));
+	if (setegid(saved_egid) < 0)
+		fatal("setegid %u: %.100s", (u_int) saved_egid, strerror(errno));
+	temporarily_use_uid_effective = 0;
 }
 
 /*
@@ -85,8 +107,12 @@ restore_uid()
  * called while temporarily_use_uid is effective.
  */
 void
-permanently_set_uid(uid_t uid)
+permanently_set_uid(struct passwd *pw)
 {
-	if (setuid(uid) < 0)
-		debug("setuid %u: %.100s", (u_int) uid, strerror(errno));
+	if (temporarily_use_uid_effective)
+		fatal("restore_uid: temporarily_use_uid effective");
+	if (setgid(pw->pw_gid) < 0)
+		fatal("setgid %u: %.100s", (u_int) pw->pw_gid, strerror(errno));
+	if (setuid(pw->pw_uid) < 0)
+		fatal("setuid %u: %.100s", (u_int) pw->pw_uid, strerror(errno));
 }
