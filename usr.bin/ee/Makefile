@@ -12,7 +12,7 @@ LDADD=	-lncurses
 
 LANGS=	en_US.ISO_8859-1 fr_FR.ISO_8859-1 de_DE.ISO_8859-1 pl_PL.ISO_8859-2 \
 	uk_UA.KOI8-U ru_RU.KOI8-R
-8859_15_LINKS = fr_FR de_DE
+8859_15_LINKS = en_US fr_FR de_DE
 
 FILES=	${LANGS:S/$/.ee.cat/}
 CLEANFILES+=	${FILES}
@@ -33,5 +33,7 @@ beforeinstall:
 	ln -sf ../${link}.ISO8859-1/ee.cat \
 		${DESTDIR}${NLSDIR}/${link}.ISO8859-15/ee.cat
 .endfor
+	ln -sf ../en_US.ISO8859-1/ee.cat \
+		${DESTDIR}${NLSDIR}/C/ee.cat
 
 .include <bsd.prog.mk>
