@@ -123,9 +123,7 @@ exit1(td, rv)
 	struct proc *p = td->td_proc;
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
-#ifdef KTRACE
 	struct vnode *vtmp;
-#endif
 	struct exitlist *ep;
 
 	GIANT_REQUIRED;
@@ -275,6 +273,14 @@ exit1(td, rv)
 		vrele(vtmp);
 	}
 #endif
+	/*
+	 * Release reference to text vnode
+	 */
+	if ((vtmp = p->p_textvp) != NULL) {
+		p->p_textvp = NULL;
+		vrele(vtmp);
+	}
+
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
@@ -574,12 +580,6 @@ loop:
 			 * Decrement the count of procs running with this uid.
 			 */
 			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
-
-			/*
-			 * Release reference to text vnode
-			 */
-			if (p->p_textvp)
-				vrele(p->p_textvp);
 
 			/*
 			 * Finally finished with old proc entry.
