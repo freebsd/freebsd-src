@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.50 1998/03/24 02:57:24 yokota Exp $
+#	$Id: LINT,v 1.286.2.51 1998/04/29 22:47:11 andreas Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1174,8 +1174,6 @@ options	"EISA_SLOTS=12"
 #  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
 #
 
-# DPTOPT is needed temporarily to enable other code changes.
-options DPTOPT	
 options DPT_MEASURE_PERFORMANCE
 
 controller	pci0
