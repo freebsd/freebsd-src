@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
@@ -245,6 +246,13 @@ static void
 boot(int howto)
 {
 	static int first_buf_printf = 1;
+
+#ifdef SMP
+	/* Do all shutdown processing on cpu0 */
+	mtx_lock_spin(&sched_lock);
+	sched_bind(curthread, 0);
+	mtx_unlock_spin(&sched_lock);
+#endif
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
