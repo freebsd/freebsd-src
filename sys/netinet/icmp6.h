@@ -625,30 +625,6 @@ struct icmp6stat {
 #define ICMPV6CTL_ND6_PRLIST	20
 #define ICMPV6CTL_MAXID		21
 
-#define ICMPV6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "rediraccept", CTLTYPE_INT }, \
-	{ "redirtimeout", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "nd6_prune", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "nd6_delay", CTLTYPE_INT }, \
-	{ "nd6_umaxtries", CTLTYPE_INT }, \
-	{ "nd6_mmaxtries", CTLTYPE_INT }, \
-	{ "nd6_useloopback", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "nodeinfo", CTLTYPE_INT }, \
-	{ "errppslimit", CTLTYPE_INT }, \
-	{ "nd6_maxnudhint", CTLTYPE_INT }, \
-	{ "mtudisc_hiwat", CTLTYPE_INT }, \
-	{ "mtudisc_lowat", CTLTYPE_INT }, \
-	{ "nd6_debug", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-}
-
 #define RTF_PROBEMTU	RTF_PROTO1
 
 #ifdef _KERNEL
