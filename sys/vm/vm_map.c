@@ -186,7 +186,8 @@ vmspace_alloc(min, max)
 void
 vm_init2(void) {
 	zinitna(kmapentzone, &kmapentobj,
-		NULL, 0, cnt.v_page_count / 4, ZONE_INTERRUPT, 1);
+		NULL, 0, lmin((VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE,
+		cnt.v_page_count) / 8, ZONE_INTERRUPT, 1);
 	zinitna(mapentzone, &mapentobj,
 		NULL, 0, 0, 0, 1);
 	zinitna(mapzone, &mapobj,
