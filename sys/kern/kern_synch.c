@@ -796,6 +796,8 @@ mi_switch()
 	    td->td_state != TDS_RUNNING)
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
+	KASSERT(td->td_critnest == 1,
+	    ("mi_switch: switch in a critical section"));
 
 	/*
 	 * Compute the amount of time during which the current
