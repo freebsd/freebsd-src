@@ -106,7 +106,7 @@ static	d_read_t	rcread;
 static	d_write_t	rcwrite;
 static	d_ioctl_t	rcioctl;
 static	d_stop_t	rcstop;
-static	d_ttycv_t	rcdevtotty;
+static	d_devtotty_t	rcdevtotty;
 
 #define CDEV_MAJOR 63
 static struct cdevsw rc_cdevsw = 

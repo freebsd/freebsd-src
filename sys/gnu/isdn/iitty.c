@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.16 1995/12/08 11:12:56 julian Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.17 1995/12/08 23:19:42 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.16 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.17 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.16 1995/12/08 11:12:56 julian 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.17  1995/12/08  23:19:42  phk
+ * Julian forgot to make the *devsw structures static.
+ *
  * Revision 1.16  1995/12/08  11:12:56  julian
  * Pass 3 of the great devsw changes
  * most devsw referenced functions are now static, as they are
@@ -220,7 +223,7 @@ static	d_read_t	ityread;
 static	d_write_t	itywrite;
 static	d_ioctl_t	ityioctl;
 static	d_stop_t	itystop;
-static	d_ttycv_t	itydevtotty;
+static	d_devtotty_t	itydevtotty;
 
 #define CDEV_MAJOR 56
 static struct cdevsw ity_cdevsw = 
