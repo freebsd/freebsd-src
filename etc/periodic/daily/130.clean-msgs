@@ -13,15 +13,15 @@ then
     source_periodic_confs
 fi
 
-case "$daily_clean_preserve_enable" in
+case "$daily_clean_msgs_enable" in
     [Yy][Ee][Ss])
 	if [ -d /var/msgs ]
 	then
 	    echo ""
 	    echo "Cleaning out old system announcements:"
 
-	    [ -n "$daily_clean_msg_days" ] &&
-		arg=-${daily_clean_msg_days#-} || arg=
+	    [ -n "$daily_clean_msgs_days" ] &&
+		arg=-${daily_clean_msgs_days#-} || arg=
 	    msgs -c $arg
 	fi;;
 esac
