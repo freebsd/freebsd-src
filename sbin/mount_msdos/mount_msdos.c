@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.10 1997/08/25 20:23:16 bde Exp $";
+	"$Id: mount_msdos.c,v 1.11 1998/02/18 09:30:31 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,6 +65,7 @@ static gid_t	a_gid __P((char *));
 static uid_t	a_uid __P((char *));
 static mode_t	a_mask __P((char *));
 static void	usage __P((void)) __dead2;
+static void     load_u2wtable __P((u_int16_t *, char *));
 
 int
 main(argc, argv)
@@ -81,7 +82,7 @@ main(argc, argv)
 	(void)memset(&args, '\0', sizeof(args));
 	args.magic = MSDOSFS_ARGSMAGIC;
 
-	while ((c = getopt(argc, argv, "sl9u:g:m:o:")) != -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:o:w:")) != -1) {
 		switch (c) {
 #ifdef MSDOSFSMNT_GEMDOSFS
 		case 'G':
@@ -108,6 +109,10 @@ main(argc, argv)
 		case 'm':
 			args.mask = a_mask(optarg);
 			set_mask = 1;
+			break;
+		case 'w':
+			load_u2wtable(args.u2w, optarg);
+			args.flags |= MSDOSFSMNT_U2WTABLE;
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
@@ -229,6 +234,33 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] bdev dir\n");
+	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] [-s] [-l] [-9] [-w table] bdev dir\n");
 	exit(EX_USAGE);
+}
+
+void
+load_u2wtable (table, name)
+	u_int16_t *table;
+	char *name;
+{
+	FILE *f;
+	int i, code;
+	char buf[128];
+	char *fn;
+
+	if (*name == '/')
+		fn = name;
+	else {
+		snprintf(buf, sizeof(buf), "/usr/libdata/msdosfs/%s", name);
+		buf[127] = '\0';
+		fn = buf;
+	}
+	if ((f = fopen(fn, "r")) == NULL)
+		err(EX_NOINPUT, "%s", fn);
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "missing item number %d", i);
+		table[i] = code;
+	}
+	fclose(f);
 }
