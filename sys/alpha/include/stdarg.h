@@ -1,8 +1,8 @@
-/* $Id: endian.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
-/* From: NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp */
+/* $Id$ */
+/* From: NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp */
 
-/*
- * Copyright (c) 1987, 1991, 1993
+/*-
+ * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,65 +33,36 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)endian.h	8.1 (Berkeley) 6/10/93
+ *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _ENDIAN_H_
-#define	_ENDIAN_H_
+#ifndef _ALPHA_STDARG_H_
+#define	_ALPHA_STDARG_H_
 
-/*
- * Define the order of 32-bit words in 64-bit words.
- */
-#define _QUAD_HIGHWORD 1
-#define _QUAD_LOWWORD 0
+#include <machine/ansi.h>
 
-#ifndef _POSIX_SOURCE
-/*
- * Definitions for byte order, according to byte significance from low
- * address to high.
- */
-#define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
-#define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
-#define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
-
-#define	BYTE_ORDER	LITTLE_ENDIAN
-
-#include <sys/cdefs.h>
-#include <sys/types.h>
-
-typedef u_int32_t in_addr_t;
-typedef u_int16_t in_port_t;
-
-__BEGIN_DECLS
-in_addr_t	htonl __P((in_addr_t));
-in_port_t	htons __P((in_port_t));
-in_addr_t	ntohl __P((in_addr_t));
-in_port_t	ntohs __P((in_port_t));
-u_int16_t	bswap16 __P((u_int16_t));
-u_int32_t	bswap32 __P((u_int32_t));
-u_int64_t	bswap64 __P((u_int64_t));
-__END_DECLS
-
-/*
- * Macros for network/external number representation conversion.
- */
-#if BYTE_ORDER == BIG_ENDIAN && !defined(lint)
-#define	ntohl(x)	(x)
-#define	ntohs(x)	(x)
-#define	htonl(x)	(x)
-#define	htons(x)	(x)
-
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
-
-#else
-
-#define	NTOHL(x)	(x) = ntohl((in_addr_t)x)
-#define	NTOHS(x)	(x) = ntohs((in_port_t)x)
-#define	HTONL(x)	(x) = htonl((in_addr_t)x)
-#define	HTONS(x)	(x) = htons((in_port_t)x)
+#ifdef __lint__
+#define	__builtin_saveregs()		(0)
+#define	__builtin_classify_type(t)	(0)
 #endif
-#endif /* !_POSIX_SOURCE */
-#endif /* !_ENDIAN_H_ */
+
+typedef _BSD_VA_LIST_	va_list;
+
+#define	__va_size(type) \
+	(((sizeof(type) + sizeof(long) - 1) / sizeof(long)) * sizeof(long))
+
+#define	va_start(ap, last) \
+	(__builtin_next_arg(last), (ap) = *(va_list *)__builtin_saveregs(), (ap).__pad = 0)
+
+#define	__REAL_TYPE_CLASS	8
+#define	__va_arg_offset(ap, type)					\
+	((__builtin_classify_type(*(type *)0) == __REAL_TYPE_CLASS &&	\
+	    (ap).__offset <= (6 * 8) ? -(6 * 8) : 0) - __va_size(type))
+
+#define	va_arg(ap, type)						\
+	(*(type *)((ap).__offset += __va_size(type),			\
+		   (ap).__base + (ap).__offset + __va_arg_offset(ap, type)))
+
+#define	va_end(ap)	((void)0)
+
+#endif /* !_ALPHA_STDARG_H_ */
