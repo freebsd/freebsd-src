@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.22 1997/11/09 03:22:49 brian Exp $
+ * $Id: route.c,v 1.23 1997/11/09 06:22:47 brian Exp $
  *
  */
 
@@ -43,6 +43,7 @@
 #include "log.h"
 #include "loadalias.h"
 #include "command.h"
+#include "defs.h"
 #include "vars.h"
 #include "id.h"
 #include "route.h"

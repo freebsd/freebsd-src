@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.17 1997/09/09 21:51:38 brian Exp $
+ * $Id: auth.c,v 1.18 1997/10/26 01:02:07 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -72,7 +72,7 @@ LocalAuthValidate(char *fname, char *system, char *key)
   FILE *fp;
   int n;
   char *vector[3];
-  char buff[200];
+  char buff[LINE_LEN];
   LOCAL_AUTH_VALID rc;
 
   rc = NOT_FOUND;		/* No system entry */
@@ -107,7 +107,7 @@ AuthValidate(char *fname, char *system, char *key)
   FILE *fp;
   int n;
   char *vector[4];
-  char buff[200];
+  char buff[LINE_LEN];
   char passwd[100];
 
   fp = OpenSecret(fname);
@@ -150,7 +150,7 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
   FILE *fp;
   int n;
   char *vector[4];
-  char buff[200];
+  char buff[LINE_LEN];
   static char passwd[100];
 
   fp = OpenSecret(fname);

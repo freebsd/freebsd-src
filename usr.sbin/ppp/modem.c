@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.62 1997/11/08 00:28:09 brian Exp $
+ * $Id: modem.c,v 1.63 1997/11/09 06:22:44 brian Exp $
  *
  *  TODO:
  */
@@ -731,33 +731,24 @@ HangupModem(int flag)
     nointr_sleep(1);
   }
 
-  /*
-   * If we are working as dedicated mode, never close it until we are
-   * directed to quit program.
-   */
-  if (modem >= 0 && (flag || !(mode & MODE_DEDICATED))) {
-    if (modem >= 0) {
-      char ScriptBuffer[200];
+  if (modem >= 0) {
+    char ScriptBuffer[SCRIPT_LEN];
 
-      strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
+    strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
+    if (flag || !(mode & MODE_DEDICATED)) {
       DoChat(ScriptBuffer);
       tcflush(modem, TCIOFLUSH);
       UnrawModem();
       CloseLogicalModem();
+    } else {
+      /*
+       * If we are working as dedicated mode, never close it until we are
+       * directed to quit program.
+       */
+      mbits |= TIOCM_DTR;
+      ioctl(modem, TIOCMSET, &mbits);
+      DoChat(ScriptBuffer);
     }
-  } else if (modem >= 0) {
-    char ScriptBuffer[200];
-
-    mbits |= TIOCM_DTR;
-#ifndef notyet
-    ioctl(modem, TIOCMSET, &mbits);
-#else
-    tcgetattr(modem, &ts);
-    cfsetspeed(&ts, IntToSpeed(VarSpeed));
-    tcsetattr(modem, TCSADRAIN, &ts);
-#endif
-    strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
-    DoChat(ScriptBuffer);
   }
 }
 
@@ -884,7 +875,7 @@ ModemStartOutput(int fd)
 int
 DialModem()
 {
-  char ScriptBuffer[200];
+  char ScriptBuffer[SCRIPT_LEN];
   int excode;
 
   strncpy(ScriptBuffer, VarDialScript, sizeof(ScriptBuffer) - 1);

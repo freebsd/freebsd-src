@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.22 1997/10/26 01:02:33 brian Exp $
+ * $Id: defs.h,v 1.23 1997/10/26 12:42:10 brian Exp $
  *
  *	TODO:
  */
@@ -43,6 +43,8 @@
 #define	RECONNECT_TRIES	0	/* Default retries on carrier loss */
 #define	REDIAL_PERIOD	30	/* Default Hold time to redial */
 #define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
+#define SCRIPT_LEN 512		/* Size of login scripts */
+#define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"
