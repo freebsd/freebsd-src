@@ -170,6 +170,9 @@ is non-NULL, it must point to a buffer of at least
 bytes, which will be filled in (and NUL terminated) with the path to
 the node from which the message was received.
 .Pp
+The length of the control message is returned.
+A return value of zero indicates that the socket was closed.
+.Pp
 .Fn NgRecvAsciiMsg
 works exactly like
 .Fn NgRecvMsg ,
@@ -205,6 +208,9 @@ is non-NULL, it must point to a buffer of at least
 .Dv "NG_HOOKLEN + 1"
 bytes, which will be filled in (and NUL terminated) with the name of
 the hook on which the data was received.
+.Pp
+The length of the packet is returned.
+A return value of zero indicates that the socket was closed.
 .Pp
 .Fn NgSetDebug
 and
@@ -249,12 +255,18 @@ and
 .Xr ng_socket 4
 KLD modules must have been loaded via
 .Xr kldload 8 .
-.Sh DIAGNOSTICS
-All functions except
+.Sh RETURN VALUES
 .Fn NgSetDebug
-and
+returns the previous debug setting.
 .Fn NgSetErrLog
-return -1 if there was an error and set errno accordingly.
+has no return value.
+All other functions return -1 if there was an error and set errno
+accordingly.
+A return value of zero from
+.Fn NgRecvMsg
+or
+.Fn NgRecvData
+indicates that the netgraph socket has been closed.
 .Pp
 For
 .Fn NgSendAsciiMsg
