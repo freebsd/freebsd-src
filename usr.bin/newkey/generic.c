@@ -57,18 +57,9 @@ getseed(seed, seedsize, pass)
 	unsigned char *pass;
 {
 	int i;
-	int rseed;
-	struct timeval tv;
-
-	(void)gettimeofday(&tv, (struct timezone *)NULL);
-	rseed = tv.tv_sec + tv.tv_usec;
-	for (i = 0; i < 8; i++) {
-		rseed ^= (rseed << 8) | pass[i];
-	}
-	srand(rseed);
 
 	for (i = 0; i < seedsize; i++) {
-		seed[i] = (rand() & 0xff) ^ pass[i % 8];
+		seed[i] = (arc4random() & 0xff) ^ pass[i % 8];
 	}
 }
 
