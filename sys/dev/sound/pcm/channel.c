@@ -767,8 +767,8 @@ chn_setdir(struct pcm_channel *c, int dir)
 	CHN_LOCKASSERT(c);
 	c->direction = dir;
 	r = CHANNEL_SETDIR(c->methods, c->devinfo, c->direction);
-	if (!r && ISA_DMA(b))
-		sndbuf_isadmasetdir(b, c->direction);
+	if (!r && SND_DMA(b))
+		sndbuf_dmasetdir(b, c->direction);
 	return r;
 }
 
@@ -980,8 +980,8 @@ chn_trigger(struct pcm_channel *c, int go)
 	int ret;
 
 	CHN_LOCKASSERT(c);
-	if (ISA_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
-		sndbuf_isadmabounce(b);
+	if (SND_DMA(b) && (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD))
+		sndbuf_dmabounce(b);
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
 
 	return ret;

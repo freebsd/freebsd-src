@@ -34,6 +34,8 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#include <isa/isavar.h>
+
 #include "mixer_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -540,43 +542,43 @@ sb_setup(struct sb_info *sb)
 
 	sb_lock(sb);
 	if (sb->bd_flags & BD_F_DMARUN)
-		sndbuf_isadma(sb->pch.buffer, PCMTRIG_STOP);
+		sndbuf_dma(sb->pch.buffer, PCMTRIG_STOP);
 	if (sb->bd_flags & BD_F_DMARUN2)
-		sndbuf_isadma(sb->rch.buffer, PCMTRIG_STOP);
+		sndbuf_dma(sb->rch.buffer, PCMTRIG_STOP);
 	sb->bd_flags &= ~(BD_F_DMARUN | BD_F_DMARUN2);
 
 	sb_reset_dsp(sb);
 
 	if (sb->bd_flags & BD_F_SB16X) {
 		pprio = sb->pch.run? 1 : 0;
-		sndbuf_isadmasetup(sb->pch.buffer, pprio? sb->drq1 : NULL);
+		sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq1 : NULL);
 		sb->pch.dch = pprio? 1 : 0;
-		sndbuf_isadmasetup(sb->rch.buffer, pprio? sb->drq2 : sb->drq1);
+		sndbuf_dmasetup(sb->rch.buffer, pprio? sb->drq2 : sb->drq1);
 		sb->rch.dch = pprio? 2 : 1;
 	} else {
 		if (sb->pch.run && sb->rch.run) {
 			pprio = (sb->rch.fmt & AFMT_16BIT)? 0 : 1;
-			sndbuf_isadmasetup(sb->pch.buffer, pprio? sb->drq2 : sb->drq1);
+			sndbuf_dmasetup(sb->pch.buffer, pprio? sb->drq2 : sb->drq1);
 			sb->pch.dch = pprio? 2 : 1;
-			sndbuf_isadmasetup(sb->rch.buffer, pprio? sb->drq1 : sb->drq2);
+			sndbuf_dmasetup(sb->rch.buffer, pprio? sb->drq1 : sb->drq2);
 			sb->rch.dch = pprio? 1 : 2;
 		} else {
 			if (sb->pch.run) {
-				sndbuf_isadmasetup(sb->pch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
+				sndbuf_dmasetup(sb->pch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
 				sb->pch.dch = (sb->pch.fmt & AFMT_16BIT)? 2 : 1;
-				sndbuf_isadmasetup(sb->rch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
+				sndbuf_dmasetup(sb->rch.buffer, (sb->pch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
 				sb->rch.dch = (sb->pch.fmt & AFMT_16BIT)? 1 : 2;
 			} else if (sb->rch.run) {
-				sndbuf_isadmasetup(sb->pch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
+				sndbuf_dmasetup(sb->pch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq1 : sb->drq2);
 				sb->pch.dch = (sb->rch.fmt & AFMT_16BIT)? 1 : 2;
-				sndbuf_isadmasetup(sb->rch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
+				sndbuf_dmasetup(sb->rch.buffer, (sb->rch.fmt & AFMT_16BIT)? sb->drq2 : sb->drq1);
 				sb->rch.dch = (sb->rch.fmt & AFMT_16BIT)? 2 : 1;
 			}
 		}
 	}
 
-	sndbuf_isadmasetdir(sb->pch.buffer, PCMDIR_PLAY);
-	sndbuf_isadmasetdir(sb->rch.buffer, PCMDIR_REC);
+	sndbuf_dmasetdir(sb->pch.buffer, PCMDIR_PLAY);
+	sndbuf_dmasetdir(sb->rch.buffer, PCMDIR_REC);
 
 	/*
 	printf("setup: [pch = %d, pfmt = %d, pgo = %d] [rch = %d, rfmt = %d, rgo = %d]\n",
@@ -604,7 +606,7 @@ sb_setup(struct sb_info *sb)
 		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
-		sndbuf_isadma(ch->buffer, PCMTRIG_START);
+		sndbuf_dma(ch->buffer, PCMTRIG_START);
 		sb->bd_flags |= BD_F_DMARUN;
 	}
 
@@ -629,7 +631,7 @@ sb_setup(struct sb_info *sb)
 		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
-		sndbuf_isadma(ch->buffer, PCMTRIG_START);
+		sndbuf_dma(ch->buffer, PCMTRIG_START);
 		sb->bd_flags |= BD_F_DMARUN2;
 	}
 	sb_unlock(sb);
@@ -710,7 +712,7 @@ sb16chan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
-	return sndbuf_isadmaptr(ch->buffer);
+	return sndbuf_dmaptr(ch->buffer);
 }
 
 static struct pcmchan_caps *

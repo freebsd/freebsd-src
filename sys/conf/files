@@ -663,6 +663,7 @@ dev/sound/isa/sb16.c	optional pcm isa
 dev/sound/isa/sb8.c	optional pcm isa
 dev/sound/isa/sbc.c	optional pcm isa
 dev/sound/isa/sbc.c	optional sbc isa
+dev/sound/isa/sndbuf_dma.c	optional pcm isa
 dev/sound/isa/uartsio.c	optional midi isa
 dev/sound/midi/midi.c	optional midi
 dev/sound/midi/midibuf.c	optional midi
