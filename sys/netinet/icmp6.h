@@ -99,11 +99,18 @@ struct icmp6_hdr {
 #define ICMP6_ECHO_REQUEST		128	/* echo service */
 #define ICMP6_ECHO_REPLY		129	/* echo reply */
 #define ICMP6_MEMBERSHIP_QUERY		130	/* group membership query */
-#define MLD6_LISTENER_QUERY		130 	/* multicast listener query */
+#define MLD_LISTENER_QUERY		130 	/* multicast listener query */
 #define ICMP6_MEMBERSHIP_REPORT		131	/* group membership report */
-#define MLD6_LISTENER_REPORT		131	/* multicast listener report */
+#define MLD_LISTENER_REPORT		131	/* multicast listener report */
 #define ICMP6_MEMBERSHIP_REDUCTION	132	/* group membership termination */
-#define MLD6_LISTENER_DONE		132	/* multicast listener done */
+#define MLD_LISTENER_DONE		132	/* multicast listener done */
+
+#ifndef _KERNEL
+/* the followings are for backward compatibility to old KAME apps. */
+#define MLD6_LISTENER_QUERY	MLD_LISTENER_QUERY
+#define MLD6_LISTENER_REPORT	MLD_LISTENER_REPORT
+#define MLD6_LISTENER_DONE	MLD_LISTENER_DONE
+#endif
 
 #define ND_ROUTER_SOLICIT		133	/* router solicitation */
 #define ND_ROUTER_ADVERT		134	/* router advertisment */
@@ -121,12 +128,17 @@ struct icmp6_hdr {
 #define ICMP6_NI_REPLY			140	/* node information reply */
 
 /* The definitions below are experimental. TBA */
-#define MLD6_MTRACE_RESP		200	/* mtrace response(to sender) */
-#define MLD6_MTRACE			201	/* mtrace messages */
+#define MLD_MTRACE_RESP			200	/* mtrace resp (to sender) */
+#define MLD_MTRACE			201	/* mtrace messages */
 
 #define ICMP6_HADISCOV_REQUEST		202	/* XXX To be defined */
 #define ICMP6_HADISCOV_REPLY		203	/* XXX To be defined */
   
+#ifndef _KERNEL
+#define MLD6_MTRACE_RESP	MLD_MTRACE_RESP
+#define MLD6_MTRACE		MLD_MTRACE
+#endif
+
 #define ICMP6_MAXTYPE			203
 
 #define ICMP6_DST_UNREACH_NOROUTE	0	/* no route to destination */
@@ -164,16 +176,28 @@ struct icmp6_hdr {
 /*
  * Multicast Listener Discovery
  */
-struct mld6_hdr {
-	struct icmp6_hdr	mld6_hdr;
-	struct in6_addr		mld6_addr; /* multicast address */
+struct mld_hdr {
+	struct icmp6_hdr	mld_icmp6_hdr;
+	struct in6_addr		mld_addr; /* multicast address */
 } __attribute__((__packed__));
 
-#define mld6_type	mld6_hdr.icmp6_type
-#define mld6_code	mld6_hdr.icmp6_code
-#define mld6_cksum	mld6_hdr.icmp6_cksum
-#define mld6_maxdelay	mld6_hdr.icmp6_data16[0]
-#define mld6_reserved	mld6_hdr.icmp6_data16[1]
+/* definitions to provide backward compatibility to old KAME applications */
+#ifndef _KERNEL
+#define mld6_hdr	mld_hdr
+#define mld6_type	mld_type
+#define mld6_code	mld_code
+#define mld6_cksum	mld_cksum
+#define mld6_maxdelay	mld_maxdelay
+#define mld6_reserved	mld_reserved
+#define mld6_addr	mld_addr
+#endif
+
+/* shortcut macro definitions */
+#define mld_type	mld_icmp6_hdr.icmp6_type
+#define mld_code	mld_icmp6_hdr.icmp6_code
+#define mld_cksum	mld_icmp6_hdr.icmp6_cksum
+#define mld_maxdelay	mld_icmp6_hdr.icmp6_data16[0]
+#define mld_reserved	mld_icmp6_hdr.icmp6_data16[1]
 
 /*
  * Neighbor Discovery
@@ -682,13 +706,13 @@ do { \
 		 case ICMP6_ECHO_REPLY: \
 			 icmp6_ifstat_inc(ifp, ifs6_out_echoreply); \
 			 break; \
-		 case MLD6_LISTENER_QUERY: \
+		 case MLD_LISTENER_QUERY: \
 			 icmp6_ifstat_inc(ifp, ifs6_out_mldquery); \
 			 break; \
-		 case MLD6_LISTENER_REPORT: \
+		 case MLD_LISTENER_REPORT: \
 			 icmp6_ifstat_inc(ifp, ifs6_out_mldreport); \
 			 break; \
-		 case MLD6_LISTENER_DONE: \
+		 case MLD_LISTENER_DONE: \
 			 icmp6_ifstat_inc(ifp, ifs6_out_mlddone); \
 			 break; \
 		 case ND_ROUTER_SOLICIT: \
