@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	SNICHOST	"whois.6bone.net"
 #define	BNICHOST	"whois.registro.br"
 #define	WHOIS_SERVER_ID	"Whois Server: "
+#define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
 
 #define WHOIS_RECURSE		0x01
 #define WHOIS_QUICK		0x02
@@ -290,6 +291,17 @@ whois(const char *query, const char *hostname, int flags)
 				}
 				s_asprintf(&nhost, "%.*s",
 				     (int)(buf + len - host), host);
+			} else if ((host =
+			    strnstr(buf, WHOIS_ORG_SERVER_ID, len)) != NULL) {
+				host += sizeof(WHOIS_ORG_SERVER_ID) - 1;
+				for (p = host; p < buf + len; p++) {
+					if (!ishost(*p)) {
+						*p = '\0';
+						break;
+					}
+				}
+				s_asprintf(&nhost, "%.*s",
+				    (int)(buf + len - host), host);
 			} else if (strcmp(hostname, ANICHOST) == 0) {
 				for (c = 0; c <= len; c++)
 					buf[c] = tolower((int)buf[c]);
