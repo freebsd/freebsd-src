@@ -562,3 +562,4 @@
 390	STD	BSD	{ int kenv(int what, const char *name, char *value, \
 			    int len); }
 391	STD	BSD	{ int lchflags(const char *path, int flags); }
+392	STD	BSD	{ int uuidgen(struct uuid *store, int count); }
