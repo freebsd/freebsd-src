@@ -1,8 +1,0 @@
-# Device		Mountpoint	FStype	Options		Dump	Pass#
-/dev/sd0a		/		ufs	rw		1	1
-/dev/sd0b		none		swap	sw		0	0
-/dev/sd0d		/var		ufs	rw		1	1
-/dev/sd0e		/usr		ufs	rw		1	1
-/dev/wd0d		/cvs		ufs	rw		2	2
-209.157.86.2:/FreeBSD	/FreeBSD	nfs	ro		0	3
-proc			/proc		procfs	rw		0	0
