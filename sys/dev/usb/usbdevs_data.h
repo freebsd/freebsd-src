@@ -1,12 +1,10 @@
-/*	$NetBSD$	*/
-
 /*	FreeBSD $Id$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: usbdevs,v 1.14 1998/12/30 03:52:30 augustss Exp 
+ *	NetBSD: usbdevs,v 1.19 1999/01/08 11:18:38 augustss Exp 
  */
 
 /*
@@ -72,22 +70,10 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Andromeda hub",
 	},
 	{
-	    USB_VENDOR_NANAO, USB_PRODUCT_NANAO_HUB,
-	    0,
-	    "Nanao",
-	    "hub",
-	},
-	{
-	    USB_VENDOR_NANAO, USB_PRODUCT_NANAO_MONITOR,
-	    0,
-	    "Nanao",
-	    "monitor",
-	},
-	{
 	    USB_VENDOR_UNIXTAR, USB_PRODUCT_UNIXTAR_UTUSB41,
 	    0,
 	    "Unixtar",
-	    "UT-USB41",
+	    "UT-USB41 hub",
 	},
 	{
 	    USB_VENDOR_GENIUS, USB_PRODUCT_GENIUS_NICHE,
@@ -106,6 +92,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Microsoft",
 	    "IntelliMouse",
+	},
+	{
+	    USB_VENDOR_KENSINGTON, USB_PRODUCT_KENSINGTON_MOUSEINABOX,
+	    0,
+	    "Kensington",
+	    "Mouse-in-a-Box",
 	},
 	{
 	    USB_VENDOR_CHERRY, USB_PRODUCT_CHERRY_MY3000KBD,
@@ -142,6 +134,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Connectix",
 	    "QuickCam",
+	},
+	{
+	    USB_VENDOR_ACER, USB_PRODUCT_ACER_ACERSCAN_C310U,
+	    0,
+	    "Acer Peripherals",
+	    "Acerscan C310U",
 	},
 	{
 	    USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_MOUSE,
@@ -216,18 +214,6 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "M4848 mouse",
 	},
 	{
-	    USB_VENDOR_EIZONANAO, USB_PRODUCT_EIZONANAO_HUB,
-	    0,
-	    "EIZO Nanao",
-	    "hub",
-	},
-	{
-	    USB_VENDOR_EIZONANAO, USB_PRODUCT_EIZONANAO_MONITOR,
-	    0,
-	    "EIZO Nanao",
-	    "monitor",
-	},
-	{
 	    USB_VENDOR_CHIC, USB_PRODUCT_CHIC_MOUSE1,
 	    0,
 	    "Chic Technology",
@@ -249,7 +235,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_INSIDEOUT, USB_PRODUCT_INSIDEOUT_EDGEPORT4,
 	    0,
 	    "Inside Out Networks",
-	    "EdgePort/4",
+	    "EdgePort/4 serial ports",
 	},
 	{
 	    USB_VENDOR_INTEL, USB_PRODUCT_INTEL_TESTBOARD,
@@ -300,6 +286,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_KENSINGTON, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Kensington",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_CHERRY, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Cherry",
@@ -321,6 +313,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CONNECTIX, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Connectix",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ACER, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Acer Peripherals",
 	    NULL,
 	},
 	{

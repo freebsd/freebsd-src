@@ -1,5 +1,5 @@
-/*	$NetBSD: ugen.c,v 1.9 1999/01/03 01:03:22 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: ugen.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: ugen.c,v 1.4 1999/01/07 23:31:32 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -102,11 +102,6 @@ struct ugen_softc {
 
 	int sc_disconnected;		/* device is gone */
 };
-
-/* XXX NWH Supposedly in USB_DECLARE_DRIVER_NAME_INIT
-int ugen_match __P((bdevice *, struct cfdata *, void *));
-void ugen_attach __P((bdevice *, struct device *, void *));
-*/
 
 int ugenopen __P((dev_t, int, int, struct proc *));
 int ugenclose __P((dev_t, int, int, struct proc *p));
@@ -436,7 +431,8 @@ ugenread(dev, uio, flag)
 		if (reqh == 0)
 			return (ENOMEM);
 		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
-			DPRINTFN(1, ("ugenread: transfer %d bytes\n", n));
+			DPRINTFN(1, ("ugenread: start transfer %d bytes\n", n));
+			tn = n;
 			r = usbd_bulk_transfer(reqh, sce->pipeh, 0, buf, 
 					       &tn, "ugenrb");
 			if (r != USBD_NORMAL_COMPLETION) {
@@ -446,6 +442,7 @@ ugenread(dev, uio, flag)
 					error = EIO;
 				break;
 			}
+			DPRINTFN(1, ("ugenread: got %d bytes\n", tn));
 			error = uiomove(buf, tn, uio);
 			if (error || tn < n)
 				break;
@@ -467,7 +464,7 @@ ugenwrite(dev, uio, flag)
 {
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 	int endpt = UGENENDPOINT(dev);
-	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][IN];
+	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][OUT];
 	size_t n;
 	int error = 0;
 	char buf[UGEN_BBSIZE];
@@ -973,7 +970,6 @@ ugenpoll(dev, events, p)
 static int
 ugen_detach(device_t self)
 {       
-        struct ugen_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {

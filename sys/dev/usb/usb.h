@@ -1,5 +1,5 @@
 /*	$NetBSD: usb.h,v 1.17 1999/01/03 01:09:18 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: usb.h,v 1.6 1999/01/07 23:31:37 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -385,7 +385,7 @@ struct usb_ctl_request {
 	int	flags;
 /* XXX must match flags in usbdi.h */
 #define USBD_SHORT_XFER_OK	0x04
-	int	actlen;
+	int	actlen;		/* actual length transferred */
 };
 
 struct usb_alt_interface {

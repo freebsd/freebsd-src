@@ -1,5 +1,5 @@
-/*	$NetBSD: usbdivar.h,v 1.14 1998/12/30 18:06:25 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usbdivar.h,v 1.16 1999/01/08 11:58:26 augustss Exp $	*/
+/*	FreeBSD $Id: usbdivar.h,v 1.6 1999/01/07 23:31:45 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -180,7 +180,6 @@ void usbd_init __P((void));
 int		usbctlprint __P((void *, const char *));
 void		usb_delay_ms __P((usbd_bus_handle, u_int));
 void		usbd_devinfo_vp __P((usbd_device_handle, char *, char *));
-usbd_status	usbd_set_config_no __P((usbd_device_handle, int, int));
 usbd_status	usbd_reset_port __P((usbd_device_handle dev,
 				     int port, usb_port_status_t *ps));
 usbd_status	usbd_setup_pipe __P((usbd_device_handle dev,
@@ -203,9 +202,6 @@ usbd_status	usbd_fill_iface_data __P((usbd_device_handle dev,
 int		usb_bus_count __P((void));
 usbd_status	usb_get_bus_handle __P((int, usbd_bus_handle *));
 void		usb_needs_explore __P((usbd_bus_handle));
-
-
-extern	int usbd_use_polling;
 
 /* Locator stuff. */
 
