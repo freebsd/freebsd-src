@@ -50,6 +50,32 @@
 #ifndef _SYS_IPC_H_
 #define _SYS_IPC_H_
 
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
+#endif
+
+#ifndef _KEY_T_DECLARED
+typedef	__key_t		key_t;
+#define	_KEY_T_DECLARED
+#endif
+
+#ifndef _MODE_T_DECLARED
+typedef	__mode_t	mode_t;
+#define	_MODE_T_DECLARED
+#endif
+
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;
+#define	_UID_T_DECLARED
+#endif
+
+/*
+ * XXX almost all members have wrong types.
+ */
 struct ipc_perm {
 	ushort	cuid;	/* creator user id */
 	ushort	cgid;	/* creator group id */
@@ -60,10 +86,12 @@ struct ipc_perm {
 	key_t	key;	/* user specified msg/sem/shm key */
 };
 
+#if __BSD_VISIBLE
 /* common mode bits */
 #define	IPC_R		000400	/* read permission */
 #define	IPC_W		000200	/* write/alter permission */
 #define	IPC_M		010000	/* permission to change control info */
+#endif
 
 /* SVID required constants (same values as system 5) */
 #define	IPC_CREAT	001000	/* create entry if key does not exist */
@@ -75,7 +103,9 @@ struct ipc_perm {
 #define	IPC_RMID	0	/* remove identifier */
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
+#if __BSD_VISIBLE
 #define	IPC_INFO	3	/* get info */
+#endif
 
 #ifdef _KERNEL
 /* Macros to convert between ipc ids and array indices or sequence ids */
@@ -91,10 +121,6 @@ extern void (*shmfork_hook)(struct proc *, struct proc *);
 extern void (*shmexit_hook)(struct proc *);
 
 #else /* ! _KERNEL */
-
-/* XXX doesn't really belong here, but has been historical practice in SysV. */
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 key_t	ftok(const char *, int);
