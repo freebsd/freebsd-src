@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.31 1996/01/04 20:28:45 wollman Exp $
+ *	$Id: kern_exec.c,v 1.32 1996/01/08 04:30:41 peter Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -362,7 +362,7 @@ exec_new_vmspace(imgp)
 
 	/* Allocate a new stack */
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, (vm_offset_t *)&stack_addr,
-	    SGROWSIZ, FALSE);
+	    SGROWSIZ, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 		return(error);
 

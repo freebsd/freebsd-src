@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.18 1996/01/06 12:49:53 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.19 1996/01/07 09:42:36 phk Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -107,6 +107,7 @@ READ(ap)
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
+
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
@@ -129,8 +130,11 @@ READ(ap)
 		} else
 			error = bread(vp, lbn, size, NOCRED, &bp);
 #endif
-		if (error)
+		if (error) {
+			brelse(bp);
+			bp = NULL;
 			break;
+		}
 		vp->v_lastr = lbn;
 
 		/*
@@ -155,10 +159,10 @@ READ(ap)
 		if (error)
 			break;
 
-		brelse(bp);
+		bqrelse(bp);
 	}
 	if (bp != NULL)
-		brelse(bp);
+		bqrelse(bp);
 	ip->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -280,8 +284,7 @@ WRITE(ap)
 
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
-		} else if (xfersize + blkoffset == fs->fs_bsize &&
-			(vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
+		} else if (xfersize + blkoffset == fs->fs_bsize) {
 			if (doclusterwrite) {
 				bp->b_flags |= B_CLUSTEROK;
 				cluster_write(bp, ip->i_size);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.35 1995/12/11 04:57:49 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.36 1996/01/05 18:31:58 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -2131,6 +2131,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #endif  /* EXT2FS */
 	if (error)
 		goto bad;
+
 	if ((cnp->cn_flags & SAVESTART) == 0)
 		FREE(cnp->cn_pnbuf, M_NAMEI);
 	vput(dvp);

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.18 1995/12/14 09:52:47 phk Exp $
+ * $Id: vfs_cache.c,v 1.19 1995/12/22 15:56:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,8 @@
 #include <sys/namei.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+
+#define MAXVNODEUSE 32
 
 /*
  * Name caching works as follows:
@@ -173,6 +175,8 @@ cache_lookup(dvp, vpp, cnp)
 		nchstats.ncs_goodhits++;
 		TOUCH(ncp);
 		*vpp = ncp->nc_vp;
+		if ((*vpp)->v_usage < MAXVNODEUSE)
+			(*vpp)->v_usage++;
 		return (-1);
 	}
 
@@ -234,6 +238,8 @@ cache_enter(dvp, vp, cnp)
 
 	/* fill in cache info */
 	ncp->nc_vp = vp;
+	if (vp->v_usage < MAXVNODEUSE)
+		++vp->v_usage;
 	ncp->nc_vpid = vp->v_id;
 	ncp->nc_dvp = dvp;
 	ncp->nc_dvpid = dvp->v_id;

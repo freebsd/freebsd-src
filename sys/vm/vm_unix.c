@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.8 1995/11/12 06:43:28 bde Exp $
+ * $Id: vm_unix.c,v 1.9 1995/12/07 12:48:29 davidg Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_prot.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct obreak_args {
@@ -85,7 +86,8 @@ obreak(p, uap, retval)
 		if (swap_pager_full) {
 			return (ENOMEM);
 		}
-		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE);
+		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
+			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}

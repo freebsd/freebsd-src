@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.33 1996/01/05 18:31:49 wollman Exp $
+ * $Id: ffs_vfsops.c,v 1.34 1996/01/14 18:54:59 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -908,13 +908,13 @@ restart:
 		 * still zero, it will be unlinked and returned to the free
 		 * list by vput().
 		 */
-		vput(vp);
 		brelse(bp);
+		vput(vp);
 		*vpp = NULL;
 		return (error);
 	}
 	ip->i_din = *((struct dinode *)bp->b_data + ino_to_fsbo(fs, ino));
-	brelse(bp);
+	bqrelse(bp);
 
 	/*
 	 * Initialize the vnode from the inode, check for aliases.

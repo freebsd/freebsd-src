@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.33 1995/12/13 12:28:39 dyson Exp $
+ * $Id: vm_mmap.c,v 1.34 1995/12/17 07:19:57 bde Exp $
  */
 
 /*
@@ -70,6 +70,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -604,11 +605,12 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	vm_ooffset_t foff;
 {
 	boolean_t fitit;
-	vm_object_t object;
+	vm_object_t object, object2;
 	struct vnode *vp = NULL;
 	objtype_t type;
 	int rv = KERN_SUCCESS;
-	vm_size_t objsize;
+	vm_ooffset_t objsize;
+	int docow;
 	struct proc *p = curproc;
 
 	if (size == 0)
@@ -659,68 +661,59 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
 			if (error)
 				return (error);
-			objsize = vat.va_size;
+			objsize = round_page(vat.va_size);
 			type = OBJT_VNODE;
 		}
 	}
-	object = vm_pager_allocate(type, handle, objsize, prot, foff);
+	object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
 	if (object == NULL)
 		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 
-	rv = vm_map_find(map, object, foff, addr, size, fitit);
+	object2 = NULL;
+	docow = 0;
+	if ((flags & (MAP_ANON|MAP_SHARED)) == 0 && (type != OBJT_DEVICE)) {
+		docow = MAP_COPY_ON_WRITE;
+		if (objsize < size) {
+			object2 = vm_object_allocate( OBJT_DEFAULT,
+				OFF_TO_IDX(size - (foff & ~(PAGE_SIZE - 1))));
+			object2->backing_object = object;
+			object2->backing_object_offset = foff;
+			TAILQ_INSERT_TAIL(&object->shadow_head,
+				object2, shadow_list);
+		} else {
+			docow |= MAP_COPY_NEEDED;
+		}
+	}
+	if (object2)
+		rv = vm_map_find(map, object2, 0, addr, size, fitit,
+			prot, maxprot, docow);
+	else
+		rv = vm_map_find(map, object, foff, addr, size, fitit,
+			prot, maxprot, docow);
+
+
 	if (rv != KERN_SUCCESS) {
 		/*
 		 * Lose the object reference. Will destroy the
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
 		 */
-		vm_object_deallocate(object);
+		if (object2)
+			vm_object_deallocate(object2);
+		else
+			vm_object_deallocate(object);
 		goto out;
-	}
-
-	/*
-	 * mmap a COW regular file
-	 */
-	if ((flags & (MAP_ANON|MAP_SHARED)) == 0 && (type != OBJT_DEVICE)) {
-		vm_map_entry_t entry;
-		if (!vm_map_lookup_entry(map, *addr, &entry)) {
-			panic("vm_mmap: missing map entry!!!");
-		}
-		entry->copy_on_write = TRUE;
-		/*
-		 * This will create the processes private object on
-		 * an as needed basis.
-		 */
-		entry->needs_copy = TRUE;
-
-		/*
-		 * set pages COW and protect for read access only
-		 */
-		vm_object_pmap_copy(object, foff, foff + size);
-
 	}
 
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
+	if ((map != kernel_map) &&
+		(type == OBJT_VNODE) && (map->pmap != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr,
 			object, (vm_pindex_t) OFF_TO_IDX(foff), size);
 	}
 
-	/*
-	 * Correct protection (default is VM_PROT_ALL). If maxprot is
-	 * different than prot, we must set both explicitly.
-	 */
-	rv = KERN_SUCCESS;
-	if (maxprot != VM_PROT_ALL)
-		rv = vm_map_protect(map, *addr, *addr + size, maxprot, TRUE);
-	if (rv == KERN_SUCCESS && prot != maxprot)
-		rv = vm_map_protect(map, *addr, *addr + size, prot, FALSE);
-	if (rv != KERN_SUCCESS) {
-		(void) vm_map_remove(map, *addr, *addr + size);
-		goto out;
-	}
 	/*
 	 * Shared memory is also shared with children.
 	 */

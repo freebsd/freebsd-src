@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.50 1996/01/02 18:13:20 davidg Exp $
+ * $Id: vfs_subr.c,v 1.51 1996/01/04 21:12:26 wollman Exp $
  */
 
 /*
@@ -340,6 +340,7 @@ getnewvnode(tag, mp, vops, vpp)
 {
 	register struct vnode *vp;
 
+retry:
 	vp = vnode_free_list.tqh_first;
 	/*
 	 * we allocate a new vnode if
@@ -360,16 +361,21 @@ getnewvnode(tag, mp, vops, vpp)
 		numvnodes++;
 	} else {
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		if (vp->v_usage > 0) {
+			--vp->v_usage;
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+			goto retry;
+		}
 		freevnodes--;
-
-		if (vp->v_usecount)
-			panic("free vnode isn't");
 
 		/* see comment on why 0xdeadb is set at end of vgone (below) */
 		vp->v_freelist.tqe_prev = (struct vnode **) 0xdeadb;
 		vp->v_lease = NULL;
 		if (vp->v_type != VBAD)
 			vgone(vp);
+		if (vp->v_usecount)
+			panic("free vnode isn't");
+
 #ifdef DIAGNOSTIC
 		{
 			int s;
@@ -392,6 +398,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
+		vp->v_usage = 0;
 	}
 	vp->v_type = VNON;
 	cache_purge(vp);
@@ -653,7 +660,8 @@ reassignbuf(bp, newvp)
 		if (!tbp || (tbp->b_lblkno > bp->b_lblkno)) {
 			bufinsvn(bp, &newvp->v_dirtyblkhd);
 		} else {
-			while (tbp->b_vnbufs.le_next && (tbp->b_vnbufs.le_next->b_lblkno < bp->b_lblkno)) {
+			while (tbp->b_vnbufs.le_next &&
+				(tbp->b_vnbufs.le_next->b_lblkno < bp->b_lblkno)) {
 				tbp = tbp->b_vnbufs.le_next;
 			}
 			LIST_INSERT_AFTER(tbp, bp, b_vnbufs);
@@ -845,6 +853,7 @@ vrele(vp)
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		vp->v_flag &= ~VAGE;
+		vp->v_usage = 0;
 	} else {
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}

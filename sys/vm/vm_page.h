@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.22 1995/11/20 12:19:32 phk Exp $
+ * $Id: vm_page.h,v 1.23 1995/12/11 04:58:26 dyson Exp $
  */
 
 /*
@@ -107,34 +107,39 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_offset_t phys_addr;		/* physical address of page */
-
+	u_short	queue:4,		/* page queue index */
+		flags:12;		/* see below */
 	u_short wire_count;		/* wired down maps refs (P) */
-	u_short flags;			/* see below */
 	short hold_count;		/* page hold count */
-	u_short act_count;		/* page usage count */
-	u_short bmapped;		/* number of buffers mapped */
-	u_short busy;			/* page busy count */
-	u_short valid;			/* map of valid DEV_BSIZE chunks */
-	u_short dirty;			/* map of dirty DEV_BSIZE chunks */
+	u_char	act_count;		/* page usage count */
+	u_char	busy;			/* page busy count */
+	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
+	/* so, on normal X86 kernels, they must be at least 8 bits wide */
+	u_char	valid;			/* map of valid DEV_BSIZE chunks */
+	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
 };
+
+#define PQ_NONE 0
+#define PQ_FREE	1
+#define PQ_ZERO 2
+#define PQ_INACTIVE 3
+#define PQ_ACTIVE 4
+#define PQ_CACHE 5
 
 /*
  * These are the flags defined for vm_page.
  *
  * Note: PG_FILLED and PG_DIRTY are added for the filesystems.
  */
-#define	PG_INACTIVE	0x0001		/* page is in inactive list (P) */
-#define	PG_ACTIVE	0x0002		/* page is in active list (P) */
-#define	PG_BUSY		0x0010		/* page is in transit (O) */
-#define	PG_WANTED	0x0020		/* someone is waiting for page (O) */
-#define	PG_TABLED	0x0040		/* page is in VP table (O) */
-#define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
-#define	PG_WRITEABLE	0x0200		/* page is mapped writeable */
-#define PG_MAPPED	0x0400		/* page is mapped */
-#define	PG_ZERO		0x0800		/* page is zeroed */
-#define PG_REFERENCED	0x1000		/* page has been referenced */
-#define	PG_CACHE	0x4000		/* On VMIO cache */
-#define	PG_FREE		0x8000		/* page is in free list */
+#define	PG_BUSY		0x01		/* page is in transit (O) */
+#define	PG_WANTED	0x02		/* someone is waiting for page (O) */
+#define	PG_TABLED	0x04		/* page is in VP table (O) */
+#define	PG_FICTITIOUS	0x08		/* physical page doesn't exist (O) */
+#define	PG_WRITEABLE	0x10		/* page is mapped writeable */
+#define PG_MAPPED	0x20		/* page is mapped */
+#define	PG_ZERO		0x40		/* page is zeroed */
+#define PG_REFERENCED	0x80		/* page has been referenced */
+#define PG_CLEANCHK	0x100		/* page has been checked for cleaning */
 
 /*
  * Misc constants.
@@ -229,7 +234,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 #define VM_ALLOC_NORMAL 0
 #define VM_ALLOC_INTERRUPT 1
 #define VM_ALLOC_SYSTEM 2
-#define	VM_ALLOC_ZERO	0x80
+#define	VM_ALLOC_ZERO	3
 
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
