@@ -134,6 +134,15 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
+/*
+ * Treat ICMP administratively prohibited like a TCP RST
+ * as required by rfc1122 section 3.2.2.1
+ */
+ 
+static int	icmp_admin_prohib_like_rst = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_admin_prohib_like_rst, CTLFLAG_RW,
+	&icmp_admin_prohib_like_rst, 0, "Treat ICMP administratively prohibited messages like TCP RST, rfc1122 section 3.2.2.1");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -961,6 +970,8 @@ tcp_ctlinput(cmd, sa, vip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
+	else if ((icmp_admin_prohib_like_rst == 1) && (cmd == PRC_UNREACH_PORT) && (ip))
+		notify = tcp_drop_syn_sent;
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (!PRC_IS_REDIRECT(cmd) &&
@@ -1071,6 +1082,20 @@ tcp_quench(inp, errno)
 
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
+}
+
+/*
+ * When a ICMP unreachable is recieved, drop the
+ * TCP connection, but only if in SYN_SENT
+ */
+void
+tcp_drop_syn_sent(inp, errno)
+	struct inpcb *inp;
+	int errno;
+{
+	struct tcpcb *tp = intotcpcb(inp);
+	if((tp) && (tp->t_state == TCPS_SYN_SENT))
+			tcp_drop(tp, errno);
 }
 
 /*

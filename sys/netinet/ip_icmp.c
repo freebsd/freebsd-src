@@ -328,6 +328,11 @@ icmp_input(m, off, proto)
 
 			case ICMP_UNREACH_NET_UNKNOWN:
 			case ICMP_UNREACH_NET_PROHIB:
+				if (icp->icmp_ip.ip_p == IPPROTO_TCP) {
+					code = PRC_UNREACH_PORT;
+					break;
+				}
+
 			case ICMP_UNREACH_TOSNET:
 				code = PRC_UNREACH_NET;
 				break;
@@ -335,11 +340,21 @@ icmp_input(m, off, proto)
 			case ICMP_UNREACH_HOST_UNKNOWN:
 			case ICMP_UNREACH_ISOLATED:
 			case ICMP_UNREACH_HOST_PROHIB:
+				if (icp->icmp_ip.ip_p == IPPROTO_TCP) {
+					code = PRC_UNREACH_PORT;
+					break;
+				}
+
 			case ICMP_UNREACH_TOSHOST:
 				code = PRC_UNREACH_HOST;
 				break;
 
 			case ICMP_UNREACH_FILTER_PROHIB:
+				if (icp->icmp_ip.ip_p == IPPROTO_TCP) {
+					code = PRC_UNREACH_PORT;
+					break;
+				}
+
 			case ICMP_UNREACH_HOST_PRECEDENCE:
 			case ICMP_UNREACH_PRECEDENCE_CUTOFF:
 				code = PRC_UNREACH_PORT;

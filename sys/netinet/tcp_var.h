@@ -387,6 +387,7 @@ void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int, int));
 void	 tcp_mss __P((struct tcpcb *, int));
 int	 tcp_mssopt __P((struct tcpcb *));
+void	 tcp_drop_syn_sent __P((struct inpcb *, int));
 void	 tcp_mtudisc __P((struct inpcb *, int));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
