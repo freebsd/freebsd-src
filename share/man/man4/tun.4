@@ -141,6 +141,19 @@ code.
 The argument should be a pointer to an
 .Va int ;
 this stores the internal debugging variable's value into it.
+.It Dv TUNSIFINFO
+The argument should be a pointer to an
+.Va struct tuninfo
+and allows setting the MTU, the type, and the baudrate of the tunnel
+device.
+The
+.Va struct tuninfo
+is declared in
+.Aq Pa net/if_tun.h .
+.It Dv TUNGIFINFO
+The argument should be a pointer to an
+.Va struct tuninfo ,
+where the current MTU, type, and baudrate will be stored.
 .It Dv TUNSIFMODE
 The argument should be a pointer to an
 .Va int ;
@@ -163,6 +176,20 @@ a non-zero value turns on
 .Dq link-layer
 mode, causing packets read from the tunnel device to be prepended with
 network destination address.
+.It Dv TUNSIFPID
+Will set the pid owning the tunnel device to the current process's pid.
+.It Dv TUNSIFHEAD
+The argument should be a pointer to an
+.Va int ;
+a non-zero value turns off
+.Dq link-layer
+mode, and enables multi-af mode, where every packet is preceded with a
+four byte address family.
+.It Dv TUNGIFHEAD
+The argument should be a pointer to an
+.Va int ;
+this stores one if the device is in multi-af mode, and zero otherwise
+in it.
 .It Dv FIONBIO
 Turn non-blocking I/O for reads off or on, according as the argument
 .Va int Ns 's
@@ -213,8 +240,6 @@ them pile up.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr intro 4
-.Sh BUGS
-Currently is IP-only.
 .Sh AUTHORS
 This man page has been obtained from
 .Bx Net .
