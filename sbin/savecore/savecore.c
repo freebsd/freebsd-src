@@ -405,7 +405,6 @@ err2:			syslog(LOG_WARNING,
 			exit(1);
 		}
 	}
-	(void)printf("\n");
 	(void)close(ifd);
 	if (compress)
 		(void)fclose(fp);
