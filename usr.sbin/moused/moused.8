@@ -43,6 +43,7 @@
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
+.Op Fl V Op Fl U Ar distance
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
@@ -156,6 +157,12 @@ mode.
 .It Fl S Ar baudrate
 Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
+.It Fl V
+Enable ``Virtual Scrolling'', with this option set, holding the middle mouse
+button down will cause motion to be interpreted as scrolling.  Use the
+.Fl U
+option to set the distance the mouse must move before the scrolling mode is
+activated.
 .It Fl a Ar X Ns Op , Ns Ar Y
 Accelerate or decelerate the mouse input.
 This is a linear acceleration only.
