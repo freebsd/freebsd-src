@@ -220,7 +220,7 @@ udp_input(m, off, proto)
 				uh->uh_sum = m->m_pkthdr.csum_data;
 			else
 	                	uh->uh_sum = in_pseudo(ip->ip_src.s_addr,
-				    ip->ip_dst.s_addr, htonl(ip->ip_len +
+				    ip->ip_dst.s_addr, htonl((u_short)len +
 				    m->m_pkthdr.csum_data + IPPROTO_UDP));
 			uh->uh_sum ^= 0xffff;
 		} else {
