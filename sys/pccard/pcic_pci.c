@@ -311,6 +311,7 @@ pcic_cd_event(void *arg)
 	u_int32_t stat;
 	
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+	device_printf(sc->dev, "debounced state is 0x%x\n", stat);
 	if ((stat & CB_SS_16BIT) == 0) {
 		device_printf(sp->sc->dev, "Unsupported card type inserted\n");
 	} else {
@@ -330,6 +331,9 @@ pcic_pci_intr(void *arg)
 	u_int32_t event;
 
 	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
+	if (event == 0)
+		return;
+	device_printf(sc->dev, "Event mask 0x%x\n", event);
 	if (event & CB_SE_CD) {
 		if (!sc->cd_pending) {
 			sc->cd_pending = 1;
