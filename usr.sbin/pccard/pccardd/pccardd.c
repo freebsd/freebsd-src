@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardd.c,v 1.1 1998/02/27 08:19:25 hosokawa Exp $";
+	"$Id: pccardd.c,v 1.2 1998/03/09 05:18:58 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -48,8 +48,10 @@ main(int argc, char *argv[])
 	struct slot *slots, *sp;
 	int count, dodebug = 0;
 	int doverbose = 0;
+	int delay = 0;
+	int i;
 
-	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
+	while ((count = getopt(argc, argv, ":dvf:i:z")) != -1) {
 		switch (count) {
 		case 'd':
 			setbuf(stdout, 0);
@@ -61,6 +63,17 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			config_file = optarg;
+			break;
+		case 'i':
+			/* supress specified irq */
+			if (sscanf(optarg, "%d", &i) != 1) {
+				fprintf(stderr, "%s: -i number\n", argv[0]);
+				exit(1);
+			}
+			pool_irq[i] = 1;
+			break;
+		case 'z':
+			delay = 1;
 			break;
 		case ':':
 			die("no config file argument");
@@ -81,12 +94,15 @@ main(int argc, char *argv[])
 	if (doverbose)
 		dump_config_file();
 	log_setup();
-	if (!dodebug)
+	if (!dodebug && !delay)
 		if (daemon(0, 0))
 			die("fork failed");
 	slots = readslots();
 	if (slots == 0)
 		die("no PC-CARD slots");
+	if (delay)
+		if (daemon(0, 0))
+			die("fork failed");
 	logmsg("pccardd started", NULL);
 	for (;;) {
 		fd_set  mask;
