@@ -92,7 +92,6 @@ typedef enum Colors {
 char *defcolors = "4x5x2x3x1x464301060203";
 
 static int colors[C_NUMCOLORS][2];
-static int color_printed = 0;
 #endif
 
 void
@@ -117,6 +116,9 @@ printlong(dp)
 	FTSENT *p;
 	NAMES *np;
 	char buf[20];
+#ifdef COLORLS
+	int color_printed = 0;
+#endif
 
 	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
@@ -269,6 +271,9 @@ printaname(p, inodefield, sizefield)
 {
 	struct stat *sp;
 	int chcnt;
+#ifdef COLORLS
+	int color_printed = 0;
+#endif
 
 	sp = p->fts_statp;
 	chcnt = 0;
