@@ -337,6 +337,7 @@ draw:
 			else if (st & DITEM_RESTORE) {
 			    touchwin(save);
 			    wrefresh(save);
+			    wmove(dialog, cur_y, cur_x);
 			}
 			else if (st & DITEM_RECREATE) {
 			    delwin(save);
