@@ -77,7 +77,7 @@ static void
 Decode (u_int32_t *output, const unsigned char *input, unsigned int len)
 {
 	unsigned int i;
-	u_int32_t *ip = (u_int32_t *)input;
+	const u_int32_t *ip = (const u_int32_t *)input;
 
 	for (i = 0; i < len / 4; i++)
 		output[i] = le32toh(ip[i]);
