@@ -2579,7 +2579,8 @@ restart:
 
 	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 		lf.l_type = F_UNLCK;
-		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
+		if (locked)
+			VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 		if ((error = vn_close(vp, FWRITE, cred, td)) != 0)
 			return (error);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
