@@ -286,6 +286,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "mouse",
 	},
 	{
+	    USB_VENDOR_MULTITECH, USB_PRODUCT_MULTITECH_ATLAS,
+	    0,
+	    "MultiTech",
+	    "MT5634ZBA-USB modem",
+	},
+	{
 	    USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,
 	    0,
 	    "ADS Technologies",
@@ -529,6 +535,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_MACALLY, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Macally",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_MULTITECH, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "MultiTech",
 	    NULL,
 	},
 	{
