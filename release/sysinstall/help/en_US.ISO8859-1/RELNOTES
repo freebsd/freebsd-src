@@ -607,10 +607,19 @@ Or via the internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp as:
         ftp://ftp.cdrom.com/cdrom/catalog.
 
-Cost is $39.95.  Shipping (per order not per disc) is $5 in the US,
-Canada, or Mexico and $10.00 overseas.  They accept Visa, Mastercard,
-American Express, and ship COD within the United States.  California
-residents please add 8.25% sales tax.
+Cost per CD is $39.95, or $24.95 with a FreeBSD subscription.  With
+a subscription, you will automatically receive updates as they
+are released.  Your credit card will be billed when each disk is shipped 
+and you may cancel your subscription at any time without further obligation.
+
+Walnut Creek CDROM also sells a full line of FreeBSD related merchandise such
+as T-shirts ($14.95, available in "child", Large and XL sizes), coffee mugs
+($9.95), tattoos ($0.25 each) and posters ($3.00).
+
+Shipping (per order not per disc) is $5 in the US, Canada or
+Mexico and $9.00 overseas.  They accept Visa, Mastercard, Discover,
+American Express or checks in U.S. Dollars and ship COD within the
+United States.  California residents please add 8.25% sales tax.
 
 Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
@@ -735,4 +744,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.8 1995/06/10 02:38:55 jkh Exp $
+$Id: RELNOTES,v 1.9 1995/06/10 02:40:11 jkh Exp $
