@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.56 1994/09/25 02:06:51 ache Exp $
+ *	$Id: syscons.c,v 1.57 1994/09/27 01:50:07 ache Exp $
  */
 
 #include "sc.h"
@@ -2634,7 +2634,10 @@ setup_mode:
 		font_size = *(modetable + 2);
 		/* change cursor type if set */
 		if (scp->cursor_start != -1 && scp->cursor_end != -1)
-			cursor_shape(scp->cursor_start, 
+			cursor_shape(
+			(scp->cursor_start >= font_size)
+			? font_size - 1
+			: scp->cursor_start,
 			(scp->cursor_end >= font_size)
 			? font_size - 1
 			: scp->cursor_end);
