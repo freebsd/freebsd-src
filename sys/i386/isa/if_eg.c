@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.27 1998/03/28 13:23:56 bde Exp $
+ * $Id: if_eg.c,v 1.28 1998/06/07 17:10:27 dfr Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -107,6 +107,7 @@ static void eginit __P((struct eg_softc *sc));
 static int egioctl (struct ifnet *, u_long, caddr_t);
 static void egrecv(struct eg_softc *);
 static void egstart(struct ifnet *);
+static ointhand2_t egintr;
 static void egread __P((struct eg_softc *, caddr_t, int));
 static void egstop __P((struct eg_softc *));
 
@@ -326,6 +327,7 @@ egattach(struct isa_device *id)
 	struct eg_softc *sc = &eg_softc[id->id_unit];
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	
+	id->id_ointr = egintr;
 	egstop(sc);
 
 	sc->eg_pcb[0] = EG_CMD_GETEADDR; /* Get Station address */
@@ -526,7 +528,7 @@ loop:
 	m_freem(m0);
 }
 
-void
+static void
 egintr(int unit)
 {
 	register struct eg_softc *sc = &eg_softc[unit];

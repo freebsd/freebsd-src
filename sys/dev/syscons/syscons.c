@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.283 1998/10/01 11:39:18 yokota Exp $
+ *	$Id: syscons.c,v 1.284 1998/10/01 21:04:52 ache Exp $
  */
 
 #include "sc.h"
@@ -239,6 +239,7 @@ static const int	nsccons = MAXCONS+2;
 
 /* prototypes */
 static int scattach(struct isa_device *dev);
+static ointhand2_t scintr;
 static int scparam(struct tty *tp, struct termios *t);
 static int scprobe(struct isa_device *dev);
 static int scvidprobe(int unit, int flags);
@@ -645,6 +646,7 @@ scattach(struct isa_device *dev)
     int vc;
 #endif
 
+    dev->id_ointr = scintr;
     scinit();
     sc_flags = dev->id_flags;
     if (!ISFONTAVAIL(adp_flags))
@@ -851,7 +853,7 @@ scwrite(dev_t dev, struct uio *uio, int flag)
     return((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
-void
+static void
 scintr(int unit)
 {
     static struct tty *cur_tty;

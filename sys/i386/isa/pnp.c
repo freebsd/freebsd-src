@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.5 1998/02/09 06:08:38 eivind Exp $
+ *      $Id: pnp.c,v 1.6 1998/09/13 22:15:44 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -456,7 +456,7 @@ config_pnp_device(pnp_id *p, int csn)
 	    nod->dev.id_driver->name ? nod->dev.id_driver->name : "unknown",
 	    unit, dvp->pd_name, name, p->serial);
 	if (nod->dev.id_alive) {
-	    if (nod->dev.id_irq) {
+	    if (nod->dev.id_irq != 0 && nod->dev.id_intr != NULL) {
 		/* the board uses interrupts. Register it. */
 		if (dvp->imask)
 		    INTRMASK( *(dvp->imask), nod->dev.id_irq );

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.8 1998/09/13 20:57:06 nsouch Exp $
+ *	$Id: ppc.c,v 1.9 1998/09/20 14:47:01 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -124,6 +124,7 @@ static void ppc_wfifo(int unit, char byte) { w_fifo(ppcdata[unit], byte); }
 
 static void ppc_reset_epp_timeout(int);
 static void ppc_ecp_sync(int);
+static ointhand2_t ppcintr;
 
 static int ppc_exec_microseq(int, struct ppb_microseq **);
 static int ppc_generic_setmode(int, int);
@@ -189,7 +190,7 @@ ppc_ecp_sync(int unit) {
 	return;
 }
 
-void
+static void
 ppcintr(int unit)
 {
 	/* call directly upper code */
@@ -1275,6 +1276,8 @@ ppcattach(struct isa_device *isdp)
 		ppc_types[ppc->ppc_type], ppc_avms[ppc->ppc_avm],
 		ppc_modes[ppc->ppc_mode], (PPB_IS_EPP(ppc->ppc_mode)) ?
 			ppc_epp_protocol[ppc->ppc_epp] : "");
+
+	isdp->id_ointr = ppcintr;
 
 	/*
 	 * Prepare ppbus data area for upper level code.

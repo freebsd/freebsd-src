@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.122 1998/09/15 08:15:28 gibbs Exp $
+ *	$Id: fd.c,v 1.123 1998/09/15 22:07:24 gibbs Exp $
  *
  */
 
@@ -221,6 +221,7 @@ static int fd_in(fdcu_t, int *);
 static void fdstart(fdcu_t);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
+static ointhand2_t fdintr;
 static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
@@ -540,6 +541,7 @@ fdattach(struct isa_device *dev)
 	int	typesize;
 #endif
 
+	dev->id_ointr = fdintr;
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
@@ -1275,7 +1277,7 @@ fd_pseudointr(void *arg1)
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
-void
+static void
 fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;

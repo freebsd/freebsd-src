@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.60 1998/04/19 15:39:26 bde Exp $
+ *	$Id: npx.c,v 1.61 1998/06/21 18:02:39 bde Exp $
  */
 
 #include "npx.h"
@@ -95,6 +95,7 @@ void	i586_bcopy __P((const void *from, void *to, size_t len));
 void	i586_bzero __P((void *buf, size_t len));
 int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
 int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
+ointhand2_t	npxintr;
 
 #ifdef	__GNUC__
 
@@ -384,6 +385,8 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
+	dvp->id_ointr = npxintr;
+
 	/* The caller has printed "irq 13" for the npx_irq13 case. */
 	if (!npx_irq13) {
 		printf("npx%d: ", dvp->id_unit);
