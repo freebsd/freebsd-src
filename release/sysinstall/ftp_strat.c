@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.5 1995/06/02 19:15:01 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.6 1995/06/02 19:29:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,8 +82,8 @@ get_new_host(void)
     i = dmenuOpenSimple(&MenuMediaFTP);
     MenuMediaFTP.title = oldTitle;
     if (i) {
-	mediaShutdownFtp(mediaDevice);
-	i = mediaInitFtp(mediaDevice);
+	mediaShutdownFTP(mediaDevice);
+	i = mediaInitFTP(mediaDevice);
     }
     return i;
 }
@@ -187,12 +187,7 @@ evil_goto:
     fd = FtpGet(ftp, file);
     if (fd < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2) {
-	    mediaShutdownFTP(mediaDevice);
-	    if (!mediaInitFTP(mediaDevice))
-		return -1;
-	}
-	if ((OptFlags & OPT_FTP_RESELECT) || ++nretries > MAX_FTP_RETRIES) {
+	if (fd == -2 || (OptFlags & OPT_FTP_RESELECT) || ++nretries > MAX_FTP_RETRIES) {
 	    if (!get_new_host())
 		return -1;
 	    nretries = 0;
