@@ -1,4 +1,4 @@
-z/*
+/*
  * Written by Julian Elischer (julian@dialix.oz.au)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
  *
@@ -14,7 +14,7 @@ z/*
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.6 1998/03/06 23:07:07 julian Exp $
+ *      $Id: sd.c,v 1.95.2.7 1998/04/27 11:39:05 des Exp $
  */
 
 #include "opt_bounce.h"
