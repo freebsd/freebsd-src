@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.7 1995/01/24 10:02:00 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.8 1995/04/09 06:03:44 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -143,8 +143,12 @@ READ(ap)
 				break;
 			xfersize = size;
 		}
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag |= IN_RECURSE;
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag &= ~IN_RECURSE;
 		if (error)
 			break;
 
@@ -258,8 +262,12 @@ WRITE(ap)
 		if (size < xfersize)
 			xfersize = size;
 
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag |= IN_RECURSE;
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag &= ~IN_RECURSE;
 #ifdef LFS_READWRITE
 		(void)VOP_BWRITE(bp);
 #else

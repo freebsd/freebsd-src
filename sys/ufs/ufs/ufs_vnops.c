@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.19 1995/03/19 13:44:03 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.20 1995/04/09 06:03:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1526,9 +1526,7 @@ ufs_lock(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-#ifdef DIAGNOSTIC
-	struct proc *p = curproc; /* XXX */
-#endif
+	struct proc *p = curproc;
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip;
 
@@ -1541,17 +1539,23 @@ start:
 		return (ENOENT);
 	ip = VTOI(vp);
 	if (ip->i_flag & IN_LOCKED) {
-		ip->i_flag |= IN_WANTED;
+		if (p->p_pid == ip->i_lockholder) {
+			if( ip->i_flag & IN_RECURSE)
+				++ip->i_lockcount;
+			else
+				panic("ufs_lock: recursive lock not expected, pid: %d\n",
+					ip->i_lockholder);
+		} else {
+			ip->i_flag |= IN_WANTED;
 #ifdef DIAGNOSTIC
-		if (p) {
-			if (p->p_pid == ip->i_lockholder)
-				panic("locking against myself");
-			ip->i_lockwaiter = p->p_pid;
-		} else
-			ip->i_lockwaiter = -1;
+			if (p)
+				ip->i_lockwaiter = p->p_pid;
+			else
+				ip->i_lockwaiter = -1;
 #endif
-		(void) tsleep((caddr_t)ip, PINOD, "ufslk2", 0);
-		goto start;
+			(void) tsleep((caddr_t)ip, PINOD, "ufslk2", 0);
+			goto start;
+		}
 	}
 #ifdef DIAGNOSTIC
 	ip->i_lockwaiter = 0;
@@ -1559,11 +1563,11 @@ start:
 		panic("lockholder (%d) != 0", ip->i_lockholder);
 	if (p && p->p_pid == 0)
 		printf("locking by process 0\n");
+#endif
 	if (p)
 		ip->i_lockholder = p->p_pid;
 	else
 		ip->i_lockholder = -1;
-#endif
 	ip->i_flag |= IN_LOCKED;
 	return (0);
 }
@@ -1579,9 +1583,9 @@ ufs_unlock(ap)
 	} */ *ap;
 {
 	register struct inode *ip = VTOI(ap->a_vp);
+	struct proc *p = curproc;
 
 #ifdef DIAGNOSTIC
-	struct proc *p = curproc; /* XXX */
 
 	if ((ip->i_flag & IN_LOCKED) == 0) {
 		vprint("ufs_unlock: unlocked inode", ap->a_vp);
@@ -1591,9 +1595,15 @@ ufs_unlock(ap)
 	    ip->i_lockholder > -1 && lockcount++ < 100)
 		panic("unlocker (%d) != lock holder (%d)",
 		    p->p_pid, ip->i_lockholder);
-	ip->i_lockholder = 0;
 #endif
-	ip->i_flag &= ~IN_LOCKED;
+	if (--ip->i_lockcount > 0) {
+		if ((ip->i_flag & IN_RECURSE) == 0)
+			panic("ufs_unlock: recursive lock prematurely released, pid=%d\n",
+				ip->i_lockholder);
+		return (0);
+	}
+	ip->i_lockholder = 0;
+	ip->i_flag &= ~(IN_LOCKED|IN_RECURSE);
 	if (ip->i_flag & IN_WANTED) {
 		ip->i_flag &= ~IN_WANTED;
 		wakeup((caddr_t)ip);
