@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.124 1998/05/04 03:01:44 dyson Exp $
+ * $Id: vm_map.c,v 1.125 1998/05/04 17:12:52 dyson Exp $
  */
 
 /*
@@ -1942,7 +1942,7 @@ vm_map_split(entry)
 	vm_map_entry_t entry;
 {
 	vm_page_t m;
-	vm_object_t orig_object, new_object;
+	vm_object_t orig_object, new_object, source;
 	vm_offset_t s, e;
 	vm_pindex_t offidxstart, offidxend, idx;
 	vm_size_t size;
@@ -1966,6 +1966,19 @@ vm_map_split(entry)
 		NULL, size, VM_PROT_ALL, 0LL);
 	if (new_object == NULL)
 		return;
+
+	source = orig_object->backing_object;
+	if (source != NULL) {
+		vm_object_reference(source);	/* Referenced by new_object */
+		TAILQ_INSERT_TAIL(&source->shadow_head,
+				  new_object, shadow_list);
+		source->flags &= ~OBJ_ONEMAPPING;
+		new_object->backing_object_offset = 
+			orig_object->backing_object_offset + offidxstart;
+		new_object->backing_object = source;
+		source->shadow_count++;
+		source->generation++;
+	}
 
 	for (idx = 0; idx < size; idx++) {
 		vm_page_t m;
