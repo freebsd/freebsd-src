@@ -78,7 +78,6 @@ static int	fdesc_lookup(struct vop_lookup_args *ap);
 static int	fdesc_open(struct vop_open_args *ap);
 static int	fdesc_readdir(struct vop_readdir_args *ap);
 static int	fdesc_reclaim(struct vop_reclaim_args *ap);
-static int	fdesc_poll(struct vop_poll_args *ap);
 static int	fdesc_setattr(struct vop_setattr_args *ap);
 
 /*
