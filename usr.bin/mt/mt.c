@@ -94,6 +94,7 @@ struct commands {
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "retens",	MTRETENS, 1 },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
