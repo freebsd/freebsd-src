@@ -74,9 +74,6 @@
 
 #include <cam/scsi/scsi_message.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <dev/aha/ahareg.h>
 
 struct aha_softc *aha_softcs[NAHATOT];
