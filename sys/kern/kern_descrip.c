@@ -326,15 +326,17 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_GETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOGETOWN, (void *)td->td_retval,
-		    td->td_ucred, td);
+		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
+		if (error == 0)
+			td->td_retval[0] = tmp;
 		fdrop(fp, td);
 		break;
 
 	case F_SETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOSETOWN, &arg, td->td_ucred, td);
+		tmp = arg;
+		error = fo_ioctl(fp, FIOSETOWN, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
