@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.88 1995/10/21 00:55:27 phk Exp $
+ *	$Id: wd.c,v 1.89 1995/10/28 15:39:28 phk Exp $
  */
 
 /* TODO:
@@ -80,8 +80,8 @@
 #include <sys/devconf.h>
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
+#include <machine/cons.h>
 #include <machine/md_var.h>
-#include <i386/i386/cons.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
@@ -92,6 +92,8 @@
 #ifdef ATAPI
 #include <i386/isa/atapi.h>
 #endif
+
+extern void wdstart(int ctrlr);
 
 #define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */
@@ -253,7 +255,6 @@ static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
 static void wdustart(struct disk *du);
-static void wdstart(int ctrlr);
 static int wdcontrol(struct buf *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
@@ -1625,7 +1626,6 @@ failed:
 	return (0);
 }
 
-/* ARGSUSED */
 int
 wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
