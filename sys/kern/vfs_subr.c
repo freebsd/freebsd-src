@@ -1861,7 +1861,7 @@ vgonel(vp, p)
 	 */
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != NULL) {
 		simple_lock(&spechash_slock);
-		SLIST_REMOVE(&vp->v_hashchain, vp, vnode, v_specnext);
+		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		freedev(vp->v_rdev);
 		simple_unlock(&spechash_slock);
 		vp->v_rdev = NULL;
@@ -1929,7 +1929,7 @@ vcount(vp)
 
 	count = 0;
 	simple_lock(&spechash_slock);
-	SLIST_FOREACH(vq, &vp->v_hashchain, v_specnext)
+	SLIST_FOREACH(vq, &vp->v_rdev->si_hlist, v_specnext)
 		count += vq->v_usecount;
 	simple_unlock(&spechash_slock);
 	return (count);
