@@ -90,6 +90,8 @@ extern	char proctitle[];
 extern	int usedefault;
 extern  int transflag;
 extern  char tmpline[];
+extern	int readonly;
+extern	int noepsv;
 
 off_t	restart_point;
 
@@ -132,6 +134,8 @@ extern int epsvall;
 %token	<i> NUMBER
 
 %type	<i> check_login octal_number byte_size
+%type	<i> check_login_ro octal_number byte_size
+%type	<i> check_login_epsv octal_number byte_size
 %type	<i> struct_code mode_code type_code form_code
 %type	<s> pathstring pathname password username ext_arg
 %type	<s> ALL
@@ -318,7 +322,7 @@ cmd
 			else if ($2)
 				long_passive("LPSV", PF_UNSPEC);
 		}
-	| EPSV check_login SP NUMBER CRLF
+	| EPSV check_login_epsv SP NUMBER CRLF
 		{
 			if ($2) {
 				int pf;
@@ -338,7 +342,7 @@ cmd
 				long_passive("EPSV", pf);
 			}
 		}
-	| EPSV check_login SP ALL CRLF
+	| EPSV check_login_epsv SP ALL CRLF
 		{
 			if ($2) {
 				reply(200,
@@ -346,7 +350,7 @@ cmd
 				epsvall++;
 			}
 		}
-	| EPSV check_login CRLF
+	| EPSV check_login_epsv CRLF
 		{
 			if ($2)
 				long_passive("EPSV", PF_UNSPEC);
@@ -425,14 +429,14 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
-	| STOR check_login SP pathname CRLF
+	| STOR check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				store($4, "w", 0);
 			if ($4 != NULL)
 				free($4);
 		}
-	| APPE check_login SP pathname CRLF
+	| APPE check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				store($4, "a", 0);
@@ -474,14 +478,14 @@ cmd
 		{
 			statcmd();
 		}
-	| DELE check_login SP pathname CRLF
+	| DELE check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				delete($4);
 			if ($4 != NULL)
 				free($4);
 		}
-	| RNTO check_login SP pathname CRLF
+	| RNTO check_login_ro SP pathname CRLF
 		{
 			if ($2) {
 				if (fromname) {
@@ -537,14 +541,14 @@ cmd
 		{
 			reply(200, "NOOP command successful.");
 		}
-	| MKD check_login SP pathname CRLF
+	| MKD check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				makedir($4);
 			if ($4 != NULL)
 				free($4);
 		}
-	| RMD check_login SP pathname CRLF
+	| RMD check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				removedir($4);
@@ -594,7 +598,7 @@ cmd
 				}
 			}
 		}
-	| SITE SP CHMOD check_login SP octal_number SP pathname CRLF
+	| SITE SP CHMOD check_login_ro SP octal_number SP pathname CRLF
 		{
 			if ($4 && ($8 != NULL)) {
 				if ($6 > 0777)
@@ -628,7 +632,7 @@ cmd
 				    timeout);
 			}
 		}
-	| STOU check_login SP pathname CRLF
+	| STOU check_login_ro SP pathname CRLF
 		{
 			if ($2 && $4 != NULL)
 				store($4, "w", 1);
@@ -706,7 +710,7 @@ cmd
 		}
 	;
 rcmd
-	: RNFR check_login SP pathname CRLF
+	: RNFR check_login_ro SP pathname CRLF
 		{
 			char *renamefrom();
 
@@ -954,12 +958,31 @@ octal_number
 check_login
 	: /* empty */
 		{
-			if (logged_in)
-				$$ = 1;
-			else {
-				reply(530, "Please login with USER and PASS.");
-				$$ = 0;
-			}
+		$$ = check_login1();
+		}
+	;
+
+check_login_epsv
+	: /* empty */
+		{
+		if (noepsv) {
+			reply(500, "EPSV command disabled");
+			$$ = 0;
+		}
+		else
+			$$ = check_login1();
+		}
+	;
+
+check_login_ro
+	: /* empty */
+		{
+		if (readonly) {
+			reply(202, "Command ignored. Server is in readonly mode.");
+			$$ = 0;
+		}
+		else
+			$$ = check_login1();
 		}
 	;
 
@@ -1556,6 +1579,17 @@ port_check(pcmd)
 		return 1;
 	}
 	return 0;
+}
+
+static int
+check_login1()
+{
+	if (logged_in)
+		return 1;
+	else {
+		reply(530, "Please login with USER and PASS.");
+		return 0;
+	}
 }
 
 #ifdef INET6

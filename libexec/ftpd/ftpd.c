@@ -148,6 +148,8 @@ int	stru;			/* avoid C keyword */
 int	mode;
 int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
+int	readonly=0;		/* Server is in readonly mode.	*/
+int	noepsv=0;		/* EPSV command is disabled.	*/
 sig_atomic_t transflag;
 off_t	file_size;
 off_t	byte_count;
@@ -290,7 +292,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "AdlDSURt:T:u:va:p:46")) != -1) {
+	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:va:p:46")) != -1) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -300,8 +302,16 @@ main(argc, argv, envp)
 			debug++;
 			break;
 
+		case 'E':
+			noepsv = 1;
+			break;
+
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'r':
+			readonly = 1;
 			break;
 
 		case 'R':
