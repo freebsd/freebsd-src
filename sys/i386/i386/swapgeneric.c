@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.10 1995/05/12 16:11:07 wpaul Exp $
+ *	$Id: swapgeneric.c,v 1.11 1995/08/19 15:59:35 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,7 @@
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
 
+#ifdef notused
 int	nswap;
 struct	swdevt swdevt[] = {
 	{ makedev (0xFF, 0x00000001),	0,	0 },
@@ -74,6 +75,7 @@ struct	swdevt swdevt[] = {
 	{ NODEV,	0,	0 },
 };
 int	dmmin, dmmax, dmtext;
+#endif
 
 #ifdef NFS
 extern int (*mountroot)  __P((void));
@@ -177,11 +179,13 @@ found:
 	gc->gc_root = makedev(major(gc->gc_root), unit * MAXPARTITIONS);
 	rootdev = gc->gc_root;
 doswap:
+#ifdef notused
 	swdevt[0].sw_dev = dumpdev =
 	    makedev(major(rootdev), minor(rootdev)+1);
 	/* swap size and dumplo set during autoconfigure */
 	if (swaponroot)
 		rootdev = dumpdev;
+#endif
 }
 
 void gets(cp)
