@@ -2446,7 +2446,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
-			return;		  
+			return;
 		psize = object->size - pindex;
 	}
 
