@@ -5,7 +5,7 @@ SRCS=	ncal.c
 
 DPADD=	${LIBCALENDAR}
 LDADD=	-lcalendar
-WARNS=	1
+WARNS?=	1
 
 LINKS=	${BINDIR}/ncal ${BINDIR}/cal
 MLINKS=	ncal.1 cal.1
