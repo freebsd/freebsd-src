@@ -965,13 +965,13 @@ int column;
 		}
 		else
 		{
-			waddch(window, (char)character );
+			waddch(window, (unsigned char)character );
 			return(1);
 		}
 	}
 	else
 	{
-		waddch(window, (char)character);
+		waddch(window, (unsigned char)character);
 		return(1);
 	}
 	for (i2 = 0; (string[i2] != (char) NULL) && (((column+i2+1)-horiz_offset) < last_col); i2++)
