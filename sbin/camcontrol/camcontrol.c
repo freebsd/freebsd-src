@@ -2963,7 +2963,7 @@ scsiformat_bailout:
 void 
 usage(int verbose)
 {
-	fprintf(stderr,
+	fprintf(verbose ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
 "        camcontrol devlist    [-v]\n"
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
@@ -2989,7 +2989,7 @@ usage(int verbose)
 "        camcontrol help\n");
 	if (!verbose)
 		return;
-	fprintf(stderr,
+	fprintf(stdout,
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
 "periphlist  list all CAM peripheral drivers attached to a device\n"
