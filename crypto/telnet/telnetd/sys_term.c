@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: sys_term.c,v 1.3 1997/12/08 07:41:12 charnier Exp $";
+	"$Id: sys_term.c,v 1.4 1998/01/22 00:04:57 imp Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -1409,7 +1409,6 @@ startslave(host, autologin, autoname)
 	char *autoname;
 {
 	register int i;
-	long time();
 #ifdef	NEWINIT
 	extern char *ptyip;
 	struct init_request request;
