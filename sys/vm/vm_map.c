@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.34 1996/03/02 02:54:20 dyson Exp $
+ * $Id: vm_map.c,v 1.35 1996/03/03 18:53:10 peter Exp $
  */
 
 /*
@@ -1532,6 +1532,22 @@ vm_map_clean(map, start, end, syncio, invalidate)
 		} else {
 			object = current->object.vm_object;
 		}
+		/*
+		 * Note that there is absolutely no sense in writing out
+		 * anonymous objects, so we track down the vnode object
+		 * to write out.
+		 * We invalidate (remove) all pages from the address space
+		 * anyway, for semantic correctness.
+		 */
+		while (object->backing_object) {
+			object = object->backing_object;
+			offset += object->backing_object_offset;
+			if (object->size < OFF_TO_IDX( offset + size))
+				size = IDX_TO_OFF(object->size) - offset;
+		}
+		if (invalidate)
+			pmap_remove(vm_map_pmap(map), current->start,
+				current->end);
 		if (object && (object->type == OBJT_VNODE)) {
 			/*
 			 * Flush pages if writing is allowed. XXX should we continue
