@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.17 1995/12/02 19:37:19 bde Exp $
+ * $Id: bpf.c,v 1.18 1995/12/06 23:51:53 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -80,14 +80,11 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 23
-#endif /*JREMOD*/
+
 
 /*
  * Older BSDs don't have kernel malloc.
@@ -144,6 +141,20 @@ static inline void
 static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
 		    u_int, void (*)(const void *, void *, u_int)));
 static void	reset_d __P((struct bpf_d *));
+
+static	d_open_t	bpfopen;
+static	d_close_t	bpfclose;
+static	d_read_t	bpfread;
+static	d_write_t	bpfwrite;
+static	d_ioctl_t	bpfioctl;
+static	d_select_t	bpfselect;
+
+#define CDEV_MAJOR 23
+struct cdevsw bpf_cdevsw = 
+ 	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
+ 	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
+ 	  bpfselect,	nommap,		NULL,	"bpf",	NULL,	-1 };
+
 
 static int
 bpf_movein(uio, linktype, mp, sockp, datlen)
@@ -321,7 +332,7 @@ bpf_detachd(d)
  * EBUSY if file is open by another process.
  */
 /* ARGSUSED */
-int
+static	int
 bpfopen(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -353,7 +364,7 @@ bpfopen(dev, flags, fmt, p)
  * deallocating its buffers, and marking it free.
  */
 /* ARGSUSED */
-int
+static	int
 bpfclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -425,7 +436,7 @@ bpf_sleep(d)
 /*
  *  bpfread - read next chunk of packets from buffers
  */
-int
+static	int
 bpfread(dev, uio, ioflag)
 	dev_t dev;
 	register struct uio *uio;
@@ -540,7 +551,7 @@ bpf_wakeup(d)
 #endif
 }
 
-int
+static	int
 bpfwrite(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
@@ -617,7 +628,7 @@ reset_d(d)
  *  BIOCVERSION		Get filter language version.
  */
 /* ARGSUSED */
-int
+static	int
 bpfioctl(dev, cmd, addr, flags, p)
 	dev_t dev;
 	int cmd;
@@ -1006,7 +1017,7 @@ bpf_ifname(ifp, ifr)
 #if BSD >= 199103
 #define bpf_select bpfselect
 #else
-int
+static	int
 bpfselect(dev, rw)
 	register dev_t dev;
 	int rw;
@@ -1322,37 +1333,31 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
 
-
-#ifdef JREMOD
-struct cdevsw bpf_cdevsw = 
- 	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
- 	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
- 	  bpfselect,	nommap,		NULL };
+static	void *bpf_devfs_token[NBPFILTER];
 
 static bpf_devsw_installed = 0;
 
 static void 	bpf_drvinit(void *unused)
 {
 	dev_t dev;
+	int	i;
+	char	name[32];
 
 	if( ! bpf_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&bpf_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&bpf_cdevsw, NULL);
 		bpf_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"bpf",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		for ( i = 0 ; i < NBPFILTER ; i++ ) {
+			sprintf(name,"bpf%d",i);
+			bpf_devfs_token[i] =
+				devfs_add_devsw( "/", name,
+					&bpf_cdevsw, i, DV_CHR, 0, 0, 0600);
 		}
 #endif
     	}
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif

@@ -60,6 +60,9 @@
 #include <sys/signalvar.h>
 #include <sys/devconf.h>
 #include <sys/mman.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
 #include <machine/clock.h>
 
 #include <vm/vm.h>
@@ -73,14 +76,6 @@
 #include <pci/pcivar.h>
 #endif
 #include <machine/ioctl_meteor.h>
-
-#ifdef JREMOD
-#include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
-#define CDEV_MAJOR 67
-#endif /* JREMOD */
 
 
 extern int meteor_intr __P((void *arg));
@@ -148,6 +143,9 @@ typedef struct {
 #define	METEOR_SINGLE_ODD	0x00200000
 #define	METEOR_SINGLE_MASK	0x00300000
     u_char	saa7196_i2c[NUM_SAA7196_I2C_REGS]; /* saa7196 register values */
+#ifdef DEVFS
+    void	*devfs_token;
+#endif
 } meteor_reg_t;
 
 meteor_reg_t meteor[NMETEOR];
@@ -174,6 +172,20 @@ struct	pci_device met_device = {
 };
 
 DATA_SET (pcidevice_set, met_device);
+
+static	d_open_t	meteor_open;
+static	d_close_t	meteor_close;
+static	d_read_t	meteor_read;
+static	d_write_t	meteor_write;
+static	d_ioctl_t	meteor_ioctl;
+static	d_mmap_t	meteor_mmap;
+
+#define CDEV_MAJOR 67
+struct cdevsw meteor_cdevsw = 
+        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
+          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
+          seltrue,	meteor_mmap, NULL,	"meteor",	NULL,	-1 };
+
 
 static u_long saa7116_pci_default[NUM_SAA7116_PCI_REGS] = {
 				/* PCI Memory registers	    	*/
@@ -630,6 +642,10 @@ static	void	met_attach(pcici_t tag, int unit)
 	mtr->rows = 480;
 	mtr->depth = 2;		/* two bytes per pixel */
 	mtr->frames = 1;	/* one frame */
+#ifdef DEVFS
+	mtr->devfs_token = devfs_add_devsw( "/", "meteor", &meteor_cdevsw, unit,
+						DV_CHR, 0, 0, 0600);
+#endif
 }
 
 static void
@@ -1265,12 +1281,6 @@ meteor_mmap(dev_t dev, int offset, int nprot)
 }
 
 
-#ifdef JREMOD
-struct cdevsw meteor_cdevsw = 
-        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
-          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
-          seltrue, meteor_mmap, NULL };
-
 static meteor_devsw_installed = 0;
 
 static void 	meteor_drvinit(void *unused)
@@ -1278,23 +1288,12 @@ static void 	meteor_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! meteor_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&meteor_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&meteor_cdevsw, NULL);
 		meteor_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"meteor",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(meteordev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,meteor_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif /* NMETEOR > 0 */

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.8 1995/11/29 14:39:31 julian Exp $
+ * $Id: asc.c,v 1.9 1995/12/06 23:42:22 bde Exp $
  */
 
 #include "asc.h"
@@ -68,6 +68,11 @@
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/asc_ioctl.h>
 
@@ -75,15 +80,6 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ascreg.h>
-
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 71
-#endif /*JREMOD*/
 
 #endif /* FREEBSD_1_X */
 
@@ -184,6 +180,12 @@ struct asc_unit {
 #endif
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
+#ifdef DEVFS
+  void *devfs_asc;	  /* storage for devfs tokens (handles) */
+  void *devfs_ascp;
+  void *devfs_ascd;
+  void *devfs_ascpd;
+#endif
 } unittab[NASC];                                 
 
 /*** I could not find a reasonable buffer size limit other than by
@@ -202,6 +204,20 @@ int ascattach(struct isa_device *isdp);
 struct isa_driver ascdriver = { ascprobe, ascattach, "asc" };
 
 #ifndef FREEBSD_1_X
+
+static d_open_t		ascopen;
+static d_close_t	ascclose;
+static d_read_t		ascread;
+static d_ioctl_t	ascioctl;
+static d_select_t	ascselect;
+
+#define CDEV_MAJOR 71
+
+static struct cdevsw asc_cdevsw = 
+	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
+	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
+	  ascselect,    nommap,         NULL,	"asc",	NULL,	-1 };
+
 struct asc_softc {
     struct isa_device *dev;
 } asc_softc[NASC];
@@ -226,6 +242,9 @@ asc_registerdev(struct isa_device *id)
         kdc_asc[id->id_unit].kdc_isa = id;
         dev_attach(&kdc_asc[id->id_unit]);
 }
+#define STATIC static
+#else
+#define STATIC
 #endif /* ! FREEBSD_1_X */
 
 /***
@@ -447,8 +466,7 @@ ascattach(struct isa_device *isdp)
   int unit = isdp->id_unit;
   struct asc_unit *scu = unittab + unit;
 #ifdef DEVFS
-  char buf[32];
-  void *x;
+  char name[32];
 #endif
 
   scu->flags |= DEBUG;
@@ -472,18 +490,24 @@ ascattach(struct isa_device *isdp)
     asc_registerdev(isdp);
 #endif
 #ifdef DEVFS
-    sprintf(buf,"asc%d",unit);
+#define ASC_UID 0
+#define ASC_GID 13
+    sprintf(name,"asc%d",unit);
 /*            path      name  devsw    minor    type   uid gid perm*/
-   x=dev_add("/misc",   buf,  ascopen, unit<<6, DV_CHR, 0,  0, 0666);
-    sprintf(buf,"asc%dp",unit);
-   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + FRMT_PBM),
-						DV_CHR, 0,  0, 0666);
-    sprintf(buf,"asc%dd",unit);
-   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + DBUG_MASK),
-						DV_CHR, 0,  0, 0666);
-    sprintf(buf,"asc%dpd",unit);
-   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + DBUG_MASK + FRMT_PBM),
-						DV_CHR, 0,  0, 0666);
+   scu->devfs_asc = devfs_add_devsw("/",   name,  &asc_cdevsw, unit<<6,
+					DV_CHR, ASC_UID,  ASC_GID, 0666);
+    sprintf(name,"asc%dp",unit);
+   scu->devfs_ascp = devfs_add_devsw("/",   name,  &asc_cdevsw,
+					((unit<<6) + FRMT_PBM),
+					DV_CHR, ASC_UID,  ASC_GID, 0666);
+    sprintf(name,"asc%dd",unit);
+   scu->devfs_ascd = devfs_add_devsw("/",   name,  &asc_cdevsw,
+					((unit<<6) + DBUG_MASK),
+					DV_CHR, ASC_UID,  ASC_GID, 0666);
+    sprintf(name,"asc%dpd",unit);
+   scu->devfs_ascpd = devfs_add_devsw("/",   name,  &asc_cdevsw,
+					((unit<<6) + DBUG_MASK + FRMT_PBM),
+					DV_CHR, ASC_UID,  ASC_GID, 0666);
 #endif /*DEVFS*/
   return 1; /* attach must not fail */
 }
@@ -546,7 +570,7 @@ ascintr(int unit)
  ***	don't switch scanner on, wait until first read or ioctls go before
  ***/
 
-int
+STATIC int
 ascopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev)) & UNIT_MASK;
@@ -620,7 +644,7 @@ asc_startread(struct asc_unit *scu)
  ***	should probably terminate dma ops, release int and dma. lr 12mar95
  ***/
 
-int
+STATIC int
 ascclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev));
@@ -678,7 +702,7 @@ pbm_init(struct asc_unit *scu)
  *** ascread
  ***/
 
-int
+STATIC int
 ascread(dev_t dev, struct uio *uio, int ioflag)
 {
   int unit = UNIT(minor(dev));
@@ -766,7 +790,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
  *** ascioctl
  ***/
 
-int
+STATIC int
 ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
   int unit = UNIT(minor(dev));
@@ -831,7 +855,7 @@ ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
   return SUCCESS;
 }
 
-int
+STATIC int
 ascselect(dev_t dev, int rw, struct proc *p)
 {
     int unit = UNIT(minor(dev));
@@ -863,42 +887,21 @@ ascselect(dev_t dev, int rw, struct proc *p)
 }
 
 
-#ifdef JREMOD
-struct cdevsw asc_cdevsw = 
-	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
-	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
-	  ascselect,    nommap,         NULL };
-
 static asc_devsw_installed = 0;
 
-static void 	asc_drvinit(void *unused)
+static void 
+asc_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! asc_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&asc_cdevsw,NULL);
-		dev_chr = dev;
-#if defined(BDEV_MAJOR)
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&asc_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
 		asc_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"asc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(ascdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asc_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NASC > 0 */

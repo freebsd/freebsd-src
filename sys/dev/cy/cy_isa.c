@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.22 1995/11/29 14:39:37 julian Exp $
+ *	$Id: cy.c,v 1.23 1995/12/06 23:42:34 bde Exp $
  */
 
 #include "cy.h"
@@ -315,6 +315,10 @@ struct com_s {
 	u_char	obuf1[256];
 	u_char	obuf2[256];
 
+#ifdef DEVFS
+	void *devfs_token; /* one for now */
+#endif
+
 	struct kern_devconf kdc;
 };
 
@@ -358,6 +362,21 @@ static	struct com_s	*p_com_addr[NSIO];
 
 static  struct timeval	intr_timestamp;
 
+static	d_open_t	cyopen;
+static	d_close_t	cyclose;
+static	d_read_t	cyread;
+static	d_write_t	cywrite;
+static	d_ioctl_t	cyioctl;
+static	d_stop_t	cystop;
+static	d_ttycv_t	cydevtotty;
+
+#define CDEV_MAJOR 48
+struct cdevsw cy_cdevsw = 
+	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
+	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
+	  ttselect,	nxmmap,		NULL, "cy",	NULL,	-1 };
+
+
 struct isa_driver	siodriver = {
 	sioprobe, sioattach, "cy"
 };
@@ -396,12 +415,9 @@ static	int	cy_nr_cd1400s[NCY];
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 48
-#endif /*JREMOD*/
 
 static struct kern_devconf kdc_sio[NCY] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -502,6 +518,7 @@ sioattach(isdp)
 	cy_addr	iobase;
 	int	ncyu;
 	int	unit;
+	char name [32];
 
 	unit = isdp->id_unit;
 	if ((u_int)unit >= NCY)
@@ -575,6 +592,13 @@ sioattach(isdp)
 	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
+#ifdef DEVFS
+/* XXX */ /* Fix this when you work out what the f*ck it looks like */
+			sprintf(name, "cy%d", unit);
+			com->devfs_token =
+				devfs_add_devsw( "/", name, &cy_cdevsw, unit,
+						DV_CHR, 0,  0, 0600);
+#endif
 		}
 	}
 	kdc_sio[isdp->id_unit].kdc_state = DC_BUSY;	/* XXX */
@@ -585,7 +609,7 @@ sioattach(isdp)
 	return (1);
 }
 
-int
+static int
 sioopen(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -786,7 +810,7 @@ out:
 	return (error);
 }
 
-int
+static int
 sioclose(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -887,7 +911,7 @@ comhardclose(com)
 	splx(s);
 }
 
-int
+static int
 sioread(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -903,7 +927,7 @@ sioread(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
-int
+static int
 siowrite(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1320,7 +1344,7 @@ siointr1(com)
 {
 }
 
-int
+static int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
@@ -2105,7 +2129,7 @@ comstart(tp)
 	splx(s);
 }
 
-void
+static void
 siostop(tp, rw)
 	struct tty	*tp;
 	int		rw;
@@ -2520,36 +2544,20 @@ cystatus(unit)
 
 
 
-#ifdef JREMOD
-struct cdevsw cy_cdevsw = 
-	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
-	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
-	  ttselect,	nxmmap,		NULL };
-
 static cy_devsw_installed = 0;
 
-static void 	cy_drvinit(void *unused)
+static void 
+cy_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! cy_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&cy_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&cy_cdevsw, NULL);
 		cy_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"cy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(cydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cy_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif /* NCY > 0 */

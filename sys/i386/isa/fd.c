@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.71 1995/11/20 12:41:38 phk Exp $
+ *	$Id: fd.c,v 1.72 1995/11/28 09:41:00 julian Exp $
  *
  */
 
@@ -87,11 +87,7 @@
 #include <sys/devfsext.h>
 #endif
 
-#ifdef JREMOD
-#define CDEV_MAJOR 9
-#define BDEV_MAJOR 2
-static void 	fd_devsw_install();
-#endif /*JREMOD */
+
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
 static int fd_externalize(struct kern_devconf *, struct sysctl_req *);
@@ -250,6 +246,10 @@ struct fd_data {
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
 	int	dkunit;		/* disk stats unit number */
+#ifdef	DEVFS
+	void	*rfd_devfs_token;
+	void	*fd_devfs_token;
+#endif
 } fd_data[NFD];
 
 /***********************************************************************\
@@ -341,6 +341,24 @@ int	fd_debug = 0;
 struct	isa_driver fdcdriver = {
 	fdprobe, fdattach, "fdc",
 };
+
+static	d_open_t	Fdopen;	/* NOTE, not fdopen */
+static	d_close_t	fdclose;
+static	d_ioctl_t	fdioctl;
+static	d_strategy_t	fdstrategy;
+
+#define CDEV_MAJOR 9
+#define BDEV_MAJOR 2
+extern	struct cdevsw fd_cdevsw;
+struct bdevsw fd_bdevsw = 
+	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
+	  nxdump,	zerosize,	0,	"fd",	&fd_cdevsw,	-1 };
+
+struct cdevsw fd_cdevsw = 
+	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
+	  fdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		fdstrategy,	"fd",
+	  &fd_bdevsw,	-1 };
 
 struct isa_device *fdcdevs[NFDC];
 
@@ -518,9 +536,6 @@ fdprobe(struct isa_device *dev)
 #ifndef DEV_LKM
 	fdc_registerdev(dev);
 #endif
-#ifdef JREMOD
-        fd_devsw_install();
-#endif /*JREMOD*/
 
 	/* First - lets reset the floppy controller */
 	outb(dev->id_iobase+FDOUT, 0);
@@ -554,7 +569,6 @@ fdattach(struct isa_device *dev)
 	int ic_type = 0;
 #ifdef	DEVFS
 	char	name[64];
-	void *key;
 #endif	/* DEVFS */
 
 	fdc->fdcu = fdcu;
@@ -750,10 +764,12 @@ fdattach(struct isa_device *dev)
 		}
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
-		key = dev_add("/disks/rfloppy",name,(caddr_t)Fdopen,fdu * 8,
-			DV_CHR,0,0,0644);
-		key = dev_add("/disks/floppy",name,(caddr_t)Fdopen,fdu * 8,
-			DV_BLK,0,0,0644);
+		fd->rfd_devfs_token = devfs_add_devsw(
+				"/",name,&fd_cdevsw, fdu * 8,
+				DV_CHR,0,0,0644);
+		fd->fd_devfs_token = devfs_add_devsw(
+				"/",name, &fd_bdevsw, fdu * 8,
+				DV_BLK,0,0,0644);
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
@@ -1893,32 +1909,23 @@ fdioctl(dev, cmd, addr, flag, p)
 }
 
 
-#ifdef JREMOD
-struct bdevsw fd_bdevsw = 
-	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
-	  nxdump,	zerosize,	0 };
-
-struct cdevsw fd_cdevsw = 
-	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
-	  fdioctl,	nostop,		nullreset,	nodevtotty,/* Fd (!=fd) */
-	  seltrue,	nommap,		fdstrategy };
-
 static fd_devsw_installed = 0;
 
-static void 	fd_devsw_install()
+static void 	fd_drvinit(void *notused )
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! fd_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&fd_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&fd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&fd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&fd_bdevsw, NULL);
 		fd_devsw_installed = 1;
 	}
 }
-#endif /* JREMOD */
+
+SYSINIT(fddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,fd_drvinit,NULL)
+
 #endif
 /*
  * Hello emacs, these are the

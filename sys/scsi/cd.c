@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.46 1995/11/29 10:48:55 julian Exp $
+ *      $Id: cd.c,v 1.47 1995/11/29 14:40:51 julian Exp $
  */
 
 #define SPLCD splbio
@@ -31,24 +31,20 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/cdio.h>
-
 #include <sys/errno.h>
 #include <sys/disklabel.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsi_cd.h>
-#include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
-#include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 #include <sys/dkstat.h>
-
-#ifdef JREMOD
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 15
-#define BDEV_MAJOR 6
-#endif /*JREMOD */
+
+#include <scsi/scsi_all.h>
+#include <scsi/scsi_cd.h>
+#include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
+#include <scsi/scsiconf.h>
+
 
 /* static function prototypes */
 static errval cd_get_parms __P((int, int));
@@ -64,6 +60,26 @@ static errval cd_play __P((u_int32, u_int32, u_int32));
 static errval cd_play_tracks __P((u_int32, u_int32, u_int32, u_int32, u_int32));
 static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_sub_channel_info *, u_int32));
 static errval cd_getdisklabel __P((u_int8));
+
+static	d_open_t	cdopen;
+static	d_close_t	cdclose;
+static	d_ioctl_t	cdioctl;
+static	d_psize_t	cdsize;
+static	d_strategy_t	cdstrategy;
+
+#define CDEV_MAJOR 15
+#define BDEV_MAJOR 6
+extern	struct	cdevsw	cd_cdevsw;
+struct bdevsw cd_bdevsw = 
+	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
+	  nxdump,	cdsize,		0,	"cd",	&cd_cdevsw,	-1 };
+
+struct cdevsw cd_cdevsw = 
+	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
+	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
+	  seltrue,	nommap,		cdstrategy,	"cd",
+	  &cd_bdevsw,	-1 };
+
 
 int32   cdstrats, cdqueues;
 
@@ -94,6 +110,12 @@ struct scsi_data {
 	u_int32 xfer_block_wait;
 	struct buf_queue_head buf_queue;
 	int dkunit;
+#ifdef	DEVFS
+	void	*ra_devfs_token;
+	void	*rc_devfs_token;
+	void	*a_devfs_token;
+	void	*c_devfs_token;
+#endif
 };
 
 static int cdunit(dev_t dev) { return CDUNIT(dev); }
@@ -111,18 +133,18 @@ SCSI_DEVICE_ENTRIES(cd)
 
 static struct scsi_device cd_switch =
 {
-    NULL,			/* use default error handler */
-    cdstart,		/* we have a queue, which is started by this */
-    NULL,			/* we do not have an async handler */
-    NULL,			/* use default 'done' routine */
-    "cd",			/* we are to be refered to by this name */
-    0,				/* no device specific flags */
+	NULL,			/* use default error handler */
+	cdstart,		/* we have a queue, which is started by this */
+	NULL,			/* we do not have an async handler */
+	NULL,			/* use default 'done' routine */
+	"cd",			/* we are to be refered to by this name */
+	0,			/* no device specific flags */
 	{0, 0},
-	0,				/* Link flags */
+	0,			/* Link flags */
 	cdattach,
 	"CD-ROM",
 	cdopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_READONLY,
 	cdunit,
 	cdsetunit,
@@ -183,6 +205,7 @@ cdattach(struct scsi_link *sc_link)
 	u_int32 unit;
 	struct cd_parms *dp;
 	struct scsi_data *cd = sc_link->sd;
+	char	name[32];
 
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
@@ -212,6 +235,29 @@ cdattach(struct scsi_link *sc_link)
 
 	cd->flags |= CDINIT;
 	cd_registerdev(unit);
+#ifdef DEVFS
+#define CD_UID 0
+#define CD_GID 13
+	sprintf(name, "rcd%da",unit);
+	cd->ra_devfs_token = devfs_add_devsw(
+		"/", name, &cd_cdevsw, unit * 8,
+		DV_CHR,	CD_UID,  CD_GID, 0660);
+
+	sprintf(name, "rcd%dc",unit);
+	cd->rc_devfs_token = devfs_add_devsw(
+		"/", name, &cd_cdevsw, (unit * 8 ) + RAW_PART,
+		DV_CHR,	CD_UID,  CD_GID, 0600);
+
+	sprintf(name, "cd%da",unit);
+	cd->a_devfs_token = devfs_add_devsw(
+		"/", name, &cd_bdevsw, (unit * 8 ) + 0,
+		DV_BLK,	CD_UID,  CD_GID, 0660);
+
+	sprintf(name, "cd%dc",unit);
+	cd->c_devfs_token = devfs_add_devsw(
+		"/", name, &cd_bdevsw, (unit * 8 ) + RAW_PART,
+		DV_BLK,	CD_UID,  CD_GID, 0600);
+#endif
 
 	return 0;
 }
@@ -1306,47 +1352,21 @@ cdsize(dev_t dev)
 	return (-1);
 }
 
-#ifdef JREMOD
-struct bdevsw cd_bdevsw = 
-	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
-	  nxdump,	cdsize,		0 };
-#endif /*JREMOD*/
-
-#ifdef JREMOD
-struct cdevsw cd_cdevsw = 
-	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
-	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
-	  seltrue,	nommap,		cdstrategy };
-
 static cd_devsw_installed = 0;
 
 static void 	cd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! cd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&cd_cdevsw,NULL);
-		dev_chr = dev;
-#if defined(BDEV_MAJOR)
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&cd_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&cd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&cd_bdevsw, NULL);
 		cd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"cd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(cddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cd_drvinit,NULL)
 
-#endif /* JREMOD */
 

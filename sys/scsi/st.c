@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.47 1995/11/30 07:43:47 pst Exp $
+ * $Id: st.c,v 1.48 1995/12/06 23:44:23 bde Exp $
  */
 
 /*
@@ -39,21 +39,17 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mtio.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_tape.h>
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 14
-#define BDEV_MAJOR 5
-#endif /*JREMOD */
 
 
 /* Defines for device specific stuff */
@@ -229,6 +225,30 @@ struct scsi_data {
 	struct buf_queue_head buf_queue;
 	struct scsi_xfer scsi_xfer;	/* scsi xfer struct for this drive */
 	u_int32 xfer_block_wait;	/* is a process waiting? */
+#ifdef	DEVFS
+	struct {
+		void	*rst;
+		void	*nrst;
+		void	*enrst;
+	/* end of aliases */
+		void	*rst_0;
+		void	*nrst_0;
+		void	*enrst_0;
+		void	*ctl_0;
+		void	*rst_1;
+		void	*nrst_1;
+		void	*enrst_1;
+		void	*ctl_1;
+		void	*rst_2;
+		void	*nrst_2;
+		void	*enrst_2;
+		void	*ctl_2;
+		void	*rst_3;
+		void	*nrst_3;
+		void	*enrst_3;
+		void	*ctl_3;
+	} devfs_token;
+#endif
 };
 
 static int stunit(dev_t dev) { return STUNIT(dev); }
@@ -241,6 +261,22 @@ static errval st_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 static errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 static void st_strategy(struct buf *bp, struct scsi_link *sc_link);
+
+d_open_t	stopen;
+d_close_t	stclose;
+d_ioctl_t	stioctl;
+d_strategy_t	ststrategy;
+
+#define CDEV_MAJOR 14
+#define BDEV_MAJOR 5
+struct bdevsw st_bdevsw = 
+	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
+	  nxdump,	zerosize,	0 };
+
+struct cdevsw st_cdevsw = 
+	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
+	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
+	  seltrue,	nommap,		ststrategy };
 
 SCSI_DEVICE_ENTRIES(st)
 
@@ -325,10 +361,11 @@ st_registerdev(int unit)
  * a device suitable for this driver
  */
 
-errval
+static	errval
 stattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
+	char	name[32];
 
 	struct scsi_data *st = sc_link->sd;
 
@@ -371,7 +408,81 @@ stattach(struct scsi_link *sc_link)
 	 */
 	st->flags |= ST_INITIALIZED;
 	st_registerdev(unit);
-
+#ifdef	DEVFS
+#define ST_GID 13
+#define ST_UID 0
+	sprintf(name,"rst%d.0",unit);
+	st->devfs_token.rst_0 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 0,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"nrst%d.0",unit);
+	st->devfs_token.nrst_0 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 1,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"enrst%d.0",unit);
+	st->devfs_token.enrst_0 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 2,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"st%dctl.0",unit);
+	st->devfs_token.ctl_0 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 3,
+					DV_CHR,	ST_UID, ST_GID, 0600 );
+	sprintf(name,"rst%d.1",unit);
+	st->devfs_token.rst_1 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 4,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"nrst%d.1",unit);
+	st->devfs_token.nrst_1 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 5,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"enrst%d.1",unit);
+	st->devfs_token.enrst_1 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 6,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"st%dctl.1",unit);
+	st->devfs_token.ctl_1 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 7,
+					DV_CHR,	ST_UID, ST_GID, 0600 );
+	sprintf(name,"rst%d.2",unit);
+	st->devfs_token.rst_2 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 8,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"nrst%d.2",unit);
+	st->devfs_token.nrst_2 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 9,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"enrst%d.2",unit);
+	st->devfs_token.enrst_2 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 10,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"st%dctl.2",unit);
+	st->devfs_token.ctl_2 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 11,
+					DV_CHR,	ST_UID, ST_GID, 0600 );
+	sprintf(name,"rst%d.3",unit);
+	st->devfs_token.rst_3 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 12,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"nrst%d.3",unit);
+	st->devfs_token.nrst_3 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 13,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"enrst%d.3",unit);
+	st->devfs_token.enrst_3 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 14,
+					DV_CHR,	ST_UID, ST_GID, 0660 );
+	sprintf(name,"st%dctl.3",unit);
+	st->devfs_token.ctl_3 = devfs_add_devsw( "/tape", name,
+					&st_cdevsw, (unit << 4 ) + 15,
+					DV_CHR,	ST_UID, ST_GID, 0600 );
+	/** add links **/
+	sprintf(name,"rst%d",unit);
+	st->devfs_token.rst = dev_link( "/", name, st->devfs_token.rst_0);
+	sprintf(name,"nrst%d",unit);
+	st->devfs_token.nrst = dev_link( "/", name, st->devfs_token.nrst_0);
+	sprintf(name,"enrst%d",unit);
+	st->devfs_token.enrst = dev_link( "/", name, st->devfs_token.enrst_0);
+#endif
 	return 0;
 }
 
@@ -380,7 +491,7 @@ stattach(struct scsi_link *sc_link)
  * Use the inquiry routine in 'scsi_base' to get drive info so we can
  * Further tailor our behaviour.
  */
-void
+static	void
 st_identify_drive(unit)
 	u_int32 unit;
 {
@@ -458,7 +569,7 @@ st_identify_drive(unit)
  * this will remove any setting made by the system operator or previous
  * operations.
  */
-void
+static	void
 st_loadquirks(sc_link)
 	struct scsi_link *sc_link;
 {
@@ -513,7 +624,7 @@ st_loadquirks(sc_link)
 /*
  * open the device.
  */
-errval
+static	errval
 st_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -599,7 +710,7 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval
+static	errval
 st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
@@ -636,7 +747,7 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
  * Copy in all the default parameters from the selected device mode.
  * and try guess any that seem to be defaulted.
  */
-errval
+static	errval
 st_mount_tape(dev, flags)
 	dev_t   dev;
 	u_int32 flags;
@@ -766,7 +877,7 @@ st_unmount(int unit, boolean eject)
  * initial operation, make a decision as to how we should be set
  * to run (regarding blocking and EOD marks)
  */
-errval
+static	errval
 st_decide_mode(unit, first_read)
 	u_int32	unit;
 	boolean	first_read;
@@ -904,7 +1015,7 @@ done:
  * The transfer is described by a buf and will include
  * only one physical transfer.
  */
-void
+static	void
 st_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -1003,7 +1114,7 @@ done:
  * continues to be drained.
  * ststart() is called at splbio
  */
-void
+static	void
 ststart(unit, flags)
 	u_int32	unit;
 	u_int32 flags;
@@ -1133,7 +1244,7 @@ badnews:
  * Perform special action on behalf of the user;
  * knows about the internals of this device
  */
-errval
+static	errval
 st_ioctl(dev_t dev, int cmd, caddr_t arg, int	flag,
 struct proc *p, struct scsi_link *sc_link)
 {
@@ -1364,7 +1475,7 @@ st_read(unit, buf, size, flags)
 /*
  * Ask the drive what it's min and max blk sizes are.
  */
-errval
+static	errval
 st_rd_blk_lim(unit, flags)
 	u_int32 unit, flags;
 {
@@ -1506,7 +1617,7 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
  * Send a filled out parameter structure to the drive to
  * set it into the desire modes etc.
  */
-errval
+static	errval
 st_mode_select(unit, flags, page, pagelen)
 	u_int32 unit, flags;
 	struct tape_pages *page;
@@ -1573,7 +1684,8 @@ static int noisy_st = 0;
 * Set the compression mode of the drive to on (1) or off (0)	*
 	still doesn't work! grrr!
 \***************************************************************/
-errval	st_comp(unit,mode)
+static	errval
+st_comp(unit,mode)
 u_int32 unit,mode;
 {
 	struct tape_pages       page;
@@ -1621,7 +1733,7 @@ u_int32 unit,mode;
 /*
  * skip N blocks/filemarks/seq filemarks/eom
  */
-errval
+static	errval
 st_space(unit, number, what, flags)
 	u_int32 unit, what, flags;
 	int32   number;
@@ -1706,7 +1818,7 @@ st_space(unit, number, what, flags)
 /*
  * write N filemarks
  */
-errval
+static	errval
 st_write_filemarks(unit, number, flags)
 	u_int32 unit, flags;
 	int32   number;
@@ -1758,7 +1870,7 @@ st_write_filemarks(unit, number, flags)
  * nmarks returns the number of marks to skip (or, if position
  * true, which were skipped) to get back original position.
  */
-int32
+static	int32
 st_chkeod(unit, position, nmarks, flags)
 	u_int32 unit;
 	boolean position;
@@ -1788,7 +1900,7 @@ st_chkeod(unit, position, nmarks, flags)
 /*
  * load/unload (with retension if true)
  */
-errval
+static	errval
 st_load(unit, type, flags)
 	u_int32 unit, type, flags;
 {
@@ -1824,7 +1936,7 @@ st_load(unit, type, flags)
 /*
  *  Rewind the device
  */
-errval
+static	errval
 st_rewind(unit, immed, flags)
 	u_int32 unit, flags;
 	boolean immed;
@@ -1856,7 +1968,7 @@ st_rewind(unit, immed, flags)
 /*
 **  Erase the device
 */
-errval
+static	errval
 st_erase(unit, immed, flags)
 	u_int32 unit, flags;
 	boolean immed;
@@ -1900,7 +2012,7 @@ st_erase(unit, immed, flags)
  * The unix error number to pass back... (0 = report no error)
  *                            (SCSIRET_CONTINUE = continue processing)
  */
-errval
+static	errval
 st_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
@@ -2039,7 +2151,7 @@ st_interpret_sense(xs)
  * The rest of the code for this quirk is in ILI processing and BLANK CHECK
  * error processing, both part of st_interpret_sense.
  */
-errval
+static	errval
 st_touch_tape(unit)
 	u_int32	unit;
 {
@@ -2079,43 +2191,22 @@ bad:			free(buf, M_TEMP);
 	return 0;
 }
 
-#ifdef JREMOD
-struct bdevsw st_bdevsw = 
-	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  nxdump,	zerosize,	0 };
-
-struct cdevsw st_cdevsw = 
-	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
-	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
-	  seltrue,	nommap,		ststrategy };
-
 static st_devsw_installed = 0;
 
-static void 	st_drvinit(void *unused)
+static void 
+st_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! st_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&st_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&st_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&st_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&st_bdevsw, NULL);
 		st_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rst",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(stdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,st_drvinit,NULL)
 
-#endif /* JREMOD */
 

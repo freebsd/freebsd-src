@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.10 1995/11/29 10:47:04 julian Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.11 1995/11/29 14:39:07 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.10 1995/11/29 10:47:04 juli
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.11  1995/11/29  14:39:07  julian
+ * If you're going to mechanically replicate something in 50 files
+ * it's best to not have a (compiles cleanly) typo in it! (sigh)
+ *
  * Revision 1.10  1995/11/29  10:47:04  julian
  * OK, that's it..
  * That's EVERY SINGLE driver that has an entry in conf.c..
@@ -69,24 +73,20 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.10 1995/11/29 10:47:04 juli
 #include "nic.h"
 #if NNIC > 0
 
-#include "param.h"
-#include "ioctl.h"
-#include "kernel.h"
-#include "systm.h"
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
-
-#include "i386/isa/isa_device.h"
-#include "gnu/i386/isa/nic3008.h"
-#include "gnu/i386/isa/niccyreg.h"
-#include "gnu/isdn/isdn_ioctl.h"
-
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 54
-#endif /*JREMOD*/
+
+#include <i386/isa/isa_device.h>
+#include <gnu/i386/isa/nic3008.h>
+#include <gnu/i386/isa/niccyreg.h>
+#include <gnu/isdn/isdn_ioctl.h>
 
 
 #define OPEN		1
@@ -131,6 +131,16 @@ static short    bsintr;
 
 struct isa_driver nicdriver = {nicprobe, nicattach, "nic"};
 
+static	d_open_t	nicopen;
+static	d_close_t	nicclose;
+static	d_ioctl_t	nicioctl;
+
+#define CDEV_MAJOR 54
+struct cdevsw nic_cdevsw = 
+	{ nicopen,	nicclose,	noread,		nowrite,	/*54*/
+	  nicioctl,	nostop,		nullreset,	nodevtotty,/* nic */
+	  seltrue,	nommap,		NULL, "nic",	NULL,	-1 };
+
 typedef enum
 {
 	DISCON, ISDISCON, DIAL, CALLED, CONNECT, IDLE, ACTIVE
@@ -160,6 +170,9 @@ struct nic_softc
 	u_char          sc_ctrl;
 	short           sc_stat;
 	chan_t          sc_chan[2];
+#ifdef	DEVFS
+	void		*devfs_token;
+#endif
 }               nic_sc[NNIC];
 
 static void	badstate __P((mbx_type *mbx, int n, int mb, dpr_type *dpr));
@@ -226,6 +239,7 @@ nicattach(struct isa_device * is)
 	dpr_type       *dpr;
 	int             cn;
 	isdn_ctrl_t    *ctrl0, *ctrl1;
+	char		name[32];
 
 	sc = &nic_sc[is->id_unit];
 	dpr = sc->sc_dpr;
@@ -257,6 +271,11 @@ nicattach(struct isa_device * is)
 	dpr->card_number = is->id_unit;
 	dpr->int_flg_pc = 0xff;
 	reset_req(sc, MBX_MU, 4);
+#ifdef	DEVFS
+	sprintf(name,"nic%d",is->id_unit);
+	sc->devfs_token = devfs_add_devsw( "/isdn", name,
+		&nic_cdevsw,is->id_unit, DV_CHR, 0, 0, 0600 );
+#endif
 	return (1);
 }
 
@@ -605,7 +624,7 @@ reset_card(struct nic_softc * sc)
  *
  * We forbid all but first open
  */
-int
+static	int
 nicopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nic_softc *sc;
@@ -636,7 +655,7 @@ nicopen(dev_t dev, int flags, int fmt, struct proc *p)
 /*
  * nicclose() Close device
  */
-int
+static	int
 nicclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nic_softc *sc = &nic_sc[minor(dev)];
@@ -645,7 +664,7 @@ nicclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
-int
+static	int
 nicioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int             error;
@@ -1225,12 +1244,6 @@ nicintr(int unit)
 }
 
 
-#ifdef JREMOD
-struct cdevsw nic_cdevsw = 
-	{ nicopen,	nicclose,	noread,		nowrite,	/*54*/
-	  nicioctl,	nostop,		nullreset,	nodevtotty,/* nic */
-	  seltrue,	nommap,		NULL };
-
 static nic_devsw_installed = 0;
 
 static void 	nic_drvinit(void *unused)
@@ -1238,23 +1251,12 @@ static void 	nic_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! nic_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&nic_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR ,0);
+		cdevsw_add(&dev,&nic_cdevsw, NULL);
 		nic_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"nic",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(nicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,nic_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif				/* NNIC > 0 */

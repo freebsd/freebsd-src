@@ -29,17 +29,33 @@
 #include <sys/devconf.h>
 #include <sys/disklabel.h>
 #include <sys/cdio.h>
-#include <i386/include/cpufunc.h>
-#include <i386/isa/atapi.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <i386/include/cpufunc.h>
+#include <i386/isa/atapi.h>
+
+static	d_open_t	wcdropen;
+static	d_open_t	wcdbopen;
+static	d_close_t	wcdrclose;
+static	d_close_t	wcdbclose;
+static	d_ioctl_t	wcdioctl;
+static	d_strategy_t	wcdstrategy;
+
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
-#endif /*JREMOD */
+extern	struct cdevsw wcd_cdevsw;
+struct bdevsw wcd_bdevsw = 
+	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
+	  nxdump,	zerosize,	0,	"wcd",	&wcd_cdevsw,	-1 };
+
+struct cdevsw wcd_cdevsw = 
+	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
+	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
+	  seltrue,	nommap,		wcdstrategy,	"wcd",
+	  &wcd_bdevsw,	-1 };
+
 
 extern int  wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
 
@@ -205,6 +221,12 @@ struct wcd {
 	struct subchan subchan;         /* Subchannel info */
 	struct kern_devconf cf;         /* Driver configuration info */
 	char description[80];           /* Device description */
+#ifdef	DEVFS
+	void	*ra_devfs_token;
+	void	*rc_devfs_token;
+	void	*a_devfs_token;
+	void	*c_devfs_token;
+#endif
 };
 
 struct wcd *wcdtab[NUNIT];      /* Drive info by unit number */
@@ -262,6 +284,8 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 {
 	struct wcd *t;
 	struct atapires result;
+	int lun;
+	char	name[32];
 
 	if (wcdnlun >= NUNIT) {
 		printf ("wcd: too many units\n");
@@ -281,7 +305,7 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	bzero (t, sizeof (struct wcd));
 	t->ata = ata;
 	t->unit = unit;
-	t->lun = wcdnlun++;
+	lun = t->lun = wcdnlun++;
 	t->param = ap;
 	t->flags = F_MEDIA_CHANGED;
 	t->refcnt = 0;
@@ -325,6 +349,29 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 		ap->model, sizeof(ap->model));
 	dev_attach (&t->cf);
 
+#ifdef DEVFS
+#define WDC_UID 0
+#define WDC_GID 13
+	sprintf(name, "rwcd%da",lun);
+	t->ra_devfs_token = devfs_add_devsw(
+		"/", name, &wcd_cdevsw, (lun * 8),
+		DV_CHR,	WDC_UID,  WDC_GID, 0600);
+
+	sprintf(name, "rwcd%dc",lun);
+	t->rc_devfs_token = devfs_add_devsw(
+		"/", name, &wcd_cdevsw, (lun * 8) + RAW_PART,
+		DV_CHR,	WDC_UID,  WDC_GID, 0600);
+
+	sprintf(name, "wcd%da",lun);
+	t->a_devfs_token = devfs_add_devsw(
+		"/", name, &wcd_bdevsw, (lun * 8),
+		DV_BLK,	WDC_UID,  WDC_GID, 0600);
+
+	sprintf(name, "wcd%dc",lun);
+	t->c_devfs_token = devfs_add_devsw(
+		"/", name, &wcd_bdevsw, (lun * 8) + RAW_PART,
+		DV_BLK,	WDC_UID,  WDC_GID, 0600);
+#endif
 	return (1);
 }
 
@@ -1074,21 +1121,13 @@ static int wcd_eject (struct wcd *t)
 #include <sys/lkm.h>
 
 /*
- * Device table entries.
- * These get copied at modload time into the kernels
- * lkm dummy device driver entries (see sys/i386/i386/conf.c).
- */
-struct bdevsw dev_wcd  = { wcdbopen, wcdbclose, wcdstrategy, wcdioctl,
-			   nodump, nopsize, 0 };
-struct cdevsw dev_rwcd = { wcdropen, wcdrclose, rawread, nowrite, wcdioctl,
-			   nostop, nullreset, nodevtotty, seltrue, nommap,
-			   wcdstrategy };
-/*
  * Construct lkm_dev structures (see lkm.h).
  * Our bdevsw/cdevsw slot numbers are 19/69.
  */
-MOD_DEV(wcd, LM_DT_BLOCK, 19, &dev_wcd);
-MOD_DEV(rwcd, LM_DT_CHAR, 69, &dev_rwcd);
+
+
+MOD_DEV(wcd, LM_DT_BLOCK, BDEV_MAJOR, &wcd_bdevsw);
+MOD_DEV(rwcd, LM_DT_CHAR, CDEV_MAJOR, &wcd_cdevsw);
 
 /*
  * Function called when loading the driver.
@@ -1169,47 +1208,22 @@ int wcd_mod (struct lkm_table *lkmtp, int cmd, int ver)
 }
 #endif /* WCD_MODULE */
 
-#ifdef JREMOD
-struct bdevsw wcd_bdevsw = 
-	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
-	  nxdump,	zerosize,	0 };
-
-struct cdevsw wcd_cdevsw = 
-	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
-	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
-	  seltrue,	nommap,		wcdstrategy };
-
 static wcd_devsw_installed = 0;
 
 static void 	wcd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! wcd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&wcd_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&wcd_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&wcd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&wcd_bdevsw, NULL);
 		wcd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rwcd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"wcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(wcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wcd_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NWCD && NWDC && ATAPI */

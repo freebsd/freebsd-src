@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.7 1995/11/29 10:48:59 julian Exp $
+ *      $Id: pt.c,v 1.8 1995/11/29 14:40:59 julian Exp $
  */
 
 /*
@@ -50,17 +50,14 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsiconf.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 61
-#endif /*JREMOD*/
+#include <scsi/scsi_all.h>
+#include <scsi/scsiconf.h>
+
 
 struct scsi_data {
 	struct buf_queue_head buf_queue;
@@ -70,7 +67,19 @@ void ptstart(u_int32 unit, u_int32 flags);
 void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
 int	pt_sense(struct scsi_xfer *scsi_xfer);
 
+static	d_open_t	ptopen;
+static	d_close_t	ptclose;
+static	d_ioctl_t	ptioctl;
+static	d_strategy_t	ptstrategy;
+
+#define CDEV_MAJOR 61
+struct cdevsw pt_cdevsw = 
+	{ ptopen,	ptclose,	rawread,	rawwrite,	/*61*/
+	  ptioctl,	nostop,		nullreset,	nodevtotty,/* pt */
+	  seltrue,	nommap,		ptstrategy,	"pt",	NULL,	-1 };
+
 SCSI_DEVICE_ENTRIES(pt)
+
 
 struct scsi_device pt_switch =
 {
@@ -259,12 +268,6 @@ int pt_sense(struct scsi_xfer *xs)
 	}
 }
 
-#ifdef JREMOD
-struct cdevsw pt_cdevsw = 
-	{ ptopen,	ptclose,	rawread,	rawwrite,	/*61*/
-	  ptioctl,	nostop,		nullreset,	nodevtotty,/* pt */
-	  seltrue,	nommap,		ptstrategy };
-
 static pt_devsw_installed = 0;
 
 static void 	pt_drvinit(void *unused)
@@ -272,16 +275,16 @@ static void 	pt_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! pt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&pt_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&pt_cdevsw, NULL);
 		pt_devsw_installed = 1;
 #ifdef DEVFS
 		{
-			int x;
+			void *x;
 /* default for a simple device with no probe routine (usually delete this) */
 			x=devfs_add_devsw(
 /*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"pt",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+	"/",	"pt",	&pt_cdevsw,	0,	DV_CHR,	0,  0, 0600);
 		}
 #endif
     	}
@@ -289,5 +292,4 @@ static void 	pt_drvinit(void *unused)
 
 SYSINIT(ptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pt_drvinit,NULL)
 
-#endif /* JREMOD */
 

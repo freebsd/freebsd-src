@@ -45,6 +45,11 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/gsc.h>
 
@@ -57,14 +62,6 @@
  * CONSTANTS & DEFINES
  *
  ***********************************************************************/
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 47
-#endif /*JREMOD*/
 
 #define PROBE_FAIL    0
 #define PROBE_SUCCESS 1
@@ -159,6 +156,12 @@ struct gsc_unit {
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
   struct  _sbuf hbuf;     /* buffer for pnm header data */
+#ifdef DEVFS
+  void *devfs_gsc;	  /* storage for devfs tokens (handles) */
+  void *devfs_gscp;
+  void *devfs_gscd;
+  void *devfs_gscpd;
+#endif
 } unittab[NGSC];
 
 /* I could not find a reasonable buffer size limit other than by
@@ -175,10 +178,22 @@ struct gsc_unit {
  *
  ***********************************************************************/
 
-int gscprobe (struct isa_device *isdp);
-int gscattach(struct isa_device *isdp);
+static	int gscprobe (struct isa_device *isdp);
+static	int gscattach(struct isa_device *isdp);
 
 struct isa_driver gscdriver = { gscprobe, gscattach, "gsc" };
+
+static	d_open_t	gscopen;
+static	d_close_t	gscclose;
+static	d_read_t	gscread;
+static	d_ioctl_t	gscioctl;
+
+#define CDEV_MAJOR 47
+struct cdevsw gsc_cdevsw = 
+	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
+	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
+	  seltrue,      nommap,         NULL,	"gsc",	NULL,	-1 };
+
 
 /***********************************************************************
  *
@@ -379,7 +394,7 @@ buffer_read(struct gsc_unit *scu)
  *  - if DMA channel matches   (status byte has correct value)
  */
 
-int
+static int
 gscprobe (struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
@@ -476,11 +491,12 @@ gscprobe (struct isa_device *isdp)
  * get geometry value
  */
 
-int
+static int
 gscattach(struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
   struct gsc_unit *scu = unittab + unit;
+  char	name[32];
 
   scu->flags |= DEBUG;
 
@@ -507,6 +523,26 @@ gscattach(struct isa_device *isdp)
   scu->flags |= ATTACHED;
   lprintf("gsc%d.attach: ok\n", unit);
   scu->flags &= ~DEBUG;
+#ifdef DEVFS
+#define GSC_UID 0
+#define GSC_GID 13
+    sprintf(name,"gsc%d",unit);
+/*            path      name  devsw    minor    type   uid gid perm*/
+   scu->devfs_gsc = devfs_add_devsw("/",   name,  &gsc_cdevsw, unit<<6,
+					DV_CHR, GSC_UID,  GSC_GID, 0666);
+    sprintf(name,"gsc%dp",unit);
+   scu->devfs_gscp = devfs_add_devsw("/",   name,  &gsc_cdevsw,
+					((unit<<6) + FRMT_PBM),
+					DV_CHR, GSC_UID,  GSC_GID, 0666);
+    sprintf(name,"gsc%dd",unit);
+   scu->devfs_gscd = devfs_add_devsw("/",   name,  &gsc_cdevsw,
+					((unit<<6) + DBUG_MASK),
+					DV_CHR, GSC_UID,  GSC_GID, 0666);
+    sprintf(name,"gsc%dpd",unit);
+   scu->devfs_gscpd = devfs_add_devsw("/",   name,  &gsc_cdevsw,
+					((unit<<6) + DBUG_MASK + FRMT_PBM),
+					DV_CHR, GSC_UID,  GSC_GID, 0666);
+#endif /*DEVFS*/
 
   return SUCCESS; /* attach must not fail */
 }
@@ -520,7 +556,8 @@ gscattach(struct isa_device *isdp)
  * don't switch scanner on, wait until first read ioctls go before
  */
 
-int gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
+static	int
+gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev)) & UNIT_MASK;
   struct gsc_unit *scu = unittab + unit;
@@ -573,7 +610,8 @@ int gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
  * release the buffer
  */
 
-int gscclose (dev_t dev, int flags, int fmt, struct proc *p)
+static	int
+gscclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
@@ -606,7 +644,8 @@ int gscclose (dev_t dev, int flags, int fmt, struct proc *p)
  * gscread
  */
 
-int gscread  (dev_t dev, struct uio *uio, int ioflag)
+static	int
+gscread  (dev_t dev, struct uio *uio, int ioflag)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
@@ -695,7 +734,8 @@ int gscread  (dev_t dev, struct uio *uio, int ioflag)
  *
  */
 
-int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+static	int
+gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
@@ -782,36 +822,21 @@ int gscioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 }
 
 
-#ifdef JREMOD
-struct cdevsw gsc_cdevsw = 
-	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
-	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
-	  seltrue,      nommap,         NULL };
-
 static gsc_devsw_installed = 0;
 
-static void 	gsc_drvinit(void *unused)
+static void
+gsc_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! gsc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&gsc_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&gsc_cdevsw, NULL);
 		gsc_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"gsc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(gscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gsc_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NGSC > 0 */

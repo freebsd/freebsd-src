@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.14 1995/11/29 14:39:12 julian Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.15 1995/12/05 20:33:47 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.14 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.15 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,19 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.14 1995/11/29 14:39:12 julian 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.15  1995/12/05  20:33:47  bde
+ * Fixed ity's d_stop entry.  itystop() wasn't used.  itystop() is inadequate
+ * but probably harmless.  It's hard to tell because apparently no one runs
+ * ity.
+ *
+ * Fixed ity's d_reset entry.  `nx' entries should never be used for existing
+ * devices.
+ *
+ * conf.c:
+ * Moved a prototype to a better place.
+ *
+ * Removed a stale #define.
+ *
  * Revision 1.14  1995/11/29  14:39:12  julian
  * If you're going to mechanically replicate something in 50 files
  * it's best to not have a (compiles cleanly) typo in it! (sigh)
@@ -172,15 +185,26 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.14 1995/11/29 14:39:12 julian 
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/types.h>
-
-#include "gnu/isdn/isdn_ioctl.h"
-
-#ifdef JREMOD
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+
+#include "gnu/isdn/isdn_ioctl.h"
+
+static	d_open_t	ityopen;
+static	d_close_t	ityclose;
+static	d_read_t	ityread;
+static	d_write_t	itywrite;
+static	d_ioctl_t	ityioctl;
+static	d_stop_t	itystop;
+static	d_ttycv_t	itydevtotty;
+
 #define CDEV_MAJOR 56
-#endif /*JREMOD*/
+struct cdevsw ity_cdevsw = 
+	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
+	  ityioctl,	itystop,	noreset,	itydevtotty,/* ity */
+	  ttselect,	nommap,		NULL,	"ity",	NULL,	-1 };
+
 
 extern int	ityparam __P((struct tty *tp, struct termios *t));
 extern void	itystart __P((struct tty *tp));
@@ -191,6 +215,10 @@ short           ity_addr[NITY];
 struct tty     ity_tty[NITY];
 static int	applnr[NITY];
 static int	next_if= 0;
+#ifdef	DEVFS
+void		*devfs_token[NITY];
+void		*devfs_token_out[NITY];
+#endif
 
 #define	UNIT(x)		(minor(x)&0x3f)
 #define	OUTBOUND(x)	((minor(x)&0x80)==0x80)
@@ -198,15 +226,24 @@ static int	next_if= 0;
 int
 ityattach(int ap)
 {
+	char	name[32];
 	if(next_if >= NITY)
 		return(-1);
 
 	applnr[next_if]= ap;
+#ifdef	DEVFS
+	sprintf(name,"ity%d",next_if);
+	devfs_token[next_if] = devfs_add_devsw("/isdn",name,
+		&ity_cdevsw,next_if, DV_CHR, 0, 0, 0600);
+	sprintf(name,"Oity%d",next_if); /* XXX find out real name */
+	devfs_token[next_if] = devfs_add_devsw("/isdn",name,
+		&ity_cdevsw,(next_if | 0x80), DV_CHR, 0, 0, 0600);
+#endif
 	return(next_if++);
 }
 
 /* ARGSUSED */
-int
+static	int
 ityopen(dev_t dev, int flag, int mode, struct proc * p)
 {
 	register struct tty *tp;
@@ -261,7 +298,7 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 }
 
 /* ARGSUSED */
-int
+static	int
 ityclose(dev, flag, mode, p)
 	dev_t           dev;
 	int             flag, mode;
@@ -280,7 +317,7 @@ ityclose(dev, flag, mode, p)
 	return (0);
 }
 
-int
+static	int
 ityread(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
@@ -291,7 +328,7 @@ ityread(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_read) (tp, uio, flag));
 }
 
-int
+static	int
 itywrite(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
@@ -386,7 +423,7 @@ ity_disconnect(int no)
 	if(tp) (*linesw[tp->t_line].l_modem) (tp, 0);
 }
 
-int
+static	int
 ityioctl(dev, cmd, data, flag,p)
 	dev_t           dev;
         int             cmd;
@@ -444,7 +481,7 @@ ityparam(tp, t)
  * Stop output on a line.
  */
 /* ARGSUSED */
-void
+static	void
 itystop(struct tty *tp, int flag)
 {
 	register int    s;
@@ -458,7 +495,7 @@ itystop(struct tty *tp, int flag)
 	splx(s);
 }
 
-struct tty *
+static	struct tty *
 itydevtotty(dev_t dev)
 {
 	register int unit = UNIT(dev);
@@ -468,36 +505,20 @@ itydevtotty(dev_t dev)
 	return (&ity_tty[unit]);
 }
 
-#ifdef JREMOD
-struct cdevsw ity_cdevsw = 
-	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	itystop,	noreset,	itydevtotty,/* ity */
-	  ttselect,	nommap,		NULL };
-
 static ity_devsw_installed = 0;
 
-static void 	ity_drvinit(void *unused)
+static void
+ity_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! ity_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ity_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&ity_cdevsw, NULL);
 		ity_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"ity",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(itydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ity_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif

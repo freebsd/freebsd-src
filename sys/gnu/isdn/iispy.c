@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.6 1995/11/29 14:39:10 julian Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.7 1995/12/06 23:43:37 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,13 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.6 1995/11/29 14:39:10 julian E
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.7  1995/12/06  23:43:37  bde
+ * Removed unnecessary #includes of <sys/user.h>.  Some of these were just
+ * to get the definitions of TRUE and FALSE which happen to be defined in
+ * a deeply nested include.
+ *
+ * Added nearby #includes of <sys/conf.h> where appropriate.
+ *
  * Revision 1.6  1995/11/29  14:39:10  julian
  * If you're going to mechanically replicate something in 50 files
  * it's best to not have a (compiles cleanly) typo in it! (sigh)
@@ -47,26 +54,22 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.6 1995/11/29 14:39:10 julian E
 #include "ispy.h"
 #if NISPY > 0
 
-#include "param.h"
-#include "buf.h"
-#include "systm.h"
-#include "conf.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "proc.h"
-#include "uio.h"
+#include <sys/param.h>
+#include <sys/buf.h>
+#include <sys/systm.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/proc.h>
+#include <sys/uio.h>
 #include <sys/kernel.h>
-/*#include "malloc.h"*/
-
-#include "gnu/isdn/isdn_ioctl.h"
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 59
-#endif /*JREMOD*/
+/*#include "malloc.h"*/
+
+#include <gnu/isdn/isdn_ioctl.h>
+
 
 int     nispy = NISPY;
 int	ispy_applnr;
@@ -92,17 +95,39 @@ struct ispy_data
 		int ilen;
 	} b[ISPYBUF];
 	int state;
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 } ispy_data[NISPY];
+
+static	d_open_t	ispyopen;
+static	d_close_t	ispyclose;
+static	d_read_t	ispyread;
+static	d_ioctl_t	ispyioctl;
+
+#define CDEV_MAJOR 59
+struct cdevsw ispy_cdevsw = 
+	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
+	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
+	  seltrue,	nommap,         NULL,	"ispy",	NULL,	-1 };
+
 
 int
 ispyattach(int ap)
 {
+	char	name[32];
 	struct ispy_data *ispy;
+
 	if(next_if >= NISPY)
 		return(-1);
 	ispy= &ispy_data[next_if];
 	ispy->state= 0;
 	ispy_applnr= ap;
+#ifdef DEVFS
+	sprintf(name,"ispy%d",next_if);
+	ispy->devfs_token  =devfs_add_devsw("/isdn",name,&ispy_cdevsw,next_if,
+						DV_CHR,	0,  0, 0600);
+#endif
 	return(next_if++);
 }
 
@@ -130,7 +155,7 @@ ispy_input(int no, int len, char *buf, int out)
 	return(len);
 }
 
-int
+static	int
 ispyopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int             err;
@@ -147,7 +172,7 @@ ispyopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
-int
+static	int
 ispyclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ispy_data *ispy= &ispy_data[minor(dev)];
@@ -158,7 +183,7 @@ ispyclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
-int
+static	int
 ispyioctl (dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
         int     unit = minor(dev);
@@ -170,7 +195,7 @@ ispyioctl (dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
         return (0);
 }
 
-int
+static	int
 ispyread(dev_t dev, struct uio * uio, int ioflag)
 {
 	int             x;
@@ -202,36 +227,20 @@ ispyread(dev_t dev, struct uio * uio, int ioflag)
 	return error;
 }
 
-#ifdef JREMOD
-struct cdevsw ispy_cdevsw = 
-	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
-	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
-	  seltrue,	nommap,         NULL };
-
 static ispy_devsw_installed = 0;
 
-static void 	ispy_drvinit(void *unused)
+static void 
+ispy_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! ispy_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ispy_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&ispy_cdevsw, NULL);
 		ispy_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"ispy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(ispydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ispy_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif

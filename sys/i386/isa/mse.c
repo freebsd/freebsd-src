@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.18 1995/11/29 14:39:47 julian Exp $
+ * $Id: mse.c,v 1.19 1995/12/06 23:42:53 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -55,20 +55,16 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 27
-#endif /*JREMOD*/
 
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);
@@ -76,6 +72,18 @@ static int mseattach(struct isa_device *);
 struct	isa_driver msedriver = {
 	mseprobe, mseattach, "mse"
 };
+
+static	d_open_t	mseopen;
+static	d_close_t	mseclose;
+static	d_read_t	mseread;
+static	d_select_t	mseselect;
+
+#define CDEV_MAJOR 27
+struct cdevsw mse_cdevsw = 
+	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
+	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
+	  mseselect,	nommap,		NULL,	"mse",	NULL,	-1 };
+
 
 /*
  * Software control structure for mouse. The sc_enablemouse(),
@@ -96,6 +104,10 @@ struct mse_softc {
 	int	sc_buttons;
 	int	sc_bytesread;
 	u_char	sc_bytes[PROTOBYTES];
+#ifdef DEVFS
+	void 	*devfs_token;
+	void	*n_devfs_token;
+#endif
 } mse_sc[NMSE];
 
 /* Flags */
@@ -238,17 +250,31 @@ int
 mseattach(idp)
 	struct isa_device *idp;
 {
-	struct mse_softc *sc = &mse_sc[idp->id_unit];
+	char name[32];
+	int unit = idp->id_unit;
+	struct mse_softc *sc = &mse_sc[unit];
 
 	sc->sc_port = idp->id_iobase;
-	kdc_mse[idp->id_unit].kdc_state = DC_IDLE;
+	kdc_mse[unit].kdc_state = DC_IDLE;
+#ifdef	DEVFS
+	sprintf(name,"mse%d", unit);
+                                /*        path  name   devsw    minor */
+	sc->devfs_token = devfs_add_devsw( "/",	name, &mse_cdevsw, unit << 1,
+                                              /*type   uid gid perm*/
+						DV_CHR,	0, 0, 0600);
+	sprintf(name,"nmse%d", unit);
+                                /*        path  name   devsw    minor */
+	sc->n_devfs_token = devfs_add_devsw("/", name, &mse_cdevsw, (unit<<1)+1,
+                                              /*type   uid gid perm*/
+						DV_CHR,	0, 0, 0600);
+#endif
 	return (1);
 }
 
 /*
  * Exclusive open the mouse, initialize it and enable interrupts.
  */
-int
+static	int
 mseopen(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -281,7 +307,7 @@ mseopen(dev, flags, fmt, p)
 /*
  * mseclose: just turn off mouse innterrupts.
  */
-int
+static	int
 mseclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -304,7 +330,7 @@ mseclose(dev, flags, fmt, p)
  * using bytes 4 and 5.
  * (Yes this is cheesy, but it makes the X386 server happy, so...)
  */
-int
+static	int
 mseread(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
@@ -366,7 +392,7 @@ mseread(dev, uio, ioflag)
 /*
  * mseselect: check for mouse input to be processed.
  */
-int
+static	int
 mseselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -575,12 +601,6 @@ mse_getati(port, dx, dy, but)
 	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
 }
 
-#ifdef JREMOD
-struct cdevsw mse_cdevsw = 
-	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
-	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
-	  mseselect,	nommap,		NULL };
-
 static mse_devsw_installed = 0;
 
 static void 	mse_drvinit(void *unused)
@@ -588,23 +608,13 @@ static void 	mse_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! mse_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&mse_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&mse_cdevsw, NULL);
 		mse_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"mse",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(msedev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mse_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NMSE */

@@ -47,6 +47,9 @@
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -57,14 +60,6 @@
 #include <i386/isa/ic/cd180.h>
 #include <i386/isa/rcreg.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 63
-#endif /*JREMOD*/
 
 /* Prototypes */
 int     rcprobe         __P((struct isa_device *));
@@ -105,6 +100,20 @@ struct isa_driver rcdriver = {
 	rcprobe, rcattach, "rc"
 };
 
+static	d_open_t	rcopen;
+static	d_close_t	rcclose;
+static	d_read_t	rcread;
+static	d_write_t	rcwrite;
+static	d_ioctl_t	rcioctl;
+static	d_stop_t	rcstop;
+static	d_ttycv_t	rcdevtotty;
+
+#define CDEV_MAJOR 63
+struct cdevsw rc_cdevsw = 
+	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
+	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
+	  ttselect,	nommap,		NULL,	"rc",	NULL,	-1 };
+
 /* Per-board structure */
 static struct rc_softc {
 	u_int           rcb_probed;     /* 1 - probed, 2 - attached */
@@ -134,6 +143,9 @@ static struct rc_chans  {
 	u_char          *rc_obufend;            /* end of output buf    */
 	u_char           rc_ibuf[4 * RC_IBUFSIZE];  /* input buffer         */
 	u_char           rc_obuf[RC_OBUFSIZE];  /* output buffer        */
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 } rc_chans[NRC * CD180_NCHAN];
 
 static int rc_scheduled_event = 0;
@@ -249,6 +261,7 @@ int rcattach(dvp)
 	struct rc_chans         *rc  = &rc_chans[dvp->id_unit * CD180_NCHAN];
 	static int              rc_wakeup_started = 0;
 	struct tty              *tp;
+	char	name[32];
 
 	/* Thorooughly test the device */
 	if (rcb->rcb_probed != RC_PROBED)
@@ -279,6 +292,13 @@ int rcattach(dvp)
 		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+#ifdef DEVFS
+/* FIX THIS to reflect real devices */
+		sprintf(name,"rc%d.%d",dvp->id_unit,chan);
+		rc->devfs_token = devfs_add_devsw( "/", name,
+				&rc_cdevsw,(dvp->id_unit * CD180_NCHAN) + chan ,
+				DV_CHR, 0, 0, 0600);
+#endif
 	}
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_wakeup_started) {
@@ -693,7 +713,8 @@ done1:
 		goto repeat;
 }
 
-void rcstop(tp, rw)
+static	void
+rcstop(tp, rw)
 	register struct tty     *tp;
 	int                     rw;
 {
@@ -726,7 +747,8 @@ void rcstop(tp, rw)
 	enable_intr();
 }
 
-int rcopen(dev, flag, mode, p)
+static	int
+rcopen(dev, flag, mode, p)
 	dev_t           dev;
 	int             flag, mode;
 	struct proc    *p;
@@ -817,7 +839,8 @@ out:
 	return error;
 }
 
-int rcclose(dev, flag, mode, p)
+static	int
+rcclose(dev, flag, mode, p)
 	dev_t           dev;
 	int             flag, mode;
 	struct proc    *p;
@@ -874,7 +897,8 @@ register struct rc_chans *rc;
 }
 
 /* Read from line */
-int rcread(dev, uio, flag)
+static	int
+rcread(dev, uio, flag)
 	dev_t           dev;
 	struct uio      *uio;
 	int             flag;
@@ -885,7 +909,8 @@ int rcread(dev, uio, flag)
 }
 
 /* Write to line */
-int rcwrite(dev, uio, flag)
+static	int
+rcwrite(dev, uio, flag)
 	dev_t           dev;
 	struct uio      *uio;
 	int             flag;
@@ -1091,7 +1116,8 @@ struct rc_softc         *rcb;
 		(void) rc_param(rc->rc_tp, &rc->rc_tp->t_termios);
 }
 
-int rcioctl(dev, cmd, data, flag, p)
+static	int
+rcioctl(dev, cmd, data, flag, p)
 dev_t           dev;
 int             cmd, flag;
 caddr_t         data;
@@ -1409,7 +1435,7 @@ char             *comment;
 }
 #endif /* RCDEBUG */
 
-struct tty *
+static	struct tty *
 rcdevtotty(dev)
 	dev_t	dev;
 {
@@ -1501,12 +1527,6 @@ rc_wait0(nec, unit, chan, line)
 		      unit, chan, line);
 }
 
-#ifdef JREMOD
-struct cdevsw rc_cdevsw = 
-	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
-	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
-	  ttselect,	nommap,		NULL };
-
 static rc_devsw_installed = 0;
 
 static void 	rc_drvinit(void *unused)
@@ -1514,23 +1534,13 @@ static void 	rc_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! rc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&rc_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&rc_cdevsw, NULL);
 		rc_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(rcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,rc_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NRC */

@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.18 1995/11/29 14:39:17 julian Exp $
+ *	$Id: apm.c,v 1.19 1995/12/07 12:45:21 davidg Exp $
  */
 
 #include "apm.h"
@@ -22,14 +22,12 @@
 
 #ifdef __FreeBSD__
 #include <sys/param.h>
-#include "conf.h"
-#ifdef JREMOD
+#include <conf.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#endif /*JREMOD*/
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -84,6 +82,7 @@ struct apm_softc {
 	int	idle_cpu, disabled, disengaged;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
+	void 	*sc_devfs_token;
 };
 
 static struct apm_softc apm_softc[NAPM];
@@ -108,9 +107,16 @@ extern void fix_desc(struct fake_descriptor *, int);
 
 #ifdef __FreeBSD__
 static timeout_t apm_timeout;
-#ifdef JREMOD
+static d_open_t apmopen;
+static d_close_t apmclose;
+static d_ioctl_t apmioctl;
+
 #define CDEV_MAJOR 39
-#endif /* JREMOD */
+static struct cdevsw apm_cdevsw = 
+	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
+	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
+	  seltrue,	nommap,		NULL ,	"apm"	,NULL,	-1};
+
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
 static void apm_timeout(void *);
@@ -644,8 +650,8 @@ apm_not_halt_cpu(struct apm_softc *sc)
 
 /* device driver definitions */
 #ifdef __FreeBSD__
-int apmprobe (struct isa_device *);
-int apmattach(struct isa_device *);
+static int apmprobe (struct isa_device *);
+static int apmattach(struct isa_device *);
 struct isa_driver apmdriver = {
 	apmprobe, apmattach, "apm" };
 #endif /* __FreeBSD__ */
@@ -669,12 +675,13 @@ struct bus_driver apmdriver = {
  * to use V86 mode in APM initialization.
  */
 
-int
 #ifdef __FreeBSD__
-	apmprobe(struct isa_device *dvp)
+static int
+apmprobe(struct isa_device *dvp)
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
-	apmprobe(vm_offset_t port, struct bus_ctlr *devc)
+int
+apmprobe(vm_offset_t port, struct bus_ctlr *devc)
 #endif /* MACH_KERNEL */
 {
 #ifdef __FreeBSD__
@@ -785,7 +792,7 @@ apm_processevent(struct apm_softc *sc)
  */
 
 #ifdef __FreeBSD__
-int
+static int
 apmattach(struct isa_device *dvp)
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
@@ -795,6 +802,7 @@ apmattach(struct bus_device *dvp)
 {
 #ifdef __FreeBSD__
 	int	unit = dvp->id_unit;
+	char	name[32];
 #define APM_KERNBASE	KERNBASE
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
@@ -908,12 +916,17 @@ apmattach(struct bus_device *dvp)
 	sc->initialized = 1;
 
 #ifdef __FreeBSD__
+#ifdef DEVFS
+	sprintf(name,"apm%d",unit);
+	sc->sc_devfs_token = devfs_add_devsw(
+		"/",	name,	&apm_cdevsw,	unit,	DV_CHR,	0,  0, 0600);
+#endif
 	return 0;
 #endif /* __FreeBSD__ */
 }
 
 #ifdef __FreeBSD__
-int
+static int
 apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc[minor(dev)];
@@ -927,13 +940,13 @@ apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	return 0;
 }
 
-int
+static int
 apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	return 0;
 }
 
-int
+static int
 apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc[minor(dev)];
@@ -983,15 +996,10 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 }
 
 
-#ifdef JREMOD
-struct cdevsw apm_cdevsw = 
-	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
-	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
-	  seltrue,	nommap,		NULL };
-
 static apm_devsw_installed = 0;
 
-static void 	apm_drvinit(void *unused)
+static void
+apm_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -999,21 +1007,11 @@ static void 	apm_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&apm_cdevsw,NULL);
 		apm_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"apm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(apmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,apm_drvinit,NULL)
 
-#endif /* JREMOD */
 
 
 #endif /* __FreeBSD__ */
