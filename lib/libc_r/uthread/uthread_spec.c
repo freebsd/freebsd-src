@@ -209,7 +209,6 @@ pthread_getspecific(pthread_key_t key)
 	/* Check for errors: */
 	if (pthread == NULL) {
 		/* Return an invalid argument error: */
-		errno = EINVAL;
 		data = NULL;
 	}
 	/* Check if there is specific data: */

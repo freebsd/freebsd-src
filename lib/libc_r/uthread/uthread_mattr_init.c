@@ -45,8 +45,7 @@ pthread_mutexattr_init(pthread_mutexattr_t *attr)
 
 	if ((pattr = (pthread_mutexattr_t)
 			malloc(sizeof(struct pthread_mutex_attr))) == NULL) {
-		errno = ENOMEM;
-		ret = -1;
+		ret = ENOMEM;
 	} else {
 		memcpy(pattr, &pthread_mutexattr_default,
 				sizeof(struct pthread_mutex_attr));
