@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

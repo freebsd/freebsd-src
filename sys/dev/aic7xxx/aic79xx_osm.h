@@ -49,6 +49,7 @@
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 
 #define AIC_PCI_CONFIG 1

@@ -48,6 +48,7 @@
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 
 #if __FreeBSD_version < 500000
