@@ -34,7 +34,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2001
+.Dd April 06, 2004
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -155,6 +155,12 @@ than that of the file from which the descent began.
 .El
 .Sh PRIMARIES
 .Bl -tag -width indent
+.It Ic -acl
+May be used in conjunction with other options to locate
+files with extended ACLs.
+See
+.Xr acl 3
+for more information.
 .It Ic -amin Ar n
 True if the difference between the file last access time and the time
 .Nm
@@ -753,6 +759,7 @@ is considered to be a suitable replacement.
 .Xr which 1 ,
 .Xr xargs 1 ,
 .Xr stat 2 ,
+.Xr acl 3 ,
 .Xr fts 3 ,
 .Xr getgrent 3 ,
 .Xr getpwent 3 ,
