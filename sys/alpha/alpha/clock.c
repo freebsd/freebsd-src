@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.6 1999/02/16 20:34:56 mjacob Exp $ */
+/* $Id: clock.c,v 1.7 1999/04/23 19:53:37 dt Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -53,6 +53,7 @@
 #include <sys/bus.h>
 
 #include <machine/cpuconf.h>
+#include <machine/clock.h>
 #include <machine/clockvar.h>
 #include <isa/isareg.h>
 #include <alpha/alpha/timerreg.h>
