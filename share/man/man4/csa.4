@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm csa
-.Nd Crystal Semiconductor CS461x/462x/428x PCI bridge device driver
+.Nd Crystal Semiconductor CS461x/462x/4280 PCI bridge device driver
 .Sh SYNOPSIS
 .Cd "device csa"
 .Sh DESCRIPTION
@@ -43,12 +43,12 @@ to attach to the following PCI sound cards:
 .It
 Crystal Semiconductor CS461x/462x Audio Accelerator
 .It
-Crystal Semiconductor CS428x Audio Controller
+Crystal Semiconductor CS4280 Audio Controller
 .El
 .Pp
-Some onboard CS4610 chips accompany with not CS4297 AC97
-codec but CS423x ISA codec.
-Such the configuration is not
+Some onboard CS4610 chips are accompanied by the CS423x ISA codec
+instead of the CS4297 AC97 codec.
+Such configurations are not
 supported by
 .Nm
 yet.
