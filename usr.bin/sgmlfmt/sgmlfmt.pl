@@ -112,7 +112,7 @@ sub sgmlparse {
 	$defines = "-i $defines";
     }
     open($ifhandle, "$sgmls $defines $decl $file | " . 
-    	"$instant -Dfilename=$fileroot -t ${dtd}-${replacement}.ts |");
+    	"$instant -Dfilename=$fileroot $instantopts -t ${dtd}-${replacement}.ts |");
 }
 
 #
@@ -696,6 +696,8 @@ sub main {
     	$dtd = "docbook";
     	$decl = "/usr/share/sgml/docbook/docbook.dcl";
     	if ($opt_f eq 'html') {
+    	    if ($opt_hdr) {$instantopts .= " -D \"inchdr=${opt_hdr}\"";}
+    	    if ($opt_ftr) {$instantopts .= " -D \"incftr=${opt_ftr}\"";}
     	    &docbook_html();
     	}
 	else {
