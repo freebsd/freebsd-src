@@ -6,3 +6,4 @@
 ..
 .de Rm
 ..
+.if n .ftr CR R
