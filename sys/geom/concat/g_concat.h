@@ -56,14 +56,11 @@
 	}								\
 } while (0)
 
-extern struct sysctl_oid_list sysctl__kern_geom_children;
-
 struct g_concat_disk {
 	struct g_consumer	*d_consumer;
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
 	off_t			 d_end;
-	boolean_t		 d_valid;
 };
 
 struct g_concat_softc {
