@@ -47,9 +47,9 @@ ipfw_start()
 				else
 					natd_flags="$natd_flags -n ${natd_interface}"
 				fi
-				echo -n ' natd'
-				${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
 			fi
+			echo -n ' natd'
+			${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
 		fi
 	elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
 		echo 'Warning: kernel has firewall functionality, but' \
