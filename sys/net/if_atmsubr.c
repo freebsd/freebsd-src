@@ -70,6 +70,30 @@ __FBSDID("$FreeBSD$");
 #include <netnatm/natm.h>
 #endif
 
+/*
+ * Netgraph interface functions.
+ * These need not be protected by a lock, because ng_atm nodes are persitent.
+ * The ng_atm module can be unloaded only if all ATM interfaces have been
+ * unloaded, so nobody should be in the code paths accessing these function
+ * pointers.
+ */
+void	(*ng_atm_attach_p)(struct ifnet *);
+void	(*ng_atm_detach_p)(struct ifnet *);
+int	(*ng_atm_output_p)(struct ifnet *, struct mbuf **);
+void	(*ng_atm_input_p)(struct ifnet *, struct mbuf **,
+	    struct atm_pseudohdr *, void *);
+void	(*ng_atm_input_orphan_p)(struct ifnet *, struct mbuf *,
+	    struct atm_pseudohdr *, void *);
+void	(*ng_atm_message_p)(struct ifnet *, u_int32_t, u_int32_t);
+
+/*
+ * Harp pseudo interface hooks
+ */
+void	(*atm_harp_input_p)(struct ifnet *ifp, struct mbuf **m,
+	    struct atm_pseudohdr *ah, void *rxhand);
+void	(*atm_harp_attach_p)(struct ifnet *);
+void	(*atm_harp_detach_p)(struct ifnet *);
+
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
 #ifndef ETHERTYPE_IPV6
@@ -190,6 +214,16 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 		}
 	}
 
+	if (ng_atm_output_p != NULL) {
+		if ((error = (*ng_atm_output_p)(ifp, &m)) != 0) {
+			if (m != NULL)
+				m_freem(m);
+			return (error);
+		}
+		if (m == NULL)
+			return (0);
+	}
+
 	/*
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
@@ -225,6 +259,19 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 #endif
 	ifp->if_ibytes += m->m_pkthdr.len;
 
+	if (ng_atm_input_p != NULL) {
+		(*ng_atm_input_p)(ifp, &m, ah, rxhand);
+		if (m == NULL)
+			return;
+	}
+
+	/* not eaten by ng_atm. Maybe it's a pseudo-harp PDU? */
+	if (atm_harp_input_p != NULL) {
+		(*atm_harp_input_p)(ifp, &m, ah, rxhand);
+		if (m == NULL)
+			return;
+	}
+
 	if (rxhand) {
 #ifdef NATM
 		struct natmpcb *npcb = rxhand;
@@ -237,8 +284,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 #else
 		printf("atm_input: NATM detected but not "
 		    "configured in kernel\n");
-		m_freem(m);
-		return;
+		goto dropit;
 #endif
 	} else {
 		/*
@@ -283,7 +329,13 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 			break;
 #endif
 		default:
-			m_freem(m);
+#ifndef NATM
+  dropit:
+#endif
+			if (ng_atm_input_orphan_p != NULL)
+				(*ng_atm_input_orphan_p)(ifp, m, ah, rxhand);
+			else
+				m_freem(m);
 			return;
 		}
 	}
@@ -331,6 +383,11 @@ atm_ifattach(struct ifnet *ifp)
 
 	ifp->if_linkmib = &ifatm->mib;
 	ifp->if_linkmiblen = sizeof(ifatm->mib);
+
+	if(ng_atm_attach_p)
+		(*ng_atm_attach_p)(ifp);
+	if (atm_harp_attach_p)
+		(*atm_harp_attach_p)(ifp);
 }
 
 /*
@@ -339,6 +396,10 @@ atm_ifattach(struct ifnet *ifp)
 void
 atm_ifdetach(struct ifnet *ifp)
 {
+	if (atm_harp_detach_p)
+		(*atm_harp_detach_p)(ifp);
+	if(ng_atm_detach_p)
+		(*ng_atm_detach_p)(ifp);
 	if_detach(ifp);
 }
 
