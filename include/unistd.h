@@ -65,6 +65,7 @@ int	 chown __P((const char *, uid_t, gid_t));
 int	 close __P((int));
 int	 dup __P((int));
 int	 dup2 __P((int, int));
+int	 eaccess __P((const char *, int));
 int	 execl __P((const char *, const char *, ...));
 int	 execle __P((const char *, const char *, ...));
 int	 execlp __P((const char *, const char *, ...));
