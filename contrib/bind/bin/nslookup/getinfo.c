@@ -82,6 +82,7 @@ static char rcsid[] = "$Id: getinfo.c,v 8.11 1998/03/19 19:30:55 halley Exp $";
 #include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "port_after.h"
 
@@ -319,7 +320,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		    hostPtr->name = Calloc(1, len);
 		    memcpy(hostPtr->name, bp, len);
 		}
-		bp += (((u_int32_t)bp) % sizeof(align));
+		bp += (((u_long)bp) % sizeof(align));
 
 		if (bp + dlen >= &hostbuf[sizeof(hostbuf)]) {
 		    if (_res.options & RES_DEBUG) {
