@@ -98,6 +98,10 @@ struct acpi_prw_data {
 /* Flags for each device defined in the AML namespace. */
 #define ACPI_FLAG_WAKE_ENABLED	0x1
 
+/* Macros for extracting parts of a PCI address from an _ADR value. */
+#define	ACPI_ADR_PCI_SLOT(adr)	(((adr) & 0xffff0000) >> 16)
+#define	ACPI_ADR_PCI_FUNC(adr)	((adr) & 0xffff)
+
 /*
  * Entry points to ACPI from above are global functions defined in this
  * file, sysctls, and I/O on the control device.  Entry points from below
@@ -157,8 +161,10 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_INTR_SAPIC		2
 
 /* Quirk flags. */
+extern int	acpi_quirks;
 #define ACPI_Q_OK		0
 #define ACPI_Q_BROKEN		(1 << 0)	/* Disable ACPI completely. */
+#define ACPI_Q_TIMER		(1 << 1)	/* Disable ACPI timer. */
 
 /*
  * Note that the low ivar values are reserved to provide
