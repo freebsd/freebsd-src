@@ -10,7 +10,11 @@
 #include "config.h"
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)vs_refresh.c	10.44 (Berkeley) 10/13/96";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -595,7 +599,7 @@ slow:	for (smp = HMAP; smp->lno != LNO; ++smp);
 		 * for the number option offset.
 		 */
 		cnt = vs_columns(sp, NULL, LNO, &CNO, NULL);
-		if (O_ISSET(sp, O_NUMBER))
+		if (O_ISSET(sp, O_NUMBER) && cnt >= O_NUMBER_LENGTH)
 			cnt -= O_NUMBER_LENGTH;
 
 		/* Adjust the window towards the beginning of the line. */
