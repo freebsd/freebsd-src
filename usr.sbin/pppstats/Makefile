@@ -1,12 +1,8 @@
-#	$Id: Makefile,v 1.1.1.1 1994/11/12 06:07:15 lars Exp $
+#	$Id: Makefile.bsd,v 1.4 1995/04/28 06:23:18 paulus Exp $
 
 PROG=	pppstats
+SRCS=	pppstats.c
 MAN8=	pppstats.8
-
-DPADD=	${LIBUTIL} ${LIBKVM}
-LDADD=	-lutil -lkvm
-
-BINGRP=	kmem
-BINMODE=2555
+BINDIR=	/usr/sbin
 
 .include <bsd.prog.mk>

@@ -1,131 +1,54 @@
-.\" Modified from slstat.8 by Lars Fredriksen
-.\"
-.\" Copyright (c) 1986 The Regents of the University of California.
-.\" All rights reserved.
-.\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
-.\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
-.\"
-.\"	@(#)pppstats.8	6.8 (Berkeley) 6/20/91
-.\"
-.TH PPPSTATS 8 "November 09, 1994"
-.UC 4
+.\"	@(#) $Id: pppstats.8,v 1.2 1995/05/02 05:50:53 paulus Exp $
+.TH PPPSTATS 8 "2 May 1995"
 .SH NAME
-pppstats \- report Point to Point Protocol statistics
+pppstats \- print PPP statistics
 .SH SYNOPSIS
-.nf
-.ft B
-pppstats  [ \-i interval ] [ \-v ] [ unit ] [ system ] [ core ]
-.ft R
-.fi
+.B pppstats
+[
+.B -v
+] [
+.B -r
+] [
+.B -c
+] [
+.B -i
+.I <secs>
+] [
+.I <unit#>
+]
+.ti 12
 .SH DESCRIPTION
-.I Pppstats
-reports certain kernel statistics kept about Point to Point 
-Protocol traffic.
+.B pppstats
+prints PPP-related statistics.
 .PP
-The options are as follows:
-.TP
-\-i
-Repeat the display indefinitely every
-.I interval
-seconds.
-If no
-.I interval
-is specified, the default is 5 seconds.
-.TP
-\-v
-Verbose display of extra fields of information.
-.TP
-unit
-is a single digit specifying the slip interface. The default unit is
-.I 0
-for interface
-.I ppp0.
-.TP
-system
-Extract the name list from the specified system instead of the default, /kernel.
-.TP
-core
-Extract values associated with the name list from the specified
-core instead of the default, /dev/kmem.
+The
+.B -v
+flag causes
+.B pppstats
+to display additional statistics, such as the number of packets tossed
+(that is, which the VJ TCP header decompression code rejected).
 .PP
-By default,
-.I pppstats
-displays the following information:
+The
+.B -r
+flag causes
+.B pppstats
+to display the overall packet compression rate.  The rate value is
+between 0 and 1, with 0 meaning that the data is incompressible.
 .PP
-.TP
-in
-bytes received
-.TP
-out
-bytes sent
-.TP
-pack
-packets received or sent
-.TP
-comp
-compressed packets received or sent
-.TP
-uncomp
-uncompressed packets received or sent
-.TP
-err
-input or output errors
+The
+.B -c
+flag is used to specify an alternate display mode that shows
+packet compression statistics: the number of packets and bytes
+uncompressed (that is, before compression or after decompression),
+compressed, and incompressible (packets which did not shrink on
+compression and were transmitted uncompressed), and the recent
+compression rate.  This rate reflects the recent performance of the
+compression code rather than the overall rate achieved since
+compression was enabled.
 .PP
-With the \-v option, the following information is also displayed:
-.TP
-toss
-inbound packets tossed because of error
-.TP
-search
-searches for connection state
-.TP
-miss
-times we could not find a connectoin state
-.SH EXAMPLES
-The command ``pppstats -i 5'' will print what the system is doing every five
-seconds.
-.SH FILES
-.ta \w'/dev/kmem  'u
-/kernel	default kernel namelist
-.br
-/dev/kmem	default memory file
-.SH SEE ALSO
-.IR fstat (1),
-.IR netstat (1),
-.IR nfsstat (1),
-.IR ps (1),
-.IR systat (1),
-.IR iostat (8),
-.IR pstat (8)
-.IR slstat (8)
-.sp
-The sections starting with ``Interpreting system activity'' in
-.IR "Installing and Operating 4.3BSD" .
-.SH BUGS
-
+The
+.B -i
+flag is used to specify the interval between printouts. The default is
+5 seconds.
+.PP
+<unit#> specifies which interface to use for gathering statistics.
