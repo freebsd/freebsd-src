@@ -1254,14 +1254,15 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-	struct	stat	sb;
-	FILE	*log = stdout;
-	int	fd[3], doread, n, i;
-	int	tr, nr, regular[3], c;
 	int	fdt[3], devices = 0, make_daemon = 0;
 	char	buf[IPLLOGSIZE], *iplfile[3], *s;
-	extern	int	optind;
+	int	fd[3], doread, n, i;
 	extern	char	*optarg;
+	extern	int	optind;
+	int	regular[3], c;
+	FILE	*log = stdout;
+	struct	stat	sb;
+	size_t	nr, tr;
 
 	fd[0] = fd[1] = fd[2] = -1;
 	fdt[0] = fdt[1] = fdt[2] = -1;
