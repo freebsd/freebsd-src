@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.26 1998/12/16 14:57:38 kato Exp $
+ *	$Id: syscons.h,v 1.27 1999/01/17 15:42:27 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -57,10 +57,7 @@
 				}
 
 /* status flags */
-#define LOCK_KEY_MASK	0x0000F
 #define UNKNOWN_MODE	0x00010
-#define KBD_RAW_MODE	0x00020
-#define KBD_CODE_MODE	0x00040
 #define SWITCH_WAIT_REL	0x00080
 #define SWITCH_WAIT_ACQ	0x00100
 #define BUFFER_SAVED	0x00200
@@ -77,9 +74,12 @@
 #define VISUAL_BELL	0x00001
 #define BLINK_CURSOR	0x00002
 #define CHAR_CURSOR	0x00004
+/* these options are now obsolete; use corresponding options for kbd driver */
+#if 0
 #define DETECT_KBD	0x00008
 #define XT_KEYBD	0x00010
 #define KBD_NORESET	0x00020
+#endif
 #define QUIET_BELL	0x00040
 #define VESA800X600	0x00080
 
@@ -146,7 +146,8 @@ typedef struct term_stat {
 } term_stat;
 
 typedef struct scr_stat {
-	int		adp;			/* video adapter index */
+	int		ad;			/* video adapter index */
+	video_adapter_t	*adp;			/* video adapter structure */
 	u_short 	*scr_buf;		/* buffer when off screen */
 #ifdef PC98
 	u_short 	*atr_buf;		/* buffer when off screen */
@@ -167,6 +168,7 @@ typedef struct scr_stat {
 	int		end;			/* modified area end */
 	term_stat 	term;			/* terminal emulation stuff */
 	int	 	status;			/* status (bitfield) */
+	int		kbd_mode;		/* keyboard I/O mode */
 	u_short 	*cursor_pos;		/* cursor buffer position */
 	u_short 	*cursor_oldpos;		/* cursor old buffer position */
 #ifndef	PC98
@@ -190,7 +192,6 @@ typedef struct scr_stat {
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
-	int	 	initial_mode;		/* initial mode */
 	int	 	mode;			/* mode */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
@@ -207,10 +208,8 @@ typedef struct scr_stat {
 #endif
 	int		history_size;		/* size of history buffer */
 	struct apmhook  r_hook;			/* reconfiguration support */
-#ifdef SC_SPLASH_SCREEN
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
-#endif
 #ifdef KANJI
 	u_char  kanji_1st_char;
 #define KTYPE_ASCII	0
@@ -266,13 +265,12 @@ scr_stat *sc_get_scr_stat(dev_t dev);
 
 void copy_font(scr_stat *scp, int operation, int font_size, u_char *font_image);
 void set_border(scr_stat *scp, int color);
-#define save_palette(scp, pal)	(*biosvidsw.save_palette)((scp)->adp, pal)
-#define load_palette(scp, pal)	(*biosvidsw.load_palette)((scp)->adp, pal)
-#define get_adapter(scp)	(*biosvidsw.adapter)((scp)->adp)
+#define save_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->save_palette)((adp), (pal))
+#define load_palette(adp, pal)				\
+	(*vidsw[(adp)->va_index]->load_palette)((adp), (pal))
 
-int add_scrn_saver(void (*this)(int));
-int remove_scrn_saver(void (*this)(int));
-
+void sc_touch_scrn_saver(void);
 void sc_clear_screen(scr_stat *scp);
 void sc_move_mouse(scr_stat *scp, int x, int y);
 int sc_clean_up(scr_stat *scp);
@@ -289,13 +287,6 @@ int sc_set_pixel_mode(scr_stat *scp, struct tty *tp,
 		      int xsize, int ysize, int fontsize);
 int sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, 
 		 struct proc *p);
-
-#ifdef SC_SPLASH_SCREEN
-/* splash.c */
-void scsplash(int);
-int scsplash_load(scr_stat *scp);
-int scsplash_unload(scr_stat *scp);
-#endif
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
