@@ -18,7 +18,7 @@ MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 atkbdc.4 \
 	sd.4 ses.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \
 	splash.4 sppp.4 st.4 ste.4 stf.4 sym.4 syncer.4 syscons.4 sysmouse.4 \
 	tap.4 tcp.4 termios.4 ti.4 tl.4 ttcp.4 tty.4 tun.4 twe.4 udp.4 uhci.4 \
-	ukbd.4 umass.4 ums.4 unix.4 usb.4 vga.4 vinum.4 vn.4 \
+	ukbd.4 umass.4 ums.4 unix.4 usb.4 uscanner.4 vga.4 vinum.4 vn.4 \
 	vpo.4 vr.4 wb.4 wi.4 wx.4 worm.4 wst.4 xl.4 xpt.4 yp.4 zero.4 
 
 MLINKS=	ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4

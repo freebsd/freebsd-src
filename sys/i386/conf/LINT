@@ -2336,6 +2336,8 @@ device		umass
 device		umodem
 # USB mouse
 device		ums
+# USB scanners
+device		uscanner
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
