@@ -234,6 +234,18 @@ nm_waitcd(struct sc_info *sc)
 }
 
 static u_int32_t
+nm_initcd(void *devinfo)
+{
+	struct sc_info *sc = (struct sc_info *)devinfo;
+
+	nm_wr(sc, 0x6c0, 0x01, 1);
+	nm_wr(sc, 0x6cc, 0x87, 1);
+	nm_wr(sc, 0x6cc, 0x80, 1);
+	nm_wr(sc, 0x6cc, 0x00, 1);
+	return 0;
+}
+
+static u_int32_t
 nm_rdcd(void *devinfo, int regno)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
@@ -611,9 +623,9 @@ nm_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, sc, nm_rdcd, nm_wrcd);
+	codec = ac97_create(dev, sc, nm_initcd, nm_rdcd, nm_wrcd);
 	if (codec == NULL) goto bad;
-	mixer_init(d, &ac97_mixer, codec);
+	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -644,11 +656,33 @@ bad:
 	return ENXIO;
 }
 
+static int
+nm_pci_resume(device_t dev)
+{
+	snddev_info *d;
+	struct sc_info *sc;
+
+	d = device_get_softc(dev);
+	sc = pcm_getdevinfo(dev);
+
+	/* Reinit audio device */
+    	if (nm_init(sc) == -1) {
+		device_printf(dev, "unable to reinitialize the card\n");
+		return ENXIO;
+	}
+	/* Reinit mixer */
+    	if (mixer_reinit(d) == -1) {
+		device_printf(dev, "unable to reinitialize the mixer\n");
+		return ENXIO;
+	}
+	return 0;
+}
+
 static device_method_t nm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nm_pci_probe),
 	DEVMETHOD(device_attach,	nm_pci_attach),
-
+	DEVMETHOD(device_resume,	nm_pci_resume),
 	{ 0, 0 }
 };
 

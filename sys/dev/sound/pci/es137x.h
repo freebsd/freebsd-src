@@ -179,6 +179,5 @@
 #define ES_SMPREG_VOL_ADC	0x6c
 #define ES_SMPREG_VOL_DAC1	0x7c
 #define ES_SMPREG_VOL_DAC2	0x7e
-#define ES_BUFFSIZE 0x10000		/* We're PCI! Use a large buffer */
 
 #endif
