@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 1.2 1995/05/30 03:48:52 rgrimes Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 1.3 1995/08/20 21:18:46 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -169,8 +169,7 @@ main(argc, argv, envp)
 	struct qstream *nextsp;
 	int nfds;
 	const int on = 1;
-	int len;
-	int rfd, size;
+	int rfd, size, len;
 	time_t lasttime, maxctime;
 	u_char buf[BUFSIZ];
 #ifdef POSIX_SIGNALS
@@ -179,6 +178,9 @@ main(argc, argv, envp)
 #ifndef SYSV
 	struct sigvec vec;
 #endif
+#endif
+#ifdef NeXT
+	int old_sigmask;
 #endif
 	fd_set tmpmask;
 	struct timeval t, *tp;
@@ -374,10 +376,10 @@ main(argc, argv, envp)
 			}
 #endif /*WANT_PIDFILE && PID_FIX*/
 			exit(1);
-		} else {	/* Retry opening the socket a few times */
-			my_close(vs);
-			sleep(1);
 		}
+		/* Retry opening the socket a few times */
+		my_close(vs);
+		sleep(3);
 	}
 	if (listen(vs, 5) != 0) {
 		syslog(LOG_ERR, "listen(vs, 5): %m");
@@ -385,7 +387,7 @@ main(argc, argv, envp)
 	}
 
   	/*
-	 * named would be terminated if one of these is sent and no handler
+	 * named would be terminated if one of these is sent and no handler.
 	 */
 	(void) signal(SIGINT, setdumpflg);
 	(void) signal(SIGQUIT, setchkptflg);
@@ -405,6 +407,8 @@ main(argc, argv, envp)
 	/*
 	 * Get list of local addresses and set up datagram sockets.
 	 */
+	FD_ZERO(&mask);
+	FD_SET(vs, &mask);
 	getnetconf();
 
 	/*
@@ -572,10 +576,9 @@ main(argc, argv, envp)
 		nfds = FD_SETSIZE;	/* Bulletproofing */
 		syslog(LOG_NOTICE, "Return from getdtablesize() > FD_SETSIZE");
 	}
-	FD_ZERO(&mask);
-	FD_SET(vs, &mask);
-	for (dqp = datagramq; dqp != QDATAGRAM_NULL; dqp = dqp->dq_next)
-		FD_SET(dqp->dq_dfd, &mask);
+#ifdef NeXT
+	old_sigmask = sigblock(sigmask(SIGCHLD));
+#endif
 	for (;;) {
 #ifdef DEBUG
 		if (ddt && debug == 0) {
@@ -648,7 +651,13 @@ main(argc, argv, envp)
 		} else
 			tp = NULL;
 		tmpmask = mask;
+#ifdef NeXT
+		sigsetmask(old_sigmask);	/* Let queued signals run. */
+#endif
 		n = select(nfds, &tmpmask, (fd_set *)NULL, (fd_set *)NULL, tp);
+#ifdef NeXT
+		old_sigmask = sigblock(sigmask(SIGCHLD));
+#endif
 		if (n < 0 && errno != EINTR) {
 			syslog(LOG_ERR, "select: %m");
 			sleep(60);
@@ -661,7 +670,8 @@ main(argc, argv, envp)
 		     dqp = dqp->dq_next) {
 		    if (FD_ISSET(dqp->dq_dfd, &tmpmask))
 		        for (udpcnt = 0; udpcnt < 42; udpcnt++) {  /*XXX*/
-			    from_len = sizeof(from_addr);
+			    int from_len = sizeof(from_addr);
+
 			    if ((n = recvfrom(dqp->dq_dfd, (char *)buf, sizeof(buf), 0,
 				(struct sockaddr *)&from_addr, &from_len)) < 0)
 			    {
@@ -702,7 +712,8 @@ main(argc, argv, envp)
 		** which, if our accept() failed, will bring us back here.
 		*/
 		if (FD_ISSET(vs, &tmpmask)) {
-			from_len = sizeof(from_addr);
+			int from_len = sizeof(from_addr);
+
 			rfd = accept(vs,
 				     (struct sockaddr *)&from_addr,
 				     &from_len);
@@ -1173,7 +1184,7 @@ static void
 opensocket(dqp)
 	register struct qdatagram *dqp;
 {
-	int n, m;
+	int m, n;
 	int on = 1;
 
 	/*
@@ -1223,6 +1234,7 @@ opensocket(dqp)
 		exit(1);
 #endif
 	}
+	FD_SET(dqp->dq_dfd, &mask);
 }
 
 /*
@@ -1527,34 +1539,38 @@ sqflush(allbut)
 /* void
  * dqflush(gen)
  *	close/deallocate all the udp sockets, unless `gen' != (time_t)0
- *	in which case all those not matching this generation will
- *	be deleted except the 0.0.0.0 element, and syslog() will
- *	be called whenever something is deleted.
+ *	in which case all those not from this generation (except 0.0.0.0)
+ *	will be deleted, and syslog() will be called.
+ * known bugs:
+ *	the above text is impenetrable.
  * side effects:
- *	global list `datagramq' is modified
+ *	global list `datagramq' is modified.
  */
 void
 dqflush(gen)
 	register time_t gen;
 {
-	register struct qdatagram *dqp, *pqp, *nqp;
+	register struct qdatagram *this, *prev, *next;
 
-	for (pqp = NULL, dqp = datagramq;
-	     dqp != NULL;
-	     pqp = dqp, dqp = nqp) {
-		nqp = dqp->dq_next;
+	prev = NULL;
+	for (this = datagramq; this != NULL; this = next) {
+		next = this->dq_next;
 		if (gen != (time_t)0) {
-			if (dqp->dq_addr.s_addr == INADDR_ANY ||
-			    dqp->dq_gen == gen)
+			if (this->dq_addr.s_addr == INADDR_ANY ||
+			    this->dq_gen == gen) {
+				prev = this;
 				continue;
+			}
 			syslog(LOG_NOTICE, "interface [%s] missing; deleting",
-			       inet_ntoa(dqp->dq_addr));
+			       inet_ntoa(this->dq_addr));
 		}
-		if (pqp != NULL)
-			pqp->dq_next = dqp->dq_next;
+		FD_CLR(this->dq_dfd, &mask);
+		my_close(this->dq_dfd);
+		free(this);
+		if (prev == NULL)
+			datagramq = next;
 		else
-			datagramq = dqp->dq_next;
-		free(dqp);
+			prev->dq_next = next;
 	}
 }
 

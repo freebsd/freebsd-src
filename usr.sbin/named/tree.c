@@ -33,7 +33,7 @@ static char RCSid[] = "$Id:";
 #ifndef _PATH_XFER
 # include <stdlib.h>
 #else
-# include "../conf/portability.h"
+# include "portability.h"
 #endif
 #include "tree.h"
 
