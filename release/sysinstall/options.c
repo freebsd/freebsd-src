@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.5 1995/10/06 11:14:43 jkh Exp $
+ * $Id: options.c,v 1.6 1995/10/07 11:55:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -188,6 +188,7 @@ optionsEditor(char *str)
     int i, optcol, optrow, key;
     static int currOpt = 0;
 
+    dialog_clear();
     clear();
 
     while (1) {
@@ -258,12 +259,13 @@ optionsEditor(char *str)
 	case ' ':
 	case '\n':
 	    fire(Options[currOpt]);
+	    dialog_clear();
 	    clear();
 	    continue;
 
 	case 'Q':
-	    clear();
 	    dialog_clear();
+	    clear();
 	    return RET_SUCCESS;
 
 	default:
