@@ -20,7 +20,9 @@ INTERNALLIB=	true
 CLEANFILES+=	config.h targmatch.h
 
 SELARCH=
-.if ${TARGET_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "amd64"
+SELARCH= &bfd_i386_arch
+.elif ${TARGET_ARCH} == "sparc64"
 SELARCH= &bfd_sparc_arch
 .else
 .for _a in ${ARCHS}
