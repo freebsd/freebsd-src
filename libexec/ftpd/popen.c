@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: popen.c,v 1.4.2.3 1997/12/12 07:20:37 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,6 +56,8 @@ static const char rcsid[] =
 #include "extern.h"
 #ifdef	INTERNAL_LS
 #include "pathnames.h"
+#include <syslog.h>
+#include <varargs.h>
 #endif
 
 #define	MAXUSRARGS	100
@@ -146,6 +148,8 @@ ftpd_popen(program, type)
 			extern	int optreset;
 			/* Reset getopt for ls_main() */
 			optreset = optind = optopt = 1;
+			/* Close syslogging to remove pwd.db missing msgs */
+			closelog();
 			exit(ls_main(gargc, gargv));
 		}
 #endif
