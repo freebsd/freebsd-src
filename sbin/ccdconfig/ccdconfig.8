@@ -163,8 +163,9 @@ you have A ccd disk with 10000 sectors you might create a 'd' partition
 with offset 16 and size 9984.
 .Pp
 .Bd -unfilled -offset
-# disklabel -r -w ccd0c auto
-# disklabel -e ccd0c
+# disklabel ccd0 > /tmp/disklabel.ccd0
+# disklabel -Rr ccd0 /tmp/disklabel.ccd0            
+# disklabel -e ccd0
 .Ed
 .Pp
 The disklabeling of a ccd disk is usually a one-time affair.  Unlike other
@@ -198,6 +199,12 @@ default ccd configuration file
 .Xr ccd 4 ,
 .Xr rc 8 ,
 .Xr vinum 8
+.Sh BUGS
+The initial disklabel returned by
+.Xr ccd 4
+specifies only 3 partitions.
+One needs to change the number of paritions to "8" using `disklabel -e'
+to get the usual BSD expectations.
 .Sh HISTORY
 The
 .Nm
