@@ -233,7 +233,7 @@ typedef union {
 	u_char buf[MAXPACKET];
 } querybuf;
 
-static int str_isnumber(const char *);
+static int str2number(const char *);
 static int explore_null(const struct addrinfo *,
 	const char *, struct addrinfo **);
 static int explore_numeric(const struct addrinfo *, const char *,
@@ -390,20 +390,21 @@ freeaddrinfo(ai)
 }
 
 static int
-str_isnumber(p)
+str2number(p)
 	const char *p;
 {
 	char *ep;
+	unsigned long v;
 
 	if (*p == '\0')
-		return NO;
+		return -1;
 	ep = NULL;
 	errno = 0;
-	(void)strtoul(p, &ep, 10);
-	if (errno == 0 && ep && *ep == '\0')
-		return YES;
+	v = strtoul(p, &ep, 10);
+	if (errno == 0 && ep && *ep == '\0' && v <= UINT_MAX)
+		return v;
 	else
-		return NO;
+		return -1;
 }
 
 int
@@ -1415,7 +1416,7 @@ get_portmatch(ai, servname)
 	const char *servname;
 {
 
-	/* get_port does not touch first argument. when matchonly == 1. */
+	/* get_port does not touch first argument when matchonly == 1. */
 	/* LINTED const cast */
 	return get_port((struct addrinfo *)ai, servname, 1);
 }
@@ -1457,14 +1458,16 @@ get_port(ai, servname, matchonly)
 		return EAI_SOCKTYPE;
 	}
 
-	if (str_isnumber(servname)) {
+	port = str2number(servname);
+	if (port >= 0) {
 		if (!allownumeric)
 			return EAI_SERVICE;
-		port = atoi(servname);
 		if (port < 0 || port > 65535)
 			return EAI_SERVICE;
 		port = htons(port);
 	} else {
+		if (ai->ai_flags & AI_NUMERICSERV)
+			return EAI_NONAME;
 		switch (ai->ai_socktype) {
 		case SOCK_DGRAM:
 			proto = "udp";
