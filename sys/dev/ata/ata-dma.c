@@ -280,7 +280,24 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x74091022:	/* AMD 756 */
+	if (udmamode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting up UDMA4 mode on AMD chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+	        pci_write_config(parent, 0x53 - devno, 0xc3, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		return;
+	    }
+	}
+	goto via_82c586;
+
     case 0x06861106:	/* VIA 82C686 */
+via_82c686:
 	if (udmamode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -309,25 +326,14 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	}
 	goto via_generic;
 
-    case 0x74091022:	/* AMD 756 */
-	if (udmamode >= 4) {
-	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_printf(scp, device,
-			   "%s setting up UDMA4 mode on AMD chip\n",
-			   (error) ? "failed" : "success");
-	    if (!error) {
-	        pci_write_config(parent, 0x53 - devno, 0xc3, 1);
-		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		return;
-	    }
-	}
+    case 0x05961106:	/* VIA 82C596 */
+	/* 82c596 revision >= 0x12 is like the 82c686 */
+	if (ata_find_dev(parent, 0x05961106, 0x12))
+	    goto via_82c686;
 	/* FALLTHROUGH */
 
-    case 0x05961106:	/* VIA 82C596 */
     case 0x05861106:	/* VIA 82C586 */
-
+via_82c586:
 	/* UDMA2 mode only on 82C586 > rev1, 82C596, AMD 756 */
 	if ((udmamode >= 2 && scp->chiptype == 0x05861106 &&
 	     pci_read_config(scp->dev, 0x08, 1) >= 0x01) ||
