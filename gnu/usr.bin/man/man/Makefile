@@ -1,9 +1,14 @@
+#	$Id$
+#
+
 PROG=	man
 SRCS=	man.c manpath.c glob.c
 MAN1=   man.1
 BINOWN= man
 BINMODE=4555
+.if !defined(NOFSCHG)
 INSTALLFLAGS+= -fschg
+.endif
 
 CFLAGS+= -I${LIBDESTDIR}
 DPADD=	${LIBMAN}
