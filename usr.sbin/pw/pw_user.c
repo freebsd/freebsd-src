@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.7 1996/12/20 10:45:39 davidn Exp $
+ *	$Id: pw_user.c,v 1.8 1996/12/21 15:35:43 davidn Exp $
  */
 
 #include <unistd.h>
@@ -1003,7 +1003,7 @@ rmskey(char const * name)
 	FILE   *infp = fopen(etcskey, "r");
 
 	if (infp != NULL) {
-		int	fd = open(newskey, O_RDWR|O_CREAT|O_TRUNC, 0644);
+		int	fd = open(newskey, O_RDWR|O_CREAT|O_TRUNC, S_IWUSR|S_IRUSR);
 
 		if (fd != -1) {
 			FILE * outfp = fdopen(fd, "w");
