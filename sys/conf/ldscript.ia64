@@ -30,6 +30,7 @@ SECTIONS
   .rela.bss       : { *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*) }
   .rela.plt       : { *(.rela.plt) }
   .rela.IA_64.pltoff   : { *(.rela.IA_64.pltoff) }
+  PROVIDE (btext = .);
   .init           :
   {
     *(.init)
