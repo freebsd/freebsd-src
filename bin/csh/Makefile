@@ -15,6 +15,7 @@ SRCS=	alloc.c char.c const.c csh.c dir.c dol.c err.c exec.c exp.c file.c \
 .PATH:	${.CURDIR}/../../usr.bin/printf
 
 MAN1=	csh.1
+MLINKS= csh.1 tcsh.1
 # MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
