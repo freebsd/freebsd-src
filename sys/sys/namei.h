@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.3 1994/09/27 20:33:41 phk Exp $
+ * $Id: namei.h,v 1.4 1995/03/06 06:45:47 phk Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -154,7 +154,11 @@ struct nameidata {
  * size is 15.
  */
 
+#ifdef NCH_STATISTICS
+#define	NCHNAMLEN	23	/* maximum name segment length we bother with */
+#else
 #define	NCHNAMLEN	31	/* maximum name segment length we bother with */
+#endif
 
 struct	namecache {
 	LIST_ENTRY(namecache) nc_hash;  /* hash chain */
@@ -163,12 +167,17 @@ struct	namecache {
 	u_long	nc_dvpid;		/* capability number of nc_dvp */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
 	u_long	nc_vpid;		/* capability number of nc_vp */
+#ifdef NCH_STATISTICS
+	u_long	nc_nbr;			/* a serial number */
+	u_long	nc_hits;		/* how many times we got hit */
+#endif
 	char	nc_nlen;		/* length of name */
 	char	nc_name[NCHNAMLEN];	/* segment name */
 };
 
 #ifdef KERNEL
 u_long	nextvnodeid;
+u_long	numvnodes, numcache;
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));
 int	relookup __P((struct vnode *dvp, struct vnode **vpp,
