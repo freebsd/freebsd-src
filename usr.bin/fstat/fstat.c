@@ -459,10 +459,6 @@ vtrans(vp, i, flag)
 			if (!ufs_filestat(&vn, &fst))
 				badtype = "error";
 			break;
-		case VT_MFS:
-			if (!ufs_filestat(&vn, &fst))
-				badtype = "error";
-			break;
 		case VT_NFS:
 			if (!nfs_filestat(&vn, &fst))
 				badtype = "error";

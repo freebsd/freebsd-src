@@ -275,8 +275,6 @@ bsd_to_linux_ftype(int tag)
 		return (LINUX_HPFS_SUPER_MAGIC);
 	case VT_ISOFS:
 		return (LINUX_ISOFS_SUPER_MAGIC);
-	case VT_MFS:
-		return (LINUX_UFS_SUPER_MAGIC);
 	case VT_MSDOSFS:
 		return (LINUX_MSDOS_SUPER_MAGIC);
 	case VT_NFS:
