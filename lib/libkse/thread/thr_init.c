@@ -162,6 +162,12 @@ _thread_init(void)
 	int		sched_stack_size;	/* Size of scheduler stack. */
 
 	struct clockinfo clockinfo;
+	struct sigaction act;
+
+	/* Check if this function has already been called: */
+	if (_thread_initial)
+		/* Only initialise the threaded application once. */
+		return;
 
 	_pthread_page_size = getpagesize();
 	_pthread_guard_default = getpagesize();
@@ -337,6 +343,31 @@ _thread_init(void)
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
 		_set_curthread(_thread_initial);
+
+		/* Clear the pending signals for the process. */
+		sigemptyset(&_thread_sigpending);
+
+		/* Enter a loop to get the existing signal status: */
+		for (i = 1; i < NSIG; i++) {
+			/* Check for signals which cannot be trapped. */
+			if (i == SIGKILL || i == SIGSTOP)
+				continue;
+
+			/* Get the signal handler details. */
+			if (__sys_sigaction(i, NULL,
+			    &_thread_sigact[i - 1]) != 0)
+				PANIC("Cannot read signal handler info");
+		}
+
+		/* Register SIGCHLD (needed for wait(2)). */
+		sigfillset(&act.sa_mask);
+		act.sa_handler = (void (*) ()) _thread_sig_handler;
+		act.sa_flags = SA_SIGINFO | SA_RESTART;
+		if (__sys_sigaction(SIGCHLD, &act, NULL) != 0)
+			PANIC("Can't initialize signal handler");
+
+		/* Get the process signal mask. */
+		__sys_sigprocmask(SIG_SETMASK, NULL, &_thread_sigmask);
 
 		/* Get the kernel clockrate: */
 		mib[0] = CTL_KERN;
