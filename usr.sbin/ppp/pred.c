@@ -323,6 +323,7 @@ const struct ccp_algorithm Pred1Algorithm = {
   TY_PRED1,
   CCP_NEG_PRED1,
   Pred1DispOpts,
+  ccp_IsUsable,
   {
     Pred1SetOptsInput,
     Pred1InitInput,

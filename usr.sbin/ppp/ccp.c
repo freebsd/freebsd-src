@@ -268,7 +268,8 @@ CcpSendConfigReq(struct fsm *fp)
   ccp->out.algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
     if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
-        !REJECTED(ccp, algorithm[f]->id)) {
+        !REJECTED(ccp, algorithm[f]->id) &&
+        (*algorithm[f]->Usable)(fp)) {
 
       if (!alloc)
         for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
@@ -491,6 +492,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
 	if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
+            (*algorithm[f]->Usable)(fp) &&
             ccp->in.algorithm == -1) {
 	  memcpy(&ccp->in.opt, cp, length);
           switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
@@ -695,6 +697,12 @@ ccp_SetOpenMode(struct ccp *ccp)
       return 1;
 
   return 0;				/* No CCP at all */
+}
+
+int
+ccp_IsUsable(struct fsm *fp)
+{
+  return 1;
 }
 
 struct layer ccplayer = { LAYER_CCP, "ccp", ccp_LayerPush, ccp_LayerPull };
