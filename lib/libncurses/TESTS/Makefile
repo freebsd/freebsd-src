@@ -9,7 +9,7 @@ LIBS += -lncurses -lmytinfo
 all: $(TESTS)
 
 $(TESTS):
-	$(CC) $(CFLAGS) $(LDFLAGS) ${.CURDIR}/$@.c -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) ${.CURDIR}/${.TARGET}.c -o ${.TARGET} $(LIBS)
 
 test: test.c
 corner: corner.c
