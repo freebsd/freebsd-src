@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id$
+ * $Id: if_is.c,v 1.24 1994/08/02 07:39:37 davidg Exp $
  */
 
 /* TODO
@@ -1087,6 +1087,18 @@ is_ioctl(ifp, cmd, data)
 			sizeof(is->arpcom.ac_enaddr));
 		break;
 #endif
+
+	case SIOCSIFMTU:
+
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > ETHERMTU) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
 
 	default:
 		error = EINVAL;
