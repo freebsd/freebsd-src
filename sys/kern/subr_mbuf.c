@@ -62,21 +62,6 @@
 #endif
 
 /*
- * Macros allowing us to determine whether or not a given CPU's container
- * should be configured during mb_init().
- * XXX: Eventually we may want to provide hooks for CPU spinon/spinoff that
- *      will allow us to configure the containers on spinon/spinoff. As it
- *      stands, booting with CPU x disactivated and activating CPU x only
- *      after bootup will lead to disaster and CPU x's container will be
- *      uninitialized.
- */
-#ifdef	SMP
-#define	CPU_ABSENT(x)	((all_cpus & (1 << x)) == 0)
-#else
-#define	CPU_ABSENT(x)	0
-#endif
-
-/*
  * The mbuf allocator is heavily based on Alfred Perlstein's
  * (alfred@FreeBSD.org) "memcache" allocator which is itself based
  * on concepts from several per-CPU memory allocators. The difference
@@ -213,7 +198,11 @@ struct	mtx		mbuf_gen, mbuf_pcpu[NCPU];
 /*
  * Local macros for internal allocator structure manipulations.
  */
+#ifdef SMP
 #define	MB_GET_PCPU_LIST(mb_lst)	  (mb_lst)->ml_cntlst[PCPU_GET(cpuid)]
+#else
+#define	MB_GET_PCPU_LIST(mb_lst)	  (mb_lst)->ml_cntlst[0]
+#endif
 
 #define	MB_GET_PCPU_LIST_NUM(mb_lst, num) (mb_lst)->ml_cntlst[(num)]
 

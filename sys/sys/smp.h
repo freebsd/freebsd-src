@@ -28,6 +28,13 @@ extern volatile u_int started_cpus;
 extern volatile u_int stopped_cpus;
 
 /*
+ * Macro allowing us to determine whether a CPU is absent at any given
+ * time, thus permitting us to configure sparse maps of cpuid-dependent
+ * (per-CPU) structures.
+ */
+#define	CPU_ABSENT(x_cpu)	((all_cpus & (1 << (x_cpu))) == 0)
+
+/*
  * Machine dependent functions used to initialize MP support.
  *
  * The cpu_mp_probe() should check to see if MP support is present and return
@@ -54,7 +61,8 @@ void	smp_rendezvous(void (*)(void *),
 		       void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
-
+#else /* SMP */
+#define	CPU_ABSENT(x_cpu)	(0)
 #endif /* SMP */
 #endif /* !LOCORE */
 #endif /* _KERNEL */
