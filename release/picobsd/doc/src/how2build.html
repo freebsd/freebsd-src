@@ -1,5 +1,5 @@
 <html>
-<! $Id: how2build.html,v 1.3 1998/10/28 16:16:31 abial Exp $ >
+<! $Id: how2build.html,v 1.4.2.1 1999/05/07 10:02:49 abial Exp $ >
 <head>
 <title><center>PicoBSD Development Kit</center></title>
 </head>
@@ -10,21 +10,18 @@
 
 <ol>
 <li>
-	Get the file <code>picobsd.tgz</code>. It contains the scripts
-	you'll need.  Also, I assume you run quite -current system with
-	full sources installed.
-
-<p>	NOTE1: beginning with version 0.4, PicoBSD sources are maintained as
-	part of official FreeBSD CVS repository, so if you have recent
-	source tree you can find them in /src/release/picobsd.</p>
-
-<p>	NOTE2: there were some mysterious interactions between vn(4) driver and
-	'disklabel auto' in versions earlier than 3.0. There is another set
-	of scripts prepared by <A HREF="mailto:dinesh@alphaque.com">Dinesh Nair
-	</a> which allows to build PicoBSD floppies on a earlier systems.</p>
-
-<p>	Unpack the archive into your <code>src/release/picobsd</code>.
-	You'll need at least 5MB of free space.</p>
+<p>	Beginning with version 0.4, PicoBSD sources are maintained as
+	part of official FreeBSD CVS repository, so 
+	you can find them in src/release/picobsd.</p>
+</li>
+<li>
+	Become root. You'll need to mount and unmount various volumes.
+</li>
+<li>
+	Make sure you are running kernel with support for vn(4) devices.
+	If you run plain GENERIC (just as it was installed on your system),
+	you'll need to recompile you kernel and reinstall it. See the
+	appropriate entries in The Handbook (/usr/share/doc/handbook).
 </li>
 <li>	Change working directory (<code>cd build</code>) and run the
 	<code>./build</code> script. Select target language, size of MFS and
@@ -113,7 +110,7 @@
 <li>	Make sure that the system you're running has /dev/[r]vn0* entries in
 	/dev directory (if not, you can make them with 'MAKEDEV vn0'), AND
 	that your running kernel has built-in vnode driver (there should be a
-	line in your kernel config file stating 'pseudo-device vn').
+	line in your kernel config file stating 'pseudo-device vn xxx').
 </li>
 <li>	You'll need at least 9MB of free disk space, and free /mnt directory.
 </li>
@@ -163,6 +160,12 @@
 		after <code>stage1</code> script ends).
 </li>
 </ul>
+<li>		the build process displays "Preparing MFS" and then
+		silently stops. In this case check if you're running it as
+		root, and that you run kernel with support for vn(4)
+		devices. Also, you can add 'set -x' at hte beginning
+		of the scripts to see exactly where they stop.
+</li>
 </ul>
 
 	You can also remove <code>2>&amp;1</code> redirections from Makefiles
