@@ -75,13 +75,11 @@ ed_isa_probe(dev)
 
 	/* If the card had a PnP ID that didn't match any we know about */
 	if (error == ENXIO) {
-		printf("*** unknown PnP ID\n");
 		goto end;
 	}
 
 	/* If we had some other problem. */
 	if (!(error == 0 || error == ENOENT)) {
-		printf("*** Some other error (%d)\n", error);
 		goto end;
 	}
 
@@ -90,7 +88,6 @@ ed_isa_probe(dev)
 	error = ed_probe_WD80x3(dev);
 	if (error == 0)
 		goto end;
-	printf("*** Failed ed_probe_WD80x3() (%d)\n", error);
 	ed_release_resources(dev);
 
 	error = ed_probe_3Com(dev);
@@ -102,6 +99,7 @@ ed_isa_probe(dev)
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
+
 	error = ed_probe_HP_pclanp(dev);
 	if (error == 0)
 		goto end;

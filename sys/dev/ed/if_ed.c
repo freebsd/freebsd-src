@@ -77,42 +77,12 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 
-#include <isa/isavar.h>
-#include <isa/pnpvar.h>
-
-static int ed_alloc_port	__P((device_t, int, int));
-static int ed_alloc_memory	__P((device_t, int, int));
-static int ed_alloc_irq		__P((device_t, int, int));
-static void ed_release_resources __P((device_t));
-
-static int ed_attach		__P((struct ed_softc *, int, int));
-static int ed_isa_attach	__P((device_t));
-
-static void ed_init		__P((void *));
-static driver_intr_t		edintr;
-static int ed_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static int ed_isa_probe		__P((device_t));
-static void ed_start		__P((struct ifnet *));
-static void ed_reset		__P((struct ifnet *));
-static void ed_watchdog		__P((struct ifnet *));
-
-static void ed_stop		__P((struct ed_softc *));
-static int ed_probe_generic8390	__P((struct ed_softc *));
-static int ed_probe_WD80x3	__P((device_t));
-static int ed_probe_3Com	__P((device_t));
-static int ed_probe_Novell	__P((device_t));
-static int ed_probe_Novell_generic __P((device_t, int, int));
-static int ed_probe_HP_pclanp	__P((device_t));
-
-#include "pci.h"
-#if NPCI > 0
-int ed_attach_NE2000_pci	__P((device_t, int));
-#endif
-
-#include "card.h"
-#if NCARD > 0	/* broken pending pccard newbus fixes */
-static int ed_probe_pccard	__P((struct isa_device *, u_char *));
-#endif
+static void	ed_init		__P((void *));
+static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
+static void	ed_start	__P((struct ifnet *));
+static void	ed_reset	__P((struct ifnet *));
+static void	ed_watchdog	__P((struct ifnet *));
+static void	ed_stop		__P((struct ed_softc *));
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_long *));
 
@@ -138,90 +108,6 @@ static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 static void	ed_setrcr	__P((struct ed_softc *));
 
 static u_long	ds_crc		__P((u_char *ep));
-
-#if NCARD > 0
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-
-/*
- *	PC-Card (PCMCIA) specific code.
- */
-static int	edinit		__P((struct pccard_devinfo *));
-static void	edunload	__P((struct pccard_devinfo *));
-static int	card_intr	__P((struct pccard_devinfo *));
-
-PCCARD_MODULE(ed, edinit, edunload, card_intr, 0, net_imask);
-
-/*
- *	Initialize the device - called from Slot manager.
- */
-static int
-edinit(struct pccard_devinfo *devi)
-{
-	int i;
-	u_char  e;
-	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
-
-	/* validate unit number. */
-	if (devi->isahd.id_unit >= NEDTOT)
-		return(ENODEV);
-	/*
-	 * Probe the device. If a value is returned, the
-	 * device was found at the location.
-	 */
-	sc->gone = 0;
-	if (ed_probe_pccard(&devi->isahd, devi->misc) == 0)
-		return(ENXIO);
-	e = 0;
-	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		e |= devi->misc[i];
-	if (e)
-		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			sc->arpcom.ac_enaddr[i] = devi->misc[i];
-	if (ed_isa_attach(&devi->isahd) == 0)
-		return(ENXIO);
-
-	return(0);
-}
-
-/*
- *	edunload - unload the driver and clear the table.
- *	XXX TODO:
- *	This is usually called when the card is ejected, but
- *	can be caused by a modunload of a controller driver.
- *	The idea is to reset the driver's view of the device
- *	and ensure that any driver entry points such as
- *	read and write do not hang.
- */
-static void
-edunload(struct pccard_devinfo *devi)
-{
-	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-
-	if (sc->gone) {
-		printf("ed%d: already unloaded\n", devi->isahd.id_unit);
-		return;
-	}
-	ifp->if_flags &= ~IFF_RUNNING;
-	if_down(ifp);
-	sc->gone = 1;
-	printf("ed%d: unload\n", devi->isahd.id_unit);
-}
-
-/*
- *	card_intr - Shared interrupt called from
- *	front end of PC-Card handler.
- */
-static int
-card_intr(struct pccard_devinfo *devi)
-{
-	edintr(&ed_softc[devi->isahd.id_unit]);
-	return(1);
-}
-#endif /* NCARD > 0 */
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
@@ -274,69 +160,6 @@ static unsigned short ed_hpp_intr_val[] = {
 	15		/* 15 */
 };
 
-static struct isa_pnp_id ed_ids[] = {
-	{ 0xd680d041,	"NE2000 Compatible" },			   /* PNP80d6 */
-	{ 0x1980635e,	"WSC8019" },				   /* WSC8019 */
-	{ 0x0131d805,	"Acer ALN-101T" },			   /* ANX3101 */
-	{ 0x01200507,	"PLANET ENW-2401" },			   /* AXE2001 */
-	{ 0x19808c4a,	"Realtek Plug & Play Ethernet Card" },	   /* RTL8019 */
-	{ 0x0090252a,	"CNet NE2000 Compatible" },		   /* JQE9000 */
-	{ 0x0020832e,	"Kingston EtheRX KNE20 Plug & Play ISA" }, /* KTC2000 */
-	{ 0,		NULL}
-};
-
-static int
-ed_isa_probe(dev)
-	device_t dev;
-{
-	struct ed_softc *sc = device_get_softc(dev);
-	int     error = 0;
-
-	bzero(sc, sizeof(struct ed_softc));
-
-	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ed_ids);
-
-	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO)
-		goto end;
-
-	/* If we found a PnP card. */
-	if (error == 0) {
-		error = ed_probe_Novell(dev);
-		goto end;
-	}
-    
-	/* Heuristic probes */
-
-	error = ed_probe_WD80x3(dev);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-
-	error = ed_probe_3Com(dev);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-
-	error = ed_probe_Novell(dev);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-
-	error = ed_probe_HP_pclanp(dev);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-
-end:
-	if (error == 0)
-		error = ed_alloc_irq(dev, 0, 0);
-
-	ed_release_resources(dev);
-	return (error);
-}
-
 /*
  * Generic probe routine for testing for the existance of a DS8390.
  *	Must be called after the NIC has just been reset. This routine
@@ -360,7 +183,7 @@ end:
  * Return 1 if 8390 was found, 0 if not.
  */
 
-static int
+int
 ed_probe_generic8390(sc)
 	struct ed_softc *sc;
 {
@@ -377,7 +200,7 @@ ed_probe_generic8390(sc)
 /*
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */
-static int
+int
 ed_probe_WD80x3(dev)
 	device_t dev;
 {
@@ -651,11 +474,12 @@ ed_probe_WD80x3(dev)
 		return (ENXIO);
 	}
 	sc->isa16bit = isa16bit;
-	sc->mem_shared = 1;
 
 	error = ed_alloc_memory(dev, 0, memsize);
-	if (error)
+	if (error) {
+		printf("*** ed_alloc_memory() failed! (%d)\n", error);
 		return (error);
+	}
 	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 
 	/*
@@ -784,7 +608,7 @@ ed_probe_WD80x3(dev)
 /*
  * Probe and vendor-specific initialization routine for 3Com 3c503 boards
  */
-static int
+int
 ed_probe_3Com(dev)
 	device_t dev;
 {
@@ -1070,7 +894,7 @@ ed_probe_3Com(dev)
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
-static int
+int
 ed_probe_Novell_generic(dev, port_rid, flags)
 	device_t dev;
 	int port_rid;
@@ -1291,38 +1115,12 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	return (0);
 }
 
-static int
+int
 ed_probe_Novell(dev)
 	device_t dev;
 {
 	return ed_probe_Novell_generic(dev, 0, device_get_flags(dev));
 }
-
-#if NCARD > 0
-/*
- * Probe framework for pccards.  Replicates the standard framework, 
- * minus the pccard driver registration and ignores the ether address
- * supplied (from the CIS), relying on the probe to find it instead.
- */
-static int
-ed_probe_pccard(isa_dev, ether)
-	struct isa_device *isa_dev;
-	u_char *ether;
-{
-	int     nports;
-
-	nports = ed_probe_WD80x3(isa_dev);
-	if (nports)
-		return (nports);
-
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
-
-	return (0);
-}
-
-#endif /* NCARD > 0 */
 
 #define	ED_HPP_TEST_SIZE	16
 
@@ -1348,7 +1146,7 @@ ed_probe_pccard(isa_dev, ether)
  * The AUI port is turned on using the "link2" option on the ifconfig 
  * command line.
  */
-static int
+int
 ed_probe_HP_pclanp(dev)
 	device_t dev;
 {
@@ -1661,7 +1459,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
 /*
  * Allocate a port resource with the given resource id.
  */
-static int
+int
 ed_alloc_port(dev, rid, size)
 	device_t dev;
 	int rid;
@@ -1685,7 +1483,7 @@ ed_alloc_port(dev, rid, size)
 /*
  * Allocate a memory resource with the given resource id.
  */
-static int
+int
 ed_alloc_memory(dev, rid, size)
 	device_t dev;
 	int rid;
@@ -1709,7 +1507,7 @@ ed_alloc_memory(dev, rid, size)
 /*
  * Allocate an irq resource with the given resource id.
  */
-static int
+int
 ed_alloc_irq(dev, rid, flags)
 	device_t dev;
 	int rid;
@@ -1732,7 +1530,7 @@ ed_alloc_irq(dev, rid, flags)
 /*
  * Release all resources
  */
-static void
+void
 ed_release_resources(dev)
 	device_t dev;
 {
@@ -1758,7 +1556,7 @@ ed_release_resources(dev)
 /*
  * Install interface into kernel networking data structures
  */
-static int
+int
 ed_attach(sc, unit, flags)
 	struct ed_softc *sc;
 	int unit;
@@ -1847,61 +1645,6 @@ ed_attach(sc, unit, flags)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	return (0);
 }
-
-static int
-ed_isa_attach(dev)
-	device_t dev;
-{
-	struct ed_softc *sc = device_get_softc(dev);
-	int flags = device_get_flags(dev);
-	int error;
-
-	if (sc->port_used > 0)
-		ed_alloc_port(dev, sc->port_rid, 1);
-	if (sc->mem_used)
-		ed_alloc_memory(dev, sc->mem_rid, 1);
-	ed_alloc_irq(dev, sc->irq_rid, 0);
-
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       edintr, sc, &sc->irq_handle);
-	if (error) {
-		ed_release_resources(dev);
-		return (error);
-	}
-
-	return ed_attach(sc, device_get_unit(dev), flags);
-}
-
-#if NPCI > 0
-int
-ed_attach_NE2000_pci(dev, port_rid)
-	device_t dev;
-	int port_rid;
-{
-	struct ed_softc *sc = device_get_softc(dev);
-	int flags = 0;
-	int error;
-
-	error = ed_probe_Novell_generic(dev, port_rid, flags);
-	if (error)
-		return (error);
-
-	error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
-	if (error) {
-		ed_release_resources(dev);
-		return (error);
-	}
-
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       edintr, sc, &sc->irq_handle);
-	if (error) {
-		ed_release_resources(dev);
-		return (error);
-	}
-		
-	return ed_attach(sc, device_get_unit(dev), flags);
-}
-#endif
 
 /*
  * Reset interface.
@@ -2469,7 +2212,7 @@ ed_rint(sc)
 /*
  * Ethernet interface interrupt processor
  */
-static void
+void
 edintr(arg)
 	void *arg;
 {
@@ -3561,21 +3304,4 @@ ds_getmcaf(sc, mcaf)
 	}
 }
 
-static device_method_t ed_isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		ed_isa_probe),
-	DEVMETHOD(device_attach,	ed_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t ed_isa_driver = {
-	"ed",
-	ed_isa_methods,
-	sizeof(struct ed_softc)
-};
-
-static devclass_t ed_isa_devclass;
-
-DRIVER_MODULE(ed, isa, ed_isa_driver, ed_isa_devclass, 0, 0);
 #endif	/* NCARD */
