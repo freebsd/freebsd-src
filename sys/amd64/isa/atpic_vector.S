@@ -66,7 +66,7 @@ IDTVEC(vec_name) ;							\
 	movq	%r13,TF_R13(%rsp) ;					\
 	movq	%r14,TF_R14(%rsp) ;					\
 	movq	%r15,TF_R15(%rsp) ;					\
-	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
+	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
 	movq	$irq_num, %rdi; 	/* pass the IRQ */		\
 	call	atpic_handle_intr ;					\
 	MEXITCOUNT ;							\
