@@ -1,80 +1,107 @@
-/*
- * Copyright (c) 1994, Paul Richards.
- *
- * All rights reserved.
- *
- * This software may be used, modified, copied, distributed, and
- * sold, in both source and binary form provided that the above
- * copyright and these terms are retained, verbatim, as the first
- * lines of this file.  Under no circumstances is the author
- * responsible for the proper functioning of this software, nor does
- * the author assume any responsibility for damages incurred with
- * its use.
- */
-
-#define MBRSIZE 512
-#define MBR_MAGIC 0xAA55
-#define ACTIVE 0x80
-
-struct mbr
-{
-	unsigned char bootcode[DOSPARTOFF];
-	struct dos_partition dospart[4];
-	unsigned short magic;
+struct field mbr_field[] = {
+	{ 0, 25, 31, -1, -1, -1, -1, -1, -1, "Master Boot Record (MBR) editor"},
+	{ 4,  8, 30, 30,  2, 36,  2, 13, 13, "Uknown"},
+	{ 5, 31,  7, 10,  3,  1,  3, 14, 14, "0"},
+	{ 6,  5,  5, 10,  4,  2,  6, 17, 17, "0"},
+	{ 6, 14,  5, 10,  5,  2,  6, 17, 15, "0"},
+	{ 6, 24,  5, 10,  6,  2,  6, 17, 15, "0"},
+	{ 7, 31,  7, 10,  7,  3,  7, 18, 18, "0"},
+	{ 8,  5,  5, 10,  8,  6, 10, 22,  8, "0"},
+	{ 8, 14,  5, 10,  9,  6, 10, 22,  9, "0"},
+	{ 8, 24,  5, 10, 10,  6, 10, 22, 19, "0"},
+	{ 9,  9,  6, 10, 11,  7, 12, 24, 11, "0"},
+	{ 9, 27,  5, 10, 12,  7, 12, 24, 22, "0"},
+	{10, 10, 10, 10, 13, 10, 25, 24, 24, "Not Active"},
+	{ 4, 47, 30, 30, 14,  2,  2,  2,  1, "Uknown"},
+	{ 5, 70,  7, 10, 15,  3,  3,  3,  2, "0"},
+	{ 6, 44,  5, 10, 16,  1,  5,  1, 16, "0"},
+	{ 6, 54,  5, 10, 17,  1,  6,  2, 17, "0"},
+	{ 6, 64,  5, 10, 18,  1,  7,  3,  3, "0"},
+	{ 7, 70,  7, 10, 19,  6,  6,  6,  6, "0"},
+	{ 8, 44,  5, 10, 20,  2,  2,  2, 20, "0"},
+	{ 8, 54,  5, 10, 21,  3,  2,  2, 21, "0"},
+	{ 8, 64,  5, 10, 22,  4,  2,  2,  7, "0"},
+	{ 9, 48,  6, 10, 23,  2,  2,  2, 23, "0"},
+	{ 9, 66,  5, 10, 24,  2,  2,  2, 10, "0"},
+	{10, 49, 10, 10, 25,  2,  2,  2, 12, "Not Active"},
+	{14,  8, 30, 30, 26, 12, 26,  2, 14, "Uknown"},
+	{15, 31,  7, 10, 27, 25, 27,  3, 15, "0"},
+	{16,  5,  5, 10, 28, 26, 30,  1, 16, "0"},
+	{16, 14,  5, 10, 29, 26, 30,  2, 16, "0"},
+	{16, 24,  5, 10, 30, 26, 30,  3, 16, "0"},
+	{17, 31,  7, 10, 31, 27, 31,  6, 17, "0"},
+	{18,  5,  5, 10, 32, 30, 34,  2,  2, "0"},
+	{18, 14,  5, 10, 33, 30, 34,  2,  2, "0"},
+	{18, 24,  5, 10, 34, 30, 34,  2,  3, "0"},
+	{19,  9,  6, 10, 35, 31, 36,  2,  2, "0"},
+	{19, 27,  5, 10, 36, 31, 36,  2,  2, "0"},
+	{20, 10, 10, 10, 37, 34, 01,  2,  2, "Not Active"},
+	{14, 47, 30, 30, 38,  2,  2,  2,  4, "Uknown"},
+	{15, 70,  7, 10, 39,  3,  3,  3,  4, "0"},
+	{16, 44,  5, 10, 40,  1,  5,  1,  4, "0"},
+	{16, 54,  5, 10, 41,  1,  6,  2,  5, "0"},
+	{16, 64,  5, 10, 42,  1,  7,  3,  6, "0"},
+	{17, 70,  7, 10, 43,  6,  6,  6,  7, "0"},
+	{18, 44,  5, 10, 44,  2,  2,  2,  2, "0"},
+	{18, 54,  5, 10, 45,  3,  2,  2,  2, "0"},
+	{18, 64,  5, 10, 46,  4,  2,  2,  3, "0"},
+	{19, 48,  6, 10, 47,  2,  2,  2,  2, "0"},
+	{19, 66,  5, 10, 48,  2,  2,  2,  2, "0"},
+	{20, 49, 10, 10, 01,  2,  2,  2,  2, "Not Active"},
+	{2, 15,  11, -1, -1, -1, -1, -1, -1, "Partition 1"},
+	{2, 55,  11, -1, -1, -1, -1, -1, -1, "Partition 2"},
+	{12, 15, 11, -1, -1, -1, -1, -1, -1, "Partition 3"},
+	{12, 55, 11, -1, -1, -1, -1, -1, -1, "Partition 4"},
+	{ 4,  2,  5, -1, -1, -1, -1, -1, -1, "Type:"},
+	{ 5,  2, 28, -1, -1, -1, -1, -1, -1, "Starting at absolute sector:"},
+	{ 6,  2,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{ 6, 11,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{ 6, 21,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{ 7,  2, 26, -1, -1, -1, -1, -1, -1, "Ending at absolute sector:"},
+	{ 8,  2,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{ 8, 11,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{ 8, 21,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{ 9, 02,  7, -1, -1, -1, -1, -1, -1, "Size: ("},
+	{ 9, 18,  8, -1, -1, -1, -1, -1, -1, "sectors)"},
+	{ 9, 33,  2, -1, -1, -1, -1, -1, -1, "Mb"},
+	{10,  2,  7, -1, -1, -1, -1, -1, -1, "Status:"},
+	{ 4, 41,  5, -1, -1, -1, -1, -1, -1, "Type:"},
+	{ 5, 41, 28, -1, -1, -1, -1, -1, -1, "Starting at absolute sector:"},
+	{ 6, 41,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{ 6, 51,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{ 6, 61,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{ 7, 41, 26, -1, -1, -1, -1, -1, -1, "Ending at absolute sector:"},
+	{ 8, 41,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{ 8, 51,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{ 8, 61,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{ 9, 41,  7, -1, -1, -1, -1, -1, -1, "Size: ("},
+	{ 9, 57,  8, -1, -1, -1, -1, -1, -1, "sectors)"},
+	{ 9, 72,  2, -1, -1, -1, -1, -1, -1, "Mb"},
+	{10, 41,  7, -1, -1, -1, -1, -1, -1, "Status:"},
+	{14, 02,  5, -1, -1, -1, -1, -1, -1, "Type:"},
+	{15, 02, 28, -1, -1, -1, -1, -1, -1, "Starting at absolute sector:"},
+	{16,  2,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{16, 11,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{16, 21,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{17, 02, 26, -1, -1, -1, -1, -1, -1, "Ending at absolute sector:"},
+	{18, 02,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{18, 11,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{18, 21,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{19, 02,  7, -1, -1, -1, -1, -1, -1, "Size: ("},
+	{19, 18,  8, -1, -1, -1, -1, -1, -1, "sectors)"},
+	{19, 33,  2, -1, -1, -1, -1, -1, -1, "Mb"},
+	{20, 02,  7, -1, -1, -1, -1, -1, -1, "Status:"},
+	{14, 41,  5, -1, -1, -1, -1, -1, -1, "Type:"},
+	{15, 41, 28, -1, -1, -1, -1, -1, -1, "Starting at absolute sector:"},
+	{16, 41,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{16, 51,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{16, 61,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{17, 41, 26, -1, -1, -1, -1, -1, -1, "Ending at absolute sector:"},
+	{18, 41,  2, -1, -1, -1, -1, -1, -1, "C:"},
+	{18, 51,  2, -1, -1, -1, -1, -1, -1, "H:"},
+	{18, 61,  2, -1, -1, -1, -1, -1, -1, "S:"},
+	{19, 41,  7, -1, -1, -1, -1, -1, -1, "Size: ("},
+	{19, 57,  8, -1, -1, -1, -1, -1, -1, "sectors)"},
+	{19, 72,  2, -1, -1, -1, -1, -1, -1, "Mb"},
+	{20, 41,  7, -1, -1, -1, -1, -1, -1, "Status:"}
 };
-
-struct part_type 
-{
- unsigned char type;
- char *name;
-};
-
-#define PARTITION_TYPES \
-{ \
-    {0x00, "Unused"} \
-   ,{0x01, "Primary DOS with 12 bit FAT"} \
-   ,{0x02, "XENIX / filesystem"} \
-   ,{0x03, "XENIX /usr filesystem"}  \
-   ,{0x04, "Primary DOS with 16 bit FAT"} \
-   ,{0x05, "Extended DOS"} \
-   ,{0x06, "Primary 'big' DOS (> 32MB)"} \
-   ,{0x07, "OS/2 HPFS, QNX or Advanced UNIX"} \
-   ,{0x08, "AIX filesystem"} \
-   ,{0x09, "AIX boot partition or Coherent"} \
-   ,{0x0A, "OS/2 Boot Manager or OPUS"} \
-   ,{0x10, "OPUS"} \
-   ,{0x40, "VENIX 286"} \
-   ,{0x50, "DM"} \
-   ,{0x51, "DM"} \
-   ,{0x52, "CP/M or Microport SysV/AT"} \
-   ,{0x56, "GB"} \
-   ,{0x61, "Speed"} \
-   ,{0x63, "ISC UNIX, other System V/386, GNU HURD or Mach"} \
-   ,{0x64, "Novell Netware 2.xx"} \
-   ,{0x65, "Novell Netware 3.xx"} \
-   ,{0x75, "PCIX"} \
-   ,{0x80, "Minix 1.1 ... 1.4a"} \
-   ,{0x81, "Minix 1.4b ... 1.5.10"} \
-   ,{0x82, "Linux"} \
-   ,{0x93, "Amoeba filesystem"} \
-   ,{0x94, "Amoeba bad block table"} \
-   ,{0xA5, "FreeBSD/NetBSD/386BSD"} \
-   ,{0xB7, "BSDI BSD/386 filesystem"} \
-   ,{0xB8, "BSDI BSD/386 swap"} \
-   ,{0xDB, "Concurrent CPM or C.DOS or CTOS"} \
-   ,{0xE1, "Speed"} \
-   ,{0xE3, "Speed"} \
-   ,{0xE4, "Speed"} \
-   ,{0xF1, "Speed"} \
-   ,{0xF2, "DOS 3.3+ Secondary"} \
-   ,{0xF4, "Speed"} \
-   ,{0xFF, "BBT (Bad Blocks Table)"} \
-};
-
-extern char *part_type(int);
-extern int write_mbr(int, struct mbr *);
-extern int read_mbr(int, struct mbr *);
-extern void show_mbr(struct mbr *);
-extern int clear_mbr(struct mbr *, char *);
-extern void edit_mbr(struct mbr *, struct disklabel *);
-extern int build_mbr(struct mbr *, char *, struct disklabel *);
