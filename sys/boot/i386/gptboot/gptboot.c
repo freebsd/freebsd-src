@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.4 1998/10/13 22:17:05 rnordier Exp $
+ *	$Id: boot2.c,v 1.5 1998/10/13 23:00:47 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -192,8 +192,9 @@ load(const char *fname)
     uint32_t addr, x;
     int fmt, i, j;
 
-    if (!(ino = lookup(fname)) && !ls) {
-	printf("No `%s'\n", fname);
+    if (!(ino = lookup(fname))) {
+	if (!ls)
+	    printf("No %s\n", fname);
 	return;
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
@@ -712,7 +713,7 @@ drvread(void *buf, unsigned lba, unsigned nblk)
     v86.eax = nblk;
     v86.ebx = VTOPSEG(buf) << 16 | VTOPOFF(buf);
     v86.ecx = lba;
-    v86.edx = dsk.drive;
+    v86.edx = 0x100 | dsk.drive;
     v86int();
     v86.ctl = V86_FLAGS;
     if (V86_CY(v86.efl)) {
