@@ -94,7 +94,7 @@ VGA_WIDTH90		opt_vga.h
 VESA			opt_vesa.h
 VESA_DEBUG		opt_vesa.h
 
-PSM_HOOKAPM		opt_psm.h
+PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
