@@ -187,9 +187,7 @@ thread_init(void *mem, int size)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
-	mtx_lock(&Giant);
 	vm_thread_new(td, 0);
-	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
 	td->td_turnstile = turnstile_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
