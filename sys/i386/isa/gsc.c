@@ -101,7 +101,7 @@
 
 #define GEOMTAB_SIZE 7
 
-const struct gsc_geom {
+static const struct gsc_geom {
   int dpi;     /* dots per inch */
   int dpl;     /* dots per line */
   int g_res;   /* get resolution value (status flag) */
