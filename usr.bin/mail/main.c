@@ -61,8 +61,8 @@ main(argc, argv)
 {
 	register int i;
 	struct name *to, *cc, *bcc, *smopts;
-	char *subject;
-	char *ef;
+	char *subject, *replyto;
+	char *ef, *cp;
 	char nosrc = 0;
 	void hdrstop();
 	sig_t prevint;
@@ -90,6 +90,7 @@ main(argc, argv)
 	bcc = NIL;
 	smopts = NIL;
 	subject = NOSTR;
+	replyto = NOSTR;
 	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) != -1) {
 		switch (i) {
 		case 'T':
@@ -220,6 +221,8 @@ Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 			if (*s != '\0')
 				load(s);
 	}
+	if ((cp = getenv("REPLYTO")) != NULL)
+		replyto = cp;
 		
 	/*
 	 * Expand returns a savestr, but load only uses the file name
@@ -227,7 +230,7 @@ Usage: mail [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
 	 */
 	load(expand("~/.mailrc"));
 	if (!rcvmode) {
-		mail(to, cc, bcc, smopts, subject);
+		mail(to, cc, bcc, smopts, subject, replyto);
 		/*
 		 * why wait?
 		 */
