@@ -57,12 +57,27 @@
 
 #define ARGS		0x900
 #define NOPT		11
-#define BSIZEMAX	16384
 #define NDEV		5
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
+
+/*
+ * We use 4k `virtual' blocks for filesystem data, whatever the actual
+ * filesystem block size. FFS blocks are always a multiple of 4k.
+ */
+#define VBLKSIZE	4096
+#define VBLKMASK	(VBLKSIZE - 1)
+#define DBPERVBLK	(VBLKSIZE / DEV_BSIZE)
+#define IPERVBLK	(VBLKSIZE / sizeof(struct dinode))
+#define INDIRPERVBLK	(VBLKSIZE / sizeof(ufs_daddr_t))
+#define INO_TO_VBA(fs, x) (fsbtodb(fs, ino_to_fsba(fs, x)) + \
+    (ino_to_fsbo(fs, x) / IPERVBLK) * DBPERVBLK)
+#define INO_TO_VBO(fs, x) (ino_to_fsbo(fs, x) % IPERVBLK)
+#define FS_TO_VBA(fs, fsb, off) (fsbtodb(fs, fsb) + \
+    ((off) / VBLKSIZE) * DBPERVBLK)
+#define FS_TO_VBO(fs, fsb, off) ((off) & VBLKMASK)
 
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
@@ -121,7 +136,6 @@ static int dskread(void *, unsigned, unsigned);
 static int printf(const char *,...);
 static int putchar(int);
 static void *memcpy(void *, const void *, size_t);
-static void *malloc(size_t);
 static uint32_t memsize(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
@@ -516,38 +530,34 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 static ssize_t
 fsread(ino_t inode, void *buf, size_t nbyte)
 {
-    static struct fs fs;
+    static char blkbuf[VBLKSIZE];
+    static ufs_daddr_t indbuf[VBLKSIZE / sizeof(ufs_daddr_t)];
+    static char sbbuf[SBSIZE];
     static struct dinode din;
-    static char *blkbuf;
-    static ufs_daddr_t *indbuf;
+    static struct fs *fs = (struct fs *)sbbuf;
     static ino_t inomap;
-    static ufs_daddr_t blkmap, indmap;
-    static unsigned fsblks;
+    static daddr_t blkmap, indmap;
     char *s;
     ufs_daddr_t lbn, addr;
-    size_t n, nb, off;
+    daddr_t vbaddr;
+    size_t n, nb, off, vboff;
 
     if (!dsk.meta) {
-	if (!blkbuf)
-	    blkbuf = malloc(BSIZEMAX);
 	inomap = 0;
-	if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
+	if (dskread(sbbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
 	    return -1;
-	memcpy(&fs, blkbuf, sizeof(fs));
-	if (fs.fs_magic != FS_MAGIC) {
+	if (fs->fs_magic != FS_MAGIC) {
 	    printf("Not ufs\n");
 	    return -1;
 	}
-	fsblks = fs.fs_bsize >> DEV_BSHIFT;
 	dsk.meta++;
     }
     if (!inode)
 	return 0;
     if (inomap != inode) {
-	if (dskread(blkbuf, fsbtodb(&fs, ino_to_fsba(&fs, inode)),
-		    fsblks))
+	if (dskread(blkbuf, INO_TO_VBA(fs, inode), DBPERVBLK))
 	    return -1;
-	din = ((struct dinode *)blkbuf)[inode % INOPB(&fs)];
+	din = ((struct dinode *)blkbuf)[INO_TO_VBO(fs, inode)];
 	inomap = inode;
 	fs_off = 0;
 	blkmap = indmap = 0;
@@ -557,31 +567,34 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	nbyte = n;
     nb = nbyte;
     while (nb) {
-	lbn = lblkno(&fs, fs_off);
+	lbn = lblkno(fs, fs_off);
+	off = blkoff(fs, fs_off);
 	if (lbn < NDADDR)
 	    addr = din.di_db[lbn];
 	else {
-	    if (indmap != din.di_ib[0]) {
-		if (!indbuf)
-		    indbuf = malloc(BSIZEMAX);
-		if (dskread(indbuf, fsbtodb(&fs, din.di_ib[0]),
-			    fsblks))
+	    vbaddr = FS_TO_VBA(fs, din.di_ib[0], sizeof(indbuf[0]) *
+		((lbn - NDADDR) % NINDIR(fs)));
+	    if (indmap != vbaddr) {
+		if (dskread(indbuf, vbaddr, DBPERVBLK))
 		    return -1;
-		indmap = din.di_ib[0];
+		indmap = vbaddr;
 	    }
-	    addr = indbuf[(lbn - NDADDR) % NINDIR(&fs)];
+	    addr = indbuf[(lbn - NDADDR) % INDIRPERVBLK];
 	}
-	n = dblksize(&fs, &din, lbn);
-	if (blkmap != addr) {
-	    if (dskread(blkbuf, fsbtodb(&fs, addr), n >> DEV_BSHIFT))
+	vbaddr = FS_TO_VBA(fs, addr, off);
+	vboff = FS_TO_VBO(fs, addr, off);
+	n = dblksize(fs, &din, lbn) - (off & ~VBLKMASK);
+	if (n > VBLKSIZE)
+		n = VBLKSIZE;
+	if (blkmap != vbaddr) {
+	    if (dskread(blkbuf, vbaddr, n >> DEV_BSHIFT))
 		return -1;
-	    blkmap = addr;
+	    blkmap = vbaddr;
 	}
-	off = blkoff(&fs, fs_off);
-	n -= off;
+	n -= vboff;
 	if (n > nb)
 	    n = nb;
-	memcpy(s, blkbuf + off, n);
+	memcpy(s, blkbuf + vboff, n);
 	s += n;
 	fs_off += n;
 	nb -= n;
@@ -592,14 +605,12 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 static int
 dskread(void *buf, unsigned lba, unsigned nblk)
 {
-    static char *sec;
+    static char sec[DEV_BSIZE];
     struct dos_partition *dp;
     struct disklabel *d;
     unsigned sl, i;
 
     if (!dsk.meta) {
-	if (!sec)
-	    sec = malloc(DEV_BSIZE);
 	dsk.start = 0;
 	if (drvread(sec, DOSBBSECTOR, 1))
 	    return -1;
@@ -709,19 +720,6 @@ memcpy(void *dst, const void *src, size_t size)
     for (d = dst, s = src; size; size--)
 	*d++ = *s++;
     return dst;
-}
-
-static void *
-malloc(size_t size)
-{
-    static uint32_t next;
-    void *p;
-
-    if (!next)
-	next = roundup2(__base + _end, 0x10000) - __base;
-    p = (void *)next;
-    next += size;
-    return p;
 }
 
 static uint32_t
