@@ -13,7 +13,7 @@ RETURN            Menüpunkt auswählen.
 ESC               Eine Subshell zu Hilfszwecken starten. `exit' beendet sie.
 BILD NACH OBEN    Innerhalb von Textkästen: eine Seite zurück.
 BILD NACH UNTEN   Innerhalb von Textkästen: eine Seite vor.
-LEERTASTE	  In Menüs mit mehreren Auswahlmöglichkeiten: umschalten.
+LEERTASTE         In Menüs mit mehreren Auswahlmöglichkeiten: umschalten.
 F1                Hilfe (sofern unterstützt).
 
 Wenn an den Seiten eines Menüs kleine "^(-)"- oder "v(+)"-Symbole zu

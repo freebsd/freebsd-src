@@ -13,7 +13,7 @@ RETURN          Select item.
 ESC             Spawn a sub-shell for diagnostic purposes.  Exit returns.
 PAGE UP         In text boxes, scrolls up one page.
 PAGE DOWN       In text boxes, scrolls down one page.
-SPACE		In "radio" or multiple choice menus, toggle the current item.
+SPACE   	In "radio" or multiple choice menus, toggle the current item.
 F1              Help (in screens that provide it).
 
 If you also see small "^(-)" or "v(+)" symbols at the edges of a menu,

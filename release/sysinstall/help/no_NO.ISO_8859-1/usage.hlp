@@ -1,22 +1,22 @@
 HVORDAN Å BRUKE SYSTEMET
 =========================
 
-TAST		FUNKSJON
-----		--------
-PIL OPP		Flytte til forrige dataelement (eller opp, i et tekstfelt).
-PIL NED		Flytte til neste dataelement (eller ned, i et tekstfelt).
-TAB		Flytte til neste dataelement eller gruppe.
-HØYRE PIL	Flytte til neste dataelement eller gruppe (samme som TAB).
-SKIFT-TAB	Flytte til forrige dataelement eller gruppe.
-VENSTRE PIL	Flytte til forrige dataelement eller gruppe (samme 
-			som SKIFT-TAB).
-RETUR		Velge dataelement.
-ESC		Starte et underordnet skall i diagnostiserings-øyemed. 
-SIDE OPP	I tekstbokser, ruller opp en side.
-SIDE NED	I tekstbokser, ruller ned en side.
-MELLOMROM	I "radio" eller flervalgs menyer, markere inneværende
-			dataelement.
-F1 		Hjelp (i de skjermene som støtter dette).
+TAST            FUNKSJON
+----            --------
+PIL OPP         Flytte til forrige dataelement (eller opp, i et tekstfelt).
+PIL NED         Flytte til neste dataelement (eller ned, i et tekstfelt).
+TAB             Flytte til neste dataelement eller gruppe.
+HØYRE PIL    Flytte til neste dataelement eller gruppe (samme som TAB).
+SKIFT-TAB       Flytte til forrige dataelement eller gruppe.
+VENSTRE PIL     Flytte til forrige dataelement eller gruppe (samme 
+                        som SKIFT-TAB).
+RETUR           Velge dataelement.
+ESC             Starte et underordnet skall i diagnostiserings-øyemed. 
+SIDE OPP        I tekstbokser, ruller opp en side.
+SIDE NED        I tekstbokser, ruller ned en side.
+MELLOMROM       I "radio" eller flervalgs menyer, markere inneværende
+                        dataelement.
+F1              Hjelp (i de skjermene som støtter dette).
 
 Dersom du også ser små "^(-)" eller "v(+)" symboler på kantene av
 en meny, betyr det at det er flere dataelementer ovenfor eller nedenfor
