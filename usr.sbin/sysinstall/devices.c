@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.21 1995/05/20 10:33:00 jkh Exp $
+ * $Id: devices.c,v 1.22 1995/05/20 14:36:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,8 @@ static struct {
     { DEVICE_TYPE_TAPE,  "wt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK,  "sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK,  "wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_FLOPPY, "fd0a",	"Floppy disk drive (unit A)"				},
-    { DEVICE_TYPE_FLOPPY, "fd1a",	"Floppy disk drive (unit B)"				},
+    { DEVICE_TYPE_FLOPPY, "fd0",	"Floppy disk drive (unit A)"				},
+    { DEVICE_TYPE_FLOPPY, "fd1",	"Floppy disk drive (unit B)"				},
     { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"		},
     { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP device"		},
     { DEVICE_TYPE_NETWORK, "lo",	"Loop-back (local) network interface"			},
