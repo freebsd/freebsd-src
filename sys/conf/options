@@ -181,6 +181,9 @@ UDF		opt_dontuse.h
 UMAPFS		opt_dontuse.h
 UNIONFS		opt_dontuse.h
 
+# Pseudofs debugging
+PSEUDOFS_TRACE	opt_pseudofs.h
+
 # Broken - ffs_snapshot() dependency from ufs_lookup() :-(
 FFS		opt_ffs_broken_fixme.h
 

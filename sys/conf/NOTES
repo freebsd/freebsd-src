@@ -807,6 +807,7 @@ options 	NULLFS			#NULL filesystem
 options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
 options 	SMBFS			#SMB/CIFS filesystem
 options 	UDF			#Universal Disk Format
 # Broken (seriously (functionally) broken):
