@@ -48,7 +48,7 @@ int decode(FILE *fd, char *buffer, int len)
 		if (!fgets(temp, sizeof(temp), fd))
 			return(0);
 	} while (strncmp(temp, "begin ", 6));
-	sscanf(temp, "begin %o %s", &n, temp);
+	sscanf(temp, "begin %o %s", (unsigned *)&n, temp);
 	bp = buffer;
 	for (;;) {
 		if (!fgets(p = temp, sizeof(temp), fd))
