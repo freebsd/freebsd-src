@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.26 1998/05/25 10:37:43 julian Exp $
+ *	$Id: ip_divert.c,v 1.27 1998/06/05 22:39:52 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -91,20 +91,14 @@ u_short ip_divert_port;
  * The user process can send it back to help the caller know something
  * about where the packet came from.
  *
- * If IPFW is the caller then the IN cookie is the rule that sent
- * us here and the OUT cookie is the rule after which processing
+ * If IPFW is the caller then the cookie is the rule that sent
+ * us here. On reinjection is is the rule after which processing
  * should continue. Leaving it the same will make processing start
  * at the rule number after that which sent it here. Setting it to
  * 0 will restart processing at the beginning. 
  * #endif 
  */
-#ifdef IPFW_DIVERT_OLDRESTART
-u_short ip_divert_ignore;
-#else
-
-u_short ip_divert_in_cookie;
-u_short ip_divert_out_cookie;
-#endif /* IPFW_DIVERT_OLDRESTART */
+u_short ip_divert_cookie;
 
 /* Internal variables */
 
@@ -171,8 +165,8 @@ div_input(struct mbuf *m, int hlen)
 #ifdef IPFW_DIVERT_OLDRESTART
 	divsrc.sin_port = htons(ip_divert_port);
 #else
-	divsrc.sin_port = ip_divert_in_cookie;
-	ip_divert_in_cookie = 0;
+	divsrc.sin_port = ip_divert_cookie;
+	ip_divert_cookie = 0;
 #endif /* IPFW_DIVERT_OLDRESTART */
 
 	/* Restore packet header fields */
@@ -274,19 +268,15 @@ div_output(so, m, addr, control)
 		m_freem(control);		/* XXX */
 
 	/* Loopback avoidance */
+	if (sin) {
 #ifdef IPFW_DIVERT_OLDRESTART
-	if (sin) {
-		ip_divert_ignore = ntohs(sin->sin_port);
-	} else {
-		ip_divert_ignore = 0;
-	}
+		ip_divert_cookie = ntohs(sin->sin_port);
 #else
-	if (sin) {
-		ip_divert_out_cookie = sin->sin_port;
-	} else {
-		ip_divert_out_cookie = 0;
-	}
+		ip_divert_cookie = sin->sin_port;
 #endif /* IPFW_DIVERT_OLDRESTART */
+	} else {
+		ip_divert_cookie = 0;
+	}
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
@@ -344,19 +334,11 @@ div_output(so, m, addr, control)
 	}
 
 	/* Reset for next time (and other packets) */
-#ifdef IPFW_DIVERT_OLDRESTART
-	ip_divert_ignore = 0;
-#else
-	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_OLDRESTART */
+	ip_divert_cookie = 0;
 	return error;
 
 cantsend:
-#ifdef IPFW_DIVERT_OLDRESTART
-	ip_divert_ignore = 0;
-#else
-	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_OLDRESTART */
+	ip_divert_cookie = 0;
 	m_freem(m);
 	return error;
 }
