@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.149 1999/07/21 12:19:44 joerg Exp $
+ *	$Id: fd.c,v 1.150 1999/07/29 01:02:55 mdodd Exp $
  *
  */
 
@@ -2132,9 +2132,6 @@ retrier(struct fdc_data *fdc)
 	fail:
 		{
 			dev_t sav_b_dev = bp->b_dev;
-
-			if (fdc->fd == 0)
-				goto bogus;
 			/* Trick diskerr */
 			bp->b_dev = makedev(major(bp->b_dev),
 				    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
@@ -2168,7 +2165,6 @@ retrier(struct fdc_data *fdc)
 								 DEVSTAT_WRITE);
 		fdc->fd->skip = 0;
 		biodone(bp);
-	bogus:
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;
 		fdc->fd = (fd_p) 0;
