@@ -71,12 +71,7 @@
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
-static int pcic_resume_reset =
-#ifdef PCIC_RESUME_RESET	/* opt_pcic.h */
-	1;
-#else
-	0;
-#endif
+static int pcic_resume_reset = 1;
 
 SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW, 
 	&pcic_resume_reset, 0, "");
@@ -88,8 +83,7 @@ SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
 static int		allocate_driver(struct slot *, struct dev_desc *);
 static void		inserted(void *);
 static void		disable_slot(struct slot *);
-static void		disable_slot_spl0(struct slot *);
-static void		disable_slot_to(void *);
+static void		disable_slot_to(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
 static void		power_off_slot(void *);
 
@@ -185,24 +179,13 @@ disable_slot(struct slot *slt)
 }
 
 static void
-disable_slot_to(void *argp)
+disable_slot_to(struct slot *slt)
 {
-	struct slot *slt = (struct slot *) argp;
-
 	slt->state = empty;
 	disable_slot(slt);
 	printf("pccard: card removed, slot %d\n", slt->slotnum);
 	pccard_remove_beep();
 	selwakeup(&slt->selp);
-}
-
-/*
- * Disables the slot later when we drop to spl0 via a timeout.
- */
-static void
-disable_slot_spl0(struct slot *slt)
-{
-	slt->disable_ch = timeout(disable_slot_to, (caddr_t) slt, 0);
 }
 
 /*
@@ -232,7 +215,6 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	pccard_slots[slotno] = slt;
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
-	callout_handle_init(&slt->disable_ch);
 	return(slt);
 }
 
@@ -301,12 +283,12 @@ inserted(void *arg)
 	 */
 	slt->pwr.vcc = 50;
 	slt->pwr.vpp = 0;
+
 	/*
 	 * Disable any pending timeouts for this slot, and explicitly
 	 * power it off right now.  Then, re-enable the power using
 	 * the (possibly new) power settings.
 	 */
-	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	power_off_slot(slt);
 	slt->ctrl->power(slt);
@@ -338,7 +320,7 @@ pccard_event(struct slot *slt, enum card_event event)
 		 */
 		if (slt->state == filled) {
 			slt->state = empty;
-			disable_slot_spl0(slt);
+			disable_slot_to(slt);
 		}
 		break;
 	case card_inserted:
@@ -705,7 +687,6 @@ pccard_suspend(device_t dev)
 	 * Disable any pending timeouts for this slot since we're
 	 * powering it down/disabling now.
 	 */
-	untimeout(power_off_slot, (caddr_t)slt, slt->disable_ch);
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	slt->ctrl->disable(slt);
 	return (0);

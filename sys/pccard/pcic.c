@@ -189,6 +189,11 @@ pcic_io(struct slot *slt, int win)
 	int	mask, reg;
 	struct pcic_slot *sp = slt->cdata;
 	struct io_desc *ip = &slt->io[win];
+	if (bootverbose) {
+		printf("pcic: I/O win %d flags %x %x-%x\n", win, ip->flags,
+		    ip->start, ip->start+ip->size-1);
+	}
+
 	switch (win) {
 	case 0:
 		mask = PCIC_IO0_EN;
@@ -765,7 +770,14 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 	{
-		struct io_desc *ip = &devi->slt->io[rid];
+		struct io_desc *ip;
+		ip = &devi->slt->io[rid];
+		if (ip->flags == 0) {
+			if (rid == 0)
+				ip->flags = IODF_WS | IODF_16BIT | IODF_CS16;
+			else
+				ip->flags = devi->slt->io[0].flags;
+		}
 		ip->flags |= IODF_ACTIVE;
 		ip->start = rman_get_start(r);
 		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
@@ -775,11 +787,19 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		break;
 	}
 	case SYS_RES_IRQ:
+		/*
+		 * We actually defer the activation of the IRQ resource
+		 * until the interrupt is registered to avoid stray
+		 * interrupt messages.
+		 */
 		break;
 	case SYS_RES_MEMORY: 
 	{
-		struct mem_desc *mp = &devi->slt->mem[rid];
-		mp->flags |= IODF_ACTIVE;
+		struct mem_desc *mp;
+		if (rid >= NUM_MEM_WINDOWS)
+			return EINVAL;
+		mp = &devi->slt->mem[rid];
+		mp->flags |= MDF_ACTIVE;
 		mp->start = (caddr_t) rman_get_start(r);
 		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
 		err = pcic_memory(devi->slt, rid);
@@ -817,7 +837,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_MEMORY:
 	{
 		struct mem_desc *mp = &devi->slt->mem[rid];
-		mp->flags &= ~IODF_ACTIVE;
+		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
 		err = pcic_memory(devi->slt, rid);
 		if (err) {
 			return err;
