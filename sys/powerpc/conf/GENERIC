@@ -82,6 +82,12 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
+# syscons is the default console driver, resembling an SCO console
+device		sc
+options		SC_OFWFB	# OFW frame buffer
+options		SC_DFLT_FONT	# compile font in
+makeoptions	SC_DFLT_FONT=cp437
+
 # Serial (COM) ports
 #device		sio		# 8250, 16[45]50 based serial ports
 device		zs		# Zilog 8350 based serial ports
@@ -108,19 +114,22 @@ device		faith		# IPv6-to-IPv4 relaying/(translation)
 device		bpf		#Berkeley packet filter
 
 # USB support
-#device		uhci		# UHCI PCI->USB interface
-#device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
-#device		ugen		# Generic
-#device		uhid		# "Human Interface Devices"
-#device		ukbd		# Keyboard
-#device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da0
-#device		ums		# Mouse
+device		uhci		# UHCI PCI->USB interface
+device		ohci		# OHCI PCI->USB interface
+device		usb		# USB Bus (required)
+device		ugen		# Generic
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage - Requires scbus and da0
+device		ums		# Mouse
+device		urio		# Diamond Rio 500 MP3 player
+device		uscanner	# Scanners
 # USB Ethernet
-#device		aue		# ADMtek USB ethernet
-#device		cue		# CATC USB ethernet
-#device		kue		# Kawasaki LSI USB ethernet
+device		aue		# ADMtek USB ethernet
+device		axe		# ASIX Electronics USB ethernet
+device		cue		# CATC USB ethernet
+device		kue		# Kawasaki LSI USB ethernet
 
 # FireWire support
 device		firewire	# FireWire bus code
