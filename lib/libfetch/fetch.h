@@ -86,6 +86,8 @@ struct url_ent {
 #define	FETCH_URL	18
 #define	FETCH_VERBOSE	19
 
+__BEGIN_DECLS
+
 /* FILE-specific functions */
 FILE		*fetchXGetFile(struct url *, struct url_stat *, const char *);
 FILE		*fetchGetFile(struct url *, const char *);
@@ -124,6 +126,8 @@ struct url	*fetchMakeURL(const char *, const char *, int,
 		     const char *, const char *, const char *);
 struct url	*fetchParseURL(const char *);
 void		 fetchFreeURL(struct url *);
+
+__END_DECLS
 
 /* Authentication */
 typedef int (*auth_t)(struct url *);
