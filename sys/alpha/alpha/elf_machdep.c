@@ -38,13 +38,13 @@
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
+elf_reloc(linker_file_t lf, const void *data, int type)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
 	Elf_Addr addr;
 	Elf_Addr addend;
-	Elf_Word rtype;
+	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 
@@ -54,12 +54,14 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
 		addend = *where;
 		rtype = ELF_R_TYPE(rel->r_info);
+		symidx = ELF_R_SYM(rel->r_info);
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *) (relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
 		break;
 	default:
 		panic("elf_reloc: unknown relocation mode %d\n", type);
@@ -71,9 +73,8 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_ALPHA_REFQUAD:
-			addr = (Elf_Addr)
-				linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			addr = elf_lookup(lf, symidx, 1);
+			if (addr == 0)
 				return -1;
 			addr += addend;
 			if (*where != addr)
@@ -81,9 +82,8 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_ALPHA_GLOB_DAT:
-			addr = (Elf_Addr)
-				linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			addr = elf_lookup(lf, symidx, 1);
+			if (addr == 0)
 				return -1;
                         addr += addend;
 			if (*where != addr)
@@ -92,9 +92,8 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 
 		case R_ALPHA_JMP_SLOT:
 			/* No point in lazy binding for kernel modules. */
-			addr = (Elf_Addr)
-				linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			addr = elf_lookup(lf, symidx, 1);
+			if (addr == 0)
 				return -1;
 			if (*where != addr)
 				*where = addr;

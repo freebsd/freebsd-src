@@ -904,8 +904,8 @@ relocate_file(elf_file_t ef)
     if (rel) {
 	rellim = (const Elf_Rel *)((const char *)ef->rel + ef->relsize);
 	while (rel < rellim) {
-	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL, symname)) {
+	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL)) {
+		symname = symbol_name(ef, rel->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
@@ -918,8 +918,8 @@ relocate_file(elf_file_t ef)
     if (rela) {
 	relalim = (const Elf_Rela *)((const char *)ef->rela + ef->relasize);
 	while (rela < relalim) {
-	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA, symname)) {
+	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA)) {
+		symname = symbol_name(ef, rela->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
@@ -932,8 +932,8 @@ relocate_file(elf_file_t ef)
     if (rel) {
 	rellim = (const Elf_Rel *)((const char *)ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
-	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL, symname)) {
+	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL)) {
+		symname = symbol_name(ef, rel->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
@@ -946,8 +946,8 @@ relocate_file(elf_file_t ef)
     if (rela) {
 	relalim = (const Elf_Rela *)((const char *)ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
-	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA, symname)) {
+	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA)) {
+		symname = symbol_name(ef, rela->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
@@ -1190,3 +1190,50 @@ link_elf_get_gp(linker_file_t lf)
 	return (Elf_Addr)ef->got;
 }
 #endif
+
+/*
+ * Symbol lookup function that can be used when the symbol index is known (ie
+ * in relocations). It uses the symbol index instead of doing a fully fledged
+ * hash table based lookup when such is valid. For example for local symbols.
+ * This is not only more efficient, it's also more correct. It's not always
+ * the case that the symbol can be found through the hash table.
+ */
+Elf_Addr
+elf_lookup(linker_file_t lf, Elf_Word symidx, int deps)
+{
+	elf_file_t ef = (elf_file_t)lf;
+	const Elf_Sym *sym;
+	const char *symbol;
+
+	/* Don't even try to lookup the symbol if the index is bogus. */
+	if (symidx >= ef->nchains)
+		return (0);
+
+	sym = ef->symtab + symidx;
+
+	/*
+	 * Don't do a full lookup when the symbol is local. It may even
+	 * fail because it may not be found through the hash table.
+	 */
+	if (ELF_ST_BIND(sym->st_info) == STB_LOCAL) {
+		/* Force lookup failure when we have an insanity. */
+		if (sym->st_shndx == SHN_UNDEF || sym->st_value == 0)
+			return (0);
+		return ((Elf_Addr)ef->address + sym->st_value);
+	}
+
+	/*
+	 * XXX we can avoid doing a hash table based lookup for global
+	 * symbols as well. This however is not always valid, so we'll
+	 * just do it the hard way for now. Performance tweaks can
+	 * always be added.
+	 */
+
+	symbol = ef->strtab + sym->st_name;
+
+	/* Force a lookup failure if the symbol name is bogus. */
+	if (*symbol == 0)
+		return (0);
+
+	return ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
+}

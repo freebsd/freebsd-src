@@ -41,24 +41,24 @@ Elf_Addr link_elf_get_gp(linker_file_t);
 extern Elf_Addr fptr_storage[];
 
 static Elf_Addr
-lookup_fdesc(linker_file_t lf, const char *sym)
+lookup_fdesc(linker_file_t lf, Elf_Word symidx)
 {
 	Elf_Addr addr;
 	int i;
 	static int eot = 0;
 
-	addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 0);
-	if (addr == NULL) {
+	addr = elf_lookup(lf, symidx, 0);
+	if (addr == 0) {
 		for (i = 0; i < lf->ndeps; i++) {
-			addr = lookup_fdesc(lf->deps[i], sym);
-			if (addr != NULL)
+			addr = lookup_fdesc(lf->deps[i], symidx);
+			if (addr != 0)
 				return (addr);
 		}
-		return (NULL);
+		return (0);
 	}
 
 	if (eot)
-		return (NULL);
+		return (0);
 
 	/*
 	 * Lookup and/or construct OPD
@@ -77,17 +77,17 @@ lookup_fdesc(linker_file_t lf, const char *sym)
 	printf("%s: fptr table full\n", __func__);
 	eot = 1;
 
-	return (NULL);
+	return (0);
 }
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
+elf_reloc(linker_file_t lf, const void *data, int type)
 {
 	Elf_Addr relocbase = (Elf_Addr)lf->address;
 	Elf_Addr *where;
 	Elf_Addr addend, addr;
-	Elf_Word rtype;
+	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 
@@ -96,6 +96,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 		rel = (const Elf_Rel *)data;
 		where = (Elf_Addr *)(relocbase + rel->r_offset);
 		rtype = ELF_R_TYPE(rel->r_info);
+		symidx = ELF_R_SYM(rel->r_info);
 		switch (rtype) {
 		case R_IA64_DIR64LSB:
 		case R_IA64_FPTR64LSB:
@@ -111,6 +112,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *)(relocbase + rela->r_offset);
 		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
 		addend = rela->r_addend;
 		break;
 	default:
@@ -121,35 +123,28 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 	case R_IA64_NONE:
 		break;
 	case R_IA64_DIR64LSB:	/* word64 LSB	S + A */
-		if (sym == NULL)
-			return -1;
-		addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
+		addr = elf_lookup(lf, symidx, 1);
 		if (addr == 0)
-			return -1;
+			return (-1);
 		*where = addr + addend;
 		break;
 	case R_IA64_FPTR64LSB:	/* word64 LSB	@fptr(S + A) */
-		if (sym == NULL)
-			return -1;
 		if (addend != 0) {
 			printf("%s: addend ignored for OPD relocation\n",
 			    __func__);
 		}
-		addr = lookup_fdesc(lf, sym);
+		addr = lookup_fdesc(lf, symidx);
 		if (addr == 0)
-			return -1;
+			return (-1);
 		*where = addr;
 		break;
 	case R_IA64_REL64LSB:	/* word64 LSB	BD + A */
 		*where = relocbase + addend;
 		break;
 	case R_IA64_IPLTLSB:
-		if (sym == NULL)
-			return -1;
-		/* lookup_fdesc() returns the address of the OPD. */
-		addr = lookup_fdesc(lf, sym);
+		addr = lookup_fdesc(lf, symidx);
 		if (addr == 0)
-			return -1;
+			return (-1);
 		where[0] = *((Elf_Addr*)addr) + addend;
 		where[1] = *((Elf_Addr*)addr + 1);
 		break;
@@ -159,5 +154,5 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 		return -1;
 	}
 
-	return(0);
+	return (0);
 }

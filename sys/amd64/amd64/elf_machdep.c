@@ -32,13 +32,13 @@
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
+elf_reloc(linker_file_t lf, const void *data, int type)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
 	Elf_Addr addr;
 	Elf_Addr addend;
-	Elf_Word rtype;
+	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
 
@@ -48,12 +48,14 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
 		addend = *where;
 		rtype = ELF_R_TYPE(rel->r_info);
+		symidx = ELF_R_SYM(rel->r_info);
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
 		where = (Elf_Addr *) (relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
 		break;
 	default:
 		panic("unknown reloc type %d\n", type);
@@ -65,9 +67,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_386_32:		/* S + A */
-			if (sym == NULL)
-				return -1;
-			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
+			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			addr += addend;
@@ -76,9 +76,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_386_PC32:	/* S + A - P */
-			if (sym == NULL)
-				return -1;
-			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
+			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			addr += addend - (Elf_Addr)where;
@@ -96,9 +94,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			break;
 
 		case R_386_GLOB_DAT:	/* S */
-			if (sym == NULL)
-				return -1;
-			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
+			addr = elf_lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
 			if (*where != addr)
