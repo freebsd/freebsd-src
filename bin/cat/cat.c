@@ -121,6 +121,7 @@ main(int argc, char *argv[])
 	if (fclose(stdout))
 		err(1, "stdout");
 	exit(rval);
+	/* NOTREACHED */
 }
 
 static void
@@ -128,6 +129,7 @@ usage(void)
 {
 	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
 	exit(1);
+	/* NOTREACHED */
 }
 
 void
