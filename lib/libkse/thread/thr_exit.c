@@ -141,7 +141,7 @@ _thread_exit_cleanup(void)
 void
 pthread_exit(void *status)
 {
-	int	frame;
+	pthread_t pthread;
 
 	/* Check if this thread is already in the process of exiting: */
 	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
@@ -159,7 +159,6 @@ pthread_exit(void *status)
 	while (_thread_run->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
-
 	if (_thread_run->attr.cleanup_attr != NULL) {
 		_thread_run->attr.cleanup_attr(_thread_run->attr.arg_attr);
 	}
@@ -174,25 +173,6 @@ pthread_exit(void *status)
 		free(_thread_run->poll_data.fds);
 		_thread_run->poll_data.fds = NULL;
 	}
-
-	if ((frame = _thread_run->sigframe_count) == 0)
-		_thread_exit_finish();
-	else {
-		/*
-		 * Jump back and unwind the signal frames to gracefully
-		 * cleanup.
-		 */
-		___longjmp(*_thread_run->sigframes[frame]->sig_jb, 1);
-	}
-
-	/* This point should not be reached. */
-	PANIC("Dead thread has resumed");
-}
-
-void
-_thread_exit_finish(void)
-{
-	pthread_t	pthread;
 
 	/*
 	 * Lock the garbage collector mutex to ensure that the garbage
@@ -233,6 +213,16 @@ _thread_exit_finish(void)
 		 * detach this thread:
 		 */
 		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+
+		/*
+		 * Set the return value for the woken thread:
+		 */
+		if ((_thread_run->attr.flags & PTHREAD_DETACHED) != 0)
+			pthread->error = ESRCH;
+		else {
+			pthread->ret = _thread_run->ret;
+			pthread->error = 0;
+		}
 	}
 
 	/* Remove this thread from the thread list: */
@@ -240,5 +230,8 @@ _thread_exit_finish(void)
 
 	/* This thread will never be re-scheduled. */
 	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
+
+	/* This point should not be reached. */
+	PANIC("Dead thread has resumed");
 }
 #endif

@@ -327,6 +327,7 @@ struct pthread_cond {
 	pthread_mutex_t			c_mutex;
 	void				*c_data;
 	long				c_flags;
+	int				c_seqno;
 
 	/*
 	 * Lock for accesses to this structure.
@@ -351,7 +352,7 @@ struct pthread_cond_attr {
  */
 #define PTHREAD_COND_STATIC_INITIALIZER    \
 	{ COND_TYPE_FAST, TAILQ_INITIALIZER, NULL, NULL, \
-	0, _SPINLOCK_INITIALIZER }
+	0, 0, _SPINLOCK_INITIALIZER }
 
 /*
  * Semaphore definitions.
@@ -423,6 +424,9 @@ enum pthread_susp {
  * almost entirely on this stack.
  */
 #define PTHREAD_STACK_INITIAL			0x100000
+
+/* Size of the scheduler stack: */
+#define SCHED_STACK_SIZE			PAGE_SIZE
 
 /*
  * Define the different priority ranges.  All applications have thread
@@ -574,13 +578,20 @@ union pthread_wait_data {
  */
 typedef void	(*thread_continuation_t) (void *);
 
+struct pthread_signal_frame;
+
 struct pthread_state_data {
-	int			psd_interrupted;
+	struct pthread_signal_frame *psd_curframe;
 	sigset_t		psd_sigmask;
-	enum pthread_state	psd_state;
-	int			psd_flags;
 	struct timespec		psd_wakeup_time;
 	union pthread_wait_data psd_wait_data;
+	enum pthread_state	psd_state;
+	int			psd_flags;
+	int			psd_interrupted;
+	int			psd_longjmp_val;
+	int			psd_sigmask_seqno;
+	int			psd_signo;
+	int			psd_sig_defer_count;
 	/* XXX - What about thread->timeout and/or thread->error? */
 };
 
@@ -620,9 +631,6 @@ struct pthread_signal_frame {
 	 */
 	struct pthread_state_data saved_state;
 
-	/* Beginning (bottom) of threads stack frame for this signal. */
-	unsigned long		stackp;
-
 	/*
 	 * Threads return context; ctxtype identifies the type of context.
 	 * For signal frame 0, these point to the context storage area
@@ -637,18 +645,10 @@ struct pthread_signal_frame {
 	} ctx;
 	thread_context_t	ctxtype;
 	int			longjmp_val;
-
-	/* Threads "jump out of signal handler" destination frame. */
-	int			dst_frame;
-
-	/*
-	 * Used to return back to the signal handling frame in case
-	 * the application tries to change contexts from the handler.
-	 */
-	jmp_buf			*sig_jb;
-
 	int			signo;	/* signal, arg 1 to sighandler */
 	int			sig_has_args;	/* use signal args if true */
+	ucontext_t		uc;
+	siginfo_t		siginfo;
 };
 
 /*
@@ -685,18 +685,20 @@ struct pthread {
 	struct pthread_attr	attr;
 
 	/*
-	 * Used for tracking delivery of nested signal handlers.
-	 * Signal frame 0 is used for normal context (when no
-	 * signal handlers are active for the thread).  Frame
-	 * 1 is used as the context for the first signal, and
-	 * frames 2 .. NSIG-1 are used when additional signals
-	 * arrive interrupting already active signal handlers.
+	 * Threads return context; ctxtype identifies the type of context.
 	 */
-	struct pthread_signal_frame	*sigframes[NSIG];
-	struct pthread_signal_frame	sigframe0;
+	union {
+		jmp_buf		jb;
+		sigjmp_buf	sigjb;
+		ucontext_t	uc;
+	} ctx;
+	thread_context_t	ctxtype;
+	int			longjmp_val;
+
+	/*
+	 * Used for tracking delivery of signal handlers.
+	 */
 	struct pthread_signal_frame	*curframe;
-	int	sigframe_count;
-	int	sigframe_done;
 
  	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -716,6 +718,7 @@ struct pthread {
 	 */
 	sigset_t	sigmask;
 	sigset_t	sigpend;
+	int		sigmask_seqno;
 	int		check_pending;
 
 	/* Thread state: */
@@ -1078,7 +1081,11 @@ SCLASS int	_thread_dfl_count[NSIG];
  * Pending signals and mask for this process:
  */
 SCLASS sigset_t	_process_sigpending;
-SCLASS sigset_t	_process_sigmask;
+SCLASS sigset_t	_process_sigmask
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= { {0, 0, 0, 0} }
+#endif
+;
 
 /*
  * Scheduling queues:
@@ -1222,7 +1229,6 @@ void	_waitq_clearactive(void);
 #endif
 void    _thread_exit(char *, int, char *);
 void    _thread_exit_cleanup(void);
-void	_thread_exit_finish(void);
 void    _thread_fd_unlock(int, int);
 void    _thread_fd_unlock_debug(int, int, char *, int);
 void    _thread_fd_unlock_owned(pthread_t);
@@ -1232,7 +1238,7 @@ void    _thread_dump_info(void);
 void    _thread_init(void);
 void    _thread_kern_sched(ucontext_t *);
 void 	_thread_kern_scheduler(void);
-void    _thread_kern_sched_frame(int frame);
+void    _thread_kern_sched_frame(struct pthread_signal_frame *psf);
 void    _thread_kern_sched_sig(void);
 void    _thread_kern_sched_state(enum pthread_state, char *fname, int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
@@ -1245,7 +1251,7 @@ void    _thread_sig_check_pending(pthread_t pthread);
 void    _thread_sig_handle_pending(void);
 void	_thread_sig_send(pthread_t pthread, int sig);
 void	_thread_sig_wrapper(void);
-int	_thread_sigframe_find(pthread_t pthread, void *stackp);
+void	_thread_sigframe_restore(pthread_t thread, struct pthread_signal_frame *psf);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
 int     _thread_fd_table_init(int fd);
@@ -1262,6 +1268,7 @@ int     _thread_sys_sigsuspend(const sigset_t *);
 int     _thread_sys_siginterrupt(int, int);
 int     _thread_sys_sigpause(int);
 int     _thread_sys_sigreturn(ucontext_t *);
+int     _thread_sys_sigaltstack(const struct sigaltstack *, struct sigstack *);
 int     _thread_sys_sigstack(const struct sigstack *, struct sigstack *);
 int     _thread_sys_sigvec(int, struct sigvec *, struct sigvec *);
 void    _thread_sys_psignal(unsigned int, const char *);

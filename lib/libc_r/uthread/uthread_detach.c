@@ -65,7 +65,12 @@ pthread_detach(pthread_t pthread)
 			pthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 
 			/* Make the thread runnable: */
-			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
+			PTHREAD_NEW_STATE(next_thread, PS_RUNNING);
+
+			/*
+			 * Set the return value for the woken thread:
+			 */
+			next_thread->error = ESRCH;
 		}
 
 		/*

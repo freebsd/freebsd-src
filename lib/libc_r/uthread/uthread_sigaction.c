@@ -80,7 +80,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 			 * handler arguments.
 			 */
 			sigfillset(&gact.sa_mask);
-			gact.sa_flags = SA_SIGINFO;
+			gact.sa_flags = SA_SIGINFO | SA_ONSTACK;
 
 			/*
 			 * Check if the signal handler is being set to
