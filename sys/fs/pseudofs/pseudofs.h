@@ -109,6 +109,16 @@ struct pfs_bitmap;		/* opaque */
 typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
 
 /*
+ * Ioctl callback
+ */
+#define PFS_IOCTL_ARGS \
+	struct thread *td, struct proc *p, struct pfs_node *pn, \
+	unsigned long cmd, caddr_t data
+#define PFS_IOCTL_PROTO(name) \
+	int name(PFS_IOCTL_ARGS);
+typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
+
+/*
  * pfs_info: describes a pseudofs instance
  */
 struct pfs_info {
@@ -135,7 +145,7 @@ struct pfs_node {
 	} u1;
 #define pn_func		u1._pn_func
 #define pn_nodes	u1._pn_nodes
-	/*pfs_ioctl_t		 pn_ioctl;*/
+	pfs_ioctl_t		 pn_ioctl;
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	void			*pn_data;
