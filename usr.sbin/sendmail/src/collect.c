@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.69 (Berkeley) 5/29/97";
+static char sccsid[] = "@(#)collect.c	8.71 (Berkeley) 6/30/97";
 #endif /* not lint */
 
 # include <errno.h>
@@ -427,7 +427,8 @@ readerr:
 		return;
 
 	if (tf != NULL &&
-	    (fflush(tf) != 0 || ferror(tf) || fsync(fileno(tf)) < 0 ||
+	    (fflush(tf) != 0 || ferror(tf) ||
+	     (SuperSafe && fsync(fileno(tf)) < 0) ||
 	     fclose(tf) < 0))
 	{
 		tferror(tf, e);
@@ -541,7 +542,7 @@ readerr:
 			break;
 
 		  case NRA_ADD_BCC:
-			addheader("Bcc", "", &e->e_header);
+			addheader("Bcc", " ", &e->e_header);
 			break;
 
 		  case NRA_ADD_TO_UNDISCLOSED:

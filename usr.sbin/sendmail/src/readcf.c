@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.196 (Berkeley) 5/29/97";
+static char sccsid[] = "@(#)readcf.c	8.200 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -105,13 +105,14 @@ readcf(cfname, safe, e)
 	char *file;
 	bool optional;
 	int mid;
-	char buf[MAXLINE];
 	register char *p;
-	extern char **copyplist();
+	int sff = SFF_OPENASROOT;
 	struct stat statb;
+	char buf[MAXLINE];
 	char exbuf[MAXLINE];
 	char pvpbuf[MAXLINE + MAXATOM];
 	static char *null_list[1] = { NULL };
+	extern char **copyplist __P((char **, bool));
 	extern char *munchstring __P((char *, char **, int));
 	extern void fileclass __P((int, char *, char *, bool, bool));
 	extern void toomany __P((int, int));
@@ -121,7 +122,9 @@ readcf(cfname, safe, e)
 	FileName = cfname;
 	LineNumber = 0;
 
-	cf = safefopen(cfname, O_RDONLY, 0444, SFF_OPENASROOT|SFF_NOLOCK);
+	if (DontLockReadFiles)
+		sff |= SFF_NOLOCK;
+	cf = safefopen(cfname, O_RDONLY, 0444, sff);
 	if (cf == NULL)
 	{
 		syserr("cannot open");
@@ -438,11 +441,14 @@ readcf(cfname, safe, e)
 			break;
 #endif
 
-#ifdef SUN_EXTENSIONS
+#if defined(SUN_EXTENSIONS) && defined(SUN_LOOKUP_MACRO)
 		  case 'L':		/* lookup macro */
 		  case 'G':		/* lookup class */
 			/* reserved for Sun -- NIS+ database lookup */
-			goto badline;
+			if (VendorCode != VENDOR_SUN)
+				goto badline;
+			sun_lg_config_line(bp, e);
+			break;
 #endif
 
 		  case 'M':		/* define mailer */
@@ -747,6 +753,8 @@ fileclass(class, filename, fmt, safe, optional)
 		sff = SFF_REGONLY|SFF_NOWLINK;
 		if (safe)
 			sff |= SFF_OPENASROOT;
+		if (DontLockReadFiles)
+			sff |= SFF_NOLOCK;
 		f = safefopen(filename, O_RDONLY, 0, sff);
 	}
 	if (f == NULL)
@@ -1505,6 +1513,14 @@ struct optioninfo
 #define O_MAXRCPT	0xa3
 	{ "MaxRecipientPerMessage",	O_MAXRCPT,	FALSE	},
 #endif
+#if _FFR_DEADLETTERDROP_OPTION
+#define O_DEADLETTER	0xa4
+	{ "DeadLetterDrop",		O_DEADLETTER,	FALSE	},
+#endif
+#if _FFR_DONTLOCKFILESFORREAD_OPTION
+#define O_DONTLOCK	0xa5
+	{ "DontLockFilesForRead",	O_DONTLOCK,	FALSE	},
+#endif
 
 	{ NULL,				'\0',		FALSE	}
 };
@@ -1644,14 +1660,7 @@ setoption(opt, val, safe, sticky, e)
 		{
 			if (tTd(37, 1))
 				printf(" (unsafe)");
-			if (RealUid != geteuid())
-			{
-				if (tTd(37, 1))
-					printf("(Resetting uid)");
-				endpwent();
-				(void) setgid(RealGid);
-				(void) setuid(RealUid);
-			}
+			(void) drop_privileges(TRUE);
 		}
 	}
 	if (tTd(37, 1))
@@ -2256,7 +2265,10 @@ setoption(opt, val, safe, sticky, e)
 			}
 		}
 		if (isascii(*val) && isdigit(*val))
-			RunAsUid = atoi(val);
+		{
+			if (RunAsUid == 0)
+				RunAsUid = atoi(val);
+		}
 		else
 		{
 			register struct passwd *pw;
@@ -2264,7 +2276,7 @@ setoption(opt, val, safe, sticky, e)
 			pw = sm_getpwnam(val);
 			if (pw == NULL)
 				syserr("readcf: option RunAsUser: unknown user %s", val);
-			else
+			else if (RunAsUid == 0)
 			{
 				if (*p == '\0')
 					RunAsUserName = newstr(val);
@@ -2275,7 +2287,10 @@ setoption(opt, val, safe, sticky, e)
 		if (*p == '\0')
 			break;
 		if (isascii(*p) && isdigit(*p))
-			RunAsGid = atoi(p);
+		{
+			if (RunAsGid == 0)
+				RunAsGid = atoi(p);
+		}
 		else
 		{
 			register struct group *gr;
@@ -2284,7 +2299,7 @@ setoption(opt, val, safe, sticky, e)
 			if (gr == NULL)
 				syserr("readcf: option RunAsUser: unknown group %s",
 					p);
-			else
+			else if (RunAsGid == 0)
 				RunAsGid = gr->gr_gid;
 		}
 		break;
@@ -2323,6 +2338,20 @@ setoption(opt, val, safe, sticky, e)
 #if _FFR_MAXRCPT_OPTION
 	  case O_MAXRCPT:
 		MaxRcptPerMsg = atoi(val);
+		break;
+#endif
+
+#if _FFR_DEADLETTERDROP_OPTION
+	  case O_DEADLETTER:
+		if (DeadLetterDrop != NULL)
+			free(DeadLetterDrop);
+		DeadLetterDrop = newstr(val);
+		break;
+#endif
+
+#if _FFR_DONTLOCKFILESFORREAD_OPTION
+	  case O_DONTLOCK:
+		DontLockReadFiles = atobool(val);
 		break;
 #endif
 

@@ -38,9 +38,10 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)knecht.mc	8.11 (Berkeley) 6/12/97')
+VERSIONID(`@(#)knecht.mc	8.13 (Berkeley) 7/7/97')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
+define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward+$h:$z/.forward')dnl
 define(`confDEF_USER_ID', `mailnull')dnl
 define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
 define(`confTO_ICONNECT', `10s')dnl
@@ -61,23 +62,71 @@ Kdomaincheck hash -o /etc/domaincheck
 
 LOCAL_RULESETS
 
-# reject bogus return addresses
+######################################################################
+###  LookUpDomain -- search for domain in domaincheck database
+###
+###	Parameters:
+###		<$1> -- key (domain name)
+###		<$2> -- default (what to return if not found in db)
+###		<$3> -- passthru (additional data passed through)
+######################################################################
+
+SLookUpDomain
+R<$+> <$+> <$*>		$: < $( domaincheck $1 $: ? $) > <$1> <$2> <$3>
+R<OK> <$+> <$+> <$*>	$@ <OK> < $3 >
+R<?> <$+.$+> <$+> <$*>	$@ $>LookUpDomain <. $2> <$3> <$4>
+R<?> <$+> <$+> <$*>	$@ <$2> <$3>
+R<$+> $*		$#error $: $1
+
+
+######################################################################
+###  LookUpAddress -- search for host address in domaincheck database
+###
+###	Parameters:
+###		<$1> -- key (dot quadded host address)
+###		<$2> -- default (what to return if not found in db)
+###		<$3> -- passthru (additional data passed through)
+######################################################################
+
+SLookUpAddress
+R<$+> <$+> <$*>		$: < $( domaincheck $1 $: ? $) > <$1> <$2> <$3>
+R<OK> <$+> <$+> <$*>	$@ <OK> < $3 >
+R<?> <$+.$-> <$+> <$*>	$@ $>LookUpAddress <$1> <$3> <$4>
+R<?> <$+> <$+> <$*>	$@ <$2> <$3>
+R<$+> $*		$#error $: $1
+
+######################################################################
+###  check_relay
+######################################################################
+
+Scheck_relay
+R$+ $| $+		$: $>LookUpDomain < $1 > <?> < $2 >
+R<?> < $+ >		$: $>LookUpAddress < $1 > <OK> <>
+
+######################################################################
+###  check_mail
+######################################################################
+
 Scheck_mail
 R<>			$@ <OK>
 R$*			$: <?> $>Parse0 $>3 $1		make domain canonical
-R<?> $* < @ $+ . > $*	$: < $( domaincheck $2 $: OK $) > $1 < @ $2 . > $3
-							tag resolved names
-R<?> $* < @ $+ > $*	$: < $( domaincheck $2 $: ? $) > $1 < @ $2 > $3
-							check for overrides
+R<?> $* < @ $+ . > $*	$: <OK> $1 < @ $2 > $3		pick default tag
+R<?> $* < @ $+ > $*	$: <FAIL> $1 < @ $2 > $3	... OK or FAIL
+R<$+> $* < @ $+ > $*	$: $>LookUpDomain <$3> <$1> <>
 R<OK> $*		$@ <OK>
-R<?> $* < @ $+ > $*	$#error $: 451 Sender domain must resolve
-R<?> $*			$: < ? $&{client_name} > $1	no @domain on address...
+R<FAIL> $*		$#error $: 451 Sender domain must resolve
+
+# handle case of no @domain on address
+R<?> $*			$: < ? $&{client_name} > $1
 R<?> $*			$@ <OK>				...local unqualed ok
 R<? $+> $*		$#error $: 551 Domain name required
 							...remote is not
 R<$+> $*		$#error $: $1			error from domaincheck
 
-# disallow relaying
+######################################################################
+###  check_rcpt
+######################################################################
+
 Scheck_rcpt
 # anything terminating locally is ok
 R$*			$: $>Parse0 $>3 $1		strip local crud

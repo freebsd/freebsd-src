@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.313 (Berkeley) 6/11/97
+ *	@(#)conf.h	8.328 (Berkeley) 8/3/97
  */
 
 /*
@@ -192,7 +192,9 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # ifdef V4FS
 		/* HP-UX 10.x */
 #  define _PATH_UNIX		"/stand/vmunix"
-#  define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  ifndef _PATH_VENDOR_CF
+#   define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
 #  endif
@@ -203,13 +205,16 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # else
 		/* HP-UX 9.x */
 #  define _PATH_UNIX		"/hp-ux"
-#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+#  ifndef _PATH_VENDOR_CF
+#   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+#  endif
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
 #  endif
 #  ifdef __STDC__
 extern void	hard_syslog(int, char *, ...);
 #  endif
+#  define FDSET_CAST	(int *)	/* cast for fd_set parameters to select */
 # endif
 
 #endif
@@ -220,10 +225,11 @@ extern void	hard_syslog(int, char *, ...);
 */
 
 #ifdef _AIX4
-# include <sys/select.h>
 # define _AIX3		1	/* pull in AIX3 stuff */
 # define USESETEUID	1	/* seteuid(2) works */
 # define TZ_TYPE	TZ_NAME	/* use tzname[] vector */
+# define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
+# define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
 # if _AIX4 >= 40200
 #  define HASSETREUID	1	/* setreuid(2) works as of AIX 4.2 */
 # endif
@@ -237,6 +243,7 @@ extern void	hard_syslog(int, char *, ...);
 #ifdef _AIX3
 # include <paths.h>
 # include <sys/machine.h>	/* to get byte order */
+# include <sys/select.h>
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
@@ -398,7 +405,9 @@ typedef int		pid_t;
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/dev/ksyms"
 #  endif
-#  define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  ifndef _PATH_VENDOR_CF
+#   define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
 #  endif
@@ -435,6 +444,7 @@ typedef int		pid_t;
 #  endif
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  define TZ_TYPE	TZ_TM_ZONE	/* use tm->tm_zone */
+#  include <memory.h>
 #  include <vfork.h>
 
 #  ifdef SUNOS403
@@ -585,12 +595,15 @@ extern long	dgux_inet_addr();
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define IP_SRCROUTE	1	/* can check IP source routing */
+# define HAS_ST_GEN	1	/* has st_gen field in stat struct */
 # ifndef HASFLOCK
 #  define HASFLOCK	1	/* has flock(2) call */
 # endif
 # define LA_TYPE	LA_ALPHAOSF
 # define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
-# define _PATH_VENDOR_CF	"/var/adm/sendmail/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/var/adm/sendmail/sendmail.cf"
+# endif  
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 # endif
@@ -625,10 +638,20 @@ typedef int		pid_t;
 #  undef WEXITSTATUS
 #  undef WIFEXITED
 # endif
-# define _PATH_VENDOR_CF	"/etc/sendmail/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/etc/sendmail/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail/sendmail.pid"
 # endif
+
+# ifdef TCPWRAPPERS
+#  ifndef HASUNSETENV
+#   define HASUNSETENV	1
+#  endif
+#  undef NEEDPUTENV
+# endif
+
 #endif
 
 
@@ -645,6 +668,7 @@ typedef int		pid_t;
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASSTRERROR	1	/* has strerror(3) */
+# define HAS_ST_GEN	1	/* has st_gen field in stat struct */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
@@ -671,6 +695,7 @@ typedef int		pid_t;
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
 # define HASSTRERROR	1	/* has strerror(3) */
+# define HAS_ST_GEN	1	/* has st_gen field in stat struct */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
@@ -713,6 +738,7 @@ typedef int		pid_t;
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
 # define HASSTRERROR	1	/* has strerror(3) */
+# define HAS_ST_GEN	1	/* has st_gen field in stat struct */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
@@ -772,7 +798,9 @@ typedef int		pid_t;
 # undef HASSETVBUF		/* don't actually have setvbuf(3) */
 # undef WEXITSTATUS
 # undef WIFEXITED
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
@@ -840,7 +868,9 @@ typedef int		pid_t;
 # ifndef LA_TYPE
 #  define LA_TYPE	LA_FLOAT
 # endif
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
@@ -884,6 +914,8 @@ extern int		errno;
 #  define LA_TYPE	LA_DEVSHORT
 # endif
 # define _PATH_AVENRUN	"/dev/table/avenrun"
+# define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
+# define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
 #endif
 
 /* SCO UNIX 3.2v4.2/Open Desktop 3.0 */
@@ -908,7 +940,9 @@ extern int		errno;
 # define GID_T		gid_t
 # define GIDSET_T	gid_t
 # define _PATH_UNIX		"/unix"
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
@@ -949,7 +983,9 @@ extern int		errno;
 # define SFS_TYPE	SFS_STATFS	/* use <sys/statfs.h> statfs() impl */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
 # define _PATH_UNIX		"/unix"
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
@@ -1028,7 +1064,9 @@ extern struct group	*getgrnam();
 # define IP_SRCROUTE	0	/* Something is broken with getsockopt() */
 # define LA_TYPE	LA_FLOAT
 # define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef S_IREAD
 #  define S_IREAD	_S_IREAD
 #  define S_IWRITE	_S_IWRITE
@@ -1084,12 +1122,21 @@ extern struct group	*getgrnam();
 
 extern int		errno;
 typedef int		pid_t;
-#define SIGFUNC_DEFINED
-#define SIGFUNC_RETURN	(0)
-#define SIGFUNC_DECL	int
+# define SIGFUNC_DEFINED
+# define SIGFUNC_RETURN	(0)
+# define SIGFUNC_DECL	int
 typedef int		(*sigfunc_t)();
 extern char		*getenv();
 extern void		*malloc();
+
+/* added for RISC/os 4.01...which is dumber than 4.50 */
+# ifdef RISCOS_4_0
+#  ifndef ARBPTR_T
+#   define ARBPTR_T	char *
+#  endif
+#  undef HASFLOCK
+#  define HASFLOCK	0
+# endif /* RISCOS_4_0 */
 
 # include <sys/time.h>
 
@@ -1199,7 +1246,9 @@ extern void		*malloc();
 # ifndef _PATH_UNIX
 #  define _PATH_UNIX		"/unix"		/* should be in <paths.h> */
 # endif
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # undef WIFEXITED
 # undef WEXITSTATUS
 #endif
@@ -1279,8 +1328,9 @@ typedef int		pid_t;
 # ifndef _PATH_UNIX
 #  define _PATH_UNIX		"/dynix"
 # endif
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 #endif
 
 
@@ -1308,7 +1358,9 @@ typedef int		pid_t;
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
@@ -1349,7 +1401,9 @@ typedef int		pid_t;
 # define SFS_TYPE	SFS_4ARGS	/* four argument statfs() call */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
 # define TZ_TYPE	TZ_TZNAME
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
@@ -1373,6 +1427,7 @@ typedef int		pid_t;
 #ifdef UNIXWARE2
 # define UNIXWARE	1
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
+# undef offsetof		/* avoid stddefs.h, sys/sysmacros.h conflict */
 #endif
 
 
@@ -1397,7 +1452,9 @@ typedef int		pid_t;
 # undef WIFEXITED
 # undef WEXITSTATUS
 # define _PATH_UNIX		"/unix"
-# define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
 # endif
@@ -1447,8 +1504,9 @@ typedef int		pid_t;
 
 #ifdef NCR_MP_RAS3
 # define __svr4__
+# define SIOCGIFNUM_IS_BROKEN	1	/* SIOCGIFNUM has non-std interface */
 # define SYSLOG_BUFSIZE	1024
-# define SPT_TYPE  SPT_NONE
+# define SPT_TYPE 	SPT_NONE
 #endif
 
 
@@ -1483,7 +1541,9 @@ typedef int		pid_t;
 # ifndef _PATH_UNIX
 #  define _PATH_UNIX		"/HI-UX"
 # endif
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
@@ -1524,7 +1584,9 @@ extern int	syslog(int, char *, ...);
 # define SFS_TYPE	SFS_4ARGS	/* use 4-arg statfs() */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
 # define _PATH_UNIX		"/unix"
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 #endif
 
 /*
@@ -1594,7 +1656,9 @@ typedef int		(*sigfunc_t)();
 #   define SYSLOG_BUFSIZE	1024
 #  endif
 #  define _PATH_UNIX		"/stand/unix"
-#  define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  ifndef _PATH_VENDOR_CF
+#   define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
 #  endif
@@ -1643,7 +1707,9 @@ typedef int		(*sigfunc_t)();
 # define SIGFUNC_DECL	int
 extern char	*getenv();
 extern int	errno;
-# define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
+# endif
 #endif
 
   
@@ -1692,7 +1758,9 @@ extern int	errno;
 #  define HASSNPRINTF		1	/* has snprintf(3) and vsnprintf(3) */
 # endif
 # define _PATH_UNIX		"/stand/unix"
-# define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
 # endif
@@ -1755,7 +1823,9 @@ extern int	errno;
 # ifndef __svr4__
 #  define __svr4__
 # endif
-# define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
 # endif
@@ -1950,6 +2020,10 @@ typedef struct msgb		mblk_t;
 # define USE_SIGLONGJMP	0	/* assume setjmp handles signals properly */
 #endif
 
+#ifndef FDSET_CAST
+# define FDSET_CAST		/* (empty) cast for fd_set arg to select */
+#endif
+
 /*
 **  If no type for argument two of getgroups call is defined, assume
 **  it's an integer -- unfortunately, there seem to be several choices
@@ -1978,6 +2052,14 @@ typedef struct msgb		mblk_t;
 
 #ifndef ARGV_T
 # define ARGV_T		char **
+#endif
+
+#ifndef SOCKADDR_LEN_T
+# define SOCKADDR_LEN_T	int
+#endif
+
+#ifndef SOCKOPT_LEN_T
+# define SOCKOPT_LEN_T	int
 #endif
 /**********************************************************************
 **  Remaining definitions should never have to be changed.  They are
@@ -2070,28 +2152,6 @@ typedef struct msgb		mblk_t;
 
 #if NAMED_BIND && !defined(__ksr__)
 extern int	h_errno;
-#endif
-
-/*
-**  The size of an IP address -- can't use sizeof because of problems
-**  on Crays, where everything is 64 bits.  This will break if/when
-**  IP addresses are expanded to eight bytes.
-*/
-
-#ifndef INADDRSZ
-# define INADDRSZ	4
-#endif
-
-/*
-**  The size of various known types -- for reading network protocols.
-**  Again, we can't use sizeof because of compiler randomness.
-*/
-
-#ifndef INT16SZ
-# define INT16SZ	2
-#endif
-#ifndef INT32SZ
-# define INT32SZ	4
 #endif
 
 /*
@@ -2252,12 +2312,17 @@ typedef void		(*sigfunc_t) __P((int));
 */
 
 #if USE_SIGLONGJMP
-/* Silly SCO /usr/include/setjmp.h file has #define setjmp(env) setjmp(env) */
+# ifdef jmp_buf
+#  undef jmp_buf
+# endif
+# define jmp_buf		sigjmp_buf
 # ifdef setjmp
 #  undef setjmp
 # endif
-# define jmp_buf		sigjmp_buf
 # define setjmp(env)		sigsetjmp(env, 1)
+# ifdef longjmp
+#  undef longjmp
+# endif
 # define longjmp(env, val)	siglongjmp(env, val)
 #endif
 
