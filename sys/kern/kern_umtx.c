@@ -292,10 +292,13 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 		uq = umtx_lookup(td, umtx);
 		if (uq != NULL &&
 		    ((blocked = TAILQ_FIRST(&uq->uq_tdq)) != NULL &&
-		    TAILQ_NEXT(blocked, td_umtx) != NULL))
+		    TAILQ_NEXT(blocked, td_umtx) != NULL)) {
+			UMTX_UNLOCK();
 			old = casuptr((intptr_t *)&umtx->u_owner,
 			    UMTX_UNOWNED, UMTX_CONTESTED);
-		UMTX_UNLOCK();
+		} else {
+			UMTX_UNLOCK();
+		}
 	} else {
 		UMTX_UNLOCK();
 		old = casuptr((intptr_t *)&umtx->u_owner,
