@@ -676,9 +676,12 @@ installCommit(dialogMenuItem *self)
     if (!Dists)
 	distConfig(NULL);
 
-    if (!Dists)
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE;
+    if (!Dists) {
+	(void)dmenuOpenSimple(&MenuDistributions, FALSE);
+	/* select reasonable defaults if necessary */
+	if (!Dists)
+	    Dists = _DIST_USER;
+    }
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
