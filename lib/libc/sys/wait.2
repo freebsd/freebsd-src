@@ -44,12 +44,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/wait.h>
+.In sys/types.h
+.In sys/wait.h
 .Ft pid_t
 .Fn wait "int *status"
-.Fd #include <sys/time.h>
-.Fd #include <sys/resource.h>
+.In sys/time.h
+.In sys/resource.h
 .Ft pid_t
 .Fn waitpid "pid_t wpid" "int *status" "int options"
 .Ft pid_t

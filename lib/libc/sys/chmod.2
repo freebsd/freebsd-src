@@ -43,7 +43,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/stat.h>
+.In sys/stat.h
 .Ft int
 .Fn chmod "const char *path" "mode_t mode"
 .Ft int
@@ -137,7 +137,7 @@ the file, and it will not be given to root.
 This behavior does not change the
 requirements for the user to be allowed to write the file, but only the eventual
 owner after it has been created.
-Group inheritance is not effected.
+Group inheritance is not affected.
 .Pp
 This feature is designed for use on fileservers serving PC users via
 ftp, SAMBA, or netatalk.

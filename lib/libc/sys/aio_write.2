@@ -33,7 +33,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <aio.h>
+.In aio.h
 .Ft int
 .Fn aio_write "struct aiocb *iocb"
 .Sh DESCRIPTION
@@ -95,7 +95,7 @@ for these objects is discouraged.
 The asynchronous I/O control buffer
 .Fa iocb
 should be zeroed before the
-.Fn aio_read
+.Fn aio_write
 call to avoid passing bogus context information to the kernel.
 .Pp
 Modifications of the Asynchronous I/O Control Block structure or the

@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <unistd.h>
-.Fd #include <sys/reboot.h>
+.In unistd.h
+.In sys/reboot.h
 .Ft int
 .Fn reboot "int howto"
 .Sh DESCRIPTION
@@ -105,7 +105,7 @@ via the
 .Fn reboot
 call.
 See
-.Xr kadb 4
+.Xr ddb 4
 for more information.
 .It Dv RB_NOSYNC
 Normally, the disks are sync'd (see

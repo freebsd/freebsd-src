@@ -45,7 +45,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <stdio.h>
+.In stdio.h
 .Ft FILE *
 .Fn funopen "const void *cookie" "int (*readfn)(void *, char *, int)" "int (*writefn)(void *, const char *, int)" "fpos_t (*seekfn)(void *, fpos_t, int)" "int (*closefn)(void *)"
 .Ft FILE *
@@ -85,7 +85,7 @@ and
 must match those, respectively, of
 .Xr read 2 ,
 .Xr write 2 ,
-.Xr seek 2 ,
+.Xr lseek 2 ,
 and
 .Xr close 2
 with the single exception that they are passed the

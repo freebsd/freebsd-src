@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
+.In sys/param.h
+.In sys/mount.h
 .Ft int
 .Fn getvfsbyname "const char *name" "struct vfsconf *vfc"
 .Sh DESCRIPTION
@@ -67,8 +67,8 @@ the filesystem type number assigned by the kernel
 .It vfc_refcount
 the number of active mount points using the filesystem
 .It vfc_flags
-flag bits that are used to initialize a new mount point
-using the filesystem
+flag bits as described in
+.Xr getvfsent 3
 .El
 .Sh RETURN VALUES
 .Rv -std getvfsbyname

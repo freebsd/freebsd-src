@@ -34,9 +34,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/ipc.h>
-.Fd #include <sys/sem.h>
+.In sys/types.h
+.In sys/ipc.h
+.In sys/sem.h
 .Ft int
 .Fn semctl "int semid" "int semnum" "int cmd" ...
 .Sh DESCRIPTION
@@ -152,7 +152,10 @@ struct semid_ds {
 .Sh RETURN VALUES
 On success, when
 .Fa cmd
-is one of GETVAL, GETNCNT, or GETZCNT,
+is one of
+.Dv GETVAL , GETNCNT
+or
+.Dv GETZCNT ,
 .Fn semctl
 returns the corresponding value; otherwise, 0 is returned.
 On failure, -1 is returned, and

@@ -47,7 +47,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <stdio.h>
+.In stdio.h
 .Ft FILE *
 .Fn fopen "const char *path" "const char *mode"
 .Ft FILE *
@@ -235,9 +235,9 @@ and
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr fclose 3 ,
+.Xr fileno 3 ,
 .Xr fseek 3 ,
-.Xr funopen 3 ,
-.Xr fileno 3
+.Xr funopen 3
 .Sh STANDARDS
 The
 .Fn fopen

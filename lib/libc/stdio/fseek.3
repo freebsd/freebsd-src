@@ -51,7 +51,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <stdio.h>
+.In stdio.h
 .Ft int
 .Fn fseek "FILE *stream" "long offset" "int whence"
 .Ft long
@@ -62,7 +62,7 @@
 .Fn fgetpos "FILE *stream" "fpos_t *pos"
 .Ft int
 .Fn fsetpos "FILE *stream" "const fpos_t *pos"
-.Fd #include <sys/types.h>
+.In sys/types.h
 .Ft int
 .Fn fseeko "FILE *stream" "off_t offset" "int whence"
 .Ft off_t

@@ -42,8 +42,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <dirent.h>
+.In sys/types.h
+.In dirent.h
 .Ft int
 .Fn getdirentries "int fd" "char *buf" "int nbytes" "long *basep"
 .Ft int
@@ -141,27 +141,6 @@ a value returned in the location pointed to by
 .Pf ( Fn getdirentries
 only)
 or zero.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn getdirentries
-is implemented as the
-.Va getdirentries
-syscall.
-.Pp
-In the threaded library, the
-.Va getdirentries
-syscall is assembled to
-.Fn _thread_sys_getdirentries
-and
-.Fn getdirentries
-is implemented as a function which locks
-.Fa fd
-for read and write, then calls
-.Fn _thread_sys_getdirentries .
-Before returning,
-.Fn getdirentries
-unlocks
-.Fa fd .
 .Sh RETURN VALUES
 If successful, the number of bytes actually transferred is returned.
 Otherwise, -1 is returned and the global variable

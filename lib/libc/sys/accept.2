@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
+.In sys/types.h
+.In sys/socket.h
 .Ft int
 .Fn accept "int s" "struct sockaddr *addr" "socklen_t *addrlen"
 .Sh DESCRIPTION
@@ -132,30 +132,6 @@ by issuing a
 call providing only the control information,
 or by calling
 .Xr setsockopt 2 .
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn accept
-is implemented as the
-.Va accept
-syscall.
-.Pp
-In the threaded library, the
-.Va accept
-syscall is assembled to
-.Fn _thread_sys_accept
-and
-.Fn accept
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_accept .
-If the call to
-.Fn _thread_sys_accept
-would block, a context switch is performed.
-Before returning,
-.Fn accept
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
 integer that is a descriptor for the accepted socket.

@@ -42,7 +42,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/ioctl.h>
+.In sys/ioctl.h
 .Ft int
 .Fn ioctl "int d" "unsigned long request" ...
 .Sh DESCRIPTION
@@ -85,27 +85,6 @@ Macros and defines used in specifying an ioctl
 .Fa request
 are located in the file
 .Ao Pa sys/ioctl.h Ac .
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn ioctl
-is implemented as the
-.Va ioctl
-syscall.
-.Pp
-In the threaded library, the
-.Va ioctl
-syscall is assembled to
-.Fn _thread_sys_ioctl
-and
-.Fn ioctl
-is implemented as a function which locks
-.Va d
-for read and write, then calls
-.Fn _thread_sys_ioctl .
-Before returning,
-.Fn ioctl
-unlocks
-.Va d .
 .Sh RETURN VALUES
 If an error has occurred, a value of -1 is returned and
 .Va errno

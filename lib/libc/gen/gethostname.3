@@ -42,7 +42,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <unistd.h>
+.In unistd.h
 .Ft int
 .Fn gethostname "char *name" "int namelen"
 .Ft int
@@ -90,6 +90,8 @@ Host names are limited to
 (from
 .Ao Pa sys/param.h Ac )
 characters, currently 256.
+This includes the trailing
+.Dv NUL .
 .Sh HISTORY
 The
 .Fn gethostname
