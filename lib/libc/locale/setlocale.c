@@ -239,6 +239,7 @@ loadlocale(category)
 	char *ret;
 	char *new = new_categories[category];
 	char *old = current_categories[category];
+	int saverr;
 
 	if ((new[0] == '.' &&
 	     (new[1] == '\0' || (new[1] == '.' && new[2] == '\0'))) ||
@@ -273,8 +274,10 @@ loadlocale(category)
 			return (old);                         \
 		ret = FUNC(new) != 0 ? NULL : new;            \
 		if (ret == NULL) {                            \
+			saverr = errno;                       \
 			if (FUNC(old) != 0 && FUNC("C") == 0) \
 				(void)strcpy(old, "C");       \
+			errno = saverr;                       \
 		} else                                        \
 			(void)strcpy(old, new);               \
 		return (ret);                                 \
