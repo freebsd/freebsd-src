@@ -1,0 +1,80 @@
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
+.\" program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd OCTOBER 25, 2002
+.Os
+.Dt MACLABEL 7
+.Sh NAME
+.Nm maclabel
+.Nd Mandatory Access Control label format
+.Sh DESCRIPTION
+If Mandatory Access Control, or
+.Dq MAC ,
+is enabled in your kernel,
+then in addition to the traditional credentials,
+each subject
+(typically a user or a socket)
+and object
+(file system object, socket, etc)
+is given a
+.Em MAC label .
+The MAC label specifies the necessary subject-specific or
+object-specific information necessary for a MAC security policy
+.\" .Xr ( mac 9 )
+to enforce access control on the subject/object.
+.Pp
+The format for a MAC label is defined as follows:
+.Dl Sy policy1 Ns No / Ns Sy qualifier1 , Ns Sy policy2 Ns No / Ns Sy qualifier2 , Ns ...
+.Pp
+A MAC label consists of a policy name,
+followed by a forward slash,
+followed by the subject or object's qualifier,
+optionally followed by a comma and one or more additional policy labels.
+For example:
+.Pp
+.Dl Li "biba/low(low-low)"
+.Dl Li "biba/high(low-high),te/equal(equal-equal),partition/0"
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr posix1e 3 ,
+.Xr mac 9
+.Sh HISTORY
+MAC first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by NAI Labs, the Security Research Division of Network Associates
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+as part of the DARPA CHATS research program.
