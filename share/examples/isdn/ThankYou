@@ -226,6 +226,10 @@ AVM GmbH		Mr. A. Ziessnitz of AVM donated an AVM B1 PCI cards
 			to support development and maintenance of a driver
 			for this card.
 
+Intelligent Network Technology Ltd.
+			David Hedley provided an AVM Fritz!Card PCI Version 2
+			controller to support development of a driver.
+
 
 
 The following people contributed in one or the other way to isdn4bsd:
