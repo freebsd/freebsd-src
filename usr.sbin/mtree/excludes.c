@@ -29,8 +29,10 @@
 
 static const char rcsid[] =
   "$FreeBSD$";
+  "$FreeBSD$";
 
 #include <sys/types.h>
+#include <sys/time.h>		/* XXX for mtree.h */
 #include <sys/queue.h>
 
 #include <err.h>
@@ -38,6 +40,9 @@ static const char rcsid[] =
 #include <fts.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "mtree.h"		/* XXX for extern.h */
+#include "extern.h"
 
 /*
  * We're assuming that there won't be a whole lot of excludes, 
