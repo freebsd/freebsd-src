@@ -76,7 +76,6 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 device		isa
 device		pci
-#options 	COMPAT_OLDISA		# Old ISA driver shims
 
 # Floppy drives
 device		fdc
@@ -88,13 +87,6 @@ device		atapicd		# ATAPI CDROM drives
 device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
 options 	ATA_STATIC_ID	# Static device numbering
-
-# IDE controller and disks
-#device		wdc		# Needs COMPAT_OLDISA
-#options 	NWDC=1
-
-# ATAPI devices on wdc
-#device		wcd		# IDE CD-ROM
 
 # SCSI Controllers
 device		adv		# Advansys SCSI adapters
