@@ -97,6 +97,7 @@ typedef struct fd {
 
 bool	Found_one;			/* did we find a match? */
 bool	Find_files	= FALSE;	/* just find a list of proper fortune files */
+bool    Fortunes_only   = FALSE;        /* check only "fortunes" files */
 bool	Wait		= FALSE;	/* wait desired after fortune */
 bool	Short_only	= FALSE;	/* short fortune desired */
 bool	Long_only	= FALSE;	/* long fortune desired */
@@ -362,14 +363,14 @@ register char	**argv;
 
 	if (!form_file_list(argv, argc))
 		exit(1);	/* errors printed through form_file_list() */
-#ifdef DEBUG
-	if (Debug >= 1)
-		print_file_list();
-#endif /* DEBUG */
 	if (Find_files) {
 		print_file_list();
 		exit(0);
 	}
+#ifdef DEBUG
+	else if (Debug >= 1)
+		print_file_list();
+#endif /* DEBUG */
 
 # ifndef NO_REGEX
 	if (pat != NULL) {
@@ -399,10 +400,13 @@ register int	file_cnt;
 	register char	*sp;
 
 	if (file_cnt == 0)
-		if (Find_files)
-			return add_file(NO_PROB, FORTDIR, NULL, &File_list,
+		if (Find_files) {
+			Fortunes_only = TRUE;
+			i = add_file(NO_PROB, FORTDIR, NULL, &File_list,
 					&File_tail, NULL);
-		else
+			Fortunes_only = FALSE;
+			return i;
+		} else
 			return add_file(NO_PROB, "fortunes", FORTDIR,
 					&File_list, &File_tail, NULL);
 	for (i = 0; i < file_cnt; i++) {
@@ -482,11 +486,13 @@ FILEDESC	*parent;
 	if (!isdir && parent == NULL && (All_forts || Offend) &&
 	    !is_off_name(path)) {
 		offensive = off_name(path);
-		was_malloc = TRUE;
 		if (Offend) {
 			if (was_malloc)
 				free(path);
 			path = offensive;
+			offensive = NULL;
+			was_malloc = TRUE;
+			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
 			file = off_name(file);
 		}
 	}
@@ -503,9 +509,9 @@ over:
 		 * we'll pick up the -o file anyway.
 		 */
 		if (All_forts && offensive != NULL) {
-			path = offensive;
 			if (was_malloc)
 				free(path);
+			path = offensive;
 			offensive = NULL;
 			was_malloc = TRUE;
 			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
@@ -767,8 +773,10 @@ int	check_for_offend;
 	 */
 	if (check_for_offend && !All_forts) {
 		i = strlen(file);
-		if (Offend ^ (file[i - 2] == '-' && file[i - 1] == 'o'))
+		if (Offend ^ (file[i - 2] == '-' && file[i - 1] == 'o')) {
+			DPRINTF(2, (stderr, "FALSE (offending file)\n"));
 			return FALSE;
+		}
 	}
 
 	if ((sp = rindex(file, '/')) == NULL)
@@ -777,6 +785,10 @@ int	check_for_offend;
 		sp++;
 	if (*sp == '.') {
 		DPRINTF(2, (stderr, "FALSE (file starts with '.')\n"));
+		return FALSE;
+	}
+	if (Fortunes_only && strncmp(sp, "fortunes", 8) != 0) {
+		DPRINTF(2, (stderr, "FALSE (check fortunes only)\n"));
 		return FALSE;
 	}
 	if ((sp = rindex(sp, '.')) != NULL) {
@@ -889,18 +901,18 @@ init_prob()
 		    percent, num_noprob));
 	if (percent > 100) {
 		(void) fprintf(stderr,
-		    "fortune: probabilities sum to %d%%!\n", percent);
+		    "fortune: probabilities sum to %d%% > 100%%!\n", percent);
 		exit(1);
 	}
 	else if (percent < 100 && num_noprob == 0) {
 		(void) fprintf(stderr,
-		    "fortune: no place to put residual probability (%d%%)\n",
+		    "fortune: no place to put residual probability (%d%% < 100%%)\n",
 		    percent);
 		exit(1);
 	}
 	else if (percent == 100 && num_noprob != 0) {
 		(void) fprintf(stderr,
-		    "fortune: no probability left to put in residual files\n");
+		    "fortune: no probability left to put in residual files (100%%)\n");
 		exit(1);
 	}
 	percent = 100 - percent;
@@ -1215,8 +1227,9 @@ int			lev;
 		else
 			fprintf(stderr, "%3d%%", list->percent);
 		fprintf(stderr, " %s", STR(list->name));
-		DPRINTF(1, (stderr, " (%s, %s, %s)\n", STR(list->path),
+		DPRINTF(1, (stderr, " (%s, %s, %s)", STR(list->path),
 			    STR(list->datfile), STR(list->posfile)));
+		fprintf(stderr, "\n");
 		if (list->child != NULL)
 			print_list(list->child, lev + 1);
 		list = list->next;
