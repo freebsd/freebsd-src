@@ -143,7 +143,7 @@ main(argc, argv, envp)
 	if (modfind("nfsserver") < 0) {
 		/* Not present in kernel, try loading it */
 		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
-			errx(1, "NFS serveris not available");
+			errx(1, "NFS server is not available");
 	}
 
 	nfsdcnt = DEFNFSDCNT;
