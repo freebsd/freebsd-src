@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
  *
  * Each turnstile contains two lists of threads.  The ts_blocked list is
  * a linked list of threads blocked on the turnstile's lock.  The
- * ts_pending list is a linked list of threads previously awoken by
+ * ts_pending list is a linked list of threads previously awakened by
  * turnstile_signal() or turnstile_wait() that are waiting to be put on
  * the run queue.
  *
