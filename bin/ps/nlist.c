@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 fixpt_t	ccpu;				/* kernel _ccpu variable */
 int	nlistread;			/* if nlist already read. */
-int	mempages;			/* number of pages of phys. memory */
+unsigned long	mempages;		/* number of pages of phys. memory */
 int	fscale;				/* kernel _fscale variable */
 
 int
