@@ -128,7 +128,7 @@ getcwd(pt, size)
 			 * path to the beginning of the buffer, but it's always
 			 * been that way and stuff would probably break.
 			 */
-			(void)bcopy(bpt, pt, ept - bpt);
+			bcopy(bpt, pt, ept - bpt);
 			free(up);
 			return (pt);
 		}
@@ -204,7 +204,7 @@ getcwd(pt, size)
 				goto err;
 			bpt = pt + off;
 			ept = pt + ptsize;
-			(void)bcopy(bpt, ept - len, len);
+			bcopy(bpt, ept - len, len);
 			bpt = ept - len;
 		}
 		if (!first)
