@@ -258,14 +258,21 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 	gsl->length = length;
 	gsl->offset = offset;
 	gsl->sectorsize = sectorsize;
-	if (length != 0 && pp != NULL)
-		return (0);
-	if (length == 0 && pp == NULL)
-		return (0);
-	if (length == 0 && pp != NULL) {
+	if (length == 0) {
+		if (pp == NULL)
+			return (0);
+		if (bootverbose)
+			printf("GEOM: Deconfigure %s\n", pp->name);
 		g_orphan_provider(pp, ENXIO);
 		gsl->provider = NULL;
 		gsp->nprovider--;
+		return (0);
+	}
+	if (pp != NULL) {
+		if (bootverbose)
+			printf("GEOM: Reconfigure %s, start %jd length %jd end %jd\n",
+			    pp->name, (intmax_t)offset, (intmax_t)length,
+			    (intmax_t)(offset + length - 1));
 		return (0);
 	}
 	va_start(ap, fmt);
@@ -273,6 +280,10 @@ g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
+	if (bootverbose)
+		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
+		    pp->name, (intmax_t)offset, (intmax_t)length,
+		    (intmax_t)(offset + length - 1));
 	pp->index = index;
 	pp->mediasize = gsl->length;
 	pp->sectorsize = gsl->sectorsize;
@@ -308,6 +319,10 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int
 	pp->mediasize = gsp->slices[index].length;
 	pp->sectorsize = gsp->slices[index].sectorsize;
 	sbuf_delete(sb);
+	if (bootverbose)
+		printf("GEOM: Add %s, start %jd length %jd end %jd\n",
+		    pp->name, (intmax_t)offset, (intmax_t)length,
+		    (intmax_t)(offset + length - 1));
 	return(pp);
 }
 
