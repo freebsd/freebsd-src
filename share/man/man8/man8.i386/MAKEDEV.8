@@ -31,74 +31,61 @@
 .\"
 .\"	@(#)MAKEDEV.8	8.1 (Berkeley) 6/5/93
 .\"
-.TH MAKEDEV 8 "June 5, 1993"
-.UC 7
-.SH NAME
-MAKEDEV \- create system and device special files
-.SH SYNOPSIS
-MAKEDEV name ...
-.SH DESCRIPTION
+.Dd June 5, 1993
+.Dt MAKEDEV 8
+.Os
+.Sh NAME
+.Nm MAKEDEV
+.Nd create system and device special files
+.Sh SYNOPSIS
+.Nm
+name ...
+.Sh DESCRIPTION
 The shell script
-.IR MAKEDEV ,
+.Nm
 found in the ``/dev'' directory, is used to create the common special
 files.
 See
-.IR intro (4)
+.Xr intro 4
 for a more complete discussion of special files.
-.PP
-.I MAKEDEV
+.Pp
+.Nm
 takes any number of device names as arguments, where the names are
 the common abbreviation for the device.
 There are two special devices, ``std'' and ``local''.
 The former creates the standard devices for the architecture.
 The latter is for devices specific to the local site, and
 executes the shell file ``MAKEDEV.local''.
-.PP
+.Pp
 The i386 supports the following devices.
 Where a device name is followed by a hash sign (``#''), the hash sign
 must be replaced by a unit number.
-.TP 10
-std
+.Bl -tag -width indent
+.It std
 the standard devices (console, drum, fd/*, klog, kmem, mem, null,
 stderr, stdin, stdout, tty)
-.br
-.ns
-.TP 10
-local
+.It local
 configuration specific devices
-.br
-.ns
-.TP 10
-tty#
+.It tty#
 standard PC COM ports
-.br
-.ns
-.TP 10
-fd#
+.It fd#
 ``floppy'' disk drives (3 1/2, 5 1/4)
-.br
-.ns
-.TP 10
-pty#
+.It pty#
 set of 16 master and slave pseudo terminals
-.br
-.ns
-.TP 10
-sd#
-``winchester'' disk drives (SCSI).
-.br
-.ns
-.TP 10
-wd#
+.It sd#
+SCSI disk drives
+.It st#
+SCSI tape drives
+.It wd#
 ``winchester'' disk drives (ST506, IDE, ESDI, RLL etc.)
-.br
-.ns
-.TP 10
-wt#
+.It wt#
 QIC-interfaced (e.g. not SCSI) 3M cartridge tape
-.SH FILES
-/dev		The special file directory.
-.SH SEE ALSO
-.IR intro (4),
-.IR config (8),
-.IR mknod (8)
+.El
+.Sh FILES
+.Bl -tag -width /dev/xxxx -compact
+.It Pa /dev
+The special file directory.
+.Sh SEE ALSO
+.Xr intro 4
+.Xr config 8 ,
+.Xr mknod 8
