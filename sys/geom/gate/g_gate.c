@@ -412,6 +412,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	mtx_lock(&g_gate_list_mtx);
 	ggio->gctl_unit = g_gate_getunit(ggio->gctl_unit);
 	if (ggio->gctl_unit == -1) {
+		mtx_unlock(&g_gate_list_mtx);
 		mtx_destroy(&sc->sc_inqueue_mtx);
 		mtx_destroy(&sc->sc_outqueue_mtx);
 		free(sc, M_GATE);
