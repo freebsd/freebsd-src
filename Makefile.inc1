@@ -226,8 +226,8 @@ USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/share/groff_font/devutf8 \
 		usr/share/tmac/mdoc usr/share/tmac/mm
 
-INCDIRS=	arpa g++/std isc objc protocols readline rpc rpcsvc openssl \
-		security
+INCDIRS=	arpa dev fs g++/std isc isofs objc protocols \
+		readline rpc rpcsvc openssl security ufs
 
 #
 # buildworld
