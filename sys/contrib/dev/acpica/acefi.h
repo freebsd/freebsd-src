@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acefi.h - OS specific defines, etc.
- *       $Revision: 9 $
+ *       $Revision: 10 $
  *
  *****************************************************************************/
 
@@ -126,7 +126,8 @@
 
 /* _int64 works for both IA32 and IA64 */
 
-#define COMPILER_DEPENDENT_UINT64   unsigned __int64
+#define COMPILER_DEPENDENT_INT64   __int64
+#define COMPILER_DEPENDENT_UINT64  unsigned __int64
 
 /*
  * Calling conventions:

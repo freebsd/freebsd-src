@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 94 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -761,6 +761,9 @@ AcpiUtCopySimpleObject (
     case ACPI_TYPE_BUFFER:
 
         DestDesc->Buffer.Node = NULL;
+        DestDesc->Common.Flags = SourceDesc->Common.Flags;
+
+        /* Fall through to common string/buffer case */
 
     case ACPI_TYPE_STRING:
 
@@ -857,6 +860,7 @@ AcpiUtCopyIelementToIelement (
         }
 
         TargetObject->Package.Count = SourceObject->Package.Count;
+        TargetObject->Common.Flags  = SourceObject->Common.Flags;
 
         /*
          * Pass the new package object back to the package walk routine
@@ -905,6 +909,7 @@ AcpiUtCopyIpackageToIpackage (
 
 
     DestObj->Common.Type    = SourceObj->Common.Type;
+    DestObj->Common.Flags   = SourceObj->Common.Flags;
     DestObj->Package.Count  = SourceObj->Package.Count;
 
 
@@ -919,10 +924,6 @@ AcpiUtCopyIpackageToIpackage (
             ("AmlBuildCopyInternalPackageObject: Package allocation failure\n"));
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
-
-    /* Init */
-
-    DestObj->Package.NextElement = DestObj->Package.Elements;
 
     /*
      * Copy the package element-by-element by walking the package "tree".

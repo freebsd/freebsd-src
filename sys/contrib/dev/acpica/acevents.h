@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 75 $
+ *       $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -147,6 +147,10 @@ AcpiEvFixedEventDispatch (
 /*
  * Evmisc
  */
+
+BOOLEAN
+AcpiEvIsNotifyObject (
+    ACPI_NAMESPACE_NODE     *Node);
 
 ACPI_STATUS
 AcpiEvAcquireGlobalLock(

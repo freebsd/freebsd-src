@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 49 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -166,7 +166,6 @@ AcpiTbHandleToObject (
         } while (ListHead != &AcpiGbl_AcpiTables[i]);
     }
 
-
     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "TableId=%X does not exist\n", TableId));
     return (AE_BAD_PARAMETER);
 }
@@ -211,7 +210,6 @@ AcpiTbValidateTableHeader (
         return (AE_BAD_ADDRESS);
     }
 
-
     /* Ensure that the signature is 4 ASCII characters */
 
     ACPI_MOVE_UNALIGNED32_TO_32 (&Signature, &TableHeader->Signature);
@@ -221,11 +219,10 @@ AcpiTbValidateTableHeader (
             "Table signature at %p [%p] has invalid characters\n",
             TableHeader, &Signature));
 
-        ACPI_REPORT_WARNING (("Invalid table signature %4.4s found\n", (char *) &Signature));
+        ACPI_REPORT_WARNING (("Invalid table signature found: [%4.4s]\n", (char *) &Signature));
         ACPI_DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
         return (AE_BAD_SIGNATURE);
     }
-
 
     /* Validate the table length */
 
@@ -309,10 +306,10 @@ AcpiTbMapAcpiTable (
         }
     }
 
-
     /* Map the physical memory for the correct length */
 
-    Status = AcpiOsMapMemory (PhysicalAddress, TableSize, (void **) &Table);
+    Status = AcpiOsMapMemory (PhysicalAddress, TableSize, 
+                                (void **) &Table);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -324,7 +321,6 @@ AcpiTbMapAcpiTable (
 
     *Size = TableSize;
     *LogicalAddress = Table;
-
     return (Status);
 }
 
@@ -366,8 +362,6 @@ AcpiTbVerifyTableChecksum (
 
         Status = AE_BAD_CHECKSUM;
     }
-
-
     return_ACPI_STATUS (Status);
 }
 
@@ -406,7 +400,6 @@ AcpiTbChecksum (
             sum = (UINT8) (sum + *rover);
         }
     }
-
     return (sum);
 }
 
