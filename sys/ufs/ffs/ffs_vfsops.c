@@ -818,9 +818,10 @@ ffs_unmount(mp, mntflags, p)
 		flags |= FORCECLOSE;
 	}
 #ifdef FFS_EXTATTR
-	if ((error = ufs_extattr_stop(mp, p))) {
-		printf("ffs_unmount: ufs_extattr_stop returned %d\n", error);
-	}
+	if ((error = ufs_extattr_stop(mp, p)))
+		if (error != EOPNOTSUPP)
+			printf("ffs_unmount: ufs_extattr_stop returned %d\n",
+			    error);
 #endif
 	if (mp->mnt_flag & MNT_SOFTDEP) {
 		if ((error = softdep_flushfiles(mp, flags, p)) != 0)
