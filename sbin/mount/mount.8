@@ -180,6 +180,73 @@ mount the filesystem read-only (even the super-user may not write it).
 All
 .Tn I/O
 to the filesystem should be done synchronously.
+.It Cm snapshot
+This option allows a snapshot of the specified filesystem to be taken.
+The
+.Fl u
+flag is required with this option.
+Note that snapshot files must be created in the filesystem that is being
+snapshotted.
+You may create up to 20 snapshots per filesystem.
+Active snapshots are recorded in the superblock, so they persist across unmount
+and remount operations and across system reboots.
+When you are done with a snapshot, it can be removed with the
+.Xr rm
+command.
+Snapshots may be removed in any order, however you may not get back all the
+space contained in the snapshot as another snapshot may claim some of the blocks
+that it is releasing.
+Note that the schg flag is set on snapshots to ensure that not even the root
+user can write to them.
+The unlink command makes an exception for snapshot files in that it allows them
+to be removed even though they have the schg flag set, so it is not necessary to
+clear the schg flag before removing a snapshot file.
+.Pp
+Once you have taken a snapshot, there are three interesting things that you can 
+do with it:
+.Pp
+.Bl -enum -compact
+.It
+Run fsck on the snapshot file.
+Assuming that the filesystem was clean when it was mounted, you should always
+get a clean (and unchanging) result from running fsck on the snapshot.
+This is essentially what the background fsck process does.
+.Pp
+.It
+Run dump on the snapshot.
+You will get a dump that is consistent with the filesystem as of the timestamp
+of the snapshot.
+Note that
+.Xr dump
+has not yet been changed to set the dumpdates file correctly, so do not use this
+feature in production until that fix is made.
+.Pp
+.It
+Mount the snapshot as a frozen image of the filesystem.
+To mount the snapshot
+.Pa /var/snapshot/snap1 :
+.Bd -literal
+mdconfig -a -t vnode -f /var/snapshot/snap1 -u 4
+mount -r /dev/md4 /mnt
+.Ed
+.Pp
+You can now cruise around your frozen
+.Pa /var
+filesystem at
+.Pa /mnt .
+Everything will be in the same state that it was at the time the snapshot was
+taken.
+The one exception is that any earlier snapshots will appear as zero length
+files.
+When you are done with the mounted snapshot:
+.Bd -literal
+umount /mnt
+mdconfig -d -u 4
+.Ed
+.Pp
+Further details can be found in the file at
+.Pa /usr/src/sys/ufs/ffs/README.snapshot .
+.El
 .It Cm suiddir
 A directory on the mounted filesystem will respond to the SUID bit
 being set, by setting the owner of any new files to be the same
