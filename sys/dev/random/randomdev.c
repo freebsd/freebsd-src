@@ -358,9 +358,7 @@ random_kthread(void *arg __unused)
 		/* Is the thread scheduled for a shutdown? */
 		if (random_kthread_control != 0) {
 #ifdef DEBUG
-			mtx_lock(&Giant);
 			printf("Random kthread setting terminate\n");
-			mtx_unlock(&Giant);
 #endif
 			random_set_wakeup_exit(&random_kthread_control);
 			/* NOTREACHED */

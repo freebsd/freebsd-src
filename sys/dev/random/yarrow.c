@@ -163,9 +163,7 @@ reseed(u_int fastslow)
 	enum esource j;
 
 #ifdef DEBUG
-	mtx_lock(&Giant);
 	printf("Reseed type %d\n", fastslow);
-	mtx_unlock(&Giant);
 #endif
 
 	/* The reseed task must not be jumped on */
@@ -241,9 +239,7 @@ reseed(u_int fastslow)
 	mtx_unlock(&random_reseed_mtx);
 
 #ifdef DEBUG
-	mtx_lock(&Giant);
 	printf("Reseed finish\n");
-	mtx_unlock(&Giant);
 #endif
 
 	/* Unblock the device if it was blocked due to being unseeded */
@@ -317,9 +313,7 @@ generator_gate(void)
 	u_char temp[KEYSIZE];
 
 #ifdef DEBUG
-	mtx_lock(&Giant);
 	printf("Generator gate\n");
-	mtx_unlock(&Giant);
 #endif
 
 	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
@@ -332,9 +326,7 @@ generator_gate(void)
 	memset((void *)temp, 0, KEYSIZE);
 
 #ifdef DEBUG
-	mtx_lock(&Giant);
 	printf("Generator gate finish\n");
-	mtx_unlock(&Giant);
 #endif
 }
 
