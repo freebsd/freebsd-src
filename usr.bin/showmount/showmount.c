@@ -117,12 +117,11 @@ main(argc, argv)
 	register struct exportslist *exp;
 	register struct grouplist *grp;
 	register int rpcs = 0, mntvers = 1;
-	char ch;
 	const char *host;
-	int estat;
+	int ch, estat;
 
 	while ((ch = getopt(argc, argv, "ade3")) != -1)
-		switch((char)ch) {
+		switch (ch) {
 		case 'a':
 			if (type == 0) {
 				type = ALL;
