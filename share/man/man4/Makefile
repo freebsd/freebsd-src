@@ -256,6 +256,7 @@ MAN=	aac.4 \
 	wb.4 \
 	wi.4 \
 	witness.4 \
+	wlan.4 \
 	worm.4 \
 	xl.4 \
 	xpt.4 \
