@@ -428,6 +428,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mac_init_mount(mp);
 	mac_create_mount(td->td_ucred, mp);
 #endif
+	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
 	*mpp = mp;
 	return (0);
 }
