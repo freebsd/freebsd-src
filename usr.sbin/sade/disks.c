@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.13 1995/05/08 18:41:37 jkh Exp $
+ * $Id: disks.c,v 1.14 1995/05/10 08:03:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,53 +72,6 @@ static struct {
 } fbsd_chunk_info[MAX_CHUNKS + 1];
 static int current_chunk;
 
-
-/* If the given disk has a root partition on it, return TRUE */
-static Boolean
-contains_root_partition(struct disk *d)
-{
-    struct chunk *c1;
-
-    if (!d->chunks)
-	msgFatal("Disk %s has no chunks!", d->name);
-    c1 = d->chunks->part;
-    while (c1) {
-	if (c1->type == freebsd) {
-	    struct chunk *c2 = c1->part;
-
-	    while (c2) {
-		if (c2->flags & CHUNK_IS_ROOT)
-		    return TRUE;
-		c2 = c2->next;
-	    }
-	}
-	c1 = c1->next;
-    }
-    return FALSE;
-}
-
-/* Locate a chunk by position on a specific disk somewhere */
-static struct chunk *
-find_chunk_by_loc(struct disk *d, u_long offset, u_long size)
-{
-    struct chunk *c1, *c2;
-
-    if (!d->chunks)
-	msgFatal("No chunk list for %s!", d->name);
-
-    for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	if (c1->type == freebsd) {
-	    if (c1->offset == offset && c1->size == size)
-		return c1;
-	    for (c2 = c1->part; c2; c2 = c2->next) {
-		if (c2->type == part && c2->offset == offset &&
-		    c2->size == size)
-		    return c2;
-	    }
-	}
-    }
-    return NULL;
-}
 
 static Boolean
 check_conflict(char *name)
@@ -485,15 +438,14 @@ partition_disks(void)
 		    }
 		    else
 			p = NULL;
-		    Create_Chunk(fbsd_chunk_info[current_chunk].d,
-				 fbsd_chunk_info[current_chunk].c->offset +
-				 sz - size,
-				 size,
-				 part,
-				 (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
-				 flags);
-		    tmp = find_chunk_by_loc(fbsd_chunk_info[current_chunk].d,
-					    fbsd_chunk_info[current_chunk].c->offset + sz - size, size);
+
+		    tmp = Create_Chunk_DWIM(fbsd_chunk_info[current_chunk].d,
+					    fbsd_chunk_info[current_chunk].c,
+					    size,
+					    part,
+					    (type == PART_SWAP) ?
+					    FS_SWAP : FS_BSDFFS,
+					    flags);
 		    if (!tmp)
 			msgConfirm("Unable to create the partition.  Too big?");
 		    else {
@@ -594,8 +546,7 @@ write_disks(void)
 
     dialog_clear();
     for (i = 0; Disks[i]; i++) {
-	if (contains_root_partition(Disks[i]))
-	    Set_Boot_Blocks(Disks[i], boot1, boot2);
+	Set_Boot_Blocks(Disks[i], boot1, boot2);
 	dialog_clear();
 	if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
 	    Set_Boot_Mgr(Disks[i], bteasy17);
