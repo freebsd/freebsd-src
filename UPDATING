@@ -29,6 +29,12 @@ prior to 4.0 Release.
 	If you are merely a mirror, or don't answer yes to each of the
 	clauses above, you needn't worry.
 
+20000707:
+	We started building modules here.  IF you don't wish to
+	follow the documented proceedure for building kernels, then
+	you'll have to install new mk files from src/share/mk, or
+	define NO_MODULES.
+
 20000706:
 	Binutils were updated.  In order to build a kernel after this
 	date, you must follow the updating procedure for building
