@@ -59,6 +59,7 @@
 #include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <dev/vinum/request.h>
+#include <devstat.h>
 
 /*
  * When a subdisk is reviving or initializing, we
@@ -1211,6 +1212,224 @@ list_defective_objects()
 	}
     }
 }
+
+/* Dump config from specified disk drives */
+void
+vinum_dumpconfig(int argc, char *argv[], char *argv0[])
+{
+    int i;
+
+    if (argc == 0) {					    /* start everything */
+	int devs = getnumdevs();
+	struct statinfo statinfo;
+	char *namelist;
+	char *enamelist;				    /* end of name list */
+	int i;
+	char **token;					    /* list of tokens */
+	int tokens;					    /* and their number */
+
+	bzero(&statinfo, sizeof(struct statinfo));
+	statinfo.dinfo = malloc(devs * sizeof(struct statinfo));
+	namelist = malloc(devs * (DEVSTAT_NAME_LEN + 8));
+	token = malloc((devs + 1) * sizeof(char *));
+	if ((statinfo.dinfo == NULL) || (namelist == NULL) || (token == NULL)) {
+	    fprintf(stderr, "Can't allocate memory for drive list\n");
+	    return;
+	}
+	bzero(statinfo.dinfo, sizeof(struct devinfo));
+
+	tokens = 0;					    /* no tokens yet */
+	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
+	    perror("Can't get device list");
+	    return;
+	}
+	namelist[0] = '\0';				    /* start with empty namelist */
+	enamelist = namelist;				    /* point to the end of the list */
+
+	for (i = 0; i < devs; i++) {
+	    struct devstat *stat = &statinfo.dinfo->devices[i];
+
+	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
+&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
+	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
+		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
+		token[tokens] = enamelist;		    /* point to it */
+		tokens++;				    /* one more token */
+		enamelist = &enamelist[strlen(enamelist) + 1]; /* and start beyond the end */
+	    }
+	}
+	free(statinfo.dinfo);				    /* don't need the list any more */
+	for (i = 0; i < tokens; i++)
+	    dumpconfig(token[i]);
+	free(namelist);
+	free(token);
+    } else {						    /* list specified drives */
+	for (i = 0; i < argc; i++)
+	    dumpconfig(argv[i]);
+    }
+}
+
+#define DEVLEN 5
+void
+dumpconfig(char *part)
+{
+    char partname[MAXPATHLEN];
+    char *partid;
+    char partition;					    /* UNIX partition */
+    int slice;
+    int founddrive;					    /* flag when we find a vinum drive */
+    struct disklabel label;				    /* label of this drive */
+    int driveno;					    /* fd of drive */
+    int found;
+    u_int64_t drivelength;
+
+    if (memcmp(part, "/dev/", DEVLEN) == 0)		    /* starts with /dev */
+	memcpy(partname, part, MAXPATHLEN);
+    else {						    /* prepend */
+	strcpy(partname, "/dev/");
+	strncat(&partname[DEVLEN], part, MAXPATHLEN - DEVLEN);
+    }
+    partid = &partname[strlen(partname)];
+    founddrive = 0;					    /* no vinum drive found yet on this spindle */
+    /* first try the partition table */
+    for (slice = 1; slice < 5; slice++) {
+	sprintf(partid, "s%dc", slice);			    /* c partition */
+	driveno = open(partname, O_RDONLY);
+	if (driveno < 0) {
+	    if (errno != ENOENT)
+		fprintf(stderr, "Can't open %s: %s (%d)\n", partname, strerror(errno), errno);
+	    continue;
+	}
+	if (ioctl(driveno, DIOCGDINFO, &label) < 0) {
+	    fprintf(stderr, "Can't get label from %s: %s (%d)\n", partname, strerror(errno), errno);
+	    continue;
+	}
+	for (partition = 'a'; partition < 'i'; partition++) {
+	    if ((partition != 'c')			    /* it's not the c partition */
+&&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
+	    ||Verbose)) {				    /* or we're just plain curious */
+		sprintf(partid, "s%d%c", slice, partition);
+		found = check_drive(partname);		    /* try to open it */
+		founddrive |= found;			    /* and note if we were successful at all */
+		if (label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) {	/* it's a Vinum partition */
+		    drivelength = ((u_int64_t) label.d_partitions[partition - 'a'].p_size) * DEV_BSIZE;
+		    printf("Drive %s: %s (%lld bytes)\n",
+			partname,
+			roughlength(drivelength, 1),
+			drivelength);
+		    if ((!found) && vflag)		    /* we're talkative */
+			printf("*** no configuration found ***\n");
+		}
+	    }
+	}
+    }
+    if (founddrive == 0) {				    /* didn't find anything, */
+	sprintf(partid, "c");				    /* c partition */
+	driveno = open(partname, O_RDONLY);
+	if (driveno < 0) {
+	    if (errno != ENOENT)
+		fprintf(stderr, "Can't open %s: %s (%d)\n", partname, strerror(errno), errno);
+	    return;
+	}
+	if (ioctl(driveno, DIOCGDINFO, &label) < 0) {
+	    fprintf(stderr, "Can't get label from %s: %s (%d)\n", partname, strerror(errno), errno);
+	    return;
+	}
+	for (partition = 'a'; partition < 'i'; partition++) { /* try the compatibility partition */
+	    if ((partition != 'c')			    /* it's not the c partition */
+&&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
+	    ||Verbose)) {				    /* or we're just plain curious */
+		sprintf(partid, "%c", partition);
+		found = check_drive(partname);		    /* try to open it */
+		founddrive |= found;			    /* and note if we were successful at all */
+		if (label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) {	/* it's a Vinum partition */
+		    drivelength = ((u_int64_t) label.d_partitions[partition - 'a'].p_size) * DEV_BSIZE;
+		    printf("Drive %s: %s (%lld bytes)\n",
+			partname,
+			roughlength(drivelength, 1),
+			drivelength);
+		    if ((!found) && vflag)		    /* we're talkative */
+			printf("*** no configuration found ***\n");
+		}
+	    }
+	}
+    }
+}
+
+/*
+ * Check a drive for a Vinum header.  If found,
+ * print configuration information from the drive.
+ *
+ * Return 1 if Vinum config found.
+ */
+int
+check_drive(char *devicename)
+{
+    int fd;
+    char vinumlabel[DEV_BSIZE];				    /* one sector for label */
+    struct vinum_hdr *hdr = (struct vinum_hdr *) vinumlabel; /* with this structure */
+    char *config_text;					    /* read the config info from disk into here */
+    time_t t;
+
+    fd = open(devicename, O_RDONLY);
+    if (fd >= 0) {
+	if (lseek(fd, VINUM_LABEL_OFFSET, SEEK_SET) < 0) {
+	    fprintf(stderr,
+		"Can't seek label for %s: %s (%d)\n",
+		devicename,
+		strerror(errno),
+		errno);
+	    close(fd);
+	    return 0;
+	}
+	if (read(fd, vinumlabel, DEV_BSIZE) != DEV_BSIZE) {
+	    if (errno != EINVAL)
+		fprintf(stderr,
+		    "Can't read label from %s: %s (%d)\n",
+		    devicename,
+		    strerror(errno),
+		    errno);
+	    close(fd);
+	    return 0;
+	}
+	if ((hdr->magic == VINUM_MAGIC)
+	    || (vflag && (hdr->magic == VINUM_NOMAGIC))) {
+	    printf("Drive %s:\tDevice %s\n",
+		hdr->label.name,
+		devicename);
+	    if (hdr->magic == VINUM_NOMAGIC)
+		printf("*** Drive has been obliterated ***\n");
+	    t = hdr->label.date_of_birth.tv_sec;
+	    printf("\t\tCreated on %s at %s",
+		hdr->label.sysname,
+		ctime(&t));
+	    t = hdr->label.last_update.tv_sec;
+	    printf("\t\tConfig last updated %s",	    /* care: \n at end */
+		ctime(&t));
+	    printf("\t\tSize: %16lld bytes (%lld MB)\n",
+		(long long) hdr->label.drive_size,	    /* bytes used */
+		(long long) (hdr->label.drive_size / MEGABYTE));
+	    config_text = (char *) malloc(MAXCONFIG);
+	    if (config_text == NULL)
+		fprintf(stderr, "Can't allocate memory\n");
+	    else {
+		if (read(fd, config_text, MAXCONFIG) != MAXCONFIG)
+		    fprintf(stderr,
+			"Can't read config from %s: %s (%d)\n",
+			devicename,
+			strerror(errno),
+			errno);
+		else
+		    puts(config_text);
+		free(config_text);
+	    }
+	}
+	close(fd);
+	return 1;
+    }
+    return 0;
+}
+
 /* Local Variables: */
 /* fill-column: 50 */
 /* End: */
