@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.11 1996/11/23 08:26:58 phk Exp $
+#	$Id: Makefile,v 1.246.2.12 1996/11/28 08:17:21 phk Exp $
 #
 # How to roll a release:
 #
@@ -429,6 +429,8 @@ release.9:
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
+	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
+	chmod 555 ${RD}/fixitfd/stand/tar
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
 		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
