@@ -32,10 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-
-#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
-#endif
 
 #ifndef lint
 static const char copyright[] =
