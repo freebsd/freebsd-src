@@ -1466,7 +1466,7 @@ vm_page_dontneed(vm_page_t m)
 	int dnw;
 	int head;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	dnw = ++dnweight;
 
 	/*
