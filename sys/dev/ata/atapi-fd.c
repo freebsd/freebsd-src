@@ -67,19 +67,19 @@ static struct cdevsw afd_cdevsw = {
 static struct cdevsw afddisk_cdevsw;
 
 /* prototypes */
-static int32_t afd_sense(struct afd_softc *);
+static int afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
-static int32_t afd_partial_done(struct atapi_request *);
-static int32_t afd_done(struct atapi_request *);
-static int32_t afd_eject(struct afd_softc *, int32_t);
-static int32_t afd_start_stop(struct afd_softc *, int32_t);
-static int32_t afd_prevent_allow(struct afd_softc *, int32_t);
+static int afd_partial_done(struct atapi_request *);
+static int afd_done(struct atapi_request *);
+static int afd_eject(struct afd_softc *, int);
+static int afd_start_stop(struct afd_softc *, int);
+static int afd_prevent_allow(struct afd_softc *, int);
 
 /* internal vars */
 static u_int32_t afd_lun_map = 0;
 MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
-int32_t 
+int 
 afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
@@ -133,14 +133,14 @@ afddetach(struct atapi_softc *atp)
     free(fdp, M_AFD);
 }   
 
-static int32_t 
+static int 
 afd_sense(struct afd_softc *fdp)
 {
     int8_t buffer[256];
     int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, ATAPI_REWRITEABLE_CAP_PAGE,
 		       0, 0, 0, 0, sizeof(buffer)>>8, sizeof(buffer) & 0xff,
 		       0, 0, 0, 0, 0, 0, 0 };
-    int32_t count, error = 0;
+    int count, error = 0;
 
     bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
@@ -217,7 +217,7 @@ afd_describe(struct afd_softc *fdp)
 }
 
 static int
-afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
+afdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label = &fdp->disk.d_label;
@@ -243,7 +243,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 }
 
 static int 
-afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
+afdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
@@ -253,7 +253,7 @@ afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 }
 
 static int 
-afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+afdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
@@ -277,7 +277,7 @@ static void
 afdstrategy(struct bio *bp)
 {
     struct afd_softc *fdp = bp->bio_dev->si_drv1;
-    int32_t s;
+    int s;
 
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
@@ -297,9 +297,10 @@ afd_start(struct atapi_softc *atp)
 {
     struct afd_softc *fdp = atp->driver;
     struct bio *bp = bioq_first(&fdp->bio_queue);
-    u_int32_t lba, count;
+    u_int32_t lba;
+    u_int16_t count;
     int8_t ccb[16];
-    int8_t *data_ptr;
+    caddr_t data_ptr;
 
     if (!bp)
 	return;
@@ -357,7 +358,7 @@ afd_start(struct atapi_softc *atp)
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30, afd_done, bp);
 }
 
-static int32_t 
+static int 
 afd_partial_done(struct atapi_request *request)
 {
     struct bio *bp = request->driver;
@@ -370,7 +371,7 @@ afd_partial_done(struct atapi_request *request)
     return 0;
 }
 
-static int32_t 
+static int 
 afd_done(struct atapi_request *request)
 {
     struct bio *bp = request->driver;
@@ -387,10 +388,10 @@ afd_done(struct atapi_request *request)
     return 0;
 }
 
-static int32_t 
-afd_eject(struct afd_softc *fdp, int32_t close)
+static int 
+afd_eject(struct afd_softc *fdp, int close)
 {
-    int32_t error;
+    int error;
      
     if ((error = afd_start_stop(fdp, 0)) == EBUSY) {
 	if (!close)
@@ -409,12 +410,12 @@ afd_eject(struct afd_softc *fdp, int32_t close)
     return afd_start_stop(fdp, 2);
 }
 
-static int32_t
-afd_start_stop(struct afd_softc *fdp, int32_t start)
+static int
+afd_start_stop(struct afd_softc *fdp, int start)
 {
     int8_t ccb[16] = { ATAPI_START_STOP, 0x01, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     error = atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
@@ -422,8 +423,8 @@ afd_start_stop(struct afd_softc *fdp, int32_t start)
     return atapi_wait_ready(fdp->atp, 30);
 }
 
-static int32_t
-afd_prevent_allow(struct afd_softc *fdp, int32_t lock)
+static int
+afd_prevent_allow(struct afd_softc *fdp, int lock)
 {
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

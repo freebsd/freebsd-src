@@ -65,32 +65,32 @@ static struct cdevsw ast_cdevsw = {
 };
 
 /* prototypes */
-static int32_t ast_sense(struct ast_softc *);
+static int ast_sense(struct ast_softc *);
 static void ast_describe(struct ast_softc *);
-static int32_t ast_done(struct atapi_request *);
-static int32_t ast_mode_sense(struct ast_softc *, u_int8_t, void *, int32_t); 
-static int32_t ast_mode_select(struct ast_softc *, void *, int32_t);
-static int32_t ast_write_filemark(struct ast_softc *, u_int8_t);
-static int32_t ast_read_position(struct ast_softc *, int32_t, struct ast_readposition *);
-static int32_t ast_space(struct ast_softc *, u_int8_t, u_int32_t);
-static int32_t ast_locate(struct ast_softc *, int32_t, int32_t);
-static int32_t ast_prevent_allow(struct ast_softc *stp, int32_t lock);
-static int32_t ast_load_unload(struct ast_softc *, u_int8_t);
-static int32_t ast_rewind(struct ast_softc *);
-static int32_t ast_erase(struct ast_softc *);
+static int ast_done(struct atapi_request *);
+static int ast_mode_sense(struct ast_softc *, int, void *, int); 
+static int ast_mode_select(struct ast_softc *, void *, int);
+static int ast_write_filemark(struct ast_softc *, u_int8_t);
+static int ast_read_position(struct ast_softc *, int, struct ast_readposition *);
+static int ast_space(struct ast_softc *, u_int8_t, int32_t);
+static int ast_locate(struct ast_softc *, int, u_int32_t);
+static int ast_prevent_allow(struct ast_softc *stp, int);
+static int ast_load_unload(struct ast_softc *, u_int8_t);
+static int ast_rewind(struct ast_softc *);
+static int ast_erase(struct ast_softc *);
 
 /* internal vars */
 static u_int32_t ast_lun_map = 0;
 static u_int64_t ast_total = 0;
 MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
-int32_t 
+int 
 astattach(struct atapi_softc *atp)
 {
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
-    static int32_t ast_cdev_done = 0;
+    static int ast_cdev_done = 0;
 
     if (!ast_cdev_done) {
 	cdevsw_add(&ast_cdevsw);
@@ -161,10 +161,10 @@ astdetach(struct atapi_softc *atp)
     free(stp, M_AST);
 }
 
-static int32_t
+static int
 ast_sense(struct ast_softc *stp)
 {
-    int32_t count, error = 0;
+    int count, error = 0;
 
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
@@ -245,7 +245,7 @@ ast_describe(struct ast_softc *stp)
 }
 
 static int
-astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
+astopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -270,7 +270,7 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 }
 
 static int 
-astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
+astclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -298,10 +298,10 @@ astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 }
 
 static int 
-astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+astioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
     struct ast_softc *stp = dev->si_drv1;
-    int32_t error = 0;
+    int error = 0;
 
     switch (cmd) {
     case MTIOCGET:
@@ -323,7 +323,7 @@ astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	}
     case MTIOCTOP:
 	{	
-	    int32_t i;
+	    int i;
 	    struct mtop *mt = (struct mtop *)addr;
 
 	    switch ((int16_t) (mt->mt_op)) {
@@ -413,7 +413,7 @@ static void
 aststrategy(struct bio *bp)
 {
     struct ast_softc *stp = bp->bio_dev->si_drv1;
-    int32_t s;
+    int s;
 
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
@@ -485,7 +485,7 @@ ast_start(struct atapi_softc *atp)
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
 }
 
-static int32_t 
+static int 
 ast_done(struct atapi_request *request)
 {
     struct bio *bp = request->driver;
@@ -506,13 +506,12 @@ ast_done(struct atapi_request *request)
     return 0;
 }
 
-static int32_t
-ast_mode_sense(struct ast_softc *stp, u_int8_t page,
-	       void *pagebuf, int32_t pagesize)
+static int
+ast_mode_sense(struct ast_softc *stp, int page, void *pagebuf, int pagesize)
 {
     int8_t ccb[16] = { ATAPI_MODE_SENSE, 0x08, page, pagesize>>8, pagesize,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
  
     error = atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, ATPR_F_READ, 10, 
 			    NULL, NULL);
@@ -522,8 +521,8 @@ ast_mode_sense(struct ast_softc *stp, u_int8_t page,
     return error;
 }
 
-static int32_t	 
-ast_mode_select(struct ast_softc *stp, void *pagebuf, int32_t pagesize)
+static int	 
+ast_mode_select(struct ast_softc *stp, void *pagebuf, int pagesize)
 {
     int8_t ccb[16] = { ATAPI_MODE_SELECT, 0x10, 0, pagesize>>8, pagesize,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -536,12 +535,12 @@ ast_mode_select(struct ast_softc *stp, void *pagebuf, int32_t pagesize)
 			   NULL, NULL);
 }
 
-static int32_t
+static int
 ast_write_filemark(struct ast_softc *stp, u_int8_t function)
 {
     int8_t ccb[16] = { ATAPI_WEOF, 0x01, 0, 0, function, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     if (stp->flags & F_ONSTREAM)
 	ccb[4] = 0x00;		/* only flush buffers supported */
@@ -559,15 +558,15 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
     return atapi_wait_ready(stp->atp, 10*60);
 }
 
-static int32_t
-ast_read_position(struct ast_softc *stp, int32_t hard,
+static int
+ast_read_position(struct ast_softc *stp, int hard,
 		  struct ast_readposition *position)
 {
     int8_t ccb[16] = { ATAPI_READ_POSITION, (hard ? 0x01 : 0), 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, position, 
+    error = atapi_queue_cmd(stp->atp, ccb, (caddr_t)position, 
 			    sizeof(struct ast_readposition), ATPR_F_READ, 10,
 			    NULL, NULL);
     position->tape = ntohl(position->tape);
@@ -575,8 +574,8 @@ ast_read_position(struct ast_softc *stp, int32_t hard,
     return error;
 }
 
-static int32_t
-ast_space(struct ast_softc *stp, u_int8_t function, u_int32_t count)
+static int
+ast_space(struct ast_softc *stp, u_int8_t function, int32_t count)
 {
     int8_t ccb[16] = { ATAPI_SPACE, function, count>>16, count>>8, count,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -584,13 +583,13 @@ ast_space(struct ast_softc *stp, u_int8_t function, u_int32_t count)
     return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
 }
 
-static int32_t
-ast_locate(struct ast_softc *stp, int32_t hard, int32_t pos)
+static int
+ast_locate(struct ast_softc *stp, int hard, u_int32_t pos)
 {
     int8_t ccb[16] = { ATAPI_LOCATE, 0x01 | (hard ? 0x4 : 0), 0,
 		       pos>>24, pos>>16, pos>>8, pos,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
@@ -598,8 +597,8 @@ ast_locate(struct ast_softc *stp, int32_t hard, int32_t pos)
     return atapi_wait_ready(stp->atp, 60*60);
 }
 
-static int32_t
-ast_prevent_allow(struct ast_softc *stp, int32_t lock)
+static int
+ast_prevent_allow(struct ast_softc *stp, int lock)
 {
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -607,12 +606,12 @@ ast_prevent_allow(struct ast_softc *stp, int32_t lock)
     return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0,30, NULL, NULL);
 }
 
-static int32_t
+static int
 ast_load_unload(struct ast_softc *stp, u_int8_t function)
 {
     int8_t ccb[16] = { ATAPI_START_STOP, 0x01, 0, 0, function, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     if ((function & SS_EJECT) && !stp->cap.eject)
 	return 0;
@@ -625,12 +624,12 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
     return atapi_wait_ready(stp->atp, 60*60);
 }
 
-static int32_t
+static int
 ast_rewind(struct ast_softc *stp)
 {
     int8_t ccb[16] = { ATAPI_REWIND, 0x01, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
@@ -638,12 +637,12 @@ ast_rewind(struct ast_softc *stp)
     return atapi_wait_ready(stp->atp, 60*60);
 }
 
-static int32_t
+static int
 ast_erase(struct ast_softc *stp)
 {
     int8_t ccb[16] = { ATAPI_ERASE, 3, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
+    int error;
 
     if ((error = ast_rewind(stp)))
 	return error;
