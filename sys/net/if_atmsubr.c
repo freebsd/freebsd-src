@@ -228,7 +228,8 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
 	 */
-	if (!IF_HANDOFF(&ifp->if_snd, m, ifp))
+	if (!IF_HANDOFF_ADJ(&ifp->if_snd, m, ifp,
+	    -(int)sizeof(struct atm_pseudohdr)))
 		return (ENOBUFS);
 	return (error);
 
