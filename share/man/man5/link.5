@@ -295,7 +295,7 @@ The
 .Fa sod
 structure that was responsible for loading this shared object.
 .It Fa som_sodbase
-Tossed in later versions the run-time linker.
+Tossed out in later versions of the run-time linker.
 .It Fa som_write
 Set if (some portion of) this object's text segment is currently writable.
 .It Fa som_dynamic
@@ -393,7 +393,7 @@ The symbol description.
 Virtual address of next rt_symbol.
 .It Fa rt_link
 Next in hash bucket.
-Used by internally by
+Used internally by
 .Nm ld.so .
 .It Fa rt_srcaddr
 Location of the source of initialized data within a shared object.
@@ -436,7 +436,7 @@ run under control of a debugger.
 .It Fa dd_sym_loaded
 Set by the run-time linker whenever it adds symbols by loading shared objects.
 .It Fa dd_bpt_addr
-The address were a breakpoint will be set by the run-time linker to
+The address where a breakpoint will be set by the run-time linker to
 divert control to the debugger.
 This address is determined by the start-up
 module,
