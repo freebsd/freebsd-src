@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.95 1996/04/30 06:02:51 jkh Exp $
+ * $Id: install.c,v 1.96 1996/05/02 10:09:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -310,8 +310,12 @@ installExpress(dialogMenuItem *self)
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
-	/* Give user the option of one last configuration spree, then write changes */
+	/* Give user the option of one last configuration spree */
 	installConfigure();
+
+	/* Now write out any changes .. */
+	configResolv();
+	configSysconfig();
     }
     return i | DITEM_RESTORE | DITEM_RECREATE;
 }
@@ -458,19 +462,46 @@ installNovice(dialogMenuItem *self)
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
-    /* Give user the option of one last configuration spree, then write changes */
+    /* Give user the option of one last configuration spree */
     installConfigure();
+
+    /* Now write out any changes .. */
+    configResolv();
+    configSysconfig();
 
     return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
 }
 
+/* The version of commit we call from the Install Custom menu */
+int
+installCustomCommit(dialogMenuItem *self)
+{
+    int i;
+
+    i = installCommit(self);
+    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
+	/* Give user the option of one last configuration spree */
+	installConfigure();
+
+	/* Now write out any changes .. */
+	configResolv();
+	configSysconfig();
+	return i;
+    }
+    else
+	msgConfirm("The commit operation completed with errors.  Not\n"
+		   "updating /etc files.");
+    return i;
+}
+
 /*
- * What happens when we finally "Commit" to going ahead with the installation.
+ * What happens when we finally decide to going ahead with the installation.
  *
- * This is broken into multiple stages so that the user can do a full installation but come back here
- * again to load more distributions, perhaps from a different media type.  This would allow, for
- * example, the user to load the majority of the system from CDROM and then use ftp to load just the
- * DES dist.
+ * This is broken into multiple stages so that the user can do a full
+ * installation but come back here again to load more distributions,
+ * perhaps from a different media type.  This would allow, for
+ * example, the user to load the majority of the system from CDROM and
+ * then use ftp to load just the DES dist.
  */
 int
 installCommit(dialogMenuItem *self)
@@ -530,10 +561,6 @@ installConfigure(void)
 	dmenuOpenSimple(&MenuConfigure);
 	restorescr(w);
     }
-
-    /* Write out any changes .. */
-    configResolv();
-    configSysconfig();
 }
 
 int

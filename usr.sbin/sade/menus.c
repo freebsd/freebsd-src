@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.59 1996/05/05 21:54:23 jkh Exp $
+ * $Id: menus.c,v 1.60 1996/05/09 09:42:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -864,7 +864,7 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
   { "3 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
   { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
   { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-  { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCommit },
+  { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
   { "7 Extract",	"Just do distribution extract step",	NULL, distExtractAll },
   { "0 Exit",		"Exit this menu (returning to previous)", NULL, dmenuExit },
   { NULL } },
