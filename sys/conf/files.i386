@@ -106,6 +106,7 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			count		splash
 dev/fb/vga.c			optional	vga
+dev/fe/if_fe_isa.c		optional	fe isa
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		count		atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -234,7 +235,6 @@ i386/isa/gsc.c			count		gsc
 i386/isa/if_ar.c		optional	ar
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
-i386/isa/if_fe.c		count		fe
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
 i386/isa/if_sr.c		count		sr
