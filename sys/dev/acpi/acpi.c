@@ -36,6 +36,9 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <sys/eventhandler.h>		/* for EVENTHANDLER_REGISTER */
 #include <sys/reboot.h>			/* for RB_POWEROFF */
 #include <machine/clock.h>		/* for DELAY */
@@ -153,6 +156,7 @@ static void acpi_enable_events(acpi_softc_t *sc);
 
 /* New-bus dependent code */
 static acpi_softc_t *acpi_get_softc(dev_t dev);
+static int  acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state);
 static void acpi_identify(driver_t *driver, device_t parent);
 static int  acpi_probe(device_t dev);
 static int  acpi_attach(device_t dev);
@@ -374,6 +378,7 @@ acpi_enable_disable(acpi_softc_t *sc, boolean_t enable)
 	}
 
 	bus_space_write_1(bst, bsh, 0, val);
+	sc->enabled = enable;
 
 	ACPI_DEBUGPRINT("acpi_enable_disable(%d) = (%x)\n", enable, val);
 }
@@ -680,6 +685,7 @@ acpi_handle_dsdt(acpi_softc_t *sc)
 	}
 
 	/* get sleeping type values from ACPI namespace */
+	sc->system_state = ACPI_S_STATE_S0;
 	sc->system_state_initialized = 1;
 	for (i = ACPI_S_STATE_S0; i <= ACPI_S_STATE_S5; i++) {
 		ssp.mode[i].slp_typ_a = ACPI_UNSUPPORTSLPTYP;
@@ -904,6 +910,13 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	}
 
 	if (state < ACPI_S_STATE_S5) {
+		/* inform all devices that we are going to sleep. */
+		if (acpi_send_pm_event(sc, state) != 0) {
+			/* if failure, 'wakeup' the system again */
+			acpi_send_pm_event(sc, ACPI_S_STATE_S0);
+			return;
+		}
+
 		/* Prepare to sleep */
 		acpi_execute_pts(sc, state);
 
@@ -912,6 +925,8 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 		if (acpi_debug) {
 			acpi_powerres_debug(sc);
 		}
+
+		sc->system_state = state;
 	}
 
 	/*
@@ -931,11 +946,14 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	}
 
 	if (state < ACPI_S_STATE_S5) {
-		acpi_execute_wak(sc, state);
 		acpi_powerres_set_sleeping_state(sc, 0);
 		if (acpi_debug) {
 			acpi_powerres_debug(sc);
 		}
+		acpi_execute_wak(sc, state);
+		acpi_send_pm_event(sc, ACPI_S_STATE_S0);
+
+		sc->system_state = ACPI_S_STATE_S0;
 	}
 }
 
@@ -1233,6 +1251,31 @@ acpi_get_softc(dev_t dev)
 	return (devclass_get_softc(acpi_devclass, minor(dev)));
 }
 
+static int
+acpi_send_pm_event(acpi_softc_t *sc, u_int8_t state)
+{
+	int	error;
+
+	error = 0;
+	switch (state) {
+	case ACPI_S_STATE_S0:
+		if (sc->system_state != ACPI_S_STATE_S0) {
+			DEVICE_RESUME(root_bus);
+		}
+		break;
+	case ACPI_S_STATE_S1:
+	case ACPI_S_STATE_S2:
+	case ACPI_S_STATE_S3:
+	case ACPI_S_STATE_S4:
+		error = DEVICE_SUSPEND(root_bus);
+		break;
+	default:
+		break;
+	}
+
+	return (error);
+}
+
 static void
 acpi_identify(driver_t *driver, device_t parent)
 {
@@ -1342,11 +1385,26 @@ acpi_attach(device_t dev)
 	return (0);
 }
 
+static int
+acpi_resume(device_t dev)
+{
+	acpi_softc_t	*sc;
+
+	sc = device_get_softc(dev);
+	if (sc->enabled) {
+		/* re-enable on wakeup */
+		acpi_enable_disable(sc, 1);
+		acpi_enable_events(sc);
+	}
+	return (0);
+}
+
 static device_method_t acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, acpi_identify),
 	DEVMETHOD(device_probe, acpi_probe),
 	DEVMETHOD(device_attach, acpi_attach),
+	DEVMETHOD(device_resume, acpi_resume),
 
 	{0, 0}
 };
