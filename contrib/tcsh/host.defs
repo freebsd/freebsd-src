@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.25 1999/04/20 07:48:41 christos Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.26 2000/06/10 18:48:09 kim Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -37,7 +37,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.25 1999/04/20 07:48:41 christos Exp $")
+RCSID("$Id: host.defs,v 1.26 2000/06/10 18:48:09 kim Exp $")
 
 endcode	:
 
@@ -182,6 +182,11 @@ getmachine()
      char *machtype;
 
 endcode	:
+
+
+newdef	: defined(HOSTTYPE)
+hosttype:						: HOSTTYPE
+enddef	:
 
 
 newdef	: defined(__PARAGON__)
