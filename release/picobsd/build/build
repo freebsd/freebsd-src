@@ -33,6 +33,10 @@ set -e
 
 . ../Version
 
+# support symbolically linked custom directory
+BUILDDIR=`pwd`
+export BUILDDIR
+
 # assign default values to variables.
 set_defaults() {
     TYPE=${TYPE:-dial} # PicoBSD type (isp, router, net, custom, ...
@@ -90,7 +94,7 @@ main() {
     # Build the kernel, if necessary
     echo ""
     echo "-> Checking if we have to build the PICOBSD kernel..."
-    (cd ../${TYPE}; make -f ../build/Makefile.conf )
+    (cd ../${TYPE}; make -f ${BUILDDIR}/Makefile.conf )
     echo ""
 
     ./stage1
@@ -122,6 +126,7 @@ check_for_old_custom() {
    CUSTOMLINK=`ls -l ../custom | awk -F\> '{ print $2 }' | awk '{ print $1 }'`
    if dialog --title "Custom directory setup" --yesno "A custom configuration\n ${CUSTOMLINK}\nalready exists. Would you like to use it?" 7 50 ; then 
        KEEP_CUSTOM=yes
+       CUST_DIR=${CUSTOMLINK}
    else 
        KEEP_CUSTOM=no
    fi
@@ -337,7 +342,7 @@ WARNING: the contents of the floppy will be permanently erased!\n\
 \n\
 Your options:\n\
 	* ^C or [Cancel] to abort,\n\
-	* Enter to install \"${FILENAME}\",\n\
+	* Enter to install \"picobsd.bin\",\n\
 	* name of other file to install.\n\
 " 20 70 2> ${RISU}
     if [ "$?" = "0" ]; then
