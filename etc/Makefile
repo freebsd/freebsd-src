@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id$
+#	$Id: Makefile,v 1.52 1994/02/21 21:53:20 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -34,7 +34,7 @@ FREEBSD+=	${COPYRIGHT}
 # Floppy drive name and files for building FreeBSD Floppies
 FLOPPY?=	fd0
 MOUNT?=		/mnt
-FLOPPY_TYPE?=	floppy5
+FLOPPY_TYPE?=	fd1200
 #
 MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
@@ -240,31 +240,31 @@ kcopy-floppy:
 		ln bin/kcopy $$i; \
 	    done)
 
-kcopy-ah-floppy:
+kcopy_ah.flp:
 	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICAH; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy-ah-floppy \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_ah.flp \
 		bs=15b count=160
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-ah-floppy \
-		>${RELEASEDIR}/floppies/kcopy-ah-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_ah.flp \
+		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz
 
-kcopy-bt-floppy:
+kcopy_bt.flp:
 	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICBT; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy-bt-floppy \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_bt.flp \
 		bs=15b count=160
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-bt-floppy \
-		>${RELEASEDIR}/floppies/kcopy-bt-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_bt.flp \
+		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz
 
-filesystem-floppy:
+filesyst.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
@@ -304,12 +304,12 @@ filesystem-floppy:
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/filesystem-floppy \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/filesyst.flp \
 		bs=15b count=160
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesystem-floppy \
-		>${RELEASEDIR}/floppies/filesystem-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesyst.flp \
+		>${RELEASEDIR}/floppies/filesyst.flp.gz
 
-cpio-floppy:
+cpio.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
@@ -332,10 +332,10 @@ cpio-floppy:
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cpio-floppy \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cpio.flp \
 		bs=15b count=160
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio-floppy \
-		>${RELEASEDIR}/floppies/cpio-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio.flp \
+		>${RELEASEDIR}/floppies/cpio.flp.gz
 
 bin-tarball:
 	(cd ${DESTDIR}; \
@@ -497,8 +497,8 @@ distrib-dirs:
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
-floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
-	  cpio-floppy
+floppies: kcopy_ah.flp kcopy_bt.flp filesyst.flp \
+	  cpio.flp
 
 release: release-dirs distribution kcopy-kernels floppies \
 	 bin-tarball des-tarball
