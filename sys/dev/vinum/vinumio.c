@@ -218,7 +218,7 @@ close_locked_drive(struct drive *drive)
      * the queues, which spec_close() will try to
      * do.  Get rid of them here first.
      */
-    error = (*devsw(drive->dev)->d_close) (drive->dev, 0, 0, NULL);
+    error = (*devsw(drive->dev)->d_close) (drive->dev, FWRITE | FREAD, 0, NULL);
     drive->flags &= ~VF_OPEN;				    /* no longer open */
     if (drive->lasterror == 0)
 	drive->lasterror = error;
