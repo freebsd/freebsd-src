@@ -1,8 +1,44 @@
+/*
+ * QuickCam(TM) driver control program.
+ * Copyright (c) 1996, Paul Traina.
+ *
+ * QuickCam(TM) is a registered trademark of Connectix Inc.
+ * Use this driver at your own risk, it is not warranted by
+ * Connectix or the authors.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer
+ *    in this position and unchanged.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software withough specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <machine/qcam.h>
+
+#ifdef	LINUX
+#include <getopt.h>
+#endif
 
 void print_data(struct qcam *data)
 {
@@ -47,7 +83,7 @@ main(int argc, char **argv)
 	x_size = y_size = zoom = depth = brightness = whitebalance =
 	         contrast = exposure = -1;
 
-	while ((opt = getopt(argc, argv, "p:x:y:z:d:b;w:c:e:")) != EOF) {
+	while ((opt = getopt(argc, argv, "p:x:y:z:d:b:w:c:e:")) != EOF) {
 	    switch (opt) {
 	    case 'p':
 		port = optarg;
@@ -122,9 +158,9 @@ main(int argc, char **argv)
 	    default:
 		usage();
 	    }
-	    argc--;
-	    argv++;
 	}
+	argc -= optind;
+	argv += optind;
 
 	/* open device */
 	if ((fd = open(port, O_RDONLY)) < 0) {
