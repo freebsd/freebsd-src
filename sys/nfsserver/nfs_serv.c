@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.64 1998/05/31 17:54:18 peter Exp $
+ * $Id: nfs_serv.c,v 1.65 1998/05/31 19:07:47 peter Exp $
  */
 
 /*
@@ -2650,7 +2650,8 @@ again:
 	 * increase.
 	 */
 	while (cpos < cend && ncookies > 0 &&
-		(dp->d_fileno == 0 || ((u_quad_t)(*cookiep)) <= toff)) {
+		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
+		 ((u_quad_t)(*cookiep)) <= toff)) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -2675,7 +2676,7 @@ again:
 
 	/* Loop through the records and build reply */
 	while (cpos < cend && ncookies > 0) {
-		if (dp->d_fileno != 0) {
+		if (dp->d_fileno != 0 && dp->d_type != DT_WHT) {
 			nlen = dp->d_namlen;
 			rem = nfsm_rndup(nlen)-nlen;
 			len += (4 * NFSX_UNSIGNED + nlen + rem);
@@ -2907,7 +2908,8 @@ again:
 	 * increase.
 	 */
 	while (cpos < cend && ncookies > 0 &&
-		(dp->d_fileno == 0 || ((u_quad_t)(*cookiep)) <= toff)) {
+		(dp->d_fileno == 0 || dp->d_type == DT_WHT) ||
+		 ((u_quad_t)(*cookiep)) <= toff)) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -2945,7 +2947,7 @@ again:
 
 	/* Loop through the records and build reply */
 	while (cpos < cend && ncookies > 0) {
-		if (dp->d_fileno != 0) {
+		if (dp->d_fileno != 0 && dp->d_type != DT_WHT) {
 			nlen = dp->d_namlen;
 			rem = nfsm_rndup(nlen)-nlen;
 
