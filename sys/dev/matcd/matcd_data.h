@@ -50,7 +50,7 @@ See matcd.c for Edit History
 
 struct matcd_softc {
 	device_t		dev;
-	dev_t			matcd_dev_t;
+	struct cdev *matcd_dev_t;
 	struct resource *	port;
 	int			port_rid;
 	int			port_type;

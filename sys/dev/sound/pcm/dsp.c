@@ -60,7 +60,7 @@ static eventhandler_tag dsp_ehtag;
 #endif
 
 static struct snddev_info *
-dsp_get_info(dev_t dev)
+dsp_get_info(struct cdev *dev)
 {
 	struct snddev_info *d;
 	int unit;
@@ -74,7 +74,7 @@ dsp_get_info(dev_t dev)
 }
 
 static u_int32_t
-dsp_get_flags(dev_t dev)
+dsp_get_flags(struct cdev *dev)
 {
 	device_t bdev;
 	int unit;
@@ -88,7 +88,7 @@ dsp_get_flags(dev_t dev)
 }
 
 static void
-dsp_set_flags(dev_t dev, u_int32_t flags)
+dsp_set_flags(struct cdev *dev, u_int32_t flags)
 {
 	device_t bdev;
 	int unit;
@@ -108,7 +108,7 @@ dsp_set_flags(dev_t dev, u_int32_t flags)
  * lock channels specified.
  */
 static int
-getchns(dev_t dev, struct pcm_channel **rdch, struct pcm_channel **wrch, u_int32_t prio)
+getchns(struct cdev *dev, struct pcm_channel **rdch, struct pcm_channel **wrch, u_int32_t prio)
 {
 	struct snddev_info *d;
 	u_int32_t flags;
@@ -152,7 +152,7 @@ getchns(dev_t dev, struct pcm_channel **rdch, struct pcm_channel **wrch, u_int32
 
 /* unlock specified channels */
 static void
-relchns(dev_t dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_int32_t prio)
+relchns(struct cdev *dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_int32_t prio)
 {
 	struct snddev_info *d;
 
@@ -165,7 +165,7 @@ relchns(dev_t dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_int32_t
 }
 
 static int
-dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
+dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
@@ -319,7 +319,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
+dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
@@ -388,7 +388,7 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-dsp_read(dev_t i_dev, struct uio *buf, int flag)
+dsp_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
 	struct pcm_channel *rdch, *wrch;
 	intrmask_t s;
@@ -415,7 +415,7 @@ dsp_read(dev_t i_dev, struct uio *buf, int flag)
 }
 
 static int
-dsp_write(dev_t i_dev, struct uio *buf, int flag)
+dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 {
 	struct pcm_channel *rdch, *wrch;
 	intrmask_t s;
@@ -442,7 +442,7 @@ dsp_write(dev_t i_dev, struct uio *buf, int flag)
 }
 
 static int
-dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
+dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
     	struct pcm_channel *chn, *rdch, *wrch;
 	struct snddev_info *d;
@@ -567,7 +567,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
 			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
-			dev_t pdev;
+			struct cdev *pdev;
 
 			if (rdch) {
 				CHN_LOCK(rdch);
@@ -1026,7 +1026,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 }
 
 static int
-dsp_poll(dev_t i_dev, int events, struct thread *td)
+dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL;
 	intrmask_t s;
@@ -1053,7 +1053,7 @@ dsp_poll(dev_t i_dev, int events, struct thread *td)
 }
 
 static int
-dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL, *c;
 	intrmask_t s;
@@ -1114,9 +1114,9 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
  *    	if xN.i isn't busy, return its dev_t
  */
 static void
-dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
+dsp_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
-	dev_t pdev;
+	struct cdev *pdev;
 	struct snddev_info *pcm_dev;
 	struct snddev_channel *pcm_chan;
 	int i, unit, devtype;

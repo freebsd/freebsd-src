@@ -319,7 +319,7 @@ bpf_detachd(d)
 /* ARGSUSED */
 static	int
 bpfopen(dev, flags, fmt, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flags;
 	int fmt;
 	struct thread *td;
@@ -364,7 +364,7 @@ bpfopen(dev, flags, fmt, td)
 /* ARGSUSED */
 static	int
 bpfclose(dev, flags, fmt, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flags;
 	int fmt;
 	struct thread *td;
@@ -408,7 +408,7 @@ bpfclose(dev, flags, fmt, td)
  */
 static	int
 bpfread(dev, uio, ioflag)
-	dev_t dev;
+	struct cdev *dev;
 	struct uio *uio;
 	int ioflag;
 {
@@ -545,7 +545,7 @@ bpf_timed_out(arg)
 
 static	int
 bpfwrite(dev, uio, ioflag)
-	dev_t dev;
+	struct cdev *dev;
 	struct uio *uio;
 	int ioflag;
 {
@@ -633,7 +633,7 @@ reset_d(d)
 /* ARGSUSED */
 static	int
 bpfioctl(dev, cmd, addr, flags, td)
-	dev_t dev;
+	struct cdev *dev;
 	u_long cmd;
 	caddr_t addr;
 	int flags;
@@ -1043,7 +1043,7 @@ bpf_setif(d, ifr)
  */
 static int
 bpfpoll(dev, events, td)
-	dev_t dev;
+	struct cdev *dev;
 	int events;
 	struct thread *td;
 {
@@ -1079,7 +1079,7 @@ bpfpoll(dev, events, td)
  */
 int
 bpfkqfilter(dev, kn)
-	dev_t dev;
+	struct cdev *dev;
 	struct knote *kn;
 {
 	struct bpf_d *d = (struct bpf_d *)dev->si_drv1;
@@ -1567,14 +1567,14 @@ bpf_setdlt(d, dlt)
 
 static void bpf_drvinit(void *unused);
 
-static void bpf_clone(void *arg, char *name, int namelen, dev_t *dev);
+static void bpf_clone(void *arg, char *name, int namelen, struct cdev **dev);
 
 static void
 bpf_clone(arg, name, namelen, dev)
 	void *arg;
 	char *name;
 	int namelen;
-	dev_t *dev;
+	struct cdev **dev;
 {
 	int u;
 

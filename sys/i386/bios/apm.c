@@ -1229,7 +1229,7 @@ apm_attach(device_t dev)
 }
 
 static int
-apmopen(dev_t dev, int flag, int fmt, struct thread *td)
+apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int ctl = APMDEV(dev);
@@ -1257,7 +1257,7 @@ apmopen(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-apmclose(dev_t dev, int flag, int fmt, struct thread *td)
+apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int ctl = APMDEV(dev);
@@ -1280,7 +1280,7 @@ apmclose(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	struct apm_bios_arg *args;
@@ -1434,7 +1434,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 static int
-apmwrite(dev_t dev, struct uio *uio, int ioflag)
+apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct apm_softc *sc = &apm_softc;
 	u_int event_type;
@@ -1464,7 +1464,7 @@ apmwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-apmpoll(dev_t dev, int events, struct thread *td)
+apmpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
 	int revents = 0;

@@ -238,7 +238,7 @@ isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
 }
 
 static int
-ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+ispioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct ispsoftc *isp;
 	int nr, retval = ENOTTY;

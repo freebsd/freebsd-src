@@ -99,7 +99,7 @@ g_dev_print(void)
  * XXX: eliminating the need for this hack.
  */
 static void
-g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
+g_dev_clone(void *arg __unused, char *name, int namelen __unused, struct cdev **dev)
 {
 	struct g_geom *gp;
 
@@ -135,7 +135,7 @@ g_dev_register_cloner(void *foo __unused)
 SYSINIT(geomdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,g_dev_register_cloner,NULL);
 
 struct g_provider *
-g_dev_getprovider(dev_t dev)
+g_dev_getprovider(struct cdev *dev)
 {
 	struct g_consumer *cp;
 
@@ -155,7 +155,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_consumer *cp;
 	static int unit = GEOM_MINOR_PROVIDERS;
 	int error;
-	dev_t dev;
+	struct cdev *dev;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -190,7 +190,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 }
 
 static int
-g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
+g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -223,7 +223,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
+g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -273,7 +273,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
  * XXX: will break (actually: stall) the BSD disklabel hacks.
  */
 static int
-g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -365,7 +365,7 @@ g_dev_strategy(struct bio *bp)
 {
 	struct g_consumer *cp;
 	struct bio *bp2;
-	dev_t dev;
+	struct cdev *dev;
 
 	KASSERT(bp->bio_cmd == BIO_READ ||
 	        bp->bio_cmd == BIO_WRITE ||
@@ -404,7 +404,7 @@ g_dev_strategy(struct bio *bp)
  *
  * Called from below when the provider orphaned us.
  * - Clear any dump settings.
- * - Destroy the dev_t to prevent any more request from coming in.  The
+ * - Destroy the struct cdev *to prevent any more request from coming in.  The
  *   provider is already marked with an error, so anything which comes in
  *   in the interrim will be returned immediately.
  * - Wait for any outstanding I/O to finish.
@@ -416,7 +416,7 @@ static void
 g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
-	dev_t dev;
+	struct cdev *dev;
 
 	g_topology_assert();
 	gp = cp->geom;
@@ -427,7 +427,7 @@ g_dev_orphan(struct g_consumer *cp)
 	if (dev->si_flags & SI_DUMPDEV)
 		set_dumper(NULL);
 
-	/* Destroy the dev_t so we get no more requests */
+	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev(dev);
 
 	/* Wait for the cows to come home */

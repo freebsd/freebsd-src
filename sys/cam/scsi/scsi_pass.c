@@ -74,7 +74,7 @@ struct pass_softc {
 	u_int8_t		pd_type;
 	union ccb		saved_ccb;
 	struct devstat		*device_stats;
-	dev_t			dev;
+	struct cdev *dev;
 };
 
 
@@ -317,7 +317,7 @@ passregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-passopen(dev_t dev, int flags, int fmt, struct thread *td)
+passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pass_softc *softc;
@@ -384,7 +384,7 @@ passopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-passclose(dev_t dev, int flag, int fmt, struct thread *td)
+passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	pass_softc *softc;
@@ -446,7 +446,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	pass_softc *softc;

@@ -402,7 +402,7 @@ tdfx_setmtrr(device_t dev) {
 }
 		
 static int
-tdfx_open(dev_t dev, int flags, int fmt, struct thread *td)
+tdfx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	/* 
 	 *	The open cdev method handles open(2) calls to /dev/3dfx[n] 
@@ -420,7 +420,7 @@ tdfx_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int 
-tdfx_close(dev_t dev, int fflag, int devtype, struct thread *td) 
+tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td) 
 {
 	/* 
 	 *	The close cdev method handles close(2) calls to /dev/3dfx[n] 
@@ -437,7 +437,7 @@ tdfx_close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-tdfx_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+tdfx_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	/* 
 	 * mmap(2) is called by a user process to request that an area of memory
@@ -793,7 +793,7 @@ tdfx_do_pio(u_int cmd, struct tdfx_pio_data *piod)
  * can return -retval and the error should be properly handled.
  */
 static int
-tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+tdfx_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int retval = 0;
 	struct tdfx_pio_data *piod = (struct tdfx_pio_data*)data;

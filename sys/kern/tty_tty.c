@@ -45,17 +45,17 @@ static struct cdevsw ctty_cdevsw = {
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
-static dev_t ctty;
+static struct cdev *ctty;
 
 static	int
-cttyopen(dev_t dev, int flag, int mode, struct thread *td)
+cttyopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
 	return (ENXIO);
 }
 
 static void
-ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
+ctty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 
 	if (*dev != NODEV)

@@ -273,7 +273,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 {
 	struct buf *bp;
 	struct ntfsmount *ntmp;
-	dev_t dev = devvp->v_rdev;
+	struct cdev *dev = devvp->v_rdev;
 	int error, ronly, ncount, i;
 	struct vnode *vp;
 

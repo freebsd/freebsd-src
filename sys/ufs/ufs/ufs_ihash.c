@@ -83,7 +83,7 @@ ufs_ihashuninit()
  */
 struct vnode *
 ufs_ihashlookup(dev, inum)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 {
 	struct inode *ip;
@@ -105,7 +105,7 @@ ufs_ihashlookup(dev, inum)
  */
 int
 ufs_ihashget(dev, inum, flags, vpp)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 	int flags;
 	struct vnode **vpp;

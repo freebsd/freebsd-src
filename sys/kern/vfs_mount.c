@@ -147,7 +147,7 @@ static char *cdrom_rootdevnames[] = {
 /* legacy find-root code */
 char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
-dev_t		rootdev = NODEV;
+struct cdev *rootdev = NODEV;
 
 /*
  * Has to be dynamic as the value of rootdev can change; however, it can't
@@ -1445,13 +1445,13 @@ gets(char *cp)
 }
 
 /*
- * Convert a given name to the dev_t of the disk-like device
+ * Convert a given name to the struct cdev *of the disk-like device
  * it refers to.
  */
-dev_t
+struct cdev *
 getdiskbyname(char *name) {
 	char *cp;
-	dev_t dev;
+	struct cdev *dev;
 
 	cp = name;
 	if (!bcmp(cp, "/dev/", 5))
@@ -1469,7 +1469,7 @@ getdiskbyname(char *name) {
 static int
 setrootbyname(char *name)
 {
-	dev_t diskdev;
+	struct cdev *diskdev;
 
 	diskdev = getdiskbyname(name);
 	if (diskdev != NODEV) {
@@ -1480,11 +1480,11 @@ setrootbyname(char *name)
 	return (1);
 }
 
-/* Show the dev_t for a disk specified by name */
+/* Show the struct cdev *for a disk specified by name */
 #ifdef DDB
 DB_SHOW_COMMAND(disk, db_getdiskbyname)
 {
-	dev_t dev;
+	struct cdev *dev;
 
 	if (modif[0] == '\0') {
 		db_error("usage: show disk/devicename");
@@ -1492,7 +1492,7 @@ DB_SHOW_COMMAND(disk, db_getdiskbyname)
 	}
 	dev = getdiskbyname(modif);
 	if (dev != NODEV)
-		db_printf("dev_t = %p\n", dev);
+		db_printf("struct cdev *= %p\n", dev);
 	else
 		db_printf("No disk device matched.\n");
 }

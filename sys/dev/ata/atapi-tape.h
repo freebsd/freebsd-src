@@ -159,5 +159,5 @@ struct ast_softc {
     struct atapi_params		*param;		/* drive parameters table */
     struct ast_cappage		cap;		/* capabilities page info */
     struct devstat		*stats;		/* devstat entry */
-    dev_t			dev1, dev2;	/* device place holders */
+    struct cdev *dev1, *dev2;	/* device place holders */
 };

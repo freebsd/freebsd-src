@@ -72,7 +72,7 @@ struct digi_p {
 	volatile struct board_chan *bc;
 	struct tty *tp;
 
-	dev_t dev[6];
+	struct cdev *dev[6];
 
 	u_char *txbuf;
 	u_char *rxbuf;
@@ -164,7 +164,7 @@ struct digi_softc {
 		int iorid;
 		void *irqHandler;
 		int unit;
-		dev_t ctldev;
+		struct cdev *ctldev;
 	} res;
 
 	u_char *vmem;			/* virtual memory address */

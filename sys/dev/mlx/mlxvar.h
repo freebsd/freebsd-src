@@ -108,7 +108,7 @@ struct mlx_softc
 {
     /* bus connections */
     device_t		mlx_dev;
-    dev_t		mlx_dev_t;
+    struct cdev *mlx_dev_t;
     struct resource	*mlx_mem;	/* mailbox interface window */
     int			mlx_mem_rid;
     int			mlx_mem_type;

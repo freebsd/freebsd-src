@@ -43,7 +43,7 @@ static unsigned	cba;
 static unsigned	gpio;
 static unsigned	geode_counter;
 
-static dev_t	led1, led2, led3;
+static struct cdev *led1, *led2, *led3;
 static int 	led1b, led2b, led3b;
 
 static void

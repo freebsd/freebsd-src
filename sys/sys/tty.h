@@ -81,7 +81,7 @@ struct tty {
 	long	t_outcc;		/* Output queue statistics. */
 	int	t_line;			/* Interface to device drivers. */
 	union {
-		dev_t	t_kdev;		/* Device. */
+		struct cdev *t_kdev;		/* Device. */
 		udev_t	t_udev;		/* Userland (sysctl) instance. */
 		void	*t_devp;	/* Keep user/kernel size in sync. */
 	} ttyu;
@@ -307,7 +307,7 @@ int	 ttylclose(struct tty *tp, int flag);
 int	 ttyldoptim(struct tty *tp);
 struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
-int	 ttyopen(dev_t device, struct tty *tp);
+int	 ttyopen(struct cdev *device, struct tty *tp);
 int	 ttyref(struct tty *tp);
 int	 ttyrel(struct tty *tp);
 int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);

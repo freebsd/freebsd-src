@@ -57,7 +57,7 @@ MALLOC_DEFINE(M_NLMDM, "nullmodem", "nullmodem data structures");
 
 static void 	nmdmstart(struct tty *tp);
 static void 	nmdmstop(struct tty *tp, int rw);
-static void 	nmdminit(dev_t dev);
+static void 	nmdminit(struct cdev *dev);
 
 static d_open_t		nmdmopen;
 static d_close_t	nmdmclose;
@@ -77,7 +77,7 @@ static struct cdevsw nmdm_cdevsw = {
 
 struct softpart {
 	struct tty	*nm_tty;
-	dev_t	dev;
+	struct cdev *dev;
 	int	dcd;
 	struct task		pt_task;
 	struct softpart		*other;
@@ -94,11 +94,11 @@ static struct clonedevs *nmdmclones;
 static TAILQ_HEAD(,nm_softc) nmdmhead = TAILQ_HEAD_INITIALIZER(nmdmhead);
 
 static void
-nmdm_clone(void *arg, char *name, int nameen, dev_t *dev)
+nmdm_clone(void *arg, char *name, int nameen, struct cdev **dev)
 {
 	int i, unit;
 	char *p;
-	dev_t d1, d2;
+	struct cdev *d1, *d2;
 
 	if (*dev != NODEV)
 		return;
@@ -179,9 +179,9 @@ nmdm_task_tty(void *arg, int pending __unused)
  * This function creates and initializes a pair of ttys.
  */
 static void
-nmdminit(dev_t dev1)
+nmdminit(struct cdev *dev1)
 {
-	dev_t dev2;
+	struct cdev *dev2;
 	struct nm_softc *pt;
 
 	dev2 = dev1->si_drv2;
@@ -225,7 +225,7 @@ nmdminit(dev_t dev1)
  * Device opened from userland
  */
 static	int
-nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
+nmdmopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp, *tp2;
 	int error;
@@ -260,7 +260,7 @@ nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
 }
 
 static int
-nmdmclose(dev_t dev, int flag, int mode, struct thread *td)
+nmdmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
 	return (ttyclose(dev->si_tty));

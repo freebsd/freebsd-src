@@ -95,10 +95,10 @@ extern gdt_statist_t gdt_stat;
  * Given a controller number,
  * make a special device and return the dev_t
  */
-dev_t 
+struct cdev *
 gdt_make_dev(int unit)
 {
-    dev_t dev;
+    struct cdev *dev;
 
 #ifdef SDEV_PER_HBA
     dev = make_dev(&iir_cdevsw, hba2minor(unit), UID_ROOT, GID_OPERATOR,
@@ -114,7 +114,7 @@ gdt_make_dev(int unit)
 }
 
 void
-gdt_destroy_dev(dev_t dev)
+gdt_destroy_dev(struct cdev *dev)
 {
     if (dev != NULL)
         destroy_dev(dev);
@@ -144,7 +144,7 @@ gdt_minor2softc(int minor_no)
 }
 
 static int
-iir_open(dev_t dev, int flags, int fmt, d_thread_t * p)
+iir_open(struct cdev *dev, int flags, int fmt, d_thread_t * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_open()\n"));
 
@@ -162,7 +162,7 @@ iir_open(dev_t dev, int flags, int fmt, d_thread_t * p)
 }
 
 static int
-iir_close(dev_t dev, int flags, int fmt, d_thread_t * p)
+iir_close(struct cdev *dev, int flags, int fmt, d_thread_t * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_close()\n"));
                 
@@ -180,7 +180,7 @@ iir_close(dev_t dev, int flags, int fmt, d_thread_t * p)
 }
 
 static int
-iir_write(dev_t dev, struct uio * uio, int ioflag)
+iir_write(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_write()\n"));
                 
@@ -198,7 +198,7 @@ iir_write(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-iir_read(dev_t dev, struct uio * uio, int ioflag)
+iir_read(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_read()\n"));
                 
@@ -222,7 +222,7 @@ iir_read(dev_t dev, struct uio * uio, int ioflag)
  */
 
 static int
-iir_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
+iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_ioctl() cmd 0x%lx\n",cmd));
 

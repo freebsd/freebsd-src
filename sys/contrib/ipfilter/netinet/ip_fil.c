@@ -665,7 +665,11 @@ struct thread *td;
 # else
 )
 # endif
+#ifdef _KERNEL
+struct cdev *dev;
+#else
 dev_t dev;
+#endif
 # if defined(__NetBSD__) || defined(__OpenBSD__) || \
 	(_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000)
 u_long cmd;
@@ -1135,7 +1139,7 @@ struct thread *td;
 #  else
 )
 #  endif
-dev_t dev;
+struct cdev *dev;
 int flags;
 # endif /* __sgi */
 {
@@ -1165,7 +1169,7 @@ struct thread *td;
 #  else
 )
 #  endif
-dev_t dev;
+struct cdev *dev;
 int flags;
 # endif /* __sgi */
 {
@@ -1193,7 +1197,7 @@ int ioflag;
 #  else
 int IPL_EXTERN(read)(dev, uio)
 #  endif
-dev_t dev;
+struct cdev *dev;
 register struct uio *uio;
 # endif /* __sgi */
 {

@@ -113,7 +113,7 @@ xrpu_poll_pps(struct timecounter *tc)
 }
 
 static int
-xrpu_open(dev_t dev, int flag, int mode, struct  thread *td)
+xrpu_open(struct cdev *dev, int flag, int mode, struct  thread *td)
 {
 	struct softc *sc = devclass_get_softc(xrpu_devclass, dev2unit(dev));
 
@@ -124,13 +124,13 @@ xrpu_open(dev_t dev, int flag, int mode, struct  thread *td)
 }
 
 static int
-xrpu_close(dev_t dev, int flag, int mode, struct  thread *td)
+xrpu_close(struct cdev *dev, int flag, int mode, struct  thread *td)
 { 
 	return (0);
 }
 
 static int
-xrpu_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+xrpu_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct softc *sc = dev->si_drv1;
 	if (offset >= 0x1000000) 
@@ -140,7 +140,7 @@ xrpu_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 }
 
 static int
-xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
+xrpu_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 {
 	struct softc *sc = dev->si_drv1;
 	int i, error;

@@ -66,7 +66,7 @@ static void		smstart(struct tty *tp);
 static int		smparam(struct tty *tp, struct termios *t);
 
 static int
-smopen(dev_t dev, int flag, int mode, struct thread *td)
+smopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 
@@ -101,7 +101,7 @@ smopen(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-smclose(dev_t dev, int flag, int mode, struct thread *td)
+smclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 	int s;
@@ -145,7 +145,7 @@ smparam(struct tty *tp, struct termios *t)
 }
 
 static int
-smioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+smioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp;
 	mousehw_t *hw;
@@ -238,7 +238,7 @@ smioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 static void
 sm_attach_mouse(void *unused)
 {
-	dev_t dev;
+	struct cdev *dev;
 
 	dev = make_dev(&sm_cdevsw, SC_MOUSE, UID_ROOT, GID_WHEEL, 0600,
 		       "sysmouse");

@@ -156,7 +156,7 @@ ldisc_deregister(int discipline)
  */
 
 static int
-l_noopen(dev_t dev, struct tty *tp)
+l_noopen(struct cdev *dev, struct tty *tp)
 {
 
 	return (ENODEV);

@@ -151,7 +151,7 @@
  * of the current process.  It should be a per-open unique pointer, but
  * code for that is not yet written */
 #define DRMFILE			void *
-#define DRM_IOCTL_ARGS		dev_t kdev, u_long cmd, caddr_t data, int flags, DRM_STRUCTPROC *p, DRMFILE filp
+#define DRM_IOCTL_ARGS		struct cdev *kdev, u_long cmd, caddr_t data, int flags, DRM_STRUCTPROC *p, DRMFILE filp
 #define DRM_SUSER(p)		suser(p)
 #define DRM_TASKQUEUE_ARGS	void *arg, int pending
 #define DRM_IRQ_ARGS		void *arg
@@ -473,7 +473,7 @@ extern d_close_t	DRM(close);
 extern d_read_t		DRM(read);
 extern d_poll_t		DRM(poll);
 extern d_mmap_t		DRM(mmap);
-extern int		DRM(open_helper)(dev_t kdev, int flags, int fmt, 
+extern int		DRM(open_helper)(struct cdev *kdev, int flags, int fmt, 
 					 DRM_STRUCTPROC *p, drm_device_t *dev);
 extern drm_file_t	*DRM(find_file_by_proc)(drm_device_t *dev, 
 					 DRM_STRUCTPROC *p);

@@ -31,7 +31,7 @@
 extern struct lock ntfs_hashlock;
 void ntfs_nthashinit(void);
 void ntfs_nthashdestroy(void);
-struct ntnode   *ntfs_nthashlookup(dev_t, ino_t);
-struct ntnode   *ntfs_nthashget(dev_t, ino_t);
+struct ntnode   *ntfs_nthashlookup(struct cdev *, ino_t);
+struct ntnode   *ntfs_nthashget(struct cdev *, ino_t);
 void ntfs_nthashins(struct ntnode *);
 void ntfs_nthashrem(register struct ntnode *);

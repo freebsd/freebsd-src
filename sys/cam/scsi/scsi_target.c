@@ -142,7 +142,7 @@ static struct targ_cmd_descr *
 			targgetdescr(struct targ_softc *softc);
 static periph_init_t	targinit;
 static void		targclone(void *arg, char *name, int namelen,
-				  dev_t *dev);
+				  struct cdev **dev);
 static void		targasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
 static void		abort_all_pending(struct targ_softc *softc);
@@ -165,7 +165,7 @@ static MALLOC_DEFINE(M_TARG, "TARG", "TARG data");
 
 /* Create softc and initialize it. Only one proc can open each targ device. */
 static int
-targopen(dev_t dev, int flags, int fmt, struct thread *td)
+targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct targ_softc *softc;
 
@@ -202,7 +202,7 @@ targopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 /* Disable LUN if enabled and teardown softc */
 static int
-targclose(dev_t dev, int flag, int fmt, struct thread *td)
+targclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct targ_softc     *softc;
 	int    error;
@@ -230,7 +230,7 @@ targclose(dev_t dev, int flag, int fmt, struct thread *td)
 
 /* Enable/disable LUNs, set debugging level */
 static int
-targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct targ_softc *softc;
 	cam_status	   status;
@@ -303,7 +303,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 /* Writes are always ready, reads wait for user_ccb_queue or abort_queue */
 static int
-targpoll(dev_t dev, int poll_events, struct thread *td)
+targpoll(struct cdev *dev, int poll_events, struct thread *td)
 {
 	struct targ_softc *softc;
 	int	revents;
@@ -329,7 +329,7 @@ targpoll(dev_t dev, int poll_events, struct thread *td)
 }
 
 static int
-targkqfilter(dev_t dev, struct knote *kn)
+targkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct  targ_softc *softc;
 
@@ -534,7 +534,7 @@ targdtor(struct cam_periph *periph)
 
 /* Receive CCBs from user mode proc and send them to the HBA */
 static int
-targwrite(dev_t dev, struct uio *uio, int ioflag)
+targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	union ccb *user_ccb;
 	struct targ_softc *softc;
@@ -835,7 +835,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 /* Return CCBs to the user from the user queue and abort queue */
 static int
-targread(dev_t dev, struct uio *uio, int ioflag)
+targread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct descr_queue	*abort_queue;
 	struct targ_cmd_descr	*user_descr;
@@ -1031,7 +1031,7 @@ targinit(void)
 }
 
 static void
-targclone(void *arg, char *name, int namelen, dev_t *dev)
+targclone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 

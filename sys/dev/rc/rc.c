@@ -84,8 +84,8 @@
 /* Per-channel structure */
 struct rc_chans  {
 	struct rc_softc *rc_rcb;                /* back ptr             */
-	dev_t		 rc_dev;		/* non-callout device	*/
-	dev_t		 rc_cdev;		/* callout device	*/
+	struct cdev *rc_dev;		/* non-callout device	*/
+	struct cdev *rc_cdev;		/* callout device	*/
 	u_short          rc_flags;              /* Misc. flags          */
 	int              rc_chan;               /* Channel #            */
 	u_char           rc_ier;                /* intr. enable reg     */
@@ -234,7 +234,7 @@ rc_attach(device_t dev)
 	struct rc_softc *sc;
 	u_int port;
 	int base, chan, error, i, x;
-	dev_t cdev;
+	struct cdev *cdev;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -853,7 +853,7 @@ rc_stop(struct tty *tp, int rw)
 }
 
 static int
-rcopen(dev_t dev, int flag, int mode, d_thread_t *td)
+rcopen(struct cdev *dev, int flag, int mode, d_thread_t *td)
 {
 	struct rc_softc *sc;
 	struct rc_chans *rc;
@@ -944,7 +944,7 @@ out:
 }
 
 static int
-rcclose(dev_t dev, int flag, int mode, d_thread_t *td)
+rcclose(struct cdev *dev, int flag, int mode, d_thread_t *td)
 {
 	struct rc_softc *sc;
 	struct rc_chans *rc;
@@ -1198,7 +1198,7 @@ rc_reinit(struct rc_softc *sc)
 }
 
 static int
-rcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
+rcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 {
 	struct rc_chans *rc;
 	struct tty *tp;

@@ -466,7 +466,7 @@ lpt_attach(device_t dev)
  */
 
 static	int
-lptopen (dev_t dev, int flags, int fmt, struct thread *td)
+lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_softc *sc;
 	int s;
@@ -605,7 +605,7 @@ lptout (void *arg)
  */
 
 static	int
-lptclose(dev_t dev, int flags, int fmt, struct thread *td)
+lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_softc *sc;
 #ifndef PC98
@@ -718,7 +718,7 @@ pushbytes(struct lpt_softc * sc)
  */
 
 static	int
-lptwrite(dev_t dev, struct uio * uio, int ioflag)
+lptwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
@@ -776,7 +776,7 @@ lpt_intr(void *arg)
 }
 
 static	int
-lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int	error = 0;
         struct	lpt_softc *sc;

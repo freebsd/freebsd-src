@@ -227,7 +227,7 @@ SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
 int
-ttyopen(dev_t device, struct tty *tp)
+ttyopen(struct cdev *device, struct tty *tp)
 {
 	int s;
 
@@ -1015,7 +1015,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	}
 	case TIOCSETD: {		/* set line discipline */
 		int t = *(int *)data;
-		dev_t device = tp->t_dev;
+		struct cdev *device = tp->t_dev;
 
 		if ((u_int)t >= nlinesw)
 			return (ENXIO);
@@ -1140,7 +1140,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 }
 
 int
-ttypoll(dev_t dev, int events, struct thread *td)
+ttypoll(struct cdev *dev, int events, struct thread *td)
 {
 	int s;
 	int revents = 0;
@@ -1180,7 +1180,7 @@ static struct filterops ttywrite_filtops =
 	{ 1, NULL, filt_ttywdetach, filt_ttywrite };
 
 int
-ttykqfilter(dev_t dev, struct knote *kn)
+ttykqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct tty *tp;
 	struct klist *klist;
@@ -1216,7 +1216,7 @@ ttykqfilter(dev_t dev, struct knote *kn)
 static void
 filt_ttyrdetach(struct knote *kn)
 {
-	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 	int s = spltty();
 
 	SLIST_REMOVE(&tp->t_rsel.si_note, kn, knote, kn_selnext);
@@ -1226,7 +1226,7 @@ filt_ttyrdetach(struct knote *kn)
 static int
 filt_ttyread(struct knote *kn, long hint)
 {
-	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 
 	kn->kn_data = ttnread(tp);
 	if (ISSET(tp->t_state, TS_ZOMBIE)) {
@@ -1239,7 +1239,7 @@ filt_ttyread(struct knote *kn, long hint)
 static void
 filt_ttywdetach(struct knote *kn)
 {
-	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 	int s = spltty();
 
 	SLIST_REMOVE(&tp->t_wsel.si_note, kn, knote, kn_selnext);
@@ -1249,7 +1249,7 @@ filt_ttywdetach(struct knote *kn)
 static int
 filt_ttywrite(struct knote *kn, long hint)
 {
-	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
 
 	kn->kn_data = tp->t_outq.c_cc;
 	if (ISSET(tp->t_state, TS_ZOMBIE))
@@ -2789,7 +2789,7 @@ nottystop(struct tty *tp, int rw)
 }
 
 int
-ttyread(dev_t dev, struct uio *uio, int flag)
+ttyread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
@@ -2804,7 +2804,7 @@ ttyread(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-ttywrite(dev_t dev, struct uio *uio, int flag)
+ttywrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
@@ -2819,7 +2819,7 @@ ttywrite(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-ttyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+ttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct	tty *tp;
 	int	error;

@@ -535,12 +535,12 @@ struct bktr_softc {
     int             irq_rid;	/* 4.x resource id */
     struct resource *res_irq;	/* 4.x resource descriptor for interrupt */
     void            *res_ih;	/* 4.x newbus interrupt handler cookie */
-    dev_t           bktrdev;	/* 4.x device entry for /dev/bktrN */
-    dev_t           tunerdev;	/* 4.x device entry for /dev/tunerN */
-    dev_t           vbidev;	/* 4.x device entry for /dev/vbiN */
-    dev_t           bktrdev_alias;	/* alias /dev/bktr to /dev/bktr0 */
-    dev_t           tunerdev_alias;	/* alias /dev/tuner to /dev/tuner0 */
-    dev_t           vbidev_alias;	/* alias /dev/vbi to /dev/vbi0 */
+    struct cdev     *bktrdev;	/* 4.x device entry for /dev/bktrN */
+    struct cdev     *tunerdev;	/* 4.x device entry for /dev/tunerN */
+    struct cdev     *vbidev;	/* 4.x device entry for /dev/vbiN */
+    struct cdev     *bktrdev_alias;	/* alias /dev/bktr to /dev/bktr0 */
+    struct cdev     *tunerdev_alias;	/* alias /dev/tuner to /dev/tuner0 */
+    struct cdev     *vbidev_alias;	/* alias /dev/vbi to /dev/vbi0 */
     #endif
     #if (__FreeBSD_version >= 500000)
     struct mtx      vbimutex;  /* Mutex protecting vbi buffer */

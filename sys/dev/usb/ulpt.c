@@ -122,8 +122,8 @@ struct ulpt_softc {
 	u_char sc_dying;
 
 #if defined(__FreeBSD__)
-	dev_t dev;
-	dev_t dev_noprime;
+	struct cdev *dev;
+	struct cdev *dev_noprime;
 #endif
 };
 
@@ -490,7 +490,7 @@ int ulptusein = 1;
  * Reset the printer, then wait until it's selected and not busy.
  */
 int
-ulptopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	u_char flags = ULPTFLAGS(dev);
 	struct ulpt_softc *sc;
@@ -625,7 +625,7 @@ ulpt_statusmsg(u_char status, struct ulpt_softc *sc)
 }
 
 int
-ulptclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ulptclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ulpt_softc *sc;
 
@@ -697,7 +697,7 @@ ulpt_do_write(struct ulpt_softc *sc, struct uio *uio, int flags)
 }
 
 int
-ulptwrite(dev_t dev, struct uio *uio, int flags)
+ulptwrite(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct ulpt_softc *sc;
 	int error;
@@ -715,7 +715,7 @@ ulptwrite(dev_t dev, struct uio *uio, int flags)
 }
 
 int
-ulptioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ulptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	int error = 0;
 

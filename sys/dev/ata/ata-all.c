@@ -359,7 +359,7 @@ ata_shutdown(void *arg, int howto)
  * device related interfaces
  */
 static int
-ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     device_t device = devclass_get_device(ata_devclass, iocmd->channel);

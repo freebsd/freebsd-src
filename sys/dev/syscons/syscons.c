@@ -100,7 +100,7 @@ static	struct tty	*sc_console_tty;
 static  struct consdev	*sc_consptr;
 static	void		*kernel_console_ts;
 static	scr_stat	main_console;
-static	dev_t		main_devs[MAXCONS];
+static	struct cdev *main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
@@ -148,12 +148,12 @@ static	int		debugger;
 static int scvidprobe(int unit, int flags, int cons);
 static int sckbdprobe(int unit, int flags, int cons);
 static void scmeminit(void *arg);
-static int scdevtounit(dev_t dev);
+static int scdevtounit(struct cdev *dev);
 static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
-static scr_stat *sc_get_stat(dev_t devptr);
+static scr_stat *sc_get_stat(struct cdev *devptr);
 #if !__alpha__
 static void scterm(int unit, int flags);
 #endif
@@ -303,7 +303,7 @@ sc_attach_unit(int unit, int flags)
     video_info_t info;
 #endif
     int vc;
-    dev_t dev;
+    struct cdev *dev;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -442,7 +442,7 @@ scmeminit(void *arg)
 SYSINIT(sc_mem, SI_SUB_KMEM, SI_ORDER_ANY, scmeminit, NULL);
 
 static int
-scdevtounit(dev_t dev)
+scdevtounit(struct cdev *dev)
 {
     int vty = SC_VTY(dev);
 
@@ -455,7 +455,7 @@ scdevtounit(dev_t dev)
 }
 
 static int
-scopen(dev_t dev, int flag, int mode, struct thread *td)
+scopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
@@ -518,7 +518,7 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-scclose(dev_t dev, int flag, int mode, struct thread *td)
+scclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
     struct tty *tp = dev->si_tty;
     scr_stat *scp;
@@ -568,7 +568,7 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-scread(dev_t dev, struct uio *uio, int flag)
+scread(struct cdev *dev, struct uio *uio, int flag)
 {
     if (!sc_saver_keyb_only)
 	sc_touch_scrn_saver();
@@ -654,7 +654,7 @@ scparam(struct tty *tp, struct termios *t)
 }
 
 static int
-scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     int error;
     int i;
@@ -2596,7 +2596,7 @@ void
 sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 {
     sc_softc_t *sc;
-    dev_t dev;
+    struct cdev *dev;
     int s;
     int i;
 
@@ -2741,7 +2741,7 @@ scinit(int unit, int flags)
 					 kernel_default.rev_color);
 	} else {
 	    /* assert(sc_malloc) */
-	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
+	    sc->dev = malloc(sizeof(struct cdev *)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
 	    sc->dev[0] = make_dev(&sc_cdevsw, unit * MAXCONS,
 	        UID_ROOT, GID_WHEEL, 0600, "ttyv%r", unit * MAXCONS);
 	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
@@ -3406,7 +3406,7 @@ next_code:
 }
 
 static int
-scmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+scmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
     scr_stat *scp;
 
@@ -3630,7 +3630,7 @@ blink_screen(void *arg)
  */
 
 static scr_stat *
-sc_get_stat(dev_t devptr)
+sc_get_stat(struct cdev *devptr)
 {
 	if (devptr == NULL)
 		return (&main_console);

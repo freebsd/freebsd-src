@@ -82,7 +82,7 @@ hpfs_hphashdestroy(void)
  */
 struct hpfsnode *
 hpfs_hphashlookup(dev, ino)
-	dev_t dev;
+	struct cdev *dev;
 	lsn_t ino;
 {
 	struct hpfsnode *hp;
@@ -99,7 +99,7 @@ hpfs_hphashlookup(dev, ino)
 #if 0
 struct hpfsnode *
 hpfs_hphashget(dev, ino)
-	dev_t dev;
+	struct cdev *dev;
 	lsn_t ino;
 {
 	struct hpfsnode *hp;
@@ -120,7 +120,7 @@ loop:
 
 int
 hpfs_hphashvget(dev, ino, flags, vpp, td)
-	dev_t dev;
+	struct cdev *dev;
 	lsn_t ino;
 	int flags;
 	struct vnode **vpp;

@@ -92,7 +92,7 @@ MODULE_VERSION(cd9660, 1);
  * Called by vfs_mountroot when iso is going to be mounted as root.
  */
 
-static int iso_get_ssector(dev_t dev, struct thread *td);
+static int iso_get_ssector(struct cdev *dev, struct thread *td);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp,
 		       struct thread *td, struct iso_args *argp);
 
@@ -103,7 +103,7 @@ static int iso_mountfs(struct vnode *devvp, struct mount *mp,
  */
 static int
 iso_get_ssector(dev, td)
-	dev_t dev;
+	struct cdev *dev;
 	struct thread *td;
 {
 	struct ioc_toc_header h;
@@ -272,7 +272,7 @@ iso_mountfs(devvp, mp, td, argp)
 	register struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
-	dev_t dev = devvp->v_rdev;
+	struct cdev *dev = devvp->v_rdev;
 	int error = EINVAL;
 	int needclose = 0;
 	int high_sierra = 0;
@@ -707,7 +707,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct iso_node *ip;
 	struct buf *bp;
 	struct vnode *vp;
-	dev_t dev;
+	struct cdev *dev;
 	int error;
 
 	imp = VFSTOISOFS(mp);

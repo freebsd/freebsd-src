@@ -153,7 +153,7 @@ static int	mcd_pause(struct mcd_softc *);
 static int	mcd_resume(struct mcd_softc *);
 static int	mcd_lock_door(struct mcd_softc *, int lock);
 static int	mcd_close_tray(struct mcd_softc *);
-static int	mcd_size(dev_t dev);
+static int	mcd_size(struct cdev *dev);
 
 static d_open_t		mcdopen;
 static d_close_t	mcdclose;
@@ -211,7 +211,7 @@ mcd_attach(struct mcd_softc *sc)
 }
 
 static int
-mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
+mcdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mcd_softc *sc;
 	int r,retry;
@@ -271,7 +271,7 @@ mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
+mcdclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mcd_softc *sc;
 
@@ -368,7 +368,7 @@ mcd_start(struct mcd_softc *sc)
 }
 
 static int
-mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+mcdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct mcd_softc *sc;
 	int retry,r;
@@ -466,7 +466,7 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 }
 
 static int
-mcd_size(dev_t dev)
+mcd_size(struct cdev *dev)
 {
 	struct mcd_softc *sc;
 	int size;

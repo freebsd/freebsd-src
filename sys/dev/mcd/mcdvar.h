@@ -35,7 +35,7 @@ struct mcd_data {
 
 struct mcd_softc {
 	device_t		dev;
-	dev_t			mcd_dev_t;
+	struct cdev *mcd_dev_t;
 	int			debug;
 
 	struct resource *	port;

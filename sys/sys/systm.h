@@ -63,8 +63,8 @@ extern struct cv selwait;	/* select conditional variable */
 
 extern long physmem;		/* physical memory */
 
-extern dev_t rootdev;		/* root device */
-extern dev_t rootdevs[2];	/* possible root devices */
+extern struct cdev *rootdev;		/* root device */
+extern struct cdev *rootdevs[2];	/* possible root devices */
 extern char *rootdevnames[2];	/* names of possible root devices */
 extern struct vnode *rootvp;	/* vnode equivalent to above */
 
@@ -311,13 +311,13 @@ void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 
 /*
- * Common `dev_t' stuff are declared here to avoid #include poisoning
+ * Common `struct cdev *' stuff are declared here to avoid #include poisoning
  */
 
-int major(dev_t x);
-int minor(dev_t x);
-udev_t dev2udev(dev_t x);
-dev_t udev2dev(udev_t x);
+int major(struct cdev *x);
+int minor(struct cdev *x);
+udev_t dev2udev(struct cdev *x);
+struct cdev *udev2dev(udev_t x);
 int uminor(udev_t dev);
 int umajor(udev_t dev);
 udev_t makeudev(int x, int y);

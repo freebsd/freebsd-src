@@ -93,7 +93,7 @@
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
 
-static int	pppopen(dev_t dev, struct tty *tp);
+static int	pppopen(struct cdev *dev, struct tty *tp);
 static int	pppclose(struct tty *tp, int flag);
 static int	pppread(struct tty *tp, struct uio *uio, int flag);
 static int	pppwrite(struct tty *tp, struct uio *uio, int flag);
@@ -173,7 +173,7 @@ pppasyncdetach()
 /* ARGSUSED */
 static int
 pppopen(dev, tp)
-    dev_t dev;
+    struct cdev *dev;
     register struct tty *tp;
 {
     struct thread *td = curthread;		/* XXX */

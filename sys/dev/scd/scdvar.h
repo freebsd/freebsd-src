@@ -34,7 +34,7 @@ struct scd_data {
 
 struct scd_softc {
 	device_t		dev;
-	dev_t			scd_dev_t;
+	struct cdev *scd_dev_t;
 	int			debug;
 
 	struct resource *	port;

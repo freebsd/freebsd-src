@@ -802,7 +802,7 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	int	retval;
 	struct	rp_port *rp;
 	struct	tty	*tty;
-	dev_t	*dev_nodes;
+	struct cdev **dev_nodes;
 
 	unit = device_get_unit(ctlp->dev);
 
@@ -949,7 +949,7 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 
 static int
 rpopen(dev, flag, mode, td)
-	dev_t	dev;
+	struct cdev *dev;
 	int	flag, mode;
 	struct	thread	*td;
 {
@@ -1108,7 +1108,7 @@ out2:
 
 static int
 rpclose(dev, flag, mode, td)
-	dev_t	dev;
+	struct cdev *dev;
 	int	flag, mode;
 	struct	thread	*td;
 {
@@ -1182,7 +1182,7 @@ rphardclose(struct rp_port *rp)
 static
 int
 rpwrite(dev, uio, flag)
-	dev_t	dev;
+	struct cdev *dev;
 	struct	uio	*uio;
 	int	flag;
 {
@@ -1222,7 +1222,7 @@ rpdtrwakeup(void *chan)
 
 static int
 rpioctl(dev, cmd, data, flag, td)
-	dev_t	dev;
+	struct cdev *dev;
 	u_long	cmd;
 	caddr_t data;
 	int	flag;

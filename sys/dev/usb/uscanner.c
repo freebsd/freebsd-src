@@ -232,7 +232,7 @@ struct uscanner_softc {
 	usbd_device_handle	sc_udev;
 	usbd_interface_handle	sc_iface;
 #if defined(__FreeBSD__)
-	dev_t			dev;
+	struct cdev *dev;
 #endif
 
 	u_int			sc_dev_flags;
@@ -380,7 +380,7 @@ USB_ATTACH(uscanner)
 }
 
 int
-uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+uscanneropen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 	int unit = USCANNERUNIT(dev);
@@ -443,7 +443,7 @@ uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-uscannerclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+uscannerclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 
@@ -541,7 +541,7 @@ uscanner_do_read(struct uscanner_softc *sc, struct uio *uio, int flag)
 }
 
 int
-uscannerread(dev_t dev, struct uio *uio, int flag)
+uscannerread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct uscanner_softc *sc;
 	int error;
@@ -591,7 +591,7 @@ uscanner_do_write(struct uscanner_softc *sc, struct uio *uio, int flag)
 }
 
 int
-uscannerwrite(dev_t dev, struct uio *uio, int flag)
+uscannerwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct uscanner_softc *sc;
 	int error;
@@ -674,7 +674,7 @@ USB_DETACH(uscanner)
 }
 
 int
-uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
+uscannerpoll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 	int revents = 0;

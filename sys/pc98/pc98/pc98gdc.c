@@ -346,7 +346,7 @@ gdc_release_resource(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 static int
-gdcopen(dev_t dev, int flag, int mode, struct thread *td)
+gdcopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
     gdc_softc_t *sc;
 
@@ -360,7 +360,7 @@ gdcopen(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-gdcclose(dev_t dev, int flag, int mode, struct thread *td)
+gdcclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
     gdc_softc_t *sc;
 
@@ -369,7 +369,7 @@ gdcclose(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-gdcread(dev_t dev, struct uio *uio, int flag)
+gdcread(struct cdev *dev, struct uio *uio, int flag)
 {
     gdc_softc_t *sc;
 
@@ -378,7 +378,7 @@ gdcread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-gdcwrite(dev_t dev, struct uio *uio, int flag)
+gdcwrite(struct cdev *dev, struct uio *uio, int flag)
 {
     gdc_softc_t *sc;
 
@@ -387,7 +387,7 @@ gdcwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+gdcioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
     gdc_softc_t *sc;
 
@@ -396,7 +396,7 @@ gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-gdcmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+gdcmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
     gdc_softc_t *sc;
 

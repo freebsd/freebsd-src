@@ -212,7 +212,7 @@ typedef struct _drv_t {
 	struct sppp pp;
 #endif
 #if __FreeBSD_version >= 400000
-	dev_t  devt[3];
+	struct cdev *devt[3];
 #endif
 	async_q aqueue;
 	#define CX_READ 1
@@ -1570,7 +1570,7 @@ static void cx_error (cx_chan_t *c, int data)
 #if __FreeBSD_version < 500000
 static int cx_open (dev_t dev, int flag, int mode, struct proc *p)
 #else
-static int cx_open (dev_t dev, int flag, int mode, struct thread *td)
+static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
 #endif
 {
 	int unit = UNIT (dev);
@@ -1710,7 +1710,7 @@ failed:         if (! (d->tty->t_state & TS_ISOPEN)) {
 #if __FreeBSD_version < 500000
 static int cx_close (dev_t dev, int flag, int mode, struct proc *p)
 #else
-static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
+static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 #endif
 {
 	drv_t *d = channel [UNIT (dev)];
@@ -1756,7 +1756,7 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 	return 0;
 }
 
-static int cx_read (dev_t dev, struct uio *uio, int flag)
+static int cx_read (struct cdev *dev, struct uio *uio, int flag)
 {
 	drv_t *d = channel [UNIT (dev)];
 
@@ -1767,7 +1767,7 @@ static int cx_read (dev_t dev, struct uio *uio, int flag)
 	return ttyld_read (d->tty, uio, flag);
 }
 
-static int cx_write (dev_t dev, struct uio *uio, int flag)
+static int cx_write (struct cdev *dev, struct uio *uio, int flag)
 {
 	drv_t *d = channel [UNIT (dev)];
 
@@ -1798,7 +1798,7 @@ static int cx_modem_status (drv_t *d)
 #if __FreeBSD_version < 500000
 static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #else
-static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
 	drv_t *d = channel [UNIT (dev)];
@@ -3172,7 +3172,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 #else /* __FreeBSD_version >= 400000 */
 static int cx_modevent (module_t mod, int type, void *unused)
 {
-        dev_t dev;
+        struct cdev *dev;
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 

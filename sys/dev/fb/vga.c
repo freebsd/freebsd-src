@@ -109,7 +109,7 @@ vga_attach_unit(int unit, vga_softc_t *sc, int flags)
 #ifdef FB_INSTALL_CDEV
 
 int
-vga_open(dev_t dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
+vga_open(struct cdev *dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
 {
 	if (sc == NULL)
 		return ENXIO;
@@ -120,32 +120,32 @@ vga_open(dev_t dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
 }
 
 int
-vga_close(dev_t dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
+vga_close(struct cdev *dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
 {
 	return genfbclose(&sc->gensc, sc->adp, flag, mode, td);
 }
 
 int
-vga_read(dev_t dev, vga_softc_t *sc, struct uio *uio, int flag)
+vga_read(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag)
 {
 	return genfbread(&sc->gensc, sc->adp, uio, flag);
 }
 
 int
-vga_write(dev_t dev, vga_softc_t *sc, struct uio *uio, int flag)
+vga_write(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag)
 {
 	return genfbread(&sc->gensc, sc->adp, uio, flag);
 }
 
 int
-vga_ioctl(dev_t dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
+vga_ioctl(struct cdev *dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
 	  struct thread *td)
 {
 	return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, td);
 }
 
 int
-vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *paddr,
+vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *paddr,
 	 int prot)
 {
 	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);

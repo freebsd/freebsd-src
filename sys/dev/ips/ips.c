@@ -68,14 +68,14 @@ static const char* ips_adapter_name[] = {
 };
 
 
-static int ips_open(dev_t dev, int flags, int fmt, struct thread *td)
+static int ips_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	ips_softc_t *sc = dev->si_drv1;
 	sc->state |= IPS_DEV_OPEN;
         return 0;
 }
 
-static int ips_close(dev_t dev, int flags, int fmt, struct thread *td)
+static int ips_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	ips_softc_t *sc = dev->si_drv1;
 	sc->state &= ~IPS_DEV_OPEN;
@@ -83,7 +83,7 @@ static int ips_close(dev_t dev, int flags, int fmt, struct thread *td)
         return 0;
 }
 
-static int ips_ioctl(dev_t dev, u_long command, caddr_t addr, int32_t flags, struct thread *td)
+static int ips_ioctl(struct cdev *dev, u_long command, caddr_t addr, int32_t flags, struct thread *td)
 {
 	ips_softc_t *sc;
 

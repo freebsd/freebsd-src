@@ -133,7 +133,7 @@ spec_open(ap)
 {
 	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
-	dev_t dev = vp->v_rdev;
+	struct cdev *dev = vp->v_rdev;
 	int error;
 	struct cdevsw *dsw;
 
@@ -247,7 +247,7 @@ spec_read(ap)
 	struct vnode *vp;
 	struct thread *td;
 	struct uio *uio;
-	dev_t dev;
+	struct cdev *dev;
 	int error, resid;
 	struct cdevsw *dsw;
 
@@ -263,7 +263,7 @@ spec_read(ap)
 	dsw = devsw(dev);
 	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
-	    ("specread() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
@@ -294,7 +294,7 @@ spec_write(ap)
 	struct vnode *vp;
 	struct thread *td;
 	struct uio *uio;
-	dev_t dev;
+	struct cdev *dev;
 	int error, resid;
 	struct cdevsw *dsw;
 
@@ -307,7 +307,7 @@ spec_write(ap)
 
 	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
-	    ("spec_write() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("spec_write() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
@@ -339,14 +339,14 @@ spec_ioctl(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	dev_t dev;
+	struct cdev *dev;
 	int error;
 	struct cdevsw *dsw;
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
-	    ("spec_ioctl() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("spec_ioctl() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
@@ -372,14 +372,14 @@ spec_poll(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	dev_t dev;
+	struct cdev *dev;
 	struct cdevsw *dsw;
 	int error;
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
-	    ("spec_poll() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("spec_poll() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		/* XXX: not yet DROP_GIANT(); */
@@ -399,14 +399,14 @@ spec_kqfilter(ap)
 		struct knote *a_kn;
 	} */ *ap;
 {
-	dev_t dev;
+	struct cdev *dev;
 	struct cdevsw *dsw;
 	int error;
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
 	KASSERT(dev->si_refcount > 0,
-	    ("spec_kqfilter() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("spec_kqfilter() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
@@ -572,7 +572,7 @@ spec_close(ap)
 {
 	struct vnode *vp = ap->a_vp, *oldvp;
 	struct thread *td = ap->a_td;
-	dev_t dev = vp->v_rdev;
+	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
 	int error;
 
@@ -627,7 +627,7 @@ spec_close(ap)
 	}
 	VI_UNLOCK(vp);
 	KASSERT(dev->si_refcount > 0,
-	    ("spec_close() on un-referenced dev_t (%s)", devtoname(dev)));
+	    ("spec_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();

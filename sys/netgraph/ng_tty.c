@@ -115,7 +115,7 @@ typedef struct ngt_sc *sc_p;
 #endif
 
 /* Line discipline methods */
-static int	ngt_open(dev_t dev, struct tty *tp);
+static int	ngt_open(struct cdev *dev, struct tty *tp);
 static int	ngt_close(struct tty *tp, int flag);
 static int	ngt_read(struct tty *tp, struct uio *uio, int flag);
 static int	ngt_write(struct tty *tp, struct uio *uio, int flag);
@@ -180,7 +180,7 @@ static int ngt_ldisc;
  * Called from device open routine or ttioctl() at >= splsofttty()
  */
 static int
-ngt_open(dev_t dev, struct tty *tp)
+ngt_open(struct cdev *dev, struct tty *tp)
 {
 	struct thread *const td = curthread;	/* XXX */
 	char name[sizeof(NG_TTY_NODE_TYPE) + 8];

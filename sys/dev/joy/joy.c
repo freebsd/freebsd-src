@@ -128,7 +128,7 @@ joy_detach(device_t dev)
 
 
 static int
-joyopen(dev_t dev, int flags, int fmt, struct thread *td)
+joyopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int i = joypart (dev);
 	struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
@@ -141,7 +141,7 @@ joyopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-joyclose(dev_t dev, int flags, int fmt, struct thread *td)
+joyclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int i = joypart (dev);
 	struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
@@ -151,7 +151,7 @@ joyclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-joyread(dev_t dev, struct uio *uio, int flag)
+joyread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
 	bus_space_handle_t port = joy->port;
@@ -209,7 +209,7 @@ joyread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-joyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+joyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct joy_softc *joy = JOY_SOFTC(UNIT(dev));
 	int i = joypart (dev);

@@ -105,7 +105,7 @@ static STAILQ_HEAD(, cn_device) cn_devlist =
 
 static udev_t	cn_udev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
-	&cn_udev_t, sizeof cn_udev_t, "T,dev_t", "");
+	&cn_udev_t, sizeof cn_udev_t, "T,struct cdev *", "");
 
 int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
 				 * which is currently unavailable for inpit
@@ -388,7 +388,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 	char path[CNDEVPATHMAX];
 	struct nameidata nd;
 	struct vnode *vp;
-	dev_t dev;
+	struct cdev *dev;
 	int error;
 
 	if ((vp = cnd->cnd_vp) != NULL) {
@@ -414,7 +414,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 }
 
 static int
-cnopen(dev_t dev, int flag, int mode, struct thread *td)
+cnopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct cn_device *cnd;
 
@@ -428,7 +428,7 @@ cnopen(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-cnclose(dev_t dev, int flag, int mode, struct thread *td)
+cnclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct cn_device *cnd;
 	struct vnode *vp;
@@ -444,7 +444,7 @@ cnclose(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-cnread(dev_t dev, struct uio *uio, int flag)
+cnread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct cn_device *cnd;
 
@@ -456,7 +456,7 @@ cnread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-cnwrite(dev_t dev, struct uio *uio, int flag)
+cnwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct cn_device *cnd;
 
@@ -477,7 +477,7 @@ done:
 }
 
 static int
-cnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+cnioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct cn_device *cnd;
 	int error;
@@ -507,7 +507,7 @@ cnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  * poll/kqfilter do not appear to be correct
  */
 static int
-cnpoll(dev_t dev, int events, struct thread *td)
+cnpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct cn_device *cnd;
 
@@ -521,7 +521,7 @@ cnpoll(dev_t dev, int events, struct thread *td)
 }
 
 static int
-cnkqfilter(dev_t dev, struct knote *kn)
+cnkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct cn_device *cnd;
 

@@ -808,7 +808,7 @@ int DRM(version)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
-int DRM(open)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
+int DRM(open)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 {
 	drm_device_t *dev = NULL;
 	int retcode = 0;
@@ -833,7 +833,7 @@ int DRM(open)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	return retcode;
 }
 
-int DRM(close)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
+int DRM(close)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 {
 	drm_file_t *priv;
 	DRM_DEVICE;
@@ -951,7 +951,7 @@ int DRM(close)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 
 /* DRM(ioctl) is called whenever a process performs an ioctl on /dev/drm.
  */
-int DRM(ioctl)(dev_t kdev, u_long cmd, caddr_t data, int flags, 
+int DRM(ioctl)(struct cdev *kdev, u_long cmd, caddr_t data, int flags, 
     DRM_STRUCTPROC *p)
 {
 	DRM_DEVICE;

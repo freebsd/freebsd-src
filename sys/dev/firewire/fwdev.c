@@ -178,7 +178,7 @@ fwdev_freebuf(struct fw_xferq *q)
 
 
 static int
-fw_open (dev_t dev, int flags, int fmt, fw_proc *td)
+fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	int err = 0;
 
@@ -205,7 +205,7 @@ fw_open (dev_t dev, int flags, int fmt, fw_proc *td)
 }
 
 static int
-fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
+fw_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct firewire_softc *sc;
 	struct firewire_comm *fc;
@@ -279,7 +279,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
  * read request.
  */
 static int
-fw_read (dev_t dev, struct uio *uio, int ioflag)
+fw_read (struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct firewire_softc *sc;
 	struct fw_xferq *ir;
@@ -365,7 +365,7 @@ readloop:
 }
 
 static int
-fw_write (dev_t dev, struct uio *uio, int ioflag)
+fw_write (struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int err = 0;
 	struct firewire_softc *sc;
@@ -428,7 +428,7 @@ isoloop:
  * ioctl support.
  */
 int
-fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
+fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
 	struct firewire_softc *sc;
 	struct firewire_comm *fc;
@@ -728,7 +728,7 @@ out:
 	return err;
 }
 int
-fw_poll(dev_t dev, int events, fw_proc *td)
+fw_poll(struct cdev *dev, int events, fw_proc *td)
 {
 	struct firewire_softc *sc;
 	struct fw_xferq *ir;
@@ -760,9 +760,9 @@ fw_poll(dev_t dev, int events, fw_proc *td)
 
 static int
 #if defined(__DragonFly__) || __FreeBSD_version < 500102
-fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
+fw_mmap (struct cdev *dev, vm_offset_t offset, int nproto)
 #else
-fw_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
+fw_mmap (struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 #endif
 {  
 	struct firewire_softc *sc;
@@ -783,7 +783,7 @@ fw_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 static void
 fw_strategy(struct bio *bp)
 {
-	dev_t dev;
+	struct cdev *dev;
 
 	dev = bp->bio_dev;
 	if (DEV_FWMEM(dev)) {
@@ -805,7 +805,7 @@ fwdev_makedev(struct firewire_softc *sc)
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 	cdevsw_add(&firewire_cdevsw);
 #else
-	dev_t d;
+	struct cdev *d;
 	int unit;
 
 	unit = device_get_unit(sc->fc->bdev);
@@ -840,7 +840,7 @@ fwdev_destroydev(struct firewire_softc *sc)
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 #define NDEVTYPE 2
 void
-fwdev_clone(void *arg, char *name, int namelen, dev_t *dev)
+fwdev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	struct firewire_softc *sc;
 	char *devnames[NDEVTYPE] = {"fw", "fwmem"};

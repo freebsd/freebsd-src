@@ -1690,7 +1690,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 	ufs2_daddr_t cgblkno;
 	int i, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
-	dev_t dev;
+	struct cdev *dev;
 
 	cg = dtog(fs, bno);
 	if (devvp->v_type != VCHR) {
@@ -1886,7 +1886,7 @@ ffs_freefile(fs, devvp, ino, mode)
 	ufs2_daddr_t cgbno;
 	int error, cg;
 	u_int8_t *inosused;
-	dev_t dev;
+	struct cdev *dev;
 
 	cg = ino_to_cg(fs, ino);
 	if (devvp->v_type != VCHR) {
