@@ -82,12 +82,16 @@ gbde_start()
 		parentdev=${device%.bde}
 		parent=${parentdev#/dev/}
 		eval "lock=\${gbde_lock_${parent}-\"${gbde_lockdir}/${parent}.lock\"}"
-		if [ -e "${lock}" -a ! -e "${device}" ]; then
+		if [ ! -e "${device}" ]; then
 			echo "Configuring Disk Encryption for ${device}."
 
 			count=1
 			while [ ${count} -le ${gbde_attach_attempts} ]; do
-				gbde attach ${parentdev} -l ${lock}
+				if [ -e "${lock}" ]; then
+					gbde attach ${parentdev} -l ${lock}
+				else
+					gbde attach ${parentdev}
+				fi
 				if [ -e ${device} ]; then
 					break
 				fi
