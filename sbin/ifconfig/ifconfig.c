@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.39 1999/03/15 01:22:01 wpaul Exp $";
+	"$Id: ifconfig.c,v 1.40 1999/06/06 09:17:30 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -720,6 +720,7 @@ status(afp, addrcount, sdl, ifm, ifam)
 	const struct afswtch *p = NULL;
 	struct	rt_addrinfo info;
 	int allfamilies, s;
+	struct ifstat ifs;
 
 	if (afp == NULL) {
 		allfamilies = 1;
@@ -756,6 +757,10 @@ status(afp, addrcount, sdl, ifm, ifam)
 	if (mtu)
 		printf(" mtu %d", mtu);
 	putchar('\n');
+
+	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
+	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
+		printf("%s", ifs.ascii);
 
 	while (addrcount > 0) {
 		

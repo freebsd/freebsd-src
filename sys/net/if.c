@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.71 1999/06/06 09:17:49 phk Exp $
+ *	$Id: if.c,v 1.72 1999/06/06 09:28:01 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -604,6 +604,7 @@ ifioctl(so, cmd, data, p)
 {
 	register struct ifnet *ifp;
 	register struct ifreq *ifr;
+	struct ifstat *ifs;
 	int error;
 
 	switch (cmd) {
@@ -731,6 +732,10 @@ ifioctl(so, cmd, data, p)
 			getmicrotime(&ifp->if_lastchange);
 		return error;
 
+	case SIOCGIFSTATUS:
+		ifs = (struct ifstat *)data;
+		ifs->ascii[0] = '\0';
+		
 	case SIOCGIFMEDIA:
 	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == 0)
