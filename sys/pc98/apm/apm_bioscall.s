@@ -45,9 +45,9 @@
 ENTRY(bios32_apm98)
 	pushl	%ebp
 	movl	16(%esp),%ebp
-	mov	%bp,_bioscall_vector+4
+	mov	%bp,bioscall_vector+4
 	movl	12(%esp),%ebp
-	movl	%ebp,_bioscall_vector
+	movl	%ebp,bioscall_vector
 	movl	8(%esp),%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -61,7 +61,11 @@ ENTRY(bios32_apm98)
 	pushl	%ebp
 	pushfl
 	cli
-	lcall	*_bioscall_vector
+#ifdef __AOUT__
+	lcall	bioscall_vector		/* Stupid a.out gas! */
+#else
+	lcall	*bioscall_vector
+#endif
 	movl	%eax,%edi
 	movl	%edx,%esi
 	lahf
