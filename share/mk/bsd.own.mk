@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.11 1998/01/03 19:07:30 wosch Exp $
+#	$Id: bsd.own.mk,v 1.12 1998/01/04 00:00:21 steve Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -19,7 +19,7 @@
 #		a single knob. [-c]
 #
 # COMPRESS_CMD	Program to compress documents. 
-#		Output is to stdout. [gzip -c]
+#		Output is to stdout. [gzip -cn]
 #
 # COMPRESS_EXT	File name extension of ${COMPRESS_CMD} command. [.gz]
 #
@@ -171,5 +171,5 @@ STRIP?=		-s
 .endif
 
 COPY?=		-c
-COMPRESS_CMD?=	gzip -c
+COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
