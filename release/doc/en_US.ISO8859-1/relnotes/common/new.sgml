@@ -158,6 +158,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	fully-independent bridging clusters, and is much more stable in
 	the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported.</para>
+
+      <para>The &man.tcp.4; syncache implementation had a bug that
+	could cause kernel panics; this has been fixed.</para>
     </sect3>
 
     <sect3>
