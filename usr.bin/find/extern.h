@@ -60,9 +60,7 @@ creat_f	c_empty;
 creat_f	c_exec;
 creat_f	c_flags;
 creat_f	c_follow;
-#if !defined(__NetBSD__)
 creat_f	c_fstype;
-#endif
 creat_f	c_group;
 creat_f	c_inum;
 creat_f	c_links;
