@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.46 1997/05/14 01:18:50 brian Exp $
+ * $Id: command.c,v 1.47 1997/05/19 01:59:59 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -25,6 +25,13 @@
 #include <termios.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <net/route.h>
+#include <paths.h>
+#include <alias.h>
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
@@ -32,21 +39,18 @@
 #include "modem.h"
 #include "filter.h"
 #include "command.h"
+#include "alias_cmd.h"
 #include "hdlc.h"
 #include "vars.h"
 #include "systems.h"
 #include "chat.h"
-#include <netdb.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <net/route.h>
 #include "os.h"
-#include <paths.h>
 #include "chat.h"
 
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
 extern int  AcceptCommand(), DenyCommand();
+static int  AliasCommand();
 extern int  LocalAuthCommand();
 extern int  LoadCommand(), SaveCommand();
 extern int  ChangeParity(char *);
@@ -283,6 +287,8 @@ struct cmdtab const Commands[] = {
   	"Show status and statictics", "var"},
   { "term",    NULL,    TerminalCommand,LOCAL_AUTH,
   	"Enter to terminal mode", StrNull},
+  { "alias",   NULL,    AliasCommand,   LOCAL_AUTH,
+        "alias control",        "option [yes|no]"},
   { "quit",    "bye",   QuitCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Quit PPP program", "[all]"},
   { "help",    "?",     HelpCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
@@ -1208,3 +1214,88 @@ char **argv;
   return(1);
 }
 
+
+static int AliasEnable();
+static int AliasOption();
+
+
+static struct cmdtab const AliasCommands[] =
+{
+  { "enable",   NULL,     AliasEnable,          LOCAL_AUTH,
+        "enable IP aliasing", "[yes|no]"},
+  { "port",   NULL,     AliasRedirectPort,          LOCAL_AUTH,
+        "port redirection", "[proto  addr_local:port_local  port_alias]"},
+  { "addr",   NULL,     AliasRedirectAddr,          LOCAL_AUTH,
+        "static address translation", "[addr_local  addr_alias]"},
+  { "deny_incoming",  NULL,    AliasOption,     LOCAL_AUTH,
+        "stop incoming connections",   "[yes|no]",
+        (void*)PKT_ALIAS_DENY_INCOMING},
+  { "log",  NULL,     AliasOption,              LOCAL_AUTH,
+        "log aliasing link creation",           "[yes|no]",
+        (void*)PKT_ALIAS_LOG},
+  { "same_ports", NULL,     AliasOption,        LOCAL_AUTH,
+        "try to leave port numbers unchanged", "[yes|no]",
+        (void*)PKT_ALIAS_SAME_PORTS},
+  { "use_sockets", NULL,     AliasOption,       LOCAL_AUTH,
+        "allocate host sockets", "[yes|no]",
+        (void*)PKT_ALIAS_USE_SOCKETS },
+  { "unregistered_only", NULL,     AliasOption, LOCAL_AUTH,
+        "alias unregistered (private) IP address space only", "[yes|no]",
+        (void*)PKT_ALIAS_UNREGISTERED_ONLY},
+  { "help",     "?",      HelpCommand,          LOCAL_AUTH | LOCAL_NO_AUTH,
+        "Display this message", StrNull,
+        (void *)AliasCommands},
+  { NULL,       NULL,     NULL },
+};
+
+
+static int
+AliasCommand(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  int val = 1;
+
+  if (argc > 0)
+    val = FindExec(AliasCommands, argc, argv);
+  else
+    printf("Use `alias help' to get a list or `alias help <option>' for syntax h
+elp.\n");
+  return(val);
+}
+
+
+static int
+AliasEnable(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+   if (argc == 1 && strcmp(argv[0], "yes") == 0) {
+      mode |= MODE_ALIAS;
+   } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
+      mode &= ~MODE_ALIAS;
+   } else {
+      printf("Usage: alias %s %s\n", list->name, list->syntax);
+   }
+   return(1);
+}
+
+
+static int
+AliasOption(list, argc, argv, param)
+struct cmdtab *list;
+int argc;
+char **argv;
+void* param;
+{
+   if (argc == 1 && strcmp(argv[0], "yes") == 0) {
+      SetPacketAliasMode((unsigned)param, (unsigned)param);
+   } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
+      SetPacketAliasMode(0, (unsigned)param);
+   } else {
+      printf("Usage: alias %s %s\n", list->name, list->syntax);
+   }
+   return(1);
+}
