@@ -590,7 +590,7 @@ AcpiPsParseLoop (
     ParserState = &WalkState->ParserState;
     WalkState->ArgTypes = 0;
 
-#ifndef PARSER_ONLY
+#if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
     if (WalkState->WalkType & ACPI_WALK_METHOD_RESTART)
     {
         /* We are restarting a preempted control method */
@@ -708,6 +708,10 @@ AcpiPsParseLoop (
                 PreOp.Common.Value.Arg = NULL;
                 PreOp.Common.AmlOpcode = WalkState->Opcode;
 
+                /*
+                 * Get and append arguments until we find the node that contains
+                 * the name (the type ARGP_NAME).
+                 */
                 while (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) != ARGP_NAME)
                 {
                     Arg = AcpiPsGetNextArg (ParserState,
@@ -1297,7 +1301,6 @@ AcpiPsParseAml (
         /* We are done with this walk, move on to the parent if any */
 
         WalkState = AcpiDsPopWalkState (Thread);
-
         /* Save the last effective return value */
 
         if (CallerReturnDesc && WalkState->ReturnDesc)
