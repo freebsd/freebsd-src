@@ -73,19 +73,19 @@
 .Ft int
 .Fn wmemcmp "const wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
-.Fn wmemcpy "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Fn wmemcpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
 .Ft wchar_t *
 .Fn wmemmove "wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
 .Fn wmemset "wchar_t *s" "wchar_t c" "size_t n"
 .Ft wchar_t *
-.Fn wcscat "wchar_t *s1" "const wchar_t *s2"
+.Fn wcscat "wchar_t * restrict s1" "const wchar_t * restrict s2"
 .Ft wchar_t *
 .Fn wcschr "const wchar_t *s" "wchar_t c"
 .Ft int
 .Fn wcscmp "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
-.Fn wcscpy "wchar_t *s1" "const wchar_t *s2"
+.Fn wcscpy "wchar_t * restrict s1" "const wchar_t * restrict s2"
 .Ft size_t
 .Fn wcscspn "const wchar_t *s1" "const wchar_t *s2"
 .Ft size_t
@@ -95,11 +95,11 @@
 .Ft size_t
 .Fn wcslen "const wchar_t *s"
 .Ft wchar_t *
-.Fn wcsncat "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Fn wcsncat "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
 .Ft int
 .Fn wcsncmp "const wchar_t *s1" "const wchar_t * s2" "size_t n"
 .Ft wchar_t *
-.Fn wcsncpy "wchar_t *s1" "const wchar_t *s2" "size_t n"
+.Fn wcsncpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
 .Ft wchar_t *
 .Fn wcspbrk "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
@@ -107,7 +107,7 @@
 .Ft size_t
 .Fn wcsspn "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
-.Fn wcsstr "const wchar_t *s1" "const wchar_t *s2"
+.Fn wcsstr "const wchar_t * restrict s1" "const wchar_t * restrict s2"
 .Sh DESCRIPTION
 The functions implement string manipulation operations over wide character
 strings.
