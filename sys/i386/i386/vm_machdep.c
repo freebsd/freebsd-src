@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.113 1998/10/31 17:21:30 peter Exp $
+ *	$Id: vm_machdep.c,v 1.114 1998/12/16 15:21:51 bde Exp $
  */
 
 #include "npx.h"
@@ -507,6 +507,7 @@ cpu_reset_real()
 	while(1);
 }
 
+#ifndef VM_STACK
 /*
  * Grow the user stack to allow for 'sp'. This version grows the stack in
  *	chunks of SGROWSIZ.
@@ -559,6 +560,22 @@ grow(p, sp)
 
 	return (1);
 }
+#else
+int
+grow_stack(p, sp)
+	struct proc *p;
+	u_int sp;
+{
+	int rv;
+
+	rv = vm_map_growstack (p, sp);
+	if (rv != KERN_SUCCESS)
+		return (0);
+
+	return (1);
+}
+#endif
+
 
 static int cnt_prezero;
 
