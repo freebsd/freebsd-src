@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.51 1997/07/25 11:53:20 phk Exp $
+#	$Id: options.i386,v 1.52 1997/07/26 01:46:03 fsmp Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -23,6 +23,7 @@ COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 WLDEBUG			opt_wavelan.h
+WLCACHE			opt_wavelan.h
 I586_CTR_GUPROF		opt_i586_guprof.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 FAT_CURSOR		opt_pcvt.h
