@@ -87,6 +87,9 @@ dev/advansys/advmcode.c	optional adv
 dev/advansys/adwcam.c	optional adw
 dev/advansys/adwlib.c	optional adw
 dev/advansys/adwmcode.c	optional adw
+dev/amr/amr_disk.c	optional amr
+dev/amr/amr_pci.c	optional amr
+dev/amr/amr/c		optional amr
 dev/aha/aha.c		optional aha
 dev/aha/aha_isa.c	optional aha isa
 dev/aha/aha_mca.c	optional aha mca
@@ -157,6 +160,9 @@ miibus_if.h		optional miibus					\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/mii/miibus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"miibus_if.h"
+dev/mlx/mlx_disk.c	optional mlx
+dev/mlx/mlx_pci.c	optional mlx
+dev/mlx/mlx.c		optional mlx
 dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
