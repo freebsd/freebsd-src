@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.2 1994/08/15 20:42:25 thomas Exp thomas $
+ * $Id: dc21040.h,v 1.1 1994/10/01 20:16:45 wollman Exp $
  *
  * $Log: dc21040.h,v $
+ * Revision 1.1  1994/10/01  20:16:45  wollman
+ * Add Matt Thomas's DC21040 PCI Ethernet driver.  (This is turning out
+ * to be quite a popular chip, so expect to see a number of products
+ * based on it.)
+ *
  * Revision 1.2  1994/08/15  20:42:25  thomas
  * misc additions
  *
@@ -165,9 +170,10 @@ typedef struct {
 #define	TULIP_STS_NORMALINTR	0x00010000L		/* (RW)  Normal Interrupt */
 #define	TULIP_STS_ABNRMLINTR	0x00008000L		/* (RW)  Abnormal Interrupt */
 #define	TULIP_STS_SYSERROR	0x00002000L		/* (RW)  System Error */
-#define	TULIP_STS_LINKFAIL	0x00001000L		/* (RW)  Link Failure */
-#define	TULIP_STS_FULDPLXSHRT	0x00000800L		/* (RW)  Full Duplex Short Fram Rcvd */
-#define	TULIP_STS_AUI		0x00000400L		/* (RW)  AUI/TP Switch */
+#define	TULIP_STS_LINKFAIL	0x00001000L		/* (RW)  Link Failure (DC21040) */
+#define	TULIP_STS_FULDPLXSHRT	0x00000800L		/* (RW)  Full Duplex Short Fram Rcvd (DC21040) */
+#define	TULIP_STS_GPTIMEOUT	0x00000800L		/* (RW)  General Purpose Timeout (DC21140) */
+#define	TULIP_STS_AUI		0x00000400L		/* (RW)  AUI/TP Switch (DC21040) */
 #define	TULIP_STS_RXTIMEOUT	0x00000200L		/* (RW)  Receive Watchbog Timeout */
 #define	TULIP_STS_RXSTOPPED	0x00000100L		/* (RW)  Receive Process Stopped */
 #define	TULIP_STS_RXNOBUF	0x00000080L		/* (RW)  Receive Buffer Unavailable */
@@ -181,8 +187,13 @@ typedef struct {
 /*
  * CSR6 -- Command (Operation Mode) Register
  */
+#define	TULIP_CMD_SCRAMBLER	0x00400000L		/* (RW)  Scrambler Mode (DC21140) */
+#define	TULIP_CMD_PCSFUNCTION	0x00200000L		/* (RW)  PCS Function (DC21140) */
+#define	TULIP_CMD_TXTHRSHLDCTL	0x00100000L		/* (RW)  Transmit Threshold Mode (DC21140) */
+#define	TULIP_CMD_STOREFWD	0x00080000L		/* (RW)  Store and Foward (DC21140) */
+#define	TULIP_CMD_PORTSELECT	0x00040000L		/* (RW)  Post Select (100Mb) (DC21140) */
 #define	TULIP_CMD_CAPTREFFCT	0x00020000L		/* (RW)  Capture Effect (!802.3) */
-#define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) */
+#define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) (DC21040) */
 #define	TULIP_CMD_THRESHOLDCTL	0x0000C000L		/* (RW)  Threshold Control */
 #define	TULIP_CMD_THRSHLD72	0x00000000L		/*       00 - 72 Bytes */
 #define	TULIP_CMD_THRSHLD96	0x00004000L		/*       01 - 96 Bytes */
@@ -210,5 +221,49 @@ typedef struct {
 #define	TULIP_SIACONN_10BASET		0x00000005L
 
 #define	TULIP_BUSMODE_SWRESET		0x00000001L
+#define	TULIP_BUSMODE_DESCSKIPLEN_MASK	0x0000007CL
+#define	TULIP_BUSMODE_BIGENDIAN		0x00000080L
+#define	TULIP_BUSMODE_BURSTLEN_MASK	0x00003F00L
+#define	TULIP_BUSMODE_BURSTLEN_DEFAULT	0x00000000L
+#define	TULIP_BUSMODE_BURSTLEN_1LW	0x00000100L
+#define	TULIP_BUSMODE_BURSTLEN_2LW	0x00000200L
+#define	TULIP_BUSMODE_BURSTLEN_4LW	0x00000400L
+#define	TULIP_BUSMODE_BURSTLEN_8LW	0x00000800L
+#define	TULIP_BUSMODE_BURSTLEN_16LW	0x00001000L
+#define	TULIP_BUSMODE_BURSTLEN_32LW	0x00002000L
+#define	TULIP_BUSMODE_CACHE_NOALIGN	0x00000000L
+#define	TULIP_BUSMODE_CACHE_ALIGN8	0x00004000L
+#define	TULIP_BUSMODE_CACHE_ALIGN16	0x00008000L
+#define	TULIP_BUSMODE_CACHE_ALIGN32	0x0000C000L
+#define	TULIP_BUSMODE_TXPOLL_NEVER	0x00000000L
+#define	TULIP_BUSMODE_TXPOLL_200us	0x00020000L
+#define	TULIP_BUSMODE_TXPOLL_800us	0x00040000L
+#define	TULIP_BUSMODE_TXPOLL_1600us	0x00060000L
 
+
+#define	TULIP_GP_FASTMODE	0x00000040	/* 100 Mb/sec Signal Detect gep<6> */
+#define	TULIP_GP_PINS		0x0000013F	/* General Purpose Pin directions */
+#define	TULIP_GP_INIT		0x0000000B	/* No loopback --- point-to-point */
+
+/*
+ * SROM definitions for the DC21140 and DC21041.
+ */
+#define SROMSEL         0x0800
+#define SROMRD          0x4000
+#define SROMWR          0x2000
+#define SROMDIN         0x0008
+#define SROMDOUT        0x0004
+#define SROMDOUTON      0x0004
+#define SROMDOUTOFF     0x0004
+#define SROMCLKON       0x0002
+#define SROMCLKOFF      0x0002
+#define SROMCSON        0x0001
+#define SROMCSOFF       0x0001
+#define SROMCS          0x0001
+
+#define	SROMCMD_MODE	4
+#define	SROMCMD_WR	5
+#define	SROMCMD_RD	6
+
+#define	SROM_BITWIDTH	6
 #endif /* !defined(_DC21040_H) */
