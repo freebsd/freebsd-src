@@ -1,5 +1,5 @@
 /* MD2.H - header file for MD2C.C
- * $Id$
+ * $Id: md2.h,v 1.5 1997/02/22 15:07:12 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
@@ -30,11 +30,15 @@ typedef struct MD2Context {
   unsigned char buffer[16];	/* input buffer */
 } MD2_CTX;
 
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
 void   MD2Init(MD2_CTX *);
 void   MD2Update(MD2_CTX *, const unsigned char *, unsigned int);
 void   MD2Final(unsigned char [16], MD2_CTX *);
 char * MD2End(MD2_CTX *, char *);
-char * MD2File(char *, char *);
+char * MD2File(const char *, char *);
 char * MD2Data(const unsigned char *, unsigned int, char *);
+__END_DECLS
 
 #endif /* _MD2_H_ */

@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" 	$Id: mdX.3,v 1.6 1996/10/09 21:00:48 wollman Exp $
+.\" 	$Id: mdX.3,v 1.7 1996/10/22 16:28:56 phk Exp $
 .\"
 .Dd October 9, 1996
 .Dt MDX 3
@@ -25,15 +25,15 @@
 .Ft void
 .Fn MDXInit "MDX_CTX *context"
 .Ft void
-.Fn MDXUpdate "MDX_CTX *context" "unsigned char *data" "unsigned int len"
+.Fn MDXUpdate "MDX_CTX *context" "const unsigned char *data" "unsigned int len"
 .Ft void
 .Fn MDXFinal "unsigned char digest[16]" "MDX_CTX *context"
 .Ft "char *"
 .Fn MDXEnd "MDX_CTX *context" "char *buf"
 .Ft "char *"
-.Fn MDXFile "char *filename" "char *buf"
+.Fn MDXFile "const char *filename" "char *buf"
 .Ft "char *"
-.Fn MDXData "unsigned char *data" "unsigned int len" "char *buf"
+.Fn MDXData "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The MDX functions calculate a 128-bit cryptographic checksum (digest)
 for any number of input bytes.  A cryptographic checksum is a one-way
