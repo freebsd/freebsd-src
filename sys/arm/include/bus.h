@@ -115,8 +115,6 @@ struct bus_space {
 			    bus_size_t);
 
 	/* get kernel virtual address */
-	void *		(*bs_vaddr) (void *, bus_space_handle_t);
-
 	/* barrier */
 	void		(*bs_barrier) (void *, bus_space_handle_t,
 			    bus_size_t, bus_size_t, int);
@@ -247,12 +245,6 @@ struct bus_space {
 	    (c), (ap), (hp))
 #define	bus_space_free(t, h, s)						\
 	(*(t)->bs_free)((t)->bs_cookie, (h), (s))
-
-/*
- * Get kernel virtual address for ranges mapped BUS_SPACE_MAP_LINEAR.
- */
-#define	bus_space_vaddr(t, h)						\
-	(*(t)->bs_vaddr)((t)->bs_cookie, (h))
 
 /*
  * Bus barrier operations.
@@ -397,9 +389,6 @@ int	__bs_c(f,_bs_alloc) (void *t, bus_addr_t rstart,		\
 #define bs_free_proto(f)						\
 void	__bs_c(f,_bs_free) (void *t, bus_space_handle_t bsh,	\
 	    bus_size_t size);
-
-#define bs_vaddr_proto(f)						\
-void *	__bs_c(f,_bs_vaddr) (void *t, bus_space_handle_t bsh);
 
 #define bs_mmap_proto(f)						\
 int	__bs_c(f,_bs_mmap) (struct cdev *, vm_offset_t, vm_paddr_t *, int);
@@ -562,7 +551,6 @@ bs_unmap_proto(f);		\
 bs_subregion_proto(f);		\
 bs_alloc_proto(f);		\
 bs_free_proto(f);		\
-bs_vaddr_proto(f);		\
 bs_mmap_proto(f);		\
 bs_barrier_proto(f);		\
 bs_r_1_proto(f);		\
@@ -618,11 +606,6 @@ bs_c_8_proto(f);
 #define	BUS_DMA_BUS2		0x020
 #define	BUS_DMA_BUS3		0x040
 #define	BUS_DMA_BUS4		0x080
-
-/*
- * Private flags stored in the DMA map.
- */
-#define	ARM32_DMAMAP_COHERENT	0x10000	/* no cache flush necessary on sync */
 
 /* Forwards needed by prototypes below. */
 struct mbuf;
@@ -689,6 +672,7 @@ typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t
 #define	ARM32_BUFTYPE_RAW		4
 
 struct arm32_dma_range	*bus_dma_get_range(void);
+int	bus_dma_get_range_nb(void);
 #endif /* _ARM32_BUS_DMA_PRIVATE */
 
 /*
@@ -756,5 +740,39 @@ void	bus_dmamem_free (bus_dma_tag_t tag, void *vaddr, bus_dmamap_t map);
  * Generic helper function for manipulating mutexes.
  */     
 void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
+
+#define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
+#define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFF
+#define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
+#define BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFF
+
+/* XXX: is this right ? */
+#define bus_space_read_stream_1(t, h, o)        bus_space_read_1((t), (h), (o))
+#define bus_space_read_stream_2(t, h, o)        bus_space_read_2((t), (h), (o))
+#define bus_space_read_stream_4(t, h, o)        bus_space_read_4((t), (h), (o))
+
+#define bus_space_read_multi_stream_1(t, h, o, a, c) \
+        bus_space_read_multi_1((t), (h), (o), (a), (c))
+#define bus_space_read_multi_stream_2(t, h, o, a, c) \
+	        bus_space_read_multi_2((t), (h), (o), (a), (c))
+#define bus_space_read_multi_stream_4(t, h, o, a, c) \
+	        bus_space_read_multi_4((t), (h), (o), (a), (c))
+
+#define bus_space_write_stream_1(t, h, o, v) \
+	        bus_space_write_1((t), (h), (o), (v))
+#define bus_space_write_stream_2(t, h, o, v) \
+	        bus_space_write_2((t), (h), (o), (v))
+#define bus_space_write_stream_4(t, h, o, v) \
+	        bus_space_write_4((t), (h), (o), (v))
+
+#define bus_space_write_multi_stream_1(t, h, o, a, c) \
+	        bus_space_write_multi_1((t), (h), (o), (a), (c))
+#define bus_space_write_multi_stream_2(t, h, o, a, c) \
+	        bus_space_write_multi_2((t), (h), (o), (a), (c))
+#define bus_space_write_multi_stream_4(t, h, o, a, c) \
+	        bus_space_write_multi_4((t), (h), (o), (a), (c))
+	
 
 #endif /* _MACHINE_BUS_H_ */
