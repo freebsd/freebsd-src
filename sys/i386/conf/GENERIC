@@ -147,7 +147,7 @@ device		sio3	at isa? disable port "IO_COM4" tty irq 9
 # Parallel port
 device		ppc0	at isa? port? net irq 7
 controller	ppbus0
-device		lpt0	at ppbus?
+device		nlpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 #controller	vpo0	at ppbus?
