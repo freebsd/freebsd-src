@@ -40,13 +40,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /*not lint*/
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /*not lint*/
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -283,7 +284,7 @@ main(argc, argv)
 		err(1, "%s", MOUNTDLOCK);
 
 	if(flock(mountdlockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
-		errx(1, "another rpc.mountd is already running. Aborting");
+		errx(1, "another mountd is already running. Aborting");
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0)
 		have_v6 = 0;
