@@ -1,0 +1,65 @@
+1.  Boot the kernel copy floppy for the type of disk controller you
+    have:
+
+	IDE/ST506/Adaptec 1542{A,B,C}/Adaptec 1742A: kcopy-ah-floppy
+
+	Bustek 742a/UltraStore {14,34}F: kcopy-bt-floppy
+
+2.  When that floppy asks you to insert the file system floppy insert
+    the floppy labeled file filesystem-floppy.  Follow the instructions
+    that floppy gives you.  Note what type of disk that it says to
+    copy the kernel to (sd0a or wd0a.)  When it halts go to the next step.
+
+3.  Boot the same floppy you used in step one, this time when it asks
+    you to insert the file system floppy just press the return key.
+    Follow the instructions that the floppy gives you.  Basically
+    type copy at the ``kc>'' prompt, then either ``sd0a'' or ``wd0a''
+    at the ``copy kernel to>'' prompt.  When it halts go to the next step.
+
+4.  Remove all floppies from the drive, then press return to boot from
+    the hard disk.  After it has booted and is asking what drive the
+    cpio floppy is in insert the floppy labeled cpio-floppy into a
+    floppy drive and answer the question about what drive it is in.
+    Note that 0 is the same as DOS drive A:, and 1 is the same as DOS
+    drive B:
+
+5.  After the cpio-floppy has been copied to the disk enter ``halt''.
+
+6.  Remove the cpio-floppy from the drive after the system has asked
+    you to press the return key to reboot, but before you press the
+    return key.  Press the return key to boot again from the hard
+    disk.
+
+7.  At this point you will get 4 errors from the fsck on boot, this
+    is expected and is caused by files that where open when the
+    /dev entries where built.  The system will correct these and then
+    halt.  After it has halted, just press the return key to reboot
+    again.
+
+8.  Congratulations, you've got the mini FreeBSD system on the disk.
+
+9.  Follow the instructions about set_tmp_dir and extract that
+    well come on your screen after you press the return key.
+
+10. You will get the following errors while extracting the bin
+    distribution, you can safely ignore them.
+
+	/tmp/tar: Could not create file bin/sh : Text file busy
+	/tmp/tar: Could not create file sbin/init : Text file busy
+	/tmp/tar: Could not link .profile to root/.profile : File exists
+
+11. Run the configure command to set up some of the /etc files by
+    typing ``configure''.  You will have to edit /etc/netstart after
+    this is you have a networking interface.
+
+12. Reboot so that the system comes up multiuser by typing ``reboot''.
+
+13. You should save the /.profile file to /.profile.install for use later
+    if you decide to install other parts of the system that you did not
+    install at this time and link /.profile to /root/.profile so when
+    the system comes up single user the proper .profile is read:
+
+	mv /.profile /.profile.install
+	ln /root/.profile /.profile
+
+End of $Id$
