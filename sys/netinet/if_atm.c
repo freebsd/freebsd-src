@@ -325,8 +325,10 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 		    (rt->rt_flags & RTF_LLINFO) == 0 ||
 		    /* XXX: are we using LLINFO? */
 		    rt->rt_gateway->sa_family != AF_LINK) {
+			RT_UNLOCK(rt);
 			goto bad;
 		}
+		RT_UNLOCK(rt);
 	}
 
 	/*

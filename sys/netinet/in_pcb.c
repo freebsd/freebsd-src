@@ -165,11 +165,9 @@ in_pcballoc(so, pcbinfo, td)
 #ifdef IPSEC
 	int error;
 #endif
-
-	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
+	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT | M_ZERO);
 	if (inp == NULL)
 		return (ENOBUFS);
-	bzero((caddr_t)inp, sizeof(*inp));
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
@@ -678,7 +676,7 @@ in_pcbdetach(inp)
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	if (inp->inp_route.ro_rt)
-		rtfree(inp->inp_route.ro_rt);
+		RTFREE(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	INP_LOCK_DESTROY(inp);
@@ -865,16 +863,19 @@ in_losing(inp)
 	struct rt_addrinfo info;
 
 	if ((rt = inp->inp_route.ro_rt)) {
+		RT_LOCK(rt);
+		inp->inp_route.ro_rt = NULL;
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_flags = rt->rt_flags;
 		info.rti_info[RTAX_DST] = rt_key(rt);
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
-		if (rt->rt_flags & RTF_DYNAMIC)
+		if (rt->rt_flags & RTF_DYNAMIC) {
+			RT_UNLOCK(rt);		/* XXX refcnt? */
 			(void) rtrequest1(RTM_DELETE, &info, NULL);
-		inp->inp_route.ro_rt = NULL;
-		rtfree(rt);
+		} else
+			rtfree(rt);
 		/*
 		 * A new route can be allocated
 		 * the next time output is attempted.
@@ -892,7 +893,7 @@ in_rtchange(inp, errno)
 	int errno;
 {
 	if (inp->inp_route.ro_rt) {
-		rtfree(inp->inp_route.ro_rt);
+		RTFREE(inp->inp_route.ro_rt);
 		inp->inp_route.ro_rt = 0;
 		/*
 		 * A new route can be allocated the next time

@@ -352,7 +352,9 @@ ipflow_create(const struct route *ro, struct mbuf *m)
 	 * Fill in the updated information.
 	 */
 	ipf->ipf_ro = *ro;
+	RT_LOCK(ro->ro_rt);
 	ro->ro_rt->rt_refcnt++;
+	RT_UNLOCK(ro->ro_rt);
 	ipf->ipf_timer = IPFLOW_TIMER;
 	/*
 	 * Insert into the approriate bucket of the flow table.

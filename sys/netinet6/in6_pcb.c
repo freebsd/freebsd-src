@@ -569,6 +569,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 			if (IN6_IS_ADDR_MULTICAST(dst)) {
 				ro->ro_rt = rtalloc1(&((struct route *)ro)
 						     ->ro_dst, 0, 0UL);
+				RT_UNLOCK(ro->ro_rt);
 			} else {
 				rtalloc((struct route *)ro);
 			}
@@ -653,7 +654,7 @@ in6_pcbdetach(inp)
  	ip6_freepcbopts(inp->in6p_outputopts);
  	ip6_freemoptions(inp->in6p_moptions);
 	if (inp->in6p_route.ro_rt)
-		rtfree(inp->in6p_route.ro_rt);
+		RTFREE(inp->in6p_route.ro_rt);
 	/* Check and free IPv4 related resources in case of mapped addr */
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
@@ -1038,16 +1039,19 @@ in6_losing(in6p)
 	struct rt_addrinfo info;
 
 	if ((rt = in6p->in6p_route.ro_rt) != NULL) {
+		RT_LOCK(rt);
+		in6p->in6p_route.ro_rt = NULL;
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_flags = rt->rt_flags;
 		info.rti_info[RTAX_DST] = rt_key(rt);
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
-		if (rt->rt_flags & RTF_DYNAMIC)
+		if (rt->rt_flags & RTF_DYNAMIC) {
+			RT_UNLOCK(rt);		/* XXX refcnt? */
 			(void)rtrequest1(RTM_DELETE, &info, NULL);
-		in6p->in6p_route.ro_rt = NULL;
-		rtfree(rt);
+		} else
+			rtfree(rt);
 		/*
 		 * A new route can be allocated
 		 * the next time output is attempted.
@@ -1065,7 +1069,7 @@ in6_rtchange(inp, errno)
 	int errno;
 {
 	if (inp->in6p_route.ro_rt) {
-		rtfree(inp->in6p_route.ro_rt);
+		RTFREE(inp->in6p_route.ro_rt);
 		inp->in6p_route.ro_rt = 0;
 		/*
 		 * A new route can be allocated the next time
