@@ -149,15 +149,17 @@ Specify text file with 3 conversion tables:
 .Bl -enum
 .It
 Local character set to Unicode conversion table (upper half) for Win'95 long
-names, 128 Unicode codes.
+names, 128 Unicode codes separated by 8 per row.
 If some code not present in Unicode, use
 0x003F code ('?') as replacement.
 .It
 DOS to local character set conversion table (upper half) for DOS names,
-128 character codes. Code 0x3F ('?') used for impossible translations.
+128 character codes separated by 8 per row.
+Code 0x3F ('?') used for impossible translations.
 .It
 Local character set to DOS conversion table (upper half) for DOS names,
-128 character codes. Some codes have special meaning:
+128 character codes separated by 8 per row.
+Some codes have special meaning:
 .Bl -hang
 .It 0x00
 character disallowed in DOS file name;
