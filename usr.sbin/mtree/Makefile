@@ -6,6 +6,7 @@
 PROG=	mtree
 MAN=	mtree.8
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
+SRCS+=	specspec.c
 
 WARNS?=	4
 
