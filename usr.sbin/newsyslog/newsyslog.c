@@ -157,6 +157,7 @@ static time_t parseDWM(char *s, char *errline);
  * range 0 to 255, plus EOF.  Define wrappers which can take
  * values of type 'char', either signed or unsigned.
  */
+#define isdigitch(Anychar)    isdigit(((int) Anychar) & 255)
 #define isprintch(Anychar)    isprint(((int) Anychar) & 255)
 #define isspacech(Anychar)    isspace(((int) Anychar) & 255)
 #define tolowerch(Anychar)    tolower(((int) Anychar) & 255)
@@ -951,10 +952,15 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			errx(1, "malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
-		if (isdigit(*q))
+		if (isdigitch(*q))
 			working->size = atoi(q);
-		else
+		else if (strcmp(q,"*") == 0)
 			working->size = -1;
+		else {
+			warnx("Invalid value of '%s' for 'size' in line:\n%s",
+			    q, errline);
+			working->size = -1;
+		}
 
 		working->flags = 0;
 		q = parse = missing_field(sob(++parse), errline);
