@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.70 1994/10/20 00:08:20 phk Exp $
+ *	$Id: syscons.c,v 1.71 1994/10/23 21:27:36 wollman Exp $
  */
 
 #include "sc.h"
@@ -346,7 +346,7 @@ static struct kern_devconf kdc_sc[NSC] = { {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
-	"Parallel printer adapter"
+	"Graphics console"
 } };
 
 static inline void
