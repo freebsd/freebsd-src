@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-/*	$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $	*/
 /*
  * Copyright (c) 1996 John M. Vinopal
  * All rights reserved.
@@ -38,17 +36,13 @@ __RCSID("$FreeBSD$");
 __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #endif
 
-#include <sys/types.h>
 #include <err.h>
-#include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 #include <utmp.h>
 #include <unistd.h>
 
-extern	char *__progname;
 static	const char *logfile = _PATH_LASTLOG;
 
 	int	main __P((int, char **));
@@ -131,6 +125,6 @@ output(p, l)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [user ...]\n", __progname);
+	fprintf(stderr, "usage: lastlogin [user ...]\n");
 	exit(1);
 }
