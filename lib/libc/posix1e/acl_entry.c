@@ -34,9 +34,6 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#define ACL_UNDEFINED_ID	-1
-#define ACL_UNDEFINED_TAG	-1
-
 int
 acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 {
