@@ -241,7 +241,7 @@ struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
 
-#define LIST_HEAD_INITIALIZER						\
+#define LIST_HEAD_INITIALIZER(head)					\
 	{ NULL }
 
 #define LIST_ENTRY(type)						\
