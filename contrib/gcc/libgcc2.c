@@ -1,7 +1,7 @@
 /* More subroutines needed by GCC output code on some machines.  */
 /* Compile this one with gcc.  */
 /* Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001  Free Software Foundation, Inc.
+   2000, 2001, 2002  Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -37,8 +37,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "tconfig.h"
 #include "tsystem.h"
-
-#include "machmode.h"
 
 /* Don't use `fancy_abort' here even if config.h says to use it.  */
 #ifdef abort
@@ -1119,7 +1117,10 @@ __floatdisf (DWtype u)
 	     && u < ((DWtype) 1 << DF_SIZE)))
 	{
 	  if ((UDWtype) u & (REP_BIT - 1))
-	    u |= REP_BIT;
+	    {
+	      u &= ~ (REP_BIT - 1);
+	      u |= REP_BIT;
+	    }
 	}
     }
   f = (Wtype) (u >> WORD_SIZE);
