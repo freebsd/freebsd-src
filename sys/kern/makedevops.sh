@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 # From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id$
+# $Id: makedevops.sh,v 1.1 1998/06/14 13:53:12 dfr Exp $
 #
 
 # Script to produce device front-end sugar.
@@ -161,7 +161,7 @@ $AWK "
 		# Print the method desc
 		printf("struct device_op_desc %s_desc = {\n", mname) > cfile;
 		printf("\t0,\n") > cfile;
-		printf("\t\"%s\"\n", name) > cfile;
+		printf("\t\"%s\"\n", mname) > cfile;
 		printf("};\n\n") > cfile;
 
 		# Print out the method typedef
