@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -27,6 +27,9 @@
 
 
 #include "awk.h"
+#if defined(HAVE_FCNTL_H)
+#include <fcntl.h>
+#endif
 #undef HUGE
 #undef CHARBITS
 #undef INTBITS
@@ -35,17 +38,16 @@
 #include "random.h"
 
 /* can declare these, since we always use the random shipped with gawk */
-extern char *initstate P((unsigned seed, char *state, int n));
+extern char *initstate P((unsigned long seed, char *state, long n));
 extern char *setstate P((char *state));
 extern long random P((void));
-extern void srandom P((unsigned int seed));
+extern void srandom P((unsigned long seed));
 #endif
 
 extern NODE **fields_arr;
 extern int output_is_tty;
 
 static NODE *sub_common P((NODE *tree, int how_many, int backdigs));
-NODE *format_tree P((const char *, int, NODE *));
 
 #ifdef _CRAY
 /* Work around a problem in conversion of doubles to exact integers. */
@@ -85,20 +87,20 @@ static void efwrite P((const void *ptr, size_t size, size_t count, FILE *fp,
 /* efwrite --- like fwrite, but with error checking */
 
 static void
-efwrite(ptr, size, count, fp, from, rp, flush)
-const void *ptr;
-size_t size, count;
-FILE *fp;
-const char *from;
-struct redirect *rp;
-int flush;
+efwrite(const void *ptr,
+	size_t size,
+	size_t count,
+	FILE *fp,
+	const char *from,
+	struct redirect *rp,
+	int flush)
 {
 	errno = 0;
 	if (fwrite(ptr, size, count, fp) != count)
 		goto wrerror;
 	if (flush
 	  && ((fp == stdout && output_is_tty)
-	   || (rp && (rp->flag & RED_NOBUF)))) {
+	   || (rp != NULL && (rp->flag & RED_NOBUF)))) {
 		fflush(fp);
 		if (ferror(fp))
 			goto wrerror;
@@ -106,27 +108,28 @@ int flush;
 	return;
 
 wrerror:
-	fatal("%s to \"%s\" failed (%s)", from,
-		rp ? rp->value : "standard output",
-		errno ? strerror(errno) : "reason unknown");
+	fatal(_("%s to \"%s\" failed (%s)"), from,
+		rp ? rp->value : _("standard output"),
+		errno ? strerror(errno) : _("reason unknown"));
 }
 
 /* do_exp --- exponential function */
 
 NODE *
-do_exp(tree)
-NODE *tree;
+do_exp(NODE *tree)
 {
 	NODE *tmp;
 	double d, res;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("exp: received non-numeric argument"));
 	d = force_number(tmp);
 	free_temp(tmp);
 	errno = 0;
 	res = exp(d);
 	if (errno == ERANGE)
-		warning("exp argument %g is out of range", d);
+		warning(_("exp: argument %g is out of range"), d);
 	return tmp_number((AWKNUM) res);
 }
 
@@ -139,9 +142,7 @@ NODE *tree;
  */
 
 static FILE *
-stdfile(name, len)
-char *name;
-size_t len;
+stdfile(char *name, size_t len)
 {
 	if (len == 11) {
 		if (STREQN(name, "/dev/stderr", 11))
@@ -156,8 +157,7 @@ size_t len;
 /* do_fflush --- flush output, either named file or pipe or everything */
 
 NODE *
-do_fflush(tree)
-NODE *tree;
+do_fflush(NODE *tree)
 {
 	struct redirect *rp;
 	NODE *tmp;
@@ -183,14 +183,15 @@ NODE *tree;
 	}
 
 	rp = getredirect(tmp->stptr, tmp->stlen);
-	status = 1;
+	status = -1;
 	if (rp != NULL) {
 		if ((rp->flag & (RED_WRITE|RED_APPEND)) == 0) {
-			/* if (do_lint) */
-				warning(
-		"fflush: cannot flush: %s `%s' opened for reading, not writing",
-				(rp->flag & RED_PIPE) ? "pipe" : "file",
-				file);
+			if (rp->flag & RED_PIPE)
+				warning(_("fflush: cannot flush: pipe `%s' opened for reading, not writing"),
+					file);
+			else
+				warning(_("fflush: cannot flush: file `%s' opened for reading, not writing"),
+					file);
 			free_temp(tmp);
 			return tmp_number((AWKNUM) status);
 		}
@@ -199,8 +200,10 @@ NODE *tree;
 			status = fflush(fp);
 	} else if ((fp = stdfile(tmp->stptr, tmp->stlen)) != NULL) {
 		status = fflush(fp);
-	} else
-		warning("fflush: `%s' is not an open file or pipe", file);
+	} else {
+		status = -1;
+		warning(_("fflush: `%s' is not an open file, pipe or co-process"), file);
+	}
 	free_temp(tmp);
 	return tmp_number((AWKNUM) status);
 }
@@ -208,8 +211,7 @@ NODE *tree;
 /* do_index --- find index of a string */
 
 NODE *
-do_index(tree)
-NODE *tree;
+do_index(NODE *tree)
 {
 	NODE *s1, *s2;
 	register char *p1, *p2;
@@ -219,6 +221,12 @@ NODE *tree;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
+	if (do_lint) {
+		if ((s1->flags & (STRING|STR)) == 0)
+			lintwarn(_("index: received non-string first argument"));
+		if ((s2->flags & (STRING|STR)) == 0)
+			lintwarn(_("index: received non-string second argument"));
+	}
 	force_string(s1);
 	force_string(s2);
 	p1 = s1->stptr;
@@ -232,7 +240,7 @@ NODE *tree;
 		while (l1 > 0) {
 			if (l2 > l1)
 				break;
-			if (casetable[(int)*p1] == casetable[(int)*p2]
+			if (casetable[(unsigned char)*p1] == casetable[(unsigned char)*p2]
 			    && (l2 == 1 || strncasecmp(p1, p2, l2) == 0)) {
 				ret = 1 + s1->stlen - l1;
 				break;
@@ -261,8 +269,7 @@ NODE *tree;
 /* double_to_int --- convert double to int, used several places */
 
 double
-double_to_int(d)
-double d;
+double_to_int(double d)
 {
 	if (d >= 0)
 		d = Floor(d);
@@ -274,13 +281,14 @@ double d;
 /* do_int --- convert double to int for awk */
 
 NODE *
-do_int(tree)
-NODE *tree;
+do_int(NODE *tree)
 {
 	NODE *tmp;
 	double d;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("int: received non-numeric argument"));
 	d = force_number(tmp);
 	d = double_to_int(d);
 	free_temp(tmp);
@@ -290,13 +298,14 @@ NODE *tree;
 /* do_length --- length of a string or $0 */
 
 NODE *
-do_length(tree)
-NODE *tree;
+do_length(NODE *tree)
 {
 	NODE *tmp;
 	size_t len;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (STRING|STR)) == 0)
+		lintwarn(_("length: received non-string argument"));
 	len = force_string(tmp)->stlen;
 	free_temp(tmp);
 	return tmp_number((AWKNUM) len);
@@ -305,16 +314,17 @@ NODE *tree;
 /* do_log --- the log function */
 
 NODE *
-do_log(tree)
-NODE *tree;
+do_log(NODE *tree)
 {
 	NODE *tmp;
 	double d, arg;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("log: received non-numeric argument"));
 	arg = (double) force_number(tmp);
 	if (arg < 0.0)
-		warning("log called with negative argument %g", arg);
+		warning(_("log: received negative argument %g"), arg);
 	d = log(arg);
 	free_temp(tmp);
 	return tmp_number((AWKNUM) d);
@@ -331,10 +341,11 @@ NODE *tree;
  */
 
 NODE *
-format_tree(fmt_string, n0, carg)
-const char *fmt_string;
-int n0;
-register NODE *carg;
+format_tree(
+	const char *fmt_string,
+	int n0,
+	register NODE *carg,
+	int num_args)
 {
 /* copy 'l' bytes from 's' to 'obufout' checking for space in the process */
 /* difference of pointers should be of ptrdiff_t type, but let us be kind */
@@ -373,21 +384,16 @@ register NODE *carg;
 	osiz *= 2; \
 }
 
-/*
- * Get the next arg to be formatted.  If we've run out of args,
- * return "" (Null string) 
- */
-#define parse_next_arg() { \
-	if (carg == NULL) { \
-		toofew = TRUE; \
-		break; \
-	} else { \
-		arg = tree_eval(carg->lnode); \
-		carg = carg->rnode; \
-	} \
-}
+	static NODE **the_args = 0;
+	static size_t args_size = 0;
+	size_t cur_arg = 0;
+
+	auto NODE **save_args = 0;
+	auto size_t save_args_size = 0;
+	static int call_level = 0;
 
 	NODE *r;
+	int i;
 	int toofew = FALSE;
 	char *obuf, *obufout;
 	size_t osiz, ofre;
@@ -395,7 +401,8 @@ register NODE *carg;
 	const char *s0, *s1;
 	int cs1;
 	NODE *arg;
-	long fw, prec;
+	long fw, prec, argnum;
+	int used_dollar;
 	int lj, alt, big, bigbig, small, have_prec, need_format;
 	long *cur = NULL;
 #ifdef sun386		/* Can't cast unsigned (int/long) from ptr->value */
@@ -423,7 +430,79 @@ register NODE *carg;
 	osiz = INITIAL_OUT_SIZE;
 	ofre = osiz - 1;
 
+	/*
+	 * Icky problem.  If the args make a nested call to printf/sprintf,
+	 * we end up clobbering the static variable `the_args'.  Not good.
+	 * We don't just malloc and free the_args each time, since most of the
+	 * time there aren't nested calls.  But if this is a nested call,
+	 * save the memory pointed to by the_args and allocate a fresh
+	 * array.  Then free it on end.
+	 */
+	if (++call_level > 1) {	/* nested */
+		save_args = the_args;
+		save_args_size = args_size;
+
+		args_size = 0;	/* force fresh allocation */
+	}
+
+	if (args_size == 0) {
+		/* allocate array */
+		emalloc(the_args, NODE **, (num_args+1) * sizeof(NODE *), "format_tree");
+		args_size = num_args + 1;
+	} else if (num_args + 1 > args_size) {
+		/* grow it */
+		erealloc(the_args, NODE **, (num_args+1) * sizeof(NODE *), "format_tree");
+		args_size = num_args + 1;
+	}
+
+
+	/* fill it in */
+	/*
+	 * We ignore the_args[0] since format strings use
+	 * 1-based numbers to indicate the arguments.  It's
+	 * easiest to just convert to int and index, without
+	 * having to remember to subtract 1.
+	 */
+	memset(the_args, '\0', num_args * sizeof(NODE *));
+	for (i = 1; carg != NULL; i++, carg = carg->rnode) {
+		NODE *tmp;
+
+		/* Here lies the wumpus's other brother. R.I.P. */
+		tmp = tree_eval(carg->lnode);
+		the_args[i] = dupnode(tmp);
+		free_temp(tmp);
+	}
+	assert(i == num_args);
+	cur_arg = 1;
+
+	/*
+	 * Check first for use of `count$'.
+	 * If plain argument retrieval was used earlier, choke.
+	 *	Otherwise, return the requested argument.
+	 * If not `count$' now, but it was used earlier, choke.
+	 * If this format is more than total number of args, choke.
+	 * Otherwise, return the current argument.
+	 */
+#define parse_next_arg() { \
+	if (argnum > 0) { \
+		if (cur_arg > 1) \
+			fatal(_("must use `count$' on all formats or none")); \
+		arg = the_args[argnum]; \
+	} else if (used_dollar) { \
+		fatal(_("must use `count$' on all formats or none")); \
+		arg = 0; /* shutup the compiler */ \
+	} else if (cur_arg >= num_args) { \
+		arg = 0; /* shutup the compiler */ \
+		toofew = TRUE; \
+		break; \
+	} else { \
+		arg = the_args[cur_arg]; \
+		cur_arg++; \
+	} \
+}
+
 	need_format = FALSE;
+	used_dollar = FALSE;
 
 	s0 = s1 = fmt_string;
 	while (n0-- > 0) {
@@ -437,6 +516,7 @@ register NODE *carg;
 		cur = &fw;
 		fw = 0;
 		prec = 0;
+		argnum = 0;
 		have_prec = FALSE;
 		signchar = FALSE;
 		zero_flag = FALSE;
@@ -502,12 +582,42 @@ check_pos:
 			if (n0 == 0)	/* badly formatted control string */
 				continue;
 			goto retry;
+		case '$':
+			if (do_traditional)
+				fatal(_("`$' is not permitted in awk formats"));
+			if (cur == &fw) {
+				argnum = fw;
+				fw = 0;
+				used_dollar = TRUE;
+				if (argnum <= 0)
+					fatal(_("arg count with `$' must be > 0"));
+				if (argnum >= num_args)
+					fatal(_("arg count %d greater than total number of supplied arguments"), argnum);
+			} else
+				fatal(_("`$' not permitted after period in format"));
+			goto retry;
 		case '*':
 			if (cur == NULL)
 				break;
-			parse_next_arg();
+			if (! do_traditional && ISDIGIT(*s1)) {
+				int val = 0;
+
+				for (; n0 > 0 && *s1 && ISDIGIT(*s1); s1++, n0--) {
+					val *= 10;
+					val += *s1 - '0';
+				}
+				if (*s1 != '$') {
+					fatal(_("no `$' supplied for positional field width or precision"));
+				} else {
+					s1++;
+					n0--;
+				}
+
+				arg = the_args[val];
+			} else {
+				parse_next_arg();
+			}
 			*cur = force_number(arg);
-			free_temp(arg);
 			if (*cur < 0 && cur == &fw) {
 				*cur = -*cur;
 				lj++;
@@ -555,11 +665,11 @@ check_pos:
 				static int warned = FALSE;
 				
 				if (do_lint && ! warned) {
-					warning("`l' is meaningless in awk formats; ignored");
+					lintwarn(_("`l' is meaningless in awk formats; ignored"));
 					warned = TRUE;
 				}
 				if (do_posix)
-					fatal("'l' is not permitted in POSIX awk formats");
+					fatal(_("`l' is not permitted in POSIX awk formats"));
 			}
 			big = TRUE;
 			goto retry;
@@ -570,11 +680,11 @@ check_pos:
 				static int warned = FALSE;
 				
 				if (do_lint && ! warned) {
-					warning("`L' is meaningless in awk formats; ignored");
+					lintwarn(_("`L' is meaningless in awk formats; ignored"));
 					warned = TRUE;
 				}
 				if (do_posix)
-					fatal("'L' is not permitted in POSIX awk formats");
+					fatal(_("`L' is not permitted in POSIX awk formats"));
 			}
 			bigbig = TRUE;
 			goto retry;
@@ -585,11 +695,11 @@ check_pos:
 				static int warned = FALSE;
 				
 				if (do_lint && ! warned) {
-					warning("`h' is meaningless in awk formats; ignored");
+					lintwarn(_("`h' is meaningless in awk formats; ignored"));
 					warned = TRUE;
 				}
 				if (do_posix)
-					fatal("'h' is not permitted in POSIX awk formats");
+					fatal(_("`h' is not permitted in POSIX awk formats"));
 			}
 			small = TRUE;
 			goto retry;
@@ -783,7 +893,6 @@ check_pos:
 				fw--;
 			}
 			s0 = s1;
-			free_temp(arg);
 			break;
 
      out_of_range:
@@ -800,7 +909,6 @@ check_pos:
 			parse_next_arg();
 			tmpval = force_number(arg);
      format_float:
-			free_temp(arg);
 			if (! have_prec)
 				prec = DEFAULT_G_PRECISION;
 			chksize(fw + prec + 9);	/* 9 == slop */
@@ -840,35 +948,44 @@ check_pos:
 		}
 		if (toofew)
 			fatal("%s\n\t`%s'\n\t%*s%s",
-			"not enough arguments to satisfy format string",
-			fmt_string, s1 - fmt_string - 2, "",
-			"^ ran out for this one"
-			);
+			      _("not enough arguments to satisfy format string"),
+			      fmt_string, s1 - fmt_string - 2, "",
+			      _("^ ran out for this one"));
 	}
 	if (do_lint) {
 		if (need_format)
-			warning(
-			"printf format specifier does not have control letter");
+			lintwarn(
+			_("[s]printf: format specifier does not have control letter"));
 		if (carg != NULL)
-			warning(
-			"too many arguments supplied for format string");
+			lintwarn(
+			_("too many arguments supplied for format string"));
 	}
 	bchunk(s0, s1 - s0);
 	r = make_str_node(obuf, obufout - obuf, ALREADY_MALLOCED);
 	r->flags |= TEMP;
+
+	for (i = 1; i < num_args; i++) {
+		unref(the_args[i]);
+	}
+
+	if (call_level-- > 1) {
+		free(the_args);
+		the_args = save_args;
+		args_size = save_args_size;
+	}
+
 	return r;
 }
 
 /* do_sprintf --- perform sprintf */
 
 NODE *
-do_sprintf(tree)
-NODE *tree;
+do_sprintf(NODE *tree)
 {
 	NODE *r;
 	NODE *sfmt = force_string(tree_eval(tree->lnode));
 
-	r = format_tree(sfmt->stptr, sfmt->stlen, tree->rnode);
+	r = format_tree(sfmt->stptr, sfmt->stlen, tree->rnode, tree->printf_count);
 	free_temp(sfmt);
 	return r;
 }
@@ -876,8 +993,7 @@ NODE *tree;
 /* do_printf --- perform printf, including redirection */
 
 void
-do_printf(tree)
-register NODE *tree;
+do_printf(NODE *tree)
 {
 	struct redirect *rp = NULL;
 	register FILE *fp;
@@ -885,10 +1001,10 @@ register NODE *tree;
 	if (tree->lnode == NULL) {
 		if (do_traditional) {
 			if (do_lint)
-				warning("printf: no arguments");
+				lintwarn(_("printf: no arguments"));
 			return;	/* bwk accepts it silently */
 		}
-		fatal("printf: no arguments");
+		fatal(_("printf: no arguments"));
 	}
 
 	if (tree->rnode != NULL) {
@@ -903,33 +1019,36 @@ register NODE *tree;
 			return;
 	} else
 		fp = stdout;
+	tree->lnode->printf_count = tree->printf_count;
 	tree = do_sprintf(tree->lnode);
 	efwrite(tree->stptr, sizeof(char), tree->stlen, fp, "printf", rp, TRUE);
+	if (rp != NULL && (rp->flag & RED_TWOWAY) != 0)
+		fflush(rp->fp);
 	free_temp(tree);
 }
 
 /* do_sqrt --- do the sqrt function */
 
 NODE *
-do_sqrt(tree)
-NODE *tree;
+do_sqrt(NODE *tree)
 {
 	NODE *tmp;
 	double arg;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("sqrt: received non-numeric argument"));
 	arg = (double) force_number(tmp);
 	free_temp(tmp);
 	if (arg < 0.0)
-		warning("sqrt called with negative argument %g", arg);
+		warning(_("sqrt: called with negative argument %g"), arg);
 	return tmp_number((AWKNUM) sqrt(arg));
 }
 
 /* do_substr --- do the substr function */
 
 NODE *
-do_substr(tree)
-NODE *tree;
+do_substr(NODE *tree)
 {
 	NODE *t1, *t2, *t3;
 	NODE *r;
@@ -944,13 +1063,13 @@ NODE *tree;
 
 	if (d_index < 1.0) {
 		if (do_lint)
-			warning("substr: start index %g invalid, using 1",
-				d_index);
+			lintwarn(_("substr: start index %g is invalid, using 1"),
+				 d_index);
 		d_index = 1;
 	}
 	if (do_lint && double_to_int(d_index) != d_index)
-		warning("substr: non-integer start index %g will be truncated",
-			d_index);
+		lintwarn(_("substr: non-integer start index %g will be truncated"),
+			 d_index);
 
 	indx = d_index - 1;	/* awk indices are from 1, C's are from 0 */
 
@@ -963,33 +1082,33 @@ NODE *tree;
 		free_temp(t3);
 		if (d_length <= 0.0) {
 			if (do_lint)
-				warning("substr: length %g is <= 0", d_length);
+				lintwarn(_("substr: length %g is <= 0"), d_length);
 			free_temp(t1);
 			return Nnull_string;
 		}
 		if (do_lint && double_to_int(d_length) != d_length)
-			warning(
-		"substr: non-integer length %g will be truncated",
+			lintwarn(
+		_("substr: non-integer length %g will be truncated"),
 				d_length);
 		length = d_length;
 	}
 
 	if (t1->stlen == 0) {
 		if (do_lint)
-			warning("substr: source string is zero length");
+			lintwarn(_("substr: source string is zero length"));
 		free_temp(t1);
 		return Nnull_string;
 	}
 	if ((indx + length) > t1->stlen) {
 		if (do_lint)
-			warning(
-	"substr: length %d at position %d exceeds length of first argument (%d)",
+			lintwarn(
+	_("substr: length %d at start index %d exceeds length of first argument (%d)"),
 			length, indx+1, t1->stlen);
 		length = t1->stlen - indx;
 	}
 	if (indx >= t1->stlen) {
 		if (do_lint)
-			warning("substr: start index %d is past end of string",
+			lintwarn(_("substr: start index %d is past end of string"),
 				indx+1);
 		free_temp(t1);
 		return Nnull_string;
@@ -1002,8 +1121,7 @@ NODE *tree;
 /* do_strftime --- format a time stamp */
 
 NODE *
-do_strftime(tree)
-NODE *tree;
+do_strftime(NODE *tree)
 {
 	NODE *t1, *t2, *ret;
 	struct tm *tm;
@@ -1011,6 +1129,7 @@ NODE *tree;
 	char *bufp;
 	size_t buflen, bufsize;
 	char buf[BUFSIZ];
+	/* FIXME: One day make %d be %e, after C 99 is common. */
 	static char def_format[] = "%a %b %d %H:%M:%S %Z %Y";
 	char *format;
 	int formatlen;
@@ -1023,12 +1142,15 @@ NODE *tree;
 	t1 = t2 = NULL;
 	if (tree != NULL) {	/* have args */
 		if (tree->lnode != NULL) {
-			t1 = force_string(tree_eval(tree->lnode));
+			NODE *tmp = tree_eval(tree->lnode);
+			if (do_lint && (tmp->flags & (STRING|STR)) == 0)
+				lintwarn(_("strftime: recieved non-string first argument"));
+			t1 = force_string(tmp);
 			format = t1->stptr;
 			formatlen = t1->stlen;
 			if (formatlen == 0) {
 				if (do_lint)
-					warning("strftime called with empty format string");
+					lintwarn(_("strftime: received empty format string"));
 				free_temp(t1);
 				return tmp_string("", 0);
 			}
@@ -1036,6 +1158,8 @@ NODE *tree;
 	
 		if (tree->rnode != NULL) {
 			t2 = tree_eval(tree->rnode->lnode);
+			if (do_lint && (t2->flags & (NUM|NUMBER)) == 0)
+				lintwarn(_("strftime: recieved non-numeric second argument"));
 			fclock = (time_t) force_number(t2);
 			free_temp(t2);
 		}
@@ -1075,8 +1199,7 @@ NODE *tree;
 /* do_systime --- get the time of day */
 
 NODE *
-do_systime(tree)
-NODE *tree;
+do_systime(NODE *tree)
 {
 	time_t lclock;
 
@@ -1084,13 +1207,57 @@ NODE *tree;
 	return tmp_number((AWKNUM) lclock);
 }
 
+/* do_mktime --- turn a time string into a timestamp */
 
+NODE *
+do_mktime(NODE *tree)
+{
+	NODE *t1;
+	struct tm then;
+	long year;
+	int month, day, hour, minute, second, count;
+	int dst = -1; /* default is unknown */
+	time_t then_stamp;
+	char save;
+
+	t1 = tree_eval(tree->lnode);
+	if (do_lint && (t1->flags & (STRING|STR)) == 0)
+		lintwarn(_("mktime: received non-string argument"));
+	t1 = force_string(t1);
+
+	save = t1->stptr[t1->stlen];
+	t1->stptr[t1->stlen] = '\0';
+
+	count = sscanf(t1->stptr, "%ld %d %d %d %d %d %d",
+		        & year, & month, & day,
+			& hour, & minute, & second,
+		        & dst);
+
+	t1->stptr[t1->stlen] = save;
+	free_temp(t1);
+
+	if (count < 6
+	    || month < month - 1
+	    || year < year - 1900 || year - 1900 != (int) (year - 1900))
+		return tmp_number((AWKNUM) -1);
+
+	memset(& then, '\0', sizeof(then));
+	then.tm_sec = second;
+	then.tm_min = minute;
+	then.tm_hour = hour;
+	then.tm_mday = day;
+	then.tm_mon = month - 1;
+	then.tm_year = year - 1900;
+	then.tm_isdst = dst;
+
+	then_stamp = mktime(& then);
+	return tmp_number((AWKNUM) then_stamp);
+}
 
 /* do_system --- run an external command */
 
 NODE *
-do_system(tree)
-NODE *tree;
+do_system(NODE *tree)
 {
 	NODE *tmp;
 	int ret = 0;
@@ -1099,6 +1266,8 @@ NODE *tree;
 
 	(void) flush_io();     /* so output is synchronous with gawk's */
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (STRING|STR)) == 0)
+		lintwarn(_("system: recieved non-string argument"));
 	cmd = force_string(tmp)->stptr;
 
 	if (cmd && *cmd) {
@@ -1121,8 +1290,11 @@ NODE *tree;
 		save = cmd[tmp->stlen];
 		cmd[tmp->stlen] = '\0';
 
+		os_restore_mode(fileno(stdin));
 		ret = system(cmd);
 		ret = (ret >> 8) & 0xff;
+		if ((BINMODE & 1) != 0)
+			os_setbinmode(fileno(stdin), O_BINARY);
 
 		cmd[tmp->stlen] = save;
 	}
@@ -1135,8 +1307,7 @@ extern NODE **fmt_list;  /* declared in eval.c */
 /* do_print --- print items, separated by OFS, terminated with ORS */
 
 void 
-do_print(tree)
-register NODE *tree;
+do_print(register NODE *tree)
 {
 	register NODE **t;
 	struct redirect *rp = NULL;
@@ -1200,25 +1371,29 @@ register NODE *tree;
 	if (ORSlen > 0)
 		efwrite(ORS, sizeof(char), (size_t) ORSlen, fp, "print", rp, TRUE);
 
+	if (rp != NULL && (rp->flag & RED_TWOWAY) != 0)
+		fflush(rp->fp);
+
 	free(t);
 }
 
 /* do_tolower --- lower case a string */
 
 NODE *
-do_tolower(tree)
-NODE *tree;
+do_tolower(NODE *tree)
 {
 	NODE *t1, *t2;
 	register unsigned char *cp, *cp2;
 
 	t1 = tree_eval(tree->lnode);
+	if (do_lint && (t1->flags & (STRING|STR)) == 0)
+		lintwarn(_("tolower: recieved non-string argument"));
 	t1 = force_string(t1);
 	t2 = tmp_string(t1->stptr, t1->stlen);
 	for (cp = (unsigned char *)t2->stptr,
 	     cp2 = (unsigned char *)(t2->stptr + t2->stlen); cp < cp2; cp++)
 		if (ISUPPER(*cp))
-			*cp = tolower(*cp);
+			*cp = TOLOWER(*cp);
 	free_temp(t1);
 	return t2;
 }
@@ -1226,19 +1401,20 @@ NODE *tree;
 /* do_toupper --- upper case a string */
 
 NODE *
-do_toupper(tree)
-NODE *tree;
+do_toupper(NODE *tree)
 {
 	NODE *t1, *t2;
 	register unsigned char *cp, *cp2;
 
 	t1 = tree_eval(tree->lnode);
+	if (do_lint && (t1->flags & (STRING|STR)) == 0)
+		lintwarn(_("toupper: recieved non-string argument"));
 	t1 = force_string(t1);
 	t2 = tmp_string(t1->stptr, t1->stlen);
 	for (cp = (unsigned char *)t2->stptr,
 	     cp2 = (unsigned char *)(t2->stptr + t2->stlen); cp < cp2; cp++)
 		if (ISLOWER(*cp))
-			*cp = toupper(*cp);
+			*cp = TOUPPER(*cp);
 	free_temp(t1);
 	return t2;
 }
@@ -1246,14 +1422,19 @@ NODE *tree;
 /* do_atan2 --- do the atan2 function */
 
 NODE *
-do_atan2(tree)
-NODE *tree;
+do_atan2(NODE *tree)
 {
 	NODE *t1, *t2;
 	double d1, d2;
 
 	t1 = tree_eval(tree->lnode);
 	t2 = tree_eval(tree->rnode->lnode);
+	if (do_lint) {
+		if ((t1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("atan2: received non-numeric first argument"));
+		if ((t2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("atan2: received non-numeric second argument"));
+	}
 	d1 = force_number(t1);
 	d2 = force_number(t2);
 	free_temp(t1);
@@ -1264,13 +1445,14 @@ NODE *tree;
 /* do_sin --- do the sin function */
 
 NODE *
-do_sin(tree)
-NODE *tree;
+do_sin(NODE *tree)
 {
 	NODE *tmp;
 	double d;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("sin: received non-numeric argument"));
 	d = sin((double) force_number(tmp));
 	free_temp(tmp);
 	return tmp_number((AWKNUM) d);
@@ -1279,13 +1461,14 @@ NODE *tree;
 /* do_cos --- do the cos function */
 
 NODE *
-do_cos(tree)
-NODE *tree;
+do_cos(NODE *tree)
 {
 	NODE *tmp;
 	double d;
 
 	tmp = tree_eval(tree->lnode);
+	if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+		lintwarn(_("cos: received non-numeric argument"));
 	d = cos((double) force_number(tmp));
 	free_temp(tmp);
 	return tmp_number((AWKNUM) d);
@@ -1298,8 +1481,7 @@ static char state[512];
 
 /* ARGSUSED */
 NODE *
-do_rand(tree)
-NODE *tree;
+do_rand(NODE *tree)
 {
 	if (firstrand) {
 		(void) initstate((unsigned) 1, state, sizeof state);
@@ -1312,8 +1494,7 @@ NODE *tree;
 /* do_srand --- seed the random number generator */
 
 NODE *
-do_srand(tree)
-NODE *tree;
+do_srand(NODE *tree)
 {
 	NODE *tmp;
 	static long save_seed = 1;
@@ -1334,30 +1515,62 @@ NODE *tree;
 #endif
 	else {
 		tmp = tree_eval(tree->lnode);
+		if (do_lint && (tmp->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("srand: received non-numeric argument"));
 		srandom((unsigned int) (save_seed = (long) force_number(tmp)));
 		free_temp(tmp);
 	}
 	return tmp_number((AWKNUM) ret);
 }
 
-/* do_match --- match a regexp, set RSTART and RLENGTH */
+/* do_match --- match a regexp, set RSTART and RLENGTH,
+ * 	optional third arg is array filled with text of
+ * 	subpatterns enclosed in parens.
+ */
 
 NODE *
-do_match(tree)
-NODE *tree;
+do_match(NODE *tree)
 {
-	NODE *t1;
-	int rstart;
+	NODE *t1, *dest, *it;
+	int rstart, len, ii;
 	AWKNUM rlength;
 	Regexp *rp;
+	regoff_t s;
+	char *start;
 
 	t1 = force_string(tree_eval(tree->lnode));
-	tree = tree->rnode->lnode;
-	rp = re_update(tree);
+	tree = tree->rnode;
+	rp = re_update(tree->lnode);
+
+	dest = NULL;
+	if (tree->rnode != NULL) {  /* 3rd optional arg for the subpatterns */
+		dest = tree->rnode->lnode;
+		if (dest->type == Node_param_list)
+			dest = stack_ptr[dest->param_cnt];
+		if (dest->type == Node_array_ref)
+			dest = dest->orig_array;
+		if (dest->type != Node_var && dest->type != Node_var_array)
+			fatal(_("match: third argument is not an array"));
+		dest->type = Node_var_array;
+		assoc_clear(dest);
+	}
+	
 	rstart = research(rp, t1->stptr, 0, t1->stlen, TRUE);
 	if (rstart >= 0) {	/* match succeded */
 		rstart++;	/* 1-based indexing */
 		rlength = REEND(rp, t1->stptr) - RESTART(rp, t1->stptr);
+	
+		/* Build the array only if the caller wants the optional subpatterns */
+		if (dest != NULL) {
+			for (ii = 0; (s = SUBPATSTART(rp, t1->stptr, ii)) != -1; ii++) {
+				start = t1->stptr + s;
+				len = SUBPATEND(rp, t1->stptr, ii) - s;
+
+				it = make_string(start, len);
+				it->flags |= MAYBE_NUM;
+				*assoc_lookup(dest, tmp_number((AWKNUM) (ii)), FALSE) = it;
+			}
+		}
 	} else {		/* match failed */
 		rstart = 0;
 		rlength = -1.0;
@@ -1432,13 +1645,11 @@ NODE *tree;
  */
 
 /*
- * NB: `howmany' conflicts with a SunOS macro in <sys/param.h>.
+ * NB: `howmany' conflicts with a SunOS 4.x macro in <sys/param.h>.
  */
 
 static NODE *
-sub_common(tree, how_many, backdigs)
-NODE *tree;
-int how_many, backdigs;
+sub_common(NODE *tree, int how_many, int backdigs)
 {
 	register char *scan;
 	register char *bp, *cp;
@@ -1487,18 +1698,13 @@ int how_many, backdigs;
 	if (tmp->type == Node_val)
 		lhs = NULL;
 	else
-		lhs = get_lhs(tmp, &after_assign);
+		lhs = get_lhs(tmp, &after_assign, FALSE);
 	t->flags |= STRING;
 	/*
 	 * create a private copy of the string
 	 */
 	if (t->stref > 1 || (t->flags & (PERM|FIELD)) != 0) {
-		unsigned int saveflags;
-
-		saveflags = t->flags;
-		t->flags &= ~MALLOC;
-		tmp = dupnode(t);
-		t->flags = saveflags;
+		tmp = copynode(t);
 		t = tmp;
 		priv = TRUE;
 	}
@@ -1680,8 +1886,7 @@ int how_many, backdigs;
 /* do_gsub --- global substitution */
 
 NODE *
-do_gsub(tree)
-NODE *tree;
+do_gsub(NODE *tree)
 {
 	return sub_common(tree, -1, FALSE);
 }
@@ -1689,8 +1894,7 @@ NODE *tree;
 /* do_sub --- single substitution */
 
 NODE *
-do_sub(tree)
-NODE *tree;
+do_sub(NODE *tree)
 {
 	return sub_common(tree, 1, FALSE);
 }
@@ -1698,8 +1902,7 @@ NODE *tree;
 /* do_gensub --- fix up the tree for sub_common for the gensub function */
 
 NODE *
-do_gensub(tree)
-NODE *tree;
+do_gensub(NODE *tree)
 {
 	NODE n1, n2, n3, *t, *tmp, *target, *ret;
 	long how_many = 1;	/* default is one substitution */
@@ -1743,6 +1946,8 @@ NODE *tree;
 			how_many = d;
 		else
 			how_many = 1;
+		if (d == 0)
+			warning(_("gensub: 3rd argument of 0 treated as 1"));
 	}
 
 	free_temp(t);
@@ -1766,13 +1971,12 @@ NODE *tree;
  * 'format' string HAS to be of "<flags>*.*g" kind, or we bomb!
  */
 static void
-sgfmt(buf, format, alt, fwidth, prec, g)
-char *buf;	/* return buffer; assumed big enough to hold result */
-const char *format;
-int alt;	/* use alternate form flag */
-int fwidth;	/* field width in a format */
-int prec;	/* indicates desired significant digits, not decimal places */
-double g;	/* value to format */
+sgfmt(char *buf,	/* return buffer; assumed big enough to hold result */
+	const char *format,
+	int alt,	/* use alternate form flag */
+	int fwidth,	/* field width in a format */
+	int prec,	/* indicates desired significant digits, not decimal places */
+	double g)	/* value to format */
 {
 	char dform[40];
 	register char *gpos;
@@ -1836,173 +2040,191 @@ double g;	/* value to format */
 }
 #endif	/* GFMT_WORKAROUND */
 
-#ifdef BITOPS
 #define BITS_PER_BYTE	8	/* if not true, you lose. too bad. */
 
 /* do_lshift --- perform a << operation */
 
 NODE *
-do_lshift(tree)
-NODE *tree;
+do_lshift(NODE *tree)
 {
 	NODE *s1, *s2;
-	unsigned long uval, ushift, result;
+	unsigned long uval, ushift, res;
 	AWKNUM val, shift;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
 	val = force_number(s1);
 	shift = force_number(s2);
-	free_temp(s1);
-	free_temp(s2);
 
 	if (do_lint) {
+		if ((s1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("lshift: received non-numeric first argument"));
+		if ((s2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("lshift: received non-numeric first argument"));
 		if (val < 0 || shift < 0)
-			warning("lshift(%lf, %lf): negative values will give strange results", val, shift);
+			lintwarn(_("lshift(%lf, %lf): negative values will give strange results"), val, shift);
 		if (double_to_int(val) != val || double_to_int(shift) != shift)
-			warning("lshift(%lf, %lf): fractional values will be truncated", val, shift);
+			lintwarn(_("lshift(%lf, %lf): fractional values will be truncated"), val, shift);
 		if (shift > (sizeof(unsigned long) * BITS_PER_BYTE))
-			warning("lshift(%lf, %lf): too large shift value will give strange results", val, shift);
+			lintwarn(_("lshift(%lf, %lf): too large shift value will give strange results"), val, shift);
 	}
+
+	free_temp(s1);
+	free_temp(s2);
 
 	uval = (unsigned long) val;
 	ushift = (unsigned long) shift;
 
-	result = uval << ushift;
-	return tmp_number((AWKNUM) result);
+	res = uval << ushift;
+	return tmp_number((AWKNUM) res);
 }
 
 /* do_rshift --- perform a >> operation */
 
 NODE *
-do_rshift(tree)
-NODE *tree;
+do_rshift(NODE *tree)
 {
 	NODE *s1, *s2;
-	unsigned long uval, ushift, result;
+	unsigned long uval, ushift, res;
 	AWKNUM val, shift;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
 	val = force_number(s1);
 	shift = force_number(s2);
-	free_temp(s1);
-	free_temp(s2);
 
 	if (do_lint) {
+		if ((s1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("rshift: received non-numeric first argument"));
+		if ((s2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("rshift: received non-numeric first argument"));
 		if (val < 0 || shift < 0)
-			warning("rshift(%lf, %lf): negative values will give strange results", val, shift);
+			lintwarn(_("rshift(%lf, %lf): negative values will give strange results"), val, shift);
 		if (double_to_int(val) != val || double_to_int(shift) != shift)
-			warning("rshift(%lf, %lf): fractional values will be truncated", val, shift);
+			lintwarn(_("rshift(%lf, %lf): fractional values will be truncated"), val, shift);
 		if (shift > (sizeof(unsigned long) * BITS_PER_BYTE))
-			warning("rshift(%lf, %lf): too large shift value will give strange results", val, shift);
+			lintwarn(_("rshift(%lf, %lf): too large shift value will give strange results"), val, shift);
 	}
+
+	free_temp(s1);
+	free_temp(s2);
 
 	uval = (unsigned long) val;
 	ushift = (unsigned long) shift;
 
-	result = uval >> ushift;
-	return tmp_number((AWKNUM) result);
+	res = uval >> ushift;
+	return tmp_number((AWKNUM) res);
 }
 
 /* do_and --- perform an & operation */
 
 NODE *
-do_and(tree)
-NODE *tree;
+do_and(NODE *tree)
 {
 	NODE *s1, *s2;
-	unsigned long uleft, uright, result;
+	unsigned long uleft, uright, res;
 	AWKNUM left, right;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
 	left = force_number(s1);
 	right = force_number(s2);
-	free_temp(s1);
-	free_temp(s2);
 
 	if (do_lint) {
+		if ((s1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("and: received non-numeric first argument"));
+		if ((s2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("and: received non-numeric first argument"));
 		if (left < 0 || right < 0)
-			warning("and(%lf, %lf): negative values will give strange results", left, right);
+			lintwarn(_("and(%lf, %lf): negative values will give strange results"), left, right);
 		if (double_to_int(left) != left || double_to_int(right) != right)
-			warning("and(%lf, %lf): fractional values will be truncated", left, right);
+			lintwarn(_("and(%lf, %lf): fractional values will be truncated"), left, right);
 	}
+
+	free_temp(s1);
+	free_temp(s2);
 
 	uleft = (unsigned long) left;
 	uright = (unsigned long) right;
 
-	result = uleft & uright;
-	return tmp_number((AWKNUM) result);
+	res = uleft & uright;
+	return tmp_number((AWKNUM) res);
 }
 
 /* do_or --- perform an | operation */
 
 NODE *
-do_or(tree)
-NODE *tree;
+do_or(NODE *tree)
 {
 	NODE *s1, *s2;
-	unsigned long uleft, uright, result;
+	unsigned long uleft, uright, res;
 	AWKNUM left, right;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
 	left = force_number(s1);
 	right = force_number(s2);
-	free_temp(s1);
-	free_temp(s2);
 
 	if (do_lint) {
+		if ((s1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("or: received non-numeric first argument"));
+		if ((s2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("or: received non-numeric first argument"));
 		if (left < 0 || right < 0)
-			warning("or(%lf, %lf): negative values will give strange results", left, right);
+			lintwarn(_("or(%lf, %lf): negative values will give strange results"), left, right);
 		if (double_to_int(left) != left || double_to_int(right) != right)
-			warning("or(%lf, %lf): fractional values will be truncated", left, right);
+			lintwarn(_("or(%lf, %lf): fractional values will be truncated"), left, right);
 	}
+
+	free_temp(s1);
+	free_temp(s2);
 
 	uleft = (unsigned long) left;
 	uright = (unsigned long) right;
 
-	result = uleft | uright;
-	return tmp_number((AWKNUM) result);
+	res = uleft | uright;
+	return tmp_number((AWKNUM) res);
 }
 
 /* do_xor --- perform an ^ operation */
 
 NODE *
-do_xor(tree)
-NODE *tree;
+do_xor(NODE *tree)
 {
 	NODE *s1, *s2;
-	unsigned long uleft, uright, result;
+	unsigned long uleft, uright, res;
 	AWKNUM left, right;
 
 	s1 = tree_eval(tree->lnode);
 	s2 = tree_eval(tree->rnode->lnode);
 	left = force_number(s1);
 	right = force_number(s2);
-	free_temp(s1);
-	free_temp(s2);
 
 	if (do_lint) {
+		if ((s1->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("xor: received non-numeric first argument"));
+		if ((s2->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("xor: received non-numeric first argument"));
 		if (left < 0 || right < 0)
-			warning("xor(%lf, %lf): negative values will give strange results", left, right);
+			lintwarn(_("xor(%lf, %lf): negative values will give strange results"), left, right);
 		if (double_to_int(left) != left || double_to_int(right) != right)
-			warning("xor(%lf, %lf): fractional values will be truncated", left, right);
+			lintwarn(_("xor(%lf, %lf): fractional values will be truncated"), left, right);
 	}
+
+	free_temp(s1);
+	free_temp(s2);
 
 	uleft = (unsigned long) left;
 	uright = (unsigned long) right;
 
-	result = uleft ^ uright;
-	return tmp_number((AWKNUM) result);
+	res = uleft ^ uright;
+	return tmp_number((AWKNUM) res);
 }
 
 /* do_compl --- perform a ~ operation */
 
 NODE *
-do_compl(tree)
-NODE *tree;
+do_compl(NODE *tree)
 {
 	NODE *tmp;
 	double d;
@@ -2013,10 +2235,12 @@ NODE *tree;
 	free_temp(tmp);
 
 	if (do_lint) {
+		if ((tmp->flags & (NUM|NUMBER)) == 0)
+			lintwarn(_("compl: received non-numeric argument"));
 		if (d < 0)
-			warning("compl(%lf): negative value will give strange results", d);
+			lintwarn(_("compl(%lf): negative value will give strange results"), d);
 		if (double_to_int(d) != d)
-			warning("compl(%lf): fractional value will be truncated", d);
+			lintwarn(_("compl(%lf): fractional value will be truncated"), d);
 	}
 
 	uval = (unsigned long) d;
@@ -2027,11 +2251,10 @@ NODE *tree;
 /* do_strtonum --- the strtonum function */
 
 NODE *
-do_strtonum(tree)
-NODE *tree;
+do_strtonum(NODE *tree)
 {
 	NODE *tmp;
-	double d, arg;
+	double d;
 
 	tmp = tree_eval(tree->lnode);
 
@@ -2045,9 +2268,7 @@ NODE *tree;
 	free_temp(tmp);
 	return tmp_number((AWKNUM) d);
 }
-#endif /* BITOPS */
 
-#if defined(BITOPS) || defined(NONDECDATA)
 /* nondec2awknum --- convert octal or hex value to double */
 
 /*
@@ -2057,13 +2278,12 @@ NODE *tree;
  */
 
 AWKNUM
-nondec2awknum(str, len)
-char *str;
-size_t len;
+nondec2awknum(char *str, size_t len)
 {
 	AWKNUM retval = 0.0;
 	char save;
 	short val;
+	char *start = str;
 
 	if (*str == '0' && (str[1] == 'x' || str[1] == 'X')) {
 		assert(len > 2);
@@ -2107,18 +2327,172 @@ size_t len;
 		if (strchr(str, '8') != NULL || strchr(str, '9') != NULL)
 			goto decimal;
 		for (; len > 0; len--) {
-			if (! isdigit(*str))
+			if (! ISDIGIT(*str))
 				goto done;
+			else if (*str == '8' || *str == '9') {
+				str = start;
+				goto decimal;
+			}
 			retval = (retval * 8) + (*str - '0');
 			str++;
 		}
 	} else {
 decimal:
 		save = str[len];
-		retval = atof(str);
+		retval = strtod(str, NULL);
 		str[len] = save;
 	}
 done:
 	return retval;
 }
-#endif /* defined(BITOPS) || defined(NONDECDATA) */
+
+/* do_dcgettext --- handle i18n translations */
+
+/*
+ * awk usage is
+ *
+ * 	str = dcgettext(string [, domain [, category]])
+ *
+ * Default domain is TEXTDOMAIN, default category is LC_MESSAGES.
+ */
+
+NODE *
+do_dcgettext(NODE *tree)
+{
+	NODE *tmp, *t1, *t2;
+	char *string;
+	char *the_result;
+#if ENABLE_NLS && HAVE_LC_MESSAGES && HAVE_DCGETTEXT
+	int lc_cat = -1;
+	char *category, *domain;
+	static struct category_table {
+		int val;
+		char *name;
+	} cat_tab[] = {
+#ifdef LC_ALL
+		{ LC_ALL,	"LC_ALL" },
+#endif /* LC_ALL */
+#ifdef LC_COLLATE
+		{ LC_COLLATE,	"LC_COLLATE" },
+#endif /* LC_COLLATE */
+#ifdef LC_CTYPE
+		{ LC_CTYPE,	"LC_CTYPE" },
+#endif /* LC_CTYPE */
+#ifdef LC_MESSAGES
+		{ LC_MESSAGES,	"LC_MESSAGES" },
+#endif /* LC_MESSAGES */
+#ifdef LC_MONETARY
+		{ LC_MONETARY,	"LC_MONETARY" },
+#endif /* LC_MONETARY */
+#ifdef LC_NUMERIC
+		{ LC_NUMERIC,	"LC_NUMERIC" },
+#endif /* LC_NUMERIC */
+#ifdef LC_RESPONSE
+		{ LC_RESPONSE,	"LC_RESPONSE" },
+#endif /* LC_RESPONSE */
+#ifdef LC_TIME
+		{ LC_TIME,	"LC_TIME" },
+#endif /* LC_TIME */
+	};
+#endif /* ENABLE_NLS */
+
+	tmp = tree->lnode;	/* first argument */
+	t1 = force_string(tree_eval(tmp));
+	string = t1->stptr;
+
+	t2 = NULL;
+#if ENABLE_NLS && HAVE_LC_MESSAGES && HAVE_DCGETTEXT
+	tree = tree->rnode;	/* second argument */
+	if (tree != NULL) {
+		tmp = tree->lnode;
+		t2 = force_string(tree_eval(tmp));
+		domain = t2->stptr;
+	} else
+		domain = TEXTDOMAIN;
+
+	if (tree != NULL && tree->rnode != NULL) {	/* third argument */
+		int low, high, i, mid;
+		NODE *t;
+
+		tree = tree->rnode;
+		tmp = tree->lnode;
+		t = force_string(tree_eval(tmp));
+		category = t->stptr;
+
+		/* binary search the table */
+		low = 0;
+		high = (sizeof(cat_tab) / sizeof(cat_tab[0])) - 1;
+		while (low <= high) {
+			mid = (low + high) / 2;
+			i = strcmp(category, cat_tab[mid].name);
+
+			if (i < 0)		/* category < mid */
+				high = mid - 1;
+			else if (i > 0)		/* category > mid */
+				low = mid + 1;
+			else {
+				lc_cat = cat_tab[mid].val;
+				break;
+			}
+		}
+		if (lc_cat == -1)	/* not there */
+			fatal(_("dcgettext: `%s' is not a valid locale category"), category);
+
+		free_temp(t);
+	} else
+		lc_cat = LC_MESSAGES;
+
+	the_result = dcgettext(domain, string, lc_cat);
+#else
+	the_result = string;
+#endif
+	free_temp(t1);
+	if (t2 != NULL)
+		free_temp(t2);
+
+	return tmp_string(the_result, strlen(the_result));
+}
+
+/* do_bindtextdomain --- set the directory for a text domain */
+
+/*
+ * awk usage is
+ *
+ * 	binding = bindtextdomain(dir [, domain])
+ *
+ * If dir is "", pass NULL to C version.
+ * Default domain is TEXTDOMAIN.
+ */
+
+NODE *
+do_bindtextdomain(NODE *tree)
+{
+	NODE *tmp, *t1, *t2;
+	char *directory, *domain;
+	char *the_result;
+
+	t1 = t2 = NULL;
+	/* set defaults */
+	directory = NULL;
+	domain = TEXTDOMAIN;
+
+	tmp = tree->lnode;	/* first argument */
+	t1 = force_string(tree_eval(tmp));
+	if (t1->stlen > 0)
+		directory = t1->stptr;
+
+	tree = tree->rnode;	/* second argument */
+	if (tree != NULL) {
+		tmp = tree->lnode;
+		t2 = force_string(tree_eval(tmp));
+		domain = t2->stptr;
+	}
+
+	the_result = bindtextdomain(domain, directory);
+
+	free_temp(t1);
+	if (t2 != NULL)
+		free_temp(t1);
+
+	return tmp_string(the_result, strlen(the_result));
+}
