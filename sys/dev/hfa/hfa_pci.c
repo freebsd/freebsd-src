@@ -128,25 +128,15 @@ hfa_pci_attach (dev)
 	fup = &sc->fup;
 	error = 0;
 
-	switch (pci_get_device(dev)) {
-	case FORE_PCA200EPC_ID:
-		fup->fu_config.ac_device = DEV_FORE_PCA200E;
-		break;
-	default:
-		fup->fu_config.ac_device = DEV_UNKNOWN;
-		break;
-	}
-
 	pci_enable_busmaster(dev);
+	pci_enable_io(dev, SYS_RES_MEMORY);
+
 	command = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((command & PCIM_CMD_BUSMASTEREN) == 0) {
 		device_printf(dev, "Unable to enable PCI busmastering.\n");
 		error = ENXIO;
 		goto fail;
 	}
-
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((command & PCIM_CMD_MEMEN) == 0) {
 		device_printf(dev, "Unable to enable PCI memory resources.\n");
 		error = ENXIO;
@@ -191,6 +181,15 @@ hfa_pci_attach (dev)
 
 	fup->fu_config.ac_bustype = BUS_PCI;
 	fup->fu_config.ac_busslot = (pci_get_bus(dev) << 8)| pci_get_slot(dev);
+
+	switch (pci_get_device(dev)) {
+	case FORE_PCA200EPC_ID:
+		fup->fu_config.ac_device = DEV_FORE_PCA200E;
+		break;
+	default:
+		fup->fu_config.ac_device = DEV_UNKNOWN;
+		break;
+	}
 
 	error = hfa_attach(dev);
 	if (error) {
