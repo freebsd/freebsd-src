@@ -257,7 +257,7 @@ vxgetlink(sc)
 	if (n > 0) {
 	  printf("/");
 	}
-	printf(conn_tab[k].name);
+	printf("%s", conn_tab[k].name);
 	n++;
       }
     }
