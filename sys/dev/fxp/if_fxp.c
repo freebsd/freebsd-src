@@ -595,6 +595,12 @@ fxp_attach(device_t dev)
 
 		/* turn on the extended TxCB feature */
 		sc->flags |= FXP_FLAG_EXT_TXCB;
+
+		/* enable reception of long frames for VLAN */
+		sc->flags |= FXP_FLAG_LONG_PKT_EN;
+	} else {
+		/* a hack to get long VLAN frames on a 82557 */
+		sc->flags |= FXP_FLAG_SAVE_BAD;
 	}
 
 	/*
@@ -820,7 +826,7 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	/* this driver lets vlan(4) control the bit in if_capenable via ioctl */
+	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
 
 	/*
 	 * Let the system queue as many packets as we have available
