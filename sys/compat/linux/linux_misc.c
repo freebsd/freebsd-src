@@ -989,7 +989,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	struct proc *p;
 
 	ngrp = args->gidsetsize;
-	if (ngrp >= NGROUPS)
+	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
 	error = copyin(args->grouplist, linux_gidset, ngrp * sizeof(l_gid_t));
 	if (error)
