@@ -52,7 +52,7 @@
 /* The following are only available on 604: */
 #define	EXC_PERF	0x0f00		/* Performance Monitoring */
 #define	EXC_BPT		0x1300		/* Instruction Breakpoint */
-#define	EXC_SMI		0x1400		/* System Managment Interrupt */
+#define	EXC_SMI		0x1400		/* System Management Interrupt */
 
 /* And these are only on the 603: */
 #define	EXC_IMISS	0x1000		/* Instruction translation miss */
@@ -60,8 +60,6 @@
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
-
-#define	EXC_AST		0x3000		/* Fake AST vector */
 
 /* Trap was in user mode */
 #define	EXC_USER	0x10000
@@ -87,6 +85,7 @@
 #ifndef	LOCORE
 
 void	trap(struct trapframe *);
+void	syscall(struct trapframe *);
 
 #endif /* !LOCORE */
 
