@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.27 1995/08/16 01:39:08 paulus Exp $";
+static char rcsid[] = "$Id: main.c,v 1.5 1995/10/31 21:21:26 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -160,6 +160,7 @@ main(argc, argv)
     struct passwd *pw;
     struct timeval timo;
     sigset_t mask;
+    int connect_attempts = 0;
 
     p = ttyname(0);
     if (p)
@@ -349,12 +350,20 @@ main(argc, argv)
 	    if (device_script(connector, fd, fd) < 0) {
 		syslog(LOG_ERR, "Connect script failed");
 		setdtr(fd, FALSE);
-		die(1);
+		if (++connect_attempts >= max_con_attempts)
+		    die(1);
+		else {
+		    close(fd);
+		    sleep(5);
+		    continue;
+		}
 	    }
 
 	    syslog(LOG_INFO, "Serial connection established.");
 	    sleep(1);		/* give it time to set up its terminal */
 	}
+
+	connect_attempts = 0;	/* we made it through ok */
 
 	/* set line speed, flow control, etc.; clear CLOCAL if modem option */
 	set_up_tty(fd, 0);

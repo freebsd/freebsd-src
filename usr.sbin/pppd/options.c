@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.8 1995/11/04 10:44:22 peter Exp $";
+static char rcsid[] = "$Id: options.c,v 1.9 1996/03/01 19:29:42 phk Exp $";
 #endif
 
 #include <stdio.h>
@@ -74,6 +74,7 @@ u_int32_t dns2 = 0;		/* Secondary DNS server */
 int	lockflag = 0;		/* Create lock file to lock the serial dev */
 int	nodetach = 0;		/* Don't detach from controlling tty */
 char	*connector = NULL;	/* Script to establish physical link */
+int	max_con_attempts = 1;	/* Maximum number of connect attempts */
 char	*disconnector = NULL;	/* Script to disestablish physical link */
 char	user[MAXNAMELEN];	/* Username for PAP */
 char	passwd[MAXSECRETLEN];	/* Password for PAP */
@@ -125,6 +126,7 @@ static int nomru __P((void));
 static int nopcomp __P((void));
 static int setconnector __P((char **));
 static int setdisconnector __P((char **));
+static int setmaxcon __P((char **));
 static int setdomain __P((char **));
 static int setnetmask __P((char **));
 static int setdns1 __P((char **));
@@ -207,6 +209,7 @@ static struct cmd {
     {"asyncmap", 1, setasyncmap}, /* set the desired async map */
     {"escape", 1, setescape},	/* set chars to escape on transmission */
     {"connect", 1, setconnector}, /* A program to set up a connection */
+    {"connect-max-attempts", 1, setmaxcon}, /* maximum # connection attempts */
     {"disconnect", 1, setdisconnector},	/* program to disconnect serial dev. */
     {"crtscts", 0, setcrtscts},	/* set h/w flow control */
     {"-crtscts", 0, setnocrtscts}, /* clear h/w flow control */
@@ -1773,6 +1776,12 @@ setpapcrypt()
 {
     cryptpap = 1;
     return 1;
+}
+
+static int setmaxcon (argv)
+    char **argv;
+{
+    return int_option(*argv, &max_con_attempts);
 }
 
 #ifdef _linux_

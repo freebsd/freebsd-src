@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.4 1995/10/31 21:21:42 peter Exp $
+ * $Id: pppd.h,v 1.5 1996/03/01 19:29:43 phk Exp $
  */
 
 /*
@@ -73,6 +73,7 @@ extern int	lockflag;	/* Create lock file to lock the serial dev */
 extern int	nodetach;	/* Don't detach from controlling tty */
 extern char	*connector;	/* Script to establish physical link */
 extern char	*disconnector;	/* Script to disestablish physical link */
+extern int	max_con_attempts;/* Maximum number of time to try dialing */
 extern char	user[];		/* Username for PAP */
 extern char	passwd[];	/* Password for PAP */
 extern int	auth_required;	/* Peer is required to authenticate */
