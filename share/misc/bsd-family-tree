@@ -139,6 +139,7 @@ it was the announcement in Usenet or if it was available as tape.
 [KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
 [SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[FBD] FreeBSD Project, The.
 
 
 Multics                 1965
@@ -197,20 +198,33 @@ Tenth   Edition         1989-10-xx [QCU]
 4.2BSD                  1983-09-xx [QCU]
 4.3BSD                  1986-06-xx [QCU]
 			1986-04-xx [KB]
-
 4.3BSD Tahoe            1988-06-xx [QCU]
 4.3BSD NET/1            1988-11-xx [QCU]
 4.3BSD Reno             1990-06-xx [QCU], [DOC]
 4.3BSD NET/2            1991-06-xx [QCU]
 386BSD 0.0              1992-02-xx [DOC]
 386BSD 0.1              1992-07-xx [DOC]
-386BSD 1.0              1994-11-12 [USE]
 4.4BSD Alpha            1992-07-07
 4.4BSD                  1993-06-01 [USE]
+FreeBSD 1.0		1993-11-xx [FOO]
 4.4BSD Lite             1994-03-01 [USE]
-		        1994-06-xx [U25]
+FreeBSD 1.1		1994-04-xx [FBD]
+FreeBSD 1.1.5.1		1994-07-xx [FBD]
+				supercedes 1.1.5 3 days after release.
+386BSD 1.0              1994-11-12 [USE]
+FreeBSD 2.0		1995-01-xx [FBD]
+FreeBSD 2.0.5		1995-06-xx [FBD]
 4.4BSD Lite Release 2	1995-06-xx [44B]
 				the true final distribution from the CSRG
+FreeBSD 2.1		1995-12-xx [FBD]
+FreeBSD 2.1.5		1996-08-xx [FBD]
+FreeBSD 2.1.6		1996-12-xx [FBD]
+FreeBSD 2.1.7		1997-02-xx [FBD]
+FreeBSD 2.2.1		1997-04-xx [FBD]
+FreeBSD 2.2.2		1997-06-xx [FBD]
+FreeBSD 2.2.5		1997-11-xx [FBD]
+FreeBSD 2.2.6		1998-03-xx [FBD]
+FreeBSD 2.2.7		1998-07-xx [FBD]
 
 
 
@@ -259,4 +273,4 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 --
 Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
-$Date: 1998/05/12 14:33:37 $ $Revision: 1.7 $
+$Date: 1998/08/13 10:10:10 $ $Revision: 1.8 $
