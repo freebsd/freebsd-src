@@ -32,7 +32,7 @@
  */
 
 #include <i386/isa/snd/sound.h>
-#include <i386/isa/sound/ulaw.h>
+#include <i386/isa/snd/ulaw.h>
 
 #define MIN_CHUNK_SIZE 256	/* for uiomove etc. */
 #define	DMA_ALIGN_THRESHOLD	4
