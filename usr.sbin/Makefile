@@ -286,7 +286,6 @@ _pppctl=	pppctl
 .endif
 .endif
 
-# kgmon: builds, but no kernel profiling
 # kgzip: builds, but missing support files
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
@@ -297,6 +296,7 @@ _acpi=		acpi
 _asf=		asf
 _boot0cfg=	boot0cfg
 _btxld=		btxld
+_kgmon=		kgmon
 _lptcontrol=	lptcontrol
 _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
