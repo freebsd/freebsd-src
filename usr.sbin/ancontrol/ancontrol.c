@@ -281,6 +281,17 @@ static void an_dumpstatus(iface)
 	an_printhex((char *)&sts->an_errcode, 1);
 	printf("\nSignal quality:\t\t");
 	an_printhex((char *)&sts->an_cur_signal_quality, 1);
+	/*
+	 * XXX: This uses the old definition of the rate field (units of
+	 * 500kbps).  Technically the new definition is that this field
+	 * contains arbitrary values, but no devices which need this
+	 * support exist and the IEEE seems to intend to use the old
+	 * definition until they get something big so we'll keep using
+	 * it as well because this will work with new cards with
+	 * rate <= 63.5Mbps.
+	 */
+	printf("\nCurrent TX rate:\t[ %d%s ]", sts->an_current_tx_rate / 2,
+	    (sts->an_current_tx_rate % 2) ? ".5" : "");
 	printf("\nCurrent SSID:\t\t");
 	an_printstr((char *)&sts->an_ssid, sts->an_ssidlen);
 	printf("\nCurrent AP name:\t");
