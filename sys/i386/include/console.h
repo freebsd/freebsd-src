@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.39 1998/09/15 18:16:37 sos Exp $
+ *	$Id: console.h,v 1.40 1998/09/23 09:58:45 yokota Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -531,7 +531,6 @@ typedef struct {int scr_size[3];} scr_size_t;
 #define M_VESA_64K_1280		0x11a	/* 1280x1024, 5:6:5 */
 #define M_VESA_FULL_1280	0x11b	/* 1280x1024, 8:8:8 */
 #define M_VESA_MODE_MAX		0x1ff
-#define M_VESA_USER		0x1ff
 
 #define SW_VESA_CG640x400	_IO('V', M_VESA_CG640x400 - M_VESA_BASE)
 #define SW_VESA_CG640x480	_IO('V', M_VESA_CG640x480 - M_VESA_BASE)
@@ -561,7 +560,6 @@ typedef struct {int scr_size[3];} scr_size_t;
 #define SW_VESA_32K_1280	_IO('V', M_VESA_32K_1280 - M_VESA_BASE)
 #define SW_VESA_64K_1280	_IO('V', M_VESA_64K_1280 - M_VESA_BASE)
 #define SW_VESA_FULL_1280	_IO('V', M_VESA_FULL_1280 - M_VESA_BASE)
-#define SW_VESA_USER		_IO('V', M_VESA_USER - M_VESA_BASE)
 
 #endif /* !_MACHINE_CONSOLE_H_ */
 
