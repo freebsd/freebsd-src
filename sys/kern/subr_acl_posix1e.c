@@ -621,7 +621,7 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_ucred, td);
+	error = VOP_SETACL(vp, type, NULL, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
