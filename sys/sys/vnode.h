@@ -155,6 +155,7 @@ struct vnode {
 #endif
 	dev_t	v_cachedfs;			/* cached fs id */
 	ino_t	v_cachedid;			/* cached file id */
+	int	v_bsize;			/* block size for I/O */
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
