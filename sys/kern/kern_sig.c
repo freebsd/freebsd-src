@@ -1645,7 +1645,7 @@ tdsignal(struct thread *td, int sig)
 	 */
 	if (action == SIG_HOLD &&
 	    !((prop & SA_CONT) && (p->p_flag & P_STOPPED_SIG)))
-                return;
+		return;
 	/*
 	 * Some signals have a process-wide effect and a per-thread
 	 * component.  Most processing occurs when the process next
