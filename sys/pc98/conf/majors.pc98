@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.58 1999/06/21 11:12:25 kato Exp $
+$Id: majors.pc98,v 1.59 1999/07/03 08:18:27 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -41,7 +41,7 @@ blkdev	name		comments
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
 28	fla		M-Systems DiskOnChip(r)
-29	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+29	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 30	ad		ATA disks
 31	acd		ATAPI CDROM
 32	afd		ATAPI floppy
@@ -158,7 +158,7 @@ chrdev	name		comments
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
 108	usb		Universal Serial Bus (hibma@skylink.it)
-109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+109	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 111	ums		USB Mouse (hibma@skylink.it)
 112	kbd		keyboard
