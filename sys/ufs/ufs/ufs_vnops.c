@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.107 1999/02/13 08:38:28 dillon Exp $
+ * $Id: ufs_vnops.c,v 1.108 1999/02/25 05:35:53 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -1017,6 +1017,10 @@ abortit:
 	 *    completing our work, the link count
 	 *    may be wrong, but correctable.
 	 */
+	if (ip->i_nlink >= LINK_MAX) {
+		error = EMLINK;
+		goto bad;
+	}
 	ip->i_effnlink++;
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
