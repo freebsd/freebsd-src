@@ -417,11 +417,15 @@ acpi_attach(device_t dev)
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "sleep_delay", CTLFLAG_RD | CTLFLAG_RW,
+	&sc->acpi_sleep_delay, 0, "sleep delay");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "s4bios", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
+    sc->acpi_sleep_delay = 1;
     sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
@@ -1355,6 +1359,10 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
 			  AcpiFormatException(status));
 	    break;
+	}
+
+	if (sc->acpi_sleep_delay > 0) {
+	    DELAY(sc->acpi_sleep_delay * 1000000);
 	}
 
 	if (state != ACPI_STATE_S1) {
