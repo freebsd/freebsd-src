@@ -33,7 +33,7 @@
 #
 
 ECHO=echo
-PKG_VERSION=./pkg_version.pl
+PKG_VERSION=./pkg_version
 
 test-pv ( ) { \
     setvar v1 $1
@@ -73,3 +73,22 @@ test-pv 1.5 "<" 1.5.0.1 portrevision
 test-pv 00.01.01,1 ">" 99.12.31 portepoch
 test-pv 0.0.1_1,2 ">" 0.0.1,2 portrevision/portepoch
 test-pv 0.0.1_1,3 ">" 0.0.1_2,2 portrevision/portepoch
+
+test-pv 2.0 ">" 2.a2 number/letter
+test-pv 3 "=" 3.0 equality
+test-pv 4a "<" 4a0 letter/zero
+test-pv 10a1b2 "=" 10a1.b2 separator
+
+test-pv 7pl "=" 7.pl patchevel
+test-pv 8.0.a "=" 8.0alpha alpha
+test-pv 9.b3.0 "=" 9beta3 beta
+test-pv 10.pre7 "=" 10pre7.0 pre
+test-pv 11.r "=" 11.rc rc
+
+test-pv 12pl "<" 12alpha alpha/patchevel
+test-pv 13.* "<" 13.pl star/patchevel
+
+test-pv 1.0.0+2003.09.06 "=" 1.0+2003.09.06 plus/multiple
+test-pv 1.0.1+2003.09.06 ">" 1.0+2003.09.06 plus/multiple
+test-pv 1.0.0+2003.09.06 "<" 1.0+2003.09.06_1 plus/portrevision
+test-pv 1.0.1+2003.09.06 ">" 1.0+2003.09.06_1 plus/portrevision

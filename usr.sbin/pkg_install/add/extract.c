@@ -27,14 +27,14 @@ __FBSDID("$FreeBSD$");
 #include "add.h"
 
 
-#define STARTSTRING "tar cf -"
+#define STARTSTRING "/usr/bin/tar cf -"
 #define TOOBIG(str) \
     (((int)strlen(str) + FILENAME_MAX + where_count > maxargs) ||\
 	((int)strlen(str) + FILENAME_MAX + perm_count > maxargs))
 
 #define PUSHOUT(todir) /* push out string */ \
     if (where_count > (int)sizeof(STARTSTRING)-1) { \
-	strcat(where_args, "|tar --unlink -xpf - -C "); \
+	strcat(where_args, "|/usr/bin/tar --unlink -xpf - -C "); \
 	strcat(where_args, todir); \
 	if (system(where_args)) { \
 	    cleanup(0); \
@@ -85,7 +85,7 @@ rollback(const char *name, const char *home, PackingList start, PackingList stop
     ++(pos); \
 } while (0)
 
-int
+static int
 add_arg(char *buf, int len, const char *str)
 {
     int i = 0;
@@ -132,7 +132,7 @@ extract_plist(const char *home, Package *pkg)
     Group = NULL;
     Mode = NULL;
     last_file = NULL;
-    (const char *)Directory = home;
+    Directory = (char *)home;
 
     /* Do it */
     while (p) {
@@ -223,7 +223,7 @@ extract_plist(const char *home, Package *pkg)
 		Directory = p->name;
 	    }
 	    else
-		(const char *)Directory = home;
+		Directory = (char *)home;
 	    break;
 
 	case PLIST_CMD:

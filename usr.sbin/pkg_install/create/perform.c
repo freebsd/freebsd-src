@@ -222,45 +222,54 @@ pkg_perform(char **pkgs)
     write_file(COMMENT_FNAME, Comment);
     add_plist(&plist, PLIST_IGNORE, NULL);
     add_plist(&plist, PLIST_FILE, COMMENT_FNAME);
+    add_cksum(&plist, plist.tail, COMMENT_FNAME);
     write_file(DESC_FNAME, Desc);
     add_plist(&plist, PLIST_IGNORE, NULL);
     add_plist(&plist, PLIST_FILE, DESC_FNAME);
+    add_cksum(&plist, plist.tail, DESC_FNAME);
 
     if (Install) {
 	copy_file(home, Install, INSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, INSTALL_FNAME);
+	add_cksum(&plist, plist.tail, INSTALL_FNAME);
     }
     if (PostInstall) {
 	copy_file(home, PostInstall, POST_INSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, POST_INSTALL_FNAME);
+	add_cksum(&plist, plist.tail, POST_INSTALL_FNAME);
     }
     if (DeInstall) {
 	copy_file(home, DeInstall, DEINSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, DEINSTALL_FNAME);
+	add_cksum(&plist, plist.tail, DEINSTALL_FNAME);
     }
     if (PostDeInstall) {
 	copy_file(home, PostDeInstall, POST_DEINSTALL_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, POST_DEINSTALL_FNAME);
+	add_cksum(&plist, plist.tail, POST_DEINSTALL_FNAME);
     }
     if (Require) {
 	copy_file(home, Require, REQUIRE_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, REQUIRE_FNAME);
+	add_cksum(&plist, plist.tail, REQUIRE_FNAME);
     }
     if (Display) {
 	copy_file(home, Display, DISPLAY_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, DISPLAY_FNAME);
+	add_cksum(&plist, plist.tail, DISPLAY_FNAME);
 	add_plist(&plist, PLIST_DISPLAY, DISPLAY_FNAME);
     }
     if (Mtree) {
 	copy_file(home, Mtree, MTREE_FNAME);
 	add_plist(&plist, PLIST_IGNORE, NULL);
 	add_plist(&plist, PLIST_FILE, MTREE_FNAME);
+	add_cksum(&plist, plist.tail, MTREE_FNAME);
 	add_plist(&plist, PLIST_MTREE, MTREE_FNAME);
     }
 
@@ -384,6 +393,8 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     for (p = plist->head; p; p = p->next) {
 	if (p->type == PLIST_FILE)
 	    fprintf(totar, "%s\n", p->name);
+	else if (p->type == PLIST_CWD && BaseDir && p->name && p->name[0] == '/')
+	    fprintf(totar, "-C\n%s%s\n", BaseDir, p->name);
 	else if (p->type == PLIST_CWD || p->type == PLIST_SRC)
 	    fprintf(totar, "-C\n%s\n", p->name);
 	else if (p->type == PLIST_IGNORE)
@@ -461,13 +472,15 @@ create_from_installed(const char *pkg, const char *suf)
     read_plist(&plist, fp);
     fclose(fp);
 
-    (const char *)Install = isfile(INSTALL_FNAME) ? INSTALL_FNAME : NULL;
-    (const char *)PostInstall = isfile(POST_INSTALL_FNAME) ? POST_INSTALL_FNAME : NULL;
-    (const char *)DeInstall = isfile(DEINSTALL_FNAME) ? DEINSTALL_FNAME : NULL;
-    (const char *)PostDeInstall = isfile(POST_DEINSTALL_FNAME) ? POST_DEINSTALL_FNAME : NULL;
-    (const char *)Require = isfile(REQUIRE_FNAME) ? REQUIRE_FNAME : NULL;
-    (const char *)Display = isfile(DISPLAY_FNAME) ? DISPLAY_FNAME : NULL;
-    (const char *)Mtree = isfile(MTREE_FNAME) ?  MTREE_FNAME : NULL;
+    Install = isfile(INSTALL_FNAME) ? (char *)INSTALL_FNAME : NULL;
+    PostInstall = isfile(POST_INSTALL_FNAME) ?
+	(char *)POST_INSTALL_FNAME : NULL;
+    DeInstall = isfile(DEINSTALL_FNAME) ? (char *)DEINSTALL_FNAME : NULL;
+    PostDeInstall = isfile(POST_DEINSTALL_FNAME) ?
+	(char *)POST_DEINSTALL_FNAME : NULL;
+    Require = isfile(REQUIRE_FNAME) ? (char *)REQUIRE_FNAME : NULL;
+    Display = isfile(DISPLAY_FNAME) ? (char *)DISPLAY_FNAME : NULL;
+    Mtree = isfile(MTREE_FNAME) ?  (char *)MTREE_FNAME : NULL;
 
     make_dist(homedir, pkg, suf, &plist);
 

@@ -5,14 +5,10 @@ SRCS=	main.c perform.c
 
 CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
-WARNS?=	2
+WARNS?=	6
+WFORMAT?=	1
 
-DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
-LDADD=	${LIBINSTALL} -lfetch -lmd
-
-.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-LDADD+=	-lssl -lcrypto
-.endif
+DPADD=	${LIBINSTALL} ${LIBMD}
+LDADD=	${LIBINSTALL} -lmd
 
 .include <bsd.prog.mk>

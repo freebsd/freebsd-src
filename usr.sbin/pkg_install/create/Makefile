@@ -1,19 +1,14 @@
 # $FreeBSD$
 
-PROG= pkg_create
+PROG=	pkg_create
+SRCS=	main.c perform.c pl.c
 
-CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
-WARNS?=	2
+WARNS?=	3
+WFORMAT?=	1
 
-DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
-LDADD=	${LIBINSTALL} -lfetch -lmd
-
-.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-LDADD+=	-lssl -lcrypto
-.endif
-
-SRCS= main.c perform.c pl.c
+DPADD=	${LIBINSTALL} ${LIBMD}
+LDADD=	${LIBINSTALL} -lmd
 
 .include <bsd.prog.mk>

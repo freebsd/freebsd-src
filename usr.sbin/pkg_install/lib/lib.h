@@ -52,10 +52,10 @@
 #define NO		1
 
 /* Usually "rm", but often "echo" during debugging! */
-#define REMOVE_CMD	"rm"
+#define REMOVE_CMD	"/bin/rm"
 
 /* Usually "rm", but often "echo" during debugging! */
-#define RMDIR_CMD	"rmdir"
+#define RMDIR_CMD	"/bin/rmdir"
 
 /* Where we put logging information by default, else ${PKG_DBDIR} if set */
 #define DEF_LOG_DIR	"/var/db/pkg"
@@ -77,6 +77,12 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500036
+#define INDEX_FNAME		"INDEX-5"
+#else
+#define INDEX_FNAME		"INDEX"
+#endif
+
 #define CMD_CHAR		'@'	/* prefix for extended PLIST cmd */
 
 /* The name of the "prefix" environment variable given to scripts */
@@ -86,7 +92,7 @@
  * Version of the package tools - increase only when some
  * functionality used by bsd.port.mk is changed, added or removed
  */
-#define PKG_INSTALL_VERSION	20030417
+#define PKG_INSTALL_VERSION	20040629
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
@@ -105,7 +111,7 @@ enum _plist_t {
 typedef enum _plist_t plist_t;
 
 enum _match_t {
-    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_REGEX
+    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_NGLOB, MATCH_EREGEX, MATCH_REGEX
 };
 typedef enum _match_t match_t;
 
@@ -122,8 +128,8 @@ typedef struct _plist *PackingList;
 
 struct _pack {
     struct _plist *head, *tail;
-    char *name;
-    char *origin;
+    const char *name;
+    const char *origin;
     int fmtver_maj, fmtver_mnr;
 };
 typedef struct _pack Package;
@@ -147,7 +153,7 @@ off_t		min_free(const char *);
 /* String */
 char 		*get_dash_string(char **);
 char		*copy_string(const char *);
-char		*copy_string_plus_newline(const char *);
+char		*copy_string_adds_newline(const char *);
 Boolean		suffix(const char *, const char *);
 void		nuke_suffix(char *);
 void		str_lowercase(char *);
@@ -206,6 +212,7 @@ int		real_main(int, char **);
 char		**matchinstalled(match_t, char **, int *);
 char		**matchbyorigin(const char *, int *);
 int		isinstalledpkg(const char *name);
+int		pattern_match(match_t MatchType, char *pattern, const char *pkgname);
 
 /* Dependencies */
 int		sortdeps(char **);
@@ -214,6 +221,7 @@ int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
 
 /* Version */
 int		verscmp(Package *, int, int);
+int		version_cmp(const char *, const char *);
 
 /* Externs */
 extern Boolean	Verbose;

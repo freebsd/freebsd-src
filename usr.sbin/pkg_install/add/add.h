@@ -28,12 +28,12 @@ typedef enum { NORMAL, MASTER, SLAVE } add_mode_t;
 extern char	*Prefix;
 extern Boolean	NoInstall;
 extern Boolean	NoRecord;
-extern Boolean	Force;
 extern char	*Mode;
 extern char	*Owner;
 extern char	*Group;
 extern char	*Directory;
 extern char	*PkgName;
+extern char	*PkgAddCmd;
 extern char	FirstPen[];
 extern add_mode_t AddMode;
 

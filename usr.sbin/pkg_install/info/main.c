@@ -26,11 +26,13 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "acdDe:fgGhiIkl:LmoO:pPqrRst:vVW:x";
+static char Options[] = "abcdDe:EfgGhiIjkl:LmoO:pPqQrRst:vVW:xX";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
 Boolean Quiet		= FALSE;
+Boolean QUIET		= FALSE;
+Boolean UseBlkSz	= FALSE;
 char *InfoPrefix	= (char *)(uintptr_t)"";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
@@ -62,11 +64,19 @@ main(int argc, char **argv)
 	    MatchType = MATCH_ALL;
 	    break;
 
+	case 'b':
+	    UseBlkSz = TRUE;
+	    break;
+
 	case 'v':
 	    Verbose = TRUE;
 	    /* Reasonable definition of 'everything' */
 	    Flags = SHOW_COMMENT | SHOW_DESC | SHOW_PLIST | SHOW_INSTALL |
 		SHOW_DEINSTALL | SHOW_REQUIRE | SHOW_DISPLAY | SHOW_MTREE;
+	    break;
+
+	case 'E':
+	    Flags |= SHOW_PKGNAME;
 	    break;
 
 	case 'I':
@@ -105,12 +115,16 @@ main(int argc, char **argv)
 	    Flags |= SHOW_INSTALL;
 	    break;
 
+	case 'j':
+	    Flags |= SHOW_REQUIRE;
+	    break;
+
 	case 'k':
 	    Flags |= SHOW_DEINSTALL;
 	    break;
 
 	case 'r':
-	    Flags |= SHOW_REQUIRE;
+	    Flags |= SHOW_DEPEND;
 	    break;
 
 	case 'R':
@@ -151,12 +165,21 @@ main(int argc, char **argv)
 	    Quiet = TRUE;
 	    break;
 
+	case 'Q':
+	    Quiet = TRUE;
+	    QUIET = TRUE;
+	    break;
+
 	case 't':
 	    strlcpy(PlayPen, optarg, sizeof(PlayPen));
 	    break;
 
 	case 'x':
 	    MatchType = MATCH_REGEX;
+	    break;
+
+	case 'X':
+	    MatchType = MATCH_EREGEX;
 	    break;
 
 	case 'e':
@@ -209,7 +232,7 @@ main(int argc, char **argv)
 	 * Don't try to apply heuristics if arguments are regexs or if
 	 * the argument refers to an existing file.
 	 */
-	if (MatchType != MATCH_REGEX && !isfile(*argv))
+	if (MatchType != MATCH_REGEX && MatchType != MATCH_EREGEX && !isfile(*argv))
 	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
 		*pkgs_split++ = '\0';
 		/*
@@ -239,10 +262,10 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfgGiIkLmopPqrRsvVx] [-e package] [-l prefix]",
+	"usage: pkg_info [-bcdDEfgGiIjkLmopPqQrRsvVxX] [-e package] [-l prefix]",
 	"                [-t template] -a | pkg-name ...",
-	"       pkg_info [-q] -W filename",
-	"       pkg_info [-q] -O origin",
+	"       pkg_info [-qQ] -W filename",
+	"       pkg_info [-qQ] -O origin",
 	"       pkg_info");
     exit(1);
 }

@@ -89,7 +89,6 @@ new_x509_checker(h, sign, userid, envp, filename)
     	FILE * fp;
 	struct x509_checker * me;
 	char certfile[PATH_MAX + 1] = CERTFILE;
-	char * cp;
 	X509 * x509;
 
 	assert(sign->type == TAG_X509);
@@ -139,7 +138,7 @@ new_x509_checker(h, sign, userid, envp, filename)
 	if (verbose)
 	    printf("Loading certificates from %s:\n", certfile);
 
-	while (x509 = PEM_read_X509(fp, NULL, NULL, 0))	{
+	while ((x509 = PEM_read_X509(fp, NULL, NULL, 0)))	{
 	    sk_X509_push(me->certs, x509);
 
 	    switch (EVP_PKEY_type(X509_get_pubkey(x509)->type))
@@ -235,6 +234,7 @@ x509_sign_ok(arg)
 		break;
 
 	    default:
+		break;
 	    }
 
 	    status = EVP_VerifyFinal(md_ctx,
@@ -282,11 +282,10 @@ retrieve_x509_marker(filename, sign, userid)
 	int sig_len = 4096;
 	unsigned char * sig_buf;
 	EVP_MD_CTX md_ctx;
-	EVP_MD * md_type;
+	const EVP_MD * md_type;
 	EVP_PKEY * pkey;
 
 	char keyfile[PATH_MAX + 1] = KEYFILE;
-	char * kp;
 
 	key_from_name(keyfile, userkey);
 

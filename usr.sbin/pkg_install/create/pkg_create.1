@@ -23,7 +23,7 @@
 .\" [jkh] Took John's changes back and made some additional extensions for
 .\" better integration with FreeBSD's new ports collection.
 .\"
-.Dd April 21, 1995
+.Dd June 29, 2004
 .Dt PKG_CREATE 1
 .Os
 .Sh NAME
@@ -35,13 +35,13 @@
 .Op Fl C Ar conflicts
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
-.Op Fl f Ar contents
 .Op Fl i Ar iscript
 .Op Fl I Ar piscript
 .Op Fl k Ar dscript
 .Op Fl K Ar pdscript
 .Op Fl r Ar rscript
 .Op Fl s Ar srcdir
+.Op Fl S Ar basedir
 .Op Fl t Ar template
 .Op Fl X Ar excludefile
 .Op Fl D Ar displayfile
@@ -59,11 +59,14 @@
 The
 .Nm
 command is used to create packages that will subsequently be fed to
-one of the package extraction/info utilities.  The input description
+one of the package extraction/info utilities.
+The input description
 and command line arguments for the creation of a package are not
 really meant to be human-generated, though it is easy enough to
-do so.  It is more expected that you will use a front-end tool for
-the job rather than muddling through it yourself.  Nonetheless, a short
+do so.
+It is more expected that you will use a front-end tool for
+the job rather than muddling through it yourself.
+Nonetheless, a short
 description of the input syntax is included in this document.
 .Sh OPTIONS
 The following command line options are supported:
@@ -89,7 +92,8 @@ from file
 .Ar desc
 or, if preceded by
 .Cm - ,
-the argument itself.  This string should also
+the argument itself.
+This string should also
 give some idea of which version of the product (if any) the package
 represents.
 .It Fl d Xo
@@ -105,7 +109,8 @@ Assume a default answer of `Yes' for any questions asked.
 .It Fl N
 Assume a default answer of `No' for any questions asked.
 .It Fl O
-Go into a `packing list Only' mode.  This is a custom hack for the
+Go into a `packing list Only' mode.
+This is a custom hack for the
 .Fx
 .Em "Ports Collection"
 and is used to do `fake pkg_add' operations when a port is installed.
@@ -119,8 +124,10 @@ are dumped, rather than the links themselves.
 .It Fl i Ar iscript
 Set
 .Ar iscript
-to be the pre-install procedure for the package.  This can be any executable
-program (or shell script).  It will be invoked automatically when the
+to be the pre-install procedure for the package.
+This can be any executable
+program (or shell script).
+It will be invoked automatically when the
 package is later installed.
 It will be passed the package's name as the
 first argument.
@@ -138,8 +145,10 @@ respectively, after the package's name.
 .It Fl I Ar piscript
 Set
 .Ar piscript
-to be the post-install procedure for the package.  This can be any
-executable program (or shell script).  It will be invoked automatically
+to be the post-install procedure for the package.
+This can be any
+executable program (or shell script).
+It will be invoked automatically
 when the package is later installed.
 It will be passed the package's name as
 the first argument.
@@ -181,8 +190,10 @@ the package.
 .It Fl k Ar dscript
 Set
 .Ar dscript
-to be the de-install procedure for the package.  This can be any executable
-program (or shell script).  It will be invoked automatically when the
+to be the de-install procedure for the package.
+This can be any executable
+program (or shell script).
+It will be invoked automatically when the
 package is later (if ever) de-installed.
 It will be passed the package's
 name as the first argument.
@@ -200,8 +211,10 @@ respectively, along with the package's name.
 .It Fl K Ar pdscript
 Set
 .Ar pdscript
-to be the post-deinstall procedure for the package.  This can be any
-executable program (or shell script).  It will be invoked automatically when
+to be the post-deinstall procedure for the package.
+This can be any
+executable program (or shell script).
+It will be invoked automatically when
 the package is later de-installed.
 It will be passed the package's name as
 the first argument.
@@ -210,8 +223,10 @@ Set
 .Ar rscript
 to be the
 .Dq requirements
-procedure for the package.  This can be any
-executable program (or shell script).  It will be invoked automatically
+procedure for the package.
+This can be any
+executable program (or shell script).
+It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
 To differentiate between installation and deinstallation, the keywords
@@ -224,6 +239,11 @@ are passed respectively, along with the package's name.
 will override the value of
 .Cm @cwd
 during package creation.
+.It Fl S Ar basedir
+.Ar basedir
+will be prefixed to all
+.Cm @cwd
+during package creation.
 .It Fl t Ar template
 Use
 .Ar template
@@ -234,7 +254,8 @@ By default, this is the string
 but it may be necessary to override it in the situation where
 space in your
 .Pa /tmp
-directory is limited.  Be sure to leave some number of `X' characters
+directory is limited.
+Be sure to leave some number of `X' characters
 for
 .Xr mktemp 3
 to fill in with a unique ID.
@@ -245,7 +266,8 @@ as a
 .Fl exclude-from
 argument to
 .Cm tar
-when creating final package.  See
+when creating final package.
+See
 .Cm tar
 man page (or run
 .Cm tar
@@ -254,7 +276,8 @@ with
 flag) for further information on using this flag.
 .It Fl D Ar displayfile
 Display the file (by concatenating it to stdout)
-after installing the package.  Useful for things like
+after installing the package.
+Useful for things like
 legal notices on almost-free software, etc.
 .It Fl m Ar mtreefile
 Run
@@ -320,12 +343,15 @@ format (see
 .Fl f )
 is fairly simple, being
 nothing more than a single column of filenames to include in the
-package.  However, since absolute pathnames are generally a bad idea
+package.
+However, since absolute pathnames are generally a bad idea
 for a package that could be installed potentially anywhere, there is
 another method of specifying where things are supposed to go
 and, optionally, what ownership and mode information they should be
-installed with.  This is done by embedding specialized command sequences
-in the packing list.  Briefly described, these sequences are:
+installed with.
+This is done by embedding specialized command sequences
+in the packing list.
+Briefly described, these sequences are:
 .Bl -tag -width indent -compact
 .It Cm @cwd Ar directory
 Set the internal directory pointer to point to
@@ -343,10 +369,12 @@ for package creation but not extraction.
 .It Cm @exec Ar command
 Execute
 .Ar command
-as part of the unpacking process.  If
+as part of the unpacking process.
+If
 .Ar command
 contains any of the following sequences somewhere in it, they will
-be expanded inline.  For the following examples, assume that
+be expanded inline.
+For the following examples, assume that
 .Cm @cwd
 is set to
 .Pa /usr/local
@@ -366,7 +394,8 @@ Expand to the
 .Dq basename
 of the fully qualified filename, that
 is the current directory prefix, plus the last filespec, minus
-the trailing filename.  In the example case, that would be
+the trailing filename.
+In the example case, that would be
 .Pa /usr/local/bin .
 .It Cm "%f"
 Expand to the
@@ -380,17 +409,20 @@ being in the example case,
 .It Cm @unexec Ar command
 Execute
 .Ar command
-as part of the deinstallation process.  Expansion of special
+as part of the deinstallation process.
+Expansion of special
 .Cm %
 sequences is the same as for
 .Cm @exec .
 This command is not executed during the package add, as
 .Cm @exec
-is, but rather when the package is deleted.  This is useful
+is, but rather when the package is deleted.
+This is useful
 for deleting links and other ancillary files that were created
 as a result of adding the package, but not directly known to
 the package's table of contents (and hence not automatically
-removable).  The advantage of using
+removable).
+The advantage of using
 .Cm @unexec
 over a deinstallation script is that you can use the
 .Dq special sequence expansion
@@ -403,7 +435,8 @@ Set default permission for all subsequently extracted files to
 Format is the same as that used by the
 .Cm chmod
 command (well, considering that it's later handed off to it, that's
-no surprise).  Use without an arg to set back to default (extraction)
+no surprise).
+Use without an arg to set back to default (extraction)
 permissions.
 .It Cm @option Ar option
 Set internal package options, the only two currently supported ones
@@ -428,7 +461,8 @@ Set default group ownership for all subsequently extracted files to
 Use without an arg to set back to default (extraction)
 group ownership.
 .It Cm @comment Ar string
-Imbed a comment in the packing list.  Useful in
+Imbed a comment in the packing list.
+Useful in
 trying to document some particularly hairy sequence that
 may trip someone up later.
 .It Cm @ignore
@@ -437,27 +471,34 @@ copy it anywhere), as it's used for some special purpose.
 .It Cm @ignore_inst
 Similar to
 .Cm @ignore ,
-but the ignoring of the next file is delayed one evaluation cycle.  This
+but the ignoring of the next file is delayed one evaluation cycle.
+This
 makes it possible to use this directive in the
 .Ar packinglist
 file, so you can pack a
 specialized datafile in with a distribution for your install script (or
 something) yet have the installer ignore it.
 .It Cm @name Ar name
-Set the name of the package.  This is mandatory and is usually
-put at the top.  This name is potentially different from the name of
+Set the name of the package.
+This is mandatory and is usually
+put at the top.
+This name is potentially different from the name of
 the file it came in, and is used when keeping track of the package
-for later deinstallation.  Note that
+for later deinstallation.
+Note that
 .Nm
 will derive this field from the package name and add it automatically
 if none is given.
 .It Cm @dirrm Ar name
 Declare directory
 .Pa name
-to be deleted at deinstall time.  By default, directories created by a
+to be deleted at deinstall time.
+By default, directories created by a
 package installation are not deleted when the package is deinstalled;
-this provides an explicit directory cleanup method.  This directive
-should appear at the end of the package list.  If more than one
+this provides an explicit directory cleanup method.
+This directive
+should appear at the end of the package list.
+If more than one
 .Cm @dirrm
 directives are used, the directories are removed in the order specified.
 The
@@ -470,7 +511,8 @@ as an
 .Xr mtree 8
 input file to be used at install time (see
 .Fl m
-above).  Only the first
+above).
+Only the first
 .Cm @mtree
 directive is honored.
 .It Cm @display Ar name
@@ -482,12 +524,14 @@ above).
 .It Cm @pkgdep Ar pkgname
 Declare a dependency on the
 .Ar pkgname
-package.  The
+package.
+The
 .Ar pkgname
 package must be installed before this package may be
 installed, and this package must be deinstalled before the
 .Ar pkgname
-package is deinstalled.  Multiple
+package is deinstalled.
+Multiple
 .Cm @pkgdep
 directives may be used if the package depends on multiple other packages.
 .It Cm @conflicts Ar pkgcflname
@@ -545,12 +589,14 @@ command first appeared in
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Hard links between files in a distribution must be bracketed by
 .Cm @cwd
 directives in order to be preserved as hard links when the package is
-extracted.  They additionally must not end up being split between
+extracted.
+They additionally must not end up being split between
 .Cm tar
 invocations due to exec argument-space limitations (this depends on the
 value returned by

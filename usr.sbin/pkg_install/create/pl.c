@@ -27,13 +27,43 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <md5.h>
 
+/* Add an MD5 checksum entry for a file or link */
+void
+add_cksum(Package *pkg, PackingList p, const char *fname)
+{
+    char *cp = NULL, buf[33];
+
+    if (issymlink(fname)) {
+	int len;
+	char lnk[FILENAME_MAX];
+
+	if ((len = readlink(fname, lnk, FILENAME_MAX)) > 0)
+	    cp = MD5Data((unsigned char *)lnk, len, buf);
+    } else if (isfile(fname)) {
+	/* Don't record MD5 checksum for device nodes and such */
+	cp = MD5File(fname, buf);
+    }
+
+    if (cp != NULL) {
+	PackingList tmp = new_plist_entry();
+
+	tmp->name = copy_string(strconcat("MD5:", cp));
+	tmp->type = PLIST_COMMENT;
+	tmp->next = p->next;
+	tmp->prev = p;
+	p->next = tmp;
+	if (pkg->tail == p)
+	    pkg->tail = tmp;
+    }
+}
+
 /* Check a list for files that require preconversion */
 void
 check_list(const char *home, Package *pkg)
 {
     const char *where = home;
     const char *there = NULL;
-    char *cp, name[FILENAME_MAX], buf[33];
+    char name[FILENAME_MAX];
     PackingList p;
 
     for (p = pkg->head; p != NULL; p = p->next)
@@ -51,31 +81,13 @@ check_list(const char *home, Package *pkg)
 	    break;
 
 	case PLIST_FILE:
-	    cp = NULL;
-	    sprintf(name, "%s/%s", there ? there : where, p->name);
-	    if (issymlink(name)) {
-		int len;
-		char lnk[FILENAME_MAX];
+	    if (there)
+		snprintf(name, sizeof(name), "%s/%s", there, p->name);
+	    else
+		snprintf(name, sizeof(name), "%s%s/%s",
+		    BaseDir && where && where[0] == '/' ? BaseDir : "", where, p->name);
 
-		if ((len = readlink(name, lnk, FILENAME_MAX)) > 0)
-		    cp = MD5Data((unsigned char *)lnk, len, buf);
-	    } else if (isfile(name)) {
-		/* Don't record MD5 checksum for device nodes and such */
-		cp = MD5File(name, buf);
-	    }
-
-	    if (cp != NULL) {
-		PackingList tmp = new_plist_entry();
-
-		tmp->name = copy_string(strconcat("MD5:", cp));
-		tmp->type = PLIST_COMMENT;
-		tmp->next = p->next;
-		tmp->prev = p;
-		p->next = tmp;
-		if (pkg->tail == p)
-		    pkg->tail = tmp;
-		p = tmp;
-	    }
+	    add_cksum(pkg, p, name);
 	    break;
 	default:
 	    break;
@@ -91,18 +103,18 @@ trylink(const char *from, const char *to)
 	/* try making the container directory */
 	char *cp = strrchr(to, '/');
 	if (cp)
-	    vsystem("mkdir -p %.*s", cp - to,
+	    vsystem("/bin/mkdir -p %.*s", cp - to,
 		    to);
 	return link(from, to);
     }
     return -1;
 }
 
-#define STARTSTRING "tar cf -"
+#define STARTSTRING "/usr/bin/tar cf -"
 #define TOOBIG(str) (int)strlen(str) + 6 + (int)strlen(home) + where_count > maxargs
 #define PUSHOUT() /* push out string */ \
 	if (where_count > (int)sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|tar xpf -"); \
+		    strcat(where_args, "|/usr/bin/tar xpf -"); \
 		    if (system(where_args)) { \
 			cleanup(0); \
 			errx(2, "%s: can't invoke tar pipeline", __func__); \
@@ -204,7 +216,7 @@ copy_plist(const char *home, Package *plist)
 					 p->name);
 		    last_chdir = home;
 		}
-		if (add_count < 0 || add_count > maxargs - where_count) {
+		if (add_count < 0 || add_count >= maxargs - where_count) {
 		    cleanup(0);
 		    errx(2, "%s: oops, miscounted strings!", __func__);
 		}
@@ -217,7 +229,11 @@ copy_plist(const char *home, Package *plist)
 		if (p->name[0] == '/')
 		    mythere = root;
 		else mythere = there;
-		sprintf(fn, "%s/%s", mythere ? mythere : where, p->name);
+		if (mythere)
+		    snprintf(fn, sizeof(fn), "%s/%s", mythere, p->name);
+		else
+		    snprintf(fn, sizeof(fn), "%s%s/%s",
+			BaseDir && where && where[0] == '/' ? BaseDir : "", where, p->name);
 		if (lstat(fn, &stb) == 0 && stb.st_dev == curdir &&
 		    S_ISREG(stb.st_mode)) {
 		    /*
@@ -242,7 +258,7 @@ copy_plist(const char *home, Package *plist)
 					 " -C %s %s",
 					 mythere ? mythere : where,
 					 p->name);
-		if (add_count < 0 || add_count > maxargs - where_count) {
+		if (add_count < 0 || add_count >= maxargs - where_count) {
 		    cleanup(0);
 		    errx(2, "%s: oops, miscounted strings!", __func__);
 		}

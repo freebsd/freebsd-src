@@ -5,7 +5,8 @@ SRCS=	main.c perform.c show.c
 
 CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
-WARNS?=	2
+WARNS?=	6
+WFORMAT?=	1
 
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd

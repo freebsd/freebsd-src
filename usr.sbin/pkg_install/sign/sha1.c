@@ -34,9 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include <openssl/sha.h>
+#include <sha.h>
 #include "stand.h"
 #include "gzip.h"
 #include "extern.h"
@@ -66,9 +67,9 @@ sha1_build_checksum(result, n)
 {
 	size_t length;
 
-	sprintf(result, "SHA1 (%s) = ", n->id);
+	snprintf(result, BUFSIZE-2*SHA_DIGEST_LENGTH-1, SHA1_TEMPLATE, n->id);
 	length = strlen(result);
-	SHA1_Final(result + length, &n->context);
+	SHA1_End(&n->context, result + length);
 	strcat(result, "\n");
 	free(n);	
 	return length;
@@ -167,9 +168,8 @@ retrieve_sha1_marker(filename, sign, userid)
 	FILE *f;
 	char buffer[1024];
 	char result[BUFSIZE];
-	ssize_t length;
+	ssize_t length = -1;
 	struct sha1_checker *checker;
-	struct signature *old;
 
 	*sign = NULL;
 	if (userid == NULL)
@@ -181,8 +181,13 @@ retrieve_sha1_marker(filename, sign, userid)
 	n = malloc(sizeof *n);
 	if (n == NULL) 
 		return 0;
-	n->data = (char *)userid;
-	n->length = strlen(n->data)+1;
+	n->length = strlen(userid)+1;
+	n->data = malloc(n->length);
+	if (n->data == NULL) {
+		free(n);
+		return 0;
+	}
+	memcpy(n->data, userid, n->length);
 	n->type = TAG_SHA1;
 	memcpy(n->tag, sha1tag, sizeof sha1tag);
 	sign_fill_tag(n);
@@ -208,8 +213,9 @@ retrieve_sha1_marker(filename, sign, userid)
 	 * Calculate the SHA1 of the remaining data and write it to stderr.
 	 */
 	checker = new_sha1_checker(&h, *sign, NULL, NULL, filename);
-	while ((length = fread(buffer, 1, sizeof buffer, f)) > 0)
-		sha1_add(checker, buffer, length);
+	if (checker) 
+		while ((length = fread(buffer, 1, sizeof buffer, f)) > 0)
+			sha1_add(checker, buffer, length);
 	if (fclose(f) != 0 || length == -1) {
 		warn("Problem checksumming %s", filename);
 		*sign = n->next;

@@ -97,7 +97,7 @@ chkifdepends(const char *pkgname1, const char *pkgname2)
 
     errcode = 0;
     /* Check that pkgname2 is actually installed */
-    if (!isinstalledpkg(pkgname2))
+    if (isinstalledpkg(pkgname2) <= 0)
 	goto exit;
 
     errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
@@ -153,7 +153,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
 	free(rb_entry);
     }
 
-    if (!isinstalledpkg(pkgname)) {
+    if (isinstalledpkg(pkgname) <= 0) {
 	if (strict == TRUE)
 	    warnx("no such package '%s' installed", pkgname);
 	return -1;
@@ -173,7 +173,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
 	if (fbuf[strlen(fbuf) - 1] == '\n')
 	    fbuf[strlen(fbuf) - 1] = '\0';
-	if (filter == TRUE && !isinstalledpkg(fbuf)) {
+	if (filter == TRUE && isinstalledpkg(fbuf) <= 0) {
 	    if (strict == TRUE)
 		warnx("package '%s' is recorded in the '%s' but isn't "
 		      "actually installed", fbuf, fname);

@@ -1,4 +1,5 @@
 /*
+ *
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
  *
@@ -27,7 +28,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "delete.h"
 
-static char Options[] = "adDfGhinp:rvx";
+static char Options[] = "adDfGhinp:rvxX";
 
 char	*Prefix		= NULL;
 Boolean	CleanDirs	= FALSE;
@@ -85,6 +86,10 @@ main(int argc, char **argv)
 
 	case 'x':
 	    MatchType = MATCH_REGEX;
+	    break;
+
+	case 'X':
+	    MatchType = MATCH_EREGEX;
 	    break;
 
 	case 'i':
@@ -150,7 +155,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_delete [-dDfGinrvx] [-p prefix] pkg-name ...",
+	"usage: pkg_delete [-dDfGinrvxX] [-p prefix] pkg-name ...",
 	"       pkg_delete -a [flags]");
     exit(1);
 }

@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2001
+.Dd June 29, 2004
 .Dt PKG_INFO 1
 .Os
 .Sh NAME
@@ -25,16 +25,16 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfgGiIkLmopPqrRsvVx
+.Op Fl bcdDEfgGijIkLmopPqQrRsvVxX
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
 .Fl a | Ar pkg-name ...
 .Nm
-.Op Fl q
+.Op Fl qQ
 .Fl W Ar filename
 .Nm
-.Op Fl q
+.Op Fl qQ
 .Fl O Ar origin
 .Nm
 .Sh DESCRIPTION
@@ -51,11 +51,28 @@ command.
 The following command line options are supported:
 .Bl -tag -width indent
 .It Ar pkg-name ...
-The named packages are described.  A package name may either be the name of
+The named packages are described.
+A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
 URL to an FTP available package.
+Package version numbers can also be matched in a relational manner using the
+.Pa \*[Ge], \*[Le], \*[Gt]
+and
+.Pa \*[Lt]
+operators.
+For example,
+.Pa pkg_info 'portupgrade\*[Ge]20030723'
+will match versions 20030723 and later of the
+.Pa portupgrade
+package.
 .It Fl a
 Show all currently installed packages.
+.It Fl b
+Use the BLOCKSIZE environment variable for output even when the
+.Fl q
+or
+.Fl Q
+flag is present.
 .It Fl v
 Turn on verbose output.
 .It Fl p
@@ -65,6 +82,10 @@ Be
 .Dq quiet
 in emitting report headers and such, just dump the
 raw info (basically, assume a non-human reading).
+.It Fl Q
+Be
+.Dq quiet
+as above but print preface output with the package name.
 .It Fl c
 Show the (one line) comment field for each package.
 .It Fl d
@@ -78,18 +99,22 @@ Show files that don't match the recorded checksum.
 .It Fl i
 Show the install script (if any) for each package.
 .It Fl I
-Show an index line for each package.  This option takes
+Show an index line for each package.
+This option takes
 precedence over all other package formatting options.
+.It Fl j
+Show the requirements script (if any) for each package.
 .It Fl k
 Show the de-install script (if any) for each package.
 .It Fl r
-Show the requirements script (if any) for each package.
+Show the list of packages on which each package depends.
 .It Fl R
 Show the list of installed packages which require each package.
 .It Fl m
 Show the mtree file (if any) for each package.
 .It Fl L
-Show the files within each package.  This is different from just
+Show the files within each package.
+This is different from just
 viewing the packing list, since full pathnames for everything
 are generated.
 .It Fl s
@@ -97,7 +122,8 @@ Show the total size occupied by files installed within each package.
 .It Fl o
 Show the
 .Dq origin
-path recorded on package generation.  This path
+path recorded on package generation.
+This path
 intended to give an idea as to where the underlying port, from which
 package was generated, is located in the
 .Fx
@@ -112,7 +138,8 @@ automatically expands shell glob patterns in the
 .It Fl W
 For the specified
 .Ar filename
-argument show which package it belongs to.  If the file is not in the
+argument show which package it belongs to.
+If the file is not in the
 current directory, and does not have an absolute path, then the
 .Ev PATH
 is searched using
@@ -125,17 +152,30 @@ argument list all packages having this origin.
 Treat the
 .Ar pkg-name
 as a regular expression and display information only for packages
-whose names match that regular expression.  Multiple regular
+whose names match that regular expression.
+Multiple regular
 expressions could be provided, in that case
 .Nm
 displays information about all packages that match at least one
 regular expression from the list.
+.It Fl X
+Like
+.Fl x ,
+but treats the
+.Ar pkg-name
+as an extended regular expression.
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name
-is currently installed, return 0, otherwise return 1.  This option
+is currently installed, return 0, otherwise return 1.
+This option
 allows you to easily test for the presence of another (perhaps
 prerequisite) package from a script.
+.It Fl E
+Show only matching package names.
+This option takes
+precedence over all other package formatting options.
+If any packages match, return 0, otherwise return 1.
 .It Fl l Ar str
 Prefix each information category header (see
 .Fl q )
@@ -144,7 +184,8 @@ shown with
 This is primarily of use to front-end programs who want to request a
 lot of different information fields at once for a package, but don't
 necessary want the output intermingled in such a way that they can't
-organize it.  This lets you add a special token to the start of
+organize it.
+This lets you add a special token to the start of
 each field.
 .It Fl t Ar template
 Use
@@ -158,12 +199,13 @@ By default, this is the string
 but it may be necessary to override it in the situation where
 space in your
 .Pa /tmp
-directory is limited.  Be sure to leave some number of `X' characters
+directory is limited.
+Be sure to leave some number of `X' characters
 for
 .Xr mktemp 3
 to fill in with a unique ID.
 .Bd -ragged -offset indent -compact
-Note:  This should really not be necessary with
+Note: This should really not be necessary with
 .Nm ,
 since very little information is extracted from each package
 and one would have to have a very small
@@ -181,16 +223,23 @@ command line, or from already installed package information
 in
 .Pa /var/db/pkg/ Ns Aq Ar pkg-name .
 .Sh ENVIRONMENT
-.Ev PKG_TMPDIR
-points to the directory where
+.Bl -tag -width PKG_TMPDIR
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set the block counts will be displayed in units of that
+size block.
+.It Ev PKG_TMPDIR
+Points to the directory where
 .Nm
 creates its temporary files.
 If this variable is not set,
 .Ev TMPDIR
-is used.  If both are unset, the builtin defaults are used.
-.Pp
-.Ev PKG_DBDIR
-specifies an alternative location for the installed package database.
+is used.
+If both are unset, the builtin defaults are used.
+.It Ev PKG_DBDIR
+Specifies an alternative location for the installed package database.
+.El
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/tmp
@@ -220,6 +269,7 @@ Default location of the installed package database.
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Sure to be some.

@@ -17,7 +17,7 @@
 .\"     @(#)pkg_delete.1
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1994
+.Dd June 29, 2004
 .Dt PKG_DELETE 1
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd a utility for deleting previously installed software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfGinrvx
+.Op Fl dDfGinrvxX
 .Op Fl p Ar prefix
 .Ar pkg-name ...
 .Nm
@@ -49,7 +49,8 @@ or other subtle
 attacks from miscreants who create dangerous package files.
 .Pp
 You are advised to verify the competence and identity of those who
-provide installable package files.  For extra protection, examine all
+provide installable package files.
+For extra protection, examine all
 the package control files in the package record directory
 .Pa ( /var/db/pkg/<pkg-name>/ ) .
 Pay particular attention to any +INSTALL, +POST-INSTALL, +DEINSTALL,
@@ -88,15 +89,18 @@ would be taken if it were.
 Set
 .Ar prefix
 as the directory in which to delete files from any installed packages
-which do not explicitly set theirs.  For most packages, the prefix will
+which do not explicitly set theirs.
+For most packages, the prefix will
 be set automatically to the installed location by
 .Xr pkg_add 1 .
 .It Fl d
-Remove empty directories created by file cleanup.  By default, only
+Remove empty directories created by file cleanup.
+By default, only
 files/directories explicitly listed in a package's contents (either as
 normal files/directories or with the
 .Cm @dirrm
-directive) will be removed at deinstallation time.  This option tells
+directive) will be removed at deinstallation time.
+This option tells
 .Nm
 to also remove any directories that were emptied as a result of removing
 the package.
@@ -114,20 +118,29 @@ automatically expands shell glob patterns in the
 Treat the
 .Ar pkg-name
 as a regular expression and delete all packages whose names match
-that regular expression.  Multiple regular expressions could be
+that regular expression.
+Multiple regular expressions could be
 provided, in that case
 .Nm
 deletes all packages that match at least one
 regular expression from the list.
+.It Fl X
+Like
+.Fl x ,
+but treats the
+.Ar pkg-name
+as an extended regular expression.
 .It Fl r
-Recursive removal.  In addition to specified packages, delete all
+Recursive removal.
+In addition to specified packages, delete all
 packages that depend on those packages as well.
 .El
 .Sh TECHNICAL DETAILS
 The
 .Nm
 utility
-does pretty much what it says.  It examines installed package records in
+does pretty much what it says.
+It examines installed package records in
 .Pa /var/db/pkg/<pkg-name> ,
 deletes the package contents, and finally removes the package records.
 If the environment variable
@@ -158,7 +171,8 @@ then this is executed first as
 is the name of the package in question and
 .Ar DEINSTALL
 is a keyword denoting that this is a deinstallation)
-to see whether or not deinstallation should continue.  A non-zero exit
+to see whether or not deinstallation should continue.
+A non-zero exit
 status means no, unless the
 .Fl f
 option is specified.
@@ -199,7 +213,8 @@ If a
 .Cm post-deinstall
 script exists for the package, it is executed
 .Cm after
-all files are removed.  It is this script's responsibility to clean up any
+all files are removed.
+It is this script's responsibility to clean up any
 additional messy details around the package's installation, and leave the
 system (hopefully) in the same state that it was prior to the installation
 of the package.
@@ -244,7 +259,8 @@ All scripts are called with the environment variable
 .Ev PKG_PREFIX
 set to the installation prefix (see the
 .Fl p
-option above).  This allows a package author to write a script
+option above).
+This allows a package author to write a script
 that reliably performs some action on the directory where the package
 is installed, even if the user might have changed it by specifying the
 .Fl p
@@ -271,6 +287,7 @@ Default location of the installed package database.
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Sure to be some.

@@ -42,7 +42,7 @@ get_dash_string(char **str)
     char *s = *str;
 
     if (*s == '-')
-	*str = copy_string_plus_newline(s + 1);
+	*str = copy_string_adds_newline(s + 1);
     else
 	*str = fileGetContents(s);
     return *str;
@@ -57,7 +57,7 @@ copy_string(const char *str)
 
 /* Rather Obvious but adds a trailing \n newline */
 char *
-copy_string_plus_newline(const char *str)
+copy_string_adds_newline(const char *str)
 {
     if (str == NULL) {
 	return (NULL);

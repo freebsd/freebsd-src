@@ -50,7 +50,7 @@ make_hierarchy(char *dir)
 	    }
 	}
 	else {
-	    if (vsystem("mkdir %s", dir)) {
+	    if (vsystem("/bin/mkdir %s", dir)) {
 		if (cp2)
 		    *cp2 = '/';
 		return FAIL;
@@ -78,20 +78,20 @@ apply_perms(const char *dir, const char *arg)
 	cd_to = dir;
 
     if (Mode)
-	if (vsystem("cd %s && chmod -R %s %s", cd_to, Mode, arg))
+	if (vsystem("cd %s && /bin/chmod -R %s %s", cd_to, Mode, arg))
 	    warnx("couldn't change modes of '%s' to '%s'", arg, Mode);
     if (Owner && Group) {
-	if (vsystem("cd %s && chown -R %s:%s %s", cd_to, Owner, Group, arg))
+	if (vsystem("cd %s && /usr/sbin/chown -R %s:%s %s", cd_to, Owner, Group, arg))
 	    warnx("couldn't change owner/group of '%s' to '%s:%s'",
 		   arg, Owner, Group);
 	return;
     }
     if (Owner) {
-	if (vsystem("cd %s && chown -R %s %s", cd_to, Owner, arg))
+	if (vsystem("cd %s && /usr/sbin/chown -R %s %s", cd_to, Owner, arg))
 	    warnx("couldn't change owner of '%s' to '%s'", arg, Owner);
 	return;
     } else if (Group)
-	if (vsystem("cd %s && chgrp -R %s %s", cd_to, Group, arg))
+	if (vsystem("cd %s && /usr/bin/chgrp -R %s %s", cd_to, Group, arg))
 	    warnx("couldn't change group of '%s' to '%s'", arg, Group);
 }
 

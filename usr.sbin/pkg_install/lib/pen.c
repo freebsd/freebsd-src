@@ -112,7 +112,7 @@ make_playpen(char *pen, off_t sz)
 
     if (Verbose) {
 	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
+	    fprintf(stderr, "Requested space: %d bytes, free space: %lld bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
     }
 
     if (min_free(pen) < sz) {
@@ -156,7 +156,7 @@ leave_playpen()
 	Previous[0] = '\0';
     }
     if (PenLocation[0]) {
-	if (PenLocation[0] == '/' && vsystem("rm -rf %s", PenLocation))
+	if (PenLocation[0] == '/' && vsystem("/bin/rm -rf %s", PenLocation))
 	    warnx("couldn't remove temporary dir '%s'", PenLocation);
 	popPen(PenLocation);
     }

@@ -16,12 +16,13 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhjvyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:o:b:";
+static char Options[] = "YNOhjvyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
 char	*Desc		= NULL;
 char	*SrcDir		= NULL;
+char	*BaseDir	= NULL;
 char	*Display	= NULL;
 char	*Install	= NULL;
 char	*PostInstall	= NULL;
@@ -73,6 +74,10 @@ main(int argc, char **argv)
 
 	case 's':
 	    SrcDir = optarg;
+	    break;
+
+	case 'S':
+	    BaseDir = optarg;
 	    break;
 
 	case 'f':
@@ -199,12 +204,13 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: pkg_create [-YNOhvy] [-P pkgs] [-C conflicts] [-p prefix] [-f contents] ",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: pkg_create [-YNOhvyz] [-P pkgs] [-C conflicts] [-p prefix] ",
 "                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript] ",
 "                  [-r rscript] [-t template] [-X excludefile] ",
 "                  [-D displayfile] [-m mtreefile] [-o origin] ",
+"                  [-s srcdir] [-S basedir] ",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-YNhvy] -b pkg-name [pkg-filename]");
+"       pkg_create [-YNhvyz] -b pkg-name [pkg-filename]");
     exit(1);
 }

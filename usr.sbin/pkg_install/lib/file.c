@@ -23,7 +23,6 @@ __FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
-#include <fetch.h>
 #include <pwd.h>
 #include <time.h>
 #include <sys/wait.h>
@@ -88,7 +87,7 @@ isfile(const char *fname)
     return FALSE;
 }
 
-/* 
+/*
  * Check to see if file is a file or symlink pointing to a file and is empty.
  * If nonexistent or not a file, say "it's empty", otherwise return TRUE if
  * zero sized.
@@ -127,124 +126,10 @@ isURL(const char *fname)
 	return FALSE;
     while (isspace(*fname))
 	++fname;
-    if (!strncmp(fname, "ftp://", 6) || !strncmp(fname, "http://", 7))
+    if (!strncmp(fname, "ftp://", 6) || !strncmp(fname, "http://", 7) ||
+	!strncmp(fname, "https://", 8) || !strncmp(fname, "file://", 7))
 	return TRUE;
     return FALSE;
-}
-
-#define HOSTNAME_MAX	64
-/*
- * Try and fetch a file by URL, returning the directory name for where
- * it's unpacked, if successful.
- */
-char *
-fileGetURL(const char *base, const char *spec)
-{
-    char *cp, *rp;
-    char fname[FILENAME_MAX];
-    char pen[FILENAME_MAX];
-    char buf[8192];
-    FILE *ftp;
-    pid_t tpid;
-    int pfd[2], pstat, r, w;
-    char *hint;
-    int fd;
-
-    rp = NULL;
-    /* Special tip that sysinstall left for us */
-    hint = getenv("PKG_ADD_BASE");
-    if (!isURL(spec)) {
-	if (!base && !hint)
-	    return NULL;
-	/*
-	 * We've been given an existing URL (that's known-good) and now we need
-	 * to construct a composite one out of that and the basename we were
-	 * handed as a dependency.
-	 */
-	if (base) {
-	    strcpy(fname, base);
-	    /*
-	     * Advance back two slashes to get to the root of the package
-	     * hierarchy
-	     */
-	    cp = strrchr(fname, '/');
-	    if (cp) {
-		*cp = '\0';	/* chop name */
-		cp = strrchr(fname, '/');
-	    }
-	    if (cp) {
-		*(cp + 1) = '\0';
-		strcat(cp, "All/");
-		strcat(cp, spec);
-		strcat(cp, ".tgz");
-	    }
-	    else
-		return NULL;
-	}
-	else {
-	    /*
-	     * Otherwise, we've been given an environment variable hinting
-	     * at the right location from sysinstall
-	     */
-	    strcpy(fname, hint);
-	    strcat(fname, spec);
-            strcat(fname, ".tgz");
-	}
-    }
-    else
-	strcpy(fname, spec);
-
-    if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
-	printf("Error: FTP Unable to get %s: %s\n",
-	       fname, fetchLastErrString);
-	return NULL;
-    }
-    
-    if (isatty(0) || Verbose)
-	printf("Fetching %s...", fname), fflush(stdout);
-    pen[0] = '\0';
-    if ((rp = make_playpen(pen, 0)) == NULL) {
-	printf("Error: Unable to construct a new playpen for FTP!\n");
-	fclose(ftp);
-	return NULL;
-    }
-    if (pipe(pfd) == -1) {
-	warn("pipe()");
-	cleanup(0);
-	exit(2);
-    }
-    if ((tpid = fork()) == -1) {
-	warn("pipe()");
-	cleanup(0);
-	exit(2);
-    }
-    if (!tpid) {
-	dup2(pfd[0], 0);
-	for (fd = getdtablesize() - 1; fd >= 3; --fd)
-	    close(fd);
-	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-",
-	    (char *)0);
-	_exit(2);
-    }
-    close(pfd[0]);
-    for (;;) {
-	if ((r = fread(buf, 1, sizeof buf, ftp)) < 1)
-	    break;
-	if ((w = write(pfd[1], buf, r)) != r)
-	    break;
-    }
-    if (ferror(ftp))
-	warn("warning: error reading from server");
-    fclose(ftp);
-    close(pfd[1]);
-    if (w == -1)
-	warn("warning: error writing to tar");
-    tpid = waitpid(tpid, &pstat, 0);
-    if (Verbose)
-	printf("tar command returns %d status\n", WEXITSTATUS(pstat));
-    if (rp && (isatty(0) || Verbose))
-	printf(" Done.\n");
-    return rp;
 }
 
 char *
@@ -311,7 +196,7 @@ fileGetContents(const char *fname)
     }
     if (read(fd, contents, sb.st_size) != sb.st_size) {
 	cleanup(0);
-	errx(2, "%s: short read on '%s' - did not get %qd bytes", __func__,
+	errx(2, "%s: short read on '%s' - did not get %lld bytes", __func__,
 	     fname, (long long)sb.st_size);
     }
     close(fd);
@@ -384,9 +269,9 @@ copy_file(const char *dir, const char *fname, const char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "cp -r %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/cp -r %s %s", fname, to);
     else
-	snprintf(cmd, FILENAME_MAX, "cp -r %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/cp -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
 	errx(2, "%s: could not perform '%s'", __func__, cmd);
@@ -399,9 +284,9 @@ move_file(const char *dir, const char *fname, const char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "mv %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/mv %s %s", fname, to);
     else
-	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
 	errx(2, "%s: could not perform '%s'", __func__, cmd);
@@ -425,12 +310,12 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 	/* If absolute path, use it */
 	if (*fname == '/')
 	    dir = "/";
-	snprintf(cmd, FILENAME_MAX * 3, "tar cf - -C %s %s | tar xpf -",
- 		 dir, fname);
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - -C %s %s | /usr/bin/tar xpf -",
+		 dir, fname);
     }
     else
-	snprintf(cmd, FILENAME_MAX * 3, "tar cf - %s | tar xpf - -C %s",
- 		 fname, dir);
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - %s | /usr/bin/tar xpf - -C %s",
+		 fname, dir);
 #ifdef DEBUG
     printf("Using '%s' to copy trees.\n", cmd);
 #endif
@@ -444,9 +329,10 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 int
 unpack(const char *pkg, const char *flist)
 {
-    char args[10], suff[80], *cp;
+    const char *comp, *cp;
+    char suff[80];
 
-    args[0] = '\0';
+    comp = "";
     /*
      * Figure out by a crude heuristic whether this or not this is probably
      * compressed and whichever compression utility was used (gzip or bzip2).
@@ -457,16 +343,19 @@ unpack(const char *pkg, const char *flist)
 	    strcpy(suff, cp + 1);
 	    if (strchr(suff, 'z') || strchr(suff, 'Z')) {
 		if (strchr(suff, 'b'))
-		    strcpy(args, "-j");
+		    comp = "-j";
 		else
-		    strcpy(args, "-z");
+		    comp = "-z";
 	    }
 	}
     }
     else
-	strcpy(args, "-z");
-    strcat(args, " -xpf");
-    if (vsystem("tar %s '%s' %s", args, pkg, flist ? flist : "")) {
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
+	comp = "-j";
+#else
+	comp = "-z";
+#endif
+    if (vsystem("/usr/bin/tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }
