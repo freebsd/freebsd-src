@@ -15,7 +15,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.22 1996/04/02 11:43:28 phk Exp $
+ * $Id: ipfw.c,v 1.23 1996/04/03 13:49:10 phk Exp $
  *
  */
 
@@ -270,8 +270,6 @@ show_usage(str)
 {
 	if (str)
 		fprintf(stderr,"%s: ERROR - %s\n",progname,str);
-	else
-		fprintf(stderr,"%s: ERROR - bad arguments\n",progname);
 	fprintf(stderr,
 "Usage:\n"
 "\t%s [options]\n"
@@ -283,13 +281,15 @@ show_usage(str)
 "\trule:\taction proto src dst extras...\n"
 "\t\taction: {allow|deny|reject|count} [log]\n"
 "\t\tproto: {ip|tcp|udp|icmp}}\n"
-"\t\tsrc: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
-"\t\tdst: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
+"\t\tsrc: from {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
+"\t\tdst: to {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
 "\textras:\n"
 "\t\tfragment\n"
 "\t\t{in|out|inout}\n"
 "\t\tvia {ifname|ip}\n"
+"\t\t{established|setup}\n"
 "\t\ttcpflags [!]{syn|fin|rst|ack|psh},...\n"
+"\t\tipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 , progname
 );
 
@@ -334,49 +334,46 @@ fill_ip(ipno, mask, acp, avp)
 	*avp = av;
 }
 
-int
-fill_port(cnt, ptr, off, av)
-	u_short *cnt, *ptr, off;
-	char **av;
+void
+add_port(cnt, ptr, off, port)
+	u_short *cnt, *ptr, off, port;
 {
-	char *s, sc = 0;
-	int i = 0;
+	if (off + *cnt >= IP_FW_MAX_PORTS)
+		errx(1, "too many ports (max is %d)", IP_FW_MAX_PORTS);
+	ptr[off+*cnt] = port;
+	(*cnt)++;
+}
 
-	s = strchr(*av,'-');
+int
+fill_port(cnt, ptr, off, arg)
+	u_short *cnt, *ptr, off;
+	char *arg;
+{
+	char *s, *comma;
+	int initial_range = 0;
+
+	s = strchr(arg,'-');
 	if (s) {
-		sc = *s;
 		*s++ = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		*av = s;
-		s = strchr(*av,',');
-		if (s) {
-			sc = *s;
+		if (strchr(arg, ','))
+			errx(1, "port range must be first in list");
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000);
+		arg = s;
+		s = strchr(arg,',');
+		if (s)
 			*s++ = '\0';
-		} else
-			sc = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		if (sc && sc != ',') show_usage("Expected comma\n");
-		*av = s;
-		sc = 0;
-		i = 1;
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff);
+		arg = s;
+		initial_range = 1;
 	}
-	while (*av != NULL) {
-		s = strchr(*av,',');
-		if (s) {
-			sc = *s;
+	while (arg != NULL) {
+		s = strchr(arg,',');
+		if (s)
 			*s++ = '\0';
-		} else
-			sc = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		if (!sc)
-			break;
-		if (sc != ',') show_usage("Expected comma\n");
-		*av = s;
+		add_port(cnt, ptr, off, atoi(arg));
+		arg = s;
 	}
-	return i;
+	return initial_range;
 }
 
 void
@@ -451,7 +448,7 @@ delete(ac,av)
 
 	i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
 	if (i)
-		err(1,"setsockopt(Add)");
+		err(1,"setsockopt(IP_FW_DEL)");
 }
 
 void
@@ -515,7 +512,7 @@ add(ac,av)
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, av))
+		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av))
 			rule.fw_flg |= IP_FW_F_SRNG;
 		av++; ac--;
 	}
@@ -529,7 +526,7 @@ add(ac,av)
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, av))
+		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, *av))
 			rule.fw_flg |= IP_FW_F_DRNG;
 		av++; ac--;
 	}
@@ -552,7 +549,7 @@ add(ac,av)
 	}
 
 	while (ac) {
-		if (!strncmp(*av,"frag",strlen(*av))) { 
+		if (!strncmp(*av,"fragment",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_FRAG; av++; ac--; continue;
 		}
 		if (!strncmp(*av,"in",strlen(*av))) { 
@@ -589,7 +586,7 @@ add(ac,av)
 	show_ipfw(&rule);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
-		err(1,"setsockopt(Delete)");
+		err(1,"setsockopt(IP_FW_ADD)");
 }
 
 int
@@ -616,12 +613,12 @@ ipfw_main(ac,av)
         		break;
         	case '?':
          	default:
-            		show_usage(NULL);
+            		show_usage("Unrecognised switch");
 	}
 
 	ac -= optind;
 	if (*(av+=optind)==NULL) {
-		 show_usage(NULL);
+		 show_usage("Bad arguments");
 	}
 
 	if (!strncmp(*av, "add", strlen(*av))) {
@@ -645,7 +642,7 @@ ipfw_main(ac,av)
 	} else if (!strncmp(*av, "list", strlen(*av))) {
 		list(--ac,++av);
 	} else {
-		show_usage(NULL);
+		show_usage("Bad arguments");
 	}
         return 0;
 }
