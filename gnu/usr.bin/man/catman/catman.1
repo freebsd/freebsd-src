@@ -30,7 +30,7 @@
 .\"
 .\"   E-mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: catman.1,v 1.4 1995/03/31 04:00:17 joerg Exp $
+.\" $Id: catman.1,v 1.5 1995/05/06 19:04:06 joerg Exp $
 .\"
 
 .Dd Mar 12, 1995
@@ -125,6 +125,13 @@ or
 .Sh FEATURES
 Very fast if all man pages already formatted.
 
+Does not support the
+.Op w
+option as some other systems do.  Use
+.Xr makewhatis 1
+to rebuild the
+.Ql whatis
+database.
 .Sh BUGS
 .Xr man 1
 is a setuid program.  Be careful that user
