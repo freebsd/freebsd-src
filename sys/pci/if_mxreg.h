@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.14 1999/04/01 02:01:04 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.16 1999/04/08 17:35:38 wpaul Exp $
  */
 
 /*
@@ -332,10 +332,10 @@
  */
 
 struct mx_desc {
-	volatile u_int32_t	mx_status;
-	volatile u_int32_t	mx_ctl;
-	volatile u_int32_t	mx_ptr1;
-	volatile u_int32_t	mx_ptr2;
+	u_int32_t		mx_status;
+	u_int32_t		mx_ctl;
+	u_int32_t		mx_ptr1;
+	u_int32_t		mx_ptr2;
 };
 
 #define mx_data		mx_ptr1
@@ -406,7 +406,7 @@ struct mx_desc {
  * back to back.
  */
 struct mx_txdesc {
-	volatile struct mx_desc	mx_frag[MX_MAXFRAGS];
+	struct mx_desc		mx_frag[MX_MAXFRAGS];
 };
 
 #define MX_TXNEXT(x)	x->mx_ptr->mx_frag[x->mx_lastdesc].mx_next
@@ -419,19 +419,19 @@ struct mx_txdesc {
 #define MX_UNSENT	0x12341234
 
 struct mx_list_data {
-	volatile struct mx_desc		mx_rx_list[MX_RX_LIST_CNT];
-	volatile struct mx_txdesc	mx_tx_list[MX_TX_LIST_CNT];
+	struct mx_desc		mx_rx_list[MX_RX_LIST_CNT];
+	struct mx_txdesc	mx_tx_list[MX_TX_LIST_CNT];
 };
 
 struct mx_chain {
-	volatile struct mx_txdesc	*mx_ptr;
-	struct mbuf			*mx_mbuf;
-	struct mx_chain			*mx_nextdesc;
-	u_int8_t			mx_lastdesc;
+	struct mx_txdesc	*mx_ptr;
+	struct mbuf		*mx_mbuf;
+	struct mx_chain		*mx_nextdesc;
+	u_int8_t		mx_lastdesc;
 };
 
 struct mx_chain_onefrag {
-	volatile struct mx_desc	*mx_ptr;
+	struct mx_desc		*mx_ptr;
 	struct mbuf		*mx_mbuf;
 	struct mx_chain_onefrag	*mx_nextdesc;
 };
@@ -527,6 +527,16 @@ struct mx_softc {
  */
 #define MX_DEVICEID_98713	0x0512
 #define MX_DEVICEID_987x5	0x0531
+
+/*
+ * Compex PCI vendor ID.
+ */
+#define CP_VENDORID		0x11F6
+
+/*
+ * Compex PMAC PCI device IDs.
+ */
+#define CP_DEVICEID_98713	0x9881
 
 /*
  * Texas Instruments PHY identifiers
