@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: res_stubs.c,v 1.2 1996/12/30 13:25:38 peter Exp $
  */
 
 /*
@@ -44,8 +44,6 @@
 __weak_reference(__sym_ston, sym_ston);
 __weak_reference(__sym_ntos, sym_ntos);
 __weak_reference(__sym_ntop, sym_ntop);
-__weak_reference(__b64_ntop, b64_ntop);
-__weak_reference(__b64_pton, b64_pton);
 __weak_reference(__fp_resstat, fp_resstat);
 __weak_reference(__p_query, p_query);
 __weak_reference(__p_fqnname, p_fqnname);
