@@ -1281,49 +1281,7 @@ getmemsize(int first)
 
 	bzero(&vmf, sizeof(struct vm86frame));
 	bzero(physmap, sizeof(physmap));
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	vm86_intcall(0x12, &vmf);
-	basemem = vmf.vmf_ax;
-	if (basemem > 640) {
-		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
-			basemem);
-		basemem = 640;
-	}
-
-	/*
-	 * XXX if biosbasemem is now < 640, there is a `hole'
-	 * between the end of base memory and the start of
-	 * ISA memory.  The hole may be empty or it may
-	 * contain BIOS code or data.  Map it read/write so
-	 * that the BIOS can write to it.  (Memory from 0 to
-	 * the physical end of the kernel is mapped read-only
-	 * to begin with and then parts of it are remapped.
-	 * The parts that aren't remapped form holes that
-	 * remain read-only and are unused by the kernel.
-	 * The base memory area is below the physical end of
-	 * the kernel and right now forms a read-only hole.
-	 * The part of it from PAGE_SIZE to
-	 * (trunc_page(biosbasemem * 1024) - 1) will be
-	 * remapped and used by the kernel later.)
-	 *
-	 * This code is similar to the code used in
-	 * pmap_mapdev, but since no memory needs to be
-	 * allocated we simply change the mapping.
-	 */
-	for (pa = trunc_page(basemem * 1024);
-	     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-		pmap_kenter(KERNBASE + pa, pa);
-
-	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so 
-	 * that the bios can scribble on it.
-	 */
-	pte = (pt_entry_t *)vm86paddr;
-	for (i = basemem / 4; i < 160; i++)
-		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+	basemem = 0;
 
 	/*
 	 * map page 1 R/W into the kernel page table so we can use it
@@ -1391,6 +1349,60 @@ getmemsize(int first)
 		physmap[physmap_idx + 1] = smap->base + smap->length;
 next_run: ;
 	} while (vmf.vmf_ebx != 0);
+
+	/*
+	 * Perform "base memory" related probes & setup
+	 */
+	for (i = 0; i <= physmap_idx; i += 2) {
+		if (physmap[i] == 0x00000000) {
+			basemem = physmap[i + 1] / 1024;
+			break;
+		}
+	}
+
+	/* Fall back to the old compatibility function for base memory */
+	if (basemem == 0) {
+		vm86_intcall(0x12, &vmf);
+		basemem = vmf.vmf_ax;
+	}
+
+	if (basemem > 640) {
+		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
+			basemem);
+		basemem = 640;
+	}
+
+	/*
+	 * XXX if biosbasemem is now < 640, there is a `hole'
+	 * between the end of base memory and the start of
+	 * ISA memory.  The hole may be empty or it may
+	 * contain BIOS code or data.  Map it read/write so
+	 * that the BIOS can write to it.  (Memory from 0 to
+	 * the physical end of the kernel is mapped read-only
+	 * to begin with and then parts of it are remapped.
+	 * The parts that aren't remapped form holes that
+	 * remain read-only and are unused by the kernel.
+	 * The base memory area is below the physical end of
+	 * the kernel and right now forms a read-only hole.
+	 * The part of it from PAGE_SIZE to
+	 * (trunc_page(biosbasemem * 1024) - 1) will be
+	 * remapped and used by the kernel later.)
+	 *
+	 * This code is similar to the code used in
+	 * pmap_mapdev, but since no memory needs to be
+	 * allocated we simply change the mapping.
+	 */
+	for (pa = trunc_page(basemem * 1024);
+	     pa < ISA_HOLE_START; pa += PAGE_SIZE)
+		pmap_kenter(KERNBASE + pa, pa);
+
+	/*
+	 * if basemem != 640, map pages r/w into vm86 page table so
+	 * that the bios can scribble on it.
+	 */
+	pte = (pt_entry_t *)vm86paddr;
+	for (i = basemem / 4; i < 160; i++)
+		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
 
 	if (physmap[1] != 0)
 		goto physmap_done;
