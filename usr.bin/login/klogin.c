@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
 #ifdef KERBEROS
 #include <sys/param.h>
 #include <sys/syslog.h>
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 
 #include <err.h>
