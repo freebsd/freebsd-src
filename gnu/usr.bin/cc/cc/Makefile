@@ -13,6 +13,6 @@ LDDESTDIR+=	-L${.CURDIR}/../cc_int
 LDADD+=	-lcc_int
 
 afterinstall:
-	cd $(DESTDIR)$(BINDIR) ; rm gcc ; ln -s cc gcc
+	cd $(DESTDIR)$(BINDIR) ; rm -f gcc ; ln -s cc gcc
 
 .include <bsd.prog.mk>
