@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.33 1997/03/24 11:23:45 bde Exp $
+ *  $Id: ft.c,v 1.34 1997/07/20 14:09:55 bde Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -72,6 +72,7 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/ftape.h>
+#include <sys/kernel.h>
 
 #include <machine/clock.h>
 
@@ -98,8 +99,6 @@ extern int ftintr __P((ftu_t ftu));
 /* The following items are needed from the fd driver. */
 extern int in_fdc(int);			/* read fdc registers */
 extern int out_fdc(int, int);		/* write fdc registers */
-
-extern int hz;				/* system clock rate */
 
 /* Flags in isadev struct */
 #define	FT_PROBE	0x1		/* allow for "dangerous" tape probes */
