@@ -93,6 +93,12 @@ __FBSDID("$FreeBSD$");
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
+enum {
+	ATH_LED_TX,
+	ATH_LED_RX,
+	ATH_LED_POLL,
+};
+
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
@@ -157,7 +163,7 @@ static void	ath_newassoc(struct ieee80211com *,
 			struct ieee80211_node *, int);
 static int	ath_getchannels(struct ath_softc *, u_int cc,
 			HAL_BOOL outdoor, HAL_BOOL xchanmode);
-static void	ath_update_led(struct ath_softc *);
+static void	ath_led_event(struct ath_softc *, int);
 static void	ath_update_txpow(struct ath_softc *);
 
 static int	ath_rate_setup(struct ath_softc *, u_int mode);
@@ -215,6 +221,7 @@ enum {
 	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
 	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
 	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
+	ATH_DEBUG_LED		= 0x00100000,	/* led management */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -440,7 +447,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad2;
 	}
 
+	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
+	sc->sc_ledon = 0;			/* low true */
+	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
+	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.  Users can also manually enable/disable
@@ -449,7 +460,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_softled = (devid == AR5212_DEVID_IBM || devid == AR5211_DEVID);
 	if (sc->sc_softled) {
 		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin);
-		ath_hal_gpioset(ah, sc->sc_ledpin, 0);
+		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 
 	ifp->if_softc = sc;
@@ -933,8 +944,12 @@ ath_stop_locked(struct ifnet *ifp)
 		ifp->if_flags &= ~IFF_RUNNING;
 		ifp->if_timer = 0;
 		if (!sc->sc_invalid) {
-			if (sc->sc_softled)
-				ath_hal_gpioset(ah, sc->sc_ledpin, 1);
+			if (sc->sc_softled) {
+				callout_stop(&sc->sc_ledtimer);
+				ath_hal_gpioset(ah, sc->sc_ledpin,
+					!sc->sc_ledon);
+				sc->sc_blinking = 0;
+			}
 			ath_hal_intrset(ah, 0);
 		}
 		ath_draintxq(sc);
@@ -2606,8 +2621,6 @@ rx_accept:
 		len = ds->ds_rxstat.rs_datalen;
 		m->m_pkthdr.len = m->m_len = len;
 
-		if (sc->sc_softled)
-			ath_update_led(sc);
 		sc->sc_stats.ast_ant_rx[ds->ds_rxstat.rs_antenna]++;
 
 		if (sc->sc_drvbpf) {
@@ -2627,8 +2640,8 @@ rx_accept:
 				goto rx_next;
 			}
 			rix = ds->ds_rxstat.rs_rate;
-			sc->sc_rx_th.wr_flags = sc->sc_hwflags[rix];
-			sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix];
+			sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].flags;
+			sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 			sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi;
 			sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
 			/* XXX TSF */
@@ -2676,7 +2689,7 @@ rx_accept:
 
 		if (IFF_DUMPPKTS(sc, ATH_DEBUG_RECV)) {
 			ieee80211_dump_pkt(mtod(m, caddr_t), len,
-				   sc->sc_hwmap[ds->ds_rxstat.rs_rate],
+				   sc->sc_hwmap[ds->ds_rxstat.rs_rate].ieeerate,
 				   ds->ds_rxstat.rs_rssi);
 		}
 
@@ -2714,6 +2727,21 @@ rx_accept:
 		 */
 		ieee80211_input(ic, m, ni,
 			ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
+
+		if (sc->sc_softled) {
+			/*
+			 * Blink for any data frame.  Otherwise do a
+			 * heartbeat-style blink when idle.  The latter
+			 * is mainly for station mode where we depend on
+			 * periodic beacon frames to trigger the poll event.
+			 */
+			if (sc->sc_ipackets != ifp->if_ipackets) {
+				sc->sc_ipackets = ifp->if_ipackets;
+				sc->sc_rxrate = ds->ds_rxstat.rs_rate;
+				ath_led_event(sc, ATH_LED_RX);
+			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
+				ath_led_event(sc, ATH_LED_POLL);
+		}
 
 		/*
 		 * Reclaim node reference.
@@ -3094,6 +3122,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		 */
 		ath_rate_findrate(sc, an, shortPreamble, pktlen,
 			&rix, &try0, &txrate);
+		sc->sc_txrate = txrate;			/* for LED blinking */
 		/*
 		 * Default all non-QoS traffic to the background queue.
 		 */
@@ -3216,15 +3245,15 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
 		ieee80211_dump_pkt(mtod(m0, caddr_t), m0->m_len,
-			sc->sc_hwmap[txrate], -1);
+			sc->sc_hwmap[txrate].ieeerate, -1);
 
 	if (ic->ic_rawbpf)
 		bpf_mtap(ic->ic_rawbpf, m0);
 	if (sc->sc_drvbpf) {
-		sc->sc_tx_th.wt_flags = sc->sc_hwflags[txrate];
+		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].flags;
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate];
+		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate].ieeerate;
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
@@ -3338,9 +3367,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	}
 	txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 	ATH_TXQ_UNLOCK(txq);
-
-	if (sc->sc_softled)
-		ath_update_led(sc);
 
 	/*
 	 * The CAB queue is started from the SWBA handler since
@@ -3469,6 +3495,9 @@ ath_tx_proc_q0(void *arg, int npending)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	sc->sc_tx_timer = 0;
 
+	if (sc->sc_softled)
+		ath_led_event(sc, ATH_LED_TX);
+
 	ath_start(ifp);
 }
 
@@ -3494,6 +3523,9 @@ ath_tx_proc_q0123(void *arg, int npending)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	sc->sc_tx_timer = 0;
 
+	if (sc->sc_softled)
+		ath_led_event(sc, ATH_LED_TX);
+
 	ath_start(ifp);
 }
 
@@ -3517,6 +3549,9 @@ ath_tx_proc(void *arg, int npending)
 
 	ifp->if_flags &= ~IFF_OACTIVE;
 	sc->sc_tx_timer = 0;
+
+	if (sc->sc_softled)
+		ath_led_event(sc, ATH_LED_TX);
 
 	ath_start(ifp);
 }
@@ -4001,26 +4036,59 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 }
 
 static void
-ath_update_led(struct ath_softc *sc)
+ath_led_done(void *arg)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ath_hal *ah = sc->sc_ah;
-	u_int32_t threshold;
+	struct ath_softc *sc = arg;
 
-	/*
-	 * When not associated, flash LED on for 5s, off for 200ms.
-	 * XXX this assumes 100ms beacon interval.
-	 */
-	if (ic->ic_state != IEEE80211_S_RUN) {
-		threshold = 2 + sc->sc_ledstate * 48;
-	} else {
-		threshold = 2 + sc->sc_ledstate * 18;
-	}
-	if (ic->ic_stats.is_rx_beacon - sc->sc_beacons >= threshold) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin);
-		ath_hal_gpioset(ah, sc->sc_ledpin, sc->sc_ledstate);
-		sc->sc_ledstate ^= 1;
-		sc->sc_beacons = ic->ic_stats.is_rx_beacon;
+	sc->sc_blinking = 0;
+}
+
+/*
+ * Turn the LED off: flip the pin and then set a timer so no
+ * update will happen for the specified duration.
+ */
+static void
+ath_led_off(void *arg)
+{
+	struct ath_softc *sc = arg;
+
+	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
+	callout_reset(&sc->sc_ledtimer, sc->sc_ledoff, ath_led_done, sc);
+}
+
+/*
+ * Blink the LED according to the specified on/off times.
+ */
+static void
+ath_led_blink(struct ath_softc *sc, int on, int off)
+{
+	DPRINTF(sc, ATH_DEBUG_LED, "%s: on %u off %u\n", __func__, on, off);
+	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, sc->sc_ledon);
+	sc->sc_blinking = 1;
+	sc->sc_ledoff = off;
+	callout_reset(&sc->sc_ledtimer, on, ath_led_off, sc);
+}
+
+static void
+ath_led_event(struct ath_softc *sc, int event)
+{
+
+	sc->sc_ledevent = ticks;	/* time of last event */
+	if (sc->sc_blinking)		/* don't interrupt active blink */
+		return;
+	switch (event) {
+	case ATH_LED_POLL:
+		ath_led_blink(sc, sc->sc_hwmap[0].ledon,
+			sc->sc_hwmap[0].ledoff);
+		break;
+	case ATH_LED_TX:
+		ath_led_blink(sc, sc->sc_hwmap[sc->sc_txrate].ledon,
+			sc->sc_hwmap[sc->sc_txrate].ledoff);
+		break;
+	case ATH_LED_RX:
+		ath_led_blink(sc, sc->sc_hwmap[sc->sc_rxrate].ledon,
+			sc->sc_hwmap[sc->sc_rxrate].ledoff);
+		break;
 	}
 }
 
@@ -4094,8 +4162,30 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 static void
 ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 {
+#define	N(a)	(sizeof(a)/sizeof(a[0]))
+	/* NB: on/off times from the Atheros NDIS driver, w/ permission */
+	static const struct {
+		u_int		rate;		/* tx/rx 802.11 rate */
+		u_int16_t	timeOn;		/* LED on time (ms) */
+		u_int16_t	timeOff;	/* LED off time (ms) */
+	} blinkrates[] = {
+		{ 108,  40,  10 },
+		{  96,  44,  11 },
+		{  72,  50,  13 },
+		{  48,  57,  14 },
+		{  36,  67,  16 },
+		{  24,  80,  20 },
+		{  22, 100,  25 },
+		{  18, 133,  34 },
+		{  12, 160,  40 },
+		{  10, 200,  50 },
+		{   6, 240,  58 },
+		{   4, 267,  66 },
+		{   2, 400, 100 },
+		{   0, 500, 130 },
+	};
 	const HAL_RATE_TABLE *rt;
-	int i;
+	int i, j;
 
 	memset(sc->sc_rixmap, 0xff, sizeof(sc->sc_rixmap));
 	rt = sc->sc_rates[mode];
@@ -4103,15 +4193,26 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	for (i = 0; i < rt->rateCount; i++)
 		sc->sc_rixmap[rt->info[i].dot11Rate & IEEE80211_RATE_VAL] = i;
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
-	memset(sc->sc_hwflags, 0, sizeof(sc->sc_hwflags));
 	for (i = 0; i < 32; i++) {
 		u_int8_t ix = rt->rateCodeToIndex[i];
-		if (ix == 0xff)
+		if (ix == 0xff) {
+			sc->sc_hwmap[i].ledon = (500 * hz) / 1000;
+			sc->sc_hwmap[i].ledoff = (130 * hz) / 1000;
 			continue;
-		sc->sc_hwmap[i] = rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
+		}
+		sc->sc_hwmap[i].ieeerate =
+			rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
 		if (rt->info[ix].shortPreamble ||
 		    rt->info[ix].phy == IEEE80211_T_OFDM)
-			sc->sc_hwflags[i] |= IEEE80211_RADIOTAP_F_SHORTPRE;
+			sc->sc_hwmap[i].flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+		/* setup blink rate table to avoid per-packet lookup */
+		for (j = 0; j < N(blinkrates)-1; j++)
+			if (blinkrates[j].rate == sc->sc_hwmap[i].ieeerate)
+				break;
+		/* NB: this uses the last entry if the rate isn't found */
+		/* XXX beware of overlow */
+		sc->sc_hwmap[i].ledon = (blinkrates[j].timeOn * hz) / 1000;
+		sc->sc_hwmap[i].ledoff = (blinkrates[j].timeOff * hz) / 1000;
 	}
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
@@ -4122,6 +4223,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	 */
 	sc->sc_protrix = (mode == IEEE80211_MODE_11G ? 1 : 0);
 	/* NB: caller is responsible for reseting rate control state */
+#undef N
 }
 
 #ifdef AR_DEBUG
@@ -4368,12 +4470,14 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &softled, 0, req);
 	if (error || !req->newptr)
 		return error;
-	if (softled > 1)
-		softled = 1;
+	softled = (softled != 0);
 	if (softled != sc->sc_softled) {
-		if (softled)
+		if (softled) {
+			/* NB: handle any sc_ledpin change */
 			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin);
-		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !softled);
+			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
+				!sc->sc_ledon);
+		}
 		sc->sc_softled = softled;
 	}
 	return 0;
@@ -4483,6 +4587,12 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledpin", CTLFLAG_RW, &sc->sc_ledpin, 0,
 		"GPIO pin connected to LED");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ledon", CTLFLAG_RW, &sc->sc_ledon, 0,
+		"setting to turn LED on");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
+		"idle time for inactivity LED (ticks)");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txantenna", CTLFLAG_RW, &sc->sc_txantenna, 0,
 		"tx antenna (0=auto)");
