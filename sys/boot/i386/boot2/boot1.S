@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
+#	$Id: boot1.s,v 1.2 1998/10/13 21:35:42 rnordier Exp $
 
 		.set MEM_REL,0x600		# Relocation address
 		.set MEM_ARG,0x800		# Arguments
@@ -109,16 +109,18 @@ main.5: 	movwrm(_dx,MEM_ARG)		# Save args
 
 # Enable A20
 
-seta20: 	inb $0x64,%al			# Get status
-		testb $0x2,%al			# Busy?
-		jnz seta20			# Yes
-		movb $0xd1,%al			# Command: Write
-		outb %al,$0x64			#  output port
+seta20: 	cli				# Disable interrupts
 seta20.1:	inb $0x64,%al			# Get status
 		testb $0x2,%al			# Busy?
 		jnz seta20.1			# Yes
+		movb $0xd1,%al			# Command: Write
+		outb %al,$0x64			#  output port
+seta20.2:	inb $0x64,%al			# Get status
+		testb $0x2,%al			# Busy?
+		jnz seta20.2			# Yes
 		movb $0xdf,%al			# Enable
 		outb %al,$0x60			#  A20
+		sti				# Enable interrupts
 		ret				# To caller
 
 # Read from disk
