@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.20 1999/04/23 20:29:58 dt Exp $
+ *	$Id: pmap.c,v 1.21 1999/04/28 15:52:09 dt Exp $
  */
 
 /*
@@ -2169,6 +2169,8 @@ validate:
 		*pte = newpte;
 		if (origpte)
 			pmap_invalidate_page(pmap, va);
+		if (prot & VM_PROT_EXECUTE)
+			alpha_pal_imb();
 	}
 }
 
@@ -2187,7 +2189,8 @@ static vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_page_t mpte)
 {
 	register pt_entry_t *pte;
-
+	pt_entry_t npte;
+	pv_table_t* ppv;
 
 	/*
 	 * In the case that a page table page is not
@@ -2259,10 +2262,14 @@ retry:
 	 */
 	pmap->pm_stats.resident_count++;
 
+	ppv = pa_to_pvh(pa);
+
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_URE | PG_MANAGED;
+	*pte = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_URE | PG_MANAGED |
+	    (!(ppv->pv_flags & PV_TABLE_REF) ? (PG_FOR | PG_FOW | PG_FOE) : 0);
+	pmap_invalidate_page(pmap, va);
 
 	return mpte;
 }
