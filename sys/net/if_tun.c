@@ -302,12 +302,9 @@ tunifioctl(ifp, cmd, data)
 			 ifp->if_name, ifp->if_unit);
 		break;
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
-			error = EINVAL;
-		else {
-			ifp->if_mtu = ifr->ifr_mtu;
-			TUNDEBUG("%s%d: mtu set\n", ifp->if_name, ifp->if_unit);
-		}
+		ifp->if_mtu = ifr->ifr_mtu;
+		TUNDEBUG("%s%d: mtu set\n",
+			 ifp->if_name, ifp->if_unit);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -438,7 +435,7 @@ tunioctl(dev, cmd, data, flag, p)
 	switch (cmd) {
  	case TUNSIFINFO:
  	        tunp = (struct tuninfo *)data;
-		if (tunp->mtu < IF_MINMTU || tunp->mtu > IF_MAXMTU)
+		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
  		tp->tun_if.if_mtu = tunp->mtu;
  		tp->tun_if.if_type = tunp->type;
