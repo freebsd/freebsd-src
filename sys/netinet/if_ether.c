@@ -526,7 +526,8 @@ in_arpinput(m)
 	struct iso88025_header *th = (struct iso88025_header *)0;
 	register struct llinfo_arp *la = 0;
 	register struct rtentry *rt;
-	struct in_ifaddr *ia, *maybe_ia = 0;
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
 	struct sockaddr_dl *sdl;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
@@ -542,30 +543,36 @@ in_arpinput(m)
 	op = ntohs(ea->arp_op);
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
 	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
-		/*
-		 * For a bridge, we want to check the address irrespective
-		 * of the receive interface. (This will change slightly
-		 * when we have clusters of interfaces).
-		 */
 #ifdef BRIDGE
 #define BRIDGE_TEST (do_bridge)
 #else
 #define BRIDGE_TEST (0) /* cc will optimise the test away */
 #endif
-		if ((BRIDGE_TEST) || (ia->ia_ifp == &ac->ac_if)) {
-			maybe_ia = ia;
-			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
-			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)) {
-				break;
-			}
-		}
-	}
-	if (maybe_ia == 0) {
+	/*
+	 * For a bridge, we want to check the address irrespective
+	 * of the receive interface. (This will change slightly
+	 * when we have clusters of interfaces).
+	 */
+	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash)
+		if ((BRIDGE_TEST || (ia->ia_ifp == &ac->ac_if)) &&
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+			goto match;
+	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
+		if ((BRIDGE_TEST || (ia->ia_ifp == &ac->ac_if)) &&
+		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+			goto match;
+	/*
+	 * No match, use the first address on the receive interface
+	 * as a dummy address for the rest of the function.
+	 */
+	ifa = TAILQ_FIRST(&ac->ac_if.if_addrhead);
+	if (ifa == NULL) {
 		m_freem(m);
 		return;
 	}
-	myaddr = ia ? ia->ia_addr.sin_addr : maybe_ia->ia_addr.sin_addr;
+	ia = ifatoia(ifa);
+match:
+	myaddr = ia->ia_addr.sin_addr;
 	if (!bcmp((caddr_t)ea->arp_sha, (caddr_t)ac->ac_enaddr,
 	    sizeof (ea->arp_sha))) {
 		m_freem(m);	/* it's from me, ignore it. */

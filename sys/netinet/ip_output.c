@@ -713,7 +713,8 @@ skip_ipsec:
 			 * as the packet runs through ip_input() as
 			 * it is done through a ISR.
 			 */
-			TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+			LIST_FOREACH(ia,
+			    INADDR_HASH(dst->sin_addr.s_addr), ia_hash) {
 				/*
 				 * If the addr to forward to is one
 				 * of ours, we pretend to
