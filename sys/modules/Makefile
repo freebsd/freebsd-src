@@ -2,12 +2,12 @@
 
 # XXX present but broken: ip_mroute_mod pcic
 
-SUBDIR=	agp aha amr an aue ccd cd9660 coda cue dc fdesc fxp if_disc if_ef if_ppp \
-	if_sl if_tun ipfilter ipfw joy kernfs kue \
+SUBDIR=	agp aha amr an aue ccd cd9660 coda cue dc fdesc fxp if_disc if_ef \
+	if_ppp if_sl if_tun ipfilter ipfw ispfw joy kernfs kue \
 	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs portal procfs rl rp sf sis sk ste syscons ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
-	vinum vn vpo vr wb xl
+	vinum vn vpo vr wb wx xl
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
