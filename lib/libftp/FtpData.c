@@ -13,13 +13,15 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 
 STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
 {
   struct sockaddr_in data,from;
   register struct hostent *host;
-  String hostname,cmd;
-  int NewSocket,Accepted_Socket,len=sizeof(data),one=1,fromlen=sizeof(from),i;
+  String hostname;
+  int NewSocket,Accepted_Socket,len=sizeof(data),one=1,fromlen=sizeof(from),
+      i = 0;
   char *a,*b;
 
   FREE(data);
@@ -50,7 +52,7 @@ STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
   if ( bind ( NewSocket , (struct sockaddr *)&data , sizeof data ) < 0 )
     return EXIT(con,QUIT);
 
-  if ( getsockname ( NewSocket , &data , &len ) < 0 )
+  if ( getsockname ( NewSocket , (struct sockaddr *)&data , &len ) < 0 )
     return EXIT(con,QUIT);
   
   if ( listen ( NewSocket , 1 ) < 0 )
@@ -71,7 +73,7 @@ STATUS FtpData(FTP * con,char * command , char * file ,char * mode)
   FtpAssert(con, FtpCommand ( con , command , file , 
 			     200, 120 , 150 , 125 , 250 , EOF ));
   
-  if (( Accepted_Socket = accept (NewSocket , &from , &fromlen )) < 0)
+  if (( Accepted_Socket = accept (NewSocket , (struct sockaddr *)&from , &fromlen )) < 0)
     {
       close(NewSocket);
       return EXIT(con,QUIT);

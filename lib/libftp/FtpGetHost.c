@@ -13,7 +13,7 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
-
+#include <arpa/inet.h>
 
 
 struct hostent *FtpGetHost(char *host)

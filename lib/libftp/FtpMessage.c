@@ -13,7 +13,7 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
-
+#include <ctype.h>
 
 static char * FtpMessageList[1000];
 
@@ -45,7 +45,7 @@ INLINE static char *___gets(char *s, int maxchars, FTP *ftp)
      
 int FtpGetMessage(FTP *con , char * Message )
 {
-  int i=0,n;
+  int n;
   char tmp[1024];
   
   while(1)
@@ -95,7 +95,7 @@ char *FtpMessage(int number)
   
   FtpInitMessageList();
   if ( number == 0 )
-    return sys_errlist[errno];
+    return (char *)sys_errlist[errno];
   return (FtpMessageList[abs(number)]==NULL)?
     "":FtpMessageList[abs(number)];
 }

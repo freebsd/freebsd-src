@@ -35,9 +35,9 @@ STATUS FtpFilenameChecker(char ** in, char ** out)
       strcat(new,"/");
       strcat(new,sfn);
       *out=new;
-      return;
+      return 0;
     };
-
+   return 0;
 }
 
 
