@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.163 1999/05/17 00:53:53 alc Exp $
+ * $Id: vm_map.c,v 1.164 1999/05/18 05:38:48 alc Exp $
  */
 
 /*
@@ -2276,7 +2276,14 @@ vmspace_fork(vm1)
 					atop(old_entry->end - old_entry->start));
 				old_entry->object.vm_object = object;
 				old_entry->offset = (vm_offset_t) 0;
-			} else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
+			}
+
+			/*
+			 * Add the reference before calling vm_object_shadow
+			 * to insure that a shadow object is created.
+			 */
+			vm_object_reference(object);
+			if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
 					&old_entry->offset,
 					atop(old_entry->end - old_entry->start));
@@ -2291,7 +2298,6 @@ vmspace_fork(vm1)
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			vm_object_reference(object);
 
 			/*
 			 * Insert the entry into the new map -- we know we're
