@@ -83,7 +83,7 @@ static struct nlist nl[] = {
 #define N_VIFTABLE	5
 	{ "_viftable" },
 #define N_IPX		6
-	{ "_ipxpcb"},
+	{ "_ipxpcb_list"},
 #define N_IPXSTAT	7
 	{ "_ipxstat"},
 #define N_SPXSTAT	8

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "netstat.h"
 
+struct	ipxpcbhead ipxpcb_list;
+int	ipxpcb_list_read;
 struct	ipxpcb ipxpcb;
 struct	spxpcb spxpcb;
 struct	socket sockb;
@@ -93,21 +96,38 @@ ipxprotopr(u_long off, const char *name, int af1 __unused)
 
 	if (off == 0)
 		return;
+
+	/*
+	 * First time around, read in the pcb list header.  After that, we
+	 * walk sequential pcbs.
+	 */
+	if (ipxpcb_list_read == 0) {
+		kread(off, (char *)&ipxpcb_list, sizeof(ipxpcb_list));
+		off = (u_long)LIST_FIRST(&ipxpcb_list);
+		ipxpcb_list_read = 1;
+	}
+
 	isspx = strcmp(name, "spx") == 0;
 	kread(off, (char *)&cb, sizeof (struct ipxpcb));
 	ipxpcb = cb;
 	prev = (struct ipxpcb *)off;
-	if (ipxpcb.ipxp_next == (struct ipxpcb *)off)
+	if (LIST_NEXT(&ipxpcb, ipxp_list) == NULL)
 		return;
-	for (;ipxpcb.ipxp_next != (struct ipxpcb *)off; prev = next) {
+	for (;LIST_NEXT(&ipxpcb, ipxp_list) != NULL; prev = next) {
 		u_long ppcb;
 
-		next = ipxpcb.ipxp_next;
+		next = LIST_NEXT(&ipxpcb, ipxp_list);
 		kread((u_long)next, (char *)&ipxpcb, sizeof (ipxpcb));
+#if 0
+		/*
+		 * queue(9) macros do not give us a prev pointer, so skip
+		 * sanity check for now.
+		 */
 		if (ipxpcb.ipxp_prev != prev) {
 			printf("???\n");
 			break;
 		}
+#endif
 		if (!aflag && ipx_nullhost(ipxpcb.ipxp_faddr) ) {
 			continue;
 		}
