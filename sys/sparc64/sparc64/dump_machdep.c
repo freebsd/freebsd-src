@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002 Thomas Moestl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,28 +30,31 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/bootinfo.h>
-#include <machine/efi.h>
-#include <machine/elf.h>
-#include <machine/md_var.h>
 
-CTASSERT(sizeof(struct kerneldumpheader) == 512);
+#include <machine/metadata.h>
+#include <machine/kerneldump.h>
+#include <machine/ofw_mem.h>
+#include <machine/tsb.h>
 
-#define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
-#define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
+CTASSERT(sizeof(struct kerneldumpheader) == DEV_BSIZE);
 
-typedef int callback_t(EFI_MEMORY_DESCRIPTOR*, int, void*);
+extern struct ofw_mem_region sparc64_memreg[];
+extern int sparc64_nmemreg;
 
 static struct kerneldumpheader kdh;
-static off_t dumplo, fileofs;
+static off_t dumplo, dumppos;
 
 /* Handle buffered writes. */
 static char buffer[DEV_BSIZE];
-static size_t fragsz;
+static vm_size_t fragsz;
+
+#define	MAXDUMPSZ	(MAXDUMPPGS << PAGE_SHIFT)
 
 /* XXX should be MI */
 static void
@@ -88,7 +92,7 @@ buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 		ptr += len;
 		sz -= len;
 		if (fragsz == DEV_BSIZE) {
-			error = di->dumper(di->priv, buffer, NULL, dumplo,
+			error = di->dumper(di->priv, buffer, 0, dumplo,
 			    DEV_BSIZE);
 			if (error)
 				return error;
@@ -108,192 +112,136 @@ buf_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = di->dumper(di->priv, buffer, NULL, dumplo, DEV_BSIZE);
+	error = di->dumper(di->priv, buffer, 0, dumplo, DEV_BSIZE);
 	dumplo += DEV_BSIZE;
 	return (error);
 }
 
 static int
-cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
+reg_write(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
 {
-	struct dumperinfo *di = (struct dumperinfo*)arg;
-	vm_offset_t pa;
-	uint64_t pgs;
-	size_t counter, sz;
-	int error, twiddle;
+	struct sparc64_dump_reg r;
 
-	error = 0;	/* catch case in which mdp->NumberOfPages is 0 */
-	counter = 0;	/* Update twiddle every 16MB */
-	twiddle = 0;
-	pgs = mdp->NumberOfPages;
-	pa = IA64_PHYS_TO_RR7(mdp->PhysicalStart);
+	r.dr_pa = pa;
+	r.dr_size = size;
+	r.dr_offs = dumppos;
+	dumppos += size;
+	return (buf_write(di, (char *)&r, sizeof(r)));
+}
 
-	printf("  chunk %d: %ld pages ", seqnr, (long)pgs);
+static int
+blk_dump(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
+{
+	vm_size_t pos, npg, rsz;
+	void *va;
+	int c, counter, error, i, twiddle;
 
-	while (pgs) {
-		sz = (pgs > (DFLTPHYS >> EFI_PAGE_SHIFT))
-		    ? DFLTPHYS : pgs << EFI_PAGE_SHIFT;
-		counter += sz;
-		if (counter >> 24) {
+	printf("  chunk at %#lx: %ld bytes ", (u_long)pa, (long)size);
+
+	va = NULL;
+	error = counter = twiddle = 0;
+	for (pos = 0; pos < size; pos += MAXDUMPSZ, counter++) {
+		if (counter % 128 == 0)
 			printf("%c\b", "|/-\\"[twiddle++ & 3]);
-			counter &= (1<<24) - 1;
-		}
-		error = di->dumper(di->priv, (void*)pa, NULL, dumplo, sz);
+		rsz = size - pos;
+		rsz = (rsz > MAXDUMPSZ) ? MAXDUMPSZ : rsz;
+		npg = rsz >> PAGE_SHIFT;
+		for (i = 0; i < npg; i++)
+			va = pmap_kenter_temporary(pa + pos + i * PAGE_SIZE, i);
+		error = di->dumper(di->priv, va, 0, dumplo, rsz);
 		if (error)
 			break;
-		dumplo += sz;
-		pgs -= sz >> EFI_PAGE_SHIFT;
-		pa += sz;
+		dumplo += rsz;
+
+		/* Check for user abort. */
+		c = cncheckc();
+		if (c == 0x03)
+			return (ECANCELED);
+		if (c != -1)
+			printf("(CTRL-C to abort)  ");
 	}
 	printf("... %s\n", (error) ? "fail" : "ok");
 	return (error);
 }
 
-static int
-cb_dumphdr(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
-{
-	struct dumperinfo *di = (struct dumperinfo*)arg;
-	Elf64_Phdr phdr;
-	int error;
-
-	bzero(&phdr, sizeof(phdr));
-	phdr.p_type = PT_LOAD;
-	phdr.p_flags = PF_R;			/* XXX */
-	phdr.p_offset = fileofs;
-	phdr.p_vaddr = mdp->VirtualStart;	/* XXX probably bogus. */
-	phdr.p_paddr = mdp->PhysicalStart;
-	phdr.p_filesz = mdp->NumberOfPages << EFI_PAGE_SHIFT;
-	phdr.p_memsz = mdp->NumberOfPages << EFI_PAGE_SHIFT;
-	phdr.p_align = EFI_PAGE_SIZE;
-
-	error = buf_write(di->priv, (char*)&phdr, sizeof(phdr));
-	fileofs += phdr.p_filesz;
-	return (error);
-}
-
-static int
-cb_size(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
-{
-	uint64_t *sz = (uint64_t*)arg;
-
-	*sz += (uint64_t)mdp->NumberOfPages << EFI_PAGE_SHIFT;
-	return (0);
-}
-
-static int
-foreach_chunk(callback_t cb, void *arg)
-{
-	EFI_MEMORY_DESCRIPTOR *mdp;
-	int error, i, mdcount, seqnr;
-
-	mdp = (EFI_MEMORY_DESCRIPTOR *)IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
-	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
-
-	if (mdp == NULL || mdcount == 0)
-		return (0);
-
-	for (i = 0, seqnr = 0; i < mdcount; i++) {
-		if (mdp->Type == EfiConventionalMemory) {
-			error = (*cb)(mdp, seqnr++, arg);
-			if (error)
-				return (-error);
-		}
-		mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size);
-	}
-
-	return (seqnr);
-}
-
 void
 dumpsys(struct dumperinfo *di)
 {
-	Elf64_Ehdr ehdr;
-	uint64_t dumpsize;
-	off_t hdrgap;
-	size_t hdrsz;
-	int error;
-
-	bzero(&ehdr, sizeof(ehdr));
-	ehdr.e_ident[EI_MAG0] = ELFMAG0;
-	ehdr.e_ident[EI_MAG1] = ELFMAG1;
-	ehdr.e_ident[EI_MAG2] = ELFMAG2;
-	ehdr.e_ident[EI_MAG3] = ELFMAG3;
-	ehdr.e_ident[EI_CLASS] = ELFCLASS64;
-#if BYTE_ORDER == LITTLE_ENDIAN
-	ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
-#else
-	ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
-#endif
-	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
-	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
-	ehdr.e_type = ET_CORE;
-	ehdr.e_machine = EM_IA_64;
-	ehdr.e_phoff = sizeof(ehdr);
-	ehdr.e_flags = EF_IA_64_ABSOLUTE;		/* XXX misuse? */
-	ehdr.e_ehsize = sizeof(ehdr);
-	ehdr.e_phentsize = sizeof(Elf64_Phdr);
-	ehdr.e_shentsize = sizeof(Elf64_Shdr);
+	struct sparc64_dump_hdr hdr;
+	vm_size_t size, totsize, hdrsize;
+	int error, i, nreg;
 
 	/* Calculate dump size. */
-	dumpsize = 0L;
-	ehdr.e_phnum = foreach_chunk(cb_size, &dumpsize);
-	hdrsz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
-	fileofs = MD_ALIGN(hdrsz);
-	dumpsize += fileofs;
-	hdrgap = fileofs - DEV_ALIGN(hdrsz);
+	size = 0;
+	nreg = sparc64_nmemreg;
+	for (i = 0; i < sparc64_nmemreg; i++)
+		size += sparc64_memreg[i].mr_size;
+	/* Account for the header size. */
+	hdrsize = roundup2(sizeof(hdr) + sizeof(struct sparc64_dump_reg) * nreg,
+	    DEV_BSIZE);
+	size += hdrsize;
+
+	totsize = size + 2 * sizeof(kdh);
+	if (totsize > di->mediasize) {
+		printf("Insufficient space on device (need %ld, have %ld), "
+		    "refusing to dump.\n", (long)totsize,
+		    (long)di->mediasize);
+		error = ENOSPC;
+		goto fail;
+	}
 
 	/* Determine dump offset on device. */
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
+	dumplo = di->mediaoffset + di->mediasize - totsize;
 
-	mkdumpheader(&kdh, KERNELDUMP_IA64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMP_SPARC64_VERSION, size, di->blocksize);
 
-	printf("Dumping %llu MB (%d chunks)\n", dumpsize >> 20, ehdr.e_phnum);
+	printf("Dumping %lu MB (%d chunks)\n", (u_long)(size >> 20), nreg);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
+	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
 
-	/* Dump ELF header */
-	error = buf_write(di, (char*)&ehdr, sizeof(ehdr));
-	if (error)
+	/* Dump the private header. */
+	hdr.dh_hdr_size = hdrsize;
+	hdr.dh_tsb_pa = tsb_kernel_phys;
+	hdr.dh_tsb_size = tsb_kernel_size;
+	hdr.dh_tsb_mask = tsb_kernel_mask;
+	hdr.dh_nregions = nreg;
+
+	if (buf_write(di, (char *)&hdr, sizeof(hdr)) != 0)
 		goto fail;
 
-	/* Dump program headers */
-	error = foreach_chunk(cb_dumphdr, di);
-	if (error < 0)
-		goto fail;
+	dumppos = hdrsize;
+	/* Now, write out the region descriptors. */
+	for (i = 0; i < sparc64_nmemreg; i++) {
+		error = reg_write(di, sparc64_memreg[i].mr_start,
+		    sparc64_memreg[i].mr_size);
+		if (error != 0)
+			goto fail;
+	}
 	buf_flush(di);
 
-	/*
-	 * All headers are written using blocked I/O, so we know the
-	 * current offset is (still) block aligned. Skip the alignement
-	 * in the file to have the segment contents aligned at page
-	 * boundary. We cannot use MD_ALIGN on dumplo, because we don't
-	 * care and may very well be unaligned within the dump device.
-	 */
-	dumplo += hdrgap;
-
-	/* Dump memory chunks (updates dumplo) */
-	error = foreach_chunk(cb_dumpdata, di);
-	if (error < 0)
-		goto fail;
+	/* Dump memory chunks. */
+	for (i = 0; i < sparc64_nmemreg; i++) {
+		error = blk_dump(di, sparc64_memreg[i].mr_start,
+		    sparc64_memreg[i].mr_size);
+		if (error != 0)
+			goto fail;
+	}
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
+	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, NULL, 0, 0);
+	di->dumper(di->priv, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
  fail:
-	if (error < 0)
-		error = -error;
 	/* XXX It should look more like VMS :-) */
 	printf("** DUMP FAILED (ERROR %d) **\n", error);
 }

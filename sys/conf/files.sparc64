@@ -40,6 +40,7 @@ sparc64/sparc64/db_disasm.c	optional	ddb
 sparc64/sparc64/db_interface.c	optional	ddb
 sparc64/sparc64/db_trace.c	optional	ddb
 sparc64/sparc64/db_hwwatch.c	optional	ddb
+sparc64/sparc64/dump_machdep.c	standard
 sparc64/sparc64/elf_machdep.c	standard
 # locore.S and exception.S need to be handled in the Makefile to put them
 # first.  Otherwise they're normal.
