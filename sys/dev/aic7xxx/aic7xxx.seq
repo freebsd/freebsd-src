@@ -80,10 +80,10 @@ A = ACCUM
  * middle of a DMA, so clear DFCNTRL too.
  */
 reset:
-	clr	DFCNTRL
 	clr	SCSISIGO		/* De-assert BSY */
 
 p_busfree:
+	clr	DFCNTRL
 	clr	SCSIRATE		/*
 					 * We don't know the target we will
 					 * connect to, so default to narrow
@@ -390,9 +390,6 @@ data_phase_init:
 	mvi	DINDEX, SG_NEXT
 	mvi	SCB_SGPTR	call bcopy_4
 
-	/* We have seen a data phase */
-	or	FLAGS, DPHASE
-
 data_phase_loop:
 /* Guard against overruns */
 	test	SG_COUNT, 0xff jnz data_phase_inbounds
@@ -441,12 +438,12 @@ sg_advance:
  * This, like all DMA's, assumes little-endian host data storage.
  */
 sg_load:
-	clr	HCNT2
-	clr	HCNT1
-	mvi	HCNT0,SG_SIZEOF
-
 	mvi	DINDEX, HADDR0
 	mvi	SG_NEXT0	call bcopy_4
+
+	mvi	HCNT0,SG_SIZEOF
+	clr	HCNT1
+	clr	HCNT2
 
 	or	DFCNTRL,0xd			/* HDMAEN|DIRECTION|FIFORESET */
 
@@ -465,7 +462,7 @@ sg_load:
 
 /* Load STCNT as well.  It is a mirror of HCNT */
 	call	set_stcnt_from_hcnt
-	test	SSTAT1,PHASEMIS  jz data_phase_loop
+	test	SSTAT1,PHASEMIS	jz data_phase_loop
 
 data_phase_finish:
 /*
@@ -477,6 +474,10 @@ data_phase_finish:
 	mov	SCB_RESID_DCNT1,STCNT1
 	mov	SCB_RESID_DCNT2,STCNT2
 	mov	SCB_RESID_SGCNT, SG_COUNT
+
+	/* We have seen a data phase */
+	or	FLAGS, DPHASE
+
 	jmp	ITloop
 
 data_phase_overrun:
@@ -809,6 +810,7 @@ index_by_tag:
 	mov	A, SAVED_TCL
 	cmp	SCB_TCL,A		jne send_abort_msg
 	test	SCB_CONTROL,TAG_ENB	jz  send_abort_msg
+	test	SCB_CONTROL,DISCONNECTED jz send_abort_msg
 	jmp	setup_SCB
 
 not_found:
@@ -907,10 +909,11 @@ mesgin_phasemis:
  */
 dma:
 	mov	DFCNTRL,SINDEX
-dma1:
-	test	SSTAT0,DMADONE	jnz dma3
-	test	SSTAT1,PHASEMIS	jz dma1		/* ie. underrun */
-	test	SSTAT0,SDONE	jnz dma3
+dma_loop:
+	test	SSTAT0,DMADONE	jnz dma_dmadone
+	test	SSTAT1,PHASEMIS	jz dma_loop /* ie. underrun */
+dma_phasemis:
+	test	SSTAT0,SDONE	jnz dma_checkfifo
 	mov	SINDEX,ALLZEROS			/* Notify caller of phasemiss */
 
 /*
@@ -921,22 +924,22 @@ dma1:
  * magically on STCNT=0 or a phase change, so just wait for FIFO empty
  * status.
  */
-dma3:
-	test	DFCNTRL,DIRECTION	jnz dma5
-dma4:
-	test	DFSTATUS,FIFOEMP	jz dma4
+dma_checkfifo:
+	test	DFCNTRL,DIRECTION	jnz dma_fifoempty
+dma_fifoflush:
+	test	DFSTATUS,FIFOEMP	jz dma_fifoflush
 
+dma_fifoempty:
+	/* Don't clobber an inprogress host data transfer */
+	test	DFSTATUS, MREQPEND	jnz dma_fifoempty
 /*
  * Now shut the DMA enables off and make sure that the DMA enables are 
  * actually off first lest we get an ILLSADDR.
  */
-dma5:
-	/* Don't clobber an inprogress host data transfer */
-	test	DFSTATUS, MREQPEND	jnz dma5
-	/* disable DMA */
+dma_dmadone:
 	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN) */
-dma6:
-	test	DFCNTRL, 0x38	jnz dma6  /* (SCSIEN|SDMAEN|HDMAEN) */
+dma_halt:
+	test	DFCNTRL, 0x38	jnz dma_halt  /* (SCSIEN|SDMAEN|HDMAEN) */
 return:
 	ret
 
