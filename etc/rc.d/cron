@@ -17,4 +17,8 @@ command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 
 load_rc_config $name
+if checkyesno cron_dst
+then
+	cron_flags="$cron_flags -s"
+fi
 run_rc_command "$1"
