@@ -119,7 +119,7 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 static int
 pccard_probe(device_t dev)
 {
-	device_set_desc(dev, "PC Card bus (classic)");
+	device_set_desc(dev, "PC Card 16-bit bus (classic)");
 	return (0);
 }
 
