@@ -88,12 +88,12 @@ do_authloop(Authctxt *authctxt)
 #ifdef USE_PAM
 	struct inverted_pam_cookie *pam_cookie;
 #endif /* USE_PAM */
-#if defined(HAVE_LOGIN_CAP) || defined(LOGIN_ACCESS)
+#if defined(HAVE_LOGIN_CAP)
 	const char *from_host, *from_ip;
 
 	from_host = get_canonical_hostname(options.verify_reverse_mapping);
 	from_ip = get_remote_ipaddr();
-#endif /* HAVE_LOGIN_CAP || LOGIN_ACCESS */
+#endif /* HAVE_LOGIN_CAP */
 
 	debug("Attempting authentication for %s%.100s.",
 	    authctxt->valid ? "" : "illegal user ", authctxt->user);
@@ -369,13 +369,6 @@ do_authloop(Authctxt *authctxt)
 		  lc = NULL;
 		}
 #endif  /* HAVE_LOGIN_CAP */
-#ifdef LOGIN_ACCESS
-		if (pw != NULL && !login_access(pw->pw_name, from_host)) {
-		  log("Denied connection for %.200s from %.200s [%.200s].",
-		      pw->pw_name, from_host, from_ip);
-		  packet_disconnect("Sorry, you are not allowed to connect.");
-		}
-#endif /* LOGIN_ACCESS */
 #ifdef BSD_AUTH
 		if (authctxt->as) {
 			auth_close(authctxt->as);
