@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1999-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1999-2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -32,19 +32,19 @@ groff_man \- groff `man' macros to support generation of man pages
 .B groff
 .B \-man
 [
-.IR options .\|.\|.
+.IR options .\|.\|.\&
 ]
 [
-.IR files .\|.\|.
+.IR files .\|.\|.\&
 ]
 .br
 .B groff
 .B \-m\ man
 [
-.IR options .\|.\|.
+.IR options .\|.\|.\&
 ]
 [
-.IR files .\|.\|.
+.IR files .\|.\|.\&
 ]
 .
 .SH DESCRIPTION
@@ -63,6 +63,16 @@ The
 .B man
 macros understand the following command line options (which define various
 registers).
+.TP
+.BI \-rLL= line-length
+Set line length.
+If this option is not given, the line length defaults to 78n in nroff mode
+and 6.5i in troff mode.
+.TP
+.BI \-rLT= title-length
+Set title length.
+If this option is not given, the title length defaults to 78n in nroff mode
+and 6.5i in troff mode.
 .TP
 .B \-rcR=1
 This option (the default if in nroff mode) will create a single, very long
@@ -151,8 +161,8 @@ macro at the beginning of the file.
 Sets up an unnumbered section heading sticking out to the left.
 Prints out all the text following
 .B SH
-up to the end of the line (resp. the text in the next line if there is no
-argument to
+up to the end of the line (resp. the text in the next input line if there is
+no argument to
 .BR SH )
 in bold face, one size larger than the base document size.
 Additionally, the left margin for the following text is reset to its default
@@ -162,8 +172,8 @@ value.
 Sets up an secondary, unnumbered section heading.
 Prints out all the text following
 .B SS
-up to the end of the line (resp. the text in the next line if there is no
-argument to
+up to the end of the line (resp. the text in the next input line if there is
+no argument to
 .BR SS )
 in bold face, at the same size as the base document size.
 Additionally, the left margin for the following text is reset to its default
@@ -175,8 +185,8 @@ The indentation is set to
 .I nnn
 if that argument is supplied (the default unit is `n' if omitted), otherwise
 it is set to the default indentation value.
-The first line of text following this macro is interpreted as a string to be
-printed flush-left, as it is appropriate for a label.
+The first input line of text following this macro is interpreted as a string
+to be printed flush-left, as it is appropriate for a label.
 It is not interpreted as part of a paragraph, so there is no attempt to fill
 the first line with text from the following input lines.
 Nevertheless, if the label is not as wide as the indentation, then the
@@ -290,18 +300,27 @@ The macros
 and
 .B RE
 also cause a break but no insertion of vertical space.
+Finally, the macros
+.BR SH ,
+.BR SS ,
+.B LP
+.RB ( PP ,
+.BR P ),
+and
+.B RS
+reset the indentation to its default value.
 .
 .SH "MACROS TO SET FONTS"
 .
 The standard font is Roman; the default text size is 10\ point.
 .TP
 .BI ".SM [" text ]
-Causes the text on the same line or the text on the next line to appear in a
-font that is one point size smaller than the default font.
+Causes the text on the same line or the text on the next input line to
+appear in a font that is one point size smaller than the default font.
 .TP
 .BI ".SB [" text ]
-Causes the text on the same line or the text on the next line to appear in
-boldface font, one point size smaller than the default font.
+Causes the text on the same line or the text on the next input line to
+appear in boldface font, one point size smaller than the default font.
 .TP
 .BI ".BI " text
 Causes text on the same line to appear alternately in bold face and italic.
@@ -335,28 +354,19 @@ The text must be on the same line as the macro call.
 Causes text on the same line to appear alternately in roman and bold face.
 The text must be on the same line as the macro call.
 .TP
-.BI ".R [" text ]
-Causes
-.I text
-to appear in roman font.
-If no text is present on the line where the macro is called, then the text
-of the next line appears in roman.
-This is the default font to which text is returned at the end of processing
-of the other macros.
-.TP
 .BI ".B [" text ]
 Causes
 .I text
 to appear in bold face.
 If no text is present on the line where the macro is called, then the text
-of the next line appears in bold face.
+of the next input line appears in bold face.
 .TP
 .BI ".I [" text ]
 Causes
 .I text
 to appear in italic.
 If no text is present on the line where the macro is called, then the text
-of the next line appears in italic.
+of the next input line appears in italic.
 .
 .SH "MISCELLANEOUS"
 .

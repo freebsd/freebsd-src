@@ -1,11 +1,6 @@
 # $FreeBSD$
 
-DEVICEDIR?=	${fontdir}/dev${DEV}
-
-all: ${DEVFILES}
-
-beforeinstall: ${DEVFILES}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		${.ALLSRC} ${DESTDIR}${DEVICEDIR}
+FILES=		${DEVFILES}
+FILESDIR?=	${fontdir}/dev${DEV}
 
 .include <bsd.prog.mk>

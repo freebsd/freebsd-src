@@ -14,14 +14,14 @@ Here two ports using the gcc compiler and other GNU tools:
 
     http://sources.redhat.com/cygwin/mirrors.html
 
-  At any of this mirrors, groff can be found in the directory
+  At any of those mirrors, groff can be found in the directory
   latest/groff.
 
 . Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
 
     http://gnuwin32.sourceforge.net/packages/groffl.htm
 
-  This port includes grap-1.10 and deroff-1.7.
+  This port includes recent versions of grap and deroff.
 
 dos
 ---
@@ -117,12 +117,23 @@ Win95, Win98, WinNT) is available from
 
 and its mirrors.
 
-A win32 port of version 1.7 is available from
+A win32 port of version 1.8 is available from
 
   http://gnuwin32.sourceforge.net/
 
+David Frey <dfrey@debian.org> has also written a deroff implementation
+for Debian; it is available from
+
+  ftp://ftp.debian.org/debian/pool/main/d/deroff/
+
 miscellaneous
 -------------
+
+. Ralph Corderoy's excellent page on troff:
+
+    www.troff.org
+
+  There are links for virtually everything related to troff.
 
 . Dr. Robert Hermann's groff gems are available from
 
@@ -162,6 +173,19 @@ miscellaneous
   latest version can be found at
 
     http://perso.libertysurf.fr/baruchel/
+
+. gpresent, written by Bob Diertens <bobd@science.uva.nl>.  From the README
+  file:
+
+    gpresent is a package for making presentation with groff and acroread.
+    It consist of a set of macros to be used with groff and a post-processor
+    for manipulating the PostScript output of groff.  Without the use of the
+    PAUSE macro, it can also be used for making slides.
+    
+  It is available from
+
+    www.science.uva.nl/~bobd/useful/gpresent/
+
 
 documentation
 -------------

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1994, 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1994, 2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -55,7 +55,7 @@ static struct {
   { "dl", 90, 71, 59 },
 };
 
-static int paper_size = -1;
+static int user_paper_size = -1;
 static int landscape_flag = 0;
 static int duplex_flag = 0;
 
@@ -75,6 +75,8 @@ static int duplex_flag = 0;
 const int DEFAULT_HPGL_UNITS = 1016;
 int line_width_factor = DEFAULT_LINE_WIDTH_FACTOR;
 unsigned ncopies = 0;		// 0 means don't send ncopies command
+
+static int lookup_paper_size(const char *);
 
 class lj4_font : public font {
 public:
@@ -158,7 +160,7 @@ void lj4_font::handle_unknown_font_command(const char *command,
 
 class lj4_printer : public printer {
 public:
-  lj4_printer();
+  lj4_printer(int);
   ~lj4_printer();
   void set_char(int, font *, const environment *, int, const char *name);
   void draw(int code, int *p, int np, const environment *env);
@@ -184,6 +186,7 @@ private:
   double pen_width;
   double hpgl_scale;
   int hpgl_inited;
+  int paper_size;
 };
 
 inline
@@ -207,7 +210,7 @@ void lj4_printer::hpgl_end()
   fputs(";\033%0A", stdout);
 }
 
-lj4_printer::lj4_printer()
+lj4_printer::lj4_printer(int ps)
 : cur_hpos(-1),
   cur_font(0),
   cur_size(0),
@@ -221,11 +224,19 @@ lj4_printer::lj4_printer()
 	  font::res);
   fputs("\033E", stdout);		// reset
   if (font::res != 300)
-    printf("\033&u%dD", font::res); // unit of measure
+    printf("\033&u%dD", font::res);	// unit of measure
   if (ncopies > 0)
     printf("\033&l%uX", ncopies);
-  if (paper_size < 0)
-    paper_size = 0;		// default to letter
+  paper_size = 0;		// default to letter
+  if (font::papersize) {
+    int n = lookup_paper_size(font::papersize);
+    if (n < 0)
+      error("unknown paper size `%1'", font::papersize);
+    else
+      paper_size = n;
+  }
+  if (ps >= 0)
+    paper_size = ps;
   printf("\033&l%dA"		// paper size
 	 "\033&l%dO"		// orientation
 	 "\033&l0E",		// no top margin
@@ -266,7 +277,8 @@ int is_unprintable(unsigned char c)
   return c < 32 && (c == 0 || (7 <= c && c <= 15) || c == 27);
 }
 
-void lj4_printer::set_char(int index, font *f, const environment *env, int w, const char *name)
+void lj4_printer::set_char(int index, font *f, const environment *env,
+			   int w, const char *name)
 {
   int code = f->get_code(index);
 
@@ -502,6 +514,9 @@ void lj4_printer::draw(int code, int *p, int np, const environment *env)
       printf("FT10,%d", p[0]/10);
     hpgl_end();
     break;
+  case 'F':
+    // not implemented yet
+    break;
   case 't':
     {
       if (np == 0) {
@@ -531,8 +546,8 @@ void lj4_printer::hpgl_init()
   hpgl_scale = double(DEFAULT_HPGL_UNITS)/font::res;
   printf("\033&f0S"		// push position
 	 "\033*p0x0Y"		// move to 0,0
-	 "\033*c%dx%dy0T" // establish picture frame
-	 "\033%%1B"		  // switch to HPGL
+	 "\033*c%dx%dy0T"	// establish picture frame
+	 "\033%%1B"		// switch to HPGL
 	 "SP1SC0,%.4f,0,-%.4f,2IR0,100,0,100" // set up scaling
 	 "LA1,4,2,4"		// round line ends and joins
 	 "PR"			// relative plotting
@@ -565,7 +580,7 @@ font *lj4_printer::make_font(const char *nm)
 
 printer *make_printer()
 {
-  return new lj4_printer;
+  return new lj4_printer(user_paper_size);
 }
 
 static
@@ -580,25 +595,6 @@ int lookup_paper_size(const char *s)
   return -1;
 }
 
-static
-void handle_unknown_desc_command(const char *command, const char *arg,
-				 const char *filename, int lineno)
-{
-  if (strcmp(command, "papersize") == 0) {
-    if (arg == 0)
-      error_with_file_and_line(filename, lineno,
-			       "`papersize' command requires an argument");
-    else if (paper_size < 0) {
-      int n = lookup_paper_size(arg);
-      if (n < 0)
-	error_with_file_and_line(filename, lineno,
-				 "unknown paper size `%1'", arg);
-      else
-	paper_size = n;
-    }
-  }
-}
-
 static void usage(FILE *stream);
 
 extern "C" int optopt, optind;
@@ -608,7 +604,6 @@ int main(int argc, char **argv)
   program_name = argv[0];
   static char stderr_buf[BUFSIZ];
   setbuf(stderr, stderr_buf);
-  font::set_unknown_desc_command_handler(handle_unknown_desc_command);
   int c;
   static const struct option long_options[] = {
     { "help", no_argument, 0, CHAR_MAX + 1 },
@@ -644,7 +639,7 @@ int main(int argc, char **argv)
 	if (n < 0)
 	  error("unknown paper size `%1'", optarg);
 	else
-	  paper_size = n;
+	  user_paper_size = n;
 	break;
       }
     case 'v':

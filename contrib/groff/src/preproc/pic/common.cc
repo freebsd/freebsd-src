@@ -437,7 +437,6 @@ void common_output::dot_line(const position &start, const position &end,
   }
 }
 
-
 void common_output::solid_rounded_box(const position &cent,
 				      const distance &dim, double rad,
 				      const line_type &lt)

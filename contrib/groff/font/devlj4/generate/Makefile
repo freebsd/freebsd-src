@@ -1,4 +1,4 @@
-# Copyright (C) 1994 Free Software Foundation, Inc.
+# Copyright (C) 1994, 2002 Free Software Foundation, Inc.
 #     Written by James Clark (jjc@jclark.com)
 #
 # This file is part of groff.
@@ -20,7 +20,7 @@
 # Directory containing Autofont TFM files.
 # The TFM files I used are available for ftp as
 #
-#   ftp://ftp.hp.com/pub/faxes/software/tfmlj4.exe
+#   ftp://ftp.hp.com/pub/faxes/software/tfmlj4p.exe
 #
 # This is a self-extracting MS-DOS archive (in ZIP format).
 

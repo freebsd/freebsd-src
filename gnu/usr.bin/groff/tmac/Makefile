@@ -6,14 +6,12 @@ TMACMODE?=	${NOBINMODE}
 TMACDIR?=	${SHAREDIR}/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 
-MAN=		groff_tmac.5
-MLINKS+=	groff_tmac.5 tmac.5
-MAN+=		groff_ms.7 groff_man.7 groff_me.7 groff_mdoc.7 groff_mwww.7
-MLINKS+=	groff_ms.7 ms.7
+MAN=		groff_ms.7 groff_man.7 groff_me.7 groff_mdoc.7
+MAN+=		groff_trace.7 groff_www.7
+MLINKS=		groff_ms.7 ms.7
 MLINKS+=	groff_man.7 man.7
 MLINKS+=	groff_me.7 me.7
 MLINKS+=	groff_mdoc.7 mdoc.7 groff_mdoc.7 mdoc.samples.7
-MLINKS+=	groff_mwww.7 mwww.7
 
 CLEANFILES=	${MAN} ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
 
@@ -22,20 +20,24 @@ NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 		mdoc.tmac \
 		pic.tmac \
 		a4.tmac \
+		ec.tmac \
 		safer.tmac \
 		trace.tmac \
 		ps.tmac psold.tmac pspic.tmac psatk.tmac \
 		dvi.tmac \
-		tty.tmac tty-char.tmac latin1.tmac \
+		tty.tmac tty-char.tmac \
+		latin1.tmac cp1047.tmac \
 		X.tmac Xps.tmac \
 		lj4.tmac \
-		html.tmac mwww.tmac www.tmac \
+		lbp.tmac \
+		html.tmac www.tmac \
 		eqnrc \
 		troffrc troffrc-end \
 		hyphen.us
 SPECIALFILES=	an.tmac man.tmac s.tmac ms.tmac
 STRIPFILES=	e.tmac doc.tmac mdoc.local
-MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms koi8-r
+MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms \
+		ru.KOI8-R
 
 all: ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
 
@@ -57,7 +59,7 @@ beforeinstall:
 	    ${NORMALFILES} ${DESTDIR}${TMACDIR}
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    hyphen.us-ru ${DESTDIR}${TMACDIR}
+	    hyphen.ru ${DESTDIR}${TMACDIR}
 	cd ${.OBJDIR}
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -23,6 +23,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 extern "C" const char *Version_string;
 
+#define putstring(s) fputs(s, stdout)
+
 #ifndef SHRT_MIN
 #define SHRT_MIN (-32768)
 #endif
@@ -39,17 +41,44 @@ static int bold_flag = 1;
 static int underline_flag = 1;
 static int overstrike_flag = 1;
 static int draw_flag = 1;
+static int italic_flag = 0;
+static int reverse_flag = 0;
+static int old_drawing_scheme = 0;
 
 enum {
   UNDERLINE_MODE = 0x01,
   BOLD_MODE = 0x02,
   VDRAW_MODE = 0x04,
   HDRAW_MODE = 0x08,
-  CU_MODE = 0x10
+  CU_MODE = 0x10,
+  COLOR_CHANGE = 0x20
 };
 
 // Mode to use for bold-underlining.
 static unsigned char bold_underline_mode = BOLD_MODE|UNDERLINE_MODE;
+
+#ifndef IS_EBCDIC_HOST
+#define CSI "\033["
+#else
+#define CSI "\047["
+#endif
+
+// SGR handling (ISO 6429)
+#define SGR_BOLD CSI "1m"
+#define SGR_NO_BOLD CSI "22m"
+#define SGR_ITALIC CSI "3m"
+#define SGR_NO_ITALIC CSI "23m"
+#define SGR_UNDERLINE CSI "4m"
+#define SGR_NO_UNDERLINE CSI "24m"
+#define SGR_REVERSE CSI "7m"
+#define SGR_NO_REVERSE CSI "27m"
+// many terminals can't handle `CSI 39 m' and `CSI 49 m' to reset
+// the foreground and bachground color, respectively; thus we use
+// `CSI 0 m' exclusively
+#define SGR_DEFAULT CSI "0m"
+
+#define TTY_MAX_COLORS 8
+#define DEFAULT_COLOR_IDX TTY_MAX_COLORS
 
 class tty_font : public font {
   tty_font(const char *);
@@ -109,10 +138,13 @@ public:
   short hpos;
   unsigned int code;
   unsigned char mode;
+  unsigned char back_color_idx;
+  unsigned char fore_color_idx;
   void *operator new(size_t);
   void operator delete(void *);
   inline int draw_mode() { return mode & (VDRAW_MODE|HDRAW_MODE); }
-  inline int order() { return mode & (VDRAW_MODE|HDRAW_MODE|CU_MODE); }
+  inline int order() {
+    return mode & (VDRAW_MODE|HDRAW_MODE|CU_MODE|COLOR_CHANGE); }
 };
 
 glyph *glyph::free_list = 0;
@@ -146,14 +178,26 @@ class tty_printer : public printer {
   int nlines;
   int cached_v;
   int cached_vpos;
-  void add_char(unsigned int, int, int, unsigned char);
+  unsigned char curr_fore_idx;
+  unsigned char curr_back_idx;
+  int is_underline;
+  int is_bold;
+  int cu_flag;
+  color tty_colors[TTY_MAX_COLORS];
+  void make_underline();
+  void make_bold(unsigned int);
+  unsigned char color_to_idx(color *col);
+  void add_char(unsigned int, int, int, color *, color *, unsigned char);
 public:
   tty_printer(const char *device);
   ~tty_printer();
   void set_char(int, font *, const environment *, int, const char *name);
   void draw(int code, int *p, int np, const environment *env);
   void special(char *arg, const environment *env, char type);
+  void change_color(const environment *env);
+  void change_fill_color(const environment *env);
   void put_char(unsigned int);
+  void put_color(unsigned char, int);
   void begin_page(int) { }
   void end_page(int page_length);
   font *make_font(const char *);
@@ -162,10 +206,35 @@ public:
 tty_printer::tty_printer(const char *device) : cached_v(0)
 {
   is_utf8 = !strcmp(device, "utf8");
+  tty_colors[0].set_rgb(0,			// black
+ 			0,
+			0);
+  tty_colors[1].set_rgb(color::MAX_COLOR_VAL,	// red
+			0,
+			0);
+  tty_colors[2].set_rgb(0,			// green
+			color::MAX_COLOR_VAL,
+			0);
+  tty_colors[3].set_rgb(color::MAX_COLOR_VAL,	// yellow
+			color::MAX_COLOR_VAL,
+			0);
+  tty_colors[4].set_rgb(0,			// blue
+			0,
+			color::MAX_COLOR_VAL);
+  tty_colors[5].set_rgb(color::MAX_COLOR_VAL,	// magenta
+			0,
+			color::MAX_COLOR_VAL);
+  tty_colors[6].set_rgb(0,			// cyan
+			color::MAX_COLOR_VAL,
+			color::MAX_COLOR_VAL);
+  tty_colors[7].set_rgb(color::MAX_COLOR_VAL,	// white
+			color::MAX_COLOR_VAL,
+			color::MAX_COLOR_VAL);
   nlines = 66;
   lines = new glyph *[nlines];
   for (int i = 0; i < nlines; i++)
     lines[i] = 0;
+  cu_flag = 0;
 }
 
 tty_printer::~tty_printer()
@@ -173,15 +242,66 @@ tty_printer::~tty_printer()
   a_delete lines;
 }
 
+void tty_printer::make_underline()
+{
+  if (old_drawing_scheme) {
+    putchar('_');
+    putchar('\b');
+  }
+  else {
+    if (!is_underline) {
+      if (italic_flag)
+	putstring(SGR_ITALIC);
+      else if (reverse_flag)
+	putstring(SGR_REVERSE);
+      else
+	putstring(SGR_UNDERLINE);
+    }
+    is_underline = 1;
+  }
+}
+
+void tty_printer::make_bold(unsigned int c)
+{
+  if (old_drawing_scheme) {
+    put_char(c);
+    putchar('\b');
+  }
+  else {
+    if (!is_bold)
+      putstring(SGR_BOLD);
+    is_bold = 1;
+  }
+}
+
+unsigned char tty_printer::color_to_idx(color *col)
+{
+  if (col->is_default())
+    return DEFAULT_COLOR_IDX;
+  for (int i = 0; i < TTY_MAX_COLORS; i++)
+    if (*col == tty_colors[i])
+      return (unsigned char)i;
+  unsigned r, g, b;
+  col->get_rgb(&r, &g, &b);
+  error("Unknown color (%1, %2, %3) mapped to default", r, g, b);
+  return DEFAULT_COLOR_IDX;
+}
+
 void tty_printer::set_char(int i, font *f, const environment *env,
 			   int w, const char *name)
 {
   if (w != font::hor)
     fatal("width of character not equal to horizontal resolution");
-  add_char(f->get_code(i), env->hpos, env->vpos, ((tty_font *)f)->get_mode());
+  add_char(f->get_code(i),
+	   env->hpos, env->vpos,
+	   env->col, env->fill,
+	   ((tty_font *)f)->get_mode());
 }
 
-void tty_printer::add_char(unsigned int c, int h, int v, unsigned char mode)
+void tty_printer::add_char(unsigned int c,
+			   int h, int v,
+			   color *fore, color *back,
+			   unsigned char mode)
 {
 #if 0
   // This is too expensive.
@@ -221,12 +341,14 @@ void tty_printer::add_char(unsigned int c, int h, int v, unsigned char mode)
   glyph *g = new glyph;
   g->hpos = hpos;
   g->code = c;
+  g->fore_color_idx = color_to_idx(fore);
+  g->back_color_idx = color_to_idx(back);
   g->mode = mode;
 
   // The list will be reversed later.  After reversal, it must be in
-  // increasing order of hpos, with CU specials before HDRAW characters
-  // before VDRAW characters before normal characters at each hpos, and
-  // otherwise in order of occurrence.
+  // increasing order of hpos, with COLOR_CHANGE and CU specials before
+  // HDRAW characters before VDRAW characters before normal characters
+  // at each hpos, and otherwise in order of occurrence.
 
   glyph **pp;
   for (pp = lines + (vpos - 1); *pp; pp = &(*pp)->next)
@@ -239,8 +361,51 @@ void tty_printer::add_char(unsigned int c, int h, int v, unsigned char mode)
 
 void tty_printer::special(char *arg, const environment *env, char type)
 {
-  if (type == 'u')
-    add_char(*arg - '0', env->hpos, env->vpos, CU_MODE);
+  if (type == 'u') {
+    add_char(*arg - '0', env->hpos, env->vpos, env->col, env->fill, CU_MODE);
+    return;
+  }
+  if (type != 'p')
+    return;
+  char *p;
+  for (p = arg; *p == ' ' || *p == '\n'; p++)
+    ;
+  char *tag = p;
+  for (; *p != '\0' && *p != ':' && *p != ' ' && *p != '\n'; p++)
+    ;
+  if (*p == '\0' || strncmp(tag, "tty", p - tag) != 0) {
+    error("X command without `tty:' tag ignored");
+    return;
+  }
+  p++;
+  for (; *p == ' ' || *p == '\n'; p++)
+    ;
+  char *command = p;
+  for (; *p != '\0' && *p != ' ' && *p != '\n'; p++)
+    ;
+  if (*command == '\0') {
+    error("empty X command ignored");
+    return;
+  }
+  if (strncmp(command, "sgr", p - command) == 0) {
+    for (; *p == ' ' || *p == '\n'; p++)
+      ;
+    int n;
+    if (*p != '\0' && sscanf(p, "%d", &n) == 1 && n == 0)
+      old_drawing_scheme = 1;
+    else
+      old_drawing_scheme = 0;
+  }
+}
+
+void tty_printer::change_color(const environment *env)
+{
+  add_char(0, env->hpos, env->vpos, env->col, env->fill, COLOR_CHANGE);
+}
+
+void tty_printer::change_fill_color(const environment *env)
+{
+  add_char(0, env->hpos, env->vpos, env->col, env->fill, COLOR_CHANGE);
 }
 
 void tty_printer::draw(int code, int *p, int np, const environment *env)
@@ -260,7 +425,7 @@ void tty_printer::draw(int code, int *p, int np, const environment *env)
       len = -len;
     }
     while (len >= 0) {
-      add_char('|', env->hpos, v, VDRAW_MODE);
+      add_char('|', env->hpos, v, env->col, env->fill, VDRAW_MODE);
       len -= font::vert;
       v += font::vert;
     }
@@ -274,7 +439,7 @@ void tty_printer::draw(int code, int *p, int np, const environment *env)
       len = -len;
     }
     while (len >= 0) {
-      add_char('-', h, env->vpos, HDRAW_MODE);
+      add_char('-', h, env->vpos, env->col, env->fill, HDRAW_MODE);
       len -= font::hor;
       h += font::hor;
     }
@@ -302,14 +467,39 @@ void tty_printer::put_char(unsigned int wc)
     do *++p = (unsigned char)(((wc >> (6 * --count)) & 0x3f) | 0x80);
       while (count > 0);
     *++p = '\0';
-    fputs(buf, stdout);
+    putstring(buf);
   }
-  else {
+  else
     putchar(wc);
-  }
 }
 
-int cu_flag = 0;
+void tty_printer::put_color(unsigned char color_index, int back)
+{
+  if (color_index == DEFAULT_COLOR_IDX) {
+    putstring(SGR_DEFAULT);
+    // set bold and underline again
+    if (is_bold)
+      putstring(SGR_BOLD);
+    if (is_underline) {
+      if (italic_flag)
+	putstring(SGR_ITALIC);
+      else if (reverse_flag)
+	putstring(SGR_REVERSE);
+      else
+	putstring(SGR_UNDERLINE);
+    }
+    // set other color again
+    back = !back;
+    color_index = back ? curr_back_idx : curr_fore_idx;
+  }
+  putstring(CSI);
+  if (back)
+    putchar('4');
+  else
+    putchar('3');
+  putchar(color_index + '0');
+  putchar('m');
+}
 
 void tty_printer::end_page(int page_length)
 {
@@ -345,6 +535,10 @@ void tty_printer::end_page(int page_length)
     }
     int hpos = 0;
     glyph *nextp;
+    curr_fore_idx = DEFAULT_COLOR_IDX;
+    curr_back_idx = DEFAULT_COLOR_IDX;
+    is_underline = 0;
+    is_bold = 0;
     for (p = g; p; delete p, p = nextp) {
       nextp = p->next;
       if (p->mode & CU_MODE) {
@@ -376,34 +570,85 @@ void tty_printer::end_page(int page_length)
 	    int next_tab_pos = ((hpos + TAB_WIDTH) / TAB_WIDTH) * TAB_WIDTH;
 	    if (next_tab_pos > p->hpos)
 	      break;
-	    if (cu_flag) {
-	      putchar('_');
-	      putchar('\b');
+	    if (cu_flag)
+	      make_underline();
+	    else if (!old_drawing_scheme && is_underline) {
+	      if (italic_flag)
+		putstring(SGR_NO_ITALIC);
+	      else if (reverse_flag)
+		putstring(SGR_NO_REVERSE);
+	      else
+		putstring(SGR_NO_UNDERLINE);
+	      is_underline = 0;
 	    }
 	    putchar('\t');
 	    hpos = next_tab_pos;
 	  }
 	}
 	for (; hpos < p->hpos; hpos++) {
-	  if (cu_flag) {
-	    putchar('_');
-	    putchar('\b');
+	  if (cu_flag)
+	    make_underline();
+	  else if (!old_drawing_scheme && is_underline) {
+	    if (italic_flag)
+	      putstring(SGR_NO_ITALIC);
+	    else if (reverse_flag)
+	      putstring(SGR_NO_REVERSE);
+	    else
+	      putstring(SGR_NO_UNDERLINE);
+	    is_underline = 0;
 	  }
 	  putchar(' ');
 	}
       }
       assert(hpos == p->hpos);
-      if (p->mode & UNDERLINE_MODE) {
-	putchar('_');
-	putchar('\b');
+      if (p->mode & COLOR_CHANGE) {
+	if (!old_drawing_scheme) {
+	  if (p->fore_color_idx != curr_fore_idx) {
+	    put_color(p->fore_color_idx, 0);
+	    curr_fore_idx = p->fore_color_idx;
+	  }
+	  if (p->back_color_idx != curr_back_idx) {
+	    put_color(p->back_color_idx, 1);
+	    curr_back_idx = p->back_color_idx;
+	  }
+	}
+	continue;
       }
-      if (p->mode & BOLD_MODE) {
-	put_char(p->code);
-	putchar('\b');
+      if (p->mode & UNDERLINE_MODE)
+	make_underline();
+      else if (!old_drawing_scheme && is_underline) {
+	if (italic_flag)
+	  putstring(SGR_NO_ITALIC);
+	else if (reverse_flag)
+	  putstring(SGR_NO_REVERSE);
+	else
+	  putstring(SGR_NO_UNDERLINE);
+	is_underline = 0;
+      }
+      if (p->mode & BOLD_MODE)
+	make_bold(p->code);
+      else if (!old_drawing_scheme && is_bold) {
+	putstring(SGR_NO_BOLD);
+	is_bold = 0;
+      }
+      if (!old_drawing_scheme) {
+	if (p->fore_color_idx != curr_fore_idx) {
+	  put_color(p->fore_color_idx, 0);
+	  curr_fore_idx = p->fore_color_idx;
+	}
+	if (p->back_color_idx != curr_back_idx) {
+	  put_color(p->back_color_idx, 1);
+	  curr_back_idx = p->back_color_idx;
+	}
       }
       put_char(p->code);
       hpos++;
     }
+    if (!old_drawing_scheme
+	&& (is_bold || is_underline
+	    || curr_fore_idx != DEFAULT_COLOR_IDX
+	    || curr_back_idx != DEFAULT_COLOR_IDX))
+      putstring(SGR_DEFAULT);
     putchar('\n');
   }
   if (form_feed_flag) {
@@ -432,6 +677,8 @@ int main(int argc, char **argv)
 {
   program_name = argv[0];
   static char stderr_buf[BUFSIZ];
+  if (getenv("GROFF_NO_SGR"))
+    old_drawing_scheme = 1;
   setbuf(stderr, stderr_buf);
   int c;
   static const struct option long_options[] = {
@@ -439,18 +686,24 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { NULL, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "F:vhfbuoBUd", long_options, NULL))
+  while ((c = getopt_long(argc, argv, "bBcdfF:hioruUv", long_options, NULL))
 	 != EOF)
     switch(c) {
     case 'v':
-      {
-	printf("GNU grotty (groff) version %s\n", Version_string);
-	exit(0);
-	break;
-      }
+      printf("GNU grotty (groff) version %s\n", Version_string);
+      exit(0);
+      break;
+    case 'i':
+      // Use italic font instead of underlining.
+      italic_flag = 1;
+      break;
     case 'b':
       // Do not embolden by overstriking.
       bold_flag = 0;
+      break;
+    case 'c':
+      // Use old scheme for emboldening and underline.
+      old_drawing_scheme = 1;
       break;
     case 'u':
       // Do not underline.
@@ -459,6 +712,10 @@ int main(int argc, char **argv)
     case 'o':
       // Do not overstrike (other than emboldening and underlining).
       overstrike_flag = 0;
+      break;
+    case 'r':
+      // Use reverse mode instead of underlining.
+      reverse_flag = 1;
       break;
     case 'B':
       // Do bold-underlining as bold.
@@ -493,6 +750,15 @@ int main(int argc, char **argv)
     default:
       assert(0);
     }
+  if (old_drawing_scheme) {
+    italic_flag = 0;
+    reverse_flag = 0;
+  }
+  else {
+    bold_underline_mode = BOLD_MODE|UNDERLINE_MODE;
+    bold_flag = 1;
+    underline_flag = 1;
+  }
   if (optind >= argc)
     do_file("-");
   else {
@@ -505,6 +771,6 @@ int main(int argc, char **argv)
 
 static void usage(FILE *stream)
 {
-  fprintf(stream, "usage: %s [-hfvbuodBU] [-F dir] [files ...]\n",
+  fprintf(stream, "usage: %s [-bBcdfhioruUv] [-F dir] [files ...]\n",
 	  program_name);
 }

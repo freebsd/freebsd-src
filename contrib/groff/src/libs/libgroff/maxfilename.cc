@@ -20,6 +20,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 /* file_name_max(dir) does the same as pathconf(dir, _PC_NAME_MAX) */
 
+#include "lib.h"
+
 #include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H

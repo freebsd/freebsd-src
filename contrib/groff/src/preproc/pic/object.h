@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -76,11 +76,14 @@ struct place {
 struct string_list;
 
 class path {
+  position pos;
   corner crn;
   string_list *label_list;
   path *ypath;
+  int is_position;
 public:
   path(corner = 0);
+  path(position);
   path(char *, corner = 0);
   ~path();
   void append(corner);
@@ -150,6 +153,8 @@ const unsigned long HAS_THICKNESS = 01000000;
 const unsigned long IS_FILLED = 02000000;
 const unsigned long IS_DEFAULT_FILLED = 04000000;
 const unsigned long IS_ALIGNED = 010000000;
+const unsigned long IS_SHADED = 020000000;
+const unsigned long IS_OUTLINED = 040000000;
 
 struct segment {
   int is_absolute;
@@ -183,6 +188,8 @@ struct object_spec {
   double end_chop;
   double thickness;
   double fill;
+  char *shaded;
+  char *outlined;
   direction dir;
   segment *segment_list;
   position segment_pos;

@@ -3,7 +3,8 @@
 
 s.tmac
 
-Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+  Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -25,8 +26,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .if !\n(.g .ab These ms macros require groff.
 .if \n(.C \
 .	ab The groff ms macros do not work in compatibility mode.
-.\" Enable warnings. You can delete this if you want.
-.warn
+.\" Enable warnings (only if none are given on the command line).
+.\" You can delete this if you want.
+.if (\n[.warn] == 65543) .warn
 .\" See if already loaded.
 .if r GS .nx
 .nr GS 1
@@ -264,8 +266,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .ns
 .@PP
 .if '\*(.T'html' \{\
-.       cov*tl-au-print
-.       als cov*tl-au-print @nop
+.	cov*tl-au-print
+.	als cov*tl-au-print @nop
 .	par@reset-env
 .	par@reset
 .	cov*print
@@ -303,7 +305,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .		bp 1
 .		als FS @FS
 .		als FE @FE
-.               CHECK-FOOTER-AND-KEEP
+.		CHECK-FOOTER-AND-KEEP
 .	\}
 .	br
 .\}
@@ -1153,19 +1155,35 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	par*pop-tag-env
 .	di
 .	chop par*label
-.	ie '\*(.T'html' \{\
-.		if \\n[dl]+1n<=\\n[\\n[.ev]:ai] .HTML-TAG ".ip"
-.		ti 0
-\&\\$1
+.	ti -\\n[\\n[.ev]:ai]u
+.	ie \\n[dl]+1n<=\\n[\\n[.ev]:ai] \\*[par*label]\h'|\\n[\\n[.ev]:ai]u'\c
+.	el \{\
+\\*[par*label]
 .		br
 .	\}
+.	rm par*label
+.\}
+..
+.de @IP-html
+.if \\n[.$]>1 .nr \\n[.ev]:ai (n;\\$2)
+.par*start \\n[\\n[.ev]:ai] 0
+.if !'\\$1'' \{\
+.	\" Divert the label so as to freeze any spaces.
+.	di par*label
+.	par*push-tag-env
+\&\\$1
+.	par*pop-tag-env
+.	di
+.	chop par*label
+.	ti -\\n[\\n[.ev]:ai]u
+.	ie \\n[dl]+1n<=\\n[\\n[.ev]:ai] \{\
+.		HTML-TAG-NS ".col 1"
+\\$1\h'|\\n[\\n[.ev]:ai]u'\c
+.		HTML-TAG-NS ".col 2"
+.       \}
 .	el \{\
-.		ti -\\n[\\n[.ev]:ai]u
-.		ie \\n[dl]+1n<=\\n[\\n[.ev]:ai] \\*[par*label]\h'|\\n[\\n[.ev]:ai]u'\c
-.		el \{\
-\\*[par*label]
-.			br
-.		\}
+\\$1
+.		br
 .	\}
 .	rm par*label
 .\}
@@ -1562,7 +1580,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .\}
 .di eqn*div
 .in 0
-.nf
+.if \\n[eqn*type]=0 .HTML-IMAGE-LEFT
+.if \\n[eqn*type]=1 \{\
+.   if '\*(.T'html' .RS
+.   HTML-IMAGE-INLINE
+.\}
+.if \\n[eqn*type]=2 .HTML-IMAGE
+.if !'\*(.T'html' .nf
 ..
 .de @div-end!eqn*div
 .@EN
@@ -1575,13 +1599,17 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	di
 .	nr eqn*have-num 0
 .	if !'\\*[eqn*num]'' .nr eqn*have-num 1
-.	if \\n[dl]:\\n[eqn*have-num] \{\
-.		sp \\n[DD]u
+.	ie \\n[dl]:\\n[eqn*have-num] \{\
+.               if !'\*(.T'html' .sp \\n[DD]u
 .		par@reset
 .		ds eqn*tabs \\n[.tabs]
 .		nf
 .		ie \\n[dl] \{\
-.			ds@need \\n[dn]u-1v+\n[.V]u
+.\"                     --fixme-- this really should not be necessary
+.\"                     and indicates that there is extra space creeping into
+.\"                     an equation when ps4html is enabled..
+.                       ie r ps4html .ds@need \\n[dn]u-1v+\n[.V]u+1i
+.                       el .ds@need \\n[dn]u-1v+\n[.V]u
 .			chop eqn*div
 .			ie \\n[eqn*type]=0 \{\
 .				ta (u;\\n[.l]-\\n[.i])R
@@ -1599,10 +1627,23 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .			ta (u;\\n[.l]-\\n[.i])R
 \t\\*[eqn*num]
 .		\}
-.		sp \\n[DD]u
+.               if !'\*(.T'html' .sp \\n[DD]u
 .		ta \\*[eqn*tabs]
 .	\}
-.	fi
+.	el \{
+.\" must terminate empty equations in html and ps4html as they contain
+.\" the HTML-IMAGE-END suppression nodes
+.		if \\n[dl] .chop eqn*div
+.		if '\*(.T'html' \\*[eqn*div]
+.		if r ps4html    \\*[eqn*div]
+.	\}
+.       if !'\*(.T'html' .fi
+.	if \\n[eqn*type]=0 .HTML-IMAGE-END
+.	if \\n[eqn*type]=1 \{\
+.		HTML-IMAGE-END
+.		if '\*(.T'html' .RE
+.	\}
+.	if \\n[eqn*type]=2 .HTML-IMAGE-END
 .\}
 ..
 .\" ****************************
@@ -1618,7 +1659,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ..
 .de @TS
 .sp \\n[DD]u
+.\" .if !'\*(.T'html' .sp \\n[DD]u
 .if '\\$1'H' .di tbl*header-div
+.HTML-IMAGE
 ..
 .de tbl@top-hook
 .if \\n[tbl*have-header] \{\
@@ -1660,8 +1703,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .ie '\\n(.z'tbl*header-div' .@error-recover .TS H but no .TH before .TE
 .el \{\
 .	nr tbl*have-header 0
-.	sp \\n[DD]u
+.       if !'\*(.T'html' .sp \\n[DD]u
 .\}
+.	HTML-IMAGE-END
 .\" reset tabs
 .TA
 ..
@@ -1686,8 +1730,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .	ds@need (u;\\$1)+1v
 .	in +(u;\\n[.l]-\\n[.i]-\\$2/2>?0)
 .\}
+.HTML-IMAGE
 ..
 .de PE
+.HTML-IMAGE-END
 .par@reset
 .sp \\n[DD]u+.5m
 ..
@@ -1904,31 +1950,35 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .\" however this produced wierd results, so I've moved back to a more reliable
 .\" but less interesting solution --fixme--
 .   if '\*(.T'html' \{\
-.       rm KF
-.       als KF KS
-.       rm FS
-.       de FS
-.           br
-.           HTML-IMAGE
+.	rm KF
+.	als KF KS
+.	rm FS
+.	de FS
+.		br
+.		HTML-IMAGE
 \\..
-.       rm FE
-.       de FE
-.           br
-.           HTML-IMAGE-END
+.	rm FE
+.	de FE
+.		br
+.		HTML-IMAGE-END
 \\..
 .   \}
 .   if r ps4html \{\
-.       rm FS
-.       de FS
-.           br
-.           HTML-IMAGE
+.	rm FS
+.	de FS
+.		br
+.		HTML-IMAGE
 \\..
-.       rm FE
-.       de FE
-.           br
-.           HTML-IMAGE-END
+.	rm FE
+.	de FE
+.		br
+.		HTML-IMAGE-END
 \\..
 .   \}
 ..
 .par@load-init
+.if '\*(.T'html' \{\
+.  rm @IP
+.  als @IP @IP-html
+.\}
 .\" Make sure that no blank lines creep in at the end of this file.

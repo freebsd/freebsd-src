@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -30,9 +31,13 @@ class charinfo {
   unsigned char hyphenation_code;
   unsigned char flags;
   unsigned char ascii_code;
+  unsigned char asciify_code;
   char not_found;
-  char transparent_translate;	// non-zero means translation applies to
+  char transparent_translate;	// non-zero means translation applies
 				// to transparent throughput
+  char translate_input;		// non-zero means that asciify_code is
+				// active for .asciify (set by .trin)
+  char fallback;
 public:
   enum { 
     ENDS_SENTENCE = 1,
@@ -61,19 +66,24 @@ public:
   int transparent();
   unsigned char get_hyphenation_code();
   unsigned char get_ascii_code();
+  unsigned char get_asciify_code();
   void set_hyphenation_code(unsigned char);
   void set_ascii_code(unsigned char);
+  void set_asciify_code(unsigned char);
+  void set_translation_input();
+  int get_translation_input();
   charinfo *get_translation(int = 0);
-  void set_translation(charinfo *, int);
+  void set_translation(charinfo *, int, int);
   void set_flags(unsigned char);
   void set_special_translation(int, int);
   int get_special_translation(int = 0);
-  macro *set_macro(macro *);
+  macro *set_macro(macro *, int = 0);
   macro *get_macro();
   int first_time_not_found();
   void set_number(int);
   int get_number();
   int numbered();
+  int is_fallback();
   symbol *get_symbol();
 };
 
@@ -116,6 +126,11 @@ inline int charinfo::numbered()
   return flags & NUMBERED;
 }
 
+inline int charinfo::is_fallback()
+{
+  return fallback;
+}
+
 inline charinfo *charinfo::get_translation(int transparent_throughput)
 {
   return (transparent_throughput && !transparent_translate
@@ -133,6 +148,11 @@ inline unsigned char charinfo::get_ascii_code()
   return ascii_code;
 }
 
+inline unsigned char charinfo::get_asciify_code()
+{
+  return (translate_input ? asciify_code : 0);
+}
+
 inline void charinfo::set_flags(unsigned char c)
 {
   flags = c;
@@ -141,6 +161,16 @@ inline void charinfo::set_flags(unsigned char c)
 inline int charinfo::get_index()
 {
   return index;
+}
+
+inline void charinfo::set_translation_input()
+{
+  translate_input = 1;
+}
+
+inline int charinfo::get_translation_input()
+{
+  return translate_input;
 }
 
 inline int charinfo::get_special_translation(int transparent_throughput)

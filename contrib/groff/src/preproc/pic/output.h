@@ -55,8 +55,12 @@ public:
 		       const line_type &, double) = 0;
   virtual void rounded_box(const position &, const distance &, double,
 			   const line_type &, double) = 0;
-  virtual void command(const char *, const char *, int);
-  virtual void set_location(const char *, int);
+  virtual void command(const char *, const char *, int) = 0;
+  virtual void set_location(const char *, int) {}
+  virtual void set_color(char *, char *) = 0;
+  virtual void reset_color() = 0;
+  virtual char *get_last_filled() = 0;
+  virtual char *get_outline_color() = 0;
   virtual int supports_filled_polygons();
   virtual void begin_block(const position &ll, const position &ur);
   virtual void end_block();

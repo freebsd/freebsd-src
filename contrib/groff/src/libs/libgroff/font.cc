@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-#include <stdio.h>
-#include <string.h>
+#include "lib.h"
+
 #include <ctype.h>
 #include <assert.h>
 #include <math.h>
@@ -29,7 +29,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "error.h"
 #include "cset.h"
 #include "font.h"
-#include "lib.h"
+#include "paper.h"
 
 const char *const WS = " \t\n\r";
 
@@ -94,13 +94,12 @@ text_file::~text_file()
     fclose(fp);
 }
 
-
 int text_file::next()
 {
   if (fp == 0)
     return 0;
   if (buf == 0) {
-    buf = new char [128];
+    buf = new char[128];
     size = 128;
   }
   for (;;) {
@@ -109,8 +108,8 @@ int text_file::next()
       int c = getc(fp);
       if (c == EOF)
 	break;
-      if (illegal_input_char(c))
-	error("illegal input character code `%1'", int(c));
+      if (invalid_input_char(c))
+	error("invalid input character code `%1'", int(c));
       else {
 	if (i + 1 >= size) {
 	  char *old_buf = buf;
@@ -161,6 +160,9 @@ font::font(const char *s)
 
 font::~font()
 {
+  for (int i = 0; i < ch_used; i++)
+    if (ch[i].special_device_coding)
+      a_delete ch[i].special_device_coding;
   a_delete ch;
   a_delete ch_index;
   if (kern_hash_table) {
@@ -204,6 +206,34 @@ static int scale_round(int n, int x, int y)
 inline int font::scale(int w, int sz)
 {
   return sz == unitwidth ? w : scale_round(w, sz, unitwidth);
+}
+
+int font::unit_scale(double *value, char unit)
+{
+  // we scale everything to inch
+  double divisor = 0;
+  switch (unit) {
+  case 'i':
+    divisor = 1;
+    break;
+  case 'p':
+    divisor = 72;
+    break;
+  case 'P':
+    divisor = 6;
+    break;
+  case 'c':
+    divisor = 2.54;
+    break;
+  default:
+    assert(0);
+    break;
+  }
+  if (divisor) {
+    *value /= divisor;
+    return 1;
+  }
+  return 0;
 }
 
 int font::get_skew(int c, int point_size, int sl)
@@ -303,7 +333,7 @@ int font::get_space_width(int point_size)
 }
 
 font_kern_list::font_kern_list(int c1, int c2, int n, font_kern_list *p)
-     : i1(c1), i2(c2), amount(n), next(p)
+: i1(c1), i2(c2), amount(n), next(p)
 {
 }
 
@@ -472,6 +502,58 @@ static char *trim_arg(char *p)
   return p;
 }
 
+int font::scan_papersize(const char *p,
+			 const char **size, double *length, double *width)
+{
+  double l, w;
+  char lu[2], wu[2];
+  const char *pp = p;
+  int test_file = 1;
+  char line[255];
+again:
+  if (csdigit(*pp)) {
+    if (sscanf(pp, "%lf%1[ipPc],%lf%1[ipPc]", &l, lu, &w, wu) == 4
+	&& l > 0 && w > 0
+	&& unit_scale(&l, lu[0]) && unit_scale(&w, wu[0])) {
+      if (length)
+	*length = l;
+      if (width)
+	*width = w;
+      if (size)
+	*size = "custom";
+      return 1;
+    }
+  }
+  else {
+    int i;
+    for (i = 0; i < NUM_PAPERSIZES; i++)
+      if (strcasecmp(papersizes[i].name, pp) == 0) {
+	if (length)
+	  *length = papersizes[i].length;
+	if (width)
+	  *width = papersizes[i].width;
+	if (size)
+	  *size = papersizes[i].name;
+	return 1;
+      }
+    if (test_file) {
+      FILE *f = fopen(p, "r");
+      if (f) {
+	fgets(line, 254, f);
+	fclose(f);
+	test_file = 0;
+	char *linep = strchr(line, '\0');
+	// skip final newline, if any
+	if (*(--linep) == '\n')
+	  *linep = '\0';
+	pp = line;
+	goto again;
+      }
+    }
+  }
+  return 0;
+}
+
 // If the font can't be found, then if not_found is non-NULL, it will be set
 // to 1 otherwise a message will be printed.
 
@@ -586,12 +668,12 @@ int font::load(int *not_found)
 	}
 	int i1 = name_to_index(c1);
 	if (i1 < 0) {
-	  t.error("illegal character `%1'", c1);
+	  t.error("invalid character `%1'", c1);
 	  return 0;
 	}
 	int i2 = name_to_index(c2);
 	if (i2 < 0) {
-	  t.error("illegal character `%1'", c2);
+	  t.error("invalid character `%1'", c2);
 	  return 0;
 	}
 	add_kern(i1, i2, n);
@@ -624,7 +706,7 @@ int font::load(int *not_found)
 	  }
 	  int index = name_to_index(nm);
 	  if (index < 0) {
-	    t.error("illegal character `%1'", nm);
+	    t.error("invalid character `%1'", nm);
 	    return 0;
 	  }
 	  copy_entry(index, last_index);
@@ -671,20 +753,15 @@ int font::load(int *not_found)
 	    t.error("bad code `%1' for character `%2'", p, nm);
 	    return 0;
 	  }
-
 	  p = strtok(0, WS);
 	  if ((p == NULL) || (strcmp(p, "--") == 0)) {
 	    metric.special_device_coding = NULL;
-	  } else {
-	    char *name=(char *)malloc(strlen(p)+1);
-
-	    if (name == NULL) {
-	      fatal("malloc failed while reading character encoding");
-	    }
+	  }
+	  else {
+	    char *name = new char[strlen(p) + 1];
 	    strcpy(name, p);
 	    metric.special_device_coding = name;
 	  }
-
 	  if (strcmp(nm, "---") == 0) {
 	    last_index = number_to_index(metric.code);
 	    add_entry(last_index, metric);
@@ -692,7 +769,7 @@ int font::load(int *not_found)
 	  else {
 	    last_index = name_to_index(nm);
 	    if (last_index < 0) {
-	      t.error("illegal character `%1'", nm);
+	      t.error("invalid character `%1'", nm);
 	      return 0;
 	    }
 	    add_entry(last_index, metric);
@@ -736,7 +813,6 @@ static struct {
   { "sizescale", &font::sizescale }
   };
 
-
 int font::load_desc()
 {
   int nfonts = 0;
@@ -768,15 +844,6 @@ int font::load_desc()
 	t.error("bad number `%1'", q);
 	return 0;
       }
-    }
-    else if (strcmp("tcommand", p) == 0) {
-      tcommand = 1;
-    }
-    else if (strcmp("pass_filenames", p) == 0) {
-      pass_filenames = 1;
-    }
-    else if (strcmp("use_charnames_in_special", p) == 0) {
-      use_charnames_in_special = 1;
     }
     else if (strcmp("family", p) == 0) {
       p = strtok(0, WS);
@@ -815,6 +882,31 @@ int font::load_desc()
       }
       font_name_table[nfonts] = 0;
     }
+    else if (strcmp("papersize", p) == 0) {
+      p = strtok(0, WS);
+      if (!p) {
+	t.error("papersize command requires an argument");
+	return 0;
+      }
+      int found_paper = 0;
+      while (p) {
+	double unscaled_paperwidth, unscaled_paperlength;
+	if (scan_papersize(p, &papersize, &unscaled_paperlength,
+			   &unscaled_paperwidth)) {
+	  paperwidth = int(unscaled_paperwidth * res + 0.5);
+	  paperlength = int(unscaled_paperlength * res + 0.5);
+	  found_paper = 1;
+	  break;
+	}
+	p = strtok(0, WS);
+      }
+      if (!found_paper) {
+	t.error("bad paper size");
+	return 0;
+      }
+    }
+    else if (strcmp("pass_filenames", p) == 0)
+      pass_filenames = 1;
     else if (strcmp("sizes", p) == 0) {
       int n = 16;
       sizes = new int[n];
@@ -885,6 +977,10 @@ int font::load_desc()
 	style_table[i++] = tem;
       }
     }
+    else if (strcmp("tcommand", p) == 0)
+      tcommand = 1;
+    else if (strcmp("use_charnames_in_special", p) == 0)
+      use_charnames_in_special = 1;
     else if (strcmp("charset", p) == 0)
       break;
     else if (unknown_desc_command_handler) {

@@ -1,3 +1,7 @@
+#
+# This is the font encoding used by grops to encode the standard PS text
+# fonts (excluding special fonts).
+#
 asciicircum 0
 asciitilde 1
 Scaron 2
@@ -7,6 +11,7 @@ zcaron 5
 Ydieresis 6
 trademark 7
 quotesingle 8
+Euro 9
 space 32
 exclam 33
 quotedbl 34
@@ -146,8 +151,8 @@ copyright 169
 ordfeminine 170
 guilsinglleft 171
 logicalnot 172
-registered 174
 minus 173
+registered 174
 macron 175
 degree 176
 plusminus 177

@@ -16,7 +16,15 @@ because the gremlin editor uses the conventional spline
 algorithm.  The Berkeley grn has the choice of different
 stipples.  Here, only different shades of gray will be painted
 depending on the gremlin file.  It is possible to upgrade this at
-a later time. (Daniel Senderowicz <daniel@synchrods.com> 12/28/99)
+a later time.  (Daniel Senderowicz <daniel@synchrods.com> 12/28/99)
+
+=====================================================================
+
+Gremlin produces three types of curves: B-Splines, interpolated
+curves and Bezier.  As the original Berkeley grn, now groff grn
+will honor B-Splines and interpolated curves.  Bezier curves will
+be printed as B-Splines.  (Daniel Senderowicz <daniel@synchrods.com>
+10/04/02)
 
 =====================================================================
 

@@ -6,9 +6,6 @@ Generate %%For comment.
 
 Generate %%Title comment.
 
-For efficiency it might be better to have the printer interface have
-support for the t and u commands.
-
 Angles in arc command: don't generate more digits after the decimal
 point than are necessary.
 

@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -234,7 +235,7 @@ static int start_number()
 
 enum { OP_LEQ = 'L', OP_GEQ = 'G', OP_MAX = 'X', OP_MIN = 'N' };
 
-#define SCALE_INDICATOR_CHARS "icPmnpuvMsz"
+#define SCALE_INDICATOR_CHARS "icfPmnpuvMsz"
 
 static int parse_term(units *v, int scale_indicator,
 		      int parenthesised, int rigid);
@@ -320,6 +321,7 @@ static int parse_expr(units *v, int scale_indicator,
       break;
     case ':':
       *v = *v > 0 || v2 > 0;
+      break;
     case '+':
       if (v2 < 0) {
 	if (*v < INT_MIN - v2)
@@ -589,6 +591,9 @@ static int parse_term(units *v, int scale_indicator,
   case 'u':
     if (divisor != 1)
       *v /= divisor;
+    break;
+  case 'f':
+    *v = scale(*v, 65536, divisor);
     break;
   case 'p':
     *v = scale(*v, units_per_inch, divisor*72);

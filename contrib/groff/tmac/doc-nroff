@@ -79,12 +79,12 @@
 .ds doc-Va-font \f[I]
 .ds doc-Xr-font \f[R]
 .
-.ds doc-left-parenthesis \f[R](\f[P]
-.ds doc-right-parenthesis \f[R])\f[P]
-.ds lp \f[R](\f[P]
-.ds rp \f[R])\f[P]
-.ds doc-left-bracket \f[R][\f[P]
-.ds doc-right-bracket \f[R]]\f[P]
+.ds doc-left-parenthesis \f[R](\f[]
+.ds doc-right-parenthesis \f[R])\f[]
+.ds lp \f[R](\f[]
+.ds rp \f[R])\f[]
+.ds doc-left-bracket \f[R][\f[]
+.ds doc-right-bracket \f[R]]\f[]
 .
 .\" miscellaneous
 .nr doc-subheader-indent .5i
@@ -129,8 +129,16 @@
 .    nr doc-header-space .5i
 .  nr doc-footer-space .5i
 .
-.  ll 78n
-.  lt 78n
+.  ie r LL \
+.    ll \n[LL]u
+.  el \
+.    ll 78n
+.
+.  ie r LT \
+.    lt \n[LT]u
+.  el \
+.    lt 78n
+.
 .  po 0i
 .
 .  nr doc-display-vertical 1v
@@ -156,8 +164,9 @@
 .ds Lt <
 .ds Gt >
 .ds Pm \[+-]
-.ds Na \f[I]NaN\f[P]
-.ds Ba \f[R]|\f[P]
+.ds Na \f[I]NaN\f[]
+.ds Ba \f[R]|\f[]
+.ds Am &
 .
 .\" Unicode TTYs have all glyph forms; for other TTY character sets we need
 .\" character representations which are different from GNU troff's standard

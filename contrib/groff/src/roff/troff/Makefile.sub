@@ -1,17 +1,17 @@
-PROG=troff
+PROG=troff$(EXEEXT)
 MAN1=troff.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
-  env.o \
-  node.o \
-  input.o \
-  div.o \
-  symbol.o \
-  dictionary.o \
-  reg.o \
-  number.o \
-  majorminor.o
+  env.$(OBJEXT) \
+  node.$(OBJEXT) \
+  input.$(OBJEXT) \
+  div.$(OBJEXT) \
+  symbol.$(OBJEXT) \
+  dictionary.$(OBJEXT) \
+  reg.$(OBJEXT) \
+  number.$(OBJEXT) \
+  majorminor.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/env.cc \
   $(srcdir)/node.cc \

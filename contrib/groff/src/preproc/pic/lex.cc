@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2002
+     Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -83,8 +84,8 @@ int file_input::read_line()
       int c = getc(fp);
       if (c == EOF)
 	break;
-      else if (illegal_input_char(c))
-	lex_error("illegal input character code %1", c);
+      else if (invalid_input_char(c))
+	lex_error("invalid input character code %1", c);
       else {
 	line += char(c);
 	if (c == '\n') 
@@ -153,7 +154,7 @@ int macro_input::peek()
     return (unsigned char)*p;
 }
 
-// Character representing $1.  Must be illegal input character.
+// Character representing $1.  Must be invalid input character.
 #define ARG1 14
 
 char *process_body(const char *body)
@@ -446,6 +447,10 @@ int lookup_keyword(const char *str, int len)
     { "center", CENTER },
     { "chop", CHOP },
     { "circle", CIRCLE },
+    { "color", COLORED },
+    { "colored", COLORED },
+    { "colour", COLORED },
+    { "coloured", COLORED },
     { "command", COMMAND },
     { "copy", COPY },
     { "cos", COS },
@@ -457,6 +462,7 @@ int lookup_keyword(const char *str, int len)
     { "do", DO },
     { "dotted", DOTTED },
     { "down", DOWN },
+    { "east", EAST },
     { "ellipse", ELLIPSE },
     { "else", ELSE },
     { "end", END },
@@ -480,7 +486,10 @@ int lookup_keyword(const char *str, int len)
     { "max", K_MAX },
     { "min", K_MIN },
     { "move", MOVE },
+    { "north", NORTH },
     { "of", OF },
+    { "outline", OUTLINED },
+    { "outlined", OUTLINED },
     { "plot", PLOT },
     { "print", PRINT },
     { "rad", RADIUS },
@@ -491,8 +500,10 @@ int lookup_keyword(const char *str, int len)
     { "rjust", RJUST },
     { "same", SAME },
     { "sh", SH },
+    { "shaded", SHADED },
     { "sin", SIN },
     { "solid", SOLID },
+    { "south", SOUTH },
     { "spline", SPLINE },
     { "sprintf", SPRINTF },
     { "sqrt", SQRT },
@@ -510,6 +521,7 @@ int lookup_keyword(const char *str, int len)
     { "up", UP },
     { "upper", UPPER },
     { "way", WAY },
+    { "west", WEST },
     { "wid", WIDTH },
     { "width", WIDTH },
     { "with", WITH },
@@ -953,7 +965,7 @@ int get_token(int lookup_flag)
 	  double factor = 1.0;
 	  for (;;) {
 	    c = input_stack::peek_char();
-	    if (!c == EOF || !csdigit(c))
+	    if (c == EOF || !csdigit(c))
 	      break;
 	    input_stack::get_char();
 	    context_buffer += char(c);
@@ -1618,8 +1630,8 @@ simple_file_input::~simple_file_input()
 int simple_file_input::get()
 {
   int c = getc(fp);
-  while (illegal_input_char(c)) {
-    error("illegal input character code %1", c);
+  while (invalid_input_char(c)) {
+    error("invalid input character code %1", c);
     c = getc(fp);
   }
   if (c == '\n')
@@ -1630,8 +1642,8 @@ int simple_file_input::get()
 int simple_file_input::peek()
 {
   int c = getc(fp);
-  while (illegal_input_char(c)) {
-    error("illegal input character code %1", c);
+  while (invalid_input_char(c)) {
+    error("invalid input character code %1", c);
     c = getc(fp);
   }
   if (c != EOF)
@@ -1812,6 +1824,46 @@ int yylex()
       lookahead_token = get_token(1);
       if (lookahead_token != LEFT && lookahead_token != RIGHT) {
 	yylval.str = strsave("lower");
+	return VARIABLE;
+      }
+      else
+	return t;
+    case NORTH:
+      // recognise NORTH only before OF
+      old_context_buffer = context_buffer;
+      lookahead_token = get_token(1);
+      if (lookahead_token != OF) {
+	yylval.str = strsave("north");
+	return VARIABLE;
+      }
+      else
+	return t;
+    case SOUTH:
+      // recognise SOUTH only before OF
+      old_context_buffer = context_buffer;
+      lookahead_token = get_token(1);
+      if (lookahead_token != OF) {
+	yylval.str = strsave("south");
+	return VARIABLE;
+      }
+      else
+	return t;
+    case EAST:
+      // recognise EAST only before OF
+      old_context_buffer = context_buffer;
+      lookahead_token = get_token(1);
+      if (lookahead_token != OF) {
+	yylval.str = strsave("east");
+	return VARIABLE;
+      }
+      else
+	return t;
+    case WEST:
+      // recognise WEST only before OF
+      old_context_buffer = context_buffer;
+      lookahead_token = get_token(1);
+      if (lookahead_token != OF) {
+	yylval.str = strsave("west");
 	return VARIABLE;
       }
       else

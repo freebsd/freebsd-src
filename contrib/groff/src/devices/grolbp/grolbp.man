@@ -3,7 +3,7 @@
 .\" vim: set syntax=nroff : 
 .\" The above line should set vim into nroff mode
 .ig
-Copyright (C) 1994-2000 Free Software Foundation, Inc.
+Copyright (C) 1994-2000, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -35,11 +35,14 @@ program.
 .el .TP "\\$1"
 ..
 .TH GROLBP @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
 .SH NAME
 grolbp \- groff driver for Canon CAPSL printers (LBP-4 and LBP-8 series laser printers).
+.
 .SH SYNOPSIS
 .nr a \n(.j
 .ad l
+.nh
 .nr i \n(.i
 .in +\w'\fBgrolbp 'u
 .ti \niu
@@ -58,6 +61,8 @@ grolbp \- groff driver for Canon CAPSL printers (LBP-4 and LBP-8 series laser pr
 .OP \-\-papersize= paper_size
 .OP \-o orientation
 .OP \-\-orientation= orientation
+.OP \-w width
+.OP \-\-linewidth= width
 .OP \-F dir
 .OP \-\-fontdir= dir
 .OP \-h
@@ -65,6 +70,8 @@ grolbp \- groff driver for Canon CAPSL printers (LBP-4 and LBP-8 series laser pr
 .RI "[\ " files\|.\|.\|. "\ ]"
 .br
 .ad \na
+.hy
+.
 .SH DESCRIPTION
 .B grolbp
 is a driver for
@@ -111,6 +118,14 @@ Print the document with
 .I orientation
 orientation, which must be `portrait' or `landscape'.
 .TP
+.BI \-w width
+.TQ
+.BI \-\-linewidth= width
+Set the default line thickness to
+.I width
+thousandths of an em.
+If this option isn't specified, the line thickness defaults to 0.04\~em.
+.TP
 .B \-v
 .TQ
 .B \-\-version
@@ -120,8 +135,11 @@ Print the version number.
 .TQ
 .BI \-\-fontdir= dir
 Prepend directory
-.IB dir /devlbp
-to the search path for font and device description files.
+.IB dir /dev name
+to the search path for font and device description files;
+.I name
+is the name of the device, usually
+.BR lbp .
 .TP
 .B \-h
 .TQ
@@ -160,74 +178,35 @@ precedence over the contents of the
 .B DESC
 file (this applies to the page orientation too).
 .PP
-To set the paper size in the
+See
+.BR groff_font (@MAN1EXT@)
+how to set the paper dimensions in the
 .B DESC
-file, insert in that file a line containing
-.B papersize
-.IR desired_papersize ,
-where
-.I desired_papersize
-is:
-.IP \(bu 4
-One of the recognized paper sizes: `a4', `letter', `legal' or `executive'.
-.IP \(bu 4
-A custom defined paper size, as described in the
-.B CUSTOM PAPER SIZES
-subsection below.
-.IP \(bu 4
-The name of a file (e.g.
-.IR /etc/papersize )
-whose first line must be the desired paper size in one of the above formats.
-.PP
-If there are various papersize lines in the
-.B DESC
-file, only the first valid one is used.
+file.
 .PP
 To set the paper size in the command line, add
 .sp 1
 .in +2m
-.BI \-p \ desired_papersize
+.BI \-p \ paper-size
 .in -2m
 .sp 1
 or
 .sp 1
 .in +2m
-.BI \-\-papersize= desired_papersize
+.BI \-\-papersize= paper-size
 .in -2m
 .sp 1
 to the other
 .B grolbp
 options, where
-.B desired_papersize
+.I paper-size
 is in the same format as in the
 .B DESC
 file.
 .PP
-Paper sizes are case insensitive (i.e., `A4' is the same as `a4').
-.PP
 If no paper size is specified in the
 .B DESC
 file or the command line, a default size of A4 is used.
-.TP
-.SH CUSTOM PAPER SIZES
-Custom defined paper sizes are in the form
-.BI cust length x width
-where
-.I length
-and
-.I width
-are the dimensions of the paper you want to to use, specified in printer
-units (1/300 of an inch).
-For instance, to print in a postcard sized paper which is two inches long
-and four inches wide you can insert a line containing
-.sp 1
-.in +2m
-.B papersize cust600x1200
-.in -2m
-.sp 1
-at the beginning of the
-.B DESC
-file.
 .SH PAGE ORIENTATION
 As with the page size, the orientation of the printed page
 .RB ( portrait
@@ -247,7 +226,7 @@ file, insert a line with the following content:
 .RB [ portrait | landscape ]
 .in -2m
 .sp 1
-As with paper sizes, only the first valid orientation command in the
+Only the first valid orientation command in the
 .B DESC
 file is used.
 .PP

@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1994-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -59,7 +59,7 @@ There is an additional drawing command available:
 .BI \eD'R\  dh\ dv '
 Draw a rule (solid black rectangle), with one corner
 at the current position, and the diagonally opposite corner
-at the current position 
+at the current position
 .RI +( dh , dv ).
 Afterwards the current position will be at the opposite corner.  This
 generates a PCL fill rectangle command, and so will work on
@@ -77,7 +77,7 @@ copies of each page.
 Print the document with a landscape orientation.
 .TP
 .BI "\-d [" n ]
-Use duplex mode 
+Use duplex mode
 .IR n :
 1\ is long-side binding; 2\ is short-side binding;
 default is\ 1.
@@ -94,17 +94,20 @@ Print the version number.
 .BI \-w n
 Set the default line thickness to
 .I n
-thousandths of an em. 
+thousandths of an em.
+If this option isn't specified, the line thickness defaults to 0.04\~em.
 .TP
 .BI \-F dir
 Prepend directory
-.IB dir /devlj4
-to the search path for font and device description files.
+.IB dir /dev name
+to the search path for font and device description files;
+.I name
+is the name of the device, usually
+.BR lj4 .
 .LP
 The following four commands are available additionally in the
-.B DESC
-file:
-.TP 
+font description files:
+.TP
 .BI pclweight \ N
 The integer value
 .I N

@@ -3,7 +3,7 @@ hor 24
 vert 40
 unitwidth 10
 sizes 6 8 10 12 14 16 18 0
-fonts 6 R I B BI C S
+fonts 9 R I B BI CR CI CB CBI S
 tcommand
 html
 postpro post-grohtml

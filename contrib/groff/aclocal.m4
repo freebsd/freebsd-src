@@ -1,5 +1,5 @@
 dnl Autoconf macros for groff.
-dnl Copyright (C) 1989-1995, 2001 Free Software Foundation, Inc.
+dnl Copyright (C) 1989-1995, 2001, 2002 Free Software Foundation, Inc.
 dnl 
 dnl This file is part of groff.
 dnl 
@@ -58,6 +58,31 @@ AC_DEFUN(GROFF_PROG_YACC,
 [AC_CHECK_PROGS(YACC, byacc 'bison -y', yacc)])dnl
 dnl
 dnl
+dnl The following programs are needed for grohtml.
+dnl
+AC_DEFUN(GROFF_HTML_PROGRAMS,
+[make_html=html
+make_install_html=install_html
+AC_CHECK_PROG(pnmcut, pnmcut, found, missing)
+AC_CHECK_PROG(pnmcrop, pnmcrop, found, missing)
+AC_CHECK_PROG(pnmtopng, pnmtopng, found, missing)
+AC_CHECK_PROG(gs, gs gsos2, found, missing)
+AC_CHECK_PROG(psselect, psselect, found, missing)
+case "x$pnmcut$pnmcrop$pnmtopng$gs$psselect" in
+*missing*)
+	make_html=
+	make_install_html=
+	AC_MSG_WARN([
+
+  Since one or more of the above five programs can't be found in the path,
+  the HTML backend of groff (grohtml) won't work properly.  Consequently,
+  no documentation in HTML format is built and installed.
+]) ;;
+esac
+AC_SUBST(make_html)
+AC_SUBST(make_install_html)])dnl
+dnl
+dnl
 dnl GROFF_CSH_HACK(if hack present, if not present)
 dnl
 AC_DEFUN(GROFF_CSH_HACK,
@@ -86,7 +111,8 @@ if grep '[34]\.' /usr/options/cb.name >/dev/null 2>&1
 changequote([,])dnl
 then
 	AC_MSG_RESULT(yes)
-	AC_DEFINE(_SYSV3)
+	AC_DEFINE(_SYSV3, 1,
+		  [Define if you have ISC 3.x or 4.x.])
 else
 	AC_MSG_RESULT(no)
 fi])dnl
@@ -97,7 +123,8 @@ AC_DEFUN(GROFF_POSIX,
 AC_LANG_PUSH(C++)
 AC_TRY_COMPILE([#include <stdio.h>
 extern "C" { void fileno(int); }],,
-AC_MSG_RESULT(yes);AC_DEFINE(_POSIX_SOURCE),
+AC_MSG_RESULT(yes);AC_DEFINE(_POSIX_SOURCE, 1,
+			     [Define if -D_POSIX_SOURCE is necessary.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -109,7 +136,8 @@ AC_DEFUN(GROFF_SRAND,
 AC_MSG_CHECKING([for return type of srand])
 AC_TRY_COMPILE([#include <stdlib.h>
 extern "C" { void srand(unsigned int); }],,
-AC_MSG_RESULT(void);AC_DEFINE(RET_TYPE_SRAND_IS_VOID),
+AC_MSG_RESULT(void);AC_DEFINE(RET_TYPE_SRAND_IS_VOID, 1,
+			      [Define if srand() returns void not int.]),
 AC_MSG_RESULT(int))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -120,7 +148,9 @@ AC_MSG_CHECKING([for sys_nerr in <errno.h> or <stdio.h>])
 AC_TRY_COMPILE([#include <errno.h>
 #include <stdio.h>],
 [int k; k = sys_nerr;],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_NERR),
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_NERR, 1,
+			     [Define if you have sysnerr in <errno.h> or
+			      <stdio.h>.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -130,7 +160,9 @@ AC_DEFUN(GROFF_SYS_ERRLIST,
 AC_TRY_COMPILE([#include <errno.h>
 #include <stdio.h>],
 [int k; k = (int)sys_errlist[0];],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_ERRLIST),
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_ERRLIST, 1,
+			     [Define if you have sys_errlist in <errno.h>
+			      or in <stdio.h>.]),
 AC_MSG_RESULT(no))])dnl
 dnl
 dnl
@@ -139,7 +171,8 @@ AC_DEFUN(GROFF_OSFCN_H,
 AC_MSG_CHECKING([C++ <osfcn.h>])
 AC_TRY_COMPILE([#include <osfcn.h>],
 [read(0, 0, 0); open(0, 0);],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_OSFCN_H),
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_OSFCN_H, 1,
+			     [Define if you have a C++ <osfcn.h>.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -149,7 +182,8 @@ AC_DEFUN(GROFF_LIMITS_H,
 AC_MSG_CHECKING([C++ <limits.h>])
 AC_TRY_COMPILE([#include <limits.h>],
 [int x = INT_MIN; int y = INT_MAX; int z = UCHAR_MAX;],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_LIMITS_H),
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_CC_LIMITS_H, 1,
+			     [Define if you have a C++ <limits.h>.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -160,7 +194,9 @@ AC_MSG_CHECKING([for declaration of time_t])
 AC_TRY_COMPILE([#include <time.h>],
 [time_t t = time(0); struct tm *p = localtime(&t);],
 AC_MSG_RESULT(yes),
-AC_MSG_RESULT(no);AC_DEFINE(LONG_FOR_TIME_T))
+AC_MSG_RESULT(no);AC_DEFINE(LONG_FOR_TIME_T, 1,
+			    [Define if localtime() takes a long * not a
+			     time_t *.]))
 AC_LANG_POP(C++)])dnl
 dnl
 dnl
@@ -168,18 +204,19 @@ AC_DEFUN(GROFF_STRUCT_EXCEPTION,
 [AC_MSG_CHECKING([struct exception])
 AC_TRY_COMPILE([#include <math.h>],
 [struct exception e;],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_STRUCT_EXCEPTION),
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_STRUCT_EXCEPTION, 1,
+			     [Define if <math.h> defines struct exception.]),
 AC_MSG_RESULT(no))])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_ARRAY_DELETE,
 [AC_LANG_PUSH(C++)
 AC_MSG_CHECKING([whether ANSI array delete syntax supported])
-AC_TRY_COMPILE(,
-changequote(,)dnl
-char *p = new char[5]; delete [] p;changequote([,]),
+AC_TRY_COMPILE(, [char *p = new char[5]; delete [] p;],
 AC_MSG_RESULT(yes),
-AC_MSG_RESULT(no);AC_DEFINE(ARRAY_DELETE_NEEDS_SIZE))
+AC_MSG_RESULT(no);AC_DEFINE(ARRAY_DELETE_NEEDS_SIZE, 1,
+			    [Define if your C++ doesn't understand
+			     `delete []'.]))
 AC_LANG_POP(C++)])dnl
 dnl
 dnl
@@ -188,7 +225,9 @@ AC_DEFUN(GROFF_TRADITIONAL_CPP,
 [AC_LANG_PUSH(C++)
 AC_MSG_CHECKING([traditional preprocessor])
 AC_TRY_COMPILE([#define name2(a,b) a/**/b],[int name2(foo,bar);],
-AC_MSG_RESULT(yes);AC_DEFINE(TRADITIONAL_CPP),
+AC_MSG_RESULT(yes);AC_DEFINE(TRADITIONAL_CPP, 1,
+			     [Define if your C++ compiler uses a
+			      traditional (Reiser) preprocessor.]),
 AC_MSG_RESULT(no))
 AC_LANG_POP(C++)])dnl
 dnl
@@ -207,7 +246,11 @@ main()
   exit(i != 0200);
 #endif
 }],
-AC_MSG_RESULT(yes);AC_DEFINE(WCOREFLAG,0200),
+AC_MSG_RESULT(yes);AC_DEFINE(WCOREFLAG, 0200,
+			     [Define if the 0200 bit of the status returned
+			      by wait() indicates whether a core image was
+			      produced for a process that was terminated by
+			      a signal.]),
 AC_MSG_RESULT(no),
 AC_MSG_RESULT(no))])dnl
 dnl
@@ -221,23 +264,32 @@ dnl
 dnl
 AC_DEFUN(GROFF_PAGE,
 [AC_MSG_CHECKING([default paper size])
+groff_prefix=$prefix
+test "x$prefix" = xNONE && groff_prefix=$ac_default_prefix
 if test -z "$PAGE"; then
 	descfile=
-	if test -r $prefix/share/groff/font/devps/DESC; then
-		descfile=$prefix/share/groff/font/devps/DESC
-	elif test -r $prefix/lib/groff/font/devps/DESC; then
-		descfile=$prefix/lib/groff/font/devps/DESC
+	if test -r $groff_prefix/share/groff/font/devps/DESC; then
+		descfile=$groff_prefix/share/groff/font/devps/DESC
+	elif test -r $groff_prefix/lib/groff/font/devps/DESC; then
+		descfile=$groff_prefix/lib/groff/font/devps/DESC
 	else
-		for f in $prefix/share/groff/*/font/devps/DESC; do
+		for f in $groff_prefix/share/groff/*/font/devps/DESC; do
 			if test -r $f; then
 				descfile=$f
 				break
 			fi
 		done
 	fi
-	if test -n "$descfile" \
-	  && grep "^paperlength 841890" $descfile >/dev/null 2>&1; then
-		PAGE=A4
+	if test -n "$descfile"; then
+changequote(,)dnl
+		if grep '^paperlength[	 ]\+841890' $descfile
+		  >/dev/null 2>&1; then
+			PAGE=A4
+		elif grep '^papersize[	 ]\+[aA]4' $descfile \
+		  >/dev/null 2>&1; then
+			PAGE=A4
+		fi
+changequote([,])dnl
 	fi
 fi
 if test -z "$PAGE"; then
@@ -260,6 +312,10 @@ changequote(,)dnl
 changequote([,])dnl
 fi
 test -n "$PAGE" || PAGE=letter
+if test "x$PAGE" = "xA4"; then
+	AC_DEFINE(PAGEA4, 1,
+		  [Define if the printer's page size is A4.])
+fi
 AC_MSG_RESULT($PAGE)
 AC_SUBST(PAGE)])dnl
 dnl
@@ -380,6 +436,12 @@ ac_dir=`cd $ac_aux_dir; pwd`
 ac_install_sh="$ac_dir/install-sh -c"])dnl
 dnl
 dnl
+dnl Test whether install-info is available.
+dnl
+AC_DEFUN(GROFF_INSTALL_INFO,
+[AC_CHECK_PROGS(INSTALL_INFO, install-info, :)])dnl
+dnl
+dnl
 dnl At least one UNIX system, Apple Macintosh Rhapsody 5.5,
 dnl does not have -lm.
 dnl
@@ -398,8 +460,8 @@ dnl
 dnl This simplifies Makefile rules.
 dnl
 AC_DEFUN(GROFF_BUILDDIR,
-[top_builddir=`pwd`
-AC_SUBST(top_builddir)])dnl
+[groff_top_builddir=`pwd`
+AC_SUBST(groff_top_builddir)])dnl
 dnl
 dnl
 dnl Check for EBCDIC - stolen from the OS390 Unix LYNX port
@@ -416,11 +478,14 @@ make an error "Character set is not EBCDIC"
 groff_cv_ebcdic="yes"
  TTYDEVDIRS="font/devcp1047"
  AC_MSG_RESULT(yes)
- AC_DEFINE(IS_EBCDIC_HOST),
+ AC_DEFINE(IS_EBCDIC_HOST, 1,
+	   [Define if the host's encoding is EBCDIC.]),
 groff_cv_ebcdic="no"
- TTYDEVDIRS="font/devascii font/devlatin1 font/devutf8"
+ TTYDEVDIRS="font/devascii font/devlatin1"
+ OTHERDEVDIRS="font/devlj4 font/devlbp"
  AC_MSG_RESULT(no))
-AC_SUBST(TTYDEVDIRS)])dnl
+AC_SUBST(TTYDEVDIRS)
+AC_SUBST(OTHERDEVDIRS)])dnl
 dnl
 dnl
 dnl Check for OS/390 Unix.  We test for EBCDIC also -- the Linux port (with
@@ -458,29 +523,85 @@ AC_CACHE_VAL(groff_cv_decl_needed_$1,
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #ifdef HAVE_MATH_H
 #include <math.h>
 #endif],
-[char *(*pfn) = (char *(*)) $1],
+[#ifndef $1
+  char *p = (char *) $1;
+#endif],
 groff_cv_decl_needed_$1=no,
 groff_cv_decl_needed_$1=yes)])
 AC_MSG_RESULT($groff_cv_decl_needed_$1)
 if test $groff_cv_decl_needed_$1 = yes; then
-	AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]))
+	AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]), 1,
+		  [Define if your C++ doesn't declare ]$1[().])
 fi
 AC_LANG_POP(C++)])dnl
 dnl
 dnl
-dnl Check for mkstemp() and its function prototype.
+dnl If mkstemp() isn't available, use our own mkstemp.cc file.
 dnl
 AC_DEFUN(GROFF_MKSTEMP,
-[AC_CHECK_FUNC(mkstemp,
-[AC_DEFINE(HAVE_MKSTEMP)
-AC_MSG_CHECKING([for mkstemp prototype in <stdlib.h>])
-AC_EGREP_CPP(mkstemp,
-[#include <stdlib.h>],
-AC_MSG_RESULT(yes);AC_DEFINE(HAVE_MKSTEMP_PROTO),
-AC_MSG_RESULT(no))])])
+[AC_MSG_CHECKING([for mkstemp])
+AC_LANG_PUSH(C++)
+AC_LIBSOURCE(mkstemp.cc)
+AC_TRY_LINK([#include <stdlib.h>
+#include <unistd.h>
+int (*f) (char *);],
+[f = mkstemp;],
+AC_MSG_RESULT(yes);AC_DEFINE(HAVE_MKSTEMP, 1,
+			     [Define if you have mkstemp().]),
+AC_MSG_RESULT(no);_AC_LIBOBJ(mkstemp))
+AC_LANG_POP(C++)])dnl
+dnl
+dnl
+dnl Test whether <inttypes.h> exists, doesn't clash with <sys/types.h>,
+dnl and declares uintmax_t.  Taken from the fileutils package.
+dnl
+AC_DEFUN(GROFF_INTTYPES_H,
+[AC_LANG_PUSH(C++)
+AC_MSG_CHECKING([for inttypes.h])
+AC_TRY_COMPILE([#include <sys/types.h>
+#include <inttypes.h>],
+[uintmax_t i = (uintmax_t)-1;],
+groff_cv_header_inttypes_h=yes,
+groff_cv_header_inttypes_h=no)
+AC_MSG_RESULT($groff_cv_header_inttypes_h)
+AC_LANG_POP(C++)])dnl
+dnl
+dnl
+dnl Test for working `unsigned long long'.  Taken from the fileutils package.
+dnl
+AC_DEFUN(GROFF_UNSIGNED_LONG_LONG,
+[AC_LANG_PUSH(C++)
+AC_MSG_CHECKING([for unsigned long long])
+AC_TRY_LINK([unsigned long long ull = 1; int i = 63;],
+[unsigned long long ullmax = (unsigned long long)-1;
+return ull << i | ull >> i | ullmax / ull | ullmax % ull;],
+groff_cv_type_unsigned_long_long=yes,
+groff_cv_type_unsigned_long_long=no)
+AC_MSG_RESULT($groff_cv_type_unsigned_long_long)
+AC_LANG_POP(C++)])dnl
+dnl
+dnl
+dnl Define uintmax_t to `unsigned long' or `unsigned long long'
+dnl if <inttypes.h> does not exist.  Taken from the fileutils package.
+dnl
+AC_DEFUN(GROFF_UINTMAX_T,
+[AC_REQUIRE([GROFF_INTTYPES_H])
+if test $groff_cv_header_inttypes_h = no; then
+	AC_REQUIRE([GROFF_UNSIGNED_LONG_LONG])
+	test $groff_cv_type_unsigned_long_long = yes \
+	  && ac_type='unsigned long long' \
+	  || ac_type='unsigned long'
+	AC_DEFINE_UNQUOTED(uintmax_t, $ac_type,
+			   [Define uintmax_t to `unsigned long' or
+			    `unsigned long long' if <inttypes.h> does not
+			    exist.])
+fi])dnl

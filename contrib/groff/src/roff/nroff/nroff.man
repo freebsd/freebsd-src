@@ -40,12 +40,12 @@ the original English.
 .OP \-o list
 .OP \-p
 .OP \-r cn
-.OP \-t
 .OP \-S
+.OP \-t
 .OP \-T name
 .OP \-U
 .OP \-v
-.RI "[\ " file\|.\|.\|. "\ ]"
+.RI "[\ " "file" "\ .\|.\|.\ ]"
 .br
 .ad \na
 .SH DESCRIPTION
@@ -82,16 +82,22 @@ environment variable.
 .PP
 The
 .B \-h
-option
-is equivalent to the
+and
+.B \-c
+options
+are equivalent to
 .BR grotty 's
+options
 .B \-h
-option (i.e., using tabs in the output).
+(using tabs in the output) and
+.B \-c
+(using the old output scheme instead of SGR escape sequences).
 The
+.BR \-C ,
 .BR \-i ,
 .BR \-n ,
 .BR \-m ,
-.B \-o
+.BR \-o ,
 and
 .B \-r
 options have the effect described in
@@ -115,8 +121,6 @@ Options
 .B \-U
 (unsafe) are passed to
 .BR groff . 
-.B \-S
-is passed by default.
 .B \-v
 shows the version number.
 .SH ENVIRONMENT

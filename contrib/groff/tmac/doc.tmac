@@ -51,11 +51,14 @@
 .  ab This version of mdoc can be run with GNU troff only!
 .
 .
+.do if d Dd .nx
+.
+.
 .cp 0
 .
 .
-.if (\n[.x]\n[.y] < 117) \
-.  ab You need GNU troff version 1.17 or higher to run this version of mdoc!
+.if (\n[.x]\n[.y] < 118) \
+.  ab You need GNU troff version 1.18 or higher to run this version of mdoc!
 .
 .
 .\" Load start-up files
@@ -155,7 +158,7 @@
 .
 .  \" handle `|' and `...' specially
 .  ie        "\$1"|" \
-.    ds doc-arg\n[doc-arg-limit] \f[R]|\f[P]
+.    ds doc-arg\n[doc-arg-limit] \f[R]|\f[]
 .  el \{ .ie "\$1"..." \
 .    ds doc-arg\n[doc-arg-limit] \|.\|.\|.
 .  el \
@@ -204,7 +207,7 @@
 .  nr doc-arg-limit +1
 .
 .  ie        "\*[doc-arg\n[doc-arg-limit]]"|" \
-.    ds doc-arg\n[doc-arg-limit] \f[R]|\f[P]
+.    ds doc-arg\n[doc-arg-limit] \f[R]|\f[]
 .  el \{ .if "\*[doc-arg\n[doc-arg-limit]]"..." \
 .    ds doc-arg\n[doc-arg-limit] \|.\|.\|.
 .  \}
@@ -357,7 +360,7 @@
 .
 .    if !\n[.$] \{\
 .      \" no arguments
-.      nop \|\-\|\f[P]\s[0]
+.      nop \|\-\|\f[]\s[0]
 .  \}\}
 .
 .  if !\n[doc-arg-limit] \
@@ -366,12 +369,12 @@
 .  nr doc-arg-ptr +1
 .  ie (\n[doc-arg-limit] < \n[doc-arg-ptr]) \{\
 .    \" last argument
-.    nop \|\-\f[P]\s[0]\c
+.    nop \|\-\f[]\s[0]\c
 .    doc-print-and-reset
 .  \}
 .  el \{\
 .    ie (\n[doc-type\n[doc-arg-ptr]] == 1) \{\
-.      nop \|\-\f[P]\s[0]\c
+.      nop \|\-\f[]\s[0]\c
 .      \*[doc-arg\n[doc-arg-ptr]]
 .    \}
 .    el \{\
@@ -400,7 +403,7 @@
 .  ds doc-str-dfr "\*[doc-arg\n[doc-arg-ptr]]
 .
 .  ie (\n[doc-reg-dfr1] == 1) \{\
-.    nop \f[P]\s[0]\c
+.    nop \f[]\s[0]\c
 .    \*[doc-str-dfr]
 .  \}
 .  el \{\
@@ -416,10 +419,10 @@
 .        nop \)\*[Ba]\c
 .      \}
 .      el \{\
-.        ie "\*[doc-str-dfr]"\f[R]|\f[P]" \{\
+.        ie "\*[doc-str-dfr]"\f[R]|\f[]" \{\
 .          if \n[doc-reg-Fl] \
 .            nop \|\-\*[doc-space]\c
-.          nop \f[R]|\f[P]\c
+.          nop \f[R]|\f[]\c
 .        \}
 .        el \{\
 .          \" two consecutive hyphen characters?
@@ -430,14 +433,14 @@
 .    \}\}\}
 .    el \{\
 .      nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\c
-.      nop \)\*[doc-str-dfr]\f[P]\s[0]\c
+.      nop \)\*[doc-str-dfr]\f[]\s[0]\c
 .    \}
 .
 .    ie (\n[doc-arg-limit] == \n[doc-arg-ptr]) \{\
 .      \" last argument
 .      if (\n[doc-reg-dfr1] == 4) \
 .        nop \|\-\c
-.      nop \f[P]\s[0]\c
+.      nop \f[]\s[0]\c
 .      doc-print-and-reset
 .    \}
 .    el \{\
@@ -486,7 +489,7 @@
 .    el \{\
 .      \" punctuation character
 .      nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\c
-.      nop \)\*[doc-str-dpr]\f[P]\s[0]\c
+.      nop \)\*[doc-str-dpr]\f[]\s[0]\c
 .    \}
 .
 .    nr doc-arg-ptr +1
@@ -513,7 +516,7 @@
 .    if !(\n[doc-type\n[doc-arg-ptr]] == 4) \
 .      break
 .    nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\c
-.    nop \)\*[doc-arg\n[doc-arg-ptr]]\f[P]\s[0]\c
+.    nop \)\*[doc-arg\n[doc-arg-ptr]]\f[]\s[0]\c
 .    nr doc-arg-ptr +1
 .  \}
 ..
@@ -544,7 +547,8 @@
 .  nr doc-arg-ptr +1
 .  ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
 .    if (\n[doc-type\n[doc-arg-ptr]] == 1) \{\
-.      tm Usage: .\$0 \*[doc-\$0-usage] ... (#\n[.c])
+.      tmc mdoc warning: Using a macro as first argument
+.      tm1 " cancels effect of .\$0 (#\n[.c])
 .
 .      \" the right action here would be to reset the argument counters
 .      \" and bail out -- unfortunately, a small number of manual pages
@@ -595,7 +599,7 @@
 .
 .    if !\n[.$] \{\
 .      \" no argument
-.      nop \)\*[doc-str-Ar-default]\&\f[P]\s[0]
+.      nop \)\*[doc-str-Ar-default]\&\f[]\s[0]
 .  \}\}
 .
 .  if !\n[doc-arg-limit] \
@@ -604,7 +608,7 @@
 .  nr doc-arg-ptr +1
 .  doc-print-prefixes
 .  ie (\n[doc-arg-limit] < \n[doc-arg-ptr]) \{\
-.    nop \)\*[doc-str-Ar-default]\&\f[P]\s[0]\c
+.    nop \)\*[doc-str-Ar-default]\&\f[]\s[0]\c
 .    doc-print-and-reset
 .  \}
 .  el \{\
@@ -923,7 +927,7 @@
 .      doc-reset-args
 .    \}
 .    el \{\
-.      nop \*[doc-Nm-font]\*[doc-command-name]\f[P]\s[0]\c
+.      nop \*[doc-Nm-font]\*[doc-command-name]\f[]\s[0]\c
 .      doc-print-and-reset
 .  \}\}
 .  el \{\
@@ -936,7 +940,7 @@
 .      el \{\
 .        \" replace previous argument (Nm) with default value
 .        nr doc-arg-ptr -1
-.        ds doc-arg\n[doc-arg-ptr] "\*[doc-Nm-font]\*[doc-command-name]\f[P]\s[0]
+.        ds doc-arg\n[doc-arg-ptr] "\*[doc-Nm-font]\*[doc-command-name]\f[]\s[0]
 .        nr doc-type\n[doc-arg-ptr] 2
 .        ds doc-space\n[doc-arg-ptr] "\*[doc-space]
 .
@@ -988,7 +992,7 @@
 .
 .    if !\n[.$] \{\
 .      \" default value
-.      nop \*[doc-Pa-font]~\f[P]\s[0]
+.      nop \*[doc-Pa-font]~\f[]\s[0]
 .  \}\}
 .
 .  if !\n[doc-arg-limit] \
@@ -1015,7 +1019,7 @@
 .    doc-print-recursive
 .  \}
 .  el \{\
-.    nop \*[doc-Pa-font]~\f[P]\s[0]\c
+.    nop \*[doc-Pa-font]~\f[]\s[0]\c
 .    doc-print-and-reset
 .  \}
 ..
@@ -1936,7 +1940,7 @@
 .      doc-print-and-reset
 .  \}
 .
-.  \" shall we finish .It request?
+.  \" shall we finish .It macro?
 .  if !"\*[doc-macro-name]"It" \
 .    if \n[doc-in-list] \
 .      if !\n[doc-nesting-level] \
@@ -2022,7 +2026,7 @@
 .
 .de Ap
 .  ie !\n[doc-arg-limit] \
-.    tm Usage: `Ap' cannot be first request on a line (no `.Ap') (#\n[.c])
+.    tm Usage: `Ap' cannot be first macro on a line (no `.Ap') (#\n[.c])
 .  el \{\
 .    nop \)'\)\c
 .    nr doc-arg-ptr +1
@@ -2375,7 +2379,7 @@
 .
 .
 .\" NS doc-fontmode-font-stackXXX global register
-.\" NS   stack of saved current font values from `Bf' request
+.\" NS   stack of saved current font values from `Bf' macro
 .\" NS
 .\" NS limit:
 .\" NS   doc-fontmode-depth
@@ -2384,7 +2388,7 @@
 .
 .
 .\" NS doc-fontmode-size-stackXXX global register
-.\" NS   stack of saved current size values from `Bf' request
+.\" NS   stack of saved current size values from `Bf' macro
 .\" NS
 .\" NS limit:
 .\" NS   doc-fontmode-depth
@@ -2426,7 +2430,7 @@
 .    el \{ .ie "\$1"-symbolic" \
 .      nop \*[doc-Sy-font]\c
 .    el \{\
-.      tmc mdoc warning: Unknown keyword `\$1' in .Bf request
+.      tmc mdoc warning: Unknown keyword `\$1' in .Bf macro
 .      tm1 " (#\n[.c])
 .  \}\}\}\}\}\}\}
 .  el \
@@ -2494,7 +2498,7 @@
 .    doc-set-hard-space
 .  \}
 .  el \{\
-.    tm mdoc warning: Unknown keyword `\$1' in .Bk request (#\n[.c])
+.    tm mdoc warning: Unknown keyword `\$1' in .Bk macro (#\n[.c])
 .    nr doc-keep-type 3
 .  \}\}\}
 .
@@ -2675,7 +2679,7 @@
 .  \}
 .  el \{\
 .    tm1 "mdoc warning: Unknown keyword `\$1' (or missing display type)
-.    tm1 "              in .Bd request (#\n[.c])
+.    tm1 "              in .Bd macro (#\n[.c])
 .    nr doc-reg-Bd 0
 .  \}\}\}\}\}
 .
@@ -2763,7 +2767,7 @@
 .        \" character yields identical numerical results (ignoring the
 .        \" scaling indicator)
 .        ds doc-str-ddBa "\$2
-.        substring doc-str-ddBa 1 -1
+.        substring doc-str-ddBa 0 -2
 .        if \B(\*[doc-str-ddBa]) \{\
 .          nr doc-reg-ddBa3 (;(\$2))
 .          nr doc-reg-ddBa4 (\*[doc-str-ddBa])
@@ -2803,7 +2807,7 @@
 .      tm mdoc warning: .Bd `-file' keyword requires argument (#\n[.c])
 .  \}
 .  el \
-.      tm mdoc warning: Unknown keyword `\$1' in .Bd request (#\n[.c])
+.      tm mdoc warning: Unknown keyword `\$1' in .Bd macro (#\n[.c])
 .  \}\}
 .
 .  if (\n[doc-reg-ddBa] < \n[.$]) \{\
@@ -2960,7 +2964,7 @@
 .  \}
 .  el \{\
 .    tm1 "mdoc warning: Unknown list type `\$1' (or missing list type)
-.    tm1 "              in .Bl request
+.    tm1 "              in .Bl macro
 .    tm
 .    nr doc-arg-ptr 0
 .  \}\}\}\}\}\}\}\}\}\}\}
@@ -3070,7 +3074,7 @@
 .      nr doc-list-indent-stack\n[doc-list-depth] +\n[doc-reg-dBla1]n
 .    \}
 .    el \
-.      tm mdoc warning: `-nested' allowed with nested .Bl requests only (#\n[.c])
+.      tm mdoc warning: `-nested' allowed with nested .Bl macros only (#\n[.c])
 .  \}
 .
 .  el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-width" \{\
@@ -3078,10 +3082,10 @@
 .    ds doc-tag-width-stack\n[doc-list-depth] TagwidtH
 .
 .    ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
-.    substring doc-str-dBla 1 2
+.    substring doc-str-dBla 0 0
 .    ie .\*[doc-str-dBla] \{\
 .      ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
-.      substring doc-str-dBla 2
+.      substring doc-str-dBla 1
 .      doc-first-parameter \*[doc-str-dBla]
 .      doc-get-width "\*[doc-str-dfp]
 .      doc-get-arg-type "\*[doc-str-dfp]
@@ -3125,7 +3129,7 @@
 .        \" character yields identical numerical results (ignoring the
 .        \" scaling indicator)
 .        ds doc-str-dBla1 "\*[doc-str-dBla]
-.        substring doc-str-dBla1 1 -1
+.        substring doc-str-dBla1 0 -2
 .        if \B(\*[doc-str-dBla1]) \{\
 .          nr doc-reg-dBla3 (;(\*[doc-str-dBla]))
 .          nr doc-reg-dBla4 (\*[doc-str-dBla1])
@@ -3167,7 +3171,7 @@
 .        warn (\n[.warn] - (\n[.warn] / 32 % 2 * 32))
 .
 .        ds doc-str-dBla1 "\*[doc-str-dBla]
-.        substring doc-str-dBla1 1 -1
+.        substring doc-str-dBla1 0 -2
 .        if \B(\*[doc-str-dBla1]) \{\
 .          nr doc-reg-dBla3 (;(\*[doc-str-dBla]))
 .          nr doc-reg-dBla4 (\*[doc-str-dBla1])
@@ -3204,10 +3208,10 @@
 .    ie "\*[doc-list-type-stack\n[doc-list-depth]]"column-list" \{\
 .      nr doc-num-columns +1
 .      ds doc-str-dBla \*[doc-arg\n[doc-arg-ptr]]
-.      substring doc-str-dBla 1 2
+.      substring doc-str-dBla 0 0
 .      ie .\*[doc-str-dBla] \{\
 .        ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
-.        substring doc-str-dBla 2
+.        substring doc-str-dBla 1
 .        doc-first-parameter \*[doc-str-dBla]
 .        doc-get-width "\*[doc-str-dfp]
 .        doc-get-arg-type "\*[doc-str-dfp]
@@ -3242,7 +3246,7 @@
 .    \}
 .    el \{\
 .      tmc mdoc warning: Unknown keyword `\*[doc-arg\n[doc-arg-ptr]]'
-.      tm1 " in .Bl request (#\n[.c])
+.      tm1 " in .Bl macro (#\n[.c])
 .  \}\}
 .
 .  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \
@@ -3666,7 +3670,7 @@
 .
 .  ie (\n[doc-reg-It] == 1) \{\
 .    if \n[.$] \{\
-.      tm1 "mdoc warning: .It requests in lists of type `\*[doc-str-It]'
+.      tm1 "mdoc warning: .It macros in lists of type `\*[doc-str-It]'
 .      tm1 "              don't take arguments (#\n[.c])
 .  \}\}
 .  el \{\
@@ -3693,13 +3697,13 @@
 .          doc-print-recursive
 .    \}\}\}
 .    el \{\
-.      tm1 "mdoc warning: .It requests in lists of type `\*[doc-str-It]'
+.      tm1 "mdoc warning: .It macros in lists of type `\*[doc-str-It]'
 .      tm1 "              require arguments (#\n[.c])
 .    \}
 .  \}
 .
 .  \" the previous call of `.doc-print-recursive' can contain calls to
-.  \" opening requests like `.Ao'; we then defer the call of `doc-xxx-list'
+.  \" opening macros like `.Ao'; we then defer the call of `doc-xxx-list'
 .  if !\n[doc-nesting-level] \
 .    doc-\*[doc-str-It]
 ..
@@ -3854,7 +3858,7 @@
 .
 .de doc-bullet-list
 .  nr doc-in-list 1
-.  nop \)\*[doc-Sy-font]\[bu]\f[P]
+.  nop \)\*[doc-Sy-font]\[bu]\f[]
 .  doc-do-list
 ..
 .
@@ -3867,7 +3871,7 @@
 .
 .de doc-dash-list
 .  nr doc-in-list 1
-.  nop \)\*[doc-Sy-font]\-\f[P]
+.  nop \)\*[doc-Sy-font]\-\f[]
 .  doc-do-list
 ..
 .
@@ -3965,9 +3969,9 @@
 .  \}
 .  el \{\
 .    chop doc-item-box\n[doc-list-depth]
-.    nr doc-reg-dtl1 \n[.k]u
-.    nop \*[doc-item-box\n[doc-list-depth]]\c
-.    nop \h'|(\n[doc-reg-dtl1]u - \n[.k]u + \n[doc-reg-dtl]u)'\c
+.    \" Using \Z prevents stretching of the spaces in the tag
+.    nop \Z'\*[doc-item-box\n[doc-list-depth]]'\c
+.    nop \h'\n[doc-reg-dtl]u'\c
 .    nr doc-have-space 1
 .  \}
 .
@@ -4185,7 +4189,7 @@
 .    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
 .      nr doc-curr-font \n[.f]
 .      nr doc-curr-size \n[.ps]
-.      ds doc-arg\n[doc-arg-ptr] \*[doc-Xr-font]\*[doc-arg\n[doc-arg-ptr]]\f[P]\s[0]
+.      ds doc-arg\n[doc-arg-ptr] \*[doc-Xr-font]\*[doc-arg\n[doc-arg-ptr]]\f[]\s[0]
 .
 .      if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
 .        nr doc-reg-Xr (\n[doc-arg-ptr] + 1)
@@ -4581,7 +4585,7 @@
 .
 .  if \n[.$] \
 .    nop \*[doc-Ft-font]\$*\c
-.  nop \ \f[P]\c
+.  nop \ \f[]\c
 ..
 .
 .
@@ -4677,12 +4681,12 @@
 .  if (\n[doc-func-arg-count] > 1) \{\
 .    nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\|,\)\c
 .    nop \)\*[doc-space\n[doc-arg-ptr]]\*[doc-Fa-font]\c
-.    nop \)\*[doc-arg\n[doc-arg-ptr]]\f[P]\s[0]\c
+.    nop \)\*[doc-arg\n[doc-arg-ptr]]\f[]\s[0]\c
 .  \}
 .
 .  if (\n[doc-func-arg-count] == 1) \{\
 .    nop \|\*[doc-Fa-font]\*[doc-arg\n[doc-arg-ptr]]\c
-.    nop \f[P]\s[0]\c
+.    nop \f[]\s[0]\c
 .  \}
 .  nr doc-func-arg-count +1
 .  doc-do-func
@@ -4771,7 +4775,7 @@
 .  nr doc-curr-font \n[.f]
 .  nr doc-curr-size \n[.ps]
 .  nop \*[doc-Fn-font]\*[doc-arg\n[doc-arg-ptr]]\c
-.  nop \f[P]\s[0]\*[lp]\)\c
+.  nop \f[]\s[0]\*[lp]\)\c
 .
 .  nr doc-arg-ptr +1
 .  if (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
@@ -4833,7 +4837,7 @@
 .    if (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
 .      nr doc-reg-ddfa (\n[doc-arg-ptr] - 1)
 .      nop \|\f[\n[doc-curr-font]]\s[\n[doc-curr-size]u],\)\c
-.      nop \)\*[doc-space\n[doc-reg-ddfa]]\f[P]\s[0]\|\c
+.      nop \)\*[doc-space\n[doc-reg-ddfa]]\f[]\s[0]\|\c
 .      doc-do-func-args
 .  \}\}
 ..
@@ -4934,7 +4938,7 @@
 .    nr doc-curr-size \n[.ps]
 .
 .    nop \*[doc-Fn-font]\*[doc-arg\n[doc-arg-ptr]]\c
-.    nop \f[P]\s[0]\*[lp]\)\c
+.    nop \f[]\s[0]\*[lp]\)\c
 .    doc-reset-args
 .  \}
 ..
@@ -5034,7 +5038,7 @@
 .
 .
 .\" Very crude references: Stash all reference info into boxes, print out
-.\" reference on .Re request and clean up.  Ordering very limited, no fancy
+.\" reference on .Re macro and clean up.  Ordering very limited, no fancy
 .\" citations, but can do articles, journals, and books -- need to add
 .\" several missing options (like city etc).  Should be able to grab a refer
 .\" entry, massage it a wee bit (prefix a `.' to the %[A-Z]) and not worry
@@ -6133,19 +6137,19 @@
 .ds doc-str-Rv-std-prefix "The
 .ds doc-str-Rv-std-suffix "function returns the value\~0 if successful;
 .as doc-str-Rv-std-suffix " otherwise the value\~-1 is returned and
-.as doc-str-Rv-std-suffix " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-std-suffix " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-std-suffix " is set to indicate the error.
 .
 .ds doc-str-Rv-stds-prefix "The
 .ds doc-str-Rv-stds-and    "and
 .ds doc-str-Rv-stds-suffix "functions return the value\~0 if successful;
 .as doc-str-Rv-stds-suffix " otherwise the value\~-1 is returned and
-.as doc-str-Rv-stds-suffix " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-stds-suffix " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-stds-suffix " is set to indicate the error.
 .
 .ds doc-str-Rv-std0 "Upon successful completion, the value\~0 is returned;
 .as doc-str-Rv-std0 " otherwise the value\~-1 is returned and
-.as doc-str-Rv-std0 " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-std0 " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-std0 " is set to indicate the error.
 .
 .de Rv

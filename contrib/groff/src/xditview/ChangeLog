@@ -1,6 +1,56 @@
+2002-09-16  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile.in (GROFF_LOCALFONTDIR): New variable.
+	(GROFF_FONTPATH): Use it.
+	Remove /usr/local/lib/font.
+
+Version 1.18.0 released
+=======================
+
+2002-06-22  Werner LEMBERG  <wl@gnu.org>
+
+	* gxditview.c (main): Handle `-help' and `--help' correctly.
+
+2002-06-17  Colin Watson  <cjwatson@debian.org>
+
+	* Imakefile.in: s/@top_builddir@/@groff_top_builddir@/.
+
+2002-04-06  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map, Adobe_Symbol_map): Remove all
+	characters > 0x80.
+	* parse.c (ParseInput): Ignore `m' command.
+	(ParseDrawFunction): Don't move for unknown drawing functions.
+	Don't move for `f' drawing function.
+
+2002-03-25  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map): Use `t+-', `tmu', and `tdi' symbols
+	instead of `+-', `mu', and `di', respectively.
+
+2002-02-23  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map): Add `mc' symbol.
+
+2001-09-22  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile.in: Redefine `ProgramTargetHelper' as
+	`ProgramTargetHelperNoMan' and add a call to `InstallManPageLong'
+	to make the `install.man' target work if the build directory isn't
+	$srcdir.
+
+Version 1.17.2 released
+=======================
+
+Version 1.17.1 released
+=======================
+
 2001-04-21  Albert Chin-A-Young  <china@thewrittenword.com>
 
 	* Imakefile.in: Add support for recent HP architectures.
+
+Version 1.17 released
+=====================
 
 2001-01-04  Rob Daasch  <daasch@ece.pdx.edu>
 

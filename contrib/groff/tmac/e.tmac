@@ -184,7 +184,7 @@
 .rs
 .if \\n(hm>0 \
 .	sp |\\n(hmu		\" move to header position
-.@t $h				\" output header title
+.@t $h\"			\" output header title
 .if \\n(tm<=0 \
 .	nr tm \n(.Vu
 .sp |\\n(tmu			\" move to top of text
@@ -200,7 +200,7 @@
 '	@b
 .\}
 .el \
-.	@n			\" begin the column
+.	@n\"			\" begin the column
 .if \n@>2 .tm << @h
 ..
 .de @n			\" --- new column or page
@@ -222,7 +222,7 @@
 .nr ?f 0			\" reset footnote flag
 .if \\n(?o \
 \{\
-.	(f _			\" reprocess footnotes which run off page
+.	(f _\"			\" reprocess footnotes which run off page
 .	nf
 .	|o
 .	fi
@@ -234,7 +234,7 @@
 \{\
 .	nr _i \\n(.i
 .	in 0
-.	|h			\" output the table header
+.	|h\"			\" output the table header
 .	in \\n(_iu
 .	rr _i
 .	mk #T			\" for tbl commands
@@ -249,7 +249,7 @@
 .	nr ?w 0
 .\}
 .os
-.$H				\" special column header macro
+.$H\"				\" special column header macro
 .ns
 ..
 .de @f			\" --- footer
@@ -260,7 +260,7 @@
 .if \\n(?T \
 \{\
 .	nr T. 1			\" for tbl commands (to output bottom line)
-.	T# 1			\" output the sides and bottom lines
+.	T# 1\"			\" output the sides and bottom lines
 .	br
 .\}
 .ev 2
@@ -271,11 +271,11 @@
 .	@k |b\"			\" output bottom of page tables
 .\}
 .if \\n(?f \
-.	@o			\" output footnote if present
+.	@o\"			\" output footnote if present
 .ie \\n($c<\\n($m \
-.	@c			\" handle new column
+.	@c\"			\" handle new column
 .el \
-.	@e			\" new page
+.	@e\"			\" new page
 .ev
 .if \n@>2 .tm << @f
 ..
@@ -315,14 +315,14 @@
 .@O \\n(_ou
 .rs
 .sp |\\n(.pu-\\n(fmu-((\\n(tpp*\\n($vu)/100u)	\" move to footer position
-.@t $f				\" output footer title
+.@t $f\"			\" output footer title
 .nr ?h 0
 .bp
 ..
 .de @t			\" --- output header or footer title
 .if !\\n(?h \
 \{\
-.	sz \\n(tp		\" set header/footer type fonts, etc.
+.	sz \\n(tp\"		\" set header/footer type fonts, etc.
 .	@F \\n(tf
 .	lt \\n(_Lu		\" make title span entire page
 .	nf
@@ -375,7 +375,7 @@
 .	if \\n(.$>0 \
 .		pn \\$1
 .	if \\n(?I \
-.		@h		\" 'spring' the header trap
+.		@h\"		\" 'spring' the header trap
 .\}
 .br
 .wh 0 @h			\" reset header
@@ -678,7 +678,7 @@
 .de 2c			\" *** double columned output
 .br
 .if \\n($m>1 \
-.	1c			\" revert to 1c if already 2c
+.	1c\"			\" revert to 1c if already 2c
 .nr $c 1
 .nr $m 2
 .if \\n(.$>1 \
@@ -795,7 +795,7 @@
 .sp \\n(bsu+\\n(.Lv-1v
 ..
 .de @(			\" --- begin keep
-.if !"\\n(.z"" .tm Line \\n(c. -- Illegal nested keep \\n(.z
+.if !"\\n(.z"" .tm Line \\n(c. -- Invalid nested keep \\n(.z
 .@M
 .di |k
 \!'rs
@@ -905,7 +905,7 @@
 .	nr ?e 0
 .	di
 .	if \\n(dn \
-.		@q		\" actual equation output
+.		@q\"		\" actual equation output
 .	rm |e
 .	ev
 .\}
@@ -916,7 +916,7 @@
 .sp \\n(esu			\" output rest of preceeding text
 .if !"\\n(.z"" \!.ne \\n(_Qu
 .ne \\n(_Qu+\n(.Vu		\" keep it on one page
-.@C 2				\" .ev 2 may be jumbled from header
+.@C 2\"				\" .ev 2 may be jumbled from header
 .if \\n(_d=1 \
 .	in (\\n(.lu+\\n($iu-\\n(dlu)/2u
 .if \\n(_d=2 \
@@ -967,7 +967,7 @@
 .nr ?T \\n(_T
 .nr _i \\n(.i
 .in 0
-.|h				\" put in the initial header
+.|h\"				\" put in the initial header
 .in \\n(_iu
 .rr _i
 .mk #T
@@ -1215,7 +1215,7 @@ in \\f2\\*([B\\f1, \c
 .\"		*** FOOTNOTING ***
 .de (f			\" *** begin footnote
 .ec
-.if "\\n(.z"|f" .tm Line \\n(c. -- Illegal footnote nesting
+.if "\\n(.z"|f" .tm Line \\n(c. -- Invalid footnote nesting
 .ie "\\n(.z"" \
 \{\
 .	nr _D \\n(dn
@@ -1403,7 +1403,7 @@ in \\f2\\*([B\\f1, \c
 .rm |x
 ..
 .de +c			\" *** begin chapter
-.ep				\" force out footnotes
+.ep\"				\" force out footnotes
 .if \\n(?o:\\n(?a \
 \{\
 .	bp			\" force out a table or more footnote
@@ -1452,7 +1452,7 @@ in \\f2\\*([B\\f1, \c
 .	pn 1			\" must do before .ep
 .if !\\n(_0=\\n(_M .if \\n(_M=3 \
 .	pn 1			\" must do before .ep
-.ep				\" end page for correct page number types
+.ep\"				\" end page for correct page number types
 .if \\n(_0=1 \
 \{\
 .	af ch 1

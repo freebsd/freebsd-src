@@ -19,7 +19,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 /* This translates ps fonts in .pfb format to ASCII ps files. */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <getopt.h>
 #include <limits.h>
 

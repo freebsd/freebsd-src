@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -48,7 +48,8 @@ class macro : public request_or_macro {
   macro_header *p;
   const char *filename;		// where was it defined?
   int lineno;
-  int length;
+  int len;
+  int empty_macro;
 public:
   macro();
   ~macro();
@@ -59,13 +60,16 @@ public:
   void append_unsigned(unsigned int i);
   void append_int(int i);
   void append_str(const char *);
+  void set(unsigned char, int);
+  unsigned char get(int);
+  int length();
   void invoke(symbol);
   macro *to_macro();
   void print_size();
   int empty();
   friend class string_iterator;
   friend void chop_macro();
-  friend void substring_macro();
+  friend void substring_request();
   friend int operator==(const macro &, const macro &);
 };
 

@@ -1,6 +1,6 @@
-PROG=soelim
+PROG=soelim$(EXEEXT)
 MAN1=soelim.n
 XLIBS=$(LIBGROFF)
-OBJS=soelim.o
+OBJS=soelim.$(OBJEXT)
 CCSRCS=$(srcdir)/soelim.cc
 NAMEPREFIX=$(g)

@@ -1,8 +1,27 @@
-DISTCLEANFILES=config.status config.log config.cache Makefile \
-               src/xditview/Imakefile
+DISTCLEANFILES=\
+  config.status \
+  config.log \
+  config.cache \
+  stamp-h \
+  Makefile \
+  src/xditview/Imakefile \
+  src/include/config.h
 CLEANADD=Makefile.cfg conftest*
 
 distfiles: configure
 
-configure: configure.in aclocal.m4
-	cd $(srcdir); autoconf
+$(scrdir)/configure: configure.ac aclocal.m4
+	cd $(srcdir) && autoconf
+
+config.status: configure
+	$(SHELL) config.status --recheck
+
+# autoheader might not change config.hin, so touch a stamp file.
+$(srcdir)/config.hin: stamp-h.in
+$(srcdir)/stamp-h.in: configure.ac aclocal.m4
+	cd $(srcdir) && autoheader
+	echo timestamp > $(srcdir)/stamp-h.in
+     
+config.h: stamp-h
+stamp-h: config.hin config.status
+	$(SHELL) config.status

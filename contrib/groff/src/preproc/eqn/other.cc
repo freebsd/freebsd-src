@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -392,11 +392,11 @@ size_box::size_box(char *s, box *pp) : pointer_box(pp), size(s)
 
 int size_box::compute_metrics(int style)
 {
-  printf(".nr " SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SIZE_FORMAT " \\n[.ps]\n", uid);
   printf(".ps %s\n", size);
-  printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SMALL_SIZE_FORMAT " \\n[.ps]\n", uid);
   int r = p->compute_metrics(style);
-  printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+  printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   printf(".nr " WIDTH_FORMAT " 0\\n[" WIDTH_FORMAT "]\n", uid, p->uid);
   printf(".nr " HEIGHT_FORMAT " \\n[" HEIGHT_FORMAT "]\n", uid, p->uid);
   printf(".nr " DEPTH_FORMAT " \\n[" DEPTH_FORMAT "]\n", uid, p->uid);
@@ -405,9 +405,9 @@ int size_box::compute_metrics(int style)
 
 void size_box::output()
 {
-  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
   p->output();
-  printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
 }
 
 size_box::~size_box()

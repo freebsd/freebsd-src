@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-1992, 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-1992, 2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -445,8 +445,8 @@ static void do_file(const char *filename)
 	  line += '\n';
 	break;
       }
-      if (illegal_input_char(c))
-	error("illegal input character code %1", c);
+      if (invalid_input_char(c))
+	error("invalid input character code %1", c);
       else {
 	line += c;
 	if (c == '\n')
@@ -476,8 +476,8 @@ static void do_file(const char *filename)
 	  int d = getc(fp);
 	  if (d == ']') {
 	    while ((d = getc(fp)) != '\n' && d != EOF) {
-	      if (illegal_input_char(d))
-		error("illegal input character code %1", d);
+	      if (invalid_input_char(d))
+		error("invalid input character code %1", d);
 	      else
 		post += d;
 	    }
@@ -486,8 +486,8 @@ static void do_file(const char *filename)
 	  if (d != EOF)
 	    ungetc(d, fp);
 	}
-	if (illegal_input_char(c))
-	  error("illegal input character code %1", c);
+	if (invalid_input_char(c))
+	  error("invalid input character code %1", c);
 	else
 	  str += c;
 	start_of_line = (c == '\n');
@@ -580,8 +580,8 @@ static void do_file(const char *filename)
 				   "missing `.R2' line");
 	  break;
 	}
-	if (illegal_input_char(c))
-	  error("illegal input character code %1", int(c));
+	if (invalid_input_char(c))
+	  error("invalid input character code %1", int(c));
 	else {
 	  line += c;
 	  start_of_line = c == '\n';
@@ -1113,8 +1113,8 @@ void do_bib(const char *filename)
     int c = getc(fp);
     if (c == EOF)
       break;
-    if (illegal_input_char(c)) {
-      error("illegal input character code %1", c);
+    if (invalid_input_char(c)) {
+      error("invalid input character code %1", c);
       continue;
     }
     switch (state) {

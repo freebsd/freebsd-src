@@ -29,19 +29,21 @@ do
 	esac
 done
 
-egrep -h "^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|so|\[|R1|GS|G1|PH|SA)$sp" $* \
+egrep -h "^\.(\[|\])|((P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|so|\[|R1|GS|G1|PH|SA)$sp)" $* \
 | sed -e '/^\.so/s/^.*$/.SO_START\
 &\
 .SO_END/' \
 | $soelim \
-| egrep '^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|\[|R1|GS|G1|PH|SA|SO_START|SO_END)' \
+| egrep '^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|\[|\]|R1|GS|G1|PH|SA|SO_START|SO_END)' \
 | awk '
 /^\.SO_START$/ { so = 1 }
 /^\.SO_END$/ { so = 0 }
 /^\.TS/ { tbl++; if (so > 0) soelim++ }
 /^\.PS([ 0-9.<].*)?$/ { pic++; if (so > 0) soelim++ }
 /^\.EQ/ { eqn++; if (so > 0) soelim++ }
-/^\.(R1|\[)/ { refer++; if (so > 0) soelim++ }
+/^\.R1/ { refer++; if (so > 0) soelim++ }
+/^\.\[/ {refer_start++; if (so > 0) soelim++ }
+/^\.\]/ {refer_end++; if (so > 0) soelim++ }
 /^\.GS/ { grn++; if (so > 0) soelim++ }
 /^\.G1/ { grap++; pic++; if (so > 0) soelim++ }
 /^\.TH/ { TH++ }
@@ -69,11 +71,13 @@ egrep -h "^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|T
 		Oo--
 	}
 }
+/^\.(PRINTSTYLE|START)/ { mom++ }
 
 END {
 	if (files ~ /^-/)
 		files = "-- " files
 	printf "groff"
+	refer = refer || (refer_start && refer_end)
 	if (pic > 0 || tbl > 0 || grn > 0 || grap > 0 || eqn > 0 || refer > 0) {
 		printf " -"
 		if (soelim > 0) printf "s"
@@ -88,6 +92,8 @@ END {
 		printf " -me"
 	else if (SH > 0 && TH > 0)
 		printf " -man"
+	else if (mom > 0)
+		printf " -mom"
 	else if (PP > 0)
 		printf " -ms"
 	else if (P > 0 || mm > 0)

@@ -1,7 +1,7 @@
 LIB=driver
 OBJS=\
-  input.o \
-  printer.o
+  input.$(OBJEXT) \
+  printer.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/input.cc \
   $(srcdir)/printer.cc

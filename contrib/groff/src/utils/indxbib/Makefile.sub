@@ -1,10 +1,10 @@
-PROG=indxbib
+PROG=indxbib$(EXEEXT)
 MAN1=indxbib.n
 XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
-  indxbib.o \
-  signal.o
+  indxbib.$(OBJEXT) \
+  signal.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/indxbib.cc
 CSRCS=\

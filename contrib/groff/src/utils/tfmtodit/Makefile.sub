@@ -1,6 +1,6 @@
-PROG=tfmtodit
+PROG=tfmtodit$(EXEEXT)
 MAN1=tfmtodit.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=tfmtodit.o
+OBJS=tfmtodit.$(OBJEXT)
 CCSRCS=$(srcdir)/tfmtodit.cc
