@@ -225,8 +225,6 @@ __FBSDID("$FreeBSD$");
 #define	COMPAT_HEIMDAL
 /* #define	COMPAT_MIT */
 
-extern	krb5_cc_ops	krb5_mcc_ops;
-
 static int	verify_krb_v5_tgt(krb5_context, krb5_ccache, char *, int);
 static void	cleanup_cache(pam_handle_t *, void *, int);
 static const	char *compat_princ_component(krb5_context, krb5_principal, int);
