@@ -463,7 +463,6 @@ dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
 dev/null/null.c		standard
 dev/nmdm/nmdm.c		optional nmdm
-dev/pccard/pccard_common.c standard
 dev/pccard/card_if.m	standard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
