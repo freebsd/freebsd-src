@@ -1,7 +1,7 @@
-/*	$NetBSD: ftpcmd.y,v 1.66 2001/12/01 10:25:30 lukem Exp $	*/
+/*	$NetBSD: ftpcmd.y,v 1.73 2003/01/22 04:33:35 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -77,7 +77,41 @@
  */
 
 %{
-#include "lukemftpd.h"
+#include <sys/cdefs.h>
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
+#else
+__RCSID("$NetBSD: ftpcmd.y,v 1.73 2003/01/22 04:33:35 lukem Exp $");
+#endif
+#endif /* not lint */
+
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+#include <netinet/in.h>
+#include <arpa/ftp.h>
+#include <arpa/inet.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <pwd.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <time.h>
+#include <tzfile.h>
+#include <unistd.h>
+#include <netdb.h>
+
+#ifdef KERBEROS5
+#include <krb5/krb5.h>
+#endif
 
 #include "extern.h"
 #include "version.h"
@@ -93,7 +127,10 @@ char	*fromname;
 %}
 
 %union {
-	int	i;
+	struct {
+		off_t	o;
+		int	i;
+	} u;
 	char   *s;
 }
 
@@ -128,10 +165,10 @@ char	*fromname;
 
 %token	<s> STRING
 %token	<s> ALL
-%token	<i> NUMBER
+%token	<u> NUMBER
 
-%type	<i> check_login octal_number byte_size
-%type	<i> struct_code mode_code type_code form_code decimal_integer
+%type	<u.i> check_login octal_number byte_size
+%type	<u.i> struct_code mode_code type_code form_code decimal_integer
 %type	<s> pathstring pathname password username
 %type	<s> mechanism_name base64data prot_code
 
@@ -259,32 +296,48 @@ cmd
 	| LPSV check_login CRLF
 		{
 			if ($2) {
-				if (epsvall)
-					reply(501,
-					    "LPSV disallowed after EPSV ALL");
-				else
-					long_passive("LPSV", PF_UNSPEC);
+				if (CURCLASS_FLAGS_ISSET(passive)) {
+					if (epsvall)
+						reply(501,
+						    "LPSV disallowed after EPSV ALL");
+					else
+						long_passive("LPSV", PF_UNSPEC);
+				} else
+					reply(500, "LPSV mode not available.");
 			}
 		}
 
 	| EPSV check_login SP NUMBER CRLF
 		{
-			if ($2)
-				long_passive("EPSV", epsvproto2af($4));
+			if ($2) {
+				if (CURCLASS_FLAGS_ISSET(passive))
+					long_passive("EPSV",
+					    epsvproto2af($4.i));
+				else
+					reply(500, "EPSV mode not available.");
+			}
 		}
 
 	| EPSV check_login SP ALL CRLF
 		{
 			if ($2) {
-				reply(200, "EPSV ALL command successful.");
-				epsvall++;
+				if (CURCLASS_FLAGS_ISSET(passive)) {
+					reply(200,
+					    "EPSV ALL command successful.");
+					epsvall++;
+				} else
+					reply(500, "EPSV mode not available.");
 			}
 		}
 
 	| EPSV check_login CRLF
 		{
-			if ($2)
-				long_passive("EPSV", PF_UNSPEC);
+			if ($2) {
+				if (CURCLASS_FLAGS_ISSET(passive))
+					long_passive("EPSV", PF_UNSPEC);
+				else
+					reply(500, "EPSV mode not available.");
+			}
 		}
 
 	| TYPE check_login SP type_code CRLF
@@ -517,24 +570,28 @@ cmd
 		{
 			if ($4) {
 				reply(200,
-			    "Current IDLE time limit is %d seconds; max %d",
-				    curclass.timeout, curclass.maxtimeout);
+				    "Current IDLE time limit is " LLF
+				    " seconds; max " LLF,
+				    (LLT)curclass.timeout,
+				    (LLT)curclass.maxtimeout);
 			}
 		}
 
 	| SITE SP IDLE check_login SP NUMBER CRLF
 		{
 			if ($4) {
-				if ($6 < 30 || $6 > curclass.maxtimeout) {
+				if ($6.i < 30 || $6.i > curclass.maxtimeout) {
 					reply(501,
-			    "IDLE time limit must be between 30 and %d seconds",
-					    curclass.maxtimeout);
+				"IDLE time limit must be between 30 and "
+					    LLF " seconds",
+					    (LLT)curclass.maxtimeout);
 				} else {
-					curclass.timeout = $6;
+					curclass.timeout = $6.i;
 					(void) alarm(curclass.timeout);
 					reply(200,
-					    "IDLE time limit set to %d seconds",
-					    curclass.timeout);
+					    "IDLE time limit set to "
+					    LLF " seconds",
+					    (LLT)curclass.timeout);
 				}
 			}
 		}
@@ -550,19 +607,17 @@ cmd
 
 	| SITE SP RATEGET check_login SP STRING CRLF
 		{
+			char errbuf[100];
 			char *p = $6;
 			LLT rate;
 
 			if ($4) {
-				rate = strsuftoll(p);
-				if (rate == -1)
-					reply(501, "Invalid RATEGET %s", p);
-				else if (curclass.maxrateget &&
-				    rate > curclass.maxrateget)
-					reply(501,
-			"RATEGET " LLF " is larger than maximum RATEGET " LLF,
-					    (LLT)rate,
-					    (LLT)curclass.maxrateget);
+				rate = strsuftollx("RATEGET", p, 0,
+				    curclass.maxrateget
+				    ? curclass.maxrateget
+				    : LLTMAX, errbuf, sizeof(errbuf));
+				if (errbuf[0])
+					reply(501, "%s", errbuf);
 				else {
 					curclass.rateget = rate;
 					reply(200,
@@ -584,19 +639,17 @@ cmd
 
 	| SITE SP RATEPUT check_login SP STRING CRLF
 		{
+			char errbuf[100];
 			char *p = $6;
 			LLT rate;
 
 			if ($4) {
-				rate = strsuftoll(p);
-				if (rate == -1)
-					reply(501, "Invalid RATEPUT %s", p);
-				else if (curclass.maxrateput &&
-				    rate > curclass.maxrateput)
-					reply(501,
-			"RATEPUT " LLF " is larger than maximum RATEPUT " LLF,
-					    (LLT)rate,
-					    (LLT)curclass.maxrateput);
+				rate = strsuftollx("RATEPUT", p, 0,
+				    curclass.maxrateput
+				    ? curclass.maxrateput
+				    : LLTMAX, errbuf, sizeof(errbuf));
+				if (errbuf[0])
+					reply(501, "%s", errbuf);
 				else {
 					curclass.rateput = rate;
 					reply(200,
@@ -622,7 +675,7 @@ cmd
 		{
 			int oldmask;
 
-			if ($4 && CURCLASS_FLAGS_ISSET(modify)) {
+			if ($4 && check_write("", 0)) {
 				if (($6 == -1) || ($6 > 0777)) {
 					reply(501, "Bad UMASK value");
 				} else {
@@ -827,11 +880,11 @@ cmd
 	;
 
 rcmd
-	: REST check_login SP byte_size CRLF
+	: REST check_login SP NUMBER CRLF
 		{
 			if ($2) {
 				fromname = NULL;
-				restart_point = $4; /* XXX: $4 is only "int" */
+				restart_point = $4.o;
 				reply(350,
     "Restarting at " LLF ". Send STORE or RETRIEVE to initiate transfer.",
 				    (LLT)restart_point);
@@ -863,6 +916,9 @@ password
 
 byte_size
 	: NUMBER
+		{
+			$$ = $1.i;
+		}
 	;
 
 host_port
@@ -875,9 +931,9 @@ host_port
 			data_dest.su_len = sizeof(struct sockaddr_in);
 			data_dest.su_family = AF_INET;
 			p = (char *)&data_dest.su_port;
-			p[0] = $9; p[1] = $11;
+			p[0] = $9.i; p[1] = $11.i;
 			a = (char *)&data_dest.su_addr;
-			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+			a[0] = $1.i; a[1] = $3.i; a[2] = $5.i; a[3] = $7.i;
 		}
 	;
 
@@ -892,12 +948,12 @@ host_long_port4
 			data_dest.su_len = sizeof(struct sockaddr_in);
 			data_dest.su_family = AF_INET;
 			p = (char *)&data_dest.su_port;
-			p[0] = $15; p[1] = $17;
+			p[0] = $15.i; p[1] = $17.i;
 			a = (char *)&data_dest.su_addr;
-			a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
+			a[0] = $5.i; a[1] = $7.i; a[2] = $9.i; a[3] = $11.i;
 
 			/* reject invalid LPRT command */
-			if ($1 != 4 || $3 != 4 || $13 != 2)
+			if ($1.i != 4 || $3.i != 4 || $13.i != 2)
 				memset(&data_dest, 0, sizeof(data_dest));
 		}
 	;
@@ -917,12 +973,12 @@ host_long_port6
 			data_dest.su_len = sizeof(struct sockaddr_in6);
 			data_dest.su_family = AF_INET6;
 			p = (char *)&data_dest.su_port;
-			p[0] = $39; p[1] = $41;
+			p[0] = $39.i; p[1] = $41.i;
 			a = (char *)&data_dest.si_su.su_sin6.sin6_addr;
-			 a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
-			 a[4] = $13;  a[5] = $15;  a[6] = $17;  a[7] = $19;
-			 a[8] = $21;  a[9] = $23; a[10] = $25; a[11] = $27;
-			a[12] = $29; a[13] = $31; a[14] = $33; a[15] = $35;
+			a[0] = $5.i; a[1] = $7.i; a[2] = $9.i; a[3] = $11.i;
+			a[4] = $13.i; a[5] = $15.i; a[6] = $17.i; a[7] = $19.i;
+			a[8] = $21.i; a[9] = $23.i; a[10] = $25.i; a[11] = $27.i;
+			a[12] = $29.i; a[13] = $31.i; a[14] = $33.i; a[15] = $35.i;
 			if (his_addr.su_family == AF_INET6) {
 				/* XXX: more sanity checks! */
 				data_dest.su_scope_id = his_addr.su_scope_id;
@@ -931,7 +987,7 @@ host_long_port6
 			memset(&data_dest, 0, sizeof(data_dest));
 #endif /* INET6 */
 			/* reject invalid LPRT command */
-			if ($1 != 6 || $3 != 16 || $37 != 2)
+			if ($1.i != 6.i || $3.i != 16.i || $37.i != 2)
 				memset(&data_dest, 0, sizeof(data_dest));
 		}
 	;
@@ -1093,7 +1149,7 @@ octal_number
 			 * Convert a number that was read as decimal number
 			 * to what it would be if it had been read as octal.
 			 */
-			dec = $1;
+			dec = $1.i;
 			multby = 1;
 			ret = 0;
 			while (dec) {
@@ -1124,6 +1180,9 @@ prot_code
 
 decimal_integer
 	: NUMBER
+		{
+			$$ = $1.i;
+		}
 	;
 
 check_login
@@ -1163,7 +1222,7 @@ struct tab cmdtab[] = {
 	{ "SMNT", SMNT, ARGS,	0,	"(structure mount)" },
 	{ "QUIT", QUIT, NOARGS,	1,	"(terminate service)" },
 	{ "REIN", REIN, NOARGS,	0,	"(reinitialize server state)" },
-	{ "PORT", PORT, ARGS,	1,	"<sp> b0, b1, b2, b3, b4" },
+	{ "PORT", PORT, ARGS,	1,	"<sp> b0, b1, b2, b3, b4, b5" },
 	{ "LPRT", LPRT, ARGS,	1,	"<sp> af, hal, h1, h2, h3,..., pal, p1, p2..." },
 	{ "EPRT", EPRT, STR1,	1,	"<sp> |af|addr|port|" },
 	{ "PASV", PASV, NOARGS,	1,	"(set server in passive mode)" },
@@ -1231,13 +1290,13 @@ struct tab cmdtab[] = {
 };
 
 struct tab sitetab[] = {
-	{ "CHMOD",   	CHMOD,	NSTR, 1,	"<sp> mode <sp> file-name" },
-	{ "HELP",    	HELP,	OSTR, 1,	"[ <sp> <string> ]" },
-	{ "IDLE",    	IDLE,	ARGS, 1,	"[ <sp> maximum-idle-time ]" },
-	{ "RATEGET", 	RATEGET,OSTR, 1,	"[ <sp> get-throttle-rate ]" },
-	{ "RATEPUT", 	RATEPUT,OSTR, 1,	"[ <sp> put-throttle-rate ]" },
-	{ "UMASK",   	UMASK,	ARGS, 1,	"[ <sp> umask ]" },
-	{ NULL,		0,     0,     0,	NULL }
+	{ "CHMOD",	CHMOD,	NSTR,	1,	"<sp> mode <sp> file-name" },
+	{ "HELP",	HELP,	OSTR,	1,	"[ <sp> <string> ]" },
+	{ "IDLE",	IDLE,	ARGS,	1,	"[ <sp> maximum-idle-time ]" },
+	{ "RATEGET",	RATEGET,OSTR,	1,	"[ <sp> get-throttle-rate ]" },
+	{ "RATEPUT",	RATEPUT,OSTR,	1,	"[ <sp> put-throttle-rate ]" },
+	{ "UMASK",	UMASK,	ARGS,	1,	"[ <sp> umask ]" },
+	{ NULL,		0,	0,	0,	NULL }
 };
 
 static	int	check_write(const char *, int);
@@ -1251,6 +1310,8 @@ extern int epsvall;
 /*
  * Check if a filename is allowed to be modified (isupload == 0) or
  * uploaded (isupload == 1), and if necessary, check the filename is `sane'.
+ * If the filename is NULL, fail.
+ * If the filename is "", don't do the sane name check.
  */
 static int
 check_write(const char *file, int isupload)
@@ -1271,8 +1332,9 @@ check_write(const char *file, int isupload)
 		reply(502, "No permission to use this command.");
 		return (0);
 	}
+
 		/* checking sanenames */
-	if (CURCLASS_FLAGS_ISSET(sanenames)) {
+	if (file[0] != '\0' && CURCLASS_FLAGS_ISSET(sanenames)) {
 		const char *p;
 
 		if (file[0] == '.')
@@ -1392,11 +1454,11 @@ toolong(int signo)
 {
 
 	reply(421,
-	    "Timeout (%d seconds): closing control connection.",
-	    curclass.timeout);
+	    "Timeout (" LLF " seconds): closing control connection.",
+	    (LLT)curclass.timeout);
 	if (logging)
-		syslog(LOG_INFO, "User %s timed out after %d seconds",
-		    (pw ? pw->pw_name : "unknown"), curclass.timeout);
+		syslog(LOG_INFO, "User %s timed out after " LLF " seconds",
+		    (pw ? pw->pw_name : "unknown"), (LLT)curclass.timeout);
 	dologout(1);
 }
 
@@ -1548,7 +1610,7 @@ yylex(void)
 				;
 			c = cmdp[cpos];
 			cmdp[cpos] = '\0';
-			yylval.i = atoi(cp);
+			yylval.u.i = atoi(cp);
 			cmdp[cpos] = c;
 			state = STR1;
 			return (NUMBER);
@@ -1563,7 +1625,8 @@ yylex(void)
 				;
 			c = cmdp[cpos];
 			cmdp[cpos] = '\0';
-			yylval.i = atoi(cp);
+			yylval.u.i = atoi(cp);
+			yylval.u.o = strtoull(cp, (char **)NULL, 10);
 			cmdp[cpos] = c;
 			return (NUMBER);
 		}
@@ -1736,13 +1799,13 @@ help(struct tab *ctab, const char *s)
 	}
 	c = lookup(ctab, s);
 	if (c == (struct tab *)0) {
-		reply(502, "Unknown command %s.", s);
+		reply(502, "Unknown command '%s'.", s);
 		return;
 	}
 	if (CMD_IMPLEMENTED(c))
 		reply(214, "Syntax: %s%s %s", htype, c->name, c->help);
 	else
-		reply(214, "%s%-*s\t%s; not implemented.", htype, width,
+		reply(504, "%s%-*s\t%s; not implemented.", htype, width,
 		    c->name, c->help);
 }
 

@@ -4,23 +4,22 @@
 MAINTAINER=	obrien
 
 LUKEMFTPD=	${.CURDIR}/../../contrib/lukemftpd
-.PATH: ${LUKEMFTPD}/src
+.PATH: ${LUKEMFTPD}/src ${LUKEMFTPD}/libnetbsd
 
 PROG=	lukemftpd
 MAN=	lukemftpd.8 ftpd.conf.5 ftpusers.5
 MLINKS=	ftpusers.5 ftpchroot.5
 SRCS=	cmds.c conf.c ftpd.c ftpcmd.y popen.c
+SRCS+=	strsuftoll.c
 
 WFORMAT= 0
+CFLAGS+= -include ${.CURDIR}/nbsd2fbsd.h
 CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
+CFLAGS+= -I${.CURDIR}/../../lib/libc/stdtime
 YFLAGS=
 
-LDADD=	-lmd -lcrypt -lutil
-DPADD=	${LIBMD} ${LIBCRYPT} ${LIBUTIL}
-
-# XXX Kluge! Conversation mechanism needs to be fixed.
-LDADD+=	-lopie
-DPADD+=	${LIBOPIE}
+LDADD=	-lcrypt -lutil
+DPADD=	${LIBCRYPT} ${LIBUTIL}
 
 LSDIR=	../../bin/ls
 .PATH: ${.CURDIR}/${LSDIR}
@@ -29,16 +28,14 @@ CFLAGS+=-I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm
 
+CFLAGS+= -DUSE_OPIE -DUSE_PAM
+DPADD+=	${LIBOPIE} ${LIBPAM}
+LDADD+=	-lopie -lpam
+
 CLEANFILES+=	ls-unmain.c
 ls-unmain.c: ls.c
 	sed -e 's/^main(/ls_main(/g' -e 's,extern.h,${LSDIR}/extern.h,' \
 	    ${.ALLSRC} > ${.TARGET}
-
-.if !defined(NOPAM)
-CFLAGS+= -DUSE_PAM
-DPADD+=	${LIBPAM}
-LDADD+=	${MINUSLPAM}
-.endif
 
 ftpd.o ftpcmd.o: version.h
 

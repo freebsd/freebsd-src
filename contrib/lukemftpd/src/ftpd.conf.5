@@ -1,4 +1,4 @@
-.\"	$NetBSD: ftpd.conf.5,v 1.19 2002/01/15 02:20:50 wiz Exp $
+.\"	$NetBSD: ftpd.conf.5,v 1.24 2002/11/29 14:40:00 lukem Exp $
 .\"
 .\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -34,7 +34,10 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 5, 2001
+.\"	$FreeBSD$
+.\"
+.\"
+.Dd November 30, 2002
 .Dt FTPD.CONF 5
 .Os
 .Sh NAME
@@ -80,7 +83,7 @@ is used to determine which
 .Nm
 entries apply to the user.
 The following special classes exist when parsing entries in
-.Nm "" :
+.Nm :
 .Bl -tag -width "chroot" -compact -offset indent
 .It Sy all
 Matches any class.
@@ -114,15 +117,15 @@ The
 .Xr ftpd 8
 .Sy STAT
 command will return the class settings for the current user as defined by
-.Nm "" ,
+.Nm ,
 unless the
 .Sy private
 directive is set for the class.
 .Pp
 Each configuration line may be one of:
 .Bl -tag -width 4n
-.It Sy advertise Ar class Ar host
-.It Sy advertize Ar class Ar host
+.It Sy advertise Ar class Op Ar host
+.It Sy advertize Ar class Op Ar host
 Set the address to advertise in the response to the
 .Sy PASV
 and
@@ -137,7 +140,9 @@ If
 .Ar class
 is
 .Dq none
-or no argument is given, disable this.
+or
+.Ar host
+not is specified, disable this.
 .It Sy checkportcmd Ar class Op Sy off
 Check the
 .Sy PORT
@@ -150,7 +155,7 @@ command connection, or if the remote TCP port number is less than
 .Dv IPPORT_RESERVED .
 It is
 .Em strongly
-encouraged that this option be used, espcially for sites concerned
+encouraged that this option be used, especially for sites concerned
 with potential security problems with
 .Tn FTP
 bounce attacks.
@@ -160,11 +165,11 @@ is
 .Dq none
 or
 .Sy off
-is given, disable this feature, otherwise enable it.
+is specified, disable this feature, otherwise enable it.
 .It Sy chroot Ar class Op Sy pathformat
 If
 .Ar pathformat
-is not given or
+is not specified or
 .Ar class
 is
 .Dq none ,
@@ -199,7 +204,7 @@ The user's home directory.
 .It Sy GUEST
 If
 .Fl a Ar anondir
-is given, use
+is specified, use
 .Ar anondir ,
 otherwise the home directory of the
 .Sq ftp
@@ -285,11 +290,11 @@ is
 .Dq none
 or
 .Sy off
-is given, disable this feature, otherwise enable it.
+is specified, disable this feature, otherwise enable it.
 .It Sy display Ar class Op Ar file
 If
 .Ar file
-is not given or
+is not specified or
 .Ar class
 is
 .Dq none ,
@@ -305,7 +310,7 @@ for more information.
 .It Sy homedir Ar class Op Sy pathformat
 If
 .Ar pathformat
-is not given or
+is not specified or
 .Ar class
 is
 .Dq none ,
@@ -331,18 +336,18 @@ and
 .Sy CHROOT
 users.
 .It Xo Sy limit Ar class
-.Ar count Op Ar file
+.Op Ar count Op Ar file
 .Xc
 Limit the maximum number of concurrent connections for
 .Ar class
 to
 .Ar count ,
 with
-.Sq 0
+.Sq \-1
 meaning unlimited connections.
 If the limit is exceeded and
 .Ar file
-is given, display its contents to the user.
+is specified, display its contents to the user.
 If
 .Ar class
 is
@@ -356,15 +361,20 @@ is a relative path, it will be searched for in
 .Pa /etc
 (which can be overridden with
 .Fl c Ar confdir ) .
-.It Sy maxfilesize Ar class Ar size
+.It Sy maxfilesize Ar class Op Ar size
 Set the maximum size of an uploaded file to
-.Ar size .
+.Ar size ,
+with
+.Sq \-1
+meaning unlimited connections.
 If
 .Ar class
 is
 .Dq none
-or no argument is given, disable this.
-.It Sy maxtimeout Ar class Ar time
+or
+.Ar size
+is not specified, disable this.
+.It Sy maxtimeout Ar class Op Ar time
 Set the maximum timeout period that a client may request,
 defaulting to two hours.
 This cannot be less than 30 seconds, or the value for
@@ -375,7 +385,26 @@ is
 .Dq none
 or
 .Ar time
-is not specified, set to default of 2 hours.
+is not specified, use the default.
+.It Sy mmapsize Ar class Op Ar size
+Set the size of the sliding window to map a file using
+.Xr mmap 2 .
+If zero,
+.Xr ftpd 8
+will use
+.Xr read 2
+instead.
+The default is zero.
+An optional suffix may be provided as per
+.Sy rateget .
+This option affects only binary transfers.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
 .It Sy modify Ar class Op Sy off
 If
 .Ar class
@@ -383,7 +412,7 @@ is
 .Dq none
 or
 .Sy off
-is given, disable the following commands:
+is specified, disable the following commands:
 .Sy CHMOD ,
 .Sy DELE ,
 .Sy MKD ,
@@ -395,7 +424,7 @@ Otherwise, enable them.
 .It Sy motd Ar class Op Ar file
 If
 .Ar file
-is not given or
+is not specified or
 .Ar class
 is
 .Dq none ,
@@ -417,7 +446,7 @@ is a relative path, it will be searched for in
 .It Sy notify Ar class Op Ar fileglob
 If
 .Ar fileglob
-is not given or
+is not specified or
 .Ar class
 is
 .Dq none ,
@@ -432,14 +461,16 @@ is
 .Dq none
 or
 .Sy off
-is given, prevent passive
+is specified, prevent passive
 .Sy ( PASV ,
 .Sy LPSV ,
 and
 .Sy EPSV )
 connections.
 Otherwise, enable them.
-.It Sy portrange Ar class Ar min Ar max
+.It Sy portrange Ar class Oo
+.Ar min Ar max
+.Oc
 Set the range of port number which will be used for the passive data port.
 .Ar max
 must be greater than
@@ -451,7 +482,7 @@ If
 .Ar class
 is
 .Dq none
-or no arguments are given, disable this.
+or no arguments are specified, disable this.
 .It Sy private Ar class Op Sy off
 If
 .Ar class
@@ -459,11 +490,11 @@ is
 .Dq none
 or
 .Sy off
-is given, do not display class information in the output of the
+is specified, do not display class information in the output of the
 .Sy STAT
 command.
 Otherwise, display the information.
-.It Sy rateget Ar class Ar rate
+.It Sy rateget Ar class Op Ar rate
 Set the maximum get
 .Pq Sy RETR
 transfer rate throttle for
@@ -478,14 +509,17 @@ If
 .Ar class
 is
 .Dq none
-or no arguments are given, disable this.
+or
+.Ar rate
+is not specified, disable this.
 .Pp
-An optional suffix may be provided, which changes the intrepretation of
+An optional suffix may be provided, which changes the interpretation of
 .Ar rate
 as follows:
 .Bl -tag -width 3n -offset indent -compact
 .It b
-Causes no modification. (Default; optional)
+Causes no modification.
+(Default; optional)
 .It k
 Kilo; multiply the argument by 1024
 .It m
@@ -495,7 +529,7 @@ Giga; multiply the argument by 1073741824
 .It t
 Tera; multiply the argument by 1099511627776
 .El
-.It Sy rateput Ar class Ar rate
+.It Sy rateput Ar class Op Ar rate
 Set the maximum put
 .Pq Sy STOR
 transfer rate throttle for
@@ -509,7 +543,24 @@ If
 .Ar class
 is
 .Dq none
-or no arguments are given, disable this.
+or
+.Ar rate
+is not specified, disable this.
+.It Sy readsize Ar class Op Ar size
+Set the size of the read buffer to
+.Xr read 2
+a file.
+The default is the file system block size.
+An optional suffix may be provided as per
+.Sy rateget .
+This option affects only binary transfers.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
 .It Sy sanenames Ar class Op Sy off
 If
 .Ar class
@@ -517,12 +568,38 @@ is
 .Dq none
 or
 .Sy off
-is given, allow uploaded file names to contain any characters valid for a
+is specified, allow uploaded file names to contain any characters valid for a
 file name.
 Otherwise, only permit file names which don't start with a
 .Sq \&.
 and only comprise of characters from the set
 .Dq [-+,._A-Za-z0-9] .
+.It Sy sendbufsize Ar class Op Ar size
+Set the size of the socket send buffer.
+An optional suffix may be provided as per
+.Sy rateget .
+The default is zero and the system default value will be used.
+This option affects only binary transfers.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
+.It Sy sendlowat Ar class Op Ar size
+Set the low water mark of socket send buffer.
+An optional suffix may be provided as per
+.Sy rateget .
+The default is zero and system default value will be used.
+This option affects only for binary transfer.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
 .It Sy template Ar class Op Ar refclass
 Define
 .Ar refclass
@@ -540,9 +617,9 @@ duplication.
 There can be only one template defined at a time.
 If
 .Ar refclass
-is not given, disable the template for
+is not specified, disable the template for
 .Ar class .
-.It Sy timeout Ar class Ar time
+.It Sy timeout Ar class Op Ar time
 Set the inactivity timeout period.
 (the default is fifteen minutes).
 This cannot be less than 30 seconds, or greater than the value for
@@ -553,8 +630,8 @@ is
 .Dq none
 or
 .Ar time
-is not specified, set to the default of 15 minutes.
-.It Sy umask Ar class Ar umaskval
+is not specified, use the default.
+.It Sy umask Ar class Op Ar umaskval
 Set the umask to
 .Ar umaskval .
 If
@@ -572,7 +649,7 @@ is
 .Dq none
 or
 .Sy off
-is given, disable the following commands:
+is specified, disable the following commands:
 .Sy APPE ,
 .Sy STOR ,
 and
@@ -586,6 +663,25 @@ as well as the modify commands:
 and
 .Sy UMASK .
 Otherwise, enable them.
+.It Sy writesize Ar class Op Ar size
+Limit the number of bytes to
+.Xr write 2
+at a time.
+The default is zero, which means all the data available as a result of
+.Xr mmap 2
+or
+.Xr read 2
+will be written at a time.
+An optional suffix may be provided as per
+.Sy rateget .
+This option affects only binary transfers.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
 .El
 .Sh DEFAULTS
 The following defaults are used:
@@ -596,7 +692,7 @@ classtype     chroot CHROOT
 classtype     guest  GUEST
 classtype     real   REAL
 display       none
-limit         all    -1     # unlimited connections
+limit         all    \-1     # unlimited connections
 maxtimeout    all    7200   # 2 hours
 modify        all
 motd          all    motd
@@ -618,6 +714,7 @@ A sample
 file.
 .El
 .Sh SEE ALSO
+.Xr strsuftoll 3 ,
 .Xr ftpchroot 5 ,
 .Xr ftpusers 5 ,
 .Xr ftpd 8
