@@ -79,6 +79,7 @@ struct acpi_cpu_softc {
     struct acpi_cx	 cpu_cx_states[MAX_CX_STATES];
     int			 cpu_cx_count;	/* Number of valid Cx states. */
     int			 cpu_prev_sleep;/* Last idle sleep duration. */
+    int			 cpu_features;	/* Child driver supported features. */
 };
 
 struct acpi_cpu_device {
@@ -187,10 +188,9 @@ MODULE_DEPEND(cpu, acpi, 1, 1, 1);
 static int
 acpi_cpu_probe(device_t dev)
 {
-    int			   acpi_id, cpu_id, cx_count;
+    int			   acpi_id, cpu_id;
     ACPI_BUFFER		   buf;
     ACPI_HANDLE		   handle;
-    char		   msg[32];
     ACPI_OBJECT		   *obj;
     ACPI_STATUS		   status;
 
@@ -235,33 +235,10 @@ acpi_cpu_probe(device_t dev)
     if (cpu_softc[cpu_id] != NULL)
 	return (ENXIO);
 
-    /* Get a count of Cx states for our device string. */
-    cx_count = 0;
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    status = AcpiEvaluateObject(handle, "_CST", NULL, &buf);
-    if (ACPI_SUCCESS(status)) {
-	obj = (ACPI_OBJECT *)buf.Pointer;
-	if (ACPI_PKG_VALID(obj, 2))
-	    acpi_PkgInt32(obj, 0, &cx_count);
-	AcpiOsFree(obj);
-    } else {
-	if (AcpiGbl_FADT->Plvl2Lat <= 100)
-	    cx_count++;
-	if (AcpiGbl_FADT->Plvl3Lat <= 1000)
-	    cx_count++;
-	if (cx_count > 0)
-	    cx_count++;
-    }
-    if (cx_count > 0)
-	snprintf(msg, sizeof(msg), "ACPI CPU (%d Cx states)", cx_count);
-    else
-	strlcpy(msg, "ACPI CPU", sizeof(msg));
-    device_set_desc_copy(dev, msg);
-
     /* Mark this processor as in-use and save our derived id for attach. */
     cpu_softc[cpu_id] = (void *)1;
     acpi_set_magic(dev, cpu_id);
+    device_set_desc(dev, "ACPI CPU");
 
     return (0);
 }
@@ -275,7 +252,9 @@ acpi_cpu_attach(device_t dev)
     struct acpi_cpu_softc *sc;
     struct acpi_softc	  *acpi_sc;
     ACPI_STATUS		   status;
-    int			   cpu_id;
+    u_int		   features;
+    int			   cpu_id, drv_count, i;
+    driver_t 		  **drivers;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -313,6 +292,20 @@ acpi_cpu_attach(device_t dev)
 	CTLFLAG_RD, 0, "");
 
     /*
+     * Before calling any CPU methods, collect child driver feature hints
+     * and notify ACPI of them.
+     */
+    if (devclass_get_drivers(acpi_cpu_devclass, &drivers, &drv_count) == 0) {
+	for (i = 0; i < drv_count; i++) {
+	    if (ACPI_GET_FEATURES(drivers[i], &features) == 0)
+		sc->cpu_features |= features;
+	}
+	free(drivers, M_TEMP);
+    }
+    if (sc->cpu_features)
+	acpi_SetInteger(sc->cpu_dev, "_PDC", sc->cpu_features);
+
+    /*
      * Probe for Cx state support.  If it isn't present, free up unused
      * resources.
      */
@@ -324,7 +317,7 @@ acpi_cpu_attach(device_t dev)
     } else
 	sysctl_ctx_free(&acpi_cpu_sysctl_ctx);
 
-    /* Call identify and then probe/attach for cpu child drivers. */
+    /* Finally,  call identify and probe/attach for child devices. */
     bus_generic_probe(dev);
     bus_generic_attach(dev);
 
