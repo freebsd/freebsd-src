@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.22 1998/07/09 11:38:21 jkoshy Exp $
+.\"	$Id: ftpd.8,v 1.23 1998/09/29 22:02:06 alex Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -109,7 +109,7 @@ In previous versions of
 .Nm Ns ,
 when a passive mode client requested a data connection to the server,
 the server would use data ports in the range 1024..4999.  Now, by default,
-the server will use data ports in the range 40000..44999.  Specifying this
+the server will use data ports in the range 49152..65535.  Specifying this
 option will revert to the old behavior.
 .It Fl T
 A client may also request a different timeout period;
