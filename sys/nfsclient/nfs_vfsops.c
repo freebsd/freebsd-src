@@ -378,7 +378,6 @@ int
 nfs_mountroot(struct mount *mp, struct thread *td)
 {
 	struct mount  *swap_mp;
-	struct nfsmount *nmp = VFSTONFS(mp);
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
@@ -421,7 +420,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * talk to the server.
 	 */
 	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0,
-	    td->td_proc->p_ucred;, td);
+	    td->td_proc->p_ucred, td);
 	if (error)
 		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
