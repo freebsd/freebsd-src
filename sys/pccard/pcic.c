@@ -795,7 +795,7 @@ pcic_probe(void)
 	pcic98_probe_end:
 	}
 #endif	/* PC98 */
-	if (validslots)
+	if (validslots && pcic_irq <= 0)
 		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 	return(validslots);
 }
@@ -1051,8 +1051,9 @@ pcic_disable(struct slot *slt)
 }
 
 /*
- *	PCIC timer, it seems that we lose interrupts sometimes
- *	so poll just in case...
+ *	PCIC timer.  If the controller doesn't have a free IRQ to use
+ *	or if interrupt steering doesn't work, poll the controller for
+ *	insertion/removal events.
  */
 static void
 pcictimeout(void *chan)
