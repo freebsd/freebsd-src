@@ -47,6 +47,7 @@ struct sx {
 };
 
 #ifdef _KERNEL
+void	sx_sysinit(void *arg);
 void	sx_init(struct sx *sx, const char *description);
 void	sx_destroy(struct sx *sx);
 void	_sx_slock(struct sx *sx, const char *file, int line);
@@ -59,6 +60,19 @@ int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
 #ifdef INVARIANT_SUPPORT
 void	_sx_assert(struct sx *sx, int what, const char *file, int line);
+
+struct sx_args {
+	struct sx 	*sa_sx;
+	const char	*sa_desc;
+};
+
+#define	SX_SYSINIT(name, sxa, desc)					\
+	static struct sx_args name##_args = {				\
+		sxa,							\
+		desc							\
+	};								\
+	SYSINIT(name##_sx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    sx_sysinit, &name##_args)
 #endif
 
 #define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
