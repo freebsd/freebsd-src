@@ -331,7 +331,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] source_file target_file",
+"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] source_file ... "
+"target_directory");
 	exit(EX_USAGE);
 }

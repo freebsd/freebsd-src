@@ -97,7 +97,7 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: pwd [-LP]\n");
+	(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
   	exit(1);
 }
 

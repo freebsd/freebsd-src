@@ -155,6 +155,7 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: stty [-a|-e|-g] [-f file] [options]\n");
+	(void)fprintf(stderr,
+	    "usage: stty [-a | -e | -g] [-f file] [arguments]\n");
 	exit (1);
 }
