@@ -3567,16 +3567,15 @@ If set to `enhance', completion 1) ignores case and 2) considers
 periods, hyphens and underscores (`.', `\-' and `_') to be word
 separators and hyphens and underscores to be equivalent.
 .TP 8
-.B continue_args \fR(+)
+.B continue \fR(+)
 If set to a list of commands, the shell will continue the listed
 commands, instead of starting a new one.
 .TP 8
 .B continue_args \fR(+)
 Same as continue, but the shell will execute:
 .RS +8
-.nf
-    echo `pwd` $argv > ~/.<command-name>_pause; %<command-name>
-.fi
+.IP "" 4
+echo `pwd` $argv > ~/.<cmd>_pause; %<cmd>
 .RE
 .TP 8
 .B correct \fR(+)
@@ -3630,7 +3629,7 @@ is set to number 0,1,2 and 3.  Each number has the following meaning:
   2 ... used for the second byte of a multi-byte character.
 .br
   3 ... used for both the first byte and second byte of a multi-byte character.
-.\" SHK: I tried my best to get the following to be gramatically correct.
+.\" SHK: I tried my best to get the following to be grammatically correct.
 .\" However, I still don't understand what's going on here.  In the
  \" following example, there are three bytes, but the text seems to refer to
  \" each nybble as a character.  What's going on here?  It this 3-byte code
@@ -3856,6 +3855,10 @@ If set, restrictions are placed on output redirection to insure that files
 are not accidentally destroyed and that `>>' redirections refer to existing
 files, as described in the \fBInput/output\fR section.
 .TP 8
+.B noding
+If set, disable the printing of `DING!' in the \fBprompt\fR time
+specifiers at the change of hour.
+.TP 8
 .B noglob
 If set, \fBFilename substitution\fR and \fBDirectory stack substitution\fR
 (q.v.) are inhibited.  This is most useful in shell scripts which do not deal
@@ -4038,6 +4041,10 @@ superuser shell.  For example,
 > set prompt = "%m [%h] %B[%@]%b [%/] you rang? "
 .br
 tut [37] \fB[2:54pm]\fR [/usr/accts/sys] you rang? _
+.PP
+If `%t', `%@', `%T', `%p', or `%P' is used, and \fBnoding\fR is not set,
+then print `DING!' on the change of hour (i.e, `:00' minutes) instead of
+the actual time.
 .PP
 Set by default to `%# ' in interactive shells.
 .RE
@@ -4537,22 +4544,52 @@ file format; a colon-separated list of expressions of the form
 variables with their associated defaults are:
 .PP
 .RS +8
-.nf
-no	0	Normal (non-filename) text
-fi	0	Regular file
-di	01;34	Directory
-ln	01;36	Symbolic link
-pi	33	Named pipe (FIFO)
-so	01;35	Socket
-bd	01;33	Block device
-cd	01;32	Character device
-ex	01;32	Executable file
-mi	(none)	Missing file (defaults to fi)
-or	(none)	Orphaned symbolic link (defaults to ln)
-lc	^[[	Left code
-rc	m	Right code
-ec	(none)	End code (replaces lc+no+rc)
-.fi
+.RS +4
+.PD 0
+.TP 12
+no	0
+Normal (non-filename) text
+.TP 12
+fi	0
+Regular file
+.TP 12
+di	01;34
+Directory
+.TP 12
+ln	01;36
+Symbolic link
+.TP 12
+pi	33
+Named pipe (FIFO)
+.TP 12
+so	01;35
+Socket
+.TP 12
+bd	01;33
+Block device
+.TP 12
+cd	01;32
+Character device
+.TP 12
+ex	01;32
+Executable file
+.TP 12
+mi	(none)
+Missing file (defaults to fi)
+.TP 12
+or	(none)
+Orphaned symbolic link (defaults to ln)
+.TP 12
+lc	^[[
+Left code
+.TP 12
+rc	m
+Right code
+.TP 12
+ec	(none)
+End code (replaces lc+no+rc)
+.PD
+.RE
 .PP
 You need to include only the variables you want to change from
 the default.
@@ -4647,6 +4684,7 @@ for cyan background
 .TP 4
 47
 for white (or gray) background
+.PD
 .RE
 .PP
 Not all commands will work on all systems or display devices.
@@ -4747,7 +4785,7 @@ ConvexOS, Stellix and Intel use \fI/etc/logout\fR and
 NeXTs use \fI/etc/logout.std\fR.
 A/UX, AMIX, Cray and IRIX have no equivalent in \fIcsh\fR(1),
 but read this file in \fItcsh\fR anyway.
-Solaris 2.x does not have it either, but \fItcsh\fR reads \fI/etc/.cshrc\fR.  (+)
+Solaris 2.x does not have it either, but \fItcsh\fR reads \fI/etc/.logout\fR.  (+)
 .TP 16
 .I ~/.logout
 Read by login shells at logout after \fI/etc/csh.logout\fR or its equivalent.
