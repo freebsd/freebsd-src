@@ -19,7 +19,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.3 1997/08/06 04:58:05 dyson Exp $
+ * $Id: vm_zone.h,v 1.4 1997/08/07 03:52:55 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -54,15 +54,15 @@ typedef struct vm_zone {
 } *vm_zone_t;
 
 
-vm_zone_t zinit(char *name, int size, int nentries, int flags, int zalloc);
-int zinitna(vm_zone_t z, struct vm_object *obj, char *name, int size,
-		int nentries, int flags, int zalloc);
-static void * zalloc(vm_zone_t z);
-static void zfree(vm_zone_t z, void *item);
-void * zalloci(vm_zone_t z) __attribute__((regparm(1)));
-void zfreei(vm_zone_t z, void *item) __attribute__((regparm(2)));
-void zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) ;
-void * _zget(vm_zone_t z) __attribute__((regparm(1)));
+vm_zone_t zinit __P((char *name, int size, int nentries, int flags, int zalloc));
+int zinitna __P((vm_zone_t z, struct vm_object *obj, char *name, int size,
+		int nentries, int flags, int zalloc));
+static void * zalloc __P((vm_zone_t z));
+static void zfree __P((vm_zone_t z, void *item));
+void * zalloci __P((vm_zone_t z));
+void zfreei __P((vm_zone_t z, void *item));
+void zbootinit __P((vm_zone_t z, char *name, int size, void *item, int nitems));
+void * _zget __P((vm_zone_t z));
 
 /*
  * void *zalloc(vm_zone_t zone) --
