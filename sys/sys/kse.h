@@ -35,6 +35,7 @@
 
 #include <machine/kse.h>
 #include <sys/ucontext.h>
+#include <sys/time.h>
 
 /*
  * This file defines the structures needed for communication between
@@ -56,6 +57,8 @@ struct kse_thr_mailbox {
 	unsigned int		tm_flags;	/* Thread flags */
 	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
 	void			*tm_udata;	/* For use by the UTS */
+	unsigned int		tm_uticks;
+	unsigned int		tm_sticks;
 	int			tm_spare[8];
 };
 
@@ -66,6 +69,7 @@ struct kse_thr_mailbox {
  * a single KSE.
  */
 struct kse_mailbox {
+	int			km_version;	/* Mailbox version */
 	struct kse_thr_mailbox	*km_curthread;	/* Currently running thread */
 	struct kse_thr_mailbox	*km_completed;	/* Threads back from kernel */
 	sigset_t		km_sigscaught;	/* Caught signals */
@@ -73,8 +77,11 @@ struct kse_mailbox {
 	kse_func_t		*km_func;	/* UTS function */
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
+	struct timespec		km_timeofday;	/* Time of day */
 	int			km_spare[8];
 };
+
+#define	KSE_VER_0	0
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);

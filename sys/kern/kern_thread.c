@@ -374,7 +374,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 			msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH,
 			       "pause", 0); 
 			mtx_lock_spin(&sched_lock);
-			td->td_flags &= ~TDF_UNBOUND;
+			td->td_flags |= TDF_UNBOUND;
 			thread_schedule_upcall(td, td->td_kse);
 			thread_exit();
 		}
@@ -783,6 +783,7 @@ thread_export_context(struct thread *td)
 	void *addr;
 	int error;
 	ucontext_t uc;
+	uint temp;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
@@ -820,10 +821,7 @@ thread_export_context(struct thread *td)
 	for (;;) {
 		mbx = (uintptr_t)kg->kg_completed;
 		if (suword(addr, mbx)) {
-			PROC_LOCK(p);
-			psignal(p, SIGSEGV);
-			PROC_UNLOCK(p);
-			return (EFAULT);
+			goto bad;
 		}
 		PROC_LOCK(p);
 		if (mbx == (uintptr_t)kg->kg_completed) {
@@ -833,7 +831,18 @@ thread_export_context(struct thread *td)
 		}
 		PROC_UNLOCK(p);
 	}
+	addr = (caddr_t)td->td_mailbox
+		 + offsetof(struct kse_thr_mailbox, tm_sticks);
+	temp = fuword(addr) + td->td_usticks;
+	if (suword(addr, temp))
+		goto bad;
 	return (0);
+
+bad:
+	PROC_LOCK(p);
+	psignal(p, SIGSEGV);
+	PROC_UNLOCK(p);
+	return (EFAULT);
 }
 
 /*
@@ -871,6 +880,78 @@ thread_link_mboxes(struct ksegrp *kg, struct kse *ke)
 		PROC_UNLOCK(p);
 	}
 	return (0);
+}
+
+/*
+ * This function should be called at statclock interrupt time
+ */
+int
+thread_add_ticks_intr(int user, uint ticks)
+{
+	struct thread *td = curthread;
+	struct kse *ke = td->td_kse;
+	
+	if (ke->ke_mailbox == NULL)
+		return -1;
+	if (user) {
+		/* Current always do via ast() */
+		ke->ke_flags |= KEF_ASTPENDING;
+		ke->ke_uuticks += ticks;
+	} else {
+		if (td->td_mailbox != NULL)
+			td->td_usticks += ticks;
+		else 
+			ke->ke_usticks += ticks;
+	}
+	return 0;
+}
+
+static int
+thread_update_uticks(void)
+{
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct kse *ke = td->td_kse;
+	struct kse_thr_mailbox *tmbx;
+	caddr_t addr;
+	uint uticks, sticks;
+	struct timespec ts;
+
+	KASSERT(!(td->td_flags & TDF_UNBOUND), ("thread not bound."));
+
+	if (ke->ke_mailbox == NULL)
+		return 0;
+
+	nanotime(&ts);
+	if (copyout(&ts, (caddr_t)&ke->ke_mailbox->km_timeofday, sizeof(ts)))
+		goto bad;
+
+	uticks = ke->ke_uuticks;
+	ke->ke_uuticks = 0;
+	sticks = ke->ke_usticks;
+	ke->ke_usticks = 0;
+	tmbx = (void *)fuword((caddr_t)ke->ke_mailbox
+			+ offsetof(struct kse_mailbox, km_curthread));
+	if ((tmbx == NULL) || (tmbx == (void *)-1))
+		return 0;
+	if (uticks) {
+		addr = (caddr_t)tmbx + offsetof(struct kse_thr_mailbox, tm_uticks);
+		uticks += fuword(addr);
+		if (suword(addr, uticks))
+			goto bad;
+	}
+	if (sticks) {
+		addr = (caddr_t)tmbx + offsetof(struct kse_thr_mailbox, tm_sticks);
+		sticks += fuword(addr);
+		if (suword(addr, sticks))
+			goto bad;
+	}
+	return 0;
+bad:
+	PROC_LOCK(p);
+	psignal(p, SIGSEGV);
+	PROC_UNLOCK(p);
+	return -1;
 }
 
 /*
@@ -1267,14 +1348,28 @@ thread_user_enter(struct proc *p, struct thread *td)
 		    (void *)fuword( (void *)&ke->ke_mailbox->km_curthread);
 #endif
 		if ((td->td_mailbox == NULL) ||
-		    (td->td_mailbox == (void *)-1) ||
-		    (p->p_numthreads > max_threads_per_proc)) {
+		    (td->td_mailbox == (void *)-1)) {
 			td->td_mailbox = NULL;	/* single thread it.. */
+			mtx_lock_spin(&sched_lock);
 			td->td_flags &= ~TDF_UNBOUND;
+			mtx_unlock_spin(&sched_lock);
 		} else {
-			if (td->td_standin == NULL)
-				td->td_standin = thread_alloc();
+			/* 
+			 * when thread limit reached, act like that the thread
+			 * has already done an upcall.
+			 */
+		    	if (p->p_numthreads > max_threads_per_proc) {
+				if (td->td_standin != NULL)
+					thread_stash(td->td_standin);
+				td->td_standin = NULL;
+			} else {
+				if (td->td_standin == NULL)
+					td->td_standin = thread_alloc();
+			}
+			mtx_lock_spin(&sched_lock);
 			td->td_flags |= TDF_UNBOUND;
+			mtx_unlock_spin(&sched_lock);
+			td->td_usticks = 0;
 		}
 	}
 }
@@ -1335,6 +1430,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		error = thread_export_context(td);
 		td->td_mailbox = NULL;
+		td->td_usticks = 0;
 		if (error) {
 			/*
 			 * If we are not running on a borrowed KSE, then
@@ -1352,6 +1448,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				td->td_flags &= ~TDF_UNBOUND;
 				PROC_UNLOCK(td->td_proc);
 				mtx_unlock_spin(&sched_lock);
+				thread_update_uticks();
 				return (error);	/* go sync */
 			}
 			thread_exit();
@@ -1424,6 +1521,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		}
 	}
 
+	thread_update_uticks();
 	/* 
 	 * To get here, we know there is no other need for our
 	 * KSE so we can proceed. If not upcalling, go back to 
@@ -1468,6 +1566,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	    offsetof(struct kse_mailbox, km_curthread), 0);
 #else	/* if user pointer arithmetic is ok in the kernel */
 	error = suword((caddr_t)&ke->ke_mailbox->km_curthread, 0);
+	ke->ke_uuticks = ke->ke_usticks = 0;
 #endif
 	if (!error)
 		return (0);

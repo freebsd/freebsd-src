@@ -288,6 +288,7 @@ struct thread {
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
 	struct thread	*td_standin;	/* (?) use this for an upcall */
+	u_int		td_usticks;	/* Statclock hits in kernel, for UTS */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_base_pri
 
@@ -424,6 +425,8 @@ struct kse {
 	u_int64_t	ke_uticks;	/* (j) Statclock hits in user mode. */
 	u_int64_t	ke_sticks;	/* (j) Statclock hits in system mode. */
 	u_int64_t	ke_iticks;	/* (j) Statclock hits in intr. */
+	u_int		ke_uuticks;	/* Statclock hits in user, for UTS */
+	u_int		ke_usticks;	/* Statclock hits in kernel, for UTS */
 	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
@@ -933,6 +936,7 @@ void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct proc *p, struct thread *td);
+int	thread_add_ticks_intr(int user, uint ticks);
 
 void	thread_sanity_check(struct thread *td, char *);
 #endif	/* _KERNEL */
