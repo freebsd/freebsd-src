@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.69 1998/06/06 19:39:09 julian Exp $
+ *	$Id: ip_output.c,v 1.70 1998/06/06 20:45:28 julian Exp $
  */
 
 #define _IP_VHL
@@ -378,7 +378,7 @@ sendit:
 			goto done;
 		}
 #else
-		u_int16_t 	dummy;
+		u_int16_t 	dummy = 0;
 		/* If ipfw says divert, we have to just drop packet */
 		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m)) {
 			m_freem(m);
