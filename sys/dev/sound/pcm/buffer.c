@@ -100,7 +100,6 @@ sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, unsigned int size)
 int
 sndbuf_setup(struct snd_dbuf *b, void *buf, unsigned int size)
 {
-	bzero(b, sizeof(*b));
 	b->buf = buf;
 	b->maxsize = size;
 	b->bufsize = b->maxsize;
@@ -119,6 +118,8 @@ sndbuf_free(struct snd_dbuf *b)
 
 	if (b->dmamap && b->buf)
 		bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
+	b->dmamap = NULL;
+	b->buf = NULL;
 }
 
 int
@@ -186,11 +187,6 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 	else
 		data = 0x80;
 
-	if (b->fmt & AFMT_16BIT)
-		data <<= 8;
-	else
-		data |= data << 8;
-
 	i = sndbuf_getfreeptr(b);
 	p = sndbuf_getbuf(b);
 	while (length > 0) {
@@ -200,6 +196,25 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 		if (i >= b->bufsize)
 			i = 0;
 	}
+}
+
+void
+sndbuf_fillsilence(struct snd_dbuf *b)
+{
+	int i;
+	u_char data, *p;
+
+	if (b->fmt & AFMT_SIGNED)
+		data = 0x00;
+	else
+		data = 0x80;
+
+	i = 0;
+	p = sndbuf_getbuf(b);
+	while (i < b->bufsize)
+		p[i++] = data;
+	b->rp = 0;
+	b->rl = b->bufsize;
 }
 
 void
@@ -510,6 +525,8 @@ sndbuf_uiomove(struct snd_dbuf *b, struct uio *uio, unsigned int count)
 int
 sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count)
 {
+	KASSERT(count > 0, ("can't feed 0 bytes"));
+
 	if (sndbuf_getfree(to) < count)
 		return EINVAL;
 
