@@ -216,6 +216,7 @@ ip_input(struct mbuf *m)
 	struct ipq *fp;
 	struct in_ifaddr *ia;
 	int hlen;
+	u_short sum;
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
@@ -264,11 +265,11 @@ ip_input(struct mbuf *m)
 		ip = mtod(m, struct ip *);
 	}
 	if (hlen == sizeof(struct ip)) {
-		ip->ip_sum = in_cksum_hdr(ip);
+		sum = in_cksum_hdr(ip);
 	} else {
-		ip->ip_sum = in_cksum(m, hlen);
+		sum = in_cksum(m, hlen);
 	}
-	if (ip->ip_sum) {
+	if (sum) {
 		ipstat.ips_badsum++;
 		goto bad;
 	}
