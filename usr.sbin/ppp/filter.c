@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.8 1997/02/22 16:10:12 peter Exp $
+ * $Id: filter.c,v 1.9 1997/05/10 01:22:08 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -32,7 +32,11 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "command.h"
+#include "mbuf.h"
+#include "log.h"
 #include "filter.h"
+#include "loadalias.h"
+#include "vars.h"
 
 static struct filterent filterdata;
 
@@ -61,9 +65,7 @@ int *pwidth;
   char *cp, *wp;
 
   if (argc < 1) {
-#ifdef notdef
-    printf("address/mask is expected.\n");
-#endif
+    LogPrintf(LogWARN, "ParseAddr: address/mask is expected.\n");
     return(0);
   }
 
@@ -75,7 +77,7 @@ int *pwidth;
   if (cp && *cp) {
     bits = strtol(cp, &wp, 0);
     if (cp == wp || bits < 0 || bits > 32) {
-      printf("bad mask width.\n");
+      LogPrintf(LogWARN, "ParseAddr: bad mask width.\n");
       return(0);
     }
   } else {
@@ -136,7 +138,8 @@ int proto;
 
   port = strtol(service, &cp, 0);
   if (cp == service) {
-    printf("%s is not a port name or number.\n", service);
+    LogPrintf(LogWARN, "ParsePort: %s is not a port name or number.\n",
+              service);
     return(0);
   }
   return(port);
@@ -159,13 +162,13 @@ char **argv;
     filterdata.opt.srcop = OP_NONE;
     break;
   default:
-    printf("bad icmp syntax.\n");
+    LogPrintf(LogWARN, "ParseIcmp: bad icmp syntax.\n");
     return(0);
   case 3:
     if (STREQ(*argv, "src") && STREQ(argv[1], "eq")) {
       type = strtol(argv[2], &cp, 0);
       if (cp == argv[2]) {
-	printf("type is expected.\n");
+	LogPrintf(LogWARN, "ParseIcmp: type is expected.\n");
 	return(0);
       }
       filterdata.opt.srcop = OP_EQ;
@@ -207,15 +210,13 @@ int proto;
     return(1);
   }
   if (argc < 3) {
-#ifdef notdef
-    printf("bad udp syntax.\n");
-#endif
+    LogPrintf(LogWARN, "ParseUdpOrTcp: bad udp/tcp syntax.\n");
     return(0);
   }
   if (argc >= 3 && STREQ(*argv, "src")) {
     filterdata.opt.srcop = ParseOp(argv[1]);
     if (filterdata.opt.srcop == OP_NONE) {
-      printf("bad operation\n");
+      LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
       return(0);
     }
     filterdata.opt.srcport = ParsePort(argv[2], proto);
@@ -228,7 +229,7 @@ int proto;
   if (argc >= 3 && STREQ(argv[0], "dst")) {
     filterdata.opt.dstop = ParseOp(argv[1]);
     if (filterdata.opt.dstop == OP_NONE) {
-      printf("bad operation\n");
+      LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
       return(0);
     }
     filterdata.opt.dstport = ParsePort(argv[2], proto);
@@ -243,11 +244,11 @@ int proto;
       filterdata.opt.estab = 1;
       return(1);
     }
-    printf("estab is expected: %s\n", *argv);
+    LogPrintf(LogWARN, "ParseUdpOrTcp: estab is expected: %s\n", *argv);
     return(0);
   }
   if (argc > 0)
-    printf("bad src/dst port syntax: %s\n", *argv);
+    LogPrintf(LogWARN, "ParseUdpOrTcp: bad src/dst port syntax: %s\n", *argv);
   return(0);
 }
 
@@ -266,7 +267,7 @@ struct filterent *ofp;
 
   val = strtol(*argv, &wp, 0);
   if (*argv == wp || val > MAXFILTERS) {
-    printf("invalid filter number.\n");
+    LogPrintf(LogWARN, "Parse: invalid filter number.\n");
     return(0);
   }
   if (val < 0) {
@@ -274,13 +275,13 @@ struct filterent *ofp;
       ofp->action = A_NONE;
       ofp++;
     }
-    printf("filter cleard.\n");
+    LogPrintf(LogWARN, "Parse: filter cleared.\n");
     return(1);
   }
   ofp += val;
 
   if (--argc == 0) {
-    printf("missing action.\n");
+    LogPrintf(LogWARN, "Parse: missing action.\n");
     return(0);
   }
   argv++;
@@ -296,7 +297,7 @@ struct filterent *ofp;
     ofp->action = A_NONE;
     return(1);
   } else {
-    printf("bad action: %s\n", *argv);
+    LogPrintf(LogWARN, "Parse: bad action: %s\n", *argv);
     return(0);
   }
   fp->action = action;
@@ -328,7 +329,7 @@ struct filterent *ofp;
 	}
       }
     } else {
-      printf("Address/protocol expected.\n");
+      LogPrintf(LogWARN, "Parse: Address/protocol expected.\n");
       return(0);
     }
   } else {
@@ -350,16 +351,17 @@ struct filterent *ofp;
     break;
   }
 
-#ifdef DEBUG
-  printf("src: %s/", inet_ntoa(fp->saddr));
-  printf("%s ", inet_ntoa(fp->smask));
-  printf("dst: %s/", inet_ntoa(fp->daddr));
-  printf("%s proto = %d\n", inet_ntoa(fp->dmask), proto);
+  LogPrintf(LogDEBUG, "Parse: Src: %s", inet_ntoa(fp->saddr));
+  LogPrintf(LogDEBUG, "Parse: Src mask: %s ", inet_ntoa(fp->smask));
+  LogPrintf(LogDEBUG, "Parse: Dst: %s", inet_ntoa(fp->daddr));
+  LogPrintf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(fp->dmask));
+  LogPrintf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
-  printf("src:  %s (%d)\n", opname[fp->opt.srcop], fp->opt.srcport);
-  printf("dst:  %s (%d)\n", opname[fp->opt.dstop], fp->opt.dstport);
-  printf("estab: %d\n", fp->opt.estab);
-#endif
+  LogPrintf(LogDEBUG, "Parse: src:  %s (%d)\n", opname[fp->opt.srcop],
+	    fp->opt.srcport);
+  LogPrintf(LogDEBUG, "Parse: dst:  %s (%d)\n", opname[fp->opt.dstop],
+	    fp->opt.dstport);
+  LogPrintf(LogDEBUG, "Parse: estab: %d\n", fp->opt.estab);
 
   if (val)
     *ofp = *fp;
@@ -372,12 +374,12 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc > 0)
+  if (argc > 0) {
     (void) Parse(argc, argv, ifilters);
-  else
-    printf("syntax error.\n");
+    return 0;
+  }
 
-  return(1);
+  return -1;
 }
 
 int
@@ -386,11 +388,12 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc > 0)
+  if (argc > 0) {
     (void) Parse(argc, argv, ofilters);
-  else
-    printf("syntax error.\n");
-  return(1);
+    return 0;
+  }
+
+  return -1;
 }
 
 int
@@ -399,11 +402,12 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc > 0)
+  if (argc > 0) {
     (void) Parse(argc, argv, dfilters);
-  else
-    printf("syntax error.\n");
-  return(1);
+    return 0;
+  }
+
+  return -1;
 }
 
 int
@@ -412,11 +416,12 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  if (argc > 0)
+  if (argc > 0) {
     (void) Parse(argc, argv, afilters);
-  else
-    printf("syntax error.\n");
-  return(1);
+    return 0;
+  }
+
+  return -1;
 }
 
 static char *protoname[] = {
@@ -433,24 +438,28 @@ struct filterent *fp;
 {
   int n;
 
+  if (!VarTerm)
+    return;
+
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->action != A_NONE) {
-      printf("%2d %s", n, actname[fp->action]);
-
-      printf("%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
-      printf("%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
+      fprintf(VarTerm, "%2d %s", n, actname[fp->action]);
+      fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
+      fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
       if (fp->proto) {
-	printf("%s", protoname[fp->proto]);
+	fprintf(VarTerm, "%s", protoname[fp->proto]);
 
 	if (fp->opt.srcop)
-	  printf(" src %s %d", opname[fp->opt.srcop], fp->opt.srcport);
+	  fprintf(VarTerm, " src %s %d", opname[fp->opt.srcop],
+                  fp->opt.srcport);
 	if (fp->opt.dstop)
-	  printf(" dst %s %d", opname[fp->opt.dstop], fp->opt.dstport);
+	  fprintf(VarTerm, " dst %s %d", opname[fp->opt.dstop],
+                  fp->opt.dstport);
 	if (fp->opt.estab)
-	  printf(" estab");
+	  fprintf(VarTerm, " estab");
 
       }
-      printf("\n");
+      fprintf(VarTerm, "\n");
     }
   }
 }
@@ -462,7 +471,7 @@ int argc;
 char **argv;
 {
   ShowFilter(ifilters);
-  return(1);
+  return 0;
 }
 
 int
@@ -472,7 +481,7 @@ int argc;
 char **argv;
 {
   ShowFilter(ofilters);
-  return(1);
+  return 0;
 }
 
 int
@@ -482,7 +491,7 @@ int argc;
 char **argv;
 {
   ShowFilter(dfilters);
-  return(1);
+  return 0;
 }
 
 int
@@ -492,5 +501,5 @@ int argc;
 char **argv;
 {
   ShowFilter(afilters);
-  return(1);
+  return 0;
 }

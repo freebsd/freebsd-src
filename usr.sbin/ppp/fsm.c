@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.11 1997/06/01 14:37:19 brian Exp $
+ * $Id: fsm.c,v 1.12 1997/06/02 00:04:40 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -37,16 +37,14 @@ void FsmTimeout(struct fsm *fp);
 
 char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
-  "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opend",
+  "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
 };
 
 void
 FsmInit(fp)
 struct fsm *fp;
 {
-#ifdef DEBUG
-  logprintf("FsmInit\n");
-#endif
+  LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
@@ -58,8 +56,8 @@ NewState(fp, new)
 struct fsm *fp;
 int new;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: state change %s --> %s\n",
-	  fp->name, StateNames[fp->state], StateNames[new]);
+  LogPrintf(LogLCP, "State change %s --> %s\n",
+	  StateNames[fp->state], StateNames[new]);
   fp->state = new;
   if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED))
     StopTimer(&fp->FsmTimer);
@@ -84,9 +82,7 @@ int count;
   bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
   if (count)
     bcopy(ptr, MBUF_CTOP(bp) + sizeof(struct fsmheader), count);
-#ifdef DEBUG
-  DumpBp(bp);
-#endif
+  LogDumpBp(LogDEBUG, "FsmOutput", bp);
   HdlcOutput(PRI_LINK, fp->proto, bp);
 }
 
@@ -137,8 +133,7 @@ struct fsm *fp;
     NewState(fp, ST_REQSENT);
     break;
   default:
-    LogPrintf(LOG_LCP_BIT, "%s: Oops, Up at %s\n",
-	    fp->name, StateNames[fp->state]);
+    LogPrintf(LogLCP, "Oops, Up at %s\n", StateNames[fp->state]);
     break;
   }
 }
@@ -215,7 +210,7 @@ void
 FsmSendTerminateReq(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: SendTerminateReq.\n", fp->name);
+  LogPrintf(LogLCP, "SendTerminateReq.\n");
   FsmOutput(fp, CODE_TERMREQ, fp->reqid++, NULL, 0);
   (fp->SendTerminateReq)(fp);
   StartTimer(&fp->FsmTimer);	/* Start restart timer */
@@ -229,7 +224,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigAck(%s)\n", fp->name, StateNames[fp->state]);
+  LogPrintf(LogLCP, "SendConfigAck(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
@@ -241,7 +236,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigRej(%s)\n", fp->name, StateNames[fp->state]);
+  LogPrintf(LogLCP, "SendConfigRej(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
@@ -253,8 +248,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LOG_LCP_BIT, "%s:  SendConfigNak(%s)\n",
-	    fp->name, StateNames[fp->state]);
+  LogPrintf(LogLCP, "SendConfigNak(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
@@ -328,7 +322,7 @@ struct mbuf *bp;
   plen = plength(bp);
   flen = ntohs(lhp->length) - sizeof(*lhp);
   if (plen < flen) {
-    logprintf("** plen (%d) < flen (%d)\n", plen, flen);
+    LogPrintf(LogERROR, "FsmRecvConfigReq: plen (%d) < flen (%d)", plen, flen);
     pfree(bp);
     return;
   }
@@ -340,8 +334,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCR in %s.\n",
-	    fp->name, StateNames[fp->state]);
+    LogPrintf(LogLCP, "Oops, RCR in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -350,7 +343,7 @@ struct mbuf *bp;
     return;
   case ST_CLOSING:
   case ST_STOPPING:
-    logprintf("## state = %d\n", fp->state);
+    LogPrintf(LogERROR, "Got ConfigReq while state = %d\n", fp->state);
     pfree(bp);
     return;
   }
@@ -461,8 +454,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCN in %s.\n",
-	    fp->name, StateNames[fp->state]);
+    LogPrintf(LogLCP, "Oops, RCN in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -505,8 +497,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP_BIT, "%s: Oops, RTR in %s\n", fp->name,
-	    StateNames[fp->state]);
+    LogPrintf(LogLCP, "Oops, RTR in %s\n", StateNames[fp->state]);
     break;
   case ST_CLOSED:
   case ST_STOPPED:
@@ -572,7 +563,7 @@ struct mbuf *bp;
     pfree(bp);
     return;
   }
-  LogPrintf(LOG_LCP_BIT, "%s: RecvConfigRej.\n", fp->name);
+  LogPrintf(LogLCP, "RecvConfigRej.\n");
 
   /*
    *  Check and process easy case
@@ -580,8 +571,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LOG_LCP_BIT, "%s: Oops, RCJ in %s.\n",
-	    fp->name, StateNames[fp->state]);
+    LogPrintf(LogLCP, "Oops, RCJ in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -620,7 +610,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvCodeRej\n", fp->name);
+  LogPrintf(LogLCP, "RecvCodeRej\n");
   pfree(bp);
 }
 
@@ -634,7 +624,7 @@ struct mbuf *bp;
 
   sp = (u_short *)MBUF_CTOP(bp);
   proto = ntohs(*sp);
-  LogPrintf(LOG_LCP_BIT, "-- Protocol (%04x) was rejected.\n", proto);
+  LogPrintf(LogLCP, "-- Protocol (%04x) was rejected.\n", proto);
 
   switch (proto) {
   case PROTO_LQR:
@@ -669,13 +659,13 @@ struct mbuf *bp;
   lp = (u_long *)cp;
   magic = ntohl(*lp);
   if (magic != LcpInfo.his_magic) {
-    logprintf("RecvEchoReq: his magic is bad!!\n");
+    LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
     /* XXX: We should send terminate request */
   }
 
   if (fp->state == ST_OPENED) {
     *lp = htonl(LcpInfo.want_magic);	/* Insert local magic number */
-    LogPrintf(LOG_LCP_BIT, "%s:  SendEchoRep(%s)\n", fp->name, StateNames[fp->state]);
+    LogPrintf(LogLCP, "SendEchoRep(%s)\n", StateNames[fp->state]);
     FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
   }
   pfree(bp);
@@ -695,7 +685,7 @@ struct mbuf *bp;
  * Tolerate echo replies with either magic number
  */
   if (magic != 0 && magic != LcpInfo.his_magic && magic != LcpInfo.want_magic) {
-    logprintf("RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
+    LogPrintf(LogERROR, "RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
 	LcpInfo.his_magic, magic);
     /*
      *  XXX: We should send terminate request. But poor implementation
@@ -712,7 +702,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvDiscReq\n", fp->name);
+  LogPrintf(LogLCP, "RecvDiscReq\n");
   pfree(bp);
 }
 
@@ -722,7 +712,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvIdent\n", fp->name);
+  LogPrintf(LogLCP, "RecvIdent\n");
   pfree(bp);
 }
 
@@ -732,7 +722,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvTimeRemain\n", fp->name);
+  LogPrintf(LogLCP, "RecvTimeRemain\n");
   pfree(bp);
 }
 
@@ -742,9 +732,9 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvResetReq\n", fp->name);
+  LogPrintf(LogLCP, "RecvResetReq\n");
   CcpRecvResetReq(fp);
-  LogPrintf(LOG_LCP_BIT, "%s: SendResetAck\n", fp->name);
+  LogPrintf(LogLCP, "SendResetAck\n");
   FsmOutput(fp, CODE_RESETACK, fp->reqid, NULL, 0);
   pfree(bp);
 }
@@ -755,7 +745,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: RecvResetAck\n", fp->name);
+  LogPrintf(LogLCP, "RecvResetAck\n");
   fp->reqid++;
   pfree(bp);
 }
@@ -802,13 +792,11 @@ struct mbuf *bp;
   bp->cnt -= sizeof(struct fsmheader);
 
   codep = FsmCodes + lhp->code - 1;
-  LogPrintf(LOG_LCP_BIT, "%s: Received %s (%d) state = %s (%d)\n",
-    fp->name, codep->name, lhp->id, StateNames[fp->state], fp->state);
-#ifdef DEBUG
-  LogMemory();
-#endif
+  LogPrintf(LogLCP, "Received %s (%d) state = %s (%d)\n",
+    codep->name, lhp->id, StateNames[fp->state], fp->state);
+  if (LogIsKept(LogDEBUG))
+    LogMemory();
   (codep->action)(fp, lhp, bp);
-#ifdef DEBUG
-  LogMemory();
-#endif
+  if (LogIsKept(LogDEBUG))
+    LogMemory();
 }

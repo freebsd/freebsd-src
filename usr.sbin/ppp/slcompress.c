@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: slcompress.c,v 1.8 1997/02/22 16:10:54 peter Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 #ifndef lint
-static char const rcsid[] = "$Id$";
+static char const rcsid[] = "$Id: slcompress.c,v 1.8 1997/02/22 16:10:54 peter Exp $";
 #endif
 
 #include "defs.h"
@@ -32,6 +32,8 @@ static char const rcsid[] = "$Id$";
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
 #include "slcompress.h"
+#include "loadalias.h"
+#include "vars.h"
 
 struct slstat slstat;
 
@@ -139,28 +141,19 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 	 * set).  (We assume that the caller has already made sure the
 	 * packet is IP proto TCP).
 	 */
-#ifdef DEBUG
 	if ((ip->ip_off & htons(0x3fff)) || m->cnt < 40) {
-		logprintf("??? 1 ip_off = %x, cnt = %d\n", ip->ip_off, m->cnt);
-		DumpBp(m);
+		LogPrintf(LogDEBUG, "??? 1 ip_off = %x, cnt = %d\n",
+			ip->ip_off, m->cnt);
+		LogDumpBp(LogDEBUG, "", m);
 		return (TYPE_IP);
 	}
-#else
-	if ((ip->ip_off & htons(0x3fff)) || m->cnt < 40)
-		return (TYPE_IP);
-#endif
 
 	th = (struct tcphdr *)&((int *)ip)[hlen];
-#ifdef DEBUG
 	if ((th->th_flags & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK) {
-		logprintf("??? 2 th_flags = %x\n", th->th_flags);
-		DumpBp(m);
+		LogPrintf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
+		LogDumpBp(LogDEBUG, "", m);
 		return (TYPE_IP);
 	}
-#else
-	if ((th->th_flags & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK)
-		return (TYPE_IP);
-#endif
 
 	/*
 	 * Packet is compressible -- we're going to send either a
@@ -457,9 +450,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	INCR(sls_compressedin)
 	cp = *bufp;
 	changes = *cp++;
-#ifdef DEBUG
-	logprintf("compressed: changes = %02x\n", changes);
-#endif
+	LogPrintf(LogDEBUG, "compressed: changes = %02x\n", changes);
 	if (changes & NEW_C) {
 		/* Make sure the state index is in range, then grab the state.
 		 * If we have a good state index, clear the 'discard' flag. */
@@ -512,9 +503,8 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		if (changes & NEW_A)
 			DECODEL(th->th_ack)
 		if (changes & NEW_S) {
-#ifdef DEBUG
-		  logprintf("NEW_S: %02x, %02x, %02x\r\n", *cp, cp[1], cp[2]);
-#endif
+			LogPrintf(LogDEBUG, "NEW_S: %02x, %02x, %02x\n",
+				*cp, cp[1], cp[2]);
 			DECODEL(th->th_seq)
 		}
 		break;
@@ -523,9 +513,9 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		DECODES(cs->cs_ip.ip_id)
 	} else
 		cs->cs_ip.ip_id = htons(ntohs(cs->cs_ip.ip_id) + 1);
-#ifdef DEBUG
-	logprintf("id = %04x, seq = %08x\r\n", cs->cs_ip.ip_id, ntohl(th->th_seq));
-#endif
+
+	LogPrintf(LogDEBUG, "Uncompress: id = %04x, seq = %08x\n",
+		  cs->cs_ip.ip_id, ntohl(th->th_seq));
 
 	/*
 	 * At this point, cp points to the first byte of data in the
@@ -575,13 +565,16 @@ bad:
 int
 ReportCompress()
 {
-  printf("Out:  %d (compress) / %d (total)",
+  if (!VarTerm)
+    return 1;
+
+  fprintf(VarTerm, "Out:  %d (compress) / %d (total)",
 	slstat.sls_compressed, slstat.sls_packets);
-  printf("  %d (miss) / %d (search)\n",
+  fprintf(VarTerm, "  %d (miss) / %d (search)\n",
 	slstat.sls_misses, slstat.sls_searches);
-  printf("In:  %d (compress), %d (uncompress)",
+  fprintf(VarTerm, "In:  %d (compress), %d (uncompress)",
 	slstat.sls_compressedin, slstat.sls_uncompressedin);
-  printf("  %d (error),  %d (tossed)\n",
+  fprintf(VarTerm, "  %d (error),  %d (tossed)\n",
 	slstat.sls_errorin, slstat.sls_tossed);
-  return(1);
+  return 0;
 }

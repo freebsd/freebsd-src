@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sig.h,v 1.5 1997/02/25 14:05:13 brian Exp $
+ * $Id: sig.h,v 1.7 1997/03/13 12:45:35 brian Exp $
  *
  *  TODO:
  *
@@ -35,7 +35,7 @@
 typedef void (*sig_type)(int);
 
 /* Call this instead of signal() */
-extern sig_type pending_signal __P((int, sig_type));
+extern sig_type pending_signal(int, sig_type);
 
 /* Call this when you want things to *actually* happen */
-extern void handle_signals __P((void));
+extern void handle_signals(void);

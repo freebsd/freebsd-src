@@ -26,13 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sig.c,v 1.4 1997/02/25 14:05:10 brian Exp $
+ * $Id: sig.c,v 1.6 1997/03/13 12:45:33 brian Exp $
  *
  *  TODO:
  *
  */
 
-#include <sys/cdefs.h>
 #include "sig.h"
 #include <sys/types.h>
 #include <signal.h>
@@ -60,7 +59,8 @@ sig_type pending_signal(int sig,sig_type fn) {
 
     if (sig <= 0 || sig > NSIG) {
 	/* Oops - we must be a bit out of date (too many sigs ?) */
-        logprintf("Eeek! %s:%s: I must be out of date!\n",__FILE__,__LINE__);
+        LogPrintf(LogALERT, "Eeek! %s:%s: I must be out of date!\n",
+                  __FILE__,__LINE__);
         return signal(sig,fn);
     }
 

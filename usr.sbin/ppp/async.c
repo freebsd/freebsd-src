@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.7 1997/02/22 16:09:59 peter Exp $
+ * $Id: async.c,v 1.8 1997/05/26 00:43:55 brian Exp $
  *
  */
 #include "fsm.h"
@@ -121,7 +121,7 @@ int proto;
   *cp ++ = HDLC_SYN;
 
   cnt = cp - hs->xbuff;
-  LogDumpBuff(LOG_ASYNC, "WriteModem", hs->xbuff, cnt);
+  LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
   WriteModem(pri, (char *)hs->xbuff, cnt);
   OsAddOutOctets(cnt);
   pfree(bp);
@@ -156,7 +156,7 @@ u_char c;
   default:
     if (hs->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      logprintf("too large, diacarding.\n");
+      LogPrintf(LogERROR, "Packet too large (%d), diacarding.\n", hs->length);
       hs->length = 0;
       hs->mode = MODE_HUNT;
       break;

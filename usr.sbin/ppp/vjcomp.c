@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.6 1997/02/22 16:11:05 peter Exp $
+ * $Id: vjcomp.c,v 1.7 1997/05/07 23:30:50 brian Exp $
  *
  *  TODO:
  */
@@ -47,16 +47,12 @@ struct mbuf *bp;
   int proto;
   int cproto = IpcpInfo.his_compproto >> 16;
 
-#ifdef DEBUG
-  logprintf("SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
-#endif
+  LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
   if (((struct ip *)MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto== PROTO_VJCOMP) {
     type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
 
-#ifdef DEBUG
-    logprintf("type = %x\n", type);
-#endif
+    LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
     case TYPE_IP:
       proto = PROTO_IP;
@@ -68,7 +64,7 @@ struct mbuf *bp;
       proto = PROTO_VJCOMP;
       break;
     default:
-      logprintf("unknown type %x\n", type);
+      LogPrintf(LogERROR, "Unknown frame type %x\n", type);
       pfree(bp);
       return;
     }
@@ -132,10 +128,8 @@ int proto;
 {
   u_char type;
 
-#ifdef DEBUG
-  logprintf("VjCompInput (%02x):\n", proto);
-  DumpBp(bp);
-#endif
+  LogPrintf(LogDEBUG, "VjCompInput: proto %02x\n", proto);
+  LogDumpBp(LogDEBUG, "Raw packet info:", bp);
 
   switch (proto) {
   case PROTO_VJCOMP:
@@ -145,7 +139,7 @@ int proto;
     type = TYPE_UNCOMPRESSED_TCP;
     break;
   default:
-    logprintf("???\n");
+    LogPrintf(LogERROR, "VjCompInput...???\n");
     return(bp);
   }
   bp = VjUncompressTcp(bp, type);
