@@ -971,6 +971,7 @@ nd6_ifptomac(ifp)
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
+	case IFT_ISO88025:
 		return ((caddr_t)(ifp + 1));
 		break;
 	default:
