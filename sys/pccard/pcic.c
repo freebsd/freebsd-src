@@ -693,12 +693,13 @@ pcic_power(struct slot *slt)
 				break;
 			}
 			reg |= PCIC_VCC_3V;
-			if ((sp->controller == PCIC_VG468) ||
-				(sp->controller == PCIC_VG469) ||
-				(sp->controller == PCIC_VG465) ||
-				(sp->controller == PCIC_VG365))
+			if (sp->controller == PCIC_VG468 ||
+			    sp->controller == PCIC_VG469 ||
+			    sp->controller == PCIC_VG465 ||
+			    sp->controller == PCIC_VG365)
 				setb(sp, PCIC_CVSR, PCIC_CVSR_VS);
-			else
+			else if (sp->controller == PCIC_PD6710 ||
+			    sp->controller == PCIC_PD672X)
 				setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		case 50:
@@ -707,12 +708,13 @@ pcic_power(struct slot *slt)
                                 break;
                         }
 			reg |= PCIC_VCC_5V;
-			if ((sp->controller == PCIC_VG468) ||
-				(sp->controller == PCIC_VG469) ||
-				(sp->controller == PCIC_VG465) ||
-				(sp->controller == PCIC_VG365))
+			if (sp->controller == PCIC_VG468 ||
+			    sp->controller == PCIC_VG469 ||
+			    sp->controller == PCIC_VG465 ||
+			    sp->controller == PCIC_VG365)
 				clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
-			else
+			else if (sp->controller == PCIC_PD6710 ||
+			    sp->controller == PCIC_PD672X)
 				clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		}
