@@ -81,6 +81,11 @@ __FBSDID("$FreeBSD$");
 #define DOABORT		1	/* dofork should just die if fork() fails */
 
 /*
+ * The buffer size to use when reading/writing spool files.
+ */
+#define	SPL_BUFSIZ	BUFSIZ
+
+/*
  * Error tokens
  */
 #define REPRINT		-2
@@ -607,7 +612,7 @@ print(struct printer *pp, int format, char *file)
 	register char *prog;
 	int fi, fo;
 	FILE *fp;
-	char *av[15], buf[BUFSIZ];
+	char *av[15], buf[SPL_BUFSIZ];
 	pid_t wpid;
 	int p[2], retcode, stopped, wstatus, wstatus_set;
 	struct stat stb;
@@ -637,7 +642,7 @@ print(struct printer *pp, int format, char *file)
 	if (pp->filters[LPF_INPUT] == NULL
 	    && (format == 'f' || format == 'l' || format == 'o')) {
 		pp->tof = 0;
-		while ((n = read(fi, buf, BUFSIZ)) > 0)
+		while ((n = read(fi, buf, SPL_BUFSIZ)) > 0)
 			if (write(ofd, buf, n) != n) {
 				(void) close(fi);
 				return (REPRINT);
@@ -880,7 +885,7 @@ static int
 sendit(struct printer *pp, char *file)
 {
 	int dfcopies, err, i;
-	char *cp, last[BUFSIZ];
+	char *cp, last[sizeof(line)];
 
 	/*
 	 * open control file
@@ -989,7 +994,7 @@ sendfile(struct printer *pp, int type, char *file, char format, int copyreq)
 	int i, amt;
 	struct stat stb;
 	char *av[15], *filtcmd;
-	char buf[BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
+	char buf[SPL_BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
 	int copycnt, filtstat, narg, resp, sfd, sfres, sizerr, statrc;
 
 	statrc = lstat(file, &stb);
@@ -1150,8 +1155,8 @@ sendagain:
 	 */
 	if (type == '\3')
 		trstat_init(pp, file, job_dfcnt);
-	for (i = 0; i < stb.st_size; i += BUFSIZ) {
-		amt = BUFSIZ;
+	for (i = 0; i < stb.st_size; i += SPL_BUFSIZ) {
+		amt = SPL_BUFSIZ;
 		if (i + amt > stb.st_size)
 			amt = stb.st_size - i;
 		if (sizerr == 0 && read(sfd, buf, amt) != amt)
