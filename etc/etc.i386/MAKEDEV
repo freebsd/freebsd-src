@@ -102,12 +102,11 @@
 #	meteor*	Matrox Meteor video acquisition card (pci)
 #	bktr*	Bt848 based video acquisition card (pci)
 #	qcam*	Connectix QuickCam(tm) parallel port camera
-#	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.142 1997/12/19 14:14:18 brian Exp $
+#	$Id: MAKEDEV,v 1.143 1997/12/29 00:02:18 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
