@@ -69,6 +69,8 @@ makedevs.c:	Makefile rtermcap
 .endif
 	mv makedevs.tmp makedevs.c
 
+build-tools:	rtermcap
+
 rtermcap:	rtermcap.c
 	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
 
