@@ -51,9 +51,9 @@
 .Op Fl e Ar maxbpg
 .Op Fl f Ar frag-size
 .Op Fl g Ar avgfilesize
-.Op Fl h Ar avfpdir
+.Op Fl h Ar avgfpdir
 .Op Fl i Ar bytes
-.Op Fl m Ar free space
+.Op Fl m Ar free-space
 .Op Fl o Ar optimization
 .Op Fl s Ar size
 .Ar special
@@ -85,7 +85,7 @@ For backward compatibility.
 .It Fl N
 Cause the filesystem parameters to be printed out
 without really creating the filesystem.
-.It Fl O
+.It Fl O Ar filesystem-type
 Use 1 to specify that a UFS1 format filesystem be built;
 use 2 to specify that a UFS2 format filesystem be built.
 The default is UFS1 format, but will eventually be changed to UFS2.
@@ -99,17 +99,20 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl b Ar block-size
-The block size of the filesystem, in bytes.  It must be a power of 2.  The
+The block size of the filesystem, in bytes.
+It must be a power of 2.
+The
 default size is 16384 bytes, and the smallest allowable size is 4096 bytes.
 The optimal block:fragment ratio is 8:1.
 Other ratios are possible, but are not recommended,
 and may produce poor results.
-.It Fl c Ar number of blocks per cylinders group
-The number of blocks per cylinder group in a filesystem.  The default
-is to compute the maximum allowed by the other parameters.  This value is
+.It Fl c Ar blocks-per-cylinder-group
+The number of blocks per cylinder group in a filesystem.
+The default is to compute the maximum allowed by the other parameters.
+This value is
 dependent on a number of other parameters, in particular the block size
 and the number of bytes per inode.
-.It Fl d Ar max extent size
+.It Fl d Ar max-extent-size
 The filesystem may choose to store large files using extents.
 This parameter specifies the largest extent size that may be used.
 It is presently limited to its default value which is 16 times
@@ -123,7 +126,8 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl f Ar frag-size
-The fragment size of the filesystem in bytes.  It must be a power of two
+The fragment size of the filesystem in bytes.
+It must be a power of two
 ranging in value between
 .Ar blocksize Ns /8
 and
@@ -133,7 +137,7 @@ The default is 2048 bytes.
 The expected average file size for the filesystem.
 .It Fl h Ar avgfpdir
 The expected average number of files per directory on the filesystem.
-.It Fl i Ar number of bytes per inode
+.It Fl i Ar bytes
 Specify the density of inodes in the filesystem.
 The default is to create an inode for every
 .Pq 4 * Ar frag-size
@@ -142,7 +146,7 @@ If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
 specifies the average file size on the filesystem.
-.It Fl m Ar free space \&%
+.It Fl m Ar free-space
 The percentage of space reserved from normal users; the minimum free
 space threshold.
 The default value used is
@@ -154,21 +158,24 @@ currently 8%.
 See
 .Xr tunefs 8
 for more details on how to set this option.
-.It Fl o Ar optimization\ preference
-.Pq Ar space No or Ar time .
+.It Fl o Ar optimization
+.Cm ( space
+or
+.Cm time ) .
 The filesystem can either be instructed to try to minimize the time spent
 allocating blocks, or to try to minimize the space fragmentation on the disk.
 If the value of minfree (see above) is less than 8%,
 the default is to optimize for
-.Ar space ;
+.Cm space ;
 if the value of minfree is greater than or equal to 8%,
 the default is to optimize for
-.Ar time .
+.Cm time .
 See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl s Ar size
-The size of the filesystem in sectors.  This value defaults to the size of the
+The size of the filesystem in sectors.
+This value defaults to the size of the
 raw partition specified in
 .Ar special
 (in other words,
