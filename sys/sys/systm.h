@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.44 1996/09/13 09:20:15 bde Exp $
+ * $Id: systm.h,v 1.45 1996/09/29 15:00:19 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -44,34 +44,7 @@
 
 #include <machine/cpufunc.h>
 
-/*
- * The `securelevel' variable controls the security level of the system.
- * It can only be decreased by process 1 (/sbin/init).
- *
- * Security levels are as follows:
- *   -1	permanently insecure mode - always run system in level 0 mode.
- *    0	insecure mode - immutable and append-only flags make be turned off.
- *	All devices may be read or written subject to permission modes.
- *    1	secure mode - immutable and append-only flags may not be changed;
- *	raw disks of mounted filesystems, /dev/mem, and /dev/kmem are
- *	read-only.
- *    2	highly secure mode - same as (1) plus raw disks are always
- *	read-only whether mounted or not. This level precludes tampering
- *	with filesystems by unmounting them, but also inhibits running
- *	newfs while the system is secured.
- *
- * In normal operation, the system runs in level 0 mode while single user
- * and in level 1 mode while multiuser. If level 2 mode is desired while
- * running multiuser, it can be set in the multiuser startup script
- * (/etc/rc.local) using sysctl(1). If it is desired to run the system
- * in level 0 mode while multiuser, initialize the variable securelevel
- * in /sys/kern/kern_sysctl.c to -1. Note that it is NOT initialized to
- * zero as that would allow the kernel binary to be patched to -1.
- * Without initialization, securelevel loads in the BSS area which only
- * comes into existence when the kernel is loaded and hence cannot be
- * patched by a stalking hacker.
- */
-extern int securelevel;		/* system security level */
+extern int securelevel;		/* system security level (see init(8)) */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
