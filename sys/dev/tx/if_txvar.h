@@ -134,9 +134,9 @@ struct epic_type {
 
 /* Macro to get either mbuf cluster or nothing */
 #define EPIC_MGETCLUSTER(m)						\
-	{ MGETHDR((m),M_NOWAIT,MT_DATA);				\
+	{ MGETHDR((m),M_DONTWAIT,MT_DATA);				\
 	  if (m) {							\
-	    MCLGET((m),M_NOWAIT);					\
+	    MCLGET((m),M_DONTWAIT);					\
 	    if( 0 == ((m)->m_flags & M_EXT) ) {				\
 	      m_freem(m);						\
 	      (m) = NULL;						\

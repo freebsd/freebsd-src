@@ -278,7 +278,7 @@ USB_ATTACH(ubsa)
 	int i;
 
 	dev = uaa->device;
-	devinfo = malloc(1024, M_USBDEV, 0);
+	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	ucom = &sc->sc_ucom;
 
 	bzero(sc, sizeof (struct ubsa_softc));
@@ -643,7 +643,7 @@ ubsa_open(void *addr, int portno)
 	DPRINTF(("ubsa_open: sc = %p\n", sc));
 
 	if (sc->sc_intr_number != -1 && sc->sc_intr_pipe == NULL) {
-		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, 0);
+		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
 		err = usbd_open_pipe_intr(sc->sc_intr_iface,
 		    sc->sc_intr_number,
 		    USBD_SHORT_XFER_OK,

@@ -313,7 +313,7 @@ fork1(td, flags, pages, procp)
 	}
 
 	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, 0);
+	newproc = uma_zalloc(proc_zone, M_WAITOK);
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
@@ -438,12 +438,12 @@ again:
 	 */
 	if (flags & RFSIGSHARE) {
 		MALLOC(newsigacts, struct sigacts *,
-		    sizeof(struct sigacts), M_SUBPROC, 0);
+		    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
 		newprocsig = NULL;
 	} else {
 		newsigacts = NULL;
 		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
-		    M_SUBPROC, 0);
+		    M_SUBPROC, M_WAITOK);
 	}
 
 	/*

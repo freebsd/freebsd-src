@@ -174,7 +174,7 @@ atm_cm_connect(epp, token, ap, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = uma_zalloc(atm_connection_zone, 0);
+	cop = uma_zalloc(atm_connection_zone, M_WAITOK);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -405,7 +405,7 @@ atm_cm_connect(epp, token, ap, copp)
 	/*
 	 * Get a connection VCC block
 	 */
-	cvp = uma_zalloc(atm_connvc_zone, 0);
+	cvp = uma_zalloc(atm_connvc_zone, M_WAITOK);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto donex;
@@ -551,7 +551,7 @@ atm_cm_listen(epp, token, ap, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = uma_zalloc(atm_connection_zone, 0);
+	cop = uma_zalloc(atm_connection_zone, M_WAITOK);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -710,7 +710,7 @@ atm_cm_listen(epp, token, ap, copp)
 	/*
 	 * Get an attribute block and save listening attributes
 	 */
-	cop->co_lattr = uma_zalloc(atm_attributes_zone, M_ZERO);
+	cop->co_lattr = uma_zalloc(atm_attributes_zone, M_WAITOK | M_ZERO);
 	if (cop->co_lattr == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -815,7 +815,7 @@ atm_cm_addllc(epp, token, llc, ecop, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = uma_zalloc(atm_connection_zone, 0);
+	cop = uma_zalloc(atm_connection_zone, M_WAITOK);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -1266,7 +1266,7 @@ atm_cm_incoming(vcp, ap)
 	/*
 	 * Get a connection VCC block
 	 */
-	cvp = uma_zalloc(atm_connvc_zone, 0);
+	cvp = uma_zalloc(atm_connvc_zone, M_WAITOK);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto fail;
@@ -1584,7 +1584,7 @@ atm_cm_incall(cvp)
 			/*
 			 * Need a new connection block
 			 */
-			cop = uma_zalloc(atm_connection_zone, 0);
+			cop = uma_zalloc(atm_connection_zone, M_WAITOK);
 			if (cop == NULL) {
 				cvp->cvc_attr.cause = atm_cause_tmpl;
 				cvp->cvc_attr.cause.v.cause_value =

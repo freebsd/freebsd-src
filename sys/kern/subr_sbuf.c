@@ -49,7 +49,7 @@
 
 #ifdef _KERNEL
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
-#define	SBMALLOC(size)		malloc(size, M_SBUF, 0)
+#define	SBMALLOC(size)		malloc(size, M_SBUF, M_WAITOK)
 #define	SBFREE(buf)		free(buf, M_SBUF)
 #else /* _KERNEL */
 #define	KASSERT(e, m)

@@ -509,7 +509,7 @@ loop:
 			union_newlower(un, lowervp);
 			if (cnp && (lowervp != NULLVP)) {
 				un->un_path = malloc(cnp->cn_namelen+1,
-						M_TEMP, 0);
+						M_TEMP, M_WAITOK);
 				bcopy(cnp->cn_nameptr, un->un_path,
 						cnp->cn_namelen);
 				un->un_path[cnp->cn_namelen] = '\0';
@@ -564,7 +564,7 @@ loop:
 	}
 
 	MALLOC((*vpp)->v_data, void *, sizeof(struct union_node),
-		M_TEMP, 0);
+		M_TEMP, M_WAITOK);
 
 	ASSERT_VOP_LOCKED(*vpp, "union_allocvp");
 	(*vpp)->v_vflag |= vflag;
@@ -591,7 +591,7 @@ loop:
 	un->un_openl = 0;
 
 	if (cnp && (lowervp != NULLVP)) {
-		un->un_path = malloc(cnp->cn_namelen+1, M_TEMP, 0);
+		un->un_path = malloc(cnp->cn_namelen+1, M_TEMP, M_WAITOK);
 		bcopy(cnp->cn_nameptr, un->un_path, cnp->cn_namelen);
 		un->un_path[cnp->cn_namelen] = '\0';
 	} else {
@@ -686,7 +686,7 @@ union_copyfile(fvp, tvp, cred, td)
 	VOP_LEASE(fvp, td, cred, LEASE_READ);
 	VOP_LEASE(tvp, td, cred, LEASE_WRITE);
 
-	buf = malloc(MAXBSIZE, M_TEMP, 0);
+	buf = malloc(MAXBSIZE, M_TEMP, M_WAITOK);
 
 	/* ugly loop follows... */
 	do {
@@ -858,7 +858,7 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 * Conclusion: Horrible.
 	 */
 	cn->cn_namelen = pathlen;
-	cn->cn_pnbuf = uma_zalloc(namei_zone, 0);
+	cn->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	bcopy(path, cn->cn_pnbuf, cn->cn_namelen);
 	cn->cn_pnbuf[cn->cn_namelen] = '\0';
 
@@ -1068,7 +1068,7 @@ union_vn_create(vpp, un, td)
 	 * copied in the first place).
 	 */
 	cn.cn_namelen = strlen(un->un_path);
-	cn.cn_pnbuf = uma_zalloc(namei_zone, 0);
+	cn.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	bcopy(un->un_path, cn.cn_pnbuf, cn.cn_namelen+1);
 	cn.cn_nameiop = CREATE;
 	cn.cn_flags = (LOCKPARENT|LOCKLEAF|HASBUF|SAVENAME|ISLASTCN);
@@ -1260,7 +1260,7 @@ union_dircache(vp, td)
 		union_dircache_r(vp, 0, &cnt);
 		cnt++;
 		dircache = malloc(cnt * sizeof(struct vnode *),
-				M_TEMP, 0);
+				M_TEMP, M_WAITOK);
 		vpp = dircache;
 		union_dircache_r(vp, &vpp, &cnt);
 		*vpp = NULLVP;

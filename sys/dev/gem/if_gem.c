@@ -1422,7 +1422,7 @@ gem_add_rxbuf(sc, idx)
 	struct mbuf *m;
 	int error;
 
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;

@@ -367,7 +367,7 @@ svr4_stream_get(fp)
 	}
 
 	/* Allocate a new one. */
-	st = malloc(sizeof(struct svr4_strm), M_TEMP, 0);
+	st = malloc(sizeof(struct svr4_strm), M_TEMP, M_WAITOK);
 	st->s_family = so->so_proto->pr_domain->dom_family;
 	st->s_cmd = ~0;
 	st->s_afd = -1;

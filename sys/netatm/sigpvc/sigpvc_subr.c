@@ -122,7 +122,7 @@ sigpvc_create_pvc(pvp, cvp, errp)
 	/*
 	 * Allocate control block for PVC
 	 */
-	vcp = uma_zalloc(sigpvc_vc_zone, M_ZERO);
+	vcp = uma_zalloc(sigpvc_vc_zone, M_WAITOK | M_ZERO);
 	if (vcp == NULL) {
 		*errp = ENOMEM;
 		return (CALL_FAILED);

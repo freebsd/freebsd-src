@@ -694,7 +694,7 @@ vesa_bios_init(void)
 		if (modes >= vesa_vmode_max) {
 			vesa_vmode_max += MODE_TABLE_DELTA;
 			p = malloc(sizeof(*vesa_vmode)*(vesa_vmode_max + 1),
-				   M_DEVBUF, 0);
+				   M_DEVBUF, M_WAITOK);
 #if VESA_DEBUG > 1
 			printf("vesa_bios_init(): modes:%d, vesa_mode_max:%d\n",
 			       modes, vesa_vmode_max);
@@ -1341,7 +1341,7 @@ get_palette(video_adapter_t *adp, int base, int count,
 	if (bits <= 6)
 		return 1;
 
-	r = malloc(count*3, M_DEVBUF, 0);
+	r = malloc(count*3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
 	error = vesa_bios_save_palette2(base, count, r, g, b, bits);
@@ -1378,7 +1378,7 @@ set_palette(video_adapter_t *adp, int base, int count,
 		|| ((bits = vesa_bios_set_dac(8)) <= 6))
 		return 1;
 
-	r = malloc(count*3, M_DEVBUF, 0);
+	r = malloc(count*3, M_DEVBUF, M_WAITOK);
 	g = r + count;
 	b = g + count;
 	copyin(red, r, count);

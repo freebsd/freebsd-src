@@ -110,7 +110,7 @@ linker_strdup(const char *str)
 {
 	char *result;
 
-	if ((result = malloc((strlen(str) + 1), M_LINKER, 0)) != NULL)
+	if ((result = malloc((strlen(str) + 1), M_LINKER, M_WAITOK)) != NULL)
 		strcpy(result, str);
 	return (result);
 }
@@ -402,7 +402,7 @@ linker_find_file_by_name(const char *filename)
 	linker_file_t lf = 0;
 	char *koname;
 
-	koname = malloc(strlen(filename) + 4, M_LINKER, 0);
+	koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
 	if (koname == NULL)
 		goto out;
 	sprintf(koname, "%s.ko", filename);
@@ -444,7 +444,7 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	filename = linker_basename(pathname);
 
 	KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
-	lf = (linker_file_t)kobj_create((kobj_class_t)lc, M_LINKER, 0);
+	lf = (linker_file_t)kobj_create((kobj_class_t)lc, M_LINKER, M_WAITOK);
 	if (lf == NULL)
 		goto out;
 	lf->refs = 1;
@@ -558,7 +558,7 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	linker_file_t *newdeps;
 
 	newdeps = malloc((file->ndeps + 1) * sizeof(linker_file_t *),
-	    M_LINKER, M_ZERO);
+	    M_LINKER, M_WAITOK | M_ZERO);
 	if (newdeps == NULL)
 		return (ENOMEM);
 
@@ -644,7 +644,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 		common_size = (common_size + sizeof(int) - 1) & -sizeof(int);
 		cp = malloc(sizeof(struct common_symbol)
 		    + common_size + strlen(name) + 1, M_LINKER,
-		    M_ZERO);
+		    M_WAITOK | M_ZERO);
 		if (cp == NULL) {
 			KLD_DPF(SYM, ("linker_file_lookup_symbol: nomem\n"));
 			return (0);
@@ -753,7 +753,7 @@ kldload(struct thread *td, struct kldload_args *uap)
 	if ((error = suser(td)) != 0)
 		goto out;
 
-	pathname = malloc(MAXPATHLEN, M_TEMP, 0);
+	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
 		goto out;
 
@@ -839,7 +839,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	mtx_lock(&Giant);
 	td->td_retval[0] = -1;
 
-	pathname = malloc(MAXPATHLEN, M_TEMP, 0);
+	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
 		goto out;
 
@@ -1011,7 +1011,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-	symstr = malloc(MAXPATHLEN, M_TEMP, 0);
+	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
 	if (uap->fileid != 0) {
@@ -1381,7 +1381,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 	sep = (path[pathlen - 1] != '/') ? "/" : "";
 
 	reclen = pathlen + strlen(sep) + namelen + extlen + 1;
-	result = malloc(reclen, M_LINKER, 0);
+	result = malloc(reclen, M_LINKER, M_WAITOK);
 	for (cpp = linker_ext_list; *cpp; cpp++) {
 		snprintf(result, reclen, "%.*s%s%.*s%s", pathlen, path, sep,
 		    namelen, name, *cpp);
@@ -1433,7 +1433,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	sep = (path[pathlen - 1] != '/') ? "/" : "";
 	reclen = imax(modnamelen, strlen(linker_hintfile)) + pathlen +
 	    strlen(sep) + 1;
-	pathbuf = malloc(reclen, M_LINKER, 0);
+	pathbuf = malloc(reclen, M_LINKER, M_WAITOK);
 	snprintf(pathbuf, reclen, "%.*s%s%s", pathlen, path, sep,
 	    linker_hintfile);
 
@@ -1456,7 +1456,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 		printf("hints file too large %ld\n", (long)vattr.va_size);
 		goto bad;
 	}
-	hints = malloc(vattr.va_size, M_TEMP, 0);
+	hints = malloc(vattr.va_size, M_TEMP, M_WAITOK);
 	if (hints == NULL)
 		goto bad;
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,

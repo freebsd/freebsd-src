@@ -420,7 +420,7 @@ at_pcballoc( struct socket *so )
 {
 	struct ddpcb	*ddp;
 
-	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_ZERO);
+	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_WAITOK | M_ZERO);
 	ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
 
 	ddp->ddp_next = ddpcb;

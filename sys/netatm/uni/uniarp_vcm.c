@@ -133,7 +133,7 @@ uniarp_pvcopen(ivp)
 	/*
 	 * Get an arp map entry
 	 */
-	uap = uma_zalloc(uniarp_zone, M_ZERO);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
 	if (uap == NULL)
 		return (MAP_FAILED);
 
@@ -279,7 +279,7 @@ uniarp_svcout(ivp, dst)
 	/*
 	 * We're a client with an open VCC to the server, get a new arp entry
 	 */
-	uap = uma_zalloc(uniarp_zone, 0);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -440,7 +440,7 @@ uniarp_svcin(ivp, dst, dstsub)
 	/*
 	 * No info in the cache - get a new arp entry
 	 */
-	uap = uma_zalloc(uniarp_zone, M_ZERO);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
 	if (uap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);

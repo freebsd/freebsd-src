@@ -214,7 +214,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	}
 	irq = ffs(desc->irqmask) - 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF,
-	    M_ZERO);
+	    M_WAITOK | M_ZERO);
 	strcpy(devi->name, desc->name);
 	/*
 	 *	Create an entry for the device under this slot.

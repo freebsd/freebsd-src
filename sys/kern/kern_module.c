@@ -132,7 +132,7 @@ module_register(const moduledata_t *data, linker_file_t container)
 	}
 	MOD_SUNLOCK;
 	namelen = strlen(data->name) + 1;
-	newmod = malloc(sizeof(struct module) + namelen, M_MODULE, 0);
+	newmod = malloc(sizeof(struct module) + namelen, M_MODULE, M_WAITOK);
 	if (newmod == NULL)
 		return (ENOMEM);
 	MOD_XLOCK;

@@ -748,7 +748,7 @@ pmap_new_thread(struct thread *td, int pages)
 	 * 7 address for it which makes it impossible to accidentally
 	 * lose when recording a trapframe.
 	 */
-	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP, 0, 0ul,
+	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP, M_WAITOK, 0ul,
 	    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024);
 	if (ks == NULL)
 		panic("pmap_new_thread: could not contigmalloc %d pages\n",
@@ -1214,7 +1214,7 @@ pmap_find_pte(vm_offset_t va)
 
 	pte = pmap_find_vhpt(va);
 	if (!pte) {
-		pte = uma_zalloc(ptezone, 0);
+		pte = uma_zalloc(ptezone, M_WAITOK);
 		pte->pte_p = 0;
 	}
 	return pte;

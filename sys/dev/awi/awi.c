@@ -1243,7 +1243,7 @@ awi_fix_txhdr(sc, m0)
 		    llc->llc_snap.org_code[2] = 0;
 		llc->llc_snap.ether_type = eh.ether_type;
 	}
-	M_PREPEND(m0, sizeof(struct ieee80211_frame), M_NOWAIT);
+	M_PREPEND(m0, sizeof(struct ieee80211_frame), M_DONTWAIT);
 	if (m0 == NULL)
 		return NULL;
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -1321,7 +1321,7 @@ awi_fix_rxhdr(sc, m0)
 		off = 0;
 		while (m0->m_pkthdr.len > off) {
 			if (n0 == NULL) {
-				MGETHDR(n, M_NOWAIT, MT_DATA);
+				MGETHDR(n, M_DONTWAIT, MT_DATA);
 				if (n == NULL) {
 					m_freem(m0);
 					return NULL;
@@ -1329,7 +1329,7 @@ awi_fix_rxhdr(sc, m0)
 				M_MOVE_PKTHDR(n, m0);
 				n->m_len = MHLEN;
 			} else {
-				MGET(n, M_NOWAIT, MT_DATA);
+				MGET(n, M_DONTWAIT, MT_DATA);
 				if (n == NULL) {
 					m_freem(m0);
 					m_freem(n0);
@@ -1338,7 +1338,7 @@ awi_fix_rxhdr(sc, m0)
 				n->m_len = MLEN;
 			}
 			if (m0->m_pkthdr.len - off >= MINCLSIZE) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				if (n->m_flags & M_EXT)
 					n->m_len = n->m_ext.ext_size;
 			}
@@ -1549,14 +1549,14 @@ awi_devget(sc, off, len)
 
 	while (len > 0) {
 		if (top == NULL) {
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL)
 				return NULL;
 			m->m_pkthdr.rcvif = sc->sc_ifp;
 			m->m_pkthdr.len = len;
 			m->m_len = MHLEN;
 		} else {
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
 				m_freem(top);
 				return NULL;
@@ -1564,7 +1564,7 @@ awi_devget(sc, off, len)
 			m->m_len = MLEN;
 		}
 		if (len >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
+			MCLGET(m, M_DONTWAIT);
 			if (m->m_flags & M_EXT)
 				m->m_len = m->m_ext.ext_size;
 		}
@@ -2232,7 +2232,7 @@ awi_send_deauth(sc)
 	struct ieee80211_frame *wh;
 	u_int8_t *deauth;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 	if (ifp->if_flags & IFF_DEBUG)
@@ -2269,7 +2269,7 @@ awi_send_auth(sc, seq)
 	struct ieee80211_frame *wh;
 	u_int8_t *auth;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 	sc->sc_status = AWI_ST_AUTH;
@@ -2370,7 +2370,7 @@ awi_send_asreq(sc, reassoc)
 	u_int16_t capinfo, lintval;
 	u_int8_t *asreq;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 	sc->sc_status = AWI_ST_ASSOC;

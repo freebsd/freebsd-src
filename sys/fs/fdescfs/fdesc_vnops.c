@@ -132,7 +132,7 @@ loop:
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, 0);
+	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
 
 	error = getnewvnode("fdesc", mp, fdesc_vnodeop_p, vpp);
 	if (error) {

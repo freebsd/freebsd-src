@@ -255,7 +255,7 @@ vmspace_alloc(min, max)
 	struct vmspace *vm;
 
 	GIANT_REQUIRED;
-	vm = uma_zalloc(vmspace_zone, 0);
+	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, min, max);
 	pmap_pinit(vmspace_pmap(vm));
@@ -513,7 +513,7 @@ vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 	vm_map_t result;
 
-	result = uma_zalloc(mapzone, 0);
+	result = uma_zalloc(mapzone, M_WAITOK);
 	CTR1(KTR_VM, "vm_map_create: %p", result);
 	_vm_map_init(result, min, max);
 	result->pmap = pmap;
@@ -572,7 +572,7 @@ vm_map_entry_create(vm_map_t map)
 	if (map->system_map)
 		new_entry = uma_zalloc(kmapentzone, M_NOWAIT);
 	else
-		new_entry = uma_zalloc(mapentzone, 0);
+		new_entry = uma_zalloc(mapentzone, M_WAITOK);
 	if (new_entry == NULL)
 		panic("vm_map_entry_create: kernel resources exhausted");
 	return (new_entry);

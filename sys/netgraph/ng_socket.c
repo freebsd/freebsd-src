@@ -224,7 +224,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	/* Allocate an expendable buffer for the path, chop off
 	 * the sockaddr header, and make sure it's NUL terminated */
 	len = sap->sg_len - 2;
-	MALLOC(path, char *, len + 1, M_NETGRAPH_PATH, 0);
+	MALLOC(path, char *, len + 1, M_NETGRAPH_PATH, M_WAITOK);
 	if (path == NULL) {
 		error = ENOMEM;
 		goto release;
@@ -239,7 +239,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 	/* Move the data into a linear buffer as well. Messages are not
 	 * delivered in mbufs. */
-	MALLOC(msg, struct ng_mesg *, len + 1, M_NETGRAPH_MSG, 0);
+	MALLOC(msg, struct ng_mesg *, len + 1, M_NETGRAPH_MSG, M_WAITOK);
 	if (msg == NULL) {
 		error = ENOMEM;
 		goto release;
@@ -437,7 +437,7 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 	if ( NG_NODE_HAS_NAME(pcbp->sockdata->node))
 		sg_len += namelen = strlen(NG_NODE_NAME(pcbp->sockdata->node));
 
-	MALLOC(sg, struct sockaddr_ng *, sg_len, M_SONAME, M_ZERO);
+	MALLOC(sg, struct sockaddr_ng *, sg_len, M_SONAME, M_WAITOK | M_ZERO);
 
 	if (NG_NODE_HAS_NAME(pcbp->sockdata->node))
 		bcopy(NG_NODE_NAME(pcbp->sockdata->node), sg->sg_data, namelen);
@@ -470,7 +470,7 @@ ng_attach_cntl(struct socket *so)
 
 	/* Allocate node private info */
 	MALLOC(privdata, struct ngsock *,
-	    sizeof(*privdata), M_NETGRAPH_SOCK, M_ZERO);
+	    sizeof(*privdata), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
 	if (privdata == NULL) {
 		ng_detach_common(pcbp, NG_CONTROL);
 		return (ENOMEM);
@@ -513,7 +513,7 @@ ng_attach_common(struct socket *so, int type)
 		return (error);
 
 	/* Allocate the pcb */
-	MALLOC(pcbp, struct ngpcb *, sizeof(*pcbp), M_PCB, M_ZERO);
+	MALLOC(pcbp, struct ngpcb *, sizeof(*pcbp), M_PCB, M_WAITOK | M_ZERO);
 	if (pcbp == NULL)
 		return (ENOMEM);
 	pcbp->type = type;

@@ -212,7 +212,7 @@ null_nodeget(mp, lowervp, vpp)
 	 * elsewhere if MALLOC should block.
 	 */
 	MALLOC(xp, struct null_node *, sizeof(struct null_node),
-	    M_NULLFSNODE, 0);
+	    M_NULLFSNODE, M_WAITOK);
 
 	error = getnewvnode("null", mp, null_vnodeop_p, &vp);
 	if (error) {

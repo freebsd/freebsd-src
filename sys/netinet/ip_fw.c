@@ -875,7 +875,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	    if (ipfw_dyn_v != NULL)
 		free(ipfw_dyn_v, M_IPFW);
 	    ipfw_dyn_v = malloc(curr_dyn_buckets * sizeof r,
-                   M_IPFW, M_NOWAIT | M_ZERO);
+                   M_IPFW, M_DONTWAIT | M_ZERO);
 	    if (ipfw_dyn_v == NULL)
 		return NULL; /* failed ! */
 	}
@@ -2036,7 +2036,7 @@ ip_fw_ctl(struct sockopt *sopt)
 		 * bother filling up the buffer, just jump to the
 		 * sooptcopyout.
 		 */
-		buf = malloc(size, M_TEMP, 0);
+		buf = malloc(size, M_TEMP, M_WAITOK);
 		if (buf == 0) {
 		    splx(s);
 		    error = ENOBUFS;

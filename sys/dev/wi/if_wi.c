@@ -916,9 +916,9 @@ wi_start(struct ifnet *ifp)
 		if (sc->sc_drvbpf) {
 			struct mbuf *mb;
 
-			MGETHDR(mb, M_NOWAIT, m0->m_type);
+			MGETHDR(mb, M_DONTWAIT, m0->m_type);
 			if (mb != NULL) {
-				(void) m_dup_pkthdr(mb, m0, M_NOWAIT);
+				(void) m_dup_pkthdr(mb, m0, M_DONTWAIT);
 				mb->m_next = m0;
 				mb->m_data = (caddr_t)&frmhdr;
 				mb->m_len = sizeof(frmhdr);
@@ -1345,7 +1345,7 @@ wi_rx_intr(struct wi_softc *sc)
 	len = le16toh(frmhdr.wi_dat_len);
 	off = ALIGN(sizeof(struct ieee80211_frame));
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
 		ifp->if_ierrors++;
@@ -1353,7 +1353,7 @@ wi_rx_intr(struct wi_softc *sc)
 		return;
 	}
 	if (off + len > MHLEN) {
-		MCLGET(m, M_NOWAIT);
+		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
 			m_freem(m);
@@ -1376,9 +1376,9 @@ wi_rx_intr(struct wi_softc *sc)
 	if (sc->sc_drvbpf) {
 		struct mbuf *mb;
 
-		MGETHDR(mb, M_NOWAIT, m->m_type);
+		MGETHDR(mb, M_DONTWAIT, m->m_type);
 		if (mb != NULL) {
-			(void) m_dup_pkthdr(mb, m, M_NOWAIT);
+			(void) m_dup_pkthdr(mb, m, M_DONTWAIT);
 			mb->m_next = m;
 			mb->m_data = (caddr_t)&frmhdr;
 			mb->m_len = sizeof(frmhdr);

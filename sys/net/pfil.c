@@ -61,7 +61,7 @@ pfil_init(ph)
  *	PFIL_IN		call me on incoming packets
  *	PFIL_OUT	call me on outgoing packets
  *	PFIL_ALL	call me on all of the above
- *	PFIL_WAITOK	OK to call malloc with 0.
+ *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
  */
 int
 pfil_add_hook(func, flags, ph)
@@ -97,7 +97,7 @@ pfil_list_add(list, func, flags)
 	struct packet_filter_hook *pfh;
 
 	pfh = (struct packet_filter_hook *)malloc(sizeof(*pfh), M_IFADDR,
-	    flags & PFIL_WAITOK ? 0 : M_NOWAIT);
+	    flags & PFIL_WAITOK ? M_WAITOK : M_NOWAIT);
 	if (pfh == NULL)
 		return ENOMEM;
 	pfh->pfil_func = func;

@@ -941,7 +941,7 @@ cnw_read(sc)
 	bufbytes = 0;
 	bufptr = 0; /* XXX make gcc happy */
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == 0)
 		return (0);
 #if !defined(__FreeBSD__)
@@ -956,7 +956,7 @@ cnw_read(sc)
 
 	while (totbytes > 0) {
 		if (top) {
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == 0) {
 				m_freem(top);
 				return (0);
@@ -964,7 +964,7 @@ cnw_read(sc)
 			mbytes = MLEN;
 		}
 		if (totbytes >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
+			MCLGET(m, M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_free(m);
 				m_freem(top);

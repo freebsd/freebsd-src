@@ -224,13 +224,13 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 	int error, namelen, optlen;
 
 	iovcnt = auio->uio_iovcnt;
-	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, 0);
+	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
 	TAILQ_INIT(opts);
 	for (i = 0; i < iovcnt; i += 2) {
-		opt = malloc(sizeof(struct vfsopt), M_MOUNT, 0);
+		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
 		namelen = auio->uio_iov[i].iov_len;
 		optlen = auio->uio_iov[i + 1].iov_len;
-		opt->name = malloc(namelen, M_MOUNT, 0);
+		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
 		opt->value = NULL;
 		if (auio->uio_segflg == UIO_SYSSPACE) {
 			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
@@ -242,7 +242,7 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 		}
 		opt->len = optlen;
 		if (optlen != 0) {
-			opt->value = malloc(optlen, M_MOUNT, 0);
+			opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
 			if (auio->uio_segflg == UIO_SYSSPACE) {
 				bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
 				    optlen);
@@ -289,11 +289,11 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
 			opt2 = TAILQ_NEXT(opt2, link);
 		}
 		/* We want this option, duplicate it. */
-		new = malloc(sizeof(struct vfsopt), M_MOUNT, 0);
-		new->name = malloc(strlen(opt->name) + 1, M_MOUNT, 0);
+		new = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		new->name = malloc(strlen(opt->name) + 1, M_MOUNT, M_WAITOK);
 		strcpy(new->name, opt->name);
 		if (opt->len != 0) {
-			new->value = malloc(opt->len, M_MOUNT, 0);
+			new->value = malloc(opt->len, M_MOUNT, M_WAITOK);
 			bcopy(opt->value, new->value, opt->len);
 		} else {
 			new->value = NULL;
@@ -334,7 +334,7 @@ nmount(td, uap)
 		return (EINVAL);
 
 	if (iovcnt > UIO_SMALLIOV) {
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, 0);
+		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
 	} else {
 		iov = aiov;
@@ -406,8 +406,8 @@ kernel_vmount(int flags, ...)
 		return (EINVAL);
 
 	iovlen = iovcnt * sizeof (struct iovec);
-	MALLOC(iovp, struct iovec *, iovlen, M_MOUNT, 0);
-	MALLOC(buf, char *, len, M_MOUNT, 0);
+	MALLOC(iovp, struct iovec *, iovlen, M_MOUNT, M_WAITOK);
+	MALLOC(buf, char *, len, M_MOUNT, M_WAITOK);
 	pos = buf;
 	va_start(ap, flags);
 	for (i = 0; i < iovcnt; i++) {
@@ -634,7 +634,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	mp = malloc(sizeof(struct mount), M_MOUNT, M_ZERO);
+	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
@@ -805,8 +805,8 @@ mount(td, uap)
 	char *fspath;
 	int error;
 
-	fstype = malloc(MFSNAMELEN, M_TEMP, 0);
-	fspath = malloc(MNAMELEN, M_TEMP, 0);
+	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
+	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 
 	/*
 	 * vfs_mount() actually takes a kernel string for `type' and
@@ -998,7 +998,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	mp = malloc(sizeof(struct mount), M_MOUNT, M_ZERO);
+	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
@@ -1361,7 +1361,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 			break;
 	if (vfsp == NULL)
 		return (ENODEV);
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_ZERO);
+	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
@@ -1494,8 +1494,8 @@ vfs_mountroot_try(char *mountfrom)
 	splx(s);
 
 	/* parse vfs name and path */
-	vfsname = malloc(MFSNAMELEN, M_MOUNT, 0);
-	path = malloc(MNAMELEN, M_MOUNT, 0);
+	vfsname = malloc(MFSNAMELEN, M_MOUNT, M_WAITOK);
+	path = malloc(MNAMELEN, M_MOUNT, M_WAITOK);
 	vfsname[0] = path[0] = 0;
 	sprintf(patt, "%%%d[a-z0-9]:%%%zds", MFSNAMELEN, MNAMELEN);
 	if (sscanf(mountfrom, patt, vfsname, path) < 1)

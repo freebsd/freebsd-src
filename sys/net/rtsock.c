@@ -110,7 +110,7 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	if (sotorawcb(so) != 0)
 		return EISCONN;	/* XXX panic? */
 	/* XXX */
-	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_ZERO);
+	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_WAITOK | M_ZERO);
 	if (rp == 0)
 		return ENOBUFS;
 
@@ -608,9 +608,9 @@ rt_msg1(type, rtinfo)
 	}
 	if (len > MCLBYTES)
 		panic("rt_msg1");
-	m = m_gethdr(M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m && len > MHLEN) {
-		MCLGET(m, M_NOWAIT);
+		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			m = NULL;

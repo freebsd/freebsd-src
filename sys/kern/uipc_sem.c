@@ -188,7 +188,7 @@ sem_create(td, name, ksret, mode, value)
 	uc = p->p_ucred;
 	if (value > SEM_VALUE_MAX)
 		return (EINVAL);
-	ret = malloc(sizeof(*ret), M_SEM, M_ZERO);
+	ret = malloc(sizeof(*ret), M_SEM, M_WAITOK | M_ZERO);
 	if (name != NULL) {
 		len = strlen(name);
 		if (len > SEM_MAX_NAMELEN) {
@@ -200,7 +200,7 @@ sem_create(td, name, ksret, mode, value)
 			free(ret, M_SEM);
 			return (EINVAL);
 		}
-		ret->ks_name = malloc(len + 1, M_SEM, 0);
+		ret->ks_name = malloc(len + 1, M_SEM, M_WAITOK);
 		strcpy(ret->ks_name, name);
 	} else {
 		ret->ks_name = NULL;
@@ -504,7 +504,7 @@ sem_enter(p, ks)
 {
 	struct kuser *ku, *k;
 
-	ku = malloc(sizeof(*ku), M_SEM, 0);
+	ku = malloc(sizeof(*ku), M_SEM, M_WAITOK);
 	ku->ku_pid = p->p_pid;
 	mtx_lock(&sem_lock);
 	k = sem_getuser(p, ks);

@@ -133,7 +133,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	++pfs_vncache_misses;
 
 	/* nope, get a new one */
-	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, 0);
+	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
 	error = getnewvnode("pseudofs", mp, pfs_vnodeop_p, vpp);

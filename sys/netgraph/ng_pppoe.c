@@ -723,14 +723,14 @@ AAA
 				printf("pppoe: Session out of memory\n");
 				LEAVE(ENOMEM);
 			}
-			MGETHDR(neg->m, M_NOWAIT, MT_DATA);
+			MGETHDR(neg->m, M_DONTWAIT, MT_DATA);
 			if(neg->m == NULL) {
 				printf("pppoe: Session out of mbufs\n");
 				FREE(neg, M_NETGRAPH_PPPOE);
 				LEAVE(ENOBUFS);
 			}
 			neg->m->m_pkthdr.rcvif = NULL;
-			MCLGET(neg->m, M_NOWAIT);
+			MCLGET(neg->m, M_DONTWAIT);
 			if ((neg->m->m_flags & M_EXT) == 0) {
 				printf("pppoe: Session out of mcls\n");
 				m_freem(neg->m);
@@ -1008,7 +1008,7 @@ AAA
 				 * Put it into a cluster.
 				 */
 				struct mbuf *n;
-				n = m_dup(m, M_NOWAIT);
+				n = m_dup(m, M_DONTWAIT);
 				m_freem(m);
 				m = n;
 				if (m) {
@@ -1350,7 +1350,7 @@ AAA
 			 * But first correct the length.
 			 */
 			sp->pkt_hdr.ph.length = htons((short)(m->m_pkthdr.len));
-			M_PREPEND(m, sizeof(*wh), M_NOWAIT);
+			M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
 			if (m == NULL) {
 				LEAVE(ENOBUFS);
 			}
@@ -1525,7 +1525,7 @@ AAA
 				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 			/* generate a packet of that type */
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if(m == NULL)
 				printf("pppoe: Session out of mbufs\n");
 			else {
@@ -1596,7 +1596,7 @@ AAA
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
 		/* timeouts on these produce resends */
-		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		neg->timeout_handle = timeout(pppoe_ticker,
 					hook, neg->timeout * hz);
@@ -1642,7 +1642,7 @@ AAA
 
 	case	PPPOE_NEWCONNECTED:
 		/* send the PADS without a timeout - we're now connected */
-		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		break;
 
@@ -1657,7 +1657,7 @@ AAA
 		 * send the offer but if they don't respond
 		 * in PPPOE_OFFER_TIMEOUT seconds, forget about it.
 		 */
-		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		neg->timeout_handle = timeout(pppoe_ticker,
 					hook, PPPOE_OFFER_TIMEOUT * hz);
@@ -1665,7 +1665,7 @@ AAA
 
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
-		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		neg->timeout_handle = timeout(pppoe_ticker, hook,
 					(hz * PPPOE_INITIAL_TIMEOUT));

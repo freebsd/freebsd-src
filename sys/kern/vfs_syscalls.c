@@ -1105,7 +1105,7 @@ kern_symlink(struct thread *td, char *path, char *link, enum uio_seg segflg)
 	if (segflg == UIO_SYSSPACE) {
 		syspath = path;
 	} else {
-		syspath = uma_zalloc(namei_zone, 0);
+		syspath = uma_zalloc(namei_zone, M_WAITOK);
 		if ((error = copyinstr(path, syspath, MAXPATHLEN, NULL)) != 0)
 			goto out;
 	}
@@ -3111,7 +3111,7 @@ unionread:
 		kuio.uio_iov = &kiov;
 		kuio.uio_segflg = UIO_SYSSPACE;
 		kiov.iov_len = uap->count;
-		MALLOC(dirbuf, caddr_t, uap->count, M_TEMP, 0);
+		MALLOC(dirbuf, caddr_t, uap->count, M_TEMP, M_WAITOK);
 		kiov.iov_base = dirbuf;
 		error = VOP_READDIR(vp, &kuio, fp->f_cred, &eofflag,
 			    NULL, NULL);

@@ -138,7 +138,7 @@ svr4_add_socket(td, path, st)
 			atomic_store_rel_int(&svr4_str_initialized, 2);
 		}
 
-	e = malloc(sizeof(*e), M_TEMP, 0);
+	e = malloc(sizeof(*e), M_TEMP, M_WAITOK);
 	e->cookie = NULL;
 	e->dev = st->st_dev;
 	e->ino = st->st_ino;

@@ -851,7 +851,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		 * later because of a memory error, because then the upper
 		 * layer would never get the packet.
 		 */
-		M_PREPEND(m, 2, M_NOWAIT);
+		M_PREPEND(m, 2, M_DONTWAIT);
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
@@ -955,7 +955,7 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	}
 
 	/* Copy packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_NOWAIT)) == NULL) {
+	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL) {
 		priv->stats.memoryFailures++;
 		return (ENOBUFS);
 	}
@@ -991,7 +991,7 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 	M_PREPEND(m, 6
 	    + (2 * (hpriv->conf.include_length != 0))
 	    + (4 * (hpriv->conf.enable_dseq != 0)),
-	    M_NOWAIT);
+	    M_DONTWAIT);
 	if (m == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
@@ -1219,7 +1219,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 */
 	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd
 	    && seq->xwin[i] != NULL) {
-		if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_NOWAIT)) == NULL)
+		if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL)
 			priv->stats.memoryFailures++;
 		else
 			ng_l2tp_xmit_ctrl(priv, m, seq->ns);
@@ -1361,7 +1361,7 @@ ng_l2tp_seq_rack_timeout(void *arg)
 	seq->acks = 0;
 
 	/* Retransmit oldest unack'd packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_NOWAIT)) == NULL)
+	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_DONTWAIT)) == NULL)
 		priv->stats.memoryFailures++;
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->rack);
@@ -1388,7 +1388,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	if (m == NULL) {
 
 		/* Create a new mbuf for ZLB packet */
-		MGETHDR(m, M_NOWAIT, MT_DATA);
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
@@ -1407,7 +1407,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 		m_adj(m, 2);
 
 		/* Make room for L2TP header */
-		M_PREPEND(m, 12, M_NOWAIT);
+		M_PREPEND(m, 12, M_DONTWAIT);
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);

@@ -224,7 +224,7 @@ sysctl_ctx_entry_add(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 
 	if (clist == NULL || oidp == NULL)
 		return(NULL);
-	e = malloc(sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, 0);
+	e = malloc(sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, M_WAITOK);
 	e->entry = oidp;
 	TAILQ_INSERT_HEAD(clist, e, link);
 	return (e);
@@ -354,13 +354,13 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 			return (NULL);
 		}
 	}
-	oidp = malloc(sizeof(struct sysctl_oid), M_SYSCTLOID, M_ZERO);
+	oidp = malloc(sizeof(struct sysctl_oid), M_SYSCTLOID, M_WAITOK|M_ZERO);
 	oidp->oid_parent = parent;
 	SLIST_NEXT(oidp, oid_link) = NULL;
 	oidp->oid_number = number;
 	oidp->oid_refcnt = 1;
 	len = strlen(name);
-	newname = malloc(len + 1, M_SYSCTLOID, 0);
+	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
 	bcopy(name, newname, len + 1);
 	newname[len] = '\0';
 	oidp->oid_name = newname;
@@ -369,7 +369,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 		/* Allocate space for children */
 		SYSCTL_CHILDREN(oidp) = malloc(sizeof(struct sysctl_oid_list),
-		    M_SYSCTLOID, 0);
+		    M_SYSCTLOID, M_WAITOK);
 		SLIST_INIT(SYSCTL_CHILDREN(oidp));
 	} else {
 		oidp->oid_arg1 = arg1;
@@ -378,7 +378,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	oidp->oid_fmt = fmt;
 	if (descr) {
 		int len = strlen(descr) + 1;
-		oidp->descr = malloc(len, M_SYSCTLOID, 0);
+		oidp->descr = malloc(len, M_SYSCTLOID, M_WAITOK);
 		if (oidp->descr)
 			strcpy((char *)(uintptr_t)(const void *)oidp->descr, descr);
 	}
@@ -679,7 +679,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	if (req->newlen >= MAXPATHLEN)	/* XXX arbitrary, undocumented */
 		return (ENAMETOOLONG);
 
-	p = malloc(req->newlen+1, M_SYSCTL, 0);
+	p = malloc(req->newlen+1, M_SYSCTL, M_WAITOK);
 
 	error = SYSCTL_IN(req, p, req->newlen);
 	if (error) {
@@ -823,7 +823,7 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 	 */
 retry:
 	outlen = strlen((char *)arg1)+1;
-	tmparg = malloc(outlen, M_SYSCTLTMP, 0);
+	tmparg = malloc(outlen, M_SYSCTLTMP, M_WAITOK);
 
 	if (strlcpy(tmparg, (char *)arg1, outlen) >= outlen) {
 		free(tmparg, M_SYSCTLTMP);
@@ -867,7 +867,7 @@ sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 		sysctl_wire_old_buffer(req, arg2);
 		error = SYSCTL_OUT(req, arg1, arg2);
 	} else {
-		tmparg = malloc(arg2, M_SYSCTLTMP, 0);
+		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
 		bcopy(arg1, tmparg, arg2);
 		error = SYSCTL_OUT(req, tmparg, arg2);
 		free(tmparg, M_SYSCTLTMP);

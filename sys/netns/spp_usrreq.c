@@ -161,7 +161,7 @@ spp_input(m, nsp)
 			spp_istat.gonawy++;
 			goto dropwithreset;
 		}
-		am = m_get(M_NOWAIT, MT_SONAME);
+		am = m_get(M_DONTWAIT, MT_SONAME);
 		if (am == NULL)
 			goto drop;
 		am->m_len = sizeof (struct sockaddr_ns);
@@ -528,7 +528,7 @@ present:
 				spp_newchecks[4]++;
 				if (dt != cb->s_rhdr.sp_dt) {
 					struct mbuf *mm =
-					   m_getclr(M_NOWAIT, MT_CONTROL);
+					   m_getclr(M_DONTWAIT, MT_CONTROL);
 					spp_newchecks[0]++;
 					if (mm != NULL) {
 						u_short *s =
@@ -742,7 +742,7 @@ spp_output(cb, m0)
 					 * from usrreq(), so it is OK to
 					 * block.
 					 */
-					m = m_copym(m0, 0, mtu, 0);
+					m = m_copym(m0, 0, mtu, M_TRYWAIT);
 					if (cb->s_flags & SF_NEWCALL) {
 					    struct mbuf *mm = m;
 					    spp_newchecks[7]++;
@@ -772,7 +772,7 @@ spp_output(cb, m0)
 			if (M_TRAILINGSPACE(m) >= 1)
 				m->m_len++;
 			else {
-				struct mbuf *m1 = m_get(M_NOWAIT, MT_DATA);
+				struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
 
 				if (m1 == 0) {
 					m_freem(m0);
@@ -783,7 +783,7 @@ spp_output(cb, m0)
 				m->m_next = m1;
 			}
 		}
-		m = m_gethdr(M_NOWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == 0) {
 			m_freem(m0);
 			return (ENOBUFS);
@@ -996,7 +996,7 @@ send:
 			sppstat.spps_sndprobe++;
 		if (cb->s_flags & SF_ACKNOW)
 			sppstat.spps_sndacks++;
-		m = m_gethdr(M_NOWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == 0)
 			return (ENOBUFS);
 		/*
@@ -1156,7 +1156,7 @@ spp_ctloutput(req, so, level, name, value)
 	case PRCO_GETOPT:
 		if (value == NULL)
 			return (EINVAL);
-		m = m_get(M_NOWAIT, MT_DATA);
+		m = m_get(M_DONTWAIT, MT_DATA);
 		if (m == NULL)
 			return (ENOBUFS);
 		switch (name) {
@@ -1296,7 +1296,7 @@ spp_usrreq(so, req, m, nam, controlp)
 		}
 		nsp = sotonspcb(so);
 
-		mm = m_getclr(M_NOWAIT, MT_PCB);
+		mm = m_getclr(M_DONTWAIT, MT_PCB);
 		sb = &so->so_snd;
 
 		if (mm == NULL) {
@@ -1304,7 +1304,7 @@ spp_usrreq(so, req, m, nam, controlp)
 			break;
 		}
 		cb = mtod(mm, struct sppcb *);
-		mm = m_getclr(M_NOWAIT, MT_HEADER);
+		mm = m_getclr(M_DONTWAIT, MT_HEADER);
 		if (mm == NULL) {
 			(void) m_free(dtom(m));
 			error = ENOBUFS;

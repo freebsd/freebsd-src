@@ -684,7 +684,7 @@ iommu_dvmamem_alloc_size(bus_dma_tag_t pt, bus_dma_tag_t dt,
 	if ((error = sparc64_dmamem_alloc_map(dt, mapp)) != 0)
 		return (error);
 	if ((*vaddr = malloc(size, M_IOMMU,
-	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0)) == NULL) {
+	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK)) == NULL) {
 		error = ENOMEM;
 		sparc64_dmamem_free_map(dt, *mapp);
 		return (error);

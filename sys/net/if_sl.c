@@ -264,11 +264,11 @@ slcreate()
 	int unit;
 	struct mbuf *m;
 
-	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_ZERO);
+	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
 
-	m = m_gethdr(0, MT_DATA);
+	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m != NULL) {
-		MCLGET(m, 0);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			m = NULL;
@@ -791,7 +791,7 @@ sl_btom(sc, len)
 {
 	struct mbuf *m, *newm;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
@@ -803,7 +803,7 @@ sl_btom(sc, len)
 	 * guarantees that packet will fit in a cluster.
 	 */
 	if (len >= MHLEN) {
-		MCLGET(m, M_NOWAIT);
+		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			/*
 			 * we couldn't get a cluster - if memory's this

@@ -628,7 +628,7 @@ cm_srint(vsc)
 	splx(s);
 
 	/* Allocate header mbuf */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 
 	if (m == 0) {
 		/*
@@ -665,7 +665,7 @@ cm_srint(vsc)
 	 */
 	if ((len + 2 + 2) > MHLEN) {
 		/* attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
+		MCLGET(m, M_DONTWAIT);
 
 		/* Insist on getting a cluster */
 		if ((m->m_flags & M_EXT) == 0) {

@@ -228,7 +228,7 @@ exit1(td, rv)
 
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
-		M_ZOMBIE, 0);
+		M_ZOMBIE, M_WAITOK);
 	/*
 	 * If parent is waiting for us to exit or exec,
 	 * P_PPWAIT is set; we will wakeup the parent below.

@@ -97,7 +97,7 @@ timerdev_install(void)
 	tmd = NULL;
 	scp = NULL;
 
-	scp = malloc(sizeof(*scp), M_DEVBUF, M_ZERO);
+	scp = malloc(sizeof(*scp), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (scp == NULL) {
 		ret = ENOMEM;
 		goto fail;
@@ -146,7 +146,7 @@ create_timerdev_info_unit(timerdev_info *tmdinf)
 	}
 
 	/* As malloc(9) might block, allocate timerdev_info now. */
-	tmdnew = malloc(sizeof(timerdev_info), M_DEVBUF, M_ZERO);
+	tmdnew = malloc(sizeof(timerdev_info), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (tmdnew == NULL)
 		return NULL;
 	bcopy(tmdinf, tmdnew, sizeof(timerdev_info));

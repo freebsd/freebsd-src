@@ -478,7 +478,7 @@ mbuf_init(void *dummy)
 		pcpu_cnt = MB_GET_PCPU_LIST_NUM(&mb_list_mbuf, i);
 		MB_LOCK_CONT(pcpu_cnt);
 		for (j = 0; j < NMB_MBUF_INIT; j++) {
-			if (mb_pop_cont(&mb_list_mbuf, M_NOWAIT, pcpu_cnt)
+			if (mb_pop_cont(&mb_list_mbuf, M_DONTWAIT, pcpu_cnt)
 			    == NULL)
 				goto bad;
 		}
@@ -487,7 +487,7 @@ mbuf_init(void *dummy)
 		pcpu_cnt = MB_GET_PCPU_LIST_NUM(&mb_list_clust, i);
 		MB_LOCK_CONT(pcpu_cnt);
 		for (j = 0; j < NMB_CLUST_INIT; j++) {
-			if (mb_pop_cont(&mb_list_clust, M_NOWAIT, pcpu_cnt)
+			if (mb_pop_cont(&mb_list_clust, M_DONTWAIT, pcpu_cnt)
 			    == NULL)
 				goto bad;
 		}
@@ -528,15 +528,15 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
 
 	bucket = malloc(sizeof(struct mb_bucket) +
 	    PAGE_SIZE / mb_list->ml_objsize * sizeof(void *), M_MBUF,
-	    how == 0 ? 0 : M_NOWAIT);
+	    how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
 	if (bucket == NULL)
 		return (NULL);
 
 	p = (caddr_t)kmem_malloc(mb_list->ml_map, PAGE_SIZE,
-	    how == 0 ? 0 : M_NOWAIT);
+	    how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
 	if (p == NULL) {
 		free(bucket, M_MBUF);
-		if (how == 0)
+		if (how == M_TRYWAIT)
 			mb_list->ml_mapfull = 1;
 		return (NULL);
 	}
@@ -563,7 +563,7 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
  * The general case is very easy.  Complications only arise if our PCPU
  * container is empty.  Things get worse if the PCPU container is empty,
  * the general container is empty, and we've run out of address space
- * in our map; then we try to block if we're willing to wait.
+ * in our map; then we try to block if we're willing to (M_TRYWAIT).
  */
 static __inline
 void *
@@ -667,7 +667,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 				else
 					*pers_list=cnt_lst->mb_cont.mc_numowner;
 			} else {
-				if (how == 0) {
+				if (how == M_TRYWAIT) {
 					/*
 				 	 * Absolute worst-case scenario.
 					 * We block if we're willing to, but
@@ -701,7 +701,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 
 /*
  * This is the worst-case scenario called only if we're allocating with
- * 0.  We first drain all the protocols, then try to find an mbuf
+ * M_TRYWAIT.  We first drain all the protocols, then try to find an mbuf
  * by looking in every PCPU container.  If we're still unsuccesful, we
  * try the general container one last time and possibly block on our
  * starved cv.
@@ -1128,8 +1128,8 @@ _mgetm_internal(int how, short type, short persist, int cchnum)
  * Allocate and return a single (normal) mbuf.  NULL is returned on failure.
  *
  * Arguments:
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
@@ -1156,8 +1156,8 @@ m_get(int how, short type)
  *  - m: existing chain to which to append new chain (optional).
  *  - len: total length of data to append, either in mbufs or clusters
  *    (we allocate whatever combination yields the best fit).
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
@@ -1246,8 +1246,8 @@ failed:
  * Allocate and return a single M_PKTHDR mbuf.  NULL is returned on failure.
  *
  * Arguments:
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
@@ -1273,8 +1273,8 @@ m_gethdr(int how, short type)
  * returned on failure.
  *
  * Arguments:
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
@@ -1295,8 +1295,8 @@ m_get_clrd(int how, short type)
  * returned on failure.
  *
  * Arguments:
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
@@ -1419,8 +1419,8 @@ m_freem(struct mbuf *mb)
  * NULL on failure. 
  *
  * Arguments:
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  *  - type: the type of the mbuf being allocated.
  *  - flags: any flags to pass to the mbuf being allocated; if this includes
  *    the M_PKTHDR bit, then the mbuf is configured as a M_PKTHDR mbuf.
@@ -1471,8 +1471,8 @@ m_getcl(int how, short type, int flags)
  *
  * Arguments:
  *  - mb: the existing mbuf to which to attach the allocated cluster.
- *  - how: 0 to try to block for kern.ipc.mbuf_wait number of ticks
- *    if really starved for memory.  M_NOWAIT to never block.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
  */
 void
 m_clget(struct mbuf *mb, int how)

@@ -212,7 +212,7 @@ g_bde_config(struct g_configargs *ga)
 	while (1) {
 		sectorsize = cp->provider->sectorsize;
 		mediasize = cp->provider->mediasize;
-		sc = g_malloc(sizeof(struct g_bde_softc), M_ZERO);
+		sc = g_malloc(sizeof(struct g_bde_softc), M_WAITOK | M_ZERO);
 		gp->softc = sc;
 		sc->geom = gp;
 		sc->consumer = cp;

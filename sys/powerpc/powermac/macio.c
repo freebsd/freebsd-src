@@ -280,7 +280,7 @@ macio_attach(device_t dev)
 
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			dinfo = malloc(sizeof(*dinfo), M_MACIO, 0);
+			dinfo = malloc(sizeof(*dinfo), M_MACIO, M_WAITOK);
 			memset(dinfo, 0, sizeof(*dinfo));
 			resource_list_init(&dinfo->mdi_resources);
 			dinfo->mdi_node = child;

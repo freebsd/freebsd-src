@@ -192,7 +192,7 @@ spans_open_vcc(spp, cvp)
 	/*
 	 * Allocate control block for VCC
 	 */
-	svp = uma_zalloc(spans_vc_zone, 0);
+	svp = uma_zalloc(spans_vc_zone, M_WAITOK);
 	if (svp == NULL) {
 		return(ENOMEM);
 	}

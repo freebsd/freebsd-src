@@ -349,7 +349,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	}
 #endif
 
-	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_ZERO);
+	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK | M_ZERO);
 	pmp->pm_mountp = mp;
 
 	/*
@@ -560,7 +560,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	pmp->pm_inusemap = malloc(((pmp->pm_maxcluster + N_INUSEBITS - 1)
 				   / N_INUSEBITS)
 				  * sizeof(*pmp->pm_inusemap),
-				  M_MSDOSFSFAT, 0);
+				  M_MSDOSFSFAT, M_WAITOK);
 
 	/*
 	 * fillinusemap() needs pm_devvp.

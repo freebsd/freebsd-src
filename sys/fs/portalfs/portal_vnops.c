@@ -132,7 +132,7 @@ portal_lookup(ap)
 	 * elsewhere if MALLOC should block.
 	 */
 	MALLOC(pt, struct portalnode *, sizeof(struct portalnode),
-		M_TEMP, 0);
+		M_TEMP, M_WAITOK);
 
 	error = getnewvnode("portal", dvp->v_mount, portal_vnodeop_p, &fvp);
 	if (error) {
@@ -150,7 +150,7 @@ portal_lookup(ap)
 		size++;
 	cnp->cn_consume = size - cnp->cn_namelen;
 
-	pt->pt_arg = malloc(size+1, M_TEMP, 0);
+	pt->pt_arg = malloc(size+1, M_TEMP, M_WAITOK);
 	pt->pt_size = size+1;
 	bcopy(pname, pt->pt_arg, pt->pt_size);
 	pt->pt_fileid = portal_fileid++;

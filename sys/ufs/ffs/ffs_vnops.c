@@ -1381,7 +1381,7 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
 
-	eae = malloc(easize + extra, M_TEMP, 0);
+	eae = malloc(easize + extra, M_TEMP, M_WAITOK);
 
 	liovec.iov_base = eae;
 	liovec.iov_len = easize;
@@ -1706,7 +1706,7 @@ vop_setextattr {
 		ealength += eapad1 + ealen + eapad2;
 	}
 
-	eae = malloc(ip->i_ea_len + ealength, M_TEMP, 0);
+	eae = malloc(ip->i_ea_len + ealength, M_TEMP, M_WAITOK);
 	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
 	easize = ip->i_ea_len;
 

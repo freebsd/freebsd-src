@@ -483,7 +483,7 @@ struct ifnet *ifp;
 		if (m0 != NULL) {
 			register struct ipx *ipx;
 
-			M_PREPEND(m0, sizeof(*ipx), M_NOWAIT);
+			M_PREPEND(m0, sizeof(*ipx), M_DONTWAIT);
 			if (m0 == NULL)
 				continue;
 			ipx = mtod(m0, struct ipx *);

@@ -185,12 +185,12 @@ seminit(void)
 	TUNABLE_INT_FETCH("kern.ipc.semvmx", &seminfo.semvmx);
 	TUNABLE_INT_FETCH("kern.ipc.semaem", &seminfo.semaem);
 
-	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, 0);
+	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
 	sema = malloc(sizeof(struct semid_ds) * seminfo.semmni, M_SEM,
-	    0);
+	    M_WAITOK);
 	sema_mtx = malloc(sizeof(struct mtx) * seminfo.semmni, M_SEM,
-	    M_ZERO);
-	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, 0);
+	    M_WAITOK | M_ZERO);
+	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, M_WAITOK);
 
 	for (i = 0; i < seminfo.semmni; i++) {
 		sema[i].sem_base = 0;
@@ -644,7 +644,7 @@ __semctl(td, uap)
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
 		array = malloc(sizeof(*array) * semaptr->sem_nsems, M_TEMP,
-		    0);
+		    M_WAITOK);
 		mtx_lock(sema_mtxp);
 		if ((error = semvalid(uap->semid, semaptr)) != 0)
 			goto done2;
@@ -702,7 +702,7 @@ raced:
 		mtx_unlock(sema_mtxp);
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
-		array = malloc(sizeof(*array) * count, M_TEMP, 0);
+		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
 		copyin(real_arg.array, array, count * sizeof(*array));
 		if (error)
 			break;
@@ -898,7 +898,7 @@ semop(td, uap)
 		    nsops));
 		return (E2BIG);
 	}
-	sops = malloc(nsops * sizeof(sops[0]), M_SEM, 0);
+	sops = malloc(nsops * sizeof(sops[0]), M_SEM, M_WAITOK);
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
 		DPRINTF(("error = %d from copyin(%08x, %08x, %d)\n", error,
 		    uap->sops, sops, nsops * sizeof(sops[0])));

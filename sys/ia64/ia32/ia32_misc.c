@@ -105,7 +105,7 @@ ia32_emul_find(td, sgp, prefix, path, pbuf, cflag)
 	struct vattr		vat;
 	struct vattr		vatroot;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, 0);
+	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	*pbuf = path;
 
 	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
@@ -768,8 +768,8 @@ ia32_readv(struct thread *td, struct ia32_readv_args *uap)
 	osize = uap->iovcnt * sizeof (struct iovec32);
 	nsize = uap->iovcnt * sizeof (struct iovec);
 
-	oio = malloc(osize, M_TEMP, 0);
-	nio = malloc(nsize, M_TEMP, 0);
+	oio = malloc(osize, M_TEMP, M_WAITOK);
+	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
 	if ((error = copyin(uap->iovp, oio, osize)))
@@ -814,8 +814,8 @@ ia32_writev(struct thread *td, struct ia32_writev_args *uap)
 	osize = uap->iovcnt * sizeof (struct iovec32);
 	nsize = uap->iovcnt * sizeof (struct iovec);
 
-	oio = malloc(osize, M_TEMP, 0);
-	nio = malloc(nsize, M_TEMP, 0);
+	oio = malloc(osize, M_TEMP, M_WAITOK);
+	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
 	if ((error = copyin(uap->iovp, oio, osize)))

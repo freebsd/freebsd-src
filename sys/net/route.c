@@ -1071,7 +1071,7 @@ rtinit(ifa, cmd, flags)
 		 * (Assuming we have a mask)
 		 */
 		if (netmask != NULL) {
-			m = m_get(M_NOWAIT, MT_SONAME);
+			m = m_get(M_DONTWAIT, MT_SONAME);
 			if (m == NULL)
 				return(ENOBUFS);
 			deldst = mtod(m, struct sockaddr *);

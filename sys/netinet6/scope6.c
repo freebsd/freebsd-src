@@ -75,7 +75,7 @@ scope6_ifattach(ifp)
 		/* grow scope index array */
 		n = if_indexlim * sizeof(struct scope6_id);
 		/* XXX: need new malloc type? */
-		q = (caddr_t)malloc(n, M_IFADDR, 0);
+		q = (caddr_t)malloc(n, M_IFADDR, M_WAITOK);
 		bzero(q, n);
 		if (scope6_ids) {
 			bcopy((caddr_t)scope6_ids, q, n/2);

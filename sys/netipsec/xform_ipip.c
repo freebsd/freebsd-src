@@ -441,7 +441,7 @@ ipip_output(
 			goto bad;
 		}
 
-		M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
+		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 		if (m == 0) {
 			DPRINTF(("ipip_output: M_PREPEND failed\n"));
 			ipipstat.ipips_hdrops++;
@@ -529,7 +529,7 @@ ipip_output(
 		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
 			ip6->ip6_dst.s6_addr16[1] = 0;
 
-		M_PREPEND(m, sizeof(struct ip6_hdr), M_NOWAIT);
+		M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
 		if (m == 0) {
 			DPRINTF(("ipip_output: M_PREPEND failed\n"));
 			ipipstat.ipips_hdrops++;

@@ -131,7 +131,7 @@ kenv(td, uap)
 			return (error);
 	}
 
-	name = malloc(KENV_MNAMELEN, M_TEMP, 0);
+	name = malloc(KENV_MNAMELEN, M_TEMP, M_WAITOK);
 
 	error = copyinstr(uap->name, name, KENV_MNAMELEN, NULL);
 	if (error)
@@ -166,7 +166,7 @@ kenv(td, uap)
 		}
 		if (len > KENV_MVALLEN)
 			len = KENV_MVALLEN;
-		value = malloc(len, M_TEMP, 0);
+		value = malloc(len, M_TEMP, M_WAITOK);
 		error = copyinstr(uap->value, value, len, NULL);
 		if (error) {
 			free(value, M_TEMP);
@@ -207,11 +207,11 @@ init_dynamic_kenv(void *data __unused)
 	char *cp;
 	int len, i;
 
-	kenvp = malloc(KENV_SIZE * sizeof(char *), M_KENV, M_ZERO);
+	kenvp = malloc(KENV_SIZE * sizeof(char *), M_KENV, M_WAITOK | M_ZERO);
 	i = 0;
 	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 		len = strlen(cp) + 1;
-		kenvp[i] = malloc(len, M_KENV, 0);
+		kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 		strcpy(kenvp[i++], cp);
 	}
 	kenvp[i] = NULL;
@@ -290,7 +290,7 @@ getenv(const char *name)
 			strcpy(buf, cp);
 			sx_sunlock(&kenv_lock);
 			len = strlen(buf) + 1;
-			ret = malloc(len, M_KENV, 0);
+			ret = malloc(len, M_KENV, M_WAITOK);
 			strcpy(ret, buf);
 		} else {
 			sx_sunlock(&kenv_lock);
@@ -337,7 +337,7 @@ setenv(const char *name, const char *value)
 	vallen = strlen(value) + 1;
 	if (vallen > KENV_MVALLEN)
 		return (-1);
-	buf = malloc(namelen + vallen, M_KENV, 0);
+	buf = malloc(namelen + vallen, M_KENV, M_WAITOK);
 	sprintf(buf, "%s=%s", name, value);
 
 	sx_xlock(&kenv_lock);

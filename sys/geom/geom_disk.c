@@ -337,7 +337,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 {
 	dev_t dev;
 
-	dev = g_malloc(sizeof *dev, M_ZERO);
+	dev = g_malloc(sizeof *dev, M_WAITOK | M_ZERO);
 	dp->d_unit = unit;
 	dp->d_dev = dev;
 	dp->d_flags = flags;

@@ -170,7 +170,7 @@ ng_h4_open(dev_t dev, struct tty *tp)
 	}
 
 	/* Initialize private struct */
-	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_ZERO);
+	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_WAITOK | M_ZERO);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -516,7 +516,7 @@ ng_h4_input(int c, struct tty *tp)
 		if (sc->hook != NULL && NG_HOOK_IS_VALID(sc->hook)) {
 			struct mbuf	*m = NULL;
 
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m != NULL) {
 				m->m_pkthdr.len = 0;
 
