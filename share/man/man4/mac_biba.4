@@ -126,7 +126,7 @@ In traditional trusted operating systems, the Biba integrity model is used
 to protect the Trusted Code Base (TCB).
 .Pp
 The Biba integrity model is similar to
-.Xr lomac 4 ,
+.Xr mac_lomac 4 ,
 with the exception that LOMAC permits access by a higher integrity subject
 to a lower integrity object, but downgrades the integrity level of the subject
 to prevent integrity rules from being violated.
@@ -206,7 +206,6 @@ Revoke access to objects if the label is changed to dominate the subject.
 (Default: 0).
 .El
 .Sh SEE ALSO
-.Xr lomac 4 ,
 .Xr mac 4 ,
 .Xr mac_bsdextended 4 ,
 .Xr mac_ifoff 4 ,
