@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include "un-namespace.h"
 
+__weak_reference(__pselect, pselect);
+
 /*
  * Emulate the POSIX 1003.1g-2000 `pselect' interface.  This is the
  * same as the traditional BSD `select' function, except that it uses
@@ -45,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * and allows the user to specify a signal mask to apply during the select.
  */
 int
-pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
+__pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 	const struct timespec *timo, const sigset_t *mask)
 {
 	sigset_t omask;
