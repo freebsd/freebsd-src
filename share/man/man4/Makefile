@@ -180,6 +180,7 @@ MAN=	aac.4 \
 	urio.4 \
 	usb.4 \
 	uscanner.4 \
+	uvisor.4 \
 	uvscom.4 \
 	vga.4 \
 	vinum.4 \
