@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.9 1996/11/21 10:13:25 ache Exp $
+# $Id: Makefile,v 1.10 1996/12/08 14:05:08 ache Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -15,10 +15,15 @@ APISTUFF=	ex_notcl.c ex_noperl.c
 .else
 
 TCLINTERP=	yes	#fine, in base tree, little cost
-#TKNVI=		tknvi	#not ready, needs X11, tk, doesn't quite work yet
+#TKNVI=		yes	#not ready, needs X11, tk, doesn't quite work yet
 #PERLINTERP=	yes	#needs the perl5 v5.003 port
 
 APISTUFF=	ex_tcl.c ex_perl.c
+
+# Any better ideas?
+#PERL=		/usr/local/bin/perl5.003
+#CFLAGS+=	-DHAVE_PERL_5_003_01	# If perl >= 5.03.01
+
 .endif
 
 #if using ncurses:
@@ -73,12 +78,16 @@ CFLAGS+=	-DHAVE_TCL_INTERP
 
 .if defined(PERLINTERP)
 .PATH:		${SRCDIR}/perl_api
-LDADD+=	 /usr/local/lib/perl5/i386-freebsd/5.003/auto/DynaLoader/DynaLoader.a \
-	 -L/usr/local/lib/perl5/i386-freebsd/5.003/CORE -lperl -lcrypt
-CFLAGS+= -DHAVE_PERL_INTERP -I/usr/local/lib/perl5/i386-freebsd/5.003/CORE
-#CFLAGS+= -DHAVE_PERL_5_003_01	# If perl >= 5.03.01
-PERL=	/usr/local/bin/perl5.003
-PERLLIB=/usr/local/lib/perl5
+
+# Perl "knows" how to compile it's components. Ask it for details...
+PERLLIB!=	${PERL} -MConfig -e 'print $$Config{privlib}'
+PERLCPPFLAGS!=	cd ${SRCDIR}/build; ${PERL} -MExtUtils::Embed -e 'ccflags;perl_inc'
+PERLLIBS!=	cd ${SRCDIR}/build; ${PERL} -MExtUtils::Embed -e 'ldopts'
+PERLLDFLAGS!=	cd ${SRCDIR}/build; ${PERL} -MExtUtils::Embed -e 'ccdlflags'
+
+LDADD+=	 ${PERLLDFLAGS} ${PERLLIBS}
+CFLAGS+= -DHAVE_PERL_INTERP ${PERLCPPFLAGS}
+
 .endif
 
 CLEANFILES+=${EX}
