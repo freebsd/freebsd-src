@@ -123,6 +123,7 @@ static int isp_same_lportdb __P((struct lportdb *, struct lportdb *));
 static int isp_pdb_sync __P((struct ispsoftc *, int));
 #ifdef	ISP2100_FABRIC
 static int isp_scan_fabric __P((struct ispsoftc *));
+static void isp_register_fc4_type __P((struct ispsoftc *));
 #endif
 static void isp_fw_state __P((struct ispsoftc *));
 static void isp_mboxcmd __P((struct ispsoftc *, mbreg_t *, int));
@@ -150,7 +151,7 @@ isp_reset(isp)
 {
 	mbreg_t mbs;
 	int loops, i, touched, dodnld = 1;
-	char *revname;
+	char *revname = "????";
 
 	isp->isp_state = ISP_NILSTATE;
 
@@ -1386,19 +1387,12 @@ isp_fclink_test(isp, usdelay)
 		lp->portid = BITS2WORD(pdb.pdb_portid_bits);
 		lp->loopid = pdb.pdb_loopid;
 		lp->loggedin = lp->valid = 1;
-#if	0
-		if (isp->isp_rfabric == 0) {
-			isp_i_register_fc4_type(isp);
-		}
-#endif
+		isp_register_fc4_type(isp);
 	} else
 #endif
 	{
 		fcp->isp_portid = mbs.param[2];
 		fcp->isp_onfabric = 0;
-#if	0
-		isp->isp_rfabric = 0;
-#endif
 		fcp->portdb[FL_PORT_ID].valid = 0;
 	}
 
@@ -1455,7 +1449,7 @@ isp_pdb_sync(isp, target)
 	struct lportdb *lp, *tport;
 	fcparam *fcp = isp->isp_param;
 	isp_pdb_t pdb;
-	int loopid, prange, lim;
+	int loopid, frange, prange, lim;
 
 #ifdef	ISP2100_FABRIC
 	/*
@@ -1473,12 +1467,14 @@ isp_pdb_sync(isp, target)
 	switch (fcp->isp_topo) {
 	case TOPO_F_PORT:
 	case TOPO_PTP_STUB:
-		prange = 0;
+		frange = prange = 0;
 		break;
 	case TOPO_N_PORT:
+		frange = FC_SNS_ID+1;
 		prange = 2;
 		break;
 	default:
+		frange = FC_SNS_ID+1;
 		prange = FL_PORT_ID;
 		break;
 	}
@@ -1713,7 +1709,7 @@ isp_pdb_sync(isp, target)
 		/*
 		 * Tell the outside world we've arrived.
 		 */
-		(void) isp_async(isp, ISPASYNC_PDB_CHANGED, &i);
+		(void) isp_async(isp, ISPASYNC_LOGGED_INOUT, &i);
 	}
 
 	/*
@@ -1728,7 +1724,7 @@ isp_pdb_sync(isp, target)
 		 * Tell the outside world we've gone away.
 		 */
 		loopid = lp - fcp->portdb;
-		(void) isp_async(isp, ISPASYNC_PDB_CHANGED, &loopid);
+		(void) isp_async(isp, ISPASYNC_LOGGED_INOUT, &loopid);
 		MEMZERO((void *) lp, sizeof (*lp));
 	}
 
@@ -1736,27 +1732,39 @@ isp_pdb_sync(isp, target)
 	/*
 	 * Now log in any fabric devices
 	 */
-	for (lp = &fcp->portdb[FC_SNS_ID+1];
+	for (lp = &fcp->portdb[frange];
 	     lp < &fcp->portdb[MAX_FC_TARG]; lp++) {
 		u_int32_t portid;
 		mbreg_t mbs;
 
+		loopid = lp - fcp->portdb;
+		if (loopid >= FL_PORT_ID && loopid <= FC_SNS_ID) {
+			continue;
+		}
+
 		/*
 		 * Anything here?
 		 */
-		if (lp->port_wwn == 0)
+		if (lp->port_wwn == 0) {
 			continue;
+		}
 
 		/*
 		 * Don't try to log into yourself.
 		 */
-		if ((portid = lp->portid) == fcp->isp_portid)
+		if ((portid = lp->portid) == fcp->isp_portid) {
 			continue;
+		}
 
 
 		/*
 		 * If we'd been logged in- see if we still are and we haven't
 		 * changed. If so, no need to log ourselves out, etc..
+		 *
+		 * Unfortunately, our charming Qlogic f/w has decided to
+		 * return a valid port database entry for a fabric device
+		 * that has, in fact, gone away. And it hangs trying to
+		 * log it out.
 		 */
 		if (lp->loggedin &&
 		    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
@@ -1917,7 +1925,7 @@ isp_pdb_sync(isp, target)
 		if (lp->node_wwn && lp->port_wwn) {
 			lp->valid = 1;
 			loopid = lp - fcp->portdb;
-			(void) isp_async(isp, ISPASYNC_PDB_CHANGED, &loopid);
+			(void) isp_async(isp, ISPASYNC_LOGGED_INOUT, &loopid);
 			continue;
 		}
 dump_em:
@@ -1997,6 +2005,39 @@ isp_scan_fabric(isp)
 	 */
 	return (0);
 }
+
+static void
+isp_register_fc4_type(struct ispsoftc *isp)
+{
+	fcparam *fcp = isp->isp_param;
+	sns_screq_t *reqp;
+	mbreg_t mbs;
+
+	reqp = (sns_screq_t *) fcp->isp_scratch;
+	MEMZERO((void *) reqp, SNS_RFT_REQ_SIZE);
+	reqp->snscb_rblen = SNS_RFT_RESP_SIZE >> 1;
+	reqp->snscb_addr[RQRSP_ADDR0015] = DMA_LSW(fcp->isp_scdma + 0x100);
+	reqp->snscb_addr[RQRSP_ADDR1631] = DMA_MSW(fcp->isp_scdma + 0x100);
+	reqp->snscb_sblen = 22;
+	reqp->snscb_data[0] = SNS_RFT;
+	reqp->snscb_data[4] = fcp->isp_portid & 0xffff;
+	reqp->snscb_data[5] = (fcp->isp_portid >> 16) & 0xff;
+	reqp->snscb_data[6] = 0x100;	/* SCS - FCP */
+#if	0
+	reqp->snscb_data[6] |= 20;	/* ISO/IEC 8802-2 LLC/SNAP */
+#endif
+	ISP_SWIZZLE_SNS_REQ(isp, reqp);
+	mbs.param[0] = MBOX_SEND_SNS;
+	mbs.param[1] = SNS_RFT_REQ_SIZE >> 1;
+	mbs.param[2] = DMA_MSW(fcp->isp_scdma);
+	mbs.param[3] = DMA_LSW(fcp->isp_scdma);
+	mbs.param[6] = 0;
+	mbs.param[7] = 0;
+	isp_mboxcmd(isp, &mbs, MBLOGALL);
+	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
+		isp_prt(isp, ISP_LOGINFO, "Register FC4 types succeeded");
+	}
+}
 #endif
 /*
  * Start a command. Locking is assumed done in the caller.
@@ -2052,9 +2093,13 @@ isp_start(xs)
 #if	defined(ISP2100_FABRIC)
 		/*
 		 * If we're not on a Fabric, we can't have a target
-		 * above FL_PORT_ID-1. If we're on a fabric and
-		 * connected as an F-port, we can't have a target
-		 * less than FC_SNS_ID+1.
+		 * above FL_PORT_ID-1.
+		 *
+		 * If we're on a fabric and *not* connected as an F-port,
+		 * we can't have a target less than FC_SNS_ID+1. This
+		 * keeps us from having to sort out the difference between
+		 * local public loop devices and those which we might get
+		 * from a switch's database.
 		 */
 		if (fcp->isp_onfabric == 0) {
 			if (target >= FL_PORT_ID) {
@@ -2066,7 +2111,7 @@ isp_start(xs)
 				XS_SETERR(xs, HBA_SELTIMEOUT);
 				return (CMD_COMPLETE);
 			}
-			if (fcp->isp_topo == TOPO_F_PORT &&
+			if (fcp->isp_topo != TOPO_F_PORT &&
 			    target < FL_PORT_ID) {
 				XS_SETERR(xs, HBA_SELTIMEOUT);
 				return (CMD_COMPLETE);
@@ -2443,10 +2488,11 @@ isp_control(isp, ctl, arg)
 				break;
 			}
 			isp_init(isp);
-			if (isp->isp_state != ISP_INITSTATE) {
-				break;
+			if ((isp->isp_confopts & ISP_CFG_NOINIT) == 0) {
+				if (isp->isp_state == ISP_INITSTATE) {
+					isp->isp_state = ISP_RUNSTATE;
+				}
 			}
-			isp->isp_state = ISP_RUNSTATE;
 		}
 		return (0);
 	}
@@ -3037,16 +3083,16 @@ isp_parse_async(isp, mbox)
 		isp->isp_sendmarker = 1;
 		FCPARAM(isp)->isp_loopstate = LOOP_PDB_RCVD;
 		isp_mark_getpdb_all(isp);
-		isp_prt(isp, ISP_LOGINFO, "Port Database Changed");
+		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, (void *) 0);
 		break;
 
 	case ASYNC_CHANGE_NOTIFY:
-		isp_mark_getpdb_all(isp);
 		/*
 		 * Not correct, but it will force us to rescan the loop.
 		 */
 		FCPARAM(isp)->isp_loopstate = LOOP_PDB_RCVD;
-		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, NULL);
+		isp_mark_getpdb_all(isp);
+		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, (void *) 1);
 		break;
 
 	case ASYNC_PTPMODE:
@@ -4264,6 +4310,8 @@ isp_setdfltparm(isp, channel)
 
 	if (IS_FC(isp)) {
 		fcparam *fcp = (fcparam *) isp->isp_param;
+		int nvfail;
+
 		fcp += channel;
 		if (fcp->isp_gotdparms) {
 			return;
@@ -4295,19 +4343,40 @@ isp_setdfltparm(isp, channel)
 		fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
 
 		/*
-		 * Now try and read NVRAM
+		 * Now try and read NVRAM unless told to not do so.
+		 * This will set fcparam's isp_nodewwn && isp_portwwn.
 		 */
-		if ((isp->isp_confopts & (ISP_CFG_NONVRAM|ISP_CFG_OWNWWN)) ||
-		    (isp_read_nvram(isp))) {
-			isp_prt(isp, ISP_LOGINFO,
-			    "Node WWN 0x%08x%08x, Port WWN 0x%08x%08x",
-			    (u_int32_t) (fcp->isp_nodewwn >> 32),
-			    (u_int32_t) (fcp->isp_nodewwn & 0xffffffff),
-			    (u_int32_t) (fcp->isp_portwwn >> 32),
-			    (u_int32_t) (fcp->isp_portwwn & 0xffffffff));
+		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
+		    	nvfail = isp_read_nvram(isp);
+			if (nvfail)
+				isp->isp_confopts |= ISP_CFG_NONVRAM;
+		} else {
+			nvfail = 1;
 		}
-		fcp->isp_nodewwn = ISP_NODEWWN(isp);
-		fcp->isp_portwwn = ISP_PORTWWN(isp);
+		/*
+		 * Set node && port to override platform set defaults
+		 * unless the nvram read failed (or none was done),
+		 * or the platform code wants to use what had been
+		 * set in the defaults.
+		 */
+		if (nvfail || (isp->isp_confopts & ISP_CFG_OWNWWN)) {
+			isp_prt(isp, ISP_LOGCONFIG,
+			    "Using Node WWN 0x%08x%08x, Port WWN 0x%08x%08x",
+			    (u_int32_t) (DEFAULT_NODEWWN(isp) >> 32),
+			    (u_int32_t) (DEFAULT_NODEWWN(isp) & 0xffffffff),
+			    (u_int32_t) (DEFAULT_PORTWWN(isp) >> 32),
+			    (u_int32_t) (DEFAULT_PORTWWN(isp) & 0xffffffff));
+			isp->isp_confopts |= ISP_CFG_OWNWWN;
+			ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
+			ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
+		} else {
+			/*
+			 * We always start out with values derived
+			 * from NVRAM or our platform default.
+			 */
+			ISP_NODEWWN(isp) = fcp->isp_nodewwn;
+			ISP_PORTWWN(isp) = fcp->isp_portwwn;
+		}
 		return;
 	}
 
