@@ -108,6 +108,11 @@ eventual elimination thereof.  The mechanism by which socket addresses
 are now returned is still highly subject to change as we experiment to
 discover the most efficient method.
 
+Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
+REQUEST packets can now be disabled via sysctl.  The netstat program
+will print out statistics on how many times this happens.
+
+
 SECURITY CHANGES:
 
 7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
@@ -136,6 +141,20 @@ to aid with this, see /usr/src/tools/3.0-upgrade.
 fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
 This brings it in line with the numbers used in the device names
 in /dev.
+
+When operating over the network, finger(1) no longer closes the socket
+immediately after sending its request, but instead waits for the
+remote end to close first.  (The specification is ambiguous, so we are
+following the behavior which interoperates with the most servers.)
+This means that it is now possible to use the MIT directory and finger
+people at certain broken Linux machines.
+
+There is a new flag to fetch(1) which allows it to talk to certain
+broken HTTP implementations which react badly to a request message
+immediately followed by a close of the connection.
+
+netstat(1) now uses sysctl(3) to retrieve more statitistics groups, and
+uses the correct, unsigned format for printing most of them out.
 
 
 2. Supported Configurations
