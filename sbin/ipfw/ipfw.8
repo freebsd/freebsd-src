@@ -28,7 +28,7 @@
 .Op Ar number ...
 .Nm
 .Op Fl s Op Ar field
-.Op Fl aftN
+.Op Fl adeftN
 .Es \&{ \&}
 .En Cm list | show
 .Op Ar number ...
@@ -153,6 +153,12 @@ While listing, show counter values.
 See also the
 .Cm show
 command.
+.It Fl d
+While listing, show dynamic rules in addition to static ones.
+.It Fl e
+While listing, if the
+.Fl d
+option was specified, also show expired dynamic rules.
 .It Fl f
 Don't ask for confirmation for commands that can cause problems
 if misused,

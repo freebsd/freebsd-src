@@ -66,6 +66,8 @@ int		s,			/* main RAW socket	   */
 		do_force,		/* Don't ask for confirmation */
 		do_pipe,		/* this cmd refers to a pipe */
 		do_sort,		/* field to sort results (0 = no) */
+		do_dynamic,		/* display dynamic rules */
+		do_expired,		/* display expired dynamic rules */
 		verbose;
 
 struct icmpcode {
@@ -741,6 +743,7 @@ list(ac, av)
 				warnx("invalid rule number: %s", *(av - 1));
 				continue;
 			}
+			do_dynamic = 0;
 			for (seen = n = 0; n < num; n++) {
 				struct ip_fw *const r = &rules[n];
 
@@ -764,7 +767,7 @@ list(ac, av)
 	/*
 	 * show dynamic rules
 	*/
-	if (num * sizeof (rules[0]) != nbytes) {
+	if (do_dynamic && num * sizeof (rules[0]) != nbytes) {
 		struct ipfw_dyn_rule *d =
 		    (struct ipfw_dyn_rule *)&rules[num];
 		struct in_addr a;
@@ -772,6 +775,12 @@ list(ac, av)
 
             printf("## Dynamic rules:\n");
             for (;; d++) {
+		if (d->expire == 0 && !do_expired) {
+			if (d->next == NULL)
+				break;
+			continue;
+		}
+
                 printf("%05d %qu %qu (T %d, # %d) ty %d",
                     (int)(d->chain),
                     d->pcnt, d->bcnt,
@@ -2092,13 +2101,19 @@ ipfw_main(ac, av)
 	do_force = !isatty(STDIN_FILENO);
 
 	optind = optreset = 1;
-	while ((ch = getopt(ac, av, "s:afqtvN")) != -1)
+	while ((ch = getopt(ac, av, "s:adefqtvN")) != -1)
 	switch(ch) {
 		case 's': /* sort */
 			do_sort= atoi(optarg);
 			break;
 		case 'a':
 			do_acct = 1;
+			break;
+		case 'd':
+			do_dynamic = 1;
+			break;
+		case 'e':
+			do_expired = 1;
 			break;
 		case 'f':
 			do_force = 1;
