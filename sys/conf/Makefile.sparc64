@@ -65,7 +65,7 @@ INCLUDES+= -I/usr/include
 .endif
 
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mcmodel=medlow
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
@@ -99,9 +99,9 @@ NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 
 GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= vnode_if.c hints.c config.c
-SYSTEM_SFILES= $S/$M/$M/locore.s
+SYSTEM_SFILES= $S/$M/$M/locore.s $S/$M/$M/exception.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o config.o hack.So
+SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o config.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -176,6 +176,9 @@ kernel-clobber:
 #	    grep -v 'possible pointer alignment problem'
 
 locore.o: $S/$M/$M/locore.s assym.s
+	${NORMAL_S}
+
+exception.o: $S/$M/$M/exception.s assym.s
 	${NORMAL_S}
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
