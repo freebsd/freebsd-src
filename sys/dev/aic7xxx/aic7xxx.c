@@ -3689,6 +3689,8 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 	struct scb_data *scb_data;
 
 	scb_data = ahc->scb_data;
+	if (scb_data == NULL)
+		return;
 
 	switch (scb_data->init_level) {
 	default:
