@@ -374,7 +374,7 @@ hpfs_unmount(
 		return (error);
 	}
 
-	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, td, 0, 0);
+	vinvalbuf(hpmp->hpm_devvp, V_SAVE, td, 0, 0);
 	g_wither_geom_close(hpmp->hpm_cp->geom, ENXIO);
 	vrele(hpmp->hpm_devvp);
 

@@ -621,7 +621,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			return EINTR;
 	}
 	np->n_flag |= NFLUSHINPROG;
-	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
+	error = vinvalbuf(vp, flags, td, slpflag, 0);
 	while (error) {
 		if (intrflg && (error == ERESTART || error == EINTR)) {
 			np->n_flag &= ~NFLUSHINPROG;
@@ -631,7 +631,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			}
 			return EINTR;
 		}
-		error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
+		error = vinvalbuf(vp, flags, td, slpflag, 0);
 	}
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {

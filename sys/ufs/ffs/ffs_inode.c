@@ -199,7 +199,7 @@ ffs_truncate(vp, length, flags, cred, td)
 #ifdef QUOTA
 			(void) chkdq(oip, -extblocks, NOCRED, 0);
 #endif
-			vinvalbuf(ovp, V_ALT, cred, td, 0, 0);
+			vinvalbuf(ovp, V_ALT, td, 0, 0);
 			oip->i_din2->di_extsize = 0;
 			for (i = 0; i < NXADDR; i++) {
 				oldblks[i] = oip->i_din2->di_extb[i];
@@ -272,8 +272,7 @@ ffs_truncate(vp, length, flags, cred, td)
 #endif
 			softdep_setup_freeblocks(oip, length, needextclean ?
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
-			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL,
-			    cred, td, 0, 0);
+			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL, td, 0, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, 0));
 		}

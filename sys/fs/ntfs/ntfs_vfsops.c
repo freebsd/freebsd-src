@@ -485,7 +485,7 @@ ntfs_unmount(
 	if (error)
 		printf("ntfs_unmount: vflush failed(sysnodes): %d\n",error);
 
-	vinvalbuf(ntmp->ntm_devvp, V_SAVE, NOCRED, td, 0, 0);
+	vinvalbuf(ntmp->ntm_devvp, V_SAVE, td, 0, 0);
 
 	DROP_GIANT();
 	g_topology_lock();
