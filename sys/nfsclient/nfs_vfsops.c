@@ -807,7 +807,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
-	nmp->nm_cred = crhold(cred);
 
 	/*
 	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
@@ -885,7 +884,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	return (0);
 bad:
 	nfs_disconnect(nmp);
-	crfree(nmp->nm_cred);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 	return (error);
@@ -926,7 +924,6 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nfs_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 
-	crfree(nmp->nm_cred);
 	uma_zfree(nfsmount_zone, nmp);
 	return (0);
 }
