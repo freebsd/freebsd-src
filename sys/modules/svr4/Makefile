@@ -11,6 +11,7 @@ OBJS=	svr4_locore.o
 NOMAN=1
 MAN8=	svr4.8
 CFLAGS+= -DKERNEL
+MAINTAINER=	newton@freebsd.org
 
 CFLAGS+= -DCOMPAT_SVR4
 .if defined(DEBUG)
