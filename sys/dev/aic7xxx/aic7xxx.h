@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.7 1999/04/23 23:27:30 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.8 1999/05/14 05:07:23 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
