@@ -562,7 +562,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
 		bp->b_iooffset = dbtob(bp->b_blkno);
-		VOP_STRATEGY(bp->b_vp, bp);
+		bstrategy(bp);
 		error = bufwait(bp);
 	}
 	if (error) {

@@ -841,6 +841,7 @@ getnewvnode(tag, mp, vops, vpp)
 
 	TAILQ_INIT(&bo->bo_clean.bv_hd);
 	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	bo->bo_ops = &buf_ops_bio;
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
