@@ -332,10 +332,11 @@ static int
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
+    struct open_disk	*od = (struct open_disk *)devdata;
     
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
+    return(bcache_strategy(&bcd, od->od_unit, rw, dblk + od->od_boff, size, buf, rsize));
 }
 
 static int 
@@ -353,7 +354,7 @@ bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, s
     if (rsize)
 	*rsize = 0;
 
-    ret.bits = prom_read(od->od_fd, size, buf, dblk + od->od_boff);
+    ret.bits = prom_read(od->od_fd, size, buf, dblk);
     if (ret.u.status) {
 	D(printf("read error\n"));
 	return (EIO);
