@@ -363,6 +363,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
+	*CMAP3 = 0;
 
 	mtx_init(&CMAPCADDR12_lock, "CMAPCADDR12", NULL, MTX_DEF);
 
