@@ -18,8 +18,9 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * Cronyx Id: if_ct.c,v 1.1.2.22 2004/02/26 19:06:51 rik Exp $
+ * Cronyx Id: if_ct.c,v 1.1.2.31 2004/06/23 17:09:13 rik Exp $
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -111,30 +112,21 @@ static device_method_t ct_isa_methods [] = {
 	{0, 0}
 };
 
-typedef struct _bdrv_t {
-	ct_board_t	*board;
-	struct resource	*base_res;
-	struct resource	*drq_res;
-	struct resource	*irq_res;
-	int		base_rid;
-	int		drq_rid;
-	int		irq_rid;
-	void		*intrhand;
-} bdrv_t;
-
-static driver_t ct_isa_driver = {
-	"ct",
-	ct_isa_methods,
-	sizeof (bdrv_t),
-};
-
-static devclass_t ct_devclass;
+typedef struct _ct_dma_mem_t {
+	unsigned long	phys;
+	void		*virt;
+	size_t		size;
+#if __FreeBSD_version >= 500000
+	bus_dma_tag_t	dmat;
+	bus_dmamap_t	mapp;
+#endif
+} ct_dma_mem_t;
 
 typedef struct _drv_t {
 	char name [8];
 	ct_chan_t *chan;
 	ct_board_t *board;
-	ct_buf_t buf;
+	ct_dma_mem_t dmamem;
 	int running;
 #ifdef NETGRAPH
 	char	nodename [NG_NODELEN+1];
@@ -150,6 +142,26 @@ typedef struct _drv_t {
 #endif
 	struct cdev *devt;
 } drv_t;
+
+typedef struct _bdrv_t {
+	ct_board_t	*board;
+	struct resource	*base_res;
+	struct resource	*drq_res;
+	struct resource	*irq_res;
+	int		base_rid;
+	int		drq_rid;
+	int		irq_rid;
+	void		*intrhand;
+	drv_t		channel [NCHAN];
+} bdrv_t;
+
+static driver_t ct_isa_driver = {
+	"ct",
+	ct_isa_methods,
+	sizeof (bdrv_t),
+};
+
+static devclass_t ct_devclass;
 
 static void ct_receive (ct_chan_t *c, char *data, int len);
 static void ct_transmit (ct_chan_t *c, void *attachment, int len);
@@ -446,6 +458,87 @@ static int ct_probe (device_t dev)
 }
 
 extern struct cdevsw ct_cdevsw;
+
+#if __FreeBSD_version >= 500000
+static void
+ct_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	unsigned long *addr;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
+	addr = arg;
+	*addr = segs->ds_addr;
+}
+
+static int
+ct_bus_dma_mem_alloc (int bnum, int cnum, ct_dma_mem_t *dmem)
+{
+	int error;
+
+	error = bus_dma_tag_create (NULL, 16, 0, BUS_SPACE_MAXADDR_24BIT,
+		BUS_SPACE_MAXADDR, NULL, NULL, dmem->size, 1,
+		dmem->size, 0, NULL, NULL, &dmem->dmat);
+	if (error) {
+		if (cnum >= 0)	printf ("ct%d-%d: ", bnum, cnum);
+		else		printf ("ct%d: ", bnum);
+		printf ("couldn't allocate tag for dma memory\n");
+ 		return 0;
+	}
+	error = bus_dmamem_alloc (dmem->dmat, (void **)&dmem->virt,
+		BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dmem->mapp);
+	if (error) {
+		if (cnum >= 0)	printf ("ct%d-%d: ", bnum, cnum);
+		else		printf ("ct%d: ", bnum);
+		printf ("couldn't allocate mem for dma memory\n");
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	error = bus_dmamap_load (dmem->dmat, dmem->mapp, dmem->virt,
+		dmem->size, ct_bus_dmamap_addr, &dmem->phys, 0);
+	if (error) {
+		if (cnum >= 0)	printf ("ct%d-%d: ", bnum, cnum);
+		else		printf ("ct%d: ", bnum);
+		printf ("couldn't load mem map for dma memory\n");
+		bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	return 1;
+}
+
+static void
+ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
+{
+	bus_dmamap_unload (dmem->dmat, dmem->mapp);
+	bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+	bus_dma_tag_destroy (dmem->dmat);
+}
+#else
+static int
+ct_bus_dma_mem_alloc (int bnum, int cnum, ct_dma_mem_t *dmem)
+{
+	dmem->virt = contigmalloc (dmem->size, M_DEVBUF, M_WAITOK,
+				   0x100000, 0x1000000, 16, 0);
+	if (dmem->virt == NULL) {
+		if (cnum >= 0)	printf ("ct%d-%d: ", bnum, cnum);
+		else		printf ("ct%d: ", bnum);
+		printf ("couldn't allocate memory for dma memory\n", unit);
+ 		return 0;
+	}
+	dmem->phys = vtophys (dmem->virt);
+	return 1;
+}
+
+static void
+ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
+{
+	contigfree (dmem->virt, dmem->size, M_DEVBUF);
+}
+#endif
+
 /*
  * The adapter is present, initialize the driver structures.
  */
@@ -589,10 +682,11 @@ static int ct_attach (device_t dev)
 		b->osc == 20000000 ? "20" : "16.384");
 
 	for (c=b->chan; c<b->chan+NCHAN; ++c) {
-		d = contigmalloc (sizeof(drv_t), M_DEVBUF, M_WAITOK,
-			0x100000, 0x1000000, 16, 0);
+		d = &bd->channel[c->num];
+		d->dmamem.size = sizeof(ct_buf_t);
+		if (! ct_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
+			continue;
 		channel [b->num*NCHAN + c->num] = d;
-		bzero (d, sizeof(drv_t));
 		sprintf (d->name, "ct%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
@@ -603,7 +697,7 @@ static int ct_attach (device_t dev)
 			printf ("%s: cannot make common node\n", d->name);
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;		
-			contigfree (d, sizeof (*d), M_DEVBUF);
+			ct_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
 #if __FreeBSD_version >= 500000
@@ -623,7 +717,7 @@ static int ct_attach (device_t dev)
 #endif
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;		
-			contigfree (d, sizeof (*d), M_DEVBUF);
+			ct_bus_dma_mem_free (&d->dmamem);
 			continue;
 		}
 		d->queue.ifq_maxlen = IFQ_MAXLEN;
@@ -654,7 +748,7 @@ static int ct_attach (device_t dev)
 		 * Header size is 4 bytes. */
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
 #endif /*NETGRAPH*/
-		ct_start_chan (c, &d->buf, vtophys (&d->buf));
+		ct_start_chan (c, d->dmamem.virt, d->dmamem.phys);
 		ct_register_receive (c, &ct_receive);
 		ct_register_transmit (c, &ct_transmit);
 		ct_register_error (c, &ct_error);
@@ -748,7 +842,7 @@ static int ct_detach (device_t dev)
 			continue;
 		
 		/* Deallocate buffers. */
-		contigfree (d, sizeof (*d), M_DEVBUF);
+		ct_bus_dma_mem_free (&d->dmamem);
 	}
 	bd->board = 0;
 	adapter [b->num] = 0;
@@ -1504,7 +1598,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETCLK:
 	        /* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
@@ -2296,9 +2390,8 @@ static struct ng_type typestruct = {
 	.newhook	= ng_ct_newhook,
 	.connect	= ng_ct_connect,
 	.rcvdata	= ng_ct_rcvdata,
-	.disconnect	= ng_ct_disconnect
+	.disconnect	= ng_ct_disconnect,
 };
-
 #endif /*NETGRAPH*/
 
 #if __FreeBSD_version >= 500000
