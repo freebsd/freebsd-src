@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.45 1996/10/28 06:01:07 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.46 1996/10/28 17:00:24 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -1118,8 +1118,8 @@ index_untagged_scb:
 	and	DINDEX, 0x03			/* Bottom two bits of tid */
 	add	DINDEX, SCB_ACTIVE0
 	shr	A, SINDEX, 6			/* Target ID divided by 4 */
-	test	SCB_TCL, SELBUSB jz index_untagged_scb2
-	or	A, 2				/* Add 2 positions */
+	test	SINDEX, SELBUSB jz index_untagged_scb2
+	add	A, 2				/* Add 2 positions */
 index_untagged_scb2:
 	mov	SCBPTR, A			/*
 						 * Select the SCB with this 
