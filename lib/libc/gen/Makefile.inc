@@ -17,15 +17,14 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c getvfsent.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
-	lockf.c lrand48.c mrand48.c msgctl.c \
-	msgget.c msgrcv.c msgsnd.c nice.c \
+	lockf.c lrand48.c mrand48.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
 	pause.c popen.c posixshm.c psignal.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
-	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
+	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
 	setproctitle.c setprogname.c \
-	shmat.c shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
+	siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
