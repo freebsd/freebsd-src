@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tables.c,v 1.4 1997/02/22 16:01:03 peter Exp $
  */
 
 #ifndef lint
@@ -47,8 +47,6 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
-/* XXX I thought that this should work! #include <sys/systm.h> */
-#include <machine/cpufunc.h>
 
 #ifndef DEBUG
 #define	DEBUG	0
@@ -467,4 +465,3 @@ rtioctl(action, ort)
 	return write(r, (char *)&w, rtm.rtm_msglen);
 #endif  /* RTM_ADD */
 }
-
