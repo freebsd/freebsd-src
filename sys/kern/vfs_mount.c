@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/linker.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -669,7 +668,6 @@ vfs_domount(
 	int compat		/* Invocation from compat syscall. */
 	)
 {
-	linker_file_t lf;
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
@@ -786,34 +784,10 @@ vfs_domount(
 			vput(vp);
 			return (ENOTDIR);
 		}
-		vfsp = vfs_byname(fstype);
+		vfsp = vfs_byname_kld(fstype, td, &error);
 		if (vfsp == NULL) {
-			/* Only load modules for root (very important!). */
-			if ((error = suser(td)) != 0) {
-				vput(vp);
-				return (error);
-			}
-			error = securelevel_gt(td->td_ucred, 0);
-			if (error) {
-				vput(vp);
-				return (error);
-			}
-			error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
-			if (error || lf == NULL) {
-				vput(vp);
-				if (lf == NULL)
-					error = ENODEV;
-				return (error);
-			}
-			lf->userrefs++;
-			/* Look up again to see if the VFS was loaded. */
-			vfsp = vfs_byname(fstype);
-			if (vfsp == NULL) {
-				lf->userrefs--;
-				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-				vput(vp);
-				return (ENODEV);
-			}
+			vput(vp);
+			return (error);
 		}
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_MOUNT) != 0 ||
