@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.33 1996/07/24 18:46:18 wollman Exp $
+ *	$Id: raw_ip.c,v 1.34 1996/08/21 21:37:07 sos Exp $
  */
 
 #include <sys/param.h>
@@ -257,7 +257,7 @@ rip_ctloutput(op, so, level, optname, m)
 			if (*m) (void)m_free(*m);
 			return(EINVAL);
 		}
-		return (*ip_nat_ctl_ptr)(optname, m); 
+		return (*ip_nat_ctl_ptr)(op, m); 
 
 	case IP_RSVP_ON:
 		return ip_rsvp_init(so);
