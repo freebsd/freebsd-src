@@ -1291,7 +1291,7 @@ int
 mp_grab_cpu_hlt(void)
 {
 	u_int mask = PCPU_GET(cpumask);
-#ifdef MP_WATCHDIG
+#ifdef MP_WATCHDOG
 	u_int cpuid = PCPU_GET(cpuid);
 #endif
 	int retval;
