@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_main.c,v 1.6.2.3 1997/11/18 07:52:04 charnier Exp $";
+	"$Id: yp_main.c,v 1.6.2.4 1998/02/12 16:55:27 wpaul Exp $";
 #endif /* not lint */
 
 /*
@@ -157,13 +157,17 @@ static void unregister()
 static void reaper(sig)
 	int sig;
 {
-	int status;
+	int			status;
+	int			saved_errno;
+
+	saved_errno = errno;
 
 	if (sig == SIGHUP) {
 		load_securenets();
 #ifdef DB_CACHE
 		yp_flush_all();
 #endif
+		errno = saved_errno;
 		return;
 	}
 
@@ -174,6 +178,9 @@ static void reaper(sig)
 		unregister();
 		exit(0);
 	}
+
+	errno = saved_errno;
+	return;
 }
 
 static void usage()
