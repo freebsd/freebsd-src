@@ -1105,7 +1105,7 @@ aic_timeout(void *arg)
 	printf("ccb %p - timed out", ccb);
 	if (aic->nexus && aic->nexus != scb)
 		printf(", nexus %p", aic->nexus->ccb);
-	printf("\n");
+	printf(", phase %x\n", aic_inb(aic, SCSISIGI));
 
 	s = splcam();
 
@@ -1253,6 +1253,10 @@ aic_intr(void *arg)
 			if ((aic->flags & AIC_BUSFREE_OK) == 0) {
 				ccb = scb->ccb;
 				ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
+				aic_done(aic, scb);
+			} else if (scb->flags & SCB_DEVICE_RESET) {
+				ccb = scb->ccb;
+				ccb->ccb_h.status = CAM_REQ_CMP;
 				aic_done(aic, scb);
 			} else if (scb->flags & SCB_SENSE) {
 				/* autosense request */
