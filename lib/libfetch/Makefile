@@ -1,5 +1,6 @@
-#	$Id: Makefile,v 1.10 1998/12/16 10:24:52 des Exp $
+#	$Id: Makefile,v 1.11 1998/12/18 14:32:47 des Exp $
 
+MAINTAINER=	des@freebsd.org
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
 .if !defined(DEBUG)
