@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.139 1995/04/17 06:28:15 asami Exp $
+# $Id: bsd.port.mk,v 1.140 1995/04/17 06:39:05 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -404,7 +404,7 @@ pre-install:
 install: build ${INSTALL_COOKIE}
 
 ${INSTALL_COOKIE}:
-	@${ECHO_MSG} "===>  Installing for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Installing for ${PKGNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-install
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
@@ -460,7 +460,7 @@ repackage:
 .if !target(do-package)
 do-package:
 	@if [ -e ${PKGDIR}/PLIST ]; then \
-		${ECHO_MSG} "===>  Building package for ${DISTNAME}"; \
+		${ECHO_MSG} "===>  Building package for ${PKGNAME}"; \
 		if [ -d ${PACKAGES} ]; then \
 			if [ ! -d ${PKGREPOSITORY} ]; then \
 				if ! mkdir -p ${PKGREPOSITORY}; then \
@@ -495,22 +495,22 @@ exec_depends:
 	@for i in ${EXEC_DEPENDS}; do \
 		prog=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
-		${ECHO_MSG} "===>  ${DISTNAME} depends on executable:  $$prog ($$dir)"; \
+		${ECHO_MSG} "===>  ${PKGNAME} depends on executable:  $$prog ($$dir)"; \
 	done
 .else
 	@for i in ${EXEC_DEPENDS}; do \
 		prog=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
 		if which -s "$$prog"; then \
-			${ECHO_MSG} "===>  ${DISTNAME} depends on executable: $$prog - found"; \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - found"; \
 		else \
-			${ECHO_MSG} "===>  ${DISTNAME} depends on executable: $$prog - not found"; \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - not found"; \
 			${ECHO_MSG} "===>  Verifying build for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
-				${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"; \
+				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -526,22 +526,22 @@ lib_depends:
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
-		${ECHO_MSG} "===>  ${DISTNAME} depends on shared library:  $$lib ($$dir)"; \
+		${ECHO_MSG} "===>  ${PKGNAME} depends on shared library:  $$lib ($$dir)"; \
 	done
 .else
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
 		if ldconfig -r | grep -q -e "-l$$lib"; then \
-			${ECHO_MSG} "===>  ${DISTNAME} depends on shared library: $$lib - found"; \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
-			${ECHO_MSG} "===>  ${DISTNAME} depends on shared library: $$lib - not found"; \
+			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
 			${ECHO_MSG} "===>  Verifying build for $$lib in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$lib.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
-				${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"; \
+				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -552,7 +552,7 @@ lib_depends:
 
 misc_depends:
 .if defined(DEPENDS)
-	@${ECHO_MSG} "===>  ${DISTNAME} depends on:  ${DEPENDS}"
+	@${ECHO_MSG} "===>  ${PKGNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
 	@for i in ${DEPENDS}; do \
 		${ECHO_MSG} "===>  Verifying build for $$i"; \
@@ -562,7 +562,7 @@ misc_depends:
 			(cd $$i; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
 		fi \
 	done
-	@${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"
+	@${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"
 .endif
 .else
 	@${DO_NADA}
@@ -579,7 +579,7 @@ pre-build:
 build: configure ${BUILD_COOKIE}
 
 ${BUILD_COOKIE}:
-	@${ECHO_MSG} "===>  Building for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Building for ${PKGNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-build
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
@@ -607,7 +607,7 @@ patch: extract ${PATCH_COOKIE}
 ${PATCH_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-patch
 .if defined(PATCHFILES)
-	@${ECHO_MSG} "===>  Applying distributed patches for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Applying distributed patches for ${PKGNAME}"
 .if defined(PATCH_DEBUG)
 	@(cd ${DISTDIR}; \
 	  for i in ${PATCHFILES}; do \
@@ -637,7 +637,7 @@ ${PATCH_COOKIE}:
 .endif
 .if defined(PATCH_DEBUG)
 	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying FreeBSD patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
 			${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
 			${PATCH} ${PATCH_ARGS} < $$i; \
@@ -646,7 +646,7 @@ ${PATCH_COOKIE}:
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .else
 	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying FreeBSD patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; \
 			do ${PATCH} ${PATCH_ARGS} < $$i; \
 		done;\
@@ -664,7 +664,7 @@ pre-configure:
 configure: depends patch ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
-	@${ECHO_MSG} "===>  Configuring for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Configuring for ${PKGNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-configure
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
@@ -825,7 +825,7 @@ extract: fetch ${EXTRACT_COOKIE}
 
 ${EXTRACT_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} checksum pre-extract
-	@${ECHO_MSG} "===>  Extracting for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Extracting for ${PKGNAME}"
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
 .if defined(EXTRACT_ONLY)
@@ -853,7 +853,7 @@ pre-clean:
 
 .if !target(clean)
 clean: pre-clean
-	@${ECHO_MSG} "===>  Cleaning for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
 		${BUILD_COOKIE} ${PATCH_COOKIE}
 .if !defined(NO_WRKDIR)
