@@ -2699,29 +2699,9 @@ an_start(ifp)
 			ifp->if_timer = 5;
 		}
 	} else { /* MPI-350 */
-#if 0
-/* HACK */
-		{
-			struct an_command	cmd_struct;
-			struct an_reply		reply;
-			/*
-			 * Allocate TX descriptor
-			 */
-			
-			bzero(&reply,sizeof(reply));
-			cmd_struct.an_cmd   = AN_CMD_ALLOC_DESC;
-			cmd_struct.an_parm0 = AN_DESCRIPTOR_TX;
-			cmd_struct.an_parm1 = AN_TX_DESC_OFFSET;
-			cmd_struct.an_parm2 = AN_MAX_TX_DESC;
-			if (an_cmd_struct(sc, &cmd_struct, &reply)) {
-				printf("an%d: failed to allocate TX "
-				    "descriptor\n", 
-				    sc->an_unit);
-				return;
-			}
-		}
-/* HACK */
-#endif
+		/* Disable interrupts. */
+		CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
+
 		while (sc->an_rdata.an_tx_empty ||
 		    idx != sc->an_rdata.an_tx_cons) {
 			IF_DEQUEUE(&ifp->if_snd, m0);
@@ -2796,6 +2776,9 @@ an_start(ifp)
 			 */
 			ifp->if_timer = 5;
 		}
+
+		/* Re-enable interrupts. */
+		CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS(sc->mpi350));
 	}
 
 	if (m0 != NULL)
