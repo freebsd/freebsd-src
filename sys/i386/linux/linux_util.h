@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $Id: linux_util.h,v 1.5 1997/02/22 09:38:30 peter Exp $
+ * $Id: linux_util.h,v 1.6 1998/06/30 08:40:33 jmg Exp $
  */
 
 /*
@@ -60,7 +60,7 @@ static __inline caddr_t
 stackgap_init()
 {
 #define szsigcode (*(curproc->p_sysent->sv_szsigcode))
-	return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
+	return (caddr_t)(PS_STRINGS - szsigcode - SPARE_USRSPACE);
 }
 
 

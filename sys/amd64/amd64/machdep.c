@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.317 1998/12/02 08:15:16 kato Exp $
+ *	$Id: machdep.c,v 1.318 1998/12/10 01:49:01 steve Exp $
  */
 
 #include "apm.h"
@@ -620,7 +620,7 @@ sendsig(catcher, sig, mask, code)
 	}
 
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
