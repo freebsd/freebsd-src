@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.57 1996/04/21 19:40:20 pst Exp $
+#	$Id: BSD.usr.dist,v 1.58 1996/05/04 09:15:11 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -42,6 +42,8 @@
 		de_DE.ISO_8859-1
 		..
 		hr_HR.ISO_8859-2
+		..
+		ru_SU.KOI8-R
 		..
         ..
         dict
