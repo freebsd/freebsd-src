@@ -69,34 +69,34 @@
  * Same as above but to unsigned long
  */
 ENTRY(__dtoul)
+	PIC_PROLOGUE(%o4, %o5)
 	sub	%sp, 16, %sp
-	std	%f2, [%sp + 64 + SPOFF + 8]
-	sethi	%hi(.Lbig), %g1
-	ldd	[%g1 + %lo(.Lbig)], %f2
+	std	%f2, [%sp + CCFSZ + SPOFF + 8]
+	SET(.Lbig, %o5, %o3)
+	ldd	[%o3], %f2
 	fcmped	%f0, %f2		! d < 2^63, or NaN, or -Inf?
-	nop				! (fpop2 delay)
-	fbul,a	1f			! if so, use fdtoi to convert to int
+	fbul,a	1f			! if so, use fdtox to convert to long
 	 fdtox	%f0, %f0		!        (this includes negatives!)
 
-	! d does not fit in an int, so subtract 2^63, convert,
+	! d does not fit in a long, so subtract 2^63, convert,
 	! and add 2^63 again (sigh).  Just hope the intermediate
 	! fits (if not, the result is undefined anyway).
 
 	fsubd	%f0, %f2, %f0		! d -= 2^63
-	fdtox	%f0, %f0		! convert to int
-	std	%f0, [%sp + 64 + SPOFF]	! move into return reg
-	ldx	[%sp + 64 + SPOFF], %o0
+	fdtox	%f0, %f0		! convert to long
+	std	%f0, [%sp + CCFSZ + SPOFF]	! move into return reg
+	ldx	[%sp + CCFSZ + SPOFF], %o0
 	sethi	%hi(0x80000000), %o1
 	sllx	%o1, 32, %o1
 	add	%o0, %o1, %o0		! add 2^63
-	ldd	[%sp + 64 + SPOFF + 8], %f2
+	ldd	[%sp + CCFSZ + SPOFF + 8], %f2
 	retl
 	 add	%sp, 16, %sp
 
 1:
-	std	%f0, [%sp + 64 + SPOFF]	! return result
-	ldx	[%sp + 64 + SPOFF], %o0
-	ldd	[%sp + 64 + SPOFF + 8], %f2
+	std	%f0, [%sp + CCFSZ + SPOFF]	! return result
+	ldx	[%sp + CCFSZ + SPOFF], %o0
+	ldd	[%sp + CCFSZ + SPOFF + 8], %f2
 	retl
 	 add	%sp, 16, %sp
 END(__dtoul)
