@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id$
+#	$Id: Makefile,v 1.50 1997/02/23 09:17:12 peter Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -32,11 +32,11 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
-LDIRS=	net netns netatalk netinet netipx netkey nfs pccard sys vm \
+LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs pccard sys vm \
 		# netccitt netiso
 
-LUDIR=	ufs
-UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
+LNOHEADERDIRS=	isofs ufs
+LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
@@ -80,19 +80,19 @@ beforeinstall: ${SHARED}
 .endfor
 
 copies:
-.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+.for i in ${LDIRS} ${LNOHEADERDIRS} machine
 	if [ -h ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+.for i in ${LDIRS} ${LNOHEADERDIRS} ${LSUBDIRS} machine
 	if [ ! -d ${DESTDIR}/usr/include/$i ]; then \
 		mkdir ${DESTDIR}/usr/include/$i; \
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$i; \
 		chmod 755 ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-.for i in ${LDIRS} ${UDIRS}
+.for i in ${LDIRS} ${LSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
@@ -105,7 +105,7 @@ copies:
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
-.for i in ${LDIRS} ${LUDIR}
+.for i in ${LDIRS} ${LNOHEADERDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s /sys/$i ${DESTDIR}/usr/include/$i
 .endfor
