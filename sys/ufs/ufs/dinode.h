@@ -131,7 +131,7 @@ struct ufs2_dinode {
  * The di_db fields may be overlaid with other information for
  * file types that do not have associated disk storage. Block
  * and character devices overlay the first data block with their
- * struct cdev *value. Short symbolic links place their path in the
+ * dev_t value. Short symbolic links place their path in the
  * di_db area.
  */
 #define	di_rdev di_db[0]
