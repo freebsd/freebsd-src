@@ -32,7 +32,9 @@
 #endif
 #define NMODEMS		2
 
-#define _PATH_PPP	"/etc/ppp"
+#ifndef PPP_CONFDIR
+#define PPP_CONFDIR	"/etc/ppp"
+#endif
 
 #define TUN_NAME	"tun"
 #define TUN_PREFIX	(_PATH_DEV TUN_NAME)	/* /dev/tun */
