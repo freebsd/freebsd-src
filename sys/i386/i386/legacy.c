@@ -300,7 +300,7 @@ static driver_t cpu_driver = {
 	cpu_methods,
 	1,		/* no softc */
 };
-devclass_t cpu_devclass;
+static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
 
 static device_t
