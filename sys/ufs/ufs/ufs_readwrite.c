@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.36 1997/12/19 09:03:06 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.37 1997/12/21 10:41:19 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -52,18 +52,15 @@
 #define	READ_S			"ffs_read"
 #define	WRITE			ffs_write
 #define	WRITE_S			"ffs_write"
+#endif
+
 #include <vm/vm.h>
+#include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
-#endif
 #include <sys/poll.h>
 #include <sys/sysctl.h>
-
-int vfs_ioopt = 0;
-
-SYSCTL_INT(_vfs, OID_AUTO, ioopt,
-	CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 /*
  * Vnode op for reading.

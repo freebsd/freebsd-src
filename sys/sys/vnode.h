@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.59 1997/12/15 03:09:51 wollman Exp $
+ * $Id: vnode.h,v 1.60 1997/12/29 00:24:16 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -269,6 +269,7 @@ extern	int desiredvnodes;		/* number of vnodes desired */
 extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
+extern	int vfs_ioopt;
 
 /*
  * Macro/function to check for client cache inconsistency w.r.t. leasing.
