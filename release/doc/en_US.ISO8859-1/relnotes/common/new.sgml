@@ -337,6 +337,11 @@
     match the remote IP address of a point-to-point interface in
     addition to the intended local IP address (see security advisory
     FreeBSD-SA-01:53).</para>
+
+    <para>A vulnerability in &man.procfs.5;, which could allow a
+    process to read sensitive information from another process's
+    memory space, has been closed (see security advisory
+    FreeBSD-SA-01:54).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
