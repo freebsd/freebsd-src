@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command makes terminal-dependent information available to users or shell
+utility makes terminal-dependent information available to users or shell
 applications.  When invoked as the
 .Nm clear
 utility, the screen will be cleared as if
@@ -59,7 +59,7 @@ are as follows:
 .Bl -tag -width Ds
 .It Fl T
 The terminal name as specified in the
-.Xr termcap
+.Xr termcap 5
 database, for example,
 .Dq vt100
 or
@@ -73,7 +73,7 @@ variable from the environment.
 .Pp
 The
 .Nm
-command outputs a string for each
+utility outputs a string for each
 .Ar attribute
 that is of type string; a number for each of type integer.
 Otherwise,
@@ -93,19 +93,19 @@ The following special attributes are available:
 .Bl -tag -width Ar
 .It Cm clear
 Clear the screen (the
-.Xr termcap
+.Xr termcap 5
 .Dq cl
 sequence).
 .It Cm init
 Initialize the terminal (the
-.Xr termcap
+.Xr termcap 5
 .Dq is
 sequence).
 .It Cm longname
 Print the descriptive name of the user's terminal type.
 .It Cm reset
 Reset the terminal (the
-.Xr termcap
+.Xr termcap 5
 .Dq rs
 sequence).
 .El
@@ -139,12 +139,12 @@ utility conforms to
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.4 .
 .Sh BUGS
 The
 .Nm
-command can't really distinguish between different types of attributes.
+utility can't really distinguish between different types of attributes.
 .Pp
 Some termcap entries depend upon having a
 .Sq %
