@@ -1,6 +1,3 @@
-#ifdef	SLICE
-#undef DEVFS
-#endif
 /*-
  * Copyright (c) 1994 Bruce D. Evans.
  * All rights reserved.
@@ -46,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.47 1998/07/04 22:30:22 julian Exp $
+ *	$Id: subr_diskslice.c,v 1.48 1998/07/11 07:45:42 bde Exp $
  */
 
 #include "opt_devfs.h"
