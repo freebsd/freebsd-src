@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,7 +68,7 @@ static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
-static u_quad_t	get_num(const char *);
+static uintmax_t get_num(const char *);
 static off_t	get_off_t(const char *);
 
 static const struct arg {
@@ -167,8 +168,10 @@ jcl(char **argv)
 	/*
 	 * Bail out if the calculation of a file offset would overflow.
 	 */
-	if (in.offset > QUAD_MAX / in.dbsz || out.offset > QUAD_MAX / out.dbsz)
-		errx(1, "seek offsets cannot be larger than %qd", QUAD_MAX);
+	if (in.offset > OFF_MAX / (ssize_t)in.dbsz ||
+	    out.offset > OFF_MAX / (ssize_t)out.dbsz)
+		errx(1, "seek offsets cannot be larger than %jd",
+		    (intmax_t)OFF_MAX);
 }
 
 static int
@@ -182,7 +185,7 @@ c_arg(const void *a, const void *b)
 static void
 f_bs(char *arg)
 {
-	u_quad_t res;
+	uintmax_t res;
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
@@ -193,7 +196,7 @@ f_bs(char *arg)
 static void
 f_cbs(char *arg)
 {
-	u_quad_t res;
+	uintmax_t res;
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
@@ -204,15 +207,15 @@ f_cbs(char *arg)
 static void
 f_count(char *arg)
 {
-	u_quad_t res;
+	intmax_t res;
 
-	res = get_num(arg);
-	if ((quad_t)res < 0)
+	res = (intmax_t)get_num(arg);
+	if (res < 0)
 		errx(1, "count cannot be negative");
 	if (res == 0)
-		cpy_cnt = -1;
+		cpy_cnt = (uintmax_t)-1;
 	else
-		cpy_cnt = (quad_t)res;
+		cpy_cnt = (uintmax_t)res;
 }
 
 static void
@@ -221,18 +224,18 @@ f_files(char *arg)
 
 	files_cnt = get_num(arg);
 	if (files_cnt < 1)
-		errx(1, "files must be between 1 and %qd", QUAD_MAX);
+		errx(1, "files must be between 1 and %jd", (uintmax_t)-1);
 }
 
 static void
 f_ibs(char *arg)
 {
-	u_quad_t res;
+	uintmax_t res;
 
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
 		if (res < 1 || res > SSIZE_MAX)
-			errx(1, "ibs must be between 1 and %d", SSIZE_MAX);
+			errx(1, "ibs must be between 1 and %zd", SSIZE_MAX);
 		in.dbsz = (size_t)res;
 	}
 }
@@ -247,12 +250,12 @@ f_if(char *arg)
 static void
 f_obs(char *arg)
 {
-	u_quad_t res;
+	uintmax_t res;
 
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
 		if (res < 1 || res > SSIZE_MAX)
-			errx(1, "obs must be between 1 and %d", SSIZE_MAX);
+			errx(1, "obs must be between 1 and %zd", SSIZE_MAX);
 		out.dbsz = (size_t)res;
 	}
 }
@@ -329,7 +332,7 @@ c_conv(const void *a, const void *b)
 }
 
 /*
- * Convert an expression of the following forms to a u_quad_t.
+ * Convert an expression of the following forms to a uintmax_t.
  * 	1) A positive decimal number.
  *	2) A positive decimal number followed by a b (mult by 512).
  *	3) A positive decimal number followed by a k (mult by 1 << 10).
@@ -340,10 +343,10 @@ c_conv(const void *a, const void *b)
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
-static u_quad_t
+static uintmax_t
 get_num(const char *val)
 {
-	u_quad_t num, mult, prevnum;
+	uintmax_t num, mult, prevnum;
 	char *expr;
 
 	errno = 0;
@@ -406,14 +409,12 @@ erange:
  * Convert an expression of the following forms to an off_t.  This is the
  * same as get_num(), but it uses signed numbers.
  *
- * The major problem here is that an off_t may not necessarily be a quad_t.
- * The right thing to do would be to use intmax_t when available and then
- * cast down to an off_t, if possible.
+ * The major problem here is that an off_t may not necessarily be a intmax_t.
  */
 static off_t
 get_off_t(const char *val)
 {
-	quad_t num, mult, prevnum;
+	intmax_t num, mult, prevnum;
 	char *expr;
 
 	errno = 0;
@@ -457,7 +458,7 @@ get_off_t(const char *val)
 			break;
 		case '*':			/* Backward compatible. */
 		case 'x':
-			mult = (quad_t)get_off_t(expr + 1);
+			mult = (intmax_t)get_off_t(expr + 1);
 			prevnum = num;
 			num *= mult;
 			if ((prevnum > 0) == (num > 0) && num / mult == prevnum)
