@@ -1,0 +1,43 @@
+.\"
+.\" (c) Wolfram Schneider, Berlin, Germany. Public domain.
+.\"
+.\" $Id: tzsetup.8,v 1.1 1996/01/24 00:11:58 wosch Exp $
+
+.Dd Jan 1996
+.Dt TZSETUP 8
+.Os FreeBSD
+
+.Sh NAME
+.Nm tzsetup
+.Nd set local timezone
+
+.Sh DESCRIPTION
+.Nm tzsetup
+is a menu based program to set your local time zone.  Pick the continent
+and a city (e.g. your capital) that best describes your location and
+.Nm tzsetup
+do all the work for you.
+
+.Sh BUGS
+You need to reboot the machine for changes to take effect.
+
+.Sh FILES
+.Bl -tag -width /etc/wall_cmos_clock -compact
+.It Pa /etc/localtime
+current time zone file
+.It Pa /usr/share/zoneinfo
+directory for zoneinfo files
+.It Pa /etc/wall_cmos_clock
+see adjkerntz(8).
+.El
+
+.Sh SEE ALSO
+.Xr adjkerntz 8 ,
+.Xr adjtime 2 ,
+.Xr ctime 3 ,
+.Xr date 1 ,
+.Xr timezone 3 ,
+.Xr tzfile 5 ,
+.Xr zdump 8 ,
+.Xr zic 8 .
+
