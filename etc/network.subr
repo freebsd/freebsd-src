@@ -212,3 +212,299 @@ list_net_interfaces()
 	esac
 	return 0			
 }
+
+hexdigit()
+{
+	if [ $1 -lt 10 ]; then
+		echo $1
+	else
+		case $1 in
+		10)	echo a ;;
+		11)	echo b ;;
+		12)	echo c ;;
+		13)	echo d ;;
+		14)	echo e ;;
+		15)	echo f ;;
+		esac
+	fi
+}
+
+hexprint()
+{
+	val=$1
+	str=''
+
+	dig=`hexdigit $((${val} & 15))`
+	str=${dig}${str}
+	val=$((${val} >> 4))
+	while [ ${val} -gt 0 ]; do
+		dig=`hexdigit $((${val} & 15))`
+		str=${dig}${str}
+		val=$((${val} >> 4))
+	done
+
+	echo ${str}
+}
+
+# Setup the interfaces for IPv6
+network6_interface_setup()
+{
+	interfaces=$*
+	rtsol_interfaces=''
+	case ${ipv6_gateway_enable} in
+	[Yy][Ee][Ss])
+		rtsol_available=no
+		;;
+	*)
+		rtsol_available=yes
+		;;
+	esac
+	for i in $interfaces; do
+		rtsol_interface=yes
+		eval prefix=\$ipv6_prefix_$i
+		if [ -n "${prefix}" ]; then
+			rtsol_available=no
+			rtsol_interface=no
+			laddr=`network6_getladdr $i`
+			hostid=`expr "${laddr}" : 'fe80::\(.*\)%\(.*\)'`
+			for j in ${prefix}; do
+				address=$j\:${hostid}
+				ifconfig $i inet6 ${address} prefixlen 64 alias
+
+				case ${ipv6_gateway_enable} in
+				[Yy][Ee][Ss])
+					# subnet-router anycast address
+					# (rfc2373)
+					ifconfig $i inet6 $j:: prefixlen 64 \
+						alias anycast
+					;;
+				esac
+			done
+		fi
+		eval ipv6_ifconfig=\$ipv6_ifconfig_$i
+		if [ -n "${ipv6_ifconfig}" ]; then
+			rtsol_available=no
+			rtsol_interface=no
+			ifconfig $i inet6 ${ipv6_ifconfig} alias
+		fi
+
+		if [ ${rtsol_available} = yes -a ${rtsol_interface} = yes ]
+		then
+			case ${i} in
+			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
+				;;
+			*)
+				rtsol_interfaces="${rtsol_interfaces} ${i}"
+				;;
+			esac
+		else
+			ifconfig $i inet6
+		fi
+	done
+
+	if [ ${rtsol_available} = yes -a -n "${rtsol_interfaces}" ]; then
+		# Act as endhost - automatically configured.
+		# You can configure only single interface, as
+		# specification assumes that autoconfigured host has
+		# single interface only.
+		sysctl net.inet6.ip6.accept_rtadv=1
+		set ${rtsol_interfaces}
+		ifconfig $1 up
+		rtsol $1
+	fi
+
+	for i in $interfaces; do
+		alias=0
+		while : ; do
+			eval ipv6_ifconfig=\$ipv6_ifconfig_${i}_alias${alias}
+			if [ -z "${ipv6_ifconfig}" ]; then
+				break;
+			fi
+			ifconfig $i inet6 ${ipv6_ifconfig} alias
+			alias=$((${alias} + 1))
+		done
+	done
+}
+
+# Setup IPv6 to IPv4 mapping
+network6_stf_setup()
+{
+	case ${stf_interface_ipv4addr} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		# assign IPv6 addr and interface route for 6to4 interface
+		stf_prefixlen=$((16+${stf_interface_ipv4plen:-0}))
+		OIFS="$IFS"
+		IFS=".$IFS"
+		set ${stf_interface_ipv4addr}
+		IFS="$OIFS"
+		hexfrag1=`hexprint $(($1*256 + $2))`
+		hexfrag2=`hexprint $(($3*256 + $4))`
+		ipv4_in_hexformat="${hexfrag1}:${hexfrag2}"
+		case ${stf_interface_ipv6_ifid} in
+		[Aa][Uu][Tt][Oo] | '')
+			for i in ${ipv6_network_interfaces}; do
+				laddr=`network6_getladdr ${i}`
+				case ${laddr} in
+				'')
+					;;
+				*)
+					break
+					;;
+				esac
+			done
+			stf_interface_ipv6_ifid=`expr "${laddr}" : \
+						      'fe80::\(.*\)%\(.*\)'`
+			case ${stf_interface_ipv6_ifid} in
+			'')
+				stf_interface_ipv6_ifid=0:0:0:1
+				;;
+			esac
+			;;
+		esac
+		ifconfig stf0 create >/dev/null 2>&1
+		ifconfig stf0 inet6 2002:${ipv4_in_hexformat}:${stf_interface_ipv6_slaid:-0}:${stf_interface_ipv6_ifid} \
+			prefixlen ${stf_prefixlen}
+		# disallow packets to malicious 6to4 prefix
+		route add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
+		route add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:0000:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject
+		;;
+	esac
+}
+
+# Setup static routes
+network6_static_routes_setup()
+{
+	# Set up any static routes.
+	case ${ipv6_defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		ipv6_static_routes="default ${ipv6_static_routes}"
+		ipv6_route_default="default ${ipv6_defaultrouter}"
+		;;
+	esac
+	case ${ipv6_static_routes} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		for i in ${ipv6_static_routes}; do
+			eval ipv6_route_args=\$ipv6_route_${i}
+			route add -inet6 ${ipv6_route_args}
+		done
+		;;
+	esac
+}
+
+# Setup faith
+network6_faith_setup()
+{
+	case ${ipv6_faith_prefix} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sysctl net.inet6.ip6.keepfaith=1
+		ifconfig faith0 create >/dev/null 2>&1
+		ifconfig faith0 up
+		for prefix in ${ipv6_faith_prefix}; do
+			prefixlen=`expr "${prefix}" : ".*/\(.*\)"`
+			case ${prefixlen} in
+			'')
+				prefixlen=96
+				;;
+			*)
+				prefix=`expr "${prefix}" : \
+					     "\(.*\)/${prefixlen}"`
+				;;
+			esac
+			route add -inet6 ${prefix} -prefixlen ${prefixlen} ::1
+			route change -inet6 ${prefix} -prefixlen ${prefixlen} \
+				-ifp faith0
+		done
+		;;
+	esac
+}
+
+# Install the "default interface" to kernel, which will be used
+# as the default route when there's no router.
+network6_default_interface_setup()
+{
+	# Choose IPv6 default interface if it is not clearly specified.
+	case ${ipv6_default_interface} in
+	'')
+		for i in ${ipv6_network_interfaces}; do
+			case $i in
+			lo0|faith[0-9]*)
+				continue
+				;;
+			esac
+			laddr=`network6_getladdr $i exclude_tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_default_interface=$i
+				break
+				;;
+			esac
+		done
+		;;
+	esac
+
+	# Disallow unicast packets without outgoing scope identifiers,
+	# or route such packets to a "default" interface, if it is specified.
+	route add -inet6 fe80:: -prefixlen 10 ::1 -reject
+	case ${ipv6_default_interface} in
+	[Nn][Oo] | '')
+		route add -inet6 ff02:: -prefixlen 16 ::1 -reject
+		;;
+	*)
+		laddr=`network6_getladdr ${ipv6_default_interface}`
+		route add -inet6 ff02:: ${laddr} -prefixlen 16 -interface \
+			-cloning
+
+		# Disable installing the default interface with the
+		# case net.inet6.ip6.forwarding=0 and
+		# net.inet6.ip6.accept_rtadv=0, due to avoid conflict
+		# between the default router list and the manual
+		# configured default route.
+		case ${ipv6_gateway_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			if [ `sysctl -n net.inet6.ip6.accept_rtadv` -eq 1 ]
+			then
+				ndp -I ${ipv6_default_interface}
+			fi
+			;;
+		esac
+		;;
+	esac
+}
+
+network6_getladdr()
+{
+	ifconfig $1 2>/dev/null | while read proto addr rest; do
+		case ${proto} in
+		inet6)
+			case ${addr} in
+			fe80::*)
+				if [ -z "$2" ]; then
+					echo ${addr}
+					return
+				fi
+				case ${rest} in
+				*tentative*)
+					continue
+					;;
+				*)
+					echo ${addr}
+					return
+				esac
+			esac
+		esac
+	done
+}
