@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.48 1995/12/10 13:38:56 phk Exp $
+ *	$Id: lpt.c,v 1.49 1996/02/06 18:50:52 wollman Exp $
  */
 
 /*
@@ -1077,6 +1077,8 @@ lpintr (int unit)
 	    if (j == -1)
 		goto err;
 	    len = len + (j << 8);
+	    if (len > sc->sc_if.if_mtu + MLPIPHDRLEN)
+		goto err;
 
 	    bp  = sc->sc_ifbuf;
 	
