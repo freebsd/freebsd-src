@@ -85,8 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
-extern struct intrhand *irqhandlers[];
-extern u_int levels[];
+extern void sa11x0_activateirqs(void);
 
 static struct resource *sa1110_alloc_resource(device_t, device_t, int, int *,
         u_long, u_long, u_long, u_int);
@@ -96,10 +95,8 @@ static int sa1110_activate_resource(device_t, device_t, int, int,
 static int sa1110_setup_intr(device_t, device_t, struct resource *, int,
         driver_intr_t *, void *, void **);
 
-extern u_int irqmasks[];
+struct sa11x0_softc *sa11x0_softc; /* There can be only one. */
 
-void irq_setmasks(void);
-void intr_calculatemasks(void);
 static int
 sa1110_setup_intr(device_t dev, device_t child,
         struct resource *ires,  int flags, driver_intr_t *intr, void *arg,
@@ -107,23 +104,16 @@ sa1110_setup_intr(device_t dev, device_t child,
 {
 	int saved_cpsr;
 	
-	if (flags & INTR_TYPE_TTY) {
+	if (flags & INTR_TYPE_TTY) 
 		ires->r_start = 15;
-		irqmasks[IPL_SERIAL] |= 1 << ires->r_start;
-	} else if (flags & INTR_TYPE_CLK) {
+	else if (flags & INTR_TYPE_CLK) {
 		if (ires->r_start == 0)
 			ires->r_start = 26;
 		else
 			ires->r_start = 27;
-		irqmasks[IPL_SERIAL] |= 1 << ires->r_start;
 	}
-#if 0
-	intr_calculatemasks();
-#endif
 	saved_cpsr = SetCPSR(I32_bit, I32_bit);                 
 
-	set_splmasks();
-	irq_setmasks();
 	SetCPSR(I32_bit, saved_cpsr & I32_bit);
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
 	    cookiep);
@@ -173,9 +163,10 @@ sa11x0_attach(device_t dev)
 	int unit = device_get_unit(dev);
 	sc->sc_iot = &sa11x0_bs_tag;
 
+	sa11x0_softc = sc;
+
 	/* Map the SAIP */
 
-	bzero(irqhandlers, 0x20 * sizeof(void*));
 	if (bus_space_map(sc->sc_iot, SAIPIC_BASE, SAIPIC_NPORTS,
 			0, &sc->sc_ioh))
 		panic("saip%d: Cannot map registers", unit);
@@ -240,6 +231,7 @@ sa11x0_attach(device_t dev)
 	device_add_child(dev, "saost", 0);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
+	sa11x0_activateirqs();
 	return (0);
 }
 
