@@ -368,6 +368,9 @@ ahc_handle_brkadrint(struct ahc_softc *ahc)
 	ahc_abort_scbs(ahc, CAM_TARGET_WILDCARD, ALL_CHANNELS,
 		       CAM_LUN_WILDCARD, SCB_LIST_NULL, ROLE_UNKNOWN,
 		       CAM_NO_HBA);
+
+	/* Disable all interrupt sources by resetting the controller */
+	ahc_shutdown(ahc);
 }
 
 void
