@@ -119,7 +119,7 @@ typedef __builtin_va_list	__va_list;	/* internally known to gcc */
 #else
 typedef	char *			__va_list;
 #endif /* ! (__GNUC__ post 2.95 || __INTEL_COMPILER) */
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
+#if defined(__GNUC__) && !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
 #define __GNUC_VA_LIST
 typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif
