@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.31 1996/08/15 16:33:32 smpatel Exp $
+ * $Id: kern_descrip.c,v 1.32 1996/09/28 16:33:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -417,6 +417,7 @@ ofstat(p, uap, retval)
 		return (EBADF);
 	switch (fp->f_type) {
 
+	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
 		break;
@@ -468,6 +469,7 @@ fstat(p, uap, retval)
 		return (EBADF);
 	switch (fp->f_type) {
 
+	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
 		break;
@@ -525,6 +527,7 @@ fpathconf(p, uap, retval)
 		*retval = PIPE_BUF;
 		return (0);
 
+	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = (struct vnode *)fp->f_data;
 		return (VOP_PATHCONF(vp, uap->name, retval));
