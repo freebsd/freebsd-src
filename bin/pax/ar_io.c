@@ -44,16 +44,18 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "pax.h"
 #include "extern.h"
 
@@ -79,9 +81,12 @@ static int invld_rec;			/* tape has out of spec record size */
 static int wr_trail = 1;		/* trailer was rewritten in append */
 static int can_unlnk = 0;		/* do we unlink null archives?  */
 char *arcname;		  	/* printable name of archive */
+const char *gzip_program;		/* name of gzip program */
+static pid_t zpid = -1;			/* pid of child process */
 
 static int get_phys __P((void));
 extern sigset_t s_mask;
+static void ar_start_gzip __P((int, const char *, int));
 
 /*
  * ar_open()
@@ -121,6 +126,8 @@ ar_open(name)
 			arcname = STDN;
 		} else if ((arfd = open(name, EXT_MODE, DMOD)) < 0)
 			syswarn(0, errno, "Failed open to read on %s", name);
+		if (arfd != -1 && gzip_program != NULL)
+			ar_start_gzip(arfd, gzip_program, 0);
 		break;
 	case ARCHIVE:
 		if (name == NULL) {
@@ -130,6 +137,8 @@ ar_open(name)
 			syswarn(0, errno, "Failed open to write on %s", name);
 		else
 			can_unlnk = 1;
+		if (arfd != -1 && gzip_program != NULL)
+			ar_start_gzip(arfd, gzip_program, 1);
 		break;
 	case APPND:
 		if (name == NULL) {
@@ -333,6 +342,16 @@ ar_close()
 	    (arsb.st_size == 0)) {
 		(void)unlink(arcname);
 		can_unlnk = 0;
+	}
+
+	/*
+	 * for a quick extract/list, pax frequently exits before the child
+	 * process is done
+	 */
+	if ((act == LIST || act == EXTRACT) && nflag && zpid > 0) {
+		int status;
+		kill(zpid, SIGINT);
+		waitpid(zpid, &status, 0);
 	}
 
 	(void)close(arfd);
@@ -1286,4 +1305,47 @@ ar_next()
 		continue;
 	}
 	return(0);
+}
+
+/*
+ * ar_start_gzip()
+ * starts the gzip compression/decompression process as a child, using magic
+ * to keep the fd the same in the calling function (parent).
+ */
+void
+ar_start_gzip(int fd, const char *gzip_program, int wr)
+{
+	int fds[2];
+	char *gzip_flags;
+
+	if (pipe(fds) < 0)
+		err(1, "could not pipe");
+	zpid = fork();
+	if (zpid < 0)
+		err(1, "could not fork");
+
+	/* parent */
+	if (zpid) {
+		if (wr)
+			dup2(fds[1], fd);
+		else
+			dup2(fds[0], fd);
+		close(fds[0]);
+		close(fds[1]);
+	} else {
+		if (wr) {
+			dup2(fds[0], STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			gzip_flags = "-c";
+		} else {
+			dup2(fds[1], STDOUT_FILENO);
+			dup2(fd, STDIN_FILENO);
+			gzip_flags = "-dc";
+		}
+		close(fds[0]);
+		close(fds[1]);
+		if (execlp(gzip_program, gzip_program, gzip_flags, NULL) < 0)
+			err(1, "could not exec");
+		/* NOTREACHED */
+	}
 }
