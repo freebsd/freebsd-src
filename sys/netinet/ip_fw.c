@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.64 1997/10/12 20:25:25 phk Exp $
+ *	$Id: ip_fw.c,v 1.65 1997/11/05 20:17:19 joerg Exp $
  */
 
 /*
@@ -577,23 +577,24 @@ got_match:
 		  {
 			struct tcphdr *const tcp =
 				(struct tcphdr *) ((u_long *)ip + ip->ip_hl);
-			struct tcpiphdr ti;
+			struct tcpiphdr ti, *const tip = (struct tcpiphdr *) ip;
 
 			if (offset != 0 || (tcp->th_flags & TH_RST))
 				break;
 			ti.ti_i = *((struct ipovly *) ip);
 			ti.ti_t = *tcp;
-			NTOHL(ti.ti_seq);
-			NTOHL(ti.ti_ack);
-			ti.ti_len = ip->ip_len - hlen - (ti.ti_off << 2);
+			bcopy(&ti, ip, sizeof(ti));
+			NTOHL(tip->ti_seq);
+			NTOHL(tip->ti_ack);
+			tip->ti_len = ip->ip_len - hlen - (tip->ti_off << 2);
 			if (tcp->th_flags & TH_ACK) {
-				tcp_respond(NULL, &ti, *m,
+				tcp_respond(NULL, tip, *m,
 				    (tcp_seq)0, ntohl(tcp->th_ack), TH_RST);
 			} else {
 				if (tcp->th_flags & TH_SYN)
-					ti.ti_len++;
-				tcp_respond(NULL, &ti, *m, ti.ti_seq
-				    + ti.ti_len, (tcp_seq)0, TH_RST|TH_ACK);
+					tip->ti_len++;
+				tcp_respond(NULL, tip, *m, tip->ti_seq
+				    + tip->ti_len, (tcp_seq)0, TH_RST|TH_ACK);
 			}
 			*m = NULL;
 			break;
