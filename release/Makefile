@@ -758,16 +758,15 @@ cdrom.1:
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
-.if ${MACHINE_ARCH} == "alpha"
-	@echo "Setting up Alpha CD disc1 for booting"
-	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
-	@ln -f ${RD}/image.boot/kernel.gz ${CD_DISC1}/kernel.gz
-	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/mfsroot.gz
-	@ln -f ${CD_DISC2}/boot/cdboot ${CD_DISC1}/boot
-	@ln -f ${CD_DISC1}/boot/loader.rc ${CD_DISC2}/boot
-	@ln -f ${CD_DISC1}/kernel.gz ${CD_DISC2}/kernel.gz
-	@ln -f ${CD_DISC1}/mfsroot.gz ${CD_DISC2}/mfsroot.gz
-.elif ${MACHINE} == "i386"
+	@echo "Setting up /boot"
+	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
+	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/boot/mfsroot.gz
+	@ln -f ${CD_DISC1}/boot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
+	@echo 'mfsroot_load="YES"' > ${CD_DISC1}/boot/loader.conf
+	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC1}/boot/loader.conf
+	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC1}/boot/loader.conf
+	@ln -f ${CD_DISC1}/boot/loader.conf ${CD_DISC2}/boot/loader.conf
+.if ${MACHINE} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
