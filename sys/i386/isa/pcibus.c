@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.11 1995/09/13 17:03:47 se Exp $
+**  $Id: pcibus.c,v 1.12 1995/09/14 20:27:31 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -40,6 +40,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+
+#include <machine/cpu.h> /* bootverbose */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -82,9 +84,6 @@
 **
 **-----------------------------------------------------------------
 */
-
-static int
-pcibus_check (void);
 
 static void
 pcibus_setup (void);
@@ -141,29 +140,23 @@ DATA_SET (pcibus_set, i386pci);
 */
 
 
-#define CONF1_ENABLE       0x80000000ul
-#define CONF1_ENABLE_CHK1  0xF0000000ul
-#define CONF1_ENABLE_CHK2  0xfffffffful
-#define CONF1_ENABLE_RES2  0x80fffffcul
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
+
+#define CONF1_ENABLE       0x80000000ul
+
+#define CONF1_ENABLE_CHK   0x80000001ul
+#define CONF1_ENABLE_MSK   0x80000001ul
+#define CONF1_ENABLE_RES   0x80000000ul
 
 
 #define CONF2_ENABLE_PORT  0x0cf8
 #define CONF2_FORWARD_PORT 0x0cfa
 
+#define CONF2_ENABLE_CHK   0x0e
+#define CONF2_ENABLE_RES   0x0e
 
-static int
-pcibus_check (void)
-{
-	u_char device;
 
-	for (device = 0; device < pci_maxdevice; device++) {
-		if (pcibus_read (pcibus_tag (0,device,0), 0) != 0xfffffffful)
-			return 1;
-	}
-	return 0;
-}
 
 static void
 pcibus_setup (void)
@@ -176,16 +169,20 @@ pcibus_setup (void)
 	*/
 
 	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-	outb (CONF1_ADDR_PORT +3, 0);
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	outl (CONF1_DATA_PORT, 0);
 	result = inl (CONF1_ADDR_PORT);
 	outl (CONF1_ADDR_PORT, oldval);
 
-	if (result & CONF1_ENABLE) {
+	if (bootverbose && (result != 0xfffffffful))
+		printf ("pcibus_setup: "
+			"wrote 0x%08x, read back 0x%08x, expected 0x%08x\n", 
+			CONF1_ENABLE_CHK, result, CONF1_ENABLE_RES);
+
+	if ((result & CONF1_ENABLE_MSK) == CONF1_ENABLE_RES) {
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
-		if (pcibus_check()) 
-			return;
+		return;
 	};
 
 	/*---------------------------------------
@@ -193,36 +190,18 @@ pcibus_setup (void)
 	**---------------------------------------
 	*/
 
-	outb (CONF2_ENABLE_PORT,  0);
+	outb (CONF2_ENABLE_PORT,  CONF2_ENABLE_CHK);
 	outb (CONF2_FORWARD_PORT, 0);
-	if (!inb (CONF2_ENABLE_PORT) && !inb (CONF2_FORWARD_PORT)) {
+	result = inb (CONF2_ENABLE_PORT);
+
+	outb (CONF2_ENABLE_PORT,  0);
+	if ((result == CONF2_ENABLE_RES)
+	    && !inb (CONF2_ENABLE_PORT) 
+	    && !inb (CONF2_FORWARD_PORT)) {
 		pci_mechanism = 2;
 		pci_maxdevice = 16;
-		if (pcibus_check()) 
-			return;
+		return;
 	};
-
-
-	/*-----------------------------------------------------
-	**      Well, is it Configuration mode 1, after all ?
-	**-----------------------------------------------------
-	*/
-
-	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK2);
-	result = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, oldval);
-
-	if (result == CONF1_ENABLE_RES2) {
-		pci_mechanism = 1;
-		pci_maxdevice = 32;
-		if (pcibus_check()) 
-			return;
-	}
-	if (result != 0xfffffffful)
-		printf ("pcibus_setup: "
-			"wrote 0x%08x, read back 0x%08x, expected 0x%08x\n", 
-			CONF1_ENABLE_CHK2, result, CONF1_ENABLE_RES2);
 
 	/*---------------------------------------
 	**      No PCI bus host bridge found
@@ -246,22 +225,24 @@ pcibus_tag (unsigned char bus, unsigned char device, unsigned char func)
 	pcici_t tag;
 
 	tag.cfg1 = 0;
-	if (device >= 32) return tag;
 	if (func   >=  8) return tag;
 
 	switch (pci_mechanism) {
 
 	case 1:
-		tag.cfg1 = CONF1_ENABLE
-			| (((u_long) bus   ) << 16ul)
-			| (((u_long) device) << 11ul)
-			| (((u_long) func  ) <<  8ul);
+		if (device < 32) {
+			tag.cfg1 = CONF1_ENABLE
+				| (((u_long) bus   ) << 16ul)
+				| (((u_long) device) << 11ul)
+				| (((u_long) func  ) <<  8ul);
+		}
 		break;
 	case 2:
-		if (device >= 16) break;
-		tag.cfg2.port    = 0xc000 | (device << 8ul);
-		tag.cfg2.enable  = 0xf1 | (func << 1ul);
-		tag.cfg2.forward = bus;
+		if (device < 16) {
+			tag.cfg2.port    = 0xc000 | (device << 8ul);
+			tag.cfg2.enable  = 0xf0 | (func << 1ul);
+			tag.cfg2.forward = bus;
+		}
 		break;
 	};
 	return tag;
@@ -277,7 +258,7 @@ pcibus_ftag (pcici_t tag, u_char func)
 		tag.cfg1 |= (((u_long) func) << 8ul);
 		break;
 	case 2:
-		tag.cfg2.enable  = 0xf1 | (func << 1ul);
+		tag.cfg2.enable  = 0xf0 | (func << 1ul);
 		break;
 	};
 	return tag;
