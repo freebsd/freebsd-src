@@ -45,6 +45,8 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 /*
  * Maximum number of PCPU containers. If you know what you're doing you could
@@ -335,6 +337,7 @@ mbuf_init(void *dummy)
 		goto bad;
 	mb_list_mbuf.ml_map = kmem_suballoc(kmem_map,&(mb_list_mbuf.ml_mapbase),
 	    &(mb_list_mbuf.ml_maptop), mb_map_size);
+	mb_list_mbuf.ml_map->system_map = 1;
 	mb_list_mbuf.ml_mapfull = 0;
 	mb_list_mbuf.ml_objsize = MSIZE;
 	mb_list_mbuf.ml_wmhigh = &mbuf_limit;
@@ -348,11 +351,10 @@ mbuf_init(void *dummy)
 	mb_list_clust.ml_map = kmem_suballoc(kmem_map,
 	    &(mb_list_clust.ml_mapbase), &(mb_list_clust.ml_maptop),
 	    mb_map_size);
+	mb_list_clust.ml_map->system_map = 1;
 	mb_list_clust.ml_mapfull = 0;
 	mb_list_clust.ml_objsize = MCLBYTES;
 	mb_list_clust.ml_wmhigh = &clust_limit;
-
-	/* XXX XXX XXX: mbuf_map->system_map = clust_map->system_map = 1. */
 
 	/*
 	 * Allocate required general (global) containers for each object type.
