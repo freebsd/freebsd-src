@@ -18,6 +18,8 @@
 	..
     ..
     libdata
+	gcc
+	..
 	lint
 	..
 	stallion
