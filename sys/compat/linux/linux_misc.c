@@ -255,6 +255,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	locked = 0;
 	vp = NULL;
 
+	/*
+	 * XXX This code should make use of vn_open(), rather than doing
+	 * all this stuff itself.
+	 */
 	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_USERSPACE, args->library, td);
 	error = namei(&ni);
 	if (error)
