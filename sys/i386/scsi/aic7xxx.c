@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.43 1995/11/04 14:43:26 bde Exp $
+ *      $Id: aic7xxx.c,v 1.44 1995/11/05 04:50:48 gibbs Exp $
  */
 /*
  * TODO:
@@ -82,7 +82,7 @@ struct  scb	*ahc_scb_phys_kv();
 static int	ahc_poll __P((int unit, int wait));
 static u_int32	ahc_adapter_info();
 
-u_long  ahc_unit = 0;
+u_long ahc_unit = 0;
 
 static int     ahc_debug = AHC_SHOWABORTS;
 
@@ -217,19 +217,19 @@ static void
 ahc_print_scb(scb)
         struct scb *scb;
 {
-        printf("scb:0x%x control:0x%x tcl:0x%x cmdlen:%d cmdpointer:0x%x\n"
+        printf("scb:%p control:0x%x tcl:0x%x cmdlen:%d cmdpointer:0x%lx\n"
             ,scb
 	    ,scb->control
 	    ,scb->target_channel_lun
             ,scb->cmdlen
             ,scb->cmdpointer );
-        printf("        datlen:%d data:0x%x res:0x%x segs:0x%x segp:0x%x\n"
+        printf("        datlen:%d data:0x%lx res:0x%x segs:0x%x segp:0x%lx\n"
             ,scb->datalen[2] << 16 | scb->datalen[1] << 8 | scb->datalen[0]
             ,scb->data
 	    ,scb->RESERVED[1] << 8 | scb->RESERVED[0]
             ,scb->SG_segment_count
             ,scb->SG_list_pointer);
-	printf("	sg_addr:%x sg_len:%d\n"
+	printf("	sg_addr:%lx sg_len:%ld\n"
 	    ,scb->ahc_dma[0].addr
 	    ,scb->ahc_dma[0].len);
 	printf("	size:%d\n"
@@ -377,7 +377,7 @@ ahc_reset(iobase)
 			break;
 	}
 	if(wait == 0) {
-		printf("ahc at 0x%x: WARNING - Failed chip reset!  "
+		printf("ahc at 0x%lx: WARNING - Failed chip reset!  "
 		       "Trying to initialize anyway.\n", iobase);
 	}
 	outb(HCNTRL + iobase, hcntrl | PAUSE);
@@ -1015,7 +1015,7 @@ ahcintr(arg)
 #ifdef AHC_DEBUG
 				if(ahc_debug & AHC_SHOWMISC) {
 					sc_print_addr(xs->sc_link);
-					printf("Handled Residual of %d bytes\n"
+					printf("Handled Residual of %ld bytes\n"
 					       "SG_COUNT == %d\n",
 						scb->xs->resid,
 						inb(SCBARRAY+18 + iobase));
@@ -1343,7 +1343,7 @@ ahc_init(unit)
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf, sblkctl, i, host_id;
-	int     intdef, max_targ = 15, have_seeprom = 0;
+	int     max_targ = 15, have_seeprom = 0;
 	int	bios_disabled = 0;
 	struct seeprom_config sc;
 	/*
