@@ -37,7 +37,11 @@
 #define DIST_DES_DES		0x0001
 #define DIST_DES_SCRYPTO	0x0002
 #define DIST_DES_SSECURE	0x0004
+#if __FreeBSD__ > 3
 #define DIST_DES_KERBEROS4	0x0008
+#else
+#define DIST_DES_KERBEROS	0x0008
+#endif
 #define DIST_DES_SKERBEROS	0x0010
 
 /* Subtypes for SRC distribution */
