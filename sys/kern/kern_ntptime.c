@@ -409,6 +409,7 @@ ntp_update_second(long *newsec)
 			break;
 	}
 }
+
 static int
 ntp_sysctl SYSCTL_HANDLER_ARGS
 {
@@ -417,24 +418,7 @@ ntp_sysctl SYSCTL_HANDLER_ARGS
 	int s;
 
 	s = splclock();
-#ifdef EXT_CLOCK
-	/*
-	 * The microtime() external clock routine returns a
-	 * status code. If less than zero, we declare an error
-	 * in the clock status word and return the kernel
-	 * (software) time variable. While there are other
-	 * places that call microtime(), this is the only place
-	 * that matters from an application point of view.
-	 */
-	if (microtime(&atv) < 0) {
-		time_status |= STA_CLOCKERR;
-		ntv.time = time;
-	} else {
-		time_status &= ~STA_CLOCKERR;
-	}
-#else /* EXT_CLOCK */
 	microtime(&atv);
-#endif /* EXT_CLOCK */
 	ntv.time = atv;
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
@@ -594,7 +578,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 
 #ifdef PPS_SYNC
 
-/* We need this ugly monster twice, so lets macroize it... */
+/* We need this ugly monster twice, so let's macroize it. */
 
 #define MEDIAN3X(a, m, s, i1, i2, i3)				\
 	do {							\
@@ -689,9 +673,7 @@ hardpps(tvp, p_usec)
 	pps_tf[2] = pps_tf[1];
 	pps_tf[1] = pps_tf[0];
 	pps_tf[0] = u_usec;
-
 	MEDIAN3(pps_tf, pps_offset, v_usec);
-
 	if (v_usec > MAXTIME)
 		pps_jitcnt++;
 	v_usec = (v_usec << PPS_AVG) - pps_jitter;
@@ -774,7 +756,6 @@ hardpps(tvp, p_usec)
 	pps_ff[2] = pps_ff[1];
 	pps_ff[1] = pps_ff[0];
 	pps_ff[0] = v_usec;
-
 	MEDIAN3(pps_ff, u_usec, v_usec);
 
 	/*
@@ -823,4 +804,5 @@ hardpps(tvp, p_usec)
 	} else
 		pps_intcnt++;
 }
+
 #endif /* PPS_SYNC */
