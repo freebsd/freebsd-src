@@ -44,8 +44,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to specify a device where the kernel can save a crash dump in
-the case of a panic.
+utility is used to specify a device where the kernel can save a crash
+dump in the case of a panic.
 .Pp
 Calls to
 .Nm
@@ -56,10 +56,10 @@ controlled by the
 variable in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
-For most systems the size of the specified dump device must be at least
-the size of physical memory.
-Even though an additional header is added to the dump,
-the BIOS for a platform typically holds back some memory, so it is not usually
+For most systems the size of the specified dump device must be at
+least the size of physical memory.
+Even though an additional header is added to the dump, the BIOS for a
+platform typically holds back some memory, so it is not usually
 necessary to size the dump device larger than the actual amount of RAM
 available in the machine.
 .Pp
