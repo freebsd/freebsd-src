@@ -29,6 +29,7 @@ int					anon_open = dANONOPEN;
 										/* Anonymous logins by default? */
 int					connected = 0;		/* TRUE if connected to server */
 										/* If TRUE, set binary each connection. */
+int					www = 0;		/* TRUE	if use URL */
 Hostname			hostname;			/* Name of current host */
 RemoteSiteInfo		gRmtInfo;
 #ifdef GATEWAY
@@ -107,7 +108,7 @@ void InitOpenOptions(OpenOptions *openopt)
 
 int GetOpenOptions(int argc, char **argv, OpenOptions *openopt)
 {
-	int					opt, www;
+	int                                     opt;
 	char				*cp, *hostp, *cpath;
 
 	/* First setup the openopt variables. */
@@ -467,6 +468,7 @@ int Open(OpenOptions *openopt)
 	int					siteInRC;
 	char				*user, *pass, *acct;	
 	int					login_verbosity, oldv;
+	int				result = CMDERR;
 
 	macnum = 0;	 /* Reset macros. */
 
@@ -593,6 +595,7 @@ int Open(OpenOptions *openopt)
 				 */
 				(void) _cd(NULL);
 			}
+			result = NOERR;
 			break;	/* we are connected, so break the redial loop. */
 			/* end if we are connected */
 		} else {
@@ -606,7 +609,7 @@ nextdial:
 		disconnect(0, NULL);
 		continue;	/* Try re-dialing. */
 	}
-	return (NOERR);
+	return (result);
 }	/* Open */
 
 
@@ -615,6 +618,7 @@ nextdial:
 int cmdOpen(int argc, char **argv)
 {
 	OpenOptions			openopt;
+	int				result = NOERR;
 
 	/* If there is already a site open, close that one so we can
 	 * open a new one.
@@ -631,9 +635,9 @@ int cmdOpen(int argc, char **argv)
 	gRmtInfo.hasMDTM = 1;
 
 	if ((GetOpenOptions(argc, argv, &openopt) == USAGE) ||
-		(Open(&openopt) == USAGE))
+		((result = Open(&openopt)) == USAGE))
 		return USAGE;
-	return NOERR;
+	return (www ? result : NOERR);
 }	/* cmdOpen */
 
 /* eof open.c */
