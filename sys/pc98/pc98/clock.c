@@ -1011,7 +1011,12 @@ startrtclock()
 	 * We don't know at this point whether APM is going to be used
 	 * or not, nor when it might be activated.  Play it safe.
 	 */
-	return;
+	{
+	int disabled = 0;
+	resource_int_value("apm", 0, "disabled", &disabled);
+	if (disabled == 0)
+		return;
+	}
 #endif /* NAPM > 0 */
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
