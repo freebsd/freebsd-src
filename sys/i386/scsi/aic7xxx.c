@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.23 1996/06/23 20:13:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.24 1996/10/06 16:42:20 gibbs Exp $
  */
 /*
  * TODO:
@@ -1360,6 +1360,7 @@ ahc_handle_seqint(ahc, intstat)
 		{
 			u_int8_t period;
 			u_int8_t offset;
+			u_int8_t saved_offset;
 			u_int8_t targ_scratch;
 			u_int8_t maxoffset;
 			u_int8_t rate;
@@ -1370,14 +1371,14 @@ ahc_handle_seqint(ahc, intstat)
 				break;
 			}
 			period = AHC_INB(ahc, MSGIN_EXT_BYTE0);
-			offset = AHC_INB(ahc, MSGIN_EXT_BYTE1);
+			saved_offset = AHC_INB(ahc, MSGIN_EXT_BYTE1);
 			targ_scratch = AHC_INB(ahc, TARG_SCRATCH
 					       + scratch_offset);
 			if (targ_scratch & WIDEXFER)
 				maxoffset = MAX_OFFSET_16BIT;
 			else
 				maxoffset = MAX_OFFSET_8BIT;
-			offset = MIN(offset, maxoffset);
+			offset = MIN(saved_offset, maxoffset);
 			ahc_scsirate(ahc, &rate, &period, &offset,
 				     channel, target);
 			/* Preserve the WideXfer flag */
@@ -1391,13 +1392,20 @@ ahc_handle_seqint(ahc, intstat)
 				 targ_scratch);
 			AHC_OUTB(ahc, SCSIRATE, targ_scratch); 
 
-			/* See if we initiated Sync Negotiation */
-			if (ahc->sdtrpending & targ_mask) {
+			/*
+			 * See if we initiated Sync Negotiation
+			 * and didn't have to fall down to async
+			 * transfers.
+			 */
+			if ((ahc->sdtrpending & targ_mask) != 0
+			 && (saved_offset == offset)) {
 				/*
 				 * Don't send an SDTR back to
 				 * the target
 				 */
 				AHC_OUTB(ahc, RETURN_1, 0);
+				ahc->needsdtr &= ~targ_mask;
+				ahc->sdtrpending &= ~targ_mask;
 			} else {
 				/*
 				 * Send our own SDTR in reply
@@ -1409,12 +1417,18 @@ ahc_handle_seqint(ahc, intstat)
 				ahc_construct_sdtr(ahc, /*start_byte*/0,
 						   period, offset);
 				AHC_OUTB(ahc, RETURN_1, SEND_MSG);
+
+				/*
+				 * If we aren't starting a re-negotiation
+				 * because we had to go async in response
+				 * to a "too low" response from the target
+				 * clear the needsdtr flag for this target.
+				 */
+				if ((ahc->sdtrpending & targ_mask) == 0)
+					ahc->needsdtr &= ~targ_mask;
+				else
+					ahc->sdtrpending |= targ_mask;
 			}
-			/*
-			 * Negate the flags
-			 */
-			ahc->needsdtr &= ~targ_mask;
-			ahc->sdtrpending &= ~targ_mask;
 			break;
 		}
 		case MSG_EXT_WDTR:
