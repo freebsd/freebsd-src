@@ -1240,7 +1240,6 @@ ffs_vget(mp, ino, flags, vpp)
 	fs = ump->um_fs;
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_data = ip;
-	vp->v_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;
 	ip->i_fs = fs;
