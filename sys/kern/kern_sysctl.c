@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.13 1994/09/19 21:07:00 ache Exp $
+ * $Id: kern_sysctl.c,v 1.14 1994/09/21 03:46:46 wollman Exp $
  */
 
 /*
@@ -179,6 +179,7 @@ char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
 long hostid;
 int securelevel = -1;
+char kernelname[MAXPATHLEN] = "/kernel";
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 extern int osreldate;
@@ -215,6 +216,9 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_rdstring(oldp, oldlenp, newp, version));
 	case KERN_OSRELDATE:
 		return (sysctl_rdint(oldp, oldlenp, newp, osreldate));
+	case KERN_BOOTFILE:
+		return (sysctl_string(oldp, oldlenp, newp, newlen,
+				      kernelname, sizeof kernelname));
 	case KERN_MAXVNODES:
 		return(sysctl_int(oldp, oldlenp, newp, newlen, &desiredvnodes));
 	case KERN_MAXPROC:
