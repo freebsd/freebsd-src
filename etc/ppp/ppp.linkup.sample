@@ -3,35 +3,47 @@
 #          Example of ppp.linkup file
 #
 #
-#  This file is checked when PPP establishes network level connection.
-#  PPP command searches label in this file in following way and order.
+#  This file is checked when PPP establishes a connection.
+#  PPP searches the labels in this file as follows:
 #
-#  1) At first, IP address assigned into our side is searched and execute
-#     associated command.
+#  1) The label that matches the IP number assigned to our side.
 #
-#  2) If it didn't found, then label name specified at startup time is
-#     searched.
+#  2) The label specified on the command line to ppp.
 #
-#  3) If given label name is not found, then label MYADDR is searched.
+#  3) If no label has been found, use MYADDR if it exists.
 #
-# $Id$
+# $Id: ppp.linkup.sample,v 1.5 1997/02/23 09:21:11 peter Exp $
 #
 #########################################################################
-#
+
 # If we've got 192.244.176.32 as our address, then regard peer as a gateway
 # to 192.244.176.0 network.
 #
-#192.244.176.32:
-# add 192.244.176.0 0 HISADDR
-#
-# If we are invoked with an argument ``iij-demand'', then
-# delete existing route entry and add peer as default gateway.
+192.244.176.32:
+ add 192.244.176.0 0 HISADDR
+
+# If we are invoked with an argument ``iij-demand'', then delete all
+# existing route entries and add the peer as the default gateway.
 #
 iij-demand:
  delete ALL
  add 0 0 HISADDR
-#
+
 # Otherwise, simply add peer as default gateway.
 #
 MYADDR:
  add 0 0 HISADDR
+
+# If we are invoked with an argument ``pmdemand'', then
+# delete all existing (wrong) routing entries and add the peer IP
+# as our default gateway.
+# This is vital if you don't already know either sides IP number.
+#
+# We also want to execute a script on startup.  This script can do
+# nice things such as kick off "sendmail -q", "popclient my.isp" and
+# "slurp -d news".
+#
+pmdemand:
+ delete ALL
+ add 0 0 HISADDR
+ ! sh -c "/etc/ppp/ppp.etherup.pmdemand &"
