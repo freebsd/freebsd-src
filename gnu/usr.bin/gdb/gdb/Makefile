@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.5 1997/05/01 16:34:46 pst Exp $
+#	$Id: Makefile,v 1.13.2.6 1997/05/02 11:26:03 gj Exp $
 
 PROG = gdb
 
@@ -39,7 +39,8 @@ CFLAGS+= -DNO_MMALLOC
 #CFLAGS+= -g
 
 CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
-beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
+#beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
+.ORDER:	c-exp.c f-exp.c m2-exp.c
 
 .if exists(${.OBJDIR}/../bfd)
 LDADD+=   -L${.OBJDIR}/../bfd -lbfd

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/09/19 15:47:16 peter Exp $
 #
 
 #
@@ -26,8 +26,9 @@ SRCS+= bc-$i.h
 
 .endfor
 
+.ORDER: bi-parser.c bi-parser.h
 bi-parser.c bi-parser.h:	bi-parser.y
-	${BISON} ${BISONFLAGS} -d ${.ALLSRC} -o ${.TARGET}
+	${BISON} ${BISONFLAGS} -d ${.ALLSRC} -o bi-parser.c
 
 SRCS+= bi-parser.c bi-parser.h
 
@@ -82,6 +83,7 @@ SRCS+=	hash.h
 
 #-----------------------------------------------------------------------
 # C parser
+.ORDER: c-parse.c c-parse.h
 c-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
@@ -94,6 +96,7 @@ CLEANFILES+= c-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 # objc parser
+.ORDER: objc-parse.c objc-parse.h
 objc-parse.c objc-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
@@ -114,6 +117,12 @@ CLEANFILES+=	${SRCS}
 
 #-----------------------------------------------------------------------
 all:		${BINFORMAT} ${SRCS}
+
+#-----------------------------------------------------------------------
+# Make 'depend' in compat mode
+.if make(depend)
+.SINGLESHELL:
+.endif
 
 beforedepend:	${BINFORMAT}
 

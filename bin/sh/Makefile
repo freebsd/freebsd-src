@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.15.2.1 1997/08/25 09:09:28 jkh Exp $
+#	$Id: Makefile,v 1.15.2.2 1997/08/25 21:16:13 jkh Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -7,7 +7,8 @@ SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
 	mystring.c options.c output.c parser.c printf.c redir.c show.c \
 	trap.c var.c
 GENSRCS= arith.c arith_lex.c builtins.c init.c nodes.c syntax.c
-SRCS=	${SHSRCS} ${GENSRCS}
+GENHDRS= builtins.h nodes.h syntax.h token.h
+SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS}
 
 DPADD+= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 LDADD+= -ll -ledit -ltermcap
@@ -19,13 +20,13 @@ CFLAGS+=-DSHELL -I. -I${.CURDIR}
 
 .PATH:	${.CURDIR}/bltin ${.CURDIR}/../../usr.bin/printf
 
-CLEANFILES+= builtins.h mkinit mkinit.o mknodes mknodes.o \
+CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o \
-	nodes.h syntax.h token.h y.tab.h
-CLEANFILES+= ${GENSRCS}
+	y.tab.h
+CLEANFILES+= ${GENSRCS} ${GENHDRS}
 
-beforedepend: builtins.h nodes.h syntax.h token.h
 
+.ORDER: builtins.c builtins.h
 builtins.c builtins.h: mkbuiltins builtins.def
 	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
 
@@ -45,9 +46,11 @@ mknodes.o: mknodes.c		# XXX and many headers
 mksyntax: mksyntax.o
 mksyntax.o: mksyntax.c		# XXX and many headers
 
+.ORDER: nodes.c nodes.h
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
 	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
 
+.ORDER: syntax.c syntax.h
 syntax.c syntax.h: mksyntax
 	./mksyntax
 
