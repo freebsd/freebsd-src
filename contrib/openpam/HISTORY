@@ -1,3 +1,20 @@
+OpenPAM Dianthus						2003-05-02
+
+ - BUGFIX: Initialize some potentially uninitialized variables.
+
+ - BUGFIX: Silence some warnings emitted by gcc -std=iso9899:1999.
+
+ - BUGFIX: In pam_getenv(), return a pointer to the stored variable
+   instead of a freshly allocated copy.
+
+ - ENHANCE: Detect recursion in openpam_borrow_cred()
+
+ - ENHANCE: Make borrowing one's own credentials a no-op.
+
+ - ENHANCE: Further improve debugging support.
+
+ - ENHANCE: Clean up some variable names.
+============================================================================
 OpenPAM Daffodil						2003-01-06
 
  - ENHANCE: Document dependency on <sys/types.h> (for size_t)
@@ -206,4 +223,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#17 $
+$P4: //depot/projects/openpam/HISTORY#18 $
