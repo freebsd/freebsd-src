@@ -42,6 +42,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -49,5 +51,11 @@ int
 remove(file)
 	const char *file;
 {
+	struct stat sb;
+
+	if (lstat(file, &sb) < 0)
+		return (-1);
+	if (S_ISDIR(sb.st_mode))
+		return (rmdir(file));
 	return (unlink(file));
 }
