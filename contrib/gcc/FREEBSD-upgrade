@@ -1,0 +1,17 @@
+$FreeBSD$
+
+cvs -d :pserver:anoncvs@anoncvs.cygnus.com:/cvs/gcc login
+#	password is "anoncvs"
+
+cvs -d :pserver:anoncvs@anoncvs.cygnus.com:/cvs/gcc co -D '6/3/2000 05:52 UTC'
+	-l src
+cvs -d :pserver:anoncvs@anoncvs.cygnus.com:/cvs/gcc co -D '6/4/2000 05:52 UTC'
+	egcs/gcc egcs/libf2c egcs/libio egcs/libobjc egcs/libstdc++
+
+for F in `cat FREEBSD-deletelist` ; do rm -rfv "$F" ; done
+for F in `cat FREEBSD-deletelist` ; do find . -name "$F" -exec rm -rfv {} \; ; done
+
+mv -iv config/i386/freebsd.h config/i386/freebsd-aout.h
+mv -iv config/i386/freebsd-elf.h config/i386/freebsd.h
+
+cvs import src/contrib FSF gcc_anoncvs_20000603
