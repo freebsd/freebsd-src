@@ -29,8 +29,10 @@
 #include <sys/systm.h>
 #include <sys/linker_set.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -38,16 +40,20 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_zone.h>
 
+/* prevent concurrant creation races */
+static struct sx phys_pager_sx;
 /* list of device pager objects */
 static struct pagerlst phys_pager_object_list;
-
-static int phys_pager_alloc_lock, phys_pager_alloc_lock_want;
+/* protect access to phys_pager_object_list */
+static struct mtx phys_pager_mtx;
 
 static void
 phys_pager_init(void)
 {
 
 	TAILQ_INIT(&phys_pager_object_list);
+	sx_init(&phys_pager_sx, "phys_pager create");
+	mtx_init(&phys_pager_mtx, "phys_pager list", MTX_DEF);
 }
 
 static vm_object_t
@@ -68,12 +74,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		/*
 		 * Lock to prevent object creation race condition.
 		 */
-		while (phys_pager_alloc_lock) {
-			phys_pager_alloc_lock_want++;
-			tsleep(&phys_pager_alloc_lock, PVM, "ppall", 0);
-			phys_pager_alloc_lock_want--;
-		}
-		phys_pager_alloc_lock = 1;
+		sx_xlock(&phys_pager_sx);
 	
 		/*
 		 * Look up pager, creating as necessary.
@@ -86,8 +87,10 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			object = vm_object_allocate(OBJT_PHYS,
 				OFF_TO_IDX(foff + size));
 			object->handle = handle;
+			mtx_lock(&phys_pager_mtx);
 			TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
 			    pager_object_list);
+			mtx_unlock(&phys_pager_mtx);
 		} else {
 			/*
 			 * Gain a reference to the object.
@@ -96,9 +99,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			if (OFF_TO_IDX(foff + size) > object->size)
 				object->size = OFF_TO_IDX(foff + size);
 		}
-		phys_pager_alloc_lock = 0;
-		if (phys_pager_alloc_lock_want)
-			wakeup(&phys_pager_alloc_lock);
+		sx_xunlock(&phys_pager_sx);
 	} else {
 		object = vm_object_allocate(OBJT_PHYS,
 			OFF_TO_IDX(foff + size));
@@ -111,8 +112,11 @@ static void
 phys_pager_dealloc(vm_object_t object)
 {
 
-	if (object->handle != NULL)
+	if (object->handle != NULL) {
+		mtx_lock(&phys_pager_mtx);
 		TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
+		mtx_unlock(&phys_pager_mtx);
+	}
 }
 
 static int

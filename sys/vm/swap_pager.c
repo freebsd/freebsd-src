@@ -80,6 +80,7 @@
 #include <sys/sysctl.h>
 #include <sys/blist.h>
 #include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/vmmeter.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
@@ -118,7 +119,6 @@ static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
 static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
-static int sw_alloc_interlock;	/* swap pager allocation interlock	*/
 
 struct blist *swapblist;
 static struct swblock **swhash;
@@ -145,6 +145,8 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 #define NOBJLIST(handle)	\
 	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
+static struct sx sw_alloc_sx;	/* prevent concurrant creation */
+static struct mtx sw_alloc_mtx;	/* protect list manipulation */ 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 struct pagerlst		swap_pager_un_object_list;
 vm_zone_t		swap_zone;
@@ -262,6 +264,8 @@ swap_pager_init()
 	for (i = 0; i < NOBJLISTS; ++i)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	TAILQ_INIT(&swap_pager_un_object_list);
+	sx_init(&sw_alloc_sx, "swap_pager create");
+	mtx_init(&sw_alloc_mtx, "swap_pager list", MTX_DEF);
 
 	/*
 	 * Device Stripe, in PAGE_SIZE'd blocks
@@ -385,11 +389,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * of the handle.
 		 */
 
-		while (sw_alloc_interlock) {
-			sw_alloc_interlock = -1;
-			tsleep(&sw_alloc_interlock, PVM, "swpalc", 0);
-		}
-		sw_alloc_interlock = 1;
+		sx_xlock(&sw_alloc_sx);
 
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 
@@ -403,10 +403,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 		}
 
-		if (sw_alloc_interlock < 0)
-			wakeup(&sw_alloc_interlock);
-
-		sw_alloc_interlock = 0;
+		sx_xunlock(&sw_alloc_sx);
 	} else {
 		object = vm_object_allocate(OBJT_DEFAULT,
 			OFF_TO_IDX(offset + PAGE_MASK + size));
@@ -441,11 +438,13 @@ swap_pager_dealloc(object)
 	 * pageout completion.
 	 */
 
+	mtx_lock(&sw_alloc_mtx);
 	if (object->handle == NULL) {
 		TAILQ_REMOVE(&swap_pager_un_object_list, object, pager_object_list);
 	} else {
 		TAILQ_REMOVE(NOBJLIST(object->handle), object, pager_object_list);
 	}
+	mtx_unlock(&sw_alloc_mtx);
 
 	vm_object_pip_wait(object, "swpdea");
 
@@ -642,6 +641,7 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
 	 */
 
 	if (destroysource) {
+		mtx_lock(&sw_alloc_mtx);
 		if (srcobject->handle == NULL) {
 			TAILQ_REMOVE(
 			    &swap_pager_un_object_list, 
@@ -655,6 +655,7 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
 			    pager_object_list
 			);
 		}
+		mtx_unlock(&sw_alloc_mtx);
 	}
 
 	/*
@@ -1753,6 +1754,7 @@ swp_pager_meta_build(
 		object->type = OBJT_SWAP;
 		object->un_pager.swp.swp_bcount = 0;
 
+		mtx_lock(&sw_alloc_mtx);
 		if (object->handle != NULL) {
 			TAILQ_INSERT_TAIL(
 			    NOBJLIST(object->handle),
@@ -1766,6 +1768,7 @@ swp_pager_meta_build(
 			    pager_object_list
 			);
 		}
+		mtx_unlock(&sw_alloc_mtx);
 	}
 	
 	/*
