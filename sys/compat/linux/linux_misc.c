@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.32 1997/10/30 10:53:30 kato Exp $
+ *  $Id: linux_misc.c,v 1.33 1997/11/06 19:28:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -289,8 +289,8 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
      * XXX: this is not complete. it should check current usage PLUS
      * the resources needed by this library.
      */
-    if (a_out->a_text > MAXTSIZ || a_out->a_data + bss_size > MAXDSIZ ||
-	a_out->a_data+bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
+    if (a_out->a_text > MAXTSIZ ||
+	a_out->a_data + bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
 	error = ENOMEM;
 	goto cleanup;
     }
