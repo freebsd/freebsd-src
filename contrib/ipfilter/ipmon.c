@@ -1,43 +1,52 @@
+/* $FreeBSD$ */
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1997 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.9 1998/05/23 14:29:45 darrenr Exp $";
+static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1998 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.4 2000/01/24 12:45:25 darrenr Exp $";
 #endif
+
+#ifndef SOLARIS
+#define SOLARIS (defined(__SVR4) || defined(__svr4__)) && defined(sun)
+#endif
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/file.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/types.h>
-#ifndef __FreeBSD__
 #if !defined(__SVR4) && !defined(__svr4__)
+# if (__FreeBSD_version >= 300000)
+#  include <sys/dirent.h>
+# else
+#  include <sys/dir.h>
+# endif
+#else
+# include <sys/filio.h>
+# include <sys/byteorder.h>
+#endif
 #include <strings.h>
 #include <signal.h>
-#include <sys/dir.h>
-#else
-#include <sys/filio.h>
-#include <sys/byteorder.h>
-#endif
-#endif
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/time.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <net/if.h>
 #include <netinet/ip.h>
+#include <netinet/tcp_fsm.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -46,7 +55,6 @@ static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.9 1998/05/23 14:29:45
 #include <sys/uio.h>
 #ifndef linux
 # include <sys/protosw.h>
-# include <sys/user.h>
 # include <netinet/ip_var.h>
 #endif
 
@@ -87,6 +95,15 @@ struct	flags	tcpfl[] = {
 	{ 0, '\0' }
 };
 
+#if SOLARIS
+static	char	*pidfile = "/etc/opt/ipf/ipmon.pid";
+#else
+# if BSD >= 199306
+static	char	*pidfile = "/var/run/ipmon.pid";
+# else
+static	char	*pidfile = "/etc/ipmon.pid";
+# endif
+#endif
 
 static	char	line[2048];
 static	int	opts = 0;
@@ -101,12 +118,20 @@ static	void	print_ipflog __P((FILE *, char *, int));
 static	void	print_natlog __P((FILE *, char *, int));
 static	void	print_statelog __P((FILE *, char *, int));
 static	void	dumphex __P((FILE *, u_char *, int));
-static	int	read_log __P((int, int *, char *, int, FILE *));
+static	int	read_log __P((int, int *, char *, int));
+static	void	write_pid __P((char *));
+
 char	*hostname __P((int, struct in_addr));
-char	*portname __P((int, char *, u_short));
+char	*portname __P((int, char *, u_int));
 int	main __P((int, char *[]));
 
 static	void	logopts __P((int, char *));
+static	void	init_tabs __P((void));
+static	char	*getproto __P((u_int));
+
+static	char	**protocols = NULL;
+static	char	**udp_ports = NULL;
+static	char	**tcp_ports = NULL;
 
 
 #define	OPT_SYSLOG	0x001
@@ -119,14 +144,14 @@ static	void	logopts __P((int, char *));
 #define	OPT_STATE	0x100
 #define	OPT_FILTER	0x200
 #define	OPT_PORTNUM	0x400
-#define	OPT_ALL		(OPT_NAT|OPT_STATE|OPT_FILTER)
+#define	OPT_LOGALL	(OPT_NAT|OPT_STATE|OPT_FILTER)
 
 #ifndef	LOGFAC
 #define	LOGFAC	LOG_LOCAL0
 #endif
 
 
-static void handlehup(sig)
+void handlehup(sig)
 int sig;
 {
 	FILE	*fp;
@@ -134,14 +159,91 @@ int sig;
 	signal(SIGHUP, handlehup);
 	if (logfile && (fp = fopen(logfile, "a")))
 		newlog = fp;
+	init_tabs();
 	donehup = 1;
 }
 
 
-static int read_log(fd, lenp, buf, bufsize, log)
+static void init_tabs()
+{
+	struct	protoent	*p;
+	struct	servent	*s;
+	char	*name, **tab;
+	u_int	port;
+
+	if (protocols != NULL) {
+		free(protocols);
+		protocols = NULL;
+	}
+	protocols = (char **)malloc(256 * sizeof(*protocols));
+	if (protocols != NULL) {
+		bzero((char *)protocols, 256 * sizeof(*protocols));
+
+		setprotoent(1);
+		while ((p = getprotoent()) != NULL)
+			if (p->p_proto >= 0 && p->p_proto <= 255 &&
+			    p->p_name != NULL)
+				protocols[p->p_proto] = strdup(p->p_name);
+		endprotoent();
+	}
+
+	if (udp_ports != NULL) {
+		free(udp_ports);
+		udp_ports = NULL;
+	}
+	udp_ports = (char **)malloc(65536 * sizeof(*udp_ports));
+	if (udp_ports != NULL)
+		bzero((char *)udp_ports, 65536 * sizeof(*udp_ports));
+
+	if (tcp_ports != NULL) {
+		free(tcp_ports);
+		tcp_ports = NULL;
+	}
+	tcp_ports = (char **)malloc(65536 * sizeof(*tcp_ports));
+	if (tcp_ports != NULL)
+		bzero((char *)tcp_ports, 65536 * sizeof(*tcp_ports));
+
+	setservent(1);
+	while ((s = getservent()) != NULL) {
+		if (s->s_proto == NULL)
+			continue;
+		else if (!strcmp(s->s_proto, "tcp")) {
+			port = (u_int)s->s_port;
+			name = s->s_name;
+			tab = tcp_ports;
+		} else if (!strcmp(s->s_proto, "udp")) {
+			port = (u_int)s->s_port;
+			name = s->s_name;
+			tab = udp_ports;
+		} else
+			continue;
+		if ((port < 0 || port > 65535) || (name == NULL))
+			continue;
+		tab[port] = strdup(name);
+	}
+	endservent();
+}
+
+
+static char *getproto(p)
+u_int p;
+{
+	static char pnum[4];
+	char *s;
+
+	p &= 0xff;
+	s = protocols ? protocols[p] : NULL;
+	if (s == NULL) {
+		sprintf(pnum, "%u", p);
+		s = pnum;
+	}
+	return s;
+}
+
+
+static int read_log(fd, lenp, buf, bufsize)
 int fd, bufsize, *lenp;
 char *buf;
-FILE *log;
 {
 	int	nr;
 
@@ -173,18 +275,24 @@ struct	in_addr	ip;
 char	*portname(res, proto, port)
 int	res;
 char	*proto;
-u_short	port;
+u_int	port;
 {
 	static	char	pname[8];
-	struct	servent	*serv;
+	char	*s;
 
-	(void) sprintf(pname, "%hu", htons(port));
+	port = ntohs(port);
+	port &= 0xffff;
+	(void) sprintf(pname, "%u", port);
 	if (!res || (opts & OPT_PORTNUM))
 		return pname;
-	serv = getservbyport((int)port, proto);
-	if (!serv)
-		return pname;
-	return serv->s_name;
+	s = NULL;
+	if (!strcmp(proto, "tcp"))
+		s = tcp_ports[port];
+	else if (!strcmp(proto, "udp"))
+		s = udp_ports[port];
+	if (s == NULL)
+		s = pname;
+	return s;
 }
 
 
@@ -254,6 +362,7 @@ int	blen;
 	char	*t = line;
 	struct	tm	*tm;
 	int	res, i, len;
+	char	*proto;
 
 	nl = (struct natlog *)((char *)ipl + sizeof(*ipl));
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
@@ -274,20 +383,22 @@ int	blen;
 		strcpy(t, "NAT:MAP ");
 	else if (nl->nl_type == NL_NEWRDR)
 		strcpy(t, "NAT:RDR ");
-	else if (nl->nl_type == ISL_EXPIRE)
+	else if (nl->nl_type == NL_EXPIRE)
 		strcpy(t, "NAT:EXPIRE ");
 	else
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);
 
+	proto = getproto(nl->nl_p);
+
 	(void) sprintf(t, "%s,%s <- -> ", hostname(res, nl->nl_inip),
-		portname(res, NULL, nl->nl_inport));
+		portname(res, proto, (u_int)nl->nl_inport));
 	t += strlen(t);
 	(void) sprintf(t, "%s,%s ", hostname(res, nl->nl_outip),
-		portname(res, NULL, nl->nl_outport));
+		portname(res, proto, (u_int)nl->nl_outport));
 	t += strlen(t);
 	(void) sprintf(t, "[%s,%s]", hostname(res, nl->nl_origip),
-		portname(res, NULL, nl->nl_origport));
+		portname(res, proto, (u_int)nl->nl_origport));
 	t += strlen(t);
 	if (nl->nl_type == NL_EXPIRE) {
 #ifdef	USE_QUAD_T
@@ -315,8 +426,7 @@ int	blen;
 {
 	struct	ipslog *sl;
 	iplog_t	*ipl = (iplog_t *)buf;
-	struct	protoent *pr;
-	char	*t = line, *proto, pname[6];
+	char	*t = line, *proto;
 	struct	tm	*tm;
 	int	res, i, len;
 
@@ -337,27 +447,29 @@ int	blen;
 
 	if (sl->isl_type == ISL_NEW)
 		strcpy(t, "STATE:NEW ");
-	else if (sl->isl_type == ISL_EXPIRE)
-		strcpy(t, "STATE:EXPIRE ");
+	else if (sl->isl_type == ISL_EXPIRE) {
+		if ((sl->isl_p == IPPROTO_TCP) &&
+		    (sl->isl_state[0] > TCPS_ESTABLISHED ||
+		     sl->isl_state[1] > TCPS_ESTABLISHED))
+			strcpy(t, "STATE:CLOSE ");
+		else
+			strcpy(t, "STATE:EXPIRE ");
+	} else if (sl->isl_type == ISL_FLUSH)
+		strcpy(t, "STATE:FLUSH ");
 	else
 		sprintf(t, "Type: %d ", sl->isl_type);
 	t += strlen(t);
 
-	pr = getprotobynumber((int)sl->isl_p);
-	if (!pr) {
-		proto = pname;
-		sprintf(proto, "%d", (u_int)sl->isl_p);
-	} else
-		proto = pr->p_name;
+	proto = getproto(sl->isl_p);
 
 	if (sl->isl_p == IPPROTO_TCP || sl->isl_p == IPPROTO_UDP) {
 		(void) sprintf(t, "%s,%s -> ",
 			hostname(res, sl->isl_src),
-			portname(res, proto, sl->isl_sport));
+			portname(res, proto, (u_int)sl->isl_sport));
 		t += strlen(t);
 		(void) sprintf(t, "%s,%s PR %s",
 			hostname(res, sl->isl_dst),
-			portname(res, proto, sl->isl_dport), proto);
+			portname(res, proto, (u_int)sl->isl_dport), proto);
 	} else if (sl->isl_p == IPPROTO_ICMP) {
 		(void) sprintf(t, "%s -> ", hostname(res, sl->isl_src));
 		t += strlen(t);
@@ -439,11 +551,10 @@ FILE	*log;
 char	*buf;
 int	blen;
 {
-	struct	protoent *pr;
-	struct	tcphdr	*tp;
+	tcphdr_t	*tp;
 	struct	icmp	*ic;
 	struct	tm	*tm;
-	char	c[3], pname[8], *t, *proto;
+	char	*t, *proto;
 	u_short	hl, p;
 	int	i, lvl, res, len;
 	ip_t	*ipc, *ip;
@@ -483,60 +594,62 @@ int	blen;
 	(defined(OpenBSD) && (OpenBSD >= 199603))) || defined(linux)
 	len = (int)sizeof(ipf->fl_ifname);
 	(void) sprintf(t, "%*.*s", len, len, ipf->fl_ifname);
+	t += strlen(t);
+# if SOLARIS
+	if (isalpha(*(t - 1)))
+		*t++ = '0' + ipf->fl_unit;
+# endif
 #else
 	for (len = 0; len < 3; len++)
-		if (!ipf->fl_ifname[len])
+		if (ipf->fl_ifname[len] == '\0')
 			break;
 	if (ipf->fl_ifname[len])
 		len++;
 	(void) sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
-#endif
 	t += strlen(t);
+#endif
 	(void) sprintf(t, " @%hu:%hu ", ipf->fl_group, ipf->fl_rule + 1);
-	pr = getprotobynumber((int)p);
-	if (!pr) {
-		proto = pname;
-		sprintf(proto, "%d", (u_int)p);
-	} else
-		proto = pr->p_name;
+	t += strlen(t);
+	proto = getproto(p);
 
  	if (ipf->fl_flags & FF_SHORT) {
-		c[0] = 'S';
+		*t++ = 'S';
 		lvl = LOG_ERR;
 	} else if (ipf->fl_flags & FR_PASS) {
 		if (ipf->fl_flags & FR_LOGP)
-			c[0] = 'p';
+			*t++ = 'p';
 		else
-			c[0] = 'P';
+			*t++ = 'P';
 		lvl = LOG_NOTICE;
 	} else if (ipf->fl_flags & FR_BLOCK) {
 		if (ipf->fl_flags & FR_LOGB)
-			c[0] = 'b';
+			*t++ = 'b';
 		else
-			c[0] = 'B';
+			*t++ = 'B';
 		lvl = LOG_WARNING;
 	} else if (ipf->fl_flags & FF_LOGNOMATCH) {
-		c[0] = 'n';
+		*t++ = 'n';
 		lvl = LOG_NOTICE;
 	} else {
-		c[0] = 'L';
+		*t++ = 'L';
 		lvl = LOG_INFO;
 	}
-	c[1] = ' ';
-	c[2] = '\0';
-	(void) strcat(line, c);
-	t = line + strlen(line);
+	if (ipf->fl_loglevel != 0xffff)
+		lvl = ipf->fl_loglevel;
+	*t++ = ' ';
+	*t = '\0';
 
-	if ((p == IPPROTO_TCP || p == IPPROTO_UDP) && !(ip->ip_off & 0x1fff)) {
-		tp = (struct tcphdr *)((char *)ip + hl);
+	if ((p == IPPROTO_TCP || p == IPPROTO_UDP) &&
+	    !(ip->ip_off & IP_OFFMASK)) {
+		tp = (tcphdr_t *)((char *)ip + hl);
 		if (!(ipf->fl_flags & (FI_SHORT << 16))) {
 			(void) sprintf(t, "%s,%s -> ",
 				hostname(res, ip->ip_src),
-				portname(res, proto, tp->th_sport));
+				portname(res, proto, (u_int)tp->th_sport));
 			t += strlen(t);
 			(void) sprintf(t, "%s,%s PR %s len %hu %hu ",
 				hostname(res, ip->ip_dst),
-				portname(res, proto, tp->th_dport),
+				portname(res, proto, (u_int)tp->th_dport),
 				proto, hl, ip->ip_len);
 			t += strlen(t);
 
@@ -545,12 +658,13 @@ int	blen;
 				for (i = 0; tcpfl[i].value; i++)
 					if (tp->th_flags & tcpfl[i].value)
 						*t++ = tcpfl[i].flag;
-			}
-			if (opts & OPT_VERBOSE) {
-				(void) sprintf(t, " %lu %lu %hu",
-					(u_long)tp->th_seq,
-					(u_long)tp->th_ack, tp->th_win);
-				t += strlen(t);
+				if (opts & OPT_VERBOSE) {
+					(void) sprintf(t, " %lu %lu %hu",
+						(u_long)(ntohl(tp->th_seq)),
+						(u_long)(ntohl(tp->th_ack)),
+						ntohs(tp->th_win));
+					t += strlen(t);
+				}
 			}
 			*t = '\0';
 		} else {
@@ -560,7 +674,7 @@ int	blen;
 				hostname(res, ip->ip_dst), proto,
 				hl, ip->ip_len);
 		}
-	} else if (p == IPPROTO_ICMP) {
+	} else if ((p == IPPROTO_ICMP) && !(ip->ip_off & IP_OFFMASK)) {
 		ic = (struct icmp *)((char *)ip + hl);
 		(void) sprintf(t, "%s -> ", hostname(res, ip->ip_src));
 		t += strlen(t);
@@ -573,24 +687,18 @@ int	blen;
 		    ic->icmp_type == ICMP_REDIRECT ||
 		    ic->icmp_type == ICMP_TIMXCEED) {
 			ipc = &ic->icmp_ip;
-			tp = (struct tcphdr *)((char *)ipc + hl);
+			tp = (tcphdr_t *)((char *)ipc + hl);
 
-			p = (u_short)ipc->ip_p;
-			pr = getprotobynumber((int)p);
-			if (!pr) {
-				proto = pname;
-				(void) sprintf(proto, "%d", (int)p);
-			} else
-				proto = pr->p_name;
+			proto = getproto(ipc->ip_p);
 
 			t += strlen(t);
 			(void) sprintf(t, " for %s,%s -",
 				hostname(res, ipc->ip_src),
-				portname(res, proto, tp->th_sport));
+				portname(res, proto, (u_int)tp->th_sport));
 			t += strlen(t);
 			(void) sprintf(t, " %s,%s PR %s len %hu %hu",
 				hostname(res, ipc->ip_dst),
-				portname(res, proto, tp->th_dport),
+				portname(res, proto, (u_int)tp->th_dport),
 				proto, ipc->ip_hl << 2, ipc->ip_len);
 		}
 	} else {
@@ -599,11 +707,12 @@ int	blen;
 		(void) sprintf(t, "%s PR %s len %hu (%hu)",
 			hostname(res, ip->ip_dst), proto, hl, ip->ip_len);
 		t += strlen(t);
-		if (ip->ip_off & 0x1fff)
+		if (ip->ip_off & IP_OFFMASK)
 			(void) sprintf(t, " frag %s%s%hu@%hu",
 				ip->ip_off & IP_MF ? "+" : "",
 				ip->ip_off & IP_DF ? "-" : "",
-				ip->ip_len - hl, (ip->ip_off & 0x1fff) << 3);
+				ip->ip_len - hl,
+				(ip->ip_off & IP_OFFMASK) << 3);
 	}
 	t += strlen(t);
 
@@ -617,6 +726,11 @@ int	blen;
 		t += strlen(t);
 	}
 
+	if (ipf->fl_flags & FR_INQUE)
+		strcpy(t, " IN");
+	else if (ipf->fl_flags & FR_OUTQUE)
+		strcpy(t, " OUT");
+	t += strlen(t);
 	*t++ = '\n';
 	*t++ = '\0';
 	if (opts & OPT_SYSLOG)
@@ -624,7 +738,7 @@ int	blen;
 	else
 		(void) fprintf(log, "%s", line);
 	if (opts & OPT_HEXHDR)
-		dumphex(log, (u_char *)buf, sizeof(iplog_t));
+		dumphex(log, (u_char *)buf, sizeof(iplog_t) + sizeof(*ipf));
 	if (opts & OPT_HEXBODY)
 		dumphex(log, (u_char *)ip, ipf->fl_plen + ipf->fl_hlen);
 }
@@ -635,6 +749,25 @@ char *prog;
 {
 	fprintf(stderr, "%s: [-NFhstvxX] [-f <logfile>]\n", prog);
 	exit(1);
+}
+
+
+static void write_pid(file)
+char *file;
+{
+	FILE *fp = NULL;
+	int fd;
+
+	if ((fd = open(file, O_CREAT|O_TRUNC|O_WRONLY, 0644)) >= 0)
+		fp = fdopen(fd, "w");
+	if (!fp) {
+		close(fd);
+		fprintf(stderr, "unable to open/create pid file: %s\n", file);
+		return;
+	}
+	fprintf(fp, "%d", getpid());
+	fclose(fp);
+	close(fd);
 }
 
 
@@ -709,7 +842,7 @@ char *argv[];
 	int	fd[3], doread, n, i;
 	int	tr, nr, regular[3], c;
 	int	fdt[3], devices = 0, make_daemon = 0;
-	char	buf[512], *iplfile[3];
+	char	buf[512], *iplfile[3], *s;
 	extern	int	optind;
 	extern	char	*optarg;
 
@@ -719,11 +852,14 @@ char *argv[];
 	iplfile[1] = IPNAT_NAME;
 	iplfile[2] = IPSTATE_NAME;
 
-	while ((c = getopt(argc, argv, "?aDf:FhI:nN:o:O:sS:tvxX")) != -1)
+	while ((c = getopt(argc, argv, "?aDf:FhnN:o:O:pP:sS:tvxX")) != -1)
 		switch (c)
 		{
 		case 'a' :
-			opts |= OPT_ALL;
+			opts |= OPT_LOGALL;
+			fdt[0] = IPL_LOGIPF;
+			fdt[1] = IPL_LOGNAT;
+			fdt[2] = IPL_LOGSTATE;
 			break;
 		case 'D' :
 			make_daemon = 1;
@@ -759,8 +895,17 @@ char *argv[];
 		case 'p' :
 			opts |= OPT_PORTNUM;
 			break;
+		case 'P' :
+			pidfile = optarg;
+			break;
 		case 's' :
-			openlog(argv[0], LOG_NDELAY|LOG_PID, LOGFAC);
+			s = strrchr(argv[0], '/');
+			if (s == NULL)
+				s = argv[0];
+			else
+				s++;
+			openlog(s, LOG_NDELAY|LOG_PID, LOGFAC);
+			s = NULL;
 			opts |= OPT_SYSLOG;
 			break;
 		case 'S' :
@@ -785,6 +930,8 @@ char *argv[];
 		case '?' :
 			usage(argv[0]);
 		}
+
+	init_tabs();
 
 	/*
 	 * Default action is to only open the filter log file.
@@ -825,16 +972,19 @@ char *argv[];
 			exit(-1);
 		}
 		setvbuf(log, NULL, _IONBF, 0);
-	}
+	} else
+		log = NULL;
 
-	if (make_daemon && (log != stdout)) {
+	if (make_daemon && ((log != stdout) || (opts & OPT_SYSLOG))) {
 		if (fork() > 0)
 			exit(0);
+		write_pid(pidfile);
 		close(0);
 		close(1);
 		close(2);
 		setsid();
-	}
+	} else
+		write_pid(pidfile);
 
 	signal(SIGHUP, handlehup);
 
@@ -859,7 +1009,7 @@ char *argv[];
 				continue;
 			nr += tr;
 
-			tr = read_log(fd[i], &n, buf, sizeof(buf), log);
+			tr = read_log(fd[i], &n, buf, sizeof(buf));
 			if (donehup) {
 				donehup = 0;
 				if (newlog) {

@@ -1,5 +1,6 @@
+/* $FreeBSD$ */
 /*
- * ipsend.c (C) 1995-1997 Darren Reed
+ * ipsend.c (C) 1995-1998 Darren Reed
  *
  * This was written to test what size TCP fragments would get through
  * various TCP/IP packet filters, as used in IP firewalls.  In certain
@@ -12,13 +13,14 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.0.2.19.2.1 1998/05/14 14:01:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.1.2.2 1999/11/28 03:43:44 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -32,7 +34,6 @@ static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.0.2.19.2.1 1998/05/14 14:01:1
 #ifndef	linux
 #include <netinet/ip_var.h>
 #endif
-#include <netinet/ip_compat.h>
 #include "ipsend.h"
 #include "ipf.h"
 
@@ -177,7 +178,8 @@ char	**argv;
 	struct	in_addr	gwip;
 	tcphdr_t	*tcp;
 	ip_t	*ip;
-	char	*name =  argv[0], host[64], *gateway = NULL, *dev = NULL;
+	char	*name =  argv[0], host[MAXHOSTNAMELEN + 1];
+	char	*gateway = NULL, *dev = NULL;
 	char	*src = NULL, *dst, *s;
 	int	mtu = 1500, olen = 0, c, nonl = 0;
 
