@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.8 1995/04/09 06:03:44 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.9 1995/04/24 05:13:15 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -181,6 +181,7 @@ WRITE(ap)
 	daddr_t lbn;
 	off_t osize;
 	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	struct timeval tv;
 
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
@@ -306,7 +307,9 @@ WRITE(ap)
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
-	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
-		error = VOP_UPDATE(vp, &time, &time, 1);
+	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
+		tv = time;
+		error = VOP_UPDATE(vp, &tv, &tv, 1);
+	}
 	return (error);
 }
