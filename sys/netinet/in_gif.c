@@ -84,6 +84,9 @@ SYSCTL_DECL(_net_inet_ip);
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&ip_gif_ttl,	0, "");
 
+#define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
+#define GET_V4(x)	((struct in_addr *)(&(x)->s6_addr16[1]))
+
 int
 in_gif_output(ifp, family, m, rt)
 	struct ifnet	*ifp;
@@ -98,6 +101,9 @@ in_gif_output(ifp, family, m, rt)
 	struct ip iphdr;	/* capsule IP header, host byte ordered */
 	int proto, error;
 	u_int8_t tos;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;
+#endif
 
 	if (sin_src == NULL || sin_dst == NULL ||
 	    sin_src->sin_family != AF_INET ||
@@ -124,7 +130,6 @@ in_gif_output(ifp, family, m, rt)
 #ifdef INET6
 	case AF_INET6:
 	    {
-		struct ip6_hdr *ip6;
 		proto = IPPROTO_IPV6;
 		if (m->m_len < sizeof(*ip6)) {
 			m = m_pullup(m, sizeof(*ip6));
@@ -147,6 +152,28 @@ in_gif_output(ifp, family, m, rt)
 
 	bzero(&iphdr, sizeof(iphdr));
 	iphdr.ip_src = sin_src->sin_addr;
+#ifdef INET6
+	/* XXX: temporal stf support hack */
+	if (bcmp(ifp->if_name, "stf", 3) == 0 && ip6 != NULL) {
+		if (IN6_IS_ADDR_6TO4(&ip6->ip6_dst))
+			iphdr.ip_dst = *GET_V4(&ip6->ip6_dst);
+		else if (rt && rt->rt_gateway->sa_family == AF_INET6) {
+			struct in6_addr *dst6;
+
+			dst6 = &((struct sockaddr_in6 *)
+				 (rt->rt_gateway))->sin6_addr;
+			if (IN6_IS_ADDR_6TO4(dst6))
+				iphdr.ip_dst = *GET_V4(dst6);
+			else {
+				m_freem(m);
+				return ENETUNREACH;
+			}
+		} else {
+			m_freem(m);
+			return ENETUNREACH;
+		}
+	} else
+#endif
 	if (ifp->if_flags & IFF_LINK0) {
 		/* multi-destination mode */
 		if (sin_dst->sin_addr.s_addr != INADDR_ANY)
@@ -232,6 +259,20 @@ in_gif_input(struct mbuf *m, int off, int proto)
 
 		if ((sc->gif_if.if_flags & IFF_UP) == 0)
 			continue;
+
+#ifdef INET6
+		/* XXX: temporal stf support hack */
+		if (proto == IPPROTO_IPV6 &&
+		    bcmp(sc->gif_if.if_name, "stf", 3) == 0 &&
+		    (satosin(sc->gif_psrc)->sin_addr.s_addr ==
+		     ip->ip_dst.s_addr ||
+		     IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) &&
+		    satosin(sc->gif_pdst)->sin_addr.s_addr ==
+		    INADDR_BROADCAST) {
+			gifp = &sc->gif_if;
+			break;
+		}
+#endif
 
 		if ((sc->gif_if.if_flags & IFF_LINK0)
 		 && satosin(sc->gif_psrc)->sin_addr.s_addr == ip->ip_dst.s_addr
