@@ -1,4 +1,7 @@
-# 68K Blit stuff as seen from 680x0 machine
+
+#------------------------------------------------------------------------------
+# blit:  file(1) magic for 68K Blit stuff as seen from 680x0 machine
+#
 # Note that this 0407 conflicts with several other a.out formats...
 #
 # XXX - should this be redone with "be" and "le", so that it works on

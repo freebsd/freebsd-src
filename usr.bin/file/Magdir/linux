@@ -1,11 +1,55 @@
-# Values for Linux/i386 binaries, From: Rik Faith <faith@cs.unc.edu>
-2	leshort		100		Linux/i386
->0	leshort		0407		executable or impure executable (OMAGIC)
->0	leshort		0410		pure executable (NMAGIC)
->0	leshort		0413		demand-paged executable (ZMAGIC)
->0	leshort		0314		demand-paged executable (QMAGIC)
->16	lelong		>0		not stripped
->0      string          Jump            jump
-# core dump file
-216	lelong		0421		core file (Linux)
->220	string		>\0		core file (Linux) of %s
+
+#------------------------------------------------------------------------------
+# linux:  file(1) magic for Linux files
+#
+# Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
+# The following basic Linux magic is useful for reference, but using
+# "long" magic is a better practice in order to avoid collisions.
+#
+# 2	leshort		100		Linux/i386
+# >0	leshort		0407		impure executable (OMAGIC)
+# >0	leshort		0410		pure executable (NMAGIC)
+# >0	leshort		0413		demand-paged executable (ZMAGIC)
+# >0	leshort		0314		demand-paged executable (QMAGIC)
+#
+0	lelong		0x00640107	Linux/i386 impure executable (OMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x00640108	Linux/i386 pure executable (NMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x0064010b	Linux/i386 demand-paged executable (ZMAGIC)
+>16	lelong		0		\b, stripped
+0	lelong		0x006400cc	Linux/i386 demand-paged executable (QMAGIC)
+>16	lelong		0		\b, stripped
+#
+0	string		\007\001\000	Linux/i386 object file
+>20	lelong		>0x1020		\b, DLL library
+# message catalogs, from Mitchum DSouza <m.dsouza@mrc-apu.cam.ac.uk>
+0	string		*nazgul*	compiled message catalog
+>8	lelong		>0		\b, version %ld
+# core dump file, from Bill Reynolds <bill@goshawk.lanl.gov>
+216	lelong		0421		Linux/i386 core file
+>220	string		>\0		of '%s'
+>200	lelong		>0		(signal %d)
+#
+# LILO boot/chain loaders, from Daniel Quinlan <quinlan@yggdrasil.com>
+# this can be overridden by the DOS executable (COM) entry
+2	string		LILO		Linux/i386 LILO boot/chain loader
+#
+# Debian Packages, from Peter Tobias <tobias@server.et-inf.fho-emden.de>
+0	string		0.9
+>8	byte		0x0a		Debian Binary Package
+>>3	byte		>0		\b, created by dpkg 0.9%c
+>>4	byte		>0		pl%c
+# PSF fonts, from H. Peter Anvin <hpa@yggdrasil.com>
+0	leshort		0x0436		Linux/i386 PC Screen Font data,
+>2	byte		0		256 characters, no directory,
+>2	byte		1		512 characters, no directory,
+>2	byte		2		256 characters, Unicode directory,
+>2	byte		3		512 characters, Unicode directory,
+>3	byte		>0		8x%d
+# Linux swap file, from Daniel Quinlan <quinlan@yggdrasil.com>
+4086	string		SWAP-SPACE	Linux/i386 swap file
+# From: Erik Troan <ewt@redhat.com>
+0	leshort		0x00070183	ECOFF (Linux/OSF) Alpha binary
+>10	leshort		0x0001		not stripped
+>10	leshort		0x0000		stripped

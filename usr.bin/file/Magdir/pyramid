@@ -1,5 +1,6 @@
-#
-# magic.pyramid: Magic for pyramids
+
+#------------------------------------------------------------------------------
+# pyramid:  file(1) magic for Pyramids
 #
 # XXX - byte order?
 #

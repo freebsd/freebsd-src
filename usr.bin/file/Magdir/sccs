@@ -1,3 +1,7 @@
+
+#------------------------------------------------------------------------------
+# sccs:  file(1) magic for SCCS archives
+#
 # SCCS archive structure:
 # \001h01207
 # \001s 00276/00000/00000
@@ -14,4 +18,4 @@
 # is a checksum that could (presumably) have any leading digit,
 # and we don't have regular expression matching yet. 
 # Hence the following official kludge:
-8	string		\001s\ 			SCCS archive.
+8	string		\001s\ 			SCCS archive data

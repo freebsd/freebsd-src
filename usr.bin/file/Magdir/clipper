@@ -1,5 +1,6 @@
-#
-# Intergraph, formerly Fairchild, Clipper.
+
+#------------------------------------------------------------------------------
+# clipper:  file(1) magic for Intergraph (formerly Fairchild) Clipper.
 #
 # XXX - what byte order does the Clipper use?
 #

@@ -1,4 +1,7 @@
+
+#------------------------------------------------------------------------------
+# convex:  file(1) magic for Convex boxes
 #
-# XXX - what byte order does a Convex use?
+# Convexes are big-endian.
 #
 0	long		0513		Convex executable
