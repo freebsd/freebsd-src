@@ -1,5 +1,6 @@
 /* GNU Objective C Runtime message lookup 
-   Copyright (C) 1993, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997, 1998,
+   2001 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
 
 This file is part of GNU CC.
@@ -33,6 +34,7 @@ Boston, MA 02111-1307, USA.  */
 /* this is how we hack STRUCT_VALUE to be 1 or 0 */
 #define gen_rtx(args...) 1
 #define gen_rtx_MEM(args...) 1
+#define gen_rtx_REG(args...) 1
 #define rtx int
 
 #if !defined(STRUCT_VALUE) || STRUCT_VALUE == 0
@@ -43,6 +45,11 @@ Boston, MA 02111-1307, USA.  */
 
 /* The uninstalled dispatch table */
 struct sarray* __objc_uninstalled_dtable = 0;   /* !T:MUTEX */
+
+/* Hook for method forwarding. If it is set, is invoked to return a
+   function that performs the real forwarding. Otherwise the libgcc
+   based functions (__builtin_apply and friends) are used. */
+IMP (*__objc_msg_forward)(SEL) = NULL;
 
 /* Send +initialize to class */
 static void __objc_send_initialize(Class);
@@ -76,18 +83,27 @@ __inline__
 IMP
 __objc_get_forward_imp (SEL sel)
 {
-  const char *t = sel->sel_types;
-
-  if (t && (*t == '[' || *t == '(' || *t == '{')
-#ifdef OBJC_MAX_STRUCT_BY_VALUE
-    && objc_sizeof_type(t) > OBJC_MAX_STRUCT_BY_VALUE
-#endif
-      )
-    return (IMP)__objc_block_forward;
-  else if (t && (*t == 'f' || *t == 'd'))
-    return (IMP)__objc_double_forward;
+  if (__objc_msg_forward)
+    {
+      IMP result;
+      if ((result = __objc_msg_forward (sel)))
+        return result;
+    }
   else
-    return (IMP)__objc_word_forward;
+    {
+      const char *t = sel->sel_types;
+
+      if (t && (*t == '[' || *t == '(' || *t == '{')
+#ifdef OBJC_MAX_STRUCT_BY_VALUE
+          && objc_sizeof_type(t) > OBJC_MAX_STRUCT_BY_VALUE
+#endif
+          )
+        return (IMP)__objc_block_forward;
+      else if (t && (*t == 'f' || *t == 'd'))
+        return (IMP)__objc_double_forward;
+      else
+        return (IMP)__objc_word_forward;
+    }
 }
 
 /* Given a class and selector, return the selector's implementation.  */
@@ -581,7 +597,6 @@ __objc_forward (id object, SEL sel, arglist_t args)
   /* The object doesn't recognize the method.  Check for responding to
      error:.  If it does then sent it. */
   {
-    size_t strlen (const char*);
     char msg[256 + strlen ((const char*)sel_get_name (sel))
              + strlen ((const char*)object->class_pointer->name)];
 
