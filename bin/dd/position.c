@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/mtio.h>
 
 #include <err.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include "dd.h"
@@ -67,7 +68,8 @@ pos_in()
 
 	/* If not a character, pipe or tape device, try to seek on it. */
 	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE)) || in.flags & ISDISK) {
-		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1)
+		errno = 0;
+		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1 && errno)
 			err(1, "%s", in.name);
 		return;
 	}
@@ -77,6 +79,8 @@ pos_in()
 	 * being skipped.  No differentiation for reading complete and partial
 	 * blocks for other devices.
 	 */
+	if (in.offset < 0)
+		errx(1, "skip must be positive");
 	for (bcnt = in.dbsz, cnt = in.offset, warned = 0; cnt;) {
 		if ((nr = read(in.fd, in.db, bcnt)) > 0) {
 			if (in.flags & ISPIPE) {
@@ -123,7 +127,9 @@ pos_out()
 
 	/* If not a character, pipe or tape device, try to seek on it. */
 	if (!(out.flags & (ISCHR|ISPIPE|ISTAPE)) || out.flags & ISDISK) {
-		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1)
+		errno = 0;
+		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1 &&
+		    errno)
 			err(1, "%s", out.name);
 		return;
 	}
@@ -139,6 +145,8 @@ pos_out()
 	}
 
 	/* Read it. */
+	if (out.offset < 0)
+		errx(1, "seek must be positive");
 	for (cnt = 0; cnt < out.offset; ++cnt) {
 		if ((n = read(out.fd, out.db, out.dbsz)) > 0)
 			continue;
