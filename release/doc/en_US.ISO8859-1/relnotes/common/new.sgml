@@ -189,6 +189,10 @@
         &release.prev;, but was not mentioned in the release
         notes.)</para>
 
+      <para>The &man.targ.4; driver has been rewritten and a new
+	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
+	emulates a direct access device.</para>
+
       <para>The trm driver has been added to support SCSI adapters
         using the Tekram TRM-S1040 SCSI chipset.</para>
 
@@ -260,6 +264,12 @@
       <literal>speed</literal> command to set the maximum speed to be
       used by the drive (the maximum possible speed can be selected
       setting the speed to <literal>max</literal>).</para>
+
+    <para arch="alpha,i386">The <filename>compat4x</filename>
+      distribution now includes the
+      <filename>libcrypto.so.2</filename> and
+      <filename>libssl.so.2</filename> libraries from &os;
+      4.7-RELEASE.</para>
 
     <para>The &man.fwcontrol.8; utility has been added to help users
       access and control the FireWire subsystem.</para>
@@ -369,7 +379,7 @@
         3.5p1.</para>
 
       <para><application>OpenSSL</application> has been updated to
-        release 0.9.7.  Among other features, this release includes
+        release 0.9.7a.  Among other features, this release includes
         support for AES and takes advantage of &man.crypto.4;
         devices.</para>
 
