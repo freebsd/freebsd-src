@@ -278,7 +278,7 @@ authdes_marshal(AUTH *auth, XDR *xdrs)
 	des_block ivec;
 	int status;
 	int len;
-	register rpc_inline_t *ixdr;
+	rpc_inline_t *ixdr;
 
 	/*
 	 * Figure out the "time", accounting for any time difference
@@ -366,7 +366,7 @@ authdes_validate(AUTH *auth, struct opaque_auth *rverf)
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 	struct authdes_verf verf;
 	int status;
-	register uint32_t *ixdr;
+	uint32_t *ixdr;
 	des_block buf;
 
 	if (rverf->oa_length != (2 + 1) * BYTES_PER_XDR_UNIT) {

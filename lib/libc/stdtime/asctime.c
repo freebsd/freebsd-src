@@ -51,8 +51,8 @@ char *result;
 	** three explicit spaces, two explicit colons, a newline,
 	** and a trailing ASCII nul).
 	*/
-	register const char *	wn;
-	register const char *	mn;
+	const char *	wn;
+	const char *	mn;
 
 	if (timeptr->tm_wday < 0 || timeptr->tm_wday >= DAYSPERWEEK)
 		wn = "???";

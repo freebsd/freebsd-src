@@ -100,9 +100,9 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	u_char *buf;		/* buffer to put query */
 	int buflen;		/* size of buffer */
 {
-	register HEADER *hp;
-	register u_char *cp;
-	register int n;
+	HEADER *hp;
+	u_char *cp;
+	int n;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
@@ -213,8 +213,8 @@ res_opt(n0, buf, buflen, anslen)
 	int buflen;		/* size of buffer */
 	int anslen;		/* answer buffer length */
 {
-	register HEADER *hp;
-	register u_char *cp;
+	HEADER *hp;
+	u_char *cp;
 
 	hp = (HEADER *) buf;
 	cp = buf + n0;

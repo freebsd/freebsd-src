@@ -213,7 +213,7 @@ struct servent *
 getservent()
 {
 	char *p;
-	register char *cp, **q;
+	char *cp, **q;
 
 #ifdef YP
 	if (serv_stepping_yp && _getservent_yp(line)) {

@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)rec_search.c	8.4 (Berkeley) 7/14/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -66,8 +68,8 @@ __rec_search(t, recno, op)
 	recno_t recno;
 	enum SRCHOP op;
 {
-	register indx_t index;
-	register PAGE *h;
+	indx_t index;
+	PAGE *h;
 	EPGNO *parent;
 	RINTERNAL *r;
 	pgno_t pg;

@@ -156,11 +156,11 @@
 
 struct fpn *
 __fpu_div(fe)
-	register struct fpemu *fe;
+	struct fpemu *fe;
 {
-	register struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2;
-	register u_int q, bit;
-	register u_int r0, r1, r2, r3, d0, d1, d2, d3, y0, y1, y2, y3;
+	struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2;
+	u_int q, bit;
+	u_int r0, r1, r2, r3, d0, d1, d2, d3, y0, y1, y2, y3;
 	FPU_DECL_CARRY
 
 	/*

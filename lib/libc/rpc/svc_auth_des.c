@@ -110,16 +110,16 @@ static struct {
  */
 enum auth_stat
 _svcauth_des(rqst, msg)
-	register struct svc_req *rqst;
-	register struct rpc_msg *msg;
+	struct svc_req *rqst;
+	struct rpc_msg *msg;
 {
 
-	register long *ixdr;
+	long *ixdr;
 	des_block cryptbuf[2];
-	register struct authdes_cred *cred;
+	struct authdes_cred *cred;
 	struct authdes_verf verf;
 	int status;
-	register struct cache_entry *entry;
+	struct cache_entry *entry;
 	short sid = 0;
 	des_block *sessionkey;
 	des_block ivec;
@@ -357,7 +357,7 @@ _svcauth_des(rqst, msg)
 static void
 cache_init()
 {
-	register int i;
+	int i;
 
 	authdes_cache = (struct cache_entry *)
 		mem_alloc(sizeof(struct cache_entry) * AUTHDES_CACHESZ);	
@@ -388,11 +388,11 @@ cache_victim()
  */
 static void
 cache_ref(sid)
-	register short sid;
+	short sid;
 {
-	register int i;
-	register short curr;
-	register short prev;
+	int i;
+	short curr;
+	short prev;
 
 	prev = authdes_lru[0];
 	authdes_lru[0] = sid;
@@ -411,13 +411,13 @@ cache_ref(sid)
  */
 static short
 cache_spot(key, name, timestamp)
-	register des_block *key;
+	des_block *key;
 	char *name;
 	struct timeval *timestamp;
 {
-	register struct cache_entry *cp;
-	register int i;
-	register u_long hi;
+	struct cache_entry *cp;
+	int i;
+	u_long hi;
 
 	hi = key->key.high;
 	for (cp = authdes_cache, i = 0; i < AUTHDES_CACHESZ; i++, cp++) {
@@ -466,10 +466,10 @@ authdes_getucred(adc, uid, gid, grouplen, groups)
 	uid_t *uid;
 	gid_t *gid;
 	int *grouplen;
-	register gid_t *groups;
+	gid_t *groups;
 {
 	unsigned sid;
-	register int i;
+	int i;
 	uid_t i_uid;	
 	gid_t i_gid;
 	int i_grouplen;

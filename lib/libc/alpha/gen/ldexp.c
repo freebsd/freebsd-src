@@ -44,7 +44,7 @@ ldexp(val, exp)
 	double val;
 	int exp;
 {
-	register int oldexp, newexp, mulexp;
+	int oldexp, newexp, mulexp;
 	union doub {
 		double v;
 		struct ieee_double s;

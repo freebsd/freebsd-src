@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
  */
 int
 ffs(mask)
-	register int mask;
+	int mask;
 {
-	register int bit;
+	int bit;
 
 	if (mask == 0)
 		return(0);

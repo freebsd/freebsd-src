@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 size_t
 strspn(s1, s2)
 	const char *s1;
-	register const char *s2;
+	const char *s2;
 {
-	register const char *p = s1, *spanp;
-	register char c, sc;
+	const char *p = s1, *spanp;
+	char c, sc;
 
 	/*
 	 * Skip any characters in s2, excluding the terminating \0.

@@ -47,8 +47,8 @@ strsignal(num)
 {
 #define	UPREFIX	"Unknown signal: "
 	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
-	register unsigned int signum;
-	register char *p, *t;
+	unsigned int signum;
+	char *p, *t;
 	char tmp[40];
 
 	signum = num;				/* convert to unsigned */

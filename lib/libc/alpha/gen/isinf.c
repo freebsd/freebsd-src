@@ -38,7 +38,7 @@ int
 isnan(d)
 	double d;
 {
-	register struct ieee_double *p = (struct ieee_double *)&d;
+	struct ieee_double *p = (struct ieee_double *)&d;
 
 	return (p->dbl_exp == DBL_EXP_INFNAN &&
 	    (p->dbl_frach || p->dbl_fracl));
@@ -48,7 +48,7 @@ int
 isinf(d)
 	double d;
 {
-	register struct ieee_double *p = (struct ieee_double *)&d;
+	struct ieee_double *p = (struct ieee_double *)&d;
 
 	return (p->dbl_exp == DBL_EXP_INFNAN &&
 	    !p->dbl_frach && !p->dbl_fracl);

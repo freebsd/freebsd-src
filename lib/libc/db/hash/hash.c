@@ -32,13 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -358,7 +358,7 @@ init_htab(hashp, nelem)
 	HTAB *hashp;
 	int nelem;
 {
-	register int nbuckets, nsegs;
+	int nbuckets, nsegs;
 	int l2;
 
 	/*
@@ -605,11 +605,11 @@ hash_access(hashp, action, key, val)
 	ACTION action;
 	DBT *key, *val;
 {
-	register BUFHEAD *rbufp;
+	BUFHEAD *rbufp;
 	BUFHEAD *bufp, *save_bufp;
-	register u_int16_t *bp;
-	register int n, ndx, off, size;
-	register char *kp;
+	u_int16_t *bp;
+	int n, ndx, off, size;
+	char *kp;
 	u_int16_t pageno;
 
 #ifdef HASH_STATISTICS
@@ -734,8 +734,8 @@ hash_seq(dbp, key, data, flag)
 	DBT *key, *data;
 	u_int32_t flag;
 {
-	register u_int32_t bucket;
-	register BUFHEAD *bufp;
+	u_int32_t bucket;
+	BUFHEAD *bufp;
 	HTAB *hashp;
 	u_int16_t *bp, ndx;
 
@@ -878,7 +878,7 @@ hash_realloc(p_ptr, oldsize, newsize)
 	SEGMENT **p_ptr;
 	int oldsize, newsize;
 {
-	register void *p;
+	void *p;
 
 	if ( (p = malloc(newsize)) ) {
 		memmove(p, *p_ptr, oldsize);
@@ -914,8 +914,8 @@ alloc_segs(hashp, nsegs)
 	HTAB *hashp;
 	int nsegs;
 {
-	register int i;
-	register SEGMENT store;
+	int i;
+	SEGMENT store;
 
 	int save_errno;
 

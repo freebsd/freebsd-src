@@ -40,6 +40,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)regexec.c	8.3 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * the outer shell of regexec()
@@ -160,7 +162,7 @@ size_t nmatch;
 regmatch_t pmatch[];
 int eflags;
 {
-	register struct re_guts *g = preg->re_g;
+	struct re_guts *g = preg->re_g;
 #ifdef REDEBUG
 #	define	GOODFLAGS(f)	(f)
 #else
