@@ -4,6 +4,7 @@
 .PATH: ${.CURDIR}/thread
 
 SRCS+= \
+	thr_accept.c \
 	thr_aio_suspend.c \
 	thr_atfork.c \
 	thr_attr_destroy.c \
@@ -38,6 +39,7 @@ SRCS+= \
 	thr_cond.c \
 	thr_condattr_destroy.c \
 	thr_condattr_init.c \
+	thr_connect.c \
 	thr_creat.c \
 	thr_create.c \
 	thr_detach.c \
