@@ -13,10 +13,14 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.6 1996/03/18 21:24:32 nate Exp $
+ *	$Id: apm.c,v 1.12.4.7 1996/03/18 22:49:58 nate Exp $
  */
 
 #include "apm.h"
+
+#if NAPM > 1
+#error only one APM device may be configured
+#endif
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -45,13 +49,14 @@ static void apm_resume __P((void));
 
 /* static data */
 struct apm_softc {
-	int	initialized, active, halt_cpu;
+	int	initialized, active;
+	int	always_halt_cpu, slow_idle_cpu;
+	int	disabled, disengaged;
 	u_int	minorversion, majorversion;
 	u_int	cs32_base, cs16_base, ds_base;
 	u_int	cs_limit, ds_limit;
 	u_int	cs_entry;
 	u_int	intversion;
-	int	idle_cpu, disabled, disengaged;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
 };
@@ -482,10 +487,12 @@ apm_cpu_idle(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->idle_cpu) {
-		if (sc->active) {
-			__asm ("movw $0x5305, %ax; lcall _apm_addr");
-		}
+	if (sc->active) {
+		u_long eax, ebx, ecx;
+
+		eax = (APM_BIOS <<8) | APM_CPUIDLE;
+		ecx = ebx = 0;
+		apm_int(&eax, &ebx, &ecx);
 	}
 	/*
 	 * Some APM implementation halts CPU in BIOS, whenever
@@ -497,8 +504,8 @@ apm_cpu_idle(void)
 	 * "hlt" operation from swtch() and managed it under
 	 * APM driver.
 	 */
-	if (!sc->active || sc->halt_cpu) {
-		__asm("sti ; hlt");	/* wait for interrupt */
+	if (!sc->active || sc->always_halt_cpu) {
+		__asm("hlt");	/* wait for interrupt */
 	}
 }
 
@@ -508,8 +515,17 @@ apm_cpu_busy(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (sc->idle_cpu && sc->active) {
-		__asm("movw $0x5306, %ax; lcall _apm_addr");
+	/*
+	 * The APM specification says this is only necessary if your BIOS
+	 * slows down the processor in the idle task, otherwise it's not
+	 * necessary.
+	 */
+	if (sc->slow_idle_cpu && sc->active) {
+		u_long eax, ebx, ecx;
+
+		eax = (APM_BIOS <<8) | APM_CPUBUSY;
+		ecx = ebx = 0;
+		apm_int(&eax, &ebx, &ecx);
 	}
 }
 
@@ -526,7 +542,9 @@ apm_timeout(void *arg)
 	struct apm_softc *sc = arg;
 
 	apm_processevent(sc);
-	timeout(apm_timeout, (void *)sc, hz - 1 );  /* More than 1 Hz */
+	if (sc->active == 1) {
+		timeout(apm_timeout, (void *)sc, hz - 1 );  /* More than 1 Hz */
+	}
 }
 
 /* enable APM BIOS */
@@ -560,7 +578,7 @@ static void
 apm_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
-		sc->halt_cpu = 1;
+		sc->always_halt_cpu = 1;
 	}
 }
 
@@ -569,7 +587,7 @@ static void
 apm_not_halt_cpu(struct apm_softc *sc)
 {
 	if (sc->initialized) {
-		sc->halt_cpu = 0;
+		sc->always_halt_cpu = 0;
 	}
 }
 
@@ -694,8 +712,10 @@ apmattach(struct isa_device *dvp)
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
 
-	sc->halt_cpu = 1;
-	sc->idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
+	/* Always call HLT in idle loop */
+	sc->always_halt_cpu = 1;
+
+	sc->slow_idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
 	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
@@ -705,7 +725,7 @@ apmattach(struct isa_device *dvp)
 	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
 		sc->cs32_base, sc->cs16_base, sc->ds_base);
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		sc->cs_entry, is_enabled(sc->idle_cpu),
+		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
 		is_enabled(!sc->disabled));
 	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
@@ -737,7 +757,7 @@ apmattach(struct isa_device *dvp)
 
 	printf(" found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
-	printf("apm: Idling CPU %s\n", is_enabled(sc->idle_cpu));
+	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 
 	/* enable power management */
 	if (sc->disabled) {
@@ -808,7 +828,11 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 #endif
 	switch (cmd) {
 	case APMIO_SUSPEND:
-		apm_suspend();
+		if ( sc->active) {
+			apm_suspend();
+		} else {
+			error = EINVAL;
+		}
 		break;
 	case APMIO_GETINFO:
 		if (apm_get_info(sc, (apm_info_t)addr)) {
