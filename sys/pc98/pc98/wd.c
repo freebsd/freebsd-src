@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.68 1998/12/25 09:05:17 kato Exp $
+ *	$Id: wd.c,v 1.69 1999/01/03 17:26:04 kato Exp $
  */
 
 /* TODO:
@@ -69,7 +69,6 @@
 #include "opt_hw_wdog.h"
 #include "opt_ide_delay.h"
 #include "opt_wd.h"
-#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/dkbad.h>
@@ -338,30 +337,16 @@ wdprobe(struct isa_device *dvp)
 	du->dk_ctrlr = dvp->id_unit;
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
-#if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
-#ifdef ALI_V
-	if ((wddma[interface].wdd_candma) && 
-	   ((du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr)) != NULL))
-	{
-		du->dk_port = dvp->id_iobase;
-		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
-	} else {
-		du->dk_port = dvp->id_iobase;
-		du->dk_altport = du->dk_port + wd_ctlr;
-	}
-#endif
-        if (wddma[interface].wdd_candma) {
-           du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr);
-           du->dk_port = dvp->id_iobase;
-           du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
-        } else {
-                du->dk_port = dvp->id_iobase;
-                du->dk_altport = du->dk_port + wd_ctlr;
-        }
-#else
 	du->dk_port = dvp->id_iobase;
-	du->dk_altport = du->dk_port + wd_ctlr;
-#endif
+	if (wddma[interface].wdd_candma != NULL) {
+		du->dk_dmacookie =
+		    wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+		du->dk_altport =
+		    wddma[interface].wdd_altiobase(du->dk_dmacookie);
+	}
+	if (du->dk_altport == 0)
+		du->dk_altport = du->dk_port + wd_ctlr;
+
 	/* check if we have registers that work */
 #ifdef PC98
 	/* XXX ATAPI support isn't imported */
@@ -523,7 +508,7 @@ wdattach(struct isa_device *dvp)
 	struct disk *du;
 	struct wdparams *wp;
 
-	dvp->id_ointr = wdintr;
+	dvp->id_intr = wdintr;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
@@ -1180,11 +1165,12 @@ wdstart(int ctrlr)
  */
 
 void
-wdintr(int unit)
+wdintr(void *unitnum)
 {
 	register struct	disk *du;
 	register struct buf *bp;
 	int dmastat = 0;			/* Shut up GCC */
+	int unit = (int)unitnum;
 
 #ifdef CMD640
 	int ctrlr_atapi;
@@ -1236,8 +1222,7 @@ wdintr(int unit)
 	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
 		/* XXX SMP boxes sometimes generate an early intr.  Why? */
 		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
-		    == 0)
-			return;
+		    != 0)
 		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
 	}
 
