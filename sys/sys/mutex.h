@@ -393,14 +393,21 @@ do {									\
 
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.
+ *
+ * The constants need to be defined for INVARIANT_SUPPORT infrastructure
+ * support as _mtx_assert() itself uses them and the latter implies that
+ * _mtx_assert() must build.
  */
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 #define MA_OWNED	0x01
 #define MA_NOTOWNED	0x02
 #define MA_RECURSED	0x04
 #define MA_NOTRECURSED	0x08
 
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
+#endif /* INVARIANT_SUPPORT */
+
+#ifdef INVARIANTS
 #define	mtx_assert(m, what)						\
 	_mtx_assert((m), (what), __FILE__, __LINE__)
 
