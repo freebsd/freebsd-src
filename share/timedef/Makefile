@@ -28,6 +28,7 @@ LOCALES=	am_ET.UTF-8 \
 		es_ES.UTF-8 \
 		et_EE.ISO8859-15 \
 		et_EE.UTF-8 \
+		eu_ES.ISO8859-1 \
 		fi_FI.ISO8859-1 \
 		fi_FI.UTF-8 \
 		fr_FR.ISO8859-1 \
@@ -94,9 +95,10 @@ LOCALES=	am_ET.UTF-8 \
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-UTF8_LATIN1LINKS=	en_GB en_US nl_NL
+UTF8_LATIN1LINKS=	en_GB en_US eu_ES nl_NL
 
-LATIN15LINKS=   ca_ES da_DK de_AT de_DE en_GB en_US es_ES fi_FI fr_FR is_IS \
+LATIN15LINKS=   ca_ES da_DK de_AT de_DE en_GB en_US es_ES eu_ES fi_FI fr_FR \
+		is_IS \
 		it_IT la_LN nl_NL no_NO pt_PT sv_SE
 DE_LINKS=	de_CH
 FR_LINKS=	fr_BE fr_CA fr_CH
