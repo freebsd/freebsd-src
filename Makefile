@@ -80,10 +80,10 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
-	depend distribute everything hierarchy includes install installmost \
-	installworld lint maninstall mk most obj objlink regress rerelease \
-	tags update
+TGTS=	afterdistribute all buildkernel buildworld checkdpadd clean \
+	cleandepend cleandir depend distribute everything hierarchy includes \
+	install installkernel installmost installworld lint maninstall mk \
+	most obj objlink regress rerelease tags update
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
@@ -91,7 +91,7 @@ MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
-${TGTS} : upgrade_checks
+${TGTS}: upgrade_checks
 	@cd ${.CURDIR}; \
 		${MAKE} ${.TARGET}
 
@@ -139,20 +139,36 @@ world: upgrade_checks
 # so the normal make world is capable of doing what is required to update
 # the system to current.
 #
-upgrade_checks :
-	@cd ${.CURDIR}; if `make -m ${.CURDIR}/share/mk test > /dev/null 2>&1`; then ok=1; else ${MAKE} -f Makefile.upgrade make; fi;
+upgrade_checks:
+	@cd ${.CURDIR}; \
+		if ! make -m ${.CURDIR}/share/mk test > /dev/null 2>&1; then \
+			make make; \
+		fi
 
 #
 # A simple test target used as part of the test to see if make supports
 # the -m argument.
 #
-test	:
+test:
+
+#
+# Upgrade the installed make to the current version using the installed
+# headers, libraries and build tools. This is required on installed versions
+# prior to 2.2.5 in which the installed make doesn't support the -m argument.
+#
+make:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Upgrading the installed make"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}/usr.bin/make; \
+		make obj && make depend && make all && make install
 
 #
 # Define the upgrade targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-UPGRADE =	aout-to-elf aout-to-elf-build aout-to-elf-install \
+UPGRADE=	aout-to-elf aout-to-elf-build aout-to-elf-install \
 		move-aout-libs
 
 #
