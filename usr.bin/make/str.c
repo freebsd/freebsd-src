@@ -432,99 +432,87 @@ thisCharOK:	++pattern;
 }
 
 
-/*-
- *-----------------------------------------------------------------------
- * Str_SYSVMatch --
+/**
+ * Str_SYSVMatch
  *	Check word against pattern for a match (% is wild),
  *
  * Results:
  *	Returns the beginning position of a match or null. The number
  *	of characters matched is returned in len.
- *
- * Side Effects:
- *	None
- *
- *-----------------------------------------------------------------------
  */
 const char *
 Str_SYSVMatch(const char *word, const char *pattern, int *len)
 {
-    const char *m, *p, *w;
+	const char *m, *p, *w;
 
-    p = pattern;
-    w = word;
+	p = pattern;
+	w = word;
 
-    if (*w == '\0') {
-	/* Zero-length word cannot be matched against */
-	*len = 0;
+	if (*w == '\0') {
+		/* Zero-length word cannot be matched against */
+		*len = 0;
+		return (NULL);
+	}
+
+	if (*p == '\0') {
+		/* Null pattern is the whole string */
+		*len = strlen(w);
+		return (w);
+	}
+
+	if ((m = strchr(p, '%')) != NULL) {
+		/* check that the prefix matches */
+		for (; p != m && *w && *w == *p; w++, p++)
+			continue;
+
+		if (p != m)
+			return (NULL);	/* No match */
+
+		if (*++p == '\0') {
+			/* No more pattern, return the rest of the string */
+			*len = strlen(w);
+			return (w);
+		}
+	}
+
+	m = w;
+
+	/* Find a matching tail */
+	do
+		if (strcmp(p, w) == 0) {
+			*len = w - m;
+			return (m);
+		}
+	while (*w++ != '\0');
+
 	return (NULL);
-    }
-
-    if (*p == '\0') {
-	/* Null pattern is the whole string */
-	*len = strlen(w);
-	return (w);
-    }
-
-    if ((m = strchr(p, '%')) != NULL) {
-	/* check that the prefix matches */
-	for (; p != m && *w && *w == *p; w++, p++)
-	     continue;
-
-	if (p != m)
-	    return (NULL);	/* No match */
-
-	if (*++p == '\0') {
-	    /* No more pattern, return the rest of the string */
-	    *len = strlen(w);
-	    return (w);
-	}
-    }
-
-    m = w;
-
-    /* Find a matching tail */
-    do
-	if (strcmp(p, w) == 0) {
-	    *len = w - m;
-	    return (m);
-	}
-    while (*w++ != '\0');
-
-    return (NULL);
 }
 
 
-/*-
- *-----------------------------------------------------------------------
- * Str_SYSVSubst --
+/**
+ * Str_SYSVSubst
  *	Substitute '%' on the pattern with len characters from src.
  *	If the pattern does not contain a '%' prepend len characters
  *	from src.
  *
- * Results:
- *	None
- *
  * Side Effects:
  *	Places result on buf
- *
- *-----------------------------------------------------------------------
  */
 void
 Str_SYSVSubst(Buffer *buf, const char *pat, const char *src, int len)
 {
-    const char *m;
+	const char *m;
 
-    if ((m = strchr(pat, '%')) != NULL) {
-	/* Copy the prefix */
-	Buf_AppendRange(buf, pat, m);
-	/* skip the % */
-	pat = m + 1;
-    }
+	if ((m = strchr(pat, '%')) != NULL) {
+		/* Copy the prefix */
+		Buf_AppendRange(buf, pat, m);
+		/* skip the % */
+		pat = m + 1;
+	}
 
-    /* Copy the pattern */
-    Buf_AddBytes(buf, len, (const Byte *)src);
+	/* Copy the pattern */
+	Buf_AddBytes(buf, len, (const Byte *)src);
 
-    /* append the rest */
-    Buf_Append(buf, pat);
+	/* append the rest */
+	Buf_Append(buf, pat);
 }
