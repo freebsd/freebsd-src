@@ -1,5 +1,6 @@
 /* BFD back-end for Intel 386 COFF files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -28,6 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifdef COFF_WITH_PE
 #include "coff/pe.h"
+#endif
+
+#ifdef COFF_GO32_EXE
+#include "coff/go32exe.h"
 #endif
 
 #include "libcoff.h"
@@ -70,9 +75,9 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
   if (output_bfd == (bfd *) NULL)
     return bfd_reloc_continue;
 
-
   if (bfd_is_com_section (symbol->section))
     {
+#ifndef COFF_WITH_PE
       /* We are relocating a common symbol.  The current value in the
 	 object file is ORIG + OFFSET, where ORIG is the value of the
 	 common symbol as seen by the object file when it was compiled
@@ -85,6 +90,10 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	 the common symbol which we are going to put in the final
 	 object file.  NEW is symbol->value.  */
       diff = symbol->value + reloc_entry->addend;
+#else
+      /* In PE mode, we do not offset the common symbol.  */
+      diff = reloc_entry->addend;
+#endif
     }
   else
     {
@@ -95,13 +104,10 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
       diff = reloc_entry->addend;
     }
 
-
 #ifdef COFF_WITH_PE
-  if (reloc_entry->howto->type == 7)
-    {
-/*      diff -= coff_data(output_bfd)->link_info->pe_info.image_base.value;*/
-      exit(1);
-    }
+  /* FIXME: How should this case be handled?  */
+  if (reloc_entry->howto->type == R_IMAGEBASE && diff != 0)
+    abort ();
 #endif
 
 #define DOIT(x) \
@@ -332,8 +338,50 @@ static reloc_howto_type howto_table[] =
       cache_ptr->addend += asect->vma;				\
   }
 
-/* We use the special COFF backend linker.  */
+/* We use the special COFF backend linker.  For normal i386 COFF, we
+   can use the generic relocate_section routine.  For PE, we need our
+   own routine.  */
+
+#ifndef COFF_WITH_PE
+
 #define coff_relocate_section _bfd_coff_generic_relocate_section
+
+#else /* COFF_WITH_PE */
+
+/* The PE relocate section routine.  The only difference between this
+   and the regular routine is that we don't want to do anything for a
+   relocateable link.  */
+
+static boolean coff_pe_i386_relocate_section
+  PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
+	   struct internal_reloc *, struct internal_syment *, asection **));
+
+static boolean
+coff_pe_i386_relocate_section (output_bfd, info, input_bfd,
+			       input_section, contents, relocs, syms,
+			       sections)
+     bfd *output_bfd;
+     struct bfd_link_info *info;
+     bfd *input_bfd;
+     asection *input_section;
+     bfd_byte *contents;
+     struct internal_reloc *relocs;
+     struct internal_syment *syms;
+     asection **sections;
+{
+  if (info->relocateable)
+    return true;
+
+  return _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
+					     input_section, contents,
+					     relocs, syms, sections);
+}
+
+#define coff_relocate_section coff_pe_i386_relocate_section
+
+#endif /* COFF_WITH_PE */
+
+/* Convert an rtype to howto for the COFF backend linker.  */
 
 static reloc_howto_type *
 coff_i386_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
@@ -366,28 +414,40 @@ coff_i386_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
  
       BFD_ASSERT (h != NULL);
 
-
 #ifndef COFF_WITH_PE
-      /* I think we *do* want to bypass this.  If we don't, I have seen some data
-	 parameters get the wrong relcation address.  If I link two versions
-	 with and without this section bypassed and then do a binary comparison,
-	 the addresses which are different can be looked up in the map.  The 
-	 case in which this section has been bypassed has addresses which correspond
-	 to values I can find in the map */
+      /* I think we *do* want to bypass this.  If we don't, I have
+	 seen some data parameters get the wrong relocation address.
+	 If I link two versions with and without this section bypassed
+	 and then do a binary comparison, the addresses which are
+	 different can be looked up in the map.  The case in which
+	 this section has been bypassed has addresses which correspond
+	 to values I can find in the map.  */
       *addendp -= sym->n_value;
 #endif
     }
 
+#ifndef COFF_WITH_PE
   /* If the output symbol is common (in which case this must be a
      relocateable link), we need to add in the final size of the
      common symbol.  */
   if (h != NULL && h->root.type == bfd_link_hash_common) 
     *addendp += h->root.u.c.size;
-
+#endif
 
 #ifdef COFF_WITH_PE
   if (howto->pc_relative)
-    *addendp -= 4;
+    {
+      *addendp -= 4;
+
+      /* If the symbol is defined, then the generic code is going to
+         add back the symbol value in order to cancel out an
+         adjustment it made to the addend.  However, we set the addend
+         to 0 at the start of this function.  We need to adjust here,
+         to avoid the adjustment the generic code will make.  FIXME:
+         This is getting a bit hackish.  */
+      if (sym != NULL && sym->n_scnum != 0)
+	*addendp -= sym->n_value;
+    }
 
   if (rel->r_type == R_IMAGEBASE)
     {
@@ -421,17 +481,94 @@ coff_i386_reloc_type_lookup (abfd, code)
     }
 }
 
-
-
 #define coff_rtype_to_howto coff_i386_rtype_to_howto
+
+#ifdef TARGET_UNDERSCORE
+
+/* If i386 gcc uses underscores for symbol names, then it does not use
+   a leading dot for local labels, so if TARGET_UNDERSCORE is defined
+   we treat all symbols starting with L as local.  */
+
+static boolean coff_i386_is_local_label_name PARAMS ((bfd *, const char *));
+
+static boolean
+coff_i386_is_local_label_name (abfd, name)
+     bfd *abfd;
+     const char *name;
+{
+  if (name[0] == 'L')
+    return true;
+
+  return _bfd_coff_is_local_label_name (abfd, name);
+}
+
+#define coff_bfd_is_local_label_name coff_i386_is_local_label_name
+
+#endif /* TARGET_UNDERSCORE */
 
 #include "coffcode.h"
 
 static const bfd_target *
-i3coff_object_p(a)
-     bfd *a;
+i3coff_object_p (abfd)
+     bfd *abfd;
 {
-  return coff_object_p(a);
+#ifdef COFF_IMAGE_WITH_PE
+  /* We need to hack badly to handle a PE image correctly.  In PE
+     images created by the GNU linker, the offset to the COFF header
+     is always the size.  However, this is not the case in images
+     generated by other PE linkers.  The PE format stores a four byte
+     offset to the PE signature just before the COFF header at
+     location 0x3c of the file.  We pick up that offset, verify that
+     the PE signature is there, and then set ourselves up to read in
+     the COFF header.  */
+  {
+    bfd_byte ext_offset[4];
+    file_ptr offset;
+    bfd_byte ext_signature[4];
+    unsigned long signature;
+
+    if (bfd_seek (abfd, 0x3c, SEEK_SET) != 0
+	|| bfd_read (ext_offset, 1, 4, abfd) != 4)
+      {
+	if (bfd_get_error () != bfd_error_system_call)
+	  bfd_set_error (bfd_error_wrong_format);
+	return NULL;
+      }
+    offset = bfd_h_get_32 (abfd, ext_offset);
+    if (bfd_seek (abfd, offset, SEEK_SET) != 0
+	|| bfd_read (ext_signature, 1, 4, abfd) != 4)
+      {
+	if (bfd_get_error () != bfd_error_system_call)
+	  bfd_set_error (bfd_error_wrong_format);
+	return NULL;
+      }
+    signature = bfd_h_get_32 (abfd, ext_signature);
+
+    if (signature != 0x4550)
+      {
+	bfd_set_error (bfd_error_wrong_format);
+	return NULL;
+      }
+
+    /* Here is the hack.  coff_object_p wants to read filhsz bytes to
+       pick up the COFF header.  We adjust so that that will work.  20
+       is the size of the i386 COFF filehdr.  */
+
+    if (bfd_seek (abfd,
+		  (bfd_tell (abfd)
+		   - bfd_coff_filhsz (abfd)
+		   + 20),
+		  SEEK_SET)
+	!= 0)
+      {
+	if (bfd_get_error () != bfd_error_system_call)
+	  bfd_set_error (bfd_error_wrong_format);
+	return NULL;
+      }
+  }
+#endif
+
+  return coff_object_p (abfd);
 }
 
 const bfd_target
@@ -455,9 +592,11 @@ const bfd_target
    HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
 
 #ifndef COFF_WITH_PE
-  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC), /* section flags */
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* section flags */
+   | SEC_CODE | SEC_DATA),
 #else
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* section flags */
+   | SEC_CODE | SEC_DATA
    | SEC_LINK_ONCE | SEC_LINK_DUPLICATES),
 #endif
 

@@ -1,5 +1,11 @@
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 #undef NEED_DECLARATION_STRSTR
 
@@ -38,6 +44,9 @@
 
 /* Define if you have the fcntl function.  */
 #undef HAVE_FCNTL
+
+/* Define if you have the fdopen function.  */
+#undef HAVE_FDOPEN
 
 /* Define if you have the getpagesize function.  */
 #undef HAVE_GETPAGESIZE

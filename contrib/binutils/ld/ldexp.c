@@ -1,5 +1,5 @@
 /* This module handles expression trees.
-Copyright (C) 1991, 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
 Written by Steve Chamberlain of Cygnus Support (sac@cygnus.com).
 
 This file is part of GLD, the Gnu Linker.
@@ -15,8 +15,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+along with GLD; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /*
 This module is in charge of working out the contents of expressions.
@@ -106,6 +107,7 @@ exp_print_token (code)
 	{ SEARCH_DIR,"SEARCH_DIR" },
 	{ MAP,"MAP" },
 	{ QUAD,"QUAD" },
+	{ SQUAD,"SQUAD" },
 	{ LONG,"LONG" },
 	{ SHORT,"SHORT" },
 	{ BYTE,"BYTE" },
@@ -391,16 +393,26 @@ fold_name (tree, current_section, allocation_done, dot)
 		else if (allocation_done == lang_final_phase_enum
 			 || allocation_done == lang_allocating_phase_enum)
 		  {
-		    lang_output_section_statement_type *os;
-		
-		    os = (lang_output_section_statement_lookup
-			  (h->u.def.section->output_section->name));
+		    asection *output_section;
 
-		    /* FIXME: Is this correct if this section is being
-		       linked with -R?  */
-		    result = new_rel ((h->u.def.value
-				       + h->u.def.section->output_offset),
-				      os);
+		    output_section = h->u.def.section->output_section;
+		    if (output_section == NULL)
+		      einfo ("%X%S: unresolvable symbol `%s' referenced in expression\n",
+			     tree->name.name);
+		    else
+		      {
+			lang_output_section_statement_type *os;
+
+			os = (lang_output_section_statement_lookup
+			      (bfd_get_section_name (output_bfd,
+						     output_section)));
+
+			/* FIXME: Is this correct if this section is
+			   being linked with -R?  */
+			result = new_rel ((h->u.def.value
+					   + h->u.def.section->output_offset),
+					  os);
+		      }
 		  }
 	      }
 	    else if (allocation_done == lang_final_phase_enum)

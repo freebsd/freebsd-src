@@ -24,7 +24,7 @@
 extern void einfo PARAMS ((const char *, ...));
 extern void minfo PARAMS ((const char *, ...));
 extern void info_msg PARAMS ((const char *, ...));
-extern void finfo PARAMS ((FILE *, const char *, ...));
+extern void lfinfo PARAMS ((FILE *, const char *, ...));
 #else
 /* VARARGS*/
 extern void einfo ();
@@ -33,7 +33,7 @@ extern void minfo ();
 /* VARARGS*/
 extern void info_msg ();
 /*VARARGS*/
-extern void finfo ();
+extern void lfinfo ();
 #endif
 
 extern void info_assert PARAMS ((const char *, unsigned int));

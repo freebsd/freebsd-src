@@ -1,5 +1,5 @@
 /* Generic symbol-table support for the BFD library.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -715,6 +715,42 @@ _bfd_generic_minisymbol_to_symbol (abfd, dynamic, minisym, sym)
    placed in *pinfo should be saved with the BFD, and passed back each
    time this function is called.  */
 
+/* We use a cache by default.  */
+
+#define ENABLE_CACHING
+
+/* We keep an array of indexentry structures to record where in the
+   stabs section we should look to find line number information for a
+   particular address.  */
+
+struct indexentry
+{
+  bfd_vma val;
+  bfd_byte *stab;
+  bfd_byte *str;
+  char *directory_name;
+  char *file_name;
+  char *function_name;
+};
+
+/* Compare two indexentry structures.  This is called via qsort.  */
+
+static int
+cmpindexentry (a, b)
+     const PTR *a;
+     const PTR *b;
+{
+  const struct indexentry *contestantA = (const struct indexentry *) a;
+  const struct indexentry *contestantB = (const struct indexentry *) b;
+
+  if (contestantA->val < contestantB->val)
+    return -1;
+  else if (contestantA->val > contestantB->val)
+    return 1;
+  else
+    return 0;
+}
+
 /* A pointer to this structure is stored in *pinfo.  */
 
 struct stab_find_info
@@ -727,13 +763,22 @@ struct stab_find_info
   bfd_byte *stabs;
   /* The contents of the .stabstr section.  */
   bfd_byte *strs;
-  /* An malloc buffer to hold the file name.  */
-  char *filename;
+
+  /* A table that indexes stabs by memory address.  */
+  struct indexentry *indextable;
+  /* The number of entries in indextable.  */
+  int indextablesize;
+
+#ifdef ENABLE_CACHING
   /* Cached values to restart quickly.  */
+  struct indexentry *cached_indexentry;
   bfd_vma cached_offset;
   bfd_byte *cached_stab;
-  bfd_byte *cached_str;
-  bfd_size_type cached_stroff;
+  char *cached_file_name;
+#endif
+
+  /* Saved ptr to malloc'ed filename.  */
+  char *filename;
 };
 
 boolean
@@ -751,17 +796,35 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 {
   struct stab_find_info *info;
   bfd_size_type stabsize, strsize;
-  bfd_byte *stab, *stabend, *str;
+  bfd_byte *stab, *str;
   bfd_size_type stroff;
-  bfd_vma fnaddr;
-  char *directory_name, *main_file_name, *current_file_name, *line_file_name;
-  char *fnname;
-  bfd_vma low_func_vma, low_line_vma;
+  struct indexentry *indexentry;
+  char *directory_name, *file_name;
 
   *pfound = false;
   *pfilename = bfd_get_filename (abfd);
   *pfnname = NULL;
   *pline = 0;
+
+  /* Stabs entries use a 12 byte format:
+       4 byte string table index
+       1 byte stab type
+       1 byte stab other field
+       2 byte stab desc field
+       4 byte stab value
+     FIXME: This will have to change for a 64 bit object format.
+
+     The stabs symbols are divided into compilation units.  For the
+     first entry in each unit, the type of 0, the value is the length
+     of the string table for this unit, and the desc field is the
+     number of stabs symbols for this unit.  */
+
+#define STRDXOFF (0)
+#define TYPEOFF (4)
+#define OTHEROFF (5)
+#define DESCOFF (6)
+#define VALOFF (8)
+#define STABSIZE (12)
 
   info = (struct stab_find_info *) *pinfo;
   if (info != NULL)
@@ -779,6 +842,12 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
     {
       long reloc_size, reloc_count;
       arelent **reloc_vector;
+      bfd_vma val;
+      int i;
+      char *name;
+      char *file_name;
+      char *directory_name;
+      char *function_name;
 
       info = (struct stab_find_info *) bfd_zalloc (abfd, sizeof *info);
       if (info == NULL)
@@ -868,6 +937,117 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
       if (reloc_vector != NULL)
 	free (reloc_vector);
 
+      /* First time through this function, build a table matching
+	 function VM addresses to stabs, then sort based on starting
+	 VM address.  Do this in two passes: once to count how many
+	 table entries we'll need, and a second to actually build the
+	 table.  */
+
+      info->indextablesize = 0;
+      for (stab = info->stabs; stab < info->stabs + stabsize; stab += STABSIZE)
+	{
+	  if (stab[TYPEOFF] == N_FUN)
+	    ++info->indextablesize;
+	}
+
+      if (info->indextablesize == 0)
+	return true;
+      ++info->indextablesize;
+
+      info->indextable = ((struct indexentry *)
+			  bfd_alloc (abfd,
+				     (sizeof (struct indexentry)
+				      * info->indextablesize)));
+      if (info->indextable == NULL)
+	return false;
+
+      file_name = NULL;
+      directory_name = NULL;
+
+      for (i = 0, stroff = 0, stab = info->stabs, str = info->strs;
+	   i < info->indextablesize && stab < info->stabs + stabsize;
+	   stab += STABSIZE)
+	{
+	  switch (stab[TYPEOFF])
+	    {
+	    case 0:
+	      /* This is the first entry in a compilation unit.  */
+	      if ((bfd_size_type) ((info->strs + strsize) - str) < stroff)
+		break;
+	      str += stroff;
+	      stroff = bfd_get_32 (abfd, stab + VALOFF);
+	      break;
+
+	    case N_SO:
+	      /* The main file name.  */
+
+	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
+
+	      if (*file_name == '\0')
+		{
+		  directory_name = NULL;
+		  file_name = NULL;
+		}
+	      else if (stab + STABSIZE >= info->stabs + stabsize
+		       || *(stab + STABSIZE + TYPEOFF) != N_SO)
+		{
+		  directory_name = NULL;
+		}
+	      else
+		{
+		  /* Two consecutive N_SOs are a directory and a file
+                     name.  */
+		  stab += STABSIZE;
+		  directory_name = file_name;
+		  file_name = ((char *) str
+			       + bfd_get_32 (abfd, stab + STRDXOFF));
+		}
+	      break;
+
+	    case N_SOL:
+	      /* The name of an include file.  */
+	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
+	      break;
+
+	    case N_FUN:
+	      /* A function name.  */
+
+	      name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
+
+	      if (*name == '\0')
+		name = NULL;
+
+	      function_name = name;
+
+	      if (name == NULL)
+		continue;
+
+	      val = bfd_get_32 (abfd, stab + VALOFF);
+
+	      info->indextable[i].val = val;
+	      info->indextable[i].stab = stab;
+	      info->indextable[i].str = str;
+	      info->indextable[i].directory_name = directory_name;
+	      info->indextable[i].file_name = file_name;
+	      info->indextable[i].function_name = function_name;
+
+	      ++i;
+	      break;
+	    }
+	}
+
+      info->indextable[i].val = (bfd_vma) -1;
+      info->indextable[i].stab = info->stabs + stabsize;
+      info->indextable[i].str = str;
+      info->indextable[i].directory_name = NULL;
+      info->indextable[i].file_name = NULL;
+      info->indextable[i].function_name = NULL;
+      ++i;
+
+      info->indextablesize = i;
+
+      qsort (info->indextable, i, sizeof (struct indexentry), cmpindexentry);
+
       *pinfo = (PTR) info;
     }
 
@@ -875,133 +1055,71 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
      stabs information are absolute.  */
   offset += bfd_get_section_vma (abfd, section);
 
-  /* Stabs entries use a 12 byte format:
-       4 byte string table index
-       1 byte stab type
-       1 byte stab other field
-       2 byte stab desc field
-       4 byte stab value
-     FIXME: This will have to change for a 64 bit object format.
-
-     The stabs symbols are divided into compilation units.  For the
-     first entry in each unit, the type of 0, the value is the length
-     of the string table for this unit, and the desc field is the
-     number of stabs symbols for this unit.  */
-
-#define STRDXOFF (0)
-#define TYPEOFF (4)
-#define OTHEROFF (5)
-#define DESCOFF (6)
-#define VALOFF (8)
-#define STABSIZE (12)
-
-  /* It would be nice if we could skip ahead to the stabs symbols for
-     the next compilation unit to quickly scan through the compilation
-     units.  Unfortunately, since each line number gets a separate
-     stabs entry, it is entirely plausible that a large source file
-     will overflow the 16 bit count of stabs entries.  */
-  fnaddr = 0;
-  directory_name = NULL;
-  main_file_name = NULL;
-  current_file_name = NULL;
-  line_file_name = NULL;
-  fnname = NULL;
-  low_func_vma = 0;
-  low_line_vma = 0;
-
-  stabend = info->stabs + stabsize;
-
-  if (info->cached_stab == NULL || offset < info->cached_offset)
-    {
-      stab = info->stabs;
-      str = info->strs;
-      stroff = 0;
-    }
-  else
+#ifdef ENABLE_CACHING
+  if (info->cached_indexentry != NULL
+      && offset >= info->cached_offset
+      && offset < (info->cached_indexentry + 1)->val)
     {
       stab = info->cached_stab;
-      str = info->cached_str;
-      stroff = info->cached_stroff;
+      indexentry = info->cached_indexentry;
+      file_name = info->cached_file_name;
+    }
+  else
+#endif
+    {
+      /* Cache non-existant or invalid.  Do binary search on
+         indextable.  */
+
+      long low, high;
+      long mid = -1;
+
+      indexentry = NULL;
+
+      low = 0;
+      high = info->indextablesize - 1;
+      while (low != high)
+	{
+	  mid = (high + low) / 2;
+	  if (offset >= info->indextable[mid].val
+	      && offset < info->indextable[mid + 1].val)
+	    {
+	      indexentry = &info->indextable[mid];
+	      break;
+	    }
+
+	  if (info->indextable[mid].val > offset)
+	    high = mid;
+	  else
+	    low = mid + 1;
+	}
+
+      if (indexentry == NULL)
+	return true;
+
+      stab = indexentry->stab + STABSIZE;
+      file_name = indexentry->file_name;
     }
 
-  info->cached_offset = offset;
+  directory_name = indexentry->directory_name;
+  str = indexentry->str;
 
-  for (; stab < stabend; stab += STABSIZE)
+  for (; stab < (indexentry+1)->stab; stab += STABSIZE)
     {
       boolean done;
       bfd_vma val;
-      char *name;
 
       done = false;
 
       switch (stab[TYPEOFF])
 	{
-	case 0:
-	  /* This is the first entry in a compilation unit.  */
-	  if ((bfd_size_type) ((info->strs + strsize) - str) < stroff)
-	    {
-	      done = true;
-	      break;
-	    }
-	  str += stroff;
-	  stroff = bfd_get_32 (abfd, stab + VALOFF);
-	  break;
-
-	case N_SO:
-	  /* The main file name.  */
-
-	  val = bfd_get_32 (abfd, stab + VALOFF);
-	  if (val > offset)
-	    {
-	      done = true;
-	      break;
-	    }
-
-	  name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
-
-	  /* An empty string indicates the end of the compilation
-             unit.  */
-	  if (*name == '\0')
-	    {
-	      /* If there are functions in different sections, they
-                 may have addresses larger than val, but we don't want
-                 to forget the file name.  When there are functions in
-                 different cases, there is supposed to be an N_FUN at
-                 the end of the function indicating where it ends.  */
-	      if (low_func_vma < val || fnname == NULL)
-		main_file_name = NULL;
-	      break;
-	    }
-
-	  /* We know that we have to get to at least this point in the
-             stabs entries for this offset.  */
-	  info->cached_stab = stab;
-	  info->cached_str = str;
-	  info->cached_stroff = stroff;
-
-	  current_file_name = name;
-
-	  /* Look ahead to the next symbol.  Two consecutive N_SO
-             symbols are a directory and a file name.  */
-	  if (stab + STABSIZE >= stabend
-	      || *(stab + STABSIZE + TYPEOFF) != N_SO)
-	    directory_name = NULL;
-	  else
-	    {
-	      stab += STABSIZE;
-	      directory_name = current_file_name;
-	      current_file_name = ((char *) str
-				   + bfd_get_32 (abfd, stab + STRDXOFF));
-	    }
-
-	  main_file_name = current_file_name;
-
-	  break;
-
 	case N_SOL:
 	  /* The name of an include file.  */
-	  current_file_name = ((char *) str
-			       + bfd_get_32 (abfd, stab + STRDXOFF));
+	  val = bfd_get_32 (abfd, stab + VALOFF);
+	  if (val <= offset)
+	    {
+	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
+	      *pline = 0;
+	    }
 	  break;
 
 	case N_SLINE:
@@ -1009,40 +1127,25 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 	case N_BSLINE:
 	  /* A line number.  The value is relative to the start of the
              current function.  */
-	  val = fnaddr + bfd_get_32 (abfd, stab + VALOFF);
-	  if (val >= low_line_vma && val <= offset)
+	  val = indexentry->val + bfd_get_32 (abfd, stab + VALOFF);
+	  if (val <= offset)
 	    {
 	      *pline = bfd_get_16 (abfd, stab + DESCOFF);
-	      low_line_vma = val;
-	      line_file_name = current_file_name;
+
+#ifdef ENABLE_CACHING
+	      info->cached_stab = stab;
+	      info->cached_offset = val;
+	      info->cached_file_name = file_name;
+	      info->cached_indexentry = indexentry;
+#endif
 	    }
+	  if (val > offset)
+	    done = true;
 	  break;
 
 	case N_FUN:
-	  /* A function name.  */
-	  val = bfd_get_32 (abfd, stab + VALOFF);
-	  name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
-
-	  /* An empty string here indicates the end of a function, and
-	     the value is relative to fnaddr.  */
-
-	  if (*name == '\0')
-	    {
-	      val += fnaddr;
-	      if (val >= low_func_vma && val < offset)
-		fnname = NULL;
-	    }
-	  else
-	    {
-	      if (val >= low_func_vma && val <= offset)
-		{
-		  fnname = name;
-		  low_func_vma = val;
-		}
-
-	       fnaddr = val;
-	     }
-
+	case N_SO:
+	  done = true;
 	  break;
 	}
 
@@ -1050,46 +1153,34 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 	break;
     }
 
-  if (main_file_name == NULL)
-    {
-      /* No information found.  */
-      return true;
-    }
-
   *pfound = true;
 
-  if (*pline != 0)
-    main_file_name = line_file_name;
-
-  if (main_file_name != NULL)
+  if (file_name[0] == '/' || directory_name == NULL)
+    *pfilename = file_name;
+  else
     {
-      if (main_file_name[0] == '/' || directory_name == NULL)
-	*pfilename = main_file_name;
-      else
+      size_t dirlen;
+
+      dirlen = strlen (directory_name);
+      if (info->filename == NULL
+	  || strncmp (info->filename, directory_name, dirlen) != 0
+	  || strcmp (info->filename + dirlen, file_name) != 0)
 	{
-	  size_t dirlen;
-
-	  dirlen = strlen (directory_name);
-	  if (info->filename == NULL
-	      || strncmp (info->filename, directory_name, dirlen) != 0
-	      || strcmp (info->filename + dirlen, main_file_name) != 0)
-	    {
-	      if (info->filename != NULL)
-		free (info->filename);
-	      info->filename = (char *) bfd_malloc (dirlen +
-						    strlen (main_file_name)
-						    + 1);
-	      if (info->filename == NULL)
-		return false;
-	      strcpy (info->filename, directory_name);
-	      strcpy (info->filename + dirlen, main_file_name);
-	    }
-
-	  *pfilename = info->filename;
+	  if (info->filename != NULL)
+	    free (info->filename);
+	  info->filename = (char *) bfd_malloc (dirlen +
+						strlen (file_name)
+						+ 1);
+	  if (info->filename == NULL)
+	    return false;
+	  strcpy (info->filename, directory_name);
+	  strcpy (info->filename + dirlen, file_name);
 	}
+
+      *pfilename = info->filename;
     }
 
-  if (fnname != NULL)
+  if (indexentry->function_name != NULL)
     {
       char *s;
 
@@ -1097,11 +1188,11 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
          to clobber the colon.  It's OK to change the name, since the
          string is in our own local storage anyhow.  */
 
-      s = strchr (fnname, ':');
+      s = strchr (indexentry->function_name, ':');
       if (s != NULL)
 	*s = '\0';
 
-      *pfnname = fnname;
+      *pfnname = indexentry->function_name;
     }
 
   return true;

@@ -1,5 +1,5 @@
 /* size.c -- report size of various sections of an executable file.
-   Copyright 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -50,8 +50,7 @@ int show_help = 0;
 /* Program exit status.  */
 int return_code = 0;
 
-/* IMPORTS */
-extern char *target;
+static char *target = NULL;
 
 /* Static declarations */
 
@@ -59,9 +58,13 @@ static void usage PARAMS ((FILE *, int));
 static void display_file PARAMS ((char *filename));
 static void display_bfd PARAMS ((bfd *));
 static void display_archive PARAMS ((bfd *));
+static int size_number PARAMS ((bfd_size_type));
+#if 0
 static void lprint_number PARAMS ((int, bfd_size_type));
+#endif
 static void rprint_number PARAMS ((int, bfd_size_type));
 static void print_berkeley_format PARAMS ((bfd *));
+static void sysv_internal_sizer PARAMS ((bfd *, asection *, PTR));
 static void sysv_internal_printer PARAMS ((bfd *, asection *, PTR));
 static void print_sysv_format PARAMS ((bfd *));
 static void print_sizes PARAMS ((bfd * file));
@@ -82,7 +85,7 @@ Usage: %s [-ABdoxV] [--format=berkeley|sysv] [--radix=8|10|16]\n\
 #endif
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
   exit (status);
 }
 
@@ -303,24 +306,51 @@ display_file (filename)
 
 /* This is what lexical functions are for.  */
 
+static int
+size_number (num)
+     bfd_size_type num;
+{
+  char buffer[40];
+  sprintf (buffer,
+	   (radix == decimal ? "%lu" :
+	   ((radix == octal) ? "0%lo" : "0x%lx")),
+	   (unsigned long) num);
+
+  return strlen (buffer);
+}
+
+#if 0
+
+/* This is not used.  */
+
 static void
 lprint_number (width, num)
      int width;
      bfd_size_type num;
 {
-  printf ((radix == decimal ? "%-*lu\t" :
-	   ((radix == octal) ? "%-*lo\t" : "%-*lx\t")),
-	  width, (unsigned long) num);
+  char buffer[40];
+  sprintf (buffer,
+	   (radix == decimal ? "%lu" :
+	   ((radix == octal) ? "0%lo" : "0x%lx")),
+	   (unsigned long) num);
+
+  printf ("%-*s", width, buffer);
 }
+
+#endif
 
 static void
 rprint_number (width, num)
      int width;
      bfd_size_type num;
 {
-  printf ((radix == decimal ? "%*lu\t" :
-	   ((radix == octal) ? "%*lo\t" : "%*lx\t")),
-	  width, (unsigned long) num);
+  char buffer[40];
+  sprintf (buffer,
+	   (radix == decimal ? "%lu" :
+	   ((radix == octal) ? "0%lo" : "0x%lx")),
+	   (unsigned long) num);
+
+  printf ("%*s", width, buffer);
 }
 
 static bfd_size_type bsssize;
@@ -365,19 +395,21 @@ print_berkeley_format (abfd)
   if (files_seen++ == 0)
 #if 0
     /* Intel doesn't like bss/stk because they don't have core files.  */
-    puts ((radix == octal) ? "text\tdata\tbss/stk\toct\thex\tfilename" :
-	  "text\tdata\tbss/stk\tdec\thex\tfilename");
+    puts ((radix == octal) ? "   text\t   data\tbss/stk\t    oct\t    hex\tfilename" :
+	  "   text\t   data\tbss/stk\t    dec\t    hex\tfilename");
 #else
-    puts ((radix == octal) ? "text\tdata\tbss\toct\thex\tfilename" :
-	  "text\tdata\tbss\tdec\thex\tfilename");
+    puts ((radix == octal) ? "   text\t   data\t    bss\t    oct\t    hex\tfilename" :
+	  "   text\t   data\t    bss\t    dec\t    hex\tfilename");
 #endif
 
   total = textsize + datasize + bsssize;
 
-  lprint_number (7, textsize);
-  lprint_number (7, datasize);
-  lprint_number (7, bsssize);
-  printf (((radix == octal) ? "%-7lo\t%-7lx\t" : "%-7lu\t%-7lx\t"),
+  rprint_number (7, textsize);
+  putchar ('\t');
+  rprint_number (7, datasize);
+  putchar ('\t');
+  rprint_number (7, bsssize);
+  printf (((radix == octal) ? "\t%7lo\t%7lx\t" : "\t%7lu\t%7lx\t"),
 	  (unsigned long) total, (unsigned long) total);
 
   fputs (bfd_get_filename (abfd), stdout);
@@ -387,6 +419,31 @@ print_berkeley_format (abfd)
 
 /* I REALLY miss lexical functions! */
 bfd_size_type svi_total = 0;
+bfd_vma svi_maxvma = 0;
+int svi_namelen = 0;
+int svi_vmalen = 0;
+int svi_sizelen = 0;
+
+static void
+sysv_internal_sizer (file, sec, ignore)
+     bfd *file;
+     sec_ptr sec;
+     PTR ignore;
+{
+  bfd_size_type size = bfd_section_size (file, sec);
+  if (!bfd_is_abs_section (sec)
+      && !bfd_is_com_section (sec)
+      && !bfd_is_und_section (sec))
+    {
+      int namelen = strlen (bfd_section_name (file, sec));
+      if (namelen > svi_namelen)
+	svi_namelen = namelen;
+
+      svi_total += size;
+      if (bfd_section_vma (file, sec) > svi_maxvma)
+	svi_maxvma = bfd_section_vma (file, sec);
+    }
+}
 
 static void
 sysv_internal_printer (file, sec, ignore)
@@ -401,10 +458,10 @@ sysv_internal_printer (file, sec, ignore)
     {
       svi_total += size;
 
-      printf ("%-12s", bfd_section_name (file, sec));
-      rprint_number (8, size);
-      printf (" ");
-      rprint_number (8, bfd_section_vma (file, sec));
+      printf ("%-*s   ", svi_namelen, bfd_section_name (file, sec));
+      rprint_number (svi_sizelen, size);
+      printf ("   ");
+      rprint_number (svi_vmalen, bfd_section_vma (file, sec));
       printf ("\n");
     }
 }
@@ -413,17 +470,30 @@ static void
 print_sysv_format (file)
      bfd *file;
 {
+  /* size all of the columns */
   svi_total = 0;
+  svi_maxvma = 0;
+  svi_namelen = 0;
+  bfd_map_over_sections (file, sysv_internal_sizer, (PTR) NULL);
+  svi_vmalen = size_number ((bfd_size_type)svi_maxvma);
+  if ((size_t) svi_vmalen < sizeof ("addr") - 1)
+    svi_vmalen = sizeof ("addr")-1;
 
+  svi_sizelen = size_number (svi_total);
+  if ((size_t) svi_sizelen < sizeof ("size") - 1)
+    svi_sizelen = sizeof ("size")-1;
+
+  svi_total = 0;
   printf ("%s  ", bfd_get_filename (file));
   if (bfd_my_archive (file))
     printf (" (ex %s)", bfd_get_filename (bfd_my_archive (file)));
 
-  puts (":\nsection\t\tsize\t     addr");
+  printf (":\n%-*s   %*s   %*s\n", svi_namelen, "section",
+	  svi_sizelen, "size", svi_vmalen, "addr");
   bfd_map_over_sections (file, sysv_internal_printer, (PTR) NULL);
 
-  printf ("Total       ");
-  rprint_number (8, svi_total);
+  printf ("%-*s   ", svi_namelen, "Total");
+  rprint_number (svi_sizelen, svi_total);
   printf ("\n\n");
 }
 

@@ -1,3 +1,78 @@
+Sat Feb 28 17:04:41 1998  Richard Henderson  <rth@cygnus.com>
+
+	* alpha.h (EF_ALPHA_32BIT, EF_ALPHA_CANRELAX): New.
+
+Mon Dec 15 15:07:49 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* m32r.h (EF_M32R_ARCH, E_M32R_ARCH): New flags to
+	specify machine architecture.
+	
+Fri Dec  5 11:20:08 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h: New constants: SHN_V850_SCOMMON, SHN_V850_TCOMMON,
+	SHN_V850_ZCOMMON, SHT_V850_SCOMMON, SHT_V850_TCOMMON,
+	SHT_V850_ZCOMMON to handle v850 common sections.
+	enum reloc_type renamed to v850_reloc_type to avoid name
+	conflict. 
+	
+Thu Oct 23 13:55:24 1997  Richard Henderson  <rth@cygnus.com>
+
+	* sparc.h (enum elf_sparc_reloc_type): Add UA64 & UA16.
+
+Thu Oct 23 00:42:04 1997  Richard Henderson  <rth@dot.cygnus.com>
+
+	* sparc.h (DT_SPARC_REGISTER): New macro.
+	(DT_SPARC_PLTFMT): In support of old sparc64-linux .plts; will
+	go away soon.
+
+Tue Sep 30 13:26:58 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (EF_SPARC_HAL_R1, EF_SPARC_EXT_MASK): New macros.
+	(EF_SPARCV9_{MM,TSO,PSO,RMO}): New macros.
+	(SHN_BEFORE,SHN_AFTER): New macros.
+	(SHF_EXCLUDE,SHF_ORDERED): New macros.
+	(STT_REGISTER): New macro.
+	(R_SPARC_GLOB_JMP): Deleted, but slot reserved.
+	(R_SPARC_{DISP64,PLT64,HIX22,LOX10}): New relocations.
+	(R_SPARC_{H44,M44,L44,REGISTER}): New relocations.
+	(ELF64_R_TYPE_{DATA,ID,INFO}): New macros.
+
+Tue Sep 16 14:16:17 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Add R_V850_TDA_16_16_OFFSET.
+
+Wed Sep  3 15:11:14 1997  Richard Henderson  <rth@cygnus.com>
+
+	* mips.h: Correct typo in comment.
+
+Wed Sep  3 11:25:57 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Remove R_V850_16_PCREL.
+
+Tue Sep  2 17:41:05 1997  Nick Clifton  <nickc@cygnus.com>
+
+
+	* v850.h: Add new flags for e_flags field in elf header.
+
+
+Mon Aug 18 11:05:23 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (reloc_type): Add 16 bit PC relative relocation.
+
+Fri Aug 15 05:10:09 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc.h (enum reloc): Move here from elf32-arc.c.
+
+Fri Aug  8 17:05:29 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc.h: New file.
+	* common.h (EM_CYGNUS_ARC): Define.
+
+Mon Jun 16 14:46:12 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (Elf_Internal_Ehdr): Change e_phoff and e_shoff from
+	bfd_signed_vma to bfd_size_type, as they are not signed.
+
 Wed Mar  5 15:35:26 1997  Doug Evans  <dje@seba.cygnus.com>
 
 	* m32r.h (SHF_M32R_CAN_RELAX): Define.
@@ -23,6 +98,19 @@ Wed Feb 19 15:35:31 1997  Ian Lance Taylor  <ian@cygnus.com>
 Mon Jan 27 11:54:44 1997  Doug Evans  <dje@seba.cygnus.com>
 
 	* m32r.h (enum reloc_type): Add R_M32R_HI16_[SU]LO,R_M32R_LO16.
+
+Fri Jan  3 11:32:51 1997  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* v850.h (V850_OTHER_{TDA_BYTE,ERROR}): New bits for the st_other
+	field.
+	(SHN_V850_*): Remove v850 specific section indexes, which are not
+	needed.
+	(enum reloc_type): Move the v850 relocations here from
+	elf32-v850.c
+
+Thu Jan  2 19:30:23 1997  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* v850.h: New file, provide V850 specific definitions. 
 
 Tue Dec 31 14:44:32 1996  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -60,6 +148,10 @@ Mon Sep 23 09:18:04 1996  Doug Evans  <dje@seba.cygnus.com>
 Fri Aug 30 17:06:21 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 	* common.h (EM_SH): Define.
+
+Tue Aug 20 14:47:54 1996  J.T. Conklin  <jtc@hippo.cygnus.com>
+
+	* common.h (EM_CYGNUS_V850): Define.
 
 Mon Aug 19 10:59:10 1996  Doug Evans  <dje@canuck.cygnus.com>
 
@@ -165,7 +257,6 @@ Tue Feb 14 13:59:13 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
 	* common.h (EM_PPC): Use offical value of 20, not 17.
 	(EM_PPC_OLD): Define this to be the old value of EM_PPC.
 
-
 Tue Jan 24 09:40:59 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 	* common.h (EM_PPC): New macro, PowerPC machine id.
@@ -173,7 +264,6 @@ Tue Jan 24 09:40:59 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
 Tue Jan 17 10:51:38 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 
 	* mips.h (SHT_MIPS_MSYM, SHT_MIPS_DWARF, SHT_MIPS_EVENTS): Define.
-
 
 Mon Oct 17 13:43:59 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 

@@ -3,6 +3,12 @@ dnl
 AC_PREREG(2.5)
 AC_INIT(ldmain.c)
 
+AC_CANONICAL_SYSTEM
+
+AM_INIT_AUTOMAKE(ld, 2.9.1)
+
+AM_PROG_LIBTOOL
+
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
 [case "${enableval}" in
@@ -10,14 +16,6 @@ AC_ARG_ENABLE(targets,
             ;;
   no)       enable_targets= ;;
   *)        enable_targets=$enableval ;;
-esac])dnl
-AC_ARG_ENABLE(shared,
-[  --enable-shared         build shared BFD library],
-[case "${enableval}" in
-  yes) shared=true ;;
-  no)  shared=false ;;
-  *bfd*) shared=true ;;
-  *) shared=false ;;
 esac])dnl
 AC_ARG_ENABLE(64-bit-bfd,
 [  --enable-64-bit-bfd     64-bit support (on hosts with narrower word sizes)],
@@ -27,59 +25,34 @@ AC_ARG_ENABLE(64-bit-bfd,
   *)    AC_MSG_ERROR(bad value ${enableval} for 64-bit-bfd option) ;;
 esac],[want64=false])dnl
 
-AC_CONFIG_HEADER(config.h:config.in)
+AM_CONFIG_HEADER(config.h:config.in)
 
-AC_CONFIG_AUX_DIR(`cd $srcdir/..; pwd`)
-AC_CANONICAL_SYSTEM
 if test -z "$target" ; then
     AC_MSG_ERROR(Unrecognized target system type; please check config.sub.)
 fi
 if test -z "$host" ; then
     AC_MSG_ERROR(Unrecognized host system type; please check config.sub.)
 fi
-AC_ARG_PROGRAM
 
 # host-specific stuff:
 
 AC_PROG_CC
-AC_PROG_INSTALL
+AM_PROG_INSTALL
+AM_CYGWIN32
+AM_EXEEXT
+
+AC_PROG_YACC
+AC_PROG_LEX
+AC_DECL_YYTEXT
+
+AM_MAINTAINER_MODE
 
 . ${srcdir}/configure.host
 
-AC_SUBST(HLDFLAGS)
-AC_SUBST(HLDENV)
-AC_SUBST(RPATH_ENVVAR)
 AC_SUBST(HDEFINES)
 AC_SUBST(HOSTING_CRT0)
 AC_SUBST(HOSTING_LIBS)
 AC_SUBST(NATIVE_LIB_DIRS)
-
-# For most hosts we can use a simple definition to pick up the BFD and
-# opcodes libraries.  However, if we are building shared libraries, we
-# need to handle some hosts specially.
-BFDLIB='-L../bfd -lbfd'
-case "${host}" in
-*-*-sunos*)
-  # On SunOS, we must link against the name we are going to install,
-  # not -lbfd, since SunOS does not support SONAME.
-  if test "${shared}" = "true"; then
-    BFDLIB='-L../bfd -l`echo bfd | sed '"'"'$(program_transform_name)'"'"'`'
-  fi
-  ;;
-alpha*-*-osf*)
-  # On Alpha OSF/1, the native linker searches all the -L
-  # directories for any LIB.so files, and only then searches for any
-  # LIB.a files.  That means that if there is an installed
-  # libbfd.so, but this build is not done with --enable-shared, the
-  # link will wind up being against the install libbfd.so rather
-  # than the newly built libbfd.  To avoid this, we must explicitly
-  # link against libbfd.a when --enable-shared is not used.
-  if test "${shared}" != "true"; then
-    BFDLIB='../bfd/libbfd.a'
-  fi
-  ;;
-esac
-AC_SUBST(BFDLIB)
 
 AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h)
 AC_CHECK_FUNCS(sbrk)
@@ -150,5 +123,11 @@ else
 fi
 AC_SUBST(EMULATION_OFILES)
 
-AC_OUTPUT(Makefile,
-[case x$CONFIG_HEADERS in xconfig.h:config.in) echo > stamp-h ;; esac])
+if test x${enable_static} = xno; then
+  TESTBFDLIB="--rpath ../bfd/.libs ../bfd/.libs/libbfd.so"
+else
+  TESTBFDLIB="../bfd/.libs/libbfd.a"
+fi
+AC_SUBST(TESTBFDLIB)
+
+AC_OUTPUT(Makefile)

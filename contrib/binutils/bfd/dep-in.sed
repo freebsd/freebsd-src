@@ -3,6 +3,7 @@
 s/\\\n */ /g
 t loop
 
+s!\.o:!.lo:!
 s! @BFD_H@!!g
 s!@INCDIR@!$(INCDIR)!g
 s!@SRCDIR@/!!g

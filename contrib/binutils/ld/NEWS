@@ -1,5 +1,14 @@
 -*- text -*-
 
+Changes in version 2.9:
+
+* Added SQUAD to the linker script language.
+
+* New option --no-warn-mismatch.
+
+* The MEMORY command now parses the attributes to determine where sections that
+are not placed in a specific memory region are placed.
+
 Changes in version 2.8:
 
 * Linker scripts may now contain shell wildcard characters for file and section

@@ -1,5 +1,5 @@
 /* macro.c - macro support for gas and gasp
-   Copyright (C) 1994, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -22,6 +22,34 @@
    02111-1307, USA. */
 
 #include "config.h"
+
+/* AIX requires this to be the first thing in the file.  */
+#ifdef __GNUC__
+# ifndef alloca
+#  ifdef __STDC__
+extern void *alloca ();
+#  else
+extern char *alloca ();
+#  endif
+# endif
+#else
+# if HAVE_ALLOCA_H
+#  include <alloca.h>
+# else
+#  ifdef _AIX
+ #pragma alloca
+#  else
+#   ifndef alloca /* predefined by HP cc +Olibcalls */
+#    if !defined (__STDC__) && !defined (__hpux)
+extern char *alloca ();
+#    else
+extern void *alloca ();
+#    endif /* __STDC__, __hpux */
+#   endif /* alloca */
+#  endif /* _AIX */
+# endif /* HAVE_ALLOCA_H */
+#endif
+
 #include <stdio.h>
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -93,7 +121,8 @@ static const char *macro_expand PARAMS ((int, sb *, macro_entry *, sb *, int));
 
 #define ISSEP(x) \
  ((x) == ' ' || (x) == '\t' || (x) == ',' || (x) == '"' || (x) == ';' \
-  || (x) == '<' || (x) == '>' || (x) == ')' || (x) == '(')
+  || (x) == ')' || (x) == '(' \
+  || ((macro_alternate || macro_mri) && ((x) == '<' || (x) == '>')))
 
 #define ISBASE(x) \
   ((x) == 'b' || (x) == 'B' \
@@ -269,49 +298,31 @@ getstring (idx, in, acc)
 
   while (idx < in->len
 	 && (in->ptr[idx] == '"' 
-	     || in->ptr[idx] == '<' 
+	     || (in->ptr[idx] == '<' && (macro_alternate || macro_mri))
 	     || (in->ptr[idx] == '\'' && macro_alternate)))
     {
       if (in->ptr[idx] == '<')
 	{
-	  if (macro_alternate || macro_mri)
+	  int nest = 0;
+	  idx++;
+	  while ((in->ptr[idx] != '>' || nest)
+		 && idx < in->len)
 	    {
-	      int nest = 0;
-	      idx++;
-	      while ((in->ptr[idx] != '>' || nest)
-		     && idx < in->len)
+	      if (in->ptr[idx] == '!')
 		{
-		  if (in->ptr[idx] == '!')
-		    {
-		      idx++  ;
-		      sb_add_char (acc, in->ptr[idx++]);
-		    }
-		  else
-		    {
-		      if (in->ptr[idx] == '>')
-			nest--;
-		      if (in->ptr[idx] == '<')
-			nest++;
-		      sb_add_char (acc, in->ptr[idx++]);
-		    }
+		  idx++  ;
+		  sb_add_char (acc, in->ptr[idx++]);
 		}
-	      idx++;
+	      else
+		{
+		  if (in->ptr[idx] == '>')
+		    nest--;
+		  if (in->ptr[idx] == '<')
+		    nest++;
+		  sb_add_char (acc, in->ptr[idx++]);
+		}
 	    }
-	  else
-	    {
-	      int code;
-	      idx++;
-	      idx = ((*macro_expr)
-		     ("character code in string must be absolute expression",
-		      idx, in, &code));
-	      sb_add_char (acc, code);
-
-#if 0
-	      if (in->ptr[idx] != '>')
-		ERROR ((stderr, "Missing > for character code.\n"));
-#endif
-	      idx++;
-	    }
+	  idx++;
 	}
       else if (in->ptr[idx] == '"' || in->ptr[idx] == '\'')
 	{
@@ -383,7 +394,7 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 	  sb_add_string (out, buf);
 	}
       else if (in->ptr[idx] == '"'
-	       || in->ptr[idx] == '<'
+	       || (in->ptr[idx] == '<' && (macro_alternate || macro_mri))
 	       || (macro_alternate && in->ptr[idx] == '\''))
 	{
 	  if (macro_alternate
@@ -410,7 +421,8 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 		     || (in->ptr[idx] != ' '
 			 && in->ptr[idx] != '\t'
 			 && in->ptr[idx] != ','
-			 && in->ptr[idx] != '<')))
+			 && (in->ptr[idx] != '<'
+			     || (! macro_alternate && ! macro_mri)))))
 	    {
 	      if (in->ptr[idx] == '"' 
 		  || in->ptr[idx] == '\'')
@@ -541,7 +553,7 @@ define_macro (idx, in, label, get_line, namep)
   if (label != NULL && label->len != 0)
     {
       sb_add_sb (&name, label);
-      if (in->ptr[idx] == '(')
+      if (idx < in->len && in->ptr[idx] == '(')
 	{
 	  /* It's the label: MACRO (formals,...)  sort */
 	  idx = do_formals (macro, idx + 1, in);
@@ -563,7 +575,7 @@ define_macro (idx, in, label, get_line, namep)
 
   /* and stick it in the macro hash table */
   for (idx = 0; idx < name.len; idx++)
-    if (isupper (name.ptr[idx]))
+    if (isupper ((unsigned char) name.ptr[idx]))
       name.ptr[idx] = tolower (name.ptr[idx]);
   namestr = sb_terminate (&name);
   hash_jam (macro_hash, namestr, (PTR) macro);
@@ -629,6 +641,11 @@ sub_actual (start, in, t, formal_hash, kind, out, copyifnotthere)
 	  sb_add_sb (out, &ptr->def);
 	}
     }
+  else if (kind == '&')
+    {
+      /* Doing this permits people to use & in macro bodies.  */
+      sb_add_char (out, '&');
+    }
   else if (copyifnotthere)
     {
       sb_add_sb (out, t);
@@ -673,8 +690,7 @@ macro_expand_body (in, out, formals, formal_hash, comment_char, locals)
 	    }
 	  else
 	    {
-	      /* FIXME: Why do we do this?  It prevents people from
-                 using the & operator in a macro.  */
+	      /* FIXME: Why do we do this?  */
 	      src = sub_actual (src + 1, in, &t, formal_hash, '&', out, 0);
 	    }
 	}
@@ -705,7 +721,7 @@ macro_expand_body (in, out, formals, formal_hash, comment_char, locals)
 	    {
 	      /* Sub in the macro invocation number */
 
-	      char buffer[6];
+	      char buffer[10];
 	      src++;
 	      sprintf (buffer, "%05d", macro_number);
 	      sb_add_string (out, buffer);
@@ -945,13 +961,14 @@ macro_expand (idx, in, m, out, comment_char)
       scan = idx;
       while (scan < in->len
 	     && !ISSEP (in->ptr[scan])
+	     && !(macro_mri && in->ptr[scan] == '\'')
 	     && (!macro_alternate && in->ptr[scan] != '='))
 	scan++;
       if (scan < in->len && !macro_alternate && in->ptr[scan] == '=')
 	{
 	  is_keyword = 1;
-	  if (is_positional)
-	    return "can't mix positional and keyword arguments";
+
+	  /* It's OK to go from positional to keyword.  */
 
 	  /* This is a keyword arg, fetch the formal name and
 	     then the actual stuff */
@@ -1099,11 +1116,11 @@ check_macro (line, expand, comment_char, error)
 	 || *s == '$')
     ++s;
 
-  copy = (char *) xmalloc (s - line + 1);
+  copy = (char *) alloca (s - line + 1);
   memcpy (copy, line, s - line);
   copy[s - line] = '\0';
   for (cs = copy; *cs != '\0'; cs++)
-    if (isupper (*cs))
+    if (isupper ((unsigned char) *cs))
       *cs = tolower (*cs);
 
   macro = (macro_entry *) hash_find (macro_hash, copy);

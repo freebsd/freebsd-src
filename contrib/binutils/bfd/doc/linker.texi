@@ -30,12 +30,12 @@ ends which have implemented versions of these routines are
 a.out (in @code{aoutx.h}) and ECOFF (in @code{ecoff.c}).  The a.out
 routines are used as examples throughout this section.
 
-@menu	
+@menu   
 * Creating a Linker Hash Table::
 * Adding Symbols to the Hash Table::
 * Performing the Final Link::
 @end menu
-@*
+
 @node Creating a Linker Hash Table, Adding Symbols to the Hash Table, Linker Functions, Linker Functions
 @subsection Creating a linker hash table
 @cindex _bfd_link_hash_table_create in target vector
@@ -70,7 +70,7 @@ generally not know exactly which fields will be required until
 you have finished.  You should simply create a new hash table
 which defines no additional fields, and then simply add fields
 as they become necessary.
-@*
+
 @node Adding Symbols to the Hash Table, Performing the Final Link, Creating a Linker Hash Table, Linker Functions
 @subsection Adding symbols to the hash table
 @cindex _bfd_link_add_symbols in target vector
@@ -93,7 +93,7 @@ The a.out version of this entry point is
 * Adding symbols from an object file::
 * Adding symbols from an archive::
 @end menu
-@*
+
 @node Differing file formats, Adding symbols from an object file, Adding Symbols to the Hash Table, Adding Symbols to the Hash Table
 @subsubsection Differing file formats
 Normally all the files involved in a link will be of the same
@@ -127,7 +127,7 @@ See @code{ecoff_link_add_externals} for an example of how to
 check the @code{creator} field before saving information (in this
 case, the ECOFF external symbol debugging information) in a
 hash table entry.
-@*
+
 @node Adding symbols from an object file, Adding symbols from an archive, Differing file formats, Adding Symbols to the Hash Table
 @subsubsection Adding symbols from an object file
 When the @code{_bfd_link_add_symbols} routine is passed an object
@@ -168,7 +168,7 @@ pointers to the hash tables entries created by
 @code{_bfd_generic_link_add_one_symbol} indexed by symbol number,
 so that the @code{_bfd_final_link} routine does not have to call
 the hash table lookup routine to locate the entry.
-@*
+
 @node Adding symbols from an archive, , Adding symbols from an object file, Adding Symbols to the Hash Table
 @subsubsection Adding symbols from an archive
 When the @code{_bfd_link_add_symbols} routine is passed an
@@ -217,7 +217,7 @@ call @code{_bfd_generic_link_add_archive_symbols}, because ECOFF
 archives already contain a hash table of symbols.  The ECOFF
 back end searches the archive itself to avoid the overhead of
 creating a new hash table.
-@*
+
 @node Performing the Final Link, , Adding Symbols to the Hash Table, Linker Functions
 @subsection Performing the final link
 @cindex _bfd_link_final_link in target vector
@@ -246,7 +246,7 @@ the specific object file format.  The a.out
 * Relocating the section contents::
 * Writing the symbol table::
 @end menu
-@*
+
 @node Information provided by the linker, Relocating the section contents, Performing the Final Link, Performing the Final Link
 @subsubsection Information provided by the linker
 Before the linker calls the @code{_bfd_final_link} entry point,
@@ -267,7 +267,7 @@ types of information.  They also describe relocs that must be
 created by the BFD backend, but do not correspond to any input
 file; this is used to support -Ur, which builds constructors
 while generating a relocateable object file.
-@*
+
 @node Relocating the section contents, Writing the symbol table, Information provided by the linker, Performing the Final Link
 @subsubsection Relocating the section contents
 The @code{_bfd_final_link} function should look through the
@@ -302,7 +302,7 @@ The a.out function which handles reading, relocating, and
 writing section contents is @code{aout_link_input_section}.  The
 actual relocation is done in @code{aout_link_input_section_std}
 and @code{aout_link_input_section_ext}.
-@*
+
 @node Writing the symbol table, , Relocating the section contents, Performing the Final Link
 @subsubsection Writing the symbol table
 The @code{_bfd_final_link} function must gather all the symbols
@@ -347,7 +347,7 @@ traversing the global hash table with the function
 @code{aout_link_write_other_symbol}.  It builds a string table
 while writing out the symbols, which is written to the output
 file at the end of @code{NAME(aout,final_link)}.
-@*
+
 @findex bfd_link_split_section
 @subsubsection @code{bfd_link_split_section}
 @strong{Synopsis}
@@ -362,4 +362,4 @@ reloceatable or final link.
        BFD_SEND (abfd, _bfd_link_split_section, (abfd, sec))
 
 @end example
-@*
+

@@ -1,5 +1,5 @@
 /* Generic stabs parsing for gas.
-   Copyright (C) 1989, 90, 91, 93, 94, 95, 96, 1997
+   Copyright (C) 1989, 90, 91, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
@@ -71,46 +71,47 @@ get_stab_string_offset (string, stabstr_secname)
 {
   unsigned int length;
   unsigned int retval;
+  segT save_seg;
+  subsegT save_subseg;
+  segT seg;
+  char *p;
 
   if (! SEPARATE_STAB_SECTIONS)
     abort ();
 
-  retval = 0;
   length = strlen (string);
+
+  save_seg = now_seg;
+  save_subseg = now_subseg;
+
+  /* Create the stab string section.  */
+  seg = subseg_new (stabstr_secname, 0);
+
+  retval = seg_info (seg)->stabu.stab_string_size;
+  if (retval <= 0)
+    {
+      /* Make sure the first string is empty.  */
+      p = frag_more (1);
+      *p = 0;
+      retval = seg_info (seg)->stabu.stab_string_size = 1;
+#ifdef BFD_ASSEMBLER
+      bfd_set_section_flags (stdoutput, seg, SEC_READONLY | SEC_DEBUGGING);
+      if (seg->name == stabstr_secname)
+	seg->name = xstrdup (stabstr_secname);
+#endif
+    }
+
   if (length > 0)
     {				/* Ordinary case. */
-      segT save_seg;
-      subsegT save_subseg;
-      segT seg;
-      char *p;
-
-      save_seg = now_seg;
-      save_subseg = now_subseg;
-
-      /* Create the stab string section.  */
-      seg = subseg_new (stabstr_secname, 0);
-
-      retval = seg_info (seg)->stabu.stab_string_size;
-      if (retval <= 0)
-	{
-	  /* Make sure the first string is empty.  */
-	  p = frag_more (1);
-	  *p = 0;
-	  retval = seg_info (seg)->stabu.stab_string_size = 1;
-#ifdef BFD_ASSEMBLER
-	  bfd_set_section_flags (stdoutput, seg, SEC_READONLY | SEC_DEBUGGING);
-	  if (seg->name == stabstr_secname)
-	    seg->name = xstrdup (stabstr_secname);
-#endif
-	}
-
       p = frag_more (length + 1);
       strcpy (p, string);
 
       seg_info (seg)->stabu.stab_string_size += length + 1;
-
-      subseg_set (save_seg, save_subseg);
     }
+  else
+    retval = 0;
+
+  subseg_set (save_seg, save_subseg);
 
   return retval;
 }
@@ -459,3 +460,55 @@ s_desc (ignore)
 }				/* s_desc() */
 
 #endif /* defined (S_SET_DESC) */
+
+/* Generate stabs debugging information for the current line.  This is
+   used to produce debugging information for an assembler file.  */
+
+void
+stabs_generate_asm_lineno ()
+{
+  static char *last_file;
+  static int lineno_count;
+  char *hold;
+  char *file;
+  unsigned int lineno;
+  char buf[100];
+  char sym[30];
+
+  /* Rather than try to do this in some efficient fashion, we just
+     generate a string and then parse it again.  That lets us use the
+     existing stabs hook, which expect to see a string, rather than
+     inventing new ones.  */
+
+  hold = input_line_pointer;
+
+  as_where (&file, &lineno);
+
+  if (last_file == NULL
+      || strcmp (last_file, file) != 0)
+    {
+      sprintf (sym, "%sF%d", FAKE_LABEL_NAME, lineno_count);
+      ++lineno_count;
+
+      sprintf (buf, "\"%s\",%d,0,0,%s\n", file,
+	       last_file == NULL ? N_SO : N_SOL,
+	       sym);
+      input_line_pointer = buf;
+      s_stab ('s');
+      colon (sym);
+
+      if (last_file != NULL)
+	free (last_file);
+      last_file = xstrdup (file);
+    }
+
+  sprintf (sym, "%sL%d", FAKE_LABEL_NAME, lineno_count);
+  ++lineno_count;
+
+  sprintf (buf, "%d,0,%d,%s\n", N_SLINE, lineno, sym);
+  input_line_pointer = buf;
+  s_stab ('n');
+  colon (sym);
+
+  input_line_pointer = hold;
+}

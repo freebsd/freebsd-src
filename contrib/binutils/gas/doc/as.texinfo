@@ -1,5 +1,6 @@
 \input texinfo @c                               -*-Texinfo-*-
-@c  Copyright (c) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+@c  Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 1998
+@c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
 @c         md_parse_option definitions in config/tc-*.c
@@ -19,6 +20,9 @@
 @c common OR combinations of conditions
 @ifset AOUT
 @set aout-bout
+@end ifset
+@ifset ARM/Thumb
+@set ARM
 @end ifset
 @ifset BOUT
 @set aout-bout
@@ -82,7 +86,7 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the GNU Assembler "@value{AS}".
 
-Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -137,7 +141,7 @@ done.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -196,16 +200,26 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
 @c to be limited to one line for the header.
 @smallexample
 @value{AS} [ -a[cdhlns][=file] ] [ -D ]  [ --defsym @var{sym}=@var{val} ]
- [ -f ] [ --help ] [ -I @var{dir} ] [ -J ] [ -K ] [ -L ]
- [ -o @var{objfile} ] [ -R ] [ --statistics ] [ -v ] [ -version ]
- [ --version ] [ -W ] [ -w ] [ -x ] [ -Z ]
+ [ -f ] [ --gstabs ] [ --help ] [ -I @var{dir} ] [ -J ] [ -K ] [ -L ]
+ [ --keep-locals ] [ -o @var{objfile} ] [ -R ] [ --statistics ] [ -v ]
+ [ -version ] [ --version ] [ -W ] [ -w ] [ -x ] [ -Z ]
 @ifset A29K
 @c am29k has no machine-dependent assembler options
+@end ifset
+@ifset ARC
+ [ -mbig-endian | -mlittle-endian ]
+@end ifset
+@ifset ARM
+ [ -m[arm]1 | -m[arm]2 | -m[arm]250 | -m[arm]3 | -m[arm]6 | -m[arm]7[t][[d]m[i]] ]
+ [ -m[arm]v2 | -m[arm]v2a | -m[arm]v3 | -m[arm]v3m | -m[arm]v4 | -m[arm]v4t ]
+ [ -mthumb | -mall ]
+ [ -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu ]
+ [ -EB | -EL ]
+ [ -mapcs-32 | -mapcs-26 ]
 @end ifset
 @ifset D10V
  [ -O ]
 @end ifset
-
 @ifset H8
 @c Hitachi family chips have no machine-dependent assembler options
 @end ifset
@@ -214,8 +228,9 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
 @end ifset
 @ifset SPARC
 @c The order here is important.  See c-sparc.texi.
- [ -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite | -Av9 | -Av9a ]
- [ -xarch=v8plus | -xarch=v8plusa ] [ -bump ]
+ [ -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite
+   -Av8plus | -Av8plusa | -Av9 | -Av9a ]
+ [ -xarch=v8plus | -xarch=v8plusa ] [ -bump ] [ -32 | -64 ]
 @end ifset
 @ifset Z8000
 @c Z8000 has no machine-dependent assembler options
@@ -238,10 +253,13 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
 @end smallexample
 
 @table @code
-@item -a[dhlns]
+@item -a[cdhlmns]
 Turn on listings, in any of a variety of ways:
 
 @table @code
+@item -ac
+omit false conditionals
+
 @item -ad
 omit debugging directives
 
@@ -250,6 +268,9 @@ include high-level source
 
 @item -al
 include assembly
+
+@item -am
+include macro expansions
 
 @item -an
 omit forms processing
@@ -263,8 +284,7 @@ set the name of the listing file
 
 You may combine these options; for example, use @samp{-aln} for assembly
 listing without forms processing.  The @samp{=file} option, if used, must be
-the last one.  By itself, @samp{-a} defaults to @samp{-ahls}---that is, all
-listings turned on.
+the last one.  By itself, @samp{-a} defaults to @samp{-ahls}.
 
 @item -D
 Ignored.  This option is accepted for script compatibility with calls to
@@ -278,6 +298,10 @@ indicates a hexadecimal value, and a leading @samp{0} indicates an octal value.
 @item -f
 ``fast''---skip whitespace and comment preprocessing (assume source is
 compiler output).
+
+@item --gstabs
+Generate stabs debugging information for each assembler line.  This
+may help debugging assembler code, if the debugger can handle it.
 
 @item --help
 Print a summary of the command line options and exit.
@@ -297,7 +321,10 @@ Issue warnings when difference tables altered for long displacements.
 @end ifset
 
 @item -L
-Keep (in the symbol table) local symbols, starting with @samp{L}.
+@itemx --keep-locals
+Keep (in the symbol table) local symbols.  On traditional a.out systems
+these start with @samp{L}, but different systems have different local
+label prefixes.
 
 @item -o @var{objfile}
 Name the object-file output from @code{@value{AS}} @var{objfile}.
@@ -308,6 +335,9 @@ Fold the data section into the text section.
 @item --statistics
 Print the maximum space (in bytes) and total time (in seconds) used by
 assembly.
+
+@item --strip-local-absolute
+Remove local absolute symbols from the outgoing symbol table.
 
 @item -v
 @itemx -version
@@ -352,6 +382,24 @@ Generate ``little endian'' format output.
 @end table
 @end ifset
 
+@ifset ARM
+The following options are available when @value{AS} is configured for the ARM
+processor family.
+
+@table @code
+@item -m[arm]1 | -m[arm]2 | -m[arm]250 | -m[arm]3 | -m[arm]6 | -m[arm]7[t][[d]m] | -m[arm]v2 | -m[arm]v2a | -m[arm]v3 | -m[arm]v3m | -m[arm]v4 | -m[arm]v4t 
+Specify which variant of the ARM architecture is the target.
+@item -mthumb | -mall
+Enable or disable Thumb only instruction decoding.
+@item -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu
+Select which Floating Point architcture is the target.
+@item -mapcs-32 | -mapcs-26
+Select which procedure calling convention is in use.
+@item -EB | -EL
+Select either big-endian (-EB) or little-endian (-EL) output.
+@end table
+@end ifset
+
 @ifset D10V
 The following options are available when @value{AS} is configured for
 a D10V processor.
@@ -362,6 +410,7 @@ a D10V processor.
 Optimize output by parallelizing instructions.
 @end table
 @end ifset
+
 
 @ifset I960
 The following options are available when @value{AS} is configured for the
@@ -380,6 +429,7 @@ error if necessary.
 
 @end table
 @end ifset
+
 
 @ifset M680X0
 The following options are available when @value{AS} is configured for the
@@ -414,12 +464,19 @@ The following options are available when @code{@value{AS}} is configured
 for the SPARC architecture:
 
 @table @code
-@item -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite | -Av9 | -Av9a
+@item -Av6 | -Av7 | -Av8 | -Asparclet | -Asparclite
+@itemx -Av8plus | -Av8plusa | -Av9 | -Av9a
 Explicitly select a variant of the SPARC architecture.
+
+@samp{-Av8plus} and @samp{-Av8plusa} select a 32 bit environment.
+@samp{-Av9} and @samp{-Av9a} select a 64 bit environment.
+
+@samp{-Av8plusa} and @samp{-Av9a} enable the SPARC V9 instruction set with
+UltraSPARC extensions.
 
 @item -xarch=v8plus | -xarch=v8plusa
 For compatibility with the Solaris v9 assembler.  These options are
-equivalent to -Av9 and -Av9a, respectively.
+equivalent to -Av8plus and -Av8plusa, respectively.
 
 @item -bump
 Warn when the assembler switches to another architecture.
@@ -456,7 +513,7 @@ Generate code for a particular MIPS Instruction Set Architecture level.
 processor.
 
 @item -m4650
-@item -no-m4650
+@itemx -no-m4650
 Generate code for the MIPS @sc{r4650} chip.  This tells the assembler to accept
 the @samp{mad} and @samp{madu} instruction, and to not schedule @samp{nop}
 instructions around accesses to the @samp{HI} and @samp{LO} registers.
@@ -468,7 +525,7 @@ assembler, but it is passed by @code{@value{GCC}}.
 
 @cindex emulation
 @item --emulation=@var{name}
-This option causes @code{@value{AS}} to emulated @code{@value{AS}} configured
+This option causes @code{@value{AS}} to emulate @code{@value{AS}} configured
 for some other target, in all respects, including output format (choosing
 between ELF and ECOFF only), handling of pseudo-opcodes which may generate
 debugging information or store symbol table information, and default
@@ -870,9 +927,11 @@ assembler.)
 
 * L::             -L to retain local labels
 * M::		  -M or --mri to assemble in MRI compatibility mode
+* MD::            --MD for dependency tracking
 * o::             -o to name the object file
 * R::             -R to join data and text sections
 * statistics::    --statistics to see statistics about assembly
+* traditional-format:: --traditional-format for compatible output
 * v::             -v to announce version
 * W::             -W to suppress warnings
 * Z::             -Z to make object file even after errors
@@ -1003,6 +1062,9 @@ By default, a local label is any label beginning with @samp{L}, but each
 target is allowed to redefine the local label prefix.
 @ifset HPPA
 On the HPPA local labels begin with @samp{L$}.
+@end ifset
+@ifset ARM
+@samp{;} for the ARM family;
 @end ifset
 
 @node M
@@ -1136,6 +1198,21 @@ The i960 @code{.setreal} pseudo-op is not supported.
 
 @end itemize
 
+@node MD
+@section Dependency tracking: @code{--MD}
+
+@kindex --MD
+@cindex dependency tracking
+@cindex make rules
+
+@code{@value{AS}} can generate a dependency file for the file it creates.  This
+file consists of a single rule suitable for @code{make} describing the
+dependencies of the main source file.
+
+The rule is written to the file named in its argument.
+
+This feature is used in the automatic updating of makefiles.
+
 @node o
 @section Name the Object File: @code{-o}
 
@@ -1208,6 +1285,17 @@ Use @samp{--statistics} to display two statistics about the resources used by
 @code{@value{AS}}: the maximum amount of space allocated during the assembly
 (in bytes), and the total execution time taken for the assembly (in @sc{cpu}
 seconds).
+
+@node traditional-format
+@section Compatible output: @code{--traditional-format}
+
+@kindex --traditional-format
+For some targets, the output of @code{@value{AS}} is different in some ways
+from the output of some existing assembler.  This switch requests
+@code{@value{AS}} to use the traditional format instead.
+
+For example, it disables the exception frame optimizations which
+@code{@value{AS}} normally does by default on @code{@value{GCC}} output.
 
 @node v
 @section Announce Version: @code{-v}
@@ -1352,6 +1440,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset A29K
 @samp{;} for the AMD 29K family;
 @end ifset
+@ifset ARC
+@samp{;} on the ARC;
+@end ifset
 @ifset H8/300
 @samp{;} for the H8/300 family;
 @end ifset
@@ -1370,6 +1461,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset SPARC
 @samp{!} on the SPARC;
 @end ifset
+@ifset M32R
+@samp{#} on the m32r;
+@end ifset
 @ifset M680X0
 @samp{|} on the 680x0;
 @end ifset
@@ -1379,6 +1473,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset Z8000
 @samp{!} for the Z8000;
 @end ifset
+@ifset V850
+@samp{#} on the V850;
+@end ifset
 see @ref{Machine Dependencies}.  @refill
 @c FIXME What about i386, m88k, i860?
 
@@ -1386,6 +1483,13 @@ see @ref{Machine Dependencies}.  @refill
 On some machines there are two different line comment characters.  One
 character only begins a comment if it is the first non-whitespace character on
 a line, while the other always begins a comment.
+@end ifset
+
+@ifset V850
+The V850 assembler also supports a double dash as starting a comment that
+extends to the end of the line.
+
+@samp{--};
 @end ifset
 
 @kindex #
@@ -1811,6 +1915,8 @@ Hitachi SH,
 and AMD 29K architectures, the letter must be
 one of the letters @samp{DFPRSX} (in upper or lower case).
 
+On the ARC, the letter must be one of the letters @samp{DFRS}
+(in upper or lower case).
 
 On the Intel 960 architecture, the letter must be
 one of the letters @samp{DFT} (in upper or lower case).
@@ -1820,6 +1926,9 @@ On the HPPA architecture, the letter must be @samp{E} (upper case only).
 @ifclear GENERIC
 @ifset A29K
 One of the letters @samp{DFPRSX} (in upper or lower case).
+@end ifset
+@ifset ARC
+One of the letters @samp{DFRS} (in upper or lower case).
 @end ifset
 @ifset H8
 One of the letters @samp{DFPRSX} (in upper or lower case).
@@ -2943,8 +3052,6 @@ Some machine configurations provide additional directives.
 * Sbttl::                       @code{.sbttl "@var{subheading}"}
 @ifset COFF
 * Scl::                         @code{.scl @var{class}}
-@end ifset
-@ifset COFF
 * Section::                     @code{.section @var{name}, @var{subsection}}
 @end ifset
 
@@ -2956,6 +3063,7 @@ Some machine configurations provide additional directives.
 @end ifset
 
 * Skip::                        @code{.skip @var{size} , @var{fill}}
+* Sleb128::			@code{.sleb128 @var{expressions}}
 * Space::                       @code{.space @var{size} , @var{fill}}
 @ifset have-stabs
 * Stab::                        @code{.stabd, .stabn, .stabs}
@@ -2976,6 +3084,7 @@ Some machine configurations provide additional directives.
 * Val::                         @code{.val @var{addr}}
 @end ifset
 
+* Uleb128::                     @code{.uleb128 @var{expressions}}
 * Word::                        @code{.word @var{expressions}}
 * Deprecated::                  Deprecated Directives
 @end menu
@@ -4206,6 +4315,14 @@ ignores it.
 @end ifset
 @end ifset
 
+@node Sleb128
+@section @code{.sleb128 @var{expressions}}
+
+@cindex @code{sleb128} directive
+@var{sleb128} stands for ``signed little endian base 128.''  This is a 
+compact, variable length representation of numbers used by the DWARF
+symbolic debugging format.  @xref{Uleb128,@code{.uleb128}}.
+
 @ifclear no-space-dir
 @node Skip
 @section @code{.skip @var{size} , @var{fill}}
@@ -4436,6 +4553,14 @@ configured for @code{b.out}, it accepts this directive but ignores it.
 @end ifset
 @end ifset
 
+@node Uleb128
+@section @code{.uleb128 @var{expressions}}
+
+@cindex @code{uleb128} directive
+@var{uleb128} stands for ``unsigned little endian base 128.''  This is a 
+compact, variable length representation of numbers used by the DWARF
+symbolic debugging format.  @xref{Sleb128,@code{.sleb128}}.
+
 @node Word
 @section @code{.word @var{expressions}}
 
@@ -4536,6 +4661,12 @@ subject, see the hardware manufacturer's manual.
 @ifset A29K
 * AMD29K-Dependent::            AMD 29K Dependent Features
 @end ifset
+@ifset ARC
+* ARC-Dependent::               ARC Dependent Features
+@end ifset
+@ifset ARM
+* ARM-Dependent::               ARM Dependent Features
+@end ifset
 @ifset D10V
 * D10V-Dependent::              D10V Dependent Features
 @end ifset
@@ -4566,6 +4697,9 @@ subject, see the hardware manufacturer's manual.
 @ifset SPARC
 * Sparc-Dependent::             SPARC Dependent Features
 @end ifset
+@ifset V850
+* V850-Dependent::              V850 Dependent Features
+@end ifset
 @ifset Z8000
 * Z8000-Dependent::             Z8000 Dependent Features
 @end ifset
@@ -4585,9 +4719,89 @@ subject, see the hardware manufacturer's manual.
 @c node and sectioning commands; hence the repetition of @chapter BLAH
 @c in both conditional blocks.
 
+@ifset ARC
+@ifset GENERIC
+@page
+@node ARC-Dependent
+@chapter ARC Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter ARC Dependent Features
+@end ifclear
+
+@cindex ARC support
+@menu
+* ARC-Opts::                    Options
+* ARC-Float::                   Floating Point
+* ARC-Directives::              Sparc Machine Directives
+@end menu
+
+@node ARC-Opts
+@section Options
+
+@cindex options for ARC
+@cindex ARC options
+@cindex architectures, ARC
+@cindex ARC architectures
+The ARC chip family includes several successive levels (or other
+variants) of chip, using the same core instruction set, but including
+a few additional instructions at each level.
+
+By default, @code{@value{AS}} assumes the core instruction set (ARC
+base).  The @code{.cpu} pseudo-op is intended to be used to select
+the variant.
+
+@table @code
+@cindex @code{-mbig-endian} option (ARC)
+@cindex @code{-mlittle-endian} option (ARC)
+@cindex ARC big-endian output
+@cindex ARC little-endian output
+@cindex big-endian output, ARC
+@cindex little-endian output, ARC
+@item -mbig-endian
+@itemx -mlittle-endian
+Any @sc{arc} configuration of @code{@value{AS}} can select big-endian or
+little-endian output at run time (unlike most other @sc{gnu} development
+tools, which must be configured for one or the other).  Use
+@samp{-mbig-endian} to select big-endian output, and @samp{-mlittle-endian}
+for little-endian.
+@end table
+
+@node ARC-Float
+@section Floating Point
+
+@cindex floating point, ARC (@sc{ieee})
+@cindex ARC floating point (@sc{ieee})
+The ARC cpu family currently does not have hardware floating point
+support.  Software floating point support is provided by @code{GCC}
+and uses @sc{ieee} floating-point numbers.
+
+@node ARC-Directives
+@section ARC Machine Directives
+
+@cindex ARC machine directives
+@cindex machine directives, ARC
+The ARC version of @code{@value{AS}} supports the following additional
+machine directives:
+
+@table @code
+@item .cpu
+@cindex @code{cpu} directive, SPARC
+This must be followed by the desired cpu.
+The ARC is intended to be customizable, @code{.cpu} is used to
+select the desired variant [though currently there are none].
+
+@end table
+
+@end ifset
 
 @ifset A29K
 @include c-a29k.texi
+@end ifset
+
+@ifset ARM
+@include c-arm.texi
 @end ifset
 
 @ifset Hitachi-all
@@ -4613,6 +4827,7 @@ family.
 @include c-d10v.texi
 @end ifset
 
+
 @ifset H8/300
 @include c-h8300.texi
 @end ifset
@@ -4632,6 +4847,7 @@ family.
 @ifset I960
 @include c-i960.texi
 @end ifset
+
 
 @ifset M680X0
 @include c-m68k.texi
@@ -4659,6 +4875,10 @@ family.
 
 @ifset VAX
 @include c-vax.texi
+@end ifset
+
+@ifset V850
+@include c-v850.texi
 @end ifset
 
 @ifset GENERIC
@@ -4729,7 +4949,7 @@ individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
 In any event, we also recommend that you send bug reports for @code{@value{AS}}
-to @samp{bug-gnu-utils@@prep.ai.mit.edu}.
+to @samp{bug-gnu-utils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
 @strong{report all the facts}.  If you are not sure whether to state a

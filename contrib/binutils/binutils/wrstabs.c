@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -552,8 +552,8 @@ write_stabs_in_sections_debugging_info (abfd, dhandle, psyms, psymsize,
   *p++ = '\0';
   for (h = info.strings; h != NULL; h = h->next)
     {
-      strcpy (p, h->root.string);
-      p += strlen (p) + 1;
+      strcpy ((char *) p, h->root.string);
+      p += strlen ((char *) p) + 1;
     }
 
   return true;
@@ -915,14 +915,14 @@ stab_modify_type (info, mod, size, cache, cache_alloc)
     }
   else
     {
-      if (targindex >= *cache_alloc)
+      if ((size_t) targindex >= *cache_alloc)
 	{
 	  size_t alloc;
 
 	  alloc = *cache_alloc;
 	  if (alloc == 0)
 	    alloc = 10;
-	  while (targindex >= alloc)
+	  while ((size_t) targindex >= alloc)
 	    alloc *= 2;
 	  *cache = (long *) xrealloc (*cache, alloc * sizeof (long));
 	  memset (*cache + *cache_alloc, 0,
@@ -1884,7 +1884,7 @@ stab_end_class_type (p)
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
   size_t len;
-  unsigned int i;
+  unsigned int i = 0;
   char *buf;
 
   assert (info->type_stack != NULL && info->type_stack->fields != NULL);
@@ -2173,7 +2173,7 @@ stab_variable (p, name, kind, val)
       kindstr = "";
 
       /* Make sure that this is a type reference or definition.  */
-      if (! isdigit (*s))
+      if (! isdigit ((unsigned char) *s))
 	{
 	  char *n;
 	  long index;

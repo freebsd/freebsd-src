@@ -1,5 +1,5 @@
 /* ldcref.c -- output a cross reference table
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>
 
 This file is part of GLD, the Gnu Linker.
@@ -256,7 +256,7 @@ output_cref (fp)
 
   csym_fill = csyms;
   cref_hash_traverse (&cref_table, cref_fill_array, &csym_fill);
-  ASSERT (csym_fill - csyms == cref_symcount);
+  ASSERT ((size_t) (csym_fill - csyms) == cref_symcount);
 
   qsort (csyms, cref_symcount, sizeof (*csyms), cref_sort_array);
 
@@ -313,7 +313,7 @@ output_one_cref (fp, h)
 	      putc (' ', fp);
 	      ++len;
 	    }
-	  finfo (fp, "%B\n", r->abfd);
+	  lfinfo (fp, "%B\n", r->abfd);
 	  len = 0;
 	}
     }
@@ -327,7 +327,7 @@ output_one_cref (fp, h)
 	      putc (' ', fp);
 	      ++len;
 	    }
-	  finfo (fp, "%B\n", r->abfd);
+	  lfinfo (fp, "%B\n", r->abfd);
 	  len = 0;
 	}
     }

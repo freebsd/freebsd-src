@@ -48,7 +48,7 @@ void local_colon PARAMS ((int n));
 void symbol_begin PARAMS ((void));
 void symbol_print_statistics PARAMS ((FILE *));
 void symbol_table_insert PARAMS ((symbolS * symbolP));
-void resolve_symbol_value PARAMS ((symbolS *));
+valueT resolve_symbol_value PARAMS ((symbolS *, int));
 
 void print_symbol_value PARAMS ((symbolS *));
 void print_expr PARAMS ((expressionS *));

@@ -1,6 +1,6 @@
 @section Initialization
 These are the functions that handle initializing a BFD.
-@*
+
 @findex bfd_init
 @subsubsection @code{bfd_init}
 @strong{Synopsis}
@@ -10,4 +10,4 @@ void bfd_init(void);
 @strong{Description}@*
 This routine must be called before any other BFD function to
 initialize magical internal data structures.
-@*
+

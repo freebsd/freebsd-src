@@ -1,5 +1,5 @@
 /* BFD library support routines for architectures.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91-97, 1998 Free Software Foundation, Inc.
    Hacked by John Gilmore and Steve Chamberlain of Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -70,6 +70,13 @@ DESCRIPTION
 .  bfd_arch_unknown,   {* File arch not known *}
 .  bfd_arch_obscure,   {* Arch known, not one of these *}
 .  bfd_arch_m68k,      {* Motorola 68xxx *}
+.#define bfd_mach_m68000 1
+.#define bfd_mach_m68008 2
+.#define bfd_mach_m68010 3
+.#define bfd_mach_m68020 4
+.#define bfd_mach_m68030 5
+.#define bfd_mach_m68040 6
+.#define bfd_mach_m68060 7
 .  bfd_arch_vax,       {* DEC Vax *}   
 .  bfd_arch_i960,      {* Intel 960 *}
 .    {* The order of the following is important.
@@ -103,6 +110,20 @@ DESCRIPTION
 .#define bfd_mach_sparc_v9_p(mach) \
 .  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9a)
 .  bfd_arch_mips,      {* MIPS Rxxxx *}
+.#define bfd_mach_mips3000		3000
+.#define bfd_mach_mips3900		3900
+.#define bfd_mach_mips4000		4000
+.#define bfd_mach_mips4010		4010
+.#define bfd_mach_mips4100		4100
+.#define bfd_mach_mips4300		4300
+.#define bfd_mach_mips4400		4400
+.#define bfd_mach_mips4600		4600
+.#define bfd_mach_mips4650		4650
+.#define bfd_mach_mips5000		5000
+.#define bfd_mach_mips6000		6000
+.#define bfd_mach_mips8000		8000
+.#define bfd_mach_mips10000		10000
+.#define bfd_mach_mips16		16
 .  bfd_arch_i386,      {* Intel 386 *}
 .#define bfd_mach_i386_i386 0
 .#define bfd_mach_i386_i8086 1
@@ -127,11 +148,27 @@ DESCRIPTION
 .#define bfd_mach_z8002		2
 .  bfd_arch_h8500,     {* Hitachi H8/500 *}
 .  bfd_arch_sh,        {* Hitachi SH *}
+.#define bfd_mach_sh            0
+.#define bfd_mach_sh3        0x30
+.#define bfd_mach_sh3e       0x3e
+.#define bfd_mach_sh4        0x40
 .  bfd_arch_alpha,     {* Dec Alpha *}
 .  bfd_arch_arm,       {* Advanced Risc Machines ARM *}
+.#define bfd_mach_arm_2		1
+.#define bfd_mach_arm_2a		2
+.#define bfd_mach_arm_3		3
+.#define bfd_mach_arm_3M 	4
+.#define bfd_mach_arm_4 		5
+.#define bfd_mach_arm_4T 	6
 .  bfd_arch_ns32k,     {* National Semiconductors ns32000 *}
 .  bfd_arch_w65,       {* WDC 65816 *}
+.  bfd_arch_tic30,     {* Texas Instruments TMS320C30 *}
+.  bfd_arch_v850,      {* NEC V850 *}
+.#define bfd_mach_v850          0
+.  bfd_arch_arc,       {* Argonaut RISC Core *}
+.#define bfd_mach_arc_base 0
 .  bfd_arch_m32r,      {* Mitsubishi M32R/D *}
+.#define bfd_mach_m32r		0 {* backwards compatibility *}
 .  bfd_arch_mn10200,   {* Matsushita MN10200 *}
 .  bfd_arch_mn10300,   {* Matsushita MN10300 *}
 .  bfd_arch_last
@@ -174,6 +211,7 @@ DESCRIPTION
 
 extern const bfd_arch_info_type bfd_a29k_arch;
 extern const bfd_arch_info_type bfd_alpha_arch;
+extern const bfd_arch_info_type bfd_arc_arch;
 extern const bfd_arch_info_type bfd_arm_arch;
 extern const bfd_arch_info_type bfd_d10v_arch;
 extern const bfd_arch_info_type bfd_h8300_arch;
@@ -192,11 +230,13 @@ extern const bfd_arch_info_type bfd_powerpc_arch;
 extern const bfd_arch_info_type bfd_rs6000_arch;
 extern const bfd_arch_info_type bfd_sh_arch;
 extern const bfd_arch_info_type bfd_sparc_arch;
+extern const bfd_arch_info_type bfd_tic30_arch;
 extern const bfd_arch_info_type bfd_vax_arch;
 extern const bfd_arch_info_type bfd_we32k_arch;
 extern const bfd_arch_info_type bfd_z8k_arch;
 extern const bfd_arch_info_type bfd_ns32k_arch;
 extern const bfd_arch_info_type bfd_w65_arch;
+extern const bfd_arch_info_type bfd_v850_arch;
 
 static const bfd_arch_info_type * const bfd_archures_list[] =
 {
@@ -205,6 +245,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
 #else
   &bfd_a29k_arch,
   &bfd_alpha_arch,
+  &bfd_arc_arch,
   &bfd_arm_arch,
   &bfd_d10v_arch,
   &bfd_h8300_arch,
@@ -223,11 +264,13 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
   &bfd_rs6000_arch,
   &bfd_sh_arch,
   &bfd_sparc_arch,
+  &bfd_tic30_arch,
   &bfd_vax_arch,
   &bfd_we32k_arch,
   &bfd_z8k_arch,
   &bfd_ns32k_arch,
   &bfd_w65_arch,
+  &bfd_v850_arch,
 #endif
   0
 };
@@ -285,6 +328,61 @@ bfd_scan_arch (string)
     }
 
   return NULL;
+}
+
+
+
+/*
+FUNCTION
+	bfd_arch_list
+
+SYNOPSIS
+	const char **bfd_arch_list(void);
+
+DESCRIPTION
+	Return a freshly malloced NULL-terminated vector of the names
+	of all the valid BFD architectures.  Do not modify the names.
+
+*/
+
+const char **
+bfd_arch_list ()
+{
+  int vec_length = 0;
+  const char **name_ptr;
+  const char **name_list;
+  const bfd_arch_info_type * const *app;
+
+  /* Determine the number of architectures */
+  vec_length = 0;
+  for (app = bfd_archures_list; *app != NULL; app++)
+    {
+      const bfd_arch_info_type *ap;
+      for (ap = *app; ap != NULL; ap = ap->next)
+	{
+	  vec_length++;
+	}
+    }
+
+  name_list = (CONST char **)
+    bfd_malloc ((vec_length + 1) * sizeof (char **));
+  if (name_list == NULL)
+    return NULL;
+
+  /* Point the list at each of the names */
+  name_ptr = name_list;
+  for (app = bfd_archures_list; *app != NULL; app++)
+    {
+      const bfd_arch_info_type *ap;
+      for (ap = *app; ap != NULL; ap = ap->next)
+	{
+	  *name_ptr = ap->printable_name;
+	  name_ptr++;
+	}
+    }
+  *name_ptr = NULL;
+
+  return name_list;
 }
 
 
@@ -540,10 +638,58 @@ bfd_default_scan (info, string)
   const char *ptr_tst;
   unsigned long number;
   enum bfd_architecture arch;
+  const char *printable_name_colon;
 
-  /* First test for an exact match */
-  if (strcmp (string, info->printable_name) == 0)
+  /* Exact match of the architecture name (ARCH_NAME) and also the
+     default architecture? */
+  if (strcasecmp (string, info->arch_name) == 0
+      && info->the_default)
     return true;
+
+  /* Exact match of the machine name (PRINTABLE_NAME)? */
+  if (strcasecmp (string, info->printable_name) == 0)
+    return true;
+     
+  /* Given that printable_name contains no colon, attempt to match:
+     ARCH_NAME [ ":" ] PRINTABLE_NAME? */
+  printable_name_colon = strchr (info->printable_name, ':');
+  if (printable_name_colon == NULL)
+    {
+      int strlen_arch_name = strlen (info->arch_name);
+      if (strncasecmp (string, info->arch_name, strlen_arch_name) == 0)
+	{
+	  if (string[strlen_arch_name] == ':')
+	    {
+	      if (strcasecmp (string + strlen_arch_name + 1,
+			      info->printable_name) == 0)
+		return true;
+	    }
+	  else
+	    {
+	      if (strcasecmp (string + strlen_arch_name,
+			      info->printable_name) == 0)
+		return true;
+	    }
+	}
+    }
+
+  /* Given that PRINTABLE_NAME has the form: <arch> ":" <mach>;
+     Attempt to match: <arch> <mach>? */
+  if (printable_name_colon != NULL)
+    {
+      int colon_index = printable_name_colon - info->printable_name;
+      if (strncasecmp (string, info->printable_name, colon_index) == 0
+	  && strcasecmp (string + colon_index,
+			 info->printable_name + colon_index + 1) == 0)
+	return true;
+    }
+
+  /* Given that PRINTABLE_NAME has the form: <arch> ":" <mach>; Do not
+     attempt to match just <mach>, it could be ambigious.  This test
+     is left until later. */
+
+  /* NOTE: The below is retained for compatibility only. Please do not
+     add to this code */
 
   /* See how much of the supplied string matches with the
      architecture, eg the string m68k:68020 would match the 68k entry
@@ -569,69 +715,56 @@ bfd_default_scan (info, string)
     }
 
   number = 0;
-  while (isdigit(*ptr_src))
+  while (isdigit ((unsigned char) *ptr_src))
     {
       number = number * 10 + *ptr_src  - '0';
       ptr_src++;
     }
 
+  /* NOTE: The below is retained for compatibility only.
+     PLEASE DO NOT ADD TO THIS CODE. */
+
   switch (number) 
     {
-    case 65:
-      arch = bfd_arch_w65;
-      break;
-
-    case 300:
-      arch = bfd_arch_h8300;
-      break;
-
-    case 500:
-      arch = bfd_arch_h8500;
-      break;
-
-    case 68010:
-    case 68020:
-    case 68030:
-    case 68040:
-    case 68332:
-    case 68050:        
+      /* FIXME: These are needed to parse IEEE objects.  */
     case 68000: 
-      arch = bfd_arch_m68k; 
+      arch = bfd_arch_m68k;
+      number = bfd_mach_m68000;
       break;
-
-    case 386: 
-    case 80386:
-    case 486:
-    case 80486:
-      arch = bfd_arch_i386;
+    case 68010:
+      arch = bfd_arch_m68k;
+      number = bfd_mach_m68010;
       break;
-
-    case 29000: 
-      arch = bfd_arch_a29k;
+    case 68020:
+      arch = bfd_arch_m68k;
+      number = bfd_mach_m68020;
       break;
-
-    case 8000:
-      arch = bfd_arch_z8k;
+    case 68030:
+      arch = bfd_arch_m68k;
+      number = bfd_mach_m68030;
+      break;
+    case 68040:
+      arch = bfd_arch_m68k;
+      number = bfd_mach_m68040;
+      break;
+    case 68332:
+      arch = bfd_arch_m68k;
+      /* FIXME: This should be cpu32.  */
+      number = bfd_mach_m68020;
       break;
 
     case 32000:
       arch = bfd_arch_we32k;
       break;
 
-    case 860:
-    case 80860: 
-      arch = bfd_arch_i860; 
-      break;
-    case 960:
-    case 80960:
-      arch = bfd_arch_i960;
+    case 3000:
+      arch = bfd_arch_mips;
+      number = bfd_mach_mips3000;
       break;
 
-    case 2000:
-    case 3000:
     case 4000:
-    case 4400:
       arch = bfd_arch_mips;
+      number = bfd_mach_mips4000;
       break;
 
     case 6000:

@@ -17,7 +17,7 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the @sc{gnu} linker LD.
 
-Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -64,7 +64,7 @@ notice identical to this one except for the removal of this paragraph
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -328,9 +328,17 @@ entry point.
 @item -E
 @itemx --export-dynamic
 When creating a dynamically linked executable, add all symbols to the
-dynamic symbol table.  Normally, the dynamic symbol table contains only
-symbols which are used by a dynamic object.  This option is needed for
-some uses of @code{dlopen}.
+dynamic symbol table.  The dynamic symbol table is the set of symbols
+which are visible from dynamic objects at run time.
+
+If you do not use this option, the dynamic symbol table will normally
+contain only those symbols which are referenced by some dynamic object
+mentioned in the link.
+
+If you use @code{dlopen} to load a dynamic object which needs to refer
+back to the symbols defined by the program, rather than some other
+dynamic object, then you will probably need to use this option when
+linking the program itself.
 
 @kindex -f
 @kindex --auxiliary
@@ -482,17 +490,31 @@ at the point in which the linker script appears in the command line.
 @kindex -m @var{emulation}
 @item -m@var{emulation}
 Emulate the @var{emulation} linker.  You can list the available
-emulations with the @samp{--verbose} or @samp{-V} options.  The default
-depends on how your @code{ld} was configured.
+emulations with the @samp{--verbose} or @samp{-V} options.
+
+If the @samp{-m} option is not used, the emulation is taken from the
+@code{LDEMULATION} environment variable, if that is defined.
+
+Otherwise, the default emulation depends upon how the linker was
+configured.
 
 @cindex link map
 @kindex -M
 @kindex --print-map
 @item -M
 @itemx --print-map
-Print (to the standard output) a link map---diagnostic information about
-where symbols are mapped by @code{ld}, and information on global common
-storage allocation.
+Print a link map to the standard output.  A link map provides
+information about the link, including the following:
+
+@itemize @bullet
+@item
+Where object files and symbols are mapped into memory.
+@item
+How common symbols are allocated.
+@item
+All archive members included in the link, with a mention of the symbol
+which caused the archive member to be brought in.
+@end itemize
 
 @kindex -n
 @cindex read-only text
@@ -770,12 +792,10 @@ values.  See the code in testsuite/ld-empic for details.
 @item --help
 Print a summary of the command-line options on the standard output and exit.
 
-@cindex link map
 @kindex -Map
 @item -Map @var{mapfile}
-Print to the file @var{mapfile} a link map---diagnostic information
-about where symbols are mapped by @code{ld}, and information on global
-common storage allocation.
+Print a link map to the file @var{mapfile}.  See the description of the
+@samp{-M} option, above.
 
 @cindex memory usage
 @kindex --no-keep-memory
@@ -785,6 +805,16 @@ symbol tables of input files in memory.  This option tells @code{ld} to
 instead optimize for memory usage, by rereading the symbol tables as
 necessary.  This may be required if @code{ld} runs out of memory space
 while linking a large executable.
+
+@kindex --no-warn-mismatch
+@item --no-warn-mismatch
+Normally @code{ld} will give an error if you try to link together input
+files that are mismatched for some reason, perhaps because they have
+been compiled for different processors or for different endiannesses.
+This option tells @code{ld} that it should silently permit such possible
+errors.  This option should only be used with care, in cases when you
+have taken some special action that ensures that the linker errors are
+inappropriate.
 
 @kindex --no-whole-archive
 @item --no-whole-archive
@@ -1209,8 +1239,8 @@ call before the linker has a chance to wrap it to @code{malloc}.
 @node Environment
 @section Environment Variables
 
-You can change the behavior of @code{ld} with the environment
-variable @code{GNUTARGET}.  
+You can change the behavior of @code{ld} with the environment variables
+@code{GNUTARGET} and @code{LDEMULATION}.
 
 @kindex GNUTARGET
 @cindex default input format
@@ -1225,6 +1255,17 @@ there is no method of ensuring that the magic number used to specify
 object-file formats is unique.  However, the configuration procedure for
 BFD on each system places the conventional format for that system first
 in the search-list, so ambiguities are resolved in favor of convention.
+
+@kindex LDEMULATION
+@cindex default emulation
+@cindex emulation, default
+@code{LDEMULATION} determines the default emulation if you don't use the
+@samp{-m} option.  The emulation can affect various aspects of linker
+behaviour, particularly the default linker script.  You can list the
+available emulations with the @samp{--verbose} or @samp{-V} options.  If
+the @samp{-m} option is not used, and the @code{LDEMULATION} environment
+variable is not defined, the default emulation depends upon how the
+linker was configured.
 @end ifset
 
 @node Commands
@@ -1838,11 +1879,38 @@ names.  Use distinct names to specify multiple regions.
 
 @cindex memory region attributes
 @item (@var{attr})
-is an optional list of attributes, permitted for compatibility with the
-AT&T linker but not used by @code{ld} beyond checking that the
-attribute list is valid.  Valid attribute lists must be made up of the
-characters ``@code{LIRWX}''.  If you omit the attribute list, you may
-omit the parentheses around it as well.
+is an optional list of attributes that specify whether to use a
+particular memory to place sections that are not listed in the linker
+script.  Valid attribute lists must be made up of the characters
+``@code{ALIRWX}'' that match section attributes.  If you omit the
+attribute list, you may omit the parentheses around it as well.  The
+attributes currently supported are:
+
+@table @samp
+@item @code{Letter}
+@code{Section Attribute}
+
+@item @code{R}
+Read-only sections.
+
+@item @code{W}
+Read/write sections.
+
+@item @code{X}
+Sections containing executable code.
+
+@item @code{A}
+Allocated sections.
+
+@item @code{I}
+Initialized sections.
+
+@item @code{L}
+Same as @code{I}.
+
+@item @code{!}
+Invert the sense of any of the following attributes.
+@end table
 
 @kindex ORIGIN =
 @kindex o =
@@ -1862,15 +1930,18 @@ The keyword @code{LENGTH} may be abbreviated to @code{len} or @code{l}.
 @end table 
 
 For example, to specify that memory has two regions available for
-allocation---one starting at 0 for 256 kilobytes, and the other
-starting at @code{0x40000000} for four megabytes:
+allocation---one starting at 0 for 256 kilobytes, and the other starting
+at @code{0x40000000} for four megabytes.  The @code{rom} memory region
+will get all sections without an explicit memory register that are
+either read-only or contain code, while the @code{ram} memory region
+will get the sections.
 
 @smallexample
 @group
 MEMORY 
   @{
-  rom : ORIGIN = 0, LENGTH = 256K
-  ram : org = 0x40000000, l = 4M
+  rom (rx)  : ORIGIN = 0, LENGTH = 256K
+  ram (!rx) : org = 0x40000000, l = 4M
   @}
 @end group
 @end smallexample
@@ -1945,9 +2016,10 @@ SECTIONS @{ @dots{}
 @noindent
 @var{secname} is the name of the output section, and @var{contents} a
 specification of what goes there---for example, a list of input files or
-sections of input files (@pxref{Section Placement}).  As you might
-assume, the whitespace shown is optional.  You do need the colon
-@samp{:} and the braces @samp{@{@}}, however.
+sections of input files (@pxref{Section Placement}).  The whitespace
+around @var{secname} is required, so that the section name is
+unambiguous.  The other whitespace shown is optional.  You do need the
+colon @samp{:} and the braces @samp{@{@}}, however.
 
 @var{secname} must meet the constraints of your output format.  In
 formats which only support a limited number of sections, such as
@@ -2013,10 +2085,10 @@ statement.
 @item @var{filename}( @var{section} )
 @itemx @var{filename}( @var{section} , @var{section}, @dots{} )
 @itemx @var{filename}( @var{section} @var{section} @dots{} )
-You can name one or more sections from your input files, for
-insertion in the current output section.  If you wish to specify a list
-of input-file sections inside the parentheses, you may separate the
-section names by either commas or whitespace.
+You can name one or more sections from your input files, for insertion
+in the current output section.  If you wish to specify a list of
+input-file sections inside the parentheses, separate the section names
+with whitespace.
 
 @cindex input sections to output section
 @kindex *(@var{section})
@@ -2267,15 +2339,20 @@ same value as @code{abs2}.
 @kindex SHORT(@var{expression})
 @kindex LONG(@var{expression})
 @kindex QUAD(@var{expression})
+@kindex SQUAD(@var{expression})
 @cindex direct output
 @item BYTE(@var{expression})
 @itemx SHORT(@var{expression})
 @itemx LONG(@var{expression})
 @itemx QUAD(@var{expression})
+@itemx SQUAD(@var{expression})
 By including one of these four statements in a section definition, you
-can explicitly place one, two, four, or eight bytes (respectively) at
-the current address of that section.  @code{QUAD} is only supported when
-using a 64 bit host or target.
+can explicitly place one, two, four, eight unsigned, or eight signed
+bytes (respectively) at the current address of that section.  When using
+a 64 bit host or target, @code{QUAD} and @code{SQUAD} are the same.
+When both host and target are 32 bits, @code{QUAD} uses an unsigned 32
+bit value, and @code{SQUAD} sign extends the value.  Both will use the
+correct endianness when writing out the value.
 
 @ifclear SingleFormat
 Multiple-byte quantities are represented in whatever byte order is
@@ -2356,10 +2433,13 @@ an expression.
 @cindex prevent unnecessary loading
 @cindex loading, preventing
 @item (NOLOAD)
-Use @samp{(NOLOAD)} to prevent a section from being loaded into memory
-each time it is accessed.  For example, in the script sample below, the
-@code{ROM} segment is addressed at memory location @samp{0} and does not
-need to be loaded into each object file:
+The @samp{(NOLOAD)} directive will mark a section to not be loaded at
+run time.  The linker will process the section normally, but will mark
+it so that a program loader will not load it into memory.  For example,
+in the script sample below, the @code{ROM} section is addressed at
+memory location @samp{0} and does not need to be loaded when the program
+is run.  The contents of the @code{ROM} section will appear in the
+linker output file as usual.
 
 @smallexample
 @group
@@ -3314,7 +3394,7 @@ individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
 In any event, we also recommend that you send bug reports for @code{ld}
-to @samp{bug-gnu-utils@@prep.ai.mit.edu}.
+to @samp{bug-gnu-utils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
 @strong{report all the facts}.  If you are not sure whether to state a

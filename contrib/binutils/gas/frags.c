@@ -1,5 +1,5 @@
 /* frags.c - manage frags -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -218,10 +218,9 @@ frag_var (type, max_chars, var, subtype, symbol, offset, opcode)
   frag_now->fr_symbol = symbol;
   frag_now->fr_offset = offset;
   frag_now->fr_opcode = opcode;
-  /* Default these to zero.  Only the ns32k uses these but they can't be
-     conditionally included in `struct frag'.  See as.h.  */
-  frag_now->fr_targ.ns32k.pcrel_adjust = 0;
-  frag_now->fr_targ.ns32k.bsr = 0;
+#ifdef TC_FRAG_INIT
+  TC_FRAG_INIT (frag_now);
+#endif
   as_where (&frag_now->fr_file, &frag_now->fr_line);
   frag_new (max_chars);
   return (retval);
@@ -254,10 +253,9 @@ frag_variant (type, max_chars, var, subtype, symbol, offset, opcode)
   frag_now->fr_symbol = symbol;
   frag_now->fr_offset = offset;
   frag_now->fr_opcode = opcode;
-  /* Default these to zero.  Only the ns32k uses these but they can't be
-     conditionally included in `struct frag'.  See as.h.  */
-  frag_now->fr_targ.ns32k.pcrel_adjust = 0;
-  frag_now->fr_targ.ns32k.bsr = 0;
+#ifdef TC_FRAG_INIT
+  TC_FRAG_INIT (frag_now);
+#endif
   as_where (&frag_now->fr_file, &frag_now->fr_line);
   frag_new (max_chars);
   return (retval);
@@ -296,7 +294,7 @@ frag_align (alignment, fill_character, max)
 
       new_off = ((abs_section_offset + alignment - 1)
 		 &~ ((1 << alignment) - 1));
-      if (max == 0 || new_off - abs_section_offset <= max)
+      if (max == 0 || new_off - abs_section_offset <= (addressT) max)
 	abs_section_offset = new_off;
     }
   else
@@ -330,13 +328,13 @@ frag_align_pattern (alignment, fill_pattern, n_fill, max)
   memcpy (p, fill_pattern, n_fill);
 }
 
-int
+addressT
 frag_now_fix ()
 {
   if (now_seg == absolute_section)
     return abs_section_offset;
-  return ((char*)obstack_next_free (&frchain_now->frch_obstack)
-	  - frag_now->fr_literal);
+  return (addressT) ((char*) obstack_next_free (&frchain_now->frch_obstack)
+		     - frag_now->fr_literal);
 }
 
 void

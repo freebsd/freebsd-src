@@ -105,8 +105,10 @@ HEX	[0-9A-Fa-f]
   }
 %%
 
+#ifndef yywrap
 int 
 yywrap () 
   { 
     return 1; 
   }
+#endif

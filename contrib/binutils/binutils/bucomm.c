@@ -39,8 +39,6 @@ typedef long time_t;
 #else
 #include <varargs.h>
 #endif
-
-char *target = NULL;		/* default as late as possible */
 
 /* Error reporting */
 
@@ -197,15 +195,23 @@ make_tempname (filename)
   char *tmpname;
   char *slash = strrchr (filename, '/');
 
+#if defined (__DJGPP__) || defined (__GO32__) || defined (_WIN32)
+  if (slash == NULL)
+    slash = strrchr (filename, '\\');
+#endif
+
   if (slash != (char *) NULL)
     {
+      char c;
+
+      c = *slash;
       *slash = 0;
       tmpname = xmalloc (strlen (filename) + sizeof (template) + 1);
       strcpy (tmpname, filename);
       strcat (tmpname, "/");
       strcat (tmpname, template);
       mktemp (tmpname);
-      *slash = '/';
+      *slash = c;
     }
   else
     {

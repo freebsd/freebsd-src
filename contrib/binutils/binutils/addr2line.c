@@ -1,5 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997 Free Software Foundation, Inc.
+   Copyright 1997, 1998 Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@zfe.siemens.de>
 
    This file is part of GNU Binutils.
@@ -80,7 +80,7 @@ Usage: %s [-CfsHV] [-b bfdname] [--target=bfdname]\n\
 	   program_name);
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
   exit (status);
 }
 
@@ -158,14 +158,14 @@ translate_addresses (abfd)
 
 	  if (fgets (addr_hex, sizeof addr_hex, stdin) == NULL)
 	    break;
-	  pc = strtol (addr_hex, NULL, 16);
+	  pc = bfd_scan_vma (addr_hex, NULL, 16);
 	}
       else
 	{
 	  if (naddr <= 0)
 	    break;
 	  --naddr;
-	  pc = strtol (*addr++, NULL, 16);
+	  pc = bfd_scan_vma (*addr++, NULL, 16);
 	}
 
       found = false;

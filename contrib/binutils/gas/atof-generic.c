@@ -1,5 +1,5 @@
 /* atof_generic.c - turn a string of digits into a Flonum
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 1996
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -87,10 +87,10 @@ atof_generic (address_of_string_pointer,
 {
   int return_value;		/* 0 means OK. */
   char *first_digit;
-  int number_of_digits_before_decimal;
-  int number_of_digits_after_decimal;
+  unsigned int number_of_digits_before_decimal;
+  unsigned int number_of_digits_after_decimal;
   long decimal_exponent;
-  int number_of_digits_available;
+  unsigned int number_of_digits_available;
   char digits_sign_char;
 
   /*
@@ -170,7 +170,7 @@ atof_generic (address_of_string_pointer,
 	&& (!c || !strchr (string_of_decimal_exponent_marks, c)));
        p++)
     {
-      if (isdigit (c))
+      if (isdigit ((unsigned char) c))
 	{
 	  if (seen_significant_digit || c > '0')
 	    {
@@ -197,9 +197,9 @@ atof_generic (address_of_string_pointer,
    */
   if (c && IS_DECIMAL_MARK (c))
     {
-      int zeros = 0;		/* Length of current string of zeros */
+      unsigned int zeros = 0;	/* Length of current string of zeros */
 
-      for (p++; (c = *p) && isdigit (c); p++)
+      for (p++; (c = *p) && isdigit ((unsigned char) c); p++)
 	{
 	  if (c == '0')
 	    {
@@ -274,7 +274,7 @@ atof_generic (address_of_string_pointer,
 
       for (; (c); c = *++p)
 	{
-	  if (isdigit (c))
+	  if (isdigit ((unsigned char) c))
 	    {
 	      decimal_exponent = decimal_exponent * 10 + c - '0';
 	      /*
@@ -401,7 +401,7 @@ atof_generic (address_of_string_pointer,
       for (p = first_digit, count = number_of_digits_to_use; count; p++, --count)
 	{
 	  c = *p;
-	  if (isdigit (c))
+	  if (isdigit ((unsigned char) c))
 	    {
 	      /*
 	       * Multiply by 10. Assume can never overflow.
