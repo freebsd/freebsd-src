@@ -183,6 +183,8 @@ int	pcap_compile_nopcap(int, int, struct bpf_program *,
 	    char *, int, bpf_u_int32);
 void	pcap_freecode(struct bpf_program *);
 int	pcap_datalink(pcap_t *);
+int	pcap_list_datalinks(pcap_t *, int **);
+int	pcap_set_datalink(pcap_t *, int);
 int	pcap_snapshot(pcap_t *);
 int	pcap_is_swapped(pcap_t *);
 int	pcap_major_version(pcap_t *);
