@@ -846,12 +846,12 @@ static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+    ACPI_RESOURCE ares;
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
     struct resource_list_entry *rle;
     struct resource *res;
     struct rman *rm;
-    int needactivate;
 
     /*
      * If this is an allocation of the "default" range for a given RID, and
@@ -870,41 +870,56 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     /* If we don't manage this address, pass the request up to the parent. */
     rle = acpi_sysres_find(type, start);
     if (rle == NULL) {
-	return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
-	    start, end, count, flags));
-    }
+	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+	    start, end, count, flags);
+    } else {
 
-    /* We only handle memory and IO resources through rman. */
-    switch (type) {
-    case SYS_RES_IOPORT:
-	rm = &acpi_rman_io;
-	break;
-    case SYS_RES_MEMORY:
-	rm = &acpi_rman_mem;
-	break;
-    default:
-	panic("acpi_alloc_resource: invalid res type %d", type);
-    }
-
-    /* If we do know it, allocate it from the local pool. */
-    needactivate = flags & RF_ACTIVE;
-    flags &= ~RF_ACTIVE;
-    res = rman_reserve_resource(rm, start, end, count, flags, child);
-    if (res == NULL)
-	return (NULL);
-
-    /* Copy the bus tag from the pre-allocated resource. */
-    rman_set_bustag(res, rman_get_bustag(rle->res));
-    if (type == SYS_RES_IOPORT)
-	rman_set_bushandle(res, res->r_start);
-
-    /* If requested, activate the resource using the parent's method. */
-    if (needactivate)
-	if (bus_activate_resource(child, type, *rid, res) != 0) {
-	    rman_release_resource(res);
-	    return (NULL);
+	/* We only handle memory and IO resources through rman. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	    rm = &acpi_rman_io;
+	    break;
+	case SYS_RES_MEMORY:
+	    rm = &acpi_rman_mem;
+	    break;
+	default:
+	    panic("acpi_alloc_resource: invalid res type %d", type);
 	}
 
+	/* If we do know it, allocate it from the local pool. */
+	res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
+	    child);
+	if (res == NULL)
+	    return (NULL);
+
+	/* Copy the bus tag from the pre-allocated resource. */
+	rman_set_bustag(res, rman_get_bustag(rle->res));
+	if (type == SYS_RES_IOPORT)
+	    rman_set_bushandle(res, res->r_start);
+
+	/* If requested, activate the resource using the parent's method. */
+	if (flags & RF_ACTIVE)
+	    if (bus_activate_resource(child, type, *rid, res) != 0) {
+		rman_release_resource(res);
+		return (NULL);
+	    }
+    }
+
+    if (res != NULL && device_get_parent(child) == bus)
+	switch (type) {
+	case SYS_RES_IRQ:
+	    /*
+	     * Since bus_config_intr() takes immediate effect, we cannot
+	     * configure the interrupt associated with a device when we
+	     * parse the resources but have to defer it until a driver
+	     * actually allocates the interrupt via bus_alloc_resource().
+	     *
+	     * XXX: Should we handle the lookup failing?
+	     */
+	    if (ACPI_SUCCESS(acpi_lookup_irq_resource(child, *rid, res, &ares)))
+		acpi_config_intr(child, &ares);
+	    break;
+	}
     return (res);
 }
 
