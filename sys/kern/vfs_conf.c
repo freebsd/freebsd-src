@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.10 1995/10/29 15:31:25 phk Exp $
+ * $Id: vfs_conf.c,v 1.11 1995/12/02 17:10:51 bde Exp $
  */
 
 /*
@@ -136,9 +136,17 @@ vfs_mountroot(data)
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
 	/*
-	 * Attempt the mount
+	 * Attempt the mount.
+	 *
+	 * If the mount fails, and it was an attempt to mount something
+	 * which looks like it might have been within a disk slice, try
+	 * again mounting the compatability slice instead.
 	 */
 	err = VFS_MOUNT( mp, NULL, NULL, NULL, p);
+	if( (err == ENXIO) && (rootdev & 0xff0000)) {
+		rootdev &= ~0xff0000;
+		err = VFS_MOUNT( mp, NULL, NULL, NULL, p);
+	}
 	if( err)
 		goto error_2;
 
