@@ -131,12 +131,12 @@ The default editor in FreeBSD is vi, which is efficient to use when you have
 learned it, but somewhat user-unfriendly.  To use ee (an easier but less
 powerful editor) instead, set the environment variable EDITOR to /usr/bin/ee
 %
-If you accidently end up inside vi, you can quit it by pressing Escape, colon
+If you accidentally end up inside vi, you can quit it by pressing Escape, colon 
 (:), q (q), bang (!) and pressing return.
 %
 You can use aliases to decrease the amount of typing you need to do to get
 commands you commonly use.  Examples of fairly popular aliases include (in
-bourne shell style, as in /bin/sh, bash, ksh, and zsh):
+Bourne shell style, as in /bin/sh, bash, ksh, and zsh):
 
 	alias lf="ls -FA"
 	alias ll="ls -lA"
@@ -151,7 +151,7 @@ In csh or tcsh, these would be
 To remove an alias, you can usually use 'unalias aliasname'.  To list all
 aliases, you can usually type just 'alias'.
 %
-In order to support national characters for european languages in tools like
+In order to support national characters for European languages in tools like
 less without creating other nationalisation aspects, set the environment
 variable LC_ALL to 'en_US.ISO8859-1'.
 %
@@ -469,7 +469,7 @@ To see the MAC addresses of the NICs on your system, type
 You can open up a new split-screen window in (n)vi with :N or :E and then
 use ^w to switch between the two.
 %
-sh (the default bourne shell in FreeBSD) supports command-line editing.  Just
+sh (the default Bourne shell in FreeBSD) supports command-line editing.  Just
 ``set -o emacs'' or ``set -o vi'' to enable it.
 %
 When you've made modifications to a file in vi(1) and then find that
