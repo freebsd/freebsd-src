@@ -1364,7 +1364,7 @@ man (name)
 	  if (debug)
 	    fprintf (stderr, "\nsearching in %s\n", *mp);
 
-	  glob = 0;
+	  glob = 1;
 
 	  found += try_section (*mp, section, name, glob);
 
