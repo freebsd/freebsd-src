@@ -296,6 +296,10 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 {
 	struct harvest *event;
 
+	/* Lockless read to avoid lock operations if fifo is full. */
+	if (harvestfifo[origin].count >= RANDOM_FIFO_MAX)
+		return;
+
 	/* Lock the particular fifo */
 	mtx_lock_spin(&harvestfifo[origin].lock);
 
