@@ -237,7 +237,7 @@ user		*load_user __P((int, struct passwd *, char *)),
 entry		*load_entry __P((FILE *, void (*)(),
 				 struct passwd *, char **));
 
-FILE		*cron_popen __P((char *, char *));
+FILE		*cron_popen __P((char *, char *, entry *));
 
 
 				/* in the C tradition, we only create
