@@ -45,7 +45,7 @@
 .Bd -literal
 struct  sigaction {
         union {
-                void    (*__sa_handler) __P((int));
+                void    (*__sa_handler)(int);
                 void    (*__sa_sigaction) __P((int, struct __siginfo *,
                                                void *));
         } __sigaction_u;                /* signal handler */

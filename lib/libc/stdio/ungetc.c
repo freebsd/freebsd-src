@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "local.h"
 #include "libc_private.h"
 
-static int __submore __P((FILE *));
+static int __submore(FILE *);
 
 /*
  * Expand the ungetc buffer `in place'.  That is, adjust fp->_p when

@@ -94,7 +94,7 @@ FILE *__stderrp = &__sF[2];
 struct glue __sglue = { &uglue, 3, __sF };
 static struct glue *lastglue = &uglue;
 
-static struct glue *	moreglue __P((int));
+static struct glue *	moreglue(int);
 
 static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
 #define THREAD_LOCK()	if (__isthreaded) _SPINLOCK(&thread_lock)

@@ -29,7 +29,7 @@ static void trecurse __P((const node_t *,
 static void
 trecurse(root, action, level)
 	const node_t *root;	/* Root of the tree to be walked */
-	void (*action) __P((const void *, VISIT, int));
+	void (*action)(const void *, VISIT, int);
 	int level;
 {
 
@@ -50,7 +50,7 @@ trecurse(root, action, level)
 void
 twalk(vroot, action)
 	const void *vroot;	/* Root of the tree to be walked */
-	void (*action) __P((const void *, VISIT, int));
+	void (*action)(const void *, VISIT, int);
 {
 	if (vroot != NULL && action != NULL)
 		trecurse(vroot, action, 0);

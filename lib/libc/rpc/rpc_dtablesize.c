@@ -40,7 +40,7 @@ static char *rcsid = "$FreeBSD$";
 #include <unistd.h>
 #include "un-namespace.h"
 
-int _rpc_dtablesize __P((void));	/* XXX */
+int _rpc_dtablesize(void);	/* XXX */
 
 /*
  * Cache the result of getdtablesize(), so we don't have to do an

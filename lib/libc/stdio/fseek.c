@@ -109,7 +109,7 @@ _fseeko(fp, offset, whence, ltest)
 	int whence;
 	int ltest;
 {
-	fpos_t (*seekfn) __P((void *, fpos_t, int));
+	fpos_t (*seekfn)(void *, fpos_t, int);
 	fpos_t target, curoff, ret;
 	size_t n;
 	struct stat st;

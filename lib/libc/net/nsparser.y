@@ -50,7 +50,7 @@ static char *rcsid =
 #include <string.h>
 
 
-static	void	_nsaddsrctomap __P((const char *));
+static	void	_nsaddsrctomap(const char *);
 
 static	ns_dbt		curdbt;
 static	ns_src		cursrc;

@@ -68,11 +68,11 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #define NI_WITHSCOPEID	0
 #endif
 
-extern int innetgr __P(( const char *, const char *, const char *, const char * ));
+extern int innetgr( const char *, const char *, const char *, const char * );
 
 #define max(a, b)	((a > b) ? a : b)
 
-int	__ivaliduser __P((FILE *, u_int32_t, const char *, const char *));
+int	__ivaliduser(FILE *, u_int32_t, const char *, const char *);
 int __ivaliduser_af __P((FILE *,const void *, const char *, const char *,
 	int, int));
 int __ivaliduser_sa __P((FILE *, const struct sockaddr *, socklen_t,

@@ -51,9 +51,9 @@ static const char rcsid[] =
 #include <unistd.h>
 /* #include "un-namespace.h" */
 
-char *_mktemp __P((char *));
+char *_mktemp(char *);
 
-static int _gettemp __P((char *, int *, int, int));
+static int _gettemp(char *, int *, int, int);
 
 static const unsigned char padchar[] =
 "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";

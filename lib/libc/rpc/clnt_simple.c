@@ -75,7 +75,7 @@ struct rpc_call_private {
 };
 static struct rpc_call_private *rpc_call_private_main;
 
-static void rpc_call_destroy __P((void *));
+static void rpc_call_destroy(void *);
 
 static void
 rpc_call_destroy(void *vp)

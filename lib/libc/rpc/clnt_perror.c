@@ -57,8 +57,8 @@ static char *rcsid = "$FreeBSD$";
 
 static char *buf;
 
-static char *_buf __P((void));
-static char *auth_errmsg __P((enum auth_stat));
+static char *_buf(void);
+static char *auth_errmsg(enum auth_stat);
 #define CLNT_PERROR_BUFLEN 256
 
 static char *

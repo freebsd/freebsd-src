@@ -60,10 +60,10 @@
 
 #include "rpc_com.h"
 
-static void universal __P((struct svc_req *, SVCXPRT *));
+static void universal(struct svc_req *, SVCXPRT *);
 
 static struct proglst {
-	char *(*p_progname) __P((char *));
+	char *(*p_progname)(char *);
 	rpcprog_t p_prognum;
 	rpcvers_t p_versnum;
 	rpcproc_t p_procnum;
@@ -98,7 +98,7 @@ rpc_reg(prognum, versnum, procnum, progname, inproc, outproc, nettype)
 	rpcprog_t prognum;			/* program number */
 	rpcvers_t versnum;			/* version number */
 	rpcproc_t procnum;			/* procedure number */
-	char *(*progname) __P((char *)); /* Server routine */
+	char *(*progname)(char *); /* Server routine */
 	xdrproc_t inproc, outproc;	/* in/out XDR procedures */
 	char *nettype;			/* nettype */
 {

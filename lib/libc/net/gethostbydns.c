@@ -95,7 +95,7 @@ static char hostbuf[8*1024];
 static u_char host_addr[16];	/* IPv4 or IPv6 */
 
 #ifdef RESOLVSORT
-static void addrsort __P((char **, int));
+static void addrsort(char **, int);
 #endif
 
 #ifdef DEBUG
@@ -172,7 +172,7 @@ gethostanswer(answer, anslen, qname, qtype)
 	int toobig = 0;
 	char tbuf[MAXDNAME];
 	const char *tname;
-	int (*name_ok) __P((const char *));
+	int (*name_ok)(const char *);
 
 	tname = qname;
 	host.h_name = NULL;

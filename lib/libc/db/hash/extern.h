@@ -31,34 +31,35 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.4 (Berkeley) 6/16/94
+ * $FreeBSD$
  */
 
-BUFHEAD	*__add_ovflpage __P((HTAB *, BUFHEAD *));
-int	 __addel __P((HTAB *, BUFHEAD *, const DBT *, const DBT *));
-int	 __big_delete __P((HTAB *, BUFHEAD *));
-int	 __big_insert __P((HTAB *, BUFHEAD *, const DBT *, const DBT *));
-int	 __big_keydata __P((HTAB *, BUFHEAD *, DBT *, DBT *, int));
-int	 __big_return __P((HTAB *, BUFHEAD *, int, DBT *, int));
+BUFHEAD	*__add_ovflpage(HTAB *, BUFHEAD *);
+int	 __addel(HTAB *, BUFHEAD *, const DBT *, const DBT *);
+int	 __big_delete(HTAB *, BUFHEAD *);
+int	 __big_insert(HTAB *, BUFHEAD *, const DBT *, const DBT *);
+int	 __big_keydata(HTAB *, BUFHEAD *, DBT *, DBT *, int);
+int	 __big_return(HTAB *, BUFHEAD *, int, DBT *, int);
 int	 __big_split __P((HTAB *, BUFHEAD *, BUFHEAD *, BUFHEAD *,
 		int, u_int32_t, SPLIT_RETURN *));
-int	 __buf_free __P((HTAB *, int, int));
-void	 __buf_init __P((HTAB *, int));
-u_int32_t	 __call_hash __P((HTAB *, char *, int));
-int	 __delpair __P((HTAB *, BUFHEAD *, int));
-int	 __expand_table __P((HTAB *));
-int	 __find_bigpair __P((HTAB *, BUFHEAD *, int, char *, int));
-u_int16_t	 __find_last_page __P((HTAB *, BUFHEAD **));
-void	 __free_ovflpage __P((HTAB *, BUFHEAD *));
-BUFHEAD	*__get_buf __P((HTAB *, u_int32_t, BUFHEAD *, int));
-int	 __get_page __P((HTAB *, char *, u_int32_t, int, int, int));
-int	 __ibitmap __P((HTAB *, int, int, int));
-u_int32_t	 __log2 __P((u_int32_t));
-int	 __put_page __P((HTAB *, char *, u_int32_t, int, int));
-void	 __reclaim_buf __P((HTAB *, BUFHEAD *));
-int	 __split_page __P((HTAB *, u_int32_t, u_int32_t));
+int	 __buf_free(HTAB *, int, int);
+void	 __buf_init(HTAB *, int);
+u_int32_t	 __call_hash(HTAB *, char *, int);
+int	 __delpair(HTAB *, BUFHEAD *, int);
+int	 __expand_table(HTAB *);
+int	 __find_bigpair(HTAB *, BUFHEAD *, int, char *, int);
+u_int16_t	 __find_last_page(HTAB *, BUFHEAD **);
+void	 __free_ovflpage(HTAB *, BUFHEAD *);
+BUFHEAD	*__get_buf(HTAB *, u_int32_t, BUFHEAD *, int);
+int	 __get_page(HTAB *, char *, u_int32_t, int, int, int);
+int	 __ibitmap(HTAB *, int, int, int);
+u_int32_t	 __log2(u_int32_t);
+int	 __put_page(HTAB *, char *, u_int32_t, int, int);
+void	 __reclaim_buf(HTAB *, BUFHEAD *);
+int	 __split_page(HTAB *, u_int32_t, u_int32_t);
 
 /* Default hash routine. */
-extern u_int32_t (*__default_hash) __P((const void *, size_t));
+extern u_int32_t (*__default_hash)(const void *, size_t);
 
 #ifdef HASH_STATISTICS
 extern int hash_accesses, hash_collisions, hash_expansions, hash_overflows;

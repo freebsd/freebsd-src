@@ -58,18 +58,18 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/xdr.h>
 #include "un-namespace.h"
 
-static void xdrmem_destroy __P((XDR *));
-static bool_t xdrmem_getlong_aligned __P((XDR *, long *));
-static bool_t xdrmem_putlong_aligned __P((XDR *, const long *));
-static bool_t xdrmem_getlong_unaligned __P((XDR *, long *));
-static bool_t xdrmem_putlong_unaligned __P((XDR *, const long *));
-static bool_t xdrmem_getbytes __P((XDR *, char *, u_int));
-static bool_t xdrmem_putbytes __P((XDR *, const char *, u_int));
+static void xdrmem_destroy(XDR *);
+static bool_t xdrmem_getlong_aligned(XDR *, long *);
+static bool_t xdrmem_putlong_aligned(XDR *, const long *);
+static bool_t xdrmem_getlong_unaligned(XDR *, long *);
+static bool_t xdrmem_putlong_unaligned(XDR *, const long *);
+static bool_t xdrmem_getbytes(XDR *, char *, u_int);
+static bool_t xdrmem_putbytes(XDR *, const char *, u_int);
 /* XXX: w/64-bit pointers, u_int not enough! */
-static u_int xdrmem_getpos __P((XDR *));
-static bool_t xdrmem_setpos __P((XDR *, u_int));
-static int32_t *xdrmem_inline_aligned __P((XDR *, u_int));
-static int32_t *xdrmem_inline_unaligned __P((XDR *, u_int));
+static u_int xdrmem_getpos(XDR *);
+static bool_t xdrmem_setpos(XDR *, u_int);
+static int32_t *xdrmem_inline_aligned(XDR *, u_int);
+static int32_t *xdrmem_inline_unaligned(XDR *, u_int);
 
 static const struct	xdr_ops xdrmem_ops_aligned = {
 	xdrmem_getlong_aligned,
