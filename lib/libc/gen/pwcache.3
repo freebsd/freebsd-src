@@ -38,8 +38,11 @@
 .Nm pwcache
 .Nd cache password and group entries
 .Sh SYNOPSIS
-.Fn user_from_uid "uid_t uid" "int nouser"
-.Fn group_from_gid "gid_t gid" "int nogroup"
+.Fd #include <stdlib.h>
+.Ft char *
+.Fn user_from_uid "unsigned long uid" "int nouser"
+.Ft char *
+.Fn group_from_gid "unsigned long gid" "int nogroup"
 .Sh DESCRIPTION
 .Pp
 The
