@@ -200,9 +200,10 @@ build_mbr(struct mbr *mbr, char *bootcode, struct disklabel *lb)
 		dp->dp_ehd = lb->d_ntracks - 1;
 		dp->dp_esect = lb->d_nsectors;
 		dp->dp_start = (dp->dp_scyl * lb->d_ntracks * lb->d_nsectors) + 
-						  (dp->dp_shd * lb->d_nsectors) +
-						  dp->dp_ssect - 1;
-		dp->dp_size = (lb->d_nsectors * lb->d_ntracks * lb->d_ncylinders) - dp->dp_start;
+						   (dp->dp_shd * lb->d_nsectors) +
+		               dp->dp_ssect - 1;
+		dp->dp_size = (lb->d_nsectors * lb->d_ntracks * lb->d_ncylinders) -
+							dp->dp_start;
 	}
 
 	/* Validate partition - XXX need to spend some time making this robust */
