@@ -53,16 +53,19 @@
 #define	_BSD_PTRDIFF_T_		long		/* ptr1 - ptr2 */
 #define	_BSD_SIZE_T_		unsigned long	/* sizeof() */
 #define	_BSD_SSIZE_T_		long		/* byte count or error */
-#define	_BSD_SUSECONDS_T_	int		/* suseconds_t */
 #define	_BSD_TIME_T_		int		/* time() */
 #define	_BSD_TIMER_T_		int		/* timer_t */
-#define	_BSD_USECONDS_T_	unsigned int	/* useconds_t */
+
+#if defined __GNUC__ && (__GNUC__ > 2 || __GNUC_MINOR__ > 95)
+#define	_BSD_VA_LIST_		__builtin_va_list  /* internally known to gcc */
+#else
 typedef struct {
 	char *__base;
 	int __offset;
 	int __pad;
 } __va_list;
 #define	_BSD_VA_LIST_		__va_list	/* va_list */
+#endif /*__GNUC__*/
 
 /*
  * Types which are fundamental to the implementation and must be used
