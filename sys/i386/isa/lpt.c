@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.65 1998/01/24 02:54:21 eivind Exp $
+ *	$Id: lpt.c,v 1.66 1998/02/20 02:44:48 steve Exp $
  */
 
 /*
@@ -104,7 +104,6 @@
 #include "lpt.h"
 #include "opt_devfs.h"
 #include "opt_inet.h"
-#include "opt_lpt.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -189,7 +188,7 @@
 #define	BIOS_MAX_LPT	4
 
 
-#ifndef LPT_DEBUG
+#ifndef DEBUG
 #define lprintf (void)
 #else
 #define lprintf		if (lptflag) printf
