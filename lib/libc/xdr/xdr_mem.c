@@ -115,8 +115,9 @@ xdrmem_getlong_aligned(xdrs, lp)
 	long *lp;
 {
 
-	if ((xdrs->x_handy -= sizeof(int32_t)) < 0)
+	if (xdrs->x_handy < sizeof(int32_t))
 		return (FALSE);
+	xdrs->x_handy -= sizeof(int32_t);
 	*lp = ntohl(*(int32_t *)(xdrs->x_private));
 	xdrs->x_private += sizeof(int32_t);
 	return (TRUE);
@@ -128,8 +129,9 @@ xdrmem_putlong_aligned(xdrs, lp)
 	long *lp;
 {
 
-	if ((xdrs->x_handy -= sizeof(int32_t)) < 0)
+	if (xdrs->x_handy < sizeof(int32_t))
 		return (FALSE);
+	xdrs->x_handy -= sizeof(int32_t);
 	*(int32_t *)xdrs->x_private = htonl(*lp);
 	xdrs->x_private += sizeof(int32_t);
 	return (TRUE);
@@ -142,8 +144,9 @@ xdrmem_getlong_unaligned(xdrs, lp)
 {
 	int32_t l;
 
-	if ((xdrs->x_handy -= sizeof(int32_t)) < 0)
+	if (xdrs->x_handy < sizeof(int32_t))
 		return (FALSE);
+	xdrs->x_handy -= sizeof(int32_t);
 	memcpy(&l, xdrs->x_private, sizeof(int32_t));
 	*lp = ntohl(l);
 	xdrs->x_private += sizeof(int32_t);
@@ -157,8 +160,9 @@ xdrmem_putlong_unaligned(xdrs, lp)
 {
 	int32_t l;
 
-	if ((xdrs->x_handy -= sizeof(int32_t)) < 0)
+	if (xdrs->x_handy < sizeof(int32_t))
 		return (FALSE);
+	xdrs->x_handy -= sizeof(int32_t);
 	l = htonl(*lp);
 	memcpy(xdrs->x_private, &l, sizeof(int32_t));
 	xdrs->x_private += sizeof(int32_t);
@@ -172,8 +176,9 @@ xdrmem_getbytes(xdrs, addr, len)
 	register u_int len;
 {
 
-	if ((xdrs->x_handy -= len) < 0)
+	if (xdrs->x_handy < len)
 		return (FALSE);
+	xdrs->x_handy -= len;
 	memcpy(addr, xdrs->x_private, len);
 	xdrs->x_private += len;
 	return (TRUE);
@@ -186,8 +191,9 @@ xdrmem_putbytes(xdrs, addr, len)
 	register u_int len;
 {
 
-	if ((xdrs->x_handy -= len) < 0)
+	if (xdrs->x_handy < len)
 		return (FALSE);
+	xdrs->x_handy -= len;
 	memcpy(xdrs->x_private, addr, len);
 	xdrs->x_private += len;
 	return (TRUE);
@@ -210,10 +216,10 @@ xdrmem_setpos(xdrs, pos)
 	register caddr_t newaddr = xdrs->x_base + pos;
 	register caddr_t lastaddr = xdrs->x_private + xdrs->x_handy;
 
-	if ((long)newaddr > (long)lastaddr)
+	if (newaddr > lastaddr)
 		return (FALSE);
 	xdrs->x_private = newaddr;
-	xdrs->x_handy = (long)lastaddr - (long)newaddr;
+	xdrs->x_handy = (u_int)(lastaddr - newaddr); /* XXX sizeof(u_int) <? sizeof(ptrdiff_t) */
 	return (TRUE);
 }
 
