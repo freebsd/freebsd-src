@@ -1047,29 +1047,7 @@ xe_intr(void *xscp)
 	    bus_space_read_multi_2(scp->bst, scp->bsh, XE_EDP, 
 	     (u_int16_t *) ehp, len >> 1);
 
-	  /*
-	   * Check if there's a BPF listener on this interface. If so, hand
-	   * off the raw packet to bpf.
-	   */
-	  if (ifp->if_bpf) {
-#if XE_DEBUG > 1
-	    device_printf(scp->dev, "passing input packet to BPF\n");
-#endif
-	    bpf_mtap(ifp, mbp);
-
-	    /*	
-	     * Note that the interface cannot be in promiscuous mode if there
-	     * are no BPF listeners.  And if we are in promiscuous mode, we
-	     * have to check if this packet is really ours.
-	     */
-	    if ((ifp->if_flags & IFF_PROMISC) &&
-		bcmp(ehp->ether_dhost, scp->arpcom.ac_enaddr, sizeof(ehp->ether_dhost)) != 0 &&
-		(rsr & XE_RSR_PHYS_PACKET)) {
-	      m_freem(mbp);
-	      mbp = NULL;
-	    }
-	  }
-
+	  /* Deliver packet to upper layers */
 	  if (mbp != NULL) {
 	    mbp->m_pkthdr.len = mbp->m_len = len - ETHER_HDR_LEN;
 	    mbp->m_data += ETHER_HDR_LEN;	/* Strip off Ethernet header */

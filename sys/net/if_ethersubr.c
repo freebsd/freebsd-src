@@ -56,6 +56,7 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/bpf.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -365,19 +366,22 @@ ether_output(ifp, m, dst, rt0)
 			return (0);	/* XXX */
 		}
 	}
+
 #ifdef BRIDGE
 	if (do_bridge) {
-		struct mbuf *m0 = m ;
+		struct ether_header hdr;
 
-		if (m->m_pkthdr.rcvif)
-			m->m_pkthdr.rcvif = NULL ;
-		ifp = bridge_dst_lookup(m);
-		bdg_forward(&m0, ifp);
-		if (m0)
-			m_freem(m0);
+		m->m_pkthdr.rcvif = NULL;
+		bcopy(mtod(m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+		m_adj(m, ETHER_HDR_LEN);
+		ifp = bridge_dst_lookup(&hdr);
+		bdg_forward(&m, &hdr, ifp);
+		if (m != NULL)
+			m_freem(m);
 		return (0);
 	}
 #endif
+
 	s = splimp();
 	/*
 	 * Queue message on interface, and start output if interface
@@ -421,6 +425,55 @@ ether_input(ifp, eh, m)
 	register struct llc *l;
 #endif
 
+	/* Check for a BPF tap */
+	if (ifp->if_bpf != NULL) {
+		struct m_hdr mh;
+
+		/* This kludge is OK; BPF treats the "mbuf" as read-only */
+		mh.mh_next = m;
+		mh.mh_data = (char *)eh;
+		mh.mh_len = ETHER_HDR_LEN;
+		bpf_mtap(ifp, (struct mbuf *)&mh);
+	}
+
+#ifdef BRIDGE
+	/* Check for bridging mode */
+	if (do_bridge) {
+		struct ifnet *bif;
+
+		/* Check with bridging code */
+		if ((bif = bridge_in(ifp, eh)) == BDG_DROP) {
+			m_freem(m);
+			return;
+		}
+		if (bif != BDG_LOCAL)
+			bdg_forward(&m, eh, bif);	/* needs forwarding */
+		if (bif == BDG_LOCAL
+		    || bif == BDG_BCAST
+		    || bif == BDG_MCAST)
+			goto recvLocal;			/* receive locally */
+
+		/* If not local and not multicast, just drop it */
+		if (m != NULL)
+			m_freem(m);
+		return;
+       }
+#endif
+
+	/* Discard packet if upper layers shouldn't see it. This should
+	   only happen when the interface is in promiscuous mode. */
+	if ((ifp->if_flags & IFF_PROMISC) != 0
+	    && (eh->ether_dhost[0] & 1) == 0
+	    && bcmp(eh->ether_dhost,
+	      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0) {
+		m_freem(m);
+		return;
+	}
+
+#ifdef BRIDGE
+recvLocal:
+#endif
+	/* Discard packet if interface is not up */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		return;

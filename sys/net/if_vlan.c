@@ -305,19 +305,6 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	 */
 	m->m_pkthdr.rcvif = &ifv->ifv_if;
 
-	if (ifv->ifv_if.if_bpf) {
-		/*
-		 * Do the usual BPF fakery.  Note that we don't support
-		 * promiscuous mode here, since it would require the
-		 * drivers to know about VLANs and we're not ready for
-		 * that yet.
-		 */
-		struct mbuf m0;
-		m0.m_next = m;
-		m0.m_len = sizeof(struct ether_header);
-		m0.m_data = (char *)eh;
-		bpf_mtap(&ifv->ifv_if, &m0);
-	}
 	ifv->ifv_if.if_ipackets++;
 	ether_input(&ifv->ifv_if, eh, m);
 	return 0;
@@ -355,19 +342,6 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 	m->m_len -= EVL_ENCAPLEN;
 	m->m_pkthdr.len -= EVL_ENCAPLEN;
 
-	if (ifv->ifv_if.if_bpf) {
-		/*
-		 * Do the usual BPF fakery.  Note that we don't support
-		 * promiscuous mode here, since it would require the
-		 * drivers to know about VLANs and we're not ready for
-		 * that yet.
-		 */
-		struct mbuf m0;
-		m0.m_next = m;
-		m0.m_len = sizeof(struct ether_header);
-		m0.m_data = (char *)eh;
-		bpf_mtap(&ifv->ifv_if, &m0);
-	}
 	ifv->ifv_if.if_ipackets++;
 	ether_input(&ifv->ifv_if, eh, m);
 	return 0;

@@ -739,26 +739,17 @@ again:
     eh = mtod(m, struct ether_header *);
 
     /*
-     * Check if there's a BPF listener on this interface.
-     * If so, hand off the raw packet to BPF.
-     */
-    if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, m);
-    }
-
-    /*
      * XXX: Some cards seem to be in promiscous mode all the time.
      * we need to make sure we only get our own stuff always.
      * bleah!
      */
 
-    if ((eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-	sizeof(eh->ether_dhost)) != 0) {
+    if ((eh->ether_dhost[0] & 1) == 0		/* !mcast and !bcast */
+      && bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) != 0) {
 	m_freem(m);
-	    return;
+	return;
     }
-    /* We assume the header fit entirely in one mbuf. */
+
     m_adj(m, sizeof(struct ether_header));
     ether_input(ifp, eh, m);
 

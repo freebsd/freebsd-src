@@ -429,25 +429,12 @@ static void wi_rxeof(sc)
 
 	ifp->if_ipackets++;
 
-	/* Handle BPF listeners. */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
-		if (ifp->if_flags & IFF_PROMISC &&
-		    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		    ETHER_ADDR_LEN) && (eh->ether_dhost[0] & 1) == 0)) {
-			m_freem(m);
-			return;
-		}
-	}
-
 	/* Receive packet. */
 	m_adj(m, sizeof(struct ether_header));
 #ifdef WICACHE
 	wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
 #endif  
 	ether_input(ifp, eh, m);
-
-	return;
 }
 
 static void wi_txeof(sc, status)

@@ -557,28 +557,6 @@ am7990_read(sc, boff, len)
 	/* We assume that the header fit entirely in one mbuf. */
 	eh = mtod(m, struct ether_header *);
 
-	/*
-	 * Check if there's a BPF listener on this interface.
-	 * If so, hand off the raw packet to BPF.
-	 */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
-
-#ifndef LANCE_REVC_BUG
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no BPF listeners.  And if we are in promiscuous
-		 * mode, we have to check if this packet is really ours.
-		 */
-		if ((ifp->if_flags & IFF_PROMISC) != 0 &&
-		    (eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-		    ETHER_CMP(eh->ether_dhost, sc->sc_enaddr)) {
-			m_freem(m);
-			return;
-		}
-#endif
-	}
-
 #ifdef LANCE_REVC_BUG
 	/*
 	 * The old LANCE (Rev. C) chips have a bug which causes

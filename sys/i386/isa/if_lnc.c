@@ -88,11 +88,6 @@
 
 #include <net/bpf.h>
 
-#include "opt_bdg.h"
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 #ifdef PC98
 #include <machine/clock.h>
 #endif
@@ -600,56 +595,14 @@ lnc_rint(struct lnc_softc *sc)
 				 */
 				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 				head->m_pkthdr.len = pkt_len ;
-
-				/*
-				 * BPF expects the ether header to be in the first
-				 * mbuf of the chain so point eh at the right place
-				 * but don't increment the mbuf pointers before
-				 * the bpf tap.
-				 */
-
 				eh = (struct ether_header *) head->m_data;
 
-				if (sc->arpcom.ac_if.if_bpf)
-					bpf_mtap(&sc->arpcom.ac_if, head);
-#ifdef BRIDGE
-				if (do_bridge) {
-				    struct ifnet *bdg_ifp ;
+				/* Skip over the ether header */
+				head->m_data += sizeof *eh;
+				head->m_len -= sizeof *eh;
+				head->m_pkthdr.len -= sizeof *eh;
 
-				    bdg_ifp = bridge_in(head);
-				    if (bdg_ifp == BDG_DROP)
-					m_freem(head);
-				    else {
-					if (bdg_ifp != BDG_LOCAL)
-					    bdg_forward(&head, bdg_ifp);
-					if (  bdg_ifp == BDG_LOCAL ||
-				  	      bdg_ifp == BDG_BCAST ||
-				  	      bdg_ifp == BDG_MCAST )
-					    goto getit;
-					else if (head)
-					    m_freem(head);
-				    }
-				} else
-#endif
-				/* Check this packet is really for us */
-
-				if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-					!(eh->ether_dhost[0] & 1) && /* Broadcast and multicast */
-					(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-							sizeof(eh->ether_dhost))))
-						m_freem(head);
-				else
-				{
-#ifdef BRIDGE
-getit:
-#endif
-					/* Skip over the ether header */
-					head->m_data += sizeof *eh;
-					head->m_len -= sizeof *eh;
-					head->m_pkthdr.len -= sizeof *eh;
-
-					ether_input(&sc->arpcom.ac_if, eh, head);
-				}
+				ether_input(&sc->arpcom.ac_if, eh, head);
 
 			} else {
 				int unit = sc->arpcom.ac_if.if_unit;

@@ -1075,27 +1075,10 @@ wlread(int unit, u_short fd_p)
     m->m_pkthdr.len = clen;
 
     /*
-     * Check if there's a BPF listener on this interface. If so, hand off
-     * the raw packet to bpf.
-     */
-    if (ifp->if_bpf) {
-	/* bpf assumes header is in mbufs.  It isn't.  We can
-	 * fool it without allocating memory as follows.
-	 * Trick borrowed from if_ie.c
-	 */
-	struct mbuf m0;		
-	m0.m_len = sizeof eh;
-	m0.m_data = (caddr_t) &eh;
-	m0.m_next = m;
-
-	bpf_mtap(ifp, &m0);
-	
-    }
-    /*
      * If hw is in promiscuous mode (note that I said hardware, not if
      * IFF_PROMISC is set in ifnet flags), then if this is a unicast
-     * packet and the MAC dst is not us, drop it.  This check was formerly
-     * inside the bpf if, above, but IFF_MULTI causes hw promisc without
+     * packet and the MAC dst is not us, drop it.  This check in normally
+     * inside ether_input(), but IFF_MULTI causes hw promisc without
      * a bpf listener, so this is wrong.
      *		Greg Troxel <gdt@ir.bbn.com>, 1998-08-07
      */

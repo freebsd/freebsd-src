@@ -105,13 +105,6 @@
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
 
-
-#include "opt_bdg.h"
-#ifdef BRIDGE
-#include <net/if_types.h>
-#include <net/bridge.h>
-#endif
-
 /*
  * NOTE!  On the Alpha, we have an alignment constraint.  The
  * card DMAs the packet immediately following the RFA.  However,
@@ -1169,53 +1162,13 @@ rcvloop:
 						goto rcvloop;
 					}
 					m->m_pkthdr.rcvif = ifp;
-					m->m_pkthdr.len = m->m_len =
-					    total_len ;
+					m->m_pkthdr.len = m->m_len = total_len;
 					eh = mtod(m, struct ether_header *);
-					if (ifp->if_bpf)
-						bpf_tap(FXP_BPFTAP_ARG(ifp),
-						    mtod(m, caddr_t),
-						    total_len); 
-#ifdef BRIDGE
-                                        if (do_bridge) {
-                                            struct ifnet *bdg_ifp ;
-                                            bdg_ifp = bridge_in(m);
-                                            if (bdg_ifp == BDG_DROP)
-                                                goto dropit ;
-                                            if (bdg_ifp != BDG_LOCAL)
-                                                bdg_forward(&m, bdg_ifp);
-                                            if (bdg_ifp != BDG_LOCAL &&
-                                                    bdg_ifp != BDG_BCAST &&
-                                                    bdg_ifp != BDG_MCAST)
-                                                goto dropit ;
-                                            goto getit ;
-                                        }
-#endif
-					/*
-					 * Only pass this packet up
-					 * if it is for us.
-					 */
-					if ((ifp->if_flags &
-					    IFF_PROMISC) &&
-					    (rfa->rfa_status &
-					    FXP_RFA_STATUS_IAMATCH) &&
-					    (eh->ether_dhost[0] & 1)
-					    == 0) {
-#ifdef BRIDGE
-dropit:
-#endif
-					    if (m)
-						m_freem(m);
-					    goto rcvloop;
-					}
-#ifdef BRIDGE
-getit:
-#endif
 					m->m_data +=
 					    sizeof(struct ether_header);
 					m->m_len -=
 					    sizeof(struct ether_header);
-					m->m_pkthdr.len = m->m_len ;
+					m->m_pkthdr.len = m->m_len;
 					ether_input(ifp, eh, m);
 				}
 				goto rcvloop;

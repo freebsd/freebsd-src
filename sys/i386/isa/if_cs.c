@@ -773,9 +773,6 @@ cs_get_packet(struct cs_softc *sc)
 
 	eh = mtod(m, struct ether_header *);
 
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
-
 #ifdef CS_DEBUG
 	for (i=0;i<length;i++)
 	     printf(" %02x",(unsigned char)*((char *)(m->m_data+i)));

@@ -1095,8 +1095,7 @@ rdp_rint(struct rdp_softc *sc)
 
 /*
  * Retreive packet from NIC memory and send to the next level up via
- * ether_input().  If there is a BPF listener, give a copy to BPF,
- * too.
+ * ether_input().
  */
 static void
 rdp_get_packet(struct rdp_softc *sc, unsigned len)
@@ -1156,33 +1155,12 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	WrNib(sc, CMR1, CMR1_RDPAC);
 
 	/*
-	 * Check if there's a BPF listener on this interface. If so, hand off
-	 * the raw packet to bpf.
-	 */
-	if (sc->arpcom.ac_if.if_bpf) {
-		bpf_mtap(&sc->arpcom.ac_if, m);
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no BPF listeners.  And if we are in promiscuous
-		 * mode, we have to check if this packet is really ours.
-		 */
-		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-			 sizeof(eh->ether_dhost)) != 0) {
-			m_freem(m);
-			return;
-		}
-	}
-
-	/*
 	 * Remove link layer address.
 	 */
 	m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
 	m->m_data += sizeof(struct ether_header);
 
 	ether_input(&sc->arpcom.ac_if, eh, m);
-	return;
 }
 
 /*
