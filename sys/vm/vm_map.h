@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.29 1997/12/19 09:03:12 dyson Exp $
+ * $Id: vm_map.h,v 1.30 1998/01/06 05:26:00 dyson Exp $
  */
 
 /*
@@ -126,7 +126,6 @@ struct vm_map_entry {
  *	insertion, or removal.
  */
 struct vm_map {
-	struct pmap *pmap;		/* Physical map */
 	struct lock lock;		/* Lock for map data */
 	struct vm_map_entry header;	/* List of entries */
 	int nentries;			/* Number of entries */
@@ -136,9 +135,10 @@ struct vm_map {
 	int ref_count;			/* Reference count */
 	struct simplelock ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
+	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
 	boolean_t entries_pageable;	/* map entries pageable?? */
-	unsigned int timestamp;		/* Version number */
+	struct pmap *pmap;		/* Physical map */
 #define	min_offset		header.start
 #define max_offset		header.end
 };
