@@ -5,5 +5,7 @@ PROG=	rarpd
 MAN=	rarpd.8
 
 CFLAGS+= -DTFTP_DIR=\"/tftpboot\"
+WARNS?=	2
+FORMAT_AUDIT?=	1
 
 .include <bsd.prog.mk>
