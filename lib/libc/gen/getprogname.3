@@ -63,7 +63,9 @@ If the name has not been set yet, it will return
 .Pp
 The
 .Fn setprogname
-function sets the name of the program.
+function sets the name of the program to be the last component of the
+.Fa progname
+argument.
 Since a pointer to the given string is kept as the program name,
 it should not be modified for the rest of the program's lifetime.
 .Pp
