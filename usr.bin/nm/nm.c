@@ -211,9 +211,10 @@ show_archive(fname, fp)
 	int i, rval;
 	long last_ar_off;
 	char *p, *name, *ar_name;
-	int buffend = strlen(fname) + 3;
+	int extra = strlen(fname) + 3;
 
-	name = emalloc(sizeof(MAXNAMLEN) + buffend);
+	name = emalloc(MAXNAMLEN + extra);
+	ar_name = name + extra;
 
 	rval = 0;
 
@@ -239,7 +240,6 @@ show_archive(fname, fp)
 		 */
 		if (!bcmp(ar_head.ar_name, AR_EFMT1, sizeof(AR_EFMT1) - 1))
 		{
-			char *end_part = name + buffend;
 			size_t len = atoi(ar_head.ar_name + sizeof(AR_EFMT1) - 1);
 
 			if (len <= 0 || len > MAXNAMLEN)
@@ -247,22 +247,21 @@ show_archive(fname, fp)
 				fprintf(stderr, "nm: Illegal length for format 1 long name.\n");
 				goto skip;
 			}
-			if (fread(end_part, 1, len, fp) != len)
+			if (fread(ar_name, 1, len, fp) != len)
 			{
 				(void)fprintf(stderr, "nm: EOF reading format 1 long name.\n");
 				(void)free(name);
 				return(1);
 			}
-			end_part[len] = 0;
-			ar_name = end_part;
+			ar_name[len] = 0;
 		}
 		else
 		{
-			p = ar_name = ar_head.ar_name;
+			p = ar_head.ar_name;
 			for (i = 0; i < sizeof(ar_head.ar_name); i++)
 				if (*p && *p != ' ')
-					p++;
-			*p = '\0';
+					ar_name[i] = p[i];
+			ar_name[i] = 0;
 		}
 
 		/*
