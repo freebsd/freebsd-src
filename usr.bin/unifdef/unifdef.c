@@ -44,7 +44,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.68 2002/05/15 15:43:14 fanf Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.73 2002/05/21 17:33:41 fanf Exp $");
 #endif
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* types of input lines: */
 typedef enum {
@@ -210,101 +211,88 @@ Comment_state   incomment;	/* inside C comment */
 Quote_state     inquote;	/* inside single or double quotes */
 
 Linetype        checkline(int *);
-void	        debug(const char *, ...);
+void            debug(const char *, ...);
 Linetype        process(int);
 void            doif(int, Linetype, bool);
 void            elif2if(void);
 void            elif2endif(void);
-void	        error(int, int);
-int	        findsym(const char *);
-void	        flushline(bool);
-int	        getline(char *, int, FILE *, bool);
+void            error(int, int);
+void            addsym(bool, bool, char *);
+int             findsym(const char *);
+void            flushline(bool);
+int             getline(char *, int, FILE *, bool);
 Linetype        ifeval(const char **);
-int	        main(int, char **);
+int             main(int, char **);
 const char     *skipcomment(const char *);
 const char     *skipquote(const char *, Quote_state);
 const char     *skipsym(const char *);
-void	        usage(void);
+void            usage(void);
 
 #define endsym(c) (!isalpha((unsigned char)c) && !isdigit((unsigned char)c) && c != '_')
 
 int
 main(int argc, char *argv[])
 {
-	char **curarg;
-	char *cp;
-	char *cp1;
-	bool ignorethis;
+	int opt;
 
-	for (curarg = &argv[1]; --argc > 0; curarg++) {
-		if (*(cp1 = cp = *curarg) != '-')
+	while ((opt = getopt(argc, argv, "i:D:U:I:cdlst")) != -1)
+		switch (opt) {
+		case 'i': /* treat stuff controlled by these symbols as text */
+			/*
+			 * For strict backwards-compatibility the U or D
+			 * should be immediately after the -i but it doesn't
+			 * matter much if we relax that requirement.
+			 */
+			opt = *optarg++;
+			if (opt == 'D')
+				addsym(true, true, optarg);
+			else if (opt == 'U')
+				addsym(true, false, optarg);
+			else
+				usage();
 			break;
-		if (*++cp1 == 'i') {
-			ignorethis = true;
-			cp1++;
-		} else
-			ignorethis = false;
-		if ((*cp1 == 'D' || *cp1 == 'U') && cp1[1] != '\0') {
-			int     symind;
-
-			if ((symind = findsym(&cp1[1])) == 0) {
-				if (nsyms >= MAXSYMS)
-					errx(2, "too many symbols");
-				symind = nsyms++;
-				symname[symind] = &cp1[1];
-			}
-			ignore[symind] = ignorethis;
-			if (*cp1 == 'D') {
-				char   *val;
-
-				val = strchr(cp1, '=');
-				if (val == NULL)
-					value[symind] = "";
-				else {
-					value[symind] = val+1;
-					*val = '\0';
-				}
-			} else
-				value[symind] = NULL;
-		} else if (ignorethis) {
-			goto unrec;
-		} else if (cp[1] == 'I') {
-			if (cp[2] == '\0') {
-				curarg++;
-				argc--;
-			}
-			continue;
-		} else if (strcmp(&cp[1], "") == 0)
+		case 'D': /* define a symbol */
+			addsym(false, true, optarg);
 			break;
-		else if (strcmp(&cp[1], "-debug") == 0)
-			debugging = true;
-		else if (strcmp(&cp[1], "c") == 0)
+		case 'U': /* undef a symbol */
+			addsym(false, false, optarg);
+			break;
+		case 'I':
+			/* ignore for compatibility with cpp */
+			break;
+		case 'c': /* treat -D as -U and vice versa */
 			complement = true;
-		else if (strcmp(&cp[1], "l") == 0)
+			break;
+		case 'd':
+			debugging = true;
+			break;
+		case 'l': /* blank deleted lines instead of omitting them */
 			lnblank = true;
-		else if (strcmp(&cp[1], "s") == 0)
+			break;
+		case 's': /* only output list of symbols that control #ifs */
 			symlist = true;
-		else if (strcmp(&cp[1], "t") == 0)
+			break;
+		case 't': /* don't parse C comments or strings */
 			text = true;
-		else {
-		unrec:
-			warnx("unrecognized option: %s", cp);
+			break;
+		default:
 			usage();
 		}
-	}
+	argc -= optind;
+	argv += optind;
 	if (nsyms == 1 && !symlist) {
 		warnx("must -D or -U at least one symbol");
 		usage();
 	}
 	if (argc > 1) {
 		errx(2, "can only do one file");
-	} else if (argc == 1 && strcmp(*curarg, "-") != 0) {
-		filename = *curarg;
+	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
+		filename = *argv;
 		if ((input = fopen(filename, "r")) != NULL) {
 			(void) process(0);
 			(void) fclose(input);
 		} else
-			err(2, "can't open %s", *curarg);
+			err(2, "can't open %s", *argv);
 	} else {
 		filename = "[stdin]";
 		input = stdin;
@@ -520,7 +508,7 @@ checkline(int *cursym)
 		goto eol;
 
 	cp = skipcomment(++cp);
-	keyword = tline + (cp - tline);
+	keyword = (char *)cp;
 	symp = kw;
 	while (!endsym(*cp)) {
 		*symp = *cp++;
@@ -836,8 +824,8 @@ findsym(const char *str)
 		printf("%.*s\n", cp-str, str);
 	}
 	for (symind = 1; symind < nsyms; ++symind) {
-		for (symp = symname[symind], cp = str
-		    ; *symp && *cp == *symp
+		for (cp = str, symp = symname[symind]
+		    ; *cp && *symp && *cp == *symp
 		    ; cp++, symp++
 		    )
 			continue;
@@ -848,6 +836,39 @@ findsym(const char *str)
 		}
 	}
 	return 0;
+}
+
+/*
+ * Add a symbol to the symbol table.
+ */
+void
+addsym(bool ignorethis, bool definethis, char *sym)
+{
+	int symind;
+	char *val;
+
+	symind = findsym(sym);
+	if (symind == 0) {
+		if (nsyms >= MAXSYMS)
+			errx(2, "too many symbols");
+		symind = nsyms++;
+	}
+	symname[symind] = sym;
+	ignore[symind] = ignorethis;
+	val = (char *)skipsym(sym);
+	if (definethis) {
+		if (*val == '=') {
+			value[symind] = val+1;
+			*val = '\0';
+		} else if (*val == '\0')
+			value[symind] = "";
+		else
+			usage();
+	} else {
+		if (*val != '\0')
+			usage();
+		value[symind] = NULL;
+	}
 }
 
 /*
