@@ -73,11 +73,13 @@ KILL?=			/bin/kill
 #
 # The Makefile picks up the list of files from SENDMAIL_MAP_SRC and
 # stores the matching .db filenames in SENDMAIL_MAP_OBJ if the file
-# exists in the current directory.
+# exists in the current directory.  SENDMAIL_MAP_TYPE is the database
+# type to use when calling makemap.
 #
 SENDMAIL_MAP_SRC+=	mailertable domaintable bitdomain uucpdomain \
 			genericstable virtusertable access
 SENDMAIL_MAP_OBJ=
+SENDMAIL_MAP_TYPE?=	hash
 
 .for _f in ${SENDMAIL_MAP_SRC} userdb
 .if exists(${_f})
@@ -95,7 +97,7 @@ ${_f}:		${_f}.sample
 .endif
 
 ${_f}.db:	${_f}
-	${MAKEMAP} hash ${.TARGET} < ${.OODATE}
+	${MAKEMAP} ${SENDMAIL_MAP_TYPE} ${.TARGET} < ${.OODATE}
 .endfor
 
 userdb.db:	userdb
