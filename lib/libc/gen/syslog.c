@@ -143,7 +143,7 @@ vsyslog(pri, fmt, ap)
 	register char ch, *p;
 	time_t now;
 	int fd, saved_errno;
-	char *stdp, tbuf[2048], fmt_cpy[1024];
+	char *stdp, tbuf[2048], fmt_cpy[1024], timbuf[26];
 	FILE *fp, *fmt_fp;
 	struct bufcookie tbuf_cookie;
 	struct bufcookie fmt_cookie;
@@ -176,7 +176,7 @@ vsyslog(pri, fmt, ap)
 	/* Build the message. */
 	(void)time(&now);
 	(void)fprintf(fp, "<%d>", pri);
-	(void)fprintf(fp, "%.15s ", ctime(&now) + 4);
+	(void)fprintf(fp, "%.15s ", ctime_r(&now, timbuf) + 4);
 	if (LogStat & LOG_PERROR) {
 		/* Transfer to string buffer */
 		(void)fflush(fp);
