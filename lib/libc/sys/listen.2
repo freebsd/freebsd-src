@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: listen.2,v 1.3 1995/11/03 18:34:38 wollman Exp $
 .\"
 .Dd November 3, 1995
 .Dt LISTEN 2
@@ -82,6 +82,28 @@ or less than zero is specified,
 .Fa backlog
 is silently forced to
 .Li kern.somaxconn .
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn listen
+is implemented as the
+.Va listen
+syscall.
+.Pp
+In the threaded library, the
+.Va listen
+syscall is assembled to
+.Fn _thread_sys_listen
+and
+.Fn listen
+is implemented as a function which locks
+.Va s
+for read and write, then calls
+.Fn _thread_sys_listen .
+Before returning,
+.Fn listen
+unlocks
+.Va s .
 .Sh RETURN VALUES
 A 0 return value indicates success; -1 indicates an error.
 .Sh ERRORS

@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sigsuspend.S,v 1.2 1995/01/23 01:30:20 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sigsuspend.S,v 1.2 1995/01/23 01:30:20 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -46,7 +46,11 @@
 err:
 	jmp	cerror
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_sigsuspend)
+#else
 ENTRY(sigsuspend)
+#endif
 	movl	4(%esp),%eax		# fetch mask arg
 	movl	(%eax),%eax		# indirect to mask arg
 	movl	%eax,4(%esp)

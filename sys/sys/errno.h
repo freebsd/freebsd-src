@@ -36,14 +36,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $Id: errno.h,v 1.2 1994/08/02 07:52:54 davidg Exp $
+ * $Id: errno.h,v 1.3 1994/08/21 04:41:42 paul Exp $
  */
 
 #ifndef _SYS_ERRNO_H_
 #define _SYS_ERRNO_H_
 
 #ifndef KERNEL
+#ifdef	_THREAD_SAFE
+extern	int *		__error();
+#define	errno		(* __error())
+#else
 extern int errno;			/* global error number */
+#endif
 #endif
 
 #define	EPERM		1		/* Operation not permitted */

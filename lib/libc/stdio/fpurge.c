@@ -42,6 +42,10 @@ static char sccsid[] = "@(#)fpurge.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include "local.h"
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 /*
  * fpurge: like fflush, but without writing anything: leave the
@@ -51,15 +55,23 @@ int
 fpurge(fp)
 	register FILE *fp;
 {
+	int retval;
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
 	if (!fp->_flags) {
 		errno = EBADF;
-		return(EOF);
+		retval = EOF;
+	} else {
+		if (HASUB(fp))
+			FREEUB(fp);
+		fp->_p = fp->_bf._base;
+		fp->_r = 0;
+		fp->_w = fp->_flags & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
+		retval = 0;
 	}
-
-	if (HASUB(fp))
-		FREEUB(fp);
-	fp->_p = fp->_bf._base;
-	fp->_r = 0;
-	fp->_w = fp->_flags & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
-	return (0);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
+	return (retval);
 }

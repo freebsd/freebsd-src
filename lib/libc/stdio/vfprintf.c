@@ -59,6 +59,10 @@ static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 
 #include "local.h"
 #include "fvwrite.h"
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
@@ -366,14 +370,25 @@ vfprintf(fp, fmt0, ap)
 	    flags&SHORTINT ? (u_long)(u_short)va_arg(ap, int) : \
 	    (u_long)va_arg(ap, u_int))
 
+#ifdef _THREAD_SAFE
+	_thread_flockfile(fp,__FILE__,__LINE__);
+#endif
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
-	if (cantwrite(fp))
+	if (cantwrite(fp)) {
+#ifdef _THREAD_SAFE
+		_thread_funlockfile(fp);
+#endif
 		return (EOF);
+	}
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
-	    fp->_file >= 0)
+	    fp->_file >= 0) {
+#ifdef _THREAD_SAFE
+		_thread_funlockfile(fp);
+#endif
 		return (__sbprintf(fp, fmt0, ap));
+	}
 
 	fmt = (char *)fmt0;
 	uio.uio_iov = iovp = iov;
@@ -782,7 +797,12 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
-	return (__sferror(fp) ? EOF : ret);
+	if (__sferror(fp))
+		ret = EOF;
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(fp);
+#endif
+	return (ret);
 	/* NOTREACHED */
 }
 

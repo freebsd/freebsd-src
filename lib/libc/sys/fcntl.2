@@ -330,6 +330,29 @@ This implementation detects that sleeping until a locked region is unlocked
 would cause a deadlock and fails with an
 .Er EDEADLK
 error.
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn fcntl
+is implemented as the
+.Va fcntl
+syscall.
+.Pp
+In the threaded library, the
+.Va fcntl
+syscall is assembled to
+.Fn _thread_sys_fcntl
+and
+.Fn fcntl
+is implemented as a function which disables thread resheduling, locks
+.Va fd
+for read and write, then calls
+.Fn _thread_sys_fcntl .
+Before returning,
+.Fn fcntl
+unlocks
+.Va fd
+and enables thread resheduling.
 .Sh RETURN VALUES
 Upon successful completion, the value returned depends on
 .Fa cmd

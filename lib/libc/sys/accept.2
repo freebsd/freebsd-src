@@ -129,6 +129,31 @@ by issuing a
 call with providing only the control information,
 or by calling
 .Xr setsockopt 2 .
+.Sh IMPLEMENTATION NOTES
+.Pp
+In the non-threaded library
+.Fn accept
+is implemented as the
+.Va accept
+syscall.
+.Pp
+In the threaded library, the
+.Va accept
+syscall is assembled to
+.Fn _thread_sys_accept
+and
+.Fn accept
+is implemented as a function which locks
+.Va s
+for read and write, then calls
+.Fn _thread_sys_accept .
+If the call to
+.Fn _thread_sys_accept
+would block, a context switch is performed. Before returning,
+.Fn accept
+unlocks
+.Va s .
+.Pp
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
 integer that is a descriptor for the accepted socket.
