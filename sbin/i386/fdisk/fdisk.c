@@ -423,17 +423,26 @@ static struct dos_partition mtpart = { 0 };
 static void
 print_part(int i)
 {
-struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
+	struct	  dos_partition *partp;
+	u_int64_t part_mb;
 
+	partp = ((struct dos_partition *) &mboot.parts) + i;
 
 	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
 		printf("<UNUSED>\n");
 		return;
 	}
+	/*
+	 * Be careful not to overflow.
+	 */
+	part_mb = partp->dp_size;
+	part_mb *= 512;
+	part_mb /= (1024 * 1024);
 	printf("sysid %d,(%s)\n", partp->dp_typ, get_type(partp->dp_typ));
-	printf("    start %ld, size %ld (%ld Meg), flag %x\n",
+	printf("    start %ld, size %ld (%qd Meg), flag %x\n",
 		partp->dp_start,
-		partp->dp_size, partp->dp_size * 512 / (1024 * 1024),
+		partp->dp_size,
+		part_mb,
 		partp->dp_flag);
 	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
 		,DPCYL(partp->dp_scyl, partp->dp_ssect)
