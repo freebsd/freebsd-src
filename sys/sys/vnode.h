@@ -442,7 +442,6 @@ void	vfs_opv_init __P((struct vnodeopv_desc **them));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));
-void 	vgoneall __P((struct vnode *vp));
 int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 	    struct proc *p, int slpflag, int slptimeo));
 void	vprint __P((char *label, struct vnode *vp));
