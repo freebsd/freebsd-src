@@ -1,8 +1,6 @@
 /*	$NetBSD: i82365_isa.c,v 1.11 1998/06/09 07:25:00 thorpej Exp $	*/
 /* $FreeBSD$ */
 
-#define	PCICISADEBUG
-
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *
@@ -70,22 +68,9 @@ int	pcicisa_debug = 0 /* XXX */ ;
 #define	DPRINTF(arg)
 #endif
 
-int	pcic_isa_probe __P((struct device *, struct cfdata *, void *));
-void	pcic_isa_attach __P((struct device *, struct device *, void *));
+int	pcic_isa_probe(device_t dev);
+int	pcic_isa_attach(device_t dev);
 
-void	*pcic_isa_chip_intr_establish __P((pccard_chipset_handle_t,
-	    struct pccard_function *, int, int (*) (void *), void *));
-void	pcic_isa_chip_intr_disestablish __P((pccard_chipset_handle_t, void *));
-
-#ifdef __FreeBSD__
-struct cfattach pcic_isa_ca = {
-    sizeof(struct pcic_softc), pcic_isa_probe, pcic_isa_attach
-};
-#else
-struct cfattach pcic_isa_ca = {
-	sizeof(struct pcic_softc), pcic_isa_probe, pcic_isa_attach
-};
-#endif
 static struct pccard_chip_functions pcic_isa_functions = {
 	pcic_chip_mem_alloc,
 	pcic_chip_mem_free,
@@ -105,11 +90,9 @@ static struct pccard_chip_functions pcic_isa_functions = {
 };
 
 int
-pcic_isa_probe(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
+pcic_isa_probe(device_t dev)
 {
+#if XXX
 	struct isa_attach_args *ia = aux;
 	bus_space_tag_t iot = ia->ia_iot;
 	bus_space_handle_t ioh, memh;
@@ -182,15 +165,14 @@ pcic_isa_probe(parent, match, aux)
 		return (0);
 
 	ia->ia_iosize = PCIC_IOSIZE;
-
+#endif
 	return (1);
 }
 
-void
-pcic_isa_attach(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
+int
+pcic_isa_attach(device_t dev)
 {
+#if 0
 	struct pcic_softc *sc = (void *) self;
 	struct isa_attach_args *ia = aux;
 	isa_chipset_tag_t ic = ia->ia_ic;
@@ -259,4 +241,6 @@ pcic_isa_attach(parent, self, aux)
 	}
 
 	pcic_attach_sockets(sc);
+#endif
+	return 0;
 }
