@@ -28,7 +28,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 
@@ -50,7 +52,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 
-	error = 0;
+	mtx_lock(&Giant);
 	switch (uap->op) {
 	case SPARC_SIGTRAMP_INSTALL:
 		error = sparc_sigtramp_install(td, uap->parms);
@@ -62,6 +64,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = EINVAL;
 		break;
 	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 

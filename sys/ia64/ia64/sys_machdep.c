@@ -68,7 +68,7 @@ sysarch(td, uap)
 	struct thread *td;
 	register struct sysarch_args *uap;
 {
-	int error = 0;
+	int error;
 
 	switch(uap->op) {
 	default:

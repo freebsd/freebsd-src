@@ -88,8 +88,9 @@ sysarch(td, uap)
 	struct thread *td;
 	register struct sysarch_args *uap;
 {
-	int error = 0;
+	int error;
 
+	mtx_lock(&Giant);
 	switch(uap->op) {
 	case I386_GET_LDT:
 		error = i386_get_ldt(td, uap->parms);
@@ -108,9 +109,10 @@ sysarch(td, uap)
 		error = vm86_sysarch(td, uap->parms);
 		break;
 	default:
-		error = EOPNOTSUPP;
+		error = EINVAL;
 		break;
 	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
