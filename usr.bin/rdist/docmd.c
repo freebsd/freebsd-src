@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id: docmd.c,v 1.4 1996/07/12 04:00:13 nate Exp $";
+	"$Id: docmd.c,v 1.3.4.1 1996/07/12 06:19:46 pst Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -424,7 +424,7 @@ cmptime(name)
 	 * first time cmptime() is called?
 	 */
 	if (tp == NULL) {
-		if (exptilde(target, name) == NULL)
+		if (exptilde(target, name, sizeof(target)) == NULL)
 			return;
 		tp = name = target;
 		while (*tp)
