@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.7 1996/07/05 19:55:05 julian Exp $
+ *	$Id: start.S,v 1.8 1996/07/12 05:42:02 bde Exp $
  */
 
 /*
@@ -75,6 +75,18 @@ NAMEBLOCKMAGIC=	0xfadefeed /* value of magicnumebr for block2 	*/
 	.text	
 
 ENTRY(boot1)
+
+	/*
+	 * XXX I have encountered at least one machine (a no-name laptop
+	 * with an AMI WinBIOS) that will refuse to run the bootblock
+	 * unless this short jump and nop are here. I'm not certain, but
+	 * this may be a case of the BIOS performing some kind of simple
+	 * virus detection.
+	 */
+	jmp pacify_braindead_bios
+	nop
+pacify_braindead_bios:
+
 	/*
 	 * start (aka boot1) is loaded at 0x0:0x7c00 but we want 0x7c0:0
 	 * ljmp to the next instruction to adjust %cs
