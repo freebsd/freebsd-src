@@ -6,10 +6,10 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
-# libcrypt must be built before libskey.
+# libcrypt must be built before libkrb and libskey.
 # libm must be built before libstdc++.
-# libmd must be built before libatm, libopie, libradius, libskey,
-# libtacplus and libcrypt.
+# libmd must be built before libatm, libcrypt, libopie, libradius, libskey,
+# and libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
@@ -18,14 +18,14 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
-	libradius libskey libtacplus \
+	libncurses libradius libskey libtacplus \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
-	libcompat libdevstat libdisk libncurses libedit libfetch \
+	libcompat libdevstat libdisk libedit libfetch \
 	libftpio libgnumalloc ${_libio} libipx libkvm libopie libpam \
 	libpcap libresolv librpcsvc libss libstand \
 	${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
 
-#SUBDIR+=libmenu libpanel libform
+#SUBDIR+=libform libmenu libpanel
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
