@@ -27,14 +27,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.4 1997/11/29 08:11:01 davidg Exp $
+ *	$Id: if_fxpvar.h,v 1.5 1998/06/07 17:12:38 dfr Exp $
  */
 
 /*
  * Misc. defintions for the Intel EtherExpress Pro/100B PCI Fast
  * Ethernet driver
  */
-
+/*
+ * NOTE: Elements are ordered for optimal cacheline behavior, and NOT
+ *	 for functional grouping.
+ */
 struct fxp_softc {
 #if defined(__NetBSD__)
 	struct device sc_dev;		/* generic device structures */
@@ -46,20 +49,19 @@ struct fxp_softc {
 	struct arpcom arpcom;		/* per-interface network data */
 	caddr_t csr;			/* control/status registers */
 #endif /* __NetBSD__ */
-	struct ifmedia sc_media;	/* media information */
-	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
-	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
-	struct fxp_cb_tx *cbl_last;	/* last active TxCB in list */
-	int tx_queued;			/* # of active TxCB's */
-	int need_mcsetup;		/* multicast filter needs programming */
 	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
 	struct mbuf *rfa_tailm;		/* last mbuf in receive frame area */
+	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
+	int tx_queued;			/* # of active TxCB's */
+	int need_mcsetup;		/* multicast filter needs programming */
+	struct fxp_cb_tx *cbl_last;	/* last active TxCB in list */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout_handle stat_ch;	/* Handle for canceling our stat timeout */
+	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 	int all_mcasts;			/* receive all multicasts */
-	int promisc_mode;		/* promiscuous mode enabled */
+	struct ifmedia sc_media;	/* media information */
 	int phy_primary_addr;		/* address of primary PHY */
 	int phy_primary_device;		/* device type of primary PHY */
 	int phy_10Mbps_only;		/* PHY is 10Mbps-only device */
