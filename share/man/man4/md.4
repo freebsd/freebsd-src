@@ -34,12 +34,15 @@ backed
 disks
 are severely limited in size by constraints imposed by
 .Xr malloc 9 .
-The limit imposed depends on the amount of physical RAM in the machine,
-and covers all
-.Xr malloc 9
-backed instances of
+Specifically, only one malloc bucket is used, which means that all
 .Nm
-devices.
+devices with
+.Xr malloc 9
+backing must share the malloc per-bucket quota.
+The exact size of this quota varies,
+in particuar with the amount of RAM in the system.
+The exact value can be determined with
+.Xr vmstat 8 .
 .Pp
 A sector filled with identical bytes does not consume storage,
 and therefore the storage allocated by a
