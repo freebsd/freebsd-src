@@ -44,16 +44,6 @@ struct tcpiphdr {
 	struct 	ipovly ti_i;		/* overlaid ip structure */
 	struct	tcphdr ti_t;		/* tcp header */
 };
-#ifdef notyet
-/*
- * Tcp+ip header, after ip options removed but including TCP options.
- */
-struct full_tcpiphdr {
-	struct 	ipovly ti_i;		/* overlaid ip structure */
-	struct	tcphdr ti_t;		/* tcp header */
-	char	ti_o[TCP_MAXOLEN];	/* space for tcp options */
-};
-#endif /* notyet */
 #define	ti_x1		ti_i.ih_x1
 #define	ti_pr		ti_i.ih_pr
 #define	ti_len		ti_i.ih_len
