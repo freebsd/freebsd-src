@@ -232,6 +232,13 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 	else
 		thr = td;
 
+	if ((flags & (LK_NOWAIT|LK_RELEASE)) == 0) {
+		if ((flags & LK_INTERLOCK) == 0)
+			WITNESS_SLEEP(1, NULL);
+		else
+			WITNESS_SLEEP(1, &interlkp->mtx_object);
+	}
+
 	mtx_lock(lkp->lk_interlock);
 	if (flags & LK_INTERLOCK) {
 		mtx_assert(interlkp, MA_OWNED | MA_NOTRECURSED);
