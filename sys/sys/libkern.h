@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.9 1996/01/16 10:22:17 bde Exp $
+ * $Id: libkern.h,v 1.10 1996/04/19 17:39:57 bde Exp $
  */
 
 #ifndef _SYS_LIBKERN_H_
@@ -69,6 +69,7 @@ int	 locc __P((int, char *, u_int));
 void	 qsort __P((void *base, size_t nmemb, size_t size,
 		    int (*compar)(const void *, const void *)));
 u_long	 random __P((void));
+char	*index __P((const char *, int));
 char	*rindex __P((const char *, int));
 int	 scanc __P((u_int, u_char *, u_char *, int));
 int	 skpc __P((int, int, char *));
