@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.9 1997/11/21 07:38:43 charnier Exp $";
+	"$Id: popen.c,v 1.10 1998/02/25 07:10:57 danny Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -94,9 +94,11 @@ ftpd_popen(program, type)
 		return (NULL);
 
 	/* break up string into pieces */
-	for (argc = 0, cp = program; argc < MAXUSRARGS; cp = NULL)
+	for (argc = 0, cp = program; argc < MAXUSRARGS; cp = NULL) {
 		if (!(argv[argc++] = strtok(cp, " \t\n")))
 			break;
+	}
+	argv[argc - 1] = NULL;
 
 	/* glob each piece */
 	gargv[0] = argv[0];
