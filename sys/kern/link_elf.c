@@ -530,6 +530,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     int symstrindex;
     int symcnt;
     int strcnt;
+    char *newfilename;
 
     GIANT_REQUIRED;
 
@@ -788,7 +789,9 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 #ifdef DDB
     GDB_STATE(RT_ADD);
     ef->gdb.l_addr = lf->address;
-    ef->gdb.l_name = filename;
+    newfilename = malloc(strlen(filename) + 1, M_LINKER, M_WAITOK);
+    strcpy(newfilename, filename);
+    ef->gdb.l_name = (const char *)newfilename;
     ef->gdb.l_ld = ef->dynamic;
     link_elf_add_gdb(&ef->gdb);
     GDB_STATE(RT_CONSISTENT);
@@ -819,6 +822,7 @@ link_elf_unload_file(linker_file_t file)
 #ifdef DDB
     if (ef->gdb.l_ld) {
 	GDB_STATE(RT_DELETE);
+	free((void *)ef->gdb.l_name, M_LINKER);
 	link_elf_delete_gdb(&ef->gdb);
 	GDB_STATE(RT_CONSISTENT);
     }
