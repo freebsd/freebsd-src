@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.58 2003/07/15 07:21:40 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.59 2003/07/19 05:32:07 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -242,6 +242,9 @@
 #define	PCMCIA_STR_BREEZECOM_BREEZENET	"BreezeCOM BreezeNET"
 
 /* BUFFALO */
+#define	PCMCIA_CIS_BUFFALO_LPC3_CLX	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BUFFALO_LPC3_CLX	0x0301
+#define	PCMCIA_STR_BUFFALO_LPC3_CLX	"BUFFALO LPC3-CLX Ethernet Adapter"
 #define	PCMCIA_CIS_BUFFALO_WLI_PCM_S11	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BUFFALO_WLI_PCM_S11	0x0305
 #define	PCMCIA_STR_BUFFALO_WLI_PCM_S11	"BUFFALO AirStation 11Mbps WLAN"
