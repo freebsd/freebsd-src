@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.485 1998/10/07 13:51:46 obrien Exp $
+#	$Id: LINT,v 1.486 1998/10/10 09:25:12 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -525,9 +525,7 @@ options		DEVFS			#devices filesystem
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
-options		MFS_ROOT=10
-# Allow the MFS_ROOT code to load the MFS image from floppy if it is missing.
-options		MFS_AUTOLOAD
+options		MFS_ROOT_SIZE=10
 # Allows MFS filesystems to be exported via nfs
 options		EXPORTMFS
 
