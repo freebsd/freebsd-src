@@ -31,10 +31,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)vis.h	8.1 (Berkeley) 6/2/93
+ *	$Id$
  */
 
 #ifndef _VIS_H_
 #define	_VIS_H_
+
+#include <machine/ansi.h>
+
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
 
 /*
  * to select alternate encoding format
