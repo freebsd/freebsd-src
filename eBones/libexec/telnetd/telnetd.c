@@ -780,11 +780,7 @@ char *hostname;
 char host_name[MAXHOSTNAMELEN];
 char remote_host_name[MAXHOSTNAMELEN];
 
-#ifndef	convex
-extern void telnet P((int, int));
-#else
 extern void telnet P((int, int, char *));
-#endif
 
 /*
  * Get a pty, scan input lines.
@@ -875,12 +871,6 @@ doit(who)
 	level = getterminaltype(user_name);
 	setenv("TERM", terminaltype ? terminaltype : "network", 1);
 
-	/*
-	 * Start up the login process on the slave side of the terminal
-	 */
-#ifndef	convex
-	startslave(host, level, user_name);
-
 #if	defined(_SC_CRAY_SECURE_SYS)
 	if (secflag) {
 		if (setulvl(dv.dv_actlvl) < 0)
@@ -890,10 +880,8 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	telnet(net, pty);  /* begin server processing */
-#else
-	telnet(net, pty, host);
-#endif
+	telnet(net, pty, host);		/* begin server process */
+
 	/*NOTREACHED*/
 }  /* end of doit */
 
@@ -917,15 +905,9 @@ Xterm_output(ibufp, obuf, icountp, ocount)
  * hand data to telnet receiver finite state machine.
  */
 	void
-#ifndef	convex
-telnet(f, p)
-#else
 telnet(f, p, host)
-#endif
 	int f, p;
-#ifdef convex
 	char *host;
-#endif
 {
 	int on = 1;
 #define	TABBUFSIZ	512
@@ -1162,9 +1144,12 @@ telnet(f, p, host)
 		{sprintf(nfrontp, "td: Entering processing loop\r\n");
 		 nfrontp += strlen(nfrontp);});
 
-#ifdef	convex
+	/*
+	 * Startup the login process on the slave side of the terminal
+	 * now.  We delay this until here to insure option negotiation
+	 * is complete.
+	 */
 	startslave(host);
-#endif
 
 	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {
