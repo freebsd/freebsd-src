@@ -2042,8 +2042,8 @@ isp_control(isp, ctl, arg)
 			bus = *((int *) arg);
 			mbs.param[2] = bus;
 		} else {
-			/* Unparameterized. */
 			mbs.param[1] = 10;
+			mbs.param[2] = 0;
 			bus = 0;
 		}
 		isp->isp_sendmarker = 1 << bus;
