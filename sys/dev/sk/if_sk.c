@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -240,6 +241,9 @@ static uint32_t sk_gmchash(const uint8_t *);
 static void sk_setfilt(struct sk_if_softc *, caddr_t, int);
 static void sk_setmulti(struct sk_if_softc *);
 static void sk_setpromisc(struct sk_if_softc *);
+
+static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high);
+static int sysctl_hw_sk_int_mod(SYSCTL_HANDLER_ARGS);
 
 #ifdef SK_USEIOSPACE
 #define SK_RES		SYS_RES_IOPORT
@@ -1307,7 +1311,9 @@ sk_reset(sc)
 	 * register represents 18.825ns, so to specify a timeout in
 	 * microseconds, we have to multiply by 54.
 	 */
-	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(200));
+	printf("skc%d: interrupt moderation is %d us\n",
+	    sc->sk_unit, sc->sk_int_mod);
+	sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
 	sk_win_write_4(sc, SK_IMMR, SK_ISR_TX1_S_EOF|SK_ISR_TX2_S_EOF|
 	    SK_ISR_RX1_EOF|SK_ISR_RX2_EOF);
 	sk_win_write_1(sc, SK_IMTIMERCTL, SK_IMCTL_START);
@@ -1575,6 +1581,25 @@ skc_attach(dev)
 		printf("skc%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
 		goto fail;
+	}
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "int_mod", CTLTYPE_INT|CTLFLAG_RW,
+		&sc->sk_int_mod, 0, sysctl_hw_sk_int_mod, "I",
+		"SK interrupt moderation");
+
+	/* Pull in device tunables. */
+	sc->sk_int_mod = SK_IM_DEFAULT;
+	error = resource_int_value(device_get_name(dev), unit,
+		"int_mod", &sc->sk_int_mod);
+	if (error == 0) {
+		if (sc->sk_int_mod < SK_IM_MIN ||
+		    sc->sk_int_mod > SK_IM_MAX) {
+			printf("skc%d: int_mod value out of range; "
+			    "using default: %d\n", unit, SK_IM_DEFAULT);
+			sc->sk_int_mod = SK_IM_DEFAULT;
+		}
 	}
 
 	/* Reset the adapter. */
@@ -2648,6 +2673,7 @@ sk_init(xsc)
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 	u_int16_t		reg;
+	u_int32_t		imr;
 
 	SK_IF_LOCK(sc_if);
 
@@ -2744,6 +2770,16 @@ sk_init(xsc)
 		return;
 	}
 	sk_init_tx_ring(sc_if);
+
+	/* Set interrupt moderation if changed via sysctl. */
+	/* SK_LOCK(sc); */
+	imr = sk_win_read_4(sc, SK_IMTIMERINIT);
+	if (imr != SK_IM_USECS(sc->sk_int_mod)) {
+		sk_win_write_4(sc, SK_IMTIMERINIT, SK_IM_USECS(sc->sk_int_mod));
+		printf("skc%d: interrupt moderation is %d us\n",
+		    sc->sk_unit, sc->sk_int_mod);
+	}
+	/* SK_UNLOCK(sc); */
 
 	/* Configure interrupt handling */
 	CSR_READ_4(sc, SK_ISSR);
@@ -2863,4 +2899,27 @@ sk_stop(sc_if)
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 	SK_IF_UNLOCK(sc_if);
 	return;
+}
+
+static int
+sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
+{
+	int error, value;
+
+	if (!arg1)
+		return (EINVAL);
+	value = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (value < low || value > high)
+		return (EINVAL);
+	*(int *)arg1 = value;
+	return (0);
+}
+
+static int
+sysctl_hw_sk_int_mod(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_int_range(oidp, arg1, arg2, req, SK_IM_MIN, SK_IM_MAX));
 }
