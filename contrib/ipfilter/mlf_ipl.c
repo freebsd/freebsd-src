@@ -12,23 +12,11 @@
 #include <sys/param.h>
 
 #if defined(__FreeBSD__)
+# ifndef __FreeBSD_version
+#  include <sys/osreldate.h>
+# endif
 # ifdef	IPFILTER_LKM
-#  ifndef __FreeBSD_cc_version
-#   include <osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <osreldate.h>
-#   endif
-#  endif
 #  define	ACTUALLY_LKM_NOT_KERNEL
-# else
-#  ifndef __FreeBSD_cc_version
-#   include <sys/osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <sys/osreldate.h>
-#   endif
-#  endif
 # endif
 #endif
 #include <sys/systm.h>
@@ -117,8 +105,12 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RW,
 	   &fr_tcpclosed, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RW,
 	   &fr_udptimeout, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_udpacktimeout, CTLFLAG_RW,
+	   &fr_udpacktimeout, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RW,
 	   &fr_icmptimeout, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_icmpacktimeout, CTLFLAG_RW,
+	   &fr_icmpacktimeout, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defnatage, CTLFLAG_RW,
 	   &fr_defnatage, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,

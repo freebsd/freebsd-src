@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.12 2001/07/18 14:57:09 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.16 2002/04/05 08:43:25 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -61,6 +61,7 @@ int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
 u_long	ipl_frouteok[2] = {0, 0};
 static	int	frzerostats __P((caddr_t));
+static	u_long	*ip_ttl_ptr;
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
 static	int	send_ip __P((fr_info_t *fin, mblk_t *m));
@@ -107,6 +108,8 @@ int ipldetach()
 
 int iplattach __P((void))
 {
+	int i;
+
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplattach()\n");
 #endif
@@ -133,6 +136,19 @@ int iplattach __P((void))
 		return -1;
 	if (appr_init() == -1)
 		return -1;
+
+	ip_ttl_ptr = NULL;
+	/*
+	 * XXX - There is no terminator for this array, so it is not possible
+	 * to tell if what we are looking for is missing and go off the end
+	 * of the array.
+	 */
+	for (i = 0; ; i++) {
+		if (!strcmp(ip_param_arr[i].ip_param_name, "ip_def_ttl")) {
+			ip_ttl_ptr = &ip_param_arr[i].ip_param_value;
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -375,14 +391,14 @@ caddr_t data;
 {
 	register frentry_t *fp, *f, **fprev;
 	register frentry_t **ftail;
-	frentry_t fr;
-	frdest_t *fdp;
 	frgroup_t *fg = NULL;
-	u_int   *p, *pp;
-	int error = 0, in;
+	int error = 0, in, i;
+	u_int *p, *pp;
+	frdest_t *fdp;
+	frentry_t fr;
 	u_32_t group;
-	ill_t *ill;
 	ipif_t *ipif;
+	ill_t *ill;
 	ire_t *ire;
 
 	fp = &fr;
@@ -448,11 +464,16 @@ caddr_t data;
 
 	bzero((char *)frcache, sizeof(frcache[0]) * 2);
 
-	if (*fp->fr_ifname) {
-		fp->fr_ifa = (void *)get_unit((char *)fp->fr_ifname,
-					      (int)fp->fr_v);
-		if (!fp->fr_ifa)
-			fp->fr_ifa = (struct ifnet *)-1;
+	for (i = 0; i < 4; i++) {
+		if ((fp->fr_ifnames[i][1] == '\0') &&
+		    ((fp->fr_ifnames[i][0] == '-') ||
+		     (fp->fr_ifnames[i][0] == '*'))) {
+			fp->fr_ifas[i] = NULL;
+		} else if (*fp->fr_ifnames[i]) {
+			fp->fr_ifas[i] = GETUNIT(fp->fr_ifnames[i], fp->fr_v);
+			if (!fp->fr_ifas[i])
+				fp->fr_ifas[i] = (void *)-1;
+		}
 	}
 
 	fdp = &fp->fr_dif;
@@ -583,6 +604,7 @@ caddr_t data;
 			fixskip(fprev, f, -1);
 			*ftail = f->fr_next;
 			f->fr_next = NULL;
+			f->fr_ref--;
 			if (f->fr_ref == 0)
 				KFREE(f);
 		}
@@ -768,7 +790,7 @@ mblk_t *m;
 
 		ip = (ip_t *)m->b_rptr;
 		ip->ip_v = IPVERSION;
-		ip->ip_ttl = 60;
+		ip->ip_ttl = (u_char)(*ip_ttl_ptr);
 		ip_wput(((qif_t *)fin->fin_qif)->qf_ill->ill_wq, m);
 	}
 	READ_ENTER(&ipf_solaris);
@@ -888,7 +910,7 @@ int dst;
 		ip->ip_p = IPPROTO_ICMP;
 		ip->ip_id = oip->ip_id;
 		ip->ip_sum = 0;
-		ip->ip_ttl = 60;
+		ip->ip_ttl = (u_char)(*ip_ttl_ptr);
 		ip->ip_tos = oip->ip_tos;
 		ip->ip_len = (u_short)htons(sz);
 		if (dst == 0) {

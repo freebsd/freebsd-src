@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.9.2.3 2001/06/26 10:43:18 darrenr Exp $
+ * $Id: ipf.h,v 2.9.2.6 2002/01/03 08:00:12 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -38,6 +38,7 @@
 #define	OPT_STATETOP	0x400000
 #define	OPT_FLUSH	0x800000
 #define	OPT_CLEAR	0x1000000
+#define	OPT_HEX		0x2000000
 #define	OPT_NODO	0x80000000
 
 #define	OPT_STAT	OPT_FRSTATES
@@ -52,7 +53,10 @@
 # endif
 #endif
 
+struct ipstate;
 struct frpcmp;
+struct ipnat;
+struct nat;
 
 #ifdef	ultrix
 extern	char	*strdup __P((char *));
@@ -90,9 +94,15 @@ extern	int	genmask __P((char *, u_32_t *));
 extern	int	hostnum __P((u_32_t *, char *, int));
 extern	u_32_t	optname __P((char ***, u_short *, int));
 extern	void	printpacket __P((ip_t *));
+extern	void	printpacket6 __P((ip_t *));
 extern	void	printportcmp __P((int, struct frpcmp *));
 extern	void	printhostmask __P((int, u_32_t *, u_32_t *));
 extern	void	printbuf __P((char *, int, int));
+extern	char	*hostname __P((int, void *));
+extern	struct ipstate *printstate __P((struct ipstate *, int));
+extern	void	printnat __P((struct ipnat *, int));
+extern	void	printactivenat __P((struct nat *, int));
+
 #if SOLARIS
 extern	int	inet_aton __P((const char *, struct in_addr *));
 extern	int	gethostname __P((char *, int ));

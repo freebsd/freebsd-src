@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -19,7 +22,6 @@
 #else
 # include <sys/ioctl.h>
 #endif
-#include <sys/uio.h>
 #ifndef linux
 # include <sys/protosw.h>
 #endif
@@ -102,7 +104,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.12 2001/07/18 14:57:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.19 2002/04/23 14:57:27 darrenr Exp $";
 #endif
 
 
@@ -305,7 +307,7 @@ ip_t *ip;
 int fr_auth_ioctl(data, mode, cmd, fr, frptr)
 caddr_t data;
 int mode;
-#if defined(__NetBSD__) || defined(__OpenBSD__) || (FreeBSD_version >= 300003)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 u_long cmd;
 #else
 int cmd;
@@ -377,9 +379,7 @@ frentry_t *fr, **frptr;
 			error = EINVAL;
 		break;
 	case SIOCATHST:
-		READ_ENTER(&ipf_auth);
 		fr_authstats.fas_faelist = fae_list;
-		RWLOCK_EXIT(&ipf_auth);
 		error = IWCOPYPTR((char *)&fr_authstats, data,
 				   sizeof(fr_authstats));
 		break;
@@ -405,6 +405,7 @@ fr_authioctlloop:
 			RWLOCK_EXIT(&ipf_auth);
 			return 0;
 		}
+		RWLOCK_EXIT(&ipf_auth);
 #ifdef	_KERNEL
 # if	SOLARIS
 		mutex_enter(&ipf_authmx);
@@ -417,7 +418,6 @@ fr_authioctlloop:
 		error = SLEEP(&fr_authnext, "fr_authnext");
 # endif
 #endif
-		RWLOCK_EXIT(&ipf_auth);
 		if (!error)
 			goto fr_authioctlloop;
 		break;
@@ -447,13 +447,13 @@ fr_authioctlloop:
 #ifdef	_KERNEL
 		if (m && au->fra_info.fin_out) {
 # if SOLARIS
-			error = fr_qout(fra->fra_q, m);
+			error = (fr_qout(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
 			struct route ro;
 
 			bzero((char *)&ro, sizeof(ro));
 #  if ((_BSDI_VERSION >= 199802) && (_BSDI_VERSION < 200005)) || \
-       defined(__OpenBSD__)
+       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605))
 			error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL,
 					  NULL);
 #  else
@@ -469,7 +469,7 @@ fr_authioctlloop:
 				fr_authstats.fas_sendok++;
 		} else if (m) {
 # if SOLARIS
-			error = fr_qin(fra->fra_q, m);
+			error = (fr_qin(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
 			ifq = &ipintrq;
 			if (IF_QFULL(ifq)) {
@@ -478,7 +478,9 @@ fr_authioctlloop:
 				error = ENOBUFS;
 			} else {
 				IF_ENQUEUE(ifq, m);
+#  if IRIX < 605
 				schednetisr(NETISR_IP);
+#  endif
 			}
 # endif /* SOLARIS */
 			if (error)
@@ -526,7 +528,6 @@ fr_authioctlloop:
 }
 
 
-#ifdef	_KERNEL
 /*
  * Free all network buffer memory used to keep saved packets.
  */
@@ -587,7 +588,7 @@ void fr_authexpire()
 	register frauthent_t *fae, **faep;
 	register frentry_t *fr, **frp;
 	mb_t *m;
-#if !SOLARIS
+#if !SOLARIS && defined(_KERNEL)
 	int s;
 #endif
 
@@ -626,4 +627,3 @@ void fr_authexpire()
 	RWLOCK_EXIT(&ipf_auth);
 	SPL_X(s);
 }
-#endif

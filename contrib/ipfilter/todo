@@ -91,6 +91,7 @@ IPv6:
 
 BSD:
 * "to <if>" and "to <if>:<ip>" are not supported, but "fastroute" is.
+fixed.
 
 Solaris:
 * "to <if>:<ip>" is not supported, but "fastroute" is and "to <if>" are.

@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
@@ -44,9 +47,7 @@ static const char rcsid[] = "@(#)$IPFilter: parse.c,v 2.8 1999/12/28 10:49:46 da
 
 extern	struct	ipopt_names	ionames[], secclass[];
 extern	int	opts;
-#ifdef	USE_INET6
 extern	int	use_inet6;
-#endif
 
 
 char	*proto = NULL;
@@ -54,10 +55,8 @@ char	flagset[] = "FSRPAUEC";
 u_char	flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH, TH_ACK, TH_URG,
 		    TH_ECN, TH_CWR };
 
-#ifdef	USE_INET6
 void fill6bits __P((int, u_32_t *));
 int count6bits __P((u_32_t *));
-#endif
 
 static	char	thishost[MAXHOSTNAMELEN];
 
@@ -95,30 +94,24 @@ u_32_t *mskp;
 		 * set x most significant bits
 		 */
 		bits = (int)strtol(msk, &endptr, 0);
-#ifdef	USE_INET6
 		if ((*endptr != '\0') ||
 		    ((bits > 32) && !use_inet6) || (bits < 0) ||
 		    ((bits > 128) && use_inet6))
-#else
-		if (*endptr != '\0' || bits > 32 || bits < 0)
-#endif
 			return -1;
-#ifdef	USE_INET6
 		if (use_inet6)
 			fill6bits(bits, mskp);
-		else
-#endif
-		if (bits == 0)
-			*mskp = 0;
-		else
-			*mskp = htonl(0xffffffff << (32 - bits));
+		else {
+			if (bits == 0)
+				*mskp = 0;
+			else
+				*mskp = htonl(0xffffffff << (32 - bits));
+		}
 	}
 	return 0;
 }
 
 
 
-#ifdef	USE_INET6
 void fill6bits(bits, msk)
 int bits;
 u_32_t *msk;
@@ -134,7 +127,6 @@ u_32_t *msk;
 	while (i < 4)
 		msk[i++] = 0;
 }
-#endif
 
 
 /*
@@ -197,7 +189,6 @@ int	linenum;
 			return -1;
 		}
 		(*seg)++;
-#ifdef	USE_INET6
 		if (use_inet6) {
 			u_32_t k = 0;
 			if (sa[0] || sa[1] || sa[2] || sa[3])
@@ -205,8 +196,7 @@ int	linenum;
 			msk[0] = msk[1] = msk[2] = msk[3] = k;
 		}
 		else
-#endif
-		*msk = *sa ? 0xffffffff : 0;
+			*msk = *sa ? 0xffffffff : 0;
 		return ports(seg, pp, cp, tp, linenum);
 	}
 	fprintf(stderr, "%d: bad host (%s)\n", linenum, **seg);
@@ -448,7 +438,6 @@ u_32_t	ip;
 }
 
 
-#ifdef	USE_INET6
 int count6bits(msk)
 u_32_t *msk;
 {
@@ -465,7 +454,6 @@ u_32_t *msk;
 		}
 	return i;
 }
-#endif
 
 
 char	*portname(pr, port)
@@ -595,4 +583,28 @@ int len, zend;
 		if ((c == '\0') && zend)
 			break;
 	}
+}
+
+
+
+char *hostname(v, ip)
+int v;
+void *ip;
+{
+#ifdef  USE_INET6
+	static char hostbuf[MAXHOSTNAMELEN+1];
+#endif
+	struct in_addr ipa;
+
+	if (v == 4) {
+		ipa.s_addr = *(u_32_t *)ip;
+		return inet_ntoa(ipa);
+	}
+#ifdef  USE_INET6
+	(void) inet_ntop(AF_INET6, ip, hostbuf, sizeof(hostbuf) - 1);
+	hostbuf[MAXHOSTNAMELEN] = '\0';
+	return hostbuf;
+#else
+	return "IPv6";
+#endif
 }

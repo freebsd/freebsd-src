@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.4.2.5 2001/06/26 10:43:13 darrenr Exp $
+ * $Id: ip_frag.h,v 2.4.2.6 2002/01/01 15:09:38 darrenr Exp $
  */
 
 #ifndef	__IP_FRAG_H__
@@ -56,14 +56,18 @@ extern	void	ipfr_forget __P((void *));
 extern	void	ipfr_unload __P((void));
 extern	void	ipfr_fragexpire __P((void));
 
-#if     (BSD >= 199306) || SOLARIS || defined(__sgi)
-# if defined(SOLARIS2) && (SOLARIS2 < 7)
+#ifdef _KERNEL
+# if     (BSD >= 199306) || SOLARIS || defined(__sgi)
+#  if defined(SOLARIS2) && (SOLARIS2 < 7)
 extern	void	ipfr_slowtimer __P((void));
-# else
+#  else
 extern	void	ipfr_slowtimer __P((void *));
-# endif
-#else
+#  endif
+# else
 extern	int	ipfr_slowtimer __P((void));
-#endif /* (BSD >= 199306) || SOLARIS */
+# endif /* (BSD >= 199306) || SOLARIS */
+#else
+extern	void	ipfr_slowtimer __P((void));
+#endif /* _KERNEL */
 
 #endif	/* __IP_FIL_H__ */
