@@ -27,42 +27,30 @@
 # $FreeBSD$
 #
 
-# PROVIDE: ramdisk
-# REQUIRE: localswap
-# BEFORE: mountcritlocal
+# PROVIDE: ramdisk-own
+# REQUIRE: ramdisk mountcritlocal
+# BEFORE: SERVERS
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
 name="ramdisk"
-stop_cmd="ramdisk_stop"
-start_cmd="ramdisk_start"
+stop_cmd=":"
+start_cmd="ramdisk_own_start"
 
-ramdisk_start()
+ramdisk_own_start()
 {
+set -x
 	for unit in $ramdisk_units
 	do
-		eval mdoptions=\$ramdisk_${unit}_config
-		if [ "$mdoptions" = "${mdoptions##-t}" ]
-		then
-			echo "Type not specified for md$unit"
-			continue
-		fi
-		eval fsoptions=\$ramdisk_${unit}_newfs
+		device="/dev/md$unit"
+		dir=`mount | grep $device | cut -d' ' -f3`
 
-		mdconfig -a $mdoptions -u $unit
-		newfs $fsoptions /dev/md$unit
-	done
-}
+		eval owner=\$ramdisk_${unit}_owner
+		eval perms=\$ramdisk_${unit}_perms
 
-ramdisk_stop()
-{
-	for unit in $ramdisk_units
-	do
-		if [ -c /dev/md$unit ] ; then
-			umount -f /dev/md$unit > /dev/null 2>&1
-			mdconfig -d -u $unit
-		fi
+		[ "X$owner" != "X" ] && chown -f $owner $device $dir
+		[ "X$perms" != "X" ] && chmod -f $perms /dev/md$unit $dir
 	done
 }
 
