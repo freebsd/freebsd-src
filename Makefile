@@ -97,7 +97,7 @@ TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	reinstallkernel installmost installworld libraries lint maninstall \
 	mk most obj objlink regress rerelease tags update
 
-BITGTS=	includes
+BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 
 .ORDER: buildworld installworld
