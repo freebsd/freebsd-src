@@ -125,11 +125,11 @@ typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
  * least <stdio.h>.
  */
 #ifdef __GNUC__
-typedef	int __attribute__((__mode__(__DI__)))		 __int64_t;
+typedef	int __attribute__((__mode__(__DI__)))		__int64_t;
 typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
 #else
 /* LONGLONG */
-typedef	long long					 __int64_t;
+typedef	long long					__int64_t;
 /* LONGLONG */
 typedef	unsigned long long				__uint64_t;
 #endif
@@ -137,14 +137,14 @@ typedef	unsigned long long				__uint64_t;
  * Internal names for basic integral types.  Omit the typedef if
  * not possible for a machine/compiler combination.
  */
-typedef	__signed char		   __int8_t;
-typedef	unsigned char		  __uint8_t;
-typedef	short			  __int16_t;
-typedef	unsigned short		 __uint16_t;
-typedef	int			  __int32_t;
-typedef	unsigned int		 __uint32_t;
+typedef	__signed char		__int8_t;
+typedef	unsigned char		__uint8_t;
+typedef	short			__int16_t;
+typedef	unsigned short		__uint16_t;
+typedef	int			__int32_t;
+typedef	unsigned int		__uint32_t;
 
-typedef	int			 __intptr_t;
+typedef	int			__intptr_t;
 typedef	unsigned int		__uintptr_t;
 
 /*
