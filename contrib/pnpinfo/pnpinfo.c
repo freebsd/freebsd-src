@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.5 1999/05/22 17:35:43 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/time.h>
