@@ -93,6 +93,7 @@ vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor LINKSYS2			0x0274  The Linksys Group
 vendor IODATA2			0x028a	I-O DATA
+vendor ASUS			0x02aa	ASUS
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
@@ -157,6 +158,9 @@ product	ARCHOS ARC_ATAPI	0x0043 MiniCD
 
 /* ARtem */
 product ARTEM ONAIR		0x0001 ARtem OnAir
+
+/* ASUS WL-100 */
+product	ASUS WL-100		0x0002 ASUS ASUS SpaceLink WL-100 Wireless LAN
 
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
