@@ -1,44 +1,44 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 1995
+.Dd October 6, 2000
 .Dt SCREEN 4
 .Os FreeBSD
 .Sh NAME
 .Nm screen
 .Nd pc display interface
 .Sh DESCRIPTION
-
 Access to the
-.Ar virtual consoles 
+.Em virtual consoles
 are obtained through the device files
-ttyv0 - ttyvb in
-.Pa /dev .
+.Pa /dev/ttyv0
+-
+.Pa /dev/ttyvb .
 Each of these files correspond to a separate
 virtual console.
-All virtual console devices can be open at once, but only one is 
+All virtual console devices can be open at once, but only one is
 active at a time.
 The active virtual console "owns" the keyboard and
 display screen.
 .Pp
 Output to a virtual console that not currently is on the display is
 saved in a buffer that holds a "screenfull" (normally 25) lines.
-Any output written to 
-.Pa /dev/console 
+Any output written to
+.Pa /dev/console
 (the original console device) is echoed to
-.Pa /dev/ttyv0.
+.Pa /dev/ttyv0 .
 .Pp
-To switch between the virtual consoles one uses the sequence 
-.Ar ALT+Fn
-, which means hold down ALT and press one of the function keys.
-The 
+To switch between the virtual consoles one uses the sequence
+.Em ALT+Fn ,
+which means hold down ALT and press one of the function keys.
+The
 virtual console with the same number as the function key is then
 selected as the current virtual console, and given exclusive use of
 the keyboard and display.
 This switch sequence can be changed via
-the keyboard mapping ioctl call (see keyboard.4)
+the keyboard mapping ioctl call (see
+.Xr keyboard 4 ) .
 .Pp
-
 The console allows entering values that are not physically
 present on the keyboard via a special keysequence.
 To use this facility press and hold down ALT,
@@ -52,13 +52,13 @@ It is activated by
 pressing the scroll-lock key.
 This holds the display, and enables the cursor
 arrows for scrolling up and down through the last scrolled out lines.
-
-The console understands a subset of the ANSI x3.64 character 
+.Pp
+The console understands a subset of the ANSI x3.64 character
 sequences.
 For compatibility with the old pccons, the PC3 character
 sequences is also supported.
 .Pp
-.Bd -literal 
+.Bd -literal
 ANSI	Seq	Function				Termcap entry
 ======= ======= =====================================   ==============
 
@@ -67,6 +67,9 @@ ANSI	Seq	Function				Termcap entry
 --	E8	Restore	saved cursor position		rc
 
 --	Ec	Reset					rs
+
+--	EM	move cursor up 1 line,			--
+		scroll if at top
 
 CUU     E[nA    move cursor up n lines                  up/UP (ku)
 
@@ -149,6 +152,8 @@ SGR	E[nm	Set character attributes:		--
 --      E[x     Reset normal colors and attributes      --
 		to their default values
 
+--	E[nz	Switch to virtual console n		--
+
 --      E[1;nx  Set normal ANSI background color        --
 		to n (see table)
 
@@ -177,11 +182,19 @@ SGR	E[nm	Set character attributes:		--
 		directly to n (n from 0	to 255)
 
 --	E[=p;dB	Set bell pitch (p) and duration (d),	--
-			picth is in units of 840 nS, 
+			pitch is in units of 840 nS,
 			duration is units of 0,1 S.
 
---	E[=tC	Set cursor type, 1 selects a blinking   --
-			cursor, 0 a steady cursor.
+--	E[=tC	Set cursor type (see table)		--
+
+		   t=0 normal non-blinking
+		   t=1 normal blinking
+		   t=2 custom non-blinking
+		   t=3 custom blinking
+
+--	E[=s;eC	Set custom cursor shape, where		--
+		s is the starting and e is the ending
+		scanlines of the cursor.
 
 --      E[=nA   Set the border color to n               --
 		(see table) (if supported by HW)
@@ -208,8 +221,6 @@ SGR	E[nm	Set character attributes:		--
 		   n= 7	light grey n=15	white
 
 note: the first E in the sequences stands for ESC (0x1b)
-
 .Ed
-.Pp
 .Sh AUTHORS
 .An Søren Schmidt Aq sos@FreeBSD.org
