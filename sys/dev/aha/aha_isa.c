@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.2 1998/09/24 10:43:42 bde Exp $
+ *	$Id: aha_isa.c,v 1.3 1998/10/10 00:44:12 imp Exp $
  */
 
 #include <sys/param.h>
@@ -114,16 +114,12 @@ aha_isa_probe: Failing probe.\n",
 
 		/*
 		 * Ensure this port has not already been claimed already
-		 * by a PCI or EISA adapter.
+		 * by a PCI, EISA or ISA adapter.
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
-
-		/*
-		 * Make sure that we do not conflict with another device's
-		 * I/O address.
-		 */
-		if (haveseen_isadev(dev, CC_IOADDR))
+		dev->id_iobase = aha_isa_ports[port_index].addr;
+		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
 			continue;
 
 		/* Allocate a softc for use during probing */
@@ -171,28 +167,8 @@ aha_isa_probe: Failing probe.\n",
 				"detected for adapter at 0x%x.  "
 				"Failing probe\n", ioport);
 		}
-		dev->id_iobase = aha_isa_ports[port_index].addr;
 		dev->id_irq = (config_data.irq << 9);
 		dev->id_intr = aha_isa_intr;
-
-		/*
-		 * OK, check to make sure that we're not stepping on
-		 * someone else's IRQ or DRQ
-		 */
-		if (haveseen_isadev(dev, CC_DRQ)) {
-			printf("aha_isa_probe: Aha card at I/O 0x%x's drq %d "
-				"conflicts, ignoring card.\n", dev->id_iobase, 
-				dev->id_drq);
-			aha_free(aha);
-			return 0;
-		}
-		if (haveseen_isadev(dev, CC_IRQ)) {
-			printf("aha_isa_probe: Aha card at I/O 0x%x's irq %d "
-				"conflicts, ignoring card.\n", dev->id_iobase, 
-				config_data.irq + 9);
-			aha_free(aha);
-			return 0;
-		}
 		aha_unit++;
 		return (AHA_NREGS);
 	}
