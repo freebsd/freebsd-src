@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.3 1995/04/29 04:00:55 phk Exp $
+ * $Id: libdisk.h,v 1.4 1995/04/29 04:50:38 phk Exp $
  *
  */
 
@@ -137,6 +137,11 @@ Set_Boot_Blocks(struct disk *d, u_char *boot1, u_char *boot2);
 	 * is called
 	 */
 
+int
+Write_Disk(struct disk *d);
+	/* Write all the MBRs, disklabels, bootblocks and boot managers
+	 */
+
 /* 
  * Implementation details  >>> DO NOT USE <<<
  */
@@ -175,6 +180,7 @@ struct disk * Int_Open_Disk(char *name, u_long size);
  *
  * Make Create_DWIM().
  *
+ * Make Is_Unchanged(struct disk *d1, struct chunk *c1)
  *
  *Sample output from tst01:
  *

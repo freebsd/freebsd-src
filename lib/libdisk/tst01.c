@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.3 1995/04/29 04:00:57 phk Exp $
+ * $Id: tst01.c,v 1.4 1995/04/29 04:50:39 phk Exp $
  *
  */
 
@@ -24,7 +24,7 @@ CHAR_N;
 int
 main(int argc, char **argv)
 {
-	struct disk *d;
+	struct disk *d,*db;
 	char myprompt[BUFSIZ];
 	char *p,*q=0;
 	char **cp,*cmds[200];
@@ -116,6 +116,23 @@ main(int argc, char **argv)
 					strtol(cmds[5],0,0)));
 			continue;
 		}
+		if (!strcasecmp(*cmds,"read")) {
+			db = d;
+			if (ncmd > 1)
+				d = Open_Disk(cmds[1]);
+			else
+				d = Open_Disk(argv[1]);
+			if (d)
+				Free_Disk(db);
+			else
+				d = db;
+			continue;
+		}
+		if (!strcasecmp(*cmds,"write")) {
+			printf("Write=%d\n",
+				Write_Disk(d));
+			continue;
+		}
 		if (strcasecmp(*cmds,"help"))
 			printf("\007ERROR\n");
 		printf("CMDS:\n");
@@ -128,6 +145,7 @@ main(int argc, char **argv)
 		printf("\tphys cyl hd sect\n");
 		printf("\tquit\n");
 		printf("\tread [disk]\n");
+		printf("\twrite\n");
 		printf("\nENUM:\n\t");
 		for(i=0;chunk_n[i];i++)
 			printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");

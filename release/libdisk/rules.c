@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.1 1995/04/29 01:55:24 phk Exp $
+ * $Id: rules.c,v 1.2 1995/04/29 04:00:56 phk Exp $
  *
  */
 
@@ -97,11 +97,59 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
+/* 
+ * Rule#2:
+ *	Max one 'fat' as child of 'whole'
+ */
+void
+Rule_002(struct disk *d, struct chunk *c, char *msg)
+{
+	int i;
+	struct chunk *c1;
+
+	if (c->type != whole)
+		return;
+	for (i=0, c1=c->part; c1; c1=c1->next) {
+		if (c1->type != fat)
+			continue;
+		i++;
+	}
+	if (i > 1) {
+		sprintf(msg+strlen(msg),
+		    "Max one 'fat' allowed as child of 'whole'\n");
+	}
+}
+
+/* 
+ * Rule#3:
+ *	Max one extended as child of 'whole'
+ */
+void
+Rule_003(struct disk *d, struct chunk *c, char *msg)
+{
+	int i;
+	struct chunk *c1;
+
+	if (c->type != whole)
+		return;
+	for (i=0, c1=c->part; c1; c1=c1->next) {
+		if (c1->type != extended)
+			continue;
+		i++;
+	}
+	if (i > 1) {
+		sprintf(msg+strlen(msg),
+		    "Max one 'extended' allowed as child of 'whole'\n");
+	}
+}
+
 void
 Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 {
 	Rule_000(d,c,msg);
 	Rule_001(d,c,msg);
+	Rule_002(d,c,msg);
+	Rule_003(d,c,msg);
 	if (c->part)
 		Check_Chunk(d,c->part,msg);
 	if (c->next)
