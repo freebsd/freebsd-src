@@ -206,7 +206,7 @@ int	ed_probe_HP_pclanp	(device_t, int, int);
 
 int	ed_attach		(device_t);
 void	ed_stop			(struct ed_softc *);
-void	ed_pio_readmem		(struct ed_softc *, int, unsigned char *,
+void	ed_pio_readmem		(struct ed_softc *, long, unsigned char *,
 				     unsigned short);
 void	ed_pio_writemem		(struct ed_softc *, char *,
 				     unsigned short, unsigned short);
