@@ -2396,56 +2396,79 @@ vinum_setstate(int argc, char *argv[], char *argv0[])
 void
 vinum_checkparity(int argc, char *argv[], char *argv0[])
 {
+    if (argc == 0)					    /* no parameters? */
+	fprintf(stderr, "Usage: checkparity object [object...]\n");
+    else
+	parityops(argc, argv, checkparity);
+}
+
+void
+vinum_rebuildparity(int argc, char *argv[], char *argv0[])
+{
+    if (argc == 0)					    /* no parameters? */
+	fprintf(stderr, "Usage: rebuildparity object [object...]\n");
+    else
+	parityops(argc, argv, rebuildparity);
+}
+
+void
+parityops(int argc, char *argv[], enum parityop op)
+{
     int object;
     struct plex plex;
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
     int index;
     enum objecttype type;
+    char *msg;
 
-
-    if (argc == 0)					    /* no parameters? */
-	fprintf(stderr, "Usage: checkparity object [object...]\n");
-    else {
-	for (index = 0; index < argc; index++) {
-	    object = find_object(argv[index], &type);	    /* look for it */
-	    if (type != plex_object)
-		fprintf(stderr, "There is no plex %s\n", argv[index]);
+    if (op == checkparity)
+	msg = "Checking";
+    else
+	msg = "Rebuilding";
+    for (index = 0; index < argc; index++) {
+	object = find_object(argv[index], &type);	    /* look for it */
+	if (type != plex_object)
+	    fprintf(stderr, "%s is not a plex\n", argv[index]);
+	else {
+	    get_plex_info(&plex, object);
+	    if (!isparity((&plex)))
+		fprintf(stderr, "%s is not a RAID-4 or RAID-5 plex\n", argv[index]);
 	    else {
-		get_plex_info(&plex, object);
-		if (!isparity((&plex)))
-		    fprintf(stderr, "%s is not a RAID-4 or RAID-5 plex\n", argv[index]);
-		else {
-		    do {
-			message->index = object;	    /* pass object number */
-			message->type = type;		    /* and type of object */
+		do {
+		    message->index = object;		    /* pass object number */
+		    message->type = type;		    /* and type of object */
+		    if (op == checkparity)
 			ioctl(superdev, VINUM_CHECKPARITY, message);
-			if (vflag) {
-			    get_plex_info(&plex, object);
-			    if (plex.checkblock != 0)
-				printf("\rChecking at %s     ", roughlength(plex.checkblock << DEV_BSHIFT, 1));
-			    fflush(stdout);
-			}
+		    else
+			ioctl(superdev, VINUM_REBUILDPARITY, message);
+		    if (vflag) {
+			get_plex_info(&plex, object);
+			if (plex.checkblock != 0)
+			    printf("\r%s at %s     ",
+				msg,
+				roughlength(plex.checkblock << DEV_BSHIFT, 1));
+			fflush(stdout);
 		    }
-		    while (reply.error == EAGAIN);
-		    if (reply.error != 0) {
-			if (reply.msg[0])
-			    fputs(reply.msg, stderr);
-			else
-			    fprintf(stderr,
-				"checkparity failed: %s\n",
-				strerror(reply.error));
-		    } else if (vflag)
+		}
+		while (reply.error == EAGAIN);
+		if (reply.error != 0) {
+		    if (reply.msg[0])
+			fputs(reply.msg, stderr);
+		    else
+			fprintf(stderr,
+			    "%s failed: %s\n",
+			    msg,
+			    strerror(reply.error));
+		} else if (vflag) {
+		    if (op == checkparity)
 			fprintf(stderr, "%s has correct parity\n", argv[index]);
+		    else
+			fprintf(stderr, "Rebuilt parity on %s\n", argv[index]);
 		}
 	    }
 	}
     }
-}
-
-void
-vinum_rebuildparity(int argc, char *argv[], char *argv0[])
-{
 }
 
 /* Local Variables: */
