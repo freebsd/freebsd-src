@@ -27,6 +27,6 @@
  */
 
 int dsp_register(int unit, int channel);
+int dsp_registerrec(int unit, int channel);
 int dsp_unregister(int unit, int channel);
-
-
+int dsp_unregisterrec(int unit, int channel);
