@@ -1,4 +1,4 @@
-/* $Id: cpuconf.c,v 1.1 1998/06/10 10:52:18 dfr Exp $ */
+/* $Id: cpuconf.c,v 1.2 1998/08/10 07:53:58 dfr Exp $ */
 /*	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $	*/
 
 /*
@@ -99,6 +99,12 @@ extern void st550_init __P((int));
 #define	st550_init		platform_not_configured
 #endif
 
+#ifdef DEC_ST6600
+extern void st6600_init __P((int));
+#else
+#define	st6600_init		platform_not_configured
+#endif
+
 struct cpuinit cpuinit[] = {
 	cpu_notsupp("???"),			     /*  0: ??? */
 	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
@@ -134,6 +140,7 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("???"),			     /* 31: ??? */
 	cpu_notsupp("ST_DEC_EV56_PBP"),		     /* 32: ST_DEC_EV56_PBP */
 	cpu_notsupp("ST_DEC_ALPHAVME_320"),	   /* 33: ST_DEC_ALPHAVME_320 */
+	cpu_init(st6600_init, "ST_DEC_ST6600"),	     /* 34: ST_DEC_6600 */
 };
 int ncpuinit = (sizeof(cpuinit) / sizeof(cpuinit[0]));
 
