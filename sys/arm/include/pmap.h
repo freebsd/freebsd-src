@@ -91,35 +91,13 @@
 #define PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
 
 #ifdef _KERNEL
-#define ARM_PTE_TO_PFN(pte)	((pt_entry_t)(pte) >> PAGE_SHIFT)
-#define ARM_PDE_TO_PFN(pde)	((pd_entry_t)(pde) >> 10)
-#define ARM_PHYS_TO_KSPACE(x)	((vm_offset_t) (x) | (UPTPTDI << PDR_SHIFT))
-#define ARM_KSPACE_TO_PHYS(x)	((vm_offset_t) (x) & ~(UPTPTDI << PDR_SHIFT))
 
-extern pt_entry_t PTmap[], APTmap;
-extern pd_entry_t PTD[], APTD, PTDpde, APTDpde;
-
-extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
-
-
-
-#if 0
-static __inline vm_offset_t
-pmap_akextract(vm_offset_t va)
-{
-	vm_offset_t pa;
-	pa = *(vm_offset_t *)avtopte(va);
-	pa = (pa & PG_FRAME) | (va & PAGE_MASK);
-	return pa;
-}
-#endif
-#define vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-
-#define avtophys(va)	pmap_akextract(((vm_offset_t) (va)))
+#define vtophys(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
+#define pmap_kextract(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
 
 #endif
 
-#define pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 /*
  * Pmap sutff
  */
@@ -164,34 +142,6 @@ do {									\
 struct l1_ttable;
 struct l2_dtable;
 
-/*
- * Track cache/tlb occupancy using the following structure
- */
-union pmap_cache_state {
-	struct {
-		union {
-			u_int8_t csu_cache_b[2];
-			u_int16_t csu_cache;
-		} cs_cache_u;
-
-		union {
-			u_int8_t csu_tlb_b[2];
-			u_int16_t csu_tlb;
-		} cs_tlb_u;
-	} cs_s;
-	u_int32_t cs_all;
-};
-#define	cs_cache_id	cs_s.cs_cache_u.csu_cache_b[0]
-#define	cs_cache_d	cs_s.cs_cache_u.csu_cache_b[1]
-#define	cs_cache	cs_s.cs_cache_u.csu_cache
-#define	cs_tlb_id	cs_s.cs_tlb_u.csu_tlb_b[0]
-#define	cs_tlb_d	cs_s.cs_tlb_u.csu_tlb_b[1]
-#define	cs_tlb		cs_s.cs_tlb_u.csu_tlb
-
-/*
- * Assigned to cs_all to force cacheops to work for a particular pmap
- */
-#define	PMAP_CACHE_STATE_ALL	0xffffffffu
 
 /*
  * The number of L2 descriptor tables which can be tracked by an l2_dtable.
@@ -214,13 +164,9 @@ struct	pmap {
 	struct l1_ttable	*pm_l1;
 	struct l2_dtable	*pm_l2[L2_SIZE];
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
-	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	struct pv_addr		pm_ptpt;	/* pagetable of pagetables */
 	int			pm_count;	/* reference count */
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
-	struct vm_page		*pm_ptphint;	/* pmap ptp hint */
-	union pmap_cache_state	pm_cstate;
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 };
 
@@ -231,6 +177,7 @@ extern pmap_t	kernel_pmap;
 #define pmap_kernel() kernel_pmap
 #endif
 
+
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
@@ -239,7 +186,6 @@ typedef struct pv_entry {
         pmap_t          pv_pmap;        /* pmap where mapping lies */
         vm_offset_t     pv_va;          /* virtual address for mapping */
         TAILQ_ENTRY(pv_entry)   pv_list;
-        TAILQ_ENTRY(pv_entry)   pv_plist;
         vm_page_t       pv_ptem;        /* VM page for pte */
 	int		pv_flags;	/* flags (wired, etc...) */
 } *pv_entry_t;
@@ -270,6 +216,11 @@ boolean_t pmap_get_pde_pte(pmap_t, vm_offset_t, pd_entry_t **, pt_entry_t **);
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
+
+/*
+ * The current top of kernel VM.
+ */
+extern vm_offset_t pmap_curmaxkvaddr;
 
 struct pcb;
 
@@ -520,8 +471,7 @@ void	pmap_pte_init_xscale(void);
 
 void	xscale_setup_minidata(vm_offset_t, vm_offset_t, vm_offset_t);
 
-#define	PMAP_UAREA(va)		pmap_uarea(va)
-void	pmap_uarea(vm_offset_t);
+void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #endif /* ARM_MMU_XSCALE == 1 */
 #define PTE_KERNEL	0
 #define PTE_USER	1
@@ -572,16 +522,26 @@ void	pmap_uarea(vm_offset_t);
 #define	PVF_NC		(PVF_UNC|PVF_KNC)
 
 void vector_page_setprot(int);
-/*
- *      Routine:        pmap_kextract
- *      Function:
- *              Extract the physical page address associated
- *              kernel virtual address.
- */
-
-vm_paddr_t pmap_kextract(vm_offset_t);
 
 void pmap_update(pmap_t);
+
+/*
+ * This structure is used by machine-dependent code to describe
+ * static mappings of devices, created at bootstrap time.
+ */
+struct pmap_devmap {
+	vm_offset_t	pd_va;		/* virtual address */
+	vm_paddr_t	pd_pa;		/* physical address */
+	vm_size_t	pd_size;	/* size of region */
+	vm_prot_t	pd_prot;	/* protection code */
+	int		pd_cache;	/* cache attributes */
+};
+
+const struct pmap_devmap *pmap_devmap_find_pa(vm_paddr_t, vm_size_t);
+const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
+
+void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
+void	pmap_devmap_register(const struct pmap_devmap *);
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
