@@ -1428,12 +1428,13 @@ ndis_init(xsc)
 
 	/*
 	 * Some drivers don't set this value. The NDIS spec says
-	 * the default checkforhang timeout is approximately 2
-	 * seconds.
+	 * the default checkforhang timeout is "approximately 2
+	 * seconds." We use 3 seconds, because it seems for some
+	 * drivers, exactly 2 seconds is too fast.
 	 */
 
 	if (sc->ndis_block.nmb_checkforhangsecs == 0)
-		sc->ndis_block.nmb_checkforhangsecs = 2;
+		sc->ndis_block.nmb_checkforhangsecs = 3;
 
 	sc->ndis_stat_ch = timeout(ndis_tick, sc,
 	    hz * sc->ndis_block.nmb_checkforhangsecs);
