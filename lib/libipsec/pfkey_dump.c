@@ -101,10 +101,10 @@ do { \
 		printf("%d ", (num)); \
 } while (0)
 
-static char *str_ipaddr __P((struct sockaddr *));
-static char *str_prefport __P((u_int, u_int, u_int));
-static char *str_time __P((time_t));
-static void str_lifetime_byte __P((struct sadb_lifetime *, char *));
+static char *str_ipaddr(struct sockaddr *);
+static char *str_prefport(u_int, u_int, u_int);
+static char *str_time(time_t);
+static void str_lifetime_byte(struct sadb_lifetime *, char *);
 
 struct val2str {
 	int val;

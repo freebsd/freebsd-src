@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-int	__get_hw_float __P((void));
+int	__get_hw_float(void);
 
 static int	hw_float = -1;
 

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mathimpl.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -94,5 +95,5 @@ extern double	__exp__E();
 extern double	__log__L();
 
 struct Double {double a, b;};
-double __exp__D __P((double, double));
-struct Double __log__D __P((double));
+double __exp__D(double, double);
+struct Double __log__D(double);

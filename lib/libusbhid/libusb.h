@@ -78,24 +78,24 @@ typedef struct hid_item {
 #define HID_USAGE(u) ((u) & 0xffff)
 
 /* Obtaining a report descriptor, descr.c: */
-report_desc_t hid_get_report_desc __P((int file));
-report_desc_t hid_use_report_desc __P((unsigned char *data, unsigned int size));
-void hid_dispose_report_desc __P((report_desc_t));
+report_desc_t hid_get_report_desc(int file);
+report_desc_t hid_use_report_desc(unsigned char *data, unsigned int size);
+void hid_dispose_report_desc(report_desc_t);
 
 /* Parsing of a HID report descriptor, parse.c: */
-hid_data_t hid_start_parse __P((report_desc_t d, int kindset));
-void hid_end_parse __P((hid_data_t s));
-int hid_get_item __P((hid_data_t s, hid_item_t *h));
-int hid_report_size __P((report_desc_t d, unsigned int id, enum hid_kind k));
-int hid_locate __P((report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h));
+hid_data_t hid_start_parse(report_desc_t d, int kindset);
+void hid_end_parse(hid_data_t s);
+int hid_get_item(hid_data_t s, hid_item_t *h);
+int hid_report_size(report_desc_t d, unsigned int id, enum hid_kind k);
+int hid_locate(report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h);
 
 /* Conversion to/from usage names, usage.c: */
-int hid_parse_usage_page __P((const char *name));
-int hid_parse_usage_in_page __P((const char *name));
-const char *hid_usage_page __P((int i));
-const char *hid_usage_in_page __P((unsigned int u));
-void hid_init __P((const char *file));
+int hid_parse_usage_page(const char *name);
+int hid_parse_usage_in_page(const char *name);
+const char *hid_usage_page(int i);
+const char *hid_usage_in_page(unsigned int u);
+void hid_init(const char *file);
 
 /* Extracting/insertion of data, data.c: */
-int hid_get_data __P((const void *p, const hid_item_t *h));
-void hid_set_data __P((void *p, const hid_item_t *h, int data));
+int hid_get_data(const void *p, const hid_item_t *h);
+void hid_set_data(void *p, const hid_item_t *h, int data);

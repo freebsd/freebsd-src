@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)secretkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #include <rpcsvc/ypclnt.h>
 #include <string.h>
 
-extern int xdecrypt __P(( char *, char * ));
+extern int xdecrypt( char *, char * );
 
 /*
  * Get somebody's encrypted secret key from the database, using the given

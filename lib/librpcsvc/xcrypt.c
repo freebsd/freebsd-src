@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <rpc/des_crypt.h>
 
 static char hex[];	/* forward */
-static char hexval __P(( char ));
-static void bin2hex __P(( int, unsigned char *, char * ));
-static void hex2bin __P(( int, char *, char * ));
-void passwd2des __P(( char *, char * ));
+static char hexval( char );
+static void bin2hex( int, unsigned char *, char * );
+static void hex2bin( int, char *, char * );
+void passwd2des( char *, char * );
 
 /*
  * Encrypt a secret key given passwd
