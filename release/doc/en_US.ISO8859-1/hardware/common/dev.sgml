@@ -1680,6 +1680,23 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">ASIX Electronics AX88172-based USB Ethernet NICs
+      (&man.axe.4; driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>D-Link DUBE100</para>
+        </listitem>
+        <listitem>
+	  <para>Linksys USB200M</para>
+        </listitem>
+        <listitem>
+	  <para>Netgear FA120</para>
+        </listitem>
+      </itemizedlist>
+
+      </para>
+
     <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
