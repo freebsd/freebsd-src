@@ -113,7 +113,7 @@ mcclock_isa_write(device_t dev, u_int reg, u_int val)
 {
 	struct mcclock_softc *sc = device_get_softc(dev);
 	bus_space_tag_t iot = rman_get_bustag(sc->port);
-	bus_space_tag_t ioh = rman_get_bushandle(sc->port);
+	bus_space_handle_t ioh = rman_get_bushandle(sc->port);
 
 	bus_space_write_1(iot, ioh, 0, reg);
 	bus_space_write_1(iot, ioh, 1, val);
@@ -124,7 +124,7 @@ mcclock_isa_read(device_t dev, u_int reg)
 {
 	struct mcclock_softc *sc = device_get_softc(dev);
 	bus_space_tag_t iot = rman_get_bustag(sc->port);
-	bus_space_tag_t ioh = rman_get_bushandle(sc->port);
+	bus_space_handle_t ioh = rman_get_bushandle(sc->port);
 
 	bus_space_write_1(iot, ioh, 0, reg);
 	return bus_space_read_1(iot, ioh, 1);
