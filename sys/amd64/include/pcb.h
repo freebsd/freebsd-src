@@ -41,9 +41,9 @@
 #define _I386_PCB_H_
 
 /*
- * Intel 386 process control block
+ * AMD64 process control block
  */
-#include <machine/npx.h>
+#include <machine/fpu.h>
 
 struct pcb {
 	register_t	padxx[8];
@@ -66,9 +66,8 @@ struct pcb {
 
 	struct	savefpu	pcb_save;
 	u_long	pcb_flags;
-#define	PCB_NPXTRAP	0x01	/* npx trap pending */
-#define	PCB_NPXINITDONE	0x02	/* fpu state is initialized */
-#define	PCB_FULLCTX	0x04	/* full context restore on sysret */
+#define	PCB_NPXINITDONE	0x01	/* fpu state is initialized */
+#define	PCB_FULLCTX	0x02	/* full context restore on sysret */
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 };
