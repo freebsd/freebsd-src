@@ -701,7 +701,7 @@ pcic_pci_attach(device_t dev)
 	int rid;
 	struct resource *r = NULL;
 	int error;
-	u_long irq;
+	u_long irq = 0;
 	driver_intr_t *intr = NULL;
 
 	/*
@@ -772,6 +772,7 @@ pcic_pci_attach(device_t dev)
 			    "No PCI interrupt routed, trying ISA.\n");
 		}
 		intr = pcic_pci_intr;
+		irq = rman_get_start(r);
 	}
 	if (sc->csc_route == pcic_iw_isa) {
 		rid = 0;
@@ -788,8 +789,7 @@ pcic_pci_attach(device_t dev)
 			intr = pcic_isa_intr;
 		} else {
 			sc->slot_poll = pcic_timeout;
-			sc->timeout_ch = timeout(sc->slot_poll, (void *) sc,
-			    hz/2);
+			sc->timeout_ch = timeout(sc->slot_poll, sc, hz/2);
 			device_printf(dev, "Polling mode\n");
 			intr = NULL;
 		}
@@ -809,10 +809,9 @@ pcic_pci_attach(device_t dev)
 	 */
 	sc->irqrid = rid;
 	sc->irqres = r;
-	sc->irq = rman_get_start(r);
+	sc->irq = irq;
 	if (intr) {
-		error = bus_setup_intr(dev, r, INTR_TYPE_AV, intr,
-		    (void *) sc, &sc->ih);
+		error = bus_setup_intr(dev, r, INTR_TYPE_AV, intr, sc, &sc->ih);
 		if (error) {
 			pcic_dealloc(dev);
 			return (error);
