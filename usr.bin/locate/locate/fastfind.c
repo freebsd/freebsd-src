@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.2 1996/10/09 00:33:32 wosch Exp $
+ * $Id: fastfind.c,v 1.3 1996/10/13 01:44:34 wosch Exp $
  */
 
 
@@ -300,7 +300,14 @@ fastfind
 						break;
 				if (*p == '\0') {   /* fast match success */
 					found = 1;
-					if (!globflag || !fnmatch(pathpart, path, 0)) {
+					if (!globflag || 
+#ifndef FF_ICASE
+					    !fnmatch(pathpart, path, 0)) 
+#else 
+					    !fnmatch(pathpart, path, 
+						     FNM_ICASE)) 
+#endif /* !FF_ICASE */						
+					{
 						if (f_silent)
 							counter++;
 						else if (f_limit) {
