@@ -27,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.184
+        Original revision: 1.188
 -->
 
 <sect1 id="support">
@@ -536,52 +536,13 @@
     </para>
 
     <para arch="i386">Compaq Intelligent ディスクアレイコントローラ
-      (&man.ida.4; ドライバ)
-
-      <itemizedlist>
-       <listitem>
-         <para>Compaq SMART アレイ 221</para>
-       </listitem>
-
-       <listitem>
-         <para>Compaq 内蔵 SMART アレイコントローラ</para>
-       </listitem>
-
-       <listitem>
-         <para>Compaq SMART アレイ 4200, 4250ES コントローラ</para>
-       </listitem>
-
-       <listitem>
-         <para>Compaq SMART アレイ 3200, 3100ES コントローラ</para>
-       </listitem>
-
-       <listitem>
-         <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E, および
-           SMART コントローラ</para>
-       </listitem>
-      </itemizedlist>
-    </para>
+      (&man.ida.4; ドライバ)</para>
 
     <para arch="i386">Command Interface for SCSI-3 を利用する
-      SCSI アダプタ (&man.ciss.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-	  <para>Compaq Smart アレイ 5* シリーズ (5300, 5i, 532)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+      SCSI アダプタ (&man.ciss.4; ドライバ)</para>
 
-    <para arch="i386">Intel 内蔵 RAID コントローラ (&man.iir.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Intel RAID コントローラ SRCMR</para>
-        </listitem>
-        <listitem>
-	  <para>ICP Vortex SCSI RAID コントローラ (Wide/Ultra160,
-            32-bit/64-bit PCI モデルすべて)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">Intel 内蔵 RAID コントローラ
+      (&man.iir.4; ドライバ)</para>
 
     <para arch="i386">Promise SuperTrak ATA RAID コントローラ (&man.pst.4;
     ドライバ)
@@ -695,27 +656,7 @@
     <title>Ethernet インタフェース</title>
 
     <para arch="i386,pc98,alpha">Adaptec AIC-6915 Fast Ethernet コントローラチップベースの
-      Adaptec Duralink PCI Fast Ethernet アダプタ
-      (&man.sf.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>ANA-62011 64-bit シングルポート 10/100baseTX アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62022 64-bit デュアルポート 10/100baseTX アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62044 64-bit クァッドポート 10/100baseTX アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-69011 32-bit シングルポート 10/100baseTX
-            アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>ANA-62020 64-bit シングルポート 100baseFX アダプタ</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      Adaptec Duralink PCI Fast Ethernet アダプタ (&man.sf.4; ドライバ)</para>
 
     <para arch="i386,pc98">Tigon 1, Tigon 2 チップセットベースの
       Alteon Networks PCI Gigabit Ethernet NIC (&man.ti.4; ドライバ)</para>
@@ -765,13 +706,7 @@
     </para>
 
     <para arch="i386,pc98">SMC 83c17x (EPIC) ベースの Ethernet NIC
-      (&man.tx.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>SMC EtherPower II 9432 シリーズ</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.tx.4; ドライバ)</para>
     
     <para arch="i386,pc98">National Semiconductor DS8390 ベースの Ethernet NIC。
       これには Novell NE2000 とその互換品が含まれます。
@@ -1108,13 +1043,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet NIC (&man.wb.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Trendware TE100-PCIE</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet NIC
+      (&man.wb.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">VIA Technologies VT3043 <quote>Rhine I</quote>,
       VT86C100A <quote>Rhine II</quote>,
@@ -1148,72 +1078,13 @@
     </para>
 
     <para arch="i386,pc98">National Semiconductor DP83820 および DP83821 Gigabit Ethernet
-      NIC (&man.nge.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>Addtron AEG320T</para>
-        </listitem>
-	<listitem>
-	  <para>Ark PC SOHO-GA2500T (32-bit PCI) および SOHO-GA2000T
-            (64-bit PCI)</para>
-	</listitem>
-        <listitem>
-	  <para>Asante FriendlyNet GigaNIC 1000TA および 1000TPC</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DGE-500T</para>
-        </listitem>
-        <listitem>
-	  <para>LinkSys EG1032 (32-bit PCI) および EG1064 (64-bit PCI)</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear GA621, GA622T</para>
-        </listitem>
-        <listitem>
-	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
-        </listitem>
-        <listitem>
-	  <para>Surecom Technology EP-320G-TX</para>
-        </listitem>
-	<listitem>
-	  <para>Trendware TEG-PCITX (32-bit PCI) および TEG-PCITX2
-            (64-bit PCI)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+      NIC (&man.nge.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">Sundance Technologies ST201 PCI Fast Ethernet NIC
-      (&man.ste.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DFE-550TX</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.ste.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">SysKonnect SK-984x PCI Gigabit Ethernet カード
-      (&man.sk.4 ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>SK-9821 1000baseT メタル線, シングルポート</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9822 1000baseT メタル線, デュアルポート</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9841 1000baseLX シングルモードファイバ, シングルポート</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9842 1000baseLX シングルモードファイバ, デュアルポート</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9843 1000baseSX マルチモードファイバ, シングルポート</para>
-        </listitem>
-        <listitem>
-	  <para>SK-9844 1000baseSX マルチモードファイバ, デュアルポート</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.sk.4 ドライバ)</para>
 
     <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NIC (&man.tl.4; ドライバ)</para>
 
@@ -1256,16 +1127,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">DEC EtherWORKS II, III NIC (&man.le.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>DE200, DE201, DE202, DE422</para>
-	</listitem>
-        <listitem>
-	  <para>DE203, DE204, DE205</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">DEC EtherWORKS II, III NIC
+      (&man.le.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, DC21143
       ベースの NICs (&man.de.4; ドライバ)
@@ -1386,78 +1249,22 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel 82586 ベースの Ethernet NIC (&man.ie.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3C507 Etherlink 16/TP</para>
-        </listitem>
-        <listitem>
-	  <para>AT&amp;T Starlan 10 および Starlan Fiber</para>
-        </listitem>
-        <listitem>
-	  <para>EN100</para>
-        </listitem>
-        <listitem>
-	  <para>Intel EtherExpress 16</para>
-        </listitem>
-        <listitem>
-	  <para>RACAL Interlan NI5210</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">Intel 82586 ベースの Ethernet NIC
+      (&man.ie.4; ドライバ)</para>
 
     <para arch="i386,pc98">3Com 3C5x9 Etherlink III NIC (&man.ep.4; ドライバ)</para>
 
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
       (&man.el.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL ベースの NIC (&man.xl.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-	  <para>3C900/905/905B/905C PCI</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C555/556/556B MiniPCI</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C450-TX HomeConnect アダプタ</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3c980/3c980B Fast Etherlink XL server アダプタ</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3cSOHO100-TX OfficeConnect アダプタ</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Optiplex GX1 内蔵の 3C918</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell On-board 3C920</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Precision 内蔵の 3C905B</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Latitude ラップトップドッキングステーションに内蔵されている
-            3C905-TX</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL ベースの NIC
+      (&man.xl.4; ドライバ)</para>
 
-    <para arch="i386,pc98">3Com 3C59X シリーズ NIC (&man.vx.4; ドライバ)
-    </para>
+    <para arch="i386,pc98">3Com 3C59X シリーズ NIC
+      (&man.vx.4; ドライバ)</para>
 
     <para arch="i386">Crystal Semiconductor CS89x0 ベースの NIC 
-      (&man.cs.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>IBM Etherjet ISA</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.cs.4; ドライバ)</para>
 
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT
       (&man.sn.4; ドライバ)</para>
@@ -1529,64 +1336,14 @@
     </para>
 
     <para arch="i386,pc98">Level 1 LXT1001 NetCellerator コントローラベースの
-      Gigabit Ethernet カード
-      (&man.lge.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DGE-500SX</para>
-	</listitem>
-        <listitem>
-	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+      Gigabit Ethernet カード (&man.lge.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha">3Com 3XP Typhoon/Sidewinder (3CR990)
       チップセットベースの Ethernet および Fast Ethernet NIC 
-      (&man.txp.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3CR990-TX-95</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990-TX-97</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990B-SRV</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990B-TXM</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990SVR95</para>
-        </listitem>
-        <listitem>
-	  <para>3Com 3CR990SVR97</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.txp.4; ドライバ)</para>
 
     <para arch="i386,pc98,ia64">Broadcom BCM570x ベースの
-      Gigabit Ethernet NIC (&man.bge.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3c996-SX, 3c996-T</para>
-        </listitem>
-        <listitem>
-	  <para>Netgear GA302T</para>
-        </listitem>
-        <listitem>
-	  <para>SysKonnect SK-9D21 および 9D41</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>DELL PowerEdge 2550 サーバに内蔵されている
-            Gigabit Ethernet NIC</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>IBM x235 server に内蔵されている Gigabit Ethernet NIC</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      Gigabit Ethernet NIC (&man.bge.4; ドライバ)</para>
 
     <para arch="i386,pc98,alpha,ia64">Intel 82542, 82543
       コントローラチップベースの Gigabit Ethernet NIC
@@ -1893,55 +1650,18 @@
       </itemizedlist>
 
     <para arch="i386">Atheros AR5210, AR5211, AR5212 ベースの
-      802.11a/b/g ネットワークインタフェース (&man.ath.4; ドライバ)
-      <itemizedlist>
-	<listitem>
-          <para>D-Link DWL-AB650, DWL-AG520, DWL-AG650</para>
-	</listitem>
-	<listitem>
-          <para>Linksys WMP55AG, WPC51AB, WPC55AG</para>
-	</listitem>
-	<listitem>
-          <para>Netgear WAB501, WAG511</para>
- 	</listitem>
-       </itemizedlist>
-    </para>
+      802.11a/b/g ネットワークインタフェース (&man.ath.4; ドライバ)</para>
 
     <para arch="i386">DEC <quote>Tulip</quote> Fast Ethernet コントローラ
-       (&man.lmc.4; ドライバ) ベースの LAN Media Corp WAN アダプタ
-
-      <itemizedlist>
-        <listitem>
-         <para>LMC1000 同期式シリアルインタフェースアダプタ</para>
-        </listitem>
-
-        <listitem>
-         <para>LMC1200 T1/E1 WAN アダプタ</para>
-        </listitem>
-
-        <listitem>
-         <para>LMC5200 高速同期式インタフェース
-           (HSSI: High Speed Synchronous Interface) アダプタ</para>
-        </listitem>
-
-        <listitem>
-         <para>LMC5245 DS3 WAN アダプタ</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+       (&man.lmc.4; ドライバ) ベースの LAN Media Corp WAN アダプタ</para>
 
   </sect2>
 
   <sect2>
     <title>その他のネットワーク機器</title>
 
-    <para arch="i386">Granch SBNI12 point-to-point 通信アダプタ (&man.sbni.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-	  <para>SBNI12-XX および SBNI12D-XX ISA 版/PCI 版</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">Granch SBNI12 point-to-point 通信アダプタ
+      (&man.sbni.4; ドライバ)</para>
 
     <para arch="i386">Granch SBNI16 SHDSL モデム (&man.sbsh.4;
       ドライバ)</para>
@@ -2988,26 +2708,10 @@
     <title>暗号処理アクセラレータ</title>
 
     <para arch="i386,pc98">Hifn 7751, 7811, 7951
-      チップセットベースのアクセラレータ (&man.hifn.4; ドライバ)
+      チップセットベースのアクセラレータ (&man.hifn.4; ドライバ)</para>
 
-      <itemizedlist>
-        <listitem>
-	  <para>Invertex AEON</para>
-	</listitem>
-        <listitem>
-	  <para>Hifn 7751 リファレンスボード</para>
-	</listitem>
-        <listitem>
-	  <para>Global Technologies Group PowerCrypt, XL-Crypt</para>
-	</listitem>
-        <listitem>
-	  <para>NetSec 7751</para>
-	</listitem>
-        <listitem>
-	  <para>Soekris Engineering vpn1201, vpn1211</para>
-	</listitem>
-      </itemizedlist>
-     </para>
+    <para arch="i386,pc98">SafeNet 1141, 1741
+      チップセットベースのアクセラレータ (&man.safe.4; ドライバ)</para>
 
     <para arch="i386,pc98">Bluesteel 5501, 5601
       チップセットベースのアクセラレータ (&man.ubsec.4;
