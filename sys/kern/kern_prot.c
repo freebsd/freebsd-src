@@ -1353,7 +1353,7 @@ securelevel_gt(struct ucred *cr, int level)
 
 	active_securelevel = securelevel;
 	if (cr == NULL)
-		printf("securelevel_gt: cr is NULL\n");
+		panic("securelevel_gt: cr is NULL\n");
 	if (cr->cr_prison != NULL) {
 		mtx_lock(&cr->cr_prison->pr_mtx);
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
@@ -1370,7 +1370,7 @@ securelevel_ge(struct ucred *cr, int level)
 
 	active_securelevel = securelevel;
 	if (cr == NULL)
-		printf("securelevel_gt: cr is NULL\n");
+		panic("securelevel_gt: cr is NULL\n");
 	if (cr->cr_prison != NULL) {
 		mtx_lock(&cr->cr_prison->pr_mtx);
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
