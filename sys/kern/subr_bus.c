@@ -100,7 +100,7 @@ static void device_unregister_oids(device_t dev);
 
 extern char static_hints[];
 extern int hintmode;
-static int hints_loaded;
+static int hints_loaded = 0;
 
 kobj_method_t null_methods[] = {
     { 0, 0 }
