@@ -16,7 +16,7 @@ machine		pc98
 options 	PC98
 
 #
-# We want LINT to cover profiling as well
+# We want LINT to cover profiling as well.
 profile         2
 
 
@@ -82,16 +82,16 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_DIRECT_MAPPED_CACHE sets L1 cache of Cyrix 486DLC CPU in direct
 # mapped mode.  Default is 2-way set associative mode.
 #
-# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
+# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e., enables
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
 # CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32
 # machines.  VmWare seems to emulate this instruction poorly, causing
-# the guest OS to run very slowly.  Enabling this with a SMP kernel
+# the guest OS to run very slowly.  Enabling this with an SMP kernel
 # will cause the kernel to be unusable.
 #
-# CPU_DISABLE_SSE explicitly prevent I686_CPU from turning on SSE.
+# CPU_DISABLE_SSE explicitly prevents I686_CPU from turning on SSE.
 #
 # CPU_ENABLE_SSE enables SSE/MMX2 instructions support.  This is default
 # on I686_CPU and above.
