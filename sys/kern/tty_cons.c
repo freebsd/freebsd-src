@@ -36,23 +36,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.18 1994/12/18 19:35:09 joerg Exp $
+ *	$Id: cons.c,v 1.19 1994/12/18 19:42:41 joerg Exp $
  */
-
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/buf.h>
-#include <sys/ioctl.h>
-#include <sys/tty.h>
-#include <sys/file.h>
 #include <sys/conf.h>
-#include <sys/vnode.h>
-#include <machine/stdarg.h>
+#include <sys/proc.h>
+#include <sys/tty.h>
 
 #include <machine/cons.h>
+#include <machine/stdarg.h>
 
 /* XXX - all this could be autoconfig()ed */
 #include "sc.h"
@@ -66,7 +60,7 @@ int pccnprobe(), pccninit(), pccngetc(), pccncheckc(), pccnputc();
 int siocnprobe(), siocninit(), siocngetc(), siocncheckc(), siocnputc();
 #endif
 
-struct	consdev constab[] = {
+static struct consdev constab[] = {
 #if NSC > 0 || NVT > 0
 	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
 #endif
@@ -78,13 +72,24 @@ struct	consdev constab[] = {
 /* end XXX */
 
 struct	tty *constty = 0;	/* virtual console output device */
-struct	consdev *cn_tab;	/* physical console device info */
 struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
+
+/* XXX */
+typedef	u_char bool_t;
+typedef	int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
+typedef	int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
+
+static bool_t cn_is_open;	/* nonzero if logical console is open */
+static bool_t cn_phys_is_open;	/* nonzero if physical console is open */
+static d_close_t *cn_phys_close;	/* physical device close function */
+static d_open_t *cn_phys_open;	/* physical device open function */
+static struct consdev *cn_tab;	/* physical console device info */
 
 void
 cninit()
 {
 	register struct consdev *cp;
+	struct cdevsw *cdp;
 
 	/*
 	 * Collect information about all possible consoles
@@ -97,10 +102,18 @@ cninit()
 			cn_tab = cp;
 	}
 	/*
-	 * No console, we can handle it
+	 * No console, give up.
 	 */
 	if ((cp = cn_tab) == NULL)
 		return;
+	/*
+	 * Hook the open and close functions.
+	 */
+	cdp = &cdevsw[major(cn_tab->cn_dev)];
+	cn_phys_close = cdp->d_close;
+	cdp->d_close = cnclose;
+	cn_phys_open = cdp->d_open;
+	cdp->d_open = cnopen;
 	/*
 	 * Turn on console
 	 */
@@ -114,16 +127,21 @@ cnopen(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	struct vnode *vp = 0;
+	dev_t cndev, physdev;
+	int retval;
 
 	if (cn_tab == NULL)
 		return (0);
-
-	dev = cn_tab->cn_dev;
-	if (vfinddev(dev, VCHR, &vp) && vcount(vp))
-		return (0);
-
-	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
+	cndev = cn_tab->cn_dev;
+	physdev = (major(dev) == major(cndev) ? dev : cndev);
+	retval = (*cn_phys_open)(physdev, flag, mode, p);
+	if (retval == 0) {
+		if (dev == cndev)
+			cn_phys_is_open = 1;
+		else if (physdev == cndev)
+			cn_is_open = 1;
+	}
+	return (retval);
 }
  
 int
@@ -132,16 +150,22 @@ cnclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	struct vnode *vp = 0;
+	dev_t cndev;
 
 	if (cn_tab == NULL)
 		return (0);
-
-	dev = cn_tab->cn_dev;
-	if (vfinddev(dev, VCHR, &vp) && vcount(vp))
-		return (0);
-
-	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
+	cndev = cn_tab->cn_dev;
+	if (dev == cndev) {
+		cn_phys_is_open = 0;
+		if (cn_is_open)
+			return (0);
+	} else if (major(dev) != major(cndev)) {
+		cn_is_open = 0;
+		if (cn_phys_is_open)
+			return (0);
+		dev = cndev;
+	}
+	return ((*cn_phys_close)(dev, flag, mode, p));
 }
  
 int
