@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.20 1998/04/06 09:12:31 brian Exp $
+ * $Id: lqr.c,v 1.22.2.21 1998/04/07 00:54:01 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -56,6 +56,11 @@
 #include "mp.h"
 #include "bundle.h"
 #include "vars.h"
+#include "chat.h"
+#include "auth.h"
+#include "chap.h"
+#include "pap.h"
+#include "datalink.h"
 
 struct echolqr {
   u_int32_t magic;
@@ -127,35 +132,35 @@ static void
 SendLqrReport(void *v)
 {
   struct lcp *lcp = (struct lcp *)v;
-  struct hdlc *hdlc = &link2physical(lcp->fsm.link)->hdlc;
+  struct physical *p = link2physical(lcp->fsm.link);
 
-  StopTimer(&hdlc->lqm.timer);
+  StopTimer(&p->hdlc.lqm.timer);
 
-  if (hdlc->lqm.method & LQM_LQR) {
-    if (hdlc->lqm.lqr.resent > 5) {
+  if (p->hdlc.lqm.method & LQM_LQR) {
+    if (p->hdlc.lqm.lqr.resent > 5) {
       /* XXX: Should implement LQM strategy */
       LogPrintf(LogPHASE, "** Too many LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many LQR packets lost\n");
-      hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(lcp->fsm.bundle, NULL, 0);
+      p->hdlc.lqm.method = 0;
+      datalink_Down(p->dl, 0);
     } else {
       SendLqrData(lcp);
-      hdlc->lqm.lqr.resent++;
+      p->hdlc.lqm.lqr.resent++;
     }
-  } else if (hdlc->lqm.method & LQM_ECHO) {
-    if ((hdlc->lqm.echo.seq_sent > 5 &&
-         hdlc->lqm.echo.seq_sent - 5 > hdlc->lqm.echo.seq_recv) ||
-        (hdlc->lqm.echo.seq_sent <= 5 &&
-         hdlc->lqm.echo.seq_sent > hdlc->lqm.echo.seq_recv + 5)) {
+  } else if (p->hdlc.lqm.method & LQM_ECHO) {
+    if ((p->hdlc.lqm.echo.seq_sent > 5 &&
+         p->hdlc.lqm.echo.seq_sent - 5 > p->hdlc.lqm.echo.seq_recv) ||
+        (p->hdlc.lqm.echo.seq_sent <= 5 &&
+         p->hdlc.lqm.echo.seq_sent > p->hdlc.lqm.echo.seq_recv + 5)) {
       LogPrintf(LogPHASE, "** Too many ECHO LQR packets lost **\n");
       LogPrintf(LogLQM, "LqrOutput: Too many ECHO LQR packets lost\n");
-      hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
-      bundle_Close(lcp->fsm.bundle, NULL, 0);
+      p->hdlc.lqm.method = 0;
+      datalink_Down(p->dl, 0);
     } else
       SendEchoReq(lcp);
   }
-  if (hdlc->lqm.method && hdlc->lqm.timer.load)
-    StartTimer(&hdlc->lqm.timer);
+  if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
+    StartTimer(&p->hdlc.lqm.timer);
 }
 
 void
