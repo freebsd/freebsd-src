@@ -187,7 +187,7 @@ main(int argc, char **argv)
 	int opt_R = 0;	
 	unsigned char uc;
 	
-	while ((c = getopt(argc, argv, "aurPR?")) != -1)
+	while ((c = getopt(argc, argv, "aurPR")) != -1)
 	{
 		switch(c)
 		{
