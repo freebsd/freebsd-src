@@ -10,8 +10,4 @@ SRCS+=	if_ep_isa.c
 #SRCS+=	if_ep_mca.c
 SRCS+=	opt_bdg.h bus_if.h card_if.h device_if.h isa_if.h pci_if.h
 
-.if ${MACHINE} == "pc98"
-CFLAGS+= -DPC98
-.endif
-
 .include <bsd.kmod.mk>
