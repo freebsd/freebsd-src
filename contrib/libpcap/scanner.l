@@ -100,6 +100,12 @@ sca		return SCA;
 moprc		return MOPRC;
 mopdl		return MOPDL;
 
+iso		return ISO;
+esis		return ESIS;
+es-is		return ESIS;
+isis		return ISIS;
+is-is		return ISIS;
+
 host		return HOST;
 net		return NET;
 mask		return MASK;

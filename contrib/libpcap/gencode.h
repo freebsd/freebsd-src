@@ -51,6 +51,9 @@
 #define Q_SCA		13
 #define	Q_MOPRC		14
 #define	Q_MOPDL		15
+#define Q_ISO		16
+#define Q_ESIS		17
+#define Q_ISIS		18
 
 /* Directional qualifiers. */
 
