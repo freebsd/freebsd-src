@@ -275,6 +275,9 @@
 	It emulates a HARP physical interface, and allows one
 	to run the HARP ATM stack without real hardware.</para>
 
+      <para>Kernel support has been added for Protocol Independent
+	Multicast routing. &merged;</para>
+
       <para>To reduce information leakage, IPv4 packets no longer have
 	a <varname>ip_id</varname> field set unless fragmentation is
 	being done.</para>
@@ -444,6 +447,9 @@
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030228 snapshot to the 20030619 snapshot.</para>
 
+    <para><application>amd</application> has been updated from 6.0.7
+      to 6.0.9.</para>
+
     <para><application>awk</application> from Bell Labs has been
       updated from a 14 March 2003 snapshot to a 29 July 2003 snapshot.</para>
 
@@ -462,6 +468,16 @@
 	  <literal>CPUTYPE=p4</literal> has been removed.</para>
       </note>
       </para>
+
+    <para><application>GNU Readline</application> has been updated
+      from 4.2 to 4.3.</para>
+
+    <para><application>GNU Sort</application> has been updated from
+      the version in textutils 2.0.21 to the version in textutils
+      2.1.</para>
+
+    <para>The <application>ISC DHCP</application> client has been
+      updated from 3.0.1rc11 to 3.0.1rc12.</para>
 
     <para><application>lukemftp</application> has been updated from
       1.6beta2 to a 30 June 2003 snapshot from NetBSD.</para>
