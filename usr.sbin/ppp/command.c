@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.19 1996/09/28 11:25:47 bde Exp $
+ * $Id: command.c,v 1.20 1996/10/06 13:32:27 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -200,8 +200,18 @@ char **argv;
 	exit(1);
      }
      TtyOldMode();
-     if(argc > 0)
+     if(argc > 0) {
+       /* substitute pseudo args */
+       for (i=1; i<argc; i++) {
+         if (strcmp(argv[i], "HISADDR") == 0) {
+           argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
+         }
+         if (strcmp(argv[i], "MYADDR") == 0) {
+           argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
+         }
+       }
        execvp(argv[0], argv);
+     }
      else
        execl(shell, shell, NULL);
       
