@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.11 1995/01/12 10:53:25 davidg Exp $
+ * $Id: raw_ip.c,v 1.12 1995/01/12 13:06:32 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -249,11 +249,11 @@ rip_ctloutput(op, so, level, optname, m)
 		return(error);
 
 	case IP_RSVP_ON:
-		error = ip_rsvp_init(so);
+		return ip_rsvp_init(so);
 		break;
 
 	case IP_RSVP_OFF:
-		error = ip_rsvp_done();
+		return ip_rsvp_done();
 		break;
 
 	case DVMRP_INIT:
