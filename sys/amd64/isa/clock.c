@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.140 1999/07/18 18:32:42 bde Exp $
+ *	$Id: clock.c,v 1.141 1999/07/28 20:22:30 msmith Exp $
  */
 
 /*
@@ -70,7 +70,6 @@
 #include <machine/limits.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-XXX
 #ifdef APIC_IO
 #include <machine/segments.h>
 #endif
