@@ -607,5 +607,6 @@
 439	UNIMPL	extattr_list_link
 440	UNIMPL	kse_switchin
 441	UNIMPL	ksem_timedwait
-442     MNOPROTO { int thr_suspend(const struct timespec *timeout); }
-443     MNOPROTO { int thr_wake(long id); }
+442	MNOPROTO { int thr_suspend(const struct timespec *timeout); }
+443	MNOPROTO { int thr_wake(long id); }
+444	MSTD	{ int kldunloadf(int fileid, int flags); }
