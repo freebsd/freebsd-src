@@ -46,7 +46,7 @@ extract-names()
 			( cd $portsdir/$i && PORTSDIR=$portsdir make package-name package-depends ) >> ${TMPNAME};
 		done
 		if [ -s "${TMPNAME}" ]; then
-			sort -u ${TMPNAME}
+			sed -e 's/:.*$//' < ${TMPNAME} | sort -u
 		fi
 		rm -f ${TMPNAME}
 	else
