@@ -421,8 +421,10 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 * AGP_PAGE_SIZE. If this is the first call to bind,
 		 * the pages will be allocated and zeroed.
 		 */
+		VM_OBJECT_LOCK(mem->am_obj);
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		VM_OBJECT_UNLOCK(mem->am_obj);
 		if ((m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
@@ -449,6 +451,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				vm_page_unlock_queues();
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
+				VM_OBJECT_LOCK(mem->am_obj);
 				for (k = 0; k <= i; k += PAGE_SIZE) {
 					m = vm_page_lookup(mem->am_obj,
 							   OFF_TO_IDX(k));
@@ -456,6 +459,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 					vm_page_unwire(m, 0);
 					vm_page_unlock_queues();
 				}
+				VM_OBJECT_UNLOCK(mem->am_obj);
 				lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 				return error;
 			}
@@ -505,12 +509,14 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	 */
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE)
 		AGP_UNBIND_PAGE(dev, mem->am_offset + i);
+	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
 		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(mem->am_obj);
 		
 	agp_flush_cache();
 	AGP_FLUSH_TLB(dev);
