@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.19 1995/06/26 16:15:49 wollman Exp $
+ * $Id: ip_mroute.c,v 1.20 1995/07/24 18:15:13 wollman Exp $
  */
 
 
@@ -51,8 +51,6 @@
 #define HTONS(d)
 #endif
 #endif
-
-extern int rsvp_on;
 
 #ifndef MROUTING
 /*
@@ -1126,6 +1124,8 @@ X_ip_mforward(ip, ifp, m, imo)
     if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	printf("Warning: IPPROTO_RSVP from %x to %x without vif option\n",
 	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr));
+	if(!imo)
+		printf("In fact, no options were specified at all\n");
     }
 
     /*
