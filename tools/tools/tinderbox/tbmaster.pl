@@ -316,6 +316,9 @@ MAIN:{
 	"c|config=s"	        => \$config,
 	"e|etcdir=s"		=> \$etcdir,
 	) or usage();
+    if (@ARGV) {
+	usage();
+    }
 
     if (defined($etcdir)) {
 	chdir($etcdir)
