@@ -7,4 +7,6 @@ CFLAGS+= -DHAVE_CONFIG_H -DDEFAULT_IGNORE_FILE=\"/usr/share/dict/eign\"
 
 NOMAN=
 
+SUBDIR+= doc
+
 .include <bsd.prog.mk>
