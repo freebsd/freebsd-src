@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.11 1996/06/19 01:25:37 nate Exp $
+ * $Id: cardd.c,v 1.12 1996/06/19 17:27:55 nate Exp $
  */
 
 #include <stdio.h>
@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <syslog.h>
-#include <varargs.h>
 #include "cardd.h"
 
 char   *config_file = "/etc/pccard.conf";
