@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.5 1995/05/16 11:37:18 jkh Exp $
+ * $Id: media.c,v 1.6 1995/05/17 14:39:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,13 +51,23 @@
 int
 mediaSetCDROM(char *str)
 {
+    Device *devs;
+    int cnt;
+
     if (OnCDROM == TRUE)
 	return 1;
     else {
-	dmenuOpenSimple(&MenuMediaCDROM);
-	if (getenv(MEDIA_DEVICE)) {
-	    variable_set2(MEDIA_TYPE, "cdrom");
-	    return 1;
+	devs = deviceFind(NULL, MEDIA_TYPE_CDROM);
+	cnt = deviceCount(devs);
+	if (!cnt) {
+	    msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+	    return 0;
+        }
+	else if (cnt > 1) {
+	    /* put up a menu */
+	}
+	else {
+	    mediaDevice = devs[0];
 	}
     }
     return 0;
@@ -133,19 +143,14 @@ mediaOpen(char *parent, char *me)
 {
     char fname[FILENAME_MAX];
 
-    if (!getenv(MEDIA_TYPE)) {
-	if (!mediaGetType())
-	    return NULL;
-    }
-    if (!getenv(MEDIA_DEVICE)) {
-	msgConfirm("No media device has been set up!?\nPlease configure a device from the media type menu.");
+    if (!mediaVerify())
 	return NULL;
-    }
+
     if (parent)
 	snprintf(fname, FILENAME_MAX, "%s%s", parent, me);
     else
 	strncpy(fname, me, FILENAME_MAX);
-    /* XXX find a Device here XXX */
+    /* XXX mediaDevice points to where we want to get it from */
     return NULL;
 }
 
@@ -171,8 +176,8 @@ mediaGetType(void)
 Boolean
 mediaVerify(void)
 {
-    if (!getenv(MEDIA_TYPE) || !getenv(MEDIA_DEVICE)) {
-	msgConfirm("Media type or device not set!  Please select a media type\nfrom the Installation menu before proceeding.");
+    if (!mediaDevice) {
+	msgConfirm("Media type not set!  Please select a media type\nfrom the Installation menu before proceeding.");
 	return FALSE;
     }
     return TRUE;
