@@ -108,3 +108,4 @@ extern HostInfo *find_host(char * /*hostname*/, int /*create*/);
 extern void init_file(char * /*filename*/);
 extern void notify_hosts(void);
 extern void sync_file(void);
+extern int sm_check_hostname(struct svc_req *req, char *arg);
