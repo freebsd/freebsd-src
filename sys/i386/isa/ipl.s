@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.21 1998/03/23 19:52:59 jlemon Exp $
+ *	$Id: ipl.s,v 1.22 1998/07/27 16:51:33 jlemon Exp $
  */
 
 
@@ -247,21 +247,12 @@ doreti_unpend:
 #endif /* SMP */
 
 	/*
-	 * Setup JUMP to _Xresume0 thru _Xresume23 for HWIs,
-	 * or
-	 * Setup CALL of swi_tty, swi_net, _softclock, swi_ast for SWIs.
+	 * Set up JUMP to _ihandlers[%ecx] for HWIs.
+	 * Set up CALL of _ihandlers[%ecx] for SWIs.
+	 * This is a bit early for the SMP case - we have to push %ecx and
+	 * %edx, but could push only %ecx and load %edx later.
 	 */
-	movl	ihandlers(,%ecx,4),%edx
-	testl	%edx,%edx
-#if 0
-	/* XXX SMP this would leave cil set: */
-	je	doreti_next		/* "can't happen" */
-#else
-	jne	1f
-	int	$3			/* _breakpoint */
-	jmp	doreti_next		/* "can't happen" */
-1:
-#endif
+	movl	_ihandlers(,%ecx,4),%edx
 	cmpl	$NHWI,%ecx
 	jae	doreti_swi
 	cli
@@ -323,6 +314,7 @@ doreti_swi:
 	 */
 #ifdef SMP
 	orl imasks(,%ecx,4), %eax
+	pushl	%ecx			/* preserve for use by _swi_generic */
 	pushl	%edx			/* save handler entry point */
 	cli				/* prevent INT deadlock */
 	pushl	%eax			/* save cpl|cml */
@@ -335,6 +327,7 @@ doreti_swi:
 	FAST_ICPL_UNLOCK
 	sti
 	popl	%edx			/* restore handler entry point */
+	popl	%ecx
 #else
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
@@ -418,8 +411,8 @@ dummycamisr:
 	ret
 
 /*
- * XXX there should be a registration function to put the handler for the
- * attached driver directly in ihandlers.  Then this function will go away.
+ * This function will go away soon when register_swi() is used to register
+ * the poll functions.
  */
 	ALIGN_TEXT
 swi_tty:
@@ -438,6 +431,22 @@ swi_tty:
 #else
 	ret
 #endif
+
+/*
+ * The arg is in a nonstandard place, so swi_dispatcher() can't be called
+ * directly and swi_generic() can't use ENTRY() or MCOUNT.
+ */
+	ALIGN_TEXT
+	.globl	_swi_generic
+_swi_generic:
+	pushl	%ecx
+	FAKE_MCOUNT(4(%esp))
+	call	_swi_dispatcher
+	popl	%ecx
+	ret
+
+ENTRY(swi_null)
+	ret
 
 #ifdef APIC_IO
 #include "i386/isa/apic_ipl.s"

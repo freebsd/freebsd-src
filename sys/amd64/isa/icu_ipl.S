@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: icu_ipl.s,v 1.2 1997/08/24 00:05:13 fsmp Exp $
+ *	$Id: icu_ipl.s,v 1.3 1997/09/02 19:40:13 fsmp Exp $
  */
 
 	.data
@@ -90,9 +90,6 @@ splz_unpend:
 	bsfl	%ecx,%ecx
 	btrl	%ecx,_ipending
 	jnc	splz_next
-	movl	ihandlers(,%ecx,4),%edx
-	testl	%edx,%edx
-	je	splz_next		/* "can't happen" */
 	cmpl	$NHWI,%ecx
 	jae	splz_swi
 	/*
@@ -111,7 +108,7 @@ splz_swi:
 	pushl	%eax
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
-	call	%edx
+	call	*_ihandlers(,%ecx,4)
 	popl	%eax
 	movl	%eax,_cpl
 	jmp	splz_next

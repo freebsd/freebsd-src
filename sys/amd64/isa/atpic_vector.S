@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.6 1997/09/28 19:30:01 gibbs Exp $
+ *	$Id: icu_vector.s,v 1.7 1998/01/15 07:33:59 gibbs Exp $
  */
 
 /*
@@ -195,17 +195,16 @@ MCOUNT_LABEL(eintr)
 
 	.data
 	.globl	_ihandlers
-_ihandlers:
-ihandlers:			/* addresses of interrupt handlers */
+_ihandlers:			/* addresses of interrupt handlers */
 				/* actually resumption addresses for HWI's */
 	.long	Xresume0, Xresume1, Xresume2, Xresume3 
 	.long	Xresume4, Xresume5, Xresume6, Xresume7
 	.long	Xresume8, Xresume9, Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	swi_tty, swi_net, dummycamisr, dummycamisr
-	.long	_swi_vm, 0, 0, 0
-	.long	0, 0, 0, 0
-	.long	0, 0, _softclock, swi_ast
+	.long	_swi_vm, _swi_null, _swi_null, _swi_null
+	.long	_swi_null, _swi_null, _swi_null, _swi_null
+	.long	_swi_null, _swi_null, _softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */

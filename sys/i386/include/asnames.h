@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.21 1998/05/17 11:52:06 phk Exp $
+ * $Id: asnames.h,v 1.22 1998/05/17 18:53:08 tegge Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -245,6 +245,7 @@
 #define _get_syscall_lock		get_syscall_lock
 #define _getmicrouptime		getmicrouptime
 #define _idqs				idqs
+#define _ihandlers			ihandlers
 #define _imen				imen
 #define _imen_lock			imen_lock
 #define _in_vm86call			in_vm86call
@@ -343,6 +344,8 @@
 #define _ss_unlock			ss_unlock
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
+#define _swi_generic			swi_generic
+#define _swi_null			swi_null
 #define _swi_vm				swi_vm
 #define _syscall			syscall
 #define _szsigcode			szsigcode
