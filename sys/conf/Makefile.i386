@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.50 1994/11/24 14:26:11 davidg Exp $
+#	$Id: Makefile.i386,v 1.51 1994/11/27 14:26:16 davidg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -67,6 +67,8 @@ SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
 SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
 	${DBSYM} -fT ${LOAD_ADDRESS} $@; size $@; chmod 755 $@
+
+%BEFORE_DEPEND
 
 %OBJS
 
@@ -141,7 +143,7 @@ genassym: genassym.o
 	${CC} -static ${CFLAGS} ${PARAM} genassym.o -o $@
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
-depend: assym.s param.c vnode_if.h
+depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	mkdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
 	mkdep -a ${COPTS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 	MKDEP_CPP=${CPP} ; export MKDEP_CPP ; \

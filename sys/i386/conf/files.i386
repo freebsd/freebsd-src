@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.66 1994/12/17 08:06:03 jkh Exp $
+#	$Id: files.i386,v 1.67 1994/12/26 01:06:41 ats Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -46,7 +46,16 @@ i386/ibcs2/imgact_coff.c	optional	ibcs2
 #i386/ibcs2/imgact_elf.c	optional	svr4
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha1742.c		optional	ahb	device-driver
-i386/isa/aic7770.c		optional	ahc	device-driver
+aic7770				optional	ahc	device-driver	   \
+	dependancy 	"$S/gnu/misc/aic7770/aic7770.c"			   \
+	compile-with	"${CC} -o $@ $>"				   \
+	no-obj no-implicit-rule
+aic7770_seq.h			optional	ahc	device-driver	   \
+	dependancy	"$S/gnu/misc/aic7770/aic7770.seq aic7770"	   \
+	compile-with	"./aic7770 -o $@ $S/gnu/misc/aic7770/aic7770.seq"  \
+	no-obj no-implicit-rule before-depend
+i386/isa/aic7770.c		optional	ahc	device-driver	   \
+	dependancy	"aic7770_seq.h"
 i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
