@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.186 1999/02/06 08:45:20 jkh Exp $
+ * $Id: menus.c,v 1.187 1999/02/06 16:35:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,7 +41,7 @@ static int
 setSrc(dialogMenuItem *self)
 {
     Dists |= DIST_SRC;
-    SrcDists = DIST_SRC_ALL | DIST_SRC_SMAILCF;
+    SrcDists = DIST_SRC_ALL;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -837,8 +837,6 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_UBIN },
       { "usbin",	"/usr/src/usr.sbin (aux system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
-      { "smailcf",	"/usr/src/usr.sbin (sendmail config macros)",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SMAILCF },
       { "All",		"Select all of the above",
 	NULL,		setSrc, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above",

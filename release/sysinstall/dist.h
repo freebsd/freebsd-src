@@ -22,10 +22,10 @@
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
-	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_INFO | DIST_SRC)
+	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_INFO | DIST_SRC | DIST_COMPAT22)
 
 #define _DIST_USER \
-	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT)
+	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_COMPAT22)
 
 /* Subtypes for DES distribution */
 #define DIST_DES_DES		0x0001
@@ -51,8 +51,7 @@
 #define DIST_SRC_UBIN		0x02000
 #define DIST_SRC_USBIN		0x04000
 #define DIST_SRC_BIN		0x08000
-#define DIST_SRC_SMAILCF	0x10000
-#define DIST_SRC_ALL		0xFFFF	/* no SMAILCF, it's part of USBIN */
+#define DIST_SRC_ALL		0xFFFF
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001
