@@ -1,4 +1,4 @@
-# @(#)asia	7.68
+# @(#)asia	7.71
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -29,22 +29,23 @@
 # I invented the abbreviations marked `*' in the following table;
 # the rest are from earlier versions of this file, or from other sources.
 # Corrections are welcome!
-#		std dst
-#		LMT	Local Mean Time
-#	2:00	EET EEST Eastern European Time
-#	2:00	IST IDT	Israel
-#	3:00	AST ADT	Arabia*
-#	4:00	GST	Gulf*
-#	5:30	IST	India
-#	7:00	ICT	Indochina*
-#	7:00	WIT	west Indonesia
-#	8:00	CIT	central Indonesia
-#	8:00	CST	China
-#	9:00	CJT	Central Japanese Time (1896/1937)*
-#	9:00	EIT	east Indonesia
-#	9:00	JST	Japan
-#	9:00	KST	Korea
-#	9:30	CST	(Australian) Central Standard Time
+#	     std  dst
+#	     LMT	Local Mean Time
+#	2:00 EET  EEST	Eastern European Time
+#	2:00 IST  IDT	Israel
+#	3:00 AST  ADT	Arabia*
+#	3:30 IRST IRDT	Iran
+#	4:00 GST	Gulf*
+#	5:30 IST	India
+#	7:00 ICT	Indochina*
+#	7:00 WIT	west Indonesia
+#	8:00 CIT	central Indonesia
+#	8:00 CST	China
+#	9:00 CJT	Central Japanese Time (1896/1937)*
+#	9:00 EIT	east Indonesia
+#	9:00 JST	Japan
+#	9:00 KST	Korea
+#	9:30 CST	(Australian) Central Standard Time
 #
 # See the `europe' file for Russia and Turkey in Asia.
 
@@ -430,89 +431,97 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 			9:00	-	EIT
 
 # Iran
-# From Paul Eggert (2000-06-12), following up a suggestion by Rich Wales:
-# Ahmea Alavi in
-# <a href="http://www.persia.org/Iran_Lib/Calendar/taghveem.txt">
-# TAGHVEEM (1993-07-12)
-# </a>
-# writes ``Daylight saving time in Iran starts from the first day
-# of Farvardin and ends the first day of Mehr.''  This disagrees with the SSIM:
+
+# From Roozbeh Pournader (2003-03-15):
+# This is an English translation of what I just found (originally in Persian).
+# The Gregorian dates in brackets are mine:
 #
-#		   DST start	   DST end
-#	year	SSIM	Alavi	SSIM	Alavi
-#	1991	05-03!=	03-21	09-20!=	09-23
-#	1992	03-22!=	03-21	09-23	09-23
-#	1993	03-21	03-21	09-23	09-23
-#	1994	03-21	03-21	09-22!= 09-23
-#	1995	03-21	03-21	09-22!= 09-23
-#	1996	03-21!=	03-20	09-22   09-22
-#	1997	03-22!=	03-21	09-22!= 09-23
-#	1998	03-21	03-21	09-21!= 09-23
-#	1999	03-22!=	03-21	09-22!= 09-23
-#	2000	03-21!=	03-20	09-21!= 09-22
-#	2001	03-19!=	03-21	09-19!= 09-23
-#	2002	03-18!=	03-21	09-18!= 09-23
+#	Official Newspaper No. 13548-1370/6/25 [1991-09-16]
+#	No. 16760/T233 H				1370/6/10 [1991-09-01]
 #
-# Go with Alavi starting with 1992.
-# I used Ed Reingold's cal-persia in GNU Emacs 19.34 to compute Persian dates.
+#	The Rule About Change of the Official Time of the Country
+#
+#	The Board of Ministers, in the meeting dated 1370/5/23 [1991-08-14],
+#	based on the suggestion number 2221/D dated 1370/4/22 [1991-07-13]
+#	of the Country's Organization for Official and Employment Affairs,
+#	and referring to the law for equating the working hours of workers
+#	and officers in the whole country dated 1359/4/23 [1980-07-14], and
+#	for synchronizing the official times of the country, agreed that:
+#
+#	The official time of the country will should move forward one hour
+#	at the 24[:00] hours of the first day of Farvardin and should return
+#	to its previous state at the 24[:00] hours of the 30th day of
+#	Shahrivar.
+#
+#	First Deputy to the President - Hassan Habibi
+#
+# From personal experience, that agrees with what has been followed
+# for at least the last 5 years.  Before that, for a few years, the
+# date used was the first Thursday night of Farvardin and the last
+# Thursday night of Shahrivar, but I can't give exact dates....
+# I have also changed the abbreviations to what is considered correct
+# here in Iran, IRST for regular time and IRDT for daylight saving time.
+
+# From Paul Eggert (2003-03-15)
+# Go with Shanks before September 1991, and with Pournader thereafter.
+# I used Ed Reingold's cal-persia in GNU Emacs 21.2 to check Persian dates.
 # The Persian calendar is based on the sun, and dates after around 2050
 # are approximate; stop after 2037 when 32-bit time_t's overflow.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	S
-Rule	Iran	1978	only	-	Oct	21	0:00	0	-
-Rule	Iran	1979	only	-	Sep	19	0:00	0	-
-Rule	Iran	1980	only	-	Sep	23	0:00	0	-
-Rule	Iran	1991	only	-	May	 3	0:00s	1:00	S
-Rule	Iran	1991	only	-	Sep	20	0:00s	0	-
-Rule	Iran	1992	1995	-	Mar	21	0:00	1:00	S
-Rule	Iran	1992	1995	-	Sep	23	0:00	0	-
-Rule	Iran	1996	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	1996	only	-	Sep	22	0:00	0	-
-Rule	Iran	1997	1999	-	Mar	21	0:00	1:00	S
-Rule	Iran	1997	1999	-	Sep	23	0:00	0	-
-Rule	Iran	2000	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2000	only	-	Sep	22	0:00	0	-
-Rule	Iran	2001	2003	-	Mar	21	0:00	1:00	S
-Rule	Iran	2001	2003	-	Sep	23	0:00	0	-
-Rule	Iran	2004	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2004	only	-	Sep	22	0:00	0	-
-Rule	Iran	2005	2007	-	Mar	21	0:00	1:00	S
-Rule	Iran	2005	2007	-	Sep	23	0:00	0	-
-Rule	Iran	2008	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2008	only	-	Sep	22	0:00	0	-
-Rule	Iran	2009	2011	-	Mar	21	0:00	1:00	S
-Rule	Iran	2009	2011	-	Sep	23	0:00	0	-
-Rule	Iran	2012	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2012	only	-	Sep	22	0:00	0	-
-Rule	Iran	2013	2015	-	Mar	21	0:00	1:00	S
-Rule	Iran	2013	2015	-	Sep	23	0:00	0	-
-Rule	Iran	2016	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2016	only	-	Sep	22	0:00	0	-
-Rule	Iran	2017	2019	-	Mar	21	0:00	1:00	S
-Rule	Iran	2017	2019	-	Sep	23	0:00	0	-
-Rule	Iran	2020	only	-	Mar	20	0:00	1:00	S
-Rule	Iran	2020	only	-	Sep	22	0:00	0	-
-Rule	Iran	2021	2023	-	Mar	21	0:00	1:00	S
-Rule	Iran	2021	2023	-	Sep	23	0:00	0	-
-Rule	Iran	2024	2025	-	Mar	20	0:00	1:00	S
-Rule	Iran	2024	2025	-	Sep	22	0:00	0	-
-Rule	Iran	2026	2027	-	Mar	21	0:00	1:00	S
-Rule	Iran	2026	2027	-	Sep	23	0:00	0	-
-Rule	Iran	2028	2029	-	Mar	20	0:00	1:00	S
-Rule	Iran	2028	2029	-	Sep	22	0:00	0	-
-Rule	Iran	2030	2031	-	Mar	21	0:00	1:00	S
-Rule	Iran	2030	2031	-	Sep	23	0:00	0	-
-Rule	Iran	2032	2033	-	Mar	20	0:00	1:00	S
-Rule	Iran	2032	2033	-	Sep	22	0:00	0	-
-Rule	Iran	2034	2035	-	Mar	21	0:00	1:00	S
-Rule	Iran	2034	2035	-	Sep	23	0:00	0	-
-Rule	Iran	2036	2037	-	Mar	20	0:00	1:00	S
-Rule	Iran	2036	2037	-	Sep	22	0:00	0	-
+Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	D
+Rule	Iran	1978	only	-	Oct	21	0:00	0	S
+Rule	Iran	1979	only	-	Sep	19	0:00	0	S
+Rule	Iran	1980	only	-	Sep	23	0:00	0	S
+Rule	Iran	1991	only	-	May	 3	0:00	1:00	D
+Rule	Iran	1992	1995	-	Mar	22	0:00	1:00	D
+Rule	Iran	1991	1995	-	Sep	22	0:00	0	S
+Rule	Iran	1996	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	1996	only	-	Sep	21	0:00	0	S
+Rule	Iran	1997	1999	-	Mar	22	0:00	1:00	D
+Rule	Iran	1997	1999	-	Sep	22	0:00	0	S
+Rule	Iran	2000	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2000	only	-	Sep	21	0:00	0	S
+Rule	Iran	2001	2003	-	Mar	22	0:00	1:00	D
+Rule	Iran	2001	2003	-	Sep	22	0:00	0	S
+Rule	Iran	2004	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2004	only	-	Sep	21	0:00	0	S
+Rule	Iran	2005	2007	-	Mar	22	0:00	1:00	D
+Rule	Iran	2005	2007	-	Sep	22	0:00	0	S
+Rule	Iran	2008	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2008	only	-	Sep	21	0:00	0	S
+Rule	Iran	2009	2011	-	Mar	22	0:00	1:00	D
+Rule	Iran	2009	2011	-	Sep	22	0:00	0	S
+Rule	Iran	2012	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2012	only	-	Sep	21	0:00	0	S
+Rule	Iran	2013	2015	-	Mar	22	0:00	1:00	D
+Rule	Iran	2013	2015	-	Sep	22	0:00	0	S
+Rule	Iran	2016	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2016	only	-	Sep	21	0:00	0	S
+Rule	Iran	2017	2019	-	Mar	22	0:00	1:00	D
+Rule	Iran	2017	2019	-	Sep	22	0:00	0	S
+Rule	Iran	2020	only	-	Mar	21	0:00	1:00	D
+Rule	Iran	2020	only	-	Sep	21	0:00	0	S
+Rule	Iran	2021	2023	-	Mar	22	0:00	1:00	D
+Rule	Iran	2021	2023	-	Sep	22	0:00	0	S
+Rule	Iran	2024	2025	-	Mar	21	0:00	1:00	D
+Rule	Iran	2024	2025	-	Sep	21	0:00	0	S
+Rule	Iran	2026	2027	-	Mar	22	0:00	1:00	D
+Rule	Iran	2026	2027	-	Sep	22	0:00	0	S
+Rule	Iran	2028	2029	-	Mar	21	0:00	1:00	D
+Rule	Iran	2028	2029	-	Sep	21	0:00	0	S
+Rule	Iran	2030	2031	-	Mar	22	0:00	1:00	D
+Rule	Iran	2030	2031	-	Sep	22	0:00	0	S
+Rule	Iran	2032	2033	-	Mar	21	0:00	1:00	D
+Rule	Iran	2032	2033	-	Sep	21	0:00	0	S
+Rule	Iran	2034	2035	-	Mar	22	0:00	1:00	D
+Rule	Iran	2034	2035	-	Sep	22	0:00	0	S
+Rule	Iran	2036	2037	-	Mar	21	0:00	1:00	D
+Rule	Iran	2036	2037	-	Sep	21	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:25:44	-	TMT	1946	# Tehran Mean Time
-			3:30	-	IRT	1977 Nov
+			3:30	-	IRST	1977 Nov
 			4:00	Iran	IR%sT	1979
 			3:30	Iran	IR%sT
 
@@ -748,7 +757,7 @@ Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
 # bill have until July 24 to pass.
 #
 # (2002-07-25):
-# Thanks go to Yitschak Goldberg from E&M for bringing this (Hebrew) article 
+# Thanks go to Yitschak Goldberg from E&M for bringing this (Hebrew) article
 # to my attention:
 #
 #	http://www.ynet.co.il/articles/0,7340,L-2019315,00.html
@@ -878,7 +887,7 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # - Kazakhstan did not observe DST in 1991.
 # - Qyzylorda switched from +5:00 to +6:00 on 1992-01-19 02:00.
 # - Oral switched from +5:00 to +4:00 in spring 1989.
-# 
+#
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
@@ -1154,9 +1163,26 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # and Sunday of April" phrase, if taken literally, means that the
 # transition takes place at 00:00 on the first Sunday on or after 04-02.
 
+# From Paul Eggert (2003-02-09):
+# DAWN <http://www.dawn.com/2002/10/06/top13.htm> reported on 2002-10-05
+# that 2002 DST ended that day at midnight.  Go with McDow for now.
+
+# From Steffen Thorsen (2003-03-14):
+# According to http://www.dawn.com/2003/03/07/top15.htm
+# there will be no DST in Pakistan this year:
+#
+# ISLAMABAD, March 6: Information and Media Development Minister Sheikh
+# Rashid Ahmed on Thursday said the cabinet had reversed a previous
+# decision to advance clocks by one hour in summer and put them back by
+# one hour in winter with the aim of saving light hours and energy.
+#
+# The minister told a news conference that the experiment had rather
+# shown 8 per cent higher consumption of electricity.
+
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule Pakistan	2002	max	-	Apr	Sun>=2	0:00	1:00	S
-Rule Pakistan	2002	max	-	Oct	15	0:00	0	-
+Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
+Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
