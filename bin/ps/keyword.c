@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ps.h"
 
-static VAR *findvar(char *, int);
+static VAR *findvar(char *, int, char **header);
 static int  vcmp(const void *, const void *);
 
 /* Compute offset in common structures. */
@@ -231,7 +231,7 @@ parsefmt(const char *p, int user)
 #define		FMTSEP	" \t,\n"
 	tempstr1 = tempstr = strdup(p);
 	while (tempstr && *tempstr) {
-		char *cp;
+		char *cp, *hp;
 		VAR *v;
 		struct varent *vent;
 
@@ -248,7 +248,7 @@ parsefmt(const char *p, int user)
 			cp = tempstr;
 			tempstr = NULL;
 		}
-		if (cp == NULL || !(v = findvar(cp, user)))
+		if (cp == NULL || !(v = findvar(cp, user, &hp)))
 			continue;
 		if (!user) {
 			/*
@@ -262,6 +262,12 @@ parsefmt(const char *p, int user)
 		}
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			errx(1, "malloc failed");
+		vent->header = v->header;
+		if (hp) {
+			hp = strdup(hp);
+			if (hp)
+				vent->header = hp;
+		}
 		vent->var = malloc(sizeof(*vent->var));
 		if (vent->var == NULL)
 			errx(1, "malloc failed");
@@ -283,7 +289,7 @@ parsefmt(const char *p, int user)
 }
 
 static VAR *
-findvar(char *p, int user)
+findvar(char *p, int user, char **header)
 {
 	VAR *v, key;
 	char *hp;
@@ -306,8 +312,9 @@ findvar(char *p, int user)
 	if (!v) {
 		warnx("%s: keyword not found", p);
 		eval = 1;
-	} else if (hp)
-		v->header = strdup(hp);
+	}
+	if (header)
+		*header = hp;
 	return (v);
 }
 
