@@ -590,7 +590,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
 		    (void *)(intptr_t)linux_args.addr, linux_args.len,
 		    linux_args.prot, linux_args.flags, linux_args.fd,
-		    linux_args.pos);
+		    linux_args.pgoff);
 #endif
 	if ((linux_args.pgoff % PAGE_SIZE) != 0)
 		return (EINVAL);
