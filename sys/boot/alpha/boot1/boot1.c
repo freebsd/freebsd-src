@@ -163,7 +163,7 @@ devclose()
 }
 
 static void
-getfilename(char *filename)
+getfilename(char *filename, const char *defname)
 {
     int c;
     char *p = filename;
@@ -183,6 +183,8 @@ getfilename(char *filename)
     }
     putchar('\n');
     *p = '\0';
+    if (!*filename)
+	strcpy(filename, defname);
     return;
 }
 
@@ -235,9 +237,10 @@ main()
 
     start = rpcc();
     freq = ((struct rpb *)HWRPB_ADDR)->rpb_cc_freq;
-    while (rpcc() < start + freq) {
+    while (((rpcc() - start) & 0xffffffff) < freq) {
+	twiddle();
 	if (ischar()) {
-	    getfilename(filename);
+	    getfilename(filename, name);
 	    name = filename;
 	    break;
 	}
