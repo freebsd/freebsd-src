@@ -919,8 +919,7 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 .if exists(${HINTSFILE})
 	# Break the link to device.hints so we can modify it
-	@rm ${CD_DISC2}/boot/device.hints
-	@cp ${HINTSFILE} ${CD_DISC2}/boot/device.hints
+	@cp -f ${HINTSFILE} ${CD_DISC2}/boot/device.hints
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_DISC2}/boot/device.hints
 .endif
