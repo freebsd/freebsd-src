@@ -37,8 +37,10 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
+.Pp
+.Fd #include <machine/bus.h>
 .Fd #include <sys/rman.h>
-.Fd #include <sys/resource.h>
+.Fd #include <machine/resource.h>
 .Ft int
 .Fn bus_release_resource "device_t dev" "int type" "int rid" "struct resource *r"
 .Sh DESCRIPTION
