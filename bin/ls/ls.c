@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.20 1998/04/24 12:43:26 des Exp $";
+	"$Id: ls.c,v 1.21 1998/04/24 20:15:42 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -67,6 +67,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 static void	 display __P((FTSENT *, FTSENT *));
+static u_quad_t	 makenines __P((u_long));
 static int	 mastercmp __P((const FTSENT **, const FTSENT **));
 static void	 traverse __P((int, char **, int));
 
@@ -95,6 +96,7 @@ int f_sectime;			/* print the real time for all files */
 int f_singlecol;		/* use single column output */
 int f_size;			/* list size in short listing */
 int f_statustime;		/* use time of last mode change */
+int f_notabs;			/* don't use tab-separated multi-col output */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
@@ -396,6 +398,7 @@ display(p, list)
 	u_quad_t maxsize;
 	u_long btotal, maxblock, maxinode, maxlen, maxnlink;
 	int bcfile, flen, glen, ulen, maxflags, maxgroup, maxuser;
+	char *initmax;
 	int entries, needstats;
 	char *user, *group, *flags, buf[20];	/* 32 bits == 10 digits */
 
@@ -411,11 +414,58 @@ display(p, list)
 
 	needstats = f_inode || f_longform || f_size;
 	flen = 0;
-	btotal = maxblock = maxinode = maxlen = maxnlink = 0;
+	btotal = 0;
+	initmax = getenv("LS_COLWIDTHS");
+	/* Fields match -lios order.  New ones should be added at the end. */
+	if (initmax != NULL && *initmax != '\0') {
+		char *initmax2, *jinitmax;
+		int ninitmax;
+
+		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
+		jinitmax = initmax2 = malloc(strlen(initmax) * 2 + 2);
+		if (jinitmax == NULL)
+			err(1, NULL);
+		if (*initmax == ':')
+			strcpy(initmax2, "0:"), initmax2 += 2;
+		else
+			*initmax2++ = *initmax, *initmax2 = '\0';
+		for (initmax++; *initmax != '\0'; initmax++) {
+			if (initmax[-1] == ':' && initmax[0] == ':') {
+				*initmax2++ = '0';
+				*initmax2++ = initmax[0];
+				initmax2[1] = '\0';
+			} else {
+				*initmax2++ = initmax[0];
+				initmax2[1] = '\0';
+			}
+		}
+		if (initmax2[-1] == ':') strcpy(initmax2, "0");
+
+		ninitmax = sscanf(jinitmax,
+		    " %lu : %lu : %lu : %i : %i : %i : %qu : %lu ",
+		    &maxinode, &maxblock, &maxnlink, &maxuser,
+		    &maxgroup, &maxflags, &maxsize, &maxlen);
+		f_notabs = 1;
+		switch (ninitmax) {
+		 case 0: maxinode = 0;
+		 case 1: maxblock = 0;
+		 case 2: maxnlink = 0;
+		 case 3: maxuser  = 0;
+		 case 4: maxgroup = 0;
+		 case 5: maxflags = 0;
+		 case 6: maxsize  = 0;
+		 case 7: maxlen   = 0, f_notabs = 0;
+		}
+		maxinode = makenines(maxinode);
+		maxblock = makenines(maxblock);
+		maxnlink = makenines(maxnlink);
+		maxsize = makenines(maxsize);
+	}
+	if (initmax == NULL || *initmax == '\0')
+		maxblock = maxinode = maxlen = maxnlink =
+			maxuser = maxgroup = maxflags = maxsize = 0;
 	bcfile = 0;
-	maxuser = maxgroup = maxflags = 0;
 	flags = NULL;
-	maxsize = 0;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
 			warnx("%s: %s",
@@ -449,7 +499,7 @@ display(p, list)
 		if (f_octal || f_octal_escape) {
 		        int t = len_octal(cur->fts_name, cur->fts_namelen);
 			if (t > maxlen) maxlen = t;
-		}		        
+		}
 		if (needstats) {
 			sp = cur->fts_statp;
 			if (sp->st_blocks > maxblock)
@@ -560,4 +610,24 @@ mastercmp(a, b)
 			return (-1);
 	}
 	return (sortfcn(*a, *b));
+}
+
+/*
+ * Makenines() returns (10**n)-1.  This is useful for converting a width
+ * into a number that wide in decimal.
+ */
+static u_quad_t
+makenines(n)
+	u_long n;
+{
+	u_long i;
+	u_quad_t reg;
+
+	reg = 1;
+	/* Use a loop instead of pow(), since all values of n are small. */
+	for (i = 0; i < n; i++)
+		reg *= 10;
+	reg--;
+
+	return reg;
 }
