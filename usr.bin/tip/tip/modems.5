@@ -52,15 +52,16 @@ Lines ending in a \e character with an immediately following newline are
 continued on the next line.
 .Pp
 The first entry is the name(s) of the modem.  If there is more
-than one name for a system, the names are separated by vertical bars.
-After the name of the system comes the fields of the description.  A
+than one name for a modem, the names are separated by vertical bars.
+After the name of the modem comes the fields of the description.  A
 field name followed by an `=' sign indicates a string value follows.  A field
 name followed by a `#' sign indicates a following numeric value.
 .Pp
 When
 .Xr tip 1
 is invoked, an entry for a remote system is looked up in the
-.Pa /etc/remote database. 
+.Pa /etc/remote
+database. 
 If the entry includes an "ACU" type capability (abbreviated at), 
 .Xr tip 1
 looks up the specified modem in 
