@@ -64,6 +64,7 @@
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 
+#include <machine/pcb.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
@@ -117,6 +118,7 @@ const char *panicstr;
 
 int dumping;				/* system is dumping */
 static struct dumperinfo dumper;	/* our selected dumper */
+static struct pcb dumppcb;		/* "You Are Here" sign for dump-debuggers */
 
 static void boot(int) __dead2;
 static void poweroff_wait(void *, int);
@@ -202,6 +204,14 @@ print_uptime(void)
 		f = 1;
 	}
 	printf("%lds\n", (long)ts.tv_sec);
+}
+
+static void
+doadump(void)
+{
+	savectx(&dumppcb);
+	dumping++;
+	dumpsys(&dumper);
 }
 
 /*
@@ -332,10 +342,8 @@ boot(int howto)
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 	splhigh();
 	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP &&
-	    !cold && dumper.dumper != NULL && !dumping) {
-			dumping++;
-			dumpsys(&dumper);
-	}
+	    !cold && dumper.dumper != NULL && !dumping) 
+		doadump();
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);
