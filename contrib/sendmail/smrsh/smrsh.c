@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1993 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1993
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: smrsh.c,v 1.1.1.8 2002/02/17 21:56:43 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58 2002/05/25 02:41:31 ca Exp $")
 
 /* $FreeBSD$ */
 
@@ -56,6 +56,7 @@ SM_IDSTR(id, "@(#)$Id: smrsh.c,v 1.1.1.8 2002/02/17 21:56:43 gshapiro Exp $")
 
 #include <unistd.h>
 #include <sm/io.h>
+#include <sm/limits.h>
 #include <sm/string.h>
 #include <sys/file.h>
 #include <string.h>
@@ -128,10 +129,7 @@ addcmd(s, cmd, len)
 		exit(EX_UNAVAILABLE);
 	}
 	if (cmd)
-	{
-		(void) sm_strlcat(newcmdbuf, CMDDIR, sizeof newcmdbuf);
-		(void) sm_strlcat(newcmdbuf, "/", sizeof newcmdbuf);
-	}
+		(void) sm_strlcat2(newcmdbuf, CMDDIR, "/", sizeof newcmdbuf);
 	(void) sm_strlcat(newcmdbuf, s, sizeof newcmdbuf);
 }
 
@@ -147,7 +145,6 @@ main(argc, argv)
 	int isexec;
 	int save_errno;
 	char *newenv[2];
-	char cmdbuf[1000];
 	char pathbuf[1000];
 	char specialbuf[32];
 
@@ -159,8 +156,7 @@ main(argc, argv)
 # endif /* ! LOG_MAIL */
 #endif /* ! DEBUG */
 
-	(void) sm_strlcpy(pathbuf, "PATH=", sizeof pathbuf);
-	(void) sm_strlcat(pathbuf, PATH, sizeof pathbuf);
+	(void) sm_strlcpyn(pathbuf, sizeof pathbuf, 2, "PATH=", PATH);
 	newenv[0] = pathbuf;
 	newenv[1] = NULL;
 
@@ -219,7 +215,7 @@ main(argc, argv)
 	newcmdbuf[0] = '\0';
 	isexec = false;
 
-	while (*q)
+	while (*q != '\0')
 	{
 		/*
 		**  Strip off a leading pathname on the command name.  For
@@ -268,6 +264,7 @@ main(argc, argv)
 		if (strcmp(q, "exec") == 0 && p != NULL)
 		{
 			addcmd("exec ", false, strlen("exec "));
+
 			/* test _next_ arg */
 			q = ++p;
 			isexec = true;
@@ -276,16 +273,33 @@ main(argc, argv)
 		else if (strcmp(q, "exit") == 0 || strcmp(q, "echo") == 0)
 		{
 			addcmd(cmd, false, strlen(cmd));
+
 			/* test following chars */
 		}
 		else
 		{
+			char cmdbuf[MAXPATHLEN];
+
 			/*
 			**  Check to see if the command name is legal.
 			*/
-			(void) sm_strlcpy(cmdbuf, CMDDIR, sizeof cmdbuf);
-			(void) sm_strlcat(cmdbuf, "/", sizeof cmdbuf);
-			(void) sm_strlcat(cmdbuf, cmd, sizeof cmdbuf);
+
+			if (sm_strlcpyn(cmdbuf, sizeof cmdbuf, 3, CMDDIR,
+					"/", cmd) >= sizeof cmdbuf)
+			{
+				/* too long */
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s not available for sendmail programs (filename too long)\n",
+						      prg, cmd);
+				if (p != NULL)
+					*p = ' ';
+#ifndef DEBUG
+				syslog(LOG_CRIT, "uid %d: attempt to use %s (filename too long)",
+				       (int) getuid(), cmd);
+#endif /* ! DEBUG */
+				exit(EX_UNAVAILABLE);
+			}
+
 #ifdef DEBUG
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Trying %s\n", cmdbuf);
@@ -347,7 +361,7 @@ main(argc, argv)
 		       (int) getuid(), *r, par);
 #endif /* ! DEBUG */
 		exit(EX_UNAVAILABLE);
-	}		/* end of while *q */
+	}
 	if (isexec)
 	{
 		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
