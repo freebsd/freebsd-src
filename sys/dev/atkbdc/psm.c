@@ -2502,16 +2502,19 @@ psmsoftintr(void *arg)
 		((pb->ipacket[0] & 0x04) >> 1) |
 		((pb->ipacket[3] & 0x04) >> 2);
 
+	    /* Button presses */
 	    ms.button = 0;
 	    if (pb->ipacket[0] & 0x01)
 		ms.button |= MOUSE_BUTTON1DOWN;
 	    if (pb->ipacket[0] & 0x02)
 		ms.button |= MOUSE_BUTTON3DOWN;
 
-	    if ((pb->ipacket[3] & 0x01) && (pb->ipacket[0] & 0x01) == 0)
-		ms.button |= MOUSE_BUTTON2DOWN;
-	    if ((pb->ipacket[3] & 0x02) && (pb->ipacket[0] & 0x02) == 0)
-		ms.button |= MOUSE_BUTTON4DOWN;
+	    if (sc->synhw.capExtended && sc->synhw.capFourButtons) {
+		if ((pb->ipacket[3] & 0x01) && (pb->ipacket[0] & 0x01) == 0)
+		    ms.button |= MOUSE_BUTTON4DOWN;
+		if ((pb->ipacket[3] & 0x02) && (pb->ipacket[0] & 0x02) == 0)
+		    ms.button |= MOUSE_BUTTON5DOWN;
+	    }
 
 	    /* There is a finger on the pad. */
 	    if ((w >= 4 && w <= 7) && (z >= 16 && z < 200)) {
@@ -2537,7 +2540,15 @@ psmsoftintr(void *arg)
 	    } else {
 		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
 	    }
-	    z = 0;
+
+	    /* Use the extra buttons as a scrollwheel */
+	    if (ms.button & MOUSE_BUTTON4DOWN)
+		z = -1;
+	    else if (ms.button & MOUSE_BUTTON5DOWN)
+		z = 1;
+	    else
+		z = 0;
+
 	    break;
 
 	case MOUSE_MODEL_GENERIC:
@@ -3139,6 +3150,16 @@ enable_synaptics(struct psm_softc *sc)
 
     /* Reset the sampling rate */
     set_mouse_sampling_rate(kbdc, 20);
+
+    /* 
+     * Report the correct number of buttons
+     *
+     * XXX: I'm not sure this is used anywhere.
+     */
+    if (sc->synhw.capExtended && sc->synhw.capFourButtons)
+	sc->hw.buttons = 4;
+    else
+	sc->hw.buttons = 3;
 
     return (TRUE);
 }
