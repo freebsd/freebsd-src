@@ -102,6 +102,8 @@
 /*
  * Sbus support.
  */
+
+#define	__RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
