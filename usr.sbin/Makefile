@@ -25,7 +25,6 @@ SUBDIR=	IPXrouted \
 	dev_mkdb \
 	devinfo \
 	digictl \
-	diskpart \
 	edquota \
 	extattrctl \
 	faithd \
