@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.58 1998/06/07 17:11:48 dfr Exp $
+ * $Id: vfs_vnops.c,v 1.59 1998/06/27 06:43:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ vn_open(ndp, fmode, cmode)
 	register struct ucred *cred = p->p_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
-	int error;
+	int mode, error;
 
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
@@ -136,11 +136,7 @@ vn_open(ndp, fmode, cmode)
 		goto bad;
 	}
 	if ((fmode & O_CREAT) == 0) {
-		if (fmode & FREAD) {
-			error = VOP_ACCESS(vp, VREAD, cred, p);
-			if (error)
-				goto bad;
-		}
+		mode = 0;
 		if (fmode & (FWRITE | O_TRUNC)) {
 			if (vp->v_type == VDIR) {
 				error = EISDIR;
@@ -149,7 +145,12 @@ vn_open(ndp, fmode, cmode)
 			error = vn_writechk(vp);
 			if (error)
 				goto bad;
-		        error = VOP_ACCESS(vp, VWRITE, cred, p);
+			mode |= VWRITE;
+		}
+		if (fmode & FREAD)
+			mode |= VREAD;
+		if (mode) {
+		        error = VOP_ACCESS(vp, mode, cred, p);
 			if (error)
 				goto bad;
 		}
