@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.19 1997/08/29 07:26:27 smp Exp smp $
+ * $Id: mplock.s,v 1.22 1997/08/29 18:16:17 fsmp Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -461,6 +461,49 @@ NON_GPROF_ENTRY(rel_altsyscall_lock)
 #endif /* notneeded */
 
 
+#ifdef RECURSIVE_MPINTRLOCK
+/***********************************************************************
+ *  void get_mpintrlock()
+ *  -----------------
+ *  All registers preserved
+ */
+
+NON_GPROF_ENTRY(get_mpintrlock)
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
+
+	pushl	$_mpintr_lock
+	call	_MPgetlock
+	add	$4, %esp
+
+	popl	%edx
+	popl	%ecx
+	popl	%eax
+	ret
+
+/***********************************************************************
+ *  void rel_mpintrlock()
+ *  -----------------
+ *  All registers preserved
+ */
+
+NON_GPROF_ENTRY(rel_mpintrlock)
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
+
+	pushl	$_mpintr_lock
+	call	_MPrellock
+	add	$4, %esp
+
+	popl	%edx
+	popl	%ecx
+	popl	%eax
+	ret
+#endif /* RECURSIVE_MPINTRLOCK */
+
+
 /***********************************************************************
  * 
  */
@@ -472,6 +515,11 @@ _mp_lock:	.long	0
 
 	.globl _isr_lock
 _isr_lock:	.long	0		
+
+#ifdef RECURSIVE_MPINTRLOCK
+	.globl _mpintr_lock
+_mpintr_lock:	.long	0xffffffff
+#endif /* RECURSIVE_MPINTRLOCK */
 
 
 #ifdef GLPROFILE

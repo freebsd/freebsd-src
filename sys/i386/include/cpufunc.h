@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.68 1997/05/31 09:13:03 peter Exp $
+ *	$Id: cpufunc.h,v 1.69 1997/07/17 04:33:46 dyson Exp $
  */
 
 /*
@@ -42,6 +42,9 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
+#include <machine/lock.h>
+
 
 #ifdef	__GNUC__
 
@@ -55,11 +58,13 @@ static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
+ 	MPINTR_LOCK();
 }
 
 static __inline void
 enable_intr(void)
 {
+ 	MPINTR_UNLOCK();
 	__asm __volatile("sti");
 }
 
