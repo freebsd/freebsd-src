@@ -47,14 +47,14 @@
 extern char *__progname;
 
 static void
-login_usage() {
+login_usage(void) {
 	printf("usage: %s [-Dh] [-A host] [-BCN] [-I level] [-M mode] \n"
 	       "       [-R retrycount] [-W timeout] /server:user\n", __progname);
 	exit(1);
 }
 
 static void
-logout_usage() {
+logout_usage(void) {
 	printf("usage: %s [-c handle] [-h] [/server:user]\n", __progname);
 	exit(1);
 }
