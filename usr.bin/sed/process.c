@@ -89,11 +89,12 @@ process()
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t len;
-	char oldc, *p;
+	size_t len, oldpsl;
+	char *p;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
+top:
 		cp = prog;
 redirect:
 		while (cp != NULL) {
@@ -130,13 +131,14 @@ redirect:
 			case 'D':
 				if (pd)
 					goto new;
-				if ((p = memchr(ps, '\n', psl)) == NULL)
+				if ((p = memchr(ps, '\n', psl - 1)) == NULL) {
 					pd = 1;
-				else {
-					psl -= (p - ps) + 1;
+					goto new;
+				} else {
+					psl -= (p + 1) - ps;
 					memmove(ps, p + 1, psl);
+					goto top;
 				}
-				goto new;
 			case 'g':
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
@@ -179,13 +181,13 @@ redirect:
 			case 'P':
 				if (pd)
 					break;
-				if ((p = memchr(ps, '\n', psl)) != NULL) {
-					oldc = *++p;
-					*p = '\0';
+				if ((p = memchr(ps, '\n', psl - 1)) != NULL) {
+					oldpsl = psl;
+					psl = (p + 1) - ps;
 				}
 				OUT(ps)
 				if (p != NULL)
-					*p = oldc;
+					psl = oldpsl;
 				break;
 			case 'q':
 				if (!nflag && !pd)
@@ -226,7 +228,7 @@ redirect:
 				break;
 			case 'x':
 				if (hs == NULL)
-					cspace(&HS, "", 0, REPLACE);
+					cspace(&HS, "\n", 1, REPLACE);
 				tspace = PS;
 				PS = HS;
 				HS = tspace;
@@ -345,18 +347,18 @@ substitute(cp)
 				regsub(&SS, s, cp->u.s->new);
 			}
 
-  			/* Move past this match. */
+			/* Move past this match. */
 			if (match[0].rm_so != match[0].rm_eo) {
 				s += match[0].rm_eo;
 				slen -= match[0].rm_eo;
 				lastempty = 0;
 			} else {
 				if (match[0].rm_so == 0)
-					cspace(&SS,
-					    s, match[0].rm_so + 1, APPEND);
+					cspace(&SS, s, match[0].rm_so + 1,
+					    APPEND);
 				else
-					cspace(&SS,
-					    s + match[0].rm_so, 1, APPEND);
+					cspace(&SS, s + match[0].rm_so, 1,
+					    APPEND);
 				s += match[0].rm_so + 1;
 				slen -= match[0].rm_so + 1;
 				lastempty = 1;
