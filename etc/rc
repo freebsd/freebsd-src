@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.28 1997/12/09 07:24:35 danny Exp $
+#	$Id: rc,v 1.104.2.29 1997/12/09 10:05:04 danny Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -212,6 +212,11 @@ _LDC=/usr/lib
 if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
 if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+if [ "X${ldconfig_extra_libdirs}" != X ]; then
+	for LDIR in $ldconfig_extra_libdirs; do
+		if [ -d ${LDIR} ]; then _LDC="${_LDC} ${LDIR} " ; fi
+	done
+fi
 echo 'setting ldconfig path:' ${_LDC}
 ldconfig ${_LDC}
 
