@@ -1289,9 +1289,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 
 	ncr53c9x_free_ecb(sc, ecb);
 	ti->cmds++;
-	mtx_unlock(&sc->sc_lock);
 	xpt_done(ccb);
-	mtx_lock(&sc->sc_lock);
 }
 
 static void
