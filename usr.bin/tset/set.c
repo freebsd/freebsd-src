@@ -241,10 +241,9 @@ set_init()
 	int settle;
 
 	bp = buf;
-#ifndef __FreeBSD__
 	if (tgetstr("pc", &bp) != 0)		/* Get/set pad character. */
 		PC = buf[0];
-#endif
+
 #ifdef TAB3
 	if (oldmode.c_oflag & (TAB3 | ONLCR | OCRNL | ONLRET)) {
 		oldmode.c_oflag &= (TAB3 | ONLCR | OCRNL | ONLRET);
