@@ -87,17 +87,20 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
 
 /* Like the default, except no -lg, and no -p.  */
-#define LIB_SPEC "%{!pg:-lc}%{pg:-lc_p}"
+#define LIB_SPEC "%{!shared:%{!pg:-lc}%{pg:-lc_p}}"
 
 #define LINK_SPEC \
   "%{p:%e`-p' not supported; use `-pg' and gprof(1)} \
-   %{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
-   %{pg:-Bstatic} %{Z} %{R*}"
+   %{shared:-Bshareable} \
+   %{!shared:%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} \
+   %{pg:-Bstatic} %{Z}} \
+   %{assert*} %{R*}"
 
 #define LINK_LIBGCC_SPECIAL_1	1
 
 #define STARTFILE_SPEC  \
-  "%{pg:gcrt0.o%s}%{!pg:%{static:scrt0.o%s}%{!static:crt0.o%s}}"
+  "%{shared:c++rt0.o%s} \
+   %{!shared:%{pg:gcrt0.o%s}%{!pg:%{static:scrt0.o%s}%{!static:crt0.o%s}}}"
 
 /* This goes away when the math emulator is fixed.  */
 #undef TARGET_DEFAULT
