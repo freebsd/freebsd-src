@@ -298,14 +298,14 @@ read_file(char *fname)
 	struct opt *op;
 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
 	int nreqs, isdup, std, filetype,
-	    imp_rule, no_obj, needcount, before_depend, mandatory, nowerror;
+	    imp_rule, no_obj, before_depend, mandatory, nowerror;
 
 	fp = fopen(fname, "r");
 	if (fp == 0)
 		err(1, "%s", fname);
 next:
 	/*
-	 * filename    [ standard | mandatory | optional | count ]
+	 * filename    [ standard | mandatory | optional ]
 	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -345,7 +345,6 @@ next:
 	std = mandatory = 0;
 	imp_rule = 0;
 	no_obj = 0;
-	needcount = 0;
 	before_depend = 0;
 	nowerror = 0;
 	filetype = NORMAL;
@@ -358,10 +357,8 @@ next:
 	 */
 	} else if (eq(wd, "mandatory")) {
 		mandatory = 1;
-	} else if (eq(wd, "count")) {
-		needcount = 1;
 	} else if (!eq(wd, "optional")) {
-		printf("%s: %s must be count, optional, mandatory or standard\n",
+		printf("%s: %s must be optional, mandatory or standard\n",
 		       fname, this);
 		exit(1);
 	}
@@ -451,11 +448,8 @@ nextparam:
 	if (isdup)
 		goto invis;
 	STAILQ_FOREACH(dp, &dtab, d_next)
-		if (eq(dp->d_name, wd)) {
-			if (std && dp->d_count <= 0)
-				dp->d_count = 1;
+		if (eq(dp->d_name, wd))
 			goto nextparam;
-		}
 	if (mandatory) {
 		printf("%s: mandatory device \"%s\" not found\n",
 		       fname, wd);
@@ -483,8 +477,6 @@ invis:
 	tp->f_type = INVISIBLE;
 	tp->f_needs = needs;
 	tp->f_flags |= isdup;
-	if (needcount)
-		tp->f_flags |= NEED_COUNT;
 	tp->f_compilewith = compilewith;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
@@ -516,8 +508,6 @@ doneparam:
 		tp->f_flags |= NO_OBJ;
 	if (before_depend)
 		tp->f_flags |= BEFORE_DEPEND;
-	if (needcount)
-		tp->f_flags |= NEED_COUNT;
 	if (nowerror)
 		tp->f_flags |= NOWERROR;
 	tp->f_needs = needs;

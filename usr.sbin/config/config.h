@@ -41,7 +41,7 @@
 struct file_list {
 	STAILQ_ENTRY(file_list) f_next;
 	char	*f_fn;			/* the name */
-	int     f_type;                 /* type or count */
+	int     f_type;                 /* type */
 	u_char	f_flags;		/* see below */
 	char	*f_compilewith;		/* special make rule if present */
 	char	*f_depends;		/* additional dependancies */
@@ -72,14 +72,12 @@ struct files_name {
 #define NO_IMPLCT_RULE	1
 #define NO_OBJ		2
 #define BEFORE_DEPEND	4
-#define NEED_COUNT	8
-#define ISDUP		16
-#define NOWERROR	32
+#define ISDUP		8
+#define NOWERROR	16
 
 struct device {
 	int	d_done;			/* processed */
 	char	*d_name;		/* name of device (e.g. rk11) */
-	int	d_count;		/* device count */
 #define	UNKNOWN -2	/* -2 means not set yet */
 	STAILQ_ENTRY(device) d_next;	/* Next one in list */
 };

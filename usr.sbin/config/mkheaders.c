@@ -47,10 +47,6 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-static int do_header(char *, int);
-static char *toheader(char *);
-static char *tomacro(char *);
-
 void
 headers(void)
 {
@@ -69,8 +65,6 @@ headers(void)
 					dp->d_done |= DEVDONE;
 				}
 			}
-			if (fl->f_flags & NEED_COUNT)
-				errors += do_header(fl->f_needs, match);
 		}
 	}
 	STAILQ_FOREACH(dp, &dtab, d_next) {
@@ -79,157 +73,7 @@ headers(void)
 			       dp->d_name);
 			       errors++;
 			}
-		if (dp->d_count == UNKNOWN)
-			continue;
-		match = 0;
-		STAILQ_FOREACH(fl, &ftab, f_next) {
-			if (fl->f_needs == 0)
-				continue;
-			if ((fl->f_flags & NEED_COUNT) == 0)
-				continue;
-			if (eq(dp->d_name, fl->f_needs)) {
-				match++;
-				break;
-			}
-		}
-		if (match == 0) {
-			warnx("Error: device \"%s\" does not take a count",
-			    dp->d_name);
-			errors++;
-		}
 	}
 	if (errors)
 		errx(1, "%d errors", errors);
-}
-
-static int
-do_header(char *dev, int match)
-{
-	char *file, *name, *inw;
-	struct file_list *fl, *tflp;
-	struct file_list_head fl_head;
-	struct device *dp;
-	FILE *inf, *outf;
-	int inc, oldcount;
-	int count, hicount;
-	int errors;
-
-	/*
-	 * After this loop, "count" will be the actual number of units,
-	 * and "hicount" will be the highest unit declared.  do_header()
-	 * must use this higher of these values.
-	 */
-	errors = 0;
-	hicount = count = 0;
-	STAILQ_FOREACH(dp, &dtab, d_next) {
-		if (eq(dp->d_name, dev)) {
-			if (dp->d_count == UNKNOWN) {
-				warnx("Device \"%s\" requires a count", dev);
-				return 1;
-			}
-			count = dp->d_count;
-			break;
-		}
-	}
-	file = toheader(dev);
-	name = tomacro(dev);
-	if (match)
-		fprintf(stderr,
-		    "FYI: static unit limits for %s are set: %s=%d\n",
-		    dev, name, count);
-	remember(file);
-	inf = fopen(file, "r");
-	oldcount = -1;
-	if (inf == 0) {
-		outf = fopen(file, "w");
-		if (outf == 0)
-			err(1, "%s", file);
-		fprintf(outf, "#ifndef BURN_BRIDGES\n");
-		fprintf(outf, "#define %s %d\n", name, count);
-		fprintf(outf, "#endif\n");
-		(void) fclose(outf);
-		return 0;
-	}
-	STAILQ_INIT(&fl_head);
-	for (;;) {
-		char *cp;
-		if ((inw = get_word(inf)) == 0 || inw == (char *)EOF)
-			break;
-		if ((inw = get_word(inf)) == 0 || inw == (char *)EOF)
-			break;
-		inw = ns(inw);
-		cp = get_word(inf);
-		if (cp == 0 || cp == (char *)EOF)
-			break;
-		inc = atoi(cp);
-		if (eq(inw, name)) {
-			oldcount = inc;
-			inc = count;
-		}
-		cp = get_word(inf);
-		if (cp == (char *)EOF)
-			break;
-		fl = (struct file_list *) malloc(sizeof *fl);
-		bzero(fl, sizeof(*fl));
-		fl->f_fn = inw;		/* malloced */
-		fl->f_type = inc;
-		STAILQ_INSERT_HEAD(&fl_head, fl, f_next);
-	}
-	(void) fclose(inf);
-	if (count == oldcount) {
-		for (fl = STAILQ_FIRST(&fl_head); fl != NULL; fl = tflp) {
-			tflp = STAILQ_NEXT(fl, f_next);
-			free(fl->f_fn);
-			free(fl);
-		}
-		return 0;
-	}
-	if (oldcount == -1) {
-		fl = (struct file_list *) malloc(sizeof *fl);
-		bzero(fl, sizeof(*fl));
-		fl->f_fn = ns(name);
-		fl->f_type = count;
-		STAILQ_INSERT_HEAD(&fl_head, fl, f_next);
-	}
-	outf = fopen(file, "w");
-	if (outf == 0)
-		err(1, "%s", file);
-	for (fl = STAILQ_FIRST(&fl_head); fl != NULL; fl = tflp) {
-		fprintf(outf,
-		    "#define %s %u\n", fl->f_fn, count ? fl->f_type : 0);
-		tflp = STAILQ_NEXT(fl, f_next);
-		free(fl->f_fn);
-		free(fl);
-	}
-	(void) fclose(outf);
-	return 0;
-}
-
-/*
- * convert a dev name to a .h file name
- */
-static char *
-toheader(char *dev)
-{
-	static char hbuf[MAXPATHLEN];
-
-	snprintf(hbuf, sizeof(hbuf), "%s.h", path(dev));
-	return (hbuf);
-}
-
-/*
- * convert a dev name to a macro name
- */
-static char *
-tomacro(char *dev)
-{
-	static char mbuf[20];
-	char *cp;
-
-	cp = mbuf;
-	*cp++ = 'N';
-	while (*dev)
-		*cp++ = islower(*dev) ? toupper(*dev++) : *dev++;
-	*cp++ = 0;
-	return (mbuf);
 }

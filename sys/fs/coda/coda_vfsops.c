@@ -43,7 +43,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <vcoda.h>
+#include "opt_coda.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
