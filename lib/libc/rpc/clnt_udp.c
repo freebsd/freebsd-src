@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: clnt_udp.c,v 1.8 1996/12/30 14:40:34 peter Exp $";
 #endif
 
 /*
@@ -419,6 +419,7 @@ clntudp_abort(/*h*/)
 {
 }
 
+
 static bool_t
 clntudp_control(cl, request, info)
 	CLIENT *cl;
@@ -426,23 +427,111 @@ clntudp_control(cl, request, info)
 	char *info;
 {
 	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	register struct timeval *tv;
+	int len;
 
 	switch (request) {
+	case CLSET_FD_CLOSE:
+		cu->cu_closeit = TRUE;
+		break;
+	case CLSET_FD_NCLOSE:
+		cu->cu_closeit = FALSE;
+		break;
 	case CLSET_TIMEOUT:
-		cu->cu_total = *(struct timeval *)info;
+		if (info == NULL)
+			return(FALSE);
+		tv = (struct timeval *)info;
+		cu->cu_total.tv_sec = tv->tv_sec;
+		cu->cu_total.tv_usec = tv->tv_usec;
 		break;
 	case CLGET_TIMEOUT:
+		if (info == NULL)
+			return(FALSE);
 		*(struct timeval *)info = cu->cu_total;
 		break;
 	case CLSET_RETRY_TIMEOUT:
-		cu->cu_wait = *(struct timeval *)info;
+		if (info == NULL)
+			return(FALSE);
+		tv = (struct timeval *)info;
+		cu->cu_wait.tv_sec = tv->tv_sec;
+		cu->cu_wait.tv_usec = tv->tv_usec;
 		break;
 	case CLGET_RETRY_TIMEOUT:
+		if (info == NULL)
+			return(FALSE);
 		*(struct timeval *)info = cu->cu_wait;
 		break;
 	case CLGET_SERVER_ADDR:
+		if (info == NULL)
+			return(FALSE);
 		*(struct sockaddr_in *)info = cu->cu_raddr;
 		break;
+	case CLGET_FD:
+		if (info == NULL)
+			return(FALSE);
+		*(int *)info = cu->cu_sock;
+		break;
+	case CLGET_XID:
+		/*
+		 * use the knowledge that xid is the
+		 * first element in the call structure *.
+		 * This will get the xid of the PREVIOUS call
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)cu->cu_outbuf);
+		break;
+	case CLSET_XID:
+		/* This will set the xid of the NEXT call */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)cu->cu_outbuf =  htonl(*(u_long *)info - 1);
+		/* decrement by 1 as clntudp_call() increments once */
+	case CLGET_VERS:
+		/*
+		 * This RELIES on the information that, in the call body,
+		 * the version number field is the fifth field from the
+		 * begining of the RPC header. MUST be changed if the
+		 * call_struct is changed
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)(cu->cu_outbuf +
+						4 * BYTES_PER_XDR_UNIT));
+		break;
+	case CLSET_VERS:
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)(cu->cu_outbuf + 4 * BYTES_PER_XDR_UNIT)
+				= htonl(*(u_long *)info);
+		break;
+	case CLGET_PROG:
+		/*
+		 * This RELIES on the information that, in the call body,
+		 * the program number field is the  field from the
+		 * begining of the RPC header. MUST be changed if the
+		 * call_struct is changed
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)(cu->cu_outbuf +
+						3 * BYTES_PER_XDR_UNIT));
+		break;
+	case CLSET_PROG:
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)(cu->cu_outbuf + 3 * BYTES_PER_XDR_UNIT)
+				= htonl(*(u_long *)info);
+		break;
+	case CLGET_LOCAL_ADDR:
+		len = sizeof(struct sockaddr);
+		if (getsockname(cu->cu_sock, (struct sockaddr *)info, &len) <0)
+			return(FALSE);
+		break;
+	case CLGET_SVC_ADDR:
+	case CLSET_SVC_ADDR:
+	case CLSET_PUSH_TIMOD:
+	case CLSET_POP_TIMOD:
 	default:
 		return (FALSE);
 	}

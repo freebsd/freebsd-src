@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_generic.c 1.4 87/08/11 (C) 1987 SMI";*/
 /*static char *sccsid = "from: @(#)clnt_generic.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: clnt_generic.c,v 1.5 1996/12/30 14:17:20 peter Exp $";
 #endif
 
 /*
@@ -57,9 +57,26 @@ clnt_create(hostname, prog, vers, proto)
 	struct hostent *h;
 	struct protoent *p;
 	struct sockaddr_in sin;
+	struct sockaddr_un sun;
 	int sock;
-	struct timeval tv;
+	static struct timeval tv;
 	CLIENT *client;
+
+	if (!strcmp(proto, "unix")) {
+		bzero((char *)&sun, sizeof(sun));
+		sun.sun_family = AF_UNIX;
+		strcpy(sun.sun_path, hostname);
+		sun.sun_len = sizeof(sun.sun_len) + sizeof(sun.sun_family) +
+				strlen(sun.sun_path) + 1;
+		sock = RPC_ANYSOCK;
+		client = clntunix_create(&sun, prog, vers, &sock, 0, 0);
+		if (client == NULL)
+			return(NULL);
+		tv.tv_sec = 25;
+		tv.tv_usec = 0;
+		clnt_control(client, CLSET_TIMEOUT, &tv);
+		return(client);
+	}
 
 	h = gethostbyname(hostname);
 	if (h == NULL) {

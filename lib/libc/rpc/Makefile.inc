@@ -1,5 +1,4 @@
-#	from @(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id$
+#	@(#)Makefile	5.11 (Berkeley) 9/6/90
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
@@ -9,6 +8,28 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 	pmap_prot2.c pmap_rmt.c rpc_prot.c rpc_commondata.c rpc_callmsg.c \
 	svc.c svc_auth.c svc_auth_unix.c svc_raw.c svc_run.c svc_simple.c \
 	svc_tcp.c svc_udp.c
+
+SRCS+=	clnt_unix.c svc_unix.c
+
+SRCS+=	auth_des.c authdes_prot.c auth_time.c des_soft.c des_crypt.c \
+	key_call.c key_prot_xdr.c netname.c netnamer.c rpcdname.c rtime.c \
+	svc_auth_des.c crypt_clnt.c crypt_xdr.c crypt_client.c
+
+CFLAGS+= -DBROKEN_DES
+
+CLEANFILES= crypt_clnt.c crypt_xdr.c crypt.h
+
+RPCDIR= ${DESTDIR}/usr/include/rpcsvc
+RPCGEN= rpcgen -C
+
+crypt_clnt.c: ${RPCDIR}/crypt.x crypt.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCDIR}/crypt.x
+
+crypt_xdr.c: ${RPCDIR}/crypt.x crypt.h
+	${RPCGEN} -c -o ${.TARGET} ${RPCDIR}/crypt.x
+
+crypt.h: ${RPCDIR}/crypt.x
+	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/crypt.x
 
 # Only build man pages with libc.
 .if ${LIB} == "c"
@@ -23,6 +44,9 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
 MAN5+= rpc/rpc.5
 MAN8+= rpc/rstat_svc.8
+
+MAN3+= rpc/rpc_secure.3 rpc/publickey.3 rpc/rtime.3 rpc/des_crypt.3
+MAN5+= rpc/publickey.5
 
 MLINKS+=	getrpcent.3 getrpcbyname.3 \
 		getrpcent.3 getrpcbynumber.3 \

@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_auth_unix.c 1.28 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: svc_auth_unix.c,v 1.4 1996/12/30 15:10:14 peter Exp $";
 #endif
 
 /*
@@ -114,8 +114,19 @@ _svcauth_unix(rqst, msg)
 		stat = AUTH_BADCRED;
 		goto done;
 	}
-	rqst->rq_xprt->xp_verf.oa_flavor = AUTH_NULL;
-	rqst->rq_xprt->xp_verf.oa_length = 0;
+
+	/* get the verifier */
+	if ((u_int)msg->rm_call.cb_verf.oa_length) {
+		rqst->rq_xprt->xp_verf.oa_flavor = 
+			msg->rm_call.cb_verf.oa_flavor;
+		rqst->rq_xprt->xp_verf.oa_base = 
+			msg->rm_call.cb_verf.oa_base;
+		rqst->rq_xprt->xp_verf.oa_length = 
+			msg->rm_call.cb_verf.oa_length;
+	} else {
+		rqst->rq_xprt->xp_verf.oa_flavor = AUTH_NULL;
+		rqst->rq_xprt->xp_verf.oa_length = 0;
+	}
 	stat = AUTH_OK;
 done:
 	XDR_DESTROY(&xdrs);
