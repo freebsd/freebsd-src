@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.10 1998/10/10 00:03:07 peter Exp $
+ *	$Id: kern_module.c,v 1.11 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ module_register_init(void *arg)
 
     error = module_register(data->name, data->evhand, data->priv, data->_file);
     if (error)
-	printf("module_register_init: module_register(%s, %lx, %p) returned %d",
+	printf("module_register_init: module_register(%s, %lx, %p) error %d\n",
 	       data->name, (u_long)(uintfptr_t)data->evhand, data->priv, error);
 }
 
