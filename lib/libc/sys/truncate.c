@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)truncate.c	8.1 (Berkeley) 6/17/93";
  */
 int
 truncate(path, length)
-	char 	*path;
+	const char 	*path;
 	off_t	length;
 {
 
