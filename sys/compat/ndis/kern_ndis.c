@@ -397,9 +397,13 @@ ndis_convert_res(arg)
 	ndis_resource_list	*rl = NULL;
 	cm_partial_resource_desc	*prd = NULL;
 	ndis_miniport_block	*block;
+	device_t		dev;
+	struct resource_list	*brl;
+	struct resource_list_entry	*brle;
 
 	sc = arg;
 	block = &sc->ndis_block;
+	dev = sc->ndis_dev;
 
 	rl = malloc(sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1)),
@@ -411,33 +415,35 @@ ndis_convert_res(arg)
 	rl->cprl_version = 5;
 	rl->cprl_version = 1;
 	rl->cprl_count = sc->ndis_rescnt;
-
 	prd = rl->cprl_partial_descs;
-	if (sc->ndis_res_io) {
-		prd->cprd_type = CmResourceTypePort;
-		prd->u.cprd_port.cprd_start.np_quad =
-		    rman_get_start(sc->ndis_res_io);
-		prd->u.cprd_port.cprd_len =
-		    rman_get_size(sc->ndis_res_io);
-		prd++;
-	}
 
-	if (sc->ndis_res_mem) {
-		prd->cprd_type = CmResourceTypeMemory;
-		prd->u.cprd_mem.cprd_start.np_quad =
-		    rman_get_start(sc->ndis_res_mem);
-		prd->u.cprd_mem.cprd_len =
-		    rman_get_size(sc->ndis_res_mem);
-		prd++;
-	}
-
-	if (sc->ndis_irq) {
-		prd->cprd_type = CmResourceTypeInterrupt;
-		prd->u.cprd_intr.cprd_level =
-		    rman_get_start(sc->ndis_irq);
-		prd->u.cprd_intr.cprd_vector =
-		    rman_get_start(sc->ndis_irq);
-		prd->u.cprd_intr.cprd_affinity = 0;
+	brl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+	if (brl != NULL) {
+		SLIST_FOREACH(brle, brl, link) {
+			switch (brle->type) {
+			case SYS_RES_IOPORT:
+				prd->cprd_type = CmResourceTypePort;
+				prd->u.cprd_port.cprd_start.np_quad =
+				    brle->start;
+				prd->u.cprd_port.cprd_len = brle->count;
+				break;
+			case SYS_RES_MEMORY:
+				prd->cprd_type = CmResourceTypeMemory;
+				prd->u.cprd_port.cprd_start.np_quad =
+				    brle->start;
+				prd->u.cprd_port.cprd_len = brle->count;
+				break;
+			case SYS_RES_IRQ:
+				prd->cprd_type = CmResourceTypeInterrupt;
+				prd->u.cprd_intr.cprd_level = brle->start;
+				prd->u.cprd_intr.cprd_vector = brle->start;
+				prd->u.cprd_intr.cprd_affinity = 0;
+				break;
+			default:
+				break;
+			}
+			prd++;
+		}
 	}
 
 	block->nmb_rlist = rl;
