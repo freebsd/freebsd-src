@@ -52,7 +52,7 @@ static const char rcsid[] =
 struct savestruct
 {
 	void *address;
-	int width;
+	size_t width;
 };
 
 struct savestruct save_array[] =
@@ -129,13 +129,13 @@ save(const char *outfile)
 	FILE *out;
 	struct savestruct *p;
 	char *s;
-	long sum;
-	int i;
+	unsigned long sum;
+	size_t i;
 
 	crc_start();
 	for (p = save_array; p->address != NULL; p++)
 		sum = crc(p->address, p->width);
-	srandom((int) sum);
+	srandom(sum);
 
 	if ((out = fopen(outfile, "wb")) == NULL)
 	{
@@ -162,8 +162,8 @@ restore(const char *infile)
 	FILE *in;
 	struct savestruct *p;
 	char *s;
-	long sum, cksum;
-	int i;
+	unsigned long sum, cksum;
+	size_t i;
 
 	cksum = 0;
 	if ((in = fopen(infile, "rb")) == NULL)
@@ -175,7 +175,7 @@ restore(const char *infile)
 	}
 
 	fread(&sum, sizeof(sum), 1, in);        /* Get the seed */
-	srandom((int) sum);
+	srandom(sum);
 	for (p = save_array; p->address != NULL; p++)
 	{
 		fread(p->address, p->width, 1, in);
