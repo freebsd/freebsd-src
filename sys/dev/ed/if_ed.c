@@ -2168,8 +2168,10 @@ ed_rint(sc)
 		 * we have a length that will fit into one mbuf cluster or less;
 		 * the upper layer protocols can then figure out the length from
 		 * their own length field(s).
+		 * But make sure that we have at least a full ethernet header
+		 * or we would be unable to call ether_input() later.
 		 */
-		if ((len > sizeof(struct ed_ring)) &&
+		if ((len >= sizeof(struct ed_ring) + ETHER_HDR_LEN) &&
 		    (len <= MCLBYTES) &&
 		    (packet_hdr.next_packet >= sc->rec_page_start) &&
 		    (packet_hdr.next_packet < sc->rec_page_stop)) {
@@ -2636,17 +2638,21 @@ ed_get_packet(sc, buf, len)
 #ifdef BRIDGE
 	/*
 	 * Don't read in the entire packet if we know we're going to drop it
+	 * and no bpf is active.
 	 */
-	if (do_bridge) {
+	if (!sc->arpcom.ac_if.if_bpf &&
+			do_bridge && BDG_USED( (&sc->arpcom.ac_if) ) ) {
 		struct ifnet *bif;
 
 		ed_ring_copy(sc, buf, (char *)eh, ETHER_HDR_LEN);
-		if ((bif = bridge_in(&sc->arpcom.ac_if, eh)) == BDG_DROP) {
+		bif = bridge_in(&sc->arpcom.ac_if, eh) ;
+		if (bif == BDG_DROP) {
 			m_freem(m);
 			return;
 		}
-		ed_ring_copy(sc, buf + ETHER_HDR_LEN,
-		    (char *)eh + ETHER_HDR_LEN, len - ETHER_HDR_LEN);
+		if (len > ETHER_HDR_LEN)
+			ed_ring_copy(sc, buf + ETHER_HDR_LEN,
+				(char *)(eh + 1), len - ETHER_HDR_LEN);
 	} else
 #endif
 	/*
