@@ -136,6 +136,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
+
+		/* Undefer and handle pending signals, yielding if necessary: */
+		_thread_kern_sig_undefer();
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
