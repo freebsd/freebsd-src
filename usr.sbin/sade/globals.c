@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.5 1995/05/16 11:37:12 jkh Exp $
+ * $Id: globals.c,v 1.6 1995/05/20 00:13:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,6 +52,7 @@ int		CpioFD;	  /* The file descriptor for our CPIO floppy */
 int		DebugFD;  /* Where diagnostic output goes */
 Boolean		OnCDROM;  /* Are we running off of a CDROM? */
 Boolean		OnSerial; /* Are we on a serial console? */
+Boolean		RunningAsInit;	/* Are we running as init? */
 Boolean		DialogActive;
 Boolean		ColorDisplay;
 Boolean		OnVTY;
@@ -74,4 +75,5 @@ globalsInit(void)
     DialogActive = FALSE;
     VarHead = NULL;
     mediaDevice = NULL;
+    RunningAsInit = FALSE;
 }

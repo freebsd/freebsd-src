@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.29 1995/05/24 01:27:14 jkh Exp $
+ * $Id: sysinstall.h,v 1.30 1995/05/24 09:00:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -192,6 +192,7 @@ extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
 extern Boolean		OnSerial;		/* Are we on a serial console?			*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/ 
+extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
