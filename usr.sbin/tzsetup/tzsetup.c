@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tzsetup.c,v 1.11 1998/12/16 05:34:49 peter Exp $";
+	"$Id: tzsetup.c,v 1.12 1999/02/02 20:26:31 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -655,7 +655,7 @@ main(int argc, char **argv)
 	init_dialog();
 	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
 			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
-			  "please choose NO here!", 7, 72)) {
+			  "or you don't know, please choose NO here!", 7, 72)) {
 		if (reallydoit)
 			unlink(_PATH_WALL_CMOS_CLOCK);
 	} else {
