@@ -265,7 +265,7 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	struct proc *proc = NULL;
 	int error;
 
-	PFS_TRACE((pd->pn_name));
+	PFS_TRACE((pn->pn_name));
 
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
