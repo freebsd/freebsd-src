@@ -47,17 +47,28 @@ struct option {
 #define	no_argument 0
 #define	required_argument 1
 #endif
-#ifdef HAVE_NL_LANGINFO_D_MD_ORDER
+#ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
 #include <locale.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#if HAVE_ZLIB_H
+#include <zlib.h>
+#endif
 
 #include "bsdtar.h"
+
+#ifndef _PATH_DEFTAPE
+#define _PATH_DEFTAPE "/dev/tape"
+#endif
+
 
 static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
     const struct option **poption);
@@ -171,7 +182,7 @@ main(int argc, char **argv)
 
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
-#ifdef HAVE_NL_LANGINFO_D_MD_ORDER
+#if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
 	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 #endif
 	mode = '\0';
@@ -269,11 +280,16 @@ main(int argc, char **argv)
 				    optarg);
 			break;
 		case 'j': /* GNU tar */
+#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0, "-j compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
@@ -395,11 +411,16 @@ main(int argc, char **argv)
 			mode = opt;
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
+#if HAVE_LIBBZ2
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0, "-y compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		case 'Z': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
@@ -409,13 +430,19 @@ main(int argc, char **argv)
 			bsdtar->create_compression = opt;
 			break;
 		case 'z': /* GNU tar, star, many others */
+#if HAVE_LIBZ
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Can't specify both -%c and -%c", opt,
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0, "-z compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		default:
+			bsdtar_warnc(bsdtar, 0, "Unrecognized option -c", optopt);
 			usage(bsdtar);
 		}
 	}
@@ -682,8 +709,8 @@ long_help(struct bsdtar *bsdtar)
 		} else
 			putchar(*p);
 	}
-	printf("\n");
-	version();
+	fprintf(stdout, "\n%s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	fprintf(stdout, "%s\n", archive_version());
 }
 
 static int
