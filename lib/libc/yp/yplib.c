@@ -372,7 +372,7 @@ again:
 			ysd->dom_client = NULL;
 			ysd->dom_socket = -1;
 		}
-		sprintf(path, "%s/%s.%d", BINDINGDIR, dom, 2);
+		snprintf(path, sizeof(path), "%s/%s.%d", BINDINGDIR, dom, 2);
 		if( (fd=open(path, O_RDONLY)) == -1) {
 			/* no binding file, YP is dead. */
 			/* Try to bring it back to life. */
@@ -503,7 +503,7 @@ skipit:
 			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 gotit:
 		ysd->dom_vers = YPVERS;
-		strcpy(ysd->dom_domain, dom);
+		strlcpy(ysd->dom_domain, dom, sizeof(ysd->dom_domain));
 	}
 
 	/* Don't rebuild the connection to the server unless we have to. */
