@@ -17,6 +17,7 @@ KEYMAPS+= german.iso.kbd german.iso.acc.kbd german.cp850.kbd
 KEYMAPS+= gr.elot.acc.kbd gr.us101.acc.kbd
 KEYMAPS+= hr.iso.kbd
 KEYMAPS+= hu.iso2.101keys.kbd hu.iso2.102keys.kbd
+KEYMAPS+= hy.armscii-8.kbd
 KEYMAPS+= icelandic.iso.kbd icelandic.iso.acc.kbd
 KEYMAPS+= it.iso.kbd
 KEYMAPS+= iw.iso8.kbd
