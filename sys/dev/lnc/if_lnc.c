@@ -99,6 +99,8 @@
 #include <net/bpfdesc.h>
 #endif
 
+#include <machine/md_var.h>
+
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_lnc.h>
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.7 1996/03/17 00:29:32 peter Exp $
+ * $Id: if_ar.c,v 1.8 1996/04/12 19:57:44 jhay Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 
 #include <sys/devconf.h>
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
