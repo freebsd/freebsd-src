@@ -972,8 +972,11 @@ user(name)
 		strncpy(curname, name, sizeof(curname)-1);
 #ifdef USE_PAM
 	/* XXX Kluge! The conversation mechanism needs to be fixed. */
-	opiechallenge(&opiedata, name, opieprompt);
-	reply(331, "[ %s ] Password required for %s.", opieprompt, name);
+	if (opiechallenge(&opiedata, name, opieprompt) == 0)
+		reply(331, "Response to %s required for %s.",
+			   opieprompt, name);
+	else
+		reply(331, "Password required for %s.", name);
 #else
 	reply(331, "Password required for %s.", name);
 #endif
