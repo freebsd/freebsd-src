@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.14.4.1 1995/07/23 05:43:47 davidg Exp $
+ *	$Id: ip_fw.c,v 1.14.4.2 1995/08/25 01:58:04 davidg Exp $
  */
 
 /*
@@ -542,7 +542,7 @@ add_entry(chainptr, frwl)
 	} else {
 		chtmp_prev = NULL;
 		for (chtmp = *chainptr; chtmp != NULL; chtmp = chtmp->fw_next) {
-
+#ifdef IPFIREWALL_ORDER_RULES
 			addb4 = 0;
 
 			newkind = ftmp->fw_flg & IP_FW_F_KIND;
@@ -662,6 +662,7 @@ add_entry(chainptr, frwl)
 				splx(s);
 				return 0;
 			}
+#endif /* IPFIREWALL_ORDER_RULES */
 			chtmp_prev = chtmp;
 		}
 		if (chtmp_prev != NULL)
