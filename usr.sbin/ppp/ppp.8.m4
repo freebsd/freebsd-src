@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.123 1998/08/29 23:02:45 brian Exp $
+.\" $Id: ppp.8,v 1.124 1998/08/31 16:41:08 wosch Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -3535,32 +3535,32 @@ This socket is used to pass links between different instances of
 .El
 .Pp
 .Sh SEE ALSO
+.Xr adduser 8 ,
 .Xr at 1 ,
+.Xr chat 8 ,
+.Xr crontab 5 ,
 .Xr ftp 1 ,
+.Xr getty 8 ,
+.Xr group 5 ,
 .Xr gzip 1 ,
 .Xr hostname 1 ,
-.Xr login 1 ,
-.Xr tcpdump 1 ,
-.Xr telnet 1 ,
-.Xr syslog 3 ,
-.Xr uucplock 3 ,
-.Xr crontab 5 ,
-.Xr group 5 ,
-.Xr passwd 5 ,
-.Xr resolv.conf 5 ,
-.Xr syslog.conf 5 ,
-.Xr adduser 8 ,
-.Xr chat 8 ,
-.Xr getty 8 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
+.Xr login 1 ,
 .Xr named 8 ,
+.Xr passwd 5 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
+.Xr resolv.conf 5 ,
 .Xr route 8 ,
+.Xr syslog 3 ,
+.Xr syslog.conf 5 ,
 .Xr syslogd 8 ,
+.Xr tcpdump 1 ,
+.Xr telnet 1 ,
 .Xr traceroute 8 ,
+.Xr uucplock 3 ,
 .Xr vipw 8
 .Sh HISTORY
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
