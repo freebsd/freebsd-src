@@ -1,9 +1,12 @@
-#	$Id: options.i386,v 1.11 1996/04/26 06:44:46 sos Exp $
+#	$Id: options.i386,v 1.12 1996/05/01 03:30:04 bde Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
-IBCS2			opt_ibcs2.h
+
+IBCS2			opt_dontuse.h
+COMPAT_LINUX		opt_dontuse.h
+
 SHOW_BUSYBUFS		opt_machdep.h
 PANIC_REBOOT_WAIT_TIME	opt_machdep.h
 LARGEMEM		opt_machdep.h
