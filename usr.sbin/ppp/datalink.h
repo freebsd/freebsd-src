@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.3 1998/05/28 23:15:35 brian Exp $
+ *	$Id: datalink.h,v 1.4 1998/06/15 19:05:19 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -34,7 +34,8 @@
 #define DATALINK_READY   (5)
 #define DATALINK_LCP     (6)
 #define DATALINK_AUTH    (7)
-#define DATALINK_OPEN    (8)
+#define DATALINK_CBCP    (8)
+#define DATALINK_OPEN    (9)
 
 #define DATALINK_MAXNAME (20)   /* Maximum datalink::name length */
 
@@ -61,7 +62,7 @@ struct datalink {
     unsigned packetmode : 1;	/* Go into packet mode after login ? */
   } script;
 
-  struct pppTimer dial_timer;	/* For timing between opens & scripts */
+  struct pppTimer dial_timer;	/* For timing between close & open */
 
   struct {
     struct {
@@ -81,6 +82,8 @@ struct datalink {
       int max;			/* initially try again this number of times */
       int timeout;		/* Timeout before reconnect on carrier loss */
     } reconnect;
+    struct callback callback;	/* Direction depends on physical type */
+    struct cbcpcfg cbcp;	/* Direction depends on phys type & callback */
   } cfg;			/* All our config data is in here */
 
   struct {
@@ -89,6 +92,8 @@ struct datalink {
     char *alt;			/* Next phone from the list */
     const char *chosen;		/* Chosen phone number after DIAL */
   } phone;
+
+  struct cbcp cbcp;
 
   int dial_tries;		/* currently try again this number of times */
   unsigned reconnect_tries;	/* currently try again this number of times */
@@ -126,6 +131,9 @@ extern void datalink_StayDown(struct datalink *);
 extern void datalink_DontHangup(struct datalink *);
 extern void datalink_AuthOk(struct datalink *);
 extern void datalink_AuthNotOk(struct datalink *);
+extern void datalink_NCPUp(struct datalink *);
+extern void datalink_CBCPComplete(struct datalink *);
+extern void datalink_CBCPFailed(struct datalink *);
 extern int datalink_Show(struct cmdargs const *);
 extern int datalink_SetRedial(struct cmdargs const *);
 extern int datalink_SetReconnect(struct cmdargs const *);

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.12 1998/05/01 19:25:40 brian Exp $
+ *	$Id: pred.c,v 1.21 1998/05/21 21:47:53 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "defs.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"

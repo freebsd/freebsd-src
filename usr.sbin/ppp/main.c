@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.139 1998/06/27 14:18:07 brian Exp $
+ * $Id: main.c,v 1.140 1998/08/02 06:56:40 brian Exp $
  *
  *	TODO:
  */
@@ -66,6 +66,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 #ifndef O_NONBLOCK

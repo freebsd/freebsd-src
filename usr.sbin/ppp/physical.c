@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.3 1998/05/23 22:24:47 brian Exp $
+ *  $Id: physical.c,v 1.4 1998/06/27 14:18:09 brian Exp $
  *
  */
 
@@ -217,8 +217,9 @@ physical_Logout(struct physical *phys)
 int
 physical_SetMode(struct physical *p, int mode)
 {
-  if (p->type & (PHYS_DIRECT|PHYS_DEDICATED)
-      || mode & (PHYS_DIRECT|PHYS_DEDICATED)) {
+  if ((p->type & (PHYS_DIRECT|PHYS_DEDICATED) ||
+       mode & (PHYS_DIRECT|PHYS_DEDICATED)) &&
+      (!(p->type & PHYS_DIRECT) || !(mode & PHYS_BACKGROUND))) {
     log_Printf(LogWARN, "%s: Cannot change mode %s to %s\n", p->link.name,
                mode2Nam(p->type), mode2Nam(mode));
     return 0;

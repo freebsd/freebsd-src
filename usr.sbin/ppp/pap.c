@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.24 1998/06/27 23:48:51 brian Exp $
+ * $Id: pap.c,v 1.25 1998/07/28 21:54:30 brian Exp $
  *
  *	TODO:
  */
@@ -28,7 +28,6 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
-#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"
@@ -56,6 +55,7 @@
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "SUCCESS", "FAILURE" };

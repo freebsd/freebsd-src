@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.8 1998/06/24 19:33:35 brian Exp $
+ *	$Id: prompt.c,v 1.9 1998/07/04 22:04:12 brian Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,7 @@
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "server.h"
 #include "main.h"

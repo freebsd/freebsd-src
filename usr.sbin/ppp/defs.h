@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.33 1998/06/27 23:48:43 brian Exp $
+ * $Id: defs.h,v 1.34 1998/07/11 02:48:36 brian Exp $
  *
  *	TODO:
  */
@@ -52,6 +52,7 @@
 #define DEF_LQRPERIOD 30	/* Default LQR frequency */
 #define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
+#define DEF_REQs     5		/* This number of REQs in IRC */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.34 1998/06/27 23:48:44 brian Exp $
+ * $Id: hdlc.c,v 1.35 1998/08/01 01:02:12 brian Exp $
  *
  *	TODO:
  */
@@ -58,6 +58,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "mp.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "filter.h"
 #include "bundle.h"
@@ -392,6 +393,14 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
       pap_Input(bundle, bp, p);
     else {
       log_Printf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
+      mbuf_Free(bp);
+    }
+    break;
+  case PROTO_CBCP:
+    if (p)
+      cbcp_Input(p, bp);
+    else {
+      log_Printf(LogERROR, "DecodePacket: CBCP: Not a physical link !\n");
       mbuf_Free(bp);
     }
     break;

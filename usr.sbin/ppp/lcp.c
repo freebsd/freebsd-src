@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.60 1998/06/25 22:33:28 brian Exp $
+ * $Id: lcp.c,v 1.61 1998/06/27 23:48:47 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -61,6 +61,7 @@
 #include "chat.h"
 #include "auth.h"
 #include "chap.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "bundle.h"
 
@@ -237,6 +238,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_lqrperiod = 0;
   lcp->his_acfcomp = 0;
   lcp->his_auth = 0;
+  lcp->his_callback.opmask = 0;
   lcp->his_shortseq = 0;
 
   lcp->want_mru = lcp->cfg.mru;
@@ -245,6 +247,8 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
 
   if (lcp->fsm.parent) {
+    struct physical *p = link2physical(lcp->fsm.link);
+
     lcp->his_accmap = 0xffffffff;
     lcp->want_accmap = lcp->cfg.accmap;
     lcp->his_protocomp = 0;
@@ -252,6 +256,10 @@ lcp_Setup(struct lcp *lcp, int openmode)
     lcp->want_magic = GenerateMagic();
     lcp->want_auth = IsEnabled(lcp->cfg.chap) ? PROTO_CHAP :
                      IsEnabled(lcp->cfg.pap) ?  PROTO_PAP : 0;
+    if (p->type != PHYS_DIRECT)
+      memcpy(&lcp->want_callback, &p->dl->cfg.callback, sizeof(struct callback));
+    else
+      lcp->want_callback.opmask = 0;
     lcp->want_lqrperiod = IsEnabled(lcp->cfg.lqr) ?
                           lcp->cfg.lqrperiod * 100 : 0;
   } else {
@@ -259,6 +267,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
     lcp->his_protocomp = lcp->want_protocomp = 1;
     lcp->want_magic = 0;
     lcp->want_auth = 0;
+    lcp->want_callback.opmask = 0;
     lcp->want_lqrperiod = 0;
   }
 
@@ -274,7 +283,7 @@ LcpInitRestartCounter(struct fsm * fp)
   struct lcp *lcp = fsm2lcp(fp);
 
   fp->FsmTimer.load = lcp->cfg.fsmretry * SECTICKS;
-  fp->restart = 5;
+  fp->restart = DEF_REQs;
 }
 
 static void
@@ -336,6 +345,26 @@ LcpSendConfigReq(struct fsm *fp)
     break;
   }
 
+  if (!REJECTED(lcp, TY_CALLBACK)) {
+    if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) {
+      *o->data = CALLBACK_AUTH;
+      INC_LCP_OPT(TY_CALLBACK, 3, o);
+    } else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_CBCP)) {
+      *o->data = CALLBACK_CBCP;
+      INC_LCP_OPT(TY_CALLBACK, 3, o);
+    } else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
+      int sz = strlen(lcp->want_callback.msg);
+
+      if (sz > sizeof o->data - 1) {
+        sz = sizeof o->data - 1;
+        log_Printf(LogWARN, "Truncating E164 data to %d octets (oops!)\n", sz);
+      }
+      *o->data = CALLBACK_E164;
+      memcpy(o->data + 1, lcp->want_callback.msg, sz);
+      INC_LCP_OPT(TY_CALLBACK, sz + 3, o);
+    }
+  }
+
   if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
     *(u_int16_t *)o->data = htons(lcp->want_mrru);
     INC_LCP_OPT(TY_MRRU, 4, o);
@@ -371,6 +400,11 @@ static void
 LcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
+  struct physical *p = link2physical(fp->link);
+
+  if (p && p->dl->state == DATALINK_CBCP)
+    cbcp_ReceiveTerminateReq(p);
+
   fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
 }
 
@@ -417,13 +451,32 @@ LcpLayerDown(struct fsm *fp)
   lcp_Setup(fsm2lcp(fp), 0);
 }
 
+static int
+E164ok(struct callback *cb, char *req, int sz)
+{
+  char list[sizeof cb->msg], *next;
+  int len;
+
+  if (!strcmp(cb->msg, "*"))
+    return 1;
+
+  strncpy(list, cb->msg, sizeof list - 1);
+  list[sizeof list - 1] = '\0';
+  for (next = strtok(list, ","); next; next = strtok(NULL, ",")) {
+    len = strlen(next);
+    if (sz == len && !memcmp(list, req, sz))
+      return 1;
+  }
+  return 0;
+}
+
 static void
 LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                 struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
-  int type, length, sz, pos;
+  int type, length, sz, pos, op, callback_req;
   u_int32_t magic, accmap;
   u_short mtu, mru, proto;
   u_int16_t *sp;
@@ -432,19 +485,21 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct mp *mp;
   struct physical *p = link2physical(fp->link);
 
+  callback_req = 0;
+
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogLCP, "%s: LCP size zero\n", fp->link->name);
-      break;
-    }
 
     if (type < 0 || type >= NCFTYPES)
       snprintf(request, sizeof request, " <%d>[%d]", type, length);
     else
       snprintf(request, sizeof request, " %s[%d]", cftypes[type], length);
+
+    if (length < 2) {
+      log_Printf(LogLCP, "%s:%s: Bad LCP length\n", fp->link->name, request);
+      break;
+    }
 
     switch (type) {
     case TY_MRRU:
@@ -782,6 +837,103 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       }
       break;
 
+    case TY_CALLBACK:
+      if (length == 2)
+        op = CALLBACK_NONE;
+      else
+        op = (int)cp[2];
+      sz = length - 3;
+      switch (op) {
+        case CALLBACK_AUTH:
+          log_Printf(LogLCP, "%s Auth\n", request);
+          break;
+        case CALLBACK_DIALSTRING:
+          log_Printf(LogLCP, "%s Dialstring %.*s\n", request, sz, cp + 3);
+          break;
+        case CALLBACK_LOCATION:
+          log_Printf(LogLCP, "%s Location %.*s\n", request, sz, cp + 3);
+          break;
+        case CALLBACK_E164:
+          log_Printf(LogLCP, "%s E.164 (%.*s)\n", request, sz, cp + 3);
+          break;
+        case CALLBACK_NAME:
+          log_Printf(LogLCP, "%s Name %.*s\n", request, sz, cp + 3);
+          break;
+        case CALLBACK_CBCP:
+          log_Printf(LogLCP, "%s CBCP\n", request);
+          break;
+        default:
+          log_Printf(LogLCP, "%s ???\n", request);
+          break;
+      }
+
+      switch (mode_type) {
+      case MODE_REQ:
+        callback_req = 1;
+        if (p->type != PHYS_DIRECT)
+	  goto reqreject;
+        if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(op)) &&
+            (op != CALLBACK_AUTH || p->link.lcp.auth_ineed) &&
+            (op != CALLBACK_E164 ||
+             E164ok(&p->dl->cfg.callback, cp + 3, sz))) {
+	  lcp->his_callback.opmask = CALLBACK_BIT(op);
+          if (sz > sizeof lcp->his_callback.msg - 1) {
+            sz = sizeof lcp->his_callback.msg - 1;
+            log_Printf(LogWARN, "Truncating option arg to %d octets\n", sz);
+          }
+	  memcpy(lcp->his_callback.msg, cp + 3, sz);
+	  lcp->his_callback.msg[sz] = '\0';
+	  memcpy(dec->ackend, cp, sz + 3);
+	  dec->ackend += sz + 3;
+        } else if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) &&
+                    p->link.lcp.auth_ineed) {
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 3;
+          *dec->nakend++ = CALLBACK_AUTH;
+        } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP)) {
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 3;
+          *dec->nakend++ = CALLBACK_CBCP;
+        } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 3;
+          *dec->nakend++ = CALLBACK_E164;
+        } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) {
+          log_Printf(LogWARN, "Cannot insist on auth callback without"
+                     " PAP or CHAP enabled !\n");
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 2;
+        } else
+	  goto reqreject;
+        break;
+      case MODE_NAK:
+        /* We don't do what he NAKs want, we do things in our preferred order */
+        if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_AUTH))
+          lcp->want_callback.opmask &= ~CALLBACK_BIT(CALLBACK_AUTH);
+        else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_CBCP))
+          lcp->want_callback.opmask &= ~CALLBACK_BIT(CALLBACK_CBCP);
+        else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_E164))
+          lcp->want_callback.opmask &= ~CALLBACK_BIT(CALLBACK_E164);
+        if (lcp->want_callback.opmask == CALLBACK_BIT(CALLBACK_NONE)) {
+          log_Printf(LogPHASE, "Peer NAKd all callbacks, trying none\n");
+          lcp->want_callback.opmask = 0;
+        } else if (!lcp->want_callback.opmask) {
+          log_Printf(LogPHASE, "Peer NAKd last configured callback\n");
+          fsm_Close(&lcp->fsm);
+        }
+        break;
+      case MODE_REJ:
+        if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_NONE)) {
+	  lcp->his_reject |= (1 << type);
+          lcp->want_callback.opmask = 0;
+        } else {
+          log_Printf(LogPHASE, "Peer rejected *required* callback\n");
+          fsm_Close(&lcp->fsm);
+        }
+	break;
+      }
+      break;
+
     case TY_SHORTSEQ:
       mp = &lcp->fsm.bundle->ncp.mp;
       log_Printf(LogLCP, "%s\n", request);
@@ -874,6 +1026,25 @@ reqreject:
   }
 
   if (mode_type != MODE_NOP) {
+    if (mode_type == MODE_REQ && p && p->type == PHYS_DIRECT &&
+        p->dl->cfg.callback.opmask && !callback_req &&
+        !(p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_NONE))) {
+      /* We *REQUIRE* that the peer requests callback */
+      *dec->nakend++ = TY_CALLBACK;
+      *dec->nakend++ = 3;
+      if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) &&
+          p->link.lcp.auth_ineed)
+        *dec->nakend++ = CALLBACK_AUTH;
+      else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP))
+        *dec->nakend++ = CALLBACK_CBCP;
+      else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_E164))
+        *dec->nakend++ = CALLBACK_E164;
+      else {
+        log_Printf(LogWARN, "Cannot insist on auth callback without"
+                   " PAP or CHAP enabled !\n");
+        dec->nakend[-1] = 2;	/* XXX: Silly ! */
+      }
+    }
     if (dec->rejend != dec->rej) {
       /* rejects are preferred */
       dec->ackend = dec->ack;
