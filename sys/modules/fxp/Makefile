@@ -7,6 +7,6 @@ KMODDEPS = miibus
 
 CLEANFILES = vlan.h
 vlan.h:
-	touch vlan.h
+	echo '#define NVLAN 1' > vlan.h
 
 .include <bsd.kmod.mk>
