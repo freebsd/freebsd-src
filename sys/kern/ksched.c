@@ -87,6 +87,11 @@ int ksched_detach(struct ksched *p)
 #define p4prio_to_rtpprio(P) (RTP_PRIO_MAX - (P))
 #define rtpprio_to_p4prio(P) (RTP_PRIO_MAX - (P))
 
+/* These improve readability a bit for me:
+ */
+#define P1B_PRIO_MIN rtpprio_to_p4prio(RTP_PRIO_MAX)
+#define P1B_PRIO_MAX rtpprio_to_p4prio(RTP_PRIO_MIN)
+
 static __inline int
 getscheduler(int *ret, struct ksched *ksched, struct proc *p)
 {
@@ -155,15 +160,15 @@ int ksched_setscheduler(int *ret, struct ksched *ksched,
 		case SCHED_RR:
 		case SCHED_FIFO:
 
-		if (param->sched_priority >= RTP_PRIO_MIN &&
-		param->sched_priority <= RTP_PRIO_MAX)
+		if (param->sched_priority >= P1B_PRIO_MIN &&
+		param->sched_priority <= P1B_PRIO_MAX)
 		{
+			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			rtp.type = (policy == SCHED_FIFO)
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
-			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			p->p_rtprio = rtp;
-			(void)resetpriority(p);
+			need_resched();
 		}
 		else
 			e = EPERM;
@@ -183,7 +188,7 @@ int ksched_setscheduler(int *ret, struct ksched *ksched,
 			 *     on the scheduling code: You must leave the
 			 *     scheduling info alone.
 			 */
-			(void)resetpriority(p);
+			need_resched();
 		}
 		break;
 	}
@@ -234,7 +239,7 @@ int ksched_get_priority_min(int *ret, struct ksched *ksched, int policy)
 	{
 		case SCHED_FIFO:
 		case SCHED_RR:
-		*ret = RTP_PRIO_MIN;
+		*ret = P1B_PRIO_MIN;
 		break;
 
 		case SCHED_OTHER:
