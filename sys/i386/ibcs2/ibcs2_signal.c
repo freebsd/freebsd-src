@@ -456,7 +456,7 @@ ibcs2_sigpending(td, uap)
 	ibcs2_sigset_t iss;
 
 	PROC_LOCK(p);
-	bss = p->p_siglist;
+	ksiginfo_to_sigset_t(p, &bss);
 	SIGSETAND(bss, p->p_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_ibcs2_sigset(&bss, &iss);
