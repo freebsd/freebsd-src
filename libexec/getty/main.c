@@ -150,7 +150,7 @@ static int	opentty(const char *, int);
 jmp_buf timeout;
 
 static void
-dingdong(int signo)
+dingdong(int signo __unused)
 {
 	alarm(0);
 	longjmp(timeout, 1);
@@ -159,7 +159,7 @@ dingdong(int signo)
 jmp_buf	intrupt;
 
 static void
-interrupt(int signo)
+interrupt(int signo __unused)
 {
 	longjmp(intrupt, 1);
 }
@@ -168,7 +168,7 @@ interrupt(int signo)
  * Action to take when getty is running too long.
  */
 static void
-timeoverrun(int signo)
+timeoverrun(int signo __unused)
 {
 
 	syslog(LOG_ERR, "getty exiting due to excessive running time");
@@ -241,16 +241,16 @@ main(int argc, char *argv[])
 
 		if (AC) {
 			int i, rfds;
-			struct timeval timeout;
+			struct timeval to;
 
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
         		setdefttymode(tname);
         		rfds = 1 << 0;	/* FD_SET */
-        		timeout.tv_sec = RT;
-        		timeout.tv_usec = 0;
+        		to.tv_sec = RT;
+        		to.tv_usec = 0;
         		i = select(32, (fd_set*)&rfds, (fd_set*)NULL,
-        			       (fd_set*)NULL, RT ? &timeout : NULL);
+        			       (fd_set*)NULL, RT ? &to : NULL);
         		if (i < 0) {
 				syslog(LOG_ERR, "select %s: %m", ttyn);
 			} else if (i == 0) {
@@ -347,7 +347,6 @@ main(int argc, char *argv[])
 		if (AL) {
 			const char *p = AL;
 			char *q = name;
-			int n = sizeof name;
 
 			while (*p && q < &name[sizeof name - 1]) {
 				if (isupper(*p))
@@ -418,22 +417,22 @@ main(int argc, char *argv[])
 }
 
 static int
-opentty(const char *ttyn, int flags)
+opentty(const char *tty, int flags)
 {
 	int i, j = 0;
 	int failopenlogged = 0;
 
-	while (j < 10 && (i = open(ttyn, flags)) == -1)
+	while (j < 10 && (i = open(tty, flags)) == -1)
 	{
 		if (((j % 10) == 0) && (errno != ENXIO || !failopenlogged)) {
-			syslog(LOG_ERR, "open %s: %m", ttyn);
+			syslog(LOG_ERR, "open %s: %m", tty);
 			failopenlogged = 1;
 		}
 		j++;
 		sleep(60);
 	}
 	if (i == -1) {
-		syslog(LOG_ERR, "open %s: %m", ttyn);
+		syslog(LOG_ERR, "open %s: %m", tty);
 		return 0;
 	}
 	else {
@@ -444,7 +443,7 @@ opentty(const char *ttyn, int flags)
 				return 0;
 			}
 			if (login_tty(i) < 0) {
-				syslog(LOG_ERR, "login_tty %s: %m", ttyn);
+				syslog(LOG_ERR, "login_tty %s: %m", tty);
 				close(i);
 				return 0;
 			}
