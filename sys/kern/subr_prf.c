@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.20 1996/01/04 21:12:15 wollman Exp $
+ * $Id: subr_prf.c,v 1.21 1996/01/15 22:40:43 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -426,7 +426,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	char *p, *q, *d;
 	int ch, n;
 	u_long ul;
-	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign;
+	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
 	char padc;
 	int retval = 0;
 
@@ -450,7 +450,11 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		sharpflag = 0;
 		neg = 0;
 		sign = 0;
+		dot = 0;
 reswitch:	switch (ch = *(u_char *)fmt++) {
+		case '.':
+			dot = 1;
+			goto reswitch;
 		case '#':
 			sharpflag = 1;
 			goto reswitch;
@@ -541,11 +545,16 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			p = va_arg(ap, char *);
 			if (p == NULL)
 				p = "(null)";
-			width -= strlen (p);
+			if (!dot)
+				n = strlen (p);
+			else
+				for (n = 0; n < width && p[n]; n++)
+					continue;
+			width -= n;
 			if (!ladjust && width > 0)
 				while (width--)
 					PCHAR(padc);
-			while (*p)
+			while (n--)
 				PCHAR(*p++);
 			if (ladjust && width > 0)
 				while (width--)
