@@ -725,7 +725,6 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   struct timeval tv;
   int got;
   char hostname[MAXHOSTNAMELEN];
-  const char *basename;
 #if 0
   struct hostent *hp;
   struct in_addr hostaddr;
@@ -765,10 +764,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     return 0;
   }
 
-  /* Don't give any domain\ prefix from the name to the RADIUS server */
-  basename = strchr(name, '\\');
-  basename = basename ? basename + 1 : name;
-  if (rad_put_string(r->cx.rad, RAD_USER_NAME, basename) != 0 ||
+  if (rad_put_string(r->cx.rad, RAD_USER_NAME, name) != 0 ||
       rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
       rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0) {
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
@@ -898,7 +894,6 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   struct timeval tv;
   int got;
   char hostname[MAXHOSTNAMELEN];
-  const char *name;
 #if 0
   struct hostent *hp;
   struct in_addr hostaddr;
@@ -935,13 +930,9 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
 
   /* Grab some accounting data and initialize structure */
   if (acct_type == RAD_START) {
-    /* Don't give any domain\ prefix from the authname to the RADIUS server */
-    name = strchr(dl->peer.authname, '\\');
-    name = name ? name + 1 : dl->peer.authname;
-
     ac->rad_parent = r;
     /* Fetch username from datalink */
-    strncpy(ac->user_name, name, sizeof ac->user_name);
+    strncpy(ac->user_name, dl->peer.authname, sizeof ac->user_name);
     ac->user_name[AUTHLEN-1] = '\0';
 
     ac->authentic = 2;		/* Assume RADIUS verified auth data */
@@ -949,7 +940,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     /* Generate a session ID */
     snprintf(ac->session_id, sizeof ac->session_id, "%s%ld-%s%lu",
              dl->bundle->cfg.auth.name, (long)getpid(),
-             name, (unsigned long)stats->uptime);
+             dl->peer.authname, (unsigned long)stats->uptime);
 
     /* And grab our MP socket name */
     snprintf(ac->multi_session_id, sizeof ac->multi_session_id, "%s",
