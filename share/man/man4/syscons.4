@@ -48,12 +48,12 @@ the console driver
 .Cd "options SC_NO_SYSMOUSE"
 .Cd "options SC_PIXEL_MODE"
 .Cd "options SC_TWOBUTTON_MOUSE
-.Cd "options SC_NORM_ATTR"=\&"_attribute_\&"
-.Cd "options SC_NORM_REV_ATTR"=\&"_attribute_\&"
-.Cd "options SC_KERNEL_CONS_ATTR"=\&"_attribute_\&"
-.Cd "options SC_KERNEL_CONS_REV_ATTR"=\&"_attribute_\&"
+.Cd "options SC_NORM_ATTR=_attribute_"
+.Cd "options SC_NORM_REV_ATTR=_attribute_"
+.Cd "options SC_KERNEL_CONS_ATTR=_attribute_"
+.Cd "options SC_KERNEL_CONS_REV_ATTR=_attribute_"
 .Cd "options SC_DFLT_FONT"
-.Cd "makeoptions SC_DFLT_FONT"=\&"_font_name_\&"
+.Cd "makeoptions SC_DFLT_FONT=_font_name_"
 .Cd "device sc0 at isa?"
 .Sh DESCRIPTION
 The
@@ -302,10 +302,10 @@ to use the right button of the mouse to paste text.
 See
 .Sx Mouse Support and Copy-and-Paste
 above.
-.It Em SC_NORM_ATTR=\&"_attribute_\&"
-.It Em SC_NORM_REV_ATTR=\&"_attribute_\&"
-.It Em SC_KERNEL_CONS_ATTR=\&"_attribute_\&"
-.It Em SC_KERNEL_CONS_REV_ATTR=\&"_attribute_\&"
+.It Em SC_NORM_ATTR=_attribute_
+.It Em SC_NORM_REV_ATTR=_attribute_
+.It Em SC_KERNEL_CONS_ATTR=_attribute_
+.It Em SC_KERNEL_CONS_REV_ATTR=_attribute_
 These options will set the default colors.
 Available colors are defined in
 .Pa /usr/include/machine/pc/display.h .
@@ -437,15 +437,15 @@ Note that you cannot put any white space inside the quoted string,
 because of the current implementation of
 .Xr config 8 .
 .Pp
-.Dl "options SC_NORM_ATTR"=\&"(FG_GREEN|BG_BLACK)\&"
-.Dl "options SC_NORM_REV_ATTR"=\&"(FG_YELLOW|BG_GREEN)\&"
+.Dl "options SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
+.Dl "options SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
 .Pp
 The following lines will set the default colors of the kernel message. 
 The kernel message will be printed bright red on black background.
 The reversed message will be black on red background.
 .Pp
-.Dl "options SC_KERNEL_CONS_ATTR"=\&"(FG_LIGHTRED|BG_BLACK)\&"
-.Dl "options SC_KERNEL_CONS_REV_ATTR"=\&"(FG_BLACK|BG_RED)\&"
+.Dl "options SC_KERNEL_CONS_ATTR=(FG_LIGHTRED|BG_BLACK)
+.Dl "options SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
 .Pp
 The following example adds the font files
 .Pa cp850-8x16.fnt ,
@@ -455,7 +455,7 @@ and
 to the kernel.
 .Pp
 .Dl "options SC_DFLT_FONT"
-.Dl "makeoptions SC_DFLT_FONT"=\&"cp850\&"
+.Dl "makeoptions SC_DFLT_FONT=cp850
 .Dl "device sc0 at isa?
 .Pp
 .\".Sh DIAGNOSTICS
