@@ -124,8 +124,8 @@ The
 method of updating your system from the latest sources is:
 .Bd -literal -offset indent
 make buildworld
-make buildkernel KERNEL=FOO
-make installkernel KERNEL=FOO
+make buildkernel KERNCONF=FOO
+make installkernel KERNCONF=FOO
 make installworld
 mergemaster
 .Ed
@@ -134,12 +134,12 @@ mergemaster
 must be replaced with the name of the kernel configuration file from which
 the kernel should be built.
 Alternatively, the
-.Va KERNEL
+.Va KERNCONF
 variable in
 .Pa /etc/make.conf
 can be set to the name of the kernel to build;
 in this case the
-.Dq KERNEL=FOO
+.Dq KERNCONF=FOO
 part of the
 .Dq buildkernel
 and
