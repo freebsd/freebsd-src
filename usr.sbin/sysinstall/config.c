@@ -964,6 +964,7 @@ int
 configNFSServer(dialogMenuItem *self)
 {
     char cmd[256];
+    int retval = 0;
 
     /* If we're an NFS server, we need an exports file */
     if (!file_readable("/etc/exports")) {
@@ -994,13 +995,38 @@ configNFSServer(dialogMenuItem *self)
 	    systemExecute(cmd);
 	}
 	variable_set2(VAR_NFS_SERVER, "YES", 1);
+	retval = configRpcBind(NULL);
 	restorescr(w);
     }
     else if (variable_get(VAR_NFS_SERVER)) { /* We want to turn it off again? */
 	vsystem("mv -f /etc/exports /etc/exports.disabled");
 	variable_unset(VAR_NFS_SERVER);
     }
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | retval;
+}
+
+/*
+ * Extend the standard dmenuToggleVariable() method to also check and set
+ * the rpcbind variable if needed.
+ */
+int
+configRpcBind(dialogMenuItem *self)
+{
+    int retval = 0;
+    int doupdate = 1;
+
+    if (self != NULL) {
+    	retval = dmenuToggleVariable(self);
+	if (strcmp(variable_get(self->data), "YES") != 0)
+	    doupdate = 0;
+    }
+
+    if (doupdate && strcmp(variable_get(VAR_RPCBIND_ENABLE), "YES") != 0) {
+	variable_set2(VAR_RPCBIND_ENABLE, "YES", 1);
+	retval |= DITEM_REDRAW;
+    }
+
+   return retval;
 }
 
 int
