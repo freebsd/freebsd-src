@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.82 1998/04/13 17:27:08 phk Exp $
+ * $Id: ip_input.c,v 1.83 1998/05/19 14:04:32 dg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1068,7 +1068,7 @@ nosourcerouting:
 				break;
 
 			case IPOPT_TS_TSANDADDR:
-				if (ipt->ipt_ptr + sizeof(n_time) +
+				if (ipt->ipt_ptr - 1 + sizeof(n_time) +
 				    sizeof(struct in_addr) > ipt->ipt_len)
 					goto bad;
 				ipaddr.sin_addr = dst;
@@ -1082,7 +1082,7 @@ nosourcerouting:
 				break;
 
 			case IPOPT_TS_PRESPEC:
-				if (ipt->ipt_ptr + sizeof(n_time) +
+				if (ipt->ipt_ptr - 1 + sizeof(n_time) +
 				    sizeof(struct in_addr) > ipt->ipt_len)
 					goto bad;
 				(void)memcpy(&ipaddr.sin_addr, sin,
