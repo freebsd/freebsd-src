@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.81 1994/12/06 19:32:00 sos Exp $
+ *	$Id: syscons.c,v 1.82 1994/12/18 19:35:59 joerg Exp $
  */
 
 #include "sc.h"
@@ -373,6 +373,9 @@ pcattach(struct isa_device *dev)
 {
 	int i;
 	struct scr_stat *scp;
+
+	if (crtat == 0)
+		scinit();
 
 	printf("sc%d: ", dev->id_unit);
 	if (crtc_vga)
