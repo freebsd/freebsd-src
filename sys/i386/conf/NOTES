@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.586 1999/04/19 14:19:50 peter Exp $
+#	$Id: LINT,v 1.587 1999/04/23 06:30:10 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -885,7 +885,7 @@ controller	pnp0
 controller	atkbdc0	at isa? port IO_KBD
 
 # The AT keyboard
-device		atkbd0	at atkbdc? tty irq 1
+device		atkbd0	at atkbdc? irq 1
 
 # Options for atkbd:
 options		ATKBD_DFLT_KEYMAP	# specify the built-in keymap
@@ -901,7 +901,7 @@ options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
 
 # PS/2 mouse
-device		psm0	at atkbdc? tty irq 12
+device		psm0	at atkbdc? irq 12
 
 # Options for psm:
 options		PSM_HOOKAPM		#hook the APM resume event, useful
@@ -932,7 +932,7 @@ options		VESA			# needs VM86 defined too!!
 pseudo-device	splash
 
 # The pcvt console driver (vt220 compatible).
-device		vt0	at isa? tty
+device		vt0	at isa?
 options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
@@ -950,7 +950,7 @@ options		PCVT_USEKBDSEC
 options		"PCVT_VT220KEYB"
 
 # The syscons console driver (sco color console compatible).
-device		sc0	at isa? tty
+device		sc0	at isa?
 options		MAXCONS=16		# number of virtual consoles
 options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
@@ -1017,10 +1017,10 @@ device		npx0	at nexus? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" cam irq ?
-controller	adv0	at isa? port ? cam irq ?
+controller	bt0	at isa? port "IO_BT0" irq ?
+controller	adv0	at isa? port ? irq ?
 controller	adw0
-controller      aha0    at isa? port ? cam irq ?
+controller      aha0    at isa? port ? irq ?
 
 #
 # ATA and ATAPI devices
@@ -1036,8 +1036,8 @@ controller      aha0    at isa? port ? cam irq ?
 #device		atapist0	# ATAPI tape drives
 #
 # If you need ISA only devices, this is the lines to add:
-#controller	ata1	at isa? port "IO_WD1" bio irq 14
-#controller	ata2	at isa? port "IO_WD2" bio irq 15
+#controller	ata1	at isa? port "IO_WD1" irq 14
+#controller	ata2	at isa? port "IO_WD2" irq 15
 # 
 # All the controller lines can coexist, the driver will
 # find out which ones are there.
@@ -1064,7 +1064,7 @@ controller      aha0    at isa? port ? cam irq ?
 # specification with the low 16 bits for drive 0, and the high 16 bits
 # for drive 1.
 # e.g.:
-#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004
+#controller	wdc0	at isa? port "IO_WD1" irq 14 flags 0x00ff8004
 #
 # specifies that drive 0 will be allowed to probe for 32 bit transfers and
 # a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
@@ -1075,11 +1075,11 @@ controller      aha0    at isa? port ? cam irq ?
 # mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
 # such as:
 #
-#controller	wdc2	at isa? port "0" bio irq ? flags 0xa0ffa0ff
+#controller	wdc2	at isa? port "0" irq ? flags 0xa0ffa0ff
 #disk		wd4	at wdc2 drive 0
 #disk		wd5	at wdc2 drive 1
 #
-#controller	wdc3	at isa? port "0" bio irq ? flags 0xa0ffa0ff
+#controller	wdc3	at isa? port "0" irq ? flags 0xa0ffa0ff
 #disk		wd6	at wdc3 drive 0
 #disk		wd7	at wdc3 drive 1
 #
@@ -1088,10 +1088,10 @@ controller      aha0    at isa? port ? cam irq ?
 # entries.  These are automatically filled in by the IDE/PCI support.
 #
 
-controller	wdc0	at isa? port "IO_WD1" bio irq 14
+controller	wdc0	at isa? port "IO_WD1" irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
-controller	wdc1	at isa? port "IO_WD2" bio irq 15
+controller	wdc1	at isa? port "IO_WD2" irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
@@ -1116,7 +1116,7 @@ device          wst0
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
+controller	fdc0	at isa? port "IO_FD1" irq 6 drq 2
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
@@ -1134,7 +1134,7 @@ options		FDC_PRINT_BOGUS_CHIPTYPE
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
 # for people with floppy disks only, so it's "hidden" behind a flag:
-#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2
+#controller fdc0 at isa? port "IO_FD1" flags 1 irq 6 drq 2
 
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
@@ -1145,9 +1145,9 @@ disk		fd1	at fdc0 drive 1
 # mse: Logitech and ATI InPort bus mouse ports
 # sio: serial ports (see sio(4))
 
-device		mse0	at isa? port 0x23c tty irq 5
+device		mse0	at isa? port 0x23c irq 5
 
-device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
+device		sio0	at isa? port "IO_COM1" flags 0x10 irq 4
 
 #
 # `flags' for serial drivers that support consoles (only for sio now):
@@ -1207,27 +1207,27 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133 
 #       (no options needed)
 #
-device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000
-device cs0 at isa? port 0x300 net irq ?
-device cx0 at isa? port 0x240 net irq 15 drq 7
-device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
-device el0 at isa? port 0x300 net irq 9
-device ep0 at isa? port 0x300 net irq 10
-device ex0 at isa? port? net irq?
-device fe0 at isa? port 0x300 net irq ?
-device ie0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device ie1 at isa? port 0x360 net irq 7 iomem 0xd0000
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x280 net irq 10 drq 0
-device rdp0 at isa? port 0x378 net irq 7 flags 2
-device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000
+device ar0 at isa? port 0x300 irq 10 iomem 0xd0000
+device cs0 at isa? port 0x300 irq ?
+device cx0 at isa? port 0x240 irq 15 drq 7
+device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
+device el0 at isa? port 0x300 irq 9
+device ep0 at isa? port 0x300 irq 10
+device ex0 at isa? port? irq?
+device fe0 at isa? port 0x300 irq ?
+device ie0 at isa? port 0x300 irq 5 iomem 0xd0000
+device ie1 at isa? port 0x360 irq 7 iomem 0xd0000
+device le0 at isa? port 0x300 irq 5 iomem 0xd0000
+device lnc0 at isa? port 0x280 irq 10 drq 0
+device rdp0 at isa? port 0x378 irq 7 flags 2
+device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
-device wl0 at isa? port 0x300 net irq ?
+device wl0 at isa? port 0x300 irq ?
 # We can (bogusly) include both the dedicated PCCARD drivers and the generic
 # support when COMPILING_LINT.
-device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000
-device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
+device ze0 at isa? port 0x300 irq 5 iomem 0xd8000
+device zp0 at isa? port 0x300 irq 10 iomem 0xd8000
 
 device oltr0 at isa?
 
@@ -1341,10 +1341,10 @@ device uart0 at isa? port 0x330 irq 5
 # You may also wish to enable the pnp controller with this, for pnp
 # sound cards.
 #
-#device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0
+#device pcm0 at isa? port ? irq 10 drq 1 flags 0x0
 
 # Not controlled by `snd'
-device pca0 at isa? port "IO_TIMER1" tty
+device pca0 at isa? port "IO_TIMER1"
 
 #
 # Miscellaneous hardware:
@@ -1398,21 +1398,21 @@ device pca0 at isa? port "IO_TIMER1" tty
 # in the system.  The manufacturer's sample configs are listed as:
 #
 #   Comtrol Rocketport ISA single card
-#               device  rp0     at isa? port 0x280 tty
+#               device  rp0     at isa? port 0x280
 #
 #   If instead you have two ISA cards, one installed at 0x100 and the
 #   second installed at 0x180, then you should add the following to
 #   your kernel configuration file:
 #
-#               device  rp0     at isa? port 0x100 tty
-#               device  rp1     at isa? port 0x180 tty
+#               device  rp0     at isa? port 0x100
+#               device  rp1     at isa? port 0x180
 #
 #   For 4 ISA cards, it might be something like this:
 #
-#               device  rp0     at isa? port 0x180 tty
-#               device  rp1     at isa? port 0x100 tty
-#               device  rp2     at isa? port 0x340 tty
-#               device  rp3     at isa? port 0x240 tty
+#               device  rp0     at isa? port 0x180
+#               device  rp1     at isa? port 0x100
+#               device  rp2     at isa? port 0x340
+#               device  rp3     at isa? port 0x240
 #
 #   And for PCI cards, you only need say:
 #
@@ -1450,34 +1450,34 @@ device pca0 at isa? port "IO_TIMER1" tty
 #	Brumby:                      flags 2          iosiz 0x4000
 #	Stallion:                    flags 1          iosiz 0x10000
 
-device		mcd0	at isa? port 0x300 bio irq 10
+device		mcd0	at isa? port 0x300 irq 10
 # for the Sony CDU31/33A CDROM
-device		scd0	at isa? port 0x230 bio
+device		scd0	at isa? port 0x230
 # for the SoundBlaster 16 multicd - up to 4 devices
-controller      matcd0  at isa? port 0x230 bio
-device		wt0	at isa? port 0x300 bio irq 5 drq 1
+controller      matcd0  at isa? port 0x230
+device		wt0	at isa? port 0x300 irq 5 drq 1
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
 device		apm0	at nexus? 
-device		gp0	at isa? port 0x2c0 tty
-device		gsc0	at isa? port "IO_GSC1" tty drq 3
+device		gp0	at isa? port 0x2c0
+device		gsc0	at isa? port "IO_GSC1" drq 3
 device		joy0	at isa? port IO_GAME
-device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
+device		cy0	at isa? irq 10 iomem 0xd4000 iosiz 0x2000
 options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-device		dgb0	at isa? port 0x220 iomem 0xfc000 iosiz ? tty
+device		dgb0	at isa? port 0x220 iomem 0xfc000 iosiz ?
 options		"NDGBPORTS=16"		# Defaults to 16*NDGB
-device		dgm0	at isa? port 0x104 iomem 0xd0000 iosiz ? tty
-device		labpc0	at isa? port 0x260 tty irq 5
-device          rc0     at isa? port 0x220 tty irq 12
-device          rp0     at isa? port 0x280 tty
+device		dgm0	at isa? port 0x104 iomem 0xd0000 iosiz ?
+device		labpc0	at isa? port 0x260 irq 5
+device          rc0     at isa? port 0x220 irq 12
+device          rp0     at isa? port 0x280
 # the port and irq for tw0 are fictitious
-device          tw0     at isa? port 0x380 tty irq 11
-device		si0	at isa? iomem 0xd0000 tty irq 12
-device		asc0	at isa? port "IO_ASC1" tty drq 3 irq 10
-device		stl0	at isa? port 0x2a0 tty irq 10
-device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
+device          tw0     at isa? port 0x380 irq 11
+device		si0	at isa? iomem 0xd0000 irq 12
+device		asc0	at isa? port "IO_ASC1" drq 3 irq 10
+device		stl0	at isa? port 0x2a0 irq 10
+device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
-device		loran0	at isa? port ? tty irq 5
+device		loran0	at isa? port ? irq 5
 # HOT1 Xilinx 6200 card (www.vcc.com)
 device		xrpu0
 
@@ -1763,7 +1763,7 @@ device ic0	at iicbus?
 device iic0	at iicbus?
 device iicsmb0	at iicbus?
 
-controller pcf0	at isa? port 0x320 net irq 5
+controller pcf0	at isa? port 0x320 irq 5
 
 # ISDN4BSD section
 
@@ -1775,54 +1775,54 @@ controller pcf0	at isa? port 0x320 net irq 5
 #
 # Teles S0/8 or Niccy 1008
 options "TEL_S0_8"
-#device	isic0 at isa? iomem 0xd0000 net irq 5 flags 1
+#device	isic0 at isa? iomem 0xd0000 irq 5 flags 1
 #
 # Teles S0/16 or Creatix ISDN-S0 or Niccy 1016
 options "TEL_S0_16"
-#device	isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2
+#device	isic0 at isa? port 0xd80 iomem 0xd0000 irq 5 flags 2
 #
 # Teles S0/16.3 
 options "TEL_S0_16_3"
-#device	isic0 at isa? port 0xd80 net irq 5 flags 3
+#device	isic0 at isa? port 0xd80 irq 5 flags 3
 #
 # AVM A1 or AVM Fritz!Card
 options "AVM_A1"
-#device	isic0 at isa? port 0x340 net irq 5 flags 4
+#device	isic0 at isa? port 0x340 irq 5 flags 4
 #
 # USRobotics Sportster ISDN TA intern
 options "USR_STI"
-#device isic0 at isa? port 0x268 net irq 5 flags 7
+#device isic0 at isa? port 0x268 irq 5 flags 7
 #
 # ITK ix1 Micro
 options "ITKIX1"
-#device isic0 at isa? port 0x398 net irq 10 flags 18
+#device isic0 at isa? port 0x398 irq 10 flags 18
 #
 # PnP-Cards:
 # ----------
 #
 # Teles S0/16.3 PnP
 options "TEL_S0_16_3_P"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # Creatix ISDN-S0 P&P
 options "CRTX_S0_P"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # Dr. Neuhaus Niccy Go@
 options "DRN_NGO"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # Sedlbauer Win Speed
 options "SEDLBAUER"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # Dynalink IS64PH
 options "DYNALINK"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # ELSA QuickStep 1000pro ISA
 options "ELSA_QS1ISA"
-#device	isic0 at isa? port ? net irq ?
+#device	isic0 at isa? port ? irq ?
 #
 # PCI-Cards:
 # ----------
@@ -1836,13 +1836,13 @@ options "ELSA_QS1PCI"
 #
 # AVM PCMCIA Fritz!Card
 options "AVM_A1_PCMCIA"
-device	isic0 at isa? port 0x340 net irq 5 flags 10
+device	isic0 at isa? port 0x340 irq 5 flags 10
 #
 # Active Cards:
 # -------------
 #
 # Stollmann Tina-dd control device
-device tina0 at isa? port 0x260 net irq 10
+device tina0 at isa? port 0x260 irq 10
 #
 # ISDN Protocol Stack
 # -------------------
@@ -1917,7 +1917,7 @@ device		ppi0	at ppbus?
 device		pps0	at ppbus?
 device		lpbb0	at ppbus?
 
-device		ppc0	at isa? port? tty irq 7
+device		ppc0	at isa? port? irq 7
 
 # Kernel BOOTP support 
 
