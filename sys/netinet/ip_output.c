@@ -192,16 +192,18 @@ ip_output(m0, opt, ro, flags, imo)
             /*
              * the packet was already tagged, so part of the
              * processing was already done, and we need to go down.
-             * opt, flags and imo have already been used, and now
-             * they are used to hold ifp, dst and NULL, respectively.
+             * * Get parameters from the header.
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
-            dst = (struct sockaddr_in *)((struct dn_pkt *)m)->dn_dst;
+	    opt = NULL ;
+	    ro = & ( ((struct dn_pkt *)m)->ro ) ;
+	    imo = NULL ;
+	    dst = ((struct dn_pkt *)m)->dn_dst ;
+	    ifp = ((struct dn_pkt *)m)->ifp ;
+
             m0 = m = m->m_next ;
             ip = mtod(m, struct ip *);
-            ifp = (struct ifnet *)opt;
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
-            opt = NULL ;
             goto sendit;
         } else
             rule = NULL ;
