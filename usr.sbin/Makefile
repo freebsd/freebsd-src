@@ -10,6 +10,7 @@ SUBDIR=	IPXrouted \
 	arp \
 	atm \
 	bootparamd \
+	burncd \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -106,7 +107,6 @@ SUBDIR=	IPXrouted \
 	vipw \
 	vnconfig \
 	watch \
-	wormcontrol \
 	xten \
 	yp_mkdb \
 	ypbind \
