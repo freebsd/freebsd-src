@@ -6,7 +6,7 @@ define pname
 p (char *)curproc->p_comm
 end 
 document pname
-Print the command name of the current process
+Print the command name of the current process.
 end
 
 # Show contents of bp supplied as first parameter:
@@ -52,8 +52,7 @@ set $bp = (struct buf *) $arg0
     printf "\n"
 end
 document bpp
-Show summary information about the buffer header (struct bp) pointed
-at by the parameter.
+Show summary information about the buffer header (struct bp) pointed at by the parameter.
 end
 
 # Show more detailed contents of bp supplied as first parameter:
@@ -122,8 +121,7 @@ output $bp->b_npages
 printf "\n"
 end
 document bpl
-Show detailed information about the buffer header (struct bp) pointed
-at by the parameter.
+Show detailed information about the buffer header (struct bp) pointed at by the parameter.
 end
 
 # Show contents of buffer header in local variable bp. 
@@ -131,8 +129,7 @@ define bp
 bpp bp
 end
 document bp
-Show information about the buffer header pointed to by the
-variable bp in the current frame.
+Show information about the buffer header pointed to by the variable bp in the current frame.
 end
 
 # Show data of buffer header in local variable bp as string.
@@ -143,8 +140,7 @@ document bpd
 Show the contents (char*) of bp->data in the current frame.
 end
 document bpl
-Show detailled information about the buffer header (struct bp) pointed
-at by the local variable bp.
+Show detailed information about the buffer header (struct bp) pointed at by the local variable bp.
 end
 define bx
 printf "\n b_vnbufs " 
@@ -184,6 +180,9 @@ output/x bp->b_dirtyoff
 printf "\n b_validoff " 
 output/x bp->b_validoff
 echo \n
+end
+document bx
+Print a number of fields from the buffer header pointed at in by the pointer bp in the current environment.
 end
 
 # Switch back to ddb
@@ -232,7 +231,7 @@ define ps
     end
 end
 document ps
-Show process status.  No options. 
+Show process status without options. 
 end
 
 # Specify a process for other commands to refer to.
@@ -295,7 +294,11 @@ end
 # "define" line.  y enables you to insert the confirmation in the
 # definition without affecting the way the macro runs (much).
 define y
-echo Check your .gdbinit, it contains a y command\n
+echo Check your .gdbinit: it contains a y command\n
+end
+
+document y
+Kludge for writing macros   This is a no-op except for printing a message   See gdb(4) for more details.
 end
 
 # kldstat(8) lookalike
@@ -313,7 +316,7 @@ define kldstat
    end
 end
 document kldstat
-Equivalent of the kldstat(8) command, without options.
+Equivalent of the kldstat(8) command without options
 end
 
 # msgbuf: print msgbuf.  Can take forever.
@@ -321,7 +324,7 @@ define msgbuf
 printf "%s", msgbufp->msg_ptr
 end
 document msgbuf
-Print the system message buffer (dmesg).  This can take a long time due to the time it takes to transmit the data across a serial line.
+Print the system message buffer (dmesg)    This can take a long time due to the time it takes to transmit the data across a serial line.
 end
 
 # checkmem: check unallocated memory for modifications
@@ -341,4 +344,8 @@ while ($word < $length)
    end
    set $word = $word + 1
 end
+end
+
+document checkmem
+Check unallocated memory for modifications  This assumes that DIAGNOSTIC is set which causes free memory to be set to 0xdeadc0de.
 end
