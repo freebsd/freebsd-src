@@ -57,7 +57,6 @@ extern struct domain	atmdomain;
 extern struct atm_pif	*atm_interface_head;
 extern struct atm_ncm	*atm_netconv_head;
 extern Atm_endpoint	*atm_endpoints[];
-extern struct sp_info	*atm_pool_head;
 extern struct stackq_entry	*atm_stackq_head;
 extern struct stackq_entry	*atm_stackq_tail;
 extern struct ifqueue	atm_intrq;
@@ -168,9 +167,6 @@ void		atm_sock_cleared(void *, struct t_atm_cause *);
 
 	/* atm_subr.c */
 void		atm_initialize(void);
-void *		atm_allocate(struct sp_info *);
-void		atm_free(void *);
-void		atm_release_pool(struct sp_info *);
 void		atm_timeout(struct atm_time *, int, 
 			void (*)(struct atm_time *) );
 int		atm_untimeout(struct atm_time *);
