@@ -419,6 +419,8 @@ swap_pager_swap_init(void)
 	n2 = n;
 	swap_zone = uma_zcreate("SWAPMETA", sizeof(struct swblock), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE | UMA_ZONE_VM);
+	if (swap_zone == NULL)
+		panic("failed to create swap_zone.");
 	do {
 		if (uma_zone_set_obj(swap_zone, &swap_zone_obj, n))
 			break;
@@ -428,8 +430,6 @@ swap_pager_swap_init(void)
 		 */
 		n -= ((n + 2) / 3);
 	} while (n > 0);
-	if (swap_zone == NULL)
-		panic("failed to create swap_zone.");
 	if (n2 != n)
 		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
 	n2 = n;
