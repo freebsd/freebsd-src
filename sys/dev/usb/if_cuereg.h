@@ -175,11 +175,11 @@ struct cue_softc {
 	int			cue_unit;
 	u_int8_t		cue_mctab[CUE_MCAST_TABLE_LEN];
 	int			cue_if_flags;
-	u_int8_t		cue_gone;
 	u_int16_t		cue_rxfilt;
 	struct cue_cdata	cue_cdata;
 	struct callout_handle	cue_stat_ch;
 	struct mtx		cue_mtx;
+	char			cue_dying;
 };
 
 #if 0
