@@ -74,7 +74,7 @@ static int	numtrec;
 static char	*tapebuf;
 static union	u_spcl endoftapemark;
 static long	blksread;		/* blocks read since last header */
-static long	tpblksread = 0;		/* TP_BSIZE blocks read */
+static long	tapeaddr = 0;		/* current TP_BSIZE tape record */
 static long	tapesread;
 static jmp_buf	restart;
 static int	gettingfile = 0;	/* restart has a valid frame */
@@ -211,7 +211,6 @@ setup()
 	if (gethead(&spcl) == FAIL) {
 		blkcnt--; /* push back this block */
 		blksread--;
-		tpblksread--;
 		cvtflag++;
 		if (gethead(&spcl) == FAIL) {
 			fprintf(stderr, "Tape is not a dump tape\n");
@@ -300,7 +299,7 @@ void
 getvol(nextvol)
 	long nextvol;
 {
-	long newvol, savecnt, savetpcnt, i;
+	long newvol, prevtapea, savecnt, i;
 	union u_spcl tmpspcl;
 #	define tmpbuf tmpspcl.s_spcl
 	char buf[TP_BSIZE];
@@ -309,6 +308,8 @@ getvol(nextvol)
 		tapesread = 0;
 		gettingfile = 0;
 	}
+	prevtapea = tapeaddr;
+	savecnt = blksread;
 	if (pipein) {
 		if (nextvol != 1) {
 			panic("Changing volumes on pipe input?\n");
@@ -320,10 +321,7 @@ getvol(nextvol)
 			return;
 		goto gethdr;
 	}
-	savecnt = blksread;
-	savetpcnt = tpblksread;
 again:
-	tpblksread = savetpcnt;
 	if (pipein)
 		done(1); /* pipes do not get a second chance */
 	if (command == 'R' || command == 'r' || curfile.action != SKIP)
@@ -425,11 +423,10 @@ gethdr:
  	 * If coming to this volume at random, skip to the beginning
  	 * of the next record.
  	 */
-	dprintf(stdout, "read %ld recs, tape starts with %ld\n",
-		tpblksread, tmpbuf.c_firstrec);
+	dprintf(stdout, "last rec %ld, tape starts with %ld\n", prevtapea,
+	    tmpbuf.c_tapea);
  	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER)) {
  		if (curfile.action != USING) {
- 			tpblksread = tmpbuf.c_firstrec;
 			/*
 			 * XXX Dump incorrectly sets c_count to 1 in the
 			 * volume header of the first tape, so ignore
@@ -438,12 +435,17 @@ gethdr:
 			if (volno != 1)
 				for (i = tmpbuf.c_count; i > 0; i--)
 					readtape(buf);
- 		} else if (tmpbuf.c_firstrec > 0 &&
-			   tmpbuf.c_firstrec < tpblksread - 1) {
+ 		} else if (tmpbuf.c_tapea <= prevtapea) {
 			/*
-			 * -1 since we've read the volume header
+			 * Normally the value of c_tapea in the volume
+			 * header is the record number of the header itself.
+			 * However in the volume header following an EOT-
+			 * terminated tape, it is the record number of the
+			 * first continuation data block (dump bug?).
+			 *
+			 * The next record we want is `prevtapea + 1'.
 			 */
- 			i = tpblksread - tmpbuf.c_firstrec - 1;
+ 			i = prevtapea + 1 - tmpbuf.c_tapea;
 			dprintf(stderr, "Skipping %ld duplicate record%s.\n",
 				i, i > 1 ? "s" : "");
  			while (--i >= 0)
@@ -855,7 +857,7 @@ readtape(buf)
 	if (blkcnt < numtrec) {
 		memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 		blksread++;
-		tpblksread++;
+		tapeaddr++;
 		return;
 	}
 	for (i = 0; i < ntrec; i++)
@@ -961,7 +963,7 @@ getmore:
 	blkcnt = 0;
 	memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 	blksread++;
-	tpblksread++;
+	tapeaddr++;
 }
 
 static void
@@ -1153,6 +1155,7 @@ good:
 		buf->c_dinode.di_uid = buf->c_dinode.di_ouid;
 		buf->c_dinode.di_gid = buf->c_dinode.di_ogid;
 	}
+	tapeaddr = buf->c_tapea;
 	if (dflag)
 		accthdr(buf);
 	return(GOOD);
