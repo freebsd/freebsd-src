@@ -169,7 +169,7 @@ cmdscanner()
 				el_source(el, NULL);
 			}
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
-				return;
+				quit(0, NULL);
 
 			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num;
 			memcpy(cmdline, bp, len);
