@@ -48,11 +48,10 @@
 #if defined(__FreeBSD__)
 #include "isic.h"
 #include "opt_i4b.h"
-#include "pnp.h"
 #else
 #define	NISIC	1
-#define	NPNP	1
 #endif
+#define	NPNP	1
 
 #if (NISIC > 0) && (NPNP > 0) && defined(ASUSCOM_IPAC)
 
