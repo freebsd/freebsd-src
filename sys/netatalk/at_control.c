@@ -159,12 +159,6 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	    } else {
 		at_ifaddr = aa0;
 	    }
-	    /* 
-	     * Don't Add a reference for the aa itself!
-	     * I fell into this trap. IFAFREE tests for <=0
-	     * not <= 1 like RTFREE
-	     */
-	    /* aa->aa_ifa.ifa_refcnt++; DON'T DO THIS!! */
 	    aa = aa0;
 
 	    /*
@@ -172,12 +166,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	     * and link our new one on the end 
 	     */
 	    ifa = (struct ifaddr *)aa;
+	    IFA_LOCK_INIT(ifa);
+	    ifa->ifa_refcnt = 1;
 	    TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
-
-	    /*
-	     * Add a reference for the linking into the ifp_if_addrlist.
-	     */
-	    ifa->ifa_refcnt++;
 
 	    /*
 	     * As the at_ifaddr contains the actual sockaddrs,
