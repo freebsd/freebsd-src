@@ -1,5 +1,5 @@
 /*-
- * Copyright 2004 Robert N. M. Watson
+ * Copyright 2004-2005 Robert N. M. Watson
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -687,10 +687,9 @@ unp_attach(so)
 		if (error)
 			return (error);
 	}
-	unp = uma_zalloc(unp_zone, M_WAITOK);
+	unp = uma_zalloc(unp_zone, M_WAITOK | M_ZERO);
 	if (unp == NULL)
 		return (ENOBUFS);
-	bzero(unp, sizeof *unp);
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
 	so->so_pcb = unp;
