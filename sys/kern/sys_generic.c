@@ -795,6 +795,7 @@ select(td, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
+	TAILQ_INIT(&td->td_selq);
 	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
@@ -803,8 +804,6 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&sellock);
 
-	/* XXX Is there a better place for this? */
-	TAILQ_INIT(&td->td_selq);
 	error = selscan(td, ibits, obits, uap->nd);
 	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
@@ -975,6 +974,7 @@ poll(td, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
+	TAILQ_INIT(&td->td_selq);
 	mtx_lock(&sellock);
 retry:
 	ncoll = nselcoll;
@@ -983,8 +983,6 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&sellock);
 
-	/* XXX Is there a better place for this? */
-	TAILQ_INIT(&td->td_selq);
 	error = pollscan(td, (struct pollfd *)bits, nfds);
 	mtx_lock(&sellock);
 	if (error || td->td_retval[0])
