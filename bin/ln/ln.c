@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ln.c,v 1.9 1997/02/22 14:03:49 peter Exp $
  */
 
 #ifndef lint
@@ -71,7 +71,7 @@ main(argc, argv)
 	int ch, exitval;
 	char *sourcedir;
 
-	while ((ch = getopt(argc, argv, "fs")) != EOF)
+	while ((ch = getopt(argc, argv, "fs")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;

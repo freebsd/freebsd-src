@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ps.c,v 1.17 1997/02/22 14:05:08 peter Exp $
  */
 
 #ifndef lint
@@ -139,7 +139,7 @@ main(argc, argv)
 	ttydev = NODEV;
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != EOF)
+	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
 		switch((char)ch) {
 		case 'a':
 			all = 1;

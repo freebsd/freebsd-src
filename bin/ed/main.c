@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.9 1997/02/22 14:03:17 peter Exp $
  */
 
 #ifndef lint
@@ -122,7 +122,7 @@ main(argc, argv)
 
 	red = (n = strlen(argv[0])) > 2 && argv[0][n - 3] == 'r';
 top:
-	while ((c = getopt(argc, argv, "p:sx")) != EOF)
+	while ((c = getopt(argc, argv, "p:sx")) != -1)
 		switch(c) {
 		case 'p':				/* set prompt */
 			prompt = optarg;
