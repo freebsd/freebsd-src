@@ -972,18 +972,21 @@ bpfpoll(dev, events, p)
 	struct proc *p;
 {
 	struct bpf_d *d;
-	int revents = 0;
+	int revents;
 
-	/*
-	 * An imitation of the FIONREAD ioctl code.
-	 */
 	d = dev->si_drv1;
-
 	if (d->bd_bif == NULL)
 		return (ENXIO);
 
+	revents = events & (POLLOUT | POLLWRNORM);
 	BPFD_LOCK(d);
 	if (events & (POLLIN | POLLRDNORM)) {
+		/*
+		 * An imitation of the FIONREAD ioctl code.
+		 * XXX not quite.  An exact imitation:
+		 *	if (d->b_slen != 0 ||
+		 *	    (d->bd_hbuf != NULL && d->bd_hlen != 0)
+		 */
 		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
