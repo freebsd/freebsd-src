@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: common.c,v 1.2 1998/11/06 22:14:08 des Exp $
+ *	$Id: common.c,v 1.3 1998/12/16 10:24:52 des Exp $
  */
 
 #include <sys/param.h>
@@ -199,7 +199,7 @@ _fetch_info(char *fmt, ...)
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
-fetchConnect(char *host, int port, int verbose)
+_fetch_connect(char *host, int port, int verbose)
 {
     struct sockaddr_in sin;
     struct hostent *he;
