@@ -667,9 +667,16 @@ ttyoutput(c, tp)
 	if (c == '\n' && ISSET(tp->t_oflag, ONLCR)) {
 		tk_nout++;
 		tp->t_outcc++;
-		if (putc('\r', &tp->t_outq))
+		if (!ISSET(tp->t_lflag, FLUSHO) && putc('\r', &tp->t_outq))
 			return (c);
 	}
+	/* If OCRNL is set, translate "\r" into "\n". */
+	else if (c == '\r' && ISSET(tp->t_oflag, OCRNL))
+		c = '\n';
+	/* If ONOCR is set, don't transmit CRs when on column 0. */
+	else if (c == '\r' && ISSET(tp->t_oflag, ONOCR) && tp->t_column == 0)
+		return (-1);
+
 	tk_nout++;
 	tp->t_outcc++;
 	if (!ISSET(tp->t_lflag, FLUSHO) && putc(c, &tp->t_outq))
@@ -684,6 +691,9 @@ ttyoutput(c, tp)
 	case CONTROL:
 		break;
 	case NEWLINE:
+		if (ISSET(tp->t_oflag, ONLCR | ONLRET))
+			col = 0;
+		break;
 	case RETURN:
 		col = 0;
 		break;
