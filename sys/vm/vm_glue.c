@@ -480,7 +480,7 @@ faultin(p)
 
 	GIANT_REQUIRED;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef NO_SWAPPING
 	if ((p->p_sflag & PS_INMEM) == 0)
 		panic("faultin: proc swapped out with NO_SWAPPING!");
@@ -489,6 +489,19 @@ faultin(p)
 		struct thread *td;
 
 		++p->p_lock;
+		/*
+		 * If another process is swapping in this process,
+		 * just wait until it finishes.
+		 */
+		if (p->p_sflag & PS_SWAPPINGIN) {
+			mtx_unlock_spin(&sched_lock);
+			msleep(&p->p_sflag, &p->p_mtx, PVM, "faultin", 0);
+			mtx_lock_spin(&sched_lock);
+			--p->p_lock;
+			return;
+		}
+
+		p->p_sflag |= PS_SWAPPINGIN;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
@@ -499,19 +512,17 @@ faultin(p)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC (p, td)
-			if (td->td_state == TDS_RUNQ) {	/* XXXKSE */
-				/* XXXKSE TDS_RUNQ causes assertion failure. */
-				td->td_state = TDS_UNQUEUED;
+			if (td->td_state == TDS_SWAPPED)	/* XXXKSE */
 				setrunqueue(td);
-			}
 
+		p->p_sflag &= ~PS_SWAPPINGIN;
 		p->p_sflag |= PS_INMEM;
+		wakeup(&p->p_sflag);
 
 		/* undo the effect of setting SLOCK above */
 		--p->p_lock;
 	}
 #endif
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -548,13 +559,16 @@ loop:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		struct ksegrp *kg;
-		if (p->p_sflag & (PS_INMEM | PS_SWAPPING)) {
+		if (p->p_sflag & (PS_INMEM | PS_SWAPPING | PS_SWAPPINGIN)) {
 			continue;
 		}
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td) {
-			/* Only consider runnable threads */
-			if (td->td_state == TDS_RUNQ) {
+			/*
+			 * A runnable thread of a process swapped out is in
+			 * TDS_SWAPPED.
+			 */
+			if (td->td_state == TDS_SWAPPED) {
 				kg = td->td_ksegrp;
 				pri = p->p_swtime + kg->kg_slptime;
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
@@ -584,18 +598,28 @@ loop:
 		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
 		goto loop;
 	}
+	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * Another process may be bringing or may have already
+	 * brought this process in while we traverse all threads.
+	 * Or, this process may even be being swapped out again.
+	 */
+	if (p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) {
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		goto loop;
+	}
+
 	p->p_sflag &= ~PS_SWAPINREQ;
-	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 * [What checks the space? ]
 	 */
-	PROC_LOCK(p);
 	faultin(p);
 	PROC_UNLOCK(p);
-	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
 	mtx_unlock_spin(&sched_lock);
 	goto loop;
@@ -660,7 +684,7 @@ retry:
 		 */
 		vm = p->p_vmspace;
 		mtx_lock_spin(&sched_lock);
-		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
+		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING|PS_SWAPPINGIN)) != PS_INMEM) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			continue;
@@ -697,8 +721,18 @@ retry:
 					PROC_UNLOCK(p);
 					goto nextproc;
 				}
+				/*
+				 * Do not swapout a process if there is
+				 * a thread whose pageable memory may
+				 * be accessed.
+				 *
+				 * This could be refined to support
+				 * swapping out a thread.
+				 */
 				FOREACH_THREAD_IN_PROC(p, td) {
-					if ((td->td_priority) < PSOCK) {
+					if ((td->td_priority) < PSOCK ||
+					    !(td->td_state == TDS_SLP ||
+					     td->td_state == TDS_RUNQ)) {
 						mtx_unlock_spin(&sched_lock);
 						PROC_UNLOCK(p);
 						goto nextproc;
@@ -773,19 +807,35 @@ swapout(p)
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);
 #endif
+	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * Make sure that all threads are safe to be swapped out.
+	 *
+	 * Alternatively, we could swap out only safe threads.
+	 */
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (!(td->td_state == TDS_SLP ||
+		     td->td_state == TDS_RUNQ)) {
+			mtx_unlock_spin(&sched_lock);
+			return;
+		}
+	}
+
 	++p->p_stats->p_ru.ru_nswap;
 	/*
 	 * remember the process resident count
 	 */
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
-	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	PROC_UNLOCK(p);
 	FOREACH_THREAD_IN_PROC (p, td)
-		if (td->td_state == TDS_RUNQ)	/* XXXKSE */
+		if (td->td_state == TDS_RUNQ) {	/* XXXKSE */
 			remrunqueue(td);	/* XXXKSE */
+			td->td_state = TDS_SWAPPED;
+		}
 	mtx_unlock_spin(&sched_lock);
 
 	vm_proc_swapout(p);
