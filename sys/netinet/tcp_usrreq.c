@@ -366,7 +366,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
-	if (td && jailed(td->td_ucred))
+	if (jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sinp->sin_addr.s_addr);
 
 	COMMON_START();
