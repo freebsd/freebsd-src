@@ -211,6 +211,8 @@ struct ipfw_dyn_rule {
 /*
  * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols.
  */
+#define	IP_FW_IF_TCPEST	0x00000020	/* established TCP connection */
+#define	IP_FW_IF_TCPMSK	0x00000020	/* mask of all TCP values */
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
@@ -252,7 +254,6 @@ struct ipfw_dyn_rule {
 #define IP_FW_TCPF_PSH		TH_PUSH
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
-#define IP_FW_TCPF_ESTAB	0x40
 
 /*
  * Main firewall chains definitions and global var's definitions.
