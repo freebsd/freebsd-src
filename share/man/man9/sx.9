@@ -35,6 +35,8 @@
 .Nm sx_destroy ,
 .Nm sx_slock ,
 .Nm sx_xlock ,
+.Nm sx_try_slock ,
+.Nm sx_try_xlock ,
 .Nm sx_sunlock ,
 .Nm sx_xunlock
 .Nd kernel shared/exclusive lock
@@ -51,6 +53,10 @@
 .Fn sx_slock "struct sx *sx"
 .Ft void
 .Fn sx_xlock "struct sx *sx"
+.Ft int
+.Fn sx_try_slock "struct sx *sx"
+.Ft int
+.Fn sx_try_xlock "struct sx *sx"
 .Ft void
 .Fn sx_sunlock "struct sx *sx"
 .Ft void
@@ -75,12 +81,23 @@ Shared/exclusive locks are destroyed with
 .Fn sx_destroy .
 Threads acquire and release a shared lock by calling
 .Fn sx_slock
+or
+.Fn sx_try_slock
 and
 .Fn sx_sunlock .
 Threads acquire and release an exclusive lock by calling
 .Fn sx_xlock
+or
+.Fn sx_try_xlock
 and
 .Fn sx_xunlock .
+.Pp
+.Fn sx_try_slock
+and
+.Fn sx_try_xlock
+will return 0 if the shared/exclusive lock cannot be acquired immediately;
+otherwise the shared/exclusive lock will be acquired and a non-zero value will
+be returned.
 .Pp
 A thread may not own a shared lock and an exclusive lock simultaneously;
 attempting to do so will result in deadlock.
