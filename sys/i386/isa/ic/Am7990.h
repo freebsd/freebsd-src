@@ -8,6 +8,7 @@
  * functioning of this software, nor does the author assume any
  * responsibility for damages incurred with its use.
  *
+ * $FreeBSD$
  */
 
 /*

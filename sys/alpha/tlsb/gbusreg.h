@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: gbusreg.h,v 1.1 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*-
