@@ -1,5 +1,4 @@
-/* -*-c++-*- */
-
+/* $FreeBSD$ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -31,50 +30,24 @@ up-to-date.  Many thanks.
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
 
-$FreeBSD$
-
 ******************************************************************/
 
-/* Edit History
-
-02/25/91   5 nazgul	Added flag for MS byteorder
-01/14/91   4 nazgul	Off by one on number specified entries
-*/
-
+#include <sys/types.h>
+#include <sys/file.h>
+#include <err.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
-#ifdef SYSV
-#define L_SET SEEK_SET
-#define L_INCR SEEK_CUR
-#include <memory.h>
-static int bcopy(src, dst, length)
-char *src, *dst;
-int length;
-{
-    memcpy(dst, src, length);
-}
-static int bzero(b, length)
-char *b;
-int length;
-{
-    memset(b, '\0', length);
-}
-#endif
-#include <sys/file.h>
-#include <ctype.h>
-#include <err.h>
 #include "msgcat.h"
 #include "gencat.h"
 
 static char *curline = NULL;
 static long lineno = 0;
 
-static void warning(cptr, msg)
-char *cptr;
-char *msg;
+static void
+warning(char *cptr, const char *msg)
 {
     warnx("%s on line %ld\n%s", msg, lineno, curline);
     if (cptr) {
@@ -84,25 +57,27 @@ char *msg;
     }
 }
 
-static void error(cptr, msg)
-char *cptr;
-char *msg;
+static void
+error(char *cptr, const char *msg)
 {
     warning(cptr, msg);
     exit(1);
 }
 
-static void corrupt() {
+static void
+corrupt(void) {
     error(NULL, "corrupt message catalog");
 }
-static void nomem() {
+
+static void
+nomem(void) {
     error(NULL, "out of memory");
 }
 
-static char *getline(fd)
-int fd;
+static char *
+getline(int fd)
 {
-    static long	curlen = BUFSIZ;
+    static size_t curlen = BUFSIZ;
     static char	buf[BUFSIZ], *bptr = buf, *bend = buf;
     char	*cptr, *cend;
     long	buflen;
@@ -115,7 +90,7 @@ int fd;
 
     cptr = curline;
     cend = curline + curlen;
-    while (True) {
+    while (TRUE) {
 	for (; bptr < bend && cptr < cend; ++cptr, ++bptr) {
 	    if (*bptr == '\n') {
 		*cptr = '\0';
@@ -142,9 +117,8 @@ int fd;
     }
 }
 
-
-static char *token(cptr)
-char *cptr;
+static char *
+token(char *cptr)
 {
     static char	tok[MAXTOKEN+1];
     char	*tptr = tok;
@@ -154,8 +128,9 @@ char *cptr;
     *tptr = '\0';
     return(tok);
 }
-static char *wskip(cptr)
-char *cptr;
+
+static char *
+wskip(char *cptr)
 {
     if (!*cptr || !isspace((unsigned char)*cptr)) {
 	warning(cptr, "expected a space");
@@ -164,8 +139,9 @@ char *cptr;
     while (*cptr && isspace((unsigned char)*cptr)) ++cptr;
     return(cptr);
 }
-static char *cskip(cptr)
-char *cptr;
+
+static char *
+cskip(char *cptr)
 {
     if (!*cptr || isspace((unsigned char)*cptr)) {
 	warning(cptr, "wasn't expecting a space");
@@ -175,22 +151,19 @@ char *cptr;
     return(cptr);
 }
 
-static char *getmsg(fd, cptr, quote)
-int fd;
-char *cptr;
-char quote;
+static char *
+getmsg(int fd, char *cptr, char quote)
 {
-    static char	*msg = NULL;
-    static long	msglen = 0;
-    long	clen, i;
-    char	*tptr;
-
-    int		needq;
+    static char		*msg = NULL;
+    static size_t	msglen = 0;
+    size_t		clen, i;
+    char		*tptr;
+    int			needq;
 
     if (quote && *cptr == quote) {
-	needq = True;
+	needq = TRUE;
 	++cptr;
-    } else needq = False;
+    } else needq = FALSE;
 
     clen = strlen(cptr) + 1;
     if (clen > msglen) {
@@ -205,7 +178,7 @@ char quote;
 	    char	*tmp;
 	    tmp = cptr+1;
 	    if (*tmp && (!isspace((unsigned char)*tmp) || *wskip(tmp))) {
-		warning(cptr, "unexpected quote character, ignoreing");
+		warning(cptr, "unexpected quote character, ignoring");
 		*tptr++ = *cptr++;
 	    } else {
 		*cptr = '\0';
@@ -221,42 +194,23 @@ char quote;
 		msg = (char *) realloc(msg, msglen);
 		tptr = msg + i;
 		break;
-	      case 'n':
-		*tptr++ = '\n';
-		++cptr;
+
+#define CASEOF(CS, CH)			\
+              case CS:			\
+		*tptr++ = CH;		\
+		++cptr;			\
 		break;
-	      case 't':
-		*tptr++ = '\t';
-		++cptr;
-		break;
-	      case 'v':
-		*tptr++ = '\v';
-		++cptr;
-		break;
-	      case 'b':
-		*tptr++ = '\b';
-		++cptr;
-		break;
-	      case 'r':
-		*tptr++ = '\r';
-		++cptr;
-		break;
-	      case 'f':
-		*tptr++ = '\f';
-		++cptr;
-		break;
-	      case '"':
-		*tptr++ = '"';
-		++cptr;
-		break;
-	      case '\'':
-		*tptr++ = '\'';
-		++cptr;
-		break;
-	      case '\\':
-		*tptr++ = '\\';
-		++cptr;
-		break;
+
+		CASEOF('n', '\n')
+		CASEOF('t', '\t')
+		CASEOF('v', '\v')
+		CASEOF('b', '\b')
+		CASEOF('r', '\r')
+		CASEOF('f', '\f')
+		CASEOF('"', '"')
+		CASEOF('\'', '\'')
+		CASEOF('\\', '\\')
+
 	      default:
 		if (isdigit((unsigned char)*cptr)) {
 		    *tptr = 0;
@@ -280,24 +234,19 @@ char quote;
     return(msg);
 }
 
-
-
-static char *dupstr(ostr)
-char *ostr;
+static char *
+dupstr(const char *ostr)
 {
     char	*nstr;
 
-    nstr = (char *) malloc(strlen(ostr) + 1);
+    nstr = strdup(ostr);
     if (!nstr) error(NULL, "unable to allocate storage");
-    strcpy(nstr, ostr);
     return(nstr);
 }
-
 
 /*
  * The Global Stuff
  */
-
 
 typedef struct _msgT {
     long	msgId;
@@ -306,12 +255,14 @@ typedef struct _msgT {
     long	offset;
     struct _msgT	*prev, *next;
 } msgT;
+
 typedef struct _setT {
     long	setId;
     char	*hconst;
     msgT	*first, *last;
     struct _setT	*prev, *next;
 } setT;
+
 typedef struct {
     setT	*first, *last;
 } catT;
@@ -320,10 +271,11 @@ static setT	*curSet;
 static catT	*cat;
 
 /*
- * Find the current byte order.  There are of course some others, but this will do
- * for now.  Note that all we care about is "long".
+ * Find the current byte order.  There are of course some others, but
+ * this will do for now.  Note that all we care about is "long".
  */
-long MCGetByteOrder() {
+long
+MCGetByteOrder(void) {
     long	l = 0x00010203;
     char	*cptr = (char *) &l;
 
@@ -332,17 +284,11 @@ long MCGetByteOrder() {
     else return MCn86ByteOrder;
 }
 
-
-void MCParse(
-#if PROTO
-		int fd)
-#else
-		fd)
-int fd;
-#endif
+void
+MCParse(int fd)
 {
     char	*cptr, *str;
-    int	setid, msgid = 0;
+    int		setid, msgid = 0;
     char	hconst[MAXTOKEN+1];
     char	quote = 0;
 
@@ -354,7 +300,7 @@ int fd;
 
     hconst[0] = '\0';
 
-    while (cptr = getline(fd)) {
+    while ((cptr = getline(fd)) != NULL) {
 	if (*cptr == '$') {
 	    ++cptr;
 	    if (strncmp(cptr, "set", 3) == 0) {
@@ -427,13 +373,8 @@ int fd;
     }
 }
 
-void MCReadCat(
-#if PROTO
-		int fd)
-#else
-		fd)
-int fd;
-#endif
+void
+MCReadCat(int fd)
 {
     MCHeaderT	mcHead;
     MCMsgT	mcMsg;
@@ -454,7 +395,7 @@ int fd;
 
     if (lseek(fd, mcHead.firstSet, L_SET) == -1) corrupt();
 
-    while (True) {
+    while (TRUE) {
 	if (read(fd, &mcSet, sizeof(mcSet)) != sizeof(mcSet)) corrupt();
 	if (mcSet.invalid) continue;
 
@@ -471,10 +412,10 @@ int fd;
 
 	/* Get the data */
 	if (mcSet.dataLen) {
-	    data = (char *) malloc(mcSet.dataLen);
+	    data = (char *) malloc((size_t)mcSet.dataLen);
 	    if (!data) nomem();
 	    if (lseek(fd, mcSet.data.off, L_SET) == -1) corrupt();
-	    if (read(fd, data, mcSet.dataLen) != mcSet.dataLen) corrupt();
+	    if (read(fd, data, (size_t)mcSet.dataLen) != mcSet.dataLen) corrupt();
 	    if (lseek(fd, mcSet.u.firstMsg, L_SET) == -1) corrupt();
 
 	    for (i = 0; i < mcSet.numMsgs; ++i) {
@@ -504,35 +445,30 @@ int fd;
 }
 
 
-static void printS(fd, str)
-int fd;
-char *str;
+static void
+printS(int fd, const char *str)
 {
     write(fd, str, strlen(str));
 }
-static void printL(fd, l)
-int fd;
-long l;
+
+static void
+printL(int fd, long l)
 {
     char	buf[32];
     sprintf(buf, "%ld", l);
     write(fd, buf, strlen(buf));
 }
-static void printLX(fd, l)
-int fd;
-long l;
+
+static void
+printLX(int fd, long l)
 {
     char	buf[32];
     sprintf(buf, "%lx", l);
     write(fd, buf, strlen(buf));
 }
 
-static void genconst(fd, type, setConst, msgConst, val)
-int fd;
-int type;
-char *setConst;
-char *msgConst;
-long val;
+static void
+genconst(int fd, int type, char *setConst, char *msgConst, long val)
 {
     switch (type) {
       case MCLangC:
@@ -569,15 +505,8 @@ long val;
     }
 }
 
-void MCWriteConst(
-#if PROTO
-		int fd, int type, int orConsts)
-#else
-		fd, type, orConsts)
-int fd;
-int type;
-int orConsts;
-#endif
+void
+MCWriteConst(int fd, int type, int orConsts)
 {
     msgT	*msg;
     setT	*set;
@@ -613,13 +542,8 @@ int orConsts;
     }
 }
 
-void MCWriteCat(
-#if PROTO
-		int fd)
-#else
-		fd)
-int fd;
-#endif
+void
+MCWriteCat(int fd)
 {
     MCHeaderT	mcHead;
     int		cnt;
@@ -638,38 +562,38 @@ int fd;
     for (cnt = 0, set = cat->first; set; set = set->next) ++cnt;
     mcHead.numSets = cnt;
 
-    lseek(fd, 0L, L_SET);
+    lseek(fd, (off_t)0L, L_SET);
     write(fd, &mcHead, sizeof(mcHead));
-    mcHead.firstSet = lseek(fd, 0, L_INCR);
-    lseek(fd, 0L, L_SET);
+    mcHead.firstSet = lseek(fd, (off_t)0L, L_INCR);
+    lseek(fd, (off_t)0L, L_SET);
     write(fd, &mcHead, sizeof(mcHead));
 
     for (set = cat->first; set; set = set->next) {
 	bzero(&mcSet, sizeof(mcSet));
 
 	mcSet.setId = set->setId;
-	mcSet.invalid = False;
+	mcSet.invalid = FALSE;
 
 	/* The rest we'll have to come back and change in a moment */
-	pos = lseek(fd, 0, L_INCR);
+	pos = lseek(fd, (off_t)0L, L_INCR);
 	write(fd, &mcSet, sizeof(mcSet));
 
 	/* Now write all the string data */
-	mcSet.data.off = lseek(fd, 0, L_INCR);
+	mcSet.data.off = lseek(fd, (off_t)0L, L_INCR);
 	cnt = 0;
 	for (msg = set->first; msg; msg = msg->next) {
-	    msg->offset = lseek(fd, 0, L_INCR) - mcSet.data.off;
+	    msg->offset = lseek(fd, (off_t)0L, L_INCR) - mcSet.data.off;
 	    mcSet.dataLen += write(fd, msg->str, strlen(msg->str) + 1);
 	    ++cnt;
 	}
-	mcSet.u.firstMsg = lseek(fd, 0, L_INCR);
+	mcSet.u.firstMsg = lseek(fd, (off_t)0L, L_INCR);
 	mcSet.numMsgs = cnt;
 
 	/* Now write the message headers */
 	for (msg = set->first; msg; msg = msg->next) {
 	    mcMsg.msgId = msg->msgId;
 	    mcMsg.msg.off = msg->offset;
-	    mcMsg.invalid = False;
+	    mcMsg.invalid = FALSE;
 	    write(fd, &mcMsg, sizeof(mcMsg));
 	}
 
@@ -680,7 +604,7 @@ int fd;
 	    lseek(fd, pos, L_SET);
 	    write(fd, &mcSet, sizeof(mcSet));
 	} else {
-	    mcSet.nextSet = lseek(fd, 0, L_INCR);
+	    mcSet.nextSet = lseek(fd, (off_t)0L, L_INCR);
 	    lseek(fd, pos, L_SET);
 	    write(fd, &mcSet, sizeof(mcSet));
 	    lseek(fd, mcSet.nextSet, L_SET);
@@ -688,15 +612,8 @@ int fd;
     }
 }
 
-
-void MCAddSet(
-#if PROTO
-		int setId, char *hconst)
-#else
-		setId, hconst)
-int setId;
-char *hconst;
-#endif
+void
+MCAddSet(int setId, char *hconst)
 {
     setT	*set;
 
@@ -746,19 +663,13 @@ char *hconst;
     curSet = set;
 }
 
-void MCAddMsg(
-#if PROTO
-		int msgId, char *str, char *hconst)
-#else
-		msgId, str, hconst)
-int msgId;
-char *str;
-char *hconst;
-#endif
+void
+MCAddMsg(int msgId, const char *str, char *hconst)
 {
     msgT	*msg;
 
-    if (!curSet) error(NULL, "can't specify a message when no set exists");
+    if (!curSet)
+	error(NULL, "can't specify a message when no set exists");
 
     if (msgId <= 0) {
 	error(NULL, "msgId's must be greater than zero");
@@ -807,13 +718,8 @@ char *hconst;
     msg->str = dupstr(str);
 }
 
-void MCDelSet(
-#if PROTO
-		int setId)
-#else
-		setId)
-int setId;
-#endif
+void
+MCDelSet(int setId)
 {
     setT	*set;
     msgT	*msg;
@@ -840,17 +746,13 @@ int setId;
     warning(NULL, "specified set doesn't exist");
 }
 
-void MCDelMsg(
-#if PROTO
-		int msgId)
-#else
-		msgId)
-int msgId;
-#endif
+void
+MCDelMsg(int msgId)
 {
     msgT	*msg;
 
-    if (!curSet) error(NULL, "you can't delete a message before defining the set");
+    if (!curSet)
+	error(NULL, "you can't delete a message before defining the set");
 
     for (msg = curSet->first; msg; msg = msg->next) {
 	if (msg->msgId == msgId) {
@@ -870,14 +772,17 @@ int msgId;
     warning(NULL, "specified msg doesn't exist");
 }
 
-void MCDumpcat(fp)
+#if 0 /* this function is unsed and looks like debug thing */
+
+void
+MCDumpcat(fp)
 FILE  *fp;
 {
     msgT	*msg;
     setT	*set;
 
     if (!cat)
-		errx(1, "no catalog open");
+	errx(1, "no catalog open");
 
     for (set = cat->first; set; set = set->next) {
 	fprintf(fp, "$set %ld", set->setId);
@@ -894,3 +799,4 @@ FILE  *fp;
     }
 
 }
+#endif /* 0 */

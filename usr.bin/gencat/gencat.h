@@ -1,3 +1,7 @@
+/* $FreeBSD$ */
+
+#ifndef GENCAT_H
+#define GENCAT_H
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -30,18 +34,6 @@ up-to-date.  Many thanks.
 				nazgul@alfalfa.com
 
 ******************************************************************/
-
-/* Edit History
-
-02/25/91   2 nazgul	Added MCGetByteOrder
-01/18/91   2 hamilton	#if not reparsed
-01/12/91   2 schulert	conditionally use prototypes
-11/03/90   1 hamilton	Alphalpha->Alfalfa & OmegaMail->Poste
-08/13/90   1 schulert	move from ua to omu
-*/
-
-#ifndef gencat_h
-#define gencat_h
 
 /*
  * $set n comment
@@ -79,29 +71,17 @@ up-to-date.  Many thanks.
 
 #define MAXTOKEN	1024
 
-#if !defined(ANSI_C) && (defined(__STDC__) || defined(_AIX))
-# define ANSI_C 1
-#endif
+#define TRUE		1
+#define FALSE		0
 
-#if ANSI_C || defined(__cplusplus)
-# define P_(x) x
-#else
-# define P_(x) /**/
-#endif
+extern void MCAddSet(int, char *);
+extern void MCDelSet(int);
+extern void MCAddMsg(int, const char *, char *);
+extern void MCDelMsg(int);
+extern void MCParse(int);
+extern void MCReadCat(int);
+extern void MCWriteConst(int, int, int);
+extern void MCWriteCat(int);
+extern long MCGetByteOrder(void);
 
-extern void MCAddSet P_((int setId, char *c));
-extern void MCDelSet P_((int setId));
-extern void MCAddMsg P_((int msgId, char *msg, char *c));
-extern void MCDelMsg P_((int msgId));
-extern void MCParse P_((int fd));
-extern void MCReadCat P_((int fd));
-extern void MCWriteConst P_((int fd, int type, int orConsts));
-extern void MCWriteCat P_((int fd));
-extern long MCGetByteOrder P_((void));
-
-#ifndef True
-# define True 	~0
-# define False	0
-#endif
-
-#endif
+#endif /* GENCAT_H */
