@@ -34,7 +34,7 @@ o The value of the CONNECT environment variable is logged in the
 o Out-of-sequence FSM packets (IPCP/LCP/CCP) are dropped by default.
 o Reconnect values are used after an LQR timeout.
 o ^C works on the parent in -background mode.
-o The dial/call/open command works asyncronously.  As a result, prompts
+o The dial/call/open command works asynchronously.  As a result, prompts
   do not lose control while dialing.
 o The `display' command has been removed.  All information is available
   with the appropriate `show' command.
@@ -51,7 +51,7 @@ o `Set stopped' only has two parameters.  It's no longer possible to
   have an IPCP stopped timer.
 o `Set timeout' only has one parameter.  Use `set lqrperiod' and `set
   {lcp,ccp,ipcp,chap,pap}retry' for the other timers.  `show timeout'
-  is also now available using the relevent show commands.
+  is also now available using the relevant show commands.
 o `set loopback' is now `enable/disable loopback'.
 o `show auto', `show loopback' and `show mtu' are all part of `show bundle'.
 o `show mru' is part of `show lcp'
@@ -68,3 +68,5 @@ o Ppp can use tun devices > tun255.
 o Protocol-compressed packets are accepted even if they were denied
   at LCP negotiation time.
 o Passwords aren't logged when logging the ``set server'' line.
+o Command line options only need enough characters to uniquely identify
+  them.  -a == -auto, -dd == -ddial etc.  -interactive is also allowed.
