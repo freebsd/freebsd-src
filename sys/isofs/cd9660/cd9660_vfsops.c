@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.15.4.1 1997/08/17 13:28:40 joerg Exp $
+ * $Id: cd9660_vfsops.c,v 1.15.4.2 1998/01/02 16:46:15 joerg Exp $
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */
@@ -125,13 +125,13 @@ iso_get_ssector(dev, p)
 	if (ioctlp == NULL)
 		return 0;
 
-	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) == -1)
+	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) != 0)
 		return 0;
 
 	for (i = h.ending_track; i >= 0; i--) {
 		t.address_format = CD_LBA_FORMAT;
 		t.track = i;
-		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) == -1)
+		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) != 0)
 			return 0;
 		if ((t.entry.control & 4) != 0)
 			/* found a data track */
