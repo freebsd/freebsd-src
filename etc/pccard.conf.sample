@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.10 1997/11/14 18:48:59 nate Exp $
+# $Id: pccard.conf.sample,v 1.13 1997/12/16 02:43:26 pst Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -62,6 +62,30 @@ card "3Com Corporation" "3C589"
 	remove	echo 3Com Etherlink III removed
 	remove	/sbin/ifconfig ep0 delete
 
+# 3Com Etherlink III 3C589D
+card "3Com Corporation" "3C589D"
+	config	0x1 "ep0" ?
+	insert	echo 3Com Etherlink III inserted
+	insert	/etc/pccard_ether ep0
+	remove	echo 3Com Etherlink III removed
+	remove	/sbin/ifconfig ep0 delete
+
+# LinkSys ethernet card
+card "E-CARD" "E-CARD" 
+	config  0x20 "ed0" 10 
+	insert  echo "LinkSys card inserted" 
+	insert  /etc/pccard_ether ed0 
+	remove  echo "LinkSys card removed" 
+	remove	/sbin/ifconfig ed0 delete
+
+# Linksys Combo PCMCIA EthernetCard (model EC2T on box) 
+card "Linksys" "Combo PCMCIA EthernetCard (EC" 
+	config 0x1 "ed0" ? 
+	insert echo Linksys Ethernet inserted 
+	insert /etc/pccard_ether ed0 
+	remove echo Linksys Ethernet removed 
+	remove /sbin/ifconfig ed0 delete 
+
 # Farallon EtherMac
 card "Farallon" "ENet"
 	config	0x1 "ep0" ?
@@ -107,6 +131,12 @@ card "AIWA CO.,LTD." "PV-JF288  "
 	insert  echo AIWA PV-JF288 inserted
 	remove  echo AIWA PV-JF288 removed
 
+# Apex Data 28.8 PC Card "MOBILE PLUS Cellular" modem. 
+card "AD PC_CARD" "RC288ACL" 
+	config  0x22 "sio2" 10 
+	insert  echo Apex Data Mobile Plus 28.8 Modem inserted 
+	remove  echo Apex Data Mobile Plus 28.8 Modem removed 
+
 # Megahertz XJ1144
 card "MEGAHERTZ" "XJ1144"
 	config	0x23 "sio2" 10
@@ -136,6 +166,12 @@ card "Megahertz" "XJ4336-CC4336"
 	config 0x21 "sio1" 10
 	insert echo Megahertz XJ4336 inserted
 	remove echo Megahertz XJ4336 removed
+
+# Megahertz XJ1336
+card "U.S. Robotics" "XJ/CC1336"
+	config 0x21 "sio2" 10
+	insert echo U.S. Robotics XJ/CC1336 inserted
+	remove echo U.S. Robotics XJ/CC1336 removed
 
 # Omron ME2814 FAX/DATA MODEM
 card "OMRON" "ME2814 FAX/DATA MOD"
