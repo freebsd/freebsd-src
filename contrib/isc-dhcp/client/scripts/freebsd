@@ -88,7 +88,8 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
     ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
     route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
   fi
-  if [ x$old_ip_address != x ] && [ x$old_ip_address != x$new_ip_address ]; then
+  if [ x$old_ip_address != x ] && [ x$old_ip_address != x$new_ip_address ]
+   then
     ifconfig $interface inet -alias $old_ip_address $medium
     route delete $old_ip_address 127.1 >/dev/null 2>&1
     for router in $old_routers; do
@@ -129,10 +130,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
    then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
   fi
-  echo search $new_domain_name >/etc/resolv.conf
-  for nameserver in $new_domain_name_servers; do
-    echo nameserver $nameserver >>/etc/resolv.conf
-  done
+  make_resolv_conf
   exit_with_hooks 0
 fi
 
@@ -159,6 +157,7 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
   fi
   if [ x$alias_ip_address != x ]; then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+    route add $alias_ip_address 127.0.0.1
   fi
   exit_with_hooks 0
 fi
@@ -181,7 +180,9 @@ if [ x$reason = xTIMEOUT ]; then
       if [ x$new_ip_address != x$alias_ip_address ] && \
 			[ x$alias_ip_address != x ]; then
 	ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+	route add $alias_ip_address 127.0.0.1
       fi
+      route add $new_ip_address 127.1 >/dev/null 2>&1
       for router in $new_routers; do
 	route add default $router >/dev/null 2>&1
       done
@@ -190,14 +191,7 @@ if [ x$reason = xTIMEOUT ]; then
 	route add $1 $2
 	shift; shift
       done
-      echo search $new_domain_name >/etc/resolv.conf.std
-      for nameserver in $new_domain_name_servers; do
-	echo nameserver $nameserver >>/etc/resolv.conf.std
-      done
-      if [ -f /etc/resolv.conf ]; then
-	rm -f /etc/resolv.conf
-      fi
-      mv /etc/resolv.conf.std /etc/resolv.conf
+      make_resolv_conf
       exit_with_hooks 0
     fi
   fi
