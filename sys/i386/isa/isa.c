@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.24 1994/09/13 17:06:47 phk Exp $
+ *	$Id: isa.c,v 1.25 1994/09/20 05:07:11 bde Exp $
  */
 
 /*
@@ -327,6 +327,9 @@ config_isadev(isdp, mp)
 	struct isa_driver *dp = isdp->id_driver;
  
  	checkbits = 0;
+#ifndef ALLOW_CONFLICT_IRQ
+	checkbits |= CC_IRQ;
+#endif
 #ifndef ALLOW_CONFLICT_DRQ
 	checkbits |= CC_DRQ;
 #endif
@@ -389,7 +392,9 @@ config_isadev(isdp, mp)
 		 * check for IRQs and force a check for IRQs in the next
 		 * group of checks.
 		 */
+#ifndef ALLOW_CONFLICT_IRQ
 		checkbits |= CC_IRQ;
+#endif
 		if (haveseen_isadev(isdp, checkbits))
 			return;
 		isdp->id_alive = id_alive;
