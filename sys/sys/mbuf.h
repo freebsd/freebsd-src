@@ -631,6 +631,7 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 #define	PACKET_TAG_PF_FRAGCACHE			22 /* PF fragment cached */
 #define	PACKET_TAG_PF_QID			23 /* PF ALTQ queue id */
 #define	PACKET_TAG_PF_TAG			24 /* PF tagged */
+#define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
 
 /* Packet tag routines. */
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
