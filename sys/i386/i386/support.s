@@ -1182,11 +1182,10 @@ ENTRY(casuptr)
 	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
 	ja	fusufault
 
-#if defined(SMP)
-	lock cmpxchgl %ecx, (%edx)		/* Compare and set. */
-#else	/* !SMP */
-	cmpxchgl %ecx, (%edx)
-#endif	/* !SMP */
+#ifdef SMP
+	lock
+#endif
+	cmpxchgl %ecx, (%edx)			/* Compare and set. */
 
 	/*
 	 * The old value is in %eax.  If the store succeeded it will be the
