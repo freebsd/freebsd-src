@@ -70,7 +70,9 @@ NgSendMsg(int cs, const char *path,
 	memset(&msg, 0, sizeof(msg));
 	msg.header.version = NG_VERSION;
 	msg.header.typecookie = cookie;
-	msg.header.token = ++gMsgId;
+	if (++gMsgId < 0)
+		gMsgId = 1;
+	msg.header.token = gMsgId;
 	msg.header.flags = NGF_ORIG;
 	msg.header.cmd = cmd;
 	snprintf(msg.header.cmdstr, NG_CMDSTRLEN + 1, "cmd%d", cmd);
@@ -78,7 +80,7 @@ NgSendMsg(int cs, const char *path,
 	/* Deliver message */
 	if (NgDeliverMsg(cs, path, &msg, args, arglen) < 0)
 		return (-1);
-	return(gMsgId);
+	return (gMsgId);
 }
 
 /*
@@ -137,8 +139,13 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 		return (-1);
 
 	/* Now send binary version */
-	return NgDeliverMsg(cs,
-	    path, binary, binary->data, binary->header.arglen);
+	if (++gMsgId < 0)
+		gMsgId = 1;
+	binary->header.token = gMsgId;
+	if (NgDeliverMsg(cs,
+	    path, binary, binary->data, binary->header.arglen) < 0)
+		return (-1);
+	return (gMsgId);
 }
 
 /*
