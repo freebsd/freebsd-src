@@ -1147,7 +1147,7 @@ SetModemSpeed(struct cmdargs const *arg)
 
   if (arg->argc > arg->argn && *arg->argv[arg->argn]) {
     if (arg->argc > arg->argn+1) {
-      log_Printf(LogWARN, "SetModemSpeed: Too many arguments");
+      log_Printf(LogWARN, "SetModemSpeed: Too many arguments\n");
       return -1;
     }
     if (strcasecmp(arg->argv[arg->argn], "sync") == 0) {
