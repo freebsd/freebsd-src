@@ -540,8 +540,12 @@ display(void)
 				break;
 			}
 			/* client */
-			pos += xprintf("-> ");
 			p = *(void **)&s->faddr;
+			if (p == NULL) {
+				pos += xprintf("(not connected)");
+				break;
+			}
+			pos += xprintf("-> ");
 			for (hash = 0; hash < HASHSIZE; ++hash) {
 				for (s = sockhash[hash]; s != NULL; s = s->next)
 					if (s->pcb == p)
