@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)security.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: security.7,v 1.1 1998/12/20 20:12:17 dillon Exp $
+.\"	$Id: security.7,v 1.2 1998/12/22 19:02:51 dillon Exp $
 .\"
 .Dd December 30, 1993
 .Dt SECURITY 7
@@ -45,10 +45,10 @@ While all
 .Bx
 systems are inherently multi-user capable, the job of building and
 maintaining security mechanisms to keep those users 'honest' is probably
-one of the single largest undertakings of the sysad.  Machines are
+one of the single largest undertakings of the sysadmin.  Machines are
 only as secure as you make them, and security concerns are ever competing
 with the human necessity for convenience.   UNIX systems,
-in general, are capable of running a huge number of simultanious processes
+in general, are capable of running a huge number of simultaneous processes
 and many of these processes operate as servers - meaning that external entities
 can connect and talk to them.  As yesterday's mini-computers and mainframes 
 become today's desktops, and as computers become networked and internetworked,
@@ -61,9 +61,9 @@ Denial of service attacks
 .It
 User account compromises
 .It
-Root Hacks through accessible servers
+Root compromise through accessible servers
 .It
-Root Hacks via user accounts
+Root compromise via user accounts
 .El
 .Pp
 A denial of service attack is an action that deprives the machine of needed
@@ -78,13 +78,13 @@ attacks are harder to deal with.  A spoofed-packet attack, for example, is
 nearly impossible to stop short of cutting your system off from the internet.
 .Pp
 A user account compromise is even more common then a D.O.S. attack.  Many
-sysops still run standard telnetd, rlogind, rshd, and ftpd servers on their
+sysadmins still run standard telnetd, rlogind, rshd, and ftpd servers on their
 machines.  These servers, by default, do not operate over encrypted
 connections.  The result is that if you have any moderate-sized user base,
 one or more of your users logging into your system from a remote location
 (which is the most common and convenient way to login to a system) will
 have his or her password sniffed.  The attentive system admin will analyze
-his remote access logs occassionally looking for suspicious source addresses
+his remote access logs occasionally looking for suspicious source addresses
 even for successful logins.
 .Pp
 One must always assume that once an attacker has access to a user account,
@@ -116,7 +116,7 @@ Securing the password file
 .It
 Securing the kernel core, raw devices, and filesystems
 .It
-Checking file integrity: binaries, config files, and so forth
+Checking file integrity: binaries, configuration files, and so forth
 .It
 Paranoia
 .El
@@ -141,29 +141,29 @@ staff accounts to the wheel group (in /etc/group).  The staff members placed
 in the wheel group are allowed to 'su' to root.  You should never give staff
 members native wheel access via their entry in the password file... put staff
 in a 'staff' group or something and only add those that really need root to
-the wheel group.  Unfortunately the wheel mechanism still allows a hacker to
-break root if the hacker has gotten hold of your password file - he need only
+the wheel group.  Unfortunately the wheel mechanism still allows an intruder to
+break root if the intruder has gotten hold of your password file - he need only
 break the root password and the password of one of the staff accounts that
-happens to be in the wheel group.  So while the wheel mechanism is useable,
+happens to be in the wheel group.  So while the wheel mechanism is usable,
 it isn't much safer then not having a wheel group at all.
 .Pp
 An indirect way to secure the root account is to secure your staff accounts
 by using an alternative login access method and *'ing out the crypted password
-for the staff accounts.  This way a hacker may be able to steal the password
+for the staff accounts.  This way an intruder may be able to steal the password
 file but will not be able to break into any staff accounts (or, indirectly,
 root, even if root has a crypted password associated with it).  Staff members
 get into their staff accounts through a secure login mechanism such as 
 kerberos(1) or ssh(1) (see /usr/ports/security/ssh) using a private/public
-keypair.  When you use something like kerberos you generally must secure
+key pair.  When you use something like kerberos you generally must secure
 the machines which run the kerberos servers and your desktop workstation.
-When you use a public/private keypair with ssh, you must generally secure
+When you use a public/private key pair with ssh, you must generally secure
 the machine you are logging in FROM (typically your workstation), but you can
-also add an additional layer of protection to the keypair by password 
-protecting the keypair when you create it with ssh-keygen(1).  Being able
-to *-out the passwords for staff accounts also guarentees that staff members
+also add an additional layer of protection to the key pair by password 
+protecting the key pair when you create it with ssh-keygen(1).  Being able
+to *-out the passwords for staff accounts also guarantees that staff members
 can only login through secure access methods that you have setup.  You can
 thus force all staff members to use secure, encrypted connections for
-all their sessions which closes an important hole used by many hackers:  That
+all their sessions which closes an important hole used by many intruders:  That
 of sniffing the network from an unrelated, less secure machine.
 .Pp
 The more indirect security mechanisms also assume that you are logging in
@@ -175,7 +175,7 @@ at all, and you should run a password-protected screen blanker.
  Of course, given physical access to
 a workstation an attacker can break any sort of security you put on it.
 This is definitely a problem that you should consider but you should also
-consider the fact that the vast majority of breakins occur remotely, over
+consider the fact that the vast majority of break-ins occur remotely, over
 a network, from people who do not have physical access to your workstation or
 servers.
 .Pp
@@ -197,7 +197,7 @@ running an old version of imapd or popper is like giving a universal root
 ticket out to the entire world.  Never run a server that you have not checked
 out carefully.  Many servers do not need to be run as root.  For example,
 the ntalk, comsat, and finger daemons can be run in special user 'sandboxes'.
-A sandbox isn't perfect unless you go to a hellofalot of trouble, but the
+A sandbox isn't perfect unless you go to a large amount of trouble, but the
 onion approach to security still stands:  If someone is able to break in
 through a server running in a sandbox, they still have to break out of the
 sandbox.  The more layers the attacker must break through, the lower the
@@ -218,30 +218,30 @@ There are a number of other servers that typically do not run in sandboxes:
 sendmail, popper, imapd, ftpd, and others.  There are alternatives to
 some of these, but installing them may require more work then you are willing
 to put (the convenience factor strikes again).  You may have to run these
-servers as root and rely on other mechanisms to detect breakins that might
+servers as root and rely on other mechanisms to detect break-ins that might
 occur through them.
 .Pp
 The other big potential root hole in a system are the suid-root and sgid
 binaries installed on the system.  Most of these binaries, such as rlogin,
 reside in /bin, /sbin, /usr/bin, or /usr/sbin.  While nothing is 100% safe,
 the system-default suid and sgid binaries can be considered reasonably safe.
-Still, root holes are occassionaly found in these binaries.  A root hole
+Still, root holes are occasionally found in these binaries.  A root hole
 was found in Xlib in 1998 that made xterm (which is typically suid) vulnerable.
 It is better to be safe then sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
 access, and get rid of (chmod 000) any suid binaries that nobody uses.  A 
 server with no display generally does not need an xterm binary.  Sgid binaries
-can be almost as dangerous.  If a hacker can break an sgid-kmem binary the
-hacker might be able to read /dev/kmem and thus read the crypted password
-file, potentially compromising any passworded account.  A hacker that breaks
+can be almost as dangerous.  If an intruder can break an sgid-kmem binary the
+intruder might be able to read /dev/kmem and thus read the crypted password
+file, potentially compromising any passworded account.  An intruder that breaks
 the tty group can write to almost user's tty.  If a user is running a terminal
-program or emulator with a talk-back feature, the hacker can potentially 
+program or emulator with a talk-back feature, the intruder can potentially 
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
 .Sh SECURING USER ACCOUNTS
 .Pp
 User accounts are usually the most difficult to secure.  While you can impose
-draconian access restrictions on your staff and *-out their passwords, you
+Draconian access restrictions on your staff and *-out their passwords, you
 may not be able to do so with any general user accounts you might have.  If
 you do have sufficient control then you may win out and be able to secure the
 user accounts properly.  If not, you simply have to be more vigilant in your
@@ -253,7 +253,7 @@ password.
 The only sure fire way is to *-out as many passwords as you can and 
 use ssh or kerberos for access to those accounts.  Even though the 
 crypted password file (/etc/spwd.db) can only be read by root, it may
-be possible for a hacker to obtain read access to that file even if the 
+be possible for a intruder to obtain read access to that file even if the 
 attacker cannot obtain root-write access.
 .Pp
 Your security scripts should always check for and report changes to 
@@ -263,18 +263,18 @@ the password file (see 'Checking file integrity' below).
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
 packet sniffing device driver built in.  Under FreeBSD it is called
-the 'bpf' device.  A hacker will commonly attempt to run a packet sniffer
-on a compromised machine.  You do not need to give the hacker the 
+the 'bpf' device.  A intruder will commonly attempt to run a packet sniffer
+on a compromised machine.  You do not need to give the intruder the 
 capability and most systems should not have the bpf device compiled in.
 Unfortunately, there is another kernel feature called the Loadable Kernel
-Module interface.  An enterprising hacker can use an LKM to install 
+Module interface.  An enterprising intruder can use an LKM to install 
 his own bpf device or other sniffing device on a running kernel.  If you
-do not need to use the module loader, turn it off in the kernel config
+do not need to use the module loader, turn it off in the kernel configuration
 with the NO_LKM option.
 .Pp
 But even if you turn off the bpf device, and turn off the module loader,
 you still have /dev/mem and /dev/kmem to worry about.  For that matter,
-the hacker can still write raw devices.  To avoid this you have to run
+the intruder can still write raw devices.  To avoid this you have to run
 the kernel at a higher secure level... at least securelevel 1.  The securelevel
 can be set with a sysctl on the kern.securelevel variable.  Once you have
 set the securelevel to 1, write access to raw devices will be denied and
@@ -311,15 +311,15 @@ binaries), then emails each staff member a daily report of differences.
 .Pp
 Another way to do this sort of check is to NFS export the major filesystems
 from every other machine to the security machine.  This is somewhat more
-network intensive but also virtually impossible for a hacker to detect
+network intensive but also virtually impossible for an intruder to detect
 or spoof.
 .Pp
 A good security script will also check for changes to user and staff members
 access configuration files:  .rhosts, .shosts, .ssh/authorized_keys, and
-so forth... files that might fall outside the pervue of the MD5 check.
+so forth... files that might fall outside the prevue of the MD5 check.
 .Pp
 A good security script will check for suid and sgid binaries on all 
-filesystems and report their absolute existance as well as a diff against
+filesystems and report their absolute existence as well as a diff against
 the previous report or some baseline (say, make a baseline once a week).
 While you can turn off the ability to run suid and sgid binaries on certain
 filesystems through the 'nosuid' option in fstab/mount, you cannot turn this
@@ -328,18 +328,18 @@ If you have a huge amount of user disk space, though, it may be useful to
 disallow suid binaries and devices ('nodev' option) on the user partitions
 so you do not have to scan them for such.  I would scan them anyway, though,
 at least once a week, since the object of this onion layer is detection of
-a breakin.
+a break-in.
 .Pp
 Process accounting (see accton(1)) is a relatively low-overhead feature of
-the operating system which I recommend using as a post-breakin evaluation
-mechanism.  It is especially useful in tracking down how a hacker has 
+the operating system which I recommend using as a post-break-in evaluation
+mechanism.  It is especially useful in tracking down how an intruder has 
 actually broken root on a system, assuming the file is still intact after
-the breakin occurs.
+the break-in occurs.
 .Pp
 Finally, security scripts should process the log files and the logs themselves
 should be generated in as secured a manner as possible - remote syslog can be
-very useful.  A hacker tries to cover his tracks, and log files are critical
-to the sysadmin trying to track down the time and method of the initial breakin.
+very useful.  An intruder tries to cover his tracks, and log files are critical
+to the sysadmin trying to track down the time and method of the initial break-in.
 .Sh PARANOIA
 .Pp
 A little paranoia never hurts.  As a rule, a sysadmin can add any number
@@ -348,7 +348,7 @@ can add security features that do effect convenience with some added
 thought.
 .Sh SPECIAL SECTION ON D.O.S. ATTACKS
 .Pp
-This section covers Dential of Service attacks.  A DOS attack is typically
+This section covers Denial of Service attacks.  A DOS attack is typically
 a packet attack.  While there isn't much you can do about modern spoofed
 packet attacks that saturate your network, you can generally limit the damage
 by ensuring that the attacks cannot take down your servers.  
@@ -362,7 +362,7 @@ Kernel Route Cache
 .El
 .Pp
 A common DOS attack is against a forking server that attempts to cause the
-server to eat processes, file descirptors, and memory until the machine
+server to eat processes, file descriptors, and memory until the machine
 dies.  Inetd (see inetd(8)) has several options to limit this sort of attack.
 It should be noted that while it is possible to prevent a machine from going
 down it is not generally possible to prevent a service from being disrupted 
@@ -393,7 +393,7 @@ feature of tcpwrappers for this reason.
 It is a very good idea to protect internal services from external access
 by firewalling them off at your border routers.  The idea here is to prevent
 saturation attacks from outside your LAN, not so much to protect internal 
-services from root network-based root hacks.  Always configure an exclusive
+services from root network-based root compromise.  Always configure an exclusive
 firewall, i.e. 'firewall everything *except* ports A, B, C, D, and M-Z'.   This
 way you can firewall off all of your low ports except for certain specific
 services such as named (if you are primary for a zone), ntalkd, sendmail,
@@ -457,19 +457,18 @@ table from attack.
 
 .Sh SEE ALSO
 .Pp
-.Xr ssh 1 ,
-.Xr sshd 1 ,
-.Xr kerberos 1 ,
 .Xr accton 1 ,
-.Xr xdm 1 ,
-.Xr syslogd 1 ,
 .Xr chflags 1 ,
 .Xr find 1 ,
+.Xr kerberos 1 ,
 .Xr md5 1 ,
+.Xr ssh 1 ,
+.Xr sshd 1 ,
+.Xr syslogd 1 ,
+.Xr xdm 1 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
 manual page was originally written by Matthew Dillon and first appeared 
 in FreeBSD-3.0.1, December 1998.
-
