@@ -683,8 +683,8 @@ ext2_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct buf *bp;
+	struct vnode *vp = ap->a_vp;
+	struct buf *bp;
 	struct buf *nbp;
 	int s;
 
@@ -880,7 +880,7 @@ ext2_rename(ap)
 	} */ *ap;
 {
 	struct vnode *tvp = ap->a_tvp;
-	register struct vnode *tdvp = ap->a_tdvp;
+	struct vnode *tdvp = ap->a_tdvp;
 	struct vnode *fvp = ap->a_fvp;
 	struct vnode *fdvp = ap->a_fdvp;
 	struct componentname *tcnp = ap->a_tcnp;
@@ -1286,10 +1286,10 @@ ext2_mkdir(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-	register struct vnode *dvp = ap->a_dvp;
-	register struct vattr *vap = ap->a_vap;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct inode *ip, *dp;
+	struct vnode *dvp = ap->a_dvp;
+	struct vattr *vap = ap->a_vap;
+	struct componentname *cnp = ap->a_cnp;
+	struct inode *ip, *dp;
 	struct vnode *tvp;
 	struct dirtemplate dirtemplate, *dtp;
 	int error, dmode;
@@ -1492,8 +1492,8 @@ ext2_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	register struct vnode *vp, **vpp = ap->a_vpp;
-	register struct inode *ip;
+	struct vnode *vp, **vpp = ap->a_vpp;
+	struct inode *ip;
 	int len, error;
 
 	error = ext2_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
@@ -1882,7 +1882,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	struct vnode **vpp;
 	struct componentname *cnp;
 {
-	register struct inode *ip, *pdir;
+	struct inode *ip, *pdir;
 	struct vnode *tvp;
 	int error;
 

@@ -123,8 +123,8 @@ static int ext2_mountroot(void);
 static int
 ext2_mountroot()
 {
-	register struct ext2_sb_info *fs;
-	register struct mount *mp;
+	struct ext2_sb_info *fs;
+	struct mount *mp;
 	struct thread *td = curthread;
 	struct ext2mount *ump;
 	u_int size;
@@ -175,7 +175,7 @@ ext2_mountroot()
  */
 static int
 ext2_mount(mp, path, data, ndp, td)
-	register struct mount *mp;	
+	struct mount *mp;
 	char *path;
 	caddr_t data;		/* this is actually a (struct ext2_args *) */
 	struct nameidata *ndp;
@@ -184,7 +184,7 @@ ext2_mount(mp, path, data, ndp, td)
 	struct vnode *devvp;
 	struct ext2_args args;
 	struct ext2mount *ump = 0;
-	register struct ext2_sb_info *fs;
+	struct ext2_sb_info *fs;
 	size_t size;
 	int error, flags;
 	mode_t accessmode;
@@ -520,11 +520,11 @@ static int compute_sb_data(devvp, es, fs)
  */
 static int
 ext2_reload(mountp, cred, td)
-	register struct mount *mountp;
+	struct mount *mountp;
 	struct ucred *cred;
 	struct thread *td;
 {
-	register struct vnode *vp, *nvp, *devvp;
+	struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
 	struct buf *bp;
 	struct ext2_super_block * es;
@@ -612,13 +612,13 @@ loop:
  */
 static int
 ext2_mountfs(devvp, mp, td)
-	register struct vnode *devvp;
+	struct vnode *devvp;
 	struct mount *mp;
 	struct thread *td;
 {
-	register struct ext2mount *ump;
+	struct ext2mount *ump;
 	struct buf *bp;
-	register struct ext2_sb_info *fs;
+	struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
 	dev_t dev = devvp->v_rdev;
 	int error;
@@ -742,8 +742,8 @@ ext2_unmount(mp, mntflags, td)
 	int mntflags;
 	struct thread *td;
 {
-	register struct ext2mount *ump;
-	register struct ext2_sb_info *fs;
+	struct ext2mount *ump;
+	struct ext2_sb_info *fs;
 	int error, flags, ronly, i;
 
 	flags = 0;
@@ -794,7 +794,7 @@ ext2_unmount(mp, mntflags, td)
  */
 static int
 ext2_flushfiles(mp, flags, td)
-	register struct mount *mp;
+	struct mount *mp;
 	int flags;
 	struct thread *td;
 {
@@ -811,13 +811,13 @@ ext2_flushfiles(mp, flags, td)
 static int
 ext2_statfs(mp, sbp, td)
 	struct mount *mp;
-	register struct statfs *sbp;
+	struct statfs *sbp;
 	struct thread *td;
 {
         unsigned long overhead;
-	register struct ext2mount *ump;
-	register struct ext2_sb_info *fs;
-	register struct ext2_super_block *es;
+	struct ext2mount *ump;
+	struct ext2_sb_info *fs;
+	struct ext2_super_block *es;
 	int i, nsb;
 
 	ump = VFSTOEXT2(mp);
@@ -957,8 +957,8 @@ ext2_vget(mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
-	register struct ext2_sb_info *fs;
-	register struct inode *ip;
+	struct ext2_sb_info *fs;
+	struct inode *ip;
 	struct ext2mount *ump;
 	struct buf *bp;
 	struct vnode *vp;
@@ -1103,12 +1103,12 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
  */
 static int
 ext2_fhtovp(mp, fhp, vpp)
-	register struct mount *mp;
+	struct mount *mp;
 	struct fid *fhp;
 	struct vnode **vpp;
 {
 	struct inode *ip;
-	register struct ufid *ufhp;
+	struct ufid *ufhp;
 	struct vnode *nvp;
 	struct ext2_sb_info *fs;
 	int error;
@@ -1144,8 +1144,8 @@ ext2_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
-	register struct inode *ip;
-	register struct ufid *ufhp;
+	struct inode *ip;
+	struct ufid *ufhp;
 
 	ip = VTOI(vp);
 	ufhp = (struct ufid *)fhp;
@@ -1163,9 +1163,9 @@ ext2_sbupdate(mp, waitfor)
 	struct ext2mount *mp;
 	int waitfor;
 {
-	register struct ext2_sb_info *fs = mp->um_e2fs;
-	register struct ext2_super_block *es = fs->s_es;
-	register struct buf *bp;
+	struct ext2_sb_info *fs = mp->um_e2fs;
+	struct ext2_super_block *es = fs->s_es;
+	struct buf *bp;
 	int error = 0;
 /*
 printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
