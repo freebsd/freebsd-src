@@ -1,0 +1,505 @@
+/*******************************************************************************
+ *
+ * Module Name: nssearch - Namespace search
+ *              $Revision: 58 $
+ *
+ ******************************************************************************/
+
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
+ * reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights.  You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code.  No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision.  In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change.  Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee.  Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution.  In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government.  In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************/
+
+#define __NSSEARCH_C__
+
+#include "acpi.h"
+#include "amlcode.h"
+#include "acinterp.h"
+#include "acnamesp.h"
+
+
+#define _COMPONENT          NAMESPACE
+        MODULE_NAME         ("nssearch")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsSearchNode
+ *
+ * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
+ *              *Node           - Starting table where search will begin
+ *              Type                - Object type to match
+ *              **ReturnNode    - Where the matched Named obj is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Search a single namespace table.  Performs a simple search,
+ *              does not add entries or search parents.
+ *
+ *
+ *      Named object lists are built (and subsequently dumped) in the
+ *      order in which the names are encountered during the namespace load;
+ *
+ *      All namespace searching is linear in this implementation, but
+ *      could be easily modified to support any improved search
+ *      algorithm.  However, the linear search was chosen for simplicity
+ *      and because the trees are small and the other interpreter
+ *      execution overhead is relatively high.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiNsSearchNode (
+    UINT32                  TargetName,
+    ACPI_NAMESPACE_NODE     *Node,
+    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_NAMESPACE_NODE     **ReturnNode)
+{
+    ACPI_NAMESPACE_NODE     *NextNode;
+
+
+    FUNCTION_TRACE ("NsSearchNode");
+
+    {
+        DEBUG_EXEC (NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (Node));
+        DEBUG_PRINT (TRACE_NAMES,
+            ("NsSearchNode: Searching %s [%p]\n",
+            ScopeName, Node));
+        DEBUG_PRINT (TRACE_NAMES,
+            ("NsSearchNode: For %4.4s (type 0x%X)\n",
+            &TargetName, Type));
+        DEBUG_EXEC (AcpiCmFree (ScopeName));
+    }
+
+
+    /*
+     * Search for name in this table, which is to say that we must search
+     * for the name among the children of this object
+     */
+
+    NextNode = Node->Child;
+    while (NextNode)
+    {
+        /* Check for match against the name */
+
+        if (NextNode->Name == TargetName)
+        {
+            /*
+             * Found matching entry.  Capture type if
+             * appropriate before returning the entry.
+             */
+
+            /*
+             * The DefFieldDefn and BankFieldDefn cases
+             * are actually looking up the Region in which
+             * the field will be defined
+             */
+
+            if ((INTERNAL_TYPE_DEF_FIELD_DEFN == Type) ||
+                (INTERNAL_TYPE_BANK_FIELD_DEFN == Type))
+            {
+                Type = ACPI_TYPE_REGION;
+            }
+
+            /*
+             * Scope, DefAny, and IndexFieldDefn are bogus
+             * "types" which do not actually have anything
+             * to do with the type of the name being looked
+             * up.  For any other value of Type, if the type
+             * stored in the entry is Any (i.e. unknown),
+             * save the actual type.
+             */
+
+            if (Type != INTERNAL_TYPE_SCOPE &&
+                Type != INTERNAL_TYPE_DEF_ANY &&
+                Type != INTERNAL_TYPE_INDEX_FIELD_DEFN &&
+                NextNode->Type == ACPI_TYPE_ANY)
+            {
+                NextNode->Type = (UINT8) Type;
+            }
+
+            DEBUG_PRINT (TRACE_NAMES,
+                ("NsSearchNode: Name %4.4s (actual type 0x%X) found at %p\n",
+                &TargetName, NextNode->Type, NextNode));
+
+            *ReturnNode = NextNode;
+            return_ACPI_STATUS (AE_OK);
+        }
+
+
+        /*
+         * The last entry in the list points back to the parent,
+         * so a flag is used to indicate the end-of-list
+         */
+        if (NextNode->Flags & ANOBJ_END_OF_PEER_LIST)
+        {
+            /* Searched entire list, we are done */
+
+            break;
+        }
+
+        /* Didn't match name, move on to the next peer object */
+
+        NextNode = NextNode->Peer;
+    }
+
+
+    /* Searched entire table, not found */
+
+    DEBUG_PRINT (TRACE_NAMES,
+        ("NsSearchNode: Name %4.4s (type 0x%X) not found at %p\n",
+        &TargetName, Type, NextNode));
+
+
+    return_ACPI_STATUS (AE_NOT_FOUND);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsSearchParentTree
+ *
+ * PARAMETERS:  *TargetName         - Ascii ACPI name to search for
+ *              *Node           - Starting table where search will begin
+ *              Type                - Object type to match
+ *              **ReturnNode    - Where the matched Named Obj is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Called when a name has not been found in the current namespace
+ *              table.  Before adding it or giving up, ACPI scope rules require
+ *              searching enclosing scopes in cases identified by AcpiNsLocal().
+ *
+ *              "A name is located by finding the matching name in the current
+ *              name space, and then in the parent name space. If the parent
+ *              name space does not contain the name, the search continues
+ *              recursively until either the name is found or the name space
+ *              does not have a parent (the root of the name space).  This
+ *              indicates that the name is not found" (From ACPI Specification,
+ *              section 5.3)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiNsSearchParentTree (
+    UINT32                  TargetName,
+    ACPI_NAMESPACE_NODE     *Node,
+    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_NAMESPACE_NODE     **ReturnNode)
+{
+    ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *ParentNode;
+
+
+    FUNCTION_TRACE ("NsSearchParentTree");
+
+
+    ParentNode = AcpiNsGetParentObject (Node);
+
+    /*
+     * If there is no parent (at the root) or type is "local", we won't be
+     * searching the parent tree.
+     */
+    if ((AcpiNsLocal (Type))    ||
+        (!ParentNode))
+    {
+        if (!ParentNode)
+        {
+            DEBUG_PRINT (TRACE_NAMES,
+                ("NsSearchParentTree: [%4.4s] has no parent\n",
+                &TargetName));
+        }
+
+        if (AcpiNsLocal (Type))
+        {
+            DEBUG_PRINT (TRACE_NAMES,
+                ("NsSearchParentTree: [%4.4s] (type 0x%X) is local (no search)\n",
+                &TargetName, Type));
+        }
+
+        return_ACPI_STATUS (AE_NOT_FOUND);
+    }
+
+
+    /* Search the parent tree */
+
+    DEBUG_PRINT (TRACE_NAMES,
+        ("NsSearchParentTree: Searching parent for %4.4s\n",
+        &TargetName));
+
+    /*
+     * Search parents until found the target or we have backed up to
+     * the root
+     */
+
+    while (ParentNode)
+    {
+        /* Search parent scope */
+        /* TBD: [Investigate] Why ACPI_TYPE_ANY? */
+
+        Status = AcpiNsSearchNode (TargetName, ParentNode,
+                                        ACPI_TYPE_ANY, ReturnNode);
+
+        if (ACPI_SUCCESS (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+        /*
+         * Not found here, go up another level
+         * (until we reach the root)
+         */
+
+        ParentNode = AcpiNsGetParentObject (ParentNode);
+    }
+
+
+    /* Not found in parent tree */
+
+    return_ACPI_STATUS (AE_NOT_FOUND);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsSearchAndEnter
+ *
+ * PARAMETERS:  TargetName          - Ascii ACPI name to search for (4 chars)
+ *              WalkState           - Current state of the walk
+ *              *Node           - Starting table where search will begin
+ *              InterpreterMode     - Add names only in MODE_LoadPassX.
+ *                                    Otherwise,search only.
+ *              Type                - Object type to match
+ *              Flags               - Flags describing the search restrictions
+ *              **ReturnNode    - Where the Node is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Search for a name segment in a single name table,
+ *              optionally adding it if it is not found.  If the passed
+ *              Type is not Any and the type previously stored in the
+ *              entry was Any (i.e. unknown), update the stored type.
+ *
+ *              In IMODE_EXECUTE, search only.
+ *              In other modes, search and add if not found.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiNsSearchAndEnter (
+    UINT32                  TargetName,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_NAMESPACE_NODE     *Node,
+    OPERATING_MODE          InterpreterMode,
+    OBJECT_TYPE_INTERNAL    Type,
+    UINT32                  Flags,
+    ACPI_NAMESPACE_NODE     **ReturnNode)
+{
+    ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *NewNode;
+
+
+    FUNCTION_TRACE ("NsSearchAndEnter");
+
+
+    /* Parameter validation */
+
+    if (!Node || !TargetName || !ReturnNode)
+    {
+        DEBUG_PRINT (ACPI_ERROR,
+            ("NsSearchAndEnter: Null param:  Table %p Name %p Return %p\n",
+            Node, TargetName, ReturnNode));
+
+        REPORT_ERROR (("NsSearchAndEnter: bad (null) parameter\n"));
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+
+    /* Name must consist of printable characters */
+
+    if (!AcpiCmValidAcpiName (TargetName))
+    {
+        DEBUG_PRINT (ACPI_ERROR,
+            ("NsSearchAndEnter:  *** Bad character in name: %08lx *** \n",
+            TargetName));
+
+        REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
+        return_ACPI_STATUS (AE_BAD_CHARACTER);
+    }
+
+
+    /* Try to find the name in the table specified by the caller */
+
+    *ReturnNode = ENTRY_NOT_FOUND;
+    Status = AcpiNsSearchNode (TargetName, Node,
+                                    Type, ReturnNode);
+    if (Status != AE_NOT_FOUND)
+    {
+        /*
+         * Either found it or there was an error
+         * -- finished either way
+         */
+        return_ACPI_STATUS (Status);
+    }
+
+
+    /*
+     * Not found in the table.  If we are NOT performing the
+     * first pass (name entry) of loading the namespace, search
+     * the parent tree (all the way to the root if necessary.)
+     * We don't want to perform the parent search when the
+     * namespace is actually being loaded.  We want to perform
+     * the search when namespace references are being resolved
+     * (load pass 2) and during the execution phase.
+     */
+
+    if ((InterpreterMode != IMODE_LOAD_PASS1) &&
+        (Flags & NS_SEARCH_PARENT))
+    {
+        /*
+         * Not found in table - search parent tree according
+         * to ACPI specification
+         */
+
+        Status = AcpiNsSearchParentTree (TargetName, Node,
+                                            Type, ReturnNode);
+        if (ACPI_SUCCESS (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+
+    /*
+     * In execute mode, just search, never add names.  Exit now.
+     */
+    if (InterpreterMode == IMODE_EXECUTE)
+    {
+        DEBUG_PRINT (TRACE_NAMES,
+            ("NsSearchAndEnter: %4.4s Not found in %p [Not adding]\n",
+            &TargetName, Node));
+
+        return_ACPI_STATUS (AE_NOT_FOUND);
+    }
+
+
+    /* Create the new named object */
+
+    NewNode = AcpiNsCreateNode (TargetName);
+    if (!NewNode)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Install the new object into the parent's list of children */
+
+    AcpiNsInstallNode (WalkState, Node, NewNode, Type);
+    *ReturnNode = NewNode;
+
+    return_ACPI_STATUS (AE_OK);
+}
+
