@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.5 1995/05/30 03:50:58 rgrimes Exp $
+ * $Id: systems.c,v 1.6 1996/03/08 09:03:09 ache Exp $
  *
  *  TODO:
  */
@@ -75,12 +75,12 @@ char *file;
   cp = getenv("HOME");
   if (cp) {
     SetUserId();
-    sprintf(line, "%s/.%s", cp, file);
+    snprintf(line, sizeof line, "%s/.%s", cp, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
     SetPppId();
-    sprintf(line, "%s/%s",_PATH_PPP, file);
+    snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
@@ -115,12 +115,12 @@ char *file;
   cp = getenv("HOME");
   if (cp) {
     SetUserId();
-    sprintf(line, "%s/.%s", cp, file);
+    snprintf(line, sizeof line, "%s/.%s", cp, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
     SetPppId();		/* fix from pdp@ark.jr3uom.iijnet.or.jp */
-    sprintf(line, "%s/%s",_PATH_PPP, file);
+    snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
