@@ -30,14 +30,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.36 1996/05/31 01:08:03 peter Exp $
+ *	$Id: support.s,v 1.37 1996/06/13 07:17:20 asami Exp $
  */
 
-#include "assym.s"				/* system definitions */
-#include "errno.h"				/* error return codes */
-#include "machine/asmacros.h"			/* miscellaneous asm macros */
-#include "machine/cputypes.h"			/* types of CPUs */
-#include "machine/specialreg.h"
+#include <sys/errno.h>
+
+#include <machine/asmacros.h>
+#include <machine/cputypes.h>
+#include <machine/specialreg.h>
+
+#include "assym.s"
 
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10

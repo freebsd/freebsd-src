@@ -64,13 +64,13 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: polynomial.s,v 1.2 1994/04/29 21:23:31 gclarkii Exp $
+ *     $Id: polynomial.s,v 1.3 1994/06/10 07:44:43 rich Exp $
  *
  */
 
 	.file	"fpolynom.s"
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 
 /*	#define	EXTRA_PRECISE*/

@@ -28,9 +28,9 @@
  *
  */
 
-#include "local.h"
-#include "os.h"
-#include "soundvers.h"
+#include <i386/isa/sound/local.h>
+#include <i386/isa/sound/os.h>
+#include <i386/isa/sound/soundvers.h>
 
 #if !defined(PSS_MPU_BASE) && defined(EXCLUDE_SSCAPE) && defined(EXCLUDE_TRIX)
 #define EXCLUDE_MPU_EMU
@@ -334,8 +334,8 @@ struct channel_info {
 #define OPEN_WRITE	2
 #define OPEN_READWRITE	3
 
-#include "sound_calls.h"
-#include "dev_table.h"
+#include <i386/isa/sound/sound_calls.h>
+#include <i386/isa/sound/dev_table.h>
 
 #ifndef DEB
 #define DEB(x)

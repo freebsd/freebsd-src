@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: errors.c,v 1.3 1994/06/10 07:44:10 rich Exp $
+ *    $Id: errors.c,v 1.4 1995/03/16 18:11:10 bde Exp $
  *
  */
 
@@ -71,19 +71,19 @@
 
 
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "status_w.h"
-#include "control_w.h"
-#include "reg_constant.h"
-#include "version.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/status_w.h>
+#include <gnu/i386/fpemul/control_w.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/version.h>
 
 /* */
 #undef PRINT_MESSAGES

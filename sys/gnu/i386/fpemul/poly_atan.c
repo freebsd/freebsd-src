@@ -56,14 +56,14 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: poly_atan.c,v 1.4 1994/06/10 07:44:34 rich Exp $
+ *    $Id: poly_atan.c,v 1.5 1995/12/14 09:50:24 phk Exp $
  *
  */
 
-#include "exception.h"
-#include "reg_constant.h"
-#include "fpu_emu.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 
 #define	HIPOWERon	6	/* odd poly, negative terms */

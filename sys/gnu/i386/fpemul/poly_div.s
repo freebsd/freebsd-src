@@ -57,11 +57,11 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_div.s,v 1.2 1994/04/29 21:23:27 gclarkii Exp $
+ *     $Id: poly_div.s,v 1.3 1994/06/10 07:44:36 rich Exp $
  *
  */
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 .text
 

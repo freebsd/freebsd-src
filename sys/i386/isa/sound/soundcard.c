@@ -26,16 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.41 1996/01/18 20:54:15 ache Exp $
+ * $Id: soundcard.c,v 1.42 1996/03/28 14:31:13 scrappy Exp $
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include "dev_table.h"
+#include <i386/isa/sound/dev_table.h>
 #include <i386/isa/isa_device.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>

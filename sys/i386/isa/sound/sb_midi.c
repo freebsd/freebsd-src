@@ -27,11 +27,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_MIDI)
 
-#include "sb.h"
+#include <i386/isa/sound/sb.h>
 #undef SB_TEST_IRQ
 
 /*
@@ -211,7 +211,7 @@ sb_midi_interrupt (int dummy)
 
 #define MIDI_SYNTH_NAME	"SoundBlaster Midi"
 #define MIDI_SYNTH_CAPS	0
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct midi_operations sb_midi_operations =
 {

@@ -70,12 +70,10 @@
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
 #define PCVTIDMINOR   20		/* driver id - minor release	*/
 
-#if defined(KERNEL) || defined(_KERNEL)
-#include "ioctl.h"
-#else
-#include <sys/ioctl.h>
+#if !defined(KERNEL) && !defined(_KERNEL)
 #include <sys/types.h>
 #endif
+#include <sys/ioctl.h>
 
 /*---------------------------------------------------------------------------*
  *		IOCTLs for MF II and AT Keyboards

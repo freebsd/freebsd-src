@@ -36,11 +36,11 @@
 #undef s_net
 #include <netinet/if_ether.h>
 
-#include "at.h"
-#include "at_var.h"
-#include "endian.h"
-#include "ddp.h"
-#include "ddp_var.h"
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
+#include <netatalk/endian.h>
+#include <netatalk/ddp.h>
+#include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
 int	ddp_cksum = 1;

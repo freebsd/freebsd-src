@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: exception.h,v 1.3 1994/06/10 07:44:12 rich Exp $
+ *    $Id: exception.h,v 1.4 1995/12/22 16:53:48 bde Exp $
  *
  *
  */
@@ -70,7 +70,7 @@
 #endif
 
 #ifndef SW_C1
-#include "fpu_emu.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
 #endif				/* SW_C1 */
 
 #define FPU_BUSY        Const_(0x8000)	/* FPU busy bit (8087 compatibility) */

@@ -35,10 +35,10 @@
 #include <netinet/if_ether.h>
 #include <net/route.h>
 
-#include "at.h"
-#include "ddp.h"
-#include "at_var.h"
-#include "ddp_var.h"
+#include <netatalk/at.h>
+#include <netatalk/ddp.h>
+#include <netatalk/at_var.h>
+#include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
 

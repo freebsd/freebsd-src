@@ -32,13 +32,13 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_SBPRO)
 #define __SB_MIXER_C__
 
-#include "sb.h"
-#include "sb_mixer.h"
+#include <i386/isa/sound/sb.h>
+#include <i386/isa/sound/sb_mixer.h>
 #undef SB_TEST_IRQ
 
 extern int      sbc_base;

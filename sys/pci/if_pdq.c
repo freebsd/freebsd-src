@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.16 1996/06/18 01:22:40 bde Exp $
+ * $Id: if_pdq.c,v 1.17 1996/09/06 23:08:53 phk Exp $
  *
  */
 
@@ -106,8 +106,8 @@
 #endif
 #endif
 
-#include "pdqreg.h"
-#include "pdq_os.h"
+#include <pci/pdqreg.h>
+#include <pci/pdq_os.h>
 
 typedef struct {
 #ifdef __bsdi__

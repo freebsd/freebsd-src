@@ -56,21 +56,21 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_arith.c,v 1.3 1994/06/10 07:44:14 rich Exp $
+ *     $Id: fpu_arith.c,v 1.4 1995/05/30 07:57:43 rgrimes Exp $
  *
  */
 
 
 
 
-#include "param.h"
-#include "proc.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 
 void

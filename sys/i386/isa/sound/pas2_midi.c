@@ -27,11 +27,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include "pas.h"
+#include <i386/isa/sound/pas.h>
 
 #if !defined(EXCLUDE_PAS) && !defined(EXCLUDE_MIDI) && defined(EXCLUDE_PRO_MIDI)
 
@@ -233,7 +233,7 @@ pas_buffer_status (int dev)
 
 #define MIDI_SYNTH_NAME	"Pro Audio Spectrum Midi"
 #define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct midi_operations pas_midi_operations =
 {
