@@ -20,5 +20,5 @@ CFLAGS+= -DNO_IDEA
 .endif
 
 .if !defined(NO_OPENSSH)
-SSHDIR=		${.CURDIR}/../../../crypto/openssh-portable
+SSHDIR=		${.CURDIR}/../../../crypto/openssh
 .endif
