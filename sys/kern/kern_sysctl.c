@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.78 1998/10/16 03:55:00 peter Exp $
+ * $Id: kern_sysctl.c,v 1.79 1998/12/04 22:54:51 archie Exp $
  */
 
 #include "opt_compat.h"
@@ -804,7 +804,8 @@ sysctl_root SYSCTL_HANDLER_ARGS
 	return ENOENT;
 found:
 	/* If writing isn't allowed */
-	if (req->newptr && !((*oidpp)->oid_kind & CTLFLAG_WR))
+	if (req->newptr && (!((*oidpp)->oid_kind & CTLFLAG_WR) ||
+	    (((*oidpp)->oid_kind & CTLFLAG_SECURE) && securelevel > 0)))
 		return (EPERM);
 
 	/* Most likely only root can write */
