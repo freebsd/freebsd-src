@@ -318,6 +318,26 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	pnp_write(PNP_SET_LDN, ldn);
 
 	/*
+	 * Constrain the number of resources we will try to program
+	 */
+	if (config->ic_nmem > ISA_PNP_NMEM) {
+	    printf("too many ISA memory ranges (%d > %d)\n", config->ic_nmem, ISA_PNP_NMEM);
+	    config->ic_nmem = ISA_PNP_NMEM;
+	}
+	if (config->ic_nport > ISA_PNP_NPORT) {
+	    printf("too many ISA I/O ranges (%d > %d)\n", config->ic_nport, ISA_PNP_NPORT);
+	    config->ic_nport = ISA_PNP_NPORT;
+	}
+	if (config->ic_nirq > ISA_PNP_NIRQ) {
+	    printf("too many ISA IRQs (%d > %d)\n", config->ic_nirq, ISA_PNP_NIRQ);
+	    config->ic_nirq = ISA_PNP_NIRQ;
+	}
+	if (config->ic_ndrq > ISA_PNP_NDRQ) {
+	    printf("too many ISA DRQs (%d > %d)\n", config->ic_ndrq, ISA_PNP_NDRQ);
+	    config->ic_ndrq = ISA_PNP_NDRQ;
+	}
+
+	/*
 	 * Now program the resources.
 	 */
 	for (i = 0; i < config->ic_nmem; i++) {
@@ -330,7 +350,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		pnp_write(PNP_MEM_RANGE_HIGH(i), (size >> 16) & 0xff);
 		pnp_write(PNP_MEM_RANGE_LOW(i), (size >> 8) & 0xff);
 	}
-	for (; i < ISA_NMEM; i++) {
+	for (; i < ISA_PNP_NMEM; i++) {
 		pnp_write(PNP_MEM_BASE_HIGH(i), 0);
 		pnp_write(PNP_MEM_BASE_LOW(i), 0);
 		pnp_write(PNP_MEM_RANGE_HIGH(i), 0);
@@ -342,7 +362,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		pnp_write(PNP_IO_BASE_HIGH(i), (start >> 8) & 0xff);
 		pnp_write(PNP_IO_BASE_LOW(i), (start >> 0) & 0xff);
 	}
-	for (; i < ISA_NPORT; i++) {
+	for (; i < ISA_PNP_NPORT; i++) {
 		pnp_write(PNP_IO_BASE_HIGH(i), 0);
 		pnp_write(PNP_IO_BASE_LOW(i), 0);
 	}
@@ -352,7 +372,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		pnp_write(PNP_IRQ_LEVEL(i), irq);
 		pnp_write(PNP_IRQ_TYPE(i), 2); /* XXX */
 	}
-	for (; i < ISA_NIRQ; i++) {
+	for (; i < ISA_PNP_NIRQ; i++) {
 		/*
 		 * IRQ 0 is not a valid interrupt selection and
 		 * represents no interrupt selection.
@@ -364,7 +384,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		int drq = ffs(config->ic_drqmask[i]) - 1;
 		pnp_write(PNP_DMA_CHANNEL(i), drq);
 	}
-	for (; i < ISA_NDRQ; i++) {
+	for (; i < ISA_PNP_NDRQ; i++) {
 		/*
 		 * DMA channel 4, the cascade channel is used to
 		 * indicate no DMA channel is active.
