@@ -362,8 +362,8 @@ lf_setlock(lock)
 			    overlap->lf_type == F_WRLCK) {
 				lf_wakelock(overlap);
 			} else {
-				while ((ltmp = overlap->lf_blkhd.tqh_first) !=
-				    NOLOCKF) {
+				while (!TAILQ_EMPTY(&overlap->lf_blkhd)) {
+					ltmp = TAILQ_FIRST(&overlap->lf_blkhd);
 					TAILQ_REMOVE(&overlap->lf_blkhd, ltmp,
 					    lf_block);
 					TAILQ_INSERT_TAIL(&lock->lf_blkhd,
@@ -721,7 +721,8 @@ lf_wakelock(listhead)
 {
 	register struct lockf *wakelock;
 
-	while ((wakelock = listhead->lf_blkhd.tqh_first) != NOLOCKF) {
+	while (!TAILQ_EMPTY(&listhead->lf_blkhd)) {
+		wakelock = TAILQ_FIRST(&listhead->lf_blkhd);
 		TAILQ_REMOVE(&listhead->lf_blkhd, wakelock, lf_block);
 		wakelock->lf_next = NOLOCKF;
 #ifdef LOCKF_DEBUG
@@ -756,8 +757,8 @@ lf_print(tag, lock)
 	    lock->lf_type == F_WRLCK ? "exclusive" :
 	    lock->lf_type == F_UNLCK ? "unlock" :
 	    "unknown", (long)lock->lf_start, (long)lock->lf_end);
-	if (lock->lf_blkhd.tqh_first)
-		printf(" block %p\n", (void *)lock->lf_blkhd.tqh_first);
+	if (!TAILQ_EMPTY(&lock->lf_blkhd))
+		printf(" block %p\n", (void *)TAILQ_FIRST(&lock->lf_blkhd));
 	else
 		printf("\n");
 }
@@ -786,8 +787,7 @@ lf_printlist(tag, lock)
 		    lf->lf_type == F_WRLCK ? "exclusive" :
 		    lf->lf_type == F_UNLCK ? "unlock" :
 		    "unknown", (long)lf->lf_start, (long)lf->lf_end);
-		for (blk = lf->lf_blkhd.tqh_first; blk;
-		     blk = blk->lf_block.tqe_next) {
+		TAILQ_FOREACH(blk, &lf->lf_blkhd, lf_block) {
 			printf("\n\t\tlock request %p for ", (void *)blk);
 			if (blk->lf_flags & F_POSIX)
 				printf("proc %ld",
@@ -801,7 +801,7 @@ lf_printlist(tag, lock)
 			    blk->lf_type == F_UNLCK ? "unlock" :
 			    "unknown", (long)blk->lf_start,
 			    (long)blk->lf_end);
-			if (blk->lf_blkhd.tqh_first)
+			if (!TAILQ_EMPTY(&blk->lf_blkhd))
 				panic("lf_printlist: bad list");
 		}
 		printf("\n");
