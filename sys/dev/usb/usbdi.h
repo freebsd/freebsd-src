@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.51 2001/04/13 11:19:58 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.56 2001/12/03 01:47:12 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
