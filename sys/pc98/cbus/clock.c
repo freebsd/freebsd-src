@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.59 1998/09/08 09:47:46 kato Exp $
+ *	$Id: clock.c,v 1.60 1998/09/20 10:51:57 kato Exp $
  */
 
 /*
@@ -233,7 +233,7 @@ clkintr(struct clockframe frame)
 		 * hardware counter must be read to ensure monotonicity
 		 * despite multiple rollovers and misbehaving hardware.
 		 */
-		disable_intr();
+		(disable_intr)();	/* XXX avoid clock locking */
 		if (i8254_ticked) {
 			i8254_get_timecount(NULL);
 			i8254_ticked = 0;
@@ -241,7 +241,7 @@ clkintr(struct clockframe frame)
 			i8254_offset += timer0_max_count;
 			i8254_lastcount = 0;
 		}
-		enable_intr();
+		(enable_intr)();	/* XXX avoid clock locking */
 	}
 	timer_func(&frame);
 	switch (timer0_state) {
