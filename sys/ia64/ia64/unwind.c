@@ -282,16 +282,19 @@ void
 unw_delete(struct unw_regstate *rs)
 {
 
-	uwx_free(rs->env);
+	if (rs->env != NULL)
+		uwx_free(rs->env);
 }
 
 int
 unw_step(struct unw_regstate *rs)
 {
-	int uwxerr;
+	int err;
 
-	uwxerr = uwx_step(rs->env);
-	return ((uwxerr) ? EINVAL : 0);		/* XXX */
+	err = uwx_step(rs->env);
+	if (err == UWX_ABI_FRAME)
+		return (EOVERFLOW);
+	return ((err != 0) ? EINVAL : 0);	/* XXX */
 }
 
 int
@@ -318,6 +321,15 @@ unw_get_ip(struct unw_regstate *s, uint64_t *r)
 	int uwxerr;
 
 	uwxerr = uwx_get_reg(s->env, UWX_REG_IP, r);
+	return ((uwxerr) ? EINVAL : 0); 	/* XXX */
+}
+
+int
+unw_get_sp(struct unw_regstate *s, uint64_t *r)
+{
+	int uwxerr;
+
+	uwxerr = uwx_get_reg(s->env, UWX_REG_SP, r);
 	return ((uwxerr) ? EINVAL : 0); 	/* XXX */
 }
 
