@@ -656,6 +656,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
 	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
 	/* Devices that do not have a compatid */
+	{0x12206804, NULL},     /* ACH2012 - 5634BTS 56K Video Ready Modem */
 	{0x7602a904, NULL},	/* AEI0276 - 56K v.90 Fax Modem (LKT) */
 	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
 	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
