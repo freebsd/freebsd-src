@@ -175,8 +175,7 @@ clear_mbr(struct mbr *mbr, char *bootcode)
      * then clobber any existing bootcode.
      */
     
-    sprintf(scratch, "\nLoading MBR code from %s\n", bootcode);
-    dialog_msgbox(TITLE, scratch, 5, 60, 0);
+    TellEm("Loading MBR code from %s", bootcode);
     fd = open(bootcode, O_RDONLY);
     if (fd < 0) {
 	sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
