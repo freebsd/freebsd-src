@@ -75,8 +75,9 @@
 .Ft int
 .Fn cgetclose "void"
 .Sh DESCRIPTION
-.Fn Cgetent
-extracts the capability
+The
+.Fn cgetent
+function extracts the capability
 .Fa name
 from the database specified by the
 .Dv NULL
@@ -472,7 +473,8 @@ are typically used to denote the end of strings; many applications
 use `\e\|200' to represent a
 .Dv NUL .
 .Sh DIAGNOSTICS
-.Fn Cgetent ,
+The
+.Fn cgetent ,
 .Fn cgetset ,
 .Fn cgetmatch ,
 .Fn cgetnum ,
@@ -481,6 +483,7 @@ use `\e\|200' to represent a
 .Fn cgetfirst ,
 and
 .Fn cgetnext
+functions
 return a value greater than or equal to 0 on success and a value less
 than 0 on failure.
 The
@@ -508,6 +511,7 @@ The
 .Fn cgetstr ,
 and
 .Fn cgetustr 
+functions
 may fail and set 
 .Va errno 
 as follows:
