@@ -885,7 +885,7 @@ parse8601(char *s)
 		tm.tm_year = ((ul / 1000000) - 19) * 100;
 		ul = ul % 1000000;
 	case 6:
-		tm.tm_year = tm.tm_year - (tm.tm_year % 100);
+		tm.tm_year -= tm.tm_year % 100;
 		tm.tm_year += ul / 10000;
 		ul = ul % 10000;
 	case 4:
