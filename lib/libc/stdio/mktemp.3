@@ -56,17 +56,18 @@ The
 function
 takes the given file name template and overwrites a portion of it
 to create a file name.
-This file name is unique and suitable for use
+This file name is guaranteed not to exist at the time of function invocation
+and is suitable for use
 by the application.
 The template may be any file name with some number of
 .Ql X Ns s
 appended
 to it, for example
-.Pa /tmp/temp.XXXX .
+.Pa /tmp/temp.XXXXXX .
 The trailing
 .Ql X Ns s
-are replaced with the current process number and/or a
-unique letter combination.
+are replaced with a
+unique alphanumeric combination.
 The number of unique file names
 .Fn mktemp
 can return depends on the number of
@@ -76,7 +77,7 @@ provided; six
 will
 result in
 .Fn mktemp
-testing roughly 26 ** 6 combinations.
+selecting one of 56800235584 (62 ** 6) possible temporary file names.
 .Pp
 The
 .Fn mkstemp
@@ -188,14 +189,34 @@ See
 .Xr gcc 1
 for more information.
 .Sh BUGS
-This family of functions produces filenames which can be guessed.
+This family of functions produces filenames which can be guessed,
+though the risk is minimized when large numbers of
+.Ql X Ns s
+are used to
+increase the number of possible temporary filenames.
 This makes the race in
 .Fn mktemp ,
-between testing for a file's existence and opening it for use,
+between testing for a file's existence (in the 
+.Fn mktemp
+function call)
+and opening it for use
+(later in the user application)
 particularly dangerous from a security perspective.
 Whenever it is possible,
 .Fn mkstemp
-should be used instead.
+should be used instead, since it does not have the race condition.
+If
+.Fn mkstemp
+cannot be used, the filename created by
+.Fn mktemp
+should be created using the
+.Dv O_EXCL
+flag to
+.Xr open 2
+and the return status of the call should be tested for failure.
+This will ensure that the program does not continue blindly
+in the event that an attacker has already created the file
+with the intention of manipulating or reading its contents.
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr getpid 2 ,
@@ -207,6 +228,10 @@ A
 .Fn mktemp
 function appeared in
 .At v7 .
+The
+.Fn mkstemp
+function appeared in
+.Bx 4.4 .
 The 
 .Fn mkdtemp
 function first appeared in
