@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.75 1997/02/27 16:08:43 bde Exp $
+ * $Id: vfs_subr.c,v 1.76 1997/03/02 11:06:22 bde Exp $
  */
 
 /*
@@ -1644,6 +1644,7 @@ printlockedvnodes()
 }
 #endif
 
+#ifdef notyet
 static int
 sysctl_vfs_conf SYSCTL_HANDLER_ARGS
 {
@@ -1662,17 +1663,9 @@ sysctl_vfs_conf SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_vfs, VFS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vfs_conf, "S,vfsconf", "");
+#endif
 
 #ifndef NO_COMPAT_PRELITE2
-
-#define OVFS_MAXNAMELEN 32
-struct ovfsconf {
-	void *vfc_vfsops;
-	char vfc_name[OVFS_MAXNAMELEN];
-	int vfc_index;
-	int vfc_refcount;
-	int vfc_flags;
-};
 
 static int
 sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
@@ -1696,7 +1689,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 	return 0;
 }
 
-SYSCTL_PROC(_vfs, VFS_OVFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_vfs, VFS_VFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_ovfs_conf, "S,ovfsconf", "");
 
 #endif /* !NO_COMPAT_PRELITE2 */
