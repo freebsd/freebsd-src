@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-SUBDIR= libtxi makeinfo info install-info texindex doc
+SUBDIR= libtxi makeinfo info infokey install-info texindex doc
 
 .include <bsd.subdir.mk>
