@@ -437,7 +437,7 @@ critical_enter(void)
 
 	td = curthread;
 	if (td->td_critnest == 0)
-		cpu_critical_enter();
+		cpu_critical_enter(td);
 	td->td_critnest++;
 }
 
@@ -459,7 +459,7 @@ critical_exit(void)
 		}
 #endif
 		td->td_critnest = 0;
-		cpu_critical_exit();
+		cpu_critical_exit(td);
 	} else {
 		td->td_critnest--;
 	}
