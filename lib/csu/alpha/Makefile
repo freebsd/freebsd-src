@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.2 1998/03/10 07:04:05 jb Exp $
+#	$Id: Makefile,v 1.3 1998/03/11 20:41:55 jb Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c
@@ -10,6 +10,7 @@ NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
+CFLAGS=
 
 .ifndef	BOOTSTRAP
 CFLAGS+=	-DHAVE_RTLD -I${.CURDIR}/../../../libexec/rtld-elf
