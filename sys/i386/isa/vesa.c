@@ -1397,9 +1397,13 @@ vesa_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 
 	switch (cmd) {
 	case FBIO_SETWINORG:	/* set frame buffer window origin */
+		if (!VESA_MODE(adp->va_mode))
+			return (*prevvidsw->ioctl)(adp, cmd, arg);
 		return (vesa_set_origin(adp, *(off_t *)arg) ? ENODEV : 0);
 
 	case FBIO_SETDISPSTART:	/* set display start address */
+		if (!VESA_MODE(adp->va_mode))
+			return (*prevvidsw->ioctl)(adp, cmd, arg);
 		if (vesa_bios_set_start(((video_display_start_t *)arg)->x,
 					((video_display_start_t *)arg)->y))
 			return ENODEV;
@@ -1408,6 +1412,8 @@ vesa_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		return 0;
 
 	case FBIO_SETLINEWIDTH:	/* set line length in pixel */
+		if (!VESA_MODE(adp->va_mode))
+			return (*prevvidsw->ioctl)(adp, cmd, arg);
 		if (vesa_bios_set_line_length(*(u_int *)arg, &bytes, NULL))
 			return ENODEV;
 		adp->va_line_width = bytes;
