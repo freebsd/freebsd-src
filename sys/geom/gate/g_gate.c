@@ -81,7 +81,7 @@ static void
 g_gate_wither(struct g_gate_softc *sc)
 {
 
-	atomic_set_16(&sc->sc_flags, G_GATE_FLAG_DESTROY);
+	atomic_set_32(&sc->sc_flags, G_GATE_FLAG_DESTROY);
 }
 
 static int
@@ -113,7 +113,7 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 		bp = bioq_first(&sc->sc_inqueue);
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_inqueue, bp);
-			atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 			G_GATE_LOGREQ(1, bp, "Request canceled.");
 			g_io_deliver(bp, ENXIO);
 		} else {
@@ -126,7 +126,7 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 		bp = bioq_first(&sc->sc_outqueue);
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_outqueue, bp);
-			atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 			G_GATE_LOGREQ(1, bp, "Request canceled.");
 			g_io_deliver(bp, ENXIO);
 		} else {
@@ -183,7 +183,7 @@ static void
 g_gate_start(struct bio *bp)
 {
 	struct g_gate_softc *sc;
-	uint16_t qcount;
+	uint32_t qcount;
 
 	sc = bp->bio_to->geom->softc;
 	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0) {
@@ -203,13 +203,13 @@ g_gate_start(struct bio *bp)
 		return;
 	}
 
-	atomic_store_rel_16(&qcount, sc->sc_queue_count);
+	atomic_store_rel_32(&qcount, sc->sc_queue_count);
 	if (qcount > sc->sc_queue_size) {
 		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
 		g_io_deliver(bp, EIO);
 		return;
 	}
-	atomic_add_acq_16(&sc->sc_queue_count, 1);
+	atomic_add_acq_32(&sc->sc_queue_count, 1);
 	bp->bio_driver1 = (void *)sc->sc_seq;
 	sc->sc_seq++;
 
@@ -305,7 +305,7 @@ g_gate_guard(void *arg)
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_inqueue, bp);
-		atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 		G_GATE_LOGREQ(1, bp, "Request timeout.");
 		g_io_deliver(bp, EIO);
 	}
@@ -315,7 +315,7 @@ g_gate_guard(void *arg)
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_outqueue, bp);
-		atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 		G_GATE_LOGREQ(1, bp, "Request timeout.");
 		g_io_deliver(bp, EIO);
 	}
@@ -499,9 +499,9 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			return (0);
 		}
 		bioq_remove(&sc->sc_inqueue, bp);
-		atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+		atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 		mtx_unlock(&sc->sc_inqueue_mtx);
-		ggio->gctl_seq = (u_int)bp->bio_driver1;
+		ggio->gctl_seq = (uintptr_t)bp->bio_driver1;
 		ggio->gctl_cmd = bp->bio_cmd;
 		ggio->gctl_offset = bp->bio_offset;
 		ggio->gctl_length = bp->bio_length;
@@ -523,7 +523,7 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		}
 		mtx_lock(&sc->sc_outqueue_mtx);
 		bioq_insert_tail(&sc->sc_outqueue, bp);
-		atomic_add_acq_16(&sc->sc_queue_count, 1);
+		atomic_add_acq_32(&sc->sc_queue_count, 1);
 		mtx_unlock(&sc->sc_outqueue_mtx);
 		g_gate_release(sc);
 		return (0);
@@ -538,12 +538,12 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			return (ENOENT);
 		mtx_lock(&sc->sc_outqueue_mtx);
 		TAILQ_FOREACH(bp, &sc->sc_outqueue.queue, bio_queue) {
-			if (ggio->gctl_seq == (u_int)bp->bio_driver1)
+			if (ggio->gctl_seq == (uintptr_t)bp->bio_driver1)
 				break;
 		}
 		if (bp != NULL) {
 			bioq_remove(&sc->sc_outqueue, bp);
-			atomic_subtract_rel_16(&sc->sc_queue_count, 1);
+			atomic_subtract_rel_32(&sc->sc_queue_count, 1);
 		}
 		mtx_unlock(&sc->sc_outqueue_mtx);
 		if (bp == NULL) {
@@ -556,7 +556,7 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		if (ggio->gctl_error == EAGAIN) {
 			bp->bio_error = 0;
 			G_GATE_LOGREQ(1, bp, "Request desisted.");
-			atomic_add_acq_16(&sc->sc_queue_count, 1);
+			atomic_add_acq_32(&sc->sc_queue_count, 1);
 			mtx_lock(&sc->sc_inqueue_mtx);
 			bioq_disksort(&sc->sc_inqueue, bp);
 			mtx_unlock(&sc->sc_inqueue_mtx);
