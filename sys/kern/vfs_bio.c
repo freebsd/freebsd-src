@@ -1234,8 +1234,7 @@ brelse(struct buf * bp)
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
 	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL)) ||
-	    (bp->b_ioflags & BIO_ERROR) ||
-	    bp->b_iocmd == BIO_DELETE || (bp->b_bufsize <= 0)) {
+	    (bp->b_ioflags & BIO_ERROR) || (bp->b_bufsize <= 0)) {
 		/*
 		 * Either a failed I/O or we were asked to free or not
 		 * cache the buffer.
@@ -3129,12 +3128,6 @@ bufdone(struct buf *bp)
 
 	bp->b_flags |= B_DONE;
 	runningbufwakeup(bp);
-
-	if (bp->b_iocmd == BIO_DELETE) {
-		brelse(bp);
-		splx(s);
-		return;
-	}
 
 	if (bp->b_iocmd == BIO_WRITE) {
 		vwakeup(bp);
