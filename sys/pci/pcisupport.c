@@ -1196,7 +1196,7 @@ static int chip_probe(device_t dev)
 		}
 
 		device_set_desc_copy(dev, desc);
-		return -100;	/* Low match priority */
+		return -10000;	/* Low match priority */
 	}
 
 	return ENXIO;
@@ -1566,7 +1566,7 @@ static int vga_probe(device_t dev)
 	desc = vga_match(dev);
 	if (desc) {
 		device_set_desc(dev, desc);
-		return -100;	/* Low match priority */
+		return -10000;	/* Low match priority */
 	}
 
 	return ENXIO;
