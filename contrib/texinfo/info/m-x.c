@@ -1,7 +1,7 @@
 /* m-x.c -- Meta-x minibuffer reader.
-   $Id: m-x.c,v 1.8 1999/06/25 21:57:40 karl Exp $
+   $Id: m-x.c,v 1.9 2001/11/16 23:14:33 karl Exp $
 
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
    Written by Brian Fox (bfox@ai.mit.edu). */
 
 #include "info.h"
+#include "funs.h"
 
 /* **************************************************************** */
 /*                                                                  */
@@ -81,13 +82,13 @@ DECLARE_INFO_COMMAND (describe_command,
   /* Describe the function named in "LINE". */
   if (*line)
     {
-      VFunction *fun = named_function (line);
+      InfoCommand *cmd = named_function (line);
 
-      if (!fun)
+      if (!cmd)
         return;
 
       window_message_in_echo_area ("%s: %s.",
-                                   line, function_documentation (fun));
+                                   line, function_documentation (cmd));
     }
   free (line);
 }
@@ -96,18 +97,24 @@ DECLARE_INFO_COMMAND (info_execute_command,
    _("Read a command name in the echo area and execute it"))
 {
   char *line;
+  char *keys;
+  char *prompt;
+
+  prompt = (char *)xmalloc (20);
+
+  keys = where_is (info_keymap, InfoCmd(info_execute_command));
+  /* If the where_is () function thinks that this command doesn't exist,
+     there's something very wrong!  */
+  if (!keys)
+    abort();
+
+  if (info_explicit_arg || count != 1)
+    sprintf (prompt, "%d %s ", count, keys);
+  else
+    sprintf (prompt, "%s ", keys);
 
   /* Ask the completer to read a reference for us. */
-  if (info_explicit_arg || count != 1)
-    {
-      char *prompt;
-
-      prompt = (char *)xmalloc (20);
-      sprintf (prompt, "%d M-x ", count);
-      line = read_function_name (prompt, window);
-    }
-  else
-    line = read_function_name ("M-x ", window);
+  line = read_function_name (prompt, window);
 
   /* User aborted? */
   if (!line)
@@ -125,7 +132,7 @@ DECLARE_INFO_COMMAND (info_execute_command,
 
   /* User wants to execute a named command.  Do it. */
   {
-    VFunction *function;
+    InfoCommand *command;
 
     if ((active_window != the_echo_area) &&
         (strncmp (line, "echo-area-", 10) == 0))
@@ -135,13 +142,13 @@ DECLARE_INFO_COMMAND (info_execute_command,
         return;
       }
 
-    function = named_function (line);
+    command = named_function (line);
     free (line);
 
-    if (!function)
+    if (!command)
       return;
 
-    (*function) (active_window, count, 0);
+    (*InfoFunction(command)) (active_window, count, 0);
   }
 }
 
