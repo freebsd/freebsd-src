@@ -1511,7 +1511,7 @@ m_clget(struct mbuf *mb, int how)
  */
 void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(void *, void *), void *args, short flags, int type)
+    void (*freef)(void *, void *), void *args, int flags, int type)
 {
 
 	_mext_init_ref(mb, ((type != EXT_CLUSTER) ?
