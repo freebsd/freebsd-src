@@ -94,7 +94,7 @@ AcpiOsWritable (void *Pointer, UINT32 Length)
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS	Address,
-    void			*Value,
+    UINT32			*Value,
     UINT32			Width)
 {
     void	*LogicalAddress;
@@ -129,7 +129,7 @@ AcpiOsReadMemory (
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS	Address,
-    ACPI_INTEGER		Value,
+    UINT32			Value,
     UINT32			Width)
 {
     void	*LogicalAddress;

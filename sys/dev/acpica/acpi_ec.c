@@ -421,8 +421,8 @@ acpi_ec_attach(device_t dev)
      * behavior.
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
-    Status = AcpiInstallGpeHandler(sc->ec_gpebit, ACPI_EVENT_EDGE_TRIGGERED, 
-		&EcGpeHandler, sc);
+    Status = AcpiInstallGpeHandler(NULL, sc->ec_gpebit,
+		ACPI_EVENT_EDGE_TRIGGERED, &EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
@@ -439,7 +439,8 @@ acpi_ec_attach(device_t dev)
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	Status = AcpiRemoveGpeHandler(sc->ec_gpebit, &EcGpeHandler);
+	Status = AcpiRemoveGpeHandler(sc->ec_handle, sc->ec_gpebit,
+				      &EcGpeHandler);
 	if (ACPI_FAILURE(Status))
 	    panic("Added GPE handler but can't remove it");
 	errval = ENXIO;
@@ -538,7 +539,7 @@ EcGpeQueryHandler(void *Context)
 
 re_enable:
     /* Re-enable the GPE event so we'll get future requests. */
-    Status = AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0);
+    Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_NOT_ISR);
     if (ACPI_FAILURE(Status))
 	printf("EcGpeQueryHandler: AcpiEnableEvent failed\n");
 }
@@ -557,14 +558,14 @@ EcGpeHandler(void *Context)
     KASSERT(Context != NULL, ("EcGpeHandler called with NULL"));
 
     /* Disable further GPEs while we handle this one. */
-    AcpiDisableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0);
+    AcpiDisableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
 
     /* Schedule the GPE query handler. */
     Status = AcpiOsQueueForExecution(OSD_PRIORITY_GPE, EcGpeQueryHandler,
 		Context);
     if (ACPI_FAILURE(Status)) {
 	printf("Queuing GPE query handler failed.\n");
-	Status = AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0);
+	Status = AcpiEnableGpe(NULL, sc->ec_gpebit, ACPI_ISR);
 	if (ACPI_FAILURE(Status))
 	    printf("EcGpeHandler: AcpiEnableEvent failed\n");
     }

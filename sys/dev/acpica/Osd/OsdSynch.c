@@ -338,3 +338,54 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
     return(AE_OK);
 #endif
 }
+
+ACPI_STATUS
+AcpiOsCreateLock (ACPI_HANDLE *OutHandle)
+{
+    struct mtx *m;
+
+    if (OutHandle == NULL)
+	return (AE_BAD_PARAMETER);
+    MALLOC(m, struct mtx *, sizeof(*m), M_ACPISEM, M_NOWAIT | M_ZERO);
+    if (m == NULL)
+	return (AE_NO_MEMORY);
+
+    mtx_init(m, "acpica subsystem lock", NULL, MTX_DEF);
+    *OutHandle = (ACPI_HANDLE)m;
+    return (AE_OK);
+}
+
+void
+AcpiOsDeleteLock (ACPI_HANDLE Handle)
+{
+    struct mtx *m = (struct mtx *)Handle;
+
+    if (Handle == NULL)
+        return;
+    mtx_destroy(m);
+}
+
+/*
+ * The Flags parameter seems to state whether or not caller is an ISR
+ * (and thus can't block) but since we have ithreads, we don't worry
+ * about potentially blocking.
+ */
+void
+AcpiOsAcquireLock (ACPI_HANDLE Handle, UINT32 Flags)
+{
+    struct mtx *m = (struct mtx *)Handle;
+
+    if (Handle == NULL)
+        return;
+    mtx_lock(m);
+}
+
+void
+AcpiOsReleaseLock (ACPI_HANDLE Handle, UINT32 Flags)
+{
+    struct mtx *m = (struct mtx *)Handle;
+
+    if (Handle == NULL)
+        return;
+    mtx_unlock(m);
+}
