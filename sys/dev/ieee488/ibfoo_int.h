@@ -110,11 +110,11 @@ enum ibfoo_id {
 #define __F_LISTENFLAG          (1 << 23)
 #define __F_EVENT               (1 << 24)
 
-struct ibfoo_iocarg {
+struct ibarg {
 	enum ibfoo_id       __ident;
 	unsigned int        __field;
 	int		    __retval;
-	int		    __ibsts;
+	int		    __ibsta;
 	int		    __iberr;
 	int		    __ibcnt;
 	int                 handle;
@@ -144,4 +144,4 @@ struct ibfoo_iocarg {
 	short *             event;
 };
 
-#define GPIB_IBFOO	_IOWR(4, 0, struct ibfoo_iocarg)
+#define GPIB_IBFOO	_IOWR(4, 0, struct ibarg)

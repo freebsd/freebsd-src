@@ -98,7 +98,7 @@
 
 #ifndef _KERNEL
 
-extern int ibcnt, iberr;
+extern int ibcnt, iberr, ibsta;
 
 int ibask(int handle, int option, int *retval);
 int ibbna(int handle, char *bdname);
