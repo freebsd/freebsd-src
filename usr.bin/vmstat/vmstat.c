@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.25 1998/09/15 08:16:43 gibbs Exp $";
+	"$Id: vmstat.c,v 1.26 1998/09/16 18:20:23 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -142,12 +142,14 @@ struct nlist namelist[] = {
 };
 
 struct statinfo cur, last;
-int num_devices, maxshowdevs, generation;
+int num_devices, maxshowdevs;
+long generation;
 struct device_selection *dev_select;
 int num_selected;
 struct devstat_match *matches;
 int num_matches = 0;
-int num_devices_specified, num_selections, select_generation;
+int num_devices_specified, num_selections;
+long select_generation;
 char **specified_devices;
 devstat_select_mode select_mode;
 

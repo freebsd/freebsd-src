@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: subr_devstat.c,v 1.1 1998/09/15 08:16:09 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -38,7 +38,7 @@
 #include <sys/devicestat.h>
 
 static int devstat_num_devs;
-static int devstat_generation;
+static long devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 
@@ -212,7 +212,7 @@ sysctl_devstat SYSCTL_HANDLER_ARGS
 	/*
 	 * First push out the generation number.
 	 */
-	error = SYSCTL_OUT(req, &devstat_generation, sizeof(int));
+	error = SYSCTL_OUT(req, &devstat_generation, sizeof(long));
 
 	/*
 	 * Now push out all the devices.
@@ -239,7 +239,7 @@ SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
  */
 SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, &devstat_num_devs,
 	  0, "Number of devices in the devstat list");
-SYSCTL_INT(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD, &devstat_generation,
-	  0, "Devstat list generation");
+SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
+	    &devstat_generation, 0, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, &devstat_version,
 	  0, "Devstat list version number");
