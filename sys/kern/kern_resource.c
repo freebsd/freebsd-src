@@ -806,6 +806,7 @@ getrusage(td, uap)
 	}
 	mtx_unlock(&Giant);
 	if (error == 0) {
+		/* XXX Unlocked access to p_stats->p_ru or p_cru. */
 		error = copyout(rup, uap->rusage, sizeof (struct rusage));
 	}
 	return(error);
