@@ -59,27 +59,25 @@ ENTRY(bcopy)
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
+	movl	%edi,%eax
 #else
 	movl	12(%esp),%esi
 	movl	16(%esp),%edi
 #endif
 	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax	/* overlapping? */
+	movl	%edi,%edx
+	subl	%esi,%edx
+	cmpl	%ecx,%edx	/* overlapping? */
 	jb	1f
 	cld			/* nope, copy forwards. */
-	movl	%ecx,%eax
+	movl	%ecx,%edx
 	shrl	$2,%ecx		/* copy by words */
 	rep
 	movsl
-	movl	%eax,%ecx
+	movl	%edx,%ecx
 	andl	$3,%ecx		/* any bytes left? */
 	rep
 	movsb
-#if defined(MEMCOPY) || defined(MEMMOVE)
-	movl	12(%esp),%eax
-#endif
 	popl	%edi
 	popl	%esi
 	ret
@@ -87,21 +85,18 @@ ENTRY(bcopy)
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
 	std
-	movl	%ecx,%eax
+	movl	%ecx,%edx
 	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
 	rep
 	movsb
-	movl	%eax,%ecx	/* copy remainder by words */
+	movl	%edx,%ecx	/* copy remainder by words */
 	shrl	$2,%ecx
 	subl	$3,%esi
 	subl	$3,%edi
 	rep
 	movsl
-#if defined(MEMCOPY) || defined(MEMMOVE)
-	movl	12(%esp),%eax
-#endif
 	popl	%edi
 	popl	%esi
 	cld
