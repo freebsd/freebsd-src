@@ -338,6 +338,24 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 }
 
 static void
+acpi_handle_ecdt(struct ACPIsdt *sdp)
+{
+	struct ECDTbody *ecdt;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	ecdt = (struct ECDTbody *) sdp->body;
+	printf("\tEC_CONTROL=");
+	acpi_print_gas(&ecdt->ec_control);
+	printf("\n\tEC_DATA=");
+	acpi_print_gas(&ecdt->ec_data);
+	printf("\n\tUID=%#x, ", ecdt->uid);
+	printf("GPE_BIT=%#x\n", ecdt->gpe_bit);
+	printf("\tEC_ID=%s\n", ecdt->ec_id);
+	printf(END_COMMENT);
+}
+
+static void
 acpi_print_sdt(struct ACPIsdt *sdp)
 {
 	printf("  ");
@@ -626,6 +644,8 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			acpi_handle_apic(sdp);
 		else if (!memcmp(sdp->signature, "HPET", 4))
 			acpi_handle_hpet(sdp);
+		else if (!memcmp(sdp->signature, "ECDT", 4))
+			acpi_handle_ecdt(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);
