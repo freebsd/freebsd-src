@@ -567,6 +567,7 @@ struct slot *sp = arg;
  *	Now reset the card.
  */
 	sp->cinfo->reset(sp);
+	selwakeup(&sp->selp);
 }
 /*
  *	Card event callback. Called at splhigh to prevent
@@ -596,6 +597,7 @@ int s;
 			sp->state = empty;
 			splx(s);
 			printf("Card removed, slot %d\n", sp->slot);
+			selwakeup(&sp->selp);
 			}
 		break;
 	case card_inserted:
