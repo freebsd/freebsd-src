@@ -47,7 +47,7 @@
 .Sh LIBRARY
 .Lb libusb
 .Sh SYNOPSIS
-.In libusb.h
+.In libusbhid.h
 .Ft report_desc_t
 .Fn hid_get_report_desc "int file"
 .Ft report_desc_t
@@ -142,7 +142,7 @@ will be filled with the relevant data for the item.
 The definition of
 .Fa hid_item_t
 can be found in
-.Pa <libusb.h>
+.Pa <libusbhid.h>
 and the meaning of the components in the USB HID documentation.
 .Pp
 Data should be read/written to the device in the size of

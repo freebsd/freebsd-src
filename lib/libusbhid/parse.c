@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
-#include "libusb.h"
+#include "libusbhid.h"
 #include "usbvar.h"
 
 #define MAXUSAGE 100
