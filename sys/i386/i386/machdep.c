@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.323 1999/01/28 11:45:29 newton Exp $
+ *	$Id: machdep.c,v 1.324 1999/02/03 14:10:50 dg Exp $
  */
 
 #include "apm.h"
@@ -860,6 +860,13 @@ setregs(p, entry, stack)
 	/* Initialize the npx (if any) for the current process. */
 	npxinit(__INITIAL_NPXCW__);
 #endif
+
+      /*
+       * XXX - Linux emulator
+       * Make sure sure edx is 0x0 on entry. Linux binaries depend
+       * on it.
+       */
+      p->p_retval[1] = 0;
 }
 
 static int
