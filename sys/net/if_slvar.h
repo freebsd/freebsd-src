@@ -67,13 +67,13 @@ struct sl_softc {
 	struct	callout_handle	sc_ofhandle;
 	struct	callout_handle	sc_kahandle;
 	struct	slcompress sc_comp;	/* tcp compression data */
+	LIST_ENTRY(sl_softc) sl_next;
 };
 
 /* internal flags */
 #define	SC_ERROR	0x0001		/* had an input error */
 #define	SC_OUTWAIT	0x0002		/* waiting for output fill */
 #define	SC_KEEPALIVE	0x0004		/* input keepalive */
-#define SC_STATIC       0x0008          /* it is static unit */
 
 /* visible flags */
 #define	SC_COMPRESS	IFF_LINK0	/* compress TCP traffic */
