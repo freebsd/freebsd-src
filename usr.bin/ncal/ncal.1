@@ -1,30 +1,29 @@
-/*-
- * Copyright (c) 1997 Wolfgang Helbig
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *	$Id$
- */
+.\" Copyright (c) 1997 Wolfgang Helbig
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: ncal.1,v 1.1.1.1 1997/12/15 20:35:22 helbig Exp $
+.\"
 .Dd December 16, 1997
 .Dt CAL 1
 .Os
@@ -57,18 +56,18 @@ The options are as follows:
 .It Fl J
 Display Julian Calendar, if combined with the
 .Fl e
-option, display date of easter according in the Julian Calendar.
-If not specified, the Gregorian Calendar is assumed after
-the switch date and Julian before. (See below)
+option, display date of easter according to the Julian Calendar.
+If not specified, the Julian Calendar is assumed till October 4, 1582
+and the Gregorian Calendar thereafter.
 .It Fl e
 Display date of easter (for western churches).
 .It Fl j
-Display julian days (days one-based, numbered from January 1).
+Display Julian days (days one-based, numbered from January 1).
 .It Fl o
 Display date of orthodox easter (Greek and Russian
 Orthodox Churches).
 .It Fl p
-Print the country codes and switch dates from Julian to Gregorian
+Print the country codes and switching days from Julian to Gregorian
 Calendar as they are assumed by
 .Nm ncal .
 .It Fl s Ar country-code
@@ -81,9 +80,9 @@ assumes October 4, 1582 (on this day the Catholic Church switched to Gregorian
 Calendar) and
 .Nm cal
 thinks with Great Britain and her colonies that
-September 2, 1752 was the date to switch.
+September 2, 1752 was the date to switch to Gregorian Calendar.
 .It Fl w
-Print the number of the week in the year below each week displayed.
+Print the number of the week below each week column.
 .It Fl y
 Display a calendar for the current year.
 .El
