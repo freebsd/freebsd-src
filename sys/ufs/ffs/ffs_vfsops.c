@@ -1001,10 +1001,10 @@ ffs_sync(mp, waitfor, cred, td)
 	 * Write back each (modified) inode.
 	 */
 	wait = 0;
-	lockreq = LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK;
+	lockreq = LK_EXCLUSIVE | LK_NOWAIT;
 	if (waitfor == MNT_WAIT) {
 		wait = 1;
-		lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
+		lockreq = LK_EXCLUSIVE;
 	}
 	mtx_lock(&mntvnode_mtx);
 loop:
@@ -1015,34 +1015,40 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
-		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
+		/*
+		 * Depend on the mntvnode_slock to keep things stable enough
+		 * for a quick test.  Since there might be hundreds of
+		 * thousands of vnodes, we cannot afford even a subroutine
+		 * call unless there's a good chance that we have work to do.
+		 */
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
-		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
-			mtx_unlock(&vp->v_interlock);
-			mtx_lock(&mntvnode_mtx);
+		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
+		    TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
 			continue;
 		}
 		if (vp->v_type != VCHR) {
+			mtx_unlock(&mntvnode_mtx);
 			if ((error = vget(vp, lockreq, td)) != 0) {
 				mtx_lock(&mntvnode_mtx);
 				if (error == ENOENT)
 					goto loop;
-				continue;
+			} else {
+				if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
+					allerror = error;
+				VOP_UNLOCK(vp, 0, td);
+				vrele(vp);
+				mtx_lock(&mntvnode_mtx);
 			}
-			if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
-				allerror = error;
-			VOP_UNLOCK(vp, 0, td);
-			vrele(vp);
 		} else {
-			mtx_unlock(&vp->v_interlock);
+			mtx_unlock(&mntvnode_mtx);
 			UFS_UPDATE(vp, wait);
+			mtx_lock(&mntvnode_mtx);
 		}
-		mtx_lock(&mntvnode_mtx);
+		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
+			goto loop;
 	}
 	mtx_unlock(&mntvnode_mtx);
 	/*

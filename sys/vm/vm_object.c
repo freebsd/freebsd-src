@@ -321,8 +321,11 @@ vm_object_reference(vm_object_t object)
 	if (object == NULL)
 		return;
 
+#if 0
+	/* object can be re-referenced during final cleaning */
 	KASSERT(!(object->flags & OBJ_DEAD),
 	    ("vm_object_reference: attempting to reference dead obj"));
+#endif
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
@@ -454,8 +457,13 @@ doterm:
 			temp->generation++;
 			object->backing_object = NULL;
 		}
-		vm_object_terminate(object);
-		/* unlocks and deallocates object */
+		/*
+		 * Don't double-terminate, we could be in a termination
+		 * recursion due to the terminate having to sync data
+		 * to disk.
+		 */
+		if ((object->flags & OBJ_DEAD) == 0)
+			vm_object_terminate(object);
 		object = temp;
 	}
 }
@@ -627,7 +635,17 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
+		struct vnode *vp;
+
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+		if (object->type == OBJT_VNODE &&
+		    (vp = (struct vnode *)object->handle) != NULL) {
+			if (vp->v_flag & VOBJDIRTY) {
+				mtx_lock(&vp->v_interlock);
+				vp->v_flag &= ~VOBJDIRTY;
+				mtx_unlock(&vp->v_interlock);
+			}
+		}
 	}
 
 rescan:
@@ -1357,6 +1375,8 @@ vm_object_collapse(vm_object_t object)
 			 * and no object references within it, all that is
 			 * necessary is to dispose of it.
 			 */
+			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
+			KASSERT(TAILQ_FIRST(&backing_object->memq) == NULL, ("backing_object %p somehow has left over pages during collapse!", backing_object));
 
 			TAILQ_REMOVE(
 			    &vm_object_list, 
@@ -1683,6 +1703,23 @@ vm_object_in_map(vm_object_t object)
 		return 1;
 	return 0;
 }
+
+void
+vm_object_set_writeable_dirty(vm_object_t object)
+{
+	struct vnode *vp;
+
+	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+	if (object->type == OBJT_VNODE &&
+	    (vp = (struct vnode *)object->handle) != NULL) {
+		if ((vp->v_flag & VOBJDIRTY) == 0) {
+			mtx_lock(&vp->v_interlock);
+			vp->v_flag |= VOBJDIRTY;
+			mtx_unlock(&vp->v_interlock);
+		}
+	}
+}
+
 
 DB_SHOW_COMMAND(vmochk, vm_object_check)
 {
