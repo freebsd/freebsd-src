@@ -506,6 +506,16 @@ sendit:
 			if ((off & IP_FW_PORT_TEE_FLAG) != 0)
 				clone = m_dup(m, M_DONTWAIT);
 
+			/*
+			 * XXX
+			 * delayed checksums are not currently compatible
+			 * with divert sockets.
+			 */
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				in_delayed_cksum(m);
+				m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+			}
+
 			/* Restore packet header fields to original values */
 			HTONS(ip->ip_len);
 			HTONS(ip->ip_off);
