@@ -3,6 +3,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
+# XXX broken:		tconv
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
@@ -149,7 +150,6 @@ SUBDIR=	apply \
 	systat \
 	tail \
 	talk \
-	tconv \
 	tcopy \
 	tee \
 	tftp \
