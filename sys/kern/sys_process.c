@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sys_process.c,v 1.27 1997/02/22 09:39:20 peter Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/ptrace.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
+#include <sys/systm.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
@@ -249,6 +250,10 @@ ptrace(curp, uap, retval)
 			if (error = suser(curp->p_ucred, &curp->p_acflag))
 				return error;
 		}
+
+		/* can't trace init when securelevel > 0 */
+		if (securelevel > 0 && p->p_pid == 1)
+			return EPERM;
 
 		/* OK */
 		break;
