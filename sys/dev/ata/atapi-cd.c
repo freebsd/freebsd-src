@@ -98,7 +98,7 @@ static int acd_set_speed(struct acd_softc *cdp, int);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
-MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
+static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 
 int
 acdattach(struct atapi_softc *atp)

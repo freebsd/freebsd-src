@@ -82,7 +82,7 @@ static int ast_erase(struct ast_softc *);
 /* internal vars */
 static u_int32_t ast_lun_map = 0;
 static u_int64_t ast_total = 0;
-MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
+static MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
 int 
 astattach(struct atapi_softc *atp)

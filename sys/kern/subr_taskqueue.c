@@ -36,7 +36,7 @@
 #include <sys/ipl.h>
 #include <sys/malloc.h>
 
-MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
+static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 

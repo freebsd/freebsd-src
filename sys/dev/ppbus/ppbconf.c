@@ -42,7 +42,7 @@
   
 #define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
   
-MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
+static MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
 
 /*

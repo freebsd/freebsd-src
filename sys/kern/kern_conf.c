@@ -49,7 +49,7 @@
 
 struct cdevsw 	*cdevsw[NUMCDEVSW];
 
-MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
+static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
 /*
  * This is the number of hash-buckets.  Experiements with 'real-life'
