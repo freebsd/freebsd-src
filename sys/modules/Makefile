@@ -123,6 +123,7 @@ SUBDIR=	accf_data \
 	twe \
 	tx \
 	txp \
+	uart \
 	ubsa \
 	ubsec \
 	ucom \
@@ -241,7 +242,7 @@ SUBDIR+=aac \
 	mly \
 	s3 \
 	vesa
-	
+
 .elif ${MACHINE} == "pc98"
 SUBDIR+=canbepm \
 	canbus \
