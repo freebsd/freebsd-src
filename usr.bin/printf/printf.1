@@ -62,8 +62,7 @@ The
 .Ar arguments
 after the first are treated as strings if the corresponding format is
 either
-.Cm c ,
-.Cm b
+.Cm c , b
 or
 .Cm s ;
 otherwise it is evaluated as a C constant, with the following extensions:
@@ -72,7 +71,8 @@ otherwise it is evaluated as a C constant, with the following extensions:
 .It
 A leading plus or minus sign is allowed.
 .It
-If the leading character is a single or double quote the value is the ASCII
+If the leading character is a single or double quote, the value is the
+.Tn ASCII
 code of the next character.
 .El
 .Pp
@@ -128,10 +128,9 @@ in the following order:
 A `#' character
 specifying that the value should be printed in an ``alternate form''.
 For
-.Cm c  ,
-.Cm d ,
+.Cm c , d ,
 and
-.Cm s  ,
+.Cm s ,
 formats, this option has no effect.  For the
 .Cm o
 formats the precision of the number is increased to force the first
@@ -142,12 +141,9 @@ format, a non-zero result has the string
 .Li 0x
 .Pq Li 0X
 prepended to it.  For
-.Cm e  ,
-.Cm E ,
-.Cm f  ,
-.Cm g ,
+.Cm e , E , f , g ,
 and
-.Cm G  ,
+.Cm G ,
 formats, the result will always contain a decimal point, even if no
 digits follow the point (normally, a decimal point only appears in the
 results of those formats if a digit follows the decimal point).  For
@@ -271,7 +267,9 @@ the actual width.
 The traditional
 .Bx
 behavior of converting arguments of numeric formats not beginning
-with a digit to the ASCII code of the first characer is not supported.
+with a digit to the
+.Tn ASCII
+code of the first character is not supported.
 .Sh SEE ALSO
 .Xr echo 1 ,
 .Xr printf 3
@@ -299,7 +297,7 @@ then back again, floating-point precision may be lost.
 hexadecimal character constants were deliberately not provided.
 .Pp
 The escape sequence \e000 is the string terminator.  When present in the
-.Ar format  ,
+.Ar format ,
 the
 .Ar format
 will be truncated at the \e000 character.
