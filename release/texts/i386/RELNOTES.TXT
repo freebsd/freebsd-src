@@ -4,12 +4,12 @@
 This is a 5.0-CURRENT release SNAPshot of FreeBSD, an active
 development branch which will produce its first release in early
 March 2001.  Those features which have also been back-ported to
-the 4.x-stable branch (the next release for which will be 4.1)
+the 4.x-stable branch (the next release for which will be 4.2)
 are marked [MERGED].
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
-http://www.freebsd.org/send-pr.html).
+http://www.FreeBSD.org/send-pr.html).
 
 For information about FreeBSD and the layout of the 5.0-RELEASE
 directory (especially if you're installing from floppies!), see
@@ -18,7 +18,7 @@ HARDWARE.TXT files.
 
 For the latest of these 5.0-current snapshots, you should always see:
 
-        ftp://current.freebsd.org/pub/FreeBSD
+        ftp://current.FreeBSD.org/pub/FreeBSD
 
 If you wish to get the latest post-4.x-RELEASE technology.
 
@@ -782,7 +782,7 @@ You may obtain FreeBSD in a variety of ways:
 -------------
 
 You can ftp FreeBSD and any or all of its optional packages from
-`ftp.freebsd.org' - the official FreeBSD release site.
+`ftp.FreeBSD.org' - the official FreeBSD release site.
 
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
@@ -854,7 +854,7 @@ valued - please do not hesitate to report any problems you may find
 
 The preferred method to submit bug reports from a machine with
 Internet mail connectivity is to use the send-pr command or use the CGI
-script at http://www.freebsd.org/send-pr.html.  Bug reports
+script at http://www.FreeBSD.org/send-pr.html.  Bug reports
 will be dutifully filed by our faithful bugfiler program and you can
 be sure that we'll do our best to respond to all reported bugs as soon
 as possible.  Bugs filed in this way are also visible on our WEB site
@@ -921,7 +921,7 @@ hundreds, of individuals from around the world who have worked very
 hard to bring you this release.  For a complete list of FreeBSD
 project staffers, please see:
 
-        http://www.freebsd.org/handbook/staff.html
+        http://www.FreeBSD.org/handbook/staff.html
 
 or, if you've loaded the doc distribution:
 
@@ -930,16 +930,16 @@ or, if you've loaded the doc distribution:
 
 Special mention to:
 
-        The donors listed at http://www.freebsd.org/handbook/donors.html
+        The donors listed at http://www.FreeBSD.org/handbook/donors.html
 
-        Justin M. Seger <jseger@freebsd.org> for almost single-handedly
+        Justin M. Seger <jseger@FreeBSD.org> for almost single-handedly
         converting the ports collection to ELF.
 
-        Doug Rabson <dfr@freebsd.org> and John Birrell <jb@freebsd.org>
+        Doug Rabson <dfr@FreeBSD.org> and John Birrell <jb@FreeBSD.org>
         for making FreeBSD/alpha happen and to the NetBSD project for
         substantial indirect aid.
 
-        Peter Wemm <peter@freebsd.org> for the new kernel module system
+        Peter Wemm <peter@FreeBSD.org> for the new kernel module system
         (with substantial aid from Doug Rabson).
 
         And to the many thousands of FreeBSD users and testers all over the
