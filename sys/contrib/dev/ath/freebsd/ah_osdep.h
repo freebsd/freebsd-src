@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.h,v 1.9 2003/07/26 14:55:11 sam Exp $
+ * $Id: ah_osdep.h,v 1.10 2003/11/01 01:21:31 sam Exp $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_
@@ -42,6 +42,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 
@@ -50,7 +51,12 @@ typedef bus_space_tag_t HAL_BUS_TAG;
 typedef bus_space_handle_t HAL_BUS_HANDLE;
 typedef bus_addr_t HAL_BUS_ADDR;
 
-#define	OS_DELAY(_n)	DELAY(_n)
+/*
+ * Delay n microseconds.
+ */
+extern	void ath_hal_delay(int);
+#define	OS_DELAY(_n)	ath_hal_delay(_n)
+
 #define	OS_INLINE	__inline
 #define	OS_MEMZERO(_a, _size)		bzero((_a), (_size))
 #define	OS_MEMCPY(_dst, _src, _size)	bcopy((_src), (_dst), (_size))
@@ -58,17 +64,61 @@ typedef bus_addr_t HAL_BUS_ADDR;
 	(bcmp((_a), (_b), IEEE80211_ADDR_LEN) == 0)
 
 struct ath_hal;
-extern 	u_int32_t OS_GETUPTIME(struct ath_hal *);
+extern	u_int32_t ath_hal_getuptime(struct ath_hal *);
+#define	OS_GETUPTIME(_ah)	ath_hal_getuptime(_ah)
+
+/*
+ * Register read/write; we assume the registers will always
+ * be memory-mapped.  Note that register accesses are done
+ * using target-specific functions when debugging is enabled
+ * (AH_DEBUG) or we are explicitly configured this way.  The
+ * latter is used on some platforms where the full i/o space
+ * cannot be directly mapped.
+ */
+#if defined(AH_DEBUG) || defined(AH_REGOPS_FUNC) || defined(AH_DEBUG_ALQ)
+#define	OS_REG_WRITE(_ah, _reg, _val)	ath_hal_reg_write(_ah, _reg, _val)
+#define	OS_REG_READ(_ah, _reg)		ath_hal_reg_read(_ah, _reg)
+
+extern	void ath_hal_reg_write(struct ath_hal *ah, u_int reg, u_int32_t val);
+extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
+#else
+/*
+ * The hardware registers are native little-endian byte order.
+ * Big-endian hosts are handled by enabling hardware byte-swap
+ * of register reads and writes at reset.  But the PCI clock
+ * domain registers are not byte swapped!  Thus, on big-endian
+ * platforms we have to byte-swap thoese registers specifically.
+ * Most of this code is collapsed at compile time because the
+ * register values are constants.
+ */
+#define	AH_LITTLE_ENDIAN	1234
+#define	AH_BIG_ENDIAN		4321
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define OS_REG_WRITE(_ah, _reg, _val) do {				\
+	if ( (_reg) >= 0x4000 && (_reg) < 0x5000)			\
+		bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh,		\
+			(_reg), htole32(_val));			\
+	else								\
+		bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh,		\
+			(_reg), (_val));				\
+} while (0)
+#define OS_REG_READ(_ah, _reg)						\
+	(((_reg) >= 0x4000 && (_reg) < 0x5000) ?			\
+		le32toh(bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh,	\
+			(_reg))) :					\
+		bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh, (_reg)))
+#else /* _BYTE_ORDER == _LITTLE_ENDIAN */
+#define	OS_REG_WRITE(_ah, _reg, _val)					\
+	bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh, (_reg), (_val))
+#define	OS_REG_READ(_ah, _reg)						\
+	((u_int32_t) bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh, (_reg)))
+#endif /* _BYTE_ORDER */
+#endif /* AH_DEBUG || AH_REGFUNC || AH_DEBUG_ALQ */
 
 #ifdef AH_DEBUG_ALQ
-extern	void OS_REG_WRITE(struct ath_hal *, u_int32_t, u_int32_t);
-extern	u_int32_t OS_REG_READ(struct ath_hal *, u_int32_t);
 extern	void OS_MARK(struct ath_hal *, u_int id, u_int32_t value);
 #else
-#define	OS_REG_WRITE(_ah, _reg, _val)					   \
-	bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh, (_reg), (_val))
-#define	OS_REG_READ(_ah, _reg)						   \
-	((u_int32_t) bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh, (_reg)))
 #define	OS_MARK(_ah, _id, _v)
 #endif
 
