@@ -46,6 +46,7 @@
 
 #if defined(__FreeBSD__)
 #include <sys/ioccom.h>
+#include <sys/random.h>
 #else
 #include <sys/ioctl.h>
 #endif
@@ -63,10 +64,6 @@
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
-#endif
-
-#if defined(__FreeBSD__)
-#include <machine/random.h>
 #endif
 
 #include <i4b/include/i4b_global.h>

@@ -121,7 +121,7 @@
 #include <i386/isa/intr_machdep.h>
 #include <isa/rtc.h>
 #include <machine/vm86.h>
-#include <machine/random.h>
+#include <sys/random.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
