@@ -1827,7 +1827,7 @@ STATIC int en_makeexclusive(sc, mm, prev)
     m = *mm;
     
     if (m->m_flags & M_EXT) {
-	if (m->m_ext.ext_free) {
+	if (m->m_ext.ext_type != EXT_CLUSTER) {
 	    /* external buffer isn't an ordinary mbuf cluster! */
 	    printf("%s: mfix: special buffer! can't make a copy!\n",
 		   sc->sc_dev.dv_xname);
