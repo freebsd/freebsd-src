@@ -56,10 +56,11 @@
  * [including the GNU Public Licence.]
  */
 
-#include "des_locl.h"
+/* #include "des_locl.h" */
 #include "rc4.h"
 
-RCSID("$Id: rc4_skey.c,v 1.2 1999/10/21 12:58:52 joda Exp $");
+/* RCSID("$Id: rc4_skey.c,v 1.2 1999/10/21 12:58:52 joda Exp $"); */
+/* RCSID("$FreeBSD$"); */
 
 /* RC4 as implemented from a posting from
  * Newsgroups: sci.crypt
