@@ -549,12 +549,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * boundary.
 		 */
 		if ((lengths[i] +
-		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > MAXPHYS){
+		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > DFLTPHYS){
 			printf("cam_periph_mapmem: attempt to map %u bytes, "
-			       "which is greater than MAXPHYS(%d)\n",
+			       "which is greater than DFLTPHYS(%d)\n",
 			       lengths[i] +
 			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK),
-			       MAXPHYS);
+			       DFLTPHYS);
 			return(E2BIG);
 		}
 
@@ -607,7 +607,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
 
-		/* set the transfer length, we know it's < MAXPHYS */
+		/* set the transfer length, we know it's < DFLTPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the flags */
