@@ -426,7 +426,7 @@ struct pthread {
 	u_int64_t		uniqueid; /* for gdb */
 	thr_id_t		thr_id;
 	sigset_t		savedsig;
-	int			crit_ref; /* crit. section netsting level */
+	int			signest; /* blocked signal netsting level */
 
 	/*
 	 * Lock for accesses to this thread structure.
@@ -766,6 +766,8 @@ void	_thread_cancellation_point(void);
 int	_thread_suspend(pthread_t thread, struct timespec *abstime);
 void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
+void	_thread_sigblock();
+void	_thread_sigunblock();
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
