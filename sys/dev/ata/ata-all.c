@@ -310,15 +310,41 @@ ata_pciattach(device_t dev)
 	}
     }
 
-    /* on the Aladdin activate the ATAPI FIFO */
-    if (type == 0x522910b9) {
+    /* do extra chipset specific setups */
+    switch (type) {
+    case 0x522910b9:
+	/* on the Aladdin activate the ATAPI FIFO */
 	pci_write_config(dev, 0x53, 
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
-    }
+	break;
 
-    /* the Promise controllers needs burst mode to be turned on explicitly */
-    if (type == 0x4d33105a || type == 0x4d38105a)
+    case 0x4d33105a:
+    case 0x4d38105a:
+	/* the Promise's need burst mode to be turned on explicitly */
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
+	break;
+
+    case 0x05711106:
+	/* the VIA Apollo needs some sensible defaults */
+	/* set prefetch, postwrite */
+	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
+
+	/* set fifo configuration half'n'half */
+	pci_write_config(dev, 0x43, 
+			 (pci_read_config(dev, 0x43, 1) & 0x90) | 0x2a, 1);
+
+	/* set status register read retry */
+	pci_write_config(dev, 0x44, pci_read_config(dev, 0x44, 1) | 0x08, 1);
+
+	/* set DMA read & end-of-sector fifo flush */
+	pci_write_config(dev, 0x46, 
+			 (pci_read_config(dev, 0x46, 1) & 0x0c) | 0xf0, 1);
+
+	/* set sector size */
+	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
+	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
+	break;
+    }
 	
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
     lun = 0;
