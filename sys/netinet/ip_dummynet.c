@@ -1371,8 +1371,8 @@ dn_rule_delete(void *r)
 	fs = &(p->fs) ;
 	dn_rule_delete_fs(fs, r);
 	for (pkt = p->head ; pkt ; pkt = DN_NEXT(pkt) )
-	    if (pkt->hdr.mh_data == r)
-		pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
+	    if (pkt->rule == r)
+		pkt->rule = ip_fw_default_rule ;
     }
 }
 
