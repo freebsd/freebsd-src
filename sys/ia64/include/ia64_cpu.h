@@ -247,6 +247,15 @@ ia64_get_psr(void)
 }
 
 /*
+ * Set the value of ar.fpsr
+ */
+static __inline void
+ia64_set_fpsr(u_int64_t v)
+{
+	__asm __volatile("mov ar.fpsr=%0" :: "r" (v));
+}
+
+/*
  * Read the value of ar.k0.
  */
 static __inline u_int64_t
