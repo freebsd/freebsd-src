@@ -4,3 +4,5 @@ A regression test program is one that will exercise a particular bit of the
 system to check that we have not reintroduced an old bug.
 
 Please make a subdir per program, and add a brief description to this file.
+
+nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
