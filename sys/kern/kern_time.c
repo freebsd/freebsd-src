@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.50 1998/04/05 11:49:36 phk Exp $
+ * $Id: kern_time.c,v 1.51 1998/04/05 12:10:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -474,10 +474,10 @@ getitimer(p, uap)
 		 * current time and time for the timer to go off.
 		 */
 		aitv = p->p_realtimer;
-		if (timerisset(&aitv.it_value)) {
+		if (timevalisset(&aitv.it_value)) {
 			getmicroruntime(&ctv);
-			if (timercmp(&aitv.it_value, &ctv, <))
-				timerclear(&aitv.it_value);
+			if (timevalcmp(&aitv.it_value, &ctv, <))
+				timevalclear(&aitv.it_value);
 			else
 				timevalsub(&aitv.it_value, &ctv);
 		}
@@ -518,15 +518,15 @@ setitimer(p, uap)
 		return (0);
 	if (itimerfix(&aitv.it_value))
 		return (EINVAL);
-	if (!timerisset(&aitv.it_value))
-		timerclear(&aitv.it_interval);
+	if (!timevalisset(&aitv.it_value))
+		timevalclear(&aitv.it_interval);
 	else if (itimerfix(&aitv.it_interval))
 		return (EINVAL);
 	s = splclock(); /* XXX: still needed ? */
 	if (uap->which == ITIMER_REAL) {
-		if (timerisset(&p->p_realtimer.it_value))
+		if (timevalisset(&p->p_realtimer.it_value))
 			untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-		if (timerisset(&aitv.it_value)) 
+		if (timevalisset(&aitv.it_value)) 
 			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
 						tvtohz(&aitv.it_value));
 		getmicroruntime(&ctv);
@@ -560,8 +560,8 @@ realitexpire(arg)
 
 	p = (struct proc *)arg;
 	psignal(p, SIGALRM);
-	if (!timerisset(&p->p_realtimer.it_interval)) {
-		timerclear(&p->p_realtimer.it_value);
+	if (!timevalisset(&p->p_realtimer.it_interval)) {
+		timevalclear(&p->p_realtimer.it_value);
 		return;
 	}
 	for (;;) {
@@ -569,7 +569,7 @@ realitexpire(arg)
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
 		getmicroruntime(&ctv);
-		if (timercmp(&p->p_realtimer.it_value, &ctv, >)) {
+		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
 			ntv = p->p_realtimer.it_value;
 			timevalsub(&ntv, &ctv);
 			p->p_ithandle =
@@ -627,11 +627,11 @@ itimerdecr(itp, usec)
 	}
 	itp->it_value.tv_usec -= usec;
 	usec = 0;
-	if (timerisset(&itp->it_value))
+	if (timevalisset(&itp->it_value))
 		return (1);
 	/* expired, exactly at end of interval */
 expire:
-	if (timerisset(&itp->it_interval)) {
+	if (timevalisset(&itp->it_interval)) {
 		itp->it_value = itp->it_interval;
 		itp->it_value.tv_usec -= usec;
 		if (itp->it_value.tv_usec < 0) {

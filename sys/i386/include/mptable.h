@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.70 1998/03/07 20:16:49 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.71 1998/04/01 21:07:35 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -2450,12 +2450,12 @@ forward_hardclock(int pscnt)
 		if (p) {
 			pstats = p->p_stats;
 			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
-			    timerisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+			    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
 				psignal(p, SIGVTALRM);
 				map |= (1 << id);
 			}
-			if (timerisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+			if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
 				psignal(p, SIGPROF);
 				map |= (1 << id);
