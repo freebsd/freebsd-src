@@ -281,3 +281,4 @@ static driver_t awi_pccard_driver = {
 extern devclass_t awi_devclass;
 
 DRIVER_MODULE(awi, pccard, awi_pccard_driver, awi_devclass, 0, 0);
+MODULE_DEPEND(awi, rc4, 1, 1, 1);
