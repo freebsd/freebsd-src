@@ -57,16 +57,13 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-int	build __P((char *, mode_t));
-int	main __P((int, char *[]));
-void	usage __P((void));
+int	build(char *, mode_t);
+void	usage(void);
 
 int vflag;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, exitval, success, omode, pflag;
 	mode_t *set = (mode_t *)NULL;
@@ -136,9 +133,7 @@ main(argc, argv)
 }
 
 int
-build(path, omode)
-	char *path;
-	mode_t omode;
+build(char *path, mode_t omode)
 {
 	struct stat sb;
 	mode_t numask, oumask;
@@ -206,7 +201,7 @@ build(path, omode)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: mkdir [-pv] [-m mode] directory ...\n");

@@ -50,7 +50,7 @@ int	mempages;			/* number of pages of phys. memory */
 int	fscale;				/* kernel _fscale variable */
 
 int
-donlist()
+donlist(void)
 {
 	size_t oldlen;
 

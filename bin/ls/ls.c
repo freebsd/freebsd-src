@@ -79,13 +79,13 @@ static const char rcsid[] =
  */
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
-static void	 display __P((FTSENT *, FTSENT *));
-static u_quad_t	 makenines __P((u_long));
-static int	 mastercmp __P((const FTSENT **, const FTSENT **));
-static void	 traverse __P((int, char **, int));
+static void	 display(FTSENT *, FTSENT *);
+static u_quad_t	 makenines(u_long);
+static int	 mastercmp(const FTSENT **, const FTSENT **);
+static void	 traverse(int, char **, int);
 
-static void (*printfcn) __P((DISPLAY *));
-static int (*sortfcn) __P((const FTSENT *, const FTSENT *));
+static void (*printfcn)(DISPLAY *);
+static int (*sortfcn)(const FTSENT *, const FTSENT *);
 
 long blocksize;			/* block size units */
 int termwidth = 80;		/* default terminal width */
@@ -129,9 +129,7 @@ char *enter_bold;		/* ANSI sequence to set color to bold mode */
 int rval;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	static char dot[] = ".", *dotav[] = {dot, NULL};
 	struct winsize win;
@@ -409,9 +407,7 @@ static int output;		/* If anything output. */
  * a superset (may be exact set) of the files to be displayed.
  */
 static void
-traverse(argc, argv, options)
-	int argc, options;
-	char *argv[];
+traverse(int argc, char *argv[], int options)
 {
 	FTS *ftsp;
 	FTSENT *p, *chp;
@@ -474,8 +470,7 @@ traverse(argc, argv, options)
  * points to the parent directory of the display list.
  */
 static void
-display(p, list)
-	FTSENT *p, *list;
+display(FTSENT *p, FTSENT *list)
 {
 	struct stat *sp;
 	DISPLAY d;
@@ -721,8 +716,7 @@ display(p, list)
  * All other levels use the sort function.  Error entries remain unsorted.
  */
 static int
-mastercmp(a, b)
-	const FTSENT **a, **b;
+mastercmp(const FTSENT **a, const FTSENT **b)
 {
 	int a_info, b_info;
 
@@ -751,8 +745,7 @@ mastercmp(a, b)
  * into a number that wide in decimal.
  */
 static u_quad_t
-makenines(n)
-	u_long n;
+makenines(u_long n)
 {
 	u_long i;
 	u_quad_t reg;

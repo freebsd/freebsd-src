@@ -62,17 +62,14 @@ int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
 					/* System link call. */
-int (*linkf) __P((const char *, const char *));
+int (*linkf)(const char *, const char *);
 char	linkch;
 
-int	linkit __P((const char *, const char *, int));
-int	main __P((int, char *[]));
-void	usage __P((void));
+int	linkit(const char *, const char *, int);
+void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	char *p, *sourcedir;
@@ -155,9 +152,7 @@ main(argc, argv)
 }
 
 int
-linkit(target, source, isdir)
-	const char *target, *source;
-	int isdir;
+linkit(const char *target, const char *source, int isdir)
 {
 	struct stat sb;
 	const char *p;
@@ -232,7 +227,7 @@ linkit(target, source, isdir)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: ln [-fhinsv] file1 file2",

@@ -68,8 +68,8 @@ struct lomac_fioctl2 ioctl_args;
  */
 
 void 
-lomac_start(void) {
-
+lomac_start(void)
+{
 	if ((devlomac = open(LOMAC_DEVICE, O_RDWR)) == -1)
 		err(1, "cannot open %s", LOMAC_DEVICE);
 }
@@ -84,8 +84,8 @@ lomac_start(void) {
  */
 
 void 
-lomac_stop(void) {
-
+lomac_stop(void)
+{
 	if (close(devlomac) == -1)
 		err(1, "cannot close %s", LOMAC_DEVICE);
 }
@@ -104,7 +104,8 @@ lomac_stop(void) {
  */
 
 char *
-get_lattr(FTSENT *ent) {
+get_lattr(FTSENT *ent)
+{
 	char *lattr;
 
 #ifdef NOT_NOW

@@ -58,8 +58,8 @@ static const char rcsid[] =
 
 #include "ps.h"
 
-static VAR *findvar __P((char *));
-static int  vcmp __P((const void *, const void *));
+static VAR *findvar(char *);
+static int  vcmp(const void *, const void *);
 
 #ifdef NOTINUSE
 int	utime(), stime(), ixrss(), idrss(), isrss();
@@ -190,7 +190,7 @@ VAR var[] = {
 };
 
 void
-showkey()
+showkey(void)
 {
 	VAR *v;
 	int i;
@@ -211,8 +211,7 @@ showkey()
 }
 
 void
-parsefmt(p)
-	char *p;
+parsefmt(char *p)
 {
 	static struct varent *vtail;
 
@@ -242,8 +241,7 @@ parsefmt(p)
 }
 
 static VAR *
-findvar(p)
-	char *p;
+findvar(char *p)
 {
 	VAR *v, key;
 	char *hp;
@@ -273,8 +271,7 @@ findvar(p)
 }
 
 static int
-vcmp(a, b)
-        const void *a, *b;
+vcmp(const void *a, const void *b)
 {
         return (strcmp(((VAR *)a)->name, ((VAR *)b)->name));
 }

@@ -53,16 +53,13 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 
-int main __P((int, char *[]));
-void nosig __P((char *));
-void printsignals __P((FILE *));
-int signame_to_signum __P((char *));
-void usage __P((void));
+void nosig(char *);
+void printsignals(FILE *);
+int signame_to_signum(char *);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int errors, numsig, pid;
 	char *ep;
@@ -140,8 +137,7 @@ main(argc, argv)
 }
 
 int
-signame_to_signum(sig)
-	char *sig;
+signame_to_signum(char *sig)
 {
 	int n;
 
@@ -155,8 +151,7 @@ signame_to_signum(sig)
 }
 
 void
-nosig(name)
-	char *name;
+nosig(char *name)
 {
 
 	warnx("unknown signal %s; valid signals:", name);
@@ -165,8 +160,7 @@ nosig(name)
 }
 
 void
-printsignals(fp)
-	FILE *fp;
+printsignals(FILE *fp)
 {
 	int n;
 
@@ -180,7 +174,7 @@ printsignals(fp)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
