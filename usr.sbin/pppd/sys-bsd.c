@@ -21,7 +21,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.13 1998/03/22 05:33:08 peter Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.14 1998/06/20 18:02:16 peter Exp $";
 #endif
 /*	$NetBSD: sys-bsd.c,v 1.1.1.3 1997/09/26 18:53:04 christos Exp $	*/
 
@@ -64,8 +64,7 @@ static char rcsid[] = "$Id: sys-bsd.c,v 1.13 1998/03/22 05:33:08 peter Exp $";
 
 #if RTM_VERSION >= 3
 #include <sys/param.h>
-#if defined(NetBSD)
-#if (NetBSD >= 199703)
+#if defined(NetBSD) && (NetBSD >= 199703)
 #include <netinet/if_inarp.h>
 #else	/* NetBSD 1.2D or later */
 #ifdef __FreeBSD__
@@ -73,8 +72,6 @@ static char rcsid[] = "$Id: sys-bsd.c,v 1.13 1998/03/22 05:33:08 peter Exp $";
 #else
 #include <net/if_ether.h>
 #endif
-#else
-#include <netinet/if_ether.h>
 #endif
 #endif
 
