@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2004
+.Dd August 7, 2004
 .Os
 .Dt GPT 8
 .Sh NAME
@@ -194,6 +194,42 @@ option prevents migrating
 .Bx
 disk labels into GPT partitions by creating
 the GPT equivalent of a slice.
+.\" ==== remove ====
+.It Xo
+.Nm
+.Ic remove
+.Op Fl b Ar number
+.Op Fl i Ar index
+.Op Fl s Ar count
+.Op Fl t Ar type
+.Ar device ...
+.Xc
+The
+.Ic remove
+command allows the user to remove any partitions that match the selection.
+BEWARE: when no options are given, all GPT partitions will match and thus
+will be deleted.
+.Pp
+The
+.Fl b Ar number
+option selects the partitions that starts at the given number.
+.Pp
+The
+.Fl i Ar index
+option selects the partition with the given partition number.
+.Pp
+The
+.Fl s Ar count
+option selects all partitions that have the given size.
+This can cause multiple partitions to be removed.
+.Pp
+The
+.Fl t Ar type
+option selects all partitions that have the given type.
+The type is given as an UUID or by the aliases that the
+.Ic add
+command accepts.
+This can cause multiple partitions to be removed.
 .\" ==== show ====
 .It Xo
 .Nm
