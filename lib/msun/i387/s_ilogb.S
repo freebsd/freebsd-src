@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
-RCSID("$Id: s_ilogb.S,v 1.3 1996/02/25 20:29:46 bde Exp $")
+RCSID("$Id: s_ilogb.S,v 1.3.2.1 1997/12/08 01:07:36 steve Exp $")
 
 ENTRY(ilogb)
 	pushl	%ebp
