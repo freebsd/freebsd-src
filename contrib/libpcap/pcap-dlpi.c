@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap-dlpi.c,v 1.47 96/12/10 23:15:00 leres Exp $ (LBL)";
+    "@(#) $Header: pcap-dlpi.c,v 1.52 97/10/03 19:47:47 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -310,9 +310,10 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	    dlokack(p->fd, "attach", (char *)buf, ebuf) < 0))
 		goto bad;
 	/*
-	** Bind (defer if using HP-UX 9, totally skip if using SINIX)
+	** Bind (defer if using HP-UX 9 or HP-UX 10.20, totally skip if
+	** using SINIX)
 	*/
-#if !defined(HAVE_HPUX9) && !defined(sinix)
+#if !defined(HAVE_HPUX9) && !defined(HAVE_HPUX10_20) && !defined(sinix)
 	if (dlbindreq(p->fd, 0, ebuf) < 0 ||
 	    dlbindack(p->fd, (char *)buf, ebuf) < 0)
 		goto bad;
@@ -328,9 +329,10 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 		/*
 		** Try to enable multicast (you would have thought
-		** promiscuous would be sufficient). Skip if SINIX.
+		** promiscuous would be sufficient). (Skip if using
+		** HP-UX or SINIX)
 		*/
-#ifndef sinix
+#if !defined(__hpux) && !defined(sinix)
 		if (dlpromisconreq(p->fd, DL_PROMISC_MULTI, ebuf) < 0 ||
 		    dlokack(p->fd, "promisc_multi", (char *)buf, ebuf) < 0)
 			fprintf(stderr,
@@ -338,11 +340,16 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 #endif
 	}
 	/*
-	** Always try to enable sap (except if SINIX)
+	** Try to enable sap (when not in promiscuous mode when using
+	** using HP-UX and never under SINIX)
 	*/
 #ifndef sinix
-	if (dlpromisconreq(p->fd, DL_PROMISC_SAP, ebuf) < 0 ||
-	    dlokack(p->fd, "promisc_sap", (char *)buf, ebuf) < 0) {
+	if (
+#ifdef __hpux
+	    !promisc &&
+#endif
+	    (dlpromisconreq(p->fd, DL_PROMISC_SAP, ebuf) < 0 ||
+	    dlokack(p->fd, "promisc_sap", (char *)buf, ebuf) < 0)) {
 		/* Not fatal if promisc since the DL_PROMISC_PHYS worked */
 		if (promisc)
 			fprintf(stderr,
@@ -353,9 +360,10 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 #endif
 
 	/*
-	** Bind (HP-UX 9 must bind after setting promiscuous options)
+	** HP-UX 9 and HP-UX 10.20 must bind after setting promiscuous
+	** options)
 	*/
-#ifdef HAVE_HPUX9
+#if defined(HAVE_HPUX9) || defined(HAVE_HPUX10_20)
 	if (dlbindreq(p->fd, 0, ebuf) < 0 ||
 	    dlbindack(p->fd, (char *)buf, ebuf) < 0)
 		goto bad;
@@ -379,6 +387,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	case DL_FDDI:
 		p->linktype = DLT_FDDI;
+		p->offset = 3;
 		break;
 
 	default:
@@ -822,7 +831,7 @@ dlpi_kread(register int fd, register off_t addr,
 {
 	register int cc;
 
-	if (lseek(fd, addr, L_SET) < 0) {
+	if (lseek(fd, addr, SEEK_SET) < 0) {
 		sprintf(ebuf, "lseek: %s", pcap_strerror(errno));
 		return (-1);
 	}

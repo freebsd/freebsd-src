@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: savefile.c,v 1.36 96/12/10 23:15:02 leres Exp $ (LBL)";
+    "@(#) $Header: savefile.c,v 1.37 97/10/15 21:58:58 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -103,7 +103,7 @@ swap_hdr(struct pcap_file_header *hp)
 }
 
 pcap_t *
-pcap_open_offline(char *fname, char *errbuf)
+pcap_open_offline(const char *fname, char *errbuf)
 {
 	register pcap_t *p;
 	register FILE *fp;
@@ -322,7 +322,7 @@ pcap_dump(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
  * Initialize so that sf_write() will output to the file named 'fname'.
  */
 pcap_dumper_t *
-pcap_dump_open(pcap_t *p, char *fname)
+pcap_dump_open(pcap_t *p, const char *fname)
 {
 	FILE *f;
 	if (fname[0] == '-' && fname[1] == '\0')
