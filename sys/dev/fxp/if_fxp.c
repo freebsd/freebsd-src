@@ -674,7 +674,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Pre-allocate the TX DMA maps.
 	 */
-	for (i = 0; i < FXP_NRFABUFS; i++) {
+	for (i = 0; i < FXP_NTXCB; i++) {
 		error = bus_dmamap_create(sc->fxp_mtag, 0,
 		    &sc->fxp_desc.tx_list[i].tx_map);
 		if (error) {
@@ -2228,7 +2228,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	rxp->rx_map = tmp_map;
 	rxp->rx_mbuf = m;
 
-	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map, BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * If there are other buffers already on the list, attach this
@@ -2243,7 +2243,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		    (volatile u_int32_t *)p_rfa->link_addr);
 		p_rfa->rfa_control = 0;
 		bus_dmamap_sync(sc->fxp_mtag, p_rx->rx_map,
-		    BUS_DMASYNC_PREREAD);
+		    BUS_DMASYNC_PREWRITE);
 	} else {
 		rxp->rx_next = NULL;
 		sc->fxp_desc.rx_head = rxp;
