@@ -7,14 +7,8 @@
  * conditions, enough of the TCP header is missing for unpredictable
  * results unless the filter is aware that this can happen.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -36,6 +30,12 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 #include "ipsend.h"
 #include "ipf.h"
+
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
+/* static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.3 2001/07/15 22:00:14 darrenr Exp $"; */
+static const char rcsid[] = "@(#)$FreeBSD$";
+#endif
 
 
 extern	char	*optarg;
