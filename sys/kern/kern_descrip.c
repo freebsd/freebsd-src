@@ -1105,7 +1105,6 @@ fdalloc(td, want, result)
 			FILEDESC_LOCK(fdp);
 		}
 	}
-	return (0);
 }
 
 /*
