@@ -38,20 +38,20 @@
  * of interrupts and SMP safe.
  */
 
-void	atomic_set_8(volatile u_int8_t *, u_int8_t);
-void	atomic_clear_8(volatile u_int8_t *, u_int8_t);
-void	atomic_add_8(volatile u_int8_t *, u_int8_t);
-void	atomic_subtract_8(volatile u_int8_t *, u_int8_t);
+void	atomic_set_8(volatile uint8_t *, uint8_t);
+void	atomic_clear_8(volatile uint8_t *, uint8_t);
+void	atomic_add_8(volatile uint8_t *, uint8_t);
+void	atomic_subtract_8(volatile uint8_t *, uint8_t);
 
-void	atomic_set_16(volatile u_int16_t *, u_int16_t);
-void	atomic_clear_16(volatile u_int16_t *, u_int16_t);
-void	atomic_add_16(volatile u_int16_t *, u_int16_t);
-void	atomic_subtract_16(volatile u_int16_t *, u_int16_t);
+void	atomic_set_16(volatile uint16_t *, uint16_t);
+void	atomic_clear_16(volatile uint16_t *, uint16_t);
+void	atomic_add_16(volatile uint16_t *, uint16_t);
+void	atomic_subtract_16(volatile uint16_t *, uint16_t);
 
 static __inline void
-atomic_set_32(volatile u_int32_t *p, u_int32_t v)
+atomic_set_32(volatile uint32_t *p, uint32_t v)
 {
-	u_int32_t temp;
+	uint32_t temp;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -66,9 +66,9 @@ atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 }
 
 static __inline void
-atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
+atomic_clear_32(volatile uint32_t *p, uint32_t v)
 {
-	u_int32_t temp;
+	uint32_t temp;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -83,9 +83,9 @@ atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 }
 
 static __inline void
-atomic_add_32(volatile u_int32_t *p, u_int32_t v)
+atomic_add_32(volatile uint32_t *p, uint32_t v)
 {
-	u_int32_t temp;
+	uint32_t temp;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -100,9 +100,9 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 }
 
 static __inline void
-atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
+atomic_subtract_32(volatile uint32_t *p, uint32_t v)
 {
-	u_int32_t temp;
+	uint32_t temp;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -116,10 +116,10 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 #endif
 }
 
-static __inline u_int32_t
-atomic_readandclear_32(volatile u_int32_t *addr)
+static __inline uint32_t
+atomic_readandclear_32(volatile uint32_t *addr)
 {
-	u_int32_t result,temp;
+	uint32_t result,temp;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -222,8 +222,8 @@ atomic_readandclear_64(volatile u_int64_t *addr)
 
 #define	atomic_set_long			atomic_set_32
 #define	atomic_clear_long		atomic_clear_32
-#define	atomic_add_long(p, v)		atomic_add_32((u_int32_t *)p, (u_int32_t)v)
-#define	atomic_subtract_long		atomic_subtract_32
+#define	atomic_add_long(p, v)		atomic_add_32((uint32_t *)p, (uint32_t)v)
+#define	atomic_subtract_long(p, v)     	atomic_subtract_32((uint32_t *)p, (uint32_t)v)
 #define	atomic_readandclear_long	atomic_readandclear_32
 
 #if 0
@@ -343,10 +343,10 @@ ATOMIC_STORE_LOAD(int,		32)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
-static __inline u_int32_t
-atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
+static __inline uint32_t
+atomic_cmpset_32(volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 {
-	u_int32_t	ret;
+	uint32_t	ret;
 
 #ifdef __GNUC__
 	__asm __volatile (
@@ -402,12 +402,12 @@ static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
 
-	return (atomic_cmpset_32((volatile u_int32_t *)dst, (u_int32_t)exp,
-	    (u_int32_t)src));
+	return (atomic_cmpset_32((volatile uint32_t *)dst, (uint32_t)exp,
+	    (uint32_t)src));
 }
 
-static __inline u_int32_t
-atomic_cmpset_acq_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+static __inline uint32_t
+atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	int retval;
 
@@ -416,8 +416,8 @@ atomic_cmpset_acq_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 	return (retval);
 }
 
-static __inline u_int32_t
-atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+static __inline uint32_t
+atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	powerpc_mb();
 	return (atomic_cmpset_32(p, cmpval, newval));
@@ -432,49 +432,49 @@ static __inline int
 atomic_cmpset_acq_ptr(volatile void *dst, void *exp, void *src)
 {
 
-        return (atomic_cmpset_acq_32((volatile u_int32_t *)dst,
-	    (u_int32_t)exp, (u_int32_t)src));
+        return (atomic_cmpset_acq_32((volatile uint32_t *)dst,
+	    (uint32_t)exp, (uint32_t)src));
 }
 
 static __inline int
 atomic_cmpset_rel_ptr(volatile void *dst, void *exp, void *src)
 {
 
-        return (atomic_cmpset_rel_32((volatile u_int32_t *)dst,
-	    (u_int32_t)exp, (u_int32_t)src));
+        return (atomic_cmpset_rel_32((volatile uint32_t *)dst,
+	    (uint32_t)exp, (uint32_t)src));
 }
 
 static __inline void *
 atomic_load_acq_ptr(volatile void *p)
 {
 
-	return (void *)atomic_load_acq_32((volatile u_int32_t *)p);
+	return (void *)atomic_load_acq_32((volatile uint32_t *)p);
 }
 
 static __inline void
 atomic_store_rel_ptr(volatile void *p, void *v)
 {
 
-	atomic_store_rel_32((volatile u_int32_t *)p, (u_int32_t)v);
+	atomic_store_rel_32((volatile uint32_t *)p, (uint32_t)v);
 }
 
 #define	ATOMIC_PTR(NAME)					\
 static __inline void						\
 atomic_##NAME##_ptr(volatile void *p, uintptr_t v)		\
 {								\
-	atomic_##NAME##_32((volatile u_int32_t *)p, v);	\
+	atomic_##NAME##_32((volatile uint32_t *)p, v);	\
 }								\
 								\
 static __inline void						\
 atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)		\
 {								\
-	atomic_##NAME##_acq_32((volatile u_int32_t *)p, v);	\
+	atomic_##NAME##_acq_32((volatile uint32_t *)p, v);	\
 }								\
 								\
 static __inline void						\
 atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)		\
 {								\
-	atomic_##NAME##_rel_32((volatile u_int32_t *)p, v);	\
+	atomic_##NAME##_rel_32((volatile uint32_t *)p, v);	\
 }
 
 ATOMIC_PTR(set)
