@@ -48,7 +48,7 @@ static int devstat_current_devnumber;
 static struct devstatlist device_statq;
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
-static void devstat_add_entry(struct devstat *ds, const char *dev_name, 
+static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
 		       devstat_type_flags device_type,
@@ -58,7 +58,7 @@ static void devstat_add_entry(struct devstat *ds, const char *dev_name,
  * Allocate a devstat and initialize it
  */
 struct devstat *
-devstat_new_entry(const char *dev_name,
+devstat_new_entry(const void *dev_name,
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
@@ -77,7 +77,7 @@ devstat_new_entry(const char *dev_name,
  * and add it to the queue of devices.  
  */
 static void
-devstat_add_entry(struct devstat *ds, const char *dev_name, 
+devstat_add_entry(struct devstat *ds, const void *dev_name, 
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
@@ -141,8 +141,8 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 							   ds, dev_links);
 					printf("devstat_add_entry: HELP! "
 					       "sorting problem detected "
-					       "for %s%d\n", dev_name,
-					       unit_number);
+					       "for name %p unit %d\n",
+					       dev_name, unit_number);
 					break;
 				}
 			}
