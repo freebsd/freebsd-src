@@ -14,4 +14,7 @@ SRCS+=	hash.cc getopt.c getopt1.c
 
 CXXFLAGS+=	-I${GPROFDIR}/lib -I${.CURDIR}
 
+DPADD+=	${LIBSTDCPLUSPLUS}
+LDADD+=	-lstdc++
+
 .include <bsd.prog.mk>
