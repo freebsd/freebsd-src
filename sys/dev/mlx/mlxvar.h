@@ -109,6 +109,8 @@ struct mlx_softc
     device_t		mlx_dev;
     dev_t		mlx_dev_t;
     struct resource	*mlx_mem;	/* mailbox interface window */
+    int			mlx_mem_rid;
+    int			mlx_mem_type;
     bus_space_handle_t	mlx_bhandle;	/* bus space handle */
     bus_space_tag_t	mlx_btag;	/* bus space tag */
     bus_dma_tag_t	mlx_parent_dmat;/* parent DMA tag */

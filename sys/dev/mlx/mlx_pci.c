@@ -114,7 +114,7 @@ static int
 mlx_pci_attach(device_t dev)
 {
     struct mlx_softc	*sc;
-    int			i, rid, error;
+    int			i, error;
     u_int32_t		command;
 
     debug_called(1);
@@ -161,17 +161,20 @@ mlx_pci_attach(device_t dev)
     switch(sc->mlx_iftype) {
     case MLX_IFTYPE_2:
     case MLX_IFTYPE_3:
-	rid = MLX_CFG_BASE1;
-	sc->mlx_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+	sc->mlx_mem_type = SYS_RES_MEMORY;
+	sc->mlx_mem_rid = MLX_CFG_BASE1;
+	sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
 	if (sc->mlx_mem == NULL) {
-	    rid = MLX_CFG_BASE0;
-	    sc->mlx_mem = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+	    sc->mlx_mem_type = SYS_RES_IOPORT;
+	    sc->mlx_mem_rid = MLX_CFG_BASE0;
+	    sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
 	}
 	break;
     case MLX_IFTYPE_4:
     case MLX_IFTYPE_5:
-	rid = MLX_CFG_BASE0;
-	sc->mlx_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+	sc->mlx_mem_type = SYS_RES_MEMORY;
+	sc->mlx_mem_rid = MLX_CFG_BASE0;
+	sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
 	break;
     }
     if (sc->mlx_mem == NULL) {
