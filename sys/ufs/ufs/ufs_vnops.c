@@ -2223,7 +2223,8 @@ filt_ufsdetach(struct knote *kn)
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 
 	mtx_lock(&vp->v_pollinfo.vpi_lock);
-	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note, kn, knote, kn_link);
+	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
+	    kn, knote, kn_selnext);
 	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 }
 
