@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.27 1994/09/12 11:38:06 davidg Exp $
+ *	$Id: locore.s,v 1.28 1994/09/15 07:26:31 sos Exp $
  */
 
 /*
@@ -261,7 +261,7 @@ NON_GPROF_ENTRY(btext)
 	movb	$CCR0,%al		# Configuration Register index (CCR0)
 	outb	%al,$0x22
 	inb	$0x23,%al 
-	orb	$CCR0_NC1,%al
+	orb	$(CCR0_NC1|CCR0_BARB),%al
 	outb	%al,$0x23
 	invd
 	jmp	2f
