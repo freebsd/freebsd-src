@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
 #include <machine/bus.h>
@@ -41,11 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/fdc/fdcvar.h>
-#include <dev/fdc/fdcreg.h>
 #include <dev/pccard/pccardvar.h>
 #include "pccarddevs.h"
 
-static void fdctl_wr_pcmcia(fdc_p, u_int8_t);
 static int fdc_pccard_probe(device_t);
 static int fdc_pccard_attach(device_t);
 
@@ -53,12 +53,6 @@ static const struct pccard_product fdc_pccard_products[] = {
 	PCMCIA_CARD(YEDATA, EXTERNAL_FDD, 0),
 };
 	
-static void
-fdctl_wr_pcmcia(fdc_p fdc, u_int8_t v)
-{
-	bus_space_write_1(fdc->portt, fdc->porth, FDCTL+fdc->port_off, v);
-}
-
 static int
 fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
@@ -71,6 +65,9 @@ fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+	fdc->ctlt = fdc->portt;
+	fdc->ctlh = fdc->porth;
+	fdc->ctl_off = 7;
 
 	fdc->rid_irq = 0;
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
@@ -105,17 +102,11 @@ fdc_pccard_attach(device_t dev)
 	return ENXIO;
 
 	fdc = device_get_softc(dev);
-	fdc->fdctl_wr = fdctl_wr_pcmcia;
 	fdc->flags = FDC_NODMA;
 	fdc->fdct = FDC_NE765;
 	error = fdc_pccard_alloc_resources(dev, fdc);
-	if (error)
-		goto out;
-	error = fdc_attach(dev);
-	if (error)
-		goto out;
-
-out:
+	if (error == 0)
+		error = fdc_attach(dev);
 	if (error)
 		fdc_release_resources(fdc);
 	return (error);
