@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.236 1996/12/11 04:51:31 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.14 1996/12/11 04:53:35 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -542,18 +542,30 @@ HAS_CONFIGURE=		yes
 MANPREFIX?=	${PREFIX}
 
 .for sect in 1 2 3 4 5 6 7 8 9
+MAN${sect}PREFIX?=	${MANPREFIX}
+.endfor
+MANLPREFIX?=	${MANPREFIX}
+MANNPREFIX?=	${MANPREFIX}
+
+MANLANG?=	""	# english only by default
+
+.for lang in ${MANLANG}
+
+.for sect in 1 2 3 4 5 6 7 8 9
 .if defined(MAN${sect})
-_MANPAGES+=	${MAN${sect}:S.^.man/${MANLANG}/man${sect}/.}
+_MANPAGES+=	${MAN${sect}:S.^.${MAN${sect}PREFIX}/man/${lang}/man${sect}/.}
 .endif
 .endfor
 
 .if defined(MANL)
-_MANPAGES+=	${MANL:S.^.man/${MANLANG}/manl/.}
+_MANPAGES+=	${MANL:S.^.${MANLPREFIX}/man/${lang}/manl/.}
 .endif
 
 .if defined(MANN)
-_MANPAGES+=	${MANN:S.^.man/${MANLANG}/mann/.}
+_MANPAGES+=	${MANN:S.^.${MANNPREFIX}/man/${lang}/mann/.}
 .endif
+
+.endfor
 
 .if defined(_MANPAGES) && defined(MANCOMPRESSED)
 _MANPAGES:=	${_MANPAGES:S/$/.gz/}
@@ -981,12 +993,12 @@ _PORT_USE: .USE
 .if defined(MANCOMPRESSED) && defined(NOMANCOMPRESS)
 	@${ECHO_MSG} "===>   Uncompressing manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
-	@${GUNZIP_CMD} ${MANPREFIX}/${manpage}
+	@${GUNZIP_CMD} ${manpage}
 .endfor
 .elif !defined(MANCOMPRESSED) && !defined(NOMANCOMPRESS)
 	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
-	@${GZIP_CMD} ${MANPREFIX}/${manpage}
+	@${GZIP_CMD} ${manpage}
 .endfor
 .endif
 .endif
