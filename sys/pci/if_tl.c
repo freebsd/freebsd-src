@@ -274,6 +274,7 @@ static struct tl_type tl_phys[] = {
 
 static struct tl_iflist		*tl_iflist = NULL;
 static unsigned long		tl_count;
+static unsigned long		tl_unit_count = 0;
 
 static char *tl_probe		__P((pcici_t, pcidi_t));
 static void tl_attach_ctlr	__P((pcici_t, int));
@@ -1537,11 +1538,12 @@ tl_attach_ctlr(config_id, unit)
 		tl_mii_readreg(csr, &frame);
 		if (!frame.mii_data)
 			continue;
-		if (tl_attach_phy(csr, phys, eaddr, i, ilist)) {
+		if (tl_attach_phy(csr, tl_unit_count, eaddr, i, ilist)) {
 			printf("tlc%d: failed to attach interface %d\n",
 						unit, i);
 			goto fail;
 		}
+		tl_unit_count++;
 		phys++;
 		if (phys && i != TL_PHYADDR_MAX)
 			break;
