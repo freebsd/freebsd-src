@@ -67,7 +67,8 @@ poll(struct pollfd *fds, unsigned int nfds, int timeout)
 		_thread_kern_set_timeout(&ts);
 	} else if (timeout < 0) {
 		/* a timeout less than zero but not == INFTIM is invalid */
-		return (EINVAL);
+		errno = EINVAL;
+		return (-1);
 	}
 
 	if (((ret = _thread_sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
