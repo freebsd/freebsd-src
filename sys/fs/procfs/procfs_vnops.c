@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
 #include <machine/reg.h>
@@ -470,6 +471,7 @@ procfs_getattr(ap)
 	vap->va_flags = 0;
 	vap->va_blocksize = PAGE_SIZE;
 	vap->va_bytes = vap->va_size = 0;
+	vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 
 	/*
 	 * Make all times be current TOD.
