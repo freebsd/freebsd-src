@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.22 1997/02/22 14:33:10 peter Exp $";
+	"$Id: route.c,v 1.23 1997/04/02 16:52:45 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -692,8 +692,8 @@ newroute(argc, argv)
 }
 
 void
-inet_makenetandmask(net, sin)
-	u_long net;
+inet_makenetandmask(net, sin, bits)
+	u_long net, bits;
 	register struct sockaddr_in *sin;
 {
 	u_long addr, mask = 0;
@@ -702,7 +702,10 @@ inet_makenetandmask(net, sin)
 	rtm_addrs |= RTA_NETMASK;
 	if (net == 0)
 		mask = addr = 0;
-	else if (net < 128) {
+	else if (bits) {
+		addr = net;
+		mask = 0xffffffff << (32 - bits);
+	} else if (net < 128) {
 		addr = net << IN_CLASSA_NSHIFT;
 		mask = IN_CLASSA_NET;
 	} else if (net < 65536) {
@@ -750,6 +753,7 @@ getaddr(which, s, hpp)
 	struct hostent *hp;
 	struct netent *np;
 	u_long val;
+	char *q,qs;
 
 	if (af == 0) {
 		af = AF_INET;
@@ -879,6 +883,18 @@ getaddr(which, s, hpp)
 	if (hpp == NULL)
 		hpp = &hp;
 	*hpp = NULL;
+
+	q = strchr(s,'/');
+	if (q && which == RTA_DST) {
+		qs = *q;
+		*q = '\0';
+		if (((val = inet_addr(s)) != INADDR_NONE)) {
+			inet_makenetandmask(
+				htonl(val), &su->sin, strtoul(q+1, 0, 0));
+			return (0);
+		}
+		*q =qs;
+	}
 	if (((val = inet_addr(s)) != INADDR_NONE) &&
 	    (which != RTA_DST || forcenet == 0)) {
 		su->sin.sin_addr.s_addr = val;
@@ -894,7 +910,7 @@ getaddr(which, s, hpp)
 		    (val = np->n_net) != 0)) {
 netdone:
 		if (which == RTA_DST)
-			inet_makenetandmask(val, &su->sin);
+			inet_makenetandmask(val, &su->sin, 0);
 		return (0);
 	}
 	hp = gethostbyname(s);
