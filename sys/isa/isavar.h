@@ -29,8 +29,12 @@
 #ifndef _ISA_ISAVAR_H_
 #define _ISA_ISAVAR_H_
 
+struct isa_config;
+struct isa_pnp_id;
+typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
+
 #include "isa_if.h"
-#include <isa/pnp.h>
+#include <isa/pnpvar.h>
 
 #ifdef KERNEL
 
@@ -49,6 +53,39 @@
 #define	ISA_NMEM	4
 #define	ISA_NIRQ	2
 #define	ISA_NDRQ	2
+
+/*
+ * Plug and play cards can support a range of resource
+ * configurations. This structure is used by the isapnp parser to
+ * inform the isa bus about the resource possibilities of the
+ * device. Each different alternative should be supplied by calling
+ * ISA_ADD_CONFIG().
+ */
+struct isa_range {
+	u_int32_t		ir_start;
+	u_int32_t		ir_end;
+	u_int32_t		ir_size;
+	u_int32_t		ir_align;
+};
+
+struct isa_config {
+	struct isa_range	ic_mem[ISA_NMEM];
+	struct isa_range	ic_port[ISA_NPORT];
+	u_int32_t		ic_irqmask[ISA_NIRQ];
+	u_int32_t		ic_drqmask[ISA_NDRQ];
+	int			ic_nmem;
+	int			ic_nport;
+	int			ic_nirq;
+	int			ic_ndrq;
+};
+
+/*
+ * Used to build lists of IDs and description strings for PnP drivers.
+ */
+struct isa_pnp_id {
+	u_int32_t		ip_id;
+	const char		*ip_desc;
+};
 
 enum isa_device_ivars {
 	ISA_IVAR_PORT,
@@ -75,12 +112,6 @@ enum isa_device_ivars {
 	ISA_IVAR_LOGICALID,
 	ISA_IVAR_COMPATID
 };
-
-extern intrmask_t isa_irq_pending(void);
-extern intrmask_t isa_irq_mask(void);
-#ifdef __i386__
-extern void isa_wrap_old_drivers(void);
-#endif
 
 /*
  * Simplified accessors for isa devices
@@ -112,14 +143,21 @@ ISA_ACCESSOR(serial, SERIAL, int)
 ISA_ACCESSOR(logicalid, LOGICALID, int)
 ISA_ACCESSOR(compatid, COMPATID, int)
 
-void	isa_dmacascade __P((int chan));
-void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
-void	isa_dmainit __P((int chan, u_int bouncebufsize));
-void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
-int	isa_dma_acquire __P((int chan));
-void	isa_dma_release __P((int chan));
-int	isa_dmastatus __P((int chan));
-int	isa_dmastop __P((int chan));
+extern intrmask_t isa_irq_pending(void);
+extern intrmask_t isa_irq_mask(void);
+#ifdef __i386__
+extern void	 isa_wrap_old_drivers(void);
+#endif
+extern void	isa_probe_children(device_t dev);
+
+extern void	isa_dmacascade __P((int chan));
+extern void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
+extern void	isa_dmainit __P((int chan, u_int bouncebufsize));
+extern void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
+extern int	isa_dma_acquire __P((int chan));
+extern void	isa_dma_release __P((int chan));
+extern int	isa_dmastatus __P((int chan));
+extern int	isa_dmastop __P((int chan));
 
 #endif /* KERNEL */
 
