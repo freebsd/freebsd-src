@@ -7,7 +7,7 @@
 # PROVIDE: rarpd
 # REQUIRE: DAEMON
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

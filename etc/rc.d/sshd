@@ -6,7 +6,7 @@
 
 # PROVIDE: sshd
 # REQUIRE: LOGIN
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

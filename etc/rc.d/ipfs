@@ -7,7 +7,7 @@
 # PROVIDE: ipfs
 # REQUIRE: ipnat
 # BEFORE:  netif
-# KEYWORD: FreeBSD NetBSD shutdown
+# KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr
 

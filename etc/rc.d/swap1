@@ -6,7 +6,7 @@
 
 # PROVIDE: localswap
 # REQUIRE: disks
-# KEYWORD: FreeBSD NetBSD shutdown
+# KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr
 
