@@ -15,4 +15,6 @@ setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
 # A righteous umask
 umask 22
 
+stty crt erase ^h
+
 /usr/games/fortune
