@@ -41,6 +41,7 @@ static const char rcsid[] =
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -53,6 +54,11 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
+
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
 
 void
 trimdomain(char *fullhost, int hostsize)
@@ -106,6 +112,8 @@ trimdomain(char *fullhost, int hostsize)
     }
 }
 
+#include <stdio.h>
+
 void
 logwtmp(line, name, host)
 	const char *line;
@@ -123,15 +131,24 @@ logwtmp(line, name, host)
 	host = fullhost;
 
 	if (strlen(host) > UT_HOSTSIZE) {
-		struct hostent *hp = gethostbyname(host);
+		int error;
+		struct addrinfo hints, *res;
 
-		if (hp != NULL) {
-			struct in_addr in;
-
-			memmove(&in, hp->h_addr, sizeof(in));
-			host = inet_ntoa(in);
-		} else
+		bzero(&hints, sizeof(struct addrinfo));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_flags = AI_CANONNAME;
+		error = getaddrinfo(host, NULL, &hints, &res);
+		if (error != 0 || res->ai_addr == NULL)
 			host = "invalid hostname";
+		else {
+			error = getnameinfo(res->ai_addr, res->ai_addrlen,
+					  fullhost, strlen(fullhost), NULL, 0,
+					  NI_NUMERICHOST|NI_WITHSCOPEID);
+			if (error != 0) {
+			  fprintf(stderr, "%d", error);
+				host = "invalid hostname";
+			}
+		}
 	}
 
 	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) < 0)
