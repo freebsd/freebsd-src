@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: simplelock.s,v 1.1 1997/07/24 23:51:33 fsmp Exp $
  */
 
 /*
@@ -35,6 +35,8 @@
 /*
  * The following impliments the primitives described in i386/i386/param.h
  * necessary for the Lite2 lock manager system.
+ * The major difference is that the "volatility" of the lock datum has been
+ * pushed down from the various functions to lock_data itself.
  */
 
 /*
@@ -46,7 +48,7 @@
  * only be used for exclusive locks.
  * 
  * struct simplelock {
- * 	int	lock_data;
+ * 	volatile int	lock_data;
  * };
  */
 
@@ -65,7 +67,7 @@ ENTRY(s_lock_init)
 
 /*
  * void
- * s_lock(__volatile struct simplelock *lkp)
+ * s_lock(struct simplelock *lkp)
  * {
  * 	while (test_and_set(&lkp->lock_data))
  * 		continue;
@@ -73,7 +75,7 @@ ENTRY(s_lock_init)
  *
  * Note:
  *	If the acquire fails we do a loop of reads waiting for the lock to
- *	become free instead of continually beating on the lock with btsl.
+ *	become free instead of continually beating on the lock with xchgl.
  *	The theory here is that the CPU will stay within its cache until
  *	a write by the other CPU updates it, instead of continually updating
  *	the local cache (and thus causing external bus writes) with repeated
@@ -96,7 +98,7 @@ gotit:
 
 /*
  * int
- * s_lock_try(__volatile struct simplelock *lkp)
+ * s_lock_try(struct simplelock *lkp)
  * {
  * 	return (!test_and_set(&lkp->lock_data));
  * }
@@ -115,7 +117,7 @@ ENTRY(s_lock_try)
 
 /*
  * void
- * s_unlock(__volatile struct simplelock *lkp)
+ * s_unlock(struct simplelock *lkp)
  * {
  * 	lkp->lock_data = 0;
  * }
@@ -129,7 +131,7 @@ ENTRY(s_unlock)
 #ifdef needed
 
 /*
- * test_and_set(struct simplelock *lkp);
+ * int test_and_set(struct simplelock *lkp);
  */
 ENTRY(test_and_set)
 	movl	4(%esp), %eax		/* get the address of the lock */
