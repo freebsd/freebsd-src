@@ -729,6 +729,7 @@ options 	_KPOSIX_VERSION=199309L
 
 # Support for Mandatory Access Control (MAC)
 #options 	MAC
+#options 	MAC_DEBUG
 #options 	MAC_NONE		# Statically link mac_none policy
 
 
