@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.24 1996/06/30 22:16:19 jkh Exp $
+#	$Id: bsd.kmod.mk,v 1.25 1996/08/31 14:46:58 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -139,7 +139,7 @@ all-man:
 .endif
 
 .MAIN: all
-all: ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} all-man _SUBDIR
 
 CLEANFILES+=${PROG} ${OBJS} 
 

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.38 1996/08/25 05:16:56 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.39 1996/09/05 18:05:08 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -81,7 +81,7 @@ MAN1=	${PROG}.1
 # here (or does maninstall always work when nothing is made?),
 
 .MAIN: all
-all: ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} all-man _SUBDIR
 
 .if !target(clean)
 clean: _SUBDIR
