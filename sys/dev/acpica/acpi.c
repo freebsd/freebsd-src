@@ -1256,6 +1256,22 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return(AE_OK);
 }
 
+/*
+ * Set interrupt model.
+ */
+ACPI_STATUS
+acpi_SetIntrModel(int model)
+{
+	ACPI_OBJECT_LIST ArgList;
+	ACPI_OBJECT Arg;
+
+	Arg.Type = ACPI_TYPE_INTEGER;
+	Arg.Integer.Value = model;
+	ArgList.Count = 1;
+	ArgList.Pointer = &Arg;
+	return (AcpiEvaluateObject(ACPI_ROOT_OBJECT, "_PIC", &ArgList, NULL));
+}
+
 #define ACPI_MINIMUM_AWAKETIME	5
 
 static void
