@@ -1205,15 +1205,12 @@ static void xl_choose_xcvr(sc, verbose)
 static int xl_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
 	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
