@@ -285,7 +285,8 @@ passregister(struct cam_periph *periph, void *arg)
 	 * it even has a blocksize.
 	 */
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	softc->device_stats = devstat_new_entry("pass", periph->unit_number, 0,
+	softc->device_stats = devstat_new_entry("pass",
+			  unit2minor(periph->unit_number), 0,
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
@@ -294,9 +295,9 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_PRIORITY_PASS);
 
 	/* Register the device */
-	softc->dev = make_dev(&pass_cdevsw, periph->unit_number, UID_ROOT,
-			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
-			      periph->unit_number);
+	softc->dev = make_dev(&pass_cdevsw, unit2minor(periph->unit_number),
+			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
+			      periph->periph_name, periph->unit_number);
 	softc->dev->si_drv1 = periph;
 
 	/*
