@@ -616,8 +616,8 @@ u_int32_t cam_debug_delay;
 #endif
 
 /* Pointers to software interrupt handlers */
-struct intrhand *camnet_ih;
-struct intrhand *cambio_ih;
+void *camnet_ih;
+void *cambio_ih;
 
 #if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
 #error "You must have options CAMDEBUG to use options CAM_DEBUG_FLAGS"
@@ -1381,10 +1381,8 @@ xpt_init(dummy)
 	}
 
 	/* Install our software interrupt handlers */
-	camnet_ih = sinthand_add("camnet", NULL, camisr, &cam_netq,
-		SWI_CAMNET, 0);
-	cambio_ih = sinthand_add("cambio", NULL, camisr, &cam_bioq,
-		SWI_CAMBIO, 0);
+	swi_add(NULL, "camnet", camisr, &cam_netq, SWI_CAMNET, 0, &camnet_ih);
+	swi_add(NULL, "cambio", camisr, &cam_bioq, SWI_CAMBIO, 0, &cambio_ih);
 }
 
 static cam_status
@@ -4561,13 +4559,13 @@ xpt_done(union ccb *done_ccb)
 			TAILQ_INSERT_TAIL(&cam_bioq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			sched_swi(cambio_ih, SWI_NOSWITCH);
+			swi_sched(cambio_ih, SWI_NOSWITCH);
 			break;
 		case CAM_PERIPH_NET:
 			TAILQ_INSERT_TAIL(&cam_netq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			sched_swi(camnet_ih, SWI_NOSWITCH);
+			swi_sched(camnet_ih, SWI_NOSWITCH);
 			break;
 		}
 	}
