@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.12 1995/07/13 08:48:07 davidg Exp $
+ * $Id: lfs_vnops.c,v 1.13 1995/08/01 18:51:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -234,12 +234,6 @@ lfs_fsync(ap)
 	struct timeval tv;
 	int error;
 	tv = time;
-	/*
-	 * If the vnode has an object, then flush all of the dirty pages
-	 * into the buffer cache.
-	 */
-	if (ap->a_vp->v_object)
-		vm_object_page_clean(ap->a_vp->v_object, 0, 0, 0, TRUE);
 
 	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));
