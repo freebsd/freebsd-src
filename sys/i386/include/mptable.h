@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.29 1997/08/21 04:53:27 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.30 1997/08/24 20:19:47 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -207,6 +207,7 @@ int	current_postcode;
 /** XXX FIXME: what system files declare these??? */
 extern struct region_descriptor r_gdt, r_idt;
 
+int	bsp_apic_ready = 0;	/* flags useability of BSP apic */
 int	mp_ncpus;		/* # of CPUs, including BSP */
 int	mp_naps;		/* # of Applications processors */
 int	mp_nbusses;		/* # of busses */
@@ -1480,6 +1481,7 @@ start_all_aps(u_int boot_addr)
 
 	/* initialize BSP's local APIC */
 	apic_initialize();
+	bsp_apic_ready = 1;
 
 	/* install the AP 1st level boot code */
 	install_ap_tramp(boot_addr);

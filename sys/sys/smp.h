@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.23 1997/08/21 04:48:45 smp Exp smp $
+ * $Id: smp.h,v 1.24 1997/08/24 20:17:05 smp Exp smp $
  *
  */
 
@@ -85,6 +85,7 @@ u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
 
 /* global data in mp_machdep.c */
+extern int			bsp_apic_ready;
 extern int			mp_ncpus;
 extern int			mp_naps;
 extern int			mp_nbusses;
