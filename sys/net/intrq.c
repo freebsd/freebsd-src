@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -90,6 +91,9 @@ family_enqueue(family, m)
 				if (! IF_HANDOFF(queue[entry].q, m, NULL))
 					return ENOBUFS;
 				schednetisr(queue[entry].isr);
+				/* First chunk of an mbuf contains good junk */
+				if (harvest.point_to_point)
+					random_harvest(m, 16, 3, 0, RANDOM_NET);
 				return 0;
 			} else
 				break;
