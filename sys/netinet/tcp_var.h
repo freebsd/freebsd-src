@@ -569,7 +569,7 @@ void	 tcp_hc_updatetao(struct in_conninfo *, int, tcp_cc, u_short);
 #define TCP_HC_TAO_MSSOPT	0x3
 
 #ifdef TCP_SIGNATURE
-int tcpsignature_apply(void *fstate, void *data, unsigned int len);
+int tcpsignature_apply(void *fstate, void *data, u_int len);
 int tcpsignature_compute(struct mbuf *m, int off0, int len, int tcpoptlen,
     u_char *buf, u_int direction);
 #endif /* TCP_SIGNATURE */
