@@ -1029,6 +1029,7 @@ fr_info_t *fin;
 		hv %= fr_statesize;
 
 		oip->ip_len = ntohs(oip->ip_len);
+		ofin.fin_v = 4;
 		fr_makefrip(oip->ip_hl << 2, oip, &ofin);
 		oip->ip_len = htons(oip->ip_len);
 		ofin.fin_ifp = fin->fin_ifp;
@@ -1078,6 +1079,7 @@ fr_info_t *fin;
 	 */
 	savelen = oip->ip_len;
 	oip->ip_len = ip->ip_len - (ip->ip_hl << 2) - ICMPERR_ICMPHLEN;
+	ofin.fin_v = 4;
 	fr_makefrip(oip->ip_hl << 2, oip, &ofin);
 	oip->ip_len = savelen;
 	ofin.fin_ifp = fin->fin_ifp;
@@ -1579,6 +1581,7 @@ fr_info_t *fin;
 		hv %= fr_statesize;
 
 		oip->ip6_plen = ntohs(oip->ip6_plen);
+		ofin.fin_v = 6;
 		fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
 		oip->ip6_plen = htons(oip->ip6_plen);
 		ofin.fin_ifp = fin->fin_ifp;
