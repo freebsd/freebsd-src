@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
 static char rcsid[] =
-	"$Id: vacation.c,v 1.5 1997/02/22 19:57:39 peter Exp $";
+	"$Id: vacation.c,v 1.6 1997/03/29 04:33:44 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -415,7 +415,7 @@ sendmessage(myname)
 		syslog(LOG_ERR, "vacation: pipe: %s", strerror(errno));
 		exit(1);
 	}
-	i = vfork();
+	i = fork();
 	if (i < 0) {
 		syslog(LOG_ERR, "vacation: fork: %s", strerror(errno));
 		exit(1);
