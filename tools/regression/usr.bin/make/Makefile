@@ -18,42 +18,53 @@ DATA2=	yello
 DATA1:=	${DATA5:S/l/r/g}
 NIL=
 
+SMAKE=	${MAKE} -C ${.CURDIR}
+
 all:
-	@if [ ! -x ${.CURDIR}/shell_test ] ; then chmod +x ${.CURDIR}/shell_test ; fi
-	@echo '1..16'
+	@if [ ! -x ./shell_test ] ; then \
+		${INSTALL} -m 555 ${.CURDIR}/shell_test.sh shell_test ; \
+	fi
+	@echo '1..17'
+	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
+	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
-		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
-	@echo "ok 1 - test_variables # Test variables detected no regression, output matches."
-	@${MAKE} double 2>/dev/null || ${MAKE} failure
-	@echo "ok 2 - test_targets # Test targets detected no regression."
-	@${MAKE} sysvmatch || ${MAKE} failure
-	@echo "ok 3 - sysvmatch # Test sysvmatch detected no regression."
-	@! ${MAKE} lhs_expn && true || ${MAKE} failure
-	@echo "ok 4 lhs_expn # Test lhs_expn detected no regression."
-	@${MAKE} notdef || ${MAKE} failure
-	@echo "ok 5 - notdef # Test notdef detected no regression."
-	@${MAKE} modifiers || ${MAKE} failure
-	@echo "ok 6 - modifiers # Test modifiers detected no regression."
-	@${MAKE} funny_targets || ${MAKE} failure
-	@echo "ok 7 funny_targets # Test funny_targets detected no regression."
-	@${MAKE} arith_expr || ${MAKE} failure
-	@echo "ok 8 arith_expr # Test arith_expr detected no regression."
-	@${MAKE} PATH_exists || ${MAKE} failure
-	@echo "ok 9 PATH_exists # Test PATH_exists detected no regression."
-	@${MAKE} double_quotes || ${MAKE} failure
-	@echo "ok 10 double_quotes # Test double_quotes detected no regression."
-	@! ${MAKE} double_quotes2 >/dev/null 2>&1 && true || ${MAKE} failure
-	@echo "ok 11 double_quotes2 # Test double_quotes2 detected no regression."
-	@${MAKE} pass_cmd_vars || ${MAKE} failure
-	@echo "ok 12 pass_cmd_vars # Test pass_cmd_vars detected no regression."
-	@${MAKE} plus_flag || ${MAKE} failure
-	@echo "ok 13 plus_flag # Test plus_flag detected no regression."
-	@! ${MAKE} shell >/dev/null 2>&1 && true || ${MAKE} failure
-	@echo "ok 14 shell # Test shell detected no regression."
-	@${MAKE} shell_1 || ${MAKE} failure
-	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
-	@${MAKE} shell_2 || ${MAKE} failure
-	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
+		diff -u ${.CURDIR}/regress.variables.out - || \
+		${SMAKE} failure
+	@echo "ok 2 - test_variables # Test variables detected no regression, output matches."
+	@${SMAKE} double 2>/dev/null || ${SMAKE} failure
+	@echo "ok 3 - test_targets # Test targets detected no regression."
+	@${SMAKE} sysvmatch || ${SMAKE} failure
+	@echo "ok 4 - sysvmatch # Test sysvmatch detected no regression."
+	@! ${SMAKE} lhs_expn && true || ${SMAKE} failure
+	@echo "ok 5 lhs_expn # Test lhs_expn detected no regression."
+	@${SMAKE} notdef || ${SMAKE} failure
+	@echo "ok 6 - notdef # Test notdef detected no regression."
+	@${SMAKE} modifiers || ${SMAKE} failure
+	@echo "ok 7 - modifiers # Test modifiers detected no regression."
+	@${SMAKE} funny_targets || ${SMAKE} failure
+	@echo "ok 8 funny_targets # Test funny_targets detected no regression."
+	@${SMAKE} arith_expr || ${SMAKE} failure
+	@echo "ok 9 arith_expr # Test arith_expr detected no regression."
+	@${SMAKE} PATH_exists || ${SMAKE} failure
+	@echo "ok 10 PATH_exists # Test PATH_exists detected no regression."
+	@${SMAKE} double_quotes || ${SMAKE} failure
+	@echo "ok 11 double_quotes # Test double_quotes detected no regression."
+	@! ${SMAKE} double_quotes2 >/dev/null 2>&1 && true || ${SMAKE} failure
+	@echo "ok 12 double_quotes2 # Test double_quotes2 detected no regression."
+	@${SMAKE} pass_cmd_vars || ${SMAKE} failure
+	@echo "ok 13 pass_cmd_vars # Test pass_cmd_vars detected no regression."
+	@${SMAKE} plus_flag || ${SMAKE} failure
+	@echo "ok 14 plus_flag # Test plus_flag detected no regression."
+	@! ${SMAKE} shell >/dev/null 2>&1 && true || ${SMAKE} failure
+	@echo "ok 15 shell # Test shell detected no regression."
+	@${SMAKE} shell_1 || ${SMAKE} failure
+	@echo "ok 16 shell_1 # Test shell_1 detected no regression."
+	@${SMAKE} shell_2 || ${SMAKE} failure
+	@echo "ok 17 shell_2 # Test shell_2 detected no regression."
+
+.if make(C_check)
+C_check:
+.endif
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -91,7 +102,7 @@ notdef:
 .if make(modifiers)
 # See if make(1) supports the C modifier.
 modifiers:
-	@if ${MAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
+	@if ${SMAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
 	    grep -q "Unknown modifier 'C'"; then \
 		false; \
 	fi
@@ -138,10 +149,10 @@ double_quotes2:
 #
 .if make(pass_cmd_vars)
 pass_cmd_vars:
-	@${MAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_1
-	@${MAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_2
-	@${MAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_3
-	@${MAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_4
+	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_1
+	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_2
+	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_3
+	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_4
 .endif
 
 .if make(pass_cmd_vars_1)
@@ -182,7 +193,7 @@ pass_cmd_vars_2:
 # command line
 
 pass_cmd_vars_3:
-	@${MAKE} CMD1=foo1 pass_cmd_vars_3_1
+	@${SMAKE} CMD1=foo1 pass_cmd_vars_3_1
 .endif
 
 .if make(pass_cmd_vars_3_1)
@@ -200,7 +211,7 @@ pass_cmd_vars_3_1:
 .MAKEFLAGS: CMD1=baz1
 
 pass_cmd_vars_4:
-	@${MAKE} pass_cmd_vars_4_1
+	@${SMAKE} pass_cmd_vars_4_1
 
 .if ${CMD1} != baz1 || ${CMD2} != cmd2
 .error MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target
@@ -219,7 +230,7 @@ pass_cmd_vars_4_1:
 # Test whether make supports the '+' flag (meaning: execute even with -n)
 #
 .if make(plus_flag)
-OUT != ${MAKE} -n plus_flag_1
+OUT != ${SMAKE} -n plus_flag_1
 .if ${OUT} != "/tmp"
 .error make doesn't handle + flag
 .endif
@@ -243,13 +254,13 @@ shell:
 # in the base system we test that we can set sh and csh. We try only exact
 # matching names and do not exercise the rather strange matching algorithm.
 shell_1:
-	@${MAKE} shell_1_csh
-	@${MAKE} shell_1_sh
+	@${SMAKE} shell_1_csh
+	@${SMAKE} shell_1_sh
 .endif
 .if make(shell_1_csh)
 .SHELL: name="csh"
 shell_1_csh:
-	@echo $${shell} | grep -q '^/bin/csh$$'
+	@ps -ax -opid,command | awk '$$1=="'$$$$'" { print $$2 }' | grep -E -q '^(/bin/)?csh$$'
 .endif
 .if make(shell_1_sh)
 .SHELL: name="sh"
@@ -261,14 +272,14 @@ shell_1_sh:
 # Test if we can replace the shell specification. We do this by using
 # a shell scripts that prints us its arguments and standard input as the shell
 shell_2:
-	@${MAKE} -B shell_2B | \
+	@${SMAKE} -B shell_2B | \
 		diff -u ${.CURDIR}/regress.shell_2B.out - || false
-	@${MAKE} -j1 shell_2j | \
+	@${SMAKE} -j1 shell_2j | \
 		diff -u ${.CURDIR}/regress.shell_2j.out - || false
 .endif
 
 .if make(shell_2B)
-.SHELL: name="echo" path="${.CURDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
+.SHELL: name="echo" path="${.OBJDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
 
 shell_2B:
 	-@funny $$
@@ -276,7 +287,7 @@ shell_2B:
 .endif
 
 .if make(shell_2j)
-.SHELL: name="echo" path="${.CURDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
+.SHELL: name="echo" path="${.OBJDIR}/shell_test" quiet="be quiet" echo="be verbose" filter="be verbose" echoFlag="x" errFlag="y" hasErrCtl=y check="check errors" ignore="ignore errors"
 
 shell_2j:
 	-@funny $$
@@ -286,3 +297,6 @@ shell_2j:
 failure:
 	@echo "not ok # Test failed: regression detected.  See above."
 	@false
+
+clean:
+	rm -f shell_test
