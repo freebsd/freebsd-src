@@ -1,5 +1,6 @@
 /*
  * $Id: misc_conv.c,v 1.3 2001/01/20 22:29:47 agmorgan Exp $
+ * $FreeBSD$
  *
  * A generic conversation function for text based applications
  *
@@ -18,6 +19,7 @@
 #include <unistd.h>
 
 #include <security/pam_appl.h>
+#include <security/pam_client.h>
 #include <security/pam_misc.h>
 
 #define INPUTSIZE PAM_MAX_MSG_SIZE           /* maximum length of input+1 */

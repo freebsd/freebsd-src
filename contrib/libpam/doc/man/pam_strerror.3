@@ -1,8 +1,9 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\" ripped off from Rick Faith's getgroups man page
-.\" $Id: pam_strerror.3,v 1.2 1997/02/15 18:53:04 morgan Exp $
-.\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@parc.power.net>
-.TH PAM_STRERROR 3 "1997 Feb 15" "PAM 0.56" "Programmers' Manual"
+.\" $Id: pam_strerror.3,v 1.1.1.1 2000/06/20 22:10:58 agmorgan Exp $
+.\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@linux.kernel.org>
+.\" $FreeBSD$
+.TH PAM_STRERROR 3 "1999 Oct 4" "PAM 0.70" "Programmers' Manual"
 .SH NAME
 
 pam_strerror \- return a textual description of a PAM error
@@ -14,14 +15,16 @@ or,
 .br
 .B #include <security/pam_modules.h>
 .sp
-.BI "const char *pam_strerror(" int " pam_error);
+.BI "const char * pam_strerror( pam_handle_t " "*pamh" ", int " pam_error ");"
 .sp 2
 .SH DESCRIPTION
 .B pam_strerror
 
-This function returns a pointer to a line of text describing the
+This function returns some text describing the
 .BR PAM
-error passed as its sole argument.
+error associated with the
+.B pam_error
+argument.
 
 .SH "RETURN VALUE"
 
@@ -41,7 +44,7 @@ This function should be internationalized.
 .BR pam "(8). "
 
 Also, see the three
-.BR Linux-PAM
+.BR PAM
 Guides, for
 .BR "System administrators" ", "
 .BR "module developers" ", "
