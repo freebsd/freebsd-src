@@ -340,6 +340,24 @@
     </sect2>
 
     <sect2>
+      <title>Manual Pages</title>
+
+      <para>As with almost all UNIX-like operating systems, &os; comes
+	with a set of on-line manual pages, accessed through the
+	&man.man.1; command or through the <ulink
+	url="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
+	pages gateway</ulink> on the &os; Web site.  In general, the
+	manual pages provide information on the different commands and
+	APIs available to the &os; user.</para>
+
+      <para>In some cases, manual pages are written to given
+	information on particular topics.  Notable examples of such
+	manual pages are &man.tuning.7; (a guide to performance tuning),
+	&man.security.7; (an introduction to &os; security), and
+	&man.style.9; (a style guide to kernel coding).</para>
+    </sect2>
+
+    <sect2>
       <title>Books and Articles</title>
 
       <para>Two highly-useful collections of &os;-related information,
