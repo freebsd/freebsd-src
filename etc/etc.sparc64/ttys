@@ -46,6 +46,8 @@ ofwcons	"/usr/libexec/getty std.9600"	vt100	on  secure
 #ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
+ttya	"/usr/libexec/getty local.9600"	dialup	off secure
+ttyb	"/usr/libexec/getty local.9600"	dialup	off secure
 ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
