@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.86 1999/01/06 23:05:42 julian Exp $
+ * $Id: vm_mmap.c,v 1.86.2.1 1999/01/27 20:51:44 julian Exp $
  */
 
 /*
@@ -231,7 +231,9 @@ mmap(p, uap)
 	 * There should really be a pmap call to determine a reasonable
 	 * location.
 	 */
-	else if (addr < round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ))
+	else if (addr == 0 ||
+	    addr >= round_page((vm_offset_t)p->p_vmspace->vm_taddr) &&
+	    addr < round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ))
 		addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ);
 
 	if (flags & MAP_ANON) {
