@@ -55,6 +55,7 @@ chunk_name(chunk_e type)
 	case freebsd:	return ("freebsd");
 	case fat:	return ("fat");
 	case spare:	return ("spare");
+	case efi:	return ("efi");
 	default:	return ("??");
 	}
 };
@@ -72,7 +73,7 @@ uuid_type(uuid_t *uuid)
 	if (uuid_is_nil(uuid, NULL))
 		return (unused);
 	if (uuid_equal(uuid, &_efi, NULL))
-		return (fat);
+		return (efi);
 	if (uuid_equal(uuid, &_mbr, NULL))
 		return (mbr);
 	if (uuid_equal(uuid, &_fbsd, NULL))
@@ -595,6 +596,8 @@ slice_type_name( int type, int subtype )
 		return "extended";
 	case part:
 		return "part";
+	case efi:
+		return "efi";
 	case unused:
 		return "unused";
 	default:
