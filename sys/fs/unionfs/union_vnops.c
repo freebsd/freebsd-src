@@ -297,7 +297,6 @@ union_lookup(ap)
 	struct union_node *dun = VTOUNION(dvp);	/* associated union node */
 	struct componentname *cnp = ap->a_cnp;
 	struct thread *td = cnp->cn_thread;
-	int lockparent = cnp->cn_flags & LOCKPARENT;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(dvp->v_mount);
 	struct ucred *saved_cred = NULL;
 	int iswhiteout;
@@ -579,30 +578,11 @@ out:
 	if (lowervp)
 		vput(lowervp);
 
-	/*
-	 * Restore LOCKPARENT state
-	 */
-
-	if (!lockparent)
-		cnp->cn_flags &= ~LOCKPARENT;
-
 	UDEBUG(("Out %d vpp %p/%d lower %p upper %p\n", error, *ap->a_vpp,
 		((*ap->a_vpp) ? vrefcnt(*ap->a_vpp) : -99),
 		lowervp, uppervp));
 
 	if (error == 0 || error == EJUSTRETURN) {
-		/*
-		 * dvp lock state, determine whether to relock dvp.
-		 * We are expected to unlock dvp unless:
-		 *
-		 *	- there was an error (other than EJUSTRETURN), or
-		 *	- we hit the last component and lockparent is true
-		 */
-		if (*ap->a_vpp != dvp) {
-			if (!lockparent || (cnp->cn_flags & ISLASTCN) == 0)
-				VOP_UNLOCK(dvp, 0, td);
-		}
-
 		if (cnp->cn_namelen == 1 &&
 		    cnp->cn_nameptr[0] == '.' &&
 		    *ap->a_vpp != dvp) {
