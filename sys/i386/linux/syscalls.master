@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.15 1998/12/22 08:59:19 sos Exp $
+	$Id: syscalls.master,v 1.16 1998/12/30 20:58:28 sos Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -110,10 +110,10 @@
 73	STD	LINUX	{ int linux_sigpending(linux_sigset_t *mask); }
 74	NOPROTO	LINUX	{ int osethostname(char *hostname, \
 			    u_int len);}
-75	NOPROTO	LINUX	{ int osetrlimit(u_int which, \
-			    struct ogetrlimit *rlp); }
-76	NOPROTO	LINUX	{ int ogetrlimit(u_int which, \
-			    struct ogetrlimit *rlp); }
+75	STD	LINUX	{ int linux_setrlimit(u_int resource, \
+			    struct ogetrlimit *rlim); }
+76	STD	LINUX	{ int linux_getrlimit(u_int resource, \
+			    struct ogetrlimit *rlim); }
 77	NOPROTO	LINUX	{ int getrusage(int who, struct rusage *rusage); }
 78	NOPROTO	LINUX	{ int gettimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
