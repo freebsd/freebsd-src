@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.68 1998/01/01 23:17:05 steve Exp $
+#	$Id: Makefile,v 1.69 1998/01/02 09:39:12 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -37,7 +37,7 @@ LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs pccard sys vm \
 		# netccitt netiso
 
 LNOHEADERDIRS=	isofs ufs
-LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/lfs ufs/mfs ufs/ufs
+LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
