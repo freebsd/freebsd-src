@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.81 1998/10/23 10:44:52 phk Exp $
+ * $Id: kern_clock.c,v 1.82 1998/10/25 17:44:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -355,6 +355,7 @@ statclock(frame)
 {
 #ifdef GPROF
 	register struct gmonparam *g;
+	int i;
 #endif
 	register struct proc *p;
 	struct pstats *pstats;
