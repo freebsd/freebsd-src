@@ -38,6 +38,7 @@
 .Op Fl l
 .Op Fl m
 .Op Fl s
+.Op Fl z
 .Op Fl u Ar user
 .Op Fl t Ar tty
 .Op Fl c Ar procname
@@ -103,6 +104,10 @@ or
 flags, limit potentially matching processes to those matching
 the specified
 .Ar progname .
+.It Fl z
+Don't skip zombies.  
+This should not have any effect except to print a few error messages
+if there are zombie processes that match the specified pattern.
 .El
 .Sh ALL PROCESSES
 Sending a signal to all processes with uid
