@@ -65,7 +65,7 @@ __swbuf(c, fp)
 	 * calls might wrap _w from negative to positive.
 	 */
 	fp->_w = fp->_lbfsize;
-	if (cantwrite(fp))
+	if (prepwrite(fp) != 0)
 		return (EOF);
 	c = (unsigned char)c;
 
