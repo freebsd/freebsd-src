@@ -37,6 +37,7 @@
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
