@@ -27,10 +27,8 @@
  */
 
 /* #define ENTROPYSOURCE nn	   entropy sources (actually classes)
- *				   The entropy classes will as follows:
- *					0 - Direct write
- *					1 - Keyboard
- *					2 - Mouse
+ *					This is properly defined in
+ *					an enum in sys/random.h
  */
 
 #define ENTROPYBIN	256	/* buckets to harvest entropy events  */
