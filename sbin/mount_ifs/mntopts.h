@@ -56,6 +56,7 @@ struct mntopt {
 #define MOPT_NOCLUSTERR		{ "clusterr",	1, MNT_NOCLUSTERR, 0 }
 #define MOPT_NOCLUSTERW		{ "clusterw",	1, MNT_NOCLUSTERW, 0 }
 #define MOPT_SUIDDIR		{ "suiddir",	0, MNT_SUIDDIR, 0 }
+#define MOPT_SNAPSHOT		{ "snapshot",	0, MNT_SNAPSHOT, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
