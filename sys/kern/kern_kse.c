@@ -320,58 +320,97 @@ thread_free(struct thread *td)
 
 /*
  * Store the thread context in the UTS's mailbox.
+ * then add the mailbox at the head of a list we are building in user space.
+ * The list is anchored in the ksegrp structure.
  */
 int
 thread_export_context(struct thread *td)
 {
-	struct kse *ke;
-	uintptr_t td2_mbx;
-	void *addr1;
-	void *addr2;
+	struct ksegrp *kg;
+	uintptr_t mbx;
+	void *addr;
 	int error;
 	ucontext_t uc;
-	int unbound;
 
-	unbound = (td->td_flags & TDF_UNBOUND);
-	td->td_flags &= ~TDF_UNBOUND;	
-#ifdef __ia64__
-	td2_mbx = 0;		/* pacify gcc (!) */
-#endif
 	/* Export the user/machine context. */
-	error = copyin((caddr_t)td->td_mailbox +
-	    offsetof(struct kse_thr_mailbox, tm_context),
-	    &uc,
-	    sizeof(ucontext_t));
+#if 0
+	addr = (caddr_t)td->td_mailbox +
+	    offsetof(struct kse_thr_mailbox, tm_context);
+#else /* if user pointer arithmetic is valid in the kernel */
+		addr = (void *)(&td->td_mailbox->tm_context);
+#endif
+	error = copyin(addr, &uc, sizeof(ucontext_t));
 	if (error == 0) {
 		thread_getcontext(td, &uc);
-		error = copyout(&uc, (caddr_t)td->td_mailbox +
-		offsetof(struct kse_thr_mailbox, tm_context),
-		sizeof(ucontext_t));
-	}
+		error = copyout(&uc, addr, sizeof(ucontext_t));
 
-	ke = td->td_kse;
-	addr1 = (caddr_t)ke->ke_mailbox
-			+ offsetof(struct kse_mailbox, km_completed);
-	addr2 = (caddr_t)td->td_mailbox
-			+ offsetof(struct kse_thr_mailbox, tm_next);
-	/* Then link it into it's KSE's list of completed threads. */
-	if (!error) {
-		error = td2_mbx = fuword(addr1);
-		if (error == -1)
-			error = EFAULT;
-		else
-			error = 0;
 	}
-	if (!error)
-		error = suword(addr2, td2_mbx);
-	if (!error)
-		error = suword(addr1, (u_long)td->td_mailbox);
-	if (error == -1)
-		error = EFAULT;
-	td->td_flags |= unbound;
-	return (error);
+	if (error) {
+		psignal(td->td_proc, SIGSEGV);
+		return (error);
+	}
+	/* get address in latest mbox of list pointer */
+#if 0
+	addr = (caddr_t)td->td_mailbox
+	    + offsetof(struct kse_thr_mailbox , tm_next);
+#else /* if user pointer arithmetic is valid in the kernel */
+	addr = (void *)(&td->td_mailbox->tm_next);
+#endif
+	/*
+	 * Put the saved address of the previous first
+	 * entry into this one
+	 */
+	kg = td->td_ksegrp;
+	for (;;) {
+		mbx = (uintptr_t)kg->kg_completed;
+		if (suword(addr, mbx)) {
+			psignal(kg->kg_proc, SIGSEGV);
+			return (EFAULT);
+		}
+		PROC_LOCK(kg->kg_proc);
+		if (mbx == (uintptr_t)kg->kg_completed) {
+			kg->kg_completed = td->td_mailbox;
+			PROC_UNLOCK(kg->kg_proc);
+			break;
+		}
+		PROC_UNLOCK(kg->kg_proc);
+	}
+	return (0);
 }
 
+/*
+ * Take the list of completed mailboxes for this KSEGRP and put them on this
+ * KSE's mailbox as it's the next one going up.
+ */
+static int
+thread_link_mboxes(struct ksegrp *kg, struct kse *ke)
+{
+	void *addr;
+	uintptr_t mbx;
+
+#if 0
+	addr = (caddr_t)ke->ke_mailbox
+	    + offsetof(struct kse_mailbox, km_completed);
+#else /* if user pointer arithmetic is valid in the kernel */
+		addr = (void *)(&ke->ke_mailbox->km_completed);
+#endif
+	for (;;) {
+		mbx = (uintptr_t)kg->kg_completed;
+		if (suword(addr, mbx)) {
+			psignal(kg->kg_proc, SIGSEGV);
+			return (EFAULT);
+		}
+		/* XXXKSE could use atomic CMPXCH here */
+		PROC_LOCK(kg->kg_proc);
+		if (mbx == (uintptr_t)kg->kg_completed) {
+			kg->kg_completed = NULL;
+			PROC_UNLOCK(kg->kg_proc);
+			break;
+		}
+		PROC_UNLOCK(kg->kg_proc);
+	}
+	return (0);
+}
 
 /*
  * Discard the current thread and exit from its context.
@@ -586,9 +625,10 @@ thread_consider_upcalling(struct thread *td)
 
 	/*
 	 * Save the thread's context, and link it
-	 * into the KSE's list of completed threads.
+	 * into the KSEGRP's list of completed threads.
 	 */
 	error = thread_export_context(td);
+	td->td_flags &= ~TDF_UNBOUND;
 	td->td_mailbox = NULL;
 	if (error)
 		/*
@@ -599,7 +639,7 @@ thread_consider_upcalling(struct thread *td)
 		return (error);
 
 	/*
-	 * Decide whether to perfom an upcall now.
+	 * Decide whether to perform an upcall now.
 	 */
 	/* Make sure there are no other threads waiting to run. */
 	p = td->td_proc;
@@ -624,25 +664,17 @@ thread_consider_upcalling(struct thread *td)
 		 * What is OUR priority?  The priority of the highest
 		 * sycall waiting to be returned?
 		 * For now, just let another KSE run (easiest).
-		 *
-		 * XXXKSE Future enhancement: Shove threads in this
-		 * state onto a list of completed threads hanging
-		 * off the KSEG. Then, collect them before performing
-		 * an upcall. This way, we don't commit to an upcall
-		 * on a particular KSE, but report completed threads on
-		 * the next upcall to any KSE in this KSEG.
-		 *
 		 */
 		thread_exit(); /* Abandon current thread. */
 		/* NOTREACHED */
-	} else
-		/*
-		 * Perform an upcall now.
-		 *
-		 * XXXKSE - Assumes we are going to userland, and not
-		 * nested in the kernel.
-		 */
-		td->td_flags |= TDF_UPCALLING;
+	} 
+	/*
+	 * Perform an upcall now.
+	 *
+	 * XXXKSE - Assumes we are going to userland, and not
+	 * nested in the kernel.
+	 */
+	td->td_flags |= TDF_UPCALLING;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	return (0);
@@ -664,40 +696,39 @@ int
 thread_userret(struct thread *td, struct trapframe *frame)
 {
 	int error;
+	int unbound;
+	struct kse *ke;
 
-#if 0
+	/* Make the thread bound from now on, but remember what it was. */
+	unbound = td->td_flags & TDF_UNBOUND;
+	td->td_flags &= ~TDF_UNBOUND;
 	/*
 	 * Ensure that we have a spare thread available.
 	 */
+	ke = td->td_kse;
 	if (ke->ke_tdspare == NULL) {
 		mtx_lock(&Giant);
 		ke->ke_tdspare = thread_alloc();
 		mtx_unlock(&Giant);
 	}
-#endif
 	/*
-	 * Bound threads need no additional work.
+	 * Originally bound threads need no additional work.
 	 */
-	if ((td->td_flags & TDF_UNBOUND) == 0)
+	if (unbound == 0)
 		return (0);
 	error = 0;
 	/*
 	 * Decide whether or not we should perform an upcall now.
 	 */
-	if (((td->td_flags & TDF_UPCALLING) == 0) && td->td_mailbox) {
-		error = thread_consider_upcalling(td);
-		if (error != 0)
-			/*
-			 * Failing to do the KSE operation just defaults
-			 * back to synchonous operation, so just return from
-			 * the syscall.
-			 */
-			goto cont;
+	if (((td->td_flags & TDF_UPCALLING) == 0) && unbound) {
+		/* if we have other threads to run we will not return */
+		if ((error = thread_consider_upcalling(td)))
+			return (error); /* coundn't go async , just go sync. */
 	}
 	if (td->td_flags & TDF_UPCALLING) {
 		/*
 		 * There is no more work to do and we are going to ride
-		 * this thead/KSE up to userland.
+		 * this thead/KSE up to userland as an upcall.
 		 */
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
@@ -705,32 +736,41 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		/*
 		 * Set user context to the UTS.
 		 */
-		td->td_flags &= ~TDF_UNBOUND;
-		cpu_set_upcall_kse(td, td->td_kse);
+		cpu_set_upcall_kse(td, ke);
+
+		/*
+		 * Put any completed mailboxes on this KSE's list.
+		 */
+		error = thread_link_mboxes(td->td_ksegrp, ke);
 		if (error)
-			/*
-			 * Failing to do the KSE operation just defaults
-			 * back to synchonous operation, so just return from
-			 * the syscall.
-			 */
-			goto cont;
+			goto bad;
 
 		/*
 		 * Set state and mailbox.
 		 */
 		td->td_flags &= ~TDF_UPCALLING;
-		error = suword((caddr_t)td->td_kse->ke_mailbox +
+#if 0
+		error = suword((caddr_t)ke->ke_mailbox +
 		    offsetof(struct kse_mailbox, km_curthread),
 		    0);
+#else	/* if user pointer arithmetic is ok in the kernel */
+		error = suword((caddr_t)&ke->ke_mailbox->km_curthread, 0);
+#endif
+		if (error)
+			goto bad;
 	}
-cont:
 	/*
 	 * Stop any chance that we may be separated from
 	 * the KSE we are currently on. This is "biting the bullet",
 	 * we are committing to go to user space as as this KSE here.
 	 */
-	td->td_flags &= ~TDF_UNBOUND;	/* Bind to this user thread. */
 	return (error);
+bad:
+	/*
+	 * Things are going to be so screwed we should just kill the process.
+ 	 * how do we do that?
+	 */
+	 panic ("thread_userret.. need to kill proc..... how?");
 }
 
 /*
