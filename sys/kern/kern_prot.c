@@ -143,6 +143,7 @@ getpgid(p, uap)
 	struct getpgid_args *uap;
 {
 	struct proc *pt;
+	int error;
 
 	pt = p;
 	if (uap->pid == 0)
@@ -150,6 +151,8 @@ getpgid(p, uap)
 
 	if ((pt = pfind(uap->pid)) == 0)
 		return ESRCH;
+	if ((error = p_can(p, pt, P_CAN_SEE, NULL)))
+		return (error);
 found:
 	p->p_retval[0] = pt->p_pgrp->pg_id;
 	return 0;
@@ -170,6 +173,7 @@ getsid(p, uap)
 	struct getsid_args *uap;
 {
 	struct proc *pt;
+	int error;
 
 	pt = p;
 	if (uap->pid == 0)
@@ -177,6 +181,8 @@ getsid(p, uap)
 
 	if ((pt = pfind(uap->pid)) == 0)
 		return ESRCH;
+	if ((error = p_can(p, pt, P_CAN_SEE, NULL)))
+		return (error);
 found:
 	p->p_retval[0] = pt->p_session->s_sid;
 	return 0;
@@ -349,12 +355,15 @@ setpgid(curp, uap)
 {
 	register struct proc *targp;		/* target process */
 	register struct pgrp *pgrp;		/* target pgrp */
+	int error;
 
 	if (uap->pgid < 0)
 		return (EINVAL);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == 0 || !inferior(targp))
 			return (ESRCH);
+		if ((error = p_can(curproc, targp, P_CAN_SEE, NULL)))
+			return (error);
 		if (targp->p_pgrp == NULL ||  targp->p_session != curp->p_session)
 			return (EPERM);
 		if (targp->p_flag & P_EXEC)
