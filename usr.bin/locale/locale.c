@@ -27,8 +27,8 @@
  */
 
 /*
- * XXX: implement missing int_* (LC_MONETARY) (require libc modification) and
- *	era_* (LC_TIME) keywords (require libc & nl_langinfo(3) extensions)
+ * XXX: implement missing era_* (LC_TIME) keywords (require libc &
+ *	nl_langinfo(3) extensions)
  *
  * XXX: correctly handle reserved 'charmap' keyword and '-m' option (require
  *      localedef(1) implementation).  Currently it's handled via
@@ -98,6 +98,12 @@ struct _lcinfo {
 #define KW_N_SEP_BY_SPACE 	(KW_ZERO+14)
 #define KW_P_SIGN_POSN 		(KW_ZERO+15)
 #define KW_N_SIGN_POSN 		(KW_ZERO+16)
+#define KW_INT_P_CS_PRECEDES 	(KW_ZERO+17)
+#define KW_INT_P_SEP_BY_SPACE 	(KW_ZERO+18)
+#define KW_INT_N_CS_PRECEDES 	(KW_ZERO+19)
+#define KW_INT_N_SEP_BY_SPACE 	(KW_ZERO+20)
+#define KW_INT_P_SIGN_POSN 	(KW_ZERO+21)
+#define KW_INT_N_SIGN_POSN 	(KW_ZERO+22)
 
 struct _kwinfo {
 	const char	*name;
@@ -132,6 +138,12 @@ struct _kwinfo {
 	{ "n_sep_by_space",	0, LC_MONETARY,	KW_N_SEP_BY_SPACE, "" },
 	{ "p_sign_posn",	0, LC_MONETARY,	KW_P_SIGN_POSN, "" },
 	{ "n_sign_posn",	0, LC_MONETARY,	KW_N_SIGN_POSN, "" },
+	{ "int_p_cs_precedes",	0, LC_MONETARY,	KW_INT_P_CS_PRECEDES, "" },
+	{ "int_p_sep_by_space",	0, LC_MONETARY,	KW_INT_P_SEP_BY_SPACE, "" },
+	{ "int_n_cs_precedes",	0, LC_MONETARY,	KW_INT_N_CS_PRECEDES, "" },
+	{ "int_n_sep_by_space",	0, LC_MONETARY,	KW_INT_N_SEP_BY_SPACE, "" },
+	{ "int_p_sign_posn",	0, LC_MONETARY,	KW_INT_P_SIGN_POSN, "" },
+	{ "int_n_sign_posn",	0, LC_MONETARY,	KW_INT_N_SIGN_POSN, "" },
 
 	{ "d_t_fmt",		1, LC_TIME,	D_T_FMT, "" },
 	{ "d_fmt",		1, LC_TIME,	D_FMT, "" },
@@ -464,6 +476,24 @@ kwval_lconv(int id)
 			break;
 		case KW_N_SIGN_POSN:
 			rval = &(lc->n_sign_posn);
+			break;
+		case KW_INT_P_CS_PRECEDES:
+			rval = &(lc->int_p_cs_precedes);
+			break;
+		case KW_INT_P_SEP_BY_SPACE:
+			rval = &(lc->int_p_sep_by_space);
+			break;
+		case KW_INT_N_CS_PRECEDES:
+			rval = &(lc->int_n_cs_precedes);
+			break;
+		case KW_INT_N_SEP_BY_SPACE:
+			rval = &(lc->int_n_sep_by_space);
+			break;
+		case KW_INT_P_SIGN_POSN:
+			rval = &(lc->int_p_sign_posn);
+			break;
+		case KW_INT_N_SIGN_POSN:
+			rval = &(lc->int_n_sign_posn);
 			break;
 		default:
 			break;
