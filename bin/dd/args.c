@@ -173,9 +173,9 @@ static int
 c_arg(a, b)
 	const void *a, *b;
 {
-	typedef const struct arg *c_arg_p;
 
-	return (strcmp(((c_arg_p)a)->name, ((c_arg_p)b)->name));
+	return (strcmp(((const struct arg *)a)->name,
+	    ((const struct arg *)b)->name));
 }
 
 static void
@@ -331,9 +331,9 @@ static int
 c_conv(a, b)
 	const void *a, *b;
 {
-	typedef const struct conv *c_conv_p;
 
-	return (strcmp(((c_conv_p)a)->name, ((c_conv_p)b)->name));
+	return (strcmp(((const struct conv *)a)->name,
+	    ((const struct conv *)b)->name));
 }
 
 /*
