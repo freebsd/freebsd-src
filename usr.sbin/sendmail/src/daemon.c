@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.48.1.2 (Berkeley) 2/9/95 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.48.1.4 (Berkeley) 2/28/95 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.48.1.2 (Berkeley) 2/9/95 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.48.1.4 (Berkeley) 2/28/95 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -995,6 +995,8 @@ getauthinfo(fd)
 	int s;
 	int i;
 	EVENT *ev;
+	int nleft;
+	char ibuf[MAXNAME + 1];
 #endif
 	static char hbuf[MAXNAME * 2 + 2];
 	extern char *hostnamebyanyaddr();
@@ -1030,7 +1032,7 @@ getauthinfo(fd)
 	}
 
 	/* create ident query */
-	(void) sprintf(hbuf, "%d,%d\r\n",
+	(void) sprintf(ibuf, "%d,%d\r\n",
 		ntohs(RealHostAddr.sin.sin_port), ntohs(la.sin.sin_port));
 
 	/* create local address */
@@ -1068,27 +1070,34 @@ getauthinfo(fd)
 	}
 
 	if (tTd(9, 10))
-		printf("getauthinfo: sent %s", hbuf);
+		printf("getauthinfo: sent %s", ibuf);
 
 	/* send query */
-	if (write(s, hbuf, strlen(hbuf)) < 0)
+	if (write(s, ibuf, strlen(ibuf)) < 0)
 		goto closeident;
 
 	/* get result */
-	i = read(s, hbuf, sizeof hbuf);
+	p = &ibuf[0];
+	nleft = sizeof(ibuf - 1);
+	while ((i = read(s, p, nleft)) > 0)
+	{
+		p += i;
+		nleft -= i;
+	}
 	(void) close(s);
 	clrevent(ev);
-	if (i <= 0)
+	if (i < 0 || p == &ibuf[0])
 		goto noident;
-	if (hbuf[--i] == '\n' && hbuf[--i] == '\r')
-		i--;
-	hbuf[++i] = '\0';
+
+	if (*--p == '\n' && *--p == '\r')
+		p--;
+	*++p = '\0';
 
 	if (tTd(9, 3))
-		printf("getauthinfo:  got %s\n", hbuf);
+		printf("getauthinfo:  got %s\n", ibuf);
 
 	/* parse result */
-	p = strchr(hbuf, ':');
+	p = strchr(ibuf, ':');
 	if (p == NULL)
 	{
 		/* malformed response */
