@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.14 1995/05/11 05:22:52 phk Exp $
+ * $Id: create_chunk.c,v 1.15 1995/05/12 18:49:57 phk Exp $
  *
  */
 
@@ -166,7 +166,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 {
 	int i;
 	struct chunk *c1;
-	u_long offset;
+	u_long offset,edge;
 
 	if (!parent)
 		parent = d->chunks;
@@ -179,6 +179,13 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	warn("Not enough unused space");
 	return 0;
     found:
+	if (c1->flags & CHUNK_BAD144) {
+		edge = c1->end - (d->bios_hd * d->bios_sect);
+		if (offset > edge)
+			return 0;
+		if (offset + size > edge)
+			size = edge - offset + 1;
+	}
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	if (i) {
 		warn("Didn't cut it");
@@ -196,8 +203,10 @@ MakeDev(struct chunk *c1, char *path)
 {
 	char *p = c1->name;
 	u_long cmaj,bmaj,min,unit,part,slice;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ],buf2[BUFSIZ];
 	
+	*buf2 = '\0';
+
 	if(!strcmp(p,"X"))
 	    return 0;
 
@@ -238,6 +247,8 @@ MakeDev(struct chunk *c1, char *path)
 	slice = slice+1;
 	if (!*p) {
 		part = 2;
+		if(c1->type == freebsd)
+			sprintf(buf2,"%sc",c1->name);
 		goto done;
 	}
 	if (*p < 'a' || *p > 'h')
@@ -251,6 +262,10 @@ MakeDev(struct chunk *c1, char *path)
 	min = unit * 8 + 65536 * slice + part;
 	sprintf(buf,"%s/r%s",path,c1->name);
 	unlink(buf); mknod(buf,S_IFCHR|0640,makedev(cmaj,min));
+	if(*buf2) {
+		sprintf(buf,"%s/r%s",path,buf2);
+		unlink(buf); mknod(buf,S_IFCHR|0640,makedev(cmaj,min));
+	}
 	sprintf(buf,"%s/%s",path,c1->name);
 	unlink(buf); mknod(buf,S_IFBLK|0640,makedev(bmaj,min));
 	return 1;
