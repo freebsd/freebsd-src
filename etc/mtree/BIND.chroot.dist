@@ -9,6 +9,8 @@
     ..
     etc
         namedb
+            dynamic uname=bind
+            ..
             master
             ..
             slave   uname=bind
