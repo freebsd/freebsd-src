@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.19 1995/10/12 17:37:24 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.20 1995/10/16 18:21:20 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -67,9 +69,17 @@
 
 /* patchable/settable parameters for tcp */
 int 	tcp_mssdflt = TCP_MSS;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+	CTLFLAG_RW, &tcp_mssdflt , 0, "");
 int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt,
+	CTLFLAG_RW, &tcp_rttdflt , 0, "");
 int	tcp_do_rfc1323 = 1;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
+	CTLFLAG_RW, &tcp_do_rfc1323 , 0, "");
 int	tcp_do_rfc1644 = 1;
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
+	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
 static	void tcp_cleartaocache(void);
 
 /*

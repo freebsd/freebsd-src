@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.16 1995/09/18 15:51:32 wollman Exp $
+ * $Id: in_rmx.c,v 1.17 1995/10/29 15:32:28 phk Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -146,10 +147,21 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-/* MIB variables: net.inet.ip.{rtexpire,rtmaxcache,rtminexpire}. */
-int rtq_reallyold = 60*60;	/* one hour is ``really old'' */
-int rtq_toomany = 128;		/* 128 cached routes is ``too many'' */
-int rtq_minreallyold = 10;	/* never automatically crank down to less */
+int rtq_reallyold = 60*60;
+	/* one hour is ``really old'' */
+SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
+	CTLFLAG_RW, &rtq_reallyold , 0, "");
+				   
+int rtq_minreallyold = 10;
+	/* never automatically crank down to less */
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire,
+	CTLFLAG_RW, &rtq_minreallyold , 0, "");
+				   
+int rtq_toomany = 128;
+	/* 128 cached routes is ``too many'' */
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache,
+	CTLFLAG_RW, &rtq_toomany , 0, "");
+				   
 
 /*
  * On last reference drop, mark the route as belong to us so that it can be
