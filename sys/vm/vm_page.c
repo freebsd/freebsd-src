@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.53 1996/05/31 00:38:03 dyson Exp $
+ *	$Id: vm_page.c,v 1.54 1996/06/05 03:31:48 dyson Exp $
  */
 
 /*
@@ -141,7 +141,6 @@ static inline __pure int
 		vm_page_hash __P((vm_object_t object, vm_pindex_t pindex))
 		__pure2;
 
-static void vm_page_unqueue_nowakeup __P((vm_page_t m));
 static int vm_page_freechk_and_unqueue __P((vm_page_t m));
 static void vm_page_free_wakeup __P((void));
 
@@ -526,7 +525,7 @@ vm_page_rename(m, new_object, new_pindex)
 /*
  * vm_page_unqueue without any wakeup
  */
-static __inline void
+__inline void
 vm_page_unqueue_nowakeup(m)
 	vm_page_t m;
 {

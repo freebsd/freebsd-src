@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.100 1996/06/05 06:36:21 dyson Exp $
+ *	$Id: pmap.c,v 1.101 1996/06/07 02:36:08 dyson Exp $
  */
 
 /*
@@ -730,17 +730,6 @@ pmap_release(pmap)
 	if (object->ref_count != 1)
 		panic("pmap_release: pteobj reference count != 1");
 	
-	/*
-	 * Wait until any (bogus) paging activity on this object is
-	 * complete.
-	 */
-	s = splvm();
-	while (object->paging_in_progress) {
-		object->flags |= OBJ_PIPWNT;
-		tsleep(object,PVM,"pmrlob",0);
-	}
-	splx(s);
-
 	ptdpg = NULL;
 retry:
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
@@ -749,15 +738,14 @@ retry:
 			ptdpg = p;
 			continue;
 		}
-		if ((p->flags & PG_BUSY) || p->busy)
-			continue;
 		if (!pmap_release_free_page(pmap, p))
 			goto retry;
 	}
 	if (ptdpg == NULL)
 		panic("pmap_release: missing page table directory page");
 
-	pmap_release_free_page(pmap, ptdpg);
+	if (!pmap_release_free_page(pmap, ptdpg))
+		goto retry;
 
 	vm_object_deallocate(object);
 	if (pdstackptr < PDSTACKMAX) {
@@ -1173,7 +1161,11 @@ pmap_remove(pmap, sva, eva)
 	}
 }
 
-
+/*
+ * Remove pte mapping, don't do everything that we would do
+ * for normal pages because many things aren't necessary (like
+ * pmap_update())...
+ */	
 void
 pmap_remove_pte_mapping(pa)
 	vm_offset_t pa;
@@ -1189,7 +1181,6 @@ pmap_remove_pte_mapping(pa)
 		unsigned tpte;
 		struct pmap *pmap;
 
-		anyvalid = 1;
 		pmap = pv->pv_pmap;
 		pte = get_ptbase(pmap) + i386_btop(pv->pv_va);
 		if (tpte = *pte) {
@@ -1200,13 +1191,11 @@ pmap_remove_pte_mapping(pa)
 		}
 	}
 
-	if (anyvalid) {
-		for (pv = *ppv; pv; pv = npv) {
-			npv = pv->pv_next;
-			free_pv_entry(pv);
-		}
-		*ppv = NULL;
+	for (pv = *ppv; pv; pv = npv) {
+		npv = pv->pv_next;
+		free_pv_entry(pv);
 	}
+	*ppv = NULL;
 }
 
 /*
@@ -1221,7 +1210,7 @@ pmap_remove_pte_mapping(pa)
  *		inefficient because they iteratively called
  *		pmap_remove (slow...)
  */
-static __inline void
+static void
 pmap_remove_all(pa)
 	vm_offset_t pa;
 {
