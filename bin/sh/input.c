@@ -292,8 +292,10 @@ check:
 
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && hist && something) {
+		HistEvent he;
 		INTOFF;
-		history(hist, whichprompt == 1 ? H_ENTER : H_ADD, parsenextc);
+		history(hist, &he, whichprompt == 1 ? H_ENTER : H_ADD,
+		    parsenextc);
 		INTON;
 	}
 #endif

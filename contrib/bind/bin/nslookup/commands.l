@@ -125,14 +125,15 @@ nslookup_yy_input(buf, result, max_size, intr)
 {
 	static EditLine *el = NULL;
 	static History *hist = NULL;
+	HistEvent he;
 	int num = 0;
 	const char *bp = NULL;
 
 	if (intr) {
 		if (!el) {
-			el = el_init("nslookup", yyin, yyout);
+			el = el_init("nslookup", yyin, yyout, stderr);
 			hist = history_init();
-			history(hist, H_EVENT, 100);
+			history(hist, &he, H_EVENT, 100);
 			el_set(el, EL_HIST, history, hist);
 			el_set(el, EL_EDITOR, "emacs");
 			el_set(el, EL_PROMPT, nslookup_prompt);
@@ -147,7 +148,7 @@ nslookup_yy_input(buf, result, max_size, intr)
 	
 		*result = (num > max_size) ? max_size : num;
 		strncpy(buf, bp, *result);
-		history(hist, H_ENTER, bp);
+		history(hist, &he, H_ENTER, bp);
 	} else {
 		if ( ((*result = fread( buf, 1, max_size, yyin )) == 0)
 			&& ferror( yyin ) )

@@ -220,15 +220,16 @@ cmdloop()
     struct cmdtable *cmdp;
     History *hist;
     EditLine *elptr;
+    HistEvent he;
 
     curinode = ginode(ROOTINO);
     curinum = ROOTINO;
     printactive();
 
     hist = history_init();
-    history(hist, H_EVENT, 100);	/* 100 elt history buffer */
+    history(hist, &he, H_EVENT, 100);	/* 100 elt history buffer */
 
-    elptr = el_init("fsdb", stdin, stdout);
+    elptr = el_init("fsdb", stdin, stdout, stderr);
     el_set(elptr, EL_EDITOR, "emacs");
     el_set(elptr, EL_PROMPT, prompt);
     el_set(elptr, EL_HIST, history, hist);
@@ -238,7 +239,7 @@ cmdloop()
 	if (debug)
 	    printf("command `%s'\n", elline);
 
-	history(hist, H_ENTER, elline);
+	history(hist, &he, H_ENTER, elline);
 
 	line = strdup(elline);
 	cmd_argv = crack(line, &cmd_argc);
