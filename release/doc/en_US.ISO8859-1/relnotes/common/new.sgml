@@ -168,6 +168,9 @@
         providing support for Ethernet adapters based on the RealTek
         RTL8150 USB to Fast Ethernet controller chip.</para>
 
+      <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
+        SHDSL modem has been added.</para>
+
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.</para>
 
@@ -203,7 +206,7 @@
       <title>Disks and Storage</title>
 
       <para>The &man.da.4; driver no longer tries to send 6-byte
-	commands to USB and Firewire devices.  The quirks for these
+	commands to USB and Firewire devices.  Quirks for USB
 	devices (which hopefully are now unnecessary) have been
 	disabled; to restore the old behavior, add <literal>options
 	DA_OLD_QUIRKS</literal> to the kernel configuration.</para>
