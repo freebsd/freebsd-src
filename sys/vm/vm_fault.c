@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.8 1994/10/15 10:33:47 davidg Exp $
+ * $Id: vm_fault.c,v 1.9 1994/10/15 13:33:07 davidg Exp $
  */
 
 /*
@@ -325,10 +325,12 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			}
 #endif
 				
-			if (swap_pager_full && !object->shadow && (!object->pager || 
+			if ((cnt.v_free_count < cnt.v_free_min) &&
+				swap_pager_full && !object->shadow && (!object->pager || 
 				(object->pager && object->pager->pg_type == PG_SWAP &&
 				!vm_pager_has_page(object->pager, offset+object->paging_offset)))) {
-				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) /* XXX */ {
+				if (vaddr < VM_MAXUSER_ADDRESS &&
+						curproc && curproc->p_pid >= 48) /* XXX */ {
 					printf("Process %lu killed by vm_fault -- out of swap\n", (u_long)curproc->p_pid);
 					psignal(curproc, SIGKILL);
 					curproc->p_estcpu = 0;
