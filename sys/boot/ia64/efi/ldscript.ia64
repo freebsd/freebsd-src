@@ -7,74 +7,67 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
   . = 0;
   ImageBase = .;
-  . += 4096;
-  .text :
-  {
-    *(.text)
-    *(.stub)
-    /* .gnu.warning sections are handled specially by elf32.em.  */
+  . = SIZEOF_HEADERS;
+  . = ALIGN(4096);
+  .text		: {
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em. */
     *(.gnu.warning)
-    *(.gnu.linkonce.t*)
     *(.plt)
-  }
+  } =0x00300000010070000002000001000400
   . = ALIGN(4096);
-  .hash          : { *(.hash) }
-  . = ALIGN(4096);
-  .data :
-  {
-    *(.rodata*)
+  .data		: {
+    *(.rodata .rodata.* .gnu.linkonce.r.*)
+    *(.rodata1)
+    *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
+    *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
+    *(.opd)
+    *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*)
+    *(.IA_64.unwind* .gnu.linkonce.ia64unw.*)
     __start_set_Xcommand_set = .;
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
-    *(.ctors)
-    *(.data)
+    *(.data .data.* .gnu.linkonce.d.*)
     *(.data1)
-    *(.gnu.linkonce.d*)
     *(.plabel)
-    *(.IA_64.unwind)
-    *(.IA_64.unwind_info)
-    *(.bss)
     *(.dynbss)
+    *(.bss .bss.* .gnu.linkonce.b.*)
     *(COMMON)
   }
   . = ALIGN(4096);
   __gp = .;
-  .sdata :
-  {
-    *(.got.plt)
-    *(.got)
+  .sdata	: {
+    *(.got.plt .got)
     *(.IA_64.pltoff)
-    *(.sdata)
-    *(.sbss)
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
+    *(dynsbss)
+    *(.sbss .sbss.* .gnu.linkonce.sb.*)
     *(.scommon)
   }
   . = ALIGN(4096);
-  .dynamic       : { *(.dynamic) }
+  .dynamic	: { *(.dynamic) }
   . = ALIGN(4096);
-  .rela :
-  {
-    *(.rela.text)
-    *(.rela.gnu.linkonce.t*)
-    *(.rela.set.*)
-    *(.rela.sdata)
-    *(.rela.data)
-    *(.rela.gnu.linkonce.d*)
+  .rela		: {
+    *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+    *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+    *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
     *(.rela.got)
-    *(.rela.stab)
-    *(.rela.ctors)
-    *(.relaset_*)
+    *(.rela.sdata .rela.sdata.* .rela.gnu.linkonce.s.*)
+    *(.rela.sbss .rela.sbss.* .rela.gnu.linkonce.sb.*)
+    *(.rela.sdata2 .rela.sdata2.* .rela.gnu.linkonce.s2.*)
+    *(.rela.sbss2 .rela.sbss2.* .rela.gnu.linkonce.sb2.*)
+    *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+    *(.rela.plt)
     *(.rela.IA_64.pltoff)
+    *(.relaset_*)
+    *(.rela.dyn .rela.dyn.*)
   }
   . = ALIGN(4096);
-  .reloc         : { *(.reloc) }
+  .reloc	: { *(.reloc) }
   . = ALIGN(4096);
-  .dynsym        : { *(.dynsym) }
+  .hash		: { *(.hash) }
   . = ALIGN(4096);
-  .dynstr        : { *(.dynstr) }
-  .ignored :
-  {
-    *(.rela.plabel)
-    *(.rela.reloc)
-  }
+  .dynsym	: { *(.dynsym) }
+  . = ALIGN(4096);
+  .dynstr	: { *(.dynstr) }
 }
-
