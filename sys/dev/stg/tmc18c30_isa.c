@@ -293,6 +293,5 @@ stgattach(device_t devi)
 
 	sc->sc_ih = stgintr;
 
-	printf("stg%d",device_get_unit(devi));
 	return(STGIOSZ);
 }
