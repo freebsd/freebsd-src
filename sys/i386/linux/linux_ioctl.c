@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.11.2.1 1996/11/09 21:10:15 phk Exp $
+ *  $Id: linux_ioctl.c,v 1.11.2.2 1997/06/02 06:31:49 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/sockio.h>
 
 #include <machine/soundcard.h>
+#include <machine/console.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -822,6 +823,58 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
       }
       return ioctl(p, (struct ioctl_args *)args, retval);
 
+   case LINUX_VT_OPENQRY:
+
+	args->cmd = VT_OPENQRY;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_GETMODE:
+
+	args->cmd = VT_GETMODE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_SETMODE:
+
+	args->cmd = VT_SETMODE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_GETSTATE:
+
+	args->cmd = VT_GETACTIVE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_ACTIVATE:
+
+	args->cmd = VT_ACTIVATE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_VT_WAITACTIVE:
+
+	args->cmd = VT_WAITACTIVE;
+	return  ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_KDGKBMODE:
+
+	args->cmd = KDGKBMODE;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_KDSKBMODE:
+      {
+        int kbdmode;
+	switch (args->arg) {
+	case LINUX_KBD_RAW:
+	    kbdmode = K_RAW;
+	    return (*func)(fp, KDSKBMODE, (caddr_t)&kbdmode, p);
+	case LINUX_KBD_XLATE:  
+	    kbdmode = K_XLATE;
+	    return (*func)(fp, KDSKBMODE , (caddr_t)&kbdmode, p);
+	case LINUX_KBD_MEDIUMRAW:
+	    kbdmode = K_RAW;
+	    return (*func)(fp, KDSKBMODE , (caddr_t)&kbdmode, p);
+	default:
+	    return EINVAL;
+	}
+      }
     }
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
 	    args->fd, (args->cmd&0xffff00)>>8,
