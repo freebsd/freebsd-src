@@ -125,7 +125,8 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
-    int i, boothowto;
+    size_t i;
+    int boothowto;
     sigset_t signalset;
 
     signal(SIGINT, SIG_IGN);
