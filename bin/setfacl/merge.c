@@ -146,7 +146,6 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 		}
 	}
 
-
 	if (acl_type == ACL_TYPE_ACCESS) {
 		acl_free(prev_acl[ACCESS_ACL]);
 		prev_acl[ACCESS_ACL] = acl_new;
