@@ -1621,7 +1621,7 @@ linker_load_module(const char *kldname, const char *modname,
 			return (EEXIST);
 		if (kldname != NULL)
 			pathname = linker_strdup(kldname);
-		else if (rootdev == NODEV)
+		else if (rootvnode == NULL)
 			pathname = NULL;
 		else
 			/*
