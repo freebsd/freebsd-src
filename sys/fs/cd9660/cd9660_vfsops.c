@@ -216,9 +216,13 @@ cd9660_mount(mp, path, data, ndp, p)
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
+	if (devsw(devvp->v_rdev) == NULL) {
+		vrele(devvp);
+		return (ENXIO);
+	}
 	if (!vn_isdisk(devvp)) {
 		vrele(devvp);
-		return ENOTBLK;
+		return (ENOTBLK);
 	}
 
 	/*       
