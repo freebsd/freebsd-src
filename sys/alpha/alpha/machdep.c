@@ -789,6 +789,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.kernend)
 		kernend = round_page(bootinfo.kernend);
+	if (preload_metadata == NULL)
+		printf("WARNING: loader(8) metadata is missing!\n");
 
 	p = getenv("kernelname");
 	if (p)
