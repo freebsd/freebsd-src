@@ -206,12 +206,8 @@ for
 and
 .Fn ftell .
 .It Bq Er ESPIPE
-The file descriptor underlying stream is associated with a pipe or FIFO.
-For
-.Fn ftell
-and
-.Fn ftello ,
-file-position indicator value is unspecified
+The file descriptor underlying stream is associated with a pipe or FIFO
+or file-position indicator value is unspecified
 (see
 .Xr ungetc 3 ) .
 .El
