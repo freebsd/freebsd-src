@@ -5,6 +5,7 @@
 PROG= 		skiload
 NOMAN=
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
+BINDIR?=	/boot
 
 SRCS+=		main.c conf.c
 
