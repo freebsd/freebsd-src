@@ -61,5 +61,7 @@ tmpfile="/tmp/kgdb.asf.$$"
 echo "Kernel Source:	$kernsrc"
 echo "Getting KLD information and locations..."
 python $kld_debpy "$kernsrc" "$core" $@ > "$tmpfile" &&
-gdb $cmd_file -x "$tmpfile" -k -cd "$kernsrc" -s "$kernsrc/kernel.debug" -e "$kernsrc/kernel" -c "$core"
+echo "Please run the following command to load module symbols:"
+echo "source $tmpfile"
+(cd "$kernsrc"; kgdb "$kernsrc/kernel.debug" "$core")
 rm "$tmpfile"
