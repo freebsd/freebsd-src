@@ -571,7 +571,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 static int
 ng_internalize(struct mbuf *control, struct thread *td)
 {
-	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
+	const struct cmsghdr *cm = mtod(control, const struct cmsghdr *);
 	struct file *fp;
 	struct vnode *vn;
 	int oldfds;
