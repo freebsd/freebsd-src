@@ -471,6 +471,8 @@ as an suid root program.
 .It Va SENDMAIL_MC
 .Vt ( str )
 The default m4 configuration file to use at install time.
+The value should include the full path to the .mc file, e.g.,
+.Pa /etc/mail/myconfig.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/sendmail.cf .
 Note that
