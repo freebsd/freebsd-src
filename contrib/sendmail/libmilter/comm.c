@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,15 +9,10 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.54.2.4 2002/12/03 17:32:45 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.54.2.6 2003/01/03 22:14:40 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
-
-#define FD_Z	FD_ZERO(&readset);			\
-		FD_SET((unsigned int) sd, &readset);	\
-		FD_ZERO(&excset);			\
-		FD_SET((unsigned int) sd, &excset)
 
 /*
 **  MI_RD_CMD -- read a command
@@ -46,7 +41,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	ssize_t len;
 	mi_int32 expl;
 	ssize_t i;
-	fd_set readset, excset;
+	FD_RD_VAR(rds, excs);
 	int ret;
 	int save_errno;
 	char *buf;
@@ -58,8 +53,8 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	i = 0;
 	for (;;)
 	{
-		FD_Z;
-		ret = select(sd + 1, &readset, NULL, &excset, timeout);
+		FD_RD_INIT(sd, rds, excs);
+		ret = FD_RD_READY(sd, rds, excs, timeout);
 		if (ret == 0)
 			break;
 		else if (ret < 0)
@@ -68,7 +63,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 				continue;
 			break;
 		}
-		if (FD_ISSET(sd, &excset))
+		if (FD_IS_RD_EXC(sd, rds, excs))
 		{
 			*cmd = SMFIC_SELECT;
 			return NULL;
@@ -131,8 +126,8 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	i = 0;
 	for (;;)
 	{
-		FD_Z;
-		ret = select(sd + 1, &readset, NULL, &excset, timeout);
+		FD_RD_INIT(sd, rds, excs);
+		ret = FD_RD_READY(sd, rds, excs, timeout);
 		if (ret == 0)
 			break;
 		else if (ret < 0)
@@ -141,7 +136,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 				continue;
 			break;
 		}
-		if (FD_ISSET(sd, &excset))
+		if (FD_IS_RD_EXC(sd, rds, excs))
 		{
 			*cmd = SMFIC_SELECT;
 			free(buf);
@@ -223,9 +218,8 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 #define MI_WR(data)	\
 	while (sl > 0)							\
 	{								\
-		FD_ZERO(&wrtset);					\
-		FD_SET((unsigned int) sd, &wrtset);			\
-		ret = select(sd + 1, NULL, &wrtset, NULL, timeout);	\
+		FD_WR_INIT(sd, wrs);					\
+		ret = FD_WR_READY(sd, wrs, timeout);			\
 		if (ret == 0)						\
 			return MI_FAILURE;				\
 		if (ret < 0)						\
@@ -259,7 +253,7 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	ssize_t l;
 	mi_int32 nl;
 	int ret;
-	fd_set wrtset;
+	FD_WR_VAR(wrs);
 	char data[MILTER_LEN_BYTES + 1];
 
 	if (len > MILTER_CHUNK_SIZE)
