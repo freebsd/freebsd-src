@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.8 1998/05/21 21:45:32 brian Exp $
+ *	$Id: id.c,v 1.9 1998/05/28 23:15:36 brian Exp $
  */
 
 #include <sys/types.h>
@@ -32,6 +32,7 @@
 
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -249,6 +250,18 @@ ID0connect_un(int s, const struct sockaddr_un *name)
   result = connect(s, (const struct sockaddr *)name, sizeof *name);
   log_Printf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
             result, s, name->sun_path, sizeof *name);
+  ID0setuser();
+  return result;
+}
+
+int
+ID0kill(pid_t pid, int sig)
+{
+  int result;
+
+  ID0set0();
+  result = kill(pid, sig);
+  log_Printf(LogID0, "%d = kill(%d, %d)\n", result, (int)pid, sig);
   ID0setuser();
   return result;
 }
