@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.52 1998/04/19 23:32:09 julian Exp $
+ *	$Id: devfs_tree.c,v 1.53 1998/04/20 03:57:35 julian Exp $
  */
 
 
@@ -41,11 +41,9 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/devfsext.h>
 

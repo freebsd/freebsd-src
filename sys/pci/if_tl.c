@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.8 1998/05/31 16:59:39 wpaul Exp $
+ *	$Id: if_tl.c,v 1.9 1998/06/07 17:12:38 dfr Exp $
  */
 
 /*
@@ -195,41 +195,18 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
-#include <net/if_mib.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <vm/vm.h>              /* for vtophys */
-#include <vm/vm_param.h>        /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
 
@@ -240,7 +217,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.8 1998/05/31 16:59:39 wpaul Exp $";
+	"$Id: if_tl.c,v 1.9 1998/06/07 17:12:38 dfr Exp $";
 #endif
 
 /*
