@@ -1236,8 +1236,12 @@ parseargs(argc, argv, cmd)
 					if (++i == argc) {
 						return (0);
 					}
-					(void) strcpy(pathbuf, argv[i]);
-					(void) strcat(pathbuf, "/cpp");
+					(void) strlcpy(pathbuf, argv[i], sizeof(pathbuf));
+					if (strlcat(pathbuf, "/cpp", sizeof(pathbuf))
+					    >= sizeof(pathbuf)) {
+						warnx("argument too long");
+						return (0);
+					}
 					CPP = pathbuf;
 					cppDefined = 1;
 					goto nextarg;
