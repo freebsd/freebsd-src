@@ -325,7 +325,12 @@ main(argc, argv)
 	appcstrg(&cppflags, "-$");
 	appcstrg(&cppflags, "-C");
 	appcstrg(&cppflags, "-Wcomment");
+#if defined (__FreeBSD__) && (__FreeBSD__ == 2)
+	appcstrg(&cppflags, "-D__FreeBSD__=2");
+#else
+#	error "This ain't NetBSD.  You lose!"
 	appcstrg(&cppflags, "-D__NetBSD__");
+#endif
 	appcstrg(&cppflags, "-Dlint");		/* XXX don't def. with -s */
 	appdef(&cppflags, "lint");
 	appdef(&cppflags, "unix");
@@ -422,7 +427,9 @@ main(argc, argv)
 			freelst(&lcppflgs);
 			appcstrg(&lcppflgs, "-traditional");
 			appstrg(&lcppflgs, concat2("-D", MACHINE));
+#ifdef MACHINE_ARCH
 			appstrg(&lcppflgs, concat2("-D", MACHINE_ARCH));
+#endif
 			appcstrg(&l1flags, "-t");
 			appcstrg(&l2flags, "-t");
 			tflag = 1;

@@ -399,7 +399,7 @@ verror(n, ap)
 	const	char *fn;
 
 	fn = basename(curr_pos.p_file);
-	(void)printf("%s(%d): ", fn, curr_pos.p_line);
+	(void)printf("%s:%d: ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
 	(void)printf("\n");
 	nerr++;
@@ -417,7 +417,7 @@ vwarning(n, ap)
 		return;
 
 	fn = basename(curr_pos.p_file);
-	(void)printf("%s(%d): warning: ", fn, curr_pos.p_line);
+	(void)printf("%s:%d: warning: ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
 	(void)printf("\n");
 }
@@ -460,7 +460,7 @@ lerror(msg, va_alist)
 	va_start(ap);
 #endif
 	fn = basename(curr_pos.p_file);
-	(void)fprintf(stderr, "%s(%d): lint error: ", fn, curr_pos.p_line);
+	(void)fprintf(stderr, "%s:%d: lint error: ", fn, curr_pos.p_line);
 	(void)vfprintf(stderr, msg, ap);
 	(void)fprintf(stderr, "\n");
 	va_end(ap);
@@ -505,7 +505,7 @@ message(n, va_alist)
 	va_start(ap);
 #endif
 	fn = basename(curr_pos.p_file);
-	(void)printf("%s(%d): ", fn, curr_pos.p_line);
+	(void)printf("%s:%d: ", fn, curr_pos.p_line);
 	(void)vprintf(msgs[n], ap);
 	(void)printf("\n");
 	va_end(ap);
