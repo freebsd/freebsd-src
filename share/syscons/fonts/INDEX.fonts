@@ -52,7 +52,7 @@ MENU:en:Choose your keyboard font
 MENU:de:Wähle Deine Schrift
 MENU:fr:Choisissez votre fonte écran
 MENU:pl:Wybierz czcionkê ekranow±
-MENU:es:Escoja la tipografía de pantalla
+MENU:es:Escoja el juego de caracteres
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,es,is,it,sv,da,fi,nl,no,pt:iso-8x16.fnt
@@ -165,30 +165,25 @@ cp866c-8x16.fnt:ru:ûÒÉÆÔ cp866 (c) ÒÕÓÓËÉÊ, 8x16
 cp866c-8x16.fnt:fr:Code page 866 (c) Russe, 8x16
 cp866c-8x16.fnt:es:Página de códigos 866 (c) ruso, 8x16
 
-iso-8x14.fnt:en:ISO-8859-1 West European, 8x14
-iso-8x14.fnt:de:ISO-8859-1 Westeuropa, 8x14
-iso-8x14.fnt:fr:ISO-8859-1 Est européen, 8x14
-iso-8x14.fnt:es:ISO-8859-1 europeo occidental, 8x14
-
 iso-8x16.fnt:en:ISO-8859-1 West European, 8x16
 iso-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16
 iso-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16
 iso-8x16.fnt:es:ISO-8859-1 europeo occidental, 8x16
 
-iso-thin-8x16.fnt:en:ISO-8859-1 West European, 8x16 (thin)
-iso-thin-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16 (dünn)
-iso-thin-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16 (fine)
-iso-thin-8x16.fnt:es:ISO-8859-1 europeo occidental, 8x16 (fina)
-
-iso15-thin-8x16.fnt:en:ISO-8859-15 West European, 8x16 (thin)
-iso15-thin-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16 (dünn)
-iso15-thin-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16 (fine)
-iso15-thin-8x16.fnt:es:ISO-8859-15 europeo occidental, 8x16 (fina)
+iso-8x14.fnt:en:ISO-8859-1 West European, 8x14
+iso-8x14.fnt:de:ISO-8859-1 Westeuropa, 8x14
+iso-8x14.fnt:fr:ISO-8859-1 Est européen, 8x14
+iso-8x14.fnt:es:ISO-8859-1 europeo occidental, 8x14
 
 iso-8x8.fnt:en:ISO-8859-1 West European, 8x8
 iso-8x8.fnt:de:ISO-8859-1 Westeuropa, 8x8
 iso-8x8.fnt:fr:ISO-8859-1 Est européen, 8x8
 iso-8x8.fnt:es:ISO-8859-1 europeo occidental, 8x8
+
+iso-thin-8x16.fnt:en:ISO-8859-1 West European, 8x16 (thin)
+iso-thin-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16 (dünn)
+iso-thin-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16 (fine)
+iso-thin-8x16.fnt:es:ISO-8859-1 europeo occidental, 8x16 (fina)
 
 iso02-8x16.fnt:en:ISO-8859-2 Central European, 8x16
 iso02-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
@@ -203,20 +198,48 @@ iso02-8x8.fnt:de:ISO-8859-2 Mitteleuropa, 8x8
 iso02-8x8.fnt:es:ISO-8859-2 centroeuropeo, 8x8
 
 iso04-8x16.fnt:en:ISO-8859-4 Baltic, 8x16
+iso04-8x16.fnt:es:ISO-8859-4 báltico, 8x16
 
 iso04-wide-8x16.fnt:en:ISO-8859-4 Baltic wide, 8x16
+iso04-wide-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (ancha)
 
 iso04-8x14.fnt:en:ISO-8859-4 Baltic, 8x14
+iso04-8x14.fnt:es:ISO-8859-4 báltico, 8x14
 
 iso04-8x8.fnt:en:ISO-8859-4 Baltic, 8x8
+iso04-8x8.fnt:es:ISO-8859-4 báltico, 8x8
 
 iso04-vga9-8x16.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x16
+iso04-vga9-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (VGA 9 bits)
 
 iso04-vga9-wide-8x16.fnt:en:ISO-8859-4 Baltic wide (VGA 9bit mapped), 8x16
+iso04-vga9-wide-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (VGA 9 bits, ancha)
 
 iso04-vga9-8x14.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x14
+iso04-vga9-8x14.fnt:es:ISO-8859-4 báltico, 8x14 (VGA 9 bits)
 
 iso04-vga9-8x8.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x8
+iso04-vga9-8x8.fnt:es:ISO-8859-4 báltico, 8x8 (VGA 9 bits)
+
+iso15-8x16.fnt:en:ISO-8859-15 West European, 8x16
+iso15-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16
+iso15-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16
+iso15-8x16.fnt:es:ISO-8859-15 europeo occidental, 8x16
+
+iso15-8x14.fnt:en:ISO-8859-15 West European, 8x14
+iso15-8x14.fnt:de:ISO-8859-15 Westeuropa, 8x14
+iso15-8x14.fnt:fr:ISO-8859-15 Est européen, 8x14
+iso15-8x14.fnt:es:ISO-8859-15 europeo occidental, 8x14
+
+iso15-8x8.fnt:en:ISO-8859-15 West European, 8x8
+iso15-8x8.fnt:de:ISO-8859-15 Westeuropa, 8x8
+iso15-8x8.fnt:fr:ISO-8859-15 Est européen, 8x8
+iso15-8x8.fnt:es:ISO-8859-15 europeo occidental, 8x8
+
+iso15-thin-8x16.fnt:en:ISO-8859-15 West European, 8x16 (thin)
+iso15-thin-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16 (dünn)
+iso15-thin-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16 (fine)
+iso15-thin-8x16.fnt:es:ISO-8859-15 europeo occidental, 8x16 (fina)
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
