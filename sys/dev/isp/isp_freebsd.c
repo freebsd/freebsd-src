@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.c,v 1.16 1999/04/04 02:22:42 mjacob Exp $ */
-/* release_4_3_99 */
+/* $Id: isp_freebsd.c,v 1.17 1999/05/06 20:16:25 ken Exp $ */
+/* release_5_11_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -44,11 +44,21 @@ static void isp_action __P((struct cam_sim *, union ccb *));
 void
 isp_attach(struct ispsoftc *isp)
 {
+	int primary, secondary;
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
+	struct cam_sim *sim;
+	struct cam_path *path;
 
 	/*
-	 * Create the device queue for our SIM.
+	 * Establish (in case of 12X0) which bus is the primary.
+	 */
+
+	primary = 0;
+	secondary = 1;
+
+	/*
+	 * Create the device queue for our SIM(s).
 	 */
 	devq = cam_simq_alloc(MAXISPREQUEST);
 	if (devq == NULL) {
@@ -56,33 +66,72 @@ isp_attach(struct ispsoftc *isp)
 	}
 
 	/*
-	 * Construct our SIM entry
+	 * Construct our SIM entry.
 	 */
-	isp->isp_sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
+	sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
 	    isp->isp_unit, 1, MAXISPREQUEST, devq);
-	if (isp->isp_sim == NULL) {
+	if (sim == NULL) {
 		cam_simq_free(devq);
 		return;
 	}
-	if (xpt_bus_register(isp->isp_sim, 0) != CAM_SUCCESS) {
-		cam_sim_free(isp->isp_sim, TRUE);
+	if (xpt_bus_register(sim, primary) != CAM_SUCCESS) {
+		cam_sim_free(sim, TRUE);
 		return;
 	}
 
-	if (xpt_create_path(&isp->isp_path, NULL, cam_sim_path(isp->isp_sim),
+	if (xpt_create_path(&path, NULL, cam_sim_path(sim),
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		xpt_bus_deregister(cam_sim_path(isp->isp_sim));
-		cam_sim_free(isp->isp_sim, TRUE);
+		xpt_bus_deregister(cam_sim_path(sim));
+		cam_sim_free(sim, TRUE);
 		return;
 	}
 
-	xpt_setup_ccb(&csa.ccb_h, isp->isp_path, 5);
+	xpt_setup_ccb(&csa.ccb_h, path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = isp_cam_async;
-	csa.callback_arg = isp->isp_sim;
+	csa.callback_arg = sim;
 	xpt_action((union ccb *)&csa);
+	isp->isp_sim = sim;
+	isp->isp_path = path;
 
+	/*
+	 * If we have a second channel, construct SIM entry for that.
+	 */
+	if (IS_12X0(isp)) {
+		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
+		    isp->isp_unit, 1, MAXISPREQUEST, devq);
+		if (sim == NULL) {
+			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
+			xpt_free_path(isp->isp_path);
+			cam_simq_free(devq);
+			return;
+		}
+		if (xpt_bus_register(sim, secondary) != CAM_SUCCESS) {
+			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
+			xpt_free_path(isp->isp_path);
+			cam_sim_free(sim, TRUE);
+			return;
+		}
+
+		if (xpt_create_path(&path, NULL, cam_sim_path(sim),
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
+			xpt_free_path(isp->isp_path);
+			xpt_bus_deregister(cam_sim_path(sim));
+			cam_sim_free(sim, TRUE);
+			return;
+		}
+
+		xpt_setup_ccb(&csa.ccb_h, path, 5);
+		csa.ccb_h.func_code = XPT_SASYNC_CB;
+		csa.event_enable = AC_LOST_DEVICE;
+		csa.callback = isp_cam_async;
+		csa.callback_arg = sim;
+		xpt_action((union ccb *)&csa);
+		isp->isp_sim2 = sim;
+		isp->isp_path2 = path;
+	}
 	if (isp->isp_state == ISP_INITSTATE)
 		isp->isp_state = ISP_RUNSTATE;
 }
@@ -102,6 +151,10 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			sdparam *sdp = isp->isp_param;
 			int s, tgt = xpt_path_target_id(path);
 
+			s = splcam();
+			sdp += cam_sim_bus(sim);
+			isp->isp_update |= (1 << cam_sim_bus(sim));
+
 			nflags = DPARM_SAFE_DFLT;
 			if (ISP_FW_REVX(isp->isp_fwrev) >=
 			    ISP_FW_REV(7, 55, 0)) {
@@ -110,11 +163,9 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			oflags = sdp->isp_devparam[tgt].dev_flags;
 			sdp->isp_devparam[tgt].dev_flags = nflags;
 			sdp->isp_devparam[tgt].dev_update = 1;
-
-			s = splcam();
 			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			(void) splx(s);
 			sdp->isp_devparam[tgt].dev_flags = oflags;
+			(void) splx(s);
 		}
 		break;
 	default:
@@ -222,13 +273,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-
-		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("cdb[0]=0x%x dlen%d\n",
-		    (ccb->ccb_h.flags & CAM_CDB_POINTER)?
-			ccb->csio.cdb_io.cdb_ptr[0]:
-			ccb->csio.cdb_io.cdb_bytes[0], ccb->csio.dxfer_len));
-
 		s = splcam();
 		DISABLE_INTS(isp);
 		switch (ispscsicmd((ISP_SCSI_XFER_T *) ccb)) {
@@ -271,10 +315,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
-		tgt = ccb->ccb_h.target_id;
+		tgt = ccb->ccb_h.target_id; /* XXX: Which Bus? */
 		s = splcam();
-		error =
-		    isp_control(isp, ISPCTL_RESET_DEV, (void *)(intptr_t) tgt);
+		error = isp_control(isp, ISPCTL_RESET_DEV, &tgt);
 		(void) splx(s);
 		if (error) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
@@ -305,7 +348,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			sdparam *sdp = isp->isp_param;
 			u_int16_t *dptr;
+			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 
+			sdp += bus;
 #if	0
 			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS)
 				dptr = &sdp->isp_devparam[tgt].cur_dflags;
@@ -364,8 +409,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-			IDPRINTF(3, ("%s: %d set %s period 0x%x offset 0x%x"
-			    " flags 0x%x\n", isp->isp_name, tgt,
+			IDPRINTF(3, ("%s: %d.%d set %s period 0x%x offset 0x%x"
+			    " flags 0x%x\n", isp->isp_name, bus, tgt,
 			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", 
 			    sdp->isp_devparam[tgt].sync_period,
@@ -373,7 +418,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			    sdp->isp_devparam[tgt].dev_flags));
 			s = splcam();
 			sdp->isp_devparam[tgt].dev_update = 1;
-			isp->isp_update = 1;
+			isp->isp_update |= (1 << bus);
 			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
 			(void) splx(s);
 		}
@@ -403,7 +448,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			sdparam *sdp = isp->isp_param;
 			u_int16_t dval, pval, oval;
+			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 
+			sdp += bus;
 			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS) {
 				dval = sdp->isp_devparam[tgt].cur_dflags;
 				oval = sdp->isp_devparam[tgt].cur_offset;
@@ -439,8 +486,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
 			splx(s);
-			IDPRINTF(3, ("%s: %d get %s period 0x%x offset 0x%x"
-			    " flags 0x%x\n", isp->isp_name, tgt,
+			IDPRINTF(3, ("%s: %d.%d get %s period 0x%x offset 0x%x"
+			    " flags 0x%x\n", isp->isp_name, bus, tgt,
 			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", pval, oval, dval));
 		}
@@ -478,13 +525,16 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_BUS:		/* Reset the specified bus */
+		tgt = cam_sim_bus(sim);
 		s = splcam();
-		error = isp_control(isp, ISPCTL_RESET_BUS, NULL);
+		error = isp_control(isp, ISPCTL_RESET_BUS, &tgt);
 		(void) splx(s);
 		if (error)
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		else {
-			if (isp->isp_path != NULL)
+			if (cam_sim_bus(sim) && isp->isp_path2 != NULL)
+				xpt_async(AC_BUS_RESET, isp->isp_path2, NULL);
+			else if (isp->isp_path != NULL)
 				xpt_async(AC_BUS_RESET, isp->isp_path, NULL);
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
@@ -523,9 +573,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 */
 			cpi->base_transfer_speed = 100000;
 		} else {
+			sdparam *sdp = isp->isp_param;
+			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
 			cpi->hba_misc = 0;
-			cpi->initiator_id =
-			    ((sdparam *)isp->isp_param)->isp_initiator_id;
+			cpi->initiator_id = sdp->isp_initiator_id;
 			cpi->max_target =  MAX_TARGETS-1;
 			if (ISP_FW_REVX(isp->isp_fwrev) >=
 			    ISP_FW_REV(7, 55, 0)) {
@@ -603,7 +654,7 @@ isp_async(isp, cmd, arg)
 	ispasync_t cmd;
 	void *arg;
 {
-	int rv = 0;
+	int bus, rv = 0;
 	switch (cmd) {
 	case ISPASYNC_NEW_TGT_PARAMS:
 		if (isp->isp_type & ISP_HA_SCSI) {
@@ -613,16 +664,18 @@ isp_async(isp, cmd, arg)
 			struct cam_path *tmppath;
 
 			tgt = *((int *)arg);
+			bus = (tgt >> 16) & 0xffff;
+			tgt &= 0xffff;
+			sdp += bus;
 			if (xpt_create_path(&tmppath, NULL,
-			    cam_sim_path(isp->isp_sim), tgt,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
+			    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 				xpt_print_path(isp->isp_path);
 				printf("isp_async cannot make temp path for "
-				    "target %d\n", tgt);
+				    "target %d bus %d\n", tgt, bus);
 				rv = -1;
 				break;
 			}
-
 			flags = sdp->isp_devparam[tgt].cur_dflags;
 			neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
 			if (flags & DPARM_DISC) {
@@ -641,17 +694,21 @@ isp_async(isp, cmd, arg)
 				    CCB_TRANS_SYNC_RATE_VALID |
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
-			IDPRINTF(3, ("%s: New params tgt %d period 0x%x "
-			    "offset 0x%x flags 0x%x\n", isp->isp_name, tgt,
-			    neg.sync_period, neg.sync_offset, flags));
+			IDPRINTF(3, ("%s: NEW_TGT_PARAMS bus %d tgt %d period "
+			    "0x%x offset 0x%x flags 0x%x\n", isp->isp_name,
+			    bus, tgt, neg.sync_period, neg.sync_offset, flags));
 			xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
 			xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
 			xpt_free_path(tmppath);
 		}
 		break;
 	case ISPASYNC_BUS_RESET:
-		printf("%s: SCSI bus reset detected\n", isp->isp_name);
-		if (isp->isp_path) {
+		bus = *((int *)arg);
+		printf("%s: SCSI bus reset on bus %d detected\n",
+		    isp->isp_name, bus);
+		if (bus > 0 && isp->isp_path2) {
+			xpt_async(AC_BUS_RESET, isp->isp_path2, NULL);
+		} else if (isp->isp_path) {
 			xpt_async(AC_BUS_RESET, isp->isp_path, NULL);
 		}
 		break;
@@ -744,15 +801,12 @@ isp_async(isp, cmd, arg)
 
 
 /*
- * Free any associated resources prior to decommissioning and
- * set the card to a known state (so it doesn't wake up and kick
- * us when we aren't expecting it to).
- *
  * Locks are held before coming here.
  */
 void
 isp_uninit(struct ispsoftc *isp)
 {
+	ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
 	DISABLE_INTS(isp);
 }
 #else
@@ -801,11 +855,12 @@ isp_attach(struct ispsoftc *isp)
 			((fcparam *)isp->isp_param)->isp_loopid;
 		scbus->maxtarg = MAX_FC_TARG-1;
 	} else {
+		int tmp = 0;	/* XXXX: Which Bus? */
 		isp->isp_osinfo.delay_throttle_count = 1;
 		isp->isp_osinfo._link.adapter_targ =
 			((sdparam *)isp->isp_param)->isp_initiator_id;
 		scbus->maxtarg = MAX_TARGETS-1;
-		(void) isp_control(isp, ISPCTL_RESET_BUS, NULL);
+		(void) isp_control(isp, ISPCTL_RESET_BUS, &tmp);
 	}
 
 	/*
@@ -1121,6 +1176,7 @@ isp_uninit(isp)
 	/*
 	 * Leave with interrupts disabled.
 	 */
+	ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
 	DISABLE_INTS(isp);
 
 	/*
