@@ -2768,7 +2768,6 @@ cd_getreg(com, reg)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
-	register_t	eflags;
 	cy_addr	iobase;
 #ifdef SMP
 	int	need_unlock;
@@ -2779,7 +2778,6 @@ cd_getreg(com, reg)
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
-	eflags = read_eflags();
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
@@ -2808,7 +2806,6 @@ cd_setreg(com, reg, val)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
-	register_t	eflags;
 	cy_addr	iobase;
 #ifdef SMP
 	int	need_unlock;
@@ -2818,7 +2815,6 @@ cd_setreg(com, reg, val)
 	car = com->unit & CD1400_CAR_CHAN;
 	cy_align = com->cy_align;
 	iobase = com->iobase;
-	eflags = read_eflags();
 	critical_enter();
 #ifdef SMP
 	need_unlock = 0;
