@@ -2,6 +2,7 @@
 
 .PATH: ${.CURDIR}/../boot0
 
-BOOT=	boot0sio
+FILESNAME=	boot0sio
+CFLAGS+=	-DSIO
 
 .include "${.CURDIR}/../boot0/Makefile"
