@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
  *
  * Derived from the public domain Linux driver

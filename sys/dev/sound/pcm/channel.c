@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
+ * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Portions Copyright by Luigi Rizzo - 1997-99
  * All rights reserved.
  *
