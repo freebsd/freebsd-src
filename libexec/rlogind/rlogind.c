@@ -587,10 +587,9 @@ do_rlogin(dest)
 	pwd = getpwnam(lusername);
 	if (pwd == NULL)
 		return (-1);
-	if (pwd->pw_uid == 0)
-		return (-1);
 	/* XXX why don't we syslog() failure? */
-	return (iruserok(dest->sin_addr.s_addr, 0, rusername, lusername));
+	return (iruserok(dest->sin_addr.s_addr, pwd->pw_uid == 0,
+		rusername, lusername));
 }
 
 void
