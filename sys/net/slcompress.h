@@ -1,4 +1,3 @@
-/*	slcompress.h	8.1	93/06/10	*/
 /*
  * Definitions for tcp compression routines.
  *
@@ -35,7 +34,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id: slcompress.h,v 1.11 1997/02/22 09:41:16 peter Exp $
+ * $Id: slcompress.h,v 1.12 1997/08/19 14:10:48 peter Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_
