@@ -294,10 +294,6 @@ Install INFO-FILE in the Info directory file DIR-FILE.\n\
 Options:\n\
 --delete          Delete existing entries in INFO-FILE;\n\
                     don't insert any new entries.\n\
---defentry=TEXT   Like --entry, but only use TEXT if an entry\n\
-                    is not present in INFO-FILE.\n\
---defsection=TEXT Like --section, but only use TEXT if a section\n\
-                    is not present in INFO-FILE.\n\
 --dir-file=NAME   Specify file name of Info directory file.\n\
                     This is equivalent to using the DIR-FILE argument.\n\
 --entry=TEXT      Insert TEXT as an Info directory entry.\n\
@@ -306,7 +302,6 @@ Options:\n\
                     If you specify more than one entry, they are all added.\n\
                     If you don't specify any entries, they are determined\n\
                     from information in the Info file itself.\n\
---forceentry=TEXT Like --entry, but ignore any entry in INFO-FILE.\n\
 --help            Display this help and exit.\n\
 --info-file=FILE  Specify Info file to install in the directory.\n\
                     This is equivalent to using the INFO-FILE argument.\n\
@@ -435,11 +430,6 @@ main (argc, argv)
   int prefix_length;
   int i;
 
-  /* Nonzero means only use if not present in info file. */
-  int entry_default = 0;
-  int entry_force = 0;
-  int section_default = 0;
-
   progname = argv[0];
 
 #ifdef HAVE_SETLOCALE
@@ -488,17 +478,6 @@ main (argc, argv)
           dirfile = concat (optarg, "", "/dir");
           break;
 
-	case 'f':
-	  entry_force = 1;
-	  if (!optarg[0])
-	    {
-	      fprintf (stderr, "%s: Must provide entry name.\n", progname);
-	      suggest_asking_for_help ();
-	    }
-	case 'E':
-	  entry_default = 1;
-	  if (!optarg[0])
-	    break;
         case 'e':
           {
             struct spec_entry *next
@@ -535,10 +514,6 @@ main (argc, argv)
           delete_flag = 1;
           break;
 
-	case 'S':
-	  section_default = 1;
-	  if (!optarg[0])
-	    break;
         case 's':
           {
             struct spec_section *next
@@ -564,9 +539,6 @@ For more information about these matters, see the files named COPYING.\n"),
         }
     }
 
-  if (entry_force)
-    entry_default = 0;
-
   /* Interpret the non-option arguments as file names.  */
   for (; optind < argc; ++optind)
     {
@@ -590,7 +562,7 @@ For more information about these matters, see the files named COPYING.\n"),
 
   /* Parse the input file to find the section names it specifies.  */
 
-  if (input_sections == 0 || section_default)
+  if (input_sections == 0)
     {
       prefix_length = strlen ("INFO-DIR-SECTION ");
       for (i = 0; i < input_nlines; i++)
@@ -600,13 +572,6 @@ For more information about these matters, see the files named COPYING.\n"),
             {
               struct spec_section *next
                 = (struct spec_section *) xmalloc (sizeof (struct spec_section));
-
-	      if (section_default)
-		{
-		  input_sections = NULL; /* This leaks. */
-		  section_default = 0;
-		}
-
               next->name = copy_string (input_lines[i].start + prefix_length,
                                         input_lines[i].size - prefix_length);
               next->next = input_sections;
@@ -630,7 +595,7 @@ For more information about these matters, see the files named COPYING.\n"),
      and put them on entries_to_add.  But not if entries
      were specified explicitly with command options.  */
 
-  if ( !entry_force && (entries_to_add == 0 || entry_default) )
+  if (entries_to_add == 0)
     {
       char *start_of_this_entry = 0;
       for (i = 0; i < input_nlines; i++)
@@ -651,13 +616,6 @@ For more information about these matters, see the files named COPYING.\n"),
                 {
                   struct spec_entry *next
                     = (struct spec_entry *) xmalloc (sizeof (struct spec_entry));
-
-		  if (entry_default)
-		    {
-		      entries_to_add = NULL;
-		      entry_default = 0;
-		    }
-
                   next->text = copy_string (start_of_this_entry,
                                             input_lines[i].start - start_of_this_entry);
                   next->next = entries_to_add;
@@ -699,7 +657,7 @@ For more information about these matters, see the files named COPYING.\n"),
       infile_basename++;
     else
       infile_basename = infile;
-
+    
     basename_len = strlen (infile_basename);
     infile_sans_info
       = (strlen (infile_basename) > 5
@@ -709,7 +667,7 @@ For more information about these matters, see the files named COPYING.\n"),
 
     infilelen_sans_info = strlen (infile_sans_info);
   }
-
+  
   /* Parse the dir file.  Find all the nodes, and their menus,
      and the sections of their menus.  */
 
@@ -1140,7 +1098,7 @@ menu_line_lessp (line1, len1, line2, len2)
 {
   int minlen = (len1 < len2 ? len1 : len2);
   int i;
-
+  
   for (i = 0; i < minlen; i++)
     {
       /* If one item name is a prefix of the other,
@@ -1173,7 +1131,7 @@ menu_line_equal (line1, len1, line2, len2)
 {
   int minlen = (len1 < len2 ? len1 : len2);
   int i;
-
+  
   for (i = 0; i < minlen; i++)
     {
       /* If both item names end here, they are equal.  */
