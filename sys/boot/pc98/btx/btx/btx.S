@@ -71,27 +71,27 @@
 #
 # Screen defaults and assumptions.
 #
-.`ifdef' PC98
+#ifdef PC98
 		.set SCR_MAT,0xe1		# Mode/attribute
-.else
+#else
 		.set SCR_MAT,0x7		# Mode/attribute
-.endif
+#endif
 		.set SCR_COL,0x50		# Columns per row
 		.set SCR_ROW,0x19		# Rows per screen
 #
 # BIOS Data Area locations.
 #
-.`ifdef' PC98
+#ifdef PC98
 		.set BDA_MEM,0x501		# Free memory
 		.set BDA_KEYFLAGS,0x53a		# Keyboard shift-state flags
 		.set BDA_POS,0x53e		# Cursor position
-.else
+#else
 		.set BDA_MEM,0x413		# Free memory
 		.set BDA_KEYFLAGS,0x417		# Keyboard shift-state flags
 		.set BDA_SCR,0x449		# Video mode
 		.set BDA_POS,0x450		# Cursor position
 		.set BDA_BOOT,0x472		# Boot howto flag
-.endif
+#endif
 #
 # Derivations, for brevity.
 #
@@ -168,7 +168,7 @@ init.4: 	movb $_ESP0H,TSS_ESP0+1(%di)	# Set ESP0
 		movb $SEL_SDATA,TSS_SS0(%di)	# Set SS0
 		movb $_ESP1H,TSS_ESP1+1(%di)	# Set ESP1
 		movb $_TSSIO,TSS_MAP(%di)	# Set I/O bit map base
-ifdef(`PAGING',`
+#ifdef PAGING
 #
 # Create page directory.
 #
@@ -201,25 +201,25 @@ init.6: 	mov $0x7,%al			# Set U:W:P flags
 init.7: 	stosl				# Set entry
 		add %edx,%eax			# Next address
 		loop init.6			# Till done
-')
+#endif
 #
 # Bring up the system.
 #
 		mov $0x2820,%bx			# Set protected mode
 		callw setpic			#  IRQ offsets
 		lidt idtdesc	 		# Set IDT
-ifdef(`PAGING',`
+#ifdef PAGING
 		xor %eax,%eax			# Set base
 		mov $MEM_DIR>>0x8,%ah		#  of page
 		mov %eax,%cr3			#  directory
-')
+#endif
 		lgdt gdtdesc	 		# Set GDT
 		mov %cr0,%eax			# Switch to protected
-ifdef(`PAGING',`
+#ifdef PAGING
 		or $0x80000001,%eax             #  mode and enable paging
-',`
+#else
 		or $0x01,%eax			#  mode
-')
+#endif
 		mov %eax,%cr0			#  
 		ljmp $SEL_SCODE,$init.8		# To 32-bit code
 		.code32
@@ -233,13 +233,13 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		ltr %cx				#  register
 		movl $MEM_USR,%edx		# User base address
 		movzwl %ss:BDA_MEM,%eax 	# Get free memory
-.`ifdef' PC98
+#ifdef PC98
 		andl $0x7,%eax
 		incl %eax
 		shll $0x11,%eax			# To bytes
-.else
+#else
 		shll $0xa,%eax			# To bytes
-.endif
+#endif
 		subl $0x1000,%eax		# Less arg space
 		subl %edx,%eax			# Less base
 		movb $SEL_UDATA,%cl		# User data selector
@@ -256,9 +256,9 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movb $0x7,%cl			# Set remaining
 init.9:		push $0x0			#  general
 		loop init.9			#  registers
-ifdef(`BTX_SERIAL',`
+#ifdef BTX_SERIAL
 		call sio_init			# setup the serial console
-')
+#endif
 		popa				#  and initialize
 		popl %es			# Initialize
 		popl %ds			#  user
@@ -302,11 +302,11 @@ exit.1: 	mov $SEL_RDATA,%cl		# 16-bit selector
 exit.2: 	xor %ax,%ax			# Real mode segment
 		mov %ax,%ss			# Reload SS
 		mov %ax,%ds			# Address data
-.`ifdef' PC98
+#ifdef PC98
 		mov $0x1008,%bx			# Set real mode
-.else
+#else
 		mov $0x7008,%bx			# Set real mode
-.endif
+#endif
 		callw setpic			#  IRQ offsets
 		lidt ivtdesc	 		# Set IVT
 #
@@ -315,20 +315,20 @@ exit.2: 	xor %ax,%ax			# Real mode segment
 		sti				# Enable interrupts
 		testb $0x1,btx_hdr+0x7		# Reboot?
 exit.3:		jz exit.3			# No
-.`ifdef' PC98
+#ifdef PC98
 		movb $0xa0,%al
 		outb %al,$0x35
 		movb 0,%al
 		outb %al,$0xf0
 exit.4:		jmp exit.4
-.else
+#else
 		movw $0x1234, BDA_BOOT		# Do a warm boot
 		ljmp $0xf000,$0xfff0		# reboot the machine
-.endif
+#endif
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
 #
-.`ifdef' PC98
+#ifdef PC98
 setpic: 	in $0x02,%al			# Save master
 		push %ax			#  IMR
 		in $0x0a,%al			# Save slave
@@ -352,7 +352,7 @@ setpic: 	in $0x02,%al			# Save master
 		outb %al,$0x0a			#  IMR
 		pop %ax				# Restore master
 		outb %al,$0x02			#  IMR
-.else
+#else
 setpic: 	in $0x21,%al			# Save master
 		push %ax			#  IMR
 		in $0xa1,%al			# Save slave
@@ -375,7 +375,7 @@ setpic: 	in $0x21,%al			# Save master
 		outb %al,$0xa1			#  IMR
 		pop %ax				# Restore master
 		outb %al,$0x21			#  IMR
-.endif
+#endif
 		retw				# To caller
 		.code32
 #
@@ -455,7 +455,7 @@ except.2:	push $SEL_SDATA			# Set up
 		movl %esp,%ebx			# Stack frame
 		movl $dmpfmt,%esi		# Dump format string
 		movl $MEM_BUF,%edi		# Buffer
-.`ifdef' PC98
+#ifdef PC98
 		pushl %eax
 		pushl %edx
 wait.1:
@@ -482,7 +482,7 @@ wait.2:
 		movw %ax,(%edx)
 		popl  %edx
 		popl  %eax
-.endif
+#endif
 		pushl %edi			# Dump to
 		call dump			#  buffer
 		popl %esi			#  and
@@ -751,13 +751,13 @@ v86intn:	lodsb				# Get int no
 v86intn.1:	cmpw $0x4f53,%ax		# is it the delete key callout?
 		jne v86intn.2			#  no, handle the int normally
 		movb BDA_KEYFLAGS,%al		# get the shift key state
-.`ifdef' PC98
+#ifdef PC98
 		andb $0x18,%al			# mask off just Ctrl and Alt
 		cmpb $0x18,%al			# are both Ctrl and Alt down?
-.else
+#else
 		andb $0xc,%al			# mask off just Ctrl and Alt
 		cmpb $0xc,%al			# are both Ctrl and Alt down?
-.endif
+#endif
 		jne v86intn.2			#  no, handle the int normally
 		popl %eax			# restore EAX
 		jmp reboot			# reboot the machine
@@ -794,7 +794,7 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0xe
 		push $0xf			# Int 0x27: IRQ7
 		jmp int_hw			# V86 int 0xf
-.`ifdef' PC98
+#ifdef PC98
 		push $0x10			# Int 0x28: IRQ8
 		jmp int_hw			# V86 int 0x10
 		push $0x11			# Int 0x29: IRQ9
@@ -811,7 +811,7 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x16
 		push $0x17			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x17
-.else
+#else
 		push $0x70			# Int 0x28: IRQ8
 		jmp int_hw			# V86 int 0x70
 		push $0x71			# Int 0x29: IRQ9
@@ -828,7 +828,7 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x76
 		push $0x77			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x77
-.endif
+#endif
 #
 # Reflect hardware interrupts.
 #
@@ -966,13 +966,13 @@ intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
 		movl $MEM_USR,%eax		# User base address
 		addl 0xc(%esp,1),%eax		# Change to user
 		leal 0x4(%eax),%esp		#  stack
-ifdef(`PAGING',`
+#ifdef PAGING
 		movl %cr0,%eax			# Turn
 		andl $~0x80000000,%eax		#  off
 		movl %eax,%cr0			#  paging
 		xorl %eax,%eax			# Flush
 		movl %eax,%cr3			#  TLB
-')
+#endif
 		popl %eax			# Call
 		call *%eax			#  program
 intx30.1:	orb $0x1,%ss:btx_hdr+0x7	# Flag reboot
@@ -1076,7 +1076,7 @@ putstr: 	lodsb				# Load char
 		testb %al,%al			# End of string?
 		jnz putstr.0			# No
 		ret				# To caller
-ifdef(`BTX_SERIAL',`
+#ifdef BTX_SERIAL
 		.set SIO_PRT,SIOPRT		# Base port
 		.set SIO_FMT,SIOFMT		# 8N1
 		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
@@ -1149,7 +1149,7 @@ putchr.1:	pushl %eax			# Push the character
 		call sio_putc			# Output the character
 		popa				# Restore
 		ret				# To caller
-',`
+#else
 #
 # Output character AL to the console.
 #
@@ -1158,17 +1158,17 @@ putchr: 	pusha				# Save
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
 		movw (%ebx),%dx 		# Cursor position
-.`ifdef' PC98
+#ifdef PC98
 		movl $0xa0000,%edi
-.else
+#else
 		movl $0xb8000,%edi		# Regen buffer (color)
 		cmpb %ah,BDA_SCR-BDA_POS(%ebx)	# Mono mode?
 		jne putchr.1			# No
 		xorw %di,%di			# Regen buffer (mono)
-.endif
+#endif
 putchr.1:	cmpb $0xa,%al			# New line?
 		je putchr.2			# Yes
-.`ifdef' PC98
+#ifdef PC98
 		movw %dx,%cx
 		movb %al,(%edi,%ecx,1)		# Write char
 		addl $0x2000,%ecx
@@ -1182,7 +1182,7 @@ putchr.2:	movw %dx,%ax
 		mul %dl
 		movw %ax,%dx
 putchr.3:	cmpw $SCR_ROW*SCR_COL*2,%dx
-.else
+#else
 		xchgl %eax,%ecx 		# Save char
 		movb $SCR_COL,%al		# Columns per row
 		mulb %dh			#  * row position
@@ -1197,28 +1197,28 @@ putchr.3:	cmpw $SCR_ROW*SCR_COL*2,%dx
 putchr.2:	xorb %dl,%dl			# Zero column
 		incb %dh			# Bump row
 putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
-.endif
+#endif
 		jb putchr.4			# No
 		leal 2*SCR_COL(%edi),%esi	# New top line
 		movw $(SCR_ROW-1)*SCR_COL/2,%cx # Words to move
 		rep				# Scroll
 		movsl				#  screen
 		movb $0x20,%al			# Space
-.`ifdef' PC98
+#ifdef PC98
 		xorb %ah,%ah
-.endif
+#endif
 		movb $SCR_COL,%cl		# Columns to clear
 		rep				# Clear
 		stosw				#  line
-.`ifdef' PC98
+#ifdef PC98
 		movw $(SCR_ROW-1)*SCR_COL*2,%dx
-.else
+#else
 		movb $SCR_ROW-1,%dh		# Bottom line
-.endif
+#endif
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
 		ret				# To caller
-')
+#endif
 
 		.p2align 4
 #
