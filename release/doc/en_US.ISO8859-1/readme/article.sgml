@@ -94,7 +94,7 @@
 
       <para>For those more interested in doing business with &os; than
 	in experimenting with new &os; technology, formal releases
-	(such as &release.prev;) are frequently more appropriate.
+	(such as &release.prev.stable;) are frequently more appropriate.
 	Releases undergo a period of testing and quality assurance
 	checking to ensure high reliability and dependability.</para>
 
