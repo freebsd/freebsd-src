@@ -36,9 +36,6 @@
 
 struct delayval;
 struct termios;
-struct gettyflags;
-struct gettynums;
-struct gettystrs;
 
 extern	char hostname[];
 extern	int hopcount;
