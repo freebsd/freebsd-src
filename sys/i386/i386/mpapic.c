@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.1 1997/05/01 06:58:10 smp Exp smp $
+ *	$Id: mpapic.c,v 1.3 1997/05/01 19:33:12 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -168,12 +168,12 @@ outb(IO_ICU2, 0x0a);		/* default to IRR on read */
 int
 io_apic_setup(int apic)
 {
-	int     maxpin;
-	u_char  select;		/* the select register is 8 bits */
-	u_int32_t flags;	/* the window register is 32 bits */
-	u_int32_t target;	/* the window register is 32 bits */
-	u_int32_t vector;	/* the window register is 32 bits */
-	int     pin, level;
+	int		maxpin;
+	u_char		select;		/* the select register is 8 bits */
+	u_int32_t	flags;		/* the window register is 32 bits */
+	u_int32_t	target;		/* the window register is 32 bits */
+	u_int32_t	vector;		/* the window register is 32 bits */
+	int		pin, level;
 
 #if defined(TEST_LOPRIO)
 	target = IOART_DEST;
@@ -182,44 +182,45 @@ io_apic_setup(int apic)
 #endif	/* TEST_LOPRIO */
 
 	if (apic == 0) {
-		/* APIC[0] INT0 thru INT15 default to ISA */
-		select = IOAPIC_REDTBL0;
-		vector = NRSVIDT;
-		for (pin = 0;
-		    pin < IOAPIC_ISA_INTS;
-		    ++pin, ++vector, select += 2) {
-			io_apic_write(apic, select, DEFAULT_ISA_FLAGS | vector);
-			io_apic_write(apic, select + 1, target);
-		}
+		maxpin = REDIRCNT_IOAPIC(apic);/* pins-1 in this part */
+		for (pin = 0; pin < maxpin; ++pin) {
+			int bus, bustype;
 
-		/* remainder of APIC[0] */
-		if ((maxpin = REDIRCNT_IOAPIC(apic)) > IOAPIC_ISA_INTS) {
-			select = IOAPIC_REDTBL16;
-			vector = NRSVIDT + IOAPIC_ISA_INTS;
-			for (pin = IOAPIC_ISA_INTS;
-			    pin < maxpin;
-			    ++pin, ++vector, select += 2) {
+			/* we only deal with vectored INTs here */
+			if (apic_int_type(apic, pin) != 0)
+                		continue;
 
-				if (apic_int_type(apic, pin) != 0)
-					continue;
+			/* determine the bus type for this pin */
+			bus = apic_src_bus_id(apic, pin);
+			if (bus == -1)
+				continue;
+			bustype = apic_bus_type(bus);
 
+			/* the "ISA" type INTerrupts */
+			if ((bustype == ISA) || (bustype == EISA)) {
+				flags = DEFAULT_ISA_FLAGS;
+			}
+
+			/* PCI or other bus */
+			else {
 				flags = DEFAULT_FLAGS;
 				level = trigger(apic, pin, &flags);
 				polarity(apic, pin, &flags, level);
-
-				io_apic_write(apic, select, flags | vector);
-				io_apic_write(apic, select + 1, target);
 			}
-		}
-	} else {
 
-		/* program entry according to MP table. */
+			/* program the appropriate registers */
+			select = pin * 2 + IOAPIC_REDTBL0;/* register */
+			vector = NRSVIDT + pin;/* IDT vec */
+			io_apic_write(apic, select, flags | vector);
+			io_apic_write(apic, select + 1, target);
+		}
+        }
+        else {	/* program entry according to MP table. */
 #if defined(MULTIPLE_IOAPICS)
 #error MULTIPLE_IOAPICSXXX
 #else
-		panic("ioApicSetup: apic #%d\n", apic);
-#endif	/* MULTIPLE_IOAPICS */
-
+        	panic( "ioApicSetup: apic #%d\n", apic );
+#endif/* MULTIPLE_IOAPICS */
 	}
 
 	/* return GOOD status */
