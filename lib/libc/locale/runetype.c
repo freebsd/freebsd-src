@@ -45,18 +45,10 @@ ___runetype(c)
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->runetype_ext;
 	_RuneEntry *re = rr->ranges;
-#endif
 
-	if (c == EOF)
-		return(0);
-	if (c < 0) {
-		if (c >= -128) /* signed char */
-			return(_CurrentRuneLocale->runetype[(unsigned char)c]);
-		else
-			return(0);
-	}
+	if (c < 0 || c == EOF)
+		return(0L);
 
-#ifdef XPG4
 	for (x = 0; x < rr->nranges; ++x, ++re) {
 		if (c < re->min)
 			return(0L);
