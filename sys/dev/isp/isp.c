@@ -1076,11 +1076,6 @@ isp_fibre_init(isp)
 	 */
 	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 
-	/*
-	 * We don't set ICBOPT_PORTNAME because we want our
-	 * Node Name && Port Names to be distinct.
-	 */
-
 	
 	/*
 	 * Make sure that target role reflects into fwoptions.
@@ -1148,6 +1143,7 @@ isp_fibre_init(isp)
 	nwwn = ISP_NODEWWN(isp);
 	pwwn = ISP_PORTWWN(isp);
 	if (nwwn && pwwn) {
+		icbp->icb_fwoptions |= ICBOPT_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, nwwn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, pwwn);
 		isp_prt(isp, ISP_LOGDEBUG1,
@@ -1158,7 +1154,7 @@ isp_fibre_init(isp)
 		    ((u_int32_t) (pwwn & 0xffffffff)));
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG1, "Not using any WWNs");
-		fcp->isp_fwoptions &= ~(ICBOPT_USE_PORTNAME|ICBOPT_FULL_LOGIN);
+		icbp->icb_fwoptions &= ~(ICBOPT_BOTH_WWNS|ICBOPT_FULL_LOGIN);
 	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
 	icbp->icb_rsltqlen = RESULT_QUEUE_LEN(isp);
@@ -2734,6 +2730,11 @@ isp_control(isp, ctl, arg)
 		}
 		break;
 
+	case ISPCTL_RUN_MBOXCMD:
+
+		isp_mboxcmd(isp, arg, MBLOGALL);
+		return(0);
+
 #ifdef	ISP_TARGET_MODE
 	case ISPCTL_TOGGLE_TMODE:
 	{
@@ -2990,7 +2991,9 @@ isp_intr(arg)
 		if (sp->req_handle > isp->isp_maxcmds || sp->req_handle < 1) {
 			MEMZERO(sp, sizeof (isphdr_t));
 			isp_prt(isp, ISP_LOGERR,
-			    "bad request handle %d", sp->req_handle);
+			    "bad request handle %d (type 0x%x, flags 0x%x)",
+			    sp->req_handle, sp->req_header.rqs_entry_type,
+			    sp->req_header.rqs_flags);
 			ISP_WRITE(isp, INMAILBOX5, optr);
 			continue;
 		}
@@ -3085,7 +3088,7 @@ isp_intr(arg)
 			break;
 		default:
 			isp_prt(isp, ISP_LOGWARN,
-			    "unhandled respose queue type 0x%x",
+			    "unhandled response queue type 0x%x",
 			    sp->req_header.rqs_entry_type);
 			if (XS_NOERR(xs)) {
 				XS_SETERR(xs, HBA_BOTCH);
@@ -3178,7 +3181,8 @@ isp_parse_async(isp, mbox)
 	case ASYNC_SYSTEM_ERROR:
 		mbox = ISP_READ(isp, OUTMAILBOX1);
 		isp_prt(isp, ISP_LOGERR,
-		    "Internal FW Error @ RISC Addr 0x%x", mbox);
+		    "Internal Firmware Error @ RISC Addr 0x%x", mbox);
+		ISP_DUMPREGS(isp, "Firmware Error");
 		isp_reinit(isp);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, ASYNC_SYSTEM_ERROR);
@@ -3452,6 +3456,9 @@ isp_handle_other_response(isp, sp, optrp)
 #endif
 	case RQSTYPE_REQUEST:
 	default:
+		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, sp)) {
+			return (0);
+		}
 		isp_prt(isp, ISP_LOGWARN, "Unhandled Response Type 0x%x",
 		    sp->req_header.rqs_entry_type);
 		return (-1);
@@ -4030,7 +4037,7 @@ static u_int16_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	ISPOPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISPOPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
 	ISPOPMAP(0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
