@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:36:47 1998]
+ *      last edit-date: [Fri May 28 16:27:07 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -169,9 +169,14 @@ extern unsigned int i4b_l4_debug;
 #define L4_DIALST	0x0008		/* network driver dial states	*/
 #define L4_IPRDBG	0x0010		/* ipr driver debug messages	*/
 #define L4_RBCHDBG	0x0020		/* rbch driver debug messages	*/
+#define L4_ISPDBG	0x0040		/* isp driver debug messages	*/
+#define L4_TELDBG	0x0080		/* tel driver debug messages	*/
+#define L4_TINADBG	0x0100		/* tina driver debug messages	*/
+#define L4_TINAMSG	0x0200		/* tina driver messages		*/
+#define L4_TINAERR	0x0400		/* tina driver error messages	*/
 
-#define L4_DEBUG_MAX	0x003f		/* all messages on	*/
-#define L4_DEBUG_ERR	(L4_ERR)
+#define L4_DEBUG_MAX	0x07ff		/* all messages on	*/
+#define L4_DEBUG_ERR	(L4_ERR | L4_TINADBG |  L4_TINAMSG | L4_TINAERR)
 
 #ifndef L4_DEBUG_DEFAULT
 #ifdef DO_I4B_MAXDEBUG
@@ -215,5 +220,55 @@ typedef struct {
 #define	I4B_CTL_GET_HSCXSTAT	_IOWR('C', 2, hscxstat_t)
 
 #define	I4B_CTL_CLR_HSCXSTAT	_IOW('C', 3, hscxstat_t)
+
+/*---------------------------------------------------------------------------*
+ *	get LAPD/Q.921 statistics
+ *---------------------------------------------------------------------------*/
+typedef struct {
+				/* transmit */
+
+	u_long	tx_i;	/* I 	*/
+	u_long	tx_rr;	/* RR	*/
+	u_long	tx_rnr;	/* RNR 	*/
+	u_long	tx_rej;	/* REJ	*/
+	u_long	tx_sabme;	/* SABME*/
+	u_long	tx_dm;	/* DM	*/
+	u_long	tx_disc;	/* DISC */
+	u_long	tx_ua;	/* UA	*/
+	u_long	tx_frmr;	/* FRMR	*/	
+	u_long	tx_tei;	/* TEI	*/
+
+				/* receive */
+
+	u_long	rx_i;	/* I    */
+	u_long	rx_rr;	/* RR   */
+	u_long	rx_rnr;	/* RNR  */
+	u_long	rx_rej;	/* REJ  */
+	u_long	rx_sabme;	/* SABME*/
+	u_long	rx_tei;	/* TEI	*/
+	u_long	rx_ui;	/* UI	*/
+	u_long	rx_disc;	/* DISC */
+	u_long	rx_xid;	/* XID	*/
+	u_long	rx_dm;	/* DM	*/
+	u_long	rx_ua;	/* UA	*/
+	u_long	rx_frmr;	/* FRMR	*/	
+	
+					/* errors */
+
+	u_long	err_rx_len;	/* incorrect length */
+	u_long	err_rx_badf;	/* bad frame type */
+	u_long	err_rx_bads;	/* bad s frame */
+	u_long	err_rx_badu;	/* bad u frame */
+	u_long	err_rx_badui;	/* bad ui frame */
+} lapdstat_t;
+
+typedef struct {
+	int unit;
+	lapdstat_t lapdstat;
+} l2stat_t;
+
+#define	I4B_CTL_GET_LAPDSTAT	_IOWR('C', 4, l2stat_t)
+
+#define	I4B_CTL_CLR_LAPDSTAT	_IOW('C', 5, int)
 
 /* EOF */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Tue Dec 22 20:33:46 1998]
+ *      last edit-date: [Fri Jul 30 08:53:47 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,8 +46,8 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		70		/* release number	*/
-#define STEP		00		/* release step		*/
+#define	REL		83		/* release number	*/
+#define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -74,7 +74,9 @@
 #define CTRL_UNKNOWN	0		/* unknown controller type	*/
 #define CTRL_PASSIVE	1		/* passive ISDN controller cards*/
 #define CTRL_DAIC	2		/* Diehl active controller cards*/
-#define	CTRL_NUMTYPES	3		/* number of controller types */
+#define CTRL_TINADD	3		/* Stollmann Tina-dd active card*/
+#define CTRL_AVMB1	4		/* AVM B1 active card		*/
+#define	CTRL_NUMTYPES	5		/* number of controller types	*/
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -99,7 +101,11 @@
 #define	CARD_TYPEP_ELSAMLIMC	16	/* ELSA MicroLink ISDN/MC	*/
 #define	CARD_TYPEP_ELSAMLMCALL	17	/* ELSA MicroLink MCall		*/
 #define	CARD_TYPEP_ITKIX1	18	/* ITK ix1 micro 		*/
-
+#define CARD_TYPEP_AVMA1PCI	19	/* AVM FRITZ!CARD PCI		*/
+#define CARD_TYPEP_PCC16	20	/* ELSA PCC-16			*/
+#define CARD_TYPEP_AVM_PNP	21	/* AVM FRITZ!CARD PnP		*/
+#define CARD_TYPEP_SIE_ISURF2 	22	/* Siemens I-Surf 2 PnP		*/
+#define CARD_TYPEP_ASUSCOMIPAC	23	/* Asuscom ISDNlink 128 K PnP	*/
 /*
  * in case you add support for more cards, please update:
  *
@@ -109,7 +115,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		18	/* max type */
+#define CARD_TYPEP_MAX		23	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -147,6 +153,7 @@
 #define BDRV_TEL	1       /* telephone (speech) interface driver  */
 #define BDRV_IPR	2       /* IP over raw HDLC interface driver    */
 #define BDRV_ISPPP	3       /* sync Kernel PPP interface driver     */
+#define BDRV_IBC	4       /* BSD/OS point to point driver		*/
 
 /*---------------------------------------------------------------------------*
  * B channel protocol
@@ -165,7 +172,23 @@ typedef	unsigned int cause_t;		/* 32 bit unsigned int	*/
 #define CDID_UNUSED	0	/* cdid is invalid and unused		*/
 #define CDID_MAX	99999	/* highest valid cdid, wraparound to 1	*/
 
- 
+/*---------------------------------------------------------------------------*
+ *	The shorthold algorithm to use
+ *---------------------------------------------------------------------------*/
+#define SHA_FIXU	0    /* timeout algorithm for fix unit charging */
+#define SHA_VARU	1    /* timeout algorithm for variable unit charging */
+
+/*---------------------------------------------------------------------------*
+ *	The shorthold data struct
+ *---------------------------------------------------------------------------*/
+typedef struct {
+	int	shorthold_algorithm;	/* shorthold algorithm to use	*/
+	int	unitlen_time;		/* length of a charging unit	*/
+	int	idle_time;		/* time without activity on b ch*/
+	int	earlyhup_time;		/* safety area at end of unit	*/
+} msg_shorthold_t;
+
+
 /****************************************************************************
 
 	outgoing call:
@@ -254,6 +277,7 @@ typedef struct {
 #define MSG_PDEACT_IND		'm'
 #define	MSG_NEGCOMP_IND		'n'
 #define	MSG_IFSTATE_CHANGED_IND	'o'
+#define MSG_DIALOUTNUMBER_IND	'p'
 	int		cdid;		/* call descriptor id		*/
 } msg_hdr_t;
 
@@ -327,6 +351,17 @@ typedef struct {
 	int		driver;		/* driver type		*/
 	int		driver_unit;	/* driver unit number	*/
 } msg_dialout_ind_t;
+
+/*---------------------------------------------------------------------------*
+ *	dial a number
+ *---------------------------------------------------------------------------*/
+typedef struct {
+	msg_hdr_t	header;		/* common header	*/
+	int		driver;		/* driver type		*/
+	int		driver_unit;	/* driver unit number	*/
+	int		cmdlen;		/* length of string	*/
+	char		cmd[TELNO_MAX];	/* the number to dial	*/	
+} msg_dialoutnumber_ind_t;
 
 /*---------------------------------------------------------------------------*
  *	idle timeout disconnect sent indication
@@ -432,7 +467,6 @@ typedef struct {
  *	"ioctl" messages from userland -> kernel
  *===========================================================================* 
  *===========================================================================*/
- 
 
 /*---------------------------------------------------------------------------*
  *	request a unique cdid (to setup an outgoing call)
@@ -455,9 +489,7 @@ typedef struct {
 	int		bprot;		/* b channel protocol		     */
 	int		driver;		/* driver to route b channel data to */
 	int		driver_unit;	/*      unit number for above driver */
-	int		unitlen_time;	/* length of a charging unit	     */
-	int		idle_time;	/* time without activity on b ch     */
-	int		earlyhup_time;	/* safety area at end of unit	     */
+	msg_shorthold_t	shorthold_data;	/* the shorthold data		     */
 	int		unitlen_method;	/* how to calculate the unitlength   */
 #define  ULEN_METHOD_STATIC  0	/* use unitlen_time value (see above) */
 #define  ULEN_METHOD_DYNAMIC 1	/* use AOCD */	
@@ -524,6 +556,7 @@ typedef struct {
 #define  DSTAT_TFAIL	1		/* transient failure */
 #define  DSTAT_PFAIL	2		/* permanent failure */
 #define  DSTAT_INONLY	3		/* no outgoing dials allowed */
+	cause_t		cause;		/* exact i4b cause */
 } msg_dialout_resp_t;
 
 #define	I4B_DIALOUT_RESP	_IOW('4', 5, msg_dialout_resp_t)
@@ -533,9 +566,7 @@ typedef struct {
  *---------------------------------------------------------------------------*/
 typedef struct {
 	int	cdid;		/* call descriptor id			*/
-	int	unitlen_time;	/* length of a charging unit		*/
-	int	idle_time;	/* time without activity on b ch	*/
-	int	earlyhup_time;	/* safety area at end of unit		*/
+	msg_shorthold_t	shorthold_data;
 } msg_timeout_upd_t;
 	
 #define	I4B_TIMEOUT_UPD		_IOW('4', 6, msg_timeout_upd_t)
@@ -564,14 +595,15 @@ typedef struct {
 
 /*---------------------------------------------------------------------------*
  *	request version and release info from kernel part
+ *	(msg_vr_req_t is also used by tel & rbch drivers)
  *---------------------------------------------------------------------------*/
 typedef struct {
 	int	version;	/* version number */
 	int	release;	/* release number */
 	int	step;		/* release step number */	
 } msg_vr_req_t;
- 
-#define	I4B_VR_REQ		_IOR('4', 9, msg_vr_req_t)
+
+#define I4B_VR_REQ              _IOR('4', 9, msg_vr_req_t)
 
 /*---------------------------------------------------------------------------*
  *	Protocol download to active cards
