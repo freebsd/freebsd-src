@@ -1671,8 +1671,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	uma_bucket_t bucket;
 	int bflags;
 	int cpu;
+	int skip;
 
 	/* This is the fast path free */
+	skip = 0;
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);
 #endif
@@ -1684,8 +1686,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	if (zone->uz_flags & UMA_ZFLAG_FULL)
 		goto zfree_internal;
 
-	if (zone->uz_dtor)
+	if (zone->uz_dtor) {
 		zone->uz_dtor(item, zone->uz_size, udata);
+		skip = 1;
+	}
 
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
@@ -1800,7 +1804,7 @@ zfree_start:
 
 zfree_internal:
 
-	uma_zfree_internal(zone, item, udata, 0);
+	uma_zfree_internal(zone, item, udata, skip);
 
 	return;
 
