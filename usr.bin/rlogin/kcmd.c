@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)kcmd.c	8.2 (Berkeley) 8/19/93";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 #include <kerberosIV/kparse.h>
 
