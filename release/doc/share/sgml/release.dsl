@@ -24,6 +24,12 @@
 	(cond ((equal? arch for-arch) (next-match))
 	      (else (empty-sosofo))))))
 
+; We might have some sect1 level elements where the modification times
+; are significant.  An example of this is the "What's New" section in
+; the release notes.  We enable the printing of pubdate entry in
+; sect1info elements to support this.
+(element (sect1info pubdate) (process-children))
+
     </style-specification-body>
   </style-specification>
 
