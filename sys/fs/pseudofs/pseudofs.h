@@ -256,7 +256,7 @@ static struct vfsops name##_vfsops = {					\
 	pfs_root,							\
 	vfs_stdquotactl,						\
 	pfs_statfs,							\
-	vfs_stdsync,							\
+	vfs_stdnosync,							\
 	vfs_stdvget,							\
 	vfs_stdfhtovp,							\
 	vfs_stdcheckexp,						\

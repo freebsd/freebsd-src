@@ -443,7 +443,7 @@ static struct vfsops umap_vfsops = {
 	umapfs_root,
 	umapfs_quotactl,
 	umapfs_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	umapfs_vget,
 	umapfs_fhtovp,
 	umapfs_checkexp,

@@ -577,7 +577,7 @@ static struct vfsops hpfs_vfsops = {
 	hpfs_root,
 	vfs_stdquotactl,
 	hpfs_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	hpfs_vget,
 	hpfs_fhtovp,
 	vfs_stdcheckexp,

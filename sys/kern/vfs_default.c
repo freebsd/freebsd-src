@@ -879,7 +879,62 @@ vfs_stdquotactl (mp, cmds, uid, arg, td)
 }
 
 int
-vfs_stdsync (mp, waitfor, cred, td)
+vfs_stdsync(mp, waitfor, cred, td)
+	struct mount *mp;
+	int waitfor;
+	struct ucred *cred;
+	struct thread *td;
+{
+	struct vnode *vp, *nvp;
+	int error, lockreq, allerror = 0;
+
+	lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
+	if (waitfor != MNT_WAIT)
+		lockreq |= LK_NOWAIT;
+	/*
+	 * Force stale buffer cache information to be flushed.
+	 */
+	mtx_lock(&mntvnode_mtx);
+loop:
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
+		/*
+		 * If the vnode that we are about to sync is no longer
+		 * associated with this mount point, start over.
+		 */
+		if (vp->v_mount != mp)
+			goto loop;
+
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+
+		VI_LOCK(vp);
+		if (TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		mtx_unlock(&mntvnode_mtx);
+
+		if ((error = vget(vp, lockreq, td)) != 0) {
+			if (error == ENOENT)
+				goto loop;
+			continue;
+		}
+		error = VOP_FSYNC(vp, cred, waitfor, td);
+		if (error)
+			allerror = error;
+
+		mtx_lock(&mntvnode_mtx);
+		if (nvp != TAILQ_NEXT(vp, v_nmntvnodes)) {
+			vput(vp);
+			goto loop;
+		}
+		vput(vp);
+	}
+	mtx_unlock(&mntvnode_mtx);
+	return (allerror);
+}
+
+int
+vfs_stdnosync (mp, waitfor, cred, td)
 	struct mount *mp;
 	int waitfor;
 	struct ucred *cred;

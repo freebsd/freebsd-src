@@ -194,7 +194,7 @@ static struct vfsops devfs_vfsops = {
 	devfs_root,
 	vfs_stdquotactl,
 	devfs_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	vfs_stdvget,
 	vfs_stdfhtovp,
 	vfs_stdcheckexp,
