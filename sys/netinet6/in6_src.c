@@ -112,9 +112,7 @@ struct in6_addrpolicy defaultaddrpolicy;
 int ip6_prefer_tempaddr = 0;
 
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
-			     struct ip6_moptions *,
-			     struct route_in6 *ro,
-			     struct ifnet **));
+	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **));
 
 static struct in6_addrpolicy *lookup_addrsel_policy __P((struct sockaddr_in6 *));
 
@@ -211,6 +209,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 		    != 0) {
 			return (NULL);
 		}
+
 		/*
 		 * determine the appropriate zone id of the source based on
 		 * the zone of the destination and the outgoing interface.
@@ -623,7 +622,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 		    (!(ro->ro_rt->rt_flags & RTF_UP) ||
 		     ((struct sockaddr *)(&ro->ro_dst))->sa_family != AF_INET6 ||
 		     !IN6_ARE_ADDR_EQUAL(&satosin6(&ro->ro_dst)->sin6_addr,
-					 dst))) {
+		     dst))) {
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = (struct rtentry *)NULL;
 		}
@@ -672,8 +671,8 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 		 * (this may happen when we are sending a packet to one of
 		 *  our own addresses.)
 		 */
-		if (opts && opts->ip6po_pktinfo
-		    && opts->ip6po_pktinfo->ipi6_ifindex) {
+		if (opts && opts->ip6po_pktinfo &&
+		    opts->ip6po_pktinfo->ipi6_ifindex) {
 			if (!(ifp->if_flags & IFF_LOOPBACK) &&
 			    ifp->if_index !=
 			    opts->ip6po_pktinfo->ipi6_ifindex) {
@@ -800,8 +799,8 @@ in6_pcbsetport(laddr, inp, td)
 			if (*lastport > first || *lastport < last)
 				*lastport = first;
 			lport = htons(*lastport);
-		} while (in6_pcblookup_local(pcbinfo,
-					     &inp->in6p_laddr, lport, wild));
+		} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
+					     lport, wild));
 	} else {
 		/*
 			 * counting up
