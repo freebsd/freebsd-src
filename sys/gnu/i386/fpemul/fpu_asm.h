@@ -64,7 +64,7 @@
 #include <machine/asmacros.h>
 #include <gnu/i386/fpemul/fpu_emu.h>
 
-#define	EXCEPTION	_exception
+#define	EXCEPTION	exception
 
 
 #define PARAM1	8(%ebp)

@@ -49,9 +49,9 @@ bioscall_stack:		.long	0
 ENTRY(bios32)
 	pushl	%ebp
 	movl	16(%esp),%ebp
-	mov	%bp,_bioscall_vector+4
+	mov	%bp,bioscall_vector+4
 	movl	12(%esp),%ebp
-	movl	%ebp,_bioscall_vector
+	movl	%ebp,bioscall_vector
 	movl	8(%esp),%ebp
 	pushl	%ebx
 	pushl	%esi
@@ -63,7 +63,7 @@ ENTRY(bios32)
 	movl	16(%ebp),%esi
 	movl	20(%ebp),%edi
 	pushl	%ebp
-	lcall	*_bioscall_vector
+	lcall	*bioscall_vector
 	popl	%ebp
 	movl	%eax,0(%ebp)
 	movl	%ebx,4(%ebp)
@@ -127,7 +127,7 @@ ENTRY(bios16_call)
 	lret				/* ...continue below */
 	.globl	CNAME(bios16_jmp)
 CNAME(bios16_jmp):
-	lcallw	*_bioscall_vector	/* 16-bit call */
+	lcallw	*bioscall_vector	/* 16-bit call */
 
 	jc	1f
 	pushl	$0			/* success */

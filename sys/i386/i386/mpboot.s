@@ -74,12 +74,12 @@
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
 	/* Now enable paging mode */
-	movl	_IdlePTD-KERNBASE, %eax
+	movl	IdlePTD-KERNBASE, %eax
 	movl	%eax,%cr3	
 	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* let the games begin! */
-	movl	_bootSTK,%esp			/* boot stack end loc. */
+	movl	bootSTK,%esp			/* boot stack end loc. */
 
 	pushl	$mp_begin			/* jump to high mem */
 	ret
@@ -89,13 +89,13 @@ NON_GPROF_ENTRY(MPentry)
 	 */
 mp_begin:	/* now running relocated at KERNBASE */
 	CHECKPOINT(0x37, 4)
-	call	_init_secondary			/* load i386 tables */
+	call	init_secondary			/* load i386 tables */
 	CHECKPOINT(0x38, 5)
 
 	/*
 	 * If the [BSP] CPU has support for VME, turn it on.
 	 */
-	testl	$CPUID_VME, _cpu_feature	/* XXX WRONG! BSP! */
+	testl	$CPUID_VME, cpu_feature		/* XXX WRONG! BSP! */
 	jz	1f
 	movl	%cr4, %eax
 	orl	$CR4_VME, %eax
@@ -103,19 +103,19 @@ mp_begin:	/* now running relocated at KERNBASE */
 1:
 
 	/* disable the APIC, just to be SURE */
-	movl	_lapic+LA_SVR, %eax		/* get spurious vector reg. */
+	movl	lapic+LA_SVR, %eax		/* get spurious vector reg. */
 	andl	$~APIC_SVR_SWEN, %eax		/* clear software enable bit */
-	movl	%eax, _lapic+LA_SVR
+	movl	%eax, lapic+LA_SVR
 
 	/* signal our startup to the BSP */
-	movl	_lapic+LA_VER, %eax		/* our version reg contents */
-	movl	%eax, _cpu_apic_versions	/* into [ 0 ] */
-	incl	_mp_ncpus			/* signal BSP */
+	movl	lapic+LA_VER, %eax		/* our version reg contents */
+	movl	%eax, cpu_apic_versions		/* into [ 0 ] */
+	incl	mp_ncpus			/* signal BSP */
 
 	CHECKPOINT(0x39, 6)
 
 	/* Now, let's prepare for some REAL WORK :-)  This doesn't return. */
-	call	_ap_init
+	call	ap_init
 
 /*
  * This is the embedded trampoline or bootstrap that is
@@ -150,10 +150,10 @@ NON_GPROF_ENTRY(bootMP)
 	mov	%ax, %fs
 	mov	%ax, %gs
 	mov	%ax, %ss
-	mov	$(boot_stk-_bootMP), %esp
+	mov	$(boot_stk-bootMP), %esp
 
 	/* Now load the global descriptor table */
-	lgdt	MP_GDTptr-_bootMP
+	lgdt	MP_GDTptr-bootMP
 
 	/* Enable protected mode */
 	movl	%cr0, %eax
@@ -165,7 +165,7 @@ NON_GPROF_ENTRY(bootMP)
 	 * reload CS register
 	 */
 	pushl	$0x18
-	pushl	$(protmode-_bootMP)
+	pushl	$(protmode-bootMP)
 	lretl
 
        .code32		
@@ -188,8 +188,8 @@ protmode:
 	movw	%bx, %gs
 	movw	%bx, %ss
 
-	.globl	_bigJump
-_bigJump:
+	.globl	bigJump
+bigJump:
 	/* this will be modified by mpInstallTramp() */
 	ljmp	$0x08, $0			/* far jmp to MPentry() */
 	
@@ -200,10 +200,10 @@ dead:	hlt /* We should never get here */
  * MP boot strap Global Descriptor Table
  */
 	.p2align 4
-	.globl	_MP_GDT
-	.globl	_bootCodeSeg
-	.globl	_bootDataSeg
-_MP_GDT:
+	.globl	MP_GDT
+	.globl	bootCodeSeg
+	.globl	bootDataSeg
+MP_GDT:
 
 nulldesc:		/* offset = 0x0 */
 
@@ -235,7 +235,7 @@ kerneldata:		/* offset = 0x10 */
 bootcode:		/* offset = 0x18 */
 
 	.word	0xffff	/* segment limit 0..15 */
-_bootCodeSeg:		/* this will be modified by mpInstallTramp() */
+bootCodeSeg:		/* this will be modified by mpInstallTramp() */
 	.word	0x0000	/* segment base 0..15 */
 	.byte	0x00	/* segment base 16...23; set for 0x000xx000 */
 	.byte	0x9e	/* flags; Type  */
@@ -245,7 +245,7 @@ _bootCodeSeg:		/* this will be modified by mpInstallTramp() */
 bootdata:		/* offset = 0x20 */
 
 	.word	0xffff	
-_bootDataSeg:		/* this will be modified by mpInstallTramp() */
+bootDataSeg:		/* this will be modified by mpInstallTramp() */
 	.word	0x0000	/* segment base 0..15 */
 	.byte	0x00	/* segment base 16...23; set for 0x000xx000 */
 	.byte	0x92	
@@ -255,18 +255,18 @@ _bootDataSeg:		/* this will be modified by mpInstallTramp() */
 /*
  * GDT pointer for the lgdt call
  */
-	.globl	_mp_gdtbase
+	.globl	mp_gdtbase
 
 MP_GDTptr:	
-_mp_gdtlimit:
+mp_gdtlimit:
 	.word	0x0028		
-_mp_gdtbase:		/* this will be modified by mpInstallTramp() */
+mp_gdtbase:		/* this will be modified by mpInstallTramp() */
 	.long	0
 
 	.space	0x100	/* space for boot_stk - 1st temporary stack */
 boot_stk:
 
 BOOTMP2:
-	.globl	_bootMP_size
-_bootMP_size:
+	.globl	bootMP_size
+bootMP_size:
 	.long	BOOTMP2 - BOOTMP1

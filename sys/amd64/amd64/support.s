@@ -45,21 +45,21 @@
 #define IDXSHIFT	10
 
 	.data
-	.globl	_bcopy_vector
-_bcopy_vector:
-	.long	_generic_bcopy
-	.globl	_bzero
-_bzero:
-	.long	_generic_bzero
-	.globl	_copyin_vector
-_copyin_vector:
-	.long	_generic_copyin
-	.globl	_copyout_vector
-_copyout_vector:
-	.long	_generic_copyout
-	.globl	_ovbcopy_vector
-_ovbcopy_vector:
-	.long	_generic_bcopy
+	.globl	bcopy_vector
+bcopy_vector:
+	.long	generic_bcopy
+	.globl	bzero
+bzero:
+	.long	generic_bzero
+	.globl	copyin_vector
+copyin_vector:
+	.long	generic_copyin
+	.globl	copyout_vector
+copyout_vector:
+	.long	generic_copyout
+	.globl	ovbcopy_vector
+ovbcopy_vector:
+	.long	generic_bcopy
 #if defined(I586_CPU) && defined(DEV_NPX)
 kernel_fpu_lock:
 	.byte	0xfe
@@ -428,11 +428,11 @@ ENTRY(bcopyb)
 
 ENTRY(bcopy)
 	MEXITCOUNT
-	jmp	*_bcopy_vector
+	jmp	*bcopy_vector
 
 ENTRY(ovbcopy)
 	MEXITCOUNT
-	jmp	*_ovbcopy_vector
+	jmp	*ovbcopy_vector
 
 /*
  * generic_bcopy(src, dst, cnt)
@@ -667,7 +667,7 @@ ENTRY(memcpy)
  */
 ENTRY(copyout)
 	MEXITCOUNT
-	jmp	*_copyout_vector
+	jmp	*copyout_vector
 
 ENTRY(generic_copyout)
 	movl	PCPU(CURPCB),%eax
@@ -725,12 +725,12 @@ ENTRY(generic_copyout)
 
 1:
 	/* check PTE for each page */
-	leal	_PTmap(%edx),%eax
+	leal	PTmap(%edx),%eax
 	shrl	$IDXSHIFT,%eax
 	andb	$0xfc,%al
-	testb	$PG_V,_PTmap(%eax)		/* PTE page must be valid */
+	testb	$PG_V,PTmap(%eax)		/* PTE page must be valid */
 	je	4f
-	movb	_PTmap(%edx),%al
+	movb	PTmap(%edx),%al
 	andb	$PG_V|PG_RW|PG_U,%al		/* page must be valid and user writable */
 	cmpb	$PG_V|PG_RW|PG_U,%al
 	je	2f
@@ -741,7 +741,7 @@ ENTRY(generic_copyout)
 	pushl	%ecx
 	shll	$IDXSHIFT,%edx
 	pushl	%edx
-	call	_trapwrite			/* trapwrite(addr) */
+	call	trapwrite			/* trapwrite(addr) */
 	popl	%edx
 	popl	%ecx
 	popl	%edx
@@ -839,7 +839,7 @@ ENTRY(i586_copyout)
 	jb	slow_copyout
 
 	pushl	%ecx
-	call	_fastmove
+	call	fastmove
 	addl	$4,%esp
 	jmp	done_copyout
 #endif /* I586_CPU && defined(DEV_NPX) */
@@ -849,7 +849,7 @@ ENTRY(i586_copyout)
  */
 ENTRY(copyin)
 	MEXITCOUNT
-	jmp	*_copyin_vector
+	jmp	*copyin_vector
 
 ENTRY(generic_copyin)
 	movl	PCPU(CURPCB),%eax
@@ -933,7 +933,7 @@ ENTRY(i586_copyin)
 
 	pushl	%ebx			/* XXX prepare for fastmove_fault */
 	pushl	%ecx
-	call	_fastmove
+	call	fastmove
 	addl	$8,%esp
 	jmp	done_copyin
 #endif /* I586_CPU && defined(DEV_NPX) */
@@ -1209,12 +1209,12 @@ ENTRY(suword)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
-	leal	_PTmap(%edx),%ecx
+	leal	PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
-	movb	_PTmap(%edx),%dl
+	movb	PTmap(%edx),%dl
 	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
 	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
@@ -1222,7 +1222,7 @@ ENTRY(suword)
 4:
 	/* simulate a trap */
 	pushl	%eax
-	call	_trapwrite
+	call	trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	testl	%eax,%eax
 	jnz	fusufault
@@ -1258,9 +1258,9 @@ ENTRY(susword)
 	leal	_PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
-	movb	_PTmap(%edx),%dl
+	movb	PTmap(%edx),%dl
 	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
 	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
@@ -1268,7 +1268,7 @@ ENTRY(susword)
 4:
 	/* simulate a trap */
 	pushl	%eax
-	call	_trapwrite
+	call	trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	testl	%eax,%eax
 	jnz	fusufault
@@ -1301,12 +1301,12 @@ ENTRY(subyte)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
-	leal	_PTmap(%edx),%ecx
+	leal	PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
-	testb	$PG_V,_PTmap(%ecx)		/* PTE page must be valid */
+	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
 	je	4f
-	movb	_PTmap(%edx),%dl
+	movb	PTmap(%edx),%dl
 	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
 	cmpb	$PG_V|PG_RW|PG_U,%dl
 	je	1f
@@ -1314,7 +1314,7 @@ ENTRY(subyte)
 4:
 	/* simulate a trap */
 	pushl	%eax
-	call	_trapwrite
+	call	trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	testl	%eax,%eax
 	jnz	fusufault
@@ -1564,7 +1564,7 @@ ENTRY(rcr3)
 /* void load_cr3(caddr_t cr3) */
 ENTRY(load_cr3)
 #ifdef SWTCH_OPTIM_STATS
-	incl	_tlb_flush_count
+	incl	tlb_flush_count
 #endif
 	movl	4(%esp),%eax
 	movl	%eax,%cr3

@@ -17,7 +17,7 @@ NON_GPROF_ENTRY(svr4_sigcode)
 	movl	SVR4_UC_GS(%eax),%gs
 1:	pushl	%eax			# pointer to ucontext
 	pushl	$1			# set context
-	movl	$_svr4_sys_context,%eax
+	movl	$svr4_sys_context,%eax
 	int	$0x80	 		# enter kernel with args on stack
 0:	jmp	0b
 
@@ -25,9 +25,9 @@ NON_GPROF_ENTRY(svr4_sigcode)
 svr4_esigcode:
 
 	.data
-	.globl	_svr4_szsigcode
-_svr4_szsigcode:
-	.long	svr4_esigcode - _svr4_sigcode
+	.globl	svr4_szsigcode
+svr4_szsigcode:
+	.long	svr4_esigcode - svr4_sigcode
 
 	.text
 
