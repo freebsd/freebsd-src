@@ -109,7 +109,7 @@ of tape on devices that allow multiple formats.  The parameters for
 each mode can be set individually by hand with the
 .Xr mt 1
 command.  When a device corresponding to a particular mode is first
-mounted, The operating parameters for that
+mounted, the operating parameters for that
 mount session
 are copied from that mode.  Further changes to the parameters during the
 session will change those in effect for the session but not those set
@@ -190,7 +190,7 @@ and vice-versa.
 If one requests more blocks than remain in the file, the drive will
 encounter the file mark.  Because there is some data to return (unless
 there were no records before the file mark), the read will succeed,
-returning that data, The next read will return immediately with an
+returning that data.  The next read will return immediately with an
 EOF.  (As above, if the file mark is never read, it remains for the next process to read if in no-rewind mode.)
 .El
 .Sh FILE MARK HANDLING
