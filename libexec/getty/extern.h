@@ -31,27 +31,32 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)extern.h	8.1 (Berkeley) 6/4/93
- *	$Id: extern.h,v 1.2 1994/08/17 20:10:29 pk Exp $
+ *	$Id: extern.h,v 1.1.1.4 1996/04/13 15:33:04 joerg Exp $
  */
 
 struct delayval;
+struct termios;
+struct gettyflags;
+struct gettynums;
+struct gettystrs;
+
+extern	char hostname[];
+extern	int hopcount;
+extern	struct termios tmode, omode;
+extern	struct gettyflags gettyflags[];
+extern	struct gettynums gettynums[];
+extern	struct gettystrs gettystrs[];
 
 int	 adelay __P((int, struct delayval *));
-char	*autobaud __P((void));
+const char *autobaud __P((void));
 int	 delaybits __P((void));
-void	 edithost __P((char *));
+void	 edithost __P((const char *));
 void	 gendefaults __P((void));
-int	 getent __P((char *, char *));
-int	 getflag __P((char *));
-long	 getnum __P((char *));
-char	*getstr __P((char *, char **));
-void	 gettable __P((char *, char *));
+void	 gettable __P((const char *, char *));
 void	 makeenv __P((char *[]));
-char	*portselector __P((void));
+const char *portselector __P((void));
 void	 set_ttydefaults __P((int));
 void	 setchars __P((void));
 void	 setdefaults __P((void));
 void	 setflags __P((int));
 int	 speed __P((int));
-
-int	 login_tty __P((int));			/* From libutil. */
