@@ -185,7 +185,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
 	retval++;
 	rb_entry = malloc(sizeof(*rb_entry));
 	if (rb_entry == NULL) {
-	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    warnx("%s(): malloc() failed", __func__);
 	    retval = -1;
 	    break;
 	}
