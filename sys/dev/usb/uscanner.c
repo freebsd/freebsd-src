@@ -353,11 +353,7 @@ USB_ATTACH(uscanner)
 }
 
 int
-uscanneropen(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 	int unit = USCANNERUNIT(dev);
@@ -420,11 +416,7 @@ uscanneropen(dev, flag, mode, p)
 }
 
 int
-uscannerclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+uscannerclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 
@@ -483,10 +475,7 @@ uscanner_do_close(struct uscanner_softc *sc)
 }
 
 Static int
-uscanner_do_read(sc, uio, flag)
-	struct uscanner_softc *sc;
-	struct uio *uio;
-	int flag;
+uscanner_do_read(struct uscanner_softc *sc, struct uio *uio, int flag)
 {
 	u_int32_t n, tn;
 	usbd_status err;
@@ -525,10 +514,7 @@ uscanner_do_read(sc, uio, flag)
 }
 
 int
-uscannerread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+uscannerread(dev_t dev, struct uio *uio, int flag)
 {
 	struct uscanner_softc *sc;
 	int error;
@@ -544,10 +530,7 @@ uscannerread(dev, uio, flag)
 }
 
 Static int
-uscanner_do_write(sc, uio, flag)
-	struct uscanner_softc *sc;
-	struct uio *uio;
-	int flag;
+uscanner_do_write(struct uscanner_softc *sc, struct uio *uio, int flag)
 {
 	u_int32_t n;
 	int error = 0;
@@ -581,10 +564,7 @@ uscanner_do_write(sc, uio, flag)
 }
 
 int
-uscannerwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+uscannerwrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct uscanner_softc *sc;
 	int error;
@@ -600,9 +580,7 @@ uscannerwrite(dev, uio, flag)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-uscanner_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+uscanner_activate(device_ptr_t self, enum devact act)
 {
 	struct uscanner_softc *sc = (struct uscanner_softc *)self;
 
@@ -674,10 +652,7 @@ USB_DETACH(uscanner)
 }
 
 int
-uscannerpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
 {
 	struct uscanner_softc *sc;
 	int revents = 0;
