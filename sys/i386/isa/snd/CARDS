@@ -156,7 +156,7 @@ ESS688
 
 	http://www.esstech.com
 
-    pnp 1 1 os enable irq0 7 drq0 1 port1 0x220
+    pnp 1 1 os enable irq0 7 drq0 1 port0 0x220
 
     There used to be documentation for the 1868 on the ESS site
     (files ds1868b1.pdf and ds1868b2.pdf) but I am unable to find
