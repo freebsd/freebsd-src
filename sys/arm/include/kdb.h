@@ -31,6 +31,7 @@
 
 #include <machine/frame.h>
 #include <machine/psl.h>
+#include <machine/cpufunc.h>
 
 static __inline void
 kdb_cpu_clear_singlestep(void)
@@ -45,6 +46,7 @@ kdb_cpu_set_singlestep(void)
 static __inline void
 kdb_cpu_trap(int type, int code)
 {
+	cpu_idcache_wbinv_all();
 }
 
 #endif /* _MACHINE_KDB_H_ */

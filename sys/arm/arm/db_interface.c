@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/systm.h>	/* just for boothowto */
 #include <sys/exec.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -192,11 +195,6 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	char *dst;
 	size_t loop;
 
-	/* If any part is in kernel text, use db_write_text() */
-	if (addr >= (vm_offset_t) btext && addr < (vm_offset_t) etext) {
-		return (-1);
-	}
-
 	dst = (char *)addr;
 	if (db_validate_address((u_int)dst)) {
 		db_printf("address %p is invalid\n", dst);
@@ -229,4 +227,93 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 }
 
 
+static u_int
+db_fetch_reg(int reg)
+{
+
+	switch (reg) {
+	case 0:
+		return (kdb_frame->tf_r0);
+	case 1:
+		return (kdb_frame->tf_r1);
+	case 2:
+		return (kdb_frame->tf_r2);
+	case 3:
+		return (kdb_frame->tf_r3);
+	case 4:
+		return (kdb_frame->tf_r4);
+	case 5:
+		return (kdb_frame->tf_r5);
+	case 6:
+		return (kdb_frame->tf_r6);
+	case 7:
+		return (kdb_frame->tf_r7);
+	case 8:
+		return (kdb_frame->tf_r8);
+	case 9:
+		return (kdb_frame->tf_r9);
+	case 10:
+		return (kdb_frame->tf_r10);
+	case 11:
+		return (kdb_frame->tf_r11);
+	case 12:
+		return (kdb_frame->tf_r12);
+	case 13:
+		return (kdb_frame->tf_svc_sp);
+	case 14:
+		return (kdb_frame->tf_svc_lr);
+	case 15:
+		return (kdb_frame->tf_pc);
+	default:
+		panic("db_fetch_reg: botch");
+	}
+}
+
+u_int
+branch_taken(u_int insn, db_addr_t pc)
+{
+	u_int addr, nregs;
+
+	switch ((insn >> 24) & 0xf) {
+	case 0xa:	/* b ... */
+	case 0xb:	/* bl ... */
+		addr = ((insn << 2) & 0x03ffffff);
+		if (addr & 0x02000000)
+			addr |= 0xfc000000;
+		return (pc + 8 + addr);
+	case 0x7:	/* ldr pc, [pc, reg, lsl #2] */
+		addr = db_fetch_reg(insn & 0xf);
+		addr = pc + 8 + (addr << 2);
+		db_read_bytes(addr, 4, (char *)&addr);
+		return (addr);
+	case 0x1:	/* mov pc, reg */
+		addr = db_fetch_reg(insn & 0xf);
+		return (addr);
+	case 0x8:	/* ldmxx reg, {..., pc} */
+	case 0x9:
+		addr = db_fetch_reg((insn >> 16) & 0xf);
+		nregs = (insn  & 0x5555) + ((insn  >> 1) & 0x5555);
+		nregs = (nregs & 0x3333) + ((nregs >> 2) & 0x3333);
+		nregs = (nregs + (nregs >> 4)) & 0x0f0f;
+		nregs = (nregs + (nregs >> 8)) & 0x001f;
+		switch ((insn >> 23) & 0x3) {
+		case 0x0:	/* ldmda */
+			addr = addr - 0;
+			break;
+		case 0x1:	/* ldmia */
+			addr = addr + 0 + ((nregs - 1) << 2);
+			break;
+		case 0x2:	/* ldmdb */
+			addr = addr - 4;
+			break;
+		case 0x3:	/* ldmib */
+			addr = addr + 4 + ((nregs - 1) << 2);
+			break;
+		}
+		db_read_bytes(addr, 4, (char *)&addr);
+		return (addr);
+	default:
+		panic("branch_taken: botch");
+	}
+}
 
