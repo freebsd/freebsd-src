@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.1 1995/05/16 02:53:13 jkh Exp $
+ * $Id: label.c,v 1.2 1995/05/16 11:37:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -409,7 +409,7 @@ print_command_summary()
     move(0, 0);
 }
 
-void
+int
 diskLabelEditor(char *str)
 {
     int sz, key = 0;
@@ -422,6 +422,10 @@ diskLabelEditor(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks();
 
+    if (!getenv(DISK_PARTITIONED)) {
+	msgConfirm("You need to partition your disk(s) before you can assign disk labels.");
+	return 0;
+    }
     while (labeling) {
 	print_label_chunks();
 	print_command_summary();
@@ -604,6 +608,7 @@ diskLabelEditor(char *str)
     variable_set2(DISK_LABELLED, "yes");
     clear();
     refresh();
+    return 0;
 }
 
 

@@ -9,7 +9,7 @@ SRCS=	globals.c	main.c		dmenu.c		menus.c	\
 	termcap.c	makedevs.c	media.c		variable.c \
 	devices.c	dist.c		lang.c		wizard.c \
 	disks.c		command.c	decode.c	label.c \
-	tcpip.c
+	tcpip.c		media_strategy.c
 
 CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog
@@ -30,13 +30,13 @@ BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
 .endif
 
 makedevs.c:	dev2c.sh Makefile rtermcap
-#	mkdir -p dev
-#	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
-#	( cd dev; sh ./MAKEDEV all )
-#	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
-#	rm -rf dev
 	rm -f makedevs.tmp
+	mkdir -p dev
 	echo '#include <sys/types.h>' > makedevs.tmp
+	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
+	( cd dev; sh ./MAKEDEV all )
+	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
+	rm -rf dev
 	uudecode < ${.CURDIR}/bteasy17.uu
 	file2c 'const unsigned char boot0[] = {' '};' \
 		< bteasy17 >> makedevs.tmp

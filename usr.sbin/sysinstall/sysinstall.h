@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.16 1995/05/16 02:53:26 jkh Exp $
+ * $Id: sysinstall.h,v 1.17 1995/05/16 11:37:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,11 +84,10 @@
 #define VAR_NAMESERVER		"nameserver"
 #define VAR_GATEWAY		"gateway"
 
-/* per-interface flags */
-#define VAR_IFCONFIG_ARGS	"if_flags"
-#define VAR_NETMASK		"netmask"
-#define VAR_IPADDR		"ip_addr"
+#define VAR_IFCONFIG		"ifconfig_"
 
+/* The help file for the TCP/IP setup screen */
+#define TCP_HELPFILE		"tcp.hlp"
 
 /*** Types ***/
 typedef unsigned int Boolean;
@@ -177,20 +176,41 @@ typedef int (*commandFunc)(char *key, void *data);
 
 
 /*** Externs ***/
-extern int		CpioFD;	  /* The file descriptor for our CPIO floppy */
-extern int		DebugFD;  /* Where diagnostic output goes	*/
-extern Boolean		OnCDROM;  /* Are we running off of a CDROM?	*/
-extern Boolean		OnSerial; /* Are we on a serial console?	*/
-extern Boolean		SystemWasInstalled; /* Did we install it?       */ 
-extern Boolean		DialogActive; /* Is the dialog() stuff up?	*/
-extern Boolean		ColorDisplay; /* Are we on a color display?     */
-extern Boolean		OnVTY;    /* On a syscons VTY?			*/
-extern Variable		*VarHead; /* The head of the variable chain	*/
-extern unsigned int	Dists;    /* Which distributions we want        */
-extern unsigned int	SrcDists; /* Which src distributions we want    */
-extern unsigned int	XF86Dists;/* Which XFree86 dists we want	*/
-extern unsigned int	XF86ServerDists; /* The XFree86 servers we want */
-extern unsigned int	XF86FontDists; /* The XFree86 fonts we want     */
+extern int		CpioFD;			/* The file descriptor for our CPIO floppy	*/
+extern int		DebugFD;		/* Where diagnostic output goes			*/
+extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
+extern Boolean		OnSerial;		/* Are we on a serial console?			*/
+extern Boolean		SystemWasInstalled;	/* Did we install it?				*/ 
+extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
+extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
+extern Boolean		OnVTY;			/* On a syscons VTY?				*/
+extern Variable		*VarHead;		/* The head of the variable chain		*/
+extern unsigned int	Dists;			/* Which distributions we want			*/
+extern unsigned int	SrcDists;		/* Which src distributions we want		*/
+extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
+extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
+extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
+
+extern DMenu		MenuInitial;		/* Initial installation menu			*/
+extern DMenu		MenuDocumentation;	/* Documentation menu				*/
+extern DMenu		MenuOptions;		/* Installation options				*/
+extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
+extern DMenu		MenuOptionsFTP;		/* FTP options menu				*/
+extern DMenu		MenuMedia;		/* Media type menu				*/
+extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
+extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
+extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
+extern DMenu		MenuInstall;		/* Installation menu				*/
+extern DMenu		MenuInstallType;	/* Installation type menu			*/
+extern DMenu		MenuDistributions;	/* Distribution menu				*/
+extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
+extern DMenu		MenuXF86;		/* XFree86 main menu				*/
+extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
+extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
+extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
+extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
+extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
+
 
 /*** Prototypes ***/
 
@@ -249,7 +269,7 @@ extern void	lang_set_Spanish(char *str);
 extern void	lang_set_Swedish(char *str);
 
 /* label.c */
-extern void	diskLabelEditor(char *str);
+extern int	diskLabelEditor(char *str);
 
 /* makedevs.c (auto-generated) */
 extern const char	termcap_vt100[];
@@ -275,9 +295,13 @@ extern FILE	*mediaOpen(char *parent, char *me);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(FILE *fp);
 extern Boolean	mediaVerify(void);
+
+/* media_strategy.c */
 extern Boolean	mediaInitUFS(Device *dev);
 extern Boolean	mediaGetUFS(char *dist);
 extern Boolean	mediaInitCDROM(Device *dev);
+extern Boolean	mediaGetFloppy(char *dist);
+extern Boolean	mediaInitFloppy(Device *dev);
 extern Boolean	mediaGetCDROM(char *dist);
 extern Boolean	mediaInitTape(Device *dev);
 extern Boolean	mediaGetTape(char *dist);
@@ -286,7 +310,7 @@ extern Boolean	mediaGetNetwork(char *dist);
 extern void	mediaCloseTape(Device *dev);
 extern void	mediaCloseCDROM(Device *dev);
 extern void	mediaCloseNetwork(Device *dev);
-
+extern void	mediaCloseFloppy(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);

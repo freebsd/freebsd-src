@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.18 1995/05/16 02:53:02 jkh Exp $
+ * $Id: disks.c,v 1.19 1995/05/16 11:37:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -312,22 +312,20 @@ partitionHook(char *str)
     return devs ? 1 : 0;
 }
 
-extern DMenu MenuInstall;
-
 int
 diskPartitionEditor(char *str)
 {
     int scroll, choice, curr, max;
-    extern DMenu MenuDiskDevices;
     DMenu *menu;
 
     menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
     if (!menu) {
 	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
-	return 0;
     }
-    choice = scroll = curr = max = 0;
-    dmenuOpen(menu, &choice, &scroll, &curr, &max);
-    free(menu);
+    else {
+	choice = scroll = curr = max = 0;
+	dmenuOpen(menu, &choice, &scroll, &curr, &max);
+	free(menu);
+    }
     return 0;
 }

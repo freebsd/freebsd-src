@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.13 1995/05/16 02:53:23 jkh Exp $
+ * $Id: menus.c,v 1.14 1995/05/16 11:37:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,23 +50,6 @@
  * expansion.
  */
 
-/* Forward decls for submenus */
-extern DMenu MenuDocumentation;
-extern DMenu MenuOptions;
-extern DMenu MenuOptionsLanguage;
-extern DMenu MenuOptionsFTP;
-extern DMenu MenuMedia;
-extern DMenu MenuMediaFloppy;
-extern DMenu MenuInstall;
-extern DMenu MenuInstallType;
-extern DMenu MenuInstallOptions;
-extern DMenu MenuDistributions;
-extern DMenu MenuXF86Select;
-extern DMenu MenuXF86SelectCore;
-extern DMenu MenuXF86SelectServer;
-extern DMenu MenuXF86SelectFonts;
-extern DMenu MenuXF86;
-
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
@@ -83,7 +66,7 @@ option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
 	DMENU_SUBMENU, (void *)&MenuDocumentation, 0, 0 },
       { "Options", "Select various options for this utility.",	/* O */
 	DMENU_SUBMENU, (void *)&MenuOptions, 0, 0	},
-      { "Install", "Begin installation",			/* I */
+      { "Proceed", "Go to the installation menu",		/* P */
 	DMENU_SUBMENU, (void *)&MenuInstall, 0, 0		},
       { NULL } },
 };
@@ -168,8 +151,8 @@ because you haven't booted directly from the CDROM in DOS/Windows or\n\
 your CDROM was not detected.  If you feel that you are seeing this dialog\n\
 in error, you may wish to reboot FreeBSD with the -c boot flag (see the\n\
 hardware guide in the Documentation menu for more info) and check that your\n\
-CDROM controller and the kernel agree on reasonable values.  Please also note\n\
-that FreeBSD does NOT currently support IDE CDROM drives!",
+CDROM controller and the kernel agree on reasonable values.  Please also\n\
+note that FreeBSD does NOT currently support IDE CDROM drives!",
     "Press F1 for more information on CDROM support",
     "media_cdrom.hlp",
     { { "Matsushita", "Panasonic \"Sound Blaster\" CDROM.",		/* M */
@@ -208,9 +191,10 @@ DMenu MenuMediaFTP = {
     "FreeBSD is distributed from a number of sites on the Internet. Please\n\
 select the site closest to you or \"other\" if you'd like to specify another\n\
 choice.  Also note that not all sites carry every possible distribution!\n\
-Distributions other than the basic user set are only guaranteed to be available\n\
-from the Primary site.\n\n\
-If the first site selected doesn't respond, try one of the alternates.",
+Distributions other than the basic user set are only guaranteed to be\n\
+available from the Primary site.\n\n\
+If the first site selected doesn't respond, try one of the alternates.\n\
+You may also wish to investigate the Ftp options menu in case of trouble.",
     "Select a site that's close!",
     "media_ftp.hlp",
     { { "Primary",  "ftp.freebsd.org",
@@ -300,10 +284,10 @@ method.",
 DMenu MenuInstallType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Installation Type",
-    "As a convenience, we provide several `canned' installation types.\n\
-These pick what we consider to be the most reasonable defaults for the\n\
+    "As a convenience, we provide several \"canned\" installation types.\n\
+These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
-the list of distributions yourself, simply select `custom'.",
+the list of distributions yourself, simply select \"custom\".",
     "Press F1 for more information on the various distributions",
     "dist_types.hlp",
     { { "Developer", "Includes full sources, binaries and doc but no games.",
@@ -421,11 +405,12 @@ DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 3.1.1u1 Distribution",
     "Please select the components you need from the XFree86 3.1.1u1\n\
-distribution.  Select what you need from the basic components set\n\
-and at least one entry from the Server menu and the Font set menu\n",
-    "Press F1 for a sample sequence",
-    "XF86Select.hlp",
-    { { "Core", "Basic component menu (required)",
+distribution.  We recommend that you select what you need from the basic\n\
+components set and at least one entry from the Server and Font set menus.\n\n\
+When you're finished, select Cancel.",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86S.hlp",
+    { { "Basic", "Basic component menu (required)",
 	DMENU_SUBMENU, &MenuXF86SelectCore, 0, 0	},
       { "Server", "X server menu", 
 	DMENU_SUBMENU, &MenuXF86SelectServer, 0, 0	},
@@ -537,8 +522,9 @@ DMenu MenuOptions = {
     DMENU_NORMAL_TYPE,
     "Choose Installation Options",
     "This menu controls how the FreeBSD installation will deal with various\n\
-error conditions, should they arise, and the degree to which you, the\n\
-user, will be prompted for options.",
+error conditions (should they arise), the default language used for\n\
+documentation, etc.\n\n\
+When you're done setting options, please select Cancel.",
     NULL,
     NULL,
     { { "Ftp Options", "Ftp options menu",
@@ -578,12 +564,13 @@ to deal with it?  You have one of several choices:",
 DMenu MenuInstall = {
     DMENU_NORMAL_TYPE,
     "Choose Installation Options",		/* title */
-    "Before installation can continue, you need to specify a few items\n\
-of information regarding the type of distribution you wish to have\n\
-and from where you wish to install it.  There are also a number\n\
-of options you can specify in the Options menu which will determine\n\
-how.  You may choose  install FreeBSD at this time, you may\n\
-select Cancel to leave this menu.",
+    "Before installation can continue, you need to specify a few\n\
+details on the type of distribution you wish to have, where you wish\n\
+to install it from, and how you wish to allocate disk storage to FreeBSD\n\
+None of the items in this menu will actually modify the contents of\n\
+your disk until you select the \"GO!\" menu item (and even then, only\n\
+after a final confirmation).  If you do not wish to install FreeBSD\n\
+at this time then select Cancel to leave this menu.",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { "Distributions", "Choose the type of installation you want", /* T */
@@ -598,7 +585,5 @@ select Cancel to leave this menu.",
 	DMENU_CALL, (void *)tcpOpenDialog, 0, 0		},
       { "GO!", "Start the whole show and go out for coffee!",	/* P */
 	DMENU_CALL, (void *)installCommit, 0, 0		},
-      { "Options", "Set special installation options",	/* O */
-	DMENU_SUBMENU, (void *)&MenuOptions, 0, 0},
       { NULL } },
 };
