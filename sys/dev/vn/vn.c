@@ -1,4 +1,3 @@
-#define DEBUG 1
 /*
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1990, 1993
@@ -62,6 +61,12 @@
 #include "vn.h"
 #if NVN > 0
 
+/* default is to have 8 VN's */
+#if NVN < 8
+#undef NVN
+#define NVN 8
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -120,8 +125,7 @@ struct vn_softc {
 /* sc_flags */
 #define VNF_INITED	0x01
 
-struct vn_softc **vn_softc;
-int numvnd;
+struct vn_softc *vn_softc[NVN];
 
 /*
  * XXX these decls should be static (without __P(())) or elsewhere.
@@ -142,13 +146,15 @@ int	vndump __P((dev_t dev));
 int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
-#ifdef TEST_LABELLING
 	struct vn_softc *vn;
 
 	vn = vn_softc[vnunit(dev)];
+#ifdef TEST_LABELLING
 	if (vn->sc_slices != NULL)
 		dsclose(dev, mode, vn->sc_slices);
 #endif
+	vn_softc[vnunit(dev)] = 0;
+	free(vn, M_DEVBUF);
 	return (0);
 }
 
@@ -156,30 +162,15 @@ int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
 	int unit = vnunit(dev),size;
-	struct vn_softc **vscp, **old, *vn;
+	struct vn_softc *vn;
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
 		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", dev, flags, mode, p);
 #endif
-	if (unit >= numvnd) {
-		/*
-		 * We need to get more space for our config.  If you say
-		 * this is overkill, you're absolutely right.
-		 */
-		size = (unit+1) * (sizeof *vn_softc);
-		vscp = (struct vn_softc **) malloc(size, M_DEVBUF, M_WAITOK);
-		if (!vscp)
-			return(ENOMEM);
-	        bzero(vscp,size);
-		if (numvnd)
-			bcopy(vn_softc, vscp, numvnd * (sizeof *vn_softc));
-		numvnd = unit + 1;
-		old = vn_softc;
-		vn_softc = vscp;
-		if (old)
-			free(old, M_DEVBUF);
-	}
+	if (unit >= NVN)
+		return(ENOENT);
+
 	vn = vn_softc[unit];
 	if (!vn) {
 		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
@@ -449,10 +440,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
-	/*
-	 * XXX test is unnecessary?
-	 */
-	if (unit >= numvnd)
+	if (unit >= NVN)
 		return (ENXIO);
 
 	vn = vn_softc[unit];
@@ -588,7 +576,7 @@ vnshutdown()
 {
 	int i;
 
-	for (i = 0; i < numvnd; i++)
+	for (i = 0; i < NVN; i++)
 		if (vn_softc[i] && vn_softc[i]->sc_flags & VNF_INITED)
 			vnclear(vn_softc[i]);
 }
@@ -624,8 +612,7 @@ vnsize(dev_t dev)
 {
 	int unit = vnunit(dev);
 
-	if (!vn_softc || 
-	    unit >= numvnd || 
+	if (unit >= NVN || (!vn_softc[unit]) ||
 	    (vn_softc[unit]->sc_flags & VNF_INITED) == 0)
 		return(-1);
 	return(vn_softc[unit]->sc_size);
