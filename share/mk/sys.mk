@@ -76,7 +76,10 @@ LD		?=	ld
 LDFLAGS		?=
 
 LINT		?=	lint
-LINTFLAGS	?=	-chapbx
+LINTFLAGS	?=	-cghapbx -L /usr/libdata/lint
+LINTKERNFLAGS	?=	${LINTFLAGS}
+LINTOBJFLAGS	?=	-cghapbxu -i
+LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 
 MAKE		?=	make
 
