@@ -302,32 +302,19 @@ f_Xtime(plan, entry)
 	FTSENT *entry;
 {
 	extern time_t now;
-	int exact_time;
+	time_t xtime;
 
-	exact_time = plan->flags & F_EXACTTIME;
+	if (plan->flags & F_TIME_A)
+		xtime = entry->fts_statp->st_atime;
+	else if (plan->flags & F_TIME_C)
+		xtime = entry->fts_statp->st_ctime;
+	else
+		xtime = entry->fts_statp->st_mtime;
 
-	if (plan->flags & F_TIME_C) {
-		if (exact_time)
-			COMPARE(now - entry->fts_statp->st_ctime,
-			    plan->t_data);
-		else
-			COMPARE((now - entry->fts_statp->st_ctime +
-			    86400 - 1) / 86400, plan->t_data);
-	} else if (plan->flags & F_TIME_A) {
-		if (exact_time)
-			COMPARE(now - entry->fts_statp->st_atime,
-			    plan->t_data);
-		else
-			COMPARE((now - entry->fts_statp->st_atime +
-			    86400 - 1) / 86400, plan->t_data);
-	} else {
-		if (exact_time)
-			COMPARE(now - entry->fts_statp->st_mtime,
-			    plan->t_data);
-		else
-			COMPARE((now - entry->fts_statp->st_mtime +
-			    86400 - 1) / 86400, plan->t_data);
-	}
+	if (plan->flags & F_EXACTTIME)
+		COMPARE(now - xtime, plan->t_data);
+	else
+		COMPARE((now - xtime + 86400 - 1) / 86400, plan->t_data);
 }
 
 PLAN *
