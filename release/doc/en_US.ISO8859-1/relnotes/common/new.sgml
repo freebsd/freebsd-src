@@ -3390,7 +3390,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	available as &man.lukemftpd.8;. &merged;</para>
 
       <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
-	2002.</para>
+	2002. &merged;</para>
 
       <para><application>ncurses</application> has been updated to
 	5.2-20020615.</para>
@@ -3406,7 +3406,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The <application>OPIE</application> one-time-password
 	suite has been updated to 2.4.  It has completely
 	replaced the functionality of
-	<application>S/Key</application>.</para>
+	<application>S/Key</application>. &merged;</para>
 
       <para><application>Perl</application> has been removed from the
 	&os; base system.  It can still be installed from the &os;
@@ -3464,7 +3464,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	5 June 2002 has, been imported.</para>
 
       <para><application>GNU tar</application> has been updated to
-	1.13.25.</para>
+	1.13.25. &merged;</para>
 
       <para><application>tcpdump</application> has been updated to
 	3.7.1. &merged;</para>
