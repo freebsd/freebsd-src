@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.8 1999/02/16 14:19:50 des Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.9 1999/05/06 03:23:24 archie Exp $ (LBL)";
 #endif
 
 /*
@@ -298,6 +298,7 @@ char *source;
 char *hostname;
 
 int nprobes = 3;
+int min_ttl = 1;
 int max_ttl = 30;
 u_short ident;
 u_short port;			/* protocol specific base "port" */
@@ -412,7 +413,7 @@ main(int argc, char **argv)
 		prog = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "Sdnrvg:m:P:p:q:s:t:w:")) != EOF)
+	while ((op = getopt(argc, argv, "Sdnrvg:M:m:P:p:q:s:t:w:")) != EOF)
 		switch (op) {
 
 		case 'S':
@@ -433,11 +434,20 @@ main(int argc, char **argv)
 			++lsrr;
 			break;
 
+		case 'M':
+			min_ttl = atoi(optarg);
+			if (min_ttl < 1 || min_ttl > 0xff) {
+				Fprintf(stderr, "%s: invalid ttl value %s\n",
+				    prog, optarg);
+				exit(1);
+			}
+			break;
+
 		case 'm':
 			max_ttl = atoi(optarg);
-			if (max_ttl <= 1) {
-				Fprintf(stderr, "%s: max ttl must be > 1\n",
-				    prog);
+			if (max_ttl < 1 || max_ttl > 0xff) {
+				Fprintf(stderr, "%s: invalid ttl value %s\n",
+				    prog, optarg);
 				exit(1);
 			}
 			break;
@@ -531,6 +541,12 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+
+	/* Check min vs. max TTL */
+	if (min_ttl > max_ttl) {
+		Fprintf(stderr, "%s: min ttl must be <= max ttl\n", prog);
+		exit(1);
+	}
 
 	/* Process destination and optional packet size */
 	switch (argc - optind) {
@@ -705,7 +721,7 @@ main(int argc, char **argv)
 	Fprintf(stderr, ", %d hops max, %d byte packets\n", max_ttl, packlen);
 	(void)fflush(stderr);
 
-	for (ttl = 1; ttl <= max_ttl; ++ttl) {
+	for (ttl = min_ttl; ttl <= max_ttl; ++ttl) {
 		u_int32_t lastaddr = 0;
 		int got_there = 0;
 		int unreachable = 0;
@@ -1205,8 +1221,8 @@ usage(void)
 	extern char version[];
 
 	Fprintf(stderr, "Version %s\n", version);
-	Fprintf(stderr, "Usage: %s [-dnrv] [-w wait] [-m max_ttl] [-p port#] \
-[-q nqueries]\n\t [-t tos] [-s src_addr] [-g gateway] host [data_size]\n",
-	    prog);
+	Fprintf(stderr, "Usage: %s [-dnrv] [-w wait] [-m max_ttl] [-M min_ttl] \
+[-P proto]\n\t [-p port#] [-q nqueries] [-t tos] [-s src_addr] [-g gateway] \
+\n\t host [data_size]\n", prog);
 	exit(1);
 }
