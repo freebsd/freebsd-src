@@ -1,0 +1,52 @@
+#
+# Configuration file for natd.
+#
+#
+# Logging to /var/log
+#
+log		no
+#
+# Incoming connections.
+#
+deny_incoming	no
+#
+# Use sockets to avoid port clashes.
+#
+use_sockets	no
+#
+# Avoid port changes if possible. Makes rlogin work
+# in most cases.
+#
+same_port	yes
+#
+# Verbose mode. Enables dumping of packets and disables
+# forking to background.
+#
+verbose		no
+#
+# Divert port. Can be a name in /etc/services or numeric value.
+#
+port		32000
+#
+# Interface name or address being aliased. Either one,
+# not both is required.
+#
+# alias_address	192.168.0.1
+interface	ep0
+#
+# Alias unregistered addresses or all addresses.
+#
+unregistered_only	no
+#
+# Configure permanent links. If you use host names instead
+# of addresses here, be sure that name server works BEFORE
+# natd is up - this is usually not the case. So either use
+# numeric addresses or hosts that are in /etc/hosts.
+#
+# Map connections coming to port 30000 to telnet in my_private_host.
+# Remember to allow the connection /etc/rc.firewall also.
+#permanent_link		tcp my_private_host:telnet 0.0.0.0:0 30000
+#
+# Map connections coming from host.xyz.com to port 30001 to 
+# telnet in another_host.
+#permanent_link		tcp another_host:telnet host.xyz.com:0 30001
