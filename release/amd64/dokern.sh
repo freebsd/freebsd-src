@@ -55,7 +55,6 @@ sed	-e '/	pty	/d' \
 	-e '/	vx	/d' \
 	-e '/	dc	/d' \
 	-e '/	fxp	/d' \
-	-e '/	pcn	/d' \
 	-e '/	rl	/d' \
 	-e '/	sf	/d' \
 	-e '/	sis	/d' \
