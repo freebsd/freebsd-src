@@ -566,7 +566,7 @@ vfs_cache_lookup(ap)
 
 	error = cache_lookup(dvp, vpp, cnp);
 
-#ifdef LOOKUP_SHARED
+#ifndef LOOKUP_EXCLUSIVE
 	if (!error) {
 		/* We do this because the rest of the system now expects to get
 		 * a shared lock, which is later upgraded if LOCKSHARED is not
@@ -608,7 +608,7 @@ vfs_cache_lookup(ap)
 	} else if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		cnp->cn_flags |= PDIRUNLOCK;
-#ifdef LOOKUP_SHARED
+#ifndef LOOKUP_EXCLUSIVE
 		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
 			error = vget(vp, LK_SHARED, td);
 		else
@@ -622,7 +622,7 @@ vfs_cache_lookup(ap)
 				cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 	} else {
-#ifdef LOOKUP_SHARED
+#ifndef LOOKUP_EXCLUSIVE
 		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
 			error = vget(vp, LK_SHARED, td);
 		else
@@ -654,7 +654,7 @@ vfs_cache_lookup(ap)
 			return (error);
 		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
-#ifdef LOOKUP_SHARED
+#ifndef LOOKUP_EXCLUSIVE
 	error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
 
 	if (!error) {

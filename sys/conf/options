@@ -383,7 +383,7 @@ BLKDEV_IOSIZE		opt_global.h
 DEBUG			opt_global.h
 DEBUG_LOCKS		opt_global.h
 DEBUG_VFS_LOCKS		opt_global.h
-LOOKUP_SHARED		opt_global.h
+LOOKUP_EXCLUSIVE	opt_global.h
 DIAGNOSTIC		opt_global.h
 ENABLE_VFS_IOOPT	opt_global.h
 INVARIANT_SUPPORT	opt_global.h
@@ -397,6 +397,7 @@ VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 NO_SWAPPING		opt_vm.h
+MALLOC_PROFILE		opt_vm.h
 PQ_NOOPT		opt_vmpage.h
 PQ_NORMALCACHE		opt_vmpage.h
 PQ_MEDIUMCACHE		opt_vmpage.h
