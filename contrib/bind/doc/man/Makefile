@@ -279,7 +279,7 @@ NSUPDATE_OUT = 	nsupdate.${SYS_OPS_OUT_EXT}
 # Network library routines manual entries
 #
 LIB_NETWORK_BASE =	gethostbyname inet_cidr resolver hesiod getnetent \
-			tsig getaddrinfo inet_cidr getipnodebyname
+			tsig getaddrinfo getnameinfo getipnodebyname
 LIB_NETWORK_SRC_EXT =	3
 LIB_NETWORK_SRC = 	gethostbyname.${LIB_NETWORK_SRC_EXT} \
 			inet_cidr.${LIB_NETWORK_SRC_EXT} \
