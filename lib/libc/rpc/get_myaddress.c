@@ -81,7 +81,7 @@ again:
 	end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
 
 	while (ifr < end) {
-		ifreq = *ifr;
+		memcpy(&ifreq, ifr, sizeof(ifreq));
 		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
 			_close(s);
 			return(-1);
