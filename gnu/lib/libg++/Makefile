@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1994/09/09 22:22:36 wollman Exp $
+# $Id: Makefile,v 1.4 1994/09/10 07:15:59 pst Exp $
 #
 
 SRCS=	vasprintf.c strerror.c strsignal.c
@@ -10,6 +10,7 @@ NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
 CXXFLAGS+=	-fexternal-templates -I${.CURDIR}/include
 .PATH:	${.CURDIR}/libiberty ${.CURDIR}/libio ${.CURDIR}/libg++
+LDADD+= -lcurses
 
 beforeinstall:
 	@-if [ ! -d ${DESTDIR}/usr/include/g++ ]; then  mkdir ${DESTDIR}/usr/include/g++;  chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/g++;  chmod 755 ${DESTDIR}/usr/include/g++;  fi
