@@ -26,6 +26,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$Id: pcic.c,v 1.0 1999/05/04 11:11:11 roger Exp $
  */
 
 /*
@@ -54,6 +56,9 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
+#ifdef APIC_IO
+#include <machine/smp.h>
+#endif /* APIC_IO */
 /*
  *	Prototypes for interrupt handler.
  */
@@ -282,6 +287,18 @@ build_freelist(u_int pcic_mask)
 		 */ 
 		mask = 1 << irq; 
 		if (!(mask & pcic_mask)) continue; 
+
+#ifdef APIC_IO
+		/* When using the APIC, ISA IRQs get mapped onto APIC IRQs
+		 * (see mptable). Check which APIC IRQ the PCIC controller's
+		 * IRQ will map to. Only allow interrupts where the APIC IRQ 
+		 * is the same as the PCIC controller's IRQ.
+		 * This avoids the problem of tracking both PCIC IRQs and
+		 * interrupt masks and APIC IRQs and interrupt masks.
+		 */
+		if (isa_apic_irq(irq) != irq) 
+			 continue;
+#endif /* APIC_IO */
  
 		/* See if the IRQ is free. */
 		if (register_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
