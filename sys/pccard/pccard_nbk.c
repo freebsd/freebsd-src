@@ -80,14 +80,14 @@ devclass_t	pccard_devclass;
 /*
  * glue for NEWCARD/OLDCARD compat layer
  */
-int
-pccard_compat_probe(device_t dev)
+static int
+pccard_compat_do_probe(device_t bus, device_t dev)
 {
 	return (CARD_COMPAT_PROBE(dev));
 }
 
-int
-pccard_compat_attach(device_t dev)
+static int
+pccard_compat_do_attach(device_t bus, device_t dev)
 {
 	return (CARD_COMPAT_ATTACH(dev));
 }
@@ -376,6 +376,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_get_function,	pccard_get_function),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
+	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
+	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 
 	{ 0, 0 }
 };
