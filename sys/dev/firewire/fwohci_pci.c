@@ -70,6 +70,10 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "NEC uPD72861");
 		return 0;
 	}
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD871)) {
+		device_set_desc(dev, "NEC uPD72871/2");
+		return 0;
+	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
 		return 0;
