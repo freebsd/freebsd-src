@@ -704,7 +704,6 @@ readrest:
 				vm_page_lock_queues();
 				pmap_remove_all(fs.first_m);
 				vm_page_free(fs.first_m);
-				vm_page_unlock_queues();
 				fs.first_m = NULL;
 
 				/*
@@ -714,7 +713,6 @@ readrest:
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
-				vm_page_lock_queues();
 				vm_page_busy(fs.first_m);
 				vm_page_unlock_queues();
 				fs.m = NULL;
