@@ -2950,7 +2950,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	 */
 	if (thflags != TH_ACK || tlen != 0 || 
 	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
-		tcp_twrespond(tw, TH_ACK);
+		tcp_twrespond(tw, NULL, m, TH_ACK);
 	goto drop;
 
 reset:
