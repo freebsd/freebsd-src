@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
-.\"	$Id: syslog.conf.5,v 1.8 1997/10/06 20:37:50 joerg Exp $
+.\"	$Id: syslog.conf.5,v 1.9 1997/10/20 12:55:47 charnier Exp $
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -114,7 +114,8 @@ or
 (the former is for compatibility with the previous syslogd, if one is sharing
 syslog.conf files, for example)
 and each block will be associated with calls to syslog from that specific
-program.
+program. A tag for ``foo'' will also match any message logged by the kernel
+with the prefix ``foo: ''.
 .Pp
 See
 .Xr syslog 3
@@ -294,6 +295,10 @@ auth.*					|exec /usr/local/sbin/authfilter
 # Save ftpd transactions along with mail and news
 !ftpd
 *.*							/var/log/spoolerr
+
+# Log kernel firewall reports to a separate file
+!ipfw
+*.*							/var/log/ipfw
 .Ed
 .Sh FILES
 .Bl -tag -width /etc/syslog.conf -compact
