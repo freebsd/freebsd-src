@@ -1001,7 +1001,7 @@ struct ndis_reference {
 typedef struct ndis_reference ndis_reference;
 
 struct ndis_timer_entry {
-	struct callout_handle	nte_ch;
+	struct callout		nte_ch;
 	ndis_miniport_timer	*nte_timer;
 	TAILQ_ENTRY(ndis_timer_entry)	link;
 };
