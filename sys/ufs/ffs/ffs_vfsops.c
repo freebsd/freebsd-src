@@ -412,12 +412,8 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-	/*
-	 * Only VMIO the backing device if the backing device is a real
-	 * disk device.  See ffs_mountfs() for more details.
-	 */
-	if (vn_isdisk(devvp, NULL))
-		vfs_object_create(devvp, td, td->td_ucred);
+	
+	vfs_object_create(devvp, td, td->td_ucred);
 	VOP_UNLOCK(devvp, 0, td);
 
 	/*
@@ -578,13 +574,10 @@ ffs_mountfs(devvp, mp, td)
 	}
 
 	/*
-	 * Only VMIO the backing device if the backing device is a real
-	 * disk device.
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (vn_isdisk(devvp, NULL))
-		vfs_object_create(devvp, td, cred);
+	vfs_object_create(devvp, td, cred);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	/*
