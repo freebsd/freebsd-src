@@ -50,7 +50,8 @@ The
 utility is used to give commands to a magnetic tape drive.
 By default
 .Nm
-performs the requested operation once.  Operations
+performs the requested operation once.
+Operations
 may be performed multiple times by specifying
 .Ar count  .
 Note
@@ -58,7 +59,8 @@ that
 .Ar tapename
 must reference a raw (not block) tape device.
 .Pp
-The available commands are listed below.  Only as many
+The available commands are listed below.
+Only as many
 characters as are required to uniquely identify a command
 need be specified.
 .Bl -tag -width "eof, weof"
@@ -146,19 +148,24 @@ Print (and clear) error status information about this device.
 For every normal
 operation (e.g., a read or a write) and every control operation (e.g,, a
 rewind), the driver stores up the last command executed and it's associated
-status and any residual counts (if any). This command retrieves and prints this
+status and any residual counts (if any).
+This command retrieves and prints this
 information.
 If possible, this also clears any latched error information.
 .It Cm blocksize
-Set the block size for the tape unit.  Zero means variable-length
+Set the block size for the tape unit.
+Zero means variable-length
 blocks.
 .It Cm density
-Set the density for the tape unit.  For the density codes, see below.
+Set the density for the tape unit.
+For the density codes, see below.
 The density value could be given either numerically, or as a string,
 corresponding to the
 .Dq Reference
-field.  If the string is abbreviated, it will be resolved in the order
-shown in the table, and the first matching entry will be used.  If the
+field.
+If the string is abbreviated, it will be resolved in the order
+shown in the table, and the first matching entry will be used.
+If the
 given string and the resulting canonical density name do not match
 exactly, an informational message is printed about what the given
 string has been taken for.
@@ -209,11 +216,13 @@ DCLZ compression algorithm (0x20).
 .El
 .Pp
 In addition to the above recognized compression keywords, the user can
-supply a numeric compression algorithm for the tape drive to use.  In most
+supply a numeric compression algorithm for the tape drive to use.
+In most
 cases, simply turning the compression
 .Sq on
 will have the desired effect of enabling the default compression algorithm
-supported by the drive.  If this is not the case (see the
+supported by the drive.
+If this is not the case (see the
 .Cm status
 display to see which compression algorithm is currently in use), the user
 can manually specify one of the supported compression keywords (above), or

@@ -60,7 +60,8 @@ object files that are produced.
 .It Fl D Ar name Ns Op = Ns Ar value
 Define name as if by a C-language
 .Ic #define
-directive.  If
+directive.
+If
 no
 .Dq = Ns Ar value
 is given, a value of 1 will be used.
@@ -69,11 +70,13 @@ translation as specified by
 .St -p1003.2
 you need to define
 .Dv _POSIX_SOURCE
-either in the source or using this option.  The
+either in the source or using this option.
+The
 .Fl D
 option has lower precedence than the
 .Fl U
-option.  That is, if
+option.
+That is, if
 .Ar name
 is used in both a
 .Fl U
@@ -81,7 +84,8 @@ and a
 .Fl D
 option,
 .Ar name
-will be undefined regardless of the order of the options.  The
+will be undefined regardless of the order of the options.
+The
 .Fl D
 option may be specified more than once.
 .It Fl E
@@ -93,20 +97,24 @@ Produce symbolic information in the object or executable files.
 Change the algorithm for searching for headers whose names are not
 absolute pathnames to look in the directory named by the
 .Ar directory
-pathname before looking in the usual places.  Thus, headers whose
+pathname before looking in the usual places.
+Thus, headers whose
 names are enclosed in double-quotes ("") will be searched for first
 in the directory of the file with the
 .Ic #include
 line, then in
 directories named in
 .Fl I
-options, and last in the usual places.  For
+options, and last in the usual places.
+For
 headers whose names are enclosed in angle brackets (<>), the header
 will be searched for only in directories named in
 .Fl I
-options and then in the usual places.  Directories named in
+options and then in the usual places.
+Directories named in
 .Fl I
-options shall be searched in the order specified.  The
+options shall be searched in the order specified.
+The
 .Fl I
 option may be specified more than once.
 .It Fl L Ar directory
@@ -114,9 +122,11 @@ Change the algorithm of searching for the libraries named in the
 .Fl l
 objects to look in the directory named by the
 .Ar directory
-pathname before looking in the usual places.  Directories named in
+pathname before looking in the usual places.
+Directories named in
 .Fl L
-options will be searched in the order specified.  The
+options will be searched in the order specified.
+The
 .Fl L
 option may be specified more than once.
 .It Fl o Ar outfile
@@ -141,11 +151,14 @@ option may be specified more than once.
 .Pp
 An operand is either in the form of a pathname or the form
 .Fl l
-library.  At least one operand of the pathname form needs to be
-specified.  Supported operands are of the form:
+library.
+At least one operand of the pathname form needs to be
+specified.
+Supported operands are of the form:
 .Bl -tag -offset indent -width "-l library"
 .It Ar file Ns Pa .c
-A C-language source file to be compiled and optionally linked.  The
+A C-language source file to be compiled and optionally linked.
+The
 operand must be of this form if the
 .Fl c
 option is used.

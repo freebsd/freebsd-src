@@ -88,12 +88,15 @@ The
 .Nm
 utility is a
 .Em C
-program formatter.  It reformats the
+program formatter.
+It reformats the
 .Em C
 program in the
 .Ar input-file
-according to the switches.  The switches which can be
-specified are described below.  They may appear before or after the file
+according to the switches.
+The switches which can be
+specified are described below.
+They may appear before or after the file
 names.
 .Pp
 .Sy NOTE  :
@@ -104,7 +107,8 @@ done `in-place', that is, the formatted file is written back into
 .Ar input-file
 and a backup copy of
 .Ar input-file
-is written in the current directory.  If
+is written in the current directory.
+If
 .Ar input-file
 is named
 .Sq Pa /blah/blah/file ,
@@ -125,24 +129,28 @@ The options listed below control the formatting style imposed by
 If
 .Fl bad
 is specified, a blank line is forced after every block of
-declarations.  Default:
+declarations.
+Default:
 .Fl nbad  .
 .It Fl bap , nbap
 If
 .Fl bap
-is specified, a blank line is forced after every procedure body.  Default:
+is specified, a blank line is forced after every procedure body.
+Default:
 .Fl nbap .
 .It Fl bbb , nbbb
 If
 .Fl bbb
-is specified, a blank line is forced before every block comment.  Default:
+is specified, a blank line is forced before every block comment.
+Default:
 .Fl nbbb .
 .It Fl \&bc , nbc
 If
 .Fl \&bc
 is specified, then a newline is forced after each comma in a declaration.
 .Fl nbc
-turns off this option.  Default:
+turns off this option.
+Default:
 .Fl \&nbc  .
 .It Fl \&br , \&bl
 Specifying
@@ -165,12 +173,15 @@ if (...) {
 .Ed
 .Pp
 .It Fl c Ns Ar n
-The column in which comments on code start.  The default is 33.
+The column in which comments on code start.
+The default is 33.
 .It Fl cd Ns Ar n
-The column in which comments on declarations start.  The default
+The column in which comments on declarations start.
+The default
 is for these comments to start in the same column as those on code.
 .It Fl cdb , ncdb
-Enables (disables) the placement of comment delimiters on blank lines.  With
+Enables (disables) the placement of comment delimiters on blank lines.
+With
 this option enabled, comments look like this:
 .Bd -literal -offset indent
 	/*
@@ -184,18 +195,21 @@ Rather than like this:
 .Ed
 .Pp
 This only affects block comments, not comments to the right of
-code.  The default is
+code.
+The default is
 .Fl cdb  .
 .It Fl ce , nce
 Enables (disables) forcing of `else's to cuddle up to the immediately preceding
-`}'.  The default is
+`}'.
+The default is
 .Fl \&ce  .
 .It Fl \&ci Ns Ar n
 Sets the continuation indent to be
 .Ar n  .
 Continuation
 lines will be indented that far from the beginning of the first line of the
-statement.  Parenthesized expressions have extra indentation added to
+statement.
+Parenthesized expressions have extra indentation added to
 indicate the nesting, unless
 .Fl \&lp
 is in effect
@@ -210,17 +224,21 @@ tab stops to the right of the containing
 .Ic switch
 statement.
 .Fl cli0.5
-causes case labels to be indented half a tab stop.  The
+causes case labels to be indented half a tab stop.
+The
 default is
 .Fl cli0  .
 .It Fl d Ns Ar n
 Controls the placement of comments which are not to the
-right of code.  For example,
+right of code.
+For example,
 .Fl \&d\&1
 means that such comments are placed one indentation level to the
-left of code.  Specifying the default
+left of code.
+Specifying the default
 .Fl \&d\&0
-lines-up these comments with the code.  See the section on comment
+lines-up these comments with the code.
+See the section on comment
 indentation below.
 .It Fl \&di Ns Ar n
 Specifies the indentation, in character positions,
@@ -232,18 +250,21 @@ The default is
 .Fl \&dj
 left justifies declarations.
 .Fl ndj
-indents declarations the same as code.  The default is
+indents declarations the same as code.
+The default is
 .Fl ndj  .
 .It Fl \&ei , nei
 Enables (disables) special
 .Ic else-if
-processing.  If it's enabled, an
+processing.
+If it's enabled, an
 .Ic if
 following an
 .Ic else
 will have the same indentation as the preceding
 .Ic \&if
-statement.  The default is
+statement.
+The default is
 .Fl ei  .
 .It Fl fbs , nfbs
 Enables (disables) splitting the function declaration and opening brace
@@ -253,10 +274,12 @@ The default is
 .It Fl fc1 , nfc1
 Enables (disables) the formatting of comments that start in column 1.
 Often, comments whose leading `/' is in column 1 have been carefully
-hand formatted by the programmer.  In such cases,
+hand formatted by the programmer.
+In such cases,
 .Fl nfc1
 should be
-used.  The default is
+used.
+The default is
 .Fl fc1  .
 .It Fl fcb , nfcb
 Enables (disables) the formatting of block comments (ones that begin
@@ -271,13 +294,16 @@ Block comments are then handled like box comments.
 The default is
 .Fl fcb  .
 .It Fl i Ns Ar n
-The number of spaces for one indentation level.  The default is 8.
+The number of spaces for one indentation level.
+The default is 8.
 .It Fl \&ip , nip
 Enables (disables) the indentation of parameter declarations from the left
-margin.  The default is
+margin.
+The default is
 .Fl \&ip  .
 .It Fl l Ns Ar n
-Maximum length of an output line.  The default is 78.
+Maximum length of an output line.
+The default is 78.
 .It Fl \&ldi Ns Ar n
 Specifies the indentation, in character positions,
 of local variable names
@@ -285,10 +311,12 @@ relative to the beginning of their type declaration.
 The default is for local variable names to be indented
 by the same amount as global ones.
 .It Fl \&lp , nlp
-Lines-up code surrounded by parenthesis in continuation lines.  If a line
+Lines-up code surrounded by parenthesis in continuation lines.
+If a line
 has a left paren which is not closed on that line, then continuation lines
 will be lined up to start at the character position just after the left
-paren.  For example, here is how a piece of continued code looks with
+paren.
+For example, here is how a piece of continued code looks with
 .Fl nlp
 in effect:
 .Bd -literal -offset indent
@@ -321,24 +349,29 @@ to be ignored.
 If true
 .Pq Fl pcs
 all procedure calls will have a space inserted between
-the name and the `('.  The default is
+the name and the `('.
+The default is
 .Fl npcs  .
 .It Fl psl , npsl
 If true
 .Pq Fl psl
 the names of procedures being defined are placed in
-column 1 \- their types, if any, will be left on the previous lines.  The
+column 1 \- their types, if any, will be left on the previous lines.
+The
 default is
 .Fl psl  .
 .It Fl \&sc , nsc
 Enables (disables) the placement of asterisks (`*'s) at the left edge of all
-comments.  The default is
+comments.
+The default is
 .Fl sc  .
 .It Fl sob , nsob
 If
 .Fl sob
-is specified, indent will swallow optional blank lines.  You can use this to
-get rid of blank lines after declarations.  Default:
+is specified, indent will swallow optional blank lines.
+You can use this to
+get rid of blank lines after declarations.
+Default:
 .Fl nsob  .
 .It Fl \&st
 Causes
@@ -347,14 +380,17 @@ to take its input from stdin and put its output to stdout.
 .It Fl T Ns Ar typename
 Adds
 .Ar typename
-to the list of type keywords.  Names accumulate:
+to the list of type keywords.
+Names accumulate:
 .Fl T
-can be specified more than once.  You need to specify all the typenames that
+can be specified more than once.
+You need to specify all the typenames that
 appear in your program that are defined by
 .Ic typedef
 \- nothing will be
 harmed if you miss a few, but the program won't be formatted as nicely as
-it should.  This sounds like a painful thing to have to do, but it's really
+it should.
+This sounds like a painful thing to have to do, but it's really
 a symptom of a problem in C:
 .Ic typedef
 causes a syntactic change in the
@@ -382,10 +418,12 @@ The default is
 .Fl v
 turns on `verbose' mode;
 .Fl \&nv
-turns it off.  When in verbose mode,
+turns it off.
+When in verbose mode,
 .Nm
 reports when it splits one line of input into two or more lines of output,
-and gives some size statistics at completion.  The default is
+and gives some size statistics at completion.
+The default is
 .Fl \&nv  .
 .El
 .Pp
@@ -394,12 +432,16 @@ You may set up your own `profile' of defaults to
 by creating a file called
 .Pa .indent.pro
 in your login directory and/or the current directory and including
-whatever switches you like.  A `.indent.pro' in the current directory takes
-precedence over the one in your login directory.  If
+whatever switches you like.
+A `.indent.pro' in the current directory takes
+precedence over the one in your login directory.
+If
 .Nm
 is run and a profile file exists, then it is read to set up the program's
-defaults.  Switches on the command line, though, always override profile
-switches.  The switches should be separated by spaces, tabs or newlines.
+defaults.
+Switches on the command line, though, always override profile
+switches.
+The switches should be separated by spaces, tabs or newlines.
 .Pp
 .Ss Comments
 .Sq Em Box
@@ -418,28 +460,34 @@ All other comments are treated as straight text.
 The
 .Nm
 utility fits as many words (separated by blanks, tabs, or newlines) on a
-line as possible.  Blank lines break paragraphs.
+line as possible.
+Blank lines break paragraphs.
 .Pp
 .Ss Comment indentation
 If a comment is on a line with code it is started in the `comment column',
 which is set by the
 .Fl c Ns Ns Ar n
-command line parameter.  Otherwise, the comment is started at
+command line parameter.
+Otherwise, the comment is started at
 .Ar n
 indentation levels less than where code is currently being placed, where
 .Ar n
 is specified by the
 .Fl d Ns Ns Ar n
-command line parameter.  If the code on a line extends past the comment
+command line parameter.
+If the code on a line extends past the comment
 column, the comment starts further to the right, and the right margin may be
 automatically extended in extreme cases.
 .Pp
 .Ss Preprocessor lines
 In general,
 .Nm
-leaves preprocessor lines alone.  The only
-reformatting that it will do is to straighten up trailing comments.  It
-leaves embedded comments alone.  Conditional compilation
+leaves preprocessor lines alone.
+The only
+reformatting that it will do is to straighten up trailing comments.
+It
+leaves embedded comments alone.
+Conditional compilation
 .Pq Ic #ifdef...#endif
 is recognized and
 .Nm
@@ -450,8 +498,10 @@ compensate for the syntactic peculiarities introduced.
 The
 .Nm
 utility understands a substantial amount about the syntax of C, but it
-has a `forgiving' parser.  It attempts to cope with the usual sorts of
-incomplete and misformed syntax.  In particular, the use of macros like:
+has a `forgiving' parser.
+It attempts to cope with the usual sorts of
+incomplete and misformed syntax.
+In particular, the use of macros like:
 .Pp
 .Dl #define forever for(;;)
 .Pp

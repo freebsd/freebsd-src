@@ -66,7 +66,8 @@ The
 .Nm
 utility runs in two basic modes, filter mode (see the
 .Fl f
-option) or regular mode.  In filter mode
+option) or regular mode.
+In filter mode
 .Nm
 acts as a filter in a manner similar to
 .Xr tbl 1 .
@@ -81,10 +82,12 @@ starts processing
 ends processing
 .El
 .Pp
-These lines are formatted as described above.  The output from this
+These lines are formatted as described above.
+The output from this
 filter can be passed to
 .Xr troff 1
-for output.  There need be no particular ordering with
+for output.
+There need be no particular ordering with
 .Xr eqn 1
 or
 .Xr tbl 1 .
@@ -119,7 +122,8 @@ forces filter mode
 specifies a particular header to put on every output page (default is
 the file name)
 .It Fl l
-specifies the language to use.  Currently known are
+specifies the language to use.
+Currently known are
 .Tn PASCAL
 .Pq Fl l Ns Ar p ,
 .Tn MODEL
@@ -198,7 +202,8 @@ followed:
 For
 .Tn C
 \- function names can be preceded on a line only by spaces, tabs, or an
-asterisk.  The parenthesized arguments must also be on the same line.
+asterisk.
+The parenthesized arguments must also be on the same line.
 .Pp
 For
 .Tn PASCAL
@@ -218,7 +223,8 @@ name comment mechanisms will fail.
 More generally, arbitrary formatting styles for programs mostly look bad.
 The use of spaces to align source code fails miserably; if you plan to
 .Nm
-your program you should use tabs.  This is somewhat inevitable since the
+your program you should use tabs.
+This is somewhat inevitable since the
 font used by
 .Nm
 is variable width.

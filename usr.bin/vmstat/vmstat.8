@@ -114,7 +114,8 @@ allocation and then by type of usage.
 .It Fl n
 Change the maximum number of disks to display from the default of 2.
 .It Fl p
-Specify which types of devices to display.  There are three different
+Specify which types of devices to display.
+There are three different
 categories of devices:
 .Pp
 .Bl -tag -width indent -compact
@@ -166,15 +167,18 @@ Passthrough devices
 .El
 .Pp
 The user must specify at least one device type, and may specify at most
-one device type from each category.  Multiple device types in a single
+one device type from each category.
+Multiple device types in a single
 device type statement must be separated by commas.
 .Pp
 Any number of
 .Fl p
-arguments may be specified on the command line.  All
+arguments may be specified on the command line.
+All
 .Fl p
 arguments are ORed together to form a matching expression against which
-all devices in the system are compared.  Any device that fully matches
+all devices in the system are compared.
+Any device that fully matches
 any
 .Fl p
 argument will be included in the
@@ -262,7 +266,8 @@ If more than three disk drives are configured in the system,
 .Nm
 displays only the first three drives, unless the user specifies the
 .Fl n
-argument to increase the number of drives displayed.  This will probably
+argument to increase the number of drives displayed.
+This will probably
 cause the display to exceed 80 columns, however.
 To force
 .Nm
@@ -272,7 +277,8 @@ The
 utility
 defaults to show disks first, and then various other random devices in the
 system to add up to three devices, if there are that many devices in the
-system.  If devices are specified on the command line, or if a device type
+system.
+If devices are specified on the command line, or if a device type
 matching pattern is specified (see above),
 .Nm
 will only display the given devices or the devices matching the pattern,

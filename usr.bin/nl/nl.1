@@ -89,8 +89,10 @@ The
 .Nm
 utility treats the text it reads in terms of logical pages.
 Unless specified otherwise, line numbering is reset at the start of each
-logical page.  A logical page consists of a header, a body and a footer
-section; empty sections are valid.  Different line numbering options are
+logical page.
+A logical page consists of a header, a body and a footer
+section; empty sections are valid.
+Different line numbering options are
 independently available for header, body and footer sections.
 .Pp
 The starts of logical page sections are signalled by input lines containing
@@ -132,7 +134,8 @@ for logical page body lines is
 .Cm t .
 .It Fl d Ar delim
 Specify the delimiter characters used to indicate the start of a logical
-page section in the input file.  At most two characters may be specified;
+page section in the input file.
+At most two characters may be specified;
 if only one character is specified, the first character is replaced and the
 second character remains unchanged.
 The default

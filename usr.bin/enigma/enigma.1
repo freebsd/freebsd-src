@@ -31,14 +31,17 @@ is a
 .Em very
 simple encryption program, working on a
 .Dq secret-key
-basis.  It operates as a filter, i. e. it encrypts or decrypts a
+basis.
+It operates as a filter, i.e.,
+it encrypts or decrypts a
 stream of data from standard input, and writes the result to standard
 output.
 Since its operation is fully symmetrical, feeding the encrypted data
 stream again through the engine (using the same secret key) will
 decrypt it.
 .Pp
-There are several ways to provide the secret key to the program.  By
+There are several ways to provide the secret key to the program.
+By
 default, the program prompts the user on the controlling terminal for
 the key, using
 .Xr getpass 3 .
@@ -47,7 +50,8 @@ This is the only safe way of providing it.
 Alternatively, the key can be provided as the sole command-line
 argument
 .Ar password
-when starting the program.  Obviously, this way the key can easily be
+when starting the program.
+Obviously, this way the key can easily be
 spotted by other users running
 .Xr ps 1 .
 As yet another alternative,
@@ -73,7 +77,8 @@ little more secure, but incompatible with other implementations.
 .Ss Warning
 The cryptographic value of
 .Nm
-is rather small.  This program is only provided here for compatibility
+is rather small.
+This program is only provided here for compatibility
 with other operating systems that also provide an implementation
 (usually called
 .Xr crypt 1
@@ -121,6 +126,7 @@ Implementations of
 .Nm crypt
 are very common among
 .Ux
-operating systems.  This implementation has been taken from the
+operating systems.
+This implementation has been taken from the
 .Em Cryptbreakers Workbench
 which is in the public domain.

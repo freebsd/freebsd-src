@@ -74,14 +74,16 @@ Causes
 to operate silently.
 Failure to acquire the lock is indicated only in the exit status.
 .It Fl t Ar seconds
-Specifies a timeout for waiting for the lock.  By default,
+Specifies a timeout for waiting for the lock.
+By default,
 .Nm
 waits indefinitely to acquire the lock.
 If a timeout is specified with this option,
 .Nm
 will wait at most the given number of
 .Ar seconds
-before giving up.  A timeout of 0 may be given, in which case
+before giving up.
+A timeout of 0 may be given, in which case
 .Nm
 will fail unless it can acquire the lock immediately.
 .El
