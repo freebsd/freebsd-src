@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 74 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -399,8 +399,8 @@ AcpiPsGetNextNamepath (
 
                 if (!MethodDesc)
                 {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                        "Control Method - %p has no attached object\n",
+                    ACPI_REPORT_ERROR ((
+                        "PsGetNextNamepath: Control Method %p has no attached object\n",
                         Node));
                     return_ACPI_STATUS (AE_AML_INTERNAL);
                 }

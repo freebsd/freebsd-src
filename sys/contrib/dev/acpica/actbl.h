@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 60 $
+ *       $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -235,20 +235,18 @@ typedef struct multiple_apic_table
 #define APIC_XRUPT_SOURCE       8
 #define APIC_RESERVED           9           /* 9 and greater are reserved */
 
-/* 
+/*
  * MADT sub-structures (Follow MULTIPLE_APIC_DESCRIPTION_TABLE)
  */
 #define APIC_HEADER_DEF                     /* Common APIC sub-structure header */\
     UINT8                   Type; \
     UINT8                   Length;
 
-
-typedef struct apic_header /* APIC common table header */
+typedef struct apic_header
 {
     APIC_HEADER_DEF
 
 } APIC_HEADER;
-
 
 /* Values for MPS INTI flags */
 
@@ -364,8 +362,8 @@ typedef struct madt_interrupt_source
 } MADT_INTERRUPT_SOURCE;
 
 
-/* 
- * Smart Battery 
+/*
+ * Smart Battery
  */
 typedef struct smart_battery_table
 {
@@ -377,7 +375,7 @@ typedef struct smart_battery_table
 } SMART_BATTERY_TABLE;
 
 
-/* 
+/*
  * High performance timer
  */
 typedef struct hpet_table
