@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.112 1996/07/09 14:28:16 jkh Exp $
+ * $Id: install.c,v 1.113 1996/07/12 11:14:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -379,9 +379,11 @@ installNovice(dialogMenuItem *self)
 	    if (!mediaDevice->init(mediaDevice))
 		mediaDevice = NULL;
 	}
-	msgConfirm("Finally, you must specify an installation medium.");
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	if (!mediaDevice) {
+	    msgConfirm("Finally, you must specify an installation medium.");
+	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+		return DITEM_FAILURE | DITEM_RECREATE;
+	}
     }
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
