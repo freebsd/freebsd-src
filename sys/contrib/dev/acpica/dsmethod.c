@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 93 $
+ *              $Revision: 94 $
  *
  *****************************************************************************/
 
@@ -182,7 +182,7 @@ AcpiDsParseMethod (
 
     /* Create a mutex for the method if there is a concurrency limit */
 
-    if ((ObjDesc->Method.Concurrency != INFINITE_CONCURRENCY) &&
+    if ((ObjDesc->Method.Concurrency != ACPI_INFINITE_CONCURRENCY) &&
         (!ObjDesc->Method.Semaphore))
     {
         Status = AcpiOsCreateSemaphore (ObjDesc->Method.Concurrency,
@@ -389,37 +389,41 @@ AcpiDsCallControlMethod (
         return_ACPI_STATUS (Status);
     }
 
-    /* 1) Parse: Create a new walk state for the preempting walk */
-
-    NextWalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
-                                            Op, ObjDesc, NULL);
-    if (!NextWalkState)
+    if (!(ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY))
     {
-        return_ACPI_STATUS (AE_NO_MEMORY);
+        /* 1) Parse: Create a new walk state for the preempting walk */
+
+        NextWalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
+                                                Op, ObjDesc, NULL);
+        if (!NextWalkState)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
+
+
+        /* Create and init a Root Node */
+
+        Op = AcpiPsCreateScopeOp ();
+        if (!Op)
+        {
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+
+        Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode,
+                        ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength,
+                        NULL, NULL, 1);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiDsDeleteWalkState (NextWalkState);
+            goto Cleanup;
+        }
+
+        /* Begin AML parse */
+
+        Status = AcpiPsParseAml (NextWalkState);
+        AcpiPsDeleteParseTree (Op);
     }
-
-    /* Create and init a Root Node */
-
-    Op = AcpiPsCreateScopeOp ();
-    if (!Op)
-    {
-        Status = AE_NO_MEMORY;
-        goto Cleanup;
-    }
-
-    Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode,
-                    ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength,
-                    NULL, NULL, 1);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiDsDeleteWalkState (NextWalkState);
-        goto Cleanup;
-    }
-
-    /* Begin AML parse */
-
-    Status = AcpiPsParseAml (NextWalkState);
-    AcpiPsDeleteParseTree (Op);
 
     /* 2) Execute: Create a new state for the preempting walk */
 
@@ -430,7 +434,6 @@ AcpiDsCallControlMethod (
         Status = AE_NO_MEMORY;
         goto Cleanup;
     }
-
     /*
      * The resolved arguments were put on the previous walk state's operand
      * stack.  Operands on the previous walk state stack always
@@ -464,16 +467,27 @@ AcpiDsCallControlMethod (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "Starting nested execution, newstate=%p\n", NextWalkState));
 
+    if (ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
+    {
+        Status = ObjDesc->Method.Implementation (NextWalkState);
+        return_ACPI_STATUS (Status);
+    }
+
     return_ACPI_STATUS (AE_OK);
 
 
     /* On error, we must delete the new walk state */
 
 Cleanup:
+    if (NextWalkState->MethodDesc)
+    {
+        /* Decrement the thread count on the method parse tree */
+
+       NextWalkState->MethodDesc->Method.ThreadCount--;
+    }
     (void) AcpiDsTerminateControlMethod (NextWalkState);
     AcpiDsDeleteWalkState (NextWalkState);
     return_ACPI_STATUS (Status);
-
 }
 
 
@@ -604,11 +618,33 @@ AcpiDsTerminateControlMethod (
         }
     }
 
-    /* Decrement the thread count on the method parse tree */
+    if (WalkState->MethodDesc->Method.ThreadCount)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+            "*** Not deleting method namespace, there are still %d threads\n",
+            WalkState->MethodDesc->Method.ThreadCount));
+    }
 
-    WalkState->MethodDesc->Method.ThreadCount--;
     if (!WalkState->MethodDesc->Method.ThreadCount)
     {
+        /*
+         * Support to dynamically change a method from NotSerialized to
+         * Serialized if it appears that the method is written foolishly and
+         * does not support multiple thread execution.  The best example of this
+         * is if such a method creates namespace objects and blocks.  A second
+         * thread will fail with an AE_ALREADY_EXISTS exception
+         *
+         * This code is here because we must wait until the last thread exits
+         * before creating the synchronization semaphore.
+         */
+        if ((WalkState->MethodDesc->Method.Concurrency == 1) &&
+            (!WalkState->MethodDesc->Method.Semaphore))
+        {
+            Status = AcpiOsCreateSemaphore (1,
+                                    1,
+                                    &WalkState->MethodDesc->Method.Semaphore);
+        }
+
         /*
          * There are no more threads executing this method.  Perform
          * additional cleanup.

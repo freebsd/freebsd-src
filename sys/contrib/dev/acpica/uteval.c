@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -123,6 +123,66 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("uteval")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtOsiImplementation
+ *
+ * PARAMETERS:  WalkState           - Current walk state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Implementation of _OSI predefined control method
+ *              Supported = _OSI (String)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiUtOsiImplementation (
+    ACPI_WALK_STATE         *WalkState)
+{
+    ACPI_OPERAND_OBJECT     *StringDesc;
+    ACPI_OPERAND_OBJECT     *ReturnDesc;
+    ACPI_NATIVE_UINT        i;
+
+
+    ACPI_FUNCTION_TRACE ("UtOsiImplementation");
+
+
+    /* Validate the string input argument */
+
+    StringDesc = WalkState->Arguments[0].Object;
+    if (!StringDesc || (StringDesc->Common.Type != ACPI_TYPE_STRING))
+    {
+        return_ACPI_STATUS (AE_TYPE);
+    }
+
+    /* Create a return object (Default value = 0) */
+
+    ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    if (!ReturnDesc)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Compare input string to table of supported strings */
+
+    for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++)
+    {
+        if (!ACPI_STRCMP (StringDesc->String.Pointer, 
+                            (char *) AcpiGbl_ValidOsiStrings[i]))
+        {
+            /* This string is supported */
+
+            ReturnDesc->Integer.Value = 0xFFFFFFFF;
+            break;
+        }
+    }
+
+    WalkState->ReturnDesc = ReturnDesc;
+    return_ACPI_STATUS (AE_CTRL_TERMINATE);
+}
 
 
 /*******************************************************************************

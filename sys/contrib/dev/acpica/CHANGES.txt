@@ -1,4 +1,66 @@
 ----------------------------------------
+11 March 2004.  Summary of changes for version 20040311:
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem where errors occurring during the parse phase of
+control method execution did not abort cleanly.  For example,
+objects created and installed in the namespace were not deleted.
+This caused all subsequent invocations of the method to return
+the AE_ALREADY_EXISTS exception.
+
+Implemented a mechanism to force a control method to "Serialized"
+execution if the method attempts to create namespace objects.
+(The root of the AE_ALREADY_EXISTS problem.)
+
+Implemented support for the predefined _OSI "internal" control
+method.  Initial supported strings are "Linux", "Windows 2000",
+"Windows 2001", and "Windows 2001.1", and can be easily upgraded
+for new strings as necessary.  This feature will allow "other"
+operating systems to execute the fully tested, "Windows" code
+path through the ASL code
+
+Global Lock Support:  Now allows multiple acquires and releases
+with any internal thread.  Removed concept of "owning thread" for
+this special mutex.
+
+Fixed two functions that were inappropriately declaring large
+objects on the CPU stack:  PsParseLoop, NsEvaluateRelative.
+Reduces the stack usage during method execution considerably.
+
+Fixed a problem in the ACPI 2.0 FACS descriptor (actbl2.h) where
+the S4Bios_f field was incorrectly defined as UINT32 instead of
+UINT32_BIT.
+
+Fixed a problem where AcpiEvGpeDetect would fault if there were
+no GPEs defined on the machine.
+
+Implemented two runtime options:  One to force all control method
+execution to "Serialized" to mimic Windows behavior, another to
+disable _OSI support if it causes problems on a given machine.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  74.8K Code,  10.1K Data,   84.9K Total
+    Debug Version:     158.7K Code,  65.1K Data,  223.8K Total
+  Current Release:
+    Non-Debug Version:  76.5K Code,  11.3K Data,   87.8K Total
+    Debug Version:     160.3K Code,  66.0K Data,  226.3K Total
+
+2) iASL Compiler/Disassembler:
+
+Fixed an array size problem for FreeBSD that would cause the
+compiler to fault.
+
+----------------------------------------
 20 February 2004.  Summary of changes for version 20040220:
 
 1) ACPI CA Core Subsystem:
