@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <protocols/rwhod.h>
 #include <dirent.h>
 #include <err.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,8 +95,10 @@ main(argc, argv)
 	register struct whoent *we;
 	register struct myutmp *mp;
 	int f, n, i;
+	int d_first;
 
 	(void) setlocale(LC_TIME, "");
+	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	while ((ch = getopt(argc, argv, "a")) != -1)
 		switch((char)ch) {
@@ -159,15 +162,18 @@ main(argc, argv)
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
-		strftime(cbuf, sizeof(cbuf), "%c", localtime((time_t *)&mp->myutmp.out_time));
+
+		strftime(cbuf, sizeof(cbuf),
+			 d_first ? "%e %b %R" : "%b %e %R",
+			 localtime((time_t *)&mp->myutmp.out_time));
 		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
 		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
-		printf("%-*.*s %-*s %.12s",
+		printf("%-*.*s %-*s %s",
 		   UT_NAMESIZE, sizeof(mp->myutmp.out_name),
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
-		   cbuf + 4);
+		   cbuf);
 		mp->myidle /= 60;
 		if (mp->myidle) {
 			if (aflg) {
