@@ -1487,6 +1487,9 @@ const int		do_norm_secs;
 	}
 	if (increment_overflow(&yourtm.tm_year, -TM_YEAR_BASE))
 		return WRONG;
+	/* Don't go below 1900 for POLA */
+	if (yourtm.tm_year < 0)
+		return WRONG;
 	if (yourtm.tm_sec >= 0 && yourtm.tm_sec < SECSPERMIN)
 		saved_seconds = 0;
 	else if (yourtm.tm_year + TM_YEAR_BASE < EPOCH_YEAR) {
