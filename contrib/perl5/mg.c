@@ -1802,6 +1802,30 @@ magic_set(SV *sv, MAGIC *mg)
 	PL_chopset = SvPV_force(sv,len);
 	break;
     case '0':
+#ifdef HAS_SETPROCTITLE
+	/* The BSDs don't show the argv[] in ps(1) output, they
+	 * show a string from the process struct and provide
+	 * the setproctitle() routine to manipulate that. */
+	{
+	    s = SvPV(sv, len);
+#   if __FreeBSD_version >= 410001
+	    /* The leading "-" removes the "perl: " prefix,
+	     * but not the "(perl) suffix from the ps(1)
+	     * output, because that's what ps(1) shows if the
+	     * argv[] is modified. */
+	    setproctitle("-%s", s, len + 1);
+#   else	/* old FreeBSDs, NetBSD, OpenBSD, anyBSD */
+	    /* This doesn't really work if you assume that
+	     * $0 = 'foobar'; will wipe out 'perl' from the $0
+	     * because in ps(1) output the result will be like
+	     * sprintf("perl: %s (perl)", s)
+	     * I guess this is a security feature:
+	     * one (a user process) cannot get rid of the original name.
+	     * --jhi */
+	    setproctitle("%s", s);
+#   endif
+	}
+#endif
 	if (!PL_origalen) {
 	    s = PL_origargv[0];
 	    s += strlen(s);

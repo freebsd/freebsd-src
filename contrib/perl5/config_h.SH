@@ -1683,6 +1683,12 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  */
 #$d_setpent HAS_SETPROTOENT		/**/
 
+/* HAS_SETPROCTITLE:
+ *	This symbol, if defined, indicates that the setproctitle routine is
+ *	available to set process title.
+ */
+#$d_setproctitle HAS_SETPROCTITLE		/**/
+
 /* HAS_SETSERVENT:
  *	This symbol, if defined, indicates that the setservent() routine is
  *	available.
@@ -2182,6 +2188,12 @@ sed <<!GROK!THIS! >config.h -e 's!^#undef\(.*/\)\*!/\*#define\1 \*!' -e 's!^#un-
  *	<sys/types.h> to get any typedef'ed information.
  */
 #define Uid_t $uidtype		/* UID type */
+
+/* I_LIBUTIL:
+ *	This symbol, if defined, indicates that <libutil.h> exists and
+ *	should be included.
+ */
+#$i_libutil	I_LIBUTIL		/**/
 
 #endif
 !GROK!THIS!
