@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.10 1996/01/10 21:27:55 phk Exp $
+ * $Id: modem.c,v 1.11 1996/01/11 17:48:54 phk Exp $
  *
  *  TODO:
  */
@@ -30,6 +30,7 @@
 #include <time.h>
 #include "hdlc.h"
 #include "lcp.h"
+#include "ip.h"
 #include "modem.h"
 #include "vars.h"
 
@@ -53,8 +54,10 @@ extern void PacketMode();
 #define	Online	(mbits & TIOCM_CD)
 
 static struct mbuf *modemout;
-static struct mqueue OutputQueues[PRI_URGENT+1];
+static struct mqueue OutputQueues[PRI_LINK+1];
 static int dev_is_modem;
+
+#undef QDEBUG
 
 void
 Enqueue(queue, bp)
@@ -627,6 +630,10 @@ int count;
 
   bp = mballoc(count, MB_MODEM);
   bcopy(ptr, MBUF_CTOP(bp), count);
+
+  /* Should be NORMAL and LINK only.
+   * All IP frames get here marked NORMAL.
+  */
   Enqueue(&OutputQueues[pri], bp);
 }
 
@@ -652,7 +659,7 @@ ModemQlen()
   int len = 0;
   int i;
 
-  for ( i = PRI_NORMAL; i <= PRI_URGENT; i ++ ) {
+  for ( i = PRI_NORMAL; i <= PRI_LINK; i ++ ) {
         queue = &OutputQueues[i];
 	len += queue->qlen;
   }
@@ -667,13 +674,15 @@ int fd;
   struct mqueue *queue;
   int nb, nw, i;
 
+    if (modemout == NULL && ModemQlen() == 0)
+      IpStartOutput();
   if (modemout == NULL) {
-    i = 0;
-    for (queue = &OutputQueues[PRI_URGENT]; queue >= OutputQueues; queue--) {
+    i = PRI_LINK;
+    for (queue = &OutputQueues[PRI_LINK]; queue >= OutputQueues; queue--) {
       if (queue->top) {
 	modemout = Dequeue(queue);
 #ifdef QDEBUG
-	if (i < 2) {
+	if (i > PRI_NORMAL) {
 	  struct mqueue *q;
 
 	  q = &OutputQueues[0];
@@ -683,13 +692,13 @@ int fd;
 #endif
 	break;
       }
-      i++;
+      i--;
     }
   }
   if (modemout) {
     nb = modemout->cnt;
     if (nb > 1600) nb = 1600;
-    if (fd == 0) fd = 1;
+    if (fd == 0) fd = 1;	/* XXX WTFO!  This is bogus */
     nw = write(fd, MBUF_CTOP(modemout), nb);
 #ifdef QDEBUG
     logprintf("wrote: %d(%d)\n", nw, nb);
