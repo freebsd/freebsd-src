@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.30 1997/04/28 09:15:18 jkh Exp $
+ * $Id: mfs_vfsops.c,v 1.31 1997/09/02 20:06:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -272,11 +272,8 @@ mfs_mount(mp, path, data, ndp, p)
 		rootdev = makedev(255, mfs_minor++);
 		printf("rootfs is %ld Kbyte compiled in MFS\n",
 		       mfs_rootsize/1024);
-
-
-		/* Get vnode for root device*/
-		if (err = bdevvp( rootdev, &rootvp)) {
-			printf("mfs_mountroot: can't setup bdevvp for rootdev");
+		if ((err = bdevvp(rootdev, &rootvp))) {
+			printf("mfs_mountroot: can't find rootvp");
 			return (err);
 		}
 
