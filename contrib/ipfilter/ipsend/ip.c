@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.0.2.11.2.2 1997/11/28 03:36:47 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip.c,v 2.0.2.11.2.3 1997/12/21 12:17:37 darrenr Exp $";
 #endif
 #include <errno.h>
 #include <stdio.h>
@@ -117,7 +117,6 @@ int	frag;
 	last_gw.s_addr = gwip.s_addr;
 	iplen = ip->ip_len;
 	ip->ip_len = htons(iplen);
-	ip->ip_off = htons(ip->ip_off);
 	if (!(frag & 2)) {
 		if (!ip->ip_v)
 			ip->ip_v   = IPVERSION;
@@ -260,7 +259,7 @@ struct	in_addr	gwip;
 
 	i = sizeof(struct tcpiphdr) / sizeof(long);
 
-	if ((ti->ti_flags == TH_SYN) && !ip->ip_off &&
+	if ((ti->ti_flags == TH_SYN) && !ntohs(ip->ip_off) &&
 	    (lbuf[i] != htonl(0x020405b4))) {
 		lbuf[i] = htonl(0x020405b4);
 		bcopy((char *)ip + hlen + thlen, (char *)ip + hlen + thlen + 4,

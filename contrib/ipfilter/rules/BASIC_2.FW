@@ -33,7 +33,7 @@ block out log on ed0 all head 250
 #
 block in log quick from 10.0.0.0/8 to any group 100
 block in log quick from 192.168.0.0/16 to any group 100
-block in log quick from 172.16.0.0/16 to any group 100
+block in log quick from 172.16.0.0/12 to any group 100
 #
 # Prevent IP spoofing.
 #

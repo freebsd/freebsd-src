@@ -46,7 +46,7 @@ Bugs/Problems
 -------------
 If you have a problem with IP Filter on your operating system, please email
 a copy of the file "BugReport" with the details of your setup as required
-and email to darrenr@cyber.com.au.
+and email to darrenr@pobox.com.
 
 Some general notes.
 -------------------
@@ -95,4 +95,4 @@ BNF
 	- BNF rule set for the filter rules
 
 Darren Reed
-darrenr@cyber.com.au
+darrenr@pobox.com
