@@ -517,7 +517,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 		Decimal("start", partp->dp_start, tmp);
 		Decimal("size", partp->dp_size, tmp);
 
-		if (ok("Explicitly specifiy beg/end address ?"))
+		if (ok("Explicitly specify beg/end address ?"))
 		{
 			int	tsec,tcyl,thd;
 			tcyl = DPCYL(partp->dp_scyl,partp->dp_ssect);
