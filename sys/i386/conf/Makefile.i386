@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.22 1994/02/17 06:51:15 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.23 1994/03/21 20:48:47 ats Exp $
 #
 # Makefile for FreeBSD
 #
@@ -90,7 +90,7 @@ symbols.sort: ${I386}/i386/symbols.raw
 
 locore.o: assym.s ${I386}/i386/locore.s machine/trap.h machine/psl.h \
 	machine/pte.h ${I386}/isa/vector.s ${I386}/isa/icu.s \
-	$S/sys/errno.h machine/specialreg.h ${I386}/isa/debug.h \
+	$S/sys/errno.h machine/specialreg.h \
 	${I386}/isa/icu.h ${I386}/isa/isa.h vector.h $S/net/netisr.h \
 	machine/asmacros.h
 	${CPP} -I. -DLOCORE ${COPTS} ${I386}/i386/locore.s | \
@@ -104,7 +104,7 @@ exception.o: assym.s ${I386}/i386/exception.s machine/trap.h \
 		${AS} ${ASFLAGS} -o exception.o
 
 swtch.o: assym.s ${I386}/i386/swtch.s \
-	$S/sys/errno.h ${I386}/isa/debug.h machine/asmacros.h
+	$S/sys/errno.h machine/asmacros.h
 	${CPP} -I. ${COPTS} ${I386}/i386/swtch.s | \
 		${AS} ${ASFLAGS} -o swtch.o
 

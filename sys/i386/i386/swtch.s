@@ -33,15 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.3 1994/01/17 09:32:27 davidg Exp $
+ *	$Id: swtch.s,v 1.4 1994/01/31 10:26:59 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
 #include "assym.s"	/* for preprocessor defines */
 #include "errno.h"	/* for error codes */
 
-#include "i386/isa/debug.h"	/* for SHOW macros */
 #include "machine/asmacros.h"	/* for miscellaneous assembly macros */
+#define	LOCORE			/* XXX inhibit C declarations */
+#include "machine/spl.h"	/* for SWI_AST_MASK ... */
+
 
 /*****************************************************************************/
 /* Scheduling                                                                */
@@ -132,24 +134,30 @@ rem3:	.asciz	"remrq"
 sw0:	.asciz	"swtch"
 
 /*
- * When no processes are on the runq, Swtch branches to idle
+ * When no processes are on the runq, swtch() branches to _idle
  * to wait for something to come ready.
  */
 	ALIGN_TEXT
-Idle:
+_idle:
+	MCOUNT
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
 	movl	$tmpstk-4,%esp
 	sti
-	SHOW_STI
+
+	/*
+	 * XXX callers of swtch() do a bogus splclock().  Locking should
+	 * be left to swtch().
+	 */
+	movl	$SWI_AST_MASK,_cpl
+	testl	$~SWI_AST_MASK,_ipending
+	je	idle_loop
+	call	_splz
 
 	ALIGN_TEXT
 idle_loop:
-	call	_spl0
-	cli
 	cmpl	$0,_whichqs
 	jne	sw1
-	sti
 	hlt					/* wait for interrupt */
 	jmp	idle_loop
 
@@ -161,9 +169,7 @@ badsw:
 /*
  * Swtch()
  */
-	SUPERALIGN_TEXT	/* so profiling doesn't lump Idle with swtch().. */
 ENTRY(swtch)
-
 	incl	_cnt+V_SWTCH
 
 	/* switch to new process. first, save context as needed */
@@ -208,14 +214,13 @@ ENTRY(swtch)
 	/* save is done, now choose a new process or idle */
 sw1:
 	cli
-	SHOW_CLI
 	movl	_whichqs,%edi
 2:
 	/* XXX - bsf is sloow */
 	bsfl	%edi,%eax			/* find a full q */
-	je	Idle				/* if none, idle */
+	je	_idle				/* if none, idle */
+
 	/* XX update whichqs? */
-swfnd:
 	btrl	%eax,%edi			/* clear q full status */
 	jnb	2b				/* if it was clear, look for another */
 	movl	%eax,%ebx			/* save which one we are using */
@@ -296,7 +301,6 @@ swfnd:
  */
 	pushl	PCB_IML(%edx)
 	sti
-	SHOW_STI
 #if 0
 	call	_splx
 #endif
@@ -312,7 +316,7 @@ ENTRY(mvesp)
 	movl	%esp,%eax
 	ret
 /*
- * struct proc *swtch_to_inactive(p) ; struct proc *p;
+ * struct proc *swtch_to_inactive(struct proc *p);
  *
  * At exit of a process, move off the address space of the
  * process and onto a "safe" one. Then, on a temporary stack
@@ -327,6 +331,7 @@ ENTRY(swtch_to_inactive)
 	movl	%ecx,%cr3			/* good bye address space */
  #write buffer?
 	movl	$tmpstk-4,%esp			/* temporary stack, compensated for call */
+	MEXITCOUNT
 	jmp	%edx				/* return, execute remainder of cleanup */
 
 /*
@@ -418,7 +423,7 @@ ENTRY(addupc)
 	movl 8(%ebp),%eax			/* pc */
 
 	subl PR_OFF(%edx),%eax			/* pc -= up->pr_off */
-	jl L1					/* if (pc < 0) return */
+	jb L1					/* if (pc was < off) return */
 
 	shrl $1,%eax				/* praddr = pc >> 1 */
 	imull PR_SCALE(%edx),%eax		/* praddr *= up->pr_scale */
@@ -448,8 +453,3 @@ proffault:
 	movl $0,PR_SCALE(%ecx)			/* up->pr_scale = 0 */
 	leave
 	ret
-
-/* To be done: */
-ENTRY(astoff)
-	ret
-

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.19 1994/03/14 21:54:03 davidg Exp $
+ *	$Id: trap.c,v 1.20 1994/03/24 23:12:34 davidg Exp $
  */
 
 /*
@@ -88,8 +88,6 @@ extern int grow(struct proc *,int);
 
 struct	sysent sysent[];
 int	nsysent;
-extern unsigned cpl;
-extern unsigned netmask, ttymask, biomask;
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -226,9 +224,9 @@ skiptoswitch:
 #ifdef	MATH_EMULATE
 		i = math_emulate(&frame);
 		if (i == 0) return;
-#else	/* MATH_EMULTATE */
+#else	/* MATH_EMULATE */
 		panic("trap: math emulation necessary!");
-#endif	/* MATH_EMULTATE */
+#endif	/* MATH_EMULATE */
 		ucode = FPE_FPU_NP_TRAP;
 		break;
 
@@ -261,7 +259,7 @@ skiptoswitch:
 		vm_map_t map = 0;
 		int rv = 0, oldflags;
 		vm_prot_t ftype;
-		unsigned nss, v;
+		unsigned v;
 		extern vm_map_t kernel_map;
 
 		va = trunc_page((vm_offset_t)eva);
@@ -435,11 +433,11 @@ nogo:
 			printf("Idle\n");
 		}
 		printf("interrupt mask		= ");
-		if ((cpl & netmask) == netmask)
+		if ((cpl & net_imask) == net_imask)
 			printf("net ");
-		if ((cpl & ttymask) == ttymask)
+		if ((cpl & tty_imask) == tty_imask)
 			printf("tty ");
-		if ((cpl & biomask) == biomask)
+		if ((cpl & bio_imask) == bio_imask)
 			printf("bio ");
 		if (cpl == 0)
 			printf("none");
@@ -514,7 +512,6 @@ out:
 int trapwrite(addr)
 	unsigned addr;
 {
-	unsigned nss;
 	struct proc *p;
 	vm_offset_t va, v;
 	struct vmspace *vm;

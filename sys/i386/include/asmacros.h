@@ -5,6 +5,11 @@
 #define GEN_ENTRY(name)		ALIGN_TEXT;	.globl name; name:
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(_/**/name)
 
+/* These three are place holders for future changes to the profiling code */
+#define MCOUNT_LABEL(name)
+#define MEXITCOUNT
+#define FAKE_MCOUNT(caller)
+
 #ifdef GPROF
 /*
  * ALTENTRY() must be before a corresponding ENTRY() so that it can jump
@@ -30,6 +35,7 @@
  */
 #define ALTENTRY(name)	GEN_ENTRY(_/**/name)
 #define ENTRY(name)	GEN_ENTRY(_/**/name)
+#define MCOUNT
 
 #endif
 
