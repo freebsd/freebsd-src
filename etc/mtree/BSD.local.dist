@@ -457,6 +457,10 @@
                 LC_MESSAGES
                 ..
             ..
+            mt
+                LC_MESSAGES
+                ..
+            ..
             nb
                 LC_MESSAGES
                 ..
