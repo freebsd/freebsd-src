@@ -335,9 +335,7 @@ ffs_rawread_main(struct vnode *vp,
 		}
 		
 		spl = splbio();
-		while ((bp->b_flags & B_DONE) == 0) {
-			tsleep((caddr_t)bp, PRIBIO, "rawrd", 0);
-		}
+		bwait(bp, PRIBIO, "rawrd");
 		splx(spl);
 		
 		vunmapbuf(bp);
@@ -409,9 +407,7 @@ ffs_rawread_main(struct vnode *vp,
 		relpbuf(bp, &ffsrawbufcnt);
 	if (nbp != NULL) {			/* Run down readahead buffer */
 		spl = splbio();
-		while ((nbp->b_flags & B_DONE) == 0) {
-			tsleep((caddr_t)nbp, PRIBIO, "rawrd", 0);
-		}
+		bwait(nbp, PRIBIO, "rawrd");
 		splx(spl);
 		vunmapbuf(nbp);
 		relpbuf(nbp, &ffsrawbufcnt);
@@ -494,5 +490,5 @@ ffs_rawread(struct vnode *vp,
 static void
 ffs_rawreadwakeup(struct buf *bp)
 {
-	wakeup((caddr_t) bp);
+	bdone(bp);
 }
