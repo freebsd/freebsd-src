@@ -86,7 +86,7 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); }
+#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); putchar('\n'); }
 
 void
 process()
@@ -149,14 +149,14 @@ redirect:
 				cspace(&PS, hs, hsl, REPLACE);
 				break;
 			case 'G':
-				if (hs == NULL)
-					cspace(&HS, "\n", 1, REPLACE);
+				cspace(&PS, "\n", 1, 0);
 				cspace(&PS, hs, hsl, 0);
 				break;
 			case 'h':
 				cspace(&HS, ps, psl, REPLACE);
 				break;
 			case 'H':
+				cspace(&HS, "\n", 1, 0);
 				cspace(&HS, ps, psl, 0);
 				break;
 			case 'i':
@@ -175,6 +175,7 @@ redirect:
 				break;
 			case 'N':
 				flush_appends();
+				cspace(&PS, "\n", 1, 0);
 				if (!mf_fgets(&PS, 0)) {
 					if (!nflag && !pd)
 						OUT(ps)
@@ -192,7 +193,7 @@ redirect:
 				if (psl != 0 &&
 				    (p = memchr(ps, '\n', psl - 1)) != NULL) {
 					oldpsl = psl;
-					psl = (p + 1) - ps;
+					psl = p - ps;
 				}
 				OUT(ps)
 				if (p != NULL)
@@ -231,12 +232,11 @@ redirect:
 				    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 				    DEFFILEMODE)) == -1)
 					err(1, "%s", cp->t);
-				if (write(cp->u.fd, ps, psl) != psl)
+				if (write(cp->u.fd, ps, psl) != psl ||
+				    write(cp->u.fd, "\n", 1) != 1)
 					err(1, "%s", cp->t);
 				break;
 			case 'x':
-				if (hs == NULL)
-					cspace(&HS, "\n", 1, REPLACE);
 				tspace = PS;
 				PS = HS;
 				HS = tspace;
@@ -419,7 +419,8 @@ substitute(cp)
 		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
 		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1)
 			err(1, "%s", cp->u.s->wfile);
-		if (write(cp->u.s->wfd, ps, psl) != psl)
+		if (write(cp->u.s->wfd, ps, psl) != psl ||
+		    write(cp->u.s->wfd, "\n", 1) != 1)
 			err(1, "%s", cp->u.s->wfile);
 	}
 	return (1);
@@ -523,9 +524,7 @@ regexec_e(preg, string, eflags, nomatch, slen)
 	} else
 		defpreg = preg;
 
-	/* Set anchors, discounting trailing newline (if any). */
-	if (slen > 0 && string[slen - 1] == '\n')
-		slen--;
+	/* Set anchors */
 	match[0].rm_so = 0;
 	match[0].rm_eo = slen;
 

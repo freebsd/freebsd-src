@@ -362,6 +362,8 @@ mf_fgets(sp, spflag)
 	p = fgetln(f, &len);
 	if (ferror(f))
 		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
+	if (len != 0 && p[len - 1] == '\n')
+		len--;
 	cspace(sp, p, len, spflag);
 
 	linenum++;
