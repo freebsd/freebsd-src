@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.13 1998/09/04 05:58:19 grog Exp grog $
+ * $Id: list.c,v 1.14 1998/10/30 01:05:26 grog Exp grog $
  */
 
 #include <ctype.h>
@@ -351,11 +351,12 @@ vinum_lpi(int plexno, int recurse)
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
 	    if (plex.state == plex_reviving) {
-		printf("\t\tRevive pointer:\t\t%s\n",
-		    roughlength(plex.revived << DEV_BSHIFT, 0));
+		printf("\t\tRevive pointer:\t\t%s (%d%%)\n",
+		    roughlength(plex.revived << DEV_BSHIFT, 0),
+		    (int) ((u_int64_t) (plex.revived * 100)) / plex.length);
 		printf("\t\tRevive blocksize:\t%s\n"
 		    "\t\tRevive interval:\t%10d seconds\n",
-		    roughlength(plex.revive_blocksize << DEV_BSHIFT, 0),
+		    roughlength(plex.revive_blocksize, 0),
 		    plex.revive_interval);
 	    }
 	    if (Verbose) {				    /* show the unmapped and defective parts */
