@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.169 1998/04/19 13:44:52 dt Exp $
+#	$Id: Makefile,v 1.170 1998/04/24 17:13:33 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -526,6 +526,7 @@ includes:
 .endif
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libcalendar &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdisk &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
