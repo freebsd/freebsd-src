@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.7 1994/09/21 03:46:49 wollman Exp $
+ * $Id: vfs_syscalls.c,v 1.8 1994/09/22 19:37:56 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -1970,7 +1970,7 @@ ogetdirentries(p, uap, retval)
 	loff = auio.uio_offset = fp->f_offset;
 #	if (BYTE_ORDER != LITTLE_ENDIAN)
 		if (vp->v_mount->mnt_maxsymlinklen <= 0) {
-			error = VOP_READDIR(vp, &auio, fp->f_cred);
+			error = VOP_READDIR(vp, &auio, fp->f_cred, NULL, NULL, NULL);
 			fp->f_offset = auio.uio_offset;
 		} else
 #	endif
@@ -1981,7 +1981,7 @@ ogetdirentries(p, uap, retval)
 		kiov.iov_len = uap->count;
 		MALLOC(dirbuf, caddr_t, uap->count, M_TEMP, M_WAITOK);
 		kiov.iov_base = dirbuf;
-		error = VOP_READDIR(vp, &kuio, fp->f_cred);
+		error = VOP_READDIR(vp, &kuio, fp->f_cred, NULL, NULL, NULL);
 		fp->f_offset = kuio.uio_offset;
 		if (error == 0) {
 			readcnt = uap->count - kuio.uio_resid;
@@ -2066,7 +2066,7 @@ unionread:
 	auio.uio_resid = uap->count;
 	VOP_LOCK(vp);
 	loff = auio.uio_offset = fp->f_offset;
-	error = VOP_READDIR(vp, &auio, fp->f_cred);
+	error = VOP_READDIR(vp, &auio, fp->f_cred, NULL, NULL, NULL);
 	fp->f_offset = auio.uio_offset;
 	VOP_UNLOCK(vp);
 	if (error)
