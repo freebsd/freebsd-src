@@ -817,7 +817,6 @@ int
 installFixupBase(dialogMenuItem *self)
 {
     FILE *fp;
-    int kstat = 1;
 #ifdef __ia64__
     const char *efi_mntpt;
 #endif
@@ -826,12 +825,10 @@ installFixupBase(dialogMenuItem *self)
     if (RunningAsInit) {
 #if defined(__i386__) || defined(__amd64__)
 	if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
-	    if (!kstat || !OnVTY)
+	    if (!OnVTY) {
 		fprintf(fp, "# -- sysinstall generated deltas -- #\n");
-	    if (!kstat)
-		fprintf(fp, "userconfig_script_load=\"YES\"\n");
-	    if (!OnVTY)
 		fprintf(fp, "console=\"comconsole\"\n");
+	    }
 	    fclose(fp);
 	}
 #endif
