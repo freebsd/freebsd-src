@@ -57,6 +57,15 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
+MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
+
+extern char linux_sigcode[];
+extern int linux_szsigcode;
+
+extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+
+extern struct linker_set linux_ioctl_handler_set;
+
 static int	linux_fixup __P((long **stack_base,
 				 struct image_params *iparams));
 static int	elf_linux_fixup __P((long **stack_base,
@@ -460,24 +469,27 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	switch(type) {
 	case MOD_LOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
-		    ++brandinfo)
+		     ++brandinfo)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
 		if (error)
 			printf("cannot insert Linux elf brand handler\n");
-		else if (bootverbose)
-			printf("Linux-ELF exec handler installed\n");
+		else {
+			linux_ioctl_register_handlers(&linux_ioctl_handler_set);
+			if (bootverbose)
+				printf("Linux-ELF exec handler installed\n");
+		}
 		break;
 	case MOD_UNLOAD:
+		linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
-		    ++brandinfo)
-			if (elf_brand_inuse(*brandinfo)) {
+		     ++brandinfo)
+			if (elf_brand_inuse(*brandinfo))
 				error = EBUSY;
-			}
 
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
-			    *brandinfo != NULL; ++brandinfo)
+			     *brandinfo != NULL; ++brandinfo)
 				if (elf_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
