@@ -84,8 +84,8 @@ ENTRY(cpu_switch)
 	save	%sp, -CCFSZ, %sp
 	call	choosethread
 	 ldx	[PCPU(CURTHREAD)], %l0
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: from=%p (%s) to=%p (%s)"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: from=%p (%s) to=%p (%s)"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%l0, [%g1 + KTR_PARM1]
 	ldx	[%l0 + TD_PROC], %g2
@@ -134,8 +134,8 @@ ENTRY(cpu_switch)
 	 * the current process and pcb.
 	 */
 .Lsw1:	ldx	[%o0 + TD_PCB], %o1
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: to=%p pc=%#lx fp=%#lx sp=%#lx cwp=%#lx"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: to=%p pc=%#lx fp=%#lx sp=%#lx cwp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
 	ldx	[%o1 + PCB_PC], %g2
@@ -170,8 +170,8 @@ ENTRY(cpu_switch)
 	ldx	[%o0 + TD_PROC], %o2
 	ldx	[%o2 + P_VMSPACE], %o2
 	lduw	[%o2 + VM_PMAP + PM_CONTEXT], %o3
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: to=%p vm=%p context=%#x"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: to=%p vm=%p context=%#x"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
 	stx	%o2, [%g1 + KTR_PARM2]
@@ -205,8 +205,8 @@ ENTRY(cpu_switch)
 	ldx	[%l0 + TD_PROC], %l1
 	ldx	[%l1 + P_VMSPACE], %l1
 	lduw	[%l1 + VM_PMAP + PM_CONTEXT], %l3
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: from=%p vm=%p context=%#x"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: from=%p vm=%p context=%#x"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%l0, [%g1 + KTR_PARM1]
 	stx	%l1, [%g1 + KTR_PARM2]
@@ -250,8 +250,8 @@ ENTRY(cpu_switch)
 	 * Done.  Return and load the new process's window from the stack.
 	 */
 3:
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "cpu_switch: return td=%p (%s)"
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: return td=%p (%s)"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
