@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: html.sdata,v 1.1.1.1 1996/09/08 02:37:40 jfieber Exp $
 
   Copyright (c) 1994
   Open Software Foundation, Inc.
@@ -51,7 +51,7 @@ Enhancement by John R Fieber, 1996
 <map from="[times ]" to="&#38;times;">
 <map from="[curren]" to="&#38;curren;">
 <map from="[pound ]" to="&#38;pound;">
-<map from="[dollar]" to="$">
+<map from="[dollar]" to="&#38;#36;">
 <map from="[cent  ]" to="&#38;cent;">
 <map from="[yen   ]" to="&#38;yen;">
 <map from="[num   ]" to="#">
