@@ -78,7 +78,6 @@
 
 #include <sys/unistd.h> /* for pathconf(2) constants */
 
-static int	ntfs_bypass __P((struct vop_generic_args *ap));
 static int	ntfs_read __P((struct vop_read_args *));
 static int	ntfs_write __P((struct vop_write_args *ap));
 static int	ntfs_getattr __P((struct vop_getattr_args *ap));
@@ -96,6 +95,8 @@ static int	ntfs_bmap __P((struct vop_bmap_args *ap));
 static int	ntfs_getpages __P((struct vop_getpages_args *ap));
 static int	ntfs_putpages __P((struct vop_putpages_args *));
 static int	ntfs_fsync __P((struct vop_fsync_args *ap));
+#else
+static int	ntfs_bypass __P((struct vop_generic_args *ap));
 #endif
 static int	ntfs_pathconf __P((void *));
 
@@ -189,6 +190,8 @@ ntfs_read(ap)
 	return (0);
 }
 
+#if !defined(__FreeBSD__)
+
 static int
 ntfs_bypass(ap)
 	struct vop_generic_args /* {
@@ -201,6 +204,7 @@ ntfs_bypass(ap)
 	return (error);
 }
 
+#endif
 
 static int
 ntfs_getattr(ap)
@@ -884,7 +888,7 @@ vop_t **ntfs_vnodeop_p;
 #if defined(__FreeBSD__)
 static
 struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)ntfs_bypass },
+	{ &vop_default_desc, (vop_t *)vop_defaultop },
 
 	{ &vop_getattr_desc, (vop_t *)ntfs_getattr },
 	{ &vop_inactive_desc, (vop_t *)ntfs_inactive },
