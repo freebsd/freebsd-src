@@ -179,17 +179,20 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
     int        except;
     FICL_WORD *tempFW;
     jmp_buf    vmState;
-    jmp_buf   *oldState;
     TIB        saveTib;
+    FICL_VM         VM;
+    FICL_STACK      rStack;
 
     assert(pVM);
 
     vmPushTib(pVM, pText, size, &saveTib);
 
     /*
-    ** Save and restore VM's jmp_buf to enable nested calls to ficlExec 
+    ** Save and restore pVM and pVM->rStack to enable nested calls to ficlExec 
     */
-    oldState = pVM->pState;
+    memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
+    memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
+
     pVM->pState = &vmState; /* This has to come before the setjmp! */
     except = setjmp(vmState);
 
@@ -285,7 +288,9 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
     
                 vmTextOut(pVM, buffer, 1);
             }
-            else if (ficl_trace) /* probably not a word - punt and print value */
+            else if (ficl_trace) /* probably not a word 
+				  * - punt and print value
+				  */
             {
            	    sprintf(buffer, "    %ld (%#lx)", ((CELL*)pVM->ip)->i, ((CELL*)pVM->ip)->u);
            	    vmTextOut(pVM, buffer, 1);
@@ -319,7 +324,9 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
     case VM_QUIT:
         if (pVM->state == COMPILE)
             dictAbortDefinition(dp);
-        vmQuit(pVM);
+
+        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
         break;
 
     case VM_ERREXIT:
@@ -334,11 +341,14 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
 #endif
         }
         dictResetSearchOrder(dp);
-        vmReset(pVM);
+        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
+	stackReset(pVM->pStack);
+	pVM->base = 10;
         break;
    }
 
-    pVM->pState    = oldState;
+    pVM->pState = VM.pState;
     vmPopTib(pVM, &saveTib);
     return (except);
 }
