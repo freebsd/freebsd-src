@@ -103,7 +103,7 @@ telrcv(void)
 			if ((c == 0) || (c == '\n')) {
 				break;
 			}
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 
 		case TS_DATA:
 			if (c == IAC) {
@@ -1256,7 +1256,7 @@ suboption(void)
 			case ENV_ESC:
 				if (!SB_EOF())
 					c = SB_GET();
-				/* FALL THROUGH */
+				/* FALLTHROUGH */
 			default:
 				empty = 0;
 				continue;
@@ -1343,7 +1343,7 @@ suboption(void)
 			if (SB_EOF())
 				break;
 			c = SB_GET();
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 		default:
 			*cp++ = c;
 			break;

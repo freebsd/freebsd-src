@@ -1741,7 +1741,7 @@ struct re_guts *g;
 					return;
 				}
 			} while (OP(s) != O_QUEST && OP(s) != O_CH);
-			/* fallthrough */
+			/* FALLTHROUGH */
 		case OBOW:		/* things that break a sequence */
 		case OEOW:
 		case OBOL:

@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.mkobj.c - version 1.0.3 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "hack.h"
 
@@ -76,7 +78,7 @@ int otyp;
 		if(otmp->otyp == TIN)
 			otmp->spe = rnd(...);
 #endif /* NOT_YET_IMPLEMENTED */
-		/* fall into next case */
+		/* FALLTHROUGH */
 	case GEM_SYM:
 		otmp->quan = rn2(6) ? 1 : 2;
 	case TOOL_SYM:

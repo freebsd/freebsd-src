@@ -321,7 +321,7 @@ nodeupdates(char *name, ino_t ino, int type)
 		} else {
 			mktempname(np);
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 
 	/*
 	 * A previously non-existent file.
@@ -352,7 +352,7 @@ nodeupdates(char *name, ino_t ino, int type)
 	case ONTAPE|INOFND:
 		if (type == LEAF && (ip->e_flags & KEEP) == 0)
 			ip->e_flags |= EXTRACT;
-		/* fall through */
+		/* FALLTHROUGH */
 	case INOFND:
 		if ((ip->e_flags & KEEP) == 0) {
 			renameit(myname(ip), name);

@@ -91,7 +91,7 @@ spectHex(p0)
 
 	case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
 		*p += ('A' - 'a');
-		/* fall into . . . */
+		/* FALLTHROUGH */
 	case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
 		ok = 1;
 	case '1': case '2': case '3': case '4': case '5':

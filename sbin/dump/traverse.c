@@ -458,13 +458,13 @@ dumpino(union dinode *dp, ino_t ino)
 			return;
 		}
 #endif
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case S_IFDIR:
 	case S_IFREG:
 		if (DIP(dp, di_size) > 0)
 			break;
-		/* fall through */
+		/* FALLTHROUGH */
 
 	case S_IFIFO:
 	case S_IFSOCK:

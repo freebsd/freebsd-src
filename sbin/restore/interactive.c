@@ -594,7 +594,7 @@ mkentry(char *name, struct direct *dp, struct afile *fp)
 	default:
 		fprintf(stderr, "Warning: undefined file type %d\n",
 		    dp->d_type);
-		/* fall through */
+		/* FALLTHROUGH */
 	case DT_REG:
 		fp->postfix = ' ';
 		break;
