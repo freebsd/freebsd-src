@@ -66,7 +66,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		p = &proc0;
 
 	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	db_printf("  pid   proc     uarea   uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
+	db_printf("  pid   proc     uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
 	while (--np >= 0 && !quit) {
 		if (p == NULL) {
 			printf("oops, ran out of processes early!\n");
@@ -95,8 +95,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			state = "Unkn";
 			break;
 		}
-		db_printf("%5d %8p %8p %4d %5d %5d %07x %s",
-		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
+		db_printf("%5d %8p %4d %5d %5d %07x %s",
+		    p->p_pid, (volatile void *)p,
 		    p->p_ucred != NULL ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp != NULL ? p->p_pgrp->pg_id : 0, p->p_flag,
 		    state);
