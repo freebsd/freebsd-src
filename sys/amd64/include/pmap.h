@@ -162,7 +162,6 @@ extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
-
 #define	avtopte(va)	(APTmap + i386_btop(va))
 
 /*
@@ -184,14 +183,7 @@ pmap_kextract(vm_offset_t va)
 	return pa;
 }
 
-#if 0
-#define	vtophys(va)	(((vm_offset_t) (*vtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
-#else
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-#endif
-
-#define	avtophys(va)	(((vm_offset_t) (*avtopte(va))&PG_FRAME) | ((vm_offset_t)(va) & PAGE_MASK))
-
 #endif
 
 /*
