@@ -22,6 +22,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* A lie, I guess, but the general idea behind FreeBSD/ELF is that we are
    supposed to be outputting something that will assemble under SVr4.
    This gets us pretty close.  */
@@ -477,7 +479,7 @@ do {									\
 #endif /* FREEBSD_NATIVE */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=3 -D__FreeBSD_cc_version=320001 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=3 -D__FreeBSD_cc_version=330001 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 #undef CPP_SPEC
 #if TARGET_CPU_DEFAULT == 2
