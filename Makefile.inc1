@@ -151,7 +151,9 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${MACHINE_ARCH}
 # /usr/games added for fortune which depend on strfile
-STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games
+XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
@@ -186,13 +188,14 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE} \
-		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
+		GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
+		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
+		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 
 # bootstrap-tools stage
 BMAKEENV=	DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
@@ -274,7 +277,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in ${USRDIRS}
-	mkdir -p ${WORLDTMP}/${_dir}
+	mkdir -p ${WORLDTMP}/${_dir} ${WORLDTMP}/legacy/${_dir}
 .endfor
 .for _dir in ${INCDIRS}
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
@@ -648,7 +651,7 @@ bootstrap-tools:
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
-		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
 #
