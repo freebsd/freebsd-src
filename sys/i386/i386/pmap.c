@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.172 1997/11/07 19:58:34 tegge Exp $
+ *	$Id: pmap.c,v 1.173 1997/11/20 19:30:31 bde Exp $
  */
 
 /*
@@ -1115,6 +1115,28 @@ pmap_unuse_pt(pmap, va, mpte)
 
 	return pmap_unwire_pte_hold(pmap, mpte);
 }
+
+#if !defined(SMP)
+void
+pmap_pinit0(pmap)
+	struct pmap *pmap;
+{
+	pmap->pm_pdir =
+		(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
+	pmap_kenter((vm_offset_t) pmap->pm_pdir, (vm_offset_t) IdlePTD);
+	pmap->pm_flags = 0;
+	pmap->pm_count = 1;
+	pmap->pm_ptphint = NULL;
+	TAILQ_INIT(&pmap->pm_pvlist);
+}
+#else
+void
+pmap_pinit0(pmap)
+	struct pmap *pmap;
+{
+	pmap_pinit(pmap);
+}
+#endif
 
 /*
  * Initialize a preallocated and zeroed pmap structure,
@@ -3247,6 +3269,9 @@ pmap_mincore(pmap, addr)
 void
 pmap_activate(struct proc *p)
 {
+#if defined(SWTCH_OPTIM_STATS)
+	++tlb_flush_count;
+#endif
 	load_cr3(p->p_addr->u_pcb.pcb_cr3 =
 		vtophys(p->p_vmspace->vm_pmap.pm_pdir));
 }
