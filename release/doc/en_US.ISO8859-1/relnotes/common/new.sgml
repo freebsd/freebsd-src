@@ -404,6 +404,14 @@
       been added to control the suppression of logging when ARP replies
       arrive on the wrong interface. &merged;</para>
 
+      <para>The <literal>proxy</literal> modifier to &man.arp.8;'s
+      <option>-d</option> option has been renamed to
+      <literal>pub</literal>, for consistency with the
+      <option>-s</option> option.  The <literal>only</literal> keyword
+      has been added to the <option>-s</option> and
+      <option>-S</option> flags, to be used in creating
+      <quote>proxy-only</quote> published entries.</para>
+
       <para>&man.ipfw.8; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
 
@@ -1228,6 +1236,14 @@
     applications have been updated to take advantage of this
     support.</para>
 
+    <para>Locale names have been changed to improve compatability with
+    the names used by X11R6, as well as a number of other UNIX
+    versions.  As an example, the <literal>en_US.ISO_8859-1</literal>
+    locale name has been changed to
+    <literal>en_US.ISO8859-1</literal>.  Entries in
+    <filename>/etc/locale.alias</filename> provide backward
+    compatability.</para>
+
     <para>A <filename>compat4x</filename> distribution has been added
     for compatibility with &os; 4-STABLE.</para>
 
@@ -1554,6 +1570,19 @@
       in the ports collection as <filename>net/pim6dd</filename> and
       <filename>net/pim6dd</filename>. &merged;</para>
 
+      <para>&man.route.8; is now more verbose when changing indirect
+      routes, in the case of a gateway route that is the same route as
+      the one being modified.</para>
+
+      <para>&man.route.8; now uses
+      <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+      syntax instead of 
+      <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+      syntax, for compatability with &man.netstat.1;.</para>
+
+      <para>&man.route.8; can now create <quote>proxy only</quote>
+      published ARP entries.</para>
+
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
       <para><application>tcpdump</application> has been updated to
@@ -1761,6 +1790,10 @@
       routine that corresponds to the Porters Handbook.  It also has a
       <option>-t</option> option for testing address comparisons. 
       &merged;</para>
+
+      <para>&man.pkg.version.1; now takes a <option>-s</option> flag
+      to limit its operation to ports/packages matching a given
+      string.</para>
 
       <para>When requested to delete multiple packages,
       &man.pkg.delete.1; will now attempt to remove them in dependency
