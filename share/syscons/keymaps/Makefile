@@ -44,7 +44,7 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${KEYMAPS} \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${KEYMAPS} \
 	    ${DESTDIR}${MAPSDIR}
 
 .include <bsd.prog.mk>

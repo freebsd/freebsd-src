@@ -14,7 +14,7 @@ SCRIPTSNAME_${script}=	locate.${script:R}
 MLINKS+= locate.updatedb.8 updatedb.8
 
 # only /usr/src/etc/Makefile install files in /etc
-#	${INSTALL} ${COPY} -o root -g wheel -m 644 \
+#	${INSTALL} -o root -g wheel -m 644 \
 #		${.CURDIR}/locate.rc ${DESTDIR}/etc
 
 .include "../../Makefile.inc"

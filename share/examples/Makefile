@@ -269,7 +269,7 @@ copies:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../../etc/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .for file in ${XFILES}
-	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+	${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
 .endfor
 
