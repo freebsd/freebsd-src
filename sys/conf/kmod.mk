@@ -158,7 +158,10 @@ _ILINKS=@ machine
 .MAIN: all
 all: objwarn ${PROG} all-man _SUBDIR
 
-beforedepend ${OBJS}: ${_ILINKS}
+beforedepend: ${_ILINKS}
+	@rm -f .depend
+
+${OBJS}: ${_ILINKS}
 
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
