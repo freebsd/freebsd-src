@@ -176,6 +176,13 @@ struct exception {
 };
 #endif
 
+#if 0
+/* Old value from 4.4BSD-Lite math.h; this is probably better. */
+#define	HUGE		HUGE_VAL
+#else
+#define	HUGE		MAXFLOAT
+#endif
+
 #define X_TLOSS		1.41484755040568800000e+16	/* pi*2**52 */
 
 #define	DOMAIN		1
