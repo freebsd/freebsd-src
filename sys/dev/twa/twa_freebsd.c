@@ -196,7 +196,7 @@ twa_probe(device_t dev)
 					TWA_DRIVER_VERSION_STRING);
 			first_ctlr = 0;
 		}
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 	return(ENXIO);
 }
