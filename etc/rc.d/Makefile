@@ -19,7 +19,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
 	ldconfig local localpkg lomac lpd \
-	motd mountcritlocal mountcritremote \
+	mixer motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs \
 	named netif netoptions \
 	network_ipv6 nfsclient nfsd \
