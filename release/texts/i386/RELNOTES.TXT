@@ -221,6 +221,8 @@ A security hole in FreeBSD's FFS and EXT2FS implementations, which
 allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory FreeBSD-SA-01:30).
 
+A remotely-exploitable vulnerability in ntpd(8) has been closed.
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -461,7 +463,7 @@ rc(8) now has an framework for handling dependencies between
 rc.conf(5) variables.
 
 The default TCP port range used by libfetch for passive FTP retrievals
-has changed; this affects the behavior of ftp(1), which has gained the
+has changed; this affects the behavior of fetch(1), which has gained the
 -U option to restore the old behavior.
 
 
