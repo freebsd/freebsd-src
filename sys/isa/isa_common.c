@@ -435,7 +435,21 @@ isa_probe_children(device_t dev)
 		return;
 
 	/*
-	 * First probe all non-pnp devices so that they claim their
+	 * First disable all pnp devices so that they don't get
+	 * matched by legacy probes.
+	 */
+	for (i = 0; i < nchildren; i++) {
+		device_t child = children[i];
+		struct isa_device *idev = DEVTOISA(child);
+		struct isa_config config;
+
+		bzero(&config, sizeof config);
+		if (idev->id_config_cb)
+			idev->id_config_cb(idev->id_config_arg, &config, 0);
+	}
+
+	/*
+	 * Next probe all non-pnp devices so that they claim their
 	 * resources first.
 	 */
 	for (i = 0; i < nchildren; i++) {
@@ -449,7 +463,7 @@ isa_probe_children(device_t dev)
 	}
 
 	/*
-	 * Next assign resource to pnp devices and probe them.
+	 * Finally assign resource to pnp devices and probe them.
 	 */
 	for (i = 0; i < nchildren; i++) {
 		device_t child = children[i];
