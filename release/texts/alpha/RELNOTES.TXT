@@ -59,6 +59,12 @@ new filesystems up to seven times faster.
 
 A number of buffer overflows in config(8) have been fixed.
 
+Binutils have been upgraded to 2.10.1.
+
+OpenSSL has been upgraded to 0.9.6.
+
+file(1) has been contribify-ed, and imported as version 3.33.
+
 
 2. Supported Configurations
 ---------------------------
