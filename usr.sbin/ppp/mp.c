@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.24 1999/06/03 13:29:32 brian Exp $
+ *	$Id: mp.c,v 1.25 1999/06/09 16:54:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -183,6 +183,52 @@ mp_LayerFinish(void *v, struct fsm *fp)
     fsm_Open(fp);		/* CCP goes to ST_STOPPED */
 }
 
+static void
+mp_UpDown(void *v)
+{
+  struct mp *mp = (struct mp *)v;
+  int percent;
+
+  percent = mp->link.throughput.OctetsPerSecond * 800 / mp->bundle->bandwidth;
+  if (percent >= mp->cfg.autoload.max) {
+    log_Printf(LogDEBUG, "%d%% saturation - bring a link up ?\n", percent);
+    bundle_AutoAdjust(mp->bundle, percent, AUTO_UP);
+  } else if (percent <= mp->cfg.autoload.min) {
+    log_Printf(LogDEBUG, "%d%% saturation - bring a link down ?\n", percent);
+    bundle_AutoAdjust(mp->bundle, percent, AUTO_DOWN);
+  }
+}
+
+void
+mp_StopAutoloadTimer(struct mp *mp)
+{
+  throughput_stop(&mp->link.throughput);
+}
+
+void
+mp_CheckAutoloadTimer(struct mp *mp)
+{
+  if (mp->link.throughput.SamplePeriod != mp->cfg.autoload.period) {
+    throughput_destroy(&mp->link.throughput);
+    throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
+    throughput_callback(&mp->link.throughput, mp_UpDown, mp);
+  }
+
+  if (bundle_WantAutoloadTimer(mp->bundle))
+    throughput_start(&mp->link.throughput, "MP throughput", 1);
+  else
+    mp_StopAutoloadTimer(mp);
+}
+
+void
+mp_RestartAutoloadTimer(struct mp *mp)
+{
+  if (mp->link.throughput.SamplePeriod != mp->cfg.autoload.period)
+    mp_CheckAutoloadTimer(mp);
+  else
+    throughput_clear(&mp->link.throughput, THROUGHPUT_OVERALL, NULL);
+}
+
 void
 mp_Init(struct mp *mp, struct bundle *bundle)
 {
@@ -202,7 +248,10 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->link.name = "mp";
   mp->link.len = sizeof *mp;
 
-  throughput_init(&mp->link.throughput);
+  mp->cfg.autoload.period = SAMPLE_PERIOD;
+  mp->cfg.autoload.min = mp->cfg.autoload.max = 0;
+  throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
+  throughput_callback(&mp->link.throughput, mp_UpDown, mp);
   memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
   memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
   memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
@@ -263,7 +312,9 @@ mp_Up(struct mp *mp, struct datalink *dl)
     mp->peer_is12bit = lcp->his_shortseq;
     mp->peer = dl->peer;
 
-    throughput_init(&mp->link.throughput);
+    throughput_destroy(&mp->link.throughput);
+    throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
+    throughput_callback(&mp->link.throughput, mp_UpDown, mp);
     memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
     memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
     memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
@@ -312,6 +363,9 @@ mp_Down(struct mp *mp)
   if (mp->active) {
     struct mbuf *next;
 
+    /* Stop that ! */
+    mp_StopAutoloadTimer(mp);
+
     /* Don't want any more of these */
     mpserver_Close(&mp->server);
 
@@ -334,7 +388,7 @@ void
 mp_linkInit(struct mp_link *mplink)
 {
   mplink->seq = 0;
-  mplink->weight = 1500;
+  mplink->bandwidth = 0;
 }
 
 static void
@@ -636,17 +690,14 @@ mp_FillQueues(struct bundle *bundle)
 
     while (!end) {
       if (dl->state == DATALINK_OPEN) {
-        if (len <= dl->mp.weight + LINK_MINWEIGHT) {
-          /*
-           * XXX: Should we remember how much of our `weight' wasn't sent
-           *      so that we can compensate next time ?
-           */
+        /* Write at most his_mru bytes to the physical link */
+        if (len <= dl->physical->link.lcp.his_mru) {
           mo = m;
           end = 1;
           mbuf_SetType(mo, MB_MPOUT);
         } else {
-          mo = mbuf_Alloc(dl->mp.weight, MB_MPOUT);
-          mo->cnt = dl->mp.weight;
+          /* It's > his_mru, chop the packet (`m') into bits */
+          mo = mbuf_Alloc(dl->physical->link.lcp.his_mru, MB_MPOUT);
           len -= mo->cnt;
           m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
         }
@@ -671,7 +722,7 @@ mp_FillQueues(struct bundle *bundle)
 }
 
 int
-mp_SetDatalinkWeight(struct cmdargs const *arg)
+mp_SetDatalinkBandwidth(struct cmdargs const *arg)
 {
   int val;
 
@@ -679,12 +730,15 @@ mp_SetDatalinkWeight(struct cmdargs const *arg)
     return -1;
   
   val = atoi(arg->argv[arg->argn]);
-  if (val < LINK_MINWEIGHT) {
-    log_Printf(LogWARN, "Link weights must not be less than %d\n",
-              LINK_MINWEIGHT);
+  if (val <= 0) {
+    log_Printf(LogWARN, "The link bandwidth must be greater than zero\n");
     return 1;
   }
-  arg->cx->mp.weight = val;
+  arg->cx->mp.bandwidth = val;
+
+  if (arg->cx->state == DATALINK_OPEN)
+    bundle_CalculateBandwidth(arg->bundle);
+
   return 0;
 }
 
@@ -723,6 +777,7 @@ mp_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");
   if (mp->active) {
+    prompt_Printf(arg->prompt, " Output SEQ:    %u\n", mp->out.seq);
     prompt_Printf(arg->prompt, " MRRU:          %u\n", mp->local_mrru);
     prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   mp->local_is12bit ? "on" : "off");
@@ -734,7 +789,7 @@ mp_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "\nHis Side:\n");
   if (mp->active) {
     prompt_Printf(arg->prompt, " Auth Name:     %s\n", mp->peer.authname);
-    prompt_Printf(arg->prompt, " Next SEQ:      %u\n", mp->out.seq);
+    prompt_Printf(arg->prompt, " Input SEQ:     %u\n", mp->seq.next_in);
     prompt_Printf(arg->prompt, " MRRU:          %u\n", mp->peer_mrru);
     prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   mp->peer_is12bit ? "on" : "off");
@@ -754,6 +809,9 @@ mp_ShowStatus(struct cmdargs const *arg)
                   command_ShowNegval(mp->cfg.shortseq));
   prompt_Printf(arg->prompt, " Discriminator: %s\n",
                   command_ShowNegval(mp->cfg.negenddisc));
+  prompt_Printf(arg->prompt, " AutoLoad:      min %d%%, max %d%%,"
+                " period %d secs\n", mp->cfg.autoload.min,
+                mp->cfg.autoload.max, mp->cfg.autoload.period);
 
   return 0;
 }
