@@ -15,11 +15,6 @@ BINOWN=	root
 BINGRP=	network
 MAN8=	ppp.8
 
-.if defined(RELEASE_CRUNCH)
-NONETGRAPH=true
-CFLAGS+=-DRELEASE_CRUNCH
-.endif
-
 .if defined(NOKLDLOAD)
 CFLAGS+=-DNOKLDLOAD
 .endif
@@ -66,17 +61,19 @@ SRCS+=	i4b.c
 .if defined(NONETGRAPH)
 CFLAGS+=-DNONETGRAPH
 .else
+.if !defined(RELEASE_CRUNCH)
 SRCS+=	ether.c
 LDADD+=	-lnetgraph
 DPADD+= ${LIBNETGRAPH}
+.endif
 .endif
 
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
-OBJS+=	chap_ms.o nat_cmd.o radius.o
-chap_ms.o nat_cmd.o radius.o:
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNONETGRAPH
+OBJS+=	chap_ms.o nat_cmd.o radius.o ether.o
+chap_ms.o nat_cmd.o radius.o ether.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
