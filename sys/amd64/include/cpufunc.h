@@ -444,16 +444,16 @@ invlpg(u_int addr)
 static __inline u_int
 rfs(void)
 {
-	u_short sel;
-	__asm __volatile("movw %%fs,%0" : "=rm" (sel));
+	u_int sel;
+	__asm __volatile("movl %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
 static __inline u_int
 rgs(void)
 {
-	u_short sel;
-	__asm __volatile("movw %%gs,%0" : "=rm" (sel));
+	u_int sel;
+	__asm __volatile("movl %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
