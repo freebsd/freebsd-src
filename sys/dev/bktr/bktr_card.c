@@ -380,6 +380,18 @@ static const struct CARDTYPE cards[] = {
 	   { 0x02, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
 	   0x03000F },				/* GPIO mask */
 
+        {  CARD_PIXELVIEW_PLAYTV_PAK,       /* the card id */
+           "PixelView PlayTV Pak",              /* the 'name' */
+            NULL,                               /* the tuner */
+            0,                                  /* the tuner i2c address */
+            0,                                  /* dbx is optional */
+            0,
+            0,
+            PFC8582_WADDR,                      /* EEProm type */
+            (u_char)(256 / EEPROMBLOCKSIZE),    /* 256 bytes */
+            { 0x20000, 0x80000, 0, 0xa8000, 1 },        /* audio MUX values */
+            0xAA0000 },                         /* GPIO mask */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
