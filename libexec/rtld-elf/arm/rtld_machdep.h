@@ -37,14 +37,8 @@
 struct Struct_Obj_Entry;
 
 /* Return the address of the .dynamic section in the dynamic linker. */
-#if 0
-#define rtld_dynamic(obj) \
-    ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
-#endif
-#if 0
 #define rtld_dynamic(obj) (&_DYNAMIC)
-#endif
-#define rtld_dynamic(obj) (const Elf_Dyn *)((obj)->relocbase)
+
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 		       const struct Struct_Obj_Entry *defobj,
 		       const struct Struct_Obj_Entry *obj,
@@ -55,10 +49,25 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 
 #define call_initfini_pointer(obj, target) \
 	(((InitFunc)(target))())
+	
+typedef struct {
+	unsigned long ti_module;
+	unsigned long ti_offset;
+} tls_index;
 
+#define round(size, align) \
+	(((size) + (align) - 1) & ~((align) - 1))
+#define calculate_first_tls_offset(size, align) \
+	round(size, align)                                     
+#define calculate_tls_offset(prev_offset, prev_size, size, align) \
+	    round(prev_offset + prev_size, align)
+#define calculate_tls_end(off, size)    ((off) + (size))
+	
+	
 /*
  * Lazy binding entry point, called via PLT.
  */
 void _rtld_bind_start(void);
 
+extern void *__tls_get_addr(tls_index *ti);
 #endif
