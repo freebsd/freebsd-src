@@ -23,11 +23,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: kldunload.8,v 1.1 1997/05/07 18:19:54 dfr Exp $
 .\"
 .Dd April 25, 1997
 .Dt KLDUNLOAD 8
-.Os
+.Os FreeBSD
 .Sh NAME
 .Nm kldunload
 .Nd unload a file from the kernel
@@ -43,7 +43,7 @@ utility unloads a file which was previously loaded with
 .Xr kldload 8 .
 .Pp
 The options are:
-.Bl -tag -width indent
+.Bl -tag -width XXXXXXX -offset indent
 .It Fl v
 Be more verbose.
 .It Fl i Ar id
@@ -54,7 +54,11 @@ Unload the file with this name.
 .Sh SEE ALSO
 .Xr kldload 8 ,
 .Xr kldstat 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 3.0 .
 .Sh AUTHOR
-.Bl -tag
-Doug Rabson, dfr@freebsd.org
-.El.
+Doug Rabson
+.Aq dfr@freebsd.org
