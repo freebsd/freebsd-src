@@ -59,9 +59,8 @@
 displays users' disk usage and limits.
 By default only the user quotas are printed.
 .Pp
-Options:
-.Pp
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl g
 Print group quotas for the group 
 of which the user is a member.
@@ -105,14 +104,14 @@ flag.
 .Nm Quota
 tries to report the quotas of all mounted filesystems.
 If the filesystem is mounted via
-.Nm NFS ,
+.Tn NFS ,
 it will attempt to contact the
 .Xr rpc.rquotad 8
 daemon on the
-.Nm NFS
+.Tn NFS
 server.
 For
-.Nm UFS
+.Tn UFS
 filesystems, quotas must be turned on in
 .Pa /etc/fstab .
 If
