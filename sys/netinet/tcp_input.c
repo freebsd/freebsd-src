@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.33 1995/11/14 20:34:37 phk Exp $
+ *	$Id: tcp_input.c,v 1.34 1995/12/14 09:53:47 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -707,7 +707,13 @@ findpcb:
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-			tp->rcv_adv += tp->rcv_wnd;
+
+			/*
+			 * Limit the `virtual advertised window' to TCP_MAXWIN
+			 * here.  Even if we requested window scaling, it will
+			 * become effective only later when our SYN is acked.
+			 */
+			tp->rcv_adv += min(tp->rcv_wnd, TCP_MAXWIN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
@@ -1283,13 +1289,20 @@ trimthenstep6:
 		 */
 		if (tp->t_flags & TF_NEEDSYN) {
 			/*
-			 *   T/TCP: Connection was half-synchronized, and our
-			 *   SYN has been ACK'd (so connection is now fully
-			 *   synchronized).  Go to non-starred state and
-			 *   increment snd_una for ACK of SYN.
+			 * T/TCP: Connection was half-synchronized, and our
+			 * SYN has been ACK'd (so connection is now fully
+			 * synchronized).  Go to non-starred state,
+			 * increment snd_una for ACK of SYN, and check if
+			 * we can do window scaling.
 			 */
 			tp->t_flags &= ~TF_NEEDSYN;
 			tp->snd_una++;
+			/* Do window scaling? */
+			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
+				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
+				tp->snd_scale = tp->requested_s_scale;
+				tp->rcv_scale = tp->request_r_scale;
+			}
 		}
 
 process_ACK:
