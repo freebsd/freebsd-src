@@ -99,6 +99,20 @@
       limit can be configured in &man.login.conf.5; via the new
       <varname>vmemoryuse</varname> variable.</para>
 
+    <para>The &man.tcp.4; protocol's retransmission timer can now be
+      manipulated with two sysctl's,
+      <varname>net.inet.tcp.rexmit_min</varname> and
+      <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
+      been reduced from one second to 200ms (similar to the Linux default)
+      in order to better handle hicups over interactive connections and
+      improve recovery over lossy fast connections such as wireless links.</para>
+
+    <para>The &man.tcp.4; protocol now has the ability to dynamically
+      limit the send-side window to maximize bandwidth and minimize
+      round trip times.  The feature can be enabled via the
+      <varname>net.inet.tcp.inflight_enable</varname>
+      sysctl.</para>
+
     <para>The &man.ucom.4; device driver has been added, to support USB
       modems, serial devices, and other programs that need to look
       like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
