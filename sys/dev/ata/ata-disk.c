@@ -158,7 +158,7 @@ ad_attach(struct ata_softc *scp, int device)
 	ata_printf(scp, device, "enabling readahead cache failed\n");
 
     /* enable write cacheing if allowed and not default on device */
-    if (ata_wc || ata_tags) {
+    if (ata_wc || (ata_tags && ad_tagsupported(adp))) {
 	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
 			0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
 	    ata_printf(scp, device, "enabling write cache failed\n");
