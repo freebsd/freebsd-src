@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.66 1997/07/10 11:44:42 davidn Exp $
+ * $Id: init_main.c,v 1.67 1997/08/05 00:01:21 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -62,9 +62,6 @@
 #include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
-#if defined(SMP)
-#include <machine/smp.h>
-#endif /* SMP */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -161,6 +158,17 @@ main(framep)
 	 * all other processes.
 	 */
 	init_framep = framep;
+
+#ifdef SMP
+	/*
+	 * XXX curproc is per-cpu in SMP, and exists in freshly mapped pages,
+	 * so its value must be initialized now before it is used by various
+	 * initialization routines.  proc0_init() isn't soon enough:
+	 * among other things, configure() is called first, and may call
+	 * setdumpdev(), which panics without a valid curproc.
+	 */
+	curproc = &proc0;
+#endif /* SMP */
 
 	/*
 	 * Perform a bubble sort of the system initialization objects by
