@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.243
+    Original revision: 1.244
 -->
 
 <articleinfo>
@@ -16,6 +16,7 @@
   <copyright>
     <year>2000</year>
     <year>2001</year>
+    <year>2002</year>
     <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーション
     プロジェクト</holder>
   </copyright>
