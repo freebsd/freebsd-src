@@ -361,6 +361,8 @@ hme_detach(struct hme_softc *sc)
 		bus_dmamap_destroy(sc->sc_rdmatag,
 		    sc->sc_rb.rb_rxdesc[i].hrx_dmamap);
 	}
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cdmamap);
 	bus_dmamem_free(sc->sc_cdmatag, sc->sc_rb.rb_membase, sc->sc_cdmamap);
 	bus_dma_tag_destroy(sc->sc_tdmatag);
@@ -457,8 +459,8 @@ hme_rxdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs,
  * Discard the contents of an mbuf in the RX ring, freeing the buffer in the
  * ring for subsequent use.
  */
-static void
-hme_discard_rxbuf(struct hme_softc *sc, int ix, int sync)
+static __inline void
+hme_discard_rxbuf(struct hme_softc *sc, int ix)
 {
 
 	/*
@@ -467,10 +469,6 @@ hme_discard_rxbuf(struct hme_softc *sc, int ix, int sync)
 	 */
 	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ix, HME_XD_OWN |
 	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, &sc->sc_rb.rb_rxdesc[ix])));
-	if (sync) {
-		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	}
 }
 
 static int
@@ -490,7 +488,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		 * Reinitialize the descriptor flags, as they may have been
 		 * altered by the hardware.
 		 */
-		hme_discard_rxbuf(sc, ri, 0);
+		hme_discard_rxbuf(sc, ri);
 		return (0);
 	}
 	if ((m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
@@ -581,6 +579,8 @@ hme_meminit(struct hme_softc *sc)
 		td = &sc->sc_rb.rb_txdesc[i];
 		if (td->htx_m != NULL) {
 			m_freem(td->htx_m);
+			bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
 			td->htx_m = NULL;
 		}
@@ -596,8 +596,8 @@ hme_meminit(struct hme_softc *sc)
 			return (error);
 	}
 
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_PREWRITE);
 
 	hr->rb_tdhead = hr->rb_tdtail = 0;
 	hr->rb_td_nbusy = 0;
@@ -928,9 +928,6 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf *m0)
 		HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri, flags);
 	} while (ri != si);
 
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
 	/* start the transmission. */
 	HME_ETX_WRITE_4(sc, HME_ETXI_PENDING, HME_ETX_TP_DMAWAKEUP);
 	return (0);
@@ -955,7 +952,7 @@ hme_read(struct hme_softc *sc, int ix, int len)
 		    len);
 #endif
 		ifp->if_ierrors++;
-		hme_discard_rxbuf(sc, ix, 1);
+		hme_discard_rxbuf(sc, ix);
 		return;
 	}
 
@@ -969,15 +966,11 @@ hme_read(struct hme_softc *sc, int ix, int len)
 		 * drop the packet, but leave the interface up.
 		 */
 		ifp->if_iqdrops++;
-		hme_discard_rxbuf(sc, ix, 1);
+		hme_discard_rxbuf(sc, ix);
 		return;
 	}
 
 	ifp->if_ipackets++;
-
-	/* Changed the rings; sync. */
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len + HME_RXOFFS;
@@ -1019,8 +1012,11 @@ hme_start(struct ifnet *ifp)
 	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC || error == -1)
 		ifp->if_flags |= IFF_OACTIVE;
 	/* Set watchdog timer if a packet was queued */
-	if (enq)
+	if (enq) {
+		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+		    BUS_DMASYNC_PREWRITE);
 		ifp->if_timer = 5;
+	}
 }
 
 /*
@@ -1051,6 +1047,7 @@ hme_tint(struct hme_softc *sc)
 	HME_MAC_WRITE_4(sc, HME_MACI_LTCNT, 0);
 
 	htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
 	/* Fetch current position in the transmit ring */
 	for (ri = sc->sc_rb.rb_tdtail;; ri = (ri + 1) % HME_NTXDESC) {
 		if (sc->sc_rb.rb_td_nbusy <= 0) {
@@ -1108,28 +1105,34 @@ hme_rint(struct hme_softc *sc)
 	caddr_t xdr = sc->sc_rb.rb_rxd;
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	unsigned int ri, len;
+	int progress = 0;
 	u_int32_t flags;
 
 	/*
 	 * Process all buffers with valid data.
 	 */
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
 	for (ri = sc->sc_rb.rb_rdtail;; ri = (ri + 1) % HME_NRXDESC) {
 		flags = HME_XD_GETFLAGS(sc->sc_pci, xdr, ri);
 		CTR2(KTR_HME, "hme_rint: index %d, flags %#x", ri, flags);
 		if ((flags & HME_XD_OWN) != 0)
 			break;
 
+		progress++;
 		if ((flags & HME_XD_OFL) != 0) {
 			device_printf(sc->sc_dev, "buffer overflow, ri=%d; "
 			    "flags=0x%x\n", ri, flags);
 			ifp->if_ierrors++;
-			hme_discard_rxbuf(sc, ri, 1);
+			hme_discard_rxbuf(sc, ri);
 		} else {
 			len = HME_XD_DECODE_RSIZE(flags);
 			hme_read(sc, ri, len);
 		}
 	}
-
+	if (progress) {
+		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+		    BUS_DMASYNC_PREWRITE);
+	}
 	sc->sc_rb.rb_rdtail = ri;
 }
 
