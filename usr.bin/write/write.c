@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <utmp.h>
 #include <ctype.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
@@ -102,7 +103,7 @@ main(argc, argv)
 		do_write(tty, mytty, myuid);
 		break;
 	case 3:
-		if (!strncmp(argv[2], "/dev/", 5))
+		if (!strncmp(argv[2], _PATH_DEV, strlen(_PATH_DEV)))
 			argv[2] += 5;
 		if (utmp_chk(argv[1], argv[2])) {
 			(void)fprintf(stderr,
@@ -232,7 +233,7 @@ term_chk(tty, msgsokP, atimeP, showerror)
 	struct stat s;
 	char path[MAXPATHLEN];
 
-	(void)sprintf(path, "/dev/%s", tty);
+	(void)snprintf(path, sizeof(path), "%s%s", _PATH_DEV, tty);
 	if (stat(path, &s) < 0) {
 		if (showerror)
 			(void)fprintf(stderr,
@@ -264,7 +265,7 @@ do_write(tty, mytty, myuid)
 		else
 			login = "???";
 
-	(void)sprintf(path, "/dev/%s", tty);
+	(void)snprintf(path, sizeof(path), "%s%s", _PATH_DEV, tty);
 	if ((freopen(path, "w", stdout)) == NULL) {
 		(void)fprintf(stderr, "write: %s: %s\n", path, strerror(errno));
 		exit(1);
