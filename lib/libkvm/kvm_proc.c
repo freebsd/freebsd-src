@@ -33,16 +33,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 #endif /* LIBC_SCCS and not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Proc traversal interface for kvm.  ps and w are (probably) the exclusive
@@ -78,22 +78,6 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 #include <paths.h>
 
 #include "kvm_private.h"
-
-#if used
-static char *
-kvm_readswap(kd, p, va, cnt)
-	kvm_t *kd;
-	const struct proc *p;
-	u_long va;
-	u_long *cnt;
-{
-#ifdef __FreeBSD__
-	/* XXX Stubbed out, our vm system is differnet */
-	_kvm_err(kd, kd->program, "kvm_readswap not implemented");
-	return(0);
-#endif	/* __FreeBSD__ */
-}
-#endif
 
 #define KREAD(kd, addr, obj) \
 	(kvm_read(kd, addr, (char *)(obj), sizeof(*obj)) != sizeof(*obj))
