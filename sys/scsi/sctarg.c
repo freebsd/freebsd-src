@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.13 1996/01/05 20:12:47 wollman Exp $
+ *      $Id: sctarg.c,v 1.14 1996/03/10 07:13:11 gibbs Exp $
  */
 
 /*
@@ -270,11 +270,13 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 }
 
 static sctarg_devsw_installed = 0;
+#ifdef DEVFS
+static void *sctarg_devfs_token;
+#endif
 
 static void 	sctarg_drvinit(void *unused)
 {
 	dev_t dev;
-	void	*x;
 
 	if( ! sctarg_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
@@ -282,8 +284,9 @@ static void 	sctarg_drvinit(void *unused)
 		sctarg_devsw_installed = 1;
 #ifdef DEVFS
 		/* XXX should be in ADAPTER code */
-		x=devfs_add_devsw( "/scsi", "sctarg", &sctarg_cdevsw, 0,
-					DV_CHR, 0,  0, 0600);
+		sctarg_devfs_token =
+			devfs_add_devswf(&sctarg_cdevsw, 0, DV_CHR, 0,  0, 
+					0600, "sctarg");
 #endif
     	}
 }

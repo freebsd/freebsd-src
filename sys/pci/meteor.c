@@ -954,8 +954,8 @@ met_attach(pcici_t tag, int unit)
     	mtr->flags |= METEOR_INITALIZED | METEOR_AUTOMODE | METEOR_DEV0 |
 		   METEOR_RGB16;
 #ifdef DEVFS
-	mtr->devfs_token = devfs_add_devsw( "/", "meteor", &meteor_cdevsw, unit,
-						DV_CHR, 0, 0, 0644);
+	mtr->devfs_token = devfs_add_devswf(&meteor_cdevsw, unit,
+						DV_CHR, 0, 0, 0644, "meteor");
 #endif
 }
 

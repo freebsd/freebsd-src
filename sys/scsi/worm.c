@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.25 1996/03/10 07:13:15 gibbs Exp $
+ *      $Id: worm.c,v 1.26 1996/03/10 12:52:47 jkh Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -235,7 +235,6 @@ static errval
 wormattach(struct scsi_link *sc_link)
 {
 #ifdef DEVFS
-	char name[20];
 	int mynor;
 #endif
 	struct scsi_data *worm = sc_link->sd;
@@ -250,15 +249,12 @@ wormattach(struct scsi_link *sc_link)
 		printf("with %ld blocks.", worm->n_blks);
 #ifdef DEVFS
 	mynor = wormunit(sc_link->dev);
-	sprintf(name, "rworm%d", mynor);
 	worm->devfs_token =
-		devfs_add_devsw("/", name, &worm_cdevsw, mynor,
-				DV_CHR, 0, 0, 0600);
-	sprintf(name, "rworm%d.ctl", mynor);
+		devfs_add_devswf(&worm_cdevsw, mynor,
+				DV_CHR, 0, 0, 0600, "rworm%d", mynor);
 	worm->devfs_token =
-		devfs_add_devsw("/", name, &worm_cdevsw,
-				mynor | SCSI_CONTROL_MASK,
-				DV_CHR, 0, 0, 0600);
+		devfs_add_devswf(&worm_cdevsw, mynor | SCSI_CONTROL_MASK,
+				DV_CHR, 0, 0, 0600, "rworm%d.ctl", mynor);
 #endif
 	return 0;
 }
