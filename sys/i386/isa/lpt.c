@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.5 1993/10/16 13:46:10 rgrimes Exp $
+ *	$Id: lpt.c,v 1.6 1993/11/25 01:31:41 wollman Exp $
  */
 
 /*
@@ -80,7 +80,6 @@
 #define lprintf (void)
 #else
 #define lprintf		if (lptflag) printf
-int lptflag = 1;
 #endif
 
 void lptout();
@@ -95,8 +94,8 @@ struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
 };
 
-#define	LPTUNIT(s)	(((s)>>6)&0x3)
-#define	LPTFLAGS(s)	((s)&0x3f)
+#define	LPTUNIT(s)	((s)&0x03)
+#define	LPTFLAGS(s)	((s)&0xfc)
 
 struct lpt_softc {
 	short	sc_port;
@@ -104,13 +103,13 @@ struct lpt_softc {
 	/* default case: negative prime, negative ack, handshake strobe,
 	   prime once */
 	u_char	sc_control;
-	char	sc_flags;
-#define LP_POS_INIT	0x01	/* if we are a postive init signal */
-#define LP_POS_ACK	0x02	/* if we are a positive going ack */
-#define LP_NO_PRIME	0x04	/* don't prime the printer at all */
-#define LP_PRIMEOPEN	0x08	/* prime on every open */
-#define LP_AUTOLF	0x10	/* tell printer to do an automatic lf */
-#define LP_BYPASS	0x20	/* bypass  printer ready checks */
+	u_char	sc_flags;
+#define LP_POS_INIT	0x04	/* if we are a postive init signal */
+#define LP_POS_ACK	0x08	/* if we are a positive going ack */
+#define LP_NO_PRIME	0x10	/* don't prime the printer at all */
+#define LP_PRIMEOPEN	0x20	/* prime on every open */
+#define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
+#define LP_BYPASS	0x80	/* bypass  printer ready checks */
 	struct	buf *sc_inbuf;
 	short	sc_xfercnt ;
 	char	sc_primed;
@@ -134,7 +133,7 @@ lpt_port_test(port, data, mask)
 	short port;
 	u_char data;
 	u_char mask;
-	{
+{
 	int	temp, timeout;
 
 	data = data & mask;
@@ -145,7 +144,7 @@ lpt_port_test(port, data, mask)
 	while (temp != data && --timeout);
 	lprintf("Port 0x%x\tout=%x\tin=%x\n", port, data, temp);
 	return (temp == data);
-	}
+}
 
 /*
  * New lptprobe routine written by Rodney W. Grimes, 3/25/1993
@@ -216,7 +215,7 @@ lptprobe(dvp)
 	outb(dvp->id_iobase+lpt_data, 0);
 	outb(dvp->id_iobase+lpt_control, 0);
 	return (status);
-	}
+}
 
 int
 lptattach(isdp)
@@ -243,11 +242,10 @@ lptopen(dev, flag)
 	int s;
 	int trys, port;
 	u_int unit = LPTUNIT(minor(dev));
-
+ 
 	if (unit >= NLPT)
 		return (ENXIO);
 	sc = lpt_sc + unit;
-
 	if (sc->sc_state) {
 lprintf("lp: still open\n") ;
 lprintf("still open %x\n", sc->sc_state);
@@ -281,8 +279,8 @@ lprintf ("status %x\n", inb(port+lpt_status) );
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, "lptinit", 
-			    hz/4) != EWOULDBLOCK) {
+		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, "lptinit", hz/4)
+                    != EWOULDBLOCK) {
 			sc->sc_state = 0;
 			splx(s);
 			return (EBUSY);
@@ -351,8 +349,8 @@ lptclose(dev, flag)
 	while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, 
-			    "lpclose", hz) != EWOULDBLOCK)
+		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, "lpclose", hz)
+                    != EWOULDBLOCK)
 			break;
 
 	sc->sc_state = 0;
@@ -389,10 +387,12 @@ lprintf("\nC %d. ", sc->sc_xfercnt);
 				lptintr(sc - lpt_sc);
 				(void) splx(pl);
 			}
+			if (sc->sc_state & OBUSY) {
 lprintf("W ");
-			if (err = tsleep ((caddr_t)sc, LPPRI|PCATCH,
-					  "lpwrite", 0))
-				return(err);
+				if (err = tsleep ((caddr_t)sc, LPPRI|PCATCH,
+                                                  "lpwrite", 0))
+					return(err);
+			}
 		}
 	}
 	return(0);
@@ -408,35 +408,37 @@ lptintr(unit)
 	int unit;
 {
 	struct lpt_softc *sc = lpt_sc + unit;
-	int port = sc->sc_port,sts;
+	int port = sc->sc_port,sts,lpc;
+	u_char ctrl = sc->sc_control & ~LPC_ENA;
 
-	/* is printer online and ready for output */
-	if (((sts=inb(port+lpt_status)) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR/*|LPS_NACK*/)) ==
-			(LPS_SEL|LPS_NBSY|LPS_NERR)) {
-			/* is this a false interrupt ? */
-			if ((sc->sc_state & OBUSY) 
-				&& (sts & LPS_NACK) == 0) return;
-		sc->sc_state |= OBUSY; sc->sc_state &= ~ERROR;
+	sts = inb(port+lpt_status);
 
-		if (sc->sc_xfercnt) {
-			/* send char */
-/*lprintf("%x ", *sc->sc_cp); */
-			outb(port+lpt_data, *sc->sc_cp++) ; sc->sc_xfercnt-- ;
-			outb(port+lpt_control, sc->sc_control|LPC_STB);
-			/* DELAY(X) */
-			outb(port+lpt_control, sc->sc_control);
-		}
+	/* disable interupts */
+	outb(port+lpt_control, ctrl);
 
-		/* any more bytes for the printer? */
-		if (sc->sc_xfercnt > 0) return;
-	
+	sc->sc_state |= OBUSY;
+	while(sc->sc_xfercnt > 0) {
+		lpc = 50;
+		/* wait for printer ready for output */
+		while(((inb(port+lpt_status)&(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR))
+			!=(LPS_SEL|LPS_NBSY|LPS_NERR)) && --lpc);
+		if(lpc == 0) break;
+
+		/* send char */
+		outb(port+lpt_data, *sc->sc_cp++) ; sc->sc_xfercnt-- ;
+		outb(port+lpt_control, ctrl|LPC_STB);
+		outb(port+lpt_control, ctrl);
+	}
+
+	/* any more bytes for the printer? */
+	if(sc->sc_xfercnt == 0) {
 		/* none, wake up the top half to get more */
 		sc->sc_state &= ~OBUSY;
 		wakeup((caddr_t)sc);
-lprintf("w ");
-return;
-	} else	sc->sc_state |= ERROR;
-lprintf("sts %x ", sts);
+	}
+
+	/* reenable interupts */
+	outb(port+lpt_control, sc->sc_control);
 }
 
 int
