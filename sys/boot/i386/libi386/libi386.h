@@ -72,8 +72,9 @@ extern int		i386_copyin(void *src, vm_offset_t dest, size_t len);
 extern int		i386_copyout(vm_offset_t src, void *dest, size_t len);
 extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
 
-extern int		getbasemem(void);
-extern int		getextmem(void);
+extern void		bios_getmem(void);
+extern u_int32_t	bios_basemem;				/* base memory in bytes */
+extern u_int32_t	bios_extmem;				/* extended memory in bytes */
 extern vm_offset_t	memtop;
 
 extern void		gateA20(void);
