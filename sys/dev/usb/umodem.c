@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/poll.h>
 #include <sys/uio.h>
+#include <sys/taskqueue.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -165,6 +166,8 @@ struct umodem_softc {
 	usb_cdc_notification_t	sc_notify_buf;	/* Notification structure */
 	u_char			sc_lsr;		/* Local status register */
 	u_char			sc_msr;		/* Modem status register */
+
+	struct task		sc_task;
 };
 
 Static void	*umodem_get_desc(usbd_device_handle dev, int type, int subtype);
@@ -186,6 +189,7 @@ Static int	umodem_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr );
 Static int	umodem_open(void *, int portno);
 Static void	umodem_close(void *, int portno);
 Static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+Static void	umodem_notify(void *, int);
 
 Static struct ucom_callback umodem_callback = {
 	umodem_get_status,
@@ -415,6 +419,7 @@ USB_ATTACH(umodem)
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &umodem_callback;
 
+	TASK_INIT(&sc->sc_task, 0, umodem_notify, sc);
 	ucom_attach(&sc->sc_ucom);
 
 	free(devinfo, M_USBDEV);
@@ -521,7 +526,8 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			sc->sc_msr |= SER_DSR;
 		if (ISSET(mstatus, UCDC_N_SERIAL_DCD))
 			sc->sc_msr |= SER_DCD;
-		ucom_status_change(&sc->sc_ucom);
+		/* Deferred notifying to the ucom layer */
+		taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 		break;
 	default:
 		DPRINTF(("%s: unknown notify message: %02x\n",
@@ -529,6 +535,17 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			 sc->sc_notify_buf.bNotification));
 		break;
 	}
+}
+
+Static void
+umodem_notify(void *arg, int count)
+{
+	struct umodem_softc *sc;
+
+	sc = (struct umodem_softc *)arg;
+	if (sc->sc_ucom.sc_dying)
+		return;
+	ucom_status_change(&sc->sc_ucom);
 }
 
 void
