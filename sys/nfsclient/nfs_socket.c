@@ -452,8 +452,11 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	}
 
 	if (error) {
-		log(LOG_INFO, "nfs send error %d for server %s\n", error,
-		    rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
+		if (error != EPIPE) {
+			log(LOG_INFO, "nfs send error %d for server %s\n",
+			    error,
+			    rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
+		}
 		/*
 		 * Deal with errors for the client side.
 		 */
