@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.83 1997/04/01 19:28:03 joerg Exp $
+ *      $Id: scsiconf.c,v 1.84 1997/04/02 09:05:41 jmg Exp $
  */
 
 #include "opt_scsi.h"
@@ -315,6 +315,10 @@ static struct scsidevs knowndevs[] =
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "Python 28849-*", "*",
 		"st", SC_MORE_LUS, 0
 	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "4586XX 28887-*", "*",
+		"st", SC_MORE_LUS, 0
+	},
 #endif	/* NST */
 #if NCH > 0
 	/*
@@ -325,6 +329,10 @@ static struct scsidevs knowndevs[] =
 	 */
 	{
 		T_CHANGER, T_CHANGER, T_REMOV, "ARCHIVE", "Python 28849-*", "*",
+		"ch", SC_MORE_LUS
+	},
+	{
+		T_CHANGER, T_CHANGER, T_REMOV, "ARCHIVE", "4586XX 28887-*", "*",
 		"ch", SC_MORE_LUS
 	},
 #endif /* NCH */
