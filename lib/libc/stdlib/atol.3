@@ -36,48 +36,52 @@
 .\"     @(#)atol.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 28, 2001
 .Dt ATOL 3
 .Os
 .Sh NAME
 .Nm atol , atoll
 .Nd convert
 .Tn ASCII
-string to long or long long integer
+string to
+.Vt long
+or
+.Vt "long long"
+integer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft long
 .Fn atol "const char *nptr"
-.Ft long long
+.Ft "long long"
 .Fn atoll "const char *nptr"
 .Sh DESCRIPTION
 The
 .Fn atol
 function converts the initial portion of the string pointed to by
-.Ar nptr
+.Fa nptr
 to
-.Em long integer
+.Vt long
+integer
 representation.
 .Pp
 It is equivalent to:
-.Bd -literal -offset indent
-strtol(nptr, (char **)NULL, 10);
-.Ed
+.Pp
+.Dl "strtol(nptr, (char **)NULL, 10);"
 .Pp
 The
 .Fn atoll
 function converts the initial portion of the string pointed to by
-.Ar nptr
+.Fa nptr
 to
-.Em long long integer
+.Vt "long long"
+integer
 representation.
 .Pp
 It is equivalent to:
-.Bd -literal -offset indent
-strtoll(nptr, (char **)NULL, 10);
-.Ed
+.Pp
+.Dl "strtoll(nptr, (char **)NULL, 10);"
 .Sh SEE ALSO
 .Xr atof 3 ,
 .Xr atoi 3 ,
