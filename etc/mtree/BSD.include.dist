@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.11 1997/03/09 06:57:00 bde Exp $
+#	$Id: BSD.include.dist,v 1.13 1997/06/04 23:05:31 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -12,8 +12,6 @@
     isofs
         cd9660
         ..
-    ..
-    kerberosIV
     ..
     machine
     ..
