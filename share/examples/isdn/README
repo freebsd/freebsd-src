@@ -1,7 +1,7 @@
 
 $FreeBSD$
 
-      Note: This is a modified README from the isdn4bsd 0.95.04 version. 
+      Note: This is a modified README from the isdn4bsd 0.96.00 version. 
 
       In December 1998, i4b was integrated into the FreeBSD sourcetree
       and so the following parts about FreeBSD may not apply completely
@@ -15,7 +15,7 @@ $FreeBSD$
                                   isdn4bsd
                                   ========
 
-                      beta Version 0.95.04 / October 2000
+                      beta Version 0.96.00 / October 2000
 
                                  written by:
 
