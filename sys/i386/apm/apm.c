@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.14 1995/10/28 15:38:14 phk Exp $
+ *	$Id: apm.c,v 1.15 1995/11/18 04:37:23 bde Exp $
  */
 
 #include "apm.h"
@@ -23,6 +23,9 @@
 #ifdef __FreeBSD__
 #include <sys/param.h>
 #include "conf.h"
+#ifdef JREMOD
+#include <sys/conf.h>
+#endif /*JREMOD*/
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -99,6 +102,10 @@ extern void fix_desc(struct fake_descriptor *, int);
 
 #ifdef __FreeBSD__
 static timeout_t apm_timeout;
+#ifdef JREMOD
+#define CDEV_MAJOR 39
+static void 	apm_devsw_install();
+#endif /* JREMOD */
 #endif /* __FreeBSD__ */
 #ifdef MACH_KERNEL
 static void apm_timeout(void *);
@@ -683,6 +690,11 @@ int
 		printf("apm%d: 32-bit connection error.\n", unit);
 		return 0;
 	}
+#ifdef __FreeBSD__
+#ifdef JREMOD
+	apm_devsw_install();
+#endif /*JREMOD*/
+#endif /* __FreeBSD__ */
 
 	return -1;
 }
@@ -969,6 +981,28 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 	return error;
 }
+#ifdef JREMOD
+struct cdevsw apm_cdevsw = 
+	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
+	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
+	  seltrue,	nommap,		NULL };
+
+static apm_devsw_installed = 0;
+
+static void 	apm_devsw_install()
+{
+	dev_t descript;
+	if( ! apm_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0)
+		cdevsw_add(&descript,&apm_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0)
+		bdevsw_add(&descript,&apm_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		apm_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* __FreeBSD__ */
 
 #ifdef MACH_KERNEL
