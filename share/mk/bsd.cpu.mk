@@ -94,7 +94,7 @@ MACHINE_CPU = sse i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "p3"
 MACHINE_CPU = sse i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "p2"
-MACHINE_CPU = sse i686 mmx i586 i486 i386
+MACHINE_CPU = i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "i686"
 MACHINE_CPU = i686 i586 i486 i386
 . elif ${CPUTYPE} == "i586/mmx"
