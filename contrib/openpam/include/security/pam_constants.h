@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_constants.h#14 $
+ * $P4: //depot/projects/openpam/include/security/pam_constants.h#17 $
  */
 
 #ifndef _PAM_CONSTANTS_H_INCLUDED
@@ -122,6 +122,7 @@ enum {
 	PAM_USER_PROMPT			=   9,
 	PAM_AUTHTOK_PROMPT		=  10,		/* OpenPAM extension */
 	PAM_OLDAUTHTOK_PROMPT		=  11,		/* OpenPAM extension */
+	PAM_REPOSITORY			=  12,
 	PAM_NUM_ITEMS					/* OpenPAM extension */
 };
 

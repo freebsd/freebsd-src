@@ -1,13 +1,13 @@
 
-		 Release notes for OpenPAM Cinquefoil
+		 Release notes for OpenPAM Citronella
 		 ====================================
 
 The library itself is complete.  Documentation exists in the form of
 man pages for the library functions.
 
-This release is incorporated into FreeBSD-CURRENT as of 2002-05-24.
+This release is incorporated into FreeBSD-CURRENT as of 2002-06-30.
 It has also been successfully built on NetBSD, and should build with
 minimal or no changes on OpenBSD.  It has not been tested on any other
 OS.
 
-$P4: //depot/projects/openpam/RELNOTES#11 $
+$P4: //depot/projects/openpam/RELNOTES#12 $

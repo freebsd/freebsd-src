@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_item.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_set_item.c#15 $
  */
 
 #include <sys/param.h>
@@ -56,13 +56,12 @@ pam_set_item(pam_handle_t *pamh,
 	const void *item)
 {
 	void **slot, *tmp;
-	size_t size;
+	size_t nsize, osize;
 
 	if (pamh == NULL)
 		return (PAM_SYSTEM_ERR);
 
 	slot = &pamh->item[item_type];
-	tmp = NULL;
 	switch (item_type) {
 	case PAM_SERVICE:
 	case PAM_USER:
@@ -74,26 +73,30 @@ pam_set_item(pam_handle_t *pamh,
 	case PAM_USER_PROMPT:
 	case PAM_AUTHTOK_PROMPT:
 	case PAM_OLDAUTHTOK_PROMPT:
-		if (*slot != NULL)
-			size = strlen(*slot) + 1;
 		if (item != NULL)
-			if ((tmp = strdup(item)) == NULL)
-				return (PAM_BUF_ERR);
+			nsize = strlen(item) + 1;
+		if (*slot != NULL)
+			osize = strlen(*slot) + 1;
+		break;
+	case PAM_REPOSITORY:
+		osize = nsize = sizeof(struct pam_repository);
 		break;
 	case PAM_CONV:
-		size = sizeof(struct pam_conv);
-		if (item != NULL) {
-			if ((tmp = malloc(size)) == NULL)
-				return (PAM_BUF_ERR);
-			memcpy(tmp, item, sizeof(struct pam_conv));
-		}
+		osize = nsize = sizeof(struct pam_conv);
 		break;
 	default:
 		return (PAM_SYMBOL_ERR);
 	}
 	if (*slot != NULL) {
-		memset(*slot, 0xd0, size);
+		memset(*slot, 0xd0, osize);
 		free(*slot);
+	}
+	if (item != NULL) {
+		if ((tmp = malloc(nsize)) == NULL)
+			return (PAM_BUF_ERR);
+		memcpy(tmp, item, nsize);
+	} else {
+		tmp = NULL;
 	}
 	*slot = tmp;
 	return (PAM_SUCCESS);
