@@ -526,7 +526,23 @@ still waiting for someone to donate a driver for one of them.  Any
 takers?
 
 
-4.3.    Misc
+4.3.    USB
+----    ---
+
+A range of USB peripherals are supported.  Owing to the generic nature
+of most USB devices, with some exceptions any device of a given class
+will be supported even if not explicitly listed here.
+
+Generic USB keyboard.
+
+Generic USB mouse.
+
+Generic USB printer, and USB to parallel printer conversion cables.
+
+Iomega USB Zip drive.
+
+
+4.4.    Misc
 ----    ----
 
 AST 4 port serial card using shared IRQ.
