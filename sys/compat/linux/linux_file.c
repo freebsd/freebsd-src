@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.26 1999/05/11 19:54:19 phk Exp $
+ *  $Id: linux_file.c,v 1.27 1999/07/18 14:31:01 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -827,3 +827,22 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args)
 	return truncate(p, &bsd);
 }
 
+int
+linux_link(struct proc *p, struct linux_link_args *args)
+{
+    struct link_args bsd;
+    caddr_t sg;
+
+    sg = stackgap_init();
+    CHECKALTEXIST(p, &sg, args->path);
+    CHECKALTCREAT(p, &sg, args->to);
+
+#ifdef DEBUG
+    printf("Linux-emul(%d): link(%s, %s)\n", p->p_pid, args->path, args->to);
+#endif
+
+    bsd.path = args->path;
+    bsd.link = args->to;
+
+    return link(p, &bsd);
+}
