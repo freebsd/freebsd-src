@@ -20,8 +20,8 @@
  */
 
 
-#include "dialog.priv.h"
 #include <dialog.h>
+#include "dialog.priv.h"
 
 
 static void print_item(WINDOW *win, char *tag, char *item, int status, int choice, int selected);
