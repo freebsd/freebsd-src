@@ -977,7 +977,6 @@ static void
 pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_lpte *vhpte;
-	critical_t c = critical_enter();
 
 	pmap_vhpt_inserts++;
 	pmap_vhpt_resident++;
@@ -994,8 +993,6 @@ pmap_enter_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 		pmap_install_pte(vhpte, pte);
 	else
 		ia64_mf();
-
-	critical_exit(c);
 }
 
 /*
@@ -1005,15 +1002,12 @@ static void
 pmap_update_vhpt(struct ia64_lpte *pte, vm_offset_t va)
 {
 	struct ia64_lpte *vhpte;
-	critical_t c = critical_enter();
 
 	vhpte = (struct ia64_lpte *) ia64_thash(va);
 
 	if ((!vhpte->pte_p || vhpte->pte_tag == pte->pte_tag)
 	    && pte->pte_p)
 		pmap_install_pte(vhpte, pte);
-
-	critical_exit(c);
 }
 
 /*
@@ -1027,7 +1021,6 @@ pmap_remove_vhpt(vm_offset_t va)
 	struct ia64_lpte *lpte;
 	struct ia64_lpte *vhpte;
 	u_int64_t tag;
-	critical_t c = critical_enter();
 	int error = ENOENT;
 
 	vhpte = (struct ia64_lpte *) ia64_thash(va);
@@ -1078,7 +1071,6 @@ pmap_remove_vhpt(vm_offset_t va)
 	pmap_vhpt_resident--;
 	error = 0;
  done:
-	critical_exit(c);
 	return error;
 }
 
@@ -1090,7 +1082,6 @@ pmap_find_vhpt(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	u_int64_t tag;
-	critical_t c = critical_enter();
 
 	pte = (struct ia64_lpte *) ia64_thash(va);
 	if (!pte->pte_chain) {
@@ -1111,7 +1102,6 @@ pmap_find_vhpt(vm_offset_t va)
 	}
 
  done:
-	critical_exit(c);
 	return pte;
 }
 	
@@ -1492,6 +1482,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	pmap_t oldpmap;
 	vm_offset_t va;
+	pv_entry_t pv;
+	struct ia64_lpte *pte;
 
 	if (pmap == NULL)
 		return;
@@ -1512,13 +1504,25 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	for (va = sva; va < eva; va = va += PAGE_SIZE) {
-		struct ia64_lpte *pte;
-
-		pte = pmap_find_vhpt(va);
-		if (pte) {
-			pmap_remove_pte(pmap, pte, va, 0, 1);
-			pmap_invalidate_page(pmap, va);
+	if (pmap->pm_stats.resident_count < ((eva - sva) >> PAGE_SHIFT)) {
+		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
+		     pv;
+		     pv = TAILQ_NEXT(pv, pv_plist)) {
+			va = pv->pv_va;
+			if (va >= sva && va < eva) {
+				pte = pmap_find_vhpt(va);
+				pmap_remove_pte(pmap, pte, va, pv, 1);
+				pmap_invalidate_page(pmap, va);
+			}
+		}
+		
+	} else {
+		for (va = sva; va < eva; va = va += PAGE_SIZE) {
+			pte = pmap_find_vhpt(va);
+			if (pte) {
+				pmap_remove_pte(pmap, pte, va, 0, 1);
+				pmap_invalidate_page(pmap, va);
+			}
 		}
 	}
 
