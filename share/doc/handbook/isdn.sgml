@@ -1,4 +1,4 @@
-<!-- $Id: isdn.sgml,v 1.6 1996/10/16 12:28:37 max Exp $-->
+<!-- $Id: isdn.sgml,v 1.7 1996/12/08 22:24:10 wosch Exp $-->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>ISDN<label id="isdn"></heading>
@@ -15,13 +15,13 @@ A quick simple roadmap to ISDN follows:
 section.
 
 <item>If you are planning to use ISDN primarily to connect to the
-internet with an Internet Provider on a dialup non-dedicated basis, I
+Internet with an Internet Provider on a dialup non-dedicated basis, I
 suggest you look into Terminal Adapters.  This will give you the most
 flexibility, with the fewest problems, if you change providers.
 
-<item>If you are conecting two lans together, or connecting to the
-internet with a dedicated ISDN connection, I suggest you consider the
-Standalone router/bridge option.
+<item>If you are connecting two lans together, or connecting to the
+Internet with a dedicated ISDN connection, I suggest you consider the
+stand alone router/bridge option.
 </itemize>
 
 <p>Cost is a significant factor in determining what solution you will
@@ -33,7 +33,7 @@ expensive.
 <p><em>Original Contribution by &a.hm;.</em>
 
 <p>This section is really only relevant to European ISDN users.  The
-cards supported are not yet(?) availible for North American ISDN
+cards supported are not yet(?) available for North American ISDN
 standards.
 
 <p>You should be aware that this code is largely under development.
@@ -93,11 +93,11 @@ modem setup.  Make sure you set your serial speed as high as possible.
 The main advantage of using a TA to connect to an Internet Provider is
 that you can do Dynamic PPP.  As IP address space becomes more and more
 scarce, most providers are not willing to provide you with a static IP
-anymore.  Most standalone routers are not able to accomidate dynamic IP
+anymore.  Most standalone routers are not able to accommodate dynamic IP
 allocation.
 
 TA's completely rely on the PPP daemon that you are running for their
-features and stabiliy of connection.  This allows you to upgrade easily
+features and stability of connection.  This allows you to upgrade easily
 from using a modem to ISDN on a FreeBSD machine, if you already have PPP
 setup.  However, at the same time any problems you experienced with the
 PPP program and are going to persist.
@@ -114,7 +114,7 @@ option, not the user-land <ref id="userppp" name="iijPPP">.
 Most other TA's will probably work as well, TA vendors try to make sure
 their product can accept most of the standard modem AT command set.
 
-The real problam with external TA's is like modems you need a good
+The real problem with external TA's is like modems you need a good
 serial card in your computer.  
 
 You should read the <ref id="uart" name="serial ports"> section in the
@@ -151,11 +151,11 @@ interchangeably.
 
 <p>As the cost of low end ISDN routers/bridges comes down, it will
 likely become a more and more popular choice.  An ISDN router is a small
-box that plugs directly into your local ethernet network(or card), and
+box that plugs directly into your local Ethernet network(or card), and
 manages it's own connection to the other bridge/router.  It has all the
 software to do PPP and other protocols built in.
 
-A router will allow you much faster thoughput that a standard TA, since
+A router will allow you much faster throughput that a standard TA, since
 it will be using a full synchronous ISDN connection.
 
 The main problem with ISDN routers and bridges is that interoperability
@@ -173,8 +173,8 @@ head office network the following setup could be used.
 
 <em>Branch office or Home network</em>
 
-Network is 10 Base T ethernet.  Connect router to network cable with
-AUI/10BT transciever, if necessary.
+Network is 10 Base T Ethernet.  Connect router to network cable with
+AUI/10BT transceiver, if necessary.
 
 <verb>
 ---Sun workstation     
@@ -192,7 +192,7 @@ pair crossover cable to connect to the standalone router directly.
 
 <em>Head office or other lan</em> 
 
-Network is Twisted Pair ethernet.
+Network is Twisted Pair Ethernet.
 <verb>
     -------Novell Server
     | H	|
@@ -208,19 +208,19 @@ Network is Twisted Pair ethernet.
 </verb> 
 
 One large advantage of most routers/bridges is that they allow you to
-have 2 SEPERATE INDEPENDANT PPP connections to 2 separate sites at the
+have 2 SEPARATE INDEPENDENT PPP connections to 2 separate sites at the
 SAME time.  This is not supported on most TA's, except for
 specific(expensive) models that have two serial ports.  Do not confuse
 this with channel bonding, MPP etc.
 
-This can be very usefull feature, for example if you have an dedicated
+This can be very useful feature, for example if you have an dedicated
 internet ISDN connection at your office and would like to tap into it,
 but don't want to get another ISDN line at work.  A router at the office
 location can manage a dedicated B channel connection (64Kbs) to the
-internet, as well as a use the other B channel for a seperate data connection.
+internet, as well as a use the other B channel for a separate data connection.
 The second B channel can be used for dialin, dialout or dynamically
 bond(MPP etc.) with the first B channel for more bandwidth.
 
-<p>An ethernet bridge will also allow you to transmit more than just
+<p>An Ethernet bridge will also allow you to transmit more than just
 IP traffic, you can also send IPX/SPX or whatever other protocols you
 use.</p>
