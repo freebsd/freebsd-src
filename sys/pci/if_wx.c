@@ -136,6 +136,19 @@ static const char sqe[] = "%s: receive sequence error\n";
 static const char ane[] = "%s: /C/ ordered sets seen- enabling ANE\n";
 static const char inane[] = "%s: no /C/ ordered sets seen- disabling ANE\n";
 
+static int wx_txint_delay = 5000;	/* ~5ms */
+TUNABLE_INT("hw.wx.txint_delay", &wx_txint_delay);
+
+SYSCTL_NODE(_hw, OID_AUTO, wx, CTLFLAG_RD, 0, "WX driver parameters");
+SYSCTL_INT(_hw_wx, OID_AUTO, txint_delay, CTLFLAG_RW,
+        &wx_txint_delay, 0, "");
+static int wx_dump_stats = -1;
+SYSCTL_INT(_hw_wx, OID_AUTO, dump_stats, CTLFLAG_RW,
+        &wx_dump_stats, 0, "");
+static int wx_clr_stats = -1;
+SYSCTL_INT(_hw_wx, OID_AUTO, clear_stats, CTLFLAG_RW,
+        &wx_clr_stats, 0, "");
+
 
 /*
  * Program multicast addresses.
@@ -357,21 +370,32 @@ wx_detach(device_t dev)
 	wx_softc_t *sc = device_get_softc(dev);
 
 	WX_LOCK(sc);
-	ether_ifdetach(&sc->w.arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	wx_stop(sc);
 
-	bus_generic_detach(dev);
+	ether_ifdetach(&sc->w.arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	if (sc->w.miibus) {
 		bus_generic_detach(dev);
 		device_delete_child(dev, sc->w.miibus);
 	} else {
 		ifmedia_removeall(&sc->wx_media);
 	}
-
 	bus_teardown_intr(dev, sc->w.irq, sc->w.ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->w.irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, WX_MMBA, sc->w.mem);
+
+	wx_dring_teardown(sc);
+	if (sc->rbase) {
+		WXFREE(sc->rbase);
+		sc->rbase = NULL;
+	}
+	if (sc->tbase) {
+		WXFREE(sc->tbase);
+		sc->tbase = NULL;
+	}
 	WX_UNLOCK(sc);
+#ifdef	SMPNG
+	mtx_destroy(&sc->wx_mtx);
+#endif
 	return (0);
 }
 
@@ -519,7 +543,6 @@ wx_attach_common(wx_softc_t *sc)
 	/*
 	 * Fifth, establish some adapter parameters.
 	 */
-	sc->wx_txint_delay = 128;
 	sc->wx_dcr = 0;
 
 	if (IS_LIVENGOOD_CU(sc)) {
@@ -726,7 +749,7 @@ wx_start(struct ifnet *ifp)
 	DPRINTF(sc, ("%s: wx_start\n", sc->wx_name));
 	nactv = sc->tactive;
 	while (nactv < WX_MAX_TDESC - 1) {
-		int ndesc;
+		int ndesc, plen;
 		int gctried = 0;
 		struct mbuf *m, *mb_head;
 
@@ -740,19 +763,23 @@ wx_start(struct ifnet *ifp)
 		 * If we have a packet less than ethermin, pad it out.
 		 */
 		if (mb_head->m_pkthdr.len < WX_MIN_RPKT_SIZE) {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			if (m == NULL) {
+			if (mb_head->m_next == NULL) {
+				mb_head->m_len = WX_MIN_RPKT_SIZE;
+			} else {
+				MGETHDR(m, M_DONTWAIT, MT_DATA);
+				if (m == NULL) {
+					m_freem(mb_head);
+					break;
+				}
+				m_copydata(mb_head, 0, mb_head->m_pkthdr.len,
+				    mtod(m, caddr_t));
+				m->m_pkthdr.len = m->m_len = WX_MIN_RPKT_SIZE;
+				bzero(mtod(m, char *) + mb_head->m_pkthdr.len,
+				     WX_MIN_RPKT_SIZE - mb_head->m_pkthdr.len);
+				sc->wx_xmitpullup++;
 				m_freem(mb_head);
-				break;
+				mb_head = m;
 			}
-			m_copydata(mb_head, 0, mb_head->m_pkthdr.len,
-			    mtod(m, caddr_t));
-			m->m_pkthdr.len = m->m_len = WX_MIN_RPKT_SIZE;
-			bzero(mtod(m, char *) + mb_head->m_pkthdr.len,
-			     WX_MIN_RPKT_SIZE - mb_head->m_pkthdr.len);
-			sc->wx_xmitpullup++;
-			m_freem(mb_head);
-			mb_head = m;
 		}
 	again:
 		cidx = sc->tnxtfree;
@@ -766,7 +793,7 @@ wx_start(struct ifnet *ifp)
 		 * minimum transmit size, we bail (to do a pullup). If we run
 		 * out of descriptors, we also bail and try and do a pullup.
 		 */
-		for (ndesc = 0, m = mb_head; m != NULL; m = m->m_next) {
+		for (plen = ndesc = 0, m = mb_head; m != NULL; m = m->m_next) {
 			vm_offset_t vptr;
 			wxtd_t *td;
 
@@ -778,13 +805,20 @@ wx_start(struct ifnet *ifp)
 			}
 
 			/*
-			 * If this packet is too small for the chip's minimum,
+			 * This appears to be a bogus check the PRO1000T.
+			 * I think they meant that the minimum packet size
+			 * is in fact WX_MIN_XPKT_SIZE (all data loaded)
+			 */
+#if	0
+			/*
+			 * If this mbuf is too small for the chip's minimum,
 			 * break out to cluster it.
 			 */
-			if (m->m_len < WX_MIN_RPKT_SIZE) {
+			if (m->m_len < WX_MIN_XPKT_SIZE) {
 				sc->wx_xmitrunt++;
 				break;
 			}
+#endif
 
 			/*
 			 * Do we have a descriptor available for this mbuf?
@@ -800,6 +834,7 @@ wx_start(struct ifnet *ifp)
 			sc->tbase[cidx].dptr = m;
 			td = &sc->tdescriptors[cidx];
 			td->length = m->m_len;
+			plen += m->m_len;
 
 			vptr = mtod(m, vm_offset_t);
 			td->address.highpart = 0;
@@ -832,6 +867,31 @@ wx_start(struct ifnet *ifp)
 			 */
 			wxtd_t *td = &sc->tdescriptors[T_PREV_IDX(cidx)];
 			td->cmd = TXCMD_EOP|TXCMD_IFCS;
+			/*
+			 * Set up a delayed interrupt when this packet
+			 * is sent and the descriptor written back.
+			 * Additional packets completing will cause
+			 * interrupt to be delayed further. Therefore,
+			 * after the *last* packet is sent, after the delay
+			 * period in TIDV, an interrupt will be generated
+			 * which will cause us to garbage collect.
+			 */
+			td->cmd |= TXCMD_IDE|TXCMD_RPS;
+
+			/*
+			 * Don't xmit odd length packets.
+			 * We're okay with bumping things
+			 * up as long as our mbuf allocation
+			 * is always larger than our MTU
+			 * by a comfortable amount.
+			 *
+			 * Yes, it's a hole to run past the end
+			 * of a packet.
+			 */
+			if (plen & 0x1) {
+				sc->wx_oddpkt++;
+				td->length++;
+			}
 
 			sc->tbase[sc->tnxtfree].sidx = sc->tnxtfree;
 			sc->tbase[sc->tnxtfree].eidx = cidx;
@@ -907,8 +967,12 @@ wx_start(struct ifnet *ifp)
 	}
 
 	if (sc->tactive == WX_MAX_TDESC - 1) {
-		sc->wx_xmitblocked++;
-		ifp->if_flags |= IFF_OACTIVE;
+		sc->wx_xmitgc++;
+		wx_gc(sc);
+		if (sc->tactive >= WX_MAX_TDESC - 1) {
+			sc->wx_xmitblocked++;
+			ifp->if_flags |= IFF_OACTIVE;
+		}
 	}
 
 	/* used SW LED to indicate transmission active */
@@ -938,12 +1002,20 @@ wx_intr(void *arg)
 		WX_DISABLE_INT(sc);
 		sc->wx_intr++;
 		if (sc->wx_icr & (WXISR_LSC|WXISR_RXSEQ|WXISR_GPI_EN1)) {
+			sc->wx_linkintr++;
 			wx_handle_link_intr(sc);
 		}
 		wx_handle_rxint(sc);
-		if (sc->wx_icr & WXISR_TXQE) {
+		if (sc->wx_icr & WXISR_TXDW) {
+			sc->wx_txqe++;
 			wx_gc(sc);
 		}
+#if	0
+		if (sc->wx_icr & WXISR_TXQE) {
+			sc->wx_txqe++;
+			wx_gc(sc);
+		}
+#endif
 		if (sc->wx_if.if_snd.ifq_head != NULL) {
 			wx_start(&sc->wx_if);
 		}
@@ -958,7 +1030,6 @@ wx_handle_link_intr(wx_softc_t *sc)
 {
 	u_int32_t txcw, rxcw, dcr, dsr;
 
-	sc->wx_linkintr++;
 
 	dcr = READ_CSR(sc, WXREG_DCR);
 	DPRINTF(sc, ("%s: handle_link_intr: icr=%#x dcr=%#x\n",
@@ -1329,20 +1400,67 @@ wx_gc(wx_softc_t *sc)
  * and, more importantly, garbage collect completed transmissions
  * and to handle link status changes.
  */
+#define	WX_PRT_STATS(sc, y)	printf("\t" # y " = %u\n", (sc)-> ## y )
+#define	WX_CLR_STATS(sc, y)	(sc)-> ## y  = 0
+
 static void
 wx_watchdog(void *arg)
 {
 	wx_softc_t *sc = arg;
 
 	WX_LOCK(sc);
-	wx_gc(sc);
-	wx_check_link(sc);
+	if (sc->wx_needreinit) {
+		WX_UNLOCK(sc);
+		if (wx_init(sc) == 0) {
+			WX_LOCK(sc);
+			sc->wx_needreinit = 0;
+		} else {
+			WX_LOCK(sc);
+		}
+	} else {
+		wx_gc(sc);
+		wx_check_link(sc);
+	}
+	if (wx_dump_stats == device_get_unit(sc->w.dev)) {
+		printf("%s: current statistics\n", sc->wx_name);
+		WX_PRT_STATS(sc, wx_intr);
+		WX_PRT_STATS(sc, wx_linkintr);
+		WX_PRT_STATS(sc, wx_rxintr);
+		WX_PRT_STATS(sc, wx_txqe);
+		WX_PRT_STATS(sc, wx_xmitgc);
+		WX_PRT_STATS(sc, wx_xmitpullup);
+		WX_PRT_STATS(sc, wx_xmitcluster);
+		WX_PRT_STATS(sc, wx_xmitputback);
+		WX_PRT_STATS(sc, wx_xmitwanted);
+		WX_PRT_STATS(sc, wx_xmitblocked);
+		WX_PRT_STATS(sc, wx_xmitrunt);
+		WX_PRT_STATS(sc, wx_rxnobuf);
+		WX_PRT_STATS(sc, wx_oddpkt);
+		wx_dump_stats = -1;
+	}
+	if (wx_clr_stats == device_get_unit(sc->w.dev)) {
+		printf("%s: statistics cleared\n", sc->wx_name);
+		WX_CLR_STATS(sc, wx_intr);
+		WX_CLR_STATS(sc, wx_linkintr);
+		WX_CLR_STATS(sc, wx_rxintr);
+		WX_CLR_STATS(sc, wx_txqe);
+		WX_CLR_STATS(sc, wx_xmitgc);
+		WX_CLR_STATS(sc, wx_xmitpullup);
+		WX_CLR_STATS(sc, wx_xmitcluster);
+		WX_CLR_STATS(sc, wx_xmitputback);
+		WX_CLR_STATS(sc, wx_xmitwanted);
+		WX_CLR_STATS(sc, wx_xmitblocked);
+		WX_CLR_STATS(sc, wx_xmitrunt);
+		WX_CLR_STATS(sc, wx_rxnobuf);
+		WX_CLR_STATS(sc, wx_oddpkt);
+		wx_clr_stats = -1;
+	}
 	WX_UNLOCK(sc);
 
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	VTIMEOUT(sc, wx_watchdog, sc, hz);
+	TIMEOUT(sc, wx_watchdog, sc, hz);
 }
 
 /*
@@ -1582,7 +1700,7 @@ wx_txwatchdog(struct ifnet *ifp)
 	ifp->if_oerrors++;
 	if (wx_init(sc)) {
 		printf("%s: could not re-init device\n", sc->wx_name);
-		VTIMEOUT(sc, (void (*)(void *))wx_init, sc, hz);
+		sc->wx_needreinit = 1;
 	}
 }
 
@@ -1654,7 +1772,7 @@ wx_init(void *xsc)
 		WRITE_CSR(sc, WXREG_TQSA_HI, 0);
 		WRITE_CSR(sc, WXREG_TQSA_LO, 0);
 		WRITE_CSR(sc, WXREG_TIPG, WX_WISEMAN_TIPG_DFLT);
-		WRITE_CSR(sc, WXREG_TIDV, sc->wx_txint_delay);
+		WRITE_CSR(sc, WXREG_TIDV, wx_txint_delay);
 	} else {
 		WRITE_CSR(sc, WXREG_TDBA_LO_LIVENGOOD,
 			vtophys((vm_offset_t)&sc->tdescriptors[0]));
@@ -1666,7 +1784,7 @@ wx_init(void *xsc)
 		WRITE_CSR(sc, WXREG_TQSA_HI, 0);
 		WRITE_CSR(sc, WXREG_TQSA_LO, 0);
 		WRITE_CSR(sc, WXREG_TIPG, WX_LIVENGOOD_TIPG_DFLT);
-		WRITE_CSR(sc, WXREG_TIDV_LIVENGOOD, sc->wx_txint_delay);
+		WRITE_CSR(sc, WXREG_TIDV_LIVENGOOD, wx_txint_delay);
 	}
 	WRITE_CSR(sc, WXREG_TCTL, (WXTCTL_CT(WX_COLLISION_THRESHOLD) |
 	    WXTCTL_COLD(WX_FDX_COLLISION_DX) | WXTCTL_EN));
@@ -1821,7 +1939,9 @@ wx_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			error = wx_init(sc);
+			if ((ifp->if_flags & IFF_RUNNING) == 0) {
+				error = wx_init(sc);
+			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				wx_stop(sc);
