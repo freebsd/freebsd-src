@@ -90,13 +90,14 @@ _netisrs:
 	.text
 
 /*
+ * void doreti(struct trapframe)
+ *
  * Handle return from interrupts, traps and syscalls.
  */
 	SUPERALIGN_TEXT
 	.type	_doreti,@function
 _doreti:
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
-	addl	$4,%esp			/* discard unit number */
 doreti_next:
 	decb	_intr_nesting_level
 

@@ -183,6 +183,7 @@ IDTVEC(fpu)
 	call	_npx_intr
 	call	__mtx_exit_giant_def
 
+	addl	$4,%esp
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
@@ -220,10 +221,8 @@ calltrap:
 	call	_trap
 
 	/*
-	 * Return via _doreti to handle ASTs.  Have to change trap frame
-	 * to interrupt frame.
+	 * Return via _doreti to handle ASTs.
 	 */
-	subl	$4,%esp			/* dummy unit to finish intr frame */
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
@@ -265,7 +264,6 @@ IDTVEC(syscall)
 	cli				/* atomic astpending access */
 	cmpl    $0,_astpending		/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	subl	$4,%esp			/* dummy unit for interrupt frame */
 	movb	$1,_intr_nesting_level
 	jmp	_doreti
 
@@ -298,7 +296,6 @@ IDTVEC(int0x80_syscall)
 	cli				/* atomic astpending access */
 	cmpl    $0,_astpending		/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	subl	$4,%esp			/* dummy unit for interrupt frame */
 	movb	$1,_intr_nesting_level
 	jmp	_doreti
 
@@ -334,7 +331,6 @@ ENTRY(fork_trampoline)
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	subl	$4,%esp			/* dummy unit to finish intr frame */
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti

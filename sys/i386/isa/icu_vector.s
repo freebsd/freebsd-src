@@ -69,7 +69,7 @@ IDTVEC(vec_name) ; \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
 	MEXITCOUNT ; \
-	jmp	doreti_next
+	jmp	_doreti
 
 #if 0
 ; \
@@ -141,7 +141,7 @@ __CONCAT(Xresume,irq_num): ; \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
-	jmp	doreti_next	/* and catch up inside doreti */
+	jmp	_doreti		/* and catch up inside doreti */
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0, ENABLE_ICU1)
