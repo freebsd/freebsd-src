@@ -45,6 +45,8 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "extern.h"
+
 static const u_int32_t crctab[] = {
 	0x0,
 	0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
@@ -110,21 +112,21 @@ u_int32_t crc_total = ~0;			/* The crc over a number of files. */
 
 int
 crc(fd, cval, clen)
-	register int fd;
+	int fd;
 	u_int32_t *cval, *clen;
 {
-	register u_char *p;
-	register int nr;
-	register u_int32_t crc, len;
+	u_char *p;
+	int nr;
+	u_int32_t lcrc, len;
 	u_char buf[16 * 1024];
 
 #define	COMPUTE(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
 
-	crc = len = 0;
+	lcrc = len = 0;
 	crc_total = ~crc_total;
 	while ((nr = read(fd, buf, sizeof(buf))) > 0)
 		for (len += nr, p = buf; nr--; ++p) {
-			COMPUTE(crc, *p);
+			COMPUTE(lcrc, *p);
 			COMPUTE(crc_total, *p);
 		}
 	if (nr < 0)
@@ -134,11 +136,11 @@ crc(fd, cval, clen)
 
 	/* Include the length of the file. */
 	for (; len != 0; len >>= 8) {
-		COMPUTE(crc, len & 0xff);
+		COMPUTE(lcrc, len & 0xff);
 		COMPUTE(crc_total, len & 0xff);
 	}
 
-	*cval = ~crc;
+	*cval = ~lcrc;
 	crc_total = ~crc_total;
 	return (0);
 }
