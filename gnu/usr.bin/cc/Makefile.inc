@@ -7,9 +7,9 @@
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
 .if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
-GCC_ARCH=mips
+GCC_ARCH=	mips
 .else
-GCC_ARCH=${MACHINE_ARCH}
+GCC_ARCH=	${MACHINE_ARCH}
 .endif
 
 # Machine description.
