@@ -1,4 +1,5 @@
 .\"
+.\" Copyright (c) 2003 David O'Brien
 .\" Copyright (c) 2000 Jeroen Ruigrok van der Werven
 .\" Copyright (c) 2000 Michael Smith
 .\" All rights reserved.
@@ -43,7 +44,7 @@ Supported controllers include:
 .It
 DAC960P
 .It
-DAC960PD
+DAC960PD / DEC KZPSC (Fast Wide)
 .It
 DAC960PL
 .It
@@ -51,11 +52,15 @@ DAC960PJ
 .It
 DAC960PG
 .It
-AcceleRAID 150
+DAC960PU / DEC PZPAC (Ultra Wide)
 .It
-AcceleRAID 250
+AcceleRAID 150 (DAC960PRL)
 .It
-eXtremeRAID 1100
+AcceleRAID 250 (DAC960PTL1)
+.It
+eXtremeRAID 1100 (DAC1164P)
+.It
+RAIDarray 230 controllers, aka the Ultra-SCSI DEC KZPAC-AA (1-ch, 4MB cache), KZPAC-CA (3-ch, 4MB), KZPAC-CB (3-ch, 8MB cache)
 .El
 .Pp
 All major firmware revisions (2.x, 3.x, 4.x and 5.x) are supported, however
