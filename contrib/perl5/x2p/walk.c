@@ -133,7 +133,7 @@ walk(int useval, int level, register int node, int *numericptr, int minprec)
 	    if (saw_FS && !const_FS)
 		do_chop = TRUE;
 	    if (do_chop) {
-		str_cat(str,"chop;\t# strip record separator\n");
+		str_cat(str,"chomp;\t# strip record separator\n");
 		tab(str,level);
 	    }
 	    if (do_split)
@@ -190,7 +190,7 @@ walk(int useval, int level, register int node, int *numericptr, int minprec)
 		    i = 0;
 		    if (do_chop) {
 			i++;
-			str_cat(str,"chop;\t# strip record separator\n");
+			str_cat(str,"chomp;\t# strip record separator\n");
 			tab(str,level);
 		    }
 		    if (do_split && !(len & 1)) {

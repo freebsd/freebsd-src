@@ -36,8 +36,10 @@ BYACC = $byacc
 LDFLAGS = $ldflags
 SMALL = $small
 LARGE = $large $split
-mallocsrc = $mallocsrc
-mallocobj = $mallocobj
+# XXX Perl malloc temporarily unusable (declaration collisions with
+# stdlib.h)
+#mallocsrc = $mallocsrc
+#mallocobj = $mallocobj
 shellflags = $shellflags
 
 libs = $libs

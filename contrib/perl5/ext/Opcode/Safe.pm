@@ -283,8 +283,8 @@ perl code is compiled into an internal format before execution.
 Evaluating perl code (e.g. via "eval" or "do 'file'") causes
 the code to be compiled into an internal format and then,
 provided there was no error in the compilation, executed.
-Code evaulated in a compartment compiles subject to the
-compartment's operator mask. Attempting to evaulate code in a
+Code evaluated in a compartment compiles subject to the
+compartment's operator mask. Attempting to evaluate code in a
 compartment which contains a masked operator will cause the
 compilation to fail with an error. The code will not be executed.
 

@@ -6,6 +6,24 @@ HISTORY - public release history for Data::Dumper
 
 =over 8
 
+=item 2.10  (31 Oct 1998)
+
+Bugfixes for dumping related undef values, globs, and better double
+quoting: three patches suggested by Gisle Aas <gisle@aas.no>.
+
+Escaping of single quotes in the XS version could get tripped up
+by the presence of nulls in the string.  Fix suggested by
+Slaven Rezic <eserte@cs.tu-berlin.de>.
+
+Rather large scale reworking of the logic in how seen values
+are stashed. Anonymous scalars that may be encountered while
+traversing the structure are properly tracked, in case they become
+used in data dumped in a later pass.  There used to be a problem
+with the previous logic that prevented such structures from being
+dumped correctly.
+
+Various additions to the testsuite.
+
 =item 2.09  (9 July 1998)
 
 Implement $Data::Dumper::Bless, suggested by Mark Daku <daku@nortel.ca>.

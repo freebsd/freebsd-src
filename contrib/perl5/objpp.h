@@ -3,6 +3,10 @@
 
 #undef  amagic_call
 #define amagic_call       CPerlObj::Perl_amagic_call
+#undef  amagic_cmp
+#define amagic_cmp        CPerlObj::amagic_cmp
+#undef  amagic_cmp_locale
+#define amagic_cmp_locale CPerlObj::amagic_cmp_locale
 #undef  Gv_AMupdate
 #define Gv_AMupdate       CPerlObj::Perl_Gv_AMupdate
 #undef  add_data
@@ -289,6 +293,8 @@
 #define do_vecset         CPerlObj::Perl_do_vecset
 #undef  do_vop
 #define do_vop            CPerlObj::Perl_do_vop
+#undef  dofile
+#define dofile            CPerlObj::Perl_dofile
 #undef  do_clean_all
 #define do_clean_all      CPerlObj::do_clean_all
 #undef  do_clean_named_objs
@@ -375,6 +381,8 @@
 #define get_opargs        CPerlObj::Perl_get_opargs
 #undef  get_specialsv_list
 #define get_specialsv_list CPerlObj::Perl_get_specialsv_list
+#undef  get_vtbl
+#define get_vtbl          CPerlObj::Perl_get_vtbl
 #undef  getlogin
 #define getlogin          CPerlObj::getlogin
 #undef  gp_free
@@ -1095,6 +1103,8 @@
 #define save_freeop       CPerlObj::Perl_save_freeop
 #undef  save_freepv
 #define save_freepv       CPerlObj::Perl_save_freepv
+#undef  save_generic_svref
+#define save_generic_svref CPerlObj::Perl_save_generic_svref
 #undef  save_gp
 #define save_gp           CPerlObj::Perl_save_gp
 #undef  save_hash

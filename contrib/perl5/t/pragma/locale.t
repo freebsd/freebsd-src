@@ -23,6 +23,9 @@ eval {
 # and mingw32 uses said silly CRT
 $have_setlocale = 0 if $^O eq 'MSWin32' && $Config{cc} =~ /^(cl|gcc)/i;
 
+# 103 (the last test) may fail but that is okay.
+# (It indicates something broken in the environment, not Perl)
+# Therefore .. only until 102, not 103.
 print "1..", ($have_setlocale ? 102 : 98), "\n";
 
 use vars qw($a
@@ -404,6 +407,7 @@ print "ok 101\n";
 
 # Test for read-onlys.
 
+print "# testing 102\n";
 {
     no locale;
     $a = "qwerty";
@@ -419,7 +423,7 @@ print "ok 102\n";
 # Thanks to Hallvard Furuseth <h.b.furuseth@usit.uio.no>
 # for inventing a way to test for ordering consistency
 # without requiring any particular order.
-# ++$jhi;#@iki.fi
+# <jhi@iki.fi>
 
 print "# testing 103\n";
 {

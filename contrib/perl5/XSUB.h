@@ -57,8 +57,8 @@
 #ifdef XS_VERSION
 # define XS_VERSION_BOOTCHECK \
     STMT_START {							\
-	SV *tmpsv;							\
-	char *vn = Nullch, *module = SvPV(ST(0),PL_na);			\
+	SV *tmpsv; STRLEN n_a;						\
+	char *vn = Nullch, *module = SvPV(ST(0),n_a);			\
 	if (items >= 2)	 /* version supplied as bootstrap arg */	\
 	    tmpsv = ST(1);						\
 	else {								\
@@ -69,7 +69,7 @@
 		tmpsv = perl_get_sv(form("%s::%s", module,		\
 				      vn = "VERSION"), FALSE);		\
 	}								\
-	if (tmpsv && (!SvOK(tmpsv) || strNE(XS_VERSION, SvPV(tmpsv, PL_na))))	\
+	if (tmpsv && (!SvOK(tmpsv) || strNE(XS_VERSION, SvPV(tmpsv, n_a))))	\
 	    croak("%s object version %s does not match %s%s%s%s %_",	\
 		  module, XS_VERSION,					\
 		  vn ? "$" : "", vn ? module : "", vn ? "::" : "",	\
@@ -77,6 +77,70 @@
     } STMT_END
 #else
 # define XS_VERSION_BOOTCHECK
+#endif
+
+#ifdef PERL_CAPI
+#  define VTBL_sv		get_vtbl(want_vtbl_sv)
+#  define VTBL_env		get_vtbl(want_vtbl_env)
+#  define VTBL_envelem		get_vtbl(want_vtbl_envelem)
+#  define VTBL_sig		get_vtbl(want_vtbl_sig)
+#  define VTBL_sigelem		get_vtbl(want_vtbl_sigelem)
+#  define VTBL_pack		get_vtbl(want_vtbl_pack)
+#  define VTBL_packelem		get_vtbl(want_vtbl_packelem)
+#  define VTBL_dbline		get_vtbl(want_vtbl_dbline)
+#  define VTBL_isa		get_vtbl(want_vtbl_isa)
+#  define VTBL_isaelem		get_vtbl(want_vtbl_isaelem)
+#  define VTBL_arylen		get_vtbl(want_vtbl_arylen)
+#  define VTBL_glob		get_vtbl(want_vtbl_glob)
+#  define VTBL_mglob		get_vtbl(want_vtbl_mglob)
+#  define VTBL_nkeys		get_vtbl(want_vtbl_nkeys)
+#  define VTBL_taint		get_vtbl(want_vtbl_taint)
+#  define VTBL_substr		get_vtbl(want_vtbl_substr)
+#  define VTBL_vec		get_vtbl(want_vtbl_vec)
+#  define VTBL_pos		get_vtbl(want_vtbl_pos)
+#  define VTBL_bm		get_vtbl(want_vtbl_bm)
+#  define VTBL_fm		get_vtbl(want_vtbl_fm)
+#  define VTBL_uvar		get_vtbl(want_vtbl_uvar)
+#  define VTBL_defelem		get_vtbl(want_vtbl_defelem)
+#  define VTBL_regexp		get_vtbl(want_vtbl_regexp)
+#  ifdef USE_LOCALE_COLLATE
+#    define VTBL_collxfrm	get_vtbl(want_vtbl_collxfrm)
+#  endif
+#  ifdef OVERLOAD
+#    define VTBL_amagic		get_vtbl(want_vtbl_amagic)
+#    define VTBL_amagicelem	get_vtbl(want_vtbl_amagicelem)
+#  endif
+#else
+#  define VTBL_sv		&vtbl_sv
+#  define VTBL_env		&vtbl_env
+#  define VTBL_envelem		&vtbl_envelem
+#  define VTBL_sig		&vtbl_sig
+#  define VTBL_sigelem		&vtbl_sigelem
+#  define VTBL_pack		&vtbl_pack
+#  define VTBL_packelem		&vtbl_packelem
+#  define VTBL_dbline		&vtbl_dbline
+#  define VTBL_isa		&vtbl_isa
+#  define VTBL_isaelem		&vtbl_isaelem
+#  define VTBL_arylen		&vtbl_arylen
+#  define VTBL_glob		&vtbl_glob
+#  define VTBL_mglob		&vtbl_mglob
+#  define VTBL_nkeys		&vtbl_nkeys
+#  define VTBL_taint		&vtbl_taint
+#  define VTBL_substr		&vtbl_substr
+#  define VTBL_vec		&vtbl_vec
+#  define VTBL_pos		&vtbl_pos
+#  define VTBL_bm		&vtbl_bm
+#  define VTBL_fm		&vtbl_fm
+#  define VTBL_uvar		&vtbl_uvar
+#  define VTBL_defelem		&vtbl_defelem
+#  define VTBL_regexp		&vtbl_regexp
+#  ifdef USE_LOCALE_COLLATE
+#    define VTBL_collxfrm	&vtbl_collxfrm
+#  endif
+#  ifdef OVERLOAD
+#    define VTBL_amagic		&vtbl_amagic
+#    define VTBL_amagicelem	&vtbl_amagicelem
+#  endif
 #endif
 
 #ifdef PERL_OBJECT

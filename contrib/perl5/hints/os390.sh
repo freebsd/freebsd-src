@@ -17,6 +17,8 @@
 # To get ANSI C, we need to use c89, and ld doesn't exist
 cc='c89'
 ld='c89'
+# To link via definition side decks we need the dll option
+cccdlflags='-W 0,dll,"langlvl(extended)"'
 # c89 hides most of the useful header stuff, _ALL_SOURCE turns it on again,
 # YYDYNAMIC ensures that the OS/390 yacc generated parser is reentrant.
 # -DEBCDIC should come from Configure.
@@ -54,3 +56,6 @@ case "$archname" in
 esac
 
 archobjs=ebcdic.o
+
+# We have our own cppstdin.
+echo 'cat >.$$.c; '"$cc"' -E -Wc,NOLOC ${1+"$@"} .$$.c; rm .$$.c' > cppstdin

@@ -1,6 +1,6 @@
 /*    scope.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -144,9 +144,7 @@ free_tmps(void)
 	SV* sv = PL_tmps_stack[PL_tmps_ix];
 	PL_tmps_stack[PL_tmps_ix--] = Nullsv;
 	if (sv) {
-#ifdef DEBUGGING
 	    SvTEMP_off(sv);
-#endif
 	    SvREFCNT_dec(sv);		/* note, can modify tmps_ix!!! */
 	}
     }
@@ -204,6 +202,18 @@ save_svref(SV **sptr)
     SSPUSHPTR(SvREFCNT_inc(*sptr));
     SSPUSHINT(SAVEt_SVREF);
     return save_scalar_at(sptr);
+}
+
+/* Like save_svref(), but doesn't deal with magic.  Can be used to
+ * restore a global SV to its prior contents, freeing new value. */
+void
+save_generic_svref(SV **sptr)
+{
+    dTHR;
+    SSCHECK(3);
+    SSPUSHPTR(sptr);
+    SSPUSHPTR(SvREFCNT_inc(*sptr));
+    SSPUSHINT(SAVEt_GENERIC_SVREF);
 }
 
 void
@@ -562,6 +572,16 @@ leave_scope(I32 base)
 	    ptr = &GvSV(gv);
 	    SvREFCNT_dec(gv);
 	    goto restore_sv;
+        case SAVEt_GENERIC_SVREF:		/* generic sv */
+	    value = (SV*)SSPOPPTR;
+	    ptr = SSPOPPTR;
+	    if (ptr) {
+		sv = *(SV**)ptr;
+		*(SV**)ptr = value;
+		SvREFCNT_dec(sv);
+	    }
+	    SvREFCNT_dec(value);
+	    break;
         case SAVEt_SVREF:			/* scalar reference */
 	    value = (SV*)SSPOPPTR;
 	    ptr = SSPOPPTR;
@@ -774,7 +794,7 @@ leave_scope(I32 base)
 	    if (ptr) {
 		sv = *(SV**)ptr;
 		if (sv && sv != &PL_sv_undef) {
-		    if (SvRMAGICAL(av) && mg_find((SV*)av, 'P'))
+		    if (SvTIED_mg((SV*)av, 'P'))
 			(void)SvREFCNT_inc(sv);
 		    SvREFCNT_dec(av);
 		    goto restore_sv;
@@ -792,7 +812,7 @@ leave_scope(I32 base)
 		SV *oval = HeVAL((HE*)ptr);
 		if (oval && oval != &PL_sv_undef) {
 		    ptr = &HeVAL((HE*)ptr);
-		    if (SvRMAGICAL(hv) && mg_find((SV*)hv, 'P'))
+		    if (SvTIED_mg((SV*)hv, 'P'))
 			(void)SvREFCNT_inc(*(SV**)ptr);
 		    SvREFCNT_dec(hv);
 		    SvREFCNT_dec(sv);
@@ -824,8 +844,8 @@ cx_dump(PERL_CONTEXT *cx)
 {
 #ifdef DEBUGGING
     dTHR;
-    PerlIO_printf(Perl_debug_log, "CX %ld = %s\n", (long)(cx - cxstack), block_type[cx->cx_type]);
-    if (cx->cx_type != CXt_SUBST) {
+    PerlIO_printf(Perl_debug_log, "CX %ld = %s\n", (long)(cx - cxstack), block_type[CxTYPE(cx)]);
+    if (CxTYPE(cx) != CXt_SUBST) {
 	PerlIO_printf(Perl_debug_log, "BLK_OLDSP = %ld\n", (long)cx->blk_oldsp);
 	PerlIO_printf(Perl_debug_log, "BLK_OLDCOP = 0x%lx\n", (long)cx->blk_oldcop);
 	PerlIO_printf(Perl_debug_log, "BLK_OLDMARKSP = %ld\n", (long)cx->blk_oldmarksp);
@@ -834,7 +854,7 @@ cx_dump(PERL_CONTEXT *cx)
 	PerlIO_printf(Perl_debug_log, "BLK_OLDPM = 0x%lx\n", (long)cx->blk_oldpm);
 	PerlIO_printf(Perl_debug_log, "BLK_GIMME = %s\n", cx->blk_gimme ? "LIST" : "SCALAR");
     }
-    switch (cx->cx_type) {
+    switch (CxTYPE(cx)) {
     case CXt_NULL:
     case CXt_BLOCK:
 	break;

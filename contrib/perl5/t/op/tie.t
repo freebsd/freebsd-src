@@ -153,3 +153,16 @@ $C = $B = tied %H ;
 }
 untie %H;
 EXPECT
+########
+
+# verify no leak when underlying object is selfsame tied variable
+my ($a, $b);
+sub Self::TIEHASH { bless $_[1], $_[0] }
+sub Self::DESTROY { $b = $_[0] + 0; }
+{
+    my %b5;
+    $a = \%b5 + 0;
+    tie %b5, 'Self', \%b5;
+}
+die unless $a == $b;
+EXPECT

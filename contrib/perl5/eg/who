@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+# This assumes your /etc/utmp file looks like ours
+open(UTMP,'/etc/utmp');
+@mo = (Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec);
+while (read(UTMP,$utmp,36)) {
+    ($line,$name,$host,$time) = unpack('A8A8A16l',$utmp);
+    if ($name) {
+	$host = "($host)" if ord($host);
+	($sec,$min,$hour,$mday,$mon) = localtime($time);
+	printf "%-9s%-8s%s %2d %02d:%02d   %s\n",
+	  $name,$line,$mo[$mon],$mday,$hour,$min,$host;
+    }
+}   

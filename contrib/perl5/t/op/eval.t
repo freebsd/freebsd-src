@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: eval.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:48 $
-
-print "1..23\n";
+print "1..36\n";
 
 eval 'print "ok 1\n";';
 
@@ -79,3 +77,97 @@ eval {
   };
   &$x();
 }
+
+my $b = 'wrong';
+my $X = sub {
+   my $b = "right";
+   print eval('"$b"') eq $b ? "ok 24\n" : "not ok 24\n";
+};
+&$X();
+
+
+# check navigation of multiple eval boundaries to find lexicals
+
+my $x = 25;
+eval <<'EOT'; die if $@;
+  print "# $x\n";	# clone into eval's pad
+  sub do_eval1 {
+     eval $_[0]; die if $@;
+  }
+EOT
+do_eval1('print "ok $x\n"');
+$x++;
+do_eval1('eval q[print "ok $x\n"]');
+$x++;
+do_eval1('sub { eval q[print "ok $x\n"] }->()');
+$x++;
+
+# calls from within eval'' should clone outer lexicals
+
+eval <<'EOT'; die if $@;
+  sub do_eval2 {
+     eval $_[0]; die if $@;
+  }
+do_eval2('print "ok $x\n"');
+$x++;
+do_eval2('eval q[print "ok $x\n"]');
+$x++;
+do_eval2('sub { eval q[print "ok $x\n"] }->()');
+$x++;
+EOT
+
+# calls outside eval'' should NOT clone lexicals from called context
+
+$main::x = 'ok';
+eval <<'EOT'; die if $@;
+  # $x unbound here
+  sub do_eval3 {
+     eval $_[0]; die if $@;
+  }
+EOT
+do_eval3('print "$x ' . $x . '\n"');
+$x++;
+do_eval3('eval q[print "$x ' . $x . '\n"]');
+$x++;
+do_eval3('sub { eval q[print "$x ' . $x . '\n"] }->()');
+$x++;
+
+# can recursive subroutine-call inside eval'' see its own lexicals?
+sub recurse {
+  my $l = shift;
+  if ($l < $x) {
+     ++$l;
+     eval 'print "# level $l\n"; recurse($l);';
+     die if $@;
+  }
+  else {
+    print "ok $l\n";
+  }
+}
+{
+  local $SIG{__WARN__} = sub { die "not ok $x\n" if $_[0] =~ /^Deep recurs/ };
+  recurse($x-5);
+}
+$x++;
+
+# do closures created within eval bind correctly?
+eval <<'EOT';
+  sub create_closure {
+    my $self = shift;
+    return sub {
+       print $self;
+    };
+  }
+EOT
+create_closure("ok $x\n")->();
+$x++;
+
+# does lexical search terminate correctly at subroutine boundary?
+$main::r = "ok $x\n";
+sub terminal { eval 'print $r' }
+{
+   my $r = "not ok $x\n";
+   eval 'terminal($r)';
+}
+$x++;
+

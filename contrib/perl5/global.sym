@@ -276,6 +276,7 @@ do_tell
 do_trans
 do_vecset
 do_vop
+dofile
 dofindlabel
 dopoptoeval
 dounwind
@@ -312,6 +313,7 @@ get_op_names
 get_no_modify
 get_opargs
 get_specialsv_list
+get_vtbl
 gp_free
 gp_ref
 gv_AVadd
@@ -914,6 +916,7 @@ save_destructor
 save_freeop
 save_freepv
 save_freesv
+save_generic_svref
 save_gp
 save_hash
 save_helem

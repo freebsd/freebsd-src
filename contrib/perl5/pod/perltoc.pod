@@ -1353,7 +1353,7 @@ $BASETIME, $^T, $WARNING, $^W, $EXECUTABLE_NAME, $^X, $ARGV, @ARGV, @INC,
 
 =item Private Variables via C<my()>
 
-=item Peristent Private Variables
+=item Persistent Private Variables
 
 =item Temporary Values via local()
 
@@ -2263,7 +2263,8 @@ C<http://www.connect.net/gbarr/cpan-test/>
 
 The djgpp environment for DOS, C<http://www.delorie.com/djgpp/>, The EMX
 environment for DOS, OS/2, etc.
-C<emx@iaehv.nl>,C<http://www.juge.com/bbs/Hobb.19.html>, Build instructions
+C<emx@iaehv.nl>,C<http://www.leo.org/pub/comp/os/os2/leo/gnu/emx+gcc/index.html>,
+C<ftp://hobbes.nmsu.edu/pub/os2/dev/emx>.  Build instructions
 for Win32, L<perlwin32>, The ActiveState Pages,
 C<http://www.activestate.com/>
 

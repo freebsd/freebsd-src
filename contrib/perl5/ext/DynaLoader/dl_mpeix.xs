@@ -2,6 +2,7 @@
  * Author:  Mark Klein (mklein@dis.com)
  * Version: 2.1, 1996/07/25
  * Version: 2.2, 1997/09/25 Mark Bixby (markb@cccd.edu)
+ * Version: 2.3, 1998/11/19 Mark Bixby (markb@cccd.edu)
  */
 
 #include "EXTERN.h"
@@ -59,13 +60,13 @@ flags));
 ",filename);
     obj = (p_mpe_dld) safemalloc(sizeof(t_mpe_dld));
     memzero(obj, sizeof(t_mpe_dld));
-    if (filename[0] == '.')
+    if (filename[0] != '/')
         {
         getcwd(buf,sizeof(buf));
-        sprintf(obj->filename,"$%s/%s$",buf,filename);
+        sprintf(obj->filename," %s/%s ",buf,filename);
         }
     else
-        sprintf(obj->filename,"$%s$",filename);
+        sprintf(obj->filename," %s ",filename);
 
     DLDEBUG(2,PerlIO_printf(PerlIO_stderr()," libref=%x\n", obj));
 
@@ -90,11 +91,11 @@ dl_find_symbol(libhandle, symbolname)
     ST(0) = sv_newmortal() ;
     errno = 0;
 
-    sprintf(symname, "$%s$", symbolname);
+    sprintf(symname, " %s ", symbolname);
     HPGETPROCPLABEL(8, symname, &symaddr, &status, obj->filename, 1,
                     0, &datalen, 1, 0, 0);
 
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(),"  symbolref(PROCEDURE) = %x\n", symaddr));
+    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(),"  symbolref(PROCEDURE) = %x, status=%x\n", symaddr, status));
 
     if (status != 0) {
         SaveError("%s",(errno) ? Strerror(errno) : "Symbol not found") ;

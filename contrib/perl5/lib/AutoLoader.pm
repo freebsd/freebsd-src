@@ -178,7 +178,7 @@ such a file exists, AUTOLOAD will read and evaluate it,
 thus (presumably) defining the needed subroutine.  AUTOLOAD will then
 C<goto> the newly defined subroutine.
 
-Once this process completes for a given funtion, it is defined, so
+Once this process completes for a given function, it is defined, so
 future calls to the subroutine will bypass the AUTOLOAD mechanism.
 
 =head2 Subroutine Stubs
@@ -266,7 +266,7 @@ C<__DATA__>, after which routines are cached.  B<SelfLoader> can also
 handle multiple packages in a file.
 
 B<AutoLoader> only reads code as it is requested, and in many cases
-should be faster, but requires a machanism like B<AutoSplit> be used to
+should be faster, but requires a mechanism like B<AutoSplit> be used to
 create the individual files.  L<ExtUtils::MakeMaker> will invoke
 B<AutoSplit> automatically if B<AutoLoader> is used in a module source
 file.

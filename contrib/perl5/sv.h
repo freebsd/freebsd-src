@@ -1,6 +1,6 @@
 /*    sv.h
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -316,7 +316,8 @@ struct xpvio {
 #define IOf_START 2	/* check for null ARGV and substitute '-' */
 #define IOf_FLUSH 4	/* this fp wants a flush after write op */
 #define IOf_DIDTOP 8	/* just did top of form */
-#define IOf_UNTAINT 16  /* consider this fp (and it's data) "safe" */
+#define IOf_UNTAINT 16  /* consider this fp (and its data) "safe" */
+#define IOf_NOLINE  32	/* slurped a pseudo-line from empty file */
 
 /* The following macros define implementation-independent predicates on SVs. */
 

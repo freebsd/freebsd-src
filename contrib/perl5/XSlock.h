@@ -13,23 +13,26 @@ protected:
 };
 
 XSLockManager g_XSLock;
+CPerlObj* pPerl;
 
 class XSLock
 {
 public:
-	XSLock() { g_XSLock.Enter(); };
+	XSLock(CPerlObj *p) {
+	    g_XSLock.Enter();
+	    ::pPerl = p;
+	};
 	~XSLock() { g_XSLock.Leave(); };
 };
 
-CPerlObj* pPerl;
-
+/* PERL_CAPI does its own locking in xs_handler() */
+#if defined(PERL_OBJECT) && !defined(PERL_CAPI)
 #undef dXSARGS
 #define dXSARGS	\
-	dSP; dMARK;		\
-	I32 ax = mark - PL_stack_base + 1;	\
-	I32 items = sp - mark; \
-	XSLock localLock; \
-	::pPerl = pPerl
-
+	XSLock localLock(pPerl);			\
+	dSP; dMARK;					\
+	I32 ax = mark - PL_stack_base + 1;		\
+	I32 items = sp - mark
+#endif	/* PERL_OBJECT && !PERL_CAPI */
 
 #endif

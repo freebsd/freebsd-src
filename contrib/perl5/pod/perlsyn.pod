@@ -21,13 +21,13 @@ mandatory default like it is in B<sed> and B<awk>.)
 
 =head2 Declarations
 
-Perl is, for the most part, a free-form language.  (The only
-exception to this is format declarations, for obvious reasons.) Comments
-are indicated by the C<"#"> character, and extend to the end of the line.  If
-you attempt to use C</* */> C-style comments, it will be interpreted
-either as division or pattern matching, depending on the context, and C++
-C<//> comments just look like a null regular expression, so don't do
-that.
+Perl is, for the most part, a free-form language.  (The only exception
+to this is format declarations, for obvious reasons.)  Text from a
+C<"#"> character until the end of the line is a comment, and is
+ignored.  If you attempt to use C</* */> C-style comments, it will be
+interpreted either as division or pattern matching, depending on the
+context, and C++ C<//> comments just look like a null regular
+expression, so don't do that.
 
 A declaration can be put anywhere a statement can, but has no effect on
 the execution of the primary sequence of statements--declarations all

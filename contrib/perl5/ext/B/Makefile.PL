@@ -16,7 +16,7 @@ if ($^O eq 'MSWin32') {
 WriteMakefile(
     NAME	=> "B",
     VERSION	=> "a5",
-    MAN3PODS => ' ',
+    MAN3PODS => {},
     clean	=> {
 	FILES		=> "perl$e byteperl$e *$o B.c *~"
     }

@@ -32,3 +32,14 @@ libswanted="$*"
 # patchSG0000596.  The patch can be downloaded from Advantage OnLine (SGI's
 # WWW server) or from the Support Advantage 9/95 Patch CDROM.  Thanks to Tom 
 # Christiansen and others who provided assistance.
+
+case "$usethreads" in
+$define|true|[yY]*)
+        cat >&4 <<EOM
+IRIX `uname -r` does not support POSIX threads.
+You should upgrade to at least IRIX 6.2 with pthread patches.
+EOM
+	exit 1
+	;;
+esac
+

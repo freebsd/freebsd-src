@@ -878,7 +878,7 @@ sub pp_sassign {
 	    }
 	    runtime("SvSETMAGIC(TOPs);");
 	} else {
-	    my $dst = pop @stack;
+	    my $dst = $stack[-1];
 	    my $type = $dst->{type};
 	    runtime("sv = POPs;");
 	    runtime("MAYBE_TAINT_SASSIGN_SRC(sv);");
@@ -946,13 +946,25 @@ sub pp_entersub {
     write_back_lexicals(REGISTER|TEMPORARY);
     write_back_stack();
     my $sym = doop($op);
-    runtime("if (PL_op != ($sym)->op_next) PL_op = (*PL_op->op_ppaddr)(ARGS);");
-    runtime("SPAGAIN;");
+    runtime("while (PL_op != ($sym)->op_next && PL_op != (OP*)0 ){");
+    runtime("PL_op = (*PL_op->op_ppaddr)(ARGS);");
+    runtime("SPAGAIN;}");
     $know_op = 0;
     invalidate_lexicals(REGISTER|TEMPORARY);
     return $op->next;
 }
 
+sub pp_goto{
+
+    my $op = shift;
+    my $ppname = $op->ppaddr;
+    write_back_lexicals() unless $skip_lexicals{$ppname};
+    write_back_stack() unless $skip_stack{$ppname};
+    my $sym=doop($op);
+    runtime("if (PL_op != ($sym)->op_next && PL_op != (OP*)0){return PL_op;}");
+    invalidate_lexicals() unless $skip_invalidate{$ppname};
+    return $op->next;
+}
 sub pp_enterwrite {
     my $op = shift;
     pp_entersub($op);
@@ -1051,7 +1063,7 @@ sub pp_return {
     write_back_lexicals(REGISTER|TEMPORARY);
     write_back_stack();
     doop($op);
-    runtime("PUTBACK;", "return 0;");
+    runtime("PUTBACK;", "return (PL_op)?PL_op->op_next:0;");
     $know_op = 0;
     return $op->next;
 }
@@ -1344,7 +1356,7 @@ sub cc {
 	    $need_freetmps = 0;
 	}
 	if (!$$op) {
-	    runtime("PUTBACK;", "return 0;");
+	    runtime("PUTBACK;","return (PL_op)?PL_op->op_next:0;");
 	} elsif ($done{$$op}) {
 	    runtime(sprintf("goto %s;", label($op)));
 	}
@@ -1375,6 +1387,7 @@ sub cc_obj {
 
 sub cc_main {
     my @comppadlist = comppadlist->ARRAY;
+    my $curpad_nam = $comppadlist[0]->save;
     my $curpad_sym = $comppadlist[1]->save;
     my $start = cc_recurse("pp_main", main_root, main_start, @comppadlist);
     save_unused_subs(@unused_sub_packages);
@@ -1384,7 +1397,9 @@ sub cc_main {
     if (!defined($module)) {
 	$init->add(sprintf("PL_main_root = s\\_%x;", ${main_root()}),
 		   "PL_main_start = $start;",
-		   "PL_curpad = AvARRAY($curpad_sym);");
+		   "PL_curpad = AvARRAY($curpad_sym);",
+		   "av_store(CvPADLIST(PL_main_cv),0,SvREFCNT_inc($curpad_nam));",
+		   "av_store(CvPADLIST(PL_main_cv),1,SvREFCNT_inc($curpad_sym));");
     }
     output_boilerplate();
     print "\n";

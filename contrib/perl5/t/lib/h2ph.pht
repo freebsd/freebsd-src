@@ -1,3 +1,5 @@
+require '_h2ph_pre.ph';
+
 unless(defined(&SQUARE)) {
     sub SQUARE {
 	local($x) = @_;
@@ -27,7 +29,7 @@ unless(defined(&_H2PH_H_)) {
     if(!(defined (defined(&__SOMETHING_MORE_IMPORTANT) ? &__SOMETHING_MORE_IMPORTANT : 0))) {
     }
  elsif(!(defined (defined(&__SOMETHING_REALLY_REALLY_IMPORTANT) ? &__SOMETHING_REALLY_REALLY_IMPORTANT : 0))) {
-	die("Nup, can't go on ");
+	die("Nup\,\ can\'t\ go\ on\ ");
     } else {
 	eval 'sub EVERYTHING_IS_OK () {1;}' unless defined(&EVERYTHING_IS_OK);
     }

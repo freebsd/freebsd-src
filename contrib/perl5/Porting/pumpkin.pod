@@ -1178,6 +1178,16 @@ the dist-users mailing list along these lines.  They have been folded
 back into the main distribution, but various parts of the perl
 Configure/build/install process still assume src='.'.
 
+=item Directory for vendor-supplied modules?
+
+If a vendor supplies perl, but wants to leave $siteperl and $sitearch
+for the local user to use, where should the vendor put vendor-supplied
+modules (such as Tk.so?)  If the vendor puts them in $archlib, then
+they need to be updated each time the perl version is updated.
+Perhaps we need a set of libries $vendorperl and $vendorarch that
+track $apiversion (like the $sitexxx directories do) rather than
+just $version (like the main perl directory).
+
 =item Hint file fixes
 
 Various hint files work around Configure problems.  We ought to fix

@@ -1,10 +1,8 @@
 #!./perl
 
-# $RCSfile: argv.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:25 $
+print "1..6\n";
 
-print "1..5\n";
-
-open(try, '>Io.argv.tmp') || (die "Can't open temp file.");
+open(try, '>Io.argv.tmp') || (die "Can't open temp file: $!");
 print try "a line\n";
 close try;
 
@@ -45,4 +43,17 @@ if ($y eq "1a line\n2a line\n3a line\n")
 else
     {print "not ok 5\n";}
 
-unlink 'Io.argv.tmp';
+open(try, '>Io.argv.tmp') or die "Can't open temp file: $!";
+close try;
+@ARGV = 'Io.argv.tmp';
+$^I = '.bak';
+$/ = undef;
+while (<>) {
+    s/^/ok 6\n/;
+    print;
+}
+open(try, '<Io.argv.tmp') or die "Can't open temp file: $!";
+print while <try>;
+close try;
+
+END { unlink 'Io.argv.tmp', 'Io.argv.tmp.bak' }

@@ -4,10 +4,12 @@
 
 perlhist - the Perl history records
 
-=for RCS
+=begin RCS
+
 #
-# $Id: perlhist.pod,v 1.48 1998/08/03 08:50:12 jhi Exp $
+# $Id: perlhist.pod,v 1.57 1999/01/26 17:38:07 jhi Exp $
 #
+
 =end RCS
 
 =head1 DESCRIPTION
@@ -265,6 +267,10 @@ the strings?).
           5.004_04-m3   1998-May-15
           5.004_04-m4   1998-May-19
           5.004_04-MT5  1998-Jul-21
+          5.004_04-MT6  1998-Oct-09
+          5.004_04-MT7  1998-Nov-22
+          5.004_04-MT8  1998-Dec-03
+          5.004_04-MT9  1999-***-**
 
  Malcolm  5.004_50      1997-Sep-09     The 5.005 development track.
           5.004_51      1997-Oct-02
@@ -299,9 +305,21 @@ the strings?).
           5.005_02-T1   1998-Aug-02
           5.005_02-T2   1998-Aug-05
           5.005_02      1998-Aug-08
- Graham   5.005_03      1998-           
+ Graham   5.005_03-MT1  1998-Nov-30
+          5.005_03-MT2  1999-Jan-04
+          5.005_03-MT3  1999-Jan-17
+          5.005_03-MT4  1999-Jan-26
+          5.005_03-MT5  1999-Jan-28
+          5.005_03-MT6  1999-Mar-04
+          5.005_03      1999-Mar-28
 
  Sarathy  5.005_50      1998-Jul-26     The 5.006 development track.
+          5.005_51      1998-Aug-10
+          5.005_52      1998-Sep-25
+          5.005_53      1998-Oct-31
+          5.005_54      1998-Nov-30
+          5.005_55      1999-Feb-16
+          5.005_56      1999-Mar-01
 
 =head2 SELECTED RELEASE SIZES
 
@@ -447,11 +465,12 @@ The "diff lines kb" means that for example the patch 5.003_08, to be
 applied on top of the 5.003_07 (or whatever was before the 5.003_08)
 added lines for 110 kilobytes, it removed lines for 19 kilobytes, and
 changed lines for 424 kilobytes.  Just the lines themselves are
-counted, not their context.  The "+ - !" become from the diff(1)s
+counted, not their context.  The "+ - !" become from the diff(1)
 context diff output format.
 
  Pump-  Release         Date           diff lines kB
- king                                     +   -   !
+ king                                  -------------
+                                          +   -   !
  ===========================================================================
 
  Chip     5.003_08      1996-Nov-19     110  19 424

@@ -84,7 +84,7 @@ that wish to call methods in the class as part of the construction:
     }
 
 If you care about inheritance (and you should; see
-L<perlmod/"Modules: Creation, Use, and Abuse">),
+L<perlmodlib/"Modules: Creation, Use, and Abuse">),
 then you want to use the two-arg form of bless
 so that your constructors may be inherited:
 
@@ -251,7 +251,7 @@ or in one statement,
 There are times when one syntax is more readable, and times when the
 other syntax is more readable.  The indirect object syntax is less
 cluttered, but it has the same ambiguity as ordinary list operators.
-Indirect object method calls are parsed using the same rule as list
+Indirect object method calls are usually parsed using the same rule as list
 operators: "If it looks like a function, it is a function".  (Presuming
 for the moment that you think two words in a row can look like a
 function name.  C++ programmers seem to think so with some regularity,
@@ -268,7 +268,20 @@ would be equivalent to
 
     Critter->new('Bam' x 2), 1.4, 45
 
-which is unlikely to do what you want.
+which is unlikely to do what you want.  Confusingly, however, this
+rule applies only when the indirect object is a bareword package name,
+not when it's a scalar, a BLOCK, or a C<Package::> qualified package name.
+In those cases, the arguments are parsed in the same way as an
+indirect object list operator like print, so
+
+    new Critter:: ('Bam' x 2), 1.4, 45
+
+is the same as
+
+   Critter::->new(('Bam' x 2), 1.4, 45)
+
+For more reasons why the indirect object syntax is ambiguous, see
+L<"WARNING"> below.
 
 There are times when you wish to specify which class's method to use.
 In this case, you can call your method as an ordinary subroutine

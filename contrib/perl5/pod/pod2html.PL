@@ -164,7 +164,7 @@ See L<Pod::Html> for a list of known bugs in the translator.
 
 =head1 SEE ALSO
 
-L<perlpod>, L<Pod::HTML>
+L<perlpod>, L<Pod::Html>
 
 =head1 COPYRIGHT
 

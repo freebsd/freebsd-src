@@ -1,3 +1,10 @@
+NOTE
+
+Threading is a highly experimental feature.  There are still a 
+few race conditions that show up under high contention on SMP
+machines.  Internal implementation is still subject to changes.
+It is not recommended for production use at this time.
+
 Building
 
 If you want to build with multi-threading support and you are
@@ -27,7 +34,8 @@ work or you are using another platform which you believe supports
 POSIX.1c threads then read on.  Additional information may be in
 a platform-specific "hints" file in the hints/ subdirectory.
 
-Omit the -d from your ./Configure arguments. For example, use
+On other platforms that use Configure to build perl, omit the -d
+from your ./Configure arguments. For example, use:
 
     ./Configure -Dusethreads
 
@@ -92,6 +100,10 @@ For AIX:
     Add -lc_r to libswanted
     Change -lc in lddflags to be -lpthread -lc_r -lc
 
+For Win32:
+    See README.win32, and the notes at the beginning of win32/Makefile
+    or win32/makefile.mk.
+
 Now you can do a
     make
 
@@ -147,11 +159,8 @@ libraries were not compiled to be thread-aware).
 Bugs
 
 * FAKE_THREADS should produce a working perl but the Thread
-extension won't build with it yet.
-
-* There's a known memory leak (curstack isn't freed at the end
-of each thread because it causes refcount problems that I
-haven't tracked down yet) and there are very probably others too.
+extension won't build with it yet.  (FAKE_THREADS has not been
+tested at all in recent times.)
 
 * There may still be races where bugs show up under contention.
 
@@ -275,3 +284,6 @@ Last updated: 27 November 1997
 
 Configure-related info updated 16 July 1998 by
 Andy Dougherty <doughera@lafayette.edu>
+
+Other minor updates 10 Feb 1999 by
+Gurusamy Sarathy

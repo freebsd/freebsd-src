@@ -37,7 +37,6 @@ sub readsyms (\%$) {
 }
 
 readsyms %global, 'global.sym';
-readsyms %interp, 'interp.sym';
 
 sub readvars(\%$$) {
     my ($syms, $file,$pre) = @_;
@@ -63,11 +62,10 @@ readvars %globvar, 'perlvars.h','G';
 
 foreach my $sym (sort keys %intrp)
  {
-  warn "$sym not in interp.sym\n" unless exists $interp{$sym};
   if (exists $global{$sym})
    {
     delete $global{$sym};
-    warn "$sym in global.sym as well as interp\n";
+    warn "$sym in global.sym as well as intrpvar.h\n";
    }
  }
 
@@ -80,19 +78,13 @@ foreach my $sym (sort keys %globvar)
    }
  }
 
-foreach my $sym (keys %interp)
- {
-  warn "extra $sym in interp.sym\n" 
-   unless exists $intrp{$sym} || exists $thread{$sym};
- }
-
 foreach my $sym (sort keys %thread)
  {
-  warn "$sym in intrpvar.h\n" if exists $intrp{$sym};
+  warn "$sym in intrpvar.h as well as thrdvar.h\n" if exists $intrp{$sym};
   if (exists $global{$sym})
    {
     delete $global{$sym};
-    warn "$sym in global.sym as well as thread\n";
+    warn "$sym in global.sym as well as thrdvar.h\n";
    }
  }
 
