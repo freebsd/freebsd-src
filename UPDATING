@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030915:
+	A change to /etc/defaults/rc.conf now causes inetd to be started
+	with `-C 60' if it is not overridden in /etc/rc.conf.  This
+	causes inetd to stop accepting connections from an IP address
+	that exceeds the rate of 60 connections per minute.
+
 20030829:
 	The following rc.d scripts have been removed and should be
 	deleted from your installation: atm2.sh atm3.sh devdb
