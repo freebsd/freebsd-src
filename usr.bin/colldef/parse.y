@@ -118,10 +118,8 @@ order : ORDER order_list {
 	if ((__collate_chain_pri_table = realloc(__collate_chain_pri_table,
 	     sizeof(*__collate_chain_pri_table) * (chain_index + 1))) == NULL)
 		yyerror("can't grow chain table");
-	(void)memset(__collate_chain_pri_table[chain_index].str, 0,
-		     sizeof(__collate_chain_pri_table[0].str));
-	__collate_chain_pri_table[chain_index].prim = 0;
-	__collate_chain_pri_table[chain_index].sec = 0;
+	(void)memset(&__collate_chain_pri_table[chain_index], 0,
+		     sizeof(__collate_chain_pri_table[0]));
 	chain_index++;
 
 	if ((fp = fopen(out_file, "w")) == NULL)
@@ -194,11 +192,10 @@ item :  CHAR {
 	if ((__collate_chain_pri_table = realloc(__collate_chain_pri_table,
 	     sizeof(*__collate_chain_pri_table) * (chain_index + 1))) == NULL)
 		yyerror("can't grow chain table");
-	(void)memset(__collate_chain_pri_table[chain_index].str, 0,
-		     sizeof(__collate_chain_pri_table[0].str));
+	(void)memset(&__collate_chain_pri_table[chain_index], 0,
+		     sizeof(__collate_chain_pri_table[0]));
 	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index].prim = prim_pri++;
-	__collate_chain_pri_table[chain_index].sec = 0;
 	chain_index++;
 }
 	| CHAR RANGE CHAR {
@@ -249,11 +246,10 @@ prim_sub_item : CHAR {
 	if ((__collate_chain_pri_table = realloc(__collate_chain_pri_table,
 	     sizeof(*__collate_chain_pri_table) * (chain_index + 1))) == NULL)
 		yyerror("can't grow chain table");
-	(void)memset(__collate_chain_pri_table[chain_index].str, 0,
-		     sizeof(__collate_chain_pri_table[0].str));
+	(void)memset(&__collate_chain_pri_table[chain_index], 0,
+		     sizeof(__collate_chain_pri_table[0]));
 	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index].prim = prim_pri;
-	__collate_chain_pri_table[chain_index].sec = 0;
 	chain_index++;
 }
 ;
@@ -281,8 +277,8 @@ sec_sub_item : CHAR {
 	if ((__collate_chain_pri_table = realloc(__collate_chain_pri_table,
 	     sizeof(*__collate_chain_pri_table) * (chain_index + 1))) == NULL)
 		yyerror("can't grow chain table");
-	(void)memset(__collate_chain_pri_table[chain_index].str, 0,
-		     sizeof(__collate_chain_pri_table[0].str));
+	(void)memset(&__collate_chain_pri_table[chain_index], 0,
+		     sizeof(__collate_chain_pri_table[0]));
 	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index].prim = prim_pri;
 	__collate_chain_pri_table[chain_index].sec = sec_pri++;
