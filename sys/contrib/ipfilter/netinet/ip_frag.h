@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.2 1999/08/06 06:26:38 darrenr Exp $
+ * $Id: ip_frag.h,v 2.4.2.7 2002/07/06 14:17:51 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -49,8 +49,8 @@ typedef	struct	ipfrstat {
 extern	int	fr_ipfrttl;
 extern	int	fr_frag_lock;
 extern	ipfrstat_t	*ipfr_fragstats __P((void));
-extern	int	ipfr_newfrag __P((ip_t *, fr_info_t *, u_int));
-extern	int	ipfr_nat_newfrag __P((ip_t *, fr_info_t *, u_int, struct nat *));
+extern	int	ipfr_newfrag __P((ip_t *, fr_info_t *));
+extern	int	ipfr_nat_newfrag __P((ip_t *, fr_info_t *, struct nat *));
 extern	nat_t	*ipfr_nat_knownfrag __P((ip_t *, fr_info_t *));
 extern	frentry_t *ipfr_knownfrag __P((ip_t *, fr_info_t *));
 extern	void	ipfr_forget __P((void *));

@@ -104,7 +104,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 #endif
 
 #if !defined(lint)
-/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.1.2.2 2000/01/16 10:12:14 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.20 2002/06/04 14:40:42 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -616,7 +616,10 @@ void fr_authexpire()
 		} else
 			faep = &fae->fae_next;
 	}
-	ipauth = &fae_list->fae_fr;
+	if (fae_list != NULL)
+		ipauth = &fae_list->fae_fr;
+	else
+		ipauth = NULL;
 
 	for (frp = &fr_authlist; (fr = *frp); ) {
 		if (fr->fr_ref == 1) {

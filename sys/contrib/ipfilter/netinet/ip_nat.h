@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.17.2.6 2000/07/15 14:50:06 darrenr Exp $
+ * $Id: ip_nat.h,v 2.17.2.27 2002/08/28 12:45:51 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -78,6 +78,7 @@ typedef	struct	nat	{
 	struct	in_addr	nat_oip;	/* other ip */
 	U_QUAD_T	nat_pkts;
 	U_QUAD_T	nat_bytes;
+	u_int	nat_drop[2];
 	u_short	nat_oport;		/* other port */
 	u_short	nat_inport;
 	u_short	nat_outport;
