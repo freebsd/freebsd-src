@@ -7,13 +7,12 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/src
 .PATH:	${CVSDIR}/man
 
-MAN=	cvsbug.8
+SCRIPTS=	cvsbug
+MAN=		cvsbug.8
 
 CLEANFILES+= cvsbug ver
 
 .SUFFIXES: .sh
-
-all: cvsbug
 
 ver: version.c
 	echo > ${.TARGET} cvs-`sed < ${.ALLSRC} \
@@ -23,9 +22,5 @@ ver: version.c
 
 .sh: ver
 	sed -e "s,xVERSIONx,`cat ver`,g" ${.IMPSRC} > ${.TARGET}
-
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		cvsbug ${DESTDIR}${BINDIR}/cvsbug
 
 .include <bsd.prog.mk>

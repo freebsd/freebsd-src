@@ -1,19 +1,14 @@
 # Makefile for uusched
 # $FreeBSD$
 
-BINDIR=		$(bindir)
-CLEANFILES+=	$(ONESHPROG)
-ONESHPROG=	uusched
+SCRIPTS=	uusched
 MAN=		uusched.8
+CLEANFILES+=	$(SCRIPTS)
 
-all: $(ONESHPROG)
+BINDIR=		$(bindir)
 
-$(ONESHPROG): $(ONESHPROG).in Makefile
+uusched: uusched.in
 	sed -e "s|@SBINDIR@|$(libxdir)|g" \
-		$(.ALLSRC:N*Makefile) > $(.TARGET)
-
-beforeinstall:
-	${INSTALL} -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
-		$(ONESHPROG) $(DESTDIR)$(BINDIR)/$(ONESHPROG)
+		$(.ALLSRC) > $(.TARGET)
 
 .include <bsd.prog.mk>
