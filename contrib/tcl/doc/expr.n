@@ -1,15 +1,14 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) expr.n 1.17 96/03/14 10:54:40
-'\" $Id$
+'\" SCCS: @(#) expr.n 1.25 97/04/29 10:11:52
 '\" 
 .so man.macros
-.TH expr n 7.4 Tcl "Tcl Built-In Commands"
+.TH expr n 8.0 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -20,10 +19,8 @@ expr \- Evaluate an expression
 
 .SH DESCRIPTION
 .PP
-.VS
 Concatenates \fIarg\fR's (adding separator spaces between them),
 evaluates the result as a Tcl expression, and returns the value.
-.VE
 The operators permitted in Tcl expressions are a subset of
 the operators permitted in C expressions, and they have the
 same meaning and precedence as the corresponding C operators.
@@ -42,7 +39,7 @@ non-numeric operands and string comparisons.
 A Tcl expression consists of a combination of operands, operators,
 and parentheses.
 White space may be used between the operands and operators and
-parentheses; it is ignored by the expression processor.
+parentheses; it is ignored by the expression's instructions.
 Where possible, operands are interpreted as integer values.
 Integer values may be specified in decimal (the normal case), in octal (if the
 first character of the operand is \fB0\fR), or in hexadecimal (if the first
@@ -51,7 +48,7 @@ If an operand does not have one of the integer formats given
 above, then it is treated as a floating-point number if that is
 possible.  Floating-point numbers may be specified in any of the
 ways accepted by an ANSI-compliant C compiler (except that the
-``f'', ``F'', ``l'', and ``L'' suffixes will not be permitted in
+\fBf\fR, \fBF\fR, \fBl\fR, and \fBL\fR suffixes will not be permitted in
 most installations).  For example, all of the
 following are valid floating-point numbers:  2.1, 3., 6e4, 7.91e+16.
 If no numeric interpretation is possible, then an operand is left
@@ -78,14 +75,12 @@ As a Tcl command enclosed in brackets.
 The command will be executed and its result will be used as
 the operand.
 .IP [6]
-.VS
 As a mathematical function whose arguments have any of the above
-forms for operands, such as ``\fBsin($x)\fR''.  See below for a list of defined
+forms for operands, such as \fBsin($x)\fR.  See below for a list of defined
 functions.
-.VE
 .LP
 Where substitutions occur above (e.g. inside quoted strings), they
-are performed by the expression processor.
+are performed by the expression's instructions.
 However, an additional layer of substitution may already have
 been performed by the command parser before the expression
 processor was called.
@@ -111,9 +106,7 @@ The valid operators are listed below, grouped in decreasing order
 of precedence:
 .TP 20
 \fB\-\0\0+\0\0~\0\0!\fR
-.VS
 Unary minus, unary plus, bit-wise NOT, logical NOT.  None of these operands
-.VE
 may be applied to string operands, and bit-wise NOT may be
 applied only to integers.
 .TP 20
@@ -121,10 +114,8 @@ applied only to integers.
 Multiply, divide, remainder.  None of these operands may be
 applied to string operands, and remainder may be applied only
 to integers.
-.VS
 The remainder will always have the same sign as the divisor and
 an absolute value smaller than the divisor.
-.VE
 .TP 20
 \fB+\0\0\-\fR
 Add and subtract.  Valid for any numeric operands.
@@ -189,7 +180,6 @@ the Tcl parser will evaluate both \fB[a]\fR and \fB[b]\fR before
 invoking the \fBexpr\fR command.
 .SH "MATH FUNCTIONS"
 .PP
-.VS
 Tcl supports the following mathematical functions in expressions:
 .DS
 .ta 3c 6c 9c
@@ -202,7 +192,8 @@ Tcl supports the following mathematical functions in expressions:
 Each of these functions invokes the math library function of the same
 name;  see the manual entries for the library functions for details
 on what they do.  Tcl also implements the following functions for
-conversion between integers and floating-point numbers:
+conversion between integers and floating-point numbers and the
+generation of random numbers:
 .TP
 \fBabs(\fIarg\fB)\fR
 Returns the absolute value of \fIarg\fR.  \fIArg\fR may be either
@@ -216,13 +207,23 @@ If \fIarg\fR is a floating value, returns \fIarg\fR, otherwise converts
 If \fIarg\fR is an integer value, returns \fIarg\fR, otherwise converts
 \fIarg\fR to integer by truncation and returns the converted value.
 .TP
+\fBrand()\fR
+Returns a floating point number from zero to just less than one or,
+in mathematical terms, the range [0,1).  The seed comes from the
+internal clock of the machine or may be set manual with the srand
+function.
+.TP
 \fBround(\fIarg\fB)\fR
 If \fIarg\fR is an integer value, returns \fIarg\fR, otherwise converts
 \fIarg\fR to integer by rounding and returns the converted value.
+.TP
+\fBsrand(\fIarg\fB)\fR
+The \fIarg\fR, which must be an integer, is used to reset the seed for
+the random number generator.  Returns the first random number from
+that seed.  Each interpreter has it's own seed.
 .PP
 In addition to these predefined functions, applications may
 define additional functions using \fBTcl_CreateMathFunc\fR().
-.VE
 .SH "TYPES, OVERFLOW, AND PRECISION"
 .PP
 All internal computations involving integers are done with the C type
@@ -252,24 +253,13 @@ returns 1, while
 \fBexpr 5 / ( [string length "abcd"] + 0.0 )\fR
 .CE
 both return 1.25.
-.VS
-Floating-point values are always returned with a ``.''
-or an ``e'' so that they will not look like integer values.  For
+Floating-point values are always returned with a ``\fB.\fR''
+or an \fBe\fR so that they will not look like integer values.  For
 example,
 .CS
 \fBexpr 20.0/5.0\fR
 .CE
-returns ``4.0'', not ``4''.  The global variable \fBtcl_precision\fR
-determines the number of significant digits that are retained
-when floating values are converted to strings (except that trailing
-zeroes are omitted).  If \fBtcl_precision\fR
-is unset then 6 digits of precision are used.
-To retain all of the significant bits of an IEEE floating-point
-number set \fBtcl_precision\fR to 17;  if a value is converted to
-string with 17 digits of precision and then converted back to binary
-for some later calculation, the resulting binary value is guaranteed
-to be identical to the original one.
-.VE
+returns \fB4.0\fR, not \fB4\fR.
 
 .SH "STRING OPERATIONS"
 .PP
@@ -287,14 +277,44 @@ For example, the commands
 .CE
 both return 1.  The first comparison is done using integer
 comparison, and the second is done using string comparison after
-the second operand is converted to the string ``18''.
-.VS
+the second operand is converted to the string \fB18\fR.
 Because of Tcl's tendency to treat values as numbers whenever
 possible, it isn't generally a good idea to use operators like \fB==\fR
 when you really want string comparison and the values of the
 operands could be arbitrary;  it's better in these cases to use the
 \fBstring compare\fR command instead.
-.VE
+
+.SH "PERFORMANCE CONSIDERATIONS"
+.PP
+Enclose expressions in braces for the best speed and the smallest
+storage requirements.
+This allows the Tcl bytecode compiler to generate the best code.
+.PP
+As mentioned above, expressions are substituted twice:
+once by the Tcl parser and once by the \fBexpr\fR command.
+For example, the commands
+.CS
+\fBset a 3\fR
+\fBset b {$a + 2}\fR
+\fBexpr $b*4\fR
+.CE
+return 11, not a multiple of 4.
+This is because the Tcl parser will first substitute \fB$a + 2\fR for
+the variable \fBb\fR,
+then the \fBexpr\fR command will evaluate the expression \fB$a + 2*4\fR.
+.PP
+Most expressions do not require a second round of substitutions.
+Either they are enclosed in braces or, if not,
+their variable and command substitutions yield numbers or strings
+that don't themselves require substitutions.
+However, because a few unbraced expressions 
+need two rounds of substitutions,
+the bytecode compiler must emit
+additional instructions to handle this situation.
+The most expensive code is required for
+unbraced expressions that contain command substitutions.
+These expressions must be implemented by generating new code
+each time the expression is executed.
 
 .SH KEYWORDS
 arithmetic, boolean, compare, expression
