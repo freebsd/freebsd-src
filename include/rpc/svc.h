@@ -269,7 +269,7 @@ extern fd_set svc_fdset;
  * a small program implemented by the svc_rpc implementation itself;
  * also see clnt.h for protocol numbers.
  */
-extern void rpctest_service();
+extern void rpctest_service __P((void));
 #endif
 
 __BEGIN_DECLS

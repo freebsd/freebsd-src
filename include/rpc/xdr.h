@@ -135,7 +135,7 @@ typedef	bool_t (*xdrproc_t) __P((XDR *, void *, u_int));
 /*
  * XXX can't actually prototype it, because some take two args!!!
  */
-typedef	bool_t (*xdrproc_t) __P((/* XDR *, void *, u_int */));
+typedef	bool_t (*xdrproc_t) __P((XDR *, ...));
 #endif
 
 /*
