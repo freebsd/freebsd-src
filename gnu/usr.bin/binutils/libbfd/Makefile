@@ -63,4 +63,10 @@ config.h: config.h.fbsd
 	sed -e 's,!!TRAD_HEADER!!,,g' ${.ALLSRC} > ${.TARGET}
 .endif
 
+elf32-target.h: elfxx-target.h
+	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
+
+elf64-target.h: elfxx-target.h
+	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
+
 .include <bsd.lib.mk>
