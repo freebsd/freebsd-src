@@ -13,6 +13,10 @@ case ${pccard_enable} in
 		;;
 	esac
 
+	if [ -n "${pccard_beep}" ] ; then
+		pccardc beep ${pccard_beep}
+	fi
+
 	if [ -n "${pccard_conf}" ]; then
 		pccardd_flags="${pccardd_flags} -f ${pccard_conf}"
 	fi
