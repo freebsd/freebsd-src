@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.20 1996/05/24 01:35:10 julian Exp $
+ * $Id: if_loop.c,v 1.21 1996/06/10 23:07:31 gpalmer Exp $
  */
 
 /*
@@ -262,7 +262,7 @@ loioctl(ifp, cmd, data)
 	switch (cmd) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
+		ifp->if_flags |= IFF_UP | IFF_RUNNING;
 		ifa = (struct ifaddr *)data;
 		ifa->ifa_rtrequest = lortrequest;
 		/*
