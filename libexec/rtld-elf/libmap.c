@@ -49,6 +49,8 @@ lm_init (void)
 	char	prog[MAXPATHLEN];
 	char	line[MAXPATHLEN + 2];
 
+	dbg("%s()", __func__);
+
 	TAILQ_INIT(&lmp_head);
 
 	if ((fp = fopen(_PATH_LIBMAP_CONF, "r")) == NULL)
@@ -133,6 +135,8 @@ lm_free (struct lm_list *lml)
 {
 	struct lm *lm;
 
+	dbg("%s(%p)", __func__, lml);
+
 	while (!TAILQ_EMPTY(lml)) {
 		lm = TAILQ_FIRST(lml);
 		TAILQ_REMOVE(lml, lm, lm_link);
@@ -147,6 +151,8 @@ void
 lm_fini (void)
 {
 	struct lmp *lmp;
+
+	dbg("%s()", __func__);
 
 	while (!TAILQ_EMPTY(&lmp_head)) {
 		lmp = TAILQ_FIRST(&lmp_head);
@@ -167,6 +173,8 @@ lm_add (const char *p, const char *f, const char *t)
 	if (p == NULL)
 		p = "$DEFAULT$";
 
+	dbg("%s(\"%s\", \"%s\", \"%s\")", __func__, p, f, t);
+
 	if ((lml = lmp_find(p)) == NULL)
 		lml = lmp_init(xstrdup(p));
 
@@ -181,6 +189,8 @@ lm_find (const char *p, const char *f)
 {
 	struct lm_list *lml;
 	char *t;
+
+	dbg("%s(\"%s\", \"%s\")", __func__, p, f);
 
 	if (p != NULL && (lml = lmp_find(p)) != NULL) {
 		t = lml_find(lml, f);
@@ -205,6 +215,8 @@ lml_find (struct lm_list *lmh, const char *f)
 {
 	struct lm *lm;
 
+	dbg("%s(%p, \"%s\")", __func__, lmh, f);
+
 	TAILQ_FOREACH(lm, lmh, lm_link)
 		if ((strncmp(f, lm->f, strlen(lm->f)) == 0) &&
 		    (strlen(f) == strlen(lm->f)))
@@ -216,6 +228,8 @@ static struct lm_list *
 lmp_find (const char *n)
 {
 	struct lmp *lmp;
+
+	dbg("%s(\"%s\")", __func__, n);
 
 	TAILQ_FOREACH(lmp, &lmp_head, lmp_link)
 		if ((strncmp(n, lmp->p, strlen(lmp->p)) == 0) &&
@@ -229,6 +243,8 @@ lmp_init (char *n)
 {
 	struct lmp *lmp;
 
+	dbg("%s(\"%s\")", __func__, n);
+
 	lmp = xmalloc(sizeof(struct lmp));
 	lmp->p = n;
 	TAILQ_INIT(&lmp->lml);
@@ -236,4 +252,3 @@ lmp_init (char *n)
 
 	return (&lmp->lml);
 }
-
