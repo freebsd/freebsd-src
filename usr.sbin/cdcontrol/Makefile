@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 PROG= cdcontrol
-CFLAGS+= -Wall
+WARNS?= 2
 
-DPADD += ${LIBEDIT} ${LIBTERMCAP}
-LDADD += -ledit -ltermcap
+DPADD=	${LIBEDIT} ${LIBTERMCAP}
+LDADD=	-ledit -ltermcap
 
 .include <bsd.prog.mk>
