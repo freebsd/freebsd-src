@@ -260,7 +260,7 @@ SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
 
 MOD_DEV (joy, LM_DT_CHAR, CDEV_MAJOR, &joy_cdevsw);
 
-static struct isa_device dev = {0, &joydriver, IO_GAME, -1, -1, (caddr_t) -1, 0, 0, 0, 0, 0, 0, 0,  0, 1, 0, 0};
+static struct isa_device dev = {0, &joydriver, IO_GAME, 0, -1, (caddr_t) 0, 0, 0, 0, 0, 0, 0, 0,  0, 1, 0, 0};
 
 int 
 joy_load (struct lkm_table *lkmtp, int cmd)
