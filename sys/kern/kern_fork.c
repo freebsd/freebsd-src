@@ -424,8 +424,6 @@ again:
 
 	/*
 	 * Copy filedesc.
-	 * XXX: This is busted.  fd*() need to not take proc
-	 * arguments or something.
 	 */
 	if (flags & RFCFDG)
 		fd = fdinit(td->td_proc->p_fd);
