@@ -7,6 +7,7 @@
  *
  * @(#)ip_fil.h	1.35 6/5/96
  * $Id: ip_fil.h,v 2.3.2.7 2000/01/27 08:49:41 darrenr Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_FIL_H__
@@ -82,8 +83,8 @@
 #define	SIOCINSFR	SIOCINAFR
 
 typedef	struct	fr_ip	{
-	u_char	fi_v:4;		/* IP version */
-	u_char	fi_fl:4;	/* packet flags */
+	u_int	fi_v:4;		/* IP version */
+	u_int	fi_fl:4;	/* packet flags */
 	u_char	fi_tos;		/* IP packet TOS */
 	u_char	fi_ttl;		/* IP packet TTL */
 	u_char	fi_p;		/* IP packet protocol */
@@ -427,6 +428,7 @@ typedef	struct	ipflog	{
 
 
 #ifndef	_KERNEL
+struct ifnet;
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	int	send_reset __P((ip_t *, struct ifnet *));
