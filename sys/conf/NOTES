@@ -364,6 +364,17 @@ options 	INET6			#IPv6 communications protocols
 options 	IPSEC			#IP security
 options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
 options 	IPSEC_DEBUG		#debug for IP security
+#
+# Set IPSEC_FILTERGIF to force packets coming through a gif tunnel
+# to be processed by any configured packet filtering (ipfw, ipf).
+# The default is that packets coming from a tunnel are _not_ processed;
+# they are assumed trusted.
+#
+# Note that enabling this can be problematic as there are no mechanisms
+# in place for distinguishing packets coming out of a tunnel (e.g. no
+# encX devices as found on openbsd).
+#
+#options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
 
 #options 	FAST_IPSEC		#new IPsec (cannot define w/ IPSEC)
 
