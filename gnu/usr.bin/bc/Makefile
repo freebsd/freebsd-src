@@ -1,25 +1,18 @@
-# $Id: Makefile,v 1.10 1998/05/01 02:49:40 scrappy Exp $
-
-.include "${.CURDIR}/../Makefile.inc"
+#	$Id: Makefile,v 1.11 1998/05/01 04:42:53 ache Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bc/bc \
 	${.CURDIR}/../../../contrib/bc/lib \
 	${.CURDIR}/../../../contrib/bc/doc
 
-PROG=		bc
-BCSRCS=		execute.c global.c load.c main.c storage.c util.c \
-		number.c getopt.c getopt1.c
-GENSRCS=	bc.c scan.c
-SRCS=		${GENSRCS} ${BCSRCS}
-MAN1=		bc.1
+PROG=	bc
+BCSRCS=	execute.c global.c load.c main.c storage.c util.c \
+	number.c getopt.c getopt1.c
+GENSRCS=bc.c scan.c
+SRCS=	${GENSRCS} ${BCSRCS}
 
-YACC=		bison -y
+YACC=	bison -y
 
-CFLAGS+=	-DHAVE_VPRINTF=1  -DSTDC_HEADERS=1 -DHAVE_ISGRAPH=1 \
-		-DHAVE_LIMITS_H=1 -DHAVE_STDARG_H=1 -DHAVE_STDDEF_H=1 \
-		-DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_UNISTD_H=1 \
-		-DREADLINE=1 \
-		-I${.CURDIR}/../../../contrib/bc/h -I${.CURDIR} -I.
+CFLAGS+=-I${.CURDIR} -I. -I${.CURDIR}/../../../contrib/bc/h
 
 bc.h: bc.c
 	mv y.tab.h bc.h
