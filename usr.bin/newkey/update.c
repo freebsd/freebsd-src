@@ -42,48 +42,43 @@ static const char rcsid[] =
 /*
  * Administrative tool to add a new user to the publickey database
  */
-#include <stdio.h>
-#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #ifdef YP
+#include <sys/wait.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-#include <sys/wait.h>
 #include <netdb.h>
 #endif	/* YP */
+#include <stdio.h>
+#include <stdlib.h>
 #include <pwd.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/resource.h>
+
+#include "extern.h"
 
 #ifdef YP
-#define	MAXMAPNAMELEN 256
-#else
-#define	YPOP_CHANGE 1			/* change, do not add */
-#define	YPOP_INSERT 2			/* add, do not change */
-#define	YPOP_DELETE 3			/* delete this entry */
-#define	YPOP_STORE  4			/* add, or change */
-#endif
-
-#ifdef YP
-static char *basename();
 static char SHELL[] = "/bin/sh";
 static char YPDBPATH[]="/var/yp";	/* This is defined but not used! */
-static char PKMAP[] = "publickey.byname";
 static char UPDATEFILE[] = "updaters";
 #else
 static char PKFILE[] = "/etc/publickey";
 #endif	/* YP */
 
 #ifdef YP
-static int _openchild __P(( char *, FILE **, FILE ** ));
+static int _openchild __P((char *, FILE **, FILE **));
+static char *basename __P((char *path));
 
 /*
  * Determine if requester is allowed to update the given map,
  * and update it if so. Returns the yp status, which is zero
  * if there is no access violation.
  */
+int
 mapupdate(requester, mapname, op, keylen, key, datalen, data)
 	char *requester;
 	char *mapname;
@@ -148,7 +143,7 @@ mapupdate(requester, mapname, op, keylen, key, datalen, data)
 /*
  * returns pid, or -1 for failure
  */
-static
+static pid_t
 _openchild(command, fto, ffrom)
 	char *command;
 	FILE **fto;
