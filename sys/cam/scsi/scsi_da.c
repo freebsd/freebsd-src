@@ -94,7 +94,8 @@ typedef enum {
 typedef enum {
 	DA_Q_NONE		= 0x00,
 	DA_Q_NO_SYNC_CACHE	= 0x01,
-	DA_Q_NO_6_BYTE		= 0x02
+	DA_Q_NO_6_BYTE		= 0x02,
+	DA_Q_NO_PREVENT		= 0x04
 } da_quirks;
 
 typedef enum {
@@ -222,9 +223,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
-		/*
-		 * See above.
-		 */
+		/* See above. */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
@@ -381,6 +380,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JUNGSOFT", "NEXDISK*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+ 	{
+ 		/*
+ 		 * Creative Nomad MUVO mp3 player (USB)
+ 		 * PR: kern/53094
+ 		 */
+ 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
+ 		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+ 	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -500,7 +507,8 @@ daopen(struct disk *dp)
 	}
 	
 	if (error == 0) {
-		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_PREVENT);
 	} else {
 		softc->flags &= ~DA_FLAG_OPEN;
@@ -578,7 +586,8 @@ daclose(struct disk *dp)
 	}
 
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
-		daprevent(periph, PR_ALLOW);
+		if ((softc->quirks & DA_Q_NO_PREVENT) == 0)
+			daprevent(periph, PR_ALLOW);
 		/*
 		 * If we've got removeable media, mark the blocksize as
 		 * unavailable, since it could change when new media is
