@@ -244,7 +244,7 @@ struct mount {
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| MNT_JAILDEVFS	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
-			MNT_ACLS )
+			MNT_ACLS	| MNT_USER)
 
 /*
  * External filesystem command modifier flags.
