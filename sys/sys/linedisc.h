@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.70 1999/08/13 10:10:11 phk Exp $
+ * $Id: conf.h,v 1.71 1999/08/13 10:29:31 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -122,7 +122,7 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
  */
 #define	D_TAPE	1
 #define	D_DISK	2
-#define	D_TTY	3
+#define	D_TTY	4
 
 #define	D_TYPEMASK	0xffff
 
@@ -133,6 +133,7 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_NOCLUSTERW	0x20000		/* disables cluster write */
 #define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
 #define	D_CANFREE	0x40000		/* can free blocks */
+#define	D_TRACKCLOSE	0x80000		/* track all closes */
 
 /*
  * Character device switch table

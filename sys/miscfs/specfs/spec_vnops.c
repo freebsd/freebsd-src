@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.93 1999/08/13 10:29:23 phk Exp $
+ * $Id: spec_vnops.c,v 1.94 1999/08/13 10:53:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -615,7 +615,6 @@ spec_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	dev_t dev = vp->v_rdev;
-	d_close_t *devclose;
 	int mode, error;
 
 	switch (vp->v_type) {
@@ -636,14 +635,6 @@ spec_close(ap)
 			vrele(vp);
 			ap->a_p->p_session->s_ttyvp = NULL;
 		}
-		/*
-		 * If the vnode is locked, then we are in the midst
-		 * of forcably closing the device, otherwise we only
-		 * close on last reference.
-		 */
-		if (vcount(vp) > 1 && (vp->v_flag & VXLOCK) == 0)
-			return (0);
-		devclose = devsw(dev)->d_close;
 		mode = S_IFCHR;
 		break;
 
@@ -659,27 +650,29 @@ spec_close(ap)
 		if (error)
 			return (error);
 
-		/*
-		 * We do not want to really close the device if it
-		 * is still in use unless we are trying to close it
-		 * forcibly. Since every use (buffer, vnode, swap, cmap)
-		 * holds a reference to the vnode, and because we mark
-		 * any other vnodes that alias this device, when the
-		 * sum of the reference counts on all the aliased
-		 * vnodes descends to one, we are on last close.
-		 */
-		if ((vcount(vp) > 1) && (vp->v_flag & VXLOCK) == 0)
-			return (0);
-
-		devclose = devsw(dev)->d_close;
 		mode = S_IFBLK;
 		break;
 
 	default:
 		panic("spec_close: not special");
 	}
-
-	return ((*devclose)(dev, ap->a_fflag, mode, ap->a_p));
+	/*
+	 * We do not want to really close the device if it
+	 * is still in use unless we are trying to close it
+	 * forcibly. Since every use (buffer, vnode, swap, cmap)
+	 * holds a reference to the vnode, and because we mark
+	 * any other vnodes that alias this device, when the
+	 * sum of the reference counts on all the aliased
+	 * vnodes descends to one, we are on last close.
+	 */
+	if (vp->v_flag & VXLOCK) {
+		/* Forced close */
+	} else if (devsw(dev)->d_flags & D_TRACKCLOSE) {
+		/* Keep device updated on status */
+	} else if (vcount(vp) > 1) {
+		return (0);
+	}
+	return (devsw(dev)->d_close(dev, ap->a_fflag, mode, ap->a_p));
 }
 
 /*
@@ -922,38 +915,4 @@ spec_getpages(ap)
 	 */
 	relpbuf(bp, NULL);
 	return VM_PAGER_OK;
-}
-
-/* ARGSUSED */
-static int
-spec_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	register struct vnode *vp = ap->a_vp;
-	register struct vattr *vap = ap->a_vap;
-	struct partinfo dpart;
-
-	bzero(vap, sizeof (*vap));
-
-	if (vp->v_type == VBLK) {
-		if (vp->v_rdev)
-			vap->va_blocksize = vp->v_specmountpoint->mnt_stat.f_iosize;
-		else
-			vap->va_blocksize = BLKDEV_IOSIZE;
-	} else if (vp->v_type == VCHR) {
-		vap->va_blocksize = MAXBSIZE;
-	}
-
-	if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
-	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
-		vap->va_bytes = dbtob(dpart.disklab->d_partitions
-				      [minor(vp->v_rdev)].p_size);
-		vap->va_size = vap->va_bytes;
-	}
-	return (0);
 }
