@@ -774,7 +774,7 @@ iptime()
 	struct timeval atv;
 	u_long t;
 
-	microtime(&atv);
+	getmicrotime(&atv);
 	t = (atv.tv_sec % (24*60*60)) * 1000 + atv.tv_usec / 1000;
 	return (htonl(t));
 }
