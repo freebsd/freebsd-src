@@ -13,7 +13,7 @@
 #include "pthread_private.h"
 
 int
-msync(addr, len, flags)
+_libc_msync(addr, len, flags)
 	void *addr;
 	size_t len;
 	int flags;
@@ -37,4 +37,6 @@ msync(addr, len, flags)
 
 	return (ret);
 }
+
+__weak_reference(_libc_msync, msync);
 #endif

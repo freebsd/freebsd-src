@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-socketpair(int af, int type, int protocol, int pair[2])
+_libc_socketpair(int af, int type, int protocol, int pair[2])
 {
 	int             ret;
 	if (!((ret = _thread_sys_socketpair(af, type, protocol, pair)) < 0))
@@ -53,4 +53,6 @@ socketpair(int af, int type, int protocol, int pair[2])
 		}
 	return (ret);
 }
+
+__weak_reference(_libc_socketpair, socketpair);
 #endif

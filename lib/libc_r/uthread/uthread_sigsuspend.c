@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-sigsuspend(const sigset_t * set)
+_libc_sigsuspend(const sigset_t * set)
 {
 	int             ret = -1;
 	sigset_t        oset;
@@ -67,4 +67,6 @@ sigsuspend(const sigset_t * set)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_sigsuspend, sigsuspend);
 #endif

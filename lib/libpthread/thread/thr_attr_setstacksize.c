@@ -36,7 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
+int
+pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 {
 	int	ret;
 

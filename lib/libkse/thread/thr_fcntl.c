@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int
-fcntl(int fd, int cmd,...)
+_libc_fcntl(int fd, int cmd,...)
 {
 	int             flags = 0;
 	int		nonblock;
@@ -142,4 +142,6 @@ fcntl(int fd, int cmd,...)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_fcntl, fcntl);
 #endif

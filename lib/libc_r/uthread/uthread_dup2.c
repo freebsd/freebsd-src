@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-dup2(int fd, int newfd)
+_libc_dup2(int fd, int newfd)
 {
 	int             ret;
 	int		newfd_opened;
@@ -83,4 +83,6 @@ dup2(int fd, int newfd)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_dup2, dup2);
 #endif

@@ -42,7 +42,7 @@
 #include "pthread_private.h"
 
 ssize_t
-write(int fd, const void *buf, size_t nbytes)
+_libc_write(int fd, const void *buf, size_t nbytes)
 {
 	int	blocking;
 	int	type;
@@ -136,4 +136,6 @@ write(int fd, const void *buf, size_t nbytes)
 	_thread_leave_cancellation_point();
 	return (ret);
 }
+
+__weak_reference(_libc_write, write);
 #endif

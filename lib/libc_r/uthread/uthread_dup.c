@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-dup(int fd)
+_libc_dup(int fd)
 {
 	int             ret;
 
@@ -67,4 +67,6 @@ dup(int fd)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_dup, dup);
 #endif

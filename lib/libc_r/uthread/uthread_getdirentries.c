@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-getdirentries(int fd, char *buf, int nbytes, long *basep)
+_libc_getdirentries(int fd, char *buf, int nbytes, long *basep)
 {
 	int             ret;
 
@@ -48,4 +48,6 @@ getdirentries(int fd, char *buf, int nbytes, long *basep)
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_getdirentries, getdirentries);
 #endif

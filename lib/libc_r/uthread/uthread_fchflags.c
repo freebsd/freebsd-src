@@ -12,7 +12,7 @@
 #include "pthread_private.h"
 
 int
-fchflags(int fd, u_long flags)
+_libc_fchflags(int fd, u_long flags)
 {
 	int             ret;
 
@@ -22,4 +22,6 @@ fchflags(int fd, u_long flags)
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_fchflags, fchflags);
 #endif
