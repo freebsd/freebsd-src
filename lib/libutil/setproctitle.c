@@ -59,8 +59,6 @@ struct old_ps_strings {
 #define SPT_BUFSIZE 2048	/* from other parts of sendmail */
 extern char * __progname;	/* is this defined in a .h anywhere? */
 
-static struct ps_strings *ps_strings;
-
 void
 #if defined(__STDC__)
 setproctitle(const char *fmt, ...)
@@ -70,8 +68,14 @@ setproctitle(fmt, va_alist)
 	va_dcl
 #endif
 {
+	static struct ps_strings *ps_strings;
 	static char buf[SPT_BUFSIZE];
-	static char *ps_argv[2];
+	static char obuf[SPT_BUFSIZE];
+	static char **oargv, *kbuf;
+	static int oargc = -1;
+	static char *nargv[2] = { buf, NULL };
+	char **nargvp;
+	int nargc;
 	va_list ap;
 	size_t len;
 	unsigned long ul_ps_strings;
@@ -83,11 +87,11 @@ setproctitle(fmt, va_alist)
 	va_start(ap);
 #endif
 
-	buf[sizeof(buf) - 1] = '\0';
 	if (fmt) {
+		buf[sizeof(buf) - 1] = '\0';
 
 		/* print program name heading for grep */
-		(void) snprintf(buf, sizeof(buf) - 1, "%s: ", __progname);
+		(void) snprintf(buf, sizeof(buf), "%s: ", __progname);
 
 		/*
 		 * can't use return from sprintf, as that is the count of how
@@ -97,11 +101,19 @@ setproctitle(fmt, va_alist)
 		len = strlen(buf);
 
 		/* print the argument string */
-		(void) vsnprintf(buf + len, sizeof(buf) - 1 - len, fmt, ap);
-	} else {
-		/* Idea from NetBSD - reset the title on fmt == NULL */
-		strncpy(buf, __progname, sizeof(buf) - 1);
-	}
+		(void) vsnprintf(buf + len, sizeof(buf) - len, fmt, ap);
+
+		nargvp = nargv;
+		nargc = 1;
+		kbuf = buf;
+	} else if (*obuf != '\0') {
+  		/* Idea from NetBSD - reset the title on fmt == NULL */
+		nargvp = oargv;
+		nargc = oargc;
+		kbuf = obuf;
+	} else
+		/* Nothing to restore */
+		return;
 
 	va_end(ap);
 
@@ -110,7 +122,7 @@ setproctitle(fmt, va_alist)
 	oid[1] = KERN_PROC;
 	oid[2] = KERN_PROC_ARGS;
 	oid[3] = getpid();
-	sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1);
+	sysctl(oid, 4, 0, 0, kbuf, strlen(kbuf) + 1);
 
 	if (ps_strings == NULL) {
 		len = sizeof(ul_ps_strings);
@@ -123,13 +135,28 @@ setproctitle(fmt, va_alist)
 	/* PS_STRINGS points to zeroed memory on a style #2 kernel */
 	if (ps_strings->ps_argvstr) {
 		/* style #3 */
-		ps_argv[0] = buf;
-		ps_argv[1] = NULL;
-		ps_strings->ps_nargvstr = 1;
-		ps_strings->ps_argvstr = ps_argv;
+		if (oargc == -1) {
+			/* Record our original args */
+			oargc = ps_strings->ps_nargvstr;
+			oargv = ps_strings->ps_argvstr;
+			for (nargc = len = 0; nargc < oargc; nargc++) {
+				snprintf(obuf + len, sizeof(obuf) - len, "%s%s",
+				    len ? " " : "", oargv[nargc]);
+				if (len)
+					len++;
+				len += strlen(oargv[nargc]);
+				if (len >= sizeof(obuf))
+					break;
+			}
+		}
+		ps_strings->ps_nargvstr = nargc;
+		ps_strings->ps_argvstr = nargvp;
 	} else {
-		/* style #2 */
+		/* style #2 - we can only restore our first arg :-( */
+		if (*obuf == '\0')
+			strncpy(obuf, OLD_PS_STRINGS->old_ps_argvstr,
+			    sizeof(obuf) - 1);
 		OLD_PS_STRINGS->old_ps_nargvstr = 1;
-		OLD_PS_STRINGS->old_ps_argvstr = buf;
+		OLD_PS_STRINGS->old_ps_argvstr = nargvp[0];
 	}
 }

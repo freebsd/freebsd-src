@@ -54,23 +54,12 @@ argument.
 .Pp
 If
 .Va fmt
-is NULL, the process title is reset to simply the name of the executable.
-.\" The following requests should be uncommented and used where appropriate.
-.\" This next request is for sections 2 and 3 function return values only.
-.\" .Sh RETURN VALUES
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\" .Sh ENVIRONMENT
-.\" .Sh FILES
+is NULL, the process title is restored.
 .Sh EXAMPLES
 To set the title on a daemon to indicate its activity:
 .Bd -literal -offset indent
 setproctitle("talking to %s", inet_ntoa(addr));
 .Ed
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\"     (command return values (to shell) and fprintf/stderr type diagnostics)
-.\" .Sh DIAGNOSTICS
-.\" The next request is for sections 2 and 3 error and signal handling only.
-.\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr ps 1 ,
 .Xr w 1 ,
@@ -110,4 +99,3 @@ stole the idea from the
 .Sy "Sendmail 8.7.3"
 source code by
 .An Eric Allman Aq eric@sendmail.org .
-.\" .Sh BUGS
