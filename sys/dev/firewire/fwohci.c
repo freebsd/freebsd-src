@@ -718,8 +718,6 @@ fwohci_timeout(void *arg)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)arg;
-	callout_reset(&sc->fc.timeout_callout, FW_XFERTIMEOUT * hz * 10,
-			(void *)fwohci_timeout, (void *)sc);
 }
 
 u_int32_t
@@ -992,14 +990,14 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		}
 		stat = db->db.desc.status & FWOHCIEV_MASK;
 		switch(stat){
-		case FWOHCIEV_ACKCOMPL:
 		case FWOHCIEV_ACKPEND:
+		case FWOHCIEV_ACKCOMPL:
 			err = 0;
 			break;
 		case FWOHCIEV_ACKBSA:
 		case FWOHCIEV_ACKBSB:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 		case FWOHCIEV_ACKBSX:
+			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EBUSY;
 			break;
 		case FWOHCIEV_FLUSHED:
@@ -1023,26 +1021,27 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			err = EINVAL;
 			break;
 		}
-		if(tr->xfer != NULL){
+		if (tr->xfer != NULL) {
 			xfer = tr->xfer;
 			xfer->state = FWXF_SENT;
-			if(err == EBUSY && fc->status != FWBUSRESET){
+			if (err == EBUSY && fc->status != FWBUSRESET) {
 				xfer->state = FWXF_BUSY;
-				switch(xfer->act_type){
+				switch (xfer->act_type) {
 				case FWACT_XFER:
 					xfer->resp = err;
-					if(xfer->retry_req != NULL){
+					if (xfer->retry_req != NULL)
 						xfer->retry_req(xfer);
-					}
+					else
+						fw_xfer_done(xfer);
 					break;
 				default:
 					break;
 				}
-			} else if( stat != FWOHCIEV_ACKPEND){
+			} else if (stat != FWOHCIEV_ACKPEND) {
 				if (stat != FWOHCIEV_ACKCOMPL)
 					xfer->state = FWXF_SENTERR;
 				xfer->resp = err;
-				switch(xfer->act_type){
+				switch (xfer->act_type) {
 				case FWACT_XFER:
 					fw_xfer_done(xfer);
 					break;
@@ -1050,6 +1049,10 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 					break;
 				}
 			}
+			/*
+			 * The watchdog timer takes care of split
+			 * transcation timeout for ACKPEND case.
+			 */
 		}
 		dbch->xferq.queued --;
 		tr->xfer = NULL;
@@ -2295,6 +2298,7 @@ fwohci_ibr(struct firewire_comm *fc)
 	struct fwohci_softc *sc;
 	u_int32_t fun;
 
+	device_printf(fc->dev, "Initiate bus reset\n");
 	sc = (struct fwohci_softc *)fc;
 
 	/*
@@ -2745,7 +2749,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				stat &= 0x1f;
 				switch(stat){
 				case FWOHCIEV_ACKPEND:
-#if 1
+#if 0
 					printf("fwohci_arcv: ack pending..\n");
 #endif
 					/* fall through */
