@@ -396,14 +396,15 @@ Toggle the displaying of server processes awaiting requests (this
 is the equivalent of the
 .Fl a
 flag to
-.Ar netstat  1  ) .
+.Xr netstat 1 ) .
 .It Cm numbers
 Display network addresses numerically.
 .It Cm names
 Display network addresses symbolically.
-.It Ar protocol
-Display only network connections using the indicated protocol
-(currently either ``tcp'' or ``udp'').
+.It Cm proto Ar protocol
+Display only network connections using the indicated
+.Ar protocol .
+Supported protocols are ``tcp'', ``udp'', and ``all''.
 .It Cm ignore Op Ar items
 Do not display information about connections associated with
 the specified hosts or ports.  Hosts and ports may be specified
