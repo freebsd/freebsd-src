@@ -37,13 +37,17 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -78,7 +82,7 @@ main(argc, argv)
 		(void)setenv(*argv, ++p, 1);
 	if (*argv) {
 		execvp(*argv, argv);
-		err(1, "%s", *argv);
+		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 	}
 	for (ep = environ; *ep; ep++)
 		(void)printf("%s\n", *ep);
