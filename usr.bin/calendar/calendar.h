@@ -65,3 +65,9 @@ void     setnnames __P((void));
 
 extern f_dayAfter; /* days after current date */
 extern f_dayBefore; /* days bevore current date */
+
+struct fixs {
+	char *name;
+	int len;
+};
+

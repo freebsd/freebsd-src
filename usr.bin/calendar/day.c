@@ -60,16 +60,16 @@ static char *days[] = {
 	"sun", "mon", "tue", "wed", "thu", "fri", "sat", NULL,
 };
 
-static char *fndays[8];         /* full national days names */
-static char *ndays[8];          /* short national days names */
-
 static char *months[] = {
 	"jan", "feb", "mar", "apr", "may", "jun",
 	"jul", "aug", "sep", "oct", "nov", "dec", NULL,
 };
 
-static char *fnmonths[13];      /* full national months names */
-static char *nmonths[13];       /* short national month names */
+static struct fixs fndays[8];         /* full national days names */
+static struct fixs ndays[8];          /* short national days names */
+
+static struct fixs fnmonths[13];      /* full national months names */
+static struct fixs nmonths[13];       /* short national month names */
 
 
 void setnnames(void)
@@ -86,9 +86,10 @@ void setnnames(void)
 		     l--)
 			;
 		buf[l] = '\0';
-		if (ndays[i] != NULL)
-			free(ndays[i]);
-		ndays[i] = strdup(buf);
+		if (ndays[i].name != NULL)
+			free(ndays[i].name);
+		ndays[i].name = strdup(buf);
+		ndays[i].len = strlen(buf);
 
 		strftime(buf, sizeof(buf), "%A", &tm);
 		for (l = strlen(buf);
@@ -96,12 +97,13 @@ void setnnames(void)
 		     l--)
 			;
 		buf[l] = '\0';
-		if (fndays[i] != NULL)
-			free(fndays[i]);
-		fndays[i] = strdup(buf);
+		if (fndays[i].name != NULL)
+			free(fndays[i].name);
+		fndays[i].name = strdup(buf);
+		fndays[i].len = strlen(buf);
 #ifdef DEBUG
 		printf("ndays[%d] = %s, fndays[%d] = %s\n",
-			i, ndays[i], i, fndays[i]);
+			i, ndays[i].name, i, fndays[i].name);
 #endif
 	}
 
@@ -113,9 +115,10 @@ void setnnames(void)
 		     l--)
 			;
 		buf[l] = '\0';
-		if (nmonths[i] != NULL)
-			free(nmonths[i]);
-		nmonths[i] = strdup(buf);
+		if (nmonths[i].name != NULL)
+			free(nmonths[i].name);
+		nmonths[i].name = strdup(buf);
+		nmonths[i].len = strlen(buf);
 
 		strftime(buf, sizeof(buf), "%B", &tm);
 		for (l = strlen(buf);
@@ -123,12 +126,13 @@ void setnnames(void)
 		     l--)
 			;
 		buf[l] = '\0';
-		if (fnmonths[i] != NULL)
-			free(fnmonths[i]);
-		fnmonths[i] = strdup(buf);
+		if (fnmonths[i].name != NULL)
+			free(fnmonths[i].name);
+		fnmonths[i].name = strdup(buf);
+		fnmonths[i].len = strlen(buf);
 #ifdef DEBUG
 		printf("nmonths[%d] = %s, fnmonths[%d] = %s\n",
-			i, nmonths[i], i, fnmonths[i]);
+			i, nmonths[i].name, i, fnmonths[i].name);
 #endif
 	}
 }
@@ -388,13 +392,14 @@ getmonth(s)
 	register char *s;
 {
 	register char **p;
+	struct fixs *n;
 
-	for (p = fnmonths; *p; ++p)
-		if (!strncasecmp(s, *p, strlen(*p)))
-			return ((p - fnmonths) + 1);
-	for (p = nmonths; *p; ++p)
-		if (!strncasecmp(s, *p, strlen(*p)))
-			return ((p - nmonths) + 1);
+	for (n = fnmonths; n->name; ++n)
+		if (!strncasecmp(s, n->name, n->len))
+			return ((n - fnmonths) + 1);
+	for (n = nmonths; n->name; ++n)
+		if (!strncasecmp(s, n->name, n->len))
+			return ((n - nmonths) + 1);
 	for (p = months; *p; ++p)
 		if (!strncasecmp(s, *p, 3))
 			return ((p - months) + 1);
@@ -407,13 +412,14 @@ getday(s)
 	register char *s;
 {
 	register char **p;
+	struct fixs *n;
 
-	for (p = fndays; *p; ++p)
-		if (!strncasecmp(s, *p, strlen(*p)))
-			return ((p - fndays) + 1);
-	for (p = ndays; *p; ++p)
-		if (!strncasecmp(s, *p, strlen(*p)))
-			return ((p - ndays) + 1);
+	for (n = fndays; n->name; ++n)
+		if (!strncasecmp(s, n->name, n->len))
+			return ((n - fndays) + 1);
+	for (n = ndays; n->name; ++n)
+		if (!strncasecmp(s, n->name, n->len))
+			return ((n - ndays) + 1);
 	for (p = days; *p; ++p)
 		if (!strncasecmp(s, *p, 3))
 			return ((p - days) + 1);
