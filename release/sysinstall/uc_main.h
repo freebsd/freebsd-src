@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_main.h,v 1.1 1996/10/03 06:01:42 jkh Exp $
  */
 
 #define ISA_BIOTAB 0  
@@ -65,7 +65,7 @@ struct uc_isa {
   u_short	port;
   u_short	irq;
   short	drq;
-  caddr_t iomem;
+  u_int iomem;
   int	iosize;
   int	flags;
   int   alive;
