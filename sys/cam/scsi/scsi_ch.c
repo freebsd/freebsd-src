@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.1 1998/05/17 13:08:49 hans Exp hans $
+ *      $Id: scsi_ch.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -124,11 +124,17 @@ typedef enum {
 	CH_CCB_WAITING
 } ch_ccb_types;
 
+typedef enum {
+	CH_Q_NONE	= 0x00,
+	CH_Q_NO_DBD	= 0x01
+} ch_quirks;
+
 #define ccb_state	ppriv_field0
 #define ccb_bp		ppriv_ptr1
 
 struct scsi_mode_sense_data {
 	struct scsi_mode_header_6 header;
+	struct scsi_mode_blk_desc blk_desc;
 	union {
 		struct page_element_address_assignment ea;
 		struct page_transport_geometry_parameters tg;
@@ -139,6 +145,7 @@ struct scsi_mode_sense_data {
 struct ch_softc {
 	ch_flags	flags;
 	ch_state	state;
+	ch_quirks	quirks;
 	union ccb	saved_ccb;
 	struct devstat	device_stats;
 
@@ -401,6 +408,7 @@ chregister(struct cam_periph *periph, void *arg)
 	softc->state = CH_STATE_PROBE;
 	periph->softc = softc;
 	cam_extend_set(chperiphs, periph->unit_number, periph);
+	softc->quirks = CH_Q_NONE;
 
 	/*
 	 * Changers don't have a blocksize, and obviously don't support
@@ -527,17 +535,24 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 	}
 	case CH_STATE_PROBE:
 	{
-		struct scsi_mode_sense_data *sense_data;
+		int mode_buffer_len;
+		void *mode_buffer;
 
-		sense_data = (struct scsi_mode_sense_data *)malloc(
-							   sizeof(*sense_data),
-							   M_TEMP, M_NOWAIT);
+		/*
+		 * Include the block descriptor when calculating the mode
+		 * buffer length,
+		 */
+		mode_buffer_len = sizeof(struct scsi_mode_header_6) +
+				  sizeof(struct scsi_mode_blk_desc) +
+				 sizeof(struct page_element_address_assignment);
 
-		if (sense_data == NULL) {
+		mode_buffer = malloc(mode_buffer_len, M_TEMP, M_NOWAIT);
+
+		if (mode_buffer == NULL) {
 			printf("chstart: couldn't malloc mode sense data\n");
 			break;
 		}
-		bzero(sense_data, sizeof(*sense_data));
+		bzero(mode_buffer, mode_buffer_len);
 
 		/*
 		 * Get the element address assignment page.
@@ -546,11 +561,12 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 				/* retries */ 1,
 				/* cbfcnp */ chdone,
 				/* tag_action */ MSG_SIMPLE_Q_TAG,
-				/* dbd */ TRUE,
+				/* dbd */ (softc->quirks & CH_Q_NO_DBD) ?
+					FALSE : TRUE,
 				/* page_code */ SMS_PAGE_CTRL_CURRENT,
 				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-				/* param_buf */ (u_int8_t *)sense_data,
-				/* param_len */ sizeof(*sense_data),
+				/* param_buf */ (u_int8_t *)mode_buffer,
+				/* param_len */ mode_buffer_len,
 				/* sense_len */ SSD_FULL_SIZE,
 				/* timeout */ CH_TIMEOUT_MODE_SENSE);
 
@@ -574,29 +590,26 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 	switch(done_ccb->ccb_h.ccb_state) {
 	case CH_CCB_PROBE:
 	{
-		struct scsi_mode_sense_data *sense_data;
+		struct scsi_mode_header_6 *mode_header;
+		struct page_element_address_assignment *ea;
 		char announce_buf[80];
 
-		sense_data = (struct scsi_mode_sense_data *)csio->data_ptr;
+
+		mode_header = (struct scsi_mode_header_6 *)csio->data_ptr;
+
+		ea = (struct page_element_address_assignment *)
+			find_mode_page_6(mode_header);
 
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP){
 			
-			softc->sc_firsts[CHET_MT] =
-				scsi_2btoul(sense_data->pages.ea.mtea);
-			softc->sc_counts[CHET_MT] =
-				scsi_2btoul(sense_data->pages.ea.nmte);
-			softc->sc_firsts[CHET_ST] =
-				scsi_2btoul(sense_data->pages.ea.fsea);
-			softc->sc_counts[CHET_ST] =
-				scsi_2btoul(sense_data->pages.ea.nse);
-			softc->sc_firsts[CHET_IE] =
-				scsi_2btoul(sense_data->pages.ea.fieea);
-			softc->sc_counts[CHET_IE] =
-				scsi_2btoul(sense_data->pages.ea.niee);
-			softc->sc_firsts[CHET_DT] =
-				scsi_2btoul(sense_data->pages.ea.fdtea);
-			softc->sc_counts[CHET_DT] =
-				scsi_2btoul(sense_data->pages.ea.ndte);
+			softc->sc_firsts[CHET_MT] = scsi_2btoul(ea->mtea);
+			softc->sc_counts[CHET_MT] = scsi_2btoul(ea->nmte);
+			softc->sc_firsts[CHET_ST] = scsi_2btoul(ea->fsea);
+			softc->sc_counts[CHET_ST] = scsi_2btoul(ea->nse);
+			softc->sc_firsts[CHET_IE] = scsi_2btoul(ea->fieea);
+			softc->sc_counts[CHET_IE] = scsi_2btoul(ea->niee);
+			softc->sc_firsts[CHET_DT] = scsi_2btoul(ea->fdtea);
+			softc->sc_counts[CHET_DT] = scsi_2btoul(ea->ndte);
 			softc->sc_picker = softc->sc_firsts[CHET_MT];
 
 #define PLURAL(c)	(c) == 1 ? "" : "s"
@@ -614,7 +627,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			int error;
 
-			error = cherror(done_ccb, 0, SF_RETRY_UA);
+			error = cherror(done_ccb, 0, SF_RETRY_UA|SF_NO_PRINT);
 			/*
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
@@ -626,20 +639,60 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				return;
 			} else if (error != 0) {
+				int retry_scheduled;
+				struct scsi_mode_sense_6 *sms;
+
+				sms = (struct scsi_mode_sense_6 *)
+					done_ccb->csio.cdb_io.cdb_bytes;
+
+				/*
+				 * Check to see if block descriptors were
+				 * disabled.  Some devices don't like that.
+				 * We're taking advantage of the fact that
+				 * the first few bytes of the 6 and 10 byte
+				 * mode sense commands are the same.  If
+				 * block descriptors were disabled, enable
+				 * them and re-send the command.
+				 */
+				if (sms->byte2 & SMS_DBD) {
+					sms->byte2 &= ~SMS_DBD;
+					xpt_action(done_ccb);
+					softc->quirks |= CH_Q_NO_DBD;
+					retry_scheduled = 1;
+				} else
+					retry_scheduled = 0;
+
 				/* Don't wedge this device's queue */
 				cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
 						 /*timeout*/0,
 						 /*getcount_only*/0);
-				sprintf(announce_buf,
-					"Attempt to query device parameters"
-					" failed");
+
+				if (retry_scheduled)
+					return;
+
+				if ((done_ccb->ccb_h.status & CAM_STATUS_MASK)
+				    == CAM_SCSI_STATUS_ERROR) 
+					scsi_sense_print(&done_ccb->csio);
+				else {
+					xpt_print_path(periph->path);
+					printf("got CAM status %#x\n",
+					       done_ccb->ccb_h.status);
+				}
+				xpt_print_path(periph->path);
+				printf("fatal error, failed to attach to"
+				       " device\n");
+
+				cam_periph_invalidate(periph);
+
+				announce_buf[0] = '\0';
 			}
 		}
-		xpt_announce_periph(periph, announce_buf);
+		if (announce_buf[0] != '\0')
+			xpt_announce_periph(periph, announce_buf);
 		softc->state = CH_STATE_NORMAL;
-		free(sense_data, M_TEMP);
+		free(mode_header, M_TEMP);
 		cam_periph_unlock(periph);
 		break;
 	}
@@ -1295,8 +1348,11 @@ chgetparams(struct cam_periph *periph)
 {
 	union ccb *ccb;
 	struct ch_softc *softc;
-	struct scsi_mode_sense_data *sense_data;
-	int error, from;
+	void *mode_buffer;
+	int mode_buffer_len;
+	struct page_element_address_assignment *ea;
+	struct page_device_capabilities *cap;
+	int error, from, dbd;
 	u_int8_t *moves, *exchanges;
 
 	error = 0;
@@ -1305,14 +1361,26 @@ chgetparams(struct cam_periph *periph)
 
 	ccb = cam_periph_getccb(periph, /*priority*/ 1);
 
-	sense_data = (struct scsi_mode_sense_data *)malloc(sizeof(*sense_data),
-							   M_TEMP, M_NOWAIT);
-	if (sense_data == NULL) {
+	/*
+	 * The scsi_mode_sense_data structure is just a convenience
+	 * structure that allows us to easily calculate the worst-case
+	 * storage size of the mode sense buffer.
+	 */
+	mode_buffer_len = sizeof(struct scsi_mode_sense_data);
+
+	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_NOWAIT);
+
+	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
 		return(ENOSPC);
 	}
 
-	bzero(sense_data, sizeof(*sense_data));
+	bzero(mode_buffer, mode_buffer_len);
+
+	if (softc->quirks & CH_Q_NO_DBD)
+		dbd = FALSE;
+	else
+		dbd = TRUE;
 
 	/*
 	 * Get the element address assignment page.
@@ -1321,35 +1389,60 @@ chgetparams(struct cam_periph *periph)
 			/* retries */ 1,
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
-			/* dbd */ TRUE,
+			/* dbd */ dbd,
 			/* page_code */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-			/* param_buf */ (u_int8_t *)sense_data,
-			/* param_len */ sizeof(*sense_data),
+			/* param_buf */ (u_int8_t *)mode_buffer,
+			/* param_len */ mode_buffer_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA,
+				  /* sense_flags */ SF_RETRY_UA |SF_NO_PRINT,
 				  &softc->device_stats);
 
 	if (error) {
-		xpt_print_path(periph->path);
-		printf("chgetparams: error getting element address page\n");
-		xpt_release_ccb(ccb);
-		return(error);
+		if (dbd) {
+			struct scsi_mode_sense_6 *sms;
+
+			sms = (struct scsi_mode_sense_6 *)
+				ccb->csio.cdb_io.cdb_bytes;
+
+			sms->byte2 &= ~SMS_DBD;
+			error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
+				  		  /* sense_flags */ SF_RETRY_UA,
+						  &softc->device_stats);
+		} else {
+			/*
+			 * Since we disabled sense printing above, print
+			 * out the sense here since we got an error.
+			 */
+			scsi_sense_print(&ccb->csio);
+		}
+
+		if (error) {
+			xpt_print_path(periph->path);
+			printf("chgetparams: error getting element "
+			       "address page\n");
+			xpt_release_ccb(ccb);
+			free(mode_buffer, M_TEMP);
+			return(error);
+		}
 	}
 
-	softc->sc_firsts[CHET_MT] = scsi_2btoul(sense_data->pages.ea.mtea);
-	softc->sc_counts[CHET_MT] = scsi_2btoul(sense_data->pages.ea.nmte);
-	softc->sc_firsts[CHET_ST] = scsi_2btoul(sense_data->pages.ea.fsea);
-	softc->sc_counts[CHET_ST] = scsi_2btoul(sense_data->pages.ea.nse);
-	softc->sc_firsts[CHET_IE] = scsi_2btoul(sense_data->pages.ea.fieea);
-	softc->sc_counts[CHET_IE] = scsi_2btoul(sense_data->pages.ea.niee);
-	softc->sc_firsts[CHET_DT] = scsi_2btoul(sense_data->pages.ea.fdtea);
-	softc->sc_counts[CHET_DT] = scsi_2btoul(sense_data->pages.ea.ndte);
+	ea = (struct page_element_address_assignment *)
+		find_mode_page_6((struct scsi_mode_header_6 *)mode_buffer);
 
-	bzero(sense_data, sizeof(*sense_data));
+	softc->sc_firsts[CHET_MT] = scsi_2btoul(ea->mtea);
+	softc->sc_counts[CHET_MT] = scsi_2btoul(ea->nmte);
+	softc->sc_firsts[CHET_ST] = scsi_2btoul(ea->fsea);
+	softc->sc_counts[CHET_ST] = scsi_2btoul(ea->nse);
+	softc->sc_firsts[CHET_IE] = scsi_2btoul(ea->fieea);
+	softc->sc_counts[CHET_IE] = scsi_2btoul(ea->niee);
+	softc->sc_firsts[CHET_DT] = scsi_2btoul(ea->fdtea);
+	softc->sc_counts[CHET_DT] = scsi_2btoul(ea->ndte);
+
+	bzero(mode_buffer, mode_buffer_len);
 
 	/*
 	 * Now get the device capabilities page.
@@ -1358,35 +1451,62 @@ chgetparams(struct cam_periph *periph)
 			/* retries */ 1,
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
-			/* dbd */ TRUE,
+			/* dbd */ dbd,
 			/* page_code */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_DEVICE_CAP_PAGE,
-			/* param_buf */ (u_int8_t *)sense_data,
-			/* param_len */ sizeof(*sense_data),
+			/* param_buf */ (u_int8_t *)mode_buffer,
+			/* param_len */ mode_buffer_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
 	
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
-				  /* sense_flags */ SF_RETRY_UA,
+				  /* sense_flags */ SF_RETRY_UA|SF_NO_PRINT,
 				  &softc->device_stats);
+
+	if (error) {
+		if (dbd) {
+			struct scsi_mode_sense_6 *sms;
+
+			sms = (struct scsi_mode_sense_6 *)
+				ccb->csio.cdb_io.cdb_bytes;
+
+			sms->byte2 &= ~SMS_DBD;
+			error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ 0,
+				  		  /* sense_flags */ SF_RETRY_UA,
+						  &softc->device_stats);
+		} else {
+			/*
+			 * Since we disabled sense printing above, print
+			 * out the sense here since we got an error.
+			 */
+			scsi_sense_print(&ccb->csio);
+		}
+
+		if (error) {
+			xpt_print_path(periph->path);
+			printf("chgetparams: error getting device "
+			       "capabilities page\n");
+			xpt_release_ccb(ccb);
+			free(mode_buffer, M_TEMP);
+			return(error);
+		}
+	}
 
 	xpt_release_ccb(ccb);
 
-	if (error) {
-		xpt_print_path(periph->path);
-		printf("chgetparams: error getting device capabilities page\n");
-		return(error);
-	}
-
+	cap = (struct page_device_capabilities *)
+		find_mode_page_6((struct scsi_mode_header_6 *)mode_buffer);
 
 	bzero(softc->sc_movemask, sizeof(softc->sc_movemask));
 	bzero(softc->sc_exchangemask, sizeof(softc->sc_exchangemask));
-	moves = &sense_data->pages.cap.move_from_mt;
-	exchanges = &sense_data->pages.cap.exchange_with_mt;
+	moves = &cap->move_from_mt;
+	exchanges = &cap->exchange_with_mt;
 	for (from = CHET_MT; from <= CHET_DT; ++from) {
 		softc->sc_movemask[from] = moves[from];
 		softc->sc_exchangemask[from] = exchanges[from];
 	}
+
+	free(mode_buffer, M_TEMP);
 
 	return(error);
 }
