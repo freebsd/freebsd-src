@@ -54,7 +54,8 @@
 #undef CD9660
 
 static Boolean cdromMounted;
-static char mountpoint[] = "/dist";
+static Boolean previouslyMounted; /* Was the disc already mounted? */
+static char mountpoint[MAXPATHLEN] = "/dist";
 
 static properties
 read_props(char *name)
@@ -90,8 +91,13 @@ mediaInitCDROM(Device *dev)
 	if (errno == EINVAL) {
 	    msgConfirm("The disc in your drive looks more like an Audio disc than a FreeBSD release.");
 	    return FALSE;
-	}
-	else if (errno != EBUSY) {
+	} else if (errno == EBUSY) {
+	    /* Perhaps the CDROM drive is already mounted as /cdrom */
+	    if (file_readable("/cdrom/cdrom.inf")) {
+		previouslyMounted = TRUE;
+		strlcpy(mountpoint, "/cdrom", 7);
+	    }
+	} else {
 	    msgConfirm("Error mounting %s on %s: %s (%u)", dev->devname, mountpoint, strerror(errno), errno);
 	    return FALSE;
 	}
@@ -102,7 +108,8 @@ mediaInitCDROM(Device *dev)
 	if (msgYesNo("Warning: The disc currently in the drive is either not a FreeBSD\n"
 		     "disc or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
 		     "have a version number on it.  Do you wish to use this disc anyway?") != 0) {
-	    unmount(mountpoint, MNT_FORCE);
+	    if (!previouslyMounted)
+		unmount(mountpoint, MNT_FORCE);
 	    cdromMounted = FALSE;
 	    return FALSE;
 	}
@@ -135,7 +142,8 @@ mediaInitCDROM(Device *dev)
 			   "installation media.", cp, variable_get(VAR_RELNAME));
 
 		if (msgYesNo("Would you like to try and use this disc anyway?") != 0) {
-		    unmount(mountpoint, MNT_FORCE);
+	            if (!previouslyMounted)
+		        unmount(mountpoint, MNT_FORCE);
 		    cdromMounted = FALSE;
 		    properties_free(cd_attr);
 		    return FALSE;
@@ -155,7 +163,8 @@ mediaInitCDROM(Device *dev)
 
 			   "Please use the correct installation CD/DVD for your machine type.", cp);
 
-		    unmount(mountpoint, MNT_FORCE);
+	            if (!previouslyMounted)
+		        unmount(mountpoint, MNT_FORCE);
 		    cdromMounted = FALSE;
 		    properties_free(cd_attr);
 		    return FALSE;
@@ -179,6 +188,11 @@ mediaShutdownCDROM(Device *dev)
 {
     if (!cdromMounted)
 	return;
+
+    if (previouslyMounted) {
+	cdromMounted = FALSE;
+	return;
+    }
 
     if (unmount(mountpoint, MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM/DVD from %s: %s", mountpoint, strerror(errno));
