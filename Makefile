@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.156 1998/01/11 04:51:02 jb Exp $
+#	$Id: Makefile,v 1.157 1998/02/06 09:52:24 adam Exp $
 #
 # While porting to the Alpha architecture include the bootstrap instead
 # of the normal build.
@@ -332,6 +332,11 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} install
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Re-scanning the shared libraries.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ldconfig -R
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding man page indexes"
