@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.71 1997/09/16 08:05:09 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.72 1997/09/21 04:23:03 dyson Exp $
  */
 
 /*
@@ -2770,6 +2770,18 @@ struct  __getcwd_args {
 	u_int	buflen;
 };
 #endif
+#define STATNODE(mode, name, var) \
+	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
+
+static int disablecwd;
+SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0, "");
+
+static u_long numcwdcalls; STATNODE(CTLFLAG_RD, numcwdcalls, &numcwdcalls);
+static u_long numcwdfail1; STATNODE(CTLFLAG_RD, numcwdfail1, &numcwdfail1);
+static u_long numcwdfail2; STATNODE(CTLFLAG_RD, numcwdfail2, &numcwdfail2);
+static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
+static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
+static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
 int
 __getcwd(p, uap, retval)
 	struct proc *p;
@@ -2782,6 +2794,8 @@ __getcwd(p, uap, retval)
 	char *buf, *bp;
 	int i, j, error;
 
+	if (disablecwd)
+		return (ENODEV);
 	fdp = p->p_fd;
 	j = 0;
 	error = 0;
@@ -2792,28 +2806,34 @@ __getcwd(p, uap, retval)
 	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
 	bp += uap->buflen - 1;
 	*bp = '\0';
+	numcwdcalls++;
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_dd->v_id != vp->v_ddid) {
+			numcwdfail1++;
 			free(buf, M_TEMP);
 			return (ENOTDIR);
 		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
+			numcwdfail2++;
 			free(buf, M_TEMP);
 			return (ENOENT);
 		}
 		if (ncp->nc_dvp != vp->v_dd) {
+			numcwdfail3++;
 			free(buf, M_TEMP);
 			return (EBADF);
 		}
 		for (i=ncp->nc_nlen - 1; i >= 0; i--) {
 			if (bp == buf) {
+				numcwdfail4++;
 				free(buf, M_TEMP);
 				return (ENOMEM);
 			}
 			*--bp = ncp->nc_name[i];
 		}
 		if (bp == buf) {
+			numcwdfail4++;
 			free(buf, M_TEMP);
 			return (ENOMEM);
 		}
@@ -2825,11 +2845,13 @@ __getcwd(p, uap, retval)
 	}
 	if (!j) {
 		if (bp == buf) {
+			numcwdfail4++;
 			free(buf, M_TEMP);
 			return (ENOMEM);
 		}
 		*--bp = '/';
 	}
+	numcwdfound++;
 	error = copyout(bp, uap->buf, strlen(bp) + 1);
 	free(buf, M_TEMP);
 	return (error);
