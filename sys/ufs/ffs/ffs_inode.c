@@ -146,22 +146,81 @@ ffs_truncate(vp, length, flags, cred, td)
 	struct inode *oip;
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs2_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	ufs2_daddr_t count, blocksreleased = 0;
+	ufs2_daddr_t count, blocksreleased = 0, datablocks;
 	struct fs *fs;
 	struct buf *bp;
+	int needextclean, softdepslowdown, extblocks;
 	int offset, size, level, nblocks;
-	int i, aflags, error, allerror;
+	int i, error, allerror;
 	off_t osize;
 
 	oip = VTOI(ovp);
 	fs = oip->i_fs;
 	if (length < 0)
 		return (EINVAL);
+	/*
+	 * Historically clients did not have to specify which data
+	 * they were truncating. So, if not specified, we assume
+	 * traditional behavior, e.g., just the normal data.
+	 */
+	if ((flags & (IO_EXT | IO_NORMAL)) == 0)
+		flags |= IO_NORMAL;
+	/*
+	 * If we are truncating the extended-attributes, and cannot
+	 * do it with soft updates, then do it slowly here. If we are
+	 * truncating both the extended attributes and the file contents
+	 * (e.g., the file is being unlinked), then pick it off with
+	 * soft updates below.
+	 */
+	needextclean = 0;
+	softdepslowdown = softdep_slowdown(ovp);
+	extblocks = 0;
+	datablocks = DIP(oip, i_blocks);
+	if (fs->fs_magic == FS_UFS2_MAGIC && oip->i_din2->di_extsize > 0) {
+		extblocks = btodb(fragroundup(fs, oip->i_din2->di_extsize));
+		datablocks -= extblocks;
+	}
+	if ((flags & IO_EXT) && extblocks > 0) {
+		if (DOINGSOFTDEP(ovp) && softdepslowdown == 0 && length == 0) {
+			if ((flags & IO_NORMAL) == 0) {
+				softdep_setup_freeblocks(oip, length, IO_EXT);
+				return (0);
+			}
+			needextclean = 1;
+		} else {
+			if (length != 0)
+				panic("ffs_truncate: partial trunc of extdata");
+			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT, td)) != 0)
+				return (error);
+			osize = oip->i_din2->di_extsize;
+			oip->i_din2->di_blocks -= extblocks;
+#ifdef QUOTA
+			(void) chkdq(oip, -extblocks, NOCRED, 0);
+#endif
+			vinvalbuf(ovp, V_ALT, cred, td, 0, 0);
+			oip->i_din2->di_extsize = 0;
+			for (i = 0; i < NXADDR; i++) {
+				oldblks[i] = oip->i_din2->di_extb[i];
+				oip->i_din2->di_extb[i] = 0;
+			}
+			oip->i_flag |= IN_CHANGE | IN_UPDATE;
+			if ((error = ffs_update(ovp, 1)))
+				return (error);
+			for (i = 0; i < NXADDR; i++) {
+				if (oldblks[i] == 0)
+					continue;
+				ffs_blkfree(fs, oip->i_devvp, oldblks[i],
+				    sblksize(fs, osize, i), oip->i_number);
+			}
+		}
+	}
+	if ((flags & IO_NORMAL) == 0)
+		return (0);
 	if (length > fs->fs_maxfilesize)
 		return (EFBIG);
 	if (ovp->v_type == VLNK &&
 	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen ||
-	     DIP(oip, i_blocks) == 0)) {
+	     datablocks == 0)) {
 #ifdef DIAGNOSTIC
 		if (length != 0)
 			panic("ffs_truncate: partial truncate of symlink");
@@ -170,10 +229,14 @@ ffs_truncate(vp, length, flags, cred, td)
 		oip->i_size = 0;
 		DIP(oip, i_size) = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (needextclean)
+			softdep_setup_freeblocks(oip, length, IO_EXT);
 		return (UFS_UPDATE(ovp, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (needextclean)
+			softdep_setup_freeblocks(oip, length, IO_EXT);
 		return (UFS_UPDATE(ovp, 0));
 	}
 	if (fs->fs_ronly)
@@ -187,7 +250,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		ffs_snapremove(ovp);
 	ovp->v_lasta = ovp->v_clen = ovp->v_cstart = ovp->v_lastw = 0;
 	if (DOINGSOFTDEP(ovp)) {
-		if (length > 0 || softdep_slowdown(ovp)) {
+		if (length > 0 || softdepslowdown) {
 			/*
 			 * If a file is only partially truncated, then
 			 * we have to clean up the data structures
@@ -197,17 +260,18 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * rarely, we solve the problem by syncing the file
 			 * so that it will have no data structures left.
 			 */
-			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT,
-			    td)) != 0)
+			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT, td)) != 0)
 				return (error);
 			if (oip->i_flag & IN_SPACECOUNTED)
-				fs->fs_pendingblocks -= DIP(oip, i_blocks);
+				fs->fs_pendingblocks -= datablocks;
 		} else {
 #ifdef QUOTA
-			(void) chkdq(oip, -DIP(oip, i_blocks), NOCRED, 0);
+			(void) chkdq(oip, -datablocks, NOCRED, 0);
 #endif
-			softdep_setup_freeblocks(oip, length);
-			vinvalbuf(ovp, 0, cred, td, 0, 0);
+			softdep_setup_freeblocks(oip, length, needextclean ?
+			    IO_EXT | IO_NORMAL : IO_NORMAL);
+			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL,
+			    cred, td, 0, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, 0));
 		}
@@ -220,18 +284,15 @@ ffs_truncate(vp, length, flags, cred, td)
 	 */
 	if (osize < length) {
 		vnode_pager_setsize(ovp, length);
-		aflags = BA_CLRBUF;
-		if (flags & IO_SYNC)
-			aflags |= BA_SYNC;
-		error = UFS_BALLOC(ovp, length - 1, 1,
-		    cred, aflags, &bp);
+		flags |= BA_CLRBUF;
+		error = UFS_BALLOC(ovp, length - 1, 1, cred, flags, &bp);
 		if (error)
 			return (error);
 		oip->i_size = length;
 		DIP(oip, i_size) = length;
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & BA_SYNC)
+		if (flags & IO_SYNC)
 			bwrite(bp);
 		else
 			bawrite(bp);
@@ -252,10 +313,8 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP(oip, i_size) = length;
 	} else {
 		lbn = lblkno(fs, length);
-		aflags = BA_CLRBUF;
-		if (flags & IO_SYNC)
-			aflags |= BA_SYNC;
-		error = UFS_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
+		flags |= BA_CLRBUF;
+		error = UFS_BALLOC(ovp, length - 1, 1, cred, flags, &bp);
 		if (error) {
 			return (error);
 		}
@@ -281,7 +340,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (aflags & BA_SYNC)
+		if (flags & IO_SYNC)
 			bwrite(bp);
 		else
 			bawrite(bp);
@@ -420,6 +479,7 @@ done:
 		if (newblks[i] != DIP(oip, i_db[i]))
 			panic("ffs_truncate2");
 	if (length == 0 &&
+	    (fs->fs_magic != FS_UFS2_MAGIC || oip->i_din2->di_extsize == 0) &&
 	    (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
 	     !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
 		panic("ffs_truncate3");

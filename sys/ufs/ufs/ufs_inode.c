@@ -95,7 +95,8 @@ ufs_inactive(ap)
 #ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_td);
 #endif
-		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
+		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
+		    NOCRED, td);
 		/*
 		 * Setting the mode to zero needs to wait for the inode
 		 * to be written just as does a change to the link count.

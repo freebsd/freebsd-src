@@ -83,7 +83,7 @@ ufs_bmap(ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	error = ufs_bmaparray(ap->a_vp, ap->a_bn, &blkno,
+	error = ufs_bmaparray(ap->a_vp, ap->a_bn, &blkno, NULL,
 	    ap->a_runp, ap->a_runb);
 	*ap->a_bnp = blkno;
 	return (error);
@@ -104,10 +104,11 @@ ufs_bmap(ap)
  */
 
 int
-ufs_bmaparray(vp, bn, bnp, runp, runb)
+ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 	struct vnode *vp;
 	ufs2_daddr_t bn;
 	ufs2_daddr_t *bnp;
+	struct buf *nbp;
 	int *runp;
 	int *runb;
 {
@@ -146,7 +147,19 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 
 	num = *nump;
 	if (num == 0) {
-		*bnp = blkptrtodb(ump, DIP(ip, i_db[bn]));
+		if (bn >= 0 && bn < NDADDR) {
+			*bnp = blkptrtodb(ump, DIP(ip, i_db[bn]));
+		} else if (bn < 0 && bn >= -NXADDR) {
+			*bnp = blkptrtodb(ump, ip->i_din2->di_extb[-1 - bn]);
+			if (*bnp == 0)
+				*bnp = -1;
+			if (nbp == NULL)
+				panic("ufs_bmaparray: mapping ext data");
+			nbp->b_xflags |= BX_ALTDATA;
+			return (0);
+		} else {
+			panic("ufs_bmaparray: blkno out of range");
+		}
 		/*
 		 * Since this is FFS independent code, we are out of
 		 * scope for the definitions of BLK_NOCOPY and

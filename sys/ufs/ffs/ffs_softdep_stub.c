@@ -123,6 +123,20 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	panic("softdep_setup_allocdirect called");
 }
 
+void 
+softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t newblkno;
+	ufs2_daddr_t oldblkno;
+	long newsize;
+	long oldsize;
+	struct buf *bp;
+{
+	
+	panic("softdep_setup_allocdirect called");
+}
+
 void
 softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	struct inode *ip;

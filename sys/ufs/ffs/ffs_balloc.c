@@ -73,6 +73,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
     struct ucred *cred, int flags, struct buf **bpp)
 {
 	struct inode *ip;
+	struct ufs1_dinode *dp;
 	ufs_lbn_t lbn, lastlbn;
 	struct fs *fs;
 	ufs1_daddr_t nb;
@@ -86,12 +87,15 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	struct thread *td = curthread;	/* XXX */
 
 	ip = VTOI(vp);
+	dp = ip->i_din1;
 	fs = ip->i_fs;
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc_ufs1: blk too big");
 	*bpp = NULL;
+	if (flags & IO_EXT)
+		return (EOPNOTSUPP);
 	if (lbn < 0)
 		return (EFBIG);
 
@@ -105,22 +109,20 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		nb = lastlbn;
 		osize = blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
-			error = ffs_realloccg(ip, nb,
-				ffs_blkpref_ufs1(ip, lastlbn, (int)nb,
-				    &ip->i_din1->di_db[0]),
-				osize, (int)fs->fs_bsize, cred, &bp);
+			error = ffs_realloccg(ip, nb, dp->di_db[nb],
+			   ffs_blkpref_ufs1(ip, lastlbn, (int)nb,
+			   &dp->di_db[0]), osize, (int)fs->fs_bsize, cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, nb,
-				    dbtofsb(fs, bp->b_blkno),
-				    ip->i_din1->di_db[nb],
+				    dbtofsb(fs, bp->b_blkno), dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
 			ip->i_size = smalllblktosize(fs, nb + 1);
-			ip->i_din1->di_size = ip->i_size;
-			ip->i_din1->di_db[nb] = dbtofsb(fs, bp->b_blkno);
+			dp->di_size = ip->i_size;
+			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			if (flags & BA_SYNC)
+			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
 				bawrite(bp);
@@ -132,7 +134,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	if (lbn < NDADDR) {
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs1: BA_METAONLY for direct block");
-		nb = ip->i_din1->di_db[lbn];
+		nb = dp->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
 			if (error) {
@@ -157,10 +159,9 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				}
 				bp->b_blkno = fsbtodb(fs, nb);
 			} else {
-				error = ffs_realloccg(ip, lbn,
+				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs1(ip, lbn, (int)lbn,
-					&ip->i_din1->di_db[0]),
-				    osize, nsize, cred, &bp);
+				    &dp->di_db[0]), osize, nsize, cred, &bp);
 				if (error)
 					return (error);
 				if (DOINGSOFTDEP(vp))
@@ -174,8 +175,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			else
 				nsize = fs->fs_bsize;
 			error = ffs_alloc(ip, lbn,
-			    ffs_blkpref_ufs1(ip, lbn, (int)lbn,
-				&ip->i_din1->di_db[0]),
+			    ffs_blkpref_ufs1(ip, lbn, (int)lbn, &dp->di_db[0]),
 			    nsize, cred, &newb);
 			if (error)
 				return (error);
@@ -187,7 +187,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
 				    nsize, 0, bp);
 		}
-		ip->i_din1->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
+		dp->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bpp = bp;
 		return (0);
@@ -206,7 +206,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * Fetch the first indirect block allocating if necessary.
 	 */
 	--num;
-	nb = ip->i_din1->di_ib[indirs[0].in_off];
+	nb = dp->di_ib[indirs[0].in_off];
 	allocib = NULL;
 	allocblk = allociblk;
 	if (nb == 0) {
@@ -233,7 +233,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			else if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
-		allocib = &ip->i_din1->di_ib[indirs[0].in_off];
+		allocib = &dp->di_ib[indirs[0].in_off];
 		*allocib = nb;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
@@ -289,7 +289,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & BA_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -329,7 +329,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & BA_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -382,7 +382,7 @@ fail:
 		} else {
 			bap = (ufs1_daddr_t *)bp->b_data;
 			bap[indirs[unwindidx].in_off] = 0;
-			if (flags & BA_SYNC) {
+			if (flags & IO_SYNC) {
 				bwrite(bp);
 			} else {
 				if (bp->b_bufsize == fs->fs_bsize)
@@ -398,7 +398,7 @@ fail:
 		 */
 		(void) chkdq(ip, -btodb(deallocated), cred, FORCE);
 #endif
-		ip->i_din1->di_blocks -= btodb(deallocated);
+		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);
@@ -417,6 +417,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
     struct ucred *cred, int flags, struct buf **bpp)
 {
 	struct inode *ip;
+	struct ufs2_dinode *dp;
 	ufs_lbn_t lbn, lastlbn;
 	struct fs *fs;
 	struct buf *bp, *nbp;
@@ -428,6 +429,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	struct thread *td = curthread;	/* XXX */
 
 	ip = VTOI(vp);
+	dp = ip->i_din2;
 	fs = ip->i_fs;
 	lbn = lblkno(fs, startoffset);
 	size = blkoff(fs, startoffset) + size;
@@ -438,6 +440,112 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		return (EFBIG);
 
 	/*
+	 * Check for allocating external data.
+	 */
+	if (flags & IO_EXT) {
+		if (lbn >= NXADDR)
+			return (EFBIG);
+		/*
+		 * If the next write will extend the data into a new block,
+		 * and the data is currently composed of a fragment
+		 * this fragment has to be extended to be a full block.
+		 */
+		lastlbn = lblkno(fs, dp->di_extsize);
+		if (lastlbn < lbn) {
+			nb = lastlbn;
+			osize = sblksize(fs, dp->di_extsize, nb);
+			if (osize < fs->fs_bsize && osize > 0) {
+				error = ffs_realloccg(ip, -1 - nb,
+				    dp->di_extb[nb],
+				    ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
+				    &dp->di_extb[0]), osize,
+				    (int)fs->fs_bsize, cred, &bp);
+				if (error)
+					return (error);
+				if (DOINGSOFTDEP(vp))
+					softdep_setup_allocext(ip, nb,
+					    dbtofsb(fs, bp->b_blkno),
+					    dp->di_extb[nb],
+					    fs->fs_bsize, osize, bp);
+				dp->di_extsize = smalllblktosize(fs, nb + 1);
+				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
+				bp->b_xflags |= BX_ALTDATA;
+				ip->i_flag |= IN_CHANGE | IN_UPDATE;
+				if (flags & IO_SYNC)
+					bwrite(bp);
+				else
+					bawrite(bp);
+			}
+		}
+		/*
+		 * All blocks are direct blocks
+		 */
+		if (flags & BA_METAONLY)
+			panic("ffs_balloc_ufs2: BA_METAONLY for ext block");
+		nb = dp->di_extb[lbn];
+		if (nb != 0 && dp->di_extsize >= smalllblktosize(fs, lbn + 1)) {
+			error = bread(vp, -1 - lbn, fs->fs_bsize, NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+			bp->b_blkno = fsbtodb(fs, nb);
+			bp->b_xflags |= BX_ALTDATA;
+			*bpp = bp;
+			return (0);
+		}
+		if (nb != 0) {
+			/*
+			 * Consider need to reallocate a fragment.
+			 */
+			osize = fragroundup(fs, blkoff(fs, dp->di_extsize));
+			nsize = fragroundup(fs, size);
+			if (nsize <= osize) {
+				error = bread(vp, -1 - lbn, osize, NOCRED, &bp);
+				if (error) {
+					brelse(bp);
+					return (error);
+				}
+				bp->b_blkno = fsbtodb(fs, nb);
+				bp->b_xflags |= BX_ALTDATA;
+			} else {
+				error = ffs_realloccg(ip, -1 - lbn,
+				    dp->di_extb[lbn],
+				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
+				    &dp->di_extb[0]), osize, nsize, cred, &bp);
+				if (error)
+					return (error);
+				bp->b_xflags |= BX_ALTDATA;
+				if (DOINGSOFTDEP(vp))
+					softdep_setup_allocext(ip, lbn,
+					    dbtofsb(fs, bp->b_blkno), nb,
+					    nsize, osize, bp);
+			}
+		} else {
+			if (dp->di_extsize < smalllblktosize(fs, lbn + 1))
+				nsize = fragroundup(fs, size);
+			else
+				nsize = fs->fs_bsize;
+			error = ffs_alloc(ip, lbn,
+			   ffs_blkpref_ufs2(ip, lbn, (int)lbn, &dp->di_extb[0]),
+			   nsize, cred, &newb);
+			if (error)
+				return (error);
+			bp = getblk(vp, -1 - lbn, nsize, 0, 0);
+			bp->b_blkno = fsbtodb(fs, newb);
+			bp->b_xflags |= BX_ALTDATA;
+			if (flags & BA_CLRBUF)
+				vfs_bio_clrbuf(bp);
+			if (DOINGSOFTDEP(vp))
+				softdep_setup_allocext(ip, lbn, newb, 0,
+				    nsize, 0, bp);
+		}
+		dp->di_extb[lbn] = dbtofsb(fs, bp->b_blkno);
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		*bpp = bp;
+		return (0);
+	}
+	/*
 	 * If the next write will extend the file into a new block,
 	 * and the file is currently composed of a fragment
 	 * this fragment has to be extended to be a full block.
@@ -447,22 +555,22 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		nb = lastlbn;
 		osize = blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
-			error = ffs_realloccg(ip, nb,
+			error = ffs_realloccg(ip, nb, dp->di_db[nb],
 				ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
-				    &ip->i_din2->di_db[0]),
-				osize, (int)fs->fs_bsize, cred, &bp);
+				    &dp->di_db[0]), osize, (int)fs->fs_bsize,
+				    cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
 				softdep_setup_allocdirect(ip, nb,
 				    dbtofsb(fs, bp->b_blkno),
-				    ip->i_din2->di_db[nb],
+				    dp->di_db[nb],
 				    fs->fs_bsize, osize, bp);
 			ip->i_size = smalllblktosize(fs, nb + 1);
-			ip->i_din2->di_size = ip->i_size;
-			ip->i_din2->di_db[nb] = dbtofsb(fs, bp->b_blkno);
+			dp->di_size = ip->i_size;
+			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			if (flags & BA_SYNC)
+			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
 				bawrite(bp);
@@ -474,7 +582,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (lbn < NDADDR) {
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
-		nb = ip->i_din2->di_db[lbn];
+		nb = dp->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
 			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
 			if (error) {
@@ -499,10 +607,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				}
 				bp->b_blkno = fsbtodb(fs, nb);
 			} else {
-				error = ffs_realloccg(ip, lbn,
+				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-					&ip->i_din2->di_db[0]),
-				    osize, nsize, cred, &bp);
+				       &dp->di_db[0]), osize, nsize, cred, &bp);
 				if (error)
 					return (error);
 				if (DOINGSOFTDEP(vp))
@@ -517,8 +624,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				nsize = fs->fs_bsize;
 			error = ffs_alloc(ip, lbn,
 			    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				&ip->i_din2->di_db[0]),
-			    nsize, cred, &newb);
+				&dp->di_db[0]), nsize, cred, &newb);
 			if (error)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0);
@@ -529,7 +635,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				softdep_setup_allocdirect(ip, lbn, newb, 0,
 				    nsize, 0, bp);
 		}
-		ip->i_din2->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
+		dp->di_db[lbn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bpp = bp;
 		return (0);
@@ -548,7 +654,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * Fetch the first indirect block allocating if necessary.
 	 */
 	--num;
-	nb = ip->i_din2->di_ib[indirs[0].in_off];
+	nb = dp->di_ib[indirs[0].in_off];
 	allocib = NULL;
 	allocblk = allociblk;
 	if (nb == 0) {
@@ -575,7 +681,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			else if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
-		allocib = &ip->i_din2->di_ib[indirs[0].in_off];
+		allocib = &dp->di_ib[indirs[0].in_off];
 		*allocib = nb;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
@@ -631,7 +737,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & BA_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -671,7 +777,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & BA_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -724,7 +830,7 @@ fail:
 		} else {
 			bap = (ufs2_daddr_t *)bp->b_data;
 			bap[indirs[unwindidx].in_off] = 0;
-			if (flags & BA_SYNC) {
+			if (flags & IO_SYNC) {
 				bwrite(bp);
 			} else {
 				if (bp->b_bufsize == fs->fs_bsize)
@@ -740,7 +846,7 @@ fail:
 		 */
 		(void) chkdq(ip, -btodb(deallocated), cred, FORCE);
 #endif
-		ip->i_din2->di_blocks -= btodb(deallocated);
+		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	(void) VOP_FSYNC(vp, cred, MNT_WAIT, td);

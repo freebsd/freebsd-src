@@ -1311,7 +1311,7 @@ brelse(struct buf * bp)
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		bp->b_flags |= B_INVAL;
-		bp->b_xflags &= ~BX_BKGRDWRITE;
+		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("losing buffer 1");
 		if (bp->b_kvasize) {
@@ -1329,7 +1329,7 @@ brelse(struct buf * bp)
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
 	    (bp->b_ioflags & BIO_ERROR)) {
 		bp->b_flags |= B_INVAL;
-		bp->b_xflags &= ~BX_BKGRDWRITE;
+		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;

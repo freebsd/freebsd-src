@@ -89,8 +89,10 @@
  * dependencies are complete. The INPROGRESS flag marks worklist
  * structures that are still on the worklist, but are being considered
  * for action by some process. The UFS1FMT flag indicates that the
- * inode being processed is a ufs1 format. The ONWORKLIST flag shows
- * whether the structure is currently linked onto a worklist.
+ * inode being processed is a ufs1 format. The EXTDATA flag indicates
+ * that the allocdirect describes an extended-attributes dependency.
+ * The ONWORKLIST flag shows whether the structure is currently linked
+ * onto a worklist.
  */
 #define	ATTACHED	0x0001
 #define	UNDONE		0x0002
@@ -106,6 +108,7 @@
 #define	NEWBLOCK	0x0800	/* pagedep only */
 #define	INPROGRESS	0x1000	/* dirrem, freeblks, freefrag, freefile only */
 #define	UFS1FMT		0x2000	/* indirdep only */
+#define	EXTDATA		0x4000	/* allocdirect only */
 #define ONWORKLIST	0x8000
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
@@ -251,12 +254,15 @@ struct inodedep {
 	nlink_t	id_nlinkdelta;		/* saved effective link count */
 	LIST_ENTRY(inodedep) id_deps;	/* bmsafemap's list of inodedep's */
 	struct	buf *id_buf;		/* related bmsafemap (if pending) */
+	long	id_savedextsize;	/* ext size saved during rollback */
 	off_t	id_savedsize;		/* file size saved during rollback */
 	struct	workhead id_pendinghd;	/* entries awaiting directory write */
 	struct	workhead id_bufwait;	/* operations after inode written */
 	struct	workhead id_inowait;	/* operations waiting inode update */
 	struct	allocdirectlst id_inoupdt; /* updates before inode written */
 	struct	allocdirectlst id_newinoupdt; /* updates when inode written */
+	struct	allocdirectlst id_extupdt; /* extdata updates pre-inode write */
+	struct	allocdirectlst id_newextupdt; /* extdata updates at ino write */
 	union {
 	struct	ufs1_dinode *idu_savedino1; /* saved ufs1_dinode contents */
 	struct	ufs2_dinode *idu_savedino2; /* saved ufs2_dinode contents */
@@ -427,11 +433,12 @@ struct freeblks {
 	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
 	struct	mount *fb_mnt;		/* associated mount point */
+	long	fb_oldextsize;		/* previous ext data size */
 	off_t	fb_oldsize;		/* previous file size */
-	off_t	fb_newsize;		/* new file size */
 	ufs2_daddr_t fb_chkcnt;		/* used to check cnt of blks released */
 	ufs2_daddr_t fb_dblks[NDADDR];	/* direct blk ptrs to deallocate */
 	ufs2_daddr_t fb_iblks[NIADDR];	/* indirect blk ptrs to deallocate */
+	ufs2_daddr_t fb_eblks[NXADDR];	/* indirect blk ptrs to deallocate */
 };
 
 /*
