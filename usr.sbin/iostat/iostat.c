@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iostat.c,v 1.9 1998/09/15 08:16:45 gibbs Exp $
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat
@@ -135,7 +135,7 @@ struct statinfo cur, last;
 int num_devices;
 struct device_selection *dev_select;
 int maxshowdevs;
-int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0;
+int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
 
 #define nlread(x, v) \
 	kvm_read(kd, namelist[x].n_value, &(v), sizeof(v))
@@ -184,7 +184,7 @@ main(int argc, char **argv)
 	matches = NULL;
 	maxshowdevs = 3;
 
-	while ((c = getopt(argc, argv, "c:CdhIM:n:N:ot:Tw:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:CdhKIM:n:N:ot:Tw:?")) != -1) {
 		switch(c) {
 			case 'c':
 				cflag++;
@@ -200,6 +200,9 @@ main(int argc, char **argv)
 				break;
 			case 'h':
 				hflag++;
+				break;
+			case 'K':
+				Kflag++;
 				break;
 			case 'I':
 				Iflag++;
@@ -314,6 +317,8 @@ main(int argc, char **argv)
 		specified_devices[num_devices_specified - 1] = *argv;
 
 	}
+	if (nflag == 0 && maxshowdevs < num_devices_specified)
+		maxshowdevs = num_devices_specified;
 
 	dev_select = NULL;
 
@@ -334,8 +339,6 @@ main(int argc, char **argv)
 		       specified_devices, num_devices_specified,
 		       select_mode, maxshowdevs, hflag) == -1)
 		errx(1, "%s", devstat_errbuf);
-
-	free(specified_devices);
 
 	/*
 	 * Look for the traditional wait time and count arguments.
@@ -554,17 +557,17 @@ phdr(int signo)
 	for (i=0, printed = 0;(i < num_devices) && (printed < maxshowdevs);i++){
 		if ((dev_select[i].selected != 0)
 		 && (dev_select[i].selected <= maxshowdevs)) {
-			if (oflag > 0)
+			if (oflag > 0) {
 				if (Iflag == 0)
 					(void)printf(" sps tps msps ");
 				else
 					(void)printf(" blk xfr msps ");
-					
-			else
+			} else {
 				if (Iflag == 0)
 					printf("  KB/t tps  MB/s ");
 				else
 					printf("  KB/t xfrs   MB ");
+			}
 			printed++;
 		}
 	}
@@ -616,20 +619,27 @@ devstats(int perf_select)
 				continue;
 		}
 
+		if (Kflag) {
+			int block_size = cur.dinfo->devices[di].block_size;
+			total_blocks = total_blocks * (block_size ? block_size : 512) / 1024;
+		}
+
 		if (oflag > 0) {
+			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
 			if (Iflag == 0)
-				printf("%4.0Lf%4.0Lf%5.1Lf ",
+				printf("%4.0Lf%4.0Lf%5.*Lf ",
 				       blocks_per_second,
 				       transfers_per_second,
+				       msdig,
 				       ms_per_transaction);
 			else 
-				printf("%4.1qu%4.1qu%5.1Lf ",
+				printf("%4.1qu%4.1qu%5.*Lf ",
 				       total_blocks,
 				       total_transfers,
+				       msdig,
 				       ms_per_transaction);
 		} else {
-
 			if (Iflag == 0)
 				printf(" %5.2Lf %3.0Lf %5.2Lf ", 
 				       kb_per_transfer,
