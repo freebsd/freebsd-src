@@ -1012,7 +1012,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 			device_printf(dev, "cannot reserve DMA request line\n");
 			return ENXIO;
 		}
-		fdc->dmachan = fdc->res_drq->r_start;
+		fdc->dmachan = rman_get_start(fdc->res_drq);
 	}
 
 	return 0;
