@@ -263,7 +263,7 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_TYPE_OPTIONS(x) ((x) & IFM_OMASK)
 #define	IFM_INST(x)         (((x) & IFM_IMASK) >> IFM_ISHIFT)
 #define	IFM_OPTIONS(x)	((x) & (IFM_OMASK|IFM_GMASK))
-#define	IFM_MODE(x)	    (((x) & IFM_MMASK) >> IFM_MSHIFT)
+#define	IFM_MODE(x)	    ((x) & IFM_MMASK)
 
 #define	IFM_INST_MAX	IFM_INST(IFM_IMASK)
 
