@@ -179,7 +179,8 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
    * address.
    */
   if (!get_ether_addr(s, addr, &dls.sdl)) {
-    log_Printf(LOG_PHASE_BIT, "Cannot determine ethernet address for proxy ARP\n");
+    log_Printf(LOG_PHASE_BIT, "Cannot determine ethernet address for "
+               "proxy ARP\n");
     return 0;
   }
   arpreq.arp_ha.sa_len = sizeof(struct sockaddr);

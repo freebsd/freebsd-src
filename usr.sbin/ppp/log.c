@@ -435,7 +435,8 @@ log_SetLevel(struct cmdargs const *arg)
     local = 0;
   else {
     if (arg->prompt == NULL) {
-      log_Printf(LogWARN, "set log local: Only available on the command line\n");
+      log_Printf(LogWARN, "set log local: Only available on the"
+                 " command line\n");
       return 1;
     }
     argc--;

@@ -65,7 +65,8 @@ struct MS_ChapResponse {
     u_char UseNT;	/* If 1, ignore the LANMan response field */
 };
 
-static u_char Get7Bits(u_char *input, int startBit)
+static u_char
+Get7Bits(u_char *input, int startBit)
 {
     register unsigned int	word;
 
@@ -79,7 +80,8 @@ static u_char Get7Bits(u_char *input, int startBit)
 
 /* IN  56 bit DES key missing parity bits
    OUT 64 bit DES key with parity bits added */
-static void MakeKey(u_char *key, u_char *des_key)
+static void
+MakeKey(u_char *key, u_char *des_key)
 {
     des_key[0] = Get7Bits(key,  0);
     des_key[1] = Get7Bits(key,  7);
@@ -118,7 +120,8 @@ ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
 }
 
 void
-NtPasswordHash(char *key, int keylen, char *hash) { 
+NtPasswordHash(char *key, int keylen, char *hash)
+{ 
   MD4_CTX MD4context;
 
   MD4Init(&MD4context);
@@ -127,7 +130,8 @@ NtPasswordHash(char *key, int keylen, char *hash) {
 }
 
 void
-HashNtPasswordHash(char *hash, char *hashhash) { 
+HashNtPasswordHash(char *hash, char *hashhash)
+{ 
   MD4_CTX MD4context;
 
   MD4Init(&MD4context);
@@ -136,7 +140,9 @@ HashNtPasswordHash(char *hash, char *hashhash) {
 }
 
 void
-ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge, char *UserName, int UserNameLen, char *Challenge) {
+ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge,
+              char *UserName, int UserNameLen, char *Challenge)
+{
   SHA_CTX Context;
   char Digest[SHA_DIGEST_LENGTH];
   char *Name;
@@ -158,7 +164,10 @@ ChallengeHash(char *PeerChallenge, char *AuthenticatorChallenge, char *UserName,
 }
 
 void
-GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge, char *UserName, int UserNameLen, char *Password, int PasswordLen, char *Response) {
+GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge,
+                   char *UserName, int UserNameLen, char *Password,
+                   int PasswordLen, char *Response)
+{
   char Challenge[8];
   char PasswordHash[16];
 
@@ -169,7 +178,11 @@ GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge, char *User
 }
 
 void
-GenerateAuthenticatorResponse(char *Password, int PasswordLen, char *NTResponse, char *PeerChallenge, char *AuthenticatorChallenge, char *UserName, int UserNameLen, char *AuthenticatorResponse) {
+GenerateAuthenticatorResponse(char *Password, int PasswordLen,
+                              char *NTResponse, char *PeerChallenge,
+                              char *AuthenticatorChallenge, char *UserName,
+                              int UserNameLen, char *AuthenticatorResponse)
+{
   SHA_CTX Context;
   char PasswordHash[16];
   char PasswordHashHash[16];
@@ -230,7 +243,8 @@ GenerateAuthenticatorResponse(char *Password, int PasswordLen, char *NTResponse,
 }
  
 void
-GetMasterKey(char *PasswordHashHash, char *NTResponse, char *MasterKey) {
+GetMasterKey(char *PasswordHashHash, char *NTResponse, char *MasterKey)
+{
   char Digest[SHA_DIGEST_LENGTH];
   SHA_CTX Context;
   static char Magic1[27] =
@@ -247,7 +261,9 @@ GetMasterKey(char *PasswordHashHash, char *NTResponse, char *MasterKey) {
 }
 
 void
-GetAsymetricStartKey(char *MasterKey, char *SessionKey, int SessionKeyLength, int IsSend, int IsServer) {
+GetAsymetricStartKey(char *MasterKey, char *SessionKey, int SessionKeyLength,
+                     int IsSend, int IsServer)
+{
   char Digest[SHA_DIGEST_LENGTH];
   SHA_CTX Context;
   char *s;
@@ -299,7 +315,9 @@ GetAsymetricStartKey(char *MasterKey, char *SessionKey, int SessionKeyLength, in
 }
 
 void
-GetNewKeyFromSHA(char *StartKey, char *SessionKey, long SessionKeyLength, char *InterimKey) {
+GetNewKeyFromSHA(char *StartKey, char *SessionKey, long SessionKeyLength,
+                 char *InterimKey)
+{
   SHA_CTX Context;
   char Digest[SHA_DIGEST_LENGTH];
 
@@ -313,8 +331,11 @@ GetNewKeyFromSHA(char *StartKey, char *SessionKey, long SessionKeyLength, char *
   memcpy(InterimKey, Digest, SessionKeyLength);
 }
 
-void
-Get_Key(char *InitialSessionKey, char *CurrentSessionKey, int LengthOfDesiredKey) {
+#if 0
+static void
+Get_Key(char *InitialSessionKey, char *CurrentSessionKey,
+        int LengthOfDesiredKey)
+{
   SHA_CTX Context;
   char Digest[SHA_DIGEST_LENGTH];
 
@@ -327,6 +348,7 @@ Get_Key(char *InitialSessionKey, char *CurrentSessionKey, int LengthOfDesiredKey
 
   memcpy(CurrentSessionKey, Digest, LengthOfDesiredKey);
 }
+#endif
 
 /* passwordHash 16-bytes MD4 hashed password
    challenge    8-bytes peer CHAP challenge
