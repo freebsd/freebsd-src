@@ -52,7 +52,7 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkisofs -r -J -V $LABEL -P "$publisher" -o $NAME $*
+mkisofs -r -J -V $LABEL -publisher "$publisher" -o $NAME $*
 
 type setcdboot 2>&1 | grep " is " >/dev/null
 if [ $? -ne 0 ]; then

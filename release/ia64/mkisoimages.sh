@@ -91,6 +91,6 @@ fi
 
 publisher="The FreeBSD Project.  http://www.freebsd.org/"
 
-$MKISOFS $BOOTOPTS -r -J -V $LABEL -P "$publisher" -o $NAME $BASE $*
+$MKISOFS $BOOTOPTS -r -J -V $LABEL -publisher "$publisher" -o $NAME $BASE $*
 rm -f $BASE/$EFIPART
 exit 0
