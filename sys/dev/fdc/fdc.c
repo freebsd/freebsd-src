@@ -1371,10 +1371,8 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 		device_busy(fd->dev);
 	}
 
-#ifdef notyet
 	if (w > 0 && (fd->flags & FD_WP))
 		return (EROFS);
-#endif
 
 	pp->sectorsize = fd->sectorsize;
 	pp->stripesize = fd->ft->heads * fd->ft->sectrac * fd->sectorsize;
