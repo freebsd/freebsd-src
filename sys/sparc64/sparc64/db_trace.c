@@ -67,7 +67,6 @@ static int db_print_trap(struct trapframe *);
 
 extern char tl1_trap[];
 extern char tl0_trap[];
-extern char tl0_trap_withstack[];
 extern char _start[];
 extern char _end[];
 
@@ -128,7 +127,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	if (count == -1)
 		count = 1024;
 	if (!have_addr) {
-		kfp = DDB_REGS->tf_arg;
+		kfp = (struct kdbframe *)DDB_REGS->tf_arg;
 		fp = (struct frame *)(kfp->kf_cfp + SPOFF);
 	} else
 		fp = (struct frame *)(addr + SPOFF);
@@ -150,8 +149,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		if (name == NULL)
 			name = "(null)";
 		if (value == (u_long)tl1_trap ||
-		    value == (u_long)tl0_trap ||
-		    value == (u_long)tl0_trap_withstack) {
+		    value == (u_long)tl0_trap) {
 			nfp = db_get_value((db_addr_t)&fp->f_fp,
 			    sizeof(u_long), FALSE) + SPOFF;
 			tf = (struct trapframe *)(nfp + sizeof(*fp));
@@ -203,7 +201,7 @@ DB_COMMAND(down, db_frame_down)
 	u_long cfp;
 	u_long ofp;
 
-	kfp = DDB_REGS->tf_arg;
+	kfp = (struct kdbframe *)DDB_REGS->tf_arg;
 	fp = (struct frame *)(kfp->kf_fp + SPOFF);
 	cfp = kfp->kf_cfp;
 	for (;;) {
@@ -226,7 +224,7 @@ DB_COMMAND(up, db_frame_up)
 	struct kdbframe *kfp;
 	struct frame *cfp;
 
-	kfp = DDB_REGS->tf_arg;
+	kfp = (struct kdbframe *)DDB_REGS->tf_arg;
 	cfp = (struct frame *)(kfp->kf_cfp + SPOFF);
 	if (!INKERNEL((u_long)cfp)) {
 		db_printf("already at top\n");
@@ -243,7 +241,7 @@ db_show_ ## name ## num(struct db_variable *dp, db_expr_t *vp, int op)	\
 	struct kdbframe *kfp;						\
 	struct frame *fp;						\
 									\
-	kfp = DDB_REGS->tf_arg;						\
+	kfp = (struct kdbframe *)DDB_REGS->tf_arg;			\
 	fp = (struct frame *)(kfp->kf_cfp + SPOFF);			\
 	if (op == DB_VAR_GET)						\
 		*vp = db_get_value((db_addr_t)&fp->f_ ## name ## [num],	\
