@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1998/08/08 08:13:04 phk Exp $";
+	"$Id: main.c,v 1.23 1999/01/18 02:09:15 fenner Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -158,11 +158,11 @@ struct protox atalkprotox[] = {
 
 struct protox ipxprotox[] = {
 	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
-	  ipx_stats,	"ipx" },
+	  ipx_stats,	"ipx",		0 },
 	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
-	  spx_stats,	"spx" },
+	  spx_stats,	"spx",		0 },
 	{ -1,		-1,		0,	0,
-	  0,		0 }
+	  0,		0,		0 }
 };
 
 #ifdef NS
@@ -408,9 +408,11 @@ main(argc, argv)
 		}
 		endprotoent();
 	}
-	if (af == AF_IPX || af == AF_UNSPEC)
+	if (af == AF_IPX || af == AF_UNSPEC) {
+		kread(0, 0, 0);
 		for (tp = ipxprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
+	}
 	if (af == AF_APPLETALK || af == AF_UNSPEC)
 		for (tp = atalkprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
