@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.294
+     Original revision: 1.22.2.296
 -->
 
 <articleinfo>
@@ -573,7 +573,8 @@
       version du 20 Juin 2002).</para>
 
       <para><application>gcc</application> a &eacute;t&eacute; mis &agrave; 
-      jour en version 2.95.4.</para>
+      jour en version de la branche CVS GCC 2.95, du 20 Mars 2002. Cela
+      explique le num&eacute;ro de version non officielle 2.95.4.</para>
 
       <para><application>Heimdal Kerberos</application> a &eacute;t&eacute; 
       mis &agrave; jour en version pre-0.5 du 29 Aout 2002.</para>
@@ -692,14 +693,6 @@
       corrections de bogues et de s&eacute;curit&eacute; par rapport 
       &agrave; la version 4.2.0..</para>
  
-      <para>Par d&eacute;faut, les pacquetages g&eacute;n&eacute;r&eacute;s 
-      de la collection des Ports (tout comme les pacquetages distribu&eacute;s
-       sur les sites FTP), sont maintenant compress&eacute;s en utilisant 
-       &man.bzip2.1;, plutot que &man.gzip.1;. Ils ont donc maintenant 
-       l'extension <filename>.tbz</filename> plutot que 
-       <filename>.tgz</filename>. L'utilitaire de gestion des pacquetages a 
-       &eacute;t&eacute; mis &agrave; jour pour tenir compte de ce nouveau 
-       format</para>
 	
     </sect3>
   </sect2>
