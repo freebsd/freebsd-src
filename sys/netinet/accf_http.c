@@ -125,6 +125,8 @@ mbufstrcmp(struct mbuf *m, struct mbuf *npkt, int offset, char *cmp)
 					return (0);
 				}
 			}
+			if (*cmp == '\0')
+				return (1);
 			offset = 0;
 		}
 	}
@@ -153,6 +155,8 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 					return (0);
 				}
 			}
+			if (max == 0 || *cmp == '\0')
+				return (1);
 			offset = 0;
 		}
 	}
