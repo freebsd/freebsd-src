@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.36 1995/04/26 07:38:35 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.37 1995/05/01 23:32:30 dyson Exp $
  */
 
 #include "npx.h"
@@ -794,10 +794,13 @@ cpu_reset() {
 	 * do not turn of the GateA20, as any machine that fails
 	 * to do the reset here would then end up in no man's land.
 	 */
+
+#ifndef BROKEN_KEYBOARD_RESET
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
+#endif
 
 	/* force a shutdown by unmapping entire address space ! */
 	bzero((caddr_t) PTD, NBPG);
