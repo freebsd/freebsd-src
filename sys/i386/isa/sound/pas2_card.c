@@ -65,6 +65,20 @@ pas_write (unsigned char data, int ioaddr)
   OUTB (data, ioaddr ^ translat_code);
 }
 
+/*
+ * The Revision D cards have a problem with their MVA508 interface. The
+ * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
+ * MSBs out of the output byte and to do a 16-bit out to the mixer port -
+ * 1.
+ */
+
+void
+mix_write (unsigned char data, int ioaddr)
+{
+  outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
+  outb (0, 0x80);
+}
+
 void
 pas2_msg (char *foo)
 {
@@ -223,8 +237,8 @@ config_pas_hw (struct address_info *hw_config)
   else
     pas_write (0, PRESCALE_DIVIDER);
 
-  pas_write (P_M_MV508_ADDRESS | 5, PARALLEL_MIXER);
-  pas_write (5, PARALLEL_MIXER);
+  mix_write (P_M_MV508_ADDRESS | 5, PARALLEL_MIXER);
+  mix_write (5, PARALLEL_MIXER);
 
 #if !defined(EXCLUDE_SB_EMULATION) || !defined(EXCLUDE_SB)
 
