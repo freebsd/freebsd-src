@@ -1376,17 +1376,3 @@ nfsm_srvsattr_xx(struct vattr *a,
 	}
 	return 0;
 }
-
-void
-nfs_rephead_xx(int s, struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    int error, struct mbuf **mrq, struct mbuf **mb,
-    struct mbuf **mreq, struct mbuf **mrep, caddr_t *bpos)
-{
-
-	nfs_rephead(s, nfsd, slp, error, mrq, mb, bpos);
-	if (*mrep != NULL) {
-		m_freem(*mrep);
-		*mrep = NULL;
-	}
-	*mreq = *mrq;
-}

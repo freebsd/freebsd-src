@@ -50,33 +50,52 @@ extern nfstype nfsv3_type[];
 #define	nfsv3tov_type(a)	nv3tov_type[fxdr_unsigned(u_int32_t,(a))&0x7]
 #define	vtonfsv3_type(a)	txdr_unsigned(nfsv3_type[((int32_t)(a))])
 
-#define NFSMADV(m, s) \
-	do { \
-		(m)->m_data += (s); \
-	} while (0)
-
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
-void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
-void	*nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos);
-int	nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **mb,
-	    caddr_t *bpos);
-int	nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
 u_quad_t nfs_curusec(void);
 void	*nfsm_disct(struct mbuf **, caddr_t *, int, int);
+
+/* ****************************** */
+/* Build request/reply phase macros */
+
+void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
 
 #define	nfsm_build(c, s) \
 	(c)nfsm_build_xx((s), &mb, &bpos)
 
+/* ****************************** */
+/* Interpretation phase macros */
+
+void	*nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos);
+int	nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **md,
+	    caddr_t *dpos);
+int	nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
+
+/* Error check helpers */
+#define nfsm_dcheck(t1, mrep) \
+do { \
+	if (t1 != 0) { \
+		error = t1; \
+		m_freem((mrep)); \
+		(mrep) = NULL; \
+		goto nfsmout; \
+	} \
+} while (0)
+
+#define nfsm_dcheckp(retp, mrep) \
+do { \
+	if (retp == NULL) { \
+		error = EBADRPC; \
+		m_freem((mrep)); \
+		(mrep) = NULL; \
+		goto nfsmout; \
+	} \
+} while (0)
+		
 #define	nfsm_dissect(c, s) \
 ({ \
 	void *ret; \
 	ret = nfsm_dissect_xx((s), &md, &dpos); \
-	if (ret == NULL) { \
-		error = EBADRPC; \
-		m_freem(mrep); \
-		mrep = NULL; \
-		goto nfsmout; \
-	} \
+	nfsm_dcheckp(ret, mrep); \
 	(c)ret; \
 })
 
@@ -84,23 +103,15 @@ void	*nfsm_disct(struct mbuf **, caddr_t *, int, int);
 do { \
 	int t1; \
 	t1 = nfsm_strsiz_xx(&(s), (m), &tl, &md, &dpos); \
-	if (t1) { \
-		error = t1; \
-		m_freem(mrep); \
-		mrep = NULL; \
-		goto nfsmout; \
-	} \
+	nfsm_dcheck(t1, mrep); \
 } while(0)
 
 #define nfsm_mtouio(p,s) \
 do {\
-	int32_t t1; \
-	if ((s) > 0 && (t1 = nfsm_mbuftouio(&md, (p), (s), &dpos)) != 0) { \
-		error = t1; \
-		m_freem(mrep); \
-		mrep = NULL; \
-		goto nfsmout; \
-	} \
+	int32_t t1 = 0; \
+	if ((s) > 0) \
+		t1 = nfsm_mbuftouio(&md, (p), (s), &dpos); \
+	nfsm_dcheck(t1, mrep); \
 } while (0)
 
 #define nfsm_rndup(a)	(((a)+3)&(~0x3))
@@ -109,12 +120,7 @@ do {\
 do { \
 	int t1; \
 	t1 = nfsm_adv_xx((s), &tl, &md, &dpos); \
-	if (t1) { \
-		error = t1; \
-		m_freem(mrep); \
-		mrep = NULL; \
-		goto nfsmout; \
-	} \
+	nfsm_dcheck(t1, mrep); \
 } while (0)
 
 #endif
