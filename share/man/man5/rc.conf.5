@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2004
+.Dd October 28, 2004
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1093,6 +1093,19 @@ any .bde swap devices listed in
 .Pa /etc/fstab
 will be initialized with a random, one-shot key.
 Note that this makes recovery of kernel dumps impossible.
+.It Va root_rw_mount
+.Pq Vt bool
+Set to
+.Dq Li YES
+by default.
+After the file systems are checked at boot time, the root filesystem
+is remounted as read-write if this is set to
+.Dq Li YES .
+Diskless systems that mount their filesystem from a read-only remote
+NFS share should set this to
+.Dq Li NO
+in their
+.Pa rc.conf .
 .It Va fsck_y_enable
 .Pq Vt bool
 If set to
