@@ -162,14 +162,6 @@ static int     	  numCommands; 	    /* The number of commands actually printed
 #define JOB_STOPPED	3   	/* The job is stopped */
 
 /*
- * tfile is the name of a file into which all shell commands are put. It is
- * used over by removing it before the child shell is executed. The XXXXXXXXXX
- * in the string are replaced by mkstemp(3).
- */
-static char     tfile[sizeof(TMPPAT)];
-
-
-/*
  * Descriptions for various shells.
  */
 static Shell    shells[] = {
@@ -992,7 +984,7 @@ JobFinish(job, status)
 	/*
 	 * If we are aborting and the job table is now empty, we finish.
 	 */
-	(void) eunlink(tfile);
+	(void) eunlink(job->tfile);
 	Finish(errors);
     }
 }
@@ -1669,6 +1661,7 @@ JobStart(gn, flags, previous)
     Boolean	  cmdsOK;     /* true if the nodes commands were all right */
     Boolean 	  local;      /* Set true if the job was run locally */
     Boolean 	  noExec;     /* Set true if we decide not to run the job */
+    int		  tfd;	      /* File descriptor for temp file */
 
     if (previous != NULL) {
 	previous->flags &= ~(JOB_FIRST|JOB_IGNERR|JOB_SILENT|JOB_REMOTE);
@@ -1698,6 +1691,12 @@ JobStart(gn, flags, previous)
     }
     job->flags |= flags;
 
+    (void) strcpy(job->tfile, TMPPAT);
+    if ((tfd = mkstemp(job->tfile)) == -1)
+	Punt("cannot create temp file: %s", strerror(errno));
+    else
+	(void) close(tfd);
+
     /*
      * Check the commands now so any attributes from .DEFAULT have a chance
      * to migrate to the node
@@ -1723,9 +1722,9 @@ JobStart(gn, flags, previous)
 	    DieHorribly();
 	}
 
-	job->cmdFILE = fopen(tfile, "w+");
+	job->cmdFILE = fopen(job->tfile, "w+");
 	if (job->cmdFILE == NULL) {
-	    Punt("Could not open %s", tfile);
+	    Punt("Could not open %s", job->tfile);
 	}
 	(void) fcntl(FILENO(job->cmdFILE), F_SETFD, 1);
 	/*
@@ -1831,7 +1830,7 @@ JobStart(gn, flags, previous)
 	 * Unlink and close the command file if we opened one
 	 */
 	if (job->cmdFILE != stdout) {
-	    (void) eunlink(tfile);
+	    (void) eunlink(job->tfile);
 	    if (job->cmdFILE != NULL)
 		(void) fclose(job->cmdFILE);
 	} else {
@@ -1860,7 +1859,7 @@ JobStart(gn, flags, previous)
 	}
     } else {
 	(void) fflush(job->cmdFILE);
-	(void) eunlink(tfile);
+	(void) eunlink(job->tfile);
     }
 
     /*
@@ -2404,13 +2403,6 @@ Job_Init(maxproc, maxlocal)
 			     * be running at once. */
 {
     GNode         *begin;     /* node for commands to do at the very start */
-    int	          tfd;
-
-    (void) strcpy(tfile, TMPPAT);
-    if ((tfd = mkstemp(tfile)) == -1)
-	Punt("cannot create temp file: %s", strerror(errno));
-    else
-	(void) close(tfd);
 
     jobs =  	  Lst_Init(FALSE);
     stoppedJobs = Lst_Init(FALSE);
@@ -2915,7 +2907,7 @@ JobInterrupt(runINTERRUPT, signo)
 	    }
 	}
     }
-    (void) eunlink(tfile);
+    (void) eunlink(job->tfile);
 }
 
 /*
@@ -2949,7 +2941,6 @@ Job_End()
 	    }
 	}
     }
-    (void) eunlink(tfile);
     return(errors);
 }
 
@@ -3025,6 +3016,7 @@ Job_AbortAll()
 	    KILL(job->pid, SIGINT);
 	    KILL(job->pid, SIGKILL);
 #endif /* RMT_WANTS_SIGNALS */
+	    (void) eunlink(job->tfile);
 	}
     }
 
@@ -3033,7 +3025,6 @@ Job_AbortAll()
      */
     while (waitpid((pid_t) -1, &foo, WNOHANG) > 0)
 	continue;
-    (void) eunlink(tfile);
 }
 
 #ifdef REMOTE
