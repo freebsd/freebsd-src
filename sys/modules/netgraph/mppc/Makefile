@@ -15,8 +15,7 @@ SRCS+=	mppcc.c mppcd.c
 
 .if ${NETGRAPH_MPPC_ENCRYPTION} > 0
 .PATH: ${.CURDIR}/../../../crypto
-.PATH: ${.CURDIR}/../../../crypto/rc4
-SRCS+=	rc4.c sha1.c
+SRCS+= sha1.c
 .endif
 
 opt_netgraph.h:

@@ -170,6 +170,11 @@ static struct ng_type ng_mppc_typestruct = {
 };
 NETGRAPH_INIT(mppc, &ng_mppc_typestruct);
 
+#ifdef NETGRAPH_MPPC_ENCRYPTION
+/* Depend on separate rc4 module */
+MODULE_DEPEND(ng_mppc, rc4, 1, 1, 1);
+#endif
+
 /* Fixed bit pattern to weaken keysize down to 40 or 56 bits */
 static const u_char ng_mppe_weakenkey[3] = { 0xd1, 0x26, 0x9e };
 
