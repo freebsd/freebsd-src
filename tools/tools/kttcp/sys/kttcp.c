@@ -83,7 +83,7 @@
 #include <sys/resourcevar.h>
 #include <sys/proc.h>
 
-#include <dev/kttcp/kttcpio.h>
+#include "kttcpio.h"
 
 #ifndef timersub
 #define timersub(tvp, uvp, vvp)						\
