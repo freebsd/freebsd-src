@@ -1038,6 +1038,9 @@ options 	LIBICONV
 # Size of the kernel message buffer.  Should be N * pagesize.
 options 	MSGBUF_SIZE=40960
 
+# Maximum size of a tty or pty input buffer.
+options 	TTYHOG=8193
+
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
