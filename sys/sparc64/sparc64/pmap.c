@@ -64,6 +64,7 @@
  */
 
 #include "opt_msgbuf.h"
+#include "opt_pmap.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -72,6 +73,7 @@
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 
@@ -198,8 +200,35 @@ static vm_offset_t pmap_bootstrap_alloc(vm_size_t size);
 #define	PMAP_TSB_THRESH	((TSB_SIZE / 2) * PAGE_SIZE)
 
 /* Callbacks for tsb_foreach. */
-tsb_callback_t pmap_remove_tte;
-tsb_callback_t pmap_protect_tte;
+static tsb_callback_t pmap_remove_tte;
+static tsb_callback_t pmap_protect_tte;
+
+#ifdef PMAP_STATS
+static long pmap_enter_nupdate;
+static long pmap_enter_nreplace;
+static long pmap_enter_nnew;
+static long pmap_ncache_enter;
+static long pmap_ncache_enter_nc;
+static long pmap_niflush;
+
+SYSCTL_NODE(_debug, OID_AUTO, pmap_stats, CTLFLAG_RD, 0, "Statistics");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nupdate, CTLFLAG_RD,
+    &pmap_enter_nupdate, 0, "Number of pmap_enter() updates");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nreplace, CTLFLAG_RD,
+    &pmap_enter_nreplace, 0, "Number of pmap_enter() replacements");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nnew, CTLFLAG_RD,
+    &pmap_enter_nnew, 0, "Number of pmap_enter() additions");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter, CTLFLAG_RD,
+    &pmap_ncache_enter, 0, "Number of pmap_cache_enter() calls");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_nc, CTLFLAG_RD,
+    &pmap_ncache_enter_nc, 0, "Number of pmap_cache_enter() nc");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_niflush, CTLFLAG_RD,
+    &pmap_niflush, 0, "Number of pmap I$ flushes");
+
+#define	PMAP_STATS_INC(var)	atomic_add_long(&var, 1)
+#else
+#define	PMAP_STATS_INC(var)
+#endif
 
 /*
  * Quick sort callout for comparing memory regions.
@@ -553,6 +582,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	int i;
 
 	CTR2(KTR_PMAP, "pmap_cache_enter: m=%p va=%#lx", m, va);
+	PMAP_STATS_INC(pmap_ncache_enter);
 	for (i = 0, c = 0; i < DCACHE_COLORS; i++) {
 		if (i != DCACHE_COLOR(va))
 			c += m->md.colors[i];
@@ -562,7 +592,8 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		CTR0(KTR_PMAP, "pmap_cache_enter: cacheable");
 		return (1);
 	}
-	else if (c != 1) {
+	PMAP_STATS_INC(pmap_ncache_enter_nc);
+	if (c != 1) {
 		CTR0(KTR_PMAP, "pmap_cache_enter: already uncacheable");
 		return (0);
 	}
@@ -1312,6 +1343,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 		if (TD_GET_PA(otte.tte_data) == pa) {
 			CTR0(KTR_PMAP, "pmap_enter: update");
+			PMAP_STATS_INC(pmap_enter_nupdate);
 
 			/*
 			 * Wiring change, just update stats.
@@ -1349,6 +1381,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
+			PMAP_STATS_INC(pmap_enter_nreplace);
 
 			/*
 			 * Mapping has changed, invalidate old range.
@@ -1380,6 +1413,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
+		PMAP_STATS_INC(pmap_enter_nnew);
 
 		/*
 		 * Enter on the pv list if part of our managed memory.
@@ -1414,6 +1448,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		tte.tte_data |= TD_SW;
 	if (prot & VM_PROT_EXECUTE) {
 		tte.tte_data |= TD_EXEC;
+		PMAP_STATS_INC(pmap_niflush);
 		icache_inval_phys(pa, pa + PAGE_SIZE - 1);
 	}
 
