@@ -706,11 +706,11 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
-	sh -e ${DOFS_SH} -s mfsroot-small ${RD} ${MNT} \
+	sh -e ${DOFS_SH} -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot-small > mfsroot-small.gz
+	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot-small.gz \
+		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot.gz \
 		${BOOTINODE} ${SMALLBOOTLABEL}
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
