@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.1.2.2 1996/12/11 00:14:17 joerg Exp $
+ *	$Id: pw_user.c,v 1.1.1.1.2.3 1996/12/11 15:17:10 joerg Exp $
  */
 
 #include <unistd.h>
@@ -343,6 +343,14 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 		if (getarg(args, 'L'))
 			pwd->pw_class = cnf->default_class;
+
+		if ((arg  = getarg(args, 'd')) != NULL) {
+			if (stat(pwd->pw_dir = arg->val, &st) == -1) {
+				if (getarg(args, 'm') == NULL && strcmp(pwd->pw_dir, "/nonexistent") != 0)
+				  fprintf(stderr, "WARNING: home `%s' does not exist\n", pwd->pw_dir);
+			} else if (!S_ISDIR(st.st_mode))
+				fprintf(stderr, "WARNING: home `%s' is not a directory\n", pwd->pw_dir);
+		}
 
 		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL)
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
