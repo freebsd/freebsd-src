@@ -262,7 +262,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 {
 #ifdef YP
 	struct ypclnt *ypclnt;
-	const void *yp_domain, *yp_server;
+	void *yp_domain, *yp_server;
 #endif
 	char salt[SALTSIZE + 1];
 	login_cap_t * lc;

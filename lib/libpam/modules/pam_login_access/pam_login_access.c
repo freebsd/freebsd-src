@@ -67,7 +67,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	if (user == NULL)
 		return (PAM_SERVICE_ERR);
 
-	PAM_LOG("Got user: %s", user);
+	PAM_LOG("Got user: %s", (const char *)user);
 
 	pam_err = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (pam_err != PAM_SUCCESS)
@@ -81,14 +81,14 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	if (rhost == NULL || *(const char *)rhost == '\0') {
 		PAM_LOG("Checking login.access for user %s on tty %s",
-		    user, tty);
+		    (const char *)user, (const char *)tty);
 		if (login_access(user, tty) != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
 		    user, tty);
 	} else {
 		PAM_LOG("Checking login.access for user %s from host %s",
-		    user, rhost);
+		    (const char *)user, (const char *)rhost);
 		if (login_access(user, rhost) != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
