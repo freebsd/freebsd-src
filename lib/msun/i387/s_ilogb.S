@@ -44,7 +44,7 @@ ENTRY(ilogb)
 
 	fldl	8(%ebp)
 	fxtract
-	fstpl	%st
+	fstp	%st
 
 	fistpl	-4(%ebp)
 	movl	-4(%ebp),%eax
