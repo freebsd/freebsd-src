@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.3 1998/10/31 11:37:09 nsouch Exp $
+ *	$Id: pcf.c,v 1.4 1998/10/31 14:23:09 peter Exp $
  *
  */
 #include <sys/param.h>
@@ -168,7 +168,6 @@ pcfprobe_isa(struct isa_device *dvp)
 
 	/* XXX add the pcf device to the root_bus until isa bus exists */
 	pcfdev = device_add_child(root_bus, "pcf", pcf->pcf_unit, NULL);
-	device_probe_and_attach(pcfdev);
 
 	if (!pcfdev)
 		goto error;
@@ -216,9 +215,6 @@ pcf_attach(device_t pcfdev)
 	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
 
 	pcf->iicbus = iicbus_alloc_bus(pcfdev);
-
-	if (!pcf->iicbus)
-		return (EINVAL);
 
 	/* probe and attach the iicbus */
 	device_probe_and_attach(pcf->iicbus);
