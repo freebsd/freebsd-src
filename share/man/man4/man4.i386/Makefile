@@ -33,6 +33,7 @@ MLINKS+=	mse.4 ../mse.4
 MLINKS+=	nca.4 ../nca.4
 MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcvt.4 ../pcvt.4
+MLINKS+=	qcam.4 ../qcam.4
 MLINKS+=	scd.4 ../scd.4
 MLINKS+=	screen.4 ../screen.4
 MLINKS+=	sea.4 ../sea.4
