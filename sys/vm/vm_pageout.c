@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_pageout.c,v 1.95 1997/02/22 09:48:33 peter Exp $
  */
 
 /*
@@ -670,8 +670,7 @@ rescan0:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) ||
-				    vget(vp, LK_EXCLUSIVE | LK_INTERLOCK,
-				         curproc)) {
+				    vget(vp, LK_EXCLUSIVE, curproc)) {
 					if ((m->queue == PQ_INACTIVE) &&
 						(m->hold_count == 0) &&
 						(m->busy == 0) &&
