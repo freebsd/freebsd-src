@@ -1024,7 +1024,7 @@ static void iFetch(FICL_VM *pVM)
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
-    pw = (UNS32)stackPopPtr(pVM->pStack);
+    pw = (UNS32 *)stackPopPtr(pVM->pStack);
     stackPushUNS(pVM->pStack, (FICL_UNS)*pw);
     return;
 }

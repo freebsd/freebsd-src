@@ -235,10 +235,10 @@ FICL_WORD *dictAppendWord2(FICL_DICT *pDict,
 
 
 /**************************************************************************
-                        d i c t A p p e n d U N S 3 2
-** Append the specified UNS32 to the dictionary
+                        d i c t A p p e n d U N S
+** Append the specified FICL_UNS to the dictionary
 **************************************************************************/
-void dictAppendUNS(FICL_DICT *pDict, UNS32 u)
+void dictAppendUNS(FICL_DICT *pDict, FICL_UNS u)
 {
     *pDict->here++ = LVALUEtoCELL(u);
     return;
