@@ -40,7 +40,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * HID spec: http://www.usb.org/developers/data/devclass/hid1_1.pdf
+ * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
 #include <sys/param.h>
