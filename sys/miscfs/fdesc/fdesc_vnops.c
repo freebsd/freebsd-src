@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.29 1997/10/16 10:48:18 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.30 1997/10/16 20:32:25 phk Exp $
  */
 
 /*
@@ -862,8 +862,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) fdesc_getattr },
 	{ &vop_inactive_desc,		(vop_t *) fdesc_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fdesc_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) fdesc_lookup },
 	{ &vop_open_desc,		(vop_t *) fdesc_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
@@ -874,7 +872,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_readlink_desc,		(vop_t *) fdesc_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) fdesc_write },
 	{ NULL, NULL }
 };
