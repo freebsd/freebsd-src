@@ -495,51 +495,16 @@ mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 				    start, end, count, flags));
 }
 
-static int
-mca_release_resource (device_t dev, device_t child, int type, int rid,
-		      struct resource * r)
+static struct resource_list *
+mca_get_resource_list (device_t dev, device_t child)
 {
-	struct mca_device *		m_dev = device_get_ivars(child);
-
-	return (resource_list_release(&(m_dev->rl), dev, child, type, rid, r));
-}
-
-static int
-mca_get_resource(device_t dev, device_t child, int type, int rid,
-		 u_long *startp, u_long *countp)
-{
-	struct mca_device *		m_dev = device_get_ivars(child);
-	struct resource_list *		rl = &(m_dev->rl);
-	struct resource_list_entry *	rle;
-
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return ENOENT;
-	
-	*startp = rle->start;
-	*countp = rle->count;
-
-	return (0);
-}
-
-static int
-mca_set_resource(device_t dev, device_t child, int type, int rid,
-		 u_long start, u_long count)
-{
-	struct mca_device *		m_dev = device_get_ivars(child);
-	struct resource_list *		rl = &(m_dev->rl);
-
-	resource_list_add(rl, type, rid, start, start + count - 1, count);
-	return (0);
-}
-
-static void
-mca_delete_resource(device_t dev, device_t child, int type, int rid)
-{
-	struct mca_device *		m_dev = device_get_ivars(child);
-	struct resource_list *		rl = &(m_dev->rl);
-
-	resource_list_delete(rl, type, rid);
+	struct mca_device *	m_dev = device_get_ivars(child); 
+	struct resource_list *	rl = &m_dev->rl;
+ 
+ 	if (!rl)
+		return (ENOENT);
+ 
+	return (rl);
 }
 
 static device_method_t mca_methods[] = {
@@ -554,18 +519,19 @@ static device_method_t mca_methods[] = {
 	DEVMETHOD(bus_print_child,	mca_print_child),
 	DEVMETHOD(bus_probe_nomatch,	mca_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	mca_read_ivar),
-	DEVMETHOD(bus_write_ivar,	mca_write_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	DEVMETHOD(bus_alloc_resource,	mca_alloc_resource),
-	DEVMETHOD(bus_release_resource,	mca_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),     
 
-	DEVMETHOD(bus_set_resource,     mca_set_resource),
-	DEVMETHOD(bus_get_resource,     mca_get_resource),
-	DEVMETHOD(bus_delete_resource,  mca_delete_resource),
+	DEVMETHOD(bus_get_resource_list,mca_get_resource_list),
+	DEVMETHOD(bus_alloc_resource,	mca_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_set_resource,     bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,     bus_generic_rl_get_resource),
+	DEVMETHOD(bus_delete_resource,  bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
 	{ 0, 0 }
 };

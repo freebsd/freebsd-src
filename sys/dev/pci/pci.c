@@ -1327,51 +1327,22 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				   start, end, count, flags);
 }
 
-static int
-pci_release_resource(device_t dev, device_t child, int type, int rid,
-		     struct resource *r)
-{
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->resources;
-
-	return resource_list_release(rl, dev, child, type, rid, r);
-}
-
-static int
-pci_set_resource(device_t dev, device_t child, int type, int rid,
-		 u_long start, u_long count)
-{
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->resources;
-
-	resource_list_add(rl, type, rid, start, start + count - 1, count);
-	return 0;
-}
-
-static int
-pci_get_resource(device_t dev, device_t child, int type, int rid,
-		 u_long *startp, u_long *countp)
-{
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->resources;
-	struct resource_list_entry *rle;
-
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return ENOENT;
-	
-	if (startp)
-		*startp = rle->start;
-	if (countp)
-		*countp = rle->count;
-
-	return 0;
-}
-
 static void
 pci_delete_resource(device_t dev, device_t child, int type, int rid)
 {
 	printf("pci_delete_resource: PCI resources can not be deleted\n");
+}
+
+static struct resource_list *
+pci_get_resource_list (device_t dev, device_t child)
+{
+	struct pci_devinfo *	dinfo = device_get_ivars(child);
+	struct resource_list *  rl = &dinfo->resources;
+
+	if (!rl)
+		return (NULL);
+
+	return (rl);
 }
 
 static u_int32_t
@@ -1426,15 +1397,17 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_set_resource,	pci_set_resource),
-	DEVMETHOD(bus_get_resource,	pci_get_resource),
+
+	DEVMETHOD(bus_get_resource_list,pci_get_resource_list),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
