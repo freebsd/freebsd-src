@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
 
@@ -72,7 +73,7 @@ HASHINFO openinfo = {
 	256,		/* nelem */
 	2048 * 1024,	/* cachesize */
 	NULL,		/* hash() */
-	0		/* lorder */
+	BYTE_ORDER	/* lorder */
 };
 
 static enum state { FILE_INSECURE, FILE_SECURE, FILE_ORIG } clean;
@@ -101,7 +102,6 @@ main(int argc, char *argv[])
 	sigset_t set;
 	int ch, cnt, ypcnt, makeold, tfd, yp_enabled = 0;
 	unsigned int len;
-	int32_t pw_change, pw_expire;
 	uint32_t store;
 	const char *t;
 	char *p;
@@ -118,10 +118,16 @@ main(int argc, char *argv[])
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "CNd:ips:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "BCLNd:ips:u:v")) != -1)
 		switch(ch) {
+		case 'B':			/* big-endian output */
+			openinfo.lorder = BIG_ENDIAN;
+			break;
 		case 'C':                       /* verify only */
 			Cflag = 1;
+			break;
+		case 'L':			/* little-endian output */
+			openinfo.lorder = LITTLE_ENDIAN;
 			break;
 		case 'N':			/* do not wait for lock	*/
 			nblock = LOCK_NB;	/* will fail if locked */
@@ -353,10 +359,14 @@ main(int argc, char *argv[])
 #define SCALAR(e)	store = htonl((uint32_t)(e));      \
 			memmove(p, &store, sizeof(store)); \
 			p += sizeof(store);
+#define	LSCALAR(e)	store = HTOL((uint32_t)(e));       \
+			memmove(p, &store, sizeof(store)); \
+			p += sizeof(store);
+#define	HTOL(e)		(openinfo.lorder == BYTE_ORDER ? \
+			(uint32_t)(e) : \
+			bswap32((uint32_t)(e)))
 		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
-			pw_change = pwd.pw_change;
-			pw_expire = pwd.pw_expire;
 			/* Create insecure data. */
 			p = buf;
 			COMPACT(pwd.pw_name);
@@ -452,40 +462,30 @@ main(int argc, char *argv[])
 			p = buf;
 			COMPACT(pwd.pw_name);
 			COMPACT("*");
-			memmove(p, &pwd.pw_uid, sizeof(pwd.pw_uid));
-			p += sizeof(int);
-			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
-			p += sizeof(int);
-			memmove(p, &pw_change, sizeof(pw_change));
-			p += sizeof(pw_change);
+			LSCALAR(pwd.pw_uid);
+			LSCALAR(pwd.pw_gid);
+			LSCALAR(pwd.pw_change);
 			COMPACT(pwd.pw_class);
 			COMPACT(pwd.pw_gecos);
 			COMPACT(pwd.pw_dir);
 			COMPACT(pwd.pw_shell);
-			memmove(p, &pw_expire, sizeof(pw_expire));
-			p += sizeof(pw_expire);
-			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
-			p += sizeof pwd.pw_fields;
+			LSCALAR(pwd.pw_expire);
+			LSCALAR(pwd.pw_fields);
 			data.size = p - buf;
 
 			/* Create secure data. (legacy version) */
 			p = sbuf;
 			COMPACT(pwd.pw_name);
 			COMPACT(pwd.pw_passwd);
-			memmove(p, &pwd.pw_uid, sizeof(pwd.pw_uid));
-			p += sizeof(int);
-			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
-			p += sizeof(int);
-			memmove(p, &pw_change, sizeof(pw_change));
-			p += sizeof(pw_change);
+			LSCALAR(pwd.pw_uid);
+			LSCALAR(pwd.pw_gid);
+			LSCALAR(pwd.pw_change);
 			COMPACT(pwd.pw_class);
 			COMPACT(pwd.pw_gecos);
 			COMPACT(pwd.pw_dir);
 			COMPACT(pwd.pw_shell);
-			memmove(p, &pw_expire, sizeof(pw_expire));
-			p += sizeof(pw_expire);
-			memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
-			p += sizeof pwd.pw_fields;
+			LSCALAR(pwd.pw_expire);
+			LSCALAR(pwd.pw_fields);
 			sdata.size = p - sbuf;
 
 			/* Store insecure by name. */
@@ -498,15 +498,17 @@ main(int argc, char *argv[])
 
 			/* Store insecure by number. */
 			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
-			memmove(tbuf + 1, &cnt, sizeof(cnt));
-			key.size = sizeof(cnt) + 1;
+			store = HTOL(cnt);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
 			if ((dp->put)(dp, &key, &data, method) == -1)
 				error("put");
 
 			/* Store insecure by uid. */
 			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
-			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
-			key.size = sizeof(pwd.pw_uid) + 1;
+			store = HTOL(pwd.pw_uid);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
 			if ((dp->put)(dp, &key, &data, methoduid) == -1)
 				error("put");
 
@@ -520,24 +522,27 @@ main(int argc, char *argv[])
 
 			/* Store secure by number. */
 			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
-			memmove(tbuf + 1, &cnt, sizeof(cnt));
-			key.size = sizeof(cnt) + 1;
+			store = HTOL(cnt);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
 				error("put");
 
 			/* Store secure by uid. */
 			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
-			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
-			key.size = sizeof(pwd.pw_uid) + 1;
+			store = HTOL(pwd.pw_uid);
+			memmove(tbuf + 1, &store, sizeof(store));
+			key.size = sizeof(store) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
 				error("put");
 
 			/* Store insecure and secure special plus and special minus */
 			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
 				tbuf[0] = LEGACY_VERSION(_PW_KEYYPBYNUM);
-				memmove(tbuf + 1, &ypcnt, sizeof(cnt));
+				store = HTOL(ypcnt);
+				memmove(tbuf + 1, &store, sizeof(store));
 				ypcnt++;
-				key.size = sizeof(cnt) + 1;
+				key.size = sizeof(store) + 1;
 				if ((dp->put)(dp, &key, &data, method) == -1)
 					error("put");
 				if ((sdp->put)(sdp, &key, &sdata, method) == -1)
@@ -746,6 +751,6 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-"usage: pwd_mkdb [-C] [-N] [-i] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
+"usage: pwd_mkdb [-BCiLNp] [-d directory] [-s cachesize] [-u username] file\n");
 	exit(1);
 }
