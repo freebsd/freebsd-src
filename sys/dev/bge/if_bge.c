@@ -2553,6 +2553,10 @@ bge_reset(sc)
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	bge_writereg_ind(sc, BGE_MISC_CFG, (65 << 1));
 
+	/* Enable memory arbiter. */
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705)
+		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
+
 	/*
 	 * Prevent PXE restart: write a magic number to the
 	 * general communications memory at 0xB50.
@@ -2589,10 +2593,6 @@ bge_reset(sc)
 			break;
 		DELAY(10);
 	}
-
-	/* Enable memory arbiter. */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705)
-		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 
 	/* Fix up byte swapping */
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_MODECTL_BYTESWAP_NONFRAME|
