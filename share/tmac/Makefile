@@ -18,7 +18,7 @@ beforeinstall:
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}${BINDIR}/tmac/tmac.$$i; \
 		chmod 444 ${DESTDIR}${BINDIR}/tmac/tmac.$$i; \
 	done
-	install -c -o ${BINOWN} -g ${BINOWN} -m 444 ${FILES} \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 		${DESTDIR}${BINDIR}/tmac
 
 
