@@ -114,10 +114,10 @@ struct iso88025_sockaddr_dl_data {
 	u_short	*trld_route[RIF_MAX_LEN];
 };
 
-#define ISO88025_MIN(a, b)	(((a)<(b))?(a):(b))
+#define ISO88025_MAX(a, b)	(((a)>(b))?(a):(b))
 #define SDL_ISO88025(s)		((struct iso88025_sockaddr_dl_data *)	\
 				 ((s)->sdl_data + \
-				  ISO88025_MIN((s)->sdl_nlen + (s)->sdl_alen + \
+				  ISO88025_MAX((s)->sdl_nlen + (s)->sdl_alen + \
 					       (s)->sdl_slen, 12)))
 
 /*
