@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.330 1997/05/04 15:24:19 joerg Exp $
+#	$Id: LINT,v 1.331 1997/05/06 18:24:17 fsmp Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -873,6 +873,25 @@ options	LINT_PCCARD_HACK
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
+#
+# ATM related options
+#
+# The `en' device provides support for Efficient Networks (ENI)
+# ENI-155 PCI midway cards, and the Adaptec 155Mbps PCI ATM cards (ANA-59x0).
+#
+# atm pseudo-device privides generic atm functions and is required for
+# atm devices.
+# NETNATM enables the netnatm protocol family that can be used to
+# bypass TCP/IP.
+#
+# the current driver supports only PVC operations (no atm-arp, no multicast).
+# for more details, please read the original documents at 
+# http://www.ccrc.wustl.edu/pub/chuck/bsdatm/wucs.html
+#
+pseudo-device	atm
+device en0
+device en1
+options		NETNATM			#native ATM
 
 #
 # Audio drivers: `snd', `sb', `pas', `gus', `pca'
