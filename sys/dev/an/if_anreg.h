@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 
-#define AN_TIMEOUT	65536
+#define AN_TIMEOUT	600000
 
 /* Default network name: <empty string> */
 #define AN_DEFAULT_NETNAME	""
@@ -58,24 +58,59 @@
 	bus_space_read_1(sc->an_btag, sc->an_bhandle, reg)
 
 /*
+ * memory space access macros
+ */
+#define CSR_MEM_WRITE_2(sc, reg, val)	\
+	bus_space_write_2(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+
+#define CSR_MEM_READ_2(sc, reg)		\
+	bus_space_read_2(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+
+#define CSR_MEM_WRITE_1(sc, reg, val)	\
+	bus_space_write_1(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+
+#define CSR_MEM_READ_1(sc, reg)		\
+	bus_space_read_1(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+
+/*
+ * aux. memory space access macros
+ */
+#define CSR_MEM_AUX_WRITE_4(sc, reg, val)	\
+	bus_space_write_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+
+#define CSR_MEM_AUX_READ_4(sc, reg)		\
+	bus_space_read_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+
+#define CSR_MEM_AUX_WRITE_1(sc, reg, val)	\
+	bus_space_write_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+
+#define CSR_MEM_AUX_READ_1(sc, reg)		\
+	bus_space_read_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+
+/*
  * Size of Aironet I/O space.
  */
 #define AN_IOSIZ		0x40
+
+/*
+ * Size of aux. memory space ... probably not needed DJA 
+ */
+#define AN_AUXMEMSIZE		(256 * 1024)
 
 /*
  * Hermes register definitions and what little I know about them.
  */
 
 /* Hermes command/status registers. */
-#define AN_COMMAND		0x00
-#define AN_PARAM0		0x02
-#define AN_PARAM1		0x04
-#define AN_PARAM2		0x06
-#define AN_STATUS		0x08
-#define AN_RESP0		0x0A
-#define AN_RESP1		0x0C
-#define AN_RESP2		0x0E
-#define AN_LINKSTAT		0x10
+#define AN_COMMAND(x)		(x ? 0x00 : 0x00)
+#define AN_PARAM0(x)		(x ? 0x04 : 0x02)
+#define AN_PARAM1(x)		(x ? 0x08 : 0x04)
+#define AN_PARAM2(x)		(x ? 0x0c : 0x06)
+#define AN_STATUS(x)		(x ? 0x10 : 0x08)
+#define AN_RESP0(x)		(x ? 0x14 : 0x0A)
+#define AN_RESP1(x)		(x ? 0x18 : 0x0C)
+#define AN_RESP2(x)		(x ? 0x1c : 0x0E)
+#define AN_LINKSTAT(x)		(x ? 0x20 : 0x10)
 
 /* Command register */
 #define AN_CMD_BUSY		0x8000 /* busy bit */
@@ -97,6 +132,7 @@
 #define AN_CMD_TX		0x000B /* transmit */
 #define AN_CMD_DEALLOC_MEM	0x000C
 #define AN_CMD_NOOP2		0x0010
+#define AN_CMD_ALLOC_DESC	0x0020
 #define AN_CMD_ACCESS		0x0021
 #define AN_CMD_ALLOC_BUF	0x0028
 #define AN_CMD_PSP_NODES	0x0030
@@ -104,6 +140,69 @@
 #define AN_CMD_TX_TEST		0x003F
 #define AN_CMD_SLEEP		0x0085
 #define AN_CMD_SAVECFG		0x0108
+
+/*
+ * MPI 350 DMA descriptor information
+ */
+#define AN_DESCRIPTOR_TX	0x01
+#define AN_DESCRIPTOR_RX	0x02
+#define AN_DESCRIPTOR_TXCMP	0x04
+#define AN_DESCRIPTOR_HOSTWRITE	0x08
+#define AN_DESCRIPTOR_HOSTREAD	0x10
+#define AN_DESCRIPTOR_HOSTRW	0x20
+
+#define AN_MAX_RX_DESC 1
+#define AN_MAX_TX_DESC 1
+#define AN_HOSTBUFSIZ 1840
+
+struct an_card_rid_desc
+{
+	unsigned	an_rid:16;
+	unsigned	an_len:15;
+	unsigned	an_valid:1;
+	u_int64_t	an_phys;
+};
+
+struct an_card_rx_desc
+{
+	unsigned	an_ctrl:15;
+	unsigned	an_done:1;
+	unsigned	an_len:15;
+	unsigned	an_valid:1;
+	u_int64_t	an_phys;
+};
+
+struct an_card_tx_desc
+{
+	unsigned	an_offset:15;
+	unsigned	an_eoc:1;
+	unsigned	an_len:15;
+	unsigned	an_valid:1;
+	u_int64_t	an_phys;
+};
+
+#define AN_RID_BUFFER_SIZE	2048
+#define AN_RX_BUFFER_SIZE	1840
+#define AN_TX_BUFFER_SIZE	1840
+#define AN_HOST_DESC_OFFSET 0x8
+#define AN_RX_DESC_OFFSET  (AN_HOST_DESC_OFFSET + \
+    sizeof(struct an_card_rid_desc))
+#define AN_TX_DESC_OFFSET (AN_RX_DESC_OFFSET + \
+    (AN_MAX_RX_DESC * sizeof(struct an_card_rx_desc)))
+
+struct an_command {
+	u_int16_t	an_cmd;
+	u_int16_t	an_parm0;
+	u_int16_t	an_parm1;
+	u_int16_t	an_parm2;
+};
+
+struct an_reply {
+	u_int16_t	an_status;
+	u_int16_t	an_resp0;
+	u_int16_t	an_resp1;
+	u_int16_t	an_resp2;
+};
 
 /*
  * Reclaim qualifier bit, applicable to the
@@ -169,9 +268,10 @@
 #define AN_OFF_DATAOFF		0x0FFF
 
 /* Event registers */
-#define AN_EVENT_STAT		0x30	/* Event status */
-#define AN_INT_EN		0x32	/* Interrupt enable/disable */
-#define AN_EVENT_ACK		0x34	/* Ack event */
+#define AN_EVENT_STAT(x)	(x ? 0x60 : 0x30)	/* Event status */
+#define AN_INT_EN(x)		(x ? 0x64 : 0x32)	/* Interrupt enable/
+							   disable */
+#define AN_EVENT_ACK(x)		(x ? 0x68 : 0x34)	/* Ack event */
 
 /* Events */
 #define AN_EV_CLR_STUCK_BUSY	0x4000	/* clear stuck busy bit */
@@ -188,10 +288,10 @@
 	(AN_EV_RX|AN_EV_TX|AN_EV_TX_EXC|AN_EV_ALLOC|AN_EV_LINKSTAT)
 
 /* Host software registers */
-#define AN_SW0			0x28
-#define AN_SW1			0x2A
-#define AN_SW2			0x2C
-#define AN_SW3			0x2E
+#define AN_SW0(x)		(x ? 0x50 : 0x28)
+#define AN_SW1(x)		(x ? 0x54 : 0x2A)
+#define AN_SW2(x)		(x ? 0x58 : 0x2C)
+#define AN_SW3(x)		(x ? 0x5c : 0x2E)
 
 #define AN_CNTL			0x14
 
@@ -311,6 +411,15 @@ struct an_snap_hdr {
 	u_int16_t		an_snap_type;
 };
 
+struct an_dma_alloc {
+	u_int32_t		an_dma_paddr;
+	caddr_t			an_dma_vaddr;
+	bus_dmamap_t		an_dma_map;
+	bus_dma_segment_t	an_dma_seg;
+	bus_size_t		an_dma_size;
+	int			an_dma_nseg;
+};
+
 #define AN_TX_RING_CNT		4
 #define AN_INC(x, y)		(x) = (x + 1) % y
 
@@ -319,6 +428,7 @@ struct an_tx_ring_data {
 	u_int16_t		an_tx_ring[AN_TX_RING_CNT];
 	int			an_tx_prod;
 	int			an_tx_cons;
+	int			an_tx_empty;
 };
 
 struct an_softc	{
@@ -328,13 +438,24 @@ struct an_softc	{
 
 	int	port_rid;	/* resource id for port range */
 	struct resource* port_res; /* resource for port range */
+	int     mem_rid;	/* resource id for memory range */
+        int     mem_used;	/* nonzero if memory used */
+	struct resource* mem_res; /* resource for memory range */
+	int     mem_aux_rid;	/* resource id for memory range */
+        int     mem_aux_used;	/* nonzero if memory used */
+	struct resource* mem_aux_res; /* resource for memory range */
 	int	irq_rid;	/* resource id for irq */
-	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
+	struct resource* irq_res; /* resource for irq */
 
 	bus_space_handle_t	an_bhandle_p;
 	bus_space_handle_t	an_bhandle;
 	bus_space_tag_t		an_btag;
+	bus_space_handle_t	an_mem_bhandle;
+	bus_space_tag_t		an_mem_btag;
+	bus_space_handle_t	an_mem_aux_bhandle;
+	bus_space_tag_t		an_mem_aux_btag;
+	bus_dma_tag_t		an_dtag;
 	struct an_ltv_genconfig	an_config;
 	struct an_ltv_caps	an_caps;
 	struct an_ltv_ssidlist	an_ssidlist;
@@ -354,6 +475,8 @@ struct an_softc	{
 	int			an_sigitems;
 	struct an_sigcache	an_sigcache[MAXANCACHE];
 	int			an_nextitem;
+	int			an_have_rssimap;
+	struct an_ltv_rssi_map	an_rssimap;
 #endif
 	struct callout_handle	an_stat_ch;
 	struct mtx		an_mtx;
@@ -363,6 +486,11 @@ struct an_softc	{
 	int		        an_was_monitor;
 	u_char			buf_802_11[MCLBYTES];
 	struct an_req		areq;
+	unsigned short*		an_flash_buffer;
+	int			mpi350;
+	struct an_dma_alloc	an_rid_buffer;
+	struct an_dma_alloc	an_rx_buffer[AN_MAX_RX_DESC];
+	struct an_dma_alloc	an_tx_buffer[AN_MAX_TX_DESC];
 };
 
 #define AN_LOCK(_sc)		mtx_lock(&(_sc)->an_mtx)
@@ -371,6 +499,7 @@ struct an_softc	{
 void	an_release_resources	(device_t);
 int	an_alloc_port		(device_t, int, int);
 int	an_alloc_memory		(device_t, int, int);
+int	an_alloc_aux_memory	(device_t, int, int);
 int	an_alloc_irq		(device_t, int, int);
 int	an_probe	(device_t);
 void	an_shutdown	(device_t);
