@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.143 1999/05/11 04:58:30 bde Exp $
+ *	$Id: fd.c,v 1.144 1999/05/30 11:10:54 dfr Exp $
  *
  */
 
@@ -370,15 +370,30 @@ static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
-static struct cdevsw fd_cdevsw = {
-	  Fdopen,	fdclose,	physread,	physwrite,
-	  fdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		fdstrategy,	"fd",
-	  NULL,		-1,		nodump,		nopsize,
-	  D_DISK,	0,		-1
-};
 #define CDEV_MAJOR 9
 #define BDEV_MAJOR 2
+
+static struct cdevsw fd_cdevsw = {
+	/* open */	Fdopen,
+	/* close */	fdclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	fdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	fdstrategy,
+	/* name */	"fd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 static int
 fdc_err(struct fdc_data *fdc, const char *s)

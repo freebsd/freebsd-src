@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.20 1999/05/09 01:25:24 ken Exp $
+ *      $Id: scsi_cd.c,v 1.21 1999/05/22 22:00:18 gibbs Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -243,27 +243,26 @@ DATA_SET(periphdriver_set, cddriver);
 #ifndef D_DISK
 #define D_DISK 0
 #endif
-static struct cdevsw cd_cdevsw = 
-{
-	/*d_open*/	cdopen,
-	/*d_close*/	cdclose,
-	/*d_read*/	physread,
-	/*d_write*/	nowrite,
-	/*d_ioctl*/	cdioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	seltrue,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	cdstrategy,
-	/*d_name*/	"cd",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	D_DISK,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+static struct cdevsw cd_cdevsw = {
+	/* open */	cdopen,
+	/* close */	cdclose,
+	/* read */	physread,
+	/* write */	nowrite,
+	/* ioctl */	cdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	cdstrategy,
+	/* name */	"cd",
+	/* parms */	noparms,
+	/* maj */	CD_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	CD_BDEV_MAJOR
 };
 
 static struct extend_array *cdperiphs;

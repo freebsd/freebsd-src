@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.11 1999/05/07 07:03:03 phk Exp $
+ *      $Id: scsi_target.c,v 1.12 1999/05/22 22:00:24 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -136,25 +136,25 @@ static	d_strategy_t	targstrategy;
 
 #define TARG_CDEV_MAJOR	65
 static struct cdevsw targ_cdevsw = {
-	/*d_open*/	targopen,
-	/*d_close*/	targclose,
-	/*d_read*/	targread,
-	/*d_write*/	targwrite,
-	/*d_ioctl*/	targioctl,
-	/*d_stop*/	nostop,
-	/*d_reset*/	noreset,
-	/*d_devtotty*/	nodevtotty,
-	/*d_poll*/	targpoll,
-	/*d_mmap*/	nommap,
-	/*d_strategy*/	targstrategy,
-	/*d_name*/	"targ",
-	/*d_spare*/	NULL,
-	/*d_maj*/	-1,
-	/*d_dump*/	nodump,
-	/*d_psize*/	nopsize,
-	/*d_flags*/	0,
-	/*d_maxio*/	0,
-	/*b_maj*/	-1
+	/* open */	targopen,
+	/* close */	targclose,
+	/* read */	targread,
+	/* write */	targwrite,
+	/* ioctl */	targioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	targpoll,
+	/* mmap */	nommap,
+	/* strategy */	targstrategy,
+	/* name */	"targ",
+	/* parms */	noparms,
+	/* maj */	TARG_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static int		targsendccb(struct cam_periph *periph, union ccb *ccb,

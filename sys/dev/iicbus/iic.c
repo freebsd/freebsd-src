@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.9 1999/05/08 21:59:03 dfr Exp $
+ *	$Id: iic.c,v 1.10 1999/05/09 13:00:35 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -92,10 +92,27 @@ static	d_read_t	iicread;
 static	d_ioctl_t	iicioctl;
 
 #define CDEV_MAJOR 105
-static struct cdevsw iic_cdevsw = 
-	{ iicopen,	iicclose,	iicread,	iicwrite,	/*105*/
-	  iicioctl,	nullstop,	nullreset,	nodevtotty,	/*iic*/
-	  seltrue,	nommap,		nostrat,	"iic",	NULL,	-1 };
+static struct cdevsw iic_cdevsw = {
+	/* open */	iicopen,
+	/* close */	iicclose,
+	/* read */	iicread,
+	/* write */	iicwrite,
+	/* ioctl */	iicioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"iic",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /*
  * iicprobe()

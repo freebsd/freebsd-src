@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.6 1999/04/18 14:42:18 kato Exp $
+ *	$Id: pc98kbd.c,v 1.7 1999/05/09 04:53:58 kato Exp $
  */
 
 #include "pckbd.h"
@@ -119,11 +119,26 @@ static d_read_t		pckbdread;
 static d_ioctl_t	pckbdioctl;
 static d_poll_t		pckbdpoll;
 
-static struct  cdevsw pckbd_cdevsw = {
-	pckbdopen,	pckbdclose,	pckbdread,	nowrite,
-	pckbdioctl,	nostop,		nullreset,	nodevtotty,
-	pckbdpoll,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,
+static struct cdevsw pckbd_cdevsw = {
+	/* open */	pckbdopen,
+	/* close */	pckbdclose,
+	/* read */	pckbdread,
+	/* write */	nowrite,
+	/* ioctl */	pckbdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	pckbdpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	DRIVER_NAME,
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #endif /* KBD_INSTALL_CDEV */

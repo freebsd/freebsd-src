@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.11 1999/05/09 13:00:30 phk Exp $
+ *	$Id: zs_tlsb.c,v 1.12 1999/05/10 14:01:35 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -72,10 +72,25 @@ static	d_devtotty_t	zsdevtotty;
 
 #define CDEV_MAJOR 98
 static struct cdevsw zs_cdevsw = {
-	zsopen,	zsclose,	zsread,	zswrite,
-	zsioctl,	zsstop,	noreset,	zsdevtotty,
-	ttpoll,		nommap,		NULL,		"zs",
-	NULL,		-1,
+	/* open */	zsopen,
+	/* close */	zsclose,
+	/* read */	zsread,
+	/* write */	zswrite,
+	/* ioctl */	zsioctl,
+	/* stop */	zsstop,
+	/* reset */	noreset,
+	/* devtotty */	zsdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"zs",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static void	zsstart __P((struct tty *));

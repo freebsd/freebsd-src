@@ -121,10 +121,25 @@ d_poll_t  ugenpoll;
 #define UGEN_CDEV_MAJOR	114
 
 static struct cdevsw ugen_cdevsw = {
-	ugenopen,	ugenclose,	ugenread,	ugenwrite,
-	ugenioctl,	nostop,		nullreset,	nodevtotty,
-	ugenpoll,	nommap,		nostrat,
-	"ugen",		NULL,		-1
+	/* open */	ugenopen,
+	/* close */	ugenclose,
+	/* read */	ugenread,
+	/* write */	ugenwrite,
+	/* ioctl */	ugenioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	ugenpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ugen",
+	/* parms */	noparms,
+	/* maj */	UGEN_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 

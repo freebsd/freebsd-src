@@ -132,12 +132,26 @@ static	d_devtotty_t	pcdevtotty;
 static	d_mmap_t	pcmmap;
 
 #define	CDEV_MAJOR	12
-static	struct cdevsw	pc_cdevsw = {
-	pcopen,		pcclose,	pcread,		pcwrite,
-	pcioctl,	nullstop,	noreset,	pcdevtotty,
-	ttpoll,		pcmmap,		nostrategy,	"vt",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw pc_cdevsw = {
+	/* open */	pcopen,
+	/* close */	pcclose,
+	/* read */	pcread,
+	/* write */	pcwrite,
+	/* ioctl */	pcioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	pcdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	pcmmap,
+	/* strategy */	nostrategy,
+	/* name */	"vt",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #if PCVT_FREEBSD > 205

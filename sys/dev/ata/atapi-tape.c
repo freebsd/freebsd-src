@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.7 1999/05/07 07:03:15 phk Exp $
+ *	$Id: atapi-tape.c,v 1.8 1999/05/17 15:58:47 sos Exp $
  */
 
 #include "ata.h"
@@ -61,11 +61,25 @@ static  d_strategy_t	aststrategy;
 #define CDEV_MAJOR 119
 
 static struct cdevsw ast_cdevsw = {
-    astopen,	astclose,	physread,	physwrite,
-    astioctl,	nostop,		nullreset,	nodevtotty,
-    seltrue,	nommap,		aststrategy,	"ast",
-    NULL,	-1,		nodump,		nopsize,
-    D_TAPE,	0,		-1
+	/* open */	astopen,
+	/* close */	astclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	astioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	aststrategy,
+	/* name */	"ast",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TAPE,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
 };
 
 static u_int32_t ast_total = 0;

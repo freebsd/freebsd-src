@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.17 1999/05/06 22:13:04 peter Exp $
+ * $Id: loran.c,v 1.18 1999/05/08 14:36:48 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -635,11 +635,27 @@ struct	isa_driver lorandriver = {
 };
 
 #define CDEV_MAJOR 94
-static struct cdevsw loran_cdevsw = 
-	{ loranopen,	loranclose,	loranread,	loranwrite,
-	  noioctl,	nullstop,	nullreset,	nodevtotty,
-	  seltrue,	nommap,		nostrat,	"loran",
-	  NULL,		-1 };
+static struct cdevsw loran_cdevsw = {
+	/* open */	loranopen,
+	/* close */	loranclose,
+	/* read */	loranread,
+	/* write */	loranwrite,
+	/* ioctl */	noioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"loran",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 
 static int loran_devsw_installed;

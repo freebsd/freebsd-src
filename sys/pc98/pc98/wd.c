@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.81 1999/05/09 04:42:10 kato Exp $
+ *	$Id: wd.c,v 1.82 1999/05/25 10:41:14 kato Exp $
  */
 
 /* TODO:
@@ -267,14 +267,27 @@ static	d_psize_t	wdsize;
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
 
-
 static struct cdevsw wd_cdevsw = {
-	  wdopen,	wdclose,	physread,	physwrite,
-	  wdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		wdstrategy,	"wd",
-	  NULL,		-1,		wddump,		wdsize,
-	  D_DISK,	0,		-1 };
-
+	/* open */	wdopen,
+	/* close */	wdclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	wdioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	wdstrategy,
+	/* name */	"wd",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	wddump,
+	/* psize */	wdsize,
+	/* flags */	D_DISK,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 static int      atapictrlr;
 static int      eide_quirks;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.24 1998/06/07 17:11:44 dfr Exp $
+ * $Id: tty_tty.c,v 1.25 1998/08/23 08:26:42 bde Exp $
  */
 
 /*
@@ -60,12 +60,26 @@ static	d_poll_t	cttypoll;
 
 #define	CDEV_MAJOR	1
 /* Don't make this static, since fdesc_vnops uses it. */
-struct cdevsw	ctty_cdevsw = {
-	cttyopen,	nullclose,	cttyread,	cttywrite,
-	cttyioctl,	nullstop,	nullreset,	nodevtotty,
-	cttypoll,	nommap,		NULL,		"ctty",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+struct cdevsw ctty_cdevsw = {
+	/* open */	cttyopen,
+	/* close */	nullclose,
+	/* read */	cttyread,
+	/* write */	cttywrite,
+	/* ioctl */	cttyioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	cttypoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ctty",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)

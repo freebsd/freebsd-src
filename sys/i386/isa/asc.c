@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.35 1999/04/28 10:52:14 dt Exp $
+ * $Id: asc.c,v 1.36 1999/05/06 18:12:24 peter Exp $
  */
 
 #include "asc.h"
@@ -199,10 +199,27 @@ static d_poll_t		ascpoll;
 
 #define CDEV_MAJOR 71
 
-static struct cdevsw asc_cdevsw = 
-	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
-	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
-	  ascpoll,	nommap,         NULL,	"asc",	NULL,	-1 };
+static struct cdevsw asc_cdevsw = {
+	/* open */	ascopen,
+	/* close */	ascclose,
+	/* read */	ascread,
+	/* write */	nowrite,
+	/* ioctl */	ascioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	ascpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"asc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 #define STATIC static
 

@@ -99,12 +99,26 @@ static	d_stop_t	rcstop;
 static	d_devtotty_t	rcdevtotty;
 
 #define	CDEV_MAJOR	63
-static	struct cdevsw	rc_cdevsw = {
-	rcopen,		rcclose,	rcread,		rcwrite,
-	rcioctl,	rcstop,		noreset,	rcdevtotty,
-	ttpoll,		nommap,		NULL,		"rc",
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw rc_cdevsw = {
+	/* open */	rcopen,
+	/* close */	rcclose,
+	/* read */	rcread,
+	/* write */	rcwrite,
+	/* ioctl */	rcioctl,
+	/* stop */	rcstop,
+	/* reset */	noreset,
+	/* devtotty */	rcdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"rc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 /* Per-board structure */

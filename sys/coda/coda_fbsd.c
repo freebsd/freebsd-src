@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.12 1999/01/27 20:09:17 dillon Exp $
+ *  $Id: coda_fbsd.c,v 1.13 1999/01/28 00:57:46 dillon Exp $
  * 
  */
 
@@ -73,11 +73,26 @@ static	void	*coda_devfs_token[NVCODA];
 
 #define VC_DEV_NO      93
 
-static struct cdevsw codadevsw =
-{ 
-  vc_nb_open,      vc_nb_close,    vc_nb_read,        vc_nb_write,	/*93*/
-  vc_nb_ioctl,     nostop,         nullreset,         nodevtotty,
-  vc_nb_poll,      nommap,         NULL,              "Coda", NULL, -1 
+static struct cdevsw codadevsw = {
+	/* open */	vc_nb_open,
+	/* close */	vc_nb_close,
+	/* read */	vc_nb_read,
+	/* write */	vc_nb_write,
+	/* ioctl */	vc_nb_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	vc_nb_poll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"Coda",
+	/* parms */	noparms,
+	/* maj */	VC_DEV_NO,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 int     vcdebug = 1;

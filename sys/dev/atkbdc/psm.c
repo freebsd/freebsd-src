@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.8 1999/05/09 04:58:35 yokota Exp $
+ * $Id: psm.c,v 1.9 1999/05/09 13:00:43 phk Exp $
  */
 
 /*
@@ -315,10 +315,26 @@ static driver_t psm_driver = {
 
 #define CDEV_MAJOR        21
 
-static struct  cdevsw psm_cdevsw = {
-	psmopen,	psmclose,	psmread,	nowrite,	/* 21 */
-	psmioctl,	nostop,		nullreset,	nodevtotty,
-	psmpoll,	nommap,		NULL,		"psm",	NULL,	-1
+static struct cdevsw psm_cdevsw = {
+	/* open */	psmopen,
+	/* close */	psmclose,
+	/* read */	psmread,
+	/* write */	nowrite,
+	/* ioctl */	psmioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	psmpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"psm",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 /* debug message level */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.20 1999/05/06 18:50:10 peter Exp $
+ *	$Id: wst.c,v 1.21 1999/05/07 07:03:32 phk Exp $
  */
 
 #include "wdc.h"
@@ -59,10 +59,26 @@ static  d_strategy_t    wststrategy;
 
 
 static struct cdevsw wst_cdevsw = {
-	  wstopen,	wstclose,	physread,	physwrite,
-	  wstioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		wststrategy,	"wst",
-	  NULL,	-1 };
+	/* open */	wstopen,
+	/* close */	wstclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	wstioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	wststrategy,
+	/* name */	"wst",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	BDEV_MAJOR
+};
 
 static unsigned int wst_total = 0;
 

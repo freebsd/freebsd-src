@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.25 1999/05/06 18:44:04 peter Exp $
+ *	$Id: rp.c,v 1.26 1999/05/09 17:07:20 peter Exp $
  */
 
 /* 
@@ -801,12 +801,26 @@ static	d_stop_t	rpstop;
 static	d_devtotty_t	rpdevtotty;
 
 #define	CDEV_MAJOR	81
-static	struct cdevsw	rp_cdevsw = {
-	rpopen,		rpclose,	rpread,		rpwrite,
-	rpioctl,	rpstop,		noreset,	rpdevtotty,
-	ttpoll,		nommap,		NULL,		driver_name,
-	NULL,		-1,		nodump,		nopsize,
-	D_TTY,
+static struct cdevsw rp_cdevsw = {
+	/* open */	rpopen,
+	/* close */	rpclose,
+	/* read */	rpread,
+	/* write */	rpwrite,
+	/* ioctl */	rpioctl,
+	/* stop */	rpstop,
+	/* reset */	noreset,
+	/* devtotty */	rpdevtotty,
+	/* poll */	ttpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	driver_name,
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static int rp_controller_port = 0;

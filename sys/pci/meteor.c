@@ -228,10 +228,27 @@ static	d_ioctl_t	meteor_ioctl;
 static	d_mmap_t	meteor_mmap;
 
 #define CDEV_MAJOR 67
-static struct cdevsw meteor_cdevsw = 
-        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
-          meteor_ioctl, nostop,         nullreset,   nodevtotty,/* Meteor */
-          seltrue,	meteor_mmap, NULL,	"meteor",	NULL,	-1 };
+static struct cdevsw meteor_cdevsw = {
+	/* open */	meteor_open,
+	/* close */	meteor_close,
+	/* read */	meteor_read,
+	/* write */	meteor_write,
+	/* ioctl */	meteor_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	meteor_mmap,
+	/* strategy */	nostrategy,
+	/* name */	"meteor",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 #endif
 
 static mreg_t saa7116_pci_default[sizeof(struct saa7116_regs)/sizeof(mreg_t)]={

@@ -116,10 +116,25 @@ d_ioctl_t usbioctl;
 int usbpoll __P((dev_t, int, struct proc *));
 
 struct cdevsw usb_cdevsw = {
-	usbopen,     usbclose,    noread,         nowrite,
-	usbioctl,    nullstop,    nullreset,      nodevtotty,
-	usbpoll,     nommap,      nostrat,
-	"usb",        NULL,   -1
+	/* open */	usbopen,
+	/* close */	usbclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	usbioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	usbpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"usb",
+	/* parms */	noparms,
+	/* maj */	-1,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 #endif
 
