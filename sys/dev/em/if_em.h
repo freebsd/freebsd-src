@@ -288,6 +288,13 @@ typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
+struct adapter;
+struct em_int_delay_info {
+        struct adapter *adapter;        /* Back-pointer to the adapter struct */
+        int offset;                     /* Register offset to read/write */
+        int value;                      /* Current value in usecs */
+};
+
 /* For 82544 PCIX  Workaround */
 typedef struct _ADDRESS_LENGTH_PAIR
 {
@@ -301,7 +308,6 @@ typedef struct _DESCRIPTOR_PAIR
     u_int32_t   elements;
 } DESC_ARRAY, *PDESC_ARRAY;
   
-
 /* Our adapter structure */
 struct adapter {
 	struct arpcom   interface_data;
@@ -328,10 +334,10 @@ struct adapter {
 	u_int16_t       link_speed;
 	u_int16_t       link_duplex;
 	u_int32_t       smartspeed;
-	u_int32_t       tx_int_delay;
-	u_int32_t       tx_abs_int_delay;
-	u_int32_t       rx_int_delay;
-	u_int32_t       rx_abs_int_delay;
+	struct em_int_delay_info tx_int_delay;
+        struct em_int_delay_info tx_abs_int_delay;
+        struct em_int_delay_info rx_int_delay;
+        struct em_int_delay_info rx_abs_int_delay;
 
 	XSUM_CONTEXT_T  active_checksum_context;
 
@@ -386,6 +392,7 @@ struct adapter {
 
 	/* For 82544 PCIX Workaround */
 	boolean_t pcix_82544;
+	boolean_t in_detach;
 
 #ifdef DBG_STATS
 	unsigned long   no_pkts_avail;

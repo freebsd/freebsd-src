@@ -53,7 +53,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.7.16";
+char em_driver_version[] = "1.7.19";
 
 
 /*********************************************************************
@@ -175,6 +175,10 @@ static int  em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static u_int32_t em_fill_descriptors (u_int64_t address, 
                               u_int32_t length, 
                               PDESC_ARRAY desc_array);
+static int  em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
+static void em_add_int_delay_sysctl(struct adapter *, const char *,
+                                    const char *, struct em_int_delay_info *,
+                                    int, int); 
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
@@ -196,6 +200,35 @@ static driver_t em_driver = {
 static devclass_t em_devclass;
 DRIVER_MODULE(if_em, pci, em_driver, em_devclass, 0, 0);
 
+/*********************************************************************
+ *  Tunable default values.
+ *********************************************************************/
+
+#define E1000_TICKS_TO_USECS(ticks)     ((1024 * (ticks) + 500) / 1000)
+#define E1000_USECS_TO_TICKS(usecs)     ((1000 * (usecs) + 512) / 1024)
+
+static int em_tx_int_delay_dflt = E1000_TICKS_TO_USECS(EM_TIDV);
+static int em_rx_int_delay_dflt = E1000_TICKS_TO_USECS(EM_RDTR);
+static int em_tx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_TADV);
+static int em_rx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_RADV);
+
+TUNABLE_INT("hw.em.tx_int_delay", &em_tx_int_delay_dflt);
+TUNABLE_INT("hw.em.rx_int_delay", &em_rx_int_delay_dflt);
+TUNABLE_INT("hw.em.tx_abs_int_delay", &em_tx_abs_int_delay_dflt);
+TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
+
+/* sysctl vars */
+/*
+SYSCTL_INT(_hw, OID_AUTO, em_tx_int_delay, CTLFLAG_RD, &em_tx_int_delay_dflt, 0,
+           "Transmit interrupt delay");
+SYSCTL_INT(_hw, OID_AUTO, em_rx_int_delay, CTLFLAG_RD, &em_rx_int_delay_dflt, 0,
+           "Receive interrupt delay");
+SYSCTL_INT(_hw, OID_AUTO, em_tx_abs_int_delay, CTLFLAG_RD, &em_tx_abs_int_delay_dflt, 
+	   0, "Transmit absolute interrupt delay");
+SYSCTL_INT(_hw, OID_AUTO, em_rx_ans_int_delay, CTLFLAG_RD, &em_rx_abs_int_delay_dflt, 
+	   0,
+           "Receive absolute interrupt delay");
+*/
 /*********************************************************************
  *  Device identification routine
  *
@@ -316,13 +349,29 @@ em_attach(device_t dev)
 	/* Determine hardware revision */
 	em_identify_hardware(adapter);
       
+	/* Set up some sysctls for the tunable interrupt delays */
+        em_add_int_delay_sysctl(adapter, "rx_int_delay",
+            "receive interrupt delay in usecs", &adapter->rx_int_delay,
+            E1000_REG_OFFSET(&adapter->hw, RDTR), em_rx_int_delay_dflt);
+        em_add_int_delay_sysctl(adapter, "tx_int_delay",
+            "transmit interrupt delay in usecs", &adapter->tx_int_delay,
+            E1000_REG_OFFSET(&adapter->hw, TIDV), em_tx_int_delay_dflt);
+        if (adapter->hw.mac_type >= em_82540) {
+                em_add_int_delay_sysctl(adapter, "rx_abs_int_delay",
+                    "receive interrupt delay limit in usecs",
+                    &adapter->rx_abs_int_delay,
+                    E1000_REG_OFFSET(&adapter->hw, RADV),
+                    em_rx_abs_int_delay_dflt);
+                em_add_int_delay_sysctl(adapter, "tx_abs_int_delay",
+                    "transmit interrupt delay limit in usecs",
+                    &adapter->tx_abs_int_delay,
+                    E1000_REG_OFFSET(&adapter->hw, TADV),
+                    em_tx_abs_int_delay_dflt);
+        }
+
 	/* Parameters (to be read from user) */   
         adapter->num_tx_desc = EM_MAX_TXD;
         adapter->num_rx_desc = EM_MAX_RXD;
-        adapter->tx_int_delay = EM_TIDV;
-        adapter->tx_abs_int_delay = EM_TADV;
-        adapter->rx_int_delay = EM_RDTR;
-        adapter->rx_abs_int_delay = EM_RADV;
         adapter->hw.autoneg = DO_AUTO_NEG;
         adapter->hw.wait_autoneg_complete = WAIT_FOR_AUTO_NEG_DEFAULT;
         adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
@@ -496,6 +545,8 @@ em_detach(device_t dev)
 	INIT_DEBUGOUT("em_detach: begin");
 	s = splimp();
 
+	adapter->in_detach = 1;
+
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
 #if __FreeBSD_version < 500000
@@ -623,6 +674,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	s = splimp();
 
+	if (adapter->in_detach) goto out;
+
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
@@ -644,7 +697,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING)) {
-				bcopy(IF_LLADDR(ifp), adapter->hw.mac_addr, ETHER_ADDR_LEN);
 				em_init(adapter);
 			}
 			em_disable_promisc(adapter);
@@ -692,6 +744,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 	}
 
+out:
 	splx(s);
 	return(error);
 }
@@ -752,6 +805,10 @@ em_init(void *arg)
 
 	em_stop(adapter);
 
+	/* Get the latest mac address, User can use a LAA */
+	bcopy(adapter->interface_data.ac_enaddr, adapter->hw.mac_addr,
+              ETHER_ADDR_LEN);
+
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
 		printf("em%d: Unable to initialize the hardware\n", 
@@ -784,6 +841,9 @@ em_init(void *arg)
 		return;
 	}
 	em_initialize_receive_unit(adapter);
+	
+	/* Don't loose promiscuous settings */
+	em_set_promisc(adapter);
 
 	ifp = &adapter->interface_data.ac_if;
 	ifp->if_flags |= IFF_RUNNING;
@@ -1939,9 +1999,9 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	}
 
 	E1000_WRITE_REG(&adapter->hw, TIPG, reg_tipg);
-	E1000_WRITE_REG(&adapter->hw, TIDV, adapter->tx_int_delay);
+	E1000_WRITE_REG(&adapter->hw, TIDV, adapter->tx_int_delay.value);
 	if(adapter->hw.mac_type >= em_82540)
-		E1000_WRITE_REG(&adapter->hw, TADV, adapter->tx_abs_int_delay);
+		E1000_WRITE_REG(&adapter->hw, TADV, adapter->tx_abs_int_delay.value);
 
 	/* Program the Transmit Control Register */
 	reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
@@ -1956,7 +2016,7 @@ em_initialize_transmit_unit(struct adapter * adapter)
 	/* Setup Transmit Descriptor Settings for this adapter */   
 	adapter->txd_cmd = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
 
-	if (adapter->tx_int_delay > 0)
+	if (adapter->tx_int_delay.value > 0)
 		adapter->txd_cmd |= E1000_TXD_CMD_IDE;
 
 	return;
@@ -2264,10 +2324,10 @@ em_initialize_receive_unit(struct adapter * adapter)
 
 	/* Set the Receive Delay Timer Register */
 	E1000_WRITE_REG(&adapter->hw, RDTR, 
-			adapter->rx_int_delay | E1000_RDT_FPDB);
+			adapter->rx_int_delay.value | E1000_RDT_FPDB);
 
 	if(adapter->hw.mac_type >= em_82540) {
-		E1000_WRITE_REG(&adapter->hw, RADV, adapter->rx_abs_int_delay);
+		E1000_WRITE_REG(&adapter->hw, RADV, adapter->rx_abs_int_delay.value);
 
                 /* Set the interrupt throttling rate.  Value is calculated
                  * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns) */
@@ -2325,8 +2385,7 @@ em_initialize_receive_unit(struct adapter * adapter)
 	}
 
 	/* Enable Receives */
-	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-	em_set_promisc(adapter);
+	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);	
 
 	return;
 }
@@ -2379,7 +2438,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 #endif
 	u_int8_t            accept_frame = 0;
  	u_int8_t            eop = 0;
-        u_int16_t           len;
+        u_int16_t           len, desc_len, prev_len_adj;
 	int                 i;
 
 	/* Pointer to the receive descriptor being examined. */
@@ -2401,24 +2460,31 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 		mp = adapter->rx_buffer_area[i].m_head;
 
 		accept_frame = 1;
+		prev_len_adj = 0;
+		desc_len = current_desc->length;
 		if (current_desc->status & E1000_RXD_STAT_EOP) {
 			count--;
 			eop = 1;
-			len = current_desc->length - ETHER_CRC_LEN;
+			if (desc_len < ETHER_CRC_LEN) {
+				len = 0;
+				prev_len_adj = ETHER_CRC_LEN - desc_len;
+			}
+			else {
+				len = desc_len - ETHER_CRC_LEN;
+			}
 		} else {
 			eop = 0;
-			len = current_desc->length;
+			len = desc_len;
 		}
 
 		if (current_desc->errors & E1000_RXD_ERR_FRAME_ERR_MASK) {
 			u_int8_t            last_byte;
-			u_int32_t           pkt_len = current_desc->length;
+			u_int32_t           pkt_len = desc_len;
 
 			if (adapter->fmp != NULL)
 				pkt_len += adapter->fmp->m_pkthdr.len; 
  
-			last_byte = *(mtod(mp, caddr_t) +
-				      current_desc->length - 1);			
+			last_byte = *(mtod(mp, caddr_t) + desc_len - 1);			
 
 			if (TBI_ACCEPT(&adapter->hw, current_desc->status, 
 				       current_desc->errors, 
@@ -2427,7 +2493,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 						    &adapter->stats, 
 						    pkt_len, 
 						    adapter->hw.mac_addr);
-				len--;
+				if (len > 0) len--;
 			} 
 			else {
 				accept_frame = 0;
@@ -2456,6 +2522,14 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 			} else {
 				/* Chain mbuf's together */
 				mp->m_flags &= ~M_PKTHDR;
+				/* 
+				 * Adjust length of previous mbuf in chain if we 
+				 * received less than 4 bytes in the last descriptor.
+				 */
+				if (prev_len_adj > 0) {
+					adapter->lmp->m_len -= prev_len_adj;
+					adapter->fmp->m_pkthdr.len -= prev_len_adj;
+				}
 				adapter->lmp->m_next = mp;
 				adapter->lmp = adapter->lmp->m_next;
 				adapter->fmp->m_pkthdr.len += len;
@@ -2945,5 +3019,65 @@ em_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	}
 
 	return error;
+}
+
+static int
+em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
+{
+        struct em_int_delay_info *info;
+        struct adapter *adapter;
+        u_int32_t regval;
+        int error;
+        int usecs;
+        int ticks;
+        int s;
+
+        info = (struct em_int_delay_info *)arg1;
+        adapter = info->adapter;
+        usecs = info->value;
+        error = sysctl_handle_int(oidp, &usecs, 0, req);
+        if (error != 0 || req->newptr == NULL)
+                return error;
+        if (usecs < 0 || usecs > E1000_TICKS_TO_USECS(65535))
+                return EINVAL;
+        info->value = usecs;
+        ticks = E1000_USECS_TO_TICKS(usecs);
+
+        s = splimp();
+        regval = E1000_READ_OFFSET(&adapter->hw, info->offset);
+        regval = (regval & ~0xffff) | (ticks & 0xffff);
+        /* Handle a few special cases. */
+        switch (info->offset) {
+        case E1000_RDTR:
+        case E1000_82542_RDTR:
+                regval |= E1000_RDT_FPDB;
+                break;
+        case E1000_TIDV:
+        case E1000_82542_TIDV:
+                if (ticks == 0) {
+                        adapter->txd_cmd &= ~E1000_TXD_CMD_IDE;
+                        /* Don't write 0 into the TIDV register. */
+                        regval++;
+                } else
+                        adapter->txd_cmd |= E1000_TXD_CMD_IDE;
+                break;
+        }
+        E1000_WRITE_OFFSET(&adapter->hw, info->offset, regval);
+        splx(s);
+        return 0;
+}
+
+static void
+em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
+    const char *description, struct em_int_delay_info *info,
+    int offset, int value)
+{
+        info->adapter = adapter;
+        info->offset = offset;
+        info->value = value;
+        SYSCTL_ADD_PROC(&adapter->sysctl_ctx,
+            SYSCTL_CHILDREN(adapter->sysctl_tree),
+            OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW,
+            info, 0, em_sysctl_int_delay, "I", description);
 }
 
