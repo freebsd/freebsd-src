@@ -256,10 +256,7 @@ It ensures that you have write permission while you are placing files in a
 directory, then sets the directory's permissions as the last thing.
 .It Ic -empty
 True if the current file or directory is empty.
-.It Xo
-.Ic -exec Ar utility Op Ar argument ...
-;
-.Xc
+.It Ic -exec Ar utility Oo Ar argument ...  Oc Li \&;
 True if the program named
 .Ar utility
 returns a zero value as its exit status.
@@ -281,7 +278,7 @@ and
 .Ar arguments
 are not subject to the further expansion of shell patterns
 and constructs.
-.It Ic -exec Ar utility Oo Ar argument ... Oc {} +
+.It Ic -exec Ar utility Oo Ar argument ... Oc Li {} +
 Same as
 .Ic -exec ,
 except that
@@ -290,10 +287,7 @@ is replaced with as many pathnames as possible for each invocation of
 .Ar utility .
 This behaviour is similar to that of
 .Xr xargs 1 .
-.It Xo
-.Ic -execdir Ar utility Op Ar argument ...
-;
-.Xc
+.It Ic -execdir Ar utility Oo Ar argument ... Oc Li \&;
 The
 .Ic -execdir
 primary is identical to the
@@ -489,10 +483,7 @@ is equivalent to
 True if the file belongs to an unknown group.
 .It Ic -nouser
 True if the file belongs to an unknown user.
-.It Xo
-.Ic -ok Ar utility Op Ar argument ...
-;
-.Xc
+.It Ic -ok Ar utility Oo Ar argument ... Oc Li \&;
 The
 .Ic -ok
 primary is identical to the
@@ -509,10 +500,7 @@ the command is not executed and the
 value of the
 .Ic -ok
 expression is false.
-.It Xo
-.Ic -okdir Ar utility Op Ar argument ...
-;
-.Xc
+.It Ic -okdir Ar utility Oo Ar argument ... Oc Li \&;
 The
 .Ic -okdir
 primary is identical to the
