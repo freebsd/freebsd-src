@@ -149,8 +149,6 @@ fifo_open(ap)
 	int error;
 	static char openstr[] = "fifo";
 
-	if ((ap->a_mode & (FREAD|FWRITE)) == (FREAD|FWRITE))
-		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
 		vp->v_fifoinfo = fip;
@@ -182,24 +180,38 @@ fifo_open(ap)
 		rso->so_state |= SS_CANTSENDMORE;
 	}
 	error = 0;
-	if (ap->a_mode & FREAD) {
+	if ((ap->a_mode & (FREAD|FWRITE)) == (FREAD|FWRITE)) {
+		if (fip->fi_readers == 0) {
+			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
+			if (fip->fi_writers > 0)
+				wakeup((caddr_t)&fip->fi_writers);
+		}
+		if (fip->fi_writers == 0) {
+			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
+			if (fip->fi_readers > 0)
+				wakeup((caddr_t)&fip->fi_readers);
+		}
+		fip->fi_readers++;
+		fip->fi_writers++;
+	}
+	else if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
 			if (fip->fi_writers > 0)
 				wakeup((caddr_t)&fip->fi_writers);
 		}
-		if (ap->a_mode & O_NONBLOCK)
-			return (0);
-		while (fip->fi_writers == 0) {
-			VOP_UNLOCK(vp);
-			error = tsleep((caddr_t)&fip->fi_readers,
-			    PCATCH | PSOCK, openstr, 0);
-			VOP_LOCK(vp);
-			if (error)
-				break;
-		}
-	} else {
+		if (!(ap->a_mode & O_NONBLOCK))
+			while (fip->fi_writers == 0) {
+				VOP_UNLOCK(vp);
+				error = tsleep((caddr_t)&fip->fi_readers,
+			    	PCATCH | PSOCK, openstr, 0);
+				VOP_LOCK(vp);
+				if (error)
+					break;
+			}
+	}
+	else {
 		fip->fi_writers++;
 		if (fip->fi_readers == 0 && (ap->a_mode & O_NONBLOCK)) {
 			error = ENXIO;
@@ -408,7 +420,8 @@ fifo_close(ap)
 		fip->fi_writers--;
 		if (fip->fi_writers == 0)
 			socantrcvmore(fip->fi_readsock);
-	} else {
+	}
+	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
 		if (fip->fi_readers == 0)
 			socantsendmore(fip->fi_writesock);
