@@ -591,6 +591,8 @@ dev/sound/pcm/sndstat.c	optional pcm
 dev/sound/pcm/sound.c	optional pcm
 dev/sound/pcm/vchan.c	optional pcm
 #dev/sound/usb/upcm.c	optional pcm usb
+dev/sound/usb/uaudio.c	optional pcm usb
+dev/sound/usb/uaudio_pcm.c	optional pcm usb
 dev/sr/if_sr.c		optional sr
 dev/sr/if_sr_pci.c	optional sr pci
 dev/streams/streams.c	optional streams
