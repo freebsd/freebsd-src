@@ -117,6 +117,32 @@ static unsigned char	*smart_tree(struct queue *queue, unsigned char FS,
 
 /* end of static utils for ftree */
 
+/* static utils for saved_tree */
+
+/* saved values for unique tree */
+struct saved_tree {
+	unsigned char **names;	/* names + */ 
+	int size;		/* size + */
+	unsigned char FS;	/* FS + */
+	int height;		/* height + */
+	int width;		/* width + */
+	int menu_height;	/* menu_height - unique for treebox ? */
+	int ch;			/* saved ch - choice */
+	int sc;			/* saved sc - scroll */
+};
+
+/* search saved tree within queue */
+/* return - struct saved_tree * or NULL if not found */
+static struct saved_tree *search_saved_tree(struct queue *queue, 
+					unsigned char **names,
+					int size,
+					unsigned char FS,
+					int height,
+					int width,
+					int menu_height);
+
+/* end of static utils for saved_tree */
+
 static void print_item(WINDOW *win, struct leaf item, int choice, int selected);
 
 static void print_position(WINDOW *win, int x, int y,
@@ -581,7 +607,7 @@ int dialog_ftree(unsigned char *filename, unsigned char FS,
  *
  * return values:
  * -1		- ESC pressed
- * 0		- Ok, result set (must be freed later)
+ * 0		- Ok, result set
  * 1		- Cancel
  */
 
@@ -592,6 +618,8 @@ int dialog_tree(unsigned char **names, int size, unsigned char FS,
 {
 	int retcode, choice;
 	struct leaf *items;
+	struct saved_tree *st;
+	static struct queue *q_saved_tree = NULL;
 	
 	if (!size)
 	{
@@ -606,9 +634,43 @@ int dialog_tree(unsigned char **names, int size, unsigned char FS,
 		end_dialog();
 		exit(-1);
 	}
+
+/* is tree saved ? */
+	if (!(st = search_saved_tree(q_saved_tree, names, 
+					size, FS,
+					height, width, menu_height))) {
+		if (!q_saved_tree) {
+			if (!(q_saved_tree = 
+				calloc(sizeof (struct queue), 1))) {
+				perror("dialog_tree");
+				end_dialog();
+				exit(-1);
+			}
+		}
+
+		if (!(st = calloc(sizeof (struct saved_tree), 1))) {
+			perror("dialog_tree");
+			end_dialog();
+			exit(-1);
+		}
+		
+		st->names = names;
+		st->size = size;
+		st->FS = FS;
+		st->height = height;
+		st->width = width;
+		st->menu_height = menu_height;
+		
+		if (!p2_queue(q_saved_tree, st)) {
+			perror("dialog_tree");
+			end_dialog();
+			exit(-1);
+		}
+	}
 	
 	retcode = dialog_treemenu(title, prompt, height, width, menu_height,
-					size, items, &choice, NULL, NULL);
+					size, items, &choice, 
+					&(st->ch), &(st->sc));
 		
 	free_leafs(items, size);
 				
@@ -739,7 +801,7 @@ smart_tree(struct queue *queue,
 		if (*pcurrent == FS) {
 			pcurrent++;
 			
-			if ((pprev == prev) && (*pcurrent)) {
+			if ((!*prev) && (*pcurrent)) {
 				unsigned char tchar = *pcurrent;
 			
 				*pcurrent = '\0';
@@ -1015,3 +1077,48 @@ free_names(unsigned char **names, int size, int choice)
 } /* free_names() */
 
 /* end of utils for make tree */
+
+/* static utils for saved_tree */
+
+/* search saved tree within queue */
+/* return - struct *saved_tree or NULL if not found */
+static 
+struct saved_tree *
+search_saved_tree(struct queue *queue, unsigned char **names, int size,
+					unsigned char FS,
+					int height, int width, 
+					int menu_height) 
+{
+	struct m_queue *member;
+	struct saved_tree *retval;
+	
+	if (!queue || !names || !FS || 
+		!height || !width || !menu_height)
+		return NULL;
+	
+	if (!(member = queue->first))
+		return NULL;
+
+	while (member->next) {
+		retval = member->pointer;
+		if ((names == retval->names) &&
+			(size == retval->size) &&
+			(FS == retval->FS) &&
+			(height == retval->height) &&
+			(width == retval->width) &&
+			(menu_height == retval->menu_height))
+			return retval;
+		member = member->next;
+	}
+	retval = member->pointer;
+	if ((names == retval->names) &&
+		(size == retval->size) &&
+		(FS == retval->FS) &&
+		(height == retval->height) &&
+		(width == retval->width) &&
+		(menu_height == retval->menu_height))
+		return retval;
+	return NULL;	
+}
+
+/* end of static utils for saved_tree */
