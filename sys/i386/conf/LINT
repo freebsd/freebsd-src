@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.61 1998/09/28 16:51:06 luigi Exp $
+#	$Id: LINT,v 1.286.2.62 1998/10/30 20:52:24 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -788,6 +788,10 @@ options         "CMD640"	#Enable work around for CMD640 h/w bug
 #
 options         ATAPI   #Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
+
+# Use either the acd or the wcd device, not both!
+# IDE CD-ROM & CD-R/RW  driver - requires wdc controller and ATAPI option
+device          acd0 
 
 # IDE CD-ROM driver - requires wdc controller and ATAPI option
 device          wcd0
