@@ -1,5 +1,5 @@
 /* Utility to pick a temporary filename prefix.
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
@@ -22,7 +22,16 @@ Boston, MA 02111-1307, USA.  */
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
 
-#ifndef NO_SYS_FILE_H
+#if defined (IN_GCC) || defined (HAVE_CONFIG_H)
+#include "config.h"
+#endif
+
+/* If we are in gcc, or we have a config.h, we assume that
+   HAVE_SYS_FILE_H tells us whether to include sys/file.h.  However,
+   libiberty does not have a config.h, and instead arranges to define
+   NO_SYS_FILE_H on the command line when there is no sys/file.h.  */
+
+#if (defined (IN_GCC) || defined (HAVE_CONFIG_H)) ? defined (HAVE_SYS_FILE_H) : ! defined (NO_SYS_FILE_H)
 #include <sys/types.h>
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
 #endif
@@ -36,7 +45,6 @@ Boston, MA 02111-1307, USA.  */
 #include <stdio.h>	/* May get P_tmpdir.  */
 
 #ifdef IN_GCC
-#include "config.h"
 #include "gansidecl.h"
 extern char *xmalloc ();
 #else
@@ -54,7 +62,7 @@ extern char *xmalloc ();
 /* On MSDOS, write temp files in current dir
    because there's no place else we can expect to use.  */
 /* ??? Although the current directory is tried as a last resort,
-   this is left in so that on MSDOS it is prefered to /tmp on the
+   this is left in so that on MSDOS it is preferred to /tmp on the
    off chance that someone requires this, since that was the previous
    behaviour.  */
 #ifdef __MSDOS__
@@ -68,7 +76,7 @@ extern char *xmalloc ();
 #define TEMP_FILE "ccXXXXXX"
 
 /* Subroutine of choose_temp_base.
-   If BASE is non-NULL, returh it.
+   If BASE is non-NULL, return it.
    Otherwise it checks if DIR is a usable directory.
    If success, DIR is returned.
    Otherwise NULL is returned.  */
@@ -80,7 +88,7 @@ try (dir, base)
   if (base != 0)
     return base;
   if (dir != 0
-      && access (dir, R_OK | W_OK) == 0)
+      && access (dir, R_OK | W_OK | X_OK) == 0)
     return dir;
   return 0;
 }
@@ -121,14 +129,13 @@ choose_temp_base ()
 #endif
 
   len = strlen (base);
-  if (len == 0)
-    abort ();
   temp_filename = xmalloc (len + 1 /*DIR_SEPARATOR*/
 			   + strlen (TEMP_FILE) + 1);
   strcpy (temp_filename, base);
 
 #ifndef MPW
-  if (temp_filename[len-1] != '/'
+  if (len != 0
+      && temp_filename[len-1] != '/'
       && temp_filename[len-1] != DIR_SEPARATOR)
     temp_filename[len++] = DIR_SEPARATOR;
 #else /* MPW */

@@ -33,10 +33,18 @@ _bfd_elf_create_got_section (abfd, info)
   register asection *s;
   struct elf_link_hash_entry *h;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
+  int ptralign;
 
   /* This function may be called more than once.  */
   if (bfd_get_section_by_name (abfd, ".got") != NULL)
     return true;
+
+  switch (bed->s->arch_size)
+    {
+    case 32: ptralign = 2; break;
+    case 64: ptralign = 3; break;
+    default: abort();
+    }
 
   flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
 	   | SEC_LINKER_CREATED);
@@ -44,7 +52,7 @@ _bfd_elf_create_got_section (abfd, info)
   s = bfd_make_section (abfd, ".got");
   if (s == NULL
       || !bfd_set_section_flags (abfd, s, flags)
-      || !bfd_set_section_alignment (abfd, s, 2))
+      || !bfd_set_section_alignment (abfd, s, ptralign))
     return false;
 
   if (bed->want_got_plt)
@@ -52,7 +60,7 @@ _bfd_elf_create_got_section (abfd, info)
       s = bfd_make_section (abfd, ".got.plt");
       if (s == NULL
 	  || !bfd_set_section_flags (abfd, s, flags)
-	  || !bfd_set_section_alignment (abfd, s, 2))
+	  || !bfd_set_section_alignment (abfd, s, ptralign))
 	return false;
     }
 
@@ -62,9 +70,9 @@ _bfd_elf_create_got_section (abfd, info)
      a global offset table.  */
   h = NULL;
   if (!(_bfd_generic_link_add_one_symbol
-	(info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL, s, (bfd_vma) 0,
-	 (const char *) NULL, false, get_elf_backend_data (abfd)->collect,
-	 (struct bfd_link_hash_entry **) &h)))
+	(info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL, s,
+	 bed->got_symbol_offset, (const char *) NULL, false,
+	 bed->collect, (struct bfd_link_hash_entry **) &h)))
     return false;
   h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
   h->type = STT_OBJECT;
@@ -75,8 +83,9 @@ _bfd_elf_create_got_section (abfd, info)
 
   elf_hash_table (info)->hgot = h;
 
-  /* The first three global offset table entries are reserved.  */
-  s->_raw_size += 3 * 4;
+  /* The first three global offset table entries after
+     '_GLOBAL_OFFSET_TABLE_' are reserved.  */
+  s->_raw_size += (3 << ptralign) + bed->got_symbol_offset;
 
   return true;
 }
@@ -89,9 +98,17 @@ _bfd_elf_create_dynamic_sections (abfd, info)
      bfd *abfd;
      struct bfd_link_info *info;
 {
-  flagword flags;
+  flagword flags, pltflags;
   register asection *s;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
+  int ptralign;
+
+  switch (bed->s->arch_size)
+    {
+    case 32: ptralign = 2; break;
+    case 64: ptralign = 3; break;
+    default: abort();
+    }
 
   /* We need to create .plt, .rel[a].plt, .got, .got.plt, .dynbss, and
      .rel[a].bss sections.  */
@@ -99,12 +116,17 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
 	   | SEC_LINKER_CREATED);
 
+  pltflags = flags;
+  pltflags |= SEC_CODE;
+  if (bed->plt_not_loaded)
+    pltflags &= ~ (SEC_LOAD | SEC_HAS_CONTENTS);
+  if (bed->plt_readonly)
+    pltflags |= SEC_READONLY;
+
   s = bfd_make_section (abfd, ".plt");
   if (s == NULL
-      || ! bfd_set_section_flags (abfd, s,
-				  (flags | SEC_CODE
-				   | (bed->plt_readonly ? SEC_READONLY : 0)))
-      || ! bfd_set_section_alignment (abfd, s, 2))
+      || ! bfd_set_section_flags (abfd, s, pltflags)
+      || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
     return false;
 
   if (bed->want_plt_sym)
@@ -129,7 +151,7 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   s = bfd_make_section (abfd, bed->use_rela_p ? ".rela.plt" : ".rel.plt");
   if (s == NULL
       || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
-      || ! bfd_set_section_alignment (abfd, s, 2))
+      || ! bfd_set_section_alignment (abfd, s, ptralign))
     return false;
 
   if (! _bfd_elf_create_got_section (abfd, info))
@@ -162,7 +184,7 @@ _bfd_elf_create_dynamic_sections (abfd, info)
       s = bfd_make_section (abfd, bed->use_rela_p ? ".rela.bss" : ".rel.bss");
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
-	  || ! bfd_set_section_alignment (abfd, s, 2))
+	  || ! bfd_set_section_alignment (abfd, s, ptralign))
 	return false;
     }
 

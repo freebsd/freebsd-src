@@ -40,44 +40,30 @@ TEXIDIR = $(srcdir)/../texinfo
 #### Host, target, and site specific Makefile fragments come in here.
 ###
 
-INFOFILES = configure.info standards.info cfg-paper.info
-DVIFILES = configure.dvi standards.dvi cfg-paper.dvi
+INFOFILES = standards.info
+DVIFILES = standards.dvi
 
 all:
 
-install:  $(srcdir)/configure.man
-	$(INSTALL_DATA) $(srcdir)/configure.man $(man1dir)/configure.1
+install:
 
 uninstall:
-	cd $(infodir) && rm -f configure.info* standards.info* cfg-paper.info*
 
 info: $(INFOFILES)
 
 install-info: info
-	if test ! -f configure.info ; then cd $(srcdir); fi; \
-	for i in configure.info* standards.info* cfg-paper.info*; do \
+	if test ! -f standards.info ; then cd $(srcdir); fi; \
+	for i in standards.info*; do \
 	  $(INSTALL_DATA) $$i $(infodir)/$$i; \
 	done
 
 dvi: $(DVIFILES)
 
-configure.info: $(srcdir)/configure.texi
-	$(MAKEINFO) -o configure.info $(srcdir)/configure.texi
-
-configure.dvi: $(srcdir)/configure.texi
-	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/configure.texi
-
-standards.info: $(srcdir)/standards.texi
-	$(MAKEINFO) -I$(srcdir) -o standards.info $(srcdir)/standards.texi
+standards.info: $(srcdir)/standards.texi $(srcdir)/make-stds.texi
+	$(MAKEINFO) --no-split -I$(srcdir) -o standards.info $(srcdir)/standards.texi
 
 standards.dvi: $(srcdir)/standards.texi
 	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/standards.texi
-
-cfg-paper.info : $(srcdir)/cfg-paper.texi
-	$(MAKEINFO) -o cfg-paper.info $(srcdir)/cfg-paper.texi
-
-cfg-paper.dvi: $(srcdir)/cfg-paper.texi
-	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/cfg-paper.texi
 
 
 clean:

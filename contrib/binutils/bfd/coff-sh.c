@@ -1,5 +1,5 @@
 /* BFD back-end for Hitachi Super-H COFF binaries.
-   Copyright 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1993, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
    Relaxing code written by Ian Lance Taylor, <ian@cygnus.com>.
@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 static bfd_reloc_status_type sh_reloc
   PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
 static long get_symbol_value PARAMS ((asymbol *));
+static boolean sh_merge_private_data PARAMS ((bfd *, bfd *));
 static boolean sh_relax_section
   PARAMS ((bfd *, asection *, struct bfd_link_info *, boolean *));
 static boolean sh_relax_delete_bytes
@@ -275,6 +276,20 @@ static reloc_howto_type sh_coff_howtos[] =
 	 true,			/* partial_inplace */
 	 0xffffffff,		/* src_mask */
 	 0xffffffff,		/* dst_mask */
+	 false),		/* pcrel_offset */
+
+  HOWTO (R_SH_SWITCH8,		/* type */
+	 0,			/* rightshift */
+	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 8,			/* bitsize */
+	 false,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_bitfield, /* complain_on_overflow */
+	 sh_reloc,		/* special_function */
+	 "r_switch8",		/* name */
+	 true,			/* partial_inplace */
+	 0xff,			/* src_mask */
+	 0xff,			/* dst_mask */
 	 false)			/* pcrel_offset */
 };
 
@@ -347,7 +362,8 @@ get_symbol_value (symbol)
       cache_ptr->addend = - (ptr->section->vma + ptr->value);   \
     else                                                        \
       cache_ptr->addend = 0;                                    \
-    if ((reloc).r_type == R_SH_SWITCH16				\
+    if ((reloc).r_type == R_SH_SWITCH8				\
+	|| (reloc).r_type == R_SH_SWITCH16			\
 	|| (reloc).r_type == R_SH_SWITCH32			\
 	|| (reloc).r_type == R_SH_USES				\
 	|| (reloc).r_type == R_SH_COUNT				\
@@ -425,6 +441,32 @@ sh_reloc (abfd, reloc_entry, symbol_in, data, input_section, output_bfd,
 
   return bfd_reloc_ok;
 }
+
+/* This routine checks for linking big and little endian objects
+   together.  */
+
+static boolean
+sh_merge_private_data (ibfd, obfd)
+     bfd *ibfd;
+     bfd *obfd;
+{
+  if (ibfd->xvec->byteorder != obfd->xvec->byteorder
+      && obfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
+    {
+      (*_bfd_error_handler)
+	("%s: compiled for a %s endian system and target is %s endian",
+	 bfd_get_filename (ibfd),
+	 bfd_big_endian (ibfd) ? "big" : "little",
+	 bfd_big_endian (obfd) ? "big" : "little");
+
+      bfd_set_error (bfd_error_wrong_format);
+      return false;
+    }
+
+  return true;
+}
+
+#define coff_bfd_merge_private_bfd_data sh_merge_private_data
 
 /* We can do relaxing.  */
 #define coff_bfd_relax_section sh_relax_section
@@ -557,7 +599,9 @@ sh_relax_section (abfd, sec, link_info, again)
          the register load.  The 4 is because the r_offset field is
          computed as though it were a jump offset, which are based
          from 4 bytes after the jump instruction.  */
-      laddr = irel->r_vaddr - sec->vma + 4 + irel->r_offset;
+      laddr = irel->r_vaddr - sec->vma + 4;
+      /* Careful to sign extend the 32-bit offset.  */
+      laddr += ((irel->r_offset & 0xffffffff) ^ 0x80000000) - 0x80000000;
       if (laddr >= sec->_raw_size)
 	{
 	  (*_bfd_error_handler) ("%s: 0x%lx: warning: bad R_SH_USES offset",
@@ -567,8 +611,7 @@ sh_relax_section (abfd, sec, link_info, again)
 	}
       insn = bfd_get_16 (abfd, contents + laddr);
 
-      /* If the instruction is not mov.l NN,rN, we don't know what to
-         do.  */
+      /* If the instruction is not mov.l NN,rN, we don't know what to do.  */
       if ((insn & 0xf000) != 0xd000)
 	{
 	  ((*_bfd_error_handler)
@@ -928,11 +971,12 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
   /* Adjust all the relocs.  */
   for (irel = coff_section_data (abfd, sec)->relocs; irel < irelend; irel++)
     {
-      bfd_vma nraddr, start, stop;
+      bfd_vma nraddr, stop;
+      bfd_vma start = 0;
       int insn = 0;
       struct internal_syment sym;
       int off, adjust, oinsn;
-      bfd_signed_vma voff;
+      bfd_signed_vma voff = 0;
       boolean overflow;
 
       /* Get the new reloc address.  */
@@ -950,7 +994,8 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 	  && irel->r_vaddr - sec->vma < addr + count
 	  && irel->r_type != R_SH_ALIGN
 	  && irel->r_type != R_SH_CODE
-	  && irel->r_type != R_SH_DATA)
+	  && irel->r_type != R_SH_DATA
+	  && irel->r_type != R_SH_LABEL)
 	irel->r_type = R_SH_UNUSED;
 
       /* If this is a PC relative reloc, see if the range it covers
@@ -1034,6 +1079,7 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 	  stop = (start &~ (bfd_vma) 3) + 4 + off * 4;
 	  break;
 
+	case R_SH_SWITCH8:
 	case R_SH_SWITCH16:
 	case R_SH_SWITCH32:
 	  /* These relocs types represent
@@ -1059,6 +1105,8 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 
 	  if (irel->r_type == R_SH_SWITCH16)
 	    voff = bfd_get_signed_16 (abfd, contents + nraddr);
+	  else if (irel->r_type == R_SH_SWITCH8)
+	    voff = bfd_get_8 (abfd, contents + nraddr);
 	  else
 	    voff = bfd_get_signed_32 (abfd, contents + nraddr);
 	  stop = (bfd_vma) ((bfd_signed_vma) start + voff);
@@ -1121,6 +1169,13 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 	      if ((oinsn & 0xff00) != (insn & 0xff00))
 		overflow = true;
 	      bfd_put_16 (abfd, insn, contents + nraddr);
+	      break;
+
+	    case R_SH_SWITCH8:
+	      voff += adjust;
+	      if (voff < 0 || voff >= 0xff)
+		overflow = true;
+	      bfd_put_8 (abfd, voff, contents + nraddr);
 	      break;
 
 	    case R_SH_SWITCH16:
@@ -2406,7 +2461,8 @@ sh_relocate_section (output_bfd, info, input_bfd, input_section, contents,
 	}
       else
 	{    
-	  if (symndx < 0 || symndx >= obj_raw_syment_count (input_bfd))
+	  if (symndx < 0
+	      || (unsigned long) symndx >= obj_raw_syment_count (input_bfd))
 	    {
 	      (*_bfd_error_handler)
 		("%s: illegal symbol index %ld in relocs",
@@ -2715,4 +2771,174 @@ const bfd_target shlcoff_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   COFF_SWAP_TABLE,
+};
+
+/* Some people want versions of the SH COFF target which do not align
+   to 16 byte boundaries.  We implement that by adding a couple of new
+   target vectors.  These are just like the ones above, but they
+   change the default section alignment.  To generate them in the
+   assembler, use -small.  To use them in the linker, use -b
+   coff-sh{l}-small and -oformat coff-sh{l}-small.
+
+   Yes, this is a horrible hack.  A general solution for setting
+   section alignment in COFF is rather complex.  ELF handles this
+   correctly.  */
+
+/* Only recognize the small versions if the target was not defaulted.
+   Otherwise we won't recognize the non default endianness.  */
+
+static const bfd_target *
+coff_small_object_p (abfd)
+     bfd *abfd;
+{
+  if (abfd->target_defaulted)
+    {
+      bfd_set_error (bfd_error_wrong_format);
+      return NULL;
+    }
+  return coff_object_p (abfd);
+}
+
+/* Set the section alignment for the small versions.  */
+
+static boolean
+coff_small_new_section_hook (abfd, section)
+     bfd *abfd;
+     asection *section;
+{
+  if (! coff_new_section_hook (abfd, section))
+    return false;
+
+  /* We must align to at least a four byte boundary, because longword
+     accesses must be on a four byte boundary.  */
+  if (section->alignment_power == COFF_DEFAULT_SECTION_ALIGNMENT_POWER)
+    section->alignment_power = 2;
+
+  return true;
+}
+
+/* This is copied from bfd_coff_std_swap_table so that we can change
+   the default section alignment power.  */
+
+static const bfd_coff_backend_data bfd_coff_small_swap_table =
+{
+  coff_swap_aux_in, coff_swap_sym_in, coff_swap_lineno_in,
+  coff_swap_aux_out, coff_swap_sym_out,
+  coff_swap_lineno_out, coff_swap_reloc_out,
+  coff_swap_filehdr_out, coff_swap_aouthdr_out,
+  coff_swap_scnhdr_out,
+  FILHSZ, AOUTSZ, SCNHSZ, SYMESZ, AUXESZ, RELSZ, LINESZ,
+#ifdef COFF_LONG_FILENAMES
+  true,
+#else
+  false,
+#endif
+#ifdef COFF_LONG_SECTION_NAMES
+  true,
+#else
+  false,
+#endif
+  2,
+  coff_swap_filehdr_in, coff_swap_aouthdr_in, coff_swap_scnhdr_in,
+  coff_swap_reloc_in, coff_bad_format_hook, coff_set_arch_mach_hook,
+  coff_mkobject_hook, styp_to_sec_flags, coff_set_alignment_hook,
+  coff_slurp_symbol_table, symname_in_debug_hook, coff_pointerize_aux_hook,
+  coff_print_aux, coff_reloc16_extra_cases, coff_reloc16_estimate,
+  coff_sym_is_global, coff_compute_section_file_positions,
+  coff_start_final_link, coff_relocate_section, coff_rtype_to_howto,
+  coff_adjust_symndx, coff_link_add_one_symbol,
+  coff_link_output_has_begun, coff_final_link_postscript
+};
+
+#define coff_small_close_and_cleanup \
+  coff_close_and_cleanup
+#define coff_small_bfd_free_cached_info \
+  coff_bfd_free_cached_info
+#define coff_small_get_section_contents \
+  coff_get_section_contents
+#define coff_small_get_section_contents_in_window \
+  coff_get_section_contents_in_window
+
+const bfd_target shcoff_small_vec =
+{
+  "coff-sh-small",		/* name */
+  bfd_target_coff_flavour,
+  BFD_ENDIAN_BIG,		/* data byte order is big */
+  BFD_ENDIAN_BIG,		/* header byte order is big */
+
+  (HAS_RELOC | EXEC_P |		/* object flags */
+   HAS_LINENO | HAS_DEBUG |
+   HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
+
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),
+  '_',				/* leading symbol underscore */
+  '/',				/* ar_pad_char */
+  15,				/* ar_max_namelen */
+  bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+  bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+  bfd_getb16, bfd_getb_signed_16, bfd_putb16, /* data */
+  bfd_getb64, bfd_getb_signed_64, bfd_putb64,
+  bfd_getb32, bfd_getb_signed_32, bfd_putb32,
+  bfd_getb16, bfd_getb_signed_16, bfd_putb16, /* hdrs */
+
+  {_bfd_dummy_target, coff_small_object_p, /* bfd_check_format */
+     bfd_generic_archive_p, _bfd_dummy_target},
+  {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */
+     bfd_false},
+  {bfd_false, coff_write_object_contents, /* bfd_write_contents */
+     _bfd_write_archive_contents, bfd_false},
+
+  BFD_JUMP_TABLE_GENERIC (coff_small),
+  BFD_JUMP_TABLE_COPY (coff),
+  BFD_JUMP_TABLE_CORE (_bfd_nocore),
+  BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
+  BFD_JUMP_TABLE_SYMBOLS (coff),
+  BFD_JUMP_TABLE_RELOCS (coff),
+  BFD_JUMP_TABLE_WRITE (coff),
+  BFD_JUMP_TABLE_LINK (coff),
+  BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
+
+  (PTR) &bfd_coff_small_swap_table
+};
+
+const bfd_target shlcoff_small_vec =
+{
+  "coff-shl-small",		/* name */
+  bfd_target_coff_flavour,
+  BFD_ENDIAN_LITTLE,		/* data byte order is little */
+  BFD_ENDIAN_LITTLE,		/* header byte order is little endian too*/
+
+  (HAS_RELOC | EXEC_P |		/* object flags */
+   HAS_LINENO | HAS_DEBUG |
+   HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
+
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),
+  '_',				/* leading symbol underscore */
+  '/',				/* ar_pad_char */
+  15,				/* ar_max_namelen */
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* hdrs */
+
+  {_bfd_dummy_target, coff_small_object_p, /* bfd_check_format */
+     bfd_generic_archive_p, _bfd_dummy_target},   
+  {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */
+     bfd_false},
+  {bfd_false, coff_write_object_contents, /* bfd_write_contents */
+     _bfd_write_archive_contents, bfd_false},
+
+  BFD_JUMP_TABLE_GENERIC (coff_small),
+  BFD_JUMP_TABLE_COPY (coff),
+  BFD_JUMP_TABLE_CORE (_bfd_nocore),
+  BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
+  BFD_JUMP_TABLE_SYMBOLS (coff),
+  BFD_JUMP_TABLE_RELOCS (coff),
+  BFD_JUMP_TABLE_WRITE (coff),
+  BFD_JUMP_TABLE_LINK (coff),
+  BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
+
+  (PTR) &bfd_coff_small_swap_table
 };

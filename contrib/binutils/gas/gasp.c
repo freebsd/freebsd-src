@@ -1,5 +1,5 @@
 /* gasp.c - Gnu assembler preprocessor main program.
-   Copyright (C) 1994, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -105,12 +105,12 @@ FILE *outfile;
 #define WHITEBIT 8
 #define COMMENTBIT 16
 #define BASEBIT  32
-#define ISCOMMENTCHAR(x) (chartype[(unsigned)(x)] & COMMENTBIT)
-#define ISFIRSTCHAR(x)  (chartype[(unsigned)(x)] & FIRSTBIT)
-#define ISNEXTCHAR(x)   (chartype[(unsigned)(x)] & NEXTBIT)
-#define ISSEP(x)        (chartype[(unsigned)(x)] & SEPBIT)
-#define ISWHITE(x)      (chartype[(unsigned)(x)] & WHITEBIT)
-#define ISBASE(x)       (chartype[(unsigned)(x)] & BASEBIT)
+#define ISCOMMENTCHAR(x) (chartype[(unsigned char)(x)] & COMMENTBIT)
+#define ISFIRSTCHAR(x)  (chartype[(unsigned char)(x)] & FIRSTBIT)
+#define ISNEXTCHAR(x)   (chartype[(unsigned char)(x)] & NEXTBIT)
+#define ISSEP(x)        (chartype[(unsigned char)(x)] & SEPBIT)
+#define ISWHITE(x)      (chartype[(unsigned char)(x)] & WHITEBIT)
+#define ISBASE(x)       (chartype[(unsigned char)(x)] & BASEBIT)
 static char chartype[256];
 
 
@@ -607,7 +607,7 @@ level_0 (idx, string, lhs)
 
   lhs->value = 0;
 
-  if (isdigit (string->ptr[idx]))
+  if (isdigit ((unsigned char) string->ptr[idx]))
     {
       idx = sb_strtol (idx, string, 10, &lhs->value);
     }
@@ -1165,7 +1165,7 @@ change_base (idx, in, out)
 	      idx++;
 	    }
 	}
-      else if (isdigit (in->ptr[idx]))
+      else if (isdigit ((unsigned char) in->ptr[idx]))
 	{
 	  int value;
 	  /* all numbers must start with a digit, let's chew it and
@@ -1717,7 +1717,7 @@ doinstr (idx, in, out)
   idx = sb_skip_comma (idx, in);
   idx = get_and_process (idx, in, &search);
   idx = sb_skip_comma (idx, in);
-  if (isdigit (in->ptr[idx]))
+  if (isdigit ((unsigned char) in->ptr[idx]))
     {
       idx = exp_get_abs (".instr needs absolute expresson.\n", idx, in, &start);
     }
@@ -3579,7 +3579,7 @@ Usage: %s \n\
   [-Ipath]                        add to include path list\n\
   [in-file]\n");
   if (status == 0)
-    printf ("\nReport bugs to bug-gnu-utils@prep.ai.mit.edu\n");
+    printf ("\nReport bugs to bug-gnu-utils@gnu.org\n");
   exit (status);
 }
 
@@ -3630,6 +3630,7 @@ main (argc, argv)
 	case 'I':
 	  {
 	    include_path *p = (include_path *) xmalloc (sizeof (include_path));
+	    p->next = NULL;
 	    sb_new (&p->path);
 	    sb_add_string (&p->path, optarg);
 	    if (paths_tail)

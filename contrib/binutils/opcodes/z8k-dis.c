@@ -1,4 +1,6 @@
-/*
+/* Disassemble z8000 code.
+   Copyright 1992, 1993, 1995, 1998 Free Software Foundation, Inc.
+
 This file is part of GNU Binutils.
 
 This program is free software; you can redistribute it and/or modify
@@ -67,7 +69,6 @@ fetch_data (info, nibble)
   unsigned char mybuf[20];
   int status;
   instr_data_s *priv = (instr_data_s *)info->private_data;
-  bfd_vma start;
 
   if ((nibble % 4) != 0)
     abort ();
@@ -164,6 +165,7 @@ print_insn_z8k (addr, info, is_segmented)
     }
 }
 
+int
 print_insn_z8001 (addr, info)
      bfd_vma addr;
      disassemble_info *info;
@@ -171,6 +173,7 @@ print_insn_z8001 (addr, info)
   return print_insn_z8k (addr, info, 1);
 }
 
+int
 print_insn_z8002 (addr, info)
      bfd_vma addr;
      disassemble_info *info;
@@ -495,26 +498,26 @@ unparse_instr (instr_data)
       switch (datum_class)
 	{
 	case CLASS_X:
-	  sprintf (tmp_str, "0x%0x(R%d)", instr_data->address,
+	  sprintf (tmp_str, "0x%0lx(R%ld)", instr_data->address,
 		   instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_BA:
-	  sprintf (tmp_str, "r%d(#%x)", instr_data->arg_reg[datum_value],
+	  sprintf (tmp_str, "r%ld(#%lx)", instr_data->arg_reg[datum_value],
 		   instr_data->immediate);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_BX:
-	  sprintf (tmp_str, "r%d(R%d)", instr_data->arg_reg[datum_value],
+	  sprintf (tmp_str, "r%ld(R%ld)", instr_data->arg_reg[datum_value],
 		   instr_data->arg_reg[ARG_RX]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_DISP:
-	  sprintf (tmp_str, "#0x%0x", instr_data->displacement);
+	  sprintf (tmp_str, "#0x%0lx", instr_data->displacement);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_IMM:
-	  sprintf (tmp_str, "#0x%0x", instr_data->immediate);
+	  sprintf (tmp_str, "#0x%0lx", instr_data->immediate);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_CC:
@@ -522,44 +525,44 @@ unparse_instr (instr_data)
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_CTRL:
-	  sprintf (tmp_str, "0x%0x", instr_data->ctrl_code);
+	  sprintf (tmp_str, "0x%0lx", instr_data->ctrl_code);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_DA:
 	case CLASS_ADDRESS:
-	  sprintf (tmp_str, "#0x%0x", instr_data->address);
+	  sprintf (tmp_str, "#0x%0lx", instr_data->address);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_IR:
-	  sprintf (tmp_str, "@R%d", instr_data->arg_reg[datum_value]);
+	  sprintf (tmp_str, "@R%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_FLAGS:
-	  sprintf (tmp_str, "0x%0x", instr_data->flags);
+	  sprintf (tmp_str, "0x%0lx", instr_data->flags);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_REG_BYTE:
 	  if (instr_data->arg_reg[datum_value] >= 0x8)
 	    {
-	      sprintf (tmp_str, "rl%d",
+	      sprintf (tmp_str, "rl%ld",
 		       instr_data->arg_reg[datum_value] - 0x8);
 	    }
 	  else
 	    {
-	      sprintf (tmp_str, "rh%d", instr_data->arg_reg[datum_value]);
+	      sprintf (tmp_str, "rh%ld", instr_data->arg_reg[datum_value]);
 	    }
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_REG_WORD:
-	  sprintf (tmp_str, "r%d", instr_data->arg_reg[datum_value]);
+	  sprintf (tmp_str, "r%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_REG_QUAD:
-	  sprintf (tmp_str, "rq%d", instr_data->arg_reg[datum_value]);
+	  sprintf (tmp_str, "rq%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	case CLASS_REG_LONG:
-	  sprintf (tmp_str, "rr%d", instr_data->arg_reg[datum_value]);
+	  sprintf (tmp_str, "rr%ld", instr_data->arg_reg[datum_value]);
 	  strcat (out_str, tmp_str);
 	  break;
 	default:

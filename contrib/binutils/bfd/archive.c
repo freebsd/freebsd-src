@@ -1,5 +1,6 @@
 /* BFD back-end for archive files (libraries).
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Gumby Henkel-Wallace's fault.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -412,8 +413,10 @@ _bfd_generic_read_ar_hdr_mag (abfd, mag)
     }
   /* BSD4.4-style long filename.
      Only implemented for reading, so far! */
-  else if (hdr.ar_name[0] == '#' && hdr.ar_name[1] == '1'
-	   && hdr.ar_name[2] == '/' && isdigit (hdr.ar_name[3]))
+  else if (hdr.ar_name[0] == '#'
+	   && hdr.ar_name[1] == '1'
+	   && hdr.ar_name[2] == '/'
+	   && isdigit ((unsigned char) hdr.ar_name[3]))
     {
       /* BSD-4.4 extended name */
       namelen = atoi (&hdr.ar_name[3]);
@@ -643,6 +646,8 @@ bfd_generic_archive_p (abfd)
     {
       bfd_release (abfd, bfd_ardata (abfd));
       abfd->tdata.aout_ar_data = tdata_hold;
+      if (bfd_get_error () != bfd_error_system_call)
+	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
@@ -650,6 +655,8 @@ bfd_generic_archive_p (abfd)
     {
       bfd_release (abfd, bfd_ardata (abfd));
       abfd->tdata.aout_ar_data = tdata_hold;
+      if (bfd_get_error () != bfd_error_system_call)
+	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
@@ -1390,10 +1397,12 @@ bfd_ar_hdr_from_filesystem (abfd, filename)
     a strong stomach to write this, and it does, but it takes even a
     stronger stomach to try to code around such a thing!  */
 
+struct ar_hdr *bfd_special_undocumented_glue PARAMS ((bfd *, const char *));
+
 struct ar_hdr *
 bfd_special_undocumented_glue (abfd, filename)
      bfd *abfd;
-     char *filename;
+     const char *filename;
 {
   struct areltdata *ar_elt = bfd_ar_hdr_from_filesystem (abfd, filename);
   if (ar_elt == NULL)

@@ -111,7 +111,7 @@ static int error_index;
 %right UNARY
 %token END 
 %left <token> '('
-%token <token> ALIGN_K BLOCK BIND QUAD LONG SHORT BYTE
+%token <token> ALIGN_K BLOCK BIND QUAD SQUAD LONG SHORT BYTE
 %token SECTIONS PHDRS
 %token '{' '}'
 %token SIZEOF_HEADERS OUTPUT_FORMAT FORCE_COMMON_ALLOCATION OUTPUT_ARCH
@@ -132,7 +132,7 @@ static int error_index;
 %token FORMAT PUBLIC DEFSYMEND BASE ALIAS TRUNCATE REL
 %token INPUT_SCRIPT INPUT_MRI_SCRIPT INPUT_DEFSYM CASE EXTERN START
 %token <name> VERS_TAG VERS_IDENTIFIER
-%token GLOBAL LOCAL VERSION INPUT_VERSION_SCRIPT
+%token GLOBAL LOCAL VERSIONK INPUT_VERSION_SCRIPT
 %type <versyms> vers_defns
 %type <versnode> vers_tag
 %type <deflist> verdep
@@ -447,6 +447,8 @@ statement_list_opt:
 length:
 		QUAD
 			{ $$ = $1; }
+	|	SQUAD
+			{ $$ = $1; }
 	|	LONG
 			{ $$ = $1; }
 	| 	SHORT
@@ -538,7 +540,9 @@ memory_spec: 		NAME
 		 region->origin =
 		 exp_get_vma($3, 0L,"origin", lang_first_phase_enum);
 }
-	; length_spec:
+	;
+
+length_spec:
              LENGTH '=' mustbe_exp
                { region->length = exp_get_vma($3,
 					       ~((bfd_vma)0),
@@ -550,7 +554,7 @@ memory_spec: 		NAME
 attributes_opt:
 		  '(' NAME ')'
 			{
-			lang_set_flags(&region->flags, $2);
+			lang_set_flags(region, $2);
 			}
 	|
   
@@ -763,6 +767,7 @@ type:
 atype:
 	 	'(' type ')'
   	| 	/* EMPTY */ { sectype = normal_section; }
+  	| 	'(' ')' { sectype = normal_section; }
 	;
 
 opt_exp_with_type:
@@ -935,7 +940,7 @@ version:
 		{
 		  ldlex_version_script ();
 		}
-		VERSION '{' vers_nodes '}'
+		VERSIONK '{' vers_nodes '}'
 		{
 		  ldlex_popstate ();
 		}

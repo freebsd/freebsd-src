@@ -1,5 +1,5 @@
 /* BFD back-end for binary objects.
-   Copyright 1994, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1994, 95, 96, 97, 1998 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -155,7 +155,7 @@ mangle_name (abfd, suffix)
 
   /* Change any non-alphanumeric characters to underscores.  */
   for (p = buf; *p; p++)
-    if (! isalnum (*p))
+    if (! isalnum ((unsigned char) *p))
       *p = '_';
 
   return buf;
@@ -259,6 +259,8 @@ binary_set_section_contents (abfd, sec, data, offset, size)
      loaded nor allocated.  The contents of such a section are not
      meaningful in the binary format.  */
   if ((sec->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
+    return true;
+  if ((sec->flags & SEC_NEVER_LOAD) != 0)
     return true;
 
   if (! abfd->output_has_begun)

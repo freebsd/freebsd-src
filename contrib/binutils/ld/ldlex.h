@@ -14,8 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GLD; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GLD; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #ifndef LDLEX_H
 #define LDLEX_H
@@ -33,7 +34,6 @@ typedef enum input_enum {
 
 extern input_type parser_input;
 
-extern int hex_mode;
 extern unsigned int lineno;
 extern const char *lex_string;
 

@@ -1,5 +1,5 @@
 /* expr.c -operands, expressions-
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -28,6 +28,7 @@
 
 #include <ctype.h>
 #include <string.h>
+#define min(a, b)       ((a) < (b) ? (a) : (b))
 
 #include "as.h"
 #include "obstack.h"
@@ -85,7 +86,7 @@ make_expr_symbol (expressionP)
   symbolP->sy_value = *expressionP;
 
   if (expressionP->X_op == O_constant)
-    resolve_symbol_value (symbolP);
+    resolve_symbol_value (symbolP, 1);
 
   n = (struct expr_symbol_line *) xmalloc (sizeof *n);
   n->sym = symbolP;
@@ -119,6 +120,62 @@ expr_symbol_where (sym, pfile, pline)
     }
 
   return 0;
+}
+
+/* Utilities for building expressions.
+   Since complex expressions are recorded as symbols for use in other
+   expressions these return a symbolS * and not an expressionS *.
+   These explicitly do not take an "add_number" argument.  */
+/* ??? For completeness' sake one might want expr_build_symbol.
+   It would just return its argument.  */
+
+/* Build an expression for an unsigned constant.
+   The corresponding one for signed constants is missing because
+   there's currently no need for it.  One could add an unsigned_p flag
+   but that seems more clumsy.  */
+
+symbolS *
+expr_build_uconstant (value)
+     offsetT value;
+{
+  expressionS e;
+
+  e.X_op = O_constant;
+  e.X_add_number = value;
+  e.X_unsigned = 1;
+  return make_expr_symbol (&e);
+}
+
+/* Build an expression for OP s1.  */
+
+symbolS *
+expr_build_unary (op, s1)
+     operatorT op;
+     symbolS *s1;
+{
+  expressionS e;
+
+  e.X_op = op;
+  e.X_add_symbol = s1;
+  e.X_add_number = 0;
+  return make_expr_symbol (&e);
+}
+
+/* Build an expression for s1 OP s2.  */
+
+symbolS *
+expr_build_binary (op, s1, s2)
+     operatorT op;
+     symbolS *s1;
+     symbolS *s2;
+{
+  expressionS e;
+
+  e.X_op = op;
+  e.X_add_symbol = s1;
+  e.X_op_symbol = s2;
+  e.X_add_number = 0;
+  return make_expr_symbol (&e);
 }
 
 /*
@@ -171,6 +228,32 @@ floating_constant (expressionP)
   expressionP->X_add_number = -1;
 }
 
+static valueT 
+generic_bignum_to_int32 () 
+{
+  valueT number =
+	   ((generic_bignum[1] & LITTLENUM_MASK) << LITTLENUM_NUMBER_OF_BITS)
+	   | (generic_bignum[0] & LITTLENUM_MASK);
+  number &= 0xffffffff;
+  return number;
+}
+
+#ifdef BFD64
+static valueT 
+generic_bignum_to_int64 () 
+{
+  valueT number = 
+	   ((((((((valueT) generic_bignum[3] & LITTLENUM_MASK)
+		 << LITTLENUM_NUMBER_OF_BITS)
+	        | ((valueT) generic_bignum[2] & LITTLENUM_MASK))
+	       << LITTLENUM_NUMBER_OF_BITS)
+	      | ((valueT) generic_bignum[1] & LITTLENUM_MASK))
+	     << LITTLENUM_NUMBER_OF_BITS)
+	    | ((valueT) generic_bignum[0] & LITTLENUM_MASK));
+  return number;
+}
+#endif
+
 static void
 integer_constant (radix, expressionP)
      int radix;
@@ -219,7 +302,9 @@ integer_constant (radix, expressionP)
       /* In MRI mode, the number may have a suffix indicating the
          radix.  For that matter, it might actually be a floating
          point constant.  */
-      for (suffix = input_line_pointer; isalnum (*suffix); suffix++)
+      for (suffix = input_line_pointer;
+	   isalnum ((unsigned char) *suffix);
+	   suffix++)
 	{
 	  if (*suffix == 'e' || *suffix == 'E')
 	    flt = 1;
@@ -233,7 +318,7 @@ integer_constant (radix, expressionP)
       else
 	{
 	  c = *--suffix;
-	  if (islower (c))
+	  if (islower ((unsigned char) c))
 	    c = toupper (c);
 	  if (c == 'B')
 	    radix = 2;
@@ -286,7 +371,83 @@ integer_constant (radix, expressionP)
   /* c contains character after number. */
   /* input_line_pointer->char after c. */
   small = (input_line_pointer - start - 1) < too_many_digits;
-  if (!small)
+
+  if (radix == 16 && c == '_') 
+    {
+      /* This is literal of the form 0x333_0_12345678_1.
+         This example is equivalent to 0x00000333000000001234567800000001.  */
+
+      int num_little_digits = 0;
+      int i;
+      input_line_pointer = start;	/*->1st digit. */
+
+      know (LITTLENUM_NUMBER_OF_BITS == 16);
+
+      for (c = '_'; c == '_'; num_little_digits+=2)
+	{
+
+	  /* Convert one 64-bit word. */
+	  int ndigit = 0; 
+	  number = 0;
+	  for (c = *input_line_pointer++;
+	       (digit = hex_value (c)) < maxdig;
+	       c = *(input_line_pointer++))
+	    {
+	      number = number * radix + digit;
+	      ndigit++;
+	    }
+
+	  /* Check for 8 digit per word max.  */
+	  if (ndigit > 8) 
+	    as_bad ("An bignum with underscores may not have more than 8 hex digits in any word.");
+
+	  /* Add this chunk to the bignum.  Shift things down 2 little digits.*/
+	  know (LITTLENUM_NUMBER_OF_BITS == 16);
+	  for (i = min (num_little_digits + 1, SIZE_OF_LARGE_NUMBER - 1); i >= 2; i--)
+	    generic_bignum[i] = generic_bignum[i-2];
+
+	  /* Add the new digits as the least significant new ones. */
+	  generic_bignum[0] = number & 0xffffffff;
+	  generic_bignum[1] = number >> 16;
+	}
+
+      /* Again, c is char after number, input_line_pointer->after c. */
+
+      if (num_little_digits > SIZE_OF_LARGE_NUMBER - 1)
+	num_little_digits = SIZE_OF_LARGE_NUMBER - 1;
+
+      assert (num_little_digits >= 4);
+
+      if (num_little_digits != 8)
+	as_bad ("A bignum with underscores must have exactly 4 words.");
+
+      /* We might have some leading zeros.  These can be trimmed to give
+       * us a change to fit this constant into a small number.
+       */
+      while (generic_bignum[num_little_digits-1] == 0 && num_little_digits > 1)
+	num_little_digits--;
+	
+      if (num_little_digits <= 2)
+	{
+	  /* will fit into 32 bits. */
+	  number = generic_bignum_to_int32 ();
+	  small = 1;
+	}
+#ifdef BFD64
+      else if (num_little_digits <= 4)
+	{
+	  /* Will fit into 64 bits.  */
+	  number = generic_bignum_to_int64 ();
+	  small = 1;
+	}
+#endif
+      else
+	{
+	  small = 0;
+	  number = num_little_digits; /* number of littlenums in the bignum. */
+	}
+    }
+  else if (!small)
     {
       /*
        * we saw a lot of digits. manufacture a bignum the hard way.
@@ -298,6 +459,8 @@ integer_constant (radix, expressionP)
       leader = generic_bignum;
       generic_bignum[0] = 0;
       generic_bignum[1] = 0;
+      generic_bignum[2] = 0;
+      generic_bignum[3] = 0;
       input_line_pointer = start;	/*->1st digit. */
       c = *input_line_pointer++;
       for (;
@@ -329,11 +492,17 @@ integer_constant (radix, expressionP)
       if (leader < generic_bignum + 2)
 	{
 	  /* will fit into 32 bits. */
-	  number =
-	    ((generic_bignum[1] & LITTLENUM_MASK) << LITTLENUM_NUMBER_OF_BITS)
-	    | (generic_bignum[0] & LITTLENUM_MASK);
+	  number = generic_bignum_to_int32 ();
 	  small = 1;
 	}
+#ifdef BFD64
+      else if (leader < generic_bignum + 4)
+	{
+	  /* Will fit into 64 bits.  */
+	  number = generic_bignum_to_int64 ();
+	  small = 1;
+	}
+#endif
       else
 	{
 	  number = leader - generic_bignum + 1;	/* number of littlenums in the bignum. */
@@ -651,7 +820,8 @@ operand (expressionP)
 	    {
 	      input_line_pointer++;
 	      floating_constant (expressionP);
-	      expressionP->X_add_number = -(isupper (c) ? tolower (c) : c);
+	      expressionP->X_add_number =
+		- (isupper ((unsigned char) c) ? tolower (c) : c);
 	    }
 	  else
 	    {
@@ -766,7 +936,8 @@ operand (expressionP)
 	case 'G':
 	  input_line_pointer++;
 	  floating_constant (expressionP);
-	  expressionP->X_add_number = -(isupper (c) ? tolower (c) : c);
+	  expressionP->X_add_number =
+	    - (isupper ((unsigned char) c) ? tolower (c) : c);
 	  break;
 
 	case '$':
@@ -1328,6 +1499,13 @@ operator ()
       ++input_line_pointer;
       return ret;
 
+    case '=':
+      if (input_line_pointer[1] != '=')
+	return op_encoding[c];
+
+      ++input_line_pointer;
+      return O_eq;
+
     case '>':
       switch (input_line_pointer[1])
 	{
@@ -1370,7 +1548,7 @@ operator ()
     }
 
   /*NOTREACHED*/
-}	
+}
 
 /* Parse an expression.  */
 

@@ -1,5 +1,5 @@
 /* Generic BFD library interface and support routines.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -508,6 +508,24 @@ bfd_set_error_program_name (name)
 {
   _bfd_error_program_name = name;
 }
+
+
+/*
+FUNCTION
+	bfd_get_error_handler
+
+SYNOPSIS
+	bfd_error_handler_type bfd_get_error_handler (void);
+
+DESCRIPTION
+	Return the BFD error handler function.
+*/
+
+bfd_error_handler_type
+bfd_get_error_handler ()
+{
+  return _bfd_error_handler;
+}
 
 /*
 SECTION
@@ -910,11 +928,11 @@ bfd_scan_vma (string, end, base)
     
 /* Speed could be improved with a table like hex_value[] in gas.  */
 #define HEX_VALUE(c) \
-  (isxdigit(c) ?				\
-    (isdigit(c) ?				\
-      (c - '0') :				\
-      (10 + c - (islower(c) ? 'a' : 'A'))) :	\
-    42)
+  (isxdigit ((unsigned char) c)					\
+   ? (isdigit ((unsigned char) c)				\
+      ? (c - '0')						\
+      : (10 + c - (islower ((unsigned char) c) ? 'a' : 'A')))	\
+   : 42)
 
   for (value = 0; (digit = HEX_VALUE(*string)) < base; string++)
     {

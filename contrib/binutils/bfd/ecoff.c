@@ -1,5 +1,6 @@
 /* Generic ECOFF (Extended-COFF) routines.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
 
@@ -3141,7 +3142,7 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
 
   /* Ultrix appears to use as a hash table size the least power of two
      greater than twice the number of entries.  */
-  for (hashlog = 0; (1 << hashlog) <= 2 * orl_count; hashlog++)
+  for (hashlog = 0; ((unsigned int) 1 << hashlog) <= 2 * orl_count; hashlog++)
     ;
   hashsize = 1 << hashlog;
 

@@ -1,5 +1,6 @@
 /* Linker command language support.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -128,6 +129,7 @@ static bfd_vma size_input_section
 	   lang_output_section_statement_type *output_section_statement,
 	   fill_type fill, bfd_vma dot, boolean relax));
 static void lang_finish PARAMS ((void));
+static void ignore_bfd_errors PARAMS ((const char *, ...));
 static void lang_check PARAMS ((void));
 static void lang_common PARAMS ((void));
 static boolean lang_one_common PARAMS ((struct bfd_link_hash_entry *, PTR));
@@ -412,8 +414,7 @@ lang_memory_region_type *
 lang_memory_region_lookup (name)
      CONST char *CONST name;
 {
-
-  lang_memory_region_type *p = lang_memory_region_list;
+  lang_memory_region_type *p;
 
   for (p = lang_memory_region_list;
        p != (lang_memory_region_type *) NULL;
@@ -451,6 +452,8 @@ lang_memory_region_lookup (name)
     *lang_memory_region_list_tail = new;
     lang_memory_region_list_tail = &new->next;
     new->origin = 0;
+    new->flags = 0;
+    new->not_flags = 0;
     new->length = ~(bfd_size_type)0;
     new->current = 0;
     new->had_full_message = false;
@@ -459,6 +462,31 @@ lang_memory_region_lookup (name)
   }
 }
 
+
+lang_memory_region_type *
+lang_memory_default (section)
+     asection *section;
+{
+  lang_memory_region_type *p;
+
+  flagword sec_flags = section->flags;
+
+  /* Override SEC_DATA to mean a writable section.  */
+  if ((sec_flags & (SEC_ALLOC | SEC_READONLY | SEC_CODE)) == SEC_ALLOC)
+    sec_flags |= SEC_DATA;
+
+  for (p = lang_memory_region_list;
+       p != (lang_memory_region_type *) NULL;
+       p = p->next)
+    {
+      if ((p->flags & sec_flags) != 0
+	  && (p->not_flags & sec_flags) == 0)
+	{
+	  return p;
+	}
+    }
+  return lang_memory_region_lookup ("*default*");
+}
 
 lang_output_section_statement_type *
 lang_output_section_find (name)
@@ -518,14 +546,34 @@ lang_output_section_statement_lookup (name)
   return lookup;
 }
 
+static void
+lang_map_flags (flag)
+     flagword flag;
+{
+  if (flag & SEC_ALLOC)
+    minfo ("a");
+
+  if (flag & SEC_CODE)
+    minfo ("x");
+
+  if (flag & SEC_READONLY)
+    minfo ("r");
+
+  if (flag & SEC_DATA)
+    minfo ("w");
+
+  if (flag & SEC_LOAD)
+    minfo ("l");
+}
+
 void
 lang_map ()
 {
   lang_memory_region_type *m;
 
   minfo ("\nMemory Configuration\n\n");
-  fprintf (config.map_file, "%-16s %-18s %-18s\n",
-	   "Name", "Origin", "Length");
+  fprintf (config.map_file, "%-16s %-18s %-18s %s\n",
+	   "Name", "Origin", "Length", "Attributes");
 
   for (m = lang_memory_region_list;
        m != (lang_memory_region_type *) NULL;
@@ -545,7 +593,26 @@ lang_map ()
 	  ++len;
 	}
 
-      minfo ("0x%V\n", m->length);
+      minfo ("0x%V", m->length);
+      if (m->flags || m->not_flags)
+	{
+#ifndef BFD64
+	  minfo ("        ");
+#endif
+	  if (m->flags)
+	    {
+	      print_space ();
+	      lang_map_flags (m->flags);
+	    }
+
+	  if (m->not_flags)
+	    {
+	      minfo (" !");
+	      lang_map_flags (m->not_flags);
+	    }
+	}
+
+      print_nl ();
     }
 
   fprintf (config.map_file, "\nLinker script and memory map\n\n");
@@ -737,7 +804,11 @@ section_already_linked (abfd, sec, data)
    explicit actions, like foo.o(.text), bar.o(.text) and
    foo.o(.text, .data).  */
 
-/* Return true if the PATTERN argument is a wildcard pattern.  */
+/* Return true if the PATTERN argument is a wildcard pattern.
+   Although backslashes are treated specially if a pattern contains
+   wildcards, we do not consider the mere presence of a backslash to
+   be enough to cause the the pattern to be treated as a wildcard.
+   That lets us handle DOS filenames more naturally.  */
 
 static boolean
 wildcardp (pattern)
@@ -747,7 +818,6 @@ wildcardp (pattern)
 
   for (s = pattern; *s != '\0'; ++s)
     if (*s == '?'
-	|| *s == '\\'
 	|| *s == '*'
 	|| *s == '[')
       return true;
@@ -801,10 +871,17 @@ wild_doit (ptr, section, output, file)
 
   if (section->output_section == NULL)
     {
+      boolean first;
       lang_input_section_type *new;
+      flagword flags;
 
       if (output->bfd_section == NULL)
-	init_os (output);
+	{
+	  init_os (output);
+	  first = true;
+	}
+      else
+	first = false;
 
       /* Add a section reference to the list */
       new = new_stat (lang_input_section, ptr);
@@ -813,23 +890,38 @@ wild_doit (ptr, section, output, file)
       new->ifile = file;
       section->output_section = output->bfd_section;
 
+      flags = section->flags;
+
       /* We don't copy the SEC_NEVER_LOAD flag from an input section
 	 to an output section, because we want to be able to include a
 	 SEC_NEVER_LOAD section in the middle of an otherwise loaded
 	 section (I don't know why we want to do this, but we do).
 	 build_link_order in ldwrite.c handles this case by turning
-	 the embedded SEC_NEVER_LOAD section into a fill.
+	 the embedded SEC_NEVER_LOAD section into a fill.  */
 
-	 If final link, don't copy the SEC_LINK_ONCE flags, they've already
-	 been processed.  One reason to do this is that on pe format targets,
-	 .text$foo sections go into .text and it's odd to see .text with
-	 SEC_LINK_ONCE set.  */
+      flags &= ~ SEC_NEVER_LOAD;
 
-      section->output_section->flags |=
-	section->flags & (flagword) (~ (SEC_NEVER_LOAD
-					| (! link_info.relocateable
-					   ? SEC_LINK_ONCE | SEC_LINK_DUPLICATES
-					   : 0)));
+      /* If final link, don't copy the SEC_LINK_ONCE flags, they've
+	 already been processed.  One reason to do this is that on pe
+	 format targets, .text$foo sections go into .text and it's odd
+	 to see .text with SEC_LINK_ONCE set.  */
+
+      if (! link_info.relocateable)
+	flags &= ~ (SEC_LINK_ONCE | SEC_LINK_DUPLICATES);
+
+      /* If this is not the first input section, and the SEC_READONLY
+         flag is not currently set, then don't set it just because the
+         input section has it set.  */
+
+      if (! first && (section->output_section->flags & SEC_READONLY) == 0)
+	flags &= ~ SEC_READONLY;
+
+      section->output_section->flags |= flags;
+
+      /* If SEC_READONLY is not set in the input section, then clear
+         it from the output section.  */
+      if ((section->flags & SEC_READONLY) == 0)
+	section->output_section->flags &= ~SEC_READONLY;
 
       switch (output->sectype)
 	{
@@ -1367,7 +1459,7 @@ lang_place_undefineds ()
 
       h = bfd_link_hash_lookup (link_info.hash, ptr->name, true, false, true);
       if (h == (struct bfd_link_hash_entry *) NULL)
-	einfo ("%P%F: bfd_link_hash_lookup failed: %E");
+	einfo ("%P%F: bfd_link_hash_lookup failed: %E\n");
       if (h->type == bfd_link_hash_new)
 	{
 	  h->type = bfd_link_hash_undefined;
@@ -1671,6 +1763,10 @@ print_data_statement (data)
     case QUAD:
       size = QUAD_SIZE;
       name = "QUAD";
+      break;
+    case SQUAD:
+      size = QUAD_SIZE;
+      name = "SQUAD";
       break;
     }
 
@@ -2047,7 +2143,7 @@ lang_size_sections (s, output_section_statement, prev, fill, dot, relax)
 	   if (os->children.head == NULL
 	       || os->children.head->next != NULL
 	       || os->children.head->header.type != lang_input_section_enum)
-	     einfo ("%P%X: Internal error on COFF shared library section %s",
+	     einfo ("%P%X: Internal error on COFF shared library section %s\n",
 		    os->name);
 
 	   input = os->children.head->input_section.section;
@@ -2070,10 +2166,28 @@ lang_size_sections (s, output_section_statement, prev, fill, dot, relax)
 	   /* No address specified for this section, get one
 	      from the region specification
 	      */
-	   if (os->region == (lang_memory_region_type *) NULL)
+	   if (os->region == (lang_memory_region_type *) NULL
+	       || (((bfd_get_section_flags (output_bfd, os->bfd_section)
+		    & (SEC_ALLOC | SEC_LOAD)) != 0)
+		   && os->region->name[0] == '*'
+		   && strcmp (os->region->name, "*default*") == 0))
 	   {
-	     os->region = lang_memory_region_lookup ("*default*");
+	     os->region = lang_memory_default (os->bfd_section);
 	   }
+
+	   /* If a loadable section is using the default memory
+	      region, and some non default memory regions were
+	      defined, issue a warning.  */
+	   if ((bfd_get_section_flags (output_bfd, os->bfd_section)
+		& (SEC_ALLOC | SEC_LOAD)) != 0
+	       && ! link_info.relocateable
+	       && strcmp (os->region->name, "*default*") == 0
+	       && lang_memory_region_list != NULL
+	       && (strcmp (lang_memory_region_list->name, "*default*") != 0
+		   || lang_memory_region_list->next != NULL))
+	     einfo ("%P: warning: no memory region specified for section `%s'\n",
+		    bfd_get_section_name (output_bfd, os->bfd_section));
+
 	   dot = os->region->current;
 	   if (os->section_alignment == -1)
 	     {
@@ -2177,21 +2291,22 @@ lang_size_sections (s, output_section_statement, prev, fill, dot, relax)
 	output_section_statement->bfd_section;
 
        switch (s->data_statement.type)
-       {
-        case QUAD:
-	 size = QUAD_SIZE;
-	 break;
-	case LONG:
-	 size = LONG_SIZE;
-	 break;
-	case SHORT:
-	 size = SHORT_SIZE;
-	 break;
-	case BYTE:
-	 size = BYTE_SIZE;
-	 break;
+	 {
+	 case QUAD:
+	 case SQUAD:
+	   size = QUAD_SIZE;
+	   break;
+	 case LONG:
+	   size = LONG_SIZE;
+	   break;
+	 case SHORT:
+	   size = SHORT_SIZE;
+	   break;
+	 case BYTE:
+	   size = BYTE_SIZE;
+	   break;
+	 }
 
-       }
        dot += size;
        output_section_statement->bfd_section->_raw_size += size;
        /* The output section gets contents, and then we inspect for
@@ -2415,6 +2530,7 @@ lang_do_assignments (s, output_section_statement, fill, dot)
 	  switch (s->data_statement.type)
 	    {
 	    case QUAD:
+	    case SQUAD:
 	      dot += QUAD_SIZE;
 	      break;
 	    case LONG:
@@ -2599,6 +2715,20 @@ lang_finish ()
     }
 }
 
+/* This is a small function used when we want to ignore errors from
+   BFD.  */
+
+static void
+#ifdef ANSI_PROTOTYPES
+ignore_bfd_errors (const char *s, ...)
+#else
+ignore_bfd_errors (s)
+     const char *s;
+#endif
+{
+  /* Don't do anything.  */
+}
+
 /* Check that the architecture of all the input files is compatible
    with the output file.  Also call the backend to let it do any
    other checking that is needed.  */
@@ -2618,12 +2748,32 @@ lang_check ()
       compatible = bfd_arch_get_compatible (input_bfd,
 					    output_bfd);
       if (compatible == NULL)
-	einfo ("%P: warning: %s architecture of input file `%B' is incompatible with %s output\n",
-	       bfd_printable_name (input_bfd), input_bfd,
-	       bfd_printable_name (output_bfd));
-
+	{
+	  if (command_line.warn_mismatch)
+	    einfo ("%P: warning: %s architecture of input file `%B' is incompatible with %s output\n",
+		   bfd_printable_name (input_bfd), input_bfd,
+		   bfd_printable_name (output_bfd));
+	}
       else
-	bfd_merge_private_bfd_data (input_bfd, output_bfd);
+	{
+	  bfd_error_handler_type pfn = NULL;
+
+	  /* If we aren't supposed to warn about mismatched input
+             files, temporarily set the BFD error handler to a
+             function which will do nothing.  We still want to call
+             bfd_merge_private_bfd_data, since it may set up
+             information which is needed in the output file.  */
+	  if (! command_line.warn_mismatch)
+	    pfn = bfd_set_error_handler (ignore_bfd_errors);
+	  if (! bfd_merge_private_bfd_data (input_bfd, output_bfd))
+	    {
+	      if (command_line.warn_mismatch)
+		einfo ("%E%X: failed to merge target specific data of file %B\n",
+		       input_bfd);
+	    }
+	  if (! command_line.warn_mismatch)
+	    bfd_set_error_handler (pfn);
+	}
     }
 }
 
@@ -2820,36 +2970,41 @@ lang_place_orphans ()
 
 void
 lang_set_flags (ptr, flags)
-     int *ptr;
+     lang_memory_region_type *ptr;
      CONST char *flags;
 {
-  boolean state = false;
+  flagword *ptr_flags = &ptr->flags;
 
-  *ptr = 0;
+  ptr->flags = ptr->not_flags = 0;
   while (*flags)
     {
-      if (*flags == '!')
-	{
-	  state = false;
-	  flags++;
-	}
-      else
-	state = true;
       switch (*flags)
 	{
-	case 'R':
-	  /*	  ptr->flag_read = state; */
+	case '!':
+	  ptr_flags = (ptr_flags == &ptr->flags) ? &ptr->not_flags : &ptr->flags;
 	  break;
-	case 'W':
-	  /*	  ptr->flag_write = state; */
+
+	case 'A': case 'a':
+	  *ptr_flags |= SEC_ALLOC;
 	  break;
-	case 'X':
-	  /*	  ptr->flag_executable= state;*/
+
+	case 'R': case 'r':
+	  *ptr_flags |= SEC_READONLY;
 	  break;
-	case 'L':
-	case 'I':
-	  /*	  ptr->flag_loadable= state;*/
+
+	case 'W': case 'w':
+	  *ptr_flags |= SEC_DATA;
 	  break;
+
+	case 'X': case 'x':
+	  *ptr_flags |= SEC_CODE;
+	  break;
+
+	case 'L': case 'l':
+	case 'I': case 'i':
+	  *ptr_flags |= SEC_LOAD;
+	  break;
+
 	default:
 	  einfo ("%P%F: invalid syntax in flags\n");
 	  break;
@@ -3757,7 +3912,7 @@ lang_leave_overlay_section (fill, phdrs)
   clean = xmalloc (strlen (name) + 1);
   s2 = clean;
   for (s1 = name; *s1 != '\0'; s1++)
-    if (isalnum (*s1) || *s1 == '_')
+    if (isalnum ((unsigned char) *s1) || *s1 == '_')
       *s2++ = *s1;
   *s2 = '\0';
 
@@ -3910,11 +4065,6 @@ lang_register_vers_node (name, version, deps)
 	{
 	  struct bfd_elf_version_expr *e2;
 
-	  for (e2 = t->globals; e2 != NULL; e2 = e2->next)
-	    if (strcmp (e1->match, e2->match) == 0)
-	      einfo ("%X%P: duplicate expression `%s' in version information\n",
-		     e1->match);
-
 	  for (e2 = t->locals; e2 != NULL; e2 = e2->next)
 	    if (strcmp (e1->match, e2->match) == 0)
 	      einfo ("%X%P: duplicate expression `%s' in version information\n",
@@ -3929,11 +4079,6 @@ lang_register_vers_node (name, version, deps)
 	  struct bfd_elf_version_expr *e2;
 
 	  for (e2 = t->globals; e2 != NULL; e2 = e2->next)
-	    if (strcmp (e1->match, e2->match) == 0)
-	      einfo ("%X%P: duplicate expression `%s' in version information\n",
-		     e1->match);
-
-	  for (e2 = t->locals; e2 != NULL; e2 = e2->next)
 	    if (strcmp (e1->match, e2->match) == 0)
 	      einfo ("%X%P: duplicate expression `%s' in version information\n",
 		     e1->match);

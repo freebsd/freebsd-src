@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    There are two such structures here:  one for big-endian machines and
    one for little-endian machines.   */
 
-#define	bfd_elfNN_close_and_cleanup _bfd_generic_close_and_cleanup
+#define	bfd_elfNN_close_and_cleanup _bfd_elf_close_and_cleanup
 #define bfd_elfNN_bfd_free_cached_info _bfd_generic_bfd_free_cached_info
 #ifndef bfd_elfNN_get_section_contents
 #define bfd_elfNN_get_section_contents _bfd_generic_get_section_contents
@@ -61,6 +61,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define bfd_elfNN_get_section_contents_in_window \
   _bfd_generic_get_section_contents_in_window
 
+#ifndef elf_backend_got_symbol_offset
+#define elf_backend_got_symbol_offset (bfd_vma) 0
+#endif
 #ifndef elf_backend_want_got_plt
 #define elf_backend_want_got_plt 0
 #endif
@@ -69,6 +72,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif
 #ifndef elf_backend_want_plt_sym
 #define elf_backend_want_plt_sym 0
+#endif
+#ifndef elf_backend_plt_not_loaded
+#define elf_backend_plt_not_loaded 0
+#endif
+#ifndef elf_backend_plt_alignment
+#define elf_backend_plt_alignment 2
 #endif
 
 #define bfd_elfNN_bfd_debug_info_start	bfd_void
@@ -309,9 +318,12 @@ static CONST struct elf_backend_data elfNN_bed =
   ELF_MACHINE_ALT1,
   ELF_MACHINE_ALT2,
   &elf_backend_size_info,
+  elf_backend_got_symbol_offset,
   elf_backend_want_got_plt,
   elf_backend_plt_readonly,
-  elf_backend_want_plt_sym
+  elf_backend_want_plt_sym,
+  elf_backend_plt_not_loaded,
+  elf_backend_plt_alignment
 };
 
 #ifdef TARGET_BIG_SYM

@@ -1,5 +1,6 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -687,9 +688,20 @@ bfd_seek (abfd, position, direction)
 
   if (result != 0)
     {
+      int hold_errno = errno;
+
       /* Force redetermination of `where' field.  */
       bfd_tell (abfd);
-      bfd_set_error (bfd_error_system_call);
+
+      /* An EINVAL error probably means that the file offset was
+         absurd.  */
+      if (hold_errno == EINVAL)
+	bfd_set_error (bfd_error_file_truncated);
+      else
+	{
+	  bfd_set_error (bfd_error_system_call);
+	  errno = hold_errno;
+	}
     }
   else
     {

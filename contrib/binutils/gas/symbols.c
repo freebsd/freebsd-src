@@ -1,5 +1,5 @@
 /* symbols.c -symbol table-
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -636,87 +636,81 @@ verify_symbol_chain_2 (sym)
    pass over the symbol table to resolve any symbols with complex
    values.  */
 
-void
-resolve_symbol_value (symp)
+valueT
+resolve_symbol_value (symp, finalize)
      symbolS *symp;
+     int finalize;
 {
   int resolved;
+  valueT final_val;
+  segT final_seg;
 
   if (symp->sy_resolved)
-    return;
+    {
+      if (symp->sy_value.X_op == O_constant)
+	return (valueT) symp->sy_value.X_add_number;
+      else
+	return 0;
+    }
 
   resolved = 0;
+  final_seg = S_GET_SEGMENT (symp);
 
   if (symp->sy_resolving)
     {
-      as_bad ("Symbol definition loop encountered at %s",
-	      S_GET_NAME (symp));
-      S_SET_VALUE (symp, (valueT) 0);
+      if (finalize)
+	as_bad ("Symbol definition loop encountered at %s", S_GET_NAME (symp));
+      final_val = 0;
       resolved = 1;
     }
   else
     {
-      offsetT left, right, val;
+      symbolS *add_symbol, *op_symbol;
+      offsetT left, right;
       segT seg_left, seg_right;
+      operatorT op;
 
       symp->sy_resolving = 1;
 
-      /* Simplify addition or subtraction of a constant by folding the
-         constant into X_add_number.  */
-      if (symp->sy_value.X_op == O_add
-	  || symp->sy_value.X_op == O_subtract)
-	{
-	  resolve_symbol_value (symp->sy_value.X_add_symbol);
-	  resolve_symbol_value (symp->sy_value.X_op_symbol);
-	  if (S_GET_SEGMENT (symp->sy_value.X_op_symbol) == absolute_section)
-	    {
-	      right = S_GET_VALUE (symp->sy_value.X_op_symbol);
-	      if (symp->sy_value.X_op == O_add)
-		symp->sy_value.X_add_number += right;
-	      else
-		symp->sy_value.X_add_number -= right;
-	      symp->sy_value.X_op = O_symbol;
-	      symp->sy_value.X_op_symbol = NULL;
-	    }
-	  else if ((S_GET_SEGMENT (symp->sy_value.X_add_symbol)
-		    == absolute_section)
-		   && symp->sy_value.X_op == O_add)
-	    {
-	      left = S_GET_VALUE (symp->sy_value.X_add_symbol);
-	      symp->sy_value.X_add_symbol = symp->sy_value.X_op_symbol;
-	      symp->sy_value.X_add_number += left;
-	      symp->sy_value.X_op = O_symbol;
-	      symp->sy_value.X_op_symbol = NULL;
-	    }
-	}
+      /* Help out with CSE.  */
+      add_symbol = symp->sy_value.X_add_symbol;
+      op_symbol = symp->sy_value.X_op_symbol;
+      final_val = symp->sy_value.X_add_number;
+      op = symp->sy_value.X_op;
 
-      switch (symp->sy_value.X_op)
+      switch (op)
 	{
+	default:
+	  BAD_CASE (op);
+	  break;
+
 	case O_absent:
-	  S_SET_VALUE (symp, 0);
+	  final_val = 0;
 	  /* Fall through.  */
+
 	case O_constant:
-	  S_SET_VALUE (symp, S_GET_VALUE (symp) + symp->sy_frag->fr_address);
-	  if (S_GET_SEGMENT (symp) == expr_section)
-	    S_SET_SEGMENT (symp, absolute_section);
+	  final_val += symp->sy_frag->fr_address;
+	  if (final_seg == expr_section)
+	    final_seg = absolute_section;
 	  resolved = 1;
 	  break;
 
 	case O_symbol:
-	  resolve_symbol_value (symp->sy_value.X_add_symbol);
+	case O_symbol_rva:
+	  left = resolve_symbol_value (add_symbol, finalize);
+	do_symbol:
 
 	  if (symp->sy_mri_common)
 	    {
 	      /* This is a symbol inside an MRI common section.  The
                  relocation routines are going to handle it specially.
                  Don't change the value.  */
-	      S_SET_VALUE (symp, symp->sy_value.X_add_number);
-	      resolved = symp->sy_value.X_add_symbol->sy_resolved;
+	      resolved = add_symbol->sy_resolved;
 	      break;
 	    }
 
-	  if (symp->sy_value.X_add_number == 0)
-	    copy_symbol_attributes (symp, symp->sy_value.X_add_symbol);
+	  if (finalize && final_val == 0)
+	    copy_symbol_attributes (symp, add_symbol);
 
 	  /* If we have equated this symbol to an undefined symbol, we
              keep X_op set to O_symbol, and we don't change
@@ -724,46 +718,45 @@ resolve_symbol_value (symp)
              relocation to detect this case, and convert the
              relocation to be against the symbol to which this symbol
              is equated.  */
-	  if (! S_IS_DEFINED (symp->sy_value.X_add_symbol)
-	      || S_IS_COMMON (symp->sy_value.X_add_symbol))
+	  if (! S_IS_DEFINED (add_symbol) || S_IS_COMMON (add_symbol))
 	    {
-	      symp->sy_value.X_op = O_symbol;
-	      S_SET_SEGMENT (symp,
-			     S_GET_SEGMENT (symp->sy_value.X_add_symbol));
+	      if (finalize)
+		{
+		  symp->sy_value.X_op = O_symbol;
+		  S_SET_SEGMENT (symp, S_GET_SEGMENT (add_symbol));
+		  symp->sy_value.X_add_number = final_val;
+		}
+	      final_val = 0;
+	      resolved = add_symbol->sy_resolved;
+	      goto exit_dont_set_value;
 	    }
 	  else
 	    {
-	      S_SET_VALUE (symp,
-			   (symp->sy_value.X_add_number
-			    + symp->sy_frag->fr_address
-			    + S_GET_VALUE (symp->sy_value.X_add_symbol)));
-	      if (S_GET_SEGMENT (symp) == expr_section
-		  || S_GET_SEGMENT (symp) == undefined_section)
-		S_SET_SEGMENT (symp,
-			       S_GET_SEGMENT (symp->sy_value.X_add_symbol));
+	      final_val += symp->sy_frag->fr_address + left;
+	      if (final_seg == expr_section || final_seg == undefined_section)
+		final_seg = S_GET_SEGMENT (add_symbol);
 	    }
 
-	  resolved = symp->sy_value.X_add_symbol->sy_resolved;
+	  resolved = add_symbol->sy_resolved;
 	  break;
 
 	case O_uminus:
 	case O_bit_not:
 	case O_logical_not:
-	  resolve_symbol_value (symp->sy_value.X_add_symbol);
-	  if (symp->sy_value.X_op == O_uminus)
-	    val = - S_GET_VALUE (symp->sy_value.X_add_symbol);
-	  else if (symp->sy_value.X_op == O_logical_not)
-	    val = ! S_GET_VALUE (symp->sy_value.X_add_symbol);
+	  left = resolve_symbol_value (add_symbol, finalize);
+
+	  if (op == O_uminus)
+	    left = -left;
+	  else if (op == O_logical_not)
+	    left = !left;
 	  else
-	    val = ~ S_GET_VALUE (symp->sy_value.X_add_symbol);
-	  S_SET_VALUE (symp,
-		       (val
-			+ symp->sy_value.X_add_number
-			+ symp->sy_frag->fr_address));
-	  if (S_GET_SEGMENT (symp) == expr_section
-	      || S_GET_SEGMENT (symp) == undefined_section)
-	    S_SET_SEGMENT (symp, absolute_section);
-	  resolved = symp->sy_value.X_add_symbol->sy_resolved;
+	    left = ~left;
+
+	  final_val += left + symp->sy_frag->fr_address;
+	  if (final_seg == expr_section || final_seg == undefined_section)
+	    final_seg = absolute_section;
+
+	  resolved = add_symbol->sy_resolved;
 	  break;
 
 	case O_multiply:
@@ -785,12 +778,35 @@ resolve_symbol_value (symp)
 	case O_gt:
 	case O_logical_and:
 	case O_logical_or:
-	  resolve_symbol_value (symp->sy_value.X_add_symbol);
-	  resolve_symbol_value (symp->sy_value.X_op_symbol);
-	  seg_left = S_GET_SEGMENT (symp->sy_value.X_add_symbol);
-	  seg_right = S_GET_SEGMENT (symp->sy_value.X_op_symbol);
-	  left = S_GET_VALUE (symp->sy_value.X_add_symbol);
-	  right = S_GET_VALUE (symp->sy_value.X_op_symbol);
+	  left = resolve_symbol_value (add_symbol, finalize);
+	  right = resolve_symbol_value (op_symbol, finalize);
+	  seg_left = S_GET_SEGMENT (add_symbol);
+	  seg_right = S_GET_SEGMENT (op_symbol);
+
+	  /* Simplify addition or subtraction of a constant by folding the
+	     constant into X_add_number.  */
+	  if (op == O_add || op == O_subtract)
+	    {
+	      if (seg_right == absolute_section)
+		{
+		  if (op == O_add)
+		    final_val += right;
+		  else
+		    final_val -= right;
+		  op = O_symbol;
+		  op_symbol = NULL;
+		  goto do_symbol;
+		}
+	      else if (seg_left == absolute_section && op == O_add)
+		{
+		  op = O_symbol;
+		  final_val += left;
+		  add_symbol = op_symbol;
+		  left = right;
+		  op_symbol = NULL;
+		  goto do_symbol;
+		}
+	    }
 
 	  /* Subtraction is permitted if both operands are in the same
 	     section.  Otherwise, both operands must be absolute.  We
@@ -798,10 +814,11 @@ resolve_symbol_value (symp)
 	     constant above.  This will probably need to be changed
 	     for an object file format which supports arbitrary
 	     expressions, such as IEEE-695.  */
-	  if ((seg_left != absolute_section
-	       || seg_right != absolute_section)
-	      && (symp->sy_value.X_op != O_subtract
-		  || seg_left != seg_right))
+	  /* Don't emit messages unless we're finalizing the symbol value,
+	     otherwise we may get the same message multiple times.  */
+	  if ((seg_left != absolute_section || seg_right != absolute_section)
+	      && (op != O_subtract || seg_left != seg_right)
+	      && finalize)
 	    {
 	      char *file;
 	      unsigned int line;
@@ -837,38 +854,54 @@ resolve_symbol_value (symp)
 		}
 	    }
 
+	  /* Check for division by zero.  */
+	  if ((op == O_divide || op == O_modulus) && right == 0)
+	    {
+	      /* If seg_right is not absolute_section, then we've
+                 already issued a warning about using a bad symbol.  */
+	      if (seg_right == absolute_section && finalize)
+		{
+		  char *file;
+		  unsigned int line;
+
+		  if (expr_symbol_where (symp, &file, &line))
+		    as_bad_where (file, line, "division by zero");
+		  else
+		    as_bad ("division by zero when setting %s",
+			    S_GET_NAME (symp));
+		}
+
+	      right = 1;
+	    }
+
 	  switch (symp->sy_value.X_op)
 	    {
-	    case O_multiply:		val = left * right; break;
-	    case O_divide:		val = left / right; break;
-	    case O_modulus:		val = left % right; break;
-	    case O_left_shift:		val = left << right; break;
-	    case O_right_shift:		val = left >> right; break;
-	    case O_bit_inclusive_or:	val = left | right; break;
-	    case O_bit_or_not:		val = left |~ right; break;
-	    case O_bit_exclusive_or:	val = left ^ right; break;
-	    case O_bit_and:		val = left & right; break;
-	    case O_add:			val = left + right; break;
-	    case O_subtract:		val = left - right; break;
-	    case O_eq:		val = left == right ? ~ (offsetT) 0 : 0;
-	    case O_ne:		val = left != right ? ~ (offsetT) 0 : 0;
-	    case O_lt:		val = left <  right ? ~ (offsetT) 0 : 0;
-	    case O_le:		val = left <= right ? ~ (offsetT) 0 : 0;
-	    case O_ge:		val = left >= right ? ~ (offsetT) 0 : 0;
-	    case O_gt:		val = left >  right ? ~ (offsetT) 0 : 0;
-	    case O_logical_and:	val = left && right; break;
-	    case O_logical_or:	val = left || right; break;
-	    default:			abort ();
+	    case O_multiply:		left *= right; break;
+	    case O_divide:		left /= right; break;
+	    case O_modulus:		left %= right; break;
+	    case O_left_shift:		left <<= right; break;
+	    case O_right_shift:		left >>= right; break;
+	    case O_bit_inclusive_or:	left |= right; break;
+	    case O_bit_or_not:		left |= ~right; break;
+	    case O_bit_exclusive_or:	left ^= right; break;
+	    case O_bit_and:		left &= right; break;
+	    case O_add:			left += right; break;
+	    case O_subtract:		left -= right; break;
+	    case O_eq:	left = left == right ? ~ (offsetT) 0 : 0; break;
+	    case O_ne:	left = left != right ? ~ (offsetT) 0 : 0; break;
+	    case O_lt:	left = left <  right ? ~ (offsetT) 0 : 0; break;
+	    case O_le:	left = left <= right ? ~ (offsetT) 0 : 0; break;
+	    case O_ge:	left = left >= right ? ~ (offsetT) 0 : 0; break;
+	    case O_gt:	left = left >  right ? ~ (offsetT) 0 : 0; break;
+	    case O_logical_and:	left = left && right; break;
+	    case O_logical_or:	left = left || right; break;
+	    default:		abort ();
 	    }
-	  S_SET_VALUE (symp,
-		       (symp->sy_value.X_add_number
-			+ symp->sy_frag->fr_address
-			+ val));
-	  if (S_GET_SEGMENT (symp) == expr_section
-	      || S_GET_SEGMENT (symp) == undefined_section)
-	    S_SET_SEGMENT (symp, absolute_section);
-	  resolved = (symp->sy_value.X_add_symbol->sy_resolved
-		      && symp->sy_value.X_op_symbol->sy_resolved);
+
+	  final_val += symp->sy_frag->fr_address + left;
+	  if (final_seg == expr_section || final_seg == undefined_section)
+	    final_seg = absolute_section;
+	  resolved = (add_symbol->sy_resolved && op_symbol->sy_resolved);
    	  break;
 
 	case O_register:
@@ -881,16 +914,36 @@ resolve_symbol_value (symp)
 	     anything.  */
 	  break;
 	}
+
+      symp->sy_resolving = 0;
     }
 
-  /* Don't worry if we can't resolve an expr_section symbol.  */
-  if (resolved)
-    symp->sy_resolved = 1;
-  else if (S_GET_SEGMENT (symp) != expr_section)
+  if (finalize)
     {
-      as_bad ("can't resolve value for symbol \"%s\"", S_GET_NAME (symp));
-      symp->sy_resolved = 1;
+      S_SET_VALUE (symp, final_val);
+
+#if defined (OBJ_AOUT) && ! defined (BFD_ASSEMBLER)
+      /* The old a.out backend does not handle S_SET_SEGMENT correctly
+         for a stab symbol, so we use this bad hack.  */
+      if (final_seg != S_GET_SEGMENT (symp))
+#endif
+	S_SET_SEGMENT (symp, final_seg);
     }
+
+exit_dont_set_value:
+  /* Don't worry if we can't resolve an expr_section symbol.  */
+  if (finalize)
+    {
+      if (resolved)
+	symp->sy_resolved = 1;
+      else if (S_GET_SEGMENT (symp) != expr_section)
+	{
+	  as_bad ("can't resolve value for symbol \"%s\"", S_GET_NAME (symp));
+	  symp->sy_resolved = 1;
+	}
+    }
+
+  return final_val;
 }
 
 /* Dollar labels look like a number followed by a dollar sign.  Eg, "42$".
@@ -903,7 +956,7 @@ resolve_symbol_value (symp)
 static long *dollar_labels;
 static long *dollar_label_instances;
 static char *dollar_label_defines;
-static long dollar_label_count;
+static unsigned long dollar_label_count;
 static unsigned long dollar_label_max;
 
 int 
@@ -1233,7 +1286,7 @@ decode_local_label_name (s)
   if (s[0] != 'L')
     return s;
 
-  for (label_number = 0, p = s + 1; isdigit (*p); ++p)
+  for (label_number = 0, p = s + 1; isdigit ((unsigned char) *p); ++p)
     label_number = (10 * label_number) + *p - '0';
 
   if (*p == 1)
@@ -1243,7 +1296,7 @@ decode_local_label_name (s)
   else
     return s;
 
-  for (instance_number = 0, p++; isdigit (*p); ++p)
+  for (instance_number = 0, p++; isdigit ((unsigned char) *p); ++p)
     instance_number = (10 * instance_number) + *p - '0';
 
   symbol_decode = obstack_alloc (&notes, strlen (message_format) + 30);
@@ -1258,8 +1311,8 @@ valueT
 S_GET_VALUE (s)
      symbolS *s;
 {
-  if (!s->sy_resolved && !s->sy_resolving && s->sy_value.X_op != O_constant)
-    resolve_symbol_value (s);
+  if (!s->sy_resolved && s->sy_value.X_op != O_constant)
+    resolve_symbol_value (s, 1);
   if (s->sy_value.X_op != O_constant)
     {
       static symbolS *recur;
@@ -1299,7 +1352,7 @@ copy_symbol_attributes (dest, src)
 #ifdef BFD_ASSEMBLER
   /* In an expression, transfer the settings of these flags.
      The user can override later, of course.  */
-#define COPIED_SYMFLAGS	(BSF_FUNCTION)
+#define COPIED_SYMFLAGS	(BSF_FUNCTION | BSF_OBJECT)
   dest->bsym->flags |= src->bsym->flags & COPIED_SYMFLAGS;
 #endif
 
@@ -1317,7 +1370,7 @@ S_IS_EXTERNAL (s)
   flagword flags = s->bsym->flags;
 
   /* sanity check */
-  if (flags & BSF_LOCAL && flags & BSF_GLOBAL)
+  if ((flags & BSF_LOCAL) && (flags & BSF_GLOBAL))
     abort ();
 
   return (flags & BSF_GLOBAL) != 0;
@@ -1361,10 +1414,15 @@ S_IS_LOCAL (s)
   const char *name;
 
   /* sanity check */
-  if (flags & BSF_LOCAL && flags & BSF_GLOBAL)
+  if ((flags & BSF_LOCAL) && (flags & BSF_GLOBAL))
     abort ();
 
   if (bfd_get_section (s->bsym) == reg_section)
+    return 1;
+
+  if (flag_strip_local_absolute
+      && (flags & BSF_GLOBAL) == 0
+      && bfd_get_section (s->bsym) == absolute_section)
     return 1;
 
   name = S_GET_NAME (s);
@@ -1412,7 +1470,17 @@ S_SET_SEGMENT (s, seg)
      symbolS *s;
      segT seg;
 {
-  s->bsym->section = seg;
+  /* Don't reassign section symbols.  The direct reason is to prevent seg
+     faults assigning back to const global symbols such as *ABS*, but it
+     shouldn't happen anyway.  */
+
+  if (s->bsym->flags & BSF_SECTION_SYM)
+    {
+      if (s->bsym->section != seg)
+	abort();
+    }
+  else
+    s->bsym->section = seg;
 }
 
 void

@@ -1,5 +1,5 @@
 /* coff object file format
-   Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -30,6 +30,7 @@
 #define KEEP_RELOC_INFO
 #endif
 
+static void obj_coff_bss PARAMS ((int));
 const char *s_get_name PARAMS ((symbolS * s));
 static symbolS *def_symbol_in_progress;
 
@@ -165,7 +166,18 @@ tag_find_or_make (name)
   return symbolP;
 }
 
+/* We accept the .bss directive to set the section for backward
+   compatibility with earlier versions of gas.  */
 
+static void
+obj_coff_bss (ignore)
+     int ignore;
+{
+  if (*input_line_pointer == '\n')
+    subseg_new (".bss", get_absolute_expression ());
+  else
+    s_lcomm (0);
+}
 
 #ifdef BFD_ASSEMBLER
 
@@ -1088,8 +1100,9 @@ coff_adjust_section_syms (abfd, sec, x)
     fixS *fixp = seginfo->fix_root;
     while (fixp)
       {
+	if (! fixp->fx_done)
+	  nrelocs++;
 	fixp = fixp->fx_next;
-	nrelocs++;
       }
   }
   if (bfd_get_section_size_before_reloc (sec) == 0
@@ -1105,7 +1118,7 @@ coff_adjust_section_syms (abfd, sec, x)
 }
 
 void
-coff_frob_file ()
+coff_frob_file_after_relocs ()
 {
   bfd_map_over_sections (stdoutput, coff_adjust_section_syms, (char*) 0);
 }
@@ -1433,7 +1446,6 @@ static void adjust_stab_section PARAMS ((bfd *abfd, segT seg));
 static void obj_coff_lcomm PARAMS ((int));
 static void obj_coff_text PARAMS ((int));
 static void obj_coff_data PARAMS ((int));
-static void obj_coff_bss PARAMS ((int));
 static void obj_coff_ident PARAMS ((int));
 void obj_coff_section PARAMS ((int));
 
@@ -1684,7 +1696,7 @@ do_relocs_for (abfd, h, file_cursor)
 		      /* Turn the segment of the symbol into an offset.  */
 		      if (symbol_ptr)
 			{
-			  resolve_symbol_value (symbol_ptr);
+			  resolve_symbol_value (symbol_ptr, 1);
 			  if (! symbol_ptr->sy_resolved)
 			    {
 			      char *file;
@@ -1978,8 +1990,12 @@ symbol_to_chars (abfd, where, symbolP)
     }
   /* At the same time, relocate all symbols to their output value */
 
+#ifndef TE_PE
   val = (segment_info[S_GET_SEGMENT (symbolP)].scnhdr.s_paddr
 	 + S_GET_VALUE (symbolP));
+#else
+  val = S_GET_VALUE (symbolP);
+#endif
 
   S_SET_VALUE (symbolP, val);
 
@@ -2656,7 +2672,7 @@ yank_symbols ()
 	      S_SET_SEGMENT (symbolP, SEG_E0);
 	    }			/* push data into text */
 
-	  resolve_symbol_value (symbolP);
+	  resolve_symbol_value (symbolP, 1);
 
 	  if (S_GET_STORAGE_CLASS (symbolP) == C_NULL)
 	    {
@@ -3200,7 +3216,11 @@ write_object_file ()
 
       /* I think the section alignment is only used on the i960; the
 	 i960 needs it, and it should do no harm on other targets.  */
+#ifdef ALIGNMENT_IN_S_FLAGS
+      segment_info[i].scnhdr.s_flags |= (section_alignment[i] & 0xF) << 8;
+#else
       segment_info[i].scnhdr.s_align = 1 << section_alignment[i];
+#endif
 
       if (i == SEG_E0)
 	H_SET_TEXT_SIZE (&headers, size);
@@ -3453,16 +3473,6 @@ obj_coff_data (ignore)
     subseg_new (".text", get_absolute_expression () + 1000);
   else
     subseg_new (".data", get_absolute_expression ());
-}
-
-static void
-obj_coff_bss (ignore)
-     int ignore;
-{
-  if (*input_line_pointer == '\n')	/* .bss 		*/
-    subseg_new(".bss", get_absolute_expression());
-  else					/* .bss id,expr		*/
-    obj_coff_lcomm(0);
 }
 
 static void
@@ -3885,7 +3895,7 @@ fixup_segment (segP, this_segment_type)
       /* Make sure the symbols have been resolved; this may not have
          happened if these are expression symbols.  */
       if (add_symbolP != NULL && ! add_symbolP->sy_resolved)
-	resolve_symbol_value (add_symbolP);
+	resolve_symbol_value (add_symbolP, 1);
 
       if (add_symbolP != NULL)
 	{
@@ -3915,7 +3925,7 @@ fixup_segment (segP, this_segment_type)
 	}
 
       if (sub_symbolP != NULL && ! sub_symbolP->sy_resolved)
-	resolve_symbol_value (sub_symbolP);
+	resolve_symbol_value (sub_symbolP, 1);
 
       if (add_symbolP != NULL
 	  && add_symbolP->sy_mri_common)
@@ -4048,11 +4058,21 @@ fixup_segment (segP, this_segment_type)
 
 	      add_number += S_GET_VALUE (add_symbolP);
 	      add_number -= md_pcrel_from (fixP);
-#if defined (TC_I386) || defined (TE_LYNX)
-	      /* On the 386 we must adjust by the segment vaddr as
-		 well.  Ian Taylor.  */
-	      add_number -= segP->scnhdr.s_vaddr;
-#endif
+
+	      /* We used to do
+		   add_number -= segP->scnhdr.s_vaddr;
+		 if defined (TC_I386) || defined (TE_LYNX).  I now
+		 think that was an error propagated from the case when
+		 we are going to emit the relocation.  If we are not
+		 going to emit the relocation, then we just want to
+		 set add_number to the difference between the symbols.
+		 This is a case that would only arise when there is a
+		 PC relative reference from a section other than .text
+		 to a symbol defined in the same section, and the
+		 reference is not relaxed.  Since jump instructions on
+		 the i386 are relaxed, this could only arise with a
+		 call instruction.  */
+
 	      pcrel = 0;	/* Lie. Don't want further pcrel processing. */
 	      if (!TC_FORCE_RELOCATION (fixP))
 		{
@@ -4196,7 +4216,7 @@ fixup_segment (segP, this_segment_type)
       /* Once this fix has been applied, we don't have to output
 	 anything nothing more need be done.  */
 #ifdef MD_APPLY_FIX3
-      md_apply_fix3 (fixP, &add_number, this_segment_type);
+      md_apply_fix3 (fixP, (valueT *) &add_number, this_segment_type);
 #else
       md_apply_fix (fixP, add_number);
 #endif
@@ -4300,11 +4320,13 @@ const pseudo_typeS obj_pseudo_table[] =
   /* FIXME: We ignore the MRI short attribute.  */
   {"section.s", obj_coff_section, 0},
   {"sect.s", obj_coff_section, 0},
+  /* We accept the .bss directive for backward compatibility with
+     earlier versions of gas.  */
+  {"bss", obj_coff_bss, 0},
 #ifndef BFD_ASSEMBLER
   {"use", obj_coff_section, 0},
   {"text", obj_coff_text, 0},
   {"data", obj_coff_data, 0},
-  {"bss", obj_coff_bss, 0},
   {"lcomm", obj_coff_lcomm, 0},
   {"ident", obj_coff_ident, 0},
 #else
@@ -4349,8 +4371,8 @@ const struct format_ops coff_format_ops =
   0,
   1,
   coff_frob_symbol,
-  coff_frob_file,
   no_func,
+  coff_frob_file_after_relocs,
   0, 0,
   0, 0,
   0,

@@ -287,7 +287,7 @@ subseg_set_rest (seg, subseg)
       newP->fix_root = NULL;
       newP->fix_tail = NULL;
 #endif
-      obstack_begin (&newP->frch_obstack, 5000);
+      obstack_begin (&newP->frch_obstack, chunksize);
 #if __GNUC__ >= 2
       obstack_alignment_mask (&newP->frch_obstack) = __alignof__ (fragS) - 1;
 #endif

@@ -1,5 +1,5 @@
 /* coff object file format
-   Copyright (C) 1989, 90, 91, 92, 94, 95, 96, 1997
+   Copyright (C) 1989, 90, 91, 92, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -63,11 +63,6 @@
 
 #ifdef TC_SPARC
 #include "coff/sparc.h"
-#ifdef TE_LYNX
-#define TARGET_FORMAT "coff-sparc-lynx"
-#else
-#define TARGET_FORMAT "coff-sparc"
-#endif
 #endif
 
 #ifdef TC_I386
@@ -116,7 +111,10 @@
 
 #ifdef TC_SH
 #include "coff/sh.h"
-#define TARGET_FORMAT (shl ? "coff-shl" : "coff-sh")
+#define TARGET_FORMAT					\
+  (shl							\
+   ? (sh_small ? "coff-shl-small" : "coff-shl")		\
+   : (sh_small ? "coff-sh-small" : "coff-sh"))
 #endif
 
 #ifdef TC_M88K
@@ -127,6 +125,11 @@
 #ifdef TC_W65
 #include "coff/w65.h"
 #define TARGET_FORMAT "coff-w65"
+#endif
+
+#ifdef TC_TIC30
+#include "coff/tic30.h"
+#define TARGET_FORMAT "coff-tic30"
 #endif
 
 
@@ -340,11 +343,11 @@ extern void coff_frob_symbol PARAMS ((struct symbol *, int *));
 extern void coff_adjust_symtab PARAMS ((void));
 extern void coff_frob_section PARAMS ((segT));
 extern void coff_adjust_section_syms PARAMS ((bfd *, asection *, PTR));
-extern void coff_frob_file PARAMS ((void));
+extern void coff_frob_file_after_relocs PARAMS ((void));
 #define obj_frob_symbol(S,P) 	coff_frob_symbol(S,&P)
 #define obj_adjust_symtab()	coff_adjust_symtab()
 #define obj_frob_section(S)	coff_frob_section (S)
-#define obj_frob_file()		coff_frob_file ()
+#define obj_frob_file_after_relocs() coff_frob_file_after_relocs ()
 
 extern struct symbol *coff_last_function;
 
@@ -449,7 +452,10 @@ typedef struct
   ((s)->sy_symbol.ost_entry.n_scnum == C_REGISTER_SECTION \
    || (S_LOCAL_NAME(s) && ! flag_keep_locals && ! S_IS_DEBUG (s)) \
    || strchr (S_GET_NAME (s), '\001') != NULL \
-   || strchr (S_GET_NAME (s), '\002') != NULL)
+   || strchr (S_GET_NAME (s), '\002') != NULL \
+   || (flag_strip_local_absolute \
+       && !S_IS_EXTERNAL(s) \
+       && (s)->sy_symbol.ost_entry.n_scnum == C_ABS_SECTION))
 /* True if a symbol is not defined in this file */
 #define S_IS_EXTERN(s)		((s)->sy_symbol.ost_entry.n_scnum == 0 \
 				 && S_GET_VALUE (s) == 0)
@@ -786,6 +792,18 @@ extern void obj_coff_pe_handle_link_once ();
 #endif
 
 #endif /* not BFD_ASSEMBLER */
+
+/* In COFF, if a symbol is defined using .def/.val SYM/.endef, it's OK
+   to redefine the symbol later on.  This can happen if C symbols use
+   a prefix, and a symbol is defined both with and without the prefix,
+   as in start/_start/__start in gcc/libgcc1-test.c.  */
+#define RESOLVE_SYMBOL_REDEFINITION(sym)		\
+(SF_GET_GET_SEGMENT (sym)				\
+ ? (sym->sy_frag = frag_now,				\
+    S_SET_VALUE (sym, frag_now_fix ()),			\
+    S_SET_SEGMENT (sym, now_seg),			\
+    0)							\
+ : 0)
 
 /* Stabs in a coff file go into their own section.  */
 #define SEPARATE_STAB_SECTIONS 1

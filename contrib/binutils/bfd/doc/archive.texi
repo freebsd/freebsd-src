@@ -1,6 +1,6 @@
 @section Archives
 
-@*
+
 @strong{Description}@*
 An archive (or library) is just another BFD.  It has a symbol
 table, although there's not much a user program will do with it.
@@ -49,7 +49,7 @@ spaces and such in filenames anyway, so this shouldn't be much
 of a restriction.
 
 Archives are supported in BFD in @code{archive.c}.
-@*
+
 @findex bfd_get_next_mapent
 @subsubsection @code{bfd_get_next_mapent}
 @strong{Synopsis}
@@ -68,7 +68,7 @@ got the last one.
 
 A @code{carsym} is a canonical archive symbol.  The only
 user-visible element is its name, a null-terminated string.
-@*
+
 @findex bfd_set_archive_head
 @subsubsection @code{bfd_set_archive_head}
 @strong{Synopsis}
@@ -78,7 +78,7 @@ boolean bfd_set_archive_head(bfd *output, bfd *new_head);
 @strong{Description}@*
 Set the head of the chain of
 BFDs contained in the archive @var{output} to @var{new_head}.
-@*
+
 @findex bfd_openr_next_archived_file
 @subsubsection @code{bfd_openr_next_archived_file}
 @strong{Synopsis}
@@ -92,4 +92,4 @@ Subsequent calls should pass
 the archive and the previous return value to return a created
 BFD to the next contained element. NULL is returned when there
 are no more.
-@*
+

@@ -1,3 +1,218 @@
+Mon Mar 30 21:31:56 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* i386.h: Revert March 24 patch; no more LinearAddress.
+
+Mon Mar 30 10:25:54 1998  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* i386.h (i386_optab): Remove fwait (9b) from all floating point
+	instructions, and instead add FWait opcode modifier.  Add short
+	form of fldenv and fstenv.
+	(FWAIT_OPCODE): Define.
+
+	* i386.h (i386_optab): Change second operand constraint of `mov
+	sreg,reg|mem' instruction from Reg16|Mem to WordReg|WordMem to
+	allow legal instructions such as `movl %gs,%esi'
+
+Fri Mar 27 18:30:52 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* h8300.h: Various changes to fully bracket initializers.
+
+Tue Mar 24 18:32:47 1998  H.J. Lu  <hjl@gnu.org>
+
+	* i386.h: Set LinearAddress for lidt and lgdt.
+
+Mon Mar  2 10:44:07 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (CGEN_BOOL_ATTR): New macro.
+
+Mon Feb 23 10:38:21 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (CGEN_CAT3): Delete.  Use CONCAT3 now.
+	(cgen_insn): Record syntax and format entries here, rather than
+	separately.
+
+Tue Feb 17 21:42:56 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* cgen.h (CGEN_SYNTAX_MAKE_FIELD): New macro.
+
+Tue Feb 17 16:00:56 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (cgen_insert_fn): Change type of result to const char *.
+	(cgen_parse_{signed,unsigned}_integer): Delete min,max arguments.
+	(CGEN_{INSN,KEYWORD,OPERAND}_NBOOL_ATTRS): Renamed from ..._MAX_ATTRS.
+
+Thu Feb 12 18:30:41 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* cgen.h (lookup_insn): New argument alias_p.
+
+Thu Feb 12 03:41:00 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+Fix rac to accept only a0:
+	* d10v.h (OPERAND_ACC): Split into:
+	(OPERAND_ACC0, OPERAND_ACC1) .
+	(OPERAND_GPR): Define.
+
+Wed Feb 11 17:31:53 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (CGEN_FIELDS): Define here.
+	(CGEN_HW_ENTRY): New member `type'.
+	(hw_list): Delete decl.
+	(enum cgen_mode): Declare.
+	(CGEN_OPERAND): New member `hw'.
+	(enum cgen_operand_instance_type): Declare.
+	(CGEN_OPERAND_INSTANCE): New type.
+	(CGEN_INSN): New member `operands'.
+	(CGEN_OPCODE_DATA): Make hw_list const.
+	(get_insn_operands,lookup_insn): Add prototypes for.
+
+Tue Feb  3 17:11:23 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (CGEN_INSN_MAX_ATTRS): Renamed from CGEN_MAX_INSN_ATTRS.
+	(CGEN_HW_ENTRY): Move `next' entry to end of struct.
+	(CGEN_KEYWORD_MAX_ATTRS): Renamed from CGEN_MAX_KEYWORD_ATTRS.
+	(CGEN_OPERAND_MAX_ATTRS): Renamed from CGEN_MAX_OPERAND_ATTRS.
+
+Mon Feb  2 19:19:15 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cgen.h: Correct typo in comment end marker.
+
+Mon Feb  2 17:10:38 1998  Steve Haworth  <steve@pm.cse.rmit.EDU.AU>
+
+	* tic30.h: New file.
+
+Thu Jan 22 17:54:56 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* cgen.h: Add prototypes for cgen_save_fixups(),
+	cgen_restore_fixups(), and cgen_swap_fixups().  Change prototype
+	of cgen_asm_finish_insn() to return a char *.
+
+Wed Jan 14 17:21:43 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* cgen.h: Formatting changes to improve readability. 
+
+Mon Jan 12 11:37:36 1998  Doug Evans  <devans@seba.cygnus.com>
+
+	* cgen.h (*): Clean up pass over `struct foo' usage.
+	(CGEN_ATTR): Make unsigned char.
+	(CGEN_ATTR_TYPE): Update.
+	(CGEN_ATTR_{ENTRY,TABLE}): New types.
+	(cgen_base): Move member `attrs' to cgen_insn.
+	(CGEN_KEYWORD): New member `null_entry'.
+	(CGEN_{SYNTAX,FORMAT}): New types.
+	(cgen_insn): Format and syntax separated from each other.
+
+Mon Dec  1 12:24:44 1997  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* m68k.h: Fix comment describing operand types.
+
+Tue Nov 18 18:45:14 1997  J"orn Rennecke  <amylaar@cygnus.co.uk>
+
+	* d10v.h (OPERAND_FLAG): Split into:
+	(OPERAND_FFLAG, OPERAND_CFLAG) .
+
+Thu Nov 13 11:04:24 1997  Gavin Koch  <gavin@cygnus.com>
+
+	* mips.h (struct mips_opcode): Changed comments to reflect new
+	field usage.
+
+Fri Oct 24 22:36:20 1997  Ken Raeburn  <raeburn@cygnus.com>
+
+	* mips.h: Added to comments a quick-ref list of all assigned
+	operand type characters.
+	(OP_{MASK,SH}_PERFREG): New macros.
+
+Wed Oct 22 17:28:33 1997  Richard Henderson  <rth@cygnus.com>
+
+	* sparc.h: Add '_' and '/' for v9a asr's.
+	Patch from David Miller <davem@vger.rutgers.edu>
+
+Tue Oct 14 13:22:29 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* h8300.h: Bit ops with absolute addresses not in the 8 bit
+	area are not available in the base model (H8/300).
+
+Thu Sep 25 13:03:41 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* m68k.h: Remove documentation of ` operand specifier.
+
+Wed Sep 24 19:00:34 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* m68k.h: Document q and v operand specifiers.
+
+Mon Sep 15 18:28:37 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (struct v850_opcode): Add processors field.
+	(PROCESSOR_V850, PROCESSOR_ALL): New bit constants.
+
+Mon Sep  8 14:05:45 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* cgen.h: Move assembler interface section
+	up so cgen_parse_operand_result is defined for cgen_parse_address.
+	(cgen_parse_address): Update prototype.
+
+Tue Sep  2 15:32:32 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (V850_OPREAND_ADJUST_SHORT_MEMORY): Removed. 
+
+Tue Aug 26 12:21:52 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* i386.h (two_byte_segment_defaults): Correct base register 5 in
+	modes 1 and 2 to be ss rather than ds.  From Gabriel Paubert
+	<paubert@iram.es>.
+
+	* i386.h: Set ud2 to 0x0f0b.  From Gabriel Paubert
+	<paubert@iram.es>.
+
+	* i386.h: Comment fixes for ficom[p]?{s,l} from Gabriel Paubert
+	<paubert@iram.es>.
+
+	* i386.h (JUMP_ON_CX_ZERO): Uncomment (define again).
+	(JUMP_ON_ECX_ZERO): Remove commented out macro.
+
+Fri Aug 22 10:38:29 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (V850_NOT_R0): New flag.
+
+Mon Aug 18 11:05:58 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (struct v850_opcode): Remove flags field. 
+
+Wed Aug 13 18:45:48 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* v850.h (struct v850_opcode): Add flags field.
+	(struct v850_operand): Extend meaning of 'bits' and 'shift'
+	fields. 
+
+
+Fri Aug  8 16:58:42 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc.h: New file.
+
+Thu Jul 24 21:16:58 1997  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (sparc_opcodes): Declare as const.
+
+Thu Jul 10 12:53:25 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* mips.h (FP_S, FP_D): Define.  Bitmasks indicating if an insn
+	uses single or double precision floating point resources.
+	(INSN_NO_ISA, INSN_ISA1): Define.
+	(cpu specific INSN macros): Tweak into bitmasks outside the range
+	of INSN_ISA field.
+
+Mon Jun 16 14:10:00 1997  H.J. Lu  <hjl@gnu.ai.mit.edu>
+
+	* i386.h: Fix pand opcode.
+
+Mon Jun  2 11:35:09 1997  Gavin Koch  <gavin@cygnus.com>
+
+	* mips.h: Widen INSN_ISA and move it to a more convenient
+	bit position.  Add INSN_3900.
+
+Tue May 20 11:25:29 1997  Gavin Koch  <gavin@cygnus.com>
+
+	* mips.h (struct mips_opcode): added new field membership.
+
 Mon May 12 16:26:50 1997  H.J. Lu  <hjl@gnu.ai.mit.edu>
 
 	* i386.h (movd): only Reg32 is allowed.
@@ -42,6 +257,10 @@ Fri Apr  4 14:02:32 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* i386.h: Correct opcode values for fsubp, fsubrp, fdivp, and
 	fdivrp.
 
+Tue Mar 25 22:57:26 1997  Stu Grossman  (grossman@critters.cygnus.com)
+
+	* v850.h (extract):  Make unsigned.
+
 Mon Mar 24 14:38:15 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* i386.h: Add iclr.
@@ -81,6 +300,11 @@ Wed Jan 29 09:37:25 1997  Jeffrey A Law  (law@cygnus.com)
 
 	* mn10200.h (MN10200_OPERAND_RELAX): Define.
 
+Tue Dec 31 15:05:41 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* v850.h (V850_OPERAND_ADJUST_SHORT_MEMORY): New flag to adjust
+	type IV instruction offsets.
+
 Wed Dec 18 10:06:31 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* mn10200.h (MN10200_OPERAND_NOCHECK): Define.
@@ -89,6 +313,7 @@ Sat Dec 14 10:48:31 1996  Fred Fish  <fnf@ninemoons.com>
 
 	* mn10200.h: Fix comment, mn10200_operand not powerpc_operand.
 	* mn10300.h: Fix comment, mn10300_operand not powerpc_operand.
+	* v850.h: Fix comment, v850_operand not powerpc_operand.
 	
 Mon Dec  9 16:45:39 1996  Jeffrey A Law  (law@cygnus.com)
 
@@ -132,6 +357,10 @@ Fri Nov  1 10:31:02 1996  Richard Henderson  <rth@tamu.edu>
  	implementation.
 	(struct alpha_operand): Move flags slot for better packing.
 
+Tue Oct 29 12:19:10 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* v850.h (V850_OPERAND_RELAX): New operand flag.
+
 Thu Oct 10 14:29:11 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* mn10300.h (FMT_*): Move operand format definitions
@@ -155,9 +384,41 @@ Wed Oct  2 21:31:26 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* mn10x00.h: New file.
 
+Fri Sep 27 18:26:46 1996  Stu Grossman  (grossman@critters.cygnus.com)
+
+	* v850.h:  Add new flag to indicate this instruction uses a PC
+	displacement.
+
 Fri Sep 13 14:58:13 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* h8300.h (stmac): Add missing instruction.
+
+Sat Aug 31 16:02:03 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* v850.h (v850_opcode): Remove "size" field.  Add "memop"
+	field.
+
+Fri Aug 23 10:39:08 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* v850.h (V850_OPERAND_EP): Define.
+
+	* v850.h (v850_opcode): Add size field.
+
+Thu Aug 22 16:51:25 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* v850.h (v850_operands): Add insert and extract fields, pointers
+ 	to functions used to handle unusual operand encoding.
+	(V850_OPERAND_REG, V850_OPERAND_SRG, V850_OPERAND_CC,
+ 	V850_OPERAND_SIGNED): Defined.
+
+Wed Aug 21 17:45:10 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* v850.h (v850_operands): Add flags field.
+	(OPERAND_REG, OPERAND_NUM): Defined.
+
+Tue Aug 20 14:52:02 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* v850.h: New file.
 
 Fri Aug 16 14:44:15 1996  James G. Smith  <jsmith@cygnus.co.uk>
 
@@ -419,13 +680,11 @@ Wed Jun 21 18:49:51 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 	[!NO_DEFAULT_SIZES]: An omitted size defaults to `w'.
 	(m68k_opcode_aliases): Add more aliases.
 
-
 Fri Apr 14 22:15:34 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 	* m68k.h: Added explcitly short-sized conditional branches, and a
 	bunch of aliases (fmov*, ftest*, tdivul) to support gcc's
 	svr4-based configurations.
-
 
 Mon Mar 13 21:30:01 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
@@ -455,7 +714,6 @@ Wed Mar  8 03:13:23 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 	[DONT_DEFINE_TABLE]: Declare numopcodes, numaliases, and
 	m68k_opcode_aliases; update declaration of m68k_opcodes.
 
-
 Mon Mar  6 10:02:00 1995  Jeff Law  (law@snake.cs.utah.edu)
 
 	* hppa.h (delay_type): Delete unused enumeration.
@@ -478,7 +736,6 @@ Thu Feb 23 17:33:09 1995  Jeff Law  (law@snake.cs.utah.edu)
 Wed Feb 15 12:19:52 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 	* mips.h (M_ULD, M_ULD_A, M_USD, M_USD_A): Define.
-
 
 Mon Feb  6 10:35:23 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
 
@@ -509,8 +766,6 @@ Thu Jan 19 14:47:53 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 Tue Jan 17 10:55:30 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 
 	* mips.h (INSN_ISA, INSN_4650): Define.
-
-
 
 Wed Oct 19 13:34:17 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
 
