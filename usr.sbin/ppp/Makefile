@@ -8,7 +8,7 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	mbuf.c mp.c ncp.c ncpaddr.c pap.c physical.c pred.c probe.c prompt.c \
 	proto.c route.c server.c sig.c slcompress.c sync.c systems.c tcp.c \
 	tcpmss.c throughput.c timer.c tty.c tun.c udp.c vjcomp.c
-WARNS?=	5
+WARNS?=	3
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
 NOATM=		true
