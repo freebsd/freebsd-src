@@ -1041,11 +1041,11 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	case TIOCSCTTY:			/* become controlling tty */
 		/* Session ctty vnode pointer set in vnode layer. */
-		PGRPSESS_XLOCK();
+		PGRPSESS_SLOCK();
 		if (!SESS_LEADER(p) ||
 		    ((p->p_session->s_ttyvp || tp->t_session) &&
 		     (tp->t_session != p->p_session))) {
-			PGRPSESS_XUNLOCK();
+			PGRPSESS_SUNLOCK();
 			return (EPERM);
 		}
 		tp->t_session = p->p_session;
@@ -1056,7 +1056,7 @@ ttioctl(tp, cmd, data, flag)
 		PROC_LOCK(p);
 		p->p_flag |= P_CONTROLT;
 		PROC_UNLOCK(p);
-		PGRPSESS_XUNLOCK();
+		PGRPSESS_SUNLOCK();
 		break;
 	case TIOCSPGRP: {		/* set pgrp of tty */
 		register struct pgrp *pgrp;
