@@ -12,8 +12,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ./LINT configuration file. If you are
-# in doubt as to the purpose or necessity of a line, check first in LINT.
+# device lines is also present in the NOTES configuration file. If you are
+# in doubt as to the purpose or necessity of a line, check first in NOTES.
 #
 # $FreeBSD$
 
@@ -88,7 +88,7 @@ options 	ATA_STATIC_ID		#Static device numbering
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
-device		dpt		# DPT Smartcache - See LINT for options!
+device		dpt		# DPT Smartcache - See NOTES for options!
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
@@ -134,7 +134,7 @@ device		sc	1
 # Floating point support - do not disable.
 device		npx
 
-# Power management support (see LINT for more options)
+# Power management support (see NOTES for more options)
 device		apm
 
 # PCCARD (PCMCIA) support
