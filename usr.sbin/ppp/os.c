@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.33 1997/11/13 12:09:57 brian Exp $
+ * $Id: os.c,v 1.34 1997/11/16 22:15:07 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -26,7 +26,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#ifdef __FreeBSD__
 #include <net/if_var.h>
+#endif
 #include <net/if_tun.h>
 #include <net/route.h>
 #include <arpa/inet.h>
@@ -39,6 +41,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"
@@ -48,7 +51,6 @@
 #include "ipcp.h"
 #include "os.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "arp.h"
 #include "systems.h"

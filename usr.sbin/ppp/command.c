@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.103 1997/11/18 00:19:28 brian Exp $
+ * $Id: command.c,v 1.104 1997/11/18 19:38:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -29,7 +29,9 @@
 #include <net/route.h>
 #include <netdb.h>
 
+#ifndef NOALIAS
 #include <alias.h>
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -43,6 +45,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -52,9 +55,10 @@
 #include "lcp.h"
 #include "ipcp.h"
 #include "modem.h"
-#include "command.h"
 #include "filter.h"
+#ifndef NOALIAS
 #include "alias_cmd.h"
+#endif
 #include "hdlc.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -71,28 +75,26 @@
 
 struct in_addr ifnetmask;
 
-static int ShowCommand(struct cmdtab const *, int, char **);
-static int TerminalCommand(struct cmdtab const *, int, char **);
-static int QuitCommand(struct cmdtab const *, int, char **);
-static int CloseCommand(struct cmdtab const *, int, char **);
-static int DialCommand(struct cmdtab const *, int, char **);
-static int DownCommand(struct cmdtab const *, int, char **);
-static int AllowCommand(struct cmdtab const *, int, char **);
-static int SetCommand(struct cmdtab const *, int, char **);
-static int AddCommand(struct cmdtab const *, int, char **);
-static int DeleteCommand(struct cmdtab const *, int, char **);
-static int BgShellCommand(struct cmdtab const *, int, char **);
-static int FgShellCommand(struct cmdtab const *, int, char **);
-static int ShellCommand(struct cmdtab const *, int, char **, int);
-static int AliasCommand(struct cmdtab const *, int, char **);
-static int AliasEnable(struct cmdtab const *, int, char **);
-static int AliasOption(struct cmdtab const *, int, char **, void *);
+static int ShowCommand(struct cmdargs const *arg);
+static int TerminalCommand(struct cmdargs const *arg);
+static int QuitCommand(struct cmdargs const *arg);
+static int CloseCommand(struct cmdargs const *arg);
+static int DialCommand(struct cmdargs const *arg);
+static int DownCommand(struct cmdargs const *arg);
+static int AllowCommand(struct cmdargs const *arg);
+static int SetCommand(struct cmdargs const *arg);
+static int AddCommand(struct cmdargs const *arg);
+static int DeleteCommand(struct cmdargs const *arg);
+static int BgShellCommand(struct cmdargs const *arg);
+static int FgShellCommand(struct cmdargs const *arg);
+#ifndef NOALIAS
+static int AliasCommand(struct cmdargs const *arg);
+static int AliasEnable(struct cmdargs const *arg);
+static int AliasOption(struct cmdargs const *arg);
+#endif
 
 static int
-HelpCommand(struct cmdtab const * list,
-	    int argc,
-	    char **argv,
-	    struct cmdtab const * plist)
+HelpCommand(struct cmdargs const *arg)
 {
   struct cmdtab const *cmd;
   int n;
@@ -100,16 +102,16 @@ HelpCommand(struct cmdtab const * list,
   if (!VarTerm)
     return 0;
 
-  if (argc > 0) {
-    for (cmd = plist; cmd->name; cmd++)
-      if (strcasecmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
+  if (arg->argc > 0) {
+    for (cmd = arg->cmd; cmd->name; cmd++)
+      if (strcasecmp(cmd->name, *arg->argv) == 0 && (cmd->lauth & VarLocalAuth)) {
 	fprintf(VarTerm, "%s\n", cmd->syntax);
 	return 0;
       }
     return -1;
   }
   n = 0;
-  for (cmd = plist; cmd->func; cmd++)
+  for (cmd = arg->cmd; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
       fprintf(VarTerm, "  %-9s: %-20s\n", cmd->name, cmd->helpmes);
       n++;
@@ -123,7 +125,7 @@ HelpCommand(struct cmdtab const * list,
 int
 IsInteractive(int Display)
 {
-  char *mes = NULL;
+  const char *mes = NULL;
 
   if (mode & MODE_DDIAL)
     mes = "Working in dedicated dial mode.";
@@ -144,7 +146,7 @@ IsInteractive(int Display)
 }
 
 static int
-DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
+DialCommand(struct cmdargs const *arg)
 {
   int tries;
   int res;
@@ -155,7 +157,7 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
     return 0;
   }
 
-  if (argc > 0 && (res = LoadCommand(cmdlist, argc, argv)) != 0)
+  if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
     return res;
 
   tries = 0;
@@ -169,7 +171,7 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
     }
     if ((res = DialModem()) == EX_DONE) {
       nointr_sleep(1);
-      ModemTimeout();
+      ModemTimeout(NULL);
       PacketMode();
       break;
     } else if (res == EX_SIG)
@@ -180,14 +182,14 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
 }
 
 static int
-SetLoopback(struct cmdtab const * cmdlist, int argc, char **argv)
+SetLoopback(struct cmdargs const *arg)
 {
-  if (argc == 1)
-    if (!strcasecmp(*argv, "on")) {
+  if (arg->argc == 1)
+    if (!strcasecmp(*arg->argv, "on")) {
       VarLoopback = 1;
       return 0;
     }
-    else if (!strcasecmp(*argv, "off")) {
+    else if (!strcasecmp(*arg->argv, "off")) {
       VarLoopback = 0;
       return 0;
     }
@@ -195,25 +197,13 @@ SetLoopback(struct cmdtab const * cmdlist, int argc, char **argv)
 }
 
 static int
-BgShellCommand(struct cmdtab const * cmdlist, int argc, char **argv)
-{
-  if (argc == 0)
-    return -1;
-  return ShellCommand(cmdlist, argc, argv, 1);
-}
-
-static int
-FgShellCommand(struct cmdtab const * cmdlist, int argc, char **argv)
-{
-  return ShellCommand(cmdlist, argc, argv, 0);
-}
-
-static int
-ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
+ShellCommand(struct cmdargs const *arg, int bg)
 {
   const char *shell;
   pid_t shpid;
   FILE *oVarTerm;
+  int argc;
+  char *argv[MAXARGS];
 
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
@@ -234,7 +224,7 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
   }
 #endif
 
-  if (argc == 0)
+  if (arg->argc == 0)
     if (!(mode & MODE_INTER)) {
       if (VarTerm)
         LogPrintf(LogWARN, "Can't start an interactive shell from"
@@ -273,19 +263,24 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 	close(fd);
 
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
-      (void) close(i);
+      close(i);
 
     TtyOldMode();
     setuid(geteuid());
-    if (argc > 0) {
+    if (arg->argc > 0) {
       /* substitute pseudo args */
-      for (i = 1; i < argc; i++)
-	if (strcasecmp(argv[i], "HISADDR") == 0)
-	  argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
-	else if (strcasecmp(argv[i], "INTERFACE") == 0)
-	  argv[i] = strdup(IfDevName);
-	else if (strcasecmp(argv[i], "MYADDR") == 0)
-	  argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
+      argv[0] = strdup(arg->argv[0]);
+      for (argc = 1; argc < arg->argc; argc++) {
+	if (strcasecmp(arg->argv[argc], "HISADDR") == 0)
+	  argv[argc] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
+	else if (strcasecmp(arg->argv[argc], "INTERFACE") == 0)
+	  argv[argc] = strdup(IfDevName);
+	else if (strcasecmp(arg->argv[argc], "MYADDR") == 0)
+	  argv[argc] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
+        else
+          argv[argc] = strdup(arg->argv[argc]);
+      }
+      argv[argc] = NULL;
       if (bg) {
 	pid_t p;
 
@@ -295,15 +290,15 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 	  exit(1);
 	}
       } else if (VarTerm)
-        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", argv[0]);
-      (void) execvp(argv[0], argv);
+        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", arg->argv[0]);
+      execvp(argv[0], argv);
     } else {
       if (VarTerm)
         fprintf(VarTerm, "ppp: Pausing until %s finishes\n", shell);
-      (void) execl(shell, shell, NULL);
+      execl(shell, shell, NULL);
     }
 
-    LogPrintf(LogWARN, "exec() of %s failed\n", argc > 0 ? argv[0] : shell);
+    LogPrintf(LogWARN, "exec() of %s failed\n", arg->argc > 0 ? arg->argv[0] : shell);
     exit(255);
   }
   if (shpid == (pid_t) - 1) {
@@ -311,12 +306,26 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
   } else {
     int status;
 
-    (void) waitpid(shpid, &status, 0);
+    waitpid(shpid, &status, 0);
   }
 
   TtyCommandMode(1);
 
   return (0);
+}
+
+static int
+BgShellCommand(struct cmdargs const *arg)
+{
+  if (arg->argc == 0)
+    return -1;
+  return ShellCommand(arg, 1);
+}
+
+static int
+FgShellCommand(struct cmdargs const *arg)
+{
+  return ShellCommand(arg, 0);
 }
 
 static struct cmdtab const Commands[] = {
@@ -356,19 +365,21 @@ static struct cmdtab const Commands[] = {
   "Show status and statistics", "show var"},
   {"term", NULL, TerminalCommand, LOCAL_AUTH,
   "Enter to terminal mode", "term"},
+#ifndef NOALIAS
   {"alias", NULL, AliasCommand, LOCAL_AUTH,
   "alias control", "alias option [yes|no]"},
+#endif
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Quit PPP program", "quit|bye [all]"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Display this message", "help|? [command]", (void *) Commands},
+  "Display this message", "help|? [command]", Commands},
   {NULL, "down", DownCommand, LOCAL_AUTH,
   "Generate down event", "down"},
   {NULL, NULL, NULL},
 };
 
 static int
-ShowLoopback()
+ShowLoopback(struct cmdargs const *arg)
 {
   if (VarTerm)
     fprintf(VarTerm, "Local loopback is %s\n", VarLoopback ? "on" : "off");
@@ -377,7 +388,7 @@ ShowLoopback()
 }
 
 static int
-ShowLogLevel()
+ShowLogLevel(struct cmdargs const *arg)
 {
   int i;
 
@@ -400,7 +411,7 @@ ShowLogLevel()
 }
 
 static int
-ShowEscape()
+ShowEscape(struct cmdargs const *arg)
 {
   int code, bit;
 
@@ -418,7 +429,7 @@ ShowEscape()
 }
 
 static int
-ShowTimeout()
+ShowTimeout(struct cmdargs const *arg)
 {
   if (VarTerm)
     fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
@@ -428,7 +439,7 @@ ShowTimeout()
 }
 
 static int
-ShowStopped()
+ShowStopped(struct cmdargs const *arg)
 {
   if (!VarTerm)
     return 0;
@@ -457,7 +468,7 @@ ShowStopped()
 }
 
 static int
-ShowAuthKey()
+ShowAuthKey(struct cmdargs const *arg)
 {
   if (!VarTerm)
     return 0;
@@ -470,7 +481,7 @@ ShowAuthKey()
 }
 
 static int
-ShowVersion()
+ShowVersion(struct cmdargs const *arg)
 {
   if (VarTerm)
     fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
@@ -478,7 +489,7 @@ ShowVersion()
 }
 
 static int
-ShowInitialMRU()
+ShowInitialMRU(struct cmdargs const *arg)
 {
   if (VarTerm)
     fprintf(VarTerm, " Initial MRU: %ld\n", VarMRU);
@@ -486,7 +497,7 @@ ShowInitialMRU()
 }
 
 static int
-ShowPreferredMTU()
+ShowPreferredMTU(struct cmdargs const *arg)
 {
   if (VarTerm)
     if (VarPrefMTU)
@@ -497,7 +508,7 @@ ShowPreferredMTU()
 }
 
 static int
-ShowReconnect()
+ShowReconnect(struct cmdargs const *arg)
 {
   if (VarTerm)
     fprintf(VarTerm, " Reconnect Timer:  %d,  %d tries\n",
@@ -506,7 +517,7 @@ ShowReconnect()
 }
 
 static int
-ShowRedial()
+ShowRedial(struct cmdargs const *arg)
 {
   if (!VarTerm)
     return 0;
@@ -536,7 +547,7 @@ ShowRedial()
 
 #ifndef NOMSEXT
 static int
-ShowMSExt()
+ShowMSExt(struct cmdargs const *arg)
 {
   if (VarTerm) {
     fprintf(VarTerm, " MS PPP extention values \n");
@@ -604,12 +615,12 @@ static struct cmdtab const ShowCommands[] = {
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
-  "Display this message", "show help|? [command]", (void *) ShowCommands},
+  "Display this message", "show help|? [command]", ShowCommands},
   {NULL, NULL, NULL},
 };
 
 static struct cmdtab const *
-FindCommand(struct cmdtab const * cmds, char *str, int *pmatch)
+FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
 {
   int nmatch;
   int len;
@@ -641,18 +652,23 @@ FindCommand(struct cmdtab const * cmds, char *str, int *pmatch)
 }
 
 static int
-FindExec(struct cmdtab const * cmdlist, int argc, char **argv)
+FindExec(struct cmdtab const *cmds, int argc, char const *const *argv)
 {
   struct cmdtab const *cmd;
   int val = 1;
   int nmatch;
+  struct cmdargs arg;
 
-  cmd = FindCommand(cmdlist, *argv, &nmatch);
+  cmd = FindCommand(cmds, *argv, &nmatch);
   if (nmatch > 1)
     LogPrintf(LogWARN, "%s: Ambiguous command\n", *argv);
-  else if (cmd && (cmd->lauth & VarLocalAuth))
-    val = (cmd->func) (cmd, argc-1, argv+1, cmd->args);
-  else
+  else if (cmd && (cmd->lauth & VarLocalAuth)) {
+    arg.cmd = cmd;
+    arg.argc = argc-1;
+    arg.argv = argv+1;
+    arg.data = cmd->args;
+    val = (cmd->func) (&arg);
+  } else
     LogPrintf(LogWARN, "%s: Invalid command\n", *argv);
 
   if (val == -1)
@@ -668,7 +684,7 @@ int aft_cmd = 1;
 void
 Prompt()
 {
-  char *pconnect, *pauth;
+  const char *pconnect, *pauth;
 
   if (!VarTerm || TermMode)
     return;
@@ -693,7 +709,7 @@ Prompt()
 void
 InterpretCommand(char *buff, int nb, int *argc, char ***argv)
 {
-  static char *vector[40];
+  static char *vector[MAXARGS];
   char *cp;
 
   if (nb > 0) {
@@ -707,7 +723,7 @@ InterpretCommand(char *buff, int nb, int *argc, char ***argv)
 }
 
 void
-RunCommand(int argc, char **argv, const char *label)
+RunCommand(int argc, char const *const *argv, const char *label)
 {
   if (argc > 0) {
     if (LogIsKept(LogCOMMAND)) {
@@ -739,16 +755,16 @@ DecodeCommand(char *buff, int nb, const char *label)
   char **argv;
 
   InterpretCommand(buff, nb, &argc, &argv);
-  RunCommand(argc, argv, label);
+  RunCommand(argc, (char const *const *)argv, label);
 }
 
 static int
-ShowCommand(struct cmdtab const * list, int argc, char **argv)
+ShowCommand(struct cmdargs const *arg)
 {
-  if (argc > 0)
-    FindExec(ShowCommands, argc, argv);
+  if (arg->argc > 0)
+    FindExec(ShowCommands, arg->argc, arg->argv);
   else if (VarTerm)
-    fprintf(VarTerm, "Use ``show ?'' to get a list.\n");
+    fprintf(VarTerm, "Use ``show ?'' to get a arg->cmd.\n");
   else
     LogPrintf(LogWARN, "show command must have arguments\n");
 
@@ -756,7 +772,7 @@ ShowCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-TerminalCommand(struct cmdtab const * list, int argc, char **argv)
+TerminalCommand(struct cmdargs const *arg)
 {
   if (LcpFsm.state > ST_CLOSED) {
     if (VarTerm)
@@ -779,13 +795,13 @@ TerminalCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-QuitCommand(struct cmdtab const * list, int argc, char **argv)
+QuitCommand(struct cmdargs const *arg)
 {
   if (VarTerm) {
     DropClient();
     if (mode & MODE_INTER)
       Cleanup(EX_NORMAL);
-    else if (argc > 0 && !strcasecmp(*argv, "all") && VarLocalAuth&LOCAL_AUTH)
+    else if (arg->argc > 0 && !strcasecmp(*arg->argv, "all") && VarLocalAuth&LOCAL_AUTH)
       Cleanup(EX_NORMAL);
   }
 
@@ -793,7 +809,7 @@ QuitCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-CloseCommand(struct cmdtab const * list, int argc, char **argv)
+CloseCommand(struct cmdargs const *arg)
 {
   reconnect(RECON_FALSE);
   LcpClose();
@@ -801,57 +817,57 @@ CloseCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-DownCommand(struct cmdtab const * list, int argc, char **argv)
+DownCommand(struct cmdargs const *arg)
 {
   LcpDown();
   return 0;
 }
 
 static int
-SetModemSpeed(struct cmdtab const * list, int argc, char **argv)
+SetModemSpeed(struct cmdargs const *arg)
 {
   int speed;
 
-  if (argc > 0) {
-    if (strcasecmp(*argv, "sync") == 0) {
+  if (arg->argc > 0) {
+    if (strcasecmp(*arg->argv, "sync") == 0) {
       VarSpeed = 0;
       return 0;
     }
-    speed = atoi(*argv);
+    speed = atoi(*arg->argv);
     if (IntToSpeed(speed) != B0) {
       VarSpeed = speed;
       return 0;
     }
-    LogPrintf(LogWARN, "%s: Invalid speed\n", *argv);
+    LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
   }
   return -1;
 }
 
 static int
-SetReconnect(struct cmdtab const * list, int argc, char **argv)
+SetReconnect(struct cmdargs const *arg)
 {
-  if (argc == 2) {
-    VarReconnectTimer = atoi(argv[0]);
-    VarReconnectTries = atoi(argv[1]);
+  if (arg->argc == 2) {
+    VarReconnectTimer = atoi(arg->argv[0]);
+    VarReconnectTries = atoi(arg->argv[1]);
     return 0;
   }
   return -1;
 }
 
 static int
-SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
+SetRedialTimeout(struct cmdargs const *arg)
 {
   int timeout;
   int tries;
   char *dot;
 
-  if (argc == 1 || argc == 2) {
-    if (strncasecmp(argv[0], "random", 6) == 0 &&
-	(argv[0][6] == '\0' || argv[0][6] == '.')) {
+  if (arg->argc == 1 || arg->argc == 2) {
+    if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
+	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
       VarRedialTimeout = -1;
       randinit();
     } else {
-      timeout = atoi(argv[0]);
+      timeout = atoi(arg->argv[0]);
 
       if (timeout >= 0)
 	VarRedialTimeout = timeout;
@@ -861,7 +877,7 @@ SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
       }
     }
 
-    dot = strchr(argv[0], '.');
+    dot = strchr(arg->argv[0], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
 	VarRedialNextTimeout = -1;
@@ -878,8 +894,8 @@ SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
     } else
       VarRedialNextTimeout = NEXT_REDIAL_PERIOD;	/* Default next timeout */
 
-    if (argc == 2) {
-      tries = atoi(argv[1]);
+    if (arg->argc == 2) {
+      tries = atoi(arg->argv[1]);
 
       if (tries >= 0) {
 	VarDialTries = tries;
@@ -894,18 +910,18 @@ SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetStoppedTimeout(struct cmdtab const * list, int argc, char **argv)
+SetStoppedTimeout(struct cmdargs const *arg)
 {
   LcpFsm.StoppedTimer.load = 0;
   IpcpFsm.StoppedTimer.load = 0;
   CcpFsm.StoppedTimer.load = 0;
-  if (argc <= 3) {
-    if (argc > 0) {
-      LcpFsm.StoppedTimer.load = atoi(argv[0]) * SECTICKS;
-      if (argc > 1) {
-	IpcpFsm.StoppedTimer.load = atoi(argv[1]) * SECTICKS;
-	if (argc > 2)
-	  CcpFsm.StoppedTimer.load = atoi(argv[2]) * SECTICKS;
+  if (arg->argc <= 3) {
+    if (arg->argc > 0) {
+      LcpFsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
+      if (arg->argc > 1) {
+	IpcpFsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
+	if (arg->argc > 2)
+	  CcpFsm.StoppedTimer.load = atoi(arg->argv[2]) * SECTICKS;
       }
     }
     return 0;
@@ -917,26 +933,26 @@ SetStoppedTimeout(struct cmdtab const * list, int argc, char **argv)
   (*x == '0' && strlen(x) == 4 && strspn(x+1, "0123456789.") == 3)
 
 static int
-SetServer(struct cmdtab const * list, int argc, char **argv)
+SetServer(struct cmdargs const *arg)
 {
   int res = -1;
 
-  if (argc > 0 && argc < 4) {
+  if (arg->argc > 0 && arg->argc < 4) {
     const char *port, *passwd, *mask;
 
     /* What's what ? */
-    port = argv[0];
-    if (argc == 2)
-      if (ismask(argv[1])) {
+    port = arg->argv[0];
+    if (arg->argc == 2)
+      if (ismask(arg->argv[1])) {
         passwd = NULL;
-        mask = argv[1];
+        mask = arg->argv[1];
       } else {
-        passwd = argv[1];
+        passwd = arg->argv[1];
         mask = NULL;
       }
-    else if (argc == 3) {
-      passwd = argv[1];
-      mask = argv[2];
+    else if (arg->argc == 3) {
+      passwd = arg->argv[1];
+      mask = arg->argv[2];
       if (!ismask(mask))
         return -1;
     } else
@@ -998,20 +1014,23 @@ SetServer(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetModemParity(struct cmdtab const * list, int argc, char **argv)
+SetModemParity(struct cmdargs const *arg)
 {
-  return argc > 0 ? ChangeParity(*argv) : -1;
+  return arg->argc > 0 ? ChangeParity(*arg->argv) : -1;
 }
 
 static int
-SetLogLevel(struct cmdtab const * list, int argc, char **argv)
+SetLogLevel(struct cmdargs const *arg)
 {
   int i;
   int res;
-  char *arg;
+  int argc;
+  char const *const *argv, *argp;
   void (*Discard)(int), (*Keep)(int);
   void (*DiscardAll)(void);
 
+  argc = arg->argc;
+  argv = arg->argv;
   res = 0;
   if (argc == 0 || strcasecmp(argv[0], "local")) {
     Discard = LogDiscard;
@@ -1026,11 +1045,11 @@ SetLogLevel(struct cmdtab const * list, int argc, char **argv)
   }
 
   if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
-    (*DiscardAll)();
+    DiscardAll();
   while (argc--) {
-    arg = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
+    argp = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
     for (i = LogMIN; i <= LogMAX; i++)
-      if (strcasecmp(arg, LogName(i)) == 0) {
+      if (strcasecmp(argp, LogName(i)) == 0) {
 	if (**argv == '-')
 	  (*Discard)(i);
 	else
@@ -1038,7 +1057,7 @@ SetLogLevel(struct cmdtab const * list, int argc, char **argv)
 	break;
       }
     if (i > LogMAX) {
-      LogPrintf(LogWARN, "%s: Invalid log value\n", arg);
+      LogPrintf(LogWARN, "%s: Invalid log value\n", argp);
       res = -1;
     }
     argv++;
@@ -1047,12 +1066,15 @@ SetLogLevel(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetEscape(struct cmdtab const * list, int argc, char **argv)
+SetEscape(struct cmdargs const *arg)
 {
   int code;
+  int argc = arg->argc;
+  char const *const *argv = arg->argv;
 
   for (code = 0; code < 33; code++)
     EscMap[code] = 0;
+
   while (argc-- > 0) {
     sscanf(*argv++, "%x", &code);
     code &= 0xff;
@@ -1063,13 +1085,13 @@ SetEscape(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetInitialMRU(struct cmdtab const * list, int argc, char **argv)
+SetInitialMRU(struct cmdargs const *arg)
 {
   long mru;
-  char *err;
+  const char *err;
 
-  if (argc > 0) {
-    mru = atol(*argv);
+  if (arg->argc > 0) {
+    mru = atol(*arg->argv);
     if (mru < MIN_MRU)
       err = "Given MRU value (%ld) is too small.\n";
     else if (mru > MAX_MRU)
@@ -1084,13 +1106,13 @@ SetInitialMRU(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetPreferredMTU(struct cmdtab const * list, int argc, char **argv)
+SetPreferredMTU(struct cmdargs const *arg)
 {
   long mtu;
-  char *err;
+  const char *err;
 
-  if (argc > 0) {
-    mtu = atol(*argv);
+  if (arg->argc > 0) {
+    mtu = atol(*arg->argv);
     if (mtu == 0) {
       VarPrefMTU = 0;
       return 0;
@@ -1108,17 +1130,17 @@ SetPreferredMTU(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-SetIdleTimeout(struct cmdtab const * list, int argc, char **argv)
+SetIdleTimeout(struct cmdargs const *arg)
 {
-  if (argc-- > 0) {
-    VarIdleTimeout = atoi(*argv++);
+  if (arg->argc > 0) {
+    VarIdleTimeout = atoi(arg->argv[0]);
     UpdateIdleTimer();		/* If we're connected, restart the idle timer */
-    if (argc-- > 0) {
-      VarLqrTimeout = atoi(*argv++);
+    if (arg->argc > 1) {
+      VarLqrTimeout = atoi(arg->argv[1]);
       if (VarLqrTimeout < 1)
 	VarLqrTimeout = 30;
-      if (argc > 0) {
-	VarRetryTimeout = atoi(*argv);
+      if (arg->argc > 2) {
+	VarRetryTimeout = atoi(arg->argv[2]);
 	if (VarRetryTimeout < 1 || VarRetryTimeout > 10)
 	  VarRetryTimeout = 3;
       }
@@ -1129,7 +1151,7 @@ SetIdleTimeout(struct cmdtab const * list, int argc, char **argv)
 }
 
 static struct in_addr
-GetIpAddr(char *cp)
+GetIpAddr(const char *cp)
 {
   struct hostent *hp;
   struct in_addr ipaddr;
@@ -1143,32 +1165,32 @@ GetIpAddr(char *cp)
 }
 
 static int
-SetInterfaceAddr(struct cmdtab const * list, int argc, char **argv)
+SetInterfaceAddr(struct cmdargs const *arg)
 {
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
 
-  if (argc > 4)
+  if (arg->argc > 4)
     return -1;
 
   HaveTriggerAddress = 0;
   ifnetmask.s_addr = 0;
 
-  if (argc > 0) {
-    if (ParseAddr(argc, argv++,
+  if (arg->argc > 0) {
+    if (ParseAddr(arg->argc, arg->argv,
 		  &DefMyAddress.ipaddr,
 		  &DefMyAddress.mask,
 		  &DefMyAddress.width) == 0)
       return 1;
-    if (--argc > 0) {
-      if (ParseAddr(argc, argv++,
+    if (arg->argc > 1) {
+      if (ParseAddr(arg->argc, arg->argv+1,
 		    &DefHisAddress.ipaddr,
 		    &DefHisAddress.mask,
 		    &DefHisAddress.width) == 0)
 	return 2;
-      if (--argc > 0) {
-	ifnetmask = GetIpAddr(*argv);
-	if (--argc > 0) {
-	  TriggerAddress = GetIpAddr(*argv);
+      if (arg->argc > 2) {
+	ifnetmask = GetIpAddr(arg->argv[2]);
+	if (arg->argc > 3) {
+	  TriggerAddress = GetIpAddr(arg->argv[3]);
 	  HaveTriggerAddress = 1;
 	}
       }
@@ -1202,7 +1224,7 @@ static void
 SetMSEXT(struct in_addr * pri_addr,
 	 struct in_addr * sec_addr,
 	 int argc,
-	 char **argv)
+	 char const *const *argv)
 {
   int dummyint;
   struct in_addr dummyaddr;
@@ -1227,78 +1249,79 @@ SetMSEXT(struct in_addr * pri_addr,
 }
 
 static int
-SetNS(struct cmdtab const * list, int argc, char **argv)
+SetNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&ns_entries[0], &ns_entries[1], argc, argv);
+  SetMSEXT(&ns_entries[0], &ns_entries[1], arg->argc, arg->argv);
   return 0;
 }
 
 static int
-SetNBNS(struct cmdtab const * list, int argc, char **argv)
+SetNBNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&nbns_entries[0], &nbns_entries[1], argc, argv);
+  SetMSEXT(&nbns_entries[0], &nbns_entries[1], arg->argc, arg->argv);
   return 0;
 }
 
 #endif				/* MS_EXT */
 
 int
-SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
+SetVariable(struct cmdargs const *arg)
 {
   u_long map;
-  char *arg;
+  const char *argp;
+  int param = (int)arg->data;
 
-  if (argc > 0)
-    arg = *argv;
+  if (arg->argc > 0)
+    argp = *arg->argv;
   else
-    arg = "";
+    argp = "";
 
   switch (param) {
   case VAR_AUTHKEY:
-    strncpy(VarAuthKey, arg, sizeof(VarAuthKey) - 1);
+    strncpy(VarAuthKey, argp, sizeof(VarAuthKey) - 1);
     VarAuthKey[sizeof(VarAuthKey) - 1] = '\0';
     break;
   case VAR_AUTHNAME:
-    strncpy(VarAuthName, arg, sizeof(VarAuthName) - 1);
+    strncpy(VarAuthName, argp, sizeof(VarAuthName) - 1);
     VarAuthName[sizeof(VarAuthName) - 1] = '\0';
     break;
   case VAR_DIAL:
-    strncpy(VarDialScript, arg, sizeof(VarDialScript) - 1);
+    strncpy(VarDialScript, argp, sizeof(VarDialScript) - 1);
     VarDialScript[sizeof(VarDialScript) - 1] = '\0';
     break;
   case VAR_LOGIN:
-    strncpy(VarLoginScript, arg, sizeof(VarLoginScript) - 1);
+    strncpy(VarLoginScript, argp, sizeof(VarLoginScript) - 1);
     VarLoginScript[sizeof(VarLoginScript) - 1] = '\0';
     break;
   case VAR_DEVICE:
     if (modem != -1)
       LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
-                arg, VarDevice);
+                argp, VarDevice);
     else {
-      strncpy(VarDevice, arg, sizeof(VarDevice) - 1);
+      strncpy(VarDevice, argp, sizeof(VarDevice) - 1);
       VarDevice[sizeof(VarDevice) - 1] = '\0';
       VarBaseDevice = strrchr(VarDevice, '/');
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
     }
     break;
   case VAR_ACCMAP:
-    sscanf(arg, "%lx", &map);
+    sscanf(argp, "%lx", &map);
     VarAccmap = map;
     break;
   case VAR_PHONE:
-    strncpy(VarPhoneList, arg, sizeof(VarPhoneList) - 1);
+    strncpy(VarPhoneList, argp, sizeof(VarPhoneList) - 1);
     VarPhoneList[sizeof(VarPhoneList) - 1] = '\0';
     strcpy(VarPhoneCopy, VarPhoneList);
     VarNextPhone = VarPhoneCopy;
     VarAltPhone = NULL;
     break;
   case VAR_HANGUP:
-    strncpy(VarHangupScript, arg, sizeof(VarHangupScript) - 1);
+    strncpy(VarHangupScript, argp, sizeof(VarHangupScript) - 1);
     VarHangupScript[sizeof(VarHangupScript) - 1] = '\0';
     break;
 #ifdef HAVE_DES
   case VAR_ENC:
-    VarMSChap = !strcasecmp(arg, "mschap");
+    VarMSChap = !strcasecmp(argp, "mschap");
     break;
 #endif
   }
@@ -1306,12 +1329,12 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
 }
 
 static int 
-SetCtsRts(struct cmdtab const * list, int argc, char **argv)
+SetCtsRts(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    if (strcmp(*argv, "on") == 0)
+  if (arg->argc > 0) {
+    if (strcmp(*arg->argv, "on") == 0)
       VarCtsRts = 1;
-    else if (strcmp(*argv, "off") == 0)
+    else if (strcmp(*arg->argv, "off") == 0)
       VarCtsRts = 0;
     else
       return -1;
@@ -1322,12 +1345,12 @@ SetCtsRts(struct cmdtab const * list, int argc, char **argv)
 
 
 static int 
-SetOpenMode(struct cmdtab const * list, int argc, char **argv)
+SetOpenMode(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    if (strcmp(*argv, "active") == 0)
+  if (arg->argc > 0) {
+    if (strcmp(*arg->argv, "active") == 0)
       VarOpenMode = OPEN_ACTIVE;
-    else if (strcmp(*argv, "passive") == 0)
+    else if (strcmp(*arg->argv, "passive") == 0)
       VarOpenMode = OPEN_PASSIVE;
     else
       return -1;
@@ -1338,31 +1361,31 @@ SetOpenMode(struct cmdtab const * list, int argc, char **argv)
 
 static struct cmdtab const SetCommands[] = {
   {"accmap", NULL, SetVariable, LOCAL_AUTH,
-  "Set accmap value", "set accmap hex-value", (void *) VAR_ACCMAP},
+  "Set accmap value", "set accmap hex-value", (const void *) VAR_ACCMAP},
   {"afilter", NULL, SetAfilter, LOCAL_AUTH,
   "Set keep Alive filter", "set afilter ..."},
   {"authkey", "key", SetVariable, LOCAL_AUTH,
-  "Set authentication key", "set authkey|key key", (void *) VAR_AUTHKEY},
+  "Set authentication key", "set authkey|key key", (const void *) VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
-  "Set authentication name", "set authname name", (void *) VAR_AUTHNAME},
+  "Set authentication name", "set authname name", (const void *) VAR_AUTHNAME},
   {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH,
   "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
-  {"device", "line", SetVariable, LOCAL_AUTH,
-  "Set modem device name", "set device|line device-name", (void *) VAR_DEVICE},
+  {"device", "line", SetVariable, LOCAL_AUTH, "Set modem device name",
+  "set device|line device-name", (const void *) VAR_DEVICE},
   {"dfilter", NULL, SetDfilter, LOCAL_AUTH,
   "Set demand filter", "set dfilter ..."},
   {"dial", NULL, SetVariable, LOCAL_AUTH,
-  "Set dialing script", "set dial chat-script", (void *) VAR_DIAL},
+  "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
 #ifdef HAVE_DES
-  {"encrypt", NULL, SetVariable, LOCAL_AUTH,
-  "Set CHAP encryption algorithm", "set encrypt MSChap|MD5", (void *) VAR_ENC},
+  {"encrypt", NULL, SetVariable, LOCAL_AUTH, "Set CHAP encryption algorithm",
+  "set encrypt MSChap|MD5", (const void *) VAR_ENC},
 #endif
   {"escape", NULL, SetEscape, LOCAL_AUTH,
   "Set escape characters", "set escape hex-digit ..."},
   {"hangup", NULL, SetVariable, LOCAL_AUTH,
-  "Set hangup script", "set hangup chat-script", (void *) VAR_HANGUP},
-  {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH,
-  "Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
+  "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
+  {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",
+  "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   {"ifilter", NULL, SetIfilter, LOCAL_AUTH,
   "Set input filter", "set ifilter ..."},
   {"loopback", NULL, SetLoopback, LOCAL_AUTH,
@@ -1370,7 +1393,7 @@ static struct cmdtab const SetCommands[] = {
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
   "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH,
-  "Set login script", "set login chat-script", (void *) VAR_LOGIN},
+  "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"mru", NULL, SetInitialMRU, LOCAL_AUTH,
   "Set Initial MRU value", "set mru value"},
   {"mtu", NULL, SetPreferredMTU, LOCAL_AUTH,
@@ -1381,14 +1404,14 @@ static struct cmdtab const SetCommands[] = {
   "Set open mode", "set openmode [active|passive]"},
   {"parity", NULL, SetModemParity, LOCAL_AUTH,
   "Set modem parity", "set parity [odd|even|none]"},
-  {"phone", NULL, SetVariable, LOCAL_AUTH,
-  "Set telephone number(s)", "set phone phone1[:phone2[...]]", (void *) VAR_PHONE},
+  {"phone", NULL, SetVariable, LOCAL_AUTH, "Set telephone number(s)",
+  "set phone phone1[:phone2[...]]", (const void *) VAR_PHONE},
   {"reconnect", NULL, SetReconnect, LOCAL_AUTH,
   "Set Reconnect timeout", "set reconnect value ntries"},
-  {"redial", NULL, SetRedialTimeout, LOCAL_AUTH,
-  "Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
-  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH,
-  "Set STOPPED timeouts", "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
+  {"redial", NULL, SetRedialTimeout, LOCAL_AUTH, "Set Redial timeout",
+  "set redial value|random[.value|random] [dial_attempts]"},
+  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH, "Set STOPPED timeouts",
+  "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH,
@@ -1402,17 +1425,17 @@ static struct cmdtab const SetCommands[] = {
   "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
 #endif
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Display this message", "set help|? [command]", (void *) SetCommands},
+  "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
 };
 
 static int
-SetCommand(struct cmdtab const * list, int argc, char **argv)
+SetCommand(struct cmdargs const *arg)
 {
-  if (argc > 0)
-    FindExec(SetCommands, argc, argv);
+  if (arg->argc > 0)
+    FindExec(SetCommands, arg->argc, arg->argv);
   else if (VarTerm)
-    fprintf(VarTerm, "Use `set ?' to get a list or `set ? <var>' for"
+    fprintf(VarTerm, "Use `set ?' to get a arg->cmd or `set ? <var>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "set command must have arguments\n");
@@ -1422,20 +1445,20 @@ SetCommand(struct cmdtab const * list, int argc, char **argv)
 
 
 static int
-AddCommand(struct cmdtab const * list, int argc, char **argv)
+AddCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, gateway, netmask;
 
-  if (argc == 3) {
-    if (strcasecmp(argv[0], "MYADDR") == 0)
+  if (arg->argc == 3) {
+    if (strcasecmp(arg->argv[0], "MYADDR") == 0)
       dest = IpcpInfo.want_ipaddr;
     else
-      dest = GetIpAddr(argv[0]);
-    netmask = GetIpAddr(argv[1]);
-    if (strcasecmp(argv[2], "HISADDR") == 0)
+      dest = GetIpAddr(arg->argv[0]);
+    netmask = GetIpAddr(arg->argv[1]);
+    if (strcasecmp(arg->argv[2], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
     else
-      gateway = GetIpAddr(argv[2]);
+      gateway = GetIpAddr(arg->argv[2]);
     OsSetRoute(RTM_ADD, dest, gateway, netmask);
     return 0;
   }
@@ -1443,25 +1466,25 @@ AddCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-DeleteCommand(struct cmdtab const * list, int argc, char **argv)
+DeleteCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, gateway, netmask;
 
-  if (argc == 1 && strcasecmp(argv[0], "all") == 0)
+  if (arg->argc == 1 && strcasecmp(arg->argv[0], "all") == 0)
     DeleteIfRoutes(0);
-  else if (argc > 0 && argc < 4) {
-    if (strcasecmp(argv[0], "MYADDR") == 0)
+  else if (arg->argc > 0 && arg->argc < 4) {
+    if (strcasecmp(arg->argv[0], "MYADDR") == 0)
       dest = IpcpInfo.want_ipaddr;
     else
-      dest = GetIpAddr(argv[0]);
+      dest = GetIpAddr(arg->argv[0]);
     netmask.s_addr = INADDR_ANY;
-    if (argc > 1) {
-      if (strcasecmp(argv[1], "HISADDR") == 0)
+    if (arg->argc > 1) {
+      if (strcasecmp(arg->argv[1], "HISADDR") == 0)
 	gateway = IpcpInfo.his_ipaddr;
       else
-	gateway = GetIpAddr(argv[1]);
-      if (argc == 3) {
-	if (inet_aton(argv[2], &netmask) == 0) {
+	gateway = GetIpAddr(arg->argv[1]);
+      if (arg->argc == 3) {
+	if (inet_aton(arg->argv[2], &netmask) == 0) {
 	  LogPrintf(LogWARN, "Bad netmask value.\n");
 	  return -1;
 	}
@@ -1475,6 +1498,7 @@ DeleteCommand(struct cmdtab const * list, int argc, char **argv)
   return 0;
 }
 
+#ifndef NOALIAS
 static struct cmdtab const AliasCommands[] =
 {
   {"enable", NULL, AliasEnable, LOCAL_AUTH,
@@ -1485,34 +1509,33 @@ static struct cmdtab const AliasCommands[] =
   "static address translation", "alias addr [addr_local addr_alias]"},
   {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
     "stop incoming connections", "alias deny_incoming [yes|no]",
-  (void *) PKT_ALIAS_DENY_INCOMING},
+  (const void *) PKT_ALIAS_DENY_INCOMING},
   {"log", NULL, AliasOption, LOCAL_AUTH,
     "log aliasing link creation", "alias log [yes|no]",
-  (void *) PKT_ALIAS_LOG},
+  (const void *) PKT_ALIAS_LOG},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
     "try to leave port numbers unchanged", "alias same_ports [yes|no]",
-  (void *) PKT_ALIAS_SAME_PORTS},
+  (const void *) PKT_ALIAS_SAME_PORTS},
   {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
     "allocate host sockets", "alias use_sockets [yes|no]",
-  (void *) PKT_ALIAS_USE_SOCKETS},
+  (const void *) PKT_ALIAS_USE_SOCKETS},
   {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
     "alias unregistered (private) IP address space only",
     "alias unregistered_only [yes|no]",
-  (void *) PKT_ALIAS_UNREGISTERED_ONLY},
+  (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-    "Display this message", "alias help|? [command]",
-  (void *) AliasCommands},
+    "Display this message", "alias help|? [command]", AliasCommands},
   {NULL, NULL, NULL},
 };
 
 
 static int
-AliasCommand(struct cmdtab const * list, int argc, char **argv)
+AliasCommand(struct cmdargs const *arg)
 {
-  if (argc > 0)
-    FindExec(AliasCommands, argc, argv);
+  if (arg->argc > 0)
+    FindExec(AliasCommands, arg->argc, arg->argv);
   else if (VarTerm)
-    fprintf(VarTerm, "Use `alias help' to get a list or `alias help <option>'"
+    fprintf(VarTerm, "Use `alias help' to get a arg->cmd or `alias help <option>'"
 	    " for syntax help.\n");
   else
     LogPrintf(LogWARN, "alias command must have arguments\n");
@@ -1521,10 +1544,10 @@ AliasCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 static int
-AliasEnable(struct cmdtab const * list, int argc, char **argv)
+AliasEnable(struct cmdargs const *arg)
 {
-  if (argc == 1)
-    if (strcasecmp(argv[0], "yes") == 0) {
+  if (arg->argc == 1)
+    if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (!(mode & MODE_ALIAS)) {
 	if (loadAliasHandlers(&VarAliasHandlers) == 0) {
 	  mode |= MODE_ALIAS;
@@ -1534,7 +1557,7 @@ AliasEnable(struct cmdtab const * list, int argc, char **argv)
 	return 1;
       }
       return 0;
-    } else if (strcasecmp(argv[0], "no") == 0) {
+    } else if (strcasecmp(arg->argv[0], "no") == 0) {
       if (mode & MODE_ALIAS) {
 	unloadAliasHandlers();
 	mode &= ~MODE_ALIAS;
@@ -1546,24 +1569,26 @@ AliasEnable(struct cmdtab const * list, int argc, char **argv)
 
 
 static int
-AliasOption(struct cmdtab const * list, int argc, char **argv, void *param)
+AliasOption(struct cmdargs const *arg)
 {
-  if (argc == 1)
-    if (strcasecmp(argv[0], "yes") == 0) {
+  unsigned param = (unsigned)arg->data;
+  if (arg->argc == 1)
+    if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (mode & MODE_ALIAS) {
-	VarPacketAliasSetMode((unsigned) param, (unsigned) param);
+	VarPacketAliasSetMode(param, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");
-    } else if (strcmp(argv[0], "no") == 0) {
+    } else if (strcmp(arg->argv[0], "no") == 0) {
       if (mode & MODE_ALIAS) {
-	VarPacketAliasSetMode(0, (unsigned) param);
+	VarPacketAliasSetMode(0, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");
     }
   return -1;
 }
+#endif /* #ifndef NOALIAS */
 
 static struct cmdtab const AllowCommands[] = {
   {"users", "user", AllowUsers, LOCAL_AUTH,
@@ -1571,17 +1596,17 @@ static struct cmdtab const AllowCommands[] = {
   {"modes", "mode", AllowModes, LOCAL_AUTH,
   "Only allow certain ppp modes", "allow modes mode..."},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Display this message", "allow help|? [command]", (void *)AllowCommands},
+  "Display this message", "allow help|? [command]", AllowCommands},
   {NULL, NULL, NULL},
 };
 
 static int
-AllowCommand(struct cmdtab const *list, int argc, char **argv)
+AllowCommand(struct cmdargs const *arg)
 {
-  if (argc > 0)
-    FindExec(AllowCommands, argc, argv);
+  if (arg->argc > 0)
+    FindExec(AllowCommands, arg->argc, arg->argv);
   else if (VarTerm)
-    fprintf(VarTerm, "Use `allow ?' to get a list or `allow ? <cmd>' for"
+    fprintf(VarTerm, "Use `allow ?' to get a arg->cmd or `allow ? <cmd>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "allow command must have arguments\n");

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.12 1997/10/12 21:43:55 brian Exp $
+ * $Id: slcompress.c,v 1.13 1997/10/26 01:03:44 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -32,12 +32,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "slcompress.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 
 static struct slstat {
@@ -570,7 +570,7 @@ bad:
 }
 
 int
-ReportCompress()
+ReportCompress(struct cmdargs const *arg)
 {
   if (!VarTerm)
     return 1;

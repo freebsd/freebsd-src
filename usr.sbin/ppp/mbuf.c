@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.9 1997/08/25 00:29:20 brian Exp $
+ * $Id: mbuf.c,v 1.10 1997/10/26 01:03:16 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -28,11 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "server.h"
 
@@ -150,7 +150,7 @@ mbwrite(struct mbuf * bp, u_char * ptr, int cnt)
 }
 
 int
-ShowMemMap()
+ShowMemMap(struct cmdargs const *arg)
 {
   int i;
 

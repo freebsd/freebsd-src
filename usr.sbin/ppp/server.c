@@ -1,5 +1,5 @@
 /*
- * $Id: server.c,v 1.9 1997/11/09 22:07:29 brian Exp $
+ * $Id: server.c,v 1.10 1997/11/11 22:58:13 brian Exp $
  */
 
 #include <sys/param.h>
@@ -16,14 +16,13 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
-#include "command.h"
 #include "defs.h"
 #include "vars.h"
 #include "server.h"
-#include "log.h"
 #include "id.h"
 
 int server = -1;

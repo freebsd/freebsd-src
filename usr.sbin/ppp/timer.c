@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.22 1997/10/26 01:03:52 brian Exp $
+ * $Id: timer.c,v 1.23 1997/11/09 06:22:49 brian Exp $
  *
  *  TODO:
  */
@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

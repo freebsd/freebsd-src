@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.26 1997/11/13 14:43:20 brian Exp $
+ * $Id: systems.c,v 1.27 1997/11/14 15:38:07 brian Exp $
  *
  *  TODO:
  */
@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"
@@ -38,7 +39,6 @@
 #include "timer.h"
 #include "fsm.h"
 #include "loadalias.h"
-#include "command.h"
 #include "ipcp.h"
 #include "pathnames.h"
 #include "vars.h"
@@ -49,7 +49,7 @@
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
 
 FILE *
-OpenSecret(char *file)
+OpenSecret(const char *file)
 {
   FILE *fp;
   char line[100];
@@ -169,7 +169,7 @@ DecodeCtrlCommand(char *line, char *arg)
 static int userok;
 
 int
-AllowUsers(struct cmdtab const *list, int argc, char **argv)
+AllowUsers(struct cmdargs const *arg)
 {
   int f;
   char *user;
@@ -177,8 +177,8 @@ AllowUsers(struct cmdtab const *list, int argc, char **argv)
   userok = 0;
   user = getlogin();
   if (user && *user)
-    for (f = 0; f < argc; f++)
-      if (!strcmp("*", argv[f]) || !strcmp(user, argv[f])) {
+    for (f = 0; f < arg->argc; f++)
+      if (!strcmp("*", arg->argv[f]) || !strcmp(user, arg->argv[f])) {
         userok = 1;
         break;
       }
@@ -188,7 +188,7 @@ AllowUsers(struct cmdtab const *list, int argc, char **argv)
 
 static struct {
   int mode;
-  char *name;
+  const char *name;
 } modes[] = {
   { MODE_INTER, "interactive" },
   { MODE_AUTO, "auto" },
@@ -203,21 +203,21 @@ static struct {
 static int modeok;
 
 int
-AllowModes(struct cmdtab const *list, int argc, char **argv)
+AllowModes(struct cmdargs const *arg)
 {
   int f;
   int m;
   int allowed;
 
   allowed = 0;
-  for (f = 0; f < argc; f++) {
+  for (f = 0; f < arg->argc; f++) {
     for (m = 0; modes[m].mode; m++)
-      if (!strcasecmp(modes[m].name, argv[f])) {
+      if (!strcasecmp(modes[m].name, arg->argv[f])) {
         allowed |= modes[m].mode;
         break;
       }
     if (modes[m].mode == 0)
-      LogPrintf(LogWARN, "%s: Invalid mode\n", argv[f]);
+      LogPrintf(LogWARN, "%s: Invalid mode\n", arg->argv[f]);
   }
 
   modeok = (mode | allowed) == allowed ? 1 : 0;
@@ -301,7 +301,7 @@ ReadSystem(const char *name, const char *file, int doexec)
 	      olauth = VarLocalAuth;
 	      if (VarLocalAuth == LOCAL_NO_AUTH)
 	        VarLocalAuth = LOCAL_AUTH;
-	      RunCommand(argc, argv, name);
+	      RunCommand(argc, (char const *const *)argv, name);
 	      VarLocalAuth = olauth;
 	    }
 	  } else if (*cp == '#' || *cp == '\n' || *cp == '\0') {
@@ -340,12 +340,12 @@ SelectSystem(const char *name, const char *file)
 }
 
 int
-LoadCommand(struct cmdtab const * list, int argc, char **argv)
+LoadCommand(struct cmdargs const *arg)
 {
-  char *name;
+  const char *name;
 
-  if (argc > 0)
-    name = *argv;
+  if (arg->argc > 0)
+    name = *arg->argv;
   else
     name = "default";
 
@@ -356,12 +356,12 @@ LoadCommand(struct cmdtab const * list, int argc, char **argv)
     LogPrintf(LogWARN, "%s: not found.\n", name);
     return -1;
   } else
-    SetLabel(argc ? name : NULL);
+    SetLabel(arg->argc ? name : NULL);
   return 0;
 }
 
 int
-SaveCommand(struct cmdtab const *list, int argc, char **argv)
+SaveCommand(struct cmdargs const *arg)
 {
   LogPrintf(LogWARN, "save command is not implemented (yet).\n");
   return 1;

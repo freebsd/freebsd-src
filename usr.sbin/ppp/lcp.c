@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.46 1997/11/16 22:15:04 brian Exp $
+ * $Id: lcp.c,v 1.47 1997/11/18 14:52:05 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -30,7 +30,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#ifdef __FreeBSD__
 #include <net/if_var.h>
+#endif
 #include <net/if_tun.h>
 
 #include <signal.h>
@@ -41,6 +43,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -55,7 +58,6 @@
 #include "lqr.h"
 #include "phase.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "auth.h"
 #include "pap.h"
@@ -80,7 +82,7 @@ static void LcpLayerFinish(struct fsm *);
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
-static char *cftypes[] = {
+static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "MRU",	/* 1: Maximum-Receive-Unit */
@@ -137,7 +139,7 @@ static struct pppTimer LcpReportTimer;
 static int LcpFailedMagic;
 
 static void
-LcpReportTime()
+LcpReportTime(void *data)
 {
   if (LogIsKept(LogDEBUG)) {
     time_t t;
@@ -152,7 +154,7 @@ LcpReportTime()
 }
 
 int
-ReportLcpStatus()
+ReportLcpStatus(struct cmdargs const *arg)
 {
   struct lcpstate *lcp = &LcpInfo;
   struct fsm *fp = &LcpFsm;
@@ -180,7 +182,7 @@ ReportLcpStatus()
  * Generate random number which will be used as magic number.
  */
 static u_long
-GenerateMagic()
+GenerateMagic(void)
 {
   randinit();
   return (random());
@@ -222,8 +224,8 @@ LcpInitRestartCounter(struct fsm * fp)
 }
 
 void
-PutConfValue(int level, u_char ** cpp, char **types, u_char type, int len,
-             u_long val)
+PutConfValue(int level, u_char ** cpp, const char **types, u_char type,
+             int len, u_long val)
 {
   u_char *cp;
   struct in_addr ina;
@@ -329,7 +331,7 @@ LcpLayerStart(struct fsm * fp)
 }
 
 static void
-StopAllTimers()
+StopAllTimers(void)
 {
   StopTimer(&LcpReportTimer);
   StopIdleTimer();
@@ -420,7 +422,7 @@ LcpClose()
 static void
 LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 {
-  char *request;
+  const char *request;
   int type, length, mru, mtu;
   u_long *lp, magic, accmap;
   u_short *sp, proto;

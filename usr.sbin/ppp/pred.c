@@ -5,7 +5,7 @@
  * Updated by: Carsten Bormann <cabo@cs.tu-berlin.de>
  * Original  : Dave Rand <dlr@bungi.com>/<dave_rand@novell.com>
  *
- * $Id: pred.c,v 1.15 1997/10/26 01:03:34 brian Exp $
+ * $Id: pred.c,v 1.16 1997/11/09 06:22:46 brian Exp $
  *
  */
 
@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

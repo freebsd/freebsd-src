@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.h,v 1.10 1997/10/29 01:19:48 brian Exp $
+ * $Id: os.h,v 1.11 1997/11/16 22:15:09 brian Exp $
  *
  *	TODO:
  */
@@ -28,5 +28,3 @@ extern int  OpenTunnel(int *);
 extern void OsLinkup(void);
 extern int  OsLinkIsUp(void);
 extern void OsLinkdown(void);
-extern void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr);
-extern void DeleteIfRoutes(int);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.25 1997/11/11 22:58:13 brian Exp $
+ * $Id: route.c,v 1.26 1997/11/15 02:15:56 brian Exp $
  *
  */
 
@@ -41,10 +41,10 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
-#include "command.h"
 #include "defs.h"
 #include "vars.h"
 #include "id.h"
@@ -67,7 +67,8 @@ OsSetRoute(int cmd,
 {
   struct rtmsg rtmes;
   int s, nb, wb;
-  char *cp, *cmdstr;
+  char *cp;
+  const char *cmdstr;
   u_long *lp;
   struct sockaddr_in rtdata;
 
@@ -145,7 +146,8 @@ OsSetRoute(int cmd,
 static void
 p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
 {
-  char buf[29], *cp;
+  char buf[29];
+  const char *cp;
   struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
   struct sockaddr_in *mask = (struct sockaddr_in *)pmask;
   struct sockaddr_dl *dl = (struct sockaddr_dl *)phost;
@@ -244,7 +246,7 @@ struct bits {
 };
 
 static void
-p_flags(u_long f, char *format)
+p_flags(u_long f, const char *format)
 {
   if (VarTerm) {
     char name[33], *flags;
@@ -258,7 +260,7 @@ p_flags(u_long f, char *format)
   }
 }
 
-static char *
+static const char *
 Index2Nam(int idx)
 {
   static char ifs[50][6];
@@ -325,7 +327,7 @@ Index2Nam(int idx)
 }
 
 int
-ShowRoute()
+ShowRoute(struct cmdargs const *arg)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa_dst, *sa_gw, *sa_mask;
@@ -471,7 +473,7 @@ int
 GetIfIndex(char *name)
 {
   int idx;
-  char *got;
+  const char *got;
 
 #ifdef __FreeBSD__
   idx = 1;	/* We start at 1, not 0 */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.18 1997/08/31 22:59:35 brian Exp $
+ * $Id: lqr.c,v 1.19 1997/10/26 01:03:08 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -40,7 +41,6 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "main.h"
 
@@ -62,7 +62,7 @@ struct echolqr {
 #define	SIGNATURE  0x594e4f54
 
 static void
-SendEchoReq()
+SendEchoReq(void)
 {
   struct fsm *fp = &LcpFsm;
   struct echolqr *lqr, lqrdata;
@@ -107,7 +107,7 @@ LqrChangeOrder(struct lqrdata * src, struct lqrdata * dst)
 }
 
 static void
-SendLqrReport()
+SendLqrReport(void *v)
 {
   struct mbuf *bp;
 
@@ -182,7 +182,7 @@ LqrInput(struct mbuf * bp)
      */
     if (LqrTimer.load == 0 || lastpeerin == HisLqrData.PeerInLQRs) {
       lqmmethod |= LQM_LQR;
-      SendLqrReport();
+      SendLqrReport(0);
     }
     lastpeerin = HisLqrData.PeerInLQRs;
   }
@@ -218,7 +218,7 @@ StartLqm()
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = period * SECTICKS / 100;
     LqrTimer.func = SendLqrReport;
-    SendLqrReport();
+    SendLqrReport(0);
     StartTimer(&LqrTimer);
     LogPrintf(LogLQM, "Will send LQR every %d.%d secs\n",
 	      period / 100, period % 100);
@@ -244,13 +244,13 @@ StopLqr(int method)
     LogPrintf(LogLQM, "Stop sending LCP ECHO.\n");
   lqmmethod &= ~method;
   if (lqmmethod)
-    SendLqrReport();
+    SendLqrReport(0);
   else
     StopTimer(&LqrTimer);
 }
 
 void
-LqrDump(char *message, struct lqrdata * lqr)
+LqrDump(const char *message, const struct lqrdata * lqr)
 {
   if (LogIsKept(LogLQM)) {
     LogPrintf(LogLQM, "%s:\n", message);
