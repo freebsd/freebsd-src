@@ -99,8 +99,11 @@
 #define ATAPI_MODE_SENSE_BIG		0x5a	/* get device parameters */
 #define ATAPI_CLOSE_TRACK		0x5b	/* close track/session */
 #define ATAPI_BLANK			0xa1	/* blank the media */
+#define ATAPI_SEND_KEY			0xa3
+#define ATAPI_REPORT_KEY		0xa4
 #define ATAPI_PLAY_BIG			0xa5	/* play by lba */
 #define ATAPI_LOAD_UNLOAD		0xa6	/* changer control command */
+#define ATAPI_READ_STRUCTURE		0xad
 #define ATAPI_PLAY_CD			0xb4	/* universal play command */
 #define ATAPI_SET_SPEED			0xbb	/* set drive speed */
 #define ATAPI_MECH_STATUS		0xbd	/* get changer status */
