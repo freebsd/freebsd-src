@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.30 1998/03/23 14:58:30 eivind Exp $
+#	$Id: sys.mk,v 1.31 1998/05/01 11:36:59 jkh Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -15,7 +15,7 @@ unix		?=	We run FreeBSD, not UNIX.
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .S .s .cl .p .h .sh
+.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .m .F .f .e .r .y .l .S .s .cl .p .h .sh
 .endif
 
 .LIBS:		.a
@@ -78,6 +78,9 @@ LINT		?=	lint
 LINTFLAGS	?=	-chapbx
 
 MAKE		?=	make
+
+OBJC		?=	cc
+OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
 PC		?=	pc
 PFLAGS		?=
@@ -184,6 +187,9 @@ HTAGSFLAGS=
 
 .cc.o .cxx.o .C.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
+
+.m.o:
+	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC}
 
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}
