@@ -1014,13 +1014,12 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		pdppg = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, va) & PG_FRAME);
 		pmap_unwire_pte_hold(pmap, va, pdppg);
 	}
-	if (pmap_is_current(pmap)) {
-		/*
-		 * Do an invltlb to make the invalidated mapping
-		 * take effect immediately.
-		 */
-		pmap_invalidate_page(pmap, pteva);
-	}
+
+	/*
+	 * Do an invltlb to make the invalidated mapping
+	 * take effect immediately.
+	 */
+	pmap_invalidate_page(pmap, pteva);
 
 	vm_page_free_zero(m);
 	atomic_subtract_int(&cnt.v_wire_count, 1);
