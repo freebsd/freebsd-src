@@ -36,31 +36,33 @@
 .\"     @(#)frexp.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 23, 2005
 .Dt FREXP 3
 .Os
 .Sh NAME
 .Nm frexp
 .Nd convert floating-point number to fractional and integral components
 .Sh LIBRARY
-.Lb libc
+.Lb libm
 .Sh SYNOPSIS
 .In math.h
 .Ft double
 .Fn frexp "double value" "int *exp"
+.Ft double
+.Fn frexpf "float value" "int *exp"
 .Sh DESCRIPTION
 The
 .Fn frexp
-function breaks a floating-point number into a normalized
+and
+.Fn frexpf
+functions break a floating-point number into a normalized
 fraction and an integral power of 2.
-It stores the integer in the
+They store the integer in the
 .Vt int
 object pointed to by
 .Fa exp .
 .Sh RETURN VALUES
-The
-.Fn frexp
-function returns the value
+These functions return the value
 .Va x ,
 such that
 .Va x
@@ -84,5 +86,7 @@ is zero, both parts of the result are zero.
 .Sh STANDARDS
 The
 .Fn frexp
-function conforms to
-.St -isoC .
+and
+.Fn frexpf
+functions conform to
+.St -isoC-99 .
