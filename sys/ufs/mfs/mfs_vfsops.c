@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.56 1999/01/28 00:57:54 dillon Exp $
+ * $Id: mfs_vfsops.c,v 1.57 1999/03/12 00:44:03 julian Exp $
  */
 
 
@@ -285,7 +285,6 @@ mfs_mount(mp, path, data, ndp, p)
 		}
 		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR))
 			fs->fs_ronly = 0;
-#ifdef EXPORTMFS
 		/* if not updating name...*/
 		if (args.fspec == 0) {
 			/*
@@ -295,7 +294,6 @@ mfs_mount(mp, path, data, ndp, p)
 			err = vfs_export(mp, &ump->um_export, &args.export);
 			goto success;
 		}
-#endif
 
 		/* XXX MFS does not support name updating*/
 		goto success;
