@@ -45,7 +45,7 @@
 
 /* Type name and cookie */
 #define NG_ASYNC_NODE_TYPE	"async"
-#define NGM_ASYNC_COOKIE	886473716
+#define NGM_ASYNC_COOKIE	886473717
 
 /* Hook names */
 #define NG_ASYNC_HOOK_SYNC	"sync"	/* Sync frames */
@@ -71,7 +71,6 @@ struct ng_async_stat {
 /* Configuration for this node */
 struct ng_async_cfg {
 	u_char		enabled;	/* Turn encoding on/off */
-	u_char		acfcomp;	/* Address/control field compression */
 	u_int16_t	amru;		/* Max receive async frame length */
 	u_int16_t	smru;		/* Max receive sync frame length */
 	u_int32_t	accm;		/* ACCM encoding */
