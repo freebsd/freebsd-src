@@ -30,6 +30,38 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * XXX: Future stuff
+ * 
+ * Replace the template file options (-i & -f) with command-line variables
+ * "-v property=foo"
+ *
+ * Introduce -e, extra entropy source (XOR with /dev/random)
+ *
+ * Introduce -E, alternate entropy source (instead of /dev/random)
+ *
+ * Introduce -i take IV from keyboard or 
+ *
+ * Introduce -I take IV from file/cmd
+ *
+ * Introduce -m/-M store encrypted+encoded masterkey in file
+ *
+ * Introduce -k/-K get pass-phrase part from file/cmd
+ *
+ * Introduce -d add more dest-devices to worklist.
+ *
+ * Add key-option: selfdestruct bit.
+ *
+ * New/changed verbs:
+ *	"onetime"	attach with onetime nonstored locksector
+ *	"key"/"unkey" to blast memory copy of key without orphaning
+ *	"nuke" blow away everything attached, crash/halt/power-off if possible.
+ *	"blast" destroy all copies of the masterkey
+ *	"destroy" destroy one copy of the masterkey
+ *	"backup"/"restore" of masterkey sectors.
+ *
+ * Make all verbs work on both attached/detached devices.
+ *
  */
 
 #include <sys/types.h>
