@@ -26,8 +26,8 @@
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
- * 	@(#) src/sys/cfs/cfs_fbsd.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: cfs_fbsd.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: coda_fbsd.c,v 1.3 1998/09/11 18:50:16 rvb Exp $
  * 
  */
 
@@ -44,9 +44,9 @@
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>
 
-#include <cfs/coda.h>
-#include <cfs/cnode.h>
-#include <cfs/cfs_vnodeops.h>
+#include <coda/coda.h>
+#include <coda/cnode.h>
+#include <coda/coda_vnops.h>
 
 #ifdef DEVFS
 #include <sys/devfsext.h>

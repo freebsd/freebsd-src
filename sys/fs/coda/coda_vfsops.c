@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.4 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -47,6 +47,10 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.4  1998/09/11 18:50:17  rvb
+ * All the references to cfs, in symbols, structs, and strings
+ * have been changed to coda.  (Same for CFS.)
+ *
  * Revision 1.2  1998/09/02 19:09:53  rvb
  * Pass2 complete
  *
@@ -189,12 +193,12 @@
 #include <sys/mount.h>
 #include <sys/select.h>
 
-#include <cfs/coda.h>
-#include <cfs/cnode.h>
-#include <cfs/cfs_vfsops.h>
-#include <cfs/cfs_venus.h>
-#include <cfs/cfs_subr.h>
-#include <cfs/coda_opstats.h>
+#include <coda/coda.h>
+#include <coda/cnode.h>
+#include <coda/coda_vfsops.h>
+#include <coda/coda_venus.h>
+#include <coda/coda_subr.h>
+#include <coda/coda_opstats.h>
 
 #include <miscfs/specfs/specdev.h>
 
