@@ -342,10 +342,14 @@ base64_decode(stream)
 	unsigned char out[MAXPATHLEN * 4];
 	int rv;
 
+	if (index(stream, '\r') != NULL)
+		*index(stream, '\r') = '\0';
+	if (index(stream, '\n') != NULL)
+		*index(stream, '\n') = '\0';
 	rv = b64_pton(stream, out, (sizeof(out) / sizeof(out[0])));
 	if (rv == -1)
 		errx(1, "b64_pton: error decoding base64 input stream");
-	printf("%s", out);
+	fwrite(out, 1, rv, stdout);
 }
 
 static void
