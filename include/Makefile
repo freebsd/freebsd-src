@@ -41,8 +41,8 @@ LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
 
 LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
-	netipx netkey netnatm netncp netns netsmb nfs pccard posix4 \
-	sys vm
+	netipx netkey netnatm netncp netns netsmb nfs nfsclient nfsserver \
+	pccard posix4 sys vm
 
 LNOHEADERDIRS=	fs isofs ufs dev
 

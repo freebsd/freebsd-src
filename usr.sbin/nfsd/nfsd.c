@@ -60,12 +60,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-
-#ifdef NFSKERB
-#include <kerberosIV/des.h>
-#include <kerberosIV/krb.h>
-#endif
+#include <nfsserver/nfs.h>
 
 #include <err.h>
 #include <errno.h>
@@ -84,22 +79,6 @@ int	debug = 0;
 #endif
 
 struct	nfsd_srvargs nsd;
-#ifdef OLD_SETPROCTITLE
-char	**Argv = NULL;		/* pointer to argument vector */
-char	*LastArg = NULL;	/* end of argv */
-#endif
-
-#ifdef NFSKERB
-char		lnam[ANAME_SZ];
-KTEXT_ST	kt;
-AUTH_DAT	kauth;
-char		inst[INST_SZ];
-struct nfsrpc_fullblock kin, kout;
-struct nfsrpc_fullverf kverf;
-NFSKERBKEY_T	kivec;
-struct timeval	ktv;
-NFSKERBKEYSCHED_T kerb_keysched;
-#endif
 
 #define	MAXNFSDCNT	20
 #define	DEFNFSDCNT	 4
@@ -111,11 +90,6 @@ void	killchildren(void);
 void	nonfs (int);
 void	reapchild (int);
 int	setbindhost (struct addrinfo **ia, const char *bindhost, struct addrinfo hints);
-#ifdef OLD_SETPROCTITLE
-#ifdef __FreeBSD__
-void	setproctitle (char *);
-#endif
-#endif
 void	unregistration (void);
 void	usage (void);
 
@@ -132,7 +106,6 @@ void	usage (void);
  * For connection based sockets, loop doing accepts. When you get a new
  * socket from accept, pass the msgsock into the kernel via. nfssvc().
  * The arguments are:
- *	-c - support iso cltp clients
  *	-r - reregister with rpcbind
  *	-d - unregister with rpcbind
  *	-t - support tcp nfs clients
@@ -152,21 +125,13 @@ main(argc, argv, envp)
 	struct sockaddr_in6 inet6peer;
 	fd_set ready, sockbits;
 	fd_set v4bits, v6bits;
-	int ch, cltpflag, connect_type_cnt, i, len, maxsock, msgsock;
+	int ch, connect_type_cnt, i, len, maxsock, msgsock;
 	int nfssvc_flag, on = 1, unregister, reregister, sock;
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
 	int udpflag, ecode, s;
 	int bindhostc = 0, bindanyflag, rpcbreg, rpcbregcnt;
 	char **bindhost = NULL;
 	pid_t pid;
-#ifdef NFSKERB
-	struct group *grp;
-	struct passwd *pwd;
-	struct ucred *cr;
-	struct timeval ktv;
-	char **cpp;
-#endif
-#ifdef __FreeBSD__
 	struct vfsconf vfc;
 	int error;
 
@@ -179,20 +144,9 @@ main(argc, argv, envp)
 	}
 	if (error)
 		errx(1, "NFS is not available in the running kernel");
-#endif
-
-#ifdef OLD_SETPROCTITLE
-	/* Save start and extent of argv for setproctitle. */
-	Argv = argv;
-	if (envp == 0 || *envp == 0)
-		envp = argv;
-	while (*envp)
-		envp++;
-	LastArg = envp[-1] + strlen(envp[-1]);
-#endif
 
 	nfsdcnt = DEFNFSDCNT;
-	cltpflag = unregister = reregister = tcpflag = 0;
+	unregister = reregister = tcpflag = 0;
 	bindanyflag = udpflag;
 #define	GETOPT	"ah:n:rdtu"
 #define	USAGE	"[-ardtu] [-n num_servers] [-h bindip]"
@@ -395,90 +349,12 @@ main(argc, argv, envp)
 		setproctitle("server");
 		nfssvc_flag = NFSSVC_NFSD;
 		nsd.nsd_nfsd = NULL;
-#ifdef NFSKERB
-		if (sizeof (struct nfsrpc_fullverf) != RPCX_FULLVERF ||
-		    sizeof (struct nfsrpc_fullblock) != RPCX_FULLBLOCK)
-		    syslog(LOG_ERR, "Yikes NFSKERB structs not packed!");
-		nsd.nsd_authstr = (u_char *)&kt;
-		nsd.nsd_authlen = sizeof (kt);
-		nsd.nsd_verfstr = (u_char *)&kverf;
-		nsd.nsd_verflen = sizeof (kverf);
-#endif
 		while (nfssvc(nfssvc_flag, &nsd) < 0) {
-			if (errno != ENEEDAUTH) {
+			if (errno) {
 				syslog(LOG_ERR, "nfssvc: %m");
 				exit(1);
 			}
-			nfssvc_flag = NFSSVC_NFSD | NFSSVC_AUTHINFAIL;
-#ifdef NFSKERB
-			/*
-			 * Get the Kerberos ticket out of the authenticator
-			 * verify it and convert the principal name to a user
-			 * name. The user name is then converted to a set of
-			 * user credentials via the password and group file.
-			 * Finally, decrypt the timestamp and validate it.
-			 * For more info see the IETF Draft "Authentication
-			 * in ONC RPC".
-			 */
-			kt.length = ntohl(kt.length);
-			if (gettimeofday(&ktv, (struct timezone *)0) == 0 &&
-			    kt.length > 0 && kt.length <=
-			    (RPCAUTH_MAXSIZ - 3 * NFSX_UNSIGNED)) {
-			    kin.w1 = NFS_KERBW1(kt);
-			    kt.mbz = 0;
-			    (void)strcpy(inst, "*");
-			    if (krb_rd_req(&kt, NFS_KERBSRV,
-				inst, nsd.nsd_haddr, &kauth, "") == RD_AP_OK &&
-				krb_kntoln(&kauth, lnam) == KSUCCESS &&
-				(pwd = getpwnam(lnam)) != NULL) {
-				cr = &nsd.nsd_cr;
-				cr->cr_uid = pwd->pw_uid;
-				cr->cr_groups[0] = pwd->pw_gid;
-				cr->cr_ngroups = 1;
-				setgrent();
-				while ((grp = getgrent()) != NULL) {
-					if (grp->gr_gid == cr->cr_groups[0])
-						continue;
-					for (cpp = grp->gr_mem;
-					    *cpp != NULL; ++cpp)
-						if (!strcmp(*cpp, lnam))
-							break;
-					if (*cpp == NULL)
-						continue;
-					cr->cr_groups[cr->cr_ngroups++]
-					    = grp->gr_gid;
-					if (cr->cr_ngroups == NGROUPS)
-						break;
-				}
-				endgrent();
-
-				/*
-				 * Get the timestamp verifier out of the
-				 * authenticator and verifier strings.
-				 */
-				kin.t1 = kverf.t1;
-				kin.t2 = kverf.t2;
-				kin.w2 = kverf.w2;
-				bzero((caddr_t)kivec, sizeof (kivec));
-				bcopy((caddr_t)kauth.session,
-				    (caddr_t)nsd.nsd_key,sizeof(kauth.session));
-
-				/*
-				 * Decrypt the timestamp verifier in CBC mode.
-				 */
-				XXX
-
-				/*
-				 * Validate the timestamp verifier, to
-				 * check that the session key is ok.
-				 */
-				nsd.nsd_timestamp.tv_sec = ntohl(kout.t1);
-				nsd.nsd_timestamp.tv_usec = ntohl(kout.t2);
-				nsd.nsd_ttl = ntohl(kout.w1);
-				if ((nsd.nsd_ttl - 1) == ntohl(kout.w2))
-				    nfssvc_flag = NFSSVC_NFSD | NFSSVC_AUTHIN;
-			}
-#endif /* NFSKERB */
+			nfssvc_flag = NFSSVC_NFSD;
 		}
 		exit(0);
 	}
@@ -941,23 +817,3 @@ cleanup(signo)
 	killchildren();
 	exit (0);
 }
-
-#ifdef OLD_SETPROCTITLE
-#ifdef __FreeBSD__
-void
-setproctitle(a)
-	char *a;
-{
-	register char *cp;
-	char buf[80];
-
-	cp = Argv[0];
-	(void)snprintf(buf, sizeof(buf), "nfsd-%s", a);
-	(void)strncpy(cp, buf, LastArg - cp);
-	cp += strlen(cp);
-	while (cp < LastArg)
-		*cp++ = '\0';
-	Argv[1] = NULL;
-}
-#endif	/* __FreeBSD__ */
-#endif
