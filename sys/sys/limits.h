@@ -66,9 +66,6 @@
 #define	LONG_MAX	__LONG_MAX	/* max for a long */
 #define	LONG_MIN	__LONG_MIN	/* min for a long */
 
-#define	UID_MAX		UINT_MAX	/* max value for a uid_t */
-#define	GID_MAX		UINT_MAX	/* max value for a gid_t */
-
 #ifdef __LONG_LONG_SUPPORTED
 #define	ULLONG_MAX	__ULLONG_MAX	/* max for an unsigned long long */
 #define	LLONG_MAX	__LLONG_MAX	/* max for a long long */
@@ -87,6 +84,9 @@
 #endif
 
 #if __BSD_VISIBLE
+#define	GID_MAX		UINT_MAX	/* max value for a gid_t */
+#define	UID_MAX		UINT_MAX	/* max value for a uid_t */
+
 #define	UQUAD_MAX	(__UQUAD_MAX)	/* max value for a uquad_t */
 #define	QUAD_MAX	(__QUAD_MAX)	/* max value for a quad_t */
 #define	QUAD_MIN	(__QUAD_MIN)	/* min value for a quad_t */
