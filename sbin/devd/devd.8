@@ -103,7 +103,9 @@ In the
 .Ic options
 section, one can define multiple directories to search
 for config files.
-All files in each of these directories are parsed.
+All files in these directories whose names match the pattern
+.Pa *.conf
+are parsed.
 These files are intended to be installed by third party vendors that
 wish to hook into the
 .Nm
