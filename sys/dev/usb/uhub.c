@@ -690,42 +690,41 @@ found_dev:
 Static void
 uhub_child_detached(device_t self, device_t child)
 {
-       struct uhub_softc *sc = device_get_softc(self);
-       usbd_device_handle devhub = sc->sc_hub;
-       usbd_device_handle dev;
-       int nports;
-       int port;
-       int i;
+	struct uhub_softc *sc = device_get_softc(self);
+	usbd_device_handle devhub = sc->sc_hub;
+	usbd_device_handle dev;
+	int nports;
+	int port;
+	int i;
 
-       if (!devhub->hub)
-               /* should never happen; children are only created after init */
-               panic("hub not fully initialised, but child deleted?");
+	if (!devhub->hub)
+		/* should never happen; children are only created after init */
+		panic("hub not fully initialised, but child deleted?");
 
-       nports = devhub->hub->hubdesc.bNbrPorts;
-       for (port = 0; port < nports; port++) {
-               dev = devhub->hub->ports[port].device;
-               if (dev && dev->subdevs) {
-                       for (i = 0; dev->subdevs[i]; i++) {
-                               if (dev->subdevs[i] == child) {
-                                       dev->subdevs[i] = NULL;
-                                       return;
-                               }
-                       }
-               }
-       }
+	nports = devhub->hub->hubdesc.bNbrPorts;
+	for (port = 0; port < nports; port++) {
+		dev = devhub->hub->ports[port].device;
+		if (dev == NULL || dev->subdevs == NULL)
+			continue;
+		for (i = 0; dev->subdevs[i]; i++) {
+			if (dev->subdevs[i] == child) {
+				dev->subdevs[i] = NULL;
+				return;
+			}
+		}
+	}
 }
 
 Static void
 uhub_driver_added(device_t _dev, driver_t *_driver)
 {
-	/* Don't do anything, as reprobing does not work currently. We should
-	 * really call through to usbd_new_device or a function along those
-	 * lines that reinitialises the device if it is not owned by any
-	 * driver. But this is complicated. Manual replugging by the user is
-	 * easier.
+	/*
+	 * Don't do anything, as reprobing does not work currently.
+	 * In the future we should properly allocate ivars so we can
+	 * leave the devices attached to the newbus tree.  Once we do
+	 * that, then we can reprobe on driver loading with the
+	 * default driver added routines.
 	 */
-
-	 ;
 }
 #endif
 
