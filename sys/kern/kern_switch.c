@@ -326,6 +326,7 @@ setrunqueue(struct thread *td)
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct thread *tda;
+	int count;
 
 	CTR4(KTR_RUNQ, "setrunqueue: td:%p ke:%p kg:%p pid:%d",
 	    td, td->td_kse, td->td_ksegrp, td->td_proc->p_pid);
@@ -382,11 +383,17 @@ setrunqueue(struct thread *td)
 	 * Add the thread to the ksegrp's run queue at
 	 * the appropriate place.
 	 */
+	count = 0;
 	TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
 		if (td2->td_priority > td->td_priority) {
 			kg->kg_runnable++;
 			TAILQ_INSERT_BEFORE(td2, td, td_runq);
 			break;
+		}
+		/* XXX Debugging hack */
+		if (++count > 10000) {
+			printf("setrunqueue(): corrupt kq_runq, td= %p\n", td);
+			panic("deadlock in setrunqueue");
 		}
 	}
 	if (td2 == NULL) {
