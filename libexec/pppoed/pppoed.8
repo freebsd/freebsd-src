@@ -43,7 +43,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program listens to the given
+utility listens to the given
 .Ar interface
 for PPP over Ethernet (PPPoE) service request packets, and actions them
 by negotiating a session then invoking a
@@ -56,7 +56,9 @@ See
 .Xr ng_pppoe 4
 for details.
 .Pp
+The
 .Nm
+utility
 will only offer services to clients requesting services from the given
 .Ar provider ,
 which is taken as an empty name if not provided.
@@ -211,7 +213,7 @@ This may change in the future.
 .Sh HISTORY
 The
 .Nm
-program was written by
+utility was written by
 .An Brian Somers Aq brian@Awfulhak.org
 and first appeared in
 .Fx 3.4 .

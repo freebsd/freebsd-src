@@ -42,15 +42,17 @@
 .Nm
 .Op Fl i
 .Sh DESCRIPTION
-.Nm Rexecd
-is the server for the
+The
+.Nm
+utility is the server for the
 .Xr rexec 3
 routine.  The server provides remote execution facilities
 with authentication based on user names and
 passwords.
 .Pp
-.Nm Rexecd
-listens for service requests at the port indicated in
+The
+.Nm
+utility listens for service requests at the port indicated in
 the ``exec'' service specification; see
 .Xr services 5 .
 When a service request is received the following protocol
@@ -83,8 +85,9 @@ shell is retrieved on the initial socket.  The length of
 the command is limited by the upper bound on the size of
 the system's argument list.
 .It
-.Nm Rexecd
-then validates the user as is done at login time
+The
+.Nm
+utility then validates the user as is done at login time
 and, if the authentication was successful, changes
 to the user's home directory, and establishes the user
 and group protections of the user.
@@ -99,8 +102,9 @@ by
 .Nm .
 .El
 .Sh CAVEATS
-.Nm Rexecd
-will not allow root logins unless the
+The
+.Nm
+utility will not allow root logins unless the
 .Fl i
 option is given on the command line (typically in
 .Pa /etc/inetd.conf ) .
@@ -109,8 +113,9 @@ It will also disallow access for users listed in
 or users with no passwords, which were all serious security holes.
 The entire concept of rexec/rexecd is a major security hole and an example
 of how not to do things.
-.Nm Rexecd
-is disabled by default in
+The
+.Nm
+utility is disabled by default in
 .Pa /etc/inetd.conf .
 .Sh DIAGNOSTICS
 Except for the last one listed below,
@@ -156,5 +161,5 @@ present.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
