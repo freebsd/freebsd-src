@@ -25,7 +25,7 @@ files.
 .\" .BR ed :
 .\" it can only edit files in the current
 .\" directory and cannot execute shell commands.
-
+.Pp
 If invoked with a
 .Ar file
 argument, then a copy of
@@ -39,7 +39,7 @@ Upon quitting
 any changes not explicitly saved  with a
 .Em w
 command are lost.
-
+.Pp
 Editing is done in two distinct modes:
 .Em command
 and
@@ -81,7 +81,7 @@ including a
 character.
 Input mode is terminated by
 entering a single period
-.Pf ( Em . Ns )
+.Pq Em .\&
 on a line.
 .Pp
 All
@@ -427,7 +427,7 @@ commands are single characters, though some require additional parameters.
 If a command's parameters extend over several lines, then
 each line except for the last
 must be terminated with a backslash (\\).
-
+.Pp
 In general, at most one command is allowed per line.
 However, most commands accept a print suffix, which is any of
 .Em p
@@ -438,10 +438,10 @@ or
 .Em n
 (enumerate),
 to print the last line affected by the command.
-
+.Pp
 An interrupt (typically ^C) has the effect of aborting the current command
 and returning the editor to command mode.
-
+.Pp
 .Nm Ed
 recognizes the following commands.  The commands are shown together with
 the default address or address range supplied if none is
@@ -835,9 +835,8 @@ attempts to write the  buffer if the terminal hangs up
 .Xr sh 1 ,
 .Xr vi 1 ,
 .Xr regex 3
-
+.Pp
 USD:12-13
-
 .Rs
 .%A B. W. Kernighan
 .%A P. J. Plauger
@@ -845,7 +844,6 @@ USD:12-13
 .%O Addison-Wesley
 .%D 1981
 .Re
-
 .Sh LIMITATIONS
 .Nm Ed
 processes
@@ -853,16 +851,15 @@ processes
 arguments for backslash escapes, i.e.,  in a filename,
 any characters preceded by a backslash (\\) are
 interpreted literally.
-
+.Pp
 If a text (non-binary) file is not terminated by a newline character,
 then
 .Nm
 appends one on reading/writing it.  In the case of a binary file,
 .Nm
 does not append a newline on reading/writing.
-
+.Pp
 per line overhead: 4 ints
-
 .Sh DIAGNOSTICS
 When an error occurs,
 .Nm
@@ -872,7 +869,7 @@ An explanation of the last error can be
 printed with the
 .Em h
 (help) command.
-
+.Pp
 Since the 
 .Em g
 (global) command  masks any errors from failed searches and substitutions,
@@ -894,7 +891,7 @@ If the
 .Em u
 (undo) command occurs in a global command list, then
 the command list is executed only once.
-
+.Pp
 If diagnostics are not disabled, attempting to quit
 .Nm
 or edit another file before writing a modified buffer
