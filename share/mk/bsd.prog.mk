@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.28 1996/03/09 23:48:55 wosch Exp $
+#	$Id: bsd.prog.mk,v 1.29 1996/03/19 14:30:15 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,9 +17,6 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 STRIP?=	-s
 .endif
 
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
