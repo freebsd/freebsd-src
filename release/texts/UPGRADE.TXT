@@ -2,7 +2,7 @@
 |                                                                     |
 | 0.0        Preface                                                  |
 |            0.1    DISCLAIMER                                        |
-|            0.2    IMPORTANT NOTE                                    |
+|            0.2    IMPORTANT NOTES                                   |
 |                                                                     |
 | 1.0        Introduction                                             |
 |            1.1    Upgrade Overview                                  |
@@ -26,12 +26,20 @@ ENTIRE DISK with this installation!  Please do not accept the final
 confirmation request unless you have adequately backed up any important
 data files.
 
-0.2    IMPORTANT NOTE
----    --------------
+0.2    IMPORTANT NOTES
+---    ---------------
 
-If you are upgrading from FreeBSD 2.2.5 or earlier, see
-section 2.4 for important details regarding changes to the
-/etc/fstab file required during the upgrade procedure.
+These notes assume that you are using the version of sysinstall supplied
+with the version of FreeBSD to which you intend to upgrade.  Using a
+mismatched version of sysinstall is almost guaranteed to cause problems
+and has been known to leave systems in an unusable state.  The most
+commonly made mistake in this regard is the use of an old copy of
+/stand/sysinstall from an existing installation to upgrade to a newer
+version of FreeBSD.  This is NOT recommended.
+
+Furthermore, if you are upgrading from FreeBSD 2.2.5 or earlier, see
+section 2.4 for important details regarding changes to the /etc/fstab
+file required during the upgrade procedure.
 
 1.0    Introduction
 ---    ------------
