@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 	
 	.section .init,"ax",@progbits
@@ -46,3 +44,7 @@ _fini:
 	stw 31,12(1)
 	stw 0,20(1)
 	mr 31,1
+
+
+	.section .rodata
+.ascii "$FreeBSD$\0"
