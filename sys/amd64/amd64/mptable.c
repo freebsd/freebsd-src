@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.98 1999/04/28 01:03:21 luoqi Exp $
+ *	$Id: mp_machdep.c,v 1.99 1999/04/30 22:09:40 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -41,6 +41,8 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
+#include <sys/memrange.h>
 #ifdef BETTER_CLOCK
 #include <sys/dkstat.h>
 #endif
