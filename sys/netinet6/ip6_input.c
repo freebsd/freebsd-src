@@ -221,6 +221,7 @@ ip6_init2(dummy)
 	callout_reset(&in6_rr_timer_ch, hz, in6_rr_timer, NULL);
 
 	/* timer for regeneranation of temporary addresses randomize ID */
+	callout_init(&in6_tmpaddrtimer_ch, 0);
 	callout_reset(&in6_tmpaddrtimer_ch,
 		      (ip6_temp_preferred_lifetime - ip6_desync_factor -
 		       ip6_temp_regen_advance) * hz,
