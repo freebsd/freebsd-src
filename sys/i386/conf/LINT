@@ -1599,7 +1599,6 @@ device		pca0 at isa? port IO_TIMER1
 #
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
-# matcd: Matsushita/Panasonic CD-ROM using proprietary (non-ATAPI) interface
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
@@ -1699,7 +1698,6 @@ device		mcd0	at isa? port 0x300 irq 10
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230
 # for the SoundBlaster 16 multicd - up to 4 devices
-device		matcd0  at isa? port 0x230
 device		wt0	at isa? port 0x300 irq 5 drq 1
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000

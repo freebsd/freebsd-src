@@ -51,7 +51,6 @@
 #include "nss.h"
 #include "mcd.h"
 #include "scd.h"
-#include "matcd.h"
 #include "wt.h"
 #include "ctx.h"
 #include "spigot.h"
@@ -102,7 +101,6 @@ extern struct isa_driver uartdriver;
 extern struct isa_driver nssdriver;
 extern struct isa_driver mcddriver;
 extern struct isa_driver scddriver;
-extern struct isa_driver matcddriver;
 extern struct isa_driver  wtdriver;
 extern struct isa_driver ctxdriver;
 extern struct isa_driver spigotdriver;
@@ -188,9 +186,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NSCD > 0
 	{ INTR_TYPE_BIO, &scddriver },
-#endif
-#if NMATCD > 0
-	{ INTR_TYPE_BIO, &matcddriver },
 #endif
 #if NWT > 0
 	{ INTR_TYPE_BIO, &wtdriver },
