@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.71 1997/05/02 02:20:25 ache Exp $ -->
+<!-- $Id: handbook.sgml,v 1.72 1997/05/02 14:15:34 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -31,7 +31,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>April 1997</date>
+      <date>May 1997</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release
@@ -87,7 +87,7 @@ name="FreeBSD FTP server"> or one of the numerous
     <part><heading>System Administration</heading>
 
     &kernelconfig;
-    <chapt><heading>Users, groups and security</heading>
+    <chapt><heading>Security</heading>
       &crypt;
       &skey;
       &kerberos;
