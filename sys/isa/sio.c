@@ -40,6 +40,7 @@
 #include "opt_ddb.h"
 #include "opt_sio.h"
 #include "card.h"
+#include "pci.h"
 #include "sio.h"
 
 /*
@@ -73,6 +74,10 @@
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+#if NPCI > 0
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+#endif
 #include <machine/lock.h>
 
 #include <machine/clock.h>
@@ -278,7 +283,7 @@ struct com_s {
 #ifdef COM_ESP
 static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
-static	int	sioattach	__P((device_t dev));
+static	int	sioattach	__P((device_t dev, int rid));
 static	int	sio_isa_attach	__P((device_t dev));
 
 static	timeout_t siobusycheck;
@@ -290,7 +295,7 @@ static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	swihand_t siopoll;
-static	int	sioprobe	__P((device_t dev));
+static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
@@ -305,6 +310,12 @@ static	int	sio_pccard_attach __P((device_t dev));
 static	int	sio_pccard_detach __P((device_t dev));
 static	int	sio_pccard_probe __P((device_t dev));
 #endif /* NCARD > 0 */
+
+#if NPCI > 0
+static	int	sio_pci_attach __P((device_t dev));
+static	void	sio_pci_kludge_unit __P((device_t dev));
+static	int	sio_pci_probe __P((device_t dev));
+#endif /* NPCI > 0 */
 
 static char driver_name[] = "sio";
 
@@ -342,7 +353,23 @@ static driver_t sio_pccard_driver = {
 	sio_pccard_methods,
 	sizeof(struct com_s),
 };
-#endif (NCARD > 0)
+#endif /* NCARD > 0 */
+
+#if NPCI > 0
+static device_method_t sio_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sio_pci_probe),
+	DEVMETHOD(device_attach,	sio_pci_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t sio_pci_driver = {
+	driver_name,
+	sio_pci_methods,
+	sizeof(struct com_s),
+};
+#endif /* NPCI > 0 */
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -485,14 +512,14 @@ sio_pccard_probe(dev)
 	/* until bus_setup_intr */
 	SET_FLAG(dev, COM_C_NOPROBE);
 
-	return (sioprobe(dev));
+	return (sioprobe(dev, 0));
 }
 
 static int
 sio_pccard_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev));
+	return (sioattach(dev, 0));
 }
 
 /*
@@ -541,6 +568,82 @@ sio_pccard_detach(dev)
 }
 #endif /* NCARD > 0 */
 
+#if NPCI > 0
+struct pci_ids {
+	u_int32_t	type;
+	const char	*desc;
+	int		rid;
+};
+
+static struct pci_ids pci_ids[] = {
+	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
+	{ 0x048011c1, "ActionTec 56k FAX PCI Modem", 0x14 },
+	{ 0x00000000, NULL, 0 }
+};
+
+static int
+sio_pci_attach(dev)
+	device_t	dev;
+{
+	u_int32_t	type;
+	struct pci_ids	*id;
+
+	type = pci_get_devid(dev);
+	id = pci_ids;
+	while (id->type && id->type != type)
+		id++;
+	if (id->desc == NULL)
+		return (ENXIO);
+	sio_pci_kludge_unit(dev);
+	return (sioattach(dev, id->rid));
+}
+
+/*
+ * Don't cut and paste this to other drivers.  It is a horrible kludge
+ * which will fail to work and also be unnecessary in future versions.
+ */
+static void
+sio_pci_kludge_unit(dev)
+	device_t dev;
+{
+	devclass_t	dc;
+	int		err;
+	int		start;
+	int		unit;
+
+	unit = 0;
+	start = 0;
+	while (resource_int_value("sio", unit, "port", &start) == 0 && 
+	    start > 0)
+		unit++;
+	if (device_get_unit(dev) < unit) {
+		dc = device_get_devclass(dev);
+		while (devclass_get_device(dc, unit))
+			unit++;
+		device_printf(dev, "moving to sio%d\n", unit);
+		err = device_set_unit(dev, unit);	/* EVIL DO NOT COPY */
+		if (err)
+			device_printf(dev, "error moving device %d\n", err);
+	}
+}
+
+static int
+sio_pci_probe(dev)
+	device_t	dev;
+{
+	u_int32_t	type;
+	struct pci_ids	*id;
+
+	type = pci_get_devid(dev);
+	id = pci_ids;
+	while (id->type && id->type != type)
+		id++;
+	if (id->desc == NULL)
+		return (ENXIO);
+	device_set_desc(dev, id->desc);
+	return (sioprobe(dev, id->rid));
+}
+#endif /* NPCI > 0 */
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
@@ -615,12 +718,13 @@ sio_isa_probe(dev)
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
-	return (sioprobe(dev));
+	return (sioprobe(dev, 0));
 }
 
 static int
-sioprobe(dev)
+sioprobe(dev, xrid)
 	device_t	dev;
+	int		xrid;
 {
 #if 0
 	static bool_t	already_init;
@@ -639,7 +743,7 @@ sioprobe(dev)
 	int		rid;
 	struct resource *port;
 
-	rid = 0;
+	rid = xrid;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				  0, ~0, IO_COMSIZE, RF_ACTIVE);
 	if (!port)
@@ -968,12 +1072,13 @@ static int
 sio_isa_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev));
+	return (sioattach(dev, 0));
 }
 
 static int
-sioattach(dev)
+sioattach(dev, xrid)
 	device_t	dev;
+	int		xrid;
 {
 	struct com_s	*com;
 #ifdef COM_ESP
@@ -986,7 +1091,7 @@ sioattach(dev)
 	struct resource *port;
 	int		ret;
 
-	rid = 0;
+	rid = xrid;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				  0, ~0, IO_COMSIZE, RF_ACTIVE);
 	if (!port)
@@ -2765,7 +2870,7 @@ siocngetspeed(iobase, table)
 		if (table->sp_code == code)
 			return (table->sp_speed);
 
-	return 0;	/* didn't match anything sane */
+	return (0);	/* didn't match anything sane */
 }
 
 static void
@@ -2986,7 +3091,7 @@ siocnattach(port, speed)
 	splx(s);
 
 	cn_tab = &sio_consdev;
-	return 0;
+	return (0);
 }
 
 int
@@ -3023,7 +3128,7 @@ siogdbattach(port, speed)
 	siocnopen(&sp, siogdbiobase, gdbdefaultrate);
 	splx(s);
 
-	return 0;
+	return (0);
 }
 
 #endif
@@ -3143,4 +3248,7 @@ siogdbputc(c)
 DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
 #if NCARD > 0
 DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
+#endif
+#if NPCI > 0
+DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
 #endif
