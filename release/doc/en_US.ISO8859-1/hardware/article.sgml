@@ -2407,13 +2407,13 @@
     <para arch="i386,pc98">Serial devices
       <itemizedlist>
         <listitem>
-	  <para>Belkin F5U103 and F5U120 (ubsa driver)</para>
+	  <para>Belkin F5U103 and F5U120 (&man.ubsa.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>e-Tek Labs Kwik232 (ubsa driver)</para>
+	  <para>e-Tek Labs Kwik232 (&man.ubsa.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>GoHubs GoCOM232 (ubsa driver)</para>
+	  <para>GoHubs GoCOM232 (&man.ubsa.4; driver)</para>
         </listitem>
         <listitem>
 	  <para>HP USB-Serial adapter (&man.uftdi.4; driver)</para>
@@ -2422,7 +2422,7 @@
 	  <para>Inland UAS111 (&man.uftdi.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>Peracom single port serial adapter (ubsa driver)</para>
+	  <para>Peracom single port serial adapter (&man.ubsa.4; driver)</para>
         </listitem>
         <listitem>
 	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
