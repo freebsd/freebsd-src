@@ -189,7 +189,6 @@ static void
 checkinode(ino_t inumber, struct inodesc *idesc)
 {
 	union dinode *dp;
-	struct zlncnt *zlnp;
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
@@ -302,28 +301,18 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 		goto unknown;
 	n_files++;
 	inoinfo(inumber)->ino_linkcnt = DIP(dp, di_nlink);
-	if (DIP(dp, di_nlink) <= 0) {
-		zlnp = (struct zlncnt *)malloc(sizeof *zlnp);
-		if (zlnp == NULL) {
-			pfatal("LINK COUNT TABLE OVERFLOW");
-			if (reply("CONTINUE") == 0) {
-				ckfini(0);
-				exit(EEXIT);
-			}
-		} else {
-			zlnp->zlncnt = inumber;
-			zlnp->next = zlnhead;
-			zlnhead = zlnp;
-		}
-	}
 	if (mode == IFDIR) {
 		if (DIP(dp, di_size) == 0)
 			inoinfo(inumber)->ino_state = DCLEAR;
+		else if (DIP(dp, di_nlink) <= 0)
+			inoinfo(inumber)->ino_state = DZLINK;
 		else
 			inoinfo(inumber)->ino_state = DSTATE;
 		cacheino(dp, inumber);
 		countdirs++;
-	} else
+	} else if (DIP(dp, di_nlink) <= 0)
+		inoinfo(inumber)->ino_state = FZLINK;
+	else
 		inoinfo(inumber)->ino_state = FSTATE;
 	inoinfo(inumber)->ino_type = IFTODT(mode);
 	badblk = dupblk = 0;

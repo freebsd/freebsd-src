@@ -576,10 +576,12 @@ blkerror(ino_t ino, const char *type, ufs2_daddr_t blk)
 	switch (inoinfo(ino)->ino_state) {
 
 	case FSTATE:
+	case FZLINK:
 		inoinfo(ino)->ino_state = FCLEAR;
 		return;
 
 	case DSTATE:
+	case DZLINK:
 		inoinfo(ino)->ino_state = DCLEAR;
 		return;
 
