@@ -1356,6 +1356,10 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Xircom 3201 (Cardbus) (&man.dc.4; driver)</para>
+
+    <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4; driver)</para>
+
     <para arch="i386">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
     (&man.fe.4; driver)
       <itemizedlist>
@@ -1862,6 +1866,9 @@
 	</listitem>
         <listitem>
 	  <para>Fritz!Card PCI</para>
+	</listitem>
+        <listitem>
+	  <para>Fritz!Card PCI, Version 2</para>
 	</listitem>
         <listitem>
 	  <para>T1</para>
