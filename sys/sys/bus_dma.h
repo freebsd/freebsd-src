@@ -1134,13 +1134,24 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
  *	void bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
  *			       bus_size_t offset, bus_size_t len, int flags);
  *
- * Note: the i386 does not currently require barriers, but we must
- * provide the flags to MI code.
+ *
+ * Note that BUS_SPACE_BARRIER_WRITE doesn't do anything other than
+ * prevent reordering by the compiler; all Intel x86 processors currently
+ * retire operations outside the CPU in program order.
  */
-#define	bus_space_barrier(t, h, o, l, f)	\
-	((void)((void)(t), (void)(h), (void)(o), (void)(l), (void)(f)))
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
+
+static __inline void
+bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
+		  bus_size_t offset, bus_size_t len, int flags)
+{
+	if (flags & BUS_SPACE_BARRIER_READ)
+		__asm __volatile ("lock; addl $0,0(%esp)" : : : "memory");
+	else
+		__asm __volatile ("" : : : "memory");
+}
+	
 
 /*
  * Flags used in various bus DMA methods.
