@@ -89,41 +89,6 @@ changed to generate a core dump by setting the
 variable
 .Va kern.sugid_coredump
 to 1.
-.Pp
-The core file consists of the
-.Fa u.
-area, whose size (in pages) is
-defined by the
-.Dv UPAGES
-manifest in the
-.In sys/param.h
-file.
-The
-.Fa u.
-area starts with a
-.Fa user
-structure as given in
-.In sys/user.h .
-The remainder of the core
-file consists of the data pages followed by
-the stack pages of the process image.
-The amount of data space image in the core
-file is given (in pages) by the
-variable
-.Fa u_dsize
-in the
-.Fa u.
-area.
-The amount of stack image in the core file is given (in pages) by the
-variable
-.Fa u_ssize
-in the
-.Fa u.
-area.
-The size of a ``page'' is given by the constant
-.Dv PAGE_SIZE
-(also from
-.In sys/param.h ) .
 .Sh EXAMPLES
 In order to store all core images in per-user private areas under
 .Pa /var/coredumps ,
