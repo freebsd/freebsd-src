@@ -65,6 +65,7 @@ cv_init(struct cv *cvp, const char *desc)
 {
 
 	cvp->cv_description = desc;
+	cvp->cv_waiters = 0;
 }
 
 /*
@@ -119,6 +120,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 	sq = sleepq_lookup(cvp);
 
+	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
@@ -175,6 +177,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 
 	/* XXX: Missing the threading checks from msleep! */
 
+	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
@@ -241,6 +244,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 
 	sq = sleepq_lookup(cvp);
 
+	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
@@ -299,6 +303,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 
 	sq = sleepq_lookup(cvp);
 
+	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
@@ -341,7 +346,10 @@ void
 cv_signal(struct cv *cvp)
 {
 
-	sleepq_signal(cvp, SLEEPQ_CONDVAR, -1);
+	if (cvp->cv_waiters > 0) {
+		cvp->cv_waiters--;
+		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1);
+	}
 }
 
 /*
@@ -352,5 +360,8 @@ void
 cv_broadcastpri(struct cv *cvp, int pri)
 {
 
-	sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri);
+	if (cvp->cv_waiters > 0) {
+		cvp->cv_waiters = 0;
+		sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri);
+	}
 }
