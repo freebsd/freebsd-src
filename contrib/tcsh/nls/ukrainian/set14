@@ -1,0 +1,6 @@
+$ $Id: set14,v 1.1 2000/11/11 23:03:42 christos Exp $
+$ sh.file.c
+$set 14 
+1 \nYikes!! Too many %s!!\n
+2 names in password file
+3 files
