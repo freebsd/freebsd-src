@@ -3244,7 +3244,7 @@ tryagain:
 		vm_page_wire(p);
 		p->valid = VM_PAGE_BITS_ALL;
 		vm_page_flag_clear(p, PG_ZERO);
-		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
+		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 		vm_page_wakeup(p);
 	}
@@ -3272,7 +3272,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 					bp->b_blkno, bp->b_lblkno);
 			}
 			bp->b_pages[index] = NULL;
-			pmap_kremove(pg);
+			pmap_qremove(pg, 1);
 			vm_page_busy(p);
 			vm_page_unwire(p, 0);
 			vm_page_free(p);

@@ -727,11 +727,9 @@ PMAP_INLINE void
 pmap_kenter(vm_offset_t va, vm_offset_t pa)
 {
 	pt_entry_t *pte;
-	pt_entry_t npte;
 
-	npte = pa | PG_RW | PG_V | pgeflag;
 	pte = vtopte(va);
-	*pte = npte;
+	*pte = pa | PG_RW | PG_V | pgeflag;
 	invlpg(va);
 }
 
@@ -741,7 +739,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 PMAP_INLINE void
 pmap_kremove(vm_offset_t va)
 {
-	register pt_entry_t *pte;
+	pt_entry_t *pte;
 
 	pte = vtopte(va);
 	*pte = 0;
@@ -764,12 +762,10 @@ vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
 	vm_offset_t va, sva;
-	pt_entry_t *pte;
 
 	va = sva = *virt;
 	while (start < end) {
-		pte = vtopte(va);
-		*pte = start | PG_RW | PG_V | pgeflag;
+		pmap_kenter(va, start);
 		va += PAGE_SIZE;
 		start += PAGE_SIZE;
 	}
@@ -791,14 +787,12 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va, end_va;
-	pt_entry_t *pte;
 
 	va = sva;
 	end_va = va + count * PAGE_SIZE;
 
 	while (va < end_va) {
-		pte = vtopte(va);
-		*pte = VM_PAGE_TO_PHYS(*m) | PG_RW | PG_V | pgeflag;
+		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
 		m++;
 	}
@@ -812,15 +806,13 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 void
 pmap_qremove(vm_offset_t sva, int count)
 {
-	pt_entry_t *pte;
 	vm_offset_t va, end_va;
 
 	va = sva;
 	end_va = va + count * PAGE_SIZE;
 
 	while (va < end_va) {
-		pte = vtopte(va);
-		*pte = 0;
+		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
 	invlpg_range(sva, end_va);
@@ -845,10 +837,10 @@ void
 pmap_new_proc(struct proc *p)
 {
 	int i;
+	vm_page_t ma[UAREA_PAGES];
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	pt_entry_t *ptek, oldpte;
 
 	/*
 	 * allocate object for the upages
@@ -868,13 +860,12 @@ pmap_new_proc(struct proc *p)
 		p->p_uarea = (struct user *)up;
 	}
 
-	ptek = vtopte(up);
-
 	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
 
 		/*
 		 * Wire the page
@@ -882,19 +873,12 @@ pmap_new_proc(struct proc *p)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
-		if (oldpte)
-			invlpg(up + i * PAGE_SIZE);
-
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
@@ -909,18 +893,15 @@ pmap_dispose_proc(p)
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	pt_entry_t *ptek;
 
 	upobj = p->p_upages_obj;
 	up = (vm_offset_t)p->p_uarea;
-	ptek = vtopte(up);
+	pmap_qremove(up, UAREA_PAGES);
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-		*(ptek + i) = 0;
-		invlpg(up + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
@@ -940,13 +921,13 @@ pmap_swapout_proc(p)
 
 	upobj = p->p_upages_obj;
 	up = (vm_offset_t)p->p_uarea;
+	pmap_qremove(up, UAREA_PAGES);
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_proc: upage already missing?");
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove(up + i * PAGE_SIZE);
 	}
 }
 
@@ -958,6 +939,7 @@ pmap_swapin_proc(p)
 	struct proc *p;
 {
 	int i, rv;
+	vm_page_t ma[UAREA_PAGES];
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
@@ -966,7 +948,6 @@ pmap_swapin_proc(p)
 	up = (vm_offset_t)p->p_uarea;
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -974,10 +955,12 @@ pmap_swapin_proc(p)
 			m = vm_page_lookup(upobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
+		ma[i] = m;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
@@ -989,10 +972,10 @@ void
 pmap_new_thread(struct thread *td)
 {
 	int i;
+	vm_page_t ma[KSTACK_PAGES];
 	vm_object_t ksobj;
 	vm_page_t m;
 	vm_offset_t ks;
-	pt_entry_t *ptek, oldpte;
 
 	/*
 	 * allocate object for the kstack
@@ -1003,40 +986,33 @@ pmap_new_thread(struct thread *td)
 		td->td_kstack_obj = ksobj;
 	}
 
-#ifdef KSTACK_GUARD
 	/* get a kernel virtual address for the kstack for this thread */
 	ks = td->td_kstack;
+#ifdef KSTACK_GUARD
 	if (ks == 0) {
 		ks = kmem_alloc_nofault(kernel_map,
 		    (KSTACK_PAGES + 1) * PAGE_SIZE);
 		if (ks == 0)
 			panic("pmap_new_thread: kstack allocation failed");
+		if (*vtopte(ks) != 0)
+			pmap_qremove(ks, 1);
 		ks += PAGE_SIZE;
 		td->td_kstack = ks;
 	}
-
-	ptek = vtopte(ks - PAGE_SIZE);
-	oldpte = *ptek;
-	*ptek = 0;
-	if (oldpte)
-		invlpg(ks - PAGE_SIZE);
-	ptek++;
 #else
-	/* get a kernel virtual address for the kstack for this thread */
-	ks = td->td_kstack;
 	if (ks == 0) {
 		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 		if (ks == 0)
 			panic("pmap_new_thread: kstack allocation failed");
 		td->td_kstack = ks;
 	}
-	ptek = vtopte(ks);
 #endif
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
 
 		/*
 		 * Wire the page
@@ -1044,19 +1020,12 @@ pmap_new_thread(struct thread *td)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
-		if (oldpte)
-			invlpg(ks + i * PAGE_SIZE);
-
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+	pmap_qenter(ks, ma, KSTACK_PAGES);
 }
 
 /*
@@ -1071,18 +1040,15 @@ pmap_dispose_thread(td)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
-	pt_entry_t *ptek;
 
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
-	ptek = vtopte(ks);
+	pmap_qremove(ks, KSTACK_PAGES);
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
 		vm_page_busy(m);
-		*(ptek + i) = 0;
-		invlpg(ks + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
@@ -1102,13 +1068,13 @@ pmap_swapout_thread(td)
 
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
+	pmap_qremove(ks, KSTACK_PAGES);
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_thread: kstack already missing?");
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove(ks + i * PAGE_SIZE);
 	}
 }
 
@@ -1120,6 +1086,7 @@ pmap_swapin_thread(td)
 	struct thread *td;
 {
 	int i, rv;
+	vm_page_t ma[KSTACK_PAGES];
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
@@ -1128,7 +1095,6 @@ pmap_swapin_thread(td)
 	ks = td->td_kstack;
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -1136,10 +1102,12 @@ pmap_swapin_thread(td)
 			m = vm_page_lookup(ksobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
+		ma[i] = m;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	pmap_qenter(ks, ma, KSTACK_PAGES);
 }
 
 /***************************************************
@@ -1234,7 +1202,8 @@ pmap_pinit0(pmap)
 {
 	pmap->pm_pdir =
 		(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
-	pmap_kenter((vm_offset_t) pmap->pm_pdir, (vm_offset_t) IdlePTD);
+	pmap_kenter((vm_offset_t)pmap->pm_pdir, (vm_offset_t)IdlePTD);
+	invlpg((vm_offset_t)pmap->pm_pdir);
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -1280,7 +1249,7 @@ pmap_pinit(pmap)
 	vm_page_flag_clear(ptdpg, PG_MAPPED | PG_BUSY); /* not usually mapped*/
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
-	pmap_kenter((vm_offset_t) pmap->pm_pdir, VM_PAGE_TO_PHYS(ptdpg));
+	pmap_qenter((vm_offset_t) pmap->pm_pdir, &ptdpg, 1);
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
@@ -2369,6 +2338,7 @@ void *
 pmap_kenter_temporary(vm_offset_t pa, int i)
 {
 	pmap_kenter((vm_offset_t)crashdumpmap + (i * PAGE_SIZE), pa);
+	invlpg((vm_offset_t)crashdumpmap + (i * PAGE_SIZE));
 	return ((void *)crashdumpmap);
 }
 
