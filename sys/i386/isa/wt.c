@@ -283,7 +283,7 @@ COMPAT_ISA_DRIVER(wt, wtdriver);
 static int
 wtopen (dev_t dev, int flag, int fmt, struct thread *td)
 {
-	int u = minor (dev) & T_UNIT;
+	int u = minor (dev) & WT_UNIT;
 	wtinfo_t *t = wttab + u;
 	int error;
 
@@ -365,7 +365,7 @@ wtopen (dev_t dev, int flag, int fmt, struct thread *td)
 static int
 wtclose (dev_t dev, int flags, int fmt, struct thread *td)
 {
-	int u = minor (dev) & T_UNIT;
+	int u = minor (dev) & WT_UNIT;
 	wtinfo_t *t = wttab + u;
 
 	if (u >= NWT || t->type == UNKNOWN)
@@ -377,7 +377,7 @@ wtclose (dev_t dev, int flags, int fmt, struct thread *td)
 
 	/* If seek forward is pending and no rewind on close, do nothing */
 	if (t->flags & TPRMARK) {
-		if (minor (dev) & T_NOREWIND)
+		if (minor (dev) & WT_NOREWIND)
 			goto done;
 
 		/* If read file mark is going on, wait */
@@ -388,7 +388,7 @@ wtclose (dev_t dev, int flags, int fmt, struct thread *td)
 		/* Tape was written.  Write file mark. */
 		wtwritefm (t);
 
-	if (! (minor (dev) & T_NOREWIND)) {
+	if (! (minor (dev) & WT_NOREWIND)) {
 		/* Rewind tape to beginning of tape. */
 		/* Don't wait until rewind, though. */
 		wtrewind (t);
@@ -414,7 +414,7 @@ done:
 static int
 wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct thread *td)
 {
-	int u = minor (dev) & T_UNIT;
+	int u = minor (dev) & WT_UNIT;
 	wtinfo_t *t = wttab + u;
 	int error, count, op;
 
@@ -512,7 +512,7 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct thread *td)
 static void
 wtstrategy (struct bio *bp)
 {
-	int u = minor (bp->bio_dev) & T_UNIT;
+	int u = minor (bp->bio_dev) & WT_UNIT;
 	wtinfo_t *t = wttab + u;
 	int s;
 
