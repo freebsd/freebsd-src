@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.119.2.7 1997/08/11 02:04:04 julian Exp $
+ *	$Id: wd.c,v 1.119.2.8 1997/09/13 16:19:10 joerg Exp $
  */
 
 /* TODO:
@@ -478,15 +478,15 @@ wdattach(struct isa_device *dvp)
 			wdtimeout(du);
 
 #ifdef DEVFS
-			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+			mynor = dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART);
 			du->dk_bdev = devfs_add_devswf(&wd_bdevsw, mynor,
 						       DV_BLK, UID_ROOT,
 						       GID_OPERATOR, 0640,
-						       "wd%d", unit);
+						       "wd%d", lunit);
 			du->dk_cdev = devfs_add_devswf(&wd_cdevsw, mynor,
 						       DV_CHR, UID_ROOT,
 						       GID_OPERATOR, 0640,
-						       "rwd%d", unit);
+						       "rwd%d", lunit);
 #endif
 
 			if (dk_ndrive < DK_NDRIVE) {
