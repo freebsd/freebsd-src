@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.21 1998/08/24 06:17:01 bde Exp $
+ * $Id: cdefs.h,v 1.22 1998/09/20 03:24:55 jdp Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -136,15 +136,20 @@
  */
 #if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 7
 #define	__printflike(fmtarg, firstvararg)
-#define	__printf0like(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
-#define	__printf0like(fmtarg, firstvararg) \
-	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
+#endif
+
+/* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
+#if 272101 <= __FreeBSD_cc_version && __FreeBSD_cc_version < 1000000
+#define	__printf0like(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
+#else
+#define	__printf0like(fmtarg, firstvararg)
 #endif
 
 #ifdef __GNUC__
