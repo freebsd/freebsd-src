@@ -361,7 +361,7 @@
     <varname>dumpdev</varname> loader tunable.  As a result, it is now
     possible to obtain crash dumps from panics during the late stages
     of kernel initialization (before the system enters into
-    single-user mode).</para>
+    single-user mode). &merged;</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -2056,6 +2056,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para><application>NFS</application> now works over IPv6.</para>
 
+    <para>&man.ngctl.8; now supports a <option>write</option> command
+    to send a data packet down a given hook. &merged;</para>
+
     <para>&man.nl.1;, a line numbering filter program, has been
     added. &merged;</para>
 
@@ -2115,6 +2118,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     rather than mode <literal>4555</literal> (in other words, it is no
     longer world-executable).  Users of &man.pppd.8; may need to
     change their group settings. &merged;</para>
+
+    <para>The <option>-W</option> option to &man.ps.1; (to extract
+    information from a specified swap device) has been useless for
+    some time; it has been removed. &merged;</para>
 
     <para>&man.pwd.1; can now double as &man.realpath.1;, a program to
     resolve pathnames to their underlying physical paths. &merged;</para>
