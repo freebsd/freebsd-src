@@ -85,4 +85,5 @@ extern int		efi_autoload(void);
 
 struct bootinfo;
 struct preloaded_file;
-extern int		bi_load(struct bootinfo *, struct preloaded_file *);
+extern int		bi_load(struct bootinfo *, struct preloaded_file *,
+				UINTN *mapkey);

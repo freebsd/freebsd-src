@@ -239,7 +239,7 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
+bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
 {
     char			*rootdevname;
     struct efi_devdesc		*rootdev;
@@ -340,7 +340,9 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
 			      &bi->bi_memdesc_version);
     if (EFI_ERROR(status)) {
 	printf("bi_load: Can't read memory map\n");
+	return EINVAL;
     }
+    *mapkey = key;
 
     return(0);
 }
