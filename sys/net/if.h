@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.4 1994/08/08 10:49:19 davidg Exp $
+ * $Id: if.h,v 1.5 1994/08/18 22:35:20 wollman Exp $
  */
+
+#ifndef _NET_IF_H_
+#define _NET_IF_H_
 
 /*
  * Structures defining a network interface, providing a packet
@@ -363,4 +366,6 @@ void	loopattach __P((void));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 void	lortrequest __P((int, struct rtentry *, struct sockaddr *));
+#endif
+
 #endif

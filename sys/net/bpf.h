@@ -37,8 +37,11 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: bpf.h,v 1.2 1994/08/02 07:45:54 davidg Exp $
  */
+
+#ifndef _NET_BPF_H_
+#define _NET_BPF_H_
 
 /*
  * Alignment macros.  BPF_WORDALIGN rounds up to the next 
@@ -250,3 +253,4 @@ u_int	 bpf_filter __P((struct bpf_insn *, u_char *, u_int, u_int));
  */
 #define BPF_MEMWORDS 16
 
+#endif

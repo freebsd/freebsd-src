@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
- * $Id$
+ * $Id: if_types.h,v 1.2 1994/08/02 07:46:26 davidg Exp $
  */
+
+#ifndef _NET_IF_TYPES_H_
+#define _NET_IF_TYPES_H_
 
 /*
  * Interface types for benefit of parsing media address headers.
@@ -94,3 +97,5 @@
 #define	IFT_SMDSICIP	0x34		/* SMDS InterCarrier Interface */
 #define	IFT_PROPVIRTUAL	0x35		/* Proprietary Virtual/internal */
 #define	IFT_PROPMUX	0x36		/* Proprietary Multiplexing */
+
+#endif

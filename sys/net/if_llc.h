@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *      @(#)if_llc.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_llc.h,v 1.2 1994/08/02 07:46:16 davidg Exp $
  */
+
+#ifndef _NET_IF_LLC_H_
+#define _NET_IF_LLC_H_
 
 /*
  * IEEE 802.2 Link Level Control headers, for use in conjunction with
@@ -139,8 +142,4 @@ struct llc {
 #define LLC_SNAP_LSAP	0xaa
 #define LLC_ISO_LSAP	0xfe
 
-
-
-
-
-
+#endif

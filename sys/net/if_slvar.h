@@ -32,8 +32,11 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id$
+ * $Id: if_slvar.h,v 1.2 1994/08/02 07:46:22 davidg Exp $
  */
+
+#ifndef _NET_IF_SLVAR_H_
+#define _NET_IF_SLVAR_H_
 
 /*
  * Definitions for SLIP interface data structures
@@ -78,3 +81,5 @@ int	sloutput __P((struct ifnet *,
 void	slstart __P((struct tty *));
 int	sltioctl __P((struct tty *, int, caddr_t, int));
 #endif /* KERNEL */
+
+#endif

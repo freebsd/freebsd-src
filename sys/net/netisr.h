@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: netisr.h,v 1.3 1994/08/02 07:46:27 davidg Exp $
  */
+
+#ifndef _NET_NETISR_H_
+#define _NET_NETISR_H_
 
 /*
  * The networking code runs off software interrupts.
@@ -66,4 +69,6 @@
 #ifdef KERNEL
 volatile unsigned int	netisr;				/* scheduling bits for network */
 #endif
+#endif
+
 #endif
