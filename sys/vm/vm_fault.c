@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.39 1995/12/11 04:58:06 dyson Exp $
+ * $Id: vm_fault.c,v 1.40 1996/01/19 03:59:43 dyson Exp $
  */
 
 /*
@@ -102,6 +102,10 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
+
+int vm_fault_free_1;
+int vm_fault_copy_save_1;
+int vm_fault_copy_save_2;
 
 /*
  *	vm_fault:
@@ -471,49 +475,139 @@ readrest:
 		if (fault_type & VM_PROT_WRITE) {
 
 			/*
-			 * If we try to collapse first_object at this point,
-			 * we may deadlock when we try to get the lock on an
-			 * intermediate object (since we have the bottom
-			 * object locked).  We can't unlock the bottom object,
-			 * because the page we found may move (by collapse) if
-			 * we do.
-			 *
-			 * Instead, we first copy the page.  Then, when we have
-			 * no more use for the bottom object, we unlock it and
-			 * try to collapse.
-			 *
-			 * Note that we copy the page even if we didn't need
-			 * to... that's the breaks.
-			 */
-
-			/*
 			 * We already have an empty page in first_object - use
 			 * it.
 			 */
 
-			vm_page_copy(m, first_m);
-			first_m->valid = VM_PAGE_BITS_ALL;
+			if (lookup_still_valid &&
+				/*
+				 * Only one shadow object
+				 */
+				(object->shadow_count == 1) &&
+				/*
+				 * No COW refs, except us
+				 */
+				(object->ref_count == 1) &&
+				/*
+				 * Noone else can look this object up
+				 */
+				(object->handle == NULL) &&
+				/*
+				 * No other ways to look the object up
+				 */
+				((object->type == OBJT_DEFAULT) ||
+				 (object->type == OBJT_SWAP)) &&
+				/*
+				 * We don't chase down the shadow chain
+				 */
+				(object == first_object->backing_object)) {
 
-			/*
-			 * If another map is truly sharing this page with us,
-			 * we have to flush all uses of the original page,
-			 * since we can't distinguish those which want the
-			 * original from those which need the new copy.
-			 *
-			 * XXX If we know that only one map has access to this
-			 * page, then we could avoid the pmap_page_protect()
-			 * call.
-			 */
+				/*
+				 * get rid of the unnecessary page
+				 */
+				vm_page_protect(first_m, VM_PROT_NONE);
+				PAGE_WAKEUP(first_m);
+				vm_page_free(first_m);
+				/*
+				 * grab the page and put it into the process'es object
+				 */
+				vm_page_rename(m, first_object, first_pindex);
+				first_m = m;
+				m->valid = VM_PAGE_BITS_ALL;
+				m->dirty = VM_PAGE_BITS_ALL;
+				m = NULL;
+				++vm_fault_copy_save_1;
+			} else {
+				/*
+				 * Oh, well, lets copy it.
+				 */
+				vm_page_copy(m, first_m);
+				first_m->valid = VM_PAGE_BITS_ALL;
+			}
 
-			if (m->queue != PQ_ACTIVE)
-				vm_page_activate(m);
+			if (lookup_still_valid &&
+				/*
+				 * make sure that we have two shadow objs
+				 */
+				(object->shadow_count == 2) &&
+				/*
+				 * And no COW refs -- note that there are sometimes
+				 * temp refs to objs, but ignore that case -- we just
+				 * punt.
+				 */
+				(object->ref_count == 2) &&
+				/*
+				 * Noone else can look us up
+				 */
+				(object->handle == NULL) &&
+				/*
+				 * Not something that can be referenced elsewhere
+				 */
+				((object->type == OBJT_DEFAULT) ||
+				 (object->type == OBJT_SWAP)) &&
+				/*
+				 * We don't bother chasing down object chain
+				 */
+				(object == first_object->backing_object)) {
 
+				vm_object_t other_object;
+				vm_pindex_t other_pindex, other_pindex_offset;
+				vm_page_t tm;
+				
+				other_object = object->shadow_head.tqh_first;
+				if (other_object == first_object)
+					other_object = other_object->shadow_list.tqe_next;
+				if (!other_object)
+					panic("vm_fault: other object missing");
+				if (other_object &&
+					(other_object->type == OBJT_DEFAULT) &&
+					(other_object->paging_in_progress == 0)) {
+					other_pindex_offset =
+						OFF_TO_IDX(other_object->backing_object_offset);
+					if (pindex >= other_pindex_offset) {
+						other_pindex = pindex - other_pindex_offset;
+						/*
+						 * If the other object has the page, just free it.
+						 */
+						if ((tm = vm_page_lookup(other_object, other_pindex))) {
+							if ((tm->flags & PG_BUSY) == 0 &&
+								tm->busy == 0 &&
+								tm->valid == VM_PAGE_BITS_ALL) {
+								/*
+								 * get rid of the unnecessary page
+								 */
+								vm_page_protect(m, VM_PROT_NONE);
+								PAGE_WAKEUP(m);
+								vm_page_free(m);
+								m = NULL;
+								++vm_fault_free_1;
+								tm->dirty = VM_PAGE_BITS_ALL;
+								first_m->dirty = VM_PAGE_BITS_ALL;
+							}
+						} else {
+							/*
+							 * If the other object doesn't have the page,
+							 * then we move it there.
+							 */
+							vm_page_rename(m, other_object, other_pindex);
+							m->dirty = VM_PAGE_BITS_ALL;
+							/* m->valid = VM_PAGE_BITS_ALL; */
+							++vm_fault_copy_save_2;
+						}
+					}
+				}
+			}
+
+			if (m) {
+				if (m->queue != PQ_ACTIVE)
+					vm_page_activate(m);
 			/*
 			 * We no longer need the old page or object.
 			 */
-			PAGE_WAKEUP(m);
-			vm_object_pip_wakeup(object);
+				PAGE_WAKEUP(m);
+			}
 
+			vm_object_pip_wakeup(object);
 			/*
 			 * Only use the new page below...
 			 */
@@ -593,15 +687,6 @@ readrest:
 		 */
 		prot &= retry_prot;
 	}
-	/*
-	 * (the various bits we're fiddling with here are locked by the
-	 * object's lock)
-	 */
-
-	/*
-	 * It's critically important that a wired-down page be faulted only
-	 * once in each map for which it is wired.
-	 */
 
 	/*
 	 * Put this page into the physical map. We had to do the unlock above
@@ -628,7 +713,7 @@ readrest:
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
-	if (change_wiring == 0 && wired == 0)
+	if (vp && change_wiring == 0 && wired == 0)
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
 #endif
 

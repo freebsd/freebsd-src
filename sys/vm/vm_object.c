@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.62 1996/01/04 21:13:20 wollman Exp $
+ * $Id: vm_object.c,v 1.63 1996/01/19 04:00:02 dyson Exp $
  */
 
 /*
@@ -164,6 +164,7 @@ _vm_object_allocate(type, size, object)
 	object->flags = 0;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
+	object->shadow_count = 0;
 	object->handle = NULL;
 	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
@@ -260,6 +261,7 @@ vm_object_deallocate(object)
 	vm_object_t object;
 {
 	vm_object_t temp;
+	vm_page_t p;
 
 	while (object != NULL) {
 
@@ -270,7 +272,6 @@ vm_object_deallocate(object)
 		 * Lose the reference
 		 */
 		object->ref_count--;
-
 		if (object->ref_count != 0) {
 			if ((object->ref_count == 1) &&
 			    (object->handle == NULL) &&
@@ -348,8 +349,10 @@ vm_object_deallocate(object)
 		object->flags |= OBJ_DEAD;
 
 		temp = object->backing_object;
-		if (temp)
+		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
+			--temp->shadow_count;
+		}
 		vm_object_terminate(object);
 		/* unlocks and deallocates object */
 		object = temp;
@@ -678,6 +681,7 @@ vm_object_pmap_remove(object, start, end)
  *
  *	May defer the copy until later if the object is not backed
  *	up by a non-default pager.
+ *
  */
 void
 vm_object_copy(src_object, src_offset,
@@ -711,7 +715,6 @@ vm_object_copy(src_object, src_offset,
 	 * Make another reference to the object
 	 */
 	src_object->ref_count++;
-
 	*dst_object = src_object;
 	*dst_offset = src_offset;
 
@@ -758,8 +761,10 @@ vm_object_shadow(object, offset, length)
 	 * of reference count.
 	 */
 	result->backing_object = source;
-	if (source)
-		TAILQ_INSERT_TAIL(&result->backing_object->shadow_head, result, shadow_list);
+	if (source) {
+		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
+		++source->shadow_count;
+	}
 
 	/*
 	 * Store the offset into the source object, and fix up the offset into
@@ -1018,13 +1023,18 @@ vm_object_collapse(object)
 
 			TAILQ_REMOVE(&object->backing_object->shadow_head, object,
 			    shadow_list);
-			if (backing_object->backing_object)
+			--object->backing_object->shadow_count;
+			if (backing_object->backing_object) {
 				TAILQ_REMOVE(&backing_object->backing_object->shadow_head,
 				    backing_object, shadow_list);
+				--backing_object->backing_object->shadow_count;
+			}
 			object->backing_object = backing_object->backing_object;
-			if (object->backing_object)
+			if (object->backing_object) {
 				TAILQ_INSERT_TAIL(&object->backing_object->shadow_head,
 				    object, shadow_list);
+				++object->backing_object->shadow_count;
+			}
 
 			object->backing_object_offset += backing_object->backing_object_offset;
 			/*
@@ -1096,10 +1106,13 @@ vm_object_collapse(object)
 
 			TAILQ_REMOVE(&object->backing_object->shadow_head,
 			    object, shadow_list);
+			--object->backing_object->shadow_count;
 			vm_object_reference(object->backing_object = backing_object->backing_object);
-			if (object->backing_object)
+			if (object->backing_object) {
 				TAILQ_INSERT_TAIL(&object->backing_object->shadow_head,
 				    object, shadow_list);
+				++object->backing_object->shadow_count;
+			}
 			object->backing_object_offset += backing_object->backing_object_offset;
 
 			/*
