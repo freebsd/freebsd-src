@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.43 1995/12/14 19:44:29 bde Exp $
+ *      $Id: scsiconf.c,v 1.44 1995/12/26 21:08:39 peter Exp $
  */
 
 #include <sys/types.h>
@@ -304,6 +304,14 @@ static struct scsidevs knowndevs[] =
 	 */
 	{
 		T_READONLY, T_READONLY, T_REMOV, "NEC",  "CD-ROM DRIVE:55","*",
+		"cd", SC_ONE_LU
+	},
+	/*
+	 * Same with the OEM version of this drive (1.0 firmware).
+	 * -Paul
+	 */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "NEC",  "CD-ROM DRIVE:210","*",
 		"cd", SC_ONE_LU
 	},
 #endif /* !UKTEST */
