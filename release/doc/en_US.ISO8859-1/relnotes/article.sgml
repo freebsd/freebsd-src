@@ -46,6 +46,11 @@
     older PXE versions are not supported.  This allow network booting
     using DHCP. &merged;</para>
 
+    <para arch="i386">The &os; boot loader now contains a workaround
+    to support CDROM booting on certain IBM BIOSs that expect the
+    first sector of the emulated floppy to contain a valid MS-DOS BPB
+    that they can modify. &merged;</para>
+
     <para>Support for USB devices was added to the
     <filename>GENERIC</filename> kernel and to the installation
     programs to support USB devices out of the box.  Note that SRM
