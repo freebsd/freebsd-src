@@ -9,4 +9,6 @@ BINGRP=	kmem
 BINMODE=2555
 WARNS?=	6
 
+CFLAGS+=-D_KVM_VNODE
+
 .include <bsd.prog.mk>
