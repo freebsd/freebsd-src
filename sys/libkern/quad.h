@@ -105,4 +105,8 @@ u_quad_t	__umoddi3(u_quad_t a, u_quad_t b);
 int		__ucmpdi2(u_quad_t a, u_quad_t b);
 
 typedef unsigned int	qshift_t;
+
+quad_t		__ashldi3(quad_t, qshift_t);
+quad_t		__ashrdi3(quad_t, qshift_t);
+quad_t		__lshrdi3(quad_t, qshift_t);
 #endif /* _LIBKERN_QUAD_H */
