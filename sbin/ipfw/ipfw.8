@@ -1,141 +1,318 @@
 .Dd November 16, 1994
-.Dt IPFW 8
-.Os
+.Dt IPFW 8 SMM
+.Os FreeBSD
 .Sh NAME
-ipfw - controlling utility for ipfw/ipacct facilities. 
-
+.Nm ipfw
+.Nd controlling utility for IP firewall / IP accounting facilities. 
 .Sh SYNOPSIS
-
- ipfw [-n]   <entry-action>  <chain entry pattern>
- ipfw [-ans] <chain-action>  <chain[s] type>
-
+.Nm
+.Oo
+.Fl n
+.Oc
+.Ar entry_action chain_entry_pattern
+.Nm ipfw
+.Oo
+.Fl ans
+.Oc
+.Ar chain_action chain[s]_type
+.\" ipfw [-n]   <entry-action>  <chain entry pattern>
+.\" ipfw [-ans] <chain-action>  <chain[s] type>
 .Sh DESCRIPTION
- In the first synopsis form, the ipfw utility allows control of firewall
-and accounting chains.
- In the second synopsis form, the ipfw utility allows setting of global
-firewall/accounting properties and listing of chain contents.
-
+In the first synopsis form, 
+.Nm
+controls the firewall and accounting chains. In the second
+synopsis form,
+.Nm
+sets the global firewall / accounting properties and
+show the chain list's contents.
+.Pp
 The following options are available:
+.Bl -tag -width flag
+.It Fl a
+While listing, show counter values. This option is the only way to see
+accounting records. Works only with
+.Fl s
+.It Fl n
+Do not resolve anything. When setting entries, do not try to resolve a
+given address. When listing, display addresses in numeric form.
+.It Fl s
+Short listing form. By default, the listing format is compatible with
+.Nm
+input string format, so you can save listings to file and then reuse
+them. With this option list format is much more short but incompatible
+with the
+.Nm
+syntax.
+.El
+.Pp
+These are the valid
+.Ar entry_actions :
+.Bl -hang -offset flag -width 1234567890123456
+.It Nm addf[irewall]
+add entry to firewall chain.
+.It Nm delf[irewall]
+remove entry from firewall chain.
+.It Nm adda[ccounting]
+add entry to accounting chain.
+.It Nm dela[ccounting]
+remove entry from accounting chain.
+.It Nm clr[accounting]
+clear counters for accounting chain entry.
+.El
+.Pp
+If no
+.Ar entry_action
+is specified, it will default to
+.Nm addf[irewall]
+or
+.Nm adda[ccounting] ,
+depending on the
+.Ar chain_entry_pattern
+specified.
+.Pp
+The valid
+.Ar chain_actions
+are:
+.Bl -hang -offset flag -width 123456789
+.It Nm f[lush]
+remove all entries in firewall / accounting chains.
+.It Nm l[ist]
+display all entries in firewall / accounting chains.
+.It Nm z[ero]
+clear chain counters (accounting only).
+.It Nm p[olicy]
+set default policy properties.
+.El
+.Pp
+The
+.Ar chain_entry_pattern
+structure is:
+.Pp
+.Dl [keyword] [protocol] [address pattern]
+.Pp
+For the firewall chain, valid
+.Em keywords
+are:
+.Bl -hang -offset flag -width 12345678
+.It Nm reject
+Reject the packet, and send an
+.Tn ICMP HOST_UNREACHABLE
+packet to the source.
+.It Nm lreject
+The same as
+.Nm reject ,
+but also log the packets details.
+.It Nm deny
+Reject the packet.
+.It Nm ldeny
+The same as
+.Nm deny ,
+but also log the packets details.
+.It Nm log
+Accept the packet, and log it.
+.It Nm accept
+Accept the packet (obviously).
+.It Nm pass
+A synonym for accept.
+.El
 
--a   While listing,show counter values-this option is the only way to
-     see accounting records.Works only with -s.
-
--n   Do not resolve anything.  When setting entries, do not try to resolve
-     a given address.   When listing, display addresses in numeric form.
-
--s   Short listing form.By default listing format is compatible with ipfw
-     input string format,so you can save listings to file and then reuse
-     them. With this option list format is much more short but 
-     incompatible with ipfw syntacs.
-
-These are <entry-actions>:
-	
-  addf[irewall] - add entry to firewall chain.
-  delf[irewall] - remove entry from firewall chain.
-  adda[ccounting] - add entry to accounting chain.
-  dela[ccounting] - remove entry from accounting chain.
-  clr[accounting] - clear counters for accounting chain entry.
-
-If no <entry-action> specified,default addf[irewall] or add[accounting]
-will be used,depending on <chain-entry pattern> specified.
-
-These are <chain-actions>:
-  f[lush] - remove all entries in firewall/accounting chains.
-  l[ist] - show all entries in firewall/accounting chains.
-  z[ero] - clear chain counters(accounting only).
-  p[olicy] - set default policy properties.
-
-This is <chain-entry pattern> structure:
- For forwarding/blocking chains:
-  lreject <proto/addr pattern>    reject packet,send ICMP unreachable and log.
-  reject  <proto/addr pattern>    reject packet,send ICMP unreachable.
-  ldeny   <proto/addr pattern>    reject packet,log it.
-  deny    <proto/addr pattern>    reject packet.
-  log     <proto/addr pattern>    allow packet,log it.
-  accept  <proto/addr pattern>    allow packet.
-  pass	    <proto/addr pattern>    allow packet.
- For accounting chain:
-  single        <proto/addr pattern>   log packets matching entry.
-  bidirectional <proto/addr pattern>   log packets matching entry and 
-                  those going in opposite direction (from entry
-                  "dst" to "src").
-
+.Pp
+For the accounting chain, valid
+.Em keywords
+are:
+.Bl -tag -width flag
+.It Nm single
+Log packets matching entry.
+.It Nm bidirectional
+Log packets matching entry and also those going in the
+opposite direction (from 
+.Dq dst
+to
+.Dq src ) .
+.El
+.Pp
 Each keyword will be recognized by the shortest unambigious prefix.
-                                           
-The <proto/addr pattern> is:
- all|icmp     from <src addr/mask>        to <dst addr/mask>       [via <via>]
- tcp[syn]|udp from <src addr/mask>[ports] to <dst addr/mask>[ports][via <via>]
- all matches any IP packet.
- icmp,tcp and udp - packets for corresponding protocols.
- syn - tcp SYN packets (which used when initiating connection).
-
-
-The order of from/to/via keywords is unimportant.You can skip any
-of them,which will be then substituted by default entry matching
-any from/to/via packet kind.
-    
-The <src addr/mask>:
- <INET IP addr | domain name> [/mask bits | :mask pattern]
-  Mask bits is a decimal number of bits set in the address  mask.
-  Mask pattern has form of IP address and AND'ed logically with address given.
-  Keyword "any" can be used to specify 'any IP'.
- [ports]: [ port,port....|port:port] 
-  Name of service can be used instead of port numeric value.
-  
-The via <via> is optional and may specify IP address/domain name of local
- IP interface, or interface name (e.g. ed0) to match only packets coming 
- through this interface.The IP or name given is NOT checked, and wrong
- value of IP causes entry to not match anything.
- Keyword 'via' can be substituted by 'on',for readability reasons.
-   
-To l[ist] command may be passed:
- f[irewall] | a[ccounting] to list specific chain or none to list
-all of chains.Long output format compatible with utility input syntacs.
-
-To f[lush] command may be passed:
- f[irewall] | a[ccounting] to remove all entries from firewall or
-from accounting chain.Without arguments removes all chain entries.
- 
-To z[ero] command no arguments needed,this command clears counters for
-whole accounting chain.
-
-The p[olicy] command can be given a[ccept]|d[eny] to set  default policy
-as denial/accepting.Without arguments current default policy displayed.
-
+.Pp
+Recognised
+.Em protocols
+are:
+.Bl -hang -offset flag -width 123456
+.It Nm all
+Matches any IP packet.
+.It Nm icmp
+Matches ICMP packets.
+.It Nm tcp
+Matches TCP packets.
+.It Nm udp
+Matches UDP packets.
+.It Nm syn
+Matches the TCP SYN packet used in initiating a TCP connection. It
+does not match the packet returned from a destination machine which
+has the SYN and ACK bits set.
+.El
+.Pp
+The
+.Em address pattern
+is:
+.Pp
+.Dl from <address/mask>[ports] to <address/mask][ports] [via <interface>]
+.Pp
+You can only specify
+.Em ports
+with
+.Em protocols
+which actually have ports (TCP, UDP and SYN).
+.Pp
+The order of
+.Sq from/to/via
+keywords is unimportant. You can skip any of them, which will be
+then substituted by default entry matching any
+.Sq from/to/via
+packet kind.
+.Pp
+The
+.Em <address/mask>
+is defined as:
+.Pp
+.Dl <address|name>[/mask_bits|:mask_pattern]
+.Pp
+.Em mask bits
+is the decimal number of bits set in the address mask.
+.Em mask pattern
+has the form of an IP address to be AND'ed logically with the address
+given. The keyword
+.Em any
+can be used to specify 
+.Dq any IP .
+The IP address or name given is
+.Em NOT
+checked, and the wrong value
+causes the entry to not match anything.
+.Pp
+The
+.Em ports
+to be blocked are specified as:
+.Dl Ns port Ns Op ,port Ns Op ,...
+or:
+.Dl port:port
+.Pp
+to specify a range of ports. The name of a service (from 
+.Pa /etc/services )
+can be used instead of
+a numeric port value.
+.Pp 
+The
+.Em via <interface>
+entry is optional and may specify IP address/domain name of local IP
+interface, or interface name (e.g.
+.Em ed0 )
+to match only packets coming
+through this interface. The keyword
+.Em via
+can be substituted by
+.Em on ,
+for readability reasons.
+.Pp
+The
+.Em l[ist]
+command may be passed:
+.Pp
+.Dl f[irewall] | a[ccounting]
+.Pp
+to list specific chain or none to list all of chains. The long output
+format (default) is compatible with the syntax used by the
+.Nm
+utility.
+.Pp
+The
+.Em f[lush]
+command may be passed:
+.Pp
+.Dl f[irewall] | a[ccounting]
+.Pp
+to remove all entries from firewall or from accounting chain. Without
+an argument it will remove all entries from both chains.
+.Pp
+The
+.Em z[ero]
+command needs no arguments. This command clears all counters for the
+entire accounting chain.
+.Pp
+The
+.Em p[olicy]
+command can be given
+.Pp
+.Dl a[ccept] | d[eny]
+.Pp
+to set default policy as denial/acceptance. Without an angument, the
+current policy status is displayed.
 .Sh EXAMPLES
-
- This command add entry which denies all tcp packets from
-hacker.evil.org to telnet port of wolf.tambov.su from being
-forwarded by the host:
-  ipfw addf deny tcp from hacker.evil.org to wolf.tambov.su telnet
- 
- This one disallows any connection from entire hackers network
-to my host:
-  ipfw addf deny all from 123.45.67.8/24 to my.host.org
-
- Here is good usage of list command to see accounting records:
-  ipfw -sa list accounting (or in short form ipfw -sa l a ).
- 
- Much more examples can be found in files:
-  /usr/share/FAQ/ipfw.FAQ (missing for the moment)
-
+This command adds an entry which denies all tcp packets from
+.Em hacker.evil.org
+to the telnet port of
+.Em wolf.tambov.su
+from being forwarded by the host:
+.Pp
+.Dl ipfw addf deny tcp from hacker.evil.org to wolf.tambov.su telnet
+.Pp 
+This one disallows any connection from the entire hackers network to
+my host:
+.Pp
+.Dl ipfw addf deny all from 123.45.67.0/24 to my.host.org
+.Pp
+Here is good usage of list command to see accounting records:
+.Pp
+.Dl ipfw -sa list accounting
+.Pp
+or in short form
+.Pp
+.Dl ipfw -sa l a
+.Pp
+Many more examples can be found in the file:
+.Dl Pa /usr/share/FAQ/ipfw.FAQ
+(missing for the moment)
 .Sh SEE ALSO
-ip(4),ipfirewall(4),ipaccounting(4),reboot(8)
-
+.Xr gethostbyname 3 ,
+.Xr getservbyport 3 ,
+.Xr ip 4 ,
+.Xr ipfirewall 4 ,
+.Xr ipaccounting 4 ,
+.Xr reboot 8 ,
+.Xr syslogd 8
 .Sh BUGS
- WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
- This programm can put your computer in rather unusable state.
-First time try using it from console and do *NOT* do anything
-you don't understand.
- Remember that "ipfw flush" can solve all the problemms.
-Also take in your mind that "ipfw policy deny" combined with
-some wrong chain entry(possible the only entry which designed
-to deny some external packets), can close your computer from
-outer world for good.
-
+Currently there is no method for filtering out specific types of ICMP
+packets. Either you don't filter ICMP at all, or all ICMP packets are
+filtered.
+.Pp
+The system has a rule weighting system for the firewall chain. This
+means that rules are not used in the order that they are specified. To
+see what rule ordering is used, use the
+.Em list
+command.
+.Pp
+.Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
+.Pp
+This program can put your computer in rather unusable state. When
+using it for the first time, work on the console of the computer, and
+do
+.Em NOT
+do anything you don't understand.
+.Pp
+Remember that 
+.Dq ipfw flush
+can solve all the problems.  Bear in mind that 
+.Dq ipfw policy deny
+combined with some wrong chain entry (possible the only entry, which
+is designed to deny some external packets), can close your computer
+from the outer world for good (or at least until you can get to the
+console).
 .Sh HISTORY
- Initially this utility was written for BSDI by:
-  Daniel Boulet    <danny@BouletFermat.ab.ca> 
- The FreeBSD version is written completely by: 
-  Ugen J.S.Antsilevich <ugen@NetVision.net.il> 
- while synopsis partially compatible with old one.
+Initially this utility was written for BSDI by:
+.Pp
+.Dl Daniel Boulet <danny@BouletFermat.ab.ca>
+.Pp
+The FreeBSD version is written completely by:
+.Pp
+.Dl Ugen J.S.Antsilevich <ugen@FreeBSD.ORG>
+.Pp
+while the synopsis is partially compatible with the old one.
