@@ -56,7 +56,7 @@ will output a list of devices that are/were connected to the bus.
 The following options are available:
 .Bl -tag -width indent
 .It Fl u Ar bus_num
-Specify the FireWire bus number to be operated.
+Specify the FireWire bus number to be operated on.
 .It Fl r
 Initiate bus reset.
 .It Fl t
@@ -70,7 +70,7 @@ Hex dump of the configuration ROM.
 .It Fl o Ar node
 Send a link-on PHY packet to the node.
 .It Fl s Ar node
-Write to
+Write to the
 .Dv RESET_START
 register on the node.
 .It Fl l Ar file
@@ -80,7 +80,7 @@ Broadcast
 .Ar gap_count
 by phy_config packet.
 .It Fl i Ar pri_req
-Set
+Set the
 .Dv PRIORITY_BUDGET
 register on all supported nodes.
 .It Fl R Ar filename
@@ -93,7 +93,7 @@ sysctl hw.firewire.try_bmr=0
 fwcontrol -r
 .Ed
 .Pp
-The resulting file contains raw DV data excluding isochronus header
+The resulting file contains raw DV data excluding isochronous header
 and CIP header.
 It can be handled by
 .Nm libdv
@@ -101,10 +101,10 @@ in the
 .Fx
 Ports Collection.
 .It Fl S Ar filename
-Send a DV file as isochronus stream.
+Send a DV file as isochronous stream.
 .El
 .Sh EXAMPLES
-Each DV frame has fixed size and it is easy to edit those frame order.
+Each DV frame has a fixed size and it is easy to edit the frame order.
 .Pp
 .Dl "fwcontrol -R original.dv"
 .Pp
@@ -143,4 +143,4 @@ utility first appeared in
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
 .Sh BUGS
-This utility is still under development and provided for debug purpose.
+This utility is still under development and provided for debugging purposes.
