@@ -3375,7 +3375,7 @@ ttyinitmode(struct tty *tp, int echo, int speed)
 	if (echo)
 		tp->t_init_in.c_lflag = TTYDEF_LFLAG_ECHO;
 	else
-		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
+		tp->t_init_in.c_lflag = TTYDEF_LFLAG_NOECHO;
 
 	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = speed;
 	termioschars(&tp->t_init_in);
