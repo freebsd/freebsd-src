@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.7 1999/05/24 16:39:16 brian Exp $
+ *	$Id: tty.c,v 1.8 1999/05/27 08:42:49 brian Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <termios.h>
@@ -85,6 +86,7 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
+#include "main.h"
 #include "tty.h"
 
 #define	Online(dev)	((dev)->mbits & TIOCM_CD)
@@ -97,6 +99,12 @@ struct ttydevice {
 };
 
 #define device2tty(d) ((d)->type == TTY_DEVICE ? (struct ttydevice *)d : NULL)
+
+int
+tty_DeviceSize(void)
+{
+  return sizeof(struct ttydevice);
+}
 
 /*
  * tty_Timeout() watches the DCD signal and mentions it if it's status
@@ -292,13 +300,18 @@ tty_OpenInfo(struct physical *p)
 }
 
 static void
-tty_device2iov(struct physical *p, struct iovec *iov, int *niov,
+tty_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, pid_t newpid)
 {
-  struct ttydevice *dev = p ? device2tty(p->handler) : NULL;
+  struct ttydevice *dev = device2tty(d);
+  int sz = physical_MaxDeviceSize();
 
-  iov[*niov].iov_base = p ? p->handler : malloc(sizeof(struct ttydevice));
-  iov[*niov].iov_len = sizeof(struct ttydevice);
+  iov[*niov].iov_base = realloc(d, sz);
+  if (iov[*niov].iov_base == NULL) {
+    log_Printf(LogALERT, "Failed to allocate memory: %d\n", sz);
+    AbortProgram(EX_OSERR);
+  }
+  iov[*niov].iov_len = sz;
   (*niov)++;
 
   if (dev->Timer.state != TIMER_STOPPED) {
@@ -329,12 +342,20 @@ tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
   if (type == TTY_DEVICE) {
     struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;
 
+    dev = realloc(dev, sizeof *dev);	/* Reduce to the correct size */
+    if (dev == NULL) {
+      log_Printf(LogALERT, "Failed to allocate memory: %d\n",
+                 (int)(sizeof *dev));
+      AbortProgram(EX_OSERR);
+    }
+
     /* Refresh function pointers etc */
     memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
 
     physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
     if (dev->Timer.state != TIMER_STOPPED) {
       dev->Timer.state = TIMER_STOPPED;
+      p->handler = &dev->dev;		/* For the benefit of StartTimer */
       tty_StartTimer(p);
     }
     return &dev->dev;

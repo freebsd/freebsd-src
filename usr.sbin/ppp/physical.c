@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.15 1999/06/01 19:08:58 brian Exp $
+ *  $Id: physical.c,v 1.16 1999/06/02 00:46:54 brian Exp $
  *
  */
 
@@ -98,15 +98,22 @@ static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
 static void physical_DescriptorRead(struct descriptor *, struct bundle *,
                                     const fd_set *);
 
+static int
+physical_DeviceSize(void)
+{
+  return sizeof(struct device);
+}
+
 struct {
   struct device *(*create)(struct physical *);
   struct device *(*iov2device)(int, struct physical *, struct iovec *iov,
                                int *niov, int maxiov);
+  int (*DeviceSize)(void);
 } devices[] = {
-  { tty_Create, tty_iov2device },
-  { tcp_Create, tcp_iov2device },
-  { udp_Create, udp_iov2device },
-  { exec_Create, exec_iov2device }
+  { tty_Create, tty_iov2device, tty_DeviceSize },
+  { tcp_Create, tcp_iov2device, tcp_DeviceSize },
+  { udp_Create, udp_iov2device, udp_DeviceSize },
+  { exec_Create, exec_iov2device, exec_DeviceSize }
 };
 
 #define NDEVICES (sizeof devices / sizeof devices[0])
@@ -559,6 +566,20 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
 
   p->fd = fd;
 
+  type = (long)p->handler;
+  p->handler = NULL;
+  for (h = 0; h < NDEVICES && p->handler == NULL; h++)
+    p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov);
+
+  if (p->handler == NULL) {
+    log_Printf(LogPHASE, "%s: Device %s, unknown link type\n",
+               p->link.name, p->name.full);
+    free(iov[(*niov)++].iov_base);
+    physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
+  } else
+    log_Printf(LogPHASE, "%s: Device %s, link type is %s\n",
+               p->link.name, p->name.full, p->handler->name);
+
   if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
     lqr_reStart(&p->link.lcp);
   hdlc_StartTimer(&p->hdlc);
@@ -566,20 +587,33 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   throughput_start(&p->link.throughput, "physical throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
 
-  type = (long)p->handler;
-  for (h = 0; h < NDEVICES && p->handler == NULL; h++)
-    p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov);
-
-  if (p->handler == NULL)
-    physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
-
   return p;
+}
+
+int
+physical_MaxDeviceSize()
+{
+  int biggest, sz, n;
+
+  biggest = sizeof(struct device);
+  for (sz = n = 0; n < NDEVICES; n++)
+    if (devices[n].DeviceSize) {
+      sz = (*devices[n].DeviceSize)();
+      if (biggest < sz)
+        biggest = sz;
+    }
+
+  return biggest;
 }
 
 int
 physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
              pid_t newpid)
 {
+  struct device *h;
+  int sz;
+
+  h = NULL;
   if (p) {
     hdlc_StopTimer(&p->hdlc);
     lqr_StopTimer(p);
@@ -591,7 +625,7 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->handler) {
       if (p->handler->device2iov)
-        (*p->handler->device2iov)(p, iov, niov, maxiov, newpid);
+        h = p->handler;
       p->handler = (struct device *)(long)p->handler->type;
     }
 
@@ -604,16 +638,33 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     physical_ChangedPid(p, newpid);
   }
 
-  if (*niov >= maxiov) {
-    log_Printf(LogERROR, "physical2iov: No room for physical !\n");
+  if (*niov + 1 >= maxiov) {
+    log_Printf(LogERROR, "physical2iov: No room for physical + device !\n");
     if (p)
       free(p);
     return -1;
   }
 
-  iov[*niov].iov_base = p ? p : malloc(sizeof *p);
+  iov[*niov].iov_base = p ? (void *)p : malloc(sizeof *p);
   iov[*niov].iov_len = sizeof *p;
   (*niov)++;
+
+  sz = physical_MaxDeviceSize();
+  if (p) {
+    if (h)
+      (*h->device2iov)(h, iov, niov, maxiov, newpid);
+    else {
+      iov[*niov].iov_base = malloc(sz);
+      if (p->handler)
+        memcpy(iov[*niov].iov_base, p->handler, sizeof *p->handler);
+      iov[*niov].iov_len = sz;
+      (*niov)++;
+    }
+  } else {
+    iov[*niov].iov_base = malloc(sz);
+    iov[*niov].iov_len = sz;
+    (*niov)++;
+  }
 
   return p ? p->fd : 0;
 }
