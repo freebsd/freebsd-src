@@ -16,12 +16,12 @@
  * have the same representation, which is true on all platforms FreeBSD
  * runs on, but is not guaranteed by the C standard.
  */
-__dlfunc_t
+dlfunc_t
 dlfunc(void *handle, const char *symbol)
 {
 	union {
 		void *d;
-		__dlfunc_t f;
+		dlfunc_t f;
 	} rv;
 
 	rv.d = dlsym(handle, symbol);
