@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.141 1997/04/13 03:35:30 dyson Exp $
+ *	$Id: pmap.c,v 1.142 1997/04/26 11:45:19 peter Exp $
  */
 
 /*
@@ -352,6 +352,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	virtual_avail = va;
 
 	*(int *) CMAP1 = *(int *) CMAP2 = 0;
+#if !defined(SMP)
+	*(int *) PTD = 0;
+#endif
 
 	invltlb();
 
