@@ -225,5 +225,3 @@ struct fxp_softc {
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
 
 #define	sc_if			arpcom.ac_if
-
-#define	FXP_UNIT(_sc)		(_sc)->arpcom.ac_if.if_unit
