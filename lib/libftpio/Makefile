@@ -1,10 +1,14 @@
+#
+# $FreeBSD$
+#
+
 LIB=		ftpio
 CFLAGS+=	-I${.CURDIR} -Wall
 SRCS=		ftpio.c ftperr.c
 MAN3=		ftpio.3
 CLEANFILES+=	ftperr.c
 
-SHLIB_MAJOR=    4
+SHLIB_MAJOR=    5
 SHLIB_MINOR=	0
 
 beforeinstall:

@@ -61,21 +61,23 @@
 
 ENTRY(sigsetjmp)
 	movl	8(%esp),%eax
-	movl	4(%esp),%ecx 
-	movl	%eax,32(%ecx)
+	movl	4(%esp),%ecx
+	movl	%eax,44(%ecx)
 	testl	%eax,%eax
 	jz	2f
 	PIC_PROLOGUE
-	pushl	$0
+	leal	28(%ecx), %eax
+	pushl	%eax			/* (sigset_t*)oset */
+	pushl	$0			/* (sigset_t*)set  */
+	pushl	$1			/* SIG_BLOCK       */
 #ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigblock))
+	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
 #else
-	call	PIC_PLT(CNAME(sigblock))
+	call	PIC_PLT(CNAME(sigprocmask))
 #endif
-	addl	$4,%esp
+	addl	$12,%esp
 	PIC_EPILOGUE
-	movl	4(%esp),%ecx 
-	movl	%eax,24(%ecx)
+	movl	4(%esp),%ecx
 2:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
 	movl	%ebx, 4(%ecx)
@@ -83,25 +85,28 @@ ENTRY(sigsetjmp)
 	movl	%ebp,12(%ecx)
 	movl	%esi,16(%ecx)
 	movl	%edi,20(%ecx)
-	fnstcw	28(%ecx)
+	fnstcw	24(%ecx)
 	xorl	%eax,%eax
 	ret
 
 ENTRY(siglongjmp)
 	movl	4(%esp),%edx
-	cmpl	$0,32(%edx)
+	cmpl	$0,44(%edx)
 	jz	2f
 	PIC_PROLOGUE
-	pushl	24(%edx)
+	pushl	$0			/* (sigset_t*)oset */
+	leal	28(%edx), %eax
+	pushl	%eax			/* (sigset_t*)set  */
+	pushl	$3			/* SIG_SETMASK     */
 #ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigsetmask))
+	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
 #else
-	call	PIC_PLT(CNAME(sigsetmask))
+	call	PIC_PLT(CNAME(sigprocmask))
 #endif
-	addl	$4,%esp
+	addl	$12,%esp
 	PIC_EPILOGUE
-2:	movl	4(%esp),%edx
-	movl	8(%esp),%eax
+	movl	4(%esp),%edx
+2:	movl	8(%esp),%eax
 	movl	0(%edx),%ecx
 	movl	4(%edx),%ebx
 	movl	8(%edx),%esp
@@ -109,7 +114,7 @@ ENTRY(siglongjmp)
 	movl	16(%edx),%esi
 	movl	20(%edx),%edi
 	fninit
-	fldcw	28(%edx)
+	fldcw	24(%edx)
 	testl	%eax,%eax
 	jnz	1f
 	incl	%eax

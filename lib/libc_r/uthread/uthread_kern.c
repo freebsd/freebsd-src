@@ -61,7 +61,7 @@ static inline void
 thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in);
 
 void
-_thread_kern_sched(struct sigcontext * scp)
+_thread_kern_sched(ucontext_t * scp)
 {
 #ifndef	__alpha__
 	char           *fdata;

@@ -25,6 +25,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "SYS.h"
@@ -61,9 +63,10 @@ LEAF(setjmp, 1)
 	mov	a0, s0				/* squirrel away ptr to sc */
 
 	/* see what's blocked */
-	mov	zero, a0
-	PCALL(sigblock)				/* see what's blocked */
-	stq	v0, (1 * 8)(s0)			/* and remember it in sc_mask */
+	lda	a2, (71 * 8)(a0)		/* oset: sc_reserved */
+	mov	zero, a1			/* set:	 NULL */
+	add	a1, 1, a0			/* how:	 SIG_BLOCK */
+	PCALL(sigprocmask)			/* see what's blocked */
 
 	lda	sp, -24(sp)			/* sizeof struct sigaltstack */
 	mov	zero, a0
@@ -115,7 +118,7 @@ END(setjmp)
 LEAF(longjmp, 2)
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	PCALL(sigreturn)			/* use sigreturn to return */
+	PCALL(osigreturn)			/* use sigreturn to return */
 
 botch:
 	CALL(longjmperror)
