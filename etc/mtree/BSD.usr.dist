@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.145 1999/01/09 21:47:01 jdp Exp $
+#	$Id: BSD.usr.dist,v 1.146 1999/01/18 13:58:47 hm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -291,6 +291,10 @@
                 30.rogue
                 ..
                 31.trek
+                ..
+            ..
+            zh
+                FAQ
                 ..
             ..
         ..
