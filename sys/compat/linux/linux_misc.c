@@ -878,7 +878,7 @@ linux_personality(struct thread *td, struct linux_personality_args *args)
 {
 #ifdef DEBUG
 	if (ldebug(personality))
-		printf(ARGS(personality, "%ld"), args->per);
+		printf(ARGS(personality, "%lu"), (unsigned long)args->per);
 #endif
 #ifndef __alpha__
 	if (args->per != 0)
