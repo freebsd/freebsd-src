@@ -299,6 +299,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: column [-tx] [-c columns] [file ...]\n");
+	    "usage: column [-tx] [-c columns] [-s sep] [file ...]\n");
 	exit(1);
 }
