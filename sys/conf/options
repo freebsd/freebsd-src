@@ -1,4 +1,4 @@
-#	$Id: options,v 1.141 1999/06/05 13:57:07 dfr Exp $
+#	$Id: options,v 1.142 1999/06/15 13:14:34 des Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -186,6 +186,7 @@ SCSI_ISP_NO_NVRAM_MASK	opt_isp.h
 SCSI_ISP_PREFER_MEM_MAP	opt_isp.h
 SCSI_ISP_FABRIC		opt_isp.h
 SCSI_ISP_SCCLUN		opt_isp.h
+SCSI_ISP_FCDUPLEX	opt_isp.h
 ISP_DISABLE_1020_SUPPORT	opt_isp.h
 ISP_DISABLE_1080_SUPPORT	opt_isp.h
 ISP_DISABLE_2100_SUPPORT	opt_isp.h
