@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.46.2.16 1997/04/10 19:25:56 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.46.2.17 1997/04/14 02:31:28 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -71,8 +71,6 @@ reset:
 	/* Always allow reselection */
 	mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
 	call	clear_target_state;
-repoll_for_work:
-	and	SIMODE1, ~ENBUSFREE;
 poll_for_work:
 	test	SSTAT0,SELDO	jnz select;
 	test	SSTAT0,SELDI	jnz reselect;
@@ -163,12 +161,13 @@ paged_busy_link:
 	call	add_scb_to_disc_list;
 	mvi	SEQCTL, FASTMODE;
 	jmp	poll_for_work;
-.endif
+.else
 simple_busy_link:
 	mov	SCBPTR, ARG_1;
 	mov	SCB_LINKED_NEXT, CUR_SCBID;
 	mvi	SEQCTL, FASTMODE;
 	jmp	poll_for_work;
+.endif
 make_busy:
 	mov	DINDIR, CUR_SCBID;
 	mov	SCBPTR, SAVED_SCBPTR;
@@ -209,14 +208,6 @@ initialize_scsiid:
  */
 reselect:
 	clr	MSG_LEN;	/* Don't have anything in the mesg buffer */
-	mvi	CLRSINT1,CLRBUSFREE;
-	or	SIMODE1, ENBUSFREE;		/*
-						 * We aren't expecting a
-						 * bus free, so interrupt
-						 * the kernel driver if it
-						 * happens.
-						 */
-	test	SSTAT0, SELDI jz repoll_for_work;/* False alarm? */
 	mvi	CLRSINT0, CLRSELDI;
 	/* XXX test for and handle ONE BIT condition */
 	and	SAVED_TCL, SELID_MASK, SELID;
@@ -230,25 +221,14 @@ reselect:
  * SCB is used, so don't bother with it now.
  */
 select:
-	mov	SCBPTR, WAITING_SCBH;
-	mvi	CLRSINT1,CLRBUSFREE;
+	/* Turn off the selection hardware */
 	mvi	SCSISEQ, ENRSELI|ENAUTOATNP;	/*
 						 * ATN on parity errors
 						 * for "in" phases
 						 */
-	or	SIMODE1, ENBUSFREE;		/*
-						 * We aren't expecting a
-						 * bus free, so interrupt
-						 * the kernel driver if it
-						 * happens.
-						 */
-	test	SSTAT0, SELDO	jnz select_good;
-	mvi	SCSISEQ, ENSELO|ENAUTOATNO|ENRSELI|ENAUTOATNP;
-	jmp	repoll_for_work;
-select_good:
-	mov	WAITING_SCBH,SCB_NEXT;
-	/* Turn off the selection hardware */
 	mvi	CLRSINT0, CLRSELDO;
+	mov	SCBPTR, WAITING_SCBH;
+	mov	WAITING_SCBH,SCB_NEXT;
 	mov	SAVED_TCL, SCB_TCL;
 /*
  * As soon as we get a successful selection, the target should go
@@ -285,6 +265,13 @@ mk_message:
 	mvi     INTSTAT,AWAITING_MSG;
 
 select2:
+	mvi	CLRSINT1,CLRBUSFREE;
+	or	SIMODE1, ENBUSFREE;		/*
+						 * We aren't expecting a
+						 * bus free, so interrupt
+						 * the kernel driver if it
+						 * happens.
+						 */
 /*
  * Initialize Ultra mode setting and clear the SCSI channel.
  */
@@ -557,14 +544,14 @@ p_mesgout_loop:
 	test	SSTAT1, SCSIPERR	jnz p_mesgout_loop;
 	and	LASTPHASE, PHASE_MASK, SCSISIGI;
 	cmp	LASTPHASE, P_MESGOUT jne p_mesgout_done;
-/*
- * If the next bus phase after ATN drops is a message out, it means
- * that the target is requesting that the last message(s) be resent.
- */
 p_mesgout_testretry:
 	test	DINDEX,0xff	jnz p_mesgout_dropatn;
 	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATN for the retry */
 	jmp	p_mesgout_start;
+/*
+ * If the next bus phase after ATN drops is a message out, it means
+ * that the target is requesting that the last message(s) be resent.
+ */
 p_mesgout_dropatn:
 	cmp	DINDEX,1	jne p_mesgout_outb;	/* last byte? */
 	mvi	CLRSINT1,CLRATNO;			/* drop ATN */
@@ -670,6 +657,7 @@ dma_next_scb:
 	/* Only DMA on top of ourselves if we are the SCB to download */
 	mov	A, SCB_LINKED_NEXT;
 	cmp	SCB_TAG, A	je dma_next_scb2;
+	call	add_scb_to_free_list;
 	mov	SCBPTR, A;
 	jmp	add_to_waiting_list;
 .endif
@@ -835,17 +823,7 @@ setup_SCB:
 
 not_found:
 	mvi	INTSTAT, NO_MATCH;
-send_abort_msg:
-	test	SEQ_FLAGS, TAGGED_SCB jnz send_abort_tag_msg;
-	mvi	MSG_ABORT	call mk_mesg;
-	jmp	send_abort_done;
-send_abort_tag_msg:
-	mvi	MSG_ABORT_TAG	call mk_mesg;	/* ABORT TAG message */
-send_abort_done:
-	/* If we don't have the tag ID yet, we're "looking ahead" at state
-	 * that hasn't been processed, so don't ack.
-	 */
-	cmp	ARG_1, SCB_LIST_NULL	je ITloop;
+	mvi	MSG_BUS_DEV_RESET	call mk_mesg;
 	jmp	mesgin_done;
 
 /*
