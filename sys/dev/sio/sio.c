@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.240 1999/05/09 20:35:02 peter Exp $
+ *	$Id: sio.c,v 1.241 1999/05/10 14:01:29 dfr Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -596,6 +596,14 @@ sioprobe(dev)
 	int		result;
 	device_t	xdev;
 	u_int		flags = isa_get_flags(dev);
+	int		rid;
+	struct resource *port;
+
+	rid = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	if (!port)
+		return ENXIO;
 
 	if (!already_init) {
 		/*
@@ -638,7 +646,6 @@ sioprobe(dev)
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       device_get_unit(dev), COM_MPMASTER(flags));
-			isa_set_irq(dev, 0);
 			idev = dev;
 		}
 		if (!COM_NOTAST4(flags)) {
@@ -652,7 +659,7 @@ sioprobe(dev)
 		mcr_image = 0;
 
 	bzero(failures, sizeof failures);
-	iobase = isa_get_port(dev);
+	iobase = rman_get_start(port);
 
 	/*
 	 * We don't want to get actual interrupts, just masked ones.
@@ -741,7 +748,6 @@ sioprobe(dev)
 			failures[6] = inb(iobase + com_iir);
 		}
 		/* Check IIR_TXRDY clear ? */
-		isa_set_portsize(dev, IO_COMSIZE);
 		result = 0;
 		if ( failures[6] & IIR_TXRDY ) {
 			/* Nop, Double check with clearing IER */
@@ -759,6 +765,7 @@ sioprobe(dev)
 		}
 		outb(iobase + com_cfcr, CFCR_8BITS);
 		enable_intr();
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (iobase == siocniobase ? 0 : result);
 	}
 
@@ -809,7 +816,6 @@ sioprobe(dev)
 		    device_get_unit(dev),
 		    irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
-	isa_set_portsize(dev, IO_COMSIZE);
 	result = 0;
 	for (fn = 0; fn < sizeof failures; ++fn)
 		if (failures[fn]) {
@@ -825,6 +831,7 @@ sioprobe(dev)
 			}
 			break;
 		}
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 	return (iobase == siocniobase ? 0 : result);
 }
 
@@ -907,8 +914,16 @@ sioattach(dev)
 	struct resource *res;
 	int		zero = 0;
 	u_int		flags = isa_get_flags(dev);
+	int		rid;
+	struct resource *port;
 
-	iobase = isa_get_port(dev);
+	rid = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	if (!port)
+		return ENXIO;
+
+	iobase = rman_get_start(port);
 	unit = device_get_unit(dev);
 	com = device_get_softc(dev);
 
