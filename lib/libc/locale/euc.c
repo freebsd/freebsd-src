@@ -82,6 +82,7 @@ _EUC_init(rl)
 		free(rl);
 		return (ENOMEM);
 	}
+	__mb_cur_max = 0;
 	for (x = 0; x < 4; ++x) {
 		ei->count[x] = (int) strtol(v, &e, 0);
 		if (v == e || !(v = e)) {
@@ -89,6 +90,8 @@ _EUC_init(rl)
 			free(ei);
 			return (EFTYPE);
 		}
+		if (__mb_cur_max < ei->count[x])
+			__mb_cur_max = ei->count[x];
 		while (*v == ' ' || *v == '\t')
 			++v;
 		ei->bits[x] = (int) strtol(v, &e, 0);
@@ -114,7 +117,6 @@ _EUC_init(rl)
 	}
 	rl->variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
-	__mb_cur_max = 3;
 	return (0);
 }
 
