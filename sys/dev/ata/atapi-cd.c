@@ -282,7 +282,7 @@ acd_make_dev(struct acd_softc *cdp)
     make_dev_alias(dev, "acd%da", cdp->lun);
     make_dev_alias(dev, "acd%dc", cdp->lun);
     dev->si_drv1 = cdp;
-    dev->si_iosize_max = 252 * DEV_BSIZE;
+    dev->si_iosize_max = 126 * DEV_BSIZE;
     dev->si_bsize_phys = 2048; /* XXX SOS */
     cdp->dev = dev;
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
