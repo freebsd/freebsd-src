@@ -93,8 +93,6 @@ vinumattach(void *dummy)
     daemonq = NULL;					    /* initialize daemon's work queue */
     dqend = NULL;
 
-    cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
-
     vinum_daemon_dev = make_dev(&vinum_cdevsw,
 	VINUM_DAEMON_DEV,
 	UID_ROOT,
@@ -270,7 +268,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #endif
 	destroy_dev(vinum_daemon_dev);			    /* daemon device */
 	destroy_dev(vinum_super_dev);
-	cdevsw_remove(&vinum_cdevsw);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
