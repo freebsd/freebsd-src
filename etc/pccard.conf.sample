@@ -59,6 +59,14 @@ card "Cabletron" "RoamAbout 802.11 DS"
 	remove	logger -t pccard:$device -s WaveLAN/IEEE removed
 	remove	/sbin/ifconfig $device delete
 
+# CNet BC40 adapter
+card "CNet" "CN40BC Ethernet"
+	config	0x20 "ed0" ?
+	insert	logger -t pccard:$device -s CNet CN40BC Ethernet inserted
+	insert	/etc/pccard_ether $device
+	remove	logger -t pccard:$device -s CNet CN40BC Ethernet removed
+	remove	/etc/pccard_ether_remove $device
+
 # LinkMates LM 336 LAN Fax/Modem PC Card
 card "PCMCIAs" "ComboCard"
 	config	0x24 "ed0" ? 0x10
@@ -383,6 +391,12 @@ card "MEGAHERTZ" "XJ2288"
 	config	0x23 "sio2" ?
 	insert	logger -t pccard:$device -s Megahertz XJ2288 inserted
 	remove	logger -t pccard:$device -s Megahertz XJ2288 removed
+
+# Megahertz XJ3288
+card "MEGAHERTZ" "XJ3288"
+	config	0x21 "sio2" ?
+	insert	logger -t pccard:$device -s Megahertz XJ3288 inserted
+	remove	logger -t pccard:$device -s Megahertz XJ3288 removed
 
 # Megahertz XJ-CC4288
 card "Megahertz" "XJ-CC4288"
