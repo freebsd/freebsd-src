@@ -26,46 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef	_RUNQ_H_
-#define	_RUNQ_H_
+#ifndef	_MACHINE_RUNQ_H_
+#define	_MACHINE_RUNQ_H_
 
-#include <machine/runq.h>
+#define	RQB_LEN		(2)		/* Number of priority status words. */
+#define	RQB_L2BPW	(5)		/* Log2(sizeof(rqb_word_t) * NBBY)). */
+#define	RQB_BPW		(1<<RQB_L2BPW)	/* Bits in an rqb_word_t. */
 
-struct kse;
+#define	RQB_BIT(pri)	(1 << ((pri) & (RQB_BPW - 1)))
+#define	RQB_WORD(pri)	((pri) >> RQB_L2BPW)
 
-/*
- * Run queue parameters.
- */
-
-#define	RQ_NQS		(64)		/* Number of run queues. */
-#define	RQ_PPQ		(4)		/* Priorities per queue. */
+#define	RQB_FFS(word)	(ffs(word))
 
 /*
- * Head of run queues.
+ * Type of run queue status word.
  */
-TAILQ_HEAD(rqhead, kse);
-
-/*
- * Bit array which maintains the status of a run queue.  When a queue is
- * non-empty the bit corresponding to the queue number will be set.
- */
-struct rqbits {
-	rqb_word_t rqb_bits[RQB_LEN];
-};
-
-/*
- * Run queue structure.  Contains an array of run queues on which processes
- * are placed, and a structure to maintain the status of each queue.
- */
-struct runq {
-	struct	rqbits rq_status;
-	struct	rqhead rq_queues[RQ_NQS];
-};
-
-void	runq_add(struct runq *, struct kse *);
-int	runq_check(struct runq *);
-struct	kse *runq_choose(struct runq *);
-void	runq_init(struct runq *);
-void	runq_remove(struct runq *, struct kse *);
+typedef	u_int32_t	rqb_word_t;
 
 #endif

@@ -36,6 +36,8 @@
 #include <sys/queue.h>
 #include <machine/critical.h>
 
+CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
+
 /*
  * Global run queue.
  */
