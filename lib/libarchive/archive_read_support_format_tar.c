@@ -81,9 +81,7 @@ struct tar {
 	int			 header_recursion_depth;
 };
 
-static size_t	UTF8_mbrtowc(wchar_t * __restrict pwc,
-		    const char * __restrict s, size_t n,
-		    mbstate_t * __restrict ps __unused);
+static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
 static int	header_Solaris_ACL(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
@@ -640,8 +638,9 @@ static int
 header_pax_extensions(struct archive *a, struct tar *tar,
     struct archive_entry *entry, struct stat *st, const void *h)
 {
-	read_body_to_string(a, &(tar->pax_header), h);
 	int err, err2;
+
+	read_body_to_string(a, &(tar->pax_header), h);
 
 	/* Parse the next header. */
 	err = tar_read_header(a, tar, entry, st);
@@ -1085,7 +1084,7 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 
 	err = 0;
 	while(length > 0) {
-		n = UTF8_mbrtowc(dest, src, length, NULL);
+		n = UTF8_mbrtowc(dest, src, length);
 		if (n == 0)
 			break;
 		if (n > 8) {
@@ -1106,8 +1105,7 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
  * Copied from FreeBSD libc/locale.
  */
 static size_t
-UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
         wchar_t lbound, wch;
