@@ -99,3 +99,5 @@ struct sun_disklabel {			/* total size = 512 bytes */
 	u_int16_t	sl_magic;		/* == SUN_DKMAGIC */
 	u_int16_t	sl_cksum;		/* xor checksum of all shorts */
 };
+
+CTASSERT(sizeof (struct sun_disklabel) == 512);
