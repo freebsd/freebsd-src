@@ -7,10 +7,8 @@
 ** 
 *******************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <stand.h>
 #include <string.h>
-#include <ctype.h>
 #include "ficl.h"
 #include "math64.h"
 

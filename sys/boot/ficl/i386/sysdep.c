@@ -5,15 +5,11 @@
 ** Created: 16 Oct 1997
 ** Implementations of FICL external interface functions... 
 **
-** (simple) port to Linux, Skip Carter 26 March 1998
-**
 *******************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
-
+#include <stand.h>
 #include "ficl.h"
- 
+
 /*
 *******************  FreeBSD  P O R T   B E G I N S   H E R E ******************** Michael Smith
 */
