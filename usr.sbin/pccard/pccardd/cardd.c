@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.29 1998/03/02 20:51:06 guido Exp $";
+	"$Id: cardd.c,v 1.30 1998/03/09 05:18:50 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -101,7 +101,6 @@ readslots(void)
 		sp->fd = fd;
 		sp->name = newstr(name);
 		sp->slot = i;
-		sp->state = empty;
 
 		/* Check to see if the controller memory has been set up. */
 		if (slots == 0) {
@@ -120,9 +119,6 @@ readslots(void)
 					logerr("ioctl (PIOCRWMEM)");
 			}
 		}
-#ifdef DEBUG
-		printf("%p %p\n", sp, &sp->next);
-#endif
 		sp->next = slots;
 		slots = sp;
 		slot_change(sp);
@@ -143,27 +139,20 @@ slot_change(struct slot *sp)
 		logerr("ioctl (PIOCGSTATE)");
 		return;
 	}
-#ifdef DEBUG
-	if (state.state == sp->state)
-		logmsg("State same as before, continuing anyway");
-#endif
 	switch (state.state) {
 	case empty:
 	case noslot:
-		card_removed(sp);
+		if (state.laststate == filled)
+			card_removed(sp);
 		break;
 	case filled:
 		/*
-		 * If state was already filled, fake a removal first to get
+		 * If the previous state was suspend, fake a removal to get
 		 * our state in sync with the kernel. This happens when the
-		 * systems resumes and we only get to process the state 
-		 * change from suspend to empty after inserted() has run.
-		 * In that case the kernel state is perfectly normal.
-		 *
-		 * The reason for not doing nothing is that the kernel
-		 * has to be informed again about IRQ and IO window.
+		 * system resumes, since we can only reliably process
+		 * the state change after we resume.
 		 */
-		if (state.state == sp->state)
+		if (state.laststate == suspend)
 			card_removed(sp);
 		card_inserted(sp);
 		break;
@@ -171,7 +160,6 @@ slot_change(struct slot *sp)
 		/* ignored */
 		break;
 	}
-	sp->state = state.state;
 }
 
 /*
