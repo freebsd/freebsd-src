@@ -59,7 +59,6 @@ int sstk(struct thread *, void *, int *);
 int swapon(struct thread *, void *, int *);
 #endif			/* TYPEDEF_FOR_UAP */
 
-int grow(struct proc *, size_t);
 int grow_stack(struct proc *, size_t);
 int kernacc(caddr_t, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
