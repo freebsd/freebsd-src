@@ -14,7 +14,7 @@ portupgrade.  Important recent entries: 20040724 (default X changes).
 
 	  options IPFIREWALL_FORWARD_EXTENDED
 
-	This option has to be specified in addition to IPFIRWALL_FORWARD.
+	This option has to be specified in addition to IPFIREWALL_FORWARD.
 	With this option even packets targeted for an IP address local
 	to the host can be redirected.  All restrictions to ensure proper
 	behaviour for locally generated packets are turned off.  Firewall
