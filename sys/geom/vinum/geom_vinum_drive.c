@@ -281,13 +281,15 @@ gv_drive_orphan(struct g_consumer *cp)
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
 	d = gp->softc;
-	printf("gvinum: lost drive '%s'\n", d->name);
-	d->geom = NULL;
-	LIST_FOREACH(s, &d->subdisks, from_drive) {
-		s->provider = NULL;
-		s->consumer = NULL;
+	if (d != NULL) {
+		printf("gvinum: lost drive '%s'\n", d->name);
+		d->geom = NULL;
+		LIST_FOREACH(s, &d->subdisks, from_drive) {
+			s->provider = NULL;
+			s->consumer = NULL;
+		}
+		gv_set_drive_state(d, GV_DRIVE_DOWN, GV_SETSTATE_FORCE);
 	}
-	gv_set_drive_state(d, GV_DRIVE_DOWN, GV_SETSTATE_FORCE);
 	gp->softc = NULL;
 	g_wither_geom(gp, error);
 }
@@ -465,12 +467,9 @@ static int
 gv_drive_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp)
 {
-	/*struct gv_drive *d;*/
-
 	g_trace(G_T_TOPOLOGY, "gv_drive_destroy_geom: %s", gp->name);
 	g_topology_assert();
 
-	/* g_free(sc); */
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }
