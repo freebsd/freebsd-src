@@ -6,13 +6,14 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.6 1995/04/30 06:09:28 phk Exp $
+ * $Id: tst01.c,v 1.7 1995/04/30 11:04:16 phk Exp $
  *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <err.h>
 #ifdef READLINE
@@ -72,6 +73,52 @@ u_char bteasy17[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,85,170
 };
+
+int
+scan_block(int fd, daddr_t block)
+{
+	u_char foo[512];
+
+	if (-1 == lseek(fd,block * 512,SEEK_SET))
+		err(1,"lseek");
+	if (512 != read(fd,foo, 512))
+		return 1;
+	return 0;
+}
+
+void
+Scan_Disk(struct disk *d)
+{
+	char device[64];
+	u_long l;
+	int i,j,fd;
+
+        strcpy(device,"/dev/r");
+        strcat(device,d->name);
+
+        fd = open(device,O_RDWR);
+        if (fd < 0) {
+                warn("open(%s) failed",device);
+                return;
+        }
+	for(i=-1,l=0;;l++) {
+		j = scan_block(fd,l);
+		if (j != i) {
+			if (i == -1) {
+				printf("%c: %lu.",j ? 'B' : 'G', l);
+				fflush(stdout);
+			} else if (i == 0) {
+				printf(".%lu\nB: %lu.",l-1,l);
+				fflush(stdout);
+			} else {
+				printf(".%lu\nG: %lu.",l-1,l);
+				fflush(stdout);
+			}
+			i = j;	
+		}
+	} 
+	close(fd);
+}
 
 int
 main(int argc, char **argv)
@@ -189,6 +236,10 @@ main(int argc, char **argv)
 				d = db;
 			continue;
 		}
+		if (!strcasecmp(*cmds,"scan")) {
+			Scan_Disk(d);
+			continue;
+		}
 		if (!strcasecmp(*cmds,"bteasy")) {
 			Set_Boot_Mgr(d,bteasy17);
 			continue;
@@ -225,6 +276,7 @@ main(int argc, char **argv)
 		printf("\tphys cyl hd sect\n");
 		printf("\tquit\n");
 		printf("\tread [disk]\n");
+		printf("\tscan\n");
 		printf("\twrite\n");
 		printf("\nENUM:\n\t");
 		for(i=0;chunk_n[i];i++)
