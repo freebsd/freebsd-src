@@ -1321,7 +1321,6 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 		 * instead.
 		 */
 		if (fxp_add_rfabuf(sc, m) == 0) {
-			struct ether_header *eh;
 			int total_len;
 
 			/*
@@ -1339,13 +1338,8 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 				continue;
 			}
 
-			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = m->m_len = total_len;
-			eh = mtod(m, struct ether_header *);
-			m->m_data += sizeof(struct ether_header);
-			m->m_len -= sizeof(struct ether_header);
-			m->m_pkthdr.len = m->m_len;
-			ether_input(ifp, eh, m);
+			ether_input(ifp, NULL, m);
 		}
 	}
 	if (rnr) {
