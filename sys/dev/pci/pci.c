@@ -1901,14 +1901,14 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.bios = pci_read_config(dev, PCIR_BIOS, 4);
 
 	/*
-	 * Some drivers apparently write to these registers w/o
-	 * updating our cahced copy.  No harm happens if we update the
-	 * copy, so do so here so we can restore them.  The COMMAND
-	 * register is modified by the bus w/o updating the cache.  This
-	 * should represent the normally writable portion of the 'defined'
-	 * part of type 0 headers.  In theory we also need to save/restore
-	 * the PCI capability structures we know about, but apart from power
-	 * we don't know any that are writable.
+	 * Some drivers apparently write to these registers w/o updating our
+	 * cahced copy.  No harm happens if we update the copy, so do so here
+	 * so we can restore them.  The COMMAND register is modified by the
+	 * bus w/o updating the cache.  This should represent the normally
+	 * writable portion of the 'defined' part of type 0 headers.  In
+	 * theory we also need to save/restore the PCI capability structures
+	 * we know about, but apart from power we don't know any that are
+	 * writable.
 	 */
 	dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_0, 2);
@@ -1927,19 +1927,19 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.revid = pci_read_config(dev, PCIR_REVID, 1);
 
 	/*
-	 * don't set the state for display devices and for memory devices
-	 * since bad things happen.  we should (a) have drivers that can easily
-	 * detach and (b) use generic drivers for these devices so that some
-	 * device actually attaches.  We need to make sure that when we
-	 * implement (a) we don't power the device down on a reattach.
+	 * don't set the state for display devices, base peripherals and
+	 * memory devices since bad things happen when they are powered down.
+	 * We should (a) have drivers that can easily detach and (b) use
+	 * generic drivers for these devices so that some device actually
+	 * attaches.  We need to make sure that when we implement (a) we don't
+	 * power the device down on a reattach.
 	 */
 	cls = pci_get_class(dev);
 	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY &&
 	    cls != PCIC_BASEPERIPH) {
 		/*
-		 * PCI spec is clear that we can only go into D3 state from
-		 * D0 state.  Transition from D[12] into D0 before going
-		 * to D3 state.
+		 * PCI spec says we can only go into D3 state from D0 state.
+		 * Transition from D[12] into D0 before going to D3 state.
 		 */
 		ps = pci_get_powerstate(dev);
 		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
