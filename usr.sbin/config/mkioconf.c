@@ -686,7 +686,7 @@ isa_biotab(fp, table)
 
 	fprintf(fp, "\n\nstruct isa_device isa_biotab_%s[] = {\n", table);
 	fprintf(fp, "\
-/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags  drive*/\n");
+/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags  drive alive ri_flags reconfig enabled conflicts next */\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (dp->d_unit == QUES || mp == 0 ||
@@ -694,10 +694,10 @@ isa_biotab(fp, table)
 			continue;
 		fprintf(fp, "{ -1, &%3sdriver, %8s,",
 			mp->d_name, mp->d_port);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, %2d, 0, 0, 0, 1 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, %2d, 0, 0, 0, 1, %2d, 0 },\n",
 			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
 			mp->d_msize, shandler(mp), dp->d_unit,
-			dp->d_flags, dp->d_drive);
+			dp->d_flags, dp->d_drive, dp->d_conflicts);
 	}
 	fprintf(fp, "0\n};\n");
 }
@@ -717,7 +717,7 @@ isa_devtab(fp, table, dev_idp)
 
 	fprintf(fp, "\n\nstruct isa_device isa_devtab_%s[] = {\n", table);
 	fprintf(fp, "\
-/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags conflicts */\n");
+/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags scsiid alive ri_flags reconfig enabled conflicts next */\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_unit == QUES || !eq(dp->d_mask, table))
 			continue;
@@ -729,7 +729,7 @@ isa_devtab(fp, table, dev_idp)
 			fprintf(fp, " %8s,", dp->d_port);
 		else
 			fprintf(fp, "   0x%04x,", dp->d_portn);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, %2d, 0, 0, 0, 0, 1 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s,  %2d, 0x%04X, 0, 0, 0, 0, 1, %2d, 0 },\n",
 			sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
 			dp->d_msize, shandler(dp), dp->d_unit,
 			dp->d_flags, dp->d_conflicts);
