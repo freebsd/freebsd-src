@@ -32,12 +32,16 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
+.Dd May 4, 2005
 .Dt NEXTAFTER 3
 .Os
 .Sh NAME
 .Nm nextafter ,
-.Nm nextafterf
+.Nm nextafterf ,
+.Nm nextafterl ,
+.Nm nexttoward ,
+.Nm nexttowardf ,
+.Nm nexttowardl
 .Nd next representable value
 .Sh LIBRARY
 .Lb libm
@@ -47,10 +51,16 @@
 .Fn nextafter "double x" "double y"
 .Ft float
 .Fn nextafterf "float x" "float y"
+.Ft long double
+.Fn nextafterl "long double x" "long double y"
+.Ft double
+.Fn nexttoward "double x" "long double y"
+.Ft float
+.Fn nexttowardf "float x" "long double y"
+.Ft long double
+.Fn nexttowardl "long double x" "long double y"
 .Sh DESCRIPTION
-.Fn nextafter
-and
-.Fn nextafterf
+These functions
 return the next machine representable number from
 .Fa x
 in direction
@@ -60,9 +70,13 @@ in direction
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn nextafter
+.Fn nextafter ,
+.Fn nextafterf ,
+.Fn nextafterl ,
+.Fn nexttoward ,
+.Fn nexttowardf ,
 and
-.Fn nextafterf
+.Fn nexttowardl
 routines conform to
 .St -isoC-99 .
 They implement the Nextafter function recommended by
