@@ -1,14 +1,13 @@
+# $Id$
 
 FILES=	Termcap Terminfo pcvt.el rc.local uemacs.tar.Z.uu xmodmap-german
 
+NOOBJ=
+
 beforeinstall:
-	for file in ${FILES}; \
-	do \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/$$file ${DESTDIR}${BINDIR}/Etc/$$file ; \
-	done
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ${FILES} \
+	    ${DESTDIR}${BINDIR}/Etc
 
 afterdistribute: beforeinstall
 
-.include "../Makefile.inc"
-.include <bsd.subdir.mk>
+.include <bsd.prog.mk>
