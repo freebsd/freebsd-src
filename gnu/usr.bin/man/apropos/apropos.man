@@ -28,6 +28,9 @@ searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
 .B whatis
-display only complete word matches.
+display only complete word matches. 
+The 
+.B apropos
+utility exits 0 on success, and 1 if no keyword matched.
 .SH "SEE ALSO"
 man(1), makewhatis(1).
