@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  * report() - calls syslog
  */
@@ -10,6 +12,8 @@
 
 #include <stdio.h>
 #include <syslog.h>
+#include <string.h>
+#include <errno.h>
 
 #include "report.h"
 
@@ -135,9 +139,6 @@ report(priority, fmt, va_alist)
 char *
 get_errmsg()
 {
-	extern int errno;
-	extern char *strerror();
-
 	return strerror(errno);
 }
 
