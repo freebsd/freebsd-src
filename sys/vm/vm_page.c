@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.69 1996/10/15 03:16:45 dyson Exp $
+ *	$Id: vm_page.c,v 1.70 1996/11/05 04:19:08 dyson Exp $
  */
 
 /*
@@ -98,16 +98,16 @@ static struct pglist *vm_page_buckets;	/* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 
-struct pglist vm_page_queue_free[PQ_L2_SIZE];
-struct pglist vm_page_queue_zero[PQ_L2_SIZE];
-struct pglist vm_page_queue_active;
-struct pglist vm_page_queue_inactive;
-struct pglist vm_page_queue_cache[PQ_L2_SIZE];
+struct pglist vm_page_queue_free[PQ_L2_SIZE] = {0};
+struct pglist vm_page_queue_zero[PQ_L2_SIZE] = {0};
+struct pglist vm_page_queue_active = {0};
+struct pglist vm_page_queue_inactive = {0};
+struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {0};
 
-int no_queue;
+int no_queue=0;
 
-struct vpgqueues vm_page_queues[PQ_COUNT];
-int pqcnt[PQ_COUNT];
+struct vpgqueues vm_page_queues[PQ_COUNT] = {0};
+int pqcnt[PQ_COUNT] = {0};
 
 static void
 vm_page_queue_init(void) {
@@ -142,13 +142,13 @@ vm_page_queue_init(void) {
 	}
 }
 
-vm_page_t vm_page_array;
-int vm_page_array_size;
-long first_page;
+vm_page_t vm_page_array = 0;
+int vm_page_array_size = 0;
+long first_page = 0;
 static long last_page;
 static vm_size_t page_mask;
 static int page_shift;
-int vm_page_zero_count;
+int vm_page_zero_count = 0;
 
 /*
  * map of contiguous valid DEV_BSIZE chunks in a page
