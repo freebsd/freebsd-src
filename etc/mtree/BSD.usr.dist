@@ -26,8 +26,6 @@
         ..
         lint
         ..
-        stallion
-        ..
     ..
     libexec
         lpr
