@@ -42,6 +42,9 @@
 
 #include <cam/scsi/scsi_all.h>
 
+/* XXX: This is not where we should get fldoff() from. */
+#include <struct.h>
+
 #include <dev/mly/mlyreg.h>
 #include <dev/mly/mlyvar.h>
 #define MLY_DEFINE_TABLES
