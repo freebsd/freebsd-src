@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.2 1997/05/11 18:05:39 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.3 1997/05/14 01:31:54 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -116,6 +116,10 @@ static int setfs __P((struct sockaddr_in *addr, char *path, char *p));
 static int getdec __P((char **ptr));
 static char *substr __P((char *a,char *b));
 static void mountopts __P((struct nfs_args *args, char *p)); 
+static int xdr_opaque_decode __P((struct mbuf **ptr,u_char *buf,
+				  int len));
+static int xdr_int_decode __P((struct mbuf **ptr,int *iptr));
+static void printip __P((char *prefix,struct in_addr addr));
 
 #ifdef BOOTP_DEBUG
 void bootpboot_p_sa(struct sockaddr *sa,struct sockaddr *ma);
@@ -558,19 +562,6 @@ bootpc_adjust_interface(struct ifreq *ireq,struct socket *so,
     return error;
   }
 
-#if 0
-  olddst.sin_addr.s_addr = INADDR_BROADCAST;
-  
-  error = rtrequest(RTM_DELETE, 
-		    (struct sockaddr *) &olddst, 
-		    (struct sockaddr *) &oldgw,
-		    (struct sockaddr *) NULL,
-		    (RTF_UP | RTF_HOST | RTF_STATIC), NULL);
-  if (error) {
-    printf("nfs_boot: del broadcast route, error=%d\n", error);
-  }
-#endif
-
   /*
    * Do enough of ifconfig(8) so that the chosen interface
    * can talk to the servers.  (just set the address)
@@ -607,21 +598,6 @@ bootpc_adjust_interface(struct ifreq *ireq,struct socket *so,
     printf("nfs_boot: add net route, error=%d\n", error);
     return error;
   }
-
-#if 0
-  /* Remove default gateway arp entry. This is a kludge, but
-     somehow the arp entry is added without an arp request
-     being sent, causing outgoing packets to be dropped onto the floor */
-  
-  error = rtrequest(RTM_DELETE, 
-		    (struct sockaddr *) gw,
-		    (struct sockaddr *) NULL,
-		    (struct sockaddr *) NULL, 
-		    (RTF_UP | RTF_HOST | RTF_STATIC), NULL);
-  if (error) {
-    printf("nfs_boot: del default gateway linklevel route, error=%d\n", error);
-  }
-#endif
 
   return 0;
 }
@@ -714,6 +690,51 @@ static void mountopts(args,p)
 	    args->sotype = SOCK_STREAM;
 }
 
+static int xdr_opaque_decode(mptr,buf,len)
+     struct mbuf **mptr;
+     u_char *buf;
+     int len;	
+{
+  struct mbuf *m;
+  int alignedlen;
+
+  m = *mptr;
+  alignedlen = ( len + 3 ) & ~3;
+
+  if (m->m_len < alignedlen) {
+    m = m_pullup(m,alignedlen);
+    if (m == NULL) {
+      *mptr = NULL;
+      return EBADRPC;
+    }
+  }
+  bcopy(mtod(m,u_char *),buf,len);
+  m_adj(m,alignedlen);
+  *mptr = m;
+  return 0;
+}
+
+static int xdr_int_decode(mptr,iptr)
+     struct mbuf **mptr;
+     int *iptr;
+{
+  u_int32_t i;
+  if (xdr_opaque_decode(mptr,(u_char *) &i,sizeof(u_int32_t)))
+    return EBADRPC;
+  *iptr = fxdr_unsigned(u_int32_t,i);
+  return 0;
+}
+
+static void printip(char *prefix,struct in_addr addr)
+{
+  unsigned int ip;
+
+  ip = ntohl(addr.s_addr);
+
+  printf("%s is %d.%d.%d.%d\n",prefix,
+	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+}
+
 void
 bootpc_init(void)
 {
@@ -796,7 +817,7 @@ bootpc_init(void)
   if (sdl->sdl_alen != EALEN ) 
     panic("bootpc: HW address len is %d, expected value is %d",
 	  sdl->sdl_alen,EALEN);
-#if 1
+
   printf("bootpc hw address is ");
   delim="";
   for (j=0;j<sdl->sdl_alen;j++) {
@@ -804,7 +825,6 @@ bootpc_init(void)
     delim=":";
   }
   printf("\n");
-#endif
 
 #if 0
   bootpboot_p_iflist();
@@ -871,21 +891,15 @@ bootpc_init(void)
   myaddr.sin_addr = reply.yiaddr;
 
   ip = ntohl(myaddr.sin_addr.s_addr);
-  printf("My ip address is %d.%d.%d.%d\n",
-	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
-
   sprintf(lookup_path,"swap.%d.%d.%d.%d",
 	  ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
 
-  ip = ntohl(reply.siaddr.s_addr);
-  printf("Server ip address is %d.%d.%d.%d\n",
-	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+  printip("My ip address",myaddr.sin_addr);
 
-  ip = ntohl(reply.giaddr.s_addr);
-  printf("Gateway ip address is %d.%d.%d.%d\n",
-	 ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
+  printip("Server ip address",reply.siaddr);
 
   gw.sin_addr = reply.giaddr;
+  printip("Gateway ip address",reply.giaddr);
 
   if (reply.sname[0])
     printf("Server name is %s\n",reply.sname);
@@ -918,12 +932,10 @@ bootpc_init(void)
 	  panic("bootpc: subnet mask len is %d",len);
 	bcopy(&reply.vend[j],&netmask.sin_addr,4);
 	gotnetmask=1;
-	printf("Subnet mask is %d.%d.%d.%d\n",
-	       reply.vend[j],
-	       reply.vend[j+1],
-	       reply.vend[j+2],
-	       reply.vend[j+3]);
+	printip("Subnet mask",netmask.sin_addr);
 	break;
+      case 6:	/* Domain Name servers. Unused */
+      case 16:	/* Swap server IP address. unused */
       case 2:
 	/* Time offset */
 	break;
@@ -933,19 +945,9 @@ bootpc_init(void)
 	  panic("bootpc: Router Len is %d",len);
 	if (len > 0) {
 	  bcopy(&reply.vend[j],&gw.sin_addr,4);
+	  printip("Router",gw.sin_addr);
 	  gotgw=1;
 	}
-	for (i=0;i<len;i+=4) {
-	  printf("Router is %d.%d.%d.%d\n",
-		 reply.vend[j+i],
-		 reply.vend[j+i+1],
-		 reply.vend[j+i+2],
-		 reply.vend[j+i+3]);
-	}
-	break;
-      case 6:/* Domain Name servers. Unused */
-	break;
-      case 16: /* Swap server IP address. unused */
 	break;
       case 17:
 	if (setfs(&nd->root_saddr, nd->root_hostnam, p)) {
@@ -1001,12 +1003,12 @@ bootpc_init(void)
 #endif
 
   if (!gotnetmask) {
-    if (IN_CLASSA(myaddr.sin_addr.s_addr))
-      netmask.sin_addr.s_addr = IN_CLASSA_NET;
-    else if (IN_CLASSB(myaddr.sin_addr.s_addr))
-      netmask.sin_addr.s_addr = IN_CLASSB_NET;
+    if (IN_CLASSA(ntohl(myaddr.sin_addr.s_addr)))
+      netmask.sin_addr.s_addr = htonl(IN_CLASSA_NET);
+    else if (IN_CLASSB(ntohl(myaddr.sin_addr.s_addr)))
+      netmask.sin_addr.s_addr = htonl(IN_CLASSB_NET);
     else 
-      netmask.sin_addr.s_addr = IN_CLASSC_NET;
+      netmask.sin_addr.s_addr = htonl(IN_CLASSC_NET);
   }
   if (!gotgw) {
     /* Use proxyarp */
@@ -1120,59 +1122,31 @@ md_mount(mdsin, path, fhp, fhsizep, args, procp)
 	}
 #endif
 
-	if (m->m_len < sizeof(u_int32_t)) {
-	  m = m_pullup(m, sizeof(u_int32_t));
-	  if (m == NULL)
-	    goto bad;
-	}
-	error = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
-	if (error)
+	if (xdr_int_decode(&m,&error) || error)
 	  goto bad;
-	m_adj(m,sizeof(u_int32_t));
 
 	if (args->flags & NFSMNT_NFSV3) {
-	  if (m->m_len < sizeof(u_int32_t)) {
-	    m = m_pullup(m, sizeof(u_int32_t));
-	    if (m == NULL)
-	      goto bad;
-	  }
-	  *fhsizep = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
-	  if (*fhsizep > NFSX_V3FHMAX || *fhsizep <= 0 ) 
+	  if (xdr_int_decode(&m,fhsizep) ||
+	      *fhsizep > NFSX_V3FHMAX || *fhsizep <= 0 ) 
 	    goto bad;
-	  m_adj(m,sizeof(u_int32_t));
 	} else 
 	  *fhsizep = NFSX_V2FH;
 
-	if (m->m_len < (((*fhsizep)+3)&~3)) {
-	  m = m_pullup(m,(((*fhsizep)+3)&~3));
-	  if (m == NULL)
-	    goto bad;
-	}
-	bcopy(mtod(m,u_char *), fhp, *fhsizep);
-	m_adj(m,(((*fhsizep)+3)&~3));
+	if (xdr_opaque_decode(&m,fhp,*fhsizep))
+	  goto bad;
 
 	if (args->flags & NFSMNT_NFSV3) {
-	  if (m->m_len < sizeof(u_int32_t)) {
-	    m = m_pullup(m, sizeof(u_int32_t));
-	    if (m == NULL)
-	      goto bad;
-	  }
-	  authcount = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
+	  if (xdr_int_decode(&m,&authcount))
+	    goto bad;
 	  authunixok = 0;
-	  m_adj(m,sizeof(u_int32_t));
 	  if (authcount<0 || authcount>100)
 	    goto bad;
 	  while (authcount>0) {
-	    if (m->m_len < sizeof(u_int32_t)) {
-	      m = m_pullup(m, sizeof(u_int32_t));
-	      if (m == NULL)
-		goto bad;
-	    }
-	    authver = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
+	    if (xdr_int_decode(&m,&authver))
+	      goto bad;
 	    if (authver == RPCAUTH_UNIX)
 	      authunixok = 1;
 	    authcount--;
-	    m_adj(m,sizeof(u_int32_t));
 	  }
 	  if (!authunixok)
 	    goto bad;
@@ -1193,6 +1167,7 @@ out:
 	return error;
 }
 
+
 static int md_lookup_swap(mdsin, path, fhp, fhsizep, args, procp)
 	struct sockaddr_in *mdsin;		/* mountd server address */
 	char *path;
@@ -1206,6 +1181,10 @@ static int md_lookup_swap(mdsin, path, fhp, fhsizep, args, procp)
 	int size = -1;
 	int attribs_present;
 	int status;
+	union {
+	  u_int32_t v2[17];
+	  u_int32_t v3[21];
+	} fattribs;
 
 	m = m_get(M_WAIT,MT_DATA);
 	if (!m)
@@ -1236,62 +1215,37 @@ static int md_lookup_swap(mdsin, path, fhp, fhsizep, args, procp)
 	if (error)
 	  return error;	/* message already freed */
 
-	if (m->m_len < sizeof(u_int32_t)) {
-	  m = m_pullup(m, sizeof(u_int32_t));
-	  if (m == NULL)
-	    goto bad;
-	}
-	status = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
-	m_adj(m,sizeof(u_int32_t));
+	if (xdr_int_decode(&m,&status))
+	  goto bad;
 	if (status) {
 	  error = ENOENT;
 	  goto out;
 	}
 	
 	if (args->flags & NFSMNT_NFSV3) {
-	  if (m->m_len < sizeof(u_int32_t)) {
-	    m = m_pullup(m, sizeof(u_int32_t));
-	    if (m == NULL)
-	      goto bad;
-	  }
-	  *fhsizep = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
-	  if (*fhsizep > NFSX_V3FHMAX || *fhsizep <= 0 ) 
+	  if (xdr_int_decode(&m,fhsizep) ||
+	      *fhsizep > NFSX_V3FHMAX || *fhsizep <= 0 ) 
 	    goto bad;
-	  m_adj(m,sizeof(u_int32_t));
 	} else
 	  *fhsizep = NFSX_V2FH;
 	
-	if (m->m_len < (((*fhsizep)+3)&~3)) {
-	  m = m_pullup(m,(((*fhsizep)+3)&~3));
-	  if (m == NULL)
-	    goto bad;
-	}
-	bcopy(mtod(m,u_char *), fhp, *fhsizep);
-	m_adj(m,(((*fhsizep)+3)&~3));
+	if (xdr_opaque_decode(&m, fhp, *fhsizep))
+	  goto bad;
 
 	if (args->flags & NFSMNT_NFSV3) {
-	  if (m->m_len < sizeof(u_int32_t)) {
-	    m = m_pullup(m, sizeof(u_int32_t));
-	    if (m == NULL)
-	      goto bad;
-	  }
-	  attribs_present = fxdr_unsigned(u_int32_t, *mtod(m,u_int32_t *));
-	  m_adj(m,sizeof(u_int32_t));
+	  if (xdr_int_decode(&m,&attribs_present))
+	    goto bad;
 	  if (attribs_present) {
-	    if (m->m_len < sizeof(u_int32_t)*21) {
-	      m = m_pullup(m, sizeof(u_int32_t)*21);
-	      if (m == NULL)
-		goto bad;
-	    }
-	    size = fxdr_unsigned(u_int32_t, mtod(m,u_int32_t *)[6]);
+	    if (xdr_opaque_decode(&m,(u_char *) &fattribs.v3,
+				  sizeof(u_int32_t)*21))
+	      goto bad;
+	    size = fxdr_unsigned(u_int32_t, fattribs.v3[6]);
 	  }
 	} else {
-	  if (m->m_len < sizeof(u_int32_t)*17) {
-	    m = m_pullup(m, sizeof(u_int32_t)*17);
-	    if (m == NULL)
-	      goto bad;
-	  }
-	  size = fxdr_unsigned(u_int32_t, mtod(m,u_int32_t *)[5]);
+  	  if (xdr_opaque_decode(&m,(u_char *) &fattribs.v2,
+				sizeof(u_int32_t)*17))
+	    goto bad;
+	  size = fxdr_unsigned(u_int32_t, fattribs.v2[5]);
 	}
 	  
 	if (!nfsv3_diskless.swap_nblks && size!= -1) {
