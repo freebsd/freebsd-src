@@ -33,8 +33,6 @@
  * without notice.
  */
 
-MALLOC_DECLARE(M_ISADEV);
-
 /*
  * PNP configurations are kept in a tailq.
  */
