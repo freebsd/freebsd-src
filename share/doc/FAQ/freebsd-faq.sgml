@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.59 1996/08/04 15:29:20 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.60 1996/08/05 17:18:03 jraynard Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2461,15 +2461,30 @@ disk        fd1   at fdc0 drive 1
 
           The following mappings are currently supported:
           <itemize>
-            <item>Danish (both ISO and cp865),
-            <item>French (ISO only),
-            <item>German (both ISO and cp850),
-            <item>Russian,
-            <item>Swedish (both ISO and cp850),
-            <item>U.K. (both ISO and cp850),
-            <item>Spain,
-            <item>U.S.A. (ISO only),
-            <item>Dvorak US.
+		<!-- automatically created by `kbdmap -p' -->
+
+		<item>Brazilian 275 keyboard Codepage 850 
+		<item>Brazilian 275 keyboard ISO-8859-1 
+		<item>Danish Codepage 865 
+		<item>Danish ISO-8859-1 
+		<item>French ISO-8859-1 
+		<item>German Codepage 850 
+		<item>German ISO-8859-1 
+		<item>Italian ISO-8859-1 
+		<item>Japanese 106 
+		<item>Japanese 106x 
+		<item>Norwegian ISO-8859-1 
+		<item>Russian Codepage 866 (alternative) 
+		<item>Russian koi8-r (shift) 
+		<item>Russian koi8-r 
+		<item>Spanish ISO-8859-1 
+		<item>Swedish Codepage 850 
+		<item>Swedish ISO-8859-1 
+		<item>United Kingdom Codepage 850 
+		<item>United Kingdom ISO-8859-1 
+		<item>United States of America ISO-8859-1 
+		<item>United States of America dvorak 
+		<item>United States of America dvorakx 
           </itemize>
       </sect1>
 
