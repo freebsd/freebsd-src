@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.13 1997/09/25 15:50:53 davidg Exp $
+ *	$Id: machdep.c,v 1.209.2.14 1997/12/03 02:48:29 sef Exp $
  */
 
 #include "npx.h"
@@ -745,7 +745,7 @@ union descriptor ldt[NLDT];		/* local descriptor table */
 
 #ifndef NO_F00F_HACK
 struct gate_descriptor *t_idt;
-int has_f00f_bug;
+extern int has_f00f_bug;
 #endif
 
 static struct i386tss dblfault_tss;
@@ -1374,9 +1374,6 @@ void
 f00f_hack(void) {
 	struct region_descriptor r_idt;
 	unsigned char *tmp;
-	int i;
-	vm_offset_t vp;
-	unsigned *pte;
 
 	if (!has_f00f_bug)
 		return;
@@ -1395,7 +1392,6 @@ f00f_hack(void) {
 	bcopy(idt, t_idt, sizeof(idt));
 	r_idt.rd_base = (int)t_idt;
 	lidt(&r_idt);
-	vp = trunc_page(t_idt);
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
