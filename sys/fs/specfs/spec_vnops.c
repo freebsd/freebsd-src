@@ -54,7 +54,6 @@
 
 static int	spec_advlock(struct vop_advlock_args *);
 static int	spec_close(struct vop_close_args *);
-static int	spec_freeblks(struct vop_freeblks_args *);
 static int	spec_fsync(struct  vop_fsync_args *);
 static int	spec_getpages(struct vop_getpages_args *);
 static int	spec_ioctl(struct vop_ioctl_args *);
@@ -74,7 +73,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) vop_panic },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) vop_panic },
-	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
@@ -462,10 +460,8 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	struct cdevsw *dsw;
 	struct thread *td = curthread;
 	
-	KASSERT(bp->b_iocmd == BIO_READ ||
-		bp->b_iocmd == BIO_WRITE ||
-		bp->b_iocmd == BIO_DELETE, 
-		("Wrong b_iocmd buf=%p cmd=%d", bp, bp->b_iocmd));
+	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
+	    ("Wrong b_iocmd buf=%p cmd=%d", bp, bp->b_iocmd));
 
 	/*
 	 * Slow down disk requests for niced processes.
@@ -529,33 +525,6 @@ spec_specstrategy(ap)
 	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
-static int
-spec_freeblks(ap)
-	struct vop_freeblks_args /* {
-		struct vnode *a_vp;
-		daddr_t a_addr;
-		daddr_t a_length;
-	} */ *ap;
-{
-	struct buf *bp;
-
-	/*
-	 * XXX: This assumes that strategy does the deed right away.
-	 * XXX: this may not be TRTTD.
-	 */
-	if ((ap->a_vp->v_rdev->si_flags & SI_CANDELETE) == 0)
-		return (0);
-	bp = geteblk(ap->a_length);
-	bp->b_iocmd = BIO_DELETE;
-	bp->b_dev = ap->a_vp->v_rdev;
-	bp->b_blkno = ap->a_addr;
-	bp->b_offset = dbtob(ap->a_addr);
-	bp->b_iooffset = bp->b_offset;
-	bp->b_bcount = ap->a_length;
-	BUF_KERNPROC(bp);
-	DEV_STRATEGY(bp);
-	return (0);
-}
 
 /*
  * Device close routine
