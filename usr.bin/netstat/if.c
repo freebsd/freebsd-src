@@ -340,19 +340,19 @@ loop:
 			continue;
 		}
 		if (ip == interesting) {
-			printf("%8d %5d ",
+			printf("%8u %5u ",
 				ifnet.if_ipackets - ip->ift_ip,
 				ifnet.if_ierrors - ip->ift_ie);
 			if (bflag)
-				printf("%10d ", ifnet.if_ibytes - ip->ift_ib);
-			printf("%8d %5d ",
+				printf("%10u ", ifnet.if_ibytes - ip->ift_ib);
+			printf("%8u %5u ",
 				ifnet.if_opackets - ip->ift_op,
 				ifnet.if_oerrors - ip->ift_oe);
 			if (bflag)
-				printf("%10d ", ifnet.if_obytes - ip->ift_ob);
-			printf("%5d", ifnet.if_collisions - ip->ift_co);
+				printf("%10u ", ifnet.if_obytes - ip->ift_ob);
+			printf("%5u", ifnet.if_collisions - ip->ift_co);
 			if (dflag)
-				printf(" %5d",
+				printf(" %5u",
 				    ifnet.if_snd.ifq_drops - ip->ift_dr);
 		}
 		ip->ift_ip = ifnet.if_ipackets;
@@ -374,19 +374,19 @@ loop:
 		off = (u_long) ifnet.if_next;
 	}
 	if (lastif - iftot > 0) {
-		printf("  %8d %5d",
+		printf("  %8u %5u",
 			sum->ift_ip - total->ift_ip,
 			sum->ift_ie - total->ift_ie);
 		if (bflag)
-			printf(" %10d", sum->ift_ib - total->ift_ib);
-		printf(" %8d %5d",
+			printf(" %10u", sum->ift_ib - total->ift_ib);
+		printf(" %8u %5u",
 			sum->ift_op - total->ift_op,
 			sum->ift_oe - total->ift_oe);
 		if (bflag)
-			printf(" %10d", sum->ift_ob - total->ift_ob);
-		printf(" %5d", sum->ift_co - total->ift_co);
+			printf(" %10u", sum->ift_ob - total->ift_ob);
+		printf(" %5u", sum->ift_co - total->ift_co);
 		if (dflag)
-			printf(" %5d", sum->ift_dr - total->ift_dr);
+			printf(" %5u", sum->ift_dr - total->ift_dr);
 	}
 	*total = *sum;
 	putchar('\n');
