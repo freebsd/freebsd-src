@@ -50,4 +50,16 @@ typedef struct __mcontext {
 	long	__spare__[6];
 } mcontext_t;
 
+#if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
+struct mcontext4 {
+	long	mc_onstack;		/* XXX - sigcontext compat. */
+	unsigned long mc_regs[37];
+	unsigned long mc_fpregs[32];
+	unsigned long mc_fpcr;
+	unsigned long mc_fp_control;
+	long	mc_ownedfp;
+	long	__spare__[7];
+};
+#endif
+
 #endif /* !_MACHINE_UCONTEXT_H_ */

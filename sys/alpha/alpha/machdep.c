@@ -232,6 +232,10 @@ SYSCTL_ULONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 #ifdef COMPAT_43
 void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 #endif
+#ifdef COMPAT_FREEBSD4
+static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
+    u_long code);
+#endif
 
 static void identifycpu(void);
 
@@ -1250,7 +1254,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Set up the registers to return to sigcode.
 	 */
-	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
+	frame->tf_regs[FRAME_PC] = PS_STRINGS - szosigcode;
 	frame->tf_regs[FRAME_A0] = sig;
 	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	PROC_LOCK(p);
@@ -1263,6 +1267,121 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	alpha_pal_wrusp((unsigned long)sip);
 }
 #endif
+
+#ifdef COMPAT_FREEBSD4
+static void
+freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+{
+	struct proc *p;
+	struct thread *td;
+	struct trapframe *frame;
+	struct sigacts *psp;
+	struct sigframe4 sf, *sfp;
+	int oonstack, rndfsize;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	psp = p->p_sigacts;
+
+	frame = td->td_frame;
+	oonstack = sigonstack(alpha_pal_rdusp());
+	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+
+	/* save user context */
+	bzero(&sf, sizeof(sf));
+	sf.sf_uc.uc_sigmask = *mask;
+	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+
+	fill_regs(td, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
+	sf.sf_uc.uc_mcontext.mc_regs[R_SP] = alpha_pal_rdusp();
+	sf.sf_uc.uc_mcontext.mc_regs[R_ZERO] = 0xACEDBADE;   /* magic number */
+	sf.sf_uc.uc_mcontext.mc_regs[R_PS] = frame->tf_regs[FRAME_PS];
+	sf.sf_uc.uc_mcontext.mc_regs[R_PC] = frame->tf_regs[FRAME_PC];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A0] =
+	    frame->tf_regs[FRAME_TRAPARG_A0];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A1] =
+	    frame->tf_regs[FRAME_TRAPARG_A1];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A2] =
+	    frame->tf_regs[FRAME_TRAPARG_A2];
+
+	/*
+	 * Allocate and validate space for the signal handler
+	 * context. Note that if the stack is in P0 space, the
+	 * call to grow() is a nop, and the useracc() check
+	 * will fail if the process has not already allocated
+	 * the space with a `brk'.
+	 */
+	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sfp = (struct sigframe4 *)((caddr_t)p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - rndfsize);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
+	} else
+		sfp = (struct sigframe4 *)(alpha_pal_rdusp() - rndfsize);
+	PROC_UNLOCK(p);
+
+	/* save the floating-point state, if necessary, then copy it. */
+	alpha_fpstate_save(td, 1);
+	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDTD_FPUSED;
+	bcopy(&td->td_pcb->pcb_fp,
+	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
+	      sizeof(struct fpreg));
+	sf.sf_uc.uc_mcontext.mc_fp_control = td->td_pcb->pcb_fp_control;
+
+#ifdef COMPAT_OSF1
+	/*
+	 * XXX Create an OSF/1-style sigcontext and associated goo.
+	 */
+#endif
+
+	/*
+	 * copy the frame out to userland.
+	 */
+	if (copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf)) != 0) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		PROC_LOCK(p);
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
+		psignal(p, SIGILL);
+		return;
+	}
+
+	/*
+	 * Set up the registers to return to sigcode.
+	 */
+	frame->tf_regs[FRAME_PC] = PS_STRINGS - szfreebsd4_sigcode;
+	frame->tf_regs[FRAME_A0] = sig;
+	PROC_LOCK(p);
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
+
+		/* Fill in POSIX parts */
+		sf.sf_si.si_signo = sig;
+		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
+		sf.sf_si.si_pid = p->p_pid;
+		sf.sf_si.si_uid = p->p_ucred->cr_uid;
+	}
+	else
+		frame->tf_regs[FRAME_A1] = code;
+
+	frame->tf_regs[FRAME_A2] = (u_int64_t)&(sfp->sf_uc);
+	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
+	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	alpha_pal_wrusp((unsigned long)sfp);
+}
+#endif	/* COMPAT_FREEBSD4 */
 
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
@@ -1278,6 +1397,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+#ifdef COMPAT_FREEBSD4
+	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
+		freebsd4_sendsig(catcher, sig, mask, code);
+		return;
+	}
+#endif
 #ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		osendsig(catcher, sig, mask, code);
@@ -1377,7 +1502,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Set up the registers to return to sigcode.
 	 */
-	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
+	frame->tf_regs[FRAME_PC] = PS_STRINGS - szsigcode;
 	frame->tf_regs[FRAME_A0] = sig;
 	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
@@ -1419,13 +1544,13 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  *
  * MPSAFE
  */
+#ifdef COMPAT_43
 int
 osigreturn(struct thread *td,
 	struct osigreturn_args /* {
 		struct osigcontext *sigcntxp;
 	} */ *uap)
 {
-#ifdef COMPAT_43
 	struct osigcontext *scp, ksc;
 	struct proc *p = td->td_proc;
 
@@ -1479,10 +1604,82 @@ osigreturn(struct thread *td,
 	    sizeof(struct fpreg));
 	td->td_pcb->pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
-#else /* !COMPAT_43 */
-	return (ENOSYS);
-#endif /* COMPAT_43 */
 }
+#endif /* COMPAT_43 */
+
+#ifdef COMPAT_FREEBSD4
+/*
+ * MPSAFE
+ */
+int
+freebsd4_sigreturn(struct thread *td,
+	struct freebsd4_sigreturn_args /* {
+		const struct ucontext4 *sigcntxp;
+	} */ *uap)
+{
+	struct ucontext4 uc;
+	const struct ucontext4 *ucp;
+	struct pcb *pcb;
+	unsigned long val;
+	struct proc *p;
+	int error;
+
+	ucp = uap->sigcntxp;
+	pcb = td->td_pcb;
+	p = td->td_proc;
+
+	/*
+	 * Fetch the entire context structure at once for speed.
+	 * Note that struct osigcontext is smaller than a ucontext_t,
+	 * so even if copyin() faults, we may have actually gotten a complete
+	 * struct osigcontext.
+	 */
+	error = copyin(ucp, &uc, sizeof(ucontext_t));
+	if (error != 0) {
+#ifdef COMPAT_43
+		if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+			return osigreturn(td, (struct osigreturn_args *)uap);
+#endif
+		return (error);
+	}
+
+#ifdef COMPAT_43
+	 if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+		  return osigreturn(td, (struct osigreturn_args *)uap);
+#endif
+
+	/*
+	 * Restore the user-supplied information
+	 */
+	set_regs(td, (struct reg *)uc.uc_mcontext.mc_regs);
+	val = (uc.uc_mcontext.mc_regs[R_PS] | ALPHA_PSL_USERSET) &
+	    ~ALPHA_PSL_USERCLR;
+	td->td_frame->tf_regs[FRAME_PS] = val;
+	td->td_frame->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
+	td->td_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
+
+	PROC_LOCK(p);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	if (uc.uc_mcontext.mc_onstack & 1)
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
+
+	p->p_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
+	PROC_UNLOCK(p);
+
+	/* XXX ksc.sc_ownedfp ? */
+	alpha_fpstate_drop(td);
+	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
+	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
+	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
+	return (EJUSTRETURN);
+}
+#endif /* COMPAT_FREEBSD4 */
 
 /*
  * MPSAFE
@@ -1498,6 +1695,7 @@ sigreturn(struct thread *td,
 	struct pcb *pcb;
 	unsigned long val;
 	struct proc *p;
+	int error;
 
 	ucp = uap->sigcntxp;
 	pcb = td->td_pcb;
@@ -1507,21 +1705,22 @@ sigreturn(struct thread *td,
 	if (sigdebug & SDB_FOLLOW)
 	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, ucp);
 #endif
-
 	/*
 	 * Fetch the entire context structure at once for speed.
 	 * Note that struct osigcontext is smaller than a ucontext_t,
 	 * so even if copyin() faults, we may have actually gotten a complete
 	 * struct osigcontext.
+	 * XXX we'll *still* be getting osigcontext's here due to longjmp(3)
+	 * brain damage.
 	 */
-	if (copyin(ucp, &uc, sizeof(ucontext_t))) {
+	error = copyin(ucp, &uc, sizeof(ucontext_t));
+	if (error != 0) {
 #ifdef COMPAT_43
 		if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
 			return osigreturn(td, (struct osigreturn_args *)uap);
 #endif
-		return (EFAULT);
+		return (error);
 	}
-
 #ifdef COMPAT_43
 	 if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
 		  return osigreturn(td, (struct osigreturn_args *)uap);

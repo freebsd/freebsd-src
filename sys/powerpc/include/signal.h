@@ -44,28 +44,7 @@
 typedef int sig_atomic_t;
 
 #ifdef _KERNEL
-typedef unsigned int osigset_t;
-
 #include <machine/frame.h>
-
-/*
- * XXX why do we have compatibility structs for a new platform?
- */
-#if defined(__LIBC12_SOURCE__) || defined(_KERNEL)
-struct sigcontext13 {
-	int sc_onstack;			/* saved onstack flag */
-	int sc_mask;			/* saved signal mask (old style) */
-	struct trapframe sc_frame;	/* saved registers */
-};
-#endif /* __LIBC12_SOURCE__ || _KERNEL */
-
-struct osigcontext {
-	int sc_onstack;			/* saved onstack flag */
-	int __sc_mask13;		/* saved signal mask (old style) */
-	struct trapframe sc_frame;	/* saved registers */
-	struct __sigset sc_mask;	/* saved signal mask (new style) */
-};
-
 #endif /* _KERNEL */
 
 #if __BSD_VISIBLE
