@@ -846,31 +846,14 @@ main(int argc, char **argv)
 		Targ_PrintGraph(1);
 
 	/* print the values of any variables requested by the user */
-	if (!Lst_IsEmpty(&variables)) {
-		LstNode *ln;
-
-		for (ln = Lst_First(&variables); ln != NULL;
-		    ln = Lst_Succ(ln)) {
-			char *value;
-			if (expandVars) {
-				p1 = emalloc(strlen(Lst_Datum(ln)) + 1 + 3);
-				/* This sprintf is safe, because of the malloc above */
-				sprintf(p1, "${%s}", (char *)Lst_Datum(ln));
-				value = Var_Subst(NULL, p1, VAR_GLOBAL, FALSE);
-			} else {
-				value = Var_Value(Lst_Datum(ln),
-						  VAR_GLOBAL, &p1);
-			}
-			printf("%s\n", value ? value : "");
-			if (p1)
-				free(p1);
-		}
-	} else {
-
+	if (Lst_IsEmpty(&variables)) {
 		/*
-		 * Have now read the entire graph and need to make a list of targets
-		 * to create. If none was given on the command line, we consult the
-		 * parsing module to find the main target(s) to create.
+		 * Since the user has not requested that any variables
+		 * be printed, we can built targets.
+		 *
+		 * Have red the entire graph and need to make a list of targets
+		 * to create. If none was given on the command line, we consult
+		 * the parsing module to find the main target(s) to create.
 		 */
 		Lst targs = Lst_Initializer(targs);
 
@@ -879,12 +862,22 @@ main(int argc, char **argv)
 		else
 			Targ_FindList(&targs, &create, TARG_CREATE);
 
-		if (!compatMake) {
+		if (compatMake) {
 			/*
-			 * Initialize job module before traversing the graph, now that
-			 * any .BEGIN and .END targets have been read.  This is done
-			 * only if the -q flag wasn't given (to prevent the .BEGIN from
-			 * being executed should it exist).
+			 * Compat_Init will take care of creating
+			 * all the targets as well as initializing
+			 * the module.
+			 */
+			Compat_Run(&targs);
+			outOfDate = 0;
+		} else {
+			/*
+			 * Initialize job module before traversing
+			 * the graph, now that any .BEGIN and .END
+			 * targets have been read.  This is done
+			 * only if the -q flag wasn't given (to
+			 * prevent the .BEGIN from being executed
+			 * should it exist).
 			 */
 			if (!queryFlag) {
 				Job_Init(maxJobs);
@@ -893,15 +886,34 @@ main(int argc, char **argv)
 
 			/* Traverse the graph, checking on all the targets */
 			outOfDate = Make_Run(&targs);
-		} else {
-			/*
-			 * Compat_Init will take care of creating all the targets as
-			 * well as initializing the module.
-			 */
-			Compat_Run(&targs);
-			outOfDate = 0;
 		}
 		Lst_Destroy(&targs, NOFREE);
+
+	} else {
+		/*
+		 * Print the values of any variables requested by
+		 * the user.
+		 */
+		LstNode *ln;
+		const char *name;
+		char *v;
+		char *value;
+
+		for (ln = Lst_First(&variables); ln != NULL;
+		    ln = Lst_Succ(ln)) {
+			name = Lst_Datum(ln);
+			if (expandVars) {
+				v = emalloc(strlen(name) + 1 + 3);
+				sprintf(v, "${%s}", name);
+
+				value = Var_Subst(NULL, v, VAR_GLOBAL, FALSE);
+			} else {
+				value = Var_Value(name, VAR_GLOBAL, &v);
+			}
+			printf("%s\n", value != NULL ? value : "");
+			if (v != NULL)
+				free(v);
+		}
 	}
 
 	Lst_Destroy(&variables, free);
