@@ -118,7 +118,7 @@ static u_int32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
 SYSCTL_UINT(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
 	&poll_burst_max, 0, "Max Polling burst size");
 
-static u_int32_t poll_in_idle_loop=0;	/* do we poll in idle loop ? */
+static u_int32_t poll_in_idle_loop=1;	/* do we poll in idle loop ? */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
 	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
 
