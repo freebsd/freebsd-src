@@ -55,8 +55,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.17 1998/12/22 18:14:50 gibbs Exp $
+ *      $Id: aha.c,v 1.18 1998/12/22 22:31:06 imp Exp $
  */
+
+#include "pnp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -79,10 +81,15 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#if NPNP > 0
+#include <i386/isa/isa_device.h>
+#include <i386/isa/pnp.h>		/* XXX pnp isn't x86 only */
+#endif
  
 #include <dev/aha/ahareg.h>
 
-struct aha_softc *aha_softcs[NAHA];
+struct aha_softc *aha_softcs[NAHATOT];
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define	PRVERB(x) if (bootverbose) printf x
@@ -209,7 +216,7 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 	struct  aha_softc *aha;  
 
 	if (unit != AHA_TEMP_UNIT) {
-		if (unit >= NAHA) {
+		if (unit >= NAHATOT) {
 			printf("aha: unit number (%d) too high\n", unit);
 			return NULL;
 		}
@@ -235,6 +242,8 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 	aha->unit = unit;
 	aha->tag = tag;
 	aha->bsh = bsh;
+	aha->ccb_sg_opcode = INITIATOR_SG_CCB_WRESID;
+	aha->ccb_ccb_opcode = INITIATOR_CCB_WRESID;
 
 	if (aha->unit != AHA_TEMP_UNIT) {
 		aha_softcs[unit] = aha;
@@ -902,7 +911,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 
 			csio = &ccb->csio;
 			ccbh = &csio->ccb_h;
-			hccb->opcode = INITIATOR_CCB_WRESID;
+			hccb->opcode = aha->ccb_ccb_opcode;
 			hccb->datain = (ccb->ccb_h.flags & CAM_DIR_IN) != 0;
 			hccb->dataout = (ccb->ccb_h.flags & CAM_DIR_OUT) != 0;
 			hccb->cmd_len = csio->cdb_len;
@@ -1169,7 +1178,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		}
 
 		if (nseg > 1) {
-			accb->hccb.opcode = INITIATOR_SG_CCB_WRESID;
+			accb->hccb.opcode = aha->ccb_sg_opcode;
 			ahautoa24((sizeof(aha_sg_t) * nseg),
 				  accb->hccb.data_len);
 			ahautoa24(accb->sg_list_phys, accb->hccb.data_addr);
@@ -1360,7 +1369,10 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 	case AMBI_ABORT:
 	case AMBI_ERROR:
 		/* An error occured */
-		csio->resid = aha_a24tou(accb->hccb.data_len);
+		if (accb->hccb.opcode < INITIATOR_CCB_WRESID)
+			csio->resid = 0;
+		else
+			csio->resid = aha_a24tou(accb->hccb.data_len);
 		switch(accb->hccb.ahastat) {
 		case AHASTAT_DATARUN_ERROR:
 		{
@@ -1406,8 +1418,16 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 			panic("%s: Inavlid Action code", aha_name(aha));
 			break;
 		case AHASTAT_INVALID_OPCODE:
-			panic("%s: Invalid CCB Opcode code %x hccb = %p",
-			      aha_name(aha), accb->hccb.opcode, &accb->hccb);
+			if (accb->hccb.opcode < INITIATOR_CCB_WRESID)
+				panic("%s: Invalid CCB Opcode %x hccb = %p",
+					aha_name(aha), accb->hccb.opcode,
+					&accb->hccb);
+			printf("%s: AHA-1540A detected, compensating\n",
+				aha_name(aha));
+			aha->ccb_sg_opcode = INITIATOR_SG_CCB;
+			aha->ccb_ccb_opcode = INITIATOR_CCB;
+			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
+			csio->ccb_h.status = CAM_REQUEUE_REQ;
 			break;
 		case AHASTAT_LINKED_CCB_LUN_MISMATCH:
 			/* We don't even support linked commands... */
@@ -1418,7 +1438,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 			break;
 		case AHASTAT_HA_SCSI_BUS_RESET:
 			if ((csio->ccb_h.status & CAM_STATUS_MASK)
-			 != CAM_CMD_TIMEOUT)
+			    != CAM_CMD_TIMEOUT)
 				csio->ccb_h.status = CAM_SCSI_BUS_RESET;
 			break;
 		case AHASTAT_HA_BDR:
@@ -1440,6 +1460,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 	case AMBI_OK:
 		/* All completed without incident */
 		/* XXX DO WE NEED TO COPY SENSE BYTES HERE???? XXX */
+		/* I don't think so since it works???? */
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 		if ((accb->flags & ACCB_RELEASE_SIMQ) != 0)
 			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
