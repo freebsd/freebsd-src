@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.6 1995/06/05 15:26:35 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.7 1995/06/05 23:57:36 jkh Exp $
 
 Table of Contents
 -----------------
@@ -289,7 +289,7 @@ wds:    Western Digital WD7000 IDE
 
 
 4.      Known Hardware Problems, Q & A:
----     -------------------------------
+--      -------------------------------
 
 Q: mcd0 keeps thinking that it has found a device and this stops my Intel
    EtherExpress card from working.
@@ -348,5 +348,18 @@ Q: I'm trying to install from a tape drive but all I get is something like:
 A: There's a limitation in the current sysinstall that the tape MUST
    be in the drive while sysinstall is started or it won't be detected.
    Try again with the tape in the drive the whole time.
+
+
+Q: I've installed FreeBSD onto my system, but it hangs when booting from 
+   the hard drive with the message: ``Changing root to /dev/sd0a''.
+
+A: This problem may occur in a system with a 3com 3c509 ethernet adaptor.
+   The ep0 device driver appears to be sensitive to probes for other
+   devices that also use address 0x300.  Boot your FreeBSD system by power
+   cycling the machine (turn off and on).  At the ``Boot:'' prompt specify
+   the ``-c''.  This will invoke UserConfig (see Section 1. above).  Use
+   the ``disable'' command to disable the device probes for all devices
+   at address 0x300 except the ep0 driver.   On exit, your machine should
+   successfully boot FreeBSD.
 
 [ Please add more hardware tips to this Q&A section! ]
