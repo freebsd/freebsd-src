@@ -202,7 +202,7 @@ reprint:
 		if (!*captain)
 			(void) strcpy(captain, "no name");
 		else
-			captain[strlen(captain) - 1] = '\0';
+			captain[sizeof(captain) - 1] = '\0';
 	}
 	Write(W_CAPTAIN, ms, 1, (int)captain, 0, 0, 0);
 	for (n = 0; n < 2; n++) {
@@ -211,7 +211,7 @@ reprint:
 		printf("\nInitial broadside %s (grape, chain, round, double): ",
 			n ? "right" : "left");
 		(void) fflush(stdout);
-		(void) scanf("%s", buf);
+		(void) scanf("%9s", buf);
 		switch (*buf) {
 		case 'g':
 			load = L_GRAPE;
