@@ -606,6 +606,18 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->quirks |= FORCE_SHORT_INQUIRY;
 		return(UMATCH_VENDOR_PRODUCT);
 	}
+
+	if (UGETW(dd->idVendor) == USB_VENDOR_HP
+	    && UGETW(dd->idProduct) == USB_PRODUCT_HP_CDW8200) {
+		sc->drive = SHUTTLE_EUSB;
+#if CBI_I
+		sc->proto = PROTO_ATAPI | PROTO_CBI_I;
+#else
+		sc->proto = PROTO_ATAPI | PROTO_CBI;
+#endif
+		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
+		return(UMATCH_VENDOR_PRODUCT);
+	}
 #endif
 
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
