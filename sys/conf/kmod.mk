@@ -132,16 +132,13 @@ PROG=	${KMOD}.ko
 .endif
 
 ${PROG}: ${KMOD}.kld ${KMODDEPS}
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld ${KMODDEPS}
-
-${KMOD}.kld: ${OBJS}
 .if ${OBJFORMAT} == elf
-	gensetdefs ${OBJS}
+	gensetdefs ${KMOD}.kld
 	${CC} ${CFLAGS} -c setdef0.c
 	${CC} ${CFLAGS} -c setdef1.c
-	${LD} ${LDFLAGS} -r -o ${.TARGET} setdef0.o ${OBJS} setdef1.o
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${KMOD}.kld setdef1.o ${KMODDEPS}
 .else
-	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld ${KMODDEPS}
 .endif
 
 .if defined(KMODDEPS)
@@ -153,6 +150,9 @@ ${dep}:
 	${CC} -shared ${CFLAGS} -o ${dep} __${dep}_hack_dep.c
 .endfor
 .endif
+
+${KMOD}.kld: ${OBJS}
+	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
