@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.71 1995/12/27 05:36:20 pst Exp $
+#	$Id: Makefile,v 1.72 1996/01/01 08:33:17 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -212,7 +212,7 @@ mk:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/mk &&		${MAKE} install
 
-includes:
+includes: include-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
@@ -327,6 +327,14 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
+include-tools:
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuild tools necessary to build the include files"
+	@echo "--------------------------------------------------------------"
+	@echo
+	cd ${.CURDIR}/usr.bin/rpcgen && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+
 build-tools:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} C compiler, make, symorder, sgmlfmt and zic(8)"
@@ -335,8 +343,6 @@ build-tools:
 	cd ${.CURDIR}/gnu/usr.bin/cc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/rpcgen && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/symorder && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
