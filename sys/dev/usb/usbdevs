@@ -659,6 +659,7 @@ product EPSON GT9300UF		0x011b	GT-9300UF scanner
 product EPSON 3200		0x011c  Perfection 3200 scanner
 product EPSON 1260		0x011d	Perfection 1260 scanner
 product EPSON 1660		0x011e	Perfection 1660 scanner
+product EPSON 1670		0x011f	Perfection 1670 scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
