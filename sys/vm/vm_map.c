@@ -1496,7 +1496,6 @@ vm_map_pageable(map, start, end, new_pageable)
 		if (vm_map_pmap(map) == kernel_pmap) {
 			vm_map_unlock(map);	/* trust me ... */
 		} else {
-			vm_map_set_recursive(map);
 			vm_map_lock_downgrade(map);
 		}
 
@@ -1526,8 +1525,6 @@ vm_map_pageable(map, start, end, new_pageable)
 
 		if (vm_map_pmap(map) == kernel_pmap) {
 			vm_map_lock(map);
-		} else {
-			vm_map_clear_recursive(map);
 		}
 		if (rv) {
 			vm_map_unlock(map);
