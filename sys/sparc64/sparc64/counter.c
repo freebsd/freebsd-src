@@ -37,6 +37,7 @@
 
 #define	COUNTER_MASK	((1 << 29) - 1)
 #define	COUNTER_FREQ	1000000
+#define	COUNTER_QUALITY	100
 
 /* Bits in the limit register. */
 #define	CTLR_INTEN	(1U << 31)	/* Enable timer interrupts */
@@ -94,6 +95,7 @@ sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
 	tc->tc_frequency = COUNTER_FREQ;
 	tc->tc_name = "counter-timer";
 	tc->tc_priv = sc;
+	tc->tc_quality = COUNTER_QUALITY;
 	tc_init(tc);
 }
 
