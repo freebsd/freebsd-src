@@ -40,6 +40,9 @@ static char sccsid[] = "@(#)gets.c	8.1 (Berkeley) 6/4/93";
 
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/cdefs.h>
+
+__warn_references(gets, "warning: this program uses gets(), which is unsafe.");
 
 char *
 gets(buf)
