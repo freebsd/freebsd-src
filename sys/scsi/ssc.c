@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.10 1995/12/10 20:34:49 bde Exp $
+ * $Id: ssc.c,v 1.11 1996/03/28 14:33:56 scrappy Exp $
  */
 
 #include <sys/types.h>
@@ -134,7 +134,7 @@ sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
  */
 
 static ssc_devsw_installed = 0;
-#ifdev DEVFS
+#ifdef DEVFS
 static	void *ssc_devfs_token;
 #endif
 
