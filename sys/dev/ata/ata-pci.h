@@ -59,7 +59,8 @@ struct ata_pci_controller {
     struct {
     void		(*function)(void *);
     void		 *argument;
-    } interrupt[4];	/* SOS max ch# for now XXX */
+    } interrupt[8];	/* SOS max ch# for now XXX */
+    void		 *driver;
 };
 
 #define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
@@ -119,6 +120,10 @@ struct ata_pci_controller {
 #define ATA_I82801DB_1		0x24ca8086
 #define ATA_I82801EB		0x24db8086
 #define ATA_I82801EB_1		0x24d18086
+#define ATA_I82801EB_2		0x24df8086
+#define ATA_I6300ESB		0x25a28086
+#define ATA_I6300ESB_1		0x25a38086
+#define ATA_I6300ESB_2		0x25b08086
 
 #define ATA_NATIONAL_ID		0x100b
 #define ATA_SC1100		0x0502100b
@@ -154,6 +159,7 @@ struct ata_pci_controller {
 #define ATA_PDC20619		0x6629105a
 #define ATA_PDC20620		0x6620105a
 #define ATA_PDC20621		0x6621105a
+#define ATA_PDC20622		0x6622105a
 
 #define ATA_SERVERWORKS_ID	0x1166
 #define ATA_ROSB4_ISA		0x02001166
@@ -253,7 +259,7 @@ struct ata_pci_controller {
 #define PRTX		2
 #define PRMIO		3
 #define PRTX4		0x01
-#define PRSX4K		0x02
+#define PRSX4X		0x02
 #define PRSX6K		0x04
 #define PRSATA		0x08
 #define PRDUAL		0x10

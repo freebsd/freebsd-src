@@ -146,6 +146,7 @@ ata_pccard_probe(device_t dev)
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ch->locking = ata_pccard_locknoop;
     ch->device[MASTER].setmode = ata_pccard_setmode;
+    ata_generic_hw(ch);
     return ata_probe(dev);
 }
 
