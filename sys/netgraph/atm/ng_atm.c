@@ -638,8 +638,6 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 		return (EINVAL);
 	data.param.vpi = arg->vpi;
 
-	if (arg->vci > 0xffff)
-		return (EINVAL);
 	/* allow 0.0 as catch all receive channel */
 	if (arg->vci == 0 && (arg->vpi != 0 || !(arg->flags & ATMIO_FLAG_NOTX)))
 		return (EINVAL);
@@ -655,8 +653,6 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 		if (arg->tmtu == 0)
 			data.param.tmtu = priv->ifp->if_mtu;
 		else {
-			if (arg->tmtu > (1 << 16))
-				return (EINVAL);
 			data.param.tmtu = arg->tmtu;
 		}
 	}
@@ -664,8 +660,6 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 		if (arg->rmtu == 0)
 			data.param.rmtu = priv->ifp->if_mtu;
 		else {
-			if (arg->rmtu > (1 << 16))
-				return (EINVAL);
 			data.param.rmtu = arg->rmtu;
 		}
 	}
