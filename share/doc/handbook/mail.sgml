@@ -1,0 +1,359 @@
+<!--  $Id: dialup.sgml,v 1.13 1996/08/15 20:52:18 mpp Exp $
+      The FreeBSD Documentation Project
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+
+<linuxdoc>
+  <article>
+      <title> Mail
+      <author>  &a.wlloyd;
+      <date> 24 Nov 1996, (c) 1996
+
+      <abstract> This section contains basic information on setting up E-Mail for you FreeBSD box.
+      </abstract>
+	
+    <toc>
+-->
+
+<chapt><heading>Electronic Mail<label id="mail"></heading>
+<sect><heading>Basic Information</heading>
+
+<p><em>Contributed by &a.wlloyd;.</em>
+
+<p>   E-mail, as simple as the concept sounds, can be extremely complicated.  If you plan on doing anything beyond setting up a simple one machine E-mail system, you should buy and refer to a book on Sendmail.
+
+   <sect1><heading>Introduction</heading>
+        <p>
+	These are the major programs or components of an e-mail exchange.
+	<sect2><heading>User program</heading>
+	<p> This is a program like <tt /elm, pine, mail/ , or something more sophisticated like a WWW browser.  This program will simply pass off all e-mail transactions to the local mailhost, either by calling <tt>sendmail</tt> or delivering it over TCP to your mailhost.
+	<sect2><heading>Transport Agent - Sendmail</heading>
+	<p> Usually this program is <tt /sendmail or smail/ running in the background.  Turn it off or change the command line options in <tt> /etc/sysconfig </tt>.  It is best to leave it on unless you have a specific reason to want it off.  Ie: Firewall 
+<p>
+You should be aware that <tt>sendmail</tt> is a potential weak link in a secure site.  Some versions of <tt>sendmail</tt> have known security problems.
+ 
+	<p> <tt> sendmail </tt> will look up in the DNS to determine the actual host that will receive mail for the destination.
+	<p> Sendmail will take the message from the local queue and deliver it across the internet to another sendmail on the receivers computer. 
+	<p> Sendmail will also be able to do the reverse.  It will accept messages and save them on your local machine. 
+	<sect2><heading>POP Servers</heading>
+	<p> This program gets the mail from your mailbox and gives it to your browser.  If you want to run a POP server on your computer, you will need to do 2 things.
+<itemize>
+<item>Get pop software from the ports or packages collection.
+<item>Modify <tt>/etc/inetd.conf</> to load POP server.
+</itemize>
+
+The pop program you get will have instructions with it.  Read them.
+   
+<sect1><heading>Configuration</heading>
+<p>
+As your FreeBSD system comes "out of the box" you should be able to send e-mail to external hosts.  The problem is no mail will be able to get back to your host.  This is not a problem if you are willing to make sure you hand edit the automatic <tt>reply to address</tt> every time you send a message.
+<p>
+It is relatively simple to get another host to receive your e-mail under the same username.  You can then pick it up over POP or telnet.  
+
+A user account with the SAME USERNAME should exist on both machines.  Please use <tt/adduser/ to do this if needed.  If you set the <tt/shell/ to <tt>/nonexistant</tt> the user will not be allowed to login.
+
+The mailhost that you will be using must be designated the Mail exchange for your host.  This must be arranged in DNS (ie BIND, named).  Please refer to a Networking book for more information.
+
+You basically need to add these lines in your DNS server.
+<verb> 
+myhost.smalliap.com	A	xxx.xxx.xxx.xxx		; Your ip 
+			MX  10	smtp.smalliap.com	; your mailhost
+</verb>
+
+You cannot do this yourself unless you are running a DNS server.  If you do not want to run a DNS server, get somebody else like your Internet Provider to do it.
+
+This will redirect mail for your host to the MX (Mail eXchange) host.  It does not matter what machine the A record points to, the mail will be sent to the MX host.
+<p>
+This feature is used to implement Virtual Hosting. 
+<p>Example
+<p>
+I have a customer with domain foo.bar and I want all mail for foo.bar to be sent to my machine smtp.smalliap.com.  You must make an entry in your DNS server like:
+
+<verb> 
+myhost.smalliap.com	MX  10	smtp.smalliap.com	; your mailhost
+</verb>
+The A record is not needed if you only want e-mail for the domain.
+
+On the mailhost that actually accepts mail for final delivery to a mailbox, sendmail must be told what hosts it will be accepting mail for.
+
+<p>Add myhost.smalliap.com to /etc/sendmail.cw (if you are using FEATURE(use_cw_file)), or add a "Cw myhost.smalliap.com" line to /etc/sendmail.cf.
+	  
+<p>To actually receive mail on your host, you need to have the MX entry above changed to point to your host.  You also move the Cw line above in your <tt>sendmail.cf</tt>.
+
+<p>
+This is a Bad Idea if your connection to the internet is not permanent.  Mail will bounce.
+
+<p>
+If you plan on doing anything serious with <tt/sendmail/ you should install the sendmail source.  The source has plenty of documentation with it.  You will find information on getting <tt/sendmail/ source from <ref name="UUCP and sendmail" id="sendmailuucp">.
+</sect>
+
+<sect><heading>FAQ<label id="mailfaq"></heading>     
+ <sect1>
+        <heading>Why do I have to use the FQDN for hosts on my site?</heading>
+        <p>
+	  You will probably find that the host is actually in a different
+	  domain; for example, if you are in foo.bar.edu and you wish to reach
+	  a host called ``mumble'' in the bar.edu domain, you will have to
+	  refer to it by the fully-qualified domain name, ``mumble.bar.edu'', 
+	  instead of just ``mumble''.     
+	<p>
+	  Traditionally, this was allowed by BSD BIND resolvers. However
+	  the current version of <em>BIND</em> that ships with FreeBSD
+	  no longer provides default abbreviations for non-fully
+	  qualified domain names other than the domain you are in.
+	  So an unqualified host <tt>mumble</tt> must either be found
+	  as <tt>mumble.foo.bar.edu</tt>, or it will be searched for
+	  in the root domain.
+	<p>
+	  This is different from the previous behavior, where the
+	  search continued across <tt>mumble.bar.edu</tt>, and
+	  <tt>mumble.edu</tt>.  Have a look at RFC 1535 for why this
+	  was considered bad practice, or even a security hole.
+	<p>
+	  As a good workaround, you can place the line
+<p><tt>
+search foo.bar.edu bar.edu
+</tt><p>
+	  instead of the previous
+
+<p><tt>
+domain foo.bar.edu
+</tt><p>
+	  into your <tt>/etc/resolv.conf</tt>.  However, make sure
+	  that the search order does not go beyond the ``boundary
+	  between local and public administration'', as RFC 1535
+	  calls it.
+
+      </sect1>
+
+      <sect1><heading>Sendmail says ``mail loops back to myself''</heading>
+	<p>
+	  This is answered in the sendmail FAQ as follows:-
+	  <verb>
+          * I'm getting "Local configuration error" messages, such as:
+
+          553 relay.domain.net config error: mail loops back to myself
+          554 <user@domain.net>... Local configuration error
+
+          How can I solve this problem?
+
+          You have asked mail to the domain (e.g., domain.net) to be
+          forwarded to a specific host (in this case, relay.domain.net)
+          by using an MX record, but the relay machine doesn't recognize
+          itself as domain.net.  Add domain.net to /etc/sendmail.cw
+          (if you are using FEATURE(use_cw_file)) or add "Cw domain.net"
+          to /etc/sendmail.cf.
+	  </verb>
+	<p>
+	  The sendmail FAQ is in <tt>/usr/src/usr.sbin/sendmail</tt>
+	  and is recommended reading if you want to do any
+	  ``tweaking'' of your mail setup.
+
+      <sect1>
+        <heading>How do I use sendmail for mail delivery with UUCP?<label id="sendmailuucp"></heading>
+
+        <p>
+          The sendmail configuration that ships with FreeBSD is
+          suited for sites that connect directly to the Internet.
+          Sites that wish to exchange their mail via UUCP must install
+          another sendmail configuration file.
+
+        <p>
+          Tweaking <tt>/etc/sendmail.cf</tt> manually is considered
+          something for purists.  Sendmail version 8 comes with a
+          new approach of generating config files via some <tt>m4</tt>
+          preprocessing, where the actual hand-crafted configuration
+          is on a higher abstraction level.  You should use the
+          configuration files under
+
+<verb>
+     /usr/src/usr.sbin/sendmail/cf
+</verb>
+
+          If you did not install your system with full sources,
+          the sendmail config stuff has been
+          broken out into a separate source distribution tarball just
+          for you.  Assuming you have your CD-ROM mounted, do:
+
+<verb>
+     cd /usr/src
+     tar -xvzf /cdrom/dists/src/ssmailcf.aa
+</verb>
+
+          Do not panic, this is only a few hundred kilobytes in size.
+          The file <tt>README</tt> in the <tt>cf</tt> directory can
+          serve as a basic introduction to m4 configuration.
+
+        <p>
+          For UUCP delivery, you are best advised to use the
+          <em>mailertable</em> feature.  This constitutes a database
+          that sendmail can use to base its routing decision upon.
+
+        <p>
+	  First, you have to create your <tt>.mc</tt> file.  The
+          directory <tt>/usr/src/usr.sbin/sendmail/cf/cf</tt> is the
+          home of these files.  Look around, there are already a few
+          examples.  Assuming you have named your file <tt>foo.mc</tt>,
+          all you need to do in order to convert it into a valid
+          <tt>sendmail.cf</tt> is:
+
+<verb>
+     cd /usr/src/usr.sbin/sendmail/cf/cf
+     make foo.cf
+     cp foo.cf /etc/sendmail.cf
+</verb>
+
+          A typical <tt>.mc</tt> file might look like:
+
+<verb>
+     include(`../m4/cf.m4')
+     VERSIONID(`Your version number')
+     OSTYPE(bsd4.4)
+
+     FEATURE(nodns)
+     FEATURE(nocanonify)
+     FEATURE(mailertable)
+
+     define(`UUCP_RELAY', your.uucp.relay)
+     define(`UUCP_MAX_SIZE', 200000)
+
+     MAILER(local)
+     MAILER(smtp)
+     MAILER(uucp)
+
+     Cw    your.alias.host.name
+     Cw    youruucpnodename.UUCP
+</verb>
+
+          The <em>nodns</em> and <em>nocanonify</em> features will
+          prevent any usage of the DNS during mail delivery.  The
+          <em>UUCP_RELAY</em> clause is needed for bizarre reasons,
+          do not ask.  Simply put an Internet hostname there that
+          is able to handle .UUCP pseudo-domain addresses; most likely,
+          you will enter the mail relay of your ISP there.
+
+        <p>
+          Once you have this, you need this file called
+          <tt>/etc/mailertable</tt>.  A typical example of this
+          gender again:
+
+<verb>
+     #
+     # makemap hash /etc/mailertable.db < /etc/mailertable
+     #
+     horus.interface-business.de   uucp-dom:horus
+     .interface-business.de        uucp-dom:if-bus
+     interface-business.de         uucp-dom:if-bus
+     .heep.sax.de                  smtp8:%1
+     horus.UUCP                    uucp-dom:horus
+     if-bus.UUCP                   uucp-dom:if-bus
+     .                             uucp-dom:sax
+</verb>
+
+          As you can see, this is part of a real-life file.  The first
+          three lines handle special cases where domain-addressed mail
+          should not be sent out to the default route, but instead to
+          some UUCP neighbor in order to ``shortcut'' the delivery
+          path.  The next line handles mail to the local Ethernet
+          domain that can be delivered using SMTP.  Finally, the UUCP
+          neighbors are mentioned in the .UUCP pseudo-domain notation,
+          to allow for a ``uucp-neighbor!recipient'' override of the
+          default rules.  The last line is always a single dot, matching
+          everything else, with UUCP delivery to a UUCP neighbor that
+          serves as your universal mail gateway to the world.  All of
+          the node names behind the <tt>uucp-dom:</tt> keyword must
+          be valid UUCP neighbors, as you can verify using the
+          command <tt>uuname</tt>.
+
+        <p>
+          As a reminder that this file needs to be converted into a
+          DBM database file before being usable, the command line to
+          accomplish this is best placed as a comment at the top of
+          the mailertable.  You always have to execute this command
+          each time you change your mailertable.
+
+        <p>
+          Final hint: if you are uncertain whether some particular
+          mail routing would work, remember the <tt>-bt</tt> option to
+          sendmail.  It starts sendmail in <em>address test mode</em>;
+          simply enter ``0 '', followed by the address you wish to
+          test for the mail routing.  The last line tells you the used
+          internal mail agent, the destination host this agent will be
+          called with, and the (possibly translated) address.  Leave
+          this mode by typing Control-D.
+
+<verb>
+     j@uriah 191% sendmail -bt
+     ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)
+     Enter <ruleset> <address>
+     > 0 foo@interface-business.de 
+     rewrite: ruleset  0   input: foo @ interface-business . de
+     ...
+     rewrite: ruleset  0 returns: $# uucp-dom $@ if-bus $: foo \
+     < @ interface-business . de >
+     > ^D
+     j@uriah 192% 
+</verb>
+ 
+<sect1><heading>How can I do e-mail with a dialup PPP host</heading>
+<p>
+You want to connect a FreeBSD box on a lan, to the internet.  The FreeBSD box will be a mail gateway for the lan.  The PPP connection is non-dedicated.
+
+There are at least two way to do this.
+
+The other is to use UUCP.
+
+The key is to get a internet site to provide secondary MX services for your domain.  
+For example:
+<verb>
+bigco.com.			MX	10	bigco.com.
+				MX	20	smalliap.com.
+</verb>
+
+Only one host should be specified as the final recipient ( add ``Cw bigco.com'' in <tt>/etc/sendmail.cf</tt> on bigco.com).
+
+When the senders sendmail is trying to deliver the mail it will try to connect to you over the modem link.  It will most likely time out because you are not online.  Sendmail will automatically deliver it to the secondary MX site, ie your internet provider.  The secondary MX site will try every (<tt>sendmail_flags = "-bd -q15m"</tt> in <tt>/etc/sysconfig</tt> ) 15 minutes to connect to your host to deliver the mail to the primary MX site.  
+
+You might wat to use something like this as a login script.
+<verb>
+#!/bin/sh
+# Put me in /usr/local/bin/pppbigco
+( sleep 60 ; /usr/sbin/sendmail -q ) &  
+/usr/sbin/ppp -direct pppbigco
+</verb>
+If you are going to create a seperate login script for a user you could use <tt>sendmail -qRbigco.com</tt> instead in the script above.  This will force all mail in your queue for bigco.com to be processed immediately.
+
+
+A further refinement of the situation is as follows.
+
+Message stolen from the freebsd-isp mailing list.
+<verb>
+> we provide the secondary mx for a customer. The customer connects to 
+> our services several times a day automatically to get the mails to 
+> his primary mx (We do not call his site when a mail for his domains 
+> arrived). Our sendmail sends the mailqueue every 30 minutes. At the 
+> moment he has to stay 30 minutes online to be sure that all mail is 
+> gone to the primary mx.
+> 
+> Is there a command that would initiate sendmail to send all the mails 
+> now? The user has not root-privileges on our machine of course.
+
+In the 'privacy flags' section of sendmail.cf, there is a definition
+Opgoaway,restrictqrun
+
+Remove restrictqrun to allow non-root users to start the queue processing.
+You might also like to rearrange the MXs.  We are the 1st MX for our 
+customers like this, and we have defined:
+
+# If we are the best MX for a host, try directly instead of generating
+# local config error.
+OwTrue
+
+That way a remote site will deliver straight to you, without trying 
+the customer connection.  You then send to your customer.  Only works for 
+'hosts', so you need to get your customer to name their mail machine 
+'customer.com' as well as 'hostname.customer.com' in the DNS.  Just put 
+an A record in the DNS for 'customer.com'.
+</verb>
+
+      </sect1>
