@@ -453,9 +453,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 && dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
 		free(vaddr, M_DEVBUF);
 	else {
-		mtx_lock(&Giant);
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
-		mtx_unlock(&Giant);
 	}
 }
 
