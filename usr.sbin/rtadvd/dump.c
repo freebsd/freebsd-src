@@ -35,9 +35,7 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -67,12 +65,6 @@ extern struct rainfo *ralist;
 static char *ether_str __P((struct sockaddr_dl *));
 static void if_dump __P((void));
 
-#ifdef __FreeBSD__		/* XXX: see PORTABILITY */
-#define LONGLONG "%qu"
-#else
-#define LONGLONG "%llu"
-#endif
-
 static char *rtpref_str[] = {
 	"medium",		/* 00 */
 	"high",			/* 01 */
@@ -84,17 +76,17 @@ static char *
 ether_str(sdl)
 	struct sockaddr_dl *sdl;
 {
-	static char ebuf[32];
+	static char hbuf[32];
 	u_char *cp;
 
 	if (sdl->sdl_alen && sdl->sdl_alen > 5) {
 		cp = (u_char *)LLADDR(sdl);
-		sprintf(ebuf, "%x:%x:%x:%x:%x:%x",
+		snprintf(hbuf, sizeof(hbuf), "%x:%x:%x:%x:%x:%x",
 			cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
 	} else
-		sprintf(ebuf, "NONE");
+		snprintf(hbuf, sizeof(hbuf), "NONE");
 
-	return(ebuf);
+	return(hbuf);
 }
 
 static void
@@ -131,11 +123,11 @@ if_dump()
 
 		/* statistics */
 		fprintf(fp, "  statistics: RA(out/in/inconsistent): "
-		    LONGLONG "/" LONGLONG "/" LONGLONG ", ",
+		    "%llu/%llu/%llu, ",
 		    (unsigned long long)rai->raoutput,
 		    (unsigned long long)rai->rainput,
 		    (unsigned long long)rai->rainconsistent);
-		fprintf(fp, "RS(input): " LONGLONG "\n",
+		fprintf(fp, "RS(input): %llu\n",
 		    (unsigned long long)rai->rsinput);
 
 		/* interface information */

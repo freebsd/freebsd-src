@@ -39,9 +39,7 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -110,8 +108,8 @@ defrouter_probe(int ifindex)
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
 		return;
 	}
-	bzero(&dr, sizeof(dr));
-	strcpy(dr.ifname, "lo0"); /* dummy interface */
+	memset(&dr, 0, sizeof(dr));
+	strlcpy(dr.ifname, "lo0", sizeof dr.ifname); /* dummy interface */
 	if (ioctl(s, SIOCGDRLST_IN6, (caddr_t)&dr) < 0) {
 		warnmsg(LOG_ERR, __func__, "ioctl(SIOCGDRLST_IN6): %s",
 		    strerror(errno));
@@ -148,7 +146,7 @@ sendprobe(struct in6_addr *addr, int ifindex)
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	int hoplimit = 1;
 
-	bzero(&sa6_probe, sizeof(sa6_probe));
+	memset(&sa6_probe, 0, sizeof(sa6_probe));
 	sa6_probe.sin6_family = AF_INET6;
 	sa6_probe.sin6_len = sizeof(sa6_probe);
 	sa6_probe.sin6_addr = *addr;

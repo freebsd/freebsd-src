@@ -37,9 +37,6 @@
 #include <syslog.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <search.h>
-#endif
 #include "timer.h"
 
 static struct rtadvd_timer timer_head;

@@ -1,4 +1,4 @@
-/*	$KAME: advcap.h,v 1.3 2001/02/01 09:12:08 jinmei Exp $	*/
+/*	$KAME: advcap.h,v 1.5 2003/06/09 05:40:54 t-momose Exp $	*/
 
 /*
  * Copyright (C) 1994,1995 by Andrey A. Chernov, Moscow, Russia.
@@ -39,7 +39,7 @@ __BEGIN_DECLS
 
 extern int agetent __P((char *, const char *));
 extern int agetflag __P((const char *));
-extern long long agetnum __P((const char *));
+extern int64_t agetnum __P((const char *));
 extern char *agetstr __P((const char *, char **));
 
 __END_DECLS

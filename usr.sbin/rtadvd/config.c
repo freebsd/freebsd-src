@@ -38,9 +38,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <net/route.h>
 #include <net/if_dl.h>
 
@@ -57,9 +55,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <search.h>
-#endif
 #include <unistd.h>
 #include <ifaddrs.h>
 
@@ -86,7 +81,7 @@ getconfig(intface)
 	char tbuf[BUFSIZ];
 	struct rainfo *tmp;
 	long val;
-	long long val64;
+	int64_t val64;
 	char buf[BUFSIZ];
 	char *bp = buf;
 	char *addr;
@@ -94,7 +89,7 @@ getconfig(intface)
 
 #define MUSTHAVE(var, cap)	\
     do {								\
-	int t;								\
+	int64_t t;							\
 	if ((t = agetnum(cap)) < 0) {					\
 		fprintf(stderr, "rtadvd: need %s for interface %s\n",	\
 			cap, intface);					\
@@ -602,7 +597,7 @@ makeentry(buf, len, id, string, add)
 {
 	char *ep = buf + len;
 
-	strcpy(buf, string);
+	strlcpy(buf, string, len);
 	if (add) {
 		char *cp;
 
