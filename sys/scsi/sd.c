@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.134 1998/07/13 08:23:05 julian Exp $
+ *      $Id: sd.c,v 1.135 1998/07/14 11:34:22 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -474,6 +474,7 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 #ifndef	SLICE
 	/* Build label for whole disk. */
 	bzero(&label, sizeof label);
+	label.d_type = DTYPE_SCSI;
 	label.d_secsize = sd->params.secsiz;
 	label.d_nsectors = sd->params.sectors;
 	label.d_ntracks = sd->params.heads;
