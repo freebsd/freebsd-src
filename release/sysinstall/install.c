@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.36 1995/10/18 00:12:12 jkh Exp $
+ * $Id: install.c,v 1.71.2.37 1995/10/18 00:47:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -711,6 +711,7 @@ installPreconfig(char *str)
 	if (!cp)
 	    break;
 	sprintf(buf, "/mnt2/%s", cp);
+	msgDebug("Attempting to open configuration file: %s\n", buf);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
 	    if (msgYesNo("Unable to find the configuration file `%s' - do you want to\n"
@@ -730,7 +731,7 @@ installPreconfig(char *str)
 		    variable_set2(cattr[j].name, cattr[j].value);
 		i = RET_SUCCESS;
 	    }
-	    mediaDevice->close(mediaDevice, fd);
+	    close(fd);
 	    safe_free(cattr);
 	    unmount("/mnt2", MNT_FORCE);
 	    break;
@@ -738,7 +739,7 @@ installPreconfig(char *str)
     }
     return i;
 }
-    
+
 void
 installVarDefaults(void)
 {
