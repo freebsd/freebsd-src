@@ -140,7 +140,7 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 	@if ! (cd ${.CURDIR}/tools/regression/usr.bin/make && \
-	    PATH=${PATH} ${MAKE} 2>/dev/null); \
+	    PATH=${PATH} ${MAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && make make); \
 	fi
@@ -160,7 +160,7 @@ MMAKE=		${MMAKEENV} make \
 make:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Building an up-to-date make(1)"
+	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}/usr.bin/make; \
 		${MMAKE} obj && \
