@@ -1127,15 +1127,19 @@ vm_map_madvise(map, start, end, behav)
 		     (current != &map->header) && (current->start < end);
 		     current = current->next
 		) {
+			vm_offset_t useStart;
+
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
 
 			pindex = OFF_TO_IDX(current->offset);
 			count = atop(current->end - current->start);
+			useStart = current->start;
 
 			if (current->start < start) {
 				pindex += atop(start - current->start);
 				count -= atop(start - current->start);
+				useStart = start;
 			}
 			if (current->end > end)
 				count -= atop(current->end - end);
@@ -1148,7 +1152,7 @@ vm_map_madvise(map, start, end, behav)
 			if (behav == MADV_WILLNEED) {
 				pmap_object_init_pt(
 				    map->pmap, 
-				    current->start,
+				    useStart,
 				    current->object.vm_object,
 				    pindex, 
 				    (count << PAGE_SHIFT),
