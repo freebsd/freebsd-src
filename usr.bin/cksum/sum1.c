@@ -36,20 +36,23 @@
 static char sccsid[] = "@(#)sum1.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
 #include <unistd.h>
+#include <stdint.h>
 
 #include "extern.h"
 
 int
-csum1(int fd, u_int32_t *cval, u_int32_t *clen)
+csum1(int fd, uint32_t *cval, off_t *clen)
 {
-	u_int32_t total;
 	int nr;
 	u_int lcrc;
+	off_t total;
 	u_char *p;
 	u_char buf[8192];
 
@@ -65,9 +68,9 @@ csum1(int fd, u_int32_t *cval, u_int32_t *clen)
 			lcrc = ((lcrc >> 1) + *p) & 0xffff;
 		}
 	if (nr < 0)
-		return(1);
+		return (1);
 
 	*cval = lcrc;
 	*clen = total;
-	return(0);
+	return (0);
 }

@@ -45,6 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -64,11 +65,12 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
+	uint32_t val;
 	int ch, fd, rval;
-	u_int32_t len, val;
+	off_t len;
 	char *fn, *p;
-	int (*cfncn)(int, u_int32_t *, u_int32_t *);
-	void (*pfncn)(char *, u_int32_t, u_int32_t);
+	int (*cfncn)(int, uint32_t *, off_t *);
+	void (*pfncn)(char *, u_int32_t, off_t);
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
