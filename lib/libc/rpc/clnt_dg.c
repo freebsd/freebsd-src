@@ -681,8 +681,10 @@ clnt_dg_control(cl, request, info)
 		break;
 	case CLSET_SVC_ADDR:		/* set to new address */
 		addr = (struct netbuf *)(void *)info;
-		if (addr->len < sizeof cu->cu_raddr)
+		if (addr->len < sizeof cu->cu_raddr) {
+			release_fd_lock(cu->cu_fd, mask);
 			return (FALSE);
+		}
 		(void) memcpy(&cu->cu_raddr, addr->buf, addr->len);
 		cu->cu_rlen = addr->len;
 		break;
