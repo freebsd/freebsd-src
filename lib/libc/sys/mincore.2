@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: mincore.2,v 1.5 1996/12/23 23:09:39 wosch Exp $
 .\"
 .Dd June 9, 1993
 .Dt MINCORE 2
@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/mman.h>
+.Ft int
 .Fn mincore "caddr_t addr" "size_t len" "char *vec"
 .Sh DESCRIPTION
 The
@@ -53,6 +54,28 @@ in the character array
 .Fa vec ,
 with a value of 1 meaning
 that the page is in-core.
+.Sh RETURN VALUES
+Upson successful completion,
+.Fn mincore
+returns 0 and
+.Fa vec
+is updated to relect the page status.  Otherwise a value of -1
+is returned and
+.Va error
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The virtial address range specified by the
+.Fa addr
+and
+.Fa len
+arguments is not valid.
+.It Bq Er EFAULT
+The
+.Fa vec
+argument points to an illegal address.
+.El
 .Sh SEE ALSO
 .Xr madvise 2 ,
 .Xr mprotect 2 ,
