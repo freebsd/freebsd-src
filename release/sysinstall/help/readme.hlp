@@ -1,13 +1,13 @@
    -----------------------------------------
-       FreeBSD 2.2  ---  BETA Version                 ,        ,
+       FreeBSD 3.0  ---  SNAPSHOT Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2 BETA release of FreeBSD!           /- _  `-/  '
-This release precedes our first full 2.2 release,    (/\/ \ \   /\
-which is scheduled for an early January release.     / /   | `    \
-Your testing of this BETA will greatly help to       O O   ) /    |
-ensure that 2.2-RELEASE is of the highest possible   `-^--'`<     '
-quality, and it is much appreciated.                (_.)  _  )   /
+Welcome to the latest 3.0 SNAPSHOT release of         /- _  `-/  '
+FreeBSD.  This is the latest in an ongoing series    (/\/ \ \   /\
+of code snapshots provided as a service to the       / /   | `    \
+FreeBSD development community.                       O O   ) /    |
+                                                     `-^--'`<     '
+                                                    (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
@@ -15,20 +15,23 @@ you see in this release are most welcome  <----|====O)))==) \) /====
 and should be sent to one of the approp-  <----'    `--' `.__,' \
 riate mailing lists (see notes below).                 |        |
                                                         \       /       /\
-Please also note that BETA releases, as much       ______( (_  / \______/
+Please note that SNAPSHOT releases, as much        ______( (_  / \______/
 as we enjoy seeing them tested in serious        ,'  ,-----'   |
-situations, are not recommended for production   `--{__________)
-environments!
-
-
+situations, are NOT recommended for production   `--{__________)
+environments!  They are first and foremost test
+vehicles used by the project to periodically give testers or developers
+access to the latest -current technology.  They are not put through the
+same quality assurance mechanisms that full releases are!
+							 
+							 
 ***** Final note: PLEASE also read the Hardware guide, which you will
 find in the root directory of your distribution as HARDWARE.TXT.  It
 is also available in the Documentation submenu of the boot floppy, but
 it's probably a good idea to read it before even getting that far.  It
 contains important checklist information on configuring your hardware
-before starting the installation process.  ****
-
-
+before starting the installation process.  ****		 
+							 
+							 
 What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
 for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
 with a very wide variety of PC peripherals and configurations and can
