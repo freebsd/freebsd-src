@@ -51,6 +51,9 @@ struct ieee80211_plcp_hdr {
 	u_int16_t	i_crc;
 } __attribute__((__packed__));
 
+#define IEEE80211_PLCP_SFD      0xF3A0 
+#define IEEE80211_PLCP_SERVICE  0x00
+
 /*
  * generic definitions for IEEE 802.11 frames
  */
@@ -65,6 +68,22 @@ struct ieee80211_frame {
 	/* see below */
 } __attribute__((__packed__));
 
+struct ieee80211_qosframe {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_addr1[IEEE80211_ADDR_LEN];
+	u_int8_t	i_addr2[IEEE80211_ADDR_LEN];
+	u_int8_t	i_addr3[IEEE80211_ADDR_LEN];
+	u_int8_t	i_seq[2];
+	u_int8_t	i_qos[2];
+	/* possibly followed by addr4[IEEE80211_ADDR_LEN]; */
+	/* see below */
+} __attribute__((__packed__));
+
+struct ieee80211_qoscntl {
+	u_int8_t	i_qos[2];
+};
+
 struct ieee80211_frame_addr4 {
 	u_int8_t	i_fc[2];
 	u_int8_t	i_dur[2];
@@ -73,6 +92,59 @@ struct ieee80211_frame_addr4 {
 	u_int8_t	i_addr3[IEEE80211_ADDR_LEN];
 	u_int8_t	i_seq[2];
 	u_int8_t	i_addr4[IEEE80211_ADDR_LEN];
+} __attribute__((__packed__));
+
+
+struct ieee80211_qosframe_addr4 {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_addr1[IEEE80211_ADDR_LEN];
+	u_int8_t	i_addr2[IEEE80211_ADDR_LEN];
+	u_int8_t	i_addr3[IEEE80211_ADDR_LEN];
+	u_int8_t	i_seq[2];
+	u_int8_t	i_addr4[IEEE80211_ADDR_LEN];
+	u_int8_t	i_qos[2];
+} __attribute__((__packed__));
+
+/*
+ * Management Notification Frame
+ */
+struct ieee80211_mnf {
+	u_int8_t	mnf_category;
+	u_int8_t	mnf_action;
+	u_int8_t	mnf_dialog;
+	u_int8_t	mnf_status;
+} __attribute__((__packed__));
+#define	MNF_SETUP_REQ	0
+#define	MNF_SETUP_RESP	1
+#define	MNF_TEARDOWN	2
+
+/*
+ * WME/802.11e Tspec Element
+ */
+struct ieee80211_wme_tspec {
+	u_int8_t	ts_id;
+	u_int8_t	ts_len;
+	u_int8_t	ts_oui[3];
+	u_int8_t	ts_oui_type;
+	u_int8_t	ts_oui_subtype;
+	u_int8_t	ts_version;
+	u_int8_t	ts_tsinfo[3];
+	u_int8_t	ts_nom_msdu[2];
+	u_int8_t	ts_max_msdu[2];
+	u_int8_t	ts_min_svc[4];
+	u_int8_t	ts_max_svc[4];
+	u_int8_t	ts_inactv_intv[4];
+	u_int8_t	ts_susp_intv[4];
+	u_int8_t	ts_start_svc[4];
+	u_int8_t	ts_min_rate[4];
+	u_int8_t	ts_mean_rate[4];
+	u_int8_t	ts_max_burst[4];
+	u_int8_t	ts_min_phy[4];
+	u_int8_t	ts_peak_rate[4];
+	u_int8_t	ts_delay[4];
+	u_int8_t	ts_surplus[2];
+	u_int8_t	ts_medium_time[2];
 } __attribute__((__packed__));
 
 #define	IEEE80211_FC0_VERSION_MASK		0x03
@@ -114,6 +186,7 @@ struct ieee80211_frame_addr4 {
 #define	IEEE80211_FC0_SUBTYPE_CFACK		0x50
 #define	IEEE80211_FC0_SUBTYPE_CFPOLL		0x60
 #define	IEEE80211_FC0_SUBTYPE_CF_ACK_CF_ACK	0x70
+#define	IEEE80211_FC0_SUBTYPE_QOS		0x80
 
 #define	IEEE80211_FC1_DIR_MASK			0x03
 #define	IEEE80211_FC1_DIR_NODS			0x00	/* STA->STA */
@@ -134,6 +207,12 @@ struct ieee80211_frame_addr4 {
 #define	IEEE80211_SEQ_SEQ_SHIFT			4
 
 #define	IEEE80211_NWID_LEN			32
+
+#define	IEEE80211_QOS_TXOP			0x00ff
+/* bit 8 is reserved */
+#define	IEEE80211_QOS_ACKPOLICY			0x0600
+#define	IEEE80211_QOS_ESOP			0x0800
+#define	IEEE80211_QOS_TID			0xf000
 
 /*
  * Control frames.
@@ -213,9 +292,24 @@ typedef uint8_t *ieee80211_mgt_beacon_t;
 #define	IEEE80211_CAPINFO_CHNL_AGILITY		0x0080
 /* bits 8-9 are reserved */
 #define	IEEE80211_CAPINFO_SHORT_SLOTTIME	0x0400
-/* bits 11-12 are reserved */
+#define	IEEE80211_CAPINFO_RSN			0x0800
+/* bit 12 is reserved */
 #define	IEEE80211_CAPINFO_DSSSOFDM		0x2000
 /* bits 14-15 are reserved */
+
+/*
+ * 802.11i/WPA information element (maximally sized).
+ */
+struct ieee80211_ie_wpa {
+	u_int8_t	wpa_oui[3];	/* 0x00, 0x50, 0xf2 */
+	u_int8_t	wpa_type;	/* OUI type */
+	u_int16_t	wpa_version;	/* spec revision */
+	u_int32_t	wpa_mcipher[1];	/* multicast/group key cipher */
+	u_int16_t	wpa_uciphercnt;	/* # pairwise key ciphers */
+	u_int32_t	wpa_uciphers[8];/* ciphers */
+	u_int16_t	wpa_authselcnt;	/* authentication selector cnt*/
+	u_int32_t	wpa_authsels[8];/* selectors */
+} __attribute__((__packed__));
 
 /*
  * Management information elements
@@ -256,6 +350,18 @@ struct ieee80211_information {
 	struct erp {
 		u_int8_t	flags;
 	} erp;
+	struct country {
+		u_int8_t	cc[3];		/* ISO CC+(I)ndoor/(O)utdoor */
+		struct {
+			u_int8_t schan;		/* starting channel */
+			u_int8_t nchan;		/* number channels */
+			u_int8_t maxtxpwr;	
+		} band[4];			/* up to 4 sub bands */
+	} country;
+	struct ath {
+		u_int8_t	flags;
+	} ath;
+	struct ieee80211_ie_wpa	wpa;
 };
 
 enum {
@@ -268,9 +374,15 @@ enum {
 	IEEE80211_ELEMID_IBSSPARMS		= 6,
 	IEEE80211_ELEMID_COUNTRY		= 7,
 	IEEE80211_ELEMID_CHALLENGE		= 16,
+	/* 17-31 reserved for challenge text extension */
 	IEEE80211_ELEMID_ERP			= 42,
 	IEEE80211_ELEMID_XRATES			= 50,
+	IEEE80211_ELEMID_TPC			= 150,
+	IEEE80211_ELEMID_CCKM			= 156,
+	IEEE80211_ELEMID_VENDOR			= 221,	/* vendor private */
 };
+
+#define IEEE80211_CHALLENGE_LEN			128
 
 #define	IEEE80211_RATE_BASIC			0x80
 #define	IEEE80211_RATE_VAL			0x7f
@@ -279,6 +391,32 @@ enum {
 #define	IEEE80211_ERP_NON_ERP_PRESENT		0x01
 #define	IEEE80211_ERP_USE_PROTECTION		0x02
 #define	IEEE80211_ERP_BARKER_MODE		0x04
+
+/* Atheros private advanced capabilities info */
+#define	ATHEROS_CAP_TURBO_PRIME			0x01
+#define	ATHEROS_CAP_COMPRESSION			0x02
+#define	ATHEROS_CAP_FAST_FRAME			0x04
+/* bits 3-6 reserved */
+#define	ATHEROS_CAP_BOOST			0x80
+
+#define	ATH_OUI			0x7f0300		/* Atheros OUI */
+#define	ATH_OUI_TYPE		0x01
+#define	ATH_OUI_VERSION		0x01
+
+#define	WPA_OUI			0xf25000
+#define	WPA_OUI_TYPE		0x01
+#define	WPA_OUI_VERSION		1		/* current supported version */
+
+#define	WPA_CSE_NULL		0x00
+#define	WPA_CSE_WEP40		0x01
+#define	WPA_CSE_TKIP		0x02
+#define	WPA_CSE_WRAP		0x03		/* WPA2/802.11i */
+#define	WPA_CSE_CCMP		0x04
+#define	WPA_CSE_WEP104		0x05
+
+#define	WPA_ASE_NONE		0x00
+#define	WPA_ASE_8021X_UNSPEC	0x01
+#define	WPA_ASE_8021X_PSK	0x02
 
 /*
  * AUTH management packets
@@ -302,6 +440,7 @@ typedef u_int8_t *ieee80211_mgt_auth_t;
 
 #define	IEEE80211_AUTH_ALG_OPEN			0x0000
 #define	IEEE80211_AUTH_ALG_SHARED		0x0001
+#define	IEEE80211_AUTH_ALG_LEAP			0x0080
 
 enum {
 	IEEE80211_AUTH_OPEN_REQUEST		= 1,
@@ -331,6 +470,11 @@ enum {
 	IEEE80211_REASON_NOT_ASSOCED		= 7,
 	IEEE80211_REASON_ASSOC_LEAVE		= 8,
 	IEEE80211_REASON_ASSOC_NOT_AUTHED	= 9,
+
+	IEEE80211_REASON_RSN_REQUIRED		= 11,
+	IEEE80211_REASON_RSN_INCONSISTENT	= 12,
+	IEEE80211_REASON_IE_INVALID		= 13,
+	IEEE80211_REASON_MIC_FAILURE		= 14,
 
 	IEEE80211_STATUS_SUCCESS		= 0,
 	IEEE80211_STATUS_UNSPECIFIED		= 1,
