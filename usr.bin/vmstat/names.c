@@ -44,7 +44,7 @@ char *defdrives[] = { 0 };
  */
 #include <i386/isa/isa_device.h>
 
-char *defdrives[] = { "wd0", "wd1", "sd0", "sd1" };
+char *defdrives[] = { "wd0", "wd1", "sd0", "sd1", 0 };
 
 int
 read_names()
