@@ -102,7 +102,7 @@ isab_probe(device_t dev)
 	case 0x122e8086:	/* Intel 82371FB */
 	case 0x70008086:	/* Intel 82371SB */
 	case 0x71108086:	/* Intel 82371AB */
-	case 0x71988086:	/* Intel 82371MX */
+	case 0x71988086:	/* Intel 82443MX */
 	case 0x24108086:	/* Intel 82801AA (ICH) */
 	case 0x24208086:	/* Intel 82801AB (ICH0) */
 	case 0x24408086:	/* Intel 82801AB (ICH2) */
