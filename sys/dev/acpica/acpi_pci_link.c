@@ -33,13 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_pcibvar.h>
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure. */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("PCI_LINK")
 
@@ -55,7 +52,6 @@ struct acpi_pci_link_entry {
 	ACPI_RESOURCE	possible_resources;
 	UINT8		number_of_interrupts;
 	UINT8		interrupts[MAX_POSSIBLE_INTERRUPTS];
-
 	UINT8		sorted_irq[MAX_POSSIBLE_INTERRUPTS];
 	int		references;
 	int		priority;
@@ -94,11 +90,9 @@ acpi_pci_link_dump_polarity(UINT32 ActiveHighLow)
 	case ACPI_ACTIVE_HIGH:
 		printf("high,");
 		break;
-
 	case ACPI_ACTIVE_LOW:
 		printf("low,");
 		break;
-
 	default:
 		printf("unknown,");
 		break;
@@ -113,11 +107,9 @@ acpi_pci_link_dump_trigger(UINT32 EdgeLevel)
 	case ACPI_EDGE_SENSITIVE:
 		printf("edge,");
 		break;
-
 	case ACPI_LEVEL_SENSITIVE:
 		printf("level,");
 		break;
-
 	default:
 		printf("unknown,");
 		break;
@@ -132,11 +124,9 @@ acpi_pci_link_dump_sharemode(UINT32 SharedExclusive)
 	case ACPI_EXCLUSIVE:
 		printf("exclusive");
 		break;
-
 	case ACPI_SHARED:
 		printf("sharable");
 		break;
-
 	default:
 		printf("unknown");
 		break;
@@ -150,42 +140,35 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 	ACPI_RESOURCE_IRQ	*Irq;
 	ACPI_RESOURCE_EXT_IRQ	*ExtIrq;
 
-	if (entry == NULL || entry->pci_link == NULL) {
+	if (entry == NULL || entry->pci_link == NULL)
 		return;
-	}
 
 	printf("%s irq %3d: ", acpi_name(entry->pci_link->handle),
 	    entry->pci_link->current_irq);
 
 	printf("[");
-	for (i = 0; i < entry->pci_link->number_of_interrupts; i++) {
+	for (i = 0; i < entry->pci_link->number_of_interrupts; i++)
 		printf("%3d", entry->pci_link->interrupts[i]);
-	}
 	printf("] ");
 
 	switch (entry->pci_link->possible_resources.Id) {
 	case ACPI_RSTYPE_IRQ:
 		Irq = &entry->pci_link->possible_resources.Data.Irq;
-
 		acpi_pci_link_dump_polarity(Irq->ActiveHighLow);
 		acpi_pci_link_dump_trigger(Irq->EdgeLevel);
 		acpi_pci_link_dump_sharemode(Irq->SharedExclusive);
 		break;
-
 	case ACPI_RSTYPE_EXT_IRQ:
 		ExtIrq = &entry->pci_link->possible_resources.Data.ExtendedIrq;
-
 		acpi_pci_link_dump_polarity(ExtIrq->ActiveHighLow);
 		acpi_pci_link_dump_trigger(ExtIrq->EdgeLevel);
 		acpi_pci_link_dump_sharemode(ExtIrq->SharedExclusive);
 		break;
 	}
 
-	printf(" %d.%d.%d", entry->busno,
+	printf(" %d.%d.%d\n", entry->busno,
 	    (int)((entry->prt.Address & 0xffff0000) >> 16),
 	    (int)entry->prt.Pin);
-
-	printf("\n");
 }
 
 static ACPI_STATUS
@@ -198,8 +181,7 @@ acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	if (handle == NULL || sta == NULL) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "invalid argument\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "invalid argument\n"));
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
@@ -212,8 +194,8 @@ acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 		    acpi_name(handle), AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
-	devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
+	devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 	if ((devinfo->Valid & ACPI_VALID_HID) == 0 ||
 	    strcmp(devinfo->HardwareId.Value, "PNP0C0F") != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "invalid hardware ID - %s\n",
@@ -269,9 +251,9 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 		NumberOfInterrupts = resources->Data.Irq.NumberOfInterrupts;
 		Interrupts = resources->Data.Irq.Interrupts;
 		break;
-
 	case ACPI_RSTYPE_EXT_IRQ:
-                NumberOfInterrupts = resources->Data.ExtendedIrq.NumberOfInterrupts;
+                NumberOfInterrupts =
+		    resources->Data.ExtendedIrq.NumberOfInterrupts;
                 Interrupts = resources->Data.ExtendedIrq.Interrupts;
 		break;
 	}
@@ -284,12 +266,12 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 	count = 0;
 	for (i = 0; i < NumberOfInterrupts; i++) {
 		if (i >= MAX_POSSIBLE_INTERRUPTS) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "too many IRQs %d\n", i));
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "too many IRQs (%d)\n",
+			    i));
 			break;
 		}
-
 		if (Interrupts[i] == 0) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Invalid IRQ %d\n",
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "invalid IRQ %d\n",
 			    Interrupts[i]));
 			continue;
 		}
@@ -335,7 +317,6 @@ acpi_pci_link_get_current_irq(struct acpi_pci_link_entry *link, UINT8 *irq)
 	}
 
 	resources = (ACPI_RESOURCE *) buf.Pointer;
-
 	number_of_interrupts = 0;
 	bzero(interrupts, sizeof(interrupts));
 	error = acpi_pci_link_get_irq_resources(resources,
@@ -344,7 +325,7 @@ acpi_pci_link_get_current_irq(struct acpi_pci_link_entry *link, UINT8 *irq)
 
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get current IRQ from PCI interrupt link %s - %s\n",
+		    "couldn't get current IRQ from interrupt link %s - %s\n",
 		    acpi_name(link->handle), AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
@@ -397,7 +378,7 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get current IRQ from PCI interrupt link %s - %s\n",
+		    "couldn't get current IRQ from interrupt link %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(error)));
 	}
 
@@ -406,11 +387,10 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	error = AcpiGetPossibleResources(handle, &buf);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get PCI interrupt link device _PRS data %s - %s\n",
+		    "couldn't get interrupt link device _PRS data %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(error)));
 		goto out;
 	}
-
 	if (buf.Pointer == NULL) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 		    "_PRS nuffer is empty - %s\n", acpi_name(handle)));
@@ -426,14 +406,14 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	    &link->number_of_interrupts, link->interrupts);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get possible IRQs from PCI interrupt link %s - %s\n",
+		    "couldn't get possible IRQs from interrupt link %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(error)));
 		goto out;
 	}
 
 	if (link->number_of_interrupts == 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "PCI interrupt link device _PRS data is corrupted - %s\n",
+		    "interrupt link device _PRS data is corrupted - %s\n",
 		    acpi_name(handle)));
 		error = AE_NULL_ENTRY;
 		goto out;
@@ -446,13 +426,10 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 
 	error = AE_OK;
 out:
-	if (buf.Pointer != NULL) {
+	if (buf.Pointer != NULL)
 		AcpiOsFree(buf.Pointer);
-	}
-
-	if (error != AE_OK && link != NULL) {
+	if (error != AE_OK && link != NULL)
 		AcpiOsFree(link);
-	}
 
 	return_ACPI_STATUS (error);
 }
@@ -467,7 +444,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if ((prt == NULL) || (prt->Source == NULL) || (prt->Source[0] == '\0')) {
+	if (prt == NULL || prt->Source == NULL || prt->Source[0] == '\0') {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 		    "couldn't handle this routing table - hardwired\n"));
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -475,8 +452,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 
 	error = AcpiGetHandle(acpi_get_handle(pcidev), prt->Source, &handle);
 	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't get acpi handle - %s\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "couldn't get handle - %s\n",
 		    AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
@@ -489,9 +465,9 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		return_ACPI_STATUS (error);
 	}
 
-	if (!(sta & (ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL))) {
+	if ((sta & (ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)) == 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "PCI interrupt link is not functional - %s\n",
+		    "interrupt link is not functional - %s\n",
 		    acpi_name(handle)));
 		return_ACPI_STATUS (AE_ERROR);
 	}
@@ -501,7 +477,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		    entry->prt.Address == prt->Address &&
 		    entry->prt.Pin == prt->Pin) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			    "PCI interrupt link entry already exists - %s\n",
+			    "interrupt link entry already exists - %s\n",
 			    acpi_name(handle)));
 			return_ACPI_STATUS (AE_ALREADY_EXISTS);
 		}
@@ -513,7 +489,6 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		    "couldn't allocate memory - %s\n", acpi_name(handle)));
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
-
 	bzero(entry, sizeof(struct acpi_prt_entry));
 
 	entry->pcidev = pcidev;
@@ -523,7 +498,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 	error = acpi_pci_link_add_link(handle, entry);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't add prt entry to pci link %s - %s\n",
+		    "couldn't add _PRT entry to link %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(error)));
 		goto out;
 	}
@@ -532,9 +507,8 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 	error = AE_OK;
 
 out:
-	if (error != AE_OK && entry != NULL) {
+	if (error != AE_OK && entry != NULL)
 		AcpiOsFree(entry);
-	}
 
 	return_ACPI_STATUS (error);
 }
@@ -544,20 +518,17 @@ acpi_pci_link_is_valid_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 {
 	UINT8			i;
 
-	if (irq == 0) {
+	if (irq == 0)
 		return (0);
-	}
 
 	for (i = 0; i < link->number_of_interrupts; i++) {
-		if (link->interrupts[i] == irq) {
+		if (link->interrupts[i] == irq)
 			return (1);
-		}
 	}
 
 	/* allow initial IRQ as valid one. */
-	if (link->initial_irq == irq) {
+	if (link->initial_irq == irq)
 		return (1);
-	}
 
 	return (0);
 }
@@ -582,24 +553,17 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get current IRQ from PCI interrupt link %s - %s\n",
+		    "couldn't get current IRQ from interrupt link %s - %s\n",
 		    acpi_name(link->handle), AcpiFormatException(error)));
 	}
 
-	if (link->current_irq == irq) {
+	if (link->current_irq == irq)
 		return_ACPI_STATUS (AE_OK);
-	}
 
 	bzero(&resbuf, sizeof(resbuf));
 	crsbuf.Pointer = NULL;
 
 	switch (link->possible_resources.Id) {
-	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "Resource is not an IRQ entry %s - %d\n",
-		    acpi_name(link->handle), link->possible_resources.Id));
-		return_ACPI_STATUS (AE_TYPE);
-
 	case ACPI_RSTYPE_IRQ:
 		resbuf.Id = ACPI_RSTYPE_IRQ;
 		resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
@@ -609,16 +573,21 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		resbuf.Data.Irq.NumberOfInterrupts = 1;
 		resbuf.Data.Irq.Interrupts[0] = irq;
 		break;
-
 	case ACPI_RSTYPE_EXT_IRQ:
 		resbuf.Id = ACPI_RSTYPE_EXT_IRQ;
 		resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_EXT_IRQ);
 
 		/* structure copy other fields */
-		resbuf.Data.ExtendedIrq = link->possible_resources.Data.ExtendedIrq;
+		resbuf.Data.ExtendedIrq =
+		    link->possible_resources.Data.ExtendedIrq;
 		resbuf.Data.ExtendedIrq.NumberOfInterrupts = 1;
 		resbuf.Data.ExtendedIrq.Interrupts[0] = irq;
 		break;
+	default:
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+		    "Resource is not an IRQ entry %s - %d\n",
+		    acpi_name(link->handle), link->possible_resources.Id));
+		return_ACPI_STATUS (AE_TYPE);
 	}
 
 	error = acpi_AppendBufferResource(&crsbuf, &resbuf);
@@ -628,10 +597,9 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		    acpi_name(link->handle)));
 		return_ACPI_STATUS (error);
 	}
-
 	if (crsbuf.Pointer == NULL) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "buffer setup by acpi_AppendBufferResource is corrupted - %s\n",
+		    "appended buffer for %s is corrupted\n",
 		    acpi_name(link->handle)));
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
@@ -639,7 +607,7 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	error = AcpiSetCurrentResources(link->handle, &crsbuf);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't set PCI interrupt link device _SRS %s - %s\n",
+		    "couldn't set link device _SRS %s - %s\n",
 		    acpi_name(link->handle), AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
@@ -655,9 +623,9 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		return_ACPI_STATUS (error);
 	}
 
-	if (!(sta & ACPI_STA_ENABLE)) {
+	if ((sta & ACPI_STA_ENABLE) == 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "PCI interrupt link is disabled - %s\n",
+		    "interrupt link %s is disabled\n",
 		    acpi_name(link->handle)));
 		return_ACPI_STATUS (AE_ERROR);
 	}
@@ -665,7 +633,7 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get current IRQ from PCI interrupt link %s - %s\n",
+		    "couldn't get current IRQ from interrupt link %s - %s\n",
 		    acpi_name(link->handle), AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
@@ -676,7 +644,6 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 		    "couldn't set IRQ %d to PCI interrupt link %d - %s\n",
 		    irq, link->current_irq, acpi_name(link->handle)));
-
 		link->current_irq = 0;
 		error = AE_ERROR;
 	}
@@ -690,7 +657,6 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 
 static void
 acpi_pci_link_bootdisabled_dump(void)
-
 {
 	int			i;
 	int			irq;
@@ -698,9 +664,8 @@ acpi_pci_link_bootdisabled_dump(void)
 
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
 		/* boot-disabled link only. */
-		if (link->current_irq != 0) {
+		if (link->current_irq != 0)
 			continue;
-		}
 
 		printf("%s:\n", acpi_name(link->handle));
 		printf("	interrupts:	");
@@ -748,26 +713,19 @@ acpi_pci_link_init_irq_penalty(void)
 }
 
 static int
-acpi_pci_link_is_irq_exclusive(ACPI_RESOURCE *res)
+link_exclusive(ACPI_RESOURCE *res)
 {
-	if (res == NULL) {
+
+	if (res == NULL ||
+	    (res->Id != ACPI_RSTYPE_IRQ &&
+	    res->Id != ACPI_RSTYPE_EXT_IRQ))
 		return (0);
-	}
 
-	if (res->Id != ACPI_RSTYPE_IRQ &&
-	    res->Id != ACPI_RSTYPE_EXT_IRQ) {
-		return (0);
-	}
-
-	if (res->Id == ACPI_RSTYPE_IRQ &&
-	    res->Data.Irq.SharedExclusive == ACPI_EXCLUSIVE) {
+	if ((res->Id == ACPI_RSTYPE_IRQ &&
+	    res->Data.Irq.SharedExclusive == ACPI_EXCLUSIVE) ||
+	    (res->Id == ACPI_RSTYPE_EXT_IRQ &&
+	    res->Data.ExtendedIrq.SharedExclusive == ACPI_EXCLUSIVE))
 		return (1);
-	}
-
-	if (res->Id == ACPI_RSTYPE_EXT_IRQ &&
-	    res->Data.ExtendedIrq.SharedExclusive == ACPI_EXCLUSIVE) {
-		return (1);
-	}
 
 	return (0);
 }
@@ -783,14 +741,13 @@ acpi_pci_link_update_irq_penalty(device_t dev, int busno)
 	struct acpi_pci_link_entry *link;
 
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-		if (entry->busno != busno) {
+		if (entry->busno != busno)
 			continue;
-		}
 
+		/* Impossible? */
 		link = entry->pci_link;
-		if (link == NULL) {
-			continue;	/* impossible... */
-		}
+		if (link == NULL)
+			continue;
 
 		if (link->current_irq != 0) {
 			/* not boot-disabled link, we will use this IRQ. */
@@ -805,9 +762,8 @@ acpi_pci_link_update_irq_penalty(device_t dev, int busno)
 			irq_penalty[irq] += 10;
 
 			/* higher penalty if exclusive. */
-			if (acpi_pci_link_is_irq_exclusive(&link->possible_resources)) {
+			if (link_exclusive(&link->possible_resources))
 				irq_penalty[irq] += 100;
-			}
 
 			/* XXX try to get this IRQ in non-sharable mode. */
 			rid = 0;
@@ -838,14 +794,13 @@ acpi_pci_link_set_bootdisabled_priority(void)
 	TAILQ_HEAD(, acpi_pci_link_entry) sorted_list;
 
 	if (bootverbose) {
-		printf("---- before setting priority for links ------------\n");
+		printf("ACPI PCI link before setting link priority:\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
 
 	/* reset priority for all links. */
-	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
+	TAILQ_FOREACH(link, &acpi_pci_link_entries, links)
 		link->priority = 0;
-	}
 
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
 		/* not boot-disabled link, give no chance to be arbitrated. */
@@ -866,7 +821,8 @@ acpi_pci_link_set_bootdisabled_priority(void)
 			sum_penalty += irq_penalty[irq];
 		}
 
-		link->priority = (sum_penalty * link->references) / link->number_of_interrupts;
+		link->priority = (sum_penalty * link->references) /
+		    link->number_of_interrupts;
 	}
 
 	/*
@@ -877,11 +833,10 @@ acpi_pci_link_set_bootdisabled_priority(void)
 	while (!TAILQ_EMPTY(&acpi_pci_link_entries)) {
 		link = TAILQ_FIRST(&acpi_pci_link_entries);
 		/* find an entry which has the highest priority. */
-		TAILQ_FOREACH(link_pri, &acpi_pci_link_entries, links) {
-			if (link->priority < link_pri->priority) {
+		TAILQ_FOREACH(link_pri, &acpi_pci_link_entries, links)
+			if (link->priority < link_pri->priority)
 				link = link_pri;
-			}
-		}
+
 		/* move to work list. */
 		TAILQ_REMOVE(&acpi_pci_link_entries, link, links);
 		TAILQ_INSERT_TAIL(&sorted_list, link, links);
@@ -904,15 +859,14 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 	ACPI_STATUS		error;
 
 	if (bootverbose) {
-		printf("---- before fixup boot-disabled links -------------\n");
+		printf("ACPI PCI link before fixup for boot-disabled links:\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
 
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
 		/* ignore non boot-disabled links. */
-		if (link->current_irq != 0) {
+		if (link->current_irq != 0)
 			continue;
-		}
 
 		/* sort IRQs based on their penalty descending. */
 		for (i = 0; i < link->number_of_interrupts; i++) {
@@ -937,12 +891,11 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 				irq_penalty[irq1] += 100 * link->references;
 				break;
 			}
-			/* NG, try next IRQ... */
 		}
 	}
 
 	if (bootverbose) {
-		printf("---- after fixup boot-disabled links --------------\n");
+		printf("ACPI PCI link after fixup for boot-disabled links:\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
 }
@@ -962,9 +915,8 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (acpi_disabled("pci_link")) {
+	if (acpi_disabled("pci_link"))
 		return (0);
-	}
 
 	if (first_time) {
 		TAILQ_INIT(&acpi_prt_entries);
@@ -973,14 +925,12 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		first_time = 0;
 	}
 
-	if (prtbuf == NULL) {
+	if (prtbuf == NULL)
 		return (-1);
-	}
 
 	prtp = prtbuf->Pointer;
-	if (prtp == NULL) {		/* didn't get routing table */
+	if (prtp == NULL)		/* didn't get routing table */
 		return (-1);
-	}
 
 	/* scan the PCI Routing Table */
 	for (;;) {
@@ -1001,12 +951,10 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	}
 
 	if (bootverbose) {
-		printf("---- initial configuration ------------------------\n");
+		printf("ACPI PCI link initial configuration:\n");
 		TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-			if (entry->busno != busno) {
+			if (entry->busno != busno)
 				continue;
-			}
-
 			acpi_pci_link_entry_dump(entry);
 		}
 	}
@@ -1016,9 +964,8 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		int			irq;
 		char			prthint[32];
 
-		if (entry->busno != busno) {
+		if (entry->busno != busno)
 			continue;
-		}
 
 		snprintf(prthint, sizeof(prthint),
 		    "hw.acpi.pci.link.%d.%d.%d.irq", entry->busno,
@@ -1032,7 +979,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 			error = acpi_pci_link_set_irq(entry->pci_link, irq);
 			if (ACPI_FAILURE(error)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				    "couldn't set IRQ to PCI interrupt link entry %s - %s\n",
+				    "couldn't set IRQ to link entry %s - %s\n",
 				    acpi_name(entry->pci_link->handle),
 				    AcpiFormatException(error)));
 			}
@@ -1043,9 +990,8 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		 * Do auto arbitration for this device's PCI link
 		 * if hint value 0 is specified.
 		 */
-		if (irq == 0) {
+		if (irq == 0)
 			entry->pci_link->current_irq = 0;
-		}
 	}
 
 	/* auto arbitration */
@@ -1054,12 +1000,10 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	acpi_pci_link_fixup_bootdisabled_link();
 
 	if (bootverbose) {
-		printf("---- arbitrated configuration ---------------------\n");
+		printf("ACPI PCI link arbitrated configuration:\n");
 		TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-			if (entry->busno != busno) {
+			if (entry->busno != busno)
 				continue;
-			}
-
 			acpi_pci_link_entry_dump(entry);
 		}
 	}
@@ -1075,20 +1019,18 @@ acpi_pci_link_resume(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (acpi_disabled("pci_link")) {
+	if (acpi_disabled("pci_link"))
 		return (0);
-	}
 
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-		if (entry->pcidev != dev) {
+		if (entry->pcidev != dev)
 			continue;
-		}
 
 		error = acpi_pci_link_set_irq(entry->pci_link,
 			    entry->pci_link->current_irq);
 		if (ACPI_FAILURE(error)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-			    "couldn't set IRQ to PCI interrupt link entry %s - %s\n",
+			    "couldn't set IRQ to link entry %s - %s\n",
 			    acpi_name(entry->pci_link->handle),
 			    AcpiFormatException(error)));
 		}
@@ -1096,4 +1038,3 @@ acpi_pci_link_resume(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 
 	return (0);
 }
-
