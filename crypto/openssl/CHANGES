@@ -2,6 +2,118 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.6a and 0.9.6b  [9 Jul 2001]
+
+  *) Change ssleay_rand_bytes (crypto/rand/md_rand.c)
+     to avoid a SSLeay/OpenSSL PRNG weakness pointed out by
+     Markku-Juhani O. Saarinen <markku-juhani.saarinen@nokia.com>:
+     PRNG state recovery was possible based on the output of
+     one PRNG request appropriately sized to gain knowledge on
+     'md' followed by enough consecutive 1-byte PRNG requests
+     to traverse all of 'state'.
+
+     1. When updating 'md_local' (the current thread's copy of 'md')
+        during PRNG output generation, hash all of the previous
+        'md_local' value, not just the half used for PRNG output.
+
+     2. Make the number of bytes from 'state' included into the hash
+        independent from the number of PRNG bytes requested.
+
+     The first measure alone would be sufficient to avoid
+     Markku-Juhani's attack.  (Actually it had never occurred
+     to me that the half of 'md_local' used for chaining was the
+     half from which PRNG output bytes were taken -- I had always
+     assumed that the secret half would be used.)  The second
+     measure makes sure that additional data from 'state' is never
+     mixed into 'md_local' in small portions; this heuristically
+     further strengthens the PRNG.
+     [Bodo Moeller]
+
+  *) Fix crypto/bn/asm/mips3.s.
+     [Andy Polyakov]
+
+  *) When only the key is given to "enc", the IV is undefined. Print out
+     an error message in this case.
+     [Lutz Jaenicke]
+
+  *) Handle special case when X509_NAME is empty in X509 printing routines.
+     [Steve Henson]
+
+  *) In dsa_do_verify (crypto/dsa/dsa_ossl.c), verify that r and s are
+     positive and less than q.
+     [Bodo Moeller]
+
+  *) Don't change *pointer in CRYPTO_add_lock() is add_lock_callback is
+     used: it isn't thread safe and the add_lock_callback should handle
+     that itself.
+     [Paul Rose <Paul.Rose@bridge.com>]
+
+  *) Verify that incoming data obeys the block size in
+     ssl3_enc (ssl/s3_enc.c) and tls1_enc (ssl/t1_enc.c).
+     [Bodo Moeller]
+
+  *) Fix OAEP check.
+     [Ulf Möller, Bodo Möller]
+
+  *) The countermeasure against Bleichbacher's attack on PKCS #1 v1.5
+     RSA encryption was accidentily removed in s3_srvr.c in OpenSSL 0.9.5
+     when fixing the server behaviour for backwards-compatible 'client
+     hello' messages.  (Note that the attack is impractical against
+     SSL 3.0 and TLS 1.0 anyway because length and version checking
+     means that the probability of guessing a valid ciphertext is
+     around 2^-40; see section 5 in Bleichenbacher's CRYPTO '98
+     paper.)
+
+     Before 0.9.5, the countermeasure (hide the error by generating a
+     random 'decryption result') did not work properly because
+     ERR_clear_error() was missing, meaning that SSL_get_error() would
+     detect the supposedly ignored error.
+
+     Both problems are now fixed.
+     [Bodo Moeller]
+
+  *) In crypto/bio/bf_buff.c, increase DEFAULT_BUFFER_SIZE to 4096
+     (previously it was 1024).
+     [Bodo Moeller]
+
+  *) Fix for compatibility mode trust settings: ignore trust settings
+     unless some valid trust or reject settings are present.
+     [Steve Henson]
+
+  *) Fix for blowfish EVP: its a variable length cipher.
+     [Steve Henson]
+
+  *) Fix various bugs related to DSA S/MIME verification. Handle missing
+     parameters in DSA public key structures and return an error in the
+     DSA routines if parameters are absent.
+     [Steve Henson]
+
+  *) In versions up to 0.9.6, RAND_file_name() resorted to file ".rnd"
+     in the current directory if neither $RANDFILE nor $HOME was set.
+     RAND_file_name() in 0.9.6a returned NULL in this case.  This has
+     caused some confusion to Windows users who haven't defined $HOME.
+     Thus RAND_file_name() is changed again: e_os.h can define a
+     DEFAULT_HOME, which will be used if $HOME is not set.
+     For Windows, we use "C:"; on other platforms, we still require
+     environment variables.
+
+  *) Move 'if (!initialized) RAND_poll()' into regions protected by
+     CRYPTO_LOCK_RAND.  This is not strictly necessary, but avoids
+     having multiple threads call RAND_poll() concurrently.
+     [Bodo Moeller]
+
+  *) In crypto/rand/md_rand.c, replace 'add_do_not_lock' flag by a
+     combination of a flag and a thread ID variable.
+     Otherwise while one thread is in ssleay_rand_bytes (which sets the
+     flag), *other* threads can enter ssleay_add_bytes without obeying
+     the CRYPTO_LOCK_RAND lock (and may even illegaly release the lock
+     that they do not hold after the first thread unsets add_do_not_lock).
+     [Bodo Moeller]
+
+  *) Change bctest again: '-x' expressions are not available in all
+     versions of 'test'.
+     [Bodo Moeller]
+
  Changes between 0.9.6 and 0.9.6a  [5 Apr 2001]
 
   *) Fix a couple of memory leaks in PKCS7_dataDecode()
@@ -2363,7 +2475,7 @@
                                      copied!)
      [Bodo Moeller]
 
-  *) Bugfix: SSL_set_mode ignored its parameter, only SSL_CTX_set_mode
+  *) Bugfix: SSL_set_options ignored its parameter, only SSL_CTX_set_options
      worked.
 
   *) Fix problems with no-hmac etc.
