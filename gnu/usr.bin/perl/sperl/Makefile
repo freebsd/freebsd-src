@@ -19,7 +19,8 @@ DPADD= ${LIBM}
 LDADD+= -lcrypt
 DPADD+= ${LIBCRYPT}
 
-NOMAN=
+MANSRC= ${.CURDIR}/../perl
+MLINKS+=perl.1 suidperl.1
 
 
 .include "../../Makefile.inc"
