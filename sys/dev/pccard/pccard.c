@@ -93,8 +93,7 @@ pccard_ccr_write(pf, ccr, val)
 static int
 pccard_attach_card(device_t dev)
 {
-	struct pccard_softc *sc = (struct pccard_softc *) 
-	    device_get_softc(dev);
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 	device_t child;
 	int attached;
@@ -110,9 +109,6 @@ pccard_attach_card(device_t dev)
 
 	DEVPRINTF((dev, "read_cis\n"));
 	pccard_read_cis(sc);
-
-	DEVPRINTF((dev, "chip_socket_disable\n"));
-	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 
 	DEVPRINTF((dev, "check_cis_quirks\n"));
 	pccard_check_cis_quirks(dev);
@@ -137,12 +133,15 @@ pccard_attach_card(device_t dev)
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
-		printf ("pf %x sc %x\n", pf, sc);
+		printf ("pf %p sc %p\n", pf, sc);
 		pf->sc = sc;
 		pf->cfe = NULL;
 		pf->ih_fct = NULL;
 		pf->ih_arg = NULL;
 	}
+
+	DEVPRINTF((dev, "chip_socket_disable\n"));
+	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
@@ -163,7 +162,7 @@ pccard_attach_card(device_t dev)
 		child = device_add_child(dev, NULL, -1);
 		pccard_function_init(pf, STAILQ_FIRST(&pf->cfe_head));
 		pccard_function_enable(pf);
-		device_printf(dev, "pf %x pf->sc %x\n", pf, pf->sc);
+		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
 		if (device_probe_and_attach(child) == 0) {
 			attached++;
 
@@ -183,8 +182,7 @@ pccard_attach_card(device_t dev)
 static int
 pccard_detach_card(device_t dev, int flags)
 {
-	struct pccard_softc *sc = (struct pccard_softc *) 
-	    device_get_softc(dev);
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 
 	/*
@@ -204,8 +202,7 @@ pccard_detach_card(device_t dev, int flags)
 static int 
 pccard_card_gettype(device_t dev, int *type)
 {
-	struct pccard_softc *sc = (struct pccard_softc *)
-	    device_get_softc(dev);
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 
 	/*
@@ -515,11 +512,11 @@ pccard_probe(device_t dev)
 static int
 pccard_attach(device_t dev)
 {
-	struct pccard_softc *sc;
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 
-	sc = (struct pccard_softc *) device_get_softc(dev);
 	sc->dev = dev;
 	sc->sc_enabled_count = 0;
+	DEVPRINTF((dev, "pccard_attach %p\n", dev));
 	return bus_generic_attach(dev);
 }
 
@@ -684,7 +681,7 @@ static device_method_t pccard_methods[] = {
 static driver_t pccard_driver = {
 	"pccard",
 	pccard_methods,
-	1,			/* no softc */
+	sizeof(struct pccard_softc)
 };
 
 devclass_t	pccard_devclass;

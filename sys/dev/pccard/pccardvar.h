@@ -241,6 +241,8 @@ void	pccard_ccr_write(struct pccard_function *, int, int);
 #define	pccard_mfc(sc)	(STAILQ_FIRST(&(sc)->card.pf_head) &&		\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
+/* The following is the vestages of the NetBSD driver api */
+
 void	pccard_function_init(struct pccard_function *,
 	    struct pccard_config_entry *);
 int	pccard_function_enable(struct pccard_function *);
@@ -259,14 +261,11 @@ void	pccard_io_unmap(struct pccard_function *, int);
 
 #define pccard_mem_alloc(pf, size, pcmhp)				\
 	(pccard_chip_mem_alloc((pf)->sc->pct, (pf)->sc->pch, (size), (pcmhp)))
-
 #define pccard_mem_free(pf, pcmhp)					\
 	(pccard_chip_mem_free((pf)->sc->pct, (pf)->sc->pch, (pcmhp)))
-
 #define pccard_mem_map(pf, kind, card_addr, size, pcmhp, offsetp, windowp) \
 	(pccard_chip_mem_map((pf)->sc->pct, (pf)->sc->pch, (kind),	\
 	 (card_addr), (size), (pcmhp), (offsetp), (windowp)))
-
 #define	pccard_mem_unmap(pf, window)					\
 	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
 
@@ -287,3 +286,4 @@ enum {
 	PCCARD_A_MEM_ATTR = 0x1
 };
 
+#define PCCARD_SOFTC(d) (struct pccard_softc *) device_get_softc(d)
