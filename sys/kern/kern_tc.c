@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.42 1997/09/24 16:39:16 gibbs Exp $
+ * $Id: kern_clock.c,v 1.43 1997/11/07 08:52:54 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -55,8 +55,6 @@
  * purpose.  It is provided "as is" without express or implied warranty.      *
  *                                                                            *
  *****************************************************************************/
-
-#include "opt_cpu.h"		/* XXX */
 
 #include <sys/param.h>
 #include <sys/systm.h>
