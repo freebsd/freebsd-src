@@ -37,18 +37,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.87 1999/04/27 11:16:05 phk Exp $
+ * $Id: kern_sysctl.c,v 1.88 1999/04/28 11:37:00 phk Exp $
  */
 
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/buf.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/buf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
