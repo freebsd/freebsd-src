@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.36 1998/06/07 17:12:07 dfr Exp $ */
+/* $Id: ppp_tty.c,v 1.37 1998/06/20 16:39:35 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -89,14 +89,7 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-
-/*
- * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't
- * exist if we are an LKM.
- */
-#undef KERNEL
-# include <sys/vnode.h>
-#define KERNEL
+#include <sys/vnode.h>
 
 #ifdef __i386__
 #include <i386/isa/intr_machdep.h>
