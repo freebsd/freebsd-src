@@ -37,6 +37,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/disk.h>
 #include <sys/bio.h>
 #include <netinet/in.h>
