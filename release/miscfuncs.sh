@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.4 1994/11/18 12:54:45 jkh Exp $
+# $Id: miscfuncs.sh,v 1.5 1994/11/18 15:13:37 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -22,14 +22,14 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
 export PATH
 
 # Keep this current with the distribution!
-DISTNAME=2.0-ALPHA
+DISTNAME=2.0-BETA
 
 # Flagrant guesses for now.  These need to be hand-edited or, much better yet,
 # automatically done as part of the release process.  When that's the case,
 # the hardwired constants will be replaced with tokens that get sed'd for
 # the real sizes.
 #
-BINSIZE="60MB"
+BINSIZE="40MB"
 GAMESIZE="8MB"
 MANSIZE="8MB"
 PROFSIZE="4MB"
