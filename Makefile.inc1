@@ -580,12 +580,15 @@ installmost:
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
+.if ${CXX} != "c++"
+_cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
+.endif
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
     usr.bin/rpcgen usr.bin/xargs usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
-    gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
+    ${_cxx_consumers} gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
@@ -660,6 +663,9 @@ cross-tools:
 hierarchy:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
+.if ${CXX} == "c++"
+NO_CXX=	yes
+.endif
 #
 # includes - possibly generate and install the include files.
 #

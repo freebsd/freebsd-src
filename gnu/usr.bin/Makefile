@@ -1,7 +1,11 @@
 # $FreeBSD$
 
-SUBDIR= awk bc binutils cpio dc dialog diff diff3 gperf \
-	grep groff gzip man patch ptx rcs sdiff send-pr sort tar texinfo
+SUBDIR= awk bc binutils cpio dc dialog diff diff3 \
+	grep gzip man patch ptx rcs sdiff send-pr sort tar texinfo
+
+.if ${CXX:T} != "c++"
+SUBDIR+=gperf groff
+.endif
 
 .if !defined(NO_CVS)
 SUBDIR+=cvs
