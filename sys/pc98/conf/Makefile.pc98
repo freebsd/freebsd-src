@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.33 1998/06/25 10:49:49 kato Exp $
+#	$Id: Makefile.pc98,v 1.34 1998/07/12 14:30:54 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -231,7 +231,11 @@ vnode_if.c vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 vnode_if.o:
 	${NORMAL_C}
 
+.if exists($S/../share/mk)
+.include "$S/../share/mk/bsd.kern.mk"
+.else
 .include <bsd.kern.mk>
+.endif
 
 %RULES
 
