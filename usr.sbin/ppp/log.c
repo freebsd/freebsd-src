@@ -1,5 +1,5 @@
 /*
- * $Id: log.c,v 1.19 1997/11/09 06:22:42 brian Exp $
+ * $Id: log.c,v 1.20 1997/11/09 14:18:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -153,6 +153,7 @@ LogPrintf(int lev, char *fmt,...)
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
       vfprintf(VarTerm, nfmt, ap);
+      fflush(VarTerm);
     }
 
     if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN || !VarTerm)) {
