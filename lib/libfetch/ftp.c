@@ -418,13 +418,10 @@ _ftp_closefn(void *v)
     io->dir = -1;
     io->dsd = -1;
     DEBUG(fprintf(stderr, "Waiting for final status\n"));
-    if ((r = _ftp_chkerr(io->csd)) != FTP_TRANSFER_COMPLETE)
-	io->err = r;
-    else
-	io->err = 0;
+    r = _ftp_chkerr(io->csd);
     close(io->csd);
-    io->csd = -1;
-    return io->err ? -1 : 0;
+    free(io);
+    return (r == FTP_TRANSFER_COMPLETE) ? 0 : -1;
 }
 
 static FILE *
