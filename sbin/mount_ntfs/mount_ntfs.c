@@ -47,6 +47,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include "mntopts.h"
 
@@ -59,6 +60,8 @@ static gid_t	a_gid __P((char *));
 static uid_t	a_uid __P((char *));
 static mode_t	a_mask __P((char *));
 static void	usage __P((void)) __dead2;
+
+static void     load_u2wtable __P((struct ntfs_args *, char *));
 
 int
 main(argc, argv)
@@ -78,7 +81,7 @@ main(argc, argv)
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
 
-	while ((c = getopt(argc, argv, "aiu:g:m:o:")) !=  -1) {
+	while ((c = getopt(argc, argv, "aiu:g:m:o:W:")) !=  -1) {
 		switch (c) {
 		case 'u':
 			args.uid = a_uid(optarg);
@@ -100,6 +103,10 @@ main(argc, argv)
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
+			break;
+		case 'W':
+			load_u2wtable(&args, optarg);
+			args.flag |= NTFSMNT_U2WTABLE;
 			break;
 		case '?':
 		default:
@@ -233,6 +240,74 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] bdev dir\n");
+	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] [-W u2wtable] bdev dir\n");
 	exit(EX_USAGE);
 }
+
+void
+load_u2wtable (pargs, name)
+	struct ntfs_args *pargs;
+	char *name;
+{
+	FILE *f;
+	int i, j, code[8];
+	size_t line = 0;
+	char buf[128];
+	char *fn, *s, *p;
+
+	if (*name == '/')
+		fn = name;
+	else {
+		snprintf(buf, sizeof(buf), "/usr/libdata/msdosfs/%s", name);
+		buf[127] = '\0';
+		fn = buf;
+	}
+	if ((f = fopen(fn, "r")) == NULL)
+		err(EX_NOINPUT, "%s", fn);
+	p = NULL;
+	for (i = 0; i < 16; i++) {
+		do {
+			if (p != NULL) free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read u2w table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "u2w table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			pargs->u2w[i * 8 + j] = code[j];
+	}
+	for (i = 0; i < 16; i++) {
+		do {
+			free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read d2u table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "d2u table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			/* pargs->d2u[i * 8 + j] = code[j] */;
+	}
+	for (i = 0; i < 16; i++) {
+		do {
+			free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read u2d table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "u2d table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			/* pargs->u2d[i * 8 + j] = code[j] */;
+	}
+	free(p);
+	fclose(f);
+}
+

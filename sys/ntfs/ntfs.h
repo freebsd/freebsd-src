@@ -256,6 +256,8 @@ struct ntfsmount {
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
 	struct netexport ntm_export;	/* export information */
+	wchar *		ntm_82u;	/* 8bit to Unicode */
+	char **		ntm_u28;	/* Unicode to 8 bit */
 };
 
 #define ntm_mftcn	ntm_bootfile.bf_mftcn
