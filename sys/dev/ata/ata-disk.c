@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: ata-disk.c,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -80,10 +80,10 @@ static struct cdevsw ad_cdevsw = {
 
 /* prototypes */
 static void ad_attach(void *);
+static int32_t ata_get_param(struct ad_softc *);
 static void ad_strategy(struct buf *);
 static void ad_start(struct ad_softc *);
 static void ad_sleep(struct ad_softc *, int8_t *);
-static int32_t ad_command(struct ad_softc *, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t);
 static int8_t ad_version(u_int16_t);
 static void ad_drvinit(void);
 
@@ -102,34 +102,42 @@ ad_attach(void *notused)
     /* now, run through atadevices and look for ATA disks */
     for (ctlr=0; ctlr<MAXATA && atadevices[ctlr]; ctlr++) {
 	for (dev=0; dev<2; dev++) {
-	    if (atadevices[ctlr]->ata_parm[dev]) {
+	    if (atadevices[ctlr]->devices & 
+		(dev ? ATA_ATA_SLAVE : ATA_ATA_MASTER)) {
 #ifdef ATA_STATIC_ID
 		adnlun = dev + ctlr * 2;   
 #endif
     		adp = adtab[adnlun];
     		if (adp)
         	    printf("ad%d: unit already attached\n", adnlun);
-    		adp = malloc(sizeof(struct ad_softc), M_DEVBUF, M_NOWAIT);
-    		if (adp == NULL)
+    		if (!(adp = malloc(sizeof(struct ad_softc), 
+				   M_DEVBUF, M_NOWAIT))) {
         	    printf("ad%d: failed to allocate driver storage\n", adnlun);
+		    continue;
+		}
     		bzero(adp, sizeof(struct ad_softc));
 	        adp->controller = atadevices[ctlr];
-	        adp->ata_parm = atadevices[ctlr]->ata_parm[dev];
 		adp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
 		adp->lun = adnlun;
+		if (ata_get_param(adp)) {
+		    free(adp, M_DEVBUF);
+		    continue;
+		}
 		adp->cylinders = adp->ata_parm->cylinders;
 		adp->heads = adp->ata_parm->heads;
 		adp->sectors = adp->ata_parm->sectors;
-		adp->total_secs = adp->ata_parm->lbasize;
-                if (!adp->total_secs)  
-                    adp->total_secs = adp->cylinders*adp->heads*adp->sectors;   
-                if (adp->cylinders == 16383)  
+                adp->total_secs = adp->cylinders * adp->heads * adp->sectors;   
+                if (adp->cylinders == 16383 && 
+		    adp->total_secs < adp->ata_parm->lbasize) {
+		    adp->total_secs = adp->ata_parm->lbasize;
                     adp->cylinders = adp->total_secs/(adp->heads*adp->sectors);
+		}
 
 		/* support multiple sectors / interrupt ? */
 		adp->transfersize = DEV_BSIZE;
 		secsperint = min(adp->ata_parm->nsecperint, 16);
-		if (!ad_command(adp, ATA_C_SET_MULTI, 0, 0, 0, secsperint) &&
+		if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
+				 0, 0, 0, secsperint, ATA_WAIT_INTR) &&
 		    ata_wait(adp->controller, ATA_S_DRDY) >= 0)
 		    adp->transfersize *= secsperint;
 
@@ -179,6 +187,30 @@ ad_attach(void *notused)
 }
 
 static int32_t
+ata_get_param(struct ad_softc *adp)
+{
+    struct ata_params *ata_parm;
+    int8_t buffer[DEV_BSIZE];
+
+    ata_command(adp->controller, adp->unit, ATA_C_ATA_IDENTIFY,
+		0, 0, 0, 0, ATA_WAIT_INTR);
+    if (ata_wait(adp->controller, ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
+	return -1;
+    insw(adp->controller->ioaddr + ATA_DATA, buffer, 
+	 sizeof(buffer)/sizeof(int16_t));
+    ata_parm = malloc(sizeof(struct ata_params), M_DEVBUF, M_NOWAIT);
+    if (!ata_parm) 
+   	return -1; 
+    bcopy(buffer, ata_parm, sizeof(struct ata_params));
+    bswap(ata_parm->model, sizeof(ata_parm->model));
+    btrim(ata_parm->model, sizeof(ata_parm->model));
+    bswap(ata_parm->revision, sizeof(ata_parm->revision));
+    btrim(ata_parm->revision, sizeof(ata_parm->revision));
+    adp->ata_parm = ata_parm;
+    return 0;
+}
+
+static int
 adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -216,7 +248,7 @@ printf("adopen: lun=%d adnlun=%d\n", lun, adnlun);
     return error;
 }
 
-static int32_t 
+static int 
 adclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -232,19 +264,19 @@ printf("adclose: lun=%d adnlun=%d\n", lun, adnlun);
     return 0;
 }
 
-static int32_t
+static int
 adread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(adstrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int32_t
+static int
 adwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(adstrategy, NULL, dev, 0, minphys, uio);
 }
 
-static int32_t 
+static int 
 adioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 {
     struct ad_softc *adp;
@@ -308,7 +340,7 @@ done:
     splx(s);
 }
 
-static int32_t
+static int
 adpsize(dev_t dev)
 {
     struct ad_softc *adp;
@@ -393,17 +425,8 @@ ad_transfer(struct buf *bp)
             /*ata_unwedge(adp->controller); SOS */
         }                       
 
-        outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | adp->unit | head);
-        outb(adp->controller->ioaddr + ATA_PRECOMP, 0);	/* no precompensation */
-        outb(adp->controller->ioaddr + ATA_CYL_LSB, cylinder);
-        outb(adp->controller->ioaddr + ATA_CYL_MSB, cylinder >> 8);
-        outb(adp->controller->ioaddr + ATA_SECTOR, sector + 1);
-        outb(adp->controller->ioaddr + ATA_COUNT, count);
-/*
-        if (ata_wait(adp->controller, ATA_S_DRDY) < 0) 
-	    printf("ad_transfer: timeout waiting to send command");
-*/
-        outb(adp->controller->ioaddr + ATA_CMD, command);
+        ata_command(adp->controller, adp->unit, command, cylinder, head, 
+		    sector + 1, count, ATA_IMMEDIATE);
     }
    
     /* if this is a read operation, return and wait for interrupt */
@@ -531,34 +554,6 @@ ad_sleep(struct ad_softc *adp, int8_t *mesg)
     while (adp->controller->active)
         tsleep((caddr_t)&adp->controller->active, PZERO - 1, mesg, 1);
     splx(s);
-}
-
-static int32_t
-ad_command(struct ad_softc *adp, u_int32_t command,
-	   u_int32_t cylinder, u_int32_t head, u_int32_t sector, 
-	   u_int32_t count)
-{
-    /* ready to issue command ? */ 
-    while (ata_wait(adp->controller, 0) < 0) {
-        printf("ad_transfer: timeout waiting to give command");
-	return -1;
-    }
-
-    outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | adp->unit | head);
-    outb(adp->controller->ioaddr + ATA_PRECOMP, 0); /* no precompensation */
-    outb(adp->controller->ioaddr + ATA_CYL_LSB, cylinder);
-    outb(adp->controller->ioaddr + ATA_CYL_MSB, cylinder >> 8);
-    outb(adp->controller->ioaddr + ATA_SECTOR, sector + 1);
-    outb(adp->controller->ioaddr + ATA_COUNT, count);
-/*
-    if (ata_wait(adp->controller, ATA_S_DRDY) < 0) {
-        printf("ad_transfer: timeout waiting to send command");
-	return -1;
-    }
-*/  
-    adp->controller->active = ATA_IGNORE_INTR;
-    outb(adp->controller->ioaddr + ATA_CMD, command);
-    return 0;
 }
 
 static int8_t
