@@ -32,7 +32,7 @@
 # The AGP interface is used internally to the agp driver to isolate the
 # differences between various AGP chipsets into chipset mini drivers. It
 # should not be used outside the AGP driver. The kernel api for accessing
-# AGP functionality is described in <pci/agpvar,h>
+# AGP functionality is described in <pci/agpvar.h>
 #
 INTERFACE agp;
 
