@@ -1,4 +1,9 @@
-# csh .login file
+#	$Id$
+#
+# .login - csh login script, read by login shell, 
+#	   after `.cshrc' at login.
+#
+# see also csh(1), environ(7).
 #
 
 set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/bin /usr/X11R6/bin $HOME/bin)

@@ -1,4 +1,10 @@
-#csh .cshrc file
+#	$Id$
+#
+# .cshrc - csh resource script, read at beginning 
+#	   of execution by each shell
+#
+# see also csh(1), environ(7).
+#
 
 alias h		history 25
 alias j		jobs -l
