@@ -1332,6 +1332,9 @@ close_archive (void)
      might become clever enough to just stop working, once there is no more
      work to do, we might have to revise this area in such time.  */
 
+  if (fast_read_option && namelist_freed)
+    kill(child_pid, SIGTERM);
+
   if (access_mode == ACCESS_READ
       && ! _isrmt (archive)
       && (S_ISFIFO (archive_stat.st_mode) || S_ISSOCK (archive_stat.st_mode)))
@@ -1358,12 +1361,13 @@ close_archive (void)
 	    break;
 	  }
 
-      if (WIFSIGNALED (wait_status))
-	ERROR ((0, 0, _("Child died with signal %d"),
-		WTERMSIG (wait_status)));
-      else if (WEXITSTATUS (wait_status) != 0)
-	ERROR ((0, 0, _("Child returned status %d"),
-		WEXITSTATUS (wait_status)));
+      if (!fast_read_option || !namelist_freed)
+        if (WIFSIGNALED (wait_status))
+	  ERROR ((0, 0, _("Child died with signal %d"),
+		  WTERMSIG (wait_status)));
+        else if (WEXITSTATUS (wait_status) != 0)
+	  ERROR ((0, 0, _("Child returned status %d"),
+		  WEXITSTATUS (wait_status)));
     }
 #endif /* !MSDOS */
 
