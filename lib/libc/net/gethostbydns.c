@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.11 1996/10/01 03:45:06 pst Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.12 1996/11/01 06:25:43 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -395,6 +395,16 @@ gethostanswer(answer, anslen, qname, qtype)
  try_again:
 	h_errno = TRY_AGAIN;
 	return (NULL);
+}
+
+struct hostent *
+__dns_getanswer(answer, anslen, qname, qtype)
+	const char *answer;
+	int anslen;
+	const char *qname;
+	int qtype;
+{
+	return(gethostanswer((const querybuf *)answer, anslen, qname, qtype));
 }
 
 struct hostent *
