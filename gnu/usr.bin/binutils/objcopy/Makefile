@@ -4,13 +4,13 @@
 
 .PATH: ${SRCDIR}/binutils
 
-PROG=		objcopy
-SRCS=		objcopy.c not-strip.c
-CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
-CFLAGS+=	-I${SRCDIR}/binutils
-DPADD=		${RELTOP}/libbinutils/libbinutils.a
-DPADD+=		${RELTOP}/libbfd/libbfd.a
-DPADD+=		${RELTOP}/libiberty/libiberty.a
-LDADD=		${DPADD}
+PROG=	objcopy
+SRCS=	objcopy.c not-strip.c
+CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
+CFLAGS+= -I${SRCDIR}/binutils
+DPADD=	${RELTOP}/libbinutils/libbinutils.a
+DPADD+=	${RELTOP}/libbfd/libbfd.a
+DPADD+=	${RELTOP}/libiberty/libiberty.a
+LDADD=	${DPADD}
 
 .include <bsd.prog.mk>
