@@ -263,7 +263,9 @@ div_output(struct socket *so, struct mbuf *m,
 	KASSERT(m->m_pkthdr.rcvif == NULL, ("rcvif not null"));
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	mac_create_mbuf_from_socket(so, m);
+	SOCK_UNLOCK(so);
 #endif
 
 	if (control)

@@ -559,7 +559,9 @@ syncache_socket(sc, lso, m)
 		goto abort2;
 	}
 #ifdef MAC
+	SOCK_LOCK(so);
 	mac_set_socket_peer_from_mbuf(m, so);
+	SOCK_UNLOCK(so);
 #endif
 
 	inp = sotoinpcb(so);

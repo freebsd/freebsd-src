@@ -124,8 +124,8 @@ struct socket {
 	void	(*so_upcall)(struct socket *, void *, int);
 	void	*so_upcallarg;
 	struct	ucred *so_cred;		/* user credentials */
-	struct	label *so_label;	/* MAC label for socket */
-	struct	label *so_peerlabel;	/* cached MAC label for socket peer */
+	struct	label *so_label;	/* (b) MAC label for socket */
+	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
