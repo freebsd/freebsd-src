@@ -672,7 +672,7 @@ main(argc, argv)
 #endif
 
 #ifdef __FreeBSD__
-  (void) setlocale(LC_CTYPE, "");
+  (void) setlocale(LC_ALL, "");
 #endif
   prog = argv[0];
   if (prog && strrchr(prog, '/'))
