@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 FILES=	ascii birthtoken bsd-family-tree eqnchar flowers init.ee \
-	iso3166 iso639 man.template mdoc.template operator scsi_modes
+	iso3166 iso639 man.template mdoc.template operator scsi_modes \
+	usb_hid_usages
 NOOBJ=	noobj
 
 all clean cleandir depend lint tags:
