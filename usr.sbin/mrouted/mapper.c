@@ -575,7 +575,7 @@ char *inet_name(addr)
 {
     struct hostent *e;
 
-    e = gethostbyaddr(&addr, sizeof(addr), AF_INET);
+    e = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
 
     return e ? e->h_name : 0;
 }
@@ -862,6 +862,7 @@ main(argc, argv)
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
+	addr.sin_len = sizeof addr;
 	addr.sin_addr.s_addr = dvmrp_group;
 	addr.sin_port = htons(2000); /* any port over 1024 will do... */
 	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0

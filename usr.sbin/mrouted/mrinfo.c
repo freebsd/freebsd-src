@@ -88,7 +88,7 @@ inet_name(addr)
 {
 	struct hostent *e;
 
-	e = gethostbyaddr(&addr, sizeof(addr), AF_INET);
+	e = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
 
 	return e ? e->h_name : "?";
 }
@@ -326,6 +326,7 @@ usage:		fprintf(stderr,
 		int     addrlen = sizeof(addr);
 
 		addr.sin_family = AF_INET;
+		addr.sin_len = sizeof addr;
 		addr.sin_addr.s_addr = target_addr;
 		addr.sin_port = htons(2000);	/* any port over 1024 will
 						 * do... */
