@@ -68,6 +68,7 @@ struct task {
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
+.Fn TASKQUEUE_DEFINE_THREAD "name"
 .Sh DESCRIPTION
 These functions provide a simple interface for asynchronous execution
 of code.
@@ -159,12 +160,13 @@ are simply copied into the task structure fields and the
 .Va ta_pending
 field is cleared.
 .Pp
-Two macros
-.Fn TASKQUEUE_DECLARE "name"
+Three macros
+.Fn TASKQUEUE_DECLARE "name" ,
+.Fn TASKQUEUE_DEFINE "name" "enqueue" "context" "init" ,
 and
-.Fn TASKQUEUE_DEFINE "name" "enqueue" "context" "init"
-are used to declare a reference to a global queue
-and to define the implementation of the queue.
+.Fn TASKQUEUE_DEFINE_THREAD "name"
+are used to declare a reference to a global queue, to define the
+implementation of the queue, and declare a queue that uses it's own thread.
 The
 .Fn TASKQUEUE_DEFINE
 macro arranges to call
@@ -182,6 +184,16 @@ the
 argument to the macro is executed as a C statement,
 allowing any further initialisation to be performed
 (such as registering an interrupt handler etc.)
+.Pp
+The
+.Fn TASKQUEUE_DEFINE_THREAD
+macro defines a new taskqueue with it's own kernel thread to serve tasks.  The
+variable
+.Vt struct proc *taskqueue_name_proc
+is defined which contains the kernel thread serving the tasks.
+The variable
+.Vt struct taskqueue *taskqueue_name
+is used to enqueue tasks onto the queue.
 .Pp
 The system provides three global taskqueues,
 .Va taskqueue_swi ,
