@@ -601,10 +601,8 @@ bread(blkno, buf, size)
 	int cnt, i;
 
 loop:
-	if (lseek(diskfd, ((off_t)blkno << dev_bshift), 0) !=
-						((off_t)blkno << dev_bshift))
-		msg("bread: lseek fails\n");
-	if ((cnt = read(diskfd, buf, size)) == size)
+	if ((cnt = pread(diskfd, buf, size, ((off_t)blkno << dev_bshift))) ==
+						size)
 		return;
 	if (blkno + (size / dev_bsize) > fsbtodb(sblock, sblock->fs_size)) {
 		/*
@@ -642,10 +640,8 @@ loop:
 	 */
 	memset(buf, 0, size);
 	for (i = 0; i < size; i += dev_bsize, buf += dev_bsize, blkno++) {
-		if (lseek(diskfd, ((off_t)blkno << dev_bshift), 0) !=
-						((off_t)blkno << dev_bshift))
-			msg("bread: lseek2 fails!\n");
-		if ((cnt = read(diskfd, buf, (int)dev_bsize)) == dev_bsize)
+		if ((cnt = pread(diskfd, buf, (int)dev_bsize,
+		    ((off_t)blkno << dev_bshift))) == dev_bsize)
 			continue;
 		if (cnt == -1) {
 			msg("read error from %s: %s: [sector %d]: count=%d\n",
