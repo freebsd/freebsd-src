@@ -454,7 +454,8 @@ kbd_attach(keyboard_t *kbd)
 		return EINVAL;
 
 	kbd->kb_dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL, 0600,
-		       "kbd%r", kbd->kb_index);
+		       "%s%r", kbd->kb_name, kbd->kb_unit);
+	make_dev_alias(kbd->kb_dev, "kbd%r", kbd->kb_index);
 	kbd->kb_dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
 			      M_WAITOK | M_ZERO);
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
