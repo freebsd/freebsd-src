@@ -58,9 +58,6 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <netatalk/at.h>
-#ifdef NS
-#include <netns/ns.h>
-#endif
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -91,9 +88,6 @@ union	sockunion {
 	struct	sockaddr_in6 sin6;
 #endif
 	struct	sockaddr_at sat;
-#ifdef NS
-	struct	sockaddr_ns sns;
-#endif
 	struct	sockaddr_dl sdl;
 	struct	sockaddr_inarp sinarp;
 	struct	sockaddr_storage ss; /* added to avoid memory overrun */
@@ -238,11 +232,6 @@ flushroutes(argc, argv)
 			case K_ATALK:
 				af = AF_APPLETALK;
 				break;
-#ifdef NS
-			case K_XNS:
-				af = AF_NS;
-				break;
-#endif
 			case K_LINK:
 				af = AF_LINK;
 				break;
@@ -314,9 +303,6 @@ routename(sa)
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1, n;
-#ifdef NS
-	char *ns_print();
-#endif
 
 	if (first) {
 		first = 0;
@@ -396,11 +382,6 @@ routename(sa)
 			atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
 		break;
 
-#ifdef NS
-	case AF_NS:
-		return (ns_print((struct sockaddr_ns *)sa));
-#endif
-
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
 
@@ -435,9 +416,6 @@ netname(sa)
 	u_long net, mask;
 	u_long i;
 	int n, subnetshift;
-#ifdef NS
-	char *ns_print();
-#endif
 
 	switch (sa->sa_family) {
 
@@ -532,12 +510,6 @@ netname(sa)
 			atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
 		break;
 
-#ifdef NS
-	case AF_NS:
-		return (ns_print((struct sockaddr_ns *)sa));
-		break;
-#endif
-
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
 
@@ -627,12 +599,6 @@ newroute(argc, argv)
 				af = PF_ROUTE;
 				aflen = sizeof(union sockunion);
 				break;
-#ifdef NS
-			case K_XNS:
-				af = AF_NS;
-				aflen = sizeof(struct sockaddr_ns);
-				break;
-#endif
 			case K_IFACE:
 			case K_INTERFACE:
 				iflag++;
@@ -1032,22 +998,6 @@ getaddr(which, s, hpp)
 	}
 #endif /* INET6 */
 
-#ifdef NS
-	case AF_NS:
-		if (which == RTA_DST) {
-			extern short ns_bh[3];
-			struct sockaddr_ns *sms = &(so_mask.sns);
-			memset(sms, 0, sizeof(*sms));
-			sms->sns_family = 0;
-			sms->sns_len = 6;
-			sms->sns_addr.x_net = *(union ns_net *)ns_bh;
-			rtm_addrs |= RTA_NETMASK;
-		}
-		su->sns.sns_addr = ns_addr(s);
-		return (!ns_nullhost(su->sns.sns_addr));
-#endif
-
-
 	case AF_APPLETALK:
 		if (!atalk_aton(s, &su->sat.sat_addr))
 			errx(EX_NOHOST, "bad address: %s", s);
@@ -1157,57 +1107,6 @@ prefixlen(s)
 	else
 		return len;
 }
-
-#ifdef NS
-short ns_nullh[] = {0,0,0};
-short ns_bh[] = {-1,-1,-1};
-
-char *
-ns_print(sns)
-	struct sockaddr_ns *sns;
-{
-	struct ns_addr work;
-	union { union ns_net net_e; u_long long_e; } net;
-	u_short port;
-	static char mybuf[50+MAXHOSTNAMELEN], cport[10], chost[25];
-	char *host = "";
-	char *p;
-	u_char *q;
-
-	work = sns->sns_addr;
-	port = ntohs(work.x_port);
-	work.x_port = 0;
-	net.net_e  = work.x_net;
-	if (ns_nullhost(work) && net.long_e == 0) {
-		if (!port)
-			return ("*.*");
-		(void) sprintf(mybuf, "*.%XH", port);
-		return (mybuf);
-	}
-
-	if (memcmp(ns_bh, work.x_host.c_host, 6) == 0)
-		host = "any";
-	else if (memcmp(ns_nullh, work.x_host.c_host, 6) == 0)
-		host = "*";
-	else {
-		q = work.x_host.c_host;
-		(void) sprintf(chost, "%02X%02X%02X%02X%02X%02XH",
-			q[0], q[1], q[2], q[3], q[4], q[5]);
-		for (p = chost; *p == '0' && p < chost + 12; p++)
-			/* void */;
-		host = p;
-	}
-	if (port)
-		(void) sprintf(cport, ".%XH", htons(port));
-	else
-		*cport = 0;
-
-	(void) snprintf(mybuf, sizeof(mybuf), "%lxH.%s%s",
-			(unsigned long)ntohl(net.long_e),
-			host, cport);
-	return (mybuf);
-}
-#endif
 
 void
 interfaces()
@@ -1344,9 +1243,6 @@ mask_addr()
 	if ((rtm_addrs & RTA_DST) == 0)
 		return;
 	switch (so_dst.sa.sa_family) {
-#ifdef NS
-	case AF_NS:
-#endif
 	case AF_INET:
 #ifdef INET6
 	case AF_INET6:
@@ -1661,12 +1557,6 @@ sodump(su, which)
 		(void) printf("%s: atalk %s; ",
 		    which, atalk_ntoa(su->sat.sat_addr));
 		break;
-#ifdef NS
-	case AF_NS:
-		(void) printf("%s: xns %s; ",
-		    which, ns_ntoa(su->sns.sns_addr));
-		break;
-#endif
 	}
 	(void) fflush(stdout);
 }
