@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)popen.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -55,12 +59,13 @@ struct child {
 	int pid;
 	char done;
 	char free;
-	union wait status;
+	int status;
 	struct child *link;
 };
 static struct child *child;
 static struct child *findchild __P((int));
 static void delchild __P((struct child *));
+static int file_pid __P((FILE *));
 
 FILE *
 Fopen(file, mode)
@@ -166,7 +171,7 @@ register_file(fp, pipe, pid)
 	struct fp *fpp;
 
 	if ((fpp = (struct fp *) malloc(sizeof *fpp)) == NULL)
-		panic("Out of memory");
+		err(1, "Out of memory");
 	fpp->fp = fp;
 	fpp->pipe = pipe;
 	fpp->pid = pid;
@@ -186,9 +191,11 @@ unregister_file(fp)
 			free((char *) p);
 			return;
 		}
-	panic("Invalid file pointer");
+	errx(1, "Invalid file pointer");
+	/*NOTREACHED*/
 }
 
+int
 file_pid(fp)
 	FILE *fp;
 {
@@ -197,7 +204,7 @@ file_pid(fp)
 	for (p = fp_head; p; p = p->link)
 		if (p->fp == fp)
 			return (p->pid);
-	panic("Invalid file pointer");
+	errx(1, "Invalid file pointer");
 	/*NOTREACHED*/
 }
 
@@ -232,7 +239,7 @@ start_command(cmd, mask, infd, outfd, a0, a1, a2)
 	int pid;
 
 	if ((pid = fork()) < 0) {
-		perror("fork");
+		warn("fork");
 		return -1;
 	}
 	if (pid == 0) {
@@ -245,7 +252,7 @@ start_command(cmd, mask, infd, outfd, a0, a1, a2)
 			argv[i] = NOSTR;
 		prepare_child(mask, infd, outfd);
 		execvp(argv[0], argv);
-		perror(argv[0]);
+		warn("%s", argv[0]);
 		_exit(1);
 	}
 	return pid;
@@ -296,6 +303,8 @@ findchild(pid)
 			;
 	if (*cpp == NULL) {
 		*cpp = (struct child *) malloc(sizeof (struct child));
+		if (*cpp == NULL)
+			err(1, "Out of memory");
 		(*cpp)->pid = pid;
 		(*cpp)->done = (*cpp)->free = 0;
 		(*cpp)->link = NULL;
@@ -320,11 +329,10 @@ sigchild(signo)
 	int signo;
 {
 	int pid;
-	union wait status;
+	int status;
 	register struct child *cp;
 
-	while ((pid =
-	    wait3((int *)&status, WNOHANG, (struct rusage *)0)) > 0) {
+	while ((pid = waitpid((pid_t)-1, &status, WNOHANG)) > 0) {
 		cp = findchild(pid);
 		if (cp->free)
 			delchild(cp);
@@ -335,7 +343,7 @@ sigchild(signo)
 	}
 }
 
-union wait wait_status;
+int wait_status;
 
 /*
  * Wait for a specific child to die.
@@ -352,7 +360,7 @@ wait_child(pid)
 	wait_status = cp->status;
 	delchild(cp);
 	sigsetmask(mask);
-	return wait_status.w_status ? -1 : 0;
+	return((WIFEXITED(wait_status) && WEXITSTATUS(wait_status)) ? -1 : 0);
 }
 
 /*

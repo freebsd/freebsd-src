@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)aux.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -81,38 +85,6 @@ save2str(str, old)
 }
 
 /*
- * Announce a fatal error and die.
- */
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-panic(const char *fmt, ...)
-#else
-panic(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "panic: ");
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	fflush(stderr);
-	abort();
-}
-
-/*
  * Touch the named message by setting its MTOUCH flag.
  * Touched messages have the effect of not being sent
  * back to the system mailbox on exit.
@@ -139,7 +111,7 @@ isdir(name)
 
 	if (stat(name, &sbuf) < 0)
 		return(0);
-	return((sbuf.st_mode & S_IFMT) == S_IFDIR);
+	return(S_ISDIR(sbuf.st_mode));
 }
 
 /*
@@ -269,19 +241,18 @@ ishfield(linebuf, colon, field)
 }
 
 /*
- * Copy a string, lowercasing it as we go.
+ * Copy a string and lowercase the result.
+ * dsize: space left in buffer (including space for NULL)
  */
 void
-istrcpy(dest, src)
+istrncpy(dest, src, dsize)
 	register char *dest, *src;
+	size_t dsize;
 {
 
-	do {
-		if (isupper(*src))
-			*dest++ = tolower(*src);
-		else
-			*dest++ = *src;
-	} while (*src++ != 0);
+	strlcpy(dest, src, dsize);
+	while (*dest)
+		*dest++ = tolower(*dest);
 }
 
 /*
@@ -314,7 +285,7 @@ source(arglist)
 	if ((cp = expand(*arglist)) == NOSTR)
 		return(1);
 	if ((fi = Fopen(cp, "r")) == NULL) {
-		perror(cp);
+		warn("%s", cp);
 		return(1);
 	}
 	if (ssp >= SSTACK_SIZE - 1) {
@@ -378,22 +349,6 @@ alter(name)
 }
 
 /*
- * Examine the passed line buffer and
- * return true if it is all blanks and tabs.
- */
-int
-blankline(linebuf)
-	char linebuf[];
-{
-	register char *cp;
-
-	for (cp = linebuf; *cp; cp++)
-		if (*cp != ' ' && *cp != '\t')
-			return(0);
-	return(1);
-}
-
-/*
  * Get sender's name from this message.  If the message has
  * a bunch of arpanet stuff in it, we may have to skin the name
  * before returning it.
@@ -408,7 +363,7 @@ nameof(mp, reptype)
 	cp = skin(name1(mp, reptype));
 	if (reptype != 0 || charcount(cp, '!') < 2)
 		return(cp);
-	cp2 = rindex(cp, '!');
+	cp2 = strrchr(cp, '!');
 	cp2--;
 	while (cp2 > cp && *cp2 != '!')
 		cp2--;
@@ -454,15 +409,18 @@ skin(name)
 {
 	register int c;
 	register char *cp, *cp2;
-	char *bufend;
+	char *bufend, *nbuf;
 	int gotlt, lastsp;
-	char nbuf[BUFSIZ];
 
 	if (name == NOSTR)
 		return(NOSTR);
-	if (index(name, '(') == NOSTR && index(name, '<') == NOSTR
-	    && index(name, ' ') == NOSTR)
+	if (strchr(name, '(') == NOSTR && strchr(name, '<') == NOSTR
+	    && strchr(name, ' ') == NOSTR)
 		return(name);
+
+	/* We assume that length(input) <= length(output) */
+	if ((nbuf = (char *)malloc(strlen(name) + 1)) == NULL)
+		err(1, "Out of memory");
 	gotlt = 0;
 	lastsp = 0;
 	bufend = nbuf;
@@ -546,7 +504,9 @@ skin(name)
 	}
 	*cp2 = 0;
 
-	return(savestr(nbuf));
+	if ((nbuf = (char *)realloc(nbuf, strlen(nbuf) + 1)) == NULL)
+		err(1, "Out of memory");
+	return(nbuf);
 }
 
 /*
@@ -586,24 +546,25 @@ newname:
 	*cp2 = '\0';
 	if (readline(ibuf, linebuf, LINESIZE) < 0)
 		return(savestr(namebuf));
-	if ((cp = index(linebuf, 'F')) == NULL)
+	if ((cp = strchr(linebuf, 'F')) == NULL)
 		return(savestr(namebuf));
 	if (strncmp(cp, "From", 4) != 0)
 		return(savestr(namebuf));
-	while ((cp = index(cp, 'r')) != NULL) {
+	while ((cp = strchr(cp, 'r')) != NULL) {
 		if (strncmp(cp, "remote", 6) == 0) {
-			if ((cp = index(cp, 'f')) == NULL)
+			if ((cp = strchr(cp, 'f')) == NULL)
 				break;
 			if (strncmp(cp, "from", 4) != 0)
 				break;
-			if ((cp = index(cp, ' ')) == NULL)
+			if ((cp = strchr(cp, ' ')) == NULL)
 				break;
 			cp++;
 			if (first) {
-				strcpy(namebuf, cp);
+				cp2 = namebuf;
 				first = 0;
 			} else
-				strcpy(rindex(namebuf, '!')+1, cp);
+				cp2 = strrchr(namebuf, '!') + 1;
+			strlcpy(cp2, cp, sizeof(namebuf) - (cp2 - namebuf) - 1);
 			strcat(namebuf, "!");
 			goto newname;
 		}
@@ -630,46 +591,6 @@ charcount(str, c)
 }
 
 /*
- * Are any of the characters in the two strings the same?
- */
-int
-anyof(s1, s2)
-	register char *s1, *s2;
-{
-
-	while (*s1)
-		if (index(s2, *s1++))
-			return 1;
-	return 0;
-}
-
-/*
- * Convert c to upper case
- */
-int
-raise(c)
-	register int c;
-{
-
-	if (islower(c))
-		return toupper(c);
-	return c;
-}
-
-/*
- * Copy s1 to s2, return pointer to null in s2.
- */
-char *
-copy(s1, s2)
-	register char *s1, *s2;
-{
-
-	while (*s2++ = *s1++)
-		;
-	return s2 - 1;
-}
-
-/*
  * See if the given header field is supposed to be ignored.
  */
 int
@@ -677,7 +598,7 @@ isign(field, ignore)
 	char *field;
 	struct ignoretab ignore[2];
 {
-	char realfld[BUFSIZ];
+	char realfld[LINESIZE];
 
 	if (ignore == ignoreall)
 		return 1;
@@ -685,7 +606,7 @@ isign(field, ignore)
 	 * Lower-case the string, so that "Status" and "status"
 	 * will hash to the same place.
 	 */
-	istrcpy(realfld, field);
+	istrncpy(realfld, field, sizeof(realfld));
 	if (ignore[1].i_count > 0)
 		return (!member(realfld, ignore + 1));
 	else

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)list.c	8.2 (Berkeley) 4/19/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -391,7 +395,11 @@ getrawlist(line, argv, argc)
 {
 	register char c, *cp, *cp2, quotec;
 	int argn;
-	char linebuf[BUFSIZ];
+	char *linebuf;
+	size_t linebufsize = BUFSIZ;
+
+	if ((linebuf = (char *)malloc(linebufsize)) == NULL)
+		err(1, "Out of memory");
 
 	argn = 0;
 	cp = line;
@@ -408,6 +416,13 @@ getrawlist(line, argv, argc)
 		cp2 = linebuf;
 		quotec = '\0';
 		while ((c = *cp) != '\0') {
+			/* Allocate more space if necessary */
+			if (cp2 - linebuf == linebufsize - 1) {
+				linebufsize += BUFSIZ;
+				if ((linebuf = realloc(linebuf, linebufsize)) == NULL)
+					err(1, "Out of memory");
+				cp2 = linebuf + linebufsize - BUFSIZ - 1;
+			}
 			cp++;
 			if (quotec != '\0') {
 				if (c == quotec)
@@ -473,6 +488,7 @@ getrawlist(line, argv, argc)
 		argv[argn++] = savestr(linebuf);
 	}
 	argv[argn] = NOSTR;
+	free(linebuf);
 	return argn;
 }
 
@@ -605,7 +621,7 @@ regret(token)
 	int token;
 {
 	if (++regretp >= REGDEP)
-		panic("Too many regrets");
+		errx(1, "Too many regrets");
 	regretstack[regretp] = token;
 	lexstring[STRINGLEN-1] = '\0';
 	string_stack[regretp] = savestr(lexstring);
@@ -662,7 +678,7 @@ matchsender(str, mesg)
 	while (*cp2) {
 		if (*cp == 0)
 			return(1);
-		if (raise(*cp++) != raise(*cp2++)) {
+		if (toupper(*cp++) != toupper(*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}
@@ -678,7 +694,7 @@ matchsender(str, mesg)
  * previous search string.
  */
 
-char lastscan[128];
+char lastscan[STRINGLEN];
 int
 matchsubj(str, mesg)
 	char *str;
@@ -688,17 +704,17 @@ matchsubj(str, mesg)
 	register char *cp, *cp2, *backup;
 
 	str++;
-	if (strlen(str) == 0)
+	if (*str == '\0')
 		str = lastscan;
 	else
-		strcpy(lastscan, str);
+		strlcpy(lastscan, str, sizeof(lastscan));
 	mp = &message[mesg-1];
 
 	/*
 	 * Now look, ignoring case, for the word in the string.
 	 */
 
-	if (value("searchheaders") && (cp = index(str, ':'))) {
+	if (value("searchheaders") && (cp = strchr(str, ':'))) {
 		*cp++ = '\0';
 		cp2 = hfield(str, mp);
 		cp[-1] = ':';
@@ -713,7 +729,7 @@ matchsubj(str, mesg)
 	while (*cp2) {
 		if (*cp == 0)
 			return(1);
-		if (raise(*cp++) != raise(*cp2++)) {
+		if (toupper(*cp++) != toupper(*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}
@@ -732,7 +748,7 @@ mark(mesg)
 
 	i = mesg;
 	if (i < 1 || i > msgCount)
-		panic("Bad message number to mark");
+		errx(1, "Bad message number to mark");
 	message[i-1].m_flag |= MMARK;
 }
 
@@ -747,7 +763,7 @@ unmark(mesg)
 
 	i = mesg;
 	if (i < 1 || i > msgCount)
-		panic("Bad message number to unmark");
+		errx(1, "Bad message number to unmark");
 	message[i-1].m_flag &= ~MMARK;
 }
 

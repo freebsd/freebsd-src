@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmd3.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -56,8 +60,9 @@ shell(str)
 	char *shell;
 	char cmd[BUFSIZ];
 
-	(void) strcpy(cmd, str);
-	if (bangexp(cmd) < 0)
+	if (strlcpy(cmd, str, sizeof(cmd)) >= sizeof(cmd))
+		return 1;
+	if (bangexp(cmd, sizeof(cmd)) < 0)
 		return 1;
 	if ((shell = value("SHELL")) == NOSTR)
 		shell = _PATH_CSHELL;
@@ -90,21 +95,20 @@ dosh(str)
  * Expand the shell escape by expanding unescaped !'s into the
  * last issued command where possible.
  */
-
-char	lastbang[128];
-
 int
-bangexp(str)
+bangexp(str, strsize)
 	char *str;
+	size_t strsize;
 {
 	char bangbuf[BUFSIZ];
+	static char lastbang[BUFSIZ];
 	register char *cp, *cp2;
 	register int n;
 	int changed = 0;
 
 	cp = str;
 	cp2 = bangbuf;
-	n = BUFSIZ;
+	n = sizeof(bangbuf);
 	while (*cp) {
 		if (*cp == '!') {
 			if (n < strlen(lastbang)) {
@@ -113,7 +117,9 @@ overf:
 				return(-1);
 			}
 			changed++;
-			strcpy(cp2, lastbang);
+			if (strlcpy(cp2, lastbang, sizeof(bangbuf) - (cp2 - bangbuf))
+			    >= sizeof(bangbuf) - (cp2 - bangbuf))
+				goto overf;
 			cp2 += strlen(lastbang);
 			n -= strlen(lastbang);
 			cp++;
@@ -135,9 +141,10 @@ overf:
 		printf("!%s\n", bangbuf);
 		fflush(stdout);
 	}
-	strcpy(str, bangbuf);
-	strncpy(lastbang, bangbuf, 128);
-	lastbang[127] = 0;
+	if (strlcpy(str, bangbuf, strsize) >= strsize)
+		goto overf;
+	if (strlcpy(lastbang, bangbuf, sizeof(lastbang)) >= sizeof(lastbang))
+		goto overf;
 	return(0);
 }
 
@@ -152,7 +159,7 @@ help()
 	register FILE *f;
 
 	if ((f = Fopen(_PATH_HELP, "r")) == NULL) {
-		perror(_PATH_HELP);
+		warn("%s", _PATH_HELP);
 		return(1);
 	}
 	while ((c = getc(f)) != EOF)
@@ -170,13 +177,15 @@ schdir(arglist)
 {
 	char *cp;
 
-	if (*arglist == NOSTR)
+	if (*arglist == NOSTR) {
+		if (homedir == NOSTR)
+			return(1);
 		cp = homedir;
-	else
+	} else
 		if ((cp = expand(*arglist)) == NOSTR)
 			return(1);
 	if (chdir(cp) < 0) {
-		perror(cp);
+		warn("%s", cp);
 		return(1);
 	}
 	return 0;
@@ -276,8 +285,7 @@ reedit(subj)
 	    subj[2] == ':')
 		return subj;
 	newsubj = salloc(strlen(subj) + 5);
-	strcpy(newsubj, "Re: ");
-	strcpy(newsubj + 4, subj);
+	sprintf(newsubj, "Re: %s", subj);
 	return newsubj;
 }
 
@@ -386,7 +394,7 @@ set(arglist)
 	for (ap = arglist; *ap != NOSTR; ap++) {
 		cp = *ap;
 		cp2 = varbuf;
-		while (*cp != '=' && *cp != '\0')
+		while (cp2 < varbuf + sizeof(varbuf) - 1 && *cp != '=' && *cp != '\0')
 			*cp2++ = *cp++;
 		*cp2 = '\0';
 		if (*cp == '\0')

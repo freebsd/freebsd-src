@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 struct name *cat __P((struct name *, struct name *));
@@ -47,7 +49,6 @@ FILE	*Fdopen __P((int, char *));
 FILE	*Fopen __P((char *, char *));
 FILE	*Popen __P((char *, char *));
 FILE	*collect __P((struct header *, int));
-char	*copy __P((char *, char *));
 char	*copyin __P((char *, char **));
 char	*detract __P((struct name *, int));
 char	*expand __P((char *));
@@ -82,12 +83,10 @@ int	 dorespond __P((int *));
 void	 alter __P((char *));
 int	 alternates __P((char **));
 void	 announce __P((void));
-int	 anyof __P((char *, char *));
 int	 append __P((struct message *, FILE *));
 int	 argcount __P((char **));
 void	 assign __P((char [], char []));
-int	 bangexp __P((char *));
-int	 blankline __P((char []));
+int	 bangexp __P((char *, size_t));
 void	 brokpipe __P((int));
 int	 charcount __P((char *, int));
 int	 check __P((int, int));
@@ -121,16 +120,16 @@ void	 fail __P((char [], char []));
 int	 file __P((char **));
 struct grouphead *
 	 findgroup __P((char []));
-void	 findmail __P((char *, char *));
+void	 findmail __P((char *, char *, int));
 int	 first __P((int, int));
 void	 fixhead __P((struct header *, struct name *));
 void	 fmt __P((char *, struct name *, FILE *, int));
 int	 folders __P((void));
-int	 forward __P((char [], FILE *, int));
+int	 forward __P((char [], FILE *, char *, int));
 void	 free_child __P((int));
 int	 from __P((int *));
 off_t	 fsize __P((FILE *));
-int	 getfold __P((char *));
+int	 getfold __P((char *, int));
 int	 gethfield __P((FILE *, char [], int, char **));
 int	 getmsglist __P((char *, int *, int));
 int	 getrawlist __P((char [], char **, int));
@@ -155,7 +154,7 @@ int	 isfileaddr __P((char *));
 int	 ishead __P((char []));
 int	 isign __P((char *, struct ignoretab []));
 int	 isprefix __P((char *, char *));
-void	 istrcpy __P((char *, char *));
+void	 istrncpy __P((char *, char *, size_t));
 struct cmd *
 	 lex __P((char []));
 void	 load __P((char *));
@@ -179,7 +178,6 @@ int	 more __P((int *));
 int	 newfileinfo __P((void));
 int	 next __P((int *));
 int	 null __P((int));
-void	 panic __P((const char *, ...));
 void	 parse __P((char [], struct headline *, char []));
 int	 pcmdlist __P((void));
 int	 pdot __P((void));
@@ -193,7 +191,6 @@ int	 putline __P((FILE *, char *));
 int	 pversion __P((int));
 void	 quit __P((void));
 int	 quitcmd __P((void));
-int	 raise __P((int));
 int	 readline __P((FILE *, char *, int));
 void	 register_file __P((FILE *, int, int));
 void	 regret __P((int));
@@ -214,7 +211,7 @@ void	 scaninit __P((void));
 int	 schdir __P((char **));
 int	 screensize __P((void));
 int	 scroll __P((char []));
-int	 send __P((struct message *, FILE *, struct ignoretab *, char *));
+int	 sendmessage __P((struct message *, FILE *, struct ignoretab *, char *));
 int	 sendmail __P((char *));
 int	 set __P((char **));
 int	 setfile __P((char *));
@@ -251,3 +248,6 @@ int	 visual __P((int *));
 int	 wait_child __P((int));
 int	 wait_command __P((int));
 int	 writeback __P((FILE *));
+
+extern char *__progname;
+extern char *tmpdir;

@@ -34,7 +34,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -61,12 +65,12 @@ setfile(name)
 	char *name;
 {
 	FILE *ibuf;
-	int i;
+	int i, fd;
 	struct stat stb;
 	char isedit = *name != '%';
 	char *who = name[1] ? name + 1 : myname;
+	char tempname[PATHSIZE];
 	static int shudclob;
-	extern char *tempMesg;
 
 	if ((name = expand(name)) == NOSTR)
 		return -1;
@@ -74,30 +78,20 @@ setfile(name)
 	if ((ibuf = Fopen(name, "r")) == NULL) {
 		if (!isedit && errno == ENOENT)
 			goto nomail;
-		perror(name);
+		warn("%s", name);
 		return(-1);
 	}
 
 	if (fstat(fileno(ibuf), &stb) < 0) {
-		perror("fstat");
+		warn("fstat");
 		Fclose(ibuf);
 		return (-1);
 	}
 
-	switch (stb.st_mode & S_IFMT) {
-	case S_IFDIR:
+	if (S_ISDIR(stb.st_mode) || !S_ISREG(stb.st_mode)) {
 		Fclose(ibuf);
-		errno = EISDIR;
-		perror(name);
-		return (-1);
-
-	case S_IFREG:
-		break;
-
-	default:
-		Fclose(ibuf);
-		errno = EINVAL;
-		perror(name);
+		errno = S_ISDIR(stb.st_mode) ? EISDIR : EINVAL;
+		warn("%s", name);
 		return (-1);
 	}
 
@@ -128,21 +122,18 @@ setfile(name)
 	}
 	shudclob = 1;
 	edit = isedit;
-	strcpy(prevfile, mailname);
+	strlcpy(prevfile, mailname, sizeof(prevfile));
 	if (name != mailname)
-		strcpy(mailname, name);
+		strlcpy(mailname, name, sizeof(mailname));
 	mailsize = fsize(ibuf);
-	if ((otf = fopen(tempMesg, "w")) == NULL) {
-		perror(tempMesg);
-		exit(1);
-	}
+	snprintf(tempname, sizeof(tempname), "%s/mail.RxXXXXXXXXXX", tmpdir);
+	if ((fd = mkstemp(tempname)) == -1 || (otf = fdopen(fd, "w")) == NULL)
+		err(1, "%s", tempname);
 	(void) fcntl(fileno(otf), F_SETFD, 1);
-	if ((itf = fopen(tempMesg, "r")) == NULL) {
-		perror(tempMesg);
-		exit(1);
-	}
+	if ((itf = fopen(tempname, "r")) == NULL)
+		err(1, "%s", tempname);
 	(void) fcntl(fileno(itf), F_SETFD, 1);
-	rm(tempMesg);
+	rm(tempname);
 	setptr(ibuf);
 	setmsize(msgCount);
 	Fclose(ibuf);
@@ -273,7 +264,7 @@ execute(linebuf, contxt)
 		return(0);
 	}
 	cp2 = word;
-	while (*cp && index(" \t0123456789$^.:/-+*'\"", *cp) == NOSTR)
+	while (*cp && strchr(" \t0123456789$^.:/-+*'\"", *cp) == NOSTR)
 		*cp2++ = *cp++;
 	*cp2 = '\0';
 
@@ -405,7 +396,7 @@ execute(linebuf, contxt)
 		break;
 
 	default:
-		panic("Unknown argtype");
+		errx(1, "Unknown argtype");
 	}
 
 out:
@@ -463,7 +454,7 @@ lex(word)
 	 * ignore trailing chars after `#' 
 	 *
 	 * lines with beginning `#' are comments
-	 * spaces befor `#' are ignored in execute()
+	 * spaces before `#' are ignored in execute()
 	 */
 
 	if (*word == '#')
@@ -588,7 +579,7 @@ newfileinfo()
 {
 	register struct message *mp;
 	register int u, n, mdot, d, s;
-	char fname[BUFSIZ], zname[BUFSIZ], *ename;
+	char fname[PATHSIZE+1], zname[PATHSIZE+1], *ename;
 
 	for (mp = &message[0]; mp < &message[msgCount]; mp++)
 		if (mp->m_flag & MNEW)
@@ -613,10 +604,10 @@ newfileinfo()
 			s++;
 	}
 	ename = mailname;
-	if (getfold(fname) >= 0) {
+	if (getfold(fname, sizeof(fname) - 1) >= 0) {
 		strcat(fname, "/");
 		if (strncmp(fname, mailname, strlen(fname)) == 0) {
-			sprintf(zname, "+%s", mailname + strlen(fname));
+			snprintf(zname, sizeof(zname), "+%s", mailname + strlen(fname));
 			ename = zname;
 		}
 	}

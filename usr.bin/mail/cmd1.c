@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmd1.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -316,7 +320,7 @@ type1(msgvec, doign, page)
 				cp = _PATH_MORE;
 			obuf = Popen(cp, "w");
 			if (obuf == NULL) {
-				perror(cp);
+				warnx("%s", cp);
 				obuf = stdout;
 			} else
 				signal(SIGPIPE, brokpipe);
@@ -328,7 +332,7 @@ type1(msgvec, doign, page)
 		dot = mp;
 		if (value("quiet") == NOSTR)
 			fprintf(obuf, "Message %d:\n", *ip);
-		(void) send(mp, obuf, doign ? ignore : 0, NOSTR);
+		(void) sendmessage(mp, obuf, doign ? ignore : 0, NOSTR);
 	}
 close_pipe:
 	if (obuf != stdout) {
@@ -387,10 +391,10 @@ top(msgvec)
 		if (!lineb)
 			printf("\n");
 		for (lines = 0; lines < c && lines <= topl; lines++) {
-			if (readline(ibuf, linebuf, LINESIZE) < 0)
+			if (readline(ibuf, linebuf, sizeof(linebuf)) < 0)
 				break;
 			puts(linebuf);
-			lineb = blankline(linebuf);
+			lineb = strspn(linebuf, " \t") == strlen(linebuf);
 		}
 	}
 	return(0);
@@ -437,10 +441,10 @@ mboxit(msgvec)
 int
 folders()
 {
-	char dirname[BUFSIZ];
+	char dirname[PATHSIZE];
 	char *cmd;
 
-	if (getfold(dirname) < 0) {
+	if (getfold(dirname, sizeof(dirname)) < 0) {
 		printf("No value set for \"folder\"\n");
 		return 1;
 	}

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vars.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -96,7 +100,7 @@ vcopy(str)
 		return "";
 	len = strlen(str) + 1;
 	if ((new = malloc(len)) == NULL)
-		panic("Out of memory");
+		err(1, "Out of memory");
 	bcopy(str, new, (int) len);
 	return new;
 }

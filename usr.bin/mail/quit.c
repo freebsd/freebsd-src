@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)quit.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -72,9 +76,9 @@ quit()
 	FILE *ibuf, *obuf, *fbuf, *rbuf, *readstat, *abuf;
 	register struct message *mp;
 	register int c;
-	extern char *tempQuit, *tempResid;
+	int fd;
 	struct stat minfo;
-	char *mbox;
+	char *mbox, tempname[PATHSIZE];
 
 	/*
 	 * If we are read only, we can't do anything,
@@ -108,8 +112,9 @@ quit()
 	rbuf = NULL;
 	if (fstat(fileno(fbuf), &minfo) >= 0 && minfo.st_size > mailsize) {
 		printf("New mail has arrived.\n");
-		rbuf = Fopen(tempResid, "w");
-		if (rbuf == NULL || fbuf == NULL)
+		snprintf(tempname, sizeof(tempname), "%s/mail.RqXXXXXXXXXX", tmpdir);
+		if ((fd = mkstemp(tempname)) == -1 ||
+		    (rbuf = Fdopen(fd, "w")) == NULL)
 			goto newmail;
 #ifdef APPEND
 		fseek(fbuf, (long)mailsize, 0);
@@ -125,9 +130,9 @@ quit()
 		}
 #endif
 		Fclose(rbuf);
-		if ((rbuf = Fopen(tempResid, "r")) == NULL)
+		if ((rbuf = Fopen(tempname, "r")) == NULL)
 			goto newmail;
-		rm(tempResid);
+		rm(tempname);
 	}
 
 	/*
@@ -198,35 +203,37 @@ quit()
 	mbox = expand("&");
 	mcount = c;
 	if (value("append") == NOSTR) {
-		if ((obuf = Fopen(tempQuit, "w")) == NULL) {
-			perror(tempQuit);
+		snprintf(tempname, sizeof(tempname), "%s/mail.RmXXXXXXXXXX", tmpdir);
+		if ((fd = mkstemp(tempname)) == -1 ||
+		    (obuf = Fdopen(fd, "w")) == NULL) {
+			warn("%s", tempname);
 			Fclose(fbuf);
 			return;
 		}
-		if ((ibuf = Fopen(tempQuit, "r")) == NULL) {
-			perror(tempQuit);
-			rm(tempQuit);
+		if ((ibuf = Fopen(tempname, "r")) == NULL) {
+			warn("%s", tempname);
+			rm(tempname);
 			Fclose(obuf);
 			Fclose(fbuf);
 			return;
 		}
-		rm(tempQuit);
+		rm(tempname);
 		if ((abuf = Fopen(mbox, "r")) != NULL) {
 			while ((c = getc(abuf)) != EOF)
 				(void) putc(c, obuf);
 			Fclose(abuf);
 		}
 		if (ferror(obuf)) {
-			perror(tempQuit);
+			warnx("%s", tempname);
 			Fclose(ibuf);
 			Fclose(obuf);
 			Fclose(fbuf);
 			return;
 		}
 		Fclose(obuf);
-		close(creat(mbox, 0600));
+		close(open(mbox, O_CREAT | O_TRUNC | O_WRONLY, 0600));
 		if ((obuf = Fopen(mbox, "r+")) == NULL) {
-			perror(mbox);
+			warn("%s", mbox);
 			Fclose(ibuf);
 			Fclose(fbuf);
 			return;
@@ -234,7 +241,7 @@ quit()
 	}
 	if (value("append") != NOSTR) {
 		if ((obuf = Fopen(mbox, "a")) == NULL) {
-			perror(mbox);
+			warn("%s", mbox);
 			Fclose(fbuf);
 			return;
 		}
@@ -242,8 +249,8 @@ quit()
 	}
 	for (mp = &message[0]; mp < &message[msgCount]; mp++)
 		if (mp->m_flag & MBOX)
-			if (send(mp, obuf, saveignore, NOSTR) < 0) {
-				perror(mbox);
+			if (sendmessage(mp, obuf, saveignore, NOSTR) < 0) {
+				warnx("%s", mbox);
 				Fclose(ibuf);
 				Fclose(obuf);
 				Fclose(fbuf);
@@ -270,7 +277,7 @@ quit()
 	}
 	trunc(obuf);
 	if (ferror(obuf)) {
-		perror(mbox);
+		warn("%s", mbox);
 		Fclose(obuf);
 		Fclose(fbuf);
 		return;
@@ -337,7 +344,7 @@ writeback(res)
 
 	p = 0;
 	if ((obuf = Fopen(mailname, "r+")) == NULL) {
-		perror(mailname);
+		warn("%s", mailname);
 		return(-1);
 	}
 #ifndef APPEND
@@ -348,8 +355,8 @@ writeback(res)
 	for (mp = &message[0]; mp < &message[msgCount]; mp++)
 		if ((mp->m_flag&MPRESERVE)||(mp->m_flag&MTOUCH)==0) {
 			p++;
-			if (send(mp, obuf, (struct ignoretab *)0, NOSTR) < 0) {
-				perror(mailname);
+			if (sendmessage(mp, obuf, (struct ignoretab *)0, NOSTR) < 0) {
+				warnx("%s", mailname);
 				Fclose(obuf);
 				return(-1);
 			}
@@ -362,7 +369,7 @@ writeback(res)
 	fflush(obuf);
 	trunc(obuf);
 	if (ferror(obuf)) {
-		perror(mailname);
+		warn("%s", mailname);
 		Fclose(obuf);
 		return(-1);
 	}
@@ -384,13 +391,11 @@ writeback(res)
 void
 edstop()
 {
-	extern char *tmpdir;
 	register int gotcha, c;
 	register struct message *mp;
 	FILE *obuf, *ibuf, *readstat;
 	struct stat statb;
-	char tempname[30];
-	char *mktemp();
+	char tempname[PATHSIZE];
 
 	if (readonly)
 		return;
@@ -419,16 +424,16 @@ edstop()
 		goto done;
 	ibuf = NULL;
 	if (stat(mailname, &statb) >= 0 && statb.st_size > mailsize) {
-		strcpy(tempname, tmpdir);
-		strcat(tempname, "mboxXXXXXX");
-		mktemp(tempname);
-		if ((obuf = Fopen(tempname, "w")) == NULL) {
-			perror(tempname);
+		int fd;
+
+		snprintf(tempname, sizeof(tempname), "%s/mbox.XXXXXXXXXX", tmpdir);
+		if ((fd = mkstemp(tempname)) == -1 || (obuf = Fdopen(fd, "w")) == NULL) {
+			warn("%s", tempname);
 			relsesigs();
 			reset(0);
 		}
 		if ((ibuf = Fopen(mailname, "r")) == NULL) {
-			perror(mailname);
+			warn("%s", mailname);
 			Fclose(obuf);
 			rm(tempname);
 			relsesigs();
@@ -440,7 +445,7 @@ edstop()
 		Fclose(ibuf);
 		Fclose(obuf);
 		if ((ibuf = Fopen(tempname, "r")) == NULL) {
-			perror(tempname);
+			warn("%s", tempname);
 			rm(tempname);
 			relsesigs();
 			reset(0);
@@ -450,7 +455,7 @@ edstop()
 	printf("\"%s\" ", mailname);
 	fflush(stdout);
 	if ((obuf = Fopen(mailname, "r+")) == NULL) {
-		perror(mailname);
+		warn("%s", mailname);
 		relsesigs();
 		reset(0);
 	}
@@ -460,8 +465,8 @@ edstop()
 		if ((mp->m_flag & MDELETED) != 0)
 			continue;
 		c++;
-		if (send(mp, obuf, (struct ignoretab *) NULL, NOSTR) < 0) {
-			perror(mailname);
+		if (sendmessage(mp, obuf, (struct ignoretab *) NULL, NOSTR) < 0) {
+			warnx("%s", mailname);
 			relsesigs();
 			reset(0);
 		}
@@ -474,7 +479,7 @@ edstop()
 	}
 	fflush(obuf);
 	if (ferror(obuf)) {
-		perror(mailname);
+		warn("%s", mailname);
 		relsesigs();
 		reset(0);
 	}
