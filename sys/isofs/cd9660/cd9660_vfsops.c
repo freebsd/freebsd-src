@@ -99,7 +99,7 @@ MODULE_VERSION(cd9660, 1);
 
 static int iso_get_ssector(dev_t dev, struct thread *td);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp,
-			    struct thread *td, struct iso_args *argp);
+		       struct thread *td, struct iso_args *argp);
 
 /*
  * Try to find the start of the last data track on this CD-ROM.  This

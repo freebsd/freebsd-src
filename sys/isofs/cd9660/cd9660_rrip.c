@@ -65,17 +65,16 @@ static int	cd9660_rrip_altname(ISO_RRIP_ALTNAME *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_attr(ISO_RRIP_ATTR *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_cont(ISO_RRIP_CONT *p, ISO_RRIP_ANALYZE *ana);
 static void	cd9660_rrip_defattr(struct iso_directory_record *isodir,
-					 ISO_RRIP_ANALYZE *ana);
+		    ISO_RRIP_ANALYZE *ana);
 static void	cd9660_rrip_defname(struct iso_directory_record *isodir,
-					 ISO_RRIP_ANALYZE *ana);
+		    ISO_RRIP_ANALYZE *ana);
 static void	cd9660_rrip_deftstamp(struct iso_directory_record *isodir,
-					   ISO_RRIP_ANALYZE *ana);
+		    ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_device(ISO_RRIP_DEVICE *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_extref(ISO_RRIP_EXTREF *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_idflag(ISO_RRIP_IDFLAG *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_loop(struct iso_directory_record *isodir,
-				      ISO_RRIP_ANALYZE *ana,
-				      RRIP_TABLE *table);
+		    ISO_RRIP_ANALYZE *ana, RRIP_TABLE *table);
 static int	cd9660_rrip_pclink(ISO_RRIP_CLINK *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_reldir(ISO_RRIP_RELDIR *p, ISO_RRIP_ANALYZE *ana);
 static int	cd9660_rrip_slink(ISO_RRIP_SLINK *p, ISO_RRIP_ANALYZE *ana);
