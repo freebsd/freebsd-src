@@ -4,7 +4,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     eval 'require attrs; 1' or do {
 	print "1..0\n";
 	exit 0;

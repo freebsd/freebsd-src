@@ -4,7 +4,12 @@
 # test method calls and autoloading.
 #
 
-print "1..49\n";
+BEGIN {
+    chdir 't' if -d 't';
+    @INC = '../lib';
+}
+
+print "1..53\n";
 
 @A::ISA = 'B';
 @B::ISA = 'C';
@@ -167,3 +172,16 @@ test(defined(@{"unknown_package::ISA"}) ? "defined" : "undefined", "undefined");
     test(do { eval 'A2::foo()'; $@ ? 1 : 0}, 1);
     test(A2->foo(), "foo");
 }
+
+{
+    test(do { use Config; eval 'Config->foo()';
+	      $@ =~ /^\QCan't locate object method "foo" via package "Config" at/ ? 1 : $@}, 1);
+    test(do { use Config; eval '$d = bless {}, "Config"; $d->foo()';
+	      $@ =~ /^\QCan't locate object method "foo" via package "Config" at/ ? 1 : $@}, 1);
+}
+
+test(do { eval 'E->foo()';
+	  $@ =~ /^\QCan't locate object method "foo" via package "E" (perhaps / ? 1 : $@}, 1);
+test(do { eval '$e = bless {}, "E"; $e->foo()';
+	  $@ =~ /^\QCan't locate object method "foo" via package "E" (perhaps / ? 1 : $@}, 1);
+

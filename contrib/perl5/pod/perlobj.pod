@@ -168,6 +168,12 @@ the method that was intended to be called.
 
 If none of that works, Perl finally gives up and complains.
 
+If you want to stop the AUTOLOAD inheritance say simply
+
+	sub AUTOLOAD;
+
+and the call will die using the name of the sub being called.
+
 Perl classes do method inheritance only.  Data inheritance is left up
 to the class itself.  By and large, this is not a problem in Perl,
 because most classes model the attributes of their object using an
@@ -553,8 +559,8 @@ breaks the circularities in the self-referential structure.
 
 =head1 SEE ALSO
 
-A kinder, gentler tutorial on object-oriented programming in Perl
-can be found in L<perltoot> and L<perltootc>.  You should also check
-out L<perlbot> for other object tricks, traps, and tips, as well
-as L<perlmodlib> for some style guides on constructing both modules
-and classes.
+A kinder, gentler tutorial on object-oriented programming in Perl can
+be found in L<perltoot>, L<perlbootc> and L<perltootc>.  You should
+also check out L<perlbot> for other object tricks, traps, and tips, as
+well as L<perlmodlib> for some style guides on constructing both
+modules and classes.

@@ -82,8 +82,6 @@ DeadCode(pTHX)
 			    }
 			}
 			else if (SvTYPE(pad[j]) >= SVt_PV && SvLEN(pad[j])) {
-			    int db_len = SvLEN(pad[j]);
-			    SV *db_sv = pad[j];
 			    levels++;
 			    levelm += SvLEN(pad[j])/SvREFCNT(pad[j]);
 				/* Dump(pad[j],4); */
@@ -125,6 +123,183 @@ DeadCode(pTHX)
 	PerlIO_printf(Perl_debug_log, "%s: perl not compiled with DEBUGGING_MSTATS\n",str);
 #endif
 
+#if defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS) \
+	|| (defined(MYMALLOC) && !defined(PLAIN_MALLOC))
+
+/* Very coarse overestimate, 2-per-power-of-2, one more to determine NBUCKETS. */
+#  define _NBUCKETS (2*8*IVSIZE+1)
+
+struct mstats_buffer 
+{
+    perl_mstats_t buffer;
+    UV buf[_NBUCKETS*4];
+};
+
+void
+_fill_mstats(struct mstats_buffer *b, int level)
+{
+    dTHX;
+    b->buffer.nfree  = b->buf;
+    b->buffer.ntotal = b->buf + _NBUCKETS;
+    b->buffer.bucket_mem_size = b->buf + 2*_NBUCKETS;
+    b->buffer.bucket_available_size = b->buf + 3*_NBUCKETS;
+    Zero(b->buf, (level ? 4*_NBUCKETS: 2*_NBUCKETS), unsigned long);
+    get_mstats(&(b->buffer), _NBUCKETS, level);
+}
+
+void
+fill_mstats(SV *sv, int level)
+{
+    dTHX;
+    int nbuckets;
+    struct mstats_buffer buf;
+
+    if (SvREADONLY(sv))
+	croak("Cannot modify a readonly value");
+    SvGROW(sv, sizeof(struct mstats_buffer)+1);
+    _fill_mstats((struct mstats_buffer*)SvPVX(sv),level);
+    SvCUR_set(sv, sizeof(struct mstats_buffer));
+    *SvEND(sv) = '\0';
+    SvPOK_only(sv);
+}
+
+void
+_mstats_to_hv(HV *hv, struct mstats_buffer *b, int level)
+{
+    dTHX;
+    SV **svp;
+    int type;
+
+    svp = hv_fetch(hv, "topbucket", 9, 1);
+    sv_setiv(*svp, b->buffer.topbucket);
+
+    svp = hv_fetch(hv, "topbucket_ev", 12, 1);
+    sv_setiv(*svp, b->buffer.topbucket_ev);
+
+    svp = hv_fetch(hv, "topbucket_odd", 13, 1);
+    sv_setiv(*svp, b->buffer.topbucket_odd);
+
+    svp = hv_fetch(hv, "totfree", 7, 1);
+    sv_setiv(*svp, b->buffer.totfree);
+
+    svp = hv_fetch(hv, "total", 5, 1);
+    sv_setiv(*svp, b->buffer.total);
+
+    svp = hv_fetch(hv, "total_chain", 11, 1);
+    sv_setiv(*svp, b->buffer.total_chain);
+
+    svp = hv_fetch(hv, "total_sbrk", 10, 1);
+    sv_setiv(*svp, b->buffer.total_sbrk);
+
+    svp = hv_fetch(hv, "sbrks", 5, 1);
+    sv_setiv(*svp, b->buffer.sbrks);
+
+    svp = hv_fetch(hv, "sbrk_good", 9, 1);
+    sv_setiv(*svp, b->buffer.sbrk_good);
+
+    svp = hv_fetch(hv, "sbrk_slack", 10, 1);
+    sv_setiv(*svp, b->buffer.sbrk_slack);
+
+    svp = hv_fetch(hv, "start_slack", 11, 1);
+    sv_setiv(*svp, b->buffer.start_slack);
+
+    svp = hv_fetch(hv, "sbrked_remains", 14, 1);
+    sv_setiv(*svp, b->buffer.sbrked_remains);
+    
+    svp = hv_fetch(hv, "minbucket", 9, 1);
+    sv_setiv(*svp, b->buffer.minbucket);
+    
+    svp = hv_fetch(hv, "nbuckets", 8, 1);
+    sv_setiv(*svp, b->buffer.nbuckets);
+
+    if (_NBUCKETS < b->buffer.nbuckets) 
+	warn("FIXME: internal mstats buffer too short");
+    
+    for (type = 0; type < (level ? 4 : 2); type++) {
+	UV *p, *p1;
+	AV *av;
+	int i;
+	static const char *types[4] = { 
+	    "free", "used", "mem_size", "available_size"    
+	};
+
+	svp = hv_fetch(hv, types[type], strlen(types[type]), 1);
+
+	if (SvOK(*svp) && !(SvROK(*svp) && SvTYPE(SvRV(*svp)) == SVt_PVAV))
+	    croak("Unexpected value for the key '%s' in the mstats hash", types[type]);
+	if (!SvOK(*svp)) {
+	    av = newAV();
+	    SvUPGRADE(*svp, SVt_RV);
+	    SvRV(*svp) = (SV*)av;
+	    SvROK_on(*svp);
+	} else
+	    av = (AV*)SvRV(*svp);
+
+	av_extend(av, b->buffer.nbuckets - 1);
+	/* XXXX What is the official way to reduce the size of the array? */
+	switch (type) {
+	case 0:
+	    p = b->buffer.nfree;
+	    break;
+	case 1:
+	    p = b->buffer.ntotal;
+	    p1 = b->buffer.nfree;
+	    break;
+	case 2:
+	    p = b->buffer.bucket_mem_size;
+	    break;
+	case 3:
+	    p = b->buffer.bucket_available_size;
+	    break;
+	}
+	for (i = 0; i < b->buffer.nbuckets; i++) {
+	    svp = av_fetch(av, i, 1);
+	    if (type == 1)
+		sv_setiv(*svp, p[i]-p1[i]);
+	    else
+		sv_setuv(*svp, p[i]);
+	}
+    }
+}
+void
+mstats_fillhash(SV *sv, int level)
+{
+    struct mstats_buffer buf;
+
+    if (!(SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVHV))
+	croak("Not a hash reference");
+    _fill_mstats(&buf, level);
+    _mstats_to_hv((HV *)SvRV(sv), &buf, level);
+}
+void
+mstats2hash(SV *sv, SV *rv, int level)
+{
+    if (!(SvROK(rv) && SvTYPE(SvRV(rv)) == SVt_PVHV))
+	croak("Not a hash reference");
+    if (!SvPOK(sv))
+	croak("Undefined value when expecting mstats buffer");
+    if (SvCUR(sv) != sizeof(struct mstats_buffer))
+	croak("Wrong size for a value with a mstats buffer");
+    _mstats_to_hv((HV *)SvRV(rv), (struct mstats_buffer*)SvPVX(sv), level);
+}
+#else	/* !( defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS) \ ) */ 
+void
+fill_mstats(SV *sv, int level)
+{
+    croak("Cannot report mstats without Perl malloc");
+}
+void
+mstats_fillhash(SV *sv, int level)
+{
+    croak("Cannot report mstats without Perl malloc");
+}
+void
+mstats2hash(SV *sv, SV *rv, int level)
+{
+    croak("Cannot report mstats without Perl malloc");
+}
+#endif	/* defined(PERL_DEBUGGING_MSTATS) || defined(DEBUGGING_MSTATS)... */ 
+
 #define _CvGV(cv)					\
 	(SvROK(cv) && (SvTYPE(SvRV(cv))==SVt_PVCV)	\
 	 ? SvREFCNT_inc(CvGV((CV*)SvRV(cv))) : &PL_sv_undef)
@@ -134,6 +309,17 @@ MODULE = Devel::Peek		PACKAGE = Devel::Peek
 void
 mstat(str="Devel::Peek::mstat: ")
 char *str
+
+void
+fill_mstats(SV *sv, int level = 0)
+
+void
+mstats_fillhash(SV *sv, int level = 0)
+    PROTOTYPE: \%;$
+
+void
+mstats2hash(SV *sv, SV *rv, int level = 0)
+    PROTOTYPE: $\%;$
 
 void
 Dump(sv,lim=4)
@@ -173,7 +359,7 @@ void
 DumpProg()
 PPCODE:
 {
-    warn("dumpindent is %d", PL_dumpindent);
+    warn("dumpindent is %d", (int)PL_dumpindent);
     if (PL_main_root)
 	op_dump(PL_main_root);
 }
@@ -195,7 +381,7 @@ PPCODE:
 
 # PPCODE needed since by default it is void
 
-SV *
+void
 SvREFCNT_dec(sv)
 SV *	sv
 PPCODE:

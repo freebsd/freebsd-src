@@ -4,7 +4,7 @@
 
  written by Paul Marquess <Paul.Marquess@btinternet.com>
  last modified 16th January 2000
- version 1.72
+ version 1.73
 
  All comments/suggestions/problems are welcome
 
@@ -16,6 +16,9 @@
         1.71 -  Support for Berkeley DB version 3.
 		Support for Berkeley DB 2/3's backward compatability mode.
         1.72 -  No change.
+        1.73 -  Added support for threading
+        1.74 -  Added Perl core patch 7801.
+
 
 */
 
@@ -26,8 +29,15 @@
 #include <db.h>
 
 void
+#ifdef CAN_PROTOTYPE
+__getBerkeleyDBInfo(void)
+#else
 __getBerkeleyDBInfo()
+#endif
 {
+#ifdef dTHX	
+    dTHX;
+#endif    
     SV * version_sv = perl_get_sv("DB_File::db_version", GV_ADD|GV_ADDMULTI) ;
     SV * ver_sv = perl_get_sv("DB_File::db_ver", GV_ADD|GV_ADDMULTI) ;
     SV * compat_sv = perl_get_sv("DB_File::db_185_compat", GV_ADD|GV_ADDMULTI) ;

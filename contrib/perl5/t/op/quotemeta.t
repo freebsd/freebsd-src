@@ -2,18 +2,18 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
     require Config; import Config;
 }
 
-print "1..15\n";
+print "1..17\n";
 
 if ($Config{ebcdic} eq 'define') {
     $_=join "", map chr($_), 129..233;
 
     # 105 characters - 52 letters = 53 backslashes
     # 105 characters + 53 backslashes = 158 characters
-    $_=quotemeta $_;
+    $_= quotemeta $_;
     if ( length == 158 ){print "ok 1\n"} else {print "not ok 1\n"}
     # 104 non-backslash characters
     if (tr/\\//cd == 104){print "ok 2\n"} else {print "not ok 2\n"}
@@ -22,7 +22,7 @@ if ($Config{ebcdic} eq 'define') {
 
     # 96 characters - 52 letters - 10 digits - 1 underscore = 33 backslashes
     # 96 characters + 33 backslashes = 129 characters
-    $_=quotemeta $_;
+    $_= quotemeta $_;
     if ( length == 129 ){print "ok 1\n"} else {print "not ok 1\n"}
     # 95 non-backslash characters
     if (tr/\\//cd == 95){print "ok 2\n"} else {print "not ok 2\n"}
@@ -42,3 +42,6 @@ print "\Q\u\LpE.X.R\EL\E." eq "Pe\\.x\\.rL." ? "ok 12\n" : "not ok 12 \n";
 print "\Q\l\UPe*x*r\El\E*" eq "pE\\*X\\*Rl*" ? "ok 13\n" : "not ok 13 \n";
 print "\U\lPerl\E\E\E\E" eq "pERL" ? "ok 14\n" : "not ok 14 \n";
 print "\l\UPerl\E\E\E\E" eq "pERL" ? "ok 15\n" : "not ok 15 \n";
+
+print length(quotemeta("\x{263a}")) == 1 ? "ok 16\n" : "not ok 16\n";
+print quotemeta("\x{263a}") eq "\x{263a}" ? "ok 17\n" : "not ok 17\n";

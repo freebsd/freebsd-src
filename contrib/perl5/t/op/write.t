@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..8\n";
+print "1..9\n";
 
 my $CAT = ($^O eq 'MSWin32') ? 'type' : 'cat';
 
@@ -200,4 +200,21 @@ $this,$that
     write LEX;
     $that = 8;
     write LEX;
+    close LEX;
 }
+# LEX_INTERPNORMAL test
+my %e = ( a => 1 );
+format OUT4 =
+@<<<<<<
+"$e{a}"
+.
+open   OUT4, ">Op_write.tmp" or die "Can't create Op_write.tmp";
+write (OUT4);
+close  OUT4;
+if (`$CAT Op_write.tmp` eq "1\n") {
+    print "ok 9\n";
+    unlink "Op_write.tmp";
+    }
+else {
+    print "not ok 9\n";
+    }

@@ -51,7 +51,7 @@ while (@ARGV) {
     $PLATFORM = $1 if ($flag =~ /^PLATFORM=(\w+)$/);
 }
 
-my @PLATFORM = qw(aix win32 os2);
+my @PLATFORM = qw(aix win32 os2 MacOS);
 my %PLATFORM;
 @PLATFORM{@PLATFORM} = ();
 
@@ -77,8 +77,14 @@ elsif ($PLATFORM eq 'win32') {
 	s!^!..\\!;
     }
 }
+elsif ($PLATFORM eq 'MacOS') {
+    foreach ($thrdvar_h, $intrpvar_h, $perlvars_h, $global_sym,
+		$pp_sym, $globvar_sym, $perlio_sym) {
+	s!^!::!;
+    }
+}
 
-unless ($PLATFORM eq 'win32') {
+unless ($PLATFORM eq 'win32' || $PLATFORM eq 'MacOS') {
     open(CFG,$config_sh) || die "Cannot open $config_sh: $!\n";
     while (<CFG>) {
 	if (/^(?:ccflags|optimize)='(.+)'$/) {
@@ -99,6 +105,7 @@ while (<CFG>) {
     $define{$1} = 1 if /^\s*#\s*define\s+(USE_5005THREADS)\b/;
     $define{$1} = 1 if /^\s*#\s*define\s+(USE_ITHREADS)\b/;
     $define{$1} = 1 if /^\s*#\s*define\s+(USE_PERLIO)\b/;
+    $define{$1} = 1 if /^\s*#\s*define\s+(USE_SFIO)\b/;
     $define{$1} = 1 if /^\s*#\s*define\s+(MULTIPLICITY)\b/;
     $define{$1} = 1 if /^\s*#\s*define\s+(PERL_IMPLICIT_SYS)\b/;
     $define{$1} = 1 if /^\s*#\s*define\s+(PERL_BINCOMPAT_5005)\b/;
@@ -157,7 +164,7 @@ elsif ($PLATFORM eq 'os2') {
     # print STDERR "'$dll' <= '$define{PERL_DLL}'\n";
     print <<"---EOP---";
 LIBRARY '$dll' INITINSTANCE TERMINSTANCE
-DESCRIPTION '\@#perl5-porters\@perl.org:$v#\@ Perl interpreter, configured as $CONFIG_ARGS'
+DESCRIPTION '\@#perl5-porters\@perl.org:$v#\@ Perl interpreter'
 STACKSIZE 32768
 CODE LOADONCALL
 DATA LOADONCALL NONSHARED MULTIPLE
@@ -259,7 +266,9 @@ elsif ($PLATFORM eq 'aix') {
 		     Perl_safexrealloc
 		     Perl_same_dirent
 		     Perl_unlnk
+		     Perl_sys_intern_clear
 		     Perl_sys_intern_dup
+		     Perl_sys_intern_init
 		     PL_cryptseen
 		     PL_opsave
 		     PL_statusvalue_vms
@@ -279,6 +288,8 @@ elsif ($PLATFORM eq 'os2') {
 		    my_tmpfile
 		    my_tmpnam
 		    my_flock
+		    my_rmdir
+		    my_mkdir
 		    malloc_mutex
 		    threads_mutex
 		    nthreads
@@ -309,10 +320,38 @@ elsif ($PLATFORM eq 'os2') {
 		    Perl_hab_GET
 		    )]);
 }
+elsif ($PLATFORM eq 'MacOS') {
+    skip_symbols [qw(
+		    Perl_GetVars
+		    PL_cryptseen
+		    PL_cshlen
+		    PL_cshname
+		    PL_statusvalue_vms
+		    PL_sys_intern
+		    PL_opsave
+		    PL_timesbuf
+		    Perl_dump_fds
+		    Perl_my_bcopy
+		    Perl_my_bzero
+		    Perl_my_chsize
+		    Perl_my_htonl
+		    Perl_my_memcmp
+		    Perl_my_memset
+		    Perl_my_ntohl
+		    Perl_my_swap
+		    Perl_safexcalloc
+		    Perl_safexfree
+		    Perl_safexmalloc
+		    Perl_safexrealloc
+		    Perl_unlnk
+		    Perl_sys_intern_clear
+		    Perl_sys_intern_init
+		    )];
+}
+
 
 unless ($define{'DEBUGGING'}) {
     skip_symbols [qw(
-		    Perl_deb
 		    Perl_deb_growlevel
 		    Perl_debop
 		    Perl_debprofdump
@@ -363,6 +402,8 @@ if ($define{'MYMALLOC'}) {
 		    Perl_mfree
 		    Perl_realloc
 		    Perl_calloc
+		    Perl_strdup
+		    Perl_putenv
 		    )];
     if ($define{'USE_5005THREADS'} || $define{'USE_ITHREADS'}) {
 	emit_symbols [qw(
@@ -401,6 +442,8 @@ unless ($define{'USE_5005THREADS'}) {
 		    PL_svref_mutex
 		    PL_cred_mutex
 		    PL_eval_mutex
+		    PL_fdpid_mutex
+		    PL_sv_lock_mutex
 		    PL_eval_cond
 		    PL_eval_owner
 		    PL_threads_mutex
@@ -417,6 +460,7 @@ unless ($define{'USE_5005THREADS'}) {
 		    Perl_find_threadsv
 		    Perl_unlock_condpair
 		    Perl_magic_mutexfree
+		    Perl_sv_lock
 		    )];
 }
 
@@ -440,6 +484,8 @@ unless ($define{'USE_ITHREADS'}) {
 		    Perl_ptr_table_new
 		    Perl_ptr_table_split
 		    Perl_ptr_table_store
+		    Perl_ptr_table_clear
+		    Perl_ptr_table_free
 		    perl_clone
 		    perl_clone_using
 		    )];
@@ -505,7 +551,53 @@ if ($define{'PERL_GLOBAL_STRUCT'}) {
 my @syms = ($global_sym, $globvar_sym); # $pp_sym is not part of the API
 
 if ($define{'USE_PERLIO'}) {
-     push @syms, $perlio_sym;
+    push @syms, $perlio_sym;
+    if ($define{'USE_SFIO'}) {
+	# SFIO defines most of the PerlIO routines as macros
+	skip_symbols [qw(
+			 PerlIO_canset_cnt
+			 PerlIO_clearerr
+			 PerlIO_close
+			 PerlIO_eof
+			 PerlIO_error
+			 PerlIO_exportFILE
+			 PerlIO_fast_gets
+			 PerlIO_fdopen
+			 PerlIO_fileno
+			 PerlIO_findFILE
+			 PerlIO_flush
+			 PerlIO_get_base
+			 PerlIO_get_bufsiz
+			 PerlIO_get_cnt
+			 PerlIO_get_ptr
+			 PerlIO_getc
+			 PerlIO_getname
+			 PerlIO_has_base
+			 PerlIO_has_cntptr
+			 PerlIO_importFILE
+			 PerlIO_open
+			 PerlIO_printf
+			 PerlIO_putc
+			 PerlIO_puts
+			 PerlIO_read
+			 PerlIO_releaseFILE
+			 PerlIO_reopen
+			 PerlIO_rewind
+			 PerlIO_seek
+			 PerlIO_set_cnt
+			 PerlIO_set_ptrcnt
+			 PerlIO_setlinebuf
+			 PerlIO_sprintf
+			 PerlIO_stderr
+			 PerlIO_stdin
+			 PerlIO_stdout
+			 PerlIO_stdoutf
+			 PerlIO_tell
+			 PerlIO_ungetc
+			 PerlIO_vprintf
+			 PerlIO_write
+			 )];
+    }
 }
 
 for my $syms (@syms) {
@@ -729,6 +821,15 @@ elsif ($PLATFORM eq 'os2') {
 		    keys %export;
     delete $export{$_} foreach @missing;
 }
+elsif ($PLATFORM eq 'MacOS') {
+    open MACSYMS, 'macperl.sym' or die 'Cannot read macperl.sym';
+
+    while (<MACSYMS>) {
+	try_symbol($_);
+    }
+
+    close MACSYMS;
+}
 
 # Now all symbols should be defined because
 # next we are going to output them.
@@ -775,7 +876,7 @@ sub output_symbol {
     elsif ($PLATFORM eq 'os2') {
 	print qq(    "$symbol"\n);
     }
-    elsif ($PLATFORM eq 'aix') {
+    elsif ($PLATFORM eq 'aix' || $PLATFORM eq 'MacOS') {
 	print "$symbol\n";
     }
 }

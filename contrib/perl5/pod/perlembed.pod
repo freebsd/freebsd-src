@@ -37,25 +37,45 @@ Read on...
 
 =over 5
 
-L<Compiling your C program>
+=item *
 
-L<Adding a Perl interpreter to your C program>
+Compiling your C program
 
-L<Calling a Perl subroutine from your C program>
+=item *
 
-L<Evaluating a Perl statement from your C program>
+Adding a Perl interpreter to your C program
 
-L<Performing Perl pattern matches and substitutions from your C program>
+=item *
 
-L<Fiddling with the Perl stack from your C program>
+Calling a Perl subroutine from your C program
 
-L<Maintaining a persistent interpreter>
+=item *
 
-L<Maintaining multiple interpreter instances>
+Evaluating a Perl statement from your C program
 
-L<Using Perl modules, which themselves use C libraries, from your C program>
+=item *
 
-L<Embedding Perl under Win32>
+Performing Perl pattern matches and substitutions from your C program
+
+=item *
+
+Fiddling with the Perl stack from your C program
+
+=item *
+
+Maintaining a persistent interpreter
+
+=item *
+
+Maintaining multiple interpreter instances
+
+=item *
+
+Using Perl modules, which themselves use C libraries, from your C program
+
+=item *
+
+Embedding Perl under Win32
 
 =back 
 
@@ -258,9 +278,8 @@ and package C<END {}> blocks.
 If you want to pass arguments to the Perl subroutine, you can add
 strings to the C<NULL>-terminated C<args> list passed to
 I<call_argv>.  For other data types, or to examine return values,
-you'll need to manipulate the Perl stack.  That's demonstrated in the
-last section of this document: L<Fiddling with the Perl stack from
-your C program>.
+you'll need to manipulate the Perl stack.  That's demonstrated in
+L<Fiddling with the Perl stack from your C program>.
 
 =head2 Evaluating a Perl statement from your C program
 
@@ -356,7 +375,7 @@ made.
    int matches(SV *string, char *pattern, AV **matches);
 
 Given an C<SV>, a pattern, and a pointer to an empty C<AV>,
-matches() evaluates C<$string =~ $pattern> in an array context, and
+matches() evaluates C<$string =~ $pattern> in a list context, and
 fills in I<matches> with the array elements, returning the number of matches found.
 
 Here's a sample program, I<match.c>, that uses all three (long lines have
@@ -434,7 +453,7 @@ been wrapped here):
 
  /** matches(string, pattern, matches)
  **
- ** Used for matches in an array context.
+ ** Used for matches in a list context.
  **
  ** Returns the number of matches,
  ** and fills in **matches with the matching substrings
@@ -796,9 +815,11 @@ during a session.  Such an application might sporadically decide to
 release any resources associated with the interpreter.
 
 The program must take care to ensure that this takes place I<before>
-the next interpreter is constructed.  By default, the global variable
+the next interpreter is constructed.  By default, when perl is not
+built with any special options, the global variable
 C<PL_perl_destruct_level> is set to C<0>, since extra cleaning isn't
-needed when a program has only one interpreter.
+usually needed when a program only ever creates a single interpreter
+in its entire lifetime.
 
 Setting C<PL_perl_destruct_level> to C<1> makes everything squeaky clean:
 
@@ -820,9 +841,16 @@ When I<perl_destruct()> is called, the interpreter's syntax parse tree
 and symbol tables are cleaned up, and global variables are reset.
 
 Now suppose we have more than one interpreter instance running at the
-same time.  This is feasible, but only if you used the
-C<-DMULTIPLICITY> flag when building Perl.  By default, that sets
-C<PL_perl_destruct_level> to C<1>.
+same time.  This is feasible, but only if you used the Configure option
+C<-Dusemultiplicity> or the options C<-Dusethreads -Duseithreads> when
+building Perl.  By default, enabling one of these Configure options
+sets the per-interpreter global variable C<PL_perl_destruct_level> to
+C<1>, so that thorough cleaning is automatic.
+
+Using C<-Dusethreads -Duseithreads> rather than C<-Dusemultiplicity>
+is more appropriate if you intend to run multiple interpreters
+concurrently in different threads, because it enables support for
+linking in the thread libraries of your system with the interpreter.
 
 Let's give it a try:
 
@@ -843,22 +871,41 @@ Let's give it a try:
      char *one_args[] = { "one_perl", SAY_HELLO };
      char *two_args[] = { "two_perl", SAY_HELLO };
 
+     PERL_SET_CONTEXT(one_perl);
      perl_construct(one_perl);
+     PERL_SET_CONTEXT(two_perl);
      perl_construct(two_perl);
 
+     PERL_SET_CONTEXT(one_perl);
      perl_parse(one_perl, NULL, 3, one_args, (char **)NULL);
+     PERL_SET_CONTEXT(two_perl);
      perl_parse(two_perl, NULL, 3, two_args, (char **)NULL);
 
+     PERL_SET_CONTEXT(one_perl);
      perl_run(one_perl);
+     PERL_SET_CONTEXT(two_perl);
      perl_run(two_perl);
 
+     PERL_SET_CONTEXT(one_perl);
      perl_destruct(one_perl);
+     PERL_SET_CONTEXT(two_perl);
      perl_destruct(two_perl);
 
+     PERL_SET_CONTEXT(one_perl);
      perl_free(one_perl);
+     PERL_SET_CONTEXT(two_perl);
      perl_free(two_perl);
  }
 
+Note the calls to PERL_SET_CONTEXT().  These are necessary to initialize
+the global state that tracks which interpreter is the "current" one on
+the particular process or thread that may be running it.  It should
+always be used if you have more than one interpreter and are making
+perl API calls on both interpreters in an interleaved fashion.
+
+PERL_SET_CONTEXT(interp) should also be called whenever C<interp> is
+used by a thread that did not create it (using either perl_alloc(), or
+the more esoteric perl_clone()).
 
 Compile as usual:
 
@@ -894,21 +941,14 @@ That's where the glue code can be inserted to create the initial contact between
 Perl and linked C/C++ routines.  Let's take a look some pieces of I<perlmain.c>
 to see how Perl does this:
 
+ static void xs_init (pTHX);
 
- #ifdef __cplusplus
- #  define EXTERN_C extern "C"
- #else
- #  define EXTERN_C extern
- #endif
-
- static void xs_init (void);
-
- EXTERN_C void boot_DynaLoader (CV* cv);
- EXTERN_C void boot_Socket (CV* cv);
+ EXTERN_C void boot_DynaLoader (pTHX_ CV* cv);
+ EXTERN_C void boot_Socket (pTHX_ CV* cv);
 
 
  EXTERN_C void
- xs_init()
+ xs_init(pTHX)
  {
         char *file = __FILE__;
         /* DynaLoader is a special case */
@@ -957,19 +997,11 @@ Consult L<perlxs>, L<perlguts>, and L<perlapi> for more details.
 
 =head1 Embedding Perl under Win32
 
-At the time of this writing (5.004), there are two versions of Perl
-which run under Win32.  (The two versions are merging in 5.005.)
-Interfacing to ActiveState's Perl library is quite different from the
-examples in this documentation, as significant changes were made to
-the internal Perl API.  However, it is possible to embed ActiveState's
-Perl runtime.  For details, see the Perl for Win32 FAQ at
-http://www.perl.com/CPAN/doc/FAQs/win32/perlwin32faq.html.
+In general, all of the source code shown here should work unmodified under
+Windows.
 
-With the "official" Perl version 5.004 or higher, all the examples
-within this documentation will compile and run untouched, although
-the build process is slightly different between Unix and Win32.  
-
-For starters, backticks don't work under the Win32 native command shell.
+However, there are some caveats about the command-line examples shown.
+For starters, backticks won't work under the Win32 native command shell.
 The ExtUtils::Embed kit on CPAN ships with a script called
 B<genmake>, which generates a simple makefile to build a program from
 a single C source file.  It can be used like this:

@@ -1,16 +1,612 @@
 =head1 NAME
 
-perldelta - what's new for perl v5.6.0
+perldelta - what's new for perl v5.6.x
 
 =head1 DESCRIPTION
 
-This document describes differences between the 5.005 release and this one.
+This document describes differences between the 5.005 release and the 5.6.1
+release.
 
+=head1 Summary of changes between 5.6.0 and 5.6.1
+
+This section contains a summary of the changes between the 5.6.0 release
+and the 5.6.1 release.  More details about the changes mentioned here
+may be found in the F<Changes> files that accompany the Perl source
+distribution.  See L<perlhack> for pointers to online resources where you
+can inspect the individual patches described by these changes.
+
+=head2 Security Issues
+
+suidperl will not run /bin/mail anymore, because some platforms have
+a /bin/mail that is vulnerable to buffer overflow attacks.
+
+Note that suidperl is neither built nor installed by default in
+any recent version of perl.  Use of suidperl is highly discouraged.
+If you think you need it, try alternatives such as sudo first.
+See http://www.courtesan.com/sudo/.
+
+=head2 Core bug fixes
+
+This is not an exhaustive list.  It is intended to cover only the
+significant user-visible changes.
+
+=over
+
+=item C<UNIVERSAL::isa()>
+
+A bug in the caching mechanism used by C<UNIVERSAL::isa()> that affected
+base.pm has been fixed.  The bug has existed since the 5.005 releases,
+but wasn't tickled by base.pm in those releases.
+
+=item Memory leaks
+
+Various cases of memory leaks and attempts to access uninitialized memory
+have been cured.  See L</"Known Problems"> below for further issues.
+
+=item Numeric conversions
+
+Numeric conversions did not recognize changes in the string value
+properly in certain circumstances.
+
+In other situations, large unsigned numbers (those above 2**31) could
+sometimes lose their unsignedness, causing bogus results in arithmetic
+operations.
+
+Integer modulus on large unsigned integers sometimes returned
+incorrect values.
+
+Perl 5.6.0 generated "not a number" warnings on certain conversions where
+previous versions didn't.
+
+These problems have all been rectified.
+
+Infinity is now recognized as a number.
+
+=item qw(a\\b)
+
+In Perl 5.6.0, qw(a\\b) produced a string with two backslashes instead
+of one, in a departure from the behavior in previous versions.  The
+older behavior has been reinstated.  
+
+=item caller()
+
+caller() could cause core dumps in certain situations.  Carp was sometimes
+affected by this problem.
+
+=item Bugs in regular expressions
+
+Pattern matches on overloaded values are now handled correctly.
+
+Perl 5.6.0 parsed m/\x{ab}/ incorrectly, leading to spurious warnings.
+This has been corrected.
+
+The RE engine found in Perl 5.6.0 accidentally pessimised certain kinds
+of simple pattern matches.  These are now handled better.
+
+Regular expression debug output (whether through C<use re 'debug'>
+or via C<-Dr>) now looks better.
+
+Multi-line matches like C<"a\nxb\n" =~ /(?!\A)x/m> were flawed.  The
+bug has been fixed.
+
+Use of $& could trigger a core dump under some situations.  This
+is now avoided.
+
+Match variables $1 et al., weren't being unset when a pattern match
+was backtracking, and the anomaly showed up inside C</...(?{ ... }).../>
+etc.  These variables are now tracked correctly.
+
+pos() did not return the correct value within s///ge in earlier
+versions.  This is now handled correctly.
+
+=item "slurp" mode
+
+readline() on files opened in "slurp" mode could return an extra "" at
+the end in certain situations.  This has been corrected.
+
+=item Autovivification of symbolic references to special variables
+
+Autovivification of symbolic references of special variables described
+in L<perlvar> (as in C<${$num}>) was accidentally disabled.  This works
+again now.
+
+=item Lexical warnings 
+
+Lexical warnings now propagate correctly into C<eval "...">.
+
+C<use warnings qw(FATAL all)> did not work as intended.  This has been
+corrected.
+
+Lexical warnings could leak into other scopes in some situations.
+This is now fixed.
+
+warnings::enabled() now reports the state of $^W correctly if the caller
+isn't using lexical warnings.
+
+=item Spurious warnings and errors
+
+Perl 5.6.0 could emit spurious warnings about redefinition of dl_error()
+when statically building extensions into perl.  This has been corrected.
+
+"our" variables could result in bogus "Variable will not stay shared"
+warnings.  This is now fixed.
+
+"our" variables of the same name declared in two sibling blocks
+resulted in bogus warnings about "redeclaration" of the variables.
+The problem has been corrected.
+
+=item glob()
+
+Compatibility of the builtin glob() with old csh-based glob has been
+improved with the addition of GLOB_ALPHASORT option.  See C<File::Glob>.
+
+File::Glob::glob() has been renamed to File::Glob::bsd_glob()
+because the name clashes with the builtin glob().  The older
+name is still available for compatibility, but is deprecated.
+
+Spurious syntax errors generated in certain situations, when glob()
+caused File::Glob to be loaded for the first time, have been fixed.
+
+=item Tainting
+
+Some cases of inconsistent taint propagation (such as within hash
+values) have been fixed.
+
+The tainting behavior of sprintf() has been rationalized.  It does
+not taint the result of floating point formats anymore, making the
+behavior consistent with that of string interpolation.
+
+=item sort()
+
+Arguments to sort() weren't being provided the right wantarray() context.
+The comparison block is now run in scalar context, and the arguments to
+be sorted are always provided list context.
+
+sort() is also fully reentrant, in the sense that the sort function
+can itself call sort().  This did not work reliably in previous releases.
+
+=item #line directives
+
+#line directives now work correctly when they appear at the very
+beginning of C<eval "...">.
+
+=item Subroutine prototypes
+
+The (\&) prototype now works properly.
+
+=item map()
+
+map() could get pathologically slow when the result list it generates
+is larger than the source list.  The performance has been improved for
+common scenarios.
+
+=item Debugger
+
+Debugger exit code now reflects the script exit code.
+
+Condition C<"0"> in breakpoints is now treated correctly.
+
+The C<d> command now checks the line number.
+
+C<$.> is no longer corrupted by the debugger.
+
+All debugger output now correctly goes to the socket if RemotePort
+is set.
+
+=item PERL5OPT
+
+PERL5OPT can be set to more than one switch group.  Previously,
+it used to be limited to one group of options only.
+
+=item chop()
+
+chop(@list) in list context returned the characters chopped in reverse
+order.  This has been reversed to be in the right order.
+
+=item Unicode support
+
+Unicode support has seen a large number of incremental improvements,
+but continues to be highly experimental.  It is not expected to be
+fully supported in the 5.6.x maintenance releases.
+
+substr(), join(), repeat(), reverse(), quotemeta() and string
+concatenation were all handling Unicode strings incorrectly in
+Perl 5.6.0.  This has been corrected.
+
+Support for C<tr///CU> and C<tr///UC> etc., have been removed since
+we realized the interface is broken.  For similar functionality,
+see L<perlfunc/pack>.
+
+The Unicode Character Database has been updated to version 3.0.1
+with additions made available to the public as of August 30, 2000.
+
+The Unicode character classes \p{Blank} and \p{SpacePerl} have been
+added.  "Blank" is like C isblank(), that is, it contains only
+"horizontal whitespace" (the space character is, the newline isn't),
+and the "SpacePerl" is the Unicode equivalent of C<\s> (\p{Space}
+isn't, since that includes the vertical tabulator character, whereas
+C<\s> doesn't.)
+
+If you are experimenting with Unicode support in perl, the development
+versions of Perl may have more to offer.  In particular, I/O layers
+are now available in the development track, but not in the maintenance
+track, primarily to do backward compatibility issues.  Unicode support
+is also evolving rapidly on a daily basis in the development track--the
+maintenance track only reflects the most conservative of these changes.
+
+=item 64-bit support
+
+Support for 64-bit platforms has been improved, but continues to be
+experimental.  The level of support varies greatly among platforms.
+
+=item Compiler
+
+The B Compiler and its various backends have had many incremental
+improvements, but they continue to remain highly experimental.  Use in
+production environments is discouraged.
+
+The perlcc tool has been rewritten so that the user interface is much
+more like that of a C compiler.
+
+The perlbc tools has been removed.  Use C<perlcc -B> instead.
+
+=item Lvalue subroutines
+
+There have been various bugfixes to support lvalue subroutines better.
+However, the feature still remains experimental.
+
+=item IO::Socket
+
+IO::Socket::INET failed to open the specified port if the service
+name was not known.  It now correctly uses the supplied port number
+as is.
+
+=item File::Find
+
+File::Find now chdir()s correctly when chasing symbolic links.
+
+=item xsubpp
+
+xsubpp now tolerates embedded POD sections.
+
+=item C<no Module;>
+
+C<no Module;> does not produce an error even if Module does not have an
+unimport() method.  This parallels the behavior of C<use> vis-a-vis
+C<import>.
+
+=item Tests
+
+A large number of tests have been added.
+
+=back
+
+=head2 Core features
+
+untie() will now call an UNTIE() hook if it exists.  See L<perltie>
+for details.
+
+The C<-DT> command line switch outputs copious tokenizing information.
+See L<perlrun>.
+
+Arrays are now always interpolated in double-quotish strings.  Previously,
+C<"foo@bar.com"> used to be a fatal error at compile time, if an array
+C<@bar> was not used or declared.  This transitional behavior was
+intended to help migrate perl4 code, and is deemed to be no longer useful.
+See L</"Arrays now always interpolate into double-quoted strings">.
+
+keys(), each(), pop(), push(), shift(), splice() and unshift()
+can all be overridden now.
+
+C<my __PACKAGE__ $obj> now does the expected thing.
+
+=head2 Configuration issues
+
+On some systems (IRIX and Solaris among them) the system malloc is demonstrably
+better.  While the defaults haven't been changed in order to retain binary
+compatibility with earlier releases, you may be better off building perl
+with C<Configure -Uusemymalloc ...> as discussed in the F<INSTALL> file.
+
+C<Configure> has been enhanced in various ways:
+
+=over
+
+=item *
+
+Minimizes use of temporary files.
+
+=item *
+
+By default, does not link perl with libraries not used by it, such as
+the various dbm libraries.  SunOS 4.x hints preserve behavior on that
+platform.
+
+=item *
+
+Support for pdp11-style memory models has been removed due to obsolescence.
+
+=item *
+
+Building outside the source tree is supported on systems that have
+symbolic links. This is done by running
+
+    sh /path/to/source/Configure -Dmksymlinks ...
+    make all test install
+
+in a directory other than the perl source directory.  See F<INSTALL>.
+
+=item *
+
+C<Configure -S> can be run non-interactively.
+
+=back
+
+=head2 Documentation
+
+README.aix, README.solaris and README.macos have been added.  README.posix-bc
+has been renamed to README.bs2000.  These are installed as L<perlaix>,
+L<perlsolaris>, L<perlmacos>, and L<perlbs2000> respectively.
+
+The following pod documents are brand new:
+
+    perlclib	Internal replacements for standard C library functions
+    perldebtut	Perl debugging tutorial
+    perlebcdic	Considerations for running Perl on EBCDIC platforms
+    perlnewmod	Perl modules: preparing a new module for distribution
+    perlrequick	Perl regular expressions quick start
+    perlretut	Perl regular expressions tutorial
+    perlutil	utilities packaged with the Perl distribution
+
+The F<INSTALL> file has been expanded to cover various issues, such as
+64-bit support.
+
+A longer list of contributors has been added to the source distribution.
+See the file C<AUTHORS>.
+
+Numerous other changes have been made to the included documentation and FAQs.
+
+=head2 Bundled modules
+
+The following modules have been added.
+
+=over
+
+=item B::Concise
+
+Walks Perl syntax tree, printing concise info about ops.  See L<B::Concise>.
+
+=item File::Temp
+
+Returns name and handle of a temporary file safely.  See L<File::Temp>.
+
+=item Pod::LaTeX
+
+Converts Pod data to formatted LaTeX.  See L<Pod::LaTeX>.
+
+=item Pod::Text::Overstrike
+
+Converts POD data to formatted overstrike text.  See L<Pod::Text::Overstrike>.
+
+=back
+
+The following modules have been upgraded.
+
+=over
+
+=item CGI
+
+CGI v2.752 is now included.
+
+=item CPAN
+
+CPAN v1.59_54 is now included.
+
+=item Class::Struct
+
+Various bugfixes have been added.
+
+=item DB_File
+
+DB_File v1.75 supports newer Berkeley DB versions, among other
+improvements.
+
+=item Devel::Peek
+
+Devel::Peek has been enhanced to support dumping of memory statistics,
+when perl is built with the included malloc().
+
+=item File::Find
+
+File::Find now supports pre and post-processing of the files in order
+to sort() them, etc.
+
+=item Getopt::Long
+
+Getopt::Long v2.25 is included.
+
+=item IO::Poll
+
+Various bug fixes have been included.
+
+=item IPC::Open3
+
+IPC::Open3 allows use of numeric file descriptors.
+
+=item Math::BigFloat
+
+The fmod() function supports modulus operations.  Various bug fixes
+have also been included.
+
+=item Math::Complex
+
+Math::Complex handles inf, NaN etc., better.
+
+=item Net::Ping
+
+ping() could fail on odd number of data bytes, and when the echo service
+isn't running.  This has been corrected.
+
+=item Opcode
+
+A memory leak has been fixed.
+
+=item Pod::Parser
+
+Version 1.13 of the Pod::Parser suite is included.
+
+=item Pod::Text
+
+Pod::Text and related modules have been upgraded to the versions
+in podlators suite v2.08.
+
+=item SDBM_File
+
+On dosish platforms, some keys went missing because of lack of support for
+files with "holes".  A workaround for the problem has been added.
+
+=item Sys::Syslog
+
+Various bug fixes have been included.
+
+=item Tie::RefHash
+
+Now supports Tie::RefHash::Nestable to automagically tie hashref values.
+
+=item Tie::SubstrHash
+
+Various bug fixes have been included.
+
+=back
+
+=head2 Platform-specific improvements
+
+The following new ports are now available.
+
+=over
+
+=item NCR MP-RAS
+
+=item NonStop-UX
+
+=back
+
+Perl now builds under Amdahl UTS.
+
+Perl has also been verified to build under Amiga OS.
+
+Support for EPOC has been much improved.  See README.epoc.
+
+Building perl with -Duseithreads or -Duse5005threads now works
+under HP-UX 10.20 (previously it only worked under 10.30 or later).
+You will need a thread library package installed.  See README.hpux.
+
+Long doubles should now work under Linux.
+
+MacOS Classic is now supported in the mainstream source package.
+See README.macos.
+
+Support for MPE/iX has been updated.  See README.mpeix.
+
+Support for OS/2 has been improved.  See C<os2/Changes> and README.os2.
+
+Dynamic loading on z/OS (formerly OS/390) has been improved.  See
+README.os390.
+
+Support for VMS has seen many incremental improvements, including
+better support for operators like backticks and system(), and better
+%ENV handling.  See C<README.vms> and L<perlvms>.
+
+Support for Stratus VOS has been improved.  See C<vos/Changes> and README.vos.
+
+Support for Windows has been improved.
+
+=over
+
+=item *
+
+fork() emulation has been improved in various ways, but still continues
+to be experimental.  See L<perlfork> for known bugs and caveats.
+
+=item *
+
+%SIG has been enabled under USE_ITHREADS, but its use is completely
+unsupported under all configurations.
+
+=item *
+
+Borland C++ v5.5 is now a supported compiler that can build Perl.
+However, the generated binaries continue to be incompatible with those
+generated by the other supported compilers (GCC and Visual C++).
+
+=item *
+
+Non-blocking waits for child processes (or pseudo-processes) are
+supported via C<waitpid($pid, &POSIX::WNOHANG)>.
+
+=item *
+
+A memory leak in accept() has been fixed.
+
+=item *
+
+wait(), waitpid() and backticks now return the correct exit status under
+Windows 9x.
+
+=item *
+
+Trailing new %ENV entries weren't propagated to child processes.  This
+is now fixed.
+
+=item *
+
+Current directory entries in %ENV are now correctly propagated to child
+processes.
+
+=item *
+
+Duping socket handles with open(F, ">&MYSOCK") now works under Windows 9x.
+
+=item *
+
+The makefiles now provide a single switch to bulk-enable all the features
+enabled in ActiveState ActivePerl (a popular binary distribution).
+
+=item *
+
+Win32::GetCwd() correctly returns C:\ instead of C: when at the drive root.
+Other bugs in chdir() and Cwd::cwd() have also been fixed.
+
+=item *
+
+fork() correctly returns undef and sets EAGAIN when it runs out of
+pseudo-process handles.
+
+=item *
+
+ExtUtils::MakeMaker now uses $ENV{LIB} to search for libraries.
+
+=item *
+
+UNC path handling is better when perl is built to support fork().
+
+=item *
+
+A handle leak in socket handling has been fixed.
+
+=item *
+
+send() works from within a pseudo-process.
+
+=back
+
+Unless specifically qualified otherwise, the remainder of this document
+covers changes between the 5.005 and 5.6.0 releases.
+ 
 =head1 Core Enhancements
 
 =head2 Interpreter cloning, threads, and concurrency
 
-Perl 5.005_63 introduces the beginnings of support for running multiple
+Perl 5.6.0 introduces the beginnings of support for running multiple
 interpreters concurrently in different threads.  In conjunction with
 the perl_clone() API call, which can be used to selectively duplicate
 the state of any given interpreter, it is possible to compile a
@@ -76,7 +672,7 @@ will be needed to complete the toolkit for dealing with Unicode.
 
 The new C<\N> escape interpolates named characters within strings.
 For example, C<"Hi! \N{WHITE SMILING FACE}"> evaluates to a string
-with a unicode smiley face at the end.
+with a Unicode smiley face at the end.
 
 =head2 "our" declarations
 
@@ -91,7 +687,7 @@ variables.  See L<perlfunc/our>.
 
 Literals of the form C<v1.2.3.4> are now parsed as a string composed
 of characters with the specified ordinals.  This is an alternative, more
-readable way to construct (possibly unicode) strings instead of
+readable way to construct (possibly Unicode) strings instead of
 interpolating characters, as in C<"\x{1}\x{2}\x{3}\x{4}">.  The leading
 C<v> may be omitted if there are more than two ordinals, so C<1.2.3> is
 parsed the same as C<v1.2.3>.
@@ -375,7 +971,7 @@ problems associated with it.
     NOTE: This is currently an experimental feature.  Interfaces and
     implementation are subject to change.
 
-=item Support for CHECK blocks
+=head2 Support for CHECK blocks
 
 In addition to C<BEGIN>, C<INIT>, C<END>, C<DESTROY> and C<AUTOLOAD>,
 subroutines named C<CHECK> are now special.  These are queued up during
@@ -388,7 +984,7 @@ be called directly.
 For example to match alphabetic characters use /[[:alpha:]]/.
 See L<perlre> for details.
 
-=item Better pseudo-random number generator
+=head2 Better pseudo-random number generator
 
 In 5.005_0x and earlier, perl's rand() function used the C library
 rand(3) function.  As of 5.005_52, Configure tests for drand48(),
@@ -409,7 +1005,7 @@ Thus:
 
 now correctly prints "3|a", instead of "2|a".
 
-=item Better worst-case behavior of hashes
+=head2 Better worst-case behavior of hashes
 
 Small changes in the hashing algorithm have been implemented in
 order to improve the distribution of lower order bits in the
@@ -506,7 +1102,7 @@ If the array is tied, the EXISTS() method in the corresponding tied
 package will be invoked.
 
 delete() may be used to remove an element from the array and return
-it.  The array element at that position returns to its unintialized
+it.  The array element at that position returns to its uninitialized
 state, so that testing for the same element with exists() will return
 false.  If the element happens to be the one at the end, the size of
 the array also shrinks up to the highest element that tests true for
@@ -632,7 +1228,7 @@ Diagnostic output now goes to whichever file the C<STDERR> handle
 is pointing at, instead of always going to the underlying C runtime
 library's C<stderr>.
 
-=item More consistent close-on-exec behavior
+=head2 More consistent close-on-exec behavior
 
 On systems that support a close-on-exec flag on filehandles, the
 flag is now set for any handles created by pipe(), socketpair(),
@@ -693,7 +1289,7 @@ The variable modified by shmread(), and messages returned by msgrcv()
 because other untrusted processes can modify messages and shared memory
 segments for their own nefarious purposes.
 
-=item More functional bareword prototype (*)
+=head2 More functional bareword prototype (*)
 
 Bareword prototypes have been rationalized to enable them to be used
 to override builtins that accept barewords and interpret them in
@@ -760,6 +1356,37 @@ with another number.
 This behavior must be specifically enabled when running Configure.
 See F<INSTALL> and F<README.Y2K>.
 
+=head2 Arrays now always interpolate into double-quoted strings
+
+In double-quoted strings, arrays now interpolate, no matter what.  The
+behavior in earlier versions of perl 5 was that arrays would interpolate
+into strings if the array had been mentioned before the string was
+compiled, and otherwise Perl would raise a fatal compile-time error.
+In versions 5.000 through 5.003, the error was
+
+        Literal @example now requires backslash
+
+In versions 5.004_01 through 5.6.0, the error was
+
+        In string, @example now must be written as \@example
+
+The idea here was to get people into the habit of writing
+C<"fred\@example.com"> when they wanted a literal C<@> sign, just as
+they have always written C<"Give me back my \$5"> when they wanted a
+literal C<$> sign.
+
+Starting with 5.6.1, when Perl now sees an C<@> sign in a
+double-quoted string, it I<always> attempts to interpolate an array,
+regardless of whether or not the array has been used or declared
+already.  The fatal error has been downgraded to an optional warning:
+
+        Possible unintended interpolation of @example in string
+
+This warns you that C<"fred@example.com"> is going to turn into
+C<fred.com> if you don't backslash the C<@>.
+See http://www.plover.com/~mjd/perl/at-error.html for more details
+about the history here.
+
 =head1 Modules and Pragmata
 
 =head2 Modules
@@ -780,7 +1407,7 @@ under the Compiler, but there is still a significant way to
 go to achieve production quality compiled executables.
 
     NOTE: The Compiler suite remains highly experimental.  The
-    generated code may not be correct, even it manages to execute
+    generated code may not be correct, even when it manages to execute
     without errors.
 
 =item Benchmark
@@ -1007,7 +1634,7 @@ messages. For example:
 
     =head1 DESCRIPTION
 
-    B<This program> will read the given input file(s) and do someting
+    B<This program> will read the given input file(s) and do something
     useful with the contents thereof.
 
     =cut
@@ -1039,7 +1666,7 @@ IO::Socket::accept now uses select() instead of alarm() for doing
 timeouts.
 
 IO::Socket::INET->new now sets $! correctly on failure. $@ is
-still set for backwards compatability.
+still set for backwards compatibility.
 
 =item JPL
 
@@ -1409,7 +2036,7 @@ eliminating redundant copying overheads.
 Minor changes in how subroutine calls are handled internally
 provide marginal improvements in performance.
 
-=item delete(), each(), values() and hash iteration are faster
+=head2 delete(), each(), values() and hash iteration are faster
 
 The hash values returned by delete(), each(), values() and hashes in a
 list context are the actual values in the hash, instead of copies.
@@ -1518,19 +2145,18 @@ config.sh file from an earlier version of perl, you should be sure to
 check that Configure makes sensible choices for the new directories.
 See INSTALL for complete details.
 
+=head2 gcc automatically tried if 'cc' does not seem to be working
+
+In many platforms the vendor-supplied 'cc' is too stripped-down to
+build Perl (basically, the 'cc' doesn't do ANSI C).  If this seems
+to be the case and the 'cc' does not seem to be the GNU C compiler
+'gcc', an automatic attempt is made to find and use 'gcc' instead.
+
 =head1 Platform specific changes
 
 =head2 Supported platforms
 
 =over 4
-
-=item *
-
-VM/ESA is now supported.
-
-=item *
-
-Siemens BS2000 is now supported under the POSIX Shell.
 
 =item *
 
@@ -1547,7 +2173,7 @@ Rhapsody/Darwin is now supported.
 
 =item *
 
-EPOC is is now supported (on Psion 5).
+EPOC is now supported (on Psion 5).
 
 =item *
 
@@ -1590,7 +2216,7 @@ platform, but the possibility exists.
 =head2 VMS
 
 Numerous revisions and extensions to configuration, build, testing, and
-installation process to accomodate core changes and VMS-specific options.
+installation process to accommodate core changes and VMS-specific options.
 
 Expand %ENV-handling code to allow runtime mapping to logical names,
 CLI symbols, and CRTL environ array.
@@ -1703,7 +2329,7 @@ been fixed.
 
 =head2 All compilation errors are true errors
 
-Some "errors" encountered at compile time were by neccessity 
+Some "errors" encountered at compile time were by necessity 
 generated as warnings followed by eventual termination of the
 program.  This enabled more such errors to be reported in a
 single run, rather than causing a hard stop at the first error
@@ -1811,9 +2437,10 @@ cause silent failures.  This has been fixed.
 Prior versions used to run BEGIN B<and> END blocks when Perl was
 run in compile-only mode.  Since this is typically not the expected
 behavior, END blocks are not executed anymore when the C<-c> switch
-is used.
+is used, or if compilation fails.
 
-See L<CHECK blocks> for how to run things when the compile phase ends.
+See L</"Support for CHECK blocks"> for how to run things when the compile 
+phase ends.
 
 =head2 Potential to leak DATA filehandles
 
@@ -2155,7 +2782,7 @@ L<perlport> for more on portability concerns.
 
 (W internal) A warning peculiar to VMS.  Perl tried to read the CRTL's internal
 environ array, and encountered an element without the C<=> delimiter
-used to spearate keys from values.  The element is ignored.
+used to separate keys from values.  The element is ignored.
 
 =item Ill-formed message in prime_env_iter: |%s|
 
@@ -2306,6 +2933,20 @@ when you meant
 
 Remember that "my", "our", and "local" bind tighter than comma.
 
+=item Possible unintended interpolation of %s in string
+
+(W ambiguous) It used to be that Perl would try to guess whether you
+wanted an array interpolated or a literal @.  It no longer does this;
+arrays are now I<always> interpolated into strings.  This means that 
+if you try something like:
+
+        print "fred@example.com";
+
+and the array C<@example> doesn't exist, Perl is going to print
+C<fred.com>, which is probably not what you wanted.  To get a literal
+C<@> sign in a string, put a backslash before it, just as you would
+to get a literal C<$> sign.
+
 =item Possible Y2K bug: %s
 
 (W y2k) You are concatenating the number 19 with another number, which
@@ -2313,7 +2954,7 @@ could be a potential Year 2000 problem.
 
 =item pragma "attrs" is deprecated, use "sub NAME : ATTRS" instead
 
-(W deprecated) You have written somehing like this:
+(W deprecated) You have written something like this:
 
     sub doit
     {
@@ -2530,7 +3171,7 @@ There is a potential incompatibility in the behavior of list slices
 that are comprised entirely of undefined values.
 See L</"Behavior of list slices is more consistent">.
 
-=head2 Format of $English::PERL_VERSION is different
+=item Format of $English::PERL_VERSION is different
 
 The English module now sets $PERL_VERSION to $^V (a string value) rather
 than C<$]> (a numeric value).  This is a potential incompatibility.
@@ -2592,9 +3233,12 @@ but still allowed it.
 
 In Perl 5.6.0 and later, C<"$$1"> always means C<"${$1}">.
 
-=item delete(), values() and C<\(%h)> operate on aliases to values, not copies
+=item delete(), each(), values() and C<\(%h)>
 
-delete(), each(), values() and hashes in a list context return the actual
+operate on aliases to values, not copies
+
+delete(), each(), values() and hashes (e.g. C<\(%h)>)
+in a list context return the actual
 values in the hash, instead of copies (as they used to in earlier
 versions).  Typical idioms for using these constructs copy the
 returned values, but this can make a significant difference when
@@ -2655,7 +3299,7 @@ a simple scalar or as a reference to a typeglob.
 
 See L</"More functional bareword prototype (*)">.
 
-=head2 Semantics of bit operators may have changed on 64-bit platforms
+=item Semantics of bit operators may have changed on 64-bit platforms
 
 If your platform is either natively 64-bit or if Perl has been
 configured to used 64-bit integers, i.e., $Config{ivsize} is 8, 
@@ -2669,7 +3313,7 @@ the excess bits in the result of unary C<~>, e.g., C<~$x & 0xffffffff>.
 
 See L</"Bit operators support full native integer width">.
 
-=head2 More builtins taint their results
+=item More builtins taint their results
 
 As described in L</"Improved security features">, there may be more
 sources of taint in a Perl program.
@@ -2744,7 +3388,7 @@ See L<perlguts/"Memory Allocation"> for further information about that.
 
 =head2 Compatible C Source API Changes
 
-=over
+=over 4
 
 =item C<PATCHLEVEL> is now C<PERL_VERSION>
 
@@ -2784,21 +3428,26 @@ For the full list of public API functions, see L<perlapi>.
 
 =head1 Known Problems
 
-=head2 Thread test failures
+=head2 Localizing a tied hash element may leak memory
 
-The subtests 19 and 20 of lib/thr5005.t test are known to fail due to
-fundamental problems in the 5.005 threading implementation.  These are
-not new failures--Perl 5.005_0x has the same bugs, but didn't have these
-tests.
+As of the 5.6.1 release, there is a known leak when code such as this
+is executed:
 
-=head2 EBCDIC platforms not supported
+    use Tie::Hash;
+    tie my %tie_hash => 'Tie::StdHash';
 
-In earlier releases of Perl, EBCDIC environments like OS390 (also
-known as Open Edition MVS) and VM-ESA were supported.  Due to changes
-required by the UTF-8 (Unicode) support, the EBCDIC platforms are not
-supported in Perl 5.6.0.
+    ...
 
-=head2 In 64-bit HP-UX the lib/io_multihomed test may hang
+    local($tie_hash{Foo}) = 1; # leaks
+
+=head2 Known test failures
+
+=over
+
+=item 64-bit builds
+
+Subtest #15 of lib/b.t may fail under 64-bit builds on platforms such
+as HP-UX PA64 and Linux IA64.  The issue is still being investigated.
 
 The lib/io_multihomed test may hang in HP-UX if Perl has been
 configured to be 64-bit.  Because other 64-bit platforms do not
@@ -2806,18 +3455,39 @@ hang in this test, HP-UX is suspect.  All other tests pass
 in 64-bit HP-UX.  The test attempts to create and connect to
 "multihomed" sockets (sockets which have multiple IP addresses).
 
-=head2 NEXTSTEP 3.3 POSIX test failure
+Note that 64-bit support is still experimental.
+
+=item Failure of Thread tests
+
+The subtests 19 and 20 of lib/thr5005.t test are known to fail due to
+fundamental problems in the 5.005 threading implementation.  These are
+not new failures--Perl 5.005_0x has the same bugs, but didn't have these
+tests.  (Note that support for 5.005-style threading remains experimental.)
+
+=item NEXTSTEP 3.3 POSIX test failure
 
 In NEXTSTEP 3.3p2 the implementation of the strftime(3) in the
 operating system libraries is buggy: the %j format numbers the days of
 a month starting from zero, which, while being logical to programmers,
 will cause the subtests 19 to 27 of the lib/posix test may fail.
 
-=head2 Tru64 (aka Digital UNIX, aka DEC OSF/1) lib/sdbm test failure with gcc
+=item Tru64 (aka Digital UNIX, aka DEC OSF/1) lib/sdbm test failure with gcc
 
 If compiled with gcc 2.95 the lib/sdbm test will fail (dump core).
 The cure is to use the vendor cc, it comes with the operating system
 and produces good code.
+
+=back
+
+=head2 EBCDIC platforms not fully supported
+
+In earlier releases of Perl, EBCDIC environments like OS390 (also
+known as Open Edition MVS) and VM-ESA were supported.  Due to changes
+required by the UTF-8 (Unicode) support, the EBCDIC platforms are not
+supported in Perl 5.6.0.
+
+The 5.6.1 release improves support for EBCDIC platforms, but they
+are not fully supported yet.
 
 =head2 UNICOS/mk CC failures during Configure run
 
@@ -2847,11 +3517,6 @@ operation must be considered erroneous. For example:
 These expressions will get run-time errors in some future release of
 Perl.
 
-=head2 Windows 2000
-
-Windows 2000 is known to fail test 22 in lib/open3.t (cause unknown at
-this time).  That test passes under Windows NT.
-
 =head2 Experimental features
 
 As discussed above, many features are still experimental.  Interfaces and
@@ -2879,7 +3544,9 @@ include the following:
 
 =item The DB module
 
-=item The regular expression constructs C<(?{ code })> and C<(??{ code })>
+=item The regular expression code constructs: 
+
+C<(?{ code })> and C<(??{ code })>
 
 =back
 
@@ -2903,6 +3570,18 @@ names.  Because it cannot be translated normally, it is skipped, and will not
 appear in %ENV.  This may be a benign occurrence, as some software packages
 might directly modify logical name tables and introduce nonstandard names,
 or it may indicate that a logical name table has been corrupted.
+
+=item In string, @%s now must be written as \@%s
+
+The description of this error used to say:
+
+        (Someday it will simply assume that an unbackslashed @
+         interpolates an array.)
+
+That day has come, and this fatal error has been removed.  It has been
+replaced by a non-fatal warning instead.
+See L</Arrays now always interpolate into double-quoted strings> for
+details.
 
 =item Probable precedence problem on %s
 
@@ -2938,13 +3617,13 @@ warning.  And in Perl 5.005, this special treatment will cease.
 
 If you find what you think is a bug, you might check the
 articles recently posted to the comp.lang.perl.misc newsgroup.
-There may also be information at http://www.perl.com/perl/, the Perl
+There may also be information at http://www.perl.com/, the Perl
 Home Page.
 
 If you believe you have an unreported bug, please run the B<perlbug>
 program included with your release.  Be sure to trim your bug down
 to a tiny but sufficient test case.  Your bug report, along with the
-output of C<perl -V>, will be sent off to perlbug@perl.com to be
+output of C<perl -V>, will be sent off to perlbug@perl.org to be
 analysed by the Perl porting team.
 
 =head1 SEE ALSO
@@ -2959,9 +3638,9 @@ The F<Artistic> and F<Copying> files for copyright information.
 
 =head1 HISTORY
 
-Written by Gurusamy Sarathy <F<gsar@activestate.com>>, with many
+Written by Gurusamy Sarathy <F<gsar@ActiveState.com>>, with many
 contributions from The Perl Porters.
 
-Send omissions or corrections to <F<perlbug@perl.com>>.
+Send omissions or corrections to <F<perlbug@perl.org>>.
 
 =cut

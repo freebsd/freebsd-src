@@ -45,9 +45,9 @@ a[b-d]e	ace	y	$&	ace
 a[b-d]	aac	y	$&	ac
 a[-b]	a-	y	$&	a-
 a[b-]	a-	y	$&	a-
-a[b-a]	-	c	-	/a[b-a]/: invalid [] range "b-a" in regexp
-a[]b	-	c	-	/a[]b/: unmatched [] in regexp
-a[	-	c	-	/a[/: unmatched [] in regexp
+a[b-a]	-	c	-	Invalid [] range "b-a" before HERE mark in regex m/a[b-a << HERE ]/
+a[]b	-	c	-	Unmatched [ before HERE mark in regex m/a[ << HERE ]b/
+a[	-	c	-	Unmatched [ before HERE mark in regex m/a[ << HERE /
 a]	a]	y	$&	a]
 a[]]b	a]b	y	$&	a]b
 a[^bc]d	aed	y	$&	aed
@@ -95,21 +95,21 @@ a[\S]b	a-b	y	-	-
 ab|cd	abc	y	$&	ab
 ab|cd	abcd	y	$&	ab
 ()ef	def	y	$&-$1	ef-
-*a	-	c	-	/*a/: ?+*{} follows nothing in regexp
-(*)b	-	c	-	/(*)b/: ?+*{} follows nothing in regexp
+*a	-	c	-	Quantifier follows nothing before HERE mark in regex m/* << HERE a/
+(*)b	-	c	-	Quantifier follows nothing before HERE mark in regex m/(* << HERE )b/
 $b	b	n	-	-
 a\	-	c	-	Search pattern not terminated
 a\(b	a(b	y	$&-$1	a(b-
 a\(*b	ab	y	$&	ab
 a\(*b	a((b	y	$&	a((b
 a\\b	a\b	y	$&	a\b
-abc)	-	c	-	/abc)/: unmatched () in regexp
-(abc	-	c	-	/(abc/: unmatched () in regexp
+abc)	-	c	-	Unmatched ) before HERE mark in regex m/abc) << HERE /
+(abc	-	c	-	Unmatched ( before HERE mark in regex m/( << HERE abc/
 ((a))	abc	y	$&-$1-$2	a-a-a
 (a)b(c)	abc	y	$&-$1-$2	abc-a-c
 a+b+c	aabbabc	y	$&	abc
 a{1,}b{1,}c	aabbabc	y	$&	abc
-a**	-	c	-	/a**/: nested *?+ in regexp
+a**	-	c	-	Nested quantifiers before HERE mark in regex m/a** << HERE /
 a.+?c	abcabc	y	$&	abc
 (a+|b)*	ab	y	$&-$1	ab-b
 (a+|b){0,}	ab	y	$&-$1	ab-b
@@ -117,7 +117,7 @@ a.+?c	abcabc	y	$&	abc
 (a+|b){1,}	ab	y	$&-$1	ab-b
 (a+|b)?	ab	y	$&-$1	a-a
 (a+|b){0,1}	ab	y	$&-$1	a-a
-)(	-	c	-	/)(/: unmatched () in regexp
+)(	-	c	-	Unmatched ) before HERE mark in regex m/) << HERE (/
 [^ab]*	cde	y	$&	cde
 abc		n	-	-
 a*		y	$&	
@@ -164,11 +164,11 @@ a(bc)d	abcd	y	$1-\$1-\\$1	bc-$1-\bc
 a[-]?c	ac	y	$&	ac
 (abc)\1	abcabc	y	$1	abc
 ([a-c]*)\1	abcabc	y	$1	abc
-\1	-	c	-	/\1/: reference to nonexistent group
-\2	-	c	-	/\2/: reference to nonexistent group
+\1	-	c	-	Reference to nonexistent group
+\2	-	c	-	Reference to nonexistent group
 (a)|\1	a	y	-	-
 (a)|\1	x	n	-	-
-(a)|\2	-	c	-	/(a)|\2/: reference to nonexistent group
+(a)|\2	-	c	-	Reference to nonexistent group
 (([a-c])b*?\2)*	ababbbcbc	y	$&-$1-$2	ababb-bb-b
 (([a-c])b*?\2){3}	ababbbcbc	y	$&-$1-$2	ababbbcbc-cbc-c
 ((\3|b)\2(a)x)+	aaxabxbaxbbx	n	-	-
@@ -218,9 +218,9 @@ a[-]?c	ac	y	$&	ac
 'a[b-d]'i	AAC	y	$&	AC
 'a[-b]'i	A-	y	$&	A-
 'a[b-]'i	A-	y	$&	A-
-'a[b-a]'i	-	c	-	/a[b-a]/: invalid [] range "b-a" in regexp
-'a[]b'i	-	c	-	/a[]b/: unmatched [] in regexp
-'a['i	-	c	-	/a[/: unmatched [] in regexp
+'a[b-a]'i	-	c	-	Invalid [] range "b-a" before HERE mark in regex m/a[b-a << HERE ]/
+'a[]b'i	-	c	-	Unmatched [ before HERE mark in regex m/a[ << HERE ]b/
+'a['i	-	c	-	Unmatched [ before HERE mark in regex m/a[ << HERE /
 'a]'i	A]	y	$&	A]
 'a[]]b'i	A]B	y	$&	A]B
 'a[^bc]d'i	AED	y	$&	AED
@@ -232,21 +232,21 @@ a[-]?c	ac	y	$&	ac
 'ab|cd'i	ABC	y	$&	AB
 'ab|cd'i	ABCD	y	$&	AB
 '()ef'i	DEF	y	$&-$1	EF-
-'*a'i	-	c	-	/*a/: ?+*{} follows nothing in regexp
-'(*)b'i	-	c	-	/(*)b/: ?+*{} follows nothing in regexp
+'*a'i	-	c	-	Quantifier follows nothing before HERE mark in regex m/* << HERE a/
+'(*)b'i	-	c	-	Quantifier follows nothing before HERE mark in regex m/(* << HERE )b/
 '$b'i	B	n	-	-
 'a\'i	-	c	-	Search pattern not terminated
 'a\(b'i	A(B	y	$&-$1	A(B-
 'a\(*b'i	AB	y	$&	AB
 'a\(*b'i	A((B	y	$&	A((B
 'a\\b'i	A\B	y	$&	A\B
-'abc)'i	-	c	-	/abc)/: unmatched () in regexp
-'(abc'i	-	c	-	/(abc/: unmatched () in regexp
+'abc)'i	-	c	-	Unmatched ) before HERE mark in regex m/abc) << HERE /
+'(abc'i	-	c	-	Unmatched ( before HERE mark in regex m/( << HERE abc/
 '((a))'i	ABC	y	$&-$1-$2	A-A-A
 '(a)b(c)'i	ABC	y	$&-$1-$2	ABC-A-C
 'a+b+c'i	AABBABC	y	$&	ABC
 'a{1,}b{1,}c'i	AABBABC	y	$&	ABC
-'a**'i	-	c	-	/a**/: nested *?+ in regexp
+'a**'i	-	c	-	Nested quantifiers before HERE mark in regex m/a** << HERE /
 'a.+?c'i	ABCABC	y	$&	ABC
 'a.*?c'i	ABCABC	y	$&	ABC
 'a.{0,5}?c'i	ABCABC	y	$&	ABC
@@ -257,7 +257,7 @@ a[-]?c	ac	y	$&	ac
 '(a+|b)?'i	AB	y	$&-$1	A-A
 '(a+|b){0,1}'i	AB	y	$&-$1	A-A
 '(a+|b){0,1}?'i	AB	y	$&-$1	-
-')('i	-	c	-	/)(/: unmatched () in regexp
+')('i	-	c	-	Unmatched ) before HERE mark in regex m/) << HERE (/
 '[^ab]*'i	CDE	y	$&	CDE
 'abc'i		n	-	-
 'a*'i		y	$&	
@@ -318,7 +318,7 @@ a(?:b|c|d){2}(.)	acdbcdbe	y	$1	b
 a(?:b|c|d){4,5}(.)	acdbcdbe	y	$1	b
 a(?:b|c|d){4,5}?(.)	acdbcdbe	y	$1	d
 ((foo)|(bar))*	foobar	y	$1-$2-$3	bar-foo-bar
-:(?:	-	c	-	/(?/: Sequence (? incomplete
+:(?:	-	c	-	Sequence (? incomplete
 a(?:b|c|d){6,7}(.)	acdbcdbe	y	$1	e
 a(?:b|c|d){6,7}?(.)	acdbcdbe	y	$1	e
 a(?:b|c|d){5,6}(.)	acdbcdbe	y	$1	e
@@ -346,7 +346,7 @@ a(?:b|(c|e){1,2}?|d)+?(.)	ace	y	$1$2	ce
 (?<!c)b	cb	n	-	-
 (?<!c)b	b	y	-	-
 (?<!c)b	b	y	$&	b
-(?<%)b	-	c	-	/(?<%)b/: Sequence (?%...) not recognized
+(?<%)b	-	c	-	Sequence (?<%...) not recognized before HERE mark in regex m/(?<% << HERE )b/
 (?:..)*a	aba	y	$&	aba
 (?:..)*?a	aba	y	$&	a
 ^(?:b|a(?=(.)))*\1	abc	y	$&	ab
@@ -397,10 +397,10 @@ a(?:b|(c|e){1,2}?|d)+?(.)	ace	y	$1$2	ce
 '(ab)\d\1'i	ab4Ab	y	$1	ab
 foo\w*\d{4}baz	foobar1234baz	y	$&	foobar1234baz
 a(?{})b	cabd	y	$&	ab
-a(?{)b	-	c	-	/a(?{)b/: Sequence (?{...}) not terminated or not {}-balanced
-a(?{{})b	-	c	-	/a(?{{})b/: Sequence (?{...}) not terminated or not {}-balanced
-a(?{}})b	-	c	-	/a(?{}})b/: Sequence (?{...}) not terminated or not {}-balanced
-a(?{"{"})b	-	c	-	/a(?{"{"})b/: Sequence (?{...}) not terminated or not {}-balanced
+a(?{)b	-	c	-	Sequence (?{...}) not terminated or not {}-balanced before HERE mark in regex m/a(?{ << HERE )b/
+a(?{{})b	-	c	-	Sequence (?{...}) not terminated or not {}-balanced before HERE mark in regex m/a(?{ << HERE {})b/
+a(?{}})b	-	c	-	
+a(?{"{"})b	-	c	-	Sequence (?{...}) not terminated or not {}-balanced before HERE mark in regex m/a(?{ << HERE "{"})b/
 a(?{"\{"})b	cabd	y	$&	ab
 a(?{"{"}})b	-	c	-	Unmatched right curly bracket
 a(?{$bl="\{"}).b	caxbd	y	$bl	{
@@ -441,8 +441,8 @@ x(~~)*(?:(?:F)?)?	x~~	y	-	-
 ^(\(+)?blah(?(1)(\)))$	blah	y	($2)	()
 ^(\(+)?blah(?(1)(\)))$	blah)	n	-	-
 ^(\(+)?blah(?(1)(\)))$	(blah	n	-	-
-(?(1?)a|b)	a	c	-	/(?(1?)a|b)/: Switch (?(number? not recognized
-(?(1)a|b|c)	a	c	-	/(?(1)a|b|c)/: Switch (?(condition)... contains too many branches
+(?(1?)a|b)	a	c	-	Switch condition not recognized before HERE mark in regex m/(?(1? << HERE )a|b)/
+(?(1)a|b|c)	a	c	-	Switch (?(condition)... contains too many branches
 (?(?{0})a|b)	a	n	-	-
 (?(?{0})b|a)	a	y	$&	a
 (?(?{1})b|a)	a	n	-	-
@@ -473,10 +473,10 @@ $(?<=^(a))	a	y	$1	a
 ([[:]+)	a:[b]:	y	$1	:[
 ([[=]+)	a=[b]=	y	$1	=[
 ([[.]+)	a.[b].	y	$1	.[
-[a[:xyz:	-	c	-	/[a[:xyz:/: unmatched [] in regexp
-[a[:xyz:]	-	c	-	Character class [:xyz:] unknown
+[a[:xyz:	-	c	-	Unmatched [ before HERE mark in regex m/[ << HERE a[:xyz:/
+[a[:xyz:]	-	c	-	POSIX class [:xyz:] unknown before HERE mark in regex m/[a[:xyz:] << HERE /
 [a[:]b[:c]	abc	y	$&	abc
-([a[:xyz:]b]+)	pbaq	c	-	Character class [:xyz:] unknown
+([a[:xyz:]b]+)	pbaq	c	-	POSIX class [:xyz:] unknown before HERE mark in regex m/([a[:xyz:] << HERE b]+)/
 [a[:]b[:c]	abc	y	$&	abc
 ([[:alpha:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd
 ([[:alnum:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	ABcd01Xy
@@ -503,13 +503,13 @@ $(?<=^(a))	a	y	$1	a
 ([[:^word:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	--  ${nulnul}${ffff}
 ([[:^upper:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	cd01
 ([[:^xdigit:]]+)	ABcd01Xy__--  ${nulnul}${ffff}	y	$1	Xy__--  ${nulnul}${ffff}
-[[:foo:]]	-	c	-	Character class [:foo:] unknown
-[[:^foo:]]	-	c	-	Character class [:^foo:] unknown
+[[:foo:]]	-	c	-	POSIX class [:foo:] unknown before HERE mark in regex m/[[:foo:] << HERE ]/
+[[:^foo:]]	-	c	-	POSIX class [:^foo:] unknown before HERE mark in regex m/[[:^foo:] << HERE ]/
 ((?>a+)b)	aaab	y	$1	aaab
 (?>(a+))b	aaab	y	$1	aaa
 ((?>[^()]+)|\([^()]*\))+	((abc(ade)ufh()()x	y	$&	abc(ade)ufh()()x
-(?<=x+)y	-	c	-	/(?<=x+)y/: variable length lookbehind not implemented
-a{37,17}	-	c	-	/a{37,17}/: Can't do {n,m} with n > m
+(?<=x+)y	-	c	-	Variable length lookbehind not implemented
+a{37,17}	-	c	-	Can't do {n,m} with n > m
 \Z	a\nb\n	y	$-[0]	3
 \z	a\nb\n	y	$-[0]	4
 $	a\nb\n	y	$-[0]	3
@@ -750,3 +750,37 @@ tt+$	xxxtt	y	-	-
 ^([a-z]:)	C:/	n	-	-
 '^\S\s+aa$'m	\nx aa	y	-	-
 (^|a)b	ab	y	-	-
+^([ab]*?)(b)?(c)$	abac	y	-$2-	--
+(\w)?(abc)\1b	abcab	n	-	-
+^(?:.,){2}c	a,b,c	y	-	-
+^(.,){2}c	a,b,c	y	$1	b,
+^(?:[^,]*,){2}c	a,b,c	y	-	-
+^([^,]*,){2}c	a,b,c	y	$1	b,
+^([^,]*,){3}d	aaa,b,c,d	y	$1	c,
+^([^,]*,){3,}d	aaa,b,c,d	y	$1	c,
+^([^,]*,){0,3}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,3},){3}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,3},){3,}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,3},){0,3}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,},){3}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,},){3,}d	aaa,b,c,d	y	$1	c,
+^([^,]{1,},){0,3}d	aaa,b,c,d	y	$1	c,
+^([^,]{0,3},){3}d	aaa,b,c,d	y	$1	c,
+^([^,]{0,3},){3,}d	aaa,b,c,d	y	$1	c,
+^([^,]{0,3},){0,3}d	aaa,b,c,d	y	$1	c,
+(?i)		y	-	-
+'(?!\A)x'm	a\nxb\n	y	-	-
+^(a(b)?)+$	aba	y	-$1-$2-	-a--
+^(aa(bb)?)+$	aabbaa	y	-$1-$2-	-aa--
+'^.{9}abc.*\n'm	123\nabcabcabcabc\n	y	-	-
+^(a)?a$	a	y	-$1-	--
+^(a)?(?(1)a|b)+$	a	n	-	-
+^(a\1?)(a\1?)(a\2?)(a\3?)$	aaaaaa	y	$1,$2,$3,$4	a,aa,a,aa
+^(a\1?){4}$	aaaaaa	y	$1	aa
+^(0+)?(?:x(1))?	x1	y	-	-
+^([0-9a-fA-F]+)(?:x([0-9a-fA-F]+)?)(?:x([0-9a-fA-F]+))?	012cxx0190	y	-	-
+^(b+?|a){1,2}c	bbbac	y	$1	a
+^(b+?|a){1,2}c	bbbbac	y	$1	a
+\((\w\. \w+)\)	cd. (A. Tw)	y	-$1-	-A. Tw-
+((?:aaaa|bbbb)cccc)?	aaaacccc	y	-	-
+((?:aaaa|bbbb)cccc)?	bbbbcccc	y	-	-

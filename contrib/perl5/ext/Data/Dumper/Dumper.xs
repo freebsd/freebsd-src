@@ -584,8 +584,10 @@ DD_dump(pTHX_ SV *val, char *name, STRLEN namelen, SV *retval, HV *seenhv,
 
 	if (SvIOK(val)) {
             STRLEN len;
-	    i = SvIV(val);
-            (void) sprintf(tmpbuf, "%"IVdf, (IV)i);
+	    if (SvIsUV(val))
+	      (void) sprintf(tmpbuf, "%"UVuf, SvUV(val));
+	    else
+	      (void) sprintf(tmpbuf, "%"IVdf, SvIV(val));
             len = strlen(tmpbuf);
 	    sv_catpvn(retval, tmpbuf, len);
 	}
@@ -803,7 +805,7 @@ Data_Dumper_Dumpxs(href, ...)
 		    if ((svp = av_fetch(namesav, i, TRUE)))
 			sv_setsv(name, *svp);
 		    else
-			SvOK_off(name);
+			(void)SvOK_off(name);
 		    
 		    if (SvOK(name)) {
 			if ((SvPVX(name))[0] == '*') {

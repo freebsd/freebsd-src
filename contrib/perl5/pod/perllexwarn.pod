@@ -9,7 +9,7 @@ flag B<-w> and the equivalent Perl variable, C<$^W>.
 
 The pragma works just like the existing "strict" pragma.
 This means that the scope of the warning pragma is limited to the
-enclosing block. It also means that that the pragma setting will not
+enclosing block. It also means that the pragma setting will not
 leak across files (via C<use>, C<require> or C<do>). This allows
 authors to independently define the degree of warning checks that will
 be applied to their module.
@@ -30,18 +30,17 @@ Similarly all warnings are disabled in a block by either of these:
 For example, consider the code below:
 
     use warnings ;
-    my $a ;
-    my $b ;
+    my @a ;
     {
         no warnings ;
-	$b = 2 if $a EQ 3 ;
+	my $b = @a[0] ;
     }
-    $b = 1 if $a NE 3 ;
+    my $c = @a[0];
 
 The code in the enclosing block has warnings enabled, but the inner
-block has them disabled. In this case that means that the use of the C<EQ>
-operator won't trip a C<"Use of EQ is deprecated"> warning, but the use of
-C<NE> will produce a C<"Use of NE is deprecated"> warning.
+block has them disabled. In this case that means the assignment to the
+scalar C<$c> will trip the C<"Scalar value @a[0] better written as $a[0]">
+warning, but the assignment to the scalar C<$b> will not.
 
 =head2 Default Warnings and Optional Warnings
 
@@ -100,7 +99,7 @@ disable compile-time warnings you need to rewrite the code like this:
 	 my $b ; chop $b ;
      }
 
-The other big problem with C<$^W> is that way you can inadvertently
+The other big problem with C<$^W> is the way you can inadvertently
 change the warning setting in unexpected places in your code. For example,
 when the code below is run (without the B<-w> flag), the second call
 to C<doit> will trip a C<"Use of uninitialized value"> warning, whereas
@@ -195,7 +194,7 @@ or B<-X> command line flags.
 
 =back
 
-The combined effect of 3 & 4 is that it will will allow code which uses
+The combined effect of 3 & 4 is that it will allow code which uses
 the C<warnings> pragma to control the warning behavior of $^W-type
 code (using a C<local $^W=0>) if it really wants to, but not vice-versa.
 
@@ -321,27 +320,38 @@ L<perldiag>.
 
 The presence of the word "FATAL" in the category list will escalate any
 warnings detected from the categories specified in the lexical scope
-into fatal errors. In the code below, there are 3 places where a
-deprecated warning will be detected, the middle one will produce a
-fatal error.
-
+into fatal errors. In the code below, the use of C<time>, C<length>
+and C<join> can all produce a C<"Useless use of xxx in void context">
+warning.
 
     use warnings ;
 
-    $a = 1 if $a EQ $b ;
+    time ;
 
     {
-        use warnings FATAL => qw(deprecated) ;
-        $a = 1 if $a EQ $b ;
+        use warnings FATAL => qw(void) ;
+        length "abc" ;
     }
 
-    $a = 1 if $a EQ $b ;
+    join "", 1,2,3 ;
+
+    print "done\n" ;     
+
+When run it produces this output
+
+    Useless use of time in void context at fatal line 3.
+    Useless use of length in void context at fatal line 7.  
+
+The scope where C<length> is used has escalated the C<void> warnings
+category into a fatal error, so the program terminates immediately it
+encounters the warning.
+
 
 =head2 Reporting Warnings from a Module
 
 The C<warnings> pragma provides a number of functions that are useful for
 module authors. These are used when you want to report a module-specific
-warning when the calling module has enabled warnings via the C<warnings>
+warning to a calling module has enabled warnings via the C<warnings>
 pragma.
 
 Consider the module C<MyMod::Abc> below.
@@ -361,11 +371,11 @@ Consider the module C<MyMod::Abc> below.
     1 ;
 
 The call to C<warnings::register> will create a new warnings category
-called "MyMod::abc", i.e. the new category name matches the module
-name. The C<open> function in the module will display a warning message
-if it gets given a relative path as a parameter. This warnings will only
-be displayed if the code that uses C<MyMod::Abc> has actually enabled
-them with the C<warnings> pragma like below.
+called "MyMod::abc", i.e. the new category name matches the current
+package name. The C<open> function in the module will display a warning
+message if it gets given a relative path as a parameter. This warnings
+will only be displayed if the code that uses C<MyMod::Abc> has actually
+enabled them with the C<warnings> pragma like below.
 
     use MyMod::Abc;
     use warnings 'MyMod::Abc';
@@ -379,10 +389,8 @@ this snippet of code:
     package MyMod::Abc;
 
     sub open {
-        if (warnings::enabled("deprecated")) {
-            warnings::warn("deprecated", 
-                           "open is deprecated, use new instead") ;
-        }
+        warnings::warnif("deprecated", 
+                         "open is deprecated, use new instead") ;
         new(@_) ;
     }
 
@@ -399,17 +407,88 @@ display a warning message whenever the calling module has (at least) the
     ...
     MyMod::Abc::open($filename) ;
 
-The C<warnings::warn> function should be used to actually display the
-warnings message. This is because they can make use of the feature that
-allows warnings to be escalated into fatal errors. So in this case
+Either the C<warnings::warn> or C<warnings::warnif> function should be
+used to actually display the warnings message. This is because they can
+make use of the feature that allows warnings to be escalated into fatal
+errors. So in this case
 
     use MyMod::Abc;
     use warnings FATAL => 'MyMod::Abc';
     ...
     MyMod::Abc::open('../fred.txt');
 
-the C<warnings::warn> function will detect this and die after
+the C<warnings::warnif> function will detect this and die after
 displaying the warning message.
+
+The three warnings functions, C<warnings::warn>, C<warnings::warnif>
+and C<warnings::enabled> can optionally take an object reference in place
+of a category name. In this case the functions will use the class name
+of the object as the warnings category.
+
+Consider this example:
+
+    package Original ;
+
+    no warnings ;
+    use warnings::register ;
+
+    sub new
+    {
+        my $class = shift ;
+        bless [], $class ;
+    }
+
+    sub check
+    {
+        my $self = shift ;
+        my $value = shift ;
+
+        if ($value % 2 && warnings::enabled($self))
+          { warnings::warn($self, "Odd numbers are unsafe") }
+    }
+
+    sub doit
+    {
+        my $self = shift ;
+        my $value = shift ;
+        $self->check($value) ;
+        # ...
+    }
+
+    1 ;
+
+    package Derived ;
+
+    use warnings::register ;
+    use Original ;
+    our @ISA = qw( Original ) ;
+    sub new
+    {
+        my $class = shift ;
+        bless [], $class ;
+    }
+
+
+    1 ;
+
+The code below makes use of both modules, but it only enables warnings from 
+C<Derived>.
+
+    use Original ;
+    use Derived ;
+    use warnings 'Derived';
+    my $a = new Original ;
+    $a->doit(1) ;
+    my $b = new Derived ;
+    $a->doit(1) ;
+
+When this code is run only the C<Derived> object, C<$b>, will generate
+a warning. 
+
+    Odd numbers are unsafe at main.pl line 7
+
+Notice also that the warning is reported at the line where the object is first
+used.
 
 =head1 TODO
 
@@ -423,6 +502,8 @@ displaying the warning message.
     patch, but there were design decisions made in diagnostics to work
     around the limitations of C<$^W>. Now that those limitations are gone,
     the module should be revisited.
+
+  document calling the warnings::* functions from XS
 
 =head1 SEE ALSO
 

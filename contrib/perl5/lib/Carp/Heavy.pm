@@ -42,7 +42,7 @@ sub longmess_heavy {
 	#
 	# if the $error error string is newline terminated then it
 	# is copied into $mess.  Otherwise, $mess gets set (at the end of
-	# the 'else {' section below) to one of two things.  The first time
+	# the 'else' section below) to one of two things.  The first time
 	# through, it is set to the "$error at $file line $line" message.
 	# $error is then set to 'called' which triggers subsequent loop
 	# iterations to append $sub to $mess before appending the "$error
@@ -121,10 +121,7 @@ sub longmess_heavy {
 	# $line" makes sense as "called at $file line $line".
 	$error = "called";
     }
-    # this kludge circumvents die's incorrect handling of NUL
-    my $msg = \($mess || $error);
-    $$msg =~ tr/\0//d;
-    $$msg;
+    $mess || $error;
 }
 
 
@@ -227,17 +224,14 @@ CALLER:
 	}
 	else {
 	    # OK!  We've got a candidate package.  Time to construct the
-	    # relevant error message and return it.   die() doesn't like
-	    # to be given NUL characters (which $msg may contain) so we
-	    # remove them first.
+	    # relevant error message and return it.
 	    my $msg;
 	    $msg = "$error at $file line $line";
 	    if (defined &Thread::tid) {
 		my $tid = Thread->self->tid;
-		$mess .= " thread $tid" if $tid;
+		$msg .= " thread $tid" if $tid;
 	    }
 	    $msg .= "\n";
-	    $msg =~ tr/\0//d;
 	    return $msg;
 	}
     }

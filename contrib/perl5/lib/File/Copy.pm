@@ -37,7 +37,7 @@ sub _catname { #  Will be replaced by File::Spec when it arrives
 	import  File::Basename 'basename';
     }
     if ($^O eq 'VMS')  { $to = VMS::Filespec::vmspath($to) . basename($from); }
-    elsif ($^O eq 'MacOS') { $to .= ':' . basename($from); }
+    elsif ($^O eq 'MacOS') { $to =~ s/^([^:]+)$/:$1/; $to .= ':' . basename($from); }
     elsif ($to =~ m|\\|)   { $to .= '\\' . basename($from); }
     else                   { $to .= '/' . basename($from); }
 }
@@ -69,6 +69,7 @@ sub copy {
 	&& !($from_a_handle && $^O eq 'os2' )	# OS/2 cannot handle handles
 	&& !($from_a_handle && $^O eq 'mpeix')	# and neither can MPE/iX.
 	&& !($from_a_handle && $^O eq 'MSWin32')
+	&& !($from_a_handle && $^O eq 'MacOS')
        )
     {
 	return syscopy($from, $to);
@@ -83,7 +84,7 @@ sub copy {
     if ($from_a_handle) {
 	*FROM = *$from{FILEHANDLE};
     } else {
-	$from = "./$from" if $from =~ /^\s/s;
+	$from = _protect($from) if $from =~ /^\s/s;
 	open(FROM, "< $from\0") or goto fail_open1;
 	binmode FROM or die "($!,$^E)";
 	$closefrom = 1;
@@ -92,7 +93,7 @@ sub copy {
     if ($to_a_handle) {
 	*TO = *$to{FILEHANDLE};
     } else {
-	$to = "./$to" if $to =~ /^\s/s;
+	$to = _protect($to) if $to =~ /^\s/s;
 	open(TO,"> $to\0") or goto fail_open2;
 	binmode TO or die "($!,$^E)";
 	$closeto = 1;
@@ -180,6 +181,13 @@ sub move {
 *cp = \&copy;
 *mv = \&move;
 
+
+if ($^O eq 'MacOS') {
+    *_protect = sub { MacPerl::MakeFSSpec($_[0]) };
+} else {
+    *_protect = sub { "./$_[0]" };
+}
+
 # &syscopy is an XSUB under OS/2
 unless (defined &syscopy) {
     if ($^O eq 'VMS') {
@@ -195,6 +203,23 @@ unless (defined &syscopy) {
 	*syscopy = sub {
 	    return 0 unless @_ == 2;
 	    return Win32::CopyFile(@_, 1);
+	};
+    } elsif ($^O eq 'MacOS') {
+	require Mac::MoreFiles;
+	*syscopy = sub {
+	    my($from, $to) = @_;
+	    my($dir, $toname);
+
+	    return 0 unless -e $from;
+
+	    if ($to =~ /(.*:)([^:]+):?$/) {
+		($dir, $toname) = ($1, $2);
+	    } else {
+		($dir, $toname) = (":", $to);
+	    }
+
+	    unlink($to);
+	    Mac::MoreFiles::FSpFileCopy($from, $dir, $toname, 1);
 	};
     } else {
 	$Syscopy_is_copy = 1;
@@ -221,7 +246,7 @@ File::Copy - Copy files or filehandles
   	use POSIX;
 	use File::Copy cp;
 
-	$n=FileHandle->new("/dev/null","r");
+	$n = FileHandle->new("/a/file","r");
 	cp($n,"x");'
 
 =head1 DESCRIPTION

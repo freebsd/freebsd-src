@@ -7,7 +7,7 @@ perlfaq9 - Networking ($Revision: 1.26 $, $Date: 1999/05/23 16:08:30 $)
 This section deals with questions related to networking, the internet,
 and a few on the web.
 
-=head2 My CGI script runs from the command line but not the browser.   (500 Server Error)
+=head2 My CGI script runs from the command line but not the browser.  (500 Server Error)
 
 If you can demonstrate that you've read the following FAQs and that
 your problem isn't something simple that can be easily answered, you'll
@@ -84,8 +84,8 @@ attempts to do a little simple formatting of the resulting plain text.
 Many folks attempt a simple-minded regular expression approach, like
 C<< s/<.*?>//g >>, but that fails in many cases because the tags
 may continue over line breaks, they may contain quoted angle-brackets,
-or HTML comment may be present.  Plus folks forget to convert
-entities, like C<&lt;> for example.
+or HTML comment may be present.  Plus, folks forget to convert
+entities--like C<&lt;> for example.
 
 Here's one "simple-minded" approach, that works for most files:
 
@@ -209,27 +209,35 @@ the content appropriately.
 
 =head2 How do I decode or create those %-encodings on the web?
 
-Here's an example of decoding:
 
-    $string = "http://altavista.digital.com/cgi-bin/query?pg=q&what=news&fmt=.&q=%2Bcgi-bin+%2Bperl.exe";
-    $string =~ s/%([a-fA-F0-9]{2})/chr(hex($1))/ge;
+If you are writing a CGI script, you should be using the CGI.pm module
+that comes with perl, or some other equivalent module.  The CGI module
+automatically decodes queries for you, and provides an escape()
+function to handle encoding.
 
-Encoding is a bit harder, because you can't just blindly change
-all the non-alphanumunder character (C<\W>) into their hex escapes.
-It's important that characters with special meaning like C</> and C<?>
-I<not> be translated.  Probably the easiest way to get this right is
-to avoid reinventing the wheel and just use the URI::Escape module,
-available from CPAN.
+
+The best source of detailed information on URI encoding is RFC 2396.
+Basically, the following substitutions do it:
+
+    s/([^\w()'*~!.-])/sprintf '%%%02x', $1/eg;   # encode
+
+    s/%([A-Fa-f\d]{2})/chr hex $1/eg;            # decode
+
+However, you should only apply them to individual URI components, not
+the entire URI, otherwise you'll lose information and generally mess
+things up.  If that didn't explain it, don't worry.  Just go read
+section 2 of the RFC, it's probably the best explanation there is.
+
+RFC 2396 also contains a lot of other useful information, including a
+regexp for breaking any arbitrary URI into components (Appendix B).
 
 =head2 How do I redirect to another page?
 
-Instead of sending back a C<Content-Type> as the headers of your
-reply, send back a C<Location:> header.  Officially this should be a
-C<URI:> header, so the CGI.pm module (available from CPAN) sends back
-both:
+According to RFC 2616, "Hypertext Transfer Protocol -- HTTP/1.1", the
+preferred method is to send a C<Location:> header instead of a
+C<Content-Type:> header:
 
     Location: http://www.domain.com/newpage
-    URI: http://www.domain.com/newpage
 
 Note that relative URLs in these headers can cause strange effects
 because of "optimizations" that servers do.
@@ -247,12 +255,12 @@ in the header.
 
     EOF
 
-To be correct to the spec, each of those virtual newlines should really be
-physical C<"\015\012"> sequences by the time you hit the client browser.
-Except for NPH scripts, though, that local newline should get translated
-by your server into standard form, so you shouldn't have a problem
-here, even if you are stuck on MacOS.  Everybody else probably won't
-even notice.
+To be correct to the spec, each of those virtual newlines should
+really be physical C<"\015\012"> sequences by the time your message is
+received by the client browser.  Except for NPH scripts, though, that
+local newline should get translated by your server into standard form,
+so you shouldn't have a problem here, even if you are stuck on MacOS.
+Everybody else probably won't even notice.
 
 =head2 How do I put a password on my web pages?
 
@@ -275,9 +283,9 @@ DBI compatible driver.  HTTPD::UserAdmin supports files used by the
 =head2 How do I make sure users can't enter values into a form that cause my CGI script to do bad things?
 
 Read the CGI security FAQ, at
-http://www-genome.wi.mit.edu/WWW/faqs/www-security-faq.html, and the
+http://www-genome.wi.mit.edu/WWW/faqs/www-security-faq.html , and the
 Perl/CGI FAQ at
-http://www.perl.com/CPAN/doc/FAQs/cgi/perl-cgi-faq.html.
+http://www.perl.com/CPAN/doc/FAQs/cgi/perl-cgi-faq.html .
 
 In brief: use tainting (see L<perlsec>), which makes sure that data
 from outside your script (eg, CGI parameters) are never used in
@@ -288,7 +296,7 @@ command and arguments as a list, which prevents shell globbing.
 =head2 How do I parse a mail header?
 
 For a quick-and-dirty solution, try this solution derived
-from page 222 of the 2nd edition of "Programming Perl":
+from L<perlfunc/split>:
 
     $/ = '';
     $header = <MSG>;
@@ -344,10 +352,10 @@ deliverable which are compliant.
 
 Many are tempted to try to eliminate many frequently-invalid
 mail addresses with a simple regex, such as
-C</^[\w.-]+\@([\w.-]\.)+\w+$/>.  It's a very bad idea.  However,
+C</^[\w.-]+\@(?:[\w-]+\.)+\w+$/>.  It's a very bad idea.  However,
 this also throws out many valid ones, and says nothing about
-potential deliverability, so is not suggested.  Instead, see
-http://www.perl.com/CPAN/authors/Tom_Christiansen/scripts/ckaddr.gz ,
+potential deliverability, so it is not suggested.  Instead, see
+http://www.perl.com/CPAN/authors/Tom_Christiansen/scripts/ckaddr.gz,
 which actually checks against the full RFC spec (except for nested
 comments), looks for addresses you may not wish to accept mail to
 (say, Bill Clinton or your postmaster), and then makes sure that the
@@ -380,13 +388,18 @@ with the characters reversed, one added or subtracted to each digit, etc.
 
 =head2 How do I decode a MIME/BASE64 string?
 
-The MIME-tools package (available from CPAN) handles this and a lot
-more.  Decoding BASE64 becomes as simple as:
+The MIME-Base64 package (available from CPAN) handles this as well as
+the MIME/QP encoding.  Decoding BASE64 becomes as simple as:
 
-    use MIME::base64;
+    use MIME::Base64;
     $decoded = decode_base64($encoded);
 
-A more direct approach is to use the unpack() function's "u"
+The MIME-Tools package (available from CPAN) supports extraction with
+decoding of BASE64 encoded attachments and content directly from email
+messages.
+
+If the string to decode is short (less than 84 bytes long)
+a more direct approach is to use the unpack() function's "u"
 format after minor transliterations:
 
     tr#A-Za-z0-9+/##cd;                   # remove non-base64 chars
@@ -396,7 +409,7 @@ format after minor transliterations:
 
 =head2 How do I return the user's mail address?
 
-On systems that support getpwuid, the $< variable and the
+On systems that support getpwuid, the $< variable, and the
 Sys::Hostname module (which is part of the standard perl distribution),
 you can probably try using something like this:
 
@@ -460,11 +473,45 @@ Mail::Mailer, but less reliable.  Avoid raw SMTP commands.  There
 are many reasons to use a mail transport agent like sendmail.  These
 include queueing, MX records, and security.
 
+=head2 How do I use MIME to make an attachment to a mail message?
+
+This answer is extracted directly from the MIME::Lite documentation.
+Create a multipart message (i.e., one with attachments).
+
+    use MIME::Lite;
+
+    ### Create a new multipart message:
+    $msg = MIME::Lite->new(
+                 From    =>'me@myhost.com',
+                 To      =>'you@yourhost.com',
+                 Cc      =>'some@other.com, some@more.com',
+                 Subject =>'A message with 2 parts...',
+                 Type    =>'multipart/mixed'
+                 );
+
+    ### Add parts (each "attach" has same arguments as "new"):
+    $msg->attach(Type     =>'TEXT',
+                 Data     =>"Here's the GIF file you wanted"
+                 );
+    $msg->attach(Type     =>'image/gif',
+                 Path     =>'aaa000123.gif',
+                 Filename =>'logo.gif'
+                 );
+
+    $text = $msg->as_string;
+
+MIME::Lite also includes a method for sending these things.
+
+    $msg->send;
+
+This defaults to using L<sendmail(1)> but can be customized to use
+SMTP via L<Net::SMTP>.
+
 =head2 How do I read mail?
 
 While you could use the Mail::Folder module from CPAN (part of the
 MailFolder package) or the Mail::Internet module from CPAN (also part
-of the MailTools package), often a module is overkill, though.  Here's a
+of the MailTools package), often a module is overkill.  Here's a
 mail sorter.
 
     #!/usr/bin/perl
@@ -519,7 +566,7 @@ systems.)
 =head2 How do I fetch a news article or the active newsgroups?
 
 Use the Net::NNTP or News::NNTPClient modules, both available from CPAN.
-This can make tasks like fetching the newsgroup list as simple as:
+This can make tasks like fetching the newsgroup list as simple as
 
     perl -MNews::NNTPClient
       -e 'print News::NNTPClient->new->list("newsgroups")'
@@ -531,7 +578,7 @@ available from CPAN) is more complex but can put as well as fetch.
 
 =head2 How can I do RPC in Perl?
 
-A DCE::RPC module is being developed (but is not yet available), and
+A DCE::RPC module is being developed (but is not yet available) and
 will be released as part of the DCE-Perl package (available from
 CPAN).  The rpcgen suite, available from CPAN/authors/id/JAKE/, is
 an RPC stub generator and includes an RPC::ONC module.

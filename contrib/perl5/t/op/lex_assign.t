@@ -2,9 +2,8 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
-$ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3; 
 
 umask 0;
 $xref = \ "";
@@ -112,11 +111,12 @@ for (@INPUT) {
   $ord++;
   ($op, undef, $comment) = /^([^\#]+)(\#\s+(.*))?/;
   $comment = $op unless defined $comment;
+  chomp;
   $op = "$op==$op" unless $op =~ /==/;
   ($op, $expectop) = $op =~ /(.*)==(.*)/;
   
   $skip = ($op =~ /^'\?\?\?'/ or $comment =~ /skip\(.*\Q$^O\E.*\)/i)
-	  ? "skip" : "not";
+	  ? "skip" : "# '$_'\nnot";
   $integer = ($comment =~ /^i_/) ? "use integer" : '' ;
   (print "#skipping $comment:\nok $ord\n"), next if $skip eq 'skip';
   
@@ -137,7 +137,7 @@ EOE
       print "# skipping $comment: unimplemented:\nok $ord\n";
     } else {
       warn $@;
-      print "not ok $ord\n";
+      print "# '$_'\nnot ok $ord\n";
     }
   }
 }
@@ -146,6 +146,7 @@ for (@simple_input) {
   $ord++;
   ($op, undef, $comment) = /^([^\#]+)(\#\s+(.*))?/;
   $comment = $op unless defined $comment;
+  chomp;
   ($operator, $variable) = /^\s*(\w+)\s*\$(\w+)/ or warn "misprocessed '$_'\n";
   eval <<EOE;
   local \$SIG{__WARN__} = \\&wrn;
@@ -164,14 +165,14 @@ EOE
       print "# skipping $comment: syntax not good for selfassign:\nok $ord\n";
     } else {
       warn $@;
-      print "not ok $ord\n";
+      print "# '$_'\nnot ok $ord\n";
     }
   }
 }
 __END__
 ref $xref			# ref
 ref $cstr			# ref nonref
-`$runme -e "print qq[1\n]"`				# backtick skip(MSWin32)
+`$runme -e "print qq[1\\n]"`				# backtick skip(MSWin32)
 `$undefed`			# backtick undef skip(MSWin32)
 <*>				# glob
 <OP>				# readline
@@ -242,7 +243,7 @@ lc $cstr			# lc
 quotemeta $cstr			# quotemeta
 @$aref				# rv2av
 @$undefed			# rv2av undef
-each %h==1			# each
+(each %h) % 2 == 1		# each
 values %h			# values
 keys %h				# keys
 %$href				# rv2hv
@@ -307,7 +308,7 @@ getpriority $$, $$		# getpriority
 time				# time
 localtime $^T			# localtime
 gmtime $^T			# gmtime
-sleep 1				# sleep
+'???'				# sleep: can randomly fail
 '???'				# alarm
 '???'				# shmget
 '???'				# shmctl

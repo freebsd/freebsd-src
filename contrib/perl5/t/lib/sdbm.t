@@ -4,26 +4,39 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if (($Config{'extensions'} !~ /\bSDBM_File\b/) && ($^O ne 'VMS')){
 	print "1..0\n";
 	exit 0;
     }
 }
+
+use strict;
+use warnings;
+
+sub ok
+{
+    my $no = shift ;
+    my $result = shift ;
+
+    print "not " unless $result ;
+    print "ok $no\n" ;
+}
+
 require SDBM_File;
 #If Fcntl is not available, try 0x202 or 0x102 for O_RDWR|O_CREAT
 use Fcntl;
 
-print "1..66\n";
+print "1..68\n";
 
 unlink <Op_dbmx.*>;
 
 umask(0);
-print (tie(%h,SDBM_File,'Op_dbmx', O_RDWR|O_CREAT, 0640)
-       ? "ok 1\n" : "not ok 1\n");
+my %h ;
+ok(1, tie %h,'SDBM_File','Op_dbmx', O_RDWR|O_CREAT, 0640);
 
-$Dfile = "Op_dbmx.pag";
+my $Dfile = "Op_dbmx.pag";
 if (! -e $Dfile) {
 	($Dfile) = <Op_dbmx.*>;
 }
@@ -31,11 +44,12 @@ if ($^O eq 'amigaos' || $^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos') {
     print "ok 2 # Skipped: different file permission semantics\n";
 }
 else {
-    ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
      $blksize,$blocks) = stat($Dfile);
     print (($mode & 0777) == 0640 ? "ok 2\n" : "not ok 2\n");
 }
-while (($key,$value) = each(%h)) {
+my $i = 0;
+while (my ($key,$value) = each(%h)) {
     $i++;
 }
 print (!$i ? "ok 3\n" : "not ok 3\n");
@@ -60,7 +74,7 @@ $h{'goner2'} = 'snork';
 delete $h{'goner2'};
 
 untie(%h);
-print (tie(%h,SDBM_File,'Op_dbmx', O_RDWR, 0640) ? "ok 4\n" : "not ok 4\n");
+print (tie(%h,'SDBM_File','Op_dbmx', O_RDWR, 0640) ? "ok 4\n" : "not ok 4\n");
 
 $h{'j'} = 'J';
 $h{'k'} = 'K';
@@ -85,12 +99,12 @@ $h{'goner3'} = 'snork';
 delete $h{'goner1'};
 delete $h{'goner3'};
 
-@keys = keys(%h);
-@values = values(%h);
+my @keys = keys(%h);
+my @values = values(%h);
 
 if ($#keys == 29 && $#values == 29) {print "ok 5\n";} else {print "not ok 5\n";}
 
-while (($key,$value) = each(%h)) {
+while (my ($key,$value) = each(%h)) {
     if ($key eq $keys[$i] && $value eq $values[$i] && $key eq lc($value)) {
 	$key =~ y/a-z/A-Z/;
 	$i++ if $key eq $value;
@@ -106,31 +120,22 @@ $h{'foo'} = '';
 $h{''} = 'bar';
 
 # check cache overflow and numeric keys and contents
-$ok = 1;
+my $ok = 1;
 for ($i = 1; $i < 200; $i++) { $h{$i + 0} = $i + 0; }
 for ($i = 1; $i < 200; $i++) { $ok = 0 unless $h{$i} == $i; }
 print ($ok ? "ok 8\n" : "not ok 8\n");
 
-($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
    $blksize,$blocks) = stat($Dfile);
 print ($size > 0 ? "ok 9\n" : "not ok 9\n");
 
 @h{0..200} = 200..400;
-@foo = @h{0..200};
+my @foo = @h{0..200};
 print join(':',200..400) eq join(':',@foo) ? "ok 10\n" : "not ok 10\n";
 
 print ($h{'foo'} eq '' ? "ok 11\n" : "not ok 11\n");
 print ($h{''} eq 'bar' ? "ok 12\n" : "not ok 12\n");
 
-
-sub ok
-{
-    my $no = shift ;
-    my $result = shift ;
-
-    print "not " unless $result ;
-    print "ok $no\n" ;
-}
 
 {
    # sub-class test
@@ -138,6 +143,7 @@ sub ok
    package Another ;
 
    use strict ;
+   use warnings ;
 
    open(FILE, ">SubDB.pm") or die "Cannot open SubDB.pm: $!\n" ;
    print FILE <<'EOM' ;
@@ -145,6 +151,7 @@ sub ok
    package SubDB ;
 
    use strict ;
+   use warnings ;
    use vars qw( @ISA @EXPORT) ;
 
    require Exporter ;
@@ -213,6 +220,7 @@ unlink <Op_dbmx*>, $Dfile;
 {
    # DBM Filter tests
    use strict ;
+   use warnings ;
    my (%h, $db) ;
    my ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
 
@@ -319,6 +327,7 @@ unlink <Op_dbmx*>, $Dfile;
     # DBM Filter with a closure
 
     use strict ;
+     use warnings ;
     my (%h, $db) ;
 
     unlink <Op_dbmx*>;
@@ -363,7 +372,7 @@ unlink <Op_dbmx*>, $Dfile;
     ok(54, $result{"store key"} eq "store key - 2: [fred jim]");
     ok(55, $result{"store value"} eq "store value - 2: [joe john]");
     ok(56, $result{"fetch key"} eq "fetch key - 1: [fred]");
-    ok(57, $result{"fetch value"} eq "");
+    ok(57, ! defined $result{"fetch value"} );
     ok(58, $_ eq "original") ;
 
     ok(59, $h{"fred"} eq "joe");
@@ -381,6 +390,7 @@ unlink <Op_dbmx*>, $Dfile;
 {
    # DBM Filter recursion detection
    use strict ;
+   use warnings ;
    my (%h, $db) ;
    unlink <Op_dbmx*>;
 
@@ -396,3 +406,24 @@ unlink <Op_dbmx*>, $Dfile;
    unlink <Op_dbmx*>;
 }
 
+{
+    # Bug ID 20001013.009
+    #
+    # test that $hash{KEY} = undef doesn't produce the warning
+    #     Use of uninitialized value in null operation 
+    use warnings ;
+    use strict ;
+    use SDBM_File ;
+
+    unlink <Op_dbmx*>;
+    my %h ;
+    my $a = "";
+    local $SIG{__WARN__} = sub {$a = $_[0]} ;
+    
+    ok(67, tie(%h, 'SDBM_File','Op_dbmx', O_RDWR|O_CREAT, 0640)) ;
+    $h{ABC} = undef;
+    ok(68, $a eq "") ;
+
+    untie %h;
+    unlink <Op_dbmx*>;
+}

@@ -81,7 +81,10 @@ EOT
 	    if ($type eq 'perl') {
 		open(RESULTS, "./$test |") || (print "can't run.\n"); }
 	    else { 
-		open(RESULTS, "./perl -I../lib ../utils/perlcc ./$test -run -verbose dcf -log ../compilelog |") or print "can't compile.\n";
+        open(RESULTS, "./perl -I../lib ../utils/perlcc -o ./$test.plc ./$test "
+                 ." && ./$test.plc |")
+        or print "can't compile.\n";
+        unlink "./$test.plc";
 	    }
 	}
 	else {

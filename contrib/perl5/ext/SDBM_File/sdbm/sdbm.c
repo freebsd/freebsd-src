@@ -283,6 +283,10 @@ makroom(register DBM *db, long int hash, int need)
 {
 	long newp;
 	char twin[PBLKSIZ];
+#if defined(DOSISH) || defined(WIN32)
+	char zer[PBLKSIZ];
+	long oldtail;
+#endif
 	char *pag = db->pagbuf;
 	char *New = twin;
 	register int smax = SPLTMAX;
@@ -305,6 +309,23 @@ makroom(register DBM *db, long int hash, int need)
  * still looking at the page of interest. current page is not updated
  * here, as sdbm_store will do so, after it inserts the incoming pair.
  */
+
+#if defined(DOSISH) || defined(WIN32)
+		/*
+		 * Fill hole with 0 if made it.
+		 * (hole is NOT read as 0)
+		 */
+		oldtail = lseek(db->pagf, 0L, SEEK_END);
+		memset(zer, 0, PBLKSIZ);
+		while (OFF_PAG(newp) > oldtail) {
+			if (lseek(db->pagf, 0L, SEEK_END) < 0 ||
+			    write(db->pagf, zer, PBLKSIZ) < 0) {
+
+				return 0;
+			}
+			oldtail += PBLKSIZ;
+		}
+#endif
 		if (hash & (db->hmask + 1)) {
 			if (lseek(db->pagf, OFF_PAG(db->pagbno), SEEK_SET) < 0
 			    || write(db->pagf, db->pagbuf, PBLKSIZ) < 0)

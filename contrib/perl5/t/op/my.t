@@ -2,7 +2,7 @@
 
 # $RCSfile: my.t,v $
 
-print "1..30\n";
+print "1..31\n";
 
 sub foo {
     my($a, $b) = @_;
@@ -92,3 +92,10 @@ print +(@x ? "not " : ""), "ok 29\n";
 { @x = my %y }
 print +(@x ? "not " : ""), "ok 30\n";
 
+# Found in HTML::FormatPS
+my %fonts = qw(nok 31);
+for my $full (keys %fonts) {
+    $full =~ s/^n//;
+    # Supposed to be copy-on-write via force_normal after a THINKFIRST check.
+    print "$full $fonts{nok}\n";
+}

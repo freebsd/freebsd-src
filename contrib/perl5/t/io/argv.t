@@ -2,10 +2,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
-print "1..20\n";
+print "1..21\n";
 
 use File::Spec;
 
@@ -107,18 +107,20 @@ print "ok 15\n";
     local $/;
     open F, 'Io_argv1.tmp' or die;
     <F>;	# set $. = 1
+    print "not " if defined(<F>); # should hit eof
+    print "ok 16\n";
     open F, $devnull or die;
     print "not " unless defined(<F>);
-    print "ok 16\n";
-    print "not " if defined(<F>);
     print "ok 17\n";
     print "not " if defined(<F>);
     print "ok 18\n";
+    print "not " if defined(<F>);
+    print "ok 19\n";
     open F, $devnull or die;	# restart cycle again
     print "not " unless defined(<F>);
-    print "ok 19\n";
-    print "not " if defined(<F>);
     print "ok 20\n";
+    print "not " if defined(<F>);
+    print "ok 21\n";
     close F;
 }
 

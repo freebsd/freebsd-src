@@ -82,6 +82,23 @@ PERLVAR(Ttimesbuf,	struct tms)
 PERLVAR(Ttainted,	bool)		/* using variables controlled by $< */
 PERLVAR(Tcurpm,		PMOP *)		/* what to do \ interps in REs from */
 PERLVAR(Tnrs,		SV *)
+
+/*
+=for apidoc mn|SV*|PL_rs
+
+The input record separator - C<$/> in Perl space.
+
+=for apidoc mn|GV*|PL_last_in_gv
+
+The GV which was last used for a filehandle input operation. (C<< <FH> >>)
+
+=for apidoc mn|SV*|PL_ofs_sv
+
+The output field separator - C<$,> in Perl space.
+
+=cut
+*/
+
 PERLVAR(Trs,		SV *)		/* input record separator $/ */
 PERLVAR(Tlast_in_gv,	GV *)		/* GV used in last <FH> */
 PERLVAR(Tofs,		char *)		/* output field separator $, */

@@ -35,6 +35,10 @@
 #define Perl_Gv_AMupdate	pPerl->Perl_Gv_AMupdate
 #undef  Gv_AMupdate
 #define Gv_AMupdate		Perl_Gv_AMupdate
+#undef  Perl_apply_attrs_string
+#define Perl_apply_attrs_string	pPerl->Perl_apply_attrs_string
+#undef  apply_attrs_string
+#define apply_attrs_string	Perl_apply_attrs_string
 #undef  Perl_avhv_delete_ent
 #define Perl_avhv_delete_ent	pPerl->Perl_avhv_delete_ent
 #undef  avhv_delete_ent
@@ -79,10 +83,6 @@
 #define Perl_av_extend		pPerl->Perl_av_extend
 #undef  av_extend
 #define av_extend		Perl_av_extend
-#undef  Perl_av_fake
-#define Perl_av_fake		pPerl->Perl_av_fake
-#undef  av_fake
-#define av_fake			Perl_av_fake
 #undef  Perl_av_fetch
 #define Perl_av_fetch		pPerl->Perl_av_fetch
 #undef  av_fetch
@@ -228,6 +228,10 @@
 #define Perl_fprintf_nocontext	pPerl->Perl_fprintf_nocontext
 #undef  fprintf_nocontext
 #define fprintf_nocontext	Perl_fprintf_nocontext
+#undef  Perl_printf_nocontext
+#define Perl_printf_nocontext	pPerl->Perl_printf_nocontext
+#undef  printf_nocontext
+#define printf_nocontext	Perl_printf_nocontext
 #endif
 #undef  Perl_cv_const_sv
 #define Perl_cv_const_sv	pPerl->Perl_cv_const_sv
@@ -313,6 +317,10 @@
 #endif
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
 #endif
+#undef  Perl_do_join
+#define Perl_do_join		pPerl->Perl_do_join
+#undef  do_join
+#define do_join			Perl_do_join
 #undef  Perl_do_open
 #define Perl_do_open		pPerl->Perl_do_open
 #undef  do_open
@@ -423,6 +431,10 @@
 #define Perl_gv_efullname3	pPerl->Perl_gv_efullname3
 #undef  gv_efullname3
 #define gv_efullname3		Perl_gv_efullname3
+#undef  Perl_gv_efullname4
+#define Perl_gv_efullname4	pPerl->Perl_gv_efullname4
+#undef  gv_efullname4
+#define gv_efullname4		Perl_gv_efullname4
 #undef  Perl_gv_fetchfile
 #define Perl_gv_fetchfile	pPerl->Perl_gv_fetchfile
 #undef  gv_fetchfile
@@ -451,6 +463,10 @@
 #define Perl_gv_fullname3	pPerl->Perl_gv_fullname3
 #undef  gv_fullname3
 #define gv_fullname3		Perl_gv_fullname3
+#undef  Perl_gv_fullname4
+#define Perl_gv_fullname4	pPerl->Perl_gv_fullname4
+#undef  gv_fullname4
+#define gv_fullname4		Perl_gv_fullname4
 #undef  Perl_gv_init
 #define Perl_gv_init		pPerl->Perl_gv_init
 #undef  gv_init
@@ -703,6 +719,10 @@
 #define Perl_is_utf8_char	pPerl->Perl_is_utf8_char
 #undef  is_utf8_char
 #define is_utf8_char		Perl_is_utf8_char
+#undef  Perl_is_utf8_string
+#define Perl_is_utf8_string	pPerl->Perl_is_utf8_string
+#undef  is_utf8_string
+#define is_utf8_string		Perl_is_utf8_string
 #undef  Perl_is_utf8_alnum
 #define Perl_is_utf8_alnum	pPerl->Perl_is_utf8_alnum
 #undef  is_utf8_alnum
@@ -1279,6 +1299,10 @@
 #define Perl_rninstr		pPerl->Perl_rninstr
 #undef  rninstr
 #define rninstr			Perl_rninstr
+#undef  Perl_rsignal
+#define Perl_rsignal		pPerl->Perl_rsignal
+#undef  rsignal
+#define rsignal			Perl_rsignal
 #if !defined(HAS_RENAME)
 #endif
 #undef  Perl_savepv
@@ -1337,6 +1361,10 @@
 #define Perl_save_generic_svref	pPerl->Perl_save_generic_svref
 #undef  save_generic_svref
 #define save_generic_svref	Perl_save_generic_svref
+#undef  Perl_save_generic_pvref
+#define Perl_save_generic_pvref	pPerl->Perl_save_generic_pvref
+#undef  save_generic_pvref
+#define save_generic_pvref	Perl_save_generic_pvref
 #undef  Perl_save_gp
 #define Perl_save_gp		pPerl->Perl_save_gp
 #undef  save_gp
@@ -1389,6 +1417,10 @@
 #define Perl_save_long		pPerl->Perl_save_long
 #undef  save_long
 #define save_long		Perl_save_long
+#undef  Perl_save_mortalizesv
+#define Perl_save_mortalizesv	pPerl->Perl_save_mortalizesv
+#undef  save_mortalizesv
+#define save_mortalizesv	Perl_save_mortalizesv
 #undef  Perl_save_nogv
 #define Perl_save_nogv		pPerl->Perl_save_nogv
 #undef  save_nogv
@@ -1409,6 +1441,10 @@
 #define Perl_save_re_context	pPerl->Perl_save_re_context
 #undef  save_re_context
 #define save_re_context		Perl_save_re_context
+#undef  Perl_save_padsv
+#define Perl_save_padsv		pPerl->Perl_save_padsv
+#undef  save_padsv
+#define save_padsv		Perl_save_padsv
 #undef  Perl_save_sptr
 #define Perl_save_sptr		pPerl->Perl_save_sptr
 #undef  save_sptr
@@ -1829,6 +1865,10 @@
 #define Perl_utf16_to_utf8_reversed	pPerl->Perl_utf16_to_utf8_reversed
 #undef  utf16_to_utf8_reversed
 #define utf16_to_utf8_reversed	Perl_utf16_to_utf8_reversed
+#undef  Perl_utf8_length
+#define Perl_utf8_length	pPerl->Perl_utf8_length
+#undef  utf8_length
+#define utf8_length		Perl_utf8_length
 #undef  Perl_utf8_distance
 #define Perl_utf8_distance	pPerl->Perl_utf8_distance
 #undef  utf8_distance
@@ -1837,6 +1877,22 @@
 #define Perl_utf8_hop		pPerl->Perl_utf8_hop
 #undef  utf8_hop
 #define utf8_hop		Perl_utf8_hop
+#undef  Perl_utf8_to_bytes
+#define Perl_utf8_to_bytes	pPerl->Perl_utf8_to_bytes
+#undef  utf8_to_bytes
+#define utf8_to_bytes		Perl_utf8_to_bytes
+#undef  Perl_bytes_from_utf8
+#define Perl_bytes_from_utf8	pPerl->Perl_bytes_from_utf8
+#undef  bytes_from_utf8
+#define bytes_from_utf8		Perl_bytes_from_utf8
+#undef  Perl_bytes_to_utf8
+#define Perl_bytes_to_utf8	pPerl->Perl_bytes_to_utf8
+#undef  bytes_to_utf8
+#define bytes_to_utf8		Perl_bytes_to_utf8
+#undef  Perl_utf8_to_uv_simple
+#define Perl_utf8_to_uv_simple	pPerl->Perl_utf8_to_uv_simple
+#undef  utf8_to_uv_simple
+#define utf8_to_uv_simple	Perl_utf8_to_uv_simple
 #undef  Perl_utf8_to_uv
 #define Perl_utf8_to_uv		pPerl->Perl_utf8_to_uv
 #undef  utf8_to_uv
@@ -1861,8 +1917,11 @@
 #define Perl_vwarner		pPerl->Perl_vwarner
 #undef  vwarner
 #define vwarner			Perl_vwarner
-#if defined(USE_PURE_BISON)
-#else
+#undef  Perl_whichsig
+#define Perl_whichsig		pPerl->Perl_whichsig
+#undef  whichsig
+#define whichsig		Perl_whichsig
+#ifdef USE_PURE_BISON
 #endif
 #if defined(MYMALLOC)
 #undef  Perl_dump_mstats
@@ -1922,6 +1981,12 @@
 #define Perl_runops_debug	pPerl->Perl_runops_debug
 #undef  runops_debug
 #define runops_debug		Perl_runops_debug
+#if defined(USE_THREADS)
+#undef  Perl_sv_lock
+#define Perl_sv_lock		pPerl->Perl_sv_lock
+#undef  sv_lock
+#define sv_lock			Perl_sv_lock
+#endif
 #undef  Perl_sv_catpvf_mg
 #define Perl_sv_catpvf_mg	pPerl->Perl_sv_catpvf_mg
 #undef  sv_catpvf_mg
@@ -2084,6 +2149,14 @@
 #define Perl_sv_force_normal	pPerl->Perl_sv_force_normal
 #undef  sv_force_normal
 #define sv_force_normal		Perl_sv_force_normal
+#undef  Perl_sv_add_backref
+#define Perl_sv_add_backref	pPerl->Perl_sv_add_backref
+#undef  sv_add_backref
+#define sv_add_backref		Perl_sv_add_backref
+#undef  Perl_sv_del_backref
+#define Perl_sv_del_backref	pPerl->Perl_sv_del_backref
+#undef  sv_del_backref
+#define sv_del_backref		Perl_sv_del_backref
 #undef  Perl_tmps_grow
 #define Perl_tmps_grow		pPerl->Perl_tmps_grow
 #undef  tmps_grow
@@ -2171,6 +2244,24 @@
 #define Perl_ptr_table_split	pPerl->Perl_ptr_table_split
 #undef  ptr_table_split
 #define ptr_table_split		Perl_ptr_table_split
+#undef  Perl_ptr_table_clear
+#define Perl_ptr_table_clear	pPerl->Perl_ptr_table_clear
+#undef  ptr_table_clear
+#define ptr_table_clear		Perl_ptr_table_clear
+#undef  Perl_ptr_table_free
+#define Perl_ptr_table_free	pPerl->Perl_ptr_table_free
+#undef  ptr_table_free
+#define ptr_table_free		Perl_ptr_table_free
+#endif
+#if defined(HAVE_INTERP_INTERN)
+#undef  Perl_sys_intern_clear
+#define Perl_sys_intern_clear	pPerl->Perl_sys_intern_clear
+#undef  sys_intern_clear
+#define sys_intern_clear	Perl_sys_intern_clear
+#undef  Perl_sys_intern_init
+#define Perl_sys_intern_init	pPerl->Perl_sys_intern_init
+#undef  sys_intern_init
+#define sys_intern_init		Perl_sys_intern_init
 #endif
 #if defined(PERL_OBJECT)
 #else

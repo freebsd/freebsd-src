@@ -42,6 +42,12 @@ package bigint;
 #   bnorm(BINT) return BINT             normalization
 #
 
+# overcome a floating point problem on certain osnames (posix-bc, os390)
+BEGIN {
+    my $x = 100000.0;
+    my $use_mult = int($x*1e-5)*1e5 == $x ? 1 : 0;
+}
+
 $zero = 0;
 
 
@@ -212,8 +218,14 @@ sub main'bmul { #(num_str, num_str) return num_str
 	    ($car, $cty) = (0, $[);
 	    for $y (@y) {
 		$prod = $x * $y + $prod[$cty] + $car;
-		$prod[$cty++] =
-		    $prod - ($car = int($prod * 1e-5)) * 1e5;
+                if ($use_mult) {
+		    $prod[$cty++] =
+		        $prod - ($car = int($prod * 1e-5)) * 1e5;
+                }
+                else {
+		    $prod[$cty++] =
+		        $prod - ($car = int($prod / 1e5)) * 1e5;
+                }
 	    }
 	    $prod[$cty] += $car if $car;
 	    $x = shift @prod;
@@ -239,12 +251,22 @@ sub main'bdiv { #(dividend: num_str, divisor: num_str) return num_str
     if (($dd = int(1e5/($y[$#y]+1))) != 1) {
 	for $x (@x) {
 	    $x = $x * $dd + $car;
+            if ($use_mult) {
 	    $x -= ($car = int($x * 1e-5)) * 1e5;
+            }
+            else {
+	    $x -= ($car = int($x / 1e5)) * 1e5;
+            }
 	}
 	push(@x, $car); $car = 0;
 	for $y (@y) {
 	    $y = $y * $dd + $car;
+            if ($use_mult) {
 	    $y -= ($car = int($y * 1e-5)) * 1e5;
+            }
+            else {
+	    $y -= ($car = int($y / 1e5)) * 1e5;
+            }
 	}
     }
     else {
@@ -259,7 +281,12 @@ sub main'bdiv { #(dividend: num_str, divisor: num_str) return num_str
 	    ($car, $bar) = (0,0);
 	    for ($y = $[, $x = $#x-$#y+$[-1; $y <= $#y; ++$y,++$x) {
 		$prd = $q * $y[$y] + $car;
+                if ($use_mult) {
 		$prd -= ($car = int($prd * 1e-5)) * 1e5;
+                }
+                else {
+		$prd -= ($car = int($prd / 1e5)) * 1e5;
+                }
 		$x[$x] += 1e5 if ($bar = (($x[$x] -= $prd + $bar) < 0));
 	    }
 	    if ($x[$#x] < $car + $bar) {

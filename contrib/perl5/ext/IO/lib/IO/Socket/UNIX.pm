@@ -37,7 +37,7 @@ sub configure {
 	$sock->bind($addr) or
 	    return undef;
     }
-    if(exists $arg->{Listen}) {
+    if(exists $arg->{Listen} && $type != SOCK_DGRAM) {
 	$sock->listen($arg->{Listen} || 5) or
 	    return undef;
     }

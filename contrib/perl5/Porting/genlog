@@ -20,7 +20,7 @@ use Text::Wrap;
 $0 =~ s|^.*/||;
 unless (@ARGV) {
     die <<USAGE;
-        $0 [-p \$P4PORT] <change numbers or from..to>
+        $0 [-p \$P4PORT] [-bi branch_include] [-be branch_exclude] <change numbers or from..to>
 USAGE
 }
 
@@ -31,6 +31,11 @@ my %editkind;
          = qw(     +         !         -        !>       +> );
 
 my $p4port = $ENV{P4PORT} || 'localhost:1666';
+
+my @branch_include;
+my @branch_exclude;
+my %branch_include;
+my %branch_exclude;
 
 while (@ARGV) {
     $_ = shift;
@@ -43,12 +48,21 @@ while (@ARGV) {
     elsif (/^-p(.*)$/) {
         $p4port = $1 || shift;
     }
+    elsif (/^-bi(.*)$/) {
+        push @branch_include, $1 || shift;
+    }
+    elsif (/^-be(.*)$/) {
+        push @branch_exclude, $1 || shift;
+    }
     else {
         warn "Arguments must be change numbers, ignoring `$_'\n";
     }
 }
 
 @changes = sort { $b <=> $a } @changes;
+
+@branch_include{@branch_include} = @branch_include if @branch_include;
+@branch_exclude{@branch_exclude} = @branch_exclude if @branch_exclude;
 
 my @desc = `p4 -p $p4port describe -s @changes`;
 if ($?) {
@@ -58,6 +72,8 @@ else {
     chomp @desc;
     while (@desc) {
 	my ($change,$who,$date,$time,@log,$branch,$file,$type,%files);
+	my $skip = 0;
+        my $nbranch = 0;
 	$_ = shift @desc;
 	if (/^Change (\d+) by (\w+)\@.+ on (\S+) (\S+)\s*$/) {
 	    ($change, $who, $date, $time) = ($1,$2,$3,$4);
@@ -73,6 +89,12 @@ else {
 		    last unless /^\.\.\./;
 		    if (m{^\.\.\. //depot/(.*?perl|[^/]*)/([^#]+)#\d+ (\w+)\s*$}) {
 			($branch,$file,$type) = ($1,$2,$3);
+ 		        $nbranch++;
+		        if (exists $branch_exclude{$branch} or
+			    @branch_include and
+			    not exists $branch_include{$branch}) {
+			    $skip++;
+			}
 			$files{$branch} = {} unless exists $files{$branch};
 			$files{$branch}{$type} = [] unless exists $files{$branch}{$type};
 			push @{$files{$branch}{$type}}, $file;
@@ -83,7 +105,7 @@ else {
 		}
 	    }
 	}
-	next unless $change;
+	next if not $change or $skip == $nbranch;
 	print "_" x 76, "\n";
 	printf <<EOT, $change, $who, $date, $time;
 [%6s] By: %-25s             on %9s %9s

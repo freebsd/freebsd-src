@@ -109,7 +109,7 @@ sub Q ;
 
 # Global Constants
 
-$XSUBPP_version = "1.9507";
+$XSUBPP_version = "1.9508";
 
 my ($Is_VMS, $SymSet);
 if ($^O eq 'VMS') {
@@ -288,7 +288,7 @@ $END = "!End!\n\n";		# "impossible" keyword (multiple newline)
 # Match an XS keyword
 $BLOCK_re= '\s*(' . join('|', qw(
 	REQUIRE BOOT CASE PREINIT INPUT INIT CODE PPCODE OUTPUT 
-	CLEANUP ALIAS PROTOTYPES PROTOTYPE VERSIONCHECK INCLUDE
+	CLEANUP ALIAS ATTRS PROTOTYPES PROTOTYPE VERSIONCHECK INCLUDE
 	SCOPE INTERFACE INTERFACE_MACRO C_ARGS POSTCALL
 	)) . "|$END)\\s*:";
 
@@ -418,7 +418,7 @@ sub INPUT_handler {
 	$var_init =~ s/"/\\"/g;
 
 	s/\s+/ /g;
-	my ($var_type, $var_addr, $var_name) = /^(.*?[^& ]) *(\&?) *\b(\w+)$/s
+	my ($var_type, $var_addr, $var_name) = /^(.*?[^&\s])\s*(\&?)\s*\b(\w+)$/s
 	    or blurt("Error: invalid argument declaration '$line'"), next;
 
 	# Check for duplicate definitions
@@ -444,12 +444,9 @@ sub INPUT_handler {
 
         $proto_arg[$var_num] = ProtoString($var_type) 
 	    if $var_num ;
-	if ($var_addr) {
-	    $var_addr{$var_name} = 1;
-	    $func_args =~ s/\b($var_name)\b/&$1/;
-	}
+	$func_args =~ s/\b($var_name)\b/&$1/ if $var_addr;
 	if ($var_init =~ /^[=;]\s*NO_INIT\s*;?\s*$/
-	    or $in_out{$var_name} and $in_out{$var_name} eq 'OUTLIST'
+	    or $in_out{$var_name} and $in_out{$var_name} =~ /^OUT/
 	    and $var_init !~ /\S/) {
 	  if ($name_printed) {
 	    print ";\n";
@@ -494,6 +491,8 @@ sub OUTPUT_handler {
 	} else {
 	    &generate_output($var_types{$outarg}, $var_num, $outarg, $DoSetMagic);
 	}
+	delete $in_out{$outarg} 	# No need to auto-OUTPUT 
+	  if exists $in_out{$outarg} and $in_out{$outarg} =~ /OUT$/;
     }
 }
 
@@ -571,6 +570,15 @@ sub GetAliases
 
     blurt("Error: Cannot parse ALIAS definitions from '$orig'")
         if $line ;
+}
+
+sub ATTRS_handler ()
+{
+    for (;  !/^$BLOCK_re/o;  $_ = shift(@line)) {
+	next unless /\S/;
+	TrimWhitespace($_) ;
+        push @Attributes, $_;
+    }
 }
 
 sub ALIAS_handler ()
@@ -847,7 +855,25 @@ EOM
 print("#line 1 \"$filename\"\n")
     if $WantLineNumbers;
 
+firstmodule:
 while (<$FH>) {
+    if (/^=/) {
+        my $podstartline = $.;
+    	do {
+	    if (/^=cut\s*$/) {
+		print("/* Skipped embedded POD. */\n");
+		printf("#line %d \"$filename\"\n", $. + 1)
+		  if $WantLineNumbers;
+		next firstmodule
+	    }
+
+	} while (<$FH>);
+	# At this point $. is at end of file so die won't state the start
+	# of the problem, and as we haven't yet read any lines &death won't
+	# show the correct line in the message either.
+	die ("Error: Unterminated pod in $filename, line $podstartline\n")
+	  unless $lastline;
+    }
     last if ($Module, $Package, $Prefix) =
 	/^MODULE\s*=\s*([\w:]+)(?:\s+PACKAGE\s*=\s*([\w:]+))?(?:\s+PREFIX\s*=\s*(\S+))?\s*$/;
 
@@ -886,6 +912,16 @@ sub fetch_para {
     }
 
     for(;;) {
+	# Skip embedded PODs 
+	while ($lastline =~ /^=/) {
+    	    while ($lastline = <$FH>) {
+	    	last if ($lastline =~ /^=cut\s*$/);
+	    }
+	    death ("Error: Unterminated pod") unless $lastline;
+	    $lastline = <$FH>;
+	    chomp $lastline;
+	    $lastline =~ s/^\s+$//;
+	}
 	if ($lastline !~ /^\s*#/ ||
 	    # CPP directives:
 	    #	ANSI:	if ifdef ifndef elif else endif define undef
@@ -966,7 +1002,6 @@ while (fetch_para()) {
     # initialize info arrays
     undef(%args_match);
     undef(%var_types);
-    undef(%var_addr);
     undef(%defaults);
     undef($class);
     undef($static);
@@ -978,7 +1013,7 @@ while (fetch_para()) {
     undef(@arg_with_types) ;
     undef($processing_arg_with_types) ;
     undef(%arg_types) ;
-    undef(@in_out) ;
+    undef(@outlist) ;
     undef(%in_out) ;
     undef($proto_in_this_xsub) ;
     undef($scope_in_this_xsub) ;
@@ -1039,12 +1074,12 @@ while (fetch_para()) {
 	last;
     }
     $XSStack[$XSS_work_idx]{functions}{$Full_func_name} ++ ;
-    %XsubAliases = %XsubAliasValues = %Interfaces = ();
+    %XsubAliases = %XsubAliasValues = %Interfaces = @Attributes = ();
     $DoSetMagic = 1;
 
     $orig_args =~ s/\\\s*/ /g;		# process line continuations
 
-    my %out_vars;
+    my %only_outlist;
     if ($process_argtypes and $orig_args =~ /\S/) {
 	my $args = "$orig_args ,";
 	if ($args =~ /^( (??{ $C_arg }) , )* $ /x) {
@@ -1059,10 +1094,10 @@ while (fetch_para()) {
 		next unless length $pre;
 		my $out_type;
 		my $inout_var;
-		if ($process_inout and s/^(IN|IN_OUTLIST|OUTLIST)\s+//) {
+		if ($process_inout and s/^(IN|IN_OUTLIST|OUTLIST|OUT|IN_OUT)\s+//) {
 		    my $type = $1;
 		    $out_type = $type if $type ne 'IN';
-		    $arg =~ s/^(IN|IN_OUTLIST|OUTLIST)\s+//;
+		    $arg =~ s/^(IN|IN_OUTLIST|OUTLIST|OUT|IN_OUT)\s+//;
 		}
 		if (/\W/) {	# Has a type
 		    push @arg_with_types, $arg;
@@ -1070,8 +1105,8 @@ while (fetch_para()) {
 		    $arg_types{$name} = $arg;
 		    $_ = "$name$default";
 		}
-		$out_vars{$_} = 1 if $out_type eq 'OUTLIST';
-		push @in_out, $name if $out_type;
+		$only_outlist{$_} = 1 if $out_type eq "OUTLIST";
+		push @outlist, $name if $out_type =~ /OUTLIST$/;
 		$in_out{$name} = $out_type if $out_type;
 	    }
 	} else {
@@ -1081,11 +1116,11 @@ while (fetch_para()) {
     } else {
 	@args = split(/\s*,\s*/, $orig_args);
 	for (@args) {
-	    if ($process_inout and s/^(IN|IN_OUTLIST|OUTLIST)\s+//) {
+	    if ($process_inout and s/^(IN|IN_OUTLIST|OUTLIST|IN_OUT|OUT)\s+//) {
 		my $out_type = $1;
 		next if $out_type eq 'IN';
-		$out_vars{$_} = 1 if $out_type eq 'OUTLIST';
-		push @in_out, $name;
+		$only_outlist{$_} = 1 if $out_type eq "OUTLIST";
+		push @outlist, $name if $out_type =~ /OUTLIST$/;
 		$in_out{$_} = $out_type;
 	    }
 	}
@@ -1109,7 +1144,7 @@ while (fetch_para()) {
 			last;
 		    }
 	    }
-	    if ($out_vars{$args[$i]}) {
+	    if ($only_outlist{$args[$i]}) {
 		push @args_num, undef;
 	    } else {
 		push @args_num, ++$num_args;
@@ -1210,7 +1245,7 @@ EOF
         $gotRETVAL = 0;
 
 	INPUT_handler() ;
-	process_keyword("INPUT|PREINIT|INTERFACE_MACRO|C_ARGS|ALIAS|PROTOTYPE|SCOPE") ;
+	process_keyword("INPUT|PREINIT|INTERFACE_MACRO|C_ARGS|ALIAS|ATTRS|PROTOTYPE|SCOPE") ;
 
 	print Q<<"EOF" if $ScopeThisXSUB;
 #   ENTER;
@@ -1252,7 +1287,7 @@ EOF
 		}
 		print $deferred;
 
-        process_keyword("INIT|ALIAS|PROTOTYPE|INTERFACE_MACRO|INTERFACE|C_ARGS") ;
+        process_keyword("INIT|ALIAS|ATTRS|PROTOTYPE|INTERFACE_MACRO|INTERFACE|C_ARGS") ;
 
 		if (check_keyword("PPCODE")) {
 			print_section();
@@ -1296,7 +1331,10 @@ EOF
 	# $wantRETVAL set if 'RETVAL =' autogenerated
 	($wantRETVAL, $ret_type) = (0, 'void') if $RETVAL_no_return;
 	undef %outargs ;
-	process_keyword("POSTCALL|OUTPUT|ALIAS|PROTOTYPE"); 
+	process_keyword("POSTCALL|OUTPUT|ALIAS|ATTRS|PROTOTYPE"); 
+
+	&generate_output($var_types{$_}, $args_match{$_}, $_, $DoSetMagic)
+	  for grep $in_out{$_} =~ /OUT$/, keys %in_out;
 
 	# all OUTPUT done, so now push the return value on the stack
 	if ($gotRETVAL && $RETVAL_code) {
@@ -1334,14 +1372,14 @@ EOF
 
 	$xsreturn = 1 if $ret_type ne "void";
 	my $num = $xsreturn;
-	my $c = @in_out;
+	my $c = @outlist;
 	print "\tXSprePUSH;" if $c and not $prepush_done;
 	print "\tEXTEND(SP,$c);\n" if $c;
 	$xsreturn += $c;
-	generate_output($var_types{$_}, $num++, $_, 0, 1) for @in_out;
+	generate_output($var_types{$_}, $num++, $_, 0, 1) for @outlist;
 
 	# do cleanup
-	process_keyword("CLEANUP|ALIAS|PROTOTYPE") ;
+	process_keyword("CLEANUP|ALIAS|ATTRS|PROTOTYPE") ;
 
 	print Q<<"EOF" if $ScopeThisXSUB;
 #   ]]
@@ -1431,6 +1469,12 @@ EOF
 EOF
         }
     } 
+    elsif (@Attributes) {
+	    push(@InitFileCode, Q<<"EOF");
+#        cv = newXS(\"$pname\", XS_$Full_func_name, file);
+#        apply_attrs_string("$Package", cv, "@Attributes", 0);
+EOF
+    }
     elsif ($interface) {
 	while ( ($name, $value) = each %Interfaces) {
 	    $name = "$Package\::$name" unless $name =~ /::/;

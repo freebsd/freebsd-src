@@ -1,3 +1,5 @@
+# CompositionExclusions-2.txt
+#
 # Composition Exclusions
 # This file lists the characters from the UTR #15 Composition Exclusion Table.
 #
@@ -133,8 +135,8 @@ FB4E # HEBREW LETTER PE WITH RAFE
 # (4) Non-Starter Decompositions
 # These characters can be derived from the UnicodeData file
 # by including all characters whose canonical decomposition consists
-# of a sequence of characters, the first of which has a canonical
-# class of zero.
+# of a sequence of characters, the first of which has a non-zero
+# combining class.
 # These characters are simply quoted here for reference.
 
 # 0344 COMBINING GREEK DIALYTIKA TONOS

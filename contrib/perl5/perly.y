@@ -1,6 +1,6 @@
 /*    perly.y
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -61,6 +61,7 @@ static void yydestruct(pTHXo_ void *ptr);
 
 #ifdef USE_PURE_BISON
 #define YYLEX_PARAM (&yychar)
+#define yylex yylex_r
 #endif
 
 %}
@@ -266,7 +267,7 @@ nexpr	:	/* NULL */
 	;
 
 texpr	:	/* NULL means true */
-			{ (void)scan_num("1"); $$ = yylval.opval; }
+			{ (void)scan_num("1", &yylval); $$ = yylval.opval; }
 	|	expr
 	;
 

@@ -20,8 +20,14 @@ T_DATUM_K
 	$var.dsize = (int)PL_na;
 T_DATUM_V
         ckFilter($arg, filter_store_value, \"filter_store_value\");
-	$var.dptr = SvPV($arg, PL_na);
-	$var.dsize = (int)PL_na;
+	if (SvOK($arg)) {
+	    $var.dptr = SvPV($arg, PL_na);
+	    $var.dsize = (int)PL_na;
+	}
+	else {
+	    $var.dptr = \"\";
+	    $var.dsize = 0;
+	}
 T_GDATUM
 	UNIMPLEMENTED
 OUTPUT

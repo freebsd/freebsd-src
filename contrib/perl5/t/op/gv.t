@@ -6,12 +6,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }   
 
 use warnings;
 
-print "1..30\n";
+print "1..40\n";
 
 # type coersion on assignment
 $foo = 'foo';
@@ -128,6 +128,42 @@ print {*x{FILEHANDLE}} "ok 23\n";
     ++$test; &{$a};
 }
 
+# although it *should* if you're talking about magicals
+
+{
+    my $test = 29;
+
+    my $a = "]";
+    print "not " unless defined ${$a};
+    ++$test; print "ok $test\n";
+    print "not " unless defined *{$a};
+    ++$test; print "ok $test\n";
+
+    $a = "1";
+    "o" =~ /(o)/;
+    print "not " unless ${$a};
+    ++$test; print "ok $test\n";
+    print "not " unless defined *{$a};
+    ++$test; print "ok $test\n";
+    $a = "2";
+    print "not " if ${$a};
+    ++$test; print "ok $test\n";
+    print "not " unless defined *{$a};
+    ++$test; print "ok $test\n";
+    $a = "1x";
+    print "not " if defined ${$a};
+    ++$test; print "ok $test\n";
+    print "not " if defined *{$a};
+    ++$test; print "ok $test\n";
+    $a = "11";
+    "o" =~ /(((((((((((o)))))))))))/;
+    print "not " unless ${$a};
+    ++$test; print "ok $test\n";
+    print "not " unless defined *{$a};
+    ++$test; print "ok $test\n";
+}
+
+
 # does pp_readline() handle glob-ness correctly?
 
 {
@@ -137,4 +173,4 @@ print {*x{FILEHANDLE}} "ok 23\n";
 }
 
 __END__
-ok 30
+ok 40

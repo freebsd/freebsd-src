@@ -70,9 +70,11 @@ Sets the socket type to be used for the next call to
 C<openlog()> or C<syslog()> and returns TRUE on success,
 undef on failure.
 
-A value of 'unix' will connect to the UNIX domain socket returned by
-C<_PATH_LOG> in F<syslog.ph>.  A value of 'inet' will connect to an
-INET socket returned by getservbyname().  Any other value croaks.
+A value of 'unix' will connect to the UNIX domain socket returned by the
+C<_PATH_LOG> macro (if you system defines it) in F<syslog.h>.  A value of
+'inet' will connect to an INET socket returned by getservbyname().  If
+C<_PATH_LOG> is unavailable or if getservbyname() fails, returns undef.  Any
+other value croaks.
 
 The default is for the INET socket to be used.
 
@@ -107,10 +109,15 @@ L<syslog(3)>
 
 =head1 AUTHOR
 
-Tom Christiansen E<lt>F<tchrist@perl.com>E<gt> and Larry Wall E<lt>F<larry@wall.org>E<gt>.
-UNIX domain sockets added by Sean Robinson E<lt>F<robinson_s@sc.maricopa.edu>E<gt>
-with support from Tim Bunce <Tim.Bunce@ig.co.uk> and the perl5-porters mailing list.
-Dependency on F<syslog.ph> replaced with XS code bu Tom Hughes E<lt>F<tom@compton.nu>E<gt>.
+Tom Christiansen E<lt>F<tchrist@perl.com>E<gt> and Larry Wall
+E<lt>F<larry@wall.org>E<gt>.
+
+UNIX domain sockets added by Sean Robinson
+E<lt>F<robinson_s@sc.maricopa.edu>E<gt> with support from Tim Bunce
+E<lt>F<Tim.Bunce@ig.co.uk>E<gt> and the perl5-porters mailing list.
+
+Dependency on F<syslog.ph> replaced with XS code by Tom Hughes
+E<lt>F<tom@compton.nu>E<gt>.
 
 =cut
 
@@ -159,7 +166,7 @@ sub setlogsock {
     local($setsock) = shift;
     &disconnect if $connected;
     if (lc($setsock) eq 'unix') {
-        if (defined &_PATH_LOG) {
+        if (length _PATH_LOG()) {
             $sock_type = 1;
         } else {
             return undef;
@@ -244,9 +251,9 @@ sub syslog {
 	    else {
 		if (open(CONS,">/dev/console")) {
 		    print CONS "<$facility.$priority>$whoami: $message\r";
-		    exit if defined $pid;		# if fork failed, we're parent
 		    close CONS;
 		}
+		exit if defined $pid;		# if fork failed, we're parent
 	    }
 	}
     }
@@ -267,14 +274,15 @@ sub connect {
 	($host) = $host_uniq =~ /([A-Za-z0-9_.-]+)/; # allow FQDN (inc _)
     }
     unless ( $sock_type ) {
-        my $udp = getprotobyname('udp');
-        my $syslog = getservbyname('syslog','udp');
+        my $udp = getprotobyname('udp')                 || croak "getprotobyname failed for udp";
+        my $syslog = getservbyname('syslog','udp')      || croak "getservbyname failed";
         my $this = sockaddr_in($syslog, INADDR_ANY);
         my $that = sockaddr_in($syslog, inet_aton($host) || croak "Can't lookup $host");
         socket(SYSLOG,AF_INET,SOCK_DGRAM,$udp)           || croak "socket: $!";
         connect(SYSLOG,$that)                            || croak "connect: $!";
     } else {
-        my $syslog = &_PATH_LOG                          || croak "_PATH_LOG not found in syslog.ph";
+        my $syslog = _PATH_LOG();
+	length($syslog)                                  || croak "_PATH_LOG unavailable in syslog.h";
         my $that = sockaddr_un($syslog)                  || croak "Can't locate $syslog";
         socket(SYSLOG,AF_UNIX,SOCK_STREAM,0)             || croak "socket: $!";
         if (!connect(SYSLOG,$that)) {

@@ -1,4 +1,3 @@
-# $Header: /home/rmb1/misc/CVS/perl5.005_61/lib/ExtUtils/typemap,v 1.3 1999/09/13 09:46:43 rmb1 Exp $ 
 # basic C types
 int			T_IV
 unsigned		T_UV
@@ -30,6 +29,7 @@ CV *			T_CVREF
 
 IV			T_IV
 UV			T_UV
+NV			T_NV
 I32			T_IV
 I16			T_IV
 I8			T_IV
@@ -226,13 +226,13 @@ T_U_CHAR
 T_FLOAT
 	sv_setnv($arg, (double)$var);
 T_NV
-	sv_setnv($arg, (double)$var);
+	sv_setnv($arg, (NV)$var);
 T_DOUBLE
 	sv_setnv($arg, (double)$var);
 T_PV
 	sv_setpv((SV*)$arg, $var);
 T_PTR
-	sv_setiv($arg, (IV)$var);
+	sv_setiv($arg, PTR2IV($var));
 T_PTRREF
 	sv_setref_pv($arg, Nullch, (void*)$var);
 T_REF_IV_REF

@@ -32,6 +32,14 @@
 # Don't bother with -n32 unless you have the 7.1 or later compilers.
 #     But there's no quick and light-weight way to check in 6.2.
 
+# NOTE: some IRIX cc versions, e.g. 7.3.1.1m (try cc -version) have
+# been known to have issues (coredumps) when compiling perl.c.
+# If you've used -OPT:fast_io=ON and this happens, try removing it.
+# If that fails, or you didn't use that, then try adjusting other
+# optimization options (-LNO, -INLINE, -O3 to -O2, etcetera).
+# The compiler bug has been reported to SGI.
+# -- Allen Smith <easmith@beatrice.rutgers.edu>
+
 # Let's assume we want to use 'cc -n32' by default, unless the
 # necessary libm is missing (which has happened at least twice)
 case "$cc" in
@@ -40,7 +48,13 @@ case "$cc" in
     *) test -f /usr/lib32/libm.so && cc='cc -n32' ;;
     esac    	
 esac
-test -z "$cc" && cc=cc
+
+cc=${cc:-cc}
+
+case "$cc" in
+*gcc*) ;;
+*) ccversion=`cc -version` ;;
+esac
 
 case "$use64bitint" in
 $define|true|[yY]*)
@@ -77,9 +91,19 @@ esac
 case "$cc" in
 *"cc -n32"*)
 
-	libscheck='case "`/usr/bin/file $xxx`" in
-*N32*) ;;
-*) xxx=/no/n32$xxx ;;
+	# If a library is requested to link against, make sure the
+	# objects in the library are of the same ABI we are compiling
+	# against. Albert Chin-A-Young <china@thewrittenword.com>
+	libscheck='case "$xxx" in
+*.a) /bin/ar p $xxx `/bin/ar t $xxx | /usr/bsd/head -1` >$$.o;
+  case "`/usr/bin/file $$.o`" in
+  *N32*) rm -f $$.o ;;
+  *) rm -f $$.o; xxx=/no/n32$xxx ;;
+  esac ;;
+*) case "`/usr/bin/file $xxx`" in
+  *N32*) ;;
+  *) xxx=/no/n32$xxx ;;
+  esac ;;
 esac'
 
 	# NOTE: -L/usr/lib32 -L/lib32 are automatically selected by the linker
@@ -93,7 +117,7 @@ esac'
 	libc='/usr/lib32/libc.so'
 	plibpth='/usr/lib32 /lib32 /usr/ccs/lib'
 	;;
-*"cc -64")
+*"cc -64"*)
 
 	loclibpth="$loclibpth /usr/lib64"
 	libscheck='case "`/usr/bin/file $xxx`" in
@@ -138,7 +162,7 @@ esac
 
 # Settings common to both native compiler modes.
 case "$cc" in
-*"cc -n32"|*"cc -64")
+*"cc -n32"*|*"cc -64"*)
 	ld=$cc
 
 	# perl's malloc can return improperly aligned buffer
@@ -216,8 +240,10 @@ esac
 # Don't groan about unused libraries.
 ldflags="$ldflags -Wl,-woff,84"
 
+# workaround for an optimizer bug
 case "`$cc -version 2>&1`" in
-*7.2.*) op_cflags='optimize=-O1' ;; # workaround for an optimizer bug
+*7.2.*)   op_cflags='optimize=-O1'; opmini_cflags='optimize=-O1' ;;
+*7.3.1.*) op_cflags='optimize=-O2'; opmini_cflags='optimize=-O2' ;;
 esac
 
 # We don't want these libraries.

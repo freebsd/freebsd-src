@@ -75,7 +75,8 @@ my %options;
 $options{sentence} = 0;
 Getopt::Long::config ('bundling');
 GetOptions (\%options, 'alt|a', 'color|c', 'help|h', 'indent|i=i',
-            'loose|l', 'sentence|s', 'termcap|t', 'width|w=i') or exit 1;
+            'loose|l', 'overstrike|o', 'quotes|q=s', 'sentence|s',
+            'termcap|t', 'width|w=i') or exit 1;
 pod2usage (1) if $options{help};
 
 # Figure out what formatter we're going to use.  -c overrides -t.
@@ -88,8 +89,11 @@ if ($options{color}) {
 } elsif ($options{termcap}) {
     $formatter = 'Pod::Text::Termcap';
     require Pod::Text::Termcap;
+} elsif ($options{overstrike}) {
+    $formatter = 'Pod::Text::Overstrike';
+    require Pod::Text::Overstrike;
 }
-delete @options{'color', 'termcap'};
+delete @options{'color', 'termcap', 'overstrike'};
 
 # Initialize and run the formatter.
 my $parser = $formatter->new (%options);
@@ -103,7 +107,8 @@ pod2text - Convert POD data to formatted ASCII text
 
 =head1 SYNOPSIS
 
-pod2text [B<-aclst>] [B<-i> I<indent>] [B<-w> I<width>] [I<input> [I<output>]]
+pod2text [B<-aclost>] [B<-i> I<indent>] [B<-q> I<quotes>] [B<-w> I<width>]
+[I<input> [I<output>]]
 
 pod2text B<-h>
 
@@ -147,6 +152,25 @@ Print a blank line after a C<=head1> heading.  Normally, no blank line is
 printed after C<=head1>, although one is still printed after C<=head2>,
 because this is the expected formatting for manual pages; if you're
 formatting arbitrary text documents, using this option is recommended.
+
+=item B<-o>, B<--overstrike>
+
+Format the output with overstruck printing.  Bold text is rendered as
+character, backspace, character.  Italics and file names are rendered as
+underscore, backspace, character.  Many pagers, such as B<less>, know how
+to convert this to bold or underlined text.
+
+=item B<-q> I<quotes>, B<--quotes>=I<quotes>
+
+Sets the quote marks used to surround CE<lt>> text to I<quotes>.  If
+I<quotes> is a single character, it is used as both the left and right
+quote; if I<quotes> is two characters, the first character is used as the
+left quote and the second as the right quoted; and if I<quotes> is four
+characters, the first two are used as the left quote and the second two as
+the right quote.
+
+I<quotes> may also be set to the special value C<none>, in which case no
+quote marks are added around CE<lt>> text.
 
 =item B<-s>, B<--sentence>
 

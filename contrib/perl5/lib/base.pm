@@ -30,7 +30,7 @@ C<require>s them.  Whether to C<require> a base class package is
 determined by the absence of a global $VERSION in the base package.
 If $VERSION is not detected even after loading it, <base> will
 define $VERSION in the base package, setting it to the string
-C<-1, defined by base.pm>.
+C<-1, set by base.pm>.
 
 =head1 HISTORY
 

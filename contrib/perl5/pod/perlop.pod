@@ -119,7 +119,7 @@ you increment a variable that is numeric, or that has ever been used in
 a numeric context, you get a normal increment.  If, however, the
 variable has been used in only string contexts since it was set, and
 has a value that is not the empty string and matches the pattern
-C</^[a-zA-Z]*[0-9]*$/>, the increment is done as a string, preserving each
+C</^[a-zA-Z]*[0-9]*\z/>, the increment is done as a string, preserving each
 character within its range, with carry:
 
     print ++($foo = '99');	# prints '100'
@@ -196,7 +196,7 @@ C<$a> minus the largest multiple of C<$b> that is not greater than
 C<$a>.  If C<$b> is negative, then C<$a % $b> is C<$a> minus the
 smallest multiple of C<$b> that is not less than C<$a> (i.e. the
 result will be less than or equal to zero). 
-Note than when C<use integer> is in scope, "%" give you direct access
+Note than when C<use integer> is in scope, "%" gives you direct access
 to the modulus operator as implemented by your C compiler.  This
 operator is not as well defined for negative operands, but it will
 execute faster.
@@ -242,14 +242,15 @@ operators, like C<-f>, C<-M>, etc.  See L<perlfunc>.
 If any list operator (print(), etc.) or any unary operator (chdir(), etc.)
 is followed by a left parenthesis as the next token, the operator and
 arguments within parentheses are taken to be of highest precedence,
-just like a normal function call.  Examples:
+just like a normal function call.  For example,
+because named unary operators are higher precedence than ||:
 
     chdir $foo    || die;	# (chdir $foo) || die
     chdir($foo)   || die;	# (chdir $foo) || die
     chdir ($foo)  || die;	# (chdir $foo) || die
     chdir +($foo) || die;	# (chdir $foo) || die
 
-but, because * is higher precedence than ||:
+but, because * is higher precedence than named operators:
 
     chdir $foo * 20;	# chdir ($foo * 20)
     chdir($foo) * 20;	# (chdir $foo) * 20
@@ -299,7 +300,14 @@ to the right argument.
 
 Binary "<=>" returns -1, 0, or 1 depending on whether the left
 argument is numerically less than, equal to, or greater than the right
-argument.
+argument.  If your platform supports NaNs (not-a-numbers) as numeric
+values, using them with "<=>" returns undef.  NaN is not "<", "==", ">",
+"<=" or ">=" anything (even NaN), so those 5 return false. NaN != NaN
+returns true, as does NaN != anything else. If your platform doesn't
+support NaNs then NaN is just a string with numeric value 0.
+
+    perl -le '$a = NaN; print "No NaN support here" if $a == $a'
+    perl -le '$a = NaN; print "NaN support here" if $a != $a'
 
 Binary "eq" returns true if the left argument is stringwise equal to
 the right argument.
@@ -307,8 +315,9 @@ the right argument.
 Binary "ne" returns true if the left argument is stringwise not equal
 to the right argument.
 
-Binary "cmp" returns -1, 0, or 1 depending on whether the left argument is stringwise
-less than, equal to, or greater than the right argument.
+Binary "cmp" returns -1, 0, or 1 depending on whether the left
+argument is stringwise less than, equal to, or greater than the right
+argument.
 
 "lt", "le", "ge", "gt" and "cmp" use the collation (sort) order specified
 by the current locale if C<use locale> is in effect.  See L<perllocale>.
@@ -707,7 +716,7 @@ on a Mac, these are reversed, and on systems without line terminator,
 printing C<"\n"> may emit no actual data.  In general, use C<"\n"> when
 you mean a "newline" for your system, but use the literal ASCII when you
 need an exact character.  For example, most networking protocols expect
-and prefer a CR+LF (C<"\012\015"> or C<"\cJ\cM">) for line terminators,
+and prefer a CR+LF (C<"\015\012"> or C<"\cM\cJ">) for line terminators,
 and although they often accept just C<"\012">, they seldom tolerate just
 C<"\015">.  If you get in the habit of using C<"\n"> for networking,
 you may be burned some day.
@@ -752,7 +761,7 @@ patterns local to the current package are reset.
 	reset if eof;	    # clear ?? status for next file
     }
 
-This usage is vaguely depreciated, which means it just might possibly
+This usage is vaguely deprecated, which means it just might possibly
 be removed in some distant future version of Perl, perhaps somewhere
 around the year 2168.
 
@@ -788,14 +797,14 @@ If "'" is the delimiter, no interpolation is performed on the PATTERN.
 
 PATTERN may contain variables, which will be interpolated (and the
 pattern recompiled) every time the pattern search is evaluated, except
-for when the delimiter is a single quote.  (Note that C<$)> and C<$|>
-might not be interpolated because they look like end-of-string tests.)
+for when the delimiter is a single quote.  (Note that C<$(>, C<$)>, and
+C<$|> are not interpolated because they look like end-of-string tests.)
 If you want such a pattern to be compiled only once, add a C</o> after
 the trailing delimiter.  This avoids expensive run-time recompilations,
 and is useful when the value you are interpolating won't change over
 the life of the script.  However, mentioning C</o> constitutes a promise
 that you won't change the variables in the pattern.  If you change them,
-Perl won't even notice.  See also L<"qr//">.
+Perl won't even notice.  See also L<"qr/STRING/imosx">.
 
 If the PATTERN evaluates to the empty string, the last
 I<successfully> matched regular expression is used instead.
@@ -848,9 +857,11 @@ string also resets the search position.
 
 You can intermix C<m//g> matches with C<m/\G.../g>, where C<\G> is a
 zero-width assertion that matches the exact position where the previous
-C<m//g>, if any, left off.  The C<\G> assertion is not supported without
-the C</g> modifier.  (Currently, without C</g>, C<\G> behaves just like
-C<\A>, but that's accidental and may change in the future.)
+C<m//g>, if any, left off.  Without the C</g> modifier, the C<\G> assertion
+still anchors at pos(), but the match is of course only attempted once.
+Using C<\G> without C</g> on a target string that has not previously had a
+C</g> match applied to it is the same as using the C<\A> assertion to match
+the beginning of the string.
 
 Examples:
 
@@ -858,7 +869,7 @@ Examples:
     ($one,$five,$fifteen) = (`uptime` =~ /(\d+\.\d+)/g);
 
     # scalar context
-    $/ = ""; $* = 1;  # $* deprecated in modern perls
+    $/ = "";
     while (defined($paragraph = <>)) {
 	while ($paragraph =~ /[a-z]['")]*[.!?]+['")]*\s/g) {
 	    $sentences++;
@@ -876,6 +887,7 @@ Examples:
         print "3: '";
         print $1 while /(p)/gc; print "', pos=", pos, "\n";
     }
+    print "Final: '$1', pos=",pos,"\n" if /\G(.)/;
 
 The last example should print:
 
@@ -885,6 +897,13 @@ The last example should print:
     1: '', pos=7
     2: 'q', pos=8
     3: '', pos=8
+    Final: 'q', pos=8
+
+Notice that the final match matched C<q> instead of C<p>, which a match
+without the C<\G> anchor would have done. Also note that the final match
+did not update C<pos> -- C<pos> is only updated on a C</g> match. If the
+final match did indeed match C<p>, it's a good bet that you're running an
+older (pre-5.6.0) Perl.
 
 A useful idiom for C<lex>-like scanners is C</\G.../gc>.  You can
 combine several regexps like this to process a string part-by-part,
@@ -938,7 +957,7 @@ A double-quoted, interpolated string.
 
 =item qr/STRING/imosx
 
-This operators quotes--and compiles--its I<STRING> as a regular
+This operator quotes (and possibly compiles) its I<STRING> as a regular
 expression.  I<STRING> is interpolated the same way as I<PATTERN>
 in C<m/PATTERN/>.  If "'" is used as the delimiter, no interpolation
 is done.  Returns a Perl value which may be used instead of the
@@ -997,13 +1016,14 @@ for a detailed look at the semantics of regular expressions.
 
 =item `STRING`
 
-A string which is (possibly) interpolated and then executed as a system
-command with C</bin/sh> or its equivalent.  Shell wildcards, pipes,
-and redirections will be honored.  The collected standard output of the
-command is returned; standard error is unaffected.  In scalar context,
-it comes back as a single (potentially multi-line) string.  In list
-context, returns a list of lines (however you've defined lines with $/
-or $INPUT_RECORD_SEPARATOR).
+A string which is (possibly) interpolated and then executed as a
+system command with C</bin/sh> or its equivalent.  Shell wildcards,
+pipes, and redirections will be honored.  The collected standard
+output of the command is returned; standard error is unaffected.  In
+scalar context, it comes back as a single (potentially multi-line)
+string, or undef if the command failed.  In list context, returns a
+list of lines (however you've defined lines with $/ or
+$INPUT_RECORD_SEPARATOR), or an empty list if the command failed.
 
 Because backticks do not affect standard error, use shell file descriptor
 syntax (assuming the shell supports this) if you care to address this.
@@ -1207,9 +1227,9 @@ to occur that you might want.  Here are two common cases:
     # expand tabs to 8-column spacing
     1 while s/\t+/' ' x (length($&)*8 - length($`)%8)/e;
 
-=item tr/SEARCHLIST/REPLACEMENTLIST/cdsUC
+=item tr/SEARCHLIST/REPLACEMENTLIST/cds
 
-=item y/SEARCHLIST/REPLACEMENTLIST/cdsUC
+=item y/SEARCHLIST/REPLACEMENTLIST/cds
 
 Transliterates all occurrences of the characters found in the search list
 with the corresponding character in the replacement list.  It returns
@@ -1225,6 +1245,12 @@ SEARCHLIST is delimited by bracketing quotes, the REPLACEMENTLIST has
 its own pair of quotes, which may or may not be bracketing quotes,
 e.g., C<tr[A-Z][a-z]> or C<tr(+\-*/)/ABCD/>.
 
+Note that C<tr> does B<not> do regular expression character classes
+such as C<\d> or C<[:lower:]>.  The <tr> operator is not equivalent to
+the tr(1) utility.  If you want to map strings between lower/upper
+cases, see L<perlfunc/lc> and L<perlfunc/uc>, and in general consider
+using the C<s> operator if you need regular expressions.
+
 Note also that the whole range idea is rather unportable between
 character sets--and even within character sets they may cause results
 you probably didn't expect.  A sound principle is to use only ranges
@@ -1237,8 +1263,6 @@ Options:
     c	Complement the SEARCHLIST.
     d	Delete found but unreplaced characters.
     s	Squash duplicate replaced characters.
-    U	Translate to/from UTF-8.
-    C	Translate to/from 8-bit char (octet).
 
 If the C</c> modifier is specified, the SEARCHLIST character set
 is complemented.  If the C</d> modifier is specified, any characters
@@ -1255,10 +1279,6 @@ than the SEARCHLIST, the final character is replicated till it is long
 enough.  If the REPLACEMENTLIST is empty, the SEARCHLIST is replicated.
 This latter is useful for counting characters in a class or for
 squashing character sequences in a class.
-
-The first C</U> or C</C> modifier applies to the left side of the translation.
-The second one applies to the right side.  If present, these modifiers override
-the current utf8 state.
 
 Examples:
 
@@ -1278,9 +1298,6 @@ Examples:
 
     tr [\200-\377]
        [\000-\177];		# delete 8th bit
-
-    tr/\0-\xFF//CU;		# change Latin-1 to Unicode
-    tr/\0-\x{FF}//UC;		# change Unicode to Latin-1
 
 If multiple transliterations are given for a character, only the
 first one is used:
@@ -1327,7 +1344,7 @@ their results are the same, we consider them individually.  For different
 quoting constructs, Perl performs different numbers of passes, from
 one to five, but these passes are always performed in the same order.
 
-=over
+=over 4
 
 =item Finding the end
 
@@ -1381,7 +1398,7 @@ used in parsing.
 The next step is interpolation in the text obtained, which is now
 delimiter-independent.  There are four different cases.
 
-=over
+=over 4
 
 =item C<<<'EOF'>, C<m''>, C<s'''>, C<tr///>, C<y///>
 
@@ -1412,7 +1429,7 @@ as C<"\\\t"> (since TAB is not alphanumeric).  Note also that:
 may be closer to the conjectural I<intention> of the writer of C<"\Q\t\E">.
 
 Interpolated scalars and arrays are converted internally to the C<join> and
-C<.> catentation operations.  Thus, C<"$foo XXX '@arr'"> becomes:
+C<.> catenation operations.  Thus, C<"$foo XXX '@arr'"> becomes:
 
   $foo . " XXX '" . (join $", @arr) . "'";
 
@@ -1546,19 +1563,19 @@ There are several I/O operators you should know about.
 A string enclosed by backticks (grave accents) first undergoes
 double-quote interpolation.  It is then interpreted as an external
 command, and the output of that command is the value of the
-pseudo-literal, j
-string consisting of all output is returned.  In list context, a
-list of values is returned, one per line of output.  (You can set
-C<$/> to use a different line terminator.)  The command is executed
-each time the pseudo-literal is evaluated.  The status value of the
-command is returned in C<$?> (see L<perlvar> for the interpretation
-of C<$?>).  Unlike in B<csh>, no translation is done on the return
-data--newlines remain newlines.  Unlike in any of the shells, single
-quotes do not hide variable names in the command from interpretation.
-To pass a literal dollar-sign through to the shell you need to hide
-it with a backslash.  The generalized form of backticks is C<qx//>.
-(Because backticks always undergo shell expansion as well, see
-L<perlsec> for security concerns.)
+backtick string, like in a shell.  In scalar context, a single string
+consisting of all output is returned.  In list context, a list of
+values is returned, one per line of output.  (You can set C<$/> to use
+a different line terminator.)  The command is executed each time the
+pseudo-literal is evaluated.  The status value of the command is
+returned in C<$?> (see L<perlvar> for the interpretation of C<$?>).
+Unlike in B<csh>, no translation is done on the return data--newlines
+remain newlines.  Unlike in any of the shells, single quotes do not
+hide variable names in the command from interpretation.  To pass a
+literal dollar-sign through to the shell you need to hide it with a
+backslash.  The generalized form of backticks is C<qx//>.  (Because
+backticks always undergo shell expansion as well, see L<perlsec> for
+security concerns.)
 
 In scalar context, evaluating a filehandle in angle brackets yields
 the next line from that file (the newline, if any, included), or
@@ -1573,7 +1590,7 @@ of a C<while> statement (even if disguised as a C<for(;;)> loop),
 the value is automatically assigned to the global variable $_,
 destroying whatever was there previously.  (This may seem like an
 odd thing to you, but you'll use the construct in almost every Perl
-script you write.)  The $_ variables is not implicitly localized.
+script you write.)  The $_ variable is not implicitly localized.
 You'll have to put a C<local $_;> before the loop if you want that
 to happen.
 
@@ -1718,7 +1735,7 @@ is roughly equivalent to:
 
     open(FOO, "echo *.c | tr -s ' \t\r\f' '\\012\\012\\012\\012'|");
     while (<FOO>) {
-	chop;
+	chomp;
 	chmod 0644, $_;
     }
 
@@ -1731,7 +1748,7 @@ A (file)glob evaluates its (embedded) argument only when it is
 starting a new list.  All values must be read before it will start
 over.  In list context, this isn't important because you automatically
 get them all anyway.  However, in scalar context the operator returns
-the next value each time it's called, or C
+the next value each time it's called, or C<undef> when the list has
 run out.  As with filehandle reads, an automatic C<defined> is
 generated when the glob occurs in the test part of a C<while>,
 because legal glob returns (e.g. a file called F<0>) would otherwise
@@ -1831,8 +1848,8 @@ integer>, if you take the C<sqrt(2)>, you'll still get C<1.4142135623731>
 or so.
 
 Used on numbers, the bitwise operators ("&", "|", "^", "~", "<<",
-and ">>") always produce integral results.  (But see also L<Bitwise
-String Operators>.)  However, C<use integer> still has meaning for
+and ">>") always produce integral results.  (But see also 
+L<Bitwise String Operators>.)  However, C<use integer> still has meaning for
 them.  By default, their results are interpreted as unsigned integers, but
 if C<use integer> is in effect, their results are interpreted
 as signed integers.  For example, C<~0> usually evaluates to a large
@@ -1885,7 +1902,7 @@ need yourself.
 
 The standard Math::BigInt and Math::BigFloat modules provide
 variable-precision arithmetic and overloaded operators, although
-they're currently pretty slow.  At the cost of some space and
+they're currently pretty slow. At the cost of some space and
 considerable speed, they avoid the normal pitfalls associated with
 limited-precision representations.
 
@@ -1895,8 +1912,25 @@ limited-precision representations.
 
     # prints +15241578780673678515622620750190521
 
-The non-standard modules SSLeay::BN and Math::Pari provide
-equivalent functionality (and much more) with a substantial
-performance savings.
+There are several modules that let you calculate with (bound only by
+memory and cpu-time) unlimited or fixed precision. There are also
+some non-standard modules that provide faster implementations via
+external C libraries.
+
+Here is a short, but incomplete summary:
+
+	Math::Fraction		big, unlimited fractions like 9973 / 12967
+	Math::String		treat string sequences like numbers
+	Math::FixedPrecision	calculate with a fixed precision
+	Math::Currency		for currency calculations
+	Bit::Vector		manipulate bit vectors fast (uses C)
+	Math::BigIntFast	Bit::Vector wrapper for big numbers
+	Math::Pari		provides access to the Pari C library
+	Math::BigInteger	uses an external C library
+	Math::Cephes		uses external Cephes C library (no big numbers)
+	Math::Cephes::Fraction	fractions via the Cephes library
+	Math::GMP		another one using an external C library
+
+Choose wisely.
 
 =cut

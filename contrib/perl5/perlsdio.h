@@ -97,19 +97,29 @@
 
 #ifdef STDIO_CNT_LVALUE
 #define PerlIO_canset_cnt(f)		1      
+#define PerlIO_set_cnt(f,c)		(FILE_cnt(f) = (c))          
 #ifdef STDIO_PTR_LVALUE
+#ifdef STDIO_PTR_LVAL_NOCHANGE_CNT
 #define PerlIO_fast_gets(f)		1        
 #endif
-#define PerlIO_set_cnt(f,c)		(FILE_cnt(f) = (c))          
-#else
+#endif /* STDIO_PTR_LVALUE */
+#else /* STDIO_CNT_LVALUE */
 #define PerlIO_canset_cnt(f)		0      
 #define PerlIO_set_cnt(f,c)		abort()
 #endif
 
 #ifdef STDIO_PTR_LVALUE
-#define PerlIO_set_ptrcnt(f,p,c)	(FILE_ptr(f) = (p), PerlIO_set_cnt(f,c))          
+#ifdef STDIO_PTR_LVAL_NOCHANGE_CNT
+#define PerlIO_set_ptrcnt(f,p,c)      STMT_START {FILE_ptr(f) = (p), PerlIO_set_cnt(f,c);} STMT_END
+#else
+#ifdef STDIO_PTR_LVAL_SETS_CNT
+/* assert() may pre-process to ""; potential syntax error (FILE_ptr(), ) */
+#define PerlIO_set_ptrcnt(f,p,c)      STMT_START {FILE_ptr(f) = (p); assert(FILE_cnt(f) == (c));} STMT_END
+#define PerlIO_fast_gets(f)		1        
 #else
 #define PerlIO_set_ptrcnt(f,p,c)	abort()
+#endif
+#endif
 #endif
 
 #else  /* USE_STDIO_PTR */
@@ -213,9 +223,11 @@
 #define _flsbuf(c,f)  _CANNOT _flsbuf_
 #define fdopen(fd,p)  _CANNOT _fdopen_
 #define fileno(f)  _CANNOT _fileno_
+#if SFIO_VERSION < 20000101L
 #define flockfile(f)  _CANNOT _flockfile_
 #define ftrylockfile(f)  _CANNOT _ftrylockfile_
 #define funlockfile(f)  _CANNOT _funlockfile_
+#endif
 #define getc_unlocked(f)  _CANNOT _getc_unlocked_
 #define putc_unlocked(c,f)  _CANNOT _putc_unlocked_
 #define popen(c,m)  _CANNOT _popen_
@@ -315,9 +327,11 @@
 #define _flsbuf(c,f)		_CANNOT _flsbuf_
 #define getw(f)			_CANNOT _getw_
 #define putw(v,f)		_CANNOT _putw_
+#if SFIO_VERSION < 20000101L
 #define flockfile(f)		_CANNOT _flockfile_
 #define ftrylockfile(f)		_CANNOT _ftrylockfile_
 #define funlockfile(f)		_CANNOT _funlockfile_
+#endif
 #define freopen(p,m,f)		_CANNOT _freopen_
 #define setbuf(f,b)		_CANNOT _setbuf_
 #define setvbuf(f,b,x,s)	_CANNOT _setvbuf_

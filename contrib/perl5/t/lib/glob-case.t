@@ -2,7 +2,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    if ($^O eq 'MacOS') { 
+	@INC = qw(: ::lib ::macos:lib); 
+    } else { 
+	@INC = '.'; 
+	push @INC, '../lib'; 
+    }
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bFile\/Glob\b/i) {
         print "1..0\n";
@@ -17,20 +22,22 @@ use File::Glob qw(:glob csh_glob);
 $loaded = 1;
 print "ok 1\n";
 
+my $pat = $^O eq "MacOS" ? ":lib:G*.t" : "lib/G*.t";
+
 # Test the actual use of the case sensitivity tags, via csh_glob()
 import File::Glob ':nocase';
-@a = csh_glob("lib/G*.t"); # At least glob-basic.t glob-case.t glob-global.t
+@a = csh_glob($pat); # At least glob-basic.t glob-case.t glob-global.t
 print "not " unless @a >= 3;
 print "ok 2\n";
 
 # This may fail on systems which are not case-PRESERVING
 import File::Glob ':case';
-@a = csh_glob("lib/G*.t"); # None should be uppercase
+@a = csh_glob($pat); # None should be uppercase
 print "not " unless @a == 0;
 print "ok 3\n";
 
 # Test the explicit use of the GLOB_NOCASE flag
-@a = File::Glob::glob("lib/G*.t", GLOB_NOCASE);
+@a = bsd_glob($pat, GLOB_NOCASE);
 print "not " unless @a >= 3;
 print "ok 4\n";
 
@@ -47,7 +54,7 @@ else {
     rmdir "[]";
     print "# returned @a\nnot " unless @a == 1;
     print "ok 6\n";
-    @a = File::Glob::glob("lib\\*", GLOB_QUOTE);
+    @a = bsd_glob("lib\\*", GLOB_QUOTE);
     print "not " if @a == 0;
     print "ok 7\n";
 }

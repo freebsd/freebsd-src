@@ -1386,6 +1386,9 @@ yyparse()
 #endif
 
     struct ysv *ysave;
+#ifdef USE_ITHREADS
+    ENTER;			/* force yydestruct() before we return */
+#endif
     New(73, ysave, 1, struct ysv);
     SAVEDESTRUCTOR_X(yydestruct, ysave);
     ysave->oldyydebug	= yydebug;
@@ -1744,7 +1747,7 @@ case 35:
 break;
 case 37:
 #line 269 "perly.y"
-{ (void)scan_num("1"); yyval.opval = yylval.opval; }
+{ (void)scan_num("1", &yylval); yyval.opval = yylval.opval; }
 break;
 case 39:
 #line 274 "perly.y"
@@ -2477,6 +2480,9 @@ yyoverflow:
 yyabort:
     retval = 1;
 yyaccept:
+#ifdef USE_ITHREADS
+    LEAVE;			/* force yydestruct() before we return */
+#endif
     return retval;
 }
 

@@ -177,7 +177,7 @@ Creates directory, including any parent directories.
 
 sub mkpath
 {
- File::Path::mkpath([expand_wildcards()],1,0777);
+ File::Path::mkpath([expand_wildcards()],0,0777);
 }
 
 =item test_f file

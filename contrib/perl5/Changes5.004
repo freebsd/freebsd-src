@@ -8031,7 +8031,7 @@ This release is beta candidate #5: Our last, best hope for a beta.
    From:  Chip Salzenberg
   Files:  pp_hot.c
 
-  Title:  "Fix grep() with refs in array context"
+  Title:  "Fix grep() with refs in list context"
    From:  Chip Salzenberg
   Files:  pp.c
 

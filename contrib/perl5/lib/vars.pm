@@ -8,7 +8,9 @@ require 5.002;
 # if Carp hasn't been loaded in earlier compile time. :-(
 # We'll let those bugs get found on the development track.
 require Carp if $] < 5.00450;
-use warnings::register();
+
+use warnings::register;
+require strict;
 
 sub import {
     my $callpack = caller;
@@ -25,6 +27,8 @@ sub import {
 		Carp::croak("Can't declare individual elements of hash or array");
 	    } elsif (warnings::enabled() and length($sym) == 1 and $sym !~ tr/a-zA-Z//) {
 		warnings::warn("No need to declare built-in vars");
+            } elsif  ( $^H &= strict::bits('vars') ) {
+              Carp::croak("'$ch$sym' is not a valid variable name under strict vars");
 	    }
 	}
         *{"${callpack}::$sym"} =

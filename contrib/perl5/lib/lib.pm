@@ -32,6 +32,7 @@ sub import {
         }
 	# Put a corresponding archlib directory infront of $_ if it
 	# looks like $_ has an archlib directory below it.
+	unshift(@INC, "$_/$archname") if -d "$_/$archname/auto";
 	unshift(@INC, "$_/$ver") if -d "$_/$ver";
 	unshift(@INC, "$_/$ver/$archname") if -d "$_/$ver/$archname";
     }
@@ -49,6 +50,8 @@ sub unimport {
     foreach (@_) {
 	++$names{$_};
 	++$names{"$_/$archname"} if -d "$_/$archname/auto";
+	++$names{"$_/$ver"} if -d "$_/$ver";
+	++$names{"$_/$ver/$archname"} if -d "$_/$ver/$archname";
     }
 
     # Remove ALL instances of each named directory.

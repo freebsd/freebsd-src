@@ -128,6 +128,13 @@ d_setreuid='undef'
 # Tell perl which symbols to export for dynamic linking.
 case "$cc" in
 *gcc*) ccdlflags='-Xlinker' ;;
+*) ccversion=`lslpp -L | grep 'C for AIX Compiler$' | awk '{print $2}'`
+   case "$ccversion" in
+     4.4.0.0|4.4.0.1|4.4.0.2)
+	echo >&4 "*** This C compiler ($ccversion) is outdated."
+	echo >&4 "*** Please upgrade to at least 4.4.0.3."
+	;;
+     esac
 esac
 # the required -bE:$installarchlib/CORE/perl.exp is added by
 # libperl.U (Configure) later.
@@ -149,6 +156,20 @@ case "$osvers" in
     lddlflags="$lddlflags -bhalt:4 -bM:SRE -bI:\$(PERL_INC)/perl.exp -bE:\$(BASEEXT).exp -b noentry -lc"
     ;;
 esac
+# AIX 4.2 (using latest patchlevels on 20001130) has a broken bind
+# library (getprotobyname and getprotobynumber are outversioned by
+# the same calls in libc, at least for xlc version 3...
+case "`oslevel`" in
+    4.2.1.*)  # Test for xlc version too, should we?
+      case "$ccversion" in    # Don't know if needed for gcc
+          3.1.4.*)    # libswanted "bind ... c ..." => "... c bind ..."
+              set `echo X "$libswanted "| sed -e 's/ bind\( .*\) \([cC]\) / \1 \2 bind /'`
+              shift
+              libswanted="$*"
+              ;;
+          esac
+      ;;
+    esac
 
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
@@ -171,9 +192,9 @@ $define|true|[yY]*)
 	    ;;
 	*)
 	    cat >&4 <<EOM
-For pthreads you should use the AIX C compiler cc_r.
-(now your compiler was set to '$cc')
-Cannot continue, aborting.
+*** For pthreads you should use the AIX C compiler cc_r.
+*** (now your compiler was set to '$cc')
+*** Cannot continue, aborting.
 EOM
 	    exit 1
 	    ;;
@@ -206,31 +227,47 @@ EOCBU
 cat > UU/uselargefiles.cbu <<'EOCBU'
 case "$uselargefiles" in
 ''|$define|true|[yY]*)
-	lfcflags="`getconf XBS5_ILP32_OFFBIG_CFLAGS 2>/dev/null`"
-	lfldflags="`getconf XBS5_ILP32_OFFBIG_LDFLAGS 2>/dev/null`"
+# Keep these at the left margin.
+ccflags_uselargefiles="`getconf XBS5_ILP32_OFFBIG_CFLAGS 2>/dev/null`"
+ldflags_uselargefiles="`getconf XBS5_ILP32_OFFBIG_LDFLAGS 2>/dev/null`"
 	# _Somehow_ in AIX 4.3.1.0 the above getconf call manages to
 	# insert(?) *something* to $ldflags so that later (in Configure) evaluating
 	# $ldflags causes a newline after the '-b64' (the result of the getconf).
 	# (nothing strange shows up in $ldflags even in hexdump;
-	#  so it may be something in the shell, instead?)
+	#  so it may be something (a bug) in the shell, instead?)
 	# Try it out: just uncomment the below line and rerun Configure:
-# echo >&4 "AIX 4.3.1.0 $lfldflags mystery" ; exit 1
+# echo >&4 "AIX 4.3.1.0 $ldflags_uselargefiles mystery" ; exit 1
 	# Just don't ask me how AIX does it, I spent hours wondering.
-	# Therefore the line re-evaluating lfldflags: it seems to fix
+	# Therefore the line re-evaluating ldflags_uselargefiles: it seems to fix
 	# the whatever it was that AIX managed to break. --jhi
-	lfldflags="`echo $lfldflags`"
-	lflibs="`getconf XBS5_ILP32_OFFBIG_LIBS 2>/dev/null|sed -e 's@^-l@@' -e 's@ -l@ @g`"
-	case "$lfcflags$lfldflags$lflibs" in
+	ldflags_uselargefiles="`echo $ldflags_uselargefiles`"
+# Keep this at the left margin.
+libswanted_uselargefiles="`getconf XBS5_ILP32_OFFBIG_LIBS 2>/dev/null|sed -e 's@^-l@@' -e 's@ -l@ @g`"
+	case "$ccflags_uselargefiles$ldflags_uselargefiles$libs_uselargefiles" in
 	'');;
-	*) ccflags="$ccflags $lfcflags"
-	   ldflags="$ldflags $lfldflags"
-	   libswanted="$libswanted $lflibs"
+	*) ccflags="$ccflags $ccflags_uselargefiles"
+	   ldflags="$ldflags $ldflags_uselargefiles"
+	   libswanted="$libswanted $libswanted_uselargefiles"
 	   ;;
 	esac
-	lfcflags=''
-	lfldflags=''
-	lflibs=''
-	;;
+	case "$gccversion" in
+	'') ;;
+	*)
+	cat >&4 <<EOM
+
+*** Warning: gcc in AIX might not work with the largefile support of Perl
+*** (default since 5.6.0), this combination hasn't been tested.
+*** I will try, though.
+
+EOM
+	# Remove xlc-spefific -qflags.
+        ccflags="`echo $ccflags | sed -e 's@ -q[^ ]*@ @g' -e 's@^-q[^ ]* @@g'`"
+        ldflags="`echo $ldflags | sed -e 's@ -q[^ ]*@ @g' -e 's@^-q[^ ]* @@g'`"
+	echo >&4 "(using ccflags $ccflags)"
+	echo >&4 "(using ldflags $ldflags)"
+        ;; 
+        esac
+        ;;
 esac
 EOCBU
 
@@ -279,18 +316,18 @@ int main (void)
 EOCP
 	    set size
 	    if eval $compile_ok; then
-		lfcpuwidth=`./size`
-		echo "You are running on $lfcpuwidth bit hardware."
+		qacpuwidth=`./size`
+		echo "You are running on $qacpuwidth bit hardware."
 	    else
 		dflt="32"
 		echo " "
 		echo "(I can't seem to compile the test program.  Guessing...)"
 		rp="What is the width of your CPU (in bits)?"
 		. ./myread
-		lfcpuwidth="$ans"
+		qacpuwidth="$ans"
 	    fi
 	    $rm -f size.c size
-	    case "$lfcpuwidth" in
+	    case "$qacpuwidth" in
 	    32*)
 		cat >&4 <<EOM
 Bzzzt! At present, you can only perform a
@@ -299,8 +336,8 @@ EOM
 		exit 1
 		;;
 	    esac
-	    lfcflags="`getconf XBS5_LP64_OFF64_CFLAGS 2>/dev/null`"
-	    lfldflags="`getconf XBS5_LP64_OFF64_LDFLAGS 2>/dev/null`"
+	    qacflags="`getconf XBS5_LP64_OFF64_CFLAGS 2>/dev/null`"
+	    qaldflags="`getconf XBS5_LP64_OFF64_LDFLAGS 2>/dev/null`"
 	    # See jhi's comments above regarding this re-eval.  I've
 	    # seen similar weirdness in the form of:
 	    #
@@ -309,8 +346,8 @@ EOM
 	    # error messages from 'cc -E' invocation. Again, the offending
 	    # string is simply not detectable by any means.  Since it doesn't
 	    # do any harm, I didn't pursue it. -- sh
-	    lfldflags="`echo $lfldflags`"
-	    lflibs="`getconf XBS5_LP64_OFF64_LIBS 2>/dev/null|sed -e 's@^-l@@' -e 's@ -l@ @g`"
+	    qaldflags="`echo $qaldflags`"
+	    qalibs="`getconf XBS5_LP64_OFF64_LIBS 2>/dev/null|sed -e 's@^-l@@' -e 's@ -l@ @g`"
 	    # -q32 and -b32 may have been set by uselargefiles or user.
     	    # Remove them.
 	    ccflags="`echo $ccflags | sed -e 's@-q32@@'`"
@@ -322,15 +359,15 @@ EOM
 	    trylist="`echo $trylist | sed -e 's@^ar @@' -e 's@ ar @ @g' -e 's@ ar$@@'`"
 	    ar="ar -X64"
 	    nm_opt="-X64 $nm_opt"
-	    # Note: Placing the 'lfcflags' variable into the 'ldflags' string
-	    # is NOT a typo.  ldlflags is passed to the C compiler for final
+	    # Note: Placing the 'qacflags' variable into the 'ldflags' string
+	    # is NOT a typo.  ldflags is passed to the C compiler for final
 	    # linking, and it wants -q64 (-b64 is for ld only!).
-	    case "$lfcflags$lfldflags$lflibs" in
+	    case "$qacflags$qaldflags$qalibs" in
 	    '');;
-	    *) ccflags="$ccflags $lfcflags"
-	       ldflags="$ldflags $lfcflags"
-	       lddlflags="$lfldflags $lddlflags"
-	       libswanted="$libswanted $lflibs"
+	    *) ccflags="$ccflags $qacflags"
+	       ldflags="$ldflags $qacflags"
+	       lddlflags="$qaldflags $lddlflags"
+	       libswanted="$libswanted $qalibs"
 	       ;;
 	    esac
 	    case "$ccflags" in
@@ -344,10 +381,10 @@ EOM
 	    # Don't try backwards compatibility
 	    bincompat="$undef"
 	    d_bincompat5005="$undef"
-	    lfcflags=''
-	    lfldflags=''
-	    lflibs=''
-	    lfcpuwidth=''
+	    qacflags=''
+	    qaldflags=''
+	    qalibs=''
+	    qacpuwidth=''
 	    ;;
 esac
 EOCBU
@@ -357,7 +394,10 @@ cat > UU/uselongdouble.cbu <<'EOCBU'
 # after it has prompted the user for whether to use long doubles.
 case "$uselongdouble" in
 $define|true|[yY]*)
-	ccflags="$ccflags -qlongdouble"
+        case "$cc" in
+        *gcc*) ;;
+        *) ccflags="$ccflags -qlongdouble" ;;
+        esac
 	# The explicit cc128, xlc128, xlC128 are not needed,
 	# the -qlongdouble should do the trick. --jhi
 	d_Gconvert='sprintf((b),"%.*llg",(n),(x))'

@@ -6,7 +6,8 @@
 # Gurusamy Sarathy <gsar@activestate.com>
 #
 
-use vars qw($thisfile $change $file $fnum $h $v $p4port @addfiles);
+use vars qw($thisfile $change $file $fnum $h $v $p4port @addfiles
+	    $branches $skip);
 
 BEGIN {
     $0 =~ s|^.*/||;
@@ -17,6 +18,9 @@ BEGIN {
 	}
         elsif (/^-p(.*)$/) {
 	    $p4port = $1 || ' ';
+	}
+        elsif (/^-b(.*)$/) {
+	    $branches = $1;
 	}
 	elsif (/^-v$/) {
 	    $v++;
@@ -30,20 +34,28 @@ BEGIN {
     }
     unless (@files) { @files = '-'; undef $^I; }
     @ARGV = @files;
+    $branches = '//depot/perl/' unless defined $branches;
     if ($h) {
 	print STDERR <<USAGE;
 Usage: $0 [-p \$P4PORT] [-v] [-h] [files]
 
-	-p host:port	p4 port (e.g. myhost:1666)
+	-phost:port	p4 port (e.g. myhost:1666)
 	-h		print this help
 	-v		output progress messages
+	-bbranch(es)	which branches to include (regex)
+			(default: //depot/perl/)
+	-h		show this help
 
 A smart 'cat'.  When fed the spew from "p4 describe ..." on STDIN,
 spits it right out on STDOUT, followed by patches for any new files
 detected in the spew.  Can also be used to edit insitu a bunch of
 files containing said spew.
 
-WARNING: Currently only emits unified diffs.
+WARNING 1: Currently only emits unified diffs (diff -u).
+
+WARNING 2: By default only the changes in the //depot/perl branch
+are shown.  To include all the branches, supply "-b." arguments
+to $0.
 
 Examples:
 	p4 describe -du 123 | $0 > change-123.desc
@@ -65,13 +77,27 @@ my $cur = m|^Affected files| ... m|^Differences|;
 
 # while we are within range
 if ($cur) {
-    if (m{^\.\.\. (//depot/.+?#\d+) (add|branch)$}) {
-	my $newfile = $1;
-	push @addfiles, $newfile;
-	warn "$newfile add, revision != 1!\n" unless $newfile =~ /#1$/;
+    if (m|^\.\.\. |) {
+	if (m|$branches|) {
+	    if (m{^\.\.\. (//depot/.+?\#\d+) (add|branch)$}) {
+		my $newfile = $1;
+		push @addfiles, $newfile;
+		warn "$newfile add, revision != 1!\n" unless $newfile =~ /#1$/;
+	    }
+        } else {
+	    push @skipped, "# $_";
+	    $_ = '';
+	}
     }
     warn "file [$file] line [$cur] file# [$fnum]\n" if $v;
 }
+
+if (m|^==== //depot/|) { 
+    $skip = !m|$branches|;
+    print "# Skipped because not under branches: $branches\n" if $skip;
+}
+
+$_ = "# $_" if $skip; 
 
 if (/^Change (\d+) by/) {
     $_ = "\n\n" . $_ if $change;	# start of a new change list
@@ -84,6 +110,9 @@ if (/^Change (\d+) by/) {
 
 if (eof) {
     $_ .= newfiles();
+    $_ .= join('', "\n",
+               "# Skipped because not under branches: $branches\n",
+               @skipped, "\n") if @skipped; 
 }
 
 sub newfiles {

@@ -174,6 +174,8 @@ example:
 (Mnemonic: be positive and forward looking.)
 This variable is read-only and dynamically scoped to the current BLOCK.
 
+=item @LAST_MATCH_END
+
 =item @+
 
 This array holds the offsets of the ends of the last successful
@@ -191,16 +193,21 @@ examples given for the C<@-> variable.
 
 =item $*
 
-Set to 1 to do multi-line matching within a string, 0 to tell Perl
-that it can assume that strings contain a single line, for the purpose
-of optimizing pattern matches.  Pattern matches on strings containing
-multiple newlines can produce confusing results when C<$*> is 0.  Default
-is 0.  (Mnemonic: * matches multiple things.)  This variable
-influences the interpretation of only C<^> and C<$>.  A literal newline can
-be searched for even when C<$* == 0>.
+Set to a non-zero integer value to do multi-line matching within a
+string, 0 (or undefined) to tell Perl that it can assume that strings
+contain a single line, for the purpose of optimizing pattern matches.
+Pattern matches on strings containing multiple newlines can produce
+confusing results when C<$*> is 0 or undefined. Default is undefined.
+(Mnemonic: * matches multiple things.) This variable influences the
+interpretation of only C<^> and C<$>. A literal newline can be searched
+for even when C<$* == 0>.
 
 Use of C<$*> is deprecated in modern Perl, supplanted by 
 the C</s> and C</m> modifiers on pattern matching.
+
+Assigning a non-numerical value to C<$*> triggers a warning (and makes
+C<$*> act if C<$* == 0>), while assigning a numerical value to C<$*>
+makes that an implicit C<int> is applied on the value.
 
 =item input_line_number HANDLE EXPR
 
@@ -412,6 +419,8 @@ channel.
 Used with formats.
 (Mnemonic: lines_on_page - lines_printed.)
 
+=item @LAST_MATCH_START
+
 =item @-
 
 $-[0] is the offset of the start of the last successful match.
@@ -439,17 +448,17 @@ After a match against some variable $var:
 
 =over 5
 
-=item C<$`> is the same as C<substr($var, 0, $-[0]>)
+=item C<$`> is the same as C<substr($var, 0, $-[0])>
 
-=item C<$&> is the same as C<substr($var, $-[0], $+[0] - $-[0]>) 
+=item C<$&> is the same as C<substr($var, $-[0], $+[0] - $-[0])>
 
-=item C<$'> is the same as C<substr($var, $+[0]>)
+=item C<$'> is the same as C<substr($var, $+[0])>
 
 =item C<$1> is the same as C<substr($var, $-[1], $+[1] - $-[1])>  
 
 =item C<$2> is the same as C<substr($var, $-[2], $+[2] - $-[2])>
 
-=item C<$3> is the same as C<substr $var, $-[3], $+[3] - $-[3]>) 
+=item C<$3> is the same as C<substr $var, $-[3], $+[3] - $-[3])>
 
 =back
 
@@ -819,10 +828,10 @@ Then
 
     $^M = 'a' x (1 << 16);
 
-would allocate a 64K buffer for use when in emergency.  See the
+would allocate a 64K buffer for use in an emergency.  See the
 F<INSTALL> file in the Perl distribution for information on how to
 enable this option.  To discourage casual use of this advanced
-feature, there is no L<English> long name for this variable.
+feature, there is no L<English|English> long name for this variable.
 
 =item $OSNAME
 
@@ -925,7 +934,7 @@ This can be used to determine whether the Perl interpreter executing a
 script is in the right range of versions.  (Mnemonic: use ^V for Version
 Control.)  Example:
 
-    warn "No "our" declarations!\n" if $^V and $^V lt v5.6.0;
+    warn "No \"our\" declarations!\n" if $^V and $^V lt v5.6.0;
 
 See the documentation of C<use VERSION> and C<require VERSION>
 for a convenient way to fail if the running Perl interpreter is too old.

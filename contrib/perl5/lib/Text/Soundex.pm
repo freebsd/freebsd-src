@@ -108,7 +108,7 @@ many people seem to prefer an I<unlikely> value like C<Z000>
 can be assigned to C<$soundex_nocode>.
 
 In scalar context C<soundex> returns the soundex code of its first
-argument, and in array context a list is returned in which each element is the 
+argument, and in list context a list is returned in which each element is the 
 soundex code for the corresponding argument passed to C<soundex> e.g.
 
   @codes = soundex qw(Mike Stok);

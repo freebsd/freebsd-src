@@ -135,6 +135,22 @@ case "`uname -sm`" in
     ;;
 esac
 
+# NCR MP-RAS.  Thanks to Doug Hendricks for this info.
+# The output of uname -a looks like this
+#	foo foo 4.0 3.0 3441 Pentium III(TM)-ISA/PCI
+# Configure sets osname=svr4.0, osvers=3.0, archname='3441-svr4.0'
+case "$myuname" in
+*3441*)
+    # With the NCR High Performance C Compiler R3.0c, miniperl fails 
+    # t/op/regexp.t test 461 unless we compile with optimizie=-g.
+    # The whole O/S is being phased out, so more detailed probing
+    # is probably not warranted.
+    case "$optimize" in 
+    '') optimize='-g' ;;
+    esac
+    ;;
+esac
+
 # Configure may fail to find lstat() since it's a static/inline function
 # in <sys/stat.h> on Unisys U6000 SVR4, UnixWare 2.x, and possibly other
 # SVR4 derivatives.  (Though UnixWare has it in /usr/ccs/lib/libc.so.)
