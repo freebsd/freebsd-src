@@ -37,6 +37,7 @@
 
 #include "opt_cpu.h"
 #include "opt_debug_npx.h"
+#include "opt_isa.h"
 #include "opt_math_emulate.h"
 #include "opt_npx.h"
 
@@ -83,7 +84,9 @@
 #endif
 #endif
 #include <i386/isa/intr_machdep.h>
+#ifdef DEV_ISA
 #include <isa/isavar.h>
+#endif
 
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
@@ -949,6 +952,7 @@ static driver_t npx_driver = {
 
 static devclass_t npx_devclass;
 
+#ifdef DEV_ISA
 /*
  * We prefer to attach to the root nexus so that the usual case (exception 16)
  * doesn't describe the processor as being `on isa'.
@@ -1003,4 +1007,4 @@ DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
 #ifndef PC98
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
 #endif
-
+#endif /* DEV_ISA */
