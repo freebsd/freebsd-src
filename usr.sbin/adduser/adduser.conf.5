@@ -30,7 +30,9 @@
 .Os
 .Sh NAME
 .Nm adduser.conf
-.Nd configuration file for the adduser utility
+.Nd configuration file for the
+.Xr adduser 8
+utility
 .Sh DESCRIPTION
 The
 .Pa /etc/adduser.conf
@@ -88,19 +90,15 @@ setting.
 .Pp
 The following configuration options can be set in
 .Nm :
-.Pp
-.Bl -tag -width "defaultgroups" -offset indent -compact
+.Bl -tag -width "defaultgroups" -offset indent
 .It defaultLgroup
 The default group new users will be added to.
-.Pp
 .It defaultclass
 The default class to place users in as described in
 .Xr login.conf 5 .
-.Pp
 .It defaultgroups
 This option is used to specify what other groups the new account
 should be added to.
-.Pp
 .It passwdtype
 May be one of
 .Cm no , Cm none , Cm random ,
@@ -111,30 +109,24 @@ as described in
 As such, the text is not duplicated here and may be
 read in
 .Xr adduser 8 .
-.Pp
 .It homeprefix
 The default home directory prefix, usually
 .Pa /home .
-.Pp
 .It defaultshell
 The users default shell which may be any of the shells listed in
 .Pa /etc/shells .
-.Pp
 .It udotdir
 Defines the location of the default shell and environment
 configuration files.
-.Pp
 .It msgfile
 Location of the default new user message file.
 This message will be sent to all new users if specified
 here or at the
 .Xr adduser 8
 prompt.
-.Pp
 .It disableflag
 The default message enclosed in brackets for the
 lock account prompt.
-.Pp
 .It upwexpire
 The default password expiration time.
 Format of the date is either a
@@ -154,15 +146,12 @@ where
 is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by the
 number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
 which the expiration time is to be set.
-.Pp
 .It uexpire
 The default account expire time.
 The format is similar to the upwexpire option.
-.Pp
 .It ugecos
 The default information to be held in the gecos field of
 .Pa /etc/master.passwd .
-.Pp
 .It uuid
 The default user ID setting.
 This must be a number above 1000 and fewer than 65534.
@@ -203,4 +192,4 @@ manual page first appeared in
 .Fx 4.10 .
 .Sh AUTHORS
 This manual page was written by
-.An Tom Rhodes Aq trhodes@FreeBSD.org
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
