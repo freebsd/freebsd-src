@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.68 1999/06/22 14:12:54 yokota Exp $
+ *	$Id: cons.c,v 1.69 1999/06/26 12:19:03 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -88,8 +88,9 @@ static struct cdevsw cn_cdevsw = {
 };
 
 static dev_t	cn_dev_t; 	/* seems to be never really used */
+static udev_t	cn_udev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
-	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
+	&cn_udev_t, sizeof cn_udev_t, "T,dev_t", "");
 
 static int cn_mute;
 
@@ -182,7 +183,8 @@ cninit_finish()
 	cn_phys_open = cdp->d_open;
 	cdp->d_open = cnopen;
 	cn_tp = (*cdp->d_devtotty)(cn_tab->cn_dev);
-	cn_dev_t = cn_tp->t_dev;
+	cn_dev_t = cn_tab->cn_dev;
+	cn_udev_t = dev2udev(cn_dev_t);
 }
 
 static void
@@ -202,7 +204,8 @@ cnuninit(void)
 	cdp->d_open = cn_phys_open;
 	cn_phys_open = NULL;
 	cn_tp = NULL;
-	cn_dev_t = 0;
+	cn_dev_t = NODEV;
+	cn_udev_t = NOUDEV;
 }
 
 /*
