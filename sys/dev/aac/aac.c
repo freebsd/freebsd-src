@@ -601,7 +601,6 @@ void
 aac_intr(void *arg)
 {
 	struct aac_softc *sc;
-	u_int32_t *resp_queue;
 	u_int16_t reason;
 
 	debug_called(2);
@@ -609,49 +608,37 @@ aac_intr(void *arg)
 	sc = (struct aac_softc *)arg;
 
 	/*
-	 * Optimize the common case of adapter response interrupts.
-	 * We must read from the card prior to processing the responses
-	 * to ensure the clear is flushed prior to accessing the queues.
-	 * Reading the queues from local memory might save us a PCI read.
+	 * Read the status register directly.  This is faster than taking the
+	 * driver lock and reading the queues directly.  It also saves having
+	 * to turn parts of the driver lock into a spin mutex, which would be
+	 * ugly.
 	 */
-	resp_queue = sc->aac_queues->qt_qindex[AAC_HOST_NORM_RESP_QUEUE];
-	if (resp_queue[AAC_PRODUCER_INDEX] != resp_queue[AAC_CONSUMER_INDEX])
-		reason = AAC_DB_RESPONSE_READY;
-	else 
-		reason = AAC_GET_ISTATUS(sc);
+	reason = AAC_GET_ISTATUS(sc);
 	AAC_CLEAR_ISTATUS(sc, reason);
-	(void)AAC_GET_ISTATUS(sc);
 
-	/* It's not ok to return here because of races with the previous step */
+	/* handle completion processing */
 	if (reason & AAC_DB_RESPONSE_READY)
-		/* handle completion processing */
-		taskqueue_enqueue(taskqueue_swi, &sc->aac_task_complete);
+		taskqueue_enqueue_fast(taskqueue_fast, &sc->aac_task_complete);
 
-	/* controller wants to talk to the log */
-	if (reason & AAC_DB_PRINTF) {
-		if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-			sc->aifflags |= AAC_AIFFLAGS_PRINTF;
-		} else
-			aac_print_printf(sc);
-	}
+	/* controller wants to talk to us */
+	if (reason & (AAC_DB_PRINTF | AAC_DB_COMMAND_READY)) {
+		/*
+		 * XXX Make sure that we don't get fooled by strange messages
+		 * that start with a NULL.
+		 */
+		if ((reason & AAC_DB_PRINTF) &&
+		    (sc->aac_common->ac_printf[0] == 0))
+			sc->aac_common->ac_printf[0] = 32;
 
-	/* controller has a message for us? */
-	if (reason & AAC_DB_COMMAND_READY) {
-		if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-			sc->aifflags |= AAC_AIFFLAGS_AIF;
-		} else {
-			/*
-			 * XXX If the kthread is dead and we're at this point,
-			 * there are bigger problems than just figuring out
-			 * what to do with an AIF.
-			 */
-		}
-	
-	}
-
-	if ((sc->aifflags & AAC_AIFFLAGS_PENDING) != 0)
-		/* XXX Should this be done with cv_signal? */
+		/*
+		 * This might miss doing the actual wakeup.  However, the
+		 * tsleep that this is waking up has a timeout, so it will
+		 * wake up eventually.  AIFs and printfs are low enough
+		 * priority that they can handle hanging out for a few seconds
+		 * if needed.
+		 */
 		wakeup(sc->aifthread);
+	}
 }
 
 /*
@@ -740,41 +727,43 @@ aac_command_thread(struct aac_softc *sc)
 {
 	struct aac_fib *fib;
 	u_int32_t fib_size;
-	int size;
+	int size, retval;
 
 	debug_called(2);
 
 	sc->aifflags |= AAC_AIFFLAGS_RUNNING;
 
 	while (!(sc->aifflags & AAC_AIFFLAGS_EXIT)) {
-		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
-			tsleep(sc->aifthread, PRIBIO, "aifthd",
-			       AAC_PERIODIC_INTERVAL * hz);
+		retval = tsleep(sc->aifthread, PRIBIO, "aifthd",
+				AAC_PERIODIC_INTERVAL * hz);
 
-		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
+		/*
+		 * First see if any FIBs need to be allocated.  This needs
+		 * to be called without the driver lock because contigmalloc
+		 * will grab Giant, and would result in an LOR.
+		 */
+		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
+			aac_alloc_commands(sc);
+			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
+		}
+
+		AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+
+		/*
+		 * While we're here, check to see if any commands are stuck.
+		 * This is pretty low-priority, so it's ok if it doesn't
+		 * always fire.
+		 */
+		if (retval == EWOULDBLOCK)
 			aac_timeout(sc);
 
 		/* Check the hardware printf message buffer */
-		if ((sc->aifflags & AAC_AIFFLAGS_PRINTF) != 0) {
-			sc->aifflags &= ~AAC_AIFFLAGS_PRINTF;
+		if (sc->aac_common->ac_printf[0] != 0)
 			aac_print_printf(sc);
-		}
 
-		/* See if any FIBs need to be allocated */
-		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
-			aac_alloc_commands(sc);
-			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
-			AAC_LOCK_RELEASE(&sc->aac_io_lock);
-		}
-
-		/* While we're here, check to see if any commands are stuck */
-		while (sc->aifflags & AAC_AIFFLAGS_AIF) {
-			if (aac_dequeue_fib(sc, AAC_HOST_NORM_CMD_QUEUE,
-					    &fib_size, &fib)) {
-				sc->aifflags &= ~AAC_AIFFLAGS_AIF;
-				break;	/* nothing to do */
-			}
+		/* Also check to see if the adapter has a command for us. */
+		while (aac_dequeue_fib(sc, AAC_HOST_NORM_CMD_QUEUE,
+				       &fib_size, &fib) == 0) {
 	
 			AAC_PRINT_FIB(sc, fib);
 	
@@ -813,6 +802,7 @@ aac_command_thread(struct aac_softc *sc)
 						     fib);
 			}
 		}
+		AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	}
 	sc->aifflags &= ~AAC_AIFFLAGS_RUNNING;
 	wakeup(sc->aac_dev);
@@ -1171,6 +1161,7 @@ aac_alloc_commands(struct aac_softc *sc)
 			      aac_map_command_helper, &fibphys, 0);
 
 	/* initialise constant fields in the command structure */
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 	bzero(fm->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
 	for (i = 0; i < AAC_FIB_COUNT; i++) {
 		cm = sc->aac_commands + sc->total_fibs;
@@ -1191,9 +1182,11 @@ aac_alloc_commands(struct aac_softc *sc)
 	if (i > 0) {
 		TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
 		debug(1, "total_fibs= %d\n", sc->total_fibs);
+		AAC_LOCK_RELEASE(&sc->aac_io_lock);
 		return (0);
 	} 
 
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
 	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
 	free(fm, M_AACBUF);
