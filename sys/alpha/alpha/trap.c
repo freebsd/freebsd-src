@@ -91,6 +91,47 @@ static void printtrap __P((const unsigned long, const unsigned long,
 extern char *syscallnames[];
 #endif
 
+static const char *arith_exceptions[] = {
+	"software completion",
+	"invalid operation",
+	"division by zero",
+	"overflow",
+	"underflow",
+	"inexact result",
+	"integer overflow",
+};
+
+static const char *instruction_faults[] = {
+	"bpt",
+	"bugchk",
+	"gentrap",
+	"FEN",
+	"opDec"
+};
+
+static const char *interrupt_types[] = {
+	"interprocessor",
+	"clock",
+	"correctable error",
+	"machine check",
+	"I/O device",
+	"performance counter"
+};
+
+static const char *mmfault_types[] = {
+	"translation not valid",
+	"access violation",
+	"fault on read",
+	"fault on execute",
+	"fault on write"
+};
+
+static const char *mmfault_causes[] = {
+	"instruction fetch",
+	"load instructon",
+	"store instruction"
+};
+
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
@@ -150,6 +191,7 @@ printtrap(a0, a1, a2, entry, framep, isfatal, user)
 {
 	char ubuf[64];
 	const char *entryname;
+	unsigned long i;
 
 	switch (entry) {
 	case ALPHA_KENTRY_INT:
@@ -180,13 +222,73 @@ printtrap(a0, a1, a2, entry, framep, isfatal, user)
 	printf("%s %s trap:\n", isfatal? "fatal" : "handled",
 	       user ? "user" : "kernel");
 	printf("\n");
-	printf("    trap entry = 0x%lx (%s)\n", entry, entryname);
-	printf("    a0         = 0x%lx\n", a0);
-	printf("    a1         = 0x%lx\n", a1);
-	printf("    a2         = 0x%lx\n", a2);
-	printf("    pc         = 0x%lx\n", framep->tf_regs[FRAME_PC]);
-	printf("    ra         = 0x%lx\n", framep->tf_regs[FRAME_RA]);
-	printf("    curproc    = %p\n", curproc);
+	printf("    trap entry     = 0x%lx (%s)\n", entry, entryname);
+#ifdef SMP
+	printf("    cpuid          = %d\n", PCPU_GET(cpuid));
+#endif
+	switch (entry) {
+	case ALPHA_KENTRY_INT:
+		printf("    interrupt type = ");
+		if (a0 < 5) {
+			printf("%s\n", interrupt_types[a0]);
+			if (a0 > 1) {
+				printf("    vector         = 0x%lx\n", a1);
+				if (a0 < 3)
+					printf("    logout area    = 0x%lx\n",
+					    a2);
+			}
+		} else
+			printf("0x%lx (unknown)\n", a0);
+		break;
+	case ALPHA_KENTRY_ARITH:
+		printf("    exception type = ");
+		for (i = 0; i < 7; i++)
+			if (a0 & (1 << i)) {
+				printf("%s", arith_exceptions[i]);
+				if (a0 & (~0 - (1 << i)))
+					printf(", ");
+			}
+		printf("\n");
+		printf("    register mask  = 0x%lx", a1);
+		break;
+	case ALPHA_KENTRY_MM:
+		printf("    faulting va    = 0x%lx\n", a0);
+		printf("    type           = ");
+		if (a1 < 5)
+			printf("%s\n", mmfault_types[a1]);
+		else
+			printf("0x%lx (unknown)\n", a1);
+		printf("    cause          = ");
+		i = a2 + 1;
+		if (i < 3)
+			printf("%s\n", mmfault_causes[i]);
+		else
+			printf("0x%lx (unknown)\n", a2);
+		break;
+	case ALPHA_KENTRY_IF:
+		printf("    fault type     = ");
+		if (a0 < 5)
+			printf("%s\n", instruction_faults[a0]);
+		else
+			printf("0x%lx (unknown)\n", a0);
+		break;
+	case ALPHA_KENTRY_UNA:
+		printf("    faulting va    = 0x%lx\n", a0);
+		printf("    opcode         = 0x%lx\n", a1);
+		printf("    register       = 0x%lx\n", a2);
+		break;
+	default:
+		printf("    a0             = 0x%lx\n", a0);
+		printf("    a1             = 0x%lx\n", a1);
+		printf("    a2             = 0x%lx\n", a2);
+		break;
+	}
+	printf("    pc             = 0x%lx\n", framep->tf_regs[FRAME_PC]);
+	printf("    ra             = 0x%lx\n", framep->tf_regs[FRAME_RA]);
+	printf("    sp             = 0x%lx\n", framep->tf_regs[FRAME_SP]);
+	if (curproc != NULL && (curproc->p_flag & P_KTHREAD) == 0)
+		printf("    usp            = 0x%lx\n", alpha_pal_rdusp());
+	printf("    curproc        = %p\n", curproc);
 	if (curproc != NULL)
 		printf("        pid = %d, comm = %s\n", curproc->p_pid,
 		       curproc->p_comm);
