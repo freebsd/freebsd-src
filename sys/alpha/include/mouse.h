@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.1 1994/09/09 11:27:31 dfr Exp $
+ *	$Id: mouse.h,v 1.2 1996/11/14 22:18:25 sos Exp $
  */
 
 #ifndef _MACHINE_MOUSE_H_
@@ -28,10 +28,12 @@
 #include <sys/types.h>
 #include <sys/ioccom.h>
 
-/* NOTE: MOUSEIOC and MOUSEIOCREAD are now obsolete, but will stay 
-   for compatibility reasons. But, remember, the MOUSEIOCREAD ioctl
-   command doesn't work and never worked before.  Some day we shall 
-   get rid of these... */
+/*
+ * NOTE: MOUSEIOC and MOUSEIOCREAD are now obsolete, but will stay 
+ * for compatibility reasons. But, remember, the MOUSEIOCREAD ioctl
+ * command doesn't work and never worked before.  Some day we shall 
+ * get rid of these...
+ */
 
 #define MOUSEIOC		('M'<<8)
 #define MOUSEIOCREAD		(MOUSEIOC|60)
@@ -46,6 +48,7 @@ typedef struct mouseinfo {
 	char xmotion;
 	char ymotion;
 } mouseinfo_t;
+
 /* status */
 #define BUTSTATMASK	0x07	/* Any mouse button down if any bit set */
 #define BUTCHNGMASK	0x38	/* Any mouse button changed if any bit set */
@@ -64,11 +67,13 @@ typedef struct mousehw {
 	int hwid;		/* I/F dependent hardware ID
 				   for the PS/2 mouse, it will be PSM_XXX_ID */
 } mousehw_t;
+
 /* iftype */
 #define MOUSE_IF_SERIAL		0
 #define MOUSE_IF_BUS		1
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
+
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
 #define MOUSE_MOUSE		0
@@ -82,6 +87,7 @@ typedef struct mousemode {
 	int resolution;		/* ppi, -1 if unknown */
 	int accelfactor;	/* accelation factor (must be 1 or greater) */
 } mousemode_t;
+
 /* protocol */
 #define MOUSE_PROTO_MS		0	/* Microsoft Serial, 3 bytes */
 #define MOUSE_PROTO_MSC		1	/* Mouse Systems, 5 bytes */
