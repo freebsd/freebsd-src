@@ -891,16 +891,6 @@ ENTRY(copyerr, 0)
 	br.ret.sptk.few rp
 END(copyerr)
 
-/*
- * Support functions for handling of unaligned memory accesses.
- */
-ENTRY(spillfd, 2)
-	ldfd		f6 = [r32]
-	;;
-	stf.spill	[r33] = f6
-	br.ret.sptk	rp
-END(spillfd)
-
 #if defined(GPROF)
 /*
  * Important registers:
