@@ -350,7 +350,7 @@ setrootbyname(char *name)
 	return (2);
 gotit:
 	while (*cp >= '0' && *cp <= '9')
-		unit += 10 * unit + *cp++ - '0';
+		unit = 10 * unit + *cp++ - '0';
 	if (*cp == 's' && cp[1] >= '0' && cp[1] <= '9') {
 		slice = cp[1] - '0' + 1;
 		cp += 2;
