@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.1 1998/06/10 10:56:45 dfr Exp $
+ *	$Id: subr_bus.c,v 1.2 1998/06/14 13:45:58 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -810,18 +810,28 @@ bus_generic_write_ivar(device_t dev, device_t child, int index, u_long value)
     return ENOENT;
 }
 
-int
-bus_generic_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg)
+void *
+bus_generic_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg)
 {
     /* Propagate up the bus hierarchy until someone handles it. */
     if (dev->parent)
-	return BUS_MAP_INTR(dev->parent, dev, intr, arg);
+	return BUS_CREATE_INTR(dev->parent, dev, irq, intr, arg);
+    else
+	return NULL;
+}
+
+int
+bus_generic_connect_intr(device_t dev, void *ih)
+{
+    /* Propagate up the bus hierarchy until someone handles it. */
+    if (dev->parent)
+	return BUS_CONNECT_INTR(dev->parent, ih);
     else
 	return EINVAL;
 }
 
-static int root_map_intr(device_t dev, device_t child,
-			 driver_intr_t *intr, void *arg)
+static int root_create_intr(device_t dev, device_t child,
+			    driver_intr_t *intr, void *arg)
 {
     /*
      * If an interrupt mapping gets to here something bad has happened.
@@ -835,7 +845,7 @@ static device_method_t root_methods[] = {
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_map_intr,		root_map_intr),
+	DEVMETHOD(bus_create_intr,	root_create_intr),
 
 	{ 0, 0 }
 };
