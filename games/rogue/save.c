@@ -108,7 +108,8 @@ char *sfile;
 			sfile = name_buffer;
 		}
 	}
-	setuid(getuid());
+	/* revoke */
+	setgid(getgid());
 	if (	((fp = fopen(sfile, "w")) == NULL) ||
 			((file_id = md_get_file_id(sfile)) == -1)) {
 		message("problem accessing the save file", 0);
@@ -166,7 +167,8 @@ static char save_name[80];
 
 static del_save_file()
 {
-	setuid(getuid());
+	/* revoke */
+	setgid(getgid());
 	md_df(save_name);
 }
 
