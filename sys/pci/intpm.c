@@ -672,10 +672,12 @@ intpm_attach(device_t dev)
 		sciic->smbst=rman_get_bustag(res);
 		sciic->smbsh=rman_get_bushandle(res);
 		
+#ifdef __i386__
 		device_printf(dev,"%s %x\n",
 			      (sciic->smbst==I386_BUS_SPACE_IO)?
 			      "I/O mapped":"Memory",
 			      sciic->smbsh);
+#endif
 		
 
 #ifndef NO_CHANGE_PCICONF
