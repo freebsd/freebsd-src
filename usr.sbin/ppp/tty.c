@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.5 1999/05/16 11:58:48 brian Exp $
+ *	$Id: tty.c,v 1.6 1999/05/18 01:37:46 brian Exp $
  */
 
 #include <sys/param.h>
@@ -324,15 +324,12 @@ tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
                int maxiov)
 {
   if (type == TTY_DEVICE) {
-    struct ttydevice *dev;
+    struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;
 
-    /* It's one of ours !  Let's create the device */
-
-    dev = (struct ttydevice *)iov[(*niov)++].iov_base;
     /* Refresh function pointers etc */
     memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
 
-    physical_SetupStack(p, PHYSICAL_NOFORCE);
+    physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
     if (dev->Timer.state != TIMER_STOPPED) {
       dev->Timer.state = TIMER_STOPPED;
       tty_StartTimer(p);
@@ -432,7 +429,7 @@ tty_Create(struct physical *p)
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  physical_SetupStack(p, PHYSICAL_NOFORCE);
+  physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
 
   return &dev->dev;
 }

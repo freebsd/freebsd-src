@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.1 1999/05/08 11:06:30 brian Exp $
+ *	$Id: exec.c,v 1.2 1999/05/12 09:48:49 brian Exp $
  */
 
 #include <sys/param.h>
@@ -97,8 +97,10 @@ struct device *
 exec_iov2device(int type, struct physical *p, struct iovec *iov,
                 int *niov, int maxiov)
 {
-  if (type == EXEC_DEVICE)
+  if (type == EXEC_DEVICE) {
+    physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
     return &execdevice;
+  }
 
   return NULL;
 }
@@ -162,7 +164,7 @@ exec_Create(struct physical *p)
           p->fd = fids[0];
           waitpid(pid, &stat, 0);
           log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
-          physical_SetupStack(p, PHYSICAL_FORCE_ASYNC);
+          physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
           return &execdevice;
       }
     }
