@@ -15,7 +15,7 @@
 
 # $FreeBSD$
 
-# Master boot record
+# A 512 byte MBR boot manager that simply boots the active partition.
 
 		.set LOAD,0x7c00		# Load address
 		.set EXEC,0x600 		# Execution address
@@ -27,6 +27,9 @@
 		.globl start			# Entry point
 		.code16
 
+#
+# Setup the segment registers for flat addressing and setup the stack.
+#
 start:		cld				# String ops inc
 		xorw %ax,%ax			# Zero
 		movw %ax,%es			# Address
@@ -35,13 +38,25 @@ start:		cld				# String ops inc
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
 		sti				# Enable interrupts
+#
+# Relocate ourself to a lower address so that we are out of the way when
+# we load in the bootstrap from the partition to boot.
+# 
 		movw $main-EXEC+LOAD,%si	# Source
 		movw $main,%di			# Destination
 		movw $0x200-(main-start),%cx	# Byte count
 		rep				# Relocate
 		movsb				#  code
+#
+# Jump to the relocated code.
+#
 		jmp main-LOAD+EXEC		# To relocated code
-
+#
+# Scan the partition table looking for an active entry.  Note that %ch is
+# zero from the repeated string instruction above.  We save the offset of
+# the active partition in %si and scan the entire table to ensure that only
+# one partition is marked active.
+#
 main:		xorw %si,%si			# No active partition
 		movw $partbl,%bx		# Partition table
 		movb $0x4,%cl			# Number of entries
@@ -56,11 +71,19 @@ main.2: 	addb $0x10,%bl			# Till
 		testw %si,%si	 		# Active found?
 		jnz main.3			# Yes
 		int $0x18			# BIOS: Diskless boot
-
+#
+# Ok, we've found a possible active partition.  Check to see that the drive
+# is a valid hard drive number.  XXX - We assume that there are up to 8 valid
+# hard drives, regardless of how many are actually installed.  Yuck.
+#
 main.3: 	cmpb $0x80,%dl			# Drive valid?
 		jb main.4			# No
 		cmpb $0x80+NDRIVE,%dl		# Within range?
 		jb main.5			# Yes
+#
+# Ok, now that we have a valid drive and partition entry, load the CHS from
+# the partition entry and read the sector from the disk.
+#
 main.4: 	movb (%si),%dl			# Load drive
 main.5: 	movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
@@ -68,10 +91,16 @@ main.5: 	movb 0x1(%si),%dh		# Load head
 		movw $0x201,%ax			# BIOS: Read from
 		int $0x13			#  disk
 		jc err_rd			# If error
+#
+# Now that we've loaded the bootstrap, check for the 0xaa55 signature.  If it
+# is present, execute the bootstrap we just loaded.
+#
 		cmpw $MAGIC,0x1fe(%bx)		# Bootable?
 		jne err_os			# No
 		jmp *%bx			# Invoke bootstrap
-
+#
+# Various error message entry points.
+#
 err_pt: 	movw $msg_pt,%si		# "Invalid partition
 		jmp putstr			#  table"
 
@@ -80,7 +109,9 @@ err_rd: 	movw $msg_rd,%si		# "Error loading
 
 err_os: 	movw $msg_os,%si		# "Missing operating
 		jmp putstr			#  system"
-
+#
+# Output an ASCIZ string to the console via the BIOS.
+# 
 putstr.0:	movw $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
