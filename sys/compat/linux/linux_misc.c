@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.9 1995/12/15 03:28:38 peter Exp $
+ *  $Id: linux_misc.c,v 1.10 1996/01/14 10:59:57 sos Exp $
  */
 
 #include <sys/param.h>
@@ -134,7 +134,8 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
     if ((new-old) > 0) {
 	if (swap_pager_full)
 	    return ENOMEM;
-	error = vm_map_find(&vm->vm_map, NULL, 0, &old, (new-old), FALSE);
+	error = vm_map_find(&vm->vm_map, NULL, 0, &old, (new-old), FALSE,
+			VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error) 
 	    return error;
 	vm->vm_dsize += btoc((new-old));
@@ -282,7 +283,8 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 	 */
 	vmaddr = virtual_offset + round_page(a_out->a_entry);
 	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    round_page(a_out->a_text + a_out->a_data), FALSE);
+		    	    round_page(a_out->a_text + a_out->a_data), FALSE,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    return error;
 
@@ -326,7 +328,8 @@ printf("mem=%08x = %08x %08x\n", vmaddr, ((int*)vmaddr)[0], ((int*)vmaddr)[1]);
 	vmaddr = virtual_offset + round_page(a_out->a_entry) +
 		 round_page(a_out->a_text + a_out->a_data);
 	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr, 
-			    bss_size, FALSE);
+			    bss_size, FALSE,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    return error;
 	error = vm_map_protect(&p->p_vmspace->vm_map, vmaddr, bss_size,
