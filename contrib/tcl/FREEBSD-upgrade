@@ -10,3 +10,11 @@ Tcl 7.5 update 1
 	cd tcl7.5
 	rm -rf win mac compat
 	cvs import src/contrib/tcl TCL tcl7_5_p1
+
+Tcl 8.0 beta 2
+	Imported with the commands:
+
+	tar zxvf tcl8.0b2.tar.gz
+	cd tcl8.0b2
+	rm -rf win mac compat
+	cvs import src/contrib/tcl TCL tcl8_0_b2
