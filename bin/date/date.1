@@ -106,7 +106,7 @@ in the
 manual page, as well as any arbitrary text.
 The format string for the default display is:
 .Bd -literal -offset indent
-``%a %b %e %H:%M:%S %Z n''.
+``%a %b %e %H:%M:%S %Z %Y%n''.
 .Ed
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
@@ -136,7 +136,7 @@ and years are handled automatically.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
-date ``+DATE: %m/%d/%y%nTIME: %H:%M:0n''
+date ``+DATE: %m/%d/%y%nTIME: %H:%M:%S%n''
 .Ed
 .Pp
 will display:
