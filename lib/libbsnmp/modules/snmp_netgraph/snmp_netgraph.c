@@ -743,7 +743,7 @@ ng_mkpeer_id(ng_ID_t id, const char *nodename, const char *type,
 	    &mkpeer, sizeof(mkpeer)) == -1)
 		return (0);
 
-	if ((id = ng_next_node_id_internal(id, NULL, hook, 0)) == NULL)
+	if ((id = ng_next_node_id_internal(id, NULL, hook, 0)) == 0)
 		return (0);
 
 	if (nodename != NULL) {
