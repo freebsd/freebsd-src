@@ -275,16 +275,18 @@ ether_output(ifp, m, dst, rt0)
 			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
 			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n;
+			n = m_copy(m, 0, (int)M_COPYALL);
 
 			n->m_pkthdr.csum_flags |= csum_flags;
 			if (csum_flags & CSUM_DATA_VALID)
 				n->m_pkthdr.csum_data = 0xffff;
 
 			(void) if_simloop(ifp, n, dst->sa_family, hlen);
-		} else if (bcmp(eh->ether_dhost,
-		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
+		} else if (bcmp(eh->ether_dhost, eh->ether_shost,
+				ETHER_ADDR_LEN) == 0) {
 			m->m_pkthdr.csum_flags |= csum_flags;
 			if (csum_flags & CSUM_DATA_VALID)
 				m->m_pkthdr.csum_data = 0xffff;
