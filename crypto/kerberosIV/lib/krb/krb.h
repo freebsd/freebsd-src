@@ -48,7 +48,7 @@ __BEGIN_DECLS
 #if !defined(NOPROTO) && !defined(__STDC__)
 #define NOPROTO
 #endif
-#include <des.h>
+#include <openssl/des.h>
 
 /* CNS compatibility ahead! */
 #ifndef KRB_INT32

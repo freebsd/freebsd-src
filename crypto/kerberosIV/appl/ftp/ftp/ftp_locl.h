@@ -32,6 +32,7 @@
  */
 
 /* $Id: ftp_locl.h,v 1.34 1999/12/02 16:58:29 joda Exp $ */
+/* $FreeBSD$ */
 
 #ifndef __FTP_LOCL_H__
 #define __FTP_LOCL_H__
@@ -129,7 +130,7 @@ struct hostent  *gethostbyname(const char *);
 
 #include "roken.h"
 #include "security.h"
-#include <des.h> /* for des_read_pw_string */
+#include <openssl/des.h> /* for des_read_pw_string */
 
 #if defined(__sun__) && !defined(__svr4)
 int fclose(FILE*);

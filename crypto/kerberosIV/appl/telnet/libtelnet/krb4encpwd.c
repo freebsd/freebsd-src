@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include <config.h>
 
@@ -74,7 +75,7 @@ RCSID("$Id: krb4encpwd.c,v 1.17 1998/07/09 23:16:29 assar Exp $");
 #include <pwd.h>
 #include <stdio.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <stdlib.h>
 #include <string.h>

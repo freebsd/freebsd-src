@@ -32,6 +32,7 @@
  */
 
 /* $Id: adm_locl.h,v 1.17 1999/12/02 16:58:27 joda Exp $ */
+/* $FreeBSD$ */
 
 #ifndef __adm_locl_h
 #define __adm_locl_h
@@ -77,7 +78,7 @@
 
 #include <roken.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <krb_db.h>
 #include <kdc.h>
