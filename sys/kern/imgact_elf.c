@@ -273,7 +273,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		vm_map_unlock(&vmspace->vm_map);
 		if (rv != KERN_SUCCESS) {
 			return EINVAL; 
-		}	
+		}
 	}
 
 	if (copy_len != 0) {
