@@ -47,7 +47,7 @@
 #define	BO_CHAR		'\203'		/* Enter boldface mode */
 #define	BE_CHAR		'\204'		/* Exit boldface mode */
 
-#define	CONTROL_CHAR(c)		(iscntrl(c))
+#define CONTROL_CHAR(c)         (!isprint(c))
 #define	CARAT_CHAR(c)		((c == '\177') ? '?' : (c | 0100))
 
 #define	TOP		(0)

@@ -106,6 +106,11 @@ int bo_width, be_width;		/* Printing width of boldface sequences */
 int ul_width, ue_width;		/* Printing width of underline sequences */
 int so_width, se_width;		/* Printing width of standout sequences */
 
+int mode_flags = 0;
+#define M_SO 1
+#define M_UL 2
+#define M_BO 4
+
 /*
  * These two variables are sometimes defined in,
  * and needed by, the termcap library.
@@ -503,6 +508,12 @@ bell()
  */
 clear()
 {
+	if (mode_flags & M_SO)
+		so_exit();
+	if (mode_flags & M_UL)
+		ul_exit();
+	if (mode_flags & M_BO)
+		bo_exit();
 	tputs(sc_clear, sc_height, putchr);
 }
 
@@ -512,6 +523,12 @@ clear()
  */
 clear_eol()
 {
+	if (mode_flags & M_SO)
+		so_exit();
+	if (mode_flags & M_UL)
+		ul_exit();
+	if (mode_flags & M_BO)
+		bo_exit();
 	tputs(sc_eol_clear, 1, putchr);
 }
 
@@ -521,6 +538,7 @@ clear_eol()
 so_enter()
 {
 	tputs(sc_s_in, 1, putchr);
+	mode_flags |= M_SO;
 }
 
 /*
@@ -529,6 +547,7 @@ so_enter()
 so_exit()
 {
 	tputs(sc_s_out, 1, putchr);
+	mode_flags &= ~M_SO;
 }
 
 /*
@@ -538,6 +557,7 @@ so_exit()
 ul_enter()
 {
 	tputs(sc_u_in, 1, putchr);
+	mode_flags |= M_UL;
 }
 
 /*
@@ -546,6 +566,7 @@ ul_enter()
 ul_exit()
 {
 	tputs(sc_u_out, 1, putchr);
+	mode_flags &= ~M_UL;
 }
 
 /*
@@ -554,6 +575,7 @@ ul_exit()
 bo_enter()
 {
 	tputs(sc_b_in, 1, putchr);
+	mode_flags |= M_BO;
 }
 
 /*
@@ -562,6 +584,7 @@ bo_enter()
 bo_exit()
 {
 	tputs(sc_b_out, 1, putchr);
+	mode_flags &= ~M_BO;
 }
 
 /*
