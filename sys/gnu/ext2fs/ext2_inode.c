@@ -37,6 +37,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext2_inode.c	8.5 (Berkeley) 12/30/93
+ *
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"
@@ -416,7 +418,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	bp = getblk(vp, lbn, (int)fs->s_blocksize, 0, 0);
 	if (bp->b_flags & (B_DONE | B_DELWRI)) {
 	} else {
-		bp->b_flags |= B_READ;
+		bp->b_iocmd = BIO_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;

@@ -163,7 +163,7 @@ idstrategy(struct buf *bp)
 	/*
 	 * software write protect check
 	 */
-	if (drv->flags & DRV_WRITEPROT && (bp->b_flags & B_READ) == 0) {
+	if (drv->flags & DRV_WRITEPROT && (bp->b_iocmd == BIO_WRITE)) {
 		bp->b_error = EROFS;
 		goto bad;
 	}

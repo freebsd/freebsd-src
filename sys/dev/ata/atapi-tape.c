@@ -421,7 +421,7 @@ aststrategy(struct buf *bp)
 	biodone(bp);
 	return;
     }
-    if (!(bp->b_flags & B_READ) && stp->flags & F_WRITEPROTECT) {
+    if (!(bp->b_iocmd == BIO_READ) && stp->flags & F_WRITEPROTECT) {
 	bp->b_error = EPERM;
 	bp->b_flags |= B_ERROR;
 	biodone(bp);
@@ -466,7 +466,7 @@ ast_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    if (bp->b_flags & B_READ)
+    if (bp->b_iocmd == BIO_READ)
 	ccb[0] = ATAPI_READ;
     else
 	ccb[0] = ATAPI_WRITE;
@@ -482,7 +482,7 @@ ast_start(struct atapi_softc *atp)
     devstat_start_transaction(&stp->stats);
 
     atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
-		    bp->b_flags & B_READ ? ATPR_F_READ : 0, 60, ast_done, bp);
+		    (bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
 }
 
 static int32_t 
@@ -496,7 +496,7 @@ ast_done(struct atapi_request *request)
 	bp->b_flags |= B_ERROR;
     }
     else {
-	if (!(bp->b_flags & B_READ))
+	if (!(bp->b_iocmd == BIO_READ))
 	    stp->flags |= F_DATA_WRITTEN;
 	bp->b_resid = bp->b_bcount - request->donecount;
         ast_total += (bp->b_bcount - bp->b_resid);

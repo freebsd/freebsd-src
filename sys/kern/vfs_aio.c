@@ -996,20 +996,20 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	bp->b_bcount = cb->aio_nbytes;
 	bp->b_bufsize = cb->aio_nbytes;
-	bp->b_flags = B_PHYS | B_CALL;
+	bp->b_flags = B_PHYS;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *)cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
 
 	if (cb->aio_lio_opcode == LIO_WRITE) {
-		bp->b_flags |= B_WRITE;
+		bp->b_iocmd = BIO_WRITE;
 		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_READ)) {
 			error = EFAULT;
 			goto doerror;
 		}
 	} else {
-		bp->b_flags |= B_READ;
+		bp->b_iocmd = BIO_READ;
 		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_WRITE)) {
 			error = EFAULT;
 			goto doerror;
@@ -2132,7 +2132,6 @@ aio_physwakeup(struct buf *bp)
 	s = splbio();
 
 	wakeup((caddr_t)bp);
-	bp->b_flags &= ~B_CALL;
 	bp->b_flags |= B_DONE;
 
 	aiocbe = (struct aiocblist *)bp->b_spc;

@@ -844,10 +844,10 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	s = splvm();
 
 	/*
-	 * Deal with B_FREEBUF
+	 * Deal with BIO_DELETE
 	 */
 
-	if (bp->b_flags & B_FREEBUF) {
+	if (bp->b_iocmd & BIO_DELETE) {
 		/*
 		 * FREE PAGE(s) - destroy underlying swap that is no longer
 		 *		  needed.
@@ -872,7 +872,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		 */
 
 		blk = swp_pager_meta_ctl(object, start, 0);
-		if ((blk == SWAPBLK_NONE) && (bp->b_flags & B_READ) == 0) {
+		if ((blk == SWAPBLK_NONE) && (bp->b_iocmd == BIO_WRITE)) {
 			blk = swp_pager_getswapspace(1);
 			if (blk == SWAPBLK_NONE) {
 				bp->b_error = ENOMEM;
@@ -897,7 +897,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		    )
 		) {
 			splx(s);
-			if (bp->b_flags & B_READ) {
+			if (bp->b_iocmd == BIO_READ) {
 				++cnt.v_swapin;
 				cnt.v_swappgsin += btoc(nbp->b_bcount);
 			} else {
@@ -925,7 +925,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 			bp->b_resid -= PAGE_SIZE;
 		} else {
 			if (nbp == NULL) {
-				nbp = getchainbuf(bp, swapdev_vp, (bp->b_flags & B_READ) | B_ASYNC);
+				nbp = getchainbuf(bp, swapdev_vp, (bp->b_iocmd == BIO_READ) | B_ASYNC);
 				nbp->b_blkno = blk;
 				nbp->b_bcount = 0;
 				nbp->b_data = data;
@@ -946,7 +946,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	if (nbp) {
 		if ((bp->b_flags & B_ASYNC) == 0)
 			nbp->b_flags &= ~B_ASYNC;
-		if (nbp->b_flags & B_READ) {
+		if (nbp->b_iocmd == BIO_READ) {
 			++cnt.v_swapin;
 			cnt.v_swappgsin += btoc(nbp->b_bcount);
 		} else {
@@ -1086,7 +1086,7 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	pmap_qenter(kva, m + i, j - i);
 
-	bp->b_flags = B_READ | B_CALL;
+	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_rcred = bp->b_wcred = proc0.p_ucred;
 	bp->b_data = (caddr_t) kva;
@@ -1329,10 +1329,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		if (sync == TRUE) {
 			bp = getpbuf(&nsw_wcount_sync);
-			bp->b_flags = B_CALL;
 		} else {
 			bp = getpbuf(&nsw_wcount_async);
-			bp->b_flags = B_CALL | B_ASYNC;
+			bp->b_flags = B_ASYNC;
 		}
 		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
 
@@ -1481,7 +1480,7 @@ swp_pager_async_iodone(bp)
 		printf(
 		    "swap_pager: I/O error - %s failed; blkno %ld,"
 			"size %ld, error %d\n",
-		    ((bp->b_flags & B_READ) ? "pagein" : "pageout"),
+		    ((bp->b_iocmd == BIO_READ) ? "pagein" : "pageout"),
 		    (long)bp->b_blkno, 
 		    (long)bp->b_bcount,
 		    bp->b_error
@@ -1524,7 +1523,7 @@ swp_pager_async_iodone(bp)
 			 * interrupt.
 			 */
 
-			if (bp->b_flags & B_READ) {
+			if (bp->b_iocmd == BIO_READ) {
 				/*
 				 * When reading, reqpage needs to stay
 				 * locked for the parent, but all other
@@ -1566,7 +1565,7 @@ swp_pager_async_iodone(bp)
 				vm_page_activate(m);
 				vm_page_io_finish(m);
 			}
-		} else if (bp->b_flags & B_READ) {
+		} else if (bp->b_iocmd == BIO_READ) {
 			/*
 			 * For read success, clear dirty bits.  Nobody should
 			 * have this page mapped but don't take any chances,
@@ -1637,7 +1636,7 @@ swp_pager_async_iodone(bp)
 
 	relpbuf(
 	    bp, 
-	    ((bp->b_flags & B_READ) ? &nsw_rcount : 
+	    ((bp->b_iocmd == BIO_READ) ? &nsw_rcount : 
 		((bp->b_flags & B_ASYNC) ? 
 		    &nsw_wcount_async : 
 		    &nsw_wcount_sync

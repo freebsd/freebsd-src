@@ -360,7 +360,7 @@ bre5(struct request *rq,
 	}
 	if (SD[plex->sdnos[m.psdno]].state < sd_reborn)	    /* is our parity subdisk down? */
 	    m.badsdno = m.psdno;			    /* note that it's down */
-	if (bp->b_flags & B_READ) {			    /* read operation */
+	if (bp->b_iocmd == BIO_READ) {			    /* read operation */
 	    for (mysdno = m.firstsdno; rsectors > 0; mysdno++) {
 		if (mysdno == m.psdno)			    /* ignore parity on read */
 		    mysdno++;
@@ -493,7 +493,7 @@ bre5(struct request *rq,
 	    rqe->driveno = sd->driveno;
 	    if (build_rq_buffer(rqe, plex))		    /* build the buffer */
 		return REQUEST_ENOMEM;			    /* can't do it */
-	    rqe->b.b_flags |= B_READ;			    /* we must read first */
+	    rqe->b.b_iocmd == BIO_READ;			    /* we must read first */
 	    m.sdcount++;				    /* adjust the subdisk count */
 	    rqno++;					    /* and point to the next request */
 	}
@@ -534,7 +534,7 @@ bre5(struct request *rq,
 		return REQUEST_ENOMEM;			    /* can't do it */
 	    if ((m.flags & XFR_PARITYOP)		    /* parity operation, */
 	    &&((m.flags & XFR_BAD_SUBDISK) == 0))	    /* and not the bad subdisk, */
-		rqe->b.b_flags |= B_READ;		    /* we must read first */
+		rqe->b.b_iocmd = BIO_READ;		    /* we must read first */
 
 	    /* Now update pointers for the next block */
 	    *diskaddr += m.datalen;			    /* skip past what we've done */
@@ -577,7 +577,7 @@ bre5(struct request *rq,
 		rqe->driveno = sd->driveno;
 		if (build_rq_buffer(rqe, plex))		    /* build the buffer */
 		    return REQUEST_ENOMEM;		    /* can't do it */
-		rqe->b.b_flags |= B_READ;		    /* we must read first */
+		rqe->b.b_iocmd = BIO_READ;		    /* we must read first */
 	    }
 	}
 	/*

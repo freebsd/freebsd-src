@@ -233,9 +233,9 @@ devstat_end_transaction_buf(struct devstat *ds, struct buf *bp)
 {
 	devstat_trans_flags flg;
 
-	if (bp->b_flags & B_FREEBUF)
+	if (bp->b_iocmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
-	else if (bp->b_flags & B_READ)
+	else if (bp->b_iocmd == BIO_READ)
 		flg = DEVSTAT_READ;
 	else
 		flg = DEVSTAT_WRITE;

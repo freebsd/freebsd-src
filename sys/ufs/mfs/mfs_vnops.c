@@ -123,7 +123,7 @@ mfs_fsync(ap)
 /*
  * mfs_freeblks() - hook to allow us to free physical memory.
  *
- *	We implement the B_FREEBUF strategy.  We can't just madvise()
+ *	We implement the BIO_DELETE strategy.  We can't just madvise()
  *	here because we have to do it in the correct order vs other bio
  *	requests, so we queue it.
  *
@@ -146,7 +146,8 @@ mfs_freeblks(ap)
 		panic("mfs_freeblks: bad dev");
 
 	bp = geteblk(ap->a_length);
-	bp->b_flags |= B_FREEBUF | B_ASYNC;
+	bp->b_flags |= B_ASYNC;
+	bp->b_iocmd = BIO_DELETE;
 	bp->b_dev = ap->a_vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
@@ -185,15 +186,15 @@ mfs_strategy(ap)
 
 	if (mfsp->mfs_pid == 0) {
 		/*
-		 * mini-root.  Note: B_FREEBUF not supported at the moment,
+		 * mini-root.  Note: BIO_DELETE not supported at the moment,
 		 * I'm not sure what kind of dataspace b_data is in.
 		 */
 		caddr_t base;
 
 		base = mfsp->mfs_baseoff + (bp->b_blkno << DEV_BSHIFT);
-		if (bp->b_flags & B_FREEBUF)
+		if (bp->b_iocmd == BIO_DELETE)
 			;
-		if (bp->b_flags & B_READ)
+		if (bp->b_iocmd == BIO_READ)
 			bcopy(base, bp->b_data, bp->b_bcount);
 		else
 			bcopy(bp->b_data, base, bp->b_bcount);
@@ -224,7 +225,7 @@ mfs_strategy(ap)
  *
  * Read and Write are handled with a simple copyin and copyout.    
  *
- * We also partially support VOP_FREEBLKS() via B_FREEBUF.  We can't implement
+ * We also partially support VOP_FREEBLKS() via BIO_DELETE.  We can't implement
  * completely -- for example, on fragments or inode metadata, but we can
  * implement it for page-aligned requests.
  */
@@ -235,9 +236,9 @@ mfs_doio(bp, mfsp)
 {
 	caddr_t base = mfsp->mfs_baseoff + (bp->b_blkno << DEV_BSHIFT);
 
-	if (bp->b_flags & B_FREEBUF) {
+	if (bp->b_iocmd == BIO_DELETE) {
 		/*
-		 * Implement B_FREEBUF, which allows the filesystem to tell
+		 * Implement BIO_DELETE, which allows the filesystem to tell
 		 * a block device when blocks are no longer needed (like when
 		 * a file is deleted).  We use the hook to MADV_FREE the VM.
 		 * This makes an MFS filesystem work as well or better then
@@ -263,7 +264,7 @@ mfs_doio(bp, mfsp)
 			}
                 }
 		bp->b_error = 0;
-	} else if (bp->b_flags & B_READ) {
+	} else if (bp->b_iocmd == BIO_READ) {
 		/*
 		 * Read data from our 'memory' disk
 		 */

@@ -170,7 +170,8 @@ revive_block(int sdno)
 	else						    /* it's an unattached plex */
 	    bp->b_dev = VINUM_PLEX(sd->plexno);		    /* create the device number */
 
-	bp->b_flags = B_READ;				    /* either way, read it */
+	bp->b_flags = 0;				    /* either way, read it */
+	bp->b_iocmd = BIO_READ;				    /* either way, read it */
 	vinumstart(bp, 1);
 	biowait(bp);
     }
@@ -181,7 +182,8 @@ revive_block(int sdno)
 	/* Now write to the subdisk */
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
-	bp->b_flags = B_ORDERED | B_WRITE;		    /* and make this an ordered write */
+	bp->b_flags = B_ORDERED;	 		    /* and make this an ordered write */
+	bp->b_iocmd = BIO_WRITE;				    /* and make this an ordered write */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_resid = bp->b_bcount;
@@ -211,7 +213,7 @@ revive_block(int sdno)
 		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		    rq->sdno,
 		    rq,
-		    rq->bp->b_flags & B_READ ? "Read" : "Write",
+		    rq->bp->b_flags == BIO_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
 		    rq->bp->b_blkno,
@@ -310,8 +312,7 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 		}
 	    }
 	} else {					    /* rebuildparity */
-	    pbp->b_flags &= ~B_READ;
-	    pbp->b_flags |= B_WRITE;
+	    pbp->b_iocmd = BIO_WRITE;
 	    pbp->b_resid = pbp->b_bcount;
 	    BUF_LOCKINIT(pbp);				    /* get a lock for the buffer */
 	    BUF_LOCK(pbp, LK_EXCLUSIVE);		    /* and lock it */
@@ -404,7 +405,8 @@ parityrebuild(struct plex *plex,
 		bzero(parity_buf, mysize);
 	}
 	bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	    /* device number */
-	bpp[sdno]->b_flags = B_READ;			    /* either way, read it */
+	bpp[sdno]->b_flags = 0;			    /* either way, read it */
+	bpp[sdno]->b_iocmd = BIO_READ;			    /* either way, read it */
 	bpp[sdno]->b_bcount = bpp[sdno]->b_bufsize;
 	bpp[sdno]->b_resid = bpp[sdno]->b_bcount;
 	bpp[sdno]->b_blkno = pstripe;			    /* read from here */
@@ -557,7 +559,7 @@ initsd(int sdno, int verify)
 		bp->b_resid = bp->b_bcount;
 		bp->b_blkno = sd->initialized;		    /* read from here */
 		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
-		bp->b_flags |= B_READ;			    /* read it back */
+		bp->b_iocmd = BIO_READ;			    /* read it back */
 		splx(s);
 		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
 		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */

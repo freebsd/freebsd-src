@@ -404,7 +404,7 @@ ida_construct_qcb(struct ida_softc *ida)
 
 	hwqcb->req.blkno = bp->b_pblkno;
 	hwqcb->req.bcount = howmany(bp->b_bcount, DEV_BSIZE);
-	hwqcb->req.command = bp->b_flags & B_READ ? CMD_READ : CMD_WRITE;
+	hwqcb->req.command = bp->b_iocmd == BIO_READ ? CMD_READ : CMD_WRITE;
 
 	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
 }

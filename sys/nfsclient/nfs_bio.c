@@ -465,7 +465,8 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    if (!rabp)
 				return (EINTR);
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
-				rabp->b_flags |= (B_READ | B_ASYNC);
+				rabp->b_flags |= B_ASYNC;
+				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred, p)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
@@ -526,7 +527,7 @@ again:
 		 */
 
 		if ((bp->b_flags & B_CACHE) == 0) {
-		    bp->b_flags |= B_READ;
+		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
@@ -553,7 +554,7 @@ again:
 		if (!bp)
 			return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
-		    bp->b_flags |= B_READ;
+		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
@@ -577,7 +578,7 @@ again:
 		if (!bp)
 		    return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
-		    bp->b_flags |= B_READ;
+		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
@@ -605,7 +606,7 @@ again:
 			    if (!bp)
 				return (EINTR);
 			    if ((bp->b_flags & B_CACHE) == 0) {
-				    bp->b_flags |= B_READ;
+				    bp->b_iocmd = BIO_READ;
 				    vfs_busy_pages(bp, 0);
 				    error = nfs_doio(bp, cred, p);
 				    /*
@@ -648,7 +649,8 @@ again:
 			rabp = nfs_getcacheblk(vp, lbn + 1, NFS_DIRBLKSIZ, p);
 			if (rabp) {
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
-				rabp->b_flags |= (B_READ | B_ASYNC);
+				rabp->b_flags |= B_ASYNC;
+				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred, p)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
@@ -936,7 +938,7 @@ again:
 		}
 
 		if ((bp->b_flags & B_CACHE) == 0) {
-			bp->b_flags |= B_READ;
+			bp->b_iocmd = BIO_READ;
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
 			if (error) {
@@ -1232,7 +1234,7 @@ nfs_asyncio(bp, cred, procp)
 	 * leave the async daemons for more important rpc's (such as reads
 	 * and writes).
 	 */
-	if ((bp->b_flags & (B_READ|B_NEEDCOMMIT)) == B_NEEDCOMMIT &&
+	if (bp->b_iocmd == BIO_WRITE && (bp->b_flags & B_NEEDCOMMIT) &&
 	    (nmp->nm_bufqiods > nfs_numasync / 2)) {
 		return(EIO);
 	}
@@ -1309,7 +1311,7 @@ again:
 			}
 		}
 
-		if (bp->b_flags & B_READ) {
+		if (bp->b_iocmd == BIO_READ) {
 			if (bp->b_rcred == NOCRED && cred != NOCRED) {
 				crhold(cred);
 				bp->b_rcred = cred;
@@ -1383,7 +1385,7 @@ nfs_doio(bp, cr, p)
 	    /* mapping was done by vmapbuf() */
 	    io.iov_base = bp->b_data;
 	    uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
-	    if (bp->b_flags & B_READ) {
+	    if (bp->b_iocmd == BIO_READ) {
 		uiop->uio_rw = UIO_READ;
 		nfsstats.read_physios++;
 		error = nfs_readrpc(vp, uiop, cr);
@@ -1399,7 +1401,7 @@ nfs_doio(bp, cr, p)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = error;
 	    }
-	} else if (bp->b_flags & B_READ) {
+	} else if (bp->b_iocmd == BIO_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;

@@ -297,7 +297,8 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	int len = min(length, MAXBSIZE);		    /* maximum block device transfer is MAXBSIZE */
 
 	bp = geteblk(len);				    /* get a buffer header */
-	bp->b_flags = flag;
+	bp->b_flags = 0;
+	bp->b_iocmd = flag;
 	bp->b_dev = drive->dev;				    /* device */
 	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
 	bp->b_saveaddr = bp->b_data;
@@ -754,7 +755,7 @@ write_volume_label(int volno)
     dlp = (struct disklabel *) bp->b_data;
     *dlp = *lp;
     bp->b_flags &= ~B_INVAL;
-    bp->b_flags |= B_WRITE;
+    bp->b_iocmd = BIO_WRITE;
 
     /*
      * This should read:

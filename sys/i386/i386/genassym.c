@@ -153,7 +153,6 @@ ASSYM(SC_GS, offsetof(struct osigcontext, sc_gs));
 ASSYM(SC_TRAPNO, offsetof(struct osigcontext, sc_trapno));
 ASSYM(UC_EFLAGS, offsetof(ucontext_t, uc_mcontext.mc_eflags));
 ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));
-ASSYM(B_READ, B_READ);
 ASSYM(ENOENT, ENOENT);
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);

@@ -192,7 +192,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 				panic("ufs_bmaparray: indirect block not in cache");
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
-			bp->b_flags |= B_READ;
+			bp->b_iocmd = BIO_READ;
 			bp->b_flags &= ~(B_INVAL|B_ERROR);
 			vfs_busy_pages(bp, 0);
 			VOP_STRATEGY(bp->b_vp, bp);

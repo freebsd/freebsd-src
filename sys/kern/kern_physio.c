@@ -33,7 +33,6 @@ static void
 physwakeup(struct buf *bp)
 {
 	wakeup((caddr_t) bp);
-	bp->b_flags &= ~B_CALL;
 }
 
 int
@@ -63,10 +62,11 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
+			bp->b_flags = B_PHYS;
 			if (uio->uio_rw == UIO_READ)
-				bp->b_flags = B_PHYS | B_CALL | B_READ;
+				bp->b_iocmd = BIO_READ;
 			else 
-				bp->b_flags = B_PHYS | B_CALL | B_WRITE;
+				bp->b_iocmd = BIO_WRITE;
 			bp->b_dev = dev;
 			bp->b_iodone = physwakeup;
 			bp->b_data = uio->uio_iov[i].iov_base;
@@ -101,7 +101,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
 				if (!useracc(bp->b_data, bp->b_bufsize,
-				    bp->b_flags & B_READ ?
+				    bp->b_iocmd == BIO_READ ?
 				    VM_PROT_WRITE : VM_PROT_READ)) {
 					error = EFAULT;
 					goto doerror;

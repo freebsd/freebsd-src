@@ -1432,7 +1432,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					(bp->b_flags & B_ORDERED) != 0 ?
 					    MSG_ORDERED_Q_TAG : 
 					    MSG_SIMPLE_Q_TAG,
-					/* read */bp->b_flags & B_READ,
+					/* read */bp->b_iocmd == BIO_READ,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
 					/* lba */ bp->b_pblkno,

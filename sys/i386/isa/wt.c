@@ -527,7 +527,7 @@ wtstrategy (struct buf *bp)
 		goto err2xit;
 	}
 
-	if (bp->b_flags & B_READ) {
+	if (bp->b_iocmd == BIO_READ) {
 		/* Check read access and no previous write to this tape. */
 		if (! (t->flags & TPREAD) || (t->flags & TPWANY))
 			goto errxit;
@@ -566,8 +566,9 @@ wtstrategy (struct buf *bp)
 
 	t->flags &= ~TPEXCEP;
 	s = splbio ();
-	if (wtstart (t, bp->b_flags & B_READ ? ISADMA_READ : ISADMA_WRITE, bp->b_data, bp->b_bcount)) {
-		wtwait (t, 0, (bp->b_flags & B_READ) ? "wtread" : "wtwrite");
+	if (wtstart (t, bp->b_iocmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE, 
+	    bp->b_data, bp->b_bcount)) {
+		wtwait (t, 0, (bp->b_iocmd == BIO_READ) ? "wtread" : "wtwrite");
 		bp->b_resid -= t->dmacount;
 	}
 	splx (s);

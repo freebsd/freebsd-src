@@ -221,9 +221,9 @@ flastrategy(struct buf *bp)
 		bp->b_resid = bp->b_bcount;
 		unit = dkunit(bp->b_dev);
 
-		if (bp->b_flags & B_FREEBUF)
+		if (bp->b_iocmd == BIO_DELETE)
 			what = DOC2K_ERASE;
-		else if (bp->b_flags & B_READ)
+		else if (bp->b_iocmd == BIO_READ)
 			what = DOC2K_READ;
 		else 
 			what = DOC2K_WRITE;
