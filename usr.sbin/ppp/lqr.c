@@ -29,6 +29,10 @@
  */
 
 #include <sys/param.h>
+
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#endif
 #include <sys/un.h>
 
 #include <string.h>

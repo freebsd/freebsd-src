@@ -40,6 +40,7 @@
 #include <sysexits.h>
 #include <sys/uio.h>
 #include <termios.h>
+#include <ttyent.h>
 #include <unistd.h>
 #ifndef NONETGRAPH
 #include <netgraph.h>
@@ -553,6 +554,23 @@ tty_OpenInfo(struct physical *p)
   return buf;
 }
 
+static int
+tty_Slot(struct physical *p)
+{
+  struct ttyent *ttyp;
+  int slot;
+
+  setttyent();
+  for (slot = 1; (ttyp = getttyent()); ++slot)
+    if (!strcmp(ttyp->ty_name, p->name.base)) {
+      endttyent();
+      return slot;
+    }
+
+  endttyent();
+  return -1;
+}
+
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, int *auxfd, int *nauxfd)
@@ -598,7 +616,8 @@ static struct device basettydevice = {
   tty_Write,
   tty_device2iov,
   tty_Speed,
-  tty_OpenInfo
+  tty_OpenInfo,
+  tty_Slot
 };
 
 struct device *

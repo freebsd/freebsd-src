@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-#include <sys/linker.h>
 #include <sys/module.h>
 #endif
 #include <termios.h>
