@@ -126,6 +126,9 @@ CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
+.if ${MACHINE_ARCH} == amd64
+CFLAGS+=	-fno-omit-frame-pointer
+.endif
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
