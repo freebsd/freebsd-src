@@ -27,7 +27,6 @@
  * see man buf(9) for more info.
  */
 
-#define VMIO
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
