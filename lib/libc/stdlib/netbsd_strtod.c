@@ -142,7 +142,7 @@ __RCSID("$NetBSD: strtod.c,v 1.26 1998/02/03 18:44:21 perry Exp $");
 #include "memory.h"
 #endif
 #endif
-char *__dtoa __P((double, int, int, int *, int *, char **));
+char *__dtoa __P((double, int, int, int *, int *, char **, char **));
 
 #ifdef MALLOC
 #ifdef KR_headers
@@ -384,6 +384,16 @@ Bigint {
 
  static Bigint *freelist[Kmax+1];
 
+  /*
+   * Make Balloc/Bfree thread-safe in libc for use with
+   * kernel threads.
+   */
+#include "libc_private.h"
+#include "spinlock.h"
+static spinlock_t thread_lock	= _SPINLOCK_INITIALIZER;
+#define THREAD_LOCK()		if (__isthreaded) _SPINLOCK(&thread_lock);
+#define THREAD_UNLOCK()		if (__isthreaded) _SPINUNLOCK(&thread_lock);
+
  static Bigint *
 Balloc
 #ifdef KR_headers
@@ -395,10 +405,13 @@ Balloc
 	int x;
 	Bigint *rv;
 
+	THREAD_LOCK();
 	if ((rv = freelist[k]) != NULL) {
 		freelist[k] = rv->next;
+		THREAD_UNLOCK();
 		}
 	else {
+		THREAD_UNLOCK();
 		x = 1 << k;
 		rv = (Bigint *)MALLOC(sizeof(Bigint) + (x-1)*sizeof(Long));
 		rv->k = k;
@@ -417,8 +430,10 @@ Bfree
 #endif
 {
 	if (v) {
+		THREAD_LOCK();
 		v->next = freelist[v->k];
 		freelist[v->k] = v;
+		THREAD_UNLOCK();
 		}
 	}
 
@@ -1900,10 +1915,11 @@ quorem
  char *
 __dtoa
 #ifdef KR_headers
-	(d, mode, ndigits, decpt, sign, rve)
-	double d; int mode, ndigits, *decpt, *sign; char **rve;
+	(d, mode, ndigits, decpt, sign, rve, resultp)
+	double d; int mode, ndigits, *decpt, *sign; char **rve, **resultp;
 #else
-	(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
+	(double d, int mode, int ndigits, int *decpt, int *sign, char **rve,
+	 char **resultp)
 #endif
 {
  /*	Arguments ndigits, decpt, sign are similar to those
@@ -1953,15 +1969,6 @@ __dtoa
 	Bigint *mlo = NULL; /* pacify gcc */
 	double d2, ds, eps;
 	char *s, *s0;
-	static Bigint *result;
-	static int result_k;
-
-	if (result) {
-		result->k = result_k;
-		result->maxwds = 1 << result_k;
-		Bfree(result);
-		result = 0;
-		}
 
 	if (word0(d) & Sign_bit) {
 		/* set sign for everything, including 0's and NaNs */
@@ -2123,11 +2130,8 @@ __dtoa
 			if (i <= 0)
 				i = 1;
 		}
-	j = sizeof(ULong);
-	for(result_k = 0; sizeof(Bigint) - sizeof(ULong) + j <= i;
-		j <<= 1) result_k++;
-	result = Balloc(result_k);
-	s = s0 = (char *)result;
+	*resultp = (char *) malloc(i + 1);
+	s = s0 = *resultp;
 
 	if (ilim >= 0 && ilim <= Quick_max && try_quick) {
 
