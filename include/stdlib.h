@@ -122,6 +122,16 @@ int	 setenv __P((const char *, const char *, int));
 #endif
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+double		drand48	__P((void));
+double		erand48	__P((unsigned short[3]));
+long		lrand48	__P((void));
+long		nrand48	__P((unsigned short[3]));
+long		mrand48	__P((void));
+long		jrand48	__P((unsigned short[3]));
+void		srand48	__P((long));
+unsigned short *seed48	__P((unsigned short[3]));
+void		lcong48	__P((unsigned short[7]));
+
 void	*alloca __P((size_t));		/* built-in for gcc */
 					/* getcap(3) functions */
 char	*getbsize __P((int *, long *));
