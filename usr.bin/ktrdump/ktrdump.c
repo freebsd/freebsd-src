@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-c] [-f] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
+	"usage: ktrdump [-c] [-f] [-q] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
 
 extern char *optarg;
 extern int optind;
@@ -64,6 +64,7 @@ static int cflag;
 static int eflag;
 static int fflag;
 static int mflag;
+static int qflag;
 static int tflag;
 static int iflag;
 
@@ -100,7 +101,7 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfte:i:m:o:")) != -1)
+	while ((c = getopt(ac, av, "cfqte:i:m:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
@@ -128,6 +129,9 @@ main(int ac, char **av)
 		case 'o':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			break;
+		case 'q':
+			qflag++;
 			break;
 		case 't':
 			tflag = 1;
@@ -176,25 +180,28 @@ main(int ac, char **av)
 	/*
 	 * Print a nice header.
 	 */
-	fprintf(out, "%-6s ", "index");
-	if (cflag)
-		fprintf(out, "%-3s ", "cpu");
-	if (tflag)
-		fprintf(out, "%-16s ", "timestamp");
-	if (fflag)
-		fprintf(out, "%-40s ", "file and line");
-	fprintf(out, "%s", "trace");
-	fprintf(out, "\n");
+	if (!qflag) {
+		fprintf(out, "%-6s ", "index");
+		if (cflag)
+			fprintf(out, "%-3s ", "cpu");
+		if (tflag)
+			fprintf(out, "%-16s ", "timestamp");
+		if (fflag)
+			fprintf(out, "%-40s ", "file and line");
+		fprintf(out, "%s", "trace");
+		fprintf(out, "\n");
 
-	fprintf(out, "------ ");
-	if (cflag)
-		fprintf(out, "--- ");
-	if (tflag)
-		fprintf(out, "---------------- ");
-	if (fflag)
-		fprintf(out, "---------------------------------------- ");
-	fprintf(out, "----- ");
-	fprintf(out, "\n");
+		fprintf(out, "------ ");
+		if (cflag)
+			fprintf(out, "--- ");
+		if (tflag)
+			fprintf(out, "---------------- ");
+		if (fflag)
+			fprintf(out,
+			    "---------------------------------------- ");
+		fprintf(out, "----- ");
+		fprintf(out, "\n");
+	}
 
 	/*
 	 * Now tear through the trace buffer.
