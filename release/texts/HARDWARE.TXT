@@ -590,17 +590,25 @@ USB printers and USB to parallel printer conversion cables.
 
 USB hubs.
 
+USB ethernet controllers.
 
-Motherboards chipsets:
+
+USB Host Controllers:
 
 ALi Aladdin-V.
+
+AMD-756.
+
+CMD Tech 670 & 673.
 
 Intel 82371SB (PIIX3).
 Intel 82371AB and EB chipsets (PIIX4).
 
-NEC uPD 9210 Host Controller.
+NEC uPD 9210.
 
-VIA 83C572 USB Host Controller
+OPTi 82C861 (FireLink).
+
+VIA 83C572 USB.
 
 and any other UHCI or OHCI compliant motherboard chipset (no exceptions
 known).
@@ -613,7 +621,10 @@ ADS Electronics PCI plug-in card (2 ports).
 Entrega PCI plug-in card (4 ports).
 
 
-Specific devices reported to be working:
+Specific devices reported to be working (see for USB ethernet devices supported
+above):
+
+ActiveWire I/O Board.
 
 Agiler Mouse 29UO.
 
@@ -639,7 +650,7 @@ Entrega USB-to-parallel printer adapter.
 
 Genius Niche mouse.
 
-Iomega USB Zip 100Mb.
+Iomega USB Zip 100Mb (primitive support still).
 
 Kensington Mouse-in-a-Box.
 
