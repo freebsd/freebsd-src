@@ -779,8 +779,8 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make kernel-depend && \
-			make ${KERNEL_FLAGS} && \
-			make kernel-install DESTDIR=${RD}/kernels && \
+			make ${KERNEL_FLAGS} ${KERNEL_KO} && \
+			make kernel-reinstall DESTDIR=${RD}/kernels && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
 
