@@ -171,6 +171,7 @@ main(int argc, char **argv)
 	cleanheaders(p);
 	printf("Kernel build directory is %s\n", p);
 	printf("Don't forget to do a ``make depend''\n");
+	printf("You may need to use the make -DNO_WERROR flag if you hit unfixed warnings.\n");
 	exit(0);
 }
 
