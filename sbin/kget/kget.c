@@ -30,12 +30,29 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <isa/isa_device.h>
 #if 0
 #include <isa/pnp.h>
 #endif
 
-struct isa_device *id;
+/*
+ * Per device structure.  This just happens to resemble the old isa_device
+ * but that is by accident.  It is NOT the same.
+ */
+struct	uc_device {
+	int	id_id;		/* device id */
+	char	*id_name;	/* device name */
+	int	id_iobase;	/* base i/o address */
+	u_int	id_irq;		/* interrupt request */
+	int	id_drq;		/* DMA request */
+	caddr_t	id_maddr;	/* physical i/o memory address on bus (if any)*/
+	int	id_msize;	/* size of i/o memory */
+	int	id_unit;	/* unit number */
+	int	id_flags;	/* flags */
+	int	id_enabled;	/* is device enabled */
+	struct	uc_device *id_next;	/* used in uc_devlist in userconfig() */
+};
+
+struct uc_device *id;
 struct pnp_cinfo *c;
 char *p;
 
@@ -80,37 +97,37 @@ main(int argc, char *argv[])
 	}
 	i=0;
 	while(i<len) {
-		id=(struct isa_device *)(buf+i);
-		p=(buf+i+sizeof(struct isa_device));
+		id=(struct uc_device *)(buf+i);
+		p=(buf+i+sizeof(struct uc_device));
 		strncpy(name,p,8);
 		if(!id->id_enabled) {
-			fprintf(fout,"di %s%d\n",name,id->id_unit);
+			fprintf(fout,"disable %s%d\n",name,id->id_unit);
 		} else {
-			fprintf(fout,"en %s%d\n",name,id->id_unit);
+			fprintf(fout,"enable %s%d\n",name,id->id_unit);
 			if(id->id_iobase>0) {
-				fprintf(fout,"po %s%d %#x\n",name,id->id_unit,
+				fprintf(fout,"port %s%d %#x\n",name,id->id_unit,
 					id->id_iobase);
 			}
 			if(id->id_irq>0) {
-				fprintf(fout,"ir %s%d %d\n",name,id->id_unit,
+				fprintf(fout,"irq %s%d %d\n",name,id->id_unit,
 					ffs(id->id_irq)-1);
 			}
 			if(id->id_drq>0) {
-				fprintf(fout,"dr %s%d %d\n",name,id->id_unit,
+				fprintf(fout,"drq %s%d %d\n",name,id->id_unit,
 					id->id_drq);
 			}
 			if(id->id_maddr>0) {
-				fprintf(fout,"iom %s%d %#x\n",name,id->id_unit,
+				fprintf(fout,"iomem %s%d %#x\n",name,id->id_unit,
 					id->id_maddr);
 			}
 			if(id->id_msize>0) {
-				fprintf(fout,"ios %s%d %d\n",name,id->id_unit,
+				fprintf(fout,"iosize %s%d %d\n",name,id->id_unit,
 					id->id_msize);
 			}
-			fprintf(fout,"f %s%d %#x\n",name,id->id_unit,
+			fprintf(fout,"flags %s%d %#x\n",name,id->id_unit,
 				id->id_flags);
 		}
-		i+=sizeof(struct isa_device)+8;
+		i+=sizeof(struct uc_device)+8;
 	}
 	free(buf);
 #if 0
@@ -163,7 +180,7 @@ main(int argc, char *argv[])
 	free(buf);
 #endif
 finish:
-	fprintf(fout,"q\n");
+	fprintf(fout,"quit\n");
 	fclose(fout);
 	exit(0);
 }
