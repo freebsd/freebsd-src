@@ -47,6 +47,7 @@
 #include <vm/vm_extern.h>
 
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/isa_device.h>
 
 extern	int Maxmem;

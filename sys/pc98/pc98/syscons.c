@@ -68,6 +68,7 @@
 #ifdef PC98
 #define KANJI
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
