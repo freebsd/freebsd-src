@@ -193,8 +193,7 @@ struct devsw iplsw = {
 };
 #endif /* _BSDI_VERSION >= 199510  && _KERNEL */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)  || \
-    (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 500011)
+#if defined(__NetBSD__) || defined(__OpenBSD__)  || (_BSDI_VERSION >= 199701)
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
@@ -235,8 +234,7 @@ int iplattach()
 {
 	char *defpass;
 	int s;
-# if defined(__sgi) || (defined(NETBSD_PF) && \
-  ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011)))
+# if defined(__sgi) || (defined(NETBSD_PF) && (__NetBSD_Version__ >= 104200000))
 	int error = 0;
 # endif
 
@@ -258,7 +256,7 @@ int iplattach()
 		return -1;
 
 # ifdef NETBSD_PF
-#  if (__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011)
+#  if __NetBSD_Version__ >= 104200000
 	error = pfil_add_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
 			      &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
 	if (error) {
@@ -343,8 +341,7 @@ pfil_error:
 int ipldetach()
 {
 	int s, i = FR_INQUE|FR_OUTQUE;
-#if defined(NETBSD_PF) && \
-    ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
+#if defined(NETBSD_PF) && (__NetBSD_Version__ >= 104200000)
 	int error = 0;
 #endif
 
@@ -378,7 +375,7 @@ int ipldetach()
 	fr_running = 0;
 
 # ifdef NETBSD_PF
-#  if ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
+#  if __NetBSD_Version__ >= 104200000
 	error = pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
 				 &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
 	if (error)
@@ -1162,7 +1159,7 @@ int dst;
 		m->m_len = 0;
 		avail = M_TRAILINGSPACE(m);
 # else
-		avail = MCLBYTES;
+		avail = (m->m_flags & M_EXT) ? MCLBYTES : MHLEN;
 # endif
 		xtra = MIN(ntohs(oip6->ip6_plen) + sizeof(ip6_t),
 			   avail - hlen - sizeof(*icmp) - max_linkhdr);
@@ -1382,7 +1379,11 @@ frdest_t *fdp;
 # if	BSD >= 199306
 		int i = 0;
 
-		if ((m->m_flags & M_EXT) && MEXT_IS_REF(m))
+#  ifdef	MCLISREFERENCED
+		if ((m->m_flags & M_EXT) && MCLISREFERENCED(m))
+#  else
+		if (m->m_flags & M_EXT)
+#  endif
 			i = 1;
 # endif
 # ifndef sparc
@@ -1398,9 +1399,7 @@ frdest_t *fdp;
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
 					  ro->ro_rt);
 		if (i) {
-#  ifndef __FreeBSD__
 			ip->ip_id = ntohs(ip->ip_id);
-#  endif
 			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_off = ntohs(ip->ip_off);
 		}

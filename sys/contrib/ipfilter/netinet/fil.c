@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
+static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
 /* static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.16 2000/01/27 08:49:37 darrenr Exp $"; */
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
@@ -892,14 +892,12 @@ int out;
 # endif
 #endif /* _KERNEL */
 	
-#ifndef __FreeBSD__
 	/*
 	 * Be careful here: ip_id is in network byte order when called
 	 * from ip_output()
 	 */
 	if ((out) && (v == 4))
 		ip->ip_id = ntohs(ip->ip_id);
-#endif
 
 	changed = 0;
 	fin->fin_ifp = ifp;
@@ -1121,10 +1119,8 @@ logit:
 	}
 #endif /* IPFILTER_LOG */
 
-#ifndef __FreeBSD__	
 	if ((out) && (v == 4))
 		ip->ip_id = htons(ip->ip_id);
-#endif
 
 #ifdef	_KERNEL
 	/*

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.4.2.2 2000/11/10 13:10:54 darrenr Exp $
+ * $Id: ip_frag.h,v 2.2 1999/08/06 06:26:38 darrenr Exp $
  * $FreeBSD$
  */
 
