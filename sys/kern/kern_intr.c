@@ -301,11 +301,29 @@ ithread_remove_handler(void *cookie)
 	    ih->ih_name, ithread->it_name);
 ok:
 #endif
-	TAILQ_REMOVE(&ithread->it_handlers, handler, ih_next);
-	ithread_update(ithread);
+	/*
+	 * If the interrupt thread is already running, then just mark this
+	 * handler as being dead and let the ithread do the actual removal.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if (ithread->it_proc->p_stat != SWAIT) {
+		handler->ih_flags |= IH_DEAD;
+
+		/*
+		 * Ensure that the thread will process the handler list
+		 * again and remove this handler if it has already passed
+		 * it on the list.
+		 */
+		ithread->it_need = 1;
+	} else {
+		TAILQ_REMOVE(&ithread->it_handlers, handler, ih_next);
+		ithread_update(ithread);
+	}
+	mtx_unlock_spin(&sched_lock);
 	mtx_unlock_spin(&ithread_list_lock);
 
-	free(handler, M_ITHREAD);
+	if ((handler->ih_flags & IH_DEAD) == 0)
+		free(handler, M_ITHREAD);
 	return (0);
 }
 
@@ -468,6 +486,7 @@ ithread_loop(void *arg)
 			 * another pass.
 			 */
 			atomic_store_rel_int(&ithd->it_need, 0);
+restart:
 			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
 					continue;
@@ -480,6 +499,18 @@ ithread_loop(void *arg)
 
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_lock(&Giant);
+				if ((ih->ih_flags & IH_DEAD) != 0) {
+					mtx_lock_spin(&ithread_list_lock);
+					TAILQ_REMOVE(&ithd->it_handlers, ih,
+					    ih_next);
+					ithread_update(ithd);
+					mtx_unlock_spin(&ithread_list_lock);
+					if (!mtx_owned(&Giant))
+						mtx_lock(&Giant);
+					free(ih, M_ITHREAD);
+					mtx_unlock(&Giant);
+					goto restart;
+				}
 				ih->ih_handler(ih->ih_argument);
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);

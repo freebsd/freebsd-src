@@ -50,6 +50,7 @@ struct	intrhand {
 #define	IH_FAST		0x00000001	/* Fast interrupt. */
 #define	IH_EXCLUSIVE	0x00000002	/* Exclusive interrupt. */
 #define	IH_ENTROPY	0x00000004	/* Device is a good entropy source. */
+#define	IH_DEAD		0x00000008	/* Handler should be removed. */
 #define	IH_MPSAFE	0x80000000	/* Handler does not need Giant. */
 
 /*
