@@ -235,7 +235,7 @@ configApache(dialogMenuItem *self)
     dialog_clear_norefresh();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
-    i = package_add(PACKAGE_APACHE);
+    i = package_add(variable_get(VAR_APACHE_PKG));
     if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
