@@ -199,7 +199,7 @@ gusmidi_init(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = &midi_info[unit];
+	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
 
 	/* Fill the midi info. */
 	bcopy(&gusmidi_op_desc, devinfo, sizeof(gusmidi_op_desc));
@@ -222,9 +222,6 @@ gusmidi_init(device_t dev)
 	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusmidi_intr, scp,
 	    &scp->ih);
 
-	/* Increase the number of midi devices. */
-	nmidi++;
-
 	return (0);
 }
 
@@ -236,11 +233,6 @@ gusmidi_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	int unit;
 
 	unit = MIDIUNIT(i_dev);
-
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("gusmidi_open: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
@@ -268,11 +260,6 @@ gusmidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	unit = MIDIUNIT(i_dev);
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("gusmidi_ioctl: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("gusmidi_ioctl: unit %d is not configured.\n", unit));
@@ -283,7 +270,7 @@ gusmidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	switch (cmd) {
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
-		if (synthinfo->device > nmidi + nsynth || synthinfo->device != unit)
+		if (synthinfo->device != unit)
 			return (ENXIO);
 		bcopy(&gusmidi_synthinfo, synthinfo, sizeof(gusmidi_synthinfo));
 		synthinfo->device = unit;
@@ -291,7 +278,7 @@ gusmidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
-		if (midiinfo->device > nmidi + nsynth || midiinfo->device != unit)
+		if (midiinfo->device != unit)
 			return (ENXIO);
 		bcopy(&gusmidi_midiinfo, midiinfo, sizeof(gusmidi_midiinfo));
 		midiinfo->device = unit;

@@ -654,7 +654,7 @@ opl_attach(device_t dev)
 
 	/* Fill the softc for this unit. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = &midi_info[unit];
+	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_SYNTH);
 
 	/* Allocate other resources. */
 	if (opl_allocres(scp, dev)) {
@@ -761,9 +761,6 @@ opl_attach(device_t dev)
 	midibuf_init(&devinfo->midi_dbuf_in);
 	midibuf_init(&devinfo->midi_dbuf_out);
 
-	/* Increase the number of the synthesizers. */
-	nsynth++;
-
 	DEB(printf("opl%d: attached.\n", unit));
 	DEB(printf("opl%d: the chip is OPL%d.\n", unit, scp->model));
 
@@ -786,11 +783,6 @@ opl_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	unit = MIDIUNIT(i_dev);
 
 	DEB(printf("opl%d: opening.\n", unit));
-
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("opl_open: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
@@ -828,11 +820,6 @@ opl_close(dev_t i_dev, int flags, int mode, struct proc *p)
 
 	DEB(printf("opl%d: closing.\n", unit));
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("opl_close: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("opl_close: unit %d is not configured.\n", unit));
@@ -862,11 +849,6 @@ opl_read(dev_t i_dev, struct uio *buf, int flag)
 
 	unit = MIDIUNIT(i_dev);
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("opl_read: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("opl_read: unit %d is not configured.\n", unit));
@@ -893,11 +875,6 @@ opl_write(dev_t i_dev, struct uio *buf, int flag)
 	int unit, ret;
 
 	unit = MIDIUNIT(i_dev);
-
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("opl_write: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
@@ -932,11 +909,6 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	DEB(printf("opl%d: ioctlling, cmd 0x%x.\n", unit, (int)cmd));
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("opl_ioctl: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("opl_ioctl: unit %d is not configured.\n", unit));
@@ -947,7 +919,7 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	switch (cmd) {
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
-		if (synthinfo->device >= nmidi + nsynth || synthinfo->device != unit)
+		if (synthinfo->device != unit)
 			return (ENXIO);
 		bcopy(&scp->synthinfo, synthinfo, sizeof(scp->synthinfo));
 		synthinfo->device = unit;
@@ -959,7 +931,7 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
-		if (midiinfo->device >= nmidi + nsynth || midiinfo->device != unit)
+		if (midiinfo->device != unit)
 			return (ENXIO);
 		bcopy(&opl_midiinfo, midiinfo, sizeof(opl_midiinfo));
 		strcpy(midiinfo->name, scp->synthinfo.name);

@@ -723,7 +723,7 @@ emu_attach(device_t dev)
 	emu_writehwcf3(scp, 0x0004);
 
 	/* Fill the softc for this unit. */
-	scp->devinfo = devinfo = &midi_info[unit];
+	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_SYNTH);
 	bcopy(&emu_synthinfo, &scp->synthinfo, sizeof(emu_synthinfo));
 
 	/* Fill the midi info. */
@@ -740,9 +740,6 @@ emu_attach(device_t dev)
 	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
 	midibuf_init(&devinfo->midi_dbuf_in);
 	midibuf_init(&devinfo->midi_dbuf_out);
-
-	/* Increase the number of the synthesizers. */
-	nsynth++;
 
 	DEB(printf("emu%d: attached.\n", unit));
 
@@ -776,11 +773,6 @@ emu_read(dev_t i_dev, struct uio *buf, int flag)
 
 	unit = MIDIUNIT(i_dev);
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("emu_read: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("emu_read: unit %d is not configured.\n", unit));
@@ -806,11 +798,6 @@ emu_write(dev_t i_dev, struct uio *buf, int flag)
 	int unit/*, s, len, ret*/;
 
 	unit = MIDIUNIT(i_dev);
-
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("emu_write: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
@@ -843,11 +830,6 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	DEB(printf("emu%d: ioctlling, cmd 0x%x.\n", unit, (int)cmd));
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("emu_ioctl: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("emu_ioctl: unit %d is not configured.\n", unit));
@@ -858,7 +840,7 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	switch (cmd) {
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
-		if (synthinfo->device >= nmidi + nsynth || synthinfo->device != unit)
+		if (synthinfo->device != unit)
 			return (ENXIO);
 		bcopy(&scp->synthinfo, synthinfo, sizeof(scp->synthinfo));
 		synthinfo->device = unit;
@@ -866,7 +848,7 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
-		if (midiinfo->device >= nmidi + nsynth || midiinfo->device != unit)
+		if (midiinfo->device != unit)
 			return (ENXIO);
 		bcopy(&emu_midiinfo, midiinfo, sizeof(emu_midiinfo));
 		strcpy(midiinfo->name, scp->synthinfo.name);
