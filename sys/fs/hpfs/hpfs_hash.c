@@ -137,7 +137,7 @@ loop:
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
 			mtx_enter(&vp->v_interlock, MTX_DEF);
-			simple_unlock (&hpfs_hphash_slock);
+			mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (vp);
