@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994-1998 Justin Gibbs.
+ * Copyright (c) 1994-1999 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.10 1998/12/15 08:22:42 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.11 1998/12/17 00:06:52 gibbs Exp $
  */
 
 /*
@@ -471,7 +471,7 @@ register SEQCTL {
  * Sequencer RAM Data (p. 3-34)
  * Single byte window into the Scratch Ram area starting at the address
  * specified by SEQADDR0 and SEQADDR1.  To write a full word, simply write
- * four bytes in sucessesion.  The SEQADDRs will increment after the most
+ * four bytes in succession.  The SEQADDRs will increment after the most
  * significant byte is written
  */
 register SEQRAM {
@@ -678,6 +678,7 @@ register INTSTAT {
 	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
+	mask	TRACE_POINT	0x90|SEQINT
 	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
 						 * The bus is ready for the
 						 * host to perform another
@@ -1327,6 +1328,21 @@ scratch_ram {
 		bit	ENAUTOATNO	0x08
 		bit	ENAUTOATNI	0x04
 		bit	ENAUTOATNP	0x02
+	}
+
+	/*
+	 * Track whether the transfer byte count for
+	 * the current data phase is odd.
+	 */
+	DATA_COUNT_ODD {
+		size		1
+	}
+
+	/*
+	 * The initiator specified tag for this target mode transaction.
+	 */
+	INITIATOR_TAG {
+		size		1
 	}
 
 	/*

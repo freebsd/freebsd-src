@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.3 1998/12/10 04:14:50 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.4 1998/12/15 08:22:41 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -409,6 +409,12 @@ struct ahc_softc {
 	struct tmode_tstate*	 enabled_targets[16];
 
 	/*
+	 * The black hole device responsible for handling requests for
+	 * disabled luns on enabled targets.
+	 */
+	struct tmode_lstate*	 black_hole;
+
+	/*
 	 * Device instance currently on the bus awaiting a continue TIO
 	 * for a command that was not given the disconnect priveledge.
 	 */
@@ -491,6 +497,8 @@ struct ahc_softc {
 	u_int			 msgout_len;	/* Length of message to send */
 	u_int			 msgout_index;	/* Current index in msgout */
 	u_int			 msgin_index;	/* Current index in msgin */
+
+	u_int			 enabled_luns;
 
 	/*
 	 * "Bus" addresses of our data structures.
