@@ -101,27 +101,6 @@ execve; the call
 .Dq Li fcntl(d, F_SETFD, 0)
 restores the default,
 which is to not close the descriptor.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn close
-is implemented as the
-.Va close
-syscall.
-.Pp
-In the threaded library, the
-.Va close
-syscall is assembled to
-.Fn _thread_sys_close
-and
-.Fn close
-is implemented as a function which locks
-.Fa d
-for read and write, then calls
-.Fn _thread_sys_close .
-Before returning,
-.Fn close
-unlocks
-.Fa d .
 .Sh RETURN VALUES
 .Rv -std close
 .Sh ERRORS
