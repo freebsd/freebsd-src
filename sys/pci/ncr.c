@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp $
+**  $Id: ncr.c,v 1.38 1995/06/28 16:40:58 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,11 +44,12 @@
 ***************************************************************************
 */
 
-#define __NCR_C__ "pl21 95/03/21"
+#define __NCR_C__ "pl22 95/07/07"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
 
+#define NCR_GETCC_WITHMSG
 
 /*==========================================================
 **
@@ -1222,7 +1223,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp $\n";
+	"\n$Id: ncr.c,v 1.38 1995/06/28 16:40:58 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3581,10 +3582,12 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 #else
 		tp->quirks = ncr_lookup ((char*) &tp->inqdata[0]);
 #endif
+#ifndef NCR_GETCC_WITHMSG
 		if (tp->quirks) {
 			PRINT_ADDR(xp);
 			printf ("quirks=%x.\n", tp->quirks);
 		};
+#endif
 	};
 
 	/*---------------------------------------------------
