@@ -1203,8 +1203,6 @@ static void dc_setcfg(sc, media)
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
@@ -1221,14 +1219,15 @@ static void dc_setcfg(sc, media)
 				DC_PN_GPIO_SETBIT(sc, DC_PN_GPIO_100TX_LOOP);
 				DC_SETBIT(sc, DC_PN_NWAY, DC_PN_NWAY_SPEEDSEL);
 			}
-			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL|
-			    DC_NETCFG_PCS|DC_NETCFG_SCRAMBLER);
+			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
+			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
 		}
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_10_T) {
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
@@ -1245,9 +1244,11 @@ static void dc_setcfg(sc, media)
 				DC_CLRBIT(sc, DC_PN_NWAY, DC_PN_NWAY_SPEEDSEL);
 			}
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
-			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 		}
+		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SPEEDSEL);
+		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_HEARTBEAT);
 	}
 
 	/*
@@ -1513,7 +1514,7 @@ static int dc_attach(dev)
 	case DC_DEVICEID_21143:
 		sc->dc_type = DC_TYPE_21143;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
-		sc->dc_flags |= DC_REDUCED_MII_POLL;
+		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
 		break;
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
@@ -1538,19 +1539,23 @@ static int dc_attach(dev)
 	case DC_DEVICEID_98713_CP:
 		if (revision < DC_REVISION_98713A) {
 			sc->dc_type = DC_TYPE_98713;
-			sc->dc_flags |= DC_REDUCED_MII_POLL;
 		}
-		if (revision >= DC_REVISION_98713A)
+		if (revision >= DC_REVISION_98713A) {
 			sc->dc_type = DC_TYPE_98713A;
+			sc->dc_flags |= DC_21143_NWAY;
+		}
+		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		break;
 	case DC_DEVICEID_987x5:
 		sc->dc_type = DC_TYPE_987x5;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
 		break;
 	case DC_DEVICEID_82C115:
 		sc->dc_type = DC_TYPE_PNICII;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
 		break;
 	case DC_DEVICEID_82C168:
 		sc->dc_type = DC_TYPE_PNIC;
@@ -2243,13 +2248,22 @@ static void dc_tick(xsc)
 	mii = device_get_softc(sc->dc_miibus);
 
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
-		r = CSR_READ_4(sc, DC_ISR);
-		if (DC_IS_INTEL(sc)) {
-			if (r & DC_ISR_LINKFAIL) 
+		if (sc->dc_flags & DC_21143_NWAY) {
+			r = CSR_READ_4(sc, DC_10BTSTAT);
+			if (IFM_SUBTYPE(mii->mii_media_active) ==
+			    IFM_100_TX && (r & DC_TSTAT_LS100)) {
 				sc->dc_link = 0;
+				mii_mediachg(mii);
+			}
+			if (IFM_SUBTYPE(mii->mii_media_active) ==
+			    IFM_10_T && (r & DC_TSTAT_LS10)) {
+				sc->dc_link = 0;
+				mii_mediachg(mii);
+			}
 			if (sc->dc_link == 0)
 				mii_tick(mii);
 		} else {
+			r = CSR_READ_4(sc, DC_ISR);
 			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
 			    sc->dc_cdata.dc_tx_prod == 0)
 				mii_tick(mii);
@@ -2286,7 +2300,10 @@ static void dc_tick(xsc)
 		}
 	}
 
-	sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
+		sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
+	else
+		sc->dc_stat_ch = timeout(dc_tick, sc, hz);
 
 	splx(s);
 
@@ -2677,7 +2694,10 @@ static void dc_init(xsc)
 
 	(void)splx(s);
 
-	sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+	if (sc->dc_flags & DC_21143_NWAY)
+		sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
+	else
+		sc->dc_stat_ch = timeout(dc_tick, sc, hz);
 
 #ifdef __alpha__
         if(sc->dc_srm_media) {
