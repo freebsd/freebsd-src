@@ -569,13 +569,14 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			TRM_DPRINTF(
 			    "pACB->scan_devices[target_id][target_lun]= %d \n"
 			    ,pACB->scan_devices[target_id][target_lun]);
-			if((pccb->ccb_h.status & CAM_STATUS_MASK) !=CAM_REQ_INPROG) {
+			if ((pccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_INPROG) {
 				xpt_done(pccb);
 				splx(actionflags);
 				return;
 			}
 			pDCB = &pACB->DCBarray[target_id][target_lun];
-			if(!(pDCB->DCBstatus & DS_IN_QUEUE)) {
+			if (!(pDCB->DCBstatus & DS_IN_QUEUE)) {
 				pACB->scan_devices[target_id][target_lun] = 1;
 				trm_initDCB(pACB, pDCB, pACB->AdapterUnit, 
 				    target_id, target_lun); 
@@ -600,8 +601,8 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			 * move layer of CAM command block to layer of SCSI
 			 * Request Block for SCSI processor command doing
 			 */
-			if((pccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-				if((pccb->ccb_h.flags & CAM_CDB_PHYS) == 0) {
+			if ((pccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
+				if ((pccb->ccb_h.flags & CAM_CDB_PHYS) == 0) {
 					bcopy(pcsio->cdb_io.cdb_ptr,pSRB->CmdBlock
 					    ,pcsio->cdb_len);
 				} else {
@@ -2176,9 +2177,9 @@ mingx0:
 				/* Transfer period factor */
 				pDCB->SyncOffset = pSRB->MsgInBuf[4]; 
 				/* REQ/ACK offset */
-				if(pACB->AdaptType == 1) {
+				if (pACB->AdaptType == 1) {
 					for(bIndex = 0; bIndex < 7; bIndex++) {
-						if(pSRB->MsgInBuf[3] <=
+						if (pSRB->MsgInBuf[3] <=
 					   dc395u2x_clock_period[bIndex]) {
 				            pDCB->tinfo.goal.period =
 						dc395u2x_tinfo_period[bIndex];
@@ -2194,7 +2195,7 @@ mingx0:
 					}
 				} else {
 					for(bIndex = 0; bIndex < 7; bIndex++) {
-						if(pSRB->MsgInBuf[3] <=
+						if (pSRB->MsgInBuf[3] <=
 						 dc395x_clock_period[bIndex]) {
 						   pDCB->tinfo.goal.period =
 						dc395x_tinfo_period[bIndex];
@@ -2954,7 +2955,7 @@ trm_initDCB(PACB pACB, PDCB pDCB, u_int16_t unit,u_int32_t i,u_int32_t j)
 	pDCB->SyncPeriod = 0;
 	pDCB->SyncOffset = 0;
 	PeriodIndex = pEEpromBuf->NvramTarget[target_id].NvmTarPeriod & 0x07;
-	if(pACB->AdaptType==1) {/* is U2? */
+	if (pACB->AdaptType==1) {/* is U2? */
 	    pDCB->MaxNegoPeriod=dc395u2x_clock_period[ PeriodIndex ];
 	    pDCB->tinfo.user.period=pDCB->MaxNegoPeriod;
 	    pDCB->tinfo.user.offset=(pDCB->SyncMode & SYNC_NEGO_ENABLE) ? 31 : 0;
@@ -2996,49 +2997,49 @@ trm_srbmapSG(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 trm_initSRB(PACB pACB)
 {
-    u_int16_t    i;
-    PSRB    pSRB;
+    	u_int16_t    i;
+	PSRB    pSRB;
 
-    for(i = 0; i < TRM_MAX_SRB_CNT; i++) {
-	    pSRB = (PSRB)&pACB->pFreeSRB[i];
+	for (i = 0; i < TRM_MAX_SRB_CNT; i++) {
+	       	pSRB = (PSRB)&pACB->pFreeSRB[i];
 
-	    /* DMA tag for our S/G structures */
-	    if(bus_dma_tag_create(                    
-		/*parent_dmat*/pSRB->parent_dmat, 
-		/*alignment*/  1,
-		/*boundary*/   0,
-		/*lowaddr*/    BUS_SPACE_MAXADDR,
-		/*highaddr*/   BUS_SPACE_MAXADDR,
-		/*filter*/     NULL, 
-		/*filterarg*/  NULL,
-		/*maxsize*/    TRM_MAX_SG_LISTENTRY * sizeof(SGentry), 
-		/*nsegments*/  1,
-		/*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
-		/*flags*/      0, 
-		/*dmat*/       &pSRB->sg_dmat) != 0) {
-		    return ENXIO;
+		/* DMA tag for our S/G structures */
+		if (bus_dma_tag_create(                    
+		    /*parent_dmat*/pSRB->parent_dmat, 
+		    /*alignment*/  1,
+		    /*boundary*/   0,
+		    /*lowaddr*/    BUS_SPACE_MAXADDR,
+		    /*highaddr*/   BUS_SPACE_MAXADDR,
+		    /*filter*/     NULL, 
+		    /*filterarg*/  NULL,
+		    /*maxsize*/    TRM_MAX_SG_LISTENTRY * sizeof(SGentry), 
+		    /*nsegments*/  1,
+		    /*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
+		    /*flags*/      0, 
+		    /*dmat*/       &pSRB->sg_dmat) != 0) {
+			return ENXIO;
 		}
-	    if(bus_dmamem_alloc(pSRB->sg_dmat, (void **)&pSRB->pSRBSGL,
-		BUS_DMA_NOWAIT, &pSRB->sg_dmamap) !=0 ) {
-		    return ENXIO;
+		if (bus_dmamem_alloc(pSRB->sg_dmat, (void **)&pSRB->pSRBSGL,
+		    BUS_DMA_NOWAIT, &pSRB->sg_dmamap) !=0 ) {
+			return ENXIO;
 		}
-	    bus_dmamap_load(pSRB->sg_dmat, pSRB->sg_dmamap, pSRB->pSRBSGL,
-		TRM_MAX_SG_LISTENTRY * sizeof(SGentry),
-		trm_srbmapSG, pSRB, /*flags*/0);
-    	if(i != TRM_MAX_SRB_CNT - 1) {
-		/*
-	 	 ** link all SRB 
- 		 */
-     		pSRB->pNextSRB = &pACB->pFreeSRB[i+1];
-	} else {
-		/*
-		 ** load NULL to NextSRB of the last SRB
-		 */
-    		pSRB->pNextSRB = NULL;
+		bus_dmamap_load(pSRB->sg_dmat, pSRB->sg_dmamap, pSRB->pSRBSGL,
+		    TRM_MAX_SG_LISTENTRY * sizeof(SGentry),
+		    trm_srbmapSG, pSRB, /*flags*/0);
+		if (i != TRM_MAX_SRB_CNT - 1) {
+			/*
+			 * link all SRB 
+			 */
+			pSRB->pNextSRB = &pACB->pFreeSRB[i+1];
+		} else {
+			/*
+			 * load NULL to NextSRB of the last SRB
+			 */
+			pSRB->pNextSRB = NULL;
+		}
+		pSRB->TagNumber = i;
 	}
-	pSRB->TagNumber = i;
-    }
-    return (0);
+	return (0);
 }
 
 
@@ -3421,7 +3422,7 @@ trm_init(u_int16_t unit, device_t dev)
 	      &pACB->buffer_dmat) != 0) 
 		goto bad;
 	/* DMA tag for our ccb structures */
-	if(bus_dma_tag_create(                                 
+	if (bus_dma_tag_create(                                 
 	/*parent_dmat*/pACB->parent_dmat, 
 	/*alignment*/  1, 
 	/*boundary*/   0,
