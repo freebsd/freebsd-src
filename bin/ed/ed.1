@@ -1,4 +1,4 @@
-.\"	$Id: ed.1,v 1.8.2.2 1998/01/24 14:07:29 helbig Exp $
+.\"	$Id: ed.1,v 1.8.2.3 1998/07/15 02:01:23 jkh Exp $
 .Dd May 21, 1993
 .Dt ED 1
 .Os
@@ -220,17 +220,12 @@ The next line.
 This is equivalent to
 .Em +1
 and may be repeated with cumulative effect.
-.It +n or whitespace\fIn\fR
+.It +n 
 The
 .Em n Ns th
 next line, where
 .Em n
 is a non-negative number.
-.Em Whitespace
-followed by a number
-.Em n
-is interpreted as
-.Em +n .
 .It , or %
 The first through last lines in the buffer.  This is equivalent to
 the address range
@@ -327,7 +322,7 @@ All other characters in
 match themselves.
 .Pp
 Patterns in
-.I char-class
+.Em char-class
 of the form:
 .Pp
 \ \ [.\fIcol-elm\fR.] or,
