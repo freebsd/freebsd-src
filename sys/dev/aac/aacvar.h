@@ -128,7 +128,6 @@ struct aac_sim
 struct aac_disk 
 {
 	device_t			ad_dev;
-	dev_t				ad_dev_t;
 	struct aac_softc		*ad_controller;
 	struct aac_container		*ad_container;
 	struct disk			ad_disk;
