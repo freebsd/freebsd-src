@@ -116,7 +116,7 @@ static char			tcbuf[2048];
 #endif
 
 /* main.c externs */
-extern int			debug, verbose, mprompt;
+extern int			debug, verbose, mprompt, passivemode;
 extern int			options, cpend, data, connected, logged_in;
 extern int			curtype, macnum, remote_is_unix;
 extern FILE			*cout;
@@ -175,6 +175,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 	mprompt = dMPROMPT;
 	debug = dDEBUG;
 	verbose = dVERBOSE;
+	passivemode = dPASSIVE;
 	(void) Strncpy(vstr, short_verbose_msgs[verbose+1]);
 
 	(void) Strncpy(curtypename, dTYPESTR);
@@ -270,6 +271,10 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 				++ignore_rc;
 				break;
 
+			case 'P':
+				passivemode = !passivemode;
+				break;
+
 			case 'H':
 				(void) show_version(0, NULL);
 				exit (0);
@@ -282,6 +287,7 @@ Program Options:\n\
     -H     : Show version and compilation information.\n\
     -I     : Toggle interactive (mprompt) mode.\n\
     -N     : Toggle reading of the .netrc/.ncftprc.\n\
+    -P     : Toggle passive mode ftp (for use behind firewalls).\n\
     -V x   : Set verbosity to level x (-1,0,1,2).\n\
 Open Options:\n\
     -a     : Open anonymously (this is the default).\n\

@@ -44,6 +44,10 @@
 #define dMPROMPT 0
 #endif
 
+#ifndef	dPASSIVE
+#define	dPASSIVE 1				/* Works for most folks... */
+#endif
+
 #ifndef dVERBOSE				/* V_QUIET, V_ERRS, V_TERSE, V_VERBOSE */
 #define dVERBOSE V_TERSE
 #endif
