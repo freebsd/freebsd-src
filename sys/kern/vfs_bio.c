@@ -2603,8 +2603,18 @@ bufwait(register struct buf * bp)
 	}
 }
 
+ /*
+  * Call back function from struct bio back up to struct buf.
+  * The corresponding initialization lives in sys/conf.h:DEV_STRATEGY().
+  */
+void
+bufdonebio(struct bio *bp)
+{
+	bufdone(bp->bio_caller2);
+}
+
 /*
- *	biodone:
+ *	bufdone:
  *
  *	Finish I/O on a buffer, optionally calling a completion function.
  *	This is usually called from an interrupt so process blocking is
@@ -2622,12 +2632,6 @@ bufwait(register struct buf * bp)
  *	initiator to leave B_INVAL set to brelse the buffer out of existance
  *	in the biodone routine.
  */
-void
-biodone(struct bio * bip)
-{
-	bufdone((struct buf *)bip);
-}
-
 void
 bufdone(struct buf *bp)
 {
