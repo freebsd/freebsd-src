@@ -132,11 +132,6 @@ int	aio_cancel(int, struct aiocb *);
  */
 int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 
-/*
- * Retrieve the status of the specified I/O request.
- */
-int	aio_error(const struct aiocb *);
-
 int	aio_waitcomplete(struct aiocb **, struct timespec *);
 
 __END_DECLS
