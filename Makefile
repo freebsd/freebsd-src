@@ -84,9 +84,14 @@
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distribworld everything \
-	hierarchy includes install installcheck installkernel kernel \
+	hierarchy includes install installcheck installkernel \
 	reinstallkernel installmost installworld libraries lint \
 	mk most obj objlink regress rerelease tags update
+
+.ORDER: buildworld installworld
+.ORDER: buildworld distribworld
+.ORDER: buildkernel installkernel
+.ORDER: buildkernel reinstallkernel
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
@@ -132,6 +137,13 @@ world: upgrade_checks
 	@echo "--------------------------------------------------------------"
 	@printf ">>> ${OBJFORMAT} make world completed on `LC_ALL=C date`\n                        (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
+
+#
+# kernel
+#
+# Short hand for `make buildkernel installkernel'
+#
+kernel: buildkernel installkernel
 
 #
 # Perform a few tests to determine if the installed tools are adequate
