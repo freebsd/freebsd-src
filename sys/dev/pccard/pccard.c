@@ -209,9 +209,10 @@ pccard_detach_card(device_t dev, int flags)
 		pccard_function_disable(pf);
 		/*
 		 * XXX must also actually delete resources created by
-		 * pccard_function_init()
+		 * pccard_function_init().  If pccard_function_init
+		 * keeps things allocated it is a bug.
 		 */
-		if (pf->dev)
+		if (pf->dev != NULL)
 			device_delete_child(dev, pf->dev);
 	}
 	return (0);
@@ -330,16 +331,14 @@ pccard_function_init(struct pccard_function *pf)
 			    SYS_RES_IOPORT, &cfe->iorid[i], start, end,
 			    cfe->iospace[i].length,
 			    rman_make_alignment_flags(cfe->iospace[i].length));
-			if (cfe->iores[i] == 0)
+			if (cfe->iores[i] == NULL)
 				goto not_this_one;
 			resource_list_add(rl, SYS_RES_IOPORT, cfe->iorid[i],
 			    rman_get_start(r), rman_get_end(r),
 			    cfe->iospace[i].length);
-			{
-				rle = resource_list_find(rl, SYS_RES_IOPORT, 
-				    cfe->iorid[i]);
-				rle->res = r;
-			}
+			rle = resource_list_find(rl, SYS_RES_IOPORT,
+			    cfe->iorid[i]);
+			rle->res = r;
 		}
 		if (cfe->num_memspace > 0) {
 			goto not_this_one;
@@ -348,17 +347,14 @@ pccard_function_init(struct pccard_function *pf)
 			cfe->irqrid = 0;
 			r = cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
 			    &cfe->irqrid, 0, ~0, 1, 0);
-			if (cfe->irqres == 0)
+			if (cfe->irqres == NULL)
 				goto not_this_one;
 			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
 			    rman_get_start(r), rman_get_end(r), 1);
-			{
-				rle = resource_list_find(rl, SYS_RES_IRQ,
-				    cfe->irqrid);
-				rle->res = r;
-			}
+			rle = resource_list_find(rl, SYS_RES_IRQ,
+			    cfe->irqrid);
+			rle->res = r;
 		}
-		/* XXX Don't know how to deal with maxtwins */
 		/* If we get to here, we've allocated all we need */
 		pf->cfe = cfe;
 		break;
@@ -370,17 +366,24 @@ pccard_function_init(struct pccard_function *pf)
 		 * from this config entry.
 		 */
 		for (i = 0; i < cfe->num_iospace; i++) {
-			if (cfe->iores[i]) {
-				resource_list_delete(rl, SYS_RES_IOPORT, i);
+			if (cfe->iores[i] != NULL) {
 				bus_release_resource(bus, SYS_RES_IOPORT,
 				    cfe->iorid[i], cfe->iores[i]);
+				rle = resource_list_find(rl, SYS_RES_IOPORT, 
+				    cfe->iorid[i]);
+				rle->res = NULL;
+				resource_list_delete(rl, SYS_RES_IOPORT,
+				    cfe->iorid[i]);
 			}
 			cfe->iores[i] = NULL;
 		}
-		if (cfe->irqmask && cfe->irqres) {
-			resource_list_delete(rl, SYS_RES_IRQ, cfe->irqrid);
+		if (cfe->irqmask && cfe->irqres != NULL) {
 			bus_release_resource(bus, SYS_RES_IRQ,
 			    cfe->irqrid, cfe->irqres);
+			rle = resource_list_find(rl, SYS_RES_IRQ,
+			    cfe->irqrid);
+			rle->res = NULL;
+			resource_list_delete(rl, SYS_RES_IRQ, cfe->irqrid);
 			cfe->irqres = NULL;
 		}
 	}
@@ -731,7 +734,7 @@ pccard_print_resources(struct resource_list *rl, const char *name, int type,
 	printed = 0;
 	for (i = 0; i < count; i++) {
 		rle = resource_list_find(rl, type, i);
-		if (rle) {
+		if (rle != NULL) {
 			if (printed == 0)
 				printf(" %s ", name);
 			else if (printed > 0)
@@ -759,7 +762,7 @@ pccard_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at");
 
-	if (devi) {
+	if (devi != NULL) {
 		pccard_print_resources(rl, "port", SYS_RES_IOPORT,
 		    PCCARD_NPORT, "%#lx");
 		pccard_print_resources(rl, "iomem", SYS_RES_MEMORY,
@@ -812,12 +815,12 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_list_entry *rle;
 
 	rle = resource_list_find(rl, type, rid);
-	if (!rle)
+	if (rle == NULL)
 		return (ENOENT);
 
-	if (startp)
+	if (startp != NULL)
 		*startp = rle->start;
-	if (countp)
+	if (countp != NULL)
 		*countp = rle->count;
 
 	return (0);
