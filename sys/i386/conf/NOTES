@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.70 1994/05/17 23:20:32 jkh Exp $
+#	$Id: LINT,v 1.71 1994/05/18 16:23:25 jkh Exp $
 #
 
 machine		"i386"
@@ -158,6 +158,12 @@ device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+# Driver for ProAudioSpectrum SCSI, on cards with NCR 5380 chips.
+# The four units correspond to the HW-jumpers.  No intr, No DMA, very slow.
+device		pas0	at isa? port 0x1f88
+device		pas1	at isa? port 0x1f84
+device		pas2	at isa? port 0x1f8c
+device		pas3	at isa? port 0x1e88
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 #only one of pc0 or sc0 allowed
 #device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
