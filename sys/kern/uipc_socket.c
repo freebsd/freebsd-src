@@ -106,6 +106,9 @@ SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
     &so_zero_copy_send, 0, "Enable zero copy send");
 #endif /* ZERO_COPY_SOCKETS */
 
+struct mtx accept_mtx;
+MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
+
 
 /*
  * Socket operation routines.
@@ -266,11 +269,13 @@ solisten(so, backlog, td)
 		splx(s);
 		return (error);
 	}
+	ACCEPT_LOCK();
 	if (TAILQ_EMPTY(&so->so_comp))
 		so->so_options |= SO_ACCEPTCONN;
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
 	so->so_qlimit = backlog;
+	ACCEPT_UNLOCK();
 	splx(s);
 	return (0);
 }
@@ -286,25 +291,42 @@ sofree(so)
 
 	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0)
 		return;
-	if (so->so_head != NULL) {
-		head = so->so_head;
-		if (so->so_qstate & SQ_INCOMP) {
-			TAILQ_REMOVE(&head->so_incomp, so, so_list);
-			head->so_incqlen--;
-		} else if (so->so_qstate & SQ_COMP) {
-			/*
-			 * We must not decommission a socket that's
-			 * on the accept(2) queue.  If we do, then
-			 * accept(2) may hang after select(2) indicated
-			 * that the listening socket was ready.
-			 */
+
+	ACCEPT_LOCK();
+	head = so->so_head;
+	if (head != NULL) {
+		KASSERT((so->so_qstate & SQ_COMP) != 0 ||
+		    (so->so_qstate & SQ_INCOMP) != 0,
+		    ("sofree: so_head != NULL, but neither SQ_COMP nor "
+		    "SQ_INCOMP"));
+		KASSERT((so->so_qstate & SQ_COMP) == 0 ||
+		    (so->so_qstate & SQ_INCOMP) == 0,
+		    ("sofree: so->so_qstate is SQ_COMP and also SQ_INCOMP"));
+		/*
+		 * accept(2) is responsible draining the completed
+		 * connection queue and freeing those sockets, so
+		 * we just return here if this socket is currently
+		 * on the completed connection queue.  Otherwise,
+		 * accept(2) may hang after select(2) has indicating
+		 * that a listening socket was ready.  If it's an
+		 * incomplete connection, we remove it from the queue
+		 * and free it; otherwise, it won't be released until
+		 * the listening socket is closed.
+		 */
+		if ((so->so_qstate & SQ_COMP) != 0) {
+			ACCEPT_UNLOCK();
 			return;
-		} else {
-			panic("sofree: not queued");
 		}
+		TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		head->so_incqlen--;
 		so->so_qstate &= ~SQ_INCOMP;
 		so->so_head = NULL;
 	}
+	KASSERT((so->so_qstate & SQ_COMP) == 0 &&
+	    (so->so_qstate & SQ_INCOMP) == 0,
+	    ("sofree: so_head == NULL, but still SQ_COMP(%d) or SQ_INCOMP(%d)",
+	    so->so_qstate & SQ_COMP, so->so_qstate & SQ_INCOMP));
+	ACCEPT_UNLOCK();
 	so->so_snd.sb_flags |= SB_NOINTR;
 	(void)sblock(&so->so_snd, M_WAITOK);
 	s = splimp();
@@ -334,22 +356,27 @@ soclose(so)
 
 	funsetown(&so->so_sigio);
 	if (so->so_options & SO_ACCEPTCONN) {
-		struct socket *sp, *sonext;
-
-		sp = TAILQ_FIRST(&so->so_incomp);
-		for (; sp != NULL; sp = sonext) {
-			sonext = TAILQ_NEXT(sp, so_list);
+		struct socket *sp;
+		ACCEPT_LOCK();
+		while ((sp = TAILQ_FIRST(&so->so_incomp)) != NULL) {
+			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
+			so->so_incqlen--;
+			sp->so_qstate &= ~SQ_INCOMP;
+			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
 			(void) soabort(sp);
+			ACCEPT_LOCK();
 		}
-		for (sp = TAILQ_FIRST(&so->so_comp); sp != NULL; sp = sonext) {
-			sonext = TAILQ_NEXT(sp, so_list);
-			/* Dequeue from so_comp since sofree() won't do it */
+		while ((sp = TAILQ_FIRST(&so->so_comp)) != NULL) {
 			TAILQ_REMOVE(&so->so_comp, sp, so_list);
 			so->so_qlen--;
 			sp->so_qstate &= ~SQ_COMP;
 			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
 			(void) soabort(sp);
+			ACCEPT_LOCK();
 		}
+		ACCEPT_UNLOCK();
 	}
 	if (so->so_pcb == NULL)
 		goto discard;
