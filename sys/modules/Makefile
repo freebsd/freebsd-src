@@ -136,6 +136,7 @@ SUBDIR+=aac \
 #	smbfs \
 
 .if ${MACHINE} == "pc98"
+SUBDIR+=pmc
 SUBDIR+=snc
 .endif
 
