@@ -3,11 +3,3 @@
 
 BINDIR?=	/usr/games
 FILESDIR?=	${SHAREDIR}/games
-
-.if defined(HIDEGAME)
-ORIGBINDIR:=	${BINDIR}
-BINDIR:=	${BINDIR}/hide
-ORIGBINGRP:=	${BINGRP}
-BINGRP=		games
-BINMODE=	550
-.endif
