@@ -126,8 +126,8 @@
       をご覧ください。
       &merged;</para>
 
-    <para>&os; ホストの SYN flood サービス妨害攻撃への耐性を高めるため、
-      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。
+    <para>攻撃者からの詐称された TCP 接続を防止できるよう、
+      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。      
       問題の詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
       をご覧ください。
@@ -141,8 +141,8 @@
       をご覧ください。
       &merged;</para>
 
-    <para>リモートからのサービス妨害攻撃を可能にするような、
-      XDR 実装にあった境界チェックのバグが修正されました。
+    <para>XDR 実装にあった、リモートからのサービス妨害攻撃が可能になるような
+      境界チェックのバグが修正されました。
       問題の詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
       をご覧ください。
