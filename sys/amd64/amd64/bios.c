@@ -45,11 +45,9 @@
 #include <machine/stdarg.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
+#include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
-#if NISA > 0
-#include <isa/isavar.h>
-#endif
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
