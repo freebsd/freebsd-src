@@ -1,4 +1,8 @@
-#	$Id: Makefile.inc,v 1.1 1994/01/30 01:03:16 rgrimes Exp $
+#	$Id: Makefile.inc,v 1.2 1994/05/26 08:17:25 csgr Exp $
 
 SHLIB_MAJOR?= 1
 SHLIB_MINOR?= 1
+
+
+# NB: SHLIB major and minor nos. must also be specified in libg++/Makefile.inc
+# (This is due to the deeper tree structure of libg++)
