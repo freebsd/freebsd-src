@@ -484,7 +484,7 @@ WRITE(ap)
 			flags &= ~B_CLRBUF;
 #endif
 /* XXX is uio->uio_offset the right thing here? */
-		error = VOP_BALLOC(vp, uio->uio_offset, xfersize,
+		error = UFS_BALLOC(vp, uio->uio_offset, xfersize,
 		    ap->a_cred, flags, &bp);
 		if (error != 0)
 			break;
