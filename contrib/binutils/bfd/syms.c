@@ -715,6 +715,8 @@ _bfd_generic_read_minisymbols (abfd, dynamic, minisymsp, sizep)
     storage = bfd_get_symtab_upper_bound (abfd);
   if (storage < 0)
     goto error_return;
+  if (storage == 0)
+    return 0;
 
   syms = (asymbol **) bfd_malloc ((size_t) storage);
   if (syms == NULL)
