@@ -259,6 +259,7 @@ product INTEL EEPRO100		0x010a Intel EtherExpress PRO/100
 /* I-O DATA */
 product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
 product IODATA2 WNB11PCM	0x0002 I-O DATA WN-B11/PCM
+product IODATA2 WCF12		0x0673 Wireless CF Card
 
 /* Kingston Products */
 product KINGSTON KNE2		0x0100 Kingston KNE-PC2 Ethernet
