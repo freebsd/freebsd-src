@@ -23,11 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.1 1997/08/14 13:57:42 msmith Exp $
+ *	$Id: ppbconf.h,v 1.2 1997/08/16 14:05:36 msmith Exp $
  *
  */
 #ifndef __PPBCONF_H
 #define __PPBCONF_H
+
+#include <sys/queue.h>
 
 /*
  * Parallel Port Bus sleep/wakeup queue.
