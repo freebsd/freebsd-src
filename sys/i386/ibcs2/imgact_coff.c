@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.13 1996/03/12 06:13:08 peter Exp $
+ *	$Id: imgact_coff.c,v 1.14 1996/03/12 06:20:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -39,7 +39,9 @@
 #include <sys/file.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/namei.h>
 #include <sys/sysent.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

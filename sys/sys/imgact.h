@@ -30,15 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.10 1995/11/06 12:52:37 davidg Exp $
+ *	$Id: imgact.h,v 1.11 1996/03/10 08:42:52 sos Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
-#define _SYS_IMGACT_H_
-
-#include <sys/proc.h>
-#include <sys/namei.h>
-#include <sys/vnode.h>
+#define	_SYS_IMGACT_H_
 
 struct image_params {
 	struct proc *proc;	/* our process struct */
@@ -61,4 +57,5 @@ struct image_params {
 int	exec_extract_strings __P((struct image_params *));
 int	exec_new_vmspace __P((struct image_params *));
 #endif
-#endif
+
+#endif /* !_SYS_IMGACT_H_ */

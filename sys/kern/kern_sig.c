@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.22 1996/03/15 08:01:28 peter Exp $
+ * $Id: kern_sig.c,v 1.23 1996/03/30 15:15:30 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,7 +60,6 @@
 #include <sys/ktrace.h>
 #include <sys/syslog.h>
 #include <sys/stat.h>
-#include <sys/imgact.h>
 #include <sys/sysent.h>
 
 #include <machine/cpu.h>
