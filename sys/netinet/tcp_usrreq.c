@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.14.2.1 1995/06/09 03:21:13 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.15 1995/06/11 19:31:43 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ tcp_usrreq(so, req, m, nam, control)
 #endif
 
 	if (req == PRU_CONTROL)
-		return (in_control(so, (int)m, (caddr_t)nam,
+		return (in_control(so, (u_long)m, (caddr_t)nam,
 			(struct ifnet *)control));
 	if (control && control->m_len) {
 		m_freem(control);
@@ -111,6 +111,18 @@ tcp_usrreq(so, req, m, nam, control)
 	 */
 	if (inp == 0 && req != PRU_ATTACH) {
 		splx(s);
+#if 0
+		/*
+		 * The following corrects an mbuf leak under rare
+		 * circumstances, but has not been fully tested.
+		 */
+		if (m && req != PRU_SENSE)
+			m_freem(m);
+#else
+		/* safer version of fix for mbuf leak */
+		if (m && (req == PRU_SEND || req == PRU_SENDOOB))
+			m_freem(m);
+#endif
 		return (EINVAL);		/* XXX */
 	}
 	if (inp) {
