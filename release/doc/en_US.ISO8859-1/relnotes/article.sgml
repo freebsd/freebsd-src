@@ -164,6 +164,10 @@
       This change fixes the <quote>bad Vcc</quote> error of CardBus
       bridges (&man.pccbb.4;). &merged;</para>
 
+    <para>The &man.sysctl.3; MIBs beginning with <quote>debug</quote>
+      now require the kernel option <literal>options SYSCTL_DEBUG</literal>.
+      This option is disabled by default.</para>
+
     <para>The generic &man.tty.4; driver interface has been added
       and many device drivers including
       &man.cx.4; (<literal>{tty,cua}x</literal>),
@@ -199,6 +203,10 @@
 
       <para>The <command>autoboot</command> loader command
 	now supports the prompt parameter.</para>
+
+      <para>A loader menu option to set <varname>hint.atkbd.0.flags=0x1</varname>
+	has been added.  This setting allows USB keyboards to work
+	if no PS/2 keyboard is attached.</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -242,6 +250,12 @@
 	the MC146818-compatible clock found on some &ultrasparc; II
 	and III models. &merged;</para>
 
+      <para arch="sparc64">The &man.snd.4; sound driver
+	now supports onboard CS4231 audio controller
+	which is found on &ultrasparc; workstations.
+	To enable this driver, the kernel option
+	<literal>device snd_audiocs</literal> is required.</para>
+
       <para arch="sparc64">The &man.uart.4; driver is now enabled in
 	the <filename>GENERIC</filename> kernel, and is now the
 	default driver for serial ports.  The ofw_console,
@@ -274,6 +288,9 @@
 	  <literal>device ath_rate_amrr</literal> must be included in
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
+
+	<para>The &man.bge.4; driver now supports the &man.altq.4;
+	  framework.</para>
 
 	<para>The &man.cp.4; driver is now MPSAFE. &merged;</para>
 
@@ -407,6 +424,9 @@
 	secret.  This feature is controlled by the &man.gshsec.8;
 	utility.</para>
 
+      <para>The &man.hptmv.4; driver, which supports HighPoint
+	RocketRAID 182x series has been added.  &merged;</para>
+
       <para>The &man.matcd.4; driver has been removed.</para>
 
       <para>The default SCSI boot-time probe delay in the
@@ -476,6 +496,11 @@
       options has been deprecated.  Warnings are printed to stderr
       indicated the correct full form when one of these abbreviations
       is detected.</para>
+
+    <para>The &man.rm.1; utility now supports an <option>-I</option>
+      option that asks for confirmation once if recursively
+      removing directories or if more than 3 files are listed in the
+      command line.</para>
 
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
@@ -554,7 +579,7 @@
       which hold details of IP address allocations within
       Korea. &merged;</para>
 
-    <para>The <option>-I</option> of the &man.xargs.1; command
+    <para>The <option>-I</option> option of the &man.xargs.1; command
       has been changed to confirm IEEE Std 1003.1-2004.
       The standard requires that the constructed
       arguments cannot grow larger than 255 bytes.</para>
@@ -562,7 +587,27 @@
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para>&man.rc.conf.5; now supports change of the interface name
+	on boot time.  For example:</para>
+
+      <programlisting>ifconfig_fxp0_name="net0"
+ifconfig_net0="inet 10.0.0.1/16"</programlisting>
+
+      <para>The <filename>rc.d/moused</filename> script now
+	start/stop/check on a specific device when
+	the device name as the second argument to the script:</para>
+
+      <screen>&prompt.root; /etc/rc.d/moused start ums0</screen>
+
+      <para>To use different &man.rc.conf.5; knobs with different
+	mice use the device name as part of the knob.
+	For example, if the mouse device is <filename>/dev/ums0</filename>
+	the following lines can be used:</para>
+
+	<programlisting>moused_ums0_enable=yes
+moused_ums0_flags="-z 4"
+moused_ums0_port="/dev/ums0"</programlisting>
+
     </sect3>
   </sect2>
 
