@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -117,11 +118,13 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int s, rtsock, maxfd, ch;
-	int once = 0;
+	int s, ch, once = 0;
 	struct timeval *timeout;
-	struct fd_set fdset;
 	char *argv0, *opts;
+	fd_set *fdsetp, *selectfdp;
+	int fdmasks;
+	int maxfd;
+	int rtsock;
 
 	/*
 	 * Initialization
@@ -246,6 +249,16 @@ main(argc, argv)
 	if (rtsock > maxfd)
 		maxfd = rtsock;
 
+	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
+	if ((fdsetp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+	if ((selectfdp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+
 	/* configuration per interface */
 	if (ifinit()) {
 		errx(1, "failed to initilizatoin interfaces");
@@ -283,12 +296,13 @@ main(argc, argv)
 		}
 	}
 
-	FD_ZERO(&fdset);
-	FD_SET(s, &fdset);
-	FD_SET(rtsock, &fdset);
+	memset(fdsetp, 0, fdmasks);
+	FD_SET(s, fdsetp);
+	FD_SET(rtsock, fdsetp);
 	while (1) {		/* main loop */
 		int e;
-		struct fd_set select_fd = fdset;
+
+		memcpy(selectfdp, fdsetp, fdmasks);
 
 		if (do_dump) {	/* SIGUSR1 */
 			do_dump = 0;
@@ -312,7 +326,7 @@ main(argc, argv)
 			if (ifi == NULL)
 				break;
 		}
-		e = select(maxfd + 1, &select_fd, NULL, NULL, timeout);
+		e = select(maxfd + 1, selectfdp, NULL, NULL, timeout);
 		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
 				warnmsg(LOG_ERR, __func__, "select: %s",
@@ -322,9 +336,9 @@ main(argc, argv)
 		}
 
 		/* packet reception */
-		if (FD_ISSET(rtsock, &select_fd))
+		if (FD_ISSET(rtsock, selectfdp))
 			rtsock_input(rtsock);
-		if (FD_ISSET(s, &select_fd))
+		if (FD_ISSET(s, selectfdp))
 			rtsol_input(s);
 	}
 	/* NOTREACHED */
