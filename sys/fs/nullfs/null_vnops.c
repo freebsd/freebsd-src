@@ -346,7 +346,7 @@ null_bypass(ap)
 		vppp = VOPARG_OFFSETTO(struct vnode***,
 				 descp->vdesc_vpp_offset,ap);
 		if (*vppp)
-			error = null_node_create(old_vps[0]->v_mount, **vppp, *vppp);
+			error = null_nodeget(old_vps[0]->v_mount, **vppp, *vppp);
 	}
 
  out:
@@ -400,9 +400,12 @@ null_lookup(ap)
 			VREF(dvp);
 			vrele(lvp);
 		} else {
-			error = null_node_create(dvp->v_mount, lvp, &vp);
-			if (error == 0)
-				*ap->a_vpp = vp;
+			error = null_nodeget(dvp->v_mount, lvp, &vp);
+			if (error) {
+				/* XXX Cleanup needed... */
+				panic("null_nodeget failed");
+			}
+			*ap->a_vpp = vp;
 		}
 	}
 	return (error);
@@ -706,6 +709,11 @@ null_islocked(ap)
  * There is no way to tell that someone issued remove/rmdir operation
  * on the underlying filesystem. For now we just have to release lowevrp
  * as soon as possible.
+ *
+ * Note, we can't release any resources nor remove vnode from hash before 
+ * appropriate VXLOCK stuff is is done because other process can find this
+ * vnode in hash during inactivation and may be sitting in vget() and waiting
+ * for null_inactive to unlock vnode. Thus we will do all those in VOP_RECLAIM.
  */
 static int
 null_inactive(ap)
@@ -729,8 +737,7 @@ null_inactive(ap)
 }
 
 /*
- * We can free memory in null_inactive, but we do this
- * here. (Possible to guard vp->v_data to point somewhere)
+ * Now, the VXLOCK is in force and we're free to destroy the null vnode.
  */
 static int
 null_reclaim(ap)

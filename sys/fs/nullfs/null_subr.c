@@ -71,10 +71,8 @@ struct mtx null_hashmtx;
 static MALLOC_DEFINE(M_NULLFSHASH, "NULLFS hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "NULLFS node", "NULLFS vnode private part");
 
-static int	null_node_alloc(struct mount *mp, struct vnode *lowervp,
-				     struct vnode **vpp);
-static struct vnode *
-		null_node_find(struct mount *mp, struct vnode *lowervp);
+static struct vnode * null_hashget(struct vnode *);
+static struct vnode * null_hashins(struct null_node *);
 
 /*
  * Initialise cache headers
@@ -105,8 +103,7 @@ nullfs_uninit(vfsp)
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
 static struct vnode *
-null_node_find(mp, lowervp)
-	struct mount *mp;
+null_hashget(lowervp)
 	struct vnode *lowervp;
 {
 	struct thread *td = curthread;	/* XXX */
@@ -124,7 +121,7 @@ null_node_find(mp, lowervp)
 loop:
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(a, hd, null_hash) {
-		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
+		if (a->null_lowervp == lowervp) {
 			vp = NULLTOV(a);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&null_hashmtx);
@@ -140,27 +137,74 @@ loop:
 		}
 	}
 	mtx_unlock(&null_hashmtx);
-
-	return NULLVP;
+	return (NULLVP);
 }
 
+/*
+ * Act like null_hashget, but add passed null_node to hash if no existing
+ * node found.
+ */
+static struct vnode *
+null_hashins(xp)
+	struct null_node *xp;
+{
+	struct thread *td = curthread;	/* XXX */
+	struct null_node_hashhead *hd;
+	struct null_node *oxp;
+	struct vnode *ovp;
+
+	hd = NULL_NHASH(xp->null_lowervp);
+loop:
+	mtx_lock(&null_hashmtx);
+	LIST_FOREACH(oxp, hd, null_hash) {
+		if (oxp->null_lowervp == xp->null_lowervp) {
+			ovp = NULLTOV(oxp);
+			mtx_lock(&ovp->v_interlock);
+			mtx_unlock(&null_hashmtx);
+			if (vget(ovp, LK_EXCLUSIVE | LK_THISLAYER | LK_INTERLOCK, td))
+				goto loop;
+
+			return (ovp);
+		}
+	}
+	LIST_INSERT_HEAD(hd, xp, null_hash);
+	mtx_unlock(&null_hashmtx);
+	return (NULLVP);
+}
 
 /*
- * Make a new null_node node.
- * Vp is the alias vnode, lofsvp is the lower vnode.
- * Maintain a reference to (lowervp).
+ * Make a new or get existing nullfs node.
+ * Vp is the alias vnode, lowervp is the lower vnode.
+ * 
+ * The lowervp assumed to be locked and having "spare" reference. This routine
+ * vrele lowervp if nullfs node was taken from hash. Otherwise it "transfers"
+ * the caller's "spare" reference to created nullfs vnode.
  */
-static int
-null_node_alloc(mp, lowervp, vpp)
+int
+null_nodeget(mp, lowervp, vpp)
 	struct mount *mp;
 	struct vnode *lowervp;
 	struct vnode **vpp;
 {
 	struct thread *td = curthread;	/* XXX */
-	struct null_node_hashhead *hd;
 	struct null_node *xp;
-	struct vnode *othervp, *vp;
+	struct vnode *vp;
 	int error;
+
+	/* Lookup the hash firstly */
+	*vpp = null_hashget(lowervp);
+	if (*vpp != NULL) {
+		vrele(lowervp);
+		return (0);
+	}
+
+	/*
+	 * We do not serialize vnode creation, instead we will check for
+	 * duplicates later, when adding new vnode to hash.
+	 *
+	 * Note that duplicate can only appear in hash if the lowervp is
+	 * locked LK_SHARED.
+	 */
 
 	/*
 	 * Do the MALLOC before the getnewvnode since doing so afterward
@@ -170,12 +214,11 @@ null_node_alloc(mp, lowervp, vpp)
 	MALLOC(xp, struct null_node *, sizeof(struct null_node),
 	    M_NULLFSNODE, M_WAITOK);
 
-	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, vpp);
+	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, &vp);
 	if (error) {
 		FREE(xp, M_NULLFSNODE);
 		return (error);
 	}
-	vp = *vpp;
 
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
@@ -185,19 +228,6 @@ null_node_alloc(mp, lowervp, vpp)
 
 	/* Though v_lock is inited by getnewvnode(), we want our own wmesg */
 	lockinit(&vp->v_lock, PVFS, "nunode", VLKTIMEOUT, LK_NOPAUSE);
-
-	/*
-	 * Before we insert our new node onto the hash chains,
-	 * check to see if someone else has beaten us to it.
-	 * (We could have slept in MALLOC.)
-	 */
-	othervp = null_node_find(mp, lowervp);
-	if (othervp) {
-		xp->null_lowervp = NULL;
-		vrele(vp);
-		*vpp = othervp;
-		return 0;
-	};
 
 	/*
 	 * From NetBSD:
@@ -211,78 +241,38 @@ null_node_alloc(mp, lowervp, vpp)
 	vp->v_vnlock = lowervp->v_vnlock;
 	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, td);
 	if (error)
-		panic("null_node_alloc: can't lock new vnode\n");
+		panic("null_nodeget: can't lock new vnode\n");
 
-	VREF(lowervp);
-	hd = NULL_NHASH(lowervp);
-	mtx_lock(&null_hashmtx);
-	LIST_INSERT_HEAD(hd, xp, null_hash);
-	mtx_unlock(&null_hashmtx);
-	return 0;
-}
-
-
-/*
- * Try to find an existing null_node vnode refering to the given underlying
- * vnode (which should be locked). If no vnode found, create a new null_node
- * vnode which contains a reference to the lower vnode.
- */
-int
-null_node_create(mp, lowervp, newvpp)
-	struct mount *mp;
-	struct vnode *lowervp;
-	struct vnode **newvpp;
-{
-	struct vnode *aliasvp;
-
-	aliasvp = null_node_find(mp, lowervp);
-	if (aliasvp) {
-		/*
-		 * null_node_find has taken another reference
-		 * to the alias vnode.
-		 */
-		 vrele(lowervp);
-#ifdef NULLFS_DEBUG
-		vprint("null_node_create: exists", aliasvp);
-#endif
-	} else {
-		int error;
-
-		/*
-		 * Get new vnode.
-		 */
-		NULLFSDEBUG("null_node_create: create new alias vnode\n");
-
-		/*
-		 * Make new vnode reference the null_node.
-		 */
-		error = null_node_alloc(mp, lowervp, &aliasvp);
-		if (error)
-			return error;
-
-		/*
-		 * aliasvp is already VREF'd by getnewvnode()
-		 */
+	/*
+	 * Atomically insert our new node into the hash or vget existing 
+	 * if someone else has beaten us to it.
+	 */
+	*vpp = null_hashins(xp);
+	if (*vpp != NULL) {
+		vrele(lowervp);
+		VOP_UNLOCK(vp, LK_THISLAYER, td);
+		vp->v_vnlock = NULL;
+		xp->null_lowervp = NULL;
+		vrele(vp);
+		return (0);
 	}
 
-#ifdef DIAGNOSTIC
-	if (lowervp->v_usecount < 1) {
-		/* Should never happen... */
-		vprint ("null_node_create: alias ", aliasvp);
-		vprint ("null_node_create: lower ", lowervp);
-		panic ("null_node_create: lower has 0 usecount.");
-	};
-#endif
+	/*
+	 * XXX We take extra vref just to workaround UFS's XXX:
+	 * UFS can vrele() vnode in VOP_CLOSE() in some cases. Luckily, this
+	 * can only happen if v_usecount == 1. To workaround, we just don't
+	 * let v_usecount be 1, it will be 2 or more.
+	 */
+	VREF(lowervp);
 
-#ifdef NULLFS_DEBUG
-	vprint("null_node_create: alias", aliasvp);
-	vprint("null_node_create: lower", lowervp);
-#endif
+	*vpp = vp;
 
-	*newvpp = aliasvp;
 	return (0);
 }
 
+/*
+ * Remove node from hash.
+ */
 void
 null_hashrem(xp)
 	struct null_node *xp;
