@@ -29,7 +29,7 @@ struct pam_module * _pam_open_static_handler(const char *path)
 
     if (strchr(clpath, '/')) {
         /* ignore path and leading "/" */
-	clpath = strrchr(lpath, '/') + 1;
+	clpath = strrchr(clpath, '/') + 1;
     }
     /* create copy to muck with (must free before return) */
     lpath = _pam_strdup(clpath);
