@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.11 1997/02/10 02:11:11 dyson Exp $
+# $Id: vnode_if.src,v 1.12 1997/08/25 20:28:49 phk Exp $
 #
 
 #
@@ -202,14 +202,11 @@ vop_ioctl {
 };
 
 #
-#% select	vp	U U U
+#% poll	vp	U U U
 #
-# Needs work?  (fflags)
-#
-vop_select {
+vop_poll {
 	IN struct vnode *vp;
-	IN int which;
-	IN int fflags;
+	IN int events;
 	IN struct ucred *cred;
 	IN struct proc *p;
 };
