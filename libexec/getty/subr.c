@@ -32,25 +32,27 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 6/4/93";
+/*static char sccsid[] = "from: @(#)subr.c	8.1 (Berkeley) 6/4/93";*/
+static char rcsid[] = "$Id: subr.c,v 1.18 1995/10/05 08:51:31 mycroft Exp $";
 #endif /* not lint */
 
 /*
  * Melbourne getty.
  */
-#define USE_OLD_TTY
+#define COMPAT_43
 #include <stdlib.h>
-#include <sgtty.h>
-#include <string.h>
 #include <unistd.h>
+#include <string.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #include "gettytab.h"
-#include "extern.h"
 #include "pathnames.h"
+#include "extern.h"
 
-extern	struct sgttyb tmode;
-extern	struct tchars tc;
-extern	struct ltchars ltc;
+extern	struct termios tmode, omode;
+
+static void	compatflags __P((long));
 
 /*
  * Get a table entry.
@@ -70,7 +72,7 @@ gettable(name, buf)
 	if (cgetent(&buf, dba, name) != 0)
 		return;
 
-	for (sp = gettystrs; sp->field; sp++) 
+	for (sp = gettystrs; sp->field; sp++)
 		cgetstr(buf, sp->field, &sp->value);
 	for (np = gettynums; np->field; np++) {
 		if (cgetnum(buf, np->field, &n) == -1)
@@ -147,11 +149,11 @@ charnames[] = {
 
 static char *
 charvars[] = {
-	&tmode.sg_erase, &tmode.sg_kill, &tc.t_intrc,
-	&tc.t_quitc, &tc.t_startc, &tc.t_stopc,
-	&tc.t_eofc, &tc.t_brkc, &ltc.t_suspc,
-	&ltc.t_dsuspc, &ltc.t_rprntc, &ltc.t_flushc,
-	&ltc.t_werasc, &ltc.t_lnextc, 0
+	&tmode.c_cc[VERASE], &tmode.c_cc[VKILL], &tmode.c_cc[VINTR],
+	&tmode.c_cc[VQUIT], &tmode.c_cc[VSTART], &tmode.c_cc[VSTOP],
+	&tmode.c_cc[VEOF], &tmode.c_cc[VEOL], &tmode.c_cc[VSUSP],
+	&tmode.c_cc[VDSUSP], &tmode.c_cc[VREPRINT], &tmode.c_cc[VDISCARD],
+	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], 0
 };
 
 void
@@ -165,86 +167,320 @@ setchars()
 		if (p && *p)
 			*charvars[i] = *p;
 		else
-			*charvars[i] = '\377';
+			*charvars[i] = _POSIX_VDISABLE;
 	}
 }
 
-long
+/* Macros to clear/set/test flags. */
+#define	SET(t, f)	(t) |= (f)
+#define	CLR(t, f)	(t) &= ~(f)
+#define	ISSET(t, f)	((t) & (f))
+
+void
 setflags(n)
 	int n;
 {
-	register long f;
+	register tcflag_t iflag, oflag, cflag, lflag;
+
+#ifdef COMPAT_43
+	switch (n) {
+	case 0:
+		if (F0set) {
+			compatflags(F0);
+			return;
+		}
+		break;
+	case 1:
+		if (F1set) {
+			compatflags(F1);
+			return;
+		}
+		break;
+	default:
+		if (F2set) {
+			compatflags(F2);
+			return;
+		}
+		break;
+	}
+#endif
 
 	switch (n) {
 	case 0:
-		if (F0set)
-			return(F0);
+		if (C0set && I0set && L0set && O0set) {
+			tmode.c_cflag = C0;
+			tmode.c_iflag = I0;
+			tmode.c_lflag = L0;
+			tmode.c_oflag = O0;
+			return;
+		}
 		break;
 	case 1:
-		if (F1set)
-			return(F1);
+		if (C1set && I1set && L1set && O1set) {
+			tmode.c_cflag = C1;
+			tmode.c_iflag = I1;
+			tmode.c_lflag = L1;
+			tmode.c_oflag = O1;
+			return;
+		}
 		break;
 	default:
-		if (F2set)
-			return(F2);
+		if (C2set && I2set && L2set && O2set) {
+			tmode.c_cflag = C2;
+			tmode.c_iflag = I2;
+			tmode.c_lflag = L2;
+			tmode.c_oflag = O2;
+			return;
+		}
 		break;
 	}
 
-	f = 0;
+	iflag = omode.c_iflag;
+	oflag = omode.c_oflag;
+	cflag = omode.c_cflag;
+	lflag = omode.c_lflag;
 
-	if (AP)
-		f |= ANYP;
-	else if (OP)
-		f |= ODDP;
-	else if (EP)
-		f |= EVENP;
+	if (NP) {
+		CLR(cflag, CSIZE|PARENB);
+		SET(cflag, CS8);
+		CLR(iflag, ISTRIP|INPCK|IGNPAR);
+	} else if (AP || EP || OP) {
+		CLR(cflag, CSIZE);
+		SET(cflag, CS7|PARENB);
+		SET(iflag, ISTRIP);
+		if (OP && !EP) {
+			SET(iflag, INPCK|IGNPAR);
+			SET(cflag, PARODD);
+			if (AP)
+				CLR(iflag, INPCK);
+		} else if (EP && !OP) {
+			SET(iflag, INPCK|IGNPAR);
+			CLR(cflag, PARODD);
+			if (AP)
+				CLR(iflag, INPCK);
+		} else if (AP || EP && OP) {
+			CLR(iflag, INPCK|IGNPAR);
+			CLR(cflag, PARODD);
+		}
+	} /* else, leave as is */
 
+#if 0
 	if (UC)
 		f |= LCASE;
+#endif
 
-	if (NL)
-		f |= CRMOD;
+	if (HC)
+		SET(cflag, HUPCL);
+	else
+		CLR(cflag, HUPCL);
 
-	f |= delaybits();
+	if (MB)
+		SET(cflag, MDMBUF);
+	else
+		CLR(cflag, MDMBUF);
 
-	if (n == 1) {		/* read mode flags */
-		if (RW)
-			f |= RAW;
-		else
-			f |= CBREAK;
-		return (f);
+	if (NL) {
+		SET(iflag, ICRNL);
+		SET(oflag, ONLCR|OPOST);
+	} else {
+		CLR(iflag, ICRNL);
+		CLR(oflag, ONLCR);
 	}
 
 	if (!HT)
-		f |= XTABS;
+		SET(oflag, OXTABS|OPOST);
+	else
+		CLR(oflag, OXTABS);
+
+#ifdef XXX_DELAY
+	SET(f, delaybits());
+#endif
+
+	if (n == 1) {		/* read mode flags */
+		if (RW) {
+			iflag = 0;
+			CLR(oflag, OPOST);
+			CLR(cflag, CSIZE|PARENB);
+			SET(cflag, CS8);
+			lflag = 0;
+		} else {
+			CLR(lflag, ICANON);
+		}
+		goto out;
+	}
 
 	if (n == 0)
-		return (f);
+		goto out;
 
+#if 0
 	if (CB)
-		f |= CRTBS;
+		SET(f, CRTBS);
+#endif
 
 	if (CE)
-		f |= CRTERA;
+		SET(lflag, ECHOE);
+	else
+		CLR(lflag, ECHOE);
 
 	if (CK)
-		f |= CRTKIL;
+		SET(lflag, ECHOKE);
+	else
+		CLR(lflag, ECHOKE);
 
 	if (PE)
-		f |= PRTERA;
+		SET(lflag, ECHOPRT);
+	else
+		CLR(lflag, ECHOPRT);
 
 	if (EC)
-		f |= ECHO;
+		SET(lflag, ECHO);
+	else
+		CLR(lflag, ECHO);
 
 	if (XC)
-		f |= CTLECH;
+		SET(lflag, ECHOCTL);
+	else
+		CLR(lflag, ECHOCTL);
 
 	if (DX)
-		f |= DECCTQ;
+		SET(lflag, IXANY);
+	else
+		CLR(lflag, IXANY);
 
-	return (f);
+out:
+	tmode.c_iflag = iflag;
+	tmode.c_oflag = oflag;
+	tmode.c_cflag = cflag;
+	tmode.c_lflag = lflag;
 }
 
+#ifdef COMPAT_43
+/*
+ * Old TTY => termios, snatched from <sys/kern/tty_compat.c>
+ */
+void
+compatflags(flags)
+register long flags;
+{
+	register tcflag_t iflag, oflag, cflag, lflag;
+
+	iflag = BRKINT|ICRNL|IMAXBEL|IXON|IXANY;
+	oflag = OPOST|ONLCR|OXTABS;
+	cflag = CREAD;
+	lflag = ICANON|ISIG|IEXTEN;
+
+	if (ISSET(flags, TANDEM))
+		SET(iflag, IXOFF);
+	else
+		CLR(iflag, IXOFF);
+	if (ISSET(flags, ECHO))
+		SET(lflag, ECHO);
+	else
+		CLR(lflag, ECHO);
+	if (ISSET(flags, CRMOD)) {
+		SET(iflag, ICRNL);
+		SET(oflag, ONLCR);
+	} else {
+		CLR(iflag, ICRNL);
+		CLR(oflag, ONLCR);
+	}
+	if (ISSET(flags, XTABS))
+		SET(oflag, OXTABS);
+	else
+		CLR(oflag, OXTABS);
+
+
+	if (ISSET(flags, RAW)) {
+		iflag &= IXOFF;
+		CLR(lflag, ISIG|ICANON|IEXTEN);
+		CLR(cflag, PARENB);
+	} else {
+		SET(iflag, BRKINT|IXON|IMAXBEL);
+		SET(lflag, ISIG|IEXTEN);
+		if (ISSET(flags, CBREAK))
+			CLR(lflag, ICANON);
+		else
+			SET(lflag, ICANON);
+		switch (ISSET(flags, ANYP)) {
+		case 0:
+			CLR(cflag, PARENB);
+			break;
+		case ANYP:
+			SET(cflag, PARENB);
+			CLR(iflag, INPCK);
+			break;
+		case EVENP:
+			SET(cflag, PARENB);
+			SET(iflag, INPCK);
+			CLR(cflag, PARODD);
+			break;
+		case ODDP:
+			SET(cflag, PARENB);
+			SET(iflag, INPCK);
+			SET(cflag, PARODD);
+			break;
+		}
+	}
+
+	/* Nothing we can do with CRTBS. */
+	if (ISSET(flags, PRTERA))
+		SET(lflag, ECHOPRT);
+	else
+		CLR(lflag, ECHOPRT);
+	if (ISSET(flags, CRTERA))
+		SET(lflag, ECHOE);
+	else
+		CLR(lflag, ECHOE);
+	/* Nothing we can do with TILDE. */
+	if (ISSET(flags, MDMBUF))
+		SET(cflag, MDMBUF);
+	else
+		CLR(cflag, MDMBUF);
+	if (ISSET(flags, NOHANG))
+		CLR(cflag, HUPCL);
+	else
+		SET(cflag, HUPCL);
+	if (ISSET(flags, CRTKIL))
+		SET(lflag, ECHOKE);
+	else
+		CLR(lflag, ECHOKE);
+	if (ISSET(flags, CTLECH))
+		SET(lflag, ECHOCTL);
+	else
+		CLR(lflag, ECHOCTL);
+	if (!ISSET(flags, DECCTQ))
+		SET(iflag, IXANY);
+	else
+		CLR(iflag, IXANY);
+	CLR(lflag, TOSTOP|FLUSHO|PENDIN|NOFLSH);
+	SET(lflag, ISSET(flags, TOSTOP|FLUSHO|PENDIN|NOFLSH));
+
+	if (ISSET(flags, RAW|LITOUT|PASS8)) {
+		CLR(cflag, CSIZE);
+		SET(cflag, CS8);
+		if (!ISSET(flags, RAW|PASS8))
+			SET(iflag, ISTRIP);
+		else
+			CLR(iflag, ISTRIP);
+		if (!ISSET(flags, RAW|LITOUT))
+			SET(oflag, OPOST);
+		else
+			CLR(oflag, OPOST);
+	} else {
+		CLR(cflag, CSIZE);
+		SET(cflag, CS7);
+		SET(iflag, ISTRIP);
+		SET(oflag, OPOST);
+	}
+
+	tmode.c_iflag = iflag;
+	tmode.c_oflag = oflag;
+	tmode.c_cflag = cflag;
+	tmode.c_lflag = lflag;
+}
+#endif
+
+#ifdef XXX_DELAY
 struct delayval {
 	unsigned	delay;		/* delay in ms */
 	int		bits;
@@ -314,6 +550,7 @@ adelay(ms, dp)
 		dp++;
 	return (dp->bits);
 }
+#endif
 
 char	editedhost[32];
 
@@ -355,47 +592,6 @@ edithost(pat)
 	else
 		*res = '\0';
 	editedhost[sizeof editedhost - 1] = '\0';
-}
-
-struct speedtab {
-	int	speed;
-	int	uxname;
-} speedtab[] = {
-	{ 50,	  B50 },
-	{ 75,	  B75 },
-	{ 110,	 B110 },
-	{ 134,	 B134 },
-	{ 150,	 B150 },
-	{ 200,	 B200 },
-	{ 300,	 B300 },
-	{ 600,	 B600 },
-	{ 1200,	B1200 },
-	{ 1800,	B1800 },
-	{ 2400,	B2400 },
-	{ 4800,	B4800 },
-	{ 9600,	B9600 },
-	{ 19200, EXTA },
-	{ 19,	 EXTA },	/* for people who say 19.2K */
-	{ 38400, EXTB },
-	{ 38,	 EXTB },
-	{ 7200,	 EXTB },	/* alternative */
-	{ 0 }
-};
-
-int
-speed(val)
-	int val;
-{
-	register struct speedtab *sp;
-
-	if (val <= 15)
-		return (val);
-
-	for (sp = speedtab; sp->speed; sp++)
-		if (sp->speed == val)
-			return (sp->uxname);
-	
-	return (B300);		/* default in impossible cases */
 }
 
 void
@@ -488,9 +684,8 @@ autobaud()
 	int rfds;
 	struct timeval timeout;
 	char c, *type = "9600-baud";
-	int null = 0;
 
-	ioctl(0, TIOCFLUSH, &null);
+	(void)tcflush(0, TCIOFLUSH);
 	rfds = 1 << 0;
 	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
@@ -503,7 +698,7 @@ autobaud()
 	timeout.tv_usec = 20;
 	(void) select(32, (fd_set *)NULL, (fd_set *)NULL,
 	    (fd_set *)NULL, &timeout);
-	ioctl(0, TIOCFLUSH, &null);
+	(void)tcflush(0, TCIOFLUSH);
 	switch (c & 0377) {
 
 	case 0200:		/* 300-baud */
