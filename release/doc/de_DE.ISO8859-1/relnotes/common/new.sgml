@@ -1,8 +1,7 @@
 <articleinfo>
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.4 2002/03/11 21:30:33 ue Exp $
-  $Id: new.sgml,v 1.9 2002/03/10 18:13:36 ue Exp $
-  basiert auf: 1.297
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.6 2002/03/15 08:13:14 ue Exp $
+  basiert auf: 1.299
 -->
   <title>&os;/&arch; &release.current; Release Notes</title>
 
@@ -295,8 +294,11 @@
       aktiviert Schnittstellen und Routinen, die f&uuml;r die
       Verwendung bei formalen Tests vorgesehen sind.</para>
 
-    <para arch="sparc64">SBus-Ger&auml;te wird jetzt
+    <para arch="sparc64">SBus-Ger&auml;te werden jetzt
       unterst&uuml;tzt.</para>
+
+    <para>Der Treiber &man.snp.4; ist nicht mehr statisch und kann
+      jetzt als Modul verwendet werden.  &merged;</para>
 
     <para arch="i386">Der neue Treiber &man.spic.4; unterst&uuml;tzt
       den Zugriff auf das <literal>jog dial</literal>, das in einigen
@@ -529,6 +531,13 @@
         <literal>CPU_ATHLON_SSE_HACK</literal> versucht der Kernel,
         da&szlig; SSE Feature Bit auf neueren Athlon CPUs zu
         aktivieren, wenn das vom BIOS vergessen wurde.</para>
+
+      <para arch="sparc64">UltraSPARC Systeme werden jetzt von &os;
+        unters&uuml;tzt.  Zur Zeit l&auml;uft &os; auf den folgenden
+        Systemen: Ultra 1, Ultra 2, Ultra 5/10, Ultra60 und Blade 100.
+        SMP wird ebenfalls unterst&uuml;tzt und wurde auf einer Ultra
+        2 und Ultra 60 (jeweils mit zwei Prozessoren)
+        getestet.</para>
     </sect3>
 
     <sect3>
@@ -1421,7 +1430,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Programmierschnittstelle zur Verf&uuml;gung.</para>
 
       <para arch="i386">Die Audio-Teil der Intel-Chips&auml;tze 443MX,
-        810, 815 und 815E wird jetzt unterst&uuml;tzt.</para>
+        810, 815 und 815E wird jetzt unterst&uuml;tzt.  &merged;</para>
+
+      <para arch="i386">Der Audio-Treiber f&uuml;r den via82c686
+        unterst&uuml;tzt jetzt auch den VIA VT8233.  &merged;</para>
+
+      <para arch="i386">Der Audio-Treiber ich unterst&uuml;tzt jetzt
+        auch den SiS 7012 Chipsatz.  &merged;</para>
     </sect3>
 
     <sect3>
@@ -2948,7 +2963,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Bei &man.watch.8; kann das verwendete &man.snp.4;
       Ger&auml;t jetzt mit der Option <option>-f</option> angegeben
-      werden.</para>
+      werden.  &merged;</para>
 
     <para>&man.which.1; ist jetzt ein C-Programm und kein Perlscript
       mehr.</para>
@@ -3114,6 +3129,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para><application>libreadline</application> wurde auf Version
         4.2 aktualisiert.</para>
+
+      <para><application>libz</application> wurde auf Version 1.1.4
+        aktualisiert.</para>
 
       <para><application>lint</application> wurde durch den von NetBSD
         am 3. M&auml;rz 2002 verwendeten &man.lint.1;
