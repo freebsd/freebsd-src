@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.14 1996/01/05 08:47:37 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.15 1996/01/31 14:26:19 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -47,24 +47,25 @@ working on one of the tasks you see here, send mail to the coordinator
 listed by clicking on their names.  If no coordinator has been
 appointed, maybe you'd like to volunteer?
 
-<sect1><heading>Urgently needed</heading>
+<sect1><heading>High priority tasks</heading>
 <p>The following tasks are considered to be urgent, usually because
-they represent something that is badly broken:
+they represent something that is badly broken or sorely needed:
 <enum>
 <item>Fix the DOS file system.  Coordinator: <tt><htmlurl
 url="mailto:hackers@freebsd.org" name="Hackers (no coordinator)"></tt>.
 <item>Fix the union file system.  Coordinator: <tt><htmlurl
 url="mailto:dyson@freebsd.org" name="John Dyson"></tt>
+url="mailto:ajones@ctron.com" name="Alexander Seth Jones"></tt>
 </enum>
 
-<sect1><heading>Not urgently needed</heading>
+<sect1><heading>Medium priority tasks</heading>
 <p>The following tasks need to be done, but not with any particular
 urgency:
 <enum>
-<item>Put something here.
+<item>Port AFS (Andrew File System) to FreeBSD  Coordinator: <tt><htmlurl
 </enum>
 
-<sect1><heading>Would be nice to have</heading>
+<sect1><heading>Low priority tasks</heading>
 <p>The following tasks are purely cosmetic or represent such an
 investment of work that it's not likely that anyone will get them done
 anytime soon:
@@ -340,7 +341,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.14 1996/01/05 08:47:37 jkh Exp $
+	$Id: submitters.sgml,v 1.15 1996/01/31 14:26:19 mpp Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
