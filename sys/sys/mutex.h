@@ -286,6 +286,7 @@ extern struct mtx	Giant;
  */
 extern int kern_giant_proc;
 extern int kern_giant_file;
+extern int kern_giant_ucred;
 
 /*
  * Giant lock manipulation and clean exit macros.
