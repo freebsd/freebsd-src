@@ -34,7 +34,7 @@
 .\"
 .Dd January 27, 2000
 .Dt TELNET 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm telnet
 .Nd user interface to the 
@@ -375,10 +375,6 @@ values (see below).
 The encrypt command manipulates the information sent through the
 .Dv TELNET ENCRYPT
 option.
-.Pp
-Note:  Because of export controls, the
-.Dv TELNET ENCRYPT
-option is not supported outside of the United States and Canada.
 .Pp
 Valid arguments for the
 .Ic encrypt
@@ -1171,10 +1167,6 @@ stream does not start automatically.  The autoencrypt
 (autodecrypt) command states that encryption of the
 output (input) stream should be enabled as soon as
 possible.
-.Pp
-Note:  Because of export controls, the
-.Dv TELNET ENCRYPT
-option is not supported outside the United States and Canada.
 .It Ic autologin
 If the remote side supports the
 .Dv TELNET AUTHENTICATION
@@ -1363,8 +1355,6 @@ toggle is
 prints out a message each time encryption is enabled or
 disabled.  The initial value for this toggle is
 .Dv FALSE .
-Note:  Because of export controls, data encryption
-is not supported outside of the United States and Canada.
 .It Ic ?\&
 Displays the legal
 .Ic toggle
