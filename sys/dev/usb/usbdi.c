@@ -1117,11 +1117,9 @@ usbd_get_endpoint_descriptor(usbd_interface_handle iface, u_int8_t address)
 int
 usbd_ratecheck(struct timeval *last)
 {
-#if 0
-	static struct timeval errinterval = { 0, 250000 }; /* 0.25 s*/
-
-	return (ratecheck(last, &errinterval));
-#endif
+	if (last->tv_sec == time_second)
+		return (0);
+	last->tv_sec = time_second;
 	return (1);
 }
 
