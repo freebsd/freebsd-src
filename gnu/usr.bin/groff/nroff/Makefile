@@ -1,5 +1,5 @@
-MAN1=		nroff.1
-MANDEPEND=	nroff.1
+MAN1=		nroff.1 psroff.1
+MANDEPEND=	nroff.1 psroff.1
 
 CLEANFILES+=	${MANDEPEND}
 
