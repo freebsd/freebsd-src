@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2004
+.Dd December 9, 2004
 .Dt MAC_PORTACL 4
 .Os
 .Sh NAME
@@ -203,6 +203,12 @@ Allow superuser (i.e., root) to bind to all
 protected ports, even if the port access control list does not
 explicitly allow this.
 (Default: 1).
+.It Va security.mac.portacl.autoport_exempt
+Allow applications to use automatic binding to port 0.
+Applications use port 0 as a request for automatic port allocation when
+binding an IP address to a socket.
+This tunable will exempt port 0 allocation from rule checking.
+(Default: 1)
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
