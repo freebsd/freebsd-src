@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.163 1999/05/07 11:02:58 jkh Exp $
+ * $Id: sysinstall.h,v 1.164 1999/05/12 09:02:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -528,8 +528,7 @@ void		index_init(PkgNodePtr top, PkgNodePtr plist);
 void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
 void		index_sort(PkgNodePtr top);
 void		index_print(PkgNodePtr top, int level);
-int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
-int		index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
+int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
 int		index_initialize(char *path);
 PkgNodePtr	index_search(PkgNodePtr top, char *str, PkgNodePtr *tp);
 

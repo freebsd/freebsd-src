@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.73 1999/05/14 14:29:50 jkh Exp $
+ * $Id: package.c,v 1.74 1999/05/14 14:57:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,7 +41,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 
-static Boolean sigpipe_caught = FALSE;
+static Boolean sigpipe_caught;
 
 static void
 catch_pipe(int sig)
@@ -60,13 +60,18 @@ package_add(char *name)
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
+
+    if (!mediaDevice->init(mediaDevice))
+	return DITEM_FAILURE;    
+
     i = index_initialize("packages/INDEX");
     if (DITEM_STATUS(i) != DITEM_SUCCESS)
 	return i;
-    tmp3 = !strpbrk(name, "-_") ? &tmp2 : NULL;
+
+    tmp3 = strpbrk(name, "-_") ? NULL : &tmp2;
     tmp = index_search(&Top, name, tmp3);
     if (tmp)
-	return index_extract_one(mediaDevice, &Top, tmp, FALSE);
+	return index_extract(mediaDevice, &Top, tmp, FALSE);
     else {
 	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
 	return DITEM_FAILURE | DITEM_RESTORE;
@@ -152,7 +157,9 @@ package_extract(Device *dev, char *name, Boolean depended)
 	int i = 0, tot, pfd[2];
 	pid_t pid;
 
+	sigpipe_caught = FALSE;
 	signal(SIGPIPE, catch_pipe);
+
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
@@ -165,8 +172,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-v", "-", 0);
 	    else
 		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
-	    if (isDebug())
-		msgDebug("pkg_add returns %d status\n", i);
 	}
 	else {
 	    char buf[BUFSIZ];
@@ -227,7 +232,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 
 	    sleep(1);
 	    restorescr(w);
-	    sigpipe_caught = FALSE;
 	}
     }
     else {
@@ -240,5 +244,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 		       "No package add will be done.", name);
 	ret = DITEM_FAILURE | DITEM_RESTORE;
     }
+    signal(SIGPIPE, SIG_IGN);
     return ret;
 }
