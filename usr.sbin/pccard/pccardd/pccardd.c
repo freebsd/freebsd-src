@@ -130,8 +130,11 @@ main(int argc, char *argv[])
 	int count, dodebug = 0;
 	int doverbose = 0;
 	int delay = 0;
+	int irq_arg[16];
+	int irq_specified = 0;
 	int i;
 
+	bzero(irq_arg, sizeof(irq_arg));
 	debug_level = 0;
 	pccard_init_sleep = 5000000;
 	cards = last_card = 0;
@@ -154,7 +157,8 @@ main(int argc, char *argv[])
 				fprintf(stderr, "%s: -i number\n", argv[0]);
 				exit(1);
 			}
-			pool_irq[i] = 1;
+			irq_arg[i] = 1;
+			irq_specified = 1;
 			break;
 		case 'z':
 			delay = 1;
@@ -177,6 +181,10 @@ main(int argc, char *argv[])
 	mem_avail = bit_alloc(MEMBLKS);
 	mem_init  = bit_alloc(MEMBLKS);
 	readfile(config_file);
+	if (irq_specified) {
+		bcopy(irq_arg, pool_irq, sizeof(irq_arg));
+		bcopy(irq_arg, irq_init, sizeof(irq_arg));
+	}
 	if (doverbose)
 		dump_config_file();
 	log_setup();
