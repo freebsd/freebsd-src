@@ -328,8 +328,8 @@ struct fxp_cb_tx {
 struct fxp_rfa {
 	u_int16_t rfa_status;
 	u_int16_t rfa_control;
-	u_int32_t link_addr;
-	u_int32_t rbd_addr;
+	u_int8_t link_addr[4];
+	u_int8_t rbd_addr[4];
 	u_int16_t actual_size;
 	u_int16_t size;
 
