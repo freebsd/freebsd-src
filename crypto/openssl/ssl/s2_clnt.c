@@ -58,12 +58,12 @@
  * $FreeBSD$
  */
 
+#include "ssl_locl.h"
 #ifndef NO_SSL2
 #include <stdio.h>
 #include <openssl/rand.h>
 #include <openssl/buffer.h>
 #include <openssl/objects.h>
-#include "ssl_locl.h"
 #include <openssl/evp.h>
 
 static SSL_METHOD *ssl2_get_client_method(int ver);
@@ -110,7 +110,7 @@ int ssl2_connect(SSL *s)
 	void (*cb)()=NULL;
 	int new_state,state;
 
-	RAND_seed(&l,sizeof(l));
+	RAND_add(&l,sizeof(l),0);
 	ERR_clear_error();
 	clear_sys_error();
 
@@ -247,7 +247,7 @@ int ssl2_connect(SSL *s)
 		/*	ERR_clear_error();*/
 
 			/* If we want to cache session-ids in the client
-			 * and we sucessfully add the session-id to the
+			 * and we successfully add the session-id to the
 			 * cache, and there is a callback, then pass it out.
 			 * 26/11/96 - eay - only add if not a re-used session.
 			 */
@@ -312,7 +312,13 @@ static int get_server_hello(SSL *s)
 					SSL_R_PEER_ERROR);
 			return(-1);
 			}
+#ifdef __APPLE_CC__
+		/* The Rhapsody 5.5 (a.k.a. MacOS X) compiler bug
+		 * workaround. <appro@fy.chalmers.se> */
+		s->hit=(i=*(p++))?1:0;
+#else
 		s->hit=(*(p++))?1:0;
+#endif
 		s->s2->tmp.cert_type= *(p++);
 		n2s(p,i);
 		if (i < s->version) s->version=i;
@@ -364,7 +370,7 @@ static int get_server_hello(SSL *s)
 		*/
 #endif
 
-		/* we need to do this incase we were trying to reuse a 
+		/* we need to do this in case we were trying to reuse a 
 		 * client session but others are already reusing it.
 		 * If this was a new 'blank' session ID, the session-id
 		 * length will still be 0 */
@@ -414,7 +420,7 @@ static int get_server_hello(SSL *s)
 
 		/* In theory we could have ciphers sent back that we
 		 * don't want to use but that does not matter since we
-		 * will check against the list we origionally sent and
+		 * will check against the list we originally sent and
 		 * for performance reasons we should not bother to match
 		 * the two lists up just to check. */
 		for (i=0; i<sk_SSL_CIPHER_num(cl); i++)
@@ -431,26 +437,28 @@ static int get_server_hello(SSL *s)
 			return(-1);
 			}
 		s->session->cipher=sk_SSL_CIPHER_value(cl,i);
+
+
+		if (s->session->peer != NULL) /* can't happen*/
+			{
+			ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+			SSLerr(SSL_F_GET_SERVER_HELLO, SSL_R_INTERNAL_ERROR);
+			return(-1);
+			}
+
+		s->session->peer = s->session->sess_cert->peer_key->x509;
+		/* peer_key->x509 has been set by ssl2_set_certificate. */
+		CRYPTO_add(&s->session->peer->references, 1, CRYPTO_LOCK_X509);
 		}
 
-	if (s->session->peer != NULL)
-		X509_free(s->session->peer);
-
-#if 0 /* What is all this meant to accomplish?? */
-	/* hmmm, can we have the problem of the other session with this
-	 * cert, Free's it before we increment the reference count. */
-	CRYPTO_w_lock(CRYPTO_LOCK_X509);
-	s->session->peer=s->session->sess_cert->key->x509;
-	/* Shouldn't do this: already locked */
-	/*CRYPTO_add(&s->session->peer->references,1,CRYPTO_LOCK_X509);*/
-	s->session->peer->references++;
-	CRYPTO_w_unlock(CRYPTO_LOCK_X509);
-#else
-	s->session->peer = s->session->sess_cert->peer_key->x509;
-    /* peer_key->x509 has been set by ssl2_set_certificate. */
-	CRYPTO_add(&s->session->peer->references, 1, CRYPTO_LOCK_X509);
-#endif
-
+	if (s->session->peer != s->session->sess_cert->peer_key->x509)
+		/* can't happen */
+		{
+		ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+		SSLerr(SSL_F_GET_SERVER_HELLO, SSL_R_INTERNAL_ERROR);
+		return(-1);
+		}
+		
 	s->s2->conn_id_length=s->s2->tmp.conn_id_length;
 	memcpy(s->s2->conn_id,p,s->s2->tmp.conn_id_length);
 	return(1);
@@ -511,7 +519,7 @@ static int client_hello(SSL *s)
 		s->s2->challenge_length=SSL2_CHALLENGE_LENGTH;
 		s2n(SSL2_CHALLENGE_LENGTH,p);		/* challenge length */
 		/*challenge id data*/
-		RAND_bytes(s->s2->challenge,SSL2_CHALLENGE_LENGTH);
+		RAND_pseudo_bytes(s->s2->challenge,SSL2_CHALLENGE_LENGTH);
 		memcpy(d,s->s2->challenge,SSL2_CHALLENGE_LENGTH);
 		d+=SSL2_CHALLENGE_LENGTH;
 
@@ -553,12 +561,19 @@ static int client_master_key(SSL *s)
 		/* make key_arg data */
 		i=EVP_CIPHER_iv_length(c);
 		sess->key_arg_length=i;
-		if (i > 0) RAND_bytes(sess->key_arg,i);
+		if (i > 0) RAND_pseudo_bytes(sess->key_arg,i);
 
 		/* make a master key */
 		i=EVP_CIPHER_key_length(c);
 		sess->master_key_length=i;
-		if (i > 0) RAND_bytes(sess->master_key,i);
+		if (i > 0)
+			{
+			if (RAND_bytes(sess->master_key,i) <= 0)
+				{
+				ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
+				return(-1);
+				}
+			}
 
 		if (sess->cipher->algorithm2 & SSL2_CF_8_BYTE_ENC)
 			enc=8;
@@ -755,7 +770,7 @@ static int client_certificate(SSL *s)
 			{
 			/* this is not good.  If things have failed it
 			 * means there so something wrong with the key.
-			 * We will contiune with a 0 length signature
+			 * We will continue with a 0 length signature
 			 */
 			}
 		memset(&ctx,0,sizeof(ctx));
@@ -970,4 +985,10 @@ end:
 	EVP_PKEY_free(pkey);
 	return(i);
 	}
+#else /* !NO_SSL2 */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif
