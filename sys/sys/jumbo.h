@@ -38,9 +38,9 @@
 #ifdef _KERNEL
 extern vm_offset_t jumbo_basekva;
 
-static __inline caddr_t	jumbo_phys_to_kva(vm_offset_t pa);
+static __inline caddr_t	jumbo_phys_to_kva(vm_paddr_t pa);
 static __inline caddr_t
-jumbo_phys_to_kva(vm_offset_t pa)
+jumbo_phys_to_kva(vm_paddr_t pa)
 {
 	vm_page_t pg;
 
