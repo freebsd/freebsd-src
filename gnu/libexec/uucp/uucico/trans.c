@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char trans_rcsid[] = "$Id: trans.c,v 1.40 1995/08/11 02:43:32 ian Rel $";
+const char trans_rcsid[] = "$Id: trans.c,v 1.4 1995/08/19 21:29:55 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -381,6 +381,7 @@ qtransalc (qcmd)
       q->s.znotify = NULL;
       q->s.zcmd = NULL;
     }
+  q->zlog = NULL;
   q->isecs = 0;
   q->imicros = 0;
   q->cbytes = 0;
