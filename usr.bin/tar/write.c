@@ -577,15 +577,16 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 #ifdef LINUX
 			/*
 			 * Linux has a nodump flag too but to read it
-			 * we have to open() the file and do an ioctl on it...
+			 * we have to open() the dir and do an ioctl on it...
 			 */
 			if (bsdtar->option_honor_nodump &&
-			    S_ISREG(ftsent->fts_statp->st_mode) &&
 			    ((fd = open(ftsent->fts_name, O_RDONLY|O_NONBLOCK)) >= 0) &&
 			    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags)),
 			    close(fd), r) >= 0 &&
-			    (fflags & EXT2_NODUMP_FL))
+			    (fflags & EXT2_NODUMP_FL)) {
+				fts_set(fts, ftsent, FTS_SKIP);
 				break;
+			}
 #endif
 
 			/*
