@@ -41,11 +41,7 @@
 static void
 screech(int sig)
 {
-    printf("\007Fatal signal %d caught!  I'm dead..\n", sig);
-    if (RunningAsInit)
-	pause();
-    else
-	exit(1);
+    msgDebug("\007Signal %d caught!  That's bad!\n", sig);
 }
 
 int
