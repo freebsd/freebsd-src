@@ -202,9 +202,9 @@ typeerr:		LABEL;
 			tab = "\t";
 		}
 	if (s->flags & F_MD5) {
-		char *new_digest;
+		char *new_digest, buf[33];
 
-		new_digest = MD5File(p->fts_accpath);
+		new_digest = MD5File(p->fts_accpath,buf);
 		if (!new_digest) {
 			LABEL;
 			printf("%sMD5File: %s: %s\n", tab, p->fts_accpath,
@@ -215,9 +215,6 @@ typeerr:		LABEL;
 			printf("%sMD5 (%s, %s)\n", tab, s->md5digest,
 			       new_digest);
 			tab = "\t";
-			free(new_digest);
-		} else {
-			free(new_digest);
 		}
 	}
 
