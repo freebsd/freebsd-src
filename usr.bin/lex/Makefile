@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1996/08/07 13:25:59 peter Exp $
+# $Id: Makefile,v 1.7 1996/09/19 05:21:07 peter Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -14,7 +14,7 @@ LINKS+=	${BINDIR}/lex ${BINDIR}/lex++
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex++
 
-SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
+SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.c \
 		skel.c sym.c tblcmp.c yylex.c
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
@@ -33,7 +33,6 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${.CURDIR}/FlexLexer.h ${DESTDIR}/usr/include/g++
 
-.depend: parse.h
 
 parse.c parse.h: parse.y
 	$(YACC) -d $(.CURDIR)/parse.y
@@ -47,7 +46,8 @@ bootstrap: initscan.c
 		cp -f ${.CURDIR}/initscan.c scan.c ; \
 	}
 
-scan.o:	parse.c
+beforedepend: parse.h
+scan.o:	parse.h
 
 test: check
 check: $(PROG)
