@@ -30,14 +30,15 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: chmod.2,v 1.11 1997/11/13 00:28:48 julian Exp $
+.\"	$Id: chmod.2,v 1.12 1998/01/11 17:49:51 alex Exp $
 .\"
 .Dd June 4, 1993
 .Dt CHMOD 2
 .Os BSD 4
 .Sh NAME
 .Nm chmod ,
-.Nm fchmod
+.Nm fchmod ,
+.Nm lchmod
 .Nd change mode of file
 .Sh SYNOPSIS
 .Fd #include <sys/stat.h>
@@ -45,27 +46,34 @@
 .Fn chmod "const char *path" "mode_t mode"
 .Ft int
 .Fn fchmod "int fd" "mode_t mode"
+.Ft int
+.Fn lchmod "const char *path" "mode_t mode"
 .Sh DESCRIPTION
-The function
-.Fn chmod
-sets the file permission bits
-of the file
-specified by the pathname
+The file permission bits of the file named specified by
 .Fa path
-to
+or referenced by the file descriptor
+.Fa fd
+are changed to
 .Fa mode .
-.Fn Fchmod
-sets the permission bits of the specified
-file descriptor
-.Fa fd .
-.Fn Chmod
-verifies that the process owner (user) either owns
+The
+.Fn chmod
+function verifies that the process owner (user) either owns
 the file specified by
 .Fa path
 (or
 .Fa fd ) ,
 or
 is the super-user.
+.The chmod
+function follows symbolic links to operate on the target of the link
+rather than the link itself.
+.Pp
+The
+.Fa lchmod
+function is similar to
+.Fn chmod
+but does not follow symbolic links.
+.Pp
 A mode is created from
 .Em or'd
 permission bit masks
@@ -120,7 +128,7 @@ created within this directory are set
 to be the same as the owner of that directory.
 If this function is enabled, new directories will inherit
 the bit from their parents.  Execute bits are removed from
-the file, and it will not be given to root. This behaviour does not change the
+the file, and it will not be given to root. This behavior does not change the
 requirements for the user to be allowed to write the file, but only the eventual
 owner after it has been created. Group inheritance is not effected.
 .Pp
@@ -208,3 +216,7 @@ The
 function call
 appeared in
 .Bx 4.2 .
+The
+.Fn lchmod
+function call appeared in
+.Fx 3.0 .
