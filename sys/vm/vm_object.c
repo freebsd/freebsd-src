@@ -507,7 +507,14 @@ vm_object_deallocate(vm_object_t object)
 					tsleep(&proc0, PVM, "vmo_de", 1);
 					continue;
 				}
-				if ((robject->handle == NULL) &&
+				/*
+				 * Collapse object into its shadow unless its
+				 * shadow is dead.  In that case, object will
+				 * be deallocated by the thread that is
+				 * deallocating its shadow.
+				 */
+				if ((robject->flags & OBJ_DEAD) == 0 &&
+				    (robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
 
@@ -628,11 +635,9 @@ vm_object_terminate(vm_object_t object)
 			("vm_object_terminate: freeing busy page %p "
 			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
 		if (p->wire_count == 0) {
-			vm_page_busy(p);
 			vm_page_free(p);
 			cnt.v_pfree++;
 		} else {
-			vm_page_busy(p);
 			vm_page_remove(p);
 		}
 	}
@@ -1300,6 +1305,7 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
+	vm_page_lock_queues();
 	for (idx = 0; idx < size; idx++) {
 	retry:
 		m = vm_page_lookup(orig_object, offidxstart + idx);
@@ -1313,7 +1319,6 @@ vm_object_split(vm_map_entry_t entry)
 		 * We do not have to VM_PROT_NONE the page as mappings should
 		 * not be changed by this operation.
 		 */
-		vm_page_lock_queues();
 		if ((m->flags & PG_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
 			VM_OBJECT_UNLOCK(orig_object);
@@ -1321,14 +1326,14 @@ vm_object_split(vm_map_entry_t entry)
 			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			VM_OBJECT_LOCK(orig_object);
+			vm_page_lock_queues();
 			goto retry;
 		}
-		vm_page_busy(m);
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
-		vm_page_unlock_queues();
 	}
+	vm_page_unlock_queues();
 	if (orig_object->type == OBJT_SWAP) {
 		/*
 		 * swap_pager_copy() can sleep, in which case the orig_object's
@@ -1481,7 +1486,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 
 			KASSERT(
 			    p->object == backing_object,
-			    ("vm_object_qcollapse(): object mismatch")
+			    ("vm_object_backing_scan: object mismatch")
 			);
 
 			/*
@@ -1565,11 +1570,7 @@ vm_object_qcollapse(vm_object_t object)
 	if (backing_object->ref_count != 1)
 		return;
 
-	backing_object->ref_count += 2;
-
 	vm_object_backing_scan(object, OBSC_COLLAPSE_NOWAIT);
-
-	backing_object->ref_count -= 2;
 }
 
 /*
@@ -1810,7 +1811,6 @@ again:
 			if (p->valid & p->dirty)
 				continue;
 		}
-		vm_page_busy(p);
 		pmap_remove_all(p);
 		vm_page_free(p);
 	}
