@@ -213,6 +213,7 @@ struct atapidrv {                       /* delayed attach info */
 	int attached;                   /* the drive is attached */
 };
 
+struct buf;
 struct wcd;
 typedef void atapi_callback_t(struct wcd *, struct buf *, int, struct atapires);
 

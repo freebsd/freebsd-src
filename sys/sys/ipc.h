@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
- * $Id$
+ * $Id: ipc.h,v 1.10 1997/02/22 09:45:24 peter Exp $
  */
 
 /*
@@ -82,7 +82,9 @@ struct ipc_perm {
 #define	IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
 #define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
 
-int	ipcperm __P((struct ucred *,struct ipc_perm *,int));
+struct ucred;
+
+int	ipcperm __P((struct ucred *, struct ipc_perm *, int));
 #else /* ! KERNEL */
 
 /* XXX doesn't really belong here, but has been historical practice in SysV. */

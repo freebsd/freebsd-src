@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: shm.h,v 1.11 1997/02/22 09:45:52 peter Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*
@@ -78,6 +78,8 @@ struct shminfo {
 };
 extern struct shminfo	shminfo;
 extern struct shmid_ds	*shmsegs;
+
+struct proc;
 
 void	shmexit __P((struct proc *));
 void	shmfork __P((struct proc *, struct proc *));

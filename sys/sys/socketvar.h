@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.22 1997/09/14 02:25:41 peter Exp $
+ * $Id: socketvar.h,v 1.23 1997/12/21 16:35:11 bde Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -207,10 +207,13 @@ MALLOC_DECLARE(M_SONAME);
 
 extern u_long	sb_max;
 
+struct file;
 struct filedesc;
 struct mbuf;
 struct sockaddr;
 struct stat;
+struct ucred;
+struct uio;
 
 /*
  * File operations on sockets.
