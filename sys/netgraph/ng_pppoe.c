@@ -1318,7 +1318,7 @@ AAA
 			}
 		}
 		/*
-		 * As long as we have somewhere to store teh timeout handle,
+		 * As long as we have somewhere to store the timeout handle,
 		 * we may have a timeout pending.. get rid of it.
 		 */
 		if (sp->neg) {
