@@ -4304,7 +4304,7 @@ edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 		dev->id_id = isa_compat_nextid();
 	}
 
-	if ((dev->id_alive = ed_probe(dev)) != 0)
+	if (ed_probe(dev) != 0)
 		ed_attach_isa(dev);
 	else
 		printf("ed%d: probe failed\n", dev->id_unit);

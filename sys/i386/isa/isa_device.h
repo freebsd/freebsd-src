@@ -72,9 +72,6 @@ struct isa_device {
 #define	id_ointr	id_iu.id_oi
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
-	int	id_alive;	/* device is present */
-#define	RI_FAST		1		/* fast interrupt handler */
-	u_int	id_ri_flags;	/* flags for register_intr() */
 	int	id_enabled;	/* is device enabled */
 	int	id_conflicts;	/* we're allowed to conflict with things */
 	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
