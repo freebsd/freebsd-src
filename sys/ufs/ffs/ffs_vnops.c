@@ -1522,7 +1522,7 @@ vop_getextattr {
 	IN int a_attrnamespace;
 	IN const char *a_name;
 	INOUT struct uio *a_uio;
-	OUT struct size_t *a_size;
+	OUT size_t *a_size;
 	IN struct ucred *a_cred;
 	IN struct thread *a_td;
 };
