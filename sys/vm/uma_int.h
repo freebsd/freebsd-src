@@ -374,4 +374,12 @@ vsetobj(vm_offset_t va, vm_object_t obj)
 	p->flags &= ~PG_SLAB;
 }
 
+/*
+ * The following two functions may be defined by architecture specific code
+ * if they can provide more effecient allocation functions.  This is useful
+ * for using direct mapped addresses.
+ */
+void *uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait);
+void uma_small_free(void *mem, int size, u_int8_t flags);
+
 #endif /* VM_UMA_INT_H */
