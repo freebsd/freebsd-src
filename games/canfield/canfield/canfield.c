@@ -199,6 +199,53 @@ bool startedgame = FALSE, infullgame = FALSE;
 time_t acctstart;
 int dbfd = -1;
 
+void askquit __P((int));
+void cleanup __P((int));
+void cleanupboard __P((void));
+void clearabovemovebox __P((void));
+void clearbelowmovebox __P((void));
+void clearmsg __P((void));
+void clearstat __P((void));
+void destinerror __P((void));
+bool diffcolor __P((struct cardtype *, struct cardtype *));
+void dumberror __P((void));
+bool finish __P((void));
+void fndbase __P((struct cardtype **, int, int));
+void getcmd __P((int, int, char *));
+void initall __P((void));
+void initdeck __P((struct cardtype *[]));
+void initgame __P((void));
+void instruct __P((void));
+void makeboard __P((void));
+void movebox __P((void));
+void movecard __P((void));
+void movetofound __P((struct cardtype **, int));
+void movetotalon __P((void));
+bool notempty __P((struct cardtype *));
+void printbottombettingbox __P((void));
+void printbottominstructions __P((void));
+void printcard __P((int, int, struct cardtype *));
+void printrank __P((int, int, struct cardtype *, bool));
+void printtopbettingbox __P((void));
+void printtopinstructions __P((void));
+bool rankhigher __P((struct cardtype *, int));
+bool ranklower __P((struct cardtype *, struct cardtype *));
+void removecard __P((int, int));
+bool samesuit __P((struct cardtype *, int));
+void showcards __P((void));
+void showstat __P((void));
+void shuffle __P((struct cardtype *[]));
+void simpletableau __P((struct cardtype **, int));
+void startgame __P((void));
+void suspend __P((void));
+bool tabok __P((struct cardtype *, int));
+void tabprint __P((int, int));
+void tabtotab __P((int, int));
+void transit __P((struct cardtype **, struct cardtype **));
+void updatebettinginfo __P((void));
+void usedstock __P((void));
+void usedtalon __P((void));
+
 /*
  * The following procedures print the board onto the screen using the
  * addressible cursor. The end of these procedures will also be
@@ -206,6 +253,7 @@ int dbfd = -1;
  *
  * procedure to set the move command box
  */
+void
 movebox()
 {
 	switch (status) {
@@ -240,6 +288,7 @@ movebox()
 /*
  * print directions above move box
  */
+void
 printtopinstructions()
 {
 	    move(tboxrow, boxcol);
@@ -273,6 +322,7 @@ printtopinstructions()
 /*
  * Print the betting box.
  */
+void
 printtopbettingbox()
 {
 
@@ -307,6 +357,7 @@ printtopbettingbox()
 /*
  * clear info above move box
  */
+void
 clearabovemovebox()
 {
 	int i;
@@ -322,6 +373,7 @@ clearabovemovebox()
 /*
  * print instructions below move box
  */
+void
 printbottominstructions()
 {
 	    move(bboxrow, boxcol);
@@ -335,6 +387,7 @@ printbottominstructions()
 /*
  * print betting information below move box
  */
+void
 printbottombettingbox()
 {
 	    move(bboxrow, boxcol);
@@ -348,6 +401,7 @@ printbottombettingbox()
 /*
  * clear info below move box
  */
+void
 clearbelowmovebox()
 {
 	int i;
@@ -363,6 +417,7 @@ clearbelowmovebox()
 /*
  * procedure to put the board on the screen using addressable cursor
  */
+void
 makeboard()
 {
 	clear();
@@ -401,11 +456,13 @@ makeboard()
 /*
  * clean up the board for another game
  */
+void
 cleanupboard()
 {
 	int cnt, row, col;
 	struct cardtype *ptr;
 
+	col = 0;
 	if (Cflag) {
 		clearstat();
 		for(ptr = stock, row = stockrow;
@@ -456,6 +513,7 @@ cleanupboard()
 /*
  * procedure to create a deck of cards
  */
+void
 initdeck(deck)
 	struct cardtype *deck[];
 {
@@ -481,6 +539,7 @@ initdeck(deck)
 /*
  * procedure to shuffle the deck
  */
+void
 shuffle(deck)
 	struct cardtype *deck[];
 {
@@ -504,6 +563,7 @@ shuffle(deck)
 /*
  * procedure to remove the card from the board
  */
+void
 removecard(a, b)
 {
 	move(b, a);
@@ -513,6 +573,7 @@ removecard(a, b)
 /*
  * procedure to print the cards on the board
  */
+void
 printrank(a, b, cp, inverse)
 	struct cardtype *cp;
 	bool inverse;
@@ -546,6 +607,7 @@ printrank(a, b, cp, inverse)
 /*
  * procedure to print out a card
  */
+void
 printcard(a, b, cp)
 	int a,b;
 	struct cardtype *cp;
@@ -572,6 +634,7 @@ printcard(a, b, cp)
  * of another location. The pointers always point to the top
  * of the piles.
  */
+void
 transit(source, dest)
 	struct cardtype **source, **dest;
 {
@@ -588,6 +651,7 @@ transit(source, dest)
  * Note that it is only called on a foundation pile at the beginning of
  * the game, so the pile will have exactly one card in it.
  */
+void
 fndbase(cp, column, row)
 	struct cardtype **cp;
 {
@@ -632,6 +696,7 @@ fndbase(cp, column, row)
 /*
  * procedure to initialize the things necessary for the game
  */
+void
 initgame()
 {
 	int i;
@@ -677,6 +742,7 @@ initgame()
 /*
  * procedure to print the beginning cards and to start each game
  */
+void
 startgame()
 {
 	int j;
@@ -717,6 +783,7 @@ startgame()
 /*
  * procedure to clear the message printed from an error
  */
+void
 clearmsg()
 {
 	int i;
@@ -733,6 +800,7 @@ clearmsg()
 /*
  * procedure to print an error message if the move is not listed
  */
+void
 dumberror()
 {
 	errmsg = TRUE;
@@ -743,6 +811,7 @@ dumberror()
 /*
  * procedure to print an error message if the move is not possible
  */
+void
 destinerror()
 {
 	errmsg = TRUE;
@@ -822,6 +891,7 @@ tabok(cp, des)
 /*
  * procedure to turn the cards onto the talon from the deck
  */
+void
 movetotalon()
 {
 	int i, fin;
@@ -906,6 +976,7 @@ movetotalon()
 /*
  * procedure to print card counting info on screen
  */
+void
 showstat()
 {
 	int row, col;
@@ -948,6 +1019,7 @@ showstat()
 /*
  * procedure to clear card counting info from screen
  */
+void
 clearstat()
 {
 	int row;
@@ -967,6 +1039,7 @@ clearstat()
 /*
  * procedure to update card counting base
  */
+void
 usedtalon()
 {
 	removecard(coldcol, coldrow);
@@ -991,6 +1064,7 @@ usedtalon()
 /*
  * procedure to update stock card counting base
  */
+void
 usedstock()
 {
 	stockcnt--;
@@ -1003,6 +1077,7 @@ usedstock()
 /*
  * let 'em know how they lost!
  */
+void
 showcards()
 {
 	struct cardtype *ptr;
@@ -1050,6 +1125,7 @@ showcards()
 /*
  * procedure to update the betting values
  */
+void
 updatebettinginfo()
 {
 	long thiscosts, gamecosts, totalcosts;
@@ -1107,6 +1183,7 @@ updatebettinginfo()
 /*
  * procedure to move a card from the stock or talon to the tableau
  */
+void
 simpletableau(cp, des)
 struct cardtype **cp;
 {
@@ -1139,6 +1216,7 @@ struct cardtype **cp;
 /*
  * print the tableau
  */
+void
 tabprint(sour, des)
 {
 	int dlength, slength, i;
@@ -1164,6 +1242,7 @@ tabprint(sour, des)
 /*
  * procedure to move from the tableau to the tableau
  */
+void
 tabtotab(sour, des)
 	int sour, des;
 {
@@ -1208,6 +1287,7 @@ rankhigher(cp, let)
 /*
  * function to determine if two cards are the same suit
  */
+bool
 samesuit(cp, let)
 	struct cardtype *cp;
 {
@@ -1220,6 +1300,7 @@ samesuit(cp, let)
 /*
  * procedure to move a card to the correct foundation pile
  */
+void
 movetofound(cp, source)
 	struct cardtype **cp;
 {
@@ -1270,6 +1351,7 @@ movetofound(cp, source)
 /*
  * procedure to get a command
  */
+void
 getcmd(row, col, cp)
 	int row, col;
 	char *cp;
@@ -1320,6 +1402,7 @@ getcmd(row, col, cp)
 /*
  * Suspend the game (shell escape if no process control on system)
  */
+void
 suspend()
 {
 #ifndef SIGTSTP
@@ -1341,11 +1424,14 @@ suspend()
 /*
  * procedure to evaluate and make the specific moves
  */
+void
 movecard()
 {
 	int source, dest;
 	char osrcpile, odestpile;
 
+	source = 0;
+	dest = 0;
 	done = FALSE;
 	errmsg = FALSE;
 	do {
@@ -1536,6 +1622,7 @@ char *bettinginstructions[] = {
 /*
  * procedure to printout instructions
  */
+void
 instruct()
 {
 	char **cp;
@@ -1571,6 +1658,7 @@ instruct()
 /*
  * procedure to initialize the game
  */
+void
 initall()
 {
 	int i;
@@ -1638,7 +1726,8 @@ finish()
  * procedure to clean up and exit
  */
 void
-cleanup()
+cleanup(sig)
+	int sig;
 {
 
 	total.thinktime += 1;
@@ -1661,7 +1750,8 @@ cleanup()
  * Field an interrupt.
  */
 void
-askquit()
+askquit(sig)
+	int sig;
 {
 	move(msgrow, msgcol);
 	printw("Really wish to quit?    ");
@@ -1670,13 +1760,14 @@ askquit()
 	} while (srcpile != 'y' && srcpile != 'n');
 	clearmsg();
 	if (srcpile == 'y')
-		cleanup();
+		cleanup(0);
 	signal(SIGINT, askquit);
 }
 
 /*
  * Can you tell that this used to be a Pascal program?
  */
+int
 main()
 {
 	dbfd = open(_PATH_SCORE, O_RDWR);
@@ -1713,6 +1804,7 @@ main()
 		else
 			cleanupboard();
 	}
-	cleanup();
+	cleanup(0);
 	/* NOTREACHED */
+	exit (EXIT_FAILURE);
 }
