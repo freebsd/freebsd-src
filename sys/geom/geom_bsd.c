@@ -89,19 +89,41 @@ g_bsd_start(struct bio *bp)
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
 	struct partinfo pi;
+	struct g_ioctl *gio;
 
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
+#if 0
 	if (g_haveattr(bp, "IOCTL::DIOCGDINFO",
 	    &ms->inram,
 	    sizeof ms->inram))
 		return (1);
-	if (!strcmp(bp->bio_attribute, "IOCTL::DIOCGPART")) {
+	else if (!strcmp(bp->bio_attribute, "IOCTL::DIOCGPART")) {
 		pi.disklab = &ms->inram;
 		pi.part = &ms->inram.d_partitions[bp->bio_to->index];
 		if (g_haveattr(bp, "IOCTL::DIOCGPART", &pi, sizeof pi))
 			return (1);
+	}
+#endif
+	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
+		return(0);
+	else if (bp->bio_length != sizeof *gio)
+		return(0);
+	gio = (struct g_ioctl *)bp->bio_data;
+	if (gio->cmd == DIOCGDINFO) {
+		bcopy(&ms->inram, gio->data, sizeof ms->inram);
+		bp->bio_error = 0;
+		g_io_deliver(bp);
+		return (1);
+	}
+	if (gio->cmd == DIOCGPART) {
+		pi.disklab = &ms->inram;
+		pi.part = &ms->inram.d_partitions[bp->bio_to->index];
+		bcopy(&pi, gio->data, sizeof pi);
+		bp->bio_error = 0;
+		g_io_deliver(bp);
+		return (1);
 	}
 	return (0);
 }
