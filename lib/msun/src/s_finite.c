@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_finite.c,v 1.1.1.1 1994/08/19 09:39:51 jkh Exp $";
+static char rcsid[] = "$Id: s_finite.c,v 1.2 1995/05/30 05:49:37 rgrimes Exp $";
 #endif
 
 /*
@@ -23,9 +23,9 @@ static char rcsid[] = "$Id: s_finite.c,v 1.1.1.1 1994/08/19 09:39:51 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	int finite(double x)
+	int __generic_finite(double x)
 #else
-	int finite(x)
+	int __generic_finite(x)
 	double x;
 #endif
 {

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_tan.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
+static char rcsid[] = "$Id: s_tan.c,v 1.2 1995/05/30 05:50:33 rgrimes Exp $";
 #endif
 
 /* tan(x)
@@ -48,9 +48,9 @@ static char rcsid[] = "$Id: s_tan.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double tan(double x)
+	double __generic_tan(double x)
 #else
-	double tan(x)
+	double __generic_tan(x)
 	double x;
 #endif
 {

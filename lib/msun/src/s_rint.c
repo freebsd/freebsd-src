@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_rint.c,v 1.2 1995/05/30 05:50:18 rgrimes Exp $";
+static char rcsid[] = "$Id: s_rint.c,v 1.3 1996/08/28 16:34:33 bde Exp $";
 #endif
 
 /*
@@ -45,9 +45,9 @@ TWO52[2]={
 };
 
 #ifdef __STDC__
-	double rint(double x)
+	double __generic_rint(double x)
 #else
-	double rint(x)
+	double __generic_rint(x)
 	double x;
 #endif
 {

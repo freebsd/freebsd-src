@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_fmod.c,v 1.1.1.1 1994/08/19 09:39:43 jkh Exp $";
+static char rcsid[] = "$Id: e_fmod.c,v 1.2 1995/05/30 05:48:10 rgrimes Exp $";
 #endif
 
 /*
@@ -30,9 +30,9 @@ static double one = 1.0, Zero[] = {0.0, -0.0,};
 #endif
 
 #ifdef __STDC__
-	double __ieee754_fmod(double x, double y)
+	double __generic___ieee754_fmod(double x, double y)
 #else
-	double __ieee754_fmod(x,y)
+	double __generic___ieee754_fmod(x,y)
 	double x,y ;
 #endif
 {

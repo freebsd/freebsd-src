@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_floor.c,v 1.1.1.1 1994/08/19 09:39:51 jkh Exp $";
+static char rcsid[] = "$Id: s_floor.c,v 1.2 1995/05/30 05:49:39 rgrimes Exp $";
 #endif
 
 /*
@@ -33,9 +33,9 @@ static double huge = 1.0e300;
 #endif
 
 #ifdef __STDC__
-	double floor(double x)
+	double __generic_floor(double x)
 #else
-	double floor(x)
+	double __generic_floor(x)
 	double x;
 #endif
 {

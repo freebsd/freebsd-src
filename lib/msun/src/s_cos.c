@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_cos.c,v 1.1.1.1 1994/08/19 09:39:51 jkh Exp $";
+static char rcsid[] = "$Id: s_cos.c,v 1.2 1995/05/30 05:49:29 rgrimes Exp $";
 #endif
 
 /* cos(x)
@@ -49,9 +49,9 @@ static char rcsid[] = "$Id: s_cos.c,v 1.1.1.1 1994/08/19 09:39:51 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double cos(double x)
+	double __generic_cos(double x)
 #else
-	double cos(x)
+	double __generic_cos(x)
 	double x;
 #endif
 {

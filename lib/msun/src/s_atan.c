@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_atan.c,v 1.1.1.1 1994/08/19 09:39:45 jkh Exp $";
+static char rcsid[] = "$Id: s_atan.c,v 1.2 1995/05/30 05:49:20 rgrimes Exp $";
 #endif
 
 /* atan(x)
@@ -86,9 +86,9 @@ one   = 1.0,
 huge   = 1.0e300;
 
 #ifdef __STDC__
-	double atan(double x)
+	double __generic_atan(double x)
 #else
-	double atan(x)
+	double __generic_atan(x)
 	double x;
 #endif
 {

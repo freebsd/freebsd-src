@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_log.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
+static char rcsid[] = "$Id: e_log.c,v 1.2 1995/05/30 05:48:30 rgrimes Exp $";
 #endif
 
 /* __ieee754_log(x)
@@ -91,9 +91,9 @@ static double zero   =  0.0;
 #endif
 
 #ifdef __STDC__
-	double __ieee754_log(double x)
+	double __generic___ieee754_log(double x)
 #else
-	double __ieee754_log(x)
+	double __generic___ieee754_log(x)
 	double x;
 #endif
 {
