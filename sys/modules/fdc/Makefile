@@ -10,7 +10,7 @@ NOMAN=
 
 FDC_DEBUG=	1	# 0/1
 FDC_PCCARD=	0	# 0/1  whether pccard support (i. e. Y-E DATA PCMCIA
-			# fdc) is desired
+#			# fdc) is desired
 
 CLEANFILES=	card.h
 
