@@ -111,6 +111,8 @@ static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 		    caddr_t *params);
 static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
 		    u_long code);
+static void	exec_linux_setregs(struct thread *td, u_long entry,
+				   u_long stack, u_long ps_strings);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -805,6 +807,23 @@ exec_linux_imgact_try(struct image_params *imgp)
     return(error);
 }
 
+/*
+ * exec_setregs may initialize some registers differently than Linux
+ * does, thus potentially confusing Linux binaries. If necessary, we
+ * override the exec_setregs default(s) here.
+ */
+static void
+exec_linux_setregs(struct thread *td, u_long entry,
+		   u_long stack, u_long ps_strings)
+{
+	struct pcb *pcb = td->td_pcb;
+
+	exec_setregs(td, entry, stack, ps_strings);
+
+	/* Linux sets %gs to 0, we default to _udatasel */
+	pcb->pcb_gs = 0; load_gs(0);
+}
+
 struct sysentvec linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
@@ -830,7 +849,7 @@ struct sysentvec linux_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	exec_copyout_strings,
-	exec_setregs
+	exec_linux_setregs
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -858,7 +877,7 @@ struct sysentvec elf_linux_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	exec_copyout_strings,
-	exec_setregs
+	exec_linux_setregs
 };
 
 static Elf32_Brandinfo linux_brand = {
