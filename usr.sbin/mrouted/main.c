@@ -532,7 +532,7 @@ main(argc, argv)
 		gettimeofday(&curtime, NULL);
 	    difftime.tv_sec = curtime.tv_sec - lasttime.tv_sec;
 	    difftime.tv_usec += curtime.tv_usec - lasttime.tv_usec;
-	    while (difftime.tv_usec > 1000000) {
+	    while (difftime.tv_usec >= 1000000) {
 		difftime.tv_sec++;
 		difftime.tv_usec -= 1000000;
 	    }
