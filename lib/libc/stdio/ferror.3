@@ -113,7 +113,7 @@ and
 .Fn fileno
 respectively, except that the caller is responsible for locking the stream
 with
-.Fn flockfile
+.Xr flockfile 3
 before calling them.
 These functions may be used to avoid the overhead of locking the stream
 and to prevent races when multiple threads are operating on the same stream.

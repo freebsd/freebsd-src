@@ -42,7 +42,9 @@
 .Sh NAME
 .Nm fputc ,
 .Nm putc ,
+.Nm putc_unlocked ,
 .Nm putchar ,
+.Nm putchar_unlocked ,
 .Nm putw
 .Nd output a character or word to a stream
 .Sh LIBRARY
@@ -103,7 +105,7 @@ and
 respectively,
 except that the caller is responsible for locking the stream
 with
-.Fn flockfile
+.Xr flockfile 3
 before calling them.
 These functions may be used to avoid the overhead of locking the stream
 for each character, and to avoid output being interspersed from multiple

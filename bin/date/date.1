@@ -268,9 +268,8 @@ Time changes for Daylight Saving Time, standard time, leap seconds,
 and leap years are handled automatically.
 .Sh EXAMPLES
 The command:
-.Bd -literal -offset indent
-date "+DATE: %Y-%m-%d%nTIME: %H:%M:%S"
-.Ed
+.Pp
+.Dl "date ""+DATE: %Y-%m-%d%nTIME: %H:%M:%S"""
 .Pp
 will display:
 .Bd -literal -offset indent
@@ -279,56 +278,48 @@ TIME: 13:36:16
 .Ed
 .Pp
 In the Europe/London timezone, the command:
-.Bd -literal -offset indent
-date -v1m -v+1y
-.Ed
+.Pp
+.Dl "date -v1m -v+1y"
 .Pp
 will display:
-.Bd -literal -offset indent
-Sun Jan  4 04:15:24 GMT 1998
-.Ed
+.Pp
+.Dl "Sun Jan  4 04:15:24 GMT 1998"
 .Pp
 where it is currently Mon Aug  4 04:15:24 BST 1997.
 .Pp
 The command:
-.Bd -literal -offset indent
-date -v1d -v3m -v0y -v-1d
-.Ed
+.Pp
+.Dl "date -v1d -v3m -v0y -v-1d"
 .Pp
 will display the last day of February in the year 2000:
-.Bd -literal -offset indent
-Tue Feb 29 03:18:00 GMT 2000
-.Ed
+.Pp
+.Dl "Tue Feb 29 03:18:00 GMT 2000"
 .Pp
 The command:
-.Bd -literal -offset indent
-date -v1d -v+1m -v-1d -v-fri
-.Ed
+.Pp
+.Dl "date -v1d -v+1m -v-1d -v-fri"
 .Pp
 will display the last Friday of the month:
-.Bd -literal -offset indent
-Fri Aug 29 04:31:11 BST 1997
-.Ed
+.Pp
+.Dl "Fri Aug 29 04:31:11 BST 1997"
 .Pp
 where it is currently Mon Aug  4 04:31:11 BST 1997.
 .Pp
 The command:
-.Bd -literal -offset indent
-date 8506131627
-.Ed
+.Pp
+.Dl "date 8506131627"
 .Pp
 sets the date to
 .Dq Li "June 13, 1985, 4:27 PM" .
-.Bd -literal -offset indent
-date "+%Y%m%d%H%M.%S"
-.Ed
 .Pp
-may be used on one machine to print out the date suitable for setting on another.
+.Dl "date ""+%Y%m%d%H%M.%S"""
+.Pp
+may be used on one machine to print out the date
+suitable for setting on another.
 .Pp
 The command:
-.Bd -literal -offset indent
-date 1432
-.Ed
+.Pp
+.Dl "date 1432"
 .Pp
 sets the time to
 .Li "2:32 PM" ,
