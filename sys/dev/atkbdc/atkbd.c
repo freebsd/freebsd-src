@@ -417,8 +417,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		kbd->kb_config = flags & ~KB_CONF_PROBE_ONLY;
 		if (KBD_HAS_DEVICE(kbd)
 	    	    && init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config)
-	    	    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD))
+	    	    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD)) {
+			kbd_unregister(kbd);
 			return ENXIO;
+		}
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
 		get_typematic(kbd);
 		delay[0] = kbd->kb_delay1;
