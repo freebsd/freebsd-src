@@ -147,8 +147,8 @@ struct socket {
  * until such time as it proves to be a good idea.
  */
 extern struct mtx accept_mtx;
-#define ACCEPT_LOCK()			mtx_lock(&accept_mtx)
-#define ACCEPT_UNLOCK()			mtx_unlock(&accept_mtx)
+#define	ACCEPT_LOCK()			mtx_lock(&accept_mtx)
+#define	ACCEPT_UNLOCK()			mtx_unlock(&accept_mtx)
 
 /*
  * Socket state bits.
