@@ -458,7 +458,11 @@ z8530_bus_receive(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	mtx_lock_spin(&sc->sc_hwmtx);
 	bes = uart_getmreg(bas, RR_BES);
-	while ((bes & BES_RXA) && !uart_rx_full(sc)) {
+	while (bes & BES_RXA) {
+		if (uart_rx_full(sc)) {
+			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
+			break;
+		}
 		src = uart_getmreg(bas, RR_SRC);
 		xc = uart_getreg(bas, REG_DATA);
 		if (src & SRC_FE)
@@ -466,8 +470,20 @@ z8530_bus_receive(struct uart_softc *sc)
 		if (src & SRC_PE)
 			xc |= UART_STAT_PARERR;
 		uart_rx_put(sc, xc);
-		if (src & (SRC_FE | SRC_PE))
+		if (src & (SRC_FE | SRC_PE)) {
 			uart_setreg(bas, REG_CTRL, CR_RSTERR);
+			uart_barrier(bas);
+		}
+		bes = uart_getmreg(bas, RR_BES);
+	}
+	/* Discard everything left in the Rx FIFO. */
+	while (bes & BES_RXA) {
+		src = uart_getmreg(bas, RR_SRC);
+		(void)uart_getreg(bas, REG_DATA);
+		if (src & (SRC_FE | SRC_PE)) {
+			uart_setreg(bas, REG_CTRL, CR_RSTERR);
+			uart_barrier(bas);
+		}
 		bes = uart_getmreg(bas, RR_BES);
 	}
 	mtx_unlock_spin(&sc->sc_hwmtx);
