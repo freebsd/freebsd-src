@@ -17,6 +17,16 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030423:
+	A bug has been fixed in /dev/devctl which would cause devd
+	to hang on boot, were it not for a workaround in devd.  The
+	work around in devd will be removed around 20030507.  You
+	have until then to upgrade your kernel before updating
+	userland.  In general, you should have a userland and
+	kernel that's in sync with each other.  However, given the
+	effects of this bug (hang on boot when starting devd), some
+	allowances are made.
+
 20030208:
 	sendmail 8.12.7 has been imported.  It has one important
 	change for IPv6 users.  The default submit.mc now uses
