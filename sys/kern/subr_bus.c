@@ -1559,6 +1559,8 @@ device_probe_child(device_t dev, device_t child)
 	int result, pri = 0;
 	int hasclass = (child->devclass != 0);
 
+	GIANT_REQUIRED;
+
 	dc = dev->devclass;
 	if (!dc)
 		panic("device_probe_child: parent device has no devclass");
@@ -2183,6 +2185,8 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
+	GIANT_REQUIRED;
+
 	if (dev->state >= DS_ALIVE && (dev->flags & DF_REBID) == 0)
 		return (0);
 
@@ -2269,6 +2273,8 @@ int
 device_detach(device_t dev)
 {
 	int error;
+
+	GIANT_REQUIRED;
 
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->state == DS_BUSY)
