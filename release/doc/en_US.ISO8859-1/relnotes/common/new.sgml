@@ -184,9 +184,15 @@
       &merged;</para>
 
     <para arch="i386,pc98">The DRM kernel modules have been updated from
-      DRI CVS as of 9 September 2003.  Among other changes, this
-      import includes a newly-ported SiS 300/305/540/630/730
-      driver.</para>
+      DRI CVS as of 23 October 2003.  Among other changes, this
+      change includes a newly-ported SiS 300/305/540/630/730
+      driver and mostly-complete SMPng locking.</para>
+
+    <para>The &man.dcons.4; <quote>dumb console</quote> driver has
+      been added to provide a local and remote console.  It can be
+      accessed over Firewire using the &man.dcons.crom.4; driver.  A
+      &man.dconschat.8; utility provides user access to &man.dcons.4;
+      devices.</para>
 
     <para>A multi-byte character set conversion method is now supported
       by the <literal>LIBICONV</literal> kernel option.</para>
@@ -247,6 +253,11 @@
 
       <para arch="i386,pc98">Floating point emulation in the kernel has
 	been removed.</para>
+
+      <para arch="i386">Problems with some Pentium 4 CPUs and some older
+        Pentium Pro and Pentium II CPUs have been worked around.
+        Typically these manifested themselves as memory corruption or
+        unexplained crashes.</para>
 
     </sect3>
 
@@ -315,6 +326,13 @@
       <para>The xe driver now supports CE2, CEM28, 
         and CEM33 cards, and &man.multicast.4; datagram.  Also several
         bugs in the driver has been fixed.</para>
+
+      <para>A number of network drivers have had their interrupt
+	handlers marked as MPSAFE, meaning they can run without
+	the Giant lock.  Among the drivers so converted are:
+	&man.ath.4;, &man.em.4;, &man.ep.4;, &man.fxp.4;, &man.sn.4;,
+	&man.wi.4;, and &man.sis.4;.</para>
+
     </sect3>
 
     <sect3 id="net-proto">
@@ -401,6 +419,12 @@
             the Linux BlueZ SDP package, has been added.</para>
         </listitem>
       </itemizedlist>
+
+      <para>Support for the IPv6 Advanced Sockets API now conforms to
+        RFC 3542 (also known as RFC 2292bis), rather than RFC 2292.
+        Applications using this API have been updated
+        accordingly.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -508,6 +532,10 @@
       Source Language (ASL) and ACPI Machine language (AML), has been
       added.</para>
 
+    <para>&man.ifconfig.8; now supports a <option>staticarp</option>
+      option for an interface, which disables the sending of ARP
+      requests for that interface.</para>
+
     <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
       command now support ranges of rule numbers.
       &merged;</para>
@@ -531,6 +559,9 @@
     <para>The <filename>libkiconv</filename> library has been added to
       support working with loadable character set conversion tables in
       the kernel.</para>
+
+    <para arch="ia64"><filename>libkse</filename> is now the default
+      threading library on &os;/ia64.</para>
 
     <para arch="i386,ia64">The <filename>libthr</filename> 1:1
       threading library is now built by default.</para>
