@@ -2407,11 +2407,14 @@ isp_intr(arg)
 				isp->isp_update |= (1 << XS_CHANNEL(xs));
 			}
 		} else {
-			if (XS_STS(xs) == SCSI_CHECK) {
+			if (sp->req_scsi_status & RQCS_SV) {
+				int amt = min(XS_SNSLEN(xs), sp->req_sense_len);
+				MEMCPY(XS_SNSP(xs), sp->req_sense_data, amt);
 				XS_SNS_IS_VALID(xs);
-				MEMCPY(XS_SNSP(xs), sp->req_sense_data,
-					XS_SNSLEN(xs));
 				sp->req_state_flags |= RQSF_GOT_SENSE;
+			} else if (XS_STS(xs) == SCSI_CHECK) {
+				IDPRINTF(1, ("%s: check condition with no sense"
+				    " data\n", isp->isp_name));
 			}
 		}
 		if (XS_NOERR(xs) && XS_STS(xs) == SCSI_BUSY) {
@@ -2454,6 +2457,10 @@ isp_intr(arg)
 			ISP_DMAFREE(isp, xs, sp->req_handle);
 		}
 		/*
+		 * Let the platforms cope.
+		 */
+#if	0
+		/*
 		 * XXX: If we have a check condition, but no Sense Data,
 		 * XXX: mark it as an error (ARQ failed). We need to
 		 * XXX: to do a more distinct job because there may
@@ -2466,6 +2473,7 @@ isp_intr(arg)
 				XS_SETERR(xs, HBA_ARQFAIL);
 			}
 		}
+#endif
 		if ((isp->isp_dblev >= 5) ||
 		    (isp->isp_dblev > 2 && !XS_NOERR(xs))) {
 			PRINTF("%s(%d.%d): FIN dl%d resid%d STS %x",
