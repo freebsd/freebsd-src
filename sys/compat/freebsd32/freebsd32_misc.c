@@ -1296,6 +1296,37 @@ freebsd4_freebsd32_sigaction(struct thread *td,
 }
 #endif
 
+int
+freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
+{
+	struct timespec32 rmt32, rqt32;
+	struct timespec rmt, rqt;
+	int error;
+
+	error = copyin(uap->rqtp, &rqt32, sizeof(rqt));
+	if (error)
+		return (error);
+
+	CP(rqt32, rqt, tv_sec);
+	CP(rqt32, rqt, tv_nsec);
+
+	if (uap->rmtp &&
+	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
+		return (EFAULT);
+	error = kern_nanosleep(td, &rqt, &rmt);
+	if (error && uap->rmtp) {
+		int error2;
+
+		CP(rmt, rmt32, tv_sec);
+		CP(rmt, rmt32, tv_nsec);
+
+		error2 = copyout(&rmt32, uap->rmtp, sizeof(rmt));
+		if (error2)
+			error = error2;
+	}
+	return (error);
+}
+
 #if 0
 
 int
