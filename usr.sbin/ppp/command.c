@@ -145,7 +145,6 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$FreeBSD$";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -732,7 +731,7 @@ ShowStopped(struct cmdargs const *arg)
 static int
 ShowVersion(struct cmdargs const *arg)
 {
-  prompt_Printf(arg->prompt, "PPP Version %s - %s\n", Version, VersionDate);
+  prompt_Printf(arg->prompt, "PPP Version %s - %s\n", Version, __DATE__);
   return 0;
 }
 

@@ -52,7 +52,6 @@ struct cmdtab {
 #define IsEnabled(x) ((x) & NEG_ENABLED)
 
 extern const char Version[];
-extern const char VersionDate[];
 
 extern void command_Expand(char **, int, char const *const *, struct bundle *,
                            int, pid_t);
