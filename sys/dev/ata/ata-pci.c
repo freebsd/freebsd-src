@@ -157,8 +157,8 @@ ata_pci_attach(device_t dev)
     if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
 	int rid = ATA_BMADDR_RID;
 
-	if (!ctlr->r_mem) {
-	    if (!(ctlr->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	if (!ctlr->r_io2) {
+	    if (!(ctlr->r_io1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 						    0, ~0, 1, RF_ACTIVE)))
 		device_printf(dev, "Busmastering DMA not configured\n");
 	}
@@ -182,7 +182,7 @@ ata_pci_print_child(device_t dev, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(ch->r_io[0].res));
+    retval += printf(": at 0x%lx", rman_get_start(ch->r_io[ATA_IDX_ADDR].res));
 
     if (ATA_MASTERDEV(dev))
 	retval += printf(" irq %d", 14 + ch->unit);
@@ -390,10 +390,11 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
     }
     ch->r_io[ATA_ALTSTAT].res = altio;
     ch->r_io[ATA_ALTSTAT].offset = 0;
+    ch->r_io[ATA_IDX_ADDR].res = io;
 
-    if (ctlr->r_bmio) {
+    if (ctlr->r_io1) {
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
-	    ch->r_io[i].res = ctlr->r_bmio;
+	    ch->r_io[i].res = ctlr->r_io1;
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 
@@ -420,9 +421,9 @@ ata_pci_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
-	     (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
+		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
-	     ATA_IDX_INB(ch, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
     return 0;
 }
 
@@ -433,19 +434,13 @@ ata_pci_dmastop(struct ata_channel *ch)
 
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
-	     ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
 
     ata_dmastop(ch);
 
     return (error & ATA_BMSTAT_MASK);
 }
-
-static int 
-ata_pci_dmastatus(struct ata_channel *ch)
-{
-    return ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
-}   
 
 static int
 ata_pci_dmainit(struct ata_channel *ch)
@@ -457,7 +452,6 @@ ata_pci_dmainit(struct ata_channel *ch)
 
     ch->dma->start = ata_pci_dmastart;
     ch->dma->stop = ata_pci_dmastop;
-    ch->dma->status = ata_pci_dmastatus;
     return 0;
 }
 
