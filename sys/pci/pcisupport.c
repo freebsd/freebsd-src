@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.113 1999/05/25 15:56:10 roger Exp $
+**  $Id: pcisupport.c,v 1.114 1999/05/26 13:14:24 roger Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -802,7 +802,9 @@ pcib_match(device_t dev)
 	switch (pci_get_devid(dev)) {
 	/* Intel -- vendor 0x8086 */
 	case 0x71818086:
-		return ("Intel 82443LX PCI-PCI bridge");
+		return ("Intel 82443LX (440 LX) PCI-PCI (AGP) bridge");
+	case 0x71918086:
+		return ("Intel 82443BX (440 BX) PCI-PCI (AGP) bridge");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x124b8086:
@@ -814,10 +816,9 @@ pcib_match(device_t dev)
 	case 0x01031004:
 		return ("VLSI 82C538 Eagle II PCI Docking bridge");
 
-	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
-	/* totally. Please let me know if anything wrong.            -F */
+	/* VIA Technologies -- vendor 0x1106 */
 	case 0x85981106:
-		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI bridge");
+		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
@@ -1077,11 +1078,9 @@ chip_match(device_t dev)
 		fixbushigh_i1225(dev);
 		return ("Intel 824?? host to PCI bridge");
 	case 0x71808086:
-		return ("Intel 82443LX host to PCI bridge");
+		return ("Intel 82443LX (440 LX) host to PCI bridge");
 	case 0x71908086:
-		return ("Intel 82443BX host to PCI bridge");
-	case 0x71918086:
-		return ("Intel 82443BX host to AGP bridge");
+		return ("Intel 82443BX (440 BX) host to PCI bridge");
 	case 0x71928086:
 		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
  	case 0x71a08086:
