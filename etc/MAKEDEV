@@ -722,11 +722,11 @@ sa*)
 		do
 			mknod sa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 0`  root:operator
-			ln -f sa${unit}.${m} c rsa${unit}.${m}
+			ln -f sa${unit}.${m} rsa${unit}.${m}
 			mknod nsa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 1` root:operator
-			ln -f nsa${unit}.${m} c nrsa${unit}.${m}
-			mknod ersa${unit}.${m} c $chr \
+			ln -f nsa${unit}.${m} nrsa${unit}.${m}
+			mknod esa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 2` root:operator
 			ln -f esa${unit}.${m} ersa${unit}.${m}
 		done
