@@ -19,7 +19,7 @@ LIBS=	\
 	pam_skey.so \
 	pam_ssh.so \
 	pam_tacplus.so \
-	pam_unix.so \
+	pam_unix.so
 
 CLEANFILES+=	${LIBS}
 
