@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.83 1998/05/04 03:01:43 dyson Exp $
+ * $Id: vm_fault.c,v 1.84 1998/07/11 12:07:52 bde Exp $
  */
 
 /*
@@ -460,8 +460,8 @@ readrest:
 			 */
 
 			if (rv == VM_PAGER_ERROR)
-				printf("vm_fault: pager input (probably hardware) error, PID %d failure\n",
-				    curproc->p_pid);
+				printf("vm_fault: pager read error, pid %d (%s)\n",
+				    curproc->p_pid, curproc->p_comm);
 			/*
 			 * Data outside the range of the pager or an I/O error
 			 */
