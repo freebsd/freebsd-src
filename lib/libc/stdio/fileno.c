@@ -40,7 +40,10 @@ static char sccsid[] = "@(#)fileno.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <stdio.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 /*
  * fileno has traditionally been a macro in <stdio.h>.  That is
@@ -51,6 +54,11 @@ __FBSDID("$FreeBSD$");
 int
 fileno(FILE *fp)
 {
-	/* ??? - Should probably use atomic_read. */
-	return (__sfileno(fp));
+	int fd;
+
+	FLOCKFILE(fp);
+	fd = __sfileno(fp);
+	FUNLOCKFILE(fp);
+
+	return (fd);
 }
