@@ -74,8 +74,8 @@ void getsysctl(name, ptr, len)
 		    strerror(errno));
 	}
 	if (nlen != len) {
-		error("sysctl(%s...) expected %d, got %d", name, 
-		    len, nlen);
+		error("sysctl(%s...) expected %lu, got %lu", name, 
+		    (unsigned long)len, (unsigned long)nlen);
     }
 }
 
