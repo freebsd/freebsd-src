@@ -259,6 +259,7 @@ rip_ctloutput(so, sopt)
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		case IP_FW_ADD:
 		case IP_FW_GET:
 			if (ip_fw_ctl_ptr == 0)
 				error = ENOPROTOOPT;
