@@ -304,7 +304,7 @@ lint: ${SRCS}
 
 .include <bsd.dep.mk>
 
-.if !exists(${DEPENDFILE})
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${SRCS:M*.h}
 .endif
 
