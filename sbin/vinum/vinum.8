@@ -46,9 +46,7 @@
 .Op command
 .Op Fl options
 .Sh COMMANDS
-.Cd create
-.Fl f
-.Ar description-file
+.Cd create Op Fl f Ar description-file
 .in +1i
 Create a volume as described in
 .Ar description-file
@@ -83,6 +81,8 @@ List information about volume manager state.
 .in
 .Cd init
 .Op Fl v
+.Op Fl w
+.Ar plex
 .in +1i
 .\" XXX
 Initialize a plex by writing zeroes to all its subdisks.
@@ -149,7 +149,7 @@ List information about plexes
 List information about volumes
 .in
 .Cd printconfig
-.Pa file
+.Op Pa file
 .in +1i
 Write a copy of the current configuration to
 .Pa file .
@@ -232,6 +232,10 @@ Set the state of the object to \fIstate\fP\|
 Set dæmon configuration.
 .in
 .Cd start
+.in +1i
+Read configuration from all vinum drives.
+.in
+.Cd start
 .Op volume | plex | subdisk
 .in +1i
 Allow the system to access the objects
@@ -269,20 +273,11 @@ and
 .Fl V
 options.
 .Bl -hang
-.It Cd -v
+.It Fl f
 The
-.Nm -v
-option can be used with any command to request more detailed information.
-.It Cd -V
-The
-.Nm -V
-option can be used with any command to request more detailed information than
-the
-.Nm -v
-option provides.
-.It Cd -f
-The
-.Nm -f
+.Fl f
+.if t (``force'')
+.if n ("force")
 option overrides safety checks.  Use with extreme care.  This option is for
 emergency use only.  For example, the command
 .Bd -unfilled -offset indent
@@ -290,12 +285,12 @@ rm -f myvolume
 .Ed
 .Pp
 removes
-.Nm myvolume
+.Ar myvolume
 even if it is open.  Any subsequent access to the volume will almost certainly
 cause a panic.
-.It Cd -r
+.It Fl r
 The
-.Nm -r
+.Fl r
 .if t (``recursive'')
 .if n ("recursive")
 option is used by the list commands to display information not
@@ -303,13 +298,39 @@ only about the specified objects, but also about subordinate objects.  For
 example, in conjnction with the
 .Nm lv
 command, the
-.Nm -r
+.Fl r
 option will also show information about the plexes and subdisks belonging to the
 volume.
-.It Cd -s
+.It Fl s
 The
-.Nm -s
+.Fl s
+.if t (``statistics'')
+.if n ("statistics")
 option is used by the list commands to display statistical information.
+.It Fl v
+The
+.Fl v
+.if t (``verbose'')
+.if n ("verbose")
+option can be used with any command to request more detailed information.
+.It Fl V
+The
+.Fl V
+.if t (``Very verbose'')
+.if n ("Very verbose")
+option can be used with any command to request more detailed information than
+the
+.Fl v
+option provides.
+.It Fl w
+The
+.Fl w
+.if t (``wait'')
+.if n ("wait")
+option tells
+.Nm
+to wait for completion of commands which normally run in the background, such as
+.Nm init .
 .El
 .Pp
 .Ss COMMANDS IN DETAIL
@@ -360,15 +381,24 @@ multiplied by the stripe size.  For example, in a plex of block size 256k, the
 first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
 This calculation ignores parity blocks in RAID-5 plexes.
 .El
-.It Nm create Fl f Ar description-file
+.It Nm create Op Fl f Ar description-file
 .sp
 .Nm
 .Ar create
 is used to create any object.  In view of the relatively complicated
 relationship and the potential dangers involved in creating a
 .Nm
-object, there is no interactive interface to this function.  See the section
-CONFIGURATION FILE below for more information.
+object, there is no interactive interface to this function.  If you do not
+specify a file name,
+.Nm
+starts an editor on a temporary file.  If the environment variable
+.Ev EDITOR
+is set,
+.Nm
+starts this editor.  If not, it defaults to
+.Nm vi .
+See the section CONFIGURATION FILE below for more information on the format of
+this file.
 .Pp
 Note that the
 .Nm
@@ -440,6 +470,9 @@ Go into remote
 when the
 .Nm debug
 command is issued.
+.It DEBUG_WARNINGS (512)
+.br
+Print some warnings about minor problems in the implementation.
 .El
 .It Nm detach Op Fl f
 .Ar plex
@@ -588,17 +621,20 @@ and represents the data written to a RAID-5 parity stripe after calculating
 parity.
 .El
 .\" XXX
-.It Nm init Ar plex
+.It Nm init Op Fl w
+.Ar plex
 .Pp
 .Nm
 .Ar init
 initializes a plex by writing zeroes to all its subdisks.  This is the only way
 to ensure consistent data in a plex.  You must perform this initialization
 before using a RAID-5 plex.  It is also recommended for other new plexes.
-.Pp
 .Nm
 initializes all subdisks of a plex in parallel.  Since this operation can take a
-long time, it is performed in the background.
+long time, it is normally performed in the background.  If you want to wait for
+completion of the command, use the
+.Fl w
+(wait) option.
 .Nm
 prints a console message when the initialization is complete.
 .It Nm label
@@ -711,13 +747,17 @@ program when running in interactive mode.  Normally this would be done by
 entering the
 .Ar EOF
 character.
-.It Nm printconfig Pa file
+.It Nm printconfig Op Pa file
 Write a copy of the current configuration to
 .Pa file
 in a format that can be used to recreate the
 .Nm
 configuration.  Unlike the configuration saved on disk, it includes definitions
-of the drives.
+of the drives.  If you omit
+.Pa file ,
+.Nm
+writes the list to
+.Pa stdout .
 .It Nm read
 .Ar disk Op disk...
 .Pp
@@ -1038,11 +1078,17 @@ entry must be on a single line.
 .Pp
 Some configuration file parameters specify a size (lengths, stripe sizes).
 These lengths can be specified as bytes, as sectors of 512 bytes (by appending
-the letter \f(CWb\fR), as kilobytes (by appending the letter \f(CWk\fR), as
+the letter \f(CWs\fR), as kilobytes (by appending the letter \f(CWk\fR), as
 megabytes (by appending the letter \f(CWm\fR) or as gigabytes (by appending the
 letter \f(CWg\fR).  These quantities represent the values 2**10, 2**20 and 2**30
 respectively.  For example, the value \f(CW16777216\fR bytes can also be written
 as \f(CW16m\fR, \f(CW16384k\fR or \f(CW32768b\fR.
+.Pp
+For reasons of compatibility, 
+.Nm
+takes the letter \f(CWb\fP (block) to be equivalent to \f(CWs\fP (sector).  The
+use of this abbreviation is deprecated, since the size of a block is very
+dependent on the context.
 .Pp
 The configuration file can contain the following entries:
 .Pp
@@ -1317,6 +1363,24 @@ represents the whole disk and should not be used for any other purpose.
 .Nm
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
+.Sh LOG FILE
+.Nm
+maintains a log file, by default
+.Pa /var/tmp/vinum.history ,
+in which it keeps track of the commands issued to
+.Nm vinum .
+You can override the name of this file by setting the environment variable
+.Ev VINUM_HISTORY 
+to the name of the file.  
+.Pp
+Each message in the log file is preceded by a date.  The default format is 
+.Li %e %b %Y %H:%M:%S
+See
+.Xr strftime 3
+for further details of the format string.  It can be overridden by the
+environment variable
+.Ev VINUM_DATEFORMAT .
+The date format in th
 .Sh HOW TO SET UP VINUM
 This section gives practical advice about how to implement a
 .Nm
@@ -2001,10 +2065,21 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
+.Sh ENVIRONMENT VARIABLES
+.Bl -hang
+.It VINUM_HISTORY
+The name of the log file, by default /var/log/vinum_history.
+.It VINUM_DATEFORMAT
+The format of dates in the log file, by default %e %b %Y %H:%M:%S.
+.It EDITOR
+The name of the editor to use for editing configuration files, by default
+.Nm vi .
+.El
 .Sh SEE ALSO
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
 .Xr newfs 8 ,
+.Xr strftime 3 ,
 .Pa http://www.lemis.com/vinum.html ,
 .Pa http://www.lemis.com/vinum-debugging.html .
 .Sh AUTHOR
