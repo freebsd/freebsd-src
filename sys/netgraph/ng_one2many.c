@@ -88,9 +88,6 @@ static ng_disconnect_t	ng_one2many_disconnect;
 /* Other functions */
 static void		ng_one2many_update_many(priv_p priv);
 
-/* Store each hook's link number in the private field */
-#define LINK_NUM(hook)		(*(int16_t *)(&(hook)->private))
-
 /******************************************************************
 		    NETGRAPH PARSE TYPES
 ******************************************************************/
