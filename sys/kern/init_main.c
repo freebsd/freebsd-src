@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.105 1999/01/29 08:36:44 dillon Exp $
+ * $Id: init_main.c,v 1.106 1999/01/29 23:18:48 dillon Exp $
  */
 
 #include "opt_devfs.h"
@@ -98,10 +98,6 @@ int	boothowto = 0;		/* initialized so that it can be patched */
 struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 	CTLFLAG_RD, &boottime, timeval, "");
-
-static int shutdowntimeout = 120;
-SYSCTL_INT(_kern, OID_AUTO, shutdown_timeout,
-	CTLFLAG_RW, &shutdowntimeout, 0, "");
 
 /*
  * Promiscuous argument pass for start_init()
