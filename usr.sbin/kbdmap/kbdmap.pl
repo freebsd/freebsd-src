@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
-# Copyright (c) March 1995 Wolfram Schneider. All rights reserved.
-# Alle Rechte vorbehalten. Es gilt das kontinentaleuropäische Urheberrecht.
+# Copyright (c) March 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -11,11 +11,6 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 3. All advertising materials mentioning features or use of this software
-#    must display the following acknowledgement:
-#    This product includes software developed by Wolfram Schneider
-# 4. The name of the author may not be used to endorse or promote products
-#    derived from this software without specific prior written permission
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,14 +24,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-
-#
 # kbdmap/vidfont - front end for syscons
 #
-#   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
-#
-# $Id: kbdmap.pl,v 1.2 1995/04/05 08:09:24 jkh Exp $
-#
+# $Id: kbdmap.pl,v 1.3 1996/08/16 13:26:44 wosch Exp $
+
 
 # simple test if syscons works
 $x11 = system("kbdcontrol -d >/dev/null");

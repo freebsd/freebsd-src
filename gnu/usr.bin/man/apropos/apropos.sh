@@ -2,6 +2,7 @@
 #
 # apropos -- search the whatis database for keywords.
 #
+# Copyright (c) February 1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
 # Copyright (c) 1990, 1991, John W. Eaton.
 #
 # You may distribute under the terms of the GNU General Public
@@ -14,9 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# rewritten by Wolfram Schneider, Berlin, Feb 1996
-#
-# $Id: apropos.sh,v 1.3 1996/03/10 18:52:09 wosch Exp $
+# $Id: apropos.sh,v 1.4 1996/07/08 20:03:18 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH
