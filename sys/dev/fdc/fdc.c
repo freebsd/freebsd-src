@@ -81,7 +81,6 @@
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
 static int fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
-static int fdc_externalize(struct proc *, struct kern_devconf *, void *, size_t);
 
 /*
  * Templates for the kern_devconf structures used when we attach.
@@ -95,7 +94,7 @@ static struct kern_devconf kdc_fd_template = {
 static struct kern_devconf kdc_fdc_template = {
 	0, 0, 0,		/* filled in by kern_devconf.c */
 	"fdc", 0, { "isa0", MDDT_ISA, 0 },
-	fdc_externalize, 0, fdc_goaway, ISA_EXTERNALLEN
+	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN
 };
 
 static inline void
@@ -380,6 +379,7 @@ fdattach(dev)
 		return 0;
 	*kdc = kdc_fdc_template;
 	kdc->kdc_unit = fdcu;
+	kdc->kdc_isa = dev;
 	dev_attach(kdc);
 
 	fdc->fdcu = fdcu;

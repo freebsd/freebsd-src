@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.4 1994/08/08 13:33:12 davidg Exp $
+ * $Id: if_el.c,v 1.5 1994/08/13 03:50:04 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -30,6 +30,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -96,6 +97,22 @@ static inline void el_hardreset(int);
 struct isa_driver eldriver = {
 	el_probe, el_attach, "el"
 };
+
+static struct kern_devconf kdc_el[NEL] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"el", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+el_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_el[id->id_unit] = kdc_el[0];
+	kdc_el[id->id_unit].kdc_unit = id->id_unit;
+	kdc_el[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_el[id->id_unit]);
+}
 
 /* Probe routine.  See if the card is there and at the right place. */
 int el_probe(struct isa_device *idev)
@@ -189,6 +206,7 @@ int el_attach(struct isa_device *idev)
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
 	if_attach(ifp);
+	el_registerdev(idev);
 
 	/* Put the station address in the ifa address list's AF_LINK
 	 * entry, if any.

@@ -51,31 +51,34 @@
 #define MULTICAST_ADDR_LEN 8
 #define ETHER_MIN_LEN 64
 
-#include "param.h"
-#include "systm.h"
-#include "errno.h"
-#include "ioctl.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "syslog.h"
-#include "net/if.h"
-#include "net/if_dl.h"
-#include "net/if_types.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/ioccom.h>
+#include <sys/sockio.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/syslog.h>
+#include <sys/devconf.h>
+
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
-#include "i386/isa/isa_device.h"
-#include "i386/isa/if_lnc.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/if_lnc.h>
 
 struct lnc_softc {
 	struct arpcom arpcom;	            /* see ../../netinet/if_ether.h */
@@ -723,6 +726,22 @@ lnc_tint(int unit)
 	if (!(sc->arpcom.ac_if.if_flags & IFF_OACTIVE))
 		lnc_start(&sc->arpcom.ac_if);
 
+}
+
+static struct kern_devconf kdc_lnc[NLNC] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"lnc", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+lnc_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_lnc[id->id_unit] = kdc_lnc[0];
+	kdc_lnc[id->id_unit].kdc_unit = id->id_unit;
+	kdc_lnc[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_lnc[id->id_unit]);
 }
 
 int

@@ -73,7 +73,8 @@ dev_detach(struct kern_devconf *kdc)
 
 /*
  * NB: the device must do a dev_detach inside its goaway routine, if it
- * succeeds.
+ * succeeds.  If no routine is specified, we assume no special treatment is
+ * required.
  */
 int
 dev_goawayall(int force)
@@ -82,6 +83,12 @@ dev_goawayall(int force)
 	struct kern_devconf *kdc = dc_list;
 
 	while(kdc) {
+		if(!kdc->kdc_goaway) {
+			dev_detach(kdc);
+			kdc = dc_list;
+			continue;
+		}
+
 		if(kdc->kdc_goaway(kdc, force)) {
 			rv++;
 			kdc = kdc->kdc_next;

@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.26 1994/08/13 03:50:06 wollman Exp $
+ * $Id: if_is.c,v 1.27 1994/09/21 18:33:23 davidg Exp $
  */
 
 /* TODO
@@ -34,6 +34,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -138,6 +139,22 @@ u_short isrdcsr(unit,port)
 	outw(is_softc[unit].rap,port);
 	return(inw(is_softc[unit].rdp));
 } 
+
+static struct kern_devconf kdc_is[NIS] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"is", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+is_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_is[id->id_unit] = kdc_is[0];
+	kdc_is[id->id_unit].kdc_unit = id->id_unit;
+	kdc_is[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_is[id->id_unit]);
+}
 
 int
 is_probe(isa_dev)
@@ -352,6 +369,7 @@ is_attach(isa_dev)
 	isa_dmacascade(isa_dev->id_drq);
 
 	if_attach(ifp);
+	is_registerdev(isa_dev);
 
 	/*
 	 * Search down the ifa address list looking 

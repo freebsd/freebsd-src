@@ -53,11 +53,20 @@ struct machdep_devconf {
 	char mddc_parent[PARENTNAMELEN];
 	enum machdep_devtype mddc_devtype;
 	int mddc_flags;
+	/*
+	 * The user doesn't need to see this, but it's useful in the kernel code.
+	 */
+	union {
+		struct isa_device *mddcu_isa;
+		struct scsi_link *mddcu_scsi;
+	} mddc_un;
 };
 
 #define dc_parent dc_md.mddc_parent
 #define dc_devtype dc_md.mddc_devtype
 #define dc_flags dc_md.mddc_flags	
+#define kdc_isa kdc_md.mddc_un.mddcu_isa
+#define kdc_scsi kdc_md.mddc_un.mddcu_scsi
 
 #include <i386/isa/isa_device.h>
 #include <i386/pci/pcireg.h>

@@ -92,6 +92,11 @@ struct isa_driver {
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
+#define ISA_EXTERNALLEN (sizeof(struct isa_device))
+#define EISA_EXTERNALLEN (sizeof(struct isa_device) + sizeof(int))
+
+#ifdef KERNEL
+
 extern char eintrnames[];	/* end of intrnames[] */
 extern u_long intrcnt[];	/* counts for for each device and stray */
 extern char intrnames[];	/* string table containing device names */
@@ -130,10 +135,13 @@ int register_intr __P((int intr, int device_id, u_int flags,
 		       inthand2_t *handler, u_int mask, int unit));
 int unregister_intr __P((int intr, inthand2_t *handler));
 
-#define ISA_EXTERNALLEN (sizeof(struct isa_device))
-#define EISA_EXTERNALLEN (sizeof(struct isa_device) + sizeof(int))
 extern int isa_externalize(struct isa_device *, void *, size_t *);
 extern int isa_internalize(struct isa_device *, void **, size_t *);
 extern int eisa_externalize(struct isa_device *, int, void *, size_t *);
+
+struct kern_devconf;
+extern int isa_generic_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+extern int eisa_generic_externalize(struct proc *,struct kern_devconf *, void *, size_t);
+#endif /* KERNEL */
 
 #endif /* _I386_ISA_ISA_DEVICE_H_ */
