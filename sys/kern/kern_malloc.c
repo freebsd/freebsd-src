@@ -524,7 +524,8 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 		p += len;
 
 		first = 1;
-		for (i = 0; i < 32 /* 8 * sizeof(type->ks_size) */; i++) 
+		for (i = 0; i < sizeof(kmemzones) / sizeof(kmemzones[0]) - 1;
+		    i++) {
 			if (type->ks_size & (1 << i)) {
 				if (first)
 					len = snprintf(p, curline, "  ");
@@ -540,6 +541,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 
 				first = 0;
 			}
+		}
 
 		len = snprintf(p, 2, "\n");
 		p += len;
