@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.61 1998/02/24 14:13:16 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.62 1998/02/26 06:45:46 msmith Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1834,7 +1834,7 @@ msdosfs_bmap(ap)
 	if (ap->a_runb) {
 		*ap->a_runb = 0;
 	}
-	return (pcbmap(dep, de_bn2cn(pmp, ap->a_bn), ap->a_bnp, 0, 0));
+	return (pcbmap(dep, ap->a_bn, ap->a_bnp, 0, 0));
 }
 
 static int
@@ -1857,8 +1857,7 @@ msdosfs_strategy(ap)
 	 * don't allow files with holes, so we shouldn't ever see this.
 	 */
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = pcbmap(dep, de_bn2cn(dep->de_pmp, bp->b_lblkno),
-			       &bp->b_blkno, 0, 0);
+		error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0, 0);
 		if (error) {
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
