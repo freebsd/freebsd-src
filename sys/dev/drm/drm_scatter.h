@@ -72,7 +72,7 @@ int DRM(sg_alloc)( struct inode *inode, struct file *filp,
 	pmd_t *pmd;
 	pte_t *pte;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	if ( dev->sg )
 		return DRM_OS_ERR(EINVAL);

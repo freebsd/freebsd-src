@@ -326,7 +326,7 @@ int RADEON_READ_PLL(drm_device_t *dev, int addr)
 #if RADEON_FIFO_DEBUG
 static void radeon_status( drm_radeon_private_t *dev_priv )
 {
-	printk( "%s:\n", __FUNCTION__ );
+	printk( "%s:\n", __func__ );
 	printk( "RBBM_STATUS = 0x%08x\n",
 		(unsigned int)RADEON_READ( RADEON_RBBM_STATUS ) );
 	printk( "CP_RB_RTPR = 0x%08x\n",
@@ -425,7 +425,7 @@ static int radeon_do_wait_for_idle( drm_radeon_private_t *dev_priv )
 static void radeon_cp_load_microcode( drm_radeon_private_t *dev_priv )
 {
 	int i;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	radeon_do_wait_for_idle( dev_priv );
 
@@ -444,7 +444,7 @@ static void radeon_cp_load_microcode( drm_radeon_private_t *dev_priv )
  */
 static void radeon_do_cp_flush( drm_radeon_private_t *dev_priv )
 {
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 #if 0
 	u32 tmp;
 
@@ -458,7 +458,7 @@ static void radeon_do_cp_flush( drm_radeon_private_t *dev_priv )
 int radeon_do_cp_idle( drm_radeon_private_t *dev_priv )
 {
 	RING_LOCALS;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	BEGIN_RING( 6 );
 
@@ -476,7 +476,7 @@ int radeon_do_cp_idle( drm_radeon_private_t *dev_priv )
 static void radeon_do_cp_start( drm_radeon_private_t *dev_priv )
 {
 	RING_LOCALS;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	radeon_do_wait_for_idle( dev_priv );
 
@@ -500,7 +500,7 @@ static void radeon_do_cp_start( drm_radeon_private_t *dev_priv )
 static void radeon_do_cp_reset( drm_radeon_private_t *dev_priv )
 {
 	u32 cur_read_ptr;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	cur_read_ptr = RADEON_READ( RADEON_CP_RB_RPTR );
 	RADEON_WRITE( RADEON_CP_RB_WPTR, cur_read_ptr );
@@ -514,7 +514,7 @@ static void radeon_do_cp_reset( drm_radeon_private_t *dev_priv )
  */
 static void radeon_do_cp_stop( drm_radeon_private_t *dev_priv )
 {
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	RADEON_WRITE( RADEON_CP_CSQ_CNTL, RADEON_CSQ_PRIDIS_INDDIS );
 
@@ -527,7 +527,7 @@ static int radeon_do_engine_reset( drm_device_t *dev )
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	u32 clock_cntl_index, mclk_cntl, rbbm_soft_reset;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	radeon_do_pixcache_flush( dev_priv );
 
@@ -667,7 +667,7 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 	drm_map_list_entry_t *listentry;
 #endif /* __FreeBSD__ */
 	u32 tmp;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	dev_priv = DRM(alloc)( sizeof(drm_radeon_private_t), DRM_MEM_DRIVER );
 	if ( dev_priv == NULL )
@@ -1011,7 +1011,7 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 
 int radeon_do_cleanup_cp( drm_device_t *dev )
 {
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	if ( dev->dev_private ) {
 		drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -1060,17 +1060,17 @@ int radeon_cp_start( DRM_OS_IOCTL )
 {
  	DRM_OS_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( dev_priv->cp_running ) {
-		DRM_DEBUG( "%s while CP running\n", __FUNCTION__ );
+		DRM_DEBUG( "%s while CP running\n", __func__ );
 		return 0;
 	}
 	if ( dev_priv->cp_mode == RADEON_CSQ_PRIDIS_INDDIS ) {
 		DRM_DEBUG( "%s called with bogus CP mode (%d)\n",
-			   __FUNCTION__, dev_priv->cp_mode );
+			   __func__, dev_priv->cp_mode );
 		return 0;
 	}
 
@@ -1088,7 +1088,7 @@ int radeon_cp_stop( DRM_OS_IOCTL )
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_cp_stop_t stop;
 	int ret;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1127,12 +1127,12 @@ int radeon_cp_reset( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( !dev_priv ) {
-		DRM_DEBUG( "%s called before init done\n", __FUNCTION__ );
+		DRM_DEBUG( "%s called before init done\n", __func__ );
 		return DRM_OS_ERR(EINVAL);
 	}
 
@@ -1148,7 +1148,7 @@ int radeon_cp_idle( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1158,7 +1158,7 @@ int radeon_cp_idle( DRM_OS_IOCTL )
 int radeon_engine_reset( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1173,7 +1173,7 @@ int radeon_engine_reset( DRM_OS_IOCTL )
 static int radeon_do_init_pageflip( drm_device_t *dev )
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	dev_priv->crtc_offset =      RADEON_READ( RADEON_CRTC_OFFSET );
 	dev_priv->crtc_offset_cntl = RADEON_READ( RADEON_CRTC_OFFSET_CNTL );
@@ -1192,7 +1192,7 @@ static int radeon_do_init_pageflip( drm_device_t *dev )
 int radeon_do_cleanup_pageflip( drm_device_t *dev )
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	RADEON_WRITE( RADEON_CRTC_OFFSET,      dev_priv->crtc_offset );
 	RADEON_WRITE( RADEON_CRTC_OFFSET_CNTL, dev_priv->crtc_offset_cntl );

@@ -516,7 +516,7 @@ static void mga_dma_dispatch_clear( drm_device_t *dev,
 	int nbox = sarea_priv->nbox;
 	int i;
 	DMA_LOCALS;
-	DRM_DEBUG( __FUNCTION__ ":\n" );
+	DRM_DEBUG( "%s:\n", __func__ );
 
 	BEGIN_DMA( 1 );
 
@@ -610,7 +610,7 @@ static void mga_dma_dispatch_swap( drm_device_t *dev )
 	int nbox = sarea_priv->nbox;
 	int i;
 	DMA_LOCALS;
-	DRM_DEBUG( __FUNCTION__ ":\n" );
+	DRM_DEBUG( "%s:\n", __func__ );
 
 	sarea_priv->last_frame.head = dev_priv->prim.tail;
 	sarea_priv->last_frame.wrap = dev_priv->prim.last_wrap;
@@ -656,7 +656,7 @@ static void mga_dma_dispatch_swap( drm_device_t *dev )
 
 	FLUSH_DMA();
 
-	DRM_DEBUG( "%s... done.\n", __FUNCTION__ );
+	DRM_DEBUG( "%s... done.\n", __func__ );
 }
 
 static void mga_dma_dispatch_vertex( drm_device_t *dev, drm_buf_t *buf )
@@ -765,7 +765,7 @@ static void mga_dma_dispatch_iload( drm_device_t *dev, drm_buf_t *buf,
 	u32 y2;
 	DMA_LOCALS;
 	DRM_DEBUG( "%s: buf=%d used=%d\n",
-		   __FUNCTION__, buf->idx, buf->used );
+		   __func__, buf->idx, buf->used );
 
 	y2 = length / 64;
 
@@ -819,7 +819,7 @@ static void mga_dma_dispatch_blit( drm_device_t *dev,
 	int nbox = sarea_priv->nbox;
 	u32 scandir = 0, i;
 	DMA_LOCALS;
-	DRM_DEBUG( __FUNCTION__ ":\n" );
+	DRM_DEBUG( "%s:\n", __func__ );
 
 	BEGIN_DMA( 4 + nbox );
 
@@ -1005,7 +1005,7 @@ int mga_dma_iload( DRM_OS_IOCTL )
 	drm_buf_t *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_iload_t iload;
-	DRM_DEBUG( __FUNCTION__ ":\n" );
+	DRM_DEBUG( "%s:\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -1014,7 +1014,7 @@ int mga_dma_iload( DRM_OS_IOCTL )
 #if 0
 	if ( mga_do_wait_for_idle( dev_priv ) ) {
 		if ( MGA_DMA_DEBUG )
-			DRM_INFO( __FUNCTION__": -EBUSY\n" );
+			DRM_INFO( "%s: -EBUSY\n", __func__ );
 		return DRM_OS_ERR(EBUSY);
 	}
 #endif
@@ -1045,7 +1045,7 @@ int mga_dma_blit( DRM_OS_IOCTL )
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_blit_t blit;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s:\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 

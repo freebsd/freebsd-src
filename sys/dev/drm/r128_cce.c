@@ -138,7 +138,7 @@ static int r128_do_pixcache_flush( drm_r128_private_t *dev_priv )
 	}
 
 #if R128_FIFO_DEBUG
-	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
+	DRM_ERROR( "%s failed!\n", __func__ );
 #endif
 	return DRM_OS_ERR(EBUSY);
 }
@@ -154,7 +154,7 @@ static int r128_do_wait_for_fifo( drm_r128_private_t *dev_priv, int entries )
 	}
 
 #if R128_FIFO_DEBUG
-	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
+	DRM_ERROR( "%s failed!\n", __func__ );
 #endif
 	return DRM_OS_ERR(EBUSY);
 }
@@ -175,7 +175,7 @@ int r128_do_wait_for_idle( drm_r128_private_t *dev_priv )
 	}
 
 #if R128_FIFO_DEBUG
-	DRM_ERROR( "%s failed!\n", __FUNCTION__ );
+	DRM_ERROR( "%s failed!\n", __func__ );
 #endif
 	return DRM_OS_ERR(EBUSY);
 }
@@ -190,7 +190,7 @@ static void r128_cce_load_microcode( drm_r128_private_t *dev_priv )
 {
 	int i;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	r128_do_wait_for_idle( dev_priv );
 
@@ -326,7 +326,7 @@ static void r128_cce_init_ring_buffer( drm_device_t *dev,
 	u32 ring_start;
 	u32 tmp;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	/* The manual (p. 2) says this address is in "VM space".  This
 	 * means it's an offset from the start of AGP space.
@@ -392,7 +392,7 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 	drm_map_list_entry_t *listentry;
 #endif /* __FreeBSD__ */
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	dev_priv = DRM(alloc)( sizeof(drm_r128_private_t), DRM_MEM_DRIVER );
 	if ( dev_priv == NULL )
@@ -681,7 +681,7 @@ int r128_cce_init( DRM_OS_IOCTL )
 	DRM_OS_DEVICE;
 	drm_r128_init_t init;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	DRM_OS_KRNFROMUSR( init, (drm_r128_init_t *)data, sizeof(init) );
 
@@ -699,12 +699,12 @@ int r128_cce_start( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( dev_priv->cce_running || dev_priv->cce_mode == R128_PM4_NONPM4 ) {
-		DRM_DEBUG( "%s while CCE running\n", __FUNCTION__ );
+		DRM_DEBUG( "%s while CCE running\n", __func__ );
 		return 0;
 	}
 
@@ -722,7 +722,7 @@ int r128_cce_stop( DRM_OS_IOCTL )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_cce_stop_t stop;
 	int ret;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -766,12 +766,12 @@ int r128_cce_reset( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
 	if ( !dev_priv ) {
-		DRM_DEBUG( "%s called before init done\n", __FUNCTION__ );
+		DRM_DEBUG( "%s called before init done\n", __func__ );
 		return DRM_OS_ERR(EINVAL);
 	}
 
@@ -787,7 +787,7 @@ int r128_cce_idle( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -801,7 +801,7 @@ int r128_cce_idle( DRM_OS_IOCTL )
 int r128_engine_reset( DRM_OS_IOCTL )
 {
 	DRM_OS_DEVICE;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	LOCK_TEST_WITH_RETURN( dev );
 
@@ -816,7 +816,7 @@ int r128_engine_reset( DRM_OS_IOCTL )
 static int r128_do_init_pageflip( drm_device_t *dev )
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	dev_priv->crtc_offset =      R128_READ( R128_CRTC_OFFSET );
 	dev_priv->crtc_offset_cntl = R128_READ( R128_CRTC_OFFSET_CNTL );
@@ -834,7 +834,7 @@ static int r128_do_init_pageflip( drm_device_t *dev )
 int r128_do_cleanup_pageflip( drm_device_t *dev )
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG( "%s\n", __func__ );
 
 	R128_WRITE( R128_CRTC_OFFSET,      dev_priv->crtc_offset );
 	R128_WRITE( R128_CRTC_OFFSET_CNTL, dev_priv->crtc_offset_cntl );

@@ -573,7 +573,7 @@ int DRM(irq_install)( drm_device_t *dev, int irq )
 	dev->irq = irq;
 	DRM_OS_UNLOCK;
 
-	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, irq );
+	DRM_DEBUG( "%s: irq=%d\n", __func__, irq );
 
 	dev->context_flag = 0;
 	dev->interrupt_flag = 0;
@@ -642,7 +642,7 @@ int DRM(irq_uninstall)( drm_device_t *dev )
 	if ( !irq )
 		return DRM_OS_ERR(EINVAL);
 
-	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, irq );
+	DRM_DEBUG( "%s: irq=%d\n", __func__, irq );
 
 	DRIVER_UNINSTALL();
 
