@@ -26,6 +26,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)netnamer.c 1.13 91/03/11 Copyr 1986 Sun Micro";
@@ -85,18 +87,20 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 	int             err;
 
 	if (getnetid(netname, val)) {
-		p = strtok(val, ":");
+		char *res = val;
+
+		p = strsep(&res, ":");
 		if (p == NULL)
 			return (0);
-		*uidp = (uid_t) atol(val);
-		p = strtok(NULL, "\n,");
-		*gidp = (gid_t) atol(p);
+		*uidp = (uid_t) atol(p);
+		p = strsep(&res, "\n,");
 		if (p == NULL) {
 			return (0);
 		}
+		*gidp = (gid_t) atol(p);
 		gidlen = 0;
 		for (gidlen = 0; gidlen < NGROUPS; gidlen++) {
-			p = strtok(NULL, "\n,");
+			p = strsep(&res, "\n,");
 			if (p == NULL)
 				break;
 			gidlist[gidlen] = (gid_t) atol(p);
@@ -252,7 +256,7 @@ getnetid(key, ret)
 #endif
 
 	fd = fopen(NETIDFILE, "r");
-	if (fd == (FILE *) 0) {
+	if (fd == NULL) {
 #ifdef YP
 		res = "+";
 		goto getnetidyp;
@@ -261,10 +265,10 @@ getnetid(key, ret)
 #endif
 	}
 	for (;;) {
-		if (fd == (FILE *) 0)
+		if (fd == NULL)
 			return (0);	/* getnetidyp brings us here */
-		res = fgets(buf, 1024, fd);
-		if (res == 0) {
+		res = fgets(buf, sizeof(buf), fd);
+		if (res == NULL) {
 			fclose(fd);
 			return (0);
 		}
@@ -301,13 +305,15 @@ getnetid(key, ret)
 			continue;
 #endif	/* YP */
 		} else {
-			mkey = strtok(buf, "\t ");
+			mkey = strsep(&res, "\t ");
 			if (mkey == NULL) {
 				fprintf(stderr,
 		"Bad record in %s -- %s", NETIDFILE, buf);
 				continue;
 			}
-			mval = strtok(NULL, " \t#\n");
+			do {
+				mval = strsep(&res, " \t#\n");
+			} while (mval != NULL && !*mval);
 			if (mval == NULL) {
 				fprintf(stderr,
 		"Bad record in %s val problem - %s", NETIDFILE, buf);
