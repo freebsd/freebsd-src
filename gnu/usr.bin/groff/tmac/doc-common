@@ -193,7 +193,7 @@
 .de Os
 .ds oS Null
 .if "\\$1"" \{\
-.	ds oS BSD Experimental
+.	ds oS BSD
 .\}
 .if "\\$2"" \{\
 .	ds aa Non-Null
