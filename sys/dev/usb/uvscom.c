@@ -228,7 +228,7 @@ Static device_method_t uvscom_methods[] = {
 };
 
 Static driver_t uvscom_driver = {
-	"uvscom",
+	"ucom",
 	uvscom_methods,
 	sizeof (struct uvscom_softc)
 };
