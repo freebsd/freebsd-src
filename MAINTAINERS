@@ -64,6 +64,7 @@ procfs		des	Advance notification requested.
 linprocfs	des	Advance notification requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
+newsyslog(8)	gad	Heads-up appreciated.  I'm going thru the PR's for it.
 patch		gad	I have a WIP which will change the src a lot.
 vinum		grog	Recommends pre-commit review.
 cvs		peter	Heads-up appreciated, try not to break it.
@@ -169,8 +170,6 @@ usr.sbin/ipftest/Makefile:MAINTAINER=	darrenr@freebsd.org
 usr.sbin/ipresend/Makefile:MAINTAINER=	darrenr@freebsd.org
 usr.sbin/ipsend/Makefile:MAINTAINER=	darrenr@freebsd.org
 usr.sbin/iptest/Makefile:MAINTAINER=	darrenr@freebsd.org
-usr.sbin/lpr/Makefile:MAINTAINER=	wollman@FreeBSD.org
-usr.sbin/lpr/Makefile:MAINTAINER+=	gad@FreeBSD.org
 usr.sbin/mailstats/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 usr.sbin/makemap/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 usr.sbin/ntp/doc/Makefile:MAINTAINER=	sheldonh@FreeBSD.org
