@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.3 1995/05/30 00:07:24 rgrimes Exp $
+ *	$Id: var.c,v 1.4 1996/08/11 22:51:00 ache Exp $
  */
 
 #ifndef lint
@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)var.c	8.1 (Berkeley) 5/31/93";
 #include "syntax.h"
 #include "options.h"
 #include "mail.h"
+#include "parser.h"
 #include "var.h"
 #include "memalloc.h"
 #include "error.h"

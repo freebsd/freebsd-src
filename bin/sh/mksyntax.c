@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mksyntax.c,v 1.3 1996/08/11 22:50:59 ache Exp $
+ *	$Id: mksyntax.c,v 1.4 1996/08/12 12:31:28 ache Exp $
  */
 
 #ifndef lint
@@ -328,9 +328,9 @@ print(name)
 
 char *macro[] = {
 	"#define is_digit(c)\t((is_type+SYNBASE)[c] & ISDIGIT)",
-	"#define is_alpha(c)\t((c) != PEOF && isalpha((unsigned char) (c)))",
-	"#define is_name(c)\t((c) != PEOF && ((c) == '_' || isalpha((unsigned char) (c))))",
-	"#define is_in_name(c)\t((c) != PEOF && ((c) == '_' || isalnum((unsigned char) (c))))",
+	"#define is_alpha(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLENDARI) && isalpha((unsigned char) (c)))",
+	"#define is_name(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLENDARI) && ((c) == '_' || isalpha((unsigned char) (c))))",
+	"#define is_in_name(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLENDARI) && ((c) == '_' || isalnum((unsigned char) (c))))",
 	"#define is_special(c)\t((is_type+SYNBASE)[c] & (ISSPECL|ISDIGIT))",
 	NULL
 };
