@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.7 1995/10/27 05:16:46 jkh Exp $
+ * $Id: apache.c,v 1.8 1995/10/27 17:31:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -53,16 +53,24 @@
 #include "colors.h"
 #include "sysinstall.h"
 
-#define APACHE_BASE     "/usr/local/www"
 #define APACHE_HELPFILE "apache"
 #define APACHE_PACKAGE  "apache-0.8.14"
 #define FREEBSD_GIF	"/stand/power.gif"
+
+/* These change if the package uses different defaults */
+
+#define APACHE_BASE	"/usr/local/www"
+#define DATA_SUBDIR	"htdocs"
+#define CONFIG_SUBDIR	"config"
+
+/* Set up the structure to hold configuration information */
+/* Note that this is only what we could fit onto the one screen */
 
 typedef struct
 {
     char docroot[128];             /* DocumentRoot */
     char userdir[128];             /* UserDir */
-    char readme[32];               /* ReadmeName */
+    char welcome[32];              /* Welcome Doc */
     char email[64];                /* ServerAdmin */
     char hostname[64];             /* ServerName */
     char user[32];                 /* User */
@@ -74,8 +82,7 @@ static ApacheConf tconf;
 
 #define APACHE_DOCROOT_LEN      128
 #define APACHE_USERDIR_LEN      128
-#define APACHE_README_LEN        32
-#define APACHE_HEADER_LEN        32
+#define APACHE_WELCOME_LEN       32
 #define APACHE_EMAIL_LEN         64
 #define APACHE_HOSTNAME_LEN      64
 #define APACHE_USER_LEN          32
@@ -143,11 +150,11 @@ static Layout layout[] = {
       tconf.userdir, STRINGOBJ, NULL },
 #define LAYOUT_USERDIR          6
 
-{ 14, 35, 18, APACHE_README_LEN - 1,
-      "Readme File:",
-      "The name of the README file found in each directory",
-      tconf.readme, STRINGOBJ, NULL },
-#define LAYOUT_README           7
+{ 14, 35, 18, APACHE_WELCOME_LEN - 1,
+      "Default Document:",
+      "The name of the default document found in each directory",
+      tconf.welcome, STRINGOBJ, NULL },
+#define LAYOUT_WELCOME           7
 
 { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
@@ -232,9 +239,9 @@ apacheOpenDialog()
     strcpy(tconf.user, "guest");
     strcpy(tconf.group, "guest");
     strcpy(tconf.userdir, "public_html");
-    strcpy(tconf.readme, "README");
+    strcpy(tconf.welcome, "index.html");
     strcpy(tconf.maxcon, "150");
-    sprintf(tconf.docroot, "%s/htdocs", APACHE_BASE);
+    sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
     
     /* Loop over the layout list, create the objects, and add them
        onto the chain of objects that dialog uses for traversal*/
@@ -421,8 +428,8 @@ installApache(char *unused)
     if (! tconf.user[0])
 	strcpy(tconf.user, "nobody");
     
-    if (! tconf.readme[0])
-	strcpy(tconf.readme, "README");
+    if (! tconf.welcome[0])
+	strcpy(tconf.welcome, "index.html");
     if (! tconf.userdir[0])
 	strcpy(tconf.userdir, "public_html");
     
@@ -432,7 +439,7 @@ installApache(char *unused)
 	tconf.docroot[strlen(tconf.docroot)-1] = '\0';
     
     if (!tconf.docroot[0])
-	sprintf(tconf.docroot,"%s/data",APACHE_BASE);
+	sprintf(tconf.docroot,"%s/%s",APACHE_BASE,DATA_SUBDIR);
     
     /*** If DocRoot does not exist, create it ***/
     
@@ -492,7 +499,7 @@ installApache(char *unused)
     sleep(1);
 
     (void)vsystem("mkdir -p %s/config", APACHE_BASE);
-    sprintf(file, "%s/config/access.conf", APACHE_BASE);
+    sprintf(file, "%s/%s/access.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
 
@@ -509,7 +516,7 @@ installApache(char *unused)
     else
 	msgConfirm("Could not create %s",file);
     
-    sprintf(file, "%s/config/httpd.conf", APACHE_BASE);
+    sprintf(file, "%s/%s/httpd.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
 
@@ -533,16 +540,15 @@ installApache(char *unused)
     else
 	msgConfirm("Could not create %s",file);
     
-    sprintf(file, "%s/config/srm.conf", APACHE_BASE);
+    sprintf(file, "%s/%s/srm.conf", APACHE_BASE,CONFIG_SUBDIR);
     if (file_readable(file))
 	vsystem("mv -f %s %s.ORIG", file, file);
     fptr = fopen(file,"w");
     if (fptr)
     {
-	fprintf(fptr,"FancyIndexing on\nDirectoryIndex index.html\n");
-	fprintf(fptr,"IndexIgnore */.??* *~ *# */HEADER* */%s* */RCS\n",
-                tconf.readme);
-	fprintf(fptr,"HeaderName HEADER\nDefaultType text/plain\n");
+	fprintf(fptr,"FancyIndexing on\nDefaultType text/plain\n");
+	fprintf(fptr,"IndexIgnore */.??* *~ *# */HEADER* */README* */RCS\n");
+	fprintf(fptr,"HeaderName HEADER\nReadmeName README\n");
 	fprintf(fptr,"AccessFileName .htaccess\n\n");
 	fprintf(fptr,"AddEncoding x-compress Z\nAddEncoding x-gzip gz\n");
 	fprintf(fptr,"DefaultIcon /icons/unknown.gif\n\n");
@@ -567,7 +573,8 @@ installApache(char *unused)
 	fprintf(fptr,"ScriptAlias /cgi_bin/ %s/cgi_bin/\n",APACHE_BASE);
 	fprintf(fptr,"Alias /icons/ %s/icons/\n",APACHE_BASE);
 	fprintf(fptr,"DocumentRoot %s\n",tconf.docroot);
-	fprintf(fptr,"UserDir %s\nReadmeName %s\n\n",tconf.userdir,tconf.readme);
+	fprintf(fptr,"UserDir %s\nDirectoryIndex %s\n\n", tconf.userdir,
+			tconf.welcome);
 	
 	fclose(fptr);
     }
