@@ -89,30 +89,6 @@ vm_map_t pipe_map;
 vm_map_t buffer_map=0;
 
 /*
- *	kmem_alloc_pageable:
- *
- *	Allocate pageable memory to the kernel's address map.
- *	"map" must be kernel_map or a submap of kernel_map.
- */
-vm_offset_t
-kmem_alloc_pageable(map, size)
-	vm_map_t map;
-	vm_size_t size;
-{
-	vm_offset_t addr;
-	int result;
-
-	size = round_page(size);
-	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, 0,
-	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (result != KERN_SUCCESS) {
-		return (0);
-	}
-	return (addr);
-}
-
-/*
  *	kmem_alloc_nofault:
  *
  *	Allocate a virtual address range with no underlying object and
