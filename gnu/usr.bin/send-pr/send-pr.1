@@ -228,6 +228,19 @@ specifies the editor to invoke on the template.
 default:
 .B vi
 .sp
+If the environment variable
+.B MAIL_AGENT
+is set, its value is used as the path + command line arguments of the
+executable to be invoked for sending the problem report (which will be
+provided via standard input).
+.br
+This can be useful if you either use a MTA other than sendmail or need
+to provide additional parameters, such as the envelope sender on
+machines without a valid FQDN.
+.br
+Default value:
+.B /usr/sbin/sendmail -oi -t
+.sp
 If the environment variable 
 .B PR_FORM
 is set, then its value is used as the file name of the template for
