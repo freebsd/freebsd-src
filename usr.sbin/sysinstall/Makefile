@@ -77,7 +77,7 @@ rtermcap:	rtermcap.c
 
 KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
 	german.iso hr.iso hu.iso2.101keys it.iso icelandic.iso jp.106 \
-	norwegian.iso pl_PL.ISO_8859-2 pt.iso ru.koi8-r si.iso \
+	norwegian.iso pl_PL.ISO8859-2 pt.iso ru.koi8-r si.iso \
 	spanish.iso swedish.iso swissfrench.iso swissgerman.iso ua.koi8-u \
 	ua.koi8-u.shift.alt uk.iso us.dvorak us.iso us.pc-ctrl us.unix
 
