@@ -196,7 +196,6 @@ typedef struct sc_softc {
 
 #ifndef SC_NO_FONT_LOADING
 	int     	fonts_loaded;
-#define FONT_NONE	1
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
