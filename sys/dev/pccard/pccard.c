@@ -505,6 +505,28 @@ pccard_io_unmap(struct pccard_function *pf, int window)
 }
 #endif
 
+/*
+ * simulate the old "probe" routine.  In the new world order, the driver
+ * needs to grab devices while in the old they were assigned to the device by
+ * the pccardd process.  These symbols are exported to the upper layers.
+ */
+int
+pccard_compat_probe(device_t dev)
+{
+	return (CARD_COMPAT_MATCH(dev));
+}
+
+int
+pccard_compat_attach(device_t dev)
+{
+	int err;
+
+	err = CARD_COMPAT_PROBE(dev);
+	if (err == 0)
+		err = CARD_COMPAT_ATTACH(dev);
+	return (err);
+}
+
 #define PCCARD_NPORT	2
 #define PCCARD_NMEM	5
 #define PCCARD_NIRQ	1
@@ -661,6 +683,14 @@ pccard_set_memory_offset(device_t dev, device_t child, int rid,
 	    offset);
 }
 
+static int
+pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
+{
+	/* PCCARD_IVAR_ETHADDR unhandled from oldcard */
+	return ENOENT;
+}
+
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -682,6 +712,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
+	DEVMETHOD(bus_read_ivar,	pccard_read_ivar),
 
 	/* Card Interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
