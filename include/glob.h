@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)glob.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef _GLOB_H_
@@ -76,9 +77,11 @@ typedef struct {
 #define	GLOB_NOMAGIC	0x0200	/* GLOB_NOCHECK without magic chars (csh). */
 #define	GLOB_QUOTE	0x0400	/* Quote special chars with \. */
 #define	GLOB_TILDE	0x0800	/* Expand tilde names from the passwd file. */
+#define	GLOB_MAXPATH	0x1000	/* limit number of returned paths */
 
 #define	GLOB_NOSPACE	(-1)	/* Malloc call failed. */
 #define	GLOB_ABEND	(-2)	/* Unignored error. */
+#define	GLOB_LIMIT	(-3)	/* Path limit was hit. */
 
 __BEGIN_DECLS
 int	glob __P((const char *, int, int (*)(const char *, int), glob_t *));
