@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resource.h	8.4 (Berkeley) 1/9/95
- * $Id: resource.h,v 1.4 1996/02/24 06:49:45 hsu Exp $
+ * $Id: resource.h,v 1.4 1996/03/11 02:10:14 hsu Exp $
  */
 
 #ifndef _SYS_RESOURCE_H_
@@ -100,8 +100,8 @@ struct orlimit {
 };
 
 struct rlimit {
-	quad_t	rlim_cur;		/* current (soft) limit */
-	quad_t	rlim_max;		/* maximum value for rlim_cur */
+	rlim_t	rlim_cur;		/* current (soft) limit */
+	rlim_t	rlim_max;		/* maximum value for rlim_cur */
 };
 
 /* Load average structure. */
