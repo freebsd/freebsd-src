@@ -2751,4 +2751,4 @@ static struct mac_policy_ops mac_biba_ops =
 };
 
 MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",
-    MPC_LOADTIME_FLAG_NOTLATE, &mac_biba_slot);
+    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &mac_biba_slot);
