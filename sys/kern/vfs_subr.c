@@ -806,9 +806,11 @@ getnewvnode(tag, mp, vops, vpp)
 				       "address %p, inode %p\n",
 				       vp, vp->v_data);
 			if (bo->bo_numoutput)
-				panic("Clean vnode has pending I/O's");
+				panic("%p: Clean vnode has pending I/O's", vp);
+			if (vp->v_usecount != 0)
+				panic("%p: Non-zero use count", vp);
 			if (vp->v_writecount != 0)
-				panic("Non-zero write count");
+				panic("%p: Non-zero write count", vp);
 		}
 #endif
 		if ((pollinfo = vp->v_pollinfo) != NULL) {
