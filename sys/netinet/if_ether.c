@@ -430,9 +430,9 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 static void
 arpintr()
 {
-	register struct mbuf *m, *m0;
+	register struct mbuf *m;
 	register struct arphdr *ar;
-	int s, ml;
+	int s;
 
 	while (arpintrq.ifq_head) {
 		s = splimp();
@@ -457,14 +457,7 @@ arpintr()
 			continue;
 		}
 
-		m0 = m;
-		ml = 0;
-		while (m0 != NULL) {	
-			ml += m0->m_len;	/* wanna implement m_size?? */
-			m0 = m0->m_next;	
-		}
-
-		if (ml < sizeof(struct arphdr) + 2 * ar->ar_hln
+		if (m->m_pkthdr.len < sizeof(struct arphdr) + 2 * ar->ar_hln
 		    + 2 * ar->ar_pln) {
 			log(LOG_ERR, "arp: runt packet\n");
 			m_freem(m);
