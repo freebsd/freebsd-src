@@ -508,11 +508,14 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel reinstallkernel:
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
+	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; \
 	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 hierarchy
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel"
