@@ -202,11 +202,13 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_del.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_find.9
 
 MLINKS+=sbuf.9 sbuf_new.9
+MLINKS+=sbuf.9 sbuf_clear.9
 MLINKS+=sbuf.9 sbuf_setpos.9
 MLINKS+=sbuf.9 sbuf_cat.9
 MLINKS+=sbuf.9 sbuf_cpy.9
 MLINKS+=sbuf.9 sbuf_printf.9
 MLINKS+=sbuf.9 sbuf_putc.9
+MLINKS+=sbuf.9 sbuf_overflowed.9
 MLINKS+=sbuf.9 sbuf_finish.9
 MLINKS+=sbuf.9 sbuf_data.9
 MLINKS+=sbuf.9 sbuf_len.9
