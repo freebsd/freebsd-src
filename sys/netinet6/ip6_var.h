@@ -352,6 +352,8 @@ int	rip6_usrreq __P((struct socket *,
 
 int	dest6_input __P((struct mbuf **, int *, int));
 int	none_input __P((struct mbuf **, int *, int));
+
+u_int32_t ip6_randomid __P((void));
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_VAR_H_ */
