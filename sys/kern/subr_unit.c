@@ -162,7 +162,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 #else
 
 static __inline void
-check_unrhdr(struct unhdr *uh, int line)
+check_unrhdr(struct unrhdr *uh, int line)
 {
 
 }
