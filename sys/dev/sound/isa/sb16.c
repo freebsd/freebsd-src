@@ -238,7 +238,7 @@ sb_dsp_close(dev_t dev, int flags, int mode, struct proc * p)
 }
 
 static int
-sb_dsp_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc * p)
+sb_dsp_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     int unit;
     snddev_info *d;
