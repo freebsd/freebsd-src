@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: splash.4,v 1.1 1999/02/07 05:40:14 yokota Exp $
+.\" $Id: splash.4,v 1.2 1999/02/10 14:25:03 yokota Exp $
 .\"
 .Dd February 9, 1999
 .Dt SPLASH 4 i386
@@ -67,6 +67,10 @@ W*ndows BMP file decoder.
 While the BMP file format allows images of various color depths, this
 decoder currently only handles 256 color bitmaps.  Bitmaps of other color
 depths will not be displayed.
+.It Pa splash_pcx.ko
+ZSoft PCX decoder.
+This decoder currently only supports version 5 8-bpp single-plane
+images.
 .El
 .Pp
 The
@@ -197,8 +201,8 @@ VGA modes may be shown using one of the VESA video modes.
 .Bd -literal -offset indent
 load kernel
 load vesa
-load -t splash_image_data chuck.bmp
-load splash_bmp
+load -t splash_image_data chuck.pcx
+load splash_pcx
 .Ed
 .Pp
 If the VESA support is statically linked to the kernel, it is not
@@ -238,3 +242,10 @@ module was written by
 .An Michael Smith Aq msmith@FreeBSD.org
 and
 .An Kazutaka Yokota .
+The
+.Pa splash_pcx
+module was written by
+.An Dag-Erling Smørgrav Aq des@FreeBDS.org
+based on the
+.Pa splash_bmp
+code.
