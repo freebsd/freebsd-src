@@ -820,8 +820,10 @@ procfs_readdir(ap)
 		int doingzomb = 0;
 #endif
 		int pcnt = 0;
-		struct proc *p = allproc.lh_first;
+		struct proc *p;
 
+		ALLPROC_LOCK(AP_SHARED);
+		p = allproc.lh_first;
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
 			dp->d_reclen = delen;
@@ -878,6 +880,7 @@ procfs_readdir(ap)
 		}
 #endif
 
+		ALLPROC_LOCK(AP_RELEASE);
 		break;
 
 	    }

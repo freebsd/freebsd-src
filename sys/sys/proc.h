@@ -407,6 +407,14 @@ sigonstack(size_t sp)
 #define PROC_LOCK(p)	mtx_enter(&(p)->p_mtx, MTX_DEF)
 #define PROC_UNLOCK(p)	mtx_exit(&(p)->p_mtx, MTX_DEF)
 
+/* Lock and unlock the proc lists. */
+#define	ALLPROC_LOCK(how)						\
+	lockmgr(&allproc_lock, (how), NULL, CURPROC)
+
+#define	AP_SHARED	LK_SHARED
+#define	AP_EXCLUSIVE	LK_EXCLUSIVE
+#define	AP_RELEASE	LK_RELEASE
+
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
 	PROC_LOCK(p);							\

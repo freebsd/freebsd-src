@@ -1132,7 +1132,7 @@ rescan0:
 	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
 		bigproc = NULL;
 		bigsize = 0;
-		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+		ALLPROC_LOCK(AP_SHARED);
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			/*
 			 * if this is a system process, skip it
@@ -1165,7 +1165,7 @@ rescan0:
 				bigsize = size;
 			}
 		}
-		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+		ALLPROC_LOCK(AP_RELEASE);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
 			bigproc->p_estcpu = 0;
@@ -1450,7 +1450,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 
-		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+		ALLPROC_LOCK(AP_SHARED);
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			vm_pindex_t limit, size;
 
@@ -1492,7 +1492,7 @@ vm_daemon()
 				    &p->p_vmspace->vm_map, limit);
 			}
 		}
-		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+		ALLPROC_LOCK(AP_RELEASE);
 	}
 }
 #endif
