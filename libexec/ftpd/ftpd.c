@@ -1499,7 +1499,6 @@ skip:
 		asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
 		if (chrootdir == NULL)
 			fatalerror("Ran out of memory.");
-		
 	}
 	if (guest || dochroot) {
 		/*
