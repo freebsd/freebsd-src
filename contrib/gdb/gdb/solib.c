@@ -1151,7 +1151,7 @@ find_solib (so_list_ptr, maybe_changed)
 	 SVR4, it has no name.  For others (Solaris 2.3 for example), it
 	 does have a name, so we can no longer use a missing name to
 	 decide when to ignore it. */
-      if (!IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
+      if (new && !IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
 	{
 	  int errcode;
 	  char *buffer;
