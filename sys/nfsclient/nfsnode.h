@@ -49,7 +49,7 @@ struct sillyrename {
 	struct	vnode *s_dvp;
 	int	(*s_removeit)(struct sillyrename *sp);
 	long	s_namlen;
-	char	s_name[20];
+	char	s_name[32];
 };
 
 /*
