@@ -288,6 +288,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 	struct iommu_state *first;
 	vm_size_t size;
 	vm_offset_t offs;
+	u_int64_t end;
 	int i;
 
 	/*
@@ -317,13 +318,13 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 		 * First IOMMU to be registered; set up resource mamangement
 		 * and allocate TSB memory.
 		 */
+		end = is->is_dvmabase + (size << (IO_PAGE_SHIFT - IOTTE_SHIFT));
 		iommu_dvma_rman.rm_type = RMAN_ARRAY;
 		iommu_dvma_rman.rm_descr = "DVMA Memory";
 		if (rman_init(&iommu_dvma_rman) != 0 ||
 		    rman_manage_region(&iommu_dvma_rman,
 		    (is->is_dvmabase >> IO_PAGE_SHIFT) + resvpg,
-		    (is->is_dvmabase + (size <<
-		     (IO_PAGE_SHIFT - IOTTE_SHIFT))) >> IO_PAGE_SHIFT) != 0)
+		    (end >> IO_PAGE_SHIFT) - 1) != 0)
 			panic("iommu_init: can't initialize dvma rman");
 		/*
 		 * Allocate memory for I/O page tables.  They need to be
@@ -517,7 +518,7 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 {
 	struct resource *res;
 	struct bus_dmamap_res *bdr;
-	bus_size_t align, bound, sgsize;
+	bus_size_t align, sgsize;
 
 	if ((bdr = malloc(sizeof(*bdr), M_IOMMU, M_NOWAIT)) == NULL)
 		return (EAGAIN);
@@ -531,12 +532,14 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	sgsize = round_io_page(size) >> IO_PAGE_SHIFT;
 	if (t->dt_boundary > 0 && t->dt_boundary < IO_PAGE_SIZE)
 		panic("iommu_dvmamap_load: illegal boundary specified");
-	bound = ulmax(t->dt_boundary >> IO_PAGE_SHIFT, 1);
 	res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
-	    t->dt_lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
+	    t->dt_lowaddr >> IO_PAGE_SHIFT, sgsize,
+	    t->dt_boundary >> IO_PAGE_SHIFT,
 	    RF_ACTIVE | rman_make_alignment_flags(align), NULL);
-	if (res == NULL)
+	if (res == NULL) {
+		free(bdr, M_IOMMU);
 		return (ENOMEM);
+	}
 
 	bdr->dr_res = res;
 	bdr->dr_used = 0;
@@ -719,7 +722,7 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 * is possible to have multiple discontiguous segments in a single map,
 	 * which is handled by allocating additional resources, instead of
 	 * increasing the size, to avoid fragmentation.
-	 * Clamp preallocation to BUS_SPACE_MAXSIZE. In some situations we can
+	 * Clamp preallocation to IOMMU_MAX_PRE. In some situations we can
 	 * handle more; that case is handled by reallocating at map load time.
 	 */
 	totsz = ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), IOMMU_MAX_PRE); 
@@ -732,7 +735,10 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 */
 	maxpre = imin(dt->dt_nsegments, IOMMU_MAX_PRE_SEG);
 	presz = dt->dt_maxsize / maxpre;
-	for (i = 0; i < maxpre && totsz < IOMMU_MAX_PRE; i++) {
+	KASSERT(presz != 0, ("iommu_dvmamap_create: bogus preallocation size "
+	    ", nsegments = %d, maxpre = %d, maxsize = %lu", dt->dt_nsegments,
+	    maxpre, dt->dt_maxsize));
+	for (i = 1; i < maxpre && totsz < IOMMU_MAX_PRE; i++) {
 		currsz = round_io_page(ulmin(presz, IOMMU_MAX_PRE - totsz));
 		error = iommu_dvma_valloc(dt, is, *mapp, currsz);
 		if (error != 0)
@@ -783,7 +789,6 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		return (error);
 
 	sgcnt = *segp;
-	error = 0;
 	firstpg = 1;
 	for (; buflen > 0; ) {
 		/*
@@ -812,10 +817,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 			}
 			sgcnt++;
 			if (sgcnt >= dt->dt_nsegments ||
-			    sgcnt >= BUS_DMAMAP_NSEGS) {
-				error = EFBIG;
-				break;
-			}
+			    sgcnt >= BUS_DMAMAP_NSEGS)
+				return (EFBIG);
 			/*
 			 * No extra alignment here - the common practice in the
 			 * busdma code seems to be that only the first segment
@@ -833,7 +836,6 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 	}
 	*segp = sgcnt;
 	return (0);
-
 }
 
 int
@@ -860,7 +862,7 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 	if (error != 0) {
 		iommu_dvmamap_vunload(is, map);
-		(*cb)(cba, NULL, 0, error);
+		(*cb)(cba, sgs, 0, error);
 	} else {
 		/* Move the map to the end of the LRU queue. */
 		iommu_map_insq(map);
