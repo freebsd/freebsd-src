@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ns_parse.c,v 8.8 1998/02/17 17:20:33 vixie Exp $";
+static char rcsid[] = "$Id: ns_parse.c,v 1.1 1998/06/11 09:02:40 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -160,7 +160,7 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	NS_GET16(rr->type, handle->_ptr);
 	if (handle->_ptr + NS_INT16SZ > handle->_eom)
 		goto emsgsize;
-	NS_GET16(rr->class, handle->_ptr);
+	NS_GET16(rr->rr_class, handle->_ptr);
 	if (section == ns_s_qd) {
 		rr->ttl = 0;
 		rr->rdlength = 0;

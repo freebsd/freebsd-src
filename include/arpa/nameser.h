@@ -50,7 +50,7 @@
 
 /*
  *	From: Id: nameser.h,v 8.16 1998/02/06 00:35:58 halley Exp
- *	$Id$
+ *	$Id: nameser.h,v 1.12 1998/06/11 08:55:15 peter Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -140,7 +140,7 @@ extern struct _ns_flagdata _ns_flagdata[];
 typedef	struct __ns_rr {
 	char		name[NS_MAXDNAME];	/* XXX need to malloc */
 	u_int16_t	type;
-	u_int16_t	class;
+	u_int16_t	rr_class;
 	u_int32_t	ttl;
 	u_int16_t	rdlength;
 	const u_char	*rdata;
@@ -149,7 +149,7 @@ typedef	struct __ns_rr {
 /* Accessor macros - this is part of the public interface. */
 #define ns_rr_name(rr)	(((rr).name[0] != '\0') ? (rr).name : ".")
 #define ns_rr_type(rr)	((rr).type + 0)
-#define ns_rr_class(rr)	((rr).class + 0)
+#define ns_rr_class(rr)	((rr).rr_class + 0)
 #define ns_rr_ttl(rr)	((rr).ttl + 0)
 #define ns_rr_rdlen(rr)	((rr).rdlength + 0)
 #define ns_rr_rdata(rr)	((rr).rdata + 0)
