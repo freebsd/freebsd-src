@@ -164,11 +164,6 @@ typedef struct GNode {
 } GNode;
 
 /*
- * Manifest constants
- */
-#define NILGNODE	((GNode *) NIL)
-
-/*
  * The OP_ constants are used when parsing a dependency line as a way of
  * communicating to other parts of the program the way in which a target
  * should be made. These constants are bitwise-OR'ed together and
@@ -230,7 +225,7 @@ typedef struct GNode {
  * do if the desired node(s) is (are) not found. If the TARG_CREATE constant
  * is given, a new, empty node will be created for the target, placed in the
  * table of all targets and its address returned. If TARG_NOCREATE is given,
- * a NIL pointer will be returned.
+ * a NULL pointer will be returned.
  */
 #define TARG_CREATE	0x01	  /* create node if not found */
 #define TARG_NOCREATE	0x00	  /* don't create it */

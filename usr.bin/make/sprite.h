@@ -87,8 +87,6 @@ typedef int  ReturnStatus;
  * by user processes.
  */
 
-#define NIL 		~0
-#define USER_NIL 	0
 #ifndef NULL
 #define NULL	 	0
 #endif /* NULL */

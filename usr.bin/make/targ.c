@@ -231,7 +231,7 @@ TargFreeGN (gnp)
  *	Find a node in the list using the given name for matching
  *
  * Results:
- *	The node in the list if it was. If it wasn't, return NILGNODE of
+ *	The node in the list if it was. If it wasn't, return NULL of
  *	flags was TARG_NOCREATE or the newly created and initialized node
  *	if it was TARG_CREATE
  *
@@ -263,7 +263,7 @@ Targ_FindNode (name, flags)
     }
 
     if (he == (Hash_Entry *) NULL) {
-	return (NILGNODE);
+	return (NULL);
     } else {
 	return ((GNode *) Hash_GetValue (he));
     }
@@ -300,10 +300,10 @@ Targ_FindList (names, flags)
     if (Lst_Open (names) == FAILURE) {
 	return (nodes);
     }
-    while ((ln = Lst_Next (names)) != NILLNODE) {
+    while ((ln = Lst_Next (names)) != NULL) {
 	name = (char *)Lst_Datum(ln);
 	gn = Targ_FindNode (name, flags);
-	if (gn != NILGNODE) {
+	if (gn != NULL) {
 	    /*
 	     * Note: Lst_AtEnd must come before the Lst_Concat so the nodes
 	     * are added to the list in the order in which they were

@@ -66,7 +66,7 @@ Lst_Replace (ln, d)
     register LstNode	ln;
     ClientData	  	d;
 {
-    if (ln == NILLNODE) {
+    if (ln == NULL) {
 	return (FAILURE);
     } else {
 	((ListNode) ln)->datum = d;

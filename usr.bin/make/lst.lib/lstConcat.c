@@ -84,16 +84,16 @@ Lst_Concat (l1, l2, flags)
     }
 
     if (flags == LST_CONCLINK) {
-	if (list2->firstPtr != NilListNode) {
+	if (list2->firstPtr != NULL) {
 	    /*
 	     * We set the nextPtr of the
-	     * last element of list two to be NIL to make the loop easier and
+	     * last element of list two to be NULL to make the loop easier and
 	     * so we don't need an extra case should the first list turn
 	     * out to be non-circular -- the final element will already point
-	     * to NIL space and the first element will be untouched if it
-	     * existed before and will also point to NIL space if it didn't.
+	     * to NULL space and the first element will be untouched if it
+	     * existed before and will also point to NULL space if it didn't.
 	     */
-	    list2->lastPtr->nextPtr = NilListNode;
+	    list2->lastPtr->nextPtr = NULL;
 	    /*
 	     * So long as the second list isn't empty, we just link the
 	     * first element of the second list to the last element of the
@@ -103,14 +103,14 @@ Lst_Concat (l1, l2, flags)
 	     * the last element of the first list.
 	     */
 	    list2->firstPtr->prevPtr = list1->lastPtr;
-	    if (list1->lastPtr != NilListNode) {
+	    if (list1->lastPtr != NULL) {
  		list1->lastPtr->nextPtr = list2->firstPtr;
 	    } else {
 		list1->firstPtr = list2->firstPtr;
 	    }
 	    list1->lastPtr = list2->lastPtr;
 	}
-	if (list1->isCirc && list1->firstPtr != NilListNode) {
+	if (list1->isCirc && list1->firstPtr != NULL) {
 	    /*
 	     * If the first list is supposed to be circular and it is (now)
 	     * non-empty, we must make sure it's circular by linking the
@@ -120,27 +120,27 @@ Lst_Concat (l1, l2, flags)
 	    list1->lastPtr->nextPtr = list1->firstPtr;
 	}
 	free ((Address)l2);
-    } else if (list2->firstPtr != NilListNode) {
+    } else if (list2->firstPtr != NULL) {
 	/*
-	 * We set the nextPtr of the last element of list 2 to be nil to make
+	 * We set the nextPtr of the last element of list 2 to be NULL to make
 	 * the loop less difficult. The loop simply goes through the entire
 	 * second list creating new LstNodes and filling in the nextPtr, and
 	 * prevPtr to fit into l1 and its datum field from the
 	 * datum field of the corresponding element in l2. The 'last' node
 	 * follows the last of the new nodes along until the entire l2 has
 	 * been appended. Only then does the bookkeeping catch up with the
-	 * changes. During the first iteration of the loop, if 'last' is nil,
+	 * changes. During the first iteration of the loop, if 'last' is NULL,
 	 * the first list must have been empty so the newly-created node is
 	 * made the first node of the list.
 	 */
-	list2->lastPtr->nextPtr = NilListNode;
+	list2->lastPtr->nextPtr = NULL;
 	for (last = list1->lastPtr, ln = list2->firstPtr;
-	     ln != NilListNode;
+	     ln != NULL;
 	     ln = ln->nextPtr)
 	{
 	    PAlloc (nln, ListNode);
 	    nln->datum = ln->datum;
-	    if (last != NilListNode) {
+	    if (last != NULL) {
 		last->nextPtr = nln;
 	    } else {
 		list1->firstPtr = nln;
@@ -166,7 +166,7 @@ Lst_Concat (l1, l2, flags)
 	    list1->lastPtr->nextPtr = list1->firstPtr;
 	    list1->firstPtr->prevPtr = list1->lastPtr;
 	} else {
-	    last->nextPtr = NilListNode;
+	    last->nextPtr = NULL;
 	}
 
 	if (list2->isCirc) {

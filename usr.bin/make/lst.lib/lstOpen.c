@@ -62,7 +62,7 @@ __RCSID("$FreeBSD$");
  *	SUCCESS or FAILURE.
  *
  * Side Effects:
- *	isOpen is set TRUE and curPtr is set to NilListNode so the
+ *	isOpen is set TRUE and curPtr is set to NULL so the
  *	other sequential functions no it was just opened and can choose
  *	the first element accessed based on this.
  *
@@ -77,7 +77,7 @@ Lst_Open (l)
 	}
 	((List) l)->isOpen = TRUE;
 	((List) l)->atEnd = LstIsEmpty (l) ? Head : Unknown;
-	((List) l)->curPtr = NilListNode;
+	((List) l)->curPtr = NULL;
 
 	return (SUCCESS);
 }

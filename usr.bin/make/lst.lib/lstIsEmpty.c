@@ -59,8 +59,8 @@ __RCSID("$FreeBSD$");
  * Side Effects:
  *	None.
  *
- *	A list is considered empty if its firstPtr == NilListNode (or if
- *	the list itself is NILLIST).
+ *	A list is considered empty if its firstPtr == NULL (or if
+ *	the list itself is NULLLIST).
  *-----------------------------------------------------------------------
  */
 Boolean

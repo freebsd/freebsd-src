@@ -69,10 +69,10 @@ Lst_Destroy (l, freeProc)
     register void	(*freeProc) __P((ClientData));
 {
     register ListNode	ln;
-    register ListNode	tln = NilListNode;
+    register ListNode	tln = NULL;
     register List 	list = (List)l;
 
-    if (l == NILLST || ! l) {
+    if (l == NULL || ! l) {
 	/*
 	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
 	 * Gross, but useful.
@@ -81,21 +81,21 @@ Lst_Destroy (l, freeProc)
     }
 
     /* To ease scanning */
-    if (list->lastPtr != NilListNode)
-	list->lastPtr->nextPtr = NilListNode;
+    if (list->lastPtr != NULL)
+	list->lastPtr->nextPtr = NULL;
     else {
 	free ((Address)l);
 	return;
     }
 
     if (freeProc) {
-	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
+	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
 	     (*freeProc) (ln->datum);
 	     free ((Address)ln);
 	}
     } else {
-	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
+	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
 	     free ((Address)ln);
 	}

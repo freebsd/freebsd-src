@@ -340,7 +340,7 @@ CondDoMake (argLen, arg)
     Boolean result;
 
     arg[argLen] = '\0';
-    if (Lst_Find (create, (ClientData)arg, CondStrMatch) == NILLNODE) {
+    if (Lst_Find (create, (ClientData)arg, CondStrMatch) == NULL) {
 	result = FALSE;
     } else {
 	result = TRUE;
@@ -407,7 +407,7 @@ CondDoTarget (argLen, arg)
 
     arg[argLen] = '\0';
     gn = Targ_FindNode(arg, TARG_NOCREATE);
-    if ((gn != NILGNODE) && !OP_NOP(gn->type)) {
+    if ((gn != NULL) && !OP_NOP(gn->type)) {
 	result = TRUE;
     } else {
 	result = FALSE;
