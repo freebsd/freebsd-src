@@ -1,0 +1,22 @@
+#!/bin/sh -
+#
+#	$Id: netstart,v 1.45.2.1 1996/11/06 09:22:16 phk Exp $
+#	From: @(#)netstart	5.9 (Berkeley) 3/30/91
+
+# If there is a global system configuration file, suck it in.
+if [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
+if [ -f /etc/rc.network ]; then
+	. /etc/rc.network
+else
+	echo "Sorry, I can't find /etc/rc.network - aborting."
+	exit 1
+fi
+
+echo 'Doing stage one network startup:'
+network_pass1
+echo 'Doing stage two network startup:'
+network_pass2
+exit 0
