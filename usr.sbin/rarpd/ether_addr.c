@@ -10,7 +10,7 @@
  *
  * Have a party.
  *
- *	$Id$
+ *	$Id: ether_addr.c,v 1.1.1.1 1995/03/02 06:41:40 wpaul Exp $
  */
 
 
@@ -105,4 +105,26 @@ nomatch:
 	}
 
 return (-1);
+}
+
+int ether_print(cp)
+        u_char *cp;
+{
+        printf("%x:%x:%x:%x:%x:%x", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
+}
+
+int ether_aton(a, n)
+        char *a;
+        u_char *n;
+{
+        int i, o[6];
+
+        i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o[0], &o[1], &o[2],
+                                           &o[3], &o[4], &o[5]);
+        if (i != 6) {
+                return (i);
+        }
+        for (i=0; i<6; i++)
+                n[i] = o[i];
+        return (0);
 }
