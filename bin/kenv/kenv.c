@@ -28,12 +28,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <err.h>
 #include <kenv.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 static void	usage(void);
@@ -92,9 +91,11 @@ main(int argc, char **argv)
 		usage();
 	if ((argc > 0) || (uflag && (env == NULL)))
 		usage();
-	if (env == NULL)
-		kdumpenv();
-	else if (val == NULL) {
+	if (env == NULL) {
+		error = kdumpenv();
+		if (error)
+			warn("kdumpenv");
+	} else if (val == NULL) {
 		if (uflag) {
 			error = kunsetenv(env);
 			if (error)
@@ -116,16 +117,28 @@ static int
 kdumpenv()
 {
 	char *buf, *cp;
-	int len;
+	int buflen, envlen;
 
-	len = kenv(KENV_DUMP, NULL, NULL, 0);
-	len = len * 120 / 100;
-	buf = malloc(len);
-	if (buf == NULL)
+	envlen = kenv(KENV_DUMP, NULL, NULL, 0);
+	if (envlen < 0)
 		return (-1);
-	/* Be defensive */
-	memset(buf, 0, len);
-	kenv(KENV_DUMP, NULL, buf, len);
+	for (;;) {
+		buflen = envlen * 120 / 100;
+		buf = malloc(buflen + 1);
+		if (buf == NULL)
+			return (-1);
+		memset(buf, 0, buflen + 1);	/* Be defensive */
+		envlen = kenv(KENV_DUMP, NULL, buf, buflen);
+		if (envlen < 0) {
+			free(buf);
+			return (-1);
+		}
+		if (envlen > buflen)
+			free(buf);
+		else
+			break;
+	}
+
 	for (; *buf != '\0'; buf += strlen(buf) + 1) {
 		if (hflag) {
 			if (strncmp(buf, "hint.", 5) != 0)
