@@ -60,24 +60,28 @@ struct isa_ranges {
 	((((u_int64_t)((r)->child_hi)) << 32) | ((u_int64_t)(r)->child_lo))
 #define	ISA_RANGE_PS(r)	(((r)->phys_hi >> 24) & 0x03)
 
+typedef u_int32_t ofw_isa_intr_t;
+
 struct isa_imap {
 	u_int32_t	phys_hi;	/* high phys addr mask */
 	u_int32_t	phys_lo;	/* low phys addr mask */
-	u_int32_t	intr;		/* interrupt mask */
-	int32_t		cnode;		/* child node */
-	u_int32_t	cintr;		/* child interrupt */
+	ofw_isa_intr_t	intr;		/* interrupt mask */
+	phandle_t	cnode;		/* child node */
+	ofw_pci_intr_t	cintr;		/* child interrupt */
 };
 
 struct isa_imap_msk {
 	u_int32_t	phys_hi;	/* high phys addr */
 	u_int32_t	phys_lo;	/* low phys addr */
-	u_int32_t	intr;		/* interrupt */
+	ofw_isa_intr_t	intr;		/* interrupt */
 };
 
-/* Map an interrupt property to an INO */
-int ofw_isa_map_intr(struct isa_imap *, int, struct isa_imap_msk *, int,
-    struct isa_regs *, int);
 /* Map an IO range. Returns the resource type of the range. */
 int ofw_isa_map_iorange(struct isa_ranges *, int, u_long *, u_long *);
+
+#ifdef OFW_NEWPCI
+ofw_pci_intr_t ofw_isa_route_intr(device_t, phandle_t, struct ofw_bus_iinfo *,
+    ofw_isa_intr_t);
+#endif
 
 #endif /* !_SPARC64_ISA_OFW_ISA_H_ */

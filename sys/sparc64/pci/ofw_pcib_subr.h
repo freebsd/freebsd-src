@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 - 2003 by Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright (c) 2003 by Thomas Moestl <tmm@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,25 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_OFW_BUS_H_
-#define	_MACHINE_OFW_BUS_H_
+#ifndef _SPARC64_PCI_OFW_PCI_SUBR_H
+#define	_SPARC64_PCI_OFW_PCI_SUBR_H
 
-#define	ORIP_NOINT	-1
-#define	ORIR_NOTFOUND	0xffffffff
-
-/*
- * Other than in OpenFirmware calls, the size of a bus cell seems to be always
- * the same.
- */
-typedef u_int32_t pcell_t;
-
+struct ofw_pcib_gen_softc {
+	/*
+	 * This is here so that we can use pci bridge methods, too - the
+	 * generic routines only need the dev, secbus and subbus members
+	 * filled.
+	 */
+	struct pcib_softc	ops_pcib_sc;
 #ifdef OFW_NEWPCI
-
-struct ofw_bus_iinfo {
-	u_int8_t		*opi_imap;
-	u_int8_t		*opi_imapmsk;
-	int			opi_imapsz;
-	pcell_t			opi_addrc;
+	phandle_t		ops_node;
+	struct ofw_bus_iinfo	ops_iinfo;
+#endif
 };
 
-void ofw_bus_setup_iinfo(phandle_t, struct ofw_bus_iinfo *, int);
-int ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
-    void *, int, void *, int, void *);
-int ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
-    void *, void *, int);
+void ofw_pcib_gen_setup(device_t);
+pcib_route_interrupt_t ofw_pcib_gen_route_interrupt;
+ofw_pci_get_node_t ofw_pcib_gen_get_node;
+ofw_pci_adjust_busrange_t ofw_pcib_gen_adjust_busrange;
 
-#else
-
-typedef int obr_callback_t(phandle_t, u_int8_t *, int, u_int8_t *, int,
-    u_int8_t **, int *, void *);
-
-u_int32_t ofw_bus_route_intr(phandle_t, int, obr_callback_t *, void *);
-
-#endif
-
-#endif /* !_MACHINE_OFW_BUS_H_ */
+#endif /* !_SPARC64_PCI_OFW_PCI_SUBR_H */

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1999, 2000 Matthew R. Green
+ * Copyright (c) 2001, 2003 by Thomas Moestl <tmm@FreeBSD.org>
  * All rights reserved.
- * Copyright 2001 by Thomas Moestl <tmm@FreeBSD.org>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +36,10 @@
 
 #include <machine/ofw_bus.h>
 
+typedef u_int32_t ofw_pci_intr_t;
+
+#include "ofw_pci_if.h"
+
 /* PCI range child spaces. XXX: are these MI? */
 #define	PCI_CS_CONFIG	0x00
 #define	PCI_CS_IO	0x01
@@ -46,17 +50,30 @@ struct ofw_pci_imap {
 	u_int32_t	phys_hi;
 	u_int32_t	phys_mid;
 	u_int32_t	phys_lo;
-	u_int32_t	intr;
-	int32_t		child_node;
-	u_int32_t	child_intr;
+	ofw_pci_intr_t	intr;
+	phandle_t	child_node;
+	phandle_t	child_intr;
 };
 
 struct ofw_pci_imap_msk {
 	u_int32_t	phys_hi;
 	u_int32_t	phys_mid;
 	u_int32_t	phys_lo;
-	u_int32_t	intr;
+	ofw_pci_intr_t	intr;
 };
+
+u_int8_t ofw_pci_alloc_busno(phandle_t);
+
+#ifdef OFW_NEWPCI
+
+static __inline phandle_t
+ofw_pci_get_node(device_t dev)
+{
+
+	return (OFW_PCI_GET_NODE(device_get_parent(dev), dev));
+}
+
+#else
 
 struct ofw_pci_bdesc;
 typedef void ofw_pci_binit_t(device_t, struct ofw_pci_bdesc *);
@@ -72,10 +89,10 @@ struct ofw_pci_bdesc {
 };
 
 obr_callback_t ofw_pci_orb_callback;
-u_int8_t ofw_pci_alloc_busno(phandle_t);
 ofw_pci_binit_t ofw_pci_binit;
-void ofw_pci_init(device_t, phandle_t, u_int32_t, struct ofw_pci_bdesc *);
+void ofw_pci_init(device_t, phandle_t, ofw_pci_intr_t, struct ofw_pci_bdesc *);
 phandle_t ofw_pci_find_node(int, int, int);
 phandle_t ofw_pci_node(device_t);
+#endif
 
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */

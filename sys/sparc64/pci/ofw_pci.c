@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1999, 2000 Matthew R. Green
+ * Copyright (c) 2001 - 2003 by Thomas Moestl <tmm@FreeBSD.org>
  * All rights reserved.
- * Copyright 2001 by Thomas Moestl <tmm@FreeBSD.org>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,13 +38,11 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
-
-#include <sparc64/pci/ofw_pci.h>
 
 #include <machine/bus.h>
 #include <machine/cache.h>
@@ -52,13 +50,17 @@
 #include <machine/ofw_bus.h>
 #include <machine/ver.h>
 
+#include <sparc64/pci/ofw_pci.h>
+
 #include "pcib_if.h"
-#include "sparcbus_if.h"
 
 u_int8_t pci_bus_cnt;
 phandle_t *pci_bus_map;
 int pci_bus_map_sz;
 
+#define	PCI_BUS_MAP_INC	10
+
+#ifndef OFW_NEWPCI
 /* Do not swizzle on a PCI bus node with no interrupt-map propery. */
 #define	OPQ_NO_SWIZZLE		1
 /*
@@ -85,7 +87,6 @@ static int pci_quirks;
 
 #define	OFW_PCI_PCIBUS	"pci"
 #define	OFW_PCI_EBUS	"ebus"
-#define	PCI_BUS_MAP_INC	10
 
 int
 ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
@@ -94,7 +95,7 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 {
 	device_t dev = cookie;
 	struct ofw_pci_register preg;
-	u_int32_t pintr, intr;
+	ofw_pci_intr_t pintr, intr;
 	u_int slot;
 	char type[32];
 	int found = 0;
@@ -105,7 +106,7 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 		*terminate = 1;
 		return (-1);
 	}
-	if (pintsz != sizeof(u_int32_t) || pregsz < sizeof(preg))
+	if (pintsz != sizeof(pintr) || pregsz < sizeof(preg))
 		return (-1);
 	bcopy(pintptr, &pintr, sizeof(pintr));
 	bcopy(pregptr, &preg, sizeof(preg));
@@ -119,13 +120,13 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 		 * values for external PCI devices seem to always be below 255
 		 * and describe the interrupt pin to be used on the slot, while
 		 * we have to figure out the base INO by looking at the slot
-		 * number (which we do using a sparcbus method).
+		 * number (which we do using an ofw_pci method).
 		 *
 		 * Of course, there is an exception to that nice rule:
 		 * in the ebus case, the interrupt property has the correct
 		 * INO (but without IGN). This is dealt with above.
 		 */
-		intr = SPARCBUS_GUESS_INO(dev, node, slot, pintr);
+		intr = OFW_PCI_GUESS_INO(dev, node, slot, pintr);
 		found = intr != 255;
 		*terminate = found;
 	}
@@ -150,14 +151,14 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 		return (-1);
 }
 
-static u_int32_t
-ofw_pci_route_intr(device_t dev, phandle_t node, u_int32_t ign)
+static ofw_pci_intr_t
+ofw_pci_route_intr(device_t dev, phandle_t node, ofw_pci_intr_t ign)
 {
 	u_int32_t rv;
 
 	rv = ofw_bus_route_intr(node, ORIP_NOINT, ofw_pci_orb_callback, dev);
 	if (rv == ORIR_NOTFOUND)
-		return (255);
+		return (PCI_INVALID_IRQ);
 	/*
 	 * Some machines (notably the SPARCengine Ultra AX and the e450) have
 	 * no mappings at all, but use complete interrupt vector number
@@ -167,6 +168,7 @@ ofw_pci_route_intr(device_t dev, phandle_t node, u_int32_t ign)
 		rv -= ign;
 	return (rv);
 }
+#endif /* !OFW_NEWCPI */
 
 u_int8_t
 ofw_pci_alloc_busno(phandle_t node)
@@ -192,6 +194,7 @@ ofw_pci_alloc_busno(phandle_t node)
 	return (n);
 }
 
+#ifndef OFW_NEWPCI
 /*
  * Initialize bridge bus numbers for bridges that implement the primary,
  * secondary and subordinate bus number registers.
@@ -220,7 +223,7 @@ ofw_pci_binit(device_t busdev, struct ofw_pci_bdesc *obd)
  * as well as the the bus numbers and ranges of the bridges.
  */
 void
-ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
+ofw_pci_init(device_t dev, phandle_t bushdl, ofw_pci_intr_t ign,
     struct ofw_pci_bdesc *obd)
 {
 	struct ofw_pci_register pcir;
@@ -321,7 +324,8 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 			}
 
 			/* Initialize the intline registers. */
-			if ((intr = ofw_pci_route_intr(dev, node, ign)) != 255) {
+			if ((intr = ofw_pci_route_intr(dev, node, ign)) !=
+			    PCI_INVALID_IRQ) {
 #ifdef OFW_PCI_DEBUG
 				device_printf(dev, "%s: mapping intr for "
 				    "%d/%d/%d to %d (preset was %d)\n",
@@ -344,7 +348,7 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 				 * 255.
 				 */
 				PCIB_WRITE_CONFIG(dev, busno, slot, func,
-				    PCIR_INTLINE, 255, 1);
+				    PCIR_INTLINE, PCI_INVALID_IRQ, 1);
 			}
 		}
 	} while ((node = OF_peer(node)) != 0);
@@ -384,3 +388,4 @@ ofw_pci_node(device_t dev)
 	return (ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
 	    pci_get_function(dev)));
 }
+#endif /* OFW_NEWPCI */
