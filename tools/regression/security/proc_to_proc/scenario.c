@@ -90,6 +90,7 @@ static struct cred creds[] = {
  */
 static const struct scenario scenarios[] = {
 /*	cred1		cred2		ptrace	ktrace, sighup	sigsegv	see	sched	name */
+/* privileged on privileged */
 {	&creds[0],	&creds[0],	0,	0,	0,	0,	0,	0,	"0. priv on priv"},
 {	&creds[0],	&creds[1],	0,	0,	0,	0,	0,	0,	"1. priv on priv"},
 {	&creds[1],	&creds[0],	0,	0,	0,	0,	0,	0,	"2. priv on priv"},
