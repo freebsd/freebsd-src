@@ -358,7 +358,7 @@ when terminating sessions.
 login sessions will be accounted.
 .It "host.exempt 	list		List of remote host wildcards from which
 login session accounting is exempted.
-.It "idletime	time		Maximum idle time before logout.
+.It "idletime	time		Maximum idle time before logout (unused).
 .It "minpasswordlen	number	6	The minimum length a local
 password may be.
 .It "mixpasswordcase	bool	true	Whether
@@ -396,6 +396,10 @@ Similarly with the
 and
 .Em host.exempt
 lists.
+.Sh BUGS
+The
+.Em idletime
+setting is not enforced.
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
 .Xr login 1 ,
