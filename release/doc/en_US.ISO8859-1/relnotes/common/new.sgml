@@ -734,10 +734,6 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The <literal>DA_OLD_QUIRKS</literal> kernel option,
-	which is for the CAM SCSI disk driver (&man.cam.4;),
-	has been removed.  &merged;</para>
-
       <para>The &man.gre.4; tunnel driver now supports WCCP version
 	2.</para>
 
@@ -886,6 +882,10 @@
 	    but only RAID0, RAID1 and RAID0+1.</para>
 	</note>
       </para>
+
+      <para>The <literal>DA_OLD_QUIRKS</literal> kernel option,
+	which is for the CAM SCSI disk driver (&man.cam.4;),
+	has been removed.  &merged;</para>
 
       <para arch="pc98">A bug of the automatic density selection code
 	in the &man.fd.4; driver has been fixed.</para>
