@@ -106,8 +106,11 @@ bt_mca_release_resources (device_t dev)
 	bt_free_softc(dev);
 }
 
+#define BT_MCA_PROBE	0
+#define BT_MCA_ATTACH	1
+
 static int
-bt_mca_alloc_resources(device_t dev)
+bt_mca_alloc_resources(device_t dev, int mode)
 {
 	struct resource *	io = NULL;
 	struct resource *	irq = NULL;
@@ -117,21 +120,30 @@ bt_mca_alloc_resources(device_t dev)
 	rid = 0;
 	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				0, ~0, 1, RF_ACTIVE);
-	if (io == NULL)
+	if (io == NULL) {
+		printf("bt_mca_alloc_resources() failed to allocate IOPORT\n");
 		return (ENOMEM);
+	}
 
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, RF_ACTIVE);
-	if (irq == NULL)
-		goto bad;
+	if (mode == BT_MCA_ATTACH) {
 
-	rid = 0;
-	drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
+		rid = 0;
+		irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
 					 0, ~0, 1, RF_ACTIVE);
-	if (drq == NULL)
-		goto bad;
-
+		if (irq == NULL) {
+			printf("bt_mca_alloc_resources() failed to allocate IRQ\n");
+			goto bad;
+		}
+	
+		rid = 0;
+		drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
+						 0, ~0, 1, RF_ACTIVE);
+		if (drq == NULL) {
+			printf("bt_mca_alloc_resources() failed to allocate DRQ\n");
+			goto bad;
+		}
+	}
+	
 	bt_init_softc(dev, io, irq, drq);
 
 	return (0);
@@ -174,7 +186,7 @@ bt_mca_probe (device_t dev)
 	mca_add_iospace(dev, iobase, iosize);
 
 	/* And allocate them */
-	bt_mca_alloc_resources(dev);
+	bt_mca_alloc_resources(dev, BT_MCA_PROBE);
 			
 	if (bt_port_probe(dev, &info) != 0) {
 		printf("bt_mca_probe: Probe failed for "
@@ -197,7 +209,7 @@ bt_mca_attach (device_t dev)
 	int			error = 0;
 
 	/* Allocate resources */      
-	if ((error = bt_mca_alloc_resources(dev))) {
+	if ((error = bt_mca_alloc_resources(dev, BT_MCA_ATTACH))) {
 		device_printf(dev, "Unable to allocate resources in bt_mca_attach()\n");
 		return (error);
 	}
