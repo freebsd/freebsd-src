@@ -11,6 +11,7 @@ SUBDIR=	3dfx \
 	aha \
 	amr \
 	an \
+	apm \
 	aue \
 	bge \
 	bridge \
