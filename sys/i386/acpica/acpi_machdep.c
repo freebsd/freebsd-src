@@ -52,7 +52,7 @@ static device_t	acpi_dev;
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
 
-#include <i386/apm/apm.h>
+#include <i386/bios/apm.h>
 
 static struct apm_softc	apm_softc;
 
