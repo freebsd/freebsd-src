@@ -28,7 +28,7 @@
 #ifndef _MACHINE_UPA_H_
 #define _MACHINE_UPA_H_
 
-#define	UPA_MEMSTART	0x1fc00000000UL
+#define	UPA_MEMSTART	0x1c000000000UL
 #define	UPA_MEMEND	0x1ffffffffffUL
 
 #define	UPA_CR_MID_SHIFT	(17)
