@@ -228,6 +228,12 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.da.4; driver no longer tries to send 6-byte
+	commands to USB and Firewire devices.  The quirks for these
+	devices (which hopefully are now unnecessary) have been
+	disabled; to restore the old behavior, add <literal>options
+	DA_OLD_QUIRKS</literal> to the kernel configuration.</para>
+
       <para>Various &man.geom.4; modules can now be loaded as kernel
 	modules, namely:
 	<filename>geom_apple</filename>,
@@ -379,7 +385,11 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported release of <application>GNOME</application> has
+      been updated from 2.2.1 to 2.2.2. &merged;</para>
+
+    <para>The supported release of <application>KDE</application> has
+      been updated from 3.1.2 to 3.1.3. &merged;</para>
 
   </sect2>
 
