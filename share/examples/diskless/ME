@@ -1,4 +1,18 @@
 
-( When templating, ME is typically a softlink to the appropriate host
-subdirectory )
+When templating, ME is typically a softlink to the appropriate host
+subdirectory.  This softlink is different for each machine and
+should not be updated by the template process.  Any system-wise configuration
+file that needs to be personalized is typically turned into a softlink
+through /conf/ME.  For example, /etc/rc.conf.local would be turned into a
+softlink pointing to /conf/ME/rc.conf.local.
+
+On any given machine, ME is typically a link to the hostname which also
+exists as a subdirectory in the /conf directory.  So, for each machine you
+do:
+
+	cd /conf
+	ln -s this_machines_name ME
+
+The ME link is not used with diskless booting.  It is designed for templating
+where each destination box has its own local disk.
 
