@@ -146,9 +146,9 @@ e1000phy_attach(device_t dev)
 	 * 1000BT-simplex not supported; driver must ignore this entry,
 	 * but it must be present in order to manually set full-duplex.
 	 */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
 	    E1000_CR_SPEED_1000);
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst),
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX, sc->mii_inst),
 	    E1000_CR_SPEED_1000 | E1000_CR_FULL_DUPLEX);
 	printf("1000baseTX-FDX, ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
@@ -261,7 +261,7 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			(void)e1000phy_mii_phy_auto(sc, 1);
 			break;
 
-		case IFM_1000_TX:
+		case IFM_1000_T:
 			if (sc->mii_flags & MIIF_DOINGAUTO)
 				return (0);
 
@@ -385,7 +385,7 @@ e1000phy_status(struct mii_softc *sc)
 	}
 
 	if (ssr & E1000_SSR_1000MBS)
-		mii->mii_media_active |= IFM_1000_TX;
+		mii->mii_media_active |= IFM_1000_T;
 	else if (ssr & E1000_SSR_100MBS)
 		mii->mii_media_active |= IFM_100_TX;
 	else

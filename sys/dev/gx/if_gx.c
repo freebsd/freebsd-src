@@ -725,7 +725,7 @@ gx_ifmedia_upd(struct ifnet *ifp)
 		 * 1000TX half duplex does not work.
 		 */
 		if (IFM_TYPE(ifm->ifm_media) == IFM_ETHER &&
-		    IFM_SUBTYPE(ifm->ifm_media) == IFM_1000_TX &&
+		    IFM_SUBTYPE(ifm->ifm_media) == IFM_1000_T &&
 		    (IFM_OPTIONS(ifm->ifm_media) & IFM_FDX) == 0)
 			return (EINVAL);
 		mii = device_get_softc(gx->gx_miibus);
@@ -759,8 +759,8 @@ gx_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	} else {
 		mii = device_get_softc(gx->gx_miibus);
 		mii_pollstat(mii);
-		if ((mii->mii_media_active & (IFM_1000_TX | IFM_HDX)) ==
-		    (IFM_1000_TX | IFM_HDX))
+		if ((mii->mii_media_active & (IFM_1000_T | IFM_HDX)) ==
+		    (IFM_1000_T | IFM_HDX))
 			mii->mii_media_active = IFM_ETHER | IFM_NONE;
 		ifmr->ifm_active = mii->mii_media_active;
 		ifmr->ifm_status = mii->mii_media_status;
