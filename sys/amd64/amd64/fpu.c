@@ -88,6 +88,13 @@
 #include <isa/isavar.h>
 #endif
 
+#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+#if defined(CPU_DISABLE_SSE)
+#undef CPU_ENABLE_SSE
+#endif
+
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
  */
