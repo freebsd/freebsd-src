@@ -243,10 +243,9 @@ dec_1000_intr_route(bus, dev, pin)
 	case 12:
 	case 13:
 		return((pci_get_slot(dev) - 11) * 4 + pin - 1);
-		return;
 		break;
 	}
-bad:	printf("dec_1000_intr_map: can't map dev %d pin %d\n",
+	printf("dec_1000_intr_map: can't map dev %d pin %d\n",
 	       pci_get_slot(dev), pin);
 	return(255);
 }
@@ -335,13 +334,14 @@ dec_1000a_intr_route(bus, dev, pin)
 		/* 14  */ IRQSPLIT(8)		/* Corelle */
 	};
 
-	if (0 <= pci_get_slot(dev) && pci_get_slot(dev) < sizeof imrmap / sizeof imrmap[0]) {
+	device = pci_get_slot(dev);
+	if (0 <= device && device < sizeof(imrmap) / sizeof(imrmap[0])) {
 		imrbit = imrmap[device][pin - 1];
 		if (imrbit)
 			return(IMR2IRQ(imrbit));
 	}
-bad:	printf("dec_1000a_intr_route: can't map dev %d pin %d\n",
-	       pci_get_slot(dev), pin);
+	printf("dec_1000a_intr_route: can't map dev %d pin %d\n",
+	       device, pin);
 	return(255);
 }
 
