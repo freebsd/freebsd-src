@@ -57,7 +57,6 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
 #include <netinet/in.h>
 
 #include <ctype.h>
@@ -91,8 +90,6 @@
 #define FTP_NEED_ACCOUNT		332
 #define FTP_FILE_OK			350
 #define FTP_SYNTAX_ERROR		500
-
-static char ENDL[2] = "\r\n";
 
 static struct url cached_host;
 static int cached_socket;
@@ -170,12 +167,12 @@ static int
 _ftp_cmd(int cd, char *fmt, ...)
 {
     va_list ap;
-    struct iovec iov[2];
+    size_t len;
     char *msg;
     int r;
 
     va_start(ap, fmt);
-    vasprintf(&msg, fmt, ap);
+    len = vasprintf(&msg, fmt, ap);
     va_end(ap);
     
     if (msg == NULL) {
@@ -183,13 +180,10 @@ _ftp_cmd(int cd, char *fmt, ...)
 	_fetch_syserr();
 	return -1;
     }
-    DEBUG(fprintf(stderr, "\033[1m>>> %s\n\033[m", msg));
-    iov[0].iov_base = msg;
-    iov[0].iov_len = strlen(msg);
-    iov[1].iov_base = ENDL;
-    iov[1].iov_len = sizeof ENDL;
-    r = writev(cd, iov, 2);
+    
+    r = _fetch_putln(cd, msg, len);
     free(msg);
+    
     if (r == -1) {
 	_fetch_syserr();
 	return -1;
