@@ -161,7 +161,6 @@ static int
 uhci_pci_attach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
-	device_t parent = device_get_parent(self);
 	int rid;
 	void *ih;
 	struct resource *io_res, *irq_res;
@@ -247,7 +246,7 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
-	err = BUS_SETUP_INTR(parent, self, irq_res, INTR_TYPE_BIO,
+	err = bus_setup_intr(self, irq_res, INTR_TYPE_BIO,
 			       (driver_intr_t *) uhci_intr, sc, &ih);
 	if (err) {
 		device_printf(self, "could not setup irq, %d\n", err);
@@ -284,7 +283,7 @@ bad4:
 	 */
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
-	err = BUS_TEARDOWN_INTR(parent, self, irq_res, ih);
+	err = bus_teardown_intr(self, irq_res, ih);
 	if (err)
 		/* XXX or should we panic? */
 		device_printf(self, "could not tear down irq, %d\n",
