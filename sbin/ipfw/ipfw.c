@@ -217,6 +217,12 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		goto done ;
 	}
 
+	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
+		double d = 1.0 * (int)(chain->pipe_ptr) ;
+		d = 1 - (d / 0x7fffffff) ;
+		printf("prob %f ", d);
+	}
+
 	switch (chain->fw_flg & IP_FW_F_COMMAND)
 	{
 		case IP_FW_F_ACCEPT:
@@ -260,11 +266,6 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			errx(EX_OSERR, "impossible");
 	}
 
-	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
-		double d = 1.0 * (int)(chain->pipe_ptr) ;
-		d = 1 - (d / 0x7fffffff) ;
-		printf(" prob %f", d);
-	}
 	if (chain->fw_flg & IP_FW_F_PRN) {
 		printf(" log");
 		if (chain->fw_logamount)
