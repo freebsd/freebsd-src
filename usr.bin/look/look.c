@@ -105,7 +105,8 @@ main(argc, argv)
 {
 	struct stat sb;
 	int ch, fd, termchar, match;
-	unsigned char *back, *file, *front, *string, *p;
+	unsigned char *back, *front, *string, *p;
+	unsigned const char *file;
 
 	(void) setlocale(LC_CTYPE, "");
 
@@ -164,7 +165,7 @@ look(string, front, back)
 	register unsigned char *readp, *writep;
 
 	/* Reformat string string to avoid doing it multiple times later. */
-	for (readp = writep = string; ch = *readp++;) {
+	for (readp = writep = string; (ch = *readp++);) {
 		if (fflag)
 			ch = FOLD(ch);
 		if (dflag)
