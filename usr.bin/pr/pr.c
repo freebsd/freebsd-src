@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)pr.c	8.2 (Berkeley) 4/16/94";
 
 #include <ctype.h>
 #include <errno.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -1577,6 +1578,7 @@ setup(argc, argv)
 	register char **argv;
 {
 	register int c;
+	int d_first;
 	int eflag = 0;
 	int iflag = 0;
 	int wflag = 0;
@@ -1819,8 +1821,10 @@ setup(argc, argv)
 		}
 	}
 
-	timefrmt = TIMEFMT;
 	(void) setlocale(LC_TIME, (Lflag != NULL) ? Lflag : "");
+
+	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+	timefrmt = d_first ? TIMEFMTD : TIMEFMTM;
 
 	return(0);
 }
