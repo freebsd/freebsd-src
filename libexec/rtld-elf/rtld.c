@@ -2486,12 +2486,14 @@ void *
 tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
 {
     Elf_Addr* dtv = *dtvp;
+    int lockstate;
 
     /* Check dtv generation in case new modules have arrived */
     if (dtv[0] != tls_dtv_generation) {
 	Elf_Addr* newdtv;
 	int to_copy;
 
+	lockstate = wlock_acquire(rtld_bind_lock);
 	newdtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
 	to_copy = dtv[1];
 	if (to_copy > tls_max_index)
@@ -2500,13 +2502,18 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
 	newdtv[0] = tls_dtv_generation;
 	newdtv[1] = tls_max_index;
 	free(dtv);
+	wlock_release(rtld_bind_lock, lockstate);
 	*dtvp = newdtv;
     }
 
     /* Dynamically allocate module TLS if necessary */
-    if (!dtv[index + 1])
-	dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
-
+    if (!dtv[index + 1]) {
+	/* Signal safe, wlock will block out signals. */
+	lockstate = wlock_acquire(rtld_bind_lock);
+	if (!dtv[index + 1])
+	    dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
+	wlock_release(rtld_bind_lock, lockstate);
+    }
     return (void*) (dtv[index + 1] + offset);
 }
 
@@ -2796,11 +2803,21 @@ free_tls_offset(Obj_Entry *obj)
 void *
 _rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 {
-    return allocate_tls(obj_list, oldtls, tcbsize, tcbalign);
+    void *ret;
+    int lockstate;
+
+    lockstate = wlock_acquire(rtld_bind_lock);
+    ret = allocate_tls(obj_list, oldtls, tcbsize, tcbalign);
+    wlock_release(rtld_bind_lock, lockstate);
+    return (ret);
 }
 
 void
 _rtld_free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
 {
+    int lockstate;
+
+    lockstate = wlock_acquire(rtld_bind_lock);
     free_tls(tcb, tcbsize, tcbalign);
+    wlock_release(rtld_bind_lock, lockstate);
 }
