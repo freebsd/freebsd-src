@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.36 1998/10/25 10:52:34 bde Exp $
+ * $Id: vfs_init.c,v 1.37 1998/10/25 17:44:52 phk Exp $
  */
 
 
@@ -109,11 +109,13 @@ struct vm_zone *namei_zone;
 void
 vfs_opv_init(struct vnodeopv_desc *opv)
 {
-	int j, k;
+	int j;
 	vop_t ***opv_desc_vector_p;
 	vop_t **opv_desc_vector;
 	struct vnodeopv_entry_desc *opve_descp;
+	int default_vector;
 
+	default_vector = VOFFSET(vop_default);
 	/*
 	 * Allocate the dynamic vectors and fill them in.
 	 */
@@ -125,8 +127,7 @@ vfs_opv_init(struct vnodeopv_desc *opv)
 	if (*opv_desc_vector_p == NULL) {
 		/* XXX - shouldn't be M_VNODE */
 		MALLOC(*opv_desc_vector_p, vop_t **,
-		       vfs_opv_numops * sizeof(vop_t *), M_VNODE,
-		       M_WAITOK);
+		       vfs_opv_numops * sizeof(vop_t *), M_VNODE, M_WAITOK);
 		bzero(*opv_desc_vector_p,
 		      vfs_opv_numops * sizeof(vop_t *));
 		DODEBUG(printf("vector at %x allocated\n",
@@ -154,11 +155,9 @@ vfs_opv_init(struct vnodeopv_desc *opv)
 		 * list of supported operations.
 		 */
 		if (opve_descp->opve_op->vdesc_offset == 0 &&
-			    opve_descp->opve_op->vdesc_offset !=
-				VOFFSET(vop_default)) {
-			printf("operation %s not listed in %s.\n",
-			    opve_descp->opve_op->vdesc_name,
-			    "vfs_op_descs");
+		    opve_descp->opve_op->vdesc_offset != default_vector) {
+			printf("operation %s not listed in vfs_op_descs[].\n",
+			    opve_descp->opve_op->vdesc_name);
 			panic ("vfs_opv_init: bad operation");
 		}
 		/*
@@ -168,21 +167,14 @@ vfs_opv_init(struct vnodeopv_desc *opv)
 				opve_descp->opve_impl;
 	}
 	/*
-	 * Finally, go back and replace unfilled routines
-	 * with their default.  (Sigh, an O(n^3) algorithm.  I
-	 * could make it better, but that'd be work, and n is small.)
+	 * Finally, go back and replace unfilled routines with their default.
 	 */
 	opv_desc_vector = *(opv->opv_desc_vector_p);
-	/*
-	 * Force every operations vector to have a default routine.
-	 */
-	if (opv_desc_vector[VOFFSET(vop_default)]==NULL) {
-		panic("vfs_opv_init: operation vector without default routine.");
-	}
-	for (k = 0; k<vfs_opv_numops; k++)
-		if (opv_desc_vector[k] == NULL)
-			opv_desc_vector[k] =
-				opv_desc_vector[VOFFSET(vop_default)];
+	if (opv_desc_vector[default_vector] == NULL)
+		panic("vfs_opv_init: operation vector without a default.");
+	for (j = 0; j < vfs_opv_numops; j++)
+		if (opv_desc_vector[j] == NULL)
+			opv_desc_vector[j] = opv_desc_vector[default_vector];
 }
 
 /*
@@ -195,13 +187,6 @@ vfs_op_init()
 
 	DODEBUG(printf("Vnode_interface_init.\n"));
 	DODEBUG(printf ("vfs_opv_numops=%d\n", vfs_opv_numops));
-#ifdef unused
-	/*
-	 * Set all vnode vectors to a well known value.
-	 */
-	for (i = 0; vfs_opv_descs[i]; i++)
-		*(vfs_opv_descs[i]->opv_desc_vector_p) = NULL;
-#endif
 	/*
 	 * assign each op to its offset
 	 *
@@ -214,11 +199,6 @@ vfs_op_init()
 	 */
 	for (i = 0; i < vfs_opv_numops; i++)
 		vfs_op_descs[i]->vdesc_offset = i;
-#ifdef unused
-	/* Finish the job */
-	for (i = 0; vfs_opv_descs[i]; i++)
-		vfs_opv_init(vfs_opv_descs[i]);
-#endif
 }
 
 /*
@@ -331,6 +311,8 @@ vfs_mod_opv_init(handle)
 
 	opv = (struct vnodeopv_desc *)handle;
 	*(opv->opv_desc_vector_p) = NULL;
+
+	/* XXX there is a memory leak on unload here */
 	vfs_opv_init(opv);
 }
 
