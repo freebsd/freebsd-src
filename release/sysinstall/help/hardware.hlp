@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.7 1995/10/21 15:03:22 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.8 1995/10/27 16:43:00 jkh Exp $
 
 Table of Contents
 -----------------
@@ -74,7 +74,7 @@ wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
 mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
 
-matcd0  dyn     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
+matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
 
 scd0    230     n/a     n/a     n/a     Sony CD-ROM
 
@@ -289,7 +289,7 @@ rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
-spigot: Create Labs Video Spigot video-acquisition board
+spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
 
@@ -311,13 +311,10 @@ Q: The system finds my ed network card, but I keep getting device
    timeout errors.
 
 A: Your card is probably on a different IRQ from what is specified in the
-   kernel configuration.  The ed driver will no longer use the `soft'
-   configuration by default (values entered using EZSETUP in DOS), but it
-   will use the software configuration if you specify `?' in the IRQ field
-   of your kernel config file.  The reason for the change is because the
-   ed driver used to read and try to use the soft configuration information
-   even when the card was jumpered to use a hard configuration, and this
-   caused problems.
+   kernel configuration.  The ed driver does not use the `soft' configuration
+   by default (values entered using EZSETUP in DOS), but it will use the
+   software configuration if you specify `?' in the IRQ field of your kernel
+   config file.  
 
    Either move the jumper on the card to a hard configuration setting
    (altering the kernel settings if necessary), or specify the IRQ as
@@ -326,7 +323,7 @@ A: Your card is probably on a different IRQ from what is specified in the
 
    Another possibility is that your card is at IRQ 9, which is shared
    by IRQ 2 and frequently a cause of problems (especially when you
-   have a VGA card using 2! :).  You should not use IRQ 2 or 9 if at
+   have a VGA card using IRQ 2! :).  You should not use IRQ 2 or 9 if at
    all possible.
 
 
@@ -345,17 +342,47 @@ A: The hard disk geometry was set incorrectly in the Partition editor when
    program will see the DOS partition and try to infer the correct
    geometry from it, which usually works.
 
+   If you are setting up a truly dedicated FreeBSD server or work-
+   station where you don't care for (future) compatibility with DOS,
+   Linux or another operating system, you've also got the option to use
+   the entire disk (`A' in the partition editor), selecting the
+   non-standard option where FreeBSD occupies the entire disk from
+   the very first to the very last sector.  This will leave all geometry
+   considerations aside, but is somewhat limiting unless you're never
+   going to run anything other than FreeBSD on a disk.
 
-Q: I have a Matsushita/Panasonic CD-ROM drive but it isn't recognized
-   by the system, even if I use UserConfig to change the Port address to
-   630, which is what my card uses.
+Q: I have a Matsushita/Panasonic drive but it isn't recognized by the
+   system.
 
-A: Not all of the companies that sell the Matsushita/Panasonic CR-562
-   and CR-563 drives use the same I/O ports and interface that the
-   matcd driver in FreeBSD expects.  The only adapters that are supported
-   at this time are those that are 100% compatible with the Creative
-   Labs (SoundBlaster) host interface.  See matcd.4 documentation for a
-   list of host adapters that are known to work.
+A: Make certain that the I/O port that the matcd driver is set to is
+   correct for the host interface card you have.  (Some SoundBlaster DOS
+   drivers report a hardware I/O port address for the CD-ROM interface
+   that is 0x10 lower than it really is.)
+
+   If you are unable to determine the settings for the card by examining 
+   the board or documentation, you can use UserConfig to change the 'port'
+   address (I/O port) to -1 and start the system.  This setting causes the
+   driver to look at a number of I/O ports that various manufacturers
+   use for their Matsushita/Panasonic/Creative CD-ROM interfaces.
+   Once the driver locates the address, you should run UserConfig again
+   and specify the correct address.  Leaving the 'port' parameter set to -1
+   increases the amount of time that it takes the system to boot, and
+   this could interfere with other devices.
+
+   The double-speed Matsushita CR-562 and CR-563 are the only drives
+   that are supported.
+   
+
+Q: I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523 or
+   a TEAC CD55a drive, but it is not recognized even when the correct I/O
+   port is set.
+
+A: These CD-ROM drives are currently not supported by FreeBSD.  The command
+   sets for these drives are not compatible with the double-speed CR-562
+   and CR-563 drives.
+   
+   The single-speed CR-522 and CR-523 drives can be identified by their
+   use of a CD-caddy. 
 
 
 Q: I'm trying to install from a tape drive but all I get is something like:
@@ -396,3 +423,4 @@ A: You must set your Intel EtherExpress 16 card to be memory mapped at
    the Intel supplied softset.exe program.
 
 [ Please add more hardware tips to this Q&A section! ]
+

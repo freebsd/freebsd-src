@@ -14,7 +14,7 @@ Since our release of FreeBSD 2.0 one year ago, the performance,
 feature set, and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance, but reduces FreeBSD's
-memory footprint, making a 4MB configuration a more acceptable
+memory footprint, making a 5MB configuration a more acceptable
 minimum.  Other enhancements include full NIS client and server
 support, transaction TCP support, dial-on-demand PPP, an improved SCSI
 subsystem, early ISDN support, support for FDDI and Fast Ethernet
@@ -83,8 +83,8 @@ based PC's, ranging from 386sx to Pentium class machines (though the
 configurations, various SCSI controller, network and serial cards is
 also provided.
 
-Following is a list of all disk controllers and ethernet cards currently
-known to work with FreeBSD.  Other configurations may very well work, and
+What follows is a list of all disk controllers and ethernet cards currently
+known to work with FreeBSD.  Other configurations may also work, and
 we have simply not received any indication of this.
 
 
@@ -137,12 +137,15 @@ SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.
 
 The following CD-ROM type systems are supported at this time:
-(cd)    SCSI (also includes ProAudio Spectrum and SoundBlaster SCSI)
-(mcd)   Mitsumi proprietary interface 
-(matcd) Matsushita/Panasonic (Creative) proprietary interface
-(scd)   Sony proprietary interface
+(cd)    SCSI interface (also includes ProAudio Spectrum and
+	SoundBlaster SCSI)
+(mcd)   Mitsumi proprietary interface (all models)
+(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
+	interface (562/563 models)
+(scd)   Sony proprietary interface (all models)
+(wcd)	ATAPI IDE interface (experimental and should be considered ALPHA
+        quality!).
 
-Note: CD-Drives with IDE interfaces are not supported at this time.
 
 2.2. Ethernet cards
 -------------------
@@ -195,13 +198,7 @@ Cyclades Cyclom-y Serial Board.
 
 STB 4 port card using shared IRQ.
 
-Mitsumi (all models) CDROM interface and drive.
-
 SDL Communications Riscom/8 Serial Board.
-
-SoundBlaster SCSI and ProAudio Spectrum SCSI CDROM interface and drive.
-
-Matsushita/Panasonic (Creative SoundBlaster) CDROM interface and drive.
 
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
@@ -288,12 +285,14 @@ Otherwise, for any questions or suggestions, please send mail to:
 
                 questions@FreeBSD.org
 
+
 Additionally, being a volunteer effort, we are always happy to have
 extra hands willing to help - there are already far more enhancements
 to be done than we can ever manage to do by ourselves!  To contact us
 on technical matters, or with offers of help, you may send mail to:
 
                 hackers@FreeBSD.org
+
 
 Since these mailing lists can experience significant amounts of
 traffic, if you have slow or expensive mail access and you are
@@ -374,4 +373,5 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.2 1995/10/15 14:54:02 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.3 1995/10/27 00:03:44 uhclem Exp $
+

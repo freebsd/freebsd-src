@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.36 1995/10/27 01:22:58 jkh Exp $
+ * $Id: menus.c,v 1.42.2.37 1995/10/27 02:12:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -343,17 +343,17 @@ type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"Custom\".",
 "Press F1 for more information on these options.",
 "distributions",
-{ { "Developer",	"Full sources, binaries and doc but no games [171MB]",
+{ { "Developer",	"Full sources, binaries and doc but no games [180MB]",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
-  { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
+  { "X-Developer",	"Same as above, but includes XFree86 [201MB]",
 	DMENU_CALL,	distSetXDeveloper, 0, 0		},
-  { "Kern-Developer", "Full binaries and doc, kernel sources only [35MB]",
+  { "Kern-Developer", "Full binaries and doc, kernel sources only [70MB]",
 	DMENU_CALL,	distSetKernDeveloper, 0, 0	},
-  { "User",		"Average user - binaries and doc but no sources [19MB]",
+  { "User",		"Average user - binaries and doc but no sources [52MB]",
 	DMENU_CALL,	distSetUser, 0, 0		},
-  { "X-User",	"Same as above, but includes XFree86 [45MB]",
+  { "X-User",	"Same as above, but includes XFree86 [52MB]",
 	DMENU_CALL,	distSetXUser, 0, 0		},
-  { "Minimal",	"The smallest configuration possible [15MB]",
+  { "Minimal",	"The smallest configuration possible [44MB]",
 	DMENU_CALL,	distSetMinimum, 0, 0		},
   { "Everything",	"All sources, binaries and XFree86 binaries [700MB]",
 	DMENU_CALL,	distSetEverything, 0, 0		},
