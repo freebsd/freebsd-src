@@ -46,6 +46,8 @@
 
 #include <sparc64/pci/ofw_pci.h>
 
+#include <machine/cache.h>
+#include <machine/iommureg.h>
 #include <machine/ofw_bus.h>
 #include <machine/ver.h>
 
@@ -179,6 +181,7 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 	char type[32];
 	int i, intr, freemap;
 	u_int slot, busno, func, sub, lat;
+	u_int8_t clnsz;
 
 	/* Initialize the quirk list. */
 	for (i = 0; i < OPQ_NENT; i++) {
@@ -192,6 +195,16 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 		return;
 	freemap = 0;
 	busno = obd->obd_secbus;
+	/*
+	 * Compute the value to write into the cache line size register.
+	 * The role of the streaming cache is unclear in write invalidate
+	 * transfers, so it is made sure that it's line size is always reached.
+	 */
+	clnsz = imax(cache.ec_linesize, STRBUF_LINESZ);
+	KASSERT((clnsz / STRBUF_LINESZ) * STRBUF_LINESZ == clnsz &&
+	    (clnsz / cache.ec_linesize) * cache.ec_linesize == clnsz &&
+	    (clnsz / 4) * 4 == clnsz, ("bogus cache line size %d", clnsz));
+
 	do {
 		if (node == -1)
 			panic("ofw_pci_init_intr: OF_child failed");
@@ -256,6 +269,8 @@ ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
 				PCIB_WRITE_CONFIG(dev, busno, slot, func,
 				    PCIR_LATTIMER, imin(lat, 255), 1);
 			}
+			PCIB_WRITE_CONFIG(dev, busno, slot, func,
+			    PCIR_CACHELNSZ, clnsz / 4, 1);
 
 			/* Initialize the intline registers. */
 			if ((intr = ofw_pci_route_intr(node, ign)) != 255) {
