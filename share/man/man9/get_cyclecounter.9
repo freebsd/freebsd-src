@@ -32,6 +32,8 @@
 .Nd get the CPU's fast counter register contents
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/queue.h
+.In machine/cpufunc.h
 .In machine/cpu.h
 .Ft u_int64_t
 .Fn get_cyclecounter "void"

@@ -33,14 +33,18 @@
 .Nm bios32
 .Nd interact with PC BIOS
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
+.In vm/vm.h
+.In vm/pmap.h
+.In machine/param.h
+.In machine/pmap.h
 .In machine/pc/bios.h
 .Ft u_int32_t
 .Fn bios_sigsearch "u_int32_t start" "u_char *sig" "int siglen" "int paralen" "int sigofs"
 .Ft int
 .Fn bios32_SDlookup "struct bios32_SDentry *ent"
-.Ft void
-.Fn bios32 "caddr_t entry" "struct bios32_args *args"
+.Ft int
+.Fn bios32 "struct bios_regs *br" "u_int offset" "u_short segment"
 .Fn BIOS_PADDRTOVADDR "addr"
 .Fn BIOS_VADDRTOPADDR "addr"
 .Vt extern struct bios32_SDentry PCIbios ;

@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct proc *p"
+.Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct thread *td"
 .Sh DESCRIPTION
 This call returns various pieces of information about the filesystem,
 including recommended I/O sizes, free space, free inodes, etc.
@@ -50,8 +50,8 @@ Its arguments are:
 The filesystem.
 .It Ar sbp
 Return parameter for the filesystem's status.
-.It Ar p
-The process which is querying the filesystem.
+.It Ar td
+The thread which is querying the filesystem.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,

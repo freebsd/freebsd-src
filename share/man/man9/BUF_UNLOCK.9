@@ -34,6 +34,9 @@
 .Nd "unlocks a locked buffer"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/systm.h
+.In sys/uio.h
+.In sys/bio.h
 .In sys/buf.h
 .Ft void
 .Fn BUF_UNLOCK "struct buf *bp"

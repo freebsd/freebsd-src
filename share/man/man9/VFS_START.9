@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_START "struct mount *mp" "int flags" "struct proc *p"
+.Fn VFS_START "struct mount *mp" "int flags" "struct thread *td"
 .Sh DESCRIPTION
 This is called after
 .Xr VFS_MOUNT 9
@@ -50,8 +50,8 @@ Its arguments are:
 The filesystem.
 .It Ar flags
 ??
-.It Ar p
-Process which is starting the filesystem.
+.It Ar td
+Thread which is starting the filesystem.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,

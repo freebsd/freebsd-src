@@ -36,6 +36,8 @@
 .Nd asynchronous task execution
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/kernel.h
+.In sys/malloc.h
 .In sys/queue.h
 .In sys/taskqueue.h
 .Bd -literal
@@ -63,9 +65,9 @@ struct task {
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
-.Fn TASK_INIT "task" "priority" "func" "context"
+.Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
-.Fn TASKQUEUE_DEFINE "name" "enqueue" "context" "init"
+.Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Sh DESCRIPTION
 These functions provide a simple interface for asynchronous execution
 of code.

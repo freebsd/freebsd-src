@@ -37,7 +37,7 @@
 .Nm if_data
 .Nd kernel interfaces for manipulating network interfaces
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
 .In sys/time.h
 .In sys/socket.h
 .In net/if.h
@@ -50,13 +50,13 @@
 .Ft void
 .Fn if_down "struct ifnet *ifp"
 .Ft int
-.Fn ifioctl "struct socket *so" "u_long cmd" "caddr_t data" "struct proc *p"
+.Fn ifioctl "struct socket *so" "u_long cmd" "caddr_t data" "struct thread *td"
 .Ft int
 .Fn ifpromisc "struct ifnet *ifp" "int pswitch"
 .Ft int
 .Fn if_allmulti "struct ifnet *ifp" "int amswitch"
 .Ft "struct ifnet *"
-.Fn ifunit "char *name"
+.Fn ifunit "const char *name"
 .Ft void
 .Fn if_up "struct ifnet *ifp"
 .\"
@@ -71,7 +71,6 @@
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
 .Fn ifafree "struct ifaddr *ifa"
-.Ft void \"macro
 .Fn IFAFREE "struct ifaddr *ifa"
 .\"
 .Ss "Interface multicast address functions"
@@ -82,9 +81,7 @@
 .Ft "struct ifmultiaddr *"
 .Fn ifmaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ss "Output queue macros"
-.Ft void \"macro
 .Fn IF_ENQ_DROP "struct ifqueue *ifq" "struct mbuf *m"
-.Ft void \"macro
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
 .Ss "struct ifnet member functions"
@@ -803,8 +800,8 @@ Process the ioctl request
 .Ar cmd ,
 issued on socket
 .Ar so
-by process
-.Ar p ,
+by thread
+.Ar td ,
 with data parameter
 .Ar data .
 This is the main routine for handling all interface configuration

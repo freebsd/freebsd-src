@@ -34,6 +34,7 @@
 .\"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/systm.h
 .In sys/mbuf.h
 .\"
 .Ss Mbuf allocation macros
@@ -55,15 +56,20 @@
 .Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
 .\"
 .Ss Mbuf utility macros
-.Fn mtod "struct mbuf *mbuf" "any type"
+.Ft void *
+.Fn mtod "struct mbuf *mbuf" "type"
+.Ft int
 .Fn MEXT_IS_REF "struct mbuf *mbuf"
 .Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
+.Ft int
 .Fn M_LEADINGSPACE "struct mbuf *mbuf"
+.Ft int
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
 .Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.Ft int
 .Fn M_WRITABLE "struct mbuf *mbuf"
 .\"
 .Ss Mbuf allocation functions
