@@ -2151,13 +2151,12 @@ void
 onint(notused)
 	int notused;
 {
+	(void)signal(SIGINT, SIG_IGN);
+	(void)signal(SIGALRM, SIG_IGN);
+
 	summary();
 
-	(void)signal(SIGINT, SIG_DFL);
-	(void)kill(getpid(), SIGINT);
-
-	/* NOTREACHED */
-	exit(1);
+	exit(nreceived == 0);
 }
 
 /*
