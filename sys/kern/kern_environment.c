@@ -46,6 +46,9 @@ char	*kern_envp;
 
 static char	*kernenv_next(char *cp);
 
+/*
+ * Look up an environment variable by name.
+ */
 char *
 getenv(const char *name)
 {
@@ -62,6 +65,23 @@ getenv(const char *name)
 	    return(ep);
     }
     return(NULL);
+}
+
+/*
+ * Return a string value from an environment variable.
+ */
+int
+getenv_string(const char *name, char *data, int size)
+{
+    char *tmp;
+
+    tmp = getenv(name);
+    if (tmp == NULL) {
+	strncpy(data, tmp, size);
+	data[size - 1] = 0;
+	return (1);
+    } else
+	return (0);
 }
 
 /*
@@ -83,7 +103,7 @@ getenv_int(const char *name, int *data)
 /*
  * Return a quad_t value from an environment variable.
  */
-quad_t
+int
 getenv_quad(const char *name, quad_t *data)
 {
     const char	*value;
