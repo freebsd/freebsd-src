@@ -2908,7 +2908,10 @@ ciss_notify_event(struct ciss_softc *sc)
     cnc->synchronous = 0;
     cnc->ordered = 0;
     cnc->seek_to_oldest = 0;
-    cnc->new_only = 0;
+    if ((sc->ciss_flags & CISS_FLAG_RUNNING) == 0)
+	cnc->new_only = 1;
+    else
+	cnc->new_only = 0;
     cnc->length = htonl(CISS_NOTIFY_DATA_SIZE);
 
     /* submit the request */
