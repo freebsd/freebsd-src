@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.20 1996/01/19 03:59:38 dyson Exp $
+ * $Id: device_pager.c,v 1.21 1996/03/09 06:54:41 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	/*
 	 * Offset should be page aligned.
 	 */
-	if (foff & (PAGE_SIZE - 1))
+	if (foff & PAGE_MASK)
 		return (NULL);
 
 	/*

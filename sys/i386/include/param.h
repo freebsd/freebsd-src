@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.20 1996/05/02 14:20:02 phk Exp $
+ *	$Id: param.h,v 1.21 1996/05/02 22:25:17 phk Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -92,14 +92,6 @@
 /*
  * Some macros for units conversion
  */
-/* Core clicks (4096 bytes) to segments and vice versa */
-#define ctos(x)	(x)
-#define stoc(x)	(x)
-
-/* Core clicks (4096 bytes) to disk blocks */
-#define ctod(x)	((x)<<(PAGE_SHIFT-DEV_BSHIFT))
-#define dtoc(x)	((x)>>(PAGE_SHIFT-DEV_BSHIFT))
-#define dtob(x)	((x)<<DEV_BSHIFT)
 
 /* clicks to bytes */
 #define ctob(x)	((x)<<PAGE_SHIFT)
@@ -129,12 +121,6 @@
 #define atop(x)			((unsigned)(x) >> PAGE_SHIFT)
 #define ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
 
-#define i386_round_pdr(x)	((((unsigned)(x)) + NBPDR - 1) & ~(NBPDR-1))
-#define i386_trunc_pdr(x)	((unsigned)(x) & ~(NBPDR-1))
-#define i386_round_page(x)	((((unsigned)(x)) + PAGE_MASK) & ~PAGE_MASK)
-#define i386_trunc_page(x)	((unsigned)(x) & ~PAGE_MASK)
-#define i386_btod(x)		((unsigned)(x) >> PDRSHIFT)
-#define i386_dtob(x)		((unsigned)(x) << PDRSHIFT)
 #define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 

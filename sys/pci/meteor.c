@@ -1509,8 +1509,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			return(EINVAL);
 			/* meteor_mem structure is on the page after the data */
 		mem = mtr->mem = (struct meteor_mem *) (mtr->bigbuf +
-				((mtr->frame_size *
-				mtr->frames+PAGE_SIZE-1)/PAGE_SIZE)*PAGE_SIZE);
+				(round_page(mtr->frame_size * mtr->frames)));
 		mtr->current = 1;
 		mtr->synch_wait = 0;
         	mem->num_bufs = mtr->frames;
@@ -1599,7 +1598,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		   	/* meteor_mem structure for SYNC Capture */
 		   	if (geo->frames > 1) temp += PAGE_SIZE;
 
-		   	temp = (temp + PAGE_SIZE -1)/PAGE_SIZE;
+		   	temp = btoc(temp);
 		   	if (temp > mtr->alloc_pages
 #ifdef METEOR_TEST_VIDEO
 			    && mtr->video.addr == 0
