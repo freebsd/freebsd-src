@@ -20,7 +20,7 @@ ${SCRMAPS}: ${.TARGET:R}.mk
 	rm -f ${.TARGET:R}.tmp
 
 ${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c
-	${CC} -static ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" ${LDFLAGS} \
+	${CC} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" ${LDFLAGS} \
 	    -o ${.TARGET} ${.CURDIR}/mkscrfil.c
 
 .include <bsd.prog.mk>
