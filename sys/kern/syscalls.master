@@ -38,7 +38,7 @@
 ; of the current calls.
 
 0	STD	NOHIDE	{ int nosys(void); } syscall nosys_args int
-1	STD	NOHIDE	{ void exit(int rval); } exit rexit_args void
+1	STD	NOHIDE	{ void sys_exit(int rval); } exit sys_exit_args void
 2	STD	POSIX	{ int fork(void); }
 3	STD	POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
 4	STD	POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }

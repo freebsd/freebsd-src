@@ -35,7 +35,7 @@
 #include <svr4/svr4_proto.h>
 
 0	UNIMPL	SVR4	unused
-1	NOPROTO	POSIX	{ void exit(int rval); } exit rexit_args void
+1	NOPROTO	POSIX	{ void sys_exit(int rval); } exit sys_exit_args void
 2	NOPROTO	POSIX	{ int fork(void); }
 3	NOPROTO	POSIX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	SVR4	{ int write(int fd, char *buf, u_int nbyte); }
