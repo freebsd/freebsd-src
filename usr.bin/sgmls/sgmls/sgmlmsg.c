@@ -64,16 +64,16 @@ static char *headers[] = {
 
 /* Indexes into headers[] */
 
-#define HDRPFX 0
-#define HDRALL 1
-#define HDRUNSUP 2
-#define HDRSYS 3
-#define HDRWARN 4
-#define HDRLOC 5
-#define HDRELOC 6
-#define HDRMD 7
-#define HDRMD2 8
-#define HDRMODE 9
+#define HDRPFX 0 
+#define HDRALL 1 
+#define HDRUNSUP 2 
+#define HDRSYS 3 
+#define HDRWARN 4 
+#define HDRLOC 5 
+#define HDRELOC 6 
+#define HDRMD 7 
+#define HDRMD2 8 
+#define HDRMODE 9 
 #define HDREOF 10
 #define HDREE 11
 #define HDRRS 12
@@ -229,7 +229,7 @@ struct error *e;
      }
      else
 	  indent = 4;
-
+     
      for (toplevel = 0; getlocation(toplevel, &loc); toplevel++)
 	  if (loc.filesw) {
 	       prevfilelevel = filelevel;
@@ -285,7 +285,7 @@ struct error *e;
 	  hdrcode = HDRUNSUP;
      else
 	  hdrcode = HDRALL;
-
+	  
      xfprintf(efp, getheader(hdrcode), type, severity, e->errnum);
 
      if (filelevel >= 0) {
@@ -301,9 +301,9 @@ struct error *e;
 	       }
 	  }
      }
-
+     
      /* It is necessary to copy the result of getparm() because
-	the specification of catgets() says in can return a
+	the specification of catgets() says in can return a 
 	pointer to a static buffer which may get overwritten
 	by the next call to catgets(). */
 
@@ -388,14 +388,14 @@ int indent;
 {
      int i = 1;
      UNCH *gi;
-
+     
      gi = getgi(i);
      if (!gi)
 	  return;
      spaces(efp, indent);
      xfprintf(efp, getheader(HDRELT));
      do {
-	  fprintf(efp, " %s", gi);
+	  fprintf(efp, " %s", (char *)gi);
 	  gi = getgi(++i);
      } while (gi);
      putc('\n', efp);

@@ -39,14 +39,14 @@ et0a[]={DAS_,DAS_,DAS_,DAS_,DAS_,NON_,GET_,GET_,RSR_,SR2_,DAS_,DAS_,NSC_,LAS_,
         REF_,NOP_,DAS_,NED_,SR10,DAS_,DAS_,NOP_,SR25,DAS_,SR11,DAS_,LAS_,FCE_},
 
 da0 []={DA0 ,DA0 ,DA0 ,DA0 ,DA1 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,
-        ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,DA0 ,DA0 ,DA0 ,ET0 ,ET0 },/*da0*/
+        ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,DA0 ,ET0 ,DA0 ,ET0 ,ET0 },/*da0*/
 da0a[]={NOP_,NOP_,NOP_,NOP_,NOP_,DAF_,DAF_,DAF_,DAF_,DAF_,DAF_,NOP_,DAF_,DAF_,
-        DAF_,DAF_,NOP_,DAF_,DAF_,DAF_,NOP_,DAF_,DAF_,NOP_,NOP_,NOP_,DAF_,DAF_},
+        DAF_,DAF_,NOP_,DAF_,DAF_,DAF_,NOP_,DAF_,DAF_,NOP_,DAF_,NOP_,DAF_,DAF_},
 
 da1 []={DA0 ,DA0 ,DA0 ,DA0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,
-        ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,DA0 ,DA0 ,DA0 ,ET0 ,ET0 },/*da1*/
+        ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,ET0 ,DA0 ,ET0 ,ET0 ,DA0 ,ET0 ,DA0 ,ET0 ,ET0 },/*da1*/
 da1a[]={NOP_,NOP_,NOP_,NOP_,DAR_,DAF_,DAF_,DAR_,DAF_,DAR_,DAR_,NOP_,DAF_,DAF_,
-        DAF_,DAF_,NOP_,DAF_,DAF_,DAR_,NOP_,DAF_,DAF_,NOP_,NOP_,NOP_,DAF_,DAF_},
+        DAF_,DAF_,NOP_,DAF_,DAF_,DAR_,NOP_,DAF_,DAF_,NOP_,DAF_,NOP_,DAF_,DAF_},
 
 er0 []={ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ER0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,
         ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,ET0 ,CR0 ,ET0 ,ET0 ,ET0 },/*er0*/
@@ -176,7 +176,7 @@ static UNCH
 et2 []={ET2 ,ET2 ,ET2 ,ET2 ,SP2 ,ET2 ,ET2 ,ET2 ,RS2 ,ET2 ,TB2 ,ET2 ,ET2 ,ER2 ,
         ET2 ,SC2 ,ET2 ,ET2 ,ET2 ,SR2 ,ET2 ,ME2 ,ET2 ,ET2 ,ET2 ,ET2 ,ES2 ,ET2 },/*et2*/
 et2a[]={DCE_,DCE_,DCE_,DCE_,NOP_,DCE_,GET_,GET_,RS_ ,SR2_,NOP_,DCE_,DCE_,LAS_,
-        NOP_,NOP_,DCE_,NED_,SR10,NOP_,DCE_,NOP_,DCE_,DCE_,SR11,DCE_,LAS_,DCE_},
+        NOP_,NOP_,DCE_,NED_,SR10,NOP_,DCE_,NOP_,SR25,DCE_,SR11,DCE_,LAS_,FCE_},
 
 er2 []={ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ER2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,
         ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,ET2 ,CR2 ,ET2 ,ET2 ,ET2 },/*er2*/
@@ -391,6 +391,7 @@ struct parse pcbconc = {"CONC", lexcon, conctab, 0, 0, 0, 0};
 #define ES7     2   /* TAGO found; start lookahead buffer. */
 #define MD7     4   /* MDO found (TAGO, MDO[2]). */
 #define MC7     6   /* MDO, COM found. */
+#define EE7     8   /* TAGO, ETI found */
 
 static UNCH
 /*      free nu   nmc  nms  spc  non  ee   eob  rs   re   sep  cde  nsc  ero
@@ -401,9 +402,9 @@ et7a[]={DCE_,DCE_,DCE_,DCE_,NOP_,DCE_,EE_ ,GET_,RS_ ,NOP_,NOP_,DCE_,DCE_,DCE_,
         DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,DCE_,LAS_},
 
 es7 []={ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ES7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,
-        ET7 ,ET7 ,ET7 ,ET7 ,MD7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 },/*es7*/
+        ET7 ,ET7 ,EE7 ,ET7 ,MD7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 },/*es7*/
 es7a[]={PEP_,PEP_,PEP_,STE_,PEP_,PEP_,PEP_,GET_,PEP_,PEP_,PEP_,PEP_,PEP_,PEP_,
-        PEP_,PEP_,PEP_,PEP_,LAM_,PEP_,PEP_,PEP_,PIS_,PEP_,STE_,PEP_},
+        PEP_,PEP_,LAM_,PEP_,LAM_,PEP_,PEP_,PEP_,PIS_,PEP_,STE_,PEP_},
 
 md7 []={ET7, ET7, ET7, ET7, ET7 ,ET7, ET7, MD7, ET7 ,ET7 ,ET7 ,ET7, ET7, ET7,
         ET7, MC7, ET7, ET7, ET7, ET7 ,ET7, ET7, ET7, ET7 ,ET7, ET7 },/*md7*/
@@ -415,12 +416,18 @@ mc7 []={ET7, ET7, ET7, ET7, ET7, ET7 ,ET7, MC7, ET7 ,ET7, ET7 ,ET7, ET7, ET7,
 mc7a[]={LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,GET_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,
         LAF_,MDC_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_},
 
-*protab[] = {et7, et7a, es7, es7a, md7, md7a, mc7, mc7a};
+ee7 []={ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,EE7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,
+        ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 ,ET7 },/*ee7*/
+ee7a[]={LAF_,LAF_,LAF_,ETE_,LAF_,LAF_,LAF_,GET_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,
+        LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,LAF_,ETE_,LAF_},
+
+*protab[] = {et7, et7a, es7, es7a, md7, md7a, mc7, mc7a, ee7, ee7a};
 struct parse pcbpro = {"PRO", lexcon, protab, 0, 0, 0, 0};
 #undef ET7
 #undef ES7
 #undef MD7
 #undef MC7
+#undef EE7
 /* PCBMDS: State and action table for parse of markup declaration subset.
            Initial state assumes subset just began (MSO found).
 */
@@ -550,7 +557,7 @@ dn01a[]={INV_,INV_,INV_,NOP_,NOP_,SYS_,EE_ ,GET_,RS_ ,INV_,INV_,INV_,INV_,INV_,
          INV_,INV_,INV_,INV_,INV_,INV_,INV_,INV_,DTAG,INV_},
 
 dt01 []={TK1 ,TK1 ,TK1 ,DT1 ,DT1 ,DT1 ,DT1 ,DT1 ,DT1 ,TK1 ,DT1 ,DT1 ,LI1 ,LA1 ,
-         CO1 ,TK1 ,TK1 ,DT1 ,DT1 ,TK1 ,TK1 ,TK1 ,DT1 ,TK1 },/*dt1*/
+         SP1 ,TK1 ,TK1 ,DT1 ,DT1 ,TK1 ,TK1 ,TK1 ,DT1 ,TK1 },/*dt1*/
 dt01a[]={INV_,INV_,INV_,NOP_,NOP_,SYS_,EE_ ,GET_,RS_ ,INV_,NOP_,NOP_,NOP_,NOP_,
          GRPE,INV_,INV_,NOP_,NOP_,INV_,INV_,INV_,NOP_,INV_},
 
@@ -798,23 +805,23 @@ struct parse pcblitr = {"LITR", lexlms, litrtab, 0, 0, 0, 0};
 #define SP0     4   /* SPACE/RE sequence begun. */
 
 static UNCH
-/*       free num  min  nms  spc  non  ee   eob  rs   re   sep  cde  nsc  ero
-         mdo  msc  mso  pero rni  tagc tago litc */
-ls10 []={VA0 ,VA0 ,VA0 ,VA0 ,LS0 ,VA0 ,LS0 ,LS0 ,LS0 ,LS0 ,LS0 ,VA0 ,VA0 ,VA0 ,
-         VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,LS0 },/*ls0*/
-ls10a[]={MLE_,MLA_,MLA_,MLA_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,MLE_,SYS_,SYS_,MLE_,
-         MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,TER_},
-va10 []={VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,SP0 ,VA0 ,VA0 ,VA0 ,
-         VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,LS0 },/*va0*/
-da10a[]={MLE_,MLA_,MLA_,MLA_,MLA_,SYS_,EOF_,GET_,RS_ ,FUN_,MLE_,SYS_,SYS_,MLE_,
-         MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,TER_},
-sp10 []={VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,VA0 ,VA0 ,SP0 ,SP0 ,SP0 ,SP0 ,VA0 ,VA0 ,VA0 ,
-         VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,VA0 ,LS0 },/*sp0*/
-sp10a[]={MLE_,MLA_,MLA_,MLA_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,MLE_,SYS_,SYS_,MLE_,
-         MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,MLE_,RPR_},
+/*       free num  min  nms  spc  non  ee   eob  rs   re   sep  cde  nsc  
+         litc */			  
+ls10 []={VA0 ,VA0 ,VA0 ,VA0 ,LS0 ,VA0 ,LS0 ,LS0 ,LS0 ,LS0 ,LS0 ,VA0 ,VA0 ,
+         LS0 },/*ls0*/		  
+ls10a[]={MLE_,MLA_,MLA_,MLA_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,MLE_,SYS_,SYS_,
+         TER_},			  
+va10 []={VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,SP0 ,VA0 ,VA0 ,
+         LS0 },/*va0*/		  
+da10a[]={MLE_,MLA_,MLA_,MLA_,MLA_,SYS_,EOF_,GET_,RS_ ,FUN_,MLE_,SYS_,SYS_,
+         TER_},			  
+sp10 []={VA0 ,VA0 ,VA0 ,VA0 ,SP0 ,VA0 ,VA0 ,SP0 ,SP0 ,SP0 ,SP0 ,VA0 ,VA0 ,
+         LS0 },/*sp0*/		  
+sp10a[]={MLE_,MLA_,MLA_,MLA_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,MLE_,SYS_,SYS_,
+         RPR_},
 
 *litvtab[] = {ls10, ls10a, va10, da10a, sp10, sp10a};
-struct parse pcblitv = {"LITV", lexlms, litvtab, 0, 0, 0, 0};
+struct parse pcblitv = {"LITV", lexmin, litvtab, 0, 0, 0, 0};
 #undef LS0
 #undef VA0
 #undef SP0
@@ -881,9 +888,9 @@ struct parse pcblitt = {"LITT", lexlms, litttab, 0, 0, 0, 0};
           Columns are based on LEXMARK.C.
 */
 /* Symbols for state names (end with a number). */
-#define SP1     0   /* Separator before token expected. */
-#define TK1     2   /* Token expected. */
-#define CM0     4   /* COM[1] found when sep expected: possible comment, MGRP.*/
+#define SP1     0   /* Separator before token expected (but not -). */
+#define SP2     2   /* Separator before token expected. */
+#define TK1     4   /* Token expected. */
 #define CM1     6   /* COM[1] found: possible comment, MGRP, or minus.*/
 #define CM2     8   /* COM[2] found; in comment. */
 #define CM3    10   /* Ending COM[1] found; end comment or continue it. */
@@ -896,22 +903,23 @@ int pcbmdtk = TK1;            /* PCBMD: token expected. */
 static UNCH
 /*       bit  nmc  num  nms  spc  non  ee   eob  rs   com  eti  grpo lit  lita
          dso  dsc  pero plus refc rni  tagc tago vi    */
-sp21 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,TK1 ,SP1 ,TK1 ,CM0 ,SP1 ,TK1 ,TK1 ,TK1 ,
+sp21 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,TK1 ,SP1 ,TK1 ,SP1 ,SP1 ,TK1 ,TK1 ,TK1 ,
          TK1 ,SP1 ,PR1 ,PX1 ,SP1 ,RN1 ,SP1 ,SP1 ,SP1 },
-sp21a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EE_ ,GET_,RS_ ,NOP_,INV_,GRPS,LIT ,LITE,
+sp21a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EE_ ,GET_,RS_ ,LEN_,INV_,GRPS,LIT ,LITE,
          MDS ,INV_,NOP_,NOP_,INV_,NOP_,EMD ,INV_,INV_},
 
-tk21 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,SP1 ,TK1 ,TK1 ,TK1 ,
+sp22 []={SP2 ,SP2 ,SP2 ,SP2 ,TK1 ,SP2 ,TK1 ,SP2 ,TK1 ,CM1 ,SP2 ,TK1 ,TK1 ,TK1 ,
+         TK1 ,SP2 ,PR1 ,PX1 ,SP2 ,RN1 ,SP2 ,SP2 ,SP2 },
+sp22a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EE_ ,GET_,RS_ ,NOP_,INV_,GRPS,LIT ,LITE,
+         MDS ,INV_,NOP_,NOP_,INV_,NOP_,EMD ,INV_,INV_},
+
+tk21 []={SP1 ,SP1 ,SP2 ,SP1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,SP1 ,TK1 ,TK1 ,TK1 ,
          TK1 ,SP1 ,PR1 ,PX1 ,SP1 ,RN1 ,SP1 ,SP1 ,SP1 },
 tk21a[]={INV_,NMT ,NUM ,NAS ,NOP_,SYS_,EE_ ,GET_,RS_ ,NOP_,INV_,GRPS,LIT ,LITE,
          MDS ,INV_,NOP_,NOP_,INV_,NOP_,EMD ,INV_,INV_},
 
 /*       bit  nmc  num  nms  spc  non  ee   eob  rs   com  eti  grpo lit  lita
          dso  dsc  pero plus refc rni  tagc tago vi    */
-cm20 []={SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,CM0 ,SP1 ,CM0 ,SP1 ,CM2 ,SP1 ,SP1 ,SP1 ,SP1 ,
-         SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 },
-cm20a[]={LNR_,LNR_,LNR_,LNR_,LNR_,SYS_,LNR_,GET_,LNR_,NOP_,LNR_,LNR_,LNR_,LNR_,
-         LNR_,LNR_,LNR_,LNR_,LNR_,LNR_,LNR_,LNR_,LNR_},
 
 cm21 []={TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,CM1 ,TK1 ,CM2 ,TK1 ,TK1 ,TK1 ,TK1 ,
          TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 },
@@ -930,8 +938,8 @@ cm23 []={CM2 ,CM2 ,CM2 ,CM2 ,CM2 ,CM3 ,TK1 ,CM3 ,CM2 ,TK1 ,CM2 ,CM2 ,CM2 ,CM2 ,
 cm23a[]={NOP_,NOP_,NOP_,NOP_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,NOP_,NOP_,NOP_,NOP_,
          NOP_,NOP_,NOP_,NOP_,NOP_,NOP_,NOP_,NOP_,NOP_},
 
-pr21 []={SP1 ,SP1 ,SP1 ,TK1 ,TK1 ,PR1 ,SP1 ,PR1 ,TK1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,
-         SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,SP1 ,SP1 },
+pr21 []={SP1 ,SP1 ,SP1 ,TK1 ,TK1 ,PR1 ,SP2 ,PR1 ,TK1 ,SP2 ,SP1 ,SP1 ,SP1 ,SP1 ,
+         SP1 ,SP1 ,SP2 ,SP1 ,SP1 ,TK1 ,SP1 ,SP1 ,SP1 },
 pr21a[]={PCI_,PCI_,PCI_,PER_,PEN ,SYS_,PENR,GET_,PEN ,PENR,PCI_,PCI_,PCI_,PCI_,
          PCI_,PCI_,PENR,PCI_,PCI_,PCI_,PCI_,PCI_,PCI_},
 
@@ -945,12 +953,12 @@ rn21 []={TK1 ,TK1 ,TK1 ,SP1 ,TK1 ,RN1 ,TK1 ,RN1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,
 rn21a[]={PCI_,PCI_,PCI_,RNS ,PCI_,SYS_,PCI_,GET_,PCI_,PCI_,PCI_,PCI_,PCI_,PCI_,
          PCI_,PCI_,PCI_,PCI_,PCI_,PCI_,PCI_,PCI_,PCI_},
 
-*mdtab[] = {sp21, sp21a, tk21, tk21a, cm20, cm20a, cm21, cm21a, cm22, cm22a,
+*mdtab[] = {sp21, sp21a, sp22, sp22a, tk21, tk21a, cm21, cm21a, cm22, cm22a,
             cm23, cm23a, pr21, pr21a, px21, px21a, rn21, rn21a};
 struct parse pcbmd = {"MD", lexmark, mdtab, 0, 0, 0, 0};
 #undef SP1
+#undef SP2
 #undef TK1
-#undef CM0
 #undef CM1
 #undef CM2
 #undef CM3
@@ -1214,29 +1222,29 @@ static UNCH
          dso  dsc  pero plus refc rni  tagc tago vi    */
 sp41 []={SP1 ,SP1 ,SP1 ,SP1 ,AN1 ,SP1 ,SP1 ,SP1 ,AN1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,
          SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 },
-sp41a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,INV_,ETIC,INV_,INV_,INV_,
+sp41a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,LEN_,ETIC,INV_,INV_,INV_,
          INV_,DSC ,INV_,INV_,INV_,INV_,TAGC,TAGO,INV_},
 
 an41 []={SP1 ,SP1 ,SP1 ,SP2 ,AN1 ,AN1 ,AN1 ,AN1 ,AN1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,
          SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 },
-an41a[]={INV_,NTV ,NTV ,NVS ,NOP_,SYS_,EOF_,GET_,RS_ ,INV_,ETIC,INV_,INV_,INV_,
+an41a[]={INV_,NTV ,NTV ,NVS ,NOP_,SYS_,EOF_,GET_,RS_ ,NTV ,ETIC,INV_,INV_,INV_,
          INV_,DSC ,INV_,INV_,INV_,INV_,TAGC,TAGO,INV_},
 
 sp42 []={SP1 ,SP1 ,SP1 ,SP1 ,VI1 ,SP2 ,SP2 ,SP2 ,VI1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,
          SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,AV1 },
-sp42a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,INV_,NASV,INV_,INV_,INV_,
+sp42a[]={INV_,LEN_,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,LEN_,NASV,INV_,INV_,INV_,
          INV_,NASV,INV_,INV_,INV_,INV_,NASV,NASV,NOP_},
 
 /*       bit  nmc  num  nms  spc  non  ee   eob  rs   com  eti  grpo lit  lita
          dso  dsc  pero plus refc rni  tagc tago vi    */
-vi41 []={SP1 ,AN1 ,AN1 ,AN1 ,VI1 ,VI1 ,VI1 ,VI1 ,VI1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,
+vi41 []={SP1 ,AN1 ,AN1 ,AN1 ,VI1 ,VI1 ,VI1 ,VI1 ,VI1 ,AN1 ,SP1 ,SP1 ,SP1 ,SP1 ,
          SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,AV1 },
-vi41a[]={INV_,NASV,NASV,NASV,NOP_,SYS_,EOF_,GET_,RS_ ,INV_,NASV,INV_,INV_,INV_,
+vi41a[]={INV_,NASV,NASV,NASV,NOP_,SYS_,EOF_,GET_,RS_ ,NASV,NASV,INV_,INV_,INV_,
          INV_,NASV,INV_,INV_,INV_,INV_,NASV,NASV,NOP_},
 
 av41 []={SP1 ,SP1 ,SP1 ,SP1 ,AV1 ,AV1 ,AV1 ,AV1 ,AV1 ,SP1 ,SP1 ,SP1 ,AN1 ,AN1 ,
          SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 ,SP1 },
-av41a[]={INV_,AVU ,AVU ,AVU ,NOP_,SYS_,EOF_,GET_,RS_ ,INV_,INV_,INV_,AVD ,AVDA,
+av41a[]={INV_,AVU ,AVU ,AVU ,NOP_,SYS_,EOF_,GET_,RS_ ,AVU ,INV_,INV_,AVD ,AVDA,
          INV_,INV_,INV_,INV_,INV_,INV_,INV_,INV_,INV_},
 
 *stagtab[] = {sp41, sp41a, an41, an41a, sp42, sp42a, vi41, vi41a, av41, av41a};
@@ -1303,42 +1311,41 @@ struct parse pcbeal = {"EAL", lexgrp, ealtab, 0, 0, 0, 0};
 
 /* Symbols for state names. */
 
-#define SP1     0   /* Separator before token expected. */
-#define TK1     2   /* Token expected. */
-#define CM0     4   /* COM[1] found when sep expected: possible comment.*/
+#define SP1     0   /* Separator before token expected (but not -) */
+#define SP2     2   /* Separator before token expected. */
+#define TK1     4   /* Token expected. */
 #define CM1     6   /* COM[1] found: possible comment.*/
 #define CM2     8   /* COM[2] found; in comment. */
 #define CM3    10   /* Ending COM[1] found; end comment or continue it. */
-
 static UNCH
 /*       sig  dat  num  nms  spc  non  ee   eob  rs   com  lit  lita tagc  */
-
-sp31 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,SP1 ,SP1 ,TK1 ,CM0 ,TK1 ,TK1 ,SP1 },
-sp31a[]={INV_,ISIG,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,LIT1,LIT2,ESGD},
-
-tk31 []={TK1 ,TK1 ,SP1 ,SP1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,TK1 ,SP1 },
+				       
+sp31 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,TK1 ,TK1 ,SP1 },
+sp31a[]={INV_,ISIG,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,LEN_,LIT1,LIT2,ESGD},
+				       
+sp32 []={SP2 ,SP2 ,SP2 ,SP2 ,TK1 ,SP2 ,SP2 ,SP2 ,TK1 ,CM1 ,TK1 ,TK1 ,SP2 },
+sp32a[]={INV_,ISIG,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,LIT1,LIT2,ESGD},
+				       
+tk31 []={TK1 ,TK1 ,SP2 ,SP1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,TK1 ,SP1 },
 tk31a[]={INV_,ISIG,NUM1,NAS1,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,LIT1,LIT2,ESGD},
-
-cm30 []={SP1 ,CM0 ,SP1 ,SP1 ,SP1 ,CM0 ,SP1 ,CM0 ,SP1 ,CM2 ,SP1 ,SP1 ,SP1 },
-cm30a[]={PCI_,ISIG,PCI_,PCI_,PCI_,SYS_,PCI_,GET_,PCI_,NOP_,PCI_,PCI_,PCI_},
-
+				       
 cm31 []={TK1 ,CM1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,CM1 ,TK1 ,CM2 ,TK1 ,TK1 ,TK1 },
 cm31a[]={PCI_,ISIG,PCI_,PCI_,PCI_,SYS_,PCI_,GET_,PCI_,NOP_,PCI_,PCI_,PCI_},
-
+				       
 cm32 []={CM2 ,CM2 ,CM2 ,CM2 ,CM2 ,CM2 ,TK1 ,CM2 ,CM2 ,CM3 ,CM2 ,CM2 ,CM2 },
 cm32a[]={NOP_,ISIG,NOP_,NOP_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,NOP_,NOP_,NOP_},
-
+				       
 cm33 []={CM2 ,CM3 ,CM2 ,CM2 ,CM2 ,CM3 ,TK1 ,CM3 ,CM2 ,TK1 ,CM2 ,CM2 ,CM2 },
 cm33a[]={NOP_,ISIG,NOP_,NOP_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,NOP_,NOP_,NOP_},
 
-*sdtab[]={sp31, sp31a, tk31, tk31a, cm30, cm30a, cm31, cm31a, cm32, cm32a,
+*sdtab[]={sp31, sp31a, sp32, sp32a, tk31, tk31a, cm31, cm31a, cm32, cm32a,
 	  cm33, cm33a};
 
 struct parse pcbsd = {"SD", lexsd, sdtab, 0, 0, 0, 0};
 
 #undef SP1
+#undef SP2
 #undef TK1
-#undef CM0
 #undef CM1
 #undef CM2
 #undef CM3

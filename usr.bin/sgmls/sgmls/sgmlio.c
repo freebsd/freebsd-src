@@ -191,7 +191,7 @@ int *newfilep;
      struct iofcb *f = (struct iofcb *)p;
      FILE *fp;
      int c;
-
+     
      *newfilep = 0;
      if (f->first) {
 	  buf[i] = EOBCHAR;

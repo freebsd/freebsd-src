@@ -1,7 +1,7 @@
 #
 # Bmakefile for libsgmls
 #
-# $id$
+# $Id$
 #
 
 LIB=	sgmls

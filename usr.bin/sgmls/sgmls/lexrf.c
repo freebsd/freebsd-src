@@ -110,6 +110,7 @@ struct lexical lex = {        /* Delimiter set constants for parser use. */
           FCE,                    /* LEXCNM: FRE char as entity reference.*/
           FRE,                    /* LEXLMS: Free character not an entity ref.*/
           LITC,                   /* LEXLMS: Literal close delimiter enabled. */
+	  MINLITC,		  /* LEXMIN: Literal close delimiter enabled. */
           MSC3,                   /* LEXLMS: Marked section close delim enabled. */
           NET,                    /* LEXCON: Null end-tag delimiter enabled. */
           ETI,                    /* LEXCON: NET disabled; still used as ETI. */
@@ -120,5 +121,5 @@ struct lexical lex = {        /* Delimiter set constants for parser use. */
 };
 
 UNCH *lextabs[] = {
-     lexcnm, lexcon, lexgrp, lexlms, lexmark, lexsd, lextoke, 0
+     lexcnm, lexcon, lexgrp, lexlms, lexmark, lexsd, lextoke, lexmin, 0
 };

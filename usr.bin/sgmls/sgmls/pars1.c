@@ -90,6 +90,7 @@ struct parse *pcb;            /* Parse control block for this parse. */
 
           case STG_:          /* Process non-null start-tag. */
                CTRSET(tagctr);          /* Start counting tag length. */
+	       tages = es;
                parsenm(tbuf, NAMECASE); /* Get the GI. */
                newetd = etdref(tbuf);
                if (newetd && newetd->adl) {
@@ -264,6 +265,10 @@ struct parse *pcb;            /* Parse control block for this parse. */
 
           case RSR_:               /* Record start: ccnt=0; ++rcnt.*/
                ++RCNT; CTRSET(RSCC);
+	       return RSR_;
+	  case MSS_:
+	       if (ts == 0) synerr(217, pcb);
+	       return MSS_;
           default:
                return (int)pcb->action; /* Default (MD_ MDC_ MSS_ MSE_ PIS_). */
           }
@@ -288,8 +293,12 @@ struct parse *pcb;            /* Parse control block for this parse. */
 */
 int nstetd()
 {
-     newetd = ts>0 ? tags[ts].tetd
-                   : tags[0].tetd->etdmod[2].tu.thetd;
+     if (sd.omittag && ts > 0)
+	  newetd = tags[ts].tetd;
+     else if (!sd.omittag && lastetd != 0)
+	  newetd = lastetd;
+     else
+	  newetd = tags[0].tetd->etdmod[2].tu.thetd;
      stagmin = MINNULL; stagreal = ETDNULL;
      etisw = 0;
      return stag(0);
@@ -332,11 +341,6 @@ struct parse *pcb;            /* Parse control block for this parse. */
      int rc;                  /* Return code from entopen. */
 
      if (tags[ts].tsrm==SRMNULL || !tags[ts].tsrm[srn]) return ENTUNDEF;
-     if (!tags[ts].tsrm[srn]->estore) {
-          sgmlerr(93, pcb, tags[ts].tsrm[srn]->ename+1,
-                           tags[ts].tsrm[0]->ename+1);
-          return(ENTUNDEF);
-     }
      rc = entopen(tags[ts].tsrm[srn]);
      if (rc==ENTDATA) return DEF_;
      if (rc==ENTPI) return PIS_;
@@ -395,7 +399,14 @@ int parsepro()
                     REPEATCC; /* Put back MSC so it follows referenced DTD. */
                     entref(indtdent);
                }
-               else mddtde(tbuf);
+               else {
+		    if (mslevel > 0) {
+			 sgmlerr(230, propcb, (UNCH *)0, (UNCH *)0);
+			 mslevel = 0;
+			 msplevel = 0;
+		    }
+		    mddtde(tbuf);
+	       }
                continue;
 
           case MD_:
@@ -442,12 +453,13 @@ int parsepro()
                return(PIS_);
 
           case EOD_:          /* Return end of primary entity. */
-	       if (!sw.onlypro || propcb != &pcbpro || !dtdsw)
-		    sgmlerr(127, propcb, (UNCH *)0, (UNCH *)0);
-	       else {
+	       if (dtdsw && propcb == &pcbpro) {
+		    /* We've had a DTD, so check it. */
 		    setdtype();
 		    checkdtd();
 	       }
+	       if (!sw.onlypro || propcb != &pcbpro || !dtdsw)
+		    sgmlerr(127, propcb, (UNCH *)0, (UNCH *)0);
                return propcb->action;
           case PIS_:          /* Return processing instruction (string). */
 	       sgmlsw++;      /* SGML declaration not allowed after PI */
@@ -457,6 +469,9 @@ int parsepro()
                synerr(E_RESTART, propcb);
                REPEATCC;
                continue;
+	  case ETE_:	      /* End tag ended prolog */
+	       REPEATCC;
+	       /* fall through */
 	  case STE_:	      /* Start tag ended prolog */
 	       REPEATCC;
 	       REPEATCC;
@@ -506,22 +521,33 @@ static
 VOID checkdtd()
 {
      struct dcncb *np;
+     struct srh *sp;
 
      if (sw.swundef) {
 	  int i;
 	  struct etd *ep;
-	  struct srh *sp;
 
 	  for (i = 0; i < ETDHASH; i++)
 	       for (ep = etdtab[i]; ep; ep = ep->etdnext)
 		    if (!ep->etdmod)
 			 sgmlerr(140, (struct parse *)0, ep->etdgi + 1,
 				 (UNCH *)0);
-	  for (sp = srhtab[0]; sp; sp = sp->enext)
-	       if (sp->srhsrm[0] == 0)
-		    sgmlerr(152, (struct parse *)0, sp->ename + 1,
-			    (UNCH *)0);
      }
+     for (sp = srhtab[0]; sp; sp = sp->enext)
+	  if (sp->srhsrm[0] == 0)
+	       sgmlerr(152, (struct parse *)0, sp->ename + 1, (UNCH *)0);
+	  else {
+	       int i;
+	       for (i = 1; i < lex.s.dtb[0].mapdata + 1; i++) {
+		    struct entity *ecb = sp->srhsrm[i];
+		    if (ecb && !ecb->estore) {
+			 sgmlerr(93, (struct parse *)0,
+				 ecb->ename + 1,
+				 sp->srhsrm[0]->ename + 1);
+			 sp->srhsrm[i] = 0;
+		    }
+	       }
+	  }
      for (np = dcntab[0]; np; np = np->enext)
 	  if (!np->defined)
 	       sgmlerr(192, (struct parse *)0, np->ename + 1, (UNCH *)0);
@@ -604,7 +630,7 @@ struct mpos *newmpos()
 VOID endprolog()
 {
      int i;
-
+     
      ambigfree();
      if (dtdsw) {
 	  frem((UNIV)nmgrp);
@@ -739,9 +765,8 @@ int dataret;                  /* Data pending: DAF_ REF_ 0=not #PCDATA. */
           realrc = RCEND;
           break;
      case RCHITMEX:      /* Invalid minus exclusion for required element. */
-#if 0     /* This will have been detected by exclude.c. */
-          sgmlerr(E_MEXERR, &pcbstag, NEWGI, tags[mexts].tetd->etdgi+1);
-#endif
+          sgmlerr(216, &pcbstag, NEWGI, tags[mexts].tetd->etdgi+1);
+	  /* fall through */
      case RCHIT:         /* Start-tag was valid. */
           realrc = RCHIT;
           break;
@@ -764,11 +789,9 @@ int dataret;                  /* Data pending: DAF_ REF_ 0=not #PCDATA. */
           return ETG_;
      case RCREQ:         /* Stack compulsory GI, then retry start-tag. */
           if (!BADPTR(nextetd)) {
-#if 0          /* This will have been detected in exclude.c. */
                if ((mexts = pexmex(nextetd))>0)
 		    sgmlerr(E_MEXERR, &pcbstag, nextetd->etdgi+1,
 			    tags[mexts].tetd->etdgi+1);
-#endif
                if (!nextetd->etdmod) {
                     sgmlerr(53, &pcbstag, nextetd->etdgi+1, (UNCH *)0);
                     etdset(nextetd, (UNCH)SMO+EMO+ETDOCC, &undechdr,
@@ -847,8 +870,8 @@ struct etd *curetd;           /* The etd for this entry. */
      /* If etd has ALT table, use it; otherwise, use last element's ALT. */
      if (curetd->etdsrm) {
           if (curetd->etdsrm != SRMNULL && curetd->etdsrm[0] == NULL) {
-	       /* Map hasn't been defined.  Ignore it. */
-	       sgmlerr(159, &pcbstag, curetd->etdgi + 1, (UNCH *)0);
+	       /* Map hasn't been defined.  Ignore it.
+		  We already gave an error. */
 	       curetd->etdsrm = 0;
 	       tags[ts].tsrm = tags[ts-1].tsrm;
 	  }
@@ -867,8 +890,6 @@ struct etd *curetd;           /* The etd for this entry. */
      tags[ts].tpos[1].t = 1;       /* 1st token is next in grp to be tested. */
      HITCLEAR(tags[ts].tpos[1].h); /* No hits yet as yet. */
      TRACESTK(&tags[ts], ts, etictr);
-
-     exclude();
      return;
 }
 /* ETAG: Check validity of an end-tag by seeing if it matches any tag
@@ -908,6 +929,7 @@ VOID destack()
         are required tags left, and no CONREF attribute was specified,
         issue an error message.
      */
+     lastetd = tags[ts].tetd;
      if (!GET(tags[ts].tetd->etdmod->ttype, MKEYWORD)
 	 && !conrefsw
 	 && !econtext(tags[ts].tetd->etdmod, tags[ts].tpos, &tags[ts].status)) {
@@ -945,6 +967,10 @@ VOID destack()
      /* TEMP: See if parser bug caused stack to go below zero. */
      else if (ts<0) {sgmlerr(64, conpcb, (UNCH *)0, (UNCH *)0); ts = 0;}
      TRACEDSK(&tags[ts], &tags[ts+1], ts, etictr);
+     if (ts == 0) {
+	  docelsw = 1;	      /* Finished document element. */
+	  if (es > 0) sgmlerr(231, conpcb, (UNCH *)0, (UNCH *)0);
+     }
 }
 /*
 Local Variables:
