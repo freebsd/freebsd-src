@@ -115,8 +115,6 @@
     ..
     netncp
     ..
-    netns
-    ..
     netsmb
     ..
     nfs
