@@ -147,6 +147,7 @@ vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor IIYAMA		0x04e1	Iiyama
 vendor SHUTTLE		0x04e6	Shuttle Technology
 vendor ANNABOOKS	0x04ed	Annabooks
+vendor JVC		0x04f1	JVC
 vendor CHICONY		0x04f2	Chicony Electronics
 vendor BROTHER		0x04f9	Brother Industries
 vendor DALLAS		0x04fa	Dallas Semiconductor
@@ -308,6 +309,7 @@ vendor AUTHENTEC	0x08ff	AuthenTec
 vendor ALATION		0x0910	Alation Systems
 vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
+vendor TOSHIBA		0x0930	Toshiba Corporation
 vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
 vendor BLUEWATER	0x0956	BlueWater Systems
@@ -733,6 +735,9 @@ product	IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
 product IOMEGA ZIP100		0x0001	Zip 100
 product IOMEGA ZIP250		0x0030	Zip 250
 
+/* JVC products */
+product	JVC GR_DX95		0x000a	GR-DX95
+
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH\" PHONE AH-J3001V/J3002V
 
@@ -1133,6 +1138,9 @@ product TI TUSB2046		0x2046	TUSB2046 hub
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
+
+/* Toshiba Corporation products */
+product	TOSHIBA	POCKETPC_E740	0x0706	PocketPC e740
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
