@@ -303,6 +303,12 @@ card "Nokia Mobile Phones" "DTP-2 ver II"
 	insert  echo Nokia Mobile Phones DTP-2 ver II inserted
 	remove  echo Nokia Mobile Phones DTP-2 ver II removed
 
+# Nokia Card Phone 2.0
+card "Nokia Mobile Phones" "Nokia Card Phone"
+	config  0x3 "sio2" ?
+	insert  echo Nokia Card Phone inserted
+	remove  echo Nokia Card Phone removed
+
 # Omron ME2814 FAX/DATA MODEM
 card "OMRON" "ME2814 FAX/DATA MOD"
 	config  0x23 "sio2" ?
