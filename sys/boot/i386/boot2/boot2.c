@@ -154,13 +154,14 @@ static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static int printf(const char *,...);
 static int putchar(int);
-static void *memcpy(void *, const void *, size_t);
 static uint32_t memsize(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
 static int getc(int);
+
+#define memcpy __builtin_memcpy
 
 static inline void
 readfile(const char *fname, void *buf, size_t size)
@@ -456,7 +457,7 @@ parse(char *arg)
 	    }
 	    if (opts & 1 << RBX_PROBEKBD) {
 		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		/* printf("Keyboard: %s\n", i ? "yes" : "no"); XXX GCC31 size */
+		printf("Keyboard: %s\n", i ? "yes" : "no");
 		if (!i)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
 		opts &= ~(1 << RBX_PROBEKBD);
@@ -741,17 +742,6 @@ putchar(int c)
     if (c == '\n')
 	xputc('\r');
     return xputc(c);
-}
-
-static void *
-memcpy(void *dst, const void *src, size_t size)
-{
-    const char *s;
-    char *d;
-
-    for (d = dst, s = src; size; size--)
-	*d++ = *s++;
-    return dst;
 }
 
 static uint32_t
