@@ -497,7 +497,6 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 	u_char tag, *resp, *resinfo, *startres = 0;
 	int large_len, scanning = len, retval = FALSE;
 	u_int32_t logical_id;
-	u_int32_t compat_id;
 	device_t dev = 0;
 	int ldn = 0;
 	struct pnp_set_config_arg *csnldn;
@@ -581,7 +580,6 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 */
 			bcopy(resinfo, &logical_id, 4);
 			pnp_check_quirks(p->vendor_id, logical_id, ldn, NULL);
-			compat_id = 0;
 			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
 			if (desc)
 				device_set_desc_copy(dev, desc);
@@ -664,8 +662,10 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 		while (len + amount > space + extra)
 			extra += 1024;
 		newres = malloc(space + extra, M_TEMP, M_NOWAIT);
-		if (!newres)
+		if (!newres) {
+			/* XXX: free resources */
 			return ENOMEM;
+		}
 		bcopy(resources, newres, len);
 		free(resources, M_TEMP);
 		resources = newres;
