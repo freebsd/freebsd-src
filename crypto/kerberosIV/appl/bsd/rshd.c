@@ -42,7 +42,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rshd.c,v 1.60 1999/11/13 06:13:53 assar Exp $");
+RCSID("$Id: rshd.c,v 1.60.2.3 2000/10/18 20:39:12 assar Exp $");
 
 extern char *__rcmd_errstr; /* syslog hook from libc/net/rcmd.c. */
 extern int __check_rhosts_file;
@@ -200,6 +200,8 @@ doit(struct sockaddr_in *fromp)
     char *cp, sig, buf[DES_RW_MAXWRITE];
     char cmdbuf[NCARGS+1], locuser[16], remuser[16];
     char remotehost[2 * MaxHostNameLen + 1];
+    uid_t uid;
+    char shell_path[MAXPATHLEN];
 
     AUTH_DAT	*kdata;
     KTEXT		ticket;
@@ -433,6 +435,11 @@ doit(struct sockaddr_in *fromp)
 	    close(2);
 	    close(pv[1]);
 
+	    if (s >= FD_SETSIZE || pv[0] >= FD_SETSIZE) {
+		error ("fd too large\n");
+		exit (1);
+	    }
+
 	    FD_ZERO(&readfrom);
 	    FD_SET(s, &readfrom);
 	    FD_SET(pv[0], &readfrom);
@@ -441,6 +448,11 @@ doit(struct sockaddr_in *fromp)
 	    else
 		nfd = s;
 	    if (doencrypt) {
+		if (pv2[1] >= FD_SETSIZE || pv1[0] >= FD_SETSIZE) {
+		    error ("fd too large\n");
+		    exit (1);
+		}
+
 		FD_ZERO(&writeto);
 		FD_SET(pv2[1], &writeto);
 		FD_SET(pv1[0], &readfrom);
@@ -571,14 +583,16 @@ doit(struct sockaddr_in *fromp)
     snprintf(path, sizeof(path), "PATH=%s:%s", BINDIR, _PATH_DEFPATH);
 
     strlcat(shell, pwd->pw_shell, sizeof(shell));
+    strlcpy(shell_path, pwd->pw_shell, sizeof(shell_path));
     strlcat(username, pwd->pw_name, sizeof(username));
+    uid = pwd->pw_uid;
     cp = strrchr(pwd->pw_shell, '/');
     if (cp)
 	cp++;
     else
 	cp = pwd->pw_shell;
     endpwent();
-    if (log_success || pwd->pw_uid == 0) {
+    if (log_success || uid == 0) {
 	if (use_kerberos)
 	    syslog(LOG_INFO|LOG_AUTH,
 		   "Kerberos shell from %s on %s as %s, cmd='%.80s'",
@@ -591,12 +605,16 @@ doit(struct sockaddr_in *fromp)
 		   remuser, remotehost, locuser, cmdbuf);
     }
     if (k_hasafs()) {
+	char cell[64];
+
 	if (new_pag)
 	    k_setpag();	/* Put users process in an new pag */
-	krb_afslog(0, 0);
+	if (k_afs_cell_of_file (homedir, cell, sizeof(cell)) == 0)
+	    krb_afslog_uid_home (cell, NULL, uid, homedir);
+	krb_afslog_uid_home(NULL, NULL, uid, homedir);
     }
-    execle(pwd->pw_shell, cp, "-c", cmdbuf, 0, envinit);
-    err(1, "%s", pwd->pw_shell);
+    execle(shell_path, cp, "-c", cmdbuf, 0, envinit);
+    err(1, "%s", shell_path);
 }
 
 /*

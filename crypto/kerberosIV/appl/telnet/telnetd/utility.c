@@ -34,7 +34,7 @@
 #define PRINTOPTIONS
 #include "telnetd.h"
 
-RCSID("$Id: utility.c,v 1.20 1998/06/13 00:06:56 assar Exp $");
+RCSID("$Id: utility.c,v 1.22.2.1 2000/10/10 13:12:34 assar Exp $");
 
 /*
  * utility functions performing io related tasks
@@ -47,9 +47,11 @@ RCSID("$Id: utility.c,v 1.20 1998/06/13 00:06:56 assar Exp $");
  * data from the network, and pass it through the telnet state
  * machine.  We also flush the pty input buffer (by dropping its data)
  * if it becomes too full.
+ *
+ * return 0 if OK or 1 if interrupted by a signal.
  */
 
-void
+int
 ttloop(void)
 {
     void netflush(void);
@@ -61,10 +63,12 @@ ttloop(void)
 	netflush();
     ncc = read(net, netibuf, sizeof netibuf);
     if (ncc < 0) {
+	if (errno == EINTR)
+	    return 1;
 	syslog(LOG_INFO, "ttloop:  read: %m\n");
 	exit(1);
     } else if (ncc == 0) {
-	syslog(LOG_INFO, "ttloop:  peer died: %m\n");
+	syslog(LOG_INFO, "ttloop:  peer died\n");
 	exit(1);
     }
     DIAG(TD_REPORT, {
@@ -76,6 +80,7 @@ ttloop(void)
 	pfrontp = pbackp = ptyobuf;
 	telrcv();
     }
+    return 0;
 }  /* end of ttloop */
 
 /*
@@ -87,6 +92,9 @@ stilloob(int s)
     static struct timeval timeout = { 0 };
     fd_set	excepts;
     int value;
+
+    if (s >= FD_SETSIZE)
+	fatal(ourpty, "fd too large");
 
     do {
 	FD_ZERO(&excepts);
@@ -395,7 +403,7 @@ void edithost(char *pat, char *host)
 	pat++;
     }
     if (*host)
-	strcpy_truncate (res, host,
+	strlcpy (res, host,
 			 sizeof editedhost - (res - editedhost));
     else
 	*res = '\0';

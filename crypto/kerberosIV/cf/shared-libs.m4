@@ -1,5 +1,5 @@
 dnl
-dnl $Id: shared-libs.m4,v 1.4 1999/07/13 17:47:09 assar Exp $
+dnl $Id: shared-libs.m4,v 1.4.14.3 2000/12/07 18:03:00 bg Exp $
 dnl
 dnl Shared library stuff has to be different everywhere
 dnl
@@ -65,7 +65,7 @@ case "${host}" in
 	install_symlink_command2='$(LN_S) -f $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so.'"${SHLIB_SONAME}"';$(LN_S) -f $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so'
 	;;
 changequote(,)dnl
-*-*-freebsd[34]*)
+*-*-freebsd[345]* | *-*-freebsdelf[345]*)
 changequote([,])dnl
 	REAL_SHLIBEXT=so.$SHLIB_VERSION
 	REAL_LD_FLAGS='-Wl,-R$(libdir)'
@@ -84,9 +84,14 @@ changequote([,])dnl
 	LDSHARED='ld -shared -expect_unresolved \*'
 	;;
 *-*-solaris2*)
+	LDSHARED='$(CC) -shared -Wl,-h$(LIBNAME).so.'"${SHLIB_SONAME}"
+	REAL_SHLIBEXT=so.$SHLIB_VERSION
+	build_symlink_command='$(LN_S) [$][@] $(LIBNAME).so'
+	install_symlink_command='$(LN_S) $(LIB) $(DESTDIR)$(libdir)/$(LIBNAME).so.'"${SHLIB_SONAME}"';$(LN_S) $(LIB) $(DESTDIR)$(libdir)/$(LIBNAME).so'
+	install_symlink_command2='$(LN_S) $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so.'"${SHLIB_SONAME}"';$(LN_S) $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so'
 	REAL_LD_FLAGS='-Wl,-R$(libdir)'
 	if test -z "$GCC"; then
-		LDSHARED='$(CC) -G'
+		LDSHARED='$(CC) -G -h$(LIBNAME).so.'"${SHLIB_SONAME}"
 		REAL_PICFLAGS="-Kpic"
 	fi
 	;;

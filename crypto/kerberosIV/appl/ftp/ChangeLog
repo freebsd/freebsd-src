@@ -1,3 +1,11 @@
+2000-03-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ls.c, ftpd/ftpcmd.y, ftp/cmds.c: make sure to always call
+	time, ctime, and gmtime with `time_t's.  there were some types
+	(like in lastlog) that we believed to always be time_t.  this has
+	proven wrong on Solaris 8 in 64-bit mode, where they are stored as
+	32-bit quantities but time_t has gone up to 64 bits
+
 1999-11-30  Assar Westerlund  <assar@sics.se>
 
 	* ftpd/ftpd.c (getdatasock): make sure to keep the port-number of
