@@ -252,7 +252,7 @@ network6_stf_setup() {
 		IFS=".$IFS"
 		set ${stf_interface_ipv4addr}
 		IFS="$OIFS"
-		ipv4_in_hexformat=`printf "%x:%x\n", \
+		ipv4_in_hexformat=`printf "%x:%x\n" \
 			$(($1*256 + $2)) $(($3*256 + $4))`
 		case ${stf_interface_ipv6_ifid} in
 		[Aa][Uu][Tt][Oo] | '')
