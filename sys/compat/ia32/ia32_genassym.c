@@ -8,7 +8,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/signal.h>
 
-#include <amd64/ia32/ia32_signal.h>
+#include <compat/ia32/ia32_signal.h>
 
 ASSYM(IA32_SIGF_HANDLER, offsetof(struct ia32_sigframe, sf_ah));
 ASSYM(IA32_SIGF_UC, offsetof(struct ia32_sigframe, sf_uc));
