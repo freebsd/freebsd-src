@@ -59,7 +59,7 @@ getline()
 	saveftell = ftell(inf);
 	(void)fseek(inf, lineftell, L_SET);
 	if (xflag)
-		for (cp = lbuf; GETC(!=, '\n'); *cp++ = c)
+		for (cp = lbuf; GETC(!=, EOF) && c != '\n'; *cp++ = c)
 			continue;
 	/*
 	 * do all processing here, so we don't step through the

@@ -42,9 +42,9 @@ static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/6/93";
 void
 pcrc(fn, val, len)
 	char *fn;
-	u_long val, len;
+	u_int32_t val, len;
 {
-	(void)printf("%lu %lu", val, len);
+	(void)printf("%lu %lu", (u_long) val, (u_long) len);
 	if (fn)
 		(void)printf(" %s", fn);
 	(void)printf("\n");
@@ -53,9 +53,9 @@ pcrc(fn, val, len)
 void
 psum1(fn, val, len)
 	char *fn;
-	u_long val, len;
+	u_int32_t val, len;
 {
-	(void)printf("%lu %lu", val, (len + 1023) / 1024);
+	(void)printf("%lu %lu", (u_long) val, (u_long) (len + 1023) / 1024);
 	if (fn)
 		(void)printf(" %s", fn);
 	(void)printf("\n");
@@ -64,9 +64,9 @@ psum1(fn, val, len)
 void
 psum2(fn, val, len)
 	char *fn;
-	u_long val, len;
+	u_int32_t val, len;
 {
-	(void)printf("%lu %lu", val, (len + 511) / 512);
+	(void)printf("%lu %lu", (u_long) val, (u_long) (len + 511) / 512);
 	if (fn)
 		(void)printf(" %s", fn);
 	(void)printf("\n");

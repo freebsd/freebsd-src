@@ -77,7 +77,7 @@ typedef struct {
 /* Header structure internal format. */
 typedef struct {
 	off_t size;			/* size of the object in bytes */
-	long date;			/* date */
+	time_t date;			/* date */
 	int lname;			/* size of the long name in bytes */
 	int gid;			/* group */
 	int uid;			/* owner */
