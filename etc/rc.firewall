@@ -168,12 +168,10 @@ case ${firewall_type} in
 	${fwcmd} add deny tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass udp from any 53 to ${ip}
-	${fwcmd} add pass udp from ${ip} to any 53
+	${fwcmd} add pass udp from ${ip} to any 53 keep-state
 
 	# Allow NTP queries out in the world
-	${fwcmd} add pass udp from any 123 to ${ip}
-	${fwcmd} add pass udp from ${ip} to any 123
+	${fwcmd} add pass udp from ${ip} to any 123 keep-state
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -270,12 +268,10 @@ case ${firewall_type} in
 	${fwcmd} add pass tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass udp from any 53 to ${oip}
-	${fwcmd} add pass udp from ${oip} to any 53
+	${fwcmd} add pass udp from ${oip} to any 53 keep-state
 
 	# Allow NTP queries out in the world
-	${fwcmd} add pass udp from any 123 to ${oip}
-	${fwcmd} add pass udp from ${oip} to any 123
+	${fwcmd} add pass udp from ${oip} to any 123 keep-state
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
