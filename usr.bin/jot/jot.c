@@ -315,7 +315,7 @@ putdata(x, notlast)
 {
 
 	if (boring)
-		printf(format);
+		printf("%s", format);
 	else if (longdata && nosign) {
 		if (x <= (double)ULONG_MAX && x >= (double)0)
 			printf(format, (unsigned long)x);

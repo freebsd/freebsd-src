@@ -323,7 +323,7 @@ wtmp()
 	}
 	tm = localtime(&buf[0].ut_time);
 	(void) strftime(ct, sizeof(ct), "\nwtmp begins %c\n", tm);
-	printf(ct);
+	printf("%s", ct);
 }
 
 /*
