@@ -26,6 +26,9 @@
  **********************************************************************
  * HISTORY
  * $Log: libc.h,v $
+ * Revision 1.2  1995/12/26 05:02:45  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:47  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -93,10 +96,6 @@
 #ifndef _TYPES_
 #include <sys/types.h>
 #endif	/* _TYPES_ */
-
-#ifndef	_SYSENT_H_
-#include <sysent.h>
-#endif	/* _SYSENT_H_ */
 
 #ifndef	FILE
 #include <stdio.h>
