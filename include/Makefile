@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.45.2.3 1997/07/31 11:32:49 asami Exp $
+#	$Id: Makefile,v 1.45.2.4 1997/09/10 07:18:44 peter Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -11,13 +11,13 @@ all depend lint tags:
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
-	err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h histedit.h \
-	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h ndbm.h \
-	netdb.h nl_types.h nlist.h paths.h pthread.h pthread_np.h pwd.h \
-	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
-	signal.h stab.h stddef.h stdio.h stdlib.h string.h strings.h \
-	struct.h sysexits.h tar.h time.h timers.h ttyent.h unistd.h utime.h \
-	utmp.h vis.h
+	elf.h err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h \
+	histedit.h kvm.h limits.h link.h locale.h malloc.h memory.h \
+	mpool.h ndbm.h netdb.h nl_types.h nlist.h paths.h pthread.h \
+	pthread_np.h pwd.h ranlib.h regex.h regexp.h resolv.h rune.h \
+	runetype.h setjmp.h sgtty.h signal.h stab.h stddef.h stdio.h \
+	stdlib.h string.h strings.h struct.h sysexits.h tar.h time.h \
+	timers.h ttyent.h unistd.h utime.h utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
 .endif

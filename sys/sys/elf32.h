@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf32.h,v 1.1 1997/05/21 23:07:30 jdp Exp $
+ *      $Id: elf32.h,v 1.2 1997/08/30 18:58:31 peter Exp $
  */
 
 #ifndef _SYS_ELF32_H_
