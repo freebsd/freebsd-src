@@ -23,9 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cardd.c,v 1.8 1996/04/18 04:25:11 nate Exp $
  */
-#define DEBUG 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,9 +100,13 @@ main(int argc, char *argv[])
 		openlog("cardd", LOG_PID, LOG_DAEMON);
 		do_log = 1;
 	}
+#ifdef DEBUG
 	printf("Before readslots\n");
+#endif
 	readslots();
+#ifdef DEBUG
 	printf("After readslots\n");
+#endif
 	if (slots == 0)
 		die("No PC-CARD slots");
 	for (;;) {
@@ -111,9 +114,13 @@ main(int argc, char *argv[])
 		FD_ZERO(&mask);
 		for (sp = slots; sp; sp = sp->next)
 			FD_SET(sp->fd, &mask);
+#ifdef DEBUG
 		printf("Doing select\n");
+#endif
 		count = select(32, 0, 0, &mask, 0);
+#ifdef DEBUG
 		printf("select=%d\n", count);
+#endif
 		if (count == -1) {
 			perror("Select");
 			continue;
@@ -188,7 +195,9 @@ readslots(void)
 		fd = open(name, 2);
 		if (fd < 0)
 			continue;
+#ifdef DEBUG
 		printf("opened %s\n", name);
+#endif
 		sp = xmalloc(sizeof(*sp));
 		sp->fd = fd;
 		sp->name = newstr(name);
@@ -201,7 +210,9 @@ readslots(void)
 
 			if (ioctl(fd, PIOCRWMEM, &mem))
 				perror("ioctl (PIOCRWMEM)");
+#ifdef DEBUG
 			printf("mem=%x\n", mem);
+#endif
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
 				if (mem == 0)
@@ -210,7 +221,9 @@ readslots(void)
 					perror("ioctl (PIOCRWMEM)");
 			}
 		}
+#ifdef DEBUG
 		printf("%p %p\n", sp, &sp->next);
+#endif
 		sp->next = slots;
 		slots = sp;
 		slot_change(sp);
@@ -231,7 +244,9 @@ slot_change(struct slot *sp)
 		perror("ioctl (PIOCGSTATE)");
 		return;
 	}
+#ifdef DEBUG
 	printf("%p %p %d %d\n", sp, &sp->state, state.state, sp->state);
+#endif
 	if (state.state == sp->state)
 		return;
 	sp->state = state.state;
@@ -268,6 +283,8 @@ card_removed(struct slot *sp)
 		execute(cp->remove);
 	sp->cis = 0;
 	sp->config = 0;
+	/* release io */
+	bit_nset(io_avail, sp->io.addr, sp->io.size);
 }
 
 /*
@@ -490,10 +507,11 @@ assign_io(struct slot *sp)
 				return (-1);
 			sp->config->driver->mem = sp->mem.addr;
 		}
-#ifdef	DEBUG
-		fprintf(stderr, "Using mem addr 0x%x, size %d, card addr 0x%x\n",
-		    sp->mem.addr, sp->mem.cardaddr, sp->mem.size);
 		sp->mem.cardaddr = 0x4000;
+#ifdef	DEBUG
+		fprintf(stderr,
+			"Using mem addr 0x%x, size %d, card addr 0x%x\n",
+			sp->mem.addr, sp->mem.cardaddr, sp->mem.size);
 #endif
 	}
 
