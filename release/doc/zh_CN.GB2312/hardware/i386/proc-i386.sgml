@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.13
+	Original Revision: 1.14
 	$FreeBSD$
 -->
 <sect1 id="proc">
@@ -12,11 +12,11 @@
     不可能详尽地列举 &os; 所支持的所有设备组合。
     不过， 这里给出了一些一般的指导原则。</para>
 
-  <para>几乎所有的 i386-兼容 处理器都能被很好地支持。 &os; 支持从 80386 开始的所有
-    Intel 处理器， 包括 80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
+  <para>几乎所有的包含浮点运算单元的 i386-兼容 处理器都能被很好地支持。
+    &os; 支持从 80486 开始的所有 Intel 处理器，
+    其中包括 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
     Pentium 4, 以及它们的一些变体， 例如 Xeon (至强) 和 Celeron (赛扬)
-    处理器。 (不过， &os; 5.2-RELEASE 和之后的版本不再支持
-    80386SX 处理器。)  所有 i386-兼容 的 AMD 处理器也被支持， 这包括
+    处理器。 所有 i386-兼容 的 AMD 处理器也被支持， 这包括
     Am486, Am5x86, K5, K6
     (及其变体), Athlon (包括 Athlon-MP, Athlon-XP, Athlon-4,
     以及 Athlon Thunderbird), 还有 Duron 处理器。 AMD
