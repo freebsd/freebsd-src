@@ -109,7 +109,6 @@ gv_raid5_worker(void *arg)
 	mtx_lock(&p->worklist_mtx);
 	for (;;) {
 		restart = 0;
-		g_trace(G_T_TOPOLOGY, "gv_raid5_worker scan");
 		TAILQ_FOREACH_SAFE(wp, &p->worklist, list, wpt) {
 			/* This request packet is already being processed. */
 			if (wp->state == IO)
@@ -152,7 +151,6 @@ gv_raid5_worker(void *arg)
 			/* Self-destruct. */
 			if (p->flags & GV_PLEX_THREAD_DIE)
 				break;
-			g_trace(G_T_TOPOLOGY, "gv_raid5_worker sleep");
 			error = msleep(p, &p->worklist_mtx, PRIBIO, "-",
 			    hz/100);
 		}
