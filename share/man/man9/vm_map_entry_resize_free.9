@@ -30,15 +30,13 @@
 .Dt VM_MAP_ENTRY_RESIZE_FREE 9
 .Sh NAME
 .Nm vm_map_entry_resize_free
-.Nd vm map free space algorithm
+.Nd "vm map free space algorithm"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft void
-.Fo vm_map_entry_resize_free
-.Fa "vm_map_t map" "vm_map_entry_t entry"
-.Fc
+.Fn vm_map_entry_resize_free "vm_map_t map" "vm_map_entry_t entry"
 .Sh DESCRIPTION
 This manual page describes the
 .Vt vm_map_entry
@@ -58,7 +56,7 @@ and
 pointers).
 The search tree is organized as a Sleator and Tarjan splay tree,
 also known as a
-.Dq self-adjusting tree.
+.Dq "self-adjusting tree" .
 .Bd -literal -offset indent
 struct vm_map_entry {
         struct vm_map_entry *prev;
@@ -75,11 +73,13 @@ struct vm_map_entry {
 .Ed
 .Pp
 The free space algorithm adds two fields to
-.Vt struct vm_map_entry :
+.Vt "struct vm_map_entry" :
 .Va adj_free
 and
 .Va max_free .
+The
 .Va adj_free
+field
 is the amount of free address space adjacent to and immediately
 following (higher address) the map entry.
 This field is unused in the map header.
@@ -93,7 +93,9 @@ entry->adj_free = (entry->next == &map->header ?
     map->max_offset : entry->next->start) - entry->end;
 .Ed
 .Pp
+The
 .Va max_free
+field
 is the maximum amount of contiguous free space in the entry's subtree.
 Note that
 .Va max_free
@@ -108,14 +110,18 @@ Again,
 .Va max_free
 is unused in the map header.
 .Pp
-These fields allow for an O(log\~n) implementation of
+These fields allow for an
+.Fn O "log n"
+implementation of
 .Fn vm_map_findspace .
 Using
 .Va max_free ,
 we can immediately test for a sufficiently large free region
 in an entire subtree.
 This makes it possible to find a first-fit free region of a given size
-in one pass down the tree, so O(log\~n) amortized using splay trees.
+in one pass down the tree, so
+.Fn O "log n"
+amortized using splay trees.
 .Pp
 When a free region changes size, we must update
 .Va adj_free
@@ -172,8 +178,9 @@ ret = vm_map_insert(map, object, offset, start, end, prot,
 .Pp
 In this case, no further action is required to maintain
 consistency of the free space variables.
+The
 .Fn vm_map_insert
-calls
+function calls
 .Fn vm_map_entry_link
 which updates both the new entry and the previous entry.
 The same would be true for
@@ -225,8 +232,12 @@ on the entry itself.
 .%D July 1985
 .Re
 .Sh HISTORY
-Splay trees were added to the VM map in FreeBSD 5.0, and the
-O(log\~n) tree-based free space algorithm was added in FreeBSD 5.3.
+Splay trees were added to the VM map in
+.Fx 5.0 ,
+and the
+.Fn O "log n"
+tree-based free space algorithm was added in
+.Fx 5.3 .
 .Sh AUTHORS
 The tree-based free space algorithm and this manual page were written by
 .An Mark W. Krentel
