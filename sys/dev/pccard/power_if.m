@@ -26,6 +26,8 @@
 # $FreeBSD$
 #
 
+#include <sys/bus.h>
+
 INTERFACE power;
 
 #
