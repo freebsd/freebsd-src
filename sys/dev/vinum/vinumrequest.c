@@ -979,16 +979,3 @@ deallocrqg(struct rqgroup *rqg)
     }
     Free(rqg);
 }
-
-/* Character device interface */
-int 
-vinumread(dev_t dev, struct uio *uio, int ioflag)
-{
-    return (physio(vinumstrategy, NULL, dev, 1, minphys, uio));
-}
-
-int 
-vinumwrite(dev_t dev, struct uio *uio, int ioflag)
-{
-    return (physio(vinumstrategy, NULL, dev, 0, minphys, uio));
-}
