@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - compile time configuration header file
  *	---------------------------------------------------
  *
- *      $Id: config.h,v 1.8 1999/12/13 21:25:24 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:27 1999]
+ *      last edit-date: [Mon May 21 11:21:15 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,7 +39,7 @@
 /* general values */
 
 #define UMASK		022		/* file creation perm mask	*/
-#define CFG_ENTRY_MAX	32		/* max no of config entries	*/
+#define CFG_ENTRY_MAX	60		/* max no of config entries	*/
 #define ISDN_CTRL_MAX	4		/* max no of controllers	*/
 #define MAX_RE          8               /* max regular expression entries */
 

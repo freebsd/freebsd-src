@@ -453,9 +453,16 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					break;
 
 				case CHAN_ANY:
-					if((ctrl_desc[mcr->controller].bch_state[CHAN_B1] != BCH_ST_FREE) &&
-					   (ctrl_desc[mcr->controller].bch_state[CHAN_B2] != BCH_ST_FREE))
+				{
+				    int i;
+				    for (i = 0;
+					 i < ctrl_desc[mcr->controller].nbch &&
+					 ctrl_desc[mcr->controller].bch_state[i] != BCH_ST_FREE;
+					 i++);
+				    if (i == ctrl_desc[mcr->controller].nbch)
 						SET_CAUSE_VAL(cd->cause_in, CAUSE_I4B_NOCHAN);
+				    /* else mcr->channel = i; XXX */
+				}
 					break;
 
 				default:
@@ -560,6 +567,8 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					ctrl_desc[mcir->controller].ctrl_type;
 				mcir->card_type = 
 					ctrl_desc[mcir->controller].card_type;
+				mcir->nbch =
+					ctrl_desc[mcir->controller].nbch;
 
 				if(ctrl_desc[mcir->controller].ctrl_type == CTRL_PASSIVE)
 					mcir->tei = ctrl_desc[mcir->controller].tei;

@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jan 26 13:46:50 2001]
+ *      last edit-date: [Fri May 25 10:04:37 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -45,9 +45,9 @@
 /*---------------------------------------------------------------------------*
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
-#define	VERSION		0		/* version number	*/
-#define	REL		96		/* release number	*/
-#define STEP		3		/* release step		*/
+#define	VERSION		1		/* version number	*/
+#define	REL		0		/* release number	*/
+#define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -82,7 +82,8 @@
 #define CTRL_DAIC	2		/* Diehl active controller cards*/
 #define CTRL_TINADD	3		/* Stollmann Tina-dd active card*/
 #define CTRL_AVMB1	4		/* AVM B1 active card		*/
-#define	CTRL_NUMTYPES	5		/* number of controller types	*/
+#define CTRL_CAPI       5               /* cards seen via the CAPI layer*/
+#define	CTRL_NUMTYPES	6		/* number of controller types	*/
 
 /*---------------------------------------------------------------------------*
  *	CTRL_PASSIVE: driver types
@@ -154,6 +155,14 @@
 #define	CARD_TYPEA_DAIC_SX	2
 #define	CARD_TYPEA_DAIC_SCOM	3
 #define	CARD_TYPEA_DAIC_QUAD	4
+
+/*---------------------------------------------------------------------------*
+ *	card types for CTRL_CAPI
+ *---------------------------------------------------------------------------*/
+#define CARD_TYPEC_CAPI_UNK	0
+#define	CARD_TYPEC_AVM_T1_PCI	1
+#define CARD_TYPEC_AVM_B1_PCI	2
+#define CARD_TYPEC_AVM_B1_ISA	3
 
 /*---------------------------------------------------------------------------*
  *	max length of some strings
@@ -592,6 +601,7 @@ typedef struct {
 	int	ctrl_type;	/* controller type passive/active	*/
 	int	card_type;	/* brand / version			*/
 	int	tei;		/* tei controller probably has		*/
+        int     nbch;           /* number of b channels provided        */
 } msg_ctrl_info_req_t;
 	
 #define	I4B_CTRL_INFO_REQ	_IOWR('4', 4, msg_ctrl_info_req_t)
