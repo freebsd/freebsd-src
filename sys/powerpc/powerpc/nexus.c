@@ -66,8 +66,13 @@
 
 #include <machine/bus.h>
 #include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
+
+#include <sys/rman.h>
+
+#include "pic_if.h"
 
 /*
  * The nexus (which is a pseudo-bus actually) iterates over the nodes that
@@ -85,15 +90,41 @@ struct nexus_devinfo {
 	/* Some common properties. */
 	char		*ndi_name;
 	char		*ndi_device_type;
+	char		*ndi_compatible;
 };
 
 struct nexus_softc {
+	device_t	sc_pic;
 };
 
-static int nexus_probe(device_t);
-static void nexus_probe_nomatch(device_t, device_t);
-static int nexus_read_ivar(device_t, device_t, int, uintptr_t *);
-static int nexus_write_ivar(device_t, device_t, int, uintptr_t);
+/*
+ * Device interface
+ */
+static int	nexus_probe(device_t);
+static void	nexus_probe_nomatch(device_t, device_t);
+
+/*
+ * Bus interface
+ */
+static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
+static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
+static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
+		    driver_intr_t *, void *, void **);
+static int	nexus_teardown_intr(device_t, device_t, struct resource *,
+		    void *);
+static struct	resource *nexus_alloc_resource(device_t, device_t, int, int *,
+		    u_long, u_long, u_long, u_int);
+static int	nexus_activate_resource(device_t, device_t, int, int,
+		    struct resource *);
+static int	nexus_deactivate_resource(device_t, device_t, int, int,
+		    struct resource *);
+static int	nexus_release_resource(device_t, device_t, int, int,
+		    struct resource *);
+
+/*
+ * Local routines
+ */
+static device_t	create_device_from_node(device_t, phandle_t);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -109,6 +140,12 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
+	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
+	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 
 	{ 0, 0 }
 };
@@ -127,33 +164,41 @@ static int
 nexus_probe(device_t dev)
 {
 	phandle_t	root;
-	phandle_t	child, new_node, temp_node;
-	device_t	cdev;
-	struct		nexus_devinfo *dinfo;
+	phandle_t	pic, cpus, child, new_node, temp_node;
 	struct		nexus_softc *sc;
-	char		*name, *type;
 
 	if ((root = OF_peer(0)) == -1)
 		panic("nexus_probe: OF_peer failed.");
 
+	sc = device_get_softc(dev);
+
+	if ((cpus = OF_finddevice("/cpus")) != -1) {
+		for (child = OF_child(cpus); child; child = OF_peer(child))
+			(void)create_device_from_node(dev, child);
+	}
+
+	if ((child = OF_finddevice("/chosen")) == -1)
+		printf("nexus_probe: can't find /chosen");
+
+	if (OF_getprop(child, "interrupt-controller", &pic, 4) != 4)
+		printf("nexus_probe: can't get interrupt-controller");
+
+	sc->sc_pic = create_device_from_node(dev, pic);
+
+	if (sc->sc_pic == NULL)
+		printf("nexus_probe: failed to create PIC device");
+
 	child = root;
 	while (child != 0) {
-		OF_getprop_alloc(child, "name", 1, (void **)&name);
-		OF_getprop_alloc(child, "device_type", 1, (void **)&type);
-		cdev = device_add_child(dev, NULL, -1);
-		if (cdev != NULL) {
-			dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
-			dinfo->ndi_node = child;
-			dinfo->ndi_name = name;
-			dinfo->ndi_device_type = type;
-			device_set_ivars(cdev, dinfo);
-		} else
-			free(name, M_OFWPROP);
+		if (child != pic)
+			(void)create_device_from_node(dev, child);
 
-next:
-		new_node = OF_child(child);
+		if (child == cpus)
+			new_node = 0;
+		else
+			new_node = OF_child(child);
 		if (new_node == -1)
-			panic("nexus_probe: OF_child return -1");
+			panic("nexus_probe: OF_child returned -1");
 		if (new_node == 0)
 			new_node = OF_peer(child);
 		if (new_node == 0) {
@@ -168,6 +213,13 @@ next:
 		child = new_node;
 	}
 	device_set_desc(dev, "OpenFirmware Nexus device");
+
+	{
+		u_int	*foo = 0xf8000020;
+		pmap_kenter(0xf8000000, 0xf8000000);
+		printf(">>> uni_n_clock_ctl = %08x\n", *foo);
+		pmap_kremove(0xf8000000);
+	}
 	return (0);
 }
 
@@ -207,6 +259,9 @@ nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case NEXUS_IVAR_DEVICE_TYPE:
 		*result = (uintptr_t)dinfo->ndi_device_type;
 		break;
+	case NEXUS_IVAR_COMPATIBLE:
+		*result = (uintptr_t)dinfo->ndi_compatible;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -230,4 +285,122 @@ nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return (ENOENT);
 	}
 	return 0;
+}
+
+static int
+nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
+    driver_intr_t *intr, void *arg, void **cookiep)
+{
+	struct	nexus_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
+		panic("nexus_setup_intr: no pic attached\n");
+
+	return (PIC_SETUP_INTR(sc->sc_pic, child, res, flags, intr, arg,
+	    cookiep));
+}
+
+static int
+nexus_teardown_intr(device_t dev, device_t child, struct resource *res,
+    void *ih)
+{
+	struct	nexus_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
+		panic("nexus_teardown_intr: no pic attached\n");
+
+	return (PIC_TEARDOWN_INTR(sc->sc_pic, child, res, ih));
+}
+
+/*
+ * Allocate resources at the behest of a child.  This only handles interrupts,
+ * since I/O resources are handled by child busses.
+ */
+static struct resource *
+nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct	nexus_softc *sc;
+	struct	resource *rv;
+
+	sc = device_get_softc(bus);
+
+	if (type != SYS_RES_IRQ) {
+		device_printf(bus, "unknown resource request from %s\n",
+		    device_get_nameunit(child));
+		return (NULL);
+	}
+
+	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
+		panic("nexus_alloc_resource: no pic attached\n");
+
+	rv = PIC_ALLOCATE_INTR(sc->sc_pic, child, rid, start, flags);
+
+	return (rv);
+}
+
+static int
+nexus_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	/* Not much to be done yet... */
+	return (rman_activate_resource(res));
+}
+
+static int
+nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	/* Not much to be done yet... */
+	return (rman_deactivate_resource(res));
+}
+
+static int
+nexus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct	nexus_softc *sc;
+
+	sc = device_get_softc(bus);
+
+	if (type != SYS_RES_IRQ) {
+		device_printf(bus, "unknown resource request from %s\n",
+		    device_get_nameunit(child));
+		return (NULL);
+	}
+
+	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
+		panic("nexus_release_resource: no pic attached\n");
+
+	return (PIC_RELEASE_INTR(sc->sc_pic, child, rid, res));
+}
+
+static device_t
+create_device_from_node(device_t parent, phandle_t node)
+{
+	device_t	cdev;
+	struct		nexus_devinfo *dinfo;
+	char		*name, *type, *compatible;
+
+	OF_getprop_alloc(node, "name", 1, (void **)&name);
+	OF_getprop_alloc(node, "device_type", 1, (void **)&type);
+	OF_getprop_alloc(node, "compatible", 1, (void **)&compatible);
+	cdev = device_add_child(parent, NULL, -1);
+	if (cdev != NULL) {
+		dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
+		dinfo->ndi_node = node;
+		dinfo->ndi_name = name;
+		dinfo->ndi_device_type = type;
+		dinfo->ndi_compatible = compatible;
+		device_set_ivars(cdev, dinfo);
+	} else
+		free(name, M_OFWPROP);
+
+	return (cdev);
 }
