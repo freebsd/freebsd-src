@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id$
+# $Id: makesyscalls.sh,v 1.21 1997/02/22 09:39:14 peter Exp $
 
 set -e
 
@@ -27,6 +27,8 @@ sysinc="sysinc.switch"
 sysarg="sysarg.switch"
 
 trap "rm $sysdcl $syscompat $syscompatdcl $sysent $sysinc $sysarg" 0
+
+touch $sysdcl $syscompat $syscompatdcl $sysent $sysinc $sysarg
 
 case $# in
     0)	echo "Usage: $0 input-file <config-file>" 1>&2
