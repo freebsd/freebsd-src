@@ -68,8 +68,6 @@
 
 #include <dev/sab/sab82532reg.h>
 
-#define	CDEV_MAJOR		168
-
 #define	SAB_READ(sc, r) \
 	bus_space_read_1((sc)->sc_bt, (sc)->sc_bh, (r))
 #define	SAB_WRITE(sc, r, v) \
@@ -171,7 +169,7 @@ static struct cdevsw sabtty_cdevsw = {
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"sabtty",
-	/* major */	CDEV_MAJOR,
+	/* major */	MAJOR_AUTO,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY | D_KQFILTER,
