@@ -88,6 +88,10 @@ The
 .Xr kldstat 8
 program is used to check the status of the modules currently loaded into the
 system.
+.Pp
+Kernel modules may only be loaded or unloaded if the system security level
+.Va kern.securelevel
+is less than one.
 .Sh "MODULE TYPES"
 .Bl -ohang
 .It Em "Device Driver modules"
@@ -125,7 +129,8 @@ example source code implementing a sample kld module
 .Xr devd 8 ,
 .Xr kldload 8 ,
 .Xr kldstat 8 ,
-.Xr kldunload 8
+.Xr kldunload 8 ,
+.Xr sysctl 8
 .Sh BUGS
 If a module B, is dependent on another module A, but is not compiled with
 module A as a dependency, then
