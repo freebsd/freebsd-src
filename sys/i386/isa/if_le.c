@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.24 1995/12/05 02:01:13 davidg Exp $
+ * $Id: if_le.c,v 1.25 1995/12/07 12:46:00 davidg Exp $
  */
 
 /*
@@ -267,9 +267,9 @@ struct le_board {
 };
 
 
-le_softc_t le_softc[NLE];
+static le_softc_t le_softc[NLE];
 
-const le_board_t le_boards[] = {
+static const le_board_t le_boards[] = {
 #if !defined(LE_NOLEMAC)
     { lemac_probe },			/* DE20[345] */
 #endif
@@ -286,7 +286,7 @@ struct isa_driver ledriver = {
     le_probe, le_attach, "le",
 };
 
-unsigned le_intrs[NLE];
+static unsigned le_intrs[NLE];
 
 #define	LE_ADDREQUAL(a1, a2) \
 	(((u_short *)a1)[0] == ((u_short *)a2)[0] \
@@ -841,13 +841,13 @@ static const int lemac_irqs[] = { IRQ5, IRQ10, IRQ11, IRQ15 };
 /*
  * Some tuning/monitoring variables.
  */
-unsigned lemac_deftxmax = 16;	/* see lemac_max above */
-unsigned lemac_txnospc = 0;	/* total # of tranmit starvations */
+static unsigned lemac_deftxmax = 16;	/* see lemac_max above */
+static unsigned lemac_txnospc = 0;	/* total # of tranmit starvations */
 
-unsigned lemac_tne_intrs = 0;	/* total # of tranmit done intrs */
-unsigned lemac_rne_intrs = 0;	/* total # of receive done intrs */
-unsigned lemac_txd_intrs = 0;	/* total # of tranmit error intrs */
-unsigned lemac_rxd_intrs = 0;	/* total # of receive error intrs */
+static unsigned lemac_tne_intrs = 0;	/* total # of tranmit done intrs */
+static unsigned lemac_rne_intrs = 0;	/* total # of receive done intrs */
+static unsigned lemac_txd_intrs = 0;	/* total # of tranmit error intrs */
+static unsigned lemac_rxd_intrs = 0;	/* total # of receive error intrs */
 
 
 static int
@@ -1104,7 +1104,6 @@ lemac_rne_intr(
 	} else { /* end if (*rxptr & LEMAC_RX_OK) */
 	    sc->le_if.if_ierrors++;
 	}
-next:
 	LE_OUTB(sc, LEMAC_REG_FMQ, rxpg);  /* Return this page to Free Memory Queue */
     }  /* end while (recv_count--) */
 
@@ -1356,7 +1355,7 @@ static int  lance_tx_intr(le_softc_t *sc);
 #define	LN_DESC_MAX		128
 
 #if LN_DOSTATS
-struct {
+static struct {
     unsigned lance_rx_misses;
     unsigned lance_rx_badcrc;
     unsigned lance_rx_badalign;

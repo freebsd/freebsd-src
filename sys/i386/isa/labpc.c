@@ -166,7 +166,7 @@ static inline void loutb(int port, u_char val)
 #define loutb(port, val) outb(port, val)
 #endif
 
-struct ctlr **labpcs;	/* XXX: Should be dynamic */
+static struct ctlr **labpcs;	/* XXX: Should be dynamic */
 
 /* CR_EXPR: A macro that sets the shadow register in addition to
  * sending out the data.
@@ -277,11 +277,10 @@ struct ctlr **labpcs;	/* XXX: Should be dynamic */
 
 #define DCR(LABPC) ((LABPC)->base + 0x13)
 
-extern int labpcattach(struct isa_device *dev);
-extern int labpcdetach(struct isa_device *dev);
-extern int labpcprobe(struct isa_device *dev);
+static int labpcattach(struct isa_device *dev);
+static int labpcprobe(struct isa_device *dev);
 struct isa_driver labpcdriver =
-	{ labpcprobe, labpcattach, "labpc", 0 /* , labpcdetach */ };
+	{ labpcprobe, labpcattach, "labpc", 0  };
 
 static	d_open_t	labpcopen;
 static	d_close_t	labpcclose;
@@ -430,7 +429,8 @@ labpcinit(void)
 	return 0;
 }
 
-int labpcprobe(struct isa_device *dev)
+static int
+labpcprobe(struct isa_device *dev)
 {
 	static unit;
 	struct ctlr scratch, *ctlr;
@@ -503,7 +503,8 @@ int labpcprobe(struct isa_device *dev)
 
 /* attach: Set things in a normal state.
  */
-int labpcattach(struct isa_device *dev)
+static int
+labpcattach(struct isa_device *dev)
 {
 	struct ctlr *ctlr = labpcs[dev->id_unit];
 	char	name[32];
@@ -526,16 +527,6 @@ int labpcattach(struct isa_device *dev)
 				DV_CHR, 0, 0, 0600);
 #endif
 	return 1;
-}
-
-int
-labpcdetach(struct isa_device *id)
-{
-	struct ctlr *ctlr = labpcs[id->id_unit];
-	CR_CLR(ctlr, 3);
-	reset(ctlr);
-	dev_detach(&ctlr->kdc);
-	return 0;
 }
 
 /* Null handlers:
@@ -891,7 +882,8 @@ ad_strategy(struct buf *bp, struct ctlr *ctlr)
  *
  * 2. No interrupt support yet.
  */
-void da_strategy(struct buf *bp, struct ctlr *ctlr)
+static void
+da_strategy(struct buf *bp, struct ctlr *ctlr)
 {
 	int len;
 	u_char *data;

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.34 1995/11/04 17:07:26 bde Exp $
+ *  $Id: if_ep.c,v 1.35 1995/12/05 02:00:52 davidg Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -112,17 +112,17 @@ static int epioctl __P((struct ifnet * ifp, int, caddr_t));
 static void epmbuffill __P((caddr_t, int));
 static void epmbufempty __P((struct ep_softc *));
 
-void epinit __P((int));
-void epread __P((struct ep_softc *));
+static void epinit __P((int));
+static void epread __P((struct ep_softc *));
 void epreset __P((int));
-void epstart __P((struct ifnet *));
-void epstop __P((int));
-void epwatchdog __P((struct ifnet *));
+static void epstart __P((struct ifnet *));
+static void epstop __P((int));
+static void epwatchdog __P((struct ifnet *));
 
 static int send_ID_sequence __P((int));
 static int get_eeprom_data __P((int, int));
 
-struct ep_softc ep_softc[NEP];
+static struct ep_softc ep_softc[NEP];
 
 #define ep_ftst(f) (sc->stat&(f))
 #define ep_fset(f) (sc->stat|=(f))
@@ -156,9 +156,9 @@ ep_registerdev(struct isa_device *id)
       dev_attach(&kdc_ep[id->id_unit]);
 }
 
-int ep_current_tag = EP_LAST_TAG + 1;
+static int ep_current_tag = EP_LAST_TAG + 1;
 
-struct {
+static struct {
 	int epb_addr;	/* address of this board */
 	char epb_used;	/* was this entry already used for configuring ? */
 	}
@@ -488,7 +488,7 @@ epattach(is)
  * The order in here seems important. Otherwise we may not receive
  * interrupts. ?!
  */
-void
+static void
 epinit(unit)
     int unit;
 {
@@ -648,7 +648,7 @@ epinit(unit)
 
 static const char padmap[] = {0, 3, 2, 1};
 
-void
+static void
 epstart(ifp)
     struct ifnet *ifp;
 {
@@ -872,7 +872,7 @@ rescan:
     splx(x);
 }
 
-void
+static void
 epread(sc)
     register struct ep_softc *sc;
 {
@@ -1243,7 +1243,7 @@ epioctl(ifp, cmd, data)
     return (error);
 }
 
-void
+static void
 epwatchdog(ifp)
     struct ifnet *ifp;
 {
@@ -1259,7 +1259,7 @@ epwatchdog(ifp)
     epintr(ifp->if_unit);
 }
 
-void
+static void
 epstop(unit)
     int unit;
 {

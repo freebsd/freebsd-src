@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.20 1995/12/08 11:14:40 julian Exp $
+ * $Id: mse.c,v 1.21 1995/12/08 23:20:35 phk Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -90,7 +90,7 @@ static struct cdevsw mse_cdevsw =
  * sc_disablemouse() and sc_getmouse() routines must be called spl'd().
  */
 #define	PROTOBYTES	5
-struct mse_softc {
+static struct mse_softc {
 	int	sc_flags;
 	int	sc_mousetype;
 	struct	selinfo sc_selp;
@@ -188,7 +188,7 @@ static void mse_enableati(), mse_disableati(), mse_getati();
  * Keep the Logitech last, since I haven't figured out how to probe it
  * properly yet. (Someday I'll have the documentation.)
  */
-struct mse_types {
+static struct mse_types {
 	int	m_type;		/* Type of bus mouse */
 	int	(*m_probe)();	/* Probe routine to test for it */
 	void	(*m_enable)();	/* Start routine */
@@ -425,7 +425,6 @@ mseintr(unit)
 	int unit;
 {
 	register struct mse_softc *sc = &mse_sc[unit];
-	pid_t p;
 
 #ifdef DEBUG
 	static int mse_intrcnt = 0;

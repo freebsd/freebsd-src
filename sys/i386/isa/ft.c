@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.22 1995/05/30 08:01:41 rgrimes Exp $
+ *  $Id: ft.c,v 1.23 1995/11/20 12:41:40 phk Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -145,7 +145,7 @@ enum {
 };
 
 /* Tape geometries table */
-QIC_Geom ftgtbl[] = {
+static QIC_Geom ftgtbl[] = {
 	{ 0, 0, "Unformatted", "Unknown", 0,  0,     0,   0,     0 }, /* XXX */
 	{ 1, 1, "QIC-40",  "205/550",	20,  68,  2176, 128, 21760 },
 	{ 1, 2, "QIC-40",  "307.5/550",	20, 102,  3264, 128, 32640 },
@@ -165,7 +165,7 @@ QIC_Geom ftgtbl[] = {
 };
 #define NGEOM	(sizeof(ftgtbl) / sizeof(QIC_Geom))
 
-QIC_Geom *ftg = NULL;			/* Current tape's geometry */
+static QIC_Geom *ftg = NULL;			/* Current tape's geometry */
 
 /*
  *  things relating to asynchronous commands
@@ -237,7 +237,7 @@ extern struct fdc_data fdc_data[NFDC];
 /***********************************************************************\
 * Per tape drive structure.						*
 \***********************************************************************/
-struct ft_data {
+static struct ft_data {
 	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	ftsu;		/* this units number on this controller */
 	int	type;		/* Drive type (Mountain, Colorado) */
@@ -292,10 +292,7 @@ struct ft_data {
 
 int ftopen(dev_t, int);
 int ftclose(dev_t, int);
-void ftstrategy(struct buf *);
 int ftioctl(dev_t, int, caddr_t, int, struct proc *);
-int ftdump(dev_t);
-int ftsize(dev_t);
 static timeout_t ft_timeout;
 static void async_cmd(ftu_t);
 static void async_req(ftu_t, int);
@@ -2126,20 +2123,6 @@ ftclose(dev_t dev, int flags)
   return(set_fdcmode(dev, FDC_DISK_MODE));	/* Otherwise, close tape */
 }
 
-
-/*
- *  Perform strategy on a given buffer (not!).  Changed so that the
- *  driver will at least return 'Operation not supported'.
- */
-void
-ftstrategy(struct buf *bp)
-{
-  bp->b_error = ENODEV;
-  bp->b_flags |= B_ERROR;
-  biodone(bp);
-}
-
-
 /*
  *  Read or write a segment.
  */
@@ -2603,21 +2586,4 @@ badreq:
   return(ENXIO);
 }
 
-/*
- *  Not implemented
- */
-int
-ftdump(dev_t dev)
-{
-  return(EINVAL);
-}
-
-/*
- *  Not implemented
- */
-int
-ftsize(dev_t dev)
-{
-  return(EINVAL);
-}
 #endif

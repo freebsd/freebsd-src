@@ -191,7 +191,7 @@ static struct fe_filter const fe_filter_all     = { FE_FILTER_ALL };
 /*
  * fe_softc: per line info and status
  */
-struct fe_softc {
+static struct fe_softc {
 
 	/* Used by "common" codes.  */
 	struct arpcom arpcom;	/* ethernet common */
@@ -246,13 +246,13 @@ struct fe_softc {
 #define IFNET2SOFTC(P)	( ( struct fe_softc * )(P) )
 
 /* Standard driver entry points.  These can be static.  */
-int		fe_probe	( struct isa_device * );
-int		fe_attach	( struct isa_device * );
-void		fe_init		( int );
-int		fe_ioctl	( struct ifnet *, int, caddr_t );
-void		fe_start	( struct ifnet * );
-void		fe_reset	( int );
-void		fe_watchdog	( struct ifnet * );
+static int		fe_probe	( struct isa_device * );
+static int		fe_attach	( struct isa_device * );
+static void		fe_init		( int );
+static int		fe_ioctl	( struct ifnet *, int, caddr_t );
+static void		fe_start	( struct ifnet * );
+static void		fe_reset	( int );
+static void		fe_watchdog	( struct ifnet * );
 
 /* Local functions.  Order of declaration is confused.  FIXME.  */
 static int	fe_probe_fmv	( struct isa_device *, struct fe_softc * );
@@ -385,7 +385,7 @@ static struct fe_probe_list const fe_probe_list [] =
  *	or number of i/o addresses used (if found)
  */
 
-int
+static int
 fe_probe ( struct isa_device * isa_dev )
 {
 	struct fe_softc * sc, * u;
@@ -1052,7 +1052,7 @@ fe_init_mbh ( struct fe_softc * sc )
 /*
  * Install interface into kernel networking data structures
  */
-int
+static int
 fe_attach ( struct isa_device *isa_dev )
 {
 	struct fe_softc *sc = &fe_softc[isa_dev->id_unit];
@@ -1170,7 +1170,7 @@ fe_attach ( struct isa_device *isa_dev )
 /*
  * Reset interface.
  */
-void
+static void
 fe_reset ( int unit )
 {
 	/*
@@ -1186,7 +1186,7 @@ fe_reset ( int unit )
  * All buffered packets, both transmitting and receiving,
  * if any, will be lost by stopping the interface.
  */
-void
+static void
 fe_stop ( int unit )
 {
 	struct fe_softc *sc = &fe_softc[unit];
@@ -1243,7 +1243,7 @@ fe_stop ( int unit )
  * Device timeout/watchdog routine. Entered if the device neglects to
  * generate an interrupt after a transmit has been started on it.
  */
-void
+static void
 fe_watchdog ( struct ifnet *ifp )
 {
 	struct fe_softc *sc = (struct fe_softc *)ifp;
@@ -1271,7 +1271,7 @@ fe_watchdog ( struct ifnet *ifp )
 /*
  * Initialize device.
  */
-void
+static void
 fe_init ( int unit )
 {
 	struct fe_softc *sc = &fe_softc[unit];

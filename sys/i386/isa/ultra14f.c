@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.40 1995/12/06 23:50:39 bde Exp $
+ *      $Id: ultra14f.c,v 1.41 1995/12/07 12:46:10 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -79,7 +79,7 @@ extern int hz;
 #define UHA_NSEG        33	/* number of dma segments supported */
 
 /************************** board definitions *******************************/
-struct uha_reg
+static struct uha_reg
 {
 	int id;			/* product id reg		*/
 	int type;		/* product type reg		*/
@@ -95,7 +95,7 @@ struct uha_reg
 	int icmptr;		/* incoming mail ptr		*/
 } *uhareg[NUHA];
 
-struct uha_bits
+static struct uha_bits
 {
 	/* uha_lint (read) */
 	unsigned char ldip;
@@ -251,7 +251,7 @@ struct mscp {
 	long int hashkey;
 };
 
-struct uha_data {
+static struct uha_data {
 	int     flags;
 #define UHA_INIT        0x01
 #define UHA_24F		0x02
@@ -279,7 +279,7 @@ static int	uha_init __P((int unit));
 static int	uha24_init __P((int unit));
 
 static	struct mscp *cheat;
-unsigned long int scratch;
+static unsigned long int scratch;
 #define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
 static	uha_slot = 0;		/* slot last board was found in */
 static  uha_unit = 0;

@@ -62,8 +62,8 @@
 
 
 /* Prototypes */
-int     rcprobe         __P((struct isa_device *));
-int     rcattach        __P((struct isa_device *));
+static int     rcprobe         __P((struct isa_device *));
+static int     rcattach        __P((struct isa_device *));
 
 /*-
  * This space intentionally left blank to stop __LINE__ from screwing up
@@ -151,8 +151,8 @@ static struct rc_chans  {
 static int rc_scheduled_event = 0;
 
 /* for pstat -t */
-struct tty rc_tty[NRC * CD180_NCHAN];
-int        nrc_tty = NRC * CD180_NCHAN;
+static struct tty rc_tty[NRC * CD180_NCHAN];
+static int        nrc_tty = NRC * CD180_NCHAN;
 
 /* Flags */
 #define RC_DTR_OFF      0x0001          /* DTR wait, for close/open     */
@@ -199,7 +199,8 @@ static void rc_wait0            __P((int nec, int unit, int chan, int line));
 /**********************************************/
 
 /* Quick device probing */
-int rcprobe(dvp)
+static int
+rcprobe(dvp)
 	struct  isa_device      *dvp;
 {
 	int             irq = ffs(dvp->id_irq) - 1;
@@ -253,7 +254,8 @@ rc_registerdev(id)
 	dev_attach(&kdc_rc[unit]);
 }
 
-int rcattach(dvp)
+static int
+rcattach(dvp)
 	struct  isa_device      *dvp;
 {
 	register int            i, chan, nec = dvp->id_iobase;

@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.24 1995/12/08 11:15:48 julian Exp $
+ * $Id: wt.c,v 1.25 1995/12/08 23:20:54 phk Exp $
  *
  */
 
@@ -169,7 +169,7 @@ typedef struct {
 #endif
 } wtinfo_t;
 
-wtinfo_t wttab[NWT];                    /* tape info by unit number */
+static wtinfo_t wttab[NWT];                    /* tape info by unit number */
 
 static int wtwait (wtinfo_t *t, int catch, char *msg);
 static int wtcmd (wtinfo_t *t, int cmd);

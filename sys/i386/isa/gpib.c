@@ -54,25 +54,24 @@
 
 
 
-int initgpib(void);
-void closegpib(void);
-int sendgpibfifo(unsigned char device,char *data,int count);
-int sendrawgpib(unsigned char device,char *data,int count);
-int sendrawgpibfifo(unsigned char device,char *data,int count);
-int readgpibfifo(unsigned char device,char *data,int count);
-void showregs(void);
-void enableremote(unsigned char device);
-void gotolocal(unsigned char device);
-void menableremote(unsigned char *device);
-void mgotolocal(unsigned char *device);
-void mtrigger(unsigned char *device);
-void trigger(unsigned char device);
-void mdevclear(unsigned char *device);
-void devclear(unsigned char device);
-char spoll(unsigned char device);
+static int initgpib(void);
+static void closegpib(void);
+static int sendgpibfifo(unsigned char device,char *data,int count);
+static int sendrawgpibfifo(unsigned char device,char *data,int count);
+static int readgpibfifo(unsigned char device,char *data,int count);
+#if 0
+static void showregs(void);
+#endif
+static void enableremote(unsigned char device);
+static void gotolocal(unsigned char device);
+static void menableremote(unsigned char *device);
+static void mgotolocal(unsigned char *device);
+static void mtrigger(unsigned char *device);
+static void trigger(unsigned char device);
+static char spoll(unsigned char device);
 
-int gpprobe(struct isa_device *dvp);
-int gpattach();
+static int gpprobe(struct isa_device *dvp);
+static int gpattach();
 
 struct   isa_driver gpdriver = {gpprobe, gpattach, "gp"};
 
@@ -108,7 +107,7 @@ static int oldcount;
 static char oldbytes[2];
 /*Probe routine*/
 /*This needs to be changed to be a bit more robust*/
-int
+static int
 gpprobe(struct isa_device *dvp)
 {
 	int	status;
@@ -130,7 +129,7 @@ else if ((inb(KSR)&0xF7)==0x14) sc->sc_type=1;
  * gpattach()
  *  Attach device and print the type of card to the screen.
  */
-int
+static int
 gpattach(isdp)
 	struct isa_device *isdp;
 {
@@ -453,9 +452,10 @@ gpioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 
 
 
+#if 0
 /*Just in case you want a dump of the registers...*/
 
-void showregs() {
+static void showregs() {
  printf ("NAT4882:\n");
  printf ("ISR1=%X\t",inb(ISR1));
  printf ("ISR2=%X\t",inb(ISR2));
@@ -482,11 +482,13 @@ void showregs() {
 
 
  }
+#endif
 /*Set up the NAT4882 and TURBO488 registers */
 /*This will be nonsense to you unless you have a data sheet from
   National Instruments.  They should give you one if you call them*/
 
-int initgpib() {
+static int
+initgpib() {
   outb(CMDR,0x20);
   outb(CFG,0x16);
   outb(IMR3,0);
@@ -535,9 +537,11 @@ return(0);
 
 /*This is kind of Brute force..  But it works*/
 
-void closegpib() {
+static void 
+closegpib() 
+{
    outb(AUXMR,chip_reset);
-   }
+}
 
 /*GPIB ROUTINES:
   These will also make little sense unless you have a data sheet.
@@ -553,7 +557,8 @@ void closegpib() {
   forces the GPIB line true, no matter what the fancy circuitry of the
   NAT4882 wants to do with it*/
 
-void enableremote(unsigned char device)
+static void
+enableremote(unsigned char device)
 {
  int status;
 
@@ -586,7 +591,8 @@ status=EWOULDBLOCK;
   after enableremote is called, and is reset only on a close of the
   gpib device */
 
-void gotolocal(unsigned char device)
+static void
+gotolocal(unsigned char device)
 { int status;
   status=EWOULDBLOCK;
 
@@ -621,7 +627,8 @@ outb(AUXMR,0x5E);  /*Clear SYNC*/
  }
 
 
-void menableremote(unsigned char *device)
+static void
+menableremote(unsigned char *device)
 {
  int status, counter = 0;
 
@@ -656,7 +663,8 @@ status=EWOULDBLOCK;
 
  }
 
-void mgotolocal(unsigned char *device)
+static void
+mgotolocal(unsigned char *device)
 { int status;
   int counter=0;
 status=EWOULDBLOCK;
@@ -693,7 +701,8 @@ status=EWOULDBLOCK;
 /*Trigger a device.  What happens depends on how the device is
  configured.  */
 
-void trigger(unsigned char device)
+static void 
+trigger(unsigned char device)
 { int status;
 
 status=EWOULDBLOCK;
@@ -728,7 +737,8 @@ status=EWOULDBLOCK;
 /*Trigger multiple devices by addressing them all to listen, and then
   sending GET*/
 
-void mtrigger(unsigned char *device)
+static void
+mtrigger(unsigned char *device)
 { int status=EWOULDBLOCK;
   int counter=0;
  if(device[0]<32){
@@ -763,132 +773,9 @@ void mtrigger(unsigned char *device)
  }
 }
 
-
-void mdevclear(unsigned char *device)
-{ int status=EWOULDBLOCK;
-  int counter=0;
-
- if (device[counter]<32) do {
-  if (!(inb(ISR2)&0x08)) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
- outb(CDOR,(device[counter]&31)+32);
- counter++;
- } while (device[counter]<32);
-
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
- outb(AUXMR,0x5E);  /*Clear SYNC*/
- outb (CDOR,0x14);  /*send DCL*/
-
-
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
-
- outb(AUXMR,0x5E);
- outb (CDOR,63);/*unaddress device*/
-
-
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
- outb(AUXMR,0x5E); /*Clear SYNC*/
- outb (CDOR,63);
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
-
- }
-void devclear(unsigned char device)
-{ int status=EWOULDBLOCK;
-
-
- if (device<32)  {
-  if (!(inb(ISR2)&0x08)) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
- outb(CDOR,(device&31)+32);
-
- }
-
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
- outb(AUXMR,0x5E);  /*Clear SYNC*/
- outb (CDOR,0x14);  /*send DCL*/
-
-
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
-
- outb(AUXMR,0x5E);
- outb (CDOR,63);/*unaddress device*/
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
-
- outb(AUXMR,0x5E); /*Clear SYNC*/
- outb (CDOR,63);
-  if (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK) do {
-   status=tsleep((caddr_t)&gpib_sc,GPIBPRI,"gpibpoll",1);
-   }
-  while (!(inb(ISR2)&0x08)&&status==EWOULDBLOCK); /*Wait to send next cmd*/
-
- }
 /*This is not used now, but it should work with NI's 8 bit gpib board
   since it does not use the TURBO488 registers at all */
 
-int sendrawgpib(unsigned char device,char *data,int count)
- {
- int status;
- int counter;
- int counter2;
- int done;
-
- counter=0;
-
-
-
- do {
-done=EWOULDBLOCK;
-counter2=5;
-do{
- status=inb(ISR1);
- if (!(status&2)&&counter2){ DELAY(4); counter2--;}
- if (!(status&2)&&!counter2) done=tsleep((caddr_t)&gpib_sc, GPIBPRI,"gpibpoll",1);
- }
- while (!(status&2)&&(done==EWOULDBLOCK));
-   if (done!=EWOULDBLOCK) return(done);
-
-   if ((data[counter+1]==0)||(count+1)==0){
-
-   outb(AUXMR,seoi);  /*Set EOI for the last byte*/
-   outb(AUXMR,0x5E); /*Clear SYNC*/
-   outb(CDOR,data[counter]);
-   }
-  else outb(CDOR,data[counter]);
- counter++;
- count--;
- }
- while((data[counter-1]!=0)&&(count+1)!=0);
- do
-  status=inb(ISR1);
- while (!(status&2)&&tsleep((caddr_t)&gpib_sc, GPIBPRI,"gpibpoll",1)==EWOULDBLOCK);
-return(counter-1);
-
-}
 
 /*Send data through the TURBO488 FIFOS to a device that is already
  addressed to listen.  This is used by the write call when someone is
@@ -896,7 +783,8 @@ return(counter-1);
 /*The last byte of each write is held off until either the next
  write or close, so it can be sent with EOI set*/
 
-int sendrawgpibfifo(unsigned char device,char *data,int count)
+static int
+sendrawgpibfifo(unsigned char device,char *data,int count)
  {
  int status;
  int counter;
@@ -940,12 +828,8 @@ status=EWOULDBLOCK;
 
 }
 
-
-
-
-
-
-int sendgpibfifo(unsigned char device,char *data,int count)
+static int
+sendgpibfifo(unsigned char device,char *data,int count)
  {
  int status;
  int counter;
@@ -1094,7 +978,8 @@ outb(AUXMR,0x5E); /*Clear SYNC*/
 
 }
 
-int readgpibfifo(unsigned char device,char *data,int count)
+static int
+readgpibfifo(unsigned char device,char *data,int count)
 {
  int status;
  int status2 = 0;
@@ -1200,7 +1085,8 @@ outb(AUXMR,0x5E); /*Clear SYNC*/
 
 
 /* Return the status byte from device */
-char spoll(unsigned char device)
+static char
+spoll(unsigned char device)
  {
  int status=EWOULDBLOCK;
  unsigned int statusbyte;

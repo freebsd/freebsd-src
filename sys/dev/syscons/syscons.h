@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.12 1995/11/04 17:07:52 bde Exp $
+ *	$Id: syscons.h,v 1.13 1995/11/28 00:17:32 ache Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -177,10 +177,6 @@ typedef struct default_attr {
 } default_attr;
 
 /* function prototypes */
-int scprobe(struct isa_device *dev);
-int scattach(struct isa_device *dev);
-int scparam(struct tty *tp, struct termios *t);
-void scstart(struct tty *tp);
 static void scinit(void);
 static u_int scgetc(int noblock);
 static scr_stat *get_scr_stat(dev_t dev);

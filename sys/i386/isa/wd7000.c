@@ -216,10 +216,10 @@ struct wds_setup {
 
 static int wdsunit=0;
 
-u_char wds_data[NWDS][BUFSIZ];
-u_char wds_data_in_use[NWDS];
+static u_char wds_data[NWDS][BUFSIZ];
+static u_char wds_data_in_use[NWDS];
 
-struct wds {
+static struct wds {
   int addr;
   struct wds_req wdsr[MAXSIMUL];
   struct wds_mb ombs[WDS_NOMB], imbs[WDS_NIMB];
@@ -329,7 +329,7 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
   struct wds_req *r;
   int unit = sxp->sc_link->adapter_unit;
   int base;
-  u_char c, *p;
+  u_char c;
   int i;
 
   base = wds[unit].addr;
@@ -483,7 +483,6 @@ wds_done(int unit, struct wds_cmd *c, u_char stat)
 {
   struct wds_req *r;
   int i;
-  char slask[80];
 
   r = (struct wds_req *)NULL;
 
@@ -557,7 +556,7 @@ wds_getvers(int unit)
 {
   struct wds_req *r;
   int base;
-  u_char c, *p;
+  u_char c;
   int i;
 
   base = wds[unit].addr;
@@ -613,9 +612,7 @@ int
 wdsattach(struct isa_device *dev)
 {
   int masunit;
-  static int firstswitch[NWDS];
   static u_long versprobe=0;	/* max 32 controllers */
-  int r;
   int unit = dev->id_unit;
   struct scsibus_data *scbus;
 
@@ -657,7 +654,6 @@ wds_init(struct isa_device *dev)
 {
   struct wds_setup init;
   int base;
-  u_char *p, c;
   int unit, i;
   struct wds_cmd wc;
 
@@ -731,7 +727,6 @@ int
 wds_cmd(int base, u_char *p, int l)
 {
   int s=splbio();
-  u_char c;
 
   while(l--)
   {

@@ -19,7 +19,6 @@
 #undef DEBUG
 
 #include "cx.h"
-#if NCX > 0
 #include "bpfilter.h"
 
 #include <sys/param.h>
@@ -39,55 +38,25 @@
 #include <net/bpfdesc.h>
 #endif
 
-#ifdef __FreeBSD__
-#   include <i386/isa/isa_device.h>
-#   if __FreeBSD__ < 2
-#      include <machine/pio.h>
-#   else
-#      ifdef DEVFS
+#include <i386/isa/isa_device.h>
+#ifdef DEVFS
 extern struct cdevsw cx_cdevsw;
-#        include <sys/devfsext.h>
-#      endif /*DEVFS*/
-#      include <sys/devconf.h>
-#   endif
-#   define watchdog_func_t void(*)(struct ifnet *)
-#   define start_func_t    void(*)(struct ifnet*)
-#endif
-
-#ifdef __bsdi__
-#   if INET
-#      include <netinet/in.h>
-#      include <netinet/in_systm.h>
-#      include <netinet/ip.h>
-#   endif
-#   include <sys/device.h>
-#   include <i386/isa/isavar.h>
-#   include <i386/isa/icu.h>
-#   include <machine/inline.h>
-#   include <net/if_slvar.h>
-#   include <net/if_p2p.h>
-#   define timeout_func_t  void(*)()
-#   define init_func_t     int(*)()
-#   define watchdog_func_t int(*)()
-#   define start_func_t    int(*)()
-struct cxsoftc {
-	struct device dev;      /* base device */
-	struct isadev isadev;   /* ISA device */
-	struct intrhand intr;   /* interrupt vectoring */
-};
-#endif
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#include <sys/devconf.h>
+#define watchdog_func_t void(*)(struct ifnet *)
+#define start_func_t    void(*)(struct ifnet*)
 
 #include <net/if_sppp.h>
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
-extern int cxprobe __P((struct isa_device *id));
-extern int cxattach __P((struct isa_device *id));
-extern void cxput __P((cx_chan_t *c, char b));
-extern void cxsend __P((cx_chan_t *c));
-extern void cxrinth __P((cx_chan_t *c));
-extern int cxtinth __P((cx_chan_t *c));
-extern void cxswitch __P((cx_chan_t *c, cx_soft_opt_t new));
+static int cxprobe __P((struct isa_device *id));
+static int cxattach __P((struct isa_device *id));
+static void cxput __P((cx_chan_t *c, char b));
+static void cxsend __P((cx_chan_t *c));
+static void cxrinth __P((cx_chan_t *c));
+static int cxtinth __P((cx_chan_t *c));
 
 #ifdef DEBUG
 #   define print(s)     printf s
@@ -105,28 +74,22 @@ extern void cxswitch __P((cx_chan_t *c, cx_soft_opt_t new));
  * Our ifnet pointer holds the buffer large enough to contain
  * any of sppp and p2p structures.
  */
-#ifdef __bsdi__
-#   define SPPPSZ       (sizeof (struct sppp))
-#   define P2PSZ        (sizeof (struct p2pcom))
-#   define IFSTRUCTSZ   (SPPPSZ>P2PSZ ? SPPPSZ : P2PSZ)
-#else
-#   define IFSTRUCTSZ   (sizeof (struct sppp))
-#endif
+#define IFSTRUCTSZ   (sizeof (struct sppp))
 #define IFNETSZ         (sizeof (struct ifnet))
 
-int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data);
-void cxstart (struct ifnet *ifp);
-void cxwatchdog (struct ifnet *ifp);
-void cxinput (cx_chan_t *c, void *buf, unsigned len);
-int cxrinta (cx_chan_t *c);
-void cxtinta (cx_chan_t *c);
-void cxmint (cx_chan_t *c);
-void cxtimeout (caddr_t a);
-void cxdown (cx_chan_t *c);
-void cxup (cx_chan_t *c);
+static int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data);
+static void cxstart (struct ifnet *ifp);
+static void cxwatchdog (struct ifnet *ifp);
+static void cxinput (cx_chan_t *c, void *buf, unsigned len);
+extern int cxrinta (cx_chan_t *c);
+extern void cxtinta (cx_chan_t *c);
+extern void cxmint (cx_chan_t *c);
+extern void cxtimeout (caddr_t a);
+static void cxdown (cx_chan_t *c);
+static void cxup (cx_chan_t *c);
 
-cx_board_t cxboard [NCX];               /* adapter state structures */
-cx_chan_t *cxchan [NCX*NCHAN];          /* unit to channel struct pointer */
+cx_board_t cxboard [NCX];           /* adapter state structures */
+cx_chan_t *cxchan [NCX*NCHAN];      /* unit to channel struct pointer */
 
 static unsigned short irq_valid_values [] = { 3, 5, 7, 10, 11, 12, 15, 0 };
 static unsigned short drq_valid_values [] = { 5, 6, 7, 0 };
@@ -134,14 +97,12 @@ static unsigned short port_valid_values [] = {
 	0x240, 0x260, 0x280, 0x300, 0x320, 0x380, 0x3a0, 0,
 };
 
-#if __FreeBSD__ >= 2
 static char cxdescription [80];
 struct kern_devconf kdc_cx [NCX] = { {
 	0, 0, 0, "cx", 0, { MDDT_ISA, 0, "net" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
 	DC_IDLE, cxdescription, DC_CLS_SERIAL
 } };
-#endif
 
 /*
  * Check that the value is contained in the list of correct values.
@@ -221,34 +182,14 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 /*
  * Test the presence of the adapter on the given i/o port.
  */
-#ifdef __FreeBSD__
-int cxprobe (struct isa_device *id)
+static int
+cxprobe (struct isa_device *id)
 {
 	int unit = id->id_unit;
 	int iobase = id->id_iobase;
 	int irq = id->id_irq;
 	int drq = id->id_drq;
 	int irqnum;
-#endif
-#ifdef __bsdi__
-int cxprobe (struct device *parent, struct cfdata *cf, void *aux)
-{
-	int unit = cf->cf_unit;
-	int iobase = ((struct isa_attach_args*)aux)->ia_iobase;
-	int irq = ((struct isa_attach_args*)aux)->ia_irq;
-	int drq = ((struct isa_attach_args*)aux)->ia_drq;
-	int irqnum, i;
-
-	for (i=0; i<NCX; ++i)
-		if (i != unit && cxboard[i].port == iobase)
-			return (0);
-	if (irq == IRQUNK) {
-		irq = isa_irqalloc (IRQ3|IRQ5|IRQ7|IRQ10|IRQ11|IRQ12|IRQ15);
-		if (! irq)
-			return (0);
-		((struct isa_attach_args*)aux)->ia_irq = irq;
-	}
-#endif
 	irqnum = ffs (irq) - 1;
 
 	print (("cx%d: probe iobase=0x%x irq=%d drq=%d\n",
@@ -274,24 +215,13 @@ int cxprobe (struct device *parent, struct cfdata *cf, void *aux)
 /*
  * The adapter is present, initialize the driver structures.
  */
-#ifdef __FreeBSD__
-int cxattach (struct isa_device *id)
+static int
+cxattach (struct isa_device *id)
 {
 	int unit = id->id_unit;
 	int iobase = id->id_iobase;
 	int irq = id->id_irq;
 	int drq = id->id_drq;
-#endif
-#ifdef __bsdi__
-void cxattach (struct device *parent, struct device *self, void *aux)
-{
-	int unit = self->dv_unit;
-	int iobase = ((struct isa_attach_args*)aux)->ia_iobase;
-	int irq = ((struct isa_attach_args*)aux)->ia_irq;
-	int drq = ((struct isa_attach_args*)aux)->ia_drq;
-	struct cxsoftc *sc = (struct cxsoftc*) self;
-	void cxintr (cx_board_t *b);
-#endif
 	cx_board_t *b = cxboard + unit;
 	int i;
 
@@ -359,7 +289,6 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 	if (unit == 0)
 		timeout ((timeout_func_t) cxtimeout, 0, hz*5);
 
-#if __FreeBSD__ >= 2
 	if (unit != 0)
 		kdc_cx[unit] = kdc_cx[0];
 	kdc_cx[unit].kdc_unit = unit;
@@ -367,8 +296,6 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 	sprintf (cxdescription, "Cronyx-Sigma-%s sync/async serial adapter",
 		b->name);
 	dev_attach (&kdc_cx[unit]);
-#endif
-#ifdef __FreeBSD__
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
 #ifdef DEVFS
 	{
@@ -379,27 +306,15 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 	}
 #endif
 	return (1);
-#endif
-#ifdef __bsdi__
-	printf (": <Cronyx-%s>\n", b->name);
-	isa_establish (&sc->isadev, &sc->dev);
-	sc->intr.ih_fun = (int(*)()) cxintr;
-	sc->intr.ih_arg = (void*) b;
-	intr_establish (irq, &sc->intr, DV_NET);
-#endif
 }
 
-#ifdef __FreeBSD__
 struct isa_driver cxdriver = { cxprobe, cxattach, "cx" };
-#endif
-#ifdef __bsdi__
-struct cfdriver cxcd = { 0, "cx", cxprobe, cxattach, sizeof (struct cxsoftc) };
-#endif
 
 /*
  * Process an ioctl request.
  */
-int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
+static int
+cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
 {
 	cx_chan_t *q, *c = cxchan[ifp->if_unit];
 	int error, s, was_up, should_be_up;
@@ -417,11 +332,6 @@ int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
 		return (EBUSY);
 
 	was_up = (ifp->if_flags & IFF_RUNNING) != 0;
-#ifdef __bsdi__
-	if (c->sopt.ext)
-		error = p2p_ioctl (ifp, cmd, data);
-	else
-#endif
 	error = sppp_ioctl (ifp, cmd, data);
 	if (error)
 		return (error);
@@ -476,7 +386,8 @@ int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
 /*
  * Stop the interface.  Called on splimp().
  */
-void cxdown (cx_chan_t *c)
+static void
+cxdown (cx_chan_t *c)
 {
 	unsigned short port = c->chip->port;
 
@@ -495,18 +406,16 @@ void cxdown (cx_chan_t *c)
 /*
  * Start the interface.  Called on splimp().
  */
-void cxup (cx_chan_t *c)
+static void
+cxup (cx_chan_t *c)
 {
 	unsigned short port = c->chip->port;
 
 		/* The interface is up, start it */
-	print (("cx%d.%d: cxup\n", c->board->num, c->num));
+	        print (("cx%d.%d: cxup\n", c->board->num, c->num));
 
-#if __FreeBSD__ >= 2
-		/* Mark the board busy on the first startup.
-		 * Never goes idle. */
 		kdc_cx[c->board->num].kdc_state = DC_BUSY;
-#endif
+
 		/* Initialize channel, enable receiver and transmitter */
 		cx_cmd (port, CCR_INITCH | CCR_ENRX | CCR_ENTX);
 		/* Repeat the command, to avoid the rev.H bug */
@@ -529,7 +438,8 @@ void cxup (cx_chan_t *c)
 /*
  * Fill transmitter buffer with data.
  */
-void cxput (cx_chan_t *c, char b)
+static void 
+cxput (cx_chan_t *c, char b)
 {
 	struct mbuf *m;
 	unsigned char *buf;
@@ -556,17 +466,6 @@ void cxput (cx_chan_t *c, char b)
 	}
 
 	/* Get the packet to send. */
-#ifdef __bsdi__
-	if (c->sopt.ext) {
-		struct p2pcom *p = (struct p2pcom*) c->master;
-		int s = splimp ();
-
-		IF_DEQUEUE (&p->p2p_isnd, m)
-		if (! m)
-			IF_DEQUEUE (&c->master->if_snd, m)
-		splx (s);
-	} else
-#endif
 	m = sppp_dequeue (c->master);
 	if (! m)
 		return;
@@ -607,7 +506,8 @@ ret:
  * off of the interface queue, and copy it to the interface
  * before starting the output.
  */
-void cxsend (cx_chan_t *c)
+static void
+cxsend (cx_chan_t *c)
 {
 	unsigned short port = c->chip->port;
 
@@ -649,7 +549,8 @@ void cxsend (cx_chan_t *c)
  * Start output on the (master) interface and all slave interfaces.
  * Always called on splimp().
  */
-void cxstart (struct ifnet *ifp)
+static void
+cxstart (struct ifnet *ifp)
 {
 	cx_chan_t *q, *c = cxchan[ifp->if_unit];
 
@@ -672,7 +573,8 @@ void cxstart (struct ifnet *ifp)
  * Recover after lost transmit interrupts.
  * Always called on splimp().
  */
-void cxwatchdog (struct ifnet *ifp)
+static void
+cxwatchdog (struct ifnet *ifp)
 {
 	cx_chan_t *q, *c = cxchan[ifp->if_unit];
 
@@ -696,7 +598,8 @@ void cxwatchdog (struct ifnet *ifp)
  * Handle receive interrupts, including receive errors and
  * receive timeout interrupt.
  */
-void cxrinth (cx_chan_t *c)
+static void 
+cxrinth (cx_chan_t *c)
 {
 	unsigned short port = c->chip->port;
 	unsigned short len, risr = inw (RISR(port));
@@ -765,7 +668,8 @@ void cxrinth (cx_chan_t *c)
 /*
  * Handle transmit interrupt.
  */
-int cxtinth (cx_chan_t *c)
+static int
+cxtinth (cx_chan_t *c)
 {
 	unsigned short port = c->chip->port;
 	unsigned char tisr = inb (TISR(port));
@@ -803,15 +707,10 @@ int cxtinth (cx_chan_t *c)
 	return (teoir);
 }
 
-#ifdef __FreeBSD__
-void cxintr (int bnum)
+void
+cxintr (int bnum)
 {
 	cx_board_t *b = cxboard + bnum;
-#endif
-#ifdef __bsdi__
-void cxintr (cx_board_t *b)
-{
-#endif
 	while (! (inw (BSR(b->port)) & BSR_NOINTR)) {
 		/* Acknowledge the interrupt to enter the interrupt context. */
 		/* Read the local interrupt vector register. */
@@ -891,7 +790,8 @@ void cxintr (cx_board_t *b)
 /*
  * Process the received packet.
  */
-void cxinput (cx_chan_t *c, void *buf, unsigned len)
+static void 
+cxinput (cx_chan_t *c, void *buf, unsigned len)
 {
 	/* Make an mbuf. */
 	struct mbuf *m = makembuf (buf, len);
@@ -921,30 +821,12 @@ void cxinput (cx_chan_t *c, void *buf, unsigned len)
 	c->master->if_ibytes -= len + 3;
 	c->ifp->if_ibytes += len + 3;
 
-#ifdef __bsdi__
-	if (c->sopt.ext) {
-		struct p2pcom *p = (struct p2pcom*) c->master;
-		(*p->p2p_input) (p, m);
-	} else
-#endif
 	sppp_input (c->master, m);
 }
 
 void cxswitch (cx_chan_t *c, cx_soft_opt_t new)
 {
-#ifdef __bsdi__
-	if (new.ext && ! c->sopt.ext) {
-		/* Switch to external ppp implementation (BSDI) */
-		sppp_detach (c->ifp);
-		bzero ((void*) c->ifp + IFNETSZ, IFSTRUCTSZ-IFNETSZ);
-	} else if (! new.ext && c->sopt.ext) {
-		/* Switch to built-in ppp implementation */
-		bzero ((void*) c->ifp + IFNETSZ, IFSTRUCTSZ-IFNETSZ);
-		sppp_attach (c->ifp);
-	}
-#else
 	new.ext = 0;
-#endif
 	if (! new.ext) {
 		struct sppp *sp = (struct sppp*) c->ifp;
 
@@ -959,6 +841,3 @@ void cxswitch (cx_chan_t *c, cx_soft_opt_t new)
 	}
 	c->sopt = new;
 }
-#endif /* NCX */
-
-

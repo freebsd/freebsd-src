@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.23 1995/12/08 11:15:05 julian Exp $
+ *	$Id: si.c,v 1.24 1995/12/08 23:20:41 phk Exp $
  */
 
 #ifndef lint
@@ -102,11 +102,11 @@ static void si_disc_optim __P((struct tty *tp, struct termios *t,
 static void sihardclose __P((struct si_port *pp));
 static void sidtrwakeup __P((void *chan));
 
-int	siparam __P((struct tty *, struct termios *));
+static int	siparam __P((struct tty *, struct termios *));
 
-extern	void	si_registerdev __P((struct isa_device *id));
-extern	int	siprobe __P((struct isa_device *id));
-extern	int	siattach __P((struct isa_device *id));
+static	void	si_registerdev __P((struct isa_device *id));
+static	int	siprobe __P((struct isa_device *id));
+static	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
 
 struct isa_driver sidriver =
@@ -171,7 +171,7 @@ struct si_softc {
 	} devfs_token[32]; /* what is the max per card? */
 #endif
 };
-struct si_softc si_softc[NSI];		/* up to 4 elements */
+static struct si_softc si_softc[NSI];		/* up to 4 elements */
 
 #ifndef B2000	/* not standard, but the hardware knows it. */
 # define B2000 2000
@@ -258,7 +258,7 @@ static struct kern_devconf si_kdc[NSI] = { {
 	DC_CLS_SERIAL,		/* class */
 } };
 
-void
+static void
 si_registerdev(id)
 	struct isa_device *id;
 {
@@ -272,7 +272,7 @@ si_registerdev(id)
 }
 
 /* Look for a valid board at the given mem addr */
-int
+static int
 siprobe(id)
 	struct isa_device *id;
 {
@@ -473,7 +473,7 @@ bad_irq:
 /*
  * Attach the device.  Initialize the card.
  */
-int
+static int
 siattach(id)
 	struct isa_device *id;
 {
@@ -1412,7 +1412,7 @@ out:
  *	this may sleep, does not flush, nor wait for drain, nor block writes
  *	caller must arrange this if it's important..
  */
-int
+static int
 siparam(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
