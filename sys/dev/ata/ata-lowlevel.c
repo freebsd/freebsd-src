@@ -526,7 +526,8 @@ ata_generic_interrupt(void *data)
 	break;
     }
 
-    /* schedule completition for this request */
+    /* finished running this request schedule completition */
+    ch->running = NULL;
     ata_finish(request);
 }
 
@@ -537,6 +538,14 @@ ata_generic_reset(struct ata_channel *ch)
     u_int8_t err, lsb, msb, ostat0, ostat1;
     u_int8_t stat0 = 0, stat1 = 0;
     int mask = 0, timeout;
+
+    /* if DMA functionality present stop it  */
+    if (ch->dma) {
+        if (ch->dma->stop)
+            ch->dma->stop(ch);
+        if (ch->dma->flags & ATA_DMA_LOADED)
+            ch->dma->unload(ch);
+    }
 
     /* reset host end of channel (if supported) */
     if (ch->reset)
@@ -577,9 +586,9 @@ ata_generic_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
-    DELAY(10000); 
+    ata_udelay(10000); 
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
-    DELAY(100000);
+    ata_udelay(100000);
     ATA_IDX_INB(ch, ATA_ERROR);
 
     /* wait for BUSY to go inactive */
@@ -648,7 +657,7 @@ ata_generic_reset(struct ata_channel *ch)
 	    if (stat1 == 0xff && timeout > 5)
 		mask &= ~0x02;
 	}
-	DELAY(100000);
+	ata_udelay(100000);
     }	
 
     if (bootverbose)

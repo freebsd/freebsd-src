@@ -117,11 +117,11 @@ struct ata_pci_controller {
 #define ATA_I82801DB		0x24cb8086
 #define ATA_I82801DB_1		0x24ca8086
 #define ATA_I82801EB		0x24db8086
-#define ATA_I82801EB_1		0x24d18086
-#define ATA_I82801EB_2		0x24df8086
+#define ATA_I82801EB_S1		0x24d18086
+#define ATA_I82801EB_R1		0x24df8086
 #define ATA_I6300ESB		0x25a28086
-#define ATA_I6300ESB_1		0x25a38086
-#define ATA_I6300ESB_2		0x25b08086
+#define ATA_I6300ESB_S1		0x25a38086
+#define ATA_I6300ESB_R1		0x25b08086
 
 #define ATA_NATIONAL_ID		0x100b
 #define ATA_SC1100		0x0502100b
@@ -129,7 +129,18 @@ struct ata_pci_controller {
 #define ATA_NVIDIA_ID		0x10de
 #define ATA_NFORCE1		0x01bc10de
 #define ATA_NFORCE2		0x006510de
+#define ATA_NFORCE2_MCP		0x008510de
 #define ATA_NFORCE3		0x00d510de
+#define ATA_NFORCE3_PRO		0x00e510de
+#define ATA_NFORCE3_PRO_S1	0x00e310de
+#define ATA_NFORCE3_PRO_S2	0x00ee10de
+#define ATA_NFORCE3_MCP		0x003510de
+#define ATA_NFORCE3_MCP_S1	0x003610de
+#define ATA_NFORCE3_MCP_S2	0x003e10de
+#define ATA_NFORCE4		0x005310de
+#define ATA_NFORCE4_S1		0x005410de
+#define ATA_NFORCE4_S2		0x005510de
+
 
 #define ATA_PROMISE_ID		0x105a
 #define ATA_PDC20246		0x4d33105a
@@ -220,7 +231,7 @@ struct ata_pci_controller {
 #define ATA_SIS962		0x09621039
 #define ATA_SIS963		0x09631039
 #define ATA_SIS964		0x09641039
-#define ATA_SIS964_1		0x01801039
+#define ATA_SIS964_S		0x01801039
 
 #define ATA_VIA_ID		0x1106
 #define ATA_VIA82C571		0x05711106

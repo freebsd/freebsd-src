@@ -125,8 +125,7 @@ acd_attach(struct ata_device *atadev)
 			   sizeof(struct changer)>>8, sizeof(struct changer),
 			   0, 0, 0, 0, 0, 0 };
 
-	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT | M_ZERO);
-	if (chp == NULL) {
+	if (!(chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT | M_ZERO))) {
 	    ata_prtdev(atadev, "out of memory\n");
 	    free(cdp, M_ACD);
 	    return;
@@ -674,7 +673,10 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, struct thread *td)
 	    if (te->address_format == CD_MSF_FORMAT) {
 		struct cd_toc_entry *entry;
 
-		toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT | M_ZERO);
+		if (!(toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT))) {
+		    error = ENOMEM;
+		    break;
+		}
 		bcopy(&cdp->toc, toc, sizeof(struct toc));
 		entry = toc->tab + (toc->hdr.ending_track + 1 -
 			toc->hdr.starting_track) + 1;
@@ -720,9 +722,11 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, struct thread *td)
 	    if (te->address_format == CD_MSF_FORMAT) {
 		struct cd_toc_entry *entry;
 
-		toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT | M_ZERO);
+		if (!(toc = malloc(sizeof(struct toc), M_ACD, M_NOWAIT))) {
+		    error = ENOMEM;
+		    break;
+		}
 		bcopy(&cdp->toc, toc, sizeof(struct toc));
-
 		entry = toc->tab + (track - toc->hdr.starting_track);
 		lba2msf(ntohl(entry->addr.lba), &entry->addr.msf.minute,
 			&entry->addr.msf.second, &entry->addr.msf.frame);
@@ -1665,7 +1669,8 @@ acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     ccb[10] = (ai->agid << 6) | ai->format;
 
     if (length) {
-	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	if (!(d = malloc(length, M_ACD, M_NOWAIT | M_ZERO)))
+	    return ENOMEM;
 	d->length = htons(length - 2);
     }
 
@@ -1729,19 +1734,22 @@ acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     switch (ai->format) {
     case DVD_SEND_CHALLENGE:
 	length = 16;
-	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	if (!(d = malloc(length, M_ACD, M_NOWAIT | M_ZERO)))
+	    return ENOMEM;
 	bcopy(ai->keychal, &d->data[0], 10);
 	break;
 
     case DVD_SEND_KEY2:
 	length = 12;
-	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	if (!(d = malloc(length, M_ACD, M_NOWAIT | M_ZERO)))
+	    return ENOMEM;
 	bcopy(&ai->keychal[0], &d->data[0], 5);
 	break;
     
     case DVD_SEND_RPC:
 	length = 8;
-	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	if (!(d = malloc(length, M_ACD, M_NOWAIT | M_ZERO)))
+	    return ENOMEM;
 	d->data[0] = ai->region;
 	break;
 
@@ -1803,7 +1811,8 @@ acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
 	return EINVAL;
     }
 
-    d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+    if (!(d = malloc(length, M_ACD, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
     d->length = htons(length - 2);
 	
     bzero(ccb, sizeof(ccb));

@@ -188,13 +188,16 @@ ata_sata_setmode(struct ata_device *atadev, int mode)
      * Marvell 88SX8030 SATA->PATA converters and UDMA6/ATA133.
      */
     if (atadev->param->satacapabilities != 0x0000 &&
-	atadev->param->satacapabilities != 0xffff)
-	mode = ata_limit_mode(atadev, mode, ATA_UDMA6);
-    else
+	atadev->param->satacapabilities != 0xffff) {
+        if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
+			    ata_limit_mode(atadev, mode, ATA_UDMA6)))
+	    atadev->mode = ATA_SA150;
+    }
+    else {
 	mode = ata_limit_mode(atadev, mode, ATA_UDMA5);
-
-    if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	atadev->mode = mode;
+	if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
+	    atadev->mode = mode;
+    }
 }
 
 /*
@@ -490,7 +493,7 @@ ata_amd_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set prefetch, postwrite */
+    /* disable/set prefetch, postwrite */
     if (ctlr->chip->cfg2 & AMDBUG)
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) & 0x0f, 1);
     else
@@ -825,11 +828,11 @@ ata_intel_ident(device_t dev)
      { ATA_I82801DB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801DB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801EB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
-     { ATA_I82801EB_1, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I82801EB_2, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I82801EB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I82801EB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH5" },
      { ATA_I6300ESB,   0, 0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
-     { ATA_I6300ESB_1, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I6300ESB_2, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I6300ESB_S1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I6300ESB_R1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -923,9 +926,9 @@ ata_intel_reset(struct ata_channel *ch)
     pci_write_config(parent, 0x92, pci_read_config(parent, 0x92, 2) | mask, 2);
 
     while (timeout--) {
-	DELAY(10000);
+	ata_udelay(10000);
 	if ((pci_read_config(parent, 0x92, 2) & (mask << 4)) == (mask << 4)) {
-	    DELAY(10000);
+	    ata_udelay(10000);
 	    return;
 	}
     }
@@ -979,9 +982,9 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	pci_write_config(parent, 0x54, reg54 & ~(0x1 << devno), 2);
 
     if (mode >= ATA_UDMA5)
-	pci_write_config(parent, 0x54, reg54 | (0x10000 << devno), 2);
+	pci_write_config(parent, 0x54, reg54 | (0x1000 << devno), 2);
     else 
-	pci_write_config(parent, 0x54, reg54 & ~(0x10000 << devno), 2);
+	pci_write_config(parent, 0x54, reg54 & ~(0x1000 << devno), 2);
 
     reg40 &= ~0x00ff00ff;
     reg40 |= 0x40774077;
@@ -1102,9 +1105,13 @@ ata_nvidia_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_NFORCE1, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA5, "nVidia nForce" },
-     { ATA_NFORCE2, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce2" },
-     { ATA_NFORCE3, 0, AMDNVIDIA, NVIDIA,	 ATA_UDMA6, "nVidia nForce3" },
+    {{ ATA_NFORCE1,     0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nVidia nForce" },
+     { ATA_NFORCE2,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2" },
+     { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2 MCP" },
+     { ATA_NFORCE3,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3" },
+     { ATA_NFORCE3_PRO, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 Pro" },
+     { ATA_NFORCE3_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 MCP" },
+     { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1126,11 +1133,8 @@ ata_nvidia_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set prefetch, postwrite */
-    if (ctlr->chip->cfg2 & AMDBUG) 
-	pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) & 0x0f, 1);
-    else
-	pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) | 0xf0, 1);
+    /* disable prefetch, postwrite */
+    pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) & 0x0f, 1);
 
     ctlr->setmode = ata_via_family_setmode;
     return 0;
@@ -1511,14 +1515,19 @@ ata_promise_mio_command(struct ata_device *atadev, u_int8_t command,
 
     ATA_OUTL(ctlr->r_res2, (atadev->channel->unit + 1) << 2, 0x00000001);
 
-    if (command != ATA_READ_DMA && command != ATA_WRITE_DMA)
+    switch (command) {
+    default:
 	return ata_generic_command(atadev, command, lba, count, feature);
 
-    if (command == ATA_READ_DMA)
+    case ATA_READ_DMA:
 	wordp[0] = htole32(0x04 | ((atadev->channel->unit+1)<<16) | (0x00<<24));
-    if (command == ATA_WRITE_DMA)
+	break;
+
+    case ATA_WRITE_DMA:
 	wordp[0] = htole32(0x00 | ((atadev->channel->unit+1)<<16) | (0x00<<24));
-    wordp[1] = atadev->channel->dma->mdmatab;
+	break;
+    }
+    wordp[1] = htole32(atadev->channel->dma->mdmatab);
     wordp[2] = 0;
     ata_promise_apkt((u_int8_t*)wordp, atadev, command, lba, count, feature);
 
@@ -2162,7 +2171,7 @@ ata_sii_reset(struct ata_channel *ch)
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000001);
     DELAY(25000);
     ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000000);
-    DELAY(250000);
+    ata_udelay(1000000);
 }
 
 static void
@@ -2370,7 +2379,7 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS964_1,0x00, SISSATA,   0, ATA_SA150, "SiS 964" }, /* south */
+    {{ ATA_SIS964_S,0x00, SISSATA,   0, ATA_SA150, "SiS 964" }, /* south */
      { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 964" }, /* south */
      { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
      { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" }, /* south */

@@ -115,7 +115,6 @@ ata_probe(device_t dev)
     return 0;
 }
 
-
 int
 ata_attach(device_t dev)
 {
@@ -190,7 +189,6 @@ ata_detach(device_t dev)
     ata_fail_requests(ch, NULL);
 
     /* unlock the channel */
-    ch->running = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
@@ -237,12 +235,14 @@ ata_reinit(struct ata_channel *ch)
     if (!ch->r_irq)
 	return ENXIO;
 
-    /* reset the HW */
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
+
     ATA_FORCELOCK_CH(ch);
+    ata_catch_inflight(ch);
     ch->flags |= ATA_IMMEDIATE_MODE;
     devices = ch->devices;
+
     ch->hw.reset(ch);
 
     if (bootverbose)
@@ -267,7 +267,6 @@ ata_reinit(struct ata_channel *ch)
     }
 
     /* unlock the channel */
-    ch->running = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
@@ -483,8 +482,10 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	break;
 
     case ATAREINIT:
-	if (!device || !(ch = device_get_softc(device)))
-	    return ENXIO;
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
 	error = ata_reinit(ch);
 	ata_start(ch);
 	break;
@@ -733,6 +734,15 @@ ata_boot_attach(void)
 /*
  * misc support functions
  */
+void
+ata_udelay(int interval)
+{
+    if (interval < (1000000/hz) || ata_delayed_attach)
+	DELAY(interval);
+    else
+	tsleep(&interval, PRIBIO, "ataslp", interval/(1000000/hz));
+}
+
 static void
 bswap(int8_t *buf, int len)
 {

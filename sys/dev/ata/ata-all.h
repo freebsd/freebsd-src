@@ -390,6 +390,7 @@ int ata_attach(device_t dev);
 int ata_detach(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
+void ata_udelay(int interval);
 int ata_printf(struct ata_channel *ch, int device, const char *fmt, ...) __printflike(3, 4);
 int ata_prtdev(struct ata_device *atadev, const char *fmt, ...) __printflike(2, 3);
 void ata_set_name(struct ata_device *atadev, char *name, int lun);
@@ -410,6 +411,7 @@ int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t featur
 int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
 void ata_finish(struct ata_request *request);
+void ata_catch_inflight(struct ata_channel *ch);
 void ata_fail_requests(struct ata_channel *ch, struct ata_device *device);
 char *ata_cmd2str(struct ata_request *request);
 
