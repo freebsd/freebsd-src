@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 1.3 1995/05/30 05:40:54 rgrimes Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.4 1995/08/20 20:02:48 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -67,8 +67,7 @@ static char rcsid[] = "$Id: res_debug.c,v 1.3 1995/05/30 05:40:54 rgrimes Exp $"
 #include <string.h>
 #include <netdb.h>
 
-#include <res_config.h>
-
+#include "res_config.h"
 
 const char *_res_opcodes[] = {
 	"QUERY",
