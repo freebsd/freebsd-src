@@ -1,12 +1,12 @@
                                  RELEASE NOTES
                           FreeBSD Release 2.2-BETA
 
-This is an BETA release of FreeBSD 2.2-RELEASE and is aimed primarily
-at release testers.  Some parts of the documentation may not be updated
-yet and should be reported if and when seen.  Naturally, any installation
+This is an BETA release of FreeBSD 2.2, and is aimed primarily at release
+testers.  Some parts of the documentation may not be updated yet and
+should be reported if and when seen.  Naturally, any installation
 failures or crashes should also be reported ASAP by sending mail to
-bugs@freebsd.org or using the send-pr command (those preferring a WEB based
-interface can also see http://www.freebsd.org/send-pr.html).
+bugs@freebsd.org or using the send-pr(1) command or, for those preferring
+a WEB based interface, the CGI script at http://www.freebsd.org/send-pr.html
 
 For information about the layout of the 2.2-BETA release directory,
 see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
@@ -14,7 +14,7 @@ For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
 files.
 
 
-0. What's new since 2.1.X-RELEASE
+0. What's new since 2.1.6-RELEASE
 ------------------------------------
 
 Support for the SDL RISCom N2pci sync serial card.
@@ -26,13 +26,7 @@ remove the old ones).
 
 Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
 
-Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
-
 The 3COM 3c590 / 3c595 drivers have improved considerably.
-
-You need only change your kernel settings *once* now, on initial startup
-from the floppy.  They will be preserved on the subsequently installed
-kernel.
 
 Update to gcc 2.7.2.1 & add support for weak symbols.
 
@@ -48,6 +42,10 @@ Protection against the widely reported SYN attack.
 Support for SNMP-style interface MIBs, including full RFC
 1650-compliant MIBs for the `de' (DEC 21x4x) and `ed' (SMC/WD/Novell)
 drivers.
+
+Now use Robert Nordier's stand-alone DOS I/O library during installation,
+avoiding the somewhat buggy DOSFS code.  This should allow most, if not all,
+types of DOS installations to work now.
 
 
 2. Technical overview
@@ -540,4 +538,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.27 1996/11/29 04:55:47 jkh Exp $
+$Id: relnotes.hlp,v 1.17.2.5 1996/12/15 18:29:52 jkh Exp $
