@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.2 1995/04/29 01:55:18 phk Exp $
+ * $Id: change.c,v 1.3 1995/04/29 04:00:53 phk Exp $
  *
  */
 
@@ -55,5 +55,5 @@ All_FreeBSD(struct disk *d)
 			goto again;
 		}
 	c=d->chunks;
-	Create_Chunk(d,c->offset,c->size,freebsd,0,0);
+	Create_Chunk(d,c->offset,c->size,freebsd,0xa5,0);
 }
