@@ -15,7 +15,7 @@ SUBDIR+=	libc libcompat libcom_err libcrypt libcurses libedit \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
 	libscsi libskey libss libtelnet libtermcap libutil liby
 
-.if !defined(WANT_MSUN)
+.if defined(WANT_CSRG_LIBM)
 SUBDIR+= libm
 .else
 SUBDIR+= msun
