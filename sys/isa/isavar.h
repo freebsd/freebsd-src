@@ -123,7 +123,8 @@ enum isa_device_ivars {
 	ISA_IVAR_VENDORID,
 	ISA_IVAR_SERIAL,
 	ISA_IVAR_LOGICALID,
-	ISA_IVAR_COMPATID
+	ISA_IVAR_COMPATID,
+	ISA_IVAR_CONFIGATTR
 };
 
 /*
@@ -154,6 +155,7 @@ ISA_ACCESSOR(vendorid, VENDORID, int)
 ISA_ACCESSOR(serial, SERIAL, int)
 ISA_ACCESSOR(logicalid, LOGICALID, int)
 ISA_ACCESSOR(compatid, COMPATID, int)
+ISA_ACCESSOR(configattr, CONFIGATTR, int)
 
 extern intrmask_t isa_irq_pending(void);
 extern void	isa_probe_children(device_t dev);
