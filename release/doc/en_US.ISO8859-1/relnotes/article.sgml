@@ -462,6 +462,11 @@
       &man.sysinstall.8; disk partition editor to correctly create a
       single &os; partition covering the entire disk. &merged;</para>
 
+    <para><filename>libdisk</filename> now uses
+      <varname>d_addr_t</varname> for disk addresses.
+      This allows &man.sysinstall.8; to properly handle disks
+      and filesystems more than 1 TB.</para>
+
     <para arch="i386,pc98,amd64,ia64">The library formerly known as
       <filename>libkse</filename> has been renamed
       <filename>libpthread</filename> and is now the default threading
