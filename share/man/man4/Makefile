@@ -19,6 +19,8 @@ MAN=	aac.4 \
 	atapicam.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	ath.4 \
+	ath_hal.4 \
 	aue.4 \
 	awi.4 \
 	axe.4 \
