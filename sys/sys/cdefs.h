@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.7 (Berkeley) 1/21/94
- * $Id: cdefs.h,v 1.4 1994/08/13 14:21:58 davidg Exp $
+ * $Id: cdefs.h,v 1.5 1994/08/21 04:41:34 paul Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -123,7 +123,7 @@
 #define __dead
 #define __dead2		__attribute__((noreturn))
 #define __pure
-#define __pure2		__attribute__((noreturn))
+#define __pure2		__attribute__((const))
 #endif
 
-#endif /* !_CDEFS_H_ */
+#endif /* !_SYS_CDEFS_H_ */
