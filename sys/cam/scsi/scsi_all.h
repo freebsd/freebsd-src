@@ -505,6 +505,7 @@ struct scsi_start_stop_unit
 #define	LOG_SENSE		0x4d
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
+#define	REPORT_LUNS		0xA0
 #define MOVE_MEDIUM     	0xa5
 #define READ_12			0xa8
 #define WRITE_12		0xaa
@@ -675,6 +676,29 @@ struct scsi_read_capacity_data
 	u_int8_t length[4];
 };
 
+struct scsi_report_luns
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+	u_int8_t unused[3];
+	u_int8_t addr[4];
+	u_int8_t control;
+};
+
+struct scsi_report_luns_data {
+	u_int8_t length[4];	/* length of LUN inventory, in bytes */
+	u_int8_t reserved[4];	/* unused */
+	/*
+	 * LUN inventory- we only support the type zero form for now.
+	 */
+	struct {
+		u_int8_t lundata[8];
+	} luns[1];
+};
+#define	RPL_LUNDATA_ATYP_MASK	0xc0	/* MBZ for type 0 lun */
+#define	RPL_LUNDATA_T0LUN	1	/* @ lundata[1] */
+
+
 struct scsi_sense_data
 {
 	u_int8_t error_code;
@@ -753,6 +777,8 @@ struct scsi_mode_blk_desc
 
 #define	SCSI_DEFAULT_DENSITY	0x00	/* use 'default' density */
 #define	SCSI_SAME_DENSITY	0x7f	/* use 'same' density- >= SCSI-2 only */
+
+
 /*
  * Status Byte
  */
@@ -943,16 +969,23 @@ void		scsi_log_select(struct ccb_scsiio *csio, u_int32_t retries,
 				u_int32_t param_len, u_int8_t sense_len,
 				u_int32_t timeout);
 
-void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
-				   void (*cbfcnp)(struct cam_periph *, 
-				   union ccb *), u_int8_t tag_action, 
-				   struct scsi_read_capacity_data *rcap_buf,
-				   u_int8_t sense_len, u_int32_t timeout);
-
 void		scsi_prevent(struct ccb_scsiio *csio, u_int32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
 			     u_int8_t tag_action, u_int8_t action,
 			     u_int8_t sense_len, u_int32_t timeout);
+
+void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
+				   void (*cbfcnp)(struct cam_periph *, 
+				   union ccb *), u_int8_t tag_action, 
+				   struct scsi_read_capacity_data *,
+				   u_int8_t sense_len, u_int32_t timeout);
+
+void		scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
+				   void (*cbfcnp)(struct cam_periph *, 
+				   union ccb *), u_int8_t tag_action, 
+				   struct scsi_report_luns_data *,
+				   u_int32_t alloc_len, u_int8_t sense_len,
+				   u_int32_t timeout);
 
 void		scsi_synchronize_cache(struct ccb_scsiio *csio, 
 				       u_int32_t retries,
