@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.8 1995/12/02 18:58:47 bde Exp $
+ * $Id: kern_ktrace.c,v 1.9 1995/12/14 08:31:23 phk Exp $
  */
 
-#ifdef KTRACE
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,6 +47,7 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
+#ifdef KTRACE
 static struct ktr_header *ktrgetheader __P((int type));
 static void ktrwrite __P((struct vnode *, struct ktr_header *));
 static int ktrcanset __P((struct proc *,struct proc *));
@@ -225,6 +226,7 @@ ktrcsw(vp, out, user)
 	FREE(kth, M_TEMP);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
+#endif
 
 /* Interface and common routines */
 
@@ -246,6 +248,7 @@ ktrace(curp, uap, retval)
 	register struct ktrace_args *uap;
 	int *retval;
 {
+#ifdef KTRACE
 	register struct vnode *vp = NULL;
 	register struct proc *p;
 	struct pgrp *pg;
@@ -338,8 +341,12 @@ done:
 		(void) vn_close(vp, FWRITE, curp->p_ucred, curp);
 	curp->p_traceflag &= ~KTRFAC_ACTIVE;
 	return (error);
+#else
+	return ENOSYS;
+#endif
 }
 
+#ifdef KTRACE
 static int
 ktrops(curp, p, ops, facs, vp)
 	struct proc *p, *curp;
@@ -486,4 +493,4 @@ ktrcanset(callp, targetp)
 	return (0);
 }
 
-#endif
+#endif /* KTRACE */

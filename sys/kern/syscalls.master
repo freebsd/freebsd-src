@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.19 1995/11/12 04:24:53 bde Exp $
+	$Id: syscalls.master,v 1.20 1995/12/15 04:36:01 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -92,12 +92,8 @@
 43	STD	POSIX	{ gid_t getegid(void); }
 44	STD	BSD	{ int profil(caddr_t samples, u_int size, \
 			    u_int offset, u_int scale); }
-#ifdef KTRACE
 45	STD	BSD	{ int ktrace(char *fname, int ops, int facs, \
 			    int pid); }
-#else
-45	UNIMPL	BSD	ktrace
-#endif
 46	STD	POSIX	{ int sigaction(int signum, struct sigaction *nsa, \
 			    struct sigaction *osa); }
 47	STD	POSIX	{ gid_t getgid(void); }

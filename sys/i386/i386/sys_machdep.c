@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.12 1995/12/07 12:45:38 davidg Exp $
+ *	$Id: sys_machdep.c,v 1.13 1995/12/10 13:36:31 phk Exp $
  *
  */
 
+#include "opt_user_ldt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>

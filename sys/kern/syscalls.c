@@ -51,11 +51,7 @@ char *syscallnames[] = {
 	"pipe",			/* 42 = pipe */
 	"getegid",			/* 43 = getegid */
 	"profil",			/* 44 = profil */
-#ifdef KTRACE
 	"ktrace",			/* 45 = ktrace */
-#else
-	"#45",			/* 45 = ktrace */
-#endif
 	"sigaction",			/* 46 = sigaction */
 	"getgid",			/* 47 = getgid */
 	"sigprocmask",			/* 48 = sigprocmask */
