@@ -52,10 +52,10 @@ default() {
 	for i in $*
 	do
 		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait $drainwait
-		stty < /dev/ttyi${ci}${i} -clocal crtscts hupcl 9600 reprint ^R
-		stty < /dev/ttyl${ci}${i} -clocal -crtscts -hupcl 0
-		stty < /dev/cuai${co}${i} -clocal crtscts hupcl 9600 reprint ^R
-		stty < /dev/cual${co}${i} -clocal -crtscts -hupcl 0
+		stty < /dev/tty${ci}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/tty${ci}${i}.lock -clocal -crtscts -hupcl 0
+		stty < /dev/cua${co}${i}.init -clocal crtscts hupcl 9600 reprint ^R
+		stty < /dev/cua${co}${i}.lock -clocal -crtscts -hupcl 0
 	done
 }
 
@@ -68,14 +68,14 @@ maybe() {
 	for i in $*
 	do
 		# Don't use ^R; it breaks bash's ^R when typed ahead.
-		stty < /dev/ttyi${ci}${i} reprint undef
-		stty < /dev/cuai${co}${i} reprint undef
+		stty < /dev/tty${ci}${i}.init reprint undef
+		stty < /dev/cua${co}${i}.init reprint undef
 		# Lock clocal off on dialin device for security.
-		stty < /dev/ttyl${ci}${i} clocal
+		stty < /dev/tty${ci}${i}.lock clocal
 		# Lock the speeds to use old binaries that don't support them.
 		# Any legal speed works to lock the initial speed.
-		stty < /dev/ttyl${ci}${i} 300
-		stty < /dev/cual${co}${i} 300
+		stty < /dev/tty${ci}${i}.lock 300
+		stty < /dev/cua${co}${i}.lock 300
 	done
 }
 
@@ -91,10 +91,10 @@ modem() {
 		comcontrol /dev/tty${ci}${i} dtrwait 100 drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
-		stty < /dev/ttyi${ci}${i} crtscts 115200
-		stty < /dev/ttyl${ci}${i} crtscts
-		stty < /dev/cuai${co}${i} crtscts 115200
-		stty < /dev/cual${co}${i} crtscts
+		stty < /dev/tty${ci}${i}.init crtscts 115200
+		stty < /dev/tty${ci}${i}.lock crtscts
+		stty < /dev/cua${co}${i}.init crtscts 115200
+		stty < /dev/cua${co}${i}.lock crtscts
 	done
 }
 
@@ -108,10 +108,10 @@ mouse() {
 	do
 		# Lock clocal on, hupcl off.
 		# Standard speed for Microsoft mouse.
-		stty < /dev/ttyi${ci}${i} clocal -hupcl 1200
-		stty < /dev/ttyl${ci}${i} clocal  hupcl
-		stty < /dev/cuai${co}${i} clocal -hupcl 1200
-		stty < /dev/cual${co}${i} clocal  hupcl
+		stty < /dev/tty${ci}${i}.init clocal -hupcl 1200
+		stty < /dev/tty${ci}${i}.lock clocal  hupcl
+		stty < /dev/cua${co}${i}.init clocal -hupcl 1200
+		stty < /dev/cua${co}${i}.lock clocal  hupcl
 	done
 }
 
@@ -130,8 +130,8 @@ terminal() {
 	for i in $*
 	do
 		comcontrol /dev/tty${ci}${i} dtrwait 0
-		stty < /dev/ttyi${ci}${i} 115200
-		stty < /dev/cuai${co}${i} 115200
+		stty < /dev/tty${ci}${i}.init 115200
+		stty < /dev/cua${co}${i}.init 115200
 	done
 }
 
@@ -143,10 +143,10 @@ terminal() {
 # and the remainder of the line lists the device numbers.
 
 # Initialize assorted 8250-16550 (sio) ports.
-# maybe    d a  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
-# mouse    d a      2
-# modem    d a    1
-# terminal d a  0
+# maybe    d d  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+# mouse    d d      2
+# modem    d d    1
+# terminal d d  0
 
 # Initialize all ports on a Cyclades-8yo.
 # modem    c c  00 01 02 03 04 05 06 07
