@@ -51,7 +51,7 @@ The FreeBSD Core Team [Board of Directors, The FreeBSD Project]
 	Paul Richards <paul@isl.cf.ac.uk>
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@lamprey.utmb.edu>
-	Rodney W. Grimes <rgrimes@cdrom.com>
+	Rodney W. Grimes <rgrimes@FreeBSD.org>
 	Søren Schmidt <sos@FreeBSD.org>
 
 
@@ -234,4 +234,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.12 1995/02/14 19:39:50 phk Exp $
+$Id: CONTRIB.FreeBSD,v 1.13 1995/02/14 20:20:46 se Exp $
