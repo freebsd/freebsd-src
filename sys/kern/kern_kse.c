@@ -424,14 +424,8 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	struct kse *ke;
 
 	p = td->td_proc;
-	/*
-	 * Only UTS can call the syscall and current group
-	 * should be a threaded group.
-	 */ 
-	if ((td->td_mailbox != NULL) || (td->td_ksegrp->kg_numupcalls == 0))
+	if (td->td_upcall == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
-	KASSERT((td->td_upcall != NULL), ("%s: not own an upcall", __func__));
-
 	kg = td->td_ksegrp;
 	/* Serialize removing upcall */
 	PROC_LOCK(p);
@@ -480,13 +474,8 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
-	/*
-	 * Only UTS can call the syscall and current group
-	 * should be a threaded group.
-	 */ 
-	if ((td->td_mailbox != NULL) || (td->td_ksegrp->kg_numupcalls == 0))
+	if (td->td_upcall == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
-	KASSERT((td->td_upcall != NULL), ("%s: not own an upcall", __func__));
 	if (uap->timeout != NULL) {
 		if ((error = copyin(uap->timeout, &timeout, sizeof(timeout))))
 			return (error);
@@ -1539,8 +1528,10 @@ thread_user_enter(struct proc *p, struct thread *td)
 {
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
+	struct kse_thr_mailbox *tmbx;
 
 	kg = td->td_ksegrp;
+
 	/*
 	 * First check that we shouldn't just abort.
 	 * But check if we are the single thread first!
@@ -1565,20 +1556,20 @@ thread_user_enter(struct proc *p, struct thread *td)
 		ku = td->td_upcall;
 		KASSERT(ku, ("%s: no upcall owned", __func__));
 		KASSERT((ku->ku_owner == td), ("%s: wrong owner", __func__));
-		td->td_mailbox =
-		    (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
-		if ((td->td_mailbox == NULL) ||
-		    (td->td_mailbox == (void *)-1)) {
-		    	/* Don't schedule upcall when blocked */
+		KASSERT(!TD_CAN_UNBIND(td), ("%s: can unbind", __func__));
+		ku->ku_mflags = fuword((void *)&ku->ku_mailbox->km_flags);
+		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
+		if ((tmbx == NULL) || (tmbx == (void *)-1)) {
 			td->td_mailbox = NULL;
-			mtx_lock_spin(&sched_lock);
-			td->td_flags &= ~TDF_CAN_UNBIND;
-			mtx_unlock_spin(&sched_lock);
 		} else {
+			td->td_mailbox = tmbx;
 			if (td->td_standin == NULL)
 				thread_alloc_spare(td, NULL);
 			mtx_lock_spin(&sched_lock);
-			td->td_flags |= TDF_CAN_UNBIND;
+			if (ku->ku_mflags & KMF_NOUPCALL)
+				td->td_flags &= ~TDF_CAN_UNBIND;
+			else
+				td->td_flags |= TDF_CAN_UNBIND;
 			mtx_unlock_spin(&sched_lock);
 		}
 	}
@@ -1599,7 +1590,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 int
 thread_userret(struct thread *td, struct trapframe *frame)
 {
-	int error = 0, upcalls;
+	int error = 0, upcalls, uts_crit;
 	struct kse_upcall *ku;
 	struct ksegrp *kg, *kg2;
 	struct proc *p;
@@ -1608,7 +1599,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 
-	
 	/* Nothing to do with non-threaded group/process */
 	if (td->td_ksegrp->kg_numupcalls == 0)
 		return (0);
@@ -1628,6 +1618,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			thread_user_enter(p, td);
 	}
 
+	uts_crit = (td->td_mailbox == NULL);
+	ku = td->td_upcall;
 	/* 
 	 * Optimisation:
 	 * This thread has not started any upcall.
@@ -1637,7 +1629,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	if (TD_CAN_UNBIND(td)) {
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_CAN_UNBIND;
-		ku = td->td_upcall;
 		if ((td->td_flags & TDF_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
@@ -1649,6 +1640,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				(caddr_t)&ku->ku_mailbox->km_timeofday,
 				sizeof(ts));
 			td->td_mailbox = 0;
+			ku->ku_mflags = 0;
 			if (error)
 				goto out;
 			return (0);
@@ -1661,7 +1653,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			 * back to synchonous operation, so just return from
 			 * the syscall.
 			 */
-			return (0);
+			goto out;
 		}
 		/*
 		 * There is something to report, and we own an upcall
@@ -1671,7 +1663,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_lock_spin(&sched_lock);
 		td->td_flags |= TDF_UPCALLING;
 		mtx_unlock_spin(&sched_lock);
-	} else if (td->td_mailbox) {
+	} else if (td->td_mailbox && (ku == NULL)) {
 		error = thread_export_context(td);
 		/* possibly upcall with error? */
 		PROC_LOCK(p);
@@ -1716,8 +1708,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	}
 
 	if (td->td_flags & TDF_UPCALLING) {
+		uts_crit = 0;
 		kg->kg_nextupcall = ticks+kg->kg_upquantum;
-		ku = td->td_upcall;
 		/* 
 		 * There is no more work to do and we are going to ride
 		 * this thread up to userland as an upcall.
@@ -1726,17 +1718,21 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 
-		/*
-		 * Set user context to the UTS.
-		 * Will use Giant in cpu_thread_clean() because it uses
-		 * kmem_free(kernel_map, ...)
-		 */
-		cpu_set_upcall_kse(td, ku);
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_UPCALLING;
 		if (ku->ku_flags & KUF_DOUPCALL)
 			ku->ku_flags &= ~KUF_DOUPCALL;
 		mtx_unlock_spin(&sched_lock);
+
+		/*
+		 * Set user context to the UTS
+		 */
+		if (!(ku->ku_mflags & KMF_NOUPCALL)) {
+			cpu_set_upcall_kse(td, ku);
+			error = suword(&ku->ku_mailbox->km_curthread, 0);
+			if (error)
+				goto out;
+		}
 
 		/*
 		 * Unhook the list of completed threads.
@@ -1745,25 +1741,13 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * Put the list of completed thread mailboxes on
 		 * this KSE's mailbox.
 		 */
-		error = thread_link_mboxes(kg, ku);
-		if (error) 
+		if (!(ku->ku_mflags & KMF_NOCOMPLETED) &&
+		    (error = thread_link_mboxes(kg, ku)) != 0)
 			goto out;
-
-		/*
-		 * Set state and clear the  thread mailbox pointer.
-		 * From now on we are just a bound outgoing process.
-		 * **Problem** userret is often called several times.
-		 * it would be nice if this all happenned only on the first
-		 * time through. (the scan for extra work etc.)
-		 */
-		error = suword((caddr_t)&ku->ku_mailbox->km_curthread, 0);
-		if (error) 
-			goto out;
-
-		/* Export current system time */
+	}
+	if (!uts_crit) {
 		nanotime(&ts);
-		error = copyout(&ts, (caddr_t)&ku->ku_mailbox->km_timeofday,
-			sizeof(ts));
+		error = copyout(&ts, &ku->ku_mailbox->km_timeofday, sizeof(ts));
 	}
 
 out:
@@ -1786,6 +1770,7 @@ out:
 			thread_alloc_spare(td, NULL);
 	}
 
+	ku->ku_mflags = 0;
 	/*
 	 * Clear thread mailbox first, then clear system tick count.
 	 * The order is important because thread_statclock() use 

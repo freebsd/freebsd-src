@@ -85,6 +85,10 @@ struct kse_mailbox {
 #define	KSE_VER_0	0
 #define	KSE_VERSION	KSE_VER_0
 
+/* These flags are kept in km_flags */
+#define	KMF_NOUPCALL		0x01
+#define	KMF_NOCOMPLETED		0x02
+
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
 int	kse_exit(void);
