@@ -87,26 +87,30 @@ Select a
 option which affects on name representation.
 .Ar Case 
 can be one of the following:
-.Bd -literal -offset indent
-Value   Meaning
-l	All existing file names converted to lower case. 
-	Newly created file gets a lower case under OS2 name
-	space. This is default when mounting volumes with DOS
-	name space.
-L	Same as 'l' but file system tries to be case
-	insensitive. May not work well.
-n	No case conversion is performed. 
-	Warning! Warning!: use this option with DOS name
-	space only as a last resort, because creating a lower
-	case name in the DOS name space can lead to an
-	unpredictable results. This is default when mounting
-	volume with OS2 name space.
-u	All existing file names converted to upper case.
-	Newly created file gets an upper case under OS2 name
-	space.
-U	Same as 'u' but file system tries to be case
-	insensitive. May not work well.
-.Ed
+.Bl -tag -width "ValueXX"
+.It Em Value
+.Em Meaning
+.It l
+All existing file names converted to lower case. 
+Newly created file gets a lower case under OS2 name space.
+This is the default when mounting volumes with DOS name space.
+.It L
+Same as 'l' but file system tries to be case insensitive.
+May not work well.
+.It n
+No case conversion is performed. 
+.Em Warning!
+Use this option with DOS name space only as a last resort,
+because creating a lower case name in the DOS name space
+can lead to unpredictable results.
+This is the default when mounting volumes with OS2 name space.
+.It u
+All existing file names converted to upper case.
+Newly created file gets an upper case under OS2 name space.
+.It U
+Same as 'u' but file system tries to be case insensitive.
+May not work well.
+.El
 .It Fl f Ar mode , Fl d Ar mode
 Specify permissions that should be assigned to files and directories.
 The values must be specified as octal numbers.
