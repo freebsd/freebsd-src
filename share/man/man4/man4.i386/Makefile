@@ -1,6 +1,6 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/25/93
 
-MAN4=   aha.4 ahb.4 ahc.4 apm.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
+MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 fdc.4 fe.4 ie.4 \
 	is.4 joy.4 keyboard.4 labpc.4 lpt.4 matcd.4 mcd.4 mem.4 meteor.4 \
 	mse.4 nca.4 npx.4 pcvt.4 scd.4 screen.4 sea.4 si.4 sio.4 spkr.4 \
@@ -10,6 +10,7 @@ MLINKS=		aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	ahc.4 ../ahc.4
 MLINKS+=	apm.4 ../apm.4
+MLINKS+=	ar.4 ../ar.4
 MLINKS+=	asc.4 ../asc.4
 MLINKS+=	bt.4 ../bt.4
 MLINKS+=	cx.4 ../cx.4
