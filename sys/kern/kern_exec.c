@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.98 1999/04/19 14:14:09 peter Exp $
+ *	$Id: kern_exec.c,v 1.99 1999/04/27 11:15:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -228,6 +228,9 @@ interpret:
 		fdfree(p);
 		p->p_fd = tmp;
 	}
+
+	/* Stop profiling */
+	stopprofclock(p);
 
 	/* close files on exec */
 	fdcloseexec(p);
