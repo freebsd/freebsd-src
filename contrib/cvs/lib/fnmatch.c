@@ -18,14 +18,7 @@ Library General Public License for more details.  */
 #include "config.h"
 #endif
 
-/* Some file systems are case-insensitive.  If FOLD_FN_CHAR is
-   #defined, it maps the character C onto its "canonical" form.  In a
-   case-insensitive system, it would map all alphanumeric characters
-   to lower case.  Under Windows NT, / and \ are both path component
-   separators, so FOLD_FN_CHAR would map them both to /.  */
-#ifndef FOLD_FN_CHAR
-#define FOLD_FN_CHAR(c) (c)
-#endif
+#include "system.h"
 
 /* IGNORE(@ */
 /* #include <ansidecl.h> */
@@ -75,7 +68,7 @@ fnmatch (pattern, string, flags)
 	case '\\':
 	  if (!(flags & FNM_NOESCAPE))
 	    c = *p++;
-	  if (*n != c)
+	  if (FOLD_FN_CHAR (*n) != FOLD_FN_CHAR (c))
 	    return FNM_NOMATCH;
 	  break;
 	  
@@ -95,7 +88,7 @@ fnmatch (pattern, string, flags)
 	  {
 	    char c1 = (!(flags & FNM_NOESCAPE) && c == '\\') ? *p : c;
 	    for (--p; *n != '\0'; ++n)
-	      if ((c == '[' || *n == c1) &&
+	      if ((c == '[' || FOLD_FN_CHAR (*n) == FOLD_FN_CHAR (c1)) &&
 		  fnmatch(p, n, flags & ~FNM_PERIOD) == 0)
 		return 0;
 	    return FNM_NOMATCH;

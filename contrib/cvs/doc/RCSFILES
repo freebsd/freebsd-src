@@ -136,6 +136,36 @@ Both RCS 5.7 and current versions of CVS handle the $Log keyword in a
 different way if the log message starts with "checked in with -k by ".
 I don't think this behavior is documented anywhere.
 
+Here is a clarification regarding characters versus bytes in certain
+character sets like JIS and Big5:
+
+    The RCS file format, as described in the rcsfile(5) man page, is
+    actually byte-oriented, not character-oriented, despite hints to
+    the contrary in the man page.  This distinction is important for
+    multibyte characters.  For example, if a multibyte character
+    contains a `@' byte, the `@' must be doubled within strings in RCS
+    files, since RCS uses `@' bytes as escapes.
+
+    This point is not an issue for encodings like ISO 8859, which do
+    not have multibyte characters.  Nor is it an issue for encodings
+    like UTF-8 and EUC-JIS, which never uses ASCII bytes within a
+    multibyte character.  It is an issue only for multibyte encodings
+    like JIS and BIG5, which _do_ usurp ASCII bytes.
+
+    If `@' doubling occurs within a multibyte char, the resulting RCS
+    file is not a properly encoded text file.  Instead, it is a byte
+    stream that does not use a consistent character encoding that can
+    be understood by the usual text tools, since doubling `@' messes
+    up the encoding.  This point affects only programs that examine
+    the RCS files -- it doesn't affect the external RCS interface, as
+    the RCS commands always give you the properly encoded text files
+    and logs (assuming that you always check in properly encoded
+    text).
+
+    CVS 1.10 (and earlier) probably has some bugs in this area on
+    systems where a C "char" is signed and where the data contains
+    bytes with the eighth bit set.
+
 One common concern about the RCS file format is the fact that to get
 the head of a branch, one must apply deltas from the head of the trunk
 to the branchpoint, and then from the branchpoint to the head of the

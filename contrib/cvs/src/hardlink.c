@@ -66,7 +66,7 @@ lookup_file_by_inode (filepath)
     inodestr = (char *) xmalloc (2*sizeof(ino_t)*sizeof(char) + 1);
     if (stat (file, &sb) < 0)
     {
-	if (errno == ENOENT)
+	if (existence_error (errno))
 	{
 	    /* The file doesn't exist; we may be doing an update on a
 	       file that's been removed.  A nonexistent file has no

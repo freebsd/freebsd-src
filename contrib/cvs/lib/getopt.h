@@ -91,14 +91,14 @@ struct option
 #define optional_argument	2
 
 #if __STDC__
-#if defined(__GNU_LIBRARY__)
 /* Many other libraries have conflicting prototypes for getopt, with
-   differences in the consts, in stdlib.h.  To avoid compilation
-   errors, only prototype getopt for the GNU C library.  */
-extern int getopt (int argc, char *const *argv, const char *shortopts);
-#else /* not __GNU_LIBRARY__ */
+   differences in the consts, in stdlib.h.  We used to try to prototype
+   it if __GNU_LIBRARY__ but that wasn't problem free either (I'm not sure
+   exactly why), and there is no particular need to prototype it.
+   We really shouldn't be trampling on the system's namespace at all by
+   declaring getopt() but that is a bigger issue.  */
 extern int getopt ();
-#endif /* not __GNU_LIBRARY__ */
+
 extern int getopt_long (int argc, char *const *argv, const char *shortopts,
 		        const struct option *longopts, int *longind);
 extern int getopt_long_only (int argc, char *const *argv,

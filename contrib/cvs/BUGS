@@ -95,8 +95,6 @@ file's description.
   rtag does not recognize the -D option. It is documented to do so and I've
   tested the use of -D with cvs update and cvs diff and it works fine there.
 
-* Defining RELATIVE_REPOS is said to not work with client/server CVS.
-
 * From: "Charles M. Hannum" <mycroft@ai.mit.edu>
   To: info-cvs@prep.ai.mit.edu
   Subject: Still one more bug
