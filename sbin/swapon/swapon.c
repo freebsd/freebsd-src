@@ -97,8 +97,6 @@ main(int argc, char **argv)
 int
 add(char *name, int ignoreebusy)
 {
-	extern int errno;
-
 	if (swapon(name) == -1) {
 		switch (errno) {
 		case EBUSY:

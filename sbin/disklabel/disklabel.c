@@ -50,7 +50,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -65,6 +64,7 @@ static const char rcsid[] =
 #include <stdarg.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include "pathnames.h"
 
 /*
@@ -866,8 +866,6 @@ editit()
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
-		extern int errno;
-
 		if (errno == EPROCLIM) {
 			warnx("you have too many processes");
 			return(0);
