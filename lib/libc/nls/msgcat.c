@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.13 1998/04/30 10:14:55 ache Exp $ */
+/*	$Id: msgcat.c,v 1.14 1998/04/30 11:06:12 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -149,7 +149,7 @@ int type;
 	if (!catpath) return(NLERR);
     }
 
-    return(loadCat(catpath, type));
+    return(loadCat(catpath));
 }
 
 /*
@@ -296,9 +296,8 @@ nl_catd catd;
 #define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); return(NLERR);}
 #define NOSPACE() {fprintf(stderr, "%s: no more memory.\n", ERRNAME); free(cat); return(NLERR);}
 
-static nl_catd loadCat( catpath, type)
+static nl_catd loadCat(catpath)
 __const char *catpath;
-int type;
 {
     MCHeaderT	header;
     MCCatT	*cat;
@@ -308,7 +307,7 @@ int type;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
     if (!cat) return(NLERR);
-    cat->loadType = type;
+    cat->loadType = MCLoadBySet;
 
     if ((cat->fd = open(catpath, O_RDONLY)) < 0) {
 	free(cat);
