@@ -184,6 +184,7 @@ hea_attach (device_t dev)
 	eup->eu_output = eni_output;
 
 	eup->eu_pcitag = dev;
+	eup->eu_softc = (void *)sc;
 
 	/*
 	 * Map memory structures into adapter space
