@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.7 1998/03/26 22:28:42 se Exp $
+**  $Id: pcisupport.c,v 1.40.2.8 1998/06/17 15:29:09 kato Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -172,6 +172,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82450KX (Orion) PCI memory controller");
 	case 0x84c58086:
 		return ("Intel 82454GX (Orion) host to PCI bridge");
+	case 0x84ca8086:
+		return ("Intel 82451NX Memory and I/O Controller");
+	case 0x84cb8086:
+		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x00051166:
 		return ("Ross (?) host to PCI bridge");
 	case 0x00221014:
@@ -726,6 +730,56 @@ config_Ross(pcici_t tag)
 }
 
 static void
+config_450nx(pcici_t tag)
+{
+	unsigned long devmap;
+	int i;
+
+	/* Read the MIOC devmap to determine which PCI expanders are present */
+	devmap = (pci_conf_read(tag, 0xd4) >> 16) & 0x3c;
+
+	if (!devmap) {
+		printf("Error: 450NX MIOC: No PCI Expander Bridge present.\n");
+		return;
+	}
+
+#if 0
+	/*
+	 * This hack is in the spirit of the config_orion() routine.
+	 * It *would* work, except that some 450NX-based servers are
+	 * set up to SKIP PCI busses, presumably to support hot-plug
+	 * PCI cards that contain a single PCI-PCI bridge chip.
+	 */
+
+	/* Now pciroots just needs to get set to the number of bits set... */
+
+	pciroots = 0;
+	for (i = 2; i < 6; i++)
+		if (devmap & (1 << i))
+			pciroots++;
+#else
+	/*
+	 * Since the buses are configured in order, we just have to
+	 * find the highest bus, and use those numbers.
+	 * This is `wrong', but there is nothing else I can really do...
+	 */
+	if (devmap & 0x20) {			/* B1, 0xd5 */
+		pciroots = (pci_conf_read(tag, 0xd4) >> 8) & 0xff;
+	} else if (devmap & 0x10) {		/* A1, 0xd4 */
+		pciroots = pci_conf_read(tag, 0xd4) & 0xff;
+	} else if (devmap & 0x8) {		/* B0, 0xd2 */
+		pciroots = (pci_conf_read(tag, 0xd0) >> 16) & 0xff;
+	} else /* if (devmap & 0x4) */ {	/* A0, 0xd1 */
+		pciroots = (pci_conf_read(tag, 0xd0) >> 8) & 0xff;
+	}
+#endif
+
+	if (bootverbose)
+		printf("config_450nx: %d PCI busses found\n", pciroots);
+}
+
+
+static void
 chipset_attach (pcici_t config_id, int unit)
 {
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
@@ -738,6 +792,9 @@ chipset_attach (pcici_t config_id, int unit)
 		break;
 	case 0x00051166: /* Ross ??? */
 		config_Ross (config_id);
+		break;
+	case 0x84ca8086: /* Intel 450NX */
+		config_450nx (config_id);
 		break;
 	}
 #ifndef PCI_QUIET
