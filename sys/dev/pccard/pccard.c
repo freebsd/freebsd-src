@@ -277,8 +277,7 @@ pccard_detach_card(device_t dev)
 		if (pf->cfe != NULL)
 			pccard_function_disable(pf);
 		pccard_function_free(pf);
-		if (pf->dev != NULL)
-			device_delete_child(dev, pf->dev);
+		device_delete_child(dev, pf->dev);
 	}
 	if (sc->sc_enabled_count == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
