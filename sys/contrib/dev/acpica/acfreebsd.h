@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 15 $
+ *       $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -121,6 +121,7 @@
 /* FreeBSD uses GCC */
 
 #include "acgcc.h"
+#include <sys/types.h>
 #include <machine/acpica_machdep.h>
 
 #ifdef _KERNEL
@@ -155,7 +156,10 @@
 /* Not building kernel code, so use libc */
 #define ACPI_USE_STANDARD_HEADERS
 #define ACPI_FLUSH_CPU_CACHE()
-#include <sys/types.h>
+
+#if __STDC_HOSTED__
+#include <ctype.h>
+#endif
 
 #define __cli()
 #define __sti()

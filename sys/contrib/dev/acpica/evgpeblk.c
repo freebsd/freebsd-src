@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpeblk - GPE block creation and initialization.
- *              $Revision: 34 $
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -1102,8 +1102,8 @@ AcpiEvCreateGpeBlock (
     /* Dump info about this GPE block */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
-        "GPE %02d to %02d [%4.4s] %d regs at %8.8X%8.8X on int %d\n",
-        GpeBlock->BlockBaseNumber,
+        "GPE %02X to %02X [%4.4s] %u regs at %8.8X%8.8X on int 0x%X\n",
+        (UINT32) GpeBlock->BlockBaseNumber,
         (UINT32) (GpeBlock->BlockBaseNumber +
                 ((GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH) -1)),
         GpeDevice->Name.Ascii,

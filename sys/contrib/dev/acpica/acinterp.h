@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 148 $
+ *       $Revision: 149 $
  *
  *****************************************************************************/
 
@@ -189,6 +189,12 @@ AcpiExConvertToAscii (
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
+
+ACPI_STATUS
+AcpiExCommonBufferSetup (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  BufferLength,
+    UINT32                  *DatumCount);
 
 ACPI_STATUS
 AcpiExExtractFromField (

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 104 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -846,14 +846,84 @@ AcpiExSetBufferDatum (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiExCommonBufferSetup
+ *
+ * PARAMETERS:  ObjDesc             - Field object
+ *              BufferLength        - Length of caller's buffer
+ *              DatumCount          - Where the DatumCount is returned
+ *
+ * RETURN:      Status, DatumCount
+ *
+ * DESCRIPTION: Common code to validate the incoming buffer size and compute
+ *              the number of field "datums" that must be read or written.
+ *              A "datum" is the smallest unit that can be read or written
+ *              to the field, it is either 1,2,4, or 8 bytes.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiExCommonBufferSetup (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  BufferLength,
+    UINT32                  *DatumCount)
+{
+    UINT32                  ByteFieldLength;
+    UINT32                  ActualByteFieldLength;
+
+
+    ACPI_FUNCTION_TRACE ("ExCommonBufferSetup");
+
+
+    /*
+     * Incoming buffer must be at least as long as the field, we do not
+     * allow "partial" field reads/writes.  We do not care if the buffer is
+     * larger than the field, this typically happens when an integer is
+     * read/written to a field that is actually smaller than an integer.
+     */
+    ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (
+                            ObjDesc->CommonField.BitLength);
+    if (ByteFieldLength > BufferLength)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "Field size %X (bytes) is too large for buffer (%X)\n",
+            ByteFieldLength, BufferLength));
+
+        return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
+    }
+
+    /* 
+     * Create "actual" field byte count (minimum number of bytes that
+     * must be read), then convert to datum count (minimum number
+     * of datum-sized units that must be read)
+     */
+    ActualByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (
+                                ObjDesc->CommonField.StartFieldBitOffset +
+                                ObjDesc->CommonField.BitLength);
+
+
+    *DatumCount = ACPI_ROUND_UP_TO (ActualByteFieldLength,
+                        ObjDesc->CommonField.AccessByteWidth);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+        "BufferBytes %X, ActualBytes %X, Datums %X, ByteGran %X\n",
+        ByteFieldLength, ActualByteFieldLength,
+        *DatumCount, ObjDesc->CommonField.AccessByteWidth));
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiExExtractFromField
  *
- * PARAMETERS:  *ObjDesc            - Field to be read
- *              *Value              - Where to store value
+ * PARAMETERS:  ObjDesc             - Field to be read
+ *              Buffer              - Where to store the field data
+ *              BufferLength        - Length of Buffer
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve the value of the given field
+ * DESCRIPTION: Retrieve the current value of the given field
  *
  ******************************************************************************/
 
@@ -869,7 +939,6 @@ AcpiExExtractFromField (
     ACPI_INTEGER            PreviousRawDatum = 0;
     ACPI_INTEGER            ThisRawDatum = 0;
     ACPI_INTEGER            MergedDatum = 0;
-    UINT32                  ByteFieldLength;
     UINT32                  DatumCount;
     UINT32                  i;
 
@@ -877,40 +946,13 @@ AcpiExExtractFromField (
     ACPI_FUNCTION_TRACE ("ExExtractFromField");
 
 
-    /*
-     * The field must fit within the caller's buffer
-     */
-    ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
-    if (ByteFieldLength > BufferLength)
+    /* Validate buffer, compute number of datums */
+
+    Status = AcpiExCommonBufferSetup (ObjDesc, BufferLength, &DatumCount);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "Field size %X (bytes) too large for buffer (%X)\n",
-            ByteFieldLength, BufferLength));
-
-        return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
+        return_ACPI_STATUS (Status);
     }
-
-    /* Convert field byte count to datum count, round up if necessary */
-
-    DatumCount = ACPI_ROUND_UP_TO (ByteFieldLength,
-                              ObjDesc->CommonField.AccessByteWidth);
-
-    /*
-     * If the field is not aligned on a datum boundary and does not
-     * fit within a single datum, we must read an extra datum.
-     *
-     * We could just split the aligned and non-aligned cases since the
-     * aligned case is so very simple, but this would require more code.
-     */
-    if ((ObjDesc->CommonField.EndFieldValidBits != 0)         &&
-        (!(ObjDesc->CommonField.Flags & AOPOBJ_SINGLE_DATUM)))
-    {
-        DatumCount++;
-    }
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "ByteLen %X, DatumLen %X, ByteGran %X\n",
-        ByteFieldLength, DatumCount,ObjDesc->CommonField.AccessByteWidth));
 
     /*
      * Clear the caller's buffer (the whole buffer length as given)
@@ -1033,12 +1075,13 @@ AcpiExExtractFromField (
  *
  * FUNCTION:    AcpiExInsertIntoField
  *
- * PARAMETERS:  *ObjDesc            - Field to be set
- *              Buffer              - Value to store
+ * PARAMETERS:  ObjDesc             - Field to be written
+ *              Buffer              - Data to be written
+ *              BufferLength        - Length of Buffer
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Store the value into the given field
+ * DESCRIPTION: Store the Buffer contents into the given field
  *
  ******************************************************************************/
 
@@ -1055,42 +1098,19 @@ AcpiExInsertIntoField (
     ACPI_INTEGER            MergedDatum;
     ACPI_INTEGER            PreviousRawDatum;
     ACPI_INTEGER            ThisRawDatum;
-    UINT32                  ByteFieldLength;
     UINT32                  DatumCount;
 
 
     ACPI_FUNCTION_TRACE ("ExInsertIntoField");
 
 
-    /*
-     * Incoming buffer must be at least as long as the field, we do not
-     * allow "partial" field writes.  We do not care if the buffer is
-     * larger than the field, this typically happens when an integer is
-     * written to a field that is actually smaller than an integer.
-     */
-    ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (
-                            ObjDesc->CommonField.BitLength);
-    if (BufferLength < ByteFieldLength)
+    /* Validate buffer, compute number of datums */
+
+    Status = AcpiExCommonBufferSetup (ObjDesc, BufferLength, &DatumCount);
+    if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "Buffer length %X too small for field %X\n",
-            BufferLength, ByteFieldLength));
-
-        return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
+        return_ACPI_STATUS (Status);
     }
-
-    ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (
-                            ObjDesc->CommonField.StartFieldBitOffset +
-                            ObjDesc->CommonField.BitLength);
-
-    /* Convert byte count to datum count, round up if necessary */
-
-    DatumCount = ACPI_ROUND_UP_TO (ByteFieldLength,
-                                   ObjDesc->CommonField.AccessByteWidth);
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "Bytes %X, Datums %X, ByteGran %X\n",
-        ByteFieldLength, DatumCount, ObjDesc->CommonField.AccessByteWidth));
 
     /*
      * Break the request into up to three parts (similar to an I/O request):
