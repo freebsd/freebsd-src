@@ -460,7 +460,6 @@ boolean wr;
 #endif
 		) {
 		/* revoke */
-		setegid(getgid());
 		setgid(getgid());
 	}
 #endif
