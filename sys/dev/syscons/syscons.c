@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.315 1999/08/08 21:35:17 phk Exp $
+ *	$Id: syscons.c,v 1.316 1999/08/09 10:34:36 phk Exp $
  */
 
 #include "sc.h"
@@ -1407,8 +1407,6 @@ sccnterm(struct consdev *cp)
 }
 
 #ifdef __alpha__
-
-extern struct consdev *cn_tab;
 
 void
 sccnattach(void)
