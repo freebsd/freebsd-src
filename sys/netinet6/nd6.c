@@ -2025,6 +2025,9 @@ nd6_need_cache(ifp)
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
+#ifdef IFT_CARP
+	case IFT_CARP:
+#endif
 	case IFT_GIF:		/* XXX need more cases? */
 		return (1);
 	default:
