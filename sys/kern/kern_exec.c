@@ -52,6 +52,9 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
