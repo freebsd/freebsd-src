@@ -61,42 +61,39 @@ static char lbuf[LBUF];
  */
 
 #define Decimal(str, ans, tmp) if (decimal(str, &tmp, ans)) ans = tmp
-#define Hex(str, ans, tmp) if (hex(str, &tmp, ans)) ans = tmp
-#define String(str, ans, len) {char *z = ans; char **dflt = &z; if (string(str, dflt)) strncpy(ans, *dflt, len); }
 
 #define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
 
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
-int secsize = 0;		/* the sensed sector size */
+static int secsize = 0;		/* the sensed sector size */
 
-char *disk;
+static char *disk;
 
-struct disklabel disklabel;		/* disk parameters */
+static struct disklabel disklabel;		/* disk parameters */
 
-int cyls, sectors, heads, cylsecs, disksecs;
+static int cyls, sectors, heads, cylsecs, disksecs;
 
-struct mboot
-{
+struct mboot {
 	unsigned char padding[2]; /* force the longs to be long aligned */
   	unsigned char *bootinst;  /* boot code */
   	off_t bootinst_size;
 	struct	dos_partition parts[4];
 };
-struct mboot mboot = {{0}, NULL, 0};
+
+static struct mboot mboot;
+static int fd;
 
 #define ACTIVE 0x80
 #define BOOT_MAGIC 0xAA55
 
-int dos_cyls;
-int dos_heads;
-int dos_sectors;
-int dos_cylsecs;
+static uint dos_cyls;
+static uint dos_heads;
+static uint dos_sectors;
+static uint dos_cylsecs;
 
 #define DOSSECT(s,c) ((s & 0x3f) | ((c >> 2) & 0xc0))
 #define DOSCYL(c)	(c & 0xff)
-static int partition = -1;
-
 
 #define MAX_ARGS	10
 
@@ -106,7 +103,6 @@ static int	geom_processed = 0;
 static int	part_processed = 0;
 static int	active_processed = 0;
 
-
 typedef struct cmd {
     char		cmd;
     int			n_args;
@@ -115,7 +111,6 @@ typedef struct cmd {
 	int	arg_val;
     }			args[MAX_ARGS];
 } CMD;
-
 
 static int B_flag  = 0;		/* replace boot code */
 static int I_flag  = 0;		/* use entire disk for FreeBSD */
@@ -128,12 +123,11 @@ static int t_flag  = 0;		/* test only, if f_flag is given */
 static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
 
-struct part_type
+static struct part_type
 {
  unsigned char type;
- char *name;
-}part_types[] =
-{
+	const char *name;
+} part_types[] = {
 	 {0x00, "unused"}
 	,{0x01, "Primary DOS with 12 bit FAT"}
 	,{0x02, "XENIX / filesystem"}
@@ -184,7 +178,7 @@ struct part_type
 	,{0x78, "QNX4.x 2nd part"}
 	,{0x79, "QNX4.x 3rd part"}
 	,{0x80, "Minix until 1.4a"}
-	,{0x81, "Minix since 1.4b, early Linux partition or Mitac (disk manager)"}
+	,{0x81, "Minix since 1.4b, early Linux partition or Mitac disk manager"}
 	,{0x82, "Linux swap or Solaris x86"}
 	,{0x83, "Linux native"}
 	,{0x84, "OS/2 hidden C: drive"}
@@ -224,36 +218,33 @@ static void print_part(int i);
 static void init_sector0(unsigned long start);
 static void init_boot(void);
 static void change_part(int i);
-static void print_params();
+static void print_params(void);
 static void change_active(int which);
-static void change_code();
-static void get_params_to_use();
+static void change_code(void);
+static void get_params_to_use(void);
 static char *get_rootdisk(void);
 static void dos(struct dos_partition *partp);
-static int open_disk(int u_flag);
+static int open_disk(int flag);
 static ssize_t read_disk(off_t sector, void *buf);
 static ssize_t write_disk(off_t sector, void *buf);
-static int get_params();
-static int read_s0();
-static int write_s0();
-static int ok(char *str);
-static int decimal(char *str, int *num, int deflt);
-static char *get_type(int type);
+static int get_params(void);
+static int read_s0(void);
+static int write_s0(void);
+static int ok(const char *str);
+static int decimal(const char *str, int *num, int deflt);
+static const char *get_type(int type);
 static int read_config(char *config_file);
 static void reset_boot(void);
 static int sanitize_partition(struct dos_partition *);
 static void usage(void);
-#if 0
-static int hex(char *str, int *num, int deflt);
-static int string(char *str, char **ans);
-#endif
-
 
 int
 main(int argc, char *argv[])
 {
 	struct	stat sb;
 	int	c, i;
+	int	partition = -1;
+	struct	dos_partition *partp;
 
 	while ((c = getopt(argc, argv, "BIab:f:istuv1234")) != -1)
 		switch (c) {
@@ -311,11 +302,9 @@ main(int argc, char *argv[])
 			disk = argv[0];
 		} else if (errno == ENOENT) {
 			/* Try prepending "/dev" */
-			if ((disk = malloc(strlen(argv[0]) + strlen(_PATH_DEV) +
-			     1)) == NULL)
+			asprintf(&disk, "%s%s", _PATH_DEV, argv[0]);
+			if (disk == NULL)
 				errx(1, "out of memory");
-			strcpy(disk, _PATH_DEV);
-			strcat(disk, argv[0]);
 		} else {
 			/* other stat error, let it fail below */
 			disk = argv[0];
@@ -331,11 +320,7 @@ main(int argc, char *argv[])
 	free(mboot.bootinst);
 	mboot.bootinst = NULL;
 
-	if (s_flag)
-	{
-		int i;
-		struct dos_partition *partp;
-
+	if (s_flag) {
 		if (read_s0())
 			err(1, "read_s0");
 		printf("%s: %d cyl %d hd %d sec\n", disk, dos_cyls, dos_heads,
@@ -355,10 +340,7 @@ main(int argc, char *argv[])
 
 	printf("******* Working on device %s *******\n",disk);
 
-	if (I_flag)
-	{
-		struct dos_partition *partp;
-
+	if (I_flag) {
 		read_s0();
 		reset_boot();
 		partp = (struct dos_partition *) (&mboot.parts[0]);
@@ -374,36 +356,20 @@ main(int argc, char *argv[])
 		write_s0();
 		exit(0);
 	}
-	if (f_flag)
-	{
+	if (f_flag) {
 	    if (read_s0() || i_flag)
-	    {
 		reset_boot();
-	    }
-
 	    if (!read_config(f_flag))
-	    {
 		exit(1);
-	    }
 	    if (v_flag)
-	    {
 		print_s0(-1);
-	    }
 	    if (!t_flag)
-	    {
 		write_s0();
-	    }
-	}
-	else
-	{
+	} else {
 	    if(u_flag)
-	    {
 		get_params_to_use();
-	    }
 	    else
-	    {
 		print_params();
-	    }
 
 	    if (read_s0())
 		init_sector0(dos_sectors);
@@ -424,19 +390,15 @@ main(int argc, char *argv[])
 		change_code();
 
 	    if (u_flag || a_flag || B_flag) {
-		if (!t_flag)
-		{
+			if (!t_flag) {
 		    printf("\nWe haven't changed the partition table yet.  ");
 		    printf("This is your last chance.\n");
 		}
 		print_s0(-1);
-		if (!t_flag)
-		{
+			if (!t_flag) {
 		    if (ok("Should we write new partition table?"))
 			write_s0();
-		}
-		else
-		{
+			} else {
 		    printf("\n-t flag specified -- partition table not written.\n");
 		}
 	    }
@@ -457,7 +419,7 @@ usage()
 static void
 print_s0(int which)
 {
-int	i;
+	int	i;
 
 	print_params();
 	printf("Information from DOS bootblock is:\n");
@@ -468,7 +430,7 @@ int	i;
 		print_part(which);
 }
 
-static struct dos_partition mtpart = { 0 };
+static struct dos_partition mtpart;
 
 static void
 print_part(int i)
@@ -510,12 +472,12 @@ static void
 init_boot(void)
 {
 	const char *fname;
-	int fd, n;
+	int fdesc, n;
 	struct stat sb;
 
 	fname = b_flag ? b_flag : "/boot/mbr";
-	if ((fd = open(fname, O_RDONLY)) == -1 ||
-	    fstat(fd, &sb) == -1)
+	if ((fdesc = open(fname, O_RDONLY)) == -1 ||
+	    fstat(fdesc, &sb) == -1)
 		err(1, "%s", fname);
 	if ((mboot.bootinst_size = sb.st_size) % secsize != 0)
 		errx(1, "%s: length must be a multiple of sector size", fname);
@@ -523,8 +485,8 @@ init_boot(void)
 		free(mboot.bootinst);
 	if ((mboot.bootinst = malloc(mboot.bootinst_size = sb.st_size)) == NULL)
 		errx(1, "%s: unable to allocate read buffer", fname);
-	if ((n = read(fd, mboot.bootinst, mboot.bootinst_size)) == -1 ||
-	    close(fd))
+	if ((n = read(fdesc, mboot.bootinst, mboot.bootinst_size)) == -1 ||
+	    close(fdesc))
 		err(1, "%s", fname);
 	if (n != mboot.bootinst_size)
 		errx(1, "%s: short read", fname);
@@ -534,7 +496,7 @@ init_boot(void)
 static void
 init_sector0(unsigned long start)
 {
-struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
+	struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
 
 	init_boot();
 
@@ -552,7 +514,7 @@ struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
 static void
 change_part(int i)
 {
-struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+	struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 
     printf("The data for partition %d is:\n", i);
     print_part(i);
@@ -606,7 +568,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 		print_part(i);
 	} while (!ok("Are we happy with this entry?"));
     }
-}
+    }
 
 static void
 print_params()
@@ -690,8 +652,7 @@ get_params_to_use()
 * Change real numbers into strange dos numbers	*
 \***********************************************/
 static void
-dos(partp)
-	struct dos_partition *partp;
+dos(struct dos_partition *partp)
 {
 	int cy, sec;
 	u_int32_t end;
@@ -717,12 +678,8 @@ dos(partp)
 	partp->dp_esect = DOSSECT(sec, cy);
 }
 
-int fd;
-
-	/* Getting device status */
-
 static int
-open_disk(int u_flag)
+open_disk(int flag)
 {
 	struct stat 	st;
 
@@ -735,13 +692,13 @@ open_disk(int u_flag)
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
 	if ((fd = open(disk,
-	    a_flag || I_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+	    a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
 		warnx("can't open device %s", disk);
 		return -1;
 	}
-	if (get_params(0) == -1) {
+	if (get_params() == -1) {
 		warnx("can't get disk parameters on %s", disk);
 		return -1;
 	}
@@ -827,9 +784,6 @@ read_s0()
 static int
 write_s0()
 {
-#ifdef NOT_NOW
-	int	flag;
-#endif
 	int	sector;
 
 	if (iotest) {
@@ -843,32 +797,18 @@ write_s0()
 	 * needed if the disklabel protected area also protects
 	 * sector 0. (e.g. empty disk)
 	 */
-#ifdef NOT_NOW
-	flag = 1;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-		warn("ioctl DIOCWLABEL");
-#endif
 	for(sector = 0; sector < mboot.bootinst_size / secsize; sector++) 
 		if (write_disk(sector,
 			       &mboot.bootinst[sector * secsize]) == -1) {
 			warn("can't write fdisk partition table");
 			return -1;
-#ifdef NOT_NOW
-			flag = 0;
-			(void) ioctl(fd, DIOCWLABEL, &flag);
-#endif
 		}
-#ifdef NOT_NOW
-	flag = 0;
-	(void) ioctl(fd, DIOCWLABEL, &flag);
-#endif
 	return(0);
 }
 
 
 static int
-ok(str)
-char *str;
+ok(const char *str)
 {
 	printf("%s [n] ", str);
 	fflush(stdout);
@@ -885,10 +825,10 @@ char *str;
 }
 
 static int
-decimal(char *str, int *num, int deflt)
+decimal(const char *str, int *num, int deflt)
 {
-int acc = 0, c;
-char *cp;
+	int acc = 0, c;
+	char *cp;
 
 	while (1) {
 		printf("Supply a decimal value for \"%s\" [%d] ", str, deflt);
@@ -922,79 +862,7 @@ char *cp;
 
 }
 
-#if 0
-static int
-hex(char *str, int *num, int deflt)
-{
-int acc = 0, c;
-char *cp;
-
-	while (1) {
-		printf("Supply a hex value for \"%s\" [%x] ", str, deflt);
-		fgets(lbuf, LBUF, stdin);
-		lbuf[strlen(lbuf)-1] = 0;
-
-		if (!*lbuf)
-			return 0;
-
-		cp = lbuf;
-		while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
-		if (!c)
-			return 0;
-		while ((c = *cp++)) {
-			if (c <= '9' && c >= '0')
-				acc = (acc << 4) + c - '0';
-			else if (c <= 'f' && c >= 'a')
-				acc = (acc << 4) + c - 'a' + 10;
-			else if (c <= 'F' && c >= 'A')
-				acc = (acc << 4) + c - 'A' + 10;
-			else
-				break;
-		}
-		if (c == ' ' || c == '\t')
-			while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
-		if (!c) {
-			*num = acc;
-			return 1;
-		} else
-			printf("%s is an invalid hex number.  Try again.\n",
-				lbuf);
-	}
-
-}
-
-static int
-string(char *str, char **ans)
-{
-int c;
-char *cp = lbuf;
-
-	while (1) {
-		printf("Supply a string value for \"%s\" [%s] ", str, *ans);
-		fgets(lbuf, LBUF, stdin);
-		lbuf[strlen(lbuf)-1] = 0;
-
-		if (!*lbuf)
-			return 0;
-
-		while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
-		if (c == '"') {
-			c = *++cp;
-			*ans = cp;
-			while ((c = *cp) && c != '"') cp++;
-		} else {
-			*ans = cp;
-			while ((c = *cp) && c != ' ' && c != '\t') cp++;
-		}
-
-		if (c)
-			*cp = 0;
-		return 1;
-	}
-}
-#endif
-
-static char *
+static const char *
 get_type(int type)
 {
 	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
@@ -1002,12 +870,9 @@ get_type(int type)
 	struct	part_type *ptr = part_types;
 
 
-	while(counter < numentries)
-	{
+	while(counter < numentries) {
 		if(ptr->type == type)
-		{
 			return(ptr->name);
-		}
 		ptr++;
 		counter++;
 	}
@@ -1016,49 +881,34 @@ get_type(int type)
 
 
 static void
-parse_config_line(line, command)
-    char	*line;
-    CMD		*command;
+parse_config_line(char *line, CMD *command)
 {
     char	*cp, *end;
 
     cp = line;
-    while (1)	/* dirty trick used to insure one exit point for this
-		   function */
-    {
+    while (1) {
 	memset(command, 0, sizeof(*command));
 
 	while (isspace(*cp)) ++cp;
 	if (*cp == '\0' || *cp == '#')
-	{
 	    break;
-	}
 	command->cmd = *cp++;
 
 	/*
 	 * Parse args
 	 */
-	while (1)
-	{
+	    while (1) {
 	    while (isspace(*cp)) ++cp;
 	    if (*cp == '#')
-	    {
 		break;		/* found comment */
-	    }
 	    if (isalpha(*cp))
-	    {
 		command->args[command->n_args].argtype = *cp++;
-	    }
 	    if (!isdigit(*cp))
-	    {
 		break;		/* assume end of line */
-	    }
 	    end = NULL;
 	    command->args[command->n_args].arg_val = strtol(cp, &end, 0);
 	    if (cp == end)
-	    {
 		break;		/* couldn't parse number */
-	    }
 	    cp = end;
 	    command->n_args++;
 	}
@@ -1068,16 +918,13 @@ parse_config_line(line, command)
 
 
 static int
-process_geometry(command)
-    CMD		*command;
+process_geometry(CMD *command)
 {
     int		status = 1, i;
 
-    while (1)
-    {
+    while (1) {
 	geom_processed = 1;
-	if (part_processed)
-	{
+	    if (part_processed) {
 	    warnx(
 	"ERROR line %d: the geometry specification line must occur before\n\
     all partition specifications",
@@ -1085,20 +932,17 @@ process_geometry(command)
 	    status = 0;
 	    break;
 	}
-	if (command->n_args != 3)
-	{
+	    if (command->n_args != 3) {
 	    warnx("ERROR line %d: incorrect number of geometry args",
 		    current_line_number);
 	    status = 0;
 	    break;
 	}
-	dos_cyls = -1;
-	dos_heads = -1;
-	dos_sectors = -1;
-	for (i = 0; i < 3; ++i)
-	{
-	    switch (command->args[i].argtype)
-	    {
+	    dos_cyls = 0;
+	    dos_heads = 0;
+	    dos_sectors = 0;
+	    for (i = 0; i < 3; ++i) {
+		    switch (command->args[i].argtype) {
 	    case 'c':
 		dos_cyls = command->args[i].arg_val;
 		break;
@@ -1118,23 +962,19 @@ process_geometry(command)
 	    }
 	}
 	if (status == 0)
-	{
 	    break;
-	}
 
 	dos_cylsecs = dos_heads * dos_sectors;
 
 	/*
 	 * Do sanity checks on parameter values
 	 */
-	if (dos_cyls < 0)
-	{
+	    if (dos_cyls == 0) {
 	    warnx("ERROR line %d: number of cylinders not specified",
 		    current_line_number);
 	    status = 0;
 	}
-	if (dos_cyls == 0 || dos_cyls > 1024)
-	{
+	    if (dos_cyls > 1024) {
 	    warnx(
 	"WARNING line %d: number of cylinders (%d) may be out-of-range\n\
     (must be within 1-1024 for normal BIOS operation, unless the entire disk\n\
@@ -1142,27 +982,21 @@ process_geometry(command)
 		    current_line_number, dos_cyls);
 	}
 
-	if (dos_heads < 0)
-	{
+	    if (dos_heads == 0) {
 	    warnx("ERROR line %d: number of heads not specified",
 		    current_line_number);
 	    status = 0;
-	}
-	else if (dos_heads < 1 || dos_heads > 256)
-	{
+	    } else if (dos_heads > 256) {
 	    warnx("ERROR line %d: number of heads must be within (1-256)",
 		    current_line_number);
 	    status = 0;
 	}
 
-	if (dos_sectors < 0)
-	{
+	    if (dos_sectors == 0) {
 	    warnx("ERROR line %d: number of sectors not specified",
 		    current_line_number);
 	    status = 0;
-	}
-	else if (dos_sectors < 1 || dos_sectors > 63)
-	{
+	    } else if (dos_sectors > 63) {
 	    warnx("ERROR line %d: number of sectors must be within (1-63)",
 		    current_line_number);
 	    status = 0;
@@ -1175,26 +1009,22 @@ process_geometry(command)
 
 
 static int
-process_partition(command)
-    CMD		*command;
+process_partition(CMD *command)
 {
     int				status = 0, partition;
     u_int32_t			prev_head_boundary, prev_cyl_boundary;
     u_int32_t			adj_size, max_end;
     struct dos_partition	*partp;
 
-    while (1)
-    {
+	while (1) {
 	part_processed = 1;
-	if (command->n_args != 4)
-	{
+		if (command->n_args != 4) {
 	    warnx("ERROR line %d: incorrect number of partition args",
 		    current_line_number);
 	    break;
 	}
 	partition = command->args[0].arg_val;
-	if (partition < 1 || partition > 4)
-	{
+		if (partition < 1 || partition > 4) {
 	    warnx("ERROR line %d: invalid partition number %d",
 		    current_line_number, partition);
 	    break;
@@ -1206,8 +1036,7 @@ process_partition(command)
 	partp->dp_size = command->args[3].arg_val;
 	max_end = partp->dp_start + partp->dp_size;
 
-	if (partp->dp_typ == 0)
-	{
+		if (partp->dp_typ == 0) {
 	    /*
 	     * Get out, the partition is marked as unused.
 	     */
@@ -1222,12 +1051,10 @@ process_partition(command)
 	/*
 	 * Adjust start upwards, if necessary, to fall on an head boundary.
 	 */
-	if (partp->dp_start % dos_sectors != 0)
-	{
+		if (partp->dp_start % dos_sectors != 0) {
 	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
 	    if (max_end < dos_sectors ||
-		prev_head_boundary > max_end - dos_sectors)
-	    {
+			    prev_head_boundary > max_end - dos_sectors) {
 		/*
 		 * Can't go past end of partition
 		 */
@@ -1253,23 +1080,20 @@ process_partition(command)
 	    ((partp->dp_start + partp->dp_size) / dos_cylsecs) * dos_cylsecs;
 	if (prev_cyl_boundary > partp->dp_start)
 	    adj_size = prev_cyl_boundary - partp->dp_start;
-	else
-	{
+		else {
 	    warnx(
 	"ERROR: could not adjust partition to start on a head boundary\n\
     and end on a cylinder boundary.");
 	    return (0);
 	}
-	if (adj_size != partp->dp_size)
-	{
+		if (adj_size != partp->dp_size) {
 	    warnx(
 	"WARNING: adjusting size of partition %d from %u to %u\n\
     to end on a cylinder boundary",
 		    partition, (u_int)partp->dp_size, (u_int)adj_size);
 	    partp->dp_size = adj_size;
 	}
-	if (partp->dp_size == 0)
-	{
+		if (partp->dp_size == 0) {
 	    warnx("ERROR line %d: size of partition %d is zero",
 		    current_line_number, partition);
 	    break;
@@ -1284,25 +1108,21 @@ process_partition(command)
 
 
 static int
-process_active(command)
-    CMD		*command;
+process_active(CMD *command)
 {
     int				status = 0, partition, i;
     struct dos_partition	*partp;
 
-    while (1)
-    {
+	while (1) {
 	active_processed = 1;
-	if (command->n_args != 1)
-	{
+		if (command->n_args != 1) {
 	    warnx("ERROR line %d: incorrect number of active args",
 		    current_line_number);
 	    status = 0;
 	    break;
 	}
 	partition = command->args[0].arg_val;
-	if (partition < 1 || partition > 4)
-	{
+		if (partition < 1 || partition > 4) {
 	    warnx("ERROR line %d: invalid partition number %d",
 		    current_line_number, partition);
 	    break;
@@ -1323,17 +1143,14 @@ process_active(command)
 
 
 static int
-process_line(line)
-    char	*line;
+process_line(char *line)
 {
     CMD		command;
     int		status = 1;
 
-    while (1)
-    {
+	while (1) {
 	parse_config_line(line, &command);
-	switch (command.cmd)
-	{
+		switch (command.cmd) {
 	case 0:
 	    /*
 	     * Comment or blank line
@@ -1362,49 +1179,36 @@ process_line(line)
 
 
 static int
-read_config(config_file)
-    char *config_file;
+read_config(char *config_file)
 {
     FILE	*fp = NULL;
     int		status = 1;
     char	buf[1010];
 
-    while (1)	/* dirty trick used to insure one exit point for this
-		   function */
-    {
-	if (strcmp(config_file, "-") != 0)
-	{
+	while (1) {
+		if (strcmp(config_file, "-") != 0) {
 	    /*
 	     * We're not reading from stdin
 	     */
-	    if ((fp = fopen(config_file, "r")) == NULL)
-	    {
+			if ((fp = fopen(config_file, "r")) == NULL) {
 		status = 0;
 		break;
 	    }
-	}
-	else
-	{
+		} else {
 	    fp = stdin;
 	}
 	current_line_number = 0;
-	while (!feof(fp))
-	{
+		while (!feof(fp)) {
 	    if (fgets(buf, sizeof(buf), fp) == NULL)
-	    {
 		break;
-	    }
 	    ++current_line_number;
 	    status = process_line(buf);
 	    if (status == 0)
-	    {
 		break;
 	    }
-	}
 	break;
     }
-    if (fp)
-    {
+	if (fp) {
 	/*
 	 * It doesn't matter if we're reading from stdin, as we've reached EOF
 	 */
@@ -1421,16 +1225,14 @@ reset_boot(void)
     struct dos_partition	*partp;
 
     init_boot();
-    for (i = 0; i < 4; ++i)
-    {
+	for (i = 0; i < 4; ++i) {
 	partp = ((struct dos_partition *) &mboot.parts) + i;
 	bzero((char *)partp, sizeof (struct dos_partition));
     }
 }
 
 static int
-sanitize_partition(partp)
-    struct dos_partition	*partp;
+sanitize_partition(struct dos_partition *partp)
 {
     u_int32_t			prev_head_boundary, prev_cyl_boundary;
     u_int32_t			max_end, size, start;
