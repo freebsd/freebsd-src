@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2001
+.Dd August 24, 2004
 .Dt LGE 4
 .Os
 .Sh NAME
 .Nm lge
-.Nd "Level 1 LXT1001 NetCellerator PCI gigabit ethernet adapter driver"
+.Nd "Level 1 LXT1001 NetCellerator PCI Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device lge"
@@ -44,20 +44,7 @@
 The
 .Nm
 driver provides support for various NICs based on the Level 1 LXT1001
-NetCellerator gigabit ethernet controller chip, including the
-following:
-.Pp
-.Bl -bullet -compact
-.It
-SMC TigerCard 1000 (SMC9462SX)
-.It
-D-Link DGE-500SX
-.El
-.Pp
-These NICs are capable of 1000Mbps speeds over fiber optic cable.
-The LXT1001 also supports a GMII port for use with 10/100/1000 copper
-PHYs, however there aren't currently any NICs on the market that use
-this feature.
+NetCellerator Gigabit Ethernet controller chip.
 .Pp
 The LXT1001 supports TCP/IP checksum offload for receive and
 VLAN-based filtering as well as a 64-bit multicast hash filter.
@@ -99,6 +86,22 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+Adapters supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+SMC TigerCard 1000 (SMC9462SX)
+.It
+D-Link DGE-500SX
+.El
+.Pp
+These NICs are capable of 1000Mbps speeds over fiber optic cable.
+The LXT1001 also supports a GMII port for use with 10/100/1000 copper
+PHYs, however there aren't currently any NICs on the market that use
+this feature.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "lge%d: couldn't map memory"
