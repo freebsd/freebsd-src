@@ -420,7 +420,7 @@ vop_stdcreatevobject(ap)
 		vrele(vp);
 	}
 
-	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
+	KASSERT(vp->v_object != NULL, ("vop_stdcreatevobject: NULL object"));
 	vp->v_vflag |= VV_OBJBUF;
 
 	return (error);

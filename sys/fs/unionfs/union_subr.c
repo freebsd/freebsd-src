@@ -782,7 +782,7 @@ union_copyup(un, docopy, cred, td)
 		vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_OPEN(lvp, FREAD, cred, td, -1);
 		if (error == 0 && vn_canvmio(lvp) == TRUE)
-			error = vfs_object_create(lvp, td, cred);
+			error = VOP_CREATEVOBJECT(lvp, cred, td);
 		if (error == 0) {
 			error = union_copyfile(lvp, uvp, cred, td);
 			VOP_UNLOCK(lvp, 0, td);
@@ -815,7 +815,7 @@ union_copyup(un, docopy, cred, td)
 		}
 		if (un->un_openl) {
 			if (vn_canvmio(uvp) == TRUE)
-				error = vfs_object_create(uvp, td, cred);
+				error = VOP_CREATEVOBJECT(uvp, cred, td);
 		}
 		un->un_openl = 0;
 	}
@@ -1128,7 +1128,7 @@ union_vn_create(vpp, un, td)
 
 	error = VOP_OPEN(vp, fmode, cred, td, -1);
 	if (error == 0 && vn_canvmio(vp) == TRUE)
-		error = vfs_object_create(vp, td, cred);
+		error = VOP_CREATEVOBJECT(vp, cred, td);
 	if (error) {
 		vput(vp);
 		return (error);
@@ -1331,7 +1331,7 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 		if (lvp != NULLVP) {
 			error = VOP_OPEN(lvp, FREAD, fp->f_cred, td, -1);
 			if (error == 0 && vn_canvmio(lvp) == TRUE)
-				error = vfs_object_create(lvp, td, fp->f_cred);
+				error = VOP_CREATEVOBJECT(lvp, fp->f_cred, td);
 			if (error) {
 				vput(lvp);
 				return (error);

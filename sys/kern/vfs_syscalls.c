@@ -3957,7 +3957,7 @@ fhopen(td, uap)
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vn_canvmio(vp) == TRUE) {
-		if ((error = vfs_object_create(vp, td, td->td_ucred)) != 0)
+		if ((error = VOP_CREATEVOBJECT(vp, td->td_ucred, td)) != 0)
 			goto bad;
 	}
 	if (fmode & FWRITE)
@@ -4011,7 +4011,7 @@ fhopen(td, uap)
 		fp->f_flag |= FHASLOCK;
 	}
 	if ((vp->v_type == VREG) && (VOP_GETVOBJECT(vp, NULL) != 0))
-		vfs_object_create(vp, td, td->td_ucred);
+		VOP_CREATEVOBJECT(vp, td->td_ucred, td);
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);

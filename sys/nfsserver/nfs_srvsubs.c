@@ -1233,7 +1233,7 @@ nfsrv_object_create(struct vnode *vp)
 
 	if (vp == NULL || vp->v_type != VREG)
 		return (1);
-	return (vfs_object_create(vp, curthread, curthread->td_ucred));
+	return (VOP_CREATEVOBJECT(vp, curthread->td_ucred, curthread));
 }
 
 /*
