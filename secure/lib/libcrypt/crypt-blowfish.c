@@ -68,14 +68,10 @@ __FBSDID("$FreeBSD$");
 #define BCRYPT_BLOCKS 6		/* Ciphertext blocks */
 #define BCRYPT_MINROUNDS 16	/* we have log2(rounds) in salt */
 
-char   *bcrypt_gensalt(u_int8_t);
-
-static void encode_salt(char *, u_int8_t *, u_int16_t, u_int8_t);
 static void encode_base64(u_int8_t *, u_int8_t *, u_int16_t);
 static void decode_base64(u_int8_t *, u_int16_t, const u_int8_t *);
 
 static char    encrypted[_PASSWORD_LEN];
-static char    gsalt[BCRYPT_MAXSALT * 4 / 3 + 1];
 static char    error[] = ":";
 
 static const u_int8_t Base64Code[] =
@@ -134,43 +130,6 @@ decode_base64(u_int8_t *buffer, u_int16_t len, const u_int8_t *data)
 	}
 }
 
-static void
-encode_salt(char *salt, u_int8_t *csalt, u_int16_t clen, u_int8_t logr)
-{
-	salt[0] = '$';
-	salt[1] = BCRYPT_VERSION;
-	salt[2] = 'a';
-	salt[3] = '$';
-
-	snprintf(salt + 4, 4, "%2.2u$", logr);
-
-	encode_base64((u_int8_t *) salt + 7, csalt, clen);
-}
-/* Generates a salt for this version of crypt.
-   Since versions may change. Keeping this here
-   seems sensible.
- */
-
-char *
-bcrypt_gensalt(u_int8_t log_rounds)
-{
-	u_int8_t csalt[BCRYPT_MAXSALT];
-	u_int16_t i;
-	u_int32_t seed = 0;
-
-	for (i = 0; i < BCRYPT_MAXSALT; i++) {
-		if (i % 4 == 0)
-			seed = arc4random();
-		csalt[i] = seed & 0xff;
-		seed = seed >> 8;
-	}
-
-	if (log_rounds < 4)
-		log_rounds = 4;
-
-	encode_salt(gsalt, csalt, BCRYPT_MAXSALT, log_rounds);
-	return gsalt;
-}
 /* We handle $Vers$log2(NumRounds)$salt+passwd$
    i.e. $2$04$iwouldntknowwhattosayetKdJ6iFtacBqJdKe6aW7ou */
 
@@ -238,7 +197,7 @@ crypt_blowfish(const char *key, const char *salt)
 
 
 	/* We dont want the base64 salt but the raw data */
-	decode_base64(csalt, BCRYPT_MAXSALT, salt);
+	decode_base64(csalt, BCRYPT_MAXSALT, (const u_int8_t *)salt);
 	salt_len = BCRYPT_MAXSALT;
 	key_len = (u_int8_t)(strlen(key) + (minr >= 'a' ? 1 : 0));
 
