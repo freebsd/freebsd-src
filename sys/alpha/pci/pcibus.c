@@ -62,13 +62,13 @@ SYSCTL_STRING(_hw_chipset, OID_AUTO, type, CTLFLAG_RD, chipset_type, 0,
 	      "PCI chipset type");
 SYSCTL_INT(_hw_chipset, OID_AUTO, bwx, CTLFLAG_RD, &chipset_bwx, 0,
 	   "PCI chipset supports BWX access");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, ports, CTLFLAG_RD, 0, &chipset_ports,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, ports, CTLFLAG_RD, &chipset_ports, 0,
 	    "PCI chipset port address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, memory, CTLFLAG_RD, 0, &chipset_memory,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, memory, CTLFLAG_RD, &chipset_memory, 0,
 	    "PCI chipset memory address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, 0, &chipset_dense,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense, 0,
 	    "PCI chipset dense memory address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, 0, &chipset_hae_mask,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
 	    "PCI chipset mask for HAE register");
 
 #ifdef notyet
