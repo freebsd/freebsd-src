@@ -26,9 +26,10 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd December 11, 2003
 .Os
-.Dt prison_check 9
+.Dt PRISON_CHECK 9
 .Sh NAME
 .Nm prison_check
 .Nd determine if two credentials belong to the same jail
@@ -43,7 +44,9 @@ and
 .Fa cred2
 belong to the same jail.
 .Sh RETURN VALUES
+The
 .Fn prison_check
+function
 returns
 .Er ESRCH
 if
