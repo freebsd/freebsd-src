@@ -99,7 +99,7 @@ may be either a domain name or a dot-notation
 Internet address. If this optional field is omitted, 
 .Ic dig
 will attempt to use the default name server for your machine.
-.sp 1
+.Pp
 .Em Note:
 If a domain name is specified, this will be resolved
 using the domain name system resolver (i.e., BIND). If your
@@ -128,11 +128,10 @@ environment variable
 to name a file which is to
 be used instead of 
 .Pa /etc/resolv.conf 
-.Po Ns Ev LOCALRES 
+.Ns Ev (LOCALRES 
 is specific to the 
 .Ic dig
-resolver and is not referenced by the standard resolver
-.Pc .
+resolver and is not referenced by the standard resolver).
 If the 
 .Ev LOCALRES 
 variable is not set or the specified file
@@ -622,7 +621,8 @@ structure.
 .Sh ENVIRONMENT
 .Bl -tag -width "LOCALRES  " -compact
 .It Ev LOCALRES
-file to use in place of Pa /etc/resolv.conf
+file to use in place of 
+.Pa /etc/resolv.conf
 .It Ev LOCALDEF
 default environment file
 .El
