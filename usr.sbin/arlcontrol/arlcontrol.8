@@ -34,7 +34,7 @@
 .Dt ARLCONFIG 8 i386
 .Os
 .Sh NAME
-.Nm arlconfig
+.Nm arlcontrol
 .Nd configure Aironet Arlan 655 device
 .Sh SYNOPSIS
 .Nm
@@ -129,16 +129,16 @@ Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
-arlconfig arl0 country 11 priority high 
-arlconfig arl0 quality 
-arlconfig arl0 stat
-arlconfig arl0
+arlcontrol arl0 country 11 priority high 
+arlcontrol arl0 quality 
+arlcontrol arl0 stat
+arlcontrol arl0
 .Pp
 You can configure the Arlan 655 card from /etc/start_if.arl0.
 For example: 
 .Pp
 #!/bin/sh
-/sbin/arlconfig country 9 priority highest
+/usr/sbin/arlcontrol country 9 priority highest
 .Sh SEE ALSO
 .Xr arl 4 ,
 .Xr "Arlan 655 ISA Wireless LAN Client Card User Guide" . 
