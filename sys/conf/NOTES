@@ -1126,8 +1126,8 @@ options 	VGA_ALT_SEQACCESS
 
 # If you can dispense with some vga driver features, you may want to
 # use the following options to save some memory.
-options 	VGA_NO_FONT_LOADING	# don't save/load font
-options 	VGA_NO_MODE_CHANGE	# don't change video modes
+#options 	VGA_NO_FONT_LOADING	# don't save/load font
+#options 	VGA_NO_MODE_CHANGE	# don't change video modes
 
 # Older video cards may require this option for proper operation.
 options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
