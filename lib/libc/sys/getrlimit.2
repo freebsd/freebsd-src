@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
+.\"     $Id$
 .\"
 .Dd June 4, 1993
 .Dt GETRLIMIT 2
@@ -129,7 +130,7 @@ is thus a built-in command to
 .Pp
 The system refuses to extend the data or stack space when the limits
 would be exceeded in the normal way: a
-.Xr break
+.Xr brk 2
 call fails if the data space limit is reached.
 When the stack limit is reached, the process receives
 a segmentation fault
