@@ -48,7 +48,9 @@
 .Ft int
 .Fn sethostname "const char *name" "int namelen"
 .Sh DESCRIPTION
-.Fn Gethostname
+The
+.Fn gethostname
+function
 returns the standard host name for the current processor, as
 previously set by
 .Fn sethostname .
@@ -59,7 +61,9 @@ specifies the size of the
 array.  The returned name is null-terminated unless insufficient
 space is provided.
 .Pp
-.Fn Sethostname
+The
+.Fn sethostname
+function
 sets the name of the host machine to be
 .Fa name ,
 which has length
@@ -95,5 +99,5 @@ This includes the trailing
 .Sh HISTORY
 The
 .Fn gethostname
-function call appeared in
+function appeared in
 .Bx 4.2 .
