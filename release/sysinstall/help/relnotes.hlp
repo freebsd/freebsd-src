@@ -34,13 +34,28 @@ previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
 abominable multi_kludge.
 
 The new if_media selection method for ethernet drivers has been brought
-in, obtained from Jason Thorpe's  NetBSD implementation.
+in, obtained from Jason Thorpe's implementation for NetBSD.
 
 Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
 last session will be mounted (including for root mounts).  For non-root
 mounts, mount_cd9660(8) can take an argument to mount a particular
 session instead of the default one.
 
+The UPAGES are gone from the per-process address space which allows
+complete address space and page table sharing by reference count.
+
+Newly forked child processes return directly to user mode rather than
+return up through the fork() syscall tree.  This eliminates the kernel
+stack copy at fork time and simplifies certain other internal operations. 
+It is also needed to support the removal of the UPAGES.  (The idea for
+this originally came from NetBSD, but we did it for different reasons.)
+
+vfork() is now fully functional by taking advantage of the new sharing
+semantics and a significant speedup has been measured.  This can be
+disabled via the kern.fast_vfork sysctl variable in case of problems.
+Statically linked binaries from older releases and other BSD platforms
+are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
+popen() implementation.
 
 2. Supported Configurations
 ---------------------------
