@@ -68,7 +68,7 @@ fseek(fp, offset, whence)
  */
 int
 fseeko(fp, offset, whence)
-	register FILE *fp;
+	FILE *fp;
 	off_t offset;
 	int whence;
 {
@@ -87,7 +87,7 @@ fseeko(fp, offset, whence)
 	 * Have to be able to seek.
 	 */
 	if ((seekfn = fp->_seek) == NULL) {
-		errno = ESPIPE;			/* historic practice */
+		errno = ESPIPE;		/* historic practice */
 		FUNLOCKFILE(fp);
 		return (EOF);
 	}
