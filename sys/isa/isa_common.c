@@ -501,8 +501,7 @@ isa_probe_children(device_t dev)
 					resource_list_alloc(rl, dev, child,
 							    rle->type,
 							    &rid,
-							    0, ~0, 1,
-							    0 /* !RF_ACTIVE */);
+							    0, ~0, 1, 0);
 				}
 			}
 		}
@@ -536,57 +535,83 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 	return child;
 }
 
-static void
+static int
 isa_print_resources(struct resource_list *rl, const char *name, int type,
 		    int count, const char *format)
 {
 	struct resource_list_entry *rle;
 	int printed;
-	int i;
+	int i, retval = 0;;
 
 	printed = 0;
 	for (i = 0; i < count; i++) {
 		rle = resource_list_find(rl, type, i);
 		if (rle) {
 			if (printed == 0)
-				printf(" %s ", name);
+				retval += printf(" %s ", name);
 			else if (printed > 0)
-				printf(",");
+				retval += printf(",");
 			printed++;
-			printf(format, rle->start);
+			retval += printf(format, rle->start);
 			if (rle->count > 1) {
-				printf("-");
-				printf(format, rle->start + rle->count - 1);
+				retval += printf("-");
+				retval += printf(format,
+						 rle->start + rle->count - 1);
 			}
 		} else if (i > 3) {
 			/* check the first few regardless */
 			break;
 		}
 	}
+	return retval;
 }
 
 static int
-isa_print_child(device_t bus, device_t dev)
+isa_print_all_resources(device_t dev)
 {
 	struct	isa_device *idev = DEVTOISA(dev);
 	struct resource_list *rl = &idev->id_resources;
 	int retval = 0;
 
-	retval += bus_print_child_header(bus, dev);
-
 	if (SLIST_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
-	isa_print_resources(rl, "port", SYS_RES_IOPORT, ISA_NPORT, "%#lx");
-	isa_print_resources(rl, "iomem", SYS_RES_MEMORY, ISA_NMEM, "%#lx");
-	isa_print_resources(rl, "irq", SYS_RES_IRQ, ISA_NIRQ, "%ld");
-	isa_print_resources(rl, "drq", SYS_RES_DRQ, ISA_NDRQ, "%ld");
+	retval += isa_print_resources(rl, "port", SYS_RES_IOPORT,
+				      ISA_NPORT, "%#lx");
+	retval += isa_print_resources(rl, "iomem", SYS_RES_MEMORY,
+				      ISA_NMEM, "%#lx");
+	retval += isa_print_resources(rl, "irq", SYS_RES_IRQ,
+				      ISA_NIRQ, "%ld");
+	retval += isa_print_resources(rl, "drq", SYS_RES_DRQ,
+				      ISA_NDRQ, "%ld");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
+	return retval;
+}
+
+static int
+isa_print_child(device_t bus, device_t dev)
+{
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, dev);
+	retval += isa_print_all_resources(dev);
 	retval += bus_print_child_footer(bus, dev);
 
 	return (retval);
+}
+
+static void
+isa_probe_nomatch(device_t dev, device_t child)
+{
+	device_printf(dev, "<%s> found",
+		       pnp_eisaformat(isa_get_logicalid(child)));
+	if (bootverbose)
+		isa_print_all_resources(child);
+	printf("\n");
+                                      
+	return;
 }
 
 static int
@@ -771,12 +796,19 @@ isa_child_detached(device_t dev, device_t child)
 	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
 
-	SLIST_FOREACH(rle, &idev->id_resources, link) {
-		if (rle->res)
-			resource_list_release(rl, dev, child,
-					      rle->type,
-					      rle->rid,
-					      rle->res);
+	if (TAILQ_FIRST(&idev->id_configs)) {
+		/*
+		 * Claim any unallocated resources to keep other
+		 * devices from using them.
+		 */
+		SLIST_FOREACH(rle, rl, link) {
+			if (!rle->res) {
+				int rid = rle->rid;
+				resource_list_alloc(rl, dev, child,
+						    rle->type,
+						    &rid, 0, ~0, 1, 0);
+			}
+		}
 	}
 }
 
@@ -807,6 +839,20 @@ isa_driver_added(device_t dev, driver_t *driver)
 
 		if (device_get_state(child) != DS_NOTPRESENT)
 			continue;
+		if (!device_is_enabled(child))
+			continue;
+
+		/*
+		 * Free resources which we were holding on behalf of
+		 * the device.
+		 */
+		SLIST_FOREACH(rle, &idev->id_resources, link) {
+			if (rle->res)
+				resource_list_release(rl, dev, child,
+						      rle->type,
+						      rle->rid,
+						      rle->res);
+		}
 
 		if (TAILQ_FIRST(&idev->id_configs))
 			if (!isa_assign_resources(child))
@@ -824,9 +870,7 @@ isa_driver_added(device_t dev, driver_t *driver)
 					int rid = rle->rid;
 					resource_list_alloc(rl, dev, child,
 							    rle->type,
-							    &rid,
-							    0, ~0, 1,
-							    0 /* !RF_ACTIVE */);
+							    &rid, 0, ~0, 1, 0);
 				}
 			}
 		}
@@ -961,6 +1005,7 @@ static device_method_t isa_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	isa_add_child),
 	DEVMETHOD(bus_print_child,	isa_print_child),
+	DEVMETHOD(bus_probe_nomatch,	isa_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
 	DEVMETHOD(bus_child_detached,	isa_child_detached),
@@ -996,49 +1041,3 @@ DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);
 #ifdef __i386__
 DRIVER_MODULE(isa, nexus, isa_driver, isa_devclass, 0, 0);
 #endif
-
-/*
- * A fallback driver for reporting un-matched pnp devices.
- */
-
-static int
-unknown_probe(device_t dev)
-{
-	/*
-	 * Only match pnp devices.
-	 */
-	if (isa_get_vendorid(dev) != 0)
-		return -100;
-	return ENXIO;
-}
-
-static int
-unknown_attach(device_t dev)
-{
-	return 0;
-}
-
-static int
-unknown_detach(device_t dev)
-{
-	return 0;
-}
-
-static device_method_t unknown_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		unknown_probe),
-	DEVMETHOD(device_attach,	unknown_attach),
-	DEVMETHOD(device_detach,	unknown_detach),
-
-	{ 0, 0 }
-};
-
-static driver_t unknown_driver = {
-	"unknown",
-	unknown_methods,
-	1,			/* no softc */
-};
-
-static devclass_t unknown_devclass;
-
-DRIVER_MODULE(unknown, isa, unknown_driver, unknown_devclass, 0, 0);
