@@ -197,11 +197,8 @@ donice(curp, chgp, n)
 	register struct proc *curp, *chgp;
 	register int n;
 {
-	register struct pcred *pcred = curp->p_cred;
 
-	if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
-	    pcred->pc_ucred->cr_uid != chgp->p_ucred->cr_uid &&
-	    pcred->p_ruid != chgp->p_ucred->cr_uid)
+	if (p_trespass(curp, chgp) != 0)
 		return (EPERM);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
@@ -234,7 +231,6 @@ rtprio(curp, uap)
 	register struct rtprio_args *uap;
 {
 	register struct proc *p;
-	register struct pcred *pcred = curp->p_cred;
 	struct rtprio rtp;
 	int error;
 
@@ -254,12 +250,10 @@ rtprio(curp, uap)
 	case RTP_LOOKUP:
 		return (copyout(&p->p_rtprio, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
-		if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
-		    pcred->pc_ucred->cr_uid != p->p_ucred->cr_uid &&
-		    pcred->p_ruid != p->p_ucred->cr_uid)
+		if (p_trespass(curp, p) != 0)
 		        return (EPERM);
 		/* disallow setting rtprio in most cases if not superuser */
-		if (suser(curp)) {
+		if (suser_xxx(NULL, curp, PRISON_ROOT) != 0) {
 			/* can't set someone else's */
 			if (uap->pid)
 				return (EPERM);
