@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.37 1996/05/27 23:16:55 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.38 1996/05/30 07:18:39 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -500,9 +500,9 @@ p_mesgout_start:
  */
 p_mesgout_loop:
 	test	SSTAT0,SPIORDY	jz p_mesgout_loop
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 p_mesgout_outb:
 	dec	DINDEX
 	or	CLRSINT0, CLRSPIORDY
@@ -867,9 +867,9 @@ inb_next:
 	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
 inb_next_wait:
 	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
-	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 inb_first:
 	mov	DINDEX,SINDEX
+	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
 	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
