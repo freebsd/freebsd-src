@@ -1,5 +1,5 @@
-/* $Id: ispmbox.h,v 1.6 1999/02/09 01:05:42 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: ispmbox.h,v 1.7 1999/03/17 05:04:39 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -501,7 +501,6 @@ typedef struct {
 #define	RQRSP_ADDR1631	1
 #define	RQRSP_ADDR3247	2
 #define	RQRSP_ADDR4863	3
-
 
 #define	ICB_NNM0	7
 #define	ICB_NNM1	6
