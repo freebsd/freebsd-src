@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.53 1995/07/24 03:16:41 davidg Exp $
+ * $Id: vfs_bio.c,v 1.54 1995/07/25 05:03:06 davidg Exp $
  */
 
 /*
@@ -378,16 +378,16 @@ brelse(struct buf * bp)
 
 	if (needsbuffer) {
 		needsbuffer = 0;
-		wakeup((caddr_t) &needsbuffer);
+		wakeup(&needsbuffer);
 	}
 
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_WANTED | B_AGE);
-		wakeup((caddr_t) bp);
+		wakeup(bp);
 	} else if (bp->b_flags & B_VMIO) {
 		bp->b_flags &= ~B_WANTED;
-		wakeup((caddr_t) bp);
+		wakeup(bp);
 	}
 	if (bp->b_flags & B_LOCKED)
 		bp->b_flags &= ~B_ERROR;
@@ -464,7 +464,7 @@ brelse(struct buf * bp)
 				--m->bmapped;
 				if (m->bmapped == 0) {
 					if (m->flags & PG_WANTED) {
-						wakeup((caddr_t) m);
+						wakeup(m);
 						m->flags &= ~PG_WANTED;
 					}
 					vm_page_test_dirty(m);
@@ -615,7 +615,7 @@ trytofreespace:
 	if (!bp) {
 		/* wait for a free buffer of any kind */
 		needsbuffer = 1;
-		tsleep((caddr_t) &needsbuffer, PRIBIO | slpflag, "newbuf", slptimeo);
+		tsleep(&needsbuffer, PRIBIO | slpflag, "newbuf", slptimeo);
 		splx(s);
 		return (0);
 	}
@@ -632,7 +632,7 @@ trytofreespace:
 
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~B_WANTED;
-		wakeup((caddr_t) bp);
+		wakeup(bp);
 	}
 	bremfree(bp);
 
@@ -824,7 +824,7 @@ loop:
 	if (bp = incore(vp, blkno)) {
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
-			if (!tsleep((caddr_t) bp, PRIBIO | slpflag, "getblk", slptimeo))
+			if (!tsleep(bp, PRIBIO | slpflag, "getblk", slptimeo))
 				goto loop;
 
 			splx(s);
@@ -1108,7 +1108,7 @@ biowait(register struct buf * bp)
 
 	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0)
-		tsleep((caddr_t) bp, PRIBIO, "biowait", 0);
+		tsleep(bp, PRIBIO, "biowait", 0);
 	splx(s);
 	if (bp->b_flags & B_EINTR) {
 		bp->b_flags &= ~B_EINTR;
@@ -1232,7 +1232,7 @@ biodone(register struct buf * bp)
 			--m->busy;
 			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
 				m->flags &= ~PG_WANTED;
-				wakeup((caddr_t) m);
+				wakeup(m);
 			}
 			--obj->paging_in_progress;
 			foff += resid;
@@ -1241,7 +1241,7 @@ biodone(register struct buf * bp)
 		if (obj && obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
 			obj->flags &= ~OBJ_PIPWNT;
-			wakeup((caddr_t) obj);
+			wakeup(obj);
 		}
 	}
 	/*
@@ -1254,7 +1254,7 @@ biodone(register struct buf * bp)
 		brelse(bp);
 	} else {
 		bp->b_flags &= ~B_WANTED;
-		wakeup((caddr_t) bp);
+		wakeup(bp);
 	}
 	splx(s);
 }
@@ -1280,7 +1280,7 @@ vfs_update()
 {
 	(void) spl0();
 	while (1) {
-		tsleep((caddr_t) &vfs_update_wakeup, PRIBIO, "update",
+		tsleep(&vfs_update_wakeup, PRIBIO, "update",
 		    hz * vfs_update_interval);
 		vfs_update_wakeup = 0;
 		sync(curproc, NULL, NULL);
@@ -1319,13 +1319,13 @@ vfs_unbusy_pages(struct buf * bp)
 			--m->busy;
 			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
 				m->flags &= ~PG_WANTED;
-				wakeup((caddr_t) m);
+				wakeup(m);
 			}
 		}
 		if (obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
 			obj->flags &= ~OBJ_PIPWNT;
-			wakeup((caddr_t) obj);
+			wakeup(obj);
 		}
 	}
 }
