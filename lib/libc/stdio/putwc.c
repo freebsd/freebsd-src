@@ -36,10 +36,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Synonym for fputwc(). The only difference is that putwc(), if it is a
- * macro, may evaluate `fp' more than once. Function call overhead is not
- * an issue here: wchar.h #define's putwc to fputwc.
+ * macro, may evaluate `fp' more than once.
  */
-#undef putwc
 wint_t
 putwc(wchar_t wc, FILE *fp)
 {
