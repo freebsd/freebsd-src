@@ -37,6 +37,7 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
+#include <inttypes.h>
 #include "pthread.h"
 #include <sched.h>
 #include <signal.h>
@@ -465,8 +466,8 @@ waiter (void *arg)
 		pthread_mutex_unlock (&waiter_mutex);
 	}
 
-	log_trace ("Thread %d: Exiting thread 0x%x\n", (int) statep->id,
-	    (int) pthread_self());
+	log_trace ("Thread %d: Exiting thread 0x%" PRIxPTR "\n",
+	    (int) statep->id, (uintptr_t) pthread_self());
 	pthread_exit (arg);
 	return (NULL);
 }
@@ -512,8 +513,8 @@ lock_twice (void *arg)
 	if (statep->ret == 0)
 		pthread_mutex_unlock (statep->cmd.mutex);
 
-	log_trace ("Thread %d: Exiting thread 0x%x\n", (int) statep->id,
-	    (int) pthread_self());
+	log_trace ("Thread %d: Exiting thread 0x%" PRIxPTR "\n",
+	    (int) statep->id, (uintptr_t) pthread_self());
 	pthread_exit (arg);
 	return (NULL);
 }
@@ -522,8 +523,8 @@ lock_twice (void *arg)
 static void
 sighandler (int signo)
 {
-	log ("Signal handler caught signal %d, thread id 0x%x\n",
-	    signo, (int) pthread_self());
+	log ("Signal handler caught signal %d, thread id 0x%" PRIxPTR "\n",
+	    signo, (uintptr_t) pthread_self());
 
 	if (signo == SIGINT)
 		done = 1;
