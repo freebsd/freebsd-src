@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.26 1996/01/24 21:09:58 phk Exp $
+ * $Id: if_ether.c,v 1.27 1996/02/05 18:04:30 wollman Exp $
  */
 
 /*
@@ -347,7 +347,8 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 			rt = la->la_rt;
 	}
 	if (la == 0 || rt == 0) {
-		log(LOG_DEBUG, "arpresolve: can't allocate llinfo\n");
+		log(LOG_DEBUG, "arpresolve: can't allocate llinfo for %s\n",
+			inet_ntoa(SIN(dst)->sin_addr));
 		m_freem(m);
 		return (0);
 	}
