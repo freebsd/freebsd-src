@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.160 1998/04/22 10:25:17 julian Exp $
+ *	$Id: wd.c,v 1.161 1998/04/22 19:27:53 julian Exp $
  */
 
 /* TODO:
@@ -673,7 +673,7 @@ wds_init(void *arg)
 	int err = 0;
 	struct ide_geom geom;
 
-	if ((err = wdsopen(du, 0, 0, curproc))) {
+	if ((err = wdsopen(du, FREAD, 0, curproc))) {
 		printf("wd open failed with %d", err);
 		return;
 	}
@@ -2775,5 +2775,5 @@ wdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 }
 
-#endif /* NWDC > 0 */
+#endif /* SLICE */
 #endif /* NWDC > 0 */
