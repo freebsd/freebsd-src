@@ -25,10 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: syscons.c,v 1.104 1995/02/22 13:40:19 sos Exp $
  */
 
 #include "sc.h"
+#include "apm.h"
 #if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +51,7 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/pc/display.h>
+#include <machine/apm_bios.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -61,10 +63,6 @@
 #if !defined(MAXCONS)
 #define MAXCONS 16
 #endif
-#include "apm.h"
-#if NAPM > 0
-#include "machine/apm_bios.h"
-#endif 
 
 /* this may break on older VGA's but is usefull on real 32 bit systems */
 #define bcopyw  bcopy       
@@ -218,6 +216,19 @@ sc_registerdev(struct isa_device *id)
     dev_attach(&kdc_sc[id->id_unit]);
 }
 
+#if NAPM > 0 
+static int 
+scresume(void *dummy)
+{
+	shfts = 0;
+	ctls = 0;
+	alts = 0;
+	agrs = 0;
+	metas = 0;
+	return 0;
+}
+#endif
+
 int
 scattach(struct isa_device *dev)
 {
@@ -267,7 +278,7 @@ scattach(struct isa_device *dev)
     update_leds(scp->status);
     sc_registerdev(dev);
 #if NAPM > 0
-    scp->r_hook.ah_fun = pcresume;
+    scp->r_hook.ah_fun = scresume;
     scp->r_hook.ah_arg = NULL;
     scp->r_hook.ah_name = "system keyboard";
     scp->r_hook.ah_order = APM_MID_ORDER;
@@ -276,8 +287,8 @@ scattach(struct isa_device *dev)
     return 0;
 }
 
-static struct tty 
-*get_tty_ptr(dev_t dev)
+struct tty 
+*scdevtotty(dev_t dev)
 {
     int unit = minor(dev);
 
@@ -286,6 +297,17 @@ static struct tty
     if (unit == MAXCONS)
 	return CONSOLE_TTY;
     return VIRTUAL_TTY(unit);
+}
+
+int
+scselect(dev_t dev, int rw, struct proc *p)
+{
+	struct tty *tp = scdevtotty(dev);
+
+	if (tp == NULL)
+		return(ENXIO);
+
+	return (ttyselect(tp, rw, p));
 }
 
 static scr_stat 
@@ -313,7 +335,7 @@ get_scr_num()
 int 
 scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = get_tty_ptr(dev);
+    struct tty *tp = scdevtotty(dev);
 
     if (!tp)
 	return(ENXIO);
@@ -344,7 +366,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 int 
 scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = get_tty_ptr(dev);
+    struct tty *tp = scdevtotty(dev);
     struct scr_stat *scp;
 
     if (!tp)
@@ -379,7 +401,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int 
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = get_tty_ptr(dev);
+    struct tty *tp = scdevtotty(dev);
 
     if (!tp)
 	return(ENXIO);
@@ -389,7 +411,7 @@ scread(dev_t dev, struct uio *uio, int flag)
 int 
 scwrite(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = get_tty_ptr(dev);
+    struct tty *tp = scdevtotty(dev);
 
     if (!tp)
 	return(ENXIO);
@@ -458,7 +480,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     struct trapframe *fp;
     scr_stat *scp; 
 
-    tp = get_tty_ptr(dev);
+    tp = scdevtotty(dev);
     if (!tp)
 	return ENXIO;
     scp = get_scr_stat(tp->t_dev);
@@ -1050,7 +1072,7 @@ set_mouse_pos:
 void 
 scxint(dev_t dev)
 {
-    struct tty *tp = get_tty_ptr(dev);
+    struct tty *tp = scdevtotty(dev);
 
     if (!tp)
 	return;
@@ -1093,19 +1115,6 @@ scstart(struct tty *tp)
     }
     splx(s);
 }
-
-#if NAPM > 0 
-static int 
-scresume(void *dummy)
-{
-	shfts = 0;
-	ctls = 0;
-	alts = 0;
-	agrs = 0;
-	metas = 0;
-	return 0;
-}
-#endif
 
 void 
 pccnprobe(struct consdev *cp)

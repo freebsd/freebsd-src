@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.9 1995/02/09 11:14:19 jkh Exp $
+ * $Id: tty.h,v 1.10 1995/02/14 21:23:48 ugen Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -208,7 +208,7 @@ int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
 int	 ttnread __P((struct tty *));
 void	 ttrstrt __P((void *tp));
-int	 ttselect __P((dev_t device, int rw, struct proc *p));
+int	 ttyselect __P((struct tty *tp, int rw, struct proc *p));
 void	 ttsetwater __P((struct tty *tp));
 int	 ttspeedtab __P((int speed, struct speedtab *table));
 int	 ttstart __P((struct tty *tp));

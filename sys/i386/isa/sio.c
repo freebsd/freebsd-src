@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.65 1995/01/20 07:34:15 wpaul Exp $
+ *	$Id: sio.c,v 1.66 1995/02/24 00:11:01 ache Exp $
  */
 
 #include "sio.h"
@@ -1819,15 +1819,50 @@ siostop(tp, rw)
 	enable_intr();
 }
 
+struct tty *
+siodevtotty(dev)
+	dev_t		dev;
+{
+	register int mynor, unit;
+	struct com_s *com;
+
+	mynor = minor(dev);
+	if (mynor & CONTROL_MASK)
+		return NULL;
+
+	unit = MINOR_TO_UNIT(mynor);
+	if (unit >= NSIO)
+		return NULL;
+
+	com = com_addr(unit);
+	if (com == NULL)
+		return NULL;
+
+	return com->tp;
+}
+
 int
 sioselect(dev, rw, p)
 	dev_t		dev;
 	int		rw;
 	struct proc	*p;
 {
-	if (minor(dev) & CONTROL_MASK)
+	register int mynor, unit;
+	struct com_s *com;
+
+	mynor = minor(dev);
+	if (mynor & CONTROL_MASK)
 		return (ENODEV);
-	return (ttselect(dev & ~MINOR_MAGIC_MASK, rw, p));
+
+	unit = MINOR_TO_UNIT(mynor);
+	if (unit >= NSIO)
+		return (ENXIO);
+
+	com = com_addr(unit);
+	if (com == NULL)
+		return (ENXIO);
+
+	return (ttyselect(com->tp, rw, p));
 }
 
 static void

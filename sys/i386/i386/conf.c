@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.66 1995/02/15 12:01:24 jkh Exp $
+ *	$Id: conf.c,v 1.67 1995/02/21 04:26:35 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -69,6 +69,7 @@ d_strategy_t swstrategy;
 #define nommap		(d_mmap_t *)enodev
 #define nostrat		(d_strategy_t *)enodev
 #define nodump		(d_dump_t *)enodev
+#define	nodevtotty	(d_ttycv_t *)nullop
 
 #define nxopen		(d_open_t *)enxio
 #define	nxclose		(d_close_t *)enxio
@@ -81,6 +82,7 @@ d_strategy_t swstrategy;
 #define nxreset		(d_reset_t *)enxio
 #define nxselect	(d_select_t *)enxio
 #define nxmmap		(d_mmap_t *)enxio
+#define	nxdevtotty	(d_ttycv_t *)nullop
 
 #define nullopen	(d_open_t *)nullop
 #define nullclose	(d_close_t *)nullop
@@ -352,17 +354,19 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 d_open_t	scopen;
 d_close_t	scclose;
 d_rdwr_t	scread, scwrite;
+d_select_t	scselect;
 d_ioctl_t	scioctl;
 d_mmap_t	scmmap;
-extern	struct tty sccons[];
+d_ttycv_t	scdevtotty;
 #else
 #define scopen		nxopen
 #define scclose		nxclose
 #define scread		nxread
 #define scwrite		nxwrite
+#define	scselect	nxselect
 #define scioctl		nxioctl
 #define scmmap		nxmmap
-#define sccons		NULL
+#define	scdevtotty	nxdevtotty
 #endif
 
 /* controlling TTY */
@@ -371,6 +375,7 @@ d_rdwr_t	cttyread;
 d_rdwr_t	cttywrite;
 d_ioctl_t	cttyioctl;
 d_select_t	cttyselect;
+d_ttycv_t	cttydevtotty;
 
 /* /dev/mem */
 d_open_t	mmopen;
@@ -383,28 +388,31 @@ d_mmap_t	memmmap;
 #if NPTY > 0
 d_open_t	ptsopen;
 d_close_t	ptsclose;
-d_rdwr_t	ptsread, ptswrite;
+d_rdwr_t	ptsread;
+d_rdwr_t	ptswrite;
 d_stop_t	ptsstop;
+d_select_t	ptsselect;
 d_open_t	ptcopen;
 d_close_t	ptcclose;
 d_rdwr_t	ptcread;
 d_rdwr_t	ptcwrite;
 d_select_t	ptcselect;
+d_ttycv_t	ptydevtotty;
 d_ioctl_t	ptyioctl;
-extern struct	tty pt_tty[];
 #else
 #define ptsopen		nxopen
 #define ptsclose	nxclose
 #define ptsread		nxread
 #define ptswrite	nxwrite
+#define	ptsselect	nxselect
 #define ptcopen		nxopen
 #define ptcclose	nxclose
 #define ptcread		nxread
 #define ptcwrite	nxwrite
 #define ptyioctl	nxioctl
-#define	pt_tty		NULL
 #define	ptcselect	nxselect
 #define	ptsstop		nullstop
+#define	ptydevtotty	nxdevtotty
 #endif
 
 
@@ -466,12 +474,14 @@ d_open_t	twopen;
 d_close_t	twclose;
 d_rdwr_t	twread, twwrite;
 d_select_t	twselect;
+d_ttycv_t	twdevtotty;
 #else
 #define twopen		nxopen
 #define twclose		nxclose
 #define twread		nxread
 #define twwrite		nxwrite
 #define twselect	nxselect
+#define	twdevtotty	nxdevtotty
 #endif
 
 #include "psm.h"
@@ -589,8 +599,8 @@ d_rdwr_t	sioread, siowrite;
 d_ioctl_t	sioioctl;
 d_select_t	sioselect;
 d_stop_t	siostop;
+d_ttycv_t	siodevtotty;
 #define sioreset	nxreset
-extern	struct tty sio_tty[];
 #else
 #define sioopen		nxopen
 #define sioclose	nxclose
@@ -600,7 +610,7 @@ extern	struct tty sio_tty[];
 #define siostop		nxstop
 #define sioreset	nxreset
 #define sioselect	nxselect
-#define	sio_tty		(struct tty *)NULL
+#define	siodevtotty	nxdevtotty
 #endif
 
 #include "su.h"
@@ -702,7 +712,6 @@ d_rdwr_t	cxread, cxwrite;
 d_ioctl_t	cxioctl;
 d_select_t	cxselect;
 d_stop_t	cxstop;
-extern	struct tty cx_tty[];
 #else
 #define cxopen		nxopen
 #define cxclose		nxclose
@@ -711,7 +720,6 @@ extern	struct tty cx_tty[];
 #define cxioctl		nxioctl
 #define cxstop		nxstop
 #define cxselect	nxselect
-#define cx_tty		(struct tty *)NULL
 #endif
 
 #include "gp.h"
@@ -797,10 +805,10 @@ d_write_t       cywrite;
 d_ioctl_t	cyioctl;
 d_stop_t        cystop;
 d_select_t      cyselect;
+d_ttycv_t	cydevtotty;
 #define cyreset	nxreset
 #define	cymmap	nxmmap
 #define cystrategy nxstrategy
-extern	struct tty cy_tty[];
 #else
 #define	cyopen		nxopen
 #define cyclose		nxclose
@@ -812,7 +820,7 @@ extern	struct tty cy_tty[];
 #define cyselect	nxselect
 #define cymmap		nxmmap
 #define cystrategy	nxstrategy
-#define cy_tty          (struct tty *)NULL
+#define	cydevtotty	nxdevtotty
 #endif
 
 #include "ity.h"
@@ -823,8 +831,8 @@ d_read_t	ityread;
 d_write_t	itywrite;
 d_ioctl_t	ityioctl;
 d_select_t	ityselect;
+d_ttycv_t	itydevtotty;
 #define ityreset	nxreset
-extern	struct tty ity_tty[];
 #else
 #define ityopen		nxopen
 #define ityclose	nxclose
@@ -833,7 +841,7 @@ extern	struct tty ity_tty[];
 #define ityioctl	nxioctl
 #define ityreset	nxreset
 #define ityselect	nxselect
-#define	ity_tty		(struct tty *)NULL
+#define	itydevtotty	nxdevtotty
 #endif
 
 #include "nic.h"
@@ -906,196 +914,196 @@ d_ioctl_t ispyioctl;
 struct cdevsw	cdevsw[] =
 {
 	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
-	  cnioctl,	nullstop,	nullreset,	NULL,	/* console */
+	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
 	  cnselect,	nommap,		NULL },
 	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
-	  cttyioctl,	nullstop,	nullreset,	NULL,	/* tty */
+	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */
 	  cttyselect,	nommap,		NULL },
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
-	  noioc,	nullstop,	nullreset,	NULL,	/* memory */
+	  noioc,	nullstop,	nullreset,	nodevtotty,/* memory */
 	  mmselect,	memmmap,	NULL },
 	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
-	  wdioctl,	nostop,		nullreset,	NULL,	/* wd */
+	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
 	  seltrue,	nommap,		wdstrategy },
 	{ nullopen,	nullclose,	rawread,	rawwrite,	/*4*/
-	  noioc,	nostop,		noreset,	NULL,	/* swap */
+	  noioc,	nostop,		noreset,	nodevtotty,/* swap */
 	  noselect,	nommap,		swstrategy },
 	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
-	  ptyioctl,	ptsstop,	nullreset,	pt_tty, /* ttyp */
-	  ttselect,	nommap,		NULL },
+	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
+	  ptsselect,	nommap,		NULL },
 	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
-	  ptyioctl,	nullstop,	nullreset,	pt_tty, /* ptyp */
+	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
 	  ptcselect,	nommap,		NULL },
 	{ logopen,	logclose,	logread,	nowrite,	/*7*/
-	  logioctl,	nostop,		nullreset,	NULL,	/* klog */
+	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
 	  logselect,	nommap,		NULL },
 	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
-	  bquioctl,     nostop,         nullreset,      NULL,   /* tputer */
+	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
 	  bquselect,    nommap,         NULL },
 	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
-	  fdioctl,	nostop,		nullreset,	NULL,	/* Fd (!=fd) */
+	  fdioctl,	nostop,		nullreset,	nodevtotty,/* Fd (!=fd) */
 	  seltrue,	nommap,		fdstrategy },
 	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
-	  wtioctl,	nostop,		nullreset,	NULL,	/* wt */
+	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
 	  seltrue,	nommap,		wtstrategy },
 	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
-	  spigot_ioctl,	nostop,		nullreset,	NULL,	/* Spigot */
+	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
 	  spigot_select, spigot_mmap,	NULL },
 	{ scopen,	scclose,	scread,		scwrite,	/*12*/
-	  scioctl,	nullstop,	nullreset,	sccons, /* sc */
-	  ttselect,	scmmap,		NULL },
+	  scioctl,	nullstop,	nullreset,	scdevtotty,/* sc */
+	  scselect,	scmmap,		NULL },
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
-	  sdioctl,	nostop,		nullreset,	NULL,	/* sd */
+	  sdioctl,	nostop,		nullreset,	nodevtotty,/* sd */
 	  seltrue,	nommap,		sdstrategy },
 	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
-	  stioctl,	nostop,		nullreset,	NULL,	/* st */
+	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
 	  seltrue,	nommap,		ststrategy },
 	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
-	  cdioctl,	nostop,		nullreset,	NULL,	/* cd */
+	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
 	  seltrue,	nommap,		cdstrategy },
 	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
-	  lptioctl,	nullstop,	nullreset,	NULL,	/* lpt */
+	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
 	  seltrue,	nommap,		nostrat},
 	{ chopen,	chclose,	noread,		nowrite,	/*17*/
-	  chioctl,	nostop,		nullreset,	NULL,	/* ch */
+	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
 	  noselect,	nommap,		nostrat },
 	{ suopen,	suclose,	suread,		suwrite,	/*18*/
-	  suioctl,	nostop,		nullreset,	NULL,	/* scsi */
+	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
 	  suselect,	summap,		sustrategy },		/* 'generic' */
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
-	  noioc,	nullstop,	nullreset,	NULL,	/* tw */
+	  noioc,	nullstop,	nullreset,	nodevtotty,/* tw */
 	  twselect,	nommap,		nostrat },
 /*
  * If you need a cdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
- * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
+ * by sending mail to "hackers@freebsd.org".
  * If you assign one yourself it may conflict with someone else.
  * Otherwise, simply use the one reserved for local use.
  */
 	/* character device 20 is reserved for local use */
 	{ nxopen, nxclose, nxread,	/*20*/
 	  nxwrite, nxioctl, nxstop,
-	  nxreset, NULL, nxselect,
+	  nxreset, nxdevtotty, nxselect,
 	  nxmmap, NULL },
 	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
-	  psmioctl,	nostop,		nullreset,	NULL,	/* psm mice */
+	  psmioctl,	nostop,		nullreset,	nodevtotty,/* psm mice */
 	  psmselect,	nommap,		NULL },
 	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
-	  noioc,	nostop,		nullreset,	NULL,	/* fd (!=Fd) */
+	  noioc,	nostop,		nullreset,	nodevtotty,/* fd (!=Fd) */
 	  noselect,	nommap,		nostrat },
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
- 	  bpfioctl,	nostop,		nullreset,	NULL,	/* bpf */
+ 	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
  	  bpfselect,	nommap,		NULL },
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
- 	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
+ 	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
  	  pcaselect,	nommap,		NULL },
 	{ vaopen,	vaclose,	varead,		vawrite,	/*25*/
-  	  vaioctl,	nostop,		nullreset,	NULL,	/* vat */
+  	  vaioctl,	nostop,		nullreset,	nodevtotty,/* vat */
   	  vaselect,	nommap,		NULL },
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
-	  spkrioctl,    nostop,         nullreset,      NULL,	/* spkr */
+	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
 	  seltrue,	nommap,		NULL },
 	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
-	  noioc,	nostop,		nullreset,	NULL,	/* mse */
+	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
 	  mseselect,	nommap,		NULL },
 	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
-	  sioioctl,	siostop,	sioreset,	sio_tty, /* sio */
+	  sioioctl,	siostop,	sioreset,	siodevtotty,/* sio */
 	  sioselect,	nommap,		NULL },
 	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
-	  mcdioctl,	nostop,		nullreset,	NULL, /* mitsumi cd */
+	  mcdioctl,	nostop,		nullreset,	nodevtotty,/* mitsumi cd */
 	  seltrue,	nommap,		mcdstrategy },
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
-  	  sndioctl,	nostop,		nullreset,	NULL,	/* sound */
+  	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
   	  sndselect,	nommap,		NULL },
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
-	  ukioctl,	nostop,		nullreset,	NULL,	/* unknown */
-	  seltrue,	nommap,		NULL },			/* scsi */
+	  ukioctl,	nostop,		nullreset,	nodevtotty,/* unknown */
+	  seltrue,	nommap,		NULL },			   /* scsi */
 	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
-	  lkmcioctl,	nostop,		nullreset,	NULL,
+	  lkmcioctl,	nostop,		nullreset,	nodevtotty,
 	  noselect,	nommap,		NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*33*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*34*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*35*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*36*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*37*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*38*/
-	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmioctl,	lkmstop,	lkmreset,	nodevtotty,
 	  lkmselect,	lkmmmap,	NULL },
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
-	  apmioctl,	nostop,		nullreset,	NULL, /* laptop APM */
+	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
 	  seltrue,	nommap,		NULL },
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
-	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex */
+	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
 	  seltrue,	nommap,		NULL },
 	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
-	  sockioctl,	nostop,		nullreset,	NULL,	/* socksys */
+	  sockioctl,	nostop,		nullreset,	nodevtotty,/* socksys */
 	  seltrue,	nommap,		NULL },
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
-	  cxioctl,	cxstop,		nullreset,	cx_tty,	/* cronyx */
+	  cxioctl,	cxstop,		nullreset,	nodevtotty,/* cronyx */
 	  cxselect,	nommap,		NULL },
 	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
-	  vnioctl,	nostop,		nullreset,	NULL,	/* vn */
+	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
 	  seltrue,	nommap,		vnstrategy },
 	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
-	  gpioctl,	nostop,		nullreset,	NULL,   /* GPIB */
+	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
           seltrue,	nommap,		NULL },                 
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
-	  scdioctl,	nostop,		nullreset,	NULL,	/* sony cd */
+	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
 	  seltrue,	nommap,		scdstrategy },
 	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
-	  pcdioctl,	nostop,		nullreset,	NULL,	/* pana cd */
+	  pcdioctl,	nostop,		nullreset,	nodevtotty,/* pana cd */
 	  seltrue,	nommap,		pcdstrategy },
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
-	  gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
+	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
 	  seltrue,      nommap,         NULL },
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
-	  cyioctl,	cystop,		cyreset,	cy_tty,
-	  cyselect,	cymmap,		cystrategy },		/* cyclades */
+	  cyioctl,	cystop,		cyreset,	cydevtotty,/*cyclades*/
+	  cyselect,	cymmap,		cystrategy },
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
-	  sscioctl,	nostop,		nullreset,	NULL, /* scsi super */
+	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
 	  sscselect,	sscmmap,	sscstrategy },
 	{ nxopen,	nxclose,	nxread,		nxwrite,	/*50*/
-	  nxioctl,	nxstop,		nxreset,	NULL,	/* pcmcia */
+	  nxioctl,	nxstop,		nxreset,	nodevtotty,/* pcmcia */
 	  nxselect,	nxmmap,		NULL },
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
-	  joyioctl,	nostop,		nullreset,	NULL,	/*joystick */
+	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
 	  seltrue,	nommap,		NULL},
 	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
-	  tunioctl,     nostop,         nullreset,      NULL,   /* tunnel */
+	  tunioctl,     nostop,         nullreset,      nodevtotty,/* tunnel */
 	  tunselect,    nommap,         NULL },
 	{ snpopen,	snpclose,	snpread,	nowrite,	/*53*/
-	  snpioctl,	nostop,		nullreset,	NULL,	/* snoop */
+	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
 	  snpselect,	nommap,		NULL },
 	{ nicopen,	nicclose,	noread,		nowrite,	/*54*/
-	  nicioctl,	nostop,		nullreset,	NULL,	/* nic */
+	  nicioctl,	nostop,		nullreset,	nodevtotty,/* nic */
 	  seltrue,	nommap,		NULL },
 	{ isdnopen,	isdnclose,	isdnread,	nowrite,	/*55*/
-	  isdnioctl,	nostop,		nullreset,	NULL,	/* isdn */
+	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
 	  seltrue,	nommap,		NULL },
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	nostop,		ityreset,	ity_tty,/* ity */
+	  ityioctl,	nostop,		ityreset,	itydevtotty,/* ity */
 	  ityselect,	nommap,		NULL },
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
-	  itelioctl,	nostop,		nullreset,	NULL,	/* itel */
+	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
 	{ nxopen,	nxclose,	nxread,		nxwrite,	/*58*/
-	  nxioctl,	nxstop,		nxreset,	NULL,	/* unused */
+	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* unused */
 	  seltrue,	nxmmap,		NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
-	  ispyioctl,	nostop,		nullreset,	NULL,	/* ispy */
+	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
 	  seltrue,	nommap,         NULL },
 	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
-	  nnicioctl,	nostop,		nullreset,	NULL,	/* nnic */
+	  nnicioctl,	nostop,		nullreset,	nodevtotty,/* nnic */
 	  seltrue,	nommap,		NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
