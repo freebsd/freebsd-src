@@ -3370,6 +3370,28 @@ or a range of ports the same size as the other ranges.
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
 one interior machine per source machine and target port are possible.
+.It nat proto Ar proto localIP Op Ar publicIP Op Ar remoteIP
+This command tells
+.Nm
+to redirect packets of protocol type
+.Ar proto
+.Pq see Xr protocols 5
+to the internall address
+.Ar localIP .
+.Pp
+If
+.Ar publicIP
+is specified, only packets destined for that address are matched,
+otherwise the default alias address is used.
+.Pp
+If
+.Ar remoteIP
+is specified, only packets matching that source address are matched,
+.Pp
+This command is useful for redirecting tunnel endpoints to an internal machine,
+for example:
+.Pp
+.Dl nat proto ipencap 10.0.0.1
 .It "nat proxy cmd" Ar arg Ns No ...
 This command tells
 .Nm
@@ -5646,6 +5668,7 @@ This socket is used to pass links between different instances of
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
+.Xr protocols 5 ,
 .Xr radius.conf 5 ,
 .Xr resolv.conf 5 ,
 .Xr syslog.conf 5 ,
