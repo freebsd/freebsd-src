@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.15 1997/01/22 00:28:57 jkh Exp $
+ * $Id: menus.c,v 1.89.2.16 1997/01/24 21:05:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -522,12 +522,16 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.nl.net/pub/os/FreeBSD/" },
       { "Poland",	"SunSITE.icm.edu.pl", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://SunSITE.icm.edu.pl/pub/FreeBSD/" },
-      { "Portugal",	"ftp.ua.pt", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp.ua.pt/pub/misc/FreeBSD/" },
+      { "Portugal",	"ftp.pt.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.pt.freebsd.org/pub/misc/FreeBSD/" },
+      { "Portugal #2",	"ftp2.pt.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp2.pt.freebsd.org/pub/FreeBSD/" },
       { "Russia",	"ftp.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp.ru.freebsd.org/FreeBSD/" },
+	VAR_FTP_PATH "=ftp://ftp.ru.freebsd.org/pub/FreeBSD/" },
       { "Russia #2",	"ftp2.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp2.ru.freebsd.org/FreeBSD/" },
+      { "Russia #3",	"ftp3.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp3.ru.freebsd.org/pub/FreeBSD/" },
       { "South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.za.freebsd.org/pub/FreeBSD/" },
       { "South Africa #2", "ftp2.za.freebsd.org", NULL, dmenuSetVariable, NULL,

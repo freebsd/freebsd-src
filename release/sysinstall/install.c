@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.24 1997/01/22 00:28:56 jkh Exp $
+ * $Id: install.c,v 1.134.2.25 1997/01/24 21:05:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -276,10 +276,10 @@ installFixitCDROM(dialogMenuItem *self)
 	    break;
     }
 
-    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /cdrom, do
+    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /dist, do
      * a little kludge dance here..
      */
-    if (symlink("/cdrom", "/mnt2")) {
+    if (symlink("/dist", "/mnt2")) {
 	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
 		   "unexpected failure to bugs@freebsd.org.");
 	return DITEM_FAILURE;

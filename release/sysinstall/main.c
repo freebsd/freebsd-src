@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.4 1997/01/17 10:59:22 jkh Exp $
+ * $Id: main.c,v 1.28.2.5 1997/01/19 09:59:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -92,13 +92,6 @@ main(int argc, char **argv)
     /* First, see if we have any arguments to process (and argv[0] counts if it's not "sysinstall") */
     if (!RunningAsInit) {
 	int i, start_arg;
-
-	/* Try to set ourselves up as a CDROM if we can do that first */
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
-	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    if (!mediaDevice->init(mediaDevice))
-		mediaDevice = NULL;
-	}
 
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
