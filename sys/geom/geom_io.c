@@ -172,19 +172,15 @@ g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr)
 	int error;
 
 	g_trace(G_T_BIO, "bio_setattr(%s)", attr);
-	do {
-		bp = g_new_bio();
-		bp->bio_cmd = BIO_SETATTR;
-		bp->bio_done = NULL;
-		bp->bio_attribute = attr;
-		bp->bio_length = len;
-		bp->bio_data = ptr;
-		g_io_request(bp, cp);
-		error = biowait(bp, "gsetattr");
-		g_destroy_bio(bp);
-		if (error == EBUSY)
-			tsleep(&error, 0, "setattr_busy", hz);
-	} while(error == EBUSY);
+	bp = g_new_bio();
+	bp->bio_cmd = BIO_SETATTR;
+	bp->bio_done = NULL;
+	bp->bio_attribute = attr;
+	bp->bio_length = len;
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	error = biowait(bp, "gsetattr");
+	g_destroy_bio(bp);
 	return (error);
 }
 
@@ -260,8 +256,13 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			return (g_io_fail(bp, EPERM));
 		break;
 	case BIO_SETATTR:
-		if ((cp->acw == 0) || (cp->ace == 0))
+		/* XXX: Should ideally check for (cp->ace == 0) */
+		if ((cp->acw == 0)) {
+			printf("setattr on %s mode (%d,%d,%d)\n",
+				cp->provider->name,
+				cp->acr, cp->acw, cp->ace);
 			return (g_io_fail(bp, EPERM));
+		}
 		break;
 	default:
 		return (g_io_fail(bp, EPERM));
