@@ -405,6 +405,9 @@ archive_read_data_skip(struct archive *a)
 void
 archive_read_finish(struct archive *a)
 {
+	int i;
+	int slots;
+
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
 	a->state = ARCHIVE_STATE_CLOSED;
 
@@ -418,23 +421,21 @@ archive_read_finish(struct archive *a)
 	if (a->compression_finish != NULL)
 		(a->compression_finish)(a);
 
-	/*-
-	 * Release allocated strings.
-	 *
-	 * TODO: Add a "cleanup" column to the "formats" array and
-	 * use that to cleanup format-specific data.  E.g.,
-	 *
-	 * for (i=0; i< slots; i++) {
-	 *   if (a->formats[i].cleanup)
-	 *     (a->formats[i].cleanup)(a);
-	 * }
-	 */
+	/* Cleanup format-specific data. */
+	slots = sizeof(a->formats) / sizeof(a->formats[0]);
+	for (i = 0; i < slots; i++) {
+		a->pformat_data = &(a->formats[i].format_data);
+		if (a->formats[i].cleanup)
+			(a->formats[i].cleanup)(a);
+	}
+
 	/* Casting a pointer to int allows us to remove 'const.' */
 	free((void *)(uintptr_t)(const void *)a->nulls);
 	if (a->extract_mkdirpath.s != NULL)
 		free(a->extract_mkdirpath.s);
 	if (a->entry)
 		archive_entry_free(a->entry);
+	a->magic = 0;
 	free(a);
 }
 

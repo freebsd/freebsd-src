@@ -55,12 +55,19 @@ archive_read_open_file(struct archive *a, const char *filename,
 {
 	struct read_file_data *mine;
 
-	/* XXX detect and report malloc failure XXX */
 	if (filename == NULL) {
 		mine = malloc(sizeof(*mine));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
 		mine->filename[0] = 0;
 	} else {
 		mine = malloc(sizeof(*mine) + strlen(filename));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
 		strcpy(mine->filename, filename);
 	}
 	mine->block_size = block_size;

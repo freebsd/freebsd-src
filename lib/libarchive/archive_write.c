@@ -170,6 +170,7 @@ archive_write_finish(struct archive *a)
 	free((void *)(uintptr_t)(const void *)a->nulls);
 	if (a->extract_mkdirpath.s != NULL)
 		free(a->extract_mkdirpath.s);
+	a->magic = 0;
 	free(a);
 }
 
