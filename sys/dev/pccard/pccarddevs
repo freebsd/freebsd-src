@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.97 2000/07/26 07:24:15 onoe Exp $ */
+/* $NetBSD: pcmciadevs,v 1.107 2000/12/20 06:05:13; haya Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -70,6 +70,7 @@ vendor RAYTHEON			0x01a6	Raytheon
 vendor IODATA			0x01bf	I-O DATA
 vendor BAY			0x01eb  Bay Networks
 vendor FARALLON			0x0200  Farallon Communications
+vendor TELECOMDEVICE		0x021b  Telecom Device
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
 vendor LASAT			0x3401	Lasat Communications A/S
@@ -77,10 +78,12 @@ vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor COMPEX			0x8a01	Compex Corporation
 vendor MELCO			0x8a01	Melco Corporation
 vendor CONTEC			0xc001	Contec
+vendor MACNICA			0xc00b	MACNICA
 vendor COREGA			0xc00f	Corega K.K.
 vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
+vendor ELSA			0xd601  Elsa 
 
 /*
  * List of known products.  Grouped by vendor.
@@ -117,6 +120,10 @@ product DAYNA COMMUNICARD_E_2	0x002f Dayna CommuniCard E
 /* DIGITAL Products */
 product DIGITAL MOBILE_MEDIA_CDROM 0x0d00 Digital Mobile Media CD-ROM
 
+/* ELSA Products */
+product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
+product ELSA XI300_IEEE		0x0002 XI300 Wireless LAN
+
 /* Fujutsu Products */
 product FUJITSU SCSI600		0x0401 Fujitsu SCSI 600 Interface
 
@@ -132,6 +139,7 @@ product FUJITSU LA501		0x2000 Fujitsu Towa LA501 Ethernet
 product FUJITSU LA10S		0x1003 Fujitsu Compact Flash Ethernet
 
 /* IBM Products */
+product IBM MICRODRIVE		0x0000 IBM Microdrive
 product IBM 3270		0x0001 IBM 3270 Emulation
 product IBM INFOMOVER		0x0002 IBM InfoMover
 product IBM 5250		0x000b IBM 5250 Emulation
@@ -151,7 +159,7 @@ product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
 product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
 
 /* Lexar Media */
-product LEXARMEDIA COMPATFLASH	0x0100 Lexar Media CompactFlash
+product LEXARMEDIA COMPACTFLASH	0x0100 Lexar Media CompactFlash
 
 /* Linksys corporation */
 product LINKSYS ETHERFAST	0x0230 Linksys Etherfast 10/100 Ethernet
@@ -193,7 +201,8 @@ product SIMPLETECH SPECTRUM24 0x801 Symbol Spectrum24 WLAN Adapter
 /* Socket Communications Products */
 product SOCKET PAGECARD		0x0003 Socket Communications PageCard
 product SOCKET DUAL_RS232	0x0006 Socket Communications Dual RS232
-product SOCEKT LP_ETHER_CF	0x0075 Socket Communications Low Power Ethernet CF
+product SOCKET LP_ETHER_CF	0x0075 Socket Communications LP-E CF
+product SOCKET LP_ETHER		0x000d Socket Communications LP-E
 
 /* TDK Products */
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
@@ -250,6 +259,12 @@ product RATOC REX_R280		0x1	RATOC REX-R280
 /* Samsung */
 product	SAMSUNG SWL_2000N	0x02	Samsung MagicLAN SWL-2000N
 
+/* Telecom Device */
+product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
+
+/* MACNICA */
+product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
+
 /* Cards we know only by their cis */
 vendor PREMAX			-1 	Premax
 vendor PLANET			-1 	Planet
@@ -302,6 +317,7 @@ product SVEC PN650TX		-1 SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card
 product NAKAGAWAMETAL LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } NAKAGAWA METAL LNT-10TN NE2000 Compatible Card 
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product IODATA PCLAT		{ "I-O&spDATA", "PCLA", "ETHERNET", NULL } IO-DATA PCLA/T
+product IODATA CBIDE2		{ "IO&spDATA", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } IO-DATA CBIDE2/16-bit mode
 product EPSON EEN10B		{ "Seiko&spEpson&spCorp.", "Ethernet", "P/N:&spEEN10B&spRev.&sp00", NULL } Epson EEN10B
 product EXP EXPMULTIMEDIA	{ "EXP&sp&sp&sp", "PnPIDE", "F1", NULL } EXP IDE/ATAPI DVD Card
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
@@ -309,4 +325,6 @@ product ICOM SL200		{ "Icom", "SL-200", NULL, NULL } Icom SL-200
 product XIRCOM CFE_10		{ "Xircom", "CompactCard&spEthernet", "CFE-10", "1.00" } Xircom CompactCard CFE-10
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
-product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version 01.02", NULL} Intersil Prism II
+product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
+product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
+product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
