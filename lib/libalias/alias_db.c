@@ -2662,12 +2662,6 @@ do {                                                    \
 } /*lint -save -e717 */ while(0) /*lint -restore */
 #define fw_tstfield(field, num) ((field)[(num) - fireWallBaseNum])
 
-void
-PacketAliasSetFWBase(unsigned int base, unsigned int num) {
-    fireWallBaseNum = base;
-    fireWallNumNums = num;
-}
-
 static void
 InitPunchFW(void) {
     fireWallField = malloc(fireWallNumNums);
@@ -2812,3 +2806,11 @@ ClearAllFWHoles(void) {
     memset(fireWallField, 0, fireWallNumNums);
 }
 #endif
+
+void
+PacketAliasSetFWBase(unsigned int base, unsigned int num) {
+#ifndef NO_FW_PUNCH
+    fireWallBaseNum = base;
+    fireWallNumNums = num;
+#endif
+}

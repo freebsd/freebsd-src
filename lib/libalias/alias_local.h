@@ -29,76 +29,65 @@
  */
 
 /*
-    Alias_local.h contains the function prototypes for alias.c,
-    alias_db.c, alias_util.c and alias_ftp.c, alias_irc.c (as well
-    as any future add-ons).  It also includes macros, globals and
-    struct definitions shared by more than one alias*.c file.
+ * Alias_local.h contains the function prototypes for alias.c,
+ * alias_db.c, alias_util.c and alias_ftp.c, alias_irc.c (as well
+ * as any future add-ons).  It also includes macros, globals and
+ * struct definitions shared by more than one alias*.c file.
+ *
+ * This include file is intended to be used only within the aliasing
+ * software.  Outside world interfaces are defined in alias.h
+ *
+ * This software is placed into the public domain with no restrictions
+ * on its distribution.
+ *
+ * Initial version:  August, 1996  (cjm)    
+ *
+ * <updated several times by original author and Eivind Eklund>
+ */
 
-    This include file is intended to be used only within the aliasing
-    software.  Outside world interfaces are defined in alias.h
-
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-
-    Initial version:  August, 1996  (cjm)    
-    
-     <updated several times by original author and Eivind Eklund>
-*/
-
-#ifndef ALIAS_LOCAL_H
-#define ALIAS_LOCAL_H
+#ifndef _ALIAS_LOCAL_H_
+#define	_ALIAS_LOCAL_H_
 
 #ifndef NULL
 #define NULL 0
 #endif
 
+/* Macros */
+
 /*
-    Macros
+ * The following macro is used to update an
+ * internet checksum.  "delta" is a 32-bit
+ * accumulation of all the changes to the
+ * checksum (adding in new 16-bit words and
+ * subtracting out old words), and "cksum"
+ * is the checksum value to be updated.
  */
+#define	ADJUST_CHECKSUM(acc, cksum) \
+	do { \
+		acc += cksum; \
+		if (acc < 0) { \
+			acc = -acc; \
+			acc = (acc >> 16) + (acc & 0xffff); \
+			acc += acc >> 16; \
+			cksum = (u_short) ~acc; \
+		} else { \
+			acc = (acc >> 16) + (acc & 0xffff); \
+			acc += acc >> 16; \
+			cksum = (u_short) acc; \
+		} \
+	} while (0)
 
-/*
-   The following macro is used to update an
-   internet checksum.  "delta" is a 32-bit
-   accumulation of all the changes to the
-   checksum (adding in new 16-bit words and
-   subtracting out old words), and "cksum"
-   is the checksum value to be updated.
-*/
-#define ADJUST_CHECKSUM(acc, cksum) { \
-    acc += cksum; \
-    if (acc < 0) \
-    { \
-        acc = -acc; \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) ~acc; \
-    } \
-    else \
-    { \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) acc; \
-    } \
-}
-
-
-/*
-    Globals
-*/
+/* Globals */
 
 extern int packetAliasMode;
 
 
-/*
-    Structs
-*/
+/* Structs */
 
 struct alias_link;    /* Incomplete structure */
 
 
-/*
-    Prototypes
-*/
+/* Prototypes */
 
 /* General utilities */
 u_short IpChecksum(struct ip *);
@@ -232,9 +221,11 @@ void ProxyModify(struct alias_link *, struct ip *, int, int);
 
 
 enum alias_tcp_state {
-    ALIAS_TCP_STATE_NOT_CONNECTED,
-    ALIAS_TCP_STATE_CONNECTED,
-    ALIAS_TCP_STATE_DISCONNECTED
+	ALIAS_TCP_STATE_NOT_CONNECTED,
+	ALIAS_TCP_STATE_CONNECTED,
+	ALIAS_TCP_STATE_DISCONNECTED
 };
+
 /*lint -restore */
-#endif /* defined(ALIAS_LOCAL_H) */
+
+#endif /* !_ALIAS_LOCAL_H_ */

@@ -730,7 +730,6 @@ PacketAliasProxyRule(const char *cmd)
                 }
                 else
                 {
-                    int n;
                     int nbits;
                     char s[sizeof(buffer)];
 
