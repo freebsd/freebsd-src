@@ -375,16 +375,17 @@ echo
 echo	"This program is designed to help put ${OPSYSTEM} on a hard disk with"
 echo	"at least $DISKMIN Megabytes of free space."
 echo
-echo 	"If other operating systems are already on the disk, ${OPSYSTEM}"
-echo	"should be able to install alongside them.  Otherwise, if the disk"
-echo	"is being installed for the first time, it would probably be useful"
-echo	"to have the disk's hardware manual, the installation notes, and a"
-echo	"calculator handy."
+echo	"Before starting, it is important to know your hard disk's geometry"
+echo	"(i.e., number of cylinders, heads and sectors/track).  If installing"
+echo	"${OPSYSTEM} on the same disk as another operating system, then the"
+echo	"two systems should use the same geometry.  In particular, ${OPSYSTEM}'s"
+echo	"default geometry is inappropriate for MS-DOS.  So in this case, the"
+echo	"DOS geometry should be used instead."
 echo
-echo	"As with anything which modifies a hard drive's contents, this"
-echo	"program can cause SIGNIFICANT data loss, and we strongly recommend"
-echo	"making sure that the hard drive is backed up before going further with"
-echo	"the installation process."
+echo	"As with anything which modifies a hard drive's contents, this program"
+echo	"can cause SIGNIFICANT data loss.  We strongly recommend making sure"
+echo	"that the hard drive is backed up before going further with the"
+echo	"installation process."
 echo
 echo -n "Proceed with installation? [y] "
 read resp junk
@@ -395,7 +396,7 @@ y*|Y*)
 	echo	"Cool!  Let's get to it..."
 	echo
 	echo	"If a mistake is made along the way, don't bail out."
-	echo	"At the end, you have the option to redo the configuration."
+	echo	"At the end, you have the option of redoing the configuration."
 	echo	"If you really must quit at some point, type <CTRL>+C and"
 	echo	"enter \`halt' at the command prompt, \`#'."
 	;;
@@ -490,6 +491,8 @@ echo -n "Disk label name (one word, please)? [${name:-mfr_model}] "
 read resp junk
 name=${resp:-${name:-mfr_model}}
 echo
+echo	"${OPSYSTEM} should use the same hard disk geometry as used by other"
+echo	"operating systems on the hard disk."
 echo -n "Number of bytes per disk sector? [${bytes_per_sect:-512}] "
 read resp junk
 bytes_per_sect=${resp:-${bytes_per_sect:-512}}
