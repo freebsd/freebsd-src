@@ -142,14 +142,15 @@ execv(name, argv)
 }
 
 int
-execvp(const char *name, char *const *argv)
+execvp(const char *name, char * const *argv)
 {
 	const char *path;
 
 	/* Get the path we're searching. */
-	if (!(path = getenv("PATH")))
+	if ((path = getenv("PATH")) == NULL)
 		path = _PATH_DEFPATH;
-	return(execvP(name,path,argv));
+
+	return (execvP(name, path, argv));
 }
 
 int
@@ -187,12 +188,12 @@ execvP(name, path, argv)
 		return (-1);
 	}
 	strcpy(cur, path);
-	while ( (p = strsep(&cur, ":")) ) {
+	while ((p = strsep(&cur, ":")) != NULL) {
 		/*
 		 * It's a SHELL path -- double, leading and trailing colons
 		 * mean the current directory.
 		 */
-		if (!*p) {
+		if (*p == '\0') {
 			p = ".";
 			lp = 1;
 		} else
@@ -217,7 +218,7 @@ execvP(name, path, argv)
 		buf[lp + ln + 1] = '\0';
 
 retry:		(void)_execve(bp, argv, environ);
-		switch(errno) {
+		switch (errno) {
 		case E2BIG:
 			goto done;
 		case ELOOP:
