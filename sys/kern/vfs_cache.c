@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.26 1997/08/04 07:31:36 phk Exp $
+ * $Id: vfs_cache.c,v 1.27 1997/08/26 07:32:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -103,6 +103,8 @@ cache_zap(ncp)
 {
 	LIST_REMOVE(ncp, nc_hash);
 	LIST_REMOVE(ncp, nc_src);
+	if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) 
+		vdrop(ncp->nc_dvp);
 	if (ncp->nc_vp) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
 	} else {
@@ -180,7 +182,6 @@ cache_lookup(dvp, vpp, cnp)
 	/* We found a "positive" match, return the vnode */
         if (ncp->nc_vp) {
 		nchstats.ncs_goodhits++;
-		vtouch(ncp->nc_vp);
 		*vpp = ncp->nc_vp;
 		return (-1);
 	}
@@ -239,8 +240,10 @@ cache_enter(dvp, vp, cnp)
 		malloc(sizeof *ncp + cnp->cn_namelen, M_CACHE, M_WAITOK);
 	bzero((char *)ncp, sizeof *ncp);
 	numcache++;
-	if (!vp)
+	if (!vp) {
 		numneg++;
+		ncp->nc_flag = cnp->cn_flags & ISWHITEOUT ? NCF_WHITE : 0;
+	}
 
 	/*
 	 * Fill in cache info, if vp is NULL this is a "negative" cache entry.
@@ -249,15 +252,13 @@ cache_enter(dvp, vp, cnp)
 	 * otherwise unused.
 	 */
 	ncp->nc_vp = vp;
-	if (vp)
-		vtouch(vp);
-	else
-		ncp->nc_flag = cnp->cn_flags & ISWHITEOUT ? NCF_WHITE : 0;
 	ncp->nc_dvp = dvp;
 	ncp->nc_nlen = cnp->cn_namelen;
 	bcopy(cnp->cn_nameptr, ncp->nc_name, (unsigned)ncp->nc_nlen);
 	ncpp = NCHHASH(dvp, cnp);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
+	if (LIST_EMPTY(&dvp->v_cache_src))
+		vhold(dvp);
 	LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	if (vp) {
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
