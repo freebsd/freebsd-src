@@ -88,6 +88,10 @@
     first sector of the emulated floppy to contain a valid MS-DOS BPB
     that they can modify. &merged;</para>
 
+    <para arch="i386">The &os; boot loader now supports a
+    <option>-p</option> flag to force the kernel will pause after each
+    line of output during the probing phase.</para>
+
     <para>Support for USB devices was added to the
     <filename>GENERIC</filename> kernel and to the installation
     programs to support USB devices out of the box.  Note that SRM
@@ -258,6 +262,13 @@
     parameters derived from <varname>maxusers</varname> are now also
     tunables and can be overridden at boot-time.  The
     <varname>hz</varname> parameter is also now a tunable. &merged;</para>
+
+    <para>Specifying a value of <literal>0</literal> for the
+    <varname>maxusers</varname> kernel configuration parameter will
+    now cause an appropriate value to be calculated at boot-time
+    (between 32 and 512, depending on the amount of memory present).
+    This value is now the default for all
+    <filename>GENERIC</filename> kernels. &merged;</para>
 
     <para>It is now possible to hardwire kernel environment variables (such
     as tuneables) at compile-time using &man.config.8;'s
@@ -547,7 +558,8 @@
 
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
-      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
+      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver. &merged;
+      This device has support for VLANs.</para>
 
       <para arch="i386">The snc driver for the National Semiconductor
       DP8393X (SONIC) Ethernet controller has been added.  Currently,
@@ -1380,6 +1392,8 @@
     <para>&man.burncd.8; now supports Disk At Once (DAO) mode,
     selectable via the <option>-d</option> flag.</para>
 
+    <para>&man.burncd.8; now has the ability to write VCDs/SVCDs.</para>
+
     <para>&man.c89.1; has been converted from a shell script to a
     binary executable, fixing some minor bugs. &merged;</para>
 
@@ -1847,6 +1861,12 @@
     change leads to better &man.fsck.8; performance and reduced
     fragmentation. &merged;</para>
 
+    <para>The default block and fragment sizes for new filesystems created
+    by &man.newfs.8; are now 16384 and 2048 bytes, respectively (the
+    old defaults were 8192 and 1024 bytes).  This change generally
+    provides increased performance, at the expense of some wasted disk
+    space.</para>
+
     <para>&man.newsyslog.8; now has the ability to ability to compress
     log files using &man.bzip2.1;. &merged;</para>
 
@@ -2160,6 +2180,9 @@
 
     <para>&man.wall.1; now supports a <option>-g</option> flag to
     write a message to all users of a given group. &merged;</para>
+
+    <para>&man.watch.8; now takes a <option>-f</option> option to
+    specify a &man.snp.4; device to use.</para>
 
     <para>&man.which.1; is now a C program, rather than a Perl
     script.</para>
