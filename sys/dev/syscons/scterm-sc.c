@@ -399,6 +399,22 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->attr_mask |= REVERSE_ATTR;
 					tcp->cur_attr = mask2attr(tcp);
 					break;
+				case 22: /* remove bold (or dim) */
+					tcp->attr_mask &= ~BOLD_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 24: /* remove underline */
+					tcp->attr_mask &= ~UNDERLINE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 25: /* remove blink */
+					tcp->attr_mask &= ~BLINK_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
+				case 27: /* remove reverse */
+					tcp->attr_mask &= ~REVERSE_ATTR;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
 				case 30: case 31: /* set ansi fg color */
 				case 32: case 33: case 34:
 				case 35: case 36: case 37:
