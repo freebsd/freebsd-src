@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.1 1997/06/26 18:40:55 smp Exp smp $
+ *	$Id: db_interface.c,v 1.30 1997/06/27 23:24:38 fsmp Exp $
  */
 
 /*
@@ -153,11 +153,13 @@ kdb_trap(type, code, regs)
 
 #if defined(SMP) && defined(TEST_CPUSTOP)
 	/* restart all the CPUs we previously stopped */
+#if 0
 	if (stopped_cpus != other_cpus) {
 		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
 		       other_cpus, stopped_cpus);
 		cngetc();
 	}
+#endif
 	restart_cpus(stopped_cpus);
 #endif  /* SMP && TEST_CPUSTOP */
 
