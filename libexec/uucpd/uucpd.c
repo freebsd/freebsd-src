@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: uucpd.c,v 1.7.2.1 1997/04/01 20:41:55 joerg Exp $
  */
 
 #ifndef lint
@@ -55,7 +55,6 @@ static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -70,7 +69,14 @@ static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <utmp.h>
 #include <syslog.h>
+#include <sys/param.h>
 #include "pathnames.h"
+
+#if (MAXLOGNAME-1) > UT_NAMESIZE
+#define LOGNAMESIZE UT_NAMESIZE
+#else
+#define LOGNAMESIZE (MAXLOGNAME-1)
+#endif
 
 #define	SCPYN(a, b)	strncpy(a, b, sizeof (a))
 
@@ -157,8 +163,8 @@ void doit(struct sockaddr_in *sinp)
 		syslog(LOG_WARNING, "login read: %m");
 		_exit(1);
 	}
-	/* truncate username to 8 characters */
-	user[8] = '\0';
+	/* truncate username to LOGNAMESIZE characters */
+	user[LOGNAMESIZE] = '\0';
 	pw = getpwnam(user);
 	if (pw == NULL)
 		login_incorrect(user, sinp);
