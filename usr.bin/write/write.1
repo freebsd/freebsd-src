@@ -35,7 +35,7 @@
 .\"     @(#)write.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd July 17, 2004
 .Dt WRITE 1
 .Os
 .Sh NAME
@@ -105,6 +105,13 @@ A
 command appeared in
 .At v1 .
 .Sh BUGS
+The sender's
+.Ev LC_CTYPE
+setting is used to determine which characters are safe to write to a
+terminal, not the receiver's (which
+.Nm
+has no way of knowing).
+.Pp
 The
 .Nm
 utility does not recognize multibyte characters.
