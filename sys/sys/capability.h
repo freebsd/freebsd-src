@@ -1,9 +1,11 @@
 /*-
+ * Copyright (c) 1999 Ilmar S. Habibulin
  * Copyright (c) 2000-2001 Robert N. M. Watson
+ * Copyright (c) 2001 Thomas Moestl
  * All rights reserved.
  *
- * Copyright (c) 1999 Ilmar S. Habibulin
- * All rights reserved.
+ * This software was developed by Robert Watson, Thomas Moestl, and Ilmar
+ * Habibulin for the TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
