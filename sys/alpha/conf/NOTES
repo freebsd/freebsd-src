@@ -74,10 +74,6 @@ options 	DDB
 options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 options 	WITNESS
-#options 	KTR			# Kernel TRacing facility
-#options 	KTR_EXTEND
-#options 	KTR_COMPILE=KTR_LOCK
-#options 	KTR_MASK=KTR_LOCK
 
 # To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
