@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.139 1996/04/11 21:18:49 bde Exp $
+ *	$Id: sio.c,v 1.140 1996/04/13 14:55:18 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -83,7 +83,7 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-#endif /* NCRD > 0 */
+#endif
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -399,8 +399,7 @@ static void siounload(struct pccard_dev *);	/* Disable driver */
 static void siosuspend(struct pccard_dev *);	/* Suspend driver */
 static int sioinit(struct pccard_dev *, int);	/* init device */
 
-static struct pccard_drv sio_info =
-	{
+static struct pccard_drv sio_info = {
 	driver_name,
 	card_intr,
 	siounload,
@@ -408,65 +407,64 @@ static struct pccard_drv sio_info =
 	sioinit,
 	0,			/* Attributes - presently unused */
 	&tty_imask		/* Interrupt mask for device */
-				/* This should also include net_imask?? */
-	};
+				/* XXX - Should this also include net_imask? */
+};
+
 /*
- * Called when a power down is wanted. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * sioinit with first=0. This is called when the user suspends
- * the system, or the APM code suspends the system.
+ *	Called when a power down is requested. Shuts down the
+ *	device and configures the device as unavailable (but
+ *	still loaded...). A resume is done by calling
+ *	sioinit with first=0. This is called when the user suspends
+ *	the system, or the APM code suspends the system.
  */
 static void
 siosuspend(struct pccard_dev *dp)
 {
 	printf("sio%d: suspending\n", dp->isahd.id_unit);
 }
+
 /*
  *	Initialize the device - called from Slot manager.
- *	if first is set, then initially check for
- *	the device's existence before initialising it.
- *	Once initialised, the device table may be set up.
+ *	If first is set, then check for the device's existence
+ *	before initializing it.  Once initialized, the device table may
+ *	be set up.
  */
 int
 sioinit(struct pccard_dev *dp, int first)
 {
-/*
- *	validate unit number.
- */
-	if (first)
-		{
+
+	/* validate unit number. */
+	if (first) {
 		if (dp->isahd.id_unit >= NSIO)
 			return(ENODEV);
-/*
- *	Make sure it isn't already probed.
- */
+		/* Make sure it isn't already probed. */
 		if (com_addr(dp->isahd.id_unit))
 			return(EBUSY);
-/*
- *	Probe the device. If a value is returned, the
- *	device was found at the location.
- */
+		/*
+		 * Probe the device. If a value is returned, the
+		 * device was found at the location.
+		 */
 		if (sioprobe(&dp->isahd)==0)
 			return(ENXIO);
 		if (sioattach(&dp->isahd)==0)
 			return(ENXIO);
-		}
-/*
- *	XXX TODO:
- *	If it was already inited before, the device structure
- *	should be already initialised. Here we should
- *	reset (and possibly restart) the hardware, but
- *	I am not sure of the best way to do this...
- */
+	}
+	/*
+	 * XXX TODO:
+	 * If it was initialized before, the device structure
+	 * should also be initialized.  We should
+	 * reset (and possibly restart) the hardware, but
+	 * I am not sure of the best way to do this...
+	 */
 	return(0);
 }
+
 /*
  *	siounload - unload the driver and clear the table.
  *	XXX TODO:
- *	This is called usually when the card is ejected, but
- *	can be caused by the modunload of a controller driver.
- *	The idea is reset the driver's view of the device
+ *	This is usually called when the card is ejected, but
+ *	can be caused by a modunload of a controller driver.
+ *	The idea is to reset the driver's view of the device
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
@@ -559,12 +557,12 @@ sioprobe(dev)
 			if (xdev->id_driver == &siodriver && xdev->id_enabled)
 				outb(xdev->id_iobase + com_mcr, 0);
 #if NCRD > 0
-/*
- *	If PC-Card probe required, then register driver with
- *	slot manager.
- */
+		/*
+		 * If PC-Card probe required, then register driver with
+		 * slot manager.
+		 */
 		pccard_add_driver(&sio_info);
-#endif /* NCRD > 0 */
+#endif
 		already_init = TRUE;
 	}
 
