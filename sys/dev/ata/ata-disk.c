@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.12 1999/05/30 16:51:12 phk Exp $
+ *	$Id: ata-disk.c,v 1.13 1999/05/31 11:24:25 phk Exp $
  */
 
 #include "ata.h"
@@ -50,7 +50,13 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/pmap.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
 #include <machine/clock.h>
+#include <machine/md_var.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 
@@ -59,10 +65,9 @@ static d_close_t	adclose;
 static d_ioctl_t	adioctl;
 static d_strategy_t	adstrategy;
 static d_psize_t	adpsize;
+static d_dump_t         addump;
 
-#define BDEV_MAJOR 30
-#define CDEV_MAJOR 116
-#ifdef NOTYET	/* the boot code needs to be fixed to boot arbitrary devices */
+#if 0	/* the boot code needs to be fixed to boot arbitrary devices */
 #define DRIVER_NAME "ad"
 #else
 #define DRIVER_NAME "wd"
@@ -81,17 +86,17 @@ static struct cdevsw ad_cdevsw = {
 	/* strategy */	adstrategy,
 	/* name */	DRIVER_NAME,
 	/* parms */	noparms,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
+	/* maj */	116,
+	/* dump */	addump,
 	/* psize */	adpsize,
 	/* flags */	D_DISK,
 	/* maxio */	0,
-	/* bmaj */	BDEV_MAJOR,
+	/* bmaj */	30,
 };
 static struct cdevsw fakewd_cdevsw;
 
 /* misc defines */
-#define UNIT(dev) (minor(dev)>>3 & 0x1f)		/* assume 8 minor # per unit */
+#define UNIT(dev) (minor(dev)>>3 & 0x1f)	/* assume 8 minor # per unit */
 #define NUNIT	16				/* max # of devices */
 
 /* prototypes */
@@ -104,6 +109,7 @@ static int8_t ad_version(u_int16_t);
 int32_t ad_timeout(char *data);
 static void ad_drvinit(void);
 
+/* internal vars */
 static struct ad_softc *adtab[NUNIT];
 static int32_t adnlun = 0;     			/* number of config'd drives */
 static struct intr_config_hook *ad_attach_hook;
@@ -184,7 +190,7 @@ ad_attach(void *notused)
 		}
 		if (adp->ata_parm->atavalid & ATA_FLAG_54_58 &&
 		    adp->ata_parm->lbasize)
-		    adp->flags |= AD_F_USE_LBA;
+		    adp->flags |= AD_F_LBA_ENABLED;
 
 		/* use multiple sectors/interrupt if device supports it */
 		adp->transfersize = DEV_BSIZE;
@@ -201,6 +207,10 @@ ad_attach(void *notused)
                                  wdmamode(adp->ata_parm),
                                  udmamode(adp->ata_parm)))
                     adp->flags |= AD_F_DMA_ENABLED;
+
+		/* use tagged queue if supported */
+		if ((adp->num_tags = adp->ata_parm->queuelen & 0x1f))
+		    adp->flags |= AD_F_TAG_ENABLED;
 
 	        bpack(adp->ata_parm->model, model_buf, sizeof(model_buf));
 		bpack(adp->ata_parm->revision, revision_buf, 
@@ -226,8 +236,7 @@ ad_attach(void *notused)
 		       wdmamode(adp->ata_parm),
 		       udmamode(adp->ata_parm));
 		printf("ad%d: %d secs/int, %d depth queue, %s mode\n", 
-		       adnlun, adp->transfersize / DEV_BSIZE,
-		       adp->ata_parm->queuelen & 0x1f,
+		       adnlun, adp->transfersize / DEV_BSIZE, adp->num_tags,
 		       (adp->flags & AD_F_DMA_ENABLED) ? "DMA" :"PIO");
                 devstat_add_entry(&adp->stats, "ad", adnlun, DEV_BSIZE,
 				  DEVSTAT_NO_ORDERED_TAGS,
@@ -363,7 +372,7 @@ adstrategy(struct buf *bp)
     int32_t s;
 
 #ifdef AD_DEBUG
-printf("adstrategy: entered\n");
+printf("adstrategy: entered count=%d\n", bp->b_bcount);
 #endif
     if (lun >= adnlun ||  bp->b_blkno < 0 || !(adp = adtab[lun]) 
 	|| bp->b_bcount % DEV_BSIZE != 0) {
@@ -384,15 +393,11 @@ printf("adstrategy: entered\n");
 
     s = splbio();
     bufqdisksort(&adp->queue, bp);
-
-    if (!adp->active)
-	ad_start(adp);
-
-    if (adp->controller->active == ATA_IDLE)
-	ata_start(adp->controller);
-
+    ad_start(adp);
     splx(s);
-    return;
+#ifdef AD_DEBUG
+printf("adstrategy: leaving\n");
+#endif
 }
 
 static int
@@ -406,6 +411,77 @@ adpsize(dev_t dev)
     return dssize(dev, &adp->slices, adopen, adclose);
 }
 
+int
+addump(dev_t dev)
+{
+    struct ad_softc *adp;
+    struct disklabel *lp;
+    struct ad_request request;
+    int32_t lun = UNIT(dev), part = dkpart(dev);
+    u_int32_t count, blkno, blkoff;
+    vm_offset_t addr = 0;
+    static int addoingadump = 0;
+
+    if (addoingadump++ != 0)
+	return EFAULT;
+
+    if (lun >= adnlun || !(adp = adtab[lun]))
+	return ENXIO;
+
+    if ((adp->slices == NULL) || (lp = dsgetlabel(dev, adp->slices)) == NULL)
+	return ENXIO;
+
+    count = (u_long)Maxmem * PAGE_SIZE / lp->d_secsize;
+
+    if ((dumplo < 0) || (dumplo + count > lp->d_partitions[part].p_size))
+        return EINVAL;
+
+    blkoff = lp->d_partitions[part].p_offset +
+             adp->slices->dss_slices[dkslice(dev)].ds_offset;
+    blkno = blkoff + dumplo;
+
+    adp->flags &= ~AD_F_DMA_ENABLED;
+
+    while (count > 0) {
+
+        if (is_physical_memory(addr))
+            pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+                       trunc_page(addr), VM_PROT_READ, TRUE);
+        else
+            pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+                       trunc_page(0), VM_PROT_READ, TRUE);
+
+	bzero(&request, sizeof(struct ad_request));
+	request.device = adp;
+	request.blockaddr = blkno;
+	request.bytecount = PAGE_SIZE;
+	request.data = CADDR1;
+
+        while (request.bytecount > 0) {
+	    ad_transfer(&request);
+            request.donecount += request.currentsize;
+	    DELAY(20);
+        }
+
+        if (addr % (1024 * 1024) == 0) {
+#ifdef HW_WDOG
+            if (wdog_tickler)
+                (*wdog_tickler)();
+#endif
+            printf("%ld ", (long)(count * DEV_BSIZE) / (1024 * 1024));
+        }
+
+        blkno += howmany(PAGE_SIZE, lp->d_secsize);
+        count -= howmany(PAGE_SIZE, lp->d_secsize);
+        addr += PAGE_SIZE;
+    }
+
+    if (ata_wait(adp->controller, adp->unit, ATA_S_DRDY | ATA_S_DSC) < 0)
+        printf("ad_dump: timeout waiting for final ready\n");
+
+    return 0;
+}
+
 static void 
 ad_strategy(struct buf *bp)
 {
@@ -415,90 +491,100 @@ ad_strategy(struct buf *bp)
 static void
 ad_start(struct ad_softc *adp)
 {
-    struct buf *bp;
+    struct buf *bp = bufq_first(&adp->queue);
+    struct ad_request *request;
 
 #ifdef AD_DEBUG
 printf("ad_start:\n");
 #endif
-    if (adp->active) {
-	printf("ad_start: should newer be called when active\n"); /* SOS */
+    if (!bp)
+        return;
+
+    if (!(request = malloc(sizeof(struct ad_request), M_DEVBUF, M_NOWAIT))) {
+        printf("ad_start: out of memory\n");
 	return;
     }
-    if (!(bp = bufq_first(&adp->queue)))
-        return;
+
+    /* setup request */
+    bzero(request, sizeof(struct ad_request));
+    request->device = adp;
+    request->bp = bp;
+    request->blockaddr = bp->b_pblkno;
+    request->bytecount = bp->b_bcount;
+    request->data = bp->b_data;
+    request->flags = (bp->b_flags & B_READ) ? AR_F_READ : 0;
 
     /* remove from drive queue */
     bufq_remove(&adp->queue, bp); 
-    bp->b_driver1 = adp;
 
     /* link onto controller queue */
-    bufq_insert_tail(&adp->controller->ata_queue, bp);
+    TAILQ_INSERT_TAIL(&adp->controller->ata_queue, request, chain);
 
-    /* mark the drive as busy */
-    adp->active = 1;
+    /* try to start controller */
+    if (adp->controller->active == ATA_IDLE)
+        ata_start(adp->controller);
 }
 
 void
-ad_transfer(struct buf *bp)
+ad_transfer(struct ad_request *request)
 {
     struct ad_softc *adp;
-    u_int32_t blknum, secsprcyl;
-    u_int32_t cylinder, head, sector, count, command;
+    u_int32_t blkno, secsprcyl;
+    u_int32_t cylinder, head, sector, count, cmd;
 
     /* get request params */
-    adp = bp->b_driver1;
+    adp = request->device;
 
     /* calculate transfer details */
-    blknum = bp->b_pblkno + (adp->donecount / DEV_BSIZE);
+    blkno = request->blockaddr + (request->donecount / DEV_BSIZE);
    
 #ifdef AD_DEBUG
-        printf("ad_transfer: blknum=%d\n", blknum);
+        printf("ad_transfer: blkno=%d\n", blkno);
 #endif
-    if (adp->donecount == 0) {
+    if (request->donecount == 0) {
 
 	/* setup transfer parameters */
-        adp->bytecount = bp->b_bcount;
-	count = howmany(adp->bytecount, DEV_BSIZE);
+	count = howmany(request->bytecount, DEV_BSIZE);
 
-	if (adp->flags & AD_F_USE_LBA) {
-	    sector = (blknum >> 0) & 0xff; 
-	    cylinder = (blknum >> 8) & 0xffff;
-	    head = ((blknum >> 24) & 0xf) | ATA_D_LBA; 
+	if (adp->flags & AD_F_LBA_ENABLED) {
+	    sector = (blkno >> 0) & 0xff; 
+	    cylinder = (blkno >> 8) & 0xffff;
+	    head = ((blkno >> 24) & 0xf) | ATA_D_LBA; 
 	}
 	else {
             secsprcyl = adp->sectors * adp->heads;
-            cylinder = blknum / secsprcyl;
-            head = (blknum % secsprcyl) / adp->sectors;
-            sector = (blknum % adp->sectors) + 1;
+            cylinder = blkno / secsprcyl;
+            head = (blkno % secsprcyl) / adp->sectors;
+            sector = (blkno % adp->sectors) + 1;
 	}
 
 	/* setup first transfer length */
-     	adp->currentsize = min(adp->bytecount, adp->transfersize);
+     	request->currentsize = min(request->bytecount, adp->transfersize);
 
         devstat_start_transaction(&adp->stats);
 
 	/* does this drive & transfer work with DMA ? */
-	adp->flags &= ~AD_F_DMA_USED;
+	request->flags &= ~AR_F_DMA_USED;
 	if ((adp->flags & AD_F_DMA_ENABLED) &&
 	    !ata_dmasetup(adp->controller, adp->unit,
-			  (void *)bp->b_data, adp->bytecount,
-			  (bp->b_flags & B_READ))) {
-	    adp->flags |= AD_F_DMA_USED;
-	    command = (bp->b_flags&B_READ) ? ATA_C_READ_DMA : ATA_C_WRITE_DMA;
-	    adp->currentsize = adp->bytecount;
+			  (void *)request->data, request->bytecount,
+			  (request->flags & AR_F_READ))) {
+	    request->flags |= AR_F_DMA_USED;
+	    cmd = request->flags & AR_F_READ ? ATA_C_READ_DMA : ATA_C_WRITE_DMA;
+	    request->currentsize = request->bytecount;
         }
 	/* does this drive support multi sector transfers ? */
-	else if (adp->currentsize > DEV_BSIZE)
-	    command = (bp->b_flags&B_READ) ? ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
+	else if (request->currentsize > DEV_BSIZE)
+	    cmd = request->flags & AR_F_READ?ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
 	else
-	    command = (bp->b_flags&B_READ) ? ATA_C_READ : ATA_C_WRITE;
+	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
-        ata_command(adp->controller, adp->unit, command, cylinder, head, 
+        ata_command(adp->controller, adp->unit, cmd, cylinder, head, 
 		    sector, count, 0, ATA_IMMEDIATE);
     }
    
     /* if this is a DMA transaction start it, return and wait for interrupt */
-    if (adp->flags & AD_F_DMA_USED) {
+    if (request->flags & AR_F_DMA_USED) {
 	ata_dmastart(adp->controller, adp->unit);
 #ifdef AD_DEBUG
         printf("ad_transfer: return waiting for DMA interrupt\n");
@@ -507,10 +593,10 @@ ad_transfer(struct buf *bp)
     }
 
     /* calculate this transfer length */
-    adp->currentsize = min(adp->bytecount, adp->transfersize);
+    request->currentsize = min(request->bytecount, adp->transfersize);
 
     /* if this is a PIO read operation, return and wait for interrupt */
-    if (bp->b_flags & B_READ) {
+    if (request->flags & AR_F_READ) {
 #ifdef AD_DEBUG
     	printf("ad_transfer: return waiting for PIO read interrupt\n");
 #endif
@@ -526,54 +612,48 @@ ad_transfer(struct buf *bp)
     /* output the data */
 #if 0
     outsw(adp->controller->ioaddr + ATA_DATA,
-          (void *)((uintptr_t)bp->b_data + adp->donecount),
-          adp->currentsize / sizeof(int16_t));
+          (void *)((uintptr_t)request->data + request->donecount),
+          request->currentsize / sizeof(int16_t));
 #else
     outsl(adp->controller->ioaddr + ATA_DATA,
-          (void *)((uintptr_t)bp->b_data + adp->donecount),
-          adp->currentsize / sizeof(int32_t));
+          (void *)((uintptr_t)request->data + request->donecount),
+          request->currentsize / sizeof(int32_t));
 #endif
-    adp->bytecount -= adp->currentsize;
+    request->bytecount -= request->currentsize;
 #ifdef AD_DEBUG
     printf("ad_transfer: return wrote data\n");
 #endif
 }
 
 int32_t
-ad_interrupt(struct buf *bp)
+ad_interrupt(struct ad_request *request)
 {
-    struct ad_softc *adp = bp->b_driver1;
+    struct ad_softc *adp = request->device;
     int32_t dma_stat = 0;
 
     /* finish DMA transfer */
-    if (adp->flags & AD_F_DMA_USED) {
-        if (!(ata_dmastatus(adp->controller, adp->unit) & ATA_BMSTAT_INTERRUPT)){
-printf("extra SMP interrupt\n");
-            return ATA_OP_CONTINUES;
-}
+    if (request->flags & AR_F_DMA_USED)
         dma_stat = ata_dmadone(adp->controller, adp->unit);
-    }
 
     /* get drive status */
     if (ata_wait(adp->controller, adp->unit, 0) < 0)
          printf("ad_interrupt: timeout waiting for status");
     if (adp->controller->status & (ATA_S_ERROR | ATA_S_CORR) ||
-	(adp->flags & AD_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
+	(request->flags & AR_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
 oops:
 	printf("ad%d: status=%02x error=%02x\n", 
 	       adp->lun, adp->controller->status, adp->controller->error);
 	if (adp->controller->status & ATA_S_ERROR) {
        	    printf("ad_interrupt: hard error\n"); 
-            bp->b_error = EIO;
-            bp->b_flags |= B_ERROR;
+            request->flags |= AR_F_ERROR;
 	}
 	if (adp->controller->status & ATA_S_CORR)
-       	    printf("ad_interrupt: soft ECC\n"); 
+       	    printf("ad_interrupt: soft error ECC corrected\n"); 
     }
 
     /* if this was a PIO read operation, get the data */
-    if (adp->active && !(adp->flags & AD_F_DMA_USED) &&
-        ((bp->b_flags & (B_READ | B_ERROR)) == B_READ)) {
+    if (!(request->flags & AR_F_DMA_USED) &&
+        ((request->flags & (AR_F_READ | AR_F_ERROR)) == AR_F_READ)) {
 
         /* ready to receive data? */
         if ((adp->controller->status & (ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
@@ -589,45 +669,50 @@ oops:
         /* data ready, read in */
 #if 0
         insw(adp->controller->ioaddr + ATA_DATA,
-             (void *)((uintptr_t)bp->b_data + adp->donecount), 
-	     adp->currentsize / sizeof(int16_t));
+             (void *)((uintptr_t)request->data + request->donecount), 
+	     request->currentsize / sizeof(int16_t));
 #else
         insl(adp->controller->ioaddr + ATA_DATA,
-             (void *)((uintptr_t)bp->b_data + adp->donecount), 
-	     adp->currentsize / sizeof(int32_t));
+             (void *)((uintptr_t)request->data + request->donecount), 
+	     request->currentsize / sizeof(int32_t));
 #endif
-        adp->bytecount -= adp->currentsize;
+        request->bytecount -= request->currentsize;
 #ifdef AD_DEBUG
     printf("ad_interrupt: read in data\n");
 #endif
     }
 
     /* if this was a DMA operation finish up */
-    if (adp->active && (adp->flags & AD_F_DMA_USED) && !(bp->b_flags & B_ERROR))
-        adp->bytecount -= adp->currentsize;
+    if ((request->flags & AR_F_DMA_USED) && !(request->flags & AR_F_ERROR))
+        request->bytecount -= request->currentsize;
 
     /* finish up this tranfer, check for more work on this buffer */
     if (adp->controller->active == ATA_ACTIVE_ATA) {
-	if ((bp->b_flags & B_ERROR) == 0) {
-	    adp->donecount += adp->currentsize;
+	if (request->flags & AR_F_ERROR) {
+	    request->bp->b_error = EIO;
+	    request->bp->b_flags |= B_ERROR;
+	} 
+	else {
+	    request->donecount += request->currentsize;
 #ifdef AD_DEBUG
-    	    printf("ad_interrupt: %s op OK\n", (bp->b_flags & B_READ)?"R":"W");
+    	    printf("ad_interrupt: %s cmd OK\n", 
+		   (request->flags & AR_F_READ) ? "read" : "write");
 #endif
-	    if (adp->bytecount > 0) {
-	        ad_transfer(bp);
+	    if (request->bytecount > 0) {
+	        ad_transfer(request);
 		return ATA_OP_CONTINUES;
 	    }
 	}
-	bufq_remove(&adp->controller->ata_queue, bp);
-	bp->b_resid = bp->b_bcount - adp->donecount;
-	biodone(bp);
-        devstat_end_transaction(&adp->stats, adp->donecount,
+
+	TAILQ_REMOVE(&adp->controller->ata_queue, request, chain);
+	request->bp->b_resid = request->bytecount;
+	biodone(request->bp);
+        devstat_end_transaction(&adp->stats, request->donecount,
                                 DEVSTAT_TAG_NONE,
-                                (bp->b_flags & B_READ) ? 
+                                (request->flags & AR_F_READ) ? 
 				DEVSTAT_READ : DEVSTAT_WRITE);
-	adp->donecount = 0;
-	adp->active = 0;
     }
+    free(request, M_DEVBUF);
     ad_start(adp);
 #ifdef AD_DEBUG
     printf("ad_interrupt: completed\n");
@@ -664,6 +749,8 @@ ad_drvinit(void)
     static int32_t ad_devsw_installed = 0;
 
     if (!ad_devsw_installed) {
+	if (!ad_cdevsw.d_maxio)
+	    ad_cdevsw.d_maxio = 254 * DEV_BSIZE;
         cdevsw_add(&ad_cdevsw);
 	fakewd_cdevsw = ad_cdevsw;
 	fakewd_cdevsw.d_maj = 3;

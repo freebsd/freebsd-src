@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.9 1999/05/30 16:51:14 phk Exp $
+ *	$Id: atapi-cd.c,v 1.10 1999/05/31 11:24:27 phk Exp $
  */
 
 #include "ata.h"
@@ -60,8 +60,6 @@ static d_close_t	acdclose;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 
-#define BDEV_MAJOR 31
-#define CDEV_MAJOR 117
 static struct cdevsw acd_cdevsw = {
 	/* open */	acdopen,
 	/* close */	acdclose,
@@ -76,26 +74,26 @@ static struct cdevsw acd_cdevsw = {
 	/* strategy */	acdstrategy,
 	/* name */	"acd",
 	/* parms */	noparms,
-	/* maj */	CDEV_MAJOR,
+	/* maj */	117,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
 	/* maxio */	0,
-	/* bmaj */	BDEV_MAJOR
+	/* bmaj */	31
 };
 
-#define NUNIT	16			/* Max # of devices */
+#define NUNIT	16			/* max # of devices */
 
-#define F_BOPEN         0x0001  	/* The block device is opened */
+#define F_BOPEN         0x0001  	/* the block device is opened */
 #define F_MEDIA_CHANGED 0x0002  	/* The media have changed since open */
-#define F_LOCKED        0x0004 		/* This unit is locked (or should be) */
-#define F_TRACK_PREP    0x0008  	/* Track should be prep'ed */
-#define F_TRACK_PREPED  0x0010  	/* Track has been prep'ed */
-#define F_DISK_PREPED   0x0020  	/* Disk has been prep'ed */
-#define F_WRITTEN   	0x0040  	/* The medium has been written to */
+#define F_LOCKED        0x0004 		/* this unit is locked (or should be) */
+#define F_TRACK_PREP    0x0008  	/* track should be prep'ed */
+#define F_TRACK_PREPED  0x0010  	/* track has been prep'ed */
+#define F_DISK_PREPED   0x0020  	/* disk has been prep'ed */
+#define F_WRITTEN   	0x0040  	/* the medium has been written to */
 
 static struct acd_softc *acdtab[NUNIT];
-static int32_t acdnlun = 0;     	/* Number of configured drives */
+static int32_t acdnlun = 0;     	/* number of configured drives */
 
 int32_t acdattach(struct atapi_softc *);
 static struct acd_softc *acd_init_lun(struct atapi_softc *, int, struct devstat *);
@@ -138,7 +136,7 @@ acdattach(struct atapi_softc *atp)
         return -1;
     }
 
-    /* Get drive capabilities, some drives needs this repeated */
+    /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
 	if (!(error = acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
 				     &cdp->cap, sizeof(cdp->cap))))
@@ -154,7 +152,7 @@ acdattach(struct atapi_softc *atp)
     cdp->cap.cur_speed = ntohs(cdp->cap.cur_speed);
     acd_describe(cdp);
 
-    /* If this is a changer device, allocate the neeeded lun's */
+    /* if this is a changer device, allocate the neeeded lun's */
     if (cdp->cap.mech == MST_MECH_CHANGER) {
 	int8_t ccb[16] = { ATAPI_MECH_STATUS,
                            0, 0, 0, 0, 0, 0, 0, 
@@ -168,7 +166,7 @@ acdattach(struct atapi_softc *atp)
         }
         bzero(chp, sizeof(struct changer));
         error = atapi_queue_cmd(cdp->atp, ccb, chp, sizeof(struct changer), 
-				A_READ, NULL, NULL, NULL);
+				A_READ, 60, NULL, NULL, NULL);
 
 #ifdef ACD_DEBUG
         printf("error=%02x curr=%02x slots=%d len=%d\n",
@@ -420,7 +418,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
         return ENXIO;
 
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
-	acd_lock_device(cdp, 1); 	/* Prevent user eject */
+	acd_lock_device(cdp, 1); 	/* prevent user eject */
         cdp->flags |= F_LOCKED;
     }
     if (fmt == S_IFBLK)
@@ -428,14 +426,8 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     else
         cdp->refcnt++;
 
-    if (!(flags & O_NONBLOCK)) {
-        if (acd_read_toc(cdp)) {
-            if (!(flags & FWRITE)) {
-                printf("acd%d: read_toc failed\n", lun);
-                return EIO;
-	    }
-        }
-    }
+    if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
+        printf("acd%d: read_toc failed\n", lun);
     return 0;
 }
 
@@ -453,16 +445,16 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     else
     	cdp->refcnt--;
 
-    /* Are we the last open ?? */
+    /* are we the last open ?? */
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
-	/* Yup, do we need to close any written tracks */
+	/* yup, do we need to close any written tracks */
         if ((flags & FWRITE) != 0) {
             if ((cdp->flags & F_TRACK_PREPED) != 0) {
                 acd_close_track(cdp);
                 cdp->flags &= ~(F_TRACK_PREPED | F_TRACK_PREP);
             }
         }
-	acd_lock_device(cdp, 0);	/* Allow the user eject */
+	acd_lock_device(cdp, 0);	/* allow the user eject */
     }
     cdp->flags &= ~F_LOCKED;
     return 0;
@@ -478,7 +470,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     if (cdp->flags & F_MEDIA_CHANGED)
         switch (cmd) {
         case CDIOCRESET:
-            break;
+            acd_test_unit_ready(cdp);
+	    break;
+           
         default:
             acd_read_toc(cdp);
 	    acd_lock_device(cdp, 1);
@@ -488,46 +482,59 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     switch (cmd) {
 
     case CDIOCRESUME:
-        return acd_pause_device(cdp, 1);
+        error = acd_pause_device(cdp, 1);
+	break;
 
     case CDIOCPAUSE:
-        return acd_pause_device(cdp, 0);
+        error = acd_pause_device(cdp, 0);
+	break;
 
     case CDIOCSTART:
-        return acd_start_device(cdp, 1);
+        error = acd_start_device(cdp, 1);
+	break;
 
     case CDIOCSTOP:
-        return acd_start_device(cdp, 0);
+        error = acd_start_device(cdp, 0);
+	break;
 
     case CDIOCALLOW:
         acd_select_slot(cdp);
         cdp->flags &= ~F_LOCKED;
-	return acd_lock_device(cdp, 0);
+	error = acd_lock_device(cdp, 0);
+	break;
 
     case CDIOCPREVENT:
         acd_select_slot(cdp);
         cdp->flags |= F_LOCKED;
-	return acd_lock_device(cdp, 1);
+	error = acd_lock_device(cdp, 1);
+	break;
 
     case CDIOCRESET:
         error = suser(p);
         if (error)
-            return error;
-        return acd_test_unit_ready(cdp);
+            break;
+        error = acd_test_unit_ready(cdp);
+	break;
 
     case CDIOCEJECT:
-        if ((cdp->flags & F_BOPEN) && cdp->refcnt)
-            return EBUSY;
-        return acd_eject(cdp, 0);
+        if ((cdp->flags & F_BOPEN) && cdp->refcnt) {
+            error = EBUSY;
+	    break;
+	}
+        error = acd_eject(cdp, 0);
+	break;
 
     case CDIOCCLOSE:
         if ((cdp->flags & F_BOPEN) && cdp->refcnt)
-            return 0;
-        return acd_eject(cdp, 1);
+            break;
+        error = acd_eject(cdp, 1);
+	break;
 
     case CDIOREADTOCHEADER:
-        if (!cdp->toc.hdr.ending_track)
-            return EIO;
+        if (!cdp->toc.hdr.ending_track) {
+            error = EIO;
+	    break;
+	}
         bcopy(&cdp->toc.hdr, addr, sizeof(cdp->toc.hdr));
         break;
 
@@ -539,29 +546,37 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             u_int32_t len;
             u_int8_t starting_track = te->starting_track;
 
-            if (!cdp->toc.hdr.ending_track)
-                return EIO;
+            if (!cdp->toc.hdr.ending_track) {
+                error = EIO;
+		break;
+	    }
 
             if (te->data_len < sizeof(toc->tab[0]) || 
 		(te->data_len % sizeof(toc->tab[0])) != 0 || 
 		(te->address_format != CD_MSF_FORMAT &&
-		te->address_format != CD_LBA_FORMAT))
-                return EINVAL;
+		te->address_format != CD_LBA_FORMAT)) {
+                error = EINVAL;
+		break;
+	    }
 
             if (!starting_track)
                 starting_track = toc->hdr.starting_track;
             else if (starting_track == 170) 
                 starting_track = toc->hdr.ending_track + 1;
             else if (starting_track < toc->hdr.starting_track ||
-                     starting_track > toc->hdr.ending_track + 1)
-                return EINVAL;
+                     starting_track > toc->hdr.ending_track + 1) {
+                error = EINVAL;
+		break;
+	    }
 
             len = ((toc->hdr.ending_track + 1 - starting_track) + 1) *
 		  sizeof(toc->tab[0]);
             if (te->data_len < len)
                 len = te->data_len;
-            if (len > sizeof(toc->tab))
-                return EINVAL;
+            if (len > sizeof(toc->tab)) {
+                error = EINVAL;
+		break;
+	    }
 
             if (te->address_format == CD_MSF_FORMAT) {
                 struct cd_toc_entry *entry;
@@ -574,8 +589,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                     lba2msf(ntohl(entry->addr.lba), &entry->addr.msf.minute,
                             &entry->addr.msf.second, &entry->addr.msf.frame);
             }
-            return copyout(toc->tab + starting_track - toc->hdr.starting_track,
-			   te->data, len);
+            error = copyout(toc->tab + starting_track - toc->hdr.starting_track,
+		 	    te->data, len);
+	    break;
         }
     case CDIOREADTOCENTRY:
 	{
@@ -585,20 +601,26 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             struct toc buf;
             u_int8_t track = te->track;
 
-            if (!cdp->toc.hdr.ending_track)
-                return EIO;
+            if (!cdp->toc.hdr.ending_track) {
+                error = EIO;
+		break;
+	    }
 
             if (te->address_format != CD_MSF_FORMAT && 
-		te->address_format != CD_LBA_FORMAT)
-                return EINVAL;
+		te->address_format != CD_LBA_FORMAT) {
+                error = EINVAL;
+		break;
+	    }
 
             if (!track)
                 track = toc->hdr.starting_track;
             else if (track == 170)
                 track = toc->hdr.ending_track + 1;
             else if (track < toc->hdr.starting_track ||
-                     track > toc->hdr.ending_track + 1)
-                return EINVAL;
+                     track > toc->hdr.ending_track + 1) {
+                error = EINVAL;
+		break;
+	    }
 
             if (te->address_format == CD_MSF_FORMAT) {
                 struct cd_toc_entry *entry;
@@ -626,12 +648,16 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 			       0, 0, 0, 0, 0, 0, 0 };
 
             if (len > sizeof(data) ||
-                len < sizeof(struct cd_sub_channel_header))
-                return EINVAL;
+                len < sizeof(struct cd_sub_channel_header)) {
+                error = EINVAL;
+		break;
+	    }
 
-	    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->subchan, 
-				sizeof(cdp->subchan), A_READ, NULL, NULL, NULL))
-                return EIO;
+	    if ((error = atapi_queue_cmd(cdp->atp, ccb, &cdp->subchan, 
+				         sizeof(cdp->subchan), A_READ, 10,
+					 NULL, NULL, NULL)))
+                break;
+
 #ifdef ACD_DEBUG
             atapi_dump("acd: subchan", &cdp->subchan, sizeof(cdp->subchan));
 #endif
@@ -656,7 +682,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             data.what.position.addr_type = cdp->subchan.control >> 4;
             data.what.position.track_number = cdp->subchan.track;
             data.what.position.index_number = cdp->subchan.indx;
-            return copyout(&data, args->data, len);
+            error = copyout(&data, args->data, len);
+	    break;
         }
 
     case CDIOCPLAYMSF:
@@ -667,7 +694,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 			       args->end_m, args->end_s, args->end_f,
                                0, 0, 0, 0, 0, 0, 0 };
 
-            return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+            error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, 
+				    NULL, NULL,NULL);
+	    break;
         }
 
     case CDIOCPLAYBLOCKS:
@@ -679,7 +708,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 				args->len>>8, args->len,
 			   	0, 0, 0, 0, 0, 0 };
 
-            return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+            error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10,
+				    NULL, NULL, NULL);
+	    break;
         }
 
     case CDIOCPLAYTRACKS:
@@ -689,8 +720,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             int32_t t1, t2;
 	    int8_t ccb[16];
 
-            if (!cdp->toc.hdr.ending_track)
-                return EIO;
+            if (!cdp->toc.hdr.ending_track) {
+                error = EIO;
+		break;
+	    }
 
             if (args->end_track < cdp->toc.hdr.ending_track + 1)
                 ++args->end_track;
@@ -698,8 +731,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                 args->end_track = cdp->toc.hdr.ending_track + 1;
             t1 = args->start_track - cdp->toc.hdr.starting_track;
             t2 = args->end_track - cdp->toc.hdr.starting_track;
-            if (t1 < 0 || t2 < 0)
-                return EINVAL;
+            if (t1 < 0 || t2 < 0) {
+                error = EINVAL;
+		break;
+	    }
             start = ntohl(cdp->toc.tab[t1].addr.lba);
             len = ntohl(cdp->toc.tab[t2].addr.lba) - start;
 
@@ -714,7 +749,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    ccb[8] = len>>8;
 	    ccb[9] = len;
 
-            return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+            error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10,
+				    NULL, NULL, NULL);
+	    break;
         }
 
     case CDIOCREADAUDIO:
@@ -724,11 +761,15 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    u_int8_t *buffer, *ubuf = args->buffer;
 	    int8_t ccb[16];
 
-	    if (!cdp->toc.hdr.ending_track)
-		return EIO;
+	    if (!cdp->toc.hdr.ending_track) {
+		error = EIO;
+		break;
+	    }
 		
-	    if ((frames = args->nframes) < 0)
-		return EINVAL;
+	    if ((frames = args->nframes) < 0) {
+		error = EINVAL;
+		break;
+	    }
 
 	    if (args->address_format == CD_LBA_FORMAT)
 		lba = args->address.lba;
@@ -736,14 +777,19 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	        lba = msf2lba(args->address.msf.minute,
 			     args->address.msf.second,
 			     args->address.msf.frame);
-	    else
-		return EINVAL;
+	    else {
+		error = EINVAL;
+		break;
+	    }
+
 #ifndef CD_BUFFER_BLOCKS
 #define CD_BUFFER_BLOCKS 13
 #endif
             if (!(buffer = malloc(CD_BUFFER_BLOCKS * 2352,
-				  M_TEMP,M_NOWAIT)))
-                return ENOMEM;
+				  M_TEMP,M_NOWAIT))) {
+                error = ENOMEM;
+		break;
+	    }
 	    bzero(ccb, sizeof(ccb));
             while (frames > 0) {
                 int32_t size;
@@ -761,7 +807,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		ccb[8] = blocks;
 		ccb[9] = 0xf0;
 		if ((error = atapi_queue_cmd(cdp->atp, ccb,  buffer, size,
-					     A_READ, NULL, NULL, NULL)))
+					     A_READ, 30, NULL, NULL, NULL)))
                     break;
 
                 if ((error = copyout(buffer, ubuf, size)))
@@ -778,7 +824,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	        lba2msf(lba, &args->address.msf.minute,
 			     &args->address.msf.second,
 			     &args->address.msf.frame);
-            return error;
+            break;
         }
 
     case CDIOCGETVOL:
@@ -787,15 +833,18 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
 	    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_AUDIO_PAGE,
 				        &cdp->au, sizeof(cdp->au))))
-                return error;
-            if (cdp->au.page_code != ATAPI_CDROM_AUDIO_PAGE)
-                return EIO;
+                break;
+
+            if (cdp->au.page_code != ATAPI_CDROM_AUDIO_PAGE) {
+                error = EIO;
+		break;
+	    }
             arg->vol[0] = cdp->au.port[0].volume;
             arg->vol[1] = cdp->au.port[1].volume;
             arg->vol[2] = cdp->au.port[2].volume;
             arg->vol[3] = cdp->au.port[3].volume;
+            break;
         }
-        break;
 
     case CDIOCSETVOL:
 	{
@@ -803,12 +852,14 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
 	    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_AUDIO_PAGE,
 				        &cdp->au, sizeof(cdp->au))))
-                return error;
-            if (cdp->au.page_code != ATAPI_CDROM_AUDIO_PAGE)
-                return EIO;
+                break;
+            if (cdp->au.page_code != ATAPI_CDROM_AUDIO_PAGE) {
+                error = EIO;
+		break;
+	    }
 	    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_AUDIO_PAGE_MASK,
 				        &cdp->aumask, sizeof(cdp->aumask))))
-                return error;
+                break;
             cdp->au.data_length = 0;
             cdp->au.port[0].channels = CHANNEL_0;
             cdp->au.port[1].channels = CHANNEL_1;
@@ -816,30 +867,37 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             cdp->au.port[1].volume = arg->vol[1] & cdp->aumask.port[1].volume;
             cdp->au.port[2].volume = arg->vol[2] & cdp->aumask.port[2].volume;
             cdp->au.port[3].volume = arg->vol[3] & cdp->aumask.port[3].volume;
-	    return acd_mode_select(cdp, &cdp->au, sizeof(cdp->au));
+	    error =  acd_mode_select(cdp, &cdp->au, sizeof(cdp->au));
+	    break;
         }
     case CDIOCSETPATCH:
 	{
             struct ioc_patch *arg = (struct ioc_patch *)addr;
 
-            return acd_setchan(cdp, arg->patch[0], arg->patch[1],
-                	       arg->patch[2], arg->patch[3]);
+            error = acd_setchan(cdp, arg->patch[0], arg->patch[1],
+                	        arg->patch[2], arg->patch[3]);
+	    break;
         }
 
     case CDIOCSETMONO:
-        return acd_setchan(cdp, CHANNEL_0|CHANNEL_1, CHANNEL_0|CHANNEL_1, 0, 0);
+        error = acd_setchan(cdp, CHANNEL_0|CHANNEL_1, CHANNEL_0|CHANNEL_1, 0,0);
+	break;
 
     case CDIOCSETSTEREO:
-        return acd_setchan(cdp, CHANNEL_0, CHANNEL_1, 0, 0);
+        error = acd_setchan(cdp, CHANNEL_0, CHANNEL_1, 0, 0);
+	break;
 
     case CDIOCSETMUTE:
-        return acd_setchan(cdp, 0, 0, 0, 0);
+        error = acd_setchan(cdp, 0, 0, 0, 0);
+	break;
 
     case CDIOCSETLEFT:
-        return acd_setchan(cdp, CHANNEL_0, CHANNEL_0, 0, 0);
+        error = acd_setchan(cdp, CHANNEL_0, CHANNEL_0, 0, 0);
+	break;
 
     case CDIOCSETRIGHT:
-        return acd_setchan(cdp, CHANNEL_1, CHANNEL_1, 0, 0);
+        error = acd_setchan(cdp, CHANNEL_1, CHANNEL_1, 0, 0);
+	break;
 
     case CDRIOCNEXTWRITEABLEADDR:
 	{
@@ -847,8 +905,11 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
 	    if ((error = acd_read_track_info(cdp, 0xff, &track_info)))
 		break;
-	    if (!track_info.nwa_valid)
-		return EINVAL;
+
+	    if (!track_info.nwa_valid) {
+		error = EINVAL;
+		break;
+	    }
 	    cdp->next_writeable_lba = track_info.next_writeable_addr;
 	    *(int*)addr = track_info.next_writeable_addr;
 	}
@@ -868,8 +929,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                     cdp->speed = w->speed;
                 }
             }
+            break;
         }
-        break;
 
     case WORMIOCPREPTRACK:
         {
@@ -886,8 +947,8 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                 cdp->flags |= F_TRACK_PREP;
                 cdp->preptrack = *w;
             }
+            break;
         }
-        break;
 
     case WORMIOCFINISHTRACK:
         if ((cdp->flags & F_TRACK_PREPED) != 0)
@@ -897,8 +958,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
     case WORMIOCFIXATION:
         {
-            struct wormio_fixation *w =
-            (struct wormio_fixation *)addr;
+            struct wormio_fixation *w = (struct wormio_fixation *)addr;
 
             if ((cdp->flags & F_WRITTEN) == 0)
                 error = EINVAL;
@@ -914,14 +974,15 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                 cdp->flags &=
                     ~(F_WRITTEN|F_DISK_PREPED|F_TRACK_PREP|F_TRACK_PREPED);
             }
+            break;
         }
-        break;
 
     case CDRIOCBLANK:
-        return acd_blank_disk(cdp);
+        error = acd_blank_disk(cdp);
+	break;
 
     default:
-        return ENOTTY;
+        error = ENOTTY;
     }
     return error;
 }
@@ -972,7 +1033,7 @@ acd_start(struct acd_softc *cdp)
 
     bufq_remove(&cdp->buf_queue, bp);
 
-    /* Should reject all queued entries if media have changed. */
+    /* should reject all queued entries if media have changed. */
     if (cdp->flags & F_MEDIA_CHANGED) {
         bp->b_error = EIO;
         bp->b_flags |= B_ERROR;
@@ -1022,7 +1083,7 @@ acd_start(struct acd_softc *cdp)
     devstat_start_transaction(cdp->stats);
 
     atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
-                    (bp->b_flags&B_READ)?A_READ : 0, acd_done, cdp, bp);
+                    (bp->b_flags&B_READ)?A_READ : 0, 30, acd_done, cdp, bp);
 }
 
 static void 
@@ -1035,8 +1096,7 @@ acd_done(struct atapi_request *request)
                             DEVSTAT_TAG_NONE,
                             (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
     if (request->result) {
-        atapi_error(request->device, request->result);
-        bp->b_error = EIO;
+        bp->b_error = atapi_error(request->device, request->result);
         bp->b_flags |= B_ERROR;
     }   
     else {
@@ -1054,7 +1114,7 @@ acd_test_unit_ready(struct acd_softc *cdp)
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1063,7 +1123,7 @@ acd_lock_device(struct acd_softc *cdp, int32_t lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1072,7 +1132,7 @@ acd_start_device(struct acd_softc *cdp, int32_t start)
     int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, start,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1081,7 +1141,7 @@ acd_pause_device(struct acd_softc *cdp, int32_t pause)
     int8_t ccb[16] = { ATAPI_START_STOP, 0, 0, 0, 0, 0, 0, 0, pause,
 		       0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1092,7 +1152,7 @@ acd_mode_sense(struct acd_softc *cdp, u_int8_t page,
     int8_t ccb[16] = { ATAPI_MODE_SENSE, 0, page, 0, 0, 0, 0,
                      pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
 
-    error = atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, A_READ,
+    error = atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, A_READ, 30,
 			    NULL, NULL, NULL);
 #ifdef ACD_DEBUG
     atapi_dump("acd: mode sense ", pagebuf, pagesize);
@@ -1110,7 +1170,7 @@ acd_mode_select(struct acd_softc *cdp, void *pagebuf, int32_t pagesize)
     printf("acd: modeselect pagesize=%d\n", pagesize);
     atapi_dump("acd: mode select ", pagebuf, pagesize);
 #endif
-    return atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, 0, 
+    return atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, 0, 30,
 			   NULL, NULL, NULL);
 }
 
@@ -1127,16 +1187,14 @@ acd_read_toc(struct acd_softc *cdp)
     acd_select_slot(cdp);
 
     error = acd_test_unit_ready(cdp);
-    if ((error & ATAPI_SK_MASK) == ATAPI_SK_UNIT_ATTENTION) {
+    if (error == EAGAIN) {
         cdp->flags |= F_MEDIA_CHANGED;
     	cdp->flags &= ~(F_WRITTEN | F_TRACK_PREP | F_TRACK_PREPED);
         error = acd_test_unit_ready(cdp);
     }
 
-    if (error) {
-        atapi_error(cdp->atp, error);
-        return EIO;
-    }
+    if (error)
+        return error;
 
     cdp->flags &= ~F_MEDIA_CHANGED;
 
@@ -1144,7 +1202,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, NULL,NULL,NULL)){
+    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30,
+			NULL, NULL, NULL)){
         bzero(&cdp->toc, sizeof(cdp->toc));
         return 0;
     }
@@ -1159,7 +1218,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, NULL,NULL,NULL)){
+    if (atapi_queue_cmd(cdp->atp, ccb, &cdp->toc, len, A_READ, 30,
+			NULL, NULL, NULL)){
         bzero(&cdp->toc, sizeof(cdp->toc));
         return 0;
     }
@@ -1169,7 +1229,7 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_READ_CAPACITY;
     if (atapi_queue_cmd(cdp->atp, ccb, &cdp->info, sizeof(cdp->info), 
-			A_READ, NULL, NULL, NULL))
+			A_READ, 30, NULL, NULL, NULL))
         bzero(&cdp->info, sizeof(cdp->info));
 
     cdp->toc.tab[ntracks].control = cdp->toc.tab[ntracks - 1].control;
@@ -1224,10 +1284,7 @@ acd_eject(struct acd_softc *cdp, int32_t close)
 
     error = acd_start_device(cdp, 0);
 
-    if ((error & ATAPI_SK_MASK) &&
-        ((error & ATAPI_SK_MASK) == ATAPI_SK_NOT_READY ||
-         (error & ATAPI_SK_MASK) == ATAPI_SK_UNIT_ATTENTION)) {
-
+    if (error == EBUSY || error == EAGAIN) {
         if (!close)
             return 0;
 	if ((error = acd_start_device(cdp, 3)))
@@ -1237,10 +1294,8 @@ acd_eject(struct acd_softc *cdp, int32_t close)
         cdp->flags |= F_LOCKED;
         return 0;
     }
-    if (error) {
-        atapi_error(cdp->atp, error);
-        return EIO;
-    }
+    if (error)
+        return error;
     if (close)
         return 0;
 
@@ -1261,25 +1316,25 @@ acd_select_slot(struct acd_softc *cdp)
     if (cdp->slot < 0 || cdp->changer_info->current_slot == cdp->slot)
         return;
 
-    /* Unlock (might not be needed but its cheaper than asking) */
+    /* unlock (might not be needed but its cheaper than asking) */
     acd_lock_device(cdp, 0);
 
     bzero(ccb, sizeof(ccb));
-    /* Unload the current media from player */
+    /* unload the current media from player */
     ccb[0] = ATAPI_LOAD_UNLOAD;
     ccb[4] = 2;
     ccb[8] = cdp->changer_info->current_slot;
-    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 
     /* load the wanted slot */
     ccb[0] = ATAPI_LOAD_UNLOAD;
     ccb[4] = 3;
     ccb[8] = cdp->slot;
-    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 
     cdp->changer_info->current_slot = cdp->slot;
 
-    /* Lock the media if needed */
+    /* lock the media if needed */
     if (cdp->flags & F_LOCKED)
         acd_lock_device(cdp, 1);
 }
@@ -1294,13 +1349,10 @@ acd_open_disk(struct acd_softc *cdp, int32_t test)
 static int32_t
 acd_close_disk(struct acd_softc *cdp)
 {
-    int8_t ccb[16];
+    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0, 0x02, 0, 0, 0, 0, 0, 
+		       0, 0, 0, 0, 0, 0, 0, 0 };
 
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_CLOSE_TRACK;
-    ccb[2] = 2;
-    ccb[5] = 0; /* track to close (0 = last open) */
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 600, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1376,11 +1428,10 @@ acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
 static int32_t
 acd_close_track(struct acd_softc *cdp)
 {
-    int8_t ccb[16];
+    int8_t ccb[16] = { ATAPI_SYNCHRONIZE_CACHE, 0, 0, 0, 0, 0, 0, 0,
+		       0, 0, 0, 0, 0, 0, 0, 0};
 
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_SYNCHRONIZE_CACHE;
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 600, NULL, NULL, NULL);
 }
 
 static int32_t
@@ -1395,7 +1446,7 @@ acd_read_track_info(struct acd_softc *cdp,
                      0, 0, 0, 0, 0, 0, 0 };
 
     if ((error = atapi_queue_cmd(cdp->atp, ccb, info, sizeof(*info), 
-			         A_READ, NULL, NULL, NULL)))
+			         A_READ, 30, NULL, NULL, NULL)))
 	return error;
     info->track_start_addr = ntohl(info->track_start_addr);
     info->next_writeable_addr = ntohl(info->next_writeable_addr);
@@ -1409,12 +1460,10 @@ static int32_t
 acd_blank_disk(struct acd_softc *cdp)
 {
     int32_t error;
-    int8_t ccb[16];
+    int8_t ccb[16] = { ATAPI_BLANK, 1, 0, 0, 0, 0, 0, 0, 
+		       0, 0, 0, 0, 0, 0, 0, 0 };
 
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_BLANK;
-    ccb[1] = 1;
-    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL, NULL);
     cdp->flags |= F_MEDIA_CHANGED;
     cdp->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
     return error;
@@ -1426,6 +1475,8 @@ acd_drvinit(void *unused)
     static int32_t acd_devsw_installed = 0;
 
     if (!acd_devsw_installed) {
+        if (!acd_cdevsw.d_maxio)
+            acd_cdevsw.d_maxio = 254 * DEV_BSIZE;
         cdevsw_add(&acd_cdevsw);
         acd_devsw_installed = 1;
     }

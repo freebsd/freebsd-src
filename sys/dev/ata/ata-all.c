@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.13 1999/05/17 15:58:44 sos Exp $
+ *  $Id: ata-all.c,v 1.14 1999/05/20 09:12:02 sos Exp $
  */
 
 #include "ata.h"
@@ -199,7 +199,7 @@ ata_pcimatch(device_t dev)
 	    return "Cyrix 5530 IDE controller";
 #endif
 	default:
-	    return "Unknown PCI IDE controller";
+	    return "Unknown PCI IDE controller (using generic mode)";
 	}
     }
     return NULL;
@@ -532,7 +532,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 	free(scp, M_DEVBUF);
 	return 0;
     }
-    bufq_init(&scp->ata_queue);
+    TAILQ_INIT(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
     *unit = scp->lun;
     scp->dev = dev;
@@ -550,7 +550,7 @@ ataintr(void *data)
 {
     struct ata_softc *scp;
     struct atapi_request *atapi_request;
-    struct buf *ata_request; 
+    struct ad_request *ad_request; 
     u_int8_t status;
     static int32_t intr_count = 0;
 
@@ -560,8 +560,8 @@ ataintr(void *data)
     switch (scp->active) {
 #if NATADISK > 0
     case ATA_ACTIVE_ATA:
-    	if ((ata_request = bufq_first(&scp->ata_queue)))
-            if (ad_interrupt(ata_request) == ATA_OP_CONTINUES)
+    	if ((ad_request = TAILQ_FIRST(&scp->ata_queue)))
+            if (ad_interrupt(ad_request) == ATA_OP_CONTINUES)
 		return;
 	break;
 #endif
@@ -593,7 +593,7 @@ ataintr(void *data)
 void
 ata_start(struct ata_softc *scp)
 {
-    struct buf *ata_request; 
+    struct ad_request *ad_request; 
     struct atapi_request *atapi_request;
 
 #ifdef ATA_DEBUG
@@ -606,9 +606,9 @@ ata_start(struct ata_softc *scp)
 
 #if NATADISK > 0
     /* find & call the responsible driver if anything on ATA queue */
-    if ((ata_request = bufq_first(&scp->ata_queue))) {
+    if ((ad_request = TAILQ_FIRST(&scp->ata_queue))) {
 	scp->active = ATA_ACTIVE_ATA;
-        ad_transfer(ata_request);
+        ad_transfer(ad_request);
 #ifdef ATA_DEBUG
         printf("ata_start: started ata, leaving\n");
 #endif

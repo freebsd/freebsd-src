@@ -25,26 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.h,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-tape.h,v 1.3 1999/03/07 21:49:14 sos Exp $
  */
-
-/* ATAPI tape commands not in std ATAPI command set */
-#define ATAPI_TAPE_REWIND   		0x01
-#define ATAPI_TAPE_READ_CMD   		0x08
-#define ATAPI_TAPE_WRITE_CMD   		0x0a
-#define ATAPI_TAPE_WEOF 		0x10
-#define     WEOF_WRITE_MASK    			0x01
-#define ATAPI_TAPE_SPACE_CMD 		0x11
-#define     SP_FM				0x01
-#define     SP_EOD				0x03
-#define ATAPI_TAPE_ERASE    		0x19
-#define ATAPI_TAPE_MODE_SENSE   	0x1a
-#define ATAPI_TAPE_LOAD_UNLOAD  	0x1b
-#define     LU_LOAD_MASK       			0x01
-#define     LU_RETENSION_MASK 			0x02
-#define     LU_EOT_MASK     			0x04
-
-#define DSC_POLL_INTERVAL	10
 
 /* MODE SENSE parameter header */
 struct ast_header {
