@@ -84,12 +84,6 @@ rct_write(struct patm_softc *sc, u_int cid, u_int w, u_int val)
 {
 	patm_sram_write(sc, sc->mmap->rct + cid * IDT_RCT_ENTRY_SIZE + w, val);
 }
-static __inline void
-rct_init(struct patm_softc *sc, u_int cid, u_int w1)
-{
-	patm_sram_write4(sc, sc->mmap->rct + cid * IDT_RCT_ENTRY_SIZE,
-	    w1, 0, 0, 0xffffffff);
-}
 static __inline u_int
 rct_read(struct patm_softc *sc, u_int cid, u_int w)
 {
@@ -130,7 +124,8 @@ patm_rx_vcc_open(struct patm_softc *sc, struct patm_vcc *vcc)
 	}
 
 	if (vcc->cid != 0)
-		rct_init(sc, vcc->cid, w1);
+		patm_sram_write4(sc, sc->mmap->rct + vcc->cid *
+		    IDT_RCT_ENTRY_SIZE, w1, 0, 0, 0xffffffff);
 	else {
 		/* switch the interface into promiscuous mode */
 		patm_nor_write(sc, IDT_NOR_CFG, patm_nor_read(sc, IDT_NOR_CFG) |
