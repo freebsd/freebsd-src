@@ -290,13 +290,12 @@ if_check(void *dummy __unused)
 	IFNET_RLOCK();	/* could sleep on rare error; mostly okay XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_snd.ifq_maxlen == 0) {
-			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
-			    ifp->if_name, ifp->if_unit);
+			if_printf(ifp, "XXX: driver didn't set ifq_maxlen\n");
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		}
 		if (!mtx_initialized(&ifp->if_snd.ifq_mtx)) {
-			printf("%s%d XXX: driver didn't initialize queue mtx\n",
-			    ifp->if_name, ifp->if_unit);
+			if_printf(ifp,
+			    "XXX: driver didn't initialize queue mtx\n");
 			mtx_init(&ifp->if_snd.ifq_mtx, "unknown",
 			    MTX_NETWORK_LOCK, MTX_DEF);
 		}
