@@ -443,6 +443,7 @@ _gem=		gem
 .if ${MACHINE_ARCH} == "sparc64"
 _auxio=		auxio
 _gem=		gem
+_sound=		sound
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
