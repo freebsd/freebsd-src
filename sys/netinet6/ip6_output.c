@@ -2575,7 +2575,7 @@ ip6_splithdr(m, exthdrs)
 			m_freem(m);
 			return ENOBUFS;
 		}
-		M_COPY_PKTHDR(mh, m);
+		M_MOVE_PKTHDR(mh, m);
 		MH_ALIGN(mh, sizeof(*ip6));
 		m->m_flags &= ~M_PKTHDR;
 		m->m_len -= sizeof(*ip6);

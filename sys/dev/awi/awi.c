@@ -1326,7 +1326,7 @@ awi_fix_rxhdr(sc, m0)
 					m_freem(m0);
 					return NULL;
 				}
-				M_COPY_PKTHDR(n, m0);
+				M_MOVE_PKTHDR(n, m0);
 				n->m_len = MHLEN;
 			} else {
 				MGET(n, M_DONTWAIT, MT_DATA);
