@@ -156,7 +156,8 @@ ddb_trap(a0, a1, a2, entry, regs)
 	 */
 
 	if (entry != ALPHA_KENTRY_IF ||
-	    (a0 != ALPHA_IF_CODE_BUGCHK && a0 != ALPHA_IF_CODE_BPT)) {
+	    (a0 != ALPHA_IF_CODE_BUGCHK && a0 != ALPHA_IF_CODE_BPT
+		&& a0 != ALPHA_IF_CODE_GENTRAP)) {
 		db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
 		    regs->tf_regs[FRAME_PC]);
 		ddbprinttrap(a0, a1, a2, entry);
