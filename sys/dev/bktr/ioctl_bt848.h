@@ -4,6 +4,9 @@
  * $FreeBSD$
  */
 
+#ifndef  _MACHINE_IOCTL_BT848_H_
+#define  _MACHINE_IOCTL_BT848_H_
+
 /*
  * frequency sets
  */
@@ -279,4 +282,7 @@ struct bktr_remote {
 # define BT848_IFORM_F_NTSCJ            (0x2)
 # define BT848_IFORM_F_NTSCM            (0x1)
 # define BT848_IFORM_F_AUTO             (0x0)
+
+
+#endif	/* _MACHINE_IOCTL_BT848_H_ */
 
