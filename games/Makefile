@@ -7,7 +7,7 @@ SUBDIR=	adventure arithmetic atc backgammon battlestar bcd boggle caesar \
 	rain random robots rogue sail snake tetris trek wargames worm worms \
 	wump
 
-.if exists(${X11BASE}/lib/libX11.a})
+.if exists(${X11BASE}/lib/libX11.a)
 SUBDIR+= xneko xroach
 .endif
 
