@@ -55,7 +55,6 @@
 #include "SYS.h"
 
 ALTENTRY(setjmp)
-ALTENTRY(_libc_setjmp)
 ENTRY(__setjmp)
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
@@ -82,8 +81,9 @@ ENTRY(__setjmp)
 	xorl	%eax,%eax
 	ret
 
+#ifndef _THREAD_SAFE
 ALTENTRY(longjmp)
-ALTENTRY(_libc_longjmp)
+#endif
 ENTRY(__longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
