@@ -3372,7 +3372,8 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0)
+	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0 &&
+	  !((vp->v_iflag & VI_XLOCK) && vp->v_vxthread == curthread))
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
