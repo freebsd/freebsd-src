@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -35,15 +35,7 @@
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 #include "readline.h"
-
-extern void readline_internal_setup ();
-extern char *readline_internal_teardown ();
-extern int readline_internal_char ();
-extern void _rl_init_line_state ();
-
-extern int _rl_meta_flag;
-extern char *rl_prompt;
-extern int rl_visible_prompt_length;
+#include "rlprivate.h"
 
 /* **************************************************************** */
 /*								    */

@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -46,9 +46,7 @@
 #  include <locale.h>
 #endif
 
-#include <signal.h>
 #include <stdio.h>
-#include <setjmp.h>
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
@@ -64,18 +62,8 @@
 #include "readline.h"
 #include "history.h"
 
-/* Variables and functions imported from readline.c */
-extern FILE *_rl_in_stream, *_rl_out_stream;
-extern int readline_echoing_p;
-extern int _rl_bell_preference;
-extern Keymap _rl_keymap;
-
-/* Functions imported from bind.c */
-extern void _rl_bind_if_unbound ();
-
-/* Functions imported from shell.c */
-extern void set_lines_and_columns ();
-extern char *get_env_value ();
+#include "rlprivate.h"
+#include "rlshell.h"
 
 /* **************************************************************** */
 /*								    */
@@ -149,6 +137,22 @@ int _rl_enable_keypad;
 /* Non-zero means the user wants to enable a meta key. */
 int _rl_enable_meta = 1;
 
+#if defined (__EMX__)
+static void
+_emx_get_screensize (swp, shp)
+     int *swp, *shp;
+{
+  int sz[2];
+
+  _scrsize (sz);
+
+  if (swp)
+    *swp = sz[0];
+  if (shp)
+    *shp = sz[1];
+}
+#endif
+
 /* Get readline's idea of the screen size.  TTY is a file descriptor open
    to the terminal.  If IGNORE_ENV is true, we do not pay attention to the
    values of $LINES and $COLUMNS.  The tests for TERM_STRING_BUFFER being
@@ -161,9 +165,6 @@ _rl_get_screen_size (tty, ignore_env)
 #if defined (TIOCGWINSZ)
   struct winsize window_size;
 #endif /* TIOCGWINSZ */
-#if defined (__EMX__)
-  int sz[2];
-#endif
 
 #if defined (TIOCGWINSZ)
   if (ioctl (tty, TIOCGWINSZ, &window_size) == 0)
@@ -174,9 +175,7 @@ _rl_get_screen_size (tty, ignore_env)
 #endif /* TIOCGWINSZ */
 
 #if defined (__EMX__)
-  _scrsize (sz);
-  screenwidth = sz[0];
-  screenheight = sz[1];
+  _emx_get_screensize (&screenwidth, &screenheight);
 #endif
 
   /* Environment variable COLUMNS overrides setting of "co" if IGNORE_ENV
@@ -186,8 +185,10 @@ _rl_get_screen_size (tty, ignore_env)
       if (ignore_env == 0 && (ss = get_env_value ("COLUMNS")))
 	screenwidth = atoi (ss);
 
+#if !defined (__DJGPP__)
       if (screenwidth <= 0 && term_string_buffer)
 	screenwidth = tgetnum ("co");
+#endif
     }
 
   /* Environment variable LINES overrides setting of "li" if IGNORE_ENV
@@ -197,8 +198,10 @@ _rl_get_screen_size (tty, ignore_env)
       if (ignore_env == 0 && (ss = get_env_value ("LINES")))
 	screenheight = atoi (ss);
 
+#if !defined (__DJGPP__)
       if (screenheight <= 0 && term_string_buffer)
 	screenheight = tgetnum ("li");
+#endif
     }
 
   /* If all else fails, default to 80x24 terminal. */
@@ -213,7 +216,7 @@ _rl_get_screen_size (tty, ignore_env)
      do a pair of putenv () or setenv () calls. */
   set_lines_and_columns (screenheight, screenwidth);
 
-  if (!_rl_term_autowrap)
+  if (_rl_term_autowrap == 0)
     screenwidth--;
 
   screenchars = screenwidth * screenheight;
@@ -251,32 +254,32 @@ struct _tc_string {
    search algorithm to something smarter. */
 static struct _tc_string tc_strings[] =
 {
-  "DC", &term_DC,
-  "IC", &term_IC,
-  "ce", &term_clreol,
-  "cl", &term_clrpag,
-  "cr", &term_cr,
-  "dc", &term_dc,
-  "ei", &term_ei,
-  "ic", &term_ic,
-  "im", &term_im,
-  "kd", &term_kd,
-  "kh", &term_kh,	/* home */
-  "kH", &term_kH,	/* end */
-  "kl", &term_kl,
-  "kr", &term_kr,
-  "ku", &term_ku,
-  "ks", &term_ks,
-  "ke", &term_ke,
-  "le", &term_backspace,
-  "mm", &term_mm,
-  "mo", &term_mo,
+  { "DC", &term_DC },
+  { "IC", &term_IC },
+  { "ce", &term_clreol },
+  { "cl", &term_clrpag },
+  { "cr", &term_cr },
+  { "dc", &term_dc },
+  { "ei", &term_ei },
+  { "ic", &term_ic },
+  { "im", &term_im },
+  { "kd", &term_kd },
+  { "kh", &term_kh },	/* home */
+  { "kH", &term_kH },	/* end */
+  { "kl", &term_kl },
+  { "kr", &term_kr },
+  { "ku", &term_ku },
+  { "ks", &term_ks },
+  { "ke", &term_ke },
+  { "le", &term_backspace },
+  { "mm", &term_mm },
+  { "mo", &term_mo },
 #if defined (HACK_TERMCAP_MOTION)
-  "nd", &term_forward_char,
+  { "nd", &term_forward_char },
 #endif
-  "pc", &term_pc,
-  "up", &term_up,
-  "vb", &visible_bell,
+  { "pc", &term_pc },
+  { "up", &term_up },
+  { "vb", &visible_bell },
 };
 
 #define NUM_TC_STRINGS (sizeof (tc_strings) / sizeof (struct _tc_string))
@@ -287,72 +290,96 @@ static void
 get_term_capabilities (bp)
      char **bp;
 {
+#if !defined (__DJGPP__)	/* XXX - doesn't DJGPP have a termcap library? */
   register int i;
 
   for (i = 0; i < NUM_TC_STRINGS; i++)
     *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
+#endif
   tcap_initialized = 1;
 }
+
+#define CUSTOM_REDISPLAY_FUNC() (rl_redisplay_function != rl_redisplay)
+#define CUSTOM_INPUT_FUNC() (rl_getc_function != rl_getc)
 
 int
 _rl_init_terminal_io (terminal_name)
      char *terminal_name;
 {
-#if defined (__GO32__)
-  screenwidth = ScreenCols ();
-  screenheight = ScreenRows ();
-  screenchars = screenwidth * screenheight;
-  term_cr = "\r";
-  term_im = term_ei = term_ic = term_IC = (char *)NULL;
-  term_up = term_dc = term_DC = visible_bell = (char *)NULL;
-
-  /* Does the __GO32__ have a meta key?  I don't know. */
-  term_has_meta = 0;
-  term_mm = term_mo = (char *)NULL;
-
-  /* It probably has arrow keys, but I don't know what they are. */
-  term_ku = term_kd = term_kr = term_kl = (char *)NULL;
-
-#if defined (HACK_TERMCAP_MOTION)
-  term_forward_char = (char *)NULL;
-#endif /* HACK_TERMCAP_MOTION */
-  terminal_can_insert = _rl_term_autowrap = 0;
-  return;
-#else /* !__GO32__ */
-
   char *term, *buffer;
-  int tty;
+  int tty, tgetent_ret;
   Keymap xkeymap;
 
   term = terminal_name ? terminal_name : get_env_value ("TERM");
-
-  if (term_string_buffer == 0)
-    term_string_buffer = xmalloc (2032);
-
-  if (term_buffer == 0)
-    term_buffer = xmalloc (4080);
-
-  buffer = term_string_buffer;
-
   term_clrpag = term_cr = term_clreol = (char *)NULL;
+  tty = rl_instream ? fileno (rl_instream) : 0;
+  screenwidth = screenheight = 0;
 
   if (term == 0)
     term = "dumb";
 
-  if (tgetent (term_buffer, term) <= 0)
+  /* I've separated this out for later work on not calling tgetent at all
+     if the calling application has supplied a custom redisplay function,
+     (and possibly if the application has supplied a custom input function). */
+  if (CUSTOM_REDISPLAY_FUNC())
     {
+      tgetent_ret = -1;
+    }
+  else
+    {
+      if (term_string_buffer == 0)
+	term_string_buffer = xmalloc(2032);
+
+      if (term_buffer == 0)
+	term_buffer = xmalloc(4080);
+
+      buffer = term_string_buffer;
+
+      tgetent_ret = tgetent (term_buffer, term);
+    }
+
+  if (tgetent_ret <= 0)
+    {
+      FREE (term_string_buffer);
+      FREE (term_buffer);
+      buffer = term_buffer = term_string_buffer = (char *)NULL;
+
       dumb_term = 1;
-      screenwidth = 79;
-      screenheight = 24;
-      screenchars = 79 * 24;
+      _rl_term_autowrap = 0;	/* used by _rl_get_screen_size */
+
+#if defined (__EMX__)
+      _emx_get_screensize (&screenwidth, &screenheight);
+      screenwidth--;
+#else /* !__EMX__ */
+      _rl_get_screen_size (tty, 0);
+#endif /* !__EMX__ */
+
+      /* Defaults. */
+      if (screenwidth <= 0 || screenheight <= 0)
+        {
+	  screenwidth = 79;
+	  screenheight = 24;
+        }
+
+      /* Everything below here is used by the redisplay code (tputs). */
+      screenchars = screenwidth * screenheight;
       term_cr = "\r";
       term_im = term_ei = term_ic = term_IC = (char *)NULL;
       term_up = term_dc = term_DC = visible_bell = (char *)NULL;
       term_ku = term_kd = term_kl = term_kr = (char *)NULL;
+      term_mm = term_mo = (char *)NULL;
 #if defined (HACK_TERMCAP_MOTION)
       term_forward_char = (char *)NULL;
 #endif
-      terminal_can_insert = 0;
+      terminal_can_insert = term_has_meta = 0;
+
+      /* Reasonable defaults for tgoto().  Readline currently only uses
+         tgoto if term_IC or term_DC is defined, but just in case we
+         change that later... */
+      PC = '\0';
+      BC = term_backspace = "\b";
+      UP = term_up;
+
       return 0;
     }
 
@@ -366,10 +393,6 @@ _rl_init_terminal_io (terminal_name)
 
   if (!term_cr)
     term_cr = "\r";
-
-  tty = rl_instream ? fileno (rl_instream) : 0;
-
-  screenwidth = screenheight = 0;
 
   _rl_term_autowrap = tgetflag ("am") && tgetflag ("xn");
 
@@ -413,7 +436,6 @@ _rl_init_terminal_io (terminal_name)
 
   _rl_keymap = xkeymap;
 
-#endif /* !__GO32__ */
   return 0;
 }
 
@@ -459,6 +481,7 @@ _rl_output_character_function (c)
   return putc (c, _rl_out_stream);
 }
 #endif /* !_MINIX */
+
 /* Write COUNT characters from STRING to the output stream. */
 void
 _rl_output_some_chars (string, count)
@@ -475,12 +498,10 @@ _rl_backspace (count)
 {
   register int i;
 
-#if !defined (__GO32__)
   if (term_backspace)
     for (i = 0; i < count; i++)
       tputs (term_backspace, 1, _rl_output_character_function);
   else
-#endif /* !__GO32__ */
     for (i = 0; i < count; i++)
       putc ('\b', _rl_out_stream);
   return 0;
@@ -504,7 +525,6 @@ ding ()
 {
   if (readline_echoing_p)
     {
-#if !defined (__GO32__)
       switch (_rl_bell_preference)
         {
 	case NO_BELL:
@@ -522,10 +542,6 @@ ding ()
 	  fflush (stderr);
 	  break;
         }
-#else /* __GO32__ */
-      fprintf (stderr, "\007");
-      fflush (stderr);
-#endif /* __GO32__ */
       return (0);
     }
   return (-1);
@@ -540,16 +556,20 @@ ding ()
 void
 _rl_enable_meta_key ()
 {
+#if !defined (__DJGPP__)
   if (term_has_meta && term_mm)
     tputs (term_mm, 1, _rl_output_character_function);
+#endif
 }
 
 void
 _rl_control_keypad (on)
      int on;
 {
+#if !defined (__DJGPP__)
   if (on && term_ks)
     tputs (term_ks, 1, _rl_output_character_function);
   else if (!on && term_ke)
     tputs (term_ke, 1, _rl_output_character_function);
+#endif
 }

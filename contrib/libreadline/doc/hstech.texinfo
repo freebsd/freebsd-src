@@ -66,6 +66,13 @@ If the programmer desires, he can use the Readline library, which
 includes some history manipulation by default, and has the added
 advantage of command line editing.
 
+Before declaring any functions using any functionality the History
+library provides in other code, an application writer should include
+the file @code{<readline/history.h>} in any file that uses the
+History library's features.  It supplies extern declarations for all
+of the library's public functions and variables, and declares all of
+the public data structures.
+
 @node History Storage
 @section History Storage
 
@@ -334,7 +341,7 @@ if expansions did take place;
 @item -1
 if there was an error in expansion;
 @item 2
-if the returned line should only be displayed, but not executed,
+if the returned line should be displayed, but not executed,
 as with the @code{:p} modifier (@pxref{Modifiers}).
 @end table
 

@@ -316,13 +316,19 @@ AC_CACHE_VAL(bash_cv_opendir_not_robust,
 main()
 {
 DIR *dir;
-int fd;
-unlink("/tmp/not_a_directory");
-fd = open("/tmp/not_a_directory", O_WRONLY|O_CREAT, 0666);
+int fd, err;
+err = mkdir("/tmp/bash-aclocal", 0700);
+if (err < 0) {
+  perror("mkdir");
+  exit(1);
+}
+unlink("/tmp/bash-aclocal/not_a_directory");
+fd = open("/tmp/bash-aclocal/not_a_directory", O_WRONLY|O_CREAT|O_EXCL, 0666);
 write(fd, "\n", 1);
 close(fd);
-dir = opendir("/tmp/not_a_directory");
-unlink("/tmp/not_a_directory");
+dir = opendir("/tmp/bash-aclocal/not_a_directory");
+unlink("/tmp/bash-aclocal/not_a_directory");
+rmdir("/tmp/bash-aclocal");
 exit (dir == 0);
 }], bash_cv_opendir_not_robust=yes,bash_cv_opendir_not_robust=no,
     [AC_MSG_WARN(cannot check opendir if cross compiling -- defaulting to no)
@@ -354,25 +360,59 @@ AC_DEFINE(VOID_SIGHANDLER)
 fi
 ])
 
-AC_DEFUN(BASH_TYPE_INT32_T,
+dnl
+dnl A signed 16-bit integer quantity
+dnl
+AC_DEFUN(BASH_TYPE_BITS16_T,
 [
-if test "$ac_cv_sizeof_int" = 4; then
-  AC_CHECK_TYPE(int32_t, int)
-elif test "$ac_cv_sizeof_long" = 4; then
-  AC_CHECK_TYPE(int32_t, long)
+if test "$ac_cv_sizeof_short" = 2; then
+  AC_CHECK_TYPE(bits16_t, short)
+elif test "$ac_cv_sizeof_char" = 2; then
+  AC_CHECK_TYPE(bits16_t, char)
 else
-  AC_CHECK_TYPE(int32_t, int)
+  AC_CHECK_TYPE(bits16_t, short)
 fi
 ])
 
-AC_DEFUN(BASH_TYPE_U_INT32_T,
+dnl
+dnl An unsigned 16-bit integer quantity
+dnl
+AC_DEFUN(BASH_TYPE_U_BITS16_T,
+[
+if test "$ac_cv_sizeof_short" = 2; then
+  AC_CHECK_TYPE(u_bits16_t, unsigned short)
+elif test "$ac_cv_sizeof_char" = 2; then
+  AC_CHECK_TYPE(u_bits16_t, unsigned char)
+else
+  AC_CHECK_TYPE(u_bits16_t, unsigned short)
+fi
+])
+
+dnl
+dnl A signed 32-bit integer quantity
+dnl
+AC_DEFUN(BASH_TYPE_BITS32_T,
 [
 if test "$ac_cv_sizeof_int" = 4; then
-  AC_CHECK_TYPE(u_int32_t, unsigned int)
+  AC_CHECK_TYPE(bits32_t, int)
 elif test "$ac_cv_sizeof_long" = 4; then
-  AC_CHECK_TYPE(u_int32_t, unsigned long)
+  AC_CHECK_TYPE(bits32_t, long)
 else
-  AC_CHECK_TYPE(u_int32_t, unsigned int)
+  AC_CHECK_TYPE(bits32_t, int)
+fi
+])
+
+dnl
+dnl An unsigned 32-bit integer quantity
+dnl
+AC_DEFUN(BASH_TYPE_U_BITS32_T,
+[
+if test "$ac_cv_sizeof_int" = 4; then
+  AC_CHECK_TYPE(u_bits32_t, unsigned int)
+elif test "$ac_cv_sizeof_long" = 4; then
+  AC_CHECK_TYPE(u_bits32_t, unsigned long)
+else
+  AC_CHECK_TYPE(u_bits32_t, unsigned int)
 fi
 ])
 
@@ -387,6 +427,9 @@ else
 fi
 ])
 
+dnl
+dnl A signed 64-bit quantity
+dnl
 AC_DEFUN(BASH_TYPE_BITS64_T,
 [
 if test "$ac_sv_sizeof_char_p" = 8; then
@@ -424,6 +467,20 @@ AC_CACHE_CHECK([for lstat], bash_cv_func_lstat,
 bash_cv_func_lstat=yes, bash_cv_func_lstat=no)])
 if test $bash_cv_func_lstat = yes; then
   AC_DEFINE(HAVE_LSTAT)
+fi
+])
+
+AC_DEFUN(BASH_FUNC_INET_ATON,
+[
+AC_CACHE_CHECK([for inet_aton], bash_cv_func_inet_aton,
+[AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+struct in_addr ap;], [ inet_aton("127.0.0.1", &ap); ],
+bash_cv_func_inet_aton=yes, bash_cv_func_inet_aton=no)])
+if test $bash_cv_func_inet_aton = yes; then
+  AC_DEFINE(HAVE_INET_ATON)
 fi
 ])
 
@@ -845,7 +902,7 @@ AC_CACHE_VAL(bash_cv_sys_named_pipes,
 /* Add more tests in here as appropriate. */
 main()
 {
-int fd;
+int fd, err;
 
 #if defined (HAVE_MKFIFO)
 exit (0);
@@ -858,12 +915,19 @@ exit (1);
 #if defined (NeXT)
 exit (1);
 #endif
-
-fd = mknod ("/tmp/sh-np-autoconf", 0666 | S_IFIFO, 0);
-if (fd == -1)
+err = mkdir("/tmp/bash-aclocal", 0700);
+if (err < 0) {
+  perror ("mkdir");
+  exit(1);
+}
+fd = mknod ("/tmp/bash-aclocal/sh-np-autoconf", 0666 | S_IFIFO, 0);
+if (fd == -1) {
+  rmdir ("/tmp/bash-aclocal");
   exit (1);
+}
 close(fd);
-unlink ("/tmp/sh-np-autoconf");
+unlink ("/tmp/bash-aclocal/sh-np-autoconf");
+rmdir ("/tmp/bash-aclocal");
 exit(0);
 }], bash_cv_sys_named_pipes=present, bash_cv_sys_named_pipes=missing,
     [AC_MSG_WARN(cannot check for named pipes if cross-compiling -- defaulting to missing)
@@ -1037,12 +1101,32 @@ elif test $bash_cv_dev_fd = "whacky"; then
 fi
 ])
 
+AC_DEFUN(BASH_CHECK_DEV_STDIN,
+[AC_MSG_CHECKING(whether /dev/stdin stdout stderr are available)
+AC_CACHE_VAL(bash_cv_dev_stdin,
+[if test -d /dev/fd && test -r /dev/stdin; then
+   bash_cv_dev_stdin=present
+ elif test -d /proc/self/fd && test -r /dev/stdin; then
+   bash_cv_dev_stdin=present
+ else
+   bash_cv_dev_stdin=absent
+ fi
+])
+AC_MSG_RESULT($bash_cv_dev_stdin)
+if test $bash_cv_dev_stdin = "present"; then
+  AC_DEFINE(HAVE_DEV_STDIN)
+fi
+])
+
 dnl
-dnl Check for the presence of getpeername (the only networking function
-dnl bash currently requires) in libsocket.  If libsocket is present,
-dnl check for libnsl and add it to LIBS if it's there, since most
-dnl systems with libsocket require linking with libnsl as well.
-dnl This should only be called if getpeername was not found in libc.
+dnl Check for the presence of getpeername in libsocket.
+dnl If libsocket is present, check for libnsl and add it to LIBS if
+dnl it's there, since most systems with libsocket require linking
+dnl with libnsl as well.  This should only be called if getpeername
+dnl was not found in libc.
+dnl
+dnl NOTE: IF WE FIND GETPEERNAME, WE ASSUME THAT WE HAVE BIND/CONNECT
+dnl	  AS WELL
 dnl
 AC_DEFUN(BASH_CHECK_SOCKLIB,
 [
@@ -1081,6 +1165,32 @@ if test $bash_cv_have_socklib = yes; then
   fi
   AC_DEFINE(HAVE_LIBSOCKET)
   AC_DEFINE(HAVE_GETPEERNAME)
+fi
+])
+
+dnl
+dnl This needs BASH_CHECK_SOCKLIB, but since that's not called on every
+dnl system, we can't use AC_PREREQ
+dnl
+AC_DEFUN(BASH_FUNC_GETHOSTBYNAME,
+[if test "X$bash_cv_have_gethostbyname" = "X"; then
+_bash_needmsg=yes
+else
+AC_MSG_CHECKING(for gethostbyname in socket library)
+_bash_needmsg=
+fi
+AC_CACHE_VAL(bash_cv_have_gethostbyname,
+[AC_TRY_LINK([#include <netdb.h>],
+[ struct hostent *hp;
+  hp = gethostbyname("localhost");
+], bash_cv_have_gethostbyname=yes, bash_cv_have_gethostbyname=no)]
+)
+if test "X$_bash_needmsg" = Xyes; then
+    AC_MSG_CHECKING(for gethostbyname in socket library)
+fi
+AC_MSG_RESULT($bash_cv_have_gethostbyname)
+if test "$bash_cv_have_gethostbyname" = yes; then
+AC_DEFINE(HAVE_GETHOSTBYNAME)
 fi
 ])
 
@@ -1299,3 +1409,19 @@ switch (0) case 0: case (sizeof (off_t) <= 4):;
 if test $bash_cv_off_t_64 = yes; then
         AC_DEFINE(HAVE_OFF_T_64)
 fi])
+
+AC_DEFUN(BASH_STRUCT_TIMEVAL,
+[AC_MSG_CHECKING(for struct timeval in sys/time.h and time.h)
+AC_CACHE_VAL(bash_cv_struct_timeval,
+[
+AC_EGREP_HEADER(struct timeval, sys/time.h,
+		bash_cv_struct_timeval=yes,
+		AC_EGREP_HEADER(struct timeval, time.h,
+			bash_cv_struct_timeval=yes,
+			bash_cv_struct_timeval=no))
+])
+AC_MSG_RESULT($bash_cv_struct_timeval)
+if test $bash_cv_struct_timeval = yes; then
+  AC_DEFINE(HAVE_TIMEVAL)
+fi
+])
