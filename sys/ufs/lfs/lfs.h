@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id$
+ * $Id: lfs.h,v 1.2 1994/08/02 07:54:28 davidg Exp $
  */
+
+#ifndef _UFS_LFS_LFS_H_
+#define _UFS_LFS_LFS_H_
 
 #define	LFS_LABELPAD	8192		/* LFS label size */
 #define	LFS_SBPAD	8192		/* LFS superblock size */
@@ -351,4 +354,6 @@ struct lfs_stats {
 	int	flush_invoked;
 };
 extern struct lfs_stats lfs_stats;
+#endif
+
 #endif

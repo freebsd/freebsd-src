@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id$
+ * $Id: ufs_extern.h,v 1.2 1994/08/02 07:54:54 davidg Exp $
  */
+
+#ifndef _UFS_UFS_UFS_EXTERN_H_
+#define _UFS_UFS_UFS_EXTERN_H_
 
 struct buf;
 struct direct;
@@ -124,3 +127,5 @@ int	ufsfifo_write __P((struct vop_write_args *));
 int	ufsfifo_close __P((struct vop_close_args *));
 #endif
 __END_DECLS
+
+#endif
