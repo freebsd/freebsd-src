@@ -143,10 +143,10 @@ int ibtmo(int handle, int tmo);
 int ibtrap(int  mask, int mode);
 int ibtrg(int handle);
 int ibwait(int handle, int mask);
-int ibwrt(int handle, void *buffer, long cnt);
-int ibwrta(int handle, void *buffer, long cnt);
-int ibwrtf(int handle, char *flname);
-int ibwrtkey(int handle, void *buffer, int cnt);
+int ibwrt(int handle, const void *buffer, long cnt);
+int ibwrta(int handle, const void *buffer, long cnt);
+int ibwrtf(int handle, const char *flname);
+int ibwrtkey(int handle, const void *buffer, int cnt);
 int ibxtrc(int handle, void *buffer, long cnt);
 #endif /* _KERNEL */
 #endif /* _DEV_IEEE488_UGPIB_H_ */
