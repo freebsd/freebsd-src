@@ -117,6 +117,9 @@ mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
 	if (u1->cr_ruid == u2->cr_ruid)
 		return (0);
 
+	if (suser_cred(u1, 0) == 0)
+		return (0);
+
 	return (ESRCH);
 }
 
