@@ -193,7 +193,6 @@
 #ifdef PC98
 #define	com_emr		com_msr	/* Extension mode register for RSB-2000/3000 */
 #endif
-#define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
 #define	sio_getreg(com, off) \
 	(bus_space_read_1((com)->bst, (com)->bsh, (off)))
