@@ -1386,7 +1386,7 @@ ed_probe_HP_pclanp(dev)
 	    (inb(sc->asic_addr + ED_HPP_ID + 1) != 0x48) ||
 	    ((inb(sc->asic_addr + ED_HPP_ID + 2) & 0xF0) != 0) ||
 	    (inb(sc->asic_addr + ED_HPP_ID + 3) != 0x53))
-		return 0;
+		return ENXIO;
 
 	/* 
 	 * Read the MAC address and verify checksum on the address.
@@ -1400,7 +1400,7 @@ ed_probe_HP_pclanp(dev)
 	checksum += inb(sc->asic_addr + ED_HPP_MAC_ADDR + ETHER_ADDR_LEN);
 
 	if (checksum != 0xFF)
-		return 0;
+		return ENXIO;
 
 	/*
 	 * Verify that the software model number is 0.
@@ -1409,7 +1409,7 @@ ed_probe_HP_pclanp(dev)
 	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_ID);
 	if (((sc->hpp_id = inw(sc->asic_addr + ED_HPP_PAGE_4)) & 
 		ED_HPP_ID_SOFT_MODEL_MASK) != 0x0000)
-		return 0;
+		return ENXIO;
 
 	/*
 	 * Read in and save the current options configured on card.
@@ -1440,7 +1440,7 @@ ed_probe_HP_pclanp(dev)
 	DELAY(5000);
 
 	if (!(inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST))
-		return 0;	/* reset did not complete */
+		return ENXIO;	/* reset did not complete */
 
 	/*
 	 * Read out configuration information.
@@ -1455,7 +1455,7 @@ ed_probe_HP_pclanp(dev)
 	 */
 
 	if (irq >= (sizeof(ed_hpp_intr_val) / sizeof(ed_hpp_intr_val[0])))
-		return 0;
+		return ENXIO;
 
 	/* 
 	 * If the kernel IRQ was specified with a '?' use the cards idea
@@ -1520,7 +1520,7 @@ ed_probe_HP_pclanp(dev)
 			return (error);
 		
 		if (mem_addr != conf_maddr)
-			return 0;
+			return ENXIO;
 
 		error = ed_alloc_memory(dev, 0, memsize);
 		if (error)
@@ -1608,7 +1608,7 @@ ed_probe_HP_pclanp(dev)
 
 		if (bcmp(test_pattern, test_buffer, 
 			sizeof(test_pattern)))
-			return 0;
+			return ENXIO;
 	}
 
 	return (ED_HPP_IO_PORTS);
