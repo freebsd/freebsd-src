@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.5 1996/04/07 17:38:39 bde Exp $
+ * $Id: random_machdep.c,v 1.6 1996/04/07 18:16:26 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -418,7 +418,7 @@ extract_entropy(struct random_bucket *r, char *buf, int nbytes)
 		
 		/* Copy data to destination buffer */
 		i = MIN(nbytes, 16);
-		memcpy(buf, (u_int8_t const *)tmp, i);
+		bcopy(tmp, buf, i);
 		nbytes -= i;
 		buf += i;
 	}
@@ -470,7 +470,7 @@ write_random(const char *buf, u_int nbytes)
 		add_entropy_word(&random_state, *p);
 	if (i) {
 		word = 0;
-		memcpy(&word, p, i);
+		bcopy(p, &word, i);
 		add_entropy_word(&random_state, word);
 	}
 	return nbytes;
