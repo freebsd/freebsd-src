@@ -114,7 +114,7 @@ struct procsig {
 struct pargs {
 	u_int	ar_ref;		/* Reference count. */
 	u_int	ar_length;	/* Length. */
-	u_char	ar_args[0];	/* Arguments. */
+	u_char	ar_args[];	/* Arguments. */
 };
 
 /*-
