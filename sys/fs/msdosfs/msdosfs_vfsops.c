@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.9 1995/11/07 14:10:19 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.10 1995/11/16 11:48:08 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -469,15 +469,6 @@ mountmsdosfs(devvp, mp, p)
         mp->mnt_stat.f_fsid.val[0] = (long)dev;
         mp->mnt_stat.f_fsid.val[1] = MOUNT_MSDOS;
 	mp->mnt_flag |= MNT_LOCAL;
-#ifdef QUOTA
-	/*
-	 * If we ever do quotas for DOS filesystems this would be a place
-	 * to fill in the info in the msdosfsmount structure. You dolt,
-	 * quotas on dos filesystems make no sense because files have no
-	 * owners on dos filesystems. of course there is some empty space
-	 * in the directory entry where we could put uid's and gid's.
-	 */
-#endif
 	devvp->v_specflags |= SI_MOUNTEDON;
 
 	return 0;
@@ -529,8 +520,6 @@ msdosfs_unmount(mp, mntflags, p)
 			return EINVAL;
 		flags |= FORCECLOSE;
 	}
-#ifdef QUOTA
-#endif
 	error = vflush(mp, NULLVP, flags);
 	if (error)
 		return error;
@@ -572,11 +561,7 @@ msdosfs_quotactl(mp, cmds, uid, arg, p)
 	caddr_t arg;
 	struct proc *p;
 {
-#ifdef QUOTA
 	return EOPNOTSUPP;
-#else
-	return EOPNOTSUPP;
-#endif
 }
 
 static int
