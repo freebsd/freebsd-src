@@ -62,6 +62,8 @@ struct task {
 .Fn taskqueue_find "const char *name"
 .Ft int
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
+.Ft int
+.Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
@@ -118,6 +120,14 @@ it suitable for calling from an interrupt handler.
 This function will return
 .Er EPIPE
 if the queue is being freed.
+.Pp
+The function
+.Fn taskqueue_enqueue_fast
+should be used in place of
+.Fn taskqueue_enqueue
+when the enqueuing must happen from a fast interrupt handler.
+This method uses spin locks to avoid the possibility of sleeping in the fast
+interrupt context.
 .Pp
 To execute all the tasks on a queue,
 call
