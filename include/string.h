@@ -68,7 +68,6 @@ char	*strchr(const char *, int);
 int	 strcmp(const char *, const char *);
 int	 strcoll(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
-char	*stpcpy(char *, const char *);
 size_t	 strcspn(const char *, const char *);
 char	*strerror(int);
 size_t	 strlen(const char *);
@@ -93,6 +92,7 @@ int	 strerror_r(int, char *, size_t);
 #endif
 
 #if __BSD_VISIBLE
+char	*stpcpy(char *, const char *);
 char	*strcasestr(const char *, const char *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
