@@ -216,4 +216,3 @@ previous_fs:		.word 0
 previous_gs:		.word 0
 previous_ss:		.word 0
 dummy:			.word 0
-
