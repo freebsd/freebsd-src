@@ -139,7 +139,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	msg.lm_fh_len = NFS_ISV3(vp) ? VTONFS(vp)->n_fhsize : NFSX_V2FH;
 	bcopy(VTONFS(vp)->n_fhp, msg.lm_fh, msg.lm_fh_len);
 	msg.lm_nfsv3 = NFS_ISV3(vp);
-	msg.lm_cred = *(td->td_ucred);
+	cru2x(td->td_ucred, &msg.lm_cred);
 
 	/*
 	 * Open the lock fifo.  If for any reason we don't find the fifo, it
