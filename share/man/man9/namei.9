@@ -160,11 +160,14 @@ It is the current directory if the name passed in doesn't start with /
 and we have not gone through any symlinks with an absolute path, and
 the root otherwise.
 .Pp
-In this case, it is only used by lookup(), and should not be
-considered valid after a call to namei().
+In this case, it is only used by
+.Fn lookup ,
+and should not be
+considered valid after a call to
+.Fn namei .
 .Pp
 If SAVESTART is set, this is set to the same as ni_dvp, with an extra
-VREF().
+.Fn VREF .
 .Pp
 To block NDFREE from releasing ni_startdir when it is set, use the
 flag NDF_NO_STARTDIR_RELE.
