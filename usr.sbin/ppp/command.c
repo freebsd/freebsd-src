@@ -460,15 +460,17 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[arg] = subst(nargv[arg], "HISADDR",
                        inet_ntoa(bundle->ncp.ipcp.peer_ip));
 #ifndef NOINET6
-    nargv[arg] = subst(nargv[arg], "HISADDR6",
-                       ncpaddr_ntoa(&bundle->ncp.ipv6cp.hisaddr));
+    if (probe.ipv6_available)
+      nargv[arg] = subst(nargv[arg], "HISADDR6",
+                         ncpaddr_ntoa(&bundle->ncp.ipv6cp.hisaddr));
 #endif
     nargv[arg] = subst(nargv[arg], "AUTHNAME", bundle->cfg.auth.name);
     nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->iface->name);
     nargv[arg] = subst(nargv[arg], "MYADDR", inet_ntoa(bundle->ncp.ipcp.my_ip));
 #ifndef NOINET6
-    nargv[arg] = subst(nargv[arg], "MYADDR6",
-                       ncpaddr_ntoa(&bundle->ncp.ipv6cp.myaddr));
+    if (probe.ipv6_available)
+      nargv[arg] = subst(nargv[arg], "MYADDR6",
+                         ncpaddr_ntoa(&bundle->ncp.ipv6cp.myaddr));
 #endif
     nargv[arg] = subst(nargv[arg], "USER", bundle->ncp.mp.peer.authname);
     nargv[arg] = subst(nargv[arg], "PEER_ENDDISC",
@@ -2340,7 +2342,8 @@ AddCommand(struct cmdargs const *arg)
     ncpaddr_setip4(&gw, arg->bundle->ncp.ipcp.peer_ip);
     addrs |= ROUTE_GWHISADDR;
 #ifndef NOINET6
-  } else if (strcasecmp(arg->argv[arg->argn + gw_arg], "HISADDR6") == 0) {
+  } else if (probe.ipv6_available &&
+             strcasecmp(arg->argv[arg->argn + gw_arg], "HISADDR6") == 0) {
     ncpaddr_copy(&gw, &arg->bundle->ncp.ipv6cp.hisaddr);
     addrs |= ROUTE_GWHISADDR6;
 #endif
@@ -2379,7 +2382,8 @@ DeleteCommand(struct cmdargs const *arg)
         ncprange_setip4host(&dest, arg->bundle->ncp.ipcp.my_ip);
         addrs = ROUTE_DSTMYADDR;
 #ifndef NOINET6
-      } else if (strcasecmp(arg->argv[arg->argn], "MYADDR6") == 0) {
+      } else if (probe.ipv6_available &&
+                 strcasecmp(arg->argv[arg->argn], "MYADDR6") == 0) {
         ncprange_sethost(&dest, &arg->bundle->ncp.ipv6cp.myaddr);
         addrs = ROUTE_DSTMYADDR6;
 #endif
@@ -2387,7 +2391,8 @@ DeleteCommand(struct cmdargs const *arg)
         ncprange_setip4host(&dest, arg->bundle->ncp.ipcp.peer_ip);
         addrs = ROUTE_DSTHISADDR;
 #ifndef NOINET6
-      } else if (strcasecmp(arg->argv[arg->argn], "HISADDR6") == 0) {
+      } else if (probe.ipv6_available &&
+                 strcasecmp(arg->argv[arg->argn], "HISADDR6") == 0) {
         ncprange_sethost(&dest, &arg->bundle->ncp.ipv6cp.hisaddr);
         addrs = ROUTE_DSTHISADDR6;
 #endif
@@ -2872,8 +2877,11 @@ ClearCommand(struct cmdargs const *arg)
   } else if (strcasecmp(arg->argv[arg->argn], "ipcp") == 0)
     t = &arg->bundle->ncp.ipcp.throughput;
 #ifndef NOINET6
-  else if (strcasecmp(arg->argv[arg->argn], "ipv6cp") == 0)
+  else if (strcasecmp(arg->argv[arg->argn], "ipv6cp") == 0) {
+    if (!probe.ipv6_available)
+      return 0;
     t = &arg->bundle->ncp.ipv6cp.throughput;
+  }
 #endif
   else
     return -1;
@@ -3019,8 +3027,11 @@ IfaceClearCommand(struct cmdargs const *arg)
     if (strcasecmp(arg->argv[arg->argn], "inet") == 0)
       family = AF_INET;
 #ifndef NOINET6
-    else if (strcasecmp(arg->argv[arg->argn], "inet6") == 0)
+    else if (strcasecmp(arg->argv[arg->argn], "inet6") == 0) {
+      if (!probe.ipv6_available)
+        return 0;
       family = AF_INET6;
+    }
 #endif
     else
       return -1;
