@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.138 1999/01/10 01:58:28 eivind Exp $
+ * $Id: vm_object.c,v 1.139 1999/01/21 08:29:11 dillon Exp $
  */
 
 /*
