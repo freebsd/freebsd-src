@@ -302,11 +302,10 @@ trap(int vector, int imm, struct trapframe *framep)
 		 */
 		if (user) {
 			mtx_lock(&Giant);
-			if ((i = unaligned_fixup(framep, td)) == 0) {
-				mtx_unlock(&Giant);
-				goto out;
-			}
+			i = unaligned_fixup(framep, td);
 			mtx_unlock(&Giant);
+			if (i == 0)
+				goto out;
 			ucode = framep->tf_cr_ifa;	/* VA */
 			break;
 		}
@@ -478,6 +477,7 @@ trap(int vector, int imm, struct trapframe *framep)
 			} else if (rv == KERN_PROTECTION_FAILURE)
 				rv = KERN_INVALID_ADDRESS;
 		}
+		mtx_unlock(&Giant);
 		if (rv == KERN_SUCCESS)
 			goto out;
 
@@ -520,10 +520,10 @@ trap(int vector, int imm, struct trapframe *framep)
 #endif
 	trapsignal(p, i, ucode);
 out:
-	if (user)
+	if (user) {
 		userret(td, framep, sticks);
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
+		mtx_assert(&Giant, MA_NOTOWNED);
+	}
 	return;
 
 dopanic:
@@ -568,7 +568,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	td->td_frame = framep;
 	sticks = td->td_kse->ke_sticks;
 
-	mtx_lock(&Giant);
 	/*
 	 * Skip past the break instruction. Remember old address in case
 	 * we have to restart.
@@ -610,6 +609,11 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
+	/*
+	 * Try to run the syscall without Giant if the syscall is MP safe.
+	 */
+	if ((callp->sys_narg & SYS_MPSAFE) == 0)
+		mtx_lock(&Giant);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
 		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args);
@@ -654,7 +658,11 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
 #endif
-	mtx_unlock(&Giant);
+	/*
+	 * Release Giant if we had to get it.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
+		mtx_unlock(&Giant);
 
 	/*
 	 * This works because errno is findable through the
