@@ -56,13 +56,9 @@
 #include <nfs/xdr_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsm_subs.h>
-#include <nfs/nfsrvcache.h>
-#include <nfs/nfsmount.h>
-#include <nfs/nfsnode.h>
-#include <nfs/nqnfs.h>
-#include <nfs/nfsrtt.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsmount.h>
+#include <nfsclient/nfsargs.h>
 
 #include <sys/sysent.h>
 #include <alpha/osf1/osf1_signal.h>
@@ -73,9 +69,9 @@
 
 
 void bsd2osf_statfs __P((struct statfs *, struct osf1_statfs *));
-int osf1_mount_mfs __P((struct proc *, struct osf1_mount_args *,
+int osf1_mount_mfs __P((struct thread *, struct osf1_mount_args *,
 			struct mount_args *));
-int osf1_mount_nfs __P((struct proc *, struct osf1_mount_args *,
+int osf1_mount_nfs __P((struct thread *, struct osf1_mount_args *,
 			struct mount_args *));
 
 #ifdef notanymore
@@ -119,8 +115,8 @@ bzero(osfs, sizeof (struct osf1_statfs));
 }
 
 int
-osf1_statfs(p, uap)
-	struct proc *p;
+osf1_statfs(td, uap)
+	struct thread *td;
 	struct osf1_statfs_args *uap;
 {
 	int error;
@@ -129,13 +125,13 @@ osf1_statfs(p, uap)
 	struct osf1_statfs osfs;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
-	if ((error = VFS_STATFS(mp, sp, p)))
+	if ((error = VFS_STATFS(mp, sp, td)))
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	bsd2osf_statfs(sp, &osfs);
@@ -144,8 +140,8 @@ osf1_statfs(p, uap)
 }
 
 int
-osf1_fstatfs(p, uap)
-	struct proc *p;
+osf1_fstatfs(td, uap)
+	struct thread *td;
 	struct osf1_fstatfs_args *uap;
 {
 	int error;
@@ -205,9 +201,9 @@ osf1_getfsstat(p, uap)
 		count++;
 	}
 	if (osf_sfsp && count > maxcount)
-		p->p_retval[0] = maxcount;
+		td->td_retval[0] = maxcount;
 	else
-		p->p_retval[0] = count;
+		td->td_retval[0] = count;
 
 	return (0);
 }

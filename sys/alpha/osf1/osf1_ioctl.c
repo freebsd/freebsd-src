@@ -56,18 +56,18 @@
 
 /*#define	IOCTL_DEBUG*/
 
-int osf1_ioctl_i	__P((struct proc *p, struct ioctl_args *nuap,
+int osf1_ioctl_i	__P((struct thread *td, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
-int osf1_ioctl_t	__P((struct proc *p, struct ioctl_args *nuap,
+int osf1_ioctl_t	__P((struct thread *td, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
-int osf1_ioctl_f	__P((struct proc *p, struct ioctl_args *nuap,
+int osf1_ioctl_f	__P((struct thread *td, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
-int osf1_ioctl_m	__P((struct proc *p, struct ioctl_args *nuap,
+int osf1_ioctl_m	__P((struct thread *td, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
 
 int
-osf1_ioctl(p, uap)
-	struct proc *p;
+osf1_ioctl(td, uap)
+	struct thread *td;
 	struct osf1_ioctl_args *uap;
 {
 	char *dirstr;
@@ -122,13 +122,13 @@ osf1_ioctl(p, uap)
 	a.data = uap->data;
 	switch (group) {
 	case 'i':
-		return osf1_ioctl_i(p, &a, cmd, dir, len);
+		return osf1_ioctl_i(td, &a, cmd, dir, len);
 	case 't':
-		return osf1_ioctl_t(p, &a, cmd, dir, len);
+		return osf1_ioctl_t(td, &a, cmd, dir, len);
 	case 'f':
-		return osf1_ioctl_f(p, &a, cmd, dir, len);
+		return osf1_ioctl_f(td, &a, cmd, dir, len);
 	case 'm':
-		return osf1_ioctl_m(p, &a, cmd, dir, len);
+		return osf1_ioctl_m(td, &a, cmd, dir, len);
 	case 'S':
 		/*
 		 * XXX SVR4 Streams IOCTLs are all unimpl.
@@ -156,8 +156,8 @@ struct osf1_ifdevea {
 
 
 int
-osf1_ioctl_i(p, uap, cmd, dir, len)
-	struct proc *p;
+osf1_ioctl_i(td, uap, cmd, dir, len)
+	struct thread *td;
 	struct ioctl_args /* {
 		syscallarg(int) fd;
 		syscallarg(u_long) com;
@@ -185,7 +185,7 @@ osf1_ioctl_i(p, uap, cmd, dir, len)
 	case 35:			/* OSF/1 SIOCGIFBRDADDR */
 	case 37:			/* OSF/1 SIOCGIFNETMASK */
 		/* same as in FreeBSD */
-		return ioctl(p, uap);
+		return ioctl(td, uap);
 		break;
 
 	case 62:			/* OSF/1 SIOCRPHYSADDR */
@@ -249,8 +249,8 @@ struct sgttyb {
 #endif
 
 int
-osf1_ioctl_t(p, uap, cmd, dir, len)
-	struct proc *p;
+osf1_ioctl_t(td, uap, cmd, dir, len)
+	struct thread *td;
 	struct ioctl_args /* {
 		syscallarg(int) fd;
 		syscallarg(u_long) com;
@@ -300,7 +300,7 @@ osf1_ioctl_t(p, uap, cmd, dir, len)
 		return (ENOTTY);
 	}
 
-	retval = ioctl(p, uap);
+	retval = ioctl(td, uap);
 #if 0
 	if (retval)
 		printf("osf1_ioctl_t: cmd = %d, com = 0x%lx, retval = %d\n",
@@ -314,8 +314,8 @@ osf1_ioctl_t(p, uap, cmd, dir, len)
  */
 
 int
-osf1_ioctl_f(p, uap, cmd, dir, len)
-	struct proc *p;
+osf1_ioctl_f(td, uap, cmd, dir, len)
+	struct thread *td;
 	struct ioctl_args /* {
 		syscallarg(int) fd;
 		syscallarg(int) com;
@@ -342,7 +342,7 @@ osf1_ioctl_f(p, uap, cmd, dir, len)
 		return (ENOTTY);
 	}
 
-	return ioctl(p, uap);
+	return ioctl(td, uap);
 }
 
 /*
@@ -350,8 +350,8 @@ osf1_ioctl_f(p, uap, cmd, dir, len)
  */
 
 int
-osf1_ioctl_m(p, uap, cmd, dir, len)
-	struct proc *p;
+osf1_ioctl_m(td, uap, cmd, dir, len)
+	struct thread *td;
 	struct ioctl_args /* {
 		syscallarg(int) fd;
 		syscallarg(int) com;
@@ -373,5 +373,5 @@ osf1_ioctl_m(p, uap, cmd, dir, len)
 		return (ENOTTY);
 	}
 
-	return ioctl(p, uap);
+	return ioctl(td, uap);
 }
