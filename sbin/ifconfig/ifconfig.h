@@ -31,15 +31,16 @@
  *
  * so there!
  *
- * $Id$
+ * $Id: ifconfig.h,v 1.1 1997/05/04 06:27:45 peter Exp $
  */
 
 extern struct ifreq ifr;
 
 extern char name[32];	/* name of interface */
 extern int allmedia;
+struct afswtch;
 
-extern void setmedia(const char *, int, int);
-extern void setmediaopt(const char *, int, int);
-extern void unsetmediaopt(const char *, int, int);
+extern void setmedia(const char *, int, int, const struct afswtch *rafp);
+extern void setmediaopt(const char *, int, int, const struct afswtch *rafp);
+extern void unsetmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void media_status(int s);
