@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.77 1997/03/29 04:35:26 bde Exp $
+ *	$Id: vm_machdep.c,v 1.78 1997/04/07 07:15:56 peter Exp $
  */
 
 #include "npx.h"
@@ -788,32 +788,34 @@ vunmapbuf(bp)
  */
 void
 cpu_reset() {
-
+#ifdef PC98
+	/*
+	 * Attempt to do a CPU reset via CPU reset port.
+	 */
+	asm("cli");
+	outb(0x37, 0x0f);		/* SHUT0 = 0. */
+	outb(0x37, 0x0b);		/* SHUT1 = 0. */
+	outb(0xf0, 0x00);		/* Reset. */
+#else
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
 	 * do not turn of the GateA20, as any machine that fails
 	 * to do the reset here would then end up in no man's land.
 	 */
 
-#if !defined(BROKEN_KEYBOARD_RESET) && !defined(PC98)
+#if !defined(BROKEN_KEYBOARD_RESET)
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
 #endif
-
+#endif /* PC98 */
 	/* force a shutdown by unmapping entire address space ! */
 	bzero((caddr_t) PTD, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
 	invltlb();
 	/* NOTREACHED */
-#ifdef PC98
-	asm("   cli ");
-	outb(0x37, 0x0f);       /* SHUT 0 = 0 */
-	outb(0x37, 0x0b);       /* SHUT 1 = 0 */
-	outb(0xf0, 0x00);       /* reset port */
-#endif
 	while(1);
 }
 
