@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static const char rcsid[] = "$Id: ns_stats.c,v 8.32 2000/11/29 06:56:05 marka Exp $";
+static const char rcsid[] = "$Id: ns_stats.c,v 8.32.2.1 2001/08/09 14:04:49 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -407,13 +407,13 @@ ns_logstats(evContext ctx, void *uap, struct timespec due,
 			sprintf(buffer2, " %s=%lu", p_type(i), typestats[i]);
 			if (strlen(buffer) + strlen(buffer2) >
 			    sizeof(buffer) - 1) {
-				ns_info(ns_log_statistics, buffer);
+				ns_info(ns_log_statistics, "%s", buffer);
 				strcpy(buffer, header);
 			}
 			strcat(buffer, buffer2);
 		}
 	}
-	ns_info(ns_log_statistics, buffer);
+	ns_info(ns_log_statistics, "%s", buffer);
 
 	sprintf(header, "XSTATS %lu %lu", (u_long)timenow, (u_long)boottime);
 	strcpy(buffer, header);
@@ -421,12 +421,12 @@ ns_logstats(evContext ctx, void *uap, struct timespec due,
 		sprintf(buffer2, " %s=%lu",
 			statNames[i]?statNames[i]:"?", (u_long)globalStats[i]);
 		if (strlen(buffer) + strlen(buffer2) > sizeof(buffer) - 1) {
-			ns_info(ns_log_statistics, buffer);
+			ns_info(ns_log_statistics, "%s", buffer);
 			strcpy(buffer, header);
 		}
 		strcat(buffer, buffer2);
 	}
-	ns_info(ns_log_statistics, buffer);
+	ns_info(ns_log_statistics, "%s", buffer);
 }
 
 static void
