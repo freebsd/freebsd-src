@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.42 2001/07/31 22:30:24 gshapiro Exp $";
+static char id[] = "@(#)$Id: readcf.c,v 8.382.4.43 2001/08/14 23:08:13 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -265,6 +265,11 @@ readcf(cfname, safe, e)
 			else
 			{
 				syserr("R line: null LHS");
+				rwp->r_lhs = null_list;
+			}
+			if (nfuzzy > MAXMATCH)
+			{
+				syserr("R line: too many wildcards");
 				rwp->r_lhs = null_list;
 			}
 
