@@ -37,7 +37,9 @@
 #ifndef _STDARG_H_
 #define	_STDARG_H_
 
-typedef char *va_list;
+#include <machine/ansi.h>
+
+typedef _BSD_VA_LIST_	va_list;
 
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
