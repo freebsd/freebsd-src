@@ -39,7 +39,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "port.h"
 #include "gnuregex.h"
-#include "fnmatch.h"
+#include <fnmatch.h>
 
 /*
  * We should use a conversion routine that does reasonable error

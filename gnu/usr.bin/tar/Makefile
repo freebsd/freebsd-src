@@ -1,5 +1,5 @@
 PROG=	tar
-SRCS=	buffer.c create.c diffarch.c extract.c fnmatch.c getdate.y \
+SRCS=   buffer.c create.c diffarch.c extract.c getdate.y \
 	getoldopt.c getopt.c getopt1.c gnu.c list.c mangle.c names.c port.c \
 	rtapelib.c tar.c update.c version.c
 CFLAGS+= -DRETSIGTYPE=void -DDIRENT=1 -DHAVE_SYS_MTIO_H=1 -DHAVE_UNISTD_H=1
