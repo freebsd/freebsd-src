@@ -43,6 +43,8 @@ missing/
 mkinstalldirs
 pc/
 protos.h
+random.c
+random.h
 regex.c
 stamp-h.in
 vms/
@@ -57,4 +59,8 @@ cd /usr/src/contrib/awk
 ln -s /path/to/new/awk gawk
 cd test && make
 
-jraynard@freebsd.org 26 Sept 1997
+NB It may also be necessary to do
+
+chmod u+x poundbang fflush.sh
+
+jraynard@freebsd.org
