@@ -1728,8 +1728,11 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 */
 	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
-			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa)
+			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa &&
+			    (pvo->pvo_pte.pte_lo & PTE_PP) ==
+			    (pte_lo & PTE_PP)) {
 				return (0);
+			}
 			pmap_pvo_remove(pvo, -1);
 			break;
 		}
