@@ -832,11 +832,10 @@ thread_single(int mode)
 						continue;
 					/*
 					 * maybe other inhibitted states too?
-					 * XXXKSE Is it totally safe to
-					 * suspend a non-interruptable thread?
 					 */
-					if (td2->td_inhibitors &
-					    (TDI_SLEEPING | TDI_SWAPPED))
+					if ((td2->td_flags & TDF_SINTR) &&
+					    (td2->td_inhibitors &
+					    (TDI_SLEEPING | TDI_SWAPPED)))
 						thread_suspend_one(td2);
 					break;
 				}
