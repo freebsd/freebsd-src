@@ -230,7 +230,7 @@ universe:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for arch in i386 sparc64 alpha ia64
+.for arch in i386 sparc64 alpha ia64 amd64
 .for mach in ${arch} ${${arch}_mach}
 	@echo ">> ${mach} started on `LC_ALL=C date`"
 	-cd ${.CURDIR} && ${MAKE} buildworld \
