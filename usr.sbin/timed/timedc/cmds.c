@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.10 $"
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "timedc.h"
 #include <sys/file.h>
@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
+#include <err.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
@@ -103,7 +104,7 @@ daydiff(hostname)
 		sec = 0;
 		if (sendto(sock, &sec, sizeof(sec), 0,
 			   (struct sockaddr*)&dayaddr, sizeof(dayaddr)) < 0) {
-			perror("sendto(sock)");
+			warn("sendto(sock)");
 			return 0;
 		}
 
@@ -113,9 +114,9 @@ daydiff(hostname)
 			i = select(sock+1, &ready, (fd_set *)0,
 				   (fd_set *)0, &tout);
 			if (i < 0) {
-				if (errno = EINTR)
+				if (errno == EINTR)
 					continue;
-				perror("select(date read)");
+				warn("select(date read)");
 				return 0;
 			}
 			if (0 == i)
@@ -124,14 +125,13 @@ daydiff(hostname)
 			fromlen = sizeof(from);
 			if (recvfrom(sock,&sec,sizeof(sec),0,
 				     &from,&fromlen) < 0) {
-				perror("recvfrom(date read)");
+				warn("recvfrom(date read)");
 				return 0;
 			}
 
 			sec = ntohl(sec);
 			if (sec < BU) {
-				fprintf(stderr,
-					"%s says it is before 1970: %lu",
+				warnx("%s says it is before 1970: %lu",
 					hostname, sec);
 				return 0;
 			}
@@ -143,7 +143,7 @@ daydiff(hostname)
 	}
 
 	/* if we get here, we tried too many times */
-	fprintf(stderr,"%s will not tell us the date\n", hostname);
+	warnx("%s will not tell us the date", hostname);
 	return 0;
 }
 
@@ -181,7 +181,7 @@ clockdiff(argc, argv)
 	struct servent *sp;
 
 	if (argc < 2)  {
-		printf("Usage: clockdiff host ... \n");
+		printf("usage: timedc clockdiff host ...\n");
 		return;
 	}
 
@@ -190,8 +190,7 @@ clockdiff(argc, argv)
 	/* get the address for the date ready */
 	sp = getservbyname(DATE_PORT, DATE_PROTO);
 	if (!sp) {
-		(void)fprintf(stderr, "%s/%s is an unknown service\n",
-			      DATE_PORT, DATE_PROTO);
+		warnx("%s/%s is an unknown service", DATE_PORT, DATE_PROTO);
 		dayaddr.sin_port = 0;
 	} else {
 		dayaddr.sin_port = sp->s_port;
@@ -201,8 +200,7 @@ clockdiff(argc, argv)
 		argc--; argv++;
 		hp = gethostbyname(*argv);
 		if (hp == NULL) {
-			fprintf(stderr, "timedc: %s: ", *argv);
-			herror(0);
+			warnx("%s: %s", *argv, hstrerror(h_errno));
 			continue;
 		}
 
@@ -285,13 +283,13 @@ msite(argc, argv)
 	char *tgtname;
 
 	if (argc < 1) {
-		printf("Usage: msite [hostname]\n");
+		printf("usage: timedc msite [host ...]\n");
 		return;
 	}
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		fprintf(stderr, "udp/timed: unknown service\n");
+		warnx("udp/timed: unknown service");
 		return;
 	}
 	dest.sin_port = srvp->s_port;
@@ -303,20 +301,20 @@ msite(argc, argv)
 		tgtname = (i >= argc) ? myname : argv[i];
 		hp = gethostbyname(tgtname);
 		if (hp == 0) {
-			fprintf(stderr, "timedc: %s: ", tgtname);
-			herror(0);
+			warnx("%s: %s", tgtname, hstrerror(h_errno));
 			continue;
 		}
 		bcopy(hp->h_addr, &dest.sin_addr.s_addr, hp->h_length);
 
-		(void)strcpy(msg.tsp_name, myname);
+		(void)strncpy(msg.tsp_name, myname, sizeof msg.tsp_name-1);
+		msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
 		msg.tsp_type = TSP_MSITE;
 		msg.tsp_vers = TSPVERSION;
 		bytenetorder(&msg);
 		if (sendto(sock, &msg, sizeof(struct tsp), 0,
 			   (struct sockaddr*)&dest,
 			   sizeof(struct sockaddr)) < 0) {
-			perror("sendto");
+			warn("sendto");
 			continue;
 		}
 
@@ -330,7 +328,7 @@ msite(argc, argv)
 			cc = recvfrom(sock, &msg, sizeof(struct tsp), 0,
 				      &from, &length);
 			if (cc < 0) {
-				perror("recvfrom");
+				warn("recvfrom");
 				continue;
 			}
 			bytehostorder(&msg);
@@ -372,13 +370,13 @@ testing(argc, argv)
 	struct tsp msg;
 
 	if (argc < 2)  {
-		printf("Usage: election host1 [host2 ...]\n");
+		printf("usage: timedc election host1 [host2 ...]\n");
 		return;
 	}
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		fprintf(stderr, "udp/timed: unknown service\n");
+		warnx("udp/timed: unknown service");
 		return;
 	}
 
@@ -386,8 +384,7 @@ testing(argc, argv)
 		argc--; argv++;
 		hp = gethostbyname(*argv);
 		if (hp == NULL) {
-			fprintf(stderr, "timedc: %s: ", *argv);
-			herror(0);
+			warnx("%s: %s", *argv, hstrerror(h_errno));
 			argc--; argv++;
 			continue;
 		}
@@ -403,7 +400,7 @@ testing(argc, argv)
 		if (sendto(sock, &msg, sizeof(struct tsp), 0,
 			   (struct sockaddr*)&sin,
 			   sizeof(struct sockaddr)) < 0) {
-			perror("sendto");
+			warn("sendto");
 		}
 	}
 }
@@ -428,13 +425,13 @@ tracing(argc, argv)
 	struct servent *srvp;
 
 	if (argc != 2) {
-		printf("Usage: tracing { on | off }\n");
+		printf("usage: timedc trace { on | off }\n");
 		return;
 	}
 
 	srvp = getservbyname("timed", "udp");
 	if (srvp == 0) {
-		fprintf(stderr, "udp/timed: unknown service\n");
+		warnx("udp/timed: unknown service");
 		return;
 	}
 	dest.sin_port = srvp->s_port;
@@ -452,12 +449,13 @@ tracing(argc, argv)
 		onflag = OFF;
 	}
 
-	(void)strcpy(msg.tsp_name, myname);
+	(void)strncpy(msg.tsp_name, myname, sizeof msg.tsp_name-1);
+	msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
 	msg.tsp_vers = TSPVERSION;
 	bytenetorder(&msg);
 	if (sendto(sock, &msg, sizeof(struct tsp), 0,
 		   (struct sockaddr*)&dest, sizeof(struct sockaddr)) < 0) {
-		perror("sendto");
+		warn("sendto");
 		return;
 	}
 
@@ -470,7 +468,7 @@ tracing(argc, argv)
 		cc = recvfrom(sock, &msg, sizeof(struct tsp), 0,
 			      &from, &length);
 		if (cc < 0) {
-			perror("recvfrom");
+			warn("recvfrom");
 			return;
 		}
 		bytehostorder(&msg);
@@ -494,7 +492,7 @@ priv_resources()
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock < 0) {
-		perror("opening socket");
+		warn("opening socket");
 		return(-1);
 	}
 
@@ -505,20 +503,20 @@ priv_resources()
 		if (bind(sock, (struct sockaddr*)&sin, sizeof (sin)) >= 0)
 			break;
 		if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
-			perror("bind");
+			warn("bind");
 			(void) close(sock);
 			return(-1);
 		}
 	}
 	if (port == IPPORT_RESERVED / 2) {
-		fprintf(stderr, "all reserved ports in use\n");
+		warnx("all reserved ports in use");
 		(void) close(sock);
 		return(-1);
 	}
 
 	sock_raw = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (sock_raw < 0)  {
-		perror("opening raw socket");
+		warn("opening raw socket");
 		(void) close(sock);
 		return(-1);
 	}

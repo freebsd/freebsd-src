@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)correct.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.16 $"
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "globals.h"
 #include <math.h>
@@ -84,7 +84,9 @@ correct(avdelta)
 				mstotvround(&to.tsp_time, corr);
 				to.tsp_type = TSP_ADJTIME;
 			}
-			(void)strcpy(to.tsp_name, hostname);
+			(void)strncpy(to.tsp_name, hostname,
+					sizeof to.tsp_name-1);
+			to.tsp_name[sizeof to.tsp_name-1] = '\0';
 			answer = acksend(&to, &htp->addr, htp->name,
 					 TSP_ACK, 0, 0);
 			if (!answer) {
