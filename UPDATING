@@ -5,6 +5,15 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011203:
+	The procfs pseudo-filesystem has now been converted to use the
+	pseudofs framework.  If you have 'options PROCFS' in your
+	kernel config, you'll need to add 'options PSEUDOFS' if it's
+	not there already.
+
+	This change temporarily breaks truss(1); use ktrace(1) instead
+	until the issue has been resolved.
+
 20011202:
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
