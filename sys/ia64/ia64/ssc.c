@@ -94,7 +94,7 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 static void
 ssccnprobe(struct consdev *cp)
 {
-	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	sprintf(cp->cn_name, "ssccons");
 	cp->cn_pri = CN_INTERNAL;
 }
 
