@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ftpio.3,v 1.11.2.1 1996/11/28 08:09:53 phk Exp $
+.\"	$Id: ftpio.3,v 1.11.2.2 1997/08/03 18:42:41 peter Exp $
 .\"
 .Dd June 17, 1996
 .Dt ftpio 3
@@ -185,6 +185,17 @@ operations except that no server stream is ever returned - the connection
 to the server closes when the file has been completely written.  Use the
 lower-level routines if multiple puts are required as it will be far more
 efficient.
+.Sh ENVIRONMENT
+.Bl -tag -width FTP_PASSIVE_MODE -offset 123
+.It Ev FTP_TIMEOUT
+Maximum time, in seconds, to wait for a response
+from the peer before aborting an 
+.Tn FTP
+connection.
+.It Ev FTP_PASSIVE_MODE
+Force the use of passive mode
+.Tn FTP .
+.El
 .Sh BUGS
 I'm sure you can get this thing's internal state machine confused if
 you really work at it, but so far it's proven itself pretty robust in
