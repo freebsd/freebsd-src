@@ -38,8 +38,8 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	UNIMPL	LINUX
-1	NOPROTO	LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
-2	STD	LINUX	{ int linux_fork(void); }
+1	MNOPROTO LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
+2	MSTD	LINUX	{ int linux_fork(void); }
 3	NOPROTO	LINUX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	LINUX	{ int write(int fd, char *buf, u_int nbyte); }
 5	UNIMPL	LINUX
@@ -106,7 +106,7 @@
 63	NOPROTO	LINUX	{ int getpgrp(void); }
 64	UNIMPL	LINUX	getpagesize
 65	UNIMPL	LINUX
-66	STD	LINUX	{ int linux_vfork(void); }
+66	MSTD	LINUX	{ int linux_vfork(void); }
 67	STD	LINUX	{ int linux_newstat(char *path, \
 			    struct linux_newstat *buf); }
 68	STD	LINUX	{ int linux_newlstat(char *path, \
@@ -135,7 +135,7 @@
 85	UNIMPL	LINUX
 86	UNIMPL	LINUX
 87	UNIMPL	LINUX	gethostname
-88	NOPROTO	LINUX	{ int osethostname(char *hostname, u_int len); } \
+88	MNOPROTO LINUX	{ int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
 89	UNIMPL LINUX	getdtablesize
 90	NOPROTO	LINUX	{ int dup2(u_int from, u_int to); }
@@ -236,7 +236,7 @@
 163	UNIMPL	LINUX
 164	UNIMPL	LINUX
 165	UNIMPL	LINUX
-166	NOPROTO	LINUX	{ int setdomainname(char *name, int len); }
+166	MNOPROTO LINUX	{ int setdomainname(char *name, int len); }
 167	UNIMPL	LINUX
 168	UNIMPL	LINUX
 169	UNIMPL	LINUX
@@ -424,14 +424,14 @@
 332	STD	POSIX	{ int linux_sched_setscheduler(pid_t pid, int policy, \
 			    const struct sched_param *param); }
 333	STD	POSIX	{ int linux_sched_getscheduler (pid_t pid); }
-334	NOPROTO	POSIX	{ int sched_yield (void); }
+334	MNOPROTO POSIX	{ int sched_yield (void); }
 335	STD	POSIX	{ int linux_sched_get_priority_max (int policy); }
 336	STD	POSIX	{ int linux_sched_get_priority_min (int policy); }
 337	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, \
 			    struct timespec *interval); }
 338	UNIMPL	LINUX	afs_syscall
 339	STD	LINUX	{ int linux_newuname(struct linux_newuname_t *buf); }
-340	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+340	MNOPROTO POSIX	{ int nanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp); }
 341	STD	LINUX	{ int linux_mremap(caddr_t addr, u_long old_len, \
 			    u_long new_len, u_long flags); }
@@ -465,7 +465,7 @@
 			    struct timeval *timeout); }
 359	NOPROTO	LINUX	{ int gettimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
-360	NOPROTO	LINUX	{ int settimeofday(struct timeval *tp, \
+360	MNOPROTO LINUX	{ int settimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
 361	STD	LINUX	{ int linux_getitimer(u_int which, \
 			    struct itimerval *itv); }
