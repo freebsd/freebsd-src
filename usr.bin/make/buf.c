@@ -71,6 +71,18 @@ Buf_Size(const Buffer *buf)
 }
 
 /**
+ * Returns a reference to the data contained in the buffer.
+ *  
+ * @note Adding data to the Buffer object may invalidate the reference.
+ */
+inline char *
+Buf_Data(const Buffer *bp)
+{
+
+	return (bp->buf);
+}
+
+/**
  * Expand the buffer to hold the number of additional bytes, plus
  * space to store a terminating NULL byte.
  */
@@ -223,11 +235,22 @@ Buf_Append(Buffer *bp, const char str[])
 }
 
 /**
+ * Append characters in buf to Buffer object
+ */
+void
+Buf_AppendBuf(Buffer *bp, const Buffer *buf)
+{
+
+	Buf_AddBytes(bp, Buf_Size(buf), buf->buf);
+}
+
+/**
  * Append characters between str and end to Buffer object.
  */
 void
 Buf_AppendRange(Buffer *bp, const char str[], const char *end)
 {
+
 	Buf_AddBytes(bp, end - str, str);
 }
 
