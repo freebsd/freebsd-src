@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.60 1996/06/11 16:11:27 pst Exp $
+ *	$Id: clock.c,v 1.61 1996/06/17 12:50:22 bde Exp $
  */
 
 /*
@@ -520,9 +520,10 @@ fail:
 static void
 set_timer_freq(u_int freq, int intr_freq)
 {
-	u_long	ef;
+	u_long ef;
 
 	ef = read_eflags();
+	disable_intr();
 	timer_freq = freq;
 	timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
 	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
@@ -544,11 +545,7 @@ startrtclock()
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
-	/*
-	 * Temporarily calibrate with a high intr_freq to get a low
-	 * timer0_max_count to help detect bogus i8254 counts.
-	 */
-	set_timer_freq(timer_freq, 20000);
+	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
 	if (bootverbose) {
