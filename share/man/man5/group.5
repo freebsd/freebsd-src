@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
-.\"	$Id: group.5,v 1.4 1996/07/02 21:53:54 mpp Exp $
+.\"	$Id: group.5,v 1.5 1996/12/26 02:02:23 wosch Exp $
 .\"
 .Dd September 29, 1994
 .Dt GROUP 5
@@ -123,11 +123,6 @@ will use the entire database, even if only a few groups are enabled.
 Thus, the group name returned by
 .Fn getgrgid
 is not guaranteed to have a valid forward mapping.
-.Sh LIMITS
-A group cannot have more than 200 members. The maximum line
-length of
-.Pa /etc/group
-is 1024 characters. Longer lines will be skiped.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
