@@ -76,7 +76,7 @@ KEYMAPS= be.iso bg.bds.ctrlcaps bg.phonetic.ctrlcaps br275.cp850 br275.iso \
 	estonian.iso15 estonian.cp850 finnish.cp850 finnish.iso fr.iso \
 	fr.iso.acc german.cp850 german.iso hr.iso hu.iso2.101keys \
 	hu.iso2.102keys it.iso icelandic.iso icelandic.iso.acc jp.106 \
-	lat-amer norwegian.iso pt.iso pt.iso.acc ru.koi8-r si.iso spanish.iso \
+	lat-amer lat-amer.iso.acc norwegian.iso pt.iso pt.iso.acc ru.koi8-r si.iso spanish.iso \
 	spanish.iso.acc swedish.cp850 swedish.iso swissfrench.cp850 \
 	swissfrench.iso swissgerman.cp850 swissgerman.iso swissgerman.iso.acc \
 	ua.koi8-u ua.koi8-u.shift.alt uk.cp850 uk.iso us.dvorak us.emacs \
