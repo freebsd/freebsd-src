@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.8 1995/05/07 05:58:55 jkh Exp $
+ * $Id: devices.c,v 1.9 1995/05/07 22:07:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -239,8 +239,19 @@ device_slice_disk(struct disk *d)
 	    }
 	    break;
 
-	case 'G':
-	    /* Set geometry */
+	case 'G': {
+	    char *val, geometry[80];
+
+	    snprintf(geometry, 80, "%lu/%lu/%lu",
+		     d->bios_cyl, d->bios_hd, d->bios_sect);
+	    val = msgGetInput(geometry,
+"Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
+	    if (val) {
+		d->bios_cyl = strtol(val, &val, 0);
+		d->bios_hd = strtol(val + 1, &val, 0);
+		d->bios_sect = strtol(val + 1, 0, 0);
+	    }
+	}
 	    break;
 
 	case 'S':
