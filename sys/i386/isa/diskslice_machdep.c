@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.9 1995/03/25 12:07:31 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.10 1995/04/20 01:21:51 phk Exp $
  */
 
 #include <stddef.h>
@@ -267,8 +267,7 @@ dsinit(dname, dev, strat, lp, sspp)
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
 		sname = dsname(dname, dkunit(dev), 
-				BASE_SLICE + dospart + (mbr_offset ? 1 : 0),
-			       RAW_PART, partname);
+				BASE_SLICE + dospart, RAW_PART, partname);
 
 		/*
 		 * Temporarily ignore errors from this check.  We could
@@ -316,15 +315,6 @@ dsinit(dname, dev, strat, lp, sspp)
 	/* Initialize normal slices. */
 	sp += BASE_SLICE;
 	ssp->dss_nslices = BASE_SLICE;
-
-	/* Even if we're running OnTrack, we still want to account for it */
-	if (mbr_offset) {
-		sp->ds_offset = 0;
-		sp->ds_size = mbr_offset;
-		sp->ds_type = DOSPTYP_ONTRACK;
-		sp++;
-		ssp->dss_nslices++;
-	}
 
 	for (dospart = 0, dp = dp0; 
 		dospart < NDOSPART; 
