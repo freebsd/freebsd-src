@@ -226,11 +226,10 @@ statfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	register struct mount *mp;
-	register struct statfs *sp;
+	struct mount *mp;
+	struct statfs *sp, sb;
 	int error;
 	struct nameidata nd;
-	struct statfs sb;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
@@ -244,10 +243,15 @@ statfs(td, uap)
 	if (error)
 		return (error);
 #endif
+	/*
+	 * Set these in case the underlying filesystem fails to do so.
+	 */
+	sp->f_version = STATFS_VERSION;
+	sp->f_namemax = NAME_MAX;
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
 		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
@@ -276,9 +280,8 @@ fstatfs(td, uap)
 {
 	struct file *fp;
 	struct mount *mp;
-	register struct statfs *sp;
+	struct statfs *sp, sb;
 	int error;
-	struct statfs sb;
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
@@ -292,10 +295,15 @@ fstatfs(td, uap)
 		return (error);
 #endif
 	sp = &mp->mnt_stat;
+	/*
+	 * Set these in case the underlying filesystem fails to do so.
+	 */
+	sp->f_version = STATFS_VERSION;
+	sp->f_namemax = NAME_MAX;
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
 		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
@@ -323,12 +331,190 @@ getfsstat(td, uap)
 		int flags;
 	} */ *uap;
 {
-	register struct mount *mp, *nmp;
-	register struct statfs *sp;
+	struct mount *mp, *nmp;
+	struct statfs *sp, sb;
 	caddr_t sfsp;
 	long count, maxcount, error;
 
 	maxcount = uap->bufsize / sizeof(struct statfs);
+	sfsp = (caddr_t)uap->buf;
+	count = 0;
+	mtx_lock(&mountlist_mtx);
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+#ifdef MAC
+		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
+#endif
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
+		if (sfsp && count < maxcount) {
+			sp = &mp->mnt_stat;
+			/*
+			 * Set these in case the underlying filesystem
+			 * fails to do so.
+			 */
+			sp->f_version = STATFS_VERSION;
+			sp->f_namemax = NAME_MAX;
+			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+			/*
+			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
+			 * refresh the fsstat cache. MNT_NOWAIT or MNT_LAZY
+			 * overrides MNT_WAIT.
+			 */
+			if (((uap->flags & (MNT_LAZY|MNT_NOWAIT)) == 0 ||
+			    (uap->flags & MNT_WAIT)) &&
+			    (error = VFS_STATFS(mp, sp, td))) {
+				mtx_lock(&mountlist_mtx);
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				vfs_unbusy(mp, td);
+				continue;
+			}
+			if (suser(td)) {
+				bcopy(sp, &sb, sizeof(sb));
+				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+				sp = &sb;
+			}
+			error = copyout(sp, sfsp, sizeof(*sp));
+			if (error) {
+				vfs_unbusy(mp, td);
+				return (error);
+			}
+			sfsp += sizeof(*sp);
+		}
+		count++;
+		mtx_lock(&mountlist_mtx);
+		nmp = TAILQ_NEXT(mp, mnt_list);
+		vfs_unbusy(mp, td);
+	}
+	mtx_unlock(&mountlist_mtx);
+	if (sfsp && count > maxcount)
+		td->td_retval[0] = maxcount;
+	else
+		td->td_retval[0] = count;
+	return (0);
+}
+
+#ifdef COMPAT_FREEBSD4
+/*
+ * Get old format filesystem statistics.
+ */
+static void cvtstatfs(struct thread *, struct statfs *, struct ostatfs *);
+
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd4_statfs_args {
+	char *path;
+	struct ostatfs *buf;
+};
+#endif
+/* ARGSUSED */
+int
+freebsd4_statfs(td, uap)
+	struct thread *td;
+	struct freebsd4_statfs_args /* {
+		char *path;
+		struct ostatfs *buf;
+	} */ *uap;
+{
+	struct mount *mp;
+	struct statfs *sp;
+	struct ostatfs osb;
+	int error;
+	struct nameidata nd;
+
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	mp = nd.ni_vp->v_mount;
+	sp = &mp->mnt_stat;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vrele(nd.ni_vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
+	error = VFS_STATFS(mp, sp, td);
+	if (error)
+		return (error);
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	cvtstatfs(td, sp, &osb);
+	return (copyout(&osb, uap->buf, sizeof(osb)));
+}
+
+/*
+ * Get filesystem statistics.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd4_fstatfs_args {
+	int fd;
+	struct ostatfs *buf;
+};
+#endif
+/* ARGSUSED */
+int
+freebsd4_fstatfs(td, uap)
+	struct thread *td;
+	struct freebsd4_fstatfs_args /* {
+		int fd;
+		struct ostatfs *buf;
+	} */ *uap;
+{
+	struct file *fp;
+	struct mount *mp;
+	struct statfs *sp;
+	struct ostatfs osb;
+	int error;
+
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+		return (error);
+	mp = fp->f_vnode->v_mount;
+	fdrop(fp, td);
+	if (mp == NULL)
+		return (EBADF);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
+	sp = &mp->mnt_stat;
+	error = VFS_STATFS(mp, sp, td);
+	if (error)
+		return (error);
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	cvtstatfs(td, sp, &osb);
+	return (copyout(&osb, uap->buf, sizeof(osb)));
+}
+
+/*
+ * Get statistics on all filesystems.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd4_getfsstat_args {
+	struct ostatfs *buf;
+	long bufsize;
+	int flags;
+};
+#endif
+int
+freebsd4_getfsstat(td, uap)
+	struct thread *td;
+	register struct freebsd4_getfsstat_args /* {
+		struct ostatfs *buf;
+		long bufsize;
+		int flags;
+	} */ *uap;
+{
+	struct mount *mp, *nmp;
+	struct statfs *sp;
+	struct ostatfs osb;
+	caddr_t sfsp;
+	long count, maxcount, error;
+
+	maxcount = uap->bufsize / sizeof(struct ostatfs);
 	sfsp = (caddr_t)uap->buf;
 	count = 0;
 	mtx_lock(&mountlist_mtx);
@@ -359,12 +545,13 @@ getfsstat(td, uap)
 				continue;
 			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-			error = copyout(sp, sfsp, sizeof(*sp));
+			cvtstatfs(td, sp, &osb);
+			error = copyout(&osb, sfsp, sizeof(osb));
 			if (error) {
 				vfs_unbusy(mp, td);
 				return (error);
 			}
-			sfsp += sizeof(*sp);
+			sfsp += sizeof(osb);
 		}
 		count++;
 		mtx_lock(&mountlist_mtx);
@@ -378,6 +565,98 @@ getfsstat(td, uap)
 		td->td_retval[0] = count;
 	return (0);
 }
+
+/*
+ * Implement fstatfs() for (NFS) file handles.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd4_fhstatfs_args {
+	struct fhandle *u_fhp;
+	struct ostatfs *buf;
+};
+#endif
+int
+freebsd4_fhstatfs(td, uap)
+	struct thread *td;
+	struct freebsd4_fhstatfs_args /* {
+		struct fhandle *u_fhp;
+		struct ostatfs *buf;
+	} */ *uap;
+{
+	struct statfs *sp;
+	struct mount *mp;
+	struct vnode *vp;
+	struct ostatfs osb;
+	fhandle_t fh;
+	int error;
+
+	/*
+	 * Must be super user
+	 */
+	error = suser(td);
+	if (error)
+		return (error);
+
+	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
+		return (error);
+
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+		return (ESTALE);
+	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
+		return (error);
+	mp = vp->v_mount;
+	sp = &mp->mnt_stat;
+	vput(vp);
+#ifdef MAC
+	error = mac_check_mount_stat(td->td_ucred, mp);
+	if (error)
+		return (error);
+#endif
+	if ((error = VFS_STATFS(mp, sp, td)) != 0)
+		return (error);
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	cvtstatfs(td, sp, &osb);
+	return (copyout(&osb, uap->buf, sizeof(osb)));
+}
+
+/*
+ * Convert a new format statfs structure to an old format statfs structure.
+ */
+static void
+cvtstatfs(td, nsp, osp)
+	struct thread *td;
+	struct statfs *nsp;
+	struct ostatfs *osp;
+{
+
+	bzero(osp, sizeof(*osp));
+	osp->f_bsize = MIN(nsp->f_bsize, LONG_MAX);
+	osp->f_iosize = MIN(nsp->f_iosize, LONG_MAX);
+	osp->f_blocks = MIN(nsp->f_blocks, LONG_MAX);
+	osp->f_bfree = MIN(nsp->f_bfree, LONG_MAX);
+	osp->f_bavail = MIN(nsp->f_bavail, LONG_MAX);
+	osp->f_files = MIN(nsp->f_files, LONG_MAX);
+	osp->f_ffree = MIN(nsp->f_ffree, LONG_MAX);
+	osp->f_owner = nsp->f_owner;
+	osp->f_type = nsp->f_type;
+	osp->f_flags = nsp->f_flags;
+	osp->f_syncwrites = MIN(nsp->f_syncwrites, LONG_MAX);
+	osp->f_asyncwrites = MIN(nsp->f_asyncwrites, LONG_MAX);
+	osp->f_syncreads = MIN(nsp->f_syncreads, LONG_MAX);
+	osp->f_asyncreads = MIN(nsp->f_asyncreads, LONG_MAX);
+	bcopy(nsp->f_fstypename, osp->f_fstypename,
+	    MIN(MFSNAMELEN, OMNAMELEN));
+	bcopy(nsp->f_mntonname, osp->f_mntonname,
+	    MIN(MFSNAMELEN, OMNAMELEN));
+	bcopy(nsp->f_mntfromname, osp->f_mntfromname,
+	    MIN(MFSNAMELEN, OMNAMELEN));
+	if (suser(td)) {
+		osp->f_fsid.val[0] = osp->f_fsid.val[1] = 0;
+	} else {
+		osp->f_fsid = nsp->f_fsid;
+	}
+}
+#endif /* COMPAT_FREEBSD4 */
 
 /*
  * Change current working directory to a given file descriptor.
@@ -3788,10 +4067,9 @@ fhstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs *sp;
+	struct statfs *sp, sb;
 	struct mount *mp;
 	struct vnode *vp;
-	struct statfs sb;
 	fhandle_t fh;
 	int error;
 
@@ -3817,9 +4095,14 @@ fhstatfs(td, uap)
 	if (error)
 		return (error);
 #endif
+	/*
+	 * Set these in case the underlying filesystem fails to do so.
+	 */
+	sp->f_version = STATFS_VERSION;
+	sp->f_namemax = NAME_MAX;
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;

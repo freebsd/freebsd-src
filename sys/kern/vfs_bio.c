@@ -3236,8 +3236,8 @@ bufdone(struct buf *bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 				if (!vn_isdisk(vp, NULL))
-					printf(" iosize: %ld, lblkno: %jd, flags: 0x%x, npages: %d\n",
-					    bp->b_vp->v_mount->mnt_stat.f_iosize,
+					printf(" iosize: %jd, lblkno: %jd, flags: 0x%x, npages: %d\n",
+					    (intmax_t)bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				else
