@@ -1,4 +1,4 @@
-/*
+/*-
  *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
  *  PCI-SCSI controllers.
  *
@@ -55,7 +55,8 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 
