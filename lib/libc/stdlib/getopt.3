@@ -128,7 +128,7 @@ when the argument list is exhausted, or
 .Ql ?
 if a non-recognized
 option is encountered.
-The interpretation of options in the argument list may be canceled
+The interpretation of options in the argument list may be cancelled
 by the option
 .Ql --
 (double dash) which causes
@@ -174,8 +174,6 @@ This is an extension to the
 specification.
 .Sh EXAMPLE
 .Bd -literal -compact
-extern char *optarg;
-extern int optind;
 int bflag, ch, fd;
 
 bflag = 0;
@@ -185,11 +183,8 @@ while ((ch = getopt(argc, argv, "bf:")) != -1)
 		bflag = 1;
 		break;
 	case 'f':
-		if ((fd = open(optarg, O_RDONLY, 0)) < 0) {
-			(void)fprintf(stderr,
-			    "myname: %s: %s\en", optarg, strerror(errno));
-			exit(1);
-		}
+		if ((fd = open(optarg, O_RDONLY, 0)) < 0)
+			err(1, "%s", optarg);
 		break;
 	case '?':
 	default:
