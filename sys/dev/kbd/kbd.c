@@ -1144,6 +1144,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 			/* NON-LOCKING KEYS */
 			case SPSC: case RBT:  case SUSP: case STBY:
 			case DBG:  case NEXT: case PREV: case PNC:
+			case HALT: case PDWN:
 				*accents = 0;
 				break;
 			case BTAB:
