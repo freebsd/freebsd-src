@@ -94,7 +94,7 @@
 #	ulpt*	printer
 #	ugen*	generic USB device
 #	urio*	Diamond Rio 500
-#  usio* USB serial devices
+#	usio*	USB serial devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
@@ -130,7 +130,7 @@
 #	tun*	Tunneling IP device
 #	snp*	tty snoop devices
 #	spigot	Video Spigot video acquisition card
-#	ctx*    Cortex-I video acquisition card
+#	ctx*	Cortex-I video acquisition card
 #	meteor*	Matrox Meteor video acquisition card (pci)
 #	bktr*	Bt848 based video acquisition card (pci)
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
@@ -952,7 +952,7 @@ urio*)
 
 usio*)
 	unit=`expr $i : 'usio\(.*\)'`
-   minor=$(($minor + 128))
+	minor=$(($minor + 128))
 	mknod usio$unit c 138 $minor
 	;;
 
