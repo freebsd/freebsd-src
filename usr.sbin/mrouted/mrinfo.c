@@ -44,24 +44,24 @@
  * SUCH DAMAGE.
  * ---------------------------------
  * Copyright (c) Xerox Corporation 1992. All rights reserved.
- *
+ * 
  * License is granted to copy, to use, and to make and to use derivative works
  * for research and evaluation purposes, provided that Xerox is acknowledged
  * in all documentation pertaining to any such copy or derivative work. Xerox
  * grants no other licenses expressed or implied. The Xerox trade name should
  * not be used in any advertising without its written permission.
- *
+ * 
  * XEROX CORPORATION MAKES NO REPRESENTATIONS CONCERNING EITHER THE
  * MERCHANTABILITY OF THIS SOFTWARE OR THE SUITABILITY OF THIS SOFTWARE FOR
  * ANY PARTICULAR PURPOSE.  The software is provided "as is" without express
  * or implied warranty of any kind.
- *
+ * 
  * These notices must be retained in any copies of any part of this software.
  */
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.3 1995/05/16 00:28:46 jkh Exp $";
+    "@(#) $Id: mrinfo.c,v 3.5.1.1 1995/05/09 22:58:05 fenner Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -70,12 +70,14 @@ static char rcsid[] =
 #include <netdb.h>
 #include <sys/time.h>
 #include "defs.h"
+#include <arpa/inet.h>
 
 #define DEFAULT_TIMEOUT	4	/* How long to wait before retrying requests */
 #define DEFAULT_RETRIES 3	/* How many times to ask each router */
 
-u_long  our_addr, target_addr = 0;	/* in NET order */
+u_int32	our_addr, target_addr = 0;	/* in NET order */
 int     debug = 0;
+int	nflag = 0;
 int     retries = DEFAULT_RETRIES;
 int     timeout = DEFAULT_TIMEOUT;
 int	target_level;
@@ -84,13 +86,20 @@ vifi_t  numvifs;		/* to keep loader happy */
 
 char   *
 inet_name(addr)
-	u_long  addr;
+	u_int32  addr;
 {
 	struct hostent *e;
+	struct in_addr in;
 
-	e = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
+	if (addr == 0)
+		return "local";
 
-	return e ? e->h_name : "?";
+	if (nflag ||
+	    (e = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET)) == NULL) {
+		in.s_addr = addr;
+		return (inet_ntoa(in));
+	}
+	return (e->h_name);
 }
 
 /*
@@ -98,7 +107,7 @@ inet_name(addr)
  * message and the current debug level.  For errors of severity LOG_ERR or
  * worse, terminate the program.
  */
-void
+void 
 log(severity, syserr, format, a, b, c, d, e)
 	int     severity, syserr;
 	char   *format;
@@ -137,17 +146,17 @@ log(severity, syserr, format, a, b, c, d, e)
 /*
  * Send a neighbors-list request.
  */
-void
+void 
 ask(dst)
-	u_long  dst;
+	u_int32  dst;
 {
 	send_igmp(our_addr, dst, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS,
 			htonl(MROUTED_LEVEL), 0);
 }
 
-void
+void 
 ask2(dst)
-	u_long  dst;
+	u_int32  dst;
 {
 	send_igmp(our_addr, dst, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2,
 			htonl(MROUTED_LEVEL), 0);
@@ -156,19 +165,19 @@ ask2(dst)
 /*
  * Process an incoming neighbor-list message.
  */
-void
+void 
 accept_neighbors(src, dst, p, datalen)
-	u_long  src, dst;
+	u_int32  src, dst;
 	u_char *p;
 	int     datalen;
 {
 	u_char *ep = p + datalen;
-#define GET_ADDR(a) (a = ((u_long)*p++ << 24), a += ((u_long)*p++ << 16),\
-		     a += ((u_long)*p++ << 8), a += *p++)
+#define GET_ADDR(a) (a = ((u_int32)*p++ << 24), a += ((u_int32)*p++ << 16),\
+		     a += ((u_int32)*p++ << 8), a += *p++)
 
 	printf("%s (%s):\n", inet_fmt(src, s1), inet_name(src));
 	while (p < ep) {
-		register u_long laddr;
+		register u_int32 laddr;
 		register u_char metric;
 		register u_char thresh;
 		register int ncount;
@@ -179,7 +188,7 @@ accept_neighbors(src, dst, p, datalen)
 		thresh = *p++;
 		ncount = *p++;
 		while (--ncount >= 0) {
-			register u_long neighbor;
+			register u_int32 neighbor;
 			GET_ADDR(neighbor);
 			neighbor = htonl(neighbor);
 			printf("  %s -> ", inet_fmt(laddr, s1));
@@ -189,30 +198,37 @@ accept_neighbors(src, dst, p, datalen)
 	}
 }
 
-void
+void 
 accept_neighbors2(src, dst, p, datalen)
-	u_long  src, dst;
+	u_int32  src, dst;
 	u_char *p;
 	int     datalen;
 {
 	u_char *ep = p + datalen;
+	u_int broken_cisco = ((target_level & 0xffff) == 0x020a); /* 10.2 */
+	/* well, only possibly_broken_cisco, but that's too long to type. */
 
 	printf("%s (%s) [version %d.%d]:\n", inet_fmt(src, s1), inet_name(src),
 	       target_level & 0xff, (target_level >> 8) & 0xff);
+	
 	while (p < ep) {
 		register u_char metric;
 		register u_char thresh;
 		register u_char flags;
 		register int ncount;
-		register u_long laddr = *(u_long*)p;
+		register u_int32 laddr = *(u_int32*)p;
 
 		p += 4;
 		metric = *p++;
 		thresh = *p++;
 		flags = *p++;
 		ncount = *p++;
-		while (--ncount >= 0) {
-			register u_long neighbor = *(u_long*)p;
+		if (broken_cisco && ncount == 0)	/* dumb Ciscos */
+			ncount = 1;
+		if (broken_cisco && ncount > 15)	/* dumb Ciscos */
+			ncount = ncount & 0xf;
+		while (--ncount >= 0 && p < ep) {
+			register u_int32 neighbor = *(u_int32*)p;
 			p += 4;
 			printf("  %s -> ", inet_fmt(laddr, s1));
 			printf("%s (%s) [%d/%d", inet_fmt(neighbor, s1),
@@ -221,18 +237,22 @@ accept_neighbors2(src, dst, p, datalen)
 				printf("/tunnel");
 			if (flags & DVMRP_NF_SRCRT)
 				printf("/srcrt");
+			if (flags & DVMRP_NF_PIM)
+				printf("/pim");
 			if (flags & DVMRP_NF_QUERIER)
 				printf("/querier");
 			if (flags & DVMRP_NF_DISABLED)
 				printf("/disabled");
 			if (flags & DVMRP_NF_DOWN)
 				printf("/down");
+			if (flags & DVMRP_NF_LEAF)
+				printf("/leaf");
 			printf("]\n");
 		}
 	}
 }
 
-int
+int 
 get_number(var, deflt, pargv, pargc)
 	int    *var, *pargc, deflt;
 	char ***pargv;
@@ -258,33 +278,40 @@ get_number(var, deflt, pargv, pargc)
 	}
 }
 
-u_long
+u_int32 
 host_addr(name)
 	char   *name;
 {
-	struct hostent *e = gethostbyname(name);
-	int     addr;
+	struct hostent *e;
+	u_int32		addr;
 
-	if (e)
+	addr = inet_addr(name);
+	if ((int)addr == -1) {
+		e = gethostbyname(name);
+		if (e == NULL || e->h_length != sizeof(addr))
+			return (0);
 		memcpy(&addr, e->h_addr_list[0], e->h_length);
-	else {
-		addr = inet_addr(name);
-		if (addr == -1)
-			addr = 0;
 	}
-
-	return addr;
+	return(addr);
 }
 
+void
+usage()
+{
+	fprintf(stderr,
+	    "Usage: mrinfo [-n] [-t timeout] [-r retries] [router]\n");
+	exit(1);
+}
 
-int main(argc, argv)
+int
+main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
 	setlinebuf(stderr);
 
 	if (geteuid() != 0) {
-		fprintf(stderr, "must be root\n");
+		fprintf(stderr, "mrinfo: must be root\n");
 		exit(1);
 	}
 	argv++, argc--;
@@ -292,29 +319,35 @@ int main(argc, argv)
 		switch (argv[0][1]) {
 		case 'd':
 			if (!get_number(&debug, DEFAULT_DEBUG, &argv, &argc))
-				goto usage;
+				usage();
+			break;
+		case 'n':
+			++nflag;
 			break;
 		case 'r':
 			if (!get_number(&retries, -1, &argv, &argc))
-				goto usage;
+				usage();
 			break;
 		case 't':
 			if (!get_number(&timeout, -1, &argv, &argc))
-				goto usage;
+				usage();
 			break;
 		default:
-			goto usage;
+			usage();
 		}
 		argv++, argc--;
 	}
+	if (argc > 1)
+		usage();
+	if (argc == 1)
+		target_addr = host_addr(argv[0]);
+	else
+		target_addr = host_addr("127.0.0.1");
 
-	if (argc > 1 || (argc == 1 && !(target_addr = host_addr(argv[0])))) {
-usage:		fprintf(stderr,
-		        "Usage: mrinfo [-t timeout] [-r retries] router\n");
+	if (target_addr == 0) {
+		fprintf(stderr, "mrinfo: %s: no such host\n", argv[0]);
 		exit(1);
 	}
-	if (target_addr == 0)
-		goto usage;
 	if (debug)
 		fprintf(stderr, "Debug level %u\n", debug);
 
@@ -326,7 +359,9 @@ usage:		fprintf(stderr,
 		int     addrlen = sizeof(addr);
 
 		addr.sin_family = AF_INET;
+#if (defined(BSD) && (BSD >= 199103))
 		addr.sin_len = sizeof addr;
+#endif
 		addr.sin_addr.s_addr = target_addr;
 		addr.sin_port = htons(2000);	/* any port over 1024 will
 						 * do... */
@@ -347,7 +382,7 @@ usage:		fprintf(stderr,
 		fd_set  fds;
 		struct timeval tv;
 		int     count, recvlen, dummy = 0;
-		register u_long src, dst, group;
+		register u_int32 src, dst, group;
 		struct ip *ip;
 		struct igmp *igmp;
 		int     ipdatalen, iphdrlen, igmpdatalen;
@@ -374,7 +409,7 @@ usage:		fprintf(stderr,
 				ask2(target_addr);
 			continue;
 		}
-		recvlen = recvfrom(igmp_socket, recv_buf, sizeof(recv_buf),
+		recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
 				   0, NULL, &dummy);
 		if (recvlen <= 0) {
 			if (recvlen && errno != EINTR)
@@ -392,13 +427,6 @@ usage:		fprintf(stderr,
 		if (ip->ip_p == 0)
 			continue;	/* Request to install cache entry */
 		src = ip->ip_src.s_addr;
-		if (src != target_addr) {
-			fprintf(stderr, "mrinfo: got reply from %s",
-				inet_fmt(src, s1));
-			fprintf(stderr, " instead of %s\n",
-				inet_fmt(target_addr, s1));
-			continue;
-		}
 		dst = ip->ip_dst.s_addr;
 		iphdrlen = ip->ip_hl << 2;
 		ipdatalen = ip->ip_len;
@@ -428,7 +456,7 @@ usage:		fprintf(stderr,
 					inet_fmt(src, s1));
 				fprintf(stderr, " instead of %s\n",
 					inet_fmt(target_addr, s1));
-				continue;
+				/*continue;*/
 			}
 			break;
 		default:
@@ -490,9 +518,12 @@ void add_table_entry()
 void check_vif_state()
 {
 }
-void leave_group_message()
+void accept_leave_message()
 {
 }
-void mtrace()
+void accept_mtrace()
+{
+}
+void accept_membership_query()
 {
 }
