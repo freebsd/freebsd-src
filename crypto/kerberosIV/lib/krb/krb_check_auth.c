@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include "krb_locl.h"
 
@@ -50,7 +51,7 @@ krb_check_auth(KTEXT packet,
 	       u_int32_t checksum,
 	       MSG_DAT *msg_data,
 	       des_cblock *session,
-	       struct des_ks_struct *schedule,
+	       des_key_schedule schedule,
 	       struct sockaddr_in *laddr,
 	       struct sockaddr_in *faddr)
 {

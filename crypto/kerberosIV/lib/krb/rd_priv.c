@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include "krb_locl.h"
 
@@ -57,7 +58,7 @@ RCSID("$Id: rd_priv.c,v 1.27 1999/12/02 16:58:43 joda Exp $");
 
 int32_t
 krb_rd_priv(void *in, u_int32_t in_length, 
-	    struct des_ks_struct *schedule, des_cblock *key, 
+	    des_key_schedule schedule, des_cblock *key, 
 	    struct sockaddr_in *sender, struct sockaddr_in *receiver, 
 	    MSG_DAT *m_data)
 {

@@ -139,7 +139,7 @@ kadm_cli_conn(void)
 /* takes in the sess_key and key_schedule and sets them appropriately */
 static int
 kadm_cli_keyd(des_cblock (*s_k), /* session key */
-	      struct des_ks_struct *s_s) /* session key schedule */
+	      des_key_schedule s_s) /* session key schedule */
 {
 	CREDENTIALS cred;	       /* to get key data */
 	int stat;
