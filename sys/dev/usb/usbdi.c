@@ -642,12 +642,11 @@ usbd_interface_count(usbd_device_handle dev, u_int8_t *count)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-usbd_status 
+void 
 usbd_interface2device_handle(usbd_interface_handle iface,
 			     usbd_device_handle *dev)
 {
 	*dev = iface->device;
-	return (USBD_NORMAL_COMPLETION);
 }
 
 usbd_status 
