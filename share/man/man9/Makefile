@@ -11,6 +11,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
+	accf_data.9 accf_http.9 \
 	at_exit.9 at_fork.9 atomic.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 kthread.9 malloc.9 \
