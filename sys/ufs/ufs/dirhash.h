@@ -38,7 +38,7 @@
  * long linear searches. Deleted entries that are not the last
  * in a chain must be marked DIRHASH_DEL.
  *
- * We also maintain a information about free space in each block
+ * We also maintain information about free space in each block
  * to speed up creations.
  */
 #define DIRHASH_EMPTY	(-1)	/* entry unused */
