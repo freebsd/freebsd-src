@@ -33,6 +33,7 @@
 #define __NO_VERSION__
 #include "dev/drm/r128.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/r128_drm.h"
 #include "dev/drm/r128_drv.h"
 
 #ifdef __linux__
@@ -163,12 +164,7 @@ int r128_do_wait_for_idle( drm_r128_private_t *dev_priv )
 	int i, ret;
 
 	ret = r128_do_wait_for_fifo( dev_priv, 64 );
-#ifdef __linux__
-	if ( ret < 0 ) return ret;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 	if ( ret ) return ret;
-#endif /* __FreeBSD__ */
 
 	for ( i = 0 ; i < dev_priv->usec_timeout ; i++ ) {
 		if ( !(R128_READ( R128_GUI_STAT ) & R128_GUI_ACTIVE) ) {

@@ -32,6 +32,7 @@
 
 #include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 
 #ifdef __linux__
@@ -398,12 +399,7 @@ static int radeon_do_wait_for_idle( drm_radeon_private_t *dev_priv )
 	int i, ret;
 
 	ret = radeon_do_wait_for_fifo( dev_priv, 64 );
-#ifdef __linux__
-	if ( ret < 0 ) return ret;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 	if ( ret ) return ret;
-#endif /* __FreeBSD__ */
 	for ( i = 0 ; i < dev_priv->usec_timeout ; i++ ) {
 		if ( !(RADEON_READ( RADEON_RBBM_STATUS )
 		       & RADEON_RBBM_ACTIVE) ) {
@@ -1110,12 +1106,7 @@ int radeon_cp_stop( DRM_OS_IOCTL )
 	 */
 	if ( stop.idle ) {
 		ret = radeon_do_cp_idle( dev_priv );
-#ifdef __linux__
-		if ( ret < 0 ) return ret;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 		if ( ret ) return ret;
-#endif /* __FreeBSD__ */
 	}
 
 	/* Finally, we can turn off the CP.  If the engine isn't idle,
