@@ -3282,27 +3282,28 @@ pmap_mapdev(pa, size)
 	vm_size_t size;
 {
 	vm_offset_t va, tmpva, offset;
-	pt_entry_t *pte;
 
 	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
+	pa = trunc_page(pa);
+
+	/* We have a 1MB direct mapped region at KERNBASE */
+	if (pa < 0x00100000 && pa + size <= 0x00100000)
+		return (void *)(pa + KERNBASE);
 
 	GIANT_REQUIRED;
-
 	va = kmem_alloc_pageable(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0; ) {
-		pte = vtopte(tmpva);
-		*pte = pa | PG_RW | PG_V | pgeflag;
+		pmap_kenter(tmpva, pa);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	return ((void *)(va + offset));
+	return (void *)(va + offset);
 }
 
 void
@@ -3315,7 +3316,9 @@ pmap_unmapdev(va, size)
 
 	base = va & PG_FRAME;
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
+	if (base >= KERNBASE && va + size <= KERNBASE + 0x00100000)
+		return;		/* direct mapped */
 	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE) {
 		pte = vtopte(tmpva);
 		*pte = 0;
