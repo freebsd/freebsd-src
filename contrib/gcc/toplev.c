@@ -94,29 +94,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "halfpic.h"
 #endif
 
-#ifdef VMS
-/* The extra parameters substantially improve the I/O performance.  */
-
-static FILE *
-vms_fopen (fname, type)
-     char *fname;
-     char *type;
-{
-  /* The <stdio.h> in the gcc-vms-1.42 distribution prototypes fopen with two
-     fixed arguments, which matches ANSI's specification but not VAXCRTL's
-     pre-ANSI implementation.  This hack circumvents the mismatch problem.  */
-  FILE *(*vmslib_fopen)() = (FILE *(*)()) fopen;
-
-  if (*type == 'w')
-    return (*vmslib_fopen) (fname, type, "mbc=32",
-			    "deq=64", "fop=tef", "shr=nil");
-  else
-    return (*vmslib_fopen) (fname, type, "mbc=32");
-}
-
-#define fopen vms_fopen
-#endif	/* VMS  */
-
 /* Carry information from ASM_DECLARE_OBJECT_NAME
    to ASM_FINISH_DECLARE_OBJECT.  */
 
@@ -678,7 +655,12 @@ int flag_keep_inline_functions;
 
 /* Nonzero means that functions will not be inlined.  */
 
-int flag_no_inline;
+int flag_no_inline = 2;
+
+/* Nonzero means that we don't want inlining by virtue of -fno-inline,
+   not just because the tree inliner turned us off.  */
+
+int flag_really_no_inline = 2;
 
 /* Nonzero means that we should emit static const variables
    regardless of whether or not optimization is turned on.  */
@@ -935,6 +917,9 @@ debug_args[] =
 #endif
 #ifdef SDB_DEBUGGING_INFO
   { "coff", SDB_DEBUG, 0, N_("Generate COFF format debug info") },
+#endif
+#ifdef VMS_DEBUGGING_INFO
+  { "vms", VMS_DEBUG, 0, N_("Generate VMS format debug info") },
 #endif
   { 0, 0, 0, 0 }
 };
@@ -1769,9 +1754,14 @@ output_quoted_string (asm_file, string)
   putc ('\"', asm_file);
   while ((c = *string++) != 0)
     {
-      if (c == '\"' || c == '\\')
-	putc ('\\', asm_file);
-      putc (c, asm_file);
+      if (ISPRINT (c))
+	{
+	  if (c == '\"' || c == '\\')
+	    putc ('\\', asm_file);
+	  putc (c, asm_file);
+	}
+      else
+	fprintf (asm_file, "\\%03o", c);
     }
   putc ('\"', asm_file);
 #endif
@@ -1961,16 +1951,24 @@ wrapup_global_declarations (vec, len)
 	     to force a constant to be written if and only if it is
 	     defined in a main file, as opposed to an include file.  */
 
-	  if (TREE_CODE (decl) == VAR_DECL && TREE_STATIC (decl)
-	      && (((! TREE_READONLY (decl) || TREE_PUBLIC (decl))
-		   && !DECL_COMDAT (decl))
-		  || (!optimize
-		      && flag_keep_static_consts
-		      && !DECL_ARTIFICIAL (decl))
-		  || TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl))))
+	  if (TREE_CODE (decl) == VAR_DECL && TREE_STATIC (decl))
 	    {
-	      reconsider = 1;
-	      rest_of_decl_compilation (decl, NULL, 1, 1);
+	      bool needed = 1;
+
+	      if (TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl)))
+		/* needed */;
+	      else if (DECL_COMDAT (decl))
+		needed = 0;
+	      else if (TREE_READONLY (decl) && !TREE_PUBLIC (decl)
+		       && (optimize || !flag_keep_static_consts
+			   || DECL_ARTIFICIAL (decl)))
+		needed = 0;
+
+	      if (needed)
+		{
+		  reconsider = 1;
+		  rest_of_decl_compilation (decl, NULL, 1, 1);
+		}
 	    }
 
 	  if (TREE_CODE (decl) == FUNCTION_DECL
@@ -2357,6 +2355,7 @@ rest_of_compilation (decl)
   int failure = 0;
   int rebuild_label_notes_after_reload;
   int register_life_up_to_date;
+  int cleanup_crossjump;
 
   timevar_push (TV_REST_OF_COMPILATION);
 
@@ -2457,6 +2456,7 @@ rest_of_compilation (decl)
       if (inlinable
 	  || (DECL_INLINE (decl)
 	      && ((! TREE_PUBLIC (decl) && ! TREE_ADDRESSABLE (decl)
+		   && ! TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl))
 		   && ! flag_keep_inline_functions)
 		  || DECL_EXTERNAL (decl))))
 	DECL_DEFER_OUTPUT (decl) = 1;
@@ -2549,10 +2549,12 @@ rest_of_compilation (decl)
      carry magic hard reg data throughout the function.  */
   rtx_equal_function_value_matters = 0;
   purge_hard_subreg_sets (get_insns ());
-  emit_initial_value_sets ();
 
-  /* Don't return yet if -Wreturn-type; we need to do cleanup_cfg.  */
-  if ((rtl_dump_and_exit || flag_syntax_only) && !warn_return_type)
+  /* Early return if there were errors.  We can run afoul of our
+     consistency checks, and there's not really much point in fixing them.
+     Don't return yet if -Wreturn-type; we need to do cleanup_cfg.  */
+  if (((rtl_dump_and_exit || flag_syntax_only) && !warn_return_type)
+      || errorcount || sorrycount)
     goto exit_rest_of_compilation;
 
   /* We may have potential sibling or tail recursion sites.  Select one
@@ -2580,6 +2582,10 @@ rest_of_compilation (decl)
       close_dump_file (DFI_eh, print_rtl, get_insns ());
       timevar_pop (TV_JUMP);
     }
+
+  /* Delay emitting hard_reg_initial_value sets until after EH landing pad
+     generation, which might create new sets.  */
+  emit_initial_value_sets ();
 
 #ifdef FINALIZE_PIC
   /* If we are doing position-independent code generation, now
@@ -2880,8 +2886,7 @@ rest_of_compilation (decl)
 	  cleanup_barriers ();
 
 	  /* We only want to perform unrolling once.  */
-
-	  loop_optimize (insns, rtl_dump_file, 0);
+	  loop_optimize (insns, rtl_dump_file, LOOP_FIRST_PASS);
 
 	  /* The first call to loop_optimize makes some instructions
 	     trivially dead.  We delete those instructions now in the
@@ -3272,9 +3277,21 @@ rest_of_compilation (decl)
      scheduling to operate in the epilogue.  */
   thread_prologue_and_epilogue_insns (insns);
 
+  /* Cross-jumping is O(N^3) on the number of edges, thus trying to
+     perform cross-jumping on flow graphs which have a high connectivity
+     will take a long time.  This is similar to the test to disable GCSE.  */
+  cleanup_crossjump = CLEANUP_CROSSJUMP;
+  if (n_basic_blocks > 1000 && n_edges / n_basic_blocks >= 20)
+    {
+      if (optimize && warn_disabled_optimization)
+	warning ("crossjump disabled: %d > 1000 basic blocks and %d >= 20 edges/basic block",
+                 n_basic_blocks, n_edges / n_basic_blocks);
+      cleanup_crossjump = 0;
+    }
+
   if (optimize)
     {
-      cleanup_cfg (CLEANUP_EXPENSIVE | CLEANUP_CROSSJUMP);
+      cleanup_cfg (CLEANUP_EXPENSIVE | cleanup_crossjump);
       life_analysis (insns, rtl_dump_file, PROP_FINAL);
 
       /* This is kind of a heuristic.  We need to run combine_stack_adjustments
@@ -3307,7 +3324,7 @@ rest_of_compilation (decl)
     }
 #endif
 
-  if (flag_rename_registers || flag_cprop_registers)
+  if (optimize > 0 && (flag_rename_registers || flag_cprop_registers))
     {
       timevar_push (TV_RENAME_REGISTERS);
       open_dump_file (DFI_rnreg, decl);
@@ -3377,10 +3394,12 @@ rest_of_compilation (decl)
       timevar_push (TV_REORDER_BLOCKS);
       open_dump_file (DFI_bbro, decl);
 
-      /* Last attempt to optimize CFG, as life analyzis possibly removed
-	 some instructions.  */
-      cleanup_cfg (CLEANUP_EXPENSIVE | CLEANUP_POST_REGSTACK
-		   | CLEANUP_CROSSJUMP);
+      /* Last attempt to optimize CFG, as life analysis possibly removed
+	 some instructions.  Note that we can't rerun crossjump at this
+	 point, because it can turn a switch into a direct branch, which
+	 can leave the tablejump address calculation in the code, which
+	 can lead to referencing an undefined label.  */
+      cleanup_cfg (CLEANUP_EXPENSIVE | CLEANUP_POST_REGSTACK);
       if (flag_reorder_blocks)
 	{
 	  reorder_basic_blocks ();
@@ -4059,7 +4078,7 @@ ignoring option `%s' due to invalid debug level specification",
 
 	      if (da_len > 1 && strncmp (arg, "gdb", da_len) == 0)
 		{
-#if defined (DWARF2_DEBUGGING_INFO) && !defined (LINKER_DOES_NOT_WORK_WITH_DWARF2)
+#ifdef DWARF2_DEBUGGING_INFO
 		  type = DWARF2_DEBUG;
 #else
 #ifdef DBX_DEBUGGING_INFO
@@ -4658,7 +4677,7 @@ parse_options_and_default_flags (argc, argv)
 		  if (optimize > FORCE_OPTIMIZATION_DOWNGRADE)
 		    {
 		      optimize = FORCE_OPTIMIZATION_DOWNGRADE;
-		      warning ("\n***\n***\t-O%d converted to \"-O%d\" due to optimizer bugs on this platform\n***\n",
+		      warning ("\n***\n***\t-O%d converted to \"-O%d\" due to optimizer bugs on this platform\n***",
 			      optimize_val,
 			      FORCE_OPTIMIZATION_DOWNGRADE);
 
@@ -4668,7 +4687,7 @@ parse_options_and_default_flags (argc, argv)
 #if defined(__alpha__)
 		  if (optimize > 1)
 		    {
-		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***\n",
+		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***",
 			      optimize_val);
 		    }
 #endif /*__alpha__*/
@@ -4823,6 +4842,11 @@ parse_options_and_default_flags (argc, argv)
 	}
     }
 
+  if (flag_no_inline == 2)
+    flag_no_inline = 0;
+  else
+    flag_really_no_inline = flag_no_inline;
+
   /* Set flag_no_inline before the post_options () hook.  The C front
      ends use it to determine tree inlining defaults.  FIXME: such
      code should be lang-independent when all front ends use tree
@@ -4841,6 +4865,9 @@ parse_options_and_default_flags (argc, argv)
       if (warn_uninitialized == 1)
 	warning ("-Wuninitialized is not supported without -O");
     }
+
+  if (flag_really_no_inline == 2)
+    flag_really_no_inline = flag_no_inline;
 
   /* All command line options have been parsed; allow the front end to
      perform consistency checks, etc.  */
