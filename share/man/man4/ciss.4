@@ -33,7 +33,7 @@ offloading most of the queueing and being-a-disk chores onto CAM.
 Entry to the driver is via the PCI bus attachment
 .Fn ciss_probe ,
 .Fn ciss_attach ,
-etc. and via the CAM interface
+etc.\& and via the CAM interface
 .Fn ciss_cam_action ,
 and
 .Fn ciss_cam_poll .
@@ -62,12 +62,15 @@ except under extreme load.
 Non-disk devices (such as internal DATs and devices
 attached to the external SCSI bus) are supported as normal CAM devices
 provided that they are exported by the controller firmware and are not
-marked as being masked.  Masked devices can be exposed by setting the
+marked as being masked.
+Masked devices can be exposed by setting the
 .Va hw.ciss.expose_hidden_physical
-tunable to non-zero at boot time.  Direct Access devices (such as disk
+tunable to non-zero at boot time.
+Direct Access devices (such as disk
 drives) are only exposed as
 .Xr pass 4
-devices.  Hot-insertion and removal of devices is supported but a bus
+devices.
+Hot-insertion and removal of devices is supported but a bus
 rescan might be necessary.
 .Pp
 Supported controllers include:

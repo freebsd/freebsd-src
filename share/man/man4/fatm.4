@@ -50,7 +50,8 @@ The driver interfaces with the
 framework,
 .Xr netgraph 4
 and HARP.
-It provides only PVC services. Signalling, ATMARP, ILMI and other
+It provides only PVC services.
+Signalling, ATMARP, ILMI and other
 higher layer protocols are implemented using
 .Xr netgraph 4
 or HARP.
@@ -71,12 +72,15 @@ Returns a list of
 with internal driver statistics.
 .It Cm hw.atm.fatmN.retry_tx
 If this is set packets are stuffed back into the interface's send queue when
-the cards transmit queue is found to be full. They are transmitted later.
-If this is not set the packets are dropped. It may be useful to set this
+the cards transmit queue is found to be full.
+They are transmitted later.
+If this is not set the packets are dropped.
+It may be useful to set this
 if only UBR traffic is sent.
 .It Cm hw.atm.fatmN.debug
 .Em (only if debugging enabled)
-These are debugging flags. See
+These are debugging flags.
+See
 .Fn if_fatmvar.h
 for the possible flags.
 .El
@@ -97,9 +101,12 @@ fatm0: <FORE PCA200E> mem 0xd5800000-0xd59fffff irq 9 at device 9.0 on pci0
 .Xr natmip 4 ,
 .Xr utopia 4
 .Sh BUGS
-These cards can CBR shape a single VCC only. It is currently possible to
-request more than one CBR connection. In this case all the timing will be
-wrong. See
+These cards can CBR shape a single VCC only.
+It is currently possible to
+request more than one CBR connection.
+In this case all the timing will be
+wrong.
+See
 .Xr hatm 4
 for a better card.
 .Sh AUTHORS

@@ -224,8 +224,8 @@ Another issue in simulation is
 the size of the state associated with the random number generator, and
 how frequently it repeats itself.
 For example,
-a program which shuffles a pack of cards should have 52! possible outputs,
-which requires the random number generator to have 52! starting states.
+a program which shuffles a pack of cards should have 52!\& possible outputs,
+which requires the random number generator to have 52!\& starting states.
 This means the seed should have at least log_2(52!) ~ 226 bits of state
 if the program is to stand a chance of outputting all possible sequences,
 and the program needs some unbiased way of generating these bits.

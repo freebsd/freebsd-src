@@ -30,7 +30,8 @@ provides a two-level view of process space, unlike the previous
 .Nm
 implementation.
 At the highest level, processes themselves are named, according to
-their process ids in decimal, with no leading zeros.  There is also a
+their process ids in decimal, with no leading zeros.
+There is also a
 special node called
 .Pa curproc
 which always refers to the process making the lookup request.
@@ -107,9 +108,11 @@ Only those address which exist in the process can be accessed.
 Reads and writes to this file modify the process.
 Writes to the text segment remain private to the process.
 .It Pa note
-Used for sending signals to the process.  Not implemented.
+Used for sending signals to the process.
+Not implemented.
 .It Pa notepg
-Used for sending signal to the process group.  Not implemented.
+Used for sending signal to the process group.
+Not implemented.
 .It Pa regs
 Allows read and write access to the process' register set.
 This file contains a binary data structure

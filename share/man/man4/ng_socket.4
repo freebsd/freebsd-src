@@ -49,7 +49,8 @@ A
 .Nm socket
 node is both a
 .Bx
-socket and a netgraph node.  The
+socket and a netgraph node.
+The
 .Nm
 node type allows user-mode processes to participate in the kernel
 .Xr netgraph 4
@@ -72,7 +73,7 @@ system call.
 Any control messages received by the node
 and not having a cookie value of
 .Dv NGM_SOCKET_COOKIE
-are received  by the process, using
+are received by the process, using
 .Xr recvfrom 2 ;
 the socket address argument is a
 .Dv "struct sockaddr_ng"
@@ -112,12 +113,12 @@ on which the data was received or should be sent.
 .Pp
 As a special case, to allow netgraph data sockets to be used as stdin or stdout
 on naive programs, a
-.Xr sendto  2
+.Xr sendto 2
 with a NULL sockaddr pointer, a
 .Xr send 2
 or a
 .Xr write 2
-will succeed in the case where there is exactly ONE hook  attached to
+will succeed in the case where there is exactly ONE hook attached to
 the socket node, (and thus the path is unambiguous).
 .Pp
 There is a user library that simplifies using netgraph sockets; see
@@ -132,7 +133,8 @@ This node type supports the generic control messages, plus the following:
 When the last hook is removed from this node, it will shut down as
 if it had received a
 .Dv NGM_SHUTDOWN
-message. Attempts to access the sockets associated will return
+message.
+Attempts to access the sockets associated will return
 .Er ENOTCONN .
 .It Dv NGM_SOCK_CMD_LINGER
 This is the default mode.
@@ -169,7 +171,7 @@ It is not possible to reject the connection of a hook, though any
 data received on that hook can certainly be ignored.
 .Pp
 The controlling process is not notified of all events that an in-kernel node
-would be notified of, e.g. a new hook, or hook removal.
+would be notified of, e.g.\& a new hook, or hook removal.
 Some node-initiated messages should be defined for this purpose (to be
 sent up the control socket).
 .Sh SEE ALSO

@@ -154,10 +154,12 @@ in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
 .Pp
 The lock termios state acts as flags to disable changing
-the termios state.  E.g., to lock a flag variable such as
+the termios state.
+E.g., to lock a flag variable such as
 CRTSCTS, use
 .Em "stty crtscts"
-on the lock-state device.  Speeds and special characters
+on the lock-state device.
+Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
 .Pp
@@ -170,11 +172,15 @@ should be set to suit the devices attached and may need to be
 locked to prevent buggy programs from changing them.
 E.g., CRTSCTS should be locked on for devices that support
 RTS/CTS handshaking at all times and off for devices that don't
-support it at all.  CLOCAL should be locked on for devices
-that don't support carrier.  HUPCL may be locked off if you don't
-want to hang up for some reason.  In general, very bad things happen
+support it at all.
+CLOCAL should be locked on for devices
+that don't support carrier.
+HUPCL may be locked off if you don't
+want to hang up for some reason.
+In general, very bad things happen
 if something is locked to the wrong state, and things should not
-be locked for devices that support more than one setting.  The
+be locked for devices that support more than one setting.
+The
 CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.

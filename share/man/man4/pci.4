@@ -81,7 +81,8 @@ It allows the user to retrieve information on all
 .Tn PCI
 devices in the system, or on
 .Tn PCI
-devices matching patterns supplied by the user.  The call may set
+devices matching patterns supplied by the user.
+The call may set
 .Va errno
 to any value specified in either
 .Xr copyin 9
@@ -101,7 +102,8 @@ Pointer to a buffer filled with user-supplied patterns.
 is a pointer to
 .Va num_patterns
 .Va pci_match_conf
-structures.  The
+structures.
+The
 .Va pci_match_conf
 structure consists of the following elements:
 .Bl -tag -width pd_vendor
@@ -247,7 +249,8 @@ reads the
 .Tn PCI
 configuration registers specified by the passed-in
 .Va pci_io
-structure.  The
+structure.
+The
 .Va pci_io
 structure consists of the following fields:
 .Bl -tag -width pi_width
@@ -255,7 +258,8 @@ structure consists of the following fields:
 A
 .Va pcisel
 structure which specifies the bus, slot and function the user would like to
-query.  If the specific bus is not found, errno will be set to ENODEV and -1 returned from the ioctl.
+query.
+If the specific bus is not found, errno will be set to ENODEV and -1 returned from the ioctl.
 .It pi_reg
 The
 .Tn PCI
@@ -263,8 +267,10 @@ configuration register the user would like to access.
 .It pi_width
 The width, in bytes, of the data the user would like to read.
 This value
-may be either 1, 2, or 4.  3-byte reads and reads larger than 4 bytes are
-not supported.  If an invalid width is passed, errno will be set to EINVAL.
+may be either 1, 2, or 4.
+3-byte reads and reads larger than 4 bytes are
+not supported.
+If an invalid width is passed, errno will be set to EINVAL.
 .It pi_data
 The data returned by the kernel.
 .El
@@ -275,7 +281,8 @@ allows users to write to the
 .Tn PCI
 specified in the passed-in
 .Va pci_io
-structure.  The
+structure.
+The
 .Va pci_io
 structure is described above.
 The limitations on data width described for

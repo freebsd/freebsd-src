@@ -42,7 +42,8 @@
 .Sh DESCIPTION
 The
 .Nm
-netgraph node implements the ITU-T standard Q.2110. This standard describes
+netgraph node implements the ITU-T standard Q.2110.
+This standard describes
 the so called Service Specific Connection Oriented Protocol (SSCOP) that
 is used to carry signalling messages over the private and public UNIs and
 the public NNI.
@@ -65,7 +66,8 @@ node has three hooks with fixed names:
 .Bl -tag -width manage
 .It Dv lower
 This hook is the hook that must be connected to a node that ensures
-transport of packets to and from the remote peer node. Normally this is a
+transport of packets to and from the remote peer node.
+Normally this is a
 .Xr ng_atm 4
 node with an AAL5 hook, but the
 .Nm
@@ -278,10 +280,12 @@ This message creates the actual SSCOP instance and initializes it.
 Until this is done, parameters may neither be retrieved not set and all
 message received on any hook are discarded.
 .It Dv NGM_SSCOP_DISABLE
-Destroy the SSCOP instance. After this all messages on any hooks are
+Destroy the SSCOP instance.
+After this all messages on any hooks are
 discarded.
 .It Dv NGM_SSCOP_SETDEBUG
-Set debugging flags. The argument is an
+Set debugging flags.
+The argument is an
 .Vt uint32_t .
 .It Dv NGM_SSCOP_GETDEBUG
 Retrieve the actual debugging flags.
@@ -293,7 +297,8 @@ Responds with the current state of the SSCOP instance in an
 If the node is not enabled the retrieved state is 0.
 .El
 .Sh FLOW CONTROL
-Flow control works on the upper and on the lower layer interface. At the lower
+Flow control works on the upper and on the lower layer interface.
+At the lower
 layer interface the two messages
 .Dv NGM_HIGH_WATER_PASSED
 and

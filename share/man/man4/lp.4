@@ -153,7 +153,7 @@ The packet format has a two-byte header, comprising the fixed values 0x08,
 The start of a packet is indicated by simply signalling the first byte
 of the header.
 The end of the packet is indicated by inverting
-the data lines (ie. writing the ones-complement of the previous nibble
+the data lines (i.e., writing the ones-complement of the previous nibble
 to be transmitted) without changing the state of the handshake.
 .Pp
 Note that the end-of-packet marker assumes that the handshake signal and

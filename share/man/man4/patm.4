@@ -53,7 +53,8 @@ The driver interfaces with the
 framework,
 .Xr netgraph 4
 and HARP.
-It provides only PVC services. Signalling, ATMARP, ILMI and other
+It provides only PVC services.
+Signalling, ATMARP, ILMI and other
 higher layer protocols are implemented using
 .Xr netgraph 4
 or HARP.
@@ -61,7 +62,8 @@ or HARP.
 For configuring the card for IP see
 .Xr natmip 4 .
 .Pp
-The driver supports UBR, CBR, VBR and ABR traffic. Supported AALs are:
+The driver supports UBR, CBR, VBR and ABR traffic.
+Supported AALs are:
 AAL0 (cell payloads), AAL5 and raw AAL.
 The driver supports opening of VCI/VPI 0/0 in RX, raw AAL-mode.
 This VC will receive all incoming cells (even those with non-zero GFC
@@ -89,7 +91,8 @@ This is the upper limit of transmission DMA maps the driver will allocate.
 This is read-only but may be set via a loader tunable.
 .It Cm hw.atm.patmN.debug
 .Em (only if debugging enabled)
-These are debugging flags. See
+These are debugging flags.
+See
 .Fn if_patmvar.h
 for the possible flags.
 This may be initialized via a loader tunable.

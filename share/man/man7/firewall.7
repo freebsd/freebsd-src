@@ -13,7 +13,8 @@
 .Sh FIREWALL BASICS
 A Firewall is most commonly used to protect an internal network
 from an outside network by preventing the outside network from
-making arbitrary connections into the internal network.  Firewalls
+making arbitrary connections into the internal network.
+Firewalls
 are also used to prevent outside entities from spoofing internal
 IP addresses and to isolate services such as NFS or SMBFS (Windows
 file sharing) within LAN segments.
@@ -23,11 +24,13 @@ The
 firewalling system also has the capability to limit bandwidth using
 .Xr dummynet 4 .
 This feature can be useful when you need to guarantee a certain
-amount of bandwidth for a critical purpose.  For example, if you
+amount of bandwidth for a critical purpose.
+For example, if you
 are doing video conferencing over the Internet via your
 office T1 (1.5 MBits/s), you may wish to bandwidth-limit all other
 T1 traffic to 1 MBit/s in order to reserve at least 0.5 MBits
-for your video conferencing connections.  Similarly if you are
+for your video conferencing connections.
+Similarly if you are
 running a popular web or ftp site from a colocation facility
 you might want to limit bandwidth to prevent excessive bandwidth
 charges from your provider.
@@ -42,22 +45,29 @@ a private IP space to make connections to the outside for browsing
 or other purposes.
 .Pp
 Constructing a firewall may appear to be trivial, but most people
-get them wrong.  The most common mistake is to create an exclusive
-firewall rather than an inclusive firewall.  An exclusive firewall
+get them wrong.
+The most common mistake is to create an exclusive
+firewall rather than an inclusive firewall.
+An exclusive firewall
 allows all packets through except for those matching a set of rules.
 An inclusive firewall allows only packets matching the ruleset
-through.  Inclusive firewalls are much, much safer than exclusive
-firewalls but a tad more difficult to build properly.  The
+through.
+Inclusive firewalls are much, much safer than exclusive
+firewalls but a tad more difficult to build properly.
+The
 second most common mistake is to blackhole everything except the
-particular port you want to let through.  TCP/IP needs to be able
+particular port you want to let through.
+TCP/IP needs to be able
 to get certain types of ICMP errors to function properly - for
-example, to implement MTU discovery.  Also, a number of common
+example, to implement MTU discovery.
+Also, a number of common
 system daemons make reverse connections to the
 .Sy auth
 service in an attempt to authenticate the user making a connection.
 Auth is rather dangerous but the proper implementation is to return
 a TCP reset for the connection attempt rather than simply blackholing
-the packet.  We cover these and other quirks involved with constructing
+the packet.
+We cover these and other quirks involved with constructing
 a firewall in the sample firewall section below.
 .Sh IPFW KERNEL CONFIGURATION
 You do not need to create a custom kernel to use the IP firewalling features.
@@ -70,15 +80,18 @@ if you are paranoid you can compile IPFW directly into the
 .Fx
 kernel by using the
 .Sy IPFIREWALL
-option set.  If compiled in the kernel, ipfw denies all
+option set.
+If compiled in the kernel, ipfw denies all
 packets by default, which means that, if you do not load in
 a permissive ruleset via
 .Em /etc/rc.conf ,
 rebooting into your new kernel will take the network offline.
 This can prevent you from being able to access your system if you
-are not sitting at the console.  It is also quite common to
+are not sitting at the console.
+It is also quite common to
 update a kernel to a new release and reboot before updating
-the binaries.  This can result in an incompatibility between
+the binaries.
+This can result in an incompatibility between
 the
 .Xr ipfw 8
 program and the kernel which prevents it from running in the
@@ -86,13 +99,17 @@ boot sequence, also resulting in an inaccessible machine.
 Because of these problems the
 .Sy IPFIREWALL_DEFAULT_TO_ACCEPT
 kernel option is also available which changes the default firewall
-to pass through all packets.  Note, however, that using this option
+to pass through all packets.
+Note, however, that using this option
 may open a small window of opportunity during booting where your
-firewall passes all packets.  Still, it's a good option to use
+firewall passes all packets.
+Still, it's a good option to use
 while getting up to speed with
 .Fx
-firewalling.  Get rid of it once you understand how it all works
-to close the loophole, though.  There is a third option called
+firewalling.
+Get rid of it once you understand how it all works
+to close the loophole, though.
+There is a third option called
 .Sy IPDIVERT
 which allows you to use the firewall to divert packets to a user program
 and is necessary if you wish to use
@@ -106,42 +123,54 @@ option must be used to enable
 rules.
 .Sh SAMPLE IPFW-BASED FIREWALL
 Here is an example ipfw-based firewall taken from a machine with three
-interface cards.  fxp0 is connected to the 'exposed' LAN.  Machines
-on this LAN are dual-homed with both internal 10. IP addresses and
-Internet-routed IP addresses.  In our example, 192.100.5.x represents
+interface cards.
+fxp0 is connected to the 'exposed' LAN.
+Machines
+on this LAN are dual-homed with both internal 10.\& IP addresses and
+Internet-routed IP addresses.
+In our example, 192.100.5.x represents
 the Internet-routed IP block while 10.x.x.x represents the internal
-networks.  While it isn't relevant to the example, 10.0.1.x is
+networks.
+While it isn't relevant to the example, 10.0.1.x is
 assigned as the internal address block for the LAN on fxp0, 10.0.2.x
 for the LAN on fxp1, and 10.0.3.x for the LAN on fxp2.
 .Pp
 In this example we want to isolate all three LANs from the Internet
 as well as isolate them from each other, and we want to give all
 internal addresses access to the Internet through a NAT gateway running
-on this machine.  To make the NAT gateway work, the firewall machine
+on this machine.
+To make the NAT gateway work, the firewall machine
 is given two Internet-exposed addresses on fxp0 in addition to an
-internal 10. address on fxp0: one exposed address (not shown)
+internal 10.\& address on fxp0: one exposed address (not shown)
 represents the machine's official address, and the second exposed
 address (192.100.5.5 in our example) represents the NAT gateway
-rendezvous IP.  We make the example more complex by giving the machines
+rendezvous IP.
+We make the example more complex by giving the machines
 on the exposed LAN internal 10.0.0.x addresses as well as exposed
-addresses.  The idea here is that you can bind internal services
+addresses.
+The idea here is that you can bind internal services
 to internal addresses even on exposed machines and still protect
-those services from the Internet.  The only services you run on
+those services from the Internet.
+The only services you run on
 exposed IP addresses would be the ones you wish to expose to the
 Internet.
 .Pp
 It is important to note that the 10.0.0.x network in our example
-is not protected by our firewall.  You must make sure that your
+is not protected by our firewall.
+You must make sure that your
 Internet router protects this network from outside spoofing.
 Also, in our example, we pretty much give the exposed hosts free
 reign on our internal network when operating services through
-internal IP addresses (10.0.0.x).   This is somewhat of security
-risk... what if an exposed host is compromised?  To remove the
+internal IP addresses (10.0.0.x).
+This is somewhat of security
+risk: what if an exposed host is compromised?
+To remove the
 risk and force everything coming in via LAN0 to go through
 the firewall, remove rules 01010 and 01011.
 .Pp
 Finally, note that the use of internal addresses represents a
-big piece of our firewall protection mechanism.  With proper
+big piece of our firewall protection mechanism.
+With proper
 spoofing safeguards in place, nothing outside can directly
 access an internal (LAN1 or LAN2) host.
 .Bd -literal
@@ -337,19 +366,26 @@ add 06000 deny all from any to any
 .Ed
 .Sh PORT BINDING INTERNAL AND EXTERNAL SERVICES
 We've mentioned multi-homing hosts and binding services to internal or
-external addresses but we haven't really explained it.  When you have a
+external addresses but we haven't really explained it.
+When you have a
 host with multiple IP addresses assigned to it, you can bind services run
-on that host to specific IPs or interfaces rather than all IPs.  Take
-the firewall machine for example:  With three interfaces
+on that host to specific IPs or interfaces rather than all IPs.
+Take
+the firewall machine for example: with three interfaces
 and two exposed IP addresses
 on one of those interfaces, the firewall machine is known by 5 different
 IP addresses (10.0.0.1, 10.0.1.1, 10.0.2.1, 192.100.5.5, and say
-192.100.5.1).  If the firewall is providing file sharing services to the
+192.100.5.1).
+If the firewall is providing file sharing services to the
 windows LAN segment (say it is LAN1), you can use samba's 'bind interfaces'
-directive to specifically bind it to just the LAN1 IP address.  That
+directive to specifically bind it to just the LAN1 IP address.
+That
 way the file sharing services will not be made available to other LAN
-segments.  The same goes for NFS.  If LAN2 has your UNIX engineering
-workstations, you can tell nfsd to bind specifically to 10.0.2.1.  You
+segments.
+The same goes for NFS.
+If LAN2 has your UNIX engineering
+workstations, you can tell nfsd to bind specifically to 10.0.2.1.
+You
 can specify how to bind virtually every service on the machine and you
 can use a light
 .Xr jail 8

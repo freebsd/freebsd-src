@@ -49,17 +49,19 @@ function acquires a read lock on
 provided that
 .Fa lock
 is not presently held for writing and no writer threads are
-presently blocked on the lock.  If the read lock cannot be
+presently blocked on the lock.
+If the read lock cannot be
 immediately acquired, the calling thread blocks until it can
 acquire the lock.
 .Pp
 The
 .Fn pthread_rwlock_tryrdlock
 function performs the same action, but does not block if the lock
-cannot be immediately obtained (i.e. the lock is held for writing
+cannot be immediately obtained (i.e., the lock is held for writing
 or there are waiting writers).
 .Pp
-A thread may hold multiple concurrent read locks.  If so,
+A thread may hold multiple concurrent read locks.
+If so,
 .Fn pthread_rwlock_unlock
 must be called once for each lock obtained.
 .Pp
@@ -72,7 +74,8 @@ If successful, the
 .Fn pthread_rwlock_rdlock
 and
 .Fn pthread_rwlock_tryrdlock
-functions will return zero.  Otherwise an error number will be returned
+functions will return zero.
+Otherwise an error number will be returned
 to indicate the error.
 .Sh SEE ALSO
 .Xr pthread_rwlock_init 3 ,

@@ -175,7 +175,8 @@ structure.
 All other fields are undefined.
 .It Dv BIOCSETIF
 .Pq Li "struct ifreq"
-Sets the hardware interface associate with the file.  This
+Sets the hardware interface associate with the file.
+This
 command must be performed before any packets can be read.
 The device is indicated by name using the
 .Li ifr_name
@@ -477,26 +478,17 @@ The semantics of all the recognized
 .Dv BPF_LD
 instructions follow.
 .Pp
-.Bl -tag -width "BPF_LD+BPF_W+BPF_IND" -compact
-.It Li BPF_LD+BPF_W+BPF_ABS
-A <- P[k:4]
-.It Li BPF_LD+BPF_H+BPF_ABS
-A <- P[k:2]
-.It Li BPF_LD+BPF_B+BPF_ABS
-A <- P[k:1]
-.It Li BPF_LD+BPF_W+BPF_IND
-A <- P[X+k:4]
-.It Li BPF_LD+BPF_H+BPF_IND
-A <- P[X+k:2]
-.It Li BPF_LD+BPF_B+BPF_IND
-A <- P[X+k:1]
-.It Li BPF_LD+BPF_W+BPF_LEN
-A <- len
-.It Li BPF_LD+BPF_IMM
-A <- k
-.It Li BPF_LD+BPF_MEM
-A <- M[k]
-.El
+.Bd -literal
+BPF_LD+BPF_W+BPF_ABS	A <- P[k:4]
+BPF_LD+BPF_H+BPF_ABS	A <- P[k:2]
+BPF_LD+BPF_B+BPF_ABS	A <- P[k:1]
+BPF_LD+BPF_W+BPF_IND	A <- P[X+k:4]
+BPF_LD+BPF_H+BPF_IND	A <- P[X+k:2]
+BPF_LD+BPF_B+BPF_IND	A <- P[X+k:1]
+BPF_LD+BPF_W+BPF_LEN	A <- len
+BPF_LD+BPF_IMM		A <- k
+BPF_LD+BPF_MEM		A <- M[k]
+.Ed
 .It Dv BPF_LDX
 These instructions load a value into the index register.
 Note that
@@ -505,32 +497,26 @@ but they include
 .Dv BPF_MSH ,
 a hack for efficiently loading the IP header length.
 .Pp
-.Bl -tag -width "BPF_LDX+BPF_W+BPF_MEM" -compact
-.It Li BPF_LDX+BPF_W+BPF_IMM
-X <- k
-.It Li BPF_LDX+BPF_W+BPF_MEM
-X <- M[k]
-.It Li BPF_LDX+BPF_W+BPF_LEN
-X <- len
-.It Li BPF_LDX+BPF_B+BPF_MSH
-X <- 4*(P[k:1]&0xf)
-.El
+.Bd -literal
+BPF_LDX+BPF_W+BPF_IMM	X <- k
+BPF_LDX+BPF_W+BPF_MEM	X <- M[k]
+BPF_LDX+BPF_W+BPF_LEN	X <- len
+BPF_LDX+BPF_B+BPF_MSH	X <- 4*(P[k:1]&0xf)
+.Ed
 .It Dv BPF_ST
 This instruction stores the accumulator into the scratch memory.
 We do not need an addressing mode since there is only one possibility
 for the destination.
 .Pp
-.Bl -tag -width "BPF_ST" -compact
-.It Li BPF_ST
-M[k] <- A
-.El
+.Bd -literal
+BPF_ST			M[k] <- A
+.Ed
 .It Dv BPF_STX
 This instruction stores the index register in the scratch memory store.
 .Pp
-.Bl -tag -width "BPF_STX" -compact
-.It Li BPF_STX
-M[k] <- X
-.El
+.Bd -literal
+BPF_STX			M[k] <- X
+.Ed
 .It Dv BPF_ALU
 The alu instructions perform operations between the accumulator and
 index register or constant, and store the result back in the accumulator.
@@ -539,42 +525,25 @@ For binary operations, a source mode is required
 or
 .Dv BPF_X ) .
 .Pp
-.Bl -tag -width "BPF_ALU+BPF_MUL+BPF_K" -compact
-.It Li BPF_ALU+BPF_ADD+BPF_K
-A <- A + k
-.It Li BPF_ALU+BPF_SUB+BPF_K
-A <- A - k
-.It Li BPF_ALU+BPF_MUL+BPF_K
-A <- A * k
-.It Li BPF_ALU+BPF_DIV+BPF_K
-A <- A / k
-.It Li BPF_ALU+BPF_AND+BPF_K
-A <- A & k
-.It Li BPF_ALU+BPF_OR+BPF_K
-A <- A | k
-.It Li BPF_ALU+BPF_LSH+BPF_K
-A <- A << k
-.It Li BPF_ALU+BPF_RSH+BPF_K
-A <- A >> k
-.It Li BPF_ALU+BPF_ADD+BPF_X
-A <- A + X
-.It Li BPF_ALU+BPF_SUB+BPF_X
-A <- A - X
-.It Li BPF_ALU+BPF_MUL+BPF_X
-A <- A * X
-.It Li BPF_ALU+BPF_DIV+BPF_X
-A <- A / X
-.It Li BPF_ALU+BPF_AND+BPF_X
-A <- A & X
-.It Li BPF_ALU+BPF_OR+BPF_X
-A <- A | X
-.It Li BPF_ALU+BPF_LSH+BPF_X
-A <- A << X
-.It Li BPF_ALU+BPF_RSH+BPF_X
-A <- A >> X
-.It Li BPF_ALU+BPF_NEG
-A <- -A
-.El
+.Bd -literal
+BPF_ALU+BPF_ADD+BPF_K	A <- A + k
+BPF_ALU+BPF_SUB+BPF_K	A <- A - k
+BPF_ALU+BPF_MUL+BPF_K	A <- A * k
+BPF_ALU+BPF_DIV+BPF_K	A <- A / k
+BPF_ALU+BPF_AND+BPF_K	A <- A & k
+BPF_ALU+BPF_OR+BPF_K	A <- A | k
+BPF_ALU+BPF_LSH+BPF_K	A <- A << k
+BPF_ALU+BPF_RSH+BPF_K	A <- A >> k
+BPF_ALU+BPF_ADD+BPF_X	A <- A + X
+BPF_ALU+BPF_SUB+BPF_X	A <- A - X
+BPF_ALU+BPF_MUL+BPF_X	A <- A * X
+BPF_ALU+BPF_DIV+BPF_X	A <- A / X
+BPF_ALU+BPF_AND+BPF_X	A <- A & X
+BPF_ALU+BPF_OR+BPF_X	A <- A | X
+BPF_ALU+BPF_LSH+BPF_X	A <- A << X
+BPF_ALU+BPF_RSH+BPF_X	A <- A >> X
+BPF_ALU+BPF_NEG		A <- -A
+.Ed
 .It Dv BPF_JMP
 The jump instructions alter flow of control.
 Conditional jumps
@@ -592,26 +561,17 @@ opcode uses the 32 bit
 field as the offset, allowing arbitrarily distant destinations.
 All conditionals use unsigned comparison conventions.
 .Pp
-.Bl -tag -width "BPF_JMP+BPF_KSET+BPF_X" -compact
-.It Li BPF_JMP+BPF_JA
-pc += k
-.It Li BPF_JMP+BPF_JGT+BPF_K
-pc += (A > k) ? jt : jf
-.It Li BPF_JMP+BPF_JGE+BPF_K
-pc += (A >= k) ? jt : jf
-.It Li BPF_JMP+BPF_JEQ+BPF_K
-pc += (A == k) ? jt : jf
-.It Li BPF_JMP+BPF_JSET+BPF_K
-pc += (A & k) ? jt : jf
-.It Li BPF_JMP+BPF_JGT+BPF_X
-pc += (A > X) ? jt : jf
-.It Li BPF_JMP+BPF_JGE+BPF_X
-pc += (A >= X) ? jt : jf
-.It Li BPF_JMP+BPF_JEQ+BPF_X
-pc += (A == X) ? jt : jf
-.It Li BPF_JMP+BPF_JSET+BPF_X
-pc += (A & X) ? jt : jf
-.El
+.Bd -literal
+BPF_JMP+BPF_JA		pc += k
+BPF_JMP+BPF_JGT+BPF_K	pc += (A > k) ? jt : jf
+BPF_JMP+BPF_JGE+BPF_K	pc += (A >= k) ? jt : jf
+BPF_JMP+BPF_JEQ+BPF_K	pc += (A == k) ? jt : jf
+BPF_JMP+BPF_JSET+BPF_K	pc += (A & k) ? jt : jf
+BPF_JMP+BPF_JGT+BPF_X	pc += (A > X) ? jt : jf
+BPF_JMP+BPF_JGE+BPF_X	pc += (A >= X) ? jt : jf
+BPF_JMP+BPF_JEQ+BPF_X	pc += (A == X) ? jt : jf
+BPF_JMP+BPF_JSET+BPF_X	pc += (A & X) ? jt : jf
+.Ed
 .It Dv BPF_RET
 The return instructions terminate the filter program and specify the amount
 of packet to accept (i.e., they return the truncation amount).
@@ -621,12 +581,10 @@ The return value is either a constant
 or the accumulator
 .Pq Dv BPF_A .
 .Pp
-.Bl -tag -width "BPF_RET+BPF_K" -compact
-.It Li BPF_RET+BPF_A
-accept A bytes
-.It Li BPF_RET+BPF_K
-accept k bytes
-.El
+.Bd -literal
+BPF_RET+BPF_A		accept A bytes
+BPF_RET+BPF_K		accept k bytes
+.Ed
 .It Dv BPF_MISC
 The miscellaneous category was created for anything that doesn't
 fit into the above classes, and for any new instructions that might need to
@@ -634,12 +592,10 @@ be added.
 Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
 .Pp
-.Bl -tag -width "BPF_MISC+BPF_TAX" -compact
-.It Li BPF_MISC+BPF_TAX
-X <- A
-.It Li BPF_MISC+BPF_TXA
-A <- X
-.El
+.Bd -literal
+BPF_MISC+BPF_TAX	X <- A
+BPF_MISC+BPF_TXA	A <- X
+.Ed
 .El
 .Pp
 The
@@ -765,5 +721,6 @@ and
 .An -nosplit
 .An Steven McCanne ,
 of Lawrence Berkeley Laboratory, implemented BPF in
-Summer 1990.  Much of the design is due to
+Summer 1990.
+Much of the design is due to
 .An Van Jacobson .

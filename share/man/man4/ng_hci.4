@@ -117,7 +117,7 @@ provides a uniform method of accessing the Bluetooth baseband capabilities.
 .Pp
 The HCI layer on the Host exchanges data and commands with the HCI firmware
 on the Bluetooth hardware.
-The Host Controller Transport Layer (i.e. physical
+The Host Controller Transport Layer (i.e., physical
 bus) driver provides both HCI layers with the ability to exchange information
 with each other.
 .Pp
@@ -223,7 +223,7 @@ typedef struct {
 } ng_hci_node_up_ep;
 .Ed
 .Sh HCI FLOW CONTROL
-HCI layer performs flow control on baseband connection basis (i.e. ACL and
+HCI layer performs flow control on baseband connection basis (i.e., ACL and
 SCO link).
 Each baseband connection has
 .Dq "connection handle"
@@ -334,7 +334,7 @@ Returns content of the neighbor cache.
 .It Dv NGM_HCI_NODE_FLUSH_NEIGHBOR_CACHE
 Remove all neighbor cache entries.
 .It Dv NGM_HCI_NODE_GET_CON_LIST
-Returns list of active baseband connections (i.e. ACL and SCO links).
+Returns list of active baseband connections (i.e., ACL and SCO links).
 .It Dv NGM_HCI_NODE_GET_STAT
 Returns various statistic counters.
 .It Dv NGM_HCI_NODE_RESET_STAT

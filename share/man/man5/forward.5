@@ -41,13 +41,16 @@
 The
 .Nm .forward
 file contains a list of mail addresses or programs
-that the user's mail should be redirected to.  If the
+that the user's mail should be redirected to.
+If the
 file is not present, then no mail forwarding will be done.
 Mail may also be forwarded as the standard input to a program
 by prefixing the line
-with the normal shell pipe symbol (|).  If arguments
+with the normal shell pipe symbol (|).
+If arguments
 are to be passed to the command, then the entire line
-should be enclosed in quotes.  For security reasons, the
+should be enclosed in quotes.
+For security reasons, the
 .Nm .forward
 file must be owned by the user the mail is being sent to,
 or by root, and the user's shell must be listed in

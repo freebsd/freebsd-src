@@ -65,7 +65,8 @@ The
 .Nm master.passwd
 file is readable only by root, and consists of newline separated
 records, one per user, containing ten colon (``:'') separated
-fields.  These fields are as follows:
+fields.
+These fields are as follows:
 .Pp
 .Bl -tag -width password -offset indent
 .It name
@@ -105,18 +106,21 @@ The
 .Ar name
 field is the login used to access the computer account, and the
 .Ar uid
-field is the number associated with it.  They should both be unique
+field is the number associated with it.
+They should both be unique
 across the system (and often across a group of systems) since they
 control file access.
 .Pp
 While it is possible to have multiple entries with identical login names
-and/or identical user id's, it is usually a mistake to do so.  Routines
+and/or identical user id's, it is usually a mistake to do so.
+Routines
 that manipulate these files will often return only one of the multiple
 entries, and that one by random selection.
 .Pp
 The login name must never begin with a hyphen (``-''); also, it is strongly
 suggested that neither upper-case characters or dots (``.'') be part
-of the name, as this tends to confuse mailers.  No field may contain a
+of the name, as this tends to confuse mailers.
+No field may contain a
 colon (``:'') as this has been used historically to separate the fields
 in the user database.
 .Pp
@@ -126,7 +130,8 @@ form of the password.
 If the
 .Ar password
 field is empty, no password will be required to gain access to the
-machine.  This is almost invariably a mistake.
+machine.
+This is almost invariably a mistake.
 Because these files contain the encrypted user passwords, they should
 not be readable by anyone without appropriate privileges.
 .Pp
@@ -137,7 +142,8 @@ this field currently has little special meaning.
 .Pp
 The
 .Ar class
-field is a key for a user's login class. Login classes
+field is a key for a user's login class.
+Login classes
 are defined in
 .Xr login.conf 5 ,
 which is a
@@ -280,7 +286,8 @@ or
 fields, the specified numbers will override the information retrieved
 from the Hesiod domain or the
 .Tn NIS
-maps. As well, if the
+maps.
+As well, if the
 .Ar gecos ,
 .Ar dir
 or
