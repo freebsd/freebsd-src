@@ -160,8 +160,13 @@ Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
 where large memory dumps could take up to an hour to complete.
 
-The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs 
-when unloading and reloading, and syncs with some NetBSD changes.
+The bktr(4) driver has been updated to 2.15.  New tuner types have
+been added, and improvememts to the KLD module and to memory
+allocation have been made. [MERGED]
+
+The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
+when unloading and reloading, and syncs with some NetBSD
+changes. [MERGED]
 
 Extremely large swap areas (>67 GB) no longer panic the system.
 
@@ -312,10 +317,6 @@ libreadline has been upgraded to 4.1. [MERGED]
 
 The ifconfig(8) command can set the link-layer address of an interface. 
 [MERGED]
-
-bktr(4) driver update to 2.1.5.  New tuner types have been added, 
-and improvememts to the KLD module and to memory allocation have been
-made. [MERGED]
 
 setproctitle(3) has been moved from libutil to libc. [MERGED]
 

@@ -829,7 +829,22 @@ Printer Adapters:
    Entrega USB-to-parallel printer adapter.
 
 Scanners:
-   Perfection 636U
+   Acer Acerscan 320U, 620U, 640U, C310U, 1212U
+   AGFA SnapScan Touch
+   Avision 1200U
+   Epson Perfection 610, 636U/636Photo, 1200U/1200Photo, 1600
+   Hewlett Packard Photosmart S20
+   Hewlett Packard Scanjet 3300C, 4100C, 4200C, 5200C, 5300C, 6200C, 6300C
+   KYE ColorPage Vivid-Pro
+   Microtek Phantom 336CX, C6
+   Microtek ScanMaker V6UL, V6USL, X6U
+   Mustek 600 CU, 1200 CU, 1200 UB, 1200 USB
+   NatSemi BearPaw 1200
+   Primax Colorado 600u, 1200u, USB 9600, USB 19200
+   Primax G2-200, G2-300, G2-600, G2E-300, G2E-600
+   Primax ReadyScan 636i
+   UMAX Astra 1220U, 1236U, 2000U, 2100U, 2200U
+   Visioneer OneTouch 5300, 6100, 6200, 7600, 8100, 8600
 
 Miscalleneous:
    ActiveWire I/O Board.
