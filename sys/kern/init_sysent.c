@@ -358,4 +358,5 @@ struct sysent sysent[] = {
 	{ 8, (sy_call_t *)sendfile },			/* 336 = sendfile */
 	{ 3, (sy_call_t *)kldsym },			/* 337 = kldsym */
 	{ 1, (sy_call_t *)jail },			/* 338 = jail */
+	{ 0, (sy_call_t *)nosys },			/* 339 = pioctl */
 };
