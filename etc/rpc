@@ -65,3 +65,4 @@ nispasswd	100303	rpc.nispasswdd
 ufsd		100233
 pcnfsd		150001	pcnfs
 amd		300019
+sgi_fam		391002	# file alteration monitor
