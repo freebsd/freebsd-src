@@ -7,16 +7,10 @@
 # most of the remaining warnings.  Warnings introduced with -Wall will
 # also pop up, but are easier to fix.
 #
-# XXX FIXME - revert when there is a gcc3 with -fformat-extensions
-.ifndef GCC3
-CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-fformat-extensions -ansi
-.else
+# XXX FIXME - revert to -fformat-extensions when we've re-added it
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-Wno-format -ansi
-.endif
 #
 # The following flags are next up for working on:
 #	-W
