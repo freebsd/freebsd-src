@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.34 1997/12/31 03:15:06 alex Exp $
+ * $Id: malloc.c,v 1.35 1998/03/09 07:00:38 jb Exp $
  *
  */
 
@@ -56,7 +56,7 @@
 #       define THREAD_STATUS 		int thread_lock_status;
 #       define THREAD_LOCK()		_thread_kern_sig_block(&thread_lock_status);
 #       define THREAD_UNLOCK()		_thread_kern_sig_unblock(thread_lock_status);
-        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
         static pthread_mutex_t malloc_lock = &_malloc_lock;
 #   endif
 #endif /* __FreeBSD__ */
