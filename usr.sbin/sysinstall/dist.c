@@ -521,7 +521,7 @@ distExtractTarball(char *path, char *dist, char *my_dir, int is_base)
 {
     char *buf = NULL, fname[PATH_MAX];
     struct timeval start, stop;
-    int i, j, status, total, intr;
+    int j, status, total, intr;
     int cpid, zpid, fd2, chunk, numchunks;
     properties dist_attr = NULL;
     const char *tmp;
