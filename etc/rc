@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.23 1994/05/23 11:22:10 ache Exp $
+#	$Id: rc,v 1.24 1994/06/01 17:04:01 paul Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -68,6 +68,12 @@ rm -f /fastboot		# XXX (root now writeable)
 # If this file not exist, following line does nothing (assumed
 # the machine runs UTC CMOS clock). See adjkerntz(8) for details.
 adjkerntz -i
+
+# configure serial devices
+if [ -f /etc/rc.serial ]
+then
+	sh /etc/rc.serial
+fi
 
 # set hostname, turn on network
 echo 'starting network'
