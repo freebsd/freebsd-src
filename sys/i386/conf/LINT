@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.542 1999/01/23 14:50:28 rnordier Exp $
+#	$Id: LINT,v 1.543 1999/01/23 17:06:01 nsouch Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -777,6 +777,10 @@ pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
 pseudo-device	ccd	4	#Concatenated disk driver
+
+# Configuring Vinum into the kernel is not necessary, since the kld
+# module gets started automatically when vinum(8) starts.  This 
+# device is also untested.  Use at your own risk.
 pseudo-device	vinum		#Vinum concat/mirror/raid driver
 options 	VINUMDEBUG	#enable Vinum debugging hooks
 
