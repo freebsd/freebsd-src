@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.97 1997/07/28 07:49:40 msmith Exp $
+ *	$Id: isa.c,v 1.98 1997/07/28 09:13:11 msmith Exp $
  */
 
 /*
@@ -928,21 +928,24 @@ isa_dmastatus(int chan)
 		waport = DMA2_CHN(chan - 4) + 2;
 	}
 
-	ef = read_eflags();		/* get current flags */
 	disable_intr();			/* no interrupts Mr Jones! */
 	outb(ffport, 0);		/* clear register LSB flipflop */
 	low1 = inb(waport);
 	high1 = inb(waport);
-	outb(ffport, 0);		/* clear again (paranoia?) */
+	outb(ffport, 0);		/* clear again */
 	low2 = inb(waport);
 	high2 = inb(waport);
-	write_eflags(ef);		/* restore flags */
+	enable_intr();			/* enable interrupts again */
 
-	/* now decide if a wrap has tried to skew our results */
+	/* 
+	 * Now decide if a wrap has tried to skew our results.
+	 * Note that after TC, the count will read 0xffff, while we want 
+	 * to return zero, so we add and then mask to compensate.
+	 */
 	if (low1 >= low2) {
-		cnt = low1 + (high1 << 8) + 1;
+		cnt = (low1 + (high1 << 8) + 1) & 0xffff;
 	} else {
-		cnt = low2 + (high2 << 8) + 1;
+		cnt = (low2 + (high2 << 8) + 1) & 0xffff;
 	}
 
 	if (chan >= 4)			/* high channels move words */
