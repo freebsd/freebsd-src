@@ -367,6 +367,12 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 		(pci_get_slot(*childp) == device) &&
 		(pci_get_intpin(*childp) == matchpin)) {
 		irq = pci_get_irq(*childp);
+		/*
+		 * Some BIOS writers seem to want to ignore the spec and put
+		 * 0 in the intline rather than 255 to indicate none.  Once
+		 * we've found one that matches, we break because there can
+		 * be no others (which is why test looks a little odd).
+		 */
 		if (irq == 0)
 		    irq = 255;
 		if (irq != 255)
