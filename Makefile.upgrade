@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.3 1998/09/03 21:16:15 jb Exp $
+#	$Id: Makefile.upgrade,v 1.4 1998/09/05 08:10:44 jb Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -41,6 +41,7 @@ make	:
 aout-to-elf aout-to-elf-install :				\
 		${MAKEOBJDIRPREFIX}/do_aout_buildworld		\
 		${MAKEOBJDIRPREFIX}/do_elf_buildworld		\
+		${MAKEOBJDIRPREFIX}/do_move_aout_libs		\
 		${MAKEOBJDIRPREFIX}/do_aout_installworld	\
 		${MAKEOBJDIRPREFIX}/do_aout_kernel		\
 		${MAKEOBJDIRPREFIX}/do_elf_installworld		\
@@ -88,6 +89,58 @@ ${MAKEOBJDIRPREFIX}/do_elf_buildworld :
 		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
 		make -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
 	@touch ${MAKEOBJDIRPREFIX}/do_elf_buildworld
+
+#
+# ldconfig should list the directories that the system is currently using.
+#
+CUSTOM_LIBDIRS!=ldconfig -r | grep search | sed "s/search directories: //" | sed "s/:/ /g"
+
+#
+# These are the standard library directories that should end up containing
+# just elf libraries.
+#
+LIBDIRS=/usr/lib /usr/lib/compat /usr/local/lib /usr/X11R6/lib
+
+#
+# Go through the list of library directories from ldconfig and add any
+# directory that doesn't contain an aout path component to the list of
+# library directories to search.
+#
+.for _lib in ${CUSTOM_LIBDIRS}
+_lib1=${_lib:S/\/aout//}
+.if ${_lib1} == ${_lib}
+.if ${LIBDIRS:R:M${_lib:R}} == ""
+LIBDIRS+=${_lib}
+.endif
+.endif
+.endfor
+
+#
+# Go through the list of library directories and prepare a list of
+# aout directories.
+#
+AOUTLIBDIRS=
+.for _lib in ${LIBDIRS}
+AOUTLIBDIRS+=${_lib}/aout
+.endfor
+
+#
+# Move the aout libraries into an aout sub-directory of each elf library
+# directory.
+#
+${MAKEOBJDIRPREFIX}/do_move_aout_libs move-aout-libs :
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " You are about to move all the installed a.out libraries into"
+	@echo " an aout sub-directory of each elf library directory. You can"
+	@echo " type Ctrl-C to abort now or press return to start the moving"
+	@echo " the libraries."
+	@echo "--------------------------------------------------------------"
+	@echo Directories to search: ${LIBDIRS}
+	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+	@sh ${.CURDIR}/tools/tools/upgrade/move_aout_libs.sh ${LIBDIRS}
+	@ldconfig ${AOUTLIBDIRS}
+	@touch ${MAKEOBJDIRPREFIX}/do_move_aout_libs
 
 #
 # Before installing the aout world, allow for the possibility that the
