@@ -43,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
+#if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -389,8 +391,10 @@ ndis_attach(dev)
 
 	sc->ndis_regvals = ndis_regvals;
 
+#if __FreeBSD_version < 502113
 	sysctl_ctx_init(&sc->ndis_ctx);
 
+#endif
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
@@ -741,8 +745,10 @@ ndis_detach(dev)
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
+#if __FreeBSD_version < 502113
 	sysctl_ctx_free(&sc->ndis_ctx);
 
+#endif
 	mtx_destroy(&sc->ndis_mtx);
 	mtx_destroy(&sc->ndis_intrmtx);
 
