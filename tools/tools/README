@@ -19,6 +19,7 @@ diffburst	OBSOLETE: equivalent functionality is available via split -p.
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 find-sb		Scan a disk for possible filesystem superblocks.
+hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
