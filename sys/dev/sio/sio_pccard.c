@@ -46,7 +46,6 @@
 #include <dev/sio/siovar.h>
 
 static	int	sio_pccard_attach(device_t dev);
-static	int	sio_pccard_detach(device_t dev);
 static	int	sio_pccard_match(device_t self);
 static	int	sio_pccard_probe(device_t dev);
 
@@ -54,7 +53,7 @@ static device_method_t sio_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	sio_pccard_detach),
+	DEVMETHOD(device_detach,	siodetach),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	sio_pccard_match),
@@ -108,13 +107,6 @@ sio_pccard_attach(dev)
 	device_t	dev;
 {
 	return (sioattach(dev, 0, 0UL));
-}
-
-static int
-sio_pccard_detach(dev)
-	device_t	dev;
-{
-	return (siodetach(dev));
 }
 
 DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
