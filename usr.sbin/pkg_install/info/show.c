@@ -279,9 +279,26 @@ show_cksum(const char *title, Package *plist)
 	    snprintf(tmp, FILENAME_MAX, "%s/%s", dir, p->name);
 	    if (!fexists(tmp))
 		warnx("%s doesn't exist\n", tmp);
-	    else if (p->next && p->next->type == PLIST_COMMENT && !strncmp(p->next->name, "MD5:", 4)) {
-		char *cp, buf[33];
-		if ((cp = MD5File(tmp, buf)) != NULL) {
+	    else if (p->next && p->next->type == PLIST_COMMENT &&
+	             (strncmp(p->next->name, "MD5:", 4) == 0)) {
+		char *cp = NULL, buf[33];
+
+		/*
+		 * For packing lists whose version is 1.1 or greater, the md5
+		 * hash for a symlink is calculated on the string returned
+		 * by readlink().
+		 */
+		if (issymlink(tmp) && verscmp(plist, 1, 0) > 0) {
+		    int len;
+		    char linkbuf[FILENAME_MAX];
+
+		    if ((len = readlink(tmp, linkbuf, FILENAME_MAX)) > 0)
+			cp = MD5Data((unsigned char *)linkbuf, len, buf);
+		} else if (isfile(tmp) || verscmp(plist, 1, 1) < 0)
+		    cp = MD5File(tmp, buf);
+
+		if (cp != NULL) {
+		    /* Mismatch? */
 		    if (strcmp(cp, p->next->name + 4))
 			printf("%s fails the original MD5 checksum\n", tmp);
 		    else if (Verbose)
