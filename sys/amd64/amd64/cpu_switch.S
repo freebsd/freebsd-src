@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.9 1994/08/06 09:17:44 davidg Exp $
+ *	$Id: swtch.s,v 1.10 1994/08/19 22:49:42 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -41,7 +41,6 @@
 #include "errno.h"	/* for error codes */
 
 #include "machine/asmacros.h"	/* for miscellaneous assembly macros */
-#define	LOCORE			/* XXX inhibit C declarations */
 #include "machine/spl.h"	/* for SWI_AST_MASK ... */
 
 
