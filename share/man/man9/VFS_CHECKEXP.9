@@ -26,36 +26,69 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $Id: VFS_FHTOVP.9,v 1.4 1998/08/03 17:29:44 bde Exp $
 .\" $FreeBSD$
 .\"
 .Dd July 24, 1996
 .Os
-.Dt VFS 9
+.Dt VFS_CHECKEXP 9
 .Sh NAME
-.Nm VFS
-.Nd kernel interface to filesystems
+.Nm VFS_CHECKEXP
+.Nd check if vnode is exported to a client
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/mount.h>
+.Fd #include <sys/vnode.h>
+.Ft int
+.Fn VFS_CHECKEXP "struct mount *mp" "struct mbuf  *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION
-Calls used to set or query filesystems for settings or information.
+This is used by the NFS server to check if a vnode is exported to a client.
 .Pp
-Filesytems that don't implement a VFS operation should use the appropriate
-.Fa vfs_std
-function from
-.Fa src/sys/vfs_defaults.c 
-rather than implementing empty functions or casting to
-.Fa eopnotsupp .
+Its arguments are:
+.Bl -tag -width credanonp
+.It Ar mp
+The mount point to be checked.
+.It Ar nam
+An mbuf containing the network address of the client.
+.It Ar exflagsp
+Return parameter for the export flags for this client.
+.It Ar credanonp
+Return parameter for the anonymous credentials for this client.
+.El
+.Pp
+This should be called on a file system's mount structure to determine if it 
+is exported to a client whos address is contained in 
+.Fa nam .
+.Pp
+It is generally called before
+.Xr VFS_FHTOVP 9
+to validate that a client has access to the filesystem.
+.Pp
+The filesystem should call
+.Xr vfs_export_lookup 9
+with the address of an appropriate
+.Dv netexport 
+structure and the address of the client,
+.Fa nam ,
+to verify that the client can access this filesystem.
+.Pp
+.Sh RETURN VALUES
+The export flags and anonymous credentials specific to the client
+will be returned in
+.Fa *exflagsp
+and
+.Fa *credanonp .
 .Sh SEE ALSO
-.Xr vnode 9
-.Xr VFS_CHECKEXP 9 ,
+.Xr VFS 9 ,
 .Xr VFS_FHTOVP 9 ,
-.Xr VFS_INIT 9 ,
-.Xr VFS_MOUNT 9 ,
-.Xr VFS_QUOTACTL 9 ,
-.Xr VFS_START 9 ,
-.Xr VFS_STATFS 9 ,
-.Xr VFS_SYNC 9 ,
-.Xr VFS_UNMOUNT 9 ,
-.Xr VFS_VGET 9 ,
-.Xr VFS_VPTOFH 9
+.Xr VFS_VPTOFH 9 ,
+.Xr vnode 9
 .Sh AUTHORS
 This man page was written by
-.An Doug Rabson .
+.An Doug Rabson ,
+for 
+.Xr VFS_FHTOVP 9
+and modified for 
+.Xr VFS_CHECKEXP 9
+by
+.An Alfred Perlstein .
