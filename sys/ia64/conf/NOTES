@@ -51,3 +51,11 @@ device		agp
 device		eisa
 device		isa
 device		pci
+
+# The following devices are no supported
+nodevice	fdc
+nooption	FDC_DEBUG
+
+nodevice	sio
+nooption	COM_ESP
+nooption	CONSPEED
