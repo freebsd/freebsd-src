@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.3 (Berkeley) 12/5/94
- * $Id: cd9660_util.c,v 1.10 1997/04/10 14:35:11 bde Exp $
+ * $Id: cd9660_util.c,v 1.11 1999/04/18 10:58:02 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -162,7 +162,7 @@ isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level)
 	for (; infn != infnend; fnidx++) {
 		infn += isochar(infn, infnend, joliet_level, &c);
 
-		if (!original && c >= 'A' && c <= 'Z')
+		if (!original && !joliet_level && c >= 'A' && c <= 'Z')
 			*outfn++ = c + ('a' - 'A');
 		else if (!original && c == ';') {
 			fnidx -= (d == '.');
