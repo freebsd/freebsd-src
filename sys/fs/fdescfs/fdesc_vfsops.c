@@ -74,7 +74,6 @@ fdesc_mount(mp, path, data, ndp, p)
 	struct proc *p;
 {
 	int error = 0;
-	u_int size;
 	struct fdescmount *fmp;
 	struct vnode *rvp;
 
@@ -98,8 +97,6 @@ fdesc_mount(mp, path, data, ndp, p)
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
-	(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("fdesc", mp->mnt_stat.f_mntfromname, sizeof("fdesc"));
 	(void)fdesc_statfs(mp, &mp->mnt_stat, p);

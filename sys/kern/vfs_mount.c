@@ -214,6 +214,14 @@ vfs_mountroot_try(char *mountfrom)
 	    (devsw(rootdev)->d_flags & D_MEMDISK))
 		mp->mnt_flag &= ~MNT_RDONLY;
 
+	/* 
+	 * Set the mount path to be something useful, because the
+	 * filesystem code isn't responsible now for initialising
+	 * f_mntonname unless they want to override the default
+	 * (which is `path'.)
+	 */
+	strncpy(mp->mnt_stat.f_mntonname, "/", MNAMELEN);
+
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
 
 done:

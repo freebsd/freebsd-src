@@ -901,14 +901,16 @@ linux_pwrite(p, uap)
 int
 linux_mount(struct proc *p, struct linux_mount_args *args)
 {
-	struct mount_args bsd_args;
 	struct ufs_args ufs;
         char fstypename[MFSNAMELEN];
         char mntonname[MNAMELEN], mntfromname[MNAMELEN];
-	int error = 0;
+	int error;
+	int fsflags;
+	const char *fstype;
+	void *fsdata;
 
-        error = copyinstr(args->filesystemtype, fstypename, 
-	    MFSNAMELEN - 1, NULL);
+        error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
+	    NULL);
 	if (error)
                 return (error);
         error = copyinstr(args->specialfile, mntfromname, MFSNAMELEN - 1, NULL);
@@ -925,22 +927,21 @@ linux_mount(struct proc *p, struct linux_mount_args *args)
 #endif
 
 	if (strcmp(fstypename, "ext2") == 0) {
-		bsd_args.type = "ext2fs";
-		bsd_args.data = (void *)&ufs;
+		fstype = "ext2fs";
+		fsdata = &ufs;
 		ufs.fspec = mntfromname;
 #define DEFAULT_ROOTID		-2
 		ufs.export.ex_root = DEFAULT_ROOTID;
 		ufs.export.ex_flags =
 		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
 	} else if (strcmp(fstypename, "proc") == 0) {
-		bsd_args.type = "linprocfs";
-		bsd_args.data = NULL;
+		fstype = "linprocfs";
+		fsdata = NULL;
 	} else {
 		return (ENODEV);
 	}
 
-	bsd_args.path = mntonname;
-	bsd_args.flags = 0;
+	fsflags = 0;
 
 	if ((args->rwflag & 0xffff0000) == 0xc0ed0000) {
 		/*
@@ -948,18 +949,18 @@ linux_mount(struct proc *p, struct linux_mount_args *args)
 		 * FreeBSD has is !ASYNC, which is our default.
 		 */
 		if (args->rwflag & LINUX_MS_RDONLY)
-			bsd_args.flags |= MNT_RDONLY; 
+			fsflags |= MNT_RDONLY; 
 		if (args->rwflag & LINUX_MS_NOSUID)
-			bsd_args.flags |= MNT_NOSUID; 
+			fsflags |= MNT_NOSUID; 
 		if (args->rwflag & LINUX_MS_NODEV)
-			bsd_args.flags |= MNT_NODEV; 
+			fsflags |= MNT_NODEV; 
 		if (args->rwflag & LINUX_MS_NOEXEC)
-			bsd_args.flags |= MNT_NOEXEC; 
+			fsflags |= MNT_NOEXEC; 
 		if (args->rwflag & LINUX_MS_REMOUNT)
-			bsd_args.flags |= MNT_UPDATE; 
+			fsflags |= MNT_UPDATE; 
 	}
 
-	return (mount1(p, &bsd_args, UIO_SYSSPACE));
+	return (vfs_mount(p, fstype, mntonname, fsflags, fsdata));
 }
 
 int
