@@ -68,7 +68,7 @@
 #define	PCIC_ID_TI1450		0xac1b104cul
 #define	PCIC_ID_TI1451		0xac52104cul
 #define PCIC_ID_TI1510		0xac56104cul
-#define PCIC_ID_TI1510		0xac58104cul
+#define PCIC_ID_TI1515		0xac58104cul
 #define PCIC_ID_TI1520		0xac55104cul
 #define PCIC_ID_TI1530		0xac57104cul
 #define PCIC_ID_TI1620		0xac54104cul
