@@ -121,7 +121,7 @@ main(argc, argv)
 		}
 	if (rval < 0)
 		err(1, "read");
-	return (exitval);
+	exit(exitval);
 }
 
 static void
