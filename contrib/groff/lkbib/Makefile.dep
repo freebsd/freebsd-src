@@ -1,0 +1,3 @@
+lkbib.o: lkbib.cc ../include/lib.h ../include/errarg.h \
+ ../include/error.h ../include/defs.h ../include/refid.h \
+ ../include/search.h
