@@ -468,8 +468,8 @@ ntfs_unmount(
 	int mntflags,
 	struct thread *td)
 {
-	register struct ntfsmount *ntmp;
-	int error, ronly = 0, flags, i;
+	struct ntfsmount *ntmp;
+	int error, ronly, flags, i;
 
 	dprintf(("ntfs_unmount: unmounting...\n"));
 	ntmp = VFSTONTFS(mp);
