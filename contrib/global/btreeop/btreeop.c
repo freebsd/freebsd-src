@@ -257,7 +257,7 @@ DB	*db;
 {
 	DBT     key, dat;
 	int	status;
-#define IDENTLEN 80
+#define IDENTLEN 300
 	char	keybuf[IDENTLEN+1];
 	char	*c;
 
