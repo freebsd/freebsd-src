@@ -70,7 +70,7 @@ my %SETUPS	= (
 	'ENV'		=> {
 	    'MAKE_KERBEROS5'	=> 'YES',
 	},
-#	'RECIPIENT'	=> 'stable@freebsd.org,%%arch%%@freebsd.org',
+	'RECIPIENT'	=> 'stable@freebsd.org,%%arch%%@freebsd.org',
     },
 
     '9ball' => {
