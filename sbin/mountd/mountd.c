@@ -645,6 +645,7 @@ get_exportlist()
 		case MOUNT_MFS:
 		case MOUNT_UFS:
 		case MOUNT_CD9660:
+		case MOUNT_MSDOS:
 			targs.ua.fspec = NULL;
 			targs.ua.export.ex_flags = MNT_DELEXPORT;
 			if (mount(fsp->f_type, fsp->f_mntonname,
