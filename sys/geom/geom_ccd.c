@@ -1134,6 +1134,7 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		cs->sc_disk->d_fwheads = ccg->ccg_ntracks;
 		cs->sc_dev = disk_create(unit, cs->sc_disk, 0, NULL, NULL);
 		cs->sc_dev->si_drv1 = cs;
+		cs->sc_dev->si_iosize_max = MAXPHYS;
 
 		ccdunlock(cs);
 
