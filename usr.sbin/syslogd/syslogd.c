@@ -586,7 +586,7 @@ printline(hname, msg)
 	q = line;
 
 	while ((c = (unsigned char)*p++) != '\0' &&
-	    q < &line[sizeof(line) - 3]) {
+	    q < &line[sizeof(line) - 4]) {
 		if ((c & 0x80) && c < 0xA0) {
 			c &= 0x7F;
 			*q++ = 'M';
@@ -1555,7 +1555,6 @@ cfline(line, f, prog, host)
 		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';	  
 		hp = gethostbyname(f->f_un.f_forw.f_hname);
 		if (hp == NULL) {
-			extern int h_errno;
 
 			logerror(hstrerror(h_errno));
 			break;
