@@ -65,7 +65,8 @@ __FBSDID("$FreeBSD$");
 
 
 void
-AliasHandleIrcOut(struct ip *pip, /* IP packet to examine */
+AliasHandleIrcOut(struct libalias *la, 
+				 struct ip *pip, /* IP packet to examine */
 				 struct alias_link *link,		  /* Which link are we on? */
 				 int maxsize		  /* Maximum size of IP packet including headers */
 				 )
@@ -246,7 +247,7 @@ lFOUND_CTCP:
 			 /* Steal the FTP_DATA_PORT - it doesn't really matter, and this
 				 would probably allow it through at least _some_
 				 firewalls. */
-			 dcc_link = FindUdpTcpOut(true_addr, destaddr,
+			 dcc_link = FindUdpTcpOut(la, true_addr, destaddr,
 						  true_port, 0,
 						  IPPROTO_TCP, 1);
 			 DBprintf(("Got a DCC link\n"));

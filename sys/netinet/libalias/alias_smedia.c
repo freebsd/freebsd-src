@@ -137,7 +137,7 @@ search_string(char *data, int dlen, const char *search_str)
 }
 
 static int
-alias_rtsp_out(struct ip *pip,
+alias_rtsp_out(struct libalias *la, struct ip *pip,
 		   struct alias_link *link,
 		   char *data,
 		   const char *port_str)
@@ -221,8 +221,8 @@ alias_rtsp_out(struct ip *pip,
 		  /* Find an even numbered port number base that
 		     satisfies the contiguous number of ports we need  */
 		  null_addr.s_addr = 0;
-		  if (0 == (salias = FindNewPortGroup(null_addr,
-	       			    FindAliasAddress(pip->ip_src),
+		  if (0 == (salias = FindNewPortGroup(la, null_addr,
+	       			    FindAliasAddress(la, pip->ip_src),
 				    sport, 0,
 				    RTSP_PORT_GROUP,
 				    IPPROTO_UDP, 1))) {
@@ -235,7 +235,7 @@ alias_rtsp_out(struct ip *pip,
   		    base_alias = ntohs(salias);
 		    for (j = 0; j < RTSP_PORT_GROUP; j++) {
 		      /* Establish link to port found in RTSP packet */
-		      rtsp_link = FindRtspOut(GetOriginalAddress(link), null_addr,
+		      rtsp_link = FindRtspOut(la, GetOriginalAddress(link), null_addr,
                                 htons(base_port + j), htons(base_alias + j),
                                 IPPROTO_UDP);
 		      if (rtsp_link != NULL) {
@@ -319,7 +319,7 @@ alias_rtsp_out(struct ip *pip,
 /* Support the protocol used by early versions of RealPlayer */
 
 static int
-alias_pna_out(struct ip *pip,
+alias_pna_out(struct libalias *la, struct ip *pip,
 		  struct alias_link *link,
 		  char *data,
 		  int dlen)
@@ -343,7 +343,7 @@ alias_pna_out(struct ip *pip,
 	}
 	if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 	    memcpy(&port, work, 2);
-	    pna_links = FindUdpTcpOut(pip->ip_src, GetDestAddress(link),
+	    pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
 				      port, 0, IPPROTO_UDP, 1);
 	    if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
@@ -366,7 +366,7 @@ alias_pna_out(struct ip *pip,
 }
 
 void
-AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
+AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link, int maxpacketsize)
 {
     int    hlen, tlen, dlen;
     struct tcphdr *tc;
@@ -390,13 +390,13 @@ AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
 
       if (dlen >= strlen(setup)) {
         if (memcmp(data, setup, strlen(setup)) == 0) {
-	    alias_rtsp_out(pip, link, data, client_port_str);
+	    alias_rtsp_out(la, pip, link, data, client_port_str);
 	    return;
 	}
       }
       if (dlen >= strlen(pna)) {
 	if (memcmp(data, pna, strlen(pna)) == 0) {
-	    alias_pna_out(pip, link, data, dlen);
+	    alias_pna_out(la, pip, link, data, dlen);
 	}
       }
 
@@ -424,7 +424,7 @@ AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
           if ((dlen - i) >= strlen(okstr)) {
 
             if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
-              alias_rtsp_out(pip, link, data, server_port_str);
+              alias_rtsp_out(la, pip, link, data, server_port_str);
 
           }
         }

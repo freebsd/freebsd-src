@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -66,7 +67,7 @@ struct client_info {
 };
 
 void
-AliasHandleCUSeeMeOut(struct ip *pip, struct alias_link *link)
+AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *link)
 {
   struct udphdr *ud;
 
@@ -79,7 +80,7 @@ AliasHandleCUSeeMeOut(struct ip *pip, struct alias_link *link)
     if (cu->addr)
       cu->addr = (u_int32_t)GetAliasAddress(link).s_addr;
 
-    cu_link = FindUdpTcpOut(pip->ip_src, GetDestAddress(link),
+    cu_link = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
                             ud->uh_dport, 0, IPPROTO_UDP, 1);
 
 #ifndef NO_FW_PUNCH
@@ -90,7 +91,7 @@ AliasHandleCUSeeMeOut(struct ip *pip, struct alias_link *link)
 }
 
 void
-AliasHandleCUSeeMeIn(struct ip *pip, struct in_addr original_addr)
+AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, struct in_addr original_addr)
 {
   struct in_addr alias_addr;
   struct udphdr *ud;

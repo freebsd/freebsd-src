@@ -173,7 +173,7 @@ alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
 }
 
 static int
-alias_skinny_opnrcvch_ack(struct OpenReceiveChannelAck *opnrcvch_ack,
+alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opnrcvch_ack,
                           struct ip * pip, struct tcphdr *tc,
                           struct alias_link *link, u_int32_t *localIpAddr,
                           ConvDirection direction)
@@ -186,7 +186,7 @@ alias_skinny_opnrcvch_ack(struct OpenReceiveChannelAck *opnrcvch_ack,
   localPort = opnrcvch_ack->port;
 
   null_addr.s_addr = INADDR_ANY;
-  opnrcv_link = FindUdpTcpOut(pip->ip_src, null_addr,
+  opnrcv_link = FindUdpTcpOut(la, pip->ip_src, null_addr,
                               htons((u_short) opnrcvch_ack->port), 0,
                               IPPROTO_UDP, 1);
   opnrcvch_ack->ipAddr = (u_int32_t) GetAliasAddress(opnrcv_link).s_addr;
@@ -199,7 +199,7 @@ alias_skinny_opnrcvch_ack(struct OpenReceiveChannelAck *opnrcvch_ack,
 }
 
 void
-AliasHandleSkinny(struct ip *pip, struct alias_link *link)
+AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *link)
 {
   int             hlen, tlen, dlen;
   struct tcphdr  *tc;
@@ -220,9 +220,9 @@ AliasHandleSkinny(struct ip *pip, struct alias_link *link)
    * handle the scenario where the call manager is on the inside, and
    * the calling phone is on the global outside.
    */
-  if (ntohs(tc->th_dport) == skinnyPort) {
+  if (ntohs(tc->th_dport) == la->skinnyPort) {
     direction = ClientToServer;
-  } else if (ntohs(tc->th_sport) == skinnyPort) {
+  } else if (ntohs(tc->th_sport) == la->skinnyPort) {
     direction = ServerToClient;
   } else {
 #ifdef DEBUG
@@ -306,7 +306,7 @@ AliasHandleSkinny(struct ip *pip, struct alias_link *link)
                   "PacketAlias/Skinny: Received open rcv channel msg\n");
 #endif
           opnrcvchn_ack = (struct OpenReceiveChannelAck *) & sd->msgId;
-          alias_skinny_opnrcvch_ack(opnrcvchn_ack, pip, tc, link, &lip, direction);
+          alias_skinny_opnrcvch_ack(la, opnrcvchn_ack, pip, tc, link, &lip, direction);
         }
         break;
       case START_MEDIATX:
