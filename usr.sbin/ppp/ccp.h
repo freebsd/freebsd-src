@@ -106,6 +106,7 @@ struct ccp_algorithm {
   int id;
   int Neg;					/* ccp_config neg array item */
   const char *(*Disp)(struct lcp_opt *);	/* Use result immediately !  */
+  int (*Usable)(struct fsm *);			/* Ok to negotiate ? */
   struct {
     int (*Set)(struct lcp_opt *, const struct ccp_config *);
     void *(*Init)(struct lcp_opt *);
@@ -135,5 +136,6 @@ extern int ccp_ReportStatus(struct cmdargs const *);
 extern u_short ccp_Proto(struct ccp *);
 extern void ccp_SetupCallbacks(struct ccp *);
 extern int ccp_SetOpenMode(struct ccp *);
+extern int ccp_IsUsable(struct fsm *);
 
 extern struct layer ccplayer;
