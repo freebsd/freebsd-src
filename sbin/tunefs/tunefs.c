@@ -93,12 +93,12 @@ main(argc, argv)
 	char *special;
 	const char *name;
 	struct stat st;
-	int Aflag = 0, active = 0;
-	int eflag = 0, fflag = 0, mflag = 0;
+	int Aflag = 0, active = 0, aflag = 0;
+	int eflag = 0, fflag = 0, lflag = 0, mflag = 0;
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
 	int evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
-	char *nvalue = NULL; 
+	char *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
 	struct fstab *fs;
 	const char *chg[2];
 	char device[MAXPATHLEN];
@@ -109,8 +109,18 @@ main(argc, argv)
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Ae:f:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "a:Ae:f:l:m:n:o:ps:")) != -1)
 	  switch (ch) {
+	  case 'a':
+		found_arg = 1;
+		name = "ACLs";
+		avalue = optarg;
+		if (strcmp(avalue, "enable") && strcmp(avalue, "disable")) {
+			errx(10, "bad %s (options are %s)", name,
+			    "`enable' or `disable'");
+		}
+		aflag = 1;
+		break;
 	  case 'A':
 		found_arg = 1;
 		Aflag++;
@@ -130,6 +140,16 @@ main(argc, argv)
 		if (fvalue < 1)
 			errx(10, "%s must be >= 1 (was %s)", name, optarg);
 		fflag = 1;
+		break;
+	  case 'l':
+		found_arg = 1;
+		name = "multilabel MAC file system";
+		lvalue = optarg;
+		if (strcmp(lvalue, "enable") && strcmp(lvalue, "disable")) {
+			errx(10, "bad %s (options are %s)", name,
+			    "`enable' or `disable'");
+		}
+		lflag = 1;
 		break;
 	  case 'm':
 		found_arg = 1;
@@ -213,6 +233,26 @@ again:
 		printfs();
 		exit(0);
 	}
+	if (aflag) {
+		name = "ACLs";
+		if (strcmp(avalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_ACLS) {
+				warnx("%s remains unchanged as enabled", name);
+			} else {
+				sblock.fs_flags |= FS_ACLS;
+				warnx("%s set", name);
+			}
+		} else if (strcmp(avalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_ACLS) ==
+			    FS_ACLS) {
+				warnx("%s remains unchanged as disabled",
+				    name);
+			} else {
+				sblock.fs_flags &= ~FS_ACLS;
+				warnx("%s set", name);
+			}
+		}
+	}
 	if (eflag) {
 		name = "maximum blocks per file in a cylinder group";
 		if (sblock.fs_maxbpg == evalue) {
@@ -233,6 +273,26 @@ again:
 			warnx("%s changes from %d to %d",
 					name, sblock.fs_avgfilesize, fvalue);
 			sblock.fs_avgfilesize = fvalue;
+		}
+	}
+	if (lflag) {
+		name = "multilabel";
+		if (strcmp(lvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_MULTILABEL) {
+				warnx("%s remains unchanged as enabled", name);
+			} else {
+				sblock.fs_flags |= FS_MULTILABEL;
+				warnx("%s set", name);
+			}
+		} else if (strcmp(lvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_MULTILABEL) ==
+			    FS_MULTILABEL) {
+				warnx("%s remains unchanged as disabled",
+				    name);
+			} else {
+				sblock.fs_flags &= ~FS_MULTILABEL;
+				warnx("%s set", name);
+			}
 		}
 	}
 	if (mflag) {
@@ -317,9 +377,9 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-A] [-e maxbpg] [-f avgfilesize] [-m minfree]",
-"              [-n enable | disable] [-o space | time] [-p] [-s avgfpdir]",
-"              special | filesystem");
+"usage: tunefs [-a enable | disable] [-A] [-e maxbpg] [-f avgfilesize]",
+"              [-l enable | disable] [-m minfree] [-n enable | disable]",
+"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
 }
 
