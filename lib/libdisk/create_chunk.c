@@ -281,6 +281,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 int
 MakeDev(struct chunk *c1, const char *path)
 {
+#if 0
 	char *p = c1->name;
 	u_long cmaj, min, unit, part, slice;
 	char buf[BUFSIZ], buf2[BUFSIZ];
@@ -439,6 +440,7 @@ MakeDev(struct chunk *c1, const char *path)
 		msgDebug("chown of %s returned failure status!\n", buf);
 		return 0;
 	}
+#endif
 	return 1;
 }
 
