@@ -467,7 +467,7 @@ compile_subst(p, s)
 	int asize, size;
 	u_char ref;
 	char c, *text, *op, *sp;
-	int more = 1;
+	int more = 1, sawesc = 0;
 
 	c = *p++;			/* Terminator character */
 	if (c == '\0')
@@ -482,9 +482,29 @@ compile_subst(p, s)
 	do {
 		op = sp = text + size;
 		for (; *p; p++) {
-			if (*p == '\\') {
-				p++;
-				if (strchr("123456789", *p) != NULL) {
+			if (*p == '\\' || sawesc) {
+				/*
+				 * If this is a continuation from the last
+				 * buffer, we won't have a character to
+				 * skip over.
+				 */
+				if (sawesc)
+					sawesc = 0;
+				else
+					p++;
+
+				if (*p == '\0') {
+					/*
+					 * This escaped character is continued
+					 * in the next part of the line.  Note
+					 * this fact, then cause the loop to
+					 * exit w/ normal EOL case and reenter
+					 * above with the new buffer.
+					 */
+					sawesc = 1;
+					p--;
+					continue;
+				} else if (strchr("123456789", *p) != NULL) {
 					*sp++ = '\\';
 					ref = *p - '0';
 					if (s->re != NULL &&
