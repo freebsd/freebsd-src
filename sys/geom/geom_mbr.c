@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -239,10 +236,12 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 				continue;
 			if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)
 				continue;
+			if (dp[i].dp_typ == 0)
+				continue;
 			if (dp[i].dp_size == 0)
 				continue;
 			if (bootverbose) {
-				printf("Slice %d on %s:\n", i + 1, gp->name);
+				printf("MBR Slice %d on %s:\n", i + 1, gp->name);
 				g_mbr_print(i, dp + i);
 			}
 			npart++;
@@ -370,10 +369,11 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    buf + DOSPARTOFF + 
 				    i * sizeof(struct dos_partition), dp + i);
 			g_free(buf);
-			printf("Slice %d on %s:\n", slice + 5, gp->name);
+			printf("MBREXT Slice %d on %s:\n", slice + 5, gp->name);
 			g_mbr_print(0, dp);
 			g_mbr_print(1, dp + 1);
-			if ((dp[0].dp_flag & 0x7f) == 0 && dp[0].dp_size != 0) {
+			if ((dp[0].dp_flag & 0x7f) == 0 &&
+			     dp[0].dp_size != 0 && dp[0].dp_typ != 0) {
 				g_topology_lock();
 				pp2 = g_slice_addslice(gp, slice,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
