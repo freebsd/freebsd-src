@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/sockio.h>
@@ -50,6 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 
+NET_NEEDS_GIANT("ipx");
+
+/*
+ * XXXRW: Requires synchronization.
+ */
 struct ipx_ifaddr *ipx_ifaddr;
 
 static	void ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
