@@ -1251,7 +1251,10 @@
     on a per-address basis for each interface. &merged;</para>
 
     <para>&man.netstat.1; now has a <option>-z</option> flag to reset
-    statistics.</para>
+    statistics. &merged;</para>
+
+    <para>&man.netstat.1; now has a <option>-S</option> flag to print
+    address numerically but port names symbolically. &merged;</para>
 
     <para>&man.sockstat.1; now has <option>-c</option> and
     <option>-l</option> flags for listing connected and listening
