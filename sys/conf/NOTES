@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.364 1997/09/10 03:07:13 peter Exp $
+#	$Id: LINT,v 1.365 1997/09/14 21:45:01 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -793,6 +793,13 @@ device          wcd0
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+#
+# FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
+# gotta turn it actually on by setting the variable fd_debug with DDB,
+# however.
+options		FDC_DEBUG
+# This option is undocumented on purpose.
+options		FDC_PRINT_BOGUS_CHIPTYPE
 #
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
