@@ -38,7 +38,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.17 1999/03/16 13:16:11 rnordier Exp $
+.\" $Id: boot_i386.8,v 1.18 1999/05/22 12:55:16 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -292,5 +292,14 @@ The disklabel format used by this version of
 .Bx
 is quite
 different from that of other architectures.
+.Pp
+Due to space constraints, the keyboard probe initiated by the
+.Fl P
+option is simply a test that the BIOS has detected an
+.Dq extended
+keyboard.  If an
+.Dq XT/AT
+keyboard (with no F11 and F12 keys, etc.) is attached, the probe will
+fail.
 .Pp
 Some features are not yet documented.
