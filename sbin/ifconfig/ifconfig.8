@@ -193,9 +193,10 @@ Establish an additional network address for this interface.
 This is sometimes useful when changing network numbers, and
 one wishes to accept packets addressed to the old interface.
 If the address is on the same subnet as the first network address
-for this interface, a netmask of
+for this interface, a non-conflicting netmask must be given.
+Usually
 .Li 0xffffffff
-has to be specified.
+is most appropriate.
 .It Fl alias
 Remove the network address specified.
 This would be used if you incorrectly specified an alias, or it
