@@ -221,8 +221,6 @@ struct mtx pmap_ridmutex;
 static uma_zone_t pvzone;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 int pmap_pagedaemon_waken;
-static struct pv_entry *pvbootentries;
-static int pvbootnext, pvbootmax;
 
 /*
  * Data for allocating PTEs for user processes.
@@ -467,18 +465,6 @@ pmap_bootstrap()
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (IA64_ID_PAGE_SHIFT << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (IA64_ID_PAGE_SHIFT << 2));
-
-	/*
-	 * Reserve some memory for allocating pvs while bootstrapping
-	 * the pv allocator. We need to have enough to cover mapping
-	 * the kmem_alloc region used to allocate the initial_pvs in
-	 * pmap_init. In general, the size of this region is
-	 * approximately (# physical pages) * (size of pv entry).
-	 */
-	pvbootmax = ((physmem * sizeof(struct pv_entry)) >> PAGE_SHIFT) + 128;
-	pvbootentries = (struct pv_entry *)
-		pmap_steal_memory(pvbootmax * sizeof(struct pv_entry));
-	pvbootnext = 0;
 
 	/*
 	 * Clear out any random TLB entries left over from booting.
