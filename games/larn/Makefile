@@ -60,12 +60,13 @@ SRCS=	main.c object.c create.c tok.c display.c global.c data.c io.c \
 	signal.c moreobj.c movem.c regen.c fortune.c savelev.c
 DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
+FILES=	larnmaze larnopts larn.help
+FILESDIR=	${SHAREDIR}/games/larn
 HIDEGAME=hidegame
 
+.PATH: ${.CURDIR}/datfiles
+
 beforeinstall:
-	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
-	    -m ${SHAREMODE} larnmaze larnopts larn.help \
-	    ${DESTDIR}${SHAREDIR}/games/larn)
 .if !exists(${DESTDIR}/var/games/larn/lscore12.0)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
 	    ${DESTDIR}/var/games/larn/lscore12.0
