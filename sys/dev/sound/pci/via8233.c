@@ -219,7 +219,7 @@ static int
 via_buildsgdt(struct via_chinfo *ch)
 {
 	u_int32_t phys_addr, flag;
-	int i, segs, seg_size;
+	int i, seg_size;
 
 	/*
 	 *  Build the scatter/gather DMA (SGD) table.
@@ -227,12 +227,12 @@ via_buildsgdt(struct via_chinfo *ch)
 	 *  This creates two half-buffers, one of which is playing; the other
 	 *  is feeding.
 	 */
-	seg_size = ch->blksz;
-	segs = sndbuf_getsize(ch->buffer) / seg_size;
+	seg_size = sndbuf_getsize(ch->buffer) / SEGS_PER_CHAN;
+		
 	phys_addr = vtophys(sndbuf_getbuf(ch->buffer));
 
-	for (i = 0; i < segs; i++) {
-		flag = (i == segs - 1) ? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
+	for (i = 0; i < SEGS_PER_CHAN; i++) {
+		flag = (i == SEGS_PER_CHAN - 1) ? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
 		ch->sgd_table[i].ptr = phys_addr + (i * seg_size);
 		ch->sgd_table[i].flags = flag | seg_size;
 	}
@@ -274,8 +274,8 @@ via8233rchan_setformat(kobj_t obj, void *data, u_int32_t format)
 		f |= WR_FORMAT_STEREO;
 	if (format & AFMT_S16_LE)
 		f |= WR_FORMAT_16BIT;
-
 	via_wr(via, VIA_WR0_FORMAT, f, 4);
+
 	return 0;
 }
 
@@ -297,10 +297,11 @@ via8233rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 
-	if (via->codec_caps & AC97_EXTCAP_VRA)
-		return ac97_setrate(via->codec, AC97_REGEXT_LADCRATE, speed);
-
-	return 48000;
+	u_int32_t spd = 48000;
+	if (via->codec_caps & AC97_EXTCAP_VRA) {
+		spd = ac97_setrate(via->codec, AC97_REGEXT_LADCRATE, speed);
+	}
+	return spd;
 }
 
 static int
@@ -308,8 +309,8 @@ via8233chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
 
-	ch->blksz = blocksize;
-	sndbuf_resize(ch->buffer, SEGS_PER_CHAN, ch->blksz);
+	sndbuf_resize(ch->buffer, SEGS_PER_CHAN, blocksize);
+	ch->blksz = sndbuf_getblksz(ch->buffer);
 	return ch->blksz;
 }
 
@@ -324,6 +325,7 @@ via8233chan_getptr(kobj_t obj, void *data)
 	u_int32_t count = v & 0x00ffffff;	/* Bytes remaining */
 	int ptr = (index + 1) * ch->blksz - count;
 	ptr %= SEGS_PER_CHAN * ch->blksz;	/* Wrap to available space */
+
 	return ptr;
 }
 
@@ -593,9 +595,12 @@ via_attach(device_t dev)
 	via->codec_caps = ac97_getextcaps(via->codec);
 
 	/* Try to set VRA without generating an error, VRM not reqrd yet */
-	if (via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM)) {
+	if (via->codec_caps & 
+	    (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM | AC97_EXTCAP_DRA)) {
 		u_int16_t ext = ac97_getextmode(via->codec);
-		ext |= (via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
+		ext |= (via->codec_caps & 
+			(AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
+		ext &= ~AC97_EXTCAP_DRA;
 		ac97_setextmode(via->codec, ext);
 	}
 
