@@ -215,6 +215,20 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
 
 /*
+ * Pointers to ops that differ from v3 to v4
+ */
+struct nfs_rpcops {
+	int	(*nr_readrpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred);
+	int	(*nr_writerpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred,
+			       int *iomode, int *must_commit);
+	int	(*nr_writebp)(struct buf *bp, int force, struct thread *td);
+	int	(*nr_readlinkrpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred);
+	void	(*nr_invaldir)(struct vnode *vp);
+	int	(*nr_commit)(struct vnode *vp, u_quad_t offset, int cnt,
+			     struct ucred *cred, struct thread *td);
+};
+
+/*
  * Defines for WebNFS
  */
 
