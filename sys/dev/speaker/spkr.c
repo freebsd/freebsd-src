@@ -12,6 +12,7 @@
 #if NSPEAKER > 0
 
 #include "param.h"
+#include "systm.h"
 #include "kernel.h"
 #include "errno.h"
 #include "buf.h"

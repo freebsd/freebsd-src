@@ -49,7 +49,7 @@
  * 20 Apr 93	Bruce Evans		New npx-0.5 code
  * 25 Apr 93	Bruce Evans		New intr-0.1 code
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/i386/machdep.c,v 1.3 1993/07/16 20:50:42 davidg Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.4 1993/07/16 23:55:07 davidg Exp $";
 
 
 #include <stddef.h>
@@ -849,16 +849,41 @@ init386(first)
 	 * Initialize the console before we print anything out.
 	 */
 
-	cninit (KERNBASE+0xa0000);
+	cninit ();
 
 	/* make gdt memory segments */
-	gdt_segs[GCODE_SEL].ssd_limit = btoc((int) &etext + NBPG);
-	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, &gdt[x][0]);
+	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
+	/*
+	 * XXX - VM_MAX_KERNEL_ADDRESS is correctly a max, but bogusly the
+	 * address of the last page, not the last byte.  Then above the end
+	 * :-) there is another 4M of page tables or something.
+	 */
+#define VM_END_KERNEL_ADDRESS	(VM_MAX_KERNEL_ADDRESS + NBPG + NBPDR)
+	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(VM_END_KERNEL_ADDRESS) - 1;
+	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
 	/* make ldt memory segments */
-	ldt_segs[LUCODE_SEL].ssd_limit = btoc(UPT_MIN_ADDRESS);
-	ldt_segs[LUDATA_SEL].ssd_limit = btoc(UPT_MIN_ADDRESS);
+	/*
+	 * The data segment limit must not cover the user area because we
+	 * don't want the user area to be writable in copyout() etc. (page
+	 * level protection is lost in kernel mode on 386's).  Also, we
+	 * don't want the user area to be writable directly (page level
+	 * protection of the user area is not available on 486's with
+	 * CR0_WP set, because there is no user-read/kernel-write mode).
+	 *
+	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  And it
+	 * should be spelled ...MAX_USER...
+	 */
+#define VM_END_USER_RW_ADDRESS	VM_MAXUSER_ADDRESS
+	/*
+	 * The code segment limit has to cover the user area until we move
+	 * the signal trampoline out of the user area.  This is safe because
+	 * the code segment cannot be written to directly.
+	 */
+#define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * NBPG)
+	ldt_segs[LUCODE_SEL].ssd_limit = i386_btop(VM_END_USER_R_ADDRESS) - 1;
+	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
 	/* Note. eventually want private ldts per process */
-	for (x=0; x < 5; x++) ssdtosd(ldt_segs+x, &ldt[x][0]);
+	for (x=0; x < 5; x++) ssdtosd(ldt_segs+x, ldt+x);
 
 	/* exceptions */
 	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL);
@@ -951,7 +976,8 @@ init386(first)
 		Maxmem = 640/4;
 	else {
 		Maxmem = pagesinext + 0x100000/NBPG;
-		first = 0x100000; /* skip hole */
+		if (first < 0x100000)
+			first = 0x100000; /* skip hole */
 	}
 
 	/* This used to explode, since Maxmem used to be 0 for bas CMOS*/
@@ -1077,6 +1103,7 @@ _remque(element)
 	element->ph_rlink = (struct proc *)0;
 }
 
+#ifdef SLOW_OLD_COPYSTRS
 vmunaccess() {}
 
 #if 0		/* assembler versions now in locore.s */
@@ -1123,6 +1150,8 @@ copyoutstr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
 	if(lencopied) *lencopied = tally;
 	return(ENAMETOOLONG);
 }
+
+#endif /* SLOW_OLD_COPYSTRS */
 
 copystr(fromaddr, toaddr, maxlength, lencopied) u_int *lencopied, maxlength;
 	void *fromaddr, *toaddr; {
