@@ -260,7 +260,8 @@ cpu_thread_setup(struct thread *td)
 {
 
 	td->td_pcb =
-	     (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	    (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td->td_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)td->td_pcb);
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
 }
 
