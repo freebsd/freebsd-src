@@ -1525,6 +1525,34 @@ mac_mls_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
+mac_mls_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+    struct label *label, int prot)
+{
+	struct mac_mls *subj, *obj;
+
+	/*
+	 * Rely on the use of open()-time protections to handle
+	 * non-revocation cases.
+	 */
+	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if (!mac_mls_dominate_single(subj, obj))
+			return (EACCES);
+	}
+	if (prot & VM_PROT_WRITE) {
+		if (!mac_mls_dominate_single(obj, subj))
+			return (EACCES);
+	}
+
+	return (0);   
+}
+
+static int
 mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *vnodelabel, mode_t acc_mode)
 {
@@ -1871,26 +1899,6 @@ mac_mls_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
-static vm_prot_t
-mac_mls_check_vnode_mmap_perms(struct ucred *cred, struct vnode *vp,
-    struct label *label, int newmapping)
-{
-	struct mac_mls *subj, *obj;
-	vm_prot_t prot = 0;
-
-	if (!mac_mls_enabled || (!mac_mls_revocation_enabled && !newmapping))
-		return (VM_PROT_ALL);
-
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(label);
-
-	if (mac_mls_dominate_single(subj, obj))
-		prot |= VM_PROT_READ | VM_PROT_EXECUTE;
-	if (mac_mls_dominate_single(obj, subj))
-		prot |= VM_PROT_WRITE;
-	return (prot);
-}
-
 static struct mac_policy_op_entry mac_mls_ops[] =
 {
 	{ MAC_DESTROY,
@@ -2091,6 +2099,10 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_check_vnode_link },
 	{ MAC_CHECK_VNODE_LOOKUP,
 	    (macop_t)mac_mls_check_vnode_lookup },
+	{ MAC_CHECK_VNODE_MMAP,
+	    (macop_t)mac_mls_check_vnode_mmap },
+	{ MAC_CHECK_VNODE_MPROTECT,
+	    (macop_t)mac_mls_check_vnode_mmap },
 	{ MAC_CHECK_VNODE_OPEN,
 	    (macop_t)mac_mls_check_vnode_open },
 	{ MAC_CHECK_VNODE_POLL,
@@ -2125,8 +2137,6 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_check_vnode_stat },
 	{ MAC_CHECK_VNODE_WRITE,
 	    (macop_t)mac_mls_check_vnode_write },
-	{ MAC_CHECK_VNODE_MMAP_PERMS,
-	    (macop_t)mac_mls_check_vnode_mmap_perms },
 	{ MAC_OP_LAST, NULL }
 };
 

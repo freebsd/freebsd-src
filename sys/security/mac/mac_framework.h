@@ -339,9 +339,10 @@ int	mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
-/* XXX This u_char should be vm_prot_t! */
-u_char	mac_check_vnode_mmap_prot(struct ucred *cred, struct vnode *vp,
-	    int newmapping);
+int	mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+	    int prot);
+int	mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
+	    int prot);
 int	mac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 	    mode_t acc_mode);
 int	mac_check_vnode_poll(struct ucred *active_cred,

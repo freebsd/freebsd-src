@@ -303,8 +303,12 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_lookup)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dlabel,
 		    struct componentname *cnp);
-	vm_prot_t	(*mpo_check_vnode_mmap_perms)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int newmapping);
+	int	(*mpo_check_vnode_mmap)(struct ucred *cred, struct vnode *vp,
+		    struct label *label, int prot);
+	void	(*mpo_check_vnode_mmap_downgrade)(struct ucred *cred,
+		    struct vnode *vp, struct label *label, int *prot);
+	int	(*mpo_check_vnode_mprotect)(struct ucred *cred,
+		    struct vnode *vp, struct label *label, int prot);
 	int	(*mpo_check_vnode_open)(struct ucred *cred, struct vnode *vp,
 		    struct label *label, mode_t acc_mode);
 	int	(*mpo_check_vnode_poll)(struct ucred *active_cred,
@@ -463,7 +467,9 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_GETEXTATTR,
 	MAC_CHECK_VNODE_LINK,
 	MAC_CHECK_VNODE_LOOKUP,
-	MAC_CHECK_VNODE_MMAP_PERMS,
+	MAC_CHECK_VNODE_MMAP,
+	MAC_CHECK_VNODE_MMAP_DOWNGRADE,
+	MAC_CHECK_VNODE_MPROTECT,
 	MAC_CHECK_VNODE_OPEN,
 	MAC_CHECK_VNODE_POLL,
 	MAC_CHECK_VNODE_READ,
