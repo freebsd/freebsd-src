@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.1 1997/04/26 11:45:47 peter Exp $
+ *	$Id: smptests.h,v 1.2 1997/04/27 21:17:56 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -63,15 +63,6 @@
  *
  * value == default type
 #define TEST_DEFAULT_CONFIG	6
- */
-
-
-/**
- * hacks attempting to assign IRQs to upper IDT vectors, doesn't work yet.
- *
- * i386/isa/icu.s, i386/isa/isa.c, i386/i386/mpapic.c
- *
-#define TEST_UPPERPRIO
  */
 
 
