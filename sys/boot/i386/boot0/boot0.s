@@ -15,20 +15,17 @@
 
 # $FreeBSD$
 
-# A 1024-byte boot manager.
+# A 512-byte boot manager.
 
 		.set NHRDRV,0x475		# Number of hard drives
 		.set ORIGIN,0x600		# Execution address
-		.set SECTOR_SIZE,0x200		# Length of a sector
-		.set NUM_SECTORS,2		# Total length in sectors
-
-		.set FAKE,ORIGIN+(SECTOR_SIZE*NUM_SECTORS) # Partition entry
+		.set FAKE,0x800 		# Partition entry
 		.set LOAD,0x7c00		# Load address
 
 		.set PRT_OFF,0x1be		# Partition table
 
-		.set TBL0SZ,table0_end-table0	# Table 0 size
-		.set TBL1SZ,table1_end-table1	# Table 1 size
+		.set TBL0SZ,0x3 		# Table 0 size
+		.set TBL1SZ,0xc 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
 
@@ -36,21 +33,14 @@
 		.set KEY_F1,0x3b		# F1 key scan code
 
 #
-# Flag bits
-#
-		.set FL_PACKET,0x80		# Packet mode
-		.set FL_NOUPDATE,0x40		# Don't save selection
-		.set FL_SETDRV,0x20		# Override drive number
-#
 # Addresses in the sector of embedded data values.
-# Accessed with negative offsets from the end of the relocated sectors (%bp).
+# Accessed with negative offsets from the end of the relocated sector (%ebp).
 #
-		.set _PRT_END,(FAKE-(ORIGIN+SECTOR_SIZE))
-		.set _NXTDRV,-(_PRT_END+0x48)	# Next drive
-		.set _OPT,-(_PRT_END+0x47)	# Default option
-		.set _SETDRV,-(_PRT_END+0x46)	# Drive to force
-		.set _FLAGS,-(_PRT_END+0x45)	# Flags
-		.set _TICKS,-(_PRT_END+0x44)	# Timeout ticks
+		.set _NXTDRV,-0x48		# Next drive
+		.set _OPT,-0x47 		# Default option
+		.set _SETDRV,-0x46		# Drive to force
+		.set _FLAGS,-0x45		# Flags
+		.set _TICKS,-0x44		# Timeout ticks
 		.set _FAKE,0x0			# Fake partition entry
 		.set _MNUOPT,0xc		# Menu options
 
@@ -62,48 +52,40 @@
 # segments start at 0.
 # The stack is immediately below the address we were loaded to.
 #
-# Note that this section of code is used as the first signature check in
-# boot0cfg(8).
-#
 start:		cld				# String ops inc
 		xorw %ax,%ax			# Zero
 		movw %ax,%es			# Address
 		movw %ax,%ds			#  data
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
-# 
-# End signature code
-# 
+	
+#
+# Copy this code to the address it was linked for
+#
+		movw %sp,%si			# Source
+		movw $start,%di			# Destination
+		movw $0x100,%cx			# Word count
+		rep				# Relocate
+		movsw				#  code
 #
 # Set address for variable space beyond code, and clear it.
 # Notice that this is also used to point to the values embedded in the block,
 # by using negative offsets.
 #
-		movw $fake,%bp			# Address variables
-		movw %bp,%di			# %di used in stosw
-		movw $0x8,%cx			# Words to clear
+		movw %di,%bp			# Address variables
+		movb $0x8,%cl			# Words to clear
 		rep				# Zero
 		stosw				#  them
-		incb -0xe(%di)			# Sector number 1
-#
-# Reload all of boot0 (including the extra sectors) into memory at the
-# relocation address.  
-#
-		push %dx			# Save drive number
-		movw $start,%bx			# Origin we were linked for
-		movw %bp,%si			# Fake PTE
-		movw $0x200+NUM_SECTORS,%ax	# Read in all
-		callw intx13			#  of boot0
-		pop %dx				# Restore
 #
 # Relocate to the new copy of the code.
 #
-		jmp main+ORIGIN-LOAD		# To relocated code
+		incb -0xe(%di)			# Sector number
+		jmp main-LOAD+ORIGIN		# To relocated code
 #
-# Check what flags were loaded with us; specifically, use a predefined Drive.
+# Check what flags were loaded with us, specifically, Use a predefined Drive.
 # If what the bios gives us is bad, use the '0' in the block instead, as well.
 #
-main:		testb $FL_SETDRV,_FLAGS(%bp)	# Set number drive?
+main:		testb $0x20,_FLAGS(%bp)	# Set number drive?
 		jnz main.1			# Yes
 		testb %dl,%dl			# Drive number valid?
 		js main.2			# Possibly (0x80 set)
@@ -151,7 +133,7 @@ main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		jne main.4			# No
 #
 # If it matches get the matching element in the
-# next array.  If it doesn't, we are already
+# next array. if it doesn't, we are already
 # pointing at its first element which points to a "?".
 #
 		addw $TBL1SZ,%di		# Adjust
@@ -192,7 +174,7 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 #
 # Now that we've printed the drive (if we needed to), display a prompt.
-# Get ready for the input by noting the time.
+# Get ready for the input byt noting the time.
 #
 main.7: 	movw $prompt,%si		# Display
 		callw putstr			#  prompt
@@ -260,7 +242,7 @@ main.12:	cbtw				# Option
 # for rewriting to the disk.
 #
 		movb %al,_OPT(%bp)		# Save option
-		movw $fake,%si			# Partition for write
+		movw $FAKE,%si			# Partition for write
 		movb (%si),%dl			# Drive number
 		movw %si,%bx			# Partition for read
 		cmpb $0x4,%al			# F5 pressed?
@@ -274,10 +256,10 @@ main.12:	cbtw				# Option
 # If not asked to do a write-back (flags 0x40) don't do one.
 #
 main.13:	pushw %bx			# Save
-		testb $FL_NOUPDATE,_FLAGS(%bp)	# Skip update?
+		testb $0x40,_FLAGS(%bp)		# No updates?
 		jnz main.14			# Yes
 		movw $start,%bx			# Data to write
-		movw $0x301,%ax			# Write 1 sector
+		movb $0x3,%ah			# Write sector
 		callw intx13			#  to disk
 main.14:	popw %si			# Restore
 		popf				# Restore
@@ -292,16 +274,19 @@ main.14:	popw %si			# Restore
 # load  selected bootsector to the LOAD location in RAM.
 # If it fails to read or isn't marked bootable, treat it
 # as a bad selection.
+# XXX what does %si carry?
 #
 main.15:	movw $LOAD,%bx			# Address for read
-		movw $0x201,%ax			# Read 1 sector
+		movb $0x2,%ah			# Read sector
 		callw intx13			#  from disk
 		jc main.10			# If error
 		cmpw $MAGIC,0x1fe(%bx)		# Bootable?
 		jne main.10			# No
-		callw putn			# Leave some space
+		pushw %si			# Save
+		movw $crlf,%si			# Leave some
+		callw puts			#  space
+		popw %si			# Restore
 		jmp *%bx			# Invoke bootstrap
-
 #
 # Display routines
 #
@@ -340,91 +325,28 @@ putchr: 	pushw %bx			# Save
 		retw				# To caller
 
 # One-sector disk I/O routine
-#
-# Calling conventions: (assumes %si -> partition table entry)
-#
-# 0x1(%si)	- byte - head
-# 0x2(%si)	- word - cylinder/sector
-# 0x8(%si)	- long - LBA to use if needed
-# %ah		- byte - operation, 2 = read, 3 = write
-# %al		- byte - sector count
-# %dl		- byte - drive number
-# %es:(%bx)	- void - buffer to use for transfer
-#
-# If the head == 0xff, and cylinder/sector == 0xffff, then try
-# to use the EDD stuff with the LBA offset instead of CHS.  However,
-# use CHS if at all possible.
 
 intx13: 	movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
+		movb $0x1,%al			# Sector count
 		pushw %si			# Save
 		movw %sp,%di			# Save
-		cmpb $0xff,%dh			# Might we need LBA?
-		jne intx13.2			# No, just use CHS
-		cmpw $0xffff,%cx		# Do we need LBA?
-		jne intx13.2			# No
-		testb $FL_PACKET,_FLAGS(%bp)	# Try the packet interface?
-		jz intx13.2			# No
-		pushw %cx			# Save
-		pushw %bx			# Save
-		movw $0x55aa,%bx		# Magic
-		pushw %ax			# Save
-		movb $0x41,%ah			# BIOS: EDD extensions
-		int $0x13			#  present?
-		popw %ax			# Restore
-		jc intx13.1			# Not present, use CHS
-		cmpw $0xaa55,%bx		# Magic?
-		jne intx13.1			# Not present, use CHS
-		testb $0x1,%cl			# Packet mode available?
-		jz intx13.1			# No, use CHS
-		orb $0x40,%ah			# Use disk packet
-intx13.1:	popw %bx			# Restore
-		popw %cx			# Restore
-		testb $0x40,%ah			# Using packet mode?
-		jz intx13.2			# No, so skip the rest
+		testb $0x80,_FLAGS(%bp)		# Use packet interface?
+		jz intx13.1			# No
 		pushl $0x0			# Set the
 		pushl 0x8(%si)			# LBA address
 		pushw %es			# Set the transfer
 		pushw %bx			#  buffer address
-		push $0x0			# Punch a hole in the stack
-		push $0x10			# Packet size
+		push  $0x1			# Block count
+		push  $0x10			# Packet size
 		movw %sp,%si			# Packet pointer
-		xchgb %al,0x2(%si)		# Set the block count in the
-						#  packet and zero %al,
-						#  turning verify off for writes
-intx13.2:	int $0x13			# BIOS: Disk I/O
+		decw %ax			# Verify off
+		orb $0x40,%ah			# Use disk packet
+intx13.1:	int $0x13			# BIOS: Disk I/O
 		movw %di,%sp			# Restore
 		popw %si			# Restore
 		retw				# To caller
 
-		.org PRT_OFF-0xe,0x90
-#
-# These values are sometimes changed before writing back to the drive
-# Be especially careful that nxtdrv: must come after drive:, as it 
-# is part of the same string.
-#
-# Note that the 'drive' string variable is used as the second signature
-# check in boot0cfg(8).
-#
-version_minor:	.byte 0x1			# minor version
-version_major:	.byte 0x1			# major version	
-drive:		.ascii "Drive "
-nxtdrv: 	.byte 0x0			# Next drive number
-opt:		.byte 0x0			# Option
-setdrv: 	.byte 0x80			# Drive to force
-flags:		.byte FLAGS			# Flags
-ticks:		.word TICKS			# Delay
-
-#
-# here is the 64 byte partition table that fdisk would fiddle with.
-#
-partbl: 	.fill 0x40,0x1,0x0		# Partition table
-		.word MAGIC			# Magic number
-
-#
-# start of sector two.. ugh
-#
-		.org SECTOR_SIZE,0x90
 # Menu strings
 
 item:		.ascii "  ";	     .byte ' '|0x80
@@ -437,14 +359,12 @@ tables:
 #
 # These entries identify invalid or NON BOOT types and partitions.
 #
-table0:		.byte 0x0, 0x5, 0xf
-table0_end:
+		.byte 0x0, 0x5, 0xf
 #
 # These values indicate bootable types we know the names of
 #
-table1:		.byte 0x1, 0x4, 0x6, 0x7, 0xb, 0xc, 0xe, 0x63, 0x83
+		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x63, 0x83
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
-table1_end:
 #
 # These are offsets that match the known names above and point to the strings
 # that will be printed.
@@ -453,35 +373,41 @@ table1_end:
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
-		.byte os_nt-.			# NT or OS/2
-		.byte os_windows-.		# Windows
-		.byte os_windows-.		# Windows
-		.byte os_windows-.		# Windows
+		.byte os_dos-.			# Windows
+		.byte os_dos-.			# Windows
+		.byte os_dos-.			# Windows
 		.byte os_unix-. 		# UNIX
 		.byte os_linux-.		# Linux
-		.byte os_bsdos-.		# BSD/OS
+		.byte os_bsd-.			# BSD/OS
 		.byte os_freebsd-.		# FreeBSD
-		.byte os_openbsd-.		# OpenBSD
-		.byte os_netbsd-.		# NetBSD
+		.byte os_bsd-.			# OpenBSD
+		.byte os_bsd-.			# NetBSD
 #
 # And here are the strings themselves. 0x80 or'd into a byte indicates 
 # the end of the string. (not so great for Russians but...)
 #
-os_misc:	.ascii "Unknow";	.byte 'n'|0x80
-os_dos: 	.ascii "DO";		.byte 'S'|0x80
-os_nt:		.ascii "Windows N";	.byte 'T'|0x80
-os_windows: 	.ascii "Window";	.byte 's'|0x80
-os_unix:	.ascii "UNI";		.byte 'X'|0x80
-os_linux:	.ascii "Linu";		.byte 'x'|0x80
-os_freebsd:	.ascii "FreeBS";	.byte 'D'|0x80
-os_openbsd:	.ascii "OpenBS";	.byte 'D'|0x80
-os_netbsd:	.ascii "NetBS";		.byte 'D'|0x80
-os_bsdos:	.ascii "BSD/O";		.byte 'S'|0x80
+os_misc:	.ascii "?";    .byte '?'|0x80
+os_dos: 	.ascii "DO";   .byte 'S'|0x80
+os_unix:	.ascii "UNI";  .byte 'X'|0x80
+os_linux:	.ascii "Linu"; .byte 'x'|0x80
+os_freebsd:	.ascii "Free"
+os_bsd: 	.ascii "BS";   .byte 'D'|0x80
+
+		.org PRT_OFF-0xc,0x90
+#
+# These values are sometimes changed before writing back to the drive
+# Be especially careful that nxtdrv: must come after drive:, as it 
+# is part of the same string.
+#
+drive:		.ascii "Drive "
+nxtdrv: 	.byte 0x0			# Next drive number
+opt:		.byte 0x0			# Option
+setdrv: 	.byte 0x80			# Drive to force
+flags:		.byte FLAGS			# Flags
+ticks:		.word TICKS			# Delay
 
 #
-# Fake partition entry created at the end of the table used when loading
-# boot0 at the very beginning and when loading an MBR from another disk when
-# F5 is pressed.
+# here is the 64 byte partition table that fdisk would fiddle with.
 #
-		.org SECTOR_SIZE*NUM_SECTORS, 0x0
-fake:
+partbl: 	.fill 0x40,0x1,0x0		# Partition table
+		.word MAGIC			# Magic number
