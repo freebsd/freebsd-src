@@ -1,5 +1,5 @@
 /*
- * Written by Julian Elischer (julian@tfs.com)
+ * Written by Julian Elischer (julian@dialix.oz.au)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
@@ -12,9 +12,9 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *	$Id$
+ *	$Id: sd.c,v 1.10 93/08/26 21:09:44 julian Exp Locker: julian $
  */
 
 #define SPLSD splbio
@@ -68,7 +68,9 @@ struct buf sd_buf_queue[NSD];
 int	sd_done();
 int	sdstrategy();
 
+#ifdef	SDDEBUG
 int	sd_debug = 0;
+#endif	/*SDDEBUG*/
 
 struct	scsi_xfer	*sd_free_xfer[NSD];
 int			sd_xfer_block_wait[NSD];
@@ -103,7 +105,7 @@ struct	sd_data
 #define SDOPEN	0x01
 	int		openparts;		/* one bit for each open partition */
 	unsigned int	sd_start_of_unix;	/* unix vs dos partitions */
-}sd_data[NSD];
+}*sd_data[NSD];
 
 
 static	int	next_sd_unit = 0;
@@ -123,9 +125,9 @@ struct	scsi_switch *scsi_switch;
 	struct	scsi_xfer	*sd_scsi_xfer;
 
 	unit = next_sd_unit++;
-	sd = sd_data + unit;
-	dp  = &(sd->params);
+#ifdef	SDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("sdattach: "); 
+#endif	/*SDDEBUG*/
 	/*******************************************************\
 	* Check we have the resources for another drive		*
 	\*******************************************************/
@@ -134,6 +136,18 @@ struct	scsi_switch *scsi_switch;
 		printf("Too many scsi disks..(%d > %d) reconfigure kernel\n",(unit + 1),NSD);
 		return(0);
 	}
+	if(sd_data[unit])
+	{
+		printf("sd%d: unit already has storage allocated!\n",unit);
+		return(0);
+	}
+	sd = sd_data[unit] = malloc(sizeof(struct sd_data),M_DEVBUF,M_NOWAIT);
+	if(!sd)
+	{
+		printf("malloc failed in sd.c\n");
+		return(0);
+	}
+	dp  = &(sd->params);
 	/*******************************************************\
 	* Store information needed to contact our base driver	*
 	\*******************************************************/
@@ -179,9 +193,6 @@ struct	scsi_switch *scsi_switch;
 		dp->heads,
 		dp->sectors,
 		dp->secsiz);
-	/*******************************************************\
-	* Set up the bufs for this device			*
-	\*******************************************************/
 	sd->flags |= SDINIT;
 	return;
 
@@ -202,10 +213,12 @@ sdopen(dev)
 
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd = sd_data + unit;
+	sd = sd_data[unit];
+#ifdef	SDDEBUG
 	if(scsi_debug & (PRINTROUTINES | TRACEOPENS))
 		printf("sdopen: dev=0x%x (unit %d (of %d),partition %d)\n"
 				,   dev,      unit,   NSD,         part);
+#endif	/*SDDEBUG*/
 	/*******************************************************\
 	* Check the unit is legal				*
 	\*******************************************************/
@@ -231,51 +244,64 @@ sdopen(dev)
 	   && ( sd->openparts))
 		return(ENXIO);
 	/*******************************************************\
-	* Check that it is still responding and ok.		*
-	* "unit attention errors should occur here if the drive	*
-	* has been restarted or the pack changed		*
+	* "unit attention" errors should occur here if the 	*
+	* drive has been restarted or the pack changed.		*
+	* just ingnore the result, it's a decoy instruction	*
+	* The error code will act on the error though		*
+	* and invalidate any media information we had.		*
 	\*******************************************************/
+	sd_test_unit_ready(unit,0);
 
-	if(scsi_debug & TRACEOPENS)
-		printf("device is ");
-	if (sd_test_unit_ready(unit,0))
-	{
-		if(scsi_debug & TRACEOPENS) printf("not reponding\n");
-		return(ENXIO);
-	}
-	if(scsi_debug & TRACEOPENS)
-		printf("ok\n");
 	/*******************************************************\
 	* In case it is a funny one, tell it to start		*
 	* not needed for  most hard drives (ignore failure)	*
 	\*******************************************************/
 	sd_start_unit(unit,SCSI_ERR_OK|SCSI_SILENT);
+
+	/*******************************************************\
+	* Check that it is still responding and ok.		*
+	\*******************************************************/
+	if (sd_test_unit_ready(unit,0))
+	{
+#ifdef	SDDEBUG
+		if(scsi_debug & TRACEOPENS) printf("device not reponding\n");
+#endif	/*SDDEBUG*/
+		return(ENXIO);
+	}
+#ifdef	SDDEBUG
 	if(scsi_debug & TRACEOPENS)
-		printf("started ");
+		printf("device ok\n");
+#endif	/*SDDEBUG*/
+
 	/*******************************************************\
 	* Load the physical device parameters 			*
 	\*******************************************************/
 	sd_get_parms(unit, 0);	/* sets SDVALID */
-	if (sd->params.secsiz != SECSIZE)
+	if (sd->params.secsiz != SECSIZE)	/* XXX One day...*/
 	{
 		printf("sd%d: Can't deal with %d bytes logical blocks\n"
 			,unit, sd->params.secsiz);
 		Debugger();
 		return(ENXIO);
 	}
+#ifdef	SDDEBUG
 	if(scsi_debug & TRACEOPENS)
 		printf("Params loaded ");
+#endif	/*SDDEBUG*/
 	/*******************************************************\
 	* Load the partition info if not already loaded		*
+	* Lock the pack in					*
 	\*******************************************************/
-	sd_prevent(unit,PR_PREVENT,SCSI_ERR_OK|SCSI_SILENT); /* who cares if it fails? */
+	sd_prevent(unit,PR_PREVENT,SCSI_ERR_OK|SCSI_SILENT);
 	if((errcode = sdgetdisklabel(unit)) && (part != RAW_PART))
 	{
-		sd_prevent(unit,PR_ALLOW,SCSI_ERR_OK|SCSI_SILENT); /* who cares if it fails? */
+		sd_prevent(unit,PR_ALLOW,SCSI_ERR_OK|SCSI_SILENT);
 		return(errcode);
 	}
+#ifdef	SDDEBUG
 	if(scsi_debug & TRACEOPENS)
 		printf("Disklabel loaded ");
+#endif	/*SDDEBUG*/
 	/*******************************************************\
 	* Check the partition is legal				*
 	\*******************************************************/
@@ -283,8 +309,10 @@ sdopen(dev)
 		sd_prevent(unit,PR_ALLOW,SCSI_ERR_OK|SCSI_SILENT); /* who cares if it fails? */
 		return(ENXIO);
 	}
+#ifdef	SDDEBUG
 	if(scsi_debug & TRACEOPENS)
 		printf("ok");
+#endif	/*SDDEBUG*/
 	/*******************************************************\
 	*  Check that the partition exists			*
 	\*******************************************************/
@@ -296,8 +324,10 @@ sdopen(dev)
 	}
 	sd->partflags[part] |= SDOPEN;
 	sd->openparts |= (1 << part);
+#ifdef	SDDEBUG
 	if(scsi_debug & TRACEOPENS)
 		printf("open %d %d\n",sdstrats,sdqueues);
+#endif	/*SDDEBUG*/
 	return(0);
 }
 
@@ -377,7 +407,7 @@ int	flags;
 void	sdminphys(bp)
 struct buf	*bp;
 {
-	(*(sd_data[UNIT(bp->b_dev)].sc_sw->scsi_minphys))(bp);
+	(*(sd_data[UNIT(bp->b_dev)]->sc_sw->scsi_minphys))(bp);
 }
 
 /*******************************************************\
@@ -397,10 +427,12 @@ struct	buf	*bp;
 
 	sdstrats++;
 	unit = UNIT((bp->b_dev));
-	sd = sd_data + unit;
+	sd = sd_data[unit];
+#ifdef	SDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("\nsdstrategy ");
 	if(scsi_debug & SHOWREQUESTS) printf("sd%d: %d bytes @ blk%d\n",
 					unit,bp->b_bcount,bp->b_blkno);
+#endif	/*SDDEBUG*/
 	sdminphys(bp);
 	/*******************************************************\
 	* If the device has been made invalid, error out	*
@@ -477,7 +509,7 @@ done:
 /***************************************************************\
 * sdstart looks to see if there is a buf waiting for the device	*
 * and that the device is not already busy. If both are true,	*
-* It deques the buf and creates a scsi command to perform the	*
+* It dequeues the buf and creates a scsi command to perform the	*
 * transfer in the buf. The transfer request will call sd_done	*
 * on completion, which will in turn call this routine again	*
 * so that the next queued transfer is performed.		*
@@ -499,37 +531,41 @@ int	unit;
 	struct	scsi_xfer	*xs;
 	struct	scsi_rw_big	cmd;
 	int			blkno, nblk;
-	struct sd_data *sd = sd_data + unit;
+	struct sd_data *sd = sd_data[unit];
 	struct partition *p ;
 
+#ifdef	SDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("sdstart%d ",unit);
+#endif	/*SDDEBUG*/
 	/*******************************************************\
-	* See if there is a buf to do and we are not already	*
-	* doing one						*
+	* Check if the device is already running full capacity	*
 	\*******************************************************/
 	if(!sd_free_xfer[unit])
 	{
 		return;    /* none for us, unit already underway */
 	}
 
-	if(sd_xfer_block_wait[unit])    /* there is one, but a special waits */
+	/*******************************************************\
+	* there is excess capacity, but a special waits 	*
+	* It'll need the adapter as soon as we clear out of the	*
+	* way and let it run (user level wait).			*
+	\*******************************************************/
+	if(sd_xfer_block_wait[unit])  
 	{
-		return;	/* give the special that's waiting a chance to run */
-	}
-
-
-	dp = &sd_buf_queue[unit];
-	if ((bp = dp->b_actf) != NULL)	/* yes, an assign */
-	{
-		dp->b_actf = bp->av_forw;
-	}
-	else
-	{ 
 		return;
 	}
 
-	xs=sd_get_xs(unit,0);	/* ok we can grab it */
-	xs->flags = INUSE;    /* Now ours */
+	/*******************************************************\
+	* See if there is a buf with work for us to do..	*
+	\*******************************************************/
+	dp = &sd_buf_queue[unit];
+	if ((bp = dp->b_actf) == NULL)	/* yes, an assign */
+	{
+		return;
+	}
+
+	dp->b_actf = bp->av_forw;
+
 	/*******************************************************\
 	*  If the device has become invalid, abort all the	*
 	* reads and writes until all files have been closed and	*
@@ -537,15 +573,12 @@ int	unit;
 	\*******************************************************/
 	if(!(sd->flags & SDVALID))
 	{
-		xs->error = XS_DRIVER_STUFFUP;
-		sd_done(unit,xs);  /* clean up (calls sdstart) */
-		return ;
+		goto bad;
 	}
 	/*******************************************************\
-	* We have a buf, now we should move the data into	*
-	* a scsi_xfer definition and try start it		*
-	\*******************************************************/
-	/*******************************************************\
+	* We have a buf, now we know we are going to go through	*
+	* With this thing..					*
+	*							*
 	*  First, translate the block to absolute		*
 	\*******************************************************/
 	p = sd->disklabel.d_partitions + PARTITION(bp->b_dev);
@@ -565,111 +598,30 @@ int	unit;
 	cmd.length2	=	(nblk & 0xff00) >> 8;
 	cmd.length1	=	(nblk & 0xff);
 	/*******************************************************\
-	* Fill out the scsi_xfer structure			*
+	* Call the routine that chats with the adapter		*
 	*	Note: we cannot sleep as we may be an interrupt	*
 	\*******************************************************/
-	xs->flags	|=	SCSI_NOSLEEP;
-	xs->adapter	=	sd->ctlr;
-	xs->targ	=	sd->targ;
-	xs->lu		=	sd->lu;
-	xs->retries	=	SD_RETRIES;
-	xs->timeout	=	10000;/* 10000 millisecs for a disk !*/
-	xs->cmd		=	(struct scsi_generic *)&cmd;
-	xs->cmdlen	=	sizeof(cmd);
-	xs->resid	=	bp->b_bcount;
-	xs->when_done	=	sd_done;
-	xs->done_arg	=	unit;
-	xs->done_arg2	=	(int)xs;
-	xs->error	=	XS_NOERROR;
-	xs->bp		=	bp;
-	xs->data	=	(u_char *)bp->b_un.b_addr;
-	xs->datalen	=	bp->b_bcount;
-	/*******************************************************\
-	* Pass all this info to the scsi driver.		*
-	\*******************************************************/
-
-
-
-	if ( (*(sd->sc_sw->scsi_cmd))(xs) != SUCCESSFULLY_QUEUED)
+	if (sd_scsi_cmd(unit,
+			&cmd,
+			sizeof(cmd),
+			(u_char *)bp->b_un.b_addr,
+			bp->b_bcount,
+			10000,
+			bp,
+			SCSI_NOSLEEP| ((bp->b_flags & B_READ)?
+				SCSI_DATA_IN : SCSI_DATA_OUT))
+		!= SUCCESSFULLY_QUEUED)
 	{
+bad:
 		printf("sd%d: oops not queued",unit);
-		xs->error = XS_DRIVER_STUFFUP;
-		sd_done(unit,xs);  /* clean up (calls sdstart) */
+		bp->b_error = EIO;
+		bp->b_flags |= B_ERROR;
+		biodone(bp);
+		return ;
 	}
 	sdqueues++;
 }
 
-/*******************************************************\
-* This routine is called by the scsi interrupt when	*
-* the transfer is complete.
-\*******************************************************/
-int	sd_done(unit,xs)
-int	unit;
-struct	scsi_xfer	*xs;
-{
-	struct	buf		*bp;
-	int	retval;
-	int	retries = 0;
-
-	if(scsi_debug & PRINTROUTINES) printf("sd_done%d ",unit);
-	if (! (xs->flags & INUSE))
-		panic("scsi_xfer not in use!");
-	if(bp = xs->bp)
-	{
-		switch(xs->error)
-		{
-		case	XS_NOERROR:
-			bp->b_error = 0;
-			bp->b_resid = 0;
-			break;
-
-		case	XS_SENSE:
-			retval = (sd_interpret_sense(unit,xs));
-			if(retval)
-			{
-				bp->b_flags |= B_ERROR;
-				bp->b_error = retval;
-			}
-			break;
-
-		case	XS_TIMEOUT:
-			printf("sd%d timeout\n",unit);
-
-		case	XS_BUSY:	/* should retry */ /* how? */
-			/************************************************/
-			/* SHOULD put buf back at head of queue		*/
-			/* and decrement retry count in (*xs)		*/
-			/* HOWEVER, this should work as a kludge	*/
-			/************************************************/
-			if(xs->retries--)
-			{
-				xs->error = XS_NOERROR;
-				xs->flags &= ~ITSDONE;
-				if ( (*(sd_data[unit].sc_sw->scsi_cmd))(xs)
-					== SUCCESSFULLY_QUEUED)
-				{	/* don't wake the job, ok? */
-					return;
-				}
-				xs->flags |= ITSDONE;
-			} /* fall through */
-
-		case	XS_DRIVER_STUFFUP:
-			bp->b_flags |= B_ERROR;
-			bp->b_error = EIO;
-			break;
-		default:
-			printf("sd%d: unknown error category from scsi driver\n"
-				,unit);
-		}	
-		biodone(bp);
-		sd_free_xs(unit,xs,0);
-		sdstart(unit);	/* If there's anything waiting.. do it */
-	}
-	else /* special has finished */
-	{
-		wakeup(xs);
-	}
-}
 /*******************************************************\
 * Perform special action on behalf of the user		*
 * Knows about the internals of this device		*
@@ -688,13 +640,15 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	\*******************************************************/
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd = &sd_data[unit];
+	sd = sd_data[unit];
+#ifdef	SDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("sdioctl%d ",unit);
+#endif	/*SDDEBUG*/
 
 	/*******************************************************\
 	* If the device is not valid.. abandon ship		*
 	\*******************************************************/
-	if (!(sd_data[unit].flags & SDVALID))
+	if (!(sd->flags & SDVALID))
 		return(EIO);
 	switch(cmd)
 	{
@@ -778,7 +732,7 @@ unsigned char	unit;
 	/*unsigned int n, m;*/
 	char *errstring;
 	struct dos_partition *dos_partition_p;
-	struct sd_data *sd = sd_data + unit;
+	struct sd_data *sd = sd_data[unit];
 
 	/*******************************************************\
 	* If the inflo is already loaded, use it		*
@@ -789,6 +743,7 @@ unsigned char	unit;
 	/*******************************************************\
 	* make partition 3 the whole disk in case of failure	*
   	*   then get pdinfo 					*
+	* for historical reasons, make part a same as raw part	*
 	\*******************************************************/
 	sd->disklabel.d_partitions[0].p_offset = 0;
 	sd->disklabel.d_partitions[0].p_size = sd->params.disksize;
@@ -804,11 +759,11 @@ unsigned char	unit;
 	{
 		sd->disklabel.d_secpercyl = 100;
 					/* as long as it's not 0 */
-					/* readdisklabel divides by it */
+					/* readdisklabel divides by it (?)*/
 	}
 
 	/*******************************************************\
-	* all the generic disklabel extraction routine		*
+	* Call the generic disklabel extraction routine		*
 	\*******************************************************/
 	if(errstring = readdisklabel(makedev(0 ,(unit<<UNITSHIFT )+3)
 					, sdstrategy
@@ -820,9 +775,6 @@ unsigned char	unit;
 		printf("sd%d: %s\n",unit, errstring);
 		return(ENXIO);
 	}
-	/*******************************************************\
-	* leave partition 2 "open" for raw I/O 			*
-	\*******************************************************/
 
 	sd->flags |= SDHAVELABEL; /* WE HAVE IT ALL NOW */
 	return(ESUCCESS);
@@ -854,7 +806,8 @@ sd_size(unit, flags)
 			&rdcap,
 			sizeof(rdcap),  
 			2000,
-			flags) != 0)
+			NULL,
+			flags | SCSI_DATA_IN) != 0)
 	{
 		printf("sd0%: could not get size\n", unit);
 		return(0);
@@ -884,16 +837,20 @@ int	unit,flags;
 			0,
 			0,
 			100000,
+			NULL,
 			flags));
 }
 
 /*******************************************************\
 * Prevent or allow the user to remove the tape		*
+* Don't change this status if any partitions are open	*
 \*******************************************************/
 sd_prevent(unit,type,flags)
 int	unit,type,flags;
 {
 	struct	scsi_prevent	scsi_cmd;
+
+	if(sd_data[unit]->openparts) return;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PREVENT_ALLOW;
@@ -904,6 +861,7 @@ int	unit,type,flags;
 			0,
 			0,
 			5000,
+			NULL,
 			flags) );
 }
 /*******************************************************\
@@ -924,6 +882,7 @@ int	unit,flags;
 			0,
 			0,
 			2000,
+			NULL,
 			flags));
 }
 
@@ -953,7 +912,8 @@ sd_reassign_blocks(unit,block)
 			&rbdata,
 			sizeof(rbdata),
 			5000,
-			0));
+			NULL,
+			SCSI_DATA_OUT));
 }
 
 #define b2tol(a)	(((unsigned)(a##_1) << 8) + (unsigned)a##_0 )
@@ -966,7 +926,7 @@ sd_reassign_blocks(unit,block)
 
 int	sd_get_parms(unit, flags)
 {
-	struct sd_data *sd = sd_data + unit;
+	struct sd_data *sd = sd_data[unit];
 	struct disk_parms *disk_parms = &sd->params;
 	struct	scsi_mode_sense		scsi_cmd;
 	struct	scsi_mode_sense_data
@@ -984,6 +944,7 @@ int	sd_get_parms(unit, flags)
 	/*******************************************************\
 	* First do a mode sense page 3				*
 	\*******************************************************/
+#ifdef	SDDEBUG
 	if (sd_debug)
 	{
 		bzero(&scsi_cmd, sizeof(scsi_cmd));
@@ -1000,11 +961,13 @@ int	sd_get_parms(unit, flags)
 				&scsi_sense,
 				sizeof(scsi_sense),
 				2000,
-				flags) != 0)
+				NULL,
+				flags | SCSI_DATA_IN) != 0)
 		{
 			printf("sd%d: could not mode sense (3)\n", unit);
-			return(ENXIO);
 		} 
+		else
+		{
 		printf("unit %d: %d trk/zone, %d alt_sec/zone, %d alt_trk/zone, %d alt_trk/lun\n",
 			unit,
 			b2tol(scsi_sense.pages.disk_format.trk_z),
@@ -1017,7 +980,9 @@ int	sd_get_parms(unit, flags)
 			b2tol(scsi_sense.pages.disk_format.interleave),
 			sd_size(unit, flags),
 			_3btol(scsi_sense.blk_desc.blklen));
+		}
 	}
+#endif	/*SDDEBUG*/
 
 
 	/*******************************************************\
@@ -1037,14 +1002,15 @@ int	sd_get_parms(unit, flags)
 			&scsi_sense,
 			sizeof(scsi_sense),
 			2000,
-			flags) != 0)
+			NULL,
+			flags | SCSI_DATA_IN) != 0)
 	{
-		printf("sd%d: could not mode sense (4)", unit);
-		printf(" using ficticious geometry\n");
+		printf("sd%d could not mode sense (4).", unit);
+		printf(" Using ficticious geometry\n");
 		/*
 		 * use adaptec standard ficticious geometry
-		 * this depends on controllers and mode (ie, 1542C in
-		 * extended bios translation is different
+		 * this depends on which controller (e.g. 1542C is
+		 * different. but we have to put SOMETHING here..)
 		 */
 		sectors = sd_size(unit, flags);
 		disk_parms->heads = 64;
@@ -1055,6 +1021,8 @@ int	sd_get_parms(unit, flags)
 	} 
 	else
 	{
+
+#ifdef	SDDEBUG
 		if (sd_debug)
 		{
 		printf("         %d cyls, %d heads, %d precomp, %d red_write, %d land_zone\n",
@@ -1064,11 +1032,13 @@ int	sd_get_parms(unit, flags)
 			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_rwc),
 			b2tol(scsi_sense.pages.rigid_geometry.land_zone));
 		}
+#endif	/*SDDEBUG*/
 
 		/*******************************************************\
 		* KLUDGE!!(for zone recorded disks)			*
 		* give a number of sectors so that sec * trks * cyls	*
 		* is <= disk_size 					*
+		* can lead to wasted space! THINK ABOUT THIS !		*
 		\*******************************************************/
 		disk_parms->heads = scsi_sense.pages.rigid_geometry.nheads;
 		disk_parms->cyls = _3btol(&scsi_sense.pages.rigid_geometry.ncyl_2);
@@ -1076,8 +1046,8 @@ int	sd_get_parms(unit, flags)
 
 		sectors = sd_size(unit, flags);
 		disk_parms->disksize = sectors;
-		sectors /= (disk_parms->cyls * disk_parms->heads);
-		disk_parms->sectors = sectors; /* dubious on SCSI*/
+		sectors /= (disk_parms->heads * disk_parms->cyls);
+		disk_parms->sectors = sectors; /* dubious on SCSI*//*XXX*/
 	}
 
 	sd->flags |= SDVALID;
@@ -1087,22 +1057,110 @@ int	sd_get_parms(unit, flags)
 /*******************************************************\
 * close the device.. only called if we are the LAST	*
 * occurence of an open device				*
+* convenient now but usually a pain			*
 \*******************************************************/
 sdclose(dev)
 dev_t dev;
 {
 	unsigned char unit, part;
 	unsigned int old_priority;
+	struct sd_data *sd;
 
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	sd_data[unit].partflags[part] &= ~SDOPEN;
-	sd_data[unit].openparts &= ~(1 << part);
-	if(sd_data[unit].openparts == 0) /* if all partitions closed */
-	{
-		sd_prevent(unit,PR_ALLOW,SCSI_SILENT|SCSI_ERR_OK);
-	}
+	sd = sd_data[unit];
+	sd->partflags[part] &= ~SDOPEN;
+	sd->openparts &= ~(1 << part);
+	sd_prevent(unit,PR_ALLOW,SCSI_SILENT|SCSI_ERR_OK);
 	return(0);
+}
+
+/*******************************************************\
+* This routine is called by the scsi interrupt when	*
+* the transfer is complete.
+\*******************************************************/
+int	sd_done(unit,xs)
+int	unit;
+struct	scsi_xfer	*xs;
+{
+	struct	buf		*bp;
+	int	retval;
+	int	retries = 0;
+
+#ifdef	SDDEBUG
+	if(scsi_debug & PRINTROUTINES) printf("sd_done%d ",unit);
+#endif	/*SDDEBUG*/
+#ifdef	PARANOID
+	if (! (xs->flags & INUSE))
+		panic("scsi_xfer not in use!");
+#endif
+	if((bp = xs->bp) == NULL)
+	{
+		/***********************************************\
+		* if it's a normal user level request, then ask	*
+		* The user level code to handle error checking	*
+		* rather than doing it here at interrupt time	*
+		\***********************************************/
+		wakeup(xs);
+		return;
+	}
+
+	/***********************************************\
+	* If it has a buf, we might be working with	*
+	* a request from the buffer cache or some other	*
+	* piece of code that requires us to process	*
+	* errors right now, despite cost		*
+	\***********************************************/
+	switch(xs->error)
+	{
+	case	XS_NOERROR:
+		bp->b_error = 0;
+		bp->b_resid = 0;
+		break;
+
+	case	XS_SENSE:
+		retval = (sd_interpret_sense(unit,xs));
+		if(retval)
+		{
+			bp->b_flags |= B_ERROR;
+			bp->b_error = retval;
+		}
+		break;
+
+	case	XS_BUSY:	
+		/*should somehow arange for a 1 sec delay here (how?)*/
+	case	XS_TIMEOUT:
+		/***********************************************\
+		* If we can, resubmit it to the adapter.	*
+		\***********************************************/
+		if(xs->retries--)
+		{
+			xs->error = XS_NOERROR;
+			xs->flags &= ~ITSDONE;
+			if ( (*(sd_data[unit]->sc_sw->scsi_cmd))(xs)
+				== SUCCESSFULLY_QUEUED)
+			{	/* don't wake the job, ok? */
+				return;
+			}
+			xs->flags |= ITSDONE;
+		} /* fall through */
+
+	case	XS_DRIVER_STUFFUP:
+		bp->b_flags |= B_ERROR;
+		bp->b_error = EIO;
+		break;
+	default:
+		printf("sd%d: unknown error category from scsi driver\n"
+			,unit);
+	}	
+	/*******************************\
+	* tell the owner we're done	*
+	* then free our resources	*
+	* and see if there's more work	*
+	\*******************************/
+	biodone(bp);
+	sd_free_xs(unit,xs,0);
+	sdstart(unit);	/* If there's anything waiting.. do it */
 }
 
 /*******************************************************\
@@ -1110,11 +1168,12 @@ dev_t dev;
 * Call it through the switch table, and tell it which	*
 * sub-unit we want, and what target and lu we wish to	*
 * talk to. Also tell it where to find the command	*
-* how long int is.					*
+* and how long it is.					*
 * Also tell it where to read/write the data, and how	*
-* long the data is supposed to be			*
+* long the data is supposed to be. If we have  a buf	*
+* to associate with the transfer, we need that too.	*
 \*******************************************************/
-int	sd_scsi_cmd(unit,scsi_cmd,cmdlen,data_addr,datalen,timeout,flags)
+int	sd_scsi_cmd(unit,scsi_cmd,cmdlen,data_addr,datalen,timeout,bp,flags)
 
 int	unit,flags;
 struct	scsi_generic *scsi_cmd;
@@ -1122,112 +1181,136 @@ int	cmdlen;
 int	timeout;
 u_char	*data_addr;
 int	datalen;
+struct buf *bp;
 {
 	struct	scsi_xfer *xs;
 	int	retval;
 	int	s;
-	struct sd_data *sd = sd_data + unit;
+	struct sd_data *sd = sd_data[unit];
 
+#ifdef	SDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("\nsd_scsi_cmd%d ",unit);
-	if(sd->sc_sw)	/* If we have a scsi driver */
-	{
-		xs = sd_get_xs(unit,flags); /* should wait unless booting */
-		if(!xs)
-		{
-			printf("sd_scsi_cmd%d: controller busy"
- 					" (this should never happen)\n",unit); 
-				return(EBUSY);
-		}
-		xs->flags |= INUSE;
-		/*******************************************************\
-		* Fill out the scsi_xfer structure			*
-		\*******************************************************/
-		xs->flags	|=	flags;
-		xs->adapter	=	sd->ctlr;
-		xs->targ	=	sd->targ;
-		xs->lu		=	sd->lu;
-		xs->retries	=	SD_RETRIES;
-		xs->timeout	=	timeout;
-		xs->cmd		=	scsi_cmd;
-		xs->cmdlen	=	cmdlen;
-		xs->data	=	data_addr;
-		xs->datalen	=	datalen;
-		xs->resid	=	datalen;
-		xs->when_done	=	(flags & SCSI_NOMASK)
-					?(int (*)())0
-					:sd_done;
-		xs->done_arg	=	unit;
-		xs->done_arg2	=	(int)xs;
-retry:		xs->error	=	XS_NOERROR;
-		xs->bp		=	0;
-		retval = (*(sd->sc_sw->scsi_cmd))(xs);
-		switch(retval)
-		{
-		case	SUCCESSFULLY_QUEUED:
-			s = splbio();
-			while(!(xs->flags & ITSDONE))
-				sleep(xs,PRIBIO+1);
-			splx(s);
+#endif	/*SDDEBUG*/
 
-		case	HAD_ERROR:
-			/*printf("err = %d ",xs->error);*/
-			switch(xs->error)
-			{
-			case	XS_NOERROR:
-				retval = ESUCCESS;
-				break;
-			case	XS_SENSE:
-				retval = (sd_interpret_sense(unit,xs));
-				break;
-			case	XS_DRIVER_STUFFUP:
-				retval = EIO;
-				break;
-			case	XS_TIMEOUT:
-				if(xs->retries-- )
-				{
-					xs->flags &= ~ITSDONE;
-					goto retry;
-				}
-				retval = EIO;
-				break;
-			case	XS_BUSY:
-				if(xs->retries-- )
-				{
-					xs->flags &= ~ITSDONE;
-					goto retry;
-				}
-				retval = EIO;
-				break;
-			default:
-				retval = EIO;
-				printf("sd%d: unknown error category from scsi driver\n"
-					,unit);
-			}	
-			break;
-		case	COMPLETE:
+#ifdef	PARANOID
+	if(!(sd->sc_sw))	/* If we have a scsi driver */
+	{/* How we got here is anyone's guess */
+		printf("sd%d: not set up\n",unit);
+		return(EINVAL);
+	}
+#endif
+	xs = sd_get_xs(unit,flags); /* should wait unless booting */
+#ifdef	PARANOID
+	if(!xs)
+	{
+		printf("sd_scsi_cmd%d: controller busy"
+ 				" (this should never happen)\n",unit); 
+			return(EBUSY);
+	}
+#endif
+	/*******************************************************\
+	* Fill out the scsi_xfer structure			*
+	\*******************************************************/
+	xs->flags	=	INUSE | flags;
+	xs->adapter	=	sd->ctlr;
+	xs->targ	=	sd->targ;
+	xs->lu		=	sd->lu;
+	xs->retries	=	SD_RETRIES;
+	xs->timeout	=	timeout;
+	xs->cmd		=	scsi_cmd;
+	xs->cmdlen	=	cmdlen;
+	xs->data	=	data_addr;
+	xs->datalen	=	datalen;
+	xs->resid	=	datalen;
+	xs->when_done	=	sd_done;
+	xs->done_arg	=	unit;
+	xs->done_arg2	=	(int)xs;
+	xs->bp		=	bp;
+retry:	xs->error	=	XS_NOERROR;
+
+	/*******************************************************\
+	* Do the transfer. If we are polling we will return:	*
+	* COMPLETE,	Was poll, and sd_done has been called	*
+	* HAD_ERROR,	Was poll and an error was encountered	*
+	* TRY_AGAIN_LATER, Adapter short resources, try again	*
+	*							*
+	* if under full steam (interrupts) it will return:	*
+	* SUCCESSFULLY_QUEUED, will do a wakeup when complete	*
+	* HAD_ERROR,	had an erro before it could queue	*
+	* TRY_AGAIN_LATER, (as for polling)			*
+	* After the wakeup, we must still check if it succeeded	*
+	*							*
+	* If we have a bp however, all the error proccessing	*
+	* and the buffer code both expect us to return straight	*
+	* to them, so as soon as the command is queued, return	*
+	\*******************************************************/
+	retval = (*(sd->sc_sw->scsi_cmd))(xs);
+	if(bp) return retval; /* will sleep (or not) elsewhere */
+
+	/*******************************************************\
+	* Only here for non I/O cmds. It's cheaper to process	*
+	* the error status here than at interrupt time so	*
+	* sd_done will have done nothing except wake us up.	*
+	\*******************************************************/
+	switch(retval)
+	{
+	case	SUCCESSFULLY_QUEUED:
+		s = splbio();
+		while(!(xs->flags & ITSDONE))
+			sleep(xs,PRIBIO+1);
+		splx(s);
+		/* fall through to check success of completed command */
+
+	case	HAD_ERROR:
+		switch(xs->error)
+		{
+		case	XS_NOERROR: /* nearly always hit this one */
 			retval = ESUCCESS;
 			break;
-		case 	TRY_AGAIN_LATER:
+
+		case	XS_SENSE:
+			retval = (sd_interpret_sense(unit,xs));
+			break;
+		case	XS_BUSY:
+			/* should sleep 1 sec here */
+		case	XS_TIMEOUT:
 			if(xs->retries-- )
 			{
 				xs->flags &= ~ITSDONE;
 				goto retry;
 			}
+		case	XS_DRIVER_STUFFUP:
 			retval = EIO;
 			break;
 		default:
 			retval = EIO;
+			printf("sd%d: unknown error category from scsi driver\n"
+				,unit);
+		}	
+		break;
+	case	COMPLETE:	/* Polling command completed ok */
+		retval = ESUCCESS;
+		break;
+
+	case 	TRY_AGAIN_LATER:	/* adapter resource shortage */
+		/* should sleep 1 sec here */
+		if(xs->retries-- )
+		{
+			xs->flags &= ~ITSDONE;
+			goto retry;
 		}
-		sd_free_xs(unit,xs,flags);
-		sdstart(unit);		/* check if anything is waiting fr the xs */
+	default:
+		retval = EIO;
 	}
-	else
-	{
-		printf("sd%d: not set up\n",unit);
-		return(EINVAL);
-	}
+	/*******************************************************\
+	* we have finished with the xfer stuct, free it and	*
+	* check if anyone else needs to be started up.		*
+	\*******************************************************/
+	sd_free_xs(unit,xs,flags);
+	sdstart(unit); /* check queue */
 	return(retval);
 }
+
 /***************************************************************\
 * Look at the returned sense and act on the error and detirmine	*
 * The unix error number to pass back... (0 = report no error)	*
@@ -1240,6 +1323,7 @@ struct	scsi_xfer *xs;
 	struct	scsi_sense_data *sense;
 	int	key;
 	int	silent;
+	long int	info;
 
 	/***************************************************************\
 	* If the flags say errs are ok, then always return ok.		*
@@ -1248,6 +1332,10 @@ struct	scsi_xfer *xs;
 	silent = (xs->flags & SCSI_SILENT);
 
 	sense = &(xs->sense);
+	info = ((sense->ext.extended.info[0] <<24)|
+		(sense->ext.extended.info[1] <<16)|
+  		(sense->ext.extended.info[2] <<8)|
+		(sense->ext.extended.info[3] ));
 	switch(sense->error_code & SSD_ERRCODE)
 	{
 	case 0x70:
@@ -1263,11 +1351,7 @@ struct	scsi_xfer *xs;
 				printf("sd%d: soft error(corrected) ", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+			  		printf("block no. %d (decimal)",info);
 				}
 				printf("\n");
 			}
@@ -1282,11 +1366,7 @@ struct	scsi_xfer *xs;
 				printf("sd%d: medium error ", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+			  		printf("block no. %d (decimal)",info);
 				}
 				printf("\n");
 			}
@@ -1306,8 +1386,8 @@ struct	scsi_xfer *xs;
 			* sure that we don't have any residual state	*
 			\***********************************************/
 			if(!silent)printf("sd%d: Unit attention.\n ", unit); 
-			sd_data[unit].flags &= ~(SDVALID | SDHAVELABEL);
-			if (sd_data[unit].openparts)
+			sd_data[unit]->flags &= ~(SDVALID | SDHAVELABEL);
+			if (sd_data[unit]->openparts)
 			{
 				return(EIO);
 			}
@@ -1319,11 +1399,7 @@ struct	scsi_xfer *xs;
 						unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 			  	{
-					printf("block no. %d (decimal)\n",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+					printf("block no. %d (decimal)\n",info);
 				}
 				printf("\n");
 			}
@@ -1331,15 +1407,11 @@ struct	scsi_xfer *xs;
 		case	0x8:
 			if(!silent)
 			{
-				printf("sd%d: block wrong state (worm)\n ",
+				printf("sd%d: block wrong state (format?)\n ",
 				unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+			  		printf("block no. %d (decimal)\n",info);
 				}
 				printf("\n");
 			}
@@ -1363,11 +1435,7 @@ struct	scsi_xfer *xs;
 					unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+			  		printf("block no. %d (decimal)\n",info);
 				}
 				printf("\n");
 			}
@@ -1383,11 +1451,7 @@ struct	scsi_xfer *xs;
 				unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
-			  		(sense->ext.extended.info[0] <<24)|
-			  		(sense->ext.extended.info[1] <<16)|
-			  		(sense->ext.extended.info[2] <<8)|
-			  		(sense->ext.extended.info[3] ));
+			  		printf("block no. %d (decimal)\n",info);
 				}
 				printf("\n");
 			}
@@ -1426,7 +1490,8 @@ sdsize(dev_t dev)
 	if (unit >= NSD)
 		return(-1);
 
-	sd = &sd_data[unit];
+	sd = sd_data[unit];
+	if(!sd) return(-1);
 	if((sd->flags & SDINIT) == 0) return(-1);
 	if (sd == 0 || (sd->flags & SDHAVELABEL) == 0)
 		val = sdopen (MAKESDDEV(major(dev), unit, RAW_PART), FREAD, S_IFBLK, 0);
@@ -1435,7 +1500,7 @@ sdsize(dev_t dev)
 
 	return((int)sd->disklabel.d_partitions[part].p_size);
 }
-
+/*#define SCSIDUMP*/
 #ifdef SCSIDUMP
 #include <vm/vm.h>
 /***********************************************************************\
@@ -1473,7 +1538,8 @@ sddump(dev_t dev)			/* dump core after a system crash */
 	/* check for acceptable drive number */
 	if (unit >= NSD) return(ENXIO);		/* 31 Jul 92*/
 
-	sd = sd_data+unit;
+	sd = sd_data[unit];
+	if(!sd) return (ENXIO);
 	/* was it ever initialized etc. ? */
 	if (!(sd->flags & SDINIT)) 		return (ENXIO);
 	if (sd->flags & SDVALID != SDVALID) 	return (ENXIO) ;
@@ -1503,7 +1569,7 @@ sddump(dev_t dev)			/* dump core after a system crash */
 				trunc_page(addr),
 				VM_PROT_READ,
 				TRUE);
-#ifndef  NOT_TRUSTED
+#ifndef	NOT_TRUSTED
 		/*******************************************************\
 		*  Fill out the scsi command				*
 		\*******************************************************/
@@ -1552,8 +1618,9 @@ sddump(dev_t dev)			/* dump core after a system crash */
 			return(ENXIO); /* we said not to sleep! */
 		}
 #else	NOT_TRUSTED
+		/* lets just talk about this first...*/
 		printf ("sd%d: dump addr 0x%x, blk %d\n",unit,addr,blknum);
-#endif
+#endif	NOT_TRUSTED
 		
 		if ((unsigned)addr % (1024*1024) == 0) printf("%d ", num/2048) ;
 		/* update block count */
@@ -1567,11 +1634,12 @@ sddump(dev_t dev)			/* dump core after a system crash */
 	}
 	return(0);
 }
-#else	/* No SCSIDUMP CODE */
+#else	SCSIDUMP
 sddump()
 {
 	printf("\nsddump()        -- not implemented\n");
-	DELAY(20000000);	/* 100 seconds */
+	DELAY(100000000);	/* 100 seconds */
 	return(-1);
 }
-#endif
+#endif SCSIDUMP
+
