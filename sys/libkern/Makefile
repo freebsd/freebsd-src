@@ -1,8 +1,8 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id$
+# $Id: Makefile,v 1.2 1994/08/02 07:43:40 davidg Exp $
 
 LIB=	kern
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/..
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/.. -DKERNEL
 SRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c bcmp.c cmpdi2.c divdi3.c \
 	ffs.c iordi3.c locc.c lshldi3.c lshrdi3.c mcount.c moddi3.c \
 	muldi3.c negdi2.c notdi2.c qdivrem.c random.c rindex.c scanc.c \
