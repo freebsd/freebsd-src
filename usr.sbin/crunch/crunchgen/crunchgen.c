@@ -65,6 +65,7 @@ typedef struct prog {
     char *name;			/* program name */
     char *ident;		/* C identifier for the program name */
     char *srcdir;
+    char *realsrcdir;
     char *objdir;
     char *objvar;		/* Makefile variable to replace OBJS */
     strlst_t *objs, *objpaths;
@@ -502,8 +503,7 @@ void gen_outputs(void)
     gen_output_makefile();
     status("");
     fprintf(stderr,
-	    "Run \"make -f %s objs exe\" to build crunched binary.\n",
-	    outmkname);
+	    "Run \"make -f %s\" to build crunched binary.\n", outmkname);
 }
 
 /*
@@ -513,8 +513,8 @@ void fillin_program(prog_t *p)
 {
     char path[MAXPATHLEN];
     char *srcparent;
-    strlst_t *s;
     char line[MAXLINELEN];
+    FILE *f;
 
     snprintf(line, MAXLINELEN, "filling in parms for %s", p->name);
     status(line);
@@ -528,20 +528,30 @@ void fillin_program(prog_t *p)
 	if(is_dir(line))
 	    p->srcdir = strdup(line);
     }
-    if(!p->objdir && p->srcdir) {
-	FILE *f;
-        p->objdir = p->srcdir;
-	snprintf(line, MAXLINELEN, "cd %s && echo -n %s`/bin/pwd`",
-		 p->srcdir, objprefix);
-	f = popen(line,"r");
-	if (f) {
-	    path[0]='\0';
-	    fgets(path,sizeof path, f);
-	    if (!pclose(f)) {
-		if(is_dir(path))
-		    p->objdir = strdup(path);
-	    }
+
+    /* Determine the actual srcdir (maybe symlinked). */
+    snprintf(line, MAXLINELEN, "cd %s && echo -n `/bin/pwd`", p->srcdir);
+    f = popen(line,"r");
+    if (f) {
+	path[0] = '\0';
+	fgets(path, sizeof path, f);
+	if (!pclose(f)) {
+	    p->realsrcdir = strdup(path);
 	}
+    }
+    if (!p->realsrcdir) 
+	errx(1, "Can't execute: %s\n", line);
+
+    /* Unless the option to make object files was specified the
+     * the objects will be built in the source directory unless
+     * an object directory already exists.
+     */
+    if(!makeobj && !p->objdir && p->srcdir) {
+	snprintf(line, sizeof line, "%s/%s", objprefix, p->realsrcdir);
+	if (is_dir(line))
+	    p->objdir = strdup(line);
+	else
+	    p->objdir = p->realsrcdir;
     }
 /*
  * XXX look for a Makefile.{name} in local directory first.
@@ -556,24 +566,12 @@ void fillin_program(prog_t *p)
     if(!p->objs && p->srcdir && is_nonempty_file(path))
 	fillin_program_objs(p, path);
 
-    if(!p->objpaths && p->objdir && p->objs)
-	for(s = p->objs; s != NULL; s = s->next) {
-	    snprintf(line, MAXLINELEN, "%s/%s", p->objdir, s->str);
-	    add_string(&p->objpaths, line);
-	}
-
     if(!p->srcdir && verbose)
 	warnx("%s: %s: warning: could not find source directory",
 		infilename, p->name);
     if(!p->objs && verbose)
 	warnx("%s: %s: warning: could not find any .o files",
 		infilename, p->name);
-
-    if(!p->objpaths) {
-	warnx("%s: %s: error: no objpaths specified or calculated",
-		infilename, p->name);
-	p->goterror = goterror = 1;
-    }
 }
 
 void fillin_program_objs(prog_t *p, char *path)
@@ -695,8 +693,10 @@ void gen_specials_cache(void)
 	    fprintf(cachef, "special %s objs", p->name);
 	    output_strlst(cachef, p->objs);
 	}
-	fprintf(cachef, "special %s objpaths", p->name);
-	output_strlst(cachef, p->objpaths);
+	if(p->objpaths) {
+	    fprintf(cachef, "special %s objpaths", p->name);
+	    output_strlst(cachef, p->objpaths);
+	}
     }
     fclose(cachef);
 }
@@ -816,6 +816,13 @@ void top_makefile_rules(FILE *outmk)
     fprintf(outmk, "LIBS=");
     output_strlst(outmk, libs);
 
+    if (makeobj) {
+	fprintf(outmk, "MAKEOBJDIRPREFIX?=%s\n", objprefix);
+	fprintf(outmk, "MAKE=env MAKEOBJDIRPREFIX=$(MAKEOBJDIRPREFIX) make\n");
+    } else {
+	fprintf(outmk, "MAKE=make\n");
+    }
+
     if (buildopts) {
 	fprintf(outmk, "BUILDOPTS+=");
 	output_strlst(outmk, buildopts);
@@ -834,13 +841,13 @@ void top_makefile_rules(FILE *outmk)
 	fprintf(outmk, " %s_clean", p->ident);
     fprintf(outmk, "\n\n");
 
+    fprintf(outmk, "all: objs exe\nobjs: $(SUBMAKE_TARGETS)\n");
+    fprintf(outmk, "exe: %s\n", execfname);
     fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n",
 	    execfname, execfname);
     fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
     fprintf(outmk, "\tstrip %s\n", execfname);
-    fprintf(outmk, "all: objs exe\nobjs: $(SUBMAKE_TARGETS)\n");
-    fprintf(outmk, "exe: %s\n", execfname);
     fprintf(outmk, "realclean: clean subclean\n");
     fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n",
 	    execfname);
@@ -856,6 +863,16 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 
     if(p->srcdir && p->objs) {
 	fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
+	fprintf(outmk, "%s_REALSRCDIR=%s\n", p->ident, p->realsrcdir);
+
+	fprintf(outmk, "%s_OBJDIR=", p->ident);
+	if (p->objdir)
+		fprintf(outmk, "%s", p->objdir);
+	else
+		fprintf(outmk, "$(MAKEOBJDIRPREFIX)/$(%s_REALSRCDIR)\n",
+		    p->ident);
+	fprintf(outmk, "\n");
+
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	if (p->buildopts != NULL) {
@@ -865,20 +882,27 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_make:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
 	if (makeobj)
-		fprintf(outmk, "make obj && ");
+		fprintf(outmk, "$(MAKE) obj && ");
 	fprintf(outmk, "\\\n");
-	fprintf(outmk, "\t\tmake $(BUILDOPTS) $(%s_OPTS) depend && \\\n"
-		"\t\tmake $(BUILDOPTS) $(%s_OPTS) $(%s_OBJS))\n",
+	fprintf(outmk, "\t\t$(MAKE) $(BUILDOPTS) $(%s_OPTS) depend && \\\n"
+		"\t\t$(MAKE) $(BUILDOPTS) $(%s_OPTS) $(%s_OBJS))\n",
 		p->ident, p->ident, p->ident);
 	fprintf(outmk, "%s_clean:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && $(MAKE) clean)\n\n", p->ident);
     }
     else
 	fprintf(outmk, "%s_make:\n\t@echo \"** cannot make objs for %s\"\n\n",
 		p->ident, p->name);
 
-    fprintf(outmk,   "%s_OBJPATHS=", p->ident);
-    output_strlst(outmk, p->objpaths);
+    fprintf(outmk, "%s_OBJPATHS=", p->ident);
+    if (p->objpaths)
+	output_strlst(outmk, p->objpaths);
+    else {
+	for (lst = p->objs; lst != NULL; lst = lst->next) {
+	    fprintf(outmk, " $(%s_OBJDIR)/%s", p->ident, lst->str);
+	}
+	fprintf(outmk, "\n");
+    }
 
     fprintf(outmk, "%s_stub.c:\n", p->name);
     fprintf(outmk, "\techo \""
