@@ -944,7 +944,8 @@ exec_extract_strings(imgp)
 				imgp->argc++;
 			} while ((argp = (caddr_t)(intptr_t)fuword(argv++)));
 		}
-	}	
+	} else
+		return (EFAULT);
 
 	imgp->endargs = imgp->stringp;
 
