@@ -572,14 +572,7 @@ installmost:
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
-# This horrible kludge should be deleted in about 2 weeks, say July 9, 2002
-_cxx_version!=	${CXX} -v 2>&1 | awk '$$0 ~ /^gcc version/ {print $$3}'
-_cc_version!=  ${CC} -v 2>&1 | awk '$$0 ~ /^gcc version/ {print $$3}'
-.if ${CXX:T} != "c++" || \
-    (${_cxx_version} == ${_cc_version} && ${_cxx_version} != "3.1") || \
-    exists(/usr/lib/libstdc++.so.4)
 _cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
-.endif
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
