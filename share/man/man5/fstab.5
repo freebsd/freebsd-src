@@ -166,7 +166,7 @@ is used for these filesystems by the
 .Xr dump 8
 command to determine which filesystems need to be dumped.
 If the fifth field is not present, a value of zero is returned and
-.Xr dump
+.Nm dump
 will assume that the filesystem does not need to be dumped.
 .Pp
 The sixth field,
@@ -185,7 +185,7 @@ but filesystems on different drives will be checked at the
 same time to utilize parallelism available in the hardware.
 If the sixth field is not present or zero,
 a value of zero is returned and
-.Xr fsck
+.Xr fsck 8
 will assume that the filesystem does not need to be checked.
 .Bd -literal
 #define	FSTAB_RW	"rw"	/* read-write device */

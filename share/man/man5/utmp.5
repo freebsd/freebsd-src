@@ -90,7 +90,7 @@ struct utmp {
 .Ed
 .Pp
 Each time a user logs in, the
-.Xr login
+.Xr login 1
 program looks up the user's
 .Tn UID
 in the file
@@ -102,7 +102,7 @@ are written to the standard output. (Providing the login is not
 see
 .Xr login 1 . )
 The
-.Xr login
+.Nm login
 program then records the new login time in the file
 .Nm lastlog .
 .Pp

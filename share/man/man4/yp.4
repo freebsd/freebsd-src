@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
-.\"	$Id: yp.4,v 1.4 1995/09/02 04:20:01 wpaul Exp $
+.\"	$Id: yp.4,v 1.5 1996/01/30 13:51:21 mpp Exp $
 .\"
 .Dd April 5, 1993
 .Dt YP 4
@@ -51,7 +51,7 @@ entries through the functions
 and
 .Xr ethers 3 .
 The
-.Nm bootparamd
+.Xr bootparamd 8
 daemon makes direct NIS library calls since there are no
 functions in the standard C library for reading bootparams. NIS
 support for the hosts, services and rpc databases is enabled by
@@ -69,7 +69,7 @@ subsystem is started automatically in
 if it has been initialized in
 .Pa /etc/sysconfig
 and if the directory
-.Nm /var/yp
+.Pa /var/yp
 exists (which it does in the default distribution). The default
 NIS domain must also be set with the
 .Xr domainname 1
@@ -140,7 +140,7 @@ updated by the master.
 .El
 .Pp
 An NIS client establishes what is called a
-.Nm binding
+.Em binding
 to a particular NIS server using the
 .Xr ypbind 8
 daemon.
@@ -180,38 +180,41 @@ is designed to handle, most of which are implemented as functions
 within the standard C library:
 .Bl -bullet -offset indent
 .It
-.Nm yp_order()
+.Fn yp_order
 -- check the creation date of a particular map
 .It
-.Nm yp_master()
+.Fn yp_master
 -- obtain the name of the NIS master server for a given
 map/domain
 .It
-.Nm yp_match()
+.Fn yp_match
 -- lookup the data corresponding to a given in key in a particular
 map/domain
 .It
-.Nm yp_first()
+.Fn yp_first
 -- obtain the first key/data pair in a particular map/domain
 .It
-.Nm yp_next()
+.Fn yp_next
 -- pass
 .Xr ypserv 8
 a key in a particular map/domain and have it return the
-key/data pair immediately following it (yp_first() and yp_next()
+key/data pair immediately following it (the functions
+.Fn yp_first
+and
+.Fn yp_next
 can be used to do a sequential search of an NIS map)
 .It
-.Nm yp_all()
+.Fn yp_all
 -- retrieve the entire contents of a map
 .El
 .Pp
 There are a few other requests which
-.Xr ypserv
+.Xr ypserv 8
 is capable of handling (i.e. acknowledge whether or not you can handle
 a particular domain (YPPROC_DOMAIN), or acknowledge only if you can
 handle the domain and be silent otherwise (YPPROC_DOMAIN_NONACK)) but
 these requests are usually generated only by
-.Xr ypbind
+.Xr ypbind 8
 and are not meant to be used by standard utilities.
 .Pp
 On networks with a large number of hosts, it is often a good idea to
@@ -268,7 +271,7 @@ is specially designed to provided enhanced security (compared to
 other NIS implementations) when used exclusively with FreeBSD client
 systems. The FreeBSD password database system (which is derived directly
 form 4.4BSD) includes support for
-.Nm shadow passwords .
+.Em "shadow passwords" .
 The standard password database does not contain users' encrypted
 passwords: these are instead stored (along with other information)
 is a separate database which is accessible only by the super-user.
@@ -355,7 +358,8 @@ and
 functions do not yet have NIS support. Fortunately, these files
 don't need to be updated that often.
 .Pp
-Many more manual pages should be written, especially ypclnt(3).
+Many more manual pages should be written, especially
+.Xr ypclnt 3 .
 For the time being, seek out a local Sun machine and read the
 manuals for there.
 .Pp

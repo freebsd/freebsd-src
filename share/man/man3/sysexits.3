@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: sysexits.3,v 1.1 1996/03/31 22:33:54 joerg Exp $
 .\"
 .\" "
 .Dd March 31, 1996
@@ -87,7 +87,7 @@ does not exist in the passwd file.
 .It Sy EX_OSFILE Pq 72
 Some system file (e.g.,
 .Pa /etc/passwd ,
-.Pa /etc/utmp ,
+.Pa /var/run/utmp ,
 etc.) does not exist, cannot be opened, or has some sort of error
 (e.g., syntax error).
 .It Sy EX_CANTCREAT Pq 73

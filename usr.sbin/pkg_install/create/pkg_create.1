@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.14 1995/04/22 00:03:12 jkh Exp $	
+.\"	$Id: pkg_create.1,v 1.15 1996/02/12 04:56:38 mpp Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -376,6 +376,6 @@ extracted.  They additionally must not end up being split between
 .Cm tar
 invocations due to exec argument-space limitations (this depends on the
 value returned by
-.Xr sysconf _SC_ARG_MAX ).
+.Fn sysconf _SC_ARG_MAX ) .
 .Pp
 Sure to be others.
