@@ -27,7 +27,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ep.c,v 1.18 1995/01/08 10:47:23 davidg Exp $
+ */
+
+/*
+ *	Modified from the FreeBSD 1.1.5.1 version by:
+ *		 	Andres Vega Garcia 
+ *			INRIA - Sophia Antipolis, France
+ *			avega@sophia.inria.fr
  */
 
 #include "ep.h"
