@@ -65,8 +65,6 @@ pthread_cancel(pthread_t pthread)
 				 */
 				if (pthread->data.thread != NULL) {
 					pthread->data.thread->joiner = NULL;
-					pthread_detach((pthread_t)
-					    pthread->data.thread);
 				}
 				pthread->cancelflags |= PTHREAD_CANCELLING;
 				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
