@@ -37,7 +37,7 @@
  *
  *	@(#)afs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: afs_ops.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
+ * $Id: afs_ops.c,v 1.2 1995/05/30 03:45:43 rgrimes Exp $
  *
  */
 
@@ -144,6 +144,9 @@ char *opts;
 	}
 
 	NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) fhp);
+#ifdef NFSv3
+	nfs_args.fhsize = FHSIZE;
+#endif
 
 	/*
 	 * Create sockaddr to point to the local machine.  127.0.0.1

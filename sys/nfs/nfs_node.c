@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.7 1994/10/17 17:47:33 phk Exp $
+ * $Id: nfs_node.c,v 1.8 1995/03/16 18:15:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,14 +47,12 @@
 #include <sys/malloc.h>
 
 #include <nfs/rpcv2.h>
-#include <nfs/nfsv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
 #include <nfs/nqnfs.h>
 
-#define	NFSNOHASH(fhsum) \
-	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
 LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 u_long nfsnodehash;
 
@@ -79,19 +77,20 @@ nfs_nhinit()
 /*
  * Compute an entry in the NFS hash table structure
  */
-struct nfsnodehashhead *
-nfs_hash(fhp)
-	register nfsv2fh_t *fhp;
+u_long
+nfs_hash(fhp, fhsize)
+	register nfsfh_t *fhp;
+	int fhsize;
 {
 	register u_char *fhpp;
 	register u_long fhsum;
-	int i;
+	register int i;
 
 	fhpp = &fhp->fh_bytes[0];
 	fhsum = 0;
-	for (i = 0; i < NFSX_FH; i++)
+	for (i = 0; i < fhsize; i++)
 		fhsum += *fhpp++;
-	return (NFSNOHASH(fhsum));
+	return (fhsum);
 }
 
 /*
@@ -101,9 +100,10 @@ nfs_hash(fhp)
  * nfsnode structure is returned.
  */
 int
-nfs_nget(mntp, fhp, npp)
+nfs_nget(mntp, fhp, fhsize, npp)
 	struct mount *mntp;
-	register nfsv2fh_t *fhp;
+	register nfsfh_t *fhp;
+	int fhsize;
 	struct nfsnode **npp;
 {
 	register struct nfsnode *np;
@@ -112,11 +112,11 @@ nfs_nget(mntp, fhp, npp)
 	struct vnode *nvp;
 	int error;
 
-	nhpp = nfs_hash(fhp);
+	nhpp = NFSNOHASH(nfs_hash(fhp, fhsize));
 loop:
 	for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
-		if (mntp != NFSTOV(np)->v_mount ||
-		    bcmp((caddr_t)fhp, (caddr_t)&np->n_fh, NFSX_FH))
+		if (mntp != NFSTOV(np)->v_mount || np->n_fhsize != fhsize ||
+		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
 			continue;
 		vp = NFSTOV(np);
 		if (vget(vp, 1))
@@ -131,27 +131,26 @@ loop:
 	}
 	vp = nvp;
 	MALLOC(np, struct nfsnode *, sizeof *np, M_NFSNODE, M_WAITOK);
+	bzero((caddr_t)np, sizeof *np);
 	vp->v_data = np;
 	np->n_vnode = vp;
 	/*
 	 * Insert the nfsnode in the hash queue for its new file handle
 	 */
-	np->n_flag = 0;
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
-	bcopy((caddr_t)fhp, (caddr_t)&np->n_fh, NFSX_FH);
-	np->n_attrstamp = 0;
-	np->n_direofoffset = 0;
-	np->n_sillyrename = (struct sillyrename *)0;
-	np->n_size = 0;
-	np->n_mtime = 0;
-	np->n_lockf = 0;
-	if (VFSTONFS(mntp)->nm_flag & NFSMNT_NQNFS) {
-		np->n_brev = 0;
-		np->n_lrev = 0;
-		np->n_expiry = (time_t)0;
-		np->n_timer.cqe_next = (struct nfsnode *)0;
-	}
+	if (fhsize > NFS_SMALLFH) {
+		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
+	} else
+		np->n_fhp = &np->n_fh;
+	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
+	np->n_fhsize = fhsize;
 	*npp = np;
+
+	/*
+	 * Lock the new nfsnode.
+	 */
+	VOP_LOCK(vp);
+
 	return (0);
 }
 
@@ -168,7 +167,10 @@ nfs_inactive(ap)
 	np = VTONFS(ap->a_vp);
 	if (prtactive && ap->a_vp->v_usecount != 0)
 		vprint("nfs_inactive: pushing active", ap->a_vp);
-	sp = np->n_sillyrename;
+	if (ap->a_vp->v_type != VDIR)
+		sp = np->n_sillyrename;
+	else
+		sp = (struct sillyrename *)0;
 	np->n_sillyrename = (struct sillyrename *)0;
 	if (sp) {
 		/*
@@ -178,9 +180,7 @@ nfs_inactive(ap)
 		nfs_removeit(sp);
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
-#ifdef SILLYSEPARATE
-		free((caddr_t)sp, M_NFSREQ);
-#endif
+		FREE((caddr_t)sp, M_NFSREQ);
 	}
 	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
 		NQNFSNONCACHE | NQNFSWRITE);
@@ -199,6 +199,7 @@ nfs_reclaim(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
 	register struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	register struct nfsdmap *dp, *dp2;
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("nfs_reclaim: pushing active", vp);
@@ -211,6 +212,24 @@ nfs_reclaim(ap)
 	if ((nmp->nm_flag & NFSMNT_NQNFS) && np->n_timer.cqe_next != 0) {
 		CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
 	}
+
+	/*
+	 * Free up any directory cookie structures and
+	 * large file handle structures that might be associated with
+	 * this nfs node.
+	 */
+	if (vp->v_type == VDIR) {
+		dp = np->n_cookies.lh_first;
+		while (dp) {
+			dp2 = dp;
+			dp = dp->ndm_list.le_next;
+			FREE((caddr_t)dp2, M_NFSDIROFF);
+		}
+	}
+	if (np->n_fhsize > NFS_SMALLFH) {
+		FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
+	}
+
 	cache_purge(vp);
 	FREE(vp->v_data, M_NFSNODE);
 	vp->v_data = (void *)0;
@@ -227,6 +246,7 @@ nfs_lock(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
+	struct nfsnode *np = VTONFS(vp);
 
 	/*
 	 * Ugh, another place where interruptible mounts will get hung.
@@ -239,6 +259,33 @@ nfs_lock(ap)
 	}
 	if (vp->v_tag == VT_NON)
 		return (ENOENT);
+
+#if 0
+	/*
+	 * Only lock regular files.  If a server crashed while we were
+	 * holding a directory lock, we could easily end up sleeping
+	 * until the server rebooted while holding a lock on the root.
+	 * Locks are only needed for protecting critical sections in
+	 * VMIO at the moment.
+	 * New vnodes will have type VNON but they should be locked
+	 * since they may become VREG.  This is checked in loadattrcache
+	 * and unwanted locks are released there.
+	 */
+	if (vp->v_type == VREG || vp->v_type == VNON) {
+		while (np->n_flag & NLOCKED) {
+			np->n_flag |= NWANTED;
+			(void) tsleep((caddr_t) np, PINOD, "nfslck2", 0);
+			/*
+			 * If the vnode has transmuted into a VDIR while we
+			 * were asleep, then skip the lock.
+			 */
+			if (vp->v_type != VREG && vp->v_type != VNON)
+				return (0);
+		}
+		np->n_flag |= NLOCKED;
+	}
+#endif
+
 	return (0);
 }
 
@@ -251,6 +298,20 @@ nfs_unlock(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
+#if 0
+	struct vnode* vp = ap->a_vp;
+        struct nfsnode* np = VTONFS(vp);
+
+	if (vp->v_type == VREG || vp->v_type == VNON) {
+		if (!(np->n_flag & NLOCKED))
+			panic("nfs_unlock: nfsnode not locked");
+		np->n_flag &= ~NLOCKED;
+		if (np->n_flag & NWANTED) {
+			np->n_flag &= ~NWANTED;
+			wakeup((caddr_t) np);
+		}
+	}
+#endif
 
 	return (0);
 }
@@ -264,8 +325,7 @@ nfs_islocked(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-
-	return (0);
+	return VTONFS(ap->a_vp)->n_flag & NLOCKED ? 1 : 0;
 }
 
 /*
