@@ -782,16 +782,21 @@ int cxrinta (cx_chan_t *c)
 	if (risr & RIS_BUSERR)
 		printf ("cx%d.%d: receive bus error\n", c->board->num, c->num);
 
-	if (risr & (RIS_OVERRUN | RISA_PARERR | RISA_FRERR)) {
-		print (("cx%d.%d: receive error\n", c->board->num, c->num));
-		if (tp && (tp->t_state & TS_ISOPEN))
-			(*linesw[tp->t_line].l_rint) (' ' |
-				(risr & RISA_FRERR) ? TTY_FE : TTY_PE, tp);
-	}
+	if (risr & (RIS_OVERRUN | RISA_PARERR | RISA_FRERR | RISA_BREAK)) {
+		int err = 0;
 
-	/* Handle line break condition. */
-	if ((risr & RISA_BREAK) && tp && (tp->t_state & TS_ISOPEN))
-		(*linesw[tp->t_line].l_rint) (TTY_FE, tp);
+		if (risr & RISA_OVERRUN)
+			err |= TTY_OE;
+		if (risr & RISA_PARERR)
+			err |= TTY_PE;
+		if (risr & RISA_FRERR)
+			err |= TTY_FE;
+		if (risr & RISA_BREAK)
+			err |= TTY_BI;
+		print (("cx%d.%d: receive error %x\n", c->board->num, c->num, err));
+		if (tp && (tp->t_state & TS_ISOPEN))
+			(*linesw[tp->t_line].l_rint) (err, tp);
+	}
 
 	/* Discard exception characters. */
 	if ((risr & RISA_SCMASK) && (tp->t_iflag & IXON))
