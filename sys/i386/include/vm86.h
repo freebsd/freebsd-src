@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.9 1999/03/18 04:37:35 jlemon Exp $
+ *	$Id: vm86.h,v 1.10 1999/04/28 01:04:09 luoqi Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -150,6 +150,7 @@ struct vm86_intcall_args {
 };
 
 extern	int in_vm86call;
+extern 	int vm86paddr;
 
 struct proc;
 extern	int vm86_emulate __P((struct vm86frame *));
@@ -157,7 +158,7 @@ extern	int vm86_sysarch __P((struct proc *, char *));
 extern void vm86_trap __P((struct vm86frame *));
 extern 	int vm86_intcall __P((int, struct vm86frame *));
 extern 	int vm86_datacall __P((int, struct vm86frame *, struct vm86context *));
-extern void initial_bioscalls __P((u_int *, u_int *));
+extern void vm86_initialize __P((void));
 extern vm_offset_t vm86_getpage __P((struct vm86context *, int));
 extern vm_offset_t vm86_addpage __P((struct vm86context *, int, vm_offset_t));
 extern int vm86_getptr __P((struct vm86context *, vm_offset_t,

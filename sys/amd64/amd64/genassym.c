@@ -34,10 +34,9 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.68 1999/05/12 21:30:49 luoqi Exp $
+ *	$Id: genassym.c,v 1.69 1999/05/12 21:38:40 luoqi Exp $
  */
 
-#include "opt_vm86.h"
 #include "opt_user_ldt.h"
 
 #include <stddef.h>
@@ -68,9 +67,7 @@
 #endif
 #include <machine/segments.h>
 #include <machine/globaldata.h>
-#ifdef VM86
 #include <machine/vm86.h>
-#endif
 
 #define	OS(s, m)	((u_int)offsetof(struct s, m))
 
@@ -128,9 +125,7 @@ main()
 	printf("#define\tTSS_ESP0 %#x\n", OS(i386tss, tss_esp0));
 	printf("#define\tPCB_USERLDT %#x\n", OS(pcb, pcb_ldt));
 	printf("#define\tPCB_GS %#x\n", OS(pcb, pcb_gs));
-#ifdef VM86
 	printf("#define\tPCB_EXT %#x\n", OS(pcb, pcb_ext));
-#endif
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %#x\n", OS(pcb, pcb_mpnest));
 #endif
@@ -201,10 +196,8 @@ main()
 	printf("#define\tGD_COMMON_TSS %#x\n", OS(globaldata, gd_common_tss));
 	printf("#define\tGD_SWITCHTIME %#x\n", OS(globaldata, gd_switchtime));
 	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, gd_switchticks));
-#ifdef VM86
 	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, gd_common_tssd));
 	printf("#define\tGD_TSS_GDT %#x\n", OS(globaldata, gd_tss_gdt));
-#endif
 #ifdef USER_LDT
 	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, gd_currentldt));
 #endif
@@ -233,9 +226,7 @@ main()
 	printf("#define\tKPSEL %#x\n", GSEL(GPRIV_SEL, SEL_KPL));
 #endif
 	printf("#define\tGPROC0_SEL %#x\n", GPROC0_SEL);
-#ifdef VM86
 	printf("#define\tVM86_FRAMESIZE %#x\n", sizeof(struct vm86frame));
-#endif
 
 	return (0);
 }

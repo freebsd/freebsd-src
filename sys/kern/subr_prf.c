@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.50 1998/09/06 06:25:04 ache Exp $
+ * $Id: subr_prf.c,v 1.51 1998/12/03 04:45:56 archie Exp $
  */
 
 #include <sys/param.h>
@@ -674,10 +674,24 @@ msglogchar(int c, void *dummyarg)
 	}
 }
 
+static void
+msgbufcopy(struct msgbuf *oldp)
+{
+	int pos;
+
+	pos = oldp->msg_bufr;
+	while (pos != oldp->msg_bufx) {
+		msglogchar(oldp->msg_ptr[pos], NULL);
+		if (++pos >= oldp->msg_size)
+			pos = 0;
+	}
+}
+
 void
 msgbufinit(void *ptr, size_t size)
 {
 	char *cp;
+	static struct msgbuf *oldp = NULL;
 
 	cp = (char *)ptr;
 	msgbufp = (struct msgbuf *) (cp + size - sizeof(*msgbufp));
@@ -687,7 +701,10 @@ msgbufinit(void *ptr, size_t size)
 		msgbufp->msg_size = (char *)msgbufp - cp;
 		msgbufp->msg_ptr = cp;
 	}
+	if (msgbufmapped && oldp != msgbufp)
+		msgbufcopy(oldp);
 	msgbufmapped = 1;
+	oldp = msgbufp;
 }
 
 #include "opt_ddb.h"

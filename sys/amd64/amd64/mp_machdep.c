@@ -22,11 +22,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.100 1999/05/08 17:48:22 peter Exp $
+ *	$Id: mp_machdep.c,v 1.101 1999/05/12 21:38:43 luoqi Exp $
  */
 
 #include "opt_smp.h"
-#include "opt_vm86.h"
 #include "opt_cpu.h"
 #include "opt_user_ldt.h"
 
@@ -482,10 +481,8 @@ init_secondary(void)
 	common_tss.tss_esp0 = 0;	/* not used until after switch */
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
-#ifdef VM86
 	tss_gdt = &gdt[myid * NGDT + GPROC0_SEL].sd;
 	common_tssd = *tss_gdt;
-#endif
 	ltr(gsel_tss);
 
 	load_cr0(0x8005003b);		/* XXX! */

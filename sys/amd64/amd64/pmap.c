@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.235 1999/05/18 06:01:49 alc Exp $
+ *	$Id: pmap.c,v 1.236 1999/05/28 05:38:56 alc Exp $
  */
 
 /*
@@ -71,7 +71,6 @@
 #include "opt_disable_pse.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
-#include "opt_vm86.h"
 #include "opt_user_ldt.h"
 
 #include <sys/param.h>
