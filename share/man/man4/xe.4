@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2004
+.Dd December 12, 2004
 .Dt XE 4
 .Os
 .Sh NAME
@@ -152,3 +152,11 @@ Supported devices will fail to attach on some machines using the
 Card framework.
 .Pp
 Automatic media selection is usually unreliable.
+.Pp
+CE2-based cards such as the Xircom CE2, CEM28 and CEM33 are poorly
+supported by the
+.Nm
+driver in
+.Fx 4.x .
+Users of these cards should upgrade to a later version of
+.Fx .

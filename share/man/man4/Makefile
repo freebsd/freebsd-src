@@ -238,6 +238,7 @@ MAN=	aac.4 \
 	wx.4 \
 	worm.4 \
 	wst.4 \
+	xe.4 \
 	xl.4 \
 	xpt.4 \
 	zero.4
