@@ -327,14 +327,6 @@ trap(a0, a1, a2, entry, framep)
 		sticks = p->p_sticks;
 		mtx_unlock_spin(&sched_lock);
 		p->p_md.md_tf = framep;
-#if	0
-/* This is to catch some weird stuff on the UDB (mj) */
-		if (framep->tf_regs[FRAME_PC] > 0 && 
-		    framep->tf_regs[FRAME_PC] < 0x120000000) {
-			printf("PC Out of Whack\n");
-			printtrap(a0, a1, a2, entry, framep, 1, user);
-		}
-#endif
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
