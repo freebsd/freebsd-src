@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.89 1998/05/21 01:13:19 brian Exp $
+ *	$Id: bundle.c,v 1.2 1998/05/21 21:44:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -336,7 +336,8 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
-   * If it's an LCP and we're in multilink mode, adjust our tun speed.
+   * If it's an LCP and we're in multilink mode, adjust our tun
+   * speed and make sure our minimum sequence number is adjusted.
    */
 
   struct bundle *bundle = (struct bundle *)v;
@@ -345,14 +346,25 @@ bundle_LayerDown(void *v, struct fsm *fp)
     bundle_StopIdleTimer(bundle);
   else if (fp->proto == PROTO_LCP && bundle->ncp.mp.active) {
     struct datalink *dl;
+    struct datalink *lost;
 
     bundle->ifp.Speed = 0;
+    lost = NULL;
     for (dl = bundle->links; dl; dl = dl->next)
-      if (fp != &dl->physical->link.lcp.fsm && dl->state == DATALINK_OPEN)
+      if (fp == &dl->physical->link.lcp.fsm)
+        lost = dl;
+      else if (dl->state == DATALINK_OPEN)
         bundle->ifp.Speed += modem_Speed(dl->physical);
+
     if (bundle->ifp.Speed)
       /* Don't configure down to a speed of 0 */
       tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
+
+    if (lost)
+      mp_LinkLost(&bundle->ncp.mp, lost);
+    else
+      log_Printf(LogERROR, "Oops, lost an unrecognised datalink (%s) !\n",
+                 fp->link->name);
   }
 }
 
