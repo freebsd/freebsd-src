@@ -1633,7 +1633,6 @@ ath_rx_proc(void *arg, int npending)
 			break;
 		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 		if (ds->ds_rxstat.rs_status != 0) {
-			ifp->if_ierrors++;
 			if (ds->ds_rxstat.rs_status & HAL_RXERR_CRC)
 				sc->sc_stats.ast_rx_crcerr++;
 			if (ds->ds_rxstat.rs_status & HAL_RXERR_FIFO)
@@ -1644,6 +1643,15 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_phyerr++;
 				phyerr = ds->ds_rxstat.rs_phyerr & 0x1f;
 				sc->sc_stats.ast_rx_phy[phyerr]++;
+			} else {
+				/*
+				 * NB: don't count PHY errors as input errors;
+				 * we enable them on the 5212 to collect info
+				 * about environmental noise and, in that
+				 * setting, they don't really reflect tx/rx
+				 * errors.
+				 */
+				ifp->if_ierrors++;
 			}
 			goto rx_next;
 		}
