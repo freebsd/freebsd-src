@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 50 $
+ *              $Revision: 52 $
  *
  ******************************************************************************/
 
@@ -128,6 +128,7 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         MODULE_NAME         ("utmisc")
+
 
 
 /*******************************************************************************
@@ -783,6 +784,7 @@ AcpiUtCreateUpdateState (
 
     /* Init fields specific to the update struct */
 
+    State->Common.DataType = ACPI_DESC_TYPE_STATE_UPDATE;
     State->Update.Object = Object;
     State->Update.Value  = Action;
 
@@ -800,9 +802,7 @@ AcpiUtCreateUpdateState (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create an "Update State" - a flavor of the generic state used
- *              to update reference counts and delete complex objects such
- *              as packages.
+ * DESCRIPTION: Create a "Package State"
  *
  ******************************************************************************/
 
@@ -828,6 +828,7 @@ AcpiUtCreatePkgState (
 
     /* Init fields specific to the update struct */
 
+    State->Common.DataType  = ACPI_DESC_TYPE_STATE_PACKAGE;
     State->Pkg.SourceObject = (ACPI_OPERAND_OBJECT *) InternalObject;
     State->Pkg.DestObject   = ExternalObject;
     State->Pkg.Index        = Index;
@@ -871,7 +872,8 @@ AcpiUtCreateControlState (
 
     /* Init fields specific to the control struct */
 
-    State->Common.State = CONTROL_CONDITIONAL_EXECUTING;
+    State->Common.DataType  = ACPI_DESC_TYPE_STATE_CONTROL;
+    State->Common.State     = CONTROL_CONDITIONAL_EXECUTING;
 
     return_PTR (State);
 }

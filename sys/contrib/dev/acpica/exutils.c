@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 84 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -364,17 +364,17 @@ AcpiExReleaseGlobalLock (
  *
  * FUNCTION:    AcpiExDigitsNeeded
  *
- * PARAMETERS:  val             - Value to be represented
- *              base            - Base of representation
+ * PARAMETERS:  Value           - Value to be represented
+ *              Base            - Base of representation
  *
- * RETURN:      the number of digits needed to represent val in base
+ * RETURN:      the number of digits needed to represent Value in Base
  *
  ******************************************************************************/
 
 UINT32
 AcpiExDigitsNeeded (
-    ACPI_INTEGER            val,
-    UINT32                  base)
+    ACPI_INTEGER            Value,
+    UINT32                  Base)
 {
     UINT32                  NumDigits = 0;
 
@@ -382,7 +382,7 @@ AcpiExDigitsNeeded (
     FUNCTION_TRACE ("ExDigitsNeeded");
 
 
-    if (base < 1)
+    if (Base < 1)
     {
         REPORT_ERROR (("ExDigitsNeeded: Internal error - Invalid base\n"));
     }
@@ -390,9 +390,11 @@ AcpiExDigitsNeeded (
     else
     {
         /*
-         * ACPI_INTEGER is unsigned, which is why we don't worry about the '-'
+         * ACPI_INTEGER is unsigned, which is why we don't worry about a '-'
          */
-        for (NumDigits = 1; (val = ACPI_DIVIDE (val,base)); ++NumDigits)
+        for (NumDigits = 1; 
+            (AcpiUtShortDivide (&Value, Base, &Value, NULL)); 
+            ++NumDigits)
         { ; }
     }
 
@@ -498,18 +500,19 @@ AcpiExUnsignedIntegerToString (
 {
     UINT32                  Count;
     UINT32                  DigitsNeeded;
+    UINT32                  Remainder;
 
 
     FUNCTION_ENTRY ();
 
 
     DigitsNeeded = AcpiExDigitsNeeded (Value, 10);
-    OutString[DigitsNeeded] = '\0';
+    OutString[DigitsNeeded] = 0;
 
     for (Count = DigitsNeeded; Count > 0; Count--)
     {
-        OutString[Count-1] = (NATIVE_CHAR) ('0' + (ACPI_MODULO (Value, 10)));
-        Value = ACPI_DIVIDE (Value, 10);
+        AcpiUtShortDivide (&Value, 10, &Value, &Remainder);
+        OutString[Count-1] = (NATIVE_CHAR) ('0' + Remainder);
     }
 
     return (AE_OK);

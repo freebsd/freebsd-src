@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 68 $
+ *              $Revision: 72 $
  *
  ******************************************************************************/
 
@@ -138,10 +138,9 @@ NATIVE_CHAR                 AcpiGbl_DbParsedBuf[80];
 NATIVE_CHAR                 AcpiGbl_DbScopeBuf[40];
 NATIVE_CHAR                 AcpiGbl_DbDebugFilename[40];
 NATIVE_CHAR                 *AcpiGbl_DbArgs[DB_MAX_ARGS];
-NATIVE_CHAR                 *AcpiGbl_DbBuffer;
+NATIVE_CHAR                 *AcpiGbl_DbBuffer = NULL;
 NATIVE_CHAR                 *AcpiGbl_DbFilename = NULL;
 BOOLEAN                     AcpiGbl_DbOutputToFile = FALSE;
-
 
 UINT32                      AcpiGbl_DbDebugLevel = ACPI_LV_VERBOSITY2;
 UINT32                      AcpiGbl_DbConsoleDebugLevel = NORMAL_DEFAULT | ACPI_LV_TABLES;
@@ -617,7 +616,7 @@ AcpiDbCommandDispatch (
     case CMD_ALLOCATIONS:
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
-        AcpiUtDumpCurrentAllocations ((UINT32) -1, NULL);
+        AcpiUtDumpAllocations ((UINT32) -1, NULL);
 #endif
         break;
 
@@ -1009,7 +1008,6 @@ AcpiDbUserCommands (
      * because all the semaphores are deleted during termination
      */
     AcpiTerminate ();
-
     return (Status);
 }
 

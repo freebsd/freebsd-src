@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exnames - interpreter/scanner name load/execute
- *              $Revision: 82 $
+ *              $Revision: 83 $
  *
  *****************************************************************************/
 
@@ -185,7 +185,7 @@ AcpiExAllocateNameString (
     NameString = ACPI_MEM_ALLOCATE (SizeNeeded);
     if (!NameString)
     {
-        REPORT_ERROR (("ExAllocateNameString: name allocation failure\n"));
+        REPORT_ERROR (("ExAllocateNameString: Could not allocate size %d\n", SizeNeeded));
         return_PTR (NULL);
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 130 $
+ *       $Revision: 134 $
  *
  *****************************************************************************/
 
@@ -131,7 +131,15 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 /* Object descriptor types */
 
 #define ACPI_CACHED_OBJECT              0x11    /* ORed in when object is cached */
-#define ACPI_DESC_TYPE_STATE            0x22
+#define ACPI_DESC_TYPE_STATE            0x20
+#define ACPI_DESC_TYPE_STATE_UPDATE     0x21
+#define ACPI_DESC_TYPE_STATE_PACKAGE    0x22
+#define ACPI_DESC_TYPE_STATE_CONTROL    0x23
+#define ACPI_DESC_TYPE_STATE_RPSCOPE    0x24
+#define ACPI_DESC_TYPE_STATE_PSCOPE     0x25
+#define ACPI_DESC_TYPE_STATE_WSCOPE     0x26
+#define ACPI_DESC_TYPE_STATE_RESULT     0x27
+#define ACPI_DESC_TYPE_STATE_NOTIFY     0x28
 #define ACPI_DESC_TYPE_WALK             0x44
 #define ACPI_DESC_TYPE_PARSER           0x66
 #define ACPI_DESC_TYPE_INTERNAL         0x88
@@ -307,7 +315,7 @@ typedef struct AcpiTableDesc
     struct AcpiTableDesc    *InstalledDesc;
     ACPI_TABLE_HEADER       *Pointer;
     void                    *BasePointer;
-    UINT8                   *AmlPointer;
+    UINT8                   *AmlStart;
     UINT64                  PhysicalAddress;
     UINT32                  AmlLength;
     UINT32                  Length;
@@ -409,10 +417,11 @@ typedef struct
 
 typedef struct
 {
-    UINT8                   Status;         /* Current value of status reg */
-    UINT8                   Enable;         /* Current value of enable reg */
     UINT16                  StatusAddr;     /* Address of status reg */
     UINT16                  EnableAddr;     /* Address of enable reg */
+    UINT8                   Status;         /* Current value of status reg */
+    UINT8                   Enable;         /* Current value of enable reg */
+    UINT8                   WakeEnable;     /* Mask of bits to keep enabled when sleeping */
     UINT8                   GpeBase;        /* Base GPE number */
 
 } ACPI_GPE_REGISTERS;
@@ -568,6 +577,16 @@ typedef struct acpi_result_values
 } ACPI_RESULT_VALUES;
 
 
+typedef
+ACPI_STATUS (*ACPI_PARSE_DOWNWARDS) (
+    struct acpi_walk_state  *WalkState,
+    struct acpi_parse_obj   **OutOp);
+
+typedef
+ACPI_STATUS (*ACPI_PARSE_UPWARDS) (
+    struct acpi_walk_state  *WalkState);
+
+
 /*
  * Notify info - used to pass info to the deferred notify
  * handler/dispatcher.
@@ -595,19 +614,6 @@ typedef union acpi_gen_state
     ACPI_NOTIFY_INFO        Notify;
 
 } ACPI_GENERIC_STATE;
-
-
-typedef
-ACPI_STATUS (*ACPI_PARSE_DOWNWARDS) (
-    UINT16                  Opcode,
-    struct acpi_parse_obj   *Op,
-    struct acpi_walk_state  *WalkState,
-    struct acpi_parse_obj   **OutOp);
-
-typedef
-ACPI_STATUS (*ACPI_PARSE_UPWARDS) (
-    struct acpi_walk_state  *WalkState,
-    struct acpi_parse_obj   *Op);
 
 
 /*****************************************************************************
@@ -718,18 +724,24 @@ typedef struct acpi_parse2_obj
  * Parse state - one state per parser invocation and each control
  * method.
  */
-
 typedef struct acpi_parse_state
 {
+    UINT32                  AmlSize;
     UINT8                   *AmlStart;      /* first AML byte */
     UINT8                   *Aml;           /* next AML byte */
     UINT8                   *AmlEnd;        /* (last + 1) AML byte */
     UINT8                   *PkgStart;      /* current package begin */
     UINT8                   *PkgEnd;        /* current package end */
-    ACPI_PARSE_OBJECT       *StartOp;       /* root of parse tree */
+
+    struct acpi_parse_obj   *StartOp;       /* root of parse tree */
     struct acpi_node        *StartNode;
-    ACPI_GENERIC_STATE      *Scope;         /* current scope */
-    struct acpi_parse_state *Next;
+    union acpi_gen_state    *Scope;         /* current scope */
+
+
+    struct acpi_parse_obj   *StartScope;
+
+
+
 
 } ACPI_PARSE_STATE;
 

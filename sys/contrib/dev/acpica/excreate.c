@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 65 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -136,6 +136,7 @@
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *              Operands            - List of operands for the opcode
+ *              WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -161,7 +162,7 @@
 
 ACPI_STATUS
 AcpiExCreateBufferField (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_WALK_STATE         *WalkState)
@@ -200,8 +201,8 @@ AcpiExCreateBufferField (
      * opcode and operands -- since the buffer and index
      * operands must be evaluated.
      */
-    ObjDesc->BufferField.Extra->Extra.Pcode       = AmlPtr;
-    ObjDesc->BufferField.Extra->Extra.PcodeLength = AmlLength;
+    ObjDesc->BufferField.Extra->Extra.AmlStart  = AmlStart;
+    ObjDesc->BufferField.Extra->Extra.AmlLength = AmlLength;
     ObjDesc->BufferField.Node = Node;
 
 
@@ -257,7 +258,6 @@ AcpiExCreateBufferField (
         break;
     }
 
-
     /* Store constructed field descriptor in result location */
 
     Status = AcpiExStore (ObjDesc, (ACPI_OPERAND_OBJECT *) Node,
@@ -271,7 +271,6 @@ AcpiExCreateBufferField (
     {
         AcpiUtRemoveReference (ObjDesc);
     }
-
 
     return_ACPI_STATUS (AE_OK);
 
@@ -319,12 +318,8 @@ AcpiExCreateAlias (
 
     /* Get the source/alias operands (both namespace nodes) */
 
-    Status = AcpiDsObjStackPopObject ((ACPI_OPERAND_OBJECT  **) &SourceNode,
-                                        WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
+    SourceNode = (ACPI_NAMESPACE_NODE *) WalkState->Operands[WalkState->NumOperands -1];
+    WalkState->NumOperands--;
 
     /*
      * Don't pop it, it gets removed in the calling routine
@@ -359,7 +354,7 @@ AcpiExCreateAlias (
  *
  * FUNCTION:    AcpiExCreateEvent
  *
- * PARAMETERS:  None
+ * PARAMETERS:  WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -419,8 +414,7 @@ Cleanup:
  *
  * FUNCTION:    AcpiExCreateMutex
  *
- * PARAMETERS:  InterpreterMode     - Current running mode (load1/Load2/Exec)
- *              Operands            - List of operands for the opcode
+ * PARAMETERS:  WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -442,11 +436,8 @@ AcpiExCreateMutex (
 
     /* Get the operand */
 
-    Status = AcpiDsObjStackPopObject (&SyncDesc, WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
+    SyncDesc = WalkState->Operands[WalkState->NumOperands -1];
+    WalkState->NumOperands--;
 
     /* Attempt to allocate a new object */
 
@@ -494,10 +485,10 @@ Cleanup:
  *
  * FUNCTION:    AcpiExCreateRegion
  *
- * PARAMETERS:  AmlPtr              - Pointer to the region declaration AML
+ * PARAMETERS:  AmlStart            - Pointer to the region declaration AML
  *              AmlLength           - Max length of the declaration AML
  *              Operands            - List of operands for the opcode
- *              InterpreterMode     - Load1/Load2/Execute
+ *              WalkState           - Current state
  *
  * RETURN:      Status
  *
@@ -507,7 +498,7 @@ Cleanup:
 
 ACPI_STATUS
 AcpiExCreateRegion (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     UINT8                   RegionSpace,
     ACPI_WALK_STATE         *WalkState)
@@ -563,8 +554,8 @@ AcpiExCreateRegion (
      * Remember location in AML stream of address & length
      * operands since they need to be evaluated at run time.
      */
-    ObjDesc->Region.Extra->Extra.Pcode       = AmlPtr;
-    ObjDesc->Region.Extra->Extra.PcodeLength = AmlLength;
+    ObjDesc->Region.Extra->Extra.AmlStart  = AmlStart;
+    ObjDesc->Region.Extra->Extra.AmlLength = AmlLength;
 
     /* Init the region from the operands */
 
@@ -618,6 +609,44 @@ Cleanup:
             ObjDesc = NULL;
         }
     }
+
+    return_ACPI_STATUS (Status);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiExCreateTableRegion
+ *
+ * PARAMETERS:  WalkState           - Current state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create a new DataTableRegion object
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiExCreateTableRegion (
+    ACPI_WALK_STATE         *WalkState)
+{
+    ACPI_STATUS             Status = AE_OK;
+
+
+    FUNCTION_TRACE ("ExCreateTableRegion");
+
+/*
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
+    if (!ObjDesc)
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
+
+
+Cleanup:
+*/
 
     return_ACPI_STATUS (Status);
 }
@@ -780,7 +809,7 @@ AcpiExCreatePowerResource (
  *
  * FUNCTION:    AcpiExCreateMethod
  *
- * PARAMETERS:  AmlPtr          - First byte of the method's AML
+ * PARAMETERS:  AmlStart        - First byte of the method's AML
  *              AmlLength       - AML byte count for this method
  *              MethodFlags     - AML method flag byte
  *              Method          - Method Node
@@ -793,7 +822,7 @@ AcpiExCreatePowerResource (
 
 ACPI_STATUS
 AcpiExCreateMethod (
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  AmlLength,
     UINT32                  MethodFlags,
     ACPI_NAMESPACE_NODE     *Method)
@@ -815,8 +844,8 @@ AcpiExCreateMethod (
 
     /* Get the method's AML pointer/length from the Op */
 
-    ObjDesc->Method.Pcode       = AmlPtr;
-    ObjDesc->Method.PcodeLength = AmlLength;
+    ObjDesc->Method.AmlStart  = AmlStart;
+    ObjDesc->Method.AmlLength = AmlLength;
 
     /*
      * First argument is the Method Flags (contains parameter count for the

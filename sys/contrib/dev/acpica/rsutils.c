@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 21 $
+ *              $Revision: 22 $
  *
  ******************************************************************************/
 
@@ -412,7 +412,6 @@ AcpiRsSetSrsMethodData (
     ACPI_BUFFER             *InBuffer)
 {
     ACPI_OPERAND_OBJECT     *Params[2];
-    ACPI_OPERAND_OBJECT     ParamObj;
     ACPI_STATUS             Status;
     UINT8                   *ByteStream = NULL;
     UINT32                  BufferSizeNeeded = 0;
@@ -466,25 +465,25 @@ AcpiRsSetSrsMethodData (
     /*
      * Init the param object
      */
-    AcpiUtInitStaticObject (&ParamObj);
-
-    /*
-     * Method requires one parameter.  Set it up
-     */
-    Params [0] = &ParamObj;
+    Params[0] = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+    if (!Params[0])
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
     Params [1] = NULL;
 
     /*
      *  Set up the parameter object
      */
-    ParamObj.Common.Type    = ACPI_TYPE_BUFFER;
-    ParamObj.Buffer.Length  = BufferSizeNeeded;
-    ParamObj.Buffer.Pointer = ByteStream;
+    Params[0]->Buffer.Length  = BufferSizeNeeded;
+    Params[0]->Buffer.Pointer = ByteStream;
 
     /*
      * Execute the method, no return value
      */
     Status = AcpiNsEvaluateRelative (Handle, "_SRS", Params, NULL);
+    AcpiUtRemoveReference (Params[0]);
 
     /*
      * Clean up and return the status from AcpiNsEvaluateRelative

@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 80 $
+ *              $Revision: 81 $
  *
  *****************************************************************************/
 
@@ -162,14 +162,6 @@ AcpiGetHandle (
     FUNCTION_ENTRY ();
 
 
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
     /* Parameter Validation */
 
     if (!RetHandle || !Pathname)
@@ -241,14 +233,6 @@ AcpiGetName (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     /* Buffer pointer must be valid always */
 
@@ -337,14 +321,6 @@ AcpiGetObjectInfo (
     ACPI_INTEGER            Address = 0;
     ACPI_NAMESPACE_NODE     *Node;
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     /* Parameter validation */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -348,8 +348,7 @@ AcpiExUnloadTable (
  *
  * FUNCTION:    AcpiExReconfiguration
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
- *              WalkState           - Current state of the parse tree walk
+ * PARAMETERS:  WalkState           - Current state of the parse tree walk
  *
  * RETURN:      Status
  *
@@ -359,7 +358,6 @@ AcpiExUnloadTable (
 
 ACPI_STATUS
 AcpiExReconfiguration (
-    UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
@@ -373,7 +371,7 @@ AcpiExReconfiguration (
 
 
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
 
     case AML_LOAD_OP:
@@ -390,7 +388,7 @@ AcpiExReconfiguration (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad opcode=%X\n", Opcode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad opcode=%X\n", WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
     }

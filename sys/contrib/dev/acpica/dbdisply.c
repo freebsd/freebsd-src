@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 50 $
+ *              $Revision: 52 $
  *
  ******************************************************************************/
 
@@ -500,7 +500,6 @@ AcpiDbDisplayInternalObject (
 
     else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_INTERNAL))
     {
-        AcpiOsPrintf ("<Obj> ");
         Type = ObjDesc->Common.Type;
         if (Type > INTERNAL_TYPE_MAX)
         {
@@ -516,31 +515,37 @@ AcpiDbDisplayInternalObject (
             switch (ObjDesc->Reference.Opcode)
             {
             case AML_ZERO_OP:
-                AcpiOsPrintf ("[Const]     Zero (0) [Null Target]", 0);
+                AcpiOsPrintf ("[Const]           Zero (0) [Null Target]", 0);
                 break;
 
             case AML_ONES_OP:
-                AcpiOsPrintf ("[Const]     Ones (0xFFFFFFFFFFFFFFFF) [No Limit]");
+                AcpiOsPrintf ("[Const]           Ones (0xFFFFFFFFFFFFFFFF) [No Limit]");
                 break;
 
             case AML_ONE_OP:
-                AcpiOsPrintf ("[Const]     One (1)");
+                AcpiOsPrintf ("[Const]           One (1)");
+                break;
+
+            case AML_REVISION_OP:
+                AcpiOsPrintf ("[Const]           Revision (%X)", ACPI_CA_VERSION);
                 break;
 
             case AML_LOCAL_OP:
-                AcpiOsPrintf ("[Local%d]   ", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Local%d]", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->LocalVariables[ObjDesc->Reference.Offset].Object;
+                    AcpiOsPrintf (" %p", ObjDesc);
                     AcpiDbDecodeInternalObject (ObjDesc);
                 }
                 break;
 
             case AML_ARG_OP:
-                AcpiOsPrintf ("[Arg%d]     ", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Arg%d]  ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->Arguments[ObjDesc->Reference.Offset].Object;
+                    AcpiOsPrintf (" %p", ObjDesc);
                     AcpiDbDecodeInternalObject (ObjDesc);
                 }
                 break;
@@ -561,6 +566,7 @@ AcpiDbDisplayInternalObject (
             break;
 
         default:
+            AcpiOsPrintf ("<Obj> ");
             AcpiOsPrintf ("           ");
             AcpiDbDecodeInternalObject (ObjDesc);
             break;

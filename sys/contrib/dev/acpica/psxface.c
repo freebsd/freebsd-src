@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 47 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -156,6 +156,7 @@ AcpiPsxExecute (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     UINT32                  i;
     ACPI_PARSE_OBJECT       *Op;
+    ACPI_WALK_STATE         *WalkState;
 
 
     FUNCTION_TRACE ("PsxExecute");
@@ -195,8 +196,46 @@ AcpiPsxExecute (
     }
 
     /*
-     * Perform the first pass parse of the method to enter any
+     * 1) Perform the first pass parse of the method to enter any
      * named objects that it creates into the namespace
+     */
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "**** Begin Method Parse **** Entry=%p obj=%p\n",
+        MethodNode, ObjDesc));
+
+    /* Create and init a Root Node */
+
+    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    if (!Op)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Create and initialize a new walk state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+                                    NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart, 
+                    ObjDesc->Method.AmlLength, NULL, NULL, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        /* TBD: delete walk state */
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Parse the AML */
+
+    Status = AcpiPsParseAml (WalkState);
+    AcpiPsDeleteParseTree (Op);
+
+
+    /*
+     * 2) Execute the method.  Performs second pass parse simultaneously
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "**** Begin Method Execution **** Entry=%p obj=%p\n",
@@ -210,35 +249,32 @@ AcpiPsxExecute (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode,
-                                ObjDesc->Method.PcodeLength,
-                                ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE,
-                                MethodNode, Params, ReturnObjDesc,
-                                AcpiDsLoad1BeginOp, AcpiDsLoad1EndOp);
-    AcpiPsDeleteParseTree (Op);
-
-    /* Create and init a Root Node */
-
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
-    if (!Op)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-
     /* Init new op with the method name and pointer back to the NS node */
 
     AcpiPsSetName (Op, MethodNode->Name);
     Op->Node = MethodNode;
 
+    /* Create and initialize a new walk state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+                                    NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart, 
+                    ObjDesc->Method.AmlLength, Params, ReturnObjDesc, 3);
+    if (ACPI_FAILURE (Status))
+    {
+        /* TBD: delete walk state */
+        return_ACPI_STATUS (Status);
+    }
+
     /*
      * The walk of the parse tree is where we actually execute the method
      */
-    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode,
-                                ObjDesc->Method.PcodeLength,
-                                ACPI_PARSE_EXECUTE | ACPI_PARSE_DELETE_TREE,
-                                MethodNode, Params, ReturnObjDesc,
-                                AcpiDsExecBeginOp, AcpiDsExecEndOp);
+    Status = AcpiPsParseAml (WalkState);
     AcpiPsDeleteParseTree (Op);
 
     if (Params)
@@ -249,6 +285,13 @@ AcpiPsxExecute (
         {
             AcpiUtUpdateObjectReference (Params[i], REF_DECREMENT);
         }
+    }
+
+
+    if (ACPI_FAILURE (Status))
+    {
+        DUMP_PATHNAME (MethodNode, "PsExecute: method failed -",
+            ACPI_LV_ERROR, _COMPONENT);
     }
 
 

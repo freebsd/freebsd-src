@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 47 $
+ *              $Revision: 52 $
  *
  ******************************************************************************/
 
@@ -129,16 +129,18 @@
         MODULE_NAME         ("dbfileio")
 
 
+/*
+ * NOTE: this is here for lack of a better place.  It is used in all
+ * flavors of the debugger, need LCD file
+ */
 #ifdef ACPI_APPLICATION
 #include <stdio.h>
 FILE                        *AcpiGbl_DebugFile = NULL;
 #endif
 
 
-/*
- * NOTE: this is here for lack of a better place.  It is used in all
- *  flavors of the debugger, need LCD file
- */
+ACPI_TABLE_HEADER           *AcpiGbl_DbTablePtr = NULL;
+
 
 /*******************************************************************************
  *
@@ -269,7 +271,7 @@ AcpiDbLoadTable(
     UINT32                  *TableLength)
 {
     ACPI_TABLE_HEADER       TableHeader;
-    UINT8                   *AmlPtr;
+    UINT8                   *AmlStart;
     UINT32                  AmlLength;
     UINT32                  Actual;
     ACPI_STATUS             Status;
@@ -309,7 +311,7 @@ AcpiDbLoadTable(
     /* Allocate a buffer for the table */
 
     *TableLength = TableHeader.Length;
-    *TablePtr = ACPI_MEM_ALLOCATE ((size_t) *TableLength);
+    *TablePtr = AcpiOsAllocate ((size_t) *TableLength);
     if (!*TablePtr)
     {
         AcpiOsPrintf ("Could not allocate memory for ACPI table %4.4s (size=%X)\n",
@@ -318,8 +320,8 @@ AcpiDbLoadTable(
     }
 
 
-    AmlPtr      = (UINT8 *) *TablePtr + sizeof (TableHeader);
-    AmlLength   = *TableLength - sizeof (TableHeader);
+    AmlStart  = (UINT8 *) *TablePtr + sizeof (TableHeader);
+    AmlLength = *TableLength - sizeof (TableHeader);
 
     /* Copy the header to the buffer */
 
@@ -327,7 +329,7 @@ AcpiDbLoadTable(
 
     /* Get the rest of the table */
 
-    Actual = fread (AmlPtr, 1, (size_t) AmlLength, fp);
+    Actual = fread (AmlStart, 1, (size_t) AmlLength, fp);
     if (Actual == AmlLength)
     {
         return (AE_OK);
@@ -336,12 +338,12 @@ AcpiDbLoadTable(
     if (Actual > 0)
     {
         AcpiOsPrintf ("Warning - reading table, asked for %X got %X\n", AmlLength, Actual);
-       return (AE_OK);
+        return (AE_OK);
     }
 
 
     AcpiOsPrintf ("Error - could not read the table file\n");
-    ACPI_MEM_FREE (*TablePtr);
+    AcpiOsFree (*TablePtr);
     *TablePtr = NULL;
     *TableLength = 0;
 
@@ -403,7 +405,7 @@ AeLocalLoadTable (
     {
         /* Uninstall table and free the buffer */
 
-        AcpiTbUninstallTable (TableInfo.InstalledDesc);
+        AcpiTbDeleteAcpiTable (ACPI_TABLE_DSDT);
         return_ACPI_STATUS (Status);
     }
 #endif
@@ -431,7 +433,6 @@ AcpiDbLoadAcpiTable (
 #ifdef ACPI_APPLICATION
     FILE                    *fp;
     ACPI_STATUS             Status;
-    ACPI_TABLE_HEADER       *TablePtr;
     UINT32                  TableLength;
 
 
@@ -448,7 +449,7 @@ AcpiDbLoadAcpiTable (
     /* Get the entire file */
 
     AcpiOsPrintf ("Loading Acpi table from file %s\n", Filename);
-    Status = AcpiDbLoadTable (fp, &TablePtr, &TableLength);
+    Status = AcpiDbLoadTable (fp, &AcpiGbl_DbTablePtr, &TableLength);
     fclose(fp);
 
     if (ACPI_FAILURE (Status))
@@ -457,30 +458,28 @@ AcpiDbLoadAcpiTable (
         return (Status);
     }
 
-
     /* Attempt to recognize and install the table */
-    Status = AeLocalLoadTable (TablePtr);
 
+    Status = AeLocalLoadTable (AcpiGbl_DbTablePtr);
     if (ACPI_FAILURE (Status))
     {
         if (Status == AE_EXIST)
         {
             AcpiOsPrintf ("Table %4.4s is already installed\n",
-                            &TablePtr->Signature);
+                            &AcpiGbl_DbTablePtr->Signature);
         }
-
         else
         {
             AcpiOsPrintf ("Could not install table, %s\n",
                             AcpiFormatException (Status));
         }
 
-        ACPI_MEM_FREE (TablePtr);
+        ACPI_MEM_FREE (AcpiGbl_DbTablePtr);
         return (Status);
     }
 
     AcpiOsPrintf ("%4.4s at %p successfully installed and loaded\n",
-                                &TablePtr->Signature, TablePtr);
+                                &AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
 
     AcpiGbl_AcpiHardwarePresent = FALSE;
 
