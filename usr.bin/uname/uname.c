@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2002 Juli Mallett.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -53,22 +54,38 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #include <stdlib.h>
 #include <unistd.h>
 
-void usage(void);
-
-int
-main(int argc, char *argv[])
-{
 #define	MFLAG	0x01
 #define	NFLAG	0x02
 #define	PFLAG	0x04
 #define	RFLAG	0x08
 #define	SFLAG	0x10
 #define	VFLAG	0x20
+
+typedef void (*get_t)(void);
+get_t get_platform, get_hostname, get_arch, get_release, get_sysname, get_version;
+
+void native_platform(void);
+void native_hostname(void);
+void native_arch(void);
+void native_release(void);
+void native_sysname(void);
+void native_version(void);
+void print_uname(u_int);
+void setup_get(void);
+void usage(void);
+
+char *platform, *hostname, *arch, *release, *sysname, *version;
+const char *prefix;
+
+int
+main(int argc, char *argv[])
+{
 	u_int flags;
-	int ch, mib[2];
-	size_t len, tlen;
-	char *p, buf[1024];
-	const char *prefix;
+	int ch;
+
+	prefix = "";
+
+	setup_get();
 
 	flags = 0;
 	while ((ch = getopt(argc, argv, "amnprsv")) != -1)
@@ -108,72 +125,147 @@ main(int argc, char *argv[])
 	if (!flags)
 		flags |= SFLAG;
 
-	prefix = "";
+	print_uname(flags);
+	exit(0);
+}
 
-	if (flags & SFLAG) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_OSTYPE;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
+#define	CHECK_ENV(opt,var)			\
+do {						\
+	if ((var = getenv("UNAME_" opt)) == NULL) {	\
+		get_##var = native_##var;	\
+	} else {				\
+		get_##var = (get_t)NULL;	\
+	}					\
+} while (0)
+
+void
+setup_get(void)
+{
+	CHECK_ENV("s", sysname);
+	CHECK_ENV("n", hostname);
+	CHECK_ENV("r", release);
+	CHECK_ENV("v", version);
+	CHECK_ENV("m", platform);
+	CHECK_ENV("p", arch);
+}
+
+#define	PRINT_FLAG(flags,flag,var)		\
+	if ((flags & flag) == flag) {		\
+		if (get_##var != NULL)		\
+			(*get_##var)();		\
+		printf("%s%s", prefix, var);	\
+		prefix = " ";			\
 	}
-	if (flags & NFLAG) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_HOSTNAME;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
-	}
-	if (flags & RFLAG) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_OSRELEASE;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
-	}
-	if (flags & VFLAG) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_VERSION;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		for (p = buf, tlen = len; tlen--; ++p)
-			if (*p == '\n' || *p == '\t')
-				*p = ' ';
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
-	}
-	if (flags & MFLAG) {
-		mib[0] = CTL_HW;
-		mib[1] = HW_MACHINE;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
-	}
-	if (flags & PFLAG) {
-		mib[0] = CTL_HW;
-		mib[1] = HW_MACHINE_ARCH;
-		len = sizeof(buf);
-		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, (int)len, buf);
-		prefix = " ";
-	}
-	(void)printf("\n");
-	exit (0);
+
+void
+print_uname(u_int flags)
+{
+	PRINT_FLAG(flags, SFLAG, sysname);
+	PRINT_FLAG(flags, NFLAG, hostname);
+	PRINT_FLAG(flags, RFLAG, release);
+	PRINT_FLAG(flags, VFLAG, version);
+	PRINT_FLAG(flags, MFLAG, platform);
+	PRINT_FLAG(flags, PFLAG, arch);
+	printf("\n");
+}
+
+void
+native_sysname(void)
+{
+	int mib[2];
+	size_t len;
+	static char buf[1024];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_OSTYPE;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	sysname = buf;
+}
+
+void
+native_hostname(void)
+{
+	int mib[2];
+	size_t len;
+	static char buf[1024];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_HOSTNAME;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	hostname = buf;
+}
+
+void
+native_release(void)
+{
+	int mib[2];
+	size_t len;
+	static char buf[1024];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_OSRELEASE;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	release = buf;
+}
+
+void
+native_version(void)
+{
+	int mib[2];
+	size_t len, tlen;
+	char *p;
+	static char buf[1024];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_VERSION;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	for (p = buf, tlen = len; tlen--; ++p)
+		if (*p == '\n' || *p == '\t')
+			*p = ' ';
+	version = buf;
+}
+
+void
+native_platform(void)
+{
+	int mib[2];
+	size_t len;
+	static char buf[1024];
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_MACHINE;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	platform = buf;
+}
+
+void
+native_arch(void)
+{
+	int mib[2];
+	size_t len;
+	static char buf[1024];
+
+	mib[0] = CTL_HW;
+	mib[1] = HW_MACHINE_ARCH;
+	len = sizeof(buf);
+	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+		err(1, "sysctl");
+	arch = buf;
 }
 
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: uname [-amnprsv]\n");
+	fprintf(stderr, "usage: uname [-amnprsv]\n");
 	exit(1);
 }
