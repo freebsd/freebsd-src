@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.30 1995/05/30 08:02:42 rgrimes Exp $
+ *	$Id: lpt.c,v 1.31 1995/06/21 10:23:23 davidg Exp $
  */
 
 /*
@@ -904,18 +904,18 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 
     case SIOCSIFMTU:
 	ptr = sc->sc_ifbuf;
-	sc->sc_ifbuf = malloc(ifr->ifr_metric+LPIPHDRLEN, M_DEVBUF, M_NOWAIT);
+	sc->sc_ifbuf = malloc(ifr->ifr_mtu+LPIPHDRLEN, M_DEVBUF, M_NOWAIT);
 	if (!sc->sc_ifbuf) {
 	    sc->sc_ifbuf = ptr;
 	    return ENOBUFS;
 	}
 	if (ptr)
 	    free(ptr,M_DEVBUF);
-	sc->sc_if.if_mtu = ifr->ifr_metric;
+	sc->sc_if.if_mtu = ifr->ifr_mtu;
 	break;
 
     case SIOCGIFMTU:
-	ifr->ifr_metric = sc->sc_if.if_mtu;
+	ifr->ifr_mtu = sc->sc_if.if_mtu;
 	break;
 
     default:
