@@ -18,19 +18,6 @@
 
 MACHINE_ARCH=	sparc64
 
-TOOLPATH=	/arch/sparc64/native-uberbaum/bin
-TOOLPREFIX=
-AR=		${TOOLPATH}/${TOOLPREFIX}ar
-CC=		${TOOLPATH}/${TOOLPREFIX}gcc
-LD=		${TOOLPATH}/${TOOLPREFIX}ld
-NM=		${TOOLPATH}/${TOOLPREFIX}nm
-OBJCOPY=	${TOOLPATH}/${TOOLPREFIX}objcopy
-OBJDUMP=	${TOOLPATH}/${TOOLPREFIX}objdump
-RANLIB=		${TOOLPATH}/${TOOLPREFIX}ranlib
-SIZE=		${TOOLPATH}/${TOOLPREFIX}size
-
-COPT+=	-B${TOOLPATH}/
-
 NO_CPU_COPTFLAGS=true
 
 CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
