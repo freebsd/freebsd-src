@@ -496,7 +496,7 @@ sub invoke_atq {
     
     while(defined($_ = <ATQ>)) {
 	chomp;
-	if (/^\d\d:\d\d:\d\d\s+\d\d\/\d\d\/\d\d\s+(\S+)\s+\S+\s+(\d+)$/) {
+	if (/^\d\d.\d\d.\d\d\s+\d\d.\d\d.\d\d\s+(\S+)\s+\S+\s+(\d+)$/) {
 	    push(@at, $2) if ($1 eq $user);
 	}
     }
@@ -533,10 +533,10 @@ sub remove_at_jobs {
     
     return 1 if ($user eq "");
     
-    print STDERR "Removing user's at jobs:";
     @at = invoke_atq($user);
     return 0 if ($#at == -1);
     
+    print STDERR "Removing user's at jobs:";
     print STDERR " @at:";
     $atrm = invoke_atrm($user, @at);
     if ($atrm ne "") {
@@ -544,7 +544,7 @@ sub remove_at_jobs {
 	return 1;
     }
     
-    print STDERR "done.\n";
+    print STDERR " done.\n";
     return 0;
 }
 
