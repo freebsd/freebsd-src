@@ -4383,7 +4383,7 @@ format.
 It is possible to specify some special
 .Sq values
 in your chat script as follows:
-.Bd -unfilled -offset indent
+.Bl -tag -width 2n
 .It Li \ec
 When used as the last character in a
 .Sq send
@@ -4417,7 +4417,7 @@ This is replaced by the current
 value (see
 .Dq set authname
 above).
-.Ed
+.El
 .Pp
 Note that two parsers will examine these escape sequences, so in order to
 have the
@@ -4522,7 +4522,7 @@ command has been used,
 will send the information to the peer using the LCP endpoint discriminator
 option.
 The following discriminators may be set:
-.Bd -unfilled -offset indent
+.Bl -tag -width indent
 .It Li label
 The current label is used.
 .It Li IP
@@ -4563,7 +4563,7 @@ is used.
 .Ar Value
 should be set to an absolute public switched network number with the
 country code first.
-.Ed
+.El
 .Pp
 If no arguments are given, the endpoint discriminator is reset.
 .It set escape Ar value...
