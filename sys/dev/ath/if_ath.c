@@ -279,10 +279,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps = IEEE80211_C_WEP | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP
-		| IEEE80211_C_MONITOR;
-	/* NB: 11g support is identified when we fetch the channel set */
-	if (sc->sc_have11g)
-		ic->ic_caps |= IEEE80211_C_SHPREAMBLE;
+		| IEEE80211_C_MONITOR | IEEE80211_C_SHPREAMBLE;
 
 	/* get mac address from hardware */
 	ath_hal_getmac(ah, ic->ic_myaddr);
@@ -765,13 +762,6 @@ ath_start(struct ifnet *ifp)
 			}
 		}
 
-		/*
-		 * TODO:
-		 * The duration field of 802.11 header should be filled.
-		 * XXX This may be done in the ieee80211 layer, but the upper 
-		 *     doesn't know the detail of parameters such as IFS
-		 *     for now..
-		 */
 		if (ath_tx_start(sc, ni, bf, m)) {
 	bad:
 			mtx_lock(&sc->sc_txbuflock);
@@ -1797,7 +1787,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * use short preamble based on the current mode and
 	 * negotiated parameters.
 	 */
-	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE) {
+	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE)) {
 		txrate = rt->info[rix].rateCode | rt->info[rix].shortPreamble;
 		shortPreamble = AH_TRUE;
 		sc->sc_stats.ast_tx_shortpre++;
@@ -1816,6 +1807,21 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	} else if (pktlen > ic->ic_rtsthreshold) {
 		flags |= HAL_TXDESC_RTSENA;	/* RTS based on frame length */
 		sc->sc_stats.ast_tx_rts++;
+	}
+
+	/*
+	 * Calculate duration.  This logically belongs in the 802.11
+	 * layer but it lacks sufficient information to calculate it.
+	 */
+	if ((flags & HAL_TXDESC_NOACK) == 0 &&
+	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL) {
+		u_int16_t dur;
+		/*
+		 * XXX not right with fragmentation.
+		 */
+		dur = ath_hal_computetxtime(ah, rt, IEEE80211_ACK_SIZE,
+				rix, shortPreamble);
+		*((u_int16_t*) wh->i_dur) = htole16(dur);
 	}
 
 	/*
@@ -2395,7 +2401,6 @@ ath_getchannels(struct ath_softc *sc, u_int cc, HAL_BOOL outdoor)
 	HAL_CHANNEL *chans;
 	int i, ix, nchan;
 
-	sc->sc_have11g = 0;
 	chans = malloc(IEEE80211_CHAN_MAX * sizeof(HAL_CHANNEL),
 			M_TEMP, M_NOWAIT);
 	if (chans == NULL) {
@@ -2429,8 +2434,6 @@ ath_getchannels(struct ath_softc *sc, u_int cc, HAL_BOOL outdoor)
 			/* channels overlap; e.g. 11g and 11b */
 			ic->ic_channels[ix].ic_flags |= c->channelFlags;
 		}
-		if ((c->channelFlags & CHANNEL_G) == CHANNEL_G)
-			sc->sc_have11g = 1;
 	}
 	free(chans, M_TEMP);
 	return 0;
