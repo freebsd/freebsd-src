@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.h,v 1.1 1998/09/15 18:16:37 sos Exp $
+ * $Id: vesa.h,v 1.2 1998/09/25 11:55:41 yokota Exp $
  */
 
 #ifndef _MACHINE_PC_VESA_H
@@ -115,7 +115,7 @@ struct vesa_mode
 int vesa_load_ioctl(void);
 int vesa_unload_ioctl(void);
 
-#ifndef VESA_MODULE
+#ifndef KLD_MODULE
 int vesa_load(void);
 #endif
 
