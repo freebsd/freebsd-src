@@ -101,10 +101,8 @@ YFLAGS		?=	-d
 # which knows MACHINE, but not MACHINE_ARCH. When building on other
 # architectures, assume that the version of make being used has an
 # explicit MACHINE_ARCH setting and treat a missing MACHINE_ARCH
-# as an i386 architecture. Similarly for MACHINE_CPU, which indicates
-# the specific CPU generation to use, for optimization purposes.
+# as an i386 architecture.
 MACHINE_ARCH	?=	i386
-MACHINE_CPU	?=	i386
 
 # For tags rule.
 GTAGSFLAGS=	-o
