@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.32 1995/11/05 01:00:29 jkh Exp $
+ * $Id: disks.c,v 1.31.2.33 1995/11/08 07:09:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,13 +78,23 @@ print_chunks(Disk *d)
     int i;
 
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
+	int sz;
+
 	dialog_clear();
-	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Please adjust\n"
-		   "it to the correct values manually with the (G)eometry command.\n"
-		   "If you are unsure about the correct geometry (which may be\n"
-		   "\"translated\"), please consult the Hardware Guide in the\n"
-		   "Documentation submenu.  If you are using the entire disk for FreeBSD\n"
-		   "then you can probably safely ignore this message.", d->name);
+	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
+		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
+		   "is incorrect or you are unsure as to whether or not it's correct,\n"
+		   "please consult the Hardware Guide in the Documentation submenu\n"
+		   "or use the (G)eometry command to change it now.", d->name);
+	d->bios_hd = 64;
+	d->bios_sect = 32;
+	sz = 0;
+	for (i = 0; chunk_info[i]; i++)
+	     sz += chunk_info[i]->size;
+	if (sz)
+	    d->bios_cyl = sz / ONE_MEG;
+	else
+	msgConfirm("
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -327,6 +337,8 @@ diskPartition(Device *dev, Disk *d)
 			       "Do you insist on dedicating the entire disk this way?");
 	    }
 	    All_FreeBSD(d, rv);
+	    if (rv)
+		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	}
