@@ -150,7 +150,7 @@ spec_open(ap)
 		if (*dev->si_name != '\0') 
 			printf("Device \"%s\" ", dev->si_name);
 		else
-			printf("Device char-major=%d minor=%d ", 
+			printf("Device char-major=%d minor=0x%x ", 
 			    major(dev), minor(dev));
 		printf("opened in block mode, convert to char mode with /dev/MAKEDEV before 2000-07-01\n");
 		dev->si_flags |= SI_WHINED;
