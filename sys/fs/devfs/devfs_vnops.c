@@ -1435,3 +1435,16 @@ static struct vop_vector devfs_specops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_write =		VOP_PANIC,
 };
+
+/*
+ * Our calling convention to the device drivers used to be that we passed
+ * vnode.h IO_* flags to read()/write(), but we're moving to fcntl.h O_ 
+ * flags instead since that's what open(), close() and ioctl() takes and
+ * we don't really want vnode.h in device drivers.
+ * We solved the source compatibility by redefining some vnode flags to
+ * be the same as the fcntl ones and by sending down the bitwise OR of
+ * the respective fcntl/vnode flags.  These CTASSERTS make sure nobody
+ * pulls the rug out under this.
+ */
+CTASSERT(O_NONBLOCK == IO_NDELAY);
+CTASSERT(O_FSYNC == IO_SYNC);
