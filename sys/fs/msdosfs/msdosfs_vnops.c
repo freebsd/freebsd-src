@@ -182,7 +182,6 @@ msdosfs_create(ap)
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
-	ndirent.de_devvp = pdep->de_devvp;
 	ndirent.de_pmp = pdep->de_pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
 	getnanotime(&ts);
@@ -1356,7 +1355,6 @@ msdosfs_mkdir(ap)
 	ndirent.de_StartCluster = newcluster;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
-	ndirent.de_devvp = pdep->de_devvp;
 	error = createde(&ndirent, pdep, &dep, cnp);
 	if (error)
 		goto bad;
@@ -1747,7 +1745,7 @@ msdosfs_bmap(ap)
 	int error;
 
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &dep->de_devvp->v_bufobj;
+		*ap->a_bop = &dep->de_pmp->pm_devvp->v_bufobj;
 	if (ap->a_bnp == NULL)
 		return (0);
 	if (ap->a_runp) {
