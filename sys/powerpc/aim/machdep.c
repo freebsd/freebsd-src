@@ -884,7 +884,8 @@ db_trap_glue(struct trapframe *frame)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
 		|| (frame->exc == EXC_PGM
 		    && (frame->srr1 & 0x20000))
-		|| frame->exc == EXC_BPT)) {
+		|| frame->exc == EXC_BPT
+		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
 		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
 			type = T_BREAKPOINT;
