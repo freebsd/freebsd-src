@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.2 1997/05/24 17:05:26 smp Exp smp $
+ *	$Id: icu_vector.s,v 1.1 1997/05/26 17:58:26 fsmp Exp $
  */
 
 /*
@@ -204,14 +204,16 @@ ihandlers:			/* addresses of interrupt handlers */
 	.long	Xresume4, Xresume5, Xresume6, Xresume7
 	.long	Xresume8, Xresume9, Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
+	.long	swi_tty, swi_net
 	.long	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	.long	swi_tty, swi_net, _softclock, swi_ast
+	.long	_softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
+	.long	SWI_TTY_MASK, SWI_NET_MASK
 	.long	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	SWI_CLOCK_MASK, SWI_AST_MASK
 
 /*
  * Interrupt counters and names.  The format of these and the label names
