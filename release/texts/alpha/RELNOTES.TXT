@@ -289,8 +289,6 @@ NOT YET supported under the new CAM SCSI subsystem:
 
 Unmaintained drivers, they might or might not work for your hardware:
 
-  Floppy tape interface (Colorado/Mountain/Insight)
-
   (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 2.2. Ethernet cards
