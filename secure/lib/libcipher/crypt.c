@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt.c,v 1.1 1994/09/07 08:55:24 g89r4222 Exp $
+ *	$Id: crypt.c,v 1.1.1.1 1994/09/07 21:18:07 csgr Exp $
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
@@ -621,110 +621,3 @@ encrypt(char *block, int flag)
 	return(retval);
 }
 
-
-char *
-crypt(char *key, char *setting)
-{
-	int		i;
-	u_long		count, salt, l, r0, r1, keybuf[2];
-	u_char		*p, *q;
-	static u_char	output[21];
-
-	if (!des_initialised)
-		des_init();
-
-	/*
-	 * Need to check if setting is "*" - otherwise
-	 * crypt(k, "*") gives back "*"
-	 */
-	for(i = 0 ; i < 2; i++)
-		if(setting[i] == '\0')
-			{ setting[i] = 'A'; break ; }
-		
-
-	/*
-	 * Copy the key, shifting each character up by one bit
-	 * and padding with zeros.
-	 */
-	q = (u_char *) keybuf;
-	while (q - (u_char *) keybuf - 8) {
-		if (*q++ = *key << 1)
-			key++;
-	}
-	if (des_setkey((u_char *) keybuf))
-		return(NULL);
-
-	if (*setting == _PASSWORD_EFMT1) {
-		/*
-		 * "new"-style:
-		 *	setting - underscore, 4 bytes of count, 4 bytes of salt
-		 *	key - unlimited characters
-		 */
-		for (i = 1, count = 0L; i < 5; i++)
-			count |= ascii_to_bin(setting[i]) << (i - 1) * 6;
-
-		for (i = 5, salt = 0L; i < 9; i++)
-			salt |= ascii_to_bin(setting[i]) << (i - 5) * 6;
-
-		while (*key) {
-			/*
-			 * Encrypt the key with itself.
-			 */
-			if (des_cipher((u_char*)keybuf, (u_char*)keybuf, 0L, 1))
-				return(NULL);
-			/*
-			 * And XOR with the next 8 characters of the key.
-			 */
-			q = (u_char *) keybuf;
-			while (q - (u_char *) keybuf - 8 && *key)
-				*q++ ^= *key++ << 1;
-
-			if (des_setkey((u_char *) keybuf))
-				return(NULL);
-		}
-		strncpy(output, setting, 9);
-		p = output + 9;
-	} else {
-		/*
-		 * "old"-style:
-		 *	setting - 2 bytes of salt
-		 *	key - up to 8 characters
-		 */
-		count = 25;
-
-		salt = (ascii_to_bin(setting[1]) << 6)
-		     |  ascii_to_bin(setting[0]);
-
-		output[0] = setting[0];
-		output[1] = setting[1];
-		p = output + 2;
-	}
-	setup_salt(salt);
-	/*
-	 * Do it.
-	 */
-	if (do_des(0L, 0L, &r0, &r1, count))
-		return(NULL);
-	/*
-	 * Now encode the result...
-	 */
-	l = (r0 >> 8);
-	*p++ = ascii64[(l >> 18) & 0x3f];
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
-
-	l = (r0 << 16) | ((r1 >> 16) & 0xffff);
-	*p++ = ascii64[(l >> 18) & 0x3f];
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
-
-	l = r1 << 2;
-	*p++ = ascii64[(l >> 12) & 0x3f];
-	*p++ = ascii64[(l >> 6) & 0x3f];
-	*p++ = ascii64[l & 0x3f];
-	*p = 0;
-
-	return(output);
-}
