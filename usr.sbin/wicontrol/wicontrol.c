@@ -70,6 +70,8 @@ static void wi_printwords	__P((struct wi_req *));
 static void wi_printbool	__P((struct wi_req *));
 static void wi_printhex		__P((struct wi_req *));
 static void wi_dumpinfo		__P((char *));
+static void wi_setkeys		__P((char *, char *, int));
+static void wi_printkeys	__P((struct wi_req *));
 static void usage		__P((char *));
 
 static void wi_getval(iface, wreq)
@@ -236,6 +238,111 @@ void wi_sethex(iface, code, str)
 	return;
 }
 
+static int wi_hex2int(c)
+	char			c;
+{
+	if (c >= '0' && c <= '9')
+		return (c - '0');
+	if (c >= 'A' && c <= 'F')
+		return (c - 'A' + 10);
+	if (c >= 'a' && c <= 'f')
+		return (c - 'a' + 10);
+
+	return (0); 
+}
+
+static void wi_str2key(s, k)
+	char			*s;
+	struct wi_key		*k;
+{
+	int			n, i;
+	char			*p;
+
+	/* Is this a hex string? */
+	if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+		/* Yes, convert to int. */
+		n = 0;
+		p = (char *)&k->wi_keydat[0];
+		for (i = 2; i < strlen(s); i+= 2) {
+			*p++ = (wi_hex2int(s[i]) << 4) + wi_hex2int(s[i + 1]);
+			n++;
+		}
+		k->wi_keylen = n;
+	} else {
+		/* No, just copy it in. */
+		bcopy(s, k->wi_keydat, strlen(s));
+		k->wi_keylen = strlen(s);
+	}
+
+	return;
+}
+
+static void wi_setkeys(iface, key, idx)
+	char			*iface;
+	char			*key;
+	int			idx;
+{
+	struct wi_req		wreq;
+	struct wi_ltv_keys	*keys;
+	struct wi_key		*k;
+
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_WEP_AVAIL;
+
+	wi_getval(iface, &wreq);
+	if (wreq.wi_val[0] == 0)
+		err(1, "no WEP option available on this card");
+
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_DEFLT_CRYPT_KEYS;
+
+	wi_getval(iface, &wreq);
+	keys = (struct wi_ltv_keys *)&wreq;
+
+	if (strlen(key) > 14) {
+		err(1, "encryption key must be no "
+		    "more than 14 characters long");
+	}
+
+	if (idx > 3)
+		err(1, "only 4 encryption keys available");
+
+	k = &keys->wi_keys[idx];
+	wi_str2key(key, k);
+
+	wreq.wi_len = (sizeof(struct wi_ltv_keys) / 2) + 1;
+	wreq.wi_type = WI_RID_DEFLT_CRYPT_KEYS;
+	wi_setval(iface, &wreq);
+
+	return;
+}
+
+static void wi_printkeys(wreq)
+	struct wi_req		*wreq;
+{
+	int			i, j;
+	struct wi_key		*k;
+	struct wi_ltv_keys	*keys;
+	char			*ptr;
+
+	keys = (struct wi_ltv_keys *)wreq;
+
+	for (i = 0; i < 4; i++) {
+		k = &keys->wi_keys[i];
+		ptr = (char *)k->wi_keydat;
+		for (j = 0; j < k->wi_keylen; j++) {
+			if (ptr[i] == '\0')
+				ptr[i] = ' ';
+		}
+		ptr[j] = '\0';
+		printf("[ %s ]", ptr);
+	}
+
+	return;
+};
+
 void wi_printwords(wreq)
 	struct wi_req		*wreq;
 {
@@ -283,6 +390,7 @@ void wi_printhex(wreq)
 #define WI_BOOL			0x02
 #define WI_WORDS		0x03
 #define WI_HEXBYTES		0x04
+#define WI_KEYSTRUCT		0x05
 
 struct wi_table {
 	int			wi_code;
@@ -304,7 +412,8 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_PROMISC, WI_BOOL, "Promiscuous mode:\t\t\t" },
 	{ WI_RID_PORTTYPE, WI_WORDS, "Port type (1=BSS, 3=ad-hoc):\t\t"},
 	{ WI_RID_MAC_NODE, WI_HEXBYTES, "MAC address:\t\t\t\t"},
-	{ WI_RID_TX_RATE, WI_WORDS, "TX rate:\t\t\t\t"},
+	{ WI_RID_TX_RATE, WI_WORDS, "TX rate (selection):\t\t\t"},
+	{ WI_RID_CUR_TX_RATE, WI_WORDS, "TX rate (actual speed):\t\t\t"},
 	{ WI_RID_RTS_THRESH, WI_WORDS, "RTS/CTS handshake threshold:\t\t"},
 	{ WI_RID_CREATE_IBSS, WI_BOOL, "Create IBSS:\t\t\t\t" },
 	{ WI_RID_SYSTEM_SCALE, WI_WORDS, "Access point density:\t\t\t" },
@@ -313,12 +422,27 @@ static struct wi_table wi_table[] = {
 	{ 0, NULL }
 };
 
+static struct wi_table wi_crypt_table[] = {
+	{ WI_RID_ENCRYPTION, WI_BOOL, "WEP encryption:\t\t\t\t" },
+	{ WI_RID_TX_CRYPT_KEY, WI_WORDS, "TX encryption key:\t\t\t" },
+	{ WI_RID_DEFLT_CRYPT_KEYS, WI_KEYSTRUCT, "Encryption keys:\t\t\t" },
+	{ 0, NULL }
+};
+
 static void wi_dumpinfo(iface)
 	char			*iface;
 {
 	struct wi_req		wreq;
-	int			i;
+	int			i, has_wep;
 	struct wi_table		*w;
+
+	bzero((char *)&wreq, sizeof(wreq));
+
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_WEP_AVAIL;
+
+	wi_getval(iface, &wreq);
+	has_wep = wreq.wi_val[0];
 
 	w = wi_table;
 
@@ -347,6 +471,41 @@ static void wi_dumpinfo(iface)
 			break;
 		}	
 		printf("\n");
+	}
+
+	if (has_wep) {
+		w = wi_crypt_table;
+		for (i = 0; w[i].wi_type; i++) {
+			bzero((char *)&wreq, sizeof(wreq));
+
+			wreq.wi_len = WI_MAX_DATALEN;
+			wreq.wi_type = w[i].wi_code;
+
+			wi_getval(iface, &wreq);
+			printf("%s", w[i].wi_str);
+			switch(w[i].wi_type) {
+			case WI_STRING:
+				wi_printstr(&wreq);
+				break;
+			case WI_WORDS:
+				if (wreq.wi_type == WI_RID_TX_CRYPT_KEY)
+					wreq.wi_val[0]++;
+				wi_printwords(&wreq);
+				break;
+			case WI_BOOL:
+				wi_printbool(&wreq);
+				break;
+			case WI_HEXBYTES:
+				wi_printhex(&wreq);
+				break;
+			case WI_KEYSTRUCT:
+				wi_printkeys(&wreq);
+				break;
+			default:
+				break;
+			}	
+			printf("\n");
+		}
 	}
 
 	return;
@@ -427,10 +586,13 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -a access point density\n", p);
 	fprintf(stderr, "\t%s -i iface -m mac address\n", p);
 	fprintf(stderr, "\t%s -i iface -d max data length\n", p);
+	fprintf(stderr, "\t%s -i iface -e 0|1\n", p);
+	fprintf(stderr, "\t%s -i iface -k encryption key [-v 1|2|3|4]\n", p);
 	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
 	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
 	fprintf(stderr, "\t%s -i iface -P 0|1t\n", p);
 	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
+	fprintf(stderr, "\t%s -i iface -T 1|2|3|4\n", p);
 #ifdef WICACHE
 	fprintf(stderr, "\t%s -i iface -Z zero out signal cache\n", p);
 	fprintf(stderr, "\t%s -i iface -C print signal cache\n", p);
@@ -509,9 +671,11 @@ int main(argc, argv)
 	int			ch;
 	char			*iface = NULL;
 	char			*p = argv[0];
+	char			*key = NULL;
+	int			modifier = 0;
 
 	while((ch = getopt(argc, argv,
-	    "hoc:d:f:i:p:r:q:t:n:s:m:P:S:ZC")) != -1) {
+	    "hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -544,9 +708,16 @@ int main(argc, argv)
 			wi_setword(iface, WI_RID_MAX_DATALEN, atoi(optarg));
 			exit(0);
 			break;
+		case 'e':
+			wi_setword(iface, WI_RID_ENCRYPTION, atoi(optarg));
+			exit(0);
+			break;
 		case 'f':
 			wi_setword(iface, WI_RID_OWN_CHNL, atoi(optarg));
 			exit(0);
+			break;
+		case 'k':
+			key = optarg;
 			break;
 		case 'p':
 			wi_setword(iface, WI_RID_PORTTYPE, atoi(optarg));
@@ -580,9 +751,18 @@ int main(argc, argv)
 			wi_setword(iface, WI_RID_MAX_SLEEP, atoi(optarg));
 			exit(0);
 			break;
+		case 'T':
+			wi_setword(iface,
+			    WI_RID_TX_CRYPT_KEY, atoi(optarg) - 1);
+			exit(0);
+			break;
 		case 'P':
 			wi_setword(iface, WI_RID_PM_ENABLED, atoi(optarg));
 			exit(0);
+			break;
+		case 'v':
+			modifier = atoi(optarg);
+			modifier--;
 			break;
 		case 'h':
 		default:
@@ -594,10 +774,12 @@ int main(argc, argv)
 	if (iface == NULL)
 		usage(p);
 
+	if (key != NULL) {
+		wi_setkeys(iface, key, modifier);
+		exit(0);
+	}
+
 	wi_dumpinfo(iface);
 
 	exit(0);
 }
-
-
-
