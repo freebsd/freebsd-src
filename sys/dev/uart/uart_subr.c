@@ -177,6 +177,8 @@ uart_getenv(int devtype, struct uart_devinfo *di)
 	else if (devtype == UART_DEV_DBGPORT)
 		spec = getenv("hw.uart.dbgport");
 	else
+		spec = NULL;
+	if (spec == NULL)
 		return (ENXIO);
 
 	/* Set defaults. */
