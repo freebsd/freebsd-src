@@ -58,7 +58,8 @@ The \fIfilter-expression\fR syntax is as described for tcpdump(1),
 except that qualifiers which are inappropriate for a PPP link, such as
 \fBether\fR and \fBarp\fR, are not permitted.  Generally the filter
 expression should be enclosed in single-quotes to prevent whitespace
-in the expression from being interpreted by the shell. This option
+in the expression from being interpreted by the shell.
+This option
 only available
 if both the kernel and pppd were compiled with PPP_FILTER defined.
 .TP
@@ -136,7 +137,8 @@ Specifies that pppd should create a UUCP-style lock file for the
 serial device to ensure exclusive access to the device.
 .TP
 .B mru \fIn
-Set the MRU [Maximum Receive Unit] value to \fIn\fR. Pppd
+Set the MRU [Maximum Receive Unit] value to \fIn\fR.
+Pppd
 will ask the peer to send packets of no more than \fIn\fR bytes.  The
 minimum MRU value is 128.  The default MRU value is 1500.  A value of
 296 is recommended for slow links (40 bytes for TCP/IP header + 256
@@ -305,55 +307,74 @@ obtained from the peer.  If the peer does not have the network number,
 the IPX protocol will not be started.
 .TP
 .B ipx-node \fIn\fB:\fIm
-Set the IPX node numbers. The two node numbers are separated from each
-other with a colon character. The first number \fIn\fR is the local
-node number. The second number \fIm\fR is the peer's node number. Each
-node number is a hexadecimal number, at most 10 digits long. The node
-numbers on the ipx-network must be unique. There is no valid
-default. If this option is not specified then the node numbers are
+Set the IPX node numbers.
+The two node numbers are separated from each
+other with a colon character.
+The first number \fIn\fR is the local
+node number.
+The second number \fIm\fR is the peer's node number.
+Each
+node number is a hexadecimal number, at most 10 digits long.
+The node
+numbers on the ipx-network must be unique.
+There is no valid
+default.
+If this option is not specified then the node numbers are
 obtained from the peer.
 .TP
 .B ipx-router-name \fI<string>
-Set the name of the router. This is a string and is sent to the peer
+Set the name of the router.
+This is a string and is sent to the peer
 as information data.
 .TP
 .B ipx-routing \fIn
-Set the routing protocol to be received by this option. More than one
-instance of \fIipx-routing\fR may be specified. The '\fInone\fR'
-option (0) may be specified as the only instance of ipx-routing. The
+Set the routing protocol to be received by this option.
+More than one
+instance of \fIipx-routing\fR may be specified.
+The '\fInone\fR'
+option (0) may be specified as the only instance of ipx-routing.
+The
 values may be \fI0\fR for \fINONE\fR, \fI2\fR for \fIRIP/SAP\fR, and
 \fI4\fR for \fINLSP\fR.
 .TP
 .B ipxcp-accept-local
 Accept the peer's NAK for the node number specified in the ipx-node
-option. If a node number was specified, and non-zero, the default is
-to insist that the value be used. If you include this option then you
+option.
+If a node number was specified, and non-zero, the default is
+to insist that the value be used.
+If you include this option then you
 will permit the peer to override the entry of the node number.
 .TP
 .B ipxcp-accept-network
 Accept the peer's NAK for the network number specified in the
-ipx-network option. If a network number was specified, and non-zero, the
-default is to insist that the value be used. If you include this
+ipx-network option.
+If a network number was specified, and non-zero, the
+default is to insist that the value be used.
+If you include this
 option then you will permit the peer to override the entry of the node
 number.
 .TP
 .B ipxcp-accept-remote
 Use the peer's network number specified in the configure request
-frame. If a node number was specified for the peer and this option was
+frame.
+If a node number was specified for the peer and this option was
 not specified, the peer will be forced to use the value which you have
 specified.
 .TP
 .B ipxcp-max-configure \fIn
 Set the maximum number of IPXCP configure request frames which the
-system will send to \fIn\fR. The default is 10.
+system will send to \fIn\fR.
+The default is 10.
 .TP
 .B ipxcp-max-failure \fIn
 Set the maximum number of IPXCP NAK frames which the local system will
-send before it rejects the options. The default value is 3.
+send before it rejects the options.
+The default value is 3.
 .TP
 .B ipxcp-max-terminate \fIn
 Set the maximum nuber of IPXCP terminate request frames before the
-local system considers that the peer is not listening to them. The
+local system considers that the peer is not listening to them.
+The
 default value is 3.
 .TP
 .B kdebug \fIn
@@ -574,7 +595,8 @@ except that qualifiers which are inappropriate for a PPP link, such as
 expression should be enclosed in single-quotes to prevent whitespace
 in the expression from being interpreted by the shell.  Note that it
 is possible to apply different constraints to incoming and outgoing
-packets using the \fBinbound\fR and \fBoutbound\fR qualifiers. This
+packets using the \fBinbound\fR and \fBoutbound\fR qualifiers.
+This
 option is currently only available under NetBSD, and then only if both
 the kernel and pppd were compiled with PPP_FILTER defined.
 .TP
