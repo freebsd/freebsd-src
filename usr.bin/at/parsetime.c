@@ -579,7 +579,11 @@ parsetime(int argc, char **argv)
     init_scanner(argc-optind, argv+optind);
 
     switch (token()) {
-    case NOW:	/* now is optional prefix for PLUS tree */
+    case NOW:	
+	    if (scc < 1) {
+		return nowtimer;
+	    }
+	    /* now is optional prefix for PLUS tree */
 	    expect(PLUS);
     case PLUS:
 	    plus(&runtime);
