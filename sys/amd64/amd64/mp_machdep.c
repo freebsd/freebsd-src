@@ -875,7 +875,7 @@ mptable_pass2(void)
 	    M_DEVBUF, M_WAITOK);
 	MALLOC(ioapic, volatile ioapic_t **, sizeof(ioapic_t *) * mp_napics,
 	    M_DEVBUF, M_WAITOK);
-	MALLOC(io_apic_ints, io_int *, sizeof(io_int) * nintrs,
+	MALLOC(io_apic_ints, io_int *, sizeof(io_int) * (nintrs + 1),
 	    M_DEVBUF, M_WAITOK);
 	MALLOC(bus_data, bus_datum *, sizeof(bus_datum) * mp_nbusses,
 	    M_DEVBUF, M_WAITOK);
@@ -916,7 +916,7 @@ mptable_pass2(void)
 		bus_data[x].bus_id = 0xff;
 
 	/* clear IO APIC INT table */
-	for (x = 0; x < nintrs; ++x) {
+	for (x = 0; x < (nintrs + 1); ++x) {
 		io_apic_ints[x].int_type = 0xff;
 		io_apic_ints[x].int_vector = 0xff;
 	}
@@ -1229,6 +1229,17 @@ fix_mp_table(void)
 		panic("Free physical APIC ID not usable");
 	}
 	fix_id_to_io_mapping();
+
+	/* detect and fix broken Compaq MP table */
+	if (apic_int_type(0, 0) == -1) {
+		printf("APIC_IO: MP table broken: 8259->APIC entry missing!\n");
+		io_apic_ints[nintrs].int_type = 3;	/* ExtInt */
+		io_apic_ints[nintrs].int_vector = 0xff;	/* Unassigned */
+		/* XXX fixme, set src bus id etc, but it doesn't seem to hurt */
+		io_apic_ints[nintrs].dst_apic_id = IO_TO_ID(0);
+		io_apic_ints[nintrs].dst_apic_int = 0;	/* Pin 0 */
+		nintrs++;
+	}
 }
 
 
