@@ -52,11 +52,8 @@ static const char rcsid[] =
 #include <netinet/in.h>
 
 #include <err.h>
-#ifdef DEBUG
-#include <fcntl.h>
-#endif
+#include <errno.h>
 #include <libutil.h>
-#include <opie.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -66,20 +63,27 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
-char	username[MAXLOGNAME + 5 + 1] = "USER=";
-char	homedir[MAXPATHLEN + 5 + 1] = "HOME=";
-char	shell[MAXPATHLEN + 6 + 1] = "SHELL=";
-char	path[sizeof(_PATH_DEFPATH) + sizeof("PATH=")] = "PATH=";
-char	*envinit[] =
-	    {homedir, shell, path, username, 0};
+#include <security/pam_appl.h>
+#include <security/openpam.h>
+
+static pam_handle_t *pamh;
+static struct pam_conv pamc = {
+	openpam_nullconv,
+	NULL
+};
+static int pam_flags = PAM_SILENT|PAM_DISALLOW_NULL_AUTHTOK;
+static int pam_err;
+#define pam_ok(err) ((pam_err = (err)) == PAM_SUCCESS)
+
 char	**environ;
 char	remote[MAXHOSTNAMELEN];
 
 struct	sockaddr_storage asin;
 
-void doit(int, struct sockaddr *);
+void doit(struct sockaddr *);
 void getstr(char *, int, char *);
 void error(const char *fmt, ...);
+void pam_fail(void);
 
 int no_uid_0 = 1;
 
@@ -125,66 +129,49 @@ main(int argc, char *argv[])
 	realhostname_sa(remote, sizeof(remote) - 1,
 			(struct sockaddr *)&from, fromlen);
 
-	doit(0, (struct sockaddr *)&from);
+	doit((struct sockaddr *)&from);
 	return(0);
 }
 
 void
-doit(int f, struct sockaddr *fromp)
+doit(struct sockaddr *fromp)
 {
-	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp;
 	const char *namep;
-	char user[16];
-#ifdef OPIE
-	struct opie opiedata;
-	char pass[OPIE_RESPONSE_MAX+1], opieprompt[OPIE_CHALLENGE_MAX+1];
-#else /* OPIE */
-	char pass[16];
-#endif /* OPIE */
+	char user[16], pass[16];
 	struct passwd *pwd;
-	int s;
+	int fd, r, sd;
 	u_short port;
-	int pv[2], pid, ready, readfrom, cc;
+	int pv[2], pid, cc, nfds;
+	fd_set rfds, fds;
 	char buf[BUFSIZ], sig;
 	int one = 1;
-	int authenticated = 0;
+	char **envlist, **env;
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
 	(void) signal(SIGTERM, SIG_DFL);
-#ifdef DEBUG
-	{ int t = open(_PATH_TTY, 2);
-	  if (t >= 0) {
-		ioctl(t, TIOCNOTTY, (char *)0);
-		(void) close(t);
-	  }
-	}
-#endif
-	dup2(f, 0);
-	dup2(f, 1);
-	dup2(f, 2);
+	dup2(STDIN_FILENO, STDOUT_FILENO);
+	dup2(STDIN_FILENO, STDOUT_FILENO);
 	(void) alarm(60);
 	port = 0;
 	for (;;) {
 		char c;
-		if (read(f, &c, 1) != 1)
+		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
 		if (c == 0)
 			break;
 		port = port * 10 + c - '0';
 	}
-	(void) alarm(0);
 	if (port != 0) {
-		s = socket(fromp->sa_family, SOCK_STREAM, 0);
-		if (s < 0)
+		sd = socket(fromp->sa_family, SOCK_STREAM, 0);
+		if (sd < 0)
 			exit(1);
 		bzero(&asin, sizeof(asin));
 		asin.ss_family = fromp->sa_family;
 		asin.ss_len = fromp->sa_len;
-		if (bind(s, (struct sockaddr *)&asin, asin.ss_len) < 0)
+		if (bind(sd, (struct sockaddr *)&asin, asin.ss_len) < 0)
 			exit(1);
-		(void) alarm(60);
 		switch (fromp->sa_family) {
 		case AF_INET:
 			((struct sockaddr_in *)fromp)->sin_port = htons(port);
@@ -195,116 +182,103 @@ doit(int f, struct sockaddr *fromp)
 		default:
 			exit(1);
 		}
-		if (connect(s, fromp, fromp->sa_len) < 0)
+		if (connect(sd, fromp, fromp->sa_len) < 0)
 			exit(1);
-		(void) alarm(0);
 	}
 	getstr(user, sizeof(user), "username");
 	getstr(pass, sizeof(pass), "password");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
-	setpwent();
-	pwd = getpwnam(user);
-	if (pwd == NULL) {
-		error("Login incorrect.\n");
-		exit(1);
-	}
-	endpwent();
-	if (*pwd->pw_passwd != '\0') {
-#ifdef OPIE
-		opiechallenge(&opiedata, user, opieprompt);
-		if (!opieverify(&opiedata, pass))
-			authenticated = 1;
-#endif /* OPIE */
-		if (!authenticated) {
-			namep = crypt(pass, pwd->pw_passwd);
-			if (!strcmp(namep, pwd->pw_passwd))
-				authenticated = 1;
-		}
-		if (!authenticated) {
-			syslog(LOG_ERR, "LOGIN FAILURE from %s, %s",
-			       remote, user);
-			error("Login incorrect.\n");
-			exit(1);
-		}
-	}
+	(void) alarm(0);
 
-	if ((pwd->pw_uid == 0 && no_uid_0) || *pwd->pw_passwd == '\0' ||
-	    (pwd->pw_expire && time(NULL) >= pwd->pw_expire)) {
+	if ((pwd = getpwnam(user))  == NULL || (pwd->pw_uid = 0 && no_uid_0) ||
+	    !pam_ok(pam_start("rexecd", user, &pamc, &pamh)) ||
+	    !pam_ok(pam_set_item(pamh, PAM_RHOST, remote)) ||
+	    !pam_ok(pam_set_item(pamh, PAM_AUTHTOK, pass)) ||
+	    !pam_ok(pam_authenticate(pamh, pam_flags)) ||
+	    !pam_ok(pam_acct_mgmt(pamh, pam_flags))) {
 		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
 		error("Login incorrect.\n");
 		exit(1);
 	}
 
-	if ((fp = fopen(_PATH_FTPUSERS, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), fp) != NULL) {
-			if ((cp = index(buf, '\n')) != NULL)
-				*cp = '\0';
-			if (strcmp(buf, pwd->pw_name) == 0) {
-				syslog(LOG_ERR, "%s LOGIN REFUSED from %s",
-				       user, remote);
-				error("Login incorrect.\n");
-				exit(1);
-			}
-		}
-	}
-	(void) fclose(fp);
-
 	syslog(LOG_INFO, "login from %s as %s", remote, user);
 
 	(void) write(STDERR_FILENO, "\0", 1);
-	if (port) {
+	if (port != 0) {
 		(void) pipe(pv);
+
 		pid = fork();
 		if (pid == -1)  {
 			error("Try again.\n");
 			exit(1);
 		}
 		if (pid) {
-			(void) close(0); (void) close(1); (void) close(2);
-			(void) close(f); (void) close(pv[1]);
-			readfrom = (1<<s) | (1<<pv[0]);
-			ioctl(pv[1], FIONBIO, (char *)&one);
-			/* should set s nbio! */
+			/* parent */
+			(void) pam_end(pamh, pam_err);
+			(void) close(STDIN_FILENO);
+			(void) close(STDOUT_FILENO);
+			(void) close(STDERR_FILENO);
+			(void) close(pv[1]);
+			ioctl(pv[0], FIONBIO, (char *)&one);
+			/* should set sd nbio! */
+			FD_ZERO(&fds);
+			FD_SET(sd, &fds);
+			nfds = sd + 1;
+			FD_SET(pv[0], &fds);
+			if (pv[0] >= nfds)
+				nfds = pv[0] + 1;
 			do {
-				ready = readfrom;
-				(void) select(16, (fd_set *)&ready,
-				    (fd_set *)NULL, (fd_set *)NULL,
-				    (struct timeval *)NULL);
-				if (ready & (1<<s)) {
-					if (read(s, &sig, 1) <= 0)
-						readfrom &= ~(1<<s);
+				rfds = fds;
+				for (;;) {
+					r = select(nfds, &rfds, NULL, NULL, NULL);
+					if (r > 0)
+						break;
+					if (r < 0 && errno != EINTR)
+						exit(0);
+				}
+				if (FD_ISSET(sd, &rfds)) {
+					if (read(sd, &sig, 1) <= 0)
+						FD_CLR(sd, &fds);
 					else
 						killpg(pid, sig);
 				}
-				if (ready & (1<<pv[0])) {
+				if (FD_ISSET(pv[0], &fds)) {
 					cc = read(pv[0], buf, sizeof (buf));
 					if (cc <= 0) {
-						shutdown(s, 1+1);
-						readfrom &= ~(1<<pv[0]);
-					} else
-						(void) write(s, buf, cc);
+						shutdown(sd, SHUT_RDWR);
+						FD_CLR(pv[0], &fds);
+					} else {
+						(void) write(sd, buf, cc);
+					}
 				}
-			} while (readfrom);
+			} while (FD_ISSET(sd, &fds) || FD_ISSET(pv[0], &fds));
 			exit(0);
 		}
-		setpgrp(0, getpid());
-		(void) close(s); (void)close(pv[0]);
+		/* child */
+		(void) close(sd);
+		(void) close(pv[0]);
 		dup2(pv[1], 2);
 	}
+	for (fd = getdtablesize(); fd > 2; fd--)
+		(void) close(fd);
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
-	if (f > 2)
-		(void) close(f);
+	if (setsid() == -1)
+		syslog(LOG_ERR, "setsid() failed: %m");
 	if (setlogin(pwd->pw_name) < 0)
 		syslog(LOG_ERR, "setlogin() failed: %m");
 	(void) setgid((gid_t)pwd->pw_gid);
 	initgroups(pwd->pw_name, pwd->pw_gid);
+	if (!pam_ok(pam_setcred(pamh, PAM_ESTABLISH_CRED)))
+		syslog(LOG_ERR, "pam_setcred() failed: %s",
+		    pam_strerror(pamh, pam_err));
+	(void) pam_setenv(pamh, "HOME", pwd->pw_dir, 1);
+	(void) pam_setenv(pamh, "SHELL", pwd->pw_shell, 1);
+	(void) pam_setenv(pamh, "USER", pwd->pw_name, 1);
+	(void) pam_setenv(pamh, "PATH", _PATH_DEFPATH, 1);
+	environ = pam_getenvlist(pamh);
+	(void) pam_end(pamh, pam_err);
 	(void) setuid((uid_t)pwd->pw_uid);
-	(void)strcat(path, _PATH_DEFPATH);
-	environ = envinit;
-	strncat(homedir, pwd->pw_dir, sizeof(homedir)-6);
-	strncat(shell, pwd->pw_shell, sizeof(shell)-7);
-	strncat(username, pwd->pw_name, sizeof(username)-6);
 	cp = strrchr(pwd->pw_shell, '/');
 	if (cp)
 		cp++;
