@@ -85,7 +85,7 @@ struct	inpcb *
 	in6_pcblookup_hash __P((struct inpcbinfo *,
 				struct in6_addr *, u_int, struct in6_addr *,
 				u_int, int, struct ifnet *));
-void	in6_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
+void	in6_pcbnotify __P((struct inpcbinfo *, struct sockaddr *,
 			   u_int, const struct sockaddr *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int)));
 struct inpcb *

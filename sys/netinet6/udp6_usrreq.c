@@ -444,11 +444,11 @@ udp6_ctlinput(cmd, sa, d)
 		bzero(&uh, sizeof(uh));
 		m_copydata(m, off, sizeof(*uhp), (caddr_t)&uh);
 
-		(void) in6_pcbnotify(&udb, sa, uh.uh_dport,
+		(void) in6_pcbnotify(&udbinfo, sa, uh.uh_dport,
 				     (struct sockaddr *)ip6cp->ip6c_src,
 				     uh.uh_sport, cmd, cmdarg, notify);
 	} else
-		(void) in6_pcbnotify(&udb, sa, 0,
+		(void) in6_pcbnotify(&udbinfo, sa, 0,
 				     (const struct sockaddr *)sa6_src,
 				     0, cmd, cmdarg, notify);
 }

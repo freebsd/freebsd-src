@@ -610,8 +610,8 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * Must be called at splnet.
  */
 void
-in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
-	struct inpcbhead *head;
+in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
+	struct inpcbinfo *pcbinfo;
 	struct sockaddr *dst;
 	const struct sockaddr *src;
 	u_int fport_arg, lport_arg;
@@ -619,6 +619,7 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 	void *cmdarg;
 	struct inpcb *(*notify) __P((struct inpcb *, int));
 {
+	struct inpcbhead *head;
 	struct inpcb *inp, *ninp;
 	struct sockaddr_in6 sa6_src, *sa6_dst;
 	u_short	fport = fport_arg, lport = lport_arg;
@@ -656,11 +657,16 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 	}
 	errno = inet6ctlerrmap[cmd];
 	s = splnet();
+	head = pcbinfo->listhead;
+	INP_INFO_WLOCK(pcbinfo);
  	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+		INP_LOCK(inp);
  		ninp = LIST_NEXT(inp, inp_list);
 
- 		if ((inp->inp_vflag & INP_IPV6) == 0)
+ 		if ((inp->inp_vflag & INP_IPV6) == 0) {
+			INP_UNLOCK(inp);
 			continue;
+		}
 
 		/*
 		 * If the error designates a new path MTU for a destination
@@ -698,13 +704,17 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 			 (!IN6_IS_ADDR_UNSPECIFIED(&sa6_src.sin6_addr) &&
 			  !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
 					      &sa6_src.sin6_addr)) ||
-			 (fport && inp->inp_fport != fport))
+			 (fport && inp->inp_fport != fport)) {
+			INP_UNLOCK(inp);
 			continue;
+		}
 
 	  do_notify:
 		if (notify)
 			(*notify)(inp, errno);
+		INP_UNLOCK(inp);
 	}
+	INP_INFO_WUNLOCK(pcbinfo);
 	splx(s);
 }
 

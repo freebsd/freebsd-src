@@ -1236,7 +1236,7 @@ tcp6_ctlinput(cmd, sa, d)
 		bzero(&th, sizeof(th));
 		m_copydata(m, off, sizeof(*thp), (caddr_t)&th);
 
-		in6_pcbnotify(&tcb, sa, th.th_dport,
+		in6_pcbnotify(&tcbinfo, sa, th.th_dport,
 		    (struct sockaddr *)ip6cp->ip6c_src,
 		    th.th_sport, cmd, NULL, notify);
 
@@ -1247,7 +1247,7 @@ tcp6_ctlinput(cmd, sa, d)
 		inc.inc_isipv6 = 1;
 		syncache_unreach(&inc, &th);
 	} else
-		in6_pcbnotify(&tcb, sa, 0, (const struct sockaddr *)sa6_src,
+		in6_pcbnotify(&tcbinfo, sa, 0, (const struct sockaddr *)sa6_src,
 			      0, cmd, NULL, notify);
 }
 #endif /* INET6 */
