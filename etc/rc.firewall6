@@ -164,7 +164,7 @@ case ${ipv6_firewall_type} in
 [Ss][Ii][Mm][Pp][Ll][Ee])
 	############
 	# This is a prototype setup for a simple firewall.  Configure this
-	# machine as a named server and ntp server, and point all the machines
+	# machine as a DNS and NTP server, and point all the machines
 	# on the inside at this machine for those services.
 	############
 
