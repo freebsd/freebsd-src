@@ -107,7 +107,7 @@ static uma_zone_t atm_connection_zone;
 static uma_zone_t atm_connvc_zone;
 
 void
-atm_cm_init(void *arg)
+atm_cm_init(void)
 {
 
 	atm_connection_zone = uma_zcreate("atm connection",
