@@ -169,6 +169,10 @@
 #define BGE_PCI_MSI_ADDR_LO		0x60
 #define BGE_PCI_MSI_DATA		0x64
 
+/* PCI MSI. ??? */
+#define BGE_PCIE_CAPID_REG		0xD0
+#define BGE_PCIE_CAPID			0x10
+
 /*
  * PCI registers specific to the BCM570x family.
  */
@@ -233,6 +237,8 @@
 #define BGE_CHIPID_BCM5705_A1		0x30010000
 #define BGE_CHIPID_BCM5705_A2		0x30020000
 #define BGE_CHIPID_BCM5705_A3		0x30030000
+#define BGE_CHIPID_BCM5750_A0		0x40000000
+#define BGE_CHIPID_BCM5750_A1		0x40010000
 
 /* shorthand one */
 #define BGE_ASICREV(x)			((x) >> 28)
@@ -241,6 +247,7 @@
 #define BGE_ASICREV_BCM5703		0x01
 #define BGE_ASICREV_BCM5704		0x02
 #define BGE_ASICREV_BCM5705		0x03
+#define BGE_ASICREV_BCM5750		0x04
 
 /* chip revisions */
 #define BGE_CHIPREV(x)			((x) >> 24)
@@ -1854,6 +1861,9 @@ struct bge_status_block {
 #define BCOM_DEVICEID_BCM5705K		0x1654
 #define BCOM_DEVICEID_BCM5705M		0x165D
 #define BCOM_DEVICEID_BCM5705M_ALT	0x165E
+#define BCOM_DEVICEID_BCM5750		0x1676
+#define BCOM_DEVICEID_BCM5750M		0x167C
+#define BCOM_DEVICEID_BCM5751		0x1677
 #define BCOM_DEVICEID_BCM5782		0x1696
 #define BCOM_DEVICEID_BCM5788		0x169C
 #define BCOM_DEVICEID_BCM5901		0x170D
@@ -2278,6 +2288,7 @@ struct bge_softc {
 	u_int8_t		bge_asicrev;
 	u_int8_t		bge_chiprev;
 	u_int8_t		bge_no_3_led;
+	u_int8_t		bge_pcie;
 	struct bge_ring_data	*bge_rdata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	u_int16_t		bge_tx_saved_considx;

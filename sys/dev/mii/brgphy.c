@@ -95,6 +95,7 @@ static void	brgphy_loop(struct mii_softc *);
 static void	bcm5401_load_dspcode(struct mii_softc *);
 static void	bcm5411_load_dspcode(struct mii_softc *);
 static void	bcm5703_load_dspcode(struct mii_softc *);
+static void	bcm5750_load_dspcode(struct mii_softc *);
 static int	brgphy_mii_model;
 
 static int brgphy_probe(dev)
@@ -143,6 +144,12 @@ static int brgphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5705) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5705);
+		return(0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5750) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5750);
 		return(0);
 	}
 
@@ -576,6 +583,29 @@ bcm5704_load_dspcode(struct mii_softc *sc)
 }
 
 static void
+bcm5750_load_dspcode(struct mii_softc *sc)
+{
+	static const struct {
+		int		reg;
+		u_int16_t	val;
+	} dspcode[] = {
+		{ 0x18,				0x0c00 },
+		{ 0x17,				0x000a },
+		{ 0x15,				0x310b },
+		{ 0x17,				0x201f },
+		{ 0x15,				0x9506 },
+		{ 0x17,				0x401f },
+		{ 0x15,				0x14e2 },
+		{ 0x18,				0x0400 },
+		{ 0,				0 },
+	};
+	int i;
+
+	for (i = 0; dspcode[i].reg != 0; i++)
+		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
+}
+
+static void
 brgphy_reset(struct mii_softc *sc)
 {
 	u_int32_t	val;
@@ -596,6 +626,9 @@ brgphy_reset(struct mii_softc *sc)
 		break;
 	case MII_MODEL_xxBROADCOM_BCM5704:
 		bcm5704_load_dspcode(sc);
+		break;
+	case MII_MODEL_xxBROADCOM_BCM5750:
+		bcm5750_load_dspcode(sc);
 		break;
 	}
 
