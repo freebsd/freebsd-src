@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: whois.c,v 1.5 1998/02/19 19:07:50 wollman Exp $";
+	"$Id: whois.c,v 1.2.2.3 1998/02/19 19:10:26 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sysexits.h>
 #include <unistd.h>
 
