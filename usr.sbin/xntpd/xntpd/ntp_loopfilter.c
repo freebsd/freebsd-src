@@ -139,7 +139,7 @@ extern int sigvec	P((int, struct sigvec *, struct sigvec *));
 #ifndef NTP_SYSCALLS_LIBC
 extern int syscall	P((int, void *, ...));
 #endif /* no NTP syscalls in libc */
-void pll_trap		P((void));
+void pll_trap		P((int));
 
 static struct sigvec sigsys;	/* current sigvec status */
 static struct sigvec newsigsys;	/* new sigvec status */
@@ -713,7 +713,7 @@ loop_config(item, lfp_value, int_value)
  * the stock adjtime() syscall and a lot of indelicate abuse.
  */
 RETSIGTYPE
-pll_trap()
+pll_trap(int sig)
 {
 	pll_control = 0;
 }
