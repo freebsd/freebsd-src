@@ -5,10 +5,9 @@
 .Dt CX 4 i386
 .Os FreeBSD
 .Sh NAME
-.Nm cx ,
-.Nm if_cx
+.Nm cx
 .Nd asynchronous/synchronous Cronyx-Sigma adapter driver
-.Sh CONFIGURATION
+.Sh SYNOPSYS
 .Cd "device cx0 at isa? port 0x240 irq 15 drq 7"
 .Cd "device cx1 at isa? port 0x260 irq 12 drq 6"
 .Cd pseudo-device sppp
@@ -81,7 +80,6 @@ cd /dev
 sh MAKEDEV cronyx ttyx0 ttyx1 ttyy0
 .El
 .Sh "Asynchronous driver"
-.Pp
 The asynchronous channel device files have the names:
 .Pa /dev/ttyx# 
 - for adapter cx0, 
@@ -115,7 +113,7 @@ Set the given values of DTR and RTS signals (<DTR:RTS> := data).
 The signals DTR and RTS are controlled by
 .Dv TIOCM_DTR 
 and
-.DvTIOCM_RTS
+.Dv TIOCM_RTS
 bits of the data argument of the ioctl system call.
 .It TIOCMBIS
 Set DTR and RTS signals (<DTR:RTS> |= data).
@@ -151,7 +149,6 @@ Request To Send signal transmitted
 .El
 .El
 .Sh "Synchronous driver"
-.Pp
 The synchronous channels and universal channels, turned to the synchronous
 mode by the 
 .Xr cxconfig 8
@@ -173,8 +170,7 @@ The mode could be changed by
 utility.
 The mode is blocked while the channel is busy (an asynchronous channel
 in open state or the network interface is up).
-.Sj "Synchronous Point-to-Point protocol"
-.Pp
+.Sh "Synchronous Point-to-Point protocol"
 The Cronyx-Sigma driver uses the built-in implementation of the synchronous
 Point-to-Point protocol (sppp).  It includes the support for such
 protocols as PpP/HDLC and Cisco/HDLC, and also the automatic
@@ -188,7 +184,6 @@ The external protocol set could be selected by ``cxconfig ext'' command
 (see 
 .Xr cxconfig 8 ) .
 .Sh "Channel Options Management"
-.Pp
 The 
 .Xr cxconfig 8
 utility is used for setting the channels options.
