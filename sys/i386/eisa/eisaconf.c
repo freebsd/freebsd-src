@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.12 1996/01/03 06:28:01 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.13 1996/01/29 03:13:20 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -81,7 +81,8 @@ DATA_SET (eisadriver_set, mainboard_drv);
  */
 void eisa_reg_print __P((struct eisa_device *e_dev, char *string,
 			 char *separator));
-static int eisa_add_resvaddr __P((struct resvlist *head, u_long	base,
+static int eisa_add_resvaddr __P((struct eisa_device *e_dev,
+				  struct resvlist *head, u_long	base,
 				  u_long size, int flags));
 static int eisa_reg_resvaddr __P((struct eisa_device *e_dev, 
 				  struct resvlist *head, resvaddr_t *resvaddr,
@@ -501,7 +502,8 @@ eisa_enable_intr(e_dev, irq)
 }
 
 static int
-eisa_add_resvaddr(head, base, size, flags)
+eisa_add_resvaddr(e_dev, head, base, size, flags)
+	struct eisa_device *e_dev;
 	struct resvlist *head;
 	u_long	base;
 	u_long	size;
@@ -549,6 +551,7 @@ eisa_add_resvaddr(head, base, size, flags)
 			}
 		}
 	}
+	e_dev->kdc->kdc_datalen += sizeof(resvaddr_t);
 	return (0);
 }
 
@@ -559,7 +562,8 @@ eisa_add_mspace(e_dev, mbase, msize, flags)
 	u_long	msize;
 	int	flags;
 {
-	return	eisa_add_resvaddr(&(e_dev->ioconf.maddrs), mbase, msize, flags);
+	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.maddrs), mbase, msize,
+				  flags);
 }
 
 int
@@ -569,8 +573,8 @@ eisa_add_iospace(e_dev, iobase, iosize, flags)
 	u_long	iosize;
 	int	flags;
 {
-	return	eisa_add_resvaddr(&(e_dev->ioconf.ioaddrs), iobase, iosize,
-				  flags);
+	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), iobase,
+				  iosize, flags);
 }
 
 static int
@@ -660,6 +664,8 @@ eisa_registerdev(e_dev, driver, kdc_template)
 	struct eisa_driver *driver;
 	struct kern_devconf *kdc_template;
 {
+	resvaddr_t *node;
+
 	e_dev->driver = driver;	/* Driver now owns this device */
 	e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
 						   M_DEVBUF, M_NOWAIT);
@@ -678,5 +684,68 @@ eisa_registerdev(e_dev, driver, kdc_template)
 int
 eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-    return (SYSCTL_OUT(req, kdc->kdc_eisa, sizeof(struct eisa_device)));
+	struct eisa_device *e_dev;
+	resvaddr_t *node;
+	void *buf;	/* Temporary externalizing buffer */
+	void *bufp;	/* Current offset in the buffer */
+	void *offset;	/* Offset relative to target address space */
+	void *ioa_prev; /* Prev Node entries relative to target address space */
+	void *ma_prev;	/* Prev Node entries relative to target address space */
+
+	offset = req->oldptr + req->oldidx;
+	buf = malloc(kdc->kdc_datalen, M_TEMP, M_NOWAIT);
+	if (!buf)
+		return 0;
+
+	bufp = buf;
+	bcopy(kdc->kdc_eisa, bufp, sizeof(struct eisa_device));
+	e_dev = bufp;
+
+	/* Calculate initial prev nodes */
+	ioa_prev = offset + ((void *)&(e_dev->ioconf.ioaddrs.lh_first)
+			  - (void *)e_dev);
+	ma_prev = offset + ((void *)&(e_dev->ioconf.maddrs.lh_first)
+			 - (void *)e_dev);
+
+	offset += sizeof(*e_dev);
+	bufp += sizeof(*e_dev);
+
+	if (e_dev->ioconf.ioaddrs.lh_first) {
+		node = e_dev->ioconf.ioaddrs.lh_first;
+		e_dev->ioconf.ioaddrs.lh_first = offset;
+		for(;node;node = node->links.le_next) {
+			resvaddr_t *out_node;
+
+			bcopy(node, bufp, sizeof(resvaddr_t));
+			out_node = (resvaddr_t *)bufp;
+			bufp += sizeof(resvaddr_t);
+			offset += sizeof(resvaddr_t);
+
+			out_node->links.le_prev = ioa_prev;
+			ioa_prev += sizeof(resvaddr_t);
+
+			if (out_node->links.le_next)
+				out_node->links.le_next = offset;
+		}
+	}
+	if (e_dev->ioconf.maddrs.lh_first) {
+		node = e_dev->ioconf.maddrs.lh_first;
+		e_dev->ioconf.maddrs.lh_first = offset;
+		for(;node;node = node->links.le_next) {
+			resvaddr_t *out_node;
+
+			bcopy(node, bufp, sizeof(resvaddr_t));
+			out_node = (resvaddr_t *)bufp;
+			bufp += sizeof(resvaddr_t);
+			offset += sizeof(resvaddr_t);
+
+			out_node->links.le_prev = ma_prev;
+			ma_prev += sizeof(resvaddr_t);
+
+			if (out_node->links.le_next)
+				out_node->links.le_next = offset;
+		}
+	}
+	
+	return (SYSCTL_OUT(req, buf, kdc->kdc_datalen));
 }

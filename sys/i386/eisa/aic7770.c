@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.22 1996/01/23 21:48:28 se Exp $
+ *	$Id: aic7770.c,v 1.23 1996/01/29 03:13:16 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -111,6 +111,7 @@ aic7770probe(void)
 			 + AHC_EISA_SLOT_OFFSET;
 		ahc_reset(iobase);
 
+		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
 		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
 		switch (intdef & 0xf) {
@@ -139,7 +140,6 @@ aic7770probe(void)
 				continue;
 		}
 		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
 		if(e_dev->id == EISA_DEVICE_ID_ADAPTEC_284xB
 		   || e_dev->id == EISA_DEVICE_ID_ADAPTEC_284x) {
 			/* Our real parent is the isa bus.  Say so. */
