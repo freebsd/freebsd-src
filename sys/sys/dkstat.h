@@ -52,10 +52,6 @@
 #ifdef _KERNEL
 
 extern long cp_time[CPUSTATES];
-extern long tk_cancc;
-extern long tk_nin;
-extern long tk_nout;
-extern long tk_rawcc;
 #endif
 
 #endif /* _SYS_DKSTAT_H_ */
