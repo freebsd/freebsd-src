@@ -2482,7 +2482,7 @@ isp_intr(arg)
 					isp->isp_mboxtmp[i] =
 					    ISP_READ(isp, MBOX_OFF(i));
 				}
-				isp->isp_mboxbsy = 0;
+				MBOX_NOTIFY_COMPLETE(isp);
 			} else {
 				PRINTF("%s: Command Mbox 0x%x\n",
 				    isp->isp_name, mbox);
@@ -3605,12 +3605,7 @@ isp_mboxcmd(isp, mbp)
 	/*
 	 * While we haven't finished the command, spin our wheels here.
 	 */
-
-	do {
-		if (isp_intr(isp) == 0) {
-			SYS_DELAY(500);
-		}
-	} while (isp->isp_mboxbsy != 0);
+	MBOX_WAIT_COMPLETE(isp);
 
 	/*
 	 * Copy back output registers.
