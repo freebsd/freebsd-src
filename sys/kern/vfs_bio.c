@@ -167,12 +167,6 @@ static int bd_request;
 vm_page_t bogus_page;
 
 /*
- * Offset for bogus_page.
- * XXX bogus_offset should be local to bufinit
- */
-static vm_offset_t bogus_offset;
-
-/*
  * Synchronization (sleep/wakeup) variable for active buffer space requests.
  * Set when wait starts, cleared prior to wakeup().
  * Used in runningbufwakeup() and waitrunningbufspace().
@@ -486,6 +480,7 @@ void
 bufinit(void)
 {
 	struct buf *bp;
+	vm_offset_t bogus_offset;
 	int i;
 
 	GIANT_REQUIRED;
