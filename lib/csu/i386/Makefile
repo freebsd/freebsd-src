@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.34 1998/02/06 16:46:31 jdp Exp $
+#	$Id: Makefile,v 1.35 1998/02/09 06:05:07 jdp Exp $
 
-CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
+CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
 CLEANFILES+=	a.out
 
@@ -32,10 +32,6 @@ scrt0.o: crt0.o
 sgcrt0.o: scrt0.o
 	${CC} ${CFLAGS} -c -DMCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
 	${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
-		${DESTDIR}/usr/include
 
 realinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
