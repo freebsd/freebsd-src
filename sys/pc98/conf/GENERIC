@@ -4,11 +4,11 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.freebsd.org/handbook/kernelconfig-config.html
+#    http://www.FreeBSD.org/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.ORG/) for the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -87,7 +87,7 @@ device		wcd		#IDE CD-ROM
 # SCSI Controllers
 device		adv
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
@@ -273,21 +273,20 @@ device		ep
 device		lnc0	at isa? port 0x03d0 irq 6
 device		snc0	at isa? port 0x888  irq 6 iomem 0xc0000
 
+# Xircom Ethernet
+device		xe
+# PRISM I IEEE 802.11b wireless NIC.
+device		awi
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
-# exists only as a PCMCIA device, so there is no ISA attatement needed
+# exists only as a PCMCIA device, so there is no ISA attachment needed
 # and resources will always be dynamically assigned by the pccard code.
 device		wi
-
 # Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
 # work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
 # mode (the factory default). If you set the switches on your ISA
 # card for a manually chosen I/O address and IRQ, you must specify
-# those paremeters here.
+# those parameters here.
 device		an
-
-# Xircom Ethernet
-device		xe
-
 # requires PCCARD (PCMCIA) support to be activated
 device		sn
 
@@ -311,7 +310,7 @@ device		sn
 #device	pcm
 #device	sbc0	at isa? port 0x20d2 irq 10 drq 3
 
-# Pseudo devices - the number indicates how many units to allocated.
+# Pseudo devices - the number indicates how many units to allocate.
 pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
 pseudo-device	sl	1	# Kernel SLIP
