@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: clnt.h,v 1.8 1997/05/07 02:27:04 eivind Exp $
+ *	$Id: clnt.h,v 1.5 1996/12/30 13:59:38 peter Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
 #ifndef _RPC_CLNT_H_
 #define _RPC_CLNT_H_
 #include <sys/cdefs.h>
+#include <sys/un.h>
 
 /*
  * Rpc calls return an enum clnt_stat.  This should be looked at more,
@@ -202,16 +203,41 @@ typedef struct __rpc_client {
 #define	clnt_control(cl,rq,in) ((*(cl)->cl_ops->cl_control)(cl,rq,in))
 
 /*
- * control operations that apply to both udp and tcp transports
+ * control operations that apply to udp, tcp and unix transports
+ *
+ * Note: options marked XXX are no-ops in this implementation of RPC.
+ * The are present in TI-RPC but can't be implemented here since they
+ * depend on the presence of STREAMS/TLI, which we don't have.
+ *
  */
 #define CLSET_TIMEOUT       1   /* set timeout (timeval) */
 #define CLGET_TIMEOUT       2   /* get timeout (timeval) */
 #define CLGET_SERVER_ADDR   3   /* get server's address (sockaddr) */
+#define CLGET_FD            6	/* get connections file descriptor */
+#define CLGET_SVC_ADDR      7   /* get server's address (netbuf)         XXX */
+#define CLSET_FD_CLOSE      8   /* close fd while clnt_destroy */
+#define CLSET_FD_NCLOSE     9   /* Do not close fd while clnt_destroy */
+#define CLGET_XID           10	/* Get xid */
+#define CLSET_XID           11	/* Set xid */
+#define CLGET_VERS          12	/* Get version number */
+#define CLSET_VERS          13	/* Set version number */
+#define CLGET_PROG	    14	/* Get program number */
+#define CLSET_PROG          15	/* Set program number */
+#define CLSET_SVC_ADDR      16	/* get server's address (netbuf)         XXX */
+#define CLSET_PUSH_TIMOD    17	/* push timod if not already present     XXX */
+#define CLSET_POP_TIMOD     18	/* pop timod                             XXX */
+
 /*
  * udp only control operations
  */
 #define CLSET_RETRY_TIMEOUT 4   /* set retry timeout (timeval) */
 #define CLGET_RETRY_TIMEOUT 5   /* get retry timeout (timeval) */
+
+/*
+ * Operations which GSSAPI needs. (Bletch.)
+ */
+#define CLGET_LOCAL_ADDR    19	/* get local addr (sockaddr) */
+
 
 /*
  * void
@@ -258,7 +284,8 @@ __END_DECLS
 
 
 /*
- * Generic client creation routine. Supported protocols are "udp" and "tcp"
+ * Generic client creation routine. Supported protocols are "udp", "tcp"
+ * and "unix".
  * CLIENT *
  * clnt_create(host, prog, vers, prot);
  *	char *host; 	-- hostname
@@ -323,6 +350,27 @@ extern CLIENT *clntudp_bufcreate __P((struct sockaddr_in *,
 				     u_long,
 				     u_long,
 				     struct timeval,
+				     int *,
+				     u_int,
+				     u_int));
+__END_DECLS
+
+
+/*
+ * AF_UNIX based rpc
+ * CLIENT *
+ * clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
+ *	struct sockaddr_un *raddr;
+ *	u_long prog;
+ *	u_long version;
+ *	register int *sockp;
+ *	u_int sendsz;
+ *	u_int recvsz;
+ */
+__BEGIN_DECLS
+extern CLIENT *clntunix_create	__P((struct sockaddr_un *,
+				     u_long,
+				     u_long,
 				     int *,
 				     u_int,
 				     u_int));
