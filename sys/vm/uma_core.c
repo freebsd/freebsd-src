@@ -440,7 +440,7 @@ cache_drain(uma_zone_t zone)
 	/*
 	 * Flush out the per cpu queues.
 	 *
-	 * XXX This causes unneccisary thrashing due to immediately having
+	 * XXX This causes unnecessary thrashing due to immediately having
 	 * empty per cpu queues.  I need to improve this.
 	 */
 
@@ -705,7 +705,7 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 
 	/*
 	 * XXX The original zone allocator did this, but I don't think it's
-	 * neccisary in current.
+	 * necessary in current.
 	 */
 
 	if (lockstatus(&kernel_map->lock, NULL)) {
