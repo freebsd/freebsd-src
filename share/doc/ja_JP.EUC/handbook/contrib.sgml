@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.7 1996/12/04 09:04:42 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.8 1996/12/05 03:30:59 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.162 -->
+<!-- Original revision: 1.163 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -153,11 +153,11 @@
         <tag/ポストマスタ/ &a.jmb; 
         <tag/広報/ &a.jkh 
         <tag/リリースコーディネータ/ &a.jkh 
-	<tag/セキュリティ担当/ &a.pst
+	<tag/セキュリティ担当/ &a.pst; and &a.guido
         <tag/CVS ツリー管理者/ &a.peter 
         <tag/ports コレクション担当/ &a.asami 
-        <tag/システム管理者/ &a.gpalmer 
-        <tag/Web 管理者/ &a.jkh; and &a.jfieber
+        <tag/Web 管理者/ &a.jfieber
+        <tag/FAQ 担当/ &a.pds
         <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
       </descrip>
 
