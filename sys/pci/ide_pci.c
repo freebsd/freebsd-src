@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.25 1999/01/16 03:55:46 msmith Exp $
+ *	$Id: ide_pci.c,v 1.26 1999/01/16 19:48:01 bde Exp $
  */
 
 #include "pci.h"
@@ -452,8 +452,7 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		 * enable prefetch/postwrite-- XXX may cause problems
 		 * with CD-ROMs? 
 		 */
-		workword &= ~(3 << (cookie->ctlr * 2 + 12));
-		workword |= 3 << (cookie->ctlr * 2 + 12);
+		workword |= 0xc000 >> (cookie->ctlr * 2);
 
 		/* FIFO configurations-- equal split, threshold 1/2 */
 		workword &= 0x90ffffff;
