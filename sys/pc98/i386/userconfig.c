@@ -412,7 +412,7 @@ static DEV_INFO device_info[] = {
 {"xe",          "Xircom PC Card Ethernet adapter",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
-{"al",          "ADMtek AL981 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"al",          "ADMtek AL981/AN985 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"ax",          "ASIX AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"dm",          "Davicom DM910x Ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
