@@ -611,8 +611,8 @@ search(search_forward, pattern, n, wantmatch)
 	 */
 	if (caseless && pattern != NULL)
 		for (p = pattern;  *p;  p++)
-			if (isupper(*p))
-				*p = tolower(*p);
+			if (isupper(*p & 0xff))
+				*p = tolower(*p & 0xff);
 #ifdef RECOMP
 
 	/*
@@ -764,7 +764,7 @@ search(search_forward, pattern, n, wantmatch)
 		 */
 		if (caseless)
 			for (p = q = line;  *p;  p++, q++)
-				*q = isupper(*p) ? tolower(*p) : *p;
+				*q = isupper(*p & 0xff) ? tolower(*p & 0xff) : *p;
 
 		/*
 		 * Remove any backspaces along with the preceeding char.

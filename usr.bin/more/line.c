@@ -167,10 +167,9 @@ pappend(c)
 		switch (ln_state) {
 		case LN_NORMAL:
 			if (curr <= linebuf + 1
-			    || curr[-1] != (char)('H' | 0200))
+			    || curr[-1] != '\b')
 				break;
-			column -= 2;
-			if (c == curr[-2])
+			if (c == (curr[-2] & 0xff))
 				goto enter_boldface;
 			if (c == '_' || curr[-2] == '_')
 				goto enter_underline;
@@ -183,7 +182,7 @@ enter_boldface:
 			 * Switch into boldface mode.
 			 */
 			column--;
-			if (column + bo_width + be_width + 1 >= sc_width)
+			if (column + bo_width + be_width >= sc_width)
 				/*
 				 * Not enough room left on the screen to 
 				 * enter and exit boldface mode.
@@ -213,7 +212,7 @@ enter_underline:
 			 * the current char).  Switch into underline mode.
 			 */
 			column--;
-			if (column + ul_width + ue_width + 1 >= sc_width)
+			if (column + ul_width + ue_width >= sc_width)
 				/*
 				 * Not enough room left on the screen to 
 				 * enter and exit underline mode.
@@ -243,7 +242,7 @@ enter_underline:
 			/*
 			 * Termination of a sequence "_\bX" or "X\b_".
 			 */
-			if (c != '_' && curr[-2] != '_' && c == curr[-2])
+			if (c != '_' && curr[-2] != '_' && c == (curr[-2] & 0xff))
 			{
 				/*
 				 * We seem to have run on from underlining
@@ -260,7 +259,7 @@ enter_underline:
 			}
 ln_ul_xb_case:
 			if (c == '_')
-				c = curr[-2];
+				c = curr[-2] & 0xff;
 			curr -= 2;
 			ln_state = LN_UNDERLINE;
 			break;
@@ -268,7 +267,7 @@ ln_ul_xb_case:
 			/*
 			 * Termination of a sequnce "X\bX".
 			 */
-			if (c != curr[-2] && (c == '_' || curr[-2] == '_'))
+			if (c != (curr[-2] & 0xff) && (c == '_' || curr[-2] == '_'))
 			{
 				/*
 				 * We seem to have run on from
@@ -286,7 +285,7 @@ ln_bo_xb_case:
 			ln_state = LN_BOLDFACE;
 			break;
 		case LN_UNDERLINE:
-			if (column + ue_width + bo_width + 1 + be_width >= sc_width)
+			if (column + ue_width + bo_width + be_width >= sc_width)
 				/*
 				 * We have just barely enough room to 
 				 * exit underline mode and handle a possible
@@ -301,7 +300,7 @@ ln_bo_xb_case:
 				ln_state = LN_BO_XB;
 				break;
 			}
-			if (column + be_width + ul_width + 1 + ue_width >= sc_width)
+			if (column + be_width + ul_width + ue_width >= sc_width)
 				/*
 				 * We have just barely enough room to 
 				 * exit underline mode and handle a possible
@@ -378,30 +377,31 @@ ln_bo_xb_case:
 
 	if (c == '\b') {
 		if (ln_state == LN_NORMAL)
-			NEW_COLUMN(2);
+			NEW_COLUMN(0);
 		else
 			column--;
-		*curr++ = ('H' | 0200);
+		*curr++ = c;
 		return(0);
 	} 
 
-	if (CONTROL_CHAR(c)) {
-		/*
-		 * Put a "^X" into the buffer.  The 0200 bit is used to tell
-		 * put_line() to prefix the char with a ^.  We don't actually
-		 * put the ^ in the buffer because we sometimes need to move
-		 * chars around, and such movement might separate the ^ from
-		 * its following character.
-		 */
+	switch ((char)c) {
+	case UL_CHAR:
+	case UE_CHAR:
+	case BO_CHAR:
+	case BE_CHAR:
+		c &= ~0200;
+		/* fall through */
+	case '\200':
 		NEW_COLUMN(2);
-		*curr++ = (CARAT_CHAR(c) | 0200);
-		return(0);
+		break;
+	default:
+		if (CONTROL_CHAR(c))
+			NEW_COLUMN(2);
+		else
+			NEW_COLUMN(1);
+		break;
 	}
 
-	/*
-	 * Ordinary character.  Just put it in the buffer.
-	 */
-	NEW_COLUMN(1);
 	*curr++ = c;
 	return (0);
 }

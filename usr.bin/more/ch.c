@@ -96,7 +96,7 @@ static off_t last_piped_pos;
 #define	ch_get() \
 	((buf_head->block == ch_block && \
 	    ch_offset < buf_head->datasize) ? \
-	    buf_head->data[ch_offset] : fch_get())
+	    buf_head->data[ch_offset] & 0xff : fch_get())
 
 static
 fch_get()
@@ -130,7 +130,7 @@ fch_get()
 			 * find it already buffered.
 			 */
 			if (ispipe)
-				return(bp->data[ch_offset]);
+				return(bp->data[ch_offset] & 0xff);
 			goto found;
 		}
 	/*
@@ -189,15 +189,15 @@ read_more:
 
 	if (bs_mode) {
 		for (p = &bp->data[bp->datasize]; --n >= 0;) {
-			*--p &= 0177;
+			*--p;
 			if (*p == EOI)
 				*p = 0200;
 		}
 	}
 	else {
 		for (t = p; --n >= 0; ++p) {
-			ch = *p & 0177;
-			if (ch == '\r' && n && (p[1] & 0177) == '\n') {
+			ch = *p;
+			if (ch == '\r' && n && p[1] == '\n') {
 				++p;
 				*t++ = '\n';
 			}
@@ -233,7 +233,7 @@ found:
 		 */
 		goto read_more;
 
-	return(bp->data[ch_offset]);
+	return(bp->data[ch_offset] & 0xff);
 }
 
 /*
