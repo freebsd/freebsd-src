@@ -306,7 +306,7 @@ optionsEditor(dialogMenuItem *self)
 	    clear();
 	    dialog_clear();
 	    restorescr(w);
-	    return DITEM_SUCCESS;
+	    return DITEM_SUCCESS | DITEM_CONTINUE;
 
 	default:
 	    beep();
