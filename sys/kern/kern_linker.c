@@ -70,6 +70,20 @@ static linker_class_list_t classes;
 static linker_file_list_t linker_files;
 static int next_file_id = 1;
 
+#define	LINKER_GET_NEXT_FILE_ID(a) do {					\
+    linker_file_t	lftmp;						\
+									\
+retry:									\
+    TAILQ_FOREACH(lftmp, &linker_files, link) {				\
+        if (next_file_id == lftmp->id) {				\
+            next_file_id++;						\
+            goto retry;							\
+        }								\
+    }									\
+    (a) = next_file_id;							\
+} while(0)
+
+
 /* XXX wrong name; we're looking at version provision tags here, not modules */
 typedef TAILQ_HEAD(, modlist) modlisthead_t;
 struct modlist {
@@ -401,7 +415,7 @@ linker_make_file(const char* pathname, linker_class_t lc)
     lf->userrefs = 0;
     lf->flags = 0;
     lf->filename = linker_strdup(filename);
-    lf->id = next_file_id++;
+    LINKER_GET_NEXT_FILE_ID(lf->id);
     lf->ndeps = 0;
     lf->deps = NULL;
     STAILQ_INIT(&lf->common);
