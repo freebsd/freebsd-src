@@ -6,14 +6,22 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.11 1995/05/03 22:36:52 phk Exp $
+ * $Id: libdisk.h,v 1.12 1995/05/04 07:00:55 phk Exp $
  *
  */
 
 #define MAX_NO_DISKS	20
 	/* Max # of disks Disk_Names() will return */
 
-typedef enum {whole, unknown, fat, freebsd, extended, part, unused, reserved} chunk_e;
+typedef enum {
+	whole,
+	unknown,
+	fat,
+	freebsd,
+	extended,
+	part,
+	unused,
+	} chunk_e;
 
 extern char *chunk_n[];
 
@@ -240,8 +248,7 @@ void Fixup_Names(struct disk *);
  * >>>>>>    0x3d1c0     172032     409600     581631 wd0s1e   5 part     0 0
  * >>>>>>    0x3d200     581632     378488     960119 wd0s1f   5 part     0 0
  * >>>>      0x3d140     960120       5670     965789 wd0s2    4 extended 0 8
- * >>>>>>    0x3d240     960120          1     960120 -        7 reserved 0 8
- * >>>>>>    0x3d2c0     960121         62     960182 -        6 unused   0 0
+ * >>>>>>    0x3d2c0     960120         63     960182 -        6 unused   0 0
  * >>>>>>    0x3d0c0     960183       5607     965789 wd0s5    2 fat      0 8
  * >>>>      0x3d280     965790       1890     967679 wd0s3    1 foo      -2 8
  * >>>>      0x3d300     967680     443520    1411199 wd0s4    3 freebsd  0 8
@@ -269,10 +276,7 @@ void Fixup_Names(struct disk *);
  *		     |        <wd0s1f>
  *		     |
  *		     v
- *		  <wd0s2> --> <reserved>
- *		     |           |
- *		     |           v
- *		     |        <unused>
+ *		  <wd0s2> --> <unused>
  *		     |           |
  *		     |           v
  *		     |        <wd0s5>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.15 1995/05/03 22:36:51 phk Exp $
+ * $Id: disk.c,v 1.16 1995/05/04 07:00:54 phk Exp $
  *
  */
 
@@ -34,7 +34,6 @@ char *chunk_n[] = {
 	"extended",
 	"part",
 	"unused",
-	"reserved",
 	NULL
 };
 
