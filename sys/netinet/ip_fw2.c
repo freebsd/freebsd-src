@@ -72,6 +72,10 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif
+
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
@@ -87,8 +91,10 @@
 /*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
- * are disabled. Set 31 is reserved for the default rule
+ * are disabled. Set RESVD_SET(31) is reserved for the default rule
+ * and rules that are not deleted by the flush command,
  * and CANNOT be disabled.
+ * Rules in set RESVD_SET can only be deleted explicitly.
  */
 static u_int32_t set_disable;
 
@@ -110,16 +116,20 @@ static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLFLAG_RW,
     &fw_enable, 0, "Enable ipfw");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step, CTLFLAG_RW,
     &autoinc_step, 0, "Rule number autincrement step");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
+    CTLFLAG_RW,
     &fw_one_pass, 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug,
+    CTLFLAG_RW,
     &fw_debug, 0, "Enable printing of debug ip_fw statements");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose,
+    CTLFLAG_RW,
     &fw_verbose, 0, "Log matches to ipfw rules");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
     &verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
@@ -1636,10 +1646,17 @@ check_body:
 				break;
 
 			case O_IP_SRC_MASK:
-				match = (hlen > 0 &&
-				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				     (src_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
+			case O_IP_DST_MASK:
+				if (hlen > 0) {
+				    uint32_t a =
+					(cmd->opcode == O_IP_DST_MASK) ?
+					    dst_ip.s_addr : src_ip.s_addr;
+				    uint32_t *p = ((ipfw_insn_u32 *)cmd)->d;
+				    int i = cmdlen-1;
+
+				    for (; !match && i>0; i-= 2, p+= 2)
+					match = (p[0] == (a & p[1]));
+				}
 				break;
 
 			case O_IP_SRC_ME:
@@ -1673,13 +1690,6 @@ check_body:
 				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    dst_ip.s_addr);
-				break;
-
-			case O_IP_DST_MASK:
-				match = (hlen > 0) &&
-				    (((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				     (dst_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
 				break;
 
 			case O_IP_DST_ME:
@@ -1814,6 +1824,17 @@ check_body:
 				match = ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
 				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
+				break;
+
+			case O_IPSEC:
+#ifdef FAST_IPSEC
+				match = (m_tag_find(m,
+				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
+#endif
+#ifdef IPSEC
+				match = (ipsec_gethist(m, NULL) != NULL);
+#endif
+				/* otherwise no match */
 				break;
 
 			/*
@@ -2154,24 +2175,28 @@ delete_rule(struct ip_fw **head, struct ip_fw *prev, struct ip_fw *rule)
 }
 
 /*
- * Deletes all rules from a chain (including the default rule
- * if the second argument is set).
+ * Deletes all rules from a chain (except rules in set RESVD_SET
+ * unless kill_default = 1).
  * Must be called at splimp().
  */
 static void
 free_chain(struct ip_fw **chain, int kill_default)
 {
-	struct ip_fw *rule;
+	struct ip_fw *prev, *rule;
 
 	flush_rule_ptrs(); /* more efficient to do outside the loop */
-
-	while ( (rule = *chain) != NULL &&
-	    (kill_default || rule->rulenum != IPFW_DEFAULT_RULE) )
-		delete_rule(chain, NULL, rule);
+	for (prev = NULL, rule = *chain; rule ; )
+		if (kill_default || rule->set != RESVD_SET)
+			rule = delete_rule(chain, prev, rule);
+		else {
+			prev = rule;
+			rule = rule->next;
+		}
 }
 
 /**
  * Remove all rules with given number, and also do set manipulation.
+ * Assumes chain != NULL && *chain != NULL.
  *
  * The argument is an u_int32_t. The low 16 bit are the rule or set number,
  * the next 8 bits are the new set, the top 8 bits are the command:
@@ -2185,9 +2210,9 @@ free_chain(struct ip_fw **chain, int kill_default)
 static int
 del_entry(struct ip_fw **chain, u_int32_t arg)
 {
-	struct ip_fw *prev, *rule;
+	struct ip_fw *prev = NULL, *rule = *chain;
 	int s;
-	u_int16_t rulenum;
+	u_int16_t rulenum;	/* rule or old_set */
 	u_int8_t cmd, new_set;
 
 	rulenum = arg & 0xffff;
@@ -2196,13 +2221,13 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	if (cmd > 4)
 		return EINVAL;
-	if (new_set > 30)
+	if (new_set > RESVD_SET)
 		return EINVAL;
 	if (cmd == 0 || cmd == 2) {
-		if (rulenum == IPFW_DEFAULT_RULE)
+		if (rulenum >= IPFW_DEFAULT_RULE)
 			return EINVAL;
 	} else {
-		if (rulenum > 30)
+		if (rulenum > RESVD_SET)	/* old_set */
 			return EINVAL;
 	}
 
@@ -2211,9 +2236,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 		/*
 		 * locate first rule to delete
 		 */
-		for (prev = NULL, rule = *chain;
-		    rule && rule->rulenum < rulenum;
-		     prev = rule, rule = rule->next)
+		for (; rule->rulenum < rulenum; prev = rule, rule = rule->next)
 			;
 		if (rule->rulenum != rulenum)
 			return EINVAL;
@@ -2224,7 +2247,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 		 * rules. prev remains the same throughout the cycle.
 		 */
 		flush_rule_ptrs();
-		while (rule && rule->rulenum == rulenum)
+		while (rule->rulenum == rulenum)
 			rule = delete_rule(chain, prev, rule);
 		splx(s);
 		break;
@@ -2232,7 +2255,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 	case 1:	/* delete all rules with given set number */
 		s = splimp();
 		flush_rule_ptrs();
-		for (prev = NULL, rule = *chain; rule ; )
+		while (rule->rulenum < IPFW_DEFAULT_RULE)
 			if (rule->set == rulenum)
 				rule = delete_rule(chain, prev, rule);
 			else {
@@ -2244,7 +2267,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 2:	/* move rules with given number to new set */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
 		splx(s);
@@ -2252,7 +2275,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 3: /* move rules with given set number to new set */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->set == rulenum)
 				rule->set = new_set;
 		splx(s);
@@ -2260,7 +2283,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 4: /* swap two sets */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->set == rulenum)
 				rule->set = new_set;
 			else if (rule->set == new_set)
@@ -2370,7 +2393,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		}
 		DEB(printf("ipfw: opcode %d\n", cmd->opcode);)
 		switch (cmd->opcode) {
-		case O_NOP:
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
 		case O_PROTO:
@@ -2388,6 +2410,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_TCPOPTS:
 		case O_ESTAB:
 		case O_VERREVPATH:
+		case O_IPSEC:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -2420,13 +2443,9 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_IP_SRC_MASK:
 		case O_IP_DST_MASK:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_ip))
+			/* only odd command lengths */
+			if ( !(cmdlen & 1) || cmdlen > 31)
 				goto bad_size;
-			if (((ipfw_insn_ip *)cmd)->mask.s_addr == 0) {
-				printf("ipfw: opcode %d, useless rule\n",
-					cmd->opcode);
-				return EINVAL;
-			}
 			break;
 
 		case O_IP_SRC_SET:
@@ -2446,12 +2465,14 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
+		case O_NOP:
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;
+
 		case O_MAC_TYPE:
 		case O_IP_SRCPORT:
 		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
@@ -2673,7 +2694,7 @@ ipfw_ctl(struct sockopt *sopt)
 		else if (size == 2*sizeof(u_int32_t)) /* set enable/disable */
 			set_disable =
 			    (set_disable | rule_buf[0]) & ~rule_buf[1] &
-			    ~(1<<31); /* set 31 always enabled */
+			    ~(1<<RESVD_SET); /* set RESVD_SET always enabled */
 		else
 			error = EINVAL;
 		break;
@@ -2760,7 +2781,7 @@ ipfw_init(void)
 	default_rule.act_ofs = 0;
 	default_rule.rulenum = IPFW_DEFAULT_RULE;
 	default_rule.cmd_len = 1;
-	default_rule.set = 31;
+	default_rule.set = RESVD_SET;
 
 	default_rule.cmd[0].len = 1;
 	default_rule.cmd[0].opcode =

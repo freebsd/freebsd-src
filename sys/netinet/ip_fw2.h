@@ -100,8 +100,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_KEEP_STATE,		/* none				*/
 	O_LIMIT,		/* ipfw_insn_limit		*/
 	O_LIMIT_PARENT,		/* dyn_type, not an opcode.	*/
+
 	/*
-	 * these are really 'actions', and must be last in the list.
+	 * These are really 'actions'.
 	 */
 
 	O_LOG,			/* ipfw_insn_log		*/
@@ -119,6 +120,12 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_TEE,			/* arg1=port number		*/
 	O_FORWARD_IP,		/* fwd sockaddr			*/
 	O_FORWARD_MAC,		/* fwd mac			*/
+
+	/*
+	 * More opcodes.
+	 */
+	O_IPSEC,		/* has ipsec history		*/
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -193,7 +200,7 @@ typedef struct	_ipfw_insn_ip {
 } ipfw_insn_ip;
 
 /*
- * This is used to forward to a given address (ip)
+ * This is used to forward to a given address (ip).
  */
 typedef struct  _ipfw_insn_sa {
 	ipfw_insn o;
@@ -210,7 +217,7 @@ typedef struct	_ipfw_insn_mac {
 } ipfw_insn_mac;
 
 /*
- * This is used for interface match rules (recv xx, xmit xx)
+ * This is used for interface match rules (recv xx, xmit xx).
  */
 typedef struct	_ipfw_insn_if {
 	ipfw_insn o;
@@ -250,7 +257,7 @@ typedef struct	_ipfw_insn_limit {
 } ipfw_insn_limit;
 
 /*
- * This is used for log instructions
+ * This is used for log instructions.
  */
 typedef struct  _ipfw_insn_log {
         ipfw_insn o;
@@ -286,10 +293,13 @@ typedef struct  _ipfw_insn_log {
 struct ip_fw {
 	struct ip_fw	*next;		/* linked list of rules		*/
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
+	/* 'next_rule' is used to pass up 'set_disable' status		*/
+
 	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
 	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	u_int16_t	rulenum;	/* rule number			*/
 	u_int8_t	set;		/* rule set (0..31)		*/
+#define	RESVD_SET	31	/* set for default and persistent rules */
 	u_int8_t	_pad;		/* padding			*/
 
 	/* These fields are present in all rules.			*/
@@ -320,13 +330,15 @@ struct ipfw_flow_id {
 };
 
 /*
- * dynamic ipfw rule
+ * Dynamic ipfw rule.
  */
 typedef struct _ipfw_dyn_rule ipfw_dyn_rule;
 
 struct _ipfw_dyn_rule {
 	ipfw_dyn_rule	*next;		/* linked list of rules.	*/
 	struct ip_fw *rule;		/* pointer to rule		*/
+	/* 'rule' is used to pass up the rule number (from the parent)	*/
+
 	ipfw_dyn_rule *parent;		/* pointer to parent rule	*/
 	u_int64_t	pcnt;		/* packet match counter		*/
 	u_int64_t	bcnt;		/* byte match counter		*/
@@ -372,7 +384,7 @@ struct _ipfw_dyn_rule {
 #define	IP_FW_PORT_DENY_FLAG	0x40000
 
 /*
- * arguments for calling ipfw_chk() and dummynet_io(). We put them
+ * Arguments for calling ipfw_chk() and dummynet_io(). We put them
  * all into a structure because this way it is easier and more
  * efficient to pass variables around and extend the interface.
  */
