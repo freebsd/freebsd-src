@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.8 1999/04/18 15:50:35 peter Exp $
+ *	$Id: bt_isa.c,v 1.9 1999/04/18 19:08:28 peter Exp $
  */
 
 #include <sys/param.h>
@@ -169,7 +169,6 @@ bt_isa_probe(device_t dev)
 
 		bt_isa_release_resources(dev);
 
-		isa_set_port(dev, ioport);
 		isa_set_drq(dev, info.drq);
 		isa_set_irq(dev, info.irq);
 
