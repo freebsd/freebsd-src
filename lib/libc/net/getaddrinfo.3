@@ -1,7 +1,7 @@
-.\" Copyright (c) 1983, 1987, 1991, 1993
 .\"	$FreeBSD$
-.\"	$KAME: getaddrinfo.3,v 1.16 2000/07/05 08:18:42 itojun Exp $
+.\"	$KAME: getaddrinfo.3,v 1.22 2000/08/09 21:16:17 itojun Exp $
 .\"
+.\" Copyright (c) 1983, 1987, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 .\"
 .Dd May 25, 1995
 .Dt GETADDRINFO 3
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm getaddrinfo ,
@@ -269,6 +269,67 @@ Otherwise an error of
 is returned.
 This flag prevents any type of name resolution service (e.g., the DNS)
 from being called.
+.Pp
+The arguments to
+.Fn getaddrinfo
+must sufficiently be consistent and unambiguous.
+Here are pitfall cases you may encounter:
+.Bl -bullet
+.It
+.Fn getaddrinfo
+will raise error if members in 
+.Fa hints
+structure is not consistent.
+For example, for internet address families,
+.Fn getaddrinfo
+will raise error if you specify
+.Dv SOCK_STREAM
+to
+.Fa ai_socktype
+while you specify
+.Dv IPPROTO_UDP
+to
+.Fa ai_protocol .
+.It
+If you specify a
+.Fa servname
+which is defined only for certain
+.Fa ai_socktype ,
+.Fn getaddrinfo
+will raise error because the arguments are not consistent.
+For example,
+.Fn getaddrinfo
+will raise error if you ask for
+.Dq Li tftp
+service on
+.Dv SOCK_STREAM .
+.It
+For internet address families, if you specify
+.Fa servname
+while you set
+.Fa ai_socktype
+to
+.Dv SOCK_RAW ,
+.Fn getaddrinfo
+will raise error, because service names are not defined for the internet
+.Dv SOCK_RAW
+space.
+.It
+If you specify numeric
+.Fa servname ,
+while leaving
+.Fa ai_socktype
+and
+.Fa ai_protocol
+unspecified,
+.Fn getaddrinfo
+will raise error.
+This is because the numeric
+.Fa servname
+does not identify any socket type, and
+.Fn getaddrinfo
+is not allowed to glob the argument in such case.
+.El
 .Pp
 All of the information returned by
 .Fn getaddrinfo
@@ -539,4 +600,6 @@ and documented in
 .Pq RFC2553 .
 .\"
 .Sh BUGS
+The current implementation is not thread-safe.
+.Pp
 The text was shamelessly copied from RFC2553.
