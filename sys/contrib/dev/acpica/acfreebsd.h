@@ -119,17 +119,10 @@
 
 /*
  * Some systems' ASL may have problems because they look for names 
- * of Microsoft operating systems.  We default to "Microsoft Windows NT"
- * (aka NT5 or Windows 2000) because it is most similar to our
- * implementation and also most prevalent.
- *
- * To override this, set hw.acpi.os_name to the appropriate string.
+ * of Microsoft operating systems.  To override this, set hw.acpi.os_name
+ * to the appropriate string.
  */
-#ifndef ACPICA_PEDANTIC
-#define ACPI_OS_NAME                "Microsoft Windows NT"
-#else
 #define ACPI_OS_NAME                "FreeBSD"
-#endif
 
 /* FreeBSD uses GCC */
 
