@@ -22,7 +22,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 MAN+=	btowc.3 \
 	ctype.3 digittoint.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isdigit.3 isgraph.3 islower.3 isprint.3 ispunct.3 isspace.3 \
-	isupper.3 iswalnum.3 isxdigit.3 mbrlen.3 mbrtowc.3 mbrune.3 mbsinit.3 \
+	isupper.3 iswalnum.3 isxdigit.3 localeconv.3 mbrlen.3 mbrtowc.3 \
+	mbrune.3 mbsinit.3 \
 	mbsrtowcs.3 multibyte.3 \
 	nl_langinfo.3 \
 	rune.3 \
@@ -49,7 +50,6 @@ MLINKS+=multibyte.3 mblen.3 multibyte.3 mbstowcs.3 multibyte.3 mbtowc.3 \
 MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
 	rune.3 sputrune.3
-MLINKS+=setlocale.3 localeconv.3
 MLINKS+=wcstod.3 wcstof.3 wcstod.3 wcstold.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
 	wcstol.3 wcstoimax.3 wcstol.3 wcstoumax.3
