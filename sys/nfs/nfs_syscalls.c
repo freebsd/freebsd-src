@@ -34,11 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.7 1995/06/27 11:06:50 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.8 1995/10/29 15:33:11 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -106,10 +107,12 @@ static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 /*
  * Get file handle system call
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getfh_args {
 	char	*fname;
 	fhandle_t *fhp;
 };
+#endif
 int
 getfh(p, uap, retval)
 	struct proc *p;
@@ -149,10 +152,12 @@ getfh(p, uap, retval)
  * - remains in the kernel as an nfsd
  * - remains in the kernel as an nfsiod
  */
+#ifndef _SYS_SYSPROTO_H_
 struct nfssvc_args {
 	int flag;
 	caddr_t argp;
 };
+#endif
 int
 nfssvc(p, uap, retval)
 	struct proc *p;
