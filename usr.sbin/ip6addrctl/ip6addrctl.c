@@ -87,7 +87,7 @@ main(argc, argv)
 		if (argc < 5)
 			usage();
 		add_policy(argv[2], argv[3], argv[4]);
-	} else if (strcasecmp(argv[0], "delete") == 0) {
+	} else if (strcasecmp(argv[1], "delete") == 0) {
 		if (argc < 3)
 			usage();
 		delete_policy(argv[2]);
