@@ -234,7 +234,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				rstart += bound - (rstart & ~bmask);
 		} while ((rstart & amask) != 0 && rstart < end &&
 		    rstart < s->r_end);
-		rend = ulmin(s->r_end, ulmax(rstart + count, end));
+		rend = ulmin(s->r_end, ulmax(rstart + count - 1, end));
 		if (rstart > rend) {
 			DPRINTF(("adjusted start exceeds end\n"));
 			continue;
@@ -334,7 +334,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		if ((s->r_flags & flags) != flags)
 			continue;
 		rstart = ulmax(s->r_start, start);
-		rend = ulmin(s->r_end, ulmax(start + count, end));
+		rend = ulmin(s->r_end, ulmax(start + count - 1, end));
 		if (s->r_start >= start && s->r_end <= end
 		    && (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
