@@ -14,7 +14,7 @@
 .Nd
 tape archiver; manipulate "tar" archive files
 .Sh SYNOPSIS
-.Nm tar
+.Nm
 .Op [-] Ns Ar bundled-options Ar Args
 .Op Ar gnu-style-flags
 .Oo
@@ -122,7 +122,7 @@ below).
 .It Fl -help
 Prints a message listing and briefly describing all the command
 options to
-.Nm tar.
+.Nm .
 .It Fl -atime-preserve
 Restore the access times on files which are written to tape (note that
 this will change the inode-change time!).
@@ -273,7 +273,7 @@ Create archive with the given
 .Ar volume-name .
 .It Fl -version
 Print
-.Nm tar
+.Nm
 program version number.
 .It Fl w
 .It Fl -interactive
@@ -377,15 +377,15 @@ To specify the correct time zone use either e.g. `13:15 CEST' or `13:15+200'.
 
 .Sh ENVIRONMENT
 The
-.Nm tar
+.Nm
 program examines the following environment variables.
 .Bl -tag -width "POSIXLY_CORRECT"
 .It POSIXLY_CORRECT
 Normally,
-.Nm tar
+.Nm
 will process flag arguments that appear in the file list.
 If set in the environment, this causes
-.Nm tar
+.Nm
 to consider the first
 non-flag argument to terminate flag processing, as per the POSIX specification.
 .It SHELL
@@ -415,7 +415,7 @@ The default tape drive.
 .Sh HISTORY
 The tar format has a rich history, dating back to Sixth Edition UNIX.
 The current implementation of
-.Nm tar
+.Nm
 is the GNU implementation, which
 originated as the public-domain tar written by John Gilmore.
 .Sh AUTHORS
