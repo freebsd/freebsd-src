@@ -20,7 +20,7 @@ MAPS=	-DMAP_REGEX
 
 CFLAGS+=-I${SMDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} ${MAPS}
 CFLAGS+=-D_FFR_MAX_MIME_HEADER_LENGTH
-CFLAGS+=-D_FFR_MAX_HEADER_LINES
+CFLAGS+=-D_FFR_MAX_HEADERS_LENGTH
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c control.c convtime.c \
 	daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c \
