@@ -32,8 +32,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: pcap.c,v 1.25 96/06/05 21:45:26 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: pcap.c,v 1.27 96/11/27 18:43:25 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -190,6 +190,10 @@ pcap_close(pcap_t *p)
 			free(p->sf.base);
 	} else if (p->buffer != NULL)
 		free(p->buffer);
+#ifdef linux
+	if (p->md.device != NULL)
+		free(p->md.device);
+#endif
 	
 	free(p);
 }

@@ -21,8 +21,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: scanner.l,v 1.53 96/07/17 00:11:34 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: scanner.l,v 1.55 96/09/27 22:34:45 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -46,6 +46,7 @@ static int stoi(char *);
 static inline int xdtoi(int);
 
 #ifdef FLEX_SCANNER
+#define YY_NO_UNPUT
 #undef YY_INPUT
 #define YY_INPUT(buf, result, max)\
  {\

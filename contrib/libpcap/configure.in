@@ -1,4 +1,4 @@
-dnl @(#) $Header: configure.in,v 1.56 96/07/17 15:27:07 leres Exp $ (LBL)
+dnl @(#) $Header: configure.in,v 1.58 96/11/30 20:05:44 leres Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996
 dnl	The Regents of the University of California.  All rights reserved.
@@ -45,6 +45,8 @@ elif test -r /usr/include/net/raw.h ; then
 	V_PCAP=snoop
 elif test -r /usr/include/sys/dlpi.h ; then
 	V_PCAP=dlpi
+elif test -r /usr/include/linux/socket.h ; then
+	V_PCAP=linux
 elif test -c /dev/bpf0 ; then		# check again in case not readable
 	V_PCAP=bpf
 elif test -c /dev/enet ; then		# check again in case not readable
@@ -69,14 +71,6 @@ dlpi)
 	if test -c /dev/dlpi ; then
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_DEV_DLPI)
-
-		case "$target_os" in
-
-		hpux9*)
-			AC_DEFINE(HAVE_HPUX9)
-			;;
-
-		esac
 	else
 		AC_MSG_RESULT(no)
 		dir="/dev/dlpi"
@@ -100,8 +94,30 @@ aix*)
 	AC_DEFINE(_SUN)
 	;;
 
+hpux9*)
+	AC_DEFINE(HAVE_HPUX9)
+	;;
+
+sinix*)
+	AC_MSG_CHECKING(if SINIX compiler defines sinix)
+	AC_CACHE_VAL(ac_cv_cc_sinix_defined,
+		AC_TRY_COMPILE(
+		    [],
+		    [int i = sinix;],
+		    ac_cv_cc_sinix_defined=yes,
+		    ac_cv_cc_sinix_defined=no))
+	    AC_MSG_RESULT($ac_cv_cc_sinix_defined)
+	    if test $ac_cv_cc_sinix_defined = no ; then
+		    AC_DEFINE(sinix)
+	    fi
+	;;
+
 solaris*)
 	AC_DEFINE(HAVE_SOLARIS)
+	;;
+
+linux*)
+	V_INCLS="$V_INCLS -Ilinux-include"
 	;;
 esac
 

@@ -21,8 +21,8 @@
  *
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: grammar.y,v 1.54 96/07/17 00:11:34 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: grammar.y,v 1.56 96/11/02 21:54:55 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -63,7 +63,7 @@ static void
 yyerror(char *msg)
 {
 	++n_errors;
-	bpf_error(msg);
+	bpf_error("%s", msg);
 	/* NOTREACHED */
 }
 

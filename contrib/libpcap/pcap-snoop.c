@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-snoop.c,v 1.15 96/07/15 00:48:52 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: pcap-snoop.c,v 1.17 96/12/10 23:15:02 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
