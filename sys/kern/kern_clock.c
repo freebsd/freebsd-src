@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.94 1999/04/25 08:59:59 phk Exp $
+ * $Id: kern_clock.c,v 1.95 1999/07/18 01:35:26 jdp Exp $
  */
 
 #include "opt_ntp.h"
@@ -679,7 +679,14 @@ init_timecounter(struct timecounter *tc)
 	tc->tc_tweak = tc;
 	tco_setscales(tc);
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
+	if (timecounter == &dummy_timecounter)
+		tc->tc_avail = tc;
+	else {
+		tc->tc_avail = timecounter->tc_tweak->tc_avail;
+		timecounter->tc_tweak->tc_avail = tc;
+	}
 	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK);
+	tc->tc_other = t1;
 	*t1 = *tc;
 	t2 = t1;
 	for (i = 1; i < NTIMECOUNTER; i++) {
@@ -720,9 +727,7 @@ set_timecounter(struct timespec *ts)
 	tco_forward(1);
 }
 
-
-#if 0 /* Currently unused */
-void
+static void
 switch_timecounter(struct timecounter *newtc)
 {
 	int s;
@@ -731,19 +736,20 @@ switch_timecounter(struct timecounter *newtc)
 
 	s = splclock();
 	tc = timecounter;
-	if (newtc == tc || newtc == tc->tc_other) {
+	if (newtc->tc_tweak == tc->tc_tweak) {
 		splx(s);
 		return;
 	}
+	newtc = newtc->tc_tweak->tc_other;
 	nanouptime(&ts);
 	newtc->tc_offset_sec = ts.tv_sec;
 	newtc->tc_offset_nano = (u_int64_t)ts.tv_nsec << 32;
 	newtc->tc_offset_micro = ts.tv_nsec / 1000;
 	newtc->tc_offset_count = newtc->tc_get_timecount(newtc);
+	tco_setscales(newtc);
 	timecounter = newtc;
 	splx(s);
 }
-#endif
 
 static struct timecounter *
 sync_other_counter(void)
@@ -824,6 +830,35 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, method, CTLFLAG_RW, &tco_method, 0,
     "try the alternate algorithm (1) which handles bad hardware better."
 
 );
+
+static int
+sysctl_kern_timecounter_hardware SYSCTL_HANDLER_ARGS
+{
+	char newname[32];
+	struct timecounter *newtc, *tc;
+	int error;
+
+	tc = timecounter->tc_tweak;
+	strncpy(newname, tc->tc_name, sizeof(newname));
+	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
+	if (error == 0 && req->newptr != NULL &&
+	    strcmp(newname, tc->tc_name) != 0) {
+		for (newtc = tc->tc_avail; newtc != tc; newtc = tc->tc_avail) {
+			if (strcmp(newname, newtc->tc_name) == 0) {
+				/* Warm up new timecounter. */
+				(void)newtc->tc_get_timecount(newtc);
+
+				switch_timecounter(newtc);
+				return (0);
+			}
+		}
+		return (EINVAL);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_kern_timecounter_hardware, "A", "");
 
 
 int
