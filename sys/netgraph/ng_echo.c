@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Julian Elisher <julian@whistle.com>
+ * Author: Julian Elisher <julian@freebsd.org>
  *
  * $FreeBSD$
  * $Whistle: ng_echo.c,v 1.13 1999/11/01 09:24:51 julian Exp $
