@@ -450,7 +450,7 @@ one:	String		"1-\0"
 two:	String		"2-\0"
 three:	String		"3-\0"
 four:	String		"4-\0"
-#endif	DEBUG
+#endif	/* DEBUG */
 #ifdef 	NAMEBLOCK_WRITEBACK
 ewrite:	String		"Write error\r\n\0"
 #endif	/* NAMEBLOCK_WRITEBACK */

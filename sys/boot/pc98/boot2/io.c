@@ -289,7 +289,7 @@ strcasecmp(const char *s1, const char *s2)
 void
 bcopy(const void *from, void *to, size_t len)
 {
-	char *fp = (char *)from;
+	const char *fp = (const char *)from;
 	char *tp = (char *)to;
 
 	while (len-- > 0)
