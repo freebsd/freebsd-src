@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.5 1995/05/30 08:07:11 rgrimes Exp $
+ *	$Id: procfs_subr.c,v 1.6 1996/06/12 03:37:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -166,6 +166,7 @@ loop:
 		pfs->pfs_mode = (VWRITE);
 		break;
 
+	case Pmap:
 	case Pstatus:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
@@ -249,6 +250,9 @@ procfs_rw(ap)
 
 	case Pstatus:
 		return (procfs_dostatus(curp, p, pfs, uio));
+
+	case Pmap:
+		return (procfs_domap(curp, p, pfs, uio));
 
 	case Pmem:
 		return (procfs_domem(curp, p, pfs, uio));

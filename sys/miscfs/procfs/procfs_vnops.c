@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.20 1996/01/24 18:41:41 peter Exp $
+ *	$Id: procfs_vnops.c,v 1.21 1996/03/11 06:13:09 hsu Exp $
  */
 
 /*
@@ -95,6 +95,7 @@ static struct pfsnames {
 	{  N("status"),	Pstatus, NULL },
 	{  N("note"),	Pnote,	 NULL },
 	{  N("notepg"),	Pnotepg, NULL },
+	{  N("map"), 	Pmap,	 NULL },
 #undef N
 };
 #define Nprocent (sizeof(procent)/sizeof(procent[0]))
@@ -430,6 +431,7 @@ procfs_getattr(ap)
 		vap->va_gid = KMEM_GROUP;
 		break;
 
+	case Pmap:
 	case Pregs:
 	case Pfpregs:
 	case Pctl:
