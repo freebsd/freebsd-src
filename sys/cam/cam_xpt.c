@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42 1999/01/20 23:00:31 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.43 1999/01/27 20:09:16 dillon Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -279,11 +279,22 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * will need to be made specific to the firmware revisions
 		 * with the problem.
 		 * 
-		 * XXX need to add a quirk for the 18G version of this
-		 * drive, once inquiry information is known.
 		 */
 		/* Reports QUEUE FULL for temporary resource shortages */
 		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "QM39100*", "*" },
+		/*quirks*/0, /*mintags*/24, /*maxtags*/32
+	},
+	{
+		/*
+		 * 18 Gig Atlas III, same problem as the 9G version.
+		 * Reported by: Andre Albsmeier
+		 *		<andre.albsmeier@mchp.siemens.de>
+		 *
+		 * For future reference, the drive with the problem was:
+		 * QUANTUM QM318000TD-S N491
+		 */
+		/* Reports QUEUE FULL for temporary resource shortages */
+		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "QM318000*", "*" },
 		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
 	{
@@ -1377,14 +1388,15 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 			speed *= (0x01 << cts.bus_width);
 		mb = speed / 1000;
 		if (mb > 0)
-			printf("%s%d: %d.%dMB/s transfers", periph->periph_name,
-			       periph->unit_number, mb, speed % 1000);
+			printf("%s%d: %d.%03dMB/s transfers",
+			       periph->periph_name, periph->unit_number,
+			       mb, speed % 1000);
 		else
 			printf("%s%d: %dKB/s transfers", periph->periph_name,
 			       periph->unit_number, (speed % 1000) * 1000);
 		if ((cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0
 		 && cts.sync_offset != 0) {
-			printf(" (%d.%dMHz, offset %d", freq / 1000,
+			printf(" (%d.%03dMHz, offset %d", freq / 1000,
 			       freq % 1000, cts.sync_offset);
 		}
 		if ((cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0
