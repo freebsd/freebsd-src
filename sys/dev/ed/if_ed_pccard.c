@@ -42,6 +42,7 @@
 #include <net/if_mib.h>
 
 #include <dev/ed/if_edvar.h>
+#include <dev/pccard/pccardvar.h>
 
 /*
  *      PC-Card (PCMCIA) specific code.
@@ -132,6 +133,9 @@ ed_pccard_attach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error;
+	int i;
+	u_char sum;
+	u_char ether_addr[ETHER_ADDR_LEN];
 	
 	if (sc->port_used > 0)
 		ed_alloc_port(dev, sc->port_rid, sc->port_used);
@@ -146,6 +150,12 @@ ed_pccard_attach(device_t dev)
 		ed_release_resources(dev);
 		return (error);
 	}	      
+
+	pccard_get_ether(dev, ether_addr);
+	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+		sum |= ether_addr[i];
+	if (sum)
+		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
 	return (error);
