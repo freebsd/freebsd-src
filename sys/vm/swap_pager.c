@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.36 1995/05/07 03:48:54 dyson Exp $
+ * $Id: swap_pager.c,v 1.37 1995/05/07 06:36:59 dyson Exp $
  */
 
 /*
@@ -179,7 +179,7 @@ swap_pager_init()
  */
 vm_pager_t
 swap_pager_alloc(handle, size, prot, offset)
-	caddr_t handle;
+	void *handle;
 	register vm_size_t size;
 	vm_prot_t prot;
 	vm_offset_t offset;
