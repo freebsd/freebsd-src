@@ -323,7 +323,8 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
     /*
      * Scan all the PCI busses/devices looking for this one.
      */
-    for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
+    irq = 255;
+    for (i = 0, busp = pci_devices; (i < pci_count) && (irq == 255); i++, busp++) {
 	pci_childcount = 0;
 	device_get_children(*busp, &pci_children, &pci_childcount);
 		
@@ -335,11 +336,15 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 		printf("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
 		       irq, pe->pe_intpin[pin - 1].link,
 		       pci_get_bus(*childp), pci_get_slot(*childp), pci_get_function(*childp));
-		return(irq);
+		break;
 	    }
 	}
+	if (pci_children != NULL)
+	    free(pci_children, M_TEMP);
     }
-    return(255);
+    if (pci_devices != NULL)
+	free(pci_devices, M_TEMP);
+    return(irq);
 }
 
 /*
