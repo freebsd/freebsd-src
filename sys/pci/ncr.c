@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.82.2.5 1997/01/06 21:12:40 se Exp $
+**  $Id: ncr.c,v 1.82.2.6 1997/03/01 06:23:33 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1255,7 +1255,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.82.2.5 1997/01/06 21:12:40 se Exp $\n";
+	"\n$Id: ncr.c,v 1.82.2.6 1997/03/01 06:23:33 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1283,9 +1283,14 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 
 #define	NCR_810_ID	(0x00011000ul)
 #define	NCR_815_ID	(0x00041000ul)
+#define	NCR_820_ID	(0x00021000ul)
 #define	NCR_825_ID	(0x00031000ul)
 #define	NCR_860_ID	(0x00061000ul)
 #define	NCR_875_ID	(0x000f1000ul)
+#define	NCR_875_ID2	(0x008f1000ul)
+#define	NCR_885_ID	(0x000d1000ul)
+#define	NCR_895_ID	(0x000c1000ul)
+#define	NCR_896_ID	(0x000b1000ul)
 
 #ifdef __NetBSD__
 
@@ -3165,7 +3170,11 @@ ncr_probe(parent, match, aux)
 	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID &&
 	    pa->pa_id != NCR_860_ID &&
-	    pa->pa_id != NCR_875_ID)
+	    pa->pa_id != NCR_875_ID &&
+	    pa->pa_id != NCR_875_ID2 &&
+	    pa->pa_id != NCR_885_ID &&
+	    pa->pa_id != NCR_895_ID &&
+	    pa->pa_id != NCR_896_ID)
 		return 0;
 
 	return 1;
@@ -3193,10 +3202,17 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 			: ("ncr 53c825a wide scsi");
 
 	case NCR_860_ID:
-		return ("ncr 53c860 scsi");
+		return ("ncr 53c860 ultra scsi");
 
 	case NCR_875_ID:
-		return ("ncr 53c875 wide scsi");
+	case NCR_875_ID2:
+		return ("ncr 53c875 ultra wide scsi");
+	case NCR_885_ID:
+		return ("ncr 53c885 ultra wide scsi");
+	case NCR_895_ID:
+		return ("ncr 53c895 ultra wide scsi");
+	case NCR_896_ID:
+		return ("ncr 53c896 ultra wide scsi");
 	}
 	return (NULL);
 }
@@ -3343,6 +3359,10 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		np->rv_scntl3 = 0x35;	/* always assume 80MHz clock for 860 */
 		break;
 	case NCR_875_ID:
+	case NCR_875_ID2:
+	case NCR_885_ID:
+	case NCR_895_ID:
+	case NCR_896_ID:
 		np->maxwide = 1;
 		np->maxoffs = 16;
 		ncr_getclock(np);
