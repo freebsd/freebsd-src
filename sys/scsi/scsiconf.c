@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.64.2.24 1998/02/16 11:16:42 msmith Exp $
+ *      $Id: scsiconf.c,v 1.64.2.25 1998/02/20 21:04:35 msmith Exp $
  */
 
 #include "opt_scsi.h"
@@ -412,6 +412,11 @@ static struct scsidevs knowndevs[] =
 	/* yet another changer */
 	{
 		T_READONLY, T_READONLY, T_REMOV, "REGAL", "CDC-4*" ,"*",
+		"cd", SC_MORE_LUS
+	},
+	/* IODATA CD-C68E 6 CD changer */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "IODATA", "CD-C68E" ,"*",
 		"cd", SC_MORE_LUS
 	},
 #endif /* !UKTEST */
