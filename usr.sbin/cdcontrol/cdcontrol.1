@@ -149,6 +149,15 @@ Set LBA ioctl mode.
 .It Cm quit
 Quit the program.
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width CDROM
+.It Ev CDROM
+The cd device to use if one isn't specified with the
+.Fl f
+flag.
+.El
 .Sh FILES
 .Bl -tag -width /dev/mcd0c -compact
 .It Pa /dev/cd0c
