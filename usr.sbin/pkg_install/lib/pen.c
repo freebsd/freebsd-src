@@ -112,7 +112,7 @@ make_playpen(char *pen, off_t sz)
 
     if (Verbose) {
 	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
+	    fprintf(stderr, "Requested space: %d bytes, free space: %lld bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
     }
 
     if (min_free(pen) < sz) {

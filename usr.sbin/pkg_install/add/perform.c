@@ -137,7 +137,7 @@ pkg_do(char *pkg)
 	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
-		errx(1, "unable to make playpen for %qd bytes", (long long)sb.st_size * 4);
+		errx(1, "unable to make playpen for %lld bytes", (long long)sb.st_size * 4);
 	    where_to = Home;
 	    /* Since we can call ourselves recursively, keep notes on where we came from */
 	    if (!getenv("_TOP"))
@@ -191,7 +191,7 @@ pkg_do(char *pkg)
 	     */
 
 	    if (!extract && !inPlace && min_free(playpen) < sb.st_size * 4) {
-		warnx("projected size of %qd exceeds available free space.\n"
+		warnx("projected size of %lld exceeds available free space.\n"
 "Please set your PKG_TMPDIR variable to point to a location with more\n"
 		       "free space and try again", (long long)sb.st_size * 4);
 		warnx("not extracting %s\ninto %s, sorry!",
