@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.6 1995/10/29 15:33:31 phk Exp $
+ * $Id: pdq.c,v 1.7 1996/01/24 20:01:27 wollman Exp $
  *
  * Revision 1.8  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
@@ -200,28 +200,14 @@ pdq_print_fddi_chars(
     pdq_t *pdq,
     const pdq_response_status_chars_get_t *rsp)
 {
-    const char hexchars[] = "0123456789abcdef";
 
     printf(PDQ_OS_PREFIX "DEC %s FDDI %s Controller\n",
 	   PDQ_OS_PREFIX_ARGS, pdq_descriptions[pdq->pdq_type],
 	   pdq_station_types[rsp->status_chars_get.station_type]);
 
-    printf(PDQ_OS_PREFIX "FDDI address %c%c:%c%c:%c%c:%c%c:%c%c:%c%c, FW=%c%c%c%c, HW=%c",
-	   PDQ_OS_PREFIX_ARGS,
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[0] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[0] & 0x0F],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[1] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[1] & 0x0F],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[2] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[2] & 0x0F],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[3] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[3] & 0x0F],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[4] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[4] & 0x0F],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[5] >> 4],
-	   hexchars[pdq->pdq_hwaddr.lanaddr_bytes[5] & 0x0F],
-	   pdq->pdq_fwrev.fwrev_bytes[0], pdq->pdq_fwrev.fwrev_bytes[1],
-	   pdq->pdq_fwrev.fwrev_bytes[2], pdq->pdq_fwrev.fwrev_bytes[3],
+    printf(PDQ_OS_PREFIX "FDDI address %6D, FW=%4.4s, HW=%c",
+	   PDQ_OS_PREFIX_ARGS, pdq->pdq_hwaddr.lanaddr_bytes, ":",
+	   pdq->pdq_fwrev.fwrev_bytes,
 	   rsp->status_chars_get.module_rev.fwrev_bytes[0]);
 
     if (rsp->status_chars_get.smt_version_id < PDQ_ARRAY_SIZE(pdq_smt_versions)) {

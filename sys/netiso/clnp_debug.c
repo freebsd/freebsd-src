@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_debug.c,v 1.2 1994/08/02 07:49:35 davidg Exp $
+ * $Id: clnp_debug.c,v 1.3 1995/05/30 08:10:14 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_debug.c,v 1.2 1994/08/02 07:49:35 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_debug.c,v 1.3 1995/05/30 08:10:14 rgrimes Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_debug.c,v $ */
 
 #include <sys/param.h>
@@ -133,7 +133,6 @@ main()
 #endif	/* TESTDEBUG */
 
 unsigned int	clnp_debug;
-static char letters[] = "0123456789abcdef";
 
 /*
  *	Print buffer in hex, return addr of where we left off.
@@ -149,8 +148,8 @@ char	*where;		/* where to put data */
 
 	for (i=0; i<len; i++) {
 		register int j = ((u_char *)src)[i];
-		*where++ = letters[j >> 4];
-		*where++ = letters[j & 0x0f];
+		*where++ = hex2ascii[j >> 4];
+		*where++ = hex2ascii[j & 0x0f];
 	}
 	return where;
 }

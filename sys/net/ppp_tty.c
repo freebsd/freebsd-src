@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.3 1995/11/01 00:58:43 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.4 1995/12/14 09:53:20 phk Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -134,7 +134,6 @@ static void	pppasyncrelinq __P((struct ppp_softc *));
 static void	pppasyncsetmtu __P((struct ppp_softc *));
 static void	ppp_timeout __P((void *));
 static void	pppgetm __P((struct ppp_softc *sc));
-static void	pppdumpb __P((u_char *b, int l));
 static void	ppplogchar __P((struct ppp_softc *, int));
 
 /*
@@ -1100,33 +1099,10 @@ ppplogchar(sc, c)
 	sc->sc_rawin[sc->sc_rawin_count++] = c;
     if (sc->sc_rawin_count >= sizeof(sc->sc_rawin)
 	|| c < 0 && sc->sc_rawin_count > 0) {
-	printf("ppp%d input: ", sc->sc_if.if_unit);
-	pppdumpb(sc->sc_rawin, sc->sc_rawin_count);
+	printf("ppp%d input: %*D", sc->sc_if.if_unit,
+		sc->sc_rawin_count, sc->sc_rawin, " ");
 	sc->sc_rawin_count = 0;
     }
-}
-
-static void
-pppdumpb(b, l)
-    u_char *b;
-    int l;
-{
-    char buf[3*MAX_DUMP_BYTES+4];
-    char *bp = buf;
-    static char digits[] = "0123456789abcdef";
-
-    while (l--) {
-	if (bp >= buf + sizeof(buf) - 3) {
-	    *bp++ = '>';
-	    break;
-	}
-	*bp++ = digits[*b >> 4]; /* convert byte to ascii hex */
-	*bp++ = digits[*b++ & 0xf];
-	*bp++ = ' ';
-    }
-
-    *bp = 0;
-    printf("%s\n", buf);
 }
 
 #endif	/* NPPP > 0 */
