@@ -1,0 +1,103 @@
+.\" Copyright (c) 1989, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Eamonn McManus of Trinity College Dublin.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)arithmetic.6	8.1 (Berkeley) 5/31/93
+.\"
+.TH ARITHMETIC 6 "May 31, 1993"
+.UC 4
+.SH NAME
+arithmetic \- quiz on simple arithmetic
+.SH SYNOPSIS
+.B arithmetic
+.B [
+\-o +\-x/
+.B ]
+.B [
+\-r range
+.B ]
+.SH DESCRIPTION
+.I Arithmetic
+asks you to solve problems in simple arithmetic.
+Each question must be answered correctly before going on to the next.
+After every 20 problems, it prints the score so far and the time taken.
+You can quit at any time by typing the interrupt or end-of-file character.
+.PP
+The options are as follows:
+.TP
+\-o
+By default,
+.I arithmetic
+asks questions on addition of numbers from 0 to 10, and corresponding
+subtraction.
+By supplying one or more of the characters
+.BR +\-x/ ,
+you can ask for problems in addition, subtraction, multiplication, and
+division, respectively.
+If you give one of these characters more than once, that kind of problem
+will be asked correspondingly more often.
+.TP
+\-r
+If a
+.I range
+is supplied,
+.I arithmetic
+selects the numbers in its problems in the following way.
+For addition and multiplication, the numbers to be added or multiplied
+are between 0 and
+.IR range ,
+inclusive.
+For subtraction and division, both the required result and the number to
+divide by or subtract will be between 0 and
+.IR range .
+(Of course,
+.I arithmetic
+will not ask you to divide by 0.)  The default
+.I range
+is 10.
+.PP
+When you get a problem wrong,
+.I arithmetic
+will remember the numbers involved, and will tend to select those numbers
+more often than others, in problems of the same sort.
+Eventually it will forgive and forget.
+.PP
+.I Arithmetic
+cannot be persuaded to tell you the right answer.
+You must work it out for yourself.
+.SH DIAGNOSTICS
+``What?'' if you get a question wrong.
+``Right!'' if you get it right.
+``Please type a number.'' if arithmetic doesn't understand what you typed.
+.SH "SEE ALSO"
+bc(1), dc(1)
