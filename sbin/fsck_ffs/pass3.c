@@ -65,6 +65,11 @@ pass3(void)
 			    (int)((inplast - inpindex - 1) * 100 / inplast));
 			got_siginfo = 0;
 		}
+		if (got_sigalarm) {
+			setproctitle("%s p3 %d%%", cdevname,
+			    (int)((inplast - inpindex - 1) * 100 / inplast));
+			got_sigalarm = 0;
+		}
 		inp = inpsort[inpindex];
 		state = inoinfo(inp->i_number)->ino_state;
 		if (inp->i_number == ROOTINO ||
