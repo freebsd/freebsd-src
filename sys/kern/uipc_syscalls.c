@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.44 1998/11/14 23:36:17 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.45 1998/11/15 16:55:09 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1366,6 +1366,7 @@ sf_buf_free(caddr_t addr, u_int size)
 {
 	struct sf_buf *sf;
 	struct vm_page *m;
+	int s;
 
 	sf = dtosf(addr);
 	if (sf->refcnt == 0)
@@ -1374,6 +1375,7 @@ sf_buf_free(caddr_t addr, u_int size)
 	if (sf->refcnt == 0) {
 		pmap_qremove((vm_offset_t)addr, 1);
 		m = sf->m;
+		s = splvm();
 		vm_page_unwire(m, 0);
 		/*
 		 * Check for the object going away on us. This can
@@ -1382,6 +1384,7 @@ sf_buf_free(caddr_t addr, u_int size)
 		 */
 		if (m->wire_count == 0 && m->object == NULL)
 			vm_page_free(m);
+		splx(s);
 		sf->m = NULL;
 		SLIST_INSERT_HEAD(&sf_freelist, sf, free_list);
 		if (sf_buf_alloc_want) {
