@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.4 1994/10/04 06:51:42 phk Exp $
+ * $Id: imgact_gzip.c,v 1.7 1994/10/07 22:26:51 csgr Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -26,17 +26,19 @@
  *	tidy up unnecesary includes
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/resourcevar.h>
+
+#include <sys/param.h>	/* some header file needs this first foo! */
+
 #include <sys/exec.h>
-#include <sys/inflate.h>
-#include <sys/mman.h>
-#include <sys/malloc.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
+#include <sys/inflate.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mman.h>
+#include <sys/resourcevar.h>
 #include <sys/sysent.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
