@@ -34,7 +34,7 @@
 
 #include <sys/uio.h>
 
-#define MAXSHELLCMDLEN	128
+#define MAXSHELLCMDLEN	PAGE_SIZE
 
 struct image_args {
 	char *buf;		/* pointer to string buffer */
@@ -57,7 +57,7 @@ struct image_params {
 	unsigned long entry_addr; /* entry address of target executable */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
-	char interpreter_name[MAXSHELLCMDLEN]; /* name of the interpreter */
+	char *interpreter_name;	/* name of the interpreter */
 	void *auxargs;		/* ELF Auxinfo structure pointer */
 	struct sf_buf *firstpage;	/* first page that we mapped */
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
