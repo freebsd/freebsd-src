@@ -103,7 +103,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.4 1997/01/14 17:19:38 nate Exp $
+#	$Id$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -135,7 +135,7 @@ dkitos() {
 # Convert disk (type, unit, slice, partition) to minor number
 dkminor()
 {
-	echo $((32 * 65536 * $1 + 8 * $2 + 65536 * $3 + $4))
+	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
 }
 
 # Convert the last character of a tty name to a minor number.
@@ -162,7 +162,7 @@ dkcompatslice=0
 dkrawslice=1
 
 # Control bit for SCSI
-scsictl=536870912
+scsictl=$((1 << 29))
 
 # Standard umasks
 disk_umask=037			# allow group operator to read disks
@@ -261,7 +261,7 @@ od*s*|sd*s*|vn*s*|wd*s*)
 	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
 	part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
 	case $unit in
-	[0-9]|[1-2][0-9]|30|31)
+	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		case $slice in
 		[0-9]|[1-2][0-9]|30)
 			oldslice=$slice
@@ -421,7 +421,7 @@ od*|sd*|vn*|wd*)
 	esac
 	unit=`expr $i : '..\(.*\)'`
 	case $unit in
-	[0-9]|[1-2][0-9]|30|31)
+	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		for slicepartname in s0h s1 s2 s3 s4
 		do
 			sh MAKEDEV $name$unit$slicepartname
@@ -429,7 +429,8 @@ od*|sd*|vn*|wd*)
 		case $name in
 		od|sd)
 			rm -f r${name}${unit}.ctl
-			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+			minor=`dkminor 0 $unit 0 0`
+			mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
 			chmod 600 r${name}${unit}.ctl
 			;;
 		esac
@@ -447,9 +448,10 @@ ccd*)
 	blk=21; chr=74
 	unit=`expr $i : '...\(.*\)'`
 	case $unit in
-	[0-9]|[1-2][0-9]|30|31)
+	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		rm -f r${name}${unit}.ctl
-		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+		minor=`dkminor 0 $unit 0 0`
+		mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
 		chmod 600 r${name}${unit}.ctl
 		for part in 0 1 2 3 4 5 6 7
 		do
