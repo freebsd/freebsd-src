@@ -105,6 +105,14 @@ Driver support has been added for PCI fast ethernet adapters based on
 the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
 Corporation XpressNet.
 
+Support has been added for blocking incoming ICMP redirects, outgoing RST
+frames and incoming SYN|FIN frames in order to lessen or nullify the
+impact of certain kinds of DoS attacks. [MERGED]
+
+Support has been added for forwarding IP datagrams without inspecting or
+decreasing the TTL in order to make gateways and firewalls less visible
+and therefore less exposed to attacks. [MERGED]
+
 1.2. SECURITY FIXES
 -------------------
 
