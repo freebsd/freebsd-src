@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.74 1997/03/11 09:29:21 jkh Exp $
+ * $Id: menus.c,v 1.42.2.75 1997/03/11 16:42:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -805,7 +805,7 @@ DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 3.2 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
-    "Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
+    "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "bin",		"Client applications and shared libs",
