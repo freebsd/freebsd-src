@@ -264,11 +264,11 @@ main(argc, argv, envp)
 		if (udpflag &&
 		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
 		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_UDP, NFS_PORT)))
-			err(1, "can't register with portmap for UDP.");
+			err(1, "can't register with portmap for UDP");
 		if (tcpflag &&
 		    (!pmap_set(RPCPROG_NFS, 2, IPPROTO_TCP, NFS_PORT) ||
 		     !pmap_set(RPCPROG_NFS, 3, IPPROTO_TCP, NFS_PORT)))
-			err(1, "can't register with portmap for TCP.");
+			err(1, "can't register with portmap for TCP");
 		exit(0);
 	}
 	openlog("nfsd:", LOG_PID, LOG_DAEMON);
@@ -616,7 +616,7 @@ main(argc, argv, envp)
 			len = sizeof(inetpeer);
 			if ((msgsock = accept(tpipsock,
 			    (struct sockaddr *)&inetpeer, &len)) < 0) {
-				syslog(LOG_ERR, "Accept failed: %m");
+				syslog(LOG_ERR, "accept failed: %m");
 				exit(1);
 			}
 			if (setsockopt(msgsock, SOL_SOCKET,
@@ -643,7 +643,7 @@ void
 nonfs(signo)
 	int signo;
 {
-	syslog(LOG_ERR, "missing system call: NFS not available.");
+	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
 void
