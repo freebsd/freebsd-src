@@ -1537,6 +1537,10 @@ sccndbctl(struct consdev *cd, int on)
 	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
 	    && sc_console->smode.mode == VT_AUTO) {
 	    ++debugger;		/* XXX */
+#ifdef DDB
+	    /* unlock vty switching */
+	    sc_console->sc->flags &= ~SC_SCRN_VTYLOCK;
+#endif
 	    sc_switch_scr(sc_console->sc, sc_console->index);
 	    --debugger;		/* XXX */
 	}
