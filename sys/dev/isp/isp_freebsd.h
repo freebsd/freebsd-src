@@ -120,6 +120,19 @@ struct isposinfo {
 };
 
 /*
+ * Locking macros...
+ */
+
+#ifdef	ISP_SMPLOCK
+#define	ISP_LOCK(x)		mtx_enter(&(x)->isp_osinfo.lock, MTX_DEF)
+#define	ISP_UNLOCK(x)		mtx_exit(&(x)->isp_osinfo.lock, MTX_DEF)
+#else
+#define	ISP_LOCK		isp_lock
+#define	ISP_UNLOCK		isp_unlock
+#endif
+
+
+/*
  * Required Macros/Defines
  */
 
@@ -133,6 +146,10 @@ struct isposinfo {
 #define	SNPRINTF		snprintf
 #define	STRNCAT			strncat
 #define	USEC_DELAY		DELAY
+#define	USEC_SLEEP(isp, x)	\
+	ISP_UNLOCK(isp);	\
+	DELAY(x);		\
+	ISP_LOCK(isp)
 
 #define	NANOTIME_T		struct timespec
 #define	GET_NANOTIME		nanotime
@@ -273,18 +290,6 @@ struct isposinfo {
  */
 extern void isp_attach(struct ispsoftc *);
 extern void isp_uninit(struct ispsoftc *);
-
-/*
- * Locking macros...
- */
-
-#ifdef	ISP_SMPLOCK
-#define	ISP_LOCK(x)		mtx_enter(&(x)->isp_osinfo.lock, MTX_DEF)
-#define	ISP_UNLOCK(x)		mtx_exit(&(x)->isp_osinfo.lock, MTX_DEF)
-#else
-#define	ISP_LOCK		isp_lock
-#define	ISP_UNLOCK		isp_unlock
-#endif
 
 /*
  * Platform private flags
