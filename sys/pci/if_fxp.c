@@ -243,9 +243,9 @@ fxp_attach(config_id, unit)
 	}
 
 	/*
-	 * Issue a software reset.
+	 * Reset to a stable state.
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
@@ -739,7 +739,7 @@ fxp_stop(sc)
 	/*
 	 * Issue software reset
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
