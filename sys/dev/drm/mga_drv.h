@@ -196,8 +196,7 @@ do {									\
 do {									\
 	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
 	     dev->lock.pid != DRM_OS_CURRENTPID ) {			\
-		DRM_ERROR( "%s called without lock held\n",		\
-			   __FUNCTION__ );				\
+		DRM_ERROR( "%s called without lock held\n", __func__ );	\
 		return DRM_OS_ERR(EINVAL);				\
 	}								\
 } while (0)
@@ -210,8 +209,8 @@ do {									\
 		} else if ( dev_priv->prim.space <			\
 			    dev_priv->prim.high_mark ) {		\
 			if ( MGA_DMA_DEBUG )				\
-				DRM_INFO( __FUNCTION__": wrap...\n" );	\
-			return DRM_OS_ERR(EBUSY);				\
+				DRM_INFO( "%s: wrap...\n", __func__ );	\
+			return DRM_OS_ERR(EBUSY);			\
 		}							\
 	}								\
 } while (0)
@@ -221,7 +220,7 @@ do {									\
 	if ( test_bit( 0, &dev_priv->prim.wrapped ) ) {			\
 		if ( mga_do_wait_for_idle( dev_priv ) ) {		\
 			if ( MGA_DMA_DEBUG )				\
-				DRM_INFO( __FUNCTION__": wrap...\n" );	\
+				DRM_INFO( "%s: wrap...\n", __func__ );	\
 			return DRM_OS_ERR(EBUSY);			\
 		}							\
 		mga_do_dma_wrap_end( dev_priv );			\
@@ -243,7 +242,7 @@ do {									\
 do {									\
 	if ( MGA_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_DMA( %d ) in %s\n",			\
-			  (n), __FUNCTION__ );				\
+			  (n), __func__ );				\
 		DRM_INFO( "   space=0x%x req=0x%x\n",			\
 			  dev_priv->prim.space, (n) * DMA_BLOCK_SIZE );	\
 	}								\
@@ -254,7 +253,7 @@ do {									\
 #define BEGIN_DMA_WRAP()						\
 do {									\
 	if ( MGA_VERBOSE ) {						\
-		DRM_INFO( "BEGIN_DMA() in %s\n", __FUNCTION__ );	\
+		DRM_INFO( "BEGIN_DMA() in %s\n", __func__ );		\
 		DRM_INFO( "   space=0x%x\n", dev_priv->prim.space );	\
 	}								\
 	prim = dev_priv->prim.start;					\
@@ -273,7 +272,7 @@ do {									\
 #define FLUSH_DMA()							\
 do {									\
 	if ( 0 ) {							\
-		DRM_INFO( __FUNCTION__ ":\n" );				\
+		DRM_INFO( "%s:\n", __func__ );				\
 		DRM_INFO( "   tail=0x%06x head=0x%06lx\n",		\
 			  dev_priv->prim.tail,				\
 			  MGA_READ( MGA_PRIMADDRESS ) -			\

@@ -119,7 +119,7 @@ do {								\
 #define DRM_OS_READMEMORYBARRIER \
 {												\
    	int xchangeDummy;									\
-	DRM_DEBUG("%s\n", __FUNCTION__);							\
+	DRM_DEBUG("%s\n", __func__);							\
    	__asm__ volatile(" push %%eax ; xchg %%eax, %0 ; pop %%eax" : : "m" (xchangeDummy));	\
    	__asm__ volatile(" push %%eax ; push %%ebx ; push %%ecx ; push %%edx ;"			\
 			 " movl $0,%%eax ; cpuid ; pop %%edx ; pop %%ecx ; pop %%ebx ;"		\
@@ -242,18 +242,19 @@ find_first_zero_bit(volatile unsigned long *p, int max)
 
 				/* Macros to make printf easier */
 #define DRM_ERROR(fmt, arg...) \
-	printf("error: " "[" DRM_NAME ":" __FUNCTION__ "] *ERROR* " fmt , ##arg)
+	printf("error: [" DRM_NAME ":%s] *ERROR* " fmt , \
+		__func__, ##arg)
 #define DRM_MEM_ERROR(area, fmt, arg...) \
-	printf("error: " "[" DRM_NAME ":" __FUNCTION__ ":%s] *ERROR* " fmt , \
-	       DRM(mem_stats)[area].name , ##arg)
+	printf("error: [" DRM_NAME ":%s:%s] *ERROR* " fmt , \
+	       __func__, DRM(mem_stats)[area].name , ##arg)
 #define DRM_INFO(fmt, arg...)  printf("info: " "[" DRM_NAME "] " fmt , ##arg)
 
 #if DRM_DEBUG_CODE
-#define DRM_DEBUG(fmt, arg...)						  \
-	do {								  \
-		if (DRM(flags) & DRM_FLAG_DEBUG)				  \
-			printf("[" DRM_NAME ":" __FUNCTION__ "] " fmt ,	  \
-			       ##arg);					  \
+#define DRM_DEBUG(fmt, arg...)						\
+	do {								\
+		if (DRM(flags) & DRM_FLAG_DEBUG)			\
+			printf("[" DRM_NAME ":%s] " fmt , 		\
+				__func__, ##arg);			\
 	} while (0)
 #else
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)

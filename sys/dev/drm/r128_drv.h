@@ -448,10 +448,9 @@ extern int R128_READ_PLL(drm_device_t *dev, int addr);
 #define LOCK_TEST_WITH_RETURN( dev )					\
 do {									\
 	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
-	     dev->lock.pid != DRM_OS_CURRENTPID ) {				\
-		DRM_ERROR( "%s called without lock held\n",		\
-			   __FUNCTION__ );				\
-		return DRM_OS_ERR(EINVAL);						\
+	     dev->lock.pid != DRM_OS_CURRENTPID ) {			\
+		DRM_ERROR( "%s called without lock held\n", __func__ );	\
+		return DRM_OS_ERR(EINVAL);				\
 	}								\
 } while (0)
 
@@ -463,12 +462,13 @@ do {									\
 			r128_update_ring_snapshot( ring );		\
 			if ( ring->space >= ring->high_mark )		\
 				goto __ring_space_done;			\
-			DRM_OS_DELAY( 1 );					\
+			DRM_OS_DELAY( 1 );				\
 		}							\
 		DRM_ERROR( "ring space check failed!\n" );		\
 		return DRM_OS_ERR(EBUSY);				\
 	}								\
  __ring_space_done:							\
+	;								\
 } while (0)
 
 #define VB_AGE_TEST_WITH_RETURN( dev_priv )				\
@@ -503,7 +503,7 @@ do {									\
 #define BEGIN_RING( n ) do {						\
 	if ( R128_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_RING( %d ) in %s\n",			\
-			   (n), __FUNCTION__ );				\
+			   (n), __func__ );				\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
 		r128_wait_ring( dev_priv, (n) * sizeof(u32) );		\
