@@ -663,3 +663,48 @@ remove_watchpoint(addr, len, type)
 }
 
 #endif /* PT_GETDBREGS */
+
+CORE_ADDR
+fbsd_sigtramp_saved_pc (frame)
+     struct frame_info *frame;
+{
+  CORE_ADDR sigcontext_addr;
+  CORE_ADDR sigcode_addr;
+  char buf[TARGET_PTR_BIT / TARGET_CHAR_BIT];
+  int ptrbytes = TARGET_PTR_BIT / TARGET_CHAR_BIT;
+  int sigcontext_offs = (2 * TARGET_INT_BIT) / TARGET_CHAR_BIT;
+  int sigcode_offs = (-1 * TARGET_INT_BIT) / TARGET_CHAR_BIT;
+
+  /* Get sigcontext address, it is the third parameter on the stack.  */
+  if (frame->next)
+    sigcontext_addr = read_memory_integer (FRAME_ARGS_ADDRESS (frame->next)
+					   + FRAME_ARGS_SKIP
+					   + sigcontext_offs,
+					   ptrbytes);
+  else
+    sigcontext_addr = read_memory_integer (read_register (SP_REGNUM)
+					    + sigcontext_offs,
+					   ptrbytes);
+
+#ifdef OSIGCODE_MAGIC_OFFSET
+  if (frame->next)
+    sigcode_addr = read_memory_integer (FRAME_ARGS_ADDRESS (frame->next)
+					+ FRAME_ARGS_SKIP
+					+ sigcode_offs,
+					ptrbytes);
+  else
+    sigcode_addr = read_memory_integer (read_register (SP_REGNUM)
+					+ sigcode_offs,
+					ptrbytes);
+  target_read_memory (sigcode_addr + OSIGCODE_MAGIC_OFFSET,
+		      buf, ptrbytes);
+  if (extract_unsigned_integer(buf, ptrbytes) == 0x01d516) {
+    target_read_memory (sigcontext_addr + OSIGCONTEXT_PC_OFFSET,
+			buf, ptrbytes);
+  } else
+#endif
+	  /* Don't cause a memory_error when accessing sigcontext in case the stack
+	     layout has changed or the stack is corrupt.  */
+  target_read_memory (sigcontext_addr + NSIGCONTEXT_PC_OFFSET, buf, ptrbytes);
+  return extract_unsigned_integer (buf, ptrbytes);
+}
