@@ -57,6 +57,7 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/malloc.h>
+#include <sys/systm.h>
 #endif
 #include <geom/geom.h>
 #include <geom/geom_int.h>

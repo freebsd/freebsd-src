@@ -173,6 +173,7 @@ g_slice_start(struct bio *bp)
 			g_haveattr_off_t(bp, "GEOM::frontstuff", t);
 			return;
 		}
+#ifdef _KERNEL
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			struct g_kerneldump *gkd;
 
@@ -182,6 +183,7 @@ g_slice_start(struct bio *bp)
 				gkd->length = gsp->slices[index].length;
 			/* now, pass it on downwards... */
 		}
+#endif
 		bp2 = g_clone_bio(bp);
 		bp2->bio_done = g_std_done;
 		g_io_request(bp2, cp);
