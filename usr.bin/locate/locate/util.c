@@ -241,7 +241,8 @@ getwm(p)
 	if (i > MAXPATHLEN || i < -(MAXPATHLEN)) {
 		i = ntohl(i);
 		if (i > MAXPATHLEN || i < -(MAXPATHLEN))
-			errx(1, "integer out of +-MAXPATHLEN (%d): %d", MAXPATHLEN, i);
+			errx(1, "integer out of +-MAXPATHLEN (%d): %d",
+			    MAXPATHLEN, abs(i) < abs(htonl(i)) ? i : htonl(i));
 	}
 	return(i);
 }
@@ -265,7 +266,9 @@ getwf(fp)
 	if (word > MAXPATHLEN || word < -(MAXPATHLEN)) {
 		word = ntohl(word);
 		if (word > MAXPATHLEN || word < -(MAXPATHLEN))
-			errx(1, "integer out of +-MAXPATHLEN (%d): %d", MAXPATHLEN, word);
+			errx(1, "integer out of +-MAXPATHLEN (%d): %d",
+			    MAXPATHLEN, abs(word) < abs(htonl(word)) ? word :
+				htonl(word));
 	}
 	return(word);
 }
