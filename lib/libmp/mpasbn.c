@@ -79,10 +79,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bn.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 
+#include "openssl/crypto/bn/bn_lcl.h"
 #include "mp.h"
 
 #define MPERR(s)	do { warn s; abort(); } while (0)

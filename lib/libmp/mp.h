@@ -3,7 +3,9 @@
 #ifndef _MP_H_
 #define _MP_H_
 
+#ifndef HEADER_BN_H_
 #include <openssl/bn.h>
+#endif
 
 typedef struct _mint {
 	BIGNUM *bn;
