@@ -47,6 +47,11 @@ MODULE_NAME("THERMAL")
 #define TZ_ZEROC	2732
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
 
+#define TZ_DPRINT(dev, x...) do {					\
+	if (acpi_get_verbose(acpi_device_get_parent_softc(dev)))	\
+		device_printf(dev, x);					\
+} while (0)
+
 #define TZ_NOTIFY_TEMPERATURE	0x80
 #define TZ_NOTIFY_DEVICES	0x81
 #define TZ_NOTIFY_LEVELS	0x82
@@ -84,6 +89,7 @@ struct acpi_tz_softc {
     int				tz_flags;
 #define TZ_FLAG_NO_SCP		(1<<0)			/* no _SCP method */
 #define TZ_FLAG_GETPROFILE	(1<<1)			/* fetch powerprofile in timeout */
+    struct timespec		tz_cooling_started;	/* current cooling starting time */
 
     struct sysctl_ctx_list	tz_sysctl_ctx;		/* sysctl tree */
     struct sysctl_oid		*tz_sysctl_tree;
@@ -124,6 +130,8 @@ DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
 
 static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;
 static struct sysctl_oid	*acpi_tz_sysctl_tree;
+
+static int			acpi_tz_min_runtime = 0;/* minimum cooling run time */
 
 /*
  * Match an ACPI thermal zone.
@@ -193,6 +201,10 @@ acpi_tz_attach(device_t dev)
 	acpi_tz_sysctl_tree = SYSCTL_ADD_NODE(&acpi_tz_sysctl_ctx,
 					      SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
 					      OID_AUTO, "thermal", CTLFLAG_RD, 0, "");
+	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
+		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
+		       OID_AUTO, "min_runtime", CTLFLAG_RD | CTLFLAG_RW,
+		       &acpi_tz_min_runtime, 0, "minimum cooling run time in sec");
     }
     sysctl_ctx_init(&sc->tz_sysctl_ctx);
     sprintf(oidname, "tz%d", device_get_unit(dev));
@@ -324,6 +336,20 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     return_VALUE(0);
 }
 
+static char	*aclevel_string[] =	{
+	"NONE", "_AC0", "_AC1", "_AC2", "_AC3", "_AC4",
+	"_AC5", "_AC6", "_AC7", "_AC8", "_AC9" };
+
+static __inline const char *
+acpi_tz_aclevel_string(int active)
+{
+	if (active < -1 || active >= TZ_NUMLEVELS) {
+		return (aclevel_string[0]);
+	}
+
+	return (aclevel_string[active+1]);
+}
+
 /*
  * Evaluate the condition of a thermal zone, take appropriate actions.
  */
@@ -333,6 +359,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     int		temp;
     int		i;
     int		newactive, newflags;
+    struct	timespec curtime;
 
     FUNCTION_TRACE(__func__);
 
@@ -359,10 +386,24 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	if ((sc->tz_zone.ac[i] != -1) && (temp >= sc->tz_zone.ac[i])) {
 	    newactive = i;
 	    if (sc->tz_active != newactive) {
-		device_printf(sc->tz_dev,
-			      "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
-			      TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
+		TZ_DPRINT(sc->tz_dev, 
+			  "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
+			  TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
+		getnanotime(&sc->tz_cooling_started);
 	    }
+	}
+    }
+
+    /*
+     * We are going to get _ACx level down (colder side), but give a guaranteed
+     * minimum cooling run time if requested.
+     */
+    if (acpi_tz_min_runtime > 0 && sc->tz_active != TZ_ACTIVE_NONE &&
+	(newactive == TZ_ACTIVE_NONE || newactive > sc->tz_active)) {
+	getnanotime(&curtime);
+	timespecsub(&curtime, &sc->tz_cooling_started);
+	if (curtime.tv_sec < acpi_tz_min_runtime) {
+	    newactive = sc->tz_active;
 	}
     }
 
@@ -393,7 +434,9 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	if (newactive != TZ_ACTIVE_NONE)
 	    acpi_ForeachPackageObject((ACPI_OBJECT *)sc->tz_zone.al[newactive].Pointer,
 				      acpi_tz_switch_cooler_on, sc);
-	device_printf(sc->tz_dev, "switched from _AC%d to _AC%d\n", sc->tz_active, newactive);
+	TZ_DPRINT(sc->tz_dev, "switched from %s to %s: %d.%dC\n",
+		  acpi_tz_aclevel_string(sc->tz_active),
+		  acpi_tz_aclevel_string(newactive), TZ_KELVTOC(temp));
 	sc->tz_active = newactive;
     }
 
