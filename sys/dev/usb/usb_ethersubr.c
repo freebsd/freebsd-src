@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -50,6 +48,9 @@
  * properly.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -66,11 +67,6 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ethersubr.h>
-
-#ifndef lint
-Static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 Static struct ifqueue usbq_rx;
 Static struct ifqueue usbq_tx;

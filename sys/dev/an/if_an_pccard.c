@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -39,6 +37,9 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 
@@ -69,11 +70,6 @@
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
 #include "card_if.h"
-
-#ifndef lint
-static const char rcsid[] =
- "$FreeBSD$";
-#endif
 
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>

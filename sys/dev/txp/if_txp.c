@@ -1,5 +1,4 @@
 /*	$OpenBSD: if_txp.c,v 1.48 2001/06/27 06:34:50 kjc Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 2001
@@ -38,6 +37,9 @@
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

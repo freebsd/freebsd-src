@@ -29,18 +29,11 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
  * Broadcom BCM570x family gigabit ethernet driver for FreeBSD.
- * 
- * Written by Bill Paul <wpaul@windriver.com>
- * Senior Engineer, Wind River Systems
- */
-
-/*
+ *
  * The Broadcom BCM5700 is based on technology originally developed by
  * Alteon Networks as part of the Tigon I and Tigon II gigabit ethernet
  * MAC chips. The BCM5700, sometimes refered to as the Tigon III, has
@@ -69,6 +62,9 @@
  * result, this driver does not implement any support for the mini RX
  * ring.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -119,11 +115,6 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /*
  * Various supported device vendors/types and their names. Note: the

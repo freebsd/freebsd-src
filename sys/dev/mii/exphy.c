@@ -70,6 +70,9 @@
  * driver for 3Com internal PHYs
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -85,11 +88,6 @@
 #include "miidevs.h"
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int exphy_probe(device_t);
 static int exphy_attach(device_t);
