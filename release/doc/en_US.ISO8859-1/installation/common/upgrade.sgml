@@ -207,7 +207,7 @@
     <para>Those interested in an upgrade method that allows more
     flexibility and sophistication should take a look at
     <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The
+    url="&url.books.handbook;/cutting-edge.html">The
     Cutting Edge</ulink> in the &os; Handbook.  This procedure involves
     rebuilding all of &os; from source code.  It requires reliable
     network connectivity, extra disk space, and time, but has

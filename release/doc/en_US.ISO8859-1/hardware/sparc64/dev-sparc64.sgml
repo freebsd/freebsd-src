@@ -22,7 +22,7 @@
     <para>In general, any device for which there is a driver can be
       made to work on sparc64. Some drivers might just work, others
       might require some changes (because this is the first big-endian
-      architecture to be supported by FreeBSD).</para>
+      architecture to be supported by &os;).</para>
 
     <para>The following drivers are known to work:</para>
 

@@ -20,7 +20,7 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
-      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -163,8 +163,8 @@
 
       <para>A list of the CDROM and DVD publishers known to the
 	project are listed in the <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
-	FreeBSD</quote></ulink> appendix to the Handbook.</para>
+	url="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	&os;</quote></ulink> appendix to the Handbook.</para>
     </sect2>
 
     <sect2>
@@ -178,7 +178,7 @@
 
       <para>Lists of locations that mirror &os; can be found in the
 	<ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+	url="&url.books.handbook;/mirrors-ftp.html">FTP
 	Sites</ulink> section of the Handbook, or on the <ulink
 	url="http://mirrorlist.FreeBSD.org/"></ulink> Web pages.
 	Finding a close (in networking terms) mirror from which to
@@ -188,8 +188,8 @@
 	<email>freebsd-admin@FreeBSD.org</email> for more details on
 	becoming an official mirror site.  You can also find useful
         information for mirror sites at the <ulink
-        URL="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/hubs/">Mirroring
-        FreeBSD</ulink> article.</para>
+        URL="&url.articles.hubs;/">Mirroring
+        &os;</ulink> article.</para>
 
       <para>Mirrors generally contain the floppy disk images necessary
 	to begin an installation, as well as the distribution files
@@ -227,13 +227,13 @@
 	preferable to subscribe instead to the &a.announce;.</para>
 
       <para>All of the mailing lists can be freely joined by anyone
-	wishing to do so.  Visit the <ulink url="http://www.FreeBSD.org/mailman/listinfo">
-	FreeBSD Mailman Info Page</ulink>.  This will give you more
+	wishing to do so.  Visit the <ulink url="&url.base;/mailman/listinfo">
+	&os; Mailman Info Page</ulink>.  This will give you more
 	information on joining the various lists, accessing archives,
 	etc.  There are a number of mailing lists targeted at special
 	interest groups not mentioned here; more information can be
 	obtained either from the Mailman pages or the <ulink
-	url="http://www.FreeBSD.org/support.html#mailing-list">mailing
+	url="&url.base;/support.html#mailing-list">mailing
 	lists section</ulink> of the &os; Web site.</para>
 
       <important>
@@ -270,8 +270,8 @@
 	can try to send it to the &a.bugs;.</para>
 
       <para>For more information, <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing
-	FreeBSD Problem Reports</quote></ulink>, available on the &os; Web
+	url="&url.base;/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing
+	&os; Problem Reports</quote></ulink>, available on the &os; Web
 	site, has a number of helpful hints on writing and submitting
 	effective problem reports.</para>
     </sect2>
@@ -308,7 +308,7 @@
 	    <para><filename>EARLY.TXT</filename>: A guide for early
 	      adopters of &os; &release.current;.  Highly recommended
 	      reading for users new to &os; &release.branch; and/or the
-	      5.<replaceable>X</replaceable> series of releases.</para>
+	      6.<replaceable>X</replaceable> series of releases.</para>
 	  </listitem>
 
 	  <listitem>
@@ -371,7 +371,7 @@
 	  other copies are kept updated on the Internet and should be
 	  consulted as the <quote>current errata</quote> for this
 	  release.  These other copies of the errata are located at
-	  <ulink url="http://www.FreeBSD.org/releases/"></ulink> (as
+	  <ulink url="&url.base;/releases/"></ulink> (as
 	  well as any sites which keep up-to-date mirrors of this
 	  location).</para>
       </note>
@@ -402,11 +402,11 @@
 	maintained by the &os; Project,
 	are the &os; Handbook and &os; FAQ (Frequently Asked
 	Questions document).  On-line versions of the <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
+	url="&url.books.handbook;/">Handbook</ulink>
 	and <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
+	url="&url.books.faq;/">FAQ</ulink>
 	are always available from the <ulink
-	url="http://www.FreeBSD.org/docs.html">FreeBSD Documentation
+	url="&url.base;/docs.html">&os; Documentation
 	page</ulink> or its mirrors.  If you install the
 	<filename>doc</filename> distribution set, you can use a Web
 	browser to read the Handbook and FAQ locally.</para>
@@ -422,7 +422,7 @@
 
       <para>A listing of other books and documents about &os; can be
         found in the <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">bibliography</ulink>
+        url="&url.books.handbook;/bibliography.html">bibliography</ulink>
         of the &os; Handbook.  Because of &os;'s strong &unix; heritage,
         many other articles and books written for &unix; systems are
         applicable as well, some of which are also listed in the
@@ -438,8 +438,8 @@
       countless hours to bring about this &release.type;.  For a
       complete list of &os; developers and contributors, please see
       <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"><quote>Contributors
-      to FreeBSD</quote></ulink> on the &os; Web site or any of its
+      url="&url.articles.contributors;/"><quote>Contributors
+      to &os;</quote></ulink> on the &os; Web site or any of its
       mirrors.</para>
 
     <para>Special thanks also go to the many thousands of &os; users
