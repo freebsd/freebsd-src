@@ -115,7 +115,7 @@ sbuf_extendsize(int size)
 
 	newsize = SBUF_MINEXTENDSIZE;
 	while (newsize < size) {
-		if (newsize < SBUF_MAXEXTENDSIZE)
+		if (newsize < (int)SBUF_MAXEXTENDSIZE)
 			newsize *= 2;
 		else
 			newsize += SBUF_MAXEXTENDINCR;
