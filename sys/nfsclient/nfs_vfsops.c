@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.75 1998/09/07 05:42:15 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.76 1998/09/07 13:17:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -352,7 +352,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 			nmp->nm_wsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
 		max = fxdr_unsigned(u_int32_t, fsp->fs_wtmax);
-		if (max < nmp->nm_wsize) {
+		if (max < nmp->nm_wsize && max > 0) {
 			nmp->nm_wsize = max & ~(NFS_FABLKSIZE - 1);
 			if (nmp->nm_wsize == 0)
 				nmp->nm_wsize = max;
@@ -362,16 +362,19 @@ nfs_fsinfo(nmp, vp, cred, p)
 			nmp->nm_rsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
 		max = fxdr_unsigned(u_int32_t, fsp->fs_rtmax);
-		if (max < nmp->nm_rsize) {
+		if (max < nmp->nm_rsize && max > 0) {
 			nmp->nm_rsize = max & ~(NFS_FABLKSIZE - 1);
 			if (nmp->nm_rsize == 0)
 				nmp->nm_rsize = max;
 		}
 		pref = fxdr_unsigned(u_int32_t, fsp->fs_dtpref);
-		if (pref < nmp->nm_readdirsize)
-			nmp->nm_readdirsize = pref;
-		if (max < nmp->nm_readdirsize) {
-			nmp->nm_readdirsize = max;
+		if (pref < nmp->nm_readdirsize && pref >= NFS_DIRBLKSIZ)
+			nmp->nm_readdirsize = (pref + NFS_DIRBLKSIZ - 1) &
+				~(NFS_DIRBLKSIZ - 1);
+		if (max < nmp->nm_readdirsize && max > 0) {
+			nmp->nm_readdirsize = max & ~(NFS_DIRBLKSIZ - 1);
+			if (nmp->nm_readdirsize == 0)
+				nmp->nm_readdirsize = max;
 		}
 		fxdr_hyper(&fsp->fs_maxfilesize, &maxfsize);
 		if (maxfsize > 0 && maxfsize < nmp->nm_maxfilesize)
