@@ -19,7 +19,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include <sgtty.h>
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -27,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <netinet/tcp.h>
 #include <signal.h>
 #include <ctype.h>
+#include <errno.h>
+#include <string.h>
 
 /* Sort of a hack... */
 #define EOL (EOF - 1)
@@ -41,13 +42,10 @@ void
 perror_with_name (string)
      char *string;
 {
-  extern int sys_nerr;
-  extern char *sys_errlist[];
-  extern int errno;
   char *err;
   char *combined;
 
-  err = (errno < sys_nerr) ? sys_errlist[errno] : "unknown error";
+  err = strerror(errno);
   combined = (char *) alloca (strlen (err) + strlen (string) + 3);
   strcpy (combined, string);
   strcat (combined, ": ");
@@ -84,7 +82,6 @@ void
 remote_open (name)
      char *name;
 {
-  struct sgttyb sg;
   extern char *strchr ();
 
   if (!strchr (name, ':'))
