@@ -29,7 +29,8 @@
 .Dt MDMFS 8
 .Os
 .Sh NAME
-.Nm mdmfs
+.Nm mdmfs ,
+.Nm mount_mfs
 .Nd configure and mount an in-memory file system using the
 .Xr md 4
 driver
@@ -306,7 +307,7 @@ utility, while designed to be fully compatible with
 can be useful by itself.
 Since
 .Xr mount_mfs 8
-has some silly defaults, a
+had some silly defaults, a
 .Dq full compatibility
 mode is provided for the case where bug-to-bug compatibility is desired.
 .Pp
