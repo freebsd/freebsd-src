@@ -218,10 +218,13 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     pr.pr_pin = pin;
     pr.pr_slot = pci_get_slot(dev);
     prt_walk_table(prtbuf, prt_lookup_device, &pr);
-    if (pr.pr_entry == NULL)
-	return (PCI_INVALID_IRQ);
+    if (pr.pr_entry == NULL) {
+	device_printf(pcib, "no PRT entry for %d.%d.INT%c", pci_get_bus(dev),
+	    pci_get_slot(dev), 'A' + pin);
+	goto out;
+    }
     prt = pr.pr_entry;
-    
+
     if (bootverbose) {
 	device_printf(pcib, "matched entry for %d.%d.INT%c",
 	    pci_get_bus(dev), pci_get_slot(dev), 'A' + pin);
