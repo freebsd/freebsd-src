@@ -174,12 +174,16 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	currdev.d_type = currdev.d_dev->dv_type;
 
-#if 0
-	/* Create arc-specific variables */
-	bootfile = GetEnvironmentVariable(ARCENV_BOOTFILE);
-	if (bootfile)
-		setenv("bootfile", bootfile, 1);
-#endif
+	/*
+	 * Disable the watchdog timer. By default the boot manager sets
+	 * the timer to 5 minutes before invoking a boot option. If we
+	 * want to return to the boot manager, we have to disable the
+	 * watchdog timer and since we're an interactive program, we don't
+	 * want to wait until the user types "quit". The timer may have
+	 * fired by then. We don't care if this fails. It does not prevent
+	 * normal functioning in any way...
+	 */
+	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
 	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
 	    efi_setcurrdev, env_nounset);
