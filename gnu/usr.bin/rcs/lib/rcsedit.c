@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsedit.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.11  1991/11/03  01:11:44  eggert
  * Move the warning about link breaking to where they're actually being broken.
  *
@@ -154,7 +157,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(editId, "$Id: rcsedit.c,v 5.11 1991/11/03 01:11:44 eggert Exp $")
+libId(editId, "$Id: rcsedit.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
 
 static void keyreplace P((enum markers,struct hshentry const*,FILE*));
 
@@ -959,10 +962,14 @@ keyreplace(marker,delta,out)
         case Date:
 		aputs(date2str(date,datebuf), out);
                 break;
+	/*
+	 * The FreeBSD keyword is identical to Id.
+	 */
+	case FreeBSD:
         case Id:
 	case Header:
 		aprintf(out, "%s %s %s %s %s",
-			  marker==Id || RCSv<VERSION(4)
+			  marker==Id || marker==FreeBSD || RCSv<VERSION(4)
 			? basename(RCSfilename)
 			: getfullRCSname(),
 			delta->num,
