@@ -46,6 +46,7 @@
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
  * Xircom X3201 (www.xircom.com)
+ * Abocom FE2500
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -181,6 +182,8 @@ static struct dc_type dc_devs[] = {
 		"Accton EN1217 10/100BaseTX" },
     	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
 	  	"Xircom X3201 10/100BaseTX" },
+	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500,
+		"Abocom FE2500 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1238,7 +1241,8 @@ void dc_setfilt_xircom(sc)
 	    ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = dc_crc_le(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = dc_crc_le(sc,
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1451,7 +1455,8 @@ static void dc_reset(sc)
 			break;
 	}
 
-	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) || DC_IS_XIRCOM(sc) || DC_IS_INTEL(sc)) {
+	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) ||
+	    DC_IS_XIRCOM(sc) || DC_IS_INTEL(sc)) {
 		DELAY(10000);
 		DC_CLRBIT(sc, DC_BUSCTL, DC_BUSCTL_RESET);
 		i = 0;
@@ -1849,6 +1854,7 @@ static int dc_attach(dev)
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
 	case DC_DEVICEID_AN985:
+	case DE_DEVICEID_FE2500:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
