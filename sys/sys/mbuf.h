@@ -93,7 +93,7 @@ struct pkthdr {
 struct m_ext {
 	caddr_t	ext_buf;		/* start of buffer */
 	void	(*ext_free)		/* free routine if not the usual */
-		    (caddr_t, void *);
+		    (void *, void *);
 	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
 	u_int	*ref_cnt;		/* pointer to ref count info */
@@ -482,7 +482,7 @@ void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*free)(caddr_t, void *), void *, short, int);
+		    void (*free)(void *, void *), void *, short, int);
 void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
