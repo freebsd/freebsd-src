@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: strings.c,v 1.7 1999/03/29 13:18:16 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -137,7 +137,7 @@ main(argc, argv)
 	else if (minlen < 1)
 		errx(1, "length less than 1");
 
-	if (!(bfr = malloc((u_int)minlen)))
+	if (!(bfr = malloc((u_int)minlen + 1)))
 		errx(1, "malloc");
 	bfr[minlen] = '\0';
 	file = "stdin";
