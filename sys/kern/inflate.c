@@ -41,9 +41,6 @@
 #include <vm/vm_kern.h>
 
 /* Stuff to make inflate() work */
-#  define uch u_char
-#  define ush u_short
-#  define ulg u_long
 #  define memzero(dest,len)      bzero(dest,len)
 #  define NOMEMCPY
 #define FPRINTF printf
@@ -385,15 +382,14 @@ struct huft {
 #    define OF(a) ()
 #  endif /* ?__STDC__ */
 #endif
-static int huft_build OF((struct gzip *,unsigned *, unsigned, unsigned, const ush *, const ush *,
-                   struct huft **, int *));
+static int huft_build OF((struct gzip *,unsigned *, unsigned, unsigned, const ush *, const ush *, struct huft **, int *, struct gz_global *));
 static int huft_free OF((struct gzip *,struct huft *));
-static int inflate_codes OF((struct gzip *,struct huft *, struct huft *, int, int));
-static int inflate_stored OF((struct gzip *));
-static int inflate_fixed OF((struct gzip *));
-static int inflate_dynamic OF((struct gzip *));
-static int inflate_block OF((struct gzip *,int *));
-static int inflate_free OF((struct gzip *));
+static int inflate_codes OF((struct gzip *,struct huft *, struct huft *, int, int, struct gz_global *));
+static int inflate_stored OF((struct gzip *, struct gz_global *));
+static int inflate_fixed OF((struct gzip *, struct gz_global *));
+static int inflate_dynamic OF((struct gzip *, struct gz_global *));
+static int inflate_block OF((struct gzip *,int *, struct gz_global *));
+static int inflate_free OF((struct gzip *, struct gz_global *));
 
 
 /* The inflate algorithm uses a sliding 32K byte window on the uncompressed
@@ -426,7 +422,7 @@ static const ush cpdext[] = {         /* Extra bits for distance codes */
         12, 12, 13, 13};
 
 /* And'ing with mask[n] masks the lower n bits */
-const ush mask[] = {
+static const ush mask[] = {
     0x0000,
     0x0001, 0x0003, 0x0007, 0x000f, 0x001f, 0x003f, 0x007f, 0x00ff,
     0x01ff, 0x03ff, 0x07ff, 0x0fff, 0x1fff, 0x3fff, 0x7fff, 0xffff
@@ -453,9 +449,12 @@ const ush mask[] = {
    block.  See the huft_build() routine.
  */
 
-/* !!! XXX !!! */
-ulg bb;                         /* bit buffer */
-unsigned bk;                    /* bits in bit buffer */
+/*
+ * The following 2 were global variables.
+ * They are now fields of the gz_global structure.
+ */
+#define bb	(glbl->bb)	/* bit buffer */
+#define	bk	(glbl->bk)	/* bits in bit buffer */
 
 #ifndef CHECK_EOF
 #  define NEEDBITS(n) {while(k<(n)){b|=((ulg)NEXTBYTE)<<k;k+=8;}}
@@ -500,19 +499,21 @@ unsigned bk;                    /* bits in bit buffer */
  */
 
 
-const int lbits = 9;          /* bits in base literal/length lookup table */
-const int dbits = 6;          /* bits in base distance lookup table */
+static const int lbits = 9;	/* bits in base literal/length lookup table */
+static const int dbits = 6;	/* bits in base distance lookup table */
 
 
 /* If BMAX needs to be larger than 16, then h and x[] should be ulg. */
 #define BMAX 16         /* maximum bit length of any code (16 for explode) */
 #define N_MAX 288       /* maximum number of codes in any set */
 
-/* !!! XXX !!! */
-unsigned hufts;         /* track memory usage */
+/*
+ * This also used to be a global variable
+ */
+#define hufts (glbl->hufts)
 
 
-static int huft_build(gz,b, n, s, d, e, t, m)
+static int huft_build(gz,b, n, s, d, e, t, m, glbl)
 struct gzip *gz;
 unsigned *b;            /* code lengths in bits (all assumed <= BMAX) */
 unsigned n;             /* number of codes (assumed <= N_MAX) */
@@ -521,6 +522,7 @@ const ush *d;           /* list of base values for non-simple codes */
 const ush *e;           /* list of extra bits for non-simple codes */
 struct huft **t;        /* result: starting table */
 int *m;                 /* maximum lookup bits, returns actual */
+struct gz_global * glbl;
 /* Given a list of code lengths and a maximum table size, make a set of
    tables to decode that set of codes.  Return zero on success, one if
    the given code set is incomplete (the tables are still built in this
@@ -743,10 +745,11 @@ struct huft *t;         /* table to free */
 
 #else
 
-static int inflate_codes(gz,tl, td, bl, bd)
+static int inflate_codes(gz,tl, td, bl, bd, glbl)
 struct gzip *gz;
 struct huft *tl, *td;   /* literal/length and distance decoder tables */
 int bl, bd;             /* number of bits decoded by tl[] and td[] */
+struct gz_global * glbl;/* global variables */
 /* inflate (decompress) the codes in a deflated (compressed) block.
    Return an error code or zero if it all goes ok. */
 {
@@ -854,8 +857,9 @@ int bl, bd;             /* number of bits decoded by tl[] and td[] */
 
 
 
-static int inflate_stored(gz)
+static int inflate_stored(gz, glbl)
 struct gzip *gz;
+struct gz_global * glbl;
 /* "decompress" an inflated type 0 (stored) block. */
 {
   unsigned n;           /* number of bytes in block */
@@ -909,13 +913,15 @@ struct gzip *gz;
 
 
 /* Globals for literal tables (built once) */
-/* !!! XXX !!! */
-struct huft *fixed_tl = (struct huft *)NULL;
-struct huft *fixed_td;
-int fixed_bl, fixed_bd;
+/* The real variables are now in the struct gz_global */
+#define fixed_tl (glbl->fixed_tl)
+#define fixed_td (glbl->fixed_td)
+#define fixed_bl (glbl->fixed_bl)
+#define fixed_bd (glbl->fixed_bd)
 
-static int inflate_fixed(gz)
+static int inflate_fixed(gz, glbl)
 struct gzip *gz;
+struct gz_global *glbl;
 /* decompress an inflated type 1 (fixed Huffman codes) block.  We should
    either replace this with a custom decoder, or at least precompute the
    Huffman tables. */
@@ -938,7 +944,7 @@ struct gzip *gz;
       l[i] = 8;
     fixed_bl = 7;
     if ((i = huft_build(gz,l, 288, 257, cplens, cplext,
-                        &fixed_tl, &fixed_bl)) != 0)
+                        &fixed_tl, &fixed_bl, glbl)) != 0)
     {
       fixed_tl = (struct huft *)NULL;
       return i;
@@ -948,7 +954,8 @@ struct gzip *gz;
     for (i = 0; i < 30; i++)      /* make an incomplete code set */
       l[i] = 5;
     fixed_bd = 5;
-    if ((i = huft_build(gz,l, 30, 0, cpdist, cpdext, &fixed_td, &fixed_bd)) > 1)
+    if ((i = huft_build(gz,l, 30, 0, cpdist, cpdext, 
+	&fixed_td, &fixed_bd, glbl)) > 1)
     {
       huft_free(gz,fixed_tl);
       fixed_tl = (struct huft *)NULL;
@@ -958,13 +965,14 @@ struct gzip *gz;
 
 
   /* decompress until an end-of-block code */
-  return inflate_codes(gz,fixed_tl, fixed_td, fixed_bl, fixed_bd) != 0;
+  return inflate_codes(gz,fixed_tl, fixed_td, fixed_bl, fixed_bd, glbl) != 0;
 }
 
 
 
-static int inflate_dynamic(gz)
+static int inflate_dynamic(gz, glbl)
 struct gzip *gz;
+struct gz_global * glbl;
 /* decompress an inflated type 2 (dynamic Huffman codes) block. */
 {
   int i;                /* temporary variables */
@@ -1025,7 +1033,7 @@ struct gzip *gz;
 
   /* build decoding table for trees--single level, 7 bit lookup */
   bl = 7;
-  if ((i = huft_build(gz,ll, 19, 19, NULL, NULL, &tl, &bl)) != 0)
+  if ((i = huft_build(gz,ll, 19, 19, NULL, NULL, &tl, &bl, glbl)) != 0)
   {
     if (i == 1)
       huft_free(gz,tl);
@@ -1091,7 +1099,7 @@ struct gzip *gz;
 
   /* build the decoding tables for literal/length and distance codes */
   bl = lbits;
-  if ((i = huft_build(gz,ll, nl, 257, cplens, cplext, &tl, &bl)) != 0)
+  if ((i = huft_build(gz,ll, nl, 257, cplens, cplext, &tl, &bl, glbl)) != 0)
   {
     if (i == 1 && !qflag) {
       FPRINTF( "(incomplete l-tree)  ");
@@ -1100,7 +1108,7 @@ struct gzip *gz;
     return i;                   /* incomplete code set */
   }
   bd = dbits;
-  if ((i = huft_build(gz,ll + nl, nd, 0, cpdist, cpdext, &td, &bd)) != 0)
+  if ((i = huft_build(gz,ll + nl, nd, 0, cpdist, cpdext, &td, &bd, glbl)) != 0)
   {
     if (i == 1 && !qflag) {
       FPRINTF( "(incomplete d-tree)  ");
@@ -1117,7 +1125,7 @@ struct gzip *gz;
 
 
   /* decompress until an end-of-block code */
-  if (inflate_codes(gz,tl, td, bl, bd))
+  if (inflate_codes(gz,tl, td, bl, bd, glbl))
     return 1;
 
 
@@ -1129,9 +1137,10 @@ struct gzip *gz;
 
 
 
-static int inflate_block(gz,e)
+static int inflate_block(gz,e, glbl)
 struct gzip *gz;
 int *e;                 /* last block flag */
+struct gz_global * glbl;
 /* decompress an inflated block */
 {
   unsigned t;           /* block type */
@@ -1163,11 +1172,11 @@ int *e;                 /* last block flag */
 
   /* inflate that block type */
   if (t == 2)
-    return inflate_dynamic(gz);
+    return inflate_dynamic(gz, glbl);
   if (t == 0)
-    return inflate_stored(gz);
+    return inflate_stored(gz, glbl);
   if (t == 1)
-    return inflate_fixed(gz);
+    return inflate_fixed(gz, glbl);
 
 
   /* bad block type */
@@ -1186,6 +1195,8 @@ struct gz_global * glbl;
   unsigned h;           /* maximum struct huft's malloc'ed */
 
 
+  fixed_tl = (struct huft *)NULL;
+
   /* initialize window, bit buffer */
   wp = 0;
   bk = 0;
@@ -1196,7 +1207,7 @@ struct gz_global * glbl;
   h = 0;
   do {
     hufts = 0;
-    if ((r = inflate_block(gz,&e)) != 0)
+    if ((r = inflate_block(gz,&e, glbl)) != 0)
       return r;
     if (hufts > h)
       h = hufts;
@@ -1215,8 +1226,9 @@ struct gz_global * glbl;
 
 
 
-static int inflate_free(gz)
+static int inflate_free(gz, glbl)
 struct gzip *gz;
+struct gz_global * glbl;
 {
   if (fixed_tl != (struct huft *)NULL)
   {
