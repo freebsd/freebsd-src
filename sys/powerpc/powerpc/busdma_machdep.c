@@ -423,10 +423,12 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			error = bus_dmamap_load_buffer(dmat, dm_segments,
-			    m->m_data, m->m_len, NULL, flags,
-			    &lastaddr, &nsegs, first);
-			first = 0;
+			if (m->m_len > 0) {
+				error = bus_dmamap_load_buffer(dmat,
+				    dm_segments, m->m_data, m->m_len, NULL,
+				    flags, &lastaddr, &nsegs, first);
+				first = 0;
+			}
 		}
 	} else {
 		error = EINVAL;
@@ -483,12 +485,14 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		    resid < iov[i].iov_len ? resid : iov[i].iov_len;
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
-		error = bus_dmamap_load_buffer(dmat, dm_segments, addr,
-		    minlen, td, flags, &lastaddr, &nsegs, first);
+		if (minlen > 0) {
+			error = bus_dmamap_load_buffer(dmat, dm_segments, addr,
+			    minlen, td, flags, &lastaddr, &nsegs, first);
 
-		first = 0;
+			first = 0;
 
-		resid -= minlen;
+			resid -= minlen;
+		}
 	}
 
 	if (error) {
