@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.64 1995/12/09 20:40:43 phk Exp $
+ *	$Id: trap.c,v 1.65 1995/12/14 08:21:29 phk Exp $
  */
 
 /*
@@ -934,7 +934,7 @@ bad:
 #endif
 }
 
-#ifdef COMPAT_LINUX
+#if defined(COMPAT_LINUX) || defined(LINUX)
 void
 linux_syscall(frame)
 	struct trapframe frame;
@@ -1027,4 +1027,4 @@ linux_syscall(frame)
 		ktrsysret(p->p_tracep, code, error, rval[0]);
 #endif
 }
-#endif /* COMPAT_LINUX */
+#endif /* COMPAT_LINUX || LINUX */

@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.116 1995/11/21 02:50:10 peter Exp $
+#	$Id: files.i386,v 1.117 1995/12/12 08:46:40 gibbs Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -180,6 +180,17 @@ i386/isa/atapi.c		optional	atapi	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
+i386/linux/imgact_linux.c	optional	linux
+i386/linux/linux_dummy.c	optional	linux
+i386/linux/linux_file.c		optional	linux
+i386/linux/linux_generic.c	optional	linux
+i386/linux/linux_ioctl.c	optional	linux
+i386/linux/linux_ipc.c		optional	linux
+i386/linux/linux_misc.c		optional	linux
+i386/linux/linux_signal.c	optional	linux
+i386/linux/linux_socket.c	optional	linux
+i386/linux/linux_stats.c	optional	linux
+i386/linux/linux_sysent.c	optional	linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
 	dependency	"aic7xxx_seq.h"
 i386/scsi/bt.c			optional	bt	device-driver
