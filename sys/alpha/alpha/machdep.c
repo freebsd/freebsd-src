@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.4 1998/06/28 00:45:50 dfr Exp $
+ *	$Id: machdep.c,v 1.5 1998/07/05 12:24:17 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -107,6 +107,7 @@
 #include <sys/vmmeter.h>
 #include <sys/msgbuf.h>
 #include <sys/exec.h>
+#include <sys/sysctl.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -151,14 +152,18 @@ u_int32_t cycles_per_sec;
 int whichqs, whichrtqs, whichidqs;
 int adjkerntz;
 int cold = 1;
-char cpu_model[128];
-char machine[] = "alpha";
 struct platform platform;
 alpha_chipset_t chipset;
 struct bootinfo_kernel bootinfo;
 struct timeval switchtime;
 
 struct	user *proc0paddr;
+
+char machine[] = "alpha";
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
+
+static char cpu_model[128];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 
 #ifdef DDB
 /* start and end of kernel symbol table */
@@ -1166,6 +1171,131 @@ remrq(p)
 void
 sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
+	struct proc *p = curproc;
+	struct sigcontext *scp, ksc;
+	struct trapframe *frame;
+	struct sigacts *psp = p->p_sigacts;
+	int oonstack, fsize, rndfsize;
+
+	frame = p->p_md.md_tf;
+	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+	fsize = sizeof ksc;
+	rndfsize = ((fsize + 15) / 16) * 16;
+	/*
+	 * Allocate and validate space for the signal handler
+	 * context. Note that if the stack is in P0 space, the
+	 * call to grow() is a nop, and the useracc() check
+	 * will fail if the process has not already allocated
+	 * the space with a `brk'.
+	 */
+	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	    (psp->ps_sigonstack & sigmask(sig))) {
+		scp = (struct sigcontext *)((caddr_t)psp->ps_sigstk.ss_sp +
+		    psp->ps_sigstk.ss_size - rndfsize);
+		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+	} else
+		scp = (struct sigcontext *)(alpha_pal_rdusp() - rndfsize);
+	if ((u_long)scp <= USRSTACK - ctob(p->p_vmspace->vm_ssize))
+#if defined(UVM)
+		(void)uvm_grow(p, (u_long)scp);
+#else
+		(void)grow(p, (u_long)scp);
+#endif
+#ifdef DEBUG
+	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
+		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
+		    sig, &oonstack, scp);
+#endif
+#if defined(UVM)
+	if (uvm_useracc((caddr_t)scp, fsize, B_WRITE) == 0) {
+#else
+	if (useracc((caddr_t)scp, fsize, B_WRITE) == 0) {
+#endif
+#ifdef DEBUG
+		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
+			printf("sendsig(%d): useracc failed on sig %d\n",
+			    p->p_pid, sig);
+#endif
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		sig = sigmask(SIGILL);
+		p->p_sigignore &= ~sig;
+		p->p_sigcatch &= ~sig;
+		p->p_sigmask &= ~sig;
+		psignal(p, SIGILL);
+		return;
+#if !defined(UVM)	/* this construct will balance braces for ctags(1) */
+	}
+#else
+	}
+#endif
+
+	/*
+	 * Build the signal context to be used by sigreturn.
+	 */
+	ksc.sc_onstack = oonstack;
+	ksc.sc_mask = mask;
+	ksc.sc_pc = frame->tf_regs[FRAME_PC];
+	ksc.sc_ps = frame->tf_regs[FRAME_PS];
+
+	/* copy the registers. */
+	fill_regs(p, (struct reg *)ksc.sc_regs);
+	ksc.sc_regs[R_ZERO] = 0xACEDBADE;		/* magic number */
+	ksc.sc_regs[R_SP] = alpha_pal_rdusp();
+
+	/* save the floating-point state, if necessary, then copy it. */
+	if (p == fpcurproc) {
+		alpha_pal_wrfen(1);
+		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+		alpha_pal_wrfen(0);
+		fpcurproc = NULL;
+	}
+	ksc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
+	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksc.sc_fpregs,
+	    sizeof(struct fpreg));
+	ksc.sc_fp_control = 0;					/* XXX ? */
+	bzero(ksc.sc_reserved, sizeof ksc.sc_reserved);		/* XXX */
+	bzero(ksc.sc_xxx, sizeof ksc.sc_xxx);			/* XXX */
+
+
+#ifdef COMPAT_OSF1
+	/*
+	 * XXX Create an OSF/1-style sigcontext and associated goo.
+	 */
+#endif
+
+	/*
+	 * copy the frame out to userland.
+	 */
+	(void) copyout((caddr_t)&ksc, (caddr_t)scp, fsize);
+#ifdef DEBUG
+	if (sigdebug & SDB_FOLLOW)
+		printf("sendsig(%d): sig %d scp %p code %lx\n", p->p_pid, sig,
+		    scp, code);
+#endif
+
+	/*
+	 * Set up the registers to return to sigcode.
+	 */
+	frame->tf_regs[FRAME_PC] =
+	    (u_int64_t)PS_STRINGS - (esigcode - sigcode);
+	frame->tf_regs[FRAME_A0] = sig;
+	frame->tf_regs[FRAME_A1] = code;
+	frame->tf_regs[FRAME_A2] = (u_int64_t)scp;
+	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;		/* t12 is pv */
+	alpha_pal_wrusp((unsigned long)scp);
+
+#ifdef DEBUG
+	if (sigdebug & SDB_FOLLOW)
+		printf("sendsig(%d): pc %lx, catcher %lx\n", p->p_pid,
+		    frame->tf_regs[FRAME_PC], frame->tf_regs[FRAME_A3]);
+	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
+		printf("sendsig(%d): sig %d returns\n",
+		    p->p_pid, sig);
+#endif
 }
 
 /*
@@ -1183,7 +1313,61 @@ sigreturn(struct proc *p,
 		struct sigcontext *sigcntxp;
 	  } */ *uap)
 {
-    return -1;
+	struct sigcontext *scp, ksc;
+
+	scp = uap->sigcntxp;
+#ifdef DEBUG
+	if (sigdebug & SDB_FOLLOW)
+	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, scp);
+#endif
+
+	if (ALIGN(scp) != (u_int64_t)scp)
+		return (EINVAL);
+
+	/*
+	 * Test and fetch the context structure.
+	 * We grab it all at once for speed.
+	 */
+#if defined(UVM)
+	if (uvm_useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0 ||
+	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
+		return (EINVAL);
+#else
+	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0 ||
+	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
+		return (EINVAL);
+#endif
+
+	if (ksc.sc_regs[R_ZERO] != 0xACEDBADE)		/* magic number */
+		return (EINVAL);
+	/*
+	 * Restore the user-supplied information
+	 */
+	if (ksc.sc_onstack)
+		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+	p->p_sigmask = ksc.sc_mask &~ sigcantmask;
+
+	set_regs(p, (struct reg *)ksc.sc_regs);
+	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
+	p->p_md.md_tf->tf_regs[FRAME_PS] =
+	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
+
+	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
+
+	/* XXX ksc.sc_ownedfp ? */
+	if (p == fpcurproc)
+		fpcurproc = NULL;
+	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
+	    sizeof(struct fpreg));
+	/* XXX ksc.sc_fp_control ? */
+
+#ifdef DEBUG
+	if (sigdebug & SDB_FOLLOW)
+		printf("sigreturn(%d): returns\n", p->p_pid);
+#endif
+	return (EJUSTRETURN);
 }
 
 /*
@@ -1313,23 +1497,21 @@ ptrace_write_u(struct proc *p, vm_offset_t off, long data)
 }
 
 int
-alpha_pa_access(pa)
-	u_long pa;
+alpha_pa_access(vm_offset_t pa)
 {
 #if 0
 	int i;
 
-	for (i = 0; i < mem_cluster_cnt; i++) {
-		if (pa < mem_clusters[i].start)
+	for (i = 0; phys_avail[i] != 0; i += 2) {
+		if (pa < phys_avail[i])
 			continue;
-		if ((pa - mem_clusters[i].start) >=
-		    (mem_clusters[i].size & ~PAGE_MASK))
-			continue;
-		return (mem_clusters[i].size & PAGE_MASK);	/* prot */
+		if (pa < phys_avail[i+1])
+			return VM_PROT_READ|VM_PROT_WRITE;
 	}
-	return (PROT_NONE);
-#endif
 	return 0;
+#else
+	return VM_PROT_READ|VM_PROT_WRITE;
+#endif
 }
 
 int
@@ -1454,19 +1636,4 @@ bad:
 #endif
         return(-1);
 
-}
-
-#include <sys/interrupt.h>
-
-struct intrec *
-intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
-	     intrmask_t *maskptr, int flags)
-{
-    return 0;
-}
-
-int
-intr_connect(struct intrec *idesc)
-{
-    return ENXIO;
 }
