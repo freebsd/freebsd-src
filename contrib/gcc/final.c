@@ -19,8 +19,6 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 /* This is the final pass of the compiler.
    It looks at the rtl code for a function and outputs assembler code.
 
