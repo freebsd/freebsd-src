@@ -67,7 +67,7 @@ __ElfType(Auxinfo);
  * typedef is required.
  */
 
-typedef Elf64_Off Elf64_Hashelt;
+typedef Elf64_Half Elf64_Hashelt;
 
 __ElfType(Hashelt);
 
