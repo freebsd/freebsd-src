@@ -23,13 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.24 1999/05/14 11:13:19 dfr Exp $
+ *	$Id: autoconf.c,v 1.25 1999/05/15 17:56:34 dfr Exp $
  */
 
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
-#include "opt_mfs.h"
 #include "opt_nfsroot.h"
 
 #include <sys/param.h>
@@ -57,10 +56,6 @@
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
-
-#ifdef MFS_ROOT
-#include <ufs/mfs/mfs_extern.h>
-#endif
 
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
@@ -218,18 +213,6 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
-#ifdef MFS_ROOT
-	if (!mountrootfsname) {
-
-		if (bootverbose)
-			printf("Considering MFS root f/s.\n");
-		if (mfs_getimage())
-			mountrootfsname = "mfs";
-		else if (bootverbose)
-			printf("No MFS image available as root f/s.\n");
-	}
-#endif
-
 #ifdef BOOTP_NFSROOT
         if (!strcmp(bootdev_protocol(), "BOOTP")
 	    && !mountrootfsname && !nfs_diskless_valid) {
