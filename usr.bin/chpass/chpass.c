@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.9 1996/07/01 19:38:07 guido Exp $";
+	"$Id: chpass.c,v 1.10 1996/07/14 16:42:33 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -82,7 +82,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW } op;
+	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
 	struct passwd *pw, lpw;
 	char *username = NULL;
 	int ch, pfd, tfd;
@@ -94,9 +94,9 @@ main(argc, argv)
 
 	op = EDITENTRY;
 #ifdef YP
-	while ((ch = getopt(argc, argv, "a:p:s:d:h:oly")) != EOF)
+	while ((ch = getopt(argc, argv, "a:p:s:e:d:h:oly")) != EOF)
 #else
-	while ((ch = getopt(argc, argv, "a:p:s:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:p:s:e:")) != EOF)
 #endif
 		switch(ch) {
 		case 'a':
@@ -109,6 +109,10 @@ main(argc, argv)
 			break;
 		case 'p':
 			op = NEWPW;
+			arg = optarg;
+			break;
+		case 'e':
+			op = NEWEXP;
 			arg = optarg;
 			break;
 #ifdef YP
@@ -156,7 +160,7 @@ main(argc, argv)
 
 	uid = getuid();
 
-	if (op == EDITENTRY || op == NEWSH || op == NEWPW)
+	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP)
 		switch(argc) {
 #ifdef YP
 		case 0:
@@ -186,6 +190,13 @@ main(argc, argv)
 		if (!arg[0])
 			usage();
 		if (p_shell(arg, pw, (ENTRY *)NULL))
+			pw_error((char *)NULL, 0, 1);
+	}
+
+	if (op == NEWEXP) {
+		if (uid)	/* only root can change expire */
+			baduser();
+		if (p_expire(arg, pw, (ENTRY *)NULL))
 			pw_error((char *)NULL, 0, 1);
 	}
 
@@ -272,9 +283,9 @@ usage()
 
 	(void)fprintf(stderr,
 #ifdef YP
-		"usage: chpass [-l] [-y] [-d domain [-h host]] [-a list] [-p encpass] [-s shell] [user]\n");
+		"usage: chpass [-l] [-y] [-d domain [-h host]] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #else
-		"usage: chpass [-a list] [-p encpass] [-s shell] [user]\n");
+		"usage: chpass [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #endif
 	exit(1);
 }
