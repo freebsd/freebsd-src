@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /* XXX move to a header. */
-extern u_int64_t ia64_gateway_page[];
+extern uint64_t ia64_gateway_page[];
 
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
@@ -162,11 +162,11 @@ struct ia64_lpte **ia64_kptdir;
 vm_offset_t kernel_vm_end;
 
 /* Values for ptc.e. XXX values for SKI. */
-static u_int64_t pmap_ptc_e_base = 0x100000000;
-static u_int64_t pmap_ptc_e_count1 = 3;
-static u_int64_t pmap_ptc_e_count2 = 2;
-static u_int64_t pmap_ptc_e_stride1 = 0x2000;
-static u_int64_t pmap_ptc_e_stride2 = 0x100000000;
+static uint64_t pmap_ptc_e_base = 0x100000000;
+static uint64_t pmap_ptc_e_count1 = 3;
+static uint64_t pmap_ptc_e_count2 = 2;
+static uint64_t pmap_ptc_e_stride1 = 0x2000;
+static uint64_t pmap_ptc_e_stride2 = 0x100000000;
 
 /*
  * Data for the RID allocator
@@ -175,7 +175,7 @@ static int pmap_ridcount;
 static int pmap_rididx;
 static int pmap_ridmapsz;
 static int pmap_ridmax;
-static u_int64_t *pmap_ridmap;
+static uint64_t *pmap_ridmap;
 struct mtx pmap_ridmutex;
 
 /*
@@ -308,7 +308,7 @@ pmap_bootstrap()
 
 	pmap_ridmax = (1 << ridbits);
 	pmap_ridmapsz = pmap_ridmax / 64;
-	pmap_ridmap = (u_int64_t *)pmap_steal_memory(pmap_ridmax / 8);
+	pmap_ridmap = (uint64_t *)pmap_steal_memory(pmap_ridmax / 8);
 	pmap_ridmap[0] |= 0xff;
 	pmap_rididx = 0;
 	pmap_ridcount = 8;
@@ -505,7 +505,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 static void
 pmap_invalidate_all_1(void *arg)
 {
-	u_int64_t addr;
+	uint64_t addr;
 	int i, j;
 	register_t psr;
 
@@ -535,7 +535,7 @@ pmap_invalidate_all(pmap_t pmap)
 #endif
 }
 
-static u_int32_t
+static uint32_t
 pmap_allocate_rid(void)
 {
 	uint64_t bit, bits;
@@ -568,7 +568,7 @@ pmap_allocate_rid(void)
 }
 
 static void
-pmap_free_rid(u_int32_t rid)
+pmap_free_rid(uint32_t rid)
 {
 	uint64_t bit;
 	int idx;
@@ -592,10 +592,10 @@ pmap_free_rid(u_int32_t rid)
 static PMAP_INLINE void
 pmap_install_pte(struct ia64_lpte *vhpte, struct ia64_lpte *pte)
 {
-	u_int64_t *vhp, *p;
+	uint64_t *vhp, *p;
 
-	vhp = (u_int64_t *)vhpte;
-	p = (u_int64_t *)pte;
+	vhp = (uint64_t *)vhpte;
+	p = (uint64_t *)pte;
 
 	critical_enter();
 
@@ -620,7 +620,7 @@ pmap_install_pte(struct ia64_lpte *vhpte, struct ia64_lpte *pte)
 static PMAP_INLINE int
 pmap_equal_pte(struct ia64_lpte *pte1, struct ia64_lpte *pte2)
 {
-	return *(u_int64_t *) pte1 == *(u_int64_t *) pte2;
+	return *(uint64_t *) pte1 == *(uint64_t *) pte2;
 }
 
 /*
@@ -810,7 +810,7 @@ pmap_remove_vhpt(vm_offset_t va)
 	struct ia64_lpte *pte;
 	struct ia64_lpte *lpte;
 	struct ia64_lpte *vhpte;
-	u_int64_t tag;
+	uint64_t tag;
 
 	vhpte = (struct ia64_lpte *)ia64_thash(va);
 
@@ -867,7 +867,7 @@ static struct ia64_lpte *
 pmap_find_vhpt(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
-	u_int64_t tag;
+	uint64_t tag;
 
 	tag = ia64_ttag(va);
 	pte = (struct ia64_lpte *)ia64_thash(va);
@@ -2280,7 +2280,7 @@ print_trs(int type)
 	for (i = 0; i <= maxtr; i++) {
 		bzero(&buf, sizeof(buf));
 		res = ia64_call_pal_stacked_physical
-			(PAL_VM_TR_READ, i, type, ia64_tpa((u_int64_t) &buf));
+			(PAL_VM_TR_READ, i, type, ia64_tpa((uint64_t) &buf));
 		if (!(res.pal_result[0] & 1))
 			buf.pte.pte_ar = 0;
 		if (!(res.pal_result[0] & 2))
@@ -2320,7 +2320,7 @@ DB_COMMAND(dtr, db_dtr)
 DB_COMMAND(rr, db_rr)
 {
 	int i;
-	u_int64_t t;
+	uint64_t t;
 	struct ia64_rr rr;
 
 	printf("RR RID    PgSz VE\n");
@@ -2328,7 +2328,7 @@ DB_COMMAND(rr, db_rr)
 		__asm __volatile ("mov %0=rr[%1]"
 				  : "=r"(t)
 				  : "r"(IA64_RR_BASE(i)));
-		*(u_int64_t *) &rr = t;
+		*(uint64_t *) &rr = t;
 		printf("%d  %06x %4s %d\n",
 		       i, rr.rr_rid, psnames[rr.rr_ps], rr.rr_ve);
 	}
