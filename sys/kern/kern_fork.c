@@ -372,7 +372,6 @@ again:
 		nextpid = trypid;
 
 	p2 = newproc;
-	p2->p_intr_nesting_level = 0;
 	p2->p_stat = SIDL;			/* protect against others */
 	p2->p_pid = trypid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
@@ -393,7 +392,6 @@ again:
 
 	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
 	PROC_LOCK(p2);
-	p2->p_aioinfo = NULL;
 
 	/*
 	 * Duplicate sub-structures as needed.
