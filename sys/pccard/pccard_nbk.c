@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
-#include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/types.h>
@@ -95,7 +94,7 @@ SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
 SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_end, CTLFLAG_RW,
     &mem_end, 0, "");
 
-#ifdef NOT_YET_XXX
+#if __FreeBSD_version >= 500000
 /*
  * glue for NEWCARD/OLDCARD compat layer
  */
@@ -328,10 +327,18 @@ pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
 
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
-    u_int32_t offset)
+    u_int32_t offset
+#if __FreeBSD_version >= 500000
+    , u_int32_t *deltap
+#endif
+)
 {
 	return (CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset));
+	    offset
+#if __FreeBSD_version >= 500000
+	    , deltap
+#endif
+	));
 }
 
 static int
@@ -342,7 +349,7 @@ pccard_get_memory_offset(device_t bus, device_t child, int rid,
 	    offset));
 }
 
-#ifdef NOT_YET_XXX
+#if __FreeBSD_version >= 500000
 static int
 pccard_get_function_num(device_t bus, device_t child, int *function)
 {
@@ -399,7 +406,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
-#ifdef NOT_YET_XXX
+#if __FreeBSD_version >= 500000
 	DEVMETHOD(card_get_function,	pccard_get_function_num),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
