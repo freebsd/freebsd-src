@@ -134,7 +134,7 @@ main(int argc, char *argv[])
 
 	/* Open the file. */
 	if ((fp = fopen(acctfile, "r")) == NULL || fstat(fileno(fp), &sb))
-		err(1, "%s", acctfile);
+		err(1, "could not open %s", acctfile);
 
 	/*
 	 * Round off to integral number of accounting records, probably
@@ -146,17 +146,13 @@ main(int argc, char *argv[])
 	if ((unsigned)size < sizeof(struct acct))
 		exit(0);
 
-	/*
-	 * Seek to before the last entry in the file; use lseek(2) in case
-	 * the file is bigger than a "long".
-	 */
-	size -= sizeof(struct acct);
-	if (lseek(fileno(fp), size, SEEK_SET) == -1)
-		err(1, "%s", acctfile);
-
-	for (;;) {
-		if (fread(&ab, sizeof(struct acct), 1, fp) != 1)
-			err(1, "%s", acctfile);
+	do {
+		int rv;
+		size -= sizeof(struct acct);
+		if (fseeko(fp, size, SEEK_SET) == -1)
+			err(1, "seek %s failed", acctfile);
+		if ((rv = fread(&ab, sizeof(struct acct), 1, fp)) != 1)
+			err(1, "read %s returned %d", acctfile, rv);
 
 		if (ab.ac_comm[0] == '\0') {
 			ab.ac_comm[0] = '?';
@@ -211,12 +207,7 @@ main(int argc, char *argv[])
 		}
 		printf("\n");
 
-		if (size == 0)
-			break;
-		size -= sizeof(struct acct);
-		if (fseek(fp, 2 * -(long)sizeof(struct acct), SEEK_CUR) == -1)
-			err(1, "%s", acctfile);
- 	}
+ 	} while (size > 0);
  	exit(0);
 }
 
