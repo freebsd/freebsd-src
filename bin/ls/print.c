@@ -56,7 +56,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #ifdef COLORLS
 #include <ctype.h>
@@ -78,7 +77,6 @@ static int	colortype(mode_t);
 #endif
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
-#define UNITS_2 2
 
 #define KILO_SZ(n) (n)
 #define MEGA_SZ(n) ((n) * (n))
@@ -92,14 +90,14 @@ static int	colortype(mode_t);
 #define TERA_2_SZ (TERA_SZ(1024ULL))
 #define PETA_2_SZ (PETA_SZ(1024ULL))
 
-unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+static unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
 
 typedef enum {
 	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
 } unit_t;
 static unit_t unit_adjust(off_t *);
 
-int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
+static int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
@@ -120,7 +118,7 @@ typedef enum Colors {
 	C_NUMCOLORS		/* just a place-holder */
 } Colors;
 
-const char *defcolors = "exfxcxdxbxegedabagacad";
+static const char *defcolors = "exfxcxdxbxegedabagacad";
 
 /* colors for file types */
 static struct {
@@ -177,9 +175,9 @@ printlong(DISPLAY *dp)
 		if (f_inode)
 			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
 		if (f_size)
-			(void)printf("%*qd ",
+			(void)printf("%*lld ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
-		(void)strmode(sp->st_mode, buf);
+		strmode(sp->st_mode, buf);
 		np = p->fts_pointer;
 		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
@@ -197,7 +195,7 @@ printlong(DISPLAY *dp)
 				(void)printf("%3d, %3d ",
 				    major(sp->st_rdev), minor(sp->st_rdev));
 		else if (dp->bcfile)
-			(void)printf("%*s%*qd ",
+			(void)printf("%*s%*lld ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);
 		else
 			printsize(dp->s_size, sp->st_size);
@@ -320,7 +318,7 @@ printaname(FTSENT *p, u_long inodefield, u_long sizefield)
 	if (f_inode)
 		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
 	if (f_size)
-		chcnt += printf("%*qd ",
+		chcnt += printf("%*lld ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
 #ifdef COLORLS
 	if (f_color)
@@ -382,6 +380,7 @@ printtype(u_int mode)
 	case S_IFWHT:
 		(void)putchar('%');
 		return (1);
+	default:
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
@@ -554,7 +553,7 @@ printlink(FTSENT *p)
 	}
 	path[lnklen] = '\0';
 	(void)printf(" -> ");
-	printname(path);
+	(void)printname(path);
 }
 
 static void
@@ -568,10 +567,10 @@ printsize(size_t width, off_t bytes)
 		if (bytes == 0)
 			(void)printf("%*s ", width, "0B");
 		else
-			(void)printf("%*qd%c ", width - 1, bytes,
+			(void)printf("%*lld%c ", width - 1, bytes,
 			    "BKMGTPE"[unit]);
 	} else
-		(void)printf("%*qd ", width, bytes);
+		(void)printf("%*lld ", width, bytes);
 }
 
 /*
@@ -587,7 +586,7 @@ unit_adjust(off_t *val)
 	unit_t unit;
 	unsigned int unit_sz;
 
-	abval = fabs(*val);
+	abval = fabs((double)*val);
 
 	unit_sz = abval ? ilogb(abval) / 10 : 0;
 

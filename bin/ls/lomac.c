@@ -55,8 +55,8 @@
 
 #define LOMAC_DEVICE "/dev/lomac"
 
-int devlomac; 				/* file descriptor for LOMAC_DEVICE */
-struct lomac_fioctl2 ioctl_args;
+static int devlomac; 			/* file descriptor for LOMAC_DEVICE */
+static struct lomac_fioctl2 ioctl_args;
 
 /* lomac_start()
  *
