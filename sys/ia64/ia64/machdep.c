@@ -1366,9 +1366,3 @@ ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
 	*lowp = low;
 	*highp = high;
 }
-
-intptr_t
-casuptr(intptr_t *p, intptr_t old, intptr_t new)
-{
-	return (-1);
-}
