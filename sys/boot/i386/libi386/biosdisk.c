@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.16 1998/10/31 02:53:11 msmith Exp $
+ *	$Id: biosdisk.c,v 1.17 1998/11/02 23:28:11 msmith Exp $
  */
 
 /*
@@ -673,7 +673,10 @@ bd_getgeom(struct open_disk *od)
 }
 
 /*
- * Return a suitable dev_t value for (dev)
+ * Return a suitable dev_t value for (dev).
+ *
+ * In the case where it looks like (dev) is a SCSI disk, we allow the number of
+ * IDE disks to be specified in $num_ide_disks.  There should be a Better Way.
  */
 int
 bd_getdev(struct i386_devdesc *dev)
@@ -682,6 +685,8 @@ bd_getdev(struct i386_devdesc *dev)
     int				biosdev;
     int 			major;
     int				rootdev;
+    char			*nip, *cp;
+    int				unitofs = 0;
 
     biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
     DEBUG("unit %d BIOS device %d", dev->d_kind.biosdisk.unit, biosdev);
@@ -704,6 +709,13 @@ bd_getdev(struct i386_devdesc *dev)
 	if ((od->od_flags & BD_LABELOK) && (od->od_disklabel.d_type == DTYPE_SCSI)) {
 	    /* label OK, disk labelled as SCSI */
 	    major = DAMAJOR;
+	    /* check for unit number correction hint */
+	    if ((nip = getenv("num_ide_disks")) != NULL) {
+		unitofs = strtol(nip, &cp, 0);
+		/* check for parse error */
+		if ((cp == nip) || (*cp != 0))
+		    unitofs = 0;
+	    }
 	} else {
 	    /* assume an IDE disk */
 	    major = WDMAJOR;
@@ -712,7 +724,7 @@ bd_getdev(struct i386_devdesc *dev)
     rootdev = MAKEBOOTDEV(major,
 			  (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
 			  (dev->d_kind.biosdisk.slice + 1) & 0xf, 
-			  biosdev & 0x7f,				/* XXX allow/compute shift for da when wd present */
+			  (biosdev & 0x7f) - unitofs,			/* allow for #wd compenstation in da case */
 			  dev->d_kind.biosdisk.partition);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
