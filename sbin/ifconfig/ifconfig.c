@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.29 1997/05/10 14:47:34 peter Exp $";
+	"$Id: ifconfig.c,v 1.30 1997/05/10 17:14:52 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -118,7 +118,6 @@ int	setipdst;
 int	doalias;
 int	clearaddr;
 int	newaddr = 1;
-int	allmedia;
 
 struct	afswtch;
 
@@ -279,9 +278,8 @@ rt_xaddrs(cp, cplim, rtinfo)
 void
 usage()
 {
-	fputs("usage: ifconfig -a [ -m ] [ -d ] [ -u ] [ af ]\n", stderr);
+	fputs("usage: ifconfig -a [ -d ] [ -u ] [ af ]\n", stderr);
 	fputs("       ifconfig -l [ -d ] [ -u ]\n", stderr);
-	fputs("       ifconfig [ -m ] interface\n", stderr);
 	fputs("        [ af [ address [ dest_addr ] ] [ netmask mask ] [ broadcast addr ]\n", stderr);
 	fputs("             [ alias ] [ delete ] ]\n", stderr);
 	fputs("        [ up ] [ down ]\n", stderr);
@@ -317,7 +315,7 @@ main(argc, argv)
 	int mib[6];
 
 	/* Parse leading line options */
-	all = allmedia = downonly = uponly = namesonly = 0;
+	all = downonly = uponly = namesonly = 0;
 	while ((c = getopt(argc, argv, "adlmu")) != -1) {
 		switch (c) {
 		case 'a':	/* scan all interfaces */
@@ -333,12 +331,7 @@ main(argc, argv)
 			uponly++;
 			break;
 		case 'm':	/* show media choices in status */
-#ifdef USE_IF_MEDIA
-			allmedia++;
-#else
-			fputs("WARNING: if_media not compiled in!\n", stderr);
-			usage();
-#endif
+			/* ignored for compatability */
 			break;
 		default:
 			usage();
@@ -349,7 +342,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* -l cannot be used with -a or -m */
-	if (namesonly && (all || allmedia))
+	if (namesonly && all)
 		usage();
 
 	/* nonsense.. */
