@@ -340,8 +340,6 @@
         ..
         isdn
         ..
-        libg++
-        ..
         locale
             af_ZA.ISO8859-1
             ..
