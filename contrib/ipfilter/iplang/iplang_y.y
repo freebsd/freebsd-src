@@ -10,7 +10,7 @@
  * $FreeBSD$
  */
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -53,7 +53,7 @@
 #include "iplang.h"
 
 #if !defined(__NetBSD__) && (!defined(__FreeBSD_version) && \
-    __FreeBSD_version < 400020)
+    __FreeBSD_version < 400020 ) && SOLARIS2 < 10 
 extern	struct ether_addr *ether_aton __P((char *));
 #endif
 
