@@ -466,9 +466,9 @@ struct wi_rx_frame {
 	u_int8_t	wi_src_addr[6];
 	u_int16_t	wi_len;
 };
-#define WI_DATA_HDRLEN		WI_802_11_OFFSET
-#define WI_MGMT_HDRLEN		WI_802_11_OFFSET_RAW
-#define WI_CTL_HDRLEN		WI_802_11_OFFSET_RAW
+#define WI_DATA_HDRLEN		0x44
+#define WI_MGMT_HDRLEN		0x3C
+#define WI_CTL_HDRLEN		0x3C
 
 
 /*
