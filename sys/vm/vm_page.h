@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.18 1995/04/23 08:05:49 bde Exp $
+ * $Id: vm_page.h,v 1.19 1995/07/13 08:48:38 davidg Exp $
  */
 
 /*
@@ -132,6 +132,7 @@ struct vm_page {
 #define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0200		/* page is mapped writeable */
 #define PG_MAPPED	0x0400		/* page is mapped */
+#define	PG_ZERO		0x0800		/* page is zeroed */
 #define PG_REFERENCED	0x1000		/* page has been referenced */
 #define	PG_CACHE	0x4000		/* On VMIO cache */
 #define	PG_FREE		0x8000		/* page is in free list */
@@ -168,9 +169,14 @@ struct vm_page {
  *	active
  *		Pages that are "active" i.e. they have been
  *		recently referenced.
+ *
+ *	zero
+ *		Pages that are really free and have been pre-zeroed
+ *
  */
 
 extern struct pglist vm_page_queue_free;	/* memory free queue */
+extern struct pglist vm_page_queue_zero;	/* zeroed memory free queue */
 extern struct pglist vm_page_queue_active;	/* active memory queue */
 extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
 extern struct pglist vm_page_queue_cache;	/* cache memory queue */
@@ -222,6 +228,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 #define VM_ALLOC_NORMAL 0
 #define VM_ALLOC_INTERRUPT 1
 #define VM_ALLOC_SYSTEM 2
+#define	VM_ALLOC_ZERO	0x80
 
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_offset_t, int));
@@ -241,6 +248,7 @@ void vm_page_set_dirty __P((vm_page_t, int, int));
 void vm_page_set_clean __P((vm_page_t, int, int));
 int vm_page_is_clean __P((vm_page_t, int, int));
 void vm_page_set_valid __P((vm_page_t, int, int));
+void vm_page_set_validclean __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
