@@ -1,5 +1,5 @@
 .\"
-.\"	$Id$
+.\"	$Id: ntpdate.8,v 1.4 1998/02/19 08:05:35 charnier Exp $
 .\"
 .Dd December 21, 1993
 .Dt NTPDATE 8
@@ -9,7 +9,7 @@
 .Nd set the date and time via NTP
 .Sh SYNOPSIS
 .Nm
-.Op Fl bds
+.Op Fl bdqsv
 .Op Fl o Ar version
 .Op Fl a Ar key#
 .Op Fl e Ar authdelay
@@ -75,7 +75,12 @@ The
 flag may be used to determine what
 .Nm
 will do without it actually doing it.  Information useful for general
-debugging will also be printed.  By default
+debugging will also be printed.  The
+.Fl q
+flag is used to perform a simple query without binding a priviledged
+UPD port.  The
+.Fl v
+enables a few diagnostic messages.  By default
 .Nm
 claims to be an NTP version 3 implementation in its outgoing packets.  As
 some older software will decline to respond to version 3 queries, the
