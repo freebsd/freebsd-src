@@ -1339,7 +1339,7 @@ close_archive (void)
      might become clever enough to just stop working, once there is no more
      work to do, we might have to revise this area in such time.  */
 
-  if (fast_read_option && namelist_freed)
+  if (fast_read_option && namelist_freed && child_pid > 0)
     kill(child_pid, SIGTERM);
 
   if (access_mode == ACCESS_READ
