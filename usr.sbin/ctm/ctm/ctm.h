@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm.h,v 1.4 1994/09/22 02:49:16 phk Exp $
  *
  */
 
@@ -16,7 +16,6 @@
 #include <md5.h>
 #include <ctype.h>
 #include <string.h>
-#include <malloc.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
