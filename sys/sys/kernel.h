@@ -65,8 +65,6 @@ extern char domainname[MAXHOSTNAMELEN];
 extern int domainnamelen;
 extern char kernelname[MAXPATHLEN];
 
-/* 1.2 */
-
 extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
 extern int psratio;			/* ratio: prof / stat */
