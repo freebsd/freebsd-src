@@ -1242,13 +1242,13 @@ check_status()
 
 	if (siginfo_p) {
 		siginfo_p = 0;
-		(void)fprintf(stderr,
-	"\r%ld/%ld packets received (%.0f%%) %.3f min / %.3f avg / %.3f max\n",
+		(void)fprintf(stderr, "\r%ld/%ld packets received (%.0f%%)",
 		    nreceived, ntransmitted,
-		    ntransmitted ? nreceived * 100.0 / ntransmitted : 0.0,
-		    nreceived ? tmin : 0.0,
-		    nreceived + nrepeats ? tsum / (nreceived + nrepeats) : tsum,
-		    tmax);
+		    ntransmitted ? nreceived * 100.0 / ntransmitted : 0.0);
+		if (nreceived && timing)
+			(void)fprintf(stderr, " %.3f min / %.3f avg / %.3f max",
+			    tmin, tsum / (nreceived + nrepeats), tmax);
+		(void)fprintf(stderr, "\n");
 	}
 }
 
