@@ -195,6 +195,8 @@
     <para>Numerous SMP-friendly changes have been made to the kernel's
     mbuf allocator.</para>
 
+    <para>The dgm driver has been removed in favor of the digi driver.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -1506,6 +1508,9 @@
     functions have been added to manipulate the name of the current
     program.  They are used by error-reporting routines to produce
     consistent output. &merged;</para>
+
+    <para>The &man.kldconfig.8; utility has been added to make it easier to
+    manipulate the kernel module search path.</para>
 
     <sect3>
       <title>Contributed Software</title>
