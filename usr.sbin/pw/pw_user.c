@@ -55,6 +55,7 @@ static const char rcsid[] =
 #endif
 
 static          int randinit;
+static		char locked_str[] = "*LOCKED*";
 
 static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
@@ -104,6 +105,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 {
 	int	        rc;
 	char           *p = NULL;
+	char					 *passtmp;
 	struct carg    *a_name;
 	struct carg    *a_uid;
 	struct carg    *arg;
@@ -126,6 +128,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		0,
 		0
 	};
+
 
 	/*
 	 * With M_NEXT, we only need to return the
@@ -303,7 +306,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	/*
 	 * Update, delete & print require that the user exists
 	 */
-	if (mode == M_UPDATE || mode == M_DELETE || mode == M_PRINT) {
+	if (mode == M_UPDATE || mode == M_DELETE ||
+	    mode == M_PRINT  || mode == M_LOCK   || mode == M_UNLOCK) {
 		if (a_name == NULL && pwd == NULL)	/* Try harder */
 			pwd = GETPWUID(atoi(a_uid->val));
 
@@ -321,6 +325,31 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 		if (a_name == NULL)	/* May be needed later */
 			a_name = addarg(args, 'n', newstr(pwd->pw_name));
+
+		/*
+		 * The M_LOCK and M_UNLOCK functions simply add or remove
+		 * a "*LOCKED*" prefix from in front of the password to
+		 * prevent it decoding correctly, and therefore prevents
+		 * access. Of course, this only prevents access via
+		 * password authentication (not ssh, kerberos or any
+		 * other method that does not use the UNIX password) but
+		 * that is a known limitation.
+		 */
+
+		if (mode == M_LOCK) {
+			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) == 0)
+				errx(EX_DATAERR, "user '%s' is already locked", pwd->pw_name);
+			passtmp = malloc(strlen(pwd->pw_passwd) + sizeof(locked_str));
+			if (passtmp == NULL)	/* disaster */
+				errx(EX_UNAVAILABLE, "out of memory");
+			strcpy(passtmp, locked_str);
+			strcat(passtmp, pwd->pw_passwd);
+			pwd->pw_passwd = passtmp;
+		} else if (mode == M_UNLOCK) {
+			if (strncmp(pwd->pw_passwd, locked_str, sizeof(locked_str)-1) != 0)
+				errx(EX_DATAERR, "user '%s' is not locked", pwd->pw_name);
+			pwd->pw_passwd += sizeof(locked_str)-1;
+		}
 
 		/*
 		 * Handle deletions now
@@ -563,7 +592,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				warnc(rc, "NIS passwd update");
 			/* NOTE: we treat NIS-only update errors as non-fatal */
 		}
-	} else if (mode == M_UPDATE) {
+	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
 		rc = chgpwent(a_name->val, pwd);
 		if (rc == -1) {
 			warnx("user '%s' does not exist (NIS?)", pwd->pw_name);

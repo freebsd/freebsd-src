@@ -35,16 +35,20 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include "pw.h"
 
-const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
+const char     *Modes[] = {
+  "add", "del", "mod", "show", "next",
+  NULL};
 const char     *Which[] = {"user", "group", NULL};
 static const char *Combo1[] = {
   "useradd", "userdel", "usermod", "usershow", "usernext",
+  "lock", "unlock",
   "groupadd", "groupdel", "groupmod", "groupshow", "groupnext",
   NULL};
 static const char *Combo2[] = {
   "adduser", "deluser", "moduser", "showuser", "nextuser",
+  "lock", "unlock",
   "addgroup", "delgroup", "modgroup", "showgroup", "nextgroup",
-NULL};
+  NULL};
 
 struct pwf PWF =
 {
@@ -102,6 +106,8 @@ main(int argc, char *argv[])
 			"V:C:qn:u:rY",
 			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
 			"V:C:qn:u:FPa7",
+			"V:C:q",
+			"V:C:q",
 			"V:C:q"
 		},
 		{ /* grp  */
@@ -272,9 +278,9 @@ static void
 cmdhelp(int mode, int which)
 {
 	if (which == -1)
-		fprintf(stderr, "usage: pw [user|group] [add|del|mod|show|next] [ help | switches/values ]\n");
+		fprintf(stderr, "usage:\n  pw [user|group|lock|unlock] [add|del|mod|show|next] [help|switches/values]\n");
 	else if (mode == -1)
-		fprintf(stderr, "usage: pw %s [add|del|mod|show|next] [ help | switches/values ]\n", Which[which]);
+		fprintf(stderr, "usage:\n  pw %s [add|del|mod|show|next] [help|switches/values]\n", Which[which]);
 	else {
 
 		/*
