@@ -173,6 +173,8 @@ void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
 char	*getenv __P((const char *name));
+#define	testenv	getenv
+#define	freeenv
 int	getenv_int __P((const char *name, int *data));
 int	getenv_string __P((const char *name, char *data, int size));
 int	getenv_quad __P((const char *name, quad_t *data));
