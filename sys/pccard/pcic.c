@@ -64,13 +64,24 @@
 #if NPCI > 0
 #include <pci/pcivar.h>
 
+#define	 PCI_DEVICE_ID_PCIC_TI1130	0xAC12104Cul
+#define	 PCI_DEVICE_ID_PCIC_TI1131	0xAC15104Cul
+#define	 PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul
+#define	 PCI_DEVICE_ID_PCIC_O2MICRO	0x673A1217ul
+
 static char *
 pcic_pci_probe(pcici_t tag, pcidi_t type)
 {
-	if (type == 0xac12104cul) 
+	switch (type) {
+	case PCI_DEVICE_ID_PCIC_TI1130:
 		return ("TI 1130 PCMCIA/CardBus Bridge");
-	if (type == 0xac15104cUL)
+	case PCI_DEVICE_ID_PCIC_TI1131:
 		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
+	case PCI_DEVICE_ID_PCIC_CLPD6729:
+		return ("Cirrus Logic PD6729/6730 PC-Card Controller");
+	default:
+		break;
+	}
 	return (NULL);
 }
 
