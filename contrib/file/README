@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $Id: README,v 1.26 2002/05/16 18:45:56 christos Exp $
+@(#) $Id: README,v 1.28 2003/02/08 18:35:36 christos Exp $
 
 This is Release 3.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,
@@ -91,7 +91,7 @@ DOS and Mac.
 
 From: Kees Zeelenberg
 
-An MS-Windows (Win32) port of File-3.36 is available from
+An MS-Windows (Win32) port of File-3.40 is available from
 http://gnuwin32.sourceforge.net/
 File is an implementation of the Unix File(1) command.
 It knows the 'magic number' of several thousands of file types.
