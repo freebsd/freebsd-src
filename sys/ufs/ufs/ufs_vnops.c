@@ -444,9 +444,9 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser(p)))
+		    (error = suser_xxx(cred, p, PRISON_ROOT)))
 			return (error);
-		if (cred->cr_uid == 0) {
+		if ((cred->cr_uid == 0) && (p->p_prison == NULL)) {
 			if ((ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
 			    securelevel > 0)
