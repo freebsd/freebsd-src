@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.8 1995/10/14 09:30:53 jkh Exp $
+ * $Id: options.c,v 1.9 1995/10/16 15:14:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,9 +99,9 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL, varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
       OPT_IS_FUNC,	installSelectRelease,	RELNAME,	varCheck	},
-{ "Browser Package",	"This is the browser package you wish to use for viewing HTML",
+{ "Browser Package",	"This is the browser package that will be used for viewing HTML",
       OPT_IS_FUNC,	docSelectBrowserPkg,	BROWSER_PACKAGE, varCheck	},
-{ "Browser Binary",	"This is the path to the main binary from the broswer package",
+{ "Browser Binary",	"This is the path to the main binary from the browser package",
       OPT_IS_FUNC,	docSelectBrowserBin,	BROWSER_BINARY,	varCheck	},
 { "Reset Flags",	"Reset all flag values to defaults",
       OPT_IS_FUNC,	resetFlags,	0,			resetLogo	},
