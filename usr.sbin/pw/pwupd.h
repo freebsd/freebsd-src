@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.h,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: pwupd.h,v 1.1.1.2 1996/12/10 23:59:03 joerg Exp $
  */
 
 #ifndef _PWUPD_H_
@@ -60,20 +60,22 @@ int delpwent __P((struct passwd * pwd));
 int chgpwent __P((char const * login, struct passwd * pwd));
 int fmtpwent __P((char *buf, struct passwd * pwd));
 int fmtpwentry __P((char *buf, struct passwd * pwd, int type));
+
 int addgrent __P((struct group * grp));
 int delgrent __P((struct group * grp));
 int chggrent __P((char const * name, struct group * grp));
-int fmtgrent __P((char *buf, struct group * grp));
-int fmtgrentry __P((char *buf, struct group * grp, int type));
+int fmtgrent __P((char **buf, int * buflen, struct group * grp));
+int fmtgrentry __P((char **buf, int * buflen, struct group * grp, int type));
 int editgroups __P((char *name, char **groups));
 __END_DECLS
 
-#define MAXGROUPS 200
-#define MAXPWLINE 1024
+#define PWBUFSZ 1024
 
 __BEGIN_DECLS
 void copymkdir __P((char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid));
 void rm_r __P((char const * dir, uid_t uid));
+int extendline __P((char **buf, int *buflen, int needed));
+int extendarray __P((char ***buf, int *buflen, int needed));
 __END_DECLS
 
 #endif				/* !_PWUPD_H */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.h,v 1.1.1.3 1996/12/10 23:58:59 joerg Exp $
+ *	$Id: pw.h,v 1.2 1996/12/19 15:22:42 davidn Exp $
  */
 
 #include <stdio.h>
@@ -86,12 +86,12 @@ struct userconf
 	gid_t	min_gid, max_gid;	/* Allowed range of gids */
 	int	expire_days;		/* Days to expiry */
 	int	password_days;		/* Days to password expiry */
+	int	numgroups;		/* (internal) size of default_group array */
 };
 
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
 #define _UC_MAXSHELLS	32
-#define _UC_MAXGROUPS	200
 
 struct userconf *read_userconfig(char const * file);
 int write_userconfig(char const * file);
@@ -111,7 +111,6 @@ int fmtpwent(char *buf, struct passwd * pwd);
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * login, struct group * grp);
-int fmtgrent(char *buf, struct group * grp);
 
 int boolean_val(char const * str, int dflt);
 char const *boolean_str(int val);

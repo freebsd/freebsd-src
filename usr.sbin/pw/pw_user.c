@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.6 1996/12/19 15:22:45 davidn Exp $
+ *	$Id: pw_user.c,v 1.7 1996/12/20 10:45:39 davidn Exp $
  */
 
 #include <unistd.h>
@@ -51,6 +51,7 @@ static char    *pw_shellpolicy(struct userconf * cnf, struct cargs * args, char 
 static char    *pw_password(struct userconf * cnf, struct cargs * args, char const * user);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
+static void	rmskey(char const * name);
 
 /*-
  * -C config      configuration file
@@ -93,7 +94,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	struct passwd  *pwd = NULL;
 	struct group   *grp;
 	struct stat     st;
-	char            line[MAXPWLINE];
+	char            line[_PASSWORD_LEN+1];
 
 	static struct passwd fakeuser =
 	{
@@ -152,14 +153,15 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
 		int             i = 0;
 
-		for (p = strtok(arg->val, ", \t"); i < _UC_MAXGROUPS && p != NULL; p = strtok(NULL, ", \t")) {
+		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			if ((grp = getgrnam(p)) == NULL) {
 				if (!isdigit(*p) || (grp = getgrgid((gid_t) atoi(p))) == NULL)
 					cmderr(EX_NOUSER, "group `%s' does not exist\n", p);
 			}
-			cnf->groups[i++] = newstr(grp->gr_name);
+			if (extendarray(&cnf->groups, &cnf->numgroups, i + 2) != -1)
+				cnf->groups[i++] = newstr(grp->gr_name);
 		}
-		while (i < _UC_MAXGROUPS)
+		while (i < cnf->numgroups)
 			cnf->groups[i++] = NULL;
 	}
 	if ((arg = getarg(args, 'k')) != NULL) {
@@ -250,6 +252,12 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			if (strcmp(pwd->pw_name, "root") == 0)
 				cmderr(EX_DATAERR, "cannot remove user 'root'\n");
+
+			/*
+			 * Remove skey record from /etc/skeykeys
+			 */
+
+			rmskey(pwd->pw_name);
 
 			/*
 			 * Remove crontabs
@@ -346,6 +354,14 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 		if (getarg(args, 'L'))
 			pwd->pw_class = cnf->default_class;
+
+		if ((arg  = getarg(args, 'd')) != NULL) {
+			if (stat(pwd->pw_dir = arg->val, &st) == -1) {
+				if (getarg(args, 'm') == NULL && strcmp(pwd->pw_dir, "/nonexistent") != 0)
+				  fprintf(stderr, "WARNING: home `%s' does not exist\n", pwd->pw_dir);
+			} else if (!S_ISDIR(st.st_mode))
+				fprintf(stderr, "WARNING: home `%s' is not a directory\n", pwd->pw_dir);
+		}
 
 		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL)
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
@@ -900,12 +916,12 @@ print_user(struct passwd * pwd, int pretty)
 		  strftime(acexpire, sizeof acexpire, "%c", tptr);
 		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
 		  strftime(pwexpire, sizeof pwexpire, "%c", tptr);
-		printf("Login Name : %-10s   #%-22ld  Group : %-10s   #%ld\n"
-		       " Full Name : %s\n"
-		       "      Home : %-32.32s      Class : %s\n"
-		       "     Shell : %-32.32s     Office : %s\n"
-		       "Work Phone : %-32.32s Home Phone : %s\n"
-		       "Acc Expire : %-32.32s Pwd Expire : %s\n",
+		printf("Login Name: %-10s   #%-16ld  Group: %-10s   #%ld\n"
+		       " Full Name: %s\n"
+		       "      Home: %-26.26s      Class: %s\n"
+		       "     Shell: %-26.26s     Office: %s\n"
+		       "Work Phone: %-26.26s Home Phone: %s\n"
+		       "Acc Expire: %-26.26s Pwd Expire: %s\n",
 		       pwd->pw_name, (long) pwd->pw_uid,
 		       grp ? grp->gr_name : "(invalid)", (long) pwd->pw_gid,
 		       uname, pwd->pw_dir, pwd->pw_class,
@@ -916,11 +932,11 @@ print_user(struct passwd * pwd, int pretty)
 		while ((grp=getgrent()) != NULL)
 		{
 			int     i = 0;
-			while (i < _UC_MAXGROUPS && grp->gr_mem[i] != NULL)
+			while (grp->gr_mem[i] != NULL)
 			{
 				if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
 				{
-					printf(j++ == 0 ? "    Groups : %s" : ",%s", grp->gr_name);
+					printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
 					break;
 				}
 				++i;
@@ -977,3 +993,40 @@ rmat(uid_t uid)
 		closedir(d);
 	}
 }
+
+static void
+rmskey(char const * name)
+{
+	static const char etcskey[] = "/etc/skeykeys";
+	static const char newskey[] = "/etc/skeykeys.new";
+	int	done = 0;
+	FILE   *infp = fopen(etcskey, "r");
+
+	if (infp != NULL) {
+		int	fd = open(newskey, O_RDWR|O_CREAT|O_TRUNC, 0644);
+
+		if (fd != -1) {
+			FILE * outfp = fdopen(fd, "w");
+			int	length = strlen(name);
+			char	tmp[1024];
+
+			while (fgets(tmp, sizeof tmp, infp) != NULL) {
+				if (strncmp(name, tmp, length) == 0 && isspace(tmp[length]))
+					++done;   /* Found a key */
+				else
+					fputs(tmp, outfp);
+			}
+			/*
+			 * If we got an error of any sort, don't update!
+			 */
+			if (fclose(outfp) == EOF || ferror(infp))
+				done = 0;
+		}
+		fclose(infp);
+		if (!done)
+			remove(newskey);
+		else
+			rename(newskey, etcskey);
+	}
+}
+
