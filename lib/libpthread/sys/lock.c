@@ -34,7 +34,12 @@
 #include "atomic_ops.h"
 #include "lock.h"
 
-#define	LCK_ASSERT	assert
+#ifdef _LOCK_DEBUG
+#define	LCK_ASSERT(e)	assert(e)
+#else
+#define LCK_ASSERT(e)
+#endif
+
 #define	MAX_SPINS	500
 
 void
