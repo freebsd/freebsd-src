@@ -176,6 +176,7 @@ struct mobip_h {
 
 #ifdef _KERNEL
 LIST_HEAD(gre_softc_head, gre_softc);
+extern struct mtx gre_mtx;
 extern struct gre_softc_head gre_softc_list;
 
 u_int16_t	gre_in_cksum(u_int16_t *, u_int);

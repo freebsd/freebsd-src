@@ -314,6 +314,13 @@ gre_mobile_input(m, va_alist)
 
 /*
  * Find the gre interface associated with our src/dst/proto set.
+ *
+ * XXXRW: Need some sort of drain/refcount mechanism so that the softc
+ * reference remains valid after it's returned from gre_lookup().  Right
+ * now, I'm thinking it should be reference-counted with a gre_dropref()
+ * when the caller is done with the softc.  This is complicated by how
+ * to handle destroying the gre softc; probably using a gre_drain() in
+ * in_gre.c during destroy.
  */
 static struct gre_softc *
 gre_lookup(m, proto)
@@ -323,14 +330,18 @@ gre_lookup(m, proto)
 	struct ip *ip = mtod(m, struct ip *);
 	struct gre_softc *sc;
 
+	mtx_lock(&gre_mtx);
 	for (sc = LIST_FIRST(&gre_softc_list); sc != NULL;
 	     sc = LIST_NEXT(sc, sc_list)) {
 		if ((sc->g_dst.s_addr == ip->ip_src.s_addr) &&
 		    (sc->g_src.s_addr == ip->ip_dst.s_addr) &&
 		    (sc->g_proto == proto) &&
-		    ((sc->sc_if.if_flags & IFF_UP) != 0))
+		    ((sc->sc_if.if_flags & IFF_UP) != 0)) {
+			mtx_unlock(&gre_mtx);
 			return (sc);
+		}
 	}
+	mtx_unlock(&gre_mtx);
 
 	return (NULL);
 }
