@@ -216,9 +216,13 @@ struct ray_mib_5 {
 #define RAY_MIB_DES_SSID			60
 #define RAY_MIB_DES_PRIV_START			61
 #define RAY_MIB_DES_PRIV_JOIN			62
+#define RAY_MIB_CUR_AP_STATUS			63
+#define RAY_MIB_CUR_PROMISC			64
+#define RAY_MIB_DES_AP_STATUS			65
+#define RAY_MIB_DES_PROMISC			66
 
 #define	RAY_MIB_LASTUSER			45
-#define	RAY_MIB_MAX				62
+#define	RAY_MIB_MAX				66
 
 /*
  * Strings for the MIB
@@ -286,7 +290,11 @@ struct ray_mib_5 {
 	"Desired NET_TYPE",		\
 	"Desired SSID",			\
 	"Desired PRIV_START",		\
-	"Desired PRIV_JOIN"		\
+	"Desired PRIV_JOIN",		\
+	"Current AP_STATUS",		\
+	"Current PROMISC",		\
+	"Desired AP_STATUS",		\
+	"Desired PROMISC"		\
 }
 
 #define RAY_MIB_HELP_STRINGS {			\
@@ -352,7 +360,11 @@ struct ray_mib_5 {
 	"Desired NET_TYPE",			\
 	"",					\
 	"Desired PRIV_START",			\
-	"Desired PRIV_JOIN"			\
+	"Desired PRIV_JOIN",			\
+	"Current AP_STATUS",			\
+	"Current PROMISC",			\
+	"Desired AP_STATUS",			\
+	"Desired PROMISC"			\
 }
 
 /*
@@ -431,7 +443,11 @@ struct ray_mib_5 {
 {RAY_V4|RAY_V5,	IEEE80211_NWID_LEN, 					\
 			IEEE80211_NWID_LEN}, /* RAY_MIB_DES_SSID */	\
 {RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_PRIV_START */		\
-{RAY_V4|RAY_V5,	1, 	1} 	/* RAY_MIB_DES_PRIV_JOIN */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_DES_PRIV_JOIN */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_CUR_AP_STATUS */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_CUR_PROMISC */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_DES_AP_STATUS */		\
+{RAY_V4|RAY_V5,	1, 	1} 	/* RAY_MIB_DES_PROMISC */		\
 }
 
 /*
