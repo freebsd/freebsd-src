@@ -524,12 +524,15 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 		/*
 		 * The mutex was marked contested on release. This means that
-		 * there are threads blocked on it.
+		 * there are other threads blocked on it.  Grab ownership of
+		 * it and propagate its priority to the current thread if
+		 * necessary.
 		 */
 		if (v == MTX_CONTESTED) {
 			td1 = TAILQ_FIRST(&m->mtx_blocked);
 			MPASS(td1 != NULL);
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
+			LIST_INSERT_HEAD(&td->td_contested, m, mtx_contested);
 
 			if (td1->td_priority < td->td_priority)
 				td->td_priority = td1->td_priority;
@@ -593,7 +596,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 
 		/*
-		 * Put us on the list of threads blocked on this mutex.
+		 * Put us on the list of threads blocked on this mutex
+		 * and add this mutex to the owning thread's list of
+		 * contested mutexes if needed.
 		 */
 		if (TAILQ_EMPTY(&m->mtx_blocked)) {
 			td1 = mtx_owner(m);
@@ -744,13 +749,13 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 	TAILQ_REMOVE(&m->mtx_blocked, td1, td_lockq);
 
+	LIST_REMOVE(m, mtx_contested);
 	if (TAILQ_EMPTY(&m->mtx_blocked)) {
-		LIST_REMOVE(m, mtx_contested);
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
 	} else
-		atomic_store_rel_ptr(&m->mtx_lock, (void *)MTX_CONTESTED);
+		m->mtx_lock = MTX_CONTESTED;
 
 	pri = PRI_MAX;
 	LIST_FOREACH(m1, &td->td_contested, mtx_contested) {
