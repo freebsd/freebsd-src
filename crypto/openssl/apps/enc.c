@@ -99,8 +99,8 @@ int MAIN(int argc, char **argv)
 	const EVP_CIPHER *cipher=NULL,*c;
 	char *inf=NULL,*outf=NULL;
 	BIO *in=NULL,*out=NULL,*b64=NULL,*benc=NULL,*rbio=NULL,*wbio=NULL;
-#define PROG_NAME_SIZE  16
-	char pname[PROG_NAME_SIZE];
+#define PROG_NAME_SIZE  39
+	char pname[PROG_NAME_SIZE+1];
 
 	apps_startup();
 
@@ -513,6 +513,14 @@ bad:
 		if ((hiv != NULL) && !set_hex(hiv,iv,8))
 			{
 			BIO_printf(bio_err,"invalid hex iv value\n");
+			goto end;
+			}
+		if ((hiv == NULL) && (str == NULL))
+			{
+			/* No IV was explicitly set and no IV was generated
+			 * during EVP_BytesToKey. Hence the IV is undefined,
+			 * making correct decryption impossible. */
+			BIO_printf(bio_err, "iv undefined\n");
 			goto end;
 			}
 		if ((hkey != NULL) && !set_hex(hkey,key,24))

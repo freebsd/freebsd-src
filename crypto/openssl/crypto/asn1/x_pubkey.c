@@ -156,7 +156,7 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
 		dsa->write_params=0;
 		ASN1_TYPE_free(a->parameter);
 		i=i2d_DSAparams(dsa,NULL);
-		p=(unsigned char *)OPENSSL_malloc(i);
+		if ((p=(unsigned char *)OPENSSL_malloc(i)) == NULL) goto err;
 		pp=p;
 		i2d_DSAparams(dsa,&pp);
 		a->parameter=ASN1_TYPE_new();
@@ -234,7 +234,7 @@ EVP_PKEY *X509_PUBKEY_get(X509_PUBKEY *key)
 	a=key->algor;
 	if (ret->type == EVP_PKEY_DSA)
 		{
-		if (a->parameter->type == V_ASN1_SEQUENCE)
+		if (a->parameter && (a->parameter->type == V_ASN1_SEQUENCE))
 			{
 			ret->pkey.dsa->write_params=0;
 			p=a->parameter->value.sequence->data;

@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -383,7 +383,11 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 					 * if their format is correct. Does not count for
 					 * 'Finished' MAC. */
 					if (p[1] == 0 && p[2] == 0 &&p[3] == 0)
+						{
+						s->init_num = 0;
 						skip_message = 1;
+						}
+			
 			}
 		while (skip_message);
 
@@ -432,6 +436,7 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 	/* next state (stn) */
 	p=(unsigned char *)s->init_buf->data;
 	n=s->s3->tmp.message_size;
+	n -= s->init_num;
 	while (n > 0)
 		{
 		i=ssl3_read_bytes(s,SSL3_RT_HANDSHAKE,&p[s->init_num],n,0);
@@ -523,6 +528,8 @@ int ssl_verify_alarm_type(long type)
 	case X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
 	case X509_V_ERR_CERT_NOT_YET_VALID:
 	case X509_V_ERR_CRL_NOT_YET_VALID:
+	case X509_V_ERR_CERT_UNTRUSTED:
+	case X509_V_ERR_CERT_REJECTED:
 		al=SSL_AD_BAD_CERTIFICATE;
 		break;
 	case X509_V_ERR_CERT_SIGNATURE_FAILURE:
@@ -544,10 +551,15 @@ int ssl_verify_alarm_type(long type)
 	case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
 	case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
 	case X509_V_ERR_CERT_CHAIN_TOO_LONG:
+	case X509_V_ERR_PATH_LENGTH_EXCEEDED:
+	case X509_V_ERR_INVALID_CA:
 		al=SSL_AD_UNKNOWN_CA;
 		break;
 	case X509_V_ERR_APPLICATION_VERIFICATION:
 		al=SSL_AD_HANDSHAKE_FAILURE;
+		break;
+	case X509_V_ERR_INVALID_PURPOSE:
+		al=SSL_AD_UNSUPPORTED_CERTIFICATE;
 		break;
 	default:
 		al=SSL_AD_CERTIFICATE_UNKNOWN;
@@ -560,6 +572,7 @@ int ssl3_setup_buffers(SSL *s)
 	{
 	unsigned char *p;
 	unsigned int extra;
+	size_t len;
 
 	if (s->s3->rbuf.buf == NULL)
 		{
@@ -567,18 +580,21 @@ int ssl3_setup_buffers(SSL *s)
 			extra=SSL3_RT_MAX_EXTRA;
 		else
 			extra=0;
-		if ((p=OPENSSL_malloc(SSL3_RT_MAX_PACKET_SIZE+extra))
-			== NULL)
+		len = SSL3_RT_MAX_PACKET_SIZE + extra;
+		if ((p=OPENSSL_malloc(len)) == NULL)
 			goto err;
-		s->s3->rbuf.buf=p;
+		s->s3->rbuf.buf = p;
+		s->s3->rbuf_len = len;
 		}
 
 	if (s->s3->wbuf.buf == NULL)
 		{
-		if ((p=OPENSSL_malloc(SSL3_RT_MAX_PACKET_SIZE))
-			== NULL)
+		len = SSL3_RT_MAX_PACKET_SIZE;
+		len += SSL3_RT_HEADER_LENGTH + 256; /* extra space for empty fragment */
+		if ((p=OPENSSL_malloc(len)) == NULL)
 			goto err;
-		s->s3->wbuf.buf=p;
+		s->s3->wbuf.buf = p;
+		s->s3->wbuf_len = len;
 		}
 	s->packet= &(s->s3->rbuf.buf[0]);
 	return(1);

@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .TH DES_CRYPT 3 
 .SH NAME
 des_read_password, des_read_2password,
@@ -13,7 +14,7 @@ des_is_weak_key, crypt \- (non USA) DES encryption
 .nf
 .nj
 .ft B
-#include <des.h>
+#include <openssl/des.h>
 .PP
 .B int des_read_password(key,prompt,verify)
 des_cblock *key;
@@ -461,9 +462,9 @@ is a replacement for the normal system crypt.
 It is much faster than the system crypt.
 .PP
 .SH FILES
-/usr/include/des.h
+/usr/include/openssl/des.h
 .br
-/usr/lib/libdes.a
+/usr/lib/libcrypto.a
 .PP
 The encryption routines have been tested on 16bit, 32bit and 64bit
 machines of various endian and even works under VMS.

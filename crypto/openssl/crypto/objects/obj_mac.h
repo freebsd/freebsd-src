@@ -1,4 +1,10 @@
-/* lib/obj/obj_mac.h */
+/* crypto/objects/obj_mac.h */
+
+/* THIS FILE IS GENERATED FROM objects.txt by objects.pl via the
+ * following command:
+ * perl objects.pl objects.txt obj_mac.num obj_mac.h
+ */
+
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,11 +62,6 @@
  * [including the GNU Public Licence.]
  */
 
-/* THIS FILE IS GENERATED FROM objects.txt by objects.pl via the
- * following command:
- * perl objects.pl objects.txt obj_mac.num obj_mac.h
- */
-
 #define SN_undef			"UNDEF"
 #define LN_undef			"undefined"
 #define NID_undef			0
@@ -71,10 +72,24 @@
 #define NID_iso		181
 #define OBJ_iso		1L
 
+#define SN_joint_iso_ccitt		"JOINT-ISO-CCITT"
+#define LN_joint_iso_ccitt		"joint-iso-ccitt"
+#define NID_joint_iso_ccitt		393
+#define OBJ_joint_iso_ccitt		2L
+
 #define SN_member_body		"member-body"
 #define LN_member_body		"ISO Member Body"
 #define NID_member_body		182
 #define OBJ_member_body		OBJ_iso,2L
+
+#define SN_selected_attribute_types		"selected-attribute-types"
+#define LN_selected_attribute_types		"Selected Attribute Types"
+#define NID_selected_attribute_types		394
+#define OBJ_selected_attribute_types		OBJ_joint_iso_ccitt,5L,1L,5L
+
+#define SN_clearance		"clearance"
+#define NID_clearance		395
+#define OBJ_clearance		OBJ_selected_attribute_types,55L
 
 #define SN_ISO_US		"ISO-US"
 #define LN_ISO_US		"ISO US Member Body"
@@ -144,6 +159,11 @@
 #define LN_md2WithRSAEncryption		"md2WithRSAEncryption"
 #define NID_md2WithRSAEncryption		7
 #define OBJ_md2WithRSAEncryption		OBJ_pkcs1,2L
+
+#define SN_md4WithRSAEncryption		"RSA-MD4"
+#define LN_md4WithRSAEncryption		"md4WithRSAEncryption"
+#define NID_md4WithRSAEncryption		396
+#define OBJ_md4WithRSAEncryption		OBJ_pkcs1,3L
 
 #define SN_md5WithRSAEncryption		"RSA-MD5"
 #define LN_md5WithRSAEncryption		"md5WithRSAEncryption"
@@ -956,6 +976,15 @@
 #define NID_sbqp_routerIdentifier		292
 #define OBJ_sbqp_routerIdentifier		OBJ_id_pe,9L
 
+#define SN_ac_proxying		"ac-proxying"
+#define NID_ac_proxying		397
+#define OBJ_ac_proxying		OBJ_id_pe,10L
+
+#define SN_sinfo_access		"subjectInfoAccess"
+#define LN_sinfo_access		"Subject Information Access"
+#define NID_sinfo_access		398
+#define OBJ_sinfo_access		OBJ_id_pe,11L
+
 #define SN_id_qt_cps		"id-qt-cps"
 #define LN_id_qt_cps		"Policy Qualifier CPS"
 #define NID_id_qt_cps		164
@@ -1228,21 +1257,17 @@
 #define NID_id_pda_placeOfBirth		349
 #define OBJ_id_pda_placeOfBirth		OBJ_id_pda,2L
 
-#define SN_id_pda_pseudonym		"id-pda-pseudonym"
-#define NID_id_pda_pseudonym		350
-#define OBJ_id_pda_pseudonym		OBJ_id_pda,3L
-
 #define SN_id_pda_gender		"id-pda-gender"
 #define NID_id_pda_gender		351
-#define OBJ_id_pda_gender		OBJ_id_pda,4L
+#define OBJ_id_pda_gender		OBJ_id_pda,3L
 
 #define SN_id_pda_countryOfCitizenship		"id-pda-countryOfCitizenship"
 #define NID_id_pda_countryOfCitizenship		352
-#define OBJ_id_pda_countryOfCitizenship		OBJ_id_pda,5L
+#define OBJ_id_pda_countryOfCitizenship		OBJ_id_pda,4L
 
 #define SN_id_pda_countryOfResidence		"id-pda-countryOfResidence"
 #define NID_id_pda_countryOfResidence		353
-#define OBJ_id_pda_countryOfResidence		OBJ_id_pda,6L
+#define OBJ_id_pda_countryOfResidence		OBJ_id_pda,5L
 
 #define SN_id_aca_authenticationInfo		"id-aca-authenticationInfo"
 #define NID_id_aca_authenticationInfo		354
@@ -1263,6 +1288,10 @@
 #define SN_id_aca_role		"id-aca-role"
 #define NID_id_aca_role		358
 #define OBJ_id_aca_role		OBJ_id_aca,5L
+
+#define SN_id_aca_encAttrs		"id-aca-encAttrs"
+#define NID_id_aca_encAttrs		399
+#define OBJ_id_aca_encAttrs		OBJ_id_aca,6L
 
 #define SN_id_qcs_pkixQCSyntax_v1		"id-qcs-pkixQCSyntax-v1"
 #define NID_id_qcs_pkixQCSyntax_v1		359
@@ -1545,7 +1574,6 @@
 #define NID_initials		101
 #define OBJ_initials		OBJ_X509,43L
 
-#define SN_uniqueIdentifier		"UID"
 #define LN_uniqueIdentifier		"uniqueIdentifier"
 #define NID_uniqueIdentifier		102
 #define OBJ_uniqueIdentifier		OBJ_X509,45L
@@ -1554,6 +1582,11 @@
 #define LN_dnQualifier		"dnQualifier"
 #define NID_dnQualifier		174
 #define OBJ_dnQualifier		OBJ_X509,46L
+
+#define SN_role		"role"
+#define LN_role		"role"
+#define NID_role		400
+#define OBJ_role		OBJ_X509,72L
 
 #define SN_X500algorithms		"X500algorithms"
 #define LN_X500algorithms		"directory services - algorithms"
@@ -1644,10 +1677,25 @@
 #define NID_authority_key_identifier		90
 #define OBJ_authority_key_identifier		OBJ_id_ce,35L
 
+#define SN_policy_constraints		"policyConstraints"
+#define LN_policy_constraints		"X509v3 Policy Constraints"
+#define NID_policy_constraints		401
+#define OBJ_policy_constraints		OBJ_id_ce,36L
+
 #define SN_ext_key_usage		"extendedKeyUsage"
 #define LN_ext_key_usage		"X509v3 Extended Key Usage"
 #define NID_ext_key_usage		126
 #define OBJ_ext_key_usage		OBJ_id_ce,37L
+
+#define SN_target_information		"targetInformation"
+#define LN_target_information		"X509v3 AC Targeting"
+#define NID_target_information		402
+#define OBJ_target_information		OBJ_id_ce,55L
+
+#define SN_no_rev_avail		"noRevAvail"
+#define LN_no_rev_avail		"X509v3 No Revocation Available"
+#define NID_no_rev_avail		403
+#define OBJ_no_rev_avail		OBJ_id_ce,56L
 
 #define SN_netscape		"Netscape"
 #define LN_netscape		"Netscape Communications Corp."
@@ -1769,12 +1817,12 @@
 #define SN_Enterprises		"enterprises"
 #define LN_Enterprises		"Enterprises"
 #define NID_Enterprises		389
-#define OBJ_Enterprises		OBJ_private,1L
+#define OBJ_Enterprises		OBJ_Private,1L
 
 #define SN_dcObject		"dcobject"
 #define LN_dcObject		"dcObject"
 #define NID_dcObject		390
-#define OBJ_dcObject		OBJ_enterprises,1466L,344L
+#define OBJ_dcObject		OBJ_Enterprises,1466L,344L
 
 #define SN_domainComponent		"DC"
 #define LN_domainComponent		"domainComponent"
