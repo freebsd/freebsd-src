@@ -210,11 +210,11 @@ initialize_ProSonic16(snddev_info *d)
 	dma_translat[8] =
 	    {0, 1, 0, 2, 0, 3, 0, 4};
 
-    struct address_info *mpu_config;
+    struct address_info *mpu_config = NULL;
 
     int             mpu_base, mpu_irq;
 
-    if (mpu_config != NULL) {
+    if (mpu_config != NULL) {		/* XXX dead code? */
 	mpu_base = mpu_config->io_base;
 	mpu_irq = mpu_config->irq;
     } else {
