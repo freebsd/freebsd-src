@@ -784,11 +784,11 @@ loop:
 		 */
 		vm_page_lock_queues();
 		if ((m = vm_page_select_cache(color)) == NULL) {
-			vm_page_unlock_queues();
 #if defined(DIAGNOSTIC)
 			if (cnt.v_cache_count > 0)
 				printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
 #endif
+			vm_page_unlock_queues();
 			atomic_add_int(&vm_pageout_deficit, 1);
 			pagedaemon_wakeup();
 			return (NULL);
