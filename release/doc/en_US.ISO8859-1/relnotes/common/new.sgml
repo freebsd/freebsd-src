@@ -202,9 +202,9 @@
       <para>The &man.wd.4; compatibility devices were removed from the
       &man.ata.4; driver.</para>
 
-      <para arch="alpha">Access to the floppy drive on AlphaServer DS10
-      and AlphaServer DS20 is broken in &os; 4.4-RELEASE. On DS10 various
-      errors are reported, on DS20 the machine locks up.</para>
+      <para arch="alpha">Access to the floppy drive on the AlphaServer DS10
+      and AlphaServer DS20 is broken. On the DS10, various
+      errors are reported; on the DS20, the machine locks up.</para>
     </sect3>
 
     <sect3>
@@ -629,6 +629,11 @@ hw.pcic.irq="0"</programlisting>
     longer world-executable).  Users of &man.pppd.8; may need to
     change their group settings.</para>
 
+    <para arch="alpha">&man.sysinstall.8; reports <literal>/: write failed, file 
+    system is full</literal> when navigating the menus. These messages do not
+    affect the operation of &man.sysinstall.8; or the actual installation process
+    and can safely be ignored.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -642,6 +647,10 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>Binutils</application> have been upgraded to
       2.11.2.</para>
+
+      <para><application>bzip2</application> 1.0.1 has been imported; this
+      brings the &man.bzip2.1; program and the <filename>libbz2</filename>
+      library to the base system.</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2.</para>
@@ -661,6 +670,9 @@ hw.pcic.irq="0"</programlisting>
       <literal>mdocNG</literal>), which removes many of the
       limitations of its predecessor.</para>
 
+      <para><application>libpcap</application> has been updated to
+      0.6.2.</para>
+
       <para><application>OpenSSL</application> has been upgraded to
       0.9.6a.</para>
 
@@ -675,13 +687,6 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>tcpdump</application> has been updated to
       3.6.3.</para>
-
-      <para><application>bzip2</application> 1.0.1 has been imported; this
-      brings the &man.bzip2.1; program and the <filename>libbz2</filename>
-      library to the base system.</para>
-
-      <para><application>libpcap</application> has been updated to
-      0.6.2.</para>
 
       <sect4>
         <title>CVSup</title>
@@ -734,11 +739,6 @@ hw.pcic.irq="0"</programlisting>
 
 	<para>The <option>-R</option> (router renumbering) option to
 	&man.rtadvd.8; is currently ignored.</para>
-
-	<para arch="alpha">Sysinstall reports  /: write failed, file 
-	system is full when navigating the menus. These messages do not
-	affect sysinstall's operation or the actual installation process
-	and can safely be ignored.</para>
       </sect4>
     </sect3>
 
