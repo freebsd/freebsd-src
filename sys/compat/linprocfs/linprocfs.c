@@ -218,15 +218,15 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 
 	ps = psbuf;
 	ps += sprintf(ps,
-			"processor       : %d\n"
-			"vendor_id       : %.20s\n"
-			"cpu family      : %d\n"
-			"model           : %d\n"
-			"stepping        : %d\n",
+			"processor\t: %d\n"
+			"vendor_id\t: %.20s\n"
+			"cpu family\t: %d\n"
+			"model\t\t: %d\n"
+			"stepping\t: %d\n",
 			0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
         ps += sprintf(ps,
-                        "flags           :");
+                        "flags\t\t:");
 
         if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
 		flags[16] = "fcmov";
@@ -240,7 +240,10 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	ps += sprintf(ps, "\n");
         if (class >= 5) {
 		ps += sprintf(ps,
-			"cpu MHz         : %d.%02d\n",
+			"cpu MHz\t\t: %d.%02d\n"
+			"bogomips\t: %d.%02d\n",
+                        (tsc_freq + 4999) / 1000000,
+                        ((tsc_freq + 4999) / 10000) % 100,
                         (tsc_freq + 4999) / 1000000,
                         ((tsc_freq + 4999) / 10000) % 100);
         }
