@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.15 1995/09/22 19:10:54 se Exp $
+**  $Id: pcibus.c,v 1.16 1995/10/09 21:56:24 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -164,13 +164,17 @@ pcibus_check (void)
 	if (bootverbose) printf ("pcibus_check:\tdevice ");
 
 	for (device = 0; device < pci_maxdevice; device++) {
-		if (bootverbose) printf ("%d ", device);
-		if (pcibus_read (pcibus_tag (0,device,0), 0) != 0xfffffffful) {
-			if (bootverbose) printf ("is there\n");
+		unsigned long id;
+		if (bootverbose) 
+			printf ("%d ", device);
+		id = pcibus_read (pcibus_tag (0,device,0), 0);
+		if (id != 0xfffffffful) {
+			if (bootverbose) printf ("is there (id=%08lx)\n", id);
 			return 1;
 		}
 	}
-	if (bootverbose) printf ("-- nothing found\n");
+	if (bootverbose) 
+		printf ("-- nothing found\n");
 	return 0;
 }
 
@@ -185,6 +189,7 @@ pcibus_setup (void)
 	outb (CONF2_ENABLE_PORT, CONF2_ENABLE_CHK);
 	mode1res = inl(CONF1_ADDR_PORT);
 	mode2res = inb(CONF2_ENABLE_PORT);
+	outb (CONF2_ENABLE_PORT, 0);
 	outl (CONF1_ADDR_PORT, oldval);
 
 	if (bootverbose) {
@@ -234,7 +239,7 @@ pcibus_setup (void)
 		printf ("pcibus_setup(3):\tmode1res=0x%08lx (0x%08lx)\n", 
 			mode1res, CONF1_ENABLE_CHK1);
 
-	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_CHK1) {
+	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
 		if (pcibus_check()) 
 			return;
 	};
@@ -243,6 +248,9 @@ pcibus_setup (void)
 	**      Try configuration mechanism 2 ...
 	**---------------------------------------
 	*/
+
+	if (bootverbose)
+		printf ("pcibus_setup(4):\tnow trying mechanism 2\n");
 
 	pci_mechanism = 2;
 	pci_maxdevice = 16;
