@@ -1,6 +1,6 @@
 # icelandic (backward compatible with ASCII)
 #
-# $Id$
+# $Id: is_IS.ISO_8859-1.src,v 1.1 1996/12/31 18:57:26 adam Exp $
 #
 charmap map.ISO_8859-1
 order \
@@ -18,7 +18,7 @@ order \
 	(A,<A'>,<A!>,<A/>>,<AA>,<A:>,<A?>);\
 	B;(C,<C,>);(D,<D->);(E,<E'>,<E!>,<E/>>,<E:>);\
 	F;G;H;(I,<I'>,<I!>,<I/>>,<I:>);\
-	J;...;M;(N,<N?>);(O,<O'>,<O!>,<O/>>,<O:>,<O?>,<O//>);\
+	J;...;M;(N,<N?>);(O,<O'>,<O!>,<O/>>,<O?>,<O//>);\
 	P;...;T;(U,<U'>,<U!>,<U/>>,<U:>);\
 	V;W;X;(Y,<Y'>);Z;\
 	<TH>;<AE>;<O:>;\
