@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.15 1994/09/09 13:35:57 rgrimes Exp $
+#	$Id: BSD.root.dist,v 1.16 1994/09/13 22:04:53 wollman Exp $
 #
 
 # top-level files are owned by root.wheel
@@ -50,6 +50,8 @@ var	type=dir
 # binary directories:
 /set uname=bin gname=bin mode=0755
 bin	type=dir
+..
+lkm	type=dir
 ..
 sbin	type=dir
 ..
