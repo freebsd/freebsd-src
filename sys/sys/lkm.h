@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.1 1994/08/20 02:23:40 davidg Exp $
+ * $Id: lkm.h,v 1.2 1994/09/21 03:47:30 wollman Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -59,6 +59,7 @@ typedef enum loadmod {
 /****************************************************************************/
 
 #ifdef KERNEL
+
 
 /*
  * Loadable system call
@@ -284,6 +285,8 @@ extern int	nosys();
 		break;							\
 	}								\
 	return lkmdispatch(lkmtp, cmd);
+
+int lkmdispatch __P((struct lkm_table *lkmtp, int cmd));
 
 #endif /* KERNEL */
 
