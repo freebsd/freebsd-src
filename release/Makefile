@@ -470,7 +470,7 @@ release rerelease:
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${_MK}
 	echo "	cd /usr/src"			>> ${_MK}
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${_MK}
-	echo "	touch /tmp/.world_done"		>> ${_MK}
+	echo "	touch /tmp/.world_done || exit 1" >> ${_MK}
 	echo "fi"				>> ${_MK}
 	echo "if [ ! -f /tmp/.skip_ports ]; then" >> ${_MK}
 	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
