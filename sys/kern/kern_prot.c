@@ -169,15 +169,15 @@ found:
 }
 
 
+/*
+ * getuid() - MP SAFE
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct getuid_args {
         int     dummy;
 };
 #endif
 
-/*
- * MP SAFE
- */
 /* ARGSUSED */
 int
 getuid(p, uap)
@@ -192,6 +192,9 @@ getuid(p, uap)
 	return (0);
 }
 
+/*
+ * geteuid() - MP SAFE
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct geteuid_args {
         int     dummy;
@@ -209,15 +212,15 @@ geteuid(p, uap)
 	return (0);
 }
 
+/*
+ * getgid() - MP SAFE
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct getgid_args {
         int     dummy;
 };
 #endif
 
-/*
- * MP SAFE
- */
 /* ARGSUSED */
 int
 getgid(p, uap)
