@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 	(void)umask(077);
 
 	for (;;) {
-		switch (pw_edit(NULL)) {
+		switch (pw_edit(0)) {
 		case -1:
 			pw_fini();
 			err(1, "pw_edit()");
