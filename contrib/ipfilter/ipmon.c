@@ -922,6 +922,7 @@ int	blen;
 	}
 #if (SOLARIS || \
 	(defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113)) || \
 	(defined(OpenBSD) && (OpenBSD >= 199603))) || defined(linux)
 	{
 	char	ifname[sizeof(ipf->fl_ifname) + 1];
