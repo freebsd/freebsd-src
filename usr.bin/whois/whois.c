@@ -193,6 +193,8 @@ choose_server(char *domain)
 		errx(EX_USAGE, "can't search for a null string");
 	while (pos > domain && *pos != '.')
 		--pos;
+	if (pos <= domain)
+		return (NULL);
 	if (isdigit((unsigned char)*++pos))
 		s_asprintf(&retval, "%s", ANICHOST);
 	else
