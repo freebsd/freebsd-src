@@ -21,10 +21,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/timex.h>
 
 /*
- * a large step happens on boot.  This constant detects such 
- * a steps.  It is relatively small so that ntp_update_second gets called
- * enough in the typical 'missed a couple of seconds' case, but doesn't
- * loop forever when the time step is large.
+ * A large step happens on boot.  This constant detects such steps.
+ * It is relatively small so that ntp_update_second gets called enough
+ * in the typical 'missed a couple of seconds' case, but doesn't loop
+ * forever when the time step is large.
  */
 #define LARGE_STEP	200
 
@@ -321,7 +321,7 @@ tc_getfrequency(void)
 
 /*
  * Step our concept of UTC.  This is done by modifying our estimate of
- * when we booted.  XXX: needs futher work.
+ * when we booted.  XXX: needs further work.
  */
 void
 tc_setclock(struct timespec *ts)
@@ -394,21 +394,17 @@ tc_windup(void)
 	if (tho->th_counter->tc_poll_pps)
 		tho->th_counter->tc_poll_pps(tho->th_counter);
 
- 	/*
-	 * Compute the UTC time, before any leapsecond adjustments, are
-	 * made.
+	/*
+	 * Deal with NTP second processing.  The for loop normally
+	 * iterates at most once, but in extreme situations it might
+	 * keep NTP sane if timeouts are not run for several seconds.
+	 * At boot, the time step can be large when the TOD hardware
+	 * has been read, so on really large steps, we call
+	 * ntp_update_second only twice.  We need to call it twice in
+	 * case we missed a leap second.
 	 */
 	bt = th->th_offset;
 	bintime_add(&bt, &boottimebin);
-
-	/*
-	 * Deal with NTP second processing.  The for loop normally only
-	 * iterates once, but in extreme situations it might keep NTP sane
-	 * if timeouts are not run for several seconds.  At boot, the
-	 * time step can be large when the TOD hardware has been read, so
-	 * on really large steps, we call ntp_update_second only twice.
-	 * We need to call it twice in case we missed a leap second.
-	 */
 	i = bt.sec - tho->th_microtime.tv_sec;
 	if (i > LARGE_STEP)
 		i = 2;
@@ -418,6 +414,10 @@ tc_windup(void)
 		if (bt.sec != t)
 			boottimebin.sec += bt.sec - t;
 	}
+	/* Update the UTC timestamps used by the get*() functions. */
+	/* XXX shouldn't do this here.  Should force non-`get' versions. */
+	bintime2timeval(&bt, &th->th_microtime);
+	bintime2timespec(&bt, &th->th_nanotime);
 
 	/* Now is a good time to change timecounters. */
 	if (th->th_counter != timecounter) {
@@ -452,9 +452,6 @@ tc_windup(void)
 	scale += (th->th_adjustment / 1024) * 2199;
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
-
-	bintime2timeval(&bt, &th->th_microtime);
-	bintime2timespec(&bt, &th->th_nanotime);
 
 	/*
 	 * Now that the struct timehands is again consistent, set the new
