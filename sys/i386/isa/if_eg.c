@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.17 1996/08/06 21:14:03 phk Exp $
+ * $Id: if_eg.c,v 1.18 1996/09/06 23:07:31 phk Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -509,7 +509,7 @@ loop:
 
 #if NBPFILTER > 0
 	if (ifp->if_bpf)
-		bpf_mtap(ifp->if_bpf, m0);
+		bpf_mtap(ifp, m0);
 #endif
 
 	sc->eg_pcb[0] = EG_CMD_SENDPACKET;
@@ -646,7 +646,7 @@ egread(sc, buf, len)
 	 * If so, hand off the raw packet to BPF.
 	 */
 	if (ifp->if_bpf) {
-		bpf_mtap(ifp->if_bpf, m);
+		bpf_mtap(ifp, m);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
