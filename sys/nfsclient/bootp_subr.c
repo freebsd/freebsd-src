@@ -591,7 +591,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	int retry;
 	const char *s;
 
-	GIANT_REQUIRED;		/* XXX until socket locking done */
+	NET_ASSERT_GIANT();
 
 	/*
 	 * Create socket and set its recieve timeout.
