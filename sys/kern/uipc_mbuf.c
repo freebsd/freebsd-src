@@ -52,6 +52,10 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
+int	m_defragpackets;
+int	m_defragbytes;
+int	m_defraguseless;
+int	m_defragfailure;
 
 /*
  * sysctl(8) exported objects
@@ -64,6 +68,14 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,
 SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragpackets, CTLFLAG_RD,
+	   &m_defragpackets, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragbytes, CTLFLAG_RD,
+	   &m_defragbytes, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_defraguseless, CTLFLAG_RD,
+	   &m_defraguseless, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragfailure, CTLFLAG_RD,
+	   &m_defragfailure, 0, "");
 
 /*
  * "Move" mbuf pkthdr from "from" to "to".
@@ -777,4 +789,75 @@ m_length(struct mbuf *m0, struct mbuf **last)
 	if (last != NULL)
 		*last = m;
 	return (len);
+}
+
+/*
+ * Defragment a mbuf chain, returning the shortest possible
+ * chain of mbufs and clusters.  If allocation fails and
+ * this cannot be completed, NULL will be returned, but
+ * the passed in chain will be unchanged.  Upon success,
+ * the original chain will be freed, and the new chain
+ * will be returned.
+ *
+ * If a non-packet header is passed in, the original
+ * mbuf (chain?) will be returned unharmed.
+ */
+struct mbuf *
+m_defrag(struct mbuf *m0, int how)
+{
+	struct mbuf	*m_new = NULL, *m_final = NULL;
+	int		progress = 0, length;
+
+	if (!(m0->m_flags & M_PKTHDR))
+		return (m0);
+
+	
+	if (m0->m_pkthdr.len > MHLEN)
+		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
+	else
+		m_final = m_gethdr(how, MT_DATA);
+
+	if (m_final == NULL)
+		goto nospace;
+
+	if (m_dup_pkthdr(m_final, m0, how) == NULL)
+		goto nospace;
+
+	m_new = m_final;
+
+	while (progress < m0->m_pkthdr.len) {
+		length = m0->m_pkthdr.len - progress;
+		if (length > MCLBYTES)
+			length = MCLBYTES;
+
+		if (m_new == NULL) {
+			if (length > MLEN)
+				m_new = m_getcl(how, MT_DATA, 0);
+			else
+				m_new = m_get(how, MT_DATA);
+			if (m_new == NULL)
+				goto nospace;
+		}
+
+		m_copydata(m0, progress, length, mtod(m_new, caddr_t));
+		progress += length;
+		m_new->m_len = length;
+		if (m_new != m_final)
+			m_cat(m_final, m_new);
+		m_new = NULL;
+	}
+	if (m0->m_next == NULL)
+		m_defraguseless++;
+	m_freem(m0);
+	m0 = m_final;
+	m_defragpackets++;
+	m_defragbytes += m0->m_pkthdr.len;
+	return (m0);
+nospace:
+	m_defragfailure++;
+	if (m_new)
+		m_free(m_new);
+	if (m_final)
+		m_freem(m_final);
+	return (NULL);
 }
