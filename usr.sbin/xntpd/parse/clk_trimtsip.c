@@ -468,13 +468,4 @@ getint(bp)
  * History:
  *
  * $Log: clk_trimtsip.c,v $
- * Revision 1.3  1997/12/22 23:00:35  alex
- * YTK fix.
- *
- * Revision 1.2  1995/05/30 03:54:13  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.1.1.1  1994/09/29  23:01:31  wollman
- * xntp 3.4e from Dave Mills @ UDel
- *
  */

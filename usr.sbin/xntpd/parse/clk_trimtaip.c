@@ -109,9 +109,6 @@ cvt_trimtaip(buffer, size, format, clock)
  * History:
  *
  * $Log: clk_trimtaip.c,v $
- * Revision 1.1.1.1  1994/09/29 23:01:31  wollman
- * xntp 3.4e from Dave Mills @ UDel
- *
  * Revision 3.9  1994/02/02  17:45:27  kardel
  * rcs ids fixed
  *
