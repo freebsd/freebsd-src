@@ -34,7 +34,9 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
+#include <sys/kbio.h>
+#include <sys/consio.h>
 #include "vgl.h"
 
 #define min(x, y)	(((x) < (y)) ? (x) : (y))

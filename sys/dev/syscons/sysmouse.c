@@ -34,8 +34,8 @@
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
+#include <sys/consio.h>
 
-#include <machine/console.h>
 #include <machine/mouse.h>
 
 #include <dev/syscons/syscons.h>

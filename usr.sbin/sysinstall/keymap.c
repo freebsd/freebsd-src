@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <machine/console.h>
+#include <sys/kbio.h>
 
 struct keymapInfo {
     const char *name;

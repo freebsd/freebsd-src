@@ -91,8 +91,9 @@
 					/* a nonresponding keyboard	*/
 
 /*
- * The following values are defined in machine/console.h, but the header
+ * The following values are defined in sys/kbio.h, but the header
  * file is not included here due to conflicts with pcvt_ioctl.h.
+ * XXX: Still relevant ?
  */
 #define KDGKBTYPE	_IOR('K', 64, int)
 #define KB_84		1

@@ -37,7 +37,7 @@
 #include "sysinstall.h"
 #include <stdarg.h>
 #include <sys/ioctl.h>
-#include <machine/console.h>
+#include <sys/consio.h>
 
 Boolean
 isDebug(void)

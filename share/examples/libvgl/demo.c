@@ -29,7 +29,9 @@
  */
 
 #include <sys/types.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
+#include <sys/kbio.h>
+#include <sys/consio.h>
 #include <vgl.h>
 
 int
@@ -39,7 +41,7 @@ main(int argc, char **argv)
   VGLBitmap *tmp;
 
   // set graphics mode, here 320x240 256 colors
-  // supported modes are (from <machine/console.h>):
+  // supported modes are (from <sys/consio.h>):
   // SW_VGA_CG320:	std VGA 320x200 256 colors
   // SW_VGA_MODEX:	Modex VGA 320x240 256 colors
   // SW_VGA_VG640:	std VGA 640x480 16 colors

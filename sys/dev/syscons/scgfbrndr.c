@@ -32,8 +32,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fbio.h>
+#include <sys/consio.h>
 
-#include <machine/console.h>
 #include <machine/bus.h>
 
 #include <dev/fb/fbreg.h>

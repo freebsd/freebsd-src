@@ -33,7 +33,8 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <sys/time.h>
-#include <machine/console.h>
+#include <sys/fbio.h>
+#include <sys/kbio.h>
 #include "vgl.h"
 
 static struct termios VGLKeyboardTty;
