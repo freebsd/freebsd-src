@@ -72,12 +72,6 @@ struct slot_ctrl {
 				/* suspend/resume support */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
-
-	/*
-	 *	The rest is maintained by the mainline PC-CARD code.
-	 */
-	struct slot_ctrl *next;	/* Allows linked list of controllers */
-	int	slots;		/* Slots available */
 };
 
 /*
