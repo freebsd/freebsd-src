@@ -22,12 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.46 1997/04/25 03:10:41 fsmp Exp $
+ * $Id: init_smp.c,v 1.1 1997/04/26 11:46:12 peter Exp $
  */
 
 #include "opt_smp.h"
 #include "opt_smp_autostart.h"
-#include "opt_smp_invltlb.h"
 
 #include <sys/param.h>
 #include <sys/filedesc.h>
@@ -65,10 +64,7 @@ SYSCTL_INT(_kern, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
 int idle_debug = 0;
 SYSCTL_INT(_kern, OID_AUTO, idle_debug, CTLFLAG_RW, &idle_debug, 0, "");
 
-#if defined(SMP_INVLTLB)
-int invldebug = 0;	/* XXX: see bit field definitions where used */
-SYSCTL_INT(_kern, OID_AUTO, invldebug, CTLFLAG_RW, &invldebug, 0, "");
-#endif
+int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
 
 #if defined(IGNORE_IDLEPROCS)
 int ignore_idleprocs = 1;
@@ -269,13 +265,12 @@ void *dummy;
 						panic("too many cpus");
 					} else {
 						MSG_FINAL_CPU;
-#if defined(SMP_INVLTLB)
+
 						/*
 						 * It's safe to send IPI's now
 						 * that all CPUs are online.
 						 */
-						invldebug = 6;
-#endif
+						invltlb_ok = 1;
 					}
 
 					/* Init local apic for irq's */
