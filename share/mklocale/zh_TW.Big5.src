@@ -1,6 +1,8 @@
 /*
  * big5   first byte:   A1-FE
  *        second byte:   40-7E, A1-FE
+ *
+ * $FreeBSD$
  */
 
 ENCODING        "BIG5"
@@ -38,7 +40,7 @@ PUNCT           0xa141 - 0xa17e 0xa1a1 - 0xa1ac
 SPECIAL         0xa1ad - 0xa1fe 0xa240 - 0xa27e 0xa2a1 - 0xa2ae
 
 /* full width 0 1 2 .. 9 */
-DIGIT           0xa2af - 0xa2b8
+/* ?DIGIT           0xa2af - 0xa2b8 */
 
 /* map these (SuChou Code (12) and Roman (I II etc.) number (10)) to digits */
 TODIGIT         < 0xa2b9 - 0xa2c2 : 1 >
@@ -55,7 +57,7 @@ MAPLOWER        < 0xa2e9 - 0xa2fe : 0xa2e9 > < 0xa340 - 0xa343 : 0xa340 >
 MAPUPPER        < 0xa2cf - 0xa2e4 : 0xa2cf > < 0xa2e5 - 0xa2e8 : 0xa2e5 >
 MAPUPPER        < 0xa2e9 - 0xa2fe : 0xa2cf > < 0xa340 - 0xa343 : 0xa2e5 >
 
-XDIGIT          0xa2cf - 0xa2d4 0xa2e9 - 0xa2ee
+/* ?XDIGIT          0xa2cf - 0xa2d4 0xa2e9 - 0xa2ee */
 
 SPACE           0xa3bc
 /* bopomofo symbols */
