@@ -169,9 +169,9 @@ pass1()
 static void
 checkinode(inumber, idesc)
 	ino_t inumber;
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
 	struct zlncnt *zlnp;
 	int ndb, j;
 	mode_t mode;
@@ -343,12 +343,12 @@ unknown:
 
 int
 pass1check(idesc)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
 	int res = KEEPON;
 	int anyout, nfrags;
 	ufs_daddr_t blkno = idesc->id_blkno;
-	register struct dups *dlp;
+	struct dups *dlp;
 	struct dups *new;
 
 	if (idesc->id_type == SNAP) {

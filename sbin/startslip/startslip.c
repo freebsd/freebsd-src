@@ -513,7 +513,7 @@ getline(buf, size, fd, fintimeout)
 	int size, fd;
 	time_t fintimeout;
 {
-	register int i;
+	int i;
 	int ret;
 	fd_set readfds;
 	struct timeval tv;

@@ -80,9 +80,9 @@ checkfstab(preen, maxrun, docheck, chkit)
 	int (*docheck)(struct fstab *);
 	int (*chkit)(char *, char *, long, int);
 {
-	register struct fstab *fsp;
-	register struct disk *dk, *nextdisk;
-	register struct part *pt;
+	struct fstab *fsp;
+	struct disk *dk, *nextdisk;
+	struct part *pt;
 	int ret, pid, retcode, passno, sumstatus, status;
 	long auxdata;
 	char *name;
@@ -204,8 +204,8 @@ static struct disk *
 finddisk(name)
 	char *name;
 {
-	register struct disk *dk, **dkp;
-	register char *p;
+	struct disk *dk, **dkp;
+	char *p;
 	size_t len;
 
 	p = strrchr(name, '/');
@@ -244,7 +244,7 @@ addpart(name, fsname, auxdata)
 	long auxdata;
 {
 	struct disk *dk = finddisk(name);
-	register struct part *pt, **ppt = &dk->part;
+	struct part *pt, **ppt = &dk->part;
 
 	for (pt = dk->part; pt; ppt = &pt->next, pt = pt->next)
 		if (strcmp(pt->name, name) == 0) {
@@ -272,10 +272,10 @@ addpart(name, fsname, auxdata)
 
 static int
 startdisk(dk, checkit)
-	register struct disk *dk;
+	struct disk *dk;
 	int (*checkit)(char *, char *, long, int);
 {
-	register struct part *pt = dk->part;
+	struct part *pt = dk->part;
 
 	dk->pid = fork();
 	if (dk->pid < 0) {

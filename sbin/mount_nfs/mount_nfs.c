@@ -241,8 +241,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int c;
-	register struct nfs_args *nfsargsp;
+	int c;
+	struct nfs_args *nfsargsp;
 	struct nfs_args nfsargs;
 	int mntflags, altflags, nfssvc_flag, num;
 	char *name, *p, *spec;
@@ -856,9 +856,9 @@ xdr_dir(xdrsp, dirp)
 int
 xdr_fh(xdrsp, np)
 	XDR *xdrsp;
-	register struct nfhret *np;
+	struct nfhret *np;
 {
-	register int i;
+	int i;
 	long auth, authcnt, authfnd = 0;
 
 	if (!xdr_u_long(xdrsp, &np->stat))

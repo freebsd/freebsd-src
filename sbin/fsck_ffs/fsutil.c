@@ -147,7 +147,7 @@ inoinfo(inum)
 void
 bufinit()
 {
-	register struct bufarea *bp;
+	struct bufarea *bp;
 	long bufcnt, i;
 	char *bufp;
 
@@ -187,7 +187,7 @@ getdatablk(blkno, size)
 	ufs_daddr_t blkno;
 	long size;
 {
-	register struct bufarea *bp;
+	struct bufarea *bp;
 
 	for (bp = bufhead.b_next; bp != &bufhead; bp = bp->b_next)
 		if (bp->b_bno == fsbtodb(&sblock, blkno))
@@ -213,7 +213,7 @@ foundit:
 
 void
 getblk(bp, blk, size)
-	register struct bufarea *bp;
+	struct bufarea *bp;
 	ufs_daddr_t blk;
 	long size;
 {
@@ -232,9 +232,9 @@ getblk(bp, blk, size)
 void
 flush(fd, bp)
 	int fd;
-	register struct bufarea *bp;
+	struct bufarea *bp;
 {
-	register int i, j;
+	int i, j;
 
 	if (!bp->b_dirty)
 		return;
@@ -278,7 +278,7 @@ void
 ckfini(markclean)
 	int markclean;
 {
-	register struct bufarea *bp, *nbp;
+	struct bufarea *bp, *nbp;
 	int ofsmodified, cnt = 0;
 
 	if (bkgrdflag) {
@@ -491,7 +491,7 @@ getpathname(namebuf, curdir, ino)
 	ino_t curdir, ino;
 {
 	int len;
-	register char *cp;
+	char *cp;
 	struct inodesc idesc;
 	static int busy = 0;
 
@@ -570,7 +570,7 @@ catchquit(sig)
  */
 int
 dofix(idesc, msg)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 	char *msg;
 {
 
