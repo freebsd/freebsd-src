@@ -478,6 +478,8 @@ gx_init(void *xsc)
 	/* setup transmit checksum control */
 	if (ifp->if_capenable & IFCAP_TXCSUM)
 	        ifp->if_hwassist = GX_CSUM_FEATURES;
+	else
+		ifp->if_hwassist = 0;
 
 	ctrl |= GX_RXC_STRIP_ETHERCRC;		/* not on 82542? */
 	CSR_WRITE_4(gx, GX_RX_CONTROL, ctrl);
@@ -1530,7 +1532,7 @@ printf("overflow(2): %d, %d\n", cnt, GX_TX_RING_CNT);
 		tx->tx_addr = vtophys(mtod(m, vm_offset_t));
 		tx->tx_status = 0;
 		tx->tx_len = m->m_len;
-		if (gx->arpcom.ac_if.if_hwassist) {
+		if (gx->arpcom.ac_if.if_capenable & IFCAP_TXCSUM) {
 			tx->tx_type = 1;
 			tx->tx_command = GX_TXTCP_EXTENSION;
 			tx->tx_options = csumopts;
