@@ -33,7 +33,15 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-VERSIONID(`@(#)freefall.mc	$Revision: 1.1 $')
+#
+#  This is a generic configuration file for 4.4 BSD-based systems,
+#  including 4.4-Lite, BSDi, NetBSD, and FreeBSD.
+#  It has support for local and SMTP mail only.  If you want to
+#  customize it, copy it to a name appropriate for your environment
+#  and do the modifications there.
+#
+
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.1 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -42,15 +50,3 @@ FEATURE(mailertable, `hash -o /etc/mailertable')dnl
 define(`UUCP_RELAY', ucbvax.Berkeley.EDU)dnl
 define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
 define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`confCHECKPOINT_INTERVAL', `4')dnl
-define(`confAUTO_REBUILD', `True')dnl
-define(`confMIN_FREE_BLOCKS', `1024')dnl
-define(`confME_TOO', `True')dnl
-define(`confMCI_CACHE_TIMEOUT', `10m')dnl
-define(`confTO_QUEUEWARN', `1d')dnl
-define(`confTO_RCPT', `10m')dnl
-define(`confTO_DATABLOCK', `10m')dnl
-define(`confTO_DATAFINAL', `10m')dnl
-define(`confTO_COMMAND', `10m')dnl
-define(`confMIN_QUEUE_AGE', `30m')dnl
-define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
