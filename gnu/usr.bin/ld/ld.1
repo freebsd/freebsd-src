@@ -36,7 +36,7 @@
 .Nm ld
 .Nd link editor
 .Sh SYNOPSIS
-.Nm ld
+.Nm
 .Op Fl fMNnrSstXxz
 .Bk -words
 .Op Fl A Ar symbol-file
@@ -63,7 +63,7 @@ combines the object and archive files given on the command line into a new
 object file. The output object file is either an executable program, a
 shared object suitable for loading at run-time, or an object file that can
 once again be processed by
-.Nm ld.
+.Nm .
 Object files and archives are processed in the order given on the command line.
 .Pp
 The options are as follows:
@@ -74,21 +74,21 @@ The the symbol-file is taken as a base for link-editing the object files
 on the command line.
 .It Fl assert Ar keyword
 This option is here mainly for compatibility with SunOS
-.Nm ld .
+.Nm .
 Most conditions which would cause a Sun assertion to fail will
 currently always cause error or warning messages from
-.Nm ld .
+.Nm .
 The only keyword implemented by
-.Nm ld
+.Nm
 is
-.Nm pure-text ,
+.Ar pure-text ,
 which generates a warning if a position independent object is being
 created and some of the files being linked are not position
 independent.
 .It Fl B Ns Ar dynamic
 Specifies that linking against dynamic libraries can take place. If a library
 specifier of the form -lx appears on the command line,
-.Nm ld
+.Nm
 searches for a library of the from libx.so.n.m
 .Po see the \&
 .Fl l
@@ -103,7 +103,7 @@ to
 This is similar to
 .Fl B Ns Ar dynamic
 except that if no dynamic libraries are linked against,
-.Nm ld
+.Nm
 will still produce a dynamic executable.  This is useful for programs
 which are static but still need to load dynamic objects at runtime.
 .It Fl B Ns Ar static
@@ -210,7 +210,7 @@ Produce a
 output file.  This is the default.
 .It Fl r
 Produce relocatable object file, suitable for another pass through
-.Nm ld.
+.Nm .
 .It Fl R
 Record the given path within the executable for run-time library search.
 This only applies to dynamically linked executables.
@@ -273,7 +273,7 @@ options and preceding the built-in path.
 .Sh CAVEATS
 An entry point must now explicitly be given if the output is intended to be
 a normal executable program. This was not the case for the previous version of
-.Nm ld .
+.Nm .
 .Sh BUGS
 Shared objects are not properly checked for undefined symbols.
 .Pp
@@ -282,7 +282,7 @@ Cascading of shared object defeats the
 option.
 .Pp
 All shared objects presented to
-.Nm ld
+.Nm
 are marked for run-time loading in the output file, even if no symbols
 are needed from them.
 .Sh HISTORY
