@@ -48,7 +48,6 @@ conv_c(pr, p)
 	PR *pr;
 	u_char *p;
 {
-	extern int deprecated;
 	char buf[10];
 	char const *str;
 
@@ -58,7 +57,7 @@ conv_c(pr, p)
 		goto strpr;
 	/* case '\a': */
 	case '\007':
-		if (deprecated)		/* od didn't know about \a */
+		if (odmode)		/* od didn't know about \a */
 			break;
 		str = "\\a";
 		goto strpr;
@@ -78,7 +77,7 @@ conv_c(pr, p)
 		str = "\\t";
 		goto strpr;
 	case '\v':
-		if (deprecated)
+		if (odmode)
 			break;
 		str = "\\v";
 		goto strpr;
@@ -101,7 +100,6 @@ conv_u(pr, p)
 	PR *pr;
 	u_char *p;
 {
-	extern int deprecated;
 	static char const * list[] = {
 		"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 		 "bs",  "ht",  "lf",  "vt",  "ff",  "cr",  "so",  "si",
@@ -112,14 +110,14 @@ conv_u(pr, p)
 						/* od used nl, not lf */
 	if (*p <= 0x1f) {
 		*pr->cchar = 's';
-		if (deprecated && *p == 0x0a)
+		if (odmode && *p == 0x0a)
 			(void)printf(pr->fmt, "nl");
 		else
 			(void)printf(pr->fmt, list[*p]);
 	} else if (*p == 0x7f) {
 		*pr->cchar = 's';
 		(void)printf(pr->fmt, "del");
-	} else if (deprecated && *p == 0x20) {	/* od replaced space with sp */
+	} else if (odmode && *p == 0x20) {	/* od replaced space with sp */
 		*pr->cchar = 's';
 		(void)printf(pr->fmt, " sp");
 	} else if (isprint(*p)) {

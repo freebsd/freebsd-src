@@ -49,7 +49,7 @@ static const char rcsid[] =
 
 #include "hexdump.h"
 
-int deprecated;
+int odmode;
 
 static void odoffset(int, char ***);
 static void odprecede(void);
@@ -64,7 +64,7 @@ oldsyntax(argc, argvp)
 	int ch;
 	char **argv;
 
-	deprecated = 1;
+	odmode = 1;
 	argv = *argvp;
 	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) != -1)
 		switch (ch) {
@@ -136,7 +136,6 @@ oldsyntax(argc, argvp)
 		case 'w':
 		case '?':
 		default:
-			warnx("od(1) has been deprecated for hexdump(1)");
 			if (ch != '?')
 				warnx("hexdump(1) compatibility doesn't support the -%c option%s",
 				    ch, ch == 's' ? "; see strings(1)" : "");
