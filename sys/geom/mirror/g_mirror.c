@@ -1013,6 +1013,43 @@ g_mirror_sync_request(struct bio *bp)
 }
 
 static void
+g_mirror_request_prefer(struct g_mirror_softc *sc, struct bio *bp)
+{
+	struct g_mirror_disk *disk;
+	struct g_consumer *cp;
+	struct bio *cbp;
+
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE)
+			break;
+	}
+	if (disk == NULL) {
+		if (bp->bio_error == 0)
+			bp->bio_error = ENXIO;
+		g_io_deliver(bp, bp->bio_error);
+		return;
+	}
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		if (bp->bio_error == 0)
+			bp->bio_error = ENOMEM;
+		g_io_deliver(bp, bp->bio_error);
+		return;
+	}
+	/*
+	 * Fill in the component buf structure.
+	 */
+	cp = disk->d_consumer;
+	cbp->bio_done = g_mirror_done;
+	cbp->bio_to = cp->provider;
+	G_MIRROR_LOGREQ(3, cbp, "Sending request.");
+	KASSERT(cp->acr > 0 && cp->ace > 0,
+	    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name, cp->acr,
+	    cp->acw, cp->ace));
+	g_io_request(cbp, cp);
+}
+
+static void
 g_mirror_request_round_robin(struct g_mirror_softc *sc, struct bio *bp)
 {
 	struct g_mirror_disk *disk;
@@ -1171,11 +1208,14 @@ g_mirror_register_request(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		switch (sc->sc_balance) {
-		case G_MIRROR_BALANCE_ROUND_ROBIN:
-			g_mirror_request_round_robin(sc, bp);
-			break;
 		case G_MIRROR_BALANCE_LOAD:
 			g_mirror_request_load(sc, bp);
+			break;
+		case G_MIRROR_BALANCE_PREFER:
+			g_mirror_request_prefer(sc, bp);
+			break;
+		case G_MIRROR_BALANCE_ROUND_ROBIN:
+			g_mirror_request_round_robin(sc, bp);
 			break;
 		case G_MIRROR_BALANCE_SPLIT:
 			g_mirror_request_split(sc, bp);
@@ -1909,7 +1949,23 @@ again:
 		DISK_STATE_CHANGED();
 
 		disk->d_state = state;
-		LIST_INSERT_HEAD(&sc->sc_disks, disk, d_next);
+		if (LIST_EMPTY(&sc->sc_disks))
+			LIST_INSERT_HEAD(&sc->sc_disks, disk, d_next);
+		else {
+			struct g_mirror_disk *dp;
+
+			LIST_FOREACH(dp, &sc->sc_disks, d_next) {
+				if (disk->d_priority >= dp->d_priority) {
+					LIST_INSERT_BEFORE(dp, disk, d_next);
+					dp = NULL;
+					break;
+				}
+				if (LIST_NEXT(dp, d_next) == NULL)
+					break;
+			}
+			if (dp != NULL)
+				LIST_INSERT_AFTER(dp, disk, d_next);
+		}
 		G_MIRROR_DEBUG(0, "Device %s: provider %s detected.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 		if (sc->sc_state == G_MIRROR_DEVICE_STATE_STARTING)
