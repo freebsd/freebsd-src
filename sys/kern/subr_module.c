@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_module.c,v 1.2 1998/10/09 23:59:01 peter Exp $
+ *	$Id: subr_module.c,v 1.3 1998/10/12 09:03:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@ preload_search_by_name(const char *name)
 
 	    /* skip to next field */
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
     }
@@ -99,7 +99,7 @@ preload_search_by_type(const char *type)
 
 	    /* skip to next field */
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
     }
@@ -124,7 +124,7 @@ preload_search_next_name(caddr_t base)
 	    curp = base;
 	    hdr = (u_int32_t *)curp;
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	} else
 	    curp = preload_metadata;
@@ -140,7 +140,7 @@ preload_search_next_name(caddr_t base)
 
 	    /* skip to next field */
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
     }
@@ -186,7 +186,7 @@ preload_search_info(caddr_t mod, int inf)
 
 	/* skip to next field */
 	next = sizeof(u_int32_t) * 2 + hdr[1];
-	next = roundup(next, sizeof(u_int32_t));
+	next = roundup(next, sizeof(u_long));
 	curp += next;
     }
     return(NULL);
@@ -224,7 +224,7 @@ preload_delete_name(const char *name)
 
 	    /* skip to next field */
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
     }
@@ -260,7 +260,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
 
 	    /* skip to next field */
 	    next = sizeof(u_int32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_int32_t));
+	    next = roundup(next, sizeof(u_long));
 	    curp += next;
 	}
     }
