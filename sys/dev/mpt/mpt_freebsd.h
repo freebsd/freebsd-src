@@ -122,12 +122,12 @@
 
 
 /* Max MPT Reply we are willing to accept (must be power of 2) */
-#define MPT_REPLY_SIZE   128
+#define MPT_REPLY_SIZE   	128
 
-#define MPT_MAX_REQUESTS 256	/* XXX: should be derived from GlobalCredits */
+#define MPT_MAX_REQUESTS(mpt)	((mpt)->is_fc? 1024 : 256)
 #define MPT_REQUEST_AREA 512
 #define MPT_SENSE_SIZE    32	/* included in MPT_REQUEST_SIZE */
-#define MPT_REQ_MEM_SIZE	(MPT_MAX_REQUESTS * MPT_REQUEST_AREA)
+#define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
 /*
  * We cannot tell prior to getting IOC facts how big the IOC's request
@@ -208,7 +208,7 @@ typedef struct mpt_softc {
 	u_int32_t		: 16,
 		unit		: 8,
 		verbose		: 3,
-				: 1,
+		outofbeer	: 1,
 		mpt_locksetup	: 1,
 		disabled	: 1,
 		is_fc		: 1,
@@ -291,7 +291,7 @@ typedef struct mpt_softc {
 	 * CAM && Software Management
 	 */
 
-	request_t		requests[MPT_MAX_REQUESTS];
+	request_t *		request_pool;
 	SLIST_HEAD(req_queue, req_entry) request_free_list;
 
 	struct cam_sim *	sim;
