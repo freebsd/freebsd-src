@@ -10,10 +10,10 @@ RM=	rm -f
 
 .mc.cf:
 	$(RM) $@
-	(cd ${.CURDIR} && $(M4) ${@:R}.mc > obj/$@)
+	(cd ${.CURDIR} && $(M4) ${@:R}.mc ) > $@
 	$(CHMOD) $(ROMODE) $@
 
-ALL=	cs-hidden.cf cs-exposed.cf \
+CLEANFILES=	cs-hidden.cf cs-exposed.cf \
 	hpux-cs-exposed.cf hpux-cs-hidden.cf \
 	riscos-cs-exposed.cf \
 	sunos3.5-cs-exposed.cf sunos3.5-cs-hidden.cf \
@@ -25,10 +25,7 @@ ALL=	cs-hidden.cf cs-exposed.cf \
 	python.cf \
 	clientproto.cf tcpproto.cf uucpproto.cf
 
-all: $(ALL)
-
-clean cleandir:
-	$(RM) $(ALL) core
+all: $(CLEANFILES)
 
 depend install: 
 
