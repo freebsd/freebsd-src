@@ -40,20 +40,37 @@ $FreeBSD$
 /*
  * List of known USB vendors
  *
- * Please note that these IDs do not do anything. Adding an ID here and
+ * Adding an ID and its string description for a device to the usbdevs file,
+ * enables the USB stack to print a useful description of the device that was
+ * connected.
+ *
+ * The ID should be added in usbdevs and then the files usbdevs.h and
+ * usbdevs_data.h need to be regenerated.
+ *
+ *	# edit usbdevs
+ *	make -f Makefile.usbdevs
+ *	# test your change
+ *	cd ../../modules/usb
+ *	make
+ *	# commit, if appropriate
+ *	cvs -m "ID for device XYZ" commit usbdevs
+ *	# commit the derived files after the $ FreeBSD $ has been updated.
+ *	cvs commit usbdevs.h usbdevs_data.h
+ *
+ * Please note that these IDs do not do anything. Adding an ID in usbdevs and
  * regenerating the usbdevs.h and usbdevs_data.h only makes a symbolic name
- * available to the source code and does not change any functionality, nor
- * does it make your device available to a specific driver.
- * It will however make the descriptive string available if a device does not
- * provide the string itself.
+ * available to the source code and does not change any functionality, nor does
+ * it make your device available to a specific driver.  It will however make
+ * the descriptive string available if a device does not provide the string
+ * itself.
  *
  * After adding a vendor ID VNDR and a product ID PRDCT you will have the
  * following extra defines:
  * #define USB_VENDOR_VNDR              0x????
  * #define USB_PRODUCT_VNDR_PRDCT       0x????
  *
- * You may have to add these defines to the respective probe routines to
- * make the device recognised by the appropriate device driver.
+ * You will have to add these defines to the respective probe routines to make
+ * the device recognised by the appropriate device driver.
  */
 
 vendor AOX		0x03e8	AOX, Inc.
