@@ -1,0 +1,73 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<chapt><heading>Unix Basics</heading>
+
+      <sect>
+	<heading>The online manual</heading>
+
+	<p>The most comprehensive documentation on FreeBSD is in
+	  the form of <em>man pages</em>.  Nearly every program
+	  on the system comes with a short reference manual
+	  explaining the basic operation and various argument.
+	  These manuals can be view with the
+	  <tt><bf>man</bf></tt> command.  Use of the
+	  <tt><bf>man</bf></tt> command is simple:
+	  <tscreen>
+	    <tt><bf>man</bf> <it>command</it></tt>
+	  </tscreen>
+	  where <it>command</it> is the name of the command
+	  you wish to find.  For example, to learn more about
+	  <tt><bf>ls</bf></tt> command type:
+	  <tscreen>
+	    <tt><bf>man</bf> ls</tt>
+	  </tscreen>
+
+	<p>The online manual is divided up into numbered
+	  sections:
+	  <enum>
+	    <item>User commands</item>
+	    <item>System calls and error numbers</item>
+	    <item>Functions in the C libraries</item>
+	    <item>Device drivers</item>
+	    <item>File formats</item>
+	    <item>Games and other diversions</item>
+	    <item>Miscellaneous information</item>
+	    <item>System maintenance and operation commands</item>
+	  </enum>
+	  in some cases, the same topic may appear in more than
+	  one section of the on-line manual.  For example, there
+	  is a <tt><bf>chmod</bf></tt> user command and a
+	  <tt><bf>chmod()</bf></tt> system call.  In this case,
+	  you can tell the <tt><bf>man</bf></tt> command which
+	  you want by specifying the section:
+	  <tscreen>
+	    <tt><bf>man</bf> 1 chmod</tt>
+	  </tscreen>
+	  which will display the manual page for the user command
+	  <tt><bf>chmod</bf></tt>.
+
+	<p>This is fine if you know the name of the command and
+	  forgot how to use it, but what if you cannot recall the
+	  command name?  You can use <tt><bf>man</bf></tt> to
+	  search through the command <em>descriptions</em> by
+	  using the <tt><bf>-k</bf></tt> switch:
+	  <tscreen>
+	    <tt><bf>man</bf> -k mail</tt>
+	  </tscreen>
+	  With this command you will be presented with a list of
+	  commands that have the keyword `mail' in their
+	  descriptions.
+
+      <sect>
+	<heading>GNU Info files</heading>
+
+	<p>FreeBSD includes many applications and utilities
+	  produced by the Free Software Foundation (FSF).  In
+	  addition to man pages, these programs come with more
+	  extensive <em>info</em> files which can be viewed with
+	  the <tt>info</tt> command or, if you installed
+	  <tt>emacs</tt>, the info mode of <tt>emacs</tt>.
+
+    </sect>
+
