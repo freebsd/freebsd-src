@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 1998
- *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
+ * Copyright (c) 1997, 1998, 1999
+ *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,7 +35,7 @@
 /*
  * Macronix PMAC fast ethernet PCI NIC driver
  *
- * Written by Bill Paul <wpaul@ctr.columbia.edu>
+ * Written by Bill Paul <wpaul@ee.columbia.edu>
  * Electrical Engineering Department
  * Columbia University, New York City
  */
@@ -82,14 +82,18 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
 #define MX_USEIOSPACE
 
-/* #define MX_BACKGROUND_AUTONEG */
-
 #include <pci/if_mxreg.h>
+
+/* "controller miibus0" required. See GENERIC if you get errors here. */
+#include "miibus_if.h"
 
 #ifndef lint
 static const char rcsid[] =
@@ -117,22 +121,6 @@ static struct mx_type mx_devs[] = {
 	{ 0, 0, NULL }
 };
 
-/*
- * Various supported PHY vendors/types and their names. Note that
- * this driver will work with pretty much any MII-compliant PHY,
- * so failure to positively identify the chip is not a fatal error.
- */
-
-static struct mx_type mx_phys[] = {
-	{ TI_PHY_VENDORID, TI_PHY_10BT, "<TI ThunderLAN 10BT (internal)>" },
-	{ TI_PHY_VENDORID, TI_PHY_100VGPMI, "<TI TNETE211 100VG Any-LAN>" },
-	{ NS_PHY_VENDORID, NS_PHY_83840A, "<National Semiconductor DP83840A>"},
-	{ LEVEL1_PHY_VENDORID, LEVEL1_PHY_LXT970, "<Level 1 LXT970>" }, 
-	{ INTEL_PHY_VENDORID, INTEL_PHY_82555, "<Intel 82555>" },
-	{ SEEQ_PHY_VENDORID, SEEQ_PHY_80220, "<SEEQ 80220>" },
-	{ 0, 0, "<MII-compliant physical interface>" }
-};
-
 static int mx_probe		__P((device_t));
 static int mx_attach		__P((device_t));
 static int mx_detach		__P((device_t));
@@ -147,6 +135,7 @@ static void mx_rxeof		__P((struct mx_softc *));
 static void mx_rxeoc		__P((struct mx_softc *));
 static void mx_txeof		__P((struct mx_softc *));
 static void mx_txeoc		__P((struct mx_softc *));
+static void mx_tick		__P((void *));
 static void mx_intr		__P((void *));
 static void mx_start		__P((struct ifnet *));
 static int mx_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -170,15 +159,11 @@ static void mx_mii_sync		__P((struct mx_softc *));
 static void mx_mii_send		__P((struct mx_softc *, u_int32_t, int));
 static int mx_mii_readreg	__P((struct mx_softc *, struct mx_mii_frame *));
 static int mx_mii_writereg	__P((struct mx_softc *, struct mx_mii_frame *));
-static u_int16_t mx_phy_readreg	__P((struct mx_softc *, int));
-static void mx_phy_writereg	__P((struct mx_softc *, int, int));
 
-static void mx_autoneg_xmit	__P((struct mx_softc *));
-static void mx_autoneg_mii	__P((struct mx_softc *, int, int));
-static void mx_autoneg		__P((struct mx_softc *, int, int));
-static void mx_setmode_mii	__P((struct mx_softc *, int));
-static void mx_setmode		__P((struct mx_softc *, int, int));
-static void mx_getmode_mii	__P((struct mx_softc *));
+static int mx_miibus_readreg	__P((device_t, int, int));
+static int mx_miibus_writereg	__P((device_t, int, int, int));
+static void mx_miibus_statchg	__P((device_t));
+
 static void mx_setcfg		__P((struct mx_softc *, int));
 static u_int32_t mx_calchash	__P((struct mx_softc *, caddr_t));
 static void mx_setfilt		__P((struct mx_softc *));
@@ -200,6 +185,16 @@ static device_method_t mx_methods[] = {
 	DEVMETHOD(device_attach,	mx_attach),
 	DEVMETHOD(device_detach,	mx_detach),
 	DEVMETHOD(device_shutdown,	mx_shutdown),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	mx_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	mx_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	mx_miibus_statchg),
+
 	{ 0, 0 }
 };
 
@@ -212,6 +207,7 @@ static driver_t mx_driver = {
 static devclass_t mx_devclass;
 
 DRIVER_MODULE(if_mx, pci, mx_driver, mx_devclass, 0, 0);
+DRIVER_MODULE(miibus, mx, miibus_driver, miibus_devclass, 0, 0);
 
 #define MX_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -553,43 +549,78 @@ static int mx_mii_writereg(sc, frame)
 	return(0);
 }
 
-static u_int16_t mx_phy_readreg(sc, reg)
-	struct mx_softc		*sc;
-	int			reg;
+static int mx_miibus_readreg(dev, phy, reg)
+	device_t		dev;
+	int			phy, reg;
 {
+	struct mx_softc		*sc;
 	struct mx_mii_frame	frame;
-	u_int32_t		cfg;
 
+	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->mx_phy_addr;
+	if (sc->mx_type != MX_TYPE_98713) {
+		if (phy == (MII_NPHY - 1)) {
+			switch(reg) {
+			case MII_BMSR:
+				/*
+				 * Fake something to make the probe
+				 * code think there's a PHY here.
+				 */
+				return(BMSR_MEDIAMASK);
+				break;
+			case MII_PHYIDR1:
+				return(MX_VENDORID);
+				break;
+			case MII_PHYIDR2:
+				return(MX_DEVICEID_987x5);
+				break;
+			default:
+				return(0);
+				break;
+			}
+		}
+	}
+
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
-	cfg = CSR_READ_4(sc, MX_NETCFG);
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 	mx_mii_readreg(sc, &frame);
-	CSR_WRITE_4(sc, MX_NETCFG, cfg);
+	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 
 	return(frame.mii_data);
 }
 
-static void mx_phy_writereg(sc, reg, data)
-	struct mx_softc		*sc;
-	int			reg;
-	int			data;
+static int mx_miibus_writereg(dev, phy, reg, data)
+	device_t		dev;
+	int			phy, reg, data;
 {
 	struct mx_mii_frame	frame;
-	u_int32_t		cfg;
+	struct mx_softc		*sc;
 
+	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->mx_phy_addr;
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
-	cfg = CSR_READ_4(sc, MX_NETCFG);
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 	mx_mii_writereg(sc, &frame);
-	CSR_WRITE_4(sc, MX_NETCFG, cfg);
+	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
+
+	return(0);
+}
+
+static void mx_miibus_statchg(dev)
+	device_t		dev;
+{
+	struct mx_softc		*sc;
+	struct mii_data		*mii;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->mx_miibus);
+	mx_setcfg(sc, mii->mii_media_active);
 
 	return;
 }
@@ -617,504 +648,6 @@ static u_int32_t mx_calchash(sc, addr)
 		return (crc & ((1 << MX_BITS_PNIC_II) - 1));
 
 	return (crc & ((1 << MX_BITS) - 1));
-}
-
-/*
- * Initiate an autonegotiation session.
- */
-static void mx_autoneg_xmit(sc)
-	struct mx_softc		*sc;
-{
-	u_int16_t		phy_sts;
-
-	mx_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-	DELAY(500);
-	while(mx_phy_readreg(sc, PHY_BMCR)
-			& PHY_BMCR_RESET);
-
-	phy_sts = mx_phy_readreg(sc, PHY_BMCR);
-	phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
-	mx_phy_writereg(sc, PHY_BMCR, phy_sts);
-
-	return;
-}
-
-/*
- * Invoke autonegotiation on a PHY.
- */
-static void mx_autoneg_mii(sc, flag, verbose)
-	struct mx_softc		*sc;
-	int			flag;
-	int			verbose;
-{
-	u_int16_t		phy_sts = 0, media, advert, ability;
-	struct ifnet		*ifp;
-	struct ifmedia		*ifm;
-
-	ifm = &sc->ifmedia;
-	ifp = &sc->arpcom.ac_if;
-
-	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
-
-	/*
-	 * The 100baseT4 PHY on the 3c905-T4 has the 'autoneg supported'
-	 * bit cleared in the status register, but has the 'autoneg enabled'
-	 * bit set in the control register. This is a contradiction, and
-	 * I'm not sure how to handle it. If you want to force an attempt
-	 * to autoneg for 100baseT4 PHYs, #define FORCE_AUTONEG_TFOUR
-	 * and see what happens.
-	 */
-#ifndef FORCE_AUTONEG_TFOUR
-	/*
-	 * First, see if autoneg is supported. If not, there's
-	 * no point in continuing.
-	 */
-	phy_sts = mx_phy_readreg(sc, PHY_BMSR);
-	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
-		if (verbose)
-			printf("mx%d: autonegotiation not supported\n",
-							sc->mx_unit);
-		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;	
-		return;
-	}
-#endif
-
-	switch (flag) {
-	case MX_FLAG_FORCEDELAY:
-		/*
-	 	 * XXX Never use this option anywhere but in the probe
-	 	 * routine: making the kernel stop dead in its tracks
- 		 * for three whole seconds after we've gone multi-user
-		 * is really bad manners.
-	 	 */
-		mx_autoneg_xmit(sc);
-		DELAY(5000000);
-		break;
-	case MX_FLAG_SCHEDDELAY:
-		/*
-		 * Wait for the transmitter to go idle before starting
-		 * an autoneg session, otherwise mx_start() may clobber
-	 	 * our timeout, and we don't want to allow transmission
-		 * during an autoneg session since that can screw it up.
-	 	 */
-		if (sc->mx_cdata.mx_tx_head != NULL) {
-			sc->mx_want_auto = 1;
-			return;
-		}
-		mx_autoneg_xmit(sc);
-		ifp->if_timer = 5;
-		sc->mx_autoneg = 1;
-		sc->mx_want_auto = 0;
-		return;
-		break;
-	case MX_FLAG_DELAYTIMEO:
-		ifp->if_timer = 0;
-		sc->mx_autoneg = 0;
-		break;
-	default:
-		printf("mx%d: invalid autoneg flag: %d\n", sc->mx_unit, flag);
-		return;
-	}
-
-	if (mx_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_AUTONEGCOMP) {
-		if (verbose)
-			printf("mx%d: autoneg complete, ", sc->mx_unit);
-		phy_sts = mx_phy_readreg(sc, PHY_BMSR);
-	} else {
-		if (verbose)
-			printf("mx%d: autoneg not complete, ", sc->mx_unit);
-	}
-
-	media = mx_phy_readreg(sc, PHY_BMCR);
-
-	/* Link is good. Report modes and set duplex mode. */
-	if (mx_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT) {
-		if (verbose)
-			printf("link status good ");
-		advert = mx_phy_readreg(sc, PHY_ANAR);
-		ability = mx_phy_readreg(sc, PHY_LPAR);
-
-		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(100baseT4)\n");
-		} else if (advert & PHY_ANAR_100BTXFULL &&
-			ability & PHY_ANAR_100BTXFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			printf("(full-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_100BTXHALF &&
-			ability & PHY_ANAR_100BTXHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(half-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_10BTFULL &&
-			ability & PHY_ANAR_10BTFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			printf("(full-duplex, 10Mbps)\n");
-		} else if (advert & PHY_ANAR_10BTHALF &&
-			ability & PHY_ANAR_10BTHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(half-duplex, 10Mbps)\n");
-		}
-
-		media &= ~PHY_BMCR_AUTONEGENBL;
-
-		/* Set ASIC's duplex mode to match the PHY. */
-		mx_setcfg(sc, media);
-		mx_phy_writereg(sc, PHY_BMCR, media);
-	} else {
-		if (verbose)
-			printf("no carrier\n");
-	}
-
-	mx_init(sc);
-
-	if (sc->mx_tx_pend) {
-		sc->mx_autoneg = 0;
-		sc->mx_tx_pend = 0;
-		mx_start(ifp);
-	}
-
-	return;
-}
-
-/*
- * Invoke autoneg using internal NWAY.
- */
-static void mx_autoneg(sc, flag, verbose)
-	struct mx_softc		*sc;
-	int			flag;
-	int			verbose;
-{
-	u_int32_t		media, ability;
-	struct ifnet		*ifp;
-	struct ifmedia		*ifm;
-
-	ifm = &sc->ifmedia;
-	ifp = &sc->arpcom.ac_if;
-
-	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
-
-	switch (flag) {
-	case MX_FLAG_FORCEDELAY:
-		/*
-	 	 * XXX Never use this option anywhere but in the probe
-	 	 * routine: making the kernel stop dead in its tracks
- 		 * for three whole seconds after we've gone multi-user
-		 * is really bad manners.
-	 	 */
-		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
-		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_FULLDUPLEX);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_ASTAT_TXDISABLE);
-		DELAY(5000000);
-		break;
-	case MX_FLAG_SCHEDDELAY:
-		/*
-		 * Wait for the transmitter to go idle before starting
-		 * an autoneg session, otherwise mx_start() may clobber
-	 	 * our timeout, and we don't want to allow transmission
-		 * during an autoneg session since that can screw it up.
-	 	 */
-		if (sc->mx_cdata.mx_tx_head != NULL) {
-			sc->mx_want_auto = 1;
-			return;
-		}
-		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
-		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_FULLDUPLEX);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-		MX_SETBIT(sc, MX_10BTCTRL, MX_ASTAT_TXDISABLE);
-		ifp->if_timer = 5;
-		sc->mx_autoneg = 1;
-		sc->mx_want_auto = 0;
-		return;
-		break;
-	case MX_FLAG_DELAYTIMEO:
-		ifp->if_timer = 0;
-		sc->mx_autoneg = 0;
-		break;
-	default:
-		printf("mx%d: invalid autoneg flag: %d\n", sc->mx_unit, flag);
-		return;
-	}
-
-	if ((CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_ANEGSTAT) ==
-						MX_ASTAT_AUTONEGCMP) {
-		if (verbose)
-			printf("mx%d: autoneg complete, ", sc->mx_unit);
-	} else {
-		if (verbose)
-			printf("mx%d: autoneg not complete, ", sc->mx_unit);
-	}
-
-	media = CSR_READ_4(sc, MX_NETCFG);
-
-	/* Link is good. Report modes and set duplex mode. */
-	if (!(CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_LS10) ||
-		!(CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_LS100)) {
-		if (verbose)
-			printf("link status good ");
-		ability = CSR_READ_4(sc, MX_NWAYSTAT);
-		if (ability & MX_NWAY_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
-					MX_NETCFG_SCRAMBLER;
-			media &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
-			printf("(100baseT4)\n");
-		} else if (ability & MX_NWAY_100BTFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
-					MX_NETCFG_SCRAMBLER;
-			media |= MX_NETCFG_FULLDUPLEX;
-			media &= ~MX_NETCFG_SPEEDSEL;
-			printf("(full-duplex, 100Mbps)\n");
-		} else if (ability & MX_NWAY_100BTHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-			media |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|
-					MX_NETCFG_SCRAMBLER;
-			media &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
-			printf("(half-duplex, 100Mbps)\n");
-		} else if (ability & MX_NWAY_10BTFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-			media &= ~MX_NETCFG_PORTSEL;
-			media |= (MX_NETCFG_FULLDUPLEX|MX_NETCFG_SPEEDSEL);
-			printf("(full-duplex, 10Mbps)\n");
-		} else {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-			media &= ~MX_NETCFG_PORTSEL;
-			media &= ~MX_NETCFG_FULLDUPLEX;
-			media |= MX_NETCFG_SPEEDSEL;
-			printf("(half-duplex, 10Mbps)\n");
-		}
-
-		CSR_WRITE_4(sc, MX_NETCFG, media);
-		MX_CLRBIT(sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-	} else {
-		if (verbose)
-			printf("no carrier\n");
-	}
-
-	mx_init(sc);
-
-	if (sc->mx_tx_pend) {
-		sc->mx_autoneg = 0;
-		sc->mx_tx_pend = 0;
-		mx_start(ifp);
-	}
-
-	return;
-}
-
-static void mx_getmode_mii(sc)
-	struct mx_softc		*sc;
-{
-	u_int16_t		bmsr;
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	bmsr = mx_phy_readreg(sc, PHY_BMSR);
-	if (bootverbose)
-		printf("mx%d: PHY status word: %x\n", sc->mx_unit, bmsr);
-
-	/* fallback */
-	sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-
-	if (bmsr & PHY_BMSR_10BTHALF) {
-		if (bootverbose)
-			printf("mx%d: 10Mbps half-duplex mode supported\n",
-								sc->mx_unit);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-	}
-
-	if (bmsr & PHY_BMSR_10BTFULL) {
-		if (bootverbose)
-			printf("mx%d: 10Mbps full-duplex mode supported\n",
-								sc->mx_unit);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-	}
-
-	if (bmsr & PHY_BMSR_100BTXHALF) {
-		if (bootverbose)
-			printf("mx%d: 100Mbps half-duplex mode supported\n",
-								sc->mx_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-	}
-
-	if (bmsr & PHY_BMSR_100BTXFULL) {
-		if (bootverbose)
-			printf("mx%d: 100Mbps full-duplex mode supported\n",
-								sc->mx_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	}
-
-	/* Some also support 100BaseT4. */
-	if (bmsr & PHY_BMSR_100BT4) {
-		if (bootverbose)
-			printf("mx%d: 100baseT4 mode supported\n", sc->mx_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_T4;
-#ifdef FORCE_AUTONEG_TFOUR
-		if (bootverbose)
-			printf("mx%d: forcing on autoneg support for BT4\n",
-							 sc->mx_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
-#endif
-	}
-
-	if (bmsr & PHY_BMSR_CANAUTONEG) {
-		if (bootverbose)
-			printf("mx%d: autoneg supported\n", sc->mx_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
-	}
-
-	return;
-}
-
-/*
- * Set speed and duplex mode.
- */
-static void mx_setmode_mii(sc, media)
-	struct mx_softc		*sc;
-	int			media;
-{
-	u_int16_t		bmcr;
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	/*
-	 * If an autoneg session is in progress, stop it.
-	 */
-	if (sc->mx_autoneg) {
-		printf("mx%d: canceling autoneg session\n", sc->mx_unit);
-		ifp->if_timer = sc->mx_autoneg = sc->mx_want_auto = 0;
-		bmcr = mx_phy_readreg(sc, PHY_BMCR);
-		bmcr &= ~PHY_BMCR_AUTONEGENBL;
-		mx_phy_writereg(sc, PHY_BMCR, bmcr);
-	}
-
-	printf("mx%d: selecting MII, ", sc->mx_unit);
-
-	bmcr = mx_phy_readreg(sc, PHY_BMCR);
-
-	bmcr &= ~(PHY_BMCR_AUTONEGENBL|PHY_BMCR_SPEEDSEL|
-			PHY_BMCR_DUPLEX|PHY_BMCR_LOOPBK);
-
-	if (IFM_SUBTYPE(media) == IFM_100_T4) {
-		printf("100Mbps/T4, half-duplex\n");
-		bmcr |= PHY_BMCR_SPEEDSEL;
-		bmcr &= ~PHY_BMCR_DUPLEX;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_100_TX) {
-		printf("100Mbps, ");
-		bmcr |= PHY_BMCR_SPEEDSEL;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_10_T) {
-		printf("10Mbps, ");
-		bmcr &= ~PHY_BMCR_SPEEDSEL;
-	}
-
-	if ((media & IFM_GMASK) == IFM_FDX) {
-		printf("full duplex\n");
-		bmcr |= PHY_BMCR_DUPLEX;
-	} else {
-		printf("half duplex\n");
-		bmcr &= ~PHY_BMCR_DUPLEX;
-	}
-
-	mx_setcfg(sc, bmcr);
-	mx_phy_writereg(sc, PHY_BMCR, bmcr);
-
-	return;
-}
-
-/*
- * Set speed and duplex mode on internal transceiver.
- */
-static void mx_setmode(sc, media, verbose)
-	struct mx_softc		*sc;
-	int			media;
-	int			verbose;
-{
-	struct ifnet		*ifp;
-	u_int32_t		mode;
-
-	ifp = &sc->arpcom.ac_if;
-
-	/*
-	 * If an autoneg session is in progress, stop it.
-	 */
-	if (sc->mx_autoneg) {
-		printf("mx%d: canceling autoneg session\n", sc->mx_unit);
-		ifp->if_timer = sc->mx_autoneg = sc->mx_want_auto = 0;
-		MX_CLRBIT(sc, MX_10BTCTRL, MX_TCTL_AUTONEGENBL);
-	}
-
-	if (verbose)
-		printf("mx%d: selecting NWAY, ", sc->mx_unit);
-
-	mode = CSR_READ_4(sc, MX_NETCFG);
-
-	mode &= ~(MX_NETCFG_FULLDUPLEX|MX_NETCFG_PORTSEL|
-		MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER|MX_NETCFG_SPEEDSEL);
-
-	if (IFM_SUBTYPE(media) == IFM_100_T4) {
-		if (verbose)
-			printf("100Mbps/T4, half-duplex\n");
-		mode |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_100_TX) {
-		if (verbose)
-			printf("100Mbps, ");
-		mode |= MX_NETCFG_PORTSEL|MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_10_T) {
-		if (verbose)
-			printf("10Mbps, ");
-		mode &= ~MX_NETCFG_PORTSEL;
-		mode |= MX_NETCFG_SPEEDSEL;
-	}
-
-	if ((media & IFM_GMASK) == IFM_FDX) {
-		if (verbose)
-			printf("full duplex\n");
-		mode |= MX_NETCFG_FULLDUPLEX;
-	} else {
-		if (verbose)
-			printf("half duplex\n");
-		mode &= ~MX_NETCFG_FULLDUPLEX;
-	}
-
-	CSR_WRITE_4(sc, MX_NETCFG, mode);
-
-	return;
 }
 
 /*
@@ -1207,9 +740,9 @@ void mx_setfilt(sc)
  * 'full-duplex' and '100Mbps' bits in the netconfig register, we
  * first have to put the transmit and/or receive logic in the idle state.
  */
-static void mx_setcfg(sc, bmcr)
+static void mx_setcfg(sc, media)
 	struct mx_softc		*sc;
-	int			bmcr;
+	int			media;
 {
 	int			i, restart = 0;
 
@@ -1229,19 +762,39 @@ static void mx_setcfg(sc, bmcr)
 
 	}
 
-	if (bmcr & PHY_BMCR_SPEEDSEL) {
+	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
-		if (sc->mx_phy_addr == 0) {
+		if (sc->mx_type == MX_TYPE_98713) {
+			MX_SETBIT(sc, MX_WATCHDOG, MX_WDOG_JABBERDIS);
+			MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+			MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+		} else {
 			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL|
 				MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER);
 		}
-	} else
-		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
+	}
 
-	if (bmcr & PHY_BMCR_DUPLEX)
+	if (IFM_SUBTYPE(media) == IFM_10_T) {
+		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
+		if (sc->mx_type == MX_TYPE_98713) {
+			MX_SETBIT(sc, MX_WATCHDOG, MX_WDOG_JABBERDIS);
+			MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+			MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+			    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+		} else {
+			MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
+			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PCS);
+		}
+	}
+
+	if ((media & IFM_GMASK) == IFM_FDX) {
 		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_FULLDUPLEX);
-	else
+	} else {
 		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_FULLDUPLEX);
+	}
 
 	if (restart)
 		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_TX_ON|MX_NETCFG_RX_ON);
@@ -1336,11 +889,9 @@ int mx_attach(dev)
 	u_int32_t		command;
 	struct mx_softc		*sc;
 	struct ifnet		*ifp;
-	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	unsigned int		round;
 	caddr_t			roundptr;
-	struct mx_type		*p;
-	u_int16_t		phy_vid, phy_did, phy_sts, mac_offset = 0;
+	u_int16_t		mac_offset = 0;
 	u_int32_t		revision, pci_id;
 	int			unit, error = 0, rid;
 
@@ -1512,94 +1063,26 @@ int mx_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = MX_TX_LIST_CNT - 1;
 
-	if (sc->mx_type == MX_TYPE_98713) {
-		if (bootverbose)
-			printf("mx%d: probing for a PHY\n", sc->mx_unit);
-		for (i = MX_PHYADDR_MIN; i < MX_PHYADDR_MAX + 1; i++) {
-			if (bootverbose)
-				printf("mx%d: checking address: %d\n",
-							sc->mx_unit, i);
-			sc->mx_phy_addr = i;
-			mx_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-			DELAY(500);
-			while(mx_phy_readreg(sc, PHY_BMCR)
-					& PHY_BMCR_RESET);
-			if ((phy_sts = mx_phy_readreg(sc, PHY_BMSR)))
-				break;
-		}
-		if (phy_sts) {
-			phy_vid = mx_phy_readreg(sc, PHY_VENID);
-			phy_did = mx_phy_readreg(sc, PHY_DEVID);
-			if (bootverbose)
-				printf("mx%d: found PHY at address %d, ",
-					sc->mx_unit, sc->mx_phy_addr);
-			if (bootverbose)
-				printf("vendor id: %x device id: %x\n",
-				phy_vid, phy_did);
-			p = mx_phys;
-			while(p->mx_vid) {
-				if (phy_vid == p->mx_vid &&
-					(phy_did | 0x000F) == p->mx_did) {
-					sc->mx_pinfo = p;
-					break;
-				}
-				p++;
-			}
-			if (sc->mx_pinfo == NULL)
-				sc->mx_pinfo = &mx_phys[PHY_UNKNOWN];
-			if (bootverbose)
-				printf("mx%d: PHY type: %s\n",
-					sc->mx_unit, sc->mx_pinfo->mx_name);
-		} else {
-#ifdef DIAGNOSTIC
-			printf("mx%d: MII without any phy!\n", sc->mx_unit);
-#endif
-		}
-	}
-
 	/*
 	 * Do ifmedia setup.
 	 */
-	ifmedia_init(&sc->ifmedia, 0, mx_ifmedia_upd, mx_ifmedia_sts);
 
-	if (sc->mx_type == MX_TYPE_98713 && sc->mx_pinfo != NULL) {
-		mx_getmode_mii(sc);
-		if (cold) {
-			mx_autoneg_mii(sc, MX_FLAG_FORCEDELAY, 1);
-			mx_stop(sc);
-		} else {
-			mx_init(sc);
-			mx_autoneg_mii(sc, MX_FLAG_SCHEDDELAY, 1);
-		}
-	} else {
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-		if (cold) {
-			mx_autoneg(sc, MX_FLAG_FORCEDELAY, 1);
-			mx_stop(sc);
-		} else {
-			mx_init(sc);
-			mx_autoneg(sc, MX_FLAG_SCHEDDELAY, 1);
-		}
+	if (mii_phy_probe(dev, &sc->mx_miibus,
+	    mx_ifmedia_upd, mx_ifmedia_sts)) {
+		printf("mx%d: MII without any PHY!\n", sc->mx_unit);
+		bus_teardown_intr(dev, sc->mx_irq, sc->mx_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->mx_irq);
+		bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
+		error = ENXIO;
+		goto fail;
 	}
-
-	media = sc->ifmedia.ifm_media;
-	ifmedia_set(&sc->ifmedia, media);
 
 	/*
 	 * Call MI attach routines.
 	 */
 	if_attach(ifp);
 	ether_ifattach(ifp);
+	callout_handle_init(&sc->mx_stat_ch);
 
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
@@ -1624,12 +1107,14 @@ static int mx_detach(dev)
 	mx_stop(sc);
 	if_detach(ifp);
 
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->mx_miibus);
+
 	bus_teardown_intr(dev, sc->mx_irq, sc->mx_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->mx_irq);
 	bus_release_resource(dev, MX_RES, MX_RID, sc->mx_res);
 
 	free(sc->mx_ldata_ptr, M_DEVBUF);
-	ifmedia_removeall(&sc->ifmedia);
 
 	splx(s);
 
@@ -1923,14 +1408,27 @@ static void mx_txeoc(sc)
 	if (sc->mx_cdata.mx_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->mx_cdata.mx_tx_tail = NULL;
-		if (sc->mx_want_auto) {
-			if (sc->mx_type == MX_TYPE_98713 &&
-						sc->mx_pinfo != NULL)
-				mx_autoneg_mii(sc, MX_FLAG_DELAYTIMEO, 1);
-			else
-				mx_autoneg(sc, MX_FLAG_DELAYTIMEO, 1);
-		}
 	}
+
+	return;
+}
+
+static void mx_tick(xsc)
+	void			*xsc;
+{
+	struct mx_softc		*sc;
+	struct mii_data		*mii;
+	int			s;
+
+	s = splimp();
+
+	sc = xsc;
+	mii = device_get_softc(sc->mx_miibus);
+	mii_tick(mii);
+
+	sc->mx_stat_ch = timeout(mx_tick, sc, hz);
+
+	splx(s);
 
 	return;
 }
@@ -2119,11 +1617,6 @@ static void mx_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (sc->mx_autoneg) {
-		sc->mx_tx_pend = 1;
-		return;
-	}
-
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
@@ -2188,16 +1681,13 @@ static void mx_init(xsc)
 {
 	struct mx_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	u_int16_t		phy_bmcr = 0;
+	struct mii_data		*mii;
 	int			s;
-
-	if (sc->mx_autoneg)
-		return;
+	u_int32_t		tmp;
 
 	s = splimp();
 
-	if (sc->mx_pinfo != NULL)
-		phy_bmcr = mx_phy_readreg(sc, PHY_BMCR);
+	mii = device_get_softc(sc->mx_miibus);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2245,16 +1735,17 @@ static void mx_init(xsc)
 	else
 		MX_SETBIT(sc, MX_MAGICPACKET, MX_MAGIC_98715);
 
-	if (sc->mx_pinfo != NULL) {
-		MX_SETBIT(sc, MX_WATCHDOG, MX_WDOG_JABBERDIS);
-		mx_setcfg(sc, mx_phy_readreg(sc, PHY_BMCR));
-	} else
-		mx_setmode(sc, sc->ifmedia.ifm_media, 0);
+	if (sc->mx_type == MX_TYPE_98713) {
+		MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+		    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+		MX_SETBIT(sc, MX_NETCFG, (MX_NETCFG_PCS|
+		    MX_NETCFG_PORTSEL|MX_NETCFG_SCRAMBLER));
+	}
 
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_TX_THRESH);
 	/*MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);*/
 
-	if (IFM_SUBTYPE(sc->ifmedia.ifm_media) == IFM_10_T)
+	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_10_T)
 		MX_SETBIT(sc, MX_NETCFG, MX_TXTHRESH_160BYTES);
 	else
 		MX_SETBIT(sc, MX_NETCFG, MX_TXTHRESH_72BYTES);
@@ -2293,14 +1784,20 @@ static void mx_init(xsc)
 	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_TX_ON|MX_NETCFG_RX_ON);
 	CSR_WRITE_4(sc, MX_RXSTART, 0xFFFFFFFF);
 
-	/* Restore state of BMCR */
-	if (sc->mx_pinfo != NULL)
-		mx_phy_writereg(sc, PHY_BMCR, phy_bmcr);
+	tmp = mii->mii_media.ifm_cur->ifm_media;
+	mii->mii_media.ifm_cur->ifm_media = IFM_ETHER|IFM_10_T;
+	mii_mediachg(mii);
+	mii->mii_media.ifm_cur->ifm_media = IFM_ETHER|IFM_100_TX;
+	mii_mediachg(mii);
+	mii->mii_media.ifm_cur->ifm_media = tmp;
+	mii_mediachg(mii);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	(void)splx(s);
+
+	sc->mx_stat_ch = timeout(mx_tick, sc, hz);
 
 	return;
 }
@@ -2312,25 +1809,12 @@ static int mx_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct mx_softc		*sc;
-	struct ifmedia		*ifm;
+	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
-	ifm = &sc->ifmedia;
+	mii = device_get_softc(sc->mx_miibus);
 
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return(EINVAL);
-
-	if (sc->mx_type == MX_TYPE_98713 && sc->mx_pinfo != NULL) {
-		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
-			mx_autoneg_mii(sc, MX_FLAG_SCHEDDELAY, 1);
-		else
-			mx_setmode_mii(sc, ifm->ifm_media);
-	} else {
-		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
-			mx_autoneg(sc, MX_FLAG_SCHEDDELAY, 1);
-		else
-			mx_setmode(sc, ifm->ifm_media, 1);
-	}
+	mii_mediachg(mii);
 
 	return(0);
 }
@@ -2343,56 +1827,13 @@ static void mx_ifmedia_sts(ifp, ifmr)
 	struct ifmediareq	*ifmr;
 {
 	struct mx_softc		*sc;
-	u_int16_t		advert = 0, ability = 0;
-	u_int32_t		media = 0;
+	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
-
-	ifmr->ifm_active = IFM_ETHER;
-
-	if (sc->mx_type != MX_TYPE_98713 || sc->mx_pinfo == NULL) {
-		media = CSR_READ_4(sc, MX_NETCFG);
-		if (media & MX_NETCFG_PORTSEL)
-			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
-		else
-			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
-		if (media & MX_NETCFG_FULLDUPLEX)
-			ifmr->ifm_active |= IFM_FDX;
-		else
-			ifmr->ifm_active |= IFM_HDX;
-		return;
-	}
-
-	if (!(mx_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
-		if (mx_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
-			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
-		else
-			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
-		if (mx_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_DUPLEX)
-			ifmr->ifm_active |= IFM_FDX;
-		else
-			ifmr->ifm_active |= IFM_HDX;
-		return;
-	}
-
-	ability = mx_phy_readreg(sc, PHY_LPAR);
-	advert = mx_phy_readreg(sc, PHY_ANAR);
-	if (advert & PHY_ANAR_100BT4 &&
-		ability & PHY_ANAR_100BT4) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_T4;
-	} else if (advert & PHY_ANAR_100BTXFULL &&
-		ability & PHY_ANAR_100BTXFULL) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	} else if (advert & PHY_ANAR_100BTXHALF &&
-		ability & PHY_ANAR_100BTXHALF) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_HDX;
-	} else if (advert & PHY_ANAR_10BTFULL &&
-		ability & PHY_ANAR_10BTFULL) {
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_FDX;
-	} else if (advert & PHY_ANAR_10BTHALF &&
-		ability & PHY_ANAR_10BTHALF) {
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_HDX;
-	}
+	mii = device_get_softc(sc->mx_miibus);
+	mii_pollstat(mii);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
 
 	return;
 }
@@ -2403,6 +1844,7 @@ static int mx_ioctl(ifp, command, data)
 	caddr_t			data;
 {
 	struct mx_softc		*sc = ifp->if_softc;
+	struct mii_data		*mii;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			s, error = 0;
 
@@ -2416,11 +1858,21 @@ static int mx_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			mx_init(sc);
+			if (ifp->if_flags & IFF_RUNNING &&
+			    ifp->if_flags & IFF_PROMISC &&
+			    !(sc->mx_if_flags & IFF_PROMISC)) {
+				MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_RX_PROMISC);
+			} else if (ifp->if_flags & IFF_RUNNING &&
+			    !(ifp->if_flags & IFF_PROMISC) &&
+			    sc->mx_if_flags & IFF_PROMISC) {
+				MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_RX_PROMISC);
+			} else
+				mx_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				mx_stop(sc);
 		}
+		sc->mx_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -2430,7 +1882,8 @@ static int mx_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		mii = device_get_softc(sc->mx_miibus);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
 		error = EINVAL;
@@ -2449,29 +1902,8 @@ static void mx_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-	if (sc->mx_autoneg) {
-		if (sc->mx_type == MX_TYPE_98713 && sc->mx_pinfo != NULL)
-			mx_autoneg_mii(sc, MX_FLAG_DELAYTIMEO, 1);
-		else
-			mx_autoneg(sc, MX_FLAG_DELAYTIMEO, 1);
-		if (!(ifp->if_flags & IFF_UP))
-			mx_stop(sc);
-		return;
-	}
-
 	ifp->if_oerrors++;
 	printf("mx%d: watchdog timeout\n", sc->mx_unit);
-
-	if (sc->mx_pinfo == NULL) {
-		if (!(CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_LS10) ||
-			!(CSR_READ_4(sc, MX_10BTSTAT) & MX_TSTAT_LS100))
-			printf("mx%d: no carrier - transceiver "
-				"cable problem?\n", sc->mx_unit);
-	} else {
-		if (!(mx_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
-			printf("mx%d: no carrier - transceiver "
-				"cable problem?\n", sc->mx_unit);
-	}
 
 	mx_stop(sc);
 	mx_reset(sc);
@@ -2495,6 +1927,8 @@ static void mx_stop(sc)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
+
+	untimeout(mx_tick, sc, sc->mx_stat_ch);
 
 	MX_CLRBIT(sc, MX_NETCFG, (MX_NETCFG_RX_ON|MX_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, MX_IMR, 0x00000000);
