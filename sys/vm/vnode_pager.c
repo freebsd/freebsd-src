@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.14 1994/10/15 13:33:09 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.15 1994/11/06 09:55:31 davidg Exp $
  */
 
 /*
@@ -286,23 +286,24 @@ vnode_pager_haspage(pager, offset)
 	register vn_pager_t vnp = (vn_pager_t) pager->pg_data;
 	daddr_t bn;
 	int     err;
+	daddr_t block;
 
 	/*
 	 * Offset beyond end of file, do not have the page
 	 */
-	if (offset >= vnp->vnp_size) {
+	if (offset >= vnp->vnp_size)
 		return (FALSE);
-	}
 
+	block = offset / vnp->vnp_vp->v_mount->mnt_stat.f_iosize;
+	if (incore(vnp->vnp_vp, block))
+		return TRUE;
 	/*
 	 * Read the index to find the disk block to read from.  If there is no
 	 * block, report that we don't have this data.
 	 * 
 	 * Assumes that the vnode has whole page or nothing.
 	 */
-	err = VOP_BMAP(vnp->vnp_vp,
-		       offset / vnp->vnp_vp->v_mount->mnt_stat.f_iosize,
-		       (struct vnode **) 0, &bn, 0);
+	err = VOP_BMAP(vnp->vnp_vp, block, (struct vnode **) 0, &bn, 0);
 /*
 	printf("vnode_pager_haspage: (%d)0x%x: err: %d, bn: %d\n",
 		offset, offset, err, bn);
@@ -803,7 +804,8 @@ vnode_pager_input(vnp, m, count, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (VOP_BMAP(vp, foff, &dp, 0, 0)) {
+	if (/* (vp->v_mount && vp->v_mount->mnt_stat.f_type == MOUNT_LFS) || */
+		VOP_BMAP(vp, foff, &dp, 0, 0)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vnode_pager_freepage(m[i]);
