@@ -88,14 +88,13 @@ PATH_T to = { to.p_path, emptystring, "" };
 
 int fflag, iflag, nflag, pflag, vflag;
 static int Rflag, rflag;
-
 volatile sig_atomic_t info;
-static void siginfo (int notused __unused);
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
 static int copy(char *[], enum op, int);
 static int mastercmp(const FTSENT * const *, const FTSENT * const *);
+static void siginfo(int __unused);
 
 int
 main(int argc, char *argv[])
@@ -507,7 +506,7 @@ mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 }
 
 static void
-siginfo (int notused __unused)
+siginfo(int sig __unused)
 {
 
 	info = 1;
