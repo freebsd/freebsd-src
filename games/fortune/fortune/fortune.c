@@ -189,7 +189,7 @@ char	*av[];
 	int	fd;
 #endif	/* OK_TO_WRITE_DISK */
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	getargs(ac, av);
 
