@@ -110,6 +110,8 @@ SYSCTL_LONG(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, ""
 /* Number of vnodes in the free list. */
 static u_long freevnodes = 0;
 SYSCTL_LONG(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
+
+#if 0
 /* Number of vnode allocation. */
 static u_long vnodeallocs = 0;
 SYSCTL_LONG(_debug, OID_AUTO, vnodeallocs, CTLFLAG_RD, &vnodeallocs, 0, "");
@@ -125,6 +127,7 @@ SYSCTL_LONG(_debug, OID_AUTO, vnoderecycleminfreevn, CTLFLAG_RW, &vnoderecyclemi
 /* Number of vnodes attempted to recycle at a time. */
 static u_long vnoderecyclenumber = 3000;
 SYSCTL_LONG(_debug, OID_AUTO, vnoderecyclenumber, CTLFLAG_RW, &vnoderecyclenumber, 0, "");
+#endif
 
 /*
  * Various variables used for debugging the new implementation of
@@ -142,6 +145,8 @@ SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 
 /* Set to 0 for old insertion-sort based reassignbuf, 1 for modern method. */
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
+static int nameileafonly = 0;
+SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
 #ifdef ENABLE_VFS_IOOPT
 /* See NOTES for a description of this setting. */
@@ -238,6 +243,9 @@ SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, 
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
     &desiredvnodes, 0, "Maximum number of vnodes");
+static int minvnodes; 
+SYSCTL_INT(_kern, KERN_MAXVNODES, minvnodes, CTLFLAG_RW,
+    &minvnodes, 0, "Minimum number of vnodes");
 
 /*
  * Initialize the vnode management data structures.
@@ -247,6 +255,7 @@ vntblinit(void *dummy __unused)
 {
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
+	minvnodes = desiredvnodes / 4;
 	mtx_init(&mountlist_mtx, "mountlist", MTX_DEF);
 	mtx_init(&mntvnode_mtx, "mntvnode", MTX_DEF);
 	mtx_init(&mntid_mtx, "mntid", MTX_DEF);
@@ -539,40 +548,68 @@ getnewvnode(tag, mp, vops, vpp)
 	s = splbio();
 	mtx_lock(&vnode_free_list_mtx);
 
-	if (wantfreevnodes && freevnodes < wantfreevnodes) {
+	if (freevnodes < wantfreevnodes) {
 		vp = NULL;
-	} else if (!wantfreevnodes && freevnodes <= desiredvnodes) {
-		/* 
-		 * XXX: this is only here to be backwards compatible
-		 */
-		vp = NULL;
-	} else for (count = 0; count < freevnodes; count++) {
-		vp = TAILQ_FIRST(&vnode_free_list);
-		if (vp == NULL || vp->v_usecount)
-			panic("getnewvnode: free vnode isn't");
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+	} else if (numvnodes >= minvnodes) {
+		for (count = 0; count < freevnodes; count++) {
+			vp = TAILQ_FIRST(&vnode_free_list);
+			if (vp == NULL || vp->v_usecount)
+				panic("getnewvnode: free vnode isn't");
+			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 
-		/*
-		 * Don't recycle if active in the namecache or
-		 * if it still has cached pages or we cannot get
-		 * its interlock.
-		 */
-		if (LIST_FIRST(&vp->v_cache_src) != NULL ||
-		    (VOP_GETVOBJECT(vp, &object) == 0 &&
-		     (object->resident_page_count || object->ref_count)) ||
-		    !mtx_trylock(&vp->v_interlock)) {
+			/*
+			 * Don't recycle if we still have cached pages or if
+			 * we cannot get the interlock.
+			 */
+			if ((VOP_GETVOBJECT(vp, &object) == 0 &&
+			     (object->resident_page_count ||
+			      object->ref_count)) ||
+			     !mtx_trylock(&vp->v_interlock)) {
+				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+						    v_freelist);
+				vp = NULL;
+				continue;
+			}
+			if (LIST_FIRST(&vp->v_cache_src)) {
+				/*
+				 * note: nameileafonly sysctl is temporary,
+				 * for debugging only, and will eventually be
+				 * removed.
+				 */
+				if (nameileafonly > 0) {
+					/*
+					 * Do not reuse namei-cached directory
+					 * vnodes that have cached
+					 * subdirectories.
+					 */
+					if (cache_leaf_test(vp) < 0) {
+						mtx_unlock(&vp->v_interlock);
+						vp = NULL;
+						continue;
+					}
+				} else if (nameileafonly < 0 ||
+					    vmiodirenable == 0) {
+					/*
+					 * Do not reuse namei-cached directory
+					 * vnodes if nameileafonly is -1 or
+					 * if VMIO backing for directories is
+					 * turned off (otherwise we reuse them
+					 * too quickly).
+					 */
+					mtx_unlock(&vp->v_interlock);
+					vp = NULL;
+					continue;
+				}
+			}
+			/*
+			 * Skip over it if its filesystem is being suspended.
+			 */
+			if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
+				break;
+			mtx_unlock(&vp->v_interlock);
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			vp = NULL;
-			continue;
 		}
-		/*
-		 * Skip over it if its filesystem is being suspended.
-		 */
-		if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
-			break;
-		mtx_unlock(&vp->v_interlock);
-		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-		vp = NULL;
 	}
 	if (vp) {
 		vp->v_flag |= VDOOMED;
@@ -636,6 +673,7 @@ getnewvnode(tag, mp, vops, vpp)
 
 	vfs_object_create(vp, td, td->td_proc->p_ucred);
 
+#if 0
 	vnodeallocs++;
 	if (vnodeallocs % vnoderecycleperiod == 0 &&
 	    freevnodes < vnoderecycleminfreevn &&
@@ -643,6 +681,7 @@ getnewvnode(tag, mp, vops, vpp)
 		/* Recycle vnodes. */
 		cache_purgeleafdirs(vnoderecyclenumber);
 	}
+#endif
 
 	return (0);
 }
