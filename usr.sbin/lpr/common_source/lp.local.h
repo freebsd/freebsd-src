@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lp.local.h	8.1 (Berkeley) 6/6/93
+ *	From: @(#)lp.local.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -43,7 +44,7 @@
 #define	DEFLP		"lp"
 #define DEFLOCK		"lock"
 #define DEFSTAT		"status"
-#define	DEFMX		1000
+#define	DEFMX		0
 #define DEFMAXCOPIES	0
 #define DEFFF		"\f"
 #define DEFWIDTH	132
