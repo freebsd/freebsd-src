@@ -54,7 +54,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "md4.h"
 
 #ifndef USE_CRYPT
-#include <des.h>
+#include <openssl/des.h>
 #endif
 
 typedef struct {

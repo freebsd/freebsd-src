@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 #include <ctype.h>
-#include <des.h>
+#include <openssl/des.h>
 #include <string.h>
 
 #include "chap_ms.h"
