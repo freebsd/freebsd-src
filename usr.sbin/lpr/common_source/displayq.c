@@ -73,8 +73,8 @@ static const char rcsid[] =
 extern uid_t	uid, euid;
 
 static int	col;		/* column on screen */
-static char	current[40];	/* current file being printed */
-static char	file[132];	/* print file name */
+static char	current[MAXNAMLEN+1];	/* current file being printed */
+static char	file[MAXNAMLEN+1];	/* print file name */
 static int	first;		/* first file in ``files'' column? */
 static int	garbage;	/* # of garbage cf files */
 static int	lflag;		/* long output option */
@@ -97,7 +97,7 @@ displayq(pp, format)
 {
 	register struct queue *q;
 	register int i, nitems, fd, ret;
-	register char	*cp;
+	char *cp, *endp;
 	struct queue **queue;
 	struct stat statb;
 	FILE *fp;
@@ -158,8 +158,11 @@ displayq(pp, format)
 		else {
 			/* get daemon pid */
 			cp = current;
-			while ((i = getc(fp)) != EOF && i != '\n')
-				*cp++ = i;
+			endp = cp + sizeof(current) - 1;
+			while ((i = getc(fp)) != EOF && i != '\n') {
+				if (cp < endp)
+					*cp++ = i;
+			}
 			*cp = '\0';
 			i = atoi(current);
 			if (i <= 0) {
@@ -174,8 +177,11 @@ displayq(pp, format)
 			} else {
 				/* read current file name */
 				cp = current;
-				while ((i = getc(fp)) != EOF && i != '\n')
-					*cp++ = i;
+				endp = cp + sizeof(current) - 1;
+				while ((i = getc(fp)) != EOF && i != '\n') {
+					if (cp < endp)
+						*cp++ = i;
+				}
 				*cp = '\0';
 				/*
 				 * Print the status file.
