@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.33 1998/09/03 21:03:43 nsouch Exp $";
+	"$Id: mkmakefile.c,v 1.34 1998/09/15 21:07:54 gibbs Exp $";
 #endif /* not lint */
 
 /*
@@ -790,7 +790,10 @@ do_load(f)
 	fputs("all:", f);
 	for (fl = conf_list; fl; fl = fl->f_next)
 		if (fl->f_type == SYSTEMSPEC)
-			fprintf(f, " %s", fl->f_needs);
+			if (debugging)
+				fprintf(f, " %s.debug", fl->f_needs);
+			else
+				fprintf(f, " %s", fl->f_needs);
 	putc('\n', f);
 }
 
@@ -824,7 +827,23 @@ do_systemspec(f, fl, first)
 	int first;
 {
 
-	fprintf(f, "%s: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
+	if (debugging) {
+		fprintf(f,
+			"KERNEL=\t\t%s\n"
+			"FULLKERNEL=\t%s.debug\n"
+			"INSTALL=\tinstall.debug\n\n",
+			fl->f_needs,
+			fl->f_needs );
+		fprintf(f, "%s.debug: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
+	} else {
+		fprintf(f,
+			"KERNEL=\t\t%s\n"
+			"FULLKERNEL=\t%s\n\n"
+			"INSTALL=\tinstall\n\n",
+			fl->f_needs,
+			fl->f_needs );
+		fprintf(f, "%s: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
+	}
 	if (first)
 		fprintf(f, " vers.o");
 	fprintf(f, "\n\t${SYSTEM_LD_HEAD}\n");
