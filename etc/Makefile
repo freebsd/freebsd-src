@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.52 1994/02/21 21:53:20 rgrimes Exp $
+#	$Id: Makefile,v 1.53 1994/02/23 15:36:05 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -74,6 +74,7 @@ FILESYSTEM_CPIO+=	sbin/disklabel sbin/fdisk sbin/halt sbin/init
 FILESYSTEM_CPIO+=	sbin/mount sbin/mount_pcfs
 FILESYSTEM_CPIO+=	sbin/newfs
 FILESYSTEM_CPIO+=	sbin/umount
+FILESYSTEM_CPIO_DIRS=	root
 
 CPIO_FILES=	${COPYRIGHT}
 CPIO_CPIO=	bin/dd bin/ps bin/pwd bin/stty
@@ -87,7 +88,6 @@ CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/cpio usr/bin/ex usr/bin/ftp
 CPIO_CPIO+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/vi usr/bin/view usr/bin/zcat
-CPIO_CPIO+=	usr/libexec/ld.so
 CPIO_CPIO+=	usr/lib/libc.so.1.0
 CPIO_CPIO+=	usr/lib/libcurses.so.1.0
 CPIO_CPIO+=	usr/lib/libgcc.so.1.0
@@ -95,9 +95,11 @@ CPIO_CPIO+=	usr/lib/libm.so.1.0
 CPIO_CPIO+=	usr/lib/libtermlib.so.1.0
 CPIO_CPIO+=	usr/lib/libtermcap.so.1.0
 CPIO_CPIO+=	usr/lib/libutil.so.1.0
+CPIO_CPIO+=	usr/libexec/ld.so
 CPIO_CPIO+=	usr/sbin/bad144 usr/sbin/chown
 CPIO_CPIO+=	usr/share/misc/termcap
-CPIO_CPIO_DIRS=	tmp var var/tmp var/run var/spool var/spool/lock
+CPIO_CPIO_DIRS=		tmp usr/lib usr/libexec usr/share usr/share/misc
+CPIO_CPIO_DIRS+=	var var/tmp var/run var/spool var/spool/lock
 
 CRYPT_LIB=	lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
@@ -281,7 +283,7 @@ filesyst.flp:
 	    rm -f fd0?* fd1?* rfd0?* rfd1?*)
 	(cd ${DESTDIR}/; \
 	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT}; \
-	    ls ${FILESYSTEM_CPIO} | \
+	    (find ${FILESYSTEM_CPIO}; ls -d ${FILESYSTEM_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst1.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
@@ -299,7 +301,7 @@ filesyst.flp:
 	    ls ${FILESYSTEM_LINKS} >>/tmp/filelist; \
 	    ls -d ${FILESYSTEM_DIRS} >>/tmp/filelist; \
 	    find ${FILESYSTEM_TREES} >>/tmp/filelist; \
-	    sort -u /tmp/filelist >filelist; \
+	    sort -u -r /tmp/filelist >filelist; \
 	    rm /tmp/filelist)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
