@@ -98,6 +98,7 @@ static int 	StrToProto (const char* str);
 static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	FlushPacketBuffer (int fd);
+static void	SetupPunchFW(const char *strValue);
 
 /*
  * Globals.
@@ -868,7 +869,8 @@ enum Option {
 	DynamicMode,
 	ProxyRule,
  	LogDenied,
- 	LogFacility
+ 	LogFacility,
+	PunchFW
 };
 
 enum Param {
@@ -1078,8 +1080,15 @@ static struct OptionInfo optionTable[] = {
 	        "facility",
 		"name of syslog facility to use for logging",
 		"log_facility",
-		NULL }
+		NULL },
 
+	{ PunchFW,
+		0,
+		String,
+	        "basenumber:count",
+		"punch holes in the firewall for incoming FTP/IRC DCC connections",
+		"punch_fw",
+		NULL }
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1258,6 +1267,10 @@ static void ParseOption (const char* option, const char* parms)
 		if(fac_record->c_name == NULL)
 			errx(1, "Unknown log facility name: %s", strValue);	
 
+		break;
+
+	case PunchFW:
+		SetupPunchFW(strValue);
 		break;
 	}
 }
@@ -1686,4 +1699,16 @@ int StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, p
 
 	StrToAddr (str, addr);
 	return StrToPortRange (ptr, proto, portRange);
+}
+
+static void
+SetupPunchFW(const char *strValue)
+{
+	unsigned int base, num;
+
+	if (sscanf(strValue, "%u:%u", &base, &num) != 2)
+		errx(1, "punch_fw: basenumber:count parameter required");
+
+	PacketAliasSetFWBase(base, num);
+	(void)PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
 }
