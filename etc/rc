@@ -700,6 +700,12 @@ case ${update_motd} in
 	;;
 esac
 
+# Run rc.devfs if readable to customize devfs
+#
+if [ -r /etc/rc.devfs ]; then
+	sh /etc/rc.devfs
+fi
+
 # Configure implementation specific stuff
 #
 arch=`uname -m`
@@ -711,12 +717,6 @@ fi
 #
 if [ -r /etc/rc.syscons ]; then
 	. /etc/rc.syscons
-fi
-
-# Run rc.devfs if readable to customize devfs
-#
-if [ -r /etc/rc.devfs ]; then
-	sh /etc/rc.devfs
 fi
 
 echo -n 'Additional ABI support:'
