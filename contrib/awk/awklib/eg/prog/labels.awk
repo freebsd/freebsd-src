@@ -1,10 +1,11 @@
-# labels.awk
+# labels.awk --- print mailing labels
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # June 1992
 
-# Program to print labels.  Each label is 5 lines of data
-# that may have blank lines.  The label sheets have 2
-# blank lines at the top and 2 at the bottom.
+# Each label is 5 lines of data that may have blank lines.
+# The label sheets have 2 blank lines at the top and 2 at
+# the bottom.
 
 BEGIN    { RS = "" ; MAXLINES = 100 }
 

@@ -1,4 +1,7 @@
 # uniq.awk --- do uniq in awk
+#
+# Requires getopt and join library functions
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
 
@@ -81,7 +84,7 @@ NR == 1 {
     last = $0
     next
 }
-    
+
 {
     equal = are_equal()
 

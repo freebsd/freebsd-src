@@ -34,4 +34,4 @@ FC - font courier
 .ds RN Times Roman
 .ds IN Times Italic
 .ds CN Courier Bold
-.ds AM \fIThe GNU Awk User's Guide\fP
+.ds AM \fIGAWK: Effective AWK Programming\fP

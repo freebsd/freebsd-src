@@ -3,10 +3,10 @@
 % Load plain if necessary, i.e., if running under initex.
 \expandafter\ifx\csname fmtname\endcsname\relax\input plain\fi
 %
-\def\texinfoversion{1999-10-01.07}
+\def\texinfoversion{2001-03-28.08}
 %
-% Copyright (C) 1985, 86, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99
-% Free Software Foundation, Inc.
+% Copyright (C) 1985, 86, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
+%               2000, 01 Free Software Foundation, Inc.
 %
 % This texinfo.tex file is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License as
@@ -214,6 +214,9 @@
     \normalturnoffactive  % \ in index entries must not stay \, e.g., if
                    % the page break happens to be in the middle of an example.
     \shipout\vbox{%
+      % Do this early so pdf references go to the beginning of the page.
+      \ifpdfmakepagedest \pdfmkdest{\the\pageno} \fi
+      %
       \ifcropmarks \vbox to \outervsize\bgroup
         \hsize = \outerhsize
         \vskip-\topandbottommargin
@@ -242,8 +245,6 @@
         \vskip 2\baselineskip
         \unvbox\footlinebox
       \fi
-      %
-      \ifpdfmakepagedest \pdfmkdest{\the\pageno} \fi
       %
       \ifcropmarks
           \egroup % end of \vbox\bgroup
@@ -687,16 +688,54 @@ where each line of input produces a line of output.}
 \def\nofillexdentyyy #1{{\advance \leftskip by -\exdentamount
 \leftline{\hskip\leftskip{\rm#1}}}}
 
-% @inmargin{TEXT} puts TEXT in the margin next to the current paragraph.
-
-\def\inmargin#1{%
-\strut\vadjust{\nobreak\kern-\strutdepth
-  \vtop to \strutdepth{\baselineskip\strutdepth\vss
-  \llap{\rightskip=\inmarginspacing \vbox{\noindent #1}}\null}}}
+% @inmargin{WHICH}{TEXT} puts TEXT in the WHICH margin next to the current
+% paragraph.  For more general purposes, use the \margin insertion
+% class.  WHICH is `l' or `r'.
+%
 \newskip\inmarginspacing \inmarginspacing=1cm
 \def\strutdepth{\dp\strutbox}
-
-%\hbox{{\rm#1}}\hfil\break}}
+%
+\def\doinmargin#1#2{\strut\vadjust{%
+  \nobreak
+  \kern-\strutdepth
+  \vtop to \strutdepth{%
+    \baselineskip=\strutdepth
+    \vss
+    % if you have multiple lines of stuff to put here, you'll need to
+    % make the vbox yourself of the appropriate size.
+    \ifx#1l%
+      \llap{\ignorespaces #2\hskip\inmarginspacing}%
+    \else
+      \rlap{\hskip\hsize \hskip\inmarginspacing \ignorespaces #2}%
+    \fi
+    \null
+  }%
+}}
+\def\inleftmargin{\doinmargin l}
+\def\inrightmargin{\doinmargin r}
+%
+% @inmargin{TEXT [, RIGHT-TEXT]}
+% (if RIGHT-TEXT is given, use TEXT for left page, RIGHT-TEXT for right;
+% else use TEXT for both).
+% 
+\def\inmargin#1{\parseinmargin #1,,\finish}
+\def\parseinmargin#1,#2,#3\finish{% not perfect, but better than nothing.
+  \setbox0 = \hbox{\ignorespaces #2}% 
+  \ifdim\wd0 > 0pt
+    \def\lefttext{#1}%  have both texts
+    \def\righttext{#2}%
+  \else
+    \def\lefttext{#1}%  have only one text
+    \def\righttext{#1}%
+  \fi
+  %
+  \ifodd\pageno
+    \def\temp{\inrightmargin\righttext}% odd page -> outside is right margin
+  \else
+    \def\temp{\inleftmargin\lefttext}%
+  \fi
+  \temp
+}
 
 % @include file    insert text of that file as input.
 % Allow normal characters that  we make active in the argument (a file name).
@@ -885,13 +924,17 @@ where each line of input produces a line of output.}
     \fi
       \ifx\empty\imagewidth\else width \imagewidth \fi
       \ifx\empty\imageheight\else height \imageheight \fi
-      {#1.pdf}%
+      \ifnum\pdftexversion<13
+	 #1.pdf%
+       \else
+         {#1.pdf}%
+       \fi
     \ifnum\pdftexversion < 14 \else
       \pdfrefximage \pdflastximage
     \fi}
-  \def\pdfmkdest#1{\pdfdest name{#1@} xyz}
+  \def\pdfmkdest#1{\pdfdest name{#1} xyz}
   \def\pdfmkpgn#1{#1@}
-  \let\linkcolor = \Cyan
+  \let\linkcolor = \Blue  % was Cyan, but that seems light?
   \def\endlink{\Black\pdfendlink}
   % Adding outlines to PDF; macros for calculating structure of outlines
   % come from Petr Olsak
@@ -906,7 +949,8 @@ where each line of input produces a line of output.}
       \closein 1 
       \indexnofonts
       \def\tt{}
-      % thanh's hack / proper braces in bookmarks  
+      \let\_ = \normalunderscore
+      % Thanh's hack / proper braces in bookmarks  
       \edef\mylbrace{\iftrue \string{\else}\fi}\let\{=\mylbrace
       \edef\myrbrace{\iffalse{\else\string}\fi}\let\}=\myrbrace
       %
@@ -1670,7 +1714,10 @@ where each line of input produces a line of output.}
 }
 
 % Subroutines used in generating headings
-% Produces Day Month Year style of output.
+% This produces Day Month Year style of output.
+% Only define if not already defined, in case a txi-??.tex file has set
+% up a different format (e.g., txi-cs.tex does this).
+\ifx\today\undefined
 \def\today{%
   \number\day\space
   \ifcase\month
@@ -1679,6 +1726,7 @@ where each line of input produces a line of output.}
   \or\putwordMSep\or\putwordMOct\or\putwordMNov\or\putwordMDec
   \fi
   \space\number\year}
+\fi
 
 % @settitle line...  specifies the title of the document, for headings.
 % It generates no output of its own.
@@ -2587,42 +2635,48 @@ width0pt\relax} \fi
 }
 
 % @defindex foo  ==  \newindex{foo}
-
+%
 \def\defindex{\parsearg\newindex}
 
 % Define @defcodeindex, like @defindex except put all entries in @code.
-
+%
+\def\defcodeindex{\parsearg\newcodeindex}
+%
 \def\newcodeindex#1{%
   \iflinks
     \expandafter\newwrite \csname#1indfile\endcsname
     \openout \csname#1indfile\endcsname \jobname.#1
   \fi
   \expandafter\xdef\csname#1index\endcsname{%
-    \noexpand\docodeindex{#1}}
+    \noexpand\docodeindex{#1}}%
 }
 
-\def\defcodeindex{\parsearg\newcodeindex}
 
 % @synindex foo bar    makes index foo feed into index bar.
 % Do this instead of @defindex foo if you don't want it as a separate index.
-% The \closeout helps reduce unnecessary open files; the limit on the
-% Acorn RISC OS is a mere 16 files.
-\def\synindex#1 #2 {%
-  \expandafter\let\expandafter\synindexfoo\expandafter=\csname#2indfile\endcsname
-  \expandafter\closeout\csname#1indfile\endcsname
-  \expandafter\let\csname#1indfile\endcsname=\synindexfoo
-  \expandafter\xdef\csname#1index\endcsname{% define \xxxindex
-    \noexpand\doindex{#2}}%
-}
-
+% 
 % @syncodeindex foo bar   similar, but put all entries made for index foo
 % inside @code.
-\def\syncodeindex#1 #2 {%
-  \expandafter\let\expandafter\synindexfoo\expandafter=\csname#2indfile\endcsname
-  \expandafter\closeout\csname#1indfile\endcsname
-  \expandafter\let\csname#1indfile\endcsname=\synindexfoo
-  \expandafter\xdef\csname#1index\endcsname{% define \xxxindex
-    \noexpand\docodeindex{#2}}%
+% 
+\def\synindex#1 #2 {\dosynindex\doindex{#1}{#2}}
+\def\syncodeindex#1 #2 {\dosynindex\docodeindex{#1}{#2}}
+
+% #1 is \doindex or \docodeindex, #2 the index getting redefined (foo),
+% #3 the target index (bar).
+\def\dosynindex#1#2#3{%
+  % Only do \closeout if we haven't already done it, else we'll end up
+  % closing the target index.
+  \expandafter \ifx\csname donesynindex#2\endcsname \undefined
+    % The \closeout helps reduce unnecessary open files; the limit on the
+    % Acorn RISC OS is a mere 16 files.
+    \expandafter\closeout\csname#2indfile\endcsname
+    \expandafter\let\csname\donesynindex#2\endcsname = 1
+  \fi
+  % redefine \fooindfile:
+  \expandafter\let\expandafter\temp\expandafter=\csname#3indfile\endcsname
+  \expandafter\let\csname#2indfile\endcsname=\temp
+  % redefine \fooindex:
+  \expandafter\xdef\csname#2index\endcsname{\noexpand#1{#3}}%
 }
 
 % Define \doindex, the driver for all \fooindex macros.
@@ -2854,16 +2908,17 @@ width0pt\relax} \fi
         % Now the real index entry with the fonts.
         \toks0 = {#2}%
         %
-        % If third (subentry) arg is present, add it to the index
-        % string.  And include a space.
+        % If the third (subentry) arg is present, add it to the index
+        % line to write.
         \ifx\thirdarg\emptymacro \else
-          \toks0 = \expandafter{\the\toks0 \space #3}%
+          \toks0 = \expandafter{\the\toks0{#3}}%
         \fi
         %
-        % Set up the complete index entry, with both the sort key
-        % and the original text, including any font commands.  We write
-        % three arguments to \entry to the .?? file, texindex reduces to
-        % two when writing the .??s sorted result.
+        % Set up the complete index entry, with both the sort key and
+        % the original text, including any font commands.  We write
+        % three arguments to \entry to the .?? file (four in the
+        % subentry case), texindex reduces to two when writing the .??s
+        % sorted result.
         \edef\temp{%
           \write\csname#1indfile\endcsname{%
             \realbackslash entry{\indexsorttmp}{\folio}{\the\toks0}}%
@@ -3085,11 +3140,18 @@ width0pt\relax} \fi
 \def\primary #1{\line{#1\hfil}}
 
 \newskip\secondaryindent \secondaryindent=0.5cm
-
-\def\secondary #1#2{
-{\parfillskip=0in \parskip=0in
-\hangindent =1in \hangafter=1
-\noindent\hskip\secondaryindent\hbox{#1}\indexdotfill #2\par
+\def\secondary#1#2{{%
+  \parfillskip=0in
+  \parskip=0in
+  \hangindent=1in
+  \hangafter=1
+  \noindent\hskip\secondaryindent\hbox{#1}\indexdotfill
+  \ifpdf
+    \pdfgettoks#2.\ \the\toksA % The page number ends the paragraph.
+  \else
+    #2
+  \fi
+  \par
 }}
 
 % Define two-column mode, which we use to typeset indexes.
@@ -3149,7 +3211,6 @@ width0pt\relax} \fi
   %
   % Double the \vsize as well.  (We don't need a separate register here,
   % since nobody clobbers \vsize.)
-  \advance\vsize by -\ht\partialpage
   \vsize = 2\vsize
 }
 
@@ -3163,6 +3224,7 @@ width0pt\relax} \fi
   % previous page.
   \dimen@ = \vsize
   \divide\dimen@ by 2
+  \advance\dimen@ by -\ht\partialpage
   %
   % box0 will be the left-hand column, box2 the right.
   \setbox0=\vsplit255 to\dimen@ \setbox2=\vsplit255 to\dimen@
@@ -3170,15 +3232,18 @@ width0pt\relax} \fi
   \unvbox255
   \penalty\outputpenalty
 }
+%
+% Re-output the contents of the output page -- any previous material,
+% followed by the two boxes we just split, in box0 and box2.
 \def\pagesofar{%
-  % Re-output the contents of the output page -- any previous material,
-  % followed by the two boxes we just split, in box0 and box2.
   \unvbox\partialpage
   %
   \hsize = \doublecolumnhsize
   \wd0=\hsize \wd2=\hsize
   \hbox to\pagewidth{\box0\hfil\box2}%
 }
+% 
+% All done with double columns.
 \def\enddoublecolumns{%
   \output = {%
     % Split the last of the double-column material.  Leave it on the
@@ -3203,8 +3268,9 @@ width0pt\relax} \fi
   % \endgroup where \vsize got restored).
   \pagegoal = \vsize
 }
+%
+% Called at the end of the double column material.
 \def\balancecolumns{%
-  % Called at the end of the double column material.
   \setbox0 = \vbox{\unvbox255}% like \box255 but more efficient, see p.120.
   \dimen@ = \ht0
   \advance\dimen@ by \topskip
@@ -4265,6 +4331,7 @@ width0pt\relax} \fi
   \gobble
 }
 
+
 % @quotation does normal linebreaking (hence we can't use \nonfillstart)
 % and narrows the margins.
 %
@@ -4284,6 +4351,158 @@ width0pt\relax} \fi
     \exdentamount = \lispnarrowing
     \let\nonarrowing = \relax
   \fi
+}
+
+
+% LaTeX-like @verbatim...@end verbatim and @verb{<char>...<char>}
+% If we want to allow any <char> as delimiter, 
+% we need the curly braces so that makeinfo sees the @verb command, eg:
+% `@verbx...x' would look like the '@verbx' command.  --janneke@gnu.org
+%
+% [Knuth]: Donald Ervin Knuth, 1996.  The TeXbook.
+%
+% [Knuth] p. 344; only we need to do '@' too
+\def\dospecials{%
+  \do\ \do\\\do\@\do\{\do\}\do\$\do\&%
+  \do\#\do\^\do\^^K\do\_\do\^^A\do\%\do\~}
+%
+% [Knuth] p. 380
+\def\uncatcodespecials{%
+  \def\do##1{\catcode`##1=12}\dospecials}
+%
+% [Knuth] pp. 380,381,391
+% Disable Spanish ligatures ?` and !` of \tt font
+\begingroup
+  \catcode`\`=\active\gdef`{\relax\lq}
+\endgroup
+%
+% Setup for the @verb command.
+%
+% Eight spaces for a tab
+\begingroup
+  \catcode`\^^I=\active
+  \gdef\tabeightspaces{\catcode`\^^I=\active\def^^I{\ \ \ \ \ \ \ \ }}
+\endgroup
+%
+\def\setupverb{%
+  \tt  % easiest (and conventionally used) font for verbatim
+  \def\par{\leavevmode\endgraf}%
+  \catcode`\`=\active
+  \tabeightspaces
+  % Respect line breaks,
+  % print special symbols as themselves, and
+  % make each space count
+  % must do in this order:
+  \obeylines \uncatcodespecials \sepspaces
+}
+
+% Setup for the @verbatim environment
+%
+% Real tab expansion
+\newdimen\tabw \setbox0=\hbox{\tt\space} \tabw=8\wd0 % tab amount
+%
+\def\starttabbox{\setbox0=\hbox\bgroup}
+\begingroup
+  \catcode`\^^I=\active
+  \gdef\tabexpand{%
+    \catcode`\^^I=\active
+    \def^^I{\leavevmode\egroup
+      \dimen0=\wd0 % the width so far, or since the previous tab
+      \divide\dimen0 by\tabw
+      \multiply\dimen0 by\tabw % compute previous multiple of \tabw
+      \advance\dimen0 by\tabw  % advance to next multiple of \tabw
+      \wd0=\dimen0 \box0 \starttabbox
+    }%
+  }
+\endgroup
+\def\setupverbatim{%
+  % Easiest (and conventionally used) font for verbatim
+  \tt
+  \def\par{\leavevmode\egroup\box0\endgraf}%
+  \catcode`\`=\active
+  \tabexpand
+  % Respect line breaks,
+  % print special symbols as themselves, and
+  % make each space count
+  % must do in this order:
+  \obeylines \uncatcodespecials \sepspaces
+  \everypar{\starttabbox}%
+}
+
+% Do the @verb magic: verbatim text is quoted by unique 
+% delimiter characters.  Before first delimiter expect a 
+% right brace, after last delimiter expect closing brace:
+%
+%    \def\doverb'{'<char>#1<char>'}'{#1}
+%
+% [Knuth] p. 382; only eat outer {}
+\begingroup
+  \catcode`[=1\catcode`]=2\catcode`\{=12\catcode`\}=12
+  \gdef\doverb{#1[\def\next##1#1}[##1\endgroup]\next]
+\endgroup
+%
+\def\verb{\begingroup\setupverb\doverb}
+%
+%
+% Do the @verbatim magic: define the macro \doverbatim so that
+% the (first) argument ends when '@end verbatim' is reached, ie:
+%
+%     \def\doverbatim#1@end verbatim{#1}
+%
+% For Texinfo it's a lot easier than for LaTeX, 
+% because texinfo's \verbatim doesn't stop at '\end{verbatim}':
+% we need not redefine '\', '{' and '}'
+%
+% Inspired by LaTeX's verbatim command set [latex.ltx]
+%% Include LaTeX hack for completeness -- never know
+%% \begingroup
+%% \catcode`|=0 \catcode`[=1
+%% \catcode`]=2\catcode`\{=12\catcode`\}=12\catcode`\ =\active
+%% \catcode`\\=12|gdef|doverbatim#1@end verbatim[
+%% #1|endgroup|def|Everbatim[]|end[verbatim]]
+%% |endgroup
+\begingroup
+  \catcode`\ =\active
+  \gdef\doverbatim#1@end verbatim{#1\end{verbatim}}
+\endgroup
+%
+\def\verbatim{%
+  \def\Everbatim{\nonfillfinish\endgroup}%
+  \begingroup
+    \nonfillstart
+    \advance\leftskip by -\defbodyindent
+    \begingroup\setupverbatim\doverbatim
+}
+
+% @verbatiminclude FILE - insert text of file in verbatim environment.
+%
+% Allow normal characters that we make active in the argument (a file name).
+\def\verbatiminclude{%
+  \begingroup
+    \catcode`\\=12
+    \catcode`~=12
+    \catcode`^=12
+    \catcode`_=12
+    \catcode`|=12
+    \catcode`<=12
+    \catcode`>=12
+    \catcode`+=12
+    \parsearg\doverbatiminclude
+}
+\def\setupverbatiminclude{%
+  \begingroup
+    \nonfillstart
+    \advance\leftskip by -\defbodyindent
+    \begingroup\setupverbatim
+}
+%
+\def\doverbatiminclude#1{%
+     % Restore active chars for included file.
+  \endgroup
+  \begingroup
+  \def\thisfile{#1}%
+  \expandafter\expandafter\setupverbatiminclude\input\thisfile
+  \endgroup\nonfillfinish\endgroup
 }
 
 
@@ -4710,7 +4929,8 @@ width0pt\relax} \fi
 \def\deftypeivarheader#1#2#3{%
   \dosubind{vr}{\code{#3}}{\putwordof\ \code{#1}}% entry in variable index
   \begingroup
-    \defname{#3}{\putwordInstanceVariableof\ \code{#1}}%
+    \defname{\defheaderxcond#2\relax$$$#3}
+            {\putwordInstanceVariableof\ \code{#1}}%
     \defvarargs{#3}%
   \endgroup
 }
@@ -5628,7 +5848,8 @@ width0pt\relax} \fi
     \setbox0 = \hbox{\ignorespaces #2}\ifdim\wd0 > 0pt \epsfxsize=#2\relax \fi
     \setbox0 = \hbox{\ignorespaces #3}\ifdim\wd0 > 0pt \epsfysize=#3\relax \fi
     \begingroup
-      \catcode`\^^M = 5 % in case we're inside an example
+      \catcode`\^^M = 5     % in case we're inside an example
+      \normalturnoffactive  % allow _ et al. in names
       % If the image is by itself, center it.
       \ifvmode
         \nobreak\bigskip
@@ -5740,6 +5961,15 @@ should work if nowhere else does.}
   \setemergencystretch
 }
 
+% Use `small' versions.
+% 
+\def\smallenvironments{%
+  \let\smalldisplay = \smalldisplayx
+  \let\smallexample = \smalllispx
+  \let\smallformat = \smallformatx
+  \let\smalllisp = \smalllispx
+}
+
 % @letterpaper (the default).
 \def\letterpaper{{\globaldefs = 1
   \parskip = 3pt plus 2pt minus 1pt
@@ -5762,11 +5992,7 @@ should work if nowhere else does.}
   \contentsrightmargin = 0pt
   \deftypemargin = 0pt
   \defbodyindent = .5cm
-  %
-  \let\smalldisplay = \smalldisplayx
-  \let\smallexample = \smalllispx
-  \let\smallformat = \smallformatx
-  \let\smalllisp = \smalllispx
+  \smallenvironments
 }}
 
 % Use @afourpaper to print on European A4 paper.
@@ -5778,6 +6004,26 @@ should work if nowhere else does.}
   %
   \tolerance = 700
   \hfuzz = 1pt
+}}
+
+% Use @afivepaper to print on European A5 paper.
+% From romildo@urano.iceb.ufop.br, 2 July 2000.
+% He also recommends making @example and @lisp be small.
+\def\afivepaper{{\globaldefs = 1
+  \setleading{12.5pt}%
+  \parskip = 2pt plus 1pt minus 0.1pt
+  %
+  \internalpagesizes{166mm}{120mm}{\voffset}{-8mm}{\bindingoffset}{8pt}%
+  %
+  \lispnarrowing = 0.2in
+  \tolerance = 800
+  \hfuzz = 1.2pt
+  \contentsrightmargin = 0mm
+  \deftypemargin = 0pt
+  \defbodyindent = 2mm
+  \tableindent = 12mm
+  %
+  \smallenvironments
 }}
 
 % A specific text layout, 24x15cm overall, intended for A4 paper.  Top margin

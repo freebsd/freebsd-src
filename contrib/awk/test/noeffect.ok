@@ -1,2 +1,4 @@
 gawk: noeffect.awk:3: warning: statement may have no effect
+gawk: noeffect.awk:2: warning: reference to uninitialized variable `s'
+gawk: noeffect.awk:4: warning: reference to uninitialized variable `s'
 

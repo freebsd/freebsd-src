@@ -1,7 +1,209 @@
+Sun Jun  3 13:04:44 2001  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.1.0: Release tar file made.  And there was
+	  rejoicing.
+
+Sun May  6 13:30:20 2001  Arnold Robbins  <arnold@skeeve.com>
+
+	* inftest.awk: Changed test to use < so that it will
+	  work for MSC and DJGPP combination, per Scott Deifik.
+
+Tue Mar 20 11:09:51 2001  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (funsemnl): new test case.
+	* funsemnl.awk, funsemnl.ok: new files.
+
+Wed Mar  7 11:31:41 2001  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (leadnl): new test case.
+	* leadnl.awk, leadnl.in, leadnl.ok: new files.
+
+Tue Feb  6 18:08:15 2001  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (rebt8b1, rebt8b2): new test case.
+	* rebt8b1.awk, rebt8b1.ok: new files.
+	* rebt8b2.awk, rebt8b2.ok: new files.
+
+Sun Dec  3 15:36:41 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (gnuops2): New test case.
+	* gnuops2.awk, gnuops2.ok: New files, based on bug report from
+	  Servatius.Brandt@fujitsu-siemens.com.
+
+Mon Nov 27 15:52:46 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* regx8bit.awk, regx8bit.ok: Updated to what should
+	  work on all systems.
+
+Wed Nov 22 13:27:59 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (poundbang): Added some smarts for /tmp mounted
+	  noexec.  Hopefully it'll even work.
+
+Tue Nov 14 17:45:02 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am: Added - to all cmp calls for consistency.
+
+Sun Nov 12 17:50:18 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (addcomma): new test case.
+	* addcomma.awk, addcomma.in, addcomma.ok: new files.
+
+Tue Nov  7 16:03:06 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (regx8bit, psx96sub): new test cases.
+	* regx8bit.awk, regx8bit.ok, psx96sub.awk, psx96sub.ok: new files.
+
+Sun Oct 22 12:09:43 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (shadow): new test case.
+	* shadow.awk, shadow.ok: new files.
+
+Tue Oct 17 10:51:09 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (arynasty): new test case.
+	* arynasty.awk, arynasty.ok: new files.
+
+Mon Oct  2 10:17:13 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (clsflnam): Add redirect of stderr.
+	* clsflnam.awk, clsflnam.ok: modified to reflect changed
+	  semantics of close() for a non-open file. See ../ChangeLog.
+
+Sun Sep 24 16:46:29 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (nasty2): new test case.
+	* nasty2.awk, nasty2.ok: new files.
+
+Wed Sep 13 11:09:49 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (check): Added calls to new targets that
+	  print messages.
+	  (clos1way, basic-msg-start, basic-msg-end, unix-msg-start,
+	   unix-msg-end, extend-msg-start, extend-msg-end): new targets.
+	* clos1way.awk, clos1way.ok: new files.
+
+Tue Sep 12 16:29:54 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (leaddig): new test case.
+	* leaddig.awk, leaddig.ok: new files.
+
+Wed Sep  6 14:09:15 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (strtod): new test case.
+	* strtod.awk, strtod.in, strtod.ok: new files.
+
+Mon Sep  4 09:33:28 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Makefile.in (octsub): new test case.
+	* octsub.awk, octsub.ok: new files.
+
+Sun Aug 13 12:37:16 2000  Arnold Robbins  <arnold@skeeve.com>
+
+	* Makefile.am (sort1, diffout): new test cases.
+	* sort1.awk, sort1.ok: new files.
+
+2000-02-15  Arnold Robbins  <arnold@skeeve.com>
+
+	* MOVED TO AUTOMAKE AND GETTEXT.
+	  Just about every file touched.  Work done by Arno Peters.
+
+Wed May 19 15:41:41 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (datanonl,regeq,redfilnm): new test cases.
+	* datanonl.awk, datanonl.in, datanonl.ok: new files.
+	* regeq.awk, regeq.in, regeq.ok: new files.
+	* redfilnm.awk, redfilnm.in, redfilnm.ok: new files.
+
+Mon May 10 17:11:30 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (rsnul1nl): new test case.
+	* rsnul1nl.awk, rsnul1nl.in, rsnul1nl.ok: new files.
+
+Sun Apr 25 13:02:35 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (inetechu,inetecht,inetdayu,inetdayt,inet): new
+	  tests, courtesy of Juergen Khars.
+	  (paramtyp): new test for bug from Juergen.
+	* paramtyp.awk, paramtyp.in: new files.
+
+Sun Oct 25 23:11:46 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (ofmtbig,procinfs): new test cases.
+	* procinfs.awk, procinfs.ok: new files.
+	* ofmtbig.awk, ofmtbig.in, ofmtbig.ok: new files.
+
+Tue Oct 20 22:07:10 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (lint): new test case.
+	* lint.awk, lint.ok: new files.
+	* badargs.ok: updated output corresponding to change made to
+	  main.c (see main ChangeLog).
+
+Tue May 26 20:39:07 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* pipeio2.awk: change "\'" to "'" to avoid new warning.
+
+Mon Mar 23 21:53:36 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (fnasgnm): new test case.
+	* fnasgnm.awk, fnasgnm.in, fnasgnm.ok: new files.
+
+Fri Mar 20 11:01:38 1998 Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (fnaryscl): new test case.
+	* fnaryscl.awk, fnaryscl.ok: new files.
+
+Mon Mar 16 15:23:22 1998  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (splitdef): new test case.
+	* splitdef.awk, splitdef.ok: new files.
+
+Fri Sep 26 01:10:14 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (parseme): new test case.
+	* parseme.awk, parseme.ok: new files.
+
+Sun Sep 14 23:25:10 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (ofmts): new test case.
+	* ofmts.awk, ofmts.in, ofmts.ok: new files.
+
+Sun Aug 17 07:17:35 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (fsfwfs): new test case.
+	* fsfwfs.awk, fsfwfs.in, fsfwfs.ok: new files.
+
+Sun Jul 27 23:08:53 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (hsprint): new test case.
+	* hsprint.awk, hsprint.ok, printfloat.awk: new files.
+
+Thu Jul 17 20:07:31 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (ofmt): new test case.
+	* ofmt.awk, ofmt.in, ofmt.ok: new files.
+
+Sun Jun 22 16:17:35 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (nlinstr): new test case.
+	* nlinstr.awk, nlinstr.in, nlinstr.ok: new files.
+
+Wed Jun  4 13:18:21 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* pid.sh: send errors to /dev/null to toss warning about
+	  using PROCINFO["pid"] etc. This test explicitly tests
+	  the special files. It'll need changing in 3.2.
+
+Thu Apr 24 23:24:59 1997  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Makefile.in (messages): remove special case if /dev/fd exists.
+	  Finally.
+
 Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
-
-	* Release 3.0.6: Release tar file made.
-
+ 
+ 	* Release 3.0.6: Release tar file made.
+ 
 Thu Aug  3 17:51:56 2000  Arnold D. Robbins  <arnold@skeeve.com>
 	
 	* Makefile.in (nlstrina): new test case.
@@ -86,7 +288,7 @@ Thu Jul 29 19:25:02 1999  Arnold D. Robbins  <arnold@skeeve.com>
 	* fnamedat.awk, fnamedat.in, fnamedat.ok: new files.
 
 Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
-
+  
 	* Release 3.0.4: Release tar file made.  This time for sure.
 
 Tue May 25 16:37:50 1999  Arnold D. Robbins  <arnold@gnu.org>

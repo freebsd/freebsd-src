@@ -1,0 +1,1 @@
+../gawk -f foo.awk

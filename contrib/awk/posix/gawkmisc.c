@@ -1,6 +1,6 @@
 /* gawkmisc.c --- miscellanious gawk routines that are OS specific.
  
-   Copyright (C) 1986, 1988, 1989, 1991 - 96 the Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988, 1989, 1991 - 98, 2001 the Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,11 @@
 char quote = '\'';
 char *defpath = DEFPATH;
 char envsep = ':';
+
+#ifndef INVALID_HANDLE
+/* FIXME: is this value for INVALID_HANDLE correct? */
+#define INVALID_HANDLE -1
+#endif
 
 /* gawk_name --- pull out the "gawk" part from how the OS called us */
 
@@ -106,3 +111,61 @@ int c;
 	return (c == '/');
 }
 
+/* os_close_on_exec --- set close on exec flag, print warning if fails */
+
+void
+os_close_on_exec(fd, name, what, dir)
+int fd;
+const char *name, *what, *dir;
+{
+	if (fcntl(fd, F_SETFD, 1) < 0)
+		warning(_("%s %s `%s': could not set close-on-exec: %s"),
+			what, dir, name, strerror(errno));
+}
+
+/* os_isdir --- is this an fd on a directory? */
+
+#if ! defined(S_ISDIR) && defined(S_IFDIR)
+#define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+int
+os_isdir(fd)
+int fd;
+{
+	struct stat sbuf;
+
+	return (fstat(fd, &sbuf) == 0 && S_ISDIR(sbuf.st_mode));
+}
+
+/* os_is_setuid --- true if running setuid root */
+
+int
+os_is_setuid()
+{
+	long uid, euid;
+
+	uid = getuid();
+	euid = geteuid();
+
+	return (euid == 0 && euid != uid);
+}
+
+/* os_setbinmode --- set binary mode on file */
+
+int
+os_setbinmode (fd, mode)
+int fd, mode;
+{
+	return 0;
+}
+
+/* os_restore_mode --- restore the original mode of the console device */
+
+void
+os_restore_mode (fd)
+int fd;
+{
+	/* no-op */
+	return;
+}

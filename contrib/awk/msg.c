@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -38,26 +38,23 @@ void err P((const char *s, const char *emsg, va_list argp));
 
 /* VARARGS2 */
 void
-err(s, emsg, argp)
-const char *s;
-const char *emsg;
-va_list argp;
+err(const char *s, const char *emsg, va_list argp)
 {
 	char *file;
 
 	(void) fflush(stdout);
 	(void) fprintf(stderr, "%s: ", myname);
-#ifdef DEBUG
+#ifdef GAWKDEBUG
 	if (srcfile != NULL) {
 		fprintf(stderr, "%s:%d:", srcfile, srcline);
 		srcfile = NULL;
 	}
-#endif /* DEBUG */
+#endif /* GAWKDEBUG */
 	if (sourceline != 0) {
 		if (source != NULL)
 			(void) fprintf(stderr, "%s:", source);
 		else
-			(void) fprintf(stderr, "cmd. line:");
+			(void) fprintf(stderr, _("cmd. line:"));
 
 		(void) fprintf(stderr, "%d: ", sourceline);
 	}
@@ -76,14 +73,18 @@ va_list argp;
 
 /* msg --- take a varargs error message and print it */
 
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
+/*
+ * Function identifier purposely indented to avoid mangling
+ * by ansi2knr.  Sigh.
+ */
+
 void
-msg(char *mesg, ...)
+#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
+  msg(char *mesg, ...)
 #else
 /*VARARGS0*/
-void
-msg(va_alist)
-va_dcl
+  msg(va_alist)
+  va_dcl
 #endif
 {
 	va_list args;
@@ -101,14 +102,13 @@ va_dcl
 
 /* warning --- print a warning message */
 
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
 void
-warning(char *mesg, ...)
+#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
+  warning(char *mesg, ...)
 #else
 /*VARARGS0*/
-void
-warning(va_alist)
-va_dcl
+  warning(va_alist)
+  va_dcl
 #endif
 {
 	va_list args;
@@ -120,18 +120,17 @@ va_dcl
 	va_start(args);
 	mesg = va_arg(args, char *);
 #endif
-	err("warning: ", mesg, args);
+	err(_("warning: "), mesg, args);
 	va_end(args);
 }
 
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
 void
-error(char *mesg, ...)
+#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
+  error(char *mesg, ...)
 #else
 /*VARARGS0*/
-void
-error(va_alist)
-va_dcl
+  error(va_alist)
+  va_dcl
 #endif
 {
 	va_list args;
@@ -143,16 +142,14 @@ va_dcl
 	va_start(args);
 	mesg = va_arg(args, char *);
 #endif
-	err("error: ", mesg, args);
+	err(_("error: "), mesg, args);
 	va_end(args);
 }
 
 /* set_loc --- set location where a fatal error happened */
 
 void
-set_loc(file, line)
-char *file;
-int line;
+set_loc(char *file, int line)
 {
 	srcfile = file;
 	srcline = line;
@@ -160,14 +157,13 @@ int line;
 
 /* fatal --- print an error message and die */
 
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
 void
-r_fatal(char *mesg, ...)
+#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
+  r_fatal(char *mesg, ...)
 #else
 /*VARARGS0*/
-void
-r_fatal(va_alist)
-va_dcl
+  r_fatal(va_alist)
+  va_dcl
 #endif
 {
 	va_list args;
@@ -179,11 +175,10 @@ va_dcl
 	va_start(args);
 	mesg = va_arg(args, char *);
 #endif
-	err("fatal: ", mesg, args);
+	err(_("fatal: "), mesg, args);
 	va_end(args);
-#ifdef DEBUG
+#ifdef GAWKDEBUG
 	abort();
 #endif
 	exit(2);
 }
-

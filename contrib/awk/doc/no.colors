@@ -1,6 +1,6 @@
 .\" AWK Reference Card --- Arnold Robbins, arnold@gnu.org
 .\" This file is for troff which does not know what to do
-.\" with a literal Poscript and cannot use macros from 'colors'.
+.\" with literal Poscript and cannot use the macros from 'colors'.
 .\"
 .\" Copyright (C) 1996 Free Software Foundation, Inc.
 .\" 

@@ -29,7 +29,8 @@ BEGIN	{
 
 #				com_tr = "echo " fnam " | tr [0-9]. ..........."
 				com_tr = "echo " fnam " | sed 's/[0-9]/./g'"
-				print "\'" com_tr "\'"
+				# print "\'" com_tr "\'"
+				print "'" com_tr "'"
 
 				com_tr | getline nam
 				print nam

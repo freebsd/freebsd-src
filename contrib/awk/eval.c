@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2001 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -33,12 +33,14 @@ static int eval_condition P((NODE *tree));
 static NODE *op_assign P((NODE *tree));
 static NODE *func_call P((NODE *name, NODE *arg_list));
 static NODE *match_op P((NODE *tree));
-static void push_args P((int count, NODE *arglist, NODE **oldstack, char *func_name));
+static void push_args P((int count, NODE *arglist, NODE **oldstack,
+			char *func_name, char **varnames));
 static void pop_fcall_stack P((void));
 static void pop_fcall P((void));
 static int in_function P((void));
 char *nodetype2str P((NODETYPE type));
 char *flags2str P((int flagval));
+static int comp_func P((const void *p1, const void *p2));
 
 #if __GNUC__ < 2
 NODE *_t;		/* used as a temporary in macros */
@@ -51,6 +53,13 @@ int OFSlen;
 int ORSlen;
 int OFMTidx;
 int CONVFMTidx;
+
+/* Profiling stuff */
+#ifdef PROFILING
+#define INCREMENT(n)	n++
+#else
+#define INCREMENT(n)	/* nothing */
+#endif
 
 /* Macros and variables to save and restore function and loop bindings */
 /*
@@ -112,7 +121,8 @@ char casetable[] = {
 	'\160', '\161', '\162', '\163', '\164', '\165', '\166', '\167',
 	/* 'x'     'y'     'z'     '{'     '|'     '}'     '~' */
 	'\170', '\171', '\172', '\173', '\174', '\175', '\176', '\177',
-#ifndef USE_PURE_ASCII
+
+	/* Latin 1: */
 	C('\200'), C('\201'), C('\202'), C('\203'), C('\204'), C('\205'), C('\206'), C('\207'),
 	C('\210'), C('\211'), C('\212'), C('\213'), C('\214'), C('\215'), C('\216'), C('\217'),
 	C('\220'), C('\221'), C('\222'), C('\223'), C('\224'), C('\225'), C('\226'), C('\227'),
@@ -129,24 +139,6 @@ char casetable[] = {
 	C('\350'), C('\351'), C('\352'), C('\353'), C('\354'), C('\355'), C('\356'), C('\357'),
 	C('\360'), C('\361'), C('\362'), C('\363'), C('\364'), C('\365'), C('\366'), C('\367'),
 	C('\370'), C('\371'), C('\372'), C('\373'), C('\374'), C('\375'), C('\376'), C('\377'),
-#else
-	C('\200'), C('\201'), C('\202'), C('\203'), C('\204'), C('\205'), C('\206'), C('\207'),
-	C('\210'), C('\211'), C('\212'), C('\213'), C('\214'), C('\215'), C('\216'), C('\217'),
-	C('\220'), C('\221'), C('\222'), C('\223'), C('\224'), C('\225'), C('\226'), C('\227'),
-	C('\230'), C('\231'), C('\232'), C('\233'), C('\234'), C('\235'), C('\236'), C('\237'),
-	C('\240'), C('\241'), C('\242'), C('\243'), C('\244'), C('\245'), C('\246'), C('\247'),
-	C('\250'), C('\251'), C('\252'), C('\253'), C('\254'), C('\255'), C('\256'), C('\257'),
-	C('\260'), C('\261'), C('\262'), C('\263'), C('\264'), C('\265'), C('\266'), C('\267'),
-	C('\270'), C('\271'), C('\272'), C('\273'), C('\274'), C('\275'), C('\276'), C('\277'),
-	C('\300'), C('\301'), C('\302'), C('\303'), C('\304'), C('\305'), C('\306'), C('\307'),
-	C('\310'), C('\311'), C('\312'), C('\313'), C('\314'), C('\315'), C('\316'), C('\317'),
-	C('\320'), C('\321'), C('\322'), C('\323'), C('\324'), C('\325'), C('\326'), C('\327'),
-	C('\330'), C('\331'), C('\332'), C('\333'), C('\334'), C('\335'), C('\336'), C('\337'),
-	C('\340'), C('\341'), C('\342'), C('\343'), C('\344'), C('\345'), C('\346'), C('\347'),
-	C('\350'), C('\351'), C('\352'), C('\353'), C('\354'), C('\355'), C('\356'), C('\357'),
-	C('\360'), C('\361'), C('\362'), C('\363'), C('\364'), C('\365'), C('\366'), C('\367'),
-	C('\370'), C('\371'), C('\372'), C('\373'), C('\374'), C('\375'), C('\376'), C('\377'),
-#endif
 };
 #else
 #include "You lose. You will need a translation table for your character set."
@@ -221,6 +213,7 @@ static char *nodetypes[] = {
 	"Node_redirect_pipe",
 	"Node_redirect_pipein",
 	"Node_redirect_input",
+	"Node_redirect_twoway",
 	"Node_var",
 	"Node_var_array",
 	"Node_val",
@@ -234,114 +227,94 @@ static char *nodetypes[] = {
 	"Node_hashnode",
 	"Node_ahash",
 	"Node_array_ref",
-	"Node_NF",
-	"Node_NR",
+	"Node_BINMODE",
+	"Node_CONVFMT",
+	"Node_FIELDWIDTHS",
 	"Node_FNR",
 	"Node_FS",
-	"Node_RS",
-	"Node_FIELDWIDTHS",
 	"Node_IGNORECASE",
+	"Node_LINT",
+	"Node_NF",
+	"Node_NR",
+	"Node_OFMT",
 	"Node_OFS",
 	"Node_ORS",
-	"Node_OFMT",
-	"Node_CONVFMT",
-	"Node_final",
+	"Node_RS",
+	"Node_TEXTDOMAIN",
+	"Node_final --- this should never appear",
 	NULL
 };
 
+/* nodetype2str --- convert a node type into a printable value */
+
 char *
-nodetype2str(type)
-NODETYPE type;
+nodetype2str(NODETYPE type)
 {
 	static char buf[40];
 
 	if (type >= Node_illegal && type <= Node_final)
 		return nodetypes[(int) type];
 
-	sprintf(buf, "unknown nodetype %d", (int) type);
+	sprintf(buf, _("unknown nodetype %d"), (int) type);
 	return buf;
 }
 
 /* flags2str --- make a flags value readable */
 
 char *
-flags2str(flagval)
-int flagval;
+flags2str(int flagval)
+{
+	static struct flagtab values[] = {
+		{ MALLOC, "MALLOC" },
+		{ TEMP, "TEMP" },
+		{ PERM, "PERM" },
+		{ STRING, "STRING" },
+		{ STR, "STR" },
+		{ NUM, "NUM" },
+		{ NUMBER, "NUMBER" },
+		{ MAYBE_NUM, "MAYBE_NUM" },
+		{ ARRAYMAXED, "ARRAYMAXED" },
+		{ SCALAR, "SCALAR" },
+		{ FUNC, "FUNC" },
+		{ FIELD, "FIELD" },
+		{ INTLSTR, "INTLSTR" },
+		{ UNINITIALIZED, "UNINITIALIZED" },
+		{ 0,	NULL },
+	};
+
+	return genflags2str(flagval, values);
+}
+
+/* genflags2str --- general routine to convert a flag value to a string */
+
+char *
+genflags2str(int flagval, struct flagtab *tab)
 {
 	static char buffer[BUFSIZ];
 	char *sp;
+	int i, space_left, space_needed;
 
 	sp = buffer;
+	space_left = BUFSIZ;
+	for (i = 0; tab[i].name != NULL; i++) {
+		/*
+		 * note the trick, we want 1 or 0 for whether we need
+		 * the '|' character.
+		 */
+		space_needed = (strlen(tab[i].name) + (sp != buffer));
+		if (space_left < space_needed)
+			fatal(_("buffer overflow in genflags2str"));
 
-	if (flagval & MALLOC) {
-		strcpy(sp, "MALLOC");
-		sp += strlen(sp);
-	}
-	if (flagval & TEMP) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "TEMP");
-		sp += strlen(sp);
-	}
-	if (flagval & PERM) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "PERM");
-		sp += strlen(sp);
-	}
-	if (flagval & STRING) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "STRING");
-		sp += strlen(sp);
-	}
-	if (flagval & STR) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "STR");
-		sp += strlen(sp);
-	}
-	if (flagval & NUM) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "NUM");
-		sp += strlen(sp);
-	}
-	if (flagval & NUMBER) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "NUMBER");
-		sp += strlen(sp);
-	}
-	if (flagval & MAYBE_NUM) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "MAYBE_NUM");
-		sp += strlen(sp);
-	}
-	if (flagval & ARRAYMAXED) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "ARRAYMAXED");
-		sp += strlen(sp);
-	}
-	if (flagval & SCALAR) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "SCALAR");
-		sp += strlen(sp);
-	}
-	if (flagval & FUNC) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "FUNC");
-		sp += strlen(sp);
-	}
-	if (flagval & FIELD) {
-		if (sp != buffer)
-			*sp++ = '|';
-		strcpy(sp, "FIELD");
-		sp += strlen(sp);
+		if ((flagval & tab[i].val) != 0) {
+			if (sp != buffer) {
+				*sp++ = '|';
+				space_left--;
+			}
+			strcpy(sp, tab[i].name);
+			/* note ordering! */
+			space_left -= strlen(sp);
+			sp += strlen(sp);
+		}
 	}
 
 	return buffer;
@@ -353,8 +326,7 @@ int flagval;
  * statement 
  */
 int
-interpret(tree)
-register NODE *volatile tree;
+interpret(register NODE *volatile tree)
 {
 	jmp_buf volatile loop_tag_stack; /* shallow binding stack for loop_tag */
 	static jmp_buf rule_tag; /* tag the rule currently being run, for NEXT
@@ -383,12 +355,17 @@ register NODE *volatile tree;
 				tree = t->lnode;
 			sourceline = tree->source_line;
 			source = tree->source_file;
+			INCREMENT(tree->exec_count);
 			switch (setjmp(rule_tag)) {
 			case 0:	/* normal non-jump */
 				/* test pattern, if any */
 				if (tree->lnode == NULL ||
-				    eval_condition(tree->lnode))
+				    eval_condition(tree->lnode)) {
+					/* using the lnode exec_count is kludgey */
+					if (tree->lnode != NULL)
+						INCREMENT(tree->lnode->exec_count);
 					(void) interpret(tree->rnode);
+				}
 				break;
 			case TAG_CONTINUE:	/* NEXT statement */
 				return 1;
@@ -408,10 +385,13 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_if:
-		if (eval_condition(tree->lnode))
+		INCREMENT(tree->exec_count);
+		if (eval_condition(tree->lnode)) {
+			INCREMENT(tree->rnode->exec_count);
 			(void) interpret(tree->rnode->lnode);
-		else
+		} else {
 			(void) interpret(tree->rnode->rnode);
+		}
 		break;
 
 	case Node_K_while:
@@ -419,6 +399,7 @@ register NODE *volatile tree;
 
 		stable_tree = tree;
 		while (eval_condition(stable_tree->lnode)) {
+			INCREMENT(stable_tree->exec_count);
 			switch (setjmp(loop_tag)) {
 			case 0:	/* normal non-jump */
 				(void) interpret(stable_tree->rnode);
@@ -439,6 +420,7 @@ register NODE *volatile tree;
 		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
 		stable_tree = tree;
 		do {
+			INCREMENT(stable_tree->exec_count);
 			switch (setjmp(loop_tag)) {
 			case 0:	/* normal non-jump */
 				(void) interpret(stable_tree->rnode);
@@ -460,6 +442,7 @@ register NODE *volatile tree;
 		(void) interpret(tree->forloop->init);
 		stable_tree = tree;
 		while (eval_condition(stable_tree->forloop->cond)) {
+			INCREMENT(stable_tree->exec_count);
 			switch (setjmp(loop_tag)) {
 			case 0:	/* normal non-jump */
 				(void) interpret(stable_tree->lnode);
@@ -479,26 +462,65 @@ register NODE *volatile tree;
 
 	case Node_K_arrayfor:
 		{
-		volatile struct search l;	/* For array_for */
 		Func_ptr after_assign = NULL;
+		NODE **list = 0;
+		NODE *volatile array;
+		volatile size_t i;
+		size_t j, num_elems;
+		volatile int retval = 0;
+		static int first = TRUE;
+		static int sort_indices = FALSE;
 
 #define hakvar forloop->init
 #define arrvar forloop->incr
+		/* get the array */
+		array = tree->arrvar;
+		if (array->type == Node_param_list)
+			array = stack_ptr[array->param_cnt];
+		if (array->type == Node_array_ref)
+			array = array->orig_array;
+		if ((array->flags & SCALAR) != 0)
+			fatal(_("attempt to use scalar `%s' as array"), array->vname);
+
+		/* sanity: do nothing if empty */
+		if (array->type == Node_var || array->var_array == NULL
+		    || array->table_size == 0) {
+			break;	/* from switch */
+		}
+
+		/* allocate space for array */
+		num_elems = array->table_size;
+		emalloc(list, NODE **, num_elems * sizeof(NODE *), "for_loop");
+
+		/* populate it */
+		for (i = j = 0; i < array->array_size; i++) {
+			NODE *t = array->var_array[i];
+
+			if (t == NULL)
+				continue;
+
+			for (; t != NULL; t = t->ahnext) {
+				list[j++] = dupnode(t->ahname);
+			}
+		}
+
+		if (first) {
+			first = FALSE;
+			sort_indices = (getenv("WHINY_USERS") != 0);
+		}
+
+		if (sort_indices)
+			qsort(list, num_elems, sizeof(NODE *), comp_func); /* shazzam! */
+
+		/* now we can run the loop */
 		PUSH_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
-		lhs = get_lhs(tree->hakvar, &after_assign);
-		t = tree->arrvar;
-		if (t->type == Node_param_list)
-			t = stack_ptr[t->param_cnt];
-		if (t->type == Node_array_ref)
-			t = t->orig_array;
+
+		lhs = get_lhs(tree->hakvar, &after_assign, FALSE);
 		stable_tree = tree;
-		if ((t->flags & SCALAR) != 0)
-			fatal("attempt to use scalar as array");
-		for (assoc_scan(t, (struct search *)&l);
-		     l.retval;
-		     assoc_next((struct search *)&l)) {
+		for (i = 0; i < num_elems; i++) {
+			INCREMENT(stable_tree->exec_count);
 			unref(*((NODE **) lhs));
-			*lhs = dupnode(l.retval);
+			*lhs = dupnode(list[i]);
 			if (after_assign)
 				(*after_assign)();
 			switch (setjmp(loop_tag)) {
@@ -508,17 +530,33 @@ register NODE *volatile tree;
 				break;
 
 			case TAG_BREAK:
-				RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
-				return 1;
+				retval = 1;
+				goto done;
+
 			default:
 				cant_happen();
 			}
 		}
+
+	done:
 		RESTORE_BINDING(loop_tag_stack, loop_tag, loop_tag_valid);
+
+		if (do_lint && num_elems != array->table_size)
+			lintwarn(_("for loop: array `%s' changed size from %d to %d during loop execution"),
+					array->vname, num_elems, array->table_size);
+		
+		for (i = 0; i < num_elems; i++)
+			unref(list[i]);
+
+		free(list);
+
+		if (retval == 1)
+			return 1;
 		break;
 		}
 
 	case Node_K_break:
+		INCREMENT(tree->exec_count);
 		if (! loop_tag_valid) {
 			/*
 			 * Old AT&T nawk treats break outside of loops like
@@ -528,11 +566,11 @@ register NODE *volatile tree;
 			static int warned = FALSE;
 
 			if (do_lint && ! warned) {
-				warning("use of `break' outside a loop is not portable");
+				lintwarn(_("`break' outside a loop is not portable"));
 				warned = TRUE;
 			}
 			if (! do_traditional || do_posix)
-				fatal("use of `break' outside a loop is not allowed");
+				fatal(_("`break' outside a loop is not allowed"));
 			if (in_function())
 				pop_fcall_stack();
 			longjmp(rule_tag, TAG_CONTINUE);
@@ -541,6 +579,7 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_continue:
+		INCREMENT(tree->exec_count);
 		if (! loop_tag_valid) {
 			/*
 			 * Old AT&T nawk treats continue outside of loops like
@@ -550,11 +589,11 @@ register NODE *volatile tree;
 			static int warned = FALSE;
 
 			if (do_lint && ! warned) {
-				warning("use of `continue' outside a loop is not portable");
+				lintwarn(_("`continue' outside a loop is not portable"));
 				warned = TRUE;
 			}
 			if (! do_traditional || do_posix)
-				fatal("use of `continue' outside a loop is not allowed");
+				fatal(_("`continue' outside a loop is not allowed"));
 			if (in_function())
 				pop_fcall_stack();
 			longjmp(rule_tag, TAG_CONTINUE);
@@ -563,14 +602,17 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_print:
+		INCREMENT(tree->exec_count);
 		do_print(tree);
 		break;
 
 	case Node_K_printf:
+		INCREMENT(tree->exec_count);
 		do_printf(tree);
 		break;
 
 	case Node_K_delete:
+		INCREMENT(tree->exec_count);
 		do_delete(tree->lnode, tree->rnode);
 		break;
 
@@ -579,11 +621,13 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_next:
+		INCREMENT(tree->exec_count);
 		if (in_begin_rule)
-			fatal("`next' cannot be called from a BEGIN rule");
+			fatal(_("`next' cannot be called from a BEGIN rule"));
 		else if (in_end_rule)
-			fatal("`next' cannot be called from an END rule");
+			fatal(_("`next' cannot be called from an END rule"));
 
+		/* could add a lint check here */
 		if (in_function())
 			pop_fcall_stack();
 
@@ -591,11 +635,13 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_nextfile:
+		INCREMENT(tree->exec_count);
 		if (in_begin_rule)
-			fatal("`nextfile' cannot be called from a BEGIN rule");
+			fatal(_("`nextfile' cannot be called from a BEGIN rule"));
 		else if (in_end_rule)
-			fatal("`nextfile' cannot be called from an END rule");
+			fatal(_("`nextfile' cannot be called from an END rule"));
 
+		/* could add a lint check here */
 		if (in_function())
 			pop_fcall_stack();
 
@@ -603,6 +649,7 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_exit:
+		INCREMENT(tree->exec_count);
 		/*
 		 * In A,K,&W, p. 49, it says that an exit statement "...
 		 * causes the program to behave as if the end of input had
@@ -620,6 +667,7 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_return:
+		INCREMENT(tree->exec_count);
 		t = tree_eval(tree->lnode);
 		ret_node = dupnode(t);
 		free_temp(t);
@@ -632,7 +680,8 @@ register NODE *volatile tree;
 		 * value. 
 		 */
 		if (do_lint && tree->type == Node_var)
-			warning("statement has no effect");
+			lintwarn(_("statement has no effect"));
+		INCREMENT(tree->exec_count);
 		t = tree_eval(tree);
 		free_temp(t);
 		break;
@@ -643,9 +692,7 @@ register NODE *volatile tree;
 /* r_tree_eval --- evaluate a subtree */
 
 NODE *
-r_tree_eval(tree, iscond)
-register NODE *tree;
-int iscond;
+r_tree_eval(register NODE *tree, int iscond)
 {
 	register NODE *r, *t1, *t2;	/* return value & temporary subtrees */
 	register NODE **lhs;
@@ -655,9 +702,8 @@ int iscond;
 #ifdef _CRAY
 	long lx2;
 #endif
-	char namebuf[100];
 
-#ifdef DEBUG
+#ifdef GAWKDEBUG
 	if (tree == NULL)
 		return Nnull_string;
 	else if (tree->type == Node_val) {
@@ -667,28 +713,39 @@ int iscond;
 	} else if (tree->type == Node_var) {
 		if (tree->var_value->stref <= 0)
 			cant_happen();
+		if ((tree->flags & UNINITIALIZED) != 0)
+			warning(_("reference to uninitialized variable `%s'"), 
+			      tree->vname);
 		return tree->var_value;
 	}
 #endif
 
 	if (tree->type == Node_param_list) {
-		int paramnum = tree->param_cnt + 1;
-
 		if ((tree->flags & FUNC) != 0)
-			fatal("can't use function name `%s' as variable or array",
+			fatal(_("can't use function name `%s' as variable or array"),
 					tree->vname);
 
 		tree = stack_ptr[tree->param_cnt];
-		if (tree == NULL)
+
+		if (tree == NULL) {
+			if (do_lint)
+				lintwarn(_("reference to uninitialized argument `%s'"),
+						tree->vname);
 			return Nnull_string;
-		sprintf(namebuf, "parameter #%d", paramnum);
-		tree->vname = namebuf;
-	} 
+		}
+
+		if (do_lint && (tree->flags & UNINITIALIZED) != 0)
+			lintwarn(_("reference to uninitialized argument `%s'"),
+			      tree->vname);
+	}
 	if (tree->type == Node_array_ref)
 		tree = tree->orig_array;
 
 	switch (tree->type) {
 	case Node_var:
+		if (do_lint && (tree->flags & UNINITIALIZED) != 0)
+			lintwarn(_("reference to uninitialized variable `%s'"),
+			      tree->vname);
 		return tree->var_value;
 
 	case Node_and:
@@ -729,11 +786,14 @@ int iscond;
 	case Node_ORS:
 	case Node_OFMT:
 	case Node_CONVFMT:
-		lhs = get_lhs(tree, (Func_ptr *) NULL);
+	case Node_BINMODE:
+	case Node_LINT:
+	case Node_TEXTDOMAIN:
+		lhs = get_lhs(tree, (Func_ptr *) NULL, TRUE);
 		return *lhs;
 
 	case Node_var_array:
-		fatal("attempt to use array `%s' in a scalar context",
+		fatal(_("attempt to use array `%s' in a scalar context"),
 			tree->vname);
 
 	case Node_unary_minus:
@@ -753,26 +813,20 @@ int iscond;
 		return match_op(tree);
 
 	case Node_func:
-		fatal("function `%s' called with space between name and (,\n%s",
+		fatal(_("function `%s' called with space between name and `(',\n%s"),
 			tree->lnode->param,
-			"or used in other expression context");
+			_("or used in other expression context"));
 
 		/* assignments */
 	case Node_assign:
 		{
 		Func_ptr after_assign = NULL;
 
-		if (iscond && do_lint)
-			warning("assignment used in conditional context");
+		if (do_lint && iscond)
+			lintwarn(_("assignment used in conditional context"));
 		r = tree_eval(tree->rnode);
-		lhs = get_lhs(tree->lnode, &after_assign);
-		if (r != *lhs) {
-			NODE *save;
-
-			save = *lhs;
-			*lhs = dupnode(r);
-			unref(save);
-		}
+		lhs = get_lhs(tree->lnode, &after_assign, FALSE);
+		assign_val(lhs, r);
 		free_temp(r);
 		tree->lnode->flags |= SCALAR;
 		if (after_assign)
@@ -788,6 +842,7 @@ int iscond;
 		register NODE **treep;
 		register NODE **strp;
 		register size_t len;
+		register size_t supposed_len;
 		char *str;
 		register char *dest;
 		int alloc_count, str_count;
@@ -810,7 +865,8 @@ int iscond;
 		 * use as a sentinel.  Thus, start alloc_count at 2.
 		 */
 		save_tree = tree;
-		for (alloc_count = 2; tree && tree->type == Node_concat; tree = tree->lnode)
+		for (alloc_count = 2; tree != NULL && tree->type == Node_concat;
+				tree = tree->lnode)
 			alloc_count++;
 		tree = save_tree;
 		emalloc(treelist, NODE **, sizeof(NODE *) * alloc_count, "tree_eval");
@@ -818,7 +874,7 @@ int iscond;
 
 		/* Now, here we go. */
 		treep = treelist;
-		while (tree && tree->type == Node_concat) {
+		while (tree != NULL && tree->type == Node_concat) {
 			*treep++ = tree->rnode;
 			tree = tree->lnode;
 		}
@@ -832,11 +888,21 @@ int iscond;
 		 * lengthes, in case one of the expressions has a
 		 * side effect that changes one of the others.
 		 * See test/nasty.awk.
+		 *
+		 * dupnode the results a la do_print, to give us
+		 * more predicable behavior; compare gawk 3.0.6 to
+		 * nawk/mawk on test/nasty.awk.
 		 */
 		strp = strlist;
-		len = 0;
+		supposed_len = len = 0;
 		while (treep >= treelist) {
-			*strp = force_string(tree_eval(*treep--));
+			NODE *n;
+
+			/* Here lies the wumpus's brother. R.I.P. */
+			n = force_string(tree_eval(*treep--));
+			*strp = dupnode(n);
+			free_temp(n);
+			supposed_len += (*strp)->stlen;
 			strp++;
 		}
 		*strp = NULL;
@@ -847,14 +913,16 @@ int iscond;
 			len += (*strp)->stlen;
 			strp++;
 		}
+		if (do_lint && supposed_len != len)
+			lintwarn(_("concatenation: side effects in one expression have changed the length of another!"));
 		emalloc(str, char *, len+2, "tree_eval");
 		str[len] = str[len+1] = '\0';	/* for good measure */
 		dest = str;
 		strp = strlist;
-		while (*strp) {
+		while (*strp != NULL) {
 			memcpy(dest, (*strp)->stptr, (*strp)->stlen);
 			dest += (*strp)->stlen;
-			free_temp(*strp);
+			unref(*strp);
 			strp++;
 		}
 		r = make_str_node(str, len, ALREADY_MALLOCED);
@@ -941,7 +1009,7 @@ int iscond;
 
 	case Node_quotient:
 		if (x2 == 0)
-			fatal("division by zero attempted");
+			fatal(_("division by zero attempted"));
 #ifdef _CRAY
 		/* special case for integer division, put in for Cray */
 		lx2 = x2;
@@ -956,7 +1024,7 @@ int iscond;
 
 	case Node_mod:
 		if (x2 == 0)
-			fatal("division by zero attempted in mod");
+			fatal(_("division by zero attempted in `%%'"));
 #ifdef HAVE_FMOD
 		return tmp_number(fmod(x1, x2));
 #else	/* ! HAVE_FMOD */
@@ -971,11 +1039,11 @@ int iscond;
 		return tmp_number(x1 - x2);
 
 	case Node_var_array:
-		fatal("attempt to use array `%s' in a scalar context",
+		fatal(_("attempt to use array `%s' in a scalar context"),
 			tree->vname);
 
 	default:
-		fatal("illegal type (%s) in tree_eval", nodetype2str(tree->type));
+		fatal(_("illegal type (%s) in tree_eval"), nodetype2str(tree->type));
 	}
 	return 0;
 }
@@ -983,8 +1051,7 @@ int iscond;
 /* eval_condition --- is TREE true or false? Returns 0==false, non-zero==true */
 
 static int
-eval_condition(tree)
-register NODE *tree;
+eval_condition(register NODE *tree)
 {
 	register NODE *t1;
 	register int ret;
@@ -1036,8 +1103,7 @@ register NODE *tree;
 /* cmp_nodes --- compare two nodes, returning negative, 0, positive */
 
 int
-cmp_nodes(t1, t2)
-register NODE *t1, *t2;
+cmp_nodes(register NODE *t1, register NODE *t2)
 {
 	register int ret;
 	register size_t len1, len2;
@@ -1081,8 +1147,7 @@ register NODE *t1, *t2;
 /* op_assign --- do +=, -=, etc. */
 
 static NODE *
-op_assign(tree)
-register NODE *tree;
+op_assign(register NODE *tree)
 {
 	AWKNUM rval, lval;
 	NODE **lhs;
@@ -1100,7 +1165,7 @@ register NODE *tree;
 	switch(tree->type) {
 	case Node_preincrement:
 	case Node_predecrement:
-		lhs = get_lhs(tree->lnode, &after_assign);
+		lhs = get_lhs(tree->lnode, &after_assign, TRUE);
 		lval = force_number(*lhs);
 		unref(*lhs);
 		*lhs = make_number(lval +
@@ -1112,7 +1177,7 @@ register NODE *tree;
 
 	case Node_postincrement:
 	case Node_postdecrement:
-		lhs = get_lhs(tree->lnode, &after_assign);
+		lhs = get_lhs(tree->lnode, &after_assign, TRUE);
 		lval = force_number(*lhs);
 		unref(*lhs);
 		*lhs = make_number(lval +
@@ -1133,7 +1198,7 @@ register NODE *tree;
 	rval = force_number(tmp);
 	free_temp(tmp);
 
-	lhs = get_lhs(tree->lnode, &after_assign);
+	lhs = get_lhs(tree->lnode, &after_assign, FALSE);
 	lval = force_number(*lhs);
 
 	unref(*lhs);
@@ -1160,7 +1225,7 @@ register NODE *tree;
 
 	case Node_assign_quotient:
 		if (rval == (AWKNUM) 0)
-			fatal("division by zero attempted in /=");
+			fatal(_("division by zero attempted in `/='"));
 #ifdef _CRAY
 		/* special case for integer division, put in for Cray */
 		ltemp = rval;
@@ -1178,7 +1243,7 @@ register NODE *tree;
 
 	case Node_assign_mod:
 		if (rval == (AWKNUM) 0)
-			fatal("division by zero attempted in %%=");
+			fatal(_("division by zero attempted in `%%='"));
 #ifdef HAVE_FMOD
 		*lhs = make_number(fmod(lval, rval));
 #else	/* ! HAVE_FMOD */
@@ -1250,14 +1315,34 @@ pop_fcall()
 		if (arg->type == Node_param_list)
 			arg = stack_ptr[arg->param_cnt];
 		n = *sp++;
-		if ((arg->type == Node_var /* || arg->type == Node_var_array */)
-		    && n->type == Node_var_array) {
-			/* should we free arg->var_value ? */
-			arg->var_array = n->var_array;
-			arg->type = Node_var_array;
-			arg->array_size = n->array_size;
-			arg->table_size = n->table_size;
-			arg->flags = n->flags;
+		if (n->type == Node_var_array || n->type == Node_array_ref) {
+			NODETYPE old_type;	/* for check, below */
+
+			old_type = arg->type;
+
+			/*
+			 * subtlety: if arg->type is Node_var but n->type
+			 * is Node_var_array, then the array routines noticed
+			 * that a variable name was really an array and
+			 * changed the type.  But when v->name was pushed
+			 * on the stack, it came out of the varnames array,
+			 * and was not malloc'ed, so we shouldn't free it.
+			 * See the corresponding code in push_args().
+			 * Thanks to Juergen Kahrs for finding a test case
+			 * that shows this.
+			 */
+			if (old_type == Node_var_array || old_type == Node_array_ref)
+				free(n->vname);
+
+			if (arg->type == Node_var) {
+				/* type changed, copy array back for call by reference */
+				/* should we free arg->var_value ? */
+				arg->var_array = n->var_array;
+				arg->type = Node_var_array;
+				arg->array_size = n->array_size;
+				arg->table_size = n->table_size;
+				arg->flags = n->flags;
+			}
 		}
 		/* n->lnode overlays the array size, don't unref it if array */
 		if (n->type != Node_var_array && n->type != Node_array_ref)
@@ -1293,14 +1378,18 @@ pop_fcall_stack()
 /* push_args --- push function arguments onto the stack */
 
 static void
-push_args(count, arglist, oldstack, func_name)
-int count;
-NODE *arglist;
-NODE **oldstack;
-char *func_name;
+push_args(int count,
+	NODE *arglist,
+	NODE **oldstack,
+	char *func_name,
+	char **varnames)
 {
 	struct fcall *f;
 	NODE *arg, *argp, *r, **sp, *n;
+	int i;
+	int num_args;
+
+	num_args = count;	/* save for later use */
 
 	if (fcall_list_size == 0) {	/* first time */
 		emalloc(fcall_list, struct fcall *, 10 * sizeof(struct fcall),
@@ -1317,7 +1406,7 @@ char *func_name;
 	memset(f, '\0', sizeof(struct fcall));
 
 	if (count > 0)
-		emalloc(f->stack, NODE **, count*sizeof(NODE *), "func_call");
+		emalloc(f->stack, NODE **, count*sizeof(NODE *), "push_args");
 	f->count = count;
 	f->fname = func_name;	/* not used, for debugging, just in case */
 	f->arglist = arglist;
@@ -1326,11 +1415,12 @@ char *func_name;
 	sp = f->stack;
 
 	/* for each calling arg. add NODE * on stack */
-	for (argp = arglist; count > 0 && argp != NULL; argp = argp->rnode) {
+	for (argp = arglist, i = 0; count > 0 && argp != NULL; argp = argp->rnode) {
+		static char from[] = N_("%s (from %s)");
 		arg = argp->lnode;
 		getnode(r);
 		r->type = Node_var;
-
+		r->flags = 0;
 		/* call by reference for arrays; see below also */
 		if (arg->type == Node_param_list) {
 			/* we must also reassign f here; see below */
@@ -1338,26 +1428,43 @@ char *func_name;
 			arg = f->prevstack[arg->param_cnt];
 		}
 		if (arg->type == Node_var_array) {
+			char *p;
+			size_t len;
+
 			r->type = Node_array_ref;
 			r->flags &= ~SCALAR;
 			r->orig_array = arg;
-			r->vname = arg->vname;
+			len = strlen(varnames[i]) + strlen(arg->vname)
+				+ strlen(gettext(from)) - 4 + 1;
+			emalloc(p, char *, len, "push_args");
+			sprintf(p, _(from), varnames[i], arg->vname);
+			r->vname = p;
 		} else if (arg->type == Node_array_ref) {
-			*r = *arg;
+			char *p;
+			size_t len;
+
+  			*r = *arg;
+			len = strlen(varnames[i]) + strlen(arg->vname)
+				+ strlen(gettext(from)) - 4 + 1;
+			emalloc(p, char *, len, "push_args");
+			sprintf(p, _(from), varnames[i], arg->vname);
+			r->vname = p;
 		} else {
 			n = tree_eval(arg);
 			r->lnode = dupnode(n);
 			r->rnode = (NODE *) NULL;
   			if ((n->flags & SCALAR) != 0)
 	  			r->flags |= SCALAR;
+			r->vname = varnames[i];
 			free_temp(n);
   		}
 		*sp++ = r;
+		i++;
 		count--;
 	}
 	if (argp != NULL)	/* left over calling args. */
 		warning(
-		    "function `%s' called with more arguments than declared",
+		    _("function `%s' called with more arguments than declared"),
 		    func_name);
 
 	/* add remaining params. on stack with null value */
@@ -1367,6 +1474,9 @@ char *func_name;
 		r->lnode = Nnull_string;
 		r->flags &= ~SCALAR;
 		r->rnode = (NODE *) NULL;
+		r->vname = varnames[i++];
+		r->flags = UNINITIALIZED;
+		r->param_cnt = num_args - count;
 		*sp++ = r;
 	}
 
@@ -1387,9 +1497,8 @@ char *func_name;
 NODE **stack_ptr;
 
 static NODE *
-func_call(name, arg_list)
-NODE *name;		/* name is a Node_val giving function name */
-NODE *arg_list;		/* Node_expression_list of calling args. */
+func_call(NODE *name,		/* name is a Node_val giving function name */
+	NODE *arg_list)		/* Node_expression_list of calling args. */
 {
 	register NODE *r;
 	NODE *f;
@@ -1402,11 +1511,12 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
 	/* retrieve function definition node */
 	f = lookup(name->stptr);
 	if (f == NULL || f->type != Node_func)
-		fatal("function `%s' not defined", name->stptr);
+		fatal(_("function `%s' not defined"), name->stptr);
 #ifdef FUNC_TRACE
-	fprintf(stderr, "function %s called\n", name->stptr);
+	fprintf(stderr, _("function %s called\n"), name->stptr);
 #endif
-	push_args(f->lnode->param_cnt, arg_list, stack_ptr, name->stptr);
+	push_args(f->lnode->param_cnt, arg_list, stack_ptr, name->stptr,
+			f->parmlist);
 
 	/*
 	 * Execute function body, saving context, as a return statement
@@ -1429,6 +1539,7 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
 	PUSH_BINDING(func_tag_stack, func_tag, func_tag_valid);
 	save_ret_node = ret_node;
 	ret_node = Nnull_string;	/* default return value */
+	INCREMENT(f->exec_count);	/* count function calls */
 	if (setjmp(func_tag) == 0)
 		(void) interpret(f->rnode);
 
@@ -1450,6 +1561,24 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
 	return r;
 }
 
+#ifdef PROFILING
+/* dump_fcall_stack --- print a backtrace of the awk function calls */
+
+void
+dump_fcall_stack(FILE *fp)
+{
+	int i;
+
+	if (curfcall < 0)
+		return;
+
+	fprintf(fp, _("\n\t# Function Call Stack:\n\n"));
+	for (i = curfcall; i >= 0; i--)
+		fprintf(fp, "\t# %3d. %s\n", i+1, fcall_list[i].fname);
+	fprintf(fp, _("\t# -- main --\n"));
+}
+#endif /* PROFILING */
+
 /*
  * r_get_lhs:
  * This returns a POINTER to a node pointer. get_lhs(ptr) is the current
@@ -1462,9 +1591,7 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
  */
 
 NODE **
-r_get_lhs(ptr, assign)
-register NODE *ptr;
-Func_ptr *assign;
+r_get_lhs(register NODE *ptr, Func_ptr *assign, int reference)
 {
 	register NODE **aptr = NULL;
 	register NODE *n;
@@ -1473,19 +1600,25 @@ Func_ptr *assign;
 		*assign = NULL;	/* for safety */
 	if (ptr->type == Node_param_list) {
 		if ((ptr->flags & FUNC) != 0)
-			fatal("can't use function name `%s' as variable or array", ptr->vname);
+			fatal(_("can't use function name `%s' as variable or array"), ptr->vname);
 		ptr = stack_ptr[ptr->param_cnt];
 	}
 
 	switch (ptr->type) {
 	case Node_array_ref:
 	case Node_var_array:
-		fatal("attempt to use array `%s' in a scalar context",
+		fatal(_("attempt to use array `%s' in a scalar context"),
 			ptr->vname);
 
 	case Node_var:
+		if (! reference) 
+			ptr->flags &= ~UNINITIALIZED;
+		else if (do_lint && (ptr->flags & UNINITIALIZED) != 0)
+			lintwarn(_("reference to uninitialized variable `%s'"),
+					      ptr->vname);
+
 		aptr = &(ptr->var_value);
-#ifdef DEBUG
+#ifdef GAWKDEBUG
 		if (ptr->var_value->stref <= 0)
 			cant_happen();
 #endif
@@ -1547,6 +1680,18 @@ Func_ptr *assign;
 			*assign = set_IGNORECASE;
 		break;
 
+	case Node_BINMODE:
+		aptr = &(BINMODE_node->var_value);
+		if (assign != NULL)
+			*assign = set_BINMODE;
+		break;
+
+	case Node_LINT:
+		aptr = &(LINT_node->var_value);
+		if (assign != NULL)
+			*assign = set_LINT;
+		break;
+
 	case Node_OFMT:
 		aptr = &(OFMT_node->var_value);
 		if (assign != NULL)
@@ -1571,8 +1716,32 @@ Func_ptr *assign;
 			*assign = set_OFS;
 		break;
 
+	case Node_TEXTDOMAIN:
+		aptr = &(TEXTDOMAIN_node->var_value);
+		if (assign != NULL)
+			*assign = set_TEXTDOMAIN;
+		break;
+
 	case Node_param_list:
-		aptr = &(stack_ptr[ptr->param_cnt]->var_value);
+		{
+		NODE *n = stack_ptr[ptr->param_cnt];
+
+		/*
+		 * This test should always be true, due to the code
+		 * above, before the switch, that handles parameters.
+		 */
+		if (n->type != Node_var_array)
+			aptr = &n->var_value;
+		else
+			fatal(_("attempt to use array `%s' in a scalar context"),
+				n->vname);
+
+		if (! reference) 
+			n->flags &= ~UNINITIALIZED;
+		else if (do_lint && (n->flags & UNINITIALIZED) != 0)
+			lintwarn(_("reference to uninitialized argument `%s'"),
+				      n->vname);
+		}
 		break;
 
 	case Node_field_spec:
@@ -1580,10 +1749,17 @@ Func_ptr *assign;
 		int field_num;
 
 		n = tree_eval(ptr->lnode);
+		if (do_lint) {
+			if ((n->flags & NUMBER) == 0) {
+				lintwarn(_("attempt to field reference from non-numeric value"));
+				if (n->stlen == 0)
+					lintwarn(_("attempt to reference from null string"));
+			}
+		}
 		field_num = (int) force_number(n);
 		free_temp(n);
 		if (field_num < 0)
-			fatal("attempt to access field %d", field_num);
+			fatal(_("attempt to access field %d"), field_num);
 		if (field_num == 0 && field0_valid) {	/* short circuit */
 			aptr = &fields_arr[0];
 			if (assign != NULL)
@@ -1593,32 +1769,45 @@ Func_ptr *assign;
 		aptr = get_field(field_num, assign);
 		break;
 		}
+
 	case Node_subscript:
 		n = ptr->lnode;
 		if (n->type == Node_param_list) {
-			int i = n->param_cnt + 1;
-
 			n = stack_ptr[n->param_cnt];
 			if ((n->flags & SCALAR) != 0)
-				fatal("attempt to use scalar parameter %d as an array", i);
+				fatal(_("attempt to use scalar parameter `%s' as an array"), n->vname);
 		}
 		if (n->type == Node_array_ref) {
 			n = n->orig_array;
 			assert(n->type == Node_var_array || n->type == Node_var);
 		}
 		if (n->type == Node_func) {
-			fatal("attempt to use function `%s' as array",
+			fatal(_("attempt to use function `%s' as array"),
 				n->lnode->param);
 		}
-		aptr = assoc_lookup(n, concat_exp(ptr->rnode));
+		aptr = assoc_lookup(n, concat_exp(ptr->rnode), reference);
 		break;
 
 	case Node_func:
-		fatal("`%s' is a function, assignment is not allowed",
+		fatal(_("`%s' is a function, assignment is not allowed"),
 			ptr->lnode->param);
 
 	case Node_builtin:
-		fatal("assignment is not allowed to result of builtin function");
+#if 1
+		/* in gawk for a while */
+		fatal(_("assignment is not allowed to result of builtin function"));
+#else
+		/*
+		 * This is how Christos at Deshaw did it.
+		 * Does this buy us anything?
+		 */
+		if (ptr->proc == NULL)
+			fatal(_("assignment is not allowed to result of builtin function"));
+		ptr->callresult = (*ptr->proc)(ptr->subnode);
+		aptr = &ptr->callresult;
+		break;
+#endif
+
 	default:
 		fprintf(stderr, "type = %s\n", nodetype2str(ptr->type));
 		fflush(stderr);
@@ -1630,8 +1819,7 @@ Func_ptr *assign;
 /* match_op --- do ~ and !~ */
 
 static NODE *
-match_op(tree)
-register NODE *tree;
+match_op(register NODE *tree)
 {
 	register NODE *t1;
 	register Regexp *rp;
@@ -1678,7 +1866,7 @@ set_IGNORECASE()
 
 	if ((do_lint || do_traditional) && ! warned) {
 		warned = TRUE;
-		warning("IGNORECASE not supported in compatibility mode");
+		lintwarn(_("`IGNORECASE' is a gawk extension"));
 	}
 	if (do_traditional)
 		IGNORECASE = FALSE;
@@ -1692,6 +1880,59 @@ set_IGNORECASE()
 	else
 		IGNORECASE = FALSE;		/* shouldn't happen */
 	set_FS_if_not_FIELDWIDTHS();
+}
+
+/* set_BINMODE --- set translation mode (OS/2, DOS, others) */
+
+void
+set_BINMODE()
+{
+	static int warned = FALSE;
+	char *p, *cp, save;
+	NODE *v;
+	int digits = FALSE;
+
+	if ((do_lint || do_traditional) && ! warned) {
+		warned = TRUE;
+		lintwarn(_("`BINMODE' is a gawk extension"));
+	}
+	if (do_traditional)
+		BINMODE = 0;
+	else if ((BINMODE_node->var_value->flags & STRING) != 0) {
+		v = BINMODE_node->var_value;
+		p = v->stptr;
+		save = p[v->stlen];
+		p[v->stlen] = '\0';
+
+		for (cp = p; *cp != '\0'; cp++) {
+			if (ISDIGIT(*cp)) {
+				digits = TRUE;
+				break;
+			}
+		}
+
+		if (! digits || (BINMODE_node->var_value->flags & MAYBE_NUM) == 0) {
+			BINMODE = 0;
+			if (strcmp(p, "r") == 0)
+				BINMODE = 1;
+			else if (strcmp(p, "w") == 0)
+				BINMODE = 2;
+			else if (strcmp(p, "rw") == 0 || strcmp(p, "wr") == 0)
+				BINMODE = 3;
+
+			if (BINMODE == 0 && v->stlen != 0) {
+				/* arbitrary string, assume both */
+				BINMODE = 3;
+				warning("BINMODE: arbitary string value treated as \"rw\"");
+			}
+		} else
+			BINMODE = (int) force_number(BINMODE_node->var_value);
+
+		p[v->stlen] = save;
+	} else if ((BINMODE_node->var_value->flags & NUMBER) != 0)
+		BINMODE = (int) force_number(BINMODE_node->var_value);
+	else
+		BINMODE = 0;		/* shouldn't happen */
 }
 
 /* set_OFS --- update OFS related variables when OFS assigned to */
@@ -1721,8 +1962,7 @@ static int fmt_ok P((NODE *n));
 static int fmt_index P((NODE *n));
 
 static int
-fmt_ok(n)
-NODE *n;
+fmt_ok(NODE *n)
 {
 	NODE *tmp = force_string(n);
 	char *p = tmp->stptr;
@@ -1731,13 +1971,13 @@ NODE *n;
 		return 0;
 	while (*p && strchr(" +-#", *p) != NULL)	/* flags */
 		p++;
-	while (*p && isdigit(*p))	/* width - %*.*g is NOT allowed */
+	while (*p && ISDIGIT(*p))	/* width - %*.*g is NOT allowed */
 		p++;
-	if (*p == '\0' || (*p != '.' && ! isdigit(*p)))
+	if (*p == '\0' || (*p != '.' && ! ISDIGIT(*p)))
 		return 0;
 	if (*p == '.')
 		p++;
-	while (*p && isdigit(*p))	/* precision */
+	while (*p && ISDIGIT(*p))	/* precision */
 		p++;
 	if (*p == '\0' || strchr("efgEG", *p) == NULL)
 		return 0;
@@ -1749,8 +1989,7 @@ NODE *n;
 /* fmt_index --- track values of OFMT and CONVFMT to keep semantics correct */
 
 static int
-fmt_index(n)
-NODE *n;
+fmt_index(NODE *n)
 {
 	register int ix = 0;
 	static int fmt_num = 4;
@@ -1767,10 +2006,10 @@ NODE *n;
 	/* not found */
 	n->stptr[n->stlen] = '\0';
 	if (do_lint && ! fmt_ok(n))
-		warning("bad %sFMT specification",
+		lintwarn(_("bad `%sFMT' specification `%s'"),
 			    n == CONVFMT_node->var_value ? "CONV"
 			  : n == OFMT_node->var_value ? "O"
-			  : "");
+			  : "", n->stptr);
 
 	if (fmt_hiwater >= fmt_num) {
 		fmt_num *= 2;
@@ -1796,4 +2035,118 @@ set_CONVFMT()
 {
 	CONVFMTidx = fmt_index(CONVFMT_node->var_value);
 	CONVFMT = fmt_list[CONVFMTidx]->stptr;
+}
+
+/* set_LINT --- update LINT as appropriate */
+
+void
+set_LINT()
+{
+	int old_lint = do_lint;
+
+	if ((LINT_node->var_value->flags & (STRING|STR)) != 0) {
+		if ((LINT_node->var_value->flags & MAYBE_NUM) == 0) {
+			char *lintval;
+			size_t lintlen;
+
+			do_lint = (force_string(LINT_node->var_value)->stlen > 0);
+			lintval = LINT_node->var_value->stptr;
+			lintlen = LINT_node->var_value->stlen;
+			if (do_lint) {
+				if (lintlen == 5 && strncmp(lintval, "fatal", 5) == 0)
+					lintfunc = r_fatal;
+				else
+					lintfunc = warning;
+			} else
+				lintfunc = warning;
+		} else
+			do_lint = (force_number(LINT_node->var_value) != 0.0);
+	} else if ((LINT_node->var_value->flags & (NUM|NUMBER)) != 0) {
+		do_lint = (force_number(LINT_node->var_value) != 0.0);
+		lintfunc = warning;
+	} else
+		do_lint = FALSE;		/* shouldn't happen */
+
+	if (! do_lint)
+		lintfunc = warning;
+
+	/* explicitly use warning() here, in case lintfunc == r_fatal */
+	if (old_lint != do_lint && old_lint)
+		warning(_("turning off `--lint' due to assignment to `LINT'"));
+}
+
+/* set_TEXTDOMAIN --- update TEXTDOMAIN variable when TEXTDOMAIN assigned to */
+
+void
+set_TEXTDOMAIN()
+{
+	int len;
+
+	TEXTDOMAIN = force_string(TEXTDOMAIN_node->var_value)->stptr;
+	len = TEXTDOMAIN_node->var_value->stlen;
+	TEXTDOMAIN[len] = '\0';
+	/*
+	 * Note: don't call textdomain(); this value is for
+	 * the awk program, not for gawk itself.
+	 */
+}
+
+/*
+ * assign_val --- do mechanics of assignment, for calling from multiple
+ *		  places.
+ */
+
+NODE *
+assign_val(NODE **lhs_p, NODE *rhs)
+{
+	NODE *save;
+
+	if (rhs != *lhs_p) {
+		save = *lhs_p;
+		*lhs_p = dupnode(rhs);
+		unref(save);
+	}
+	return *lhs_p;
+}
+
+/* update_ERRNO --- update the value of ERRNO */
+
+void
+update_ERRNO()
+{
+	char *cp;
+
+	cp = strerror(errno);
+	cp = gettext(cp);
+	unref(ERRNO_node->var_value);
+	ERRNO_node->var_value = make_string(cp, strlen(cp));
+}
+
+/* comp_func --- array index comparison function for qsort */
+
+static int
+comp_func(const void *p1, const void *p2)
+{
+	size_t len1, len2;
+	char *str1, *str2;
+	NODE *t1, *t2;
+
+	t1 = *((NODE **) p1);
+	t2 = *((NODE **) p2);
+
+/*
+	t1 = force_string(t1);
+	t2 = force_string(t2);
+*/
+	len1 = t1->stlen;
+	str1 = t1->stptr;
+
+	len2 = t2->stlen;
+	str2 = t2->stptr;
+
+	/* Array indexes are strings, compare as such, always! */
+	if (len1 == len2 || len1 < len2)
+		return strncmp(str1, str2, len1);
+	else
+		return strncmp(str1, str2, len2);
 }
