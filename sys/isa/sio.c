@@ -589,6 +589,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x8013b04e, NULL},	/* SUP1380 - SupraExpress 288i PnP Voice */
 	{0x8113b04e, NULL},	/* SUP1381 - SupraExpress 336i PnP Voice */
 	{0x5016b04e, NULL},	/* SUP1650 - Supra 336i Sp Intl */
+	{0x7016b04e, NULL},	/* SUP1670 - Supra 336i V+ Intl */
 	{0x7420b04e, NULL},	/* SUP2070 - Supra ? */
 	{0x8020b04e, NULL},	/* SUP2080 - Supra ? */
 	{0x8420b04e, NULL},	/* SUP2084 - SupraExpress 56i PnP */
