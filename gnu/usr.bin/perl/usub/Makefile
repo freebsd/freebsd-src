@@ -1,3 +1,5 @@
+#	$Id$
+
 PROG=	curseperl
 
 # From perl
@@ -15,21 +17,8 @@ CLEANFILES+=	curses.c
 VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
-# If perl exists in none of these places, something is horribly wrong.
-.if !defined(PERL)
-.if exists(${.OBJDIR}/../../../../tmp/usr/bin/perl)
-PERL=${.OBJDIR}/../../../../tmp/usr/bin/perl
-.elif exists(${.OBJDIR}/../perl/perl)
-PERL=${.OBJDIR}/../perl/perl
-.elif exists(${.CURDIR}/../perl/perl)
-PERL=${.CURDIR}/../perl/perl
-.else
-PERL=	${DESTDIR}/usr/bin/perl
-.endif
-.endif
-
 curses.c: curses.mus
-	${PERL} ${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
+	perl ${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
