@@ -6,7 +6,7 @@
 
 PROG=		as
 NOMAN=		1
-BINDIR=		/usr/libexec/cross/powerpc-freebsdelf
+BINDIR=		/usr/libexec/cross/powerpc-freebsd
 SRCS+=		obj-elf.c tc-ppc.c
 
 .include <bsd.prog.mk>
