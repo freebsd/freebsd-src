@@ -7,11 +7,11 @@
 comment		= %%branch%% tinderbox
 
 # Paths
-sandbox		= /home/des/tinderbox
-logdir		= /home/des/public_html
+sandbox		= %%HOME%%/sandbox
+logdir		= %%HOME%%/logs
 
 # Tinderbox options
-tinderbox	= /home/des/bin/tinderbox
+tinderbox	= %%HOME%%/bin/tinderbox
 options		= --verbose
 targets		= update, world, generic, lint
 
