@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.12 1996/11/28 08:17:21 phk Exp $
+#	$Id: Makefile,v 1.261 1996/12/11 18:26:19 jkh Exp $
 #
 # How to roll a release:
 #
@@ -14,10 +14,10 @@
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # SET THIS !!!
-BUILDNAME=2.2-POST-ALPHA
+#BUILDNAME=2.2-960501-SNAP
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_2
+#RELEASETAG=RELENG_2_1_0
 
 # Things which without too much trouble can be considered variables
 
@@ -37,16 +37,15 @@ BOOT1=	etc/protocols etc/sysconfig
 MNT=			/mnt
 
 # other floppy parameters.
-FDSIZE=			1200
-FDLABEL=		fd1200
+FDSIZE=			1440
+FDLABEL=		fd1440
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
-BOOTMFSSIZE4=		1100
-BOOTMFSSIZE=		1200
-MFSINODE=		120000
+BOOTMFSSIZE=		1440
+MFSINODE=		110000
 FIXITINODE=		28000
 
 # Things which will get you into trouble if you change them
@@ -388,13 +387,6 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
-	# make the small bootfd
-	@echo "Making the small 4MB boot floppy."
-		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE4} ${RD}/mfsfd \
-			${MFSINODE} minimum
-		mv fs-image fs-image.4
-	mv fs-image.size fs-image.4.size
-	# add more stuff for the complete bootfd
 	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
@@ -404,7 +396,6 @@ release.8: write_mfs_in_kernel dumpnlist
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
-	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
 	@echo "Regular boot floppy made."
@@ -581,26 +572,6 @@ doMFSKERN:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
-.if defined(FSIMAGE) && (${FSIMAGE} == "4") 
-	@cd ${.CURDIR}/../sys/i386/conf && \
-	  sed	-e '/SYSV/d' \
-		-e '/pty/d' \
-		-e '/I[56]86_CPU/d' \
-		-e '/[ 	]pci0/d' \
-		-e '/ncr0/d' \
-		-e '/BOUNCE_BUFFERS/d' \
-		-e '/VISUAL_USERCONFIG/d' \
-		-e '/device[ 	]*de0/d' \
-		-e '/device[ 	]*fxp0/d' \
-		-e '/PROCFS/d' \
-		-e '/KTRACE/d' \
-		-e 's/GENERIC/BOOTMFS/g' \
-		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
-	  echo "options  MFS" >> BOOTMFS && \
-	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
-	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
-	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
-.else
 	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/SYSV/d' \
 		-e '/pty/d' \
@@ -612,7 +583,6 @@ doMFSKERN:
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
-.endif
 	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
