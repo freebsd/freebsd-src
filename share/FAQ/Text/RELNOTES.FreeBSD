@@ -114,6 +114,27 @@ to match an incoming packet up to its associated connection.
 Owner:                  David Greenman (davidg@FreeBSD.org)
 
 
+Name cache optimization
+-----------------------
+The name-cache would cache all files of the same name to the same bucket,
+which would put for instance all ".." entries in the same bucket.  We added
+the parent directory version to frustrate the hash, and improved the 
+management of the cache in various other ways while we were at it.
+
+Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
+			David GreenMan (davidg@FreeBSD.org)
+
+
+Less restrictive swap-spaces
+----------------------------
+The need to compile the names of the swap devices into the kernel has been
+removed.  Now swapon will accept any block devices, up to the maximum
+number of swap devices configured in the kernel.
+
+Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
+			David GreenMan (davidg@FreeBSD.org)
+
+
 Hard Wired SCSI Devices
 -----------------------
 Prior to 2.0.5, FreeBSD performed dynamic assignment of unit numbers
@@ -133,14 +154,32 @@ Slice Support
 -------------
 FreeBSD now supports a "slice" abstraction which makes it more
 completely interoperable with other operating system partitions.  This
-support will eventually allow FreeBSD to inhabit DOS extended
-partitions.
+support will allow FreeBSD to inhabit DOS extended partitions.
 
 Owner:                  Bruce Evans (bde@FreeBSD.org)
 Sources involved:       sys/disklabel.h sys/diskslice.h sys/dkbad.h
                         kern/subr_diskslice.c kern/subr_dkbad.c
                         i386/isa/diskslice_machdep.c
                         i386/isa/wd.c scsi/sd.c dev/vn/vn.c
+
+
+Support for Ontrack Disk Manager Version 6.0
+--------------------------------------------
+Support has been added for disks which use Ontrack Disk Manager.
+The fdisk program does NOT know about it however, so make all changes
+using the install program on the boot.flp or using Disk Managers tool.
+
+Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
+
+
+Bad144 is back and working
+--------------------------
+Bad144 works again, though the semantics are slightly different than
+before in that the bad-spots are kept relative to the slice rather
+than absolute on the disk.
+
+Owner:                  Bruce Evans (bde@FreeBSD.org)
+			Poul-Henning Kamp (phk@FreeBSD.org)
 
 
 NEW DEVICE SUPPORT:
@@ -157,18 +196,6 @@ playback.
 
 Owner:                  Frank Durda IV   bsdmail@nemesis.lonestar.org
 Sources involved:       isa/matcd
-
-
-ProAudioSpectrum SCSI driver
-----------------------------
-If you have a PAS board with a CD-ROM, and the MS-DOS driver is called
-TSLCDR.SYS, then the "pas" driver should work on your card.  You can
-attach disks, cdroms and tapes, but due to the nature of the hardware
-involved, the transfer rate is limited to < 690 kbyte/sec.  For CD-ROM
-use, this is generally more than enough.
-
-Owner:                  phk
-Sources involved:       isa/pas.c
 
 
 Adaptec 2742/2842/2940 SCSI driver
@@ -253,8 +280,8 @@ Submitted by:           Matt Thomas (thomas@lkg.dec.com)
 Sources involved:       pci/if_pdq.c pci/pdq.c pci/pdq_os.h pci/pdqreg.h
 
 
-3Com 3c505 NIC driver
----------------------
+3Com 3c505 (Etherlink/+) NIC driver
+-----------------------------------
 Owner:                  core
 Submitted by:           Dean Huxley (dean@fsa.ca)
 Obtained from:          NetBSD
@@ -399,9 +426,9 @@ we have simply not received any indication of this.
 
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
-[Note: the new Extended IDE controllers in newer PC's work, although no
-extended features are used.]
 WD7000
+IDE
+ATA
 
 Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
@@ -447,7 +474,7 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative) proprietary interface
 (scd)   Sony proprietary interface
 
-Note: Drives with IDE interfaces are not supported at this time.
+Note: CD-Drives with IDE interfaces are not supported at this time.
 
 Some controllers have limitations with the way they deal with >16MB of
 memory, due to the fact that the ISA bus only has a DMA address space
@@ -487,7 +514,7 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C503 Etherlink II
 
-3Com 3c505 
+3Com 3c505 Etherlink/+
 
 3Com 3C507 Etherlink 16/TP
 
@@ -684,4 +711,4 @@ hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.4 1995/05/28 09:10:44 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.5 1995/05/28 18:32:01 gibbs Exp $
