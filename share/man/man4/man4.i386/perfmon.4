@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: perfmon.4,v 1.1 1996/03/26 20:57:26 wollman Exp $
+.\"	$Id: perfmon.4,v 1.2 1996/03/28 20:57:11 wollman Exp $
 .Dd March 26, 1996
 .Dt PERFMON 4 i386
 .Os FreeBSD 2.2
@@ -171,11 +171,18 @@ hint or sanity-check than an actual representation of the rate of
 clock ticks.
 .El
 .Sh FILES
-.Bl -tag -compact -width "/dev/perfmon"
+.Bl -tag -compact -width "/usr/include/machine/perfmon.h"
 .It Pa /dev/perfmon
 character device interface to counters
+.It Pa /usr/include/machine/perfmon.h
+include file with definitions of structures and event types
+.It Pa /usr/share/examples/perfmon
+sample source code demonstrating use of all the
+.Fn ioctl
+commands
 .El
 .Sh SEE ALSO
+.Xr ioctl 2
 .Rs
 .%A Intel Corporation
 .%B Pentium Pro Family Developer's Manual
