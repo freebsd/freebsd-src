@@ -600,7 +600,7 @@
 			    void *data, size_t nbytes); }
 414	STD	BSD	{ int extattr_delete_link(const char *path, \
 			    int attrnamespace, const char *attrname); }
-415	UNIMPL	BSD	__execve_mac
+415	UNIMPL	BSD	__mac_execve
 416	MSTD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \
 			    struct sigaction *oact); }
 417	MSTD	BSD	{ int sigreturn(const struct __ucontext *sigcntxp); }
