@@ -44,8 +44,7 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 	int             rval = 0;
 
 	if (cond == NULL) {
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	} else {
 		/*
 		 * Check if a pointer to a condition variable attribute
@@ -69,8 +68,7 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			rval = -1;
+			rval = EINVAL;
 			break;
 		}
 
@@ -78,8 +76,7 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 		if (rval == 0) {
 			if ((pcond = (pthread_cond_t)
 			    malloc(sizeof(struct pthread_cond))) == NULL) {
-				errno = ENOMEM;
-				rval = -1;
+				rval = ENOMEM;
 			} else {
 				/*
 				 * Initialise the condition variable
@@ -102,8 +99,7 @@ pthread_cond_destroy(pthread_cond_t * cond)
 	int             rval = 0;
 
 	if (cond == NULL || *cond == NULL) {
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	} else {
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -115,8 +111,7 @@ pthread_cond_destroy(pthread_cond_t * cond)
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			rval = -1;
+			rval = EINVAL;
 			break;
 		}
 
@@ -140,8 +135,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	int             status;
 
 	if (cond == NULL || *cond == NULL) {
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -176,8 +170,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			rval = -1;
+			rval = EINVAL;
 			break;
 		}
 
@@ -197,8 +190,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int             status;
 
 	if (cond == NULL || *cond == NULL) {
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -242,8 +234,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				/* Check if the wait timed out: */
 				else if (_thread_run->timeout) {
 					/* Return a timeout error: */
-					errno = ETIMEDOUT;
-					rval = -1;
+					rval = ETIMEDOUT;
 				}
 			}
 			break;
@@ -251,8 +242,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			rval = -1;
+			rval = EINVAL;
 			break;
 		}
 
@@ -272,8 +262,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 	pthread_t       pthread;
 
 	if (cond == NULL || *cond == NULL) {
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -292,8 +281,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			rval = -1;
+			rval = EINVAL;
 			break;
 		}
 
@@ -333,8 +321,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 	/* Trap invalid condition variable types: */
 	default:
 		/* Return an invalid argument error: */
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 		break;
 	}
 
