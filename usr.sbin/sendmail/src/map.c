@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.140 (Berkeley) 10/12/96";
+static char sccsid[] = "@(#)map.c	8.144 (Berkeley) 11/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -107,7 +107,7 @@ static char sccsid[] = "@(#)map.c	8.140 (Berkeley) 10/12/96";
 extern bool	aliaswait __P((MAP *, char *, int));
 extern bool	extract_canonname __P((char *, char *, char[], int));
 
-#if defined(O_EXLOCK) && HASFLOCK
+#if O_EXLOCK && HASFLOCK
 # define LOCK_ON_OPEN	1	/* we can open/create a locked file */
 #else
 # define LOCK_ON_OPEN	0	/* no such luck -- bend over backwards */
@@ -690,6 +690,8 @@ extract_canonname(name, line, cbuf, cbuflen)
 		p = get_column(line, i, '\0', nbuf, sizeof nbuf);
 		if (p == NULL)
 			break;
+		if (*p == '\0')
+			continue;
 		if (cbuf[0] == '\0' ||
 		    (strchr(cbuf, '.') == NULL && strchr(p, '.') != NULL))
 		{
@@ -1034,17 +1036,30 @@ ndbm_map_close(map)
 **	be pokey about it.  That's hard to do.
 */
 
-extern bool	db_map_open __P((MAP *, int, DBTYPE));
+extern bool	db_map_open __P((MAP *, int, DBTYPE, const void *));
+
+/* these should be K line arguments */
+#ifndef DB_CACHE_SIZE
+# define DB_CACHE_SIZE	(1024 * 1024)	/* database memory cache size */
+#endif
+#ifndef DB_HASH_NELEM
+# define DB_HASH_NELEM	4096		/* (starting) size of hash table */
+#endif
 
 bool
 bt_map_open(map, mode)
 	MAP *map;
 	int mode;
 {
+	BTREEINFO btinfo;
+
 	if (tTd(38, 2))
 		printf("bt_map_open(%s, %s, %d)\n",
 			map->map_mname, map->map_file, mode);
-	return db_map_open(map, mode, DB_BTREE);
+
+	bzero(&btinfo, sizeof btinfo);
+	btinfo.cachesize = DB_CACHE_SIZE;
+	return db_map_open(map, mode, DB_BTREE, &btinfo);
 }
 
 bool
@@ -1052,17 +1067,24 @@ hash_map_open(map, mode)
 	MAP *map;
 	int mode;
 {
+	HASHINFO hinfo;
+
 	if (tTd(38, 2))
 		printf("hash_map_open(%s, %s, %d)\n",
 			map->map_mname, map->map_file, mode);
-	return db_map_open(map, mode, DB_HASH);
+
+	bzero(&hinfo, sizeof hinfo);
+	hinfo.nelem = DB_HASH_NELEM;
+	hinfo.cachesize = DB_CACHE_SIZE;
+	return db_map_open(map, mode, DB_HASH, &hinfo);
 }
 
 bool
-db_map_open(map, mode, dbtype)
+db_map_open(map, mode, dbtype, openinfo)
 	MAP *map;
 	int mode;
 	DBTYPE dbtype;
+	const void *openinfo;
 {
 	DB *db;
 	int i;
@@ -1113,7 +1135,7 @@ db_map_open(map, mode, dbtype)
 		omode |= O_TRUNC;
 #endif
 
-	db = dbopen(buf, omode, DBMMODE, dbtype, NULL);
+	db = dbopen(buf, omode, DBMMODE, dbtype, openinfo);
 	saveerrno = errno;
 
 #if !LOCK_ON_OPEN

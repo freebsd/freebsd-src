@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.97 (Berkeley) 10/17/96
+.\"	@(#)op.me	8.98 (Berkeley) 11/16/96
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -68,7 +68,7 @@ Eric Allman
 InReference, Inc.
 eric@Sendmail.ORG
 .sp
-Version 8.97
+Version 8.98
 .sp
 For Sendmail Version 8.8
 .)l
@@ -3561,6 +3561,25 @@ The full name of the sender.
 The home directory of the recipient.
 .ip $_
 The validated sender address.
+.ip ${bodytype}
+The message body type
+(7BIT or 8BITMIME),
+as determined from the envelope.
+.ip ${client_addr}
+The IP address of the SMTP client.
+Defined in the SMTP server only.
+.ip ${client_name}
+The host name of the SMTP client.
+Defined in the SMTP server only.
+.ip ${client_port}
+The port number of the SMTP client.
+Defined in the SMTP server only.
+.ip ${envid}
+The envelope id passed to sendmail as part of the envelope.
+.ip ${opMode}
+The current operation mode (from the
+.b \-b
+flag).
 .pp
 There are three types of dates that can be used.
 The
@@ -3758,10 +3777,12 @@ and the receiver has the IDENT protocol turned on,
 it will include the user name on that host.
 .pp
 The
-.b ${client_name}
+.b ${client_name} ,
+.b ${client_addr} ,
 and
-.b ${client_addr}
-are set to the name and address of the SMTP client
+.b ${client_port}
+macros
+are set to the name, address, and port number of the SMTP client
 who is invoking
 .i sendmail
 as a server.
@@ -8129,7 +8150,7 @@ A transcript of the current session.
 .\"Eric Allman
 .\"InReference, Inc.
 .\".sp
-.\"Version 8.97
+.\"Version 8.98
 .\".ce 0
 .bp 2
 .rs

@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.125 (Berkeley) 10/18/96
+#	@(#)READ_ME	8.130 (Berkeley) 11/10/96
 #
 
 This directory contains the source files for sendmail.
@@ -168,7 +168,7 @@ LDAPMAP		Lightweight Directory Lookup Protocol support.  You will
 		this flag.
 
 >>>  NOTE WELL for NEWDB support: it is CRITICAL that you remove ndbm.o
->>>  from libdb.a and ndbm.h from the appropriate include directories if
+>>>  from libdb.a before you install it and DO NOT install ndbm.h if
 >>>  you want to get ndbm support.  If you don't delete these, there is
 >>>  absolutely no point to including -DNDBM, since it will just get you
 >>>  another (inferior) API to the same format database.  These files
@@ -355,11 +355,20 @@ LA_TYPE		The type of load average your kernel supports.  These
 			the dg_sys_info system call.
 		 LA_HPUX (10) is an HP-UX specific version that uses the
 			pstat_getdynamic system call.
+		 LA_IRIX6 (11) is an IRIX 6.x specific version that adapts
+			to 32 or 64 bit kernels; it is otherwise very similar
+			to LA_INT.
+		 LA_KSTAT (12) uses the (Solaris-specific) kstat(3k)
+			implementation.
+		 LA_DEVSHORT (13) reads a short from a system file (default:
+			/dev/table/avenrun) and scales it in the same manner
+			as LA_SHORT.
 		LA_INT, LA_SHORT, LA_FLOAT, and LA_READKSYM have several
 		other parameters that they try to divine: the name of your
 		kernel, the name of the variable in the kernel to examine,
 		the number of bits of precision in a fixed point load average,
-		and so forth.
+		and so forth.  LA_DEVSHORT uses _PATH_AVENRUN to find the
+		device to be read to find the load average.
 		In desperation, use LA_ZERO.  The actual code is in
 		conf.c -- it can be tweaked if you are brave.
 FSHIFT		For LA_INT, LA_SHORT, and LA_READKSYM, this is the number
@@ -808,6 +817,26 @@ IRIX
 	In order to compile sendmail you will have had to install
 	the developers' option in order to get the necessary include
 	files.
+
+	If you compile with -lmalloc (the fast memory allocator), you may
+	get warning messages such as the following:
+
+	   ld32: WARNING 85: definition of _calloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _malloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _realloc in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _free in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+	   ld32: WARNING 85: definition of _cfree in /usr/lib32/libmalloc.so
+		preempts that definition in /usr/lib32/mips3/libc.so.
+
+	These are unavoidable and innocuous -- just ignore them.
+
+	According to Dave Sill <de5@ornl.gov>, there is a version of the
+	Berkeley db library patched to run on Irix 6.2 available from
+	http://reality.sgi.com/ariel/db-1.85-irix.tar.Z .
 
 NeXT or NEXTSTEP
 	NEXTSTEP 3.3 and earlier ship with the old DBM library.  You will
@@ -1348,4 +1377,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.125, last update 10/18/96 07:32:40)
+(Version 8.130, last update 11/10/96 11:15:30)
