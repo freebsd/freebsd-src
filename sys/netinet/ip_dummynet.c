@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.1 1998/09/12 22:03:20 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.2 1998/12/14 18:09:13 luigi Exp $
  */
 
 /*
@@ -109,7 +109,7 @@ dn_restart()
 static void
 dn_move(struct dn_pipe *pipe, int immediate)
 {
-    struct dn_pkt *tmp, *pkt;
+    struct dn_pkt *pkt;
  
     /*
      * consistency check, should catch new pipes which are
@@ -402,7 +402,7 @@ void
 dn_rule_delete(void *r)
 {
 
-    struct dn_pipe *q, *p = all_pipes ;
+    struct dn_pipe *p = all_pipes ;
     int matches = 0 ;
     for ( p= all_pipes ; p ; p = p->next ) {
 	struct dn_pkt *x ;
@@ -432,7 +432,7 @@ ip_dn_ctl(struct sockopt *sopt)
     int error = 0 ;
     size_t size ;
     char *buf, *bp ;
-    struct dn_pipe *p, *q, tmp_pipe ;
+    struct dn_pipe *p, tmp_pipe ;
 
     struct dn_pipe *x, *a, *b ;
 
