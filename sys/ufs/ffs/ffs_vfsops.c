@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.72 1998/02/25 04:47:04 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.73 1998/03/01 22:46:46 msmith Exp $
  */
 
 #include "opt_quota.h"
@@ -575,6 +575,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * increases the opportunity for metadata caching.
 	 */
 	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
 
