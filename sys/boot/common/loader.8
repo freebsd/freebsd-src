@@ -779,16 +779,10 @@ Boot in single user mode:
 .Pp
 .Dl boot -s
 .Pp
-Load kernel's user configuration file.
+Load the kernel, a splash screen, and then autoboot in five seconds.
 Notice that a kernel must be loaded before any other
 .Ic load
 command is attempted.
-.Bd -literal -offset indent
-load kernel
-load -t userconfig_script /boot/kernel.conf
-.Ed
-.Pp
-Load the kernel, a splash screen, and then autoboot in five seconds.
 .Bd -literal -offset indent
 load kernel
 load splash_bmp
