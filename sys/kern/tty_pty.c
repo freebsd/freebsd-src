@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.41 1997/02/22 09:39:25 peter Exp $
+ * $Id: tty_pty.c,v 1.42 1997/03/23 03:36:28 bde Exp $
  */
 
 /*
@@ -42,7 +42,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#include <sys/ioctl_compat.h>
+#endif
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>

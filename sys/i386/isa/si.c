@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.55 1997/02/22 09:37:06 peter Exp $
+ *	$Id: si.c,v 1.56 1997/03/23 03:35:01 bde Exp $
  */
 
 #ifndef lint
@@ -41,7 +41,9 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#include <sys/ioctl_compat.h>
+#endif
 #include <sys/tty.h>
 #include <sys/ttydefaults.h>
 #include <sys/proc.h>
