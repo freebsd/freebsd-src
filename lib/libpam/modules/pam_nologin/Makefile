@@ -24,10 +24,11 @@
 #
 # $FreeBSD$
 
-LIB=		pam_nologin
-SRCS=		pam_nologin.c
-DPADD=		${LIBUTIL}
-LDADD=		-lutil
-MAN=		pam_nologin.8
+LIB=	pam_nologin
+SRCS=	pam_nologin.c
+MAN=	pam_nologin.8
+
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.lib.mk>
