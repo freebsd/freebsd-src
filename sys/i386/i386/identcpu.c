@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.57 1999/01/16 13:41:33 kato Exp $
+ *	$Id: identcpu.c,v 1.57.2.1 1999/02/06 16:20:17 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -296,7 +296,7 @@ printcpuinfo(void)
 			strcat(cpu_model, "Unknown");
 			break;
 		}
-#ifdef CPU_WT_ALLOC
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 		if ((cpu_id & 0xf00) == 0x500) {
 			if (((cpu_id & 0x0f0) > 0)
 			    && ((cpu_id & 0x0f0) < 0x60)
