@@ -191,11 +191,6 @@ extern void
 	wontoption P((int)),
 	writenet P((unsigned char *, int));
 
-#ifdef	ENCRYPTION
-extern void	(*encrypt_output) P((unsigned char *, int));
-extern int	(*decrypt_input) P((int));
-extern char	*nclearto;
-#endif	/* ENCRYPTION */
 
 
 /*
