@@ -49,6 +49,7 @@
 #include <unistd.h>
 
 int initattr(int argc, char *argv[]);
+int showattr(int argc, char *argv[]);
 long num_inodes_by_path(char *path);
 void usage(void);
 
@@ -61,6 +62,7 @@ usage()
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
 	    "  extattrctl initattr [-f] [-p path] [attrsize] [attrfile]\n"
+	    "  extattrctl showattr [attrfile]\n"
 	    "  extattrctl enable [path] [attrnamespace] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrnamespace] [attrname]\n");
 	exit(-1);
@@ -161,6 +163,42 @@ initattr(int argc, char *argv[])
 }
 
 int
+showattr(int argc, char *argv[])
+{
+	struct ufs_extattr_fileheader	uef;
+	int i, fd;
+
+	if (argc != 1)
+		usage();
+
+	fd = open(argv[0], O_RDONLY);
+	if (fd == -1) {
+		perror(argv[0]);
+		return (-1);
+	}
+
+	i = read(fd, &uef, sizeof(uef));
+	if (i == -1) {
+		perror(argv[0]);
+		return (-1);
+	}
+	if (i != sizeof(uef)) {
+		fprintf(stderr, "%s: invalid file header\n", argv[0]);
+		return (-1);
+	}
+
+	if (uef.uef_magic != UFS_EXTATTR_MAGIC) {
+		fprintf(stderr, "%s: bad magic\n", argv[0]);
+		return (-1);
+	}
+
+	printf("%s: version %d, size %d\n", argv[0], uef.uef_version,
+	    uef.uef_size);
+
+	return (0);
+}
+
+int
 main(int argc, char *argv[])
 {
 	int	error = 0, attrnamespace;
@@ -218,6 +256,12 @@ main(int argc, char *argv[])
 		argc -= 2;
 		argv += 2;
 		error = initattr(argc, argv);
+		if (error)
+			return (-1);
+	} else if (!strcmp(argv[1], "showattr")) {
+		argc -= 2;
+		argv += 2;
+		error = showattr(argc, argv);
 		if (error)
 			return (-1);
 	} else
