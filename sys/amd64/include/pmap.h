@@ -97,8 +97,9 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
+/* Initial number of kernel page tables */
 #ifndef NKPT
-#define	NKPT		120	/* initial number of kernel page tables */
+#define	NKPT		240	/* Enough for 16GB (2MB page tables) */
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
