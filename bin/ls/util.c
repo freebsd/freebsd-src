@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.3 1994/09/24 02:55:58 davidg Exp $
+ *	$Id: util.c,v 1.4 1994/10/09 15:25:23 ache Exp $
  */
 
 #ifndef lint
@@ -57,7 +57,7 @@ prcopy(src, dest, len)
 	char *src, *dest;
 	int len;
 {
-	int ch;
+	unsigned char ch;
 
 	while (len--) {
 		ch = *src++;
