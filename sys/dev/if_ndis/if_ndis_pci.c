@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -45,23 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 
-#include <net/bpf.h>
-
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_ioctl.h>
-
-#include <dev/wi/if_wavelan_ieee.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>

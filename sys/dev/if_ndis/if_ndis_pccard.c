@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -46,23 +43,14 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 
-#include <net/bpf.h>
-
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_ioctl.h>
-
-#include <dev/wi/if_wavelan_ieee.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
@@ -200,8 +188,6 @@ ndis_attach_pccard(dev)
 	struct ndis_pccard_type	*t;
 	int			devidx = 0;
 	const char		*prodstr, *vendstr;
-	struct resource_list	*rl;
-	struct resource_list_entry	*rle;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
