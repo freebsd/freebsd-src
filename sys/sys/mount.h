@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.60 1998/03/28 12:13:01 bde Exp $
+ *	$Id: mount.h,v 1.61 1998/04/08 18:31:59 wosch Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -352,7 +352,6 @@ struct vfsops {
 				    struct ucred *cred, struct proc *p));
 	int	(*vfs_vget)	__P((struct mount *mp, ino_t ino,
 				    struct vnode **vpp));
-	int	(*vfs_vrele)	__P((struct mount *mp, struct vnode *vp));
 	int	(*vfs_fhtovp)	__P((struct mount *mp, struct fid *fhp,
 				    struct sockaddr *nam, struct vnode **vpp,
 				    int *exflagsp, struct ucred **credanonp));
@@ -369,7 +368,6 @@ struct vfsops {
 #define VFS_STATFS(MP, SBP, P)	  (*(MP)->mnt_op->vfs_statfs)(MP, SBP, P)
 #define VFS_SYNC(MP, WAIT, C, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, C, P)
 #define VFS_VGET(MP, INO, VPP)	  (*(MP)->mnt_op->vfs_vget)(MP, INO, VPP)
-#define VFS_VRELE(MP, VP)	  (*(MP)->mnt_op->vfs_vrele)(MP, VP)
 #define VFS_FHTOVP(MP, FIDP, NAM, VPP, EXFLG, CRED) \
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, NAM, VPP, EXFLG, CRED)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
@@ -447,7 +445,6 @@ void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
 int	vfs_busy __P((struct mount *, int, struct simplelock *, struct proc *));
 int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
-int	vfs_vrele __P((struct mount *, struct vnode *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 	  __P((struct mount *, struct netexport *, struct sockaddr *));
 int	vfs_allocate_syncvnode __P((struct mount *));

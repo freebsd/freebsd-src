@@ -93,7 +93,6 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_statfs,
 	ext2_sync,
 	ext2_vget,
-	vfs_vrele,
 	ext2_fhtovp,
 	ext2_vptofh,
 	ext2_init,
