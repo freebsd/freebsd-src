@@ -39,7 +39,7 @@
 .Nd return stream to a remote command
 .Sh SYNOPSIS
 .Ft int
-.Fn rexec ahost "int inport" "char *user" "char *passwd" "char *cmd" "int *fd2p"
+.Fn rexec "char **ahost" "int inport" "char *user" "char *passwd" "char *cmd" "int *fd2p"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by krcmd(3).
@@ -120,3 +120,12 @@ The
 .Fn rexec
 function appeared in 
 .Bx 4.2 .
+.Sh BUGS
+The
+.Fn rexec
+function sends the unencrypted password across the network.
+.Pp
+The underlying service is considered a big security hole and therefore
+not enabled on many sites, see
+.Xr rexecd 8
+for explanations.
