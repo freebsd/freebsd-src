@@ -2909,6 +2909,10 @@ guniquefd(char *local, char **name)
 			*name = count ? new : local;
 			return (fd);
 		}
+		if (errno != EEXIST) {
+			perror_reply(550, count ? new : local);
+			return (-1);
+		}
 	}
 	reply(452, "Unique file name cannot be created.");
 	return (-1);
