@@ -1,3 +1,72 @@
+1999-09-22  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0.2s2
+
+	* aux/configure.in: bumped library version-info to 3:2:1, since
+	some libamu code got changed.
+
+	* libamu/xutil.c (real_plog): use vsnprintf, not vsprintf, which
+	is better and more secure.  Fix from "David O'Brien"
+	<obrien@NUXI.com>.
+
+	* aux/configure.in: check for vsnprintf.
+
+1999-09-21  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/linux_headers.m4: use AC_MSG_ERROR.
+
+	* aux/macros/opt_{cppflags,ldflags,libs,amu_cflags}.m4: the ARG is
+	not optional.  Make sure ARG is supplied else flag an error.
+
+1999-09-18  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* minor port i386-unknown-freebsdelf3.3
+
+	* released snapshot am-utils-6.0.2s1
+
+1999-09-17  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/configure.in (AC_CHECK_FUNCS): check for getitimer().
+
+	* include/am_defs.h: extern definition for getitimer().
+
+	* aux/configure.in: use AC_CHECK_EXTERNS.  Look for getitimer()
+	extern.
+
+	* aux/macros/check_extern.m4: define a simple AC_CHECK_EXTERNS
+	that calls AC_CHECK_EXTERN in a loop.  This saves repeated code in
+	configure.
+
+	* aux/macros/type_auth_create_gidlist.m4: AIX 4.x systems use
+	'int' as the 5th arg to authunix_create().
+
+	* aux/macros/type_recvfrom_fromlen.m4: all AIX 4.x systems use a
+	size_t for the 6th arg of recvfrom().
+
+	* aux/macros/os_cflags.m4: define _XOPEN_EXTENDED_SOURCE for
+	aix4.x systems.
+
+	* libamu/mount_fs.c (print_nfs_args): cast some values to int, to
+	avoid gcc -Wall errors.
+
+	* scripts/expn.in: use sockaddr_in(), not pack() to correctly fill
+	in a struct sockaddr_in.  On Solaris x86 hosts, using pack()
+	results in byte-misaligned values.   Bug fix from Jeffrey C Honig
+	<jch@BSDI.COM>.
+
+	* libamu/mount_fs.c (compute_automounter_mount_flags): turn on
+	automntfs (ignore on bsdi-4.1) flag.
+	(compute_automounter_nfs_args): ditto.
+
+	* aux/acconfig.h: add new flag for automntfs (ignore)
+
+	* aux/configure.in: check for new automntfs flag (bsdi-4.1).
+
+1999-09-14  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* MIRRORS: added new site in Germany.  Updated status of umn.edu
+	and ferginc.com, who may no longer be mirroring am-utils.
+
 1999-09-08  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
 
 	*******************************************************************

@@ -35,6 +35,7 @@ i386-unknown-freebsd3.0		ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.0	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.1	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf3.2	ezk       ezk        ezk      ezk
+i386-unknown-freebsdelf3.3	ezk       ezk        ezk      ezk
 i386-unknown-freebsdelf4.0	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.2.1	ezk       ezk        ezk      ezk
 i386-unknown-netbsd1.3		ezk       ezk        ezk      ezk
