@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: ping.c,v 1.39 1998/07/15 06:45:02 charnier Exp $";
+	"$Id: ping.c,v 1.40 1998/08/26 01:58:39 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -124,9 +124,6 @@ int options;
 #define	F_MTTL		0x0800
 #define	F_MIF		0x1000
 #define	F_AUDIBLE	0x2000
-
-#define NPACKETS	16
-#define MAXUSRPACKETS	100
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -232,9 +229,6 @@ main(argc, argv)
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
 			npackets = ultmp;
-			if (uid && npackets > MAXUSRPACKETS)
-				errx(EX_USAGE,
-"you cannot send more than %d packets.", MAXUSRPACKETS);
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
@@ -341,12 +335,6 @@ main(argc, argv)
 	if (argc - optind != 1)
 		usage();
 	target = argv[optind];
-
-	/*
-	 * If not root, infinite packets not allowed.  Limit to NPACKETS.
-	 */
-	if (uid && !npackets)
-		npackets = NPACKETS;
 
 	bzero((char *)&whereto, sizeof(struct sockaddr));
 	to = (struct sockaddr_in *)&whereto;
