@@ -56,8 +56,11 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.44.2.39 1999/06/22 13:36:46 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.44.2.44 2000/01/26 12:51:11 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n"
+"$FreeBSD$\n";
 #endif /* not lint */
+
+/* $FreeBSD$ */
 
 #include "dhcpd.h"
 #include "version.h"
@@ -179,7 +182,8 @@ int main (argc, argv, envp)
 		note (contrib);
 		note (url);
 		note ("");
-	}
+	} else
+		log_perror = 0;
 
 	/* Default to the DHCP/BOOTP port. */
 	if (!local_port) {
@@ -1854,7 +1858,7 @@ void write_client_lease (ip, lease, rewrite)
 			 lease -> filename);
 	if (lease -> server_name)
 		fprintf (leaseFile, "  server-name \"%s\";\n",
-			 lease -> filename);
+			 lease -> server_name);
 	if (lease -> medium)
 		fprintf (leaseFile, "  medium \"%s\";\n",
 			 lease -> medium -> string);
@@ -1917,9 +1921,11 @@ void script_init (ip, reason, medium)
 		if (!mktemp (scriptName))
 			error ("can't create temporary client script %s: %m",
 			       scriptName);
-		fd = creat (scriptName, 0600);
-	} while (fd < 0);
+		fd = open (scriptName, O_EXCL | O_CREAT | O_WRONLY, 0600);
+	} while (fd < 0 && errno == EEXIST);
 #endif
+	if (fd < 0)
+		error ("can't create temporary script %s: %m", scriptName);
 
 	scriptFile = fdopen (fd, "w");
 	if (!scriptFile)
