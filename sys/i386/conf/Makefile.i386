@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.64 1995/05/30 07:59:05 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.64.4.1 1995/08/23 05:00:48 davidg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -172,7 +172,7 @@ links:
 tags:
 	@echo "see $S/kern/Makefile for tags"
 
-install:
+install: kernel
 	chflags noschg /kernel
 	mv /kernel /kernel.old
 	install -c -m 555 -o root -g wheel -fschg kernel /
