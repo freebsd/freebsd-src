@@ -908,7 +908,7 @@ DMenu MenuXDesktops = {
 	NULL, dmenuExit },
       { "2 KDE",		"The K Desktop Environment.",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
-      { "3 GNOME + Afterstep",	"GNOME + Afterstep window manager.",
+      { "3 GNOME + Sawfish",	"GNOME + Sawfish window manager.",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
       { "4 GNOME + Enlightenment","GNOME + The E window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
