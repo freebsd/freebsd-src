@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1999/04/07 07:48:23 obrien Exp $
+# $Id: Makefile,v 1.17 1999/04/08 07:20:33 obrien Exp $
 #
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
@@ -74,7 +74,7 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/_G_config.h
+	    ${.CURDIR}/_G_config.h \
 	    ${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
 	    ${IHDRS:S;^;${EGCSDIR}/libio/;} \
 	    ${STLHDRS:S;^;${EGCSDIR}/libstdc++/stl/;} \
