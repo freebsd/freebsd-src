@@ -4,14 +4,13 @@
 
 MAINTAINER=	kris
 
-.if defined(RSAREF) && ${RSAREF} == YES
 LIB=		RSAglue
 SHLIB_MAJOR=	1
 
 CFLAGS+=	-I${.OBJDIR}
 
 # rsaref
-SRCS+=	rsar_err.c rsaref.c
+SRCS+=	rsar_err.c rsaref.c rsaref_stubs.c
 
 HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
@@ -43,6 +42,3 @@ headers:
 .PATH:	${LCRYPTO_SRC}/../rsaref
 
 .include <bsd.lib.mk>
-.else
-.include <bsd.prog.mk>
-.endif

@@ -55,7 +55,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c des_enc.c \
 	ecb3_enc.c ecb_enc.c ede_cbcm_enc.c enc_read.c enc_writ.c \
 	fcrypt.c fcrypt.c fcrypt_b.c ofb64ede.c ofb64enc.c ofb_enc.c \
 	pcbc_enc.c qud_cksm.c rand_key.c read2pwd.c read_pwd.c rpc_enc.c \
-	set_key.c str2key.c supp.c xcbc_enc.c
+	set_key.c str2key.c supp.c xcbc_enc.c rnd_keys.c
 
 # dh
 SRCS+=	dh_check.c dh_err.c dh_gen.c dh_key.c dh_lib.c
@@ -127,6 +127,7 @@ SRCS+=	rmd_dgst.c rmd_one.c
 .if defined(WITH_RSA) && ${WITH_RSA} == YES
 SRCS+=	rsa_chk.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c rsa_oaep.c \
 	rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c
+HDRS+=	../rsaref/rsaref.h
 .if !defined(RSAREF) || ${RSAREF} != YES
 SRCS+=	rsa_eay.c
 .endif
@@ -219,3 +220,22 @@ beforeinstall: ${.OBJDIR}/openssl/opensslconf.h
 
 .include <bsd.lib.mk>
 
+afterinstall:
+.if !defined(NOPIC)
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f libdes.so.3; \
+	ln -sf lib${LIB}.so.${SHLIB_MAJOR} libdes.so.3;
+.endif
+.if !defined(NOPIC) && ${OBJFORMAT} == elf
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f libdes.so; \
+	ln -sf lib${LIB}.so libdes.so
+.endif
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f libdes.a; \
+	ln -sf lib${LIB}.a libdes.a
+.if !defined(NOPROFILE)
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f libdes_p.a; \
+	ln -sf lib${LIB}_p.a libdes_p.a
+.endif
