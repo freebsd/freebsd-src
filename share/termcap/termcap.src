@@ -1113,7 +1113,7 @@ iris-ansi|iris-ansi-net|IRIS emulating ANSI terminal:\
 #
 # D menu: 0110 1001   1   0
 #	LF is newline/LF is down one line, same column*
-#	wrap to preceeding line if move left from col 1*/don't wrap
+#	wrap to preceding line if move left from col 1*/don't wrap
 #	wrap to next line if move right from col 80*/don't wrap
 #	backspace is/is not destructive*
 #

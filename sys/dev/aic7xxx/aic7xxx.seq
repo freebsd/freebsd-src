@@ -511,7 +511,7 @@ target_disconnect:
 		mvi	MSG_DISCONNECT call target_outb;
 
 target_busfree_wait:
-		/* Wait for preceeding I/O session to complete. */
+		/* Wait for preceding I/O session to complete. */
 		test	SCSISIGI, ACKI jnz .;
 target_busfree:
 		and	SIMODE1, ~ENBUSFREE;
@@ -1772,7 +1772,7 @@ if ((ahc->flags & AHC_TARGETROLE) != 0) {
  * from out to in, wait an additional data release delay before continuing.
  */
 change_phase:
-	/* Wait for preceeding I/O session to complete. */
+	/* Wait for preceding I/O session to complete. */
 	test	SCSISIGI, ACKI jnz .;
 
 	/* Change the phase */
