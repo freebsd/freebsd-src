@@ -192,7 +192,7 @@ extern void
 	wontoption P((int));
 
 int	output_data __P((const char *, ...)) __printflike(1, 2);
-int	output_datalen __P((const char *, size_t));
+void	output_datalen __P((const char *, int));
 
 
 

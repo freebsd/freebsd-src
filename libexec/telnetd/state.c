@@ -1546,40 +1546,46 @@ send_status()
 
 /*
  * This function appends data to nfrontp and advances nfrontp.
+ * Returns the number of characters written altogether (the
+ * buffer may have been flushed in the process).
  */
 
 int
 output_data(const char *format, ...)
 {
 	va_list args;
-	size_t remaining, ret;
+	int len;
+	char *buf;
 
 	va_start(args, format);
-	remaining = BUFSIZ - (nfrontp - netobuf);
-	/* try a netflush() if the room is too low */
-	if (strlen(format) > remaining || BUFSIZ / 4 > remaining) {
-		netflush();
-		remaining = BUFSIZ - (nfrontp - netobuf);
-	}
-	ret = vsnprintf(nfrontp, remaining, format, args);
-	nfrontp += (ret < remaining) ? ret : remaining;
+	if ((len = vasprintf(&buf, format, args)) == -1)
+		return -1;
+	output_datalen(buf, len);
 	va_end(args);
-	return ret;
+	free(buf);
+	return (len);
 }
 
-int
-output_datalen(const char *buf, size_t len)
+void
+output_datalen(const char *buf, int len)
 {
-	size_t remaining;
-
+	int remaining, copied;
+	
 	remaining = BUFSIZ - (nfrontp - netobuf);
-	if (remaining < len) {
-		netflush();
-		remaining = BUFSIZ - (nfrontp - netobuf);
-		if (remaining < len)
-			return -1;
+	while (len > 0) {
+		/* Free up enough space if the room is too low*/
+		if ((len > BUFSIZ ? BUFSIZ : len) > remaining) {
+			netflush();
+			remaining = BUFSIZ - (nfrontp - netobuf);
+		}
+
+		/* Copy out as much as will fit */
+		copied = remaining > len ? len : remaining;
+		memmove(nfrontp, buf, copied);
+		nfrontp += copied;
+		len -= copied;
+		remaining -= copied;
+		buf += copied;
 	}
-	memmove(nfrontp, buf, len);
-	nfrontp += len;
-	return (len);
+	return;
 }
