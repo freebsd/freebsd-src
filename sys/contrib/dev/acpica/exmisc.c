@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 87 $
+ *              $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -132,496 +132,428 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExTriadic
+ * FUNCTION:    AcpiExGetObjectReference
  *
- * PARAMETERS:  WalkState           - Current walk state
+ * PARAMETERS:  ObjDesc         - Create a reference to this object
+ *              ReturnDesc         - Where to store the reference
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute Triadic operator (3 operands)
- *
- * ALLOCATION:  Deletes one operand descriptor -- other remains on stack
+ * DESCRIPTION: Obtain and return a "reference" to the target object
+ *              Common code for the RefOfOp and the CondRefOfOp.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExTriadic (
+AcpiExGetObjectReference (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_OPERAND_OBJECT     *RetDesc = NULL;
-    ACPI_OPERAND_OBJECT     *TmpDesc;
-    ACPI_SIGNAL_FATAL_INFO  *Fatal;
-    UINT32                  Temp;
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("ExTriadic");
+    FUNCTION_TRACE_PTR ("ExGetObjectReference", ObjDesc);
 
 
-#define ObjDesc1            Operand[0]
-#define ObjDesc2            Operand[1]
-#define ResDesc             Operand[2]
-
-
-    switch (WalkState->Opcode)
+    if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_INTERNAL))
     {
-
-    case AML_FATAL_OP:
-
-        /* DefFatal    :=  FatalOp  FatalType   FatalCode   FatalArg    */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "FatalOp: Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-            (UINT32) ObjDesc1->Integer.Value, (UINT32) ObjDesc2->Integer.Value,
-            (UINT32) ResDesc->Integer.Value));
-
-
-        Fatal = ACPI_MEM_ALLOCATE (sizeof (ACPI_SIGNAL_FATAL_INFO));
-        if (Fatal)
+        if (ObjDesc->Common.Type != INTERNAL_TYPE_REFERENCE)
         {
-            Fatal->Type     = (UINT32) ObjDesc1->Integer.Value;
-            Fatal->Code     = (UINT32) ObjDesc2->Integer.Value;
-            Fatal->Argument = (UINT32) ResDesc->Integer.Value;
-        }
-
-        /*
-         * Signal the OS
-         */
-        AcpiOsSignal (ACPI_SIGNAL_FATAL, Fatal);
-
-        /* Might return while OS is shutting down */
-
-        ACPI_MEM_FREE (Fatal);
-        AcpiUtRemoveReference (Operand[2]);
-        break;
-
-
-    case AML_MID_OP:
-
-        /* DefMid       := MidOp  (0)Source (1)Index (2)Length (3)Result */
-
-        /* 
-         * Create the return object.  The Source operand is guaranteed to be
-         * either a String or a Buffer, so just use its type.
-         */
-        RetDesc = AcpiUtCreateInternalObject (ObjDesc1->Common.Type);
-        if (!RetDesc)
-        {
-            Status = AE_NO_MEMORY;
+            *ReturnDesc = NULL;
+            Status = AE_TYPE;
             goto Cleanup;
         }
 
         /*
-         * If the index is beyond the length of the String/Buffer, or if the
-         * requested length is zero, return a zero-length String/Buffer
+         * Not a Name -- an indirect name pointer would have
+         * been converted to a direct name pointer in AcpiExResolveOperands
          */
-        if ((Operand[1]->Integer.Value < ObjDesc1->String.Length) &&
-            (Operand[2]->Integer.Value > 0))
+        switch (ObjDesc->Reference.Opcode)
         {
-            /* Truncate request if larger than the actual String/Buffer */
+        case AML_LOCAL_OP:
+        case AML_ARG_OP:
 
-            if (((UINT32) Operand[1]->Integer.Value + (UINT32) Operand[2]->Integer.Value) >
-                ObjDesc1->String.Length)
-            {
-                Temp = ObjDesc1->String.Length - (UINT32) Operand[1]->Integer.Value;
-            }
-            else
-            {
-                Temp = (UINT32) Operand[2]->Integer.Value;
-            }
+            *ReturnDesc = (void *) AcpiDsMethodDataGetNode (ObjDesc->Reference.Opcode,
+                                        ObjDesc->Reference.Offset, WalkState);
+            break;
 
-            /* Allocate a new buffer for the String/Buffer */
+        default:
 
-            RetDesc->String.Pointer = ACPI_MEM_CALLOCATE (Temp + 1);
-            if (!RetDesc->String.Pointer)
-            {
-                Status = AE_NO_MEMORY;
-                goto Cleanup;
-            }
-
-            /* Copy the portion requested */
-
-            MEMCPY (RetDesc->String.Pointer, 
-                    ObjDesc1->String.Pointer + (UINT32) Operand[1]->Integer.Value,
-                    Temp);
-
-            /* Set the length of the new String/Buffer */
-
-            RetDesc->String.Length = Temp;
-        }
-
-        Status = AcpiExStore (RetDesc, Operand[3], WalkState);
-        break;
-
-
-    case AML_INDEX_OP:
-
-        /* DefIndex     := IndexOp Source Index Destination */
-
-        /* Create the internal return object */
-
-        RetDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
-        if (!RetDesc)
-        {
-            Status = AE_NO_MEMORY;
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(Internal) Unknown Ref subtype %02x\n",
+                ObjDesc->Reference.Opcode));
+            *ReturnDesc = NULL;
+            Status = AE_AML_INTERNAL;
             goto Cleanup;
         }
 
-        /*
-         * At this point, the ObjDesc1 operand is either a Package or a Buffer
-         */
-        if (ObjDesc1->Common.Type == ACPI_TYPE_PACKAGE)
-        {
-            /* Object to be indexed is a Package */
+    }
 
-            if (ObjDesc2->Integer.Value >= ObjDesc1->Package.Count)
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value beyond package end\n"));
-                Status = AE_AML_PACKAGE_LIMIT;
-                goto Cleanup;
-            }
+    else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_NAMED))
+    {
+        /* Must be a named object;  Just return the Node */
 
-            if ((ResDesc->Common.Type == INTERNAL_TYPE_REFERENCE) &&
-                (ResDesc->Reference.Opcode == AML_ZERO_OP))
-            {
-                /*
-                 * There is no actual result descriptor (the ZeroOp Result
-                 * descriptor is a placeholder), so just delete the placeholder and
-                 * return a reference to the package element
-                 */
-                AcpiUtRemoveReference (ResDesc);
-            }
+        *ReturnDesc = ObjDesc;
+    }
 
-            else
-            {
-                /*
-                 * Each element of the package is an internal object.  Get the one
-                 * we are after.
-                 */
-                TmpDesc                       = ObjDesc1->Package.Elements[ObjDesc2->Integer.Value];
-                RetDesc->Reference.Opcode     = AML_INDEX_OP;
-                RetDesc->Reference.TargetType = TmpDesc->Common.Type;
-                RetDesc->Reference.Object     = TmpDesc;
-
-                Status = AcpiExStore (RetDesc, ResDesc, WalkState);
-                RetDesc->Reference.Object     = NULL;
-            }
-
-            /*
-             * The local return object must always be a reference to the package element,
-             * not the element itself.
-             */
-            RetDesc->Reference.Opcode     = AML_INDEX_OP;
-            RetDesc->Reference.TargetType = ACPI_TYPE_PACKAGE;
-            RetDesc->Reference.Where      = &ObjDesc1->Package.Elements[ObjDesc2->Integer.Value];
-        }
-
-        else
-        {
-            /* Object to be indexed is a Buffer */
-
-            if (ObjDesc2->Integer.Value >= ObjDesc1->Buffer.Length)
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value beyond end of buffer\n"));
-                Status = AE_AML_BUFFER_LIMIT;
-                goto Cleanup;
-            }
-
-            RetDesc->Reference.Opcode       = AML_INDEX_OP;
-            RetDesc->Reference.TargetType   = ACPI_TYPE_BUFFER_FIELD;
-            RetDesc->Reference.Object       = ObjDesc1;
-            RetDesc->Reference.Offset       = (UINT32) ObjDesc2->Integer.Value;
-
-            Status = AcpiExStore (RetDesc, ResDesc, WalkState);
-        }
-        break;
+    else
+    {
+        *ReturnDesc = NULL;
+        Status = AE_TYPE;
     }
 
 
 Cleanup:
 
-    /* Always delete operands */
-
-    AcpiUtRemoveReference (ObjDesc1);
-    AcpiUtRemoveReference (ObjDesc2);
-
-    /* Delete return object on error */
-
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiUtRemoveReference (ResDesc);
-
-        if (RetDesc)
-        {
-            AcpiUtRemoveReference (RetDesc);
-            RetDesc = NULL;
-        }
-    }
-
-    /* Set the return object and exit */
-
-    WalkState->ResultObj = RetDesc;
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p Ref=%p\n", ObjDesc, *ReturnDesc));
     return_ACPI_STATUS (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExHexadic
+ * FUNCTION:    AcpiExDoConcatenate
  *
- * PARAMETERS:  WalkState           - Current walk state
+ * PARAMETERS:  *ObjDesc            - Object to be converted.  Must be an
+ *                                    Integer, Buffer, or String
+ *              WalkState           - Current walk state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute Match operator
+ * DESCRIPTION: Concatenate two objects OF THE SAME TYPE.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExHexadic (
+AcpiExDoConcatenate (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     *ObjDesc2,
+    ACPI_OPERAND_OBJECT     **ActualReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_OPERAND_OBJECT     *RetDesc = NULL;
-    ACPI_STATUS             Status = AE_OK;
-    UINT32                  Index;
-    UINT32                  MatchValue = (UINT32) -1;
+    ACPI_STATUS             Status;
+    UINT32                  i;
+    ACPI_INTEGER            ThisInteger;
+    ACPI_OPERAND_OBJECT     *ReturnDesc;
+    NATIVE_CHAR             *NewBuf;
+    UINT32                  IntegerSize = sizeof (ACPI_INTEGER);
 
 
-    FUNCTION_TRACE ("ExHexadic");
-
-#define PkgDesc             Operand[0]
-#define Op1Desc             Operand[1]
-#define V1Desc              Operand[2]
-#define Op2Desc             Operand[3]
-#define V2Desc              Operand[4]
-#define StartDesc           Operand[5]
+    FUNCTION_ENTRY ();
 
 
-
-    switch (WalkState->Opcode)
+    /*
+     * There are three cases to handle:
+     * 1) Two Integers concatenated to produce a buffer
+     * 2) Two Strings concatenated to produce a string
+     * 3) Two Buffers concatenated to produce a buffer
+     */
+    switch (ObjDesc->Common.Type)
     {
+    case ACPI_TYPE_INTEGER:
 
-        case AML_MATCH_OP:
+        /* Handle both ACPI 1.0 and ACPI 2.0 Integer widths */
 
-        /* Validate match comparison sub-opcodes */
-
-        if ((Op1Desc->Integer.Value > MAX_MATCH_OPERATOR) ||
-            (Op2Desc->Integer.Value > MAX_MATCH_OPERATOR))
+        if (WalkState->MethodNode->Flags & ANOBJ_DATA_WIDTH_32)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "operation encoding out of range\n"));
-            Status = AE_AML_OPERAND_VALUE;
-            goto Cleanup;
+            /*
+             * We are running a method that exists in a 32-bit ACPI table.
+             * Truncate the value to 32 bits by zeroing out the upper
+             * 32-bit field
+             */
+            IntegerSize = sizeof (UINT32);
         }
 
-        Index = (UINT32) StartDesc->Integer.Value;
-        if (Index >= (UINT32) PkgDesc->Package.Count)
+        /* Result of two integers is a buffer */
+
+        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+        if (!ReturnDesc)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Start position value out of range\n"));
-            Status = AE_AML_PACKAGE_LIMIT;
-            goto Cleanup;
+            return (AE_NO_MEMORY);
         }
 
-        RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
-        if (!RetDesc)
+        /* Need enough space for two integers */
+
+        ReturnDesc->Buffer.Length = IntegerSize * 2;
+        NewBuf = ACPI_MEM_CALLOCATE (ReturnDesc->Buffer.Length);
+        if (!NewBuf)
         {
+            REPORT_ERROR
+                (("ExDoConcatenate: Buffer allocation failure\n"));
             Status = AE_NO_MEMORY;
             goto Cleanup;
-
         }
 
-        /*
-         * Examine each element until a match is found.  Within the loop,
-         * "continue" signifies that the current element does not match
-         * and the next should be examined.
-         * Upon finding a match, the loop will terminate via "break" at
-         * the bottom.  If it terminates "normally", MatchValue will be -1
-         * (its initial value) indicating that no match was found.  When
-         * returned as a Number, this will produce the Ones value as specified.
-         */
-        for ( ; Index < PkgDesc->Package.Count; ++Index)
+        ReturnDesc->Buffer.Pointer = (UINT8 *) NewBuf;
+
+        /* Convert the first integer */
+
+        ThisInteger = ObjDesc->Integer.Value;
+        for (i = 0; i < IntegerSize; i++)
         {
-            /*
-             * Treat any NULL or non-numeric elements as non-matching.
-             * TBD [Unhandled] - if an element is a Name,
-             *      should we examine its value?
-             */
-            if (!PkgDesc->Package.Elements[Index] ||
-                ACPI_TYPE_INTEGER != PkgDesc->Package.Elements[Index]->Common.Type)
-            {
-                continue;
-            }
-
-            /*
-             * Within these switch statements:
-             *      "break" (exit from the switch) signifies a match;
-             *      "continue" (proceed to next iteration of enclosing
-             *          "for" loop) signifies a non-match.
-             */
-            switch ((NATIVE_UINT) Op1Desc->Integer.Value)
-            {
-            case MATCH_MTR:   /* always true */
-
-                break;
-
-
-            case MATCH_MEQ:   /* true if equal   */
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     != V1Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MLE:   /* true if less than or equal  */
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     > V1Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MLT:   /* true if less than   */
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     >= V1Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MGE:   /* true if greater than or equal   */
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     < V1Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MGT:   /* true if greater than    */
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     <= V1Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            default:    /* undefined   */
-
-                continue;
-            }
-
-
-            switch ((NATIVE_UINT) Op2Desc->Integer.Value)
-            {
-            case MATCH_MTR:
-
-                break;
-
-
-            case MATCH_MEQ:
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     != V2Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MLE:
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     > V2Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MLT:
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     >= V2Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MGE:
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     < V2Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            case MATCH_MGT:
-
-                if (PkgDesc->Package.Elements[Index]->Integer.Value
-                     <= V2Desc->Integer.Value)
-                {
-                    continue;
-                }
-                break;
-
-
-            default:
-
-                continue;
-            }
-
-            /* Match found: exit from loop */
-
-            MatchValue = Index;
-            break;
+            NewBuf[i] = (UINT8) ThisInteger;
+            ThisInteger >>= 8;
         }
 
-        /* MatchValue is the return value */
+        /* Convert the second integer */
 
-        RetDesc->Integer.Value = MatchValue;
+        ThisInteger = ObjDesc2->Integer.Value;
+        for (; i < (IntegerSize * 2); i++)
+        {
+            NewBuf[i] = (UINT8) ThisInteger;
+            ThisInteger >>= 8;
+        }
+
         break;
 
+
+    case ACPI_TYPE_STRING:
+
+        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_STRING);
+        if (!ReturnDesc)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        /* Operand0 is string  */
+
+        NewBuf = ACPI_MEM_ALLOCATE (ObjDesc->String.Length +
+                                    ObjDesc2->String.Length + 1);
+        if (!NewBuf)
+        {
+            REPORT_ERROR
+                (("ExDoConcatenate: String allocation failure\n"));
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+
+        STRCPY (NewBuf, ObjDesc->String.Pointer);
+        STRCPY (NewBuf + ObjDesc->String.Length,
+                        ObjDesc2->String.Pointer);
+
+        /* Point the return object to the new string */
+
+        ReturnDesc->String.Pointer = NewBuf;
+        ReturnDesc->String.Length = ObjDesc->String.Length +=
+                                 ObjDesc2->String.Length;
+        break;
+
+
+    case ACPI_TYPE_BUFFER:
+
+        /* Operand0 is a buffer */
+
+        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+        if (!ReturnDesc)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        NewBuf = ACPI_MEM_ALLOCATE (ObjDesc->Buffer.Length +
+                                    ObjDesc2->Buffer.Length);
+        if (!NewBuf)
+        {
+            REPORT_ERROR
+                (("ExDoConcatenate: Buffer allocation failure\n"));
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+
+        MEMCPY (NewBuf, ObjDesc->Buffer.Pointer,
+                        ObjDesc->Buffer.Length);
+        MEMCPY (NewBuf + ObjDesc->Buffer.Length, ObjDesc2->Buffer.Pointer,
+                         ObjDesc2->Buffer.Length);
+
+        /*
+         * Point the return object to the new buffer
+         */
+
+        ReturnDesc->Buffer.Pointer     = (UINT8 *) NewBuf;
+        ReturnDesc->Buffer.Length      = ObjDesc->Buffer.Length +
+                                      ObjDesc2->Buffer.Length;
+        break;
+
+
+    default:
+        Status = AE_AML_INTERNAL;
+        ReturnDesc = NULL;
     }
+
+
+    *ActualReturnDesc = ReturnDesc;
+    return (AE_OK);
 
 
 Cleanup:
 
-    /* Free the operands */
-
-    AcpiUtRemoveReference (StartDesc);
-    AcpiUtRemoveReference (V2Desc);
-    AcpiUtRemoveReference (Op2Desc);
-    AcpiUtRemoveReference (V1Desc);
-    AcpiUtRemoveReference (Op1Desc);
-    AcpiUtRemoveReference (PkgDesc);
+    AcpiUtRemoveReference (ReturnDesc);
+    return (Status);
+}
 
 
-    /* Delete return object on error */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExDoMathOp
+ *
+ * PARAMETERS:  Opcode              - AML opcode
+ *              Operand0            - Integer operand #0
+ *              Operand0            - Integer operand #1
+ *
+ * RETURN:      Integer result of the operation
+ *
+ * DESCRIPTION: Execute a math AML opcode. The purpose of having all of the
+ *              math functions here is to prevent a lot of pointer dereferencing
+ *              to obtain the operands.
+ *
+ ******************************************************************************/
 
-    if (ACPI_FAILURE (Status) &&
-        (RetDesc))
+ACPI_INTEGER
+AcpiExDoMathOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Operand0,
+    ACPI_INTEGER            Operand1)
+{
+
+
+    switch (Opcode)
     {
-        AcpiUtRemoveReference (RetDesc);
-        RetDesc = NULL;
+    case AML_ADD_OP:                /* Add (Operand0, Operand1, Result) */
+
+        return (Operand0 + Operand1);
+
+
+    case AML_BIT_AND_OP:            /* And (Operand0, Operand1, Result) */
+
+        return (Operand0 & Operand1);
+
+
+    case AML_BIT_NAND_OP:           /* NAnd (Operand0, Operand1, Result) */
+
+        return (~(Operand0 & Operand1));
+
+
+    case AML_BIT_OR_OP:             /* Or (Operand0, Operand1, Result) */
+
+        return (Operand0 | Operand1);
+
+
+    case AML_BIT_NOR_OP:            /* NOr (Operand0, Operand1, Result) */
+
+        return (~(Operand0 | Operand1));
+
+
+    case AML_BIT_XOR_OP:            /* XOr (Operand0, Operand1, Result) */
+
+        return (Operand0 ^ Operand1);
+
+
+    case AML_MULTIPLY_OP:           /* Multiply (Operand0, Operand1, Result) */
+
+        return (Operand0 * Operand1);
+
+
+    case AML_SHIFT_LEFT_OP:         /* ShiftLeft (Operand, ShiftCount, Result) */
+
+        return (Operand0 << Operand1);
+
+
+    case AML_SHIFT_RIGHT_OP:        /* ShiftRight (Operand, ShiftCount, Result) */
+
+        return (Operand0 >> Operand1);
+
+
+    case AML_SUBTRACT_OP:           /* Subtract (Operand0, Operand1, Result) */
+
+        return (Operand0 - Operand1);
+
+    default:
+
+        return (0);
+    }
+}
+
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExDoLogicalOp
+ *
+ * PARAMETERS:  Opcode              - AML opcode
+ *              Operand0            - Integer operand #0
+ *              Operand0            - Integer operand #1
+ *
+ * RETURN:      TRUE/FALSE result of the operation
+ *
+ * DESCRIPTION: Execute a logical AML opcode. The purpose of having all of the
+ *              functions here is to prevent a lot of pointer dereferencing
+ *              to obtain the operands and to simplify the generation of the
+ *              logical value.
+ *
+ *              Note: cleanest machine code seems to be produced by the code
+ *              below, rather than using statements of the form:
+ *                  Result = (Operand0 == Operand1);
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiExDoLogicalOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Operand0,
+    ACPI_INTEGER            Operand1)
+{
+
+
+    switch (Opcode)
+    {
+
+    case AML_LAND_OP:               /* LAnd (Operand0, Operand1) */
+
+        if (Operand0 && Operand1)
+        {
+            return (TRUE);
+        }
+        break;
+
+
+    case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
+
+        if (Operand0 == Operand1)
+        {
+            return (TRUE);
+        }
+        break;
+
+
+    case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
+
+        if (Operand0 > Operand1)
+        {
+            return (TRUE);
+        }
+        break;
+
+
+    case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
+
+        if (Operand0 < Operand1)
+        {
+            return (TRUE);
+        }
+        break;
+
+
+    case AML_LOR_OP:                 /* LOr (Operand0, Operand1) */
+
+        if (Operand0 || Operand1)
+        {
+            return (TRUE);
+        }
+        break;
     }
 
-
-    /* Set the return object and exit */
-
-    WalkState->ResultObj = RetDesc;
-    return_ACPI_STATUS (Status);
+    return (FALSE);
 }
+
+
+
+

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 65 $
+ *              $Revision: 66 $
  *
  ******************************************************************************/
 
@@ -536,7 +536,7 @@ AcpiDbDumpNamespace (
     /* Display the subtree */
 
     AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
-    AcpiNsDumpObjects (ACPI_TYPE_ANY, MaxDepth, ACPI_UINT32_MAX, SubtreeEntry);
+    AcpiNsDumpObjects (ACPI_TYPE_ANY, ACPI_DISPLAY_SUMMARY, MaxDepth, ACPI_UINT32_MAX, SubtreeEntry);
     AcpiDbSetOutputDestination (DB_CONSOLE_OUTPUT);
 }
 
@@ -581,7 +581,7 @@ AcpiDbDumpNamespaceByOwner (
     /* Display the subtree */
 
     AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
-    AcpiNsDumpObjects (ACPI_TYPE_ANY, MaxDepth, OwnerId, SubtreeEntry);
+    AcpiNsDumpObjects (ACPI_TYPE_ANY, ACPI_DISPLAY_SUMMARY, MaxDepth, OwnerId, SubtreeEntry);
     AcpiDbSetOutputDestination (DB_CONSOLE_OUTPUT);
 }
 

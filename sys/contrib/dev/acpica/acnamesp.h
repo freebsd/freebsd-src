@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 107 $
+ *       $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -193,13 +193,11 @@ AcpiNsWalkNamespace (
     void                    *Context,
     void                    **ReturnValue);
 
-
 ACPI_NAMESPACE_NODE *
-AcpiNsGetNextObject (
+AcpiNsGetNextNode (
     ACPI_OBJECT_TYPE8       Type,
     ACPI_NAMESPACE_NODE     *Parent,
     ACPI_NAMESPACE_NODE     *Child);
-
 
 ACPI_STATUS
 AcpiNsDeleteNamespaceByOwner (
@@ -315,6 +313,7 @@ AcpiNsDumpRootDevices (
 void
 AcpiNsDumpObjects (
     ACPI_OBJECT_TYPE8       Type,
+    UINT8                   DisplayType,
     UINT32                  MaxDepth,
     UINT32                  OwnderId,
     ACPI_HANDLE             StartHandle);
@@ -394,7 +393,6 @@ BOOLEAN
 AcpiNsPatternMatch (
     ACPI_NAMESPACE_NODE     *ObjNode,
     NATIVE_CHAR             *SearchFor);
-
 
 ACPI_STATUS
 AcpiNsGetNode (
@@ -492,7 +490,7 @@ AcpiNsExternalizeName (
     NATIVE_CHAR             **ConvertedName);
 
 ACPI_NAMESPACE_NODE *
-AcpiNsConvertHandleToEntry (
+AcpiNsMapHandleToNode (
     ACPI_HANDLE             Handle);
 
 ACPI_HANDLE
@@ -509,7 +507,7 @@ AcpiNsGetParentObject (
 
 
 ACPI_NAMESPACE_NODE *
-AcpiNsGetNextValidObject (
+AcpiNsGetNextValidNode (
     ACPI_NAMESPACE_NODE     *Node);
 
 

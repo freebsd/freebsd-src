@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -500,12 +500,12 @@ AcpiPsGetNextNamepath (
                     NameOp->Node = MethodNode;
                     AcpiPsAppendArg (Arg, NameOp);
 
-                    if (!(ACPI_OPERAND_OBJECT  *) MethodNode->Object)
+                    if (!MethodNode->Object)
                     {
                         return_VOID;
                     }
 
-                    *ArgCount = ((ACPI_OPERAND_OBJECT  *) MethodNode->Object)->Method.ParamCount;
+                    *ArgCount = (MethodNode->Object)->Method.ParamCount;
                 }
 
                 return_VOID;

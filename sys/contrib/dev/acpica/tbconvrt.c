@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 27 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -576,7 +576,7 @@ AcpiTbConvertTableFadt (void)
     /* Dump the entire FADT */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
-        "Hex dump of common internal FADT, size %ld (%lX)\n",
+        "Hex dump of common internal FADT, size %d (%X)\n",
         AcpiGbl_FADT->header.Length, AcpiGbl_FADT->header.Length));
     DUMP_BUFFER ((UINT8 *) (AcpiGbl_FADT), AcpiGbl_FADT->header.Length);
 

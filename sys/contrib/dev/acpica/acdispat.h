@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 44 $
+ *       $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -191,7 +191,6 @@ AcpiDsExecEndOp (
 
 /* dsfield - Parser/Interpreter interface for AML fields */
 
-
 ACPI_STATUS
 AcpiDsCreateField (
     ACPI_PARSE_OBJECT       *Op,
@@ -208,6 +207,11 @@ ACPI_STATUS
 AcpiDsCreateIndexField (
     ACPI_PARSE_OBJECT       *Op,
     ACPI_NAMESPACE_NODE     *RegionNode,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiDsCreateBufferField (
+    ACPI_PARSE_OBJECT       *Op,
     ACPI_WALK_STATE         *WalkState);
 
 

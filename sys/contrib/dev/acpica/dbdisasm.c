@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisasm - parser op tree display routines
- *              $Revision: 48 $
+ *              $Revision: 50 $
  *
  ******************************************************************************/
 
@@ -189,6 +189,7 @@ AcpiDbBlockType (
 
 ACPI_STATUS
 AcpiPsDisplayObjectPathname (
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
     ACPI_PARSE_OBJECT       *TargetOp;
@@ -224,27 +225,45 @@ AcpiPsDisplayObjectPathname (
 
 ACPI_STATUS
 AcpiPsDisplayObjectPathname (
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
     NATIVE_CHAR             Buffer[MAX_SHOW_ENTRY];
     UINT32                  BufferSize = MAX_SHOW_ENTRY;
+    UINT32                  DebugLevel;
 
 
-    AcpiOsPrintf ("  (Path ");
+    /* Save current debug level so we don't get extraneous debug output */
+
+    DebugLevel = AcpiDbgLevel;
+    AcpiDbgLevel = 0;
 
     /* Just get the Node out of the Op object */
 
     Node = Op->Node;
     if (!Node)
     {
-        /*
-         * No Named obj,  so we can't get the pathname since the object
-         * is not in the namespace.  This can happen during single
-         * stepping where a dynamic named object is *about* to be created.
-         */
-        return (AE_OK);
+        /* Node not defined in this scope, look it up */
+
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Op->Value.String, ACPI_TYPE_ANY,
+                        IMODE_EXECUTE, NS_SEARCH_PARENT, WalkState, &(Node));
+
+        if (ACPI_FAILURE (Status))
+        {
+            /*
+             * We can't get the pathname since the object
+             * is not in the namespace.  This can happen during single
+             * stepping where a dynamic named object is *about* to be created.
+             */
+            AcpiOsPrintf ("  [Path not found]");
+            goto Exit;
+        }
+
+        /* Save it for next time. */
+
+        Op->Node = Node;
     }
 
     /* Convert NamedDesc/handle to a full pathname */
@@ -253,11 +272,17 @@ AcpiPsDisplayObjectPathname (
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("****Could not get pathname****)");
-        return (Status);
+        goto Exit;
     }
 
-    AcpiOsPrintf ("%s)", Buffer);
-    return (AE_OK);
+    AcpiOsPrintf ("  (Path %s)", Buffer);
+
+
+Exit:
+    /* Restore the debug level */
+
+    AcpiDbgLevel = DebugLevel;
+    return (Status);
 }
 
 #endif
@@ -388,7 +413,7 @@ AcpiDbDisplayOp (
                 (Op->Parent) &&
                 (AcpiGbl_DbOpt_verbose))
             {
-                AcpiPsDisplayObjectPathname (Op);
+                AcpiPsDisplayObjectPathname (WalkState, Op);
             }
 
             AcpiOsPrintf ("\n");

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 49 $
+ *       $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -219,7 +219,7 @@ ACPI_STATUS
 AcpiDbSingleStep (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
-    UINT8                   OpType);
+    UINT32                  OpType);
 
 
 /*

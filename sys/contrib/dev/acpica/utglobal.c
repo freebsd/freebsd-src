@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 131 $
+ *              $Revision: 133 $
  *
  *****************************************************************************/
 
@@ -430,7 +430,7 @@ AcpiUtGetMutexName (
  */
 
 static const NATIVE_CHAR    AcpiGbl_BadType[] = "UNDEFINED";
-#define TYPE_NAME_LENGTH    9                           /* Maximum length of each string */
+#define TYPE_NAME_LENGTH    12                           /* Maximum length of each string */
 
 static const NATIVE_CHAR    *AcpiGbl_NsTypeNames[] =    /* printable names of ACPI types */
 {
@@ -448,21 +448,21 @@ static const NATIVE_CHAR    *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 11 */ "Power",
     /* 12 */ "Processor",
     /* 13 */ "Thermal",
-    /* 14 */ "BuffField",
+    /* 14 */ "BufferField",
     /* 15 */ "DdbHandle",
-    /* 16 */ "DebugObj",
-    /* 17 */ "RegnField",
+    /* 16 */ "DebugObject",
+    /* 17 */ "RegionField",
     /* 18 */ "BankField",
-    /* 19 */ "IndxField",
+    /* 19 */ "IndexField",
     /* 20 */ "Reference",
     /* 21 */ "Alias",
     /* 22 */ "Notify",
-    /* 23 */ "AddrHndlr",
-    /* 24 */ "RsrcDesc",
-    /* 25 */ "RsrcField",
-    /* 26 */ "RgnFldDfn",
-    /* 27 */ "BnkFldDfn",
-    /* 28 */ "IdxFldDfn",
+    /* 23 */ "AddrHandler",
+    /* 24 */ "ResourceDesc",
+    /* 25 */ "ResourceFld",
+    /* 26 */ "RegionFldDfn",
+    /* 27 */ "BankFldDfn",
+    /* 28 */ "IndexFldDfn",
     /* 29 */ "If",
     /* 30 */ "Else",
     /* 31 */ "While",

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -335,7 +335,7 @@ AcpiExConvertToBuffer (
         if (!NewBuf)
         {
             REPORT_ERROR
-                (("ExDyadic2R/ConcatOp: Buffer allocation failure\n"));
+                (("ExConvertToBuffer: Buffer allocation failure\n"));
             AcpiUtRemoveReference (RetDesc);
             return (AE_NO_MEMORY);
         }

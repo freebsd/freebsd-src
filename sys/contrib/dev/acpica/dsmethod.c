@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -171,7 +171,7 @@ AcpiDsParseMethod (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Parsing [%4.4s] **** NamedObj=%p\n",
-        &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle));
+        (char*)&((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle));
 
 
     /* Extract the method object from the method Node */
@@ -251,7 +251,7 @@ AcpiDsParseMethod (
     ObjDesc->Method.OwningId = OwnerId;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
-        &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle, Op));
+        (char*)&((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle, Op));
 
     AcpiPsDeleteParseTree (Op);
 

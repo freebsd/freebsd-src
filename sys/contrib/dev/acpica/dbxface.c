@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  ******************************************************************************/
 
@@ -137,7 +137,7 @@
  *
  * PARAMETERS:  WalkState       - Current walk
  *              Op              - Current executing op
- *              OpType          - Type of the current AML Opcode
+ *              OpcodeClass     - Class of the current AML Opcode
  *
  * RETURN:      Status
  *
@@ -149,7 +149,7 @@ ACPI_STATUS
 AcpiDbSingleStep (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
-    UINT8                   OpType)
+    UINT32                  OpcodeClass)
 {
     ACPI_PARSE_OBJECT       *Next;
     ACPI_STATUS             Status = AE_OK;
@@ -185,24 +185,12 @@ AcpiDbSingleStep (
         return (AE_OK);
     }
 
-    switch (OpType)
+    switch (OpcodeClass)
     {
-    case OPTYPE_UNDEFINED:
-    case OPTYPE_CONSTANT:           /* argument type only */
-    case OPTYPE_LITERAL:            /* argument type only */
-    case OPTYPE_DATA_TERM:          /* argument type only */
-    case OPTYPE_LOCAL_VARIABLE:     /* argument type only */
-    case OPTYPE_METHOD_ARGUMENT:    /* argument type only */
+    case AML_CLASS_UNKNOWN:
+    case AML_CLASS_ARGUMENT:    /* constants, literals, etc.  do nothing */
         return (AE_OK);
         break;
-
-    case OPTYPE_NAMED_OBJECT:
-        switch (Op->Opcode)
-        {
-        case AML_INT_NAMEPATH_OP:
-            return (AE_OK);
-            break;
-        }
     }
 
     /*
