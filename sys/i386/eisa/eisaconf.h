@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.10 1996/09/06 23:06:59 phk Exp $
+ *	$Id: eisaconf.h,v 1.11 1996/09/08 10:43:42 phk Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -79,7 +79,7 @@ struct eisa_driver {
 					/* test whether device is present */
 	int	(*attach) __P((struct eisa_device *));
 					/* setup driver for a device */
-	int	(*shutdown) __P((struct kern_devconf *, int));
+	int	(*shutdown) __P((int));
 					/* Return the device to a safe
 					 * state before shutdown
 					 */

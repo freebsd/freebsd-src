@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.60 1996/07/20 22:02:44 joerg Exp $
+ *      $Id: aha1542.c,v 1.61 1996/09/06 23:07:06 phk Exp $
  */
 
 /*
@@ -341,7 +341,6 @@ static void	ahaminphys __P((struct buf *bp));
 static int	aha_poll __P((struct aha_data *aha, struct scsi_xfer *xs,
 			      struct aha_ccb *ccb));
 static int	ahaprobe __P((struct isa_device *dev));
-static void	aha_registerdev __P((struct isa_device *id));
 static int32_t	aha_scsi_cmd __P((struct scsi_xfer *xs));
 static timeout_t
 		aha_timeout;
