@@ -406,13 +406,29 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		_thread_init();
 
 	if (mutex == NULL)
-		ret = EINVAL;
+		return (EINVAL);
 
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
+	if ((*mutex == NULL) &&
+	    ((ret = init_static(mutex)) != 0))
+		return (ret);
+
+	/* Reset the interrupted flag: */
+	_thread_run->interrupted = 0;
+
+	/*
+	 * Enter a loop waiting to become the mutex owner.  We need a
+	 * loop in case the waiting thread is interrupted by a signal
+	 * to execute a signal handler.  It is not (currently) possible
+	 * to remain in the waiting queue while running a handler.
+	 * Instead, the thread is interrupted and backed out of the
+	 * waiting queue prior to executing the signal handler.
+	 */
+	while (((*mutex)->m_owner != _thread_run) && (ret == 0) &&
+	    (_thread_run->interrupted == 0)) {
 		/*
 		 * Defer signals to protect the scheduling queues from
 		 * access by the signal handler:
@@ -431,9 +447,6 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 			(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
 			_MUTEX_INIT_LINK(*mutex);
 		}
-
-		/* Reset the interrupted flag: */
-		_thread_run->interrupted = 0;
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_protocol) {
@@ -624,11 +637,11 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 * necessary:
 		 */
 		_thread_kern_sig_undefer();
-
-		if (_thread_run->interrupted != 0 &&
-		    _thread_run->continuation != NULL)
-			_thread_run->continuation((void *) _thread_run);
 	}
+
+	if (_thread_run->interrupted != 0 &&
+	    _thread_run->continuation != NULL)
+		_thread_run->continuation((void *) _thread_run);
 
 	/* Return the completion status: */
 	return (ret);
@@ -1381,7 +1394,7 @@ _mutex_lock_backout(pthread_t pthread)
 	 * access by the signal handler:
 	 */
 	_thread_kern_sig_defer();
-	if (pthread->state == PS_MUTEX_WAIT) {
+	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
 		mutex = pthread->data.mutex;
 
 		/* Lock the mutex structure: */
@@ -1390,7 +1403,7 @@ _mutex_lock_backout(pthread_t pthread)
 		mutex_queue_remove(mutex, pthread);
 
 		/* This thread is no longer waiting for the mutex: */
-		mutex->m_owner->data.mutex = NULL;
+		pthread->data.mutex = NULL;
 
 		/* Unlock the mutex structure: */
 		_SPINUNLOCK(&mutex->lock);
