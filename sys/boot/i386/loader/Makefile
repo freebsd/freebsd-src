@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1998/10/12 01:03:00 rnordier Exp $
+# $Id: Makefile,v 1.12 1998/10/14 07:08:16 peter Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -11,8 +11,8 @@ BINDIR?=	/boot
 SRCS=		main.c conf.c
 
 # Enable PnP and ISA-PnP code.
-#HAVE_PNP=	yes
-#HAVE_ISABUS=	yes
+HAVE_PNP=	yes
+HAVE_ISABUS=	yes
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
@@ -20,8 +20,7 @@ SRCS=		main.c conf.c
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.list setdef0.o setdef1.o setdefs.h \
-		gensetdefs.o gensetdefs ${BASE}.bin
+CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x1000
@@ -49,6 +48,9 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # BTX is expecting ELF components
 CFLAGS+=	-elf
 
+# New linker set code
+CFLAGS+=	-DNEW_LINKER_SET
+
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
@@ -61,30 +63,26 @@ ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
 
-${BASE}.bin: ${OBJS} ${LIBI386} vers.o setdef0.o setdef1.o
-	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o \
+${BASE}.bin: ${BASE}.sym
+	cp ${.ALLSRC} ${.TARGET}
+	strip ${.TARGET}
+
+# Cannot use ${OBJS} above this line
+.include <bsd.prog.mk>
+
+${BASE}.sym: ${OBJS} ${LIBI386} vers.o
+	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
 		${LIBSTAND} ${LIBI386} ${LIBSTAND}
 
-setdef0.o:	setdefs.h
-
-setdef1.o:	setdefs.h
+# If it's not there, don't consider it a target
+.if exists(${.CURDIR}/../../../i386/include)
+beforedepend ${OBJS}: machine
 
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 
+.endif
+
 CLEANFILES+=	machine
 
-.include <bsd.prog.mk>
 
-# Linker set gymnastics
-setdefs.h: gensetdefs ${OBJS}
-	@echo Generating linker sets
-	@./gensetdefs ${OBJS} >setdefs.h
-
-gensetdefs: gensetdefs.o
-	${CC} -static gensetdefs.o -o $@
-
-gensetdefs.o: gensetdefs.c
-	${CC} -c $<
-
-beforedepend ${OBJS}: machine
