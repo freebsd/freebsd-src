@@ -742,7 +742,7 @@ restart:
 
 /*
  * Make a process sleeping on the specified identifier runnable.
- * May wake more than one process if a target prcoess is currently
+ * May wake more than one process if a target process is currently
  * swapped out.
  */
 void
@@ -822,7 +822,7 @@ mi_switch()
 	 */
 	microuptime(&new_switchtime);
 	if (timevalcmp(&new_switchtime, &switchtime, <)) {
-		printf("microuptime() went backwards (%ld.%06ld -> %ld,%06ld)\n",
+		printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
 		    switchtime.tv_sec, switchtime.tv_usec, 
 		    new_switchtime.tv_sec, new_switchtime.tv_usec);
 		new_switchtime = switchtime;
