@@ -178,16 +178,14 @@ configure(void *dummy)
 
 	root_bus_configure();
 
-	if((hwrpb->rpb_type != ST_DEC_3000_300) &&
-	   (hwrpb->rpb_type != ST_DEC_3000_500)){
-		/*
-		 * Probe ISA devices after everything.
-		 */
+	/*
+	 * Probe ISA devices after everything.
+	 */
 #ifdef DEV_ISA
-		if (isa_bus_device)
-			isa_probe_children(isa_bus_device);
+	if (isa_bus_device)
+		isa_probe_children(isa_bus_device);
 #endif
-	} 
+
 	configure_finish();
 
 	/*
