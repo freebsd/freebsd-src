@@ -828,6 +828,7 @@
 #define	USB_PRODUCT_PHILIPS_PCA646VC	0x0303		/* PCA646VC PC Camera */
 #define	USB_PRODUCT_PHILIPS_PCVC680K	0x0308		/* PCVC680K Vesta Pro PC Camera */
 #define	USB_PRODUCT_PHILIPS_DSS150	0x0471		/* DSS 150 Digital Speaker System */
+#define	USB_PRODUCT_PHILIPS_DIVAUSB	0x1801		/* DIVA USB mp3 player */
 
 /* Philips Semiconductor products */
 #define	USB_PRODUCT_PHILIPSSEMI_HUB1122	0x1122		/* hub */
