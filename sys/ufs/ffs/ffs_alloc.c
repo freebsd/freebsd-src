@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.8 1995/02/27 17:43:57 se Exp $
+ * $Id: ffs_alloc.c,v 1.9 1995/03/03 22:13:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -243,7 +243,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		 * to begin optimizing for time.
 		 */
 		request = nsize;
-		if (fs->fs_minfree < 5 ||
+		if (fs->fs_minfree <= 5 ||
 		    fs->fs_cstotal.cs_nffree >
 		    fs->fs_dsize * fs->fs_minfree / (2 * 100))
 			break;
