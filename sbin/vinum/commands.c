@@ -153,8 +153,8 @@ vinum_read(int argc, char *argv[], char *arg0[])
     buffer[0] = '\0';					    /* make sure we don't pass anything */
     if (argc > 0) {					    /* args specified, */
 	for (i = 0; i < argc; i++) {			    /* each drive name */
-	    strcat(buffer, argv[i]);
-	    strcat(buffer, " ");
+	    strlcat(buffer, argv[i], sizeof(buffer));
+	    strlcat(buffer, " ", sizeof(buffer));
 	}
     }
     ioctl(superdev, VINUM_READCONFIG, &buffer);
