@@ -602,13 +602,16 @@ WI_SYMBOL_FIRMWARE	opt_wi.h
 
 # XXX bogusly global.
 DEVICE_POLLING		opt_global.h
+
 # options for ubsec driver
 UBSEC_DEBUG		opt_ubsec.h
 UBSEC_RNDTEST		opt_ubsec.h
+UBSEC_NO_RNG		opt_ubsec.h
 
 # options for hifn driver
 HIFN_DEBUG		opt_hifn.h
 HIFN_RNDTEST		opt_hifn.h
+HIFN_NO_RNG		opt_hifn.h
 
 # syscons options
 MAXCONS			opt_syscons.h
