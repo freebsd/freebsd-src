@@ -110,8 +110,9 @@ static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(char *mountfrom);
 
-static int	usermount = 0;	/* if 1, non-root can mount fs. */
-SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
+static int	usermount = 0;
+SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
+    "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
@@ -207,6 +208,25 @@ vfs_freeopts(struct vfsoptlist *opts)
 }
 
 /*
+ * Check if options are equal (with or without the "no" prefix).
+ */
+static int
+vfs_equalopts(const char *opt1, const char *opt2)
+{
+
+	/* "opt" vs. "opt" or "noopt" vs. "noopt" */
+	if (strcmp(opt1, opt2) == 0)
+		return (1);
+	/* "noopt" vs. "opt" */
+	if (strncmp(opt1, "no", 2) == 0 && strcmp(opt1 + 2, opt2) == 0)
+		return (1);
+	/* "opt" vs. "noopt" */
+	if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
+		return (1);
+	return (0);
+}
+
+/*
  * If a mount option is specified several times,
  * (with or without the "no" prefix) only keep
  * the last occurence of it.
@@ -215,19 +235,11 @@ static void
 vfs_sanitizeopts(struct vfsoptlist *opts)
 {
 	struct vfsopt *opt, *opt2, *tmp;
-	int noopt;
 
 	TAILQ_FOREACH_REVERSE(opt, opts, vfsoptlist, link) {
-		if (strncmp(opt->name, "no", 2) == 0)
-			noopt = 1;
-		else
-			noopt = 0;
 		opt2 = TAILQ_PREV(opt, vfsoptlist, link);
 		while (opt2 != NULL) {
-			if (strcmp(opt2->name, opt->name) == 0 ||
-			    (noopt && strcmp(opt->name + 2, opt2->name) == 0) ||
-			    (!noopt && strncmp(opt2->name, "no", 2) == 0 &&
-			    strcmp(opt2->name + 2, opt->name) == 0)) {
+			if (vfs_equalopts(opt->name, opt2->name)) {
 				tmp = TAILQ_PREV(opt2, vfsoptlist, link);
 				vfs_freeopt(opts, opt2);
 				opt2 = tmp;
@@ -677,13 +689,10 @@ vfs_domount(
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
-	/* mount(2) is not permitted inside the jail. */
 	if (jailed(td->td_ucred))
 		return (EPERM);
-
 	if (usermount == 0) {
-		error = suser(td);
-		if (error)
+		if ((error = suser(td)) != 0)
 			return (error);
 	}
 
@@ -691,8 +700,7 @@ vfs_domount(
 	 * Do not allow NFS export or MNT_SUIDDIR by unprivileged users.
 	 */
 	if (fsflags & (MNT_EXPORTED | MNT_SUIDDIR)) {
-		error = suser(td);
-		if (error)
+		if ((error = suser(td)) != 0)
 			return (error);
 	}
 	/*
@@ -727,17 +735,11 @@ vfs_domount(
 			return (EOPNOTSUPP);	/* Needs translation */
 		}
 		/*
-		 * Only root, or the user that did the original mount is
-		 * permitted to update it.
+		 * Only privileged root, or (if MNT_USER is set) the user that
+		 * did the original mount is permitted to update it.
 		 */
-		if ((mp->mnt_flag & MNT_USER) != 0) {
-			if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-				if ((error = suser(td)) != 0) {
-					vput(vp);
-					return (error);
-				}
-			}
-		} else {
+		if ((mp->mnt_flag & MNT_USER) == 0 ||
+		    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 			if ((error = suser(td)) != 0) {
 				vput(vp);
 				return (error);
@@ -776,8 +778,7 @@ vfs_domount(
 		return (error);
 	}
 	if (va.va_uid != td->td_ucred->cr_uid) {
-		error = suser(td);
-		if (error) {
+		if ((error = suser(td)) != 0) {
 			vput(vp);
 			return (error);
 		}
@@ -791,12 +792,11 @@ vfs_domount(
 		return (ENOTDIR);
 	}
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-		if (!strcmp(vfsp->vfc_name, fstype))
+		if (strcmp(vfsp->vfc_name, fstype) == 0)
 			break;
 	if (vfsp == NULL) {
 		/* Only load modules for root (very important!). */
-		error = suser(td);
-		if (error) {
+		if ((error = suser(td)) != 0) {
 			vput(vp);
 			return (error);
 		}
@@ -815,7 +815,7 @@ vfs_domount(
 		lf->userrefs++;
 		/* Look up again to see if the VFS was loaded. */
 		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (!strcmp(vfsp->vfc_name, fstype))
+			if (strcmp(vfsp->vfc_name, fstype) == 0)
 				break;
 		if (vfsp == NULL) {
 			lf->userrefs--;
@@ -854,7 +854,7 @@ update:
 	 */
 	if ((compat == 0) == (mp->mnt_op->vfs_mount != NULL)) {
 		printf("%s doesn't support the %s mount syscall\n",
-		    mp->mnt_vfc->vfc_name, compat? "old" : "new");
+		    mp->mnt_vfc->vfc_name, compat ? "old" : "new");
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
@@ -880,7 +880,7 @@ update:
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-	error = compat? VFS_MOUNT(mp, fspath, fsdata, &nd, td) :
+	error = compat ? VFS_MOUNT(mp, fspath, fsdata, &nd, td) :
 	    VFS_NMOUNT(mp, &nd, td);
 	if (!error) {
 		if (mp->mnt_opt != NULL)
@@ -895,9 +895,9 @@ update:
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
-		mp->mnt_flag &=~
-		    (MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
-		mp->mnt_kern_flag &=~ MNTK_WANTRDWR;
+		mp->mnt_flag &=
+		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
+		mp->mnt_kern_flag &= ~MNTK_WANTRDWR;
 		if (error) {
 			mp->mnt_flag = flag;
 			mp->mnt_kern_flag = kern_flag;
@@ -1025,10 +1025,8 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
-	/* unmount(2) is not permitted inside the jail. */
 	if (jailed(td->td_ucred))
 		return (EPERM);
-
 	if (usermount == 0) {
 		if ((error = suser(td)) != 0)
 			return (error);
@@ -1048,16 +1046,18 @@ unmount(td, uap)
 		}
 
 		mtx_lock(&mountlist_mtx);
-		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list)
+		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (mp->mnt_stat.f_fsid.val[0] == id0 &&
 			    mp->mnt_stat.f_fsid.val[1] == id1)
 				break;
+		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		mtx_lock(&mountlist_mtx);
-		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list)
+		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
 				break;
+		}
 		mtx_unlock(&mountlist_mtx);
 	}
 	free(pathbuf, M_TEMP);
@@ -1072,15 +1072,11 @@ unmount(td, uap)
 	}
 
 	/*
-	 * Only root, or the user that did the original mount is
-	 * permitted to unmount this filesystem.
+	 * Only privileged root, or (if MNT_USER is set) the user that did the
+	 * original mount is permitted to unmount this filesystem.
 	 */
-	if ((mp->mnt_flag & MNT_USER) != 0) {
-		if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-			if ((error = suser(td)) != 0)
-				return (error);
-		}
-	} else {
+	if ((mp->mnt_flag & MNT_USER) == 0 ||
+	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 		if ((error = suser(td)) != 0)
 			return (error);
 	}
@@ -1130,7 +1126,7 @@ dounmount(mp, flags, td)
 
 	vfs_msync(mp, MNT_WAIT);
 	async_flag = mp->mnt_flag & MNT_ASYNC;
-	mp->mnt_flag &=~ MNT_ASYNC;
+	mp->mnt_flag &= ~MNT_ASYNC;
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
 		vrele(mp->mnt_syncer);
@@ -1319,7 +1315,7 @@ vfs_mountroot_try(char *mountfrom)
 	error   = EINVAL;
 
 	if (mountfrom == NULL)
-		return(error);		/* don't complain */
+		return (error);		/* don't complain */
 
 	s = splcam();			/* Overkill, but annoying without it */
 	printf("Mounting root from %s\n", mountfrom);
@@ -1335,7 +1331,7 @@ vfs_mountroot_try(char *mountfrom)
 
 	/* allocate a root mount */
 	error = vfs_rootmountalloc(vfsname, path[0] != 0 ? path : ROOTNAME,
-				   &mp);
+	    &mp);
 	if (error != 0) {
 		printf("Can't allocate root mount for filesystem '%s': %d\n",
 		       vfsname, error);
@@ -1343,7 +1339,7 @@ vfs_mountroot_try(char *mountfrom)
 	}
 
 	/* do our best to set rootdev */
-	if ((path[0] != 0) && setrootbyname(path))
+	if (path[0] != '\0' && setrootbyname(path))
 		printf("setrootbyname failed\n");
 
 	/* If the root device is a type "memory disk", mount RW */
@@ -1376,7 +1372,7 @@ done:
 		vfs_unbusy(mp, curthread);
 		error = VFS_START(mp, 0, curthread);
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -1399,15 +1395,15 @@ vfs_mountroot_ask(void)
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
 		gets(name);
-		if (name[0] == 0)
-			return(1);
+		if (name[0] == '\0')
+			return (1);
 		if (name[0] == '?') {
 			printf("\nList of GEOM managed disk devices:\n  ");
 			g_dev_print();
 			continue;
 		}
 		if (!vfs_mountroot_try(name))
-			return(0);
+			return (0);
 	}
 }
 
