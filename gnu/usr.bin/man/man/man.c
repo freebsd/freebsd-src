@@ -206,21 +206,21 @@ usage ()
 #ifdef HAS_TROFF
 #ifdef __FreeBSD__
   static char s1[] =
-    "usage: %s [-adfhkmotw] [section] [-M path] [-P pager] [-S list]\n\
+    "usage: %s [-adfhkotw] [section] [-M path] [-P pager] [-S list]\n\
            [-m machine] [-p string] name ...\n\n";
 #else
   static char s1[] =
-    "usage: %s [-adfhkmtw] [section] [-M path] [-P pager] [-S list]\n\
+    "usage: %s [-adfhktw] [section] [-M path] [-P pager] [-S list]\n\
            [-m machine] [-p string] name ...\n\n";
 #endif
 #else
 #ifdef __FreeBSD__
   static char s1[] =
-    "usage: %s [-adfhkmow] [section] [-M path] [-P pager] [-S list]\n\
+    "usage: %s [-adfhkow] [section] [-M path] [-P pager] [-S list]\n\
            [-m machine] [-p string] name ...\n\n";
 #else
   static char s1[] =
-    "usage: %s [-adfhkmw] [section] [-M path] [-P pager] [-S list]\n\
+    "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
            [-m machine] [-p string] name ...\n\n";
 #endif
 #endif
