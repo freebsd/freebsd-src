@@ -116,6 +116,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * password before returning to the application.
 	 */
 	free(principal);
+
+	if (retval != PAM_SUCCESS)
+		PAM_VERBOSE_ERROR("Kerberos IV refuses you");
+
 	PAM_RETURN(retval);
 }
 
