@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.11 1998/12/07 03:26:34 eivind Exp $
+ * $Id: bpf_filter.c,v 1.12 1998/12/07 16:31:15 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -328,7 +328,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_B|BPF_IND:
 			k = X + pc->k;
-			if (pc->k >= buflen || X >= buflen - k) {
+			if (pc->k >= buflen || X >= buflen - pc->k) {
 #ifdef KERNEL
 				register struct mbuf *m;
 
