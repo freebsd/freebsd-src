@@ -1126,7 +1126,7 @@ cam_periph_async(struct cam_periph *periph, u_int32_t code,
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
-		cam_periph_bus_settle(periph, SCSI_DELAY);
+		cam_periph_bus_settle(periph, scsi_delay);
 		break;
 	}
 	default:

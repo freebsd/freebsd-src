@@ -5487,7 +5487,7 @@ proberegister(struct cam_periph *periph, void *arg)
 	 * For HBAs that don't do bus resets, this won't make a difference.
 	 */
 	cam_periph_freeze_after_event(periph, &periph->path->bus->last_reset,
-				      SCSI_DELAY);
+				      scsi_delay);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -6760,9 +6760,9 @@ xpt_config(void *arg)
 		/* Call manually because we don't have any busses */
 		xpt_finishconfig(xpt_periph, NULL);
 	} else  {
-		if (busses_to_reset > 0 && SCSI_DELAY >= 2000) {
+		if (busses_to_reset > 0 && scsi_delay >= 2000) {
 			printf("Waiting %d seconds for SCSI "
-			       "devices to settle\n", SCSI_DELAY/1000);
+			       "devices to settle\n", scsi_delay/1000);
 		}
 		xpt_for_all_busses(xptconfigfunc, NULL);
 	}
