@@ -11,16 +11,20 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.1 1998/06/10 10:53:56 dfr Exp $
+#	$Id: GENERIC,v 1.2 1998/08/07 08:16:31 dfr Exp $
 
 machine		"alpha"
+cpu		"EV4"
 cpu		"EV5"
 ident		GENERIC
 maxusers	10
 
 # Platforms supported
+options		"DEC_AXPPCI_33"		# UDB, Multia, AXPpci33, Noname
 options		"DEC_EB164"		# EB164, PC164, PC164LX, PC164SX
+options		"DEC_2100_A50"		# AlphaStation 200, 250, 255, 400
 options		"DEC_KN20AA"		# AlphaStation 500, 600
+options		"DEC_ST550"		# Personal Workstation 433, 500, 600
 
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
@@ -40,6 +44,8 @@ config		kernel	root on sd0
 
 # Platform chipsets
 controller	cia0
+controller	apecs0
+controller	lca0
 
 # Standard busses
 controller	pci0

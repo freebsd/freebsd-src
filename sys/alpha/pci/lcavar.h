@@ -23,24 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intr.h,v 1.2 1998/07/12 16:09:30 dfr Exp $
+ *	$Id$
  */
 
-#ifndef _MACHINE_INTR_H_
-#define _MACHINE_INTR_H_
-
-LIST_HEAD(alpha_intr_list, alpha_intr);
-
-struct alpha_intr {
-    LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
-    int			vector;	/* vector to match */
-    driver_intr_t	*intr;	/* handler function */
-    void		*arg;	/* argument to handler */
-};
-
-struct alpha_intr *alpha_create_intr(int vector,
-				     driver_intr_t *intr, void *arg);
-int alpha_connect_intr(struct alpha_intr *i);
-void alpha_dispatch_intr(void *frame, unsigned long vector);
-
-#endif /* !_MACHINE_INTR_H_ */
+extern void lca_init(void);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.4 1998/07/12 16:07:05 dfr Exp $
+ *	$Id: autoconf.c,v 1.5 1998/07/22 08:34:19 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -107,10 +107,15 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
+    static char rootname[] = "sd0a";
     mountrootfsname = "ufs";
-    rootdevs[0] = makedev(4, dkmakeminor(0, COMPATIBILITY_SLICE, 0));
-    rootdevs[1] = makedev(4, dkmakeminor(1, COMPATIBILITY_SLICE, 0));
-    rootdevnames[0] = "sd0a";
+
+    rootdevs[0] = rootdev;
+    rootname[2] += dkunit(rootdev);
+    rootdevnames[0] = rootname;
+
+    rootdevs[1] = makedev(4, dkmakeminor(0, COMPATIBILITY_SLICE, 0));
+    rootdevnames[1] = "sd0a";
 }
 
 void

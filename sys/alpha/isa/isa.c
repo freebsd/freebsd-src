@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.1 1998/07/22 08:29:26 dfr Exp $
+ *	$Id: isa.c,v 1.2 1998/07/27 09:38:26 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -274,6 +274,11 @@ struct isa_intr {
 	int irq;
 };
 
+/*
+ * Wrap ISA interrupt routines so that we can feed non-specific
+ * EOI to the PICs.
+ */
+
 static void
 isa_handle_intr(void *arg)
 {
@@ -300,9 +305,8 @@ isa_create_intr(device_t dev, device_t child, int irq,
 	ii->intr = intr;
 	ii->arg = arg;
 	ii->irq = irq;
-	ii->ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
-				  0x800 + (irq << 4),
-				  isa_handle_intr, ii);
+	ii->ih = alpha_create_intr(0x800 + (irq << 4), isa_handle_intr, ii);
+				  
 	if (!ii->ih) {
 		free(ii, M_DEVBUF);
 		return NULL;
@@ -318,7 +322,9 @@ isa_connect_intr(device_t dev, void *ih)
 	struct alpha_intr *i = ii->ih;
 
 	isa_intr_enable(ii->irq);
-	return BUS_CONNECT_INTR(device_get_parent(dev), ii->ih);
+	return alpha_connect_intr(i);
 }
 
 DRIVER_MODULE(isa, cia, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, apecs, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, lca, isa_driver, isa_devclass, 0, 0);
