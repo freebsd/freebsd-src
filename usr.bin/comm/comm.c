@@ -49,7 +49,6 @@ static char sccsid[] = "From: @(#)comm.c	8.4 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
@@ -57,14 +56,16 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	MAXLINELEN	(LINE_MAX + 1)
 
-const char *tabs[] = { "", "\t", "\t\t" };
+const wchar_t *tabs[] = { L"", L"\t", L"\t\t" };
 
 FILE   *file(const char *);
-void	show(FILE *, const char *, char *);
-int     stricoll(const char *, const char *);
+void	show(FILE *, const char *, const wchar_t *, wchar_t *);
+int     wcsicoll(const wchar_t *, const wchar_t *);
 static void	usage(void);
 
 int
@@ -73,9 +74,9 @@ main(int argc, char *argv[])
 	int comp, file1done = 0, file2done = 0, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
-	const char *col1, *col2, *col3;
-	char line1[MAXLINELEN], line2[MAXLINELEN];
-	const char **p;
+	const wchar_t *col1, *col2, *col3;
+	wchar_t line1[MAXLINELEN], line2[MAXLINELEN];
+	const wchar_t **p;
 
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
@@ -121,33 +122,39 @@ main(int argc, char *argv[])
 
 	for (read1 = read2 = 1;;) {
 		/* read next line, check for EOF */
-		if (read1)
-			file1done = !fgets(line1, MAXLINELEN, fp1);
-		if (read2)
-			file2done = !fgets(line2, MAXLINELEN, fp2);
+		if (read1) {
+			file1done = !fgetws(line1, MAXLINELEN, fp1);
+			if (file1done && ferror(fp1))
+				err(1, "%s", argv[0]);
+		}
+		if (read2) {
+			file2done = !fgetws(line2, MAXLINELEN, fp2);
+			if (file2done && ferror(fp2))
+				err(1, "%s", argv[1]);
+		}
 
 		/* if one file done, display the rest of the other file */
 		if (file1done) {
 			if (!file2done && col2)
-				show(fp2, col2, line2);
+				show(fp2, argv[1], col2, line2);
 			break;
 		}
 		if (file2done) {
 			if (!file1done && col1)
-				show(fp1, col1, line1);
+				show(fp1, argv[0], col1, line1);
 			break;
 		}
 
 		/* lines are the same */
 		if(iflag)
-			comp = stricoll(line1, line2);
+			comp = wcsicoll(line1, line2);
 		else
-			comp = strcoll(line1, line2);
+			comp = wcscoll(line1, line2);
 
 		if (!comp) {
 			read1 = read2 = 1;
 			if (col3)
-				(void)printf("%s%s", col3, line1);
+				(void)printf("%ls%ls", col3, line1);
 			continue;
 		}
 
@@ -156,24 +163,26 @@ main(int argc, char *argv[])
 			read1 = 1;
 			read2 = 0;
 			if (col1)
-				(void)printf("%s%s", col1, line1);
+				(void)printf("%ls%ls", col1, line1);
 		} else {
 			read1 = 0;
 			read2 = 1;
 			if (col2)
-				(void)printf("%s%s", col2, line2);
+				(void)printf("%ls%ls", col2, line2);
 		}
 	}
 	exit(0);
 }
 
 void
-show(FILE *fp, const char *offset, char *buf)
+show(FILE *fp, const char *fn, const wchar_t *offset, wchar_t *buf)
 {
 
 	do {
-		(void)printf("%s%s", offset, buf);
-	} while (fgets(buf, MAXLINELEN, fp));
+		(void)printf("%ls%ls", offset, buf);
+	} while (fgetws(buf, MAXLINELEN, fp));
+	if (ferror(fp))
+		err(1, "%s", fn);
 }
 
 FILE *
@@ -197,15 +206,15 @@ usage(void)
 }
 
 int
-stricoll(const char *s1, const char *s2)
+wcsicoll(const wchar_t *s1, const wchar_t *s2)
 {
-	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+	wchar_t *p, line1[MAXLINELEN], line2[MAXLINELEN];
 
 	for (p = line1; *s1; s1++)
-		*p++ = tolower((unsigned char)*s1);
+		*p++ = towlower(*s1);
 	*p = '\0';
 	for (p = line2; *s2; s2++)
-		*p++ = tolower((unsigned char)*s2);
+		*p++ = towlower(*s2);
 	*p = '\0';
-	return strcoll(line1, line2);
+	return (wcscoll(line1, line2));
 }
