@@ -21,7 +21,7 @@ chrdev	name		comments
 1	ctty		/dev/tty
 2	mm		/dev/mem,kmem,etc
 3	wd		ST506 disk controller (with IDE extensions)
-4	was:swap	/dev/drum
+4	geom		GEOMetry
 5	pts		pseudo tty "tty" half
 6	ptc		pseudo tty "master" half
 7	log		system log
