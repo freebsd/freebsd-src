@@ -50,10 +50,19 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
 
+miidevs.h: $S/tools/devlist2h.awk $S/dev/mii/miidevs
+	${AWK} -f $S/tools/devlist2h.awk $S/dev/mii/miidevs
+
+.if !exists(.depend)
+acphy.o amphy.o bmtphy.o brgphy.o dcphy.o e1000phy.o exphy.o if_bge.o if_tx.o \
+inphy.o lxtphy.o nsgphy.o nsphy.o pnaphy.o pnphy.o qsphy.o rlphy.o tdkphy.o \
+tlphy.o xmphy.o: miidevs.h
+.endif
+
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	      vers.c vnode_if.c vnode_if.h \
+	      miidevs.h vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 
@@ -98,7 +107,7 @@ GEN_M_CFILES=	${MFILES:T:S/.m$/.c/}
 
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
-_kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
+_kernel-depend: assym.s vnode_if.h miidevs.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${GEN_M_CFILES} \
 	    ${SFILES} ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
@@ -160,17 +169,17 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
-	${INSTALL} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
 .else
-	${INSTALL} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
-	${INSTALL} -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
 .else
-	${INSTALL} -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
 .endif
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
