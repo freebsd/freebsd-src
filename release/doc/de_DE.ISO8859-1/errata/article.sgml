@@ -8,9 +8,9 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.6 2002/03/15 13:08:30 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.7 2002/03/30 00:08:50 ue Exp $
 	$Id: article.sgml,v 1.6 2002/03/10 16:43:21 ue Exp $
-	basiert auf: 1.8
+	basiert auf: 1.9
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [

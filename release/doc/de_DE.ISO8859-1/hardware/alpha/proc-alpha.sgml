@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.8 2002/03/16 03:34:19 ue Exp $
-  basiert auf: 1.38
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.10 2002/04/06 22:09:23 ue Exp $
+  basiert auf: 1.39
 -->
 
 <sect1>
@@ -440,7 +440,7 @@
         </listitem>
 
         <listitem>
-          <para>Floppy-Anschlu&szlig:</para>
+          <para>Floppy-Anschlu&szlig;</para>
         </listitem>
 
         <listitem>
@@ -534,7 +534,7 @@
         Bonus-Anschlu&szlig; f&uuml;r die Maus, zum anderen wird diese
         Variante von Tru64 Unix unterst&uuml;tzt (falls Sie das
         irgendwann einmal benutzen wollen oder m&uuml;ssen.)  Die
-        <quote>DIN</quote>-Variante sollte aber f&uuml;r &os:
+        <quote>DIN</quote>-Variante sollte aber f&uuml;r &os;
         ausreichend sein.</para>
 
       <para>Lesen Sie nach M&ouml;glichkeit das <ulink
@@ -711,8 +711,9 @@ cpu     EV4</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>device.hints</filename> zus&auml;tzlich noch
-        <literal>flags 0x15</literal> angeben.</para>
+	m&uuml;ssen in <filename>device.hints</filename>
+	zus&auml;tzlich noch <literal>flags 0x15</literal>
+	angeben.</para>
 
       <para>Bis jetzt hat es noch niemand geschafft, einer Multia mit
         einem AD1848 einen Ton zu entlocken..</para>
@@ -1949,8 +1950,9 @@ cpu             EV5</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>device.hints</filename> zus&auml;tzlich noch
-        <literal>flags 0x10011</literal> angeben.</para>
+	m&uuml;ssen in <filename>device.hints</filename>
+	zus&auml;tzlich noch <literal>flags 0x10011</literal>
+	angeben.</para>
 
       <para>Die Modelle AlphaStation 200 und 250 verf&uuml;gen
         &uuml;ber einen automatischen SCSI-Terminator.  Sobald Sie
@@ -2220,9 +2222,9 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
       <programlisting>device pcm</programlisting>
 
       <para>Benutzen Sie danach das ECU, um die Audio-Hardware auf IRQ
-        10, Port 0x530 und DRQ 0 einzustellen.  Sie m&uuml;ssen diese
-        Werte ebenfalls in <filename>device.hints</filename> angeben, dazu
-        kommt noch die Angabe flags 0x10011.</para>
+	10, Port 0x530 und DRQ 0 einzustellen.  Sie m&uuml;ssen diese
+	Werte ebenfalls in <filename>device.hints</filename> angeben,
+	dazu kommt noch die Angabe flags 0x10011.</para>
 
       <para>Die PCI Steckpl&auml;tze der AS600 zeigen eine
         Besonderheit.  Die AS600 (um genau zu sein, die PCI
@@ -3398,7 +3400,7 @@ cpu     EV5</programlisting>
         Steckpl&auml;tzen f&uuml;r DIMMs.  DIMMs m&uuml;ssen paarweise
         installiert werden.  Die Steckpl&auml;tze m&uuml;ssen der
         Reihe nach gef&uuml;llt werden. Wenn DIMMs mit verschiedenen
-        Gr&ouml;&szlig;en verwendet werden, mu&szlig Steckplatz 0 den
+        Gr&ouml;&szlig;en verwendet werden, mu&szlig; Steckplatz 0 den
         gr&ouml;&szlig;ten DIMM enthalten. Die AS1200
         benutzt eine statische Anfangsadresse f&uuml;r die DIMMs, jedes
         DIMM beginnt bei einem vielfachen von 512 MByte.  Wenn Sie
