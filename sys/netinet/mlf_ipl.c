@@ -167,7 +167,7 @@ static struct cdevsw ipl_cdevsw = {
 	/* strategy */	nostrategy,
 	/* name */	"ipl",
 	/* parms */	noparms,
-	/* maj */	-1,
+	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
