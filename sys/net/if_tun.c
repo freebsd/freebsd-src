@@ -10,7 +10,7 @@
  * This driver takes packets off the IP i/f and hands them up to a
  * user process to have it's wicked way with. This driver has it's
  * roots in a similar driver written by Phil Cockcroft (formerly) at
- * UCL. This driver is based much more on read/write/select mode of
+ * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
  */
 
@@ -29,7 +29,7 @@
 #include <sys/ttycom.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/select.h>
+#include <sys/poll.h>
 #include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -83,13 +83,13 @@ static	d_close_t	tunclose;
 static	d_read_t	tunread;
 static	d_write_t	tunwrite;
 static	d_ioctl_t	tunioctl;
-static	d_select_t	tunselect;
+static	d_poll_t	tunpoll;
 
 #define CDEV_MAJOR 52
 static struct cdevsw tun_cdevsw = {
 	tunopen,	tunclose,	tunread,	tunwrite,
 	tunioctl,	nullstop,	noreset,	nodevtotty,
-	tunselect,	nommap,		nostrategy,	"tun",	NULL,	-1
+	tunpoll,	nommap,		nostrategy,	"tun",	NULL,	-1
 };
 
 
@@ -586,37 +586,37 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 /*
- * tunselect - the select interface, this is only useful on reads
+ * tunpoll - the poll interface, this is only useful on reads
  * really. The write detect always returns true, write never blocks
  * anyway, it either accepts the packet or drops it.
  */
 static	int
-tunselect(dev_t dev, int rw, struct proc *p)
+tunpoll(dev_t dev, int events, struct proc *p)
 {
 	int		unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
 	struct ifnet	*ifp = &tp->tun_if;
+	int		revents = 0;
 
 	s = splimp();
-	TUNDEBUG("%s%d: tunselect\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG("%s%d: tunpoll\n", ifp->if_name, ifp->if_unit);
 
-	switch (rw) {
-	case FREAD:
+	if (events & (POLLIN | POLLRDNORM))
 		if (ifp->if_snd.ifq_len > 0) {
-			splx(s);
-			TUNDEBUG("%s%d: tunselect q=%d\n", ifp->if_name,
+			TUNDEBUG("%s%d: tunpoll q=%d\n", ifp->if_name,
 			    ifp->if_unit, ifp->if_snd.ifq_len);
-			return 1;
+			revents |= events & (POLLIN | POLLRDNORM);
+		} else {
+			TUNDEBUG("%s%d: tunpoll waiting\n", ifp->if_name,
+			    ifp->if_unit);
+			selrecord(p, &tp->tun_rsel);
 		}
-		selrecord(p, &tp->tun_rsel);
-		break;
-	case FWRITE:
-		splx(s);
-		return 1;
-	}
+
+	if (events & (POLLOUT | POLLWRNORM))
+		revents |= events & (POLLOUT | POLLWRNORM);
+
 	splx(s);
-	TUNDEBUG("%s%d: tunselect waiting\n", ifp->if_name, ifp->if_unit);
-	return 0;
+	return (revents);
 }
 
 
