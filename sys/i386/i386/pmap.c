@@ -1024,19 +1024,15 @@ static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 {
 	unsigned ptepindex;
+	pd_entry_t ptepa;
+
 	if (va >= VM_MAXUSER_ADDRESS)
 		return 0;
 
 	if (mpte == NULL) {
 		ptepindex = (va >> PDRSHIFT);
-		if (pmap->pm_pteobj->root &&
-			(pmap->pm_pteobj->root->pindex == ptepindex)) {
-			mpte = pmap->pm_pteobj->root;
-		} else {
-			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
-			       vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
-				vm_page_lock_queues();
-		}
+		ptepa = pmap->pm_pdir[ptepindex];
+		mpte = PHYS_TO_VM_PAGE(ptepa);
 	}
 
 	return pmap_unwire_pte_hold(pmap, mpte);
