@@ -260,8 +260,10 @@ main(argc, argv)
 
 	if (header || wcmd == 0) {
 		pr_header(&now, nusers);
-		if (wcmd == 0)
+		if (wcmd == 0) {
+			(void)kvm_close(kd);
 			exit(0);
+		}
 
 #define HEADER_USER		"USER"
 #define HEADER_TTY		"TTY"
@@ -415,6 +417,7 @@ main(argc, argv)
 		longidle = pr_idle(ep->idle);
 		(void)printf("%.*s\n", argwidth - longidle, ep->args);
 	}
+	(void)kvm_close(kd);
 	exit(0);
 }
 
