@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -49,6 +51,8 @@
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+
+#include <ddb/ddb.h>
 
 #include <machine/cpu.h>
 
@@ -98,6 +102,9 @@ static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;		/* physical device open function */
        struct consdev *cn_tab;		/* physical console device info */
+static u_char console_pausing;		/* pause after each line during probe */
+static char *console_pausestr=
+"<pause; press any key to proceed to next line or '.' to end pause mode>";
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
@@ -152,6 +159,8 @@ cninit()
 		if (cn_tab->cn_term != NULL)
 			(*cn_tab->cn_term)(cn_tab);
 	}
+	if (boothowto & RB_PAUSE)
+		console_pausing = 1;
 	cn_tab = best_cp;
 }
 
@@ -175,6 +184,7 @@ cninit_finish()
 	}
 	cn_dev_t = cn_tab->cn_dev;
 	cn_udev_t = dev2udev(cn_dev_t);
+	console_pausing = 0;
 }
 
 static void
@@ -437,12 +447,28 @@ void
 cnputc(c)
 	register int c;
 {
+	char *cp;
+
 	if ((cn_tab == NULL) || cn_mute)
 		return;
 	if (c) {
 		if (c == '\n')
 			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
 		(*cn_tab->cn_putc)(cn_tab->cn_dev, c);
+#ifdef DDB
+		if (console_pausing && !db_active && (c == '\n')) {
+#else
+		if (console_pausing && (c == '\n')) {
+#endif
+			for(cp=console_pausestr; *cp != '\0'; cp++)
+			    (*cn_tab->cn_putc)(cn_tab->cn_dev, *cp);
+			if (cngetc() == '.')
+				console_pausing = 0;
+			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
+			for(cp=console_pausestr; *cp != '\0'; cp++)
+			    (*cn_tab->cn_putc)(cn_tab->cn_dev, ' ');
+			(*cn_tab->cn_putc)(cn_tab->cn_dev, '\r');
+		}
 	}
 }
 

@@ -61,6 +61,7 @@
 #define	RB_GDB		0x8000	/* use GDB remote debugger instead of DDB */
 #define	RB_MUTE		0x10000	/* Come up with the console muted */
 #define	RB_SELFTEST	0x20000	/* don't boot to normal operation, do selftest */
+#define	RB_PAUSE	0x40000	/* pause after each output line during probe */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
