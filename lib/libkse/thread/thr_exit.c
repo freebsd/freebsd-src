@@ -86,9 +86,9 @@ void
 _pthread_exit(void *status)
 {
 	struct pthread *curthread = _get_curthread();
+	kse_critical_t crit;
+	struct kse *curkse;
 
-	if (!_kse_isthreaded())
-		exit(0);
 	/* Check if this thread is already in the process of exiting: */
 	if ((curthread->flags & THR_FLAGS_EXITING) != 0) {
 		char msg[128];
@@ -119,9 +119,27 @@ _pthread_exit(void *status)
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
+	if (!_kse_isthreaded())
+		exit(0);
+	crit = _kse_critical_enter();
+	curkse = _get_curkse();
+	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	/* Use thread_list_lock */
+	_thr_active_threads--;
+#ifdef SYSTEM_SCOPE_ONLY
+	if (_thr_active_threads == 0) {
+#else
+	if (_thr_active_threads == 1) {
+#endif
+		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+		_kse_critical_leave(crit);
+		exit(0);
+		/* Never reach! */
+	}
+	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 
 	/* This thread will never be re-scheduled. */
-	THR_LOCK_SWITCH(curthread);
+	KSE_LOCK(curkse);
 	THR_SET_STATE(curthread, PS_DEAD);
 	_thr_sched_switch_unlocked(curthread);
 	/* Never reach! */

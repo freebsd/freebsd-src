@@ -99,7 +99,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct kse *kse = NULL;
 	struct kse_group *kseg = NULL;
 	kse_critical_t crit;
-	int i;
 	int ret = 0;
 
 	if (_thr_initial == NULL)
@@ -127,8 +126,20 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		if (attr == NULL || *attr == NULL)
 			/* Use the default thread attributes: */
 			new_thread->attr = _pthread_attr_default;
-		else
+		else {
 			new_thread->attr = *(*attr);
+			if ((*attr)->sched_inherit == PTHREAD_INHERIT_SCHED) {
+				/* inherit scheduling contention scop */
+				if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+					new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+				else
+					new_thread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+				/*
+				 * scheduling policy and scheduling parameters will be
+				 * inherited in following code.
+				 */
+			}
+		}
 #ifdef SYSTEM_SCOPE_ONLY
 		new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 #endif
@@ -199,7 +210,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * Check if this thread is to inherit the scheduling
 			 * attributes from its parent:
 			 */
-			if ((new_thread->attr.flags & PTHREAD_INHERIT_SCHED) != 0) {
+			if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
 				/*
 				 * Copy the scheduling attributes.
 				 * Lock the scheduling lock to get consistent
@@ -230,26 +241,17 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialize the mutex queue: */
 			TAILQ_INIT(&new_thread->mutexq);
 
-			/*
-			 * Initialize thread locking.
-			 * Lock initializing needs malloc, so don't
-			 * enter critical region before doing this!
-			 */
-			if (_lock_init(&new_thread->lock, LCK_ADAPTIVE,
-			    _thr_lock_wait, _thr_lock_wakeup) != 0)
-				PANIC("Cannot initialize thread lock");
-			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-				_lockuser_init(&new_thread->lockusers[i],
-				    (void *)new_thread);
-				_LCK_SET_PRIVATE2(&new_thread->lockusers[i],
-				    (void *)new_thread);
-			}
-
 			/* Initialise hooks in the thread structure: */
 			new_thread->specific = NULL;
+			new_thread->specific_data_count = 0;
 			new_thread->cleanup = NULL;
 			new_thread->flags = 0;
 			new_thread->continuation = NULL;
+			new_thread->wakeup_time.tv_sec = -1;
+			new_thread->lock_switch = 0;
+			sigemptyset(&new_thread->sigpend);
+			new_thread->check_pending = 0;
+			new_thread->locklevel = 0;
 
 			if (new_thread->attr.suspend == THR_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
