@@ -40,7 +40,7 @@
  * process.
  *
  * If the sending process receives a signal, it is possible that it will
- * go away, and certainly it's address space can change, because control
+ * go away, and certainly its address space can change, because control
  * is returned back to the user-mode side.  In that case, the pipe code
  * arranges to copy the buffer supplied by the user process, to a pageable
  * kernel buffer, and the receiving process will grab the data from the
@@ -49,7 +49,7 @@
  *
  * The constant PIPE_MINDIRECT is chosen to make sure that buffering will
  * happen for small transfers so that the system will not spend all of
- * it's time context switching.  PIPE_SIZE is constrained by the
+ * its time context switching.  PIPE_SIZE is constrained by the
  * amount of kernel virtual memory.
  */
 
@@ -223,6 +223,7 @@ static void
 pipeinit(cpipe)
 	struct pipe *cpipe;
 {
+	int s;
 
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;
@@ -234,9 +235,11 @@ pipeinit(cpipe)
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
+	s = splhigh();
 	cpipe->pipe_ctime = time;
 	cpipe->pipe_atime = time;
 	cpipe->pipe_mtime = time;
+	splx(s);
 	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
 
 	/*
@@ -340,7 +343,6 @@ pipe_read(fp, uio, cred)
 
 			rpipe->pipe_buffer.cnt -= size;
 			nread += size;
-			rpipe->pipe_atime = time;
 		/*
 		 * Direct copy, bypassing a kernel buffer.
 		 */
@@ -357,7 +359,6 @@ pipe_read(fp, uio, cred)
 			if (error)
 				break;
 			nread += size;
-			rpipe->pipe_atime = time;
 			rpipe->pipe_map.pos += size;
 			rpipe->pipe_map.cnt -= size;
 			if (rpipe->pipe_map.cnt == 0) {
@@ -387,7 +388,7 @@ pipe_read(fp, uio, cred)
 
 			/*
 			 * If there is no more to read in the pipe, reset
-			 * it's pointers to the beginning.  This improves
+			 * its pointers to the beginning.  This improves
 			 * cache hit stats.
 			 */
 		
@@ -407,6 +408,12 @@ pipe_read(fp, uio, cred)
 		}
 	}
 
+	if (error == 0) {
+		int s = splhigh();
+		rpipe->pipe_atime = time;
+		splx(s);
+	}
+
 	--rpipe->pipe_busy;
 	if ((rpipe->pipe_busy == 0) && (rpipe->pipe_state & PIPE_WANT)) {
 		rpipe->pipe_state &= ~(PIPE_WANT|PIPE_WANTW);
@@ -414,7 +421,7 @@ pipe_read(fp, uio, cred)
 	} else if (rpipe->pipe_buffer.cnt < MINPIPESIZE) {
 		/*
 		 * If there is no more to read in the pipe, reset
-		 * it's pointers to the beginning.  This improves
+		 * its pointers to the beginning.  This improves
 		 * cache hit stats.
 		 */
 		if ((error == 0) && (error = pipelock(rpipe,1)) == 0) {
@@ -645,6 +652,7 @@ pipewrite(wpipe, uio, nbio)
 	int nbio;
 {
 	int error = 0;
+	int orig_resid;
 
 	/*
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
@@ -663,6 +671,7 @@ pipewrite(wpipe, uio, nbio)
 	}
 
 	++wpipe->pipe_busy;
+	orig_resid = uio->uio_resid;
 	while (uio->uio_resid) {
 		int space;
 		/*
@@ -693,13 +702,14 @@ pipewrite(wpipe, uio, nbio)
 		}
 
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
+		if ((space < uio->uio_resid) && (orig_resid <= PIPE_BUF))
+			space = 0;
 
 		/*
 		 * We must afford contiguous writes on buffers of size
 		 * PIPE_BUF or less.
 		 */
-		if ((space > 0) &&
-			((uio->uio_resid > PIPE_BUF) || (uio->uio_resid <= space))) {
+		if (space > 0) {
 			int size = wpipe->pipe_buffer.size - wpipe->pipe_buffer.in;
 			if (size > space)
 				size = space;
@@ -726,7 +736,6 @@ pipewrite(wpipe, uio, nbio)
 				wpipe->pipe_buffer.in = 0;
 
 			wpipe->pipe_buffer.cnt += size;
-			wpipe->pipe_mtime = time;
 		} else {
 			/*
 			 * If the "read-side" has been blocked, wake it up now.
@@ -780,6 +789,12 @@ pipewrite(wpipe, uio, nbio)
 		(uio->uio_resid == 0) &&
 		(error == EPIPE))
 		error = 0;
+
+	if (error = 0) {
+		int s = splhigh();
+		wpipe->pipe_mtime = time;
+		splx(s);
+	}
 		
 	if (wpipe->pipe_state & PIPE_SEL) {
 		wpipe->pipe_state &= ~PIPE_SEL;
@@ -855,7 +870,6 @@ pipe_select(fp, which, p)
 {
 	register struct pipe *rpipe = (struct pipe *)fp->f_data;
 	struct pipe *wpipe;
-	register int s = splnet();
 
 	wpipe = rpipe->pipe_peer;
 	switch (which) {
@@ -863,7 +877,6 @@ pipe_select(fp, which, p)
 	case FREAD:
 		if (rpipe->pipe_buffer.cnt > 0 ||
 			(rpipe->pipe_state & PIPE_EOF)) {
-			splx(s);
 			return (1);
 		}
 		selrecord(p, &rpipe->pipe_sel);
@@ -874,7 +887,6 @@ pipe_select(fp, which, p)
 		if ((wpipe == NULL) ||
 			(wpipe->pipe_state & PIPE_EOF) ||
 			((wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF)) {
-			splx(s);
 			return (1);
 		}
 		selrecord(p, &wpipe->pipe_sel);
@@ -885,7 +897,6 @@ pipe_select(fp, which, p)
 		if ((rpipe->pipe_state & PIPE_EOF) ||
 			(wpipe == NULL) ||
 			(wpipe->pipe_state & PIPE_EOF)) {
-			splx(s);
 			return (1);
 		}
 			
@@ -893,7 +904,6 @@ pipe_select(fp, which, p)
 		rpipe->pipe_state |= PIPE_SEL;
 		break;
 	}
-	splx(s);
 	return (0);
 }
 
