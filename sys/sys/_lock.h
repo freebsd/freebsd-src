@@ -31,6 +31,8 @@
 #ifndef _SYS__LOCK_H_
 #define	_SYS__LOCK_H_
 
+#include <sys/queue.h>
+
 struct lock_object {
 	struct	lock_class *lo_class;
 	const	char *lo_name;		/* Individual lock name. */
