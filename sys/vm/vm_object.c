@@ -137,7 +137,7 @@ static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int cur
  */
 
 struct object_q vm_object_list;
-static struct mtx vm_object_list_mtx;	/* lock for object list and count */
+struct mtx vm_object_list_mtx;	/* lock for object list and count */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
 static struct vm_object kernel_object_store;
@@ -222,7 +222,9 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 
 	object->generation++;
 
+	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
+	mtx_unlock(&vm_object_list_mtx);
 
 	object_hash_rand = object->hash_rand;
 }
@@ -1511,11 +1513,13 @@ vm_object_collapse(vm_object_t object)
 			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
 			KASSERT(TAILQ_FIRST(&backing_object->memq) == NULL, ("backing_object %p somehow has left over pages during collapse!", backing_object));
 
+			mtx_lock(&vm_object_list_mtx);
 			TAILQ_REMOVE(
 			    &vm_object_list, 
 			    backing_object,
 			    object_list
 			);
+			mtx_unlock(&vm_object_list_mtx);
 
 			uma_zfree(obj_zone, backing_object);
 

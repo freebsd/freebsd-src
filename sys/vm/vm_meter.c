@@ -95,8 +95,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 * Mark all objects as inactive.
 	 */
 	GIANT_REQUIRED;
+	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		vm_object_clear_flag(object, OBJ_ACTIVE);
+	mtx_unlock(&vm_object_list_mtx);
 	/*
 	 * Calculate process statistics.
 	 */
@@ -164,6 +166,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Calculate object memory usage statistics.
 	 */
+	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		/*
 		 * devices, like /dev/mem, will badly skew our totals
@@ -186,6 +189,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			}
 		}
 	}
+	mtx_unlock(&vm_object_list_mtx);
 	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
 	return (sysctl_handle_opaque(oidp, totalp, sizeof total, req));
 }
