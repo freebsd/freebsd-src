@@ -242,6 +242,8 @@ int run (int cmd, char *arg)
 {
 	int l, r, rc;
 
+	if (arg == NULL)
+		return 0;
 	switch (cmd) {
 
 	case CMD_QUIT:
