@@ -1,8 +1,9 @@
-#	$Id: options.pc98,v 1.34 1997/08/02 06:58:07 kato Exp $
+#	$Id: options.pc98,v 1.35 1997/08/02 10:23:17 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
+VM86			opt_global.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
