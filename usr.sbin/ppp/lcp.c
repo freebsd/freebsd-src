@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.48 1997/11/22 03:37:35 brian Exp $
+ * $Id: lcp.c,v 1.49 1997/12/03 10:23:49 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -281,7 +281,7 @@ do {								\
   o.id = TY_QUALPROTO;						\
   o.len = 8;							\
   *(u_short *)o.data = htons(PROTO_LQR);			\
-  *(u_long *)(o.data+2) = period;				\
+  *(u_long *)(o.data+2) = htonl(period);			\
   cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "period %ld", period);\
 } while (0)
 
@@ -289,17 +289,19 @@ do {								\
 do {								\
   o.id = TY_AUTHPROTO;						\
   o.len = 4;							\
-  *(u_short *)o.data = PROTO_PAP;				\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "PAP REQ");	\
+  *(u_short *)o.data = htons(PROTO_PAP);			\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
+		   "0x%04x (PAP)", PROTO_PAP);			\
 } while (0)
   
 #define PUTCHAP(val)						\
 do {								\
   o.id = TY_AUTHPROTO;						\
   o.len = 5;							\
-  *(u_short *)o.data = PROTO_CHAP;				\
-  o.data[4] = val;						\
-  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "CHAP REQ (0x%02x)", val);\
+  *(u_short *)o.data = htons(PROTO_CHAP);			\
+  o.data[2] = val;						\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id],		\
+		   "0x%04x (CHAP 0x%02x)", PROTO_CHAP, val);	\
 } while (0)
 
 #define PUTMD5CHAP() PUTCHAP(0x05)
@@ -344,9 +346,8 @@ LcpSendConfigReq(struct fsm * fp)
     if (VarMSChap)
       PUTMSCHAP();			/* Use MSChap */
     else
-#else
-      PUTMD5CHAP();			/* Use MD5 */
 #endif
+      PUTMD5CHAP();			/* Use MD5 */
     break;
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
@@ -550,7 +551,17 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
     case TY_AUTHPROTO:
       sp = (u_short *) (cp + 2);
       proto = ntohs(*sp);
-      LogPrintf(LogLCP, "%s 0x%04x\n", request, proto);
+      switch (proto) {
+      case PROTO_PAP:
+        LogPrintf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
+        break;
+      case PROTO_CHAP:
+        LogPrintf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
+        break;
+      default:
+        LogPrintf(LogLCP, "%s 0x%04x\n", request, proto);
+        break;
+      }
 
       switch (mode_type) {
       case MODE_REQ:
@@ -569,7 +580,12 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	    *nakp++ = 5;
 	    *nakp++ = (unsigned char) (PROTO_CHAP >> 8);
 	    *nakp++ = (unsigned char) PROTO_CHAP;
-	    *nakp++ = 5;
+#ifdef HAVE_DES
+            if (VarMSChap)
+              *nakp++ = 0x80;
+            else
+#endif
+	      *nakp++ = 5;
 	  } else
 	    goto reqreject;
 	  break;
@@ -601,13 +617,36 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	  break;
 
 	default:
-	  LogPrintf(LogLCP, " proto %d not implemented, NAK.\n", proto);
+          LogPrintf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
+                    request, proto);
 	  memcpy(nakp, cp, length);
 	  nakp += length;
 	  break;
 	}
 	break;
       case MODE_NAK:
+	switch (proto) {
+	case PROTO_PAP:
+          if (Enabled(ConfPap))
+            LcpInfo.want_auth = PROTO_PAP;
+          else {
+            LogPrintf(LogLCP, "Peer will only send PAP (not enabled)\n");
+	    LcpInfo.his_reject |= (1 << type);
+          }
+          break;
+	case PROTO_CHAP:
+          if (Enabled(ConfChap))
+            LcpInfo.want_auth = PROTO_CHAP;
+          else {
+            LogPrintf(LogLCP, "Peer will only send CHAP (not enabled)\n");
+	    LcpInfo.his_reject |= (1 << type);
+          }
+          break;
+        default:
+          /* We've been NAK'd with something we don't understand :-( */
+	  LcpInfo.his_reject |= (1 << type);
+          break;
+        }
 	break;
       case MODE_REJ:
 	LcpInfo.his_reject |= (1 << type);
