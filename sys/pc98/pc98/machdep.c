@@ -127,7 +127,7 @@
 #include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/pc98.h>
 #else
-#include <i386/isa/rtc.h>
+#include <isa/rtc.h>
 #endif
 #include <machine/vm86.h>
 #include <machine/random.h>
@@ -546,7 +546,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = (register_t *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 
@@ -699,7 +699,7 @@ sendsig(catcher, sig, mask, code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = (register_t *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 
@@ -886,15 +886,25 @@ sigreturn(p, uap)
 	ucontext_t *ucp;
 	int cs, eflags;
 
-	if (((struct osigcontext *)uap->sigcntxp)->sc_trapno == 0x01d516)
-		return osigreturn(p, (struct osigreturn_args *)uap);
+	ucp = uap->sigcntxp;
+
+	if (!useracc((caddr_t)ucp, sizeof(struct osigcontext), VM_PROT_READ))
+		return (EFAULT);
+	if (((struct osigcontext *)ucp)->sc_trapno == 0x01d516)
+		return (osigreturn(p, (struct osigreturn_args *)uap));
+
+	/*
+	 * Since ucp is not an osigcontext but a ucontext_t, we have to
+	 * check again if all of it is accessible.  A ucontext_t is
+	 * much larger, so instead of just checking for the pointer
+	 * being valid for the size of an osigcontext, now check for
+	 * it being valid for a whole, new-style ucontext_t.
+	 */
+	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
+		return (EFAULT);
 
 	regs = p->p_md.md_regs;
-	ucp = uap->sigcntxp;
 	eflags = ucp->uc_mcontext.mc_eflags;
-
-	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ))
-		return(EFAULT);
 
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
