@@ -89,29 +89,40 @@ struct devstat_args {
 	{ DSM_TOTAL_BYTES, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_BYTES_READ, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_BYTES_WRITE, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BYTES_FREE, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_TRANSFERS, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS_OTHER, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_TRANSFERS_READ, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_TRANSFERS_WRITE, DEVSTAT_ARG_UINT64 },
-	{ DSM_TOTAL_TRANSFERS_OTHER, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS_FREE, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_BLOCKS, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_BLOCKS_READ, DEVSTAT_ARG_UINT64 },
 	{ DSM_TOTAL_BLOCKS_WRITE, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BLOCKS_FREE, DEVSTAT_ARG_UINT64 },
 	{ DSM_KB_PER_TRANSFER, DEVSTAT_ARG_LD },
 	{ DSM_KB_PER_TRANSFER_READ, DEVSTAT_ARG_LD },
 	{ DSM_KB_PER_TRANSFER_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_KB_PER_TRANSFER_FREE, DEVSTAT_ARG_LD },
 	{ DSM_TRANSFERS_PER_SECOND, DEVSTAT_ARG_LD },
 	{ DSM_TRANSFERS_PER_SECOND_READ, DEVSTAT_ARG_LD },
 	{ DSM_TRANSFERS_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_TRANSFERS_PER_SECOND_FREE, DEVSTAT_ARG_LD },
 	{ DSM_TRANSFERS_PER_SECOND_OTHER, DEVSTAT_ARG_LD },
 	{ DSM_MB_PER_SECOND, DEVSTAT_ARG_LD },
 	{ DSM_MB_PER_SECOND_READ, DEVSTAT_ARG_LD },
 	{ DSM_MB_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_MB_PER_SECOND_FREE, DEVSTAT_ARG_LD },
 	{ DSM_BLOCKS_PER_SECOND, DEVSTAT_ARG_LD },
 	{ DSM_BLOCKS_PER_SECOND_READ, DEVSTAT_ARG_LD },
 	{ DSM_BLOCKS_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_BLOCKS_PER_SECOND_FREE, DEVSTAT_ARG_LD },
 	{ DSM_MS_PER_TRANSACTION, DEVSTAT_ARG_LD },
 	{ DSM_MS_PER_TRANSACTION_READ, DEVSTAT_ARG_LD },
 	{ DSM_MS_PER_TRANSACTION_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_MS_PER_TRANSACTION_FREE, DEVSTAT_ARG_LD },
+	{ DSM_MS_PER_TRANSACTION_OTHER, DEVSTAT_ARG_LD },
+	{ DSM_BUSY_PCT, DEVSTAT_ARG_LD },
+	{ DSM_QUEUE_LENGTH, DEVSTAT_ARG_UINT64 },
 	{ DSM_SKIP, DEVSTAT_ARG_SKIP }
 };
 
@@ -362,8 +373,14 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		 * If devices are being added to the system that quickly, maybe
 		 * the user can just wait until all devices are added.
 		 */
-		if ((error = sysctlbyname("kern.devstat.all", dinfo->mem_ptr, 
-					  &dssize, NULL, 0)) == -1) {
+		for (;;) {
+			error = sysctlbyname("kern.devstat.all",
+					     dinfo->mem_ptr, 
+					     &dssize, NULL, 0);
+			if (error != -1 || errno != EBUSY)
+				break;
+		}
+		if (error == -1) {
 			/*
 			 * If we get ENOMEM back, that means that there are 
 			 * more devices now, so we need to allocate more 
@@ -1161,20 +1178,27 @@ devstat_compute_etime(struct bintime *cur_time, struct bintime *prev_time)
 	return(etime);
 }
 
+#define DELTA(field, index)				\
+	(current->field[(index)] - (previous ? previous->field[(index)] : 0))
+
+#define DELTA_T(field)					\
+	devstat_compute_etime(&current->field,  	\
+	(previous ? &previous->field : NULL))
+
 int
 devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			   long double etime, ...)
 {
 	const char *func_name = "devstat_compute_statistics";
-	u_int64_t totalbytes, totalbytesread, totalbyteswrite;
+	u_int64_t totalbytes, totalbytesread, totalbyteswrite, totalbytesfree;
 	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
 	u_int64_t totaltransfersother, totalblocks, totalblocksread;
-	u_int64_t totalblockswrite;
+	u_int64_t totalblockswrite, totaltransfersfree, totalblocksfree;
 	va_list ap;
 	devstat_metric metric;
 	u_int64_t *destu64;
 	long double *destld;
-	int retval;
+	int retval, i;
 
 	retval = 0;
 
@@ -1187,37 +1211,33 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		return(-1);
 	}
 
-	totalbytesread = current->bytes[DEVSTAT_READ] -
-			 ((previous) ? previous->bytes[DEVSTAT_READ] : 0);
-	totalbyteswrite = current->bytes[DEVSTAT_WRITE] -
-			    ((previous) ? previous->bytes[DEVSTAT_WRITE] : 0);
+	totalbytesread = DELTA(bytes, DEVSTAT_READ);
+	totalbyteswrite = DELTA(bytes, DEVSTAT_WRITE);
+	totalbytesfree = DELTA(bytes, DEVSTAT_FREE);
+	totalbytes = totalbytesread + totalbyteswrite + totalbytesfree;
 
-	totalbytes = totalbytesread + totalbyteswrite;
-
-	totaltransfersread = current->operations[DEVSTAT_READ] -
-			     ((previous) ? previous->operations[DEVSTAT_READ] : 0);
-
-	totaltransferswrite = current->operations[DEVSTAT_WRITE] -
-			      ((previous) ? previous->operations[DEVSTAT_WRITE] : 0);
-
-	totaltransfersother = current->operations[DEVSTAT_NO_DATA] -
-			      ((previous) ? previous->operations[DEVSTAT_NO_DATA] : 0);
-
+	totaltransfersread = DELTA(operations, DEVSTAT_READ);
+	totaltransferswrite = DELTA(operations, DEVSTAT_WRITE);
+	totaltransfersother = DELTA(operations, DEVSTAT_NO_DATA);
+	totaltransfersfree = DELTA(operations, DEVSTAT_FREE);
 	totaltransfers = totaltransfersread + totaltransferswrite +
-			 totaltransfersother;
+			 totaltransfersother + totaltransfersfree;
 
 	totalblocks = totalbytes;
 	totalblocksread = totalbytesread;
 	totalblockswrite = totalbyteswrite;
+	totalblocksfree = totalbytesfree;
 
 	if (current->block_size > 0) {
 		totalblocks /= current->block_size;
 		totalblocksread /= current->block_size;
 		totalblockswrite /= current->block_size;
+		totalblocksfree /= current->block_size;
 	} else {
 		totalblocks /= 512;
 		totalblocksread /= 512;
 		totalblockswrite /= 512;
+		totalblocksfree /= 512;
 	}
 
 	va_start(ap, etime);
@@ -1264,6 +1284,9 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		case DSM_TOTAL_BYTES_WRITE:
 			*destu64 = totalbyteswrite;
 			break;
+		case DSM_TOTAL_BYTES_FREE:
+			*destu64 = totalbytesfree;
+			break;
 		case DSM_TOTAL_TRANSFERS:
 			*destu64 = totaltransfers;
 			break;
@@ -1272,6 +1295,9 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_TOTAL_TRANSFERS_WRITE:
 			*destu64 = totaltransferswrite;
+			break;
+		case DSM_TOTAL_TRANSFERS_FREE:
+			*destu64 = totaltransfersfree;
 			break;
 		case DSM_TOTAL_TRANSFERS_OTHER:
 			*destu64 = totaltransfersother;
@@ -1284,6 +1310,9 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_TOTAL_BLOCKS_WRITE:
 			*destu64 = totalblockswrite;
+			break;
+		case DSM_TOTAL_BLOCKS_FREE:
+			*destu64 = totalblocksfree;
 			break;
 		case DSM_KB_PER_TRANSFER:
 			*destld = totalbytes;
@@ -1309,6 +1338,14 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			else
 				*destld = 0.0;
 			break;
+		case DSM_KB_PER_TRANSFER_FREE:
+			*destld = totalbytesfree;
+			*destld /= 1024;
+			if (totaltransfersfree > 0)
+				*destld /= totaltransfersfree;
+			else
+				*destld = 0.0;
+			break;
 		case DSM_TRANSFERS_PER_SECOND:
 			if (etime > 0.0) {
 				*destld = totaltransfers;
@@ -1326,6 +1363,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		case DSM_TRANSFERS_PER_SECOND_WRITE:
 			if (etime > 0.0) {
 				*destld = totaltransferswrite;
+				*destld /= etime;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_TRANSFERS_PER_SECOND_FREE:
+			if (etime > 0.0) {
+				*destld = totaltransfersfree;
 				*destld /= etime;
 			} else
 				*destld = 0.0;
@@ -1361,6 +1405,14 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			else
 				*destld = 0.0;
 			break;
+		case DSM_MB_PER_SECOND_FREE:
+			*destld = totalbytesfree;
+			*destld /= 1024 * 1024;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
 		case DSM_BLOCKS_PER_SECOND:
 			*destld = totalblocks;
 			if (etime > 0.0)
@@ -1377,6 +1429,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_BLOCKS_PER_SECOND_WRITE:
 			*destld = totalblockswrite;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_BLOCKS_PER_SECOND_FREE:
+			*destld = totalblocksfree;
 			if (etime > 0.0)
 				*destld /= etime;
 			else
@@ -1402,7 +1461,9 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		 */
 		case DSM_MS_PER_TRANSACTION:
 			if (totaltransfers > 0) {
-				*destld = etime;
+				*destld = 0;
+				for (i = 0; i < DEVSTAT_N_TRANS_FLAGS; i++)
+					*destld += DELTA_T(duration[i]);
 				*destld /= totaltransfers;
 				*destld *= 1000;
 			} else
@@ -1415,7 +1476,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		 */
 		case DSM_MS_PER_TRANSACTION_READ:
 			if (totaltransfersread > 0) {
-				*destld = etime;
+				*destld = DELTA_T(duration[DEVSTAT_READ]);
 				*destld /= totaltransfersread;
 				*destld *= 1000;
 			} else
@@ -1423,12 +1484,42 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_WRITE:
 			if (totaltransferswrite > 0) {
-				*destld = etime;
+				*destld = DELTA_T(duration[DEVSTAT_WRITE]);
 				*destld /= totaltransferswrite;
 				*destld *= 1000;
 			} else
 				*destld = 0.0;
 			break;
+		case DSM_MS_PER_TRANSACTION_FREE:
+			if (totaltransfersfree > 0) {
+				*destld = DELTA_T(duration[DEVSTAT_FREE]);
+				*destld /= totaltransfersfree;
+				*destld *= 1000;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_MS_PER_TRANSACTION_OTHER:
+			if (totaltransfersother > 0) {
+				*destld = DELTA_T(duration[DEVSTAT_NO_DATA]);
+				*destld /= totaltransfersother;
+				*destld *= 1000;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_BUSY_PCT:
+			*destld = DELTA_T(busy_time);
+			if (*destld < 0)
+				*destld = 0;
+			*destld /= etime;
+			*destld *= 100;
+			break;
+		case DSM_QUEUE_LENGTH:
+			*destu64 = current->start_count - current->end_count;
+			break;
+/*
+ * XXX: comment out the default block to see if any case's are missing.
+ */
+#if 1
 		default:
 			/*
 			 * This shouldn't happen, since we should have
@@ -1440,6 +1531,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			retval = -1;
 			goto bailout;
 			break; /* NOTREACHED */
+#endif
 		}
 	}
 
