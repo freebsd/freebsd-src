@@ -648,11 +648,13 @@ ffs_getpages(ap)
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
+		vm_page_lock_queues();
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
 				vm_page_free(ap->a_m[i]);
 			}
 		}
+		vm_page_unlock_queues();
 		return VM_PAGER_OK;
 	}
 
@@ -678,10 +680,12 @@ ffs_getpages(ap)
 	dp = VTOI(vp)->i_devvp;
 	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, 0, &bforwards, &bbackwards)
 	    || (reqblkno == -1)) {
+		vm_page_lock_queues();
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vm_page_free(ap->a_m[i]);
 		}
+		vm_page_unlock_queues();
 		if (reqblkno == -1) {
 			if ((mreq->flags & PG_ZERO) == 0)
 				vm_page_zero_fill(mreq);
@@ -705,8 +709,10 @@ ffs_getpages(ap)
 		pbackwards = poff + bbackwards * pagesperblock;
 		if (ap->a_reqpage > pbackwards) {
 			firstpage = ap->a_reqpage - pbackwards;
+			vm_page_lock_queues();
 			for(i=0;i<firstpage;i++)
 				vm_page_free(ap->a_m[i]);
+			vm_page_unlock_queues();
 		}
 
 	/*
@@ -716,8 +722,10 @@ ffs_getpages(ap)
 		pforwards = (pagesperblock - (poff + 1)) +
 			bforwards * pagesperblock;
 		if (pforwards < (pcount - (ap->a_reqpage + 1))) {
+			vm_page_lock_queues();
 			for( i = ap->a_reqpage + pforwards + 1; i < pcount; i++)
 				vm_page_free(ap->a_m[i]);
+			vm_page_unlock_queues();
 			pcount = ap->a_reqpage + pforwards + 1;
 		}
 
