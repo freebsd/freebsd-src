@@ -217,7 +217,7 @@ ENTRY(copystr, 4)
 
 2:	cmp.eq	p6,p0=r0,in3
 (p6)	br.cond.dpnt.few 3f		// if (lenp != NULL)
-	sub	r14=in2,r14		// *lenp = (i - len)
+	sub	r14=r14,in2		// *lenp = (i - len)
 	;;
 	st8	[in3]=r14
 	
@@ -261,6 +261,7 @@ ENTRY(copyinstr, 4)
 	;;
 	br.call.sptk.few rp=copystr		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
+	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from copystr
 
@@ -295,6 +296,7 @@ ENTRY(copyoutstr, 4)
 	;;
 	br.call.sptk.few rp=copystr		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
+	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from copystr
 
@@ -386,7 +388,7 @@ ENTRY(copyin, 3)
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
-	cmp.ltu	p6,p0=in0,loc2			// is in user space.
+	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
@@ -408,6 +410,7 @@ ENTRY(copyin, 3)
 	;;
 	br.call.sptk.few rp=bcopy		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
+	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from bcopy
 	
@@ -420,7 +423,7 @@ ENTRY(copyout, 3)
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
 	;; 
-	cmp.ltu	p6,p0=in1,loc2			// is in user space.
+	cmp.geu	p6,p0=in1,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
@@ -442,6 +445,7 @@ ENTRY(copyout, 3)
 	;;
 	br.call.sptk.few rp=bcopy		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
+	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
 	br.ret.sptk.few rp			// ret0 left over from bcopy
 	

@@ -86,6 +86,8 @@ ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 
 ASSYM(SIZEOF_USER,	sizeof(struct user));
 
+ASSYM(TF_CR_IPSR,	offsetof(struct trapframe, tf_cr_ipsr));
+
 ASSYM(U_PCB_R4,		offsetof(struct user, u_pcb.pcb_r4));
 ASSYM(U_PCB_R5,		offsetof(struct user, u_pcb.pcb_r5));
 ASSYM(U_PCB_R6,		offsetof(struct user, u_pcb.pcb_r6));
@@ -114,6 +116,8 @@ ASSYM(U_PCB_PR,		offsetof(struct user, u_pcb.pcb_pr));
 
 ASSYM(U_PCB_SCHEDNEST,	offsetof(struct user, u_pcb.pcb_onfault));
 ASSYM(U_PCB_ONFAULT,	offsetof(struct user, u_pcb.pcb_onfault));
+
+ASSYM(U_PCB_HIGHFP,	offsetof(struct user, u_pcb.pcb_highfp));
 
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
 ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
