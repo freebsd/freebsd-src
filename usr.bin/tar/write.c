@@ -677,11 +677,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 
 	fd = -1;
 	entry = archive_entry_new();
-	archive_entry_set_pathname(entry, pathname);
-
-	/* If there are hard links, record it for later use */
-	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
-		lookup_hardlink(bsdtar, entry, st);
 
 	/* Non-regular files get archived with zero size. */
 	if (!S_ISREG(st->st_mode))
@@ -697,6 +692,11 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	/* Strip leading '/' unless user has asked us not to. */
 	if (pathname && pathname[0] == '/' && !bsdtar->option_absolute_paths)
 		pathname++;
+
+	archive_entry_set_pathname(entry, pathname);
+
+	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
+		lookup_hardlink(bsdtar, entry, st);
 
 	/* Display entry as we process it. This format is required by SUSv2. */
 	if (bsdtar->verbose)
@@ -733,6 +733,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	}
 #endif
 
+        archive_entry_copy_stat(entry, st);
 	setup_acls(bsdtar, entry, accpath);
 
 	/*
@@ -751,9 +752,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 			goto cleanup;
 		}
 	}
-
-	archive_entry_copy_stat(entry, st);
-	archive_entry_set_pathname(entry, pathname);
 
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
