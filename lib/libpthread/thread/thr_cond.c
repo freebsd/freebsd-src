@@ -184,6 +184,9 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	    (rval = pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
 
+	if (!_kse_isthreaded())
+		_kse_setthreaded(1);
+
 	/*
 	 * Enter a loop waiting for a condition signal or broadcast
 	 * to wake up this thread.  A loop is needed in case the waiting
@@ -387,6 +390,9 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 */
 	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
+
+	if (!_kse_isthreaded())
+		_kse_setthreaded(1);
 
 	/*
 	 * Enter a loop waiting for a condition signal or broadcast

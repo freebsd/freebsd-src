@@ -151,15 +151,24 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 
 	/* Some signals need special handling: */
 	handle_special_signals(curkse, sig);
-
-	if ((thread = thr_sig_find(curkse, sig, info)) != NULL) {
+	stderr_debug("dispatch sig:%d\n", sig);
+	while ((thread = thr_sig_find(curkse, sig, info)) != NULL) {
 		/*
 		 * Setup the target thread to receive the signal:
 		 */
 		DBG_MSG("Got signal %d, selecting thread %p\n", sig, thread);
 		KSE_SCHED_LOCK(curkse, thread->kseg);
-		_thr_sig_add(thread, sig, info);
-		KSE_SCHED_UNLOCK(curkse, thread->kseg);
+		if ((thread->state == PS_DEAD) ||
+		    (thread->state == PS_DEADLOCK) ||
+		    THR_IS_EXITING(thread) || THR_IS_SUSPENDED(thread)) {
+			KSE_SCHED_UNLOCK(curkse, thread->kseg);
+			_thr_ref_delete(NULL, thread);
+		} else {
+			_thr_sig_add(thread, sig, info);
+			KSE_SCHED_UNLOCK(curkse, thread->kseg);
+			_thr_ref_delete(NULL, thread);
+			break;
+		}
 	}
 }
 
@@ -321,10 +330,14 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 		else if ((handler_installed != 0) &&
 		    !sigismember(&pthread->tmbx.tm_context.uc_sigmask, sig)) {
 			if (pthread->state == PS_SIGSUSPEND) {
-				if (suspended_thread == NULL)
+				if (suspended_thread == NULL) {
 					suspended_thread = pthread;
-			} else if (signaled_thread == NULL)
+					suspended_thread->refcount++;
+				}
+			} else if (signaled_thread == NULL) {
 				signaled_thread = pthread;
+				signaled_thread->refcount++;
+			}		
 		}
 		KSE_SCHED_UNLOCK(curkse, pthread->kseg);
 	}
@@ -359,9 +372,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 		 * We only deliver the signal to one thread;
 		 * give preference to the suspended thread:
 		 */
-		if (suspended_thread != NULL)
+		if (suspended_thread != NULL) {
 			pthread = suspended_thread;
-		else
+			_thr_ref_delete(NULL, signaled_thread);
+		} else
 			pthread = signaled_thread;
 		return (pthread);
 	}

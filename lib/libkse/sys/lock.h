@@ -54,7 +54,6 @@ struct lockreq {
 	volatile long	lr_locked;	/* lock granted = 0, busy otherwise */
 	struct lockuser	*lr_watcher;	/* only used for priority locks */
 	struct lockuser	*lr_owner;	/* only used for priority locks */
-	long		lr_waiting;	/* non-zero when wakeup needed */
 	volatile int	lr_active;	/* non-zero if the lock is last lock for thread */
 };
 
@@ -73,7 +72,7 @@ struct lockuser {
 
 #define	_LCK_BUSY(lu)			((lu)->lu_watchreq->lr_locked != 0)
 #define	_LCK_ACTIVE(lu)			((lu)->lu_watchreq->lr_active != 0)
-#define	_LCK_GRANTED(lu)		((lu)->lu_watchreq->lr_locked == 0)
+#define	_LCK_GRANTED(lu)		((lu)->lu_watchreq->lr_locked == 3)
 
 #define	_LCK_SET_PRIVATE(lu, p)		(lu)->lu_private = (void *)(p)
 #define	_LCK_GET_PRIVATE(lu)		(lu)->lu_private

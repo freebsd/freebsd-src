@@ -70,8 +70,7 @@ _pthread_detach(pthread_t pthread)
 
 		/* Retrieve any joining thread and remove it: */
 		joiner = pthread->joiner;
-		pthread->joiner = NULL;
-		if (joiner->kseg == pthread->kseg) {
+		if ((joiner != NULL) && (joiner->kseg == pthread->kseg)) {
 			/*
 			 * We already own the scheduler lock for the joiner.
 			 * Take advantage of that and make the joiner runnable.
@@ -89,10 +88,10 @@ _pthread_detach(pthread_t pthread)
 			joiner = NULL;
 		}
 		THR_SCHED_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
 
 		/* See if there is a thread waiting in pthread_join(): */
-		if (joiner != NULL && _thr_ref_add(curthread, joiner, 0) == 0) {
+		if ((joiner != NULL) &&
+		    (_thr_ref_add(curthread, joiner, 0) == 0)) {
 			/* Lock the joiner before fiddling with it. */
 			THR_SCHED_LOCK(curthread, joiner);
 			if (joiner->join_status.thread == pthread) {
@@ -108,6 +107,7 @@ _pthread_detach(pthread_t pthread)
 			THR_SCHED_UNLOCK(curthread, joiner);
 			_thr_ref_delete(curthread, joiner);
 		}
+		_thr_ref_delete(curthread, pthread);
 	}
 
 	/* Return the completion status: */

@@ -103,6 +103,7 @@ _thr_setconcurrency(int new_level)
 		TAILQ_INSERT_TAIL(&newkse->k_kseg->kg_kseq,
 		    newkse, k_kgqe);
 		newkse->k_kseg->kg_ksecount++;
+		newkse->k_flags |= KF_STARTED;
 		KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
 		if (kse_create(&newkse->k_mbx, 0) != 0) {
 			KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);

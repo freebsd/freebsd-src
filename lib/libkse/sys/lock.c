@@ -64,7 +64,6 @@ _lock_init(struct lock *lck, enum lock_type ltype,
 		lck->l_head->lr_locked = 0;
 		lck->l_head->lr_watcher = NULL;
 		lck->l_head->lr_owner = NULL;
-		lck->l_head->lr_waiting = 0;
 		lck->l_head->lr_active = 1;
 		lck->l_tail = lck->l_head;
 	}
@@ -84,7 +83,6 @@ _lockuser_init(struct lockuser *lu, void *priv)
 		lu->lu_myreq->lr_locked = 1;
 		lu->lu_myreq->lr_watcher = NULL;
 		lu->lu_myreq->lr_owner = lu;
-		lu->lu_myreq->lr_waiting = 0;
 		lu->lu_myreq->lr_active = 0;
 		lu->lu_watchreq = NULL;
 		lu->lu_priority = 0;
@@ -109,6 +107,7 @@ void
 _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 {
 	int i;
+	long lval;
 
 	/**
 	 * XXX - We probably want to remove these checks to optimize
@@ -126,7 +125,6 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 		LCK_ASSERT(lu->lu_myreq->lr_locked == 1);
 		LCK_ASSERT(lu->lu_myreq->lr_watcher == NULL);
 		LCK_ASSERT(lu->lu_myreq->lr_owner == lu);
-		LCK_ASSERT(lu->lu_myreq->lr_waiting == 0);
 		LCK_ASSERT(lu->lu_watchreq == NULL);
 
 		lu->lu_priority = prio;
@@ -169,10 +167,13 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 				if (lu->lu_watchreq->lr_active == 0)
 					break;
 			}
-			atomic_store_rel_long(&lu->lu_watchreq->lr_waiting, 1);
-			while (lu->lu_watchreq->lr_locked != 0)
+			atomic_swap_long((long *)&lu->lu_watchreq->lr_locked,
+			    2, &lval);
+			if (lval == 0)
+				lu->lu_watchreq->lr_locked = 0;
+			else
 				lck->l_wait(lck, lu);
-			atomic_store_rel_long(&lu->lu_watchreq->lr_waiting, 0);
+
 		}
 	}
 	lu->lu_myreq->lr_active = 1;
@@ -187,6 +188,7 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 	struct lockuser *lu_tmp, *lu_h;
 	struct lockreq *myreq;
 	int prio_h;
+	long lval;
 
 	/**
 	 * XXX - We probably want to remove these checks to optimize
@@ -224,7 +226,6 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		lu->lu_myreq->lr_locked = 1;
 		lu->lu_myreq->lr_owner = lu;
 		lu->lu_myreq->lr_watcher = NULL;
-		lu->lu_myreq->lr_waiting = 0;
 		/*
 		 * Traverse the list of lock requests in reverse order
 		 * looking for the user with the highest priority.
@@ -238,17 +239,26 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		}
 		if (lu_h != NULL) {
 			/* Give the lock to the highest priority user. */
-			if ((lu_h->lu_watchreq->lr_waiting != 0) &&
-			    (lck->l_wakeup != NULL))
-				/* Notify the sleeper */
-				lck->l_wakeup(lck, lu_h->lu_myreq->lr_watcher);
+			if (lck->l_wakeup != NULL) {
+				atomic_swap_long(
+				    (long *)&lu_h->lu_watchreq->lr_locked,
+				    0, &lval);
+				if (lval == 2)
+					/* Notify the sleeper */
+					lck->l_wakeup(lck,
+					    lu_h->lu_myreq->lr_watcher);
+			}
 			else
-				atomic_store_rel_long(&lu_h->lu_watchreq->lr_locked, 0);
+				atomic_store_rel_long(
+				    &lu_h->lu_watchreq->lr_locked, 0);
 		} else {
-			if ((myreq->lr_waiting != 0) &&
-			    (lck->l_wakeup != NULL))
-				/* Notify the sleeper */
-				lck->l_wakeup(lck, myreq->lr_watcher);
+			if (lck->l_wakeup != NULL) {
+				atomic_swap_long((long *)&myreq->lr_locked,
+				    0, &lval);
+				if (lval == 2)
+					/* Notify the sleeper */
+					lck->l_wakeup(lck, myreq->lr_watcher);
+			}
 			else
 				/* Give the lock to the previous request. */
 				atomic_store_rel_long(&myreq->lr_locked, 0);
@@ -263,10 +273,12 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		lu->lu_myreq = lu->lu_watchreq;
 		lu->lu_watchreq = NULL;
 		lu->lu_myreq->lr_locked = 1;
-		lu->lu_myreq->lr_waiting = 0;
-		if (myreq->lr_waiting != 0 && lck->l_wakeup) 
-			/* Notify the sleeper */
-			lck->l_wakeup(lck, myreq->lr_watcher);
+		if (lck->l_wakeup) {
+			atomic_swap_long((long *)&myreq->lr_locked, 0, &lval);
+			if (lval == 2)
+				/* Notify the sleeper */
+				lck->l_wakeup(lck, myreq->lr_watcher);
+		}
 		else
 			/* Give the lock to the previous request. */
 			atomic_store_rel_long(&myreq->lr_locked, 0);
@@ -277,7 +289,7 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 void
 _lock_grant(struct lock *lck /* unused */, struct lockuser *lu)
 {
-	atomic_store_rel_long(&lu->lu_watchreq->lr_locked, 0);
+	atomic_store_rel_long(&lu->lu_watchreq->lr_locked, 3);
 }
 
 void
