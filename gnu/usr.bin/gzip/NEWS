@@ -1,5 +1,43 @@
-Current Version: 1.1.1
+Current Version: 1.2.2.
 See the file ChangeLog for the details of all changes.
+
+Major changes from 1.2 to 1.2.1
+* Fix a compilation error on Sun with cc (worked with gcc).
+
+Major changes from 1.2 to 1.2.1
+* Let zmore act as more if the data is not gzipped.
+* made gzexe more secure (don't rely on PATH).
+* By default, display output name only when the name was actually truncated.
+
+Major changes from 1.1.2 to 1.2
+* Added the --list option to display the file characteristics.
+* Added the --no-name option: do not save or restore original filename
+  Save the original name by default.
+* Allow gunzip --suffix "" to attempt decompression on any file
+  regardless of its extension if an original name is present.
+* Add support for the SCO compress -H format.
+* gzip --fast now compresses faster (speed close to that of compress)
+  with degraded compression ratio (but still better than compress).
+  Default level changed to -6 (acts exactly as previous level -5) to
+  be a better indication of its placement in the speed/ratio range.
+* Use smart name truncation: 123456789012.c -> 123456789.c.gz
+   instead of 12345678901.gz
+* With --force, let zcat pass non gzip'ed data unchanged (zcat == cat)
+* Added the zgrep shell script.
+* Made sub.c useful for 16 bit sound, 24 bit images, etc..
+* Supress warnings about suffix for gunzip -r, except with --verbose.
+* On MSDOS, use .gz extension when possible (files without extension)
+* Moved the sample programs to a subdirectory sample.
+* Added a "Special targets" section in INSTALL.
+
+Major changes from 1.1.1 to 1.1.2.
+* Fix serious bug for VMS (-gz not removed when decompressing).
+* Allow suffix other than .gz in znew.
+* Do not display compression ratio when decompressing stdin.
+* In zmore.in, work around brain damaged stty -g (Ultrix).
+* Display a correct compression ratio for .Z files.
+* Added .z to .gz renaming script in INTALL.
+* Allow setting CFLAGS in configure.
 
 Major changes from 1.1 to 1.1.1.
 * Fix serious bug in vms.c (affects Vax/VMS only).

@@ -16,7 +16,10 @@
    typedef char *voidp;
 #endif
 
-/* I don't like nested includes, but the string functions are used too often */
+/* I don't like nested includes, but the string and io functions are used
+ * too often
+ */
+#include <stdio.h>
 #if !defined(NO_STRING_H) || defined(STDC_HEADERS)
 #  include <string.h>
 #  if !defined(STDC_HEADERS) && !defined(NO_MEMORY_H) && !defined(__GNUC__)
@@ -48,11 +51,13 @@ typedef unsigned long  ulg;
 #define WARNING 2
 
 /* Compression methods (see algorithm.doc) */
-#define STORED     0
-#define COMPRESSED 1
-#define PACKED     2
-/* methods 3 to 7 reserved */
-#define DEFLATED   8
+#define STORED      0
+#define COMPRESSED  1
+#define PACKED      2
+#define LZHED       3
+/* methods 4 to 7 reserved */
+#define DEFLATED    8
+#define MAX_METHODS 9
 extern int method;         /* compression method */
 
 /* To save memory for 16 bit systems, some arrays are overlaid between
@@ -60,7 +65,8 @@ extern int method;         /* compression method */
  * deflate:  prev+head   window      d_buf  l_buf  outbuf
  * unlzw:    tab_prefix  tab_suffix  stack  inbuf  outbuf
  * inflate:              window             inbuf
- * unpack:               window             inbuf
+ * unpack:               window             inbuf  prefix_len
+ * unlzh:    left+right  window      c_table inbuf c_len
  * For compression, input is done in window[]. For decompression, output
  * is done in window except for unlzw.
  */
@@ -139,17 +145,18 @@ extern char ifname[];   /* input file name or "stdin" */
 extern char ofname[];   /* output file name or "stdout" */
 extern char *progname;  /* program name */
 
-extern ulg time_stamp;  /* original time stamp (modification time) */
+extern long time_stamp; /* original time stamp (modification time) */
 extern long ifile_size; /* input file size, -1 for devices (debug only) */
 
 typedef int file_t;     /* Do not use stdio */
 #define NO_FILE  (-1)   /* in memory compression */
 
 
+#define	PACK_MAGIC     "\037\036" /* Magic header for packed files */
 #define	GZIP_MAGIC     "\037\213" /* Magic header for gzip files, 1F 8B */
 #define	OLD_GZIP_MAGIC "\037\236" /* Magic header for gzip 0.5 = freeze 1.x */
+#define	LZH_MAGIC      "\037\240" /* Magic header for SCO LZH Compress files*/
 #define PKZIP_MAGIC    "\120\113\003\004" /* Magic header for pkzip files */
-#define	PACK_MAGIC     "\037\036" /* Magic header for packed files */
 
 /* gzip flag byte */
 #define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
@@ -192,7 +199,8 @@ extern int test;           /* check .z file integrity */
 extern int to_stdout;      /* output to stdout (-c) */
 extern int save_orig_name; /* set if original name must be saved */
 
-#define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf())
+#define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf(0))
+#define try_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf(1))
 
 /* put_byte is used for the compressed output, put_ubyte for the
  * uncompressed output. However unlzw() uses window for its
@@ -261,6 +269,9 @@ extern int check_zipfile OF((int in));
 	/* in unpack.c */
 extern int unpack     OF((int in, int out));
 
+	/* in unlzh.c */
+extern int unlzh      OF((int in, int out));
+
 	/* in gzip.c */
 RETSIGTYPE abort_gzip OF((void));
 
@@ -282,20 +293,22 @@ void     copy_block OF((char *buf, unsigned len, int header));
 extern   int (*read_buf) OF((char *buf, unsigned size));
 
 	/* in util.c: */
+extern int copy           OF((int in, int out));
 extern ulg  updcrc        OF((uch *s, unsigned n));
 extern void clear_bufs    OF((void));
-extern int  fill_inbuf    OF((void));
+extern int  fill_inbuf    OF((int eof_ok));
 extern void flush_outbuf  OF((void));
 extern void flush_window  OF((void));
 extern void write_buf     OF((int fd, voidp buf, unsigned cnt));
 extern char *strlwr       OF((char *s));
 extern char *basename     OF((char *fname));
+extern void make_simple_name OF((char *name));
 extern char *add_envopt   OF((int *argcp, char ***argvp, char *env));
 extern void error         OF((char *m));
 extern void warn          OF((char *a, char *b));
 extern void read_error    OF((void));
 extern void write_error   OF((void));
-extern void display_ratio OF((long num, long den));
+extern void display_ratio OF((long num, long den, FILE *file));
 extern voidp xmalloc      OF((unsigned int size));
 
 	/* in inflate.c */

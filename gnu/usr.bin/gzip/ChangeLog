@@ -1,3 +1,79 @@
+Thu Jun 17 13:47:05 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.2.2
+	Fix a compilation error in gzip.c on Sun with cc (worked with gcc).
+
+
+Wed Jun 16 11:20:27 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.2.1
+	 Let zmore act as more if the data is not gzipped.
+         By default, display output name only when name was actually truncated.
+	 Use absolute path names in gzexe'd programs for better security.
+	 In gzexe, use chmod 700 instead of 755 and don't gzexe tail,rm,etc...
+	 Update vms/gzip.hlp.
+	 Added a note about the fast options (-1 to -3) in algorithm.doc.
+	 Improved man page for zgrep.
+	 Minor fixes to gzip.texi.
+	 Always set LC_ALL and LANG in configure (for tr on HPUX)
+
+Mon Jun 14 10:03:24 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.2
+	 Added the --list option to display the file characteristics.
+         Added the --no-name option: do not save or restore original filename
+           Save the original name by default.
+         Allow gunzip --suffix "" to attempt decompression on any file
+           regardless of its extension if an original name is present.
+	 Add support for the SCO compress -H format.
+         gzip --fast now compresses faster (speed close to that of compress)
+           with degraded compression ratio (but still better than compress).
+	   Default level changed to -6 (acts exactly as previous level -5) to
+           be a better indication of its placement in the speed/ratio range.
+	 Use smart name truncation: 123456789012.c -> 123456789.c.gz
+	   instead of 12345678901.gz
+	 With --force, let zcat pass non gzip'ed data unchanged (zcat == cat)
+	 Added the zgrep shell script.
+	 Made sub.c useful for 16 bit sound, 24 bit images, etc..
+	 Supress warnings about suffix for gunzip -r, except with --verbose.
+	 Moved the sample programs to a subdirectory sample.
+	 On MSDOS, use .gz extension when possible (files without extension)
+	 Added a "Special targets" section in INSTALL.
+	 Use stty -g correctly in zmore.in.
+	 Use cheaper test for gzipness in zforce.in.
+	 Remove space before $ in match.S (no longer accepted by gas 2.x)
+	 For the shell scripts, do not assume that gzip is in the path.
+	 Fix syntax error and define lnk$library in vms/Makefile.mms
+	 REGSIGTYPE is void on the Amiga.
+	 Do not write empty line when decompressing stdin with --verbose.
+	 Fix the 1.1.2 fix for VMS (bug in get_suffix)
+	 Added warning in README about compiler bug on Solaris 2.1 for x86.
+	 Added warning about 'rehash' in INSTALL.
+	 Removed default value of read_buf in bits.c (supermax doesn't like).
+	 In tailor.h, added support for Borland C and Zortech C on OS/2.
+	 Added warning in gzexe about Ultrix buggy sh (use /bin/sh5 instead).
+	 Added warning in zdiff about AIX buggy sh (use /bin/ksh instead).
+	 In configure.in, do not try the asm code if DEFS contains NO_ASM
+
+Fri Jun  4 09:49:33 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.1.2
+	 Fix serious bug for VMS (-gz not removed when decompressing).
+	 Allow suffix other than .gz in znew.
+	 Do not display compression ratio when decompressing stdin.
+	 In zmore.in, work around brain damaged stty -g (Ultrix).
+	 Display a correct compression ratio for .Z files.
+	 Added .z to .gz renaming script in INTALL.
+	 Allow setting CFLAGS in configure.
+	 Add warning in README about bug in Concentrix cc compiler.
+	 Avoid || in Makefile.in (at least one make doesn't support this).
+	 Disable useless --ascii option for the Amiga.
+	 Add a pointer to the Primos executable in README.
+	 Added description of extra field in algorithm.doc.
+	 Do not redefine NULL in alloca.c.
+	 Added check for unsupported compression methods.
+	 Avoid getopt redeclaration on OSF/1.
+
 Tue Jun  1 09:07:15 1993  Jean-loup Gailly  (jloup@chorus.fr)
 
 	* version 1.1.1

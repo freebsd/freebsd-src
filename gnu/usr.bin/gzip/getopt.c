@@ -34,6 +34,11 @@ char *alloca ();
 #endif /* alloca.h */
 #endif /* not __GNUC__ */
 
+/* This tells Alpha OSF/1 not to define a getopt prototype in <stdio.h>.  */
+#ifndef _NO_PROTO
+#  define _NO_PROTO
+#endif
+
 #include <stdio.h>
 
 #if defined(USG) || defined(STDC_HEADERS) || defined(__GNU_LIBRARY__)
