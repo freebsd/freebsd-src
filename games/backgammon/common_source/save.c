@@ -87,7 +87,6 @@ register int	n;
 			writec (*fs++);
 		}
 		*fs = '\0';
-		setreuid(geteuid(), getuid());
 		if ((fdesc = open(fname,2)) == -1 && errno == 2)  {
 			if ((fdesc = creat (fname,0700)) != -1)
 			break;
@@ -130,7 +129,6 @@ register int	n;
 	write (fdesc,&gvalue,sizeof gvalue);
 	write (fdesc,&raflag,sizeof raflag);
 	close (fdesc);
-	setreuid(geteuid(), getuid());
 	if (tflag)
 		curmove (18,0);
 	writel (saved);
@@ -150,7 +148,6 @@ char	*s;
 	register int	i;
 	int		fdesc;
 
-	setreuid(geteuid(), getuid());
 	if ((fdesc = open (s,0)) == -1)
 		norec (s);
 	read (fdesc,board,sizeof board);
@@ -165,7 +162,6 @@ char	*s;
 	read (fdesc,&gvalue,sizeof gvalue);
 	read (fdesc,&raflag,sizeof raflag);
 	close (fdesc);
-	setreuid(geteuid(), getuid());
 	rflag = 1;
 }
 
