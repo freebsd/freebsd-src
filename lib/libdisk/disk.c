@@ -888,86 +888,53 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
-#ifdef PC98
-static char * device_list[] = {"wd", "aacd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "ar", "fd", 0};
-#else
-static char * device_list[] = {"aacd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "ar", "fd", 0};
-#endif
-
-int qstrcmp(const void* a, const void* b) {
+static int
+qstrcmp(const void* a, const void* b)
+{
 
 	char *str1 = *(char**)a;
 	char *str2 = *(char**)b;
 	return strcmp(str1, str2);
-
 }
 
 char **
 Disk_Names()
 {
-    int i,j,disk_cnt;
-    char disk[25];
-    char diskname[25];
-    struct stat st;
-    struct diskslices ds;
-    int fd;
-    static char **disks;
-    int error;
-    size_t listsize;
-    char *disklist;
+	int disk_cnt;
+	static char **disks;
+	int error;
+	size_t listsize;
+	char *disklist;
 
-    disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
-    if (disks == NULL)
-	    return NULL;
-    memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
-    error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
-    if (!error) {
-	    disklist = (char *)malloc(listsize+1);
-	    if (disklist == NULL) {
-		    free(disks);
-		    return NULL;
-	    }
-	    memset(disklist, 0, listsize+1);
-	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
-	    if (error) {
-		    free(disklist);
-		    free(disks);
-		    return NULL;
-	    }
-	    for (disk_cnt = 0; disk_cnt < MAX_NO_DISKS; disk_cnt++) {
-		    disks[disk_cnt] = strsep(&disklist, " ");
-		    if (disks[disk_cnt] == NULL)
-			    break;
-											    }
-    } else {
-    warn("kern.disks sysctl not available");
-    disk_cnt = 0;
-	for (j = 0; device_list[j]; j++) {
-		if(disk_cnt >= MAX_NO_DISKS)
-			break;
-		for (i = 0; i < MAX_NO_DISKS; i++) {
-			snprintf(diskname, sizeof(diskname), "%s%d",
-				device_list[j], i);
-			snprintf(disk, sizeof(disk), _PATH_DEV"%s", diskname);
-			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
-				continue;
-			if ((fd = open(disk, O_RDWR)) == -1)
-				continue;
-			if (ioctl(fd, DIOCGSLICEINFO, &ds) == -1) {
-				DPRINT(("DIOCGSLICEINFO %s", disk));
-				close(fd);
-				continue;
-			}
-			close(fd);
-			disks[disk_cnt++] = strdup(diskname);
-			if(disk_cnt >= MAX_NO_DISKS)
-				break;
-		}
+	error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
+	if (error) {
+		warn("kern.disks sysctl not available");
+		return NULL;
 	}
-    }
-    qsort(disks, disk_cnt, sizeof(char*), qstrcmp);
-    
-    return disks;
+
+	disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
+	if (disks == NULL)
+		return NULL;
+	disklist = (char *)malloc(listsize + 1);
+	if (disklist == NULL) {
+		free(disks);
+		return NULL;
+	}
+	memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
+	memset(disklist, 0, listsize + 1);
+	error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
+	if (error) {
+		free(disklist);
+		free(disks);
+		return NULL;
+	}
+	for (disk_cnt = 0; disk_cnt < MAX_NO_DISKS; disk_cnt++) {
+		disks[disk_cnt] = strsep(&disklist, " ");
+		if (disks[disk_cnt] == NULL)
+			break;
+											}
+	qsort(disks, disk_cnt, sizeof(char*), qstrcmp);
+	return disks;
 }
 
 #ifdef PC98
