@@ -110,6 +110,26 @@ is specified for one or more of the input files, the standard
 input is used; standard input is read one line at a time, circularly,
 for each instance of
 .Ql Fl .
+.Sh EXAMPLES
+List the files in the current directory in three columns:
+.Pp
+.Dl "ls | paste - - -"
+.Pp
+Combine pairs of lines from a file into single lines:
+.Pp
+.Dl "paste -s -d '\et\en' myfile"
+.Pp
+Number the lines in a file, similar to
+.Xr nl 1 :
+.Pp
+.Dl "sed = myfile | paste -s -d '\et\en' - -"
+.Pp
+Create a colon-seperated list of directories named bin, suitable
+for use in the
+.Ev PATH
+environment variable:
+.Pp
+.Dl "find / -name bin -type d | paste -s -d : -"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
@@ -121,3 +141,12 @@ The
 utility is expected to be
 .St -p1003.2
 compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At 32v .
+.Sh BUGS
+Multibyte character delimiters cannot be specified with the
+.Fl d
+option.
