@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.8 1998/09/26 10:51:37 dfr Exp $
+ *	$Id: bootstrap.h,v 1.9 1998/09/30 19:25:26 peter Exp $
  */
 
 #include <sys/types.h>
@@ -193,6 +193,8 @@ extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
 #define MODINFOMD_ELFHDR	0x0002		/* ELF header */
+#define MODINFOMD_ELFSSYM	0x0003		/* ELF start of symbols */
+#define MODINFOMD_ELFESYM	0x0004		/* ELF end of symbols */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define KLD_IDENT_SYMNAME	"kld_identifier_"

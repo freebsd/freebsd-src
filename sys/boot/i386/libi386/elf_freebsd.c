@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.6 1998/09/29 09:11:49 peter Exp $
+ *	$Id: elf_freebsd.c,v 1.1 1998/09/30 19:48:09 peter Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@ elf_exec(struct loaded_module *mp)
     int				major, bootdevnr;
     vm_offset_t			addr, entry;
     u_int			pad;
+    vm_offset_t			ssym, esym, *symptr;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
@@ -82,6 +83,13 @@ elf_exec(struct loaded_module *mp)
     }
     free(currdev);
 
+    if ((md = mod_findmetadata(mp, MODINFOMD_ELFSSYM)) != NULL)
+	ssym = *((vm_offset_t *)&(md->md_data));
+    if ((md = mod_findmetadata(mp, MODINFOMD_ELFESYM)) != NULL)
+	esym = *((vm_offset_t *)&(md->md_data));
+    if (ssym == 0 || esym == 0)
+	ssym = esym = 0;		/* sanity */
+
     /* legacy bootinfo structure */
     bi.bi_version = BOOTINFO_VERSION;
     bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
@@ -93,8 +101,8 @@ elf_exec(struct loaded_module *mp)
     bi.bi_vesa = 0;			/* XXX correct value? */
     bi.bi_basemem = getbasemem();
     bi.bi_extmem = getextmem();
-    bi.bi_symtab = 0;			/* Let kld use _DYNAMIC */
-    bi.bi_esymtab = 0;
+    bi.bi_symtab = ssym;
+    bi.bi_esymtab = esym;
 
     /* Device data is kept in the kernel argv array */
     argv[0] = bi_getboothowto(mp->m_args);	/* boothowto */
