@@ -673,7 +673,8 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	/*
 	 * This thread is being resumed; check for cancellations.
 	 */
-	if ((psf.psf_valid || curthread->check_pending)) {
+	if ((psf.psf_valid ||
+	    (curthread->check_pending && !THR_IN_CRITICAL(curthread)))) {
 		resume_once = 0;
 		THR_GETCONTEXT(&uc);
 		if (resume_once == 0) {
