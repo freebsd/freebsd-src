@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.60 1998/05/12 09:31:44 kato Exp $
+#	$Id: options.pc98,v 1.61 1998/06/06 05:21:56 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -82,6 +82,7 @@ STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
+LINE30			opt_syscons.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
