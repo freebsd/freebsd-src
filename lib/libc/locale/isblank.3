@@ -48,6 +48,15 @@
 The
 .Fn isblank
 function tests for a space or tab character.
+For single C
+.Va char Ns s
+locales (see
+.Xr multibyte 3 )
+the value of the argument is
+representable as an
+.Li unsigned char
+or the value of
+.Dv EOF .
 .Sh RETURN VALUES
 The
 .Fn isblank
@@ -55,4 +64,5 @@ function returns zero if the character tests false and
 returns non-zero if the character tests true.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr multibyte 3 ,
 .Xr ascii 7
