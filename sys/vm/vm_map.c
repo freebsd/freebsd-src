@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.113 1998/02/08 14:55:13 dyson Exp $
+ * $Id: vm_map.c,v 1.114 1998/02/09 06:11:26 eivind Exp $
  */
 
 /*
@@ -86,7 +86,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>

@@ -34,34 +34,26 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.2 1998/02/09 02:31:47 eivind Exp $"
+#ident "$Id: dpt_pci.c,v 1.3 1998/02/10 17:36:41 eivind Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
-#include <pci.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
 
-#include <scsi/scsi_all.h>
-#include <scsi/scsi_message.h>
 #include <scsi/scsiconf.h>
 
 #include <pci/pcireg.h>
-#include <sys/queue.h>
 #include <pci/pcivar.h>
 
 #include <sys/dpt.h>
 #include <pci/dpt_pci.h>
 
-#include <machine/clock.h>
-
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #define PCI_BASEADR0  PCI_MAP_REG_START  /* I/O Address */

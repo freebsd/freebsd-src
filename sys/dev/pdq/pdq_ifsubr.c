@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_ifsubr.c,v 1.5 1997/06/14 13:56:07 bde Exp $
+ * $Id: pdq_ifsubr.c,v 1.6 1998/01/08 23:40:28 eivind Exp $
  *
  */
 
@@ -51,8 +51,6 @@
 #endif
 
 #if defined(__FreeBSD__)
-#include <net/ethernet.h>
-#include <net/if_arp.h>
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>

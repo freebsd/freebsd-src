@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.9 1997/09/21 21:41:13 gibbs Exp $ */
+/* $Id: if_wl.c,v 1.10 1998/01/08 23:41:04 eivind Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -204,9 +204,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_dl.h>
 
 #ifdef INET

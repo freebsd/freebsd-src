@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.24 1998/01/08 23:41:24 eivind Exp $
+ * $Id: if_fddisubr.c,v 1.25 1998/01/09 00:51:55 eivind Exp $
  */
 
 #include "opt_atalk.h"
@@ -58,8 +58,6 @@
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 #endif
-#include <net/ethernet.h>		/* XXX We probably should be able to drop this */
-#include <net/if_arp.h>
 #if defined(__FreeBSD__)
 #include <netinet/if_fddi.h>
 #else
