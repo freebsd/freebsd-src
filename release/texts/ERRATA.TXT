@@ -28,11 +28,3 @@ Current active security advisories:	None
 
 ---- System Update Information:
 
-The system now defaults to using an MD5-based password scheme in all
-cases rather than the less secure (but more interoperable) DES-based
-password scheme.  This was not documented well; to switch to DES
-passwords, login.conf(5) must specify "passwd_format", eg:
-default:\
-        :passwd_format=des:\
-See the login.conf(5), yp(4), and login_cap(3) manpages for
-documentation.
