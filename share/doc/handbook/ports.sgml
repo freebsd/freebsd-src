@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.15 1996/10/23 09:05:24 asami Exp $ -->
+<!-- $Id: ports.sgml,v 1.16 1996/10/29 12:06:57 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -352,7 +352,7 @@ installed. Here's the Makefile for bash:-
  #
  
  DISTNAME=       bash-1.14.5
- CATEGORIES+=	shells
+ CATEGORIES=     shells
  MASTER_SITES=   ftp://slc2.ins.cwru.edu/pub/dist/
  
  MAINTAINER=     ache@FreeBSD.ORG
