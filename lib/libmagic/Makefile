@@ -45,8 +45,8 @@ mkmagic: apprentice.c funcs.c magic.c print.c
 	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
 	    -I${.CURDIR} -I${CONTRDIR} -o ${.TARGET} ${.ALLSRC}
 
-FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3 }' \
-			${.CURDIR}/config.h | uniq
+FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
+			${.CURDIR}/config.h
 CLEANFILES+=	${MAN}
 .for mp in ${MAN}
 ${mp}: ${mp:C/[0-9]/man/}
