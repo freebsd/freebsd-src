@@ -286,6 +286,7 @@ trap(int vector, int imm, struct trapframe *framep)
 			p->p_addr->u_pcb.pcb_onfault = 0;
 			goto out;
 		}
+		mtx_lock(&Giant);
 
 		/*
 		 * It is only a kernel address space fault iff:
@@ -405,11 +406,10 @@ trap(int vector, int imm, struct trapframe *framep)
 #endif
 	trapsignal(p, i, ucode);
 out:
-	if (user) {
+	if (user)
 		userret(p, framep, sticks);
-		if (mtx_owned(&Giant))
-			mtx_unlock(&Giant);
-	}
+	if (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 	return;
 
 dopanic:
