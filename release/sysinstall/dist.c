@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.16 1995/06/04 05:24:51 jkh Exp $
+ * $Id: dist.c,v 1.35.2.17 1995/06/04 05:27:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -155,6 +155,7 @@ distReset(char *str)
 int
 distSetDeveloper(char *str)
 {
+    distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     return 0;
@@ -163,6 +164,7 @@ distSetDeveloper(char *str)
 int
 distSetXDeveloper(char *str)
 {
+    distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     distSetXF86(NULL);
@@ -172,6 +174,7 @@ distSetXDeveloper(char *str)
 int
 distSetKernDeveloper(char *str)
 {
+    distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
     return 0;
@@ -180,6 +183,7 @@ distSetKernDeveloper(char *str)
 int
 distSetUser(char *str)
 {
+    distReset(NULL);
     Dists = _DIST_USER;
     return 0;
 }
@@ -187,6 +191,7 @@ distSetUser(char *str)
 int
 distSetXUser(char *str)
 {
+    distReset(NULL);
     Dists = _DIST_USER;
     distSetXF86(NULL);
     return 0;
@@ -195,6 +200,7 @@ distSetXUser(char *str)
 int
 distSetMinimum(char *str)
 {
+    distReset(NULL);
     Dists = DIST_BIN;
     return 0;
 }
@@ -204,7 +210,9 @@ distSetEverything(char *str)
 {
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-    distSetXF86(NULL);
+    XF86Dists = DIST_XF86_ALL;
+    XF86ServerDists = DIST_XF86_SERVER_ALL;
+    XF86FontDists = DIST_XF86_FONT_ALL;
     return 0;
 }
 
@@ -248,24 +256,23 @@ distExtract(char *parent, Distribution *me)
 
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
+	dist = me[i].my_name;
+	path = parent ? parent : dist;
+
 	/* If our bit isn't set, go to the next */
 	if (!(me[i].my_bit & *(me[i].my_mask)))
 	    continue;
 
 	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
-	    status = distExtract(me[i].my_name, me[i].my_dist);
-	    if (status)
-		goto done;
-	    else
-		goto punt;
+	    status = distExtract(dist, me[i].my_dist);
+	    goto done;
 	}
-	dist = me[i].my_name;
-	path = parent ? parent : me[i].my_name;
 
 	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
-
+	if (isDebug())
+	    msgDebug("Trying to get large piece: %s\n", buf);
 	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
 	mediaDevice->flags |= OPT_EXPLORATORY_GET;
 	fd = (*mediaDevice->get)(mediaDevice, buf);
@@ -301,9 +308,11 @@ distExtract(char *parent, Distribution *me)
 	    else
 		numchunks = 0;
 	}
-	else
+	else {
+	    if (isDebug())
+		msgDebug("Couldn't open attributes file: %s\n", buf);
 	    numchunks = 0;
-
+	}
 	if (!numchunks)
 	    return FALSE;
 
@@ -312,9 +321,9 @@ distExtract(char *parent, Distribution *me)
 
 	/* Optimize the single-chunk case */
 	if (numchunks == 1) {
-	    snprintf(buf, 512, "%s/%s", path, dist);
-	    if (numchunks)
-		strcat(buf,".aa");
+	    snprintf(buf, 512, "%s/%s.aa", path, dist);
+	    if (isDebug())
+		msgDebug("Trying for single-piece: %s\n", buf);
 	    fd = (*mediaDevice->get)(mediaDevice, buf);
 	    if (fd < 0)
 		return FALSE;
@@ -327,6 +336,7 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
+	/* We have multiple chunks, go pick them up */
 	mediaExtractDistBegin(me[i].my_dir, &fd2, &zpid, &cpid);
 	dialog_clear();
 	for (chunk = 0; chunk < numchunks; chunk++) {
@@ -334,6 +344,8 @@ distExtract(char *parent, Distribution *me)
 	    char prompt[80];
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    if (isDebug())
+		msgDebug("trying for piece %d of %d: %s\n", chunk, numchunks, buf);
 	    fd = (*mediaDevice->get)(mediaDevice, buf);
 	    if (fd < 0) {
 		dialog_clear();
@@ -371,8 +383,11 @@ distExtract(char *parent, Distribution *me)
 	if (!status) {
 	    if (OptFlags & OPT_NO_CONFIRM)
 		status = TRUE;
-	    else
+	    else {
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
+		if (status && !msgYesNo("Would you like to clear all distributions in this group?"))
+		    *(me[i].my_mask) = 0;
+	    }
 	}
 	/* Extract was successful, remove ourselves from further consideration */
 	if (status)
