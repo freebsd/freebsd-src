@@ -83,15 +83,14 @@ static struct cdevsw twe_cdevsw = {
     TWE_CDEV_MAJOR,
     nodump,
     nopsize,
-    0,
-    -1
+    0
 };
 
 /********************************************************************************
  * Accept an open operation on the control device.
  */
 static int
-twe_open(dev_t dev, int flags, int fmt, struct proc *p)
+twe_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -104,7 +103,7 @@ twe_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Accept the last close on the control device.
  */
 static int
-twe_close(dev_t dev, int flags, int fmt, struct proc *p)
+twe_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -117,7 +116,7 @@ twe_close(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle controller-specific control operations.
  */
 static int
-twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
     
@@ -258,7 +257,7 @@ twe_attach(device_t dev)
 	twe_free(sc);
 	return(ENXIO);
     }
-    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO,  twe_pci_intr, sc, &sc->twe_intr)) {
+    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO | INTR_ENTROPY,  twe_pci_intr, sc, &sc->twe_intr)) {
 	twe_printf(sc, "can't set up interrupt\n");
 	twe_free(sc);
 	return(ENXIO);
@@ -514,6 +513,26 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
 }
 
 /********************************************************************************
+ * Clear a PCI parity error.
+ */
+void
+twe_clear_pci_parity_error(struct twe_softc *sc)
+{
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_PARITY_ERROR);
+    pci_write_config(sc->twe_dev, PCIR_STATUS, TWE_PCI_CLEAR_PARITY_ERROR, 2);
+}
+
+/********************************************************************************
+ * Clear a PCI abort.
+ */
+void
+twe_clear_pci_abort(struct twe_softc *sc)
+{
+    TWE_CONTROL(sc, TWE_CONTROL_CLEAR_PCI_ABORT);
+    pci_write_config(sc->twe_dev, PCIR_STATUS, TWE_PCI_CLEAR_PCI_ABORT, 2);
+}
+
+/********************************************************************************
  ********************************************************************************
                                                                       Disk device
  ********************************************************************************
@@ -585,8 +604,7 @@ static struct cdevsw twed_cdevsw = {
     TWED_CDEV_MAJOR,
     twed_dump,
     nopsize,
-    D_DISK,
-    -1
+    D_DISK
 };
 
 static struct cdevsw	tweddisk_cdevsw;
@@ -601,7 +619,7 @@ static int		disks_registered = 0;
  * for opens on subdevices (eg. slices, partitions).
  */
 static int
-twed_open(dev_t dev, int flags, int fmt, struct proc *p)
+twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
     struct disklabel	*label;
@@ -634,7 +652,7 @@ twed_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle last close of the disk device.
  */
 static int
-twed_close(dev_t dev, int flags, int fmt, struct proc *p)
+twed_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
 
@@ -663,14 +681,6 @@ twed_strategy(twe_bio *bp)
     if (sc == NULL) {
 	TWE_BIO_SET_ERROR(bp, EINVAL);
 	printf("twe: bio for invalid disk!\n");
-	TWE_BIO_DONE(bp);
-	TWED_BIO_OUT;
-	return;
-    }
-
-    /* do-nothing operation? */
-    if (TWE_BIO_LENGTH(bp) == 0) {
-	TWE_BIO_RESID(bp) = 0;
 	TWE_BIO_DONE(bp);
 	TWED_BIO_OUT;
 	return;
@@ -888,7 +898,7 @@ twe_free_request(struct twe_request *tr)
  *
  * These routines ensure that the data which the controller is going to try to
  * access is actually visible to the controller, in a machine-independant 
- * fasion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
+ * fashion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
  * and we take care of that here as well.
  */
 static void

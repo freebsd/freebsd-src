@@ -30,11 +30,11 @@
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
 	do {										\
-	    if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+	    if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);	\
 	} while(0)
 #define debug_called(level)						\
 	do {								\
-	    if (level <= TWE_DEBUG) printf(__FUNCTION__ ": called\n");	\
+	    if (level <= TWE_DEBUG) printf("%s: called\n", __func__);	\
 	} while(0)
 #else
 #define debug(level, fmt, args...)
@@ -145,6 +145,8 @@ extern void	twe_disable_interrupts(struct twe_softc *sc);	/* disable controller 
 
 extern void	twe_attach_drive(struct twe_softc *sc,
 					 struct twe_drive *dr); /* attach drive when found in twe_init */
+extern void	twe_clear_pci_parity_error(struct twe_softc *sc);
+extern void	twe_clear_pci_abort(struct twe_softc *sc);
 extern void	twed_intr(twe_bio *bp);				/* return bio from core */
 extern struct twe_request *twe_allocate_request(struct twe_softc *sc);	/* allocate request structure */
 extern void	twe_free_request(struct twe_request *tr);	/* free request structure */
@@ -240,7 +242,7 @@ twe_initq_bio(struct twe_softc *sc)
 }
 
 static __inline void
-twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
+twe_enqueue_bio(struct twe_softc *sc, twe_bio *bp)
 {
     int		s;
 
@@ -250,11 +252,11 @@ twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
     splx(s);
 }
 
-static __inline struct bio *
+static __inline twe_bio *
 twe_dequeue_bio(struct twe_softc *sc)
 {
     int		s;
-    struct bio	*bp;
+    twe_bio	*bp;
 
     s = splbio();
     if ((bp = TWE_BIO_QFIRST(sc->twe_bioq)) != NULL) {
