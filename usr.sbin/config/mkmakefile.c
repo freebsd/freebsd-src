@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkmakefile.c,v 1.22 1997/09/15 06:37:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "y.tab.h"
 #include "config.h"
+#include "configvers.h"
 
 #define next_word(fp, wd) \
 	{ register char *word = get_word(fp); \
@@ -162,6 +163,7 @@ makefile()
 	struct opt *op;
 	struct users *up;
 	int warn_make_clean = 0;
+	int versreq;
 
 	read_files();
 	strcpy(line, "Makefile.");
@@ -242,7 +244,14 @@ makefile()
 			do_load(ofp);
 		else if (eq(line, "%CLEAN\n"))
 			do_clean(ofp);
-		else
+		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
+			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
+			if (versreq != CONFIGVERS) {
+				fprintf(stderr, "WARNING: version of config(8) does not match kernel!\n");
+				fprintf(stderr, "config version = %d, ", CONFIGVERS);
+				fprintf(stderr, "version required = %d\n", versreq);
+			}
+		} else
 			fprintf(stderr,
 			    "Unknown %% construct in generic makefile: %s",
 			    line);
