@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
-#include <dev/fdc/fdcreg.h>
 #include <dev/fdc/fdcvar.h>
 
 static int		fdc_acpi_probe(device_t dev);
@@ -46,7 +45,6 @@ static int		fdc_acpi_probe_children(device_t bus, device_t dev,
 			    void *fde);
 static ACPI_STATUS	fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev,
 			    int level, void *arg);
-static void		fdctl_wr_acpi(fdc_p fdc, u_int8_t v);
 
 /* Maximum number of child devices of a controller (4 floppy + 1 tape.) */
 #define ACPI_FDC_MAXDEVS	5
@@ -72,12 +70,6 @@ struct fdc_walk_ctx {
 	device_t	dev;
 };
 
-static void
-fdctl_wr_acpi(fdc_p fdc, u_int8_t v)
-{
-	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
-}
-
 static int
 fdc_acpi_probe(device_t dev)
 {
@@ -101,7 +93,7 @@ fdc_acpi_attach(device_t dev)
 	struct fdc_data *sc;
 	ACPI_BUFFER buf;
 	device_t bus;
-	int error, i, ic_type;
+	int error, i;
 	ACPI_OBJECT *obj, *pkg;
 	ACPI_HANDLE h;
 	uint32_t *fde;
@@ -109,7 +101,6 @@ fdc_acpi_attach(device_t dev)
 	/* Get our softc and use the same accessor as ISA. */
 	sc = device_get_softc(dev);
 	sc->fdc_dev = dev;
-	sc->fdctl_wr = fdctl_wr_acpi;
 	sc->flags |= FDC_ISPNP;
 
 	/* Initialize variables and get a temporary buffer for _FDE. */
@@ -129,26 +120,6 @@ fdc_acpi_attach(device_t dev)
 	error = fdc_attach(dev);
 	if (error != 0)
 		goto out;
-
-	/* Check that the controller is working and get its type. */
-	error = fdc_initial_reset(sc);
-	if (error)
-		goto out;
-	if (fd_cmd(sc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
-		ic_type = (u_char)ic_type;
-		switch (ic_type) {
-		case 0x80:
-			sc->fdct = FDC_NE765;
-			break;
-		case 0x81:	/* not mentioned in any hardware doc */
-		case 0x90:
-			sc->fdct = FDC_ENHANCED;
-			break;
-		default:
-			sc->fdct = FDC_UNKNOWN;
-			break;
-		}
-	}
 
 	/*
 	 * Enumerate _FDE, which lists floppy drives that are present.  If
