@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 M. Warner Losh.  All Rights Reserved.
+ * Copyright (c) 2000, 2002 M. Warner Losh.  All Rights Reserved.
  * Copyright (c) 1997 Ted Faber All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,6 +111,15 @@ a value of 2, while chips installed in a laptop need a value of 1 (which is\n\
 also the default).  This is similar to hw.pcic.intr_path, but separate so\n\
 that it can default to ISA when intr_path defaults to PCI.");
 
+static int pcic_ti12xx_enable_pci_clock = 0;
+TUNABLE_INT("hw.pcic.ti12xx_enable_pci_clock", &pcic_ti12xx_enable_pci_clock);
+SYSCTL_INT(_hw_pcic, OID_AUTO, ti12xx_enable_pci_clock, CTLFLAG_RD,
+    &pcic_ti12xx_enable_pci_clock, 0,
+  "Some TI-12xx parts need to have the PCI clock enabled.  These designs do\n\
+not provide a clock themselves.  Most of the reference boards have the\n\
+required oscillator parts, so the number of machines that needs this to be\n\
+set is vanishingly small.");
+
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_way_t pcic_pci_gen_func;
 static pcic_intr_way_t pcic_pci_gen_csc;
@@ -124,9 +133,9 @@ static pcic_intr_way_t pcic_pci_oz68xx_func;
 static pcic_intr_way_t pcic_pci_oz68xx_csc;
 static pcic_init_t pcic_pci_oz68xx_init;
 
-static pcic_intr_way_t pcic_pci_pd67xx_func;
-static pcic_intr_way_t pcic_pci_pd67xx_csc;
-static pcic_init_t pcic_pci_pd67xx_init;
+static pcic_intr_way_t pcic_pci_pd6729_func;
+static pcic_intr_way_t pcic_pci_pd6729_csc;
+static pcic_init_t pcic_pci_pd6729_init;
 
 static pcic_intr_way_t pcic_pci_pd68xx_func;
 static pcic_intr_way_t pcic_pci_pd68xx_csc;
@@ -161,11 +170,11 @@ static struct pcic_chip pcic_pci_oz68xx_chip = {
 	pcic_pci_oz68xx_init
 };
 
-static struct pcic_chip pcic_pci_pd67xx_chip = {
-	pcic_pci_pd67xx_func,
-	pcic_pci_pd67xx_csc,
+static struct pcic_chip pcic_pci_pd6729_chip = {
+	pcic_pci_pd6729_func,
+	pcic_pci_pd6729_csc,
 	pcic_pci_gen_mapirq,
-	pcic_pci_pd67xx_init
+	pcic_pci_pd6729_init
 };
 
 static struct pcic_chip pcic_pci_pd68xx_chip = {
@@ -222,9 +231,9 @@ struct pcic_pci_table
 	struct pcic_chip *chip;
 } pcic_pci_devs[] = {
 	{ PCIC_ID_OMEGA_82C094, "Omega 82C094G",
-	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_pd67xx_chip },
+	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_pd6729_chip },
 	{ PCIC_ID_CLPD6729, "Cirrus Logic PD6729/6730 PCI-PCMCIA Bridge",
-	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
+	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd6729_chip },
 	{ PCIC_ID_CLPD6832, "Cirrus Logic PD6832 PCI-CardBus Bridge",
 	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
 	{ PCIC_ID_CLPD6833, "Cirrus Logic PD6833 PCI-CardBus Bridge",
@@ -257,6 +266,8 @@ struct pcic_pci_table
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCIC_ID_RICOH_RL5C478, "Ricoh RL5C478 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
+	{ PCIC_ID_SMC_34C90, "SMC 34C90 PCI-CardBus Bridge",
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_generic_chip },
 	{ PCIC_ID_TI1031, "TI PCI-1031 PCI-PCMCIA Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
 	{ PCIC_ID_TI1130, "TI PCI-1130 PCI-CardBus Bridge",
@@ -449,7 +460,7 @@ pcic_pci_oz68xx_init(device_t dev)
  * with them to know for sure.
  */
 static int
-pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
+pcic_pci_pd6729_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
 	 * For pci interrupts, we need to set bit 3 of extension register
@@ -465,7 +476,7 @@ pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 }
 
 static int
-pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+pcic_pci_pd6729_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
 	 * For pci interrupts, we need to set bit 4 of extension register
@@ -482,12 +493,15 @@ pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 
 
 static void
-pcic_pci_pd67xx_init(device_t dev)
+pcic_pci_pd6729_init(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
 
-	if (sc->csc_route == pcic_iw_pci || sc->func_route == pcic_iw_pci)
-		device_printf(dev, "PD67xx maybe broken for PCI routing.\n");
+	/*
+	 * Tell the chip to do its routing thing.
+	 */
+	pcic_pci_pd6729_func(&sc->slots[0], sc->func_route);
+	pcic_pci_pd6729_csc(&sc->slots[0], sc->csc_route);
 }
 
 /*
@@ -608,12 +622,13 @@ pcic_pci_ti113x_func(struct pcic_slot *sp, enum pcic_intr_way way)
 
 	/*
 	 * The TI-1130 (and 1030 and 1131) have a different interrupt
-	 * routing control than the newer cards.  assume we're not
-	 * routing PCI, but enable as necessary when we find someone
-	 * uses PCI interrupts.  In order to get any pci interrupts,
-	 * PCI_IRQ_ENA (bit 5) must be set.  If either PCI_IREQ (bit
-	 * 4) or PCI_CSC (bit 3) are set, then set bit 5 at the same
-	 * time, since setting them enables the PCI interrupt routing.
+	 * routing control than the newer chips.  assume we're not
+	 * routing either csc or func interrupts via PCI, but enable
+	 * as necessary when we find someone uses PCI interrupts.  In
+	 * order to get any pci interrupts, PCI_IRQ_ENA (bit 5) must
+	 * be set.  If either PCI_IREQ (bit 4) or PCI_CSC (bit 3) are
+	 * set, then set bit 5 at the same time, since setting them
+	 * enables the PCI interrupt routing.
 	 *
 	 * It also appears necessary to set the function routing bit
 	 * in the bridge control register, but cardbus_init does that
@@ -696,13 +711,17 @@ pcic_pci_ti12xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 			    devcntl, 1);
 			syscntl |= TI113X_SYSCNTL_INTRTIE;
 		}
-		/* 
-		 * I'm not sure that this helps/hurts things at all and
-		 * plan on removing it in the 4.8 time frame unless someone
-		 * can show that it really helps.
+
+		/*
+		 * I've had reports that we need the pci clock enabled,
+		 * provide a hook to do so.  The number of cards that
+		 * require this is quite small.
 		 */
-		syscntl &= ~TI113X_SYSCNTL_SMIENB;
-		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
+		if (pcic_ti12xx_enable_pci_clock) {
+			syscntl |= TI12XX_SYSCNTL_PCI_CLOCK;
+			pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL,
+			    syscntl, 4);
+		}
 
 		/*
 		 * Some PCI add-in cards don't have good EEPROMs on them,
@@ -1377,7 +1396,8 @@ pcic_pci_get_memory(device_t dev)
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sockbase = pci_read_config(dev, sc->memrid, 4);
 	if (sockbase >= 0x100000 && sockbase < 0xfffffff0) {
-		device_printf(dev, "Could not map register memory\n");
+		device_printf(dev, "Could not map register memory 0x%x\n",
+		  sockbase);
 		return (ENOMEM);
 	}
 	pci_write_config(dev, sc->memrid, 0xffffffff, 4);
@@ -1416,6 +1436,9 @@ pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
 	 * do a thing to get the IRQ mapped into the system.  However,
 	 * for other controllers that are PCI, but not yetna compliant, we
 	 * need to do some special mapping.
+	 *
+	 * XXX Maybe we shouldn't assume INTA#, but rather as the function
+	 * XXX what Intline to use.
 	 */
 	if (sp->controller == PCIC_PD6729) {
 		/*
