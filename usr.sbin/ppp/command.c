@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.98 1997/11/11 22:58:10 brian Exp $
+ * $Id: command.c,v 1.99 1997/11/12 02:10:05 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -155,8 +155,8 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
     return 0;
   }
 
-  if (argc > 0 && LoadCommand(cmdlist, argc, argv) == -1)
-    return -1;
+  if (argc > 0 && (res = LoadCommand(cmdlist, argc, argv)) != 0)
+    return res;
 
   tries = 0;
   do {
