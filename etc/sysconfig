@@ -1,10 +1,10 @@
-#!/bin/sh -
+#!/bin/sh
 #
 
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.4 1995/03/22 18:00:36 jkh Exp $
+#	$Id: sysconfig,v 1.5 1995/03/23 01:25:19 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
