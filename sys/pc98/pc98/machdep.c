@@ -2396,7 +2396,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 /*
  * Get machine context.
  */
-void
+int
 get_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tp;
@@ -2423,6 +2423,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
+	return (0);
 }
 
 /*
