@@ -149,7 +149,7 @@ isavga_attach(device_t dev)
 		return error;
 #endif /* FB_INSTALL_CDEV */
 
-	if (bootverbose)
+	if (0 && bootverbose)
 		(*vidsw[sc->adp->va_index]->diag)(sc->adp, bootverbose);
 
 #if experimental
