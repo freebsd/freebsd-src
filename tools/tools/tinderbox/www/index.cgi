@@ -29,6 +29,7 @@
 # $FreeBSD$
 #
 
+use 5.006_001;
 use strict;
 use POSIX qw(strftime);
 
