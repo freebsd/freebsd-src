@@ -201,13 +201,16 @@ extern u_long		last_map_ipdst;
 extern struct ipvcc	*last_map_ipvcc;
 extern struct ip_nif	*ipatm_nif_head;
 extern uma_zone_t	ipatm_vc_zone;
-extern uma_zone_t	ipatm_nif_zone;
 extern struct ipatm_stat	ipatm_stat;
 extern struct atm_time	ipatm_itimer;
 extern Atm_endpoint	ipatm_endpt;
 extern Atm_attributes	ipatm_aal5llc;
 extern Atm_attributes	ipatm_aal5null;
 extern Atm_attributes	ipatm_aal4null;
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp_ip);
+#endif
 
 #endif	/* _KERNEL */
 

@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -46,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
  */
 int		ipatm_vccnt = 0;		
 int		ipatm_vcidle = IPATM_VCIDLE;		
-int		ipatm_print = 0;
 u_long		last_map_ipdst = 0;
 struct ipvcc*	last_map_ipvcc = NULL;
 
@@ -99,6 +99,19 @@ Atm_endpoint	ipatm_endpt = {
 };
 
 uma_zone_t	ipatm_vc_zone;
+
+/*
+ * net.harp.ip
+ */
+SYSCTL_NODE(_net_harp, OID_AUTO, ip, CTLFLAG_RW, 0, "IPv4 over ATM");
+
+/*
+ * net.harp.ip.ipatm_print
+ */
+int		ipatm_print = 0;
+SYSCTL_INT(_net_harp_ip, OID_AUTO, ipatm_print, CTLFLAG_RW,
+    &ipatm_print, 0, "dump IPv4-over-ATM packets");
+
 
 /*
  * Local functions
