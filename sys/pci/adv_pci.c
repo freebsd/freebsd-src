@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_pci.c,v 1.3 1998/12/14 06:32:54 dillon Exp $
+ * $FreeBSD$
  */
 
 #include <pci.h>

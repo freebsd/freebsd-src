@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_load.c,v 1.2 1998/10/31 20:06:55 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: ipatm_load.c,v 1.2 1998/10/31 20:06:55 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

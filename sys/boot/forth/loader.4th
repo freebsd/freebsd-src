@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\	$Id: loader.4th,v 1.2.2.1 1999/04/24 17:44:34 dcs Exp $
+\ $FreeBSD$
 
 include /boot/support.4th
 

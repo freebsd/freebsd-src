@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.19 1999/01/13 03:11:42 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_USER_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.13 1999/01/10 22:04:05 n_hibma Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

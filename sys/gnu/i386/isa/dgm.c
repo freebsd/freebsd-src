@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.6 1998/12/07 21:58:18 archie Exp $
+ * $FreeBSD$
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.

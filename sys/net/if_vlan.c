@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.3 1998/08/23 03:07:10 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

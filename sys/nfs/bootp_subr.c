@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.17 1998/12/04 22:54:54 archie Exp $	*/
+/* $FreeBSD$	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass

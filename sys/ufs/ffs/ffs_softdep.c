@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.36 (McKusick) 5/6/99
- *	$Id: ffs_softdep.c,v 1.27 1999/05/09 19:39:54 mckusick Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.16 1999/08/14 11:40:37 phk Exp $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

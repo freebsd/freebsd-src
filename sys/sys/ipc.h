@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
- * $Id: ipc.h,v 1.11 1998/02/01 20:08:37 bde Exp $
+ * $FreeBSD$
  */
 
 /*

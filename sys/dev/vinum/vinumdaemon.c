@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.13 1999/08/15 02:31:19 grog Exp $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

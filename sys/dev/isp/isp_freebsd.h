@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.h,v 1.9.2.3 1999/07/05 20:43:13 mjacob Exp $ */
+/* $FreeBSD$ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------

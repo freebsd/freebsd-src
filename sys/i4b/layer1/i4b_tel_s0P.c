@@ -38,7 +38,7 @@
  *		EXPERIMENTAL !!!
  *		================
  *
- *	$Id: i4b_tel_s0P.c,v 1.12 1998/12/13 09:52:34 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Thu Dec 10 07:11:15 1998]
  *

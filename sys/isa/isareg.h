@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isareg.h,v 1.1 1998/08/06 08:49:09 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifdef PC98

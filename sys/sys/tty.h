@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.43 1998/11/11 10:04:13 truckman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TTY_H_

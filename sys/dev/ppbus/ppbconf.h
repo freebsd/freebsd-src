@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.11 1999/01/10 16:41:14 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #ifndef __PPBCONF_H

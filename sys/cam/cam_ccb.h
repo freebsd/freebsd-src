@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.3.2.3 1999/05/22 22:57:36 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _CAM_CAM_CCB_H

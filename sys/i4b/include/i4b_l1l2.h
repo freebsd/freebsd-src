@@ -27,7 +27,7 @@
  *	i4b_l1l2.h - i4b layer 1 / layer 2 interactions
  *	---------------------------------------------------
  *
- *	$Id: i4b_l1l2.h,v 1.7 1998/12/05 18:02:56 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Sat Dec  5 18:04:25 1998]
  *

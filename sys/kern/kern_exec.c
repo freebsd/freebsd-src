@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.93.2.1 1999/04/14 04:55:23 jdp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

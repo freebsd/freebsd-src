@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- *	$Id: uipc_domain.c,v 1.19 1998/05/15 20:11:29 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

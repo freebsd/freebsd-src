@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.16 1998/11/17 10:53:37 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_UDP_VAR_H_

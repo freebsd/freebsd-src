@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.18 1997/11/06 19:29:07 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

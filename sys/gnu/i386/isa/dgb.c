@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.41.2.1 1999/03/14 07:06:56 joerg Exp $
+ *  dgb.c $FreeBSD$
  *
  *  Digiboard driver.
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.6 1998/12/28 19:07:51 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/param.h>

@@ -35,7 +35,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.10 1999/05/07 08:08:02 grog Exp $ */
+/* $FreeBSD$ */
 
 #include <sys/param.h>
 #ifdef KERNEL

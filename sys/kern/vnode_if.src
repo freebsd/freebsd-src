@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.18 1998/07/04 20:45:32 julian Exp $
+# $FreeBSD$
 #
 
 #

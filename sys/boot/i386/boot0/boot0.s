@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.6.2.2 1999/06/26 21:31:57 rnordier Exp $
+# $FreeBSD$
 
 # A 512-byte boot manager.
 

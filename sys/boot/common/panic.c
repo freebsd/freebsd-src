@@ -1,5 +1,5 @@
 /*
- * $Id: panic.c,v 1.3 1998/09/18 02:01:38 msmith Exp $
+ * $FreeBSD$
  * From: $NetBSD: panic.c,v 1.2 1997/03/22 01:48:36 thorpej Exp $
  */
 

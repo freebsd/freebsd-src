@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tunvar.h,v 1.2 1998/11/11 10:04:10 truckman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_TUNVAR_H_

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id: signal.h,v 1.13 1998/03/28 11:50:43 dufault Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_SIGNAL_H_

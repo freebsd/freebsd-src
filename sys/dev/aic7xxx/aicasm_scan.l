@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_scan.l,v 1.5 1997/09/27 19:37:29 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_icmp.h,v 1.11 1997/02/22 09:41:34 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_IP_ICMP_H_

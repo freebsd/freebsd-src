@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.49.2.2 1999/06/20 01:21:25 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_compat.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.32 1998/11/11 10:55:56 truckman Exp $
+ * $FreeBSD$
  */
 
 /*

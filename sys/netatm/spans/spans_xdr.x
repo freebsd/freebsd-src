@@ -23,7 +23,7 @@
 % * Copies of this Software may be made, however, the above copyright
 % * notice must be reproduced on all copies.
 % *
-% *	@(#) $Id: spans_xdr.x,v 1.4 1997/05/06 22:17:36 mks Exp $
+% *	@(#) $FreeBSD$
 % *
 % */
 %
@@ -61,7 +61,7 @@
 % */
 %
 %#ifndef lint
-%static char *RCSid = "@(#) $Id: spans_xdr.x,v 1.4 1997/05/06 22:17:36 mks Exp $";
+%static char *RCSid = "@(#) $FreeBSD$";
 %#endif
 %
 #endif

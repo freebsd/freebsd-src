@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.h,v 1.1.1.1 1998/08/10 18:26:05 son Exp $
+ * $FreeBSD$
  *
  */
 #ifndef __SMBUS_H

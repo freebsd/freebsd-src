@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.1.2.4 1999/08/08 08:19:46 nyan Exp $
+ * $FreeBSD$
  */
 
 /*

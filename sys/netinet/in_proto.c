@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.46 1998/03/21 11:33:57 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ipdivert.h"

@@ -27,7 +27,7 @@
  *      i4b_l3fsm.c - layer 3 FSM
  *      -------------------------
  * 
- *	$Id: i4b_l3fsm.h,v 1.5 1998/12/05 18:05:33 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:32:45 1998]
  *

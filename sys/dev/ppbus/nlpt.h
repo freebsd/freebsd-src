@@ -27,7 +27,7 @@
  *	@(#)lptreg.h      1.1 (Berkeley) 12/19/90
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *
- *	$Id: nlpt.h,v 1.2 1997/08/16 14:05:32 msmith Exp $
+ * $FreeBSD$
  */
 #ifndef __NLPT_H
 #define __NLPT_H

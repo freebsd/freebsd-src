@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.c,v 1.3 1998/09/20 14:41:54 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #include <machine/stdarg.h>

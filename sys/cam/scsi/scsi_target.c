@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.7.2.3 1999/05/04 19:25:53 gibbs Exp $
+ * $FreeBSD$
  */
 #include <stddef.h>	/* For offsetof */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $Id: un.h,v 1.14 1998/05/15 20:11:40 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_UN_H_

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.116.2.2 1999/07/29 05:38:58 alc Exp $
+ * $FreeBSD$
  */
 
 /*

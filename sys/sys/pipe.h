@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.11 1998/11/11 10:04:12 truckman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_PIPE_H_

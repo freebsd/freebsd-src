@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 M4?=	m4
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.11 1998/08/20 06:10:40 bde Exp $
+ * $FreeBSD$
  */
 
 /*

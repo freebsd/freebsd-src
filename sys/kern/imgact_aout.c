@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.44.2.1 1999/04/14 04:55:22 jdp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

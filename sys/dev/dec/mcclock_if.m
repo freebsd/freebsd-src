@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: mcclock_if.m,v 1.1 1998/06/14 13:52:55 dfr Exp $
+# $FreeBSD$
 #
 
 INTERFACE mcclock;

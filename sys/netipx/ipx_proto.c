@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.12 1997/12/15 20:31:14 eivind Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ipx.h"

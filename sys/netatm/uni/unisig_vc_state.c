@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_vc_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/unisig_decode.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_vc_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

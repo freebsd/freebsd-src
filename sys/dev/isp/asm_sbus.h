@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $FreeBSD$ */
 /* release_12_28_98_A */
 /*
  * SBus Qlogic Host Adapter Firmware Tables

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sf.c,v 1.21 1999/08/08 19:54:32 wpaul Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sf.c,v 1.21 1999/08/08 19:54:32 wpaul Exp $";
+  "$FreeBSD$";
 #endif
 
 static struct sf_type sf_devs[] = {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116.2.5 1999/07/30 04:03:21 wpaul Exp $
+ * $FreeBSD$
  */
 
 

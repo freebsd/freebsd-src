@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: brooktree848.c,v 1.83 1999/05/31 11:28:53 phk Exp $ */
+/* $FreeBSD$ */
 
 /*		Change History:
 	8/21/95		Release

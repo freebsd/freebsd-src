@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.1.2.1 1999/02/06 07:37:15 kato Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

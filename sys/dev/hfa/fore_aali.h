@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_aali.h,v 1.5 1997/05/09 00:42:25 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_stack.h,v 1.5 1998/02/19 19:59:59 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

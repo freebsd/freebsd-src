@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.13.2.3 1999/05/07 00:43:31 ken Exp $
+ * $FreeBSD$
  */
 
  /*

@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.12 1999/08/07 08:14:44 grog Exp $
+ * $FreeBSD$
  */
 
 /* This file contains utility routines used both in kernel and user context */

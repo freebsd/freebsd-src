@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.4.2.3 1999/05/22 22:58:29 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/cnode.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: cnode.h,v 1.4 1998/09/13 13:57:59 rvb Exp $
+ * $FreeBSD$
  * 
  */
 
@@ -47,6 +47,13 @@
 /* 
  * HISTORY
  * $Log: cnode.h,v $
+ * Revision 1.5  1998/11/11 20:32:20  rvb
+ * coda_lookup now passes up an extra flag.  But old veni will
+ * be ok; new veni will check /dev/cfs0 to make sure that a new
+ * kernel is running.
+ * Also, a bug in vc_nb_close iff CODA_SIGNAL's were seen has been
+ * fixed.
+ *
  * Revision 1.4  1998/09/13 13:57:59  rvb
  * Finish conversion of cfs -> coda
  *

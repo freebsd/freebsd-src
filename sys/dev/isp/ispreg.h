@@ -1,4 +1,4 @@
-/* $Id: ispreg.h,v 1.4 1998/12/28 19:22:27 mjacob Exp $ */
+/* $FreeBSD$ */
 /* release_5_11_99 */
 /*
  * Machine Independent (well, as best as possible) register

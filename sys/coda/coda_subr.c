@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_subr.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_subr.c,v 1.8 1998/10/28 19:33:50 rvb Exp $
+ * $FreeBSD$
  * 
   */
 
@@ -46,6 +46,9 @@
 /*
  * HISTORY
  * $Log: coda_subr.c,v $
+ * Revision 1.9  1999/01/17 20:25:15  peter
+ * Clean up the KLD/LKM goop a bit.
+ *
  * Revision 1.8  1998/10/28 19:33:50  rvb
  * Venus must be passed O_CREAT flag on VOP_OPEN iff this is
  * a creat so that we can will allow a mode 444 file to be

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsext.h,v 1.21 1998/07/13 06:45:16 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_DEVFSEXT_H_

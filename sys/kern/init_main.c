@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.103.2.3 1999/02/25 14:36:29 bde Exp $
+ * $FreeBSD$
  */
 
 #include "opt_devfs.h"

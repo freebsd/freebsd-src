@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.34 1998/12/07 21:58:32 archie Exp $
+ * $FreeBSD$
  */
 
 /*

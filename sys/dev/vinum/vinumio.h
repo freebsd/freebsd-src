@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.12 1999/08/15 02:29:13 grog Exp $
+ * $FreeBSD$
  */
 
 #ifdef VINUMDEBUG

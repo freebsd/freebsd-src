@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ptio.h,v 1.2 1999/08/20 19:42:01 ken Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_PTIO_H_

@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.29 1998/07/04 20:45:33 julian Exp $
+ * $FreeBSD$
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.29 1998/07/04 20:45:33 julian Exp $
+ * $FreeBSD$
  */
 
 /*

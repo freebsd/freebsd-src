@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_pdu.h,v 1.3 1997/05/06 22:20:15 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

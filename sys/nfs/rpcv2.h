@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
- * $Id: rpcv2.h,v 1.8 1997/05/11 18:05:39 tegge Exp $
+ * $FreeBSD$
  */
 
 

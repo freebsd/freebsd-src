@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.6 1998/10/11 10:28:51 peter Exp $
+ * $FreeBSD$
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm.h,v 1.8 1998/07/30 22:30:43 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

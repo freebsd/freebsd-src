@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.4 1998/09/26 10:51:38 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <string.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.2.4 1999/04/02 09:01:01 kato Exp $
+# $FreeBSD$
 
 BASE=		loader
 PROG=		${BASE}

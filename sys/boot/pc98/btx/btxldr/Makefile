@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 ORG=0x100000
 #AFLAGS+=	-x assembler-with-cpp

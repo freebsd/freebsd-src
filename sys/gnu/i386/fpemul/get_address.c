@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: get_address.c,v 1.6 1997/02/22 09:29:09 peter Exp $
+ * $FreeBSD$
  *
  */
 

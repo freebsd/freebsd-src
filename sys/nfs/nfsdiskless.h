@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsdiskless.h,v 1.9 1997/05/12 19:02:55 tegge Exp $
+ * $FreeBSD$
  */
 
 

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.0.2.14.2.6 1998/05/24 05:18:04 darrenr Exp $
+ * $FreeBSD$
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id$
+# $FreeBSD$
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The

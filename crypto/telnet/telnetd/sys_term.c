@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: sys_term.c,v 1.6 1999/04/07 10:17:24 brian Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "telnetd.h"
