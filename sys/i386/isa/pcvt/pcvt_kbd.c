@@ -346,9 +346,10 @@ settpmrate(int rate)
 	else if(kbd_cmd(tpmrate) != 0)
 		printf("Keyboard TYPEMATIC data timeout\n");
 #else
+	if (kbd == NULL)
+		return;
 	tpmrate = rate & 0x7f;
-	if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETRAD,
-					   (caddr_t)&tpmrate) == 0) 
+	if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETRAD, (caddr_t)&tpmrate))
 		printf("pcvt: failed to set keyboard TYPEMATIC.\n");
 #endif /* !_DEV_KBD_KBDREG_H_ */
 }
