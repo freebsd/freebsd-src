@@ -43,12 +43,16 @@
  * $FreeBSD$
  */
 
+#include "opt_pmap.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/linker_set.h>
+#include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
@@ -72,6 +76,10 @@
 #include <machine/ofw_machdep.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
+
+PMAP_STATS_VAR(uma_nsmall_alloc);
+PMAP_STATS_VAR(uma_nsmall_alloc_oc);
+PMAP_STATS_VAR(uma_nsmall_free);
 
 void
 cpu_exit(struct thread *td)
@@ -310,6 +318,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	int pflags;
 	void *va;
 
+	PMAP_STATS_INC(uma_nsmall_alloc);
+
 	*flags = UMA_SLAB_PRIV;
 
 	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
@@ -327,6 +337,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if (m->md.color != DCACHE_COLOR(pa)) {
 			KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
 			    ("uma_small_alloc: free page still has mappings!"));
+			PMAP_STATS_INC(uma_nsmall_alloc_oc);
 			m->md.color = DCACHE_COLOR(pa);
 			dcache_page_inval(pa);
 		}
@@ -344,6 +355,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 {
 	vm_page_t m;
 
+	PMAP_STATS_INC(uma_nsmall_free);
 	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)mem));
 	vm_page_lock_queues();
 	vm_page_free(m);

@@ -26,13 +26,17 @@
  * $FreeBSD$
  */
 
+#include "opt_pmap.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ktr.h>
+#include <sys/linker_set.h>
 #include <sys/pcpu.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -40,6 +44,10 @@
 #include <machine/pmap.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
+
+PMAP_STATS_VAR(tlb_ncontext_demap);
+PMAP_STATS_VAR(tlb_npage_demap);
+PMAP_STATS_VAR(tlb_nrange_demap);
 
 int tlb_dtlb_entries;
 int tlb_itlb_entries;
@@ -68,6 +76,7 @@ tlb_context_demap(struct pmap *pm)
 	 * protect the target processor from entering the IPI handler with
 	 * the lock held.
 	 */
+	PMAP_STATS_INC(tlb_ncontext_demap);
 	cookie = ipi_tlb_context_demap(pm);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -88,6 +97,7 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	void *cookie;
 	u_long s;
 
+	PMAP_STATS_INC(tlb_npage_demap);
 	cookie = ipi_tlb_page_demap(pm, va);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -114,6 +124,7 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	u_long flags;
 	u_long s;
 
+	PMAP_STATS_INC(tlb_nrange_demap);
 	cookie = ipi_tlb_range_demap(pm, start, end);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
