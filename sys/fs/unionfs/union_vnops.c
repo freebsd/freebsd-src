@@ -583,36 +583,30 @@ out:
 		((*ap->a_vpp) ? vrefcnt(*ap->a_vpp) : -99),
 		lowervp, uppervp));
 
-	/*
-	 * dvp lock state, determine whether to relock dvp.  dvp is expected
-	 * to be locked on return if:
-	 *
-	 *	- there was an error (except not EJUSTRETURN), or
-	 *	- we hit the last component and lockparent is true
-	 *
-	 * dvp_is_locked is the current state of the dvp lock, not counting
-	 * the possibility that *ap->a_vpp == dvp (in which case it is locked
-	 * anyway).  Note that *ap->a_vpp == dvp only if no error occured.
-	 */
+	if (error == 0 || error == EJUSTRETURN) {
+		/*
+		 * dvp lock state, determine whether to relock dvp.
+		 * We are expected to unlock dvp unless:
+		 *
+		 *	- there was an error (other than EJUSTRETURN), or
+		 *	- we hit the last component and lockparent is true
+		 */
+		if (*ap->a_vpp != dvp) {
+			if (!lockparent || (cnp->cn_flags & ISLASTCN) == 0)
+				VOP_UNLOCK(dvp, 0, td);
+		}
 
-	if (*ap->a_vpp != dvp) {
-		if ((error == 0 || error == EJUSTRETURN) &&
-		    (!lockparent || (cnp->cn_flags & ISLASTCN) == 0)) {
-			VOP_UNLOCK(dvp, 0, td);
+		if (cnp->cn_namelen == 1 &&
+		    cnp->cn_nameptr[0] == '.' &&
+		    *ap->a_vpp != dvp) {
+#ifdef	DIAGNOSTIC
+			vprint("union_lookup: vp", *ap->a_vpp);
+			vprint("union_lookup: dvp", dvp);
+#endif
+			panic("union_lookup returning . (%p) != startdir (%p)",
+			    *ap->a_vpp, dvp);
 		}
 	}
-
-	/*
-	 * Diagnostics
-	 */
-
-#ifdef DIAGNOSTIC
-	if (cnp->cn_namelen == 1 &&
-	    cnp->cn_nameptr[0] == '.' &&
-	    *ap->a_vpp != dvp) {
-		panic("union_lookup returning . (%p) not same as startdir (%p)", ap->a_vpp, dvp);
-	}
-#endif
 
 	return (error);
 }
