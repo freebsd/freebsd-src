@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.16 1997/12/14 15:38:47 wosch Exp $
+#	$Id: bsd.dep.mk,v 1.17 1998/02/20 14:32:30 bde Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -31,30 +31,29 @@
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
 
-# some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)
 .if defined(SRCS)
 depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 
-# .if defined ${SRCS:M*.[sS]} does not work
-__depend_s=	${SRCS:M*.[sS]}
-__depend_c=	${SRCS:M*.c}
-__depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cxx}
-
+# Different types of sources are compiled with slightly different flags.
+# Split up the sources, and filter out headers and non-applicable flags.
 ${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
-.if defined(__depend_s) && !empty(__depend_s)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} ${AINC} \
-		${.ALLSRC:M*.[sS]}
-.endif
-.if defined(__depend_c) && !empty(__depend_c)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} \
-		${.ALLSRC:M*.c}
-.endif
-.if defined(__depend_cc) && !empty(__depend_cc)
+.if ${SRCS:M*.[sS]} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[BID]*} \
-		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
+	    ${AINC} \
+	    ${.ALLSRC:M*.[sS]}
+.endif
+.if ${SRCS:M*.c} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
+	    ${.ALLSRC:M*.c}
+.endif
+.if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cxx} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
+	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
 .endif
 .if target(_EXTRADEPEND)
 	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND
