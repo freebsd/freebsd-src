@@ -662,7 +662,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		device_printf(dev, "sid_buf alloc failed.\n");
 		return ENOMEM;
 	}
-	if (((u_int32_t) sc->fc.sid_buf & (OHCI_SIDSIZE - 1)) != 0) {
+	if (((vm_offset_t) sc->fc.sid_buf & (OHCI_SIDSIZE - 1)) != 0) {
 		device_printf(dev, "sid_buf(%p) not aligned.\n",
 							sc->fc.sid_buf);
 		return ENOMEM;
