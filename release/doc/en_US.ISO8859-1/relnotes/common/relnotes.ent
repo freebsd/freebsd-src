@@ -4,8 +4,12 @@
 
 <!-- Text constants which probably don't need to be changed.-->
 
-<!-- The marker for MFCs. -->
-<!ENTITY merged "[MERGED]">
+<!-- 
+  -CURRENT defines a merged entity, which we use to indicate when a
+  release notes item has been merged.  We remove it from any -STABLE
+  branch(es) because it's not used in this environment and leaving
+  the entity undefined helps us locate cut-n-paste errors.
+-->
 
 <!-- Files to be included -->
 
