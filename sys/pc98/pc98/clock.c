@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.20 1997/04/27 13:22:07 kato Exp $
+ *	$Id: clock.c,v 1.21 1997/05/05 13:13:47 kato Exp $
  */
 
 /*
@@ -1131,7 +1131,7 @@ resettodr()
 #if defined(APIC_IO)
 
 /* from icu.s: */
-extern u_int	hwisrs[];
+extern u_int	vec[];
 extern void	vec8254	__P((void));
 extern void	vecRTC	__P((void));
 extern u_int	ivectors[];
@@ -1202,7 +1202,7 @@ cpu_initclocks()
 		}
 	}
 
-	hwisrs[x] = (u_int)vec8254;
+	vec[x] = (u_int)vec8254;
 	Xintr8254 = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
 	mask8254 = (1 << x);
 	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
@@ -1242,7 +1242,7 @@ cpu_initclocks()
 	    }
 	}
 
-	hwisrs[x] = (u_int)vecRTC;
+	vec[x] = (u_int)vecRTC;
 	XintrRTC = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
 	maskRTC = (1 << x);
 	register_intr(/* irq */ x, /* XXX id */ 1, /* flags */ 0,
