@@ -160,11 +160,7 @@ g_aes_read_done(struct bio *bp)
 static void
 g_aes_write_done(struct bio *bp)
 {
-	struct g_aes_softc *sc;
-	struct g_geom *gp;
 
-	gp = bp->bio_to->geom;
-	sc = gp->softc;
 	bzero(bp->bio_data, bp->bio_length);	/* destroy evidence */
 	g_free(bp->bio_data);
 	g_std_done(bp);
