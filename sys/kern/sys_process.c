@@ -54,7 +54,7 @@
 /* use the equivalent procfs code */
 #if 0
 static int
-pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
+pread(struct proc *procp, unsigned int addr, unsigned int *retval) {
 	int		rv;
 	vm_map_t	map, tmap;
 	vm_object_t	object;
@@ -74,35 +74,35 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	pageno = trunc_page(addr);
 
 	tmap = map;
-	rv = vm_map_lookup (&tmap, pageno, VM_PROT_READ, &out_entry,
+	rv = vm_map_lookup(&tmap, pageno, VM_PROT_READ, &out_entry,
 		&object, &pindex, &out_prot, &wired);
 
 	if (rv != KERN_SUCCESS)
 		return (EINVAL);
 
-	vm_map_lookup_done (tmap, out_entry);
+	vm_map_lookup_done(tmap, out_entry);
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex),
-		&kva, PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
+	rv = vm_map_find(kernel_map, object, IDX_TO_OFF(pindex),
+	    &kva, PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	if (!rv) {
-		vm_object_reference (object);
+		vm_object_reference(object);
 
-		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, 0);
+		rv = vm_map_pageable(kernel_map, kva, kva + PAGE_SIZE, 0);
 		if (!rv) {
 			*retval = 0;
-			bcopy ((caddr_t)kva + page_offset,
+			bcopy((caddr_t)kva + page_offset,
 			       retval, sizeof *retval);
 		}
-		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
+		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
 	}
 
 	return (rv);
 }
 
 static int
-pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
+pwrite(struct proc *procp, unsigned int addr, unsigned int datum) {
 	int		rv;
 	vm_map_t	map, tmap;
 	vm_object_t	object;
@@ -126,8 +126,8 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 * Check the permissions for the area we're interested in.
 	 */
 
-	if (vm_map_check_protection (map, pageno, pageno + PAGE_SIZE,
-		VM_PROT_WRITE) == FALSE) {
+	if (vm_map_check_protection(map, pageno, pageno + PAGE_SIZE,
+	    VM_PROT_WRITE) == FALSE) {
 		/*
 		 * If the page was not writable, we make it so.
 		 * XXX It is possible a page may *not* be read/executable,
@@ -135,9 +135,9 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		 */
 		fix_prot = 1;
 		/* The page isn't writable, so let's try making it so... */
-		if ((rv = vm_map_protect (map, pageno, pageno + PAGE_SIZE,
-			VM_PROT_ALL, 0)) != KERN_SUCCESS)
-		  return (EFAULT);	/* I guess... */
+		if ((rv = vm_map_protect(map, pageno, pageno + PAGE_SIZE,
+		    VM_PROT_ALL, 0)) != KERN_SUCCESS)
+			return (EFAULT);	/* I guess... */
 	}
 
 	/*
@@ -148,8 +148,8 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 */
 
 	tmap = map;
-	rv = vm_map_lookup (&tmap, pageno, VM_PROT_WRITE, &out_entry,
-		&object, &pindex, &out_prot, &wired);
+	rv = vm_map_lookup(&tmap, pageno, VM_PROT_WRITE, &out_entry,
+	    &object, &pindex, &out_prot, &wired);
 	if (rv != KERN_SUCCESS) {
 		return (EINVAL);
 	}
@@ -158,7 +158,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	 * Okay, we've got the page.  Let's release tmap.
 	 */
 
-	vm_map_lookup_done (tmap, out_entry);
+	vm_map_lookup_done(tmap, out_entry);
 
 	/*
 	 * Fault the page in...
@@ -169,22 +169,22 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		return (EFAULT);
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex),
-		&kva, PAGE_SIZE, 0,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
+	rv = vm_map_find(kernel_map, object, IDX_TO_OFF(pindex),
+	    &kva, PAGE_SIZE, 0,
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (!rv) {
-		vm_object_reference (object);
+		vm_object_reference(object);
 
-		rv = vm_map_pageable (kernel_map, kva, kva + PAGE_SIZE, 0);
+		rv = vm_map_pageable(kernel_map, kva, kva + PAGE_SIZE, 0);
 		if (!rv) {
-		  bcopy (&datum, (caddr_t)kva + page_offset, sizeof datum);
+			bcopy(&datum, (caddr_t)kva + page_offset, sizeof datum);
 		}
-		vm_map_remove (kernel_map, kva, kva + PAGE_SIZE);
+		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
 	}
 
 	if (fix_prot)
-		vm_map_protect (map, pageno, pageno + PAGE_SIZE,
-			VM_PROT_READ|VM_PROT_EXECUTE, 0);
+		vm_map_protect(map, pageno, pageno + PAGE_SIZE,
+		    VM_PROT_READ|VM_PROT_EXECUTE, 0);
 	return (rv);
 }
 #endif
@@ -357,15 +357,15 @@ ptrace(td, uap)
 		PHOLD(p);
 
 		if (uap->req == PT_STEP) {
-			if ((error = ptrace_single_step (&p->p_thread))) {
+			if ((error = ptrace_single_step(&p->p_thread))) {
 				PRELE(p);
 				return (error);
 			}
 		}
 
 		if (uap->addr != (caddr_t)1) {
-			fill_kinfo_proc (p, &p->p_uarea->u_kproc);
-			if ((error = ptrace_set_pc (&p->p_thread,
+			fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+			if ((error = ptrace_set_pc(&p->p_thread,
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
 				return (error);
