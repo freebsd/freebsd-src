@@ -142,7 +142,8 @@ fullpath_from_shell() {
 	done
 
 	# /usr/sbin/nologin is a special case
-	if [ "$_shell" = "${NOLOGIN}" ]; then
+	if [ "$_shell" = "${NOLOGIN}" -o \
+	    "$_shell" = "${NOLOGIN_PATH}" ]; then
 		echo ${NOLOGIN_PATH}
 		return 0;
 	fi
