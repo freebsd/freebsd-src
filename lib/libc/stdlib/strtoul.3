@@ -164,15 +164,17 @@ In all cases,
 .Va errno
 is set to
 .Er ERANGE .
-If no conversion could be performed, 0 shall be returned and
+If no conversion could be performed, 0 is returned and
+the global variable
 .Va errno
-will be
-set to
+is set to
 .Er EINVAL .
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The value of base is not supported or
+The value of
+.Fa base
+is not supported or
 no conversion could be performed.
 .It Bq Er ERANGE
 The given string was out of range; the value converted has been clamped.
