@@ -749,9 +749,12 @@ ffs_write(ap)
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
-	flags = 0;
+	if (seqcount > BA_SEQMAX)
+		flags = BA_SEQMAX << BA_SEQSHIFT;
+	else
+		flags = seqcount << BA_SEQSHIFT;
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
-		flags = IO_SYNC;
+		flags |= IO_SYNC;
 
 #ifdef ENABLE_VFS_IOOPT
 	if (object && (object->flags & OBJ_OPT)) {
