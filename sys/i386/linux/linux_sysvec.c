@@ -345,7 +345,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	register struct trapframe *regs;
 	struct linux_sigframe *fp, frame;
 	struct sigacts *psp = p->p_sigacts;
-	int oonstack;
+	int oonstack, i;
 
 	regs = p->p_md.md_regs;
 	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
@@ -425,7 +425,10 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_ss     = regs->tf_ss;
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
-
+	bzero(&frame.fpstate, sizeof(struct linux_fpstate));
+	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
+		frame.extramask[i] = mask->__bits[i+1];
+	
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -466,7 +469,9 @@ linux_sigreturn(p, args)
 {
 	struct linux_sigcontext context;
 	register struct trapframe *regs;
-	int eflags;
+	u_int extramask[LINUX_NSIG_WORDS-1];
+	u_int *emp;
+	int eflags, i;
 
 	regs = p->p_md.md_regs;
 
@@ -513,6 +518,12 @@ linux_sigreturn(p, args)
 	}
 
 	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+	emp = (u_int *)((caddr_t)args->scp + sizeof(context) + 
+	    sizeof(struct linux_fpstate));
+	if (copyin((caddr_t)emp, extramask, sizeof(extramask)) == 0)
+		for (i = 0; i < (LINUX_NSIG_WORDS-1); i++) 
+			p->p_sigmask.__bits[i+1] = extramask[i];
+
 	SIGSETOLD(p->p_sigmask, context.sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 
