@@ -1094,7 +1094,6 @@ ndis_mtop(m0, p)
 			return(ENOMEM);
 		}
 
-		MmInitializeMdl(buf, m->m_data, m->m_len);
 		if (priv->npp_head == NULL)
 			priv->npp_head = buf;
 		else
