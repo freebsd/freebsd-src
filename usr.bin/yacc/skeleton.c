@@ -54,9 +54,9 @@ static char const sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 
 char *banner[] =
 {
-    "#if 0",
+    "#ifndef lint",
     "static char const ",
-	"rcsid[] = \"$Id: skeleton.c,v 1.19 1999/07/30 06:40:00 obrien Exp $\";",
+	"_yacc-parser_rcsid[] = \"$Id: skeleton.c,v 1.20 1999/07/30 12:53:21 hoek Exp $\";",
     "#endif",
     "#include <stdlib.h>",
     "#define YYBYACC 1",
