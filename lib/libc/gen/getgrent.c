@@ -70,7 +70,7 @@ static int maxlinelength;       /* current length of *line */
  * 256K is enough for 64,000 uids
  */
 #define MAXLINELENGTHLIMIT	(256 * 1024)
-
+#define GROUP_IGNORE_COMMENTS	1	/* allow comments in /etc/group */
 
 struct group *
 getgrent()
@@ -287,7 +287,7 @@ grscan(search, gid, name)
 		for (cp = line; *cp != '\0'; cp++)
 			if (*cp != ' ' && *cp != '\t')
 				break;
-		if (*cp == '#')
+		if (*cp == '#' || *cp == '\0')
 			continue;
 #endif
 
