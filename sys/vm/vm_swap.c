@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.81 1999/08/13 10:29:38 phk Exp $
+ * $Id: vm_swap.c,v 1.82 1999/08/23 20:59:21 phk Exp $
  */
 
 #include "opt_swap.h"
@@ -205,6 +205,7 @@ swapon(p, uap)
 	static int once;
 
 	if (!once) {
+		cdevsw_add(&sw_cdevsw);
 		make_dev(&sw_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "drum");
 		once++;
 	}
