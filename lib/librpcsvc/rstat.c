@@ -51,8 +51,8 @@ rstat(host, statp)
 	struct statstime *statp;
 {
 	return (callrpc(host, RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
-			xdr_void, (char *) NULL,
-			xdr_statstime, (char *) statp));
+			(xdrproc_t)xdr_void, (char *) NULL,
+			(xdrproc_t)xdr_statstime, (char *) statp));
 }
 
 int
@@ -62,8 +62,8 @@ havedisk(host)
 	long have;
 	
 	if (callrpc(host, RSTATPROG, RSTATVERS_SWTCH, RSTATPROC_HAVEDISK,
-			xdr_void, (char *) NULL,
-			xdr_long, (char *) &have) != 0)
+			(xdrproc_t)xdr_void, (char *) NULL,
+			(xdrproc_t)xdr_long, (char *) &have) != 0)
 		return (-1);
 	else
 		return (have);
