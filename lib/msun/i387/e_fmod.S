@@ -44,5 +44,5 @@ ENTRY(__ieee754_fmod)
 	fstsw	%ax
 	sahf
 	jp	1b
-	fstpl	%st(1)
+	fstp	%st(1)
 	ret

@@ -65,15 +65,15 @@ ENTRY(__ieee754_exp)
 1:
 	fldl2e
 	fmulp				/* x * log2(e) */
-	fstl	%st(1)
+	fst	%st(1)
 	frndint				/* int(x * log2(e)) */
-	fstl	%st(2)
+	fst	%st(2)
 	fsubrp				/* fract(x * log2(e)) */
 	f2xm1				/* 2^(fract(x * log2(e))) - 1 */ 
 	fld1
 	faddp				/* 2^(fract(x * log2(e))) */
 	fscale				/* e^x */
-	fstpl	%st(1)
+	fstp	%st(1)
 	je	1f
 	fldcw	4(%esp)
 1:
