@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id: lockf.h,v 1.2 1994/08/21 04:41:50 paul Exp $
+ * $Id: lockf.h,v 1.3 1995/12/14 08:32:32 phk Exp $
  */
 
 #ifndef _SYS_LOCKF_H_
-#define _SYS_LOCKF_H_
+#define	_SYS_LOCKF_H_
 
 /*
  * The lockf structure is a kernel structure which contains the information
@@ -60,17 +60,13 @@ struct lockf {
 /* Maximum length of sleep chains to traverse to try and detect deadlock. */
 #define MAXDEPTH 50
 
-__BEGIN_DECLS
 int	 lf_advlock __P((struct vop_advlock_args *, struct lockf **, u_quad_t));
-__END_DECLS
 
 #ifdef LOCKF_DEBUG
 extern int lockf_debug;
 
-__BEGIN_DECLS
 void	lf_print __P((char *, struct lockf *));
 void	lf_printlist __P((char *, struct lockf *));
-__END_DECLS
 #endif
 
-#endif
+#endif /* !_SYS_LOCKF_H_ */
