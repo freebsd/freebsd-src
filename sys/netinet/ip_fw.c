@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.79 1998/03/15 00:36:27 alex Exp $
+ *	$Id: ip_fw.c,v 1.80 1998/03/30 09:52:50 phk Exp $
  */
 
 /*
@@ -85,8 +85,12 @@ static int	del_entry __P((struct ip_fw_head *chainptr, u_short number));
 static int	zero_entry __P((struct mbuf *m));
 static struct ip_fw *check_ipfw_struct __P((struct ip_fw *m));
 static struct ip_fw *check_ipfw_mbuf __P((struct mbuf *fw));
+static __inline int
+		iface_match __P((struct ifnet *ifp, union ip_fw_if *ifu,
+				 int byname));
 static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
-static int	port_match __P((u_short *portptr, int nports, u_short port,
+static __inline int
+		port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
@@ -107,7 +111,7 @@ static char err_prefix[] = "ip_fw_ctl:";
 /*
  * Returns 1 if the port is matched by the vector, 0 otherwise
  */
-static inline int 
+static __inline int 
 port_match(u_short *portptr, int nports, u_short port, int range_flag)
 {
 	if (!nports)
@@ -240,7 +244,7 @@ ipopts_match(struct ip *ip, struct ip_fw *f)
 		return 0;
 }
 
-static inline int
+static __inline int
 iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 {
 	/* Check by name or by IP address */

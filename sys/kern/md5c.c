@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5c.c,v 1.11 1998/03/27 10:23:00 phk Exp $
+ * $Id: md5c.c,v 1.12 1998/03/29 11:54:52 phk Exp $
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
@@ -44,16 +44,17 @@
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif
 
-#ifdef i386
+#ifdef __i386
 #define Encode memcpy
 #define Decode memcpy
-#else /* i386 */
+#else /* __i386 */
 
 /*
  * Encodes input (u_int32_t) into output (unsigned char). Assumes len is
  * a multiple of 4.
  */
 
+/* XXX not prototyped, and not compatible with memcpy(). */
 static void
 Encode (output, input, len)
 	unsigned char *output;

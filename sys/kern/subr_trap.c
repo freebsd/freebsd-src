@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.124 1998/03/28 10:32:57 bde Exp $
+ *	$Id: trap.c,v 1.125 1998/03/30 09:48:27 phk Exp $
  */
 
 /*
@@ -143,15 +143,15 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 };
 
-static void userret __P((struct proc *p, struct trapframe *frame,
-			 u_quad_t oticks));
+static __inline void userret __P((struct proc *p, struct trapframe *frame,
+				  u_quad_t oticks));
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
 
-static inline void
+static __inline void
 userret(p, frame, oticks)
 	struct proc *p;
 	struct trapframe *frame;

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.17 1998/02/13 12:45:58 phk Exp $
+ * $Id: stallion.c,v 1.18 1998/03/28 13:24:43 bde Exp $
  */
 
 /*****************************************************************************/
@@ -467,9 +467,9 @@ static int	stl_brdinit(stlbrd_t *brdp);
 static int	stl_initeio(stlbrd_t *brdp);
 static int	stl_initech(stlbrd_t *brdp);
 static int	stl_initports(stlbrd_t *brdp, stlpanel_t *panelp);
-static void	stl_txisr(stlpanel_t *panelp, int ioaddr);
-static void	stl_rxisr(stlpanel_t *panelp, int ioaddr);
-static void	stl_mdmisr(stlpanel_t *panelp, int ioaddr);
+static __inline void	stl_txisr(stlpanel_t *panelp, int ioaddr);
+static __inline void	stl_rxisr(stlpanel_t *panelp, int ioaddr);
+static __inline void	stl_mdmisr(stlpanel_t *panelp, int ioaddr);
 static void	stl_setreg(stlport_t *portp, int regnr, int value);
 static int	stl_getreg(stlport_t *portp, int regnr);
 static int	stl_updatereg(stlport_t *portp, int regnr, int value);
@@ -1465,7 +1465,7 @@ static void stl_ccrwait(stlport_t *portp)
  *	be NULL if the buffer has been freed.
  */
 
-static inline void stl_txisr(stlpanel_t *panelp, int ioaddr)
+static __inline void stl_txisr(stlpanel_t *panelp, int ioaddr)
 {
 	stlport_t	*portp;
 	int		len, stlen;
@@ -1578,7 +1578,7 @@ stl_txalldone:
  *	fast!
  */
 
-static inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
+static __inline void stl_rxisr(stlpanel_t *panelp, int ioaddr)
 {
 	stlport_t	*portp;
 	struct tty	*tp;
@@ -1713,7 +1713,7 @@ stl_rxalldone:
  *	processing routine.
  */
 
-static inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
+static __inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
 {
 	stlport_t	*portp;
 	unsigned int	ioack;

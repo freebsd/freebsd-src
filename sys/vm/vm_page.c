@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.96 1998/03/08 06:27:30 dyson Exp $
+ *	$Id: vm_page.c,v 1.97 1998/03/16 01:55:55 dyson Exp $
  */
 
 /*
@@ -161,7 +161,7 @@ static u_short vm_page_dev_bsize_chunks[] = {
 	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
-static inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
+static __inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
 static int vm_page_freechk_and_unqueue __P((vm_page_t m));
 static void vm_page_free_wakeup __P((void));
 
@@ -364,7 +364,7 @@ vm_page_startup(starta, enda, vaddr)
  *
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  */
-static inline int
+static __inline int
 vm_page_hash(object, pindex)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -1420,7 +1420,7 @@ retrylookup:
  * mapping function for valid bits or for dirty bits in
  * a page
  */
-inline int
+__inline int
 vm_page_bits(int base, int size)
 {
 	u_short chunk;

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.91 1998/03/01 04:18:14 dyson Exp $
+ * $Id: swap_pager.c,v 1.92 1998/03/07 21:36:54 dyson Exp $
  */
 
 /*
@@ -179,11 +179,11 @@ static void	swap_pager_ridpages __P((vm_page_t *m, int count,
 					 int reqpage));
 static void	swap_pager_setvalid __P((vm_object_t object,
 					 vm_offset_t offset, int valid));
-static void	swapsizecheck __P((void));
+static __inline void	swapsizecheck __P((void));
 
 #define SWAPLOW (vm_swap_size < (512 * btodb(PAGE_SIZE)))
 
-static inline void
+static __inline void
 swapsizecheck()
 {
 	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
@@ -336,7 +336,7 @@ swap_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
  * if the block has been written
  */
 
-inline static daddr_t *
+static __inline daddr_t *
 swap_pager_diskaddr(object, pindex, valid)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -785,14 +785,14 @@ swap_pager_dealloc(object)
 	}
 }
 
-static inline int
+static __inline int
 swap_pager_block_index(pindex)
 	vm_pindex_t pindex;
 {
 	return (pindex / SWB_NPAGES);
 }
 
-static inline int
+static __inline int
 swap_pager_block_offset(pindex)
 	vm_pindex_t pindex;
 {
@@ -1549,7 +1549,7 @@ swap_pager_sync()
 	return;
 }
 
-void
+static void
 swap_pager_finish(spc)
 	register swp_clean_t spc;
 {

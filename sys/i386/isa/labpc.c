@@ -158,7 +158,7 @@ struct ctlr
 /* loutb is a slow outb for debugging.  The overrun test may fail
  * with this for some slower processors.
  */
-static inline void loutb(int port, u_char val)
+static __inline void loutb(int port, u_char val)
 {
 	outb(port, val);
 	DELAY(1);
@@ -326,7 +326,7 @@ done_and_start_next(struct ctlr *ctlr, struct buf *bp, int err)
 	start(ctlr);
 }
 
-static inline void
+static __inline void
 ad_clear(struct ctlr *ctlr)
 {
 	int i;
@@ -339,7 +339,7 @@ ad_clear(struct ctlr *ctlr)
 
 /* reset: Reset the board following the sequence on page 5-1
  */
-static inline void
+static __inline void
 reset(struct ctlr *ctlr)
 {
 	int s = splhigh();
@@ -497,7 +497,7 @@ static void null_intr (struct ctlr *ctlr)             { }
 static void null_start(struct ctlr *ctlr, long count) { }
 static void null_stop (struct ctlr *ctlr)             { }
 
-static inline void
+static __inline void
 trigger(struct ctlr *ctlr)
 {
 	CR_EXPR(ctlr, 2, |= SWTRIG);

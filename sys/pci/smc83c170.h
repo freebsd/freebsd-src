@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: $
+ *      $Id: smc83c170.h,v 1.6 1998/04/13 14:15:40 semenu Exp $
  *
  */
 
@@ -346,9 +346,6 @@ typedef struct {
  #define CSR_READ_4(sc,reg) (*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
 #endif
 
-//extern epic_softc_t *epics[];
-//extern u_long epic_pci_count;
-
 static char* epic_pci_probe __P((pcici_t, pcidi_t));
 
 /* Folowing functions calls splimp() */
@@ -364,8 +361,8 @@ static void epic_ifmedia_status __P((struct ifnet *, struct ifmediareq *));
 
 /* Following functions doesn't call splimp() */
 static void epic_intr_normal __P((void *));
-static inline void epic_rx_done __P((epic_softc_t *));
-static inline void epic_tx_done __P((epic_softc_t *));
+static __inline void epic_rx_done __P((epic_softc_t *));
+static __inline void epic_tx_done __P((epic_softc_t *));
 static void epic_shutdown __P((int, void *));
 
 static int epic_init_rings __P((epic_softc_t *));

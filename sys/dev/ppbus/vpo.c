@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.3 1997/08/28 10:15:20 msmith Exp $
+ *	$Id: vpo.c,v 1.4 1997/09/01 00:51:52 bde Exp $
  *
  */
 
@@ -63,8 +63,8 @@
  * --------------------------------------------------------------------
  */
 
-static inline int vpoio_do_scsi(struct vpo_data *, int, int, char *, int,
-				char *, int, int *, int *);
+static __inline int vpoio_do_scsi(struct vpo_data *, int, int, char *, int,
+				  char *, int, int *, int *);
 
 static int32_t	vpo_scsi_cmd(struct scsi_xfer *);
 static void	vpominphys(struct buf *);
@@ -220,7 +220,7 @@ vpominphys(struct buf *bp)
 }
 
 #ifdef VP0_WARNING
-static inline void
+static __inline void
 vpo_warning(struct vpo_data *vpo, struct scsi_xfer *xs, int timeout)
 {
 
@@ -269,7 +269,7 @@ vpo_warning(struct vpo_data *vpo, struct scsi_xfer *xs, int timeout)
 /*
  * vpointr()
  */
-static inline void
+static __inline void
 vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 {
 
@@ -694,7 +694,7 @@ vpoio_instr(struct vpo_data *vpo, char *buffer, int size)
 	return (error);
 }
 
-static inline char
+static __inline char
 vpoio_select(struct vpo_data *vpo, int initiator, int target)
 {
 
@@ -721,7 +721,7 @@ vpoio_select(struct vpo_data *vpo, int initiator, int target)
  *
  * H_SELIN must be low.
  */
-static inline char
+static __inline char
 vpoio_wait(struct vpo_data *vpo, int tmo)
 {
 
@@ -752,7 +752,7 @@ vpoio_wait(struct vpo_data *vpo, int tmo)
 	return (0);			   /* command timed out */	
 }
 
-static inline int 
+static __inline int 
 vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count)
 {

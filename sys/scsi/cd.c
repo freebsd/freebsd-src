@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.88 1997/12/14 00:32:33 jraynard Exp $
+ *      $Id: cd.c,v 1.89 1998/01/24 02:54:48 eivind Exp $
  */
 
 #include "opt_bounce.h"
@@ -154,7 +154,7 @@ static struct scsi_device cd_switch =
 #define CD_START	1
 #define CD_EJECT	-2
 
-static inline void
+static __inline void
 cd_registerdev(int unit)
 {
 	if(dk_ndrive < DK_NDRIVE) {

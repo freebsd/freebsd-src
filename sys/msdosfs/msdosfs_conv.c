@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.24 1998/02/26 06:45:43 msmith Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.25 1998/02/27 12:22:22 msmith Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -88,7 +88,7 @@ static u_long  lastday;
 static u_short lastddate;
 static u_short lastdtime;
 
-static inline u_int8_t find_lcode __P((u_int16_t code, u_int16_t *u2w));
+static __inline u_int8_t find_lcode __P((u_int16_t code, u_int16_t *u2w));
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in
@@ -730,7 +730,7 @@ done:
 	return 0;
 }
 
-static inline u_int8_t
+static __inline u_int8_t
 find_lcode(code, u2w)
 	u_int16_t code;
 	u_int16_t *u2w;

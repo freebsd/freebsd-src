@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.49 1998/02/20 13:11:53 bde Exp $
+ *	$Id: if_fxp.c,v 1.50 1998/03/03 14:19:07 dg Exp $
  */
 
 /*
@@ -211,12 +211,12 @@ static const struct fxp_supported_media fxp_media[] = {
 
 static int fxp_mediachange	__P((struct ifnet *));
 static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
-static void fxp_set_media		__P((struct fxp_softc *, int));
-static inline void fxp_scb_wait	__P((struct fxp_softc *));
+static void fxp_set_media	__P((struct fxp_softc *, int));
+static __inline void fxp_scb_wait __P((struct fxp_softc *));
 static FXP_INTR_TYPE fxp_intr	__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *,
-				    FXP_IOCTLCMD_TYPE, caddr_t));
+				     FXP_IOCTLCMD_TYPE, caddr_t));
 static void fxp_init		__P((void *));
 static void fxp_stop		__P((struct fxp_softc *));
 static void fxp_watchdog	__P((struct ifnet *));
@@ -224,7 +224,7 @@ static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
 static int fxp_mdi_read		__P((struct fxp_softc *, int, int));
 static void fxp_mdi_write	__P((struct fxp_softc *, int, int, int));
 static void fxp_read_eeprom	__P((struct fxp_softc *, u_int16_t *,
-				    int, int));
+				     int, int));
 static int fxp_attach_common	__P((struct fxp_softc *, u_int8_t *));
 static void fxp_stats_update	__P((void *));
 static void fxp_mc_setup	__P((struct fxp_softc *));
@@ -266,7 +266,7 @@ static int tx_threshold = 64;
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
  */
-static inline void
+static __inline void
 fxp_scb_wait(sc)
 	struct fxp_softc *sc;
 {
