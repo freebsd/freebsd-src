@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fp_emulate.c,v 1.1 1998/12/04 10:52:47 dfr Exp $
+ *	$Id: fp_emulate.c,v 1.2 1998/12/30 10:38:58 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -215,8 +215,10 @@ static fp_register_t fp_cvtql(union alpha_instruction ins,
 
 {
     fp_register_t fb = GETREG(fpregs, ins.f_format.fb);
+    fp_register_t ret;
     *status |= FPCR_INV;
-    return ((fb.q & 0xc0000000) << 32 | (fb.q & 0x3fffffff) << 29);
+    ret.q = ((fb.q & 0xc0000000) << 32 | (fb.q & 0x3fffffff) << 29);
+    return ret;
 }
 
 static int fp_emulate(union alpha_instruction ins, struct proc *p)
