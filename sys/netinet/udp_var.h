@@ -107,7 +107,8 @@ void	udp_ctlinput(int, struct sockaddr *, void *);
 void	udp_init(void);
 void	udp_input(struct mbuf *, int);
 
-void	udp_notify(struct inpcb *inp, int errno);
+struct inpcb *
+	udp_notify(struct inpcb *inp, int errno);
 int	udp_shutdown(struct socket *so);
 #endif
 
