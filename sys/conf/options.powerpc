@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+MPC750			opt_global.h
+IPKDB			opt_ipkdb.h
+
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
