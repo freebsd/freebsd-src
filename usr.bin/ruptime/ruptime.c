@@ -196,7 +196,7 @@ interval(tval, updown)
 	static char resbuf[32];
 	int days, hours, minutes;
 
-	if (tval < 0 || tval > DAYSPERNYEAR * SECSPERDAY) {
+	if (tval < 0) {
 		(void)snprintf(resbuf, sizeof(resbuf), "   %s ??:??", updown);
 		return (resbuf);
 	}
