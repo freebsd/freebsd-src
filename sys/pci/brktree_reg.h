@@ -483,6 +483,9 @@ struct bktr_softc {
     int                 bt848_tuner;
     int                 bt848_card;
     u_long              id;
+#define BT848_USE_XTALS 0
+#define BT848_USE_PLL   1
+    int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */
 };
 
 typedef struct bktr_softc bktr_reg_t;
