@@ -46,6 +46,7 @@
  * them to make some progress.
  */
 
+#include <signal.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -70,6 +71,7 @@ typedef struct Struct_Lock {
 } Lock;
 
 static const struct timespec usec = { 0, 1000 };	/* 1 usec. */
+static sigset_t fullsigmask, oldsigmask;
 
 static void *
 lock_create(void *context)
@@ -123,9 +125,16 @@ static void
 wlock_acquire(void *lock)
 {
     Lock *l = (Lock *)lock;
+    sigset_t tmp_oldsigmask;
 
-    while (cmp0_and_store_int(&l->lock, WAFLAG) != 0)
+    for ( ; ; ) {
+	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
+	if (cmp0_and_store_int(&l->lock, WAFLAG) == 0)
+	    break;
+	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
 	nanosleep(&usec, NULL);
+    }
+    oldsigmask = tmp_oldsigmask;
 }
 
 static void
@@ -142,6 +151,7 @@ wlock_release(void *lock)
     Lock *l = (Lock *)lock;
 
     atomic_add_int(&l->lock, -WAFLAG);
+    sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 }
 
 void
@@ -155,4 +165,17 @@ lockdflt_init(LockInfo *li)
     li->wlock_release = wlock_release;
     li->lock_destroy = lock_destroy;
     li->context_destroy = NULL;
+    /*
+     * Construct a mask to block all signals except traps which might
+     * conceivably be generated within the dynamic linker itself.
+     */
+    sigfillset(&fullsigmask);
+    sigdelset(&fullsigmask, SIGILL);
+    sigdelset(&fullsigmask, SIGTRAP);
+    sigdelset(&fullsigmask, SIGABRT);
+    sigdelset(&fullsigmask, SIGEMT);
+    sigdelset(&fullsigmask, SIGFPE);
+    sigdelset(&fullsigmask, SIGBUS);
+    sigdelset(&fullsigmask, SIGSEGV);
+    sigdelset(&fullsigmask, SIGSYS);
 }
