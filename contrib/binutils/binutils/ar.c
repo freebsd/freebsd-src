@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "aout/ar.h"
 #include "libbfd.h"
 #include "arsup.h"
+#include "filenames.h"
 #include <sys/stat.h>
 
 #ifdef __GO32___
@@ -215,7 +216,7 @@ map_over_members (arch, function, files, count)
 	      bfd_stat_arch_elt (head, &buf);
 	    }
 	  if ((head->filename != NULL) &&
-	      (!strcmp (normalize (*files, arch), head->filename)))
+	      (!FILENAME_CMP (normalize (*files, arch), head->filename)))
 	    {
 	      ++match_count;
 	      if (counted_name_mode
@@ -302,6 +303,16 @@ normalize (file, abfd)
     return file;
 
   filename = strrchr (file, '/');
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+    char *bslash = strrchr (file, '\\');
+    if (bslash > filename)
+      filename = bslash;
+    if (filename == NULL && file[0] != '\0' && file[1] == ':')
+	filename = file + 1;
+  }
+#endif
   if (filename != (char *) NULL)
     filename++;
   else
@@ -377,12 +388,22 @@ main (argc, argv)
       char *temp;
 
       temp = strrchr (program_name, '/');
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+	{
+	  /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+	  char *bslash = strrchr (program_name, '\\');
+	  if (bslash > temp)
+	    temp = bslash;
+	  if (temp == NULL && program_name[0] != '\0' && program_name[1] == ':')
+	    temp = program_name + 1;
+	}
+#endif
       if (temp == NULL)
 	temp = program_name;
       else
 	++temp;
       if (strlen (temp) >= 6
-	  && strcmp (temp + strlen (temp) - 6, "ranlib") == 0)
+	  && FILENAME_CMP (temp + strlen (temp) - 6, "ranlib") == 0)
 	is_ranlib = 1;
       else
 	is_ranlib = 0;
@@ -697,12 +718,15 @@ open_inarch (archive_filename, file)
 
   if (stat (archive_filename, &sbuf) != 0)
     {
-#ifndef __GO32__
+#if !defined(__GO32__) || defined(__DJGPP__)
+
+      /* FIXME: I don't understand why this fragment was ifndef'ed
+	 away for __GO32__; perhaps it was in the days of DJGPP v1.x.
+	 stat() works just fine in v2.x, so I think this should be
+	 removed.  For now, I enable it for DJGPP v2. -- EZ.  */
 
 /* KLUDGE ALERT! Temporary fix until I figger why
- * stat() is wrong ... think it's buried in GO32's IDT
- * - Jax
- */
+   stat() is wrong ... think it's buried in GO32's IDT - Jax */
       if (errno != ENOENT)
 	bfd_fatal (archive_filename);
 #endif
@@ -932,12 +956,18 @@ do_quick_append (archive_filename, files_to_append)
   if (stat (archive_filename, &sbuf) != 0)
     {
 
-#ifndef __GO32__
+#if !defined(__GO32__) || defined(__DJGPP__)
+
+      /* FIXME: I don't understand why this fragment was ifndef'ed
+	 away for __GO32__; perhaps it was in the days of DJGPP v1.x.
+	 stat() works just fine in v2.x, so I think this should be
+	 removed.  For now, I enable it for DJGPP v2.
+
+	 (And yes, I know this is all unused, but somebody, someday,
+	 might wish to resurrect this again... -- EZ.  */
 
 /* KLUDGE ALERT! Temporary fix until I figger why
- * stat() is wrong ... think it's buried in GO32's IDT
- * - Jax
- */
+   stat() is wrong ... think it's buried in GO32's IDT - Jax  */
 
       if (errno != ENOENT)
 	bfd_fatal (archive_filename);
@@ -1107,7 +1137,7 @@ get_pos_bfd (contents, default_pos, default_posname)
   else
     {
       for (; *after_bfd; after_bfd = &(*after_bfd)->next)
-	if (strcmp ((*after_bfd)->filename, realposname) == 0)
+	if (FILENAME_CMP ((*after_bfd)->filename, realposname) == 0)
 	  {
 	    if (realpos == pos_after)
 	      after_bfd = &(*after_bfd)->next;
@@ -1147,7 +1177,7 @@ delete_members (arch, files_to_delete)
       current_ptr_ptr = &(arch->next);
       while (*current_ptr_ptr)
 	{
-	  if (strcmp (normalize (*files_to_delete, arch),
+	  if (FILENAME_CMP (normalize (*files_to_delete, arch),
 		      (*current_ptr_ptr)->filename) == 0)
 	    {
 	      ++match_count;
@@ -1204,8 +1234,8 @@ move_members (arch, files_to_move)
       while (*current_ptr_ptr)
 	{
 	  bfd *current_ptr = *current_ptr_ptr;
-	  if (strcmp (normalize (*files_to_move, arch),
-		      current_ptr->filename) == 0)
+	  if (FILENAME_CMP (normalize (*files_to_move, arch),
+			    current_ptr->filename) == 0)
 	    {
 	      /* Move this file to the end of the list - first cut from
 		 where it is.  */
@@ -1260,8 +1290,8 @@ replace_members (arch, files_to_move, quick)
 
 	      /* For compatibility with existing ar programs, we
 		 permit the same file to be added multiple times.  */
-	      if (strcmp (normalize (*files_to_move, arch),
-			  normalize (current->filename, arch)) == 0
+	      if (FILENAME_CMP (normalize (*files_to_move, arch),
+				normalize (current->filename, arch)) == 0
 		  && current->arelt_data != NULL)
 		{
 		  if (newer_only)

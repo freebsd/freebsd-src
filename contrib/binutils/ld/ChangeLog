@@ -1,3 +1,33 @@
+2000-05-22  David O'Brien  <obrien@FreeBSD.org>
+
+        * configure.tgt: Recognize alpha-*-freebsd*.
+
+2000-05-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ldmain.c: Include filenames.h.
+	(set_scripts_dir): Support backslashes in program name.
+
+2000-05-23  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version to 2.10.
+	* configure: Regenerate.
+
+2000-05-15  David O'Brien  <obrien@FreeBSD.org>
+
+	* lexsup.c (parse_args): Update the year in the copyright notice.
+
+2000-05-13  Philip Blundell  <pb@futuretv.com>
+
+	From Joel Sherrill <joel@OARcorp.com>:
+	* configure.tgt (sparc-*-rtemsaout*, sparc-*-rtemself*): New.
+	(sparc-*-rtems*): Use ELF.
+	(i960-*-rtemself*, i960-*-rtemscoff*): New.
+	(i[3456]86-*-rtemscoff*): New.
+	(i[3456]86-*-rtems*): Use ELF.
+	(sh-*-rtemscoff*): New.
+	(m68*-*-rtemscoff*, m68*-*-rtemself): New.
+	(m68*-*-rtems*): Use ELF.
+
 2000-05-03  Alan Modra  <alan@linuxcare.com.au>
 
 	From Ulf Carlsson <ulfc@engr.sgi.com> and Andreas Jaeger <aj@suse.de>

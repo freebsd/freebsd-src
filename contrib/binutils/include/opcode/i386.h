@@ -1,5 +1,6 @@
 /* opcode/i386.h -- Intel 80386 opcode table
-   Copyright 1989, 91, 92, 93, 94, 95, 96, 97, 98, 1999 Free Software Foundation.
+   Copyright 1989, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation.
 
 This file is part of GAS, the GNU Assembler, and GDB, the GNU Debugger.
 
@@ -58,6 +59,7 @@ static const template i386_optab[] = {
 #define bw_Suf (No_lSuf|No_sSuf|No_dSuf|No_xSuf)
 #define bl_Suf (No_wSuf|No_sSuf|No_dSuf|No_xSuf)
 #define wl_Suf (No_bSuf|No_sSuf|No_dSuf|No_xSuf)
+#define wld_Suf (No_bSuf|No_sSuf|No_xSuf)
 #define sl_Suf (No_bSuf|No_wSuf|No_dSuf|No_xSuf)
 #define sld_Suf (No_bSuf|No_wSuf|No_xSuf)
 #define sldx_Suf (No_bSuf|No_wSuf)
@@ -103,14 +105,14 @@ static const template i386_optab[] = {
 {"movsbl", 2, 0x0fbe, X, NoSuf|Modrm,			{ Reg8|ByteMem, Reg32, 0} },
 {"movsbw", 2, 0x0fbe, X, NoSuf|Modrm,			{ Reg8|ByteMem, Reg16, 0} },
 {"movswl", 2, 0x0fbf, X, NoSuf|Modrm,			{ Reg16|ShortMem, Reg32, 0} },
-/* Intel Syntax */
+/* Intel Syntax next 2 insns */
 {"movsx",  2, 0x0fbf, X, w_Suf|Modrm|IgnoreSize,	{ Reg16|ShortMem, Reg32, 0} },
 {"movsx",  2, 0x0fbe, X, b_Suf|Modrm,			{ Reg8|ByteMem, WordReg, 0} },
 
 /* Move with zero extend.  */
 {"movzb",  2, 0x0fb6, X, wl_Suf|Modrm,			{ Reg8|ByteMem, WordReg, 0} },
 {"movzwl", 2, 0x0fb7, X, NoSuf|Modrm,			{ Reg16|ShortMem, Reg32, 0} },
-/* Intel Syntax */
+/* Intel Syntax next 2 insns */
 {"movzx",  2, 0x0fb7, X, w_Suf|Modrm|IgnoreSize,	{ Reg16|ShortMem, Reg32, 0} },
 {"movzx",  2, 0x0fb6, X, b_Suf|Modrm,			{ Reg8|ByteMem, WordReg, 0} },
 
@@ -121,7 +123,7 @@ static const template i386_optab[] = {
 {"push",   1,	0x68, X, wl_Suf|DefaultSize,		{ Imm16|Imm32, 0, 0} },
 {"push",   1,	0x06, X, wl_Suf|Seg2ShortForm|DefaultSize, { SReg2, 0, 0 } },
 {"push",   1, 0x0fa0, X, wl_Suf|Seg3ShortForm|DefaultSize, { SReg3, 0, 0 } },
-{"pusha",  0,	0x60, X, wl_Suf|DefaultSize,		{ 0, 0, 0 } },
+{"pusha",  0,	0x60, X, wld_Suf|DefaultSize,		{ 0, 0, 0 } },
 
 /* Pop instructions.  */
 {"pop",	   1,	0x58, X, wl_Suf|ShortForm|DefaultSize,	{ WordReg, 0, 0 } },
@@ -129,7 +131,7 @@ static const template i386_optab[] = {
 #define POP_SEG_SHORT 0x07
 {"pop",	   1,	0x07, X, wl_Suf|Seg2ShortForm|DefaultSize, { SReg2, 0, 0 } },
 {"pop",	   1, 0x0fa1, X, wl_Suf|Seg3ShortForm|DefaultSize, { SReg3, 0, 0 } },
-{"popa",   0,	0x61, X, wl_Suf|DefaultSize,		{ 0, 0, 0 } },
+{"popa",   0,	0x61, X, wld_Suf|DefaultSize,		{ 0, 0, 0 } },
 
 /* Exchange instructions.
    xchg commutes:  we allow both operand orders.  */
@@ -166,8 +168,8 @@ static const template i386_optab[] = {
 {"cmc",	   0,	0xf5, X, NoSuf,			{ 0, 0, 0} },
 {"lahf",   0,	0x9f, X, NoSuf,			{ 0, 0, 0} },
 {"sahf",   0,	0x9e, X, NoSuf,			{ 0, 0, 0} },
-{"pushf",  0,	0x9c, X, wl_Suf|DefaultSize,	{ 0, 0, 0} },
-{"popf",   0,	0x9d, X, wl_Suf|DefaultSize,	{ 0, 0, 0} },
+{"pushf",  0,	0x9c, X, wld_Suf|DefaultSize,	{ 0, 0, 0} },
+{"popf",   0,	0x9d, X, wld_Suf|DefaultSize,	{ 0, 0, 0} },
 {"stc",	   0,	0xf9, X, NoSuf,			{ 0, 0, 0} },
 {"std",	   0,	0xfd, X, NoSuf,			{ 0, 0, 0} },
 {"sti",	   0,	0xfb, X, NoSuf,			{ 0, 0, 0} },
@@ -219,7 +221,7 @@ static const template i386_optab[] = {
 {"xor",	   2,	0x34, X, bwl_Suf|W,		{ Imm, Acc, 0} },
 {"xor",	   2,	0x80, 6, bwl_Suf|W|Modrm,	{ Imm, Reg|AnyMem, 0} },
 
-/* iclr with 1 operand is really xor with 2 operands.  */
+/* clr with 1 operand is really xor with 2 operands.  */
 {"clr",	   1,	0x30, X, bwl_Suf|W|Modrm|regKludge,	{ Reg, 0, 0 } },
 
 {"adc",	   2,	0x10, X, bwl_Suf|D|W|Modrm,	{ Reg, Reg|AnyMem, 0} },
@@ -300,23 +302,23 @@ static const template i386_optab[] = {
 {"shl",	   2,	0xd2, 4, bwl_Suf|W|Modrm,	{ ShiftCount, Reg|AnyMem, 0} },
 {"shl",	   1,	0xd0, 4, bwl_Suf|W|Modrm,	{ Reg|AnyMem, 0, 0} },
 
-{"shld",   3, 0x0fa4, X, wl_Suf|Modrm,		{ Imm8, WordReg, WordReg|WordMem} },
-{"shld",   3, 0x0fa5, X, wl_Suf|Modrm,		{ ShiftCount, WordReg, WordReg|WordMem} },
-{"shld",   2, 0x0fa5, X, wl_Suf|Modrm,		{ WordReg, WordReg|WordMem, 0} },
-
 {"shr",	   2,	0xd0, 5, bwl_Suf|W|Modrm,	{ Imm1, Reg|AnyMem, 0} },
 {"shr",	   2,	0xc0, 5, bwl_Suf|W|Modrm,	{ Imm8, Reg|AnyMem, 0} },
 {"shr",	   2,	0xd2, 5, bwl_Suf|W|Modrm,	{ ShiftCount, Reg|AnyMem, 0} },
 {"shr",	   1,	0xd0, 5, bwl_Suf|W|Modrm,	{ Reg|AnyMem, 0, 0} },
 
-{"shrd",   3, 0x0fac, X, wl_Suf|Modrm,		{ Imm8, WordReg, WordReg|WordMem} },
-{"shrd",   3, 0x0fad, X, wl_Suf|Modrm,		{ ShiftCount, WordReg, WordReg|WordMem} },
-{"shrd",   2, 0x0fad, X, wl_Suf|Modrm,		{ WordReg, WordReg|WordMem, 0} },
-
 {"sar",	   2,	0xd0, 7, bwl_Suf|W|Modrm,	{ Imm1, Reg|AnyMem, 0} },
 {"sar",	   2,	0xc0, 7, bwl_Suf|W|Modrm,	{ Imm8, Reg|AnyMem, 0} },
 {"sar",	   2,	0xd2, 7, bwl_Suf|W|Modrm,	{ ShiftCount, Reg|AnyMem, 0} },
 {"sar",	   1,	0xd0, 7, bwl_Suf|W|Modrm,	{ Reg|AnyMem, 0, 0} },
+
+{"shld",   3, 0x0fa4, X, wl_Suf|Modrm,		{ Imm8, WordReg, WordReg|WordMem} },
+{"shld",   3, 0x0fa5, X, wl_Suf|Modrm,		{ ShiftCount, WordReg, WordReg|WordMem} },
+{"shld",   2, 0x0fa5, X, wl_Suf|Modrm,		{ WordReg, WordReg|WordMem, 0} },
+
+{"shrd",   3, 0x0fac, X, wl_Suf|Modrm,		{ Imm8, WordReg, WordReg|WordMem} },
+{"shrd",   3, 0x0fad, X, wl_Suf|Modrm,		{ ShiftCount, WordReg, WordReg|WordMem} },
+{"shrd",   2, 0x0fad, X, wl_Suf|Modrm,		{ WordReg, WordReg|WordMem, 0} },
 
 /* Control transfer instructions.  */
 {"call",   1,	0xe8, X, wl_Suf|JumpDword|DefaultSize,	{ Disp16|Disp32, 0, 0} },
@@ -477,7 +479,7 @@ static const template i386_optab[] = {
 {"int",	   1,	0xcd, X, NoSuf,			{ Imm8, 0, 0} },
 {"int3",   0,	0xcc, X, NoSuf,			{ 0, 0, 0} },
 {"into",   0,	0xce, X, NoSuf,			{ 0, 0, 0} },
-{"iret",   0,	0xcf, X, wl_Suf,		{ 0, 0, 0} },
+{"iret",   0,	0xcf, X, wld_Suf|DefaultSize,	{ 0, 0, 0} },
 /* i386sl, i486sl, later 486, and Pentium.  */
 {"rsm",	   0, 0x0faa, X, NoSuf,			{ 0, 0, 0} },
 
@@ -509,98 +511,107 @@ static const template i386_optab[] = {
 /* Floating point instructions.  */
 
 /* load */
-{"fld",	   1, 0xd9c0, X, FP|ShortForm,		{ FloatReg, 0, 0} }, /* register */
-{"fld",	   1,	0xd9, 0, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} }, /* %st0 <-- mem float/double */
+{"fld",	   1, 0xd9c0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
+{"fld",	   1,	0xd9, 0, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fld",	   1, 0xd9c0, X, l_FP|ShortForm|Ugh,	{ FloatReg, 0, 0} },
 /* Intel Syntax */
-{"fld",    1,	0xdb, 5, x_FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem efloat */
-{"fild",   1,	0xdf, 0, sl_Suf|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} }, /* %st0 <-- mem word(16)/dword(32) */
+{"fld",    1,	0xdb, 5, x_FP|Modrm,		{ LLongMem, 0, 0} },
+{"fild",   1,	0xdf, 0, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
 /* Intel Syntax */
-{"fildd",  1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem qword (64) */
-{"fildq",  1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem qword (64) */
-{"fildll", 1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem qword (64) */
-{"fldt",   1,	0xdb, 5, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem efloat */
-{"fbld",   1,	0xdf, 4, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 <-- mem bcd */
+{"fildd",  1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fildq",  1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fildll", 1,	0xdf, 5, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fldt",   1,	0xdb, 5, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fbld",   1,	0xdf, 4, FP|Modrm,		{ LLongMem, 0, 0} },
 
 /* store (no pop) */
-{"fst",	   1, 0xddd0, X, FP|ShortForm,		{ FloatReg, 0, 0} }, /* register */
-{"fst",	   1,	0xd9, 2, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} }, /* %st0 --> mem float/double */
+{"fst",	   1, 0xddd0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
+{"fst",	   1,	0xd9, 2, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fst",	   1, 0xddd0, X, l_FP|ShortForm|Ugh,	{ FloatReg, 0, 0} },
-{"fist",   1,	0xdf, 2, sld_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} }, /* %st0 --> mem word(16)/dword(32) */
+{"fist",   1,	0xdf, 2, sld_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
 
 /* store (with pop) */
-{"fstp",   1, 0xddd8, X, FP|ShortForm,		{ FloatReg, 0, 0} }, /* register */
-{"fstp",   1,	0xd9, 3, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} }, /* %st0 --> mem float/double */
+{"fstp",   1, 0xddd8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
+{"fstp",   1,	0xd9, 3, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fstp",   1, 0xddd8, X, l_FP|ShortForm|Ugh,	{ FloatReg, 0, 0} },
 /* Intel Syntax */
-{"fstp",   1,	0xdb, 7, x_FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem efloat */
-{"fistp",  1,	0xdf, 3, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} }, /* %st0 --> mem word(16)/dword(32) */
+{"fstp",   1,	0xdb, 7, x_FP|Modrm,		{ LLongMem, 0, 0} },
+{"fistp",  1,	0xdf, 3, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
 /* Intel Syntax */
-{"fistpd", 1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem qword (64) */
-{"fistpq", 1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem qword (64) */
-{"fistpll",1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem qword (64) */
-{"fstpt",  1,	0xdb, 7, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem efloat */
-{"fbstp",  1,	0xdf, 6, FP|Modrm,		{ LLongMem, 0, 0} }, /* %st0 --> mem bcd */
+{"fistpd", 1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fistpq", 1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fistpll",1,	0xdf, 7, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fstpt",  1,	0xdb, 7, FP|Modrm,		{ LLongMem, 0, 0} },
+{"fbstp",  1,	0xdf, 6, FP|Modrm,		{ LLongMem, 0, 0} },
 
 /* exchange %st<n> with %st0 */
 {"fxch",   1, 0xd9c8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"fxch",   0, 0xd9c9, X, FP,			{ 0, 0, 0} },	     /* alias for fxch %st(1) */
+/* alias for fxch %st(1) */
+{"fxch",   0, 0xd9c9, X, FP,			{ 0, 0, 0} },
 
 /* comparison (without pop) */
 {"fcom",   1, 0xd8d0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"fcom",   0, 0xd8d1, X, FP,			{ 0, 0, 0} },	     /* alias for fcom %st(1) */
-{"fcom",   1,	0xd8, 2, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} }, /* compare %st0, mem float/double */
+/* alias for fcom %st(1) */
+{"fcom",   0, 0xd8d1, X, FP,			{ 0, 0, 0} },
+{"fcom",   1,	0xd8, 2, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fcom",   1, 0xd8d0, X, l_FP|ShortForm|Ugh,	{ FloatReg, 0, 0} },
-{"ficom",  1,	0xde, 2, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} }, /* compare %st0, mem word/dword */
+{"ficom",  1,	0xde, 2, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
 
 /* comparison (with pop) */
 {"fcomp",  1, 0xd8d8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"fcomp",  0, 0xd8d9, X, FP,			{ 0, 0, 0} },	     /* alias for fcomp %st(1) */
-{"fcomp",  1,	0xd8, 3, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} }, /* compare %st0, mem float/double */
+/* alias for fcomp %st(1) */
+{"fcomp",  0, 0xd8d9, X, FP,			{ 0, 0, 0} },
+{"fcomp",  1,	0xd8, 3, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fcomp",  1, 0xd8d8, X, l_FP|ShortForm|Ugh,	{ FloatReg, 0, 0} },
-{"ficomp", 1,	0xde, 3, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} }, /* compare %st0, mem word/dword */
-{"fcompp", 0, 0xded9, X, FP,			{ 0, 0, 0} },	     /* compare %st0, %st1 & pop 2 */
+{"ficomp", 1,	0xde, 3, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
+{"fcompp", 0, 0xded9, X, FP,			{ 0, 0, 0} },
 
 /* unordered comparison (with pop) */
 {"fucom",  1, 0xdde0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"fucom",  0, 0xdde1, X, FP,			{ 0, 0, 0} },	     /* alias for fucom %st(1) */
+/* alias for fucom %st(1) */
+{"fucom",  0, 0xdde1, X, FP,			{ 0, 0, 0} },
 {"fucomp", 1, 0xdde8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"fucomp", 0, 0xdde9, X, FP,			{ 0, 0, 0} },	     /* alias for fucomp %st(1) */
-{"fucompp",0, 0xdae9, X, FP,			{ 0, 0, 0} },	     /* ucompare %st0, %st1 & pop twice */
+/* alias for fucomp %st(1) */
+{"fucomp", 0, 0xdde9, X, FP,			{ 0, 0, 0} },
+{"fucompp",0, 0xdae9, X, FP,			{ 0, 0, 0} },
 
-{"ftst",   0, 0xd9e4, X, FP,			{ 0, 0, 0} },	     /* test %st0 */
-{"fxam",   0, 0xd9e5, X, FP,			{ 0, 0, 0} },	     /* examine %st0 */
+{"ftst",   0, 0xd9e4, X, FP,			{ 0, 0, 0} },
+{"fxam",   0, 0xd9e5, X, FP,			{ 0, 0, 0} },
 
 /* load constants into %st0 */
-{"fld1",   0, 0xd9e8, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- 1.0 */
-{"fldl2t", 0, 0xd9e9, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- log2(10) */
-{"fldl2e", 0, 0xd9ea, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- log2(e) */
-{"fldpi",  0, 0xd9eb, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- pi */
-{"fldlg2", 0, 0xd9ec, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- log10(2) */
-{"fldln2", 0, 0xd9ed, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- ln(2) */
-{"fldz",   0, 0xd9ee, X, FP,			{ 0, 0, 0} },	     /* %st0 <-- 0.0 */
+{"fld1",   0, 0xd9e8, X, FP,			{ 0, 0, 0} },
+{"fldl2t", 0, 0xd9e9, X, FP,			{ 0, 0, 0} },
+{"fldl2e", 0, 0xd9ea, X, FP,			{ 0, 0, 0} },
+{"fldpi",  0, 0xd9eb, X, FP,			{ 0, 0, 0} },
+{"fldlg2", 0, 0xd9ec, X, FP,			{ 0, 0, 0} },
+{"fldln2", 0, 0xd9ed, X, FP,			{ 0, 0, 0} },
+{"fldz",   0, 0xd9ee, X, FP,			{ 0, 0, 0} },
 
 /* arithmetic */
 
 /* add */
 {"fadd",   2, 0xd8c0, X, FP|ShortForm|FloatD,	{ FloatReg, FloatAcc, 0} },
-{"fadd",   1, 0xd8c0, X, FP|ShortForm,		{ FloatReg, 0, 0} }, /* alias for fadd %st(i), %st */
+/* alias for fadd %st(i), %st */
+{"fadd",   1, 0xd8c0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fadd",   0, 0xdec1, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for faddp */
+/* alias for faddp */
+{"fadd",   0, 0xdec1, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fadd",   1,	0xd8, 0, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fiadd",  1,	0xde, 0, sld_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
 
 {"faddp",  2, 0xdec0, X, FP|ShortForm,		{ FloatAcc, FloatReg, 0} },
 {"faddp",  1, 0xdec0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
-{"faddp",  0, 0xdec1, X, FP,			{ 0, 0, 0} },	     /* alias for faddp %st, %st(1) */
+/* alias for faddp %st, %st(1) */
+{"faddp",  0, 0xdec1, X, FP,			{ 0, 0, 0} },
 {"faddp",  2, 0xdec0, X, FP|ShortForm|Ugh,	{ FloatReg, FloatAcc, 0} },
 
 /* subtract */
 {"fsub",   2, 0xd8e0, X, FP|ShortForm|FloatDR,	{ FloatReg, FloatAcc, 0} },
 {"fsub",   1, 0xd8e0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fsub",   0, 0xdee1, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for fsubp */
+/* alias for fsubp */
+{"fsub",   0, 0xdee1, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fsub",   1,	0xd8, 4, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fisub",  1,	0xde, 4, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
@@ -622,7 +633,8 @@ static const template i386_optab[] = {
 {"fsubr",  2, 0xd8e8, X, FP|ShortForm|FloatDR,	{ FloatReg, FloatAcc, 0} },
 {"fsubr",  1, 0xd8e8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fsubr",  0, 0xdee9, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for fsubrp */
+/* alias for fsubrp */
+{"fsubr",  0, 0xdee9, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fsubr",  1,	0xd8, 5, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fisubr", 1,	0xde, 5, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
@@ -644,7 +656,8 @@ static const template i386_optab[] = {
 {"fmul",   2, 0xd8c8, X, FP|ShortForm|FloatD,	{ FloatReg, FloatAcc, 0} },
 {"fmul",   1, 0xd8c8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fmul",   0, 0xdec9, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for fmulp */
+/* alias for fmulp */
+{"fmul",   0, 0xdec9, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fmul",   1,	0xd8, 1, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fimul",  1,	0xde, 1, sld_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
@@ -658,7 +671,8 @@ static const template i386_optab[] = {
 {"fdiv",   2, 0xd8f0, X, FP|ShortForm|FloatDR,	{ FloatReg, FloatAcc, 0} },
 {"fdiv",   1, 0xd8f0, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fdiv",   0, 0xdef1, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for fdivp */
+/* alias for fdivp */
+{"fdiv",   0, 0xdef1, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fdiv",   1,	0xd8, 6, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fidiv",  1,	0xde, 6, sld_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
@@ -680,7 +694,8 @@ static const template i386_optab[] = {
 {"fdivr",  2, 0xd8f8, X, FP|ShortForm|FloatDR,	{ FloatReg, FloatAcc, 0} },
 {"fdivr",  1, 0xd8f8, X, FP|ShortForm,		{ FloatReg, 0, 0} },
 #if SYSV386_COMPAT
-{"fdivr",  0, 0xdef9, X, FP|Ugh,		{ 0, 0, 0} },	     /* alias for fdivrp */
+/* alias for fdivrp */
+{"fdivr",  0, 0xdef9, X, FP|Ugh,		{ 0, 0, 0} },
 #endif
 {"fdivr",  1,	0xd8, 7, sld_FP|FloatMF|Modrm,	{ LongMem|LLongMem, 0, 0} },
 {"fidivr", 1,	0xde, 7, sl_FP|FloatMF|Modrm,	{ ShortMem|LongMem, 0, 0} },
@@ -798,17 +813,19 @@ static const template i386_optab[] = {
 {"rdtsc",   0, 0x0f31, X, NoSuf,		{ 0, 0, 0} },
 {"rdmsr",   0, 0x0f32, X, NoSuf,		{ 0, 0, 0} },
 {"cmpxchg8b",1,0x0fc7, 1, NoSuf|Modrm,		{ LLongMem, 0, 0} },
+
+/* Pentium II/Pentium Pro extensions.  */
 {"sysenter",0, 0x0f34, X, NoSuf,		{ 0, 0, 0} },
 {"sysexit", 0, 0x0f35, X, NoSuf,		{ 0, 0, 0} },
 {"fxsave",  1, 0x0fae, 0, FP|Modrm,		{ LLongMem, 0, 0} },
 {"fxrstor", 1, 0x0fae, 1, FP|Modrm,		{ LLongMem, 0, 0} },
-
-/* Pentium Pro extensions.  */
 {"rdpmc",   0, 0x0f33, X, NoSuf,		{ 0, 0, 0} },
-
-{"ud2",	    0, 0x0f0b, X, NoSuf,		{ 0, 0, 0} }, /* official undefined instr. */
-{"ud2a",    0, 0x0f0b, X, NoSuf,		{ 0, 0, 0} }, /* alias for ud2 */
-{"ud2b",    0, 0x0fb9, X, NoSuf,		{ 0, 0, 0} }, /* 2nd. official undefined instr. */
+/* official undefined instr. */
+{"ud2",	    0, 0x0f0b, X, NoSuf,		{ 0, 0, 0} },
+/* alias for ud2 */
+{"ud2a",    0, 0x0f0b, X, NoSuf,		{ 0, 0, 0} },
+/* 2nd. official undefined instr. */
+{"ud2b",    0, 0x0fb9, X, NoSuf,		{ 0, 0, 0} },
 
 {"cmovo",   2, 0x0f40, X, wl_Suf|Modrm,		{ WordReg|WordMem, WordReg, 0} },
 {"cmovno",  2, 0x0f41, X, wl_Suf|Modrm,		{ WordReg|WordMem, WordReg, 0} },
@@ -1047,7 +1064,8 @@ static const template i386_optab[] = {
 {"pmulhrw",  2, 0x0f0f, 0xb7, FP|Modrm|ImmExt,	{ RegMMX|LongMem, RegMMX, 0 } },
 {"pswapd",   2, 0x0f0f, 0xbb, FP|Modrm|ImmExt,	{ RegMMX|LongMem, RegMMX, 0 } }, /* Athlon */
 
-{NULL, 0, 0, 0, 0, { 0, 0, 0} }	/* sentinel */
+/* sentinel */
+{NULL, 0, 0, 0, 0, { 0, 0, 0} }
 };
 #undef X
 #undef NoSuf
@@ -1059,6 +1077,7 @@ static const template i386_optab[] = {
 #undef bw_Suf
 #undef bl_Suf
 #undef wl_Suf
+#undef wld_Suf
 #undef sl_Suf
 #undef sld_Suf
 #undef sldx_Suf
