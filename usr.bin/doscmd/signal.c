@@ -44,7 +44,7 @@ regcontext_t *saved_regcontext;
 int		saved_valid = 0; 
 
 static void
-sanity_check(struct sigframe *sf)
+sanity_check(struct sigframe *sf __unused)
 {
 #if 0
     static sigset_t oset;

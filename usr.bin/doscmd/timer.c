@@ -6,7 +6,7 @@
 #include "doscmd.h"
 
 static void
-int08(regcontext_t *REGS)
+int08(regcontext_t *REGS __unused)
 {
     *(u_long *)&BIOSDATA[0x6c] += 1;    /* ticks since midnight */
     while (*(u_long *)&BIOSDATA[0x6c] >= 24*60*6*182) {
@@ -19,14 +19,14 @@ int08(regcontext_t *REGS)
 }
 
 static void
-int1c(regcontext_t *REGS)
+int1c(regcontext_t *REGS __unused)
 {
 }
 
 unsigned char timer;
 
 static u_char
-inb_timer(int port)
+inb_timer(int port __unused)
 {
     return (--timer);
 }

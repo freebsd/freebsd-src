@@ -198,7 +198,7 @@ static void	vram2ximage(void);
 #define	K4_ERROR	0x80
 
 static void
-Failure(void *arg)
+Failure(void *arg __unused)
 {
         fprintf(stderr, "X Connection shutdown\n");
 	quit(1);
@@ -234,7 +234,7 @@ console_denit(void *arg)
 }
 
 void
-_kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
+_kbd_event(int fd, int cond, void *arg __unused, regcontext_t *REGS __unused)
 {
     if (!(cond & AS_RD))
 	return;
@@ -352,7 +352,7 @@ setgc(u_short attr)
 }
 
 void
-video_update(regcontext_t *REGS)
+video_update(regcontext_t *REGS __unused)
 {
 #ifndef NO_X
 	static int icnt = 3;
@@ -769,7 +769,7 @@ debug_event(int fd, int cond, void *arg, regcontext_t *REGS)
 }
 
 unsigned char
-inb_port60(int port)
+inb_port60(int port __unused)
 {       
     int r = break_code;
     break_code = 0;
@@ -791,7 +791,7 @@ kbd_event(int fd, int cond, void *arg, regcontext_t *REGS)
 }
 
 void
-int09(REGISTERS)
+int09(REGISTERS __unused)
 {
     if (raw_kbd) {
 	if (scan_code != 0xffff) {
@@ -2210,7 +2210,7 @@ update_pixels()
 }
 
 void
-write_vram(void *arg)
+write_vram(void *arg __unused)
 {
     int fd;
 

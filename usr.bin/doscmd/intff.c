@@ -139,7 +139,7 @@ int2f11_dirfn(regcontext_t *REGS)
 ** Close
 */
 static int
-int2f11_close(regcontext_t *REGS)
+int2f11_close(regcontext_t *REGS __unused)
 {
     int		fd;
 
@@ -162,7 +162,7 @@ int2f11_close(regcontext_t *REGS)
 ** read/write
 */
 static int
-int2f11_rdwr(regcontext_t *REGS)
+int2f11_rdwr(regcontext_t *REGS __unused)
 {
     int		fd;
     char	*addr;
@@ -207,7 +207,7 @@ int2f11_rdwr(regcontext_t *REGS)
 ** Get free space (like 21:36)
 */
 static int
-int2f11_free(regcontext_t *REGS)
+int2f11_free(regcontext_t *REGS __unused)
 {
     fsstat_t	fs;
     int		error;
@@ -228,7 +228,7 @@ int2f11_free(regcontext_t *REGS)
 ** get size and mode
 */
 static int
-int2f11_stat(regcontext_t *REGS)
+int2f11_stat(regcontext_t *REGS __unused)
 {
     char	fname[PATH_MAX];
     struct stat	sb;
@@ -421,7 +421,7 @@ int2f11_open(regcontext_t *REGS)
 ** find first
 */
 static int
-int2f11_findfirst(regcontext_t *REGS)
+int2f11_findfirst(regcontext_t *REGS __unused)
 {
     return(find_first(sda->filename1,sda->attrmask,
 		      (dosdir_t *)sda->foundentry,
@@ -434,7 +434,7 @@ int2f11_findfirst(regcontext_t *REGS)
 ** find next
 */
 static int
-int2f11_findnext(regcontext_t *REGS)
+int2f11_findnext(regcontext_t *REGS __unused)
 {
     return(find_next((dosdir_t *)sda->foundentry,
 		     (find_block_t *)sda->findfirst));
@@ -477,7 +477,8 @@ static int
 int2f11_fnqual(regcontext_t *REGS)
 {
     char	*fname;
-    const char	*tname;
+    char	*tname;
+    static char errmsg[] = "(failed)";
     int		savedrive;
     int		error;
 
@@ -490,7 +491,7 @@ int2f11_fnqual(regcontext_t *REGS)
     
     error = dos_makepath(fname, tname);
     if (error)
-	tname = "(failed)";
+	tname = errmsg;
 
     diskdrive = savedrive;		/* restore correct drive */
     
@@ -504,7 +505,7 @@ int2f11_fnqual(regcontext_t *REGS)
 ** Null function - we know about it but do nothing
 */
 static int
-int2f11_NULLFUNC(regcontext_t *REGS)
+int2f11_NULLFUNC(regcontext_t *REGS __unused)
 {
     return(0);
 }
@@ -515,7 +516,7 @@ int2f11_NULLFUNC(regcontext_t *REGS)
 ** no function - not handled here (error)
 */
 static int
-int2f11_NOFUNC(regcontext_t *REGS)
+int2f11_NOFUNC(regcontext_t *REGS __unused)
 {
     return(-1);
 }
