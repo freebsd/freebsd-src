@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.25 1996/02/09 00:24:08 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.26 1996/02/16 12:18:30 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -181,6 +181,12 @@ for this domain.
 <item>
 <htmlurl url="ftp://orgchem.weizmann.ac.il/pub/FreeBSD"
 	name="ftp://orgchem.weizmann.ac.il/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:serg@klara.weizmann.ac.il"
+	name="serg@klara.weizmann.ac.il">.
+
+<item>
+<htmlurl url="ftp://xray4.weizmann.ac.il/pub/FreeBSD"
+	name="ftp://xray4.weizmann.ac.il/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:serg@klara.weizmann.ac.il"
 	name="serg@klara.weizmann.ac.il">.
 
