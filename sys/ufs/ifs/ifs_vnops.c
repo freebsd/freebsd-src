@@ -77,7 +77,6 @@
 /* Declare our trampling into the FFS code */
 extern int	ffs_fsync (struct vop_fsync_args *);
 static int	ffs_getpages(struct vop_getpages_args *);
-static int	ffs_putpages(struct vop_putpages_args *);
 static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
 
@@ -98,7 +97,6 @@ static struct vnodeopv_entry_desc ifs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
-	{ &vop_putpages_desc,		(vop_t *) ffs_putpages },
 	{ &vop_read_desc,		(vop_t *) ffs_read },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },

@@ -99,8 +99,6 @@ static int	union_rmdir __P((struct vop_rmdir_args *ap));
 static int	union_poll __P((struct vop_poll_args *ap));
 static int	union_setattr __P((struct vop_setattr_args *ap));
 static int	union_strategy __P((struct vop_strategy_args *ap));
-static int	union_getpages __P((struct vop_getpages_args *ap));
-static int	union_putpages __P((struct vop_putpages_args *ap));
 static int	union_symlink __P((struct vop_symlink_args *ap));
 static int	union_unlock __P((struct vop_unlock_args *ap));
 static int	union_whiteout __P((struct vop_whiteout_args *ap));
@@ -1014,34 +1012,6 @@ union_setattr(ap)
 	return (error);
 }
 
-/*
- *	union_getpages:
- */
-
-static int
-union_getpages(struct vop_getpages_args *ap)
-{
-	int r;
-
-	r = vnode_pager_generic_getpages(ap->a_vp, ap->a_m, 
-		ap->a_count, ap->a_reqpage);
-	return(r);
-}
-
-/*
- *	union_putpages:
- */
-
-static int
-union_putpages(struct vop_putpages_args *ap)
-{
-	int r;
-
-	r = vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
-	return(r);
-}
-
 static int
 union_read(ap)
 	struct vop_read_args /* {
@@ -1919,8 +1889,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) union_close },
 	{ &vop_create_desc,		(vop_t *) union_create },
 	{ &vop_fsync_desc,		(vop_t *) union_fsync },
-	{ &vop_getpages_desc,		(vop_t *) union_getpages },
-	{ &vop_putpages_desc,		(vop_t *) union_putpages },
 	{ &vop_getattr_desc,		(vop_t *) union_getattr },
 	{ &vop_inactive_desc,		(vop_t *) union_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },

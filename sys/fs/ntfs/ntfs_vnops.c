@@ -93,8 +93,6 @@ static int	ntfs_readdir __P((struct vop_readdir_args *ap));
 static int	ntfs_lookup __P((struct vop_lookup_args *ap));
 static int	ntfs_bmap __P((struct vop_bmap_args *ap));
 #if defined(__FreeBSD__)
-static int	ntfs_getpages __P((struct vop_getpages_args *ap));
-static int	ntfs_putpages __P((struct vop_putpages_args *));
 static int	ntfs_fsync __P((struct vop_fsync_args *ap));
 #else
 static int	ntfs_bypass __P((struct vop_generic_args *ap));
@@ -102,24 +100,6 @@ static int	ntfs_bypass __P((struct vop_generic_args *ap));
 static int	ntfs_pathconf __P((void *));
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
-
-#if defined(__FreeBSD__)
-int
-ntfs_getpages(ap)
-	struct vop_getpages_args *ap;
-{
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage);
-}
-
-int
-ntfs_putpages(ap)
-	struct vop_putpages_args *ap;
-{
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
-}
-#endif
 
 #if defined(__NetBSD__)
 /*
@@ -869,8 +849,6 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, (vop_t *)ntfs_readdir },
 	{ &vop_fsync_desc, (vop_t *)ntfs_fsync },
 
-	{ &vop_getpages_desc, (vop_t *) ntfs_getpages },
-	{ &vop_putpages_desc, (vop_t *) ntfs_putpages },
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
 	{ &vop_read_desc, (vop_t *)ntfs_read },
 	{ &vop_write_desc, (vop_t *)ntfs_write },

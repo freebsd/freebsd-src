@@ -409,8 +409,7 @@ smbfs_getpages(ap)
 	} */ *ap;
 {
 #ifdef SMBFS_RWGENERIC
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage);
+	return vop_stdgetpages(ap);
 #else
 	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
@@ -547,8 +546,7 @@ smbfs_putpages(ap)
 	p = curproc;			/* XXX */
 	cred = p->p_ucred;		/* XXX */
 	VOP_OPEN(vp, FWRITE, cred, p);
-	error = vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
+	error = vop_stdputpages(ap);
 	VOP_CLOSE(vp, FWRITE, cred, p);
 	return error;
 #else

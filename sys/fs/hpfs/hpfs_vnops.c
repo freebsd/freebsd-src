@@ -88,8 +88,6 @@ static int	hpfs_create __P((struct vop_create_args *));
 static int	hpfs_remove __P((struct vop_remove_args *));
 static int	hpfs_bmap __P((struct vop_bmap_args *ap));
 #if defined(__FreeBSD__)
-static int	hpfs_getpages __P((struct vop_getpages_args *ap));
-static int	hpfs_putpages __P((struct vop_putpages_args *));
 static int	hpfs_fsync __P((struct vop_fsync_args *ap));
 #else
 static int	hpfs_abortop __P((struct vop_abortop_args *));
@@ -97,21 +95,6 @@ static int	hpfs_abortop __P((struct vop_abortop_args *));
 static int	hpfs_pathconf __P((struct vop_pathconf_args *ap));
 
 #if defined(__FreeBSD__)
-int
-hpfs_getpages(ap)
-	struct vop_getpages_args *ap;
-{
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_reqpage);
-}
-
-int
-hpfs_putpages(ap)
-	struct vop_putpages_args *ap;
-{
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-		ap->a_sync, ap->a_rtvals);
-}
 
 static int
 hpfs_fsync(ap)
@@ -1356,8 +1339,8 @@ struct vnodeopv_entry_desc hpfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, (vop_t *)hpfs_readdir },
 	{ &vop_fsync_desc, (vop_t *)hpfs_fsync },
 	{ &vop_bmap_desc, (vop_t *)hpfs_bmap },
-	{ &vop_getpages_desc, (vop_t *) hpfs_getpages },
-	{ &vop_putpages_desc, (vop_t *) hpfs_putpages },
+	{ &vop_getpages_desc, (vop_t *) vop_stdgetpages },
+	{ &vop_putpages_desc, (vop_t *) vop_stdputpages },
 	{ &vop_strategy_desc, (vop_t *)hpfs_strategy },
 	{ &vop_read_desc, (vop_t *)hpfs_read },
 	{ &vop_write_desc, (vop_t *)hpfs_write },
