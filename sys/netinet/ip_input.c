@@ -526,18 +526,12 @@ pass:
 			 * The packet is returned (relatively) intact; if
 			 * ip_mforward() returns a non-zero value, the packet
 			 * must be discarded, else it may be accepted below.
-			 *
-			 * (The IP ident field is put in the same byte order
-			 * as expected when ip_mforward() is called from
-			 * ip_output().)
 			 */
-			ip->ip_id = htons(ip->ip_id);
 			if (ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
 				ipstat.ips_cantforward++;
 				m_freem(m);
 				return;
 			}
-			ip->ip_id = ntohs(ip->ip_id);
 
 			/*
 			 * The process-level routing demon needs to receive
@@ -1290,7 +1284,6 @@ nosourcerouting:
 	}
 	return (0);
 bad:
-	ip->ip_len -= IP_VHL_HL(ip->ip_vhl) << 2;   /* XXX icmp_error adds in hdr length */
 	icmp_error(m, type, code, 0, 0);
 	ipstat.ips_badoptions++;
 	return (1);
@@ -1496,7 +1489,6 @@ ip_forward(m, srcrt)
 		m_freem(m);
 		return;
 	}
-	HTONS(ip->ip_id);
 #ifdef IPSTEALTH
 	if (!ipstealth) {
 #endif
@@ -1505,7 +1497,6 @@ ip_forward(m, srcrt)
 			    dest, 0);
 			return;
 		}
-		ip->ip_ttl -= IPTTLDEC;
 #ifdef IPSTEALTH
 	}
 #endif
@@ -1534,6 +1525,16 @@ ip_forward(m, srcrt)
 	 * we need to generate an ICMP message to the src.
 	 */
 	mcopy = m_copy(m, 0, imin((int)ip->ip_len, 64));
+	if (mcopy && (mcopy->m_flags & M_EXT))
+		m_copydata(mcopy, 0, sizeof(struct ip), mtod(mcopy, caddr_t));
+
+#ifdef IPSTEALTH
+	if (!ipstealth) {
+#endif
+		ip->ip_ttl -= IPTTLDEC;
+#ifdef IPSTEALTH
+	}
+#endif
 
 	/*
 	 * If forwarding packet using same interface that it came in on,
@@ -1672,6 +1673,8 @@ ip_forward(m, srcrt)
 		m_freem(mcopy);
 		return;
 	}
+	if (mcopy->m_flags & M_EXT)
+		m_copyback(mcopy, 0, sizeof(struct ip), mtod(mcopy, caddr_t));
 	icmp_error(mcopy, type, code, dest, destifp);
 }
 

@@ -353,11 +353,12 @@ udp_input(m, off, proto)
 			udpstat.udps_noportbcast++;
 			goto bad;
 		}
-		*ip = save_ip;
 		if (badport_bandlim(0) < 0)
 			goto bad;
 		if (blackhole)
 			goto bad;
+		*ip = save_ip;
+		ip->ip_len += iphlen;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}

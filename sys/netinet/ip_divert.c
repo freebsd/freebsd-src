@@ -293,6 +293,7 @@ div_output(so, m, addr, control)
 
 		/* Convert fields to host order for ip_output() */
 		NTOHS(ip->ip_len);
+		NTOHS(ip->ip_id);
 		NTOHS(ip->ip_off);
 
 		/* Send packet to output processing */
