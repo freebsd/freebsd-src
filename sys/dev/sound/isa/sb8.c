@@ -64,7 +64,7 @@ struct sb_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir;
-	u_int32_t fmt, spd;
+	u_int32_t fmt, spd, blksz;
 };
 
 struct sb_info {
@@ -463,10 +463,10 @@ sb_intr(void *arg)
 {
     	struct sb_info *sb = (struct sb_info *)arg;
 
-    	if (sb->pch.buffer->dl > 0)
+    	if (sndbuf_runsz(sb->pch.buffer) > 0)
 		chn_intr(sb->pch.channel);
 
-    	if (sb->rch.buffer->dl > 0)
+    	if (sndbuf_runsz(sb->rch.buffer) > 0)
 		chn_intr(sb->rch.channel);
 
 	sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
@@ -517,7 +517,7 @@ sb_start(struct sb_chinfo *ch)
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
     	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
-	int l = ch->buffer->dl;
+	int l = ch->blksz;
 	u_char i;
 
 	l--;
@@ -566,10 +566,9 @@ sbchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->channel = c;
 	ch->dir = dir;
 	ch->buffer = b;
-	ch->buffer->bufsize = SB_BUFFSIZE;
-	ch->buffer->chan = rman_get_start(sb->drq);
-	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, SB_BUFFSIZE) == -1)
 		return NULL;
+	sndbuf_isadmasetup(ch->buffer, sb->drq);
 	return ch;
 }
 
@@ -594,7 +593,10 @@ sbchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 sbchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct sb_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -605,7 +607,7 @@ sbchan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	buf_isadma(ch->buffer, go);
+	sndbuf_isadma(ch->buffer, go);
 	if (go == PCMTRIG_START)
 		sb_start(ch);
 	else
@@ -618,7 +620,7 @@ sbchan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *

@@ -240,8 +240,10 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGSIZE:	/* get the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) p->play_size = wrch->buffer2nd.blksz;
-	    		if (rdch) p->rec_size = rdch->buffer2nd.blksz;
+	    		if (wrch)
+				p->play_size = wrch->buffer2nd.blksz;
+	    		if (rdch)
+				p->rec_size = rdch->buffer2nd.blksz;
 		}
 		break;
 
@@ -287,14 +289,16 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && wrch)
 				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
-	    		p->inputs = d->mixer->devs;
+	    		p->inputs = mix_getdevs(d->mixer);
 	    		p->left = p->right = 100;
 		}
 		break;
 
     	case AIOSTOP:
-		if (*arg_i == AIOSYNC_PLAY && wrch) *arg_i = chn_abort(wrch);
-		else if (*arg_i == AIOSYNC_CAPTURE && rdch) *arg_i = chn_abort(rdch);
+		if (*arg_i == AIOSYNC_PLAY && wrch)
+			*arg_i = chn_abort(wrch);
+		else if (*arg_i == AIOSYNC_CAPTURE && rdch)
+			*arg_i = chn_abort(rdch);
 		else {
 	   	 	printf("AIOSTOP: bad channel 0x%x\n", *arg_i);
 	    		*arg_i = 0;

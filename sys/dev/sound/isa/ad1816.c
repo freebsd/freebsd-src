@@ -39,7 +39,7 @@ struct ad1816_chinfo {
 	struct ad1816_info *parent;
 	pcm_channel *channel;
 	snd_dbuf *buffer;
-	int dir;
+	int dir, blksz;
 };
 
 struct ad1816_info {
@@ -131,12 +131,12 @@ ad1816_intr(void *arg)
 		c &= AD1816_INTRCI | AD1816_INTRPI;
     	}
     	/* check for capture interupt */
-    	if (ad1816->rch.buffer->dl && (c & AD1816_INTRCI)) {
+    	if (sndbuf_runsz(ad1816->rch.buffer) && (c & AD1816_INTRCI)) {
 		chn_intr(ad1816->rch.channel);
 		served |= AD1816_INTRCI;		/* cp served */
     	}
     	/* check for playback interupt */
-    	if (ad1816->pch.buffer->dl && (c & AD1816_INTRPI)) {
+    	if (sndbuf_runsz(ad1816->pch.buffer) && (c & AD1816_INTRPI)) {
 		chn_intr(ad1816->pch.channel);
 		served |= AD1816_INTRPI;		/* pb served */
     	}
@@ -311,8 +311,7 @@ ad1816chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = ad1816;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = DSP_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, ad1816->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, DSP_BUFFSIZE) == -1) return NULL;
 	return ch;
 }
 
@@ -322,8 +321,7 @@ ad1816chan_setdir(kobj_t obj, void *data, int dir)
 	struct ad1816_chinfo *ch = data;
   	struct ad1816_info *ad1816 = ch->parent;
 
-	ch->buffer->chan = rman_get_start((dir == PCMDIR_PLAY)?
-		ad1816->drq1 : ad1816->drq2);
+	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? ad1816->drq1 : ad1816->drq2);
 	ch->dir = dir;
 	return 0;
 }
@@ -384,7 +382,10 @@ ad1816chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 ad1816chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct ad1816_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -397,14 +398,14 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	buf_isadma(ch->buffer, go);
+	sndbuf_isadma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;
     	switch (go) {
     	case PCMTRIG_START:
 		/* start only if not already running */
 		if (!(io_rd(ad1816, reg) & AD1816_ENABLE)) {
-	    		int cnt = ((ch->buffer->dl) >> 2) - 1;
+	    		int cnt = ((ch->blksz) >> 2) - 1;
 	    		ad1816_write(ad1816, wr? 8 : 10, cnt); /* count */
 	    		ad1816_write(ad1816, wr? 9 : 11, 0); /* reset cur cnt */
 	    		ad1816_write(ad1816, 1, ad1816_read(ad1816, 1) |
@@ -441,7 +442,7 @@ static int
 ad1816chan_getptr(kobj_t obj, void *data)
 {
 	struct ad1816_chinfo *ch = data;
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *
