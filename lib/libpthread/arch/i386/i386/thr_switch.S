@@ -82,13 +82,12 @@ ENTRY(_thread_switch)
 	pushl	68(%edx)		/* flags on stack */
 	pushl	36(%edx)		/* %ebx on stack */
 	pushl	44(%edx)		/* %ecx on stack */
-	pushl	40(%edx)		/* %edx on stack */
+	movl	40(%edx), %edx		/* %edx */
 	/* 
-	 * all registers are now moved out of mailbox 
-	 * it's now safe to set current thread pointer
+	 * all registers are now moved out of mailbox, 
+	 * it's safe to set current thread pointer
 	 */
 	movl	%ebx,(%ecx)
-	popl	%edx			/* %edx off stack */
 	popl	%ecx			/* %ecx off stack */
 	popl	%ebx			/* %ebx off stack */
 	popf				/* flags off stack */
