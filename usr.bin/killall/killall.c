@@ -320,7 +320,8 @@ main(int ac, char **av)
 		}
 		if (matched == 0)
 			continue;
-		matched = 0;
+		if (ac > 0)
+			matched = 0;
 		for (j = 0; j < ac; j++) {
 			if (mflag) {
 				if (regcomp(&rgx, av[j],
