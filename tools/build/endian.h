@@ -2,11 +2,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-
-#if __FreeBSD_version >= 500034
-#include_next <sys/endian.h>
-#else
+#include <sys/types.h>
 #include <machine/endian.h>
 
 #define	bswap16(x) (uint16_t) \
@@ -54,4 +50,3 @@
 #define	le32toh(x)	bswap32((uint32_t)(x))
 #define	le64toh(x)	bswap64((uint64_t)(x))
 #endif /* _BYTE_ORDER == _LITTLE_ENDIAN */
-#endif
