@@ -164,7 +164,7 @@ with offset 16 and size 9984.
 .Pp
 .Bd -unfilled -offset
 # disklabel ccd0 > /tmp/disklabel.ccd0
-# disklabel -Rr ccd0 /tmp/disklabel.ccd0            
+# disklabel -Rr ccd0 /tmp/disklabel.ccd0
 # disklabel -e ccd0
 .Ed
 .Pp
@@ -206,8 +206,11 @@ default ccd configuration file
 The initial disklabel returned by
 .Xr ccd 4
 specifies only 3 partitions.
-One needs to change the number of paritions to "8" using `disklabel -e'
-to get the usual BSD expectations.
+One needs to change the number of paritions to 8 using
+.Dq Nm disklabel Fl e
+to get the usual
+.Bx
+expectations.
 .Sh HISTORY
 The
 .Nm

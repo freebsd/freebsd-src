@@ -55,7 +55,7 @@ bytes is resident.
 .\"The beginning address,
 .\".Fa addr ,
 .\"is first rounded down to a multiple of the page size (see
-.\".Xr getpagesize 3 Ns ).
+.\".Xr getpagesize 3 ) .
 .\"The end address,
 .\".Fa addr No + Fa len ,
 .\"is rounded up to a multiple of the page size.
@@ -64,7 +64,7 @@ The status is returned in the
 array, one character per page.
 Each character is either 0 if the page is not resident, or a combination of
 the following flags (defined in
-.Sy <sys/mman.h> Ns No ) Ns :
+.Aq Pa sys/mman.h ) :
 .Bl -tag -width ".Dv MINCORE_REFERENCED_OTHER"
 .It Dv MINCORE_INCORE
 Page is in core (resident).
@@ -80,17 +80,17 @@ Page has been modified.
 .Pp
 The information returned by
 .Fn mincore
-may be out of date by the time the function returns.
+may be out of date by the time the system call returns.
 The only way to ensure that a page is resident is to lock it into memory
 with the
 .Xr mlock 2
-function.
+system call.
 .Sh RETURN VALUES
 .Rv -std mincore
 .Sh ERRORS
 The
 .Fn mincore
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The virtual address range specified by the
