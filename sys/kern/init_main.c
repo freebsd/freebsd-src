@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.64 1997/06/16 00:29:30 dyson Exp $
+ * $Id: init_main.c,v 1.65 1997/06/22 16:04:09 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -103,6 +103,10 @@ int	boothowto;
 struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 	CTLFLAG_RW, &boottime, timeval, "");
+
+static int shutdowntimeout = 120;
+SYSCTL_INT(_kern, OID_AUTO, shutdown_timeout,
+	CTLFLAG_RW, &shutdowntimeout, 0, "");
 
 #ifndef SMP	/* per-cpu on smp */
 struct	timeval runtime;
