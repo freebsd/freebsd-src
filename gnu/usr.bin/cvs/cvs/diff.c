@@ -522,7 +522,7 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
     {
 	/* special handling for TAG_HEAD */
 	if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
-	    use_rev1 = xstrdup (vers->srcfile->head);
+	    use_rev1 = xstrdup (vers->vn_rcs);
 	else
 	{
 	    xvers = Version_TS (repository, (char *) NULL, diff_rev1,
@@ -547,7 +547,7 @@ diff_file_nodiff (file, repository, entries, srcfiles, vers)
     {
 	/* special handling for TAG_HEAD */
 	if (diff_rev2 && strcmp (diff_rev2, TAG_HEAD) == 0)
-	    use_rev2 = xstrdup (vers->srcfile->head);
+	    use_rev2 = xstrdup (vers->vn_rcs);
 	else
 	{
 	    xvers = Version_TS (repository, (char *) NULL, diff_rev2,
