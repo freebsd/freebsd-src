@@ -538,7 +538,7 @@ again:
 		FILEDESC_UNLOCK(p1->p_fd);
 	} else
 		fd = fdshare(p1);
-	PGRPSESS_XLOCK();
+	sx_xlock(&proctree_lock);
 	PGRP_LOCK(p1->p_pgrp);
 	PROC_LOCK(p2);
 	p2->p_fd = fd;
@@ -573,7 +573,7 @@ again:
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 	PGRP_UNLOCK(p1->p_pgrp);
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
 
 	/*
 	 * Attach the new process to its parent.

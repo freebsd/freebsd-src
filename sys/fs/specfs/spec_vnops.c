@@ -587,7 +587,7 @@ spec_close(ap)
 	 * plus the session), release the reference from the session.
 	 */
 	oldvp = NULL;
-	PGRPSESS_XLOCK();
+	sx_xlock(&proctree_lock);
 	if (vcount(vp) == 2 && td && (vp->v_flag & VXLOCK) == 0 &&
 	    vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
@@ -595,7 +595,7 @@ spec_close(ap)
 		SESS_UNLOCK(td->td_proc->p_session);
 		oldvp = vp;
 	}
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
 	if (oldvp != NULL)
 		vrele(oldvp);
 	/*
