@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.64 1996/04/09 09:00:41 jkh Exp $
+#	$Id: GENERIC,v 1.65 1996/04/10 23:03:36 jkh Exp $
 #
 
 machine		"i386"
@@ -101,6 +101,8 @@ device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
 device		lpt2	at isa? port? tty
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
+
+device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
