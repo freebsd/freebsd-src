@@ -23,17 +23,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppi.h,v 1.1 1997/08/14 13:57:43 msmith Exp $
  *
  */
 #ifndef __PPI_H
 #define __PPI_H
 
-struct ppi_data {
+#ifndef KERNEL
+# include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
-	int ppi_unit;
+#define	PPIGDATA	_IOR('P', 10, u_int8_t)
+#define	PPIGSTATUS	_IOR('P', 11, u_int8_t)
+#define	PPIGCTRL	_IOR('P', 12, u_int8_t)
+#define	PPIGEPP		_IOR('P', 13, u_int8_t)
+#define	PPIGECR		_IOR('P', 14, u_int8_t)
+#define	PPIGFIFO	_IOR('P', 15, u_int8_t)
 
-	struct ppb_device ppi_dev;
-};
+#define	PPISDATA	_IOW('P', 16, u_int8_t)
+#define	PPISSTATUS	_IOW('P', 17, u_int8_t)
+#define	PPISCTRL	_IOW('P', 18, u_int8_t)
+#define	PPISEPP		_IOW('P', 19, u_int8_t)
+#define	PPISECR		_IOW('P', 20, u_int8_t)
+#define	PPISFIFO	_IOW('P', 21, u_int8_t)
 
 #endif
