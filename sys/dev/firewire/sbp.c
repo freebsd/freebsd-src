@@ -910,8 +910,8 @@ END_DEBUG
 	xfer->act.hand = sbp_busy_timeout_callback;
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.wreqq.dest_hi = htons(0xffff);
-	fp->mode.wreqq.dest_lo = htonl(0xf0000000 | BUS_TIME);
-	fp->mode.wreqq.data = htonl(0xf);
+	fp->mode.wreqq.dest_lo = htonl(0xf0000000 | BUSY_TIMEOUT);
+	fp->mode.wreqq.data = htonl((1 << (13+12)) | 0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
 }
 
@@ -1313,10 +1313,9 @@ END_DEBUG
 			&& sbp_status->dead == 0
 			&& sbp_status->status == 0);
 
-SBP_DEBUG(0)
 	if (!status_valid || debug > 1){
 		int status;
-
+SBP_DEBUG(0)
 		sbp_show_sdev_info(sdev, 2);
 		printf("ORB status src:%x resp:%x dead:%x"
 #if __FreeBSD_version >= 500000
@@ -1327,25 +1326,33 @@ SBP_DEBUG(0)
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
 			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
+END_DEBUG
 		sbp_show_sdev_info(sdev, 2);
 		status = sbp_status->status;
 		switch(sbp_status->resp) {
 		case 0:
 			if (status > MAX_ORB_STATUS0)
 				printf("%s\n", orb_status0[MAX_ORB_STATUS0]);
-			else
+			else if (status > 0)
 				printf("%s\n", orb_status0[status]);
+			else
+				printf("\n");
 			break;
 		case 1:
 			printf("Object: %s, Serial Bus Error: %s\n",
 				orb_status1_object[(status>>6) & 3],
 				orb_status1_serial_bus_error[status & 0xf]);
 			break;
+		case 2:
+			printf("Illegal request\n");
+			break;
+		case 3:
+			printf("Vendor dependent\n");
+			break;
 		default:
-			printf("unknown respose code\n");
+			printf("unknown respose code %d\n", sbp_status->resp);
 		}
 	}
-END_DEBUG
 	ocb = sbp_dequeue_ocb(sdev, ntohl(sbp_status->orb_lo));
 
 	/* we have to reset the fetch agent if it's dead */

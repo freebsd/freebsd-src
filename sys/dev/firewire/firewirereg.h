@@ -338,7 +338,8 @@ extern devclass_t firewire_devclass;
 #define		SPLIT_TIMEOUT_HI	0x0018
 #define		SPLIT_TIMEOUT_LO	0x001c
 #define		CYCLE_TIME	0x0200
-#define		BUS_TIME	0x0210
+#define		BUS_TIME	0x0204
+#define		BUSY_TIMEOUT	0x0210
 #define		BUS_MGR_ID	0x021c
 #define		BANDWIDTH_AV	0x0220
 #define		CHANNELS_AV_HI	0x0224
