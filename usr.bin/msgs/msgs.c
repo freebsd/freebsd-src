@@ -516,7 +516,8 @@ main(int argc, char *argv[])
 
 		lct = linecnt(newmsg);
 		if (lct)
-			printf("(%d%slines) ", lct, seensubj? " " : " more ");
+			printf("(%d%sline%s) ", lct, seensubj? " " : " more ",
+			    (lct == 1) ? "" : "s");
 
 		if (hdrs) {
 			printf("\n-----\n");
