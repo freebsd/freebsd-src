@@ -314,6 +314,11 @@
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
 	data that must be fragmented.  &merged;</para>
 
+      <para>CARP (Common Address Redundancy Protocol), which comes
+	from OpenBSD and allows multiple hosts to share an IP address
+	and providing high availability and load balancing,
+	has been implemented.</para>
+
       <para>&man.ipfw.8; now supports classification and tagging
 	of the &man.altq.4;, packets via a divert socket,
 	and TCP data length.</para>
