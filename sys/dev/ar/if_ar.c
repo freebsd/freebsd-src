@@ -125,7 +125,7 @@ struct ar_softc {
 	int	running;	/* something is attached so we are running */
 	int	dcd;		/* do we have dcd? */
 	/* ---netgraph bits --- */
-	char		nodename[NG_NODELEN + 1]; /* store our node name */
+	char		nodename[NG_NODESIZ]; /* store our node name */
 	int		datahooks;	/* number of data hooks attached */
 	node_p		node;		/* netgraph node */
 	hook_p		hook;		/* data hook */
