@@ -46,7 +46,7 @@ struct pcm_feeder {
 	struct pcm_feederdesc *desc;
 	void *data;
 	struct feeder_class *class;
-	struct pcm_feeder *source;
+	struct pcm_feeder *source, *parent;
 };
 
 void feeder_register(void *p);
