@@ -10,31 +10,22 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/signalvar.h>
-#include <sys/smp.h>
 #include <sys/resourcevar.h>
-#include <sys/vmmeter.h>
-#include <sys/sysctl.h>
+#include <sys/smp.h>
 #include <sys/unistd.h>
-#include <sys/ipl.h>
-#include <sys/kthread.h>
-#include <sys/queue.h>
-#include <sys/eventhandler.h>
+#if 0
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#endif
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
-
-#include <machine/cpu.h>
-#include <machine/md_var.h>
-
-#include <machine/globaldata.h>
-#include <machine/globals.h>
 
 static void idle_setup(void *dummy);
 SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)

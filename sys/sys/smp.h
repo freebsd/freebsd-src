@@ -13,15 +13,11 @@
 #define _SYS_SMP_H_
 
 #ifdef _KERNEL
-#include <machine/globaldata.h>
 #include <machine/smp.h>
 
 #ifndef LOCORE
 
 #ifdef SMP
-SLIST_HEAD(cpuhead, globaldata);
-
-extern struct cpuhead cpuhead;
 extern void (*cpustop_restartfunc)(void);
 extern int mp_ncpus;
 extern int smp_active;
@@ -51,8 +47,6 @@ void	cpu_mp_start(void);
 
 void	forward_signal(struct proc *);
 void	forward_roundrobin(void);
-void	globaldata_register(struct globaldata *gd);
-struct	globaldata *globaldata_find(u_int cpuid);
 int	restart_cpus(u_int);
 int	stop_cpus(u_int);
 void	smp_rendezvous_action(void);
