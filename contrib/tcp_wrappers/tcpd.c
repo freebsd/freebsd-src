@@ -8,6 +8,8 @@
   * are logged through syslog(3).
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -120,7 +122,12 @@ char  **argv;
 
     /* Report request and invoke the real daemon program. */
 
+#ifdef INET6
+    syslog(allow_severity, "connect from %s (%s)",
+	   eval_client(&request), eval_hostaddr(request.client));
+#else
     syslog(allow_severity, "connect from %s", eval_client(&request));
+#endif
     closelog();
     (void) execv(path, argv);
     syslog(LOG_ERR, "error: cannot execute %s: %m", path);

@@ -12,6 +12,8 @@
   * Diagnostics are reported through syslog(3).
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -65,8 +67,13 @@ static void tli_sink();
 void    tli_host(request)
 struct request_info *request;
 {
+#ifdef INET6
+    static struct sockaddr_storage client;
+    static struct sockaddr_storage server;
+#else
     static struct sockaddr_in client;
     static struct sockaddr_in server;
+#endif
 
     /*
      * If we discover that we are using an IP transport, pretend we never
@@ -75,15 +82,31 @@ struct request_info *request;
      */
 
     tli_endpoints(request);
+#ifdef INET6
     if ((request->config = tli_transport(request->fd)) != 0
-	&& STR_EQ(request->config->nc_protofmly, "inet")) {
+	&& (STR_EQ(request->config->nc_protofmly, "inet") ||
+	    STR_EQ(request->config->nc_protofmly, "inet6"))) {
+#else
+    if ((request->config = tli_transport(request->fd)) != 0
+        && STR_EQ(request->config->nc_protofmly, "inet")) {
+#endif
 	if (request->client->unit != 0) {
+#ifdef INET6
+	    client = *(struct sockaddr_storage *) request->client->unit->addr.buf;
+	    request->client->sin = (struct sockaddr *) &client;
+#else
 	    client = *(struct sockaddr_in *) request->client->unit->addr.buf;
 	    request->client->sin = &client;
+#endif
 	}
 	if (request->server->unit != 0) {
-	    server = *(struct sockaddr_in *) request->server->unit->addr.buf;
-	    request->server->sin = &server;
+#ifdef INET6
+            server = *(struct sockaddr_storage *) request->server->unit->addr.buf;
+            request->server->sin = (struct sockaddr *) &server;
+#else
+            server = *(struct sockaddr_in *) request->server->unit->addr.buf;
+            request->server->sin = &server;
+#endif
 	}
 	tli_cleanup(request);
 	sock_methods(request);
@@ -187,7 +210,15 @@ int     fd;
     }
     while (config = getnetconfig(handlep)) {
 	if (stat(config->nc_device, &from_config) == 0) {
+#ifdef NO_CLONE_DEVICE
+	/*
+	 * If the network devices are not cloned (as is the case for
+	 * Solaris 8 Beta), we must compare the major device numbers.
+	 */
+	    if (major(from_config.st_rdev) == major(from_client.st_rdev))
+#else
 	    if (minor(from_config.st_rdev) == major(from_client.st_rdev))
+#endif
 		break;
 	}
     }

@@ -5,6 +5,8 @@
   * the program is terminated.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -25,7 +27,12 @@ static char sccsid[] = "@(#) refuse.c 1.5 94/12/28 17:42:39";
 void    refuse(request)
 struct request_info *request;
 {
+#ifdef INET6
+    syslog(deny_severity, "refused connect from %s (%s)",
+	   eval_client(request), eval_hostaddr(request->client));
+#else
     syslog(deny_severity, "refused connect from %s", eval_client(request));
+#endif
     clean_exit(request);
     /* NOTREACHED */
 }

@@ -5,6 +5,8 @@
   * systems.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -166,11 +168,22 @@ struct sockaddr *sa;
 int    *len;
 {
     int     ret;
+#ifdef INET6
+    struct sockaddr *sin = sa;
+#else
     struct sockaddr_in *sin = (struct sockaddr_in *) sa;
+#endif
 
     if ((ret = getpeername(sock, sa, len)) >= 0
+#ifdef INET6
+	&& ((sin->su_si.si_family == AF_INET6
+	     && IN6_IS_ADDR_UNSPECIFIED(&sin->su_sin6.sin6_addr))
+	    || (sin->su_si.si_family == AF_INET
+		&& sin->su_sin.sin_addr.s_addr == 0))) {
+#else
 	&& sa->sa_family == AF_INET
 	&& sin->sin_addr.s_addr == 0) {
+#endif
 	errno = ENOTCONN;
 	return (-1);
     } else {

@@ -7,6 +7,8 @@
   * Diagnostics are reported through syslog(3).
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -68,19 +70,49 @@ int     sig;
 /* rfc931 - return remote user name, given socket structures */
 
 void    rfc931(rmt_sin, our_sin, dest)
+#ifdef INET6
+struct sockaddr *rmt_sin;
+struct sockaddr *our_sin;
+#else
 struct sockaddr_in *rmt_sin;
 struct sockaddr_in *our_sin;
+#endif
 char   *dest;
 {
     unsigned rmt_port;
     unsigned our_port;
+#ifdef INET6
+    struct sockaddr_storage rmt_query_sin;
+    struct sockaddr_storage our_query_sin;
+    int alen;
+#else
     struct sockaddr_in rmt_query_sin;
     struct sockaddr_in our_query_sin;
+#endif
     char    user[256];			/* XXX */
     char    buffer[512];		/* XXX */
     char   *cp;
     char   *result = unknown;
     FILE   *fp;
+
+#ifdef INET6
+    /* address family must be the same */
+    if (rmt_sin->sa_family != our_sin->sa_family) {
+	STRN_CPY(dest, result, STRING_LENGTH);
+	return;
+    }
+    switch (our_sin->sa_family) {
+    case AF_INET:
+	alen = sizeof(struct sockaddr_in);
+	break;
+    case AF_INET6:
+	alen = sizeof(struct sockaddr_in6);
+	break;
+    default:
+	STRN_CPY(dest, result, STRING_LENGTH);
+	return;
+    }
+#endif
 
     /*
      * Use one unbuffered stdio stream for writing to and for reading from
@@ -92,7 +124,11 @@ char   *dest;
      * sockets.
      */
 
+#ifdef INET6
+    if ((fp = fsocket(our_sin->sa_family, SOCK_STREAM, 0)) != 0) {
+#else
     if ((fp = fsocket(AF_INET, SOCK_STREAM, 0)) != 0) {
+#endif
 	setbuf(fp, (char *) 0);
 
 	/*
@@ -112,6 +148,25 @@ char   *dest;
 	     * addresses from the query socket.
 	     */
 
+#ifdef INET6
+	    memcpy(&our_query_sin, our_sin, alen);
+	    memcpy(&rmt_query_sin, rmt_sin, alen);
+	    switch (our_sin->sa_family) {
+	    case AF_INET:
+		((struct sockaddr_in *)&our_query_sin)->sin_port = htons(ANY_PORT);
+		((struct sockaddr_in *)&rmt_query_sin)->sin_port = htons(RFC931_PORT);
+		break;
+	    case AF_INET6:
+		((struct sockaddr_in6 *)&our_query_sin)->sin6_port = htons(ANY_PORT);
+		((struct sockaddr_in6 *)&rmt_query_sin)->sin6_port = htons(RFC931_PORT);
+		break;
+	    }
+
+	    if (bind(fileno(fp), (struct sockaddr *) & our_query_sin,
+		     alen) >= 0 &&
+		connect(fileno(fp), (struct sockaddr *) & rmt_query_sin,
+			alen) >= 0) {
+#else
 	    our_query_sin = *our_sin;
 	    our_query_sin.sin_port = htons(ANY_PORT);
 	    rmt_query_sin = *rmt_sin;
@@ -121,6 +176,7 @@ char   *dest;
 		     sizeof(our_query_sin)) >= 0 &&
 		connect(fileno(fp), (struct sockaddr *) & rmt_query_sin,
 			sizeof(rmt_query_sin)) >= 0) {
+#endif
 
 		/*
 		 * Send query to server. Neglect the risk that a 13-byte
@@ -129,8 +185,13 @@ char   *dest;
 		 */
 
 		fprintf(fp, "%u,%u\r\n",
+#ifdef INET6
+			ntohs(((struct sockaddr_in *)rmt_sin)->sin_port),
+			ntohs(((struct sockaddr_in *)our_sin)->sin_port));
+#else
 			ntohs(rmt_sin->sin_port),
 			ntohs(our_sin->sin_port));
+#endif
 		fflush(fp);
 
 		/*
@@ -144,8 +205,13 @@ char   *dest;
 		    && ferror(fp) == 0 && feof(fp) == 0
 		    && sscanf(buffer, "%u , %u : USERID :%*[^:]:%255s",
 			      &rmt_port, &our_port, user) == 3
+#ifdef INET6
+		    && ntohs(((struct sockaddr_in *)rmt_sin)->sin_port) == rmt_port
+		    && ntohs(((struct sockaddr_in *)our_sin)->sin_port) == our_port) {
+#else
 		    && ntohs(rmt_sin->sin_port) == rmt_port
 		    && ntohs(our_sin->sin_port) == our_port) {
+#endif
 
 		    /*
 		     * Strip trailing carriage return. It is part of the
