@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rpc_main.c,v 1.6 1997/08/06 06:47:40 charnier Exp $";
 #endif
 
 /*
@@ -68,7 +68,7 @@ static void clnt_output __P(( char *, char *, int, char * ));
 
 void c_initialize __P(( void ));
 
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 char * rindex();
 #endif
 
@@ -86,6 +86,8 @@ static void s_output __P(( int, char **, char *, char *, int, char *, int, int )
 #define	SVR4_CPP "/usr/ccs/lib/cpp"
 #ifdef __FreeBSD__
 #define	SUNOS_CPP "/usr/libexec/cpp"
+#elif defined(__NetBSD__)
+#define SUNOS_CPP "/usr/bin/cpp"
 #else
 #define	SUNOS_CPP "/usr/lib/cpp"
 #endif
@@ -1358,7 +1360,7 @@ remote procedures\n");
 	exit(1);
 }
 
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 char *
 rindex(sp, c)
 	register char *sp, c;
