@@ -32,25 +32,27 @@ A:active {
     font-style: italic;
 }
 
-.ok {
-    background-color: white;
-    color: #070;
-}
+.ok-0	{ background-color: white; color: #007700; }
+.ok-1	{ background-color: white; color: #117B11; }
+.ok-2	{ background-color: white; color: #227F22; }
+.ok-3	{ background-color: white; color: #338333; }
+.ok-4	{ background-color: white; color: #448744; }
+.ok-5	{ background-color: white; color: #558B55; }
+.ok-6	{ background-color: white; color: #668F66; }
+.ok-7	{ background-color: white; color: #779377; }
+.ok-8	{ background-color: white; color: #889788; }
+.ok-9	{ background-color: white; color: #999B99; }
 
-.ok-stale {
-    background-color: white;
-    color: #797;
-}
-
-.fail {
-    background-color: white;
-    color: #f00;
-}
-
-.fail-stale {
-    background-color: white;
-    color: #f99;
-}
+.fail-0	{ background-color: white; color: #ff0000; }
+.fail-1	{ background-color: white; color: #ff1111; }
+.fail-2	{ background-color: white; color: #ff2222; }
+.fail-3	{ background-color: white; color: #ff3333; }
+.fail-4	{ background-color: white; color: #ff4444; }
+.fail-5	{ background-color: white; color: #ff5555; }
+.fail-6	{ background-color: white; color: #ff6666; }
+.fail-7	{ background-color: white; color: #ff7777; }
+.fail-8	{ background-color: white; color: #ff8888; }
+.fail-9	{ background-color: white; color: #ff9999; }
 
 TD, TH {
     width: 16ex;
