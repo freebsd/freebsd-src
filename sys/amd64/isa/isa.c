@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.31 1994/10/19 21:57:51 bde Exp $
+ *	$Id: isa.c,v 1.32 1994/10/23 21:27:26 wollman Exp $
  */
 
 /*
@@ -476,7 +476,7 @@ config_isadev_c(isdp, mp, reconfig)
 				INTRMASK(*mp, isdp->id_irq);
 			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
 				      isdp->id_ri_flags, isdp->id_intr,
-				      mp ? *mp : 0, isdp->id_unit);
+				      mp, isdp->id_unit);
 			INTREN(isdp->id_irq);
 		}
 	} else {
@@ -929,17 +929,18 @@ isa_irq_pending(dvp)
 }
 
 int
-register_intr(intr, device_id, flags, handler, mask, unit)
+register_intr(intr, device_id, flags, handler, maskptr, unit)
 	int	intr;
 	int	device_id;
 	u_int	flags;
 	inthand2_t *handler;
-	u_int	mask;
+	u_int	*maskptr;
 	int	unit;
 {
 	char	*cp;
 	u_long	ef;
 	int	id;
+	u_int	mask = (maskptr ? *maskptr : 0);
 
 	if ((u_int)intr >= ICU_LEN || intr == 2
 	    || (u_int)device_id >= NR_DEVICES)
