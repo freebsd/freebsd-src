@@ -3,5 +3,6 @@
 
 PROG=	renice
 MAN=	renice.8
+WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -84,7 +84,7 @@ main(argc, argv)
 	int exitcode, minlen;
 	short asdata, oflg, fflg;
 	u_char *bfr;
-	char *file, *p;
+	const char *file, *p;
 
 	(void) setlocale(LC_CTYPE, "");
 

@@ -94,7 +94,7 @@ static int	 getchr __P((void));
 static double	 getdouble __P((void));
 static int	 getint __P((int *));
 static int	 getquad __P((quad_t *));
-static char	*getstr __P((void));
+static const char	*getstr __P((void));
 static char	*mklong __P((char *, int));
 static void	 usage __P((void));
 
@@ -109,7 +109,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	static char *skip1, *skip2;
+	static const char *skip1, *skip2;
 	int ch, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
 
@@ -217,7 +217,7 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		case 's': {
-			char *p;
+			const char *p;
 
 			p = getstr();
 			PF(start, p);
@@ -349,7 +349,7 @@ getchr()
 	return ((int)**gargv++);
 }
 
-static char *
+static const char *
 getstr()
 {
 	if (!*gargv)
@@ -357,7 +357,7 @@ getstr()
 	return (*gargv++);
 }
 
-static char *Number = "+-.0123456789";
+static const char *Number = "+-.0123456789";
 static int
 getint(ip)
 	int *ip;
