@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -173,7 +173,7 @@ acl_from_text(const char *buf_p)
 				goto error_label;
 			}
 
-			error = acl_string_to_perm(permission, &p);
+			error = _posix1e_acl_string_to_perm(permission, &p);
 			if (error == -1) {
 				errno = EINVAL;
 				goto error_label;
@@ -193,7 +193,8 @@ acl_from_text(const char *buf_p)
 
 			case ACL_USER:
 			case ACL_GROUP:
-				error = acl_name_to_id(t, qualifier, &id);
+				error = _posix1e_acl_name_to_id(t, qualifier,
+				    &id);
 				if (error == -1)
 					goto error_label;
 				break;
@@ -203,7 +204,7 @@ acl_from_text(const char *buf_p)
 				goto error_label;
 			}
 
-			error = acl_add_entry(acl, t, id, p);
+			error = _posix1e_acl_add_entry(acl, t, id, p);
 			if (error == -1)
 				goto error_label;
 		}

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 20001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * acl_to_text - return a text string with a text representation of the acl
@@ -52,8 +52,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 {
 	char	*buf, *tmpbuf;
 	char	name_buf[UT_NAMESIZE+1];
-	char	perm_buf[ACL_STRING_PERM_MAXSIZE+1],
-		effective_perm_buf[ACL_STRING_PERM_MAXSIZE+1];
+	char	perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1],
+		effective_perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1];
 	int	i, error, len;
 	uid_t	ae_id;
 	acl_tag_t	ae_tag;
@@ -75,8 +75,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 
 		switch(ae_tag) {
 		case ACL_USER_OBJ:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 			len = asprintf(&tmpbuf, "%suser::%s\n", buf,
@@ -88,20 +88,21 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 			break;
 
 		case ACL_USER:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 
-			error = acl_id_to_name(ae_tag, ae_id, UT_NAMESIZE+1,
-			    name_buf);
+			error = _posix1e_acl_id_to_name(ae_tag, ae_id,
+			    UT_NAMESIZE+1, name_buf);
 			if (error)
 				goto error_label;
 
 			effective_perm = ae_perm & mask_perm;
 			if (effective_perm != ae_perm) {
-				error = acl_perm_to_string(effective_perm,
-				    ACL_STRING_PERM_MAXSIZE+1,
+				error = _posix1e_acl_perm_to_string(
+				    effective_perm,
+				    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1,
 				    effective_perm_buf);
 				if (error)
 					goto error_label;
@@ -120,15 +121,16 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 			break;
 
 		case ACL_GROUP_OBJ:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 
 			effective_perm = ae_perm & mask_perm;
 			if (effective_perm != ae_perm) {
-				error = acl_perm_to_string(effective_perm,
-				    ACL_STRING_PERM_MAXSIZE+1,
+				error = _posix1e_acl_perm_to_string(
+				    effective_perm,
+				    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1,
 				    effective_perm_buf);
 				if (error)
 					goto error_label;
@@ -146,20 +148,21 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 			break;
 
 		case ACL_GROUP:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 
-			error = acl_id_to_name(ae_tag, ae_id, UT_NAMESIZE+1,
-			    name_buf);
+			error = _posix1e_acl_id_to_name(ae_tag, ae_id,
+			    UT_NAMESIZE+1, name_buf);
 			if (error)
 				goto error_label;
 
 			effective_perm = ae_perm & mask_perm;
 			if (effective_perm != ae_perm) {
-				error = acl_perm_to_string(effective_perm,
-				    ACL_STRING_PERM_MAXSIZE+1,
+				error = _posix1e_acl_perm_to_string(
+				    effective_perm,
+				    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1,
 				    effective_perm_buf);
 				if (error)
 					goto error_label;
@@ -177,8 +180,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 			break;
 
 		case ACL_MASK:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 
@@ -191,8 +194,8 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 			break;
 
 		case ACL_OTHER:
-			error = acl_perm_to_string(ae_perm,
-			    ACL_STRING_PERM_MAXSIZE+1, perm_buf);
+			error = _posix1e_acl_perm_to_string(ae_perm,
+			    _POSIX1E_ACL_STRING_PERM_MAXSIZE+1, perm_buf);
 			if (error)
 				goto error_label;
 
