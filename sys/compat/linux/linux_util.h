@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $Id: linux_util.h,v 1.6 1998/06/30 08:40:33 jmg Exp $
+ * $Id: linux_util.h,v 1.7 1998/12/16 16:28:57 bde Exp $
  */
 
 /*
@@ -83,10 +83,17 @@ stackgap_alloc(sgp, sz)
 int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));
 
-#define CHECKALTEXIST(p, sgp, path) \
-    linux_emul_find(p, sgp, linux_emul_path, path, &(path), 0)
+#define CHECKALT(p, sgp, path, i) 					\
+	do {								\
+		int _error;						\
+									\
+		_error = linux_emul_find(p, sgp, linux_emul_path, path,	\
+		    &path, i);						\
+		if (_error == EFAULT)					\
+			return (_error);				\
+	} while (0)
 
-#define CHECKALTCREAT(p, sgp, path) \
-    linux_emul_find(p, sgp, linux_emul_path, path, &(path), 1)
+#define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
+#define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
 
 #endif /* !_LINUX_UTIL_H_ */
