@@ -164,6 +164,12 @@
       in the <filename>net/smbfs</filename> port in the &os; Ports 
       Collection. </para>
 
+      <para>A simple hash-based lookup optimization for large directories
+      called <literal>dirhash</literal> has been added.  Conditional on the
+      <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
+      of operations on very large directories at the expense of some
+      memory.</para>
+
     </sect3>
 
     <sect3>
