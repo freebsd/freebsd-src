@@ -1,0 +1,15 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "rsh" service
+#
+
+# auth
+rsh	auth	required	pam_nologin.so	no_warn
+rsh	auth	required	pam_deny.so	no_warn
+
+# account
+rsh	account	required	pam_unix.so
+
+# session
+rsh	session	required	pam_permit.so

@@ -1,0 +1,8 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "xserver" service
+#
+
+# auth
+xserver	auth	required	pam_permit.so	no_warn

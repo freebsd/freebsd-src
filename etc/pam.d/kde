@@ -1,0 +1,13 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "kde" service
+#
+
+# auth
+kde	auth	required	pam_nologin.so	no_warn
+#kde	auth	sufficient	pam_opie.so	no_warn
+#kde	auth	sufficient	pam_kerberosIV.so	no_warn try_first_pass
+#kde	auth	sufficient	pam_krb5.so	no_warn try_first_pass
+#kde	auth	required	pam_ssh.so	no_warn try_first_pass
+kde	auth	required	pam_unix.so	no_warn try_first_pass
