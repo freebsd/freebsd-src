@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.49 1999/01/16 11:40:02 kato Exp $
+ *	$Id: fd.c,v 1.50 1999/01/19 00:21:50 peter Exp $
  *
  */
 
@@ -1154,7 +1154,8 @@ fdattach(struct isa_device *dev)
 		devstat_add_entry(&fd->device_stats, "fd", 
 				  fdu, 512,
 				  DEVSTAT_NO_ORDERED_TAGS,
-				  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER);
+				  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
+				  DEVSTAT_PRIORITY_FD);
 		
 	}
 

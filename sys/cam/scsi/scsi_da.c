@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.18 1999/01/05 20:43:41 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.19 1999/01/07 20:19:09 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1030,7 +1030,8 @@ daregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "da", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI);
+			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_PRIORITY_DA);
 
 	/*
 	 * Add async callbacks for bus reset and
