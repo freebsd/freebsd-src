@@ -7,11 +7,10 @@ CFLAGS+=-DLOGALL
 DPADD=	${LIBUTIL} ${LIBPAM}
 LDADD=	-lutil ${MINUSLPAM}
 MAN=	login.1 login.access.5
-.ifndef NO_SETUID_LOGIN
-BINOWN= root
+.if !defined(NO_SETUID_LOGIN)
+BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 .endif
-NEED_LIBNAMES= yes
 
 .include <bsd.prog.mk>
