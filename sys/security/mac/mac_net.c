@@ -234,7 +234,7 @@ mac_socket_label_alloc(int flag)
 	if (error) {
 		MAC_PERFORM(destroy_socket_label, label);
 		mac_labelzone_free(label);
-		return  (NULL);
+		return (NULL);
 	}
 	MAC_DEBUG_COUNTER_INC(&nmacsockets);
 	return (label);
@@ -254,7 +254,7 @@ mac_socket_peer_label_alloc(int flag)
 	if (error) {
 		MAC_PERFORM(destroy_socket_peer_label, label);
 		mac_labelzone_free(label);
-		return  (NULL);
+		return (NULL);
 	}
 	MAC_DEBUG_COUNTER_INC(&nmacsockets);
 	return (label);
