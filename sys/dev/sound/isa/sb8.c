@@ -583,14 +583,10 @@ ess_intr(void *arg)
      	* We are transferring data in DSP normal mode,
      	* so clear the dl to indicate the DMA is stopped.
      	*/
-    	if (sb->pch.buffer->dl > 0) {
-		sb->pch.buffer->dl = -1;
+    	if (sb->pch.buffer->dl > 0)
 		chn_intr(sb->pch.channel);
-    	}
-    	if (sb->rch.buffer->dl > 0) {
-		sb->rch.buffer->dl = -1;
+    	if (sb->rch.buffer->dl > 0)
 		chn_intr(sb->rch.channel);
-    	}
 }
 
 static int
