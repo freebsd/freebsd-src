@@ -45,6 +45,7 @@
 #include <sys/proc.h>
 #include <sys/jail.h>
 #include <sys/vnode.h>
+#include <sys/blist.h>
 #include <sys/tty.h>
 #include <sys/resourcevar.h>
 #include <miscfs/linprocfs/linprocfs.h>
@@ -52,6 +53,8 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/swap_pager.h>
+#include <sys/vmmeter.h>
 #include <sys/exec.h>
 
 #include <machine/md_var.h>
@@ -70,33 +73,63 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	int xlen;
 	int error;
 	char psbuf[512];		/* XXX - conservative */
-	unsigned long memtotal, memfree, memshared;
-	unsigned long buffers, cached, swaptotal, swapfree;
+	unsigned long memtotal;		/* total memory in bytes */
+	unsigned long memused;		/* used memory in bytes */
+	unsigned long memfree;		/* free memory in bytes */
+	unsigned long memshared;	/* shared memory ??? */
+	unsigned long buffers, cached;	/* buffer / cache memory ??? */
+	unsigned long swaptotal;	/* total swap space in bytes */
+	unsigned long swapused;		/* used swap space in bytes */
+	unsigned long swapfree;		/* free swap space in bytes */
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-	memtotal = 32768; memfree = 32768;
-	buffers = 16384; cached = 8192;
-	swaptotal = 32768; swapfree = 16384;
-	memshared = 0;
+	memtotal = physmem * PAGE_SIZE;
+	/*
+	 * The correct thing here would be:
+	 *
+	memfree = cnt.v_free_count * PAGE_SIZE;
+	memused = memtotal - memfree;
+	 *
+	 * but it might mislead linux binaries into thinking there
+	 * is very little memory left, so we cheat and tell them that
+	 * all memory that isn't wired down is free.
+	 */
+	memused = cnt.v_wire_count * PAGE_SIZE;
+	memfree = memtotal - memused;
+	swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
+	swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	swapused = swaptotal - swapfree;
+	memshared = 0; /* XXX what's this supposed to be? */
+	/*
+	 * We'd love to be able to write:
+	 *
+	buffers = bufspace;
+	 *
+	 * but bufspace is internal to vfs_bio.c and we don't feel
+	 * like unstaticizing it just for linprocfs's sake.
+	 */
+	buffers = 0;
+	cached = cnt.v_cache_count * PAGE_SIZE;
 
 	ps = psbuf;
 	ps += sprintf(ps,
 		"        total:    used:    free:  shared: buffers:  cached:\n"
-		"Mem:  %ld %ld %ld %ld %ld %ld\nSwap: %ld %ld %ld\n"
-		"MemTotal: %9ld kB\n"
-		"MemFree:  %9ld kB\n"
-		"MemShared:%9ld kB\n"
-		"Buffers:  %9ld kB\n"
-		"Cached:   %9ld kB\n"
-		"SwapTotal:%9ld kB\n"
-		"SwapFree: %9ld kB\n",
-		memtotal*1024, (memtotal-memfree)*1024, memfree*1024,
-		memshared*1024, buffers*1024, cached*1024,
-		swaptotal*1024, (swaptotal-swapfree)*1024, swapfree*1024,
-		memtotal, memfree, memshared, buffers, cached,
-		swaptotal, swapfree);
+		"Mem:  %lu %lu %lu %lu %lu %lu\n"
+		"Swap: %lu %lu %lu\n"
+		"MemTotal: %9lu kB\n"
+		"MemFree:  %9lu kB\n"
+		"MemShared:%9lu kB\n"
+		"Buffers:  %9lu kB\n"
+		"Cached:   %9lu kB\n"
+		"SwapTotal:%9lu kB\n"
+		"SwapFree: %9lu kB\n",
+		memtotal, memused, memfree, memshared, buffers, cached,
+		swaptotal, swapused, swapfree,
+		memtotal >> 10, memfree >> 10,
+		memshared >> 10, buffers >> 10, cached >> 10,
+		swaptotal >> 10, swapfree >> 10);
 
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
