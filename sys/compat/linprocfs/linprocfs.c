@@ -822,13 +822,16 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
-	int len;
-	int error;
-	int ino;
+	char mebuffer[512];
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry;
-	char mebuffer[512];
-	
+	vm_object_t obj, tobj, lobj;
+	vm_ooffset_t off = 0;
+	char *name = "", *freename = NULL;
+	size_t len;
+	ino_t ino;
+	int ref_count, shadow_count, flags;
+	int error;
 	
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
@@ -848,19 +851,13 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
         for (entry = map->header.next;
 	    ((uio->uio_resid > 0) && (entry != &map->header));
 	    entry = entry->next) {
-	      	vm_object_t obj, tobj, lobj;
-		int ref_count, shadow_count, flags;
-		int shared;
-		vm_ooffset_t off = 0;
-		char *name = "", *freename = NULL;
-		
+		name = "";
+		freename = NULL;
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
-		
 		obj = entry->object.vm_object;
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object)
 			lobj = tobj;
-		
 		ino = 0;
 		if (lobj) {
 			VM_OBJECT_LOCK(lobj);
@@ -876,7 +873,6 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			shadow_count = obj->shadow_count;
 			VM_OBJECT_UNLOCK(lobj);
 		} else {
-			shared = 0;
 			flags = 0;
 			ref_count = 0;
 			shadow_count = 0;
@@ -893,10 +889,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    (entry->protection & VM_PROT_WRITE)?"w":"-",
 		    (entry->protection & VM_PROT_EXECUTE)?"x":"-",
 		    "p",
-		    (u_long) off,
+		    (u_long)off,
 		    0,
 		    0,
-		    (u_long) ino,
+		    (u_long)ino,
 		    *name ? "     " : "",
 		    name
 		    );
