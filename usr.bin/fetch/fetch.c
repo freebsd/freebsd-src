@@ -154,6 +154,9 @@ stat_end(struct xferstat *xs)
 {
     double delta;
     double bps;
+
+    if (!v_level)
+	return;
     
     gettimeofday(&xs->end, NULL);
     
