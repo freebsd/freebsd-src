@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.171 1999/01/25 18:07:25 dillon Exp $
+#	$Id: rc,v 1.172 1999/01/26 04:59:43 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -33,12 +33,18 @@ if [ -f /etc/rc.diskless ]; then
 	fi
 fi
 
+# If there is a global system configuration file, suck it in.
+#
+if [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
 # Configure ccd devices.
 if [ "X$skip_diskconf" != "XYES" -a -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
-if [ -n "$vinum_slices" ]; then
+if [ "X$skip_diskconf" != "XYES" -a -n "$vinum_slices" ]; then
 	vinum read $vinum_slices
 fi
 
@@ -102,13 +108,6 @@ if [ "X$skip_diskconf" != "XYES" ]; then
 		echo "Filesystem mount failed, startup aborted"
 		exit 1
 	fi
-fi
-
-# If there is a global system configuration file, suck it in.
-#
-
-if [ -f /etc/rc.conf ]; then
-	. /etc/rc.conf
 fi
 
 # Run custom disk mounting function here
