@@ -38,8 +38,9 @@
 .Ft void
 .Fn pmap_page_protect "vm_page_t m" "vm_prot_t prot"
 .Ft void
-.Fn pmap_protect "pmap_t pmap" "vm_offset_t sva" "vm_offset_t eva" \
-"vm_prot_t pr"
+.Fo pmap_protect
+.Fa "pmap_t pmap" "vm_offset_t sva" "vm_offset_t eva" "vm_prot_t pr"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pmap_page_protect
