@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #define ASTS_ERROR	0x14  /* Audio play operation stopped due to error */
 #define ASTS_VOID	0x15  /* No current audio status to return */
 
-#ifndef DEFAULT_CD_DRIVE
-#  define DEFAULT_CD_DRIVE  "/dev/cd0"
+#ifdef DEFAULT_CD_DRIVE
+#  error "Setting DEFAULT_CD_DRIVE is no longer supported"
 #endif
 
 #define CMD_DEBUG	1
@@ -225,11 +225,6 @@ int main (int argc, char **argv)
 		cdname = use_cdrom_instead("DISC");
 	if (! cdname)
 		cdname = use_cdrom_instead("CDPLAY");
-
-	if (! cdname) {
-		cdname = DEFAULT_CD_DRIVE;
-		warnx("no CD device name specified, defaulting to %s", cdname);
-	}
 
 	if (argc > 0) {
 		char buf[80], *p;
@@ -1237,13 +1232,20 @@ int open_cd ()
 	if (fd > -1)
 		return (1);
 
-	if (*cdname == '/') {
-		snprintf (devbuf, MAXPATHLEN, "%s", cdname);
+	if (cdname) {
+	    if (*cdname == '/') {
+		    snprintf (devbuf, MAXPATHLEN, "%s", cdname);
+	    } else {
+		    snprintf (devbuf, MAXPATHLEN, "%s%s", _PATH_DEV, cdname);
+	    }
+	    fd = open (devbuf, O_RDONLY);
 	} else {
-		snprintf (devbuf, MAXPATHLEN, "%s%s", _PATH_DEV, cdname);
+	    fd = open("/dev/cdrom", O_RDONLY);
+	    if (fd < 0 && errno == ENOENT)
+		fd = open("/dev/cd0", O_RDONLY);
+	    if (fd < 0 && errno == ENOENT)
+		fd = open("/dev/acd0", O_RDONLY);
 	}
-
-	fd = open (devbuf, O_RDONLY);
 
 	if (fd < 0) {
 		if (errno == ENXIO) {
