@@ -6,7 +6,7 @@
 #include <i386/linux/linux_syscall.h>		/* system call numbers */
 
 NON_GPROF_ENTRY(linux_sigcode)
-	call	LINUX_SIGF_HANDLER(%esp)
+	call	*LINUX_SIGF_HANDLER(%esp)
 	leal	LINUX_SIGF_SC(%esp),%ebx	/* linux scp */
 	movl	LINUX_SC_GS(%ebx),%gs
 	push	%eax				/* fake ret addr */
