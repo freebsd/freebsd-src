@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rlogind.8	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: rlogind.8,v 1.5 1996/12/16 00:01:28 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt RLOGIND 8
@@ -62,6 +62,20 @@ Prevent any authentication based on the user's
 file, unless the user is logging in as the superuser.
 .It Fl n
 Disable keep-alive messages.
+.El
+.Pp
+The following options are valid only if Kerberos is in use:
+.Bl -tag -width Ds
+.It Fl k
+Enable Kerberos authentication.
+.It Fl v
+Enable vacuous mode.
+.It Fl x
+Enable 
+.Tn DES
+encryption for all data passed via the rlogin
+session.   This may impact response time
+and CPU utilization, but provides increased security.
 .El
 .Pp
 .Nm Rlogind
