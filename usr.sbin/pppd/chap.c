@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap.c,v 1.3 1995/05/30 03:51:05 rgrimes Exp $";
+static char rcsid[] = "$Id: chap.c,v 1.3.4.1 1996/03/01 19:34:45 phk Exp $";
 #endif
 
 /*
@@ -509,6 +509,8 @@ ChapReceiveResponse(cstate, inp, id, len)
 	    MD5Final(digest, &mdContext);
 
 	    /* compare local and remote MDs and send the appropriate status */
+	    if (secret_len < 1)
+		code = CHAP_SUCCESS;
 	    if (memcmp (digest, remmd, MD5_SIGNATURE_SIZE) == 0)
 		code = CHAP_SUCCESS;	/* they are the same! */
 	    break;
@@ -521,6 +523,8 @@ ChapReceiveResponse(cstate, inp, id, len)
     ChapSendStatus(cstate, code);
 
     if (code == CHAP_SUCCESS) {
+	strcpy(peername,"CHAP:");
+	strcat(peername, rhostname);
 	old_state = cstate->serverstate;
 	cstate->serverstate = CHAPSS_OPEN;
 	if (old_state == CHAPSS_INITIAL_CHAL) {

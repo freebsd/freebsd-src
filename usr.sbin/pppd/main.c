@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.4 1995/05/30 03:51:13 rgrimes Exp $";
+static char rcsid[] = "$Id: main.c,v 1.4.4.1 1996/03/01 19:34:53 phk Exp $";
 #endif
 
 #define SETSID
@@ -97,6 +97,8 @@ char hostname[MAXNAMELEN];	/* Our hostname */
 char our_name[MAXNAMELEN];
 char remote_name[MAXNAMELEN];
 static char pidfilename[MAXPATHLEN];
+char peername[MAXNAMELEN];
+time_t t1,t2;
 
 static pid_t	pid;		/* Our pid */
 static pid_t	pgrpid;		/* Process Group ID */
@@ -203,6 +205,8 @@ main(argc, argv)
     char *p;
     struct passwd *pw;
 
+    time(&t1);
+    strcpy(peername,"[startup]");
     p = ttyname(0);
     if (p)
 	strcpy(devnam, p);
@@ -747,7 +751,9 @@ die(status)
     int status;
 {
     cleanup(0, NULL);
-    syslog(LOG_INFO, "Exit.");
+    time(&t2);
+    syslog(LOG_INFO, "Exit User %s Peer %s %d seconds",
+	username, peername, t2-t1);
     exit(status);
 }
 
@@ -1082,7 +1088,7 @@ io(sig)
 
 	if (len == 0) {
 	    MAINDEBUG((LOG_DEBUG, "End of file on fd!"));
-	    lcp_lowerdown(0);
+	    hup(0);
 	    return;
 	}
 

@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: upap.c,v 1.3 1995/05/30 03:51:17 rgrimes Exp $";
+static char rcsid[] = "$Id: upap.c,v 1.3.4.1 1996/03/01 19:35:00 phk Exp $";
 #endif
 
 /*
@@ -333,6 +333,9 @@ upap_rauthreq(u, inp, id, len)
     upap_sresp(u, retcode, id, msg, msglen);
 
     if (retcode == UPAP_AUTHACK) {
+	memcpy(peername,"PAP:",4);
+	memcpy(peername+4,ruser,ruserlen);
+	peername[4+ruserlen] = '\0';
 	u->us_serverstate = UPAPSS_OPEN;
 	auth_peer_success(u->us_unit, PPP_PAP);
     } else {
