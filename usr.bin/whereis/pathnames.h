@@ -49,6 +49,7 @@
 
 /* How to obtain the location of manpages, and how to match this result. */
 #define MANWHEREISCMD "man -S1:8:6 -w %s 2>/dev/null"
+#define MANWHEREISALLCMD "man -a -w %s 2>/dev/null"
 #define MANWHEREISMATCH "^.* [(]source: (.*)[)]$"
 
 /* Command used to locate sources that have not been found yet. */
