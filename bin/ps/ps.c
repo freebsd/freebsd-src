@@ -146,11 +146,13 @@ static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
 static char jfmt[] = "user,pid,ppid,pgid,jobc,state,tt,time,command";
-static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,tt,time,command";
+static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
+			"tt,time,command";
 static char   o1[] = "pid";
 static char   o2[] = "tt,state,time,command";
 static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
-static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,%cpu,%mem,command";
+static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
+			"%cpu,%mem,command";
 static char Zfmt[] = "label";
 
 #define	PS_ARGS	"AaCc" OPT_LAZY_f "G:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
