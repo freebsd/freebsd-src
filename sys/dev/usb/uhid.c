@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.27 1999/11/12 00:34:57 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.38 2000/04/27 15:26:48 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/signalvar.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/ioctl.h>
@@ -83,6 +84,7 @@ int	uhiddebug = 0;
 
 struct uhid_softc {
 	USBBASEDEVICE sc_dev;			/* base device */
+	usbd_device_handle sc_udev;
 	usbd_interface_handle sc_iface;	/* interface */
 	usbd_pipe_handle sc_intrpipe;	/* interrupt pipe */
 	int sc_ep_addr;
@@ -94,14 +96,15 @@ struct uhid_softc {
 	u_int8_t sc_oid;
 	u_int8_t sc_fid;
 
-	char *sc_ibuf;
-	char *sc_obuf;
+	u_char *sc_ibuf;
+	u_char *sc_obuf;
 
 	void *sc_repdesc;
 	int sc_repdesc_size;
 
 	struct clist sc_q;
 	struct selinfo sc_rsel;
+	struct proc *sc_async;	/* process that wants SIGIO */
 	u_char sc_state;	/* driver state */
 #define	UHID_OPEN	0x01	/* device is open */
 #define	UHID_ASLP	0x02	/* waiting for device data */
@@ -184,6 +187,7 @@ USB_ATTACH(uhid)
 	usbd_status err;
 	char devinfo[1024];
 	
+	sc->sc_udev = uaa->device;
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
@@ -327,9 +331,18 @@ uhid_intr(xfer, addr, status)
 {
 	struct uhid_softc *sc = addr;
 
-	DPRINTFN(5, ("uhid_intr: status=%d\n", status));
-	DPRINTFN(5, ("uhid_intr: data = %02x %02x %02x\n",
-		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2]));
+#ifdef UHID_DEBUG
+	if (uhiddebug > 5) {
+		u_int32_t cc, i;
+		
+		usbd_get_xfer_status(xfer, NULL, NULL, &cc, NULL);
+		DPRINTF(("uhid_intr: status=%d cc=%d\n", status, cc));
+		DPRINTF(("uhid_intr: data ="));
+		for (i = 0; i < cc; i++)
+			DPRINTF((" %02x", sc->sc_ibuf[i]));
+		DPRINTF(("\n"));
+	}
+#endif
 
 	if (status == USBD_CANCELLED)
 		return;
@@ -348,6 +361,10 @@ uhid_intr(xfer, addr, status)
 		wakeup(&sc->sc_q);
 	}
 	selwakeup(&sc->sc_rsel);
+	if (sc->sc_async != NULL) {
+		DPRINTFN(3, ("uhid_intr: sending SIGIO %p\n", sc->sc_async));
+		psignal(sc->sc_async, SIGIO);
+	}
 }
 
 int
@@ -394,6 +411,8 @@ uhidopen(dev, flag, mode, p)
 
 	sc->sc_state &= ~UHID_IMMED;
 
+	sc->sc_async = 0;
+
 	return (0);
 }
 
@@ -422,6 +441,8 @@ uhidclose(dev, flag, mode, p)
 	free(sc->sc_obuf, M_USBDEV);
 
 	sc->sc_state &= ~UHID_OPEN;
+
+	sc->sc_async = 0;
 
 	return (0);
 }
@@ -481,7 +502,7 @@ uhid_do_read(sc, uio, flag)
 
 		/* Remove a small chunk from the input queue. */
 		(void) q_to_b(&sc->sc_q, buffer, length);
-		DPRINTFN(5, ("uhidread: got %d chars\n", length));
+		DPRINTFN(5, ("uhidread: got %lu chars\n", (u_long)length));
 
 		/* Copy the data to the user process. */
 		if ((error = uiomove(buffer, length, uio)) != 0)
@@ -584,6 +605,24 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 		/* All handled in the upper FS layer. */
 		break;
 
+	case FIOASYNC:
+		if (*(int *)addr) {
+			if (sc->sc_async != NULL)
+				return (EBUSY);
+			sc->sc_async = p;
+			DPRINTF(("uhid_do_ioctl: FIOASYNC %p\n", p));
+		} else
+			sc->sc_async = NULL;
+		break;
+
+	/* XXX this is not the most general solution. */
+	case TIOCSPGRP:
+		if (sc->sc_async == NULL)
+			return (EINVAL);
+		if (*(int *)addr != sc->sc_async->p_pgid)
+			return (EPERM);
+		break;
+
 	case USB_GET_REPORT_DESC:
 		rd = (struct usb_ctl_report_desc *)addr;
 		size = min(sc->sc_repdesc_size, sizeof rd->data);
@@ -623,6 +662,30 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 			return (EINVAL);
 		}
 		err = usbd_get_report(sc->sc_iface, re->report, id, re->data,
+			  size);
+		if (err)
+			return (EIO);
+		break;
+
+	case USB_SET_REPORT:
+		re = (struct usb_ctl_report *)addr;
+		switch (re->report) {
+		case UHID_INPUT_REPORT:
+			size = sc->sc_isize;
+			id = sc->sc_iid;
+			break;
+		case UHID_OUTPUT_REPORT:
+			size = sc->sc_osize;
+			id = sc->sc_oid;
+			break;
+		case UHID_FEATURE_REPORT:
+			size = sc->sc_fsize;
+			id = sc->sc_fid;
+			break;
+		default:
+			return (EINVAL);
+		}
+		err = usbd_set_report(sc->sc_iface, re->report, id, re->data,
 			  size);
 		if (err)
 			return (EIO);
