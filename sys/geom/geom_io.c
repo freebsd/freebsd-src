@@ -124,7 +124,7 @@ g_new_bio(void)
 
 	bp = g_bioq_first(&g_bio_idle);
 	if (bp == NULL)
-		bp = g_malloc(sizeof *bp, M_WAITOK | M_ZERO);
+		bp = g_malloc(sizeof *bp, M_NOWAIT | M_ZERO);
 	g_trace(G_T_BIO, "g_new_bio() = %p", bp);
 	return (bp);
 }
@@ -144,12 +144,14 @@ g_clone_bio(struct bio *bp)
 	struct bio *bp2;
 
 	bp2 = g_new_bio();
-	bp2->bio_linkage = bp;
-	bp2->bio_cmd = bp->bio_cmd;
-	bp2->bio_length = bp->bio_length;
-	bp2->bio_offset = bp->bio_offset;
-	bp2->bio_data = bp->bio_data;
-	bp2->bio_attribute = bp->bio_attribute;
+	if (bp2 != NULL) {
+		bp2->bio_linkage = bp;
+		bp2->bio_cmd = bp->bio_cmd;
+		bp2->bio_length = bp->bio_length;
+		bp2->bio_offset = bp->bio_offset;
+		bp2->bio_data = bp->bio_data;
+		bp2->bio_attribute = bp->bio_attribute;
+	}
 	g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2);
 	return(bp2);
 }
