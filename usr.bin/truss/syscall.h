@@ -32,7 +32,7 @@
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad,
 	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd, 
-	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags };
+	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence };
 
 #define ARG_MASK	0xff
 #define OUT	0x100
