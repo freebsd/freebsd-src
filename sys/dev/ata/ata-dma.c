@@ -606,6 +606,89 @@ ata_dmainit(struct ata_channel *ch, int device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x06801095:	/* Sil 0680 ATA133 controller */
+	{
+	    u_int8_t ureg = 0xac + (ATA_DEV(device) * 0x02) + (ch->unit * 0x10);
+	    u_int8_t uval = pci_read_config(parent, ureg, 1);
+	    u_int8_t mreg = ch->unit ? 0x84 : 0x80;
+	    u_int8_t mask = ATA_DEV(device) ? 0x30 : 0x03;
+	    u_int8_t mode = pci_read_config(parent, mreg, 1);
+
+	    /* enable UDMA mode */
+	    pci_write_config(parent, mreg,
+			     (mode & ~mask) | (device ? 0x30 : 0x03), 1);
+    	    if (udmamode >= 6) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting UDMA6 on Sil chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x01, 1);
+		    atadev->mode = ATA_UDMA6;
+		    return;
+		}
+	    }
+    	    if (udmamode >= 5) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting UDMA5 on Sil chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x02, 1);
+		    atadev->mode = ATA_UDMA5;
+		    return;
+		}
+	    }
+    	    if (udmamode >= 4) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting UDMA4 on Sil chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x03, 1);
+		    atadev->mode = ATA_UDMA4;
+		    return;
+		}
+	    }
+    	    if (udmamode >= 2) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting UDMA2 on Sil chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x07, 1);
+		    atadev->mode = ATA_UDMA2;
+		    return;
+		}
+	    }
+
+	    /* disable UDMA mode and enable WDMA mode */
+	    pci_write_config(parent, mreg,
+			     (mode & ~mask) | (device ? 0x20 : 0x02), 1);
+	    if (wdmamode >= 2 && apiomode >= 4) {
+		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				    ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_prtdev(atadev, "%s setting WDMA2 on Sil chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, ureg - 0x4, 0x10c1, 2);
+		    atadev->mode = ATA_WDMA2;
+		    return;
+		}
+	    }
+
+	    /* restore PIO mode */
+	    pci_write_config(parent, mreg, mode, 1);
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
+
     case 0x06491095:	/* CMD 649 ATA100 controller */
 	if (udmamode >= 5) {
 	    u_int8_t umode;
@@ -892,8 +975,8 @@ ata_dmainit(struct ata_channel *ch, int device,
 	}
 	break;
 
-    case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
+    case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
 	if (!ATAPI_DEVICE(ch, device) && udmamode >= 5 && 
 	    !(pci_read_config(parent, 0x50, 2)&(ch->unit ? 1<<11 : 1<<10))){
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
@@ -909,6 +992,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 	}
 	/* FALLTHROUGH */
 
+    case 0x0d38105a:	/* Promise FastTrak 66 controllers */
     case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
 	if (!ATAPI_DEVICE(ch, device) && udmamode >= 4 && 
 	    !(pci_read_config(parent, 0x50, 2)&(ch->unit ? 1<<11 : 1<<10))){

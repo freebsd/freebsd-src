@@ -205,6 +205,9 @@ ata_pci_match(device_t dev)
 	else
 	    return "SiS 5591 ATA33 controller";
 
+    case 0x06801095:
+	return "Sil 0680 ATA133 controller";
+
     case 0x06491095:
 	return "CMD 649 ATA100 controller";
 
@@ -246,6 +249,7 @@ ata_pci_match(device_t dev)
     case 0x4d33105a:
 	return "Promise ATA33 controller";
 
+    case 0x0d38105a:
     case 0x4d38105a:
 	return "Promise ATA66 controller";
 
@@ -494,6 +498,14 @@ ata_pci_attach(device_t dev)
 			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
 	break;
 
+    case 0x06801095: /* Sil 0680 set ATA reference clock speed */
+	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
+	    pci_write_config(dev, 0x8a, 
+			     (pci_read_config(dev, 0x8a, 1) & 0x0F) | 0x10, 1);
+	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
+	    device_printf(dev, "Sil 0680 could not set clock\n");
+	break;
+
     case 0x06461095: /* CMD 646 enable interrupts, set DMA read mode */
 	pci_write_config(dev, 0x71, 0x01, 1);
 	break;
@@ -559,9 +571,10 @@ ata_pci_intr(struct ata_channel *ch)
 	break;
 
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
+    case 0x0d38105a:	/* Promise Fasttrak 66 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
-    case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
+    case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
 	if (!(ATA_INL(ch->r_bmio, (ch->unit ? 0x14 : 0x1c)) &
 	      (ch->unit ? 0x00004000 : 0x00000400)))
 	    return 1;
