@@ -267,7 +267,7 @@ ether_AwaitCarrier(struct physical *p)
 {
   struct etherdevice *dev = device2ether(p->handler);
 
-  if (!dev->timeout--)
+  if (dev->connected != CARRIER_OK && !dev->timeout--)
     dev->connected = CARRIER_LOST;
   else if (dev->connected == CARRIER_PENDING)
     ether_MessageIn(dev);
