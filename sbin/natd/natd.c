@@ -122,6 +122,7 @@ static  int			dropIgnoredIncoming;
 static  int			logDropped;
 static	int			logFacility;
 static	int			logIpfwDenied;
+static	char*			pidName;
 
 int main (int argc, char** argv)
 {
@@ -156,6 +157,7 @@ int main (int argc, char** argv)
  	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
 	logIpfwDenied		= -1;
+	pidName			= PIDFILE;
 
 	ParseArgs (argc, argv);
 /*
@@ -380,7 +382,7 @@ int main (int argc, char** argv)
 	}
 
 	if (background)
-		unlink (PIDFILE);
+		unlink (pidName);
 
 	return 0;
 }
@@ -392,7 +394,7 @@ static void DaemonMode ()
 	daemon (0, 0);
 	background = 1;
 
-	pidFile = fopen (PIDFILE, "w");
+	pidFile = fopen (pidName, "w");
 	if (pidFile) {
 
 		fprintf (pidFile, "%d\n", getpid ());
@@ -836,7 +838,8 @@ enum Option {
  	LogDenied,
  	LogFacility,
 	PunchFW,
-	LogIpfwDenied
+	LogIpfwDenied,
+	PidFile
 };
 
 enum Param {
@@ -1063,6 +1066,14 @@ static struct OptionInfo optionTable[] = {
 		"log packets converted by natd, but denied by ipfw",
 		"log_ipfw_denied",
 		NULL },
+
+	{ PidFile,
+		0,
+		String,
+		"file_name",
+		"store PID in an alternate file",
+		"pid_file",
+		"P" },
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1249,6 +1260,10 @@ static void ParseOption (const char* option, const char* parms)
 
 	case LogIpfwDenied:
 		logIpfwDenied = yesNoValue;;
+		break;
+
+	case PidFile:
+		pidName = strdup (strValue);
 		break;
 	}
 }
