@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.19 1995/02/27 08:25:47 phk Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.20 1995/02/27 08:31:19 phk Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -70,6 +70,13 @@ the entire system, some of the highlights of which are:
    Full support of the PCI bus
    Loadable kernel modules
    Too many additional utilities and applications to mention
+
+<2.X-Current>
+   Serial Console Support
+   Merged VM/Buffer Cache
+   On demand PPP
+   Sync PPP
+   Improved SCSI support
 
 
 0.2:  What are the FreeBSD mailing lists, and how can I get on them? 
@@ -255,46 +262,48 @@ FreeBSD supports the following SCSI controllers:
 Adaptec              AH-154x Series <ISA>
                      AH-174x Series <EISA>
                      AH-152x Series <ISA>
-		     AH-2742/2842 Series <ISA/EISA>
+		     Sound Blaster SCSI (AH-152x compat) <ISA>
+                     AH-2742/2842 Series <ISA/EISA>
 		     AH-2820/2822/2825 Series <VLB>
 Buslogic             BT-445 Series <VLB> (but see section 1.5)
-                     BT-545 Series <ISA>
+		     BT-545 Series <ISA>
                      BT-742 Series <EISA>
                      BT-747 Series <EISA>
                      BT-964 Series <PCI>
 Future Domain        TMC-950 Series <ISA> 
 PCI Generic          NCR 53C810 based controllers <PCI> 
 ProAudioSpectrum     Zilog 5380 based controllers <ISA>
-                     SCSI-2 controllers <ISA>
 Seagate              ST-01/02 Series <ISA>
 UltraStor            UH-14f Series <ISA>
                      UH-34f Series <EISA/VLB>
 
+<2.X-Current Only>
+Western Digital	     WD7000 <ISA> <No scatter/gather>
+Adaptec		     AH-294x and aic7870 MB controllers <PCI>
+ProAudioSpectrum     Trantor 130 based controllers <ISA>
 
 2.3:  What CD-ROM drives are supported by FreeBSD?
 
 Any SCSI drive connected to a supported controller.
-
 Mitsumi LU002(8bit), LU005(16bit) and FX001D(16bit 2x Speed).
-NOTE: The Mitsumi IDE CD-ROMs are NOT supported.
 
-FreeBSD does NOT support drives connected to a Sound Blaster or
-non-SCSI SONY or Panasonic drives at this time.  A general rule of thumb when
-selecting a CDROM drive for FreeBSD use is to buy a very standard SCSI
-model; they cost more, but deliver very solid performance in return.
-Do not be fooled by very cheap drives that, in turn, deliver VERY LOW
-performance!  As always, you get what you pay for.
+<2.X-Current>
+Sound Blaster Non-SCSI CD-ROM
 
-FreeBSD also does not support any of the ``IDE'' CD-ROM interfaces.
-
-The Mitsumi driver is known to be extremely slow compared to SCSI
+FreeBSD does not support any of the ``IDE'' CD-ROM interfaces.
+All non-SCSI cards are known to be extremely slow compared to SCSI
 drives.
-
 
 2.4:  What multi-port serial cards are supported by FreeBSD?
 
-AST/4 and BOCA 4/8/16 port cards.  Some unnamed clone cards have also
-been known to work, especially those that claim to be AST compatible.
+AST/4
+BOCA 4/8/16 port cards.  
+
+<2.X-Current>
+Cyclades 8/16 port <Alpha>
+
+Some unnamed clone cards have also been known to work,, especially those
+that claim to be AST compatible.
 Check the sio(4) man page to get more information on configuring such
 cards.
 
@@ -312,7 +321,6 @@ kernel.
 We are working to get the GPL restriction removed, but for now you should
 at least be aware of it.
 
-NOTE: This support has been greatly upgraded in the lastest SNAP and current.
  
 2.6:  I have a Mumbleco bus mouse.  Is it supported and if so, how do I set
       it up for XFree86?
@@ -381,6 +389,14 @@ There is support for the following cards:
 `lnc' driver:
 	Unknown Lance based (*)
 
+<2.X-Current>
+
+`cx' driver
+	Cronyx/Sigma multiport Sync/Async (Cisco and PPP framing)
+
+`zp' driver
+	3Com PCMCIA Etherlink III
+
 Note:	Drivers marked with (*) are known to have problems.
 
 Note:	We also support TCP/IP over parallel lines.  At this point we are
@@ -405,10 +421,14 @@ Here is a listing of drivers that do not fit into any of the above areas.
 
 b004.c		Driver for B004 compatiable Transputer boards
 ctx.c		Driver for CORTEX-I Frame grabber
-cx.c		Driver for CRONYX-SIGMA sync/async serial board
 gpib.c		Driver for National Instruments AT-GPIB and AT-GPIB/TNT boards
 pcaudio.c	Driver for PC speakers to allow the playing of audio files
 tw.c		Driver for the X-10 POWERHOUSE 
+
+<2.X-Current>
+spigot.c	Driver for the Creative Labs Video Spigot
+gsc.c		Driver for the Genuis GS-4500 Hand scanner
+joy.c		Driver for a joystick
 
 2.13:  I am about to buy a new machine to run FreeBSD on and
        want an idea of what other people are running.  Is there list
@@ -548,7 +568,7 @@ here.
 5.1:  I've heard of something called FreeBSD-current.  How do I run it, and
       where can I get more information?
 
-Read the file /usr/src/share/FAQ/FreeBSD.current.policy,
+Read the file /usr/src/share/FAQ/current-policy.FAQ,
 it will tell you all you need to know.
 
 
@@ -564,14 +584,18 @@ those "low/expensive-bandwidth" applications, we have developed CTM,
 see 5.6 for more about that.
 
 To use it, you need to have direct internet connectivity (not just
-mail or news).  First, pick up the sup_bin.tgz package from:
+mail or news).  First, pick up the sup.tgz package from:
 
-        ftp://ftp.FreeBSD.ORG:pub/FreeBSD/packages/sup_bin.tgz
+        ftp://ftp.FreeBSD.ORG:pub/FreeBSD/packages/sup.tgz
 
-Second, read the file /usr/src/share/FAQ/FreeBSD.sup.faq.
+Second, read the file /usr/src/share/FAQ/sup.FAQ.
 
 This file describes how to setup sup on your machine.  You may also
-want to look at /usr/src/share/FAQ/FreeBSD.*.supfile,
+want to look at /usr/src/share/FAQ/extras/*.supfile, or you may grab updated
+supfiles from:
+
+	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/FAQ/extras
+
 which are a set of supfiles for supping from FreeBSD.ORG. 
 
 
@@ -639,6 +663,14 @@ If you have the source, you just have to do a "make install" from
 /usr/src/gnu/usr.bin/perl/lib and everything will be fine.  Or you
 may ftp to phoenix-gw.gbdata.com and grab them from ~/pub/perl/libs.tar.gz.
 
+5.10: I've got this neato kernel extension I just know everyone will
+      will want.  How do I get it included into the distribution?
+
+Please take a look at the FAQ for submiting code to FreeBSD at:
+
+	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/FAQ/submitters.FAQ
+
+And thanks for the thought.
 
 
 6 Kernel Configuration
