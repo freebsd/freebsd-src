@@ -137,12 +137,16 @@ main(int argc, char **argv)
 				mdio.md_options |= MD_FORCE;
 			else if (!strcmp(optarg, "noforce"))
 				mdio.md_options &= ~MD_FORCE;
+			else if (!strcmp(optarg, "readonly"))
+				mdio.md_options |= MD_READONLY;
+			else if (!strcmp(optarg, "noreadonly"))
+				mdio.md_options &= ~MD_READONLY;
 			else if (!strcmp(optarg, "reserve"))
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
 				mdio.md_options &= ~MD_RESERVE;
 			else
-				errx(1, "Unknown option.");
+				errx(1, "Unknown option: %s.", optarg);
 			break;
 		case 'S':
 			if (cmdline != 2)
