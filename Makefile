@@ -144,7 +144,7 @@ ${TGTS}:
 # Set a reasonable default
 .MAIN:	all
 
-.if defined(DESTDIR)
+.if defined(I_KNOW_WHAT_IM_DOING_THANKYOU_VERY_MUCH) || defined(DESTDIR)
 .if make(world)
 STARTTIME!= LC_ALL=C date
 .endif
