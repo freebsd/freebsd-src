@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.7 1997/04/21 12:52:17 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.8 1997/06/13 10:59:29 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -103,7 +103,7 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 # ELECOM type
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x30000 vector bsintr
 # SMIT
-#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdc000 iosiz 0x1000 flags 0x40000 vector bsintr
+#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000 vector bsintr
 # Logitec LHA-20x
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
