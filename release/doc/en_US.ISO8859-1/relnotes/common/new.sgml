@@ -394,7 +394,7 @@
 	Multicast routing (&man.pim.4;). &merged;</para>
 
       <para>To reduce information leakage, IPv4 packets no longer have
-	a <varname>ip_id</varname> field set unless fragmentation is
+	an <varname>ip_id</varname> field set unless fragmentation is
 	being done.</para>
 
       <para>The &os; Bluetooth protocol stack has been updated:</para>
@@ -402,29 +402,29 @@
       <itemizedlist>
         <listitem>
           <para><application>libsdp</application> has been re-implemented
-            under BSD style license.  This is because the Linux BlueZ code is
-            distributed under GPL.</para>
+            under a BSD style license.  This is because the Linux BlueZ code is
+            distributed under the GPL.</para>
         </listitem>
 
         <listitem>
-          <para>&man.hccontrol.8; utility now supports four new commands:
+          <para>The &man.hccontrol.8; utility now supports four new commands:
             Read/Write_Page_Scan_Mode and Read/Write_Page_Scan_Period_Mode.</para>
         </listitem>
 
         <listitem>
-          <para>&man.hcsecd.8; daemon now stores link keys on a disk.
+          <para>The &man.hcsecd.8; daemon now stores link keys on a disk.
             It is no longer required to pair devices every time.</para>
         </listitem>
 
         <listitem>
-          <para>A netgraph timeout problem in &man.ng.hci.4; and
+          <para>A netgraph timeout problem in the &man.ng.hci.4; and
             &man.ng.l2cap.4; kernel modules, which could cause
             access to a data structure that was already freed,
             has been fixed.</para>
         </listitem>
 
         <listitem>
-          <para>&man.ng.ubt.4; module, which cannot be build on
+          <para>The &man.ng.ubt.4; module, which cannot be build on
             &os; &release.prev;, has been fixed.</para>
         </listitem>
 
@@ -436,7 +436,7 @@
         </listitem>
 
         <listitem>
-          <para>&man.sdpcontrol.8; utility, which is analogous to the sdptool utility in
+          <para>The &man.sdpcontrol.8; utility, which is analogous to the sdptool utility in
             the Linux BlueZ SDP package, has been added.</para>
         </listitem>
       </itemizedlist>
@@ -462,7 +462,7 @@
 
       <para>A major rework of the &man.ata.4; driver has been
 	committed.  One of the more notable changes is that the
-	&man.ata.4; driver has now out from under the Giant kernel
+	&man.ata.4; driver is now out from under the Giant kernel
 	lock.  Note that ATA software RAID systems must now include
 	<literal>device ataraid</literal> in their kernel
 	configuration files, as it is no longer automatically implied
@@ -599,8 +599,8 @@
       option for an interface, which disables the sending of ARP
       requests for that interface.</para>
 
-    <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
-      command now support ranges of rule numbers.
+    <para>The &man.ipfw.8; <literal>list</literal> and <literal>show</literal>
+      commands now support ranges of rule numbers.
       &merged;</para>
 
     <para>&man.ipfw.8; now supports a <option>-n</option> flag
@@ -636,7 +636,7 @@
     <para>The &man.mount.8; utility now supports to display the filesystem
       ID for each file system in addition to the normal information
       when a <option>-v</option> flag is specified,
-      and &man.umount.8; utility now accepts the filesystem ID
+      and the &man.umount.8; utility now accepts the filesystem ID
       as well as the usual device and path names.
       This allows to unambiguously specify which file system is
       to be unmounted even when two or more file systems share
@@ -655,7 +655,7 @@
       <option>-D</option> option to specify MS-DOS codepages and a
       <option>-L</option> option to specify local character sets.  They are
       used to convert character sets of filenames.  The
-      <filename>/usr/libdata/msdosfs</filename> tables have
+      <filename>/usr/libdata/msdosfs</filename> tables have been
       retired.</para>
 
     <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
