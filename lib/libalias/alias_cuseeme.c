@@ -70,14 +70,13 @@ struct client_info {
 void
 AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 {
-	struct udphdr *ud;
+	struct udphdr *ud = ip_next(pip);
 
-	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 	if (ntohs(ud->uh_ulen) - sizeof(struct udphdr) >= sizeof(struct cu_header)) {
 		struct cu_header *cu;
 		struct alias_link *cu_lnk;
 
-		cu = (struct cu_header *)(ud + 1);
+		cu = udp_next(ud);
 		if (cu->addr)
 			cu->addr = (u_int32_t) GetAliasAddress(lnk).s_addr;
 
@@ -104,8 +103,8 @@ AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, struct in_addr origina
 
 	(void)la;
 	alias_addr.s_addr = pip->ip_dst.s_addr;
-	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
-	cu = (struct cu_header *)(ud + 1);
+	ud = ip_next(pip);
+	cu = udp_next(ud);
 	oc = (struct oc_header *)(cu + 1);
 	ci = (struct client_info *)(oc + 1);
 	end = (char *)ud + ntohs(ud->uh_ulen);

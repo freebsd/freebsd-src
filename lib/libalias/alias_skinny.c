@@ -223,12 +223,12 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	int orig_len, skinny_hdr_len = sizeof(struct skinny_header);
 	ConvDirection direction;
 
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
 
-	sd = (struct skinny_header *)((char *)pip + hlen);
+	sd = (struct skinny_header *)ip_next(pip);
 
 	/*
 	 * XXX This direction is reserved for future use.  I still need to

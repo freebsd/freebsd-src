@@ -218,10 +218,10 @@ AliasHandleUdpNbt(
 	(void)lnk;
 
 	/* Calculate data length of UDP packet */
-	uh = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
+	uh = (struct udphdr *)ip_next(pip);
 	pmax = (char *)uh + ntohs(uh->uh_ulen);
 
-	ndh = (NbtDataHeader *) ((char *)uh + (sizeof(struct udphdr)));
+	ndh = (NbtDataHeader *)udp_next(uh);
 	if ((char *)(ndh + 1) > pmax)
 		return (-1);
 #ifdef DEBUG
@@ -654,9 +654,9 @@ AliasHandleUdpNbtNS(
 	nbtarg.newport = *original_port;
 
 	/* Calculate data length of UDP packet */
-	uh = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
+	uh = (struct udphdr *)ip_next(pip);
 	nbtarg.uh_sum = &(uh->uh_sum);
-	nsh = (NbtNSHeader *) ((char *)uh + (sizeof(struct udphdr)));
+	nsh = (NbtNSHeader *)udp_next(uh);
 	p = (u_char *) (nsh + 1);
 	pmax = (char *)uh + ntohs(uh->uh_ulen);
 

@@ -102,7 +102,7 @@ TcpChecksum(struct ip *pip)
 	nhdr = pip->ip_hl << 2;
 	ntcp = ntohs(pip->ip_len) - nhdr;
 
-	tc = (struct tcphdr *)((char *)pip + nhdr);
+	tc = (struct tcphdr *)ip_next(pip);
 	ptr = (u_short *) tc;
 
 /* Add up TCP header and data */

@@ -193,7 +193,7 @@ AliasHandlePptpOut(struct libalias *la,
 		cptr->cid1 = GetAliasPort(pptp_lnk);
 
 		/* Compute TCP checksum for revised packet */
-		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+		tc = (struct tcphdr *)ip_next(pip);
 		accumulate -= cptr->cid1;
 		ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
@@ -265,7 +265,7 @@ AliasHandlePptpIn(struct libalias *la,
 		*pcall_id = GetOriginalPort(pptp_lnk);
 
 		/* Compute TCP checksum for modified packet */
-		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+		tc = (struct tcphdr *)ip_next(pip);
 		accumulate -= *pcall_id;
 		ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
@@ -290,7 +290,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 	struct tcphdr *tc;
 
 	/* Calculate some lengths */
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
@@ -300,7 +300,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 		return (NULL);
 
 	/* Move up to PPTP message header */
-	hptr = (PptpMsgHead) (((char *)pip) + hlen);
+	hptr = (PptpMsgHead) ip_next(pip);
 
 	/* Return the control message type */
 	*ptype = ntohs(hptr->type);
@@ -326,7 +326,7 @@ AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 	GreHdr *gr;
 	struct alias_link *lnk;
 
-	gr = (GreHdr *) ((char *)pip + (pip->ip_hl << 2));
+	gr = (GreHdr *) ip_next(pip);
 
 	/* Check GRE header bits. */
 	if ((ntohl(*((u_int32_t *) gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
@@ -351,7 +351,7 @@ AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 	GreHdr *gr;
 	struct alias_link *lnk;
 
-	gr = (GreHdr *) ((char *)pip + (pip->ip_hl << 2));
+	gr = (GreHdr *) ip_next(pip);
 
 	/* Check GRE header bits. */
 	if ((ntohl(*((u_int32_t *) gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
