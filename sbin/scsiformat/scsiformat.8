@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)scsiformat.8	5.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
 .Dd June 5, 1993
 .Dt SCSIFORMAT 8
@@ -39,8 +40,7 @@
 .Nd format SCSI disks and show SCSI parameters
 .Sh SYNOPSIS
 .Nm scsiformat
-.Op Fl w
-.Op Fl q
+.Op Fl qw
 .Op Fl p Ar page-control
 .Ar device-name
 .Sh DESCRIPTION
@@ -77,13 +77,13 @@ gets saved settings (those that persist across power cycles).
 .It Li v
 shows which parameters are variable.
 .El
-.It Fl w
-Do actually format; by default, only the disk parameters will be
-displayed.
 .It Fl q
 Quiet; suppress the mode page output.  Only the inquiry string will be
 printed, so the operator can ensure he's going to format the intended
 drive.
+.It Fl w
+Do actually format; by default, only the disk parameters will be
+displayed.
 .El
 .Sh DIAGNOSTICS
 These should mostly be self-explanatory.
