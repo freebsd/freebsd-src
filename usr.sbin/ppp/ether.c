@@ -203,15 +203,23 @@ ether_MessageIn(struct etherdevice *dev)
   char unknown[14];
   const char *msg;
   struct timeval t;
-  fd_set r;
+  fd_set *r;
+  int ret;
 
   if (dev->cs < 0)
     return;
 
-  FD_ZERO(&r);
-  FD_SET(dev->cs, &r);
+  if ((r = mkfdset()) == NULL) {
+    log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
+    return;
+  }
+  zerofdset(r);
+  FD_SET(dev->cs, r);
   t.tv_sec = t.tv_usec = 0;
-  if (select(dev->cs + 1, &r, NULL, NULL, &t) <= 0)
+  ret = select(dev->cs + 1, r, NULL, NULL, &t);
+  free(r);
+
+  if (ret <= 0)
     return;
 
   if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) < 0)

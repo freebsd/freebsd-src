@@ -376,3 +376,15 @@ SetTitle(const char *title)
   else
     setproctitle("%s", title);
 }
+
+fd_set *
+mkfdset()
+{
+  return (fd_set *)malloc(howmany(getdtablesize(), NFDBITS) * sizeof (fd_mask));
+}
+
+void
+zerofdset(fd_set *s)
+{
+  memset(s, '\0', howmany(getdtablesize(), NFDBITS) * sizeof (fd_mask));
+}
