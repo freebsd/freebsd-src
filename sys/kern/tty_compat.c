@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.25 1997/12/16 17:40:26 eivind Exp $
+ * $Id: tty_compat.c,v 1.26 1998/01/25 17:25:34 steve Exp $
  */
 
 #include "opt_compat.h"
@@ -278,7 +278,7 @@ ttcompatgetflags(tp)
 	register tcflag_t lflag	= tp->t_lflag;
 	register tcflag_t oflag	= tp->t_oflag;
 	register tcflag_t cflag	= tp->t_cflag;
-	register flags = 0;
+	register int flags = 0;
 
 	if (iflag&IXOFF)
 		flags |= TANDEM;
@@ -336,7 +336,7 @@ ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
 {
-	register flags = tp->t_flags;
+	register int flags = tp->t_flags;
 	register tcflag_t iflag	= t->c_iflag;
 	register tcflag_t oflag	= t->c_oflag;
 	register tcflag_t lflag	= t->c_lflag;
@@ -415,7 +415,7 @@ ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
 {
-	register flags = tp->t_flags;
+	register int flags = tp->t_flags;
 	register tcflag_t iflag	= t->c_iflag;
 	register tcflag_t oflag	= t->c_oflag;
 	register tcflag_t lflag	= t->c_lflag;
