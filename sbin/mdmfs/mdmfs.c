@@ -119,7 +119,7 @@ main(int argc, char **argv)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -166,6 +166,9 @@ main(int argc, char **argv)
 			if (compat)
 				usage();
 			loudsubs = true;
+			break;
+		case 'l':
+			argappend(&newfs_arg, "-l");
 			break;
 		case 'M':
 			if (have_mdtype)
