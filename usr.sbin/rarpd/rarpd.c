@@ -32,8 +32,8 @@ static const char rcsid[] =
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [ -fv ] [ hostname ]
- *		rarpd [ -fv ] interface [ hostname ]
+ * Usage:	rarpd -a [ -fsv ] [ hostname ]
+ *		rarpd [ -fsv ] interface [ hostname ]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -170,6 +170,8 @@ void	usage __P((void));
 
 static	u_char zero[6];
 
+int sflag = 0;			/* ignore /tftpboot */
+
 void
 main(argc, argv)
 	int argc;
@@ -194,7 +196,7 @@ main(argc, argv)
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "afv")) != EOF) {
+	while ((op = getopt(argc, argv, "afsv")) != EOF) {
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -202,6 +204,10 @@ main(argc, argv)
 
 		case 'f':
 			++fflag;
+			break;
+
+		case 's':
+			++sflag;
 			break;
 
 		case 'v':
@@ -734,7 +740,7 @@ rarp_process(ii, pkt, len)
 		       ename, intoa(ntohl(ii->ii_ipaddr & ii->ii_netmask)));
 		return;
 	}
-	if (rarp_bootable(target_ipaddr))
+	if (sflag || rarp_bootable(target_ipaddr))
 		rarp_reply(ii, ep, target_ipaddr, len);
 	else if (verbose > 1)
 		syslog(LOG_INFO, "%s %s at %s DENIED (not bootable)",
