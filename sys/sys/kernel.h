@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.26 1997/03/22 08:03:45 bde Exp $
+ * $Id: kernel.h,v 1.27 1997/04/06 11:14:12 dufault Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -77,7 +77,23 @@ extern long timedelta;
 /*
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `struct linker_set' as defined below.
- *
+ * For ELF, this is done by constructing a separate segment for each set.
+ * For a.out, it is done automatically by the linker.
+ */
+#if defined(__ELF__)
+
+#define MAKE_SET(set, sym)				\
+	__asm__(".section .set." #set ",\"aw\"");       \
+	__asm__(".long " #sym);				\
+	__asm__(".previous");
+#define TEXT_SET(set, sym) MAKE_SET(set, sym)
+#define DATA_SET(set, sym) MAKE_SET(set, sym)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym)
+
+#else
+
+/*
  * NB: the constants defined below must match those defined in
  * ld/ld.h.  Since their calculation requires arithmetic, we
  * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
@@ -89,6 +105,8 @@ extern long timedelta;
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
 #define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
+
+#endif
 
 
 /*

@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: wm_sqrt.s,v 1.6 1997/02/22 09:29:30 peter Exp $
  *
  */
 
@@ -85,7 +85,7 @@
 /*
 	Local storage:
  */
-	.align 4,0
+	ALIGN_DATA
 accum_3:
 	.long	0		/* ms word */
 accum_2:
@@ -107,11 +107,8 @@ fsqrt_arg_0:
 	.long	0		/* ls word, at most the ms bit is set */
 
 .text
-	.align 2,144
 
-.globl _wm_sqrt
-
-_wm_sqrt:
+ENTRY(wm_sqrt)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi

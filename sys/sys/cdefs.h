@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id$
+ * $Id: cdefs.h,v 1.13 1997/02/22 09:44:52 peter Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -54,12 +54,16 @@
  * The __CONCAT macro is a bit tricky -- make sure you don't put spaces
  * in between its arguments.  __CONCAT can also concatenate double-quoted
  * strings produced by the __STRING macro, but this only works with ANSI C.
+ *
+ * __XSTRING is like __STRING, but it expands any macros in its argument
+ * first.  It is only available with ANSI C.
  */
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
 #define	__CONCAT1(x,y)	x ## y
 #define	__CONCAT(x,y)	__CONCAT1(x,y)
-#define	__STRING(x)	#x
+#define	__STRING(x)	#x		/* stringify without expanding x */
+#define	__XSTRING(x)	__STRING(x)	/* expand x, then stringify */
 
 #define	__const		const		/* define reserved names to standard */
 #define	__signed	signed

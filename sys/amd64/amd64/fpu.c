@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.39 1997/02/22 09:36:57 peter Exp $
+ *	$Id: npx.c,v 1.40 1997/03/24 11:23:58 bde Exp $
  */
 
 #include "npx.h"
@@ -53,6 +53,7 @@
 #endif
 #include <sys/signalvar.h>
 
+#include <machine/asmacros.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/md_var.h>
@@ -147,13 +148,15 @@ static	volatile u_int		npx_traps_while_probing;
  * interrupts.  We'll still need a special exception 16 handler.  The busy
  * latch stuff in probeintr() can be moved to npxprobe().
  */
+
 inthand_t probeintr;
 asm
 ("
 	.text
-_probeintr:
+	.p2align 2,0x90
+" __XSTRING(CNAME(probeintr)) ":
 	ss
-	incl	_npx_intrs_while_probing
+	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "
 	pushl	%eax
 	movb	$0x20,%al	# EOI (asm in strings loses cpp features)
 	outb	%al,$0xa0	# IO_ICU2
@@ -168,9 +171,10 @@ inthand_t probetrap;
 asm
 ("
 	.text
-_probetrap:
+	.p2align 2,0x90
+" __XSTRING(CNAME(probetrap)) ":
 	ss
-	incl	_npx_traps_while_probing
+	incl	" __XSTRING(CNAME(npx_traps_while_probing)) "
 	fnclex
 	iret
 ");
