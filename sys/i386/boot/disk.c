@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id$
+ *	$Id: disk.c,v 1.3 1993/10/16 19:11:34 rgrimes Exp $
  */
 
 #include "boot.h"
@@ -166,13 +166,14 @@ devread()
  */
 #define RA_SECTORS	18
 static char ra_buf[RA_SECTORS * BPS];
+static int ra_dev;
 static int ra_end;
 static int ra_first;
 
 Bread(dosdev,sector)
      int dosdev,sector;
 {
-	if (sector < ra_first || sector >= ra_end)
+	if (dosdev != ra_dev || sector < ra_first || sector >= ra_end)
 	{
 		int cyl, head, sec, nsec;
 
@@ -192,6 +193,7 @@ Bread(dosdev,sector)
 			twiddle();
 		    }
 		}
+		ra_dev = dosdev;
 		ra_first = sector;
 		ra_end = sector + nsec;
 	}
