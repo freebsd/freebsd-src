@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.33 1999/01/06 23:05:42 julian Exp $
+ * $Id: vm_map.h,v 1.34 1999/01/26 02:49:52 julian Exp $
  */
 
 /*
@@ -87,7 +87,6 @@
 
 union vm_map_object {
 	struct vm_object *vm_object;	/* object object */
-	struct vm_map *share_map;	/* share map */
 	struct vm_map *sub_map;		/* belongs to another map */
 };
 
@@ -113,7 +112,7 @@ struct vm_map_entry {
 	int wired_count;		/* can be paged if = 0 */
 };
 
-#define MAP_ENTRY_IS_A_MAP		0x1
+#define MAP_ENTRY_UNUSED_01		0x1
 #define MAP_ENTRY_IS_SUB_MAP		0x2
 #define MAP_ENTRY_COW			0x4
 #define MAP_ENTRY_NEEDS_COPY		0x8
@@ -165,6 +164,7 @@ struct vmspace {
 };
 
 
+#if 0
 /*
  *	Map versions are used to validate a previous lookup attempt.
  *
@@ -176,9 +176,10 @@ struct vmspace {
  */
 typedef struct {
 	int main_timestamp;
-	vm_map_t share_map;
 	int share_timestamp;
 } vm_map_version_t;
+
+#endif
 
 /*
  *	Macros:		vm_map_lock, etc.

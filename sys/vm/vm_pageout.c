@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.133 1999/01/24 01:33:22 dillon Exp $
+ * $Id: vm_pageout.c,v 1.134 1999/01/24 06:04:52 dillon Exp $
  */
 
 /*
@@ -578,7 +578,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 */
 	tmpe = map->header.next;
 	while (tmpe != &map->header) {
-		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if ((obj != NULL) && (obj->shadow_count <= 1) &&
 				((bigobj == NULL) ||
@@ -600,7 +600,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
 			break;
-		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
+		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj)
 				vm_pageout_object_deactivate_pages(map, obj, desired, 0);

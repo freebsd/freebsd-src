@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.19 1999/01/21 08:29:06 dillon Exp $
+ *	$Id: procfs_map.c,v 1.20 1999/02/05 06:18:54 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ procfs_domap(curp, p, pfs, uio)
 		int resident, privateresident;
 		char *type;
 
-		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP))
+		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
 		obj = entry->object.vm_object;

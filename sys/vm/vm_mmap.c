@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.87 1999/01/21 08:29:11 dillon Exp $
+ * $Id: vm_mmap.c,v 1.88 1999/01/26 02:49:52 julian Exp $
  */
 
 /*
@@ -713,7 +713,7 @@ mincore(p, uap)
 		/*
 		 * ignore submaps (for now) or null objects
 		 */
-		if ((current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) ||
+		if ((current->eflags & MAP_ENTRY_IS_SUB_MAP) ||
 			current->object.vm_object == NULL)
 			continue;
 		
