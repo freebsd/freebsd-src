@@ -1,3 +1,4 @@
+# $FreeBSD$
 package Cwd;
 require 5.000;
 
@@ -20,7 +21,7 @@ getcwd - get pathname of current working directory
     chdir "/tmp";
     print $ENV{'PWD'};
 
-    use Cwd 'abs_path';
+    use Cwd 'abs_path';	    # aka realpath()
     print abs_path($ENV{'PWD'});
 
     use Cwd 'fast_abs_path';
@@ -32,8 +33,11 @@ The getcwd() function re-implements the getcwd(3) (or getwd(3)) functions
 in Perl.
 
 The abs_path() function takes a single argument and returns the
-absolute pathname for that argument. It uses the same algorithm as
-getcwd(). (actually getcwd() is abs_path("."))
+absolute pathname for that argument.  It uses the same algorithm
+as getcwd().  (Actually, getcwd() is abs_path("."))  Symbolic links
+and relative-path components ("." and "..") are resolved to return
+the canonical pathname, just like realpath(3).  Also callable as
+realpath().
 
 The fastcwd() function looks the same as getcwd(), but runs faster.
 It's also more dangerous because it might conceivably chdir() you out
@@ -67,12 +71,12 @@ kept up to date if all packages which use chdir import it from Cwd.
 
 use Carp;
 
-$VERSION = '2.01';
+$VERSION = '2.02';
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(cwd getcwd fastcwd fastgetcwd);
-@EXPORT_OK = qw(chdir abs_path fast_abs_path);
+@EXPORT_OK = qw(chdir abs_path fast_abs_path realpath fast_realpath);
 
 
 # The 'natural and safe form' for UNIX (pwd may be setuid root)
@@ -105,9 +109,6 @@ sub getcwd
 # This is a faster version of getcwd.  It's also more dangerous because
 # you might chdir out of a directory that you can't chdir back into.
     
-# List of metachars taken from do_exec() in doio.c
-my $quoted_shell_meta = quotemeta('$&*(){}[]";\\|?<>~`'."'\n");
-
 sub fastcwd {
     my($odev, $oino, $cdev, $cino, $tdev, $tino);
     my(@path, $path);
@@ -136,9 +137,10 @@ sub fastcwd {
 	unshift(@path, $direntry);
     }
     $path = '/' . join('/', @path);
+    if ($^O eq 'apollo') { $path = "/".$path; }
     # At this point $path may be tainted (if tainting) and chdir would fail.
     # To be more useful we untaint it then check that we landed where we started.
-    $path = $1 if $path =~ /^(.*)$/;	# untaint
+    $path = $1 if $path =~ /^(.*)\z/s;	# untaint
     CORE::chdir($path) || return undef;
     ($cdev, $cino) = stat('.');
     die "Unstable directory path, current directory changed unexpectedly"
@@ -166,7 +168,7 @@ sub chdir_init {
 	$ENV{'PWD'} = cwd();
     }
     # Strip an automounter prefix (where /tmp_mnt/foo/bar == /foo/bar)
-    if ($ENV{'PWD'} =~ m|(/[^/]+(/[^/]+/[^/]+))(.*)|) {
+    if ($ENV{'PWD'} =~ m|(/[^/]+(/[^/]+/[^/]+))(.*)|s) {
 	my($pd,$pi) = stat($2);
 	my($dd,$di) = stat($1);
 	if (defined $pd and defined $dd and $di == $pi and $dd == $pd) {
@@ -183,7 +185,7 @@ sub chdir {
     return 0 unless CORE::chdir $newdir;
     if ($^O eq 'VMS') { return $ENV{'PWD'} = $ENV{'DEFAULT'} }
 
-    if ($newdir =~ m#^/#) {
+    if ($newdir =~ m#^/#s) {
 	$ENV{'PWD'} = $newdir;
     } else {
 	my @curdir = split(m#/#,$ENV{'PWD'});
@@ -256,6 +258,10 @@ sub abs_path
     $cwd;
 }
 
+# added function alias for those of us more
+# used to the libc function.  --tchrist 27-Jan-00
+*realpath = \&abs_path;
+
 sub fast_abs_path {
     my $cwd = getcwd();
     my $path = shift || '.';
@@ -264,6 +270,10 @@ sub fast_abs_path {
     CORE::chdir($cwd)  || croak "Cannot chdir back to $cwd:$!";
     $realpath;
 }
+
+# added function alias to follow principle of least surprise
+# based on previous aliasing.  --tchrist 27-Jan-00
+*fast_realpath = \&fast_abs_path;
 
 
 # --- PORTING SECTION ---
@@ -330,7 +340,7 @@ sub _qnx_abs_path {
 }
 
 {
-    local $^W = 0;	# assignments trigger 'subroutine redefined' warning
+    no warnings;	# assignments trigger 'subroutine redefined' warning
 
     if ($^O eq 'VMS') {
         *cwd		= \&_vms_cwd;
@@ -370,6 +380,12 @@ sub _qnx_abs_path {
         *fastcwd	= \&_qnx_cwd;
         *abs_path	= \&_qnx_abs_path;
         *fast_abs_path	= \&_qnx_abs_path;
+    }
+    elsif ($^O eq 'cygwin') {
+        *getcwd	= \&cwd;
+        *fastgetcwd	= \&cwd;
+        *fastcwd	= \&cwd;
+        *abs_path	= \&fast_abs_path;
     }
 }
 

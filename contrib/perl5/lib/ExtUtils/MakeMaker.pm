@@ -4,7 +4,7 @@ BEGIN {require 5.002;} # MakeMaker 5.17 was the last MakeMaker that was compatib
 
 package ExtUtils::MakeMaker;
 
-$VERSION = "5.4302";
+$VERSION = "5.45";
 $Version_OK = "5.17";	# Makefiles older than $Version_OK will die
 			# (Will be checked from MakeMaker version 4.13 onwards)
 ($Revision = substr(q$Revision: 1.222 $, 10)) =~ s/\s+$//;
@@ -19,7 +19,7 @@ use Carp ();
 use vars qw(
 
 	    @ISA @EXPORT @EXPORT_OK $AUTOLOAD
-	    $ISA_TTY $Is_Mac $Is_OS2 $Is_VMS $Revision $Setup_done
+	    $ISA_TTY $Is_Mac $Is_OS2 $Is_VMS $Revision
 	    $VERSION $Verbose $Version_OK %Config %Keep_after_flush
 	    %MM_Sections %Prepend_dot_dot %Recognized_Att_Keys
 	    @Get_from_Config @MM_Sections @Overridable @Parent
@@ -72,6 +72,7 @@ $Is_VMS   = $^O eq 'VMS';
 $Is_OS2   = $^O eq 'os2';
 $Is_Mac   = $^O eq 'MacOS';
 $Is_Win32 = $^O eq 'MSWin32';
+$Is_Cygwin= $^O eq 'cygwin';
 
 require ExtUtils::MM_Unix;
 
@@ -88,36 +89,15 @@ if ($Is_Mac) {
 if ($Is_Win32) {
     require ExtUtils::MM_Win32;
 }
-
-# The SelfLoader would bring a lot of overhead for MakeMaker, because
-# we know for sure we will use most of the autoloaded functions once
-# we have to use one of them. So we write our own loader
-
-sub AUTOLOAD {
-    my $code;
-    if (defined fileno(DATA)) {
-	my $fh = select DATA;
-	my $o = $/;			# For future reads from the file.
-	$/ = "\n__END__\n";
-	$code = <DATA>;
-	$/ = $o;
-	select $fh;
-	close DATA;
-	eval $code;
-	if ($@) {
-	    $@ =~ s/ at .*\n//;
-	    Carp::croak $@;
-	}
-    } else {
-	warn "AUTOLOAD called unexpectedly for $AUTOLOAD"; 
-    }
-    defined(&$AUTOLOAD) or die "Myloader inconsistency error";
-    goto &$AUTOLOAD;
+if ($Is_Cygwin) {
+    require ExtUtils::MM_Cygwin;
 }
 
-# The only subroutine we do not SelfLoad is Version_Check because it's
-# called so often. Loading this minimum still requires 1.2 secs on my
-# Indy :-(
+full_setup();
+
+# The use of the Version_check target has been dropped between perl
+# 5.5.63 and 5.5.64. We must keep the subroutine for a while so that
+# old Makefiles can satisfy the Version_check target.
 
 sub Version_check {
     my($checkversion) = @_;
@@ -138,38 +118,10 @@ sub warnhandler {
     warn @_;
 }
 
-sub ExtUtils::MakeMaker::eval_in_subdirs ;
-sub ExtUtils::MakeMaker::eval_in_x ;
-sub ExtUtils::MakeMaker::full_setup ;
-sub ExtUtils::MakeMaker::writeMakefile ;
-sub ExtUtils::MakeMaker::new ;
-sub ExtUtils::MakeMaker::check_manifest ;
-sub ExtUtils::MakeMaker::parse_args ;
-sub ExtUtils::MakeMaker::check_hints ;
-sub ExtUtils::MakeMaker::mv_all_methods ;
-sub ExtUtils::MakeMaker::skipcheck ;
-sub ExtUtils::MakeMaker::flush ;
-sub ExtUtils::MakeMaker::mkbootstrap ;
-sub ExtUtils::MakeMaker::mksymlists ;
-sub ExtUtils::MakeMaker::neatvalue ;
-sub ExtUtils::MakeMaker::selfdocument ;
-sub ExtUtils::MakeMaker::WriteMakefile ;
-sub ExtUtils::MakeMaker::prompt ($;$) ;
-
-1;
-
-__DATA__
-
-package ExtUtils::MakeMaker;
-
 sub WriteMakefile {
     Carp::croak "WriteMakefile: Need even number of args" if @_ % 2;
     local $SIG{__WARN__} = \&warnhandler;
 
-    unless ($Setup_done++){
-	full_setup();
-	undef &ExtUtils::MakeMaker::full_setup; #safe memory
-    }
     my %att = @_;
     MM->new(\%att)->flush;
 }
@@ -230,7 +182,6 @@ sub eval_in_x {
 
 sub full_setup {
     $Verbose ||= 0;
-    $^W=1;
 
     # package name for the classes into which the first object will be blessed
     $PACKNAME = "PACK000";
@@ -239,15 +190,19 @@ sub full_setup {
 
     AUTHOR ABSTRACT ABSTRACT_FROM BINARY_LOCATION
     C CAPI CCFLAGS CONFIG CONFIGURE DEFINE DIR DISTNAME DL_FUNCS DL_VARS
-    EXCLUDE_EXT EXE_FILES FIRST_MAKEFILE FULLPERL FUNCLIST H IMPORTS
-    INC INCLUDE_EXT INSTALLARCHLIB INSTALLBIN INSTALLDIRS INSTALLMAN1DIR
+    EXCLUDE_EXT EXE_FILES FIRST_MAKEFILE FULLPERL FUNCLIST H 
+    HTMLLIBPODS HTMLSCRIPTPOD IMPORTS
+    INC INCLUDE_EXT INSTALLARCHLIB INSTALLBIN INSTALLDIRS INSTALLHTMLPRIVLIBDIR
+    INSTALLHTMLSCRIPTDIR INSTALLHTMLSITELIBDIR INSTALLMAN1DIR
     INSTALLMAN3DIR INSTALLPRIVLIB INSTALLSCRIPT INSTALLSITEARCH
     INSTALLSITELIB INST_ARCHLIB INST_BIN INST_EXE INST_LIB
+    INST_HTMLLIBDIR INST_HTMLSCRIPTDIR
     INST_MAN1DIR INST_MAN3DIR INST_SCRIPT LDFROM LIB LIBPERL_A LIBS
     LINKTYPE MAKEAPERL MAKEFILE MAN1PODS MAN3PODS MAP_TARGET MYEXTLIB
+    PERL_MALLOC_OK
     NAME NEEDS_LINKING NOECHO NORECURS NO_VC OBJECT OPTIMIZE PERL PERLMAINCC
     PERL_ARCHLIB PERL_LIB PERL_SRC PERM_RW PERM_RWX
-    PL_FILES PM PMLIBDIRS PPM_INSTALL_EXEC PPM_INSTALL_SCRIPT PREFIX
+    PL_FILES PM PMLIBDIRS POLLUTE PPM_INSTALL_EXEC PPM_INSTALL_SCRIPT PREFIX
     PREREQ_PM SKIP TYPEMAPS VERSION VERSION_FROM XS XSOPT XSPROTOARG
     XS_VERSION clean depend dist dynamic_lib linkext macro realclean
     tool_autosplit
@@ -274,7 +229,8 @@ sub full_setup {
  pasthru
 
  c_o xs_c xs_o top_targets linkext dlsyms dynamic dynamic_bs
- dynamic_lib static static_lib manifypods processPL installbin subdirs
+ dynamic_lib static static_lib htmlifypods manifypods processPL
+ installbin subdirs
  clean realclean dist_basics dist_core dist_dir dist_test dist_ci
  install force perldepend makefile staticmake test ppd
 
@@ -305,7 +261,8 @@ sub full_setup {
     @Get_from_Config = 
 	qw(
 	   ar cc cccdlflags ccdlflags dlext dlsrc ld lddlflags ldflags libc
-	   lib_ext obj_ext osname osvers ranlib sitelibexp sitearchexp so exe_ext
+	   lib_ext obj_ext osname osvers ranlib sitelibexp sitearchexp so
+	   exe_ext full_ar
 	  );
 
     my $item;
@@ -326,8 +283,9 @@ sub full_setup {
     %Prepend_dot_dot = 
 	qw(
 
-	   INST_BIN 1 INST_EXE 1 INST_LIB 1 INST_ARCHLIB 1 INST_SCRIPT
-	   1 MAP_TARGET 1 INST_MAN1DIR 1 INST_MAN3DIR 1 PERL_SRC 1
+	   INST_BIN 1 INST_EXE 1 INST_LIB 1 INST_ARCHLIB 1 INST_SCRIPT 1
+	   MAP_TARGET 1 INST_HTMLLIBDIR 1 INST_HTMLSCRIPTDIR 1 
+	   INST_MAN1DIR 1 INST_MAN3DIR 1 PERL_SRC 1
 
 	  );
 
@@ -374,9 +332,13 @@ sub ExtUtils::MakeMaker::new {
 
     my($prereq);
     foreach $prereq (sort keys %{$self->{PREREQ_PM}}) {
-	my $eval = "use $prereq $self->{PREREQ_PM}->{$prereq}";
+	my $eval = "require $prereq";
 	eval $eval;
-	if ($@){
+
+	if ($@) {
+	    warn "Warning: prerequisite $prereq failed to load: $@";
+	}
+	elsif ($prereq->VERSION < $self->{PREREQ_PM}->{$prereq} ){
 	    warn "Warning: prerequisite $prereq $self->{PREREQ_PM}->{$prereq} not found";
 # Why is/was this 'delete' here?  We need PREREQ_PM later to make PPDs.
 #	} else {
@@ -442,11 +404,13 @@ sub ExtUtils::MakeMaker::new {
 	}
 	if ($self->{PARENT}) {
 	    $self->{PARENT}->{CHILDREN}->{$newclass} = $self;
-	    if (exists $self->{PARENT}->{CAPI}
-		and not exists $self->{CAPI})
-	    {
-		# inherit, but only if already unspecified
-		$self->{CAPI} = $self->{PARENT}->{CAPI};
+	    foreach my $opt (qw(CAPI POLLUTE)) {
+		if (exists $self->{PARENT}->{$opt}
+		    and not exists $self->{$opt})
+		    {
+			# inherit, but only if already unspecified
+			$self->{$opt} = $self->{PARENT}->{$opt};
+		    }
 	    }
 	}
     } else {
@@ -472,7 +436,7 @@ sub ExtUtils::MakeMaker::new {
 	    else {
 		$pthinks =~ s!/Config\.pm$!!; $pthinks =~ s!.*/!!;
 	    }
-	    print STDOUT <<END;
+	    print STDOUT <<END unless $self->{UNINSTALLED_PERL};
 Your perl and your Config.pm seem to have different ideas about the architecture
 they are running on.
 Perl thinks: [$pthinks]
@@ -974,26 +938,29 @@ want to specify some other option, set C<TESTDB_SW> variable:
 =head2 make install
 
 make alone puts all relevant files into directories that are named by
-the macros INST_LIB, INST_ARCHLIB, INST_SCRIPT, INST_MAN1DIR, and
-INST_MAN3DIR. All these default to something below ./blib if you are
-I<not> building below the perl source directory. If you I<are>
-building below the perl source, INST_LIB and INST_ARCHLIB default to
- ../../lib, and INST_SCRIPT is not defined.
+the macros INST_LIB, INST_ARCHLIB, INST_SCRIPT, INST_HTMLLIBDIR,
+INST_HTMLSCRIPTDIR, INST_MAN1DIR, and INST_MAN3DIR.  All these default
+to something below ./blib if you are I<not> building below the perl
+source directory. If you I<are> building below the perl source,
+INST_LIB and INST_ARCHLIB default to ../../lib, and INST_SCRIPT is not
+defined.
 
 The I<install> target of the generated Makefile copies the files found
 below each of the INST_* directories to their INSTALL*
 counterparts. Which counterparts are chosen depends on the setting of
 INSTALLDIRS according to the following table:
 
-		       	   INSTALLDIRS set to
-       	       	        perl   	          site
+		       	         INSTALLDIRS set to
+       	       	              perl   	          site
 
-    INST_ARCHLIB    INSTALLARCHLIB    INSTALLSITEARCH
-    INST_LIB        INSTALLPRIVLIB    INSTALLSITELIB
-    INST_BIN                  INSTALLBIN
-    INST_SCRIPT              INSTALLSCRIPT
-    INST_MAN1DIR             INSTALLMAN1DIR
-    INST_MAN3DIR             INSTALLMAN3DIR
+    INST_ARCHLIB	INSTALLARCHLIB        INSTALLSITEARCH
+    INST_LIB		INSTALLPRIVLIB        INSTALLSITELIB
+    INST_HTMLLIBDIR	INSTALLHTMLPRIVLIBDIR INSTALLHTMLSITELIBDIR
+    INST_HTMLSCRIPTDIR            INSTALLHTMLSCRIPTDIR
+    INST_BIN			  INSTALLBIN
+    INST_SCRIPT                   INSTALLSCRIPT
+    INST_MAN1DIR                  INSTALLMAN1DIR
+    INST_MAN3DIR                  INSTALLMAN3DIR
 
 The INSTALL... macros in turn default to their %Config
 ($Config{installprivlib}, $Config{installarchlib}, etc.) counterparts.
@@ -1170,7 +1137,7 @@ MakeMaker gives you much more freedom than needed to configure
 internal variables and get different results. It is worth to mention,
 that make(1) also lets you configure most of the variables that are
 used in the Makefile. But in the majority of situations this will not
-be necessary, and should only be done, if the author of a package
+be necessary, and should only be done if the author of a package
 recommends it (or you know what you're doing).
 
 =head2 Using Attributes and Parameters
@@ -1213,6 +1180,9 @@ and the values portion of the XS attribute hash. This is not
 currently used by MakeMaker but may be handy in Makefile.PLs.
 
 =item CAPI
+
+[This attribute is obsolete in Perl 5.6.  PERL_OBJECT builds are C-compatible
+by default.]
 
 Switch to force usage of the Perl C API even when compiling for PERL_OBJECT.
 
@@ -1327,6 +1297,20 @@ names are passed through unaltered to the linker options file.
 
 Ref to array of *.h file names. Similar to C.
 
+=item HTMLLIBPODS
+
+Hashref of .pm and .pod files.  MakeMaker will default this to all
+ .pod and any .pm files that include POD directives.  The files listed
+here will be converted to HTML format and installed as was requested
+at Configure time.
+
+=item HTMLSCRIPTPODS
+
+Hashref of pod-containing files.  MakeMaker will default this to all
+EXE_FILES files that include POD directives.  The files listed
+here will be converted to HTML format and installed as was requested
+at Configure time.
+
 =item IMPORTS
 
 This attribute is used to specify names to be imported into the
@@ -1366,6 +1350,22 @@ Determines which of the two sets of installation directories to
 choose: installprivlib and installarchlib versus installsitelib and
 installsitearch. The first pair is chosen with INSTALLDIRS=perl, the
 second with INSTALLDIRS=site. Default is site.
+
+=item INSTALLHTMLPRIVLIBDIR
+
+This directory gets the HTML pages at 'make install' time. Defaults to
+$Config{installhtmlprivlibdir}.
+
+=item INSTALLHTMLSCRIPTDIR
+
+This directory gets the HTML pages at 'make install' time. Defaults to
+$Config{installhtmlscriptdir}.
+
+=item INSTALLHTMLSITELIBDIR
+
+This directory gets the HTML pages at 'make install' time. Defaults to
+$Config{installhtmlsitelibdir}.
+
 
 =item INSTALLMAN1DIR
 
@@ -1416,6 +1416,14 @@ need to use it.
 Directory where we put library files of this extension while building
 it.
 
+=item INST_HTMLLIBDIR
+
+Directory to hold the man pages in HTML format at 'make' time
+
+=item INST_HTMLSCRIPTDIR
+
+Directory to hold the man pages in HTML format at 'make' time
+
 =item INST_MAN1DIR
 
 Directory to hold the man pages at 'make' time
@@ -1427,9 +1435,37 @@ Directory to hold the man pages at 'make' time
 =item INST_SCRIPT
 
 Directory, where executable files should be installed during
-'make'. Defaults to "./blib/bin", just to have a dummy location during
+'make'. Defaults to "./blib/script", just to have a dummy location during
 testing. make install will copy the files in INST_SCRIPT to
 INSTALLSCRIPT.
+
+=item PERL_MALLOC_OK
+
+defaults to 0.  Should be set to TRUE if the extension can work with
+the memory allocation routines substituted by the Perl malloc() subsystem.
+This should be applicable to most extensions with exceptions of those
+
+=over
+
+=item *
+
+with bugs in memory allocations which are caught by Perl's malloc();
+
+=item *
+
+which interact with the memory allocator in other ways than via
+malloc(), realloc(), free(), calloc(), sbrk() and brk();
+
+=item *
+
+which rely on special alignment which is not provided by Perl's malloc().
+
+=back
+
+B<NOTE.>  Negligence to set this flag in I<any one> of loaded extension
+nullifies many advantages of Perl's malloc(), such as better usage of
+system resources, error detection, memory usage reporting, catchable failure
+of memory allocations, etc.
 
 =item LDFROM
 
@@ -1516,9 +1552,9 @@ Makefile.PL.
 
 =item NEEDS_LINKING
 
-MakeMaker will figure out, if an extension contains linkable code
+MakeMaker will figure out if an extension contains linkable code
 anywhere down the directory tree, and will set this variable
-accordingly, but you can speed it up a very little bit, if you define
+accordingly, but you can speed it up a very little bit if you define
 this boolean variable yourself.
 
 =item NOECHO
@@ -1533,7 +1569,7 @@ Boolean.  Attribute to inhibit descending into subdirectories.
 
 =item NO_VC
 
-In general any generated Makefile checks for the current version of
+In general, any generated Makefile checks for the current version of
 MakeMaker and the version the Makefile was built under. If NO_VC is
 set, the version check is neglected. Do not write this into your
 Makefile.PL, use it interactively instead.
@@ -1560,7 +1596,7 @@ to $(CC).
 
 =item PERL_ARCHLIB
 
-Same as above for architecture dependent files
+Same as above for architecture dependent files.
 
 =item PERL_LIB
 
@@ -1614,6 +1650,18 @@ they contain will be installed in the corresponding location in the
 library.  A libscan() method can be used to alter the behaviour.
 Defining PM in the Makefile.PL will override PMLIBDIRS.
 
+=item POLLUTE
+
+Release 5.005 grandfathered old global symbol names by providing preprocessor
+macros for extension source compatibility.  As of release 5.6, these
+preprocessor definitions are not available by default.  The POLLUTE flag
+specifies that the old names should still be defined:
+
+  perl Makefile.PL POLLUTE=1
+
+Please inform the module author if this is necessary to successfully install
+a module under 5.6 or later.
+
 =item PPM_INSTALL_EXEC
 
 Name of the executable used to run C<PPM_INSTALL_SCRIPT> below. (e.g. perl)
@@ -1642,8 +1690,8 @@ only check if any version is installed already.
 =item SKIP
 
 Arryref. E.g. [qw(name1 name2)] skip (do not write) sections of the
-Makefile. Caution! Do not use the SKIP attribute for the neglectible
-speedup. It may seriously damage the resulting Makefile. Only use it,
+Makefile. Caution! Do not use the SKIP attribute for the negligible
+speedup. It may seriously damage the resulting Makefile. Only use it
 if you really need it.
 
 =item TYPEMAPS
@@ -1766,7 +1814,7 @@ NB: Extensions that have nothing but *.pm files had to say
   {LINKTYPE => ''}
 
 with Pre-5.0 MakeMakers. Since version 5.00 of MakeMaker such a line
-can be deleted safely. MakeMaker recognizes, when there's nothing to
+can be deleted safely. MakeMaker recognizes when there's nothing to
 be linked.
 
 =item macro
@@ -1777,9 +1825,13 @@ be linked.
 
   {FILES => '$(INST_ARCHAUTODIR)/*.xyz'}
 
+=item test
+
+  {TESTS => 't/*.t'}
+
 =item tool_autosplit
 
-  {MAXLEN =E<gt> 8}
+  {MAXLEN => 8}
 
 =back
 
@@ -1865,7 +1917,7 @@ details)
 =item    make distclean
 
 does a realclean first and then the distcheck. Note that this is not
-needed to build a new distribution as long as you are sure, that the
+needed to build a new distribution as long as you are sure that the
 MANIFEST file is ok.
 
 =item    make manifest
