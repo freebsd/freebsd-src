@@ -1,5 +1,29 @@
 ============================================================================
+OpenPAM Cinnamon						2002-05-02
+
+ - ENHANCE: Add a null conversation function, openpam_nullconv().
+
+ - BUGFIX: Various markup bugs in the documentation.
+
+ - BUGFIX: Document <security/openpam.h>.
+
+ - BUGFIX: Duplicate expansion of openpam_log() macro arguments.
+
+ - ENHANCE: Restructure the policy-loading code and align our use of
+   the "other" policy with Solaris and Linux-PAM.
+
+ - ENHANCE: Log dlopen() and dlsym() failures.
+
+ - ENHANCE: In openpam_ttyconv(), emit a newline after error and info
+   messages unless the message contains one already.
+
+ - BUGFIX: In pam_vprompt(), initialize the response pointer to NULL
+   so we can detect whether the conversation function touched it.
+============================================================================
 OpenPAM Cineraria						2002-04-14
+
+ - BUGFIX: Fix confusion between token and prompt in
+   pam_get_authtok(3).
 
  - ENHANCE: Improved documentation.
 
@@ -7,7 +31,7 @@ OpenPAM Cineraria						2002-04-14
    FreeBSD's version of Linux-PAM to simplify static linking without
    requiring dummy primitives.
 
- - ENHANCE: move the policy-loading code out of pam_start.c.
+ - ENHANCE: Move the policy-loading code out of pam_start.c.
 
  - BUGFIX: Fix typo in one of the versions of the openpam_log macro.
 
@@ -128,4 +152,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#9 $
+$P4: //depot/projects/openpam/HISTORY#11 $
