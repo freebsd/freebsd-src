@@ -1,4 +1,4 @@
-#	$Id: options,v 1.125 1999/01/25 19:34:27 nsouch Exp $
+#	$Id: options,v 1.126 1999/02/09 01:02:37 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -243,11 +243,11 @@ DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
 # 'DEBUG', and then let people recompile just the interesting modules
-# with 'make CC="cc -DDEBUG'.
+# with 'make CC="cc -DDEBUG"'.
 CLUSTERDEBUG		opt_debug_cluster.h
 DEBUG_1284		opt_ppb_1284.h
 VP0_DEBUG		opt_vpo.h
-NLPT_DEBUG		opt_nlpt.h
+LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
 LOUTB			opt_debug_outb.h

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.553 1999/02/12 12:15:02 brian Exp $
+#	$Id: LINT,v 1.554 1999/02/13 17:54:32 nsouch Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1831,9 +1831,9 @@ pseudo-device	"i4bisppp"	4
 # vpo	Iomega Zip Drive
 #	Requires SCSI disk support ('scbus' and 'da'), best
 #	performance is achieved with ports in EPP 1.9 mode.
-# nlpt	Parallel Printer
+# lpt	Parallel Printer
 # plip	Parallel network interface
-# ppi	General-purpose I/O ("Geek Port")
+# ppi	General-purpose I/O ("Geek Port") + IEEE1284 I/O
 # pps	Pulse per second Timing Interface
 # lpbb	Philips official parallel port I2C bit-banging interface
 #
@@ -1846,19 +1846,19 @@ options		"PERIPH_1284"	# Makes your computer act as a IEEE1284
 				# compliant peripheral
 options		"DONTPROBE_1284"# Avoid boot detection of PnP parallel devices
 options		"VP0_DEBUG"	# ZIP/ZIP+ debug
-options		"NLPT_DEBUG"	# Printer driver debug
+options		"LPT_DEBUG"	# Printer driver debug
 options		"PPC_DEBUG"	# Parallel chipset level debug
 options		"PLIP_DEBUG"	# Parallel network IP interface debug
 
 controller	ppbus0
 controller	vpo0	at ppbus?
-device		nlpt0	at ppbus?
+device		lpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
 device		pps0	at ppbus?
 device		lpbb0	at ppbus?
 
-controller	ppc0	at isa? disable port ? tty irq 7
+controller	ppc0	at isa? port? tty irq 7
 
 # Kernel BOOTP support 
 
