@@ -187,10 +187,6 @@ struct l_statfs {
 	l_int		f_spare[6];
 };
 
-#ifndef VT_NWFS
-#define	VT_NWFS	VT_TFS	/* XXX - bug compat. with sys/fs/nwfs/nwfs_node.h */
-#endif
-
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
 #define	LINUX_EXT2_SUPER_MAGIC	0xEF53L
 #define	LINUX_HPFS_SUPER_MAGIC	0xf995e849L
@@ -202,34 +198,26 @@ struct l_statfs {
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
 
-/*
- * ext2fs uses the VT_UFS tag. A mounted ext2 filesystem will therefore
- * be seen as an ufs filesystem.
- */
 static long
-bsd_to_linux_ftype(int tag)
+bsd_to_linux_ftype(const char *fstypename)
 {
+	int i;
+	static struct {const char *bsd_name; long linux_type;} b2l_tbl[] = {
+		{"ufs",     LINUX_UFS_SUPER_MAGIC},
+		{"cd9660",  LINUX_ISOFS_SUPER_MAGIC},
+		{"nfs",     LINUX_NFS_SUPER_MAGIC},
+		{"ext2fs",  LINUX_EXT2_SUPER_MAGIC},
+		{"procfs",  LINUX_PROC_SUPER_MAGIC},
+		{"msdosfs", LINUX_MSDOS_SUPER_MAGIC},
+		{"ntfs",    LINUX_NTFS_SUPER_MAGIC},
+		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
+		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
+		{"coda",    LINUX_CODA_SUPER_MAGIC},
+		{NULL,      0L}};
 
-	switch (tag) {
-	case VT_CODA:
-		return (LINUX_CODA_SUPER_MAGIC);
-	case VT_HPFS:
-		return (LINUX_HPFS_SUPER_MAGIC);
-	case VT_ISOFS:
-		return (LINUX_ISOFS_SUPER_MAGIC);
-	case VT_MSDOSFS:
-		return (LINUX_MSDOS_SUPER_MAGIC);
-	case VT_NFS:
-		return (LINUX_NFS_SUPER_MAGIC);
-	case VT_NTFS:
-		return (LINUX_NTFS_SUPER_MAGIC);
-	case VT_NWFS:
-		return (LINUX_NCP_SUPER_MAGIC);
-	case VT_PROCFS:
-		return (LINUX_PROC_SUPER_MAGIC);
-	case VT_UFS:
-		return (LINUX_UFS_SUPER_MAGIC);
-	}
+	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
+		if (strcmp(b2l_tbl[i].bsd_name, fstypename) == 0)
+			return (b2l_tbl[i].linux_type);
 
 	return (0L);
 }
@@ -265,7 +253,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_type);
+	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs.f_bsize = bsd_statfs->f_bsize;
 	linux_statfs.f_blocks = bsd_statfs->f_blocks;
 	linux_statfs.f_bfree = bsd_statfs->f_bfree;
@@ -301,7 +289,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_type);
+	linux_statfs.f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs.f_bsize = bsd_statfs->f_bsize;
 	linux_statfs.f_blocks = bsd_statfs->f_blocks;
 	linux_statfs.f_bfree = bsd_statfs->f_bfree;
