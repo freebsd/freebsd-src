@@ -378,6 +378,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	int isipv6;
 #endif /* INET6 */
 	int ipflags = 0;
+	struct inpcb *inp;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
@@ -388,18 +389,23 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	ip = ipgen;
 
 	if (tp) {
+		inp = tp->t_inpcb;
+		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
+		INP_INFO_WLOCK_ASSERT(&tcbinfo);
+		INP_LOCK_ASSERT(inp);
 		if (!(flags & TH_RST)) {
-			win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
+			win = sbspace(&inp->inp_socket->so_rcv);
 			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
 				win = (long)TCP_MAXWIN << tp->rcv_scale;
 		}
 #ifdef INET6
 		if (isipv6)
-			ro6 = &tp->t_inpcb->in6p_route;
+			ro6 = &inp->in6p_route;
 		else
 #endif /* INET6 */
-		ro = &tp->t_inpcb->inp_route;
+		ro = &inp->inp_route;
 	} else {
+		inp = NULL;
 #ifdef INET6
 		if (isipv6) {
 			ro6 = &sro6;
@@ -480,12 +486,12 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = (struct ifnet *) 0;
 #ifdef MAC
-	if (tp != NULL && tp->t_inpcb != NULL) {
+	if (inp != NULL) {
 		/*
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
 		 */
-		mac_create_mbuf_from_socket(tp->t_inpcb->inp_socket, m);
+		mac_create_mbuf_from_socket(inp->inp_socket, m);
 	} else {
 		/*
 		 * Packet is not associated with a socket, so possibly
@@ -510,7 +516,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		nth->th_sum = in6_cksum(m, IPPROTO_TCP,
 					sizeof(struct ip6_hdr),
 					tlen - sizeof(struct ip6_hdr));
-		ip6->ip6_hlim = in6_selecthlim(tp ? tp->t_inpcb : NULL,
+		ip6->ip6_hlim = in6_selecthlim(inp,
 					       ro6 && ro6->ro_rt ?
 					       ro6->ro_rt->rt_ifp :
 					       NULL);
@@ -523,26 +529,25 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
         m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
       }
 #ifdef TCPDEBUG
-	if (tp == NULL || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 #ifdef INET6
 	if (isipv6) {
-		(void)ip6_output(m, NULL, ro6, ipflags, NULL, NULL,
-			tp ? tp->t_inpcb : NULL);
+		(void) ip6_output(m, NULL, ro6, ipflags, NULL, NULL, inp);
 		if (ro6 == &sro6 && ro6->ro_rt) {
 			RTFREE(ro6->ro_rt);
 			ro6->ro_rt = NULL;
 		}
 	} else
 #endif /* INET6 */
-      {
-	(void) ip_output(m, NULL, ro, ipflags, NULL, tp ? tp->t_inpcb : NULL);
-	if (ro == &sro && ro->ro_rt) {
-		RTFREE(ro->ro_rt);
-		ro->ro_rt = NULL;
+	{
+		(void) ip_output(m, NULL, ro, ipflags, NULL, inp);
+		if (ro == &sro && ro->ro_rt) {
+			RTFREE(ro->ro_rt);
+			ro->ro_rt = NULL;
+		}
 	}
-      }
 }
 
 /*
