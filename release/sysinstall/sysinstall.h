@@ -445,6 +445,7 @@ extern int	configXSetup(dialogMenuItem *self);
 extern int	configXDesktop(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
+extern int	configInetd(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
 extern int	configSecurityProfile(dialogMenuItem *self);
@@ -452,6 +453,7 @@ extern int	configSecurityFascist(dialogMenuItem *self);
 extern int	configSecurityHigh(dialogMenuItem *self);
 extern int	configSecurityModerate(dialogMenuItem *self);
 extern int	configSecurityLiberal(dialogMenuItem *self);
+extern int	configEtcTtys(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
