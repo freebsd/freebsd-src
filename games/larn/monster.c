@@ -1,5 +1,6 @@
 /*
  *	monster.c		Larn is copyrighted 1986 by Noah Morgan.
+ * $FreeBSD$
  *
  *	This file contains the following functions:
  *	----------------------------------------------------------------------------

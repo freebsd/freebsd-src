@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.options.c - version 1.0.3 */
+/* $FreeBSD$ */
 
 #include <stdlib.h>
 #include "config.h"

@@ -3,6 +3,8 @@
  *
  * Edward A. Estes
  * AT&T, March 12, 1986
+ *
+ * $FreeBSD$
  */
 
 /* DISCLAIMER:

@@ -1,5 +1,7 @@
 /*
  * gamesupport.c - auxiliary routines for support of Phantasia
+ *
+ * $FreeBSD$
  */
 
 #include <string.h>

@@ -1,5 +1,6 @@
 /*
  *	movem.c (move monster)		Larn is copyrighted 1986 by Noah Morgan.
+ * $FreeBSD$
  *
  *	Here are the functions in this file:
  *

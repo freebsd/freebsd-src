@@ -1,4 +1,5 @@
 /*	global.c 		Larn is copyrighted 1986 by Noah Morgan.
+ * $FreeBSD$
  *
  *	raiselevel()		subroutine to raise the player one level
  *	loselevel()		subroutine to lower the player by one level
@@ -16,6 +17,7 @@
  *	makemonst(lev)		function to return monster number for a randomly selected monster
  *	positionplayer()	function to be sure player is not in a wall
  *	quit()				subroutine to ask if the player really wants to quit
+ *
  */
 
 #include "header.h"

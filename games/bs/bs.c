@@ -5,6 +5,8 @@
  *		by Eric S. Raymond <esr@snark.thyrsus.com>
  * v1.2 with color support and minor portability fixes, November 1990
  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
+ *
+ * $FreeBSD$
  */
 
 #include <ncurses.h>
