@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.17 1995/07/29 13:39:44 bde Exp $ */
+/* $Id: if_ppp.c,v 1.18 1995/07/31 21:01:34 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -902,11 +902,11 @@ pppstart(tp)
 
     for (;;) {
 	/*
-	 * If there is more in the output queue, just send it now.
+	 * Call output process whether or not there is any output.
 	 * We are being called in lieu of ttstart and must do what
 	 * it would.
 	 */
-	if (CCOUNT(&tp->t_outq) != 0 && tp->t_oproc != NULL) {
+	if (tp->t_oproc != NULL) {
 	    (*tp->t_oproc)(tp);
 	    if (CCOUNT(&tp->t_outq) > PPP_HIWAT)
 		return 0;
