@@ -70,7 +70,7 @@ static void	gets(char *cp);
 char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
 
-SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, vfs_mountroot, NULL);
+SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_SECOND, vfs_mountroot, NULL);
 	
 /*
  * Find and mount the root filesystem
@@ -119,8 +119,8 @@ vfs_mountroot(void *junk)
 	 */
 #ifdef ROOTDEVNAME
 	if (!(boothowto & RB_DFLTROOT))
-	    !vfs_mountroot_try(ROOTDEVNAME))
-		return;
+		if (!vfs_mountroot_try(ROOTDEVNAME))
+			return;
 #endif
 
 	/* 
@@ -138,12 +138,12 @@ vfs_mountroot(void *junk)
 static int
 vfs_mountroot_try(char *mountfrom)
 {
-	struct mount	*mp;
+        struct mount	*mp;
 	char		*vfsname, *path;
 	int		error;
 	char		patt[16];
 
-	vfsname = path = NULL;
+	vfsname = path = mp = NULL;
 	error = EINVAL;
 
 	if (mountfrom == NULL)
@@ -154,8 +154,9 @@ vfs_mountroot_try(char *mountfrom)
 	/* parse vfs name and path */
 	vfsname = malloc(MFSNAMELEN, M_MOUNT, M_WAITOK);
 	path = malloc(MNAMELEN, M_MOUNT, M_WAITOK);
+	vfsname[0] = path[0] = 0;
 	sprintf(patt, "%%%d[a-z]:%%%ds", MFSNAMELEN, MNAMELEN);
-	if (sscanf(mountfrom, patt, vfsname, path) != 2)
+	if (sscanf(mountfrom, patt, vfsname, path) < 1)
 		goto done;
 
 	/* allocate a root mount */
@@ -167,7 +168,7 @@ vfs_mountroot_try(char *mountfrom)
 	mp->mnt_flag |= MNT_ROOTFS;
 
 	/* do our best to set rootdev */
-	if (setrootbyname(path))
+	if ((path[0] != 0) && setrootbyname(path))
 		printf("setrootbyname failed\n");
 
 	strcpy(mp->mnt_stat.f_mntfromname, path);
@@ -190,7 +191,8 @@ done:
 		/* sanity check system clock against root filesystem timestamp */
 		inittodr(mp->mnt_time);
 	}
-	vfs_unbusy(mp, curproc);
+	if (mp != NULL)
+		vfs_unbusy(mp, curproc);
 	return(error);
 }
 
