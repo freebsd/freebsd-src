@@ -38,17 +38,17 @@
 #define	PCIC_I82365	0		/* Intel chip */
 #define	PCIC_IBM	1		/* IBM clone */
 #define	PCIC_VLSI	2		/* VLSI chip */
-#define	PCIC_PD672X	3		/* Cirrus logic 627x */
+#define	PCIC_PD672X	3		/* Cirrus logic 672x */
 #define	PCIC_PD6710	4		/* Cirrus logic 6710 */
-#define	PCIC_CL6729	5		/* Cirrus logic 6729 */
-#define	PCIC_VG365	6		/* Vadem 365 */
-#define	PCIC_VG465      7		/* Vadem 465 */
-#define	PCIC_VG468	8		/* Vadem 468 */
-#define	PCIC_VG469	9		/* Vadem 469 */
-#define	PCIC_RF5C396	10		/* Ricoh RF5C396 */
-#define	PCIC_IBM_KING	11		/* IBM KING PCMCIA Controller */
-#define	PCIC_PC98	12		/* NEC PC98 PCMCIA Controller */
-#define	PCIC_TI1130	13		/* TI PCI1130 CardBus */
+#define	PCIC_VG365	5		/* Vadem 365 */
+#define	PCIC_VG465      6		/* Vadem 465 */
+#define	PCIC_VG468	7		/* Vadem 468 */
+#define	PCIC_VG469	8		/* Vadem 469 */
+#define	PCIC_RF5C396	9		/* Ricoh RF5C396 */
+#define	PCIC_IBM_KING	10		/* IBM KING PCMCIA Controller */
+#define	PCIC_PC98	11		/* NEC PC98 PCMCIA Controller */
+/* These last ones aren't in normal freebsd */
+#define	PCIC_TI1130	12		/* TI PCI1130 CardBus */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -84,6 +84,10 @@
 #define PCIC_MISC1	0x16	/* PD672x: Misc control register 1 per slot */
 #define PCIC_GLO_CTRL	0x1e	/* Global Control Register */
 #define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
+#define PCIC_CLCHIP	0x1f	/* PD67xx: Chip I/D */
+#define PCIC_CVSR	0x2f	/* Vadem: Voltage select register */
+
+#define PCIC_VMISC	0x3a	/* Vadem: Misc control register */
 
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
@@ -99,6 +103,7 @@
 /* For Identification and Revision (PCIC_ID_REV) */
 #define PCIC_INTEL0	0x82	/* Intel 82365SL Rev. 0; Both Memory and I/O */
 #define PCIC_INTEL1	0x83	/* Intel 82365SL Rev. 1; Both Memory and I/O */
+#define PCIC_VLSI82C146	0x84	/* VLSI 82C146 */
 #define PCIC_IBM1	0x88	/* IBM PCIC clone; Both Memory and I/O */
 #define PCIC_IBM2	0x89	/* IBM PCIC clone; Both Memory and I/O */
 #define PCIC_IBM3	0x8a	/* IBM KING PCIC clone; Both Memory and I/O */
@@ -120,7 +125,7 @@
 #define	PCIC_VCC_5V	0x10	/* 5 volts */
 #define	PCIC_VCC_3V	0x18	/* 3 volts */
 #define	PCIC_VCC_5V_KING	0x14	/* 5 volts for KING PCIC */
-#define	PCIC_VPP	0x0C	/* Vpp control bits */
+#define	PCIC_VPP	0x03	/* Vpp control bits */
 #define	PCIC_VPP_5V	0x01	/* 5 volts */
 #define	PCIC_VPP_12V	0x02	/* 12 volts */
 
@@ -204,24 +209,62 @@
 #define PCIC_CDRES_EN	0x10	/* card detect resume enable */
 #define PCIC_SW_CD_INT	0x20	/* s/w card detect interrupt */
 
-/* For Misc. Control Register 1 */
-#define PCIC_SPKR_EN	0x10	/* Cirrus PD672x: speaker enable */
+/* CL-PD67[12]x: For 3.3V cards, etc. (PCIC_MISC1) */
+#define PCIC_MISC1_5V_DETECT 0x01	/* PD6710 only */
+#define PCIC_MISC1_VCC_33    0x02	/* Set Vcc is 3.3V, else 5.0V */
+#define PCIC_MISC1_PMINT     0x04	/* Pulse management intr */
+#define PCIC_MISC1_PCINT     0x08	/* Pulse card interrupt */
+#define PCIC_MISC1_SPEAKER   0x10	/* Enable speaker */
+#define PCIC_MISC1_INPACK    0x80	/* INPACK throttles data */
 
-/* For Global Control register (PCIC_GLO_CTRL) */
+/* i82365B and newer (!PD67xx) Global Control register (PCIC_GLO_CTRL) */
 #define PCIC_PWR_DOWN	0x01	/* power down */
 #define PCIC_LVL_MODE	0x02	/* level mode interrupt enable */
 #define PCIC_WB_CSCINT	0x04	/* explicit write-back csc intr */
+/* Rev B only */
 #define PCIC_IRQ0_LEVEL 0x08	/* irq 14 pulse mode enable */
 #define PCIC_IRQ1_LEVEL 0x10
 
-/* For Misc. Control Register 2 */
+/* CL-PD67[12]x: For Misc. Control Register 2 (PCIC_MISC2) */
 #define PCIC_LPDM_EN	0x02	/* Cirrus PD672x: low power dynamic mode */
+
+/* CL-PD67[12]x: Chip info (PCIC_CLCHIP) */
+#define PCIC_CLC_TOGGLE 0xc0		/* These bits toggle 1 -> 0 */
+#define PCIC_CLC_DUAL	0x20		/* Single/dual socket version */
+
+/* Vadem: Card Voltage Select register (PCIC_CVSR) */
+#define PCIC_CVSR_VS	0x03		/* Voltage select */
+#define PCIC_CVSR_VS_5	0x00		/* 5.0 V */
+#define PCIC_CVSR_VS_33a 0x01		/* alt 3.3V */
+#define PCIC_CVSR_VS_XX	0x02		/* X.XV when available */
+#define PCIC_CVSR_VS_33 0x03		/* 3.3V */
+
+/* Vadem: misc register (PCIC_VMISC) */
+#define PCIC_VADEMREV	0x40
 
 /*
  *	Mask of allowable interrupts.
- *	Ints are 3,4,5,7,9,10,11,12,14,15
+ *
+ *	For IBM-AT machines, irqs 3, 4, 5, 7, 9, 10, 11, 12, 14, 15 are
+ *	allowed.  Nearly all IBM-AT machines with pcic cards or bridges
+ *	wire these interrupts (or a subset thereof) to the corresponding
+ *	pins on the ISA bus.  Some older laptops are reported to not route
+ *	all the interrupt pins to the bus because the designers knew that
+ *	some would conflict with builtin devices.
+ *
+ *	For NEC PC98 machines, irq 3, 5, 6, 9, 10, 11, 12, 13 are allowed.
+ *	These correspond to the C-BUS signals INT 0, 1, 2, 3, 41, 42, 5, 6
+ *	respectively.  This is with the desktop C-BUS addin card.  I don't
+ *	know if this corresponds to laptop usage or not.
+ *
+ *	I'm not sure the proper way to map these interrupts, but it looks
+ *	like pc98 is a subset of ibm-at so no actual mapping is required.
  */
-#define	PCIC_INT_MASK_ALLOWED	0xDEB8
+#ifdef PC98
+#define	PCIC_INT_MASK_ALLOWED	0x3E68		/* PC98 */
+#else
+#define	PCIC_INT_MASK_ALLOWED	0xDEB8		/* AT */
+#endif
 
 #define	PCIC_IO_WIN	2
 #define	PCIC_MEM_WIN	5

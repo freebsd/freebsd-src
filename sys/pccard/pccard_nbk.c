@@ -78,6 +78,23 @@ devclass_t	pccard_devclass;
 
 #define PCCARD_DEVINFO(d) (struct pccard_devinfo *) device_get_ivars(d)
 
+#if NOT_YET_XXX
+/*
+ * glue for NEWCARD/OLDCARD compat layer
+ */
+static int
+pccard_compat_do_probe(device_t bus, device_t dev)
+{
+	return (CARD_COMPAT_PROBE(dev));
+}
+
+static int
+pccard_compat_do_attach(device_t bus, device_t dev)
+{
+	return (CARD_COMPAT_ATTACH(dev));
+}
+#endif
+
 static int
 pccard_probe(device_t dev)
 {
@@ -288,13 +305,15 @@ pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
 	    rid, value);
 }
 
+#ifdef NOT_YET_XXX
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
-    u_int32_t offset)
+    u_int32_t offset, u_int32_t *deltap)
 {
 	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset);
+	    offset, deltap);
 }
+#endif
 
 static int
 pccard_get_memory_offset(device_t bus, device_t child, int rid, 
@@ -303,6 +322,36 @@ pccard_get_memory_offset(device_t bus, device_t child, int rid,
 	return CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
 	    offset);
 }
+
+#ifdef NOT_YET_XXX
+static int
+pccard_get_function(device_t bus, device_t child, int *function)
+{
+	*function = 0;
+	return (0);
+}
+
+static int
+pccard_activate_function(device_t bus, device_t child)
+{
+	/* pccardd has alrady activated the function */
+	return (0);
+}
+
+static int
+pccard_deactivate_function(device_t bus, device_t child)
+{
+	/* pccardd will deactivate the function */
+	return (0);
+}
+
+const struct pccard_product *
+pccard_product_lookup(device_t dev, const struct pccard_product *tab,
+    size_t ent_size, pccard_product_match_fn matchfn)
+{
+	return NULL;
+}
+#endif
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
@@ -329,8 +378,15 @@ static device_method_t pccard_methods[] = {
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
+ 	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
+#ifdef NOT_YET_XXX
+	DEVMETHOD(card_get_function,	pccard_get_function),
+	DEVMETHOD(card_activate_function, pccard_activate_function),
+	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
-	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
+	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
+	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
+#endif
 
 	{ 0, 0 }
 };
@@ -344,3 +400,4 @@ static driver_t pccard_driver = {
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, cbb, pccard_driver, pccard_devclass, 0, 0);
+MODULE_VERSION(pccard, 1);

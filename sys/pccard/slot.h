@@ -52,21 +52,21 @@
  */
 struct slot;
 struct slot_ctrl {
-	int	(*mapmem) __P((struct slot *, int));
+	void	(*mapirq)(struct slot *, int);
+				/* Map irq */
+	int	(*mapmem)(struct slot *, int);
 				/* Map memory */
-	int	(*mapio) __P((struct slot *, int));
+	int	(*mapio)(struct slot *, int);
 				/* Map io */
-	void	(*reset) __P((void *));
+	void	(*reset)(void *);
 				/* init */
-	void	(*disable) __P((struct slot *));
+	void	(*disable)(struct slot *);
 				/* Disable slot */
-	int	(*power) __P((struct slot *));
+	int	(*power)(struct slot *);
 				/* Set power values */
-	int	(*ioctl) __P((struct slot *, int, caddr_t));
+	int	(*ioctl)(struct slot *, int, caddr_t);
 				/* ioctl to lower level */
-	void	(*mapirq) __P((struct slot *, int));
-				/* Map interrupt number */
-	void	(*resume) __P((struct slot *));
+	void	(*resume)(struct slot *);
 				/* suspend/resume support */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */

@@ -34,10 +34,11 @@
 #include "opt_pcic.h"
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
@@ -54,16 +55,6 @@
 
 #include <machine/md_var.h>
 
-/*
- * XXX We shouldn't be using processor-specific/bus-specific code in
- * here, but we need the start of the ISA hole (IOM_BEGIN).
- */
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
 static int pcic_resume_reset = 1;
@@ -71,15 +62,12 @@ static int pcic_resume_reset = 1;
 SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
     &pcic_resume_reset, 0, "");
 
-#define	PCCARD_MEMSIZE	(4*1024)
-
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 static int		allocate_driver(struct slot *, struct dev_desc *);
 static void		inserted(void *);
 static void		disable_slot(struct slot *);
 static void		disable_slot_to(struct slot *);
-static int		invalid_io_memory(unsigned long, int);
 static void		power_off_slot(void *);
 
 static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
@@ -89,8 +77,11 @@ static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
  *	of memory in the ISA I/O memory space allocated via
  *	an ioctl setting.
  */
+/* XXX this should be in pcic */
 static unsigned long pccard_mem;	/* Physical memory */
 static unsigned char *pccard_kmem;	/* Kernel virtual address */
+static struct resource *pccard_mem_res;
+static int pccard_mem_rid;
 
 static	d_open_t	crdopen;
 static	d_close_t	crdclose;
@@ -114,7 +105,6 @@ static struct cdevsw crd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 /*
@@ -202,8 +192,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	if (slotno == MAXSLOT)
 		return(0);
 
-	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK);
-	bzero(slt, sizeof(*slt));
+	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK | M_ZERO);
 	make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
 	slt->ctrl = ctrl;
 	slt->slotnum = slotno;
@@ -227,8 +216,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 
 	pccarddev = devclass_get_device(pccard_devclass, slt->slotnum);
 	irq = ffs(desc->irqmask) - 1;
-	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
-	bzero(devi, sizeof(*devi));
+	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 	strcpy(devi->name, desc->name);
 	/*
 	 *	Create an entry for the device under this slot.
@@ -255,8 +244,15 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			goto err;
 	}
 	err = device_probe_and_attach(child);
-	snprintf(desc->name, sizeof(desc->name), "%s",
-		 device_get_nameunit(child));
+	/*
+	 * XXX We unwisely assume that the detach code won't run while the
+	 * XXX the attach code is attaching.  Someone should put some
+	 * XXX interlock code.  This can happen if probe/attach takes a while
+	 * XXX and the user ejects the card, which causes the detach
+	 * XXX function to be called.
+	 */
+	strncpy(desc->name, device_get_nameunit(child), sizeof(desc->name));
+	desc->name[sizeof(desc->name) - 1] = '\0';
 err:
 	if (err)
 		device_delete_child(pccarddev, child);
@@ -445,6 +441,49 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	return(error);
 }
 
+static int
+crdioctl_sresource(dev_t dev, caddr_t data)
+{
+	struct pccard_resource *pr;
+	struct resource *r;
+	device_t pcicdev;
+	int i;
+	int rid = 1;
+	int err;
+
+	pr = (struct pccard_resource *)data;
+	pr->resource_addr = ~0ul;
+	/*
+	 * pccard_devclass does not have soft_c
+	 * so we use pcic_devclass
+	 */
+	pcicdev = devclass_get_device(pcic_devclass, 0);
+	switch(pr->type) {
+	default:
+		return (EINVAL);
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+	case SYS_RES_IOPORT:
+		break;
+	}
+	for (i = pr->min; i + pr->size - 1 <= pr->max; i++) {
+		/* already allocated to pcic? */
+		if (bus_get_resource_start(pcicdev, pr->type, 0) == i)
+			continue;
+		err = bus_set_resource(pcicdev, pr->type, rid, i, pr->size);
+		if (err != 0)
+			continue;
+		r = bus_alloc_resource(pcicdev, pr->type, &rid, 0ul, ~0ul,
+		    pr->size, 0);
+		if (r == NULL)
+			continue;
+		pr->resource_addr = (u_long)rman_get_start(r);
+		bus_release_resource(pcicdev, pr->type, rid, r);
+		return (0);
+	}
+	return (0);
+}
+
 /*
  *	ioctl calls - allows setting/getting of memory and I/O
  *	descriptors, and assignment of drivers.
@@ -455,13 +494,10 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	struct slot *slt = pccard_slots[minor(dev)];
 	struct mem_desc *mp;
 	struct io_desc *ip;
-	struct pccard_resource *pr;
-	struct resource *r;
 	device_t pcicdev;
 	int s, err;
-	int rid = 1;
-	int i;
 	int	pwval;
+	u_int32_t addr;
 
 	if (slt == 0 && cmd != PIOCRWMEM)
 		return(ENXIO);
@@ -544,15 +580,13 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCRWFLAG:
 		slt->rwmem = *(int *)data;
 		break;
-#ifndef	__alpha__
 	/*
 	 * Set the memory window to be used for the read/write interface.
 	 * Not available on the alpha.
 	 */
 	case PIOCRWMEM:
 		if (*(unsigned long *)data == 0) {
-			if (pccard_mem)
-				*(unsigned long *)data = pccard_mem;
+			*(unsigned long *)data = pccard_mem;
 			break;
 		}
 		if (suser(p))
@@ -561,19 +595,25 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		 * Validate the memory by checking it against the I/O
 		 * memory range. It must also start on an aligned block size.
 		 */
-		if (invalid_io_memory(*(unsigned long *)data, PCCARD_MEMSIZE))
-			return(EINVAL);
 		if (*(unsigned long *)data & (PCCARD_MEMSIZE-1))
 			return(EINVAL);
-		/*
-		 *	Map it to kernel VM.
-		 */
-		pccard_mem = *(unsigned long *)data;
-		pccard_kmem =
-		    (unsigned char *)(void *)(uintptr_t)
-		    (pccard_mem + atdevbase - IOM_BEGIN);
-		break;
+		pcicdev = devclass_get_device(pcic_devclass, 0);
+		pccard_mem_rid = 0;
+		addr = *(unsigned long *)data;
+		if (pccard_mem_res)
+			bus_release_resource(pcicdev, SYS_RES_MEMORY,
+			    pccard_mem_rid, pccard_mem_res);
+		pccard_mem_res = bus_alloc_resource(pcicdev, SYS_RES_MEMORY,
+		    &pccard_mem_rid, addr, addr, PCCARD_MEMSIZE,
+		    RF_ACTIVE);
+#ifdef NOT_YET_XXX
+ | rman_make_alignment_flags(PCCARD_MEMSIZE));
 #endif
+		if (pccard_mem_res == NULL)
+			return(EINVAL);
+		pccard_mem = rman_get_start(pccard_mem_res);
+		pccard_kmem = rman_get_virtual(pccard_mem_res);
+		break;
 	/*
 	 * Set power values.
 	 */
@@ -614,35 +654,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		}
 		break;
 	case PIOCSRESOURCE:
-		pr = (struct pccard_resource *)data;
-		pr->resource_addr = ~0ul;
-		/*
-		 * pccard_devclass does not have soft_c
-		 * so we use pcic_devclass
-		 */
-		pcicdev = devclass_get_device(pcic_devclass, 0);
-		switch(pr->type) {
-		default:
-			return EINVAL;
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-		case SYS_RES_IRQ:
-			for (i = pr->min; i + pr->size - 1 <= pr->max; i++) {
-				/* already allocated to pcic? */
-				if (bus_get_resource_start(pcicdev, pr->type, 0) == i)
-					continue;
-				err = bus_set_resource(pcicdev, pr->type, rid, i, pr->size);
-				if (!err) {
-					r = bus_alloc_resource(pcicdev, pr->type, &rid, 0ul, ~0ul, pr->size, 0);
-					if (r) { 
-						pr->resource_addr = (u_long)rman_get_start(r);
-			                        bus_release_resource(pcicdev, pr->type, rid, r);
-						break;
-					}
-				}
-			}
-			break;
-		}
+		return (crdioctl_sresource(dev, data));
 		break;
 	}
 	return(0);
@@ -678,22 +690,6 @@ crdpoll(dev_t dev, int events, struct proc *p)
 
 	splx(s);
 	return (revents);
-}
-
-/*
- *	invalid_io_memory - verify that the ISA I/O memory block
- *	is a valid and unallocated address.
- *	A simple check of the range is done, and then a
- *	search of the current devices is done to check for
- *	overlapping regions.
- */
-static int
-invalid_io_memory(unsigned long adr, int size)
-{
-	/* XXX - What's magic about 0xC0000?? */
-	if (adr < 0xC0000 || (adr+size) > IOM_END)
-		return(1);
-	return(0);
 }
 
 static struct slot *
