@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.45 1997/04/11 04:32:44 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.46 1997/04/11 10:04:46 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -551,6 +551,36 @@ like to publically thank them here!
         <em>FreeBSD for PC98'ers</em> CD, a port of FreeBSD to
         the NEC PC98).
    </itemize>
+
+<item><bf>Hardware contributors:</bf>
+  <p>
+  The following individuals and businesses have generously contributed
+  hardware for testing and device driver development and support:
+  <itemize>
+    <item>Walnut Creek CDROM for providing the Pentium P5-90 and
+      486/DX2-66 EISA/VL systems that are being used for our development
+      work, to say nothing of the network access and other donations of
+      hardware resources.
+
+    <item>TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
+      fileservers, twelve Ethernets, two routers and an ATM
+      switch for debugging the diskless code.  They also keep a
+      couple of FreeBSD hackers alive and busy.  Thanks!
+
+    <item>Dermot McDonnell donated the Toshiba XM3401B CDROM drive
+      currently used in freefall.
+
+    <item>&a.chuck; contributed his floppy tape streamer for experimental
+      work.
+
+    <item>Larry Altneu &lt;larry@ALR.COM&gt;, and &a.wilko;,
+      provided Wangtek and Archive QIC-02 tape drives in order to
+      improve the <tt>wt</tt> driver.
+
+    <item>Ernst Winter &lt;ewinter@lobo.muc.de&gt; contributed a 2.88 MB
+      floppy drive to the project.  This will hopefully increase the
+      pressure for rewriting the floppy disk driver. ;-)
+  </itemize>
 
 <item><bf>Special contributors:</bf>
   <p>
