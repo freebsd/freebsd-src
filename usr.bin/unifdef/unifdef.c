@@ -46,7 +46,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.156 2003/06/30 14:30:54 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.160 2003/07/01 15:21:25 fanf2 Exp $");
 #endif
 #endif /* not lint */
 #ifdef __FBSDID
@@ -201,6 +201,7 @@ static int              exitstat;		/* program exit status */
 
 static void             addsym(bool, bool, char *);
 static void             debug(const char *, ...);
+static void             done(void);
 static void             error(const char *);
 static int              findsym(const char *);
 static void             flushline(bool);
@@ -286,18 +287,15 @@ main(int argc, char *argv[])
 		errx(2, "can only do one file");
 	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
 		filename = *argv;
-		if ((input = fopen(filename, "r")) != NULL) {
-			process();
-			(void) fclose(input);
-		} else
-			err(2, "can't open %s", *argv);
+		input = fopen(filename, "r");
+		if (input == NULL)
+			err(2, "can't open %s", filename);
 	} else {
 		filename = "[stdin]";
 		input = stdin;
-		process();
 	}
-
-	exit(exitstat);
+	process();
+	abort(); /* bug */
 }
 
 static void
@@ -311,8 +309,7 @@ usage(void)
 /*
  * A state transition function alters the global #if processing state
  * in a particular way. The table below is indexed by the current
- * processing state and the type of the current line. A NULL entry
- * indicates that processing is complete.
+ * processing state and the type of the current line.
  *
  * Nesting is handled by keeping a stack of states; some transition
  * functions increase or decrease the depth. They also maintain the
@@ -385,7 +382,7 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
 /* IS_OUTSIDE */
 { Itrue, Ifalse,Fpass, Ftrue, Ffalse,Eelif, Eelif, Eelif, Eelse, Eendif,
   Oiffy, Oiffy, Fpass, Oif,   Oif,   Eelif, Eelif, Eelif, Eelse, Eendif,
-  print, NULL },
+  print, done },
 /* IS_FALSE_PREFIX */
 { Idrop, Idrop, Fdrop, Fdrop, Fdrop, Mpass, Strue, Sfalse,Selse, Dendif,
   Idrop, Idrop, Fdrop, Fdrop, Fdrop, Mpass, Eioccc,Eioccc,Eioccc,Eioccc,
@@ -430,6 +427,13 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
 /*
  * State machine utility functions
  */
+static void
+done(void)
+{
+	if (incomment)
+		error("EOF in comment");
+	exit(exitstat);
+}
 static void
 ignoreoff(void)
 {
@@ -484,21 +488,15 @@ static void
 process(void)
 {
 	Linetype lineval;
-	state_fn *trans;
 
 	for (;;) {
 		linenum++;
 		lineval = getline();
-		trans = trans_table[ifstate[depth]][lineval];
-		if (trans == NULL)
-			break;
-		trans();
+		trans_table[ifstate[depth]][lineval]();
 		debug("process %s -> %s depth %d",
 		    linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
-	if (incomment)
-		error("EOF in comment");
 }
 
 /*
@@ -703,8 +701,10 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 		cp = skipsym(cp);
 		keepthis = false;
-	} else
+	} else {
+		debug("eval%d bad expr", ops - eval_ops);
 		return (LT_IF);
+	}
 
 	*cpp = cp;
 	debug("eval%d = %d", ops - eval_ops, *valp);
@@ -758,6 +758,7 @@ ifeval(const char **cpp)
 	debug("eval %s", *cpp);
 	keepthis = killconsts ? false : true;
 	ret = eval_table(eval_ops, &val, cpp);
+	debug("eval = %d", val);
 	return (keepthis ? LT_IF : ret);
 }
 
@@ -778,6 +779,7 @@ skipcomment(const char *cp)
 		return (cp);
 	}
 	while (*cp != '\0')
+		/* don't reset to LS_START after a line continuation */
 		if (strncmp(cp, "\\\n", 2) == 0)
 			cp += 2;
 		else switch (incomment) {
@@ -836,8 +838,7 @@ skipcomment(const char *cp)
 				incomment = C_COMMENT;
 			continue;
 		default:
-			/* bug */
-			abort();
+			abort(); /* bug */
 		}
 	return (cp);
 }
