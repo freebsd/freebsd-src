@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.6 1998/09/17 23:58:53 ken Exp $
+ *      $Id: cam_xpt.c,v 1.7 1998/09/18 19:55:34 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -5368,10 +5368,11 @@ xpt_config(void *arg)
 	/* Scan all installed busses */
 	xpt_for_all_busses(xptconfigbuscountfunc, NULL);
 
-	xpt_for_all_busses(xptconfigfunc, NULL);
-
-	/* Call xpt_finishconfig once in case we dodn't have any busses */
-	xpt_finishconfig(xpt_periph, NULL);
+	if (busses_to_config == 0) {
+		/* Call manually because we don't have any busses */
+		xpt_finishconfig(xpt_periph, NULL);
+	} else 
+		xpt_for_all_busses(xptconfigfunc, NULL);
 }
 
 static int
