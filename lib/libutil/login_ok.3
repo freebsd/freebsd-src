@@ -37,6 +37,12 @@
 .Fn auth_hostok "login_cap_t *lc" "const char *host" "char const *ip"
 .Ft int
 .Fn auth_timeok "login_cap_t *lc" "time_t t"
+.Pp
+Link with
+.Va -lutil
+on the
+.Xr cc 1
+command line.
 .Sh DESCRIPTION
 This set of functions checks to see if login is allowed based on login
 class capability entries in the login database,
