@@ -1229,7 +1229,7 @@ gem_start(ifp)
 		 * WE ARE NOW COMMITTED TO TRANSMITTING THE PACKET.
 		 */
 		if (ifp->if_bpf != NULL)
-			bpf_mtap(ifp, m0);
+			bpf_mtap(ifp->if_bpf, m0);
 
 		if (m != NULL)
 			m_freem(m0);
@@ -1454,7 +1454,6 @@ gem_rint(sc)
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	struct ether_header *eh;
 	struct gem_rxsoft *rxs;
 	struct mbuf *m;
 	u_int64_t rxstat;
