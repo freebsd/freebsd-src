@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.11 1996/10/31 07:15:54 ache Exp $
+ *	$Id: expand.c,v 1.12 1996/12/14 06:19:16 steve Exp $
  */
 
 #ifndef lint
@@ -719,7 +719,7 @@ varisset(name)
 	} else if (is_digit(*name)) {
 		int num = atoi(name);
 		ap = shellparam.p;
-		while (num-- > 0)
+		while (--num >= 0)
 			if (*ap++ == NULL)
 				return 0;
 	}
