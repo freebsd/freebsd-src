@@ -975,6 +975,7 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 		tag.mh_flags = PACKET_TAG_IPFORWARD;
 		tag.mh_data = (caddr_t)args.next_hop;
 		tag.mh_next = m;
+		tag.mh_nextpkt = NULL;
 
 		(*inetsw[ip_protox[ip->ip_p]].pr_input)(
 			(struct mbuf *)&tag, hlen);
@@ -1922,6 +1923,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		tag.mh_flags = PACKET_TAG_IPFORWARD;
 		tag.mh_data = (caddr_t)next_hop;
 		tag.mh_next = m;
+		tag.mh_nextpkt = NULL;
 		m = (struct mbuf *)&tag;
 	}
 	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
