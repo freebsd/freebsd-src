@@ -45,7 +45,6 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #endif
 
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -75,9 +74,7 @@ void split2(void);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	int ch;
 	char *ep, *p;
@@ -182,7 +179,7 @@ main(argc, argv)
  *	Split the input by bytes.
  */
 void
-split1()
+split1(void)
 {
 	size_t bcnt;
 	char *C;
@@ -230,7 +227,7 @@ split1()
  *	Split the input by lines.
  */
 void
-split2()
+split2(void)
 {
 	long lcnt = 0;
 	FILE *infp;
@@ -282,7 +279,7 @@ writeit:
  *	Open a new output file.
  */
 void
-newfile()
+newfile(void)
 {
 	long i, maxfiles, tfnum;
 	static long fnum;
@@ -333,7 +330,7 @@ newfile()
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: split [-a sufflen] [-b byte_count] [-l line_count] [-p pattern]\n");
