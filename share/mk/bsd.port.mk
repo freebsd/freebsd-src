@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.66 1994/11/15 10:16:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.67 1994/11/16 23:14:22 jmz Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -18,6 +18,10 @@
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally.
+# MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
+#				  value.
+# MASTER_SITE_FREEBSD - If set, only use the FreeBSD master repository for
+#				  MASTER_SITES.
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
@@ -73,6 +77,7 @@
 # configure		- Applies patches, if any, and runs either GNU configure, one
 #				  or more local configure scripts or nothing, depending on
 #				  what's available.
+# patch			- Apply any provided patches to the source.
 # build			- Actually compile the sources.
 # install		- Install the results of a build.
 # reinstall		- Install the results of a build, ignoring "already installed"
@@ -146,9 +151,17 @@ PKG_SUFX?=		.tgz
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
 
+.if defined(MASTER_SITE_FREEBSD)
+MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/ 
+.endif
+
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
+.if !defined(MASTER_SITE_OVERRIDE)
 MASTER_SITES+=	ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/
+.else
+MASTER_SITES=	${MASTER_SITE_OVERRIDE}
+.endif
 
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
