@@ -391,10 +391,10 @@ SYMLINKS+=	lib${LIB}_p.a ${LIBDIR}/libdes_p.a
 .if !defined(NOPERL) && !defined(NO_PERL) && ${MACHINE_ARCH} == "i386"
 CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 .SUFFIXES:	.pl .cmt
+
 .pl.cmt:
-	perl -I${PERLPATH} ${.ALLSRC} elf ${CPUTYPE:Mi386:S/i//} > ${.TARGET}
+	perl -I${PERLPATH} ${.IMPSRC} elf ${CPUTYPE:Mi386:S/i//} > ${.TARGET}
 
 .cmt.s:
-	tr -d "'" < ${.ALLSRC} > ${.TARGET}
+	tr -d "'" < ${.IMPSRC} > ${.TARGET}
 .endif
-
