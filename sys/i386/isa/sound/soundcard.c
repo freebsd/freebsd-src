@@ -401,23 +401,37 @@ sndattach(struct isa_device * dev)
     char   *dname;
     void   *tmp;
 
-    /* XXX this is probably incomplete. */
+    /*
+     * Associate interrupt handlers with devices.  XXX this may be incomplete.
+     */
     dname = dev->id_driver->name;
+#if defined(CONFIG_AD1848)
     if (strcmp(dname, "css") == 0 || strcmp(dname, "gusxvi") == 0 ||
 	strcmp(dname, "mss") == 0)
 	dev->id_ointr = adintr;
+#endif
+#ifdef CONFIG_GUS
     if (strcmp(dname, "gus") == 0)
 	dev->id_ointr = gusintr;
+#endif
+#ifdef CONFIG_PAS
     if (strcmp(dname, "pas") == 0)
 	dev->id_ointr = pasintr;
+#endif
+#if NSB > 0 && (defined(CONFIG_MIDI) || defined(CONFIG_AUDIO))
     if (strcmp(dname, "sb") == 0)
 	dev->id_ointr = sbintr;
+#endif
     if (strcmp(dname, "sscape_mss") == 0)
 	dev->id_ointr = sndintr;
+#if NSSCAPE > 0
     if (strcmp(dname, "sscape") == 0 || strcmp(dname, "trix") == 0)
 	dev->id_ointr = sscapeintr;
+#endif
+#if NSND > 0
     if (strcmp(dname, "uart0") == 0)
 	dev->id_ointr = m6850intr;
+#endif
 
     unit = driver_to_voxunit(dev->id_driver);
     hw_config.io_base = dev->id_iobase;
