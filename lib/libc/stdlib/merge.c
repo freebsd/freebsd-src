@@ -60,8 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-static void setup(u_char *, u_char *, size_t, size_t, int (*)());
-static void insertionsort(u_char *, size_t, size_t, int (*)());
+static void setup(u_char *, u_char *, size_t, size_t,
+    int (*)(const void *, const void *));
+static void insertionsort(u_char *, size_t, size_t,
+    int (*)(const void *, const void *));
 
 #define ISIZE sizeof(int)
 #define PSIZE sizeof(u_char *)
@@ -103,7 +105,8 @@ mergesort(base, nmemb, size, cmp)
 	size_t size;
 	int (*cmp)(const void *, const void *);
 {
-	int i, sense;
+	size_t i;
+	int sense;
 	int big, iflag;
 	u_char *f1, *f2, *t, *b, *tp2, *q, *l1, *l2;
 	u_char *list2, *list1, *p2, *p, *last, **p1;
