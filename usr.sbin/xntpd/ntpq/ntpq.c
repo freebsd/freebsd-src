@@ -301,7 +301,7 @@ static	int	decodereach	P((char *, U_LONG *));
 static	int	decodearr	P((char *, int *, l_fp *));
 static	char *	getcode		P((int, struct codestring *));
 static	void	help		P((struct parse *, FILE *));
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 static	int	helpsort	P((const void *, const void *));
 #else
 static	int	helpsort	P((char **, char **));
@@ -335,11 +335,11 @@ static	void	output		P((FILE *, char *, char *));
 static	void	endoutput	P((FILE *));
 static	void	outputarr	P((FILE *, char *, int, l_fp *));
 static	void	cookedprint	P((int, int, char *, int, FILE *));
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 static	int	assoccmp	P((const void *, const void *));
 #else
 static	int	assoccmp	P((struct association *, struct association *));
-#endif /* sgi */
+#endif /* sgi || bsdi */
 
 
 /*
@@ -509,17 +509,17 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "c:dinp")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "c:dinp")) != EOF)
 		switch (c) {
 		case 'c':
-			ADDCMD(optarg);
+			ADDCMD(ntp_optarg);
 			break;
 		case 'd':
 			++debug;
@@ -543,11 +543,11 @@ char *argv[];
 		    progname);
 		exit(2);
 	}
-	if (optind == argc) {
+	if (ntp_optind == argc) {
 		ADDHOST(DEFHOST);
 	} else {
-		for (; optind < argc; optind++)
-			ADDHOST(argv[optind]);
+		for (; ntp_optind < argc; ntp_optind++)
+			ADDHOST(argv[ntp_optind]);
 	}
 
 	if (numcmds == 0 && interactive == 0
@@ -982,7 +982,7 @@ again:
 	/*
 	 * Copy the data into the data buffer.
 	 */
-	bcopy((char *)rpkt.data, (char *)pktdata + offset, count);
+	memmove((char *)pktdata + offset, (char *)rpkt.data, count);
 
 	/*
 	 * If we've seen the last fragment, look for holes in the sequence.
@@ -1050,7 +1050,7 @@ sendrequest(opcode, associd, auth, qsize, qdata)
 	 * bit boundary.
 	 */
 	if (qsize > 0) {
-		bcopy(qdata, (char *)qpkt.data, qsize);
+		memmove((char *)qpkt.data, qdata, qsize);
 		pktsize = qsize + CTL_HEADER_LEN;
 		while (pktsize & (sizeof(U_LONG)-1)) {
 			qpkt.data[qsize++] = 0;
@@ -1541,7 +1541,7 @@ getnetnum(host, num, fullhost)
 		}
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		bcopy(hp->h_addr, (char *)num, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
 		if (fullhost != 0)
 			(void) strcpy(fullhost, hp->h_name);
 		return 1;
@@ -1888,11 +1888,11 @@ help(pcmd, fp)
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
 			cmdsort[n++] = xcp->keyword;
 
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 		qsort((void *)cmdsort, n, sizeof(char *), helpsort);
 #else
 		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
-#endif /* sgi */
+#endif /* sgi || bsdi */
 
 		maxlength = 0;
 		for (i = 0; i < n; i++) {
@@ -1934,7 +1934,7 @@ help(pcmd, fp)
  * helpsort - do hostname qsort comparisons
  */
 static int
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 helpsort(t1, t2)
 	const void *t1;
 	const void *t2;
@@ -1946,7 +1946,7 @@ helpsort(name1, name2)
 	char **name1;
 	char **name2;
 {
-#endif /* sgi */
+#endif /* sgi || bsdi */
 	return strcmp(*name1, *name2);
 }
 
@@ -2577,6 +2577,7 @@ nextvar(datalen, datap, vname, vvalue)
 	register char *cp;
 	register char *np;
 	register char *cpend;
+	int quoted = 0;
 	static char name[MAXVARLEN];
 	static char value[MAXVALLEN];
 
@@ -2623,8 +2624,11 @@ nextvar(datalen, datap, vname, vvalue)
 	while (cp < cpend && (isspace(*cp) && *cp != '\r' && *cp != '\n'))
 		cp++;
 	np = value;
-	while (cp < cpend && *cp != ',')
-		*np++ = *cp++;
+	while (cp < cpend && ((*cp != ',') || quoted))
+	  {
+	    quoted ^= ((*np++ = *cp++) == '"');
+	  }
+
 	while (np > value && isspace(*(np-1)))
 		np--;
 	*np = '\0';
@@ -3024,13 +3028,13 @@ void
 sortassoc()
 {
 	if (numassoc > 1)
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 		qsort((void *)assoc_cache, numassoc,
 		    sizeof(struct association), assoccmp);
 #else
 		qsort((char *)assoc_cache, numassoc,
 		    sizeof(struct association), assoccmp);
-#endif /* sgi */
+#endif /* sgi || bsdi */
 }
 
 
@@ -3038,7 +3042,7 @@ sortassoc()
  * assoccmp - compare two associations
  */
 static int
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 assoccmp(t1, t2)
 	const void *t1;
 	const void *t2;
@@ -3050,7 +3054,7 @@ assoccmp(ass1, ass2)
 	struct association *ass1;
 	struct association *ass2;
 {
-#endif /* sgi */
+#endif /* sgi || bsdi */
 	if (ass1->assid < ass2->assid)
 		return -1;
 	if (ass1->assid > ass2->assid)

@@ -1,6 +1,6 @@
 SHELL=       /bin/sh
 RANLIB=	     ls # ar does the work of ranlib under System V
-DEFS=        -DSYS_SVR4
+DEFS=        -DSYS_SVR4 -DSTREAMS_TLI
 AUTHDEFS=    -DDES -DMD5
 CLOCKDEFS=   
 DAEMONLIBS=  -lnet -lnsl -lsocket -lelf

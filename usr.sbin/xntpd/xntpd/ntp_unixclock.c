@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#if defined(SYS_HPUX) || defined(sgi) || defined(__bsdi__)
+#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI)
 #include <sys/param.h>
 #include <utmp.h>
 #endif
@@ -20,9 +20,9 @@
 #include "ntp_stdlib.h"
 
 #if defined(HAVE_LIBKVM)
-#ifdef	__bsdi__
+#ifdef	SYS_BSDI
 #include <sys/proc.h>
-#endif	/* __bsdi__ */
+#endif	/* SYS_BSDI */
 #include <kvm.h>
 #include <limits.h>
 
@@ -440,8 +440,12 @@ clock_parms(tickadj, tick)
 {
 #ifdef RS6000
 	*tickadj = 1000;
-#else
+#else  /*RS6000*/
+#if  SYS_DOMAINOS
+	*tickadj = 668;
+#else  /*SYS_DOMAINOS*/
 	*tickadj = 500 / HZ;
+#endif /*SYS_DOMAINOS*/
 #endif /*RS6000*/
 	*tick = 1000000L / HZ;
 

@@ -20,8 +20,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #endif /* STREAM */
 
@@ -291,8 +293,8 @@ chu_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)chuunits, sizeof chuunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)chuunits, 0, sizeof chuunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -352,9 +354,9 @@ chu_start(unit, peer)
 	 */
 	CHU SUPPORT NOT AVAILABLE IN TERMIO INTERFACE
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The CHUCLK support uses a 300-baud modem and level converter
 	 * (gadget box). It requires the chu_clk streams module and
@@ -390,20 +392,22 @@ chu_start(unit, peer)
 		    "chu_start: tcflush(%s): %m", chudev);
                 goto screwed;
         }
-	while (ioctl(fd232, I_POP, 0 ) >= 0) ;
-	if (ioctl(fd232, I_PUSH, "chu" ) < 0) {
-		syslog(LOG_ERR,
-		    "chu_start: ioctl(%s, I_PUSH, chu): %m", chudev);
-		goto screwed;
-	}
-#if defined(CHUPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "chu_start: ioctl(%s, I_PUSH, ppsclock): %m", chudev);
-	else
-		fdpps = fd232;
-#endif /* CHUPPS */
     }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
+    while (ioctl(fd232, I_POP, 0 ) >= 0) ;
+    if (ioctl(fd232, I_PUSH, "chu" ) < 0) {
+	    syslog(LOG_ERR,
+		"chu_start: ioctl(%s, I_PUSH, chu): %m", chudev);
+	    goto screwed;
+    }
+#if defined(CHUPPS)
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"chu_start: ioctl(%s, I_PUSH, ppsclock): %m", chudev);
+    else
+	    fdpps = fd232;
+#endif /* CHUPPS */
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -457,7 +461,7 @@ chu_start(unit, peer)
 			chu = (struct chuunit *)emalloc(sizeof(struct chuunit));
 		}
 	}
-	bzero((char *)chu, sizeof(struct chuunit));
+	memset((char *)chu, 0, sizeof(struct chuunit));
 	chuunits[unit] = chu;
 
 	/*
@@ -494,11 +498,11 @@ chu_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(CHUREFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, CHUREFID, 4);
 	else
 		peer->refid = htonl(CHUHSREFID);
 	unitinuse[unit] = 1;
-	return 1;
+	return (1);
 
 	/*
 	 * Something broke; abandon ship.
@@ -1086,7 +1090,8 @@ chu_control(unit, in, out)
 				peer = chuunits[unit]->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(CHUREFID, (char *)&peer->refid,4);
+					memmove((char *)&peer->refid,
+						CHUREFID, 4);
 				else
 					peer->refid = htonl(CHUHSREFID);
 			}

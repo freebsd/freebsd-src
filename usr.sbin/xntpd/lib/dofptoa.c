@@ -31,7 +31,7 @@ dofptoa(fpv, neg, ndec, msec)
 	/*
 	 * Zero out the buffer
 	 */
-	bzero((char *)cbuf, sizeof cbuf);
+	memset((char *)cbuf, 0, sizeof cbuf);
 
 	/*
 	 * Set the pointers to point at the first

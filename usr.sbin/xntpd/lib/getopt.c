@@ -4,7 +4,9 @@
  * This is a version of the public domain getopt() implementation by
  * Henry Spencer, changed for 4.3BSD compatibility (in addition to System V).
  * It allows rescanning of an option list by setting optind to 0 before
- * calling.  Thanks to Dennis Ferguson for the appropriate modifications.
+ * calling, which is why we use it even if the system has its own (in fact,
+ * this one has a unique name so as not to conflict with the system's).
+ * Thanks to Dennis Ferguson for the appropriate modifications.
  *
  * This file is in the Public Domain.
  */
@@ -20,39 +22,33 @@
 #define	putc	fputc
 #endif	/* lint */
 
-char	*optarg;	/* Global argument pointer. */
-#ifndef	__convex__
-int	optind = 0;	/* Global argv index. */
-#else	/* __convex__ */
-extern	int	optind;	/* Global argv index. */
-#endif	/* __convex__ */
-
-/*
- * N.B. use following at own risk
- */
-#ifndef	__convex__
-int	opterr = 1;	/* for compatibility, should error be printed? */
-#else	/* __convex__ */
-extern	int	opterr;	/* for compatibility, should error be printed? */
-#endif	/* __convex__ */
-int	optopt;		/* for compatibility, option character checked */
+char	*ntp_optarg;	/* Global argument pointer. */
+int	ntp_optind = 0;	/* Global argv index. */
+int	ntp_opterr = 1;	/* for compatibility, should error be printed? */
+int	ntp_optopt;	/* for compatibility, option character checked */
 
 static char	*scan = NULL;	/* Private scan pointer. */
+static char	*prog = "amnesia";
 
 /*
- * Print message about a bad option.  Watch this definition, it's
- * not a single statement.
+ * Print message about a bad option.
  */
-#define	BADOPT(mess, ch)	if (opterr) { \
-					fputs(argv[0], stderr); \
-					fputs(mess, stderr); \
-					(void) putc(ch, stderr); \
-					(void) putc('\n', stderr); \
-				} \
-				return('?')
+static int
+badopt(mess, ch)
+	char *mess;
+	int ch;
+{
+	if (ntp_opterr) {
+		fputs(prog, stderr);
+		fputs(mess, stderr);
+		(void) putc(ch, stderr);
+		(void) putc('\n', stderr);
+	}
+	return ('?');
+}
 
 int
-getopt_l(argc, argv, optstring)
+ntp_getopt(argc, argv, optstring)
 	int argc;
 	char *argv[];
 	char *optstring;
@@ -60,47 +56,50 @@ getopt_l(argc, argv, optstring)
 	register char c;
 	register char *place;
 
-	optarg = NULL;
+	prog = argv[0];
+	ntp_optarg = NULL;
 
-	if (optind == 0) {
+	if (ntp_optind == 0) {
 		scan = NULL;
-		optind++;
+		ntp_optind++;
 	}
 	
 	if (scan == NULL || *scan == '\0') {
-		if (optind >= argc || argv[optind][0] != '-' || argv[optind][1] == '\0')
-			return EOF;
-		if (argv[optind][1] == '-' && argv[optind][2] == '\0') {
-			optind++;
-			return EOF;
+		if (ntp_optind >= argc
+		    || argv[ntp_optind][0] != '-'
+		    || argv[ntp_optind][1] == '\0') {
+			return (EOF);
+		}
+		if (argv[ntp_optind][1] == '-'
+		    && argv[ntp_optind][2] == '\0') {
+			ntp_optind++;
+			return (EOF);
 		}
 	
-		scan = argv[optind]+1;
-		optind++;
+		scan = argv[ntp_optind++]+1;
 	}
 
 	c = *scan++;
-	optopt = c & 0377;
+	ntp_optopt = c & 0377;
 	for (place = optstring; place != NULL && *place != '\0'; ++place)
 		if (*place == c)
 			break;
 
 	if (place == NULL || *place == '\0' || c == ':' || c == '?') {
-		BADOPT(": unknown option -", c);
+		return (badopt(": unknown option -", c));
 	}
 
 	place++;
 	if (*place == ':') {
 		if (*scan != '\0') {
-			optarg = scan;
+			ntp_optarg = scan;
 			scan = NULL;
-		} else if (optind >= argc) {
-			BADOPT(": option requires argument -", c);
+		} else if (ntp_optind >= argc) {
+			return (badopt(": option requires argument -", c));
 		} else {
-			optarg = argv[optind];
-			optind++;
+			ntp_optarg = argv[ntp_optind++];
 		}
 	}
 
-	return c&0377;
+	return (c & 0377);
 }

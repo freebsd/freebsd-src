@@ -4,7 +4,7 @@ shift;
 
 . refclocks/setup
 
-if check "$DEFS" '$0 ~ /HAVE_SYSV_TTYS|STREAM/'; then
+if check "$DEFS" '$0 ~ /HAVE_SYSV_TTYS|STREAM|HAVE_TERMIOS/'; then
   case "$CMD" in
     info)
 	echo "	PARSE		- GENERIC refence clock driver"

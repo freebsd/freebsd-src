@@ -165,7 +165,7 @@ hourly_stats()
  skip:
 #endif
 
-	syslog(LOG_NOTICE, "offset %s freq %s comp %d",
+	syslog(LOG_INFO, "offset %s freq %s comp %d",
 	       lfptoa(&last_offset, 6), fptoa(drift_comp, 5), time_constant);
 	
 	if (stats_drift_file != 0) {
@@ -223,9 +223,9 @@ stats_config(item, value)
 
 		stats_drift_file = emalloc((u_int)(len + 1));
 		stats_temp_file = emalloc((u_int)(len + sizeof(".TEMP")));
-		bcopy(value, stats_drift_file, len+1);
-		bcopy(value, stats_temp_file, len);
-		bcopy(".TEMP", stats_temp_file + len, sizeof(".TEMP"));
+		memmove(stats_drift_file, value, len+1);
+		memmove(stats_temp_file, value, len);
+		memmove(stats_temp_file + len, ".TEMP", sizeof(".TEMP"));
 		L_CLR(&old_drift);
 
 #ifdef DEBUG
@@ -449,7 +449,7 @@ getauthkeys(keyfile)
 	if (key_file_name == 0)
 		key_file_name = emalloc((u_int)(len + 1));
 	
-	bcopy(keyfile, key_file_name, len+1);
+	memmove(key_file_name, keyfile, len+1);
 
 	authreadkeys(key_file_name);
 }

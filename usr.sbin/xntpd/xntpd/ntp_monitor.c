@@ -102,7 +102,7 @@ init_mon()
 	mon_free = 0;
 	mon_hash = 0;
 	mon_hash_count = 0;
-	bzero((char *)&mon_mru_list, sizeof mon_mru_list);
+	memset((char *)&mon_mru_list, 0, sizeof mon_mru_list);
 }
 
 
@@ -121,7 +121,8 @@ mon_start()
 	if (!mon_have_memory) {
 		mon_hash = (struct mon_data *)
 		    emalloc(MON_HASH_SIZE * sizeof(struct mon_data));
-		bzero((char *)mon_hash, MON_HASH_SIZE*sizeof(struct mon_data));
+		memset((char *)mon_hash, 0,
+		       MON_HASH_SIZE*sizeof(struct mon_data));
 		mon_hash_count = (int *)emalloc(MON_HASH_SIZE * sizeof(int));
 		mon_free_mem = 0;
 		mon_total_mem = 0;

@@ -1,9 +1,9 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/parse_conf.h,v 3.3 1993/10/22 14:27:10 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp
  *
- * parse_conf.h,v 3.3 1993/10/22 14:27:10 kardel Exp
+ * parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp
  *
- * Copyright (c) 1993
+ * Copyright (c) 1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -15,7 +15,7 @@
 #ifndef __PARSE_CONF_H__
 #define __PARSE_CONF_H__
 #if	!(defined(lint) || defined(__GNUC__))
-  static char dcfhrcsid[]="parse_conf.h,v 3.3 1993/10/22 14:27:10 kardel Exp FAU";
+  static char dcfhrcsid[]="parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp FAU";
 #endif
 
 /*

@@ -38,7 +38,6 @@ extern	long	strtol		P((char *, char **, int));
 
 #if !defined(NTP_POSIX_SOURCE)
 extern  int	atoi		P((char *));
-extern  void	bcopy		P((char *, char *, int));
 extern	int	dup2		P((int, int));
 extern	int	execve		P((char *, char **,char **));
 extern	int	fork		P((void));
@@ -48,11 +47,13 @@ extern  int     qsort		P((void *, int , int,
 extern	int	rand		P((void));
 extern	int	setpgrp		P((int, int));
 extern  void	srand		P((unsigned int));
+extern  void	bcopy		P((char *, char *, int));
 #endif
 
 #ifndef bzero			/* XXX macro prototyping clash */
 extern  void    bzero		P((char *, int));
 extern  int	bcmp		P((char *, char *, int));
+extern  void	bcopy		P((char *, char *, int));
 #endif
 extern  char   *mktemp		P((char *));	
 
@@ -97,9 +98,11 @@ extern	int	setlinebuf	P((FILE *));
 
 #ifdef	_ntp_string_h
 #ifdef	NTP_POSIX_SOURCE	/* these are builtins */
+#ifndef NTP_NEED_BOPS		/* but may be emulated by bops */
 extern	char	*memcpy();
 extern	char	*memset();
 extern	int	memcmp();
+#endif
 #endif
 #endif
 
@@ -192,7 +195,6 @@ extern int 	nlist		P((char *, struct nlist *));
 
 #ifndef NTP_POSIX_SOURCE
 extern  int	atoi		P((char *));
-extern  void	bcopy		P((char *, char *, int));
 extern  void    bzero		P((char *, int));
 extern  int	bcmp		P((char *, char *, int));
 extern  void	bcopy		P((char *, char *, int));
@@ -223,6 +225,10 @@ extern  char *	getpass		P((char *));
 #ifdef SYS_VAX
 extern	char *	getpass		P((char *));
 #endif /* VAX */
+
+#ifdef SYS_DOMAINOS
+extern	char *	getpass		P((char *));
+#endif /* SYS_DOMAINOS */
 
 #endif /* l_stdlib_h */
 

@@ -22,8 +22,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(GOESCLK)
 #include <clkdefs.h>
@@ -51,7 +53,7 @@
  *   space   less than 1 millisecond
  * C - Carriage return
  * L - Line feed
- * The cariage return start bit begins on 0 seconds and extends to 1 bit time.
+ * The carriage return start bit begins on 0 seconds and extends to 1 bit time.
  *
  * Unless you live on 125 degrees west longitude, you can't set your clock
  * propagation delay settings correctly and still use automatic mode.
@@ -208,8 +210,8 @@ goes_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)goesunits, sizeof goesunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)goesunits, 0, sizeof goesunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -283,9 +285,9 @@ goes_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The GOESCLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -318,22 +320,24 @@ goes_start(unit, peer)
 		    "goes_start: tcflush(%s): %m", goesdev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(GOESCLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "goes_start: ioctl(%s, I_PUSH, clk): %m", goesdev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "goes_start: ioctl(%s, CLK_SETSTR): %m", goesdev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"goes_start: ioctl(%s, I_PUSH, clk): %m", goesdev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"goes_start: ioctl(%s, CLK_SETSTR): %m", goesdev);
 #endif /* GOESCLK */
 #if defined(GOESPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "goes_start: ioctl(%s, I_PUSH, ppsclock): %m", goesdev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"goes_start: ioctl(%s, I_PUSH, ppsclock): %m", goesdev);
+    else
+	    fdpps = fd232;
 #endif /* GOESPPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -396,7 +400,7 @@ goes_start(unit, peer)
 			    emalloc(sizeof(struct goesunit));
 		}
 	}
-	bzero((char *)goes, sizeof(struct goesunit));
+	memset((char *)goes, 0, sizeof(struct goesunit));
 	goesunits[unit] = goes;
 
 	/*
@@ -424,7 +428,7 @@ goes_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(GOESREFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, GOESREFID, 4);
 	else
 		peer->refid = htonl(GOESHSREFID);
 	unitinuse[unit] = 1;
@@ -919,8 +923,8 @@ goes_control(unit, in, out)
 				peer = goes->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(GOESREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						GOESREFID, 4);
 				else
 					peer->refid = htonl(GOESHSREFID);
 			}

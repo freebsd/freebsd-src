@@ -439,7 +439,7 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, key)
 	 *
 	 * Zero the whole thing for now.  We might be pickier later.
 	 */
-	bzero((char *)peer, sizeof(struct peer));
+	memset((char *)peer, 0, sizeof(struct peer));
 
 	peer->srcadr = *srcadr;
 	if (dstadr != 0)

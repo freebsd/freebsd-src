@@ -1,9 +1,9 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/sys/parsestreams.h,v 3.9 1993/11/01 19:59:57 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/sys/parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp
  *
- * parsestreams.h,v 3.9 1993/11/01 19:59:57 kardel Exp
+ * parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp
  *
- * Copyright (c) 1989,1990,1991,1992,1993
+ * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                   
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  */
 
 #if	!(defined(lint) || defined(__GNUC__))
-  static char parse77hrcsid[]="parsestreams.h,v 3.9 1993/11/01 19:59:57 kardel Exp";
+  static char parse77hrcsid[]="parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp";
 #endif
 
 #undef PARSEKERNEL

@@ -68,12 +68,12 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 	void init_chu();
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "cdfpt")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "cdfpt")) != EOF)
 		switch (c) {
 		case 'c':
 #ifdef STREAM
@@ -107,7 +107,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || optind+1 != argc) {
+	if (errflg || ntp_optind+1 != argc) {
 #ifdef STREAM
 		(void) fprintf(stderr, "usage: %s [-dft] tty_device\n",
 		    progname);
@@ -126,7 +126,7 @@ char *argv[];
 	}
 
 	(void) gettimeofday(&lasttv, (struct timezone *)0);
-	c = openterm(argv[optind]);
+	c = openterm(argv[ntp_optind]);
 	init_chu();
 #ifdef STREAM
 	if (usechuldisc)

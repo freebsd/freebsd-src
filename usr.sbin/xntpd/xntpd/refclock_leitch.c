@@ -20,8 +20,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#ifdef STREAM
 #include <stropts.h>
 #if defined(LEITCHCLK)
 #include <sys/clkdefs.h>
@@ -142,8 +144,8 @@ struct	refclock refclock_leitch = {
 static void
 leitch_init()
 {
-	bzero((char*)leitchunits,sizeof(leitchunits));
-	bzero((char*)unitinuse,sizeof(unitinuse));
+	memset((char*)leitchunits, 0, sizeof(leitchunits));
+	memset((char*)unitinuse, 0, sizeof(unitinuse));
 }
 
 /*
@@ -268,7 +270,7 @@ leitch_start(unit, peer)
 	}
 
 	leitch = &leitchunits[unit];
-	bzero((char*)leitch,sizeof(*leitch));
+	memset((char*)leitch, 0, sizeof(*leitch));
 
 #if defined(HAVE_SYSV_TTYS)
 	/*
@@ -293,9 +295,9 @@ leitch_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The LEITCHCLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -328,22 +330,24 @@ leitch_start(unit, peer)
 		    "leitch_start: tcflush(%s): %m", leitchdev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(LEITCHCLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "leitch_start: ioctl(%s, I_PUSH, clk): %m", leitchdev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "leitch_start: ioctl(%s, CLK_SETSTR): %m", leitchdev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"leitch_start: ioctl(%s, I_PUSH, clk): %m", leitchdev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"leitch_start: ioctl(%s, CLK_SETSTR): %m", leitchdev);
 #endif /* LEITCHCLK */
 #if defined(LEITCHPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "leitch_start: ioctl(%s, I_PUSH, ppsclock): %m", leitchdev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"leitch_start: ioctl(%s, I_PUSH, ppsclock): %m", leitchdev);
+    else
+	    fdpps = fd232;
 #endif /* LEITCHPPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*

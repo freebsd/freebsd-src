@@ -217,6 +217,7 @@ checkassocid(value)
 
 /*
  * strsave - save a string
+ * XXX - should be in libntp.a
  */
 static char *
 strsave(str)
@@ -231,8 +232,8 @@ strsave(str)
 		exit(1);
 	}
 
-	bcopy(str, cp, len);
-	return cp;
+	memmove(cp, str, len);
+	return (cp);
 }
 
 
@@ -372,11 +373,11 @@ makequerydata(vlist, datalen, data)
 		
 		if (cp != data)
 			*cp++ = ',';
-		bcopy(vl->name, cp, namelen);
+		memmove(cp, vl->name, namelen);
 		cp += namelen;
 		if (valuelen != 0) {
 			*cp++ = '=';
-			bcopy(vl->value, cp, valuelen);
+			memmove(cp, vl->value, valuelen);
 			cp += valuelen;
 		}
 	}
@@ -600,7 +601,7 @@ readvar(pcmd, fp)
 	else if ((associd = checkassocid(pcmd->argval[0].uval)) == 0)
 		return;
 
-	bzero((char *)tmplist, sizeof(tmplist));
+	memset((char *)tmplist, 0, sizeof(tmplist));
 	if (pcmd->nargs >= 2)
 		doaddvlist(tmplist, pcmd->argval[1].string);
 
@@ -631,7 +632,7 @@ writevar(pcmd, fp)
 	else if ((associd = checkassocid(pcmd->argval[0].uval)) == 0)
 		return;
 
-	bzero((char *)tmplist, sizeof(tmplist));
+	memset((char *)tmplist, 0, sizeof(tmplist));
 	doaddvlist(tmplist, pcmd->argval[1].string);
 
 	res = doquerylist(tmplist, CTL_OP_WRITEVAR, associd, 0, &rstatus,
@@ -690,7 +691,7 @@ clockvar(pcmd, fp)
 	else if ((associd = checkassocid(pcmd->argval[0].uval)) == 0)
 		return;
 
-	bzero((char *)tmplist, sizeof(tmplist));
+	memset((char *)tmplist, 0, sizeof(tmplist));
 	if (pcmd->nargs >= 2)
 		doaddvlist(tmplist, pcmd->argval[1].string);
 
@@ -802,7 +803,7 @@ mreadvar(pcmd, fp)
 	    &from, &to))
 		return;
 
-	bzero((char *)tmplist, sizeof(tmplist));
+	memset((char *)tmplist, 0, sizeof(tmplist));
 	if (pcmd->nargs >= 3)
 		doaddvlist(tmplist, pcmd->argval[2].string);
 
@@ -1282,7 +1283,7 @@ doprintpeers(pvl, associd, rstatus, datalen, data, fp)
 	char refid_string[10];
 	extern struct ctl_var peer_var[];
 
-	bzero((char *)havevar, sizeof(havevar));
+	memset((char *)havevar, 0, sizeof(havevar));
 	gettstamp(&ts);
 	
 	while (nextvar(&datalen, &data, &name, &value)) {

@@ -74,6 +74,12 @@ xntpd - Network Time Protocol daemon
 ] [
 .B -t
 .I trustedkey
+] [
+.B -v
+.I variable
+] [
+.B -V
+.I variable
 ]
 .SH DESCRIPTION
 .I Xntpd
@@ -140,6 +146,10 @@ to be used when synchronizing to broadcasts
 specify a directory to be used for creating statistics files
 .Ip -t 8
 add a key number to the trusted key list
+.Ip -v 8
+add a system variable
+.Ip -V 8
+add a system variable listed by default
 .SH "CONFIGURATION FILE OPTIONS"
 .IR Xntpd 's
 configuration file is relatively free format.  Comments, which may be
@@ -493,6 +503,31 @@ This command is obsolete and not available in this version of
 .PP
 This command is obsolete and not available in this version of
 .I xntpd.
+.PP
+.B setvar
+.I variable
+.I [default]
+.PP
+This command adds an additional system variable. These variables can be
+used to distribute additional information such as the access policy. If
+the variable of the from <name>=<value> is followed by the
+.I default
+keyword the variable will be listed as part of the default system
+variables (ntpq rv command). These additional variables serve informational
+purposes only. They are not related to the protocol other that they can be
+listed. The known protocol variables will always overide any variables defined
+via the
+.I setvar
+mechanism.
+.PP
+There are three special variables that contain the names of all variable of
+the same group. The
+.I sys_var_list
+holds the names of all system variables. The
+.I peer_var_list
+holds the names of all peer variables and the
+.I clock_var_list
+hold the names of the reference clock variables.
 .PP
 .B resolver
 .I /path/xntpres
@@ -1093,9 +1128,13 @@ fudge factor defines the phase offset of the sychnronisation character to the ac
 time.
 On the availability of PPS information the
 .I time2
-fudge factor show the difference betwteen the PPS time stamp and the reception
-time stamp of the serial signal. This parameter is read only attempts to
-set this parameter will be ignored.
+fudge factor defines the skew between the PPS time stamp and the reception
+time stamp of the PPS signal. This parameter is usually 0 as usually
+the PPS signal is believed in time and OS delays should be corrected
+in the machine specific section of the kernel driver.
+.I time2
+needs only be set when the actial PPS signal is delayed for some
+reason.
 The
 .I flag0
 enables input filtering. This a median filter with continuous sampling. The
@@ -1109,13 +1148,25 @@ from the receiver. Otherwise the leap second will be added (which is the default
 .I ntpq
 timecode variable
 .PP
-The timecode variable in the ntpq read clock variable command contains several
-fields. The first field is the local time in Unix format. The second field is
-the offset to UTC (format HHMM). The currently active receiver flags are listed
-next. Additional feature flags of the receiver are optionally listed in paranthesis.
-The actual time code is enclosed in angle brackets < >. A qualification of the
-decoded time code format is following the time code. The last piece of information
-is the overall running time and the accumulated times for the clock event states.
+The ntpq read clock variables command list several variables. These
+hold followinf information:
+.I refclock_time
+is the local time with the offset to UTC (format HHMM).
+The currently active receiver flags are listed in
+.I refclock_status.
+Additional feature flags of the receiver are optionally listed in paranthesis.
+The actual time code is listed in
+.I timecode.
+A qualification of the decoded time code format is following in
+.I refclock_format.
+The last piece of information is the overall running time and the accumulated
+times for the clock event states in
+.I refclock_states.
+When PPS information is present additional variable are available.
+.I refclock_ppstime
+lists then the PPS timestamp and
+.I refclock_ppsskew
+lists the difference between RS232 derived timestamp and the PPS timestamp.
 .PP
 Unit encoding
 .PP

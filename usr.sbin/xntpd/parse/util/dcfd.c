@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.8 1993/11/04 20:02:05 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.15 1994/01/25 19:05:42 kardel Exp
  *  
- * dcfd.c,v 3.8 1993/11/04 20:02:05 kardel Exp
+ * dcfd.c,v 3.15 1994/01/25 19:05:42 kardel Exp
  *
  * DCF77 100/200ms pulse synchronisation daemon program (via 50Baud serial line)
  *
@@ -13,7 +13,7 @@
  * Lacks:
  *  Leap second handling (at that level you should switch to xntp3 - really!)
  *
- * Copyright (c) 1993
+ * Copyright (c) 1993,1994
  * Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -33,6 +33,9 @@
 #include <sys/errno.h>
 #include <syslog.h>
 
+/*
+ * NTP compilation environment
+ */
 #ifdef USE_PROTOTYPES
 #include "ntp_stdlib.h"
 extern int sigvec P((int, struct sigvec *, struct sigvec *));
@@ -43,6 +46,9 @@ extern int fscanf P((FILE *, char *, ...));
 #include "ntp_timex.h"
 #endif
 
+/*
+ * select which terminal handling to use (currently only SysV variants)
+ */
 #if defined(HAVE_TERMIOS) || defined(STREAM)
 #include <termios.h>
 #define TTY_GETATTR(_FD_, _ARG_) tcgetattr((_FD_), (_ARG_))
@@ -63,24 +69,33 @@ MUST DEFINE ONE OF "HAVE_TERMIOS" or "HAVE_TERMIO"
 #define dysize(_x_) (((_x_) % 4) ? 365 : (((_x_) % 400) ? 365 : 366))
 #endif
 
-#define timernormalize(_a_, _b_) \
+#define timernormalize(_a_) \
 		if ((_a_)->tv_usec >= 1000000) \
 			{ \
 				(_a_)->tv_sec  += (_a_)->tv_usec / 1000000; \
-				(_a_)->tv_usec -= (_a_)->tv_usec % 1000000; \
+				(_a_)->tv_usec  = (_a_)->tv_usec % 1000000; \
 			} \
+		if ((_a_)->tv_usec < 0) \
+			{ \
+				(_a_)->tv_sec  -= 1 + -(_a_)->tv_usec / 1000000; \
+				(_a_)->tv_usec = 1000000 - (-(_a_)->tv_usec % 1000000); \
+			}
 
 #define timeradd(_a_, _b_) \
 		(_a_)->tv_sec  += (_b_)->tv_sec; \
 		(_a_)->tv_usec += (_b_)->tv_usec; \
-		timernormalize((_a_), (_b_))
+		timernormalize((_a_))
 
 #define timersub(_a_, _b_) \
 		(_a_)->tv_sec  -= (_b_)->tv_sec; \
 		(_a_)->tv_usec -= (_b_)->tv_usec; \
-		timernormalize((_a_), (_b_))
+		timernormalize((_a_))
 
+/*
+ * debug macros
+ */
 #define PRINTF if (interactive) printf
+#define LPRINTF if (interactive && loop_filter_debug) printf
 
 #ifdef DEBUG
 #define dprintf(_x_) PRINTF _x_
@@ -90,9 +105,31 @@ MUST DEFINE ONE OF "HAVE_TERMIOS" or "HAVE_TERMIO"
 
 extern int errno;
 
+/*
+ * display received data (avoids also detaching from tty)
+ */
 static int interactive = 0;
+
+/*
+ * display loopfilter (clock control) variables
+ */
 static int loop_filter_debug = 0;
 
+/*
+ * do not set/adjust system time
+ */
+static int no_set = 0;
+
+/*
+ * time that passes between start of DCF impulse and time stamping (fine
+ * adjustment) in microseconds (receiver/OS dependent)
+ */
+#define DEFAULT_DELAY	230000	/* rough estimate */
+
+/*
+ * The two states we can be in - eithe we receive nothing
+ * usable or we have the correct time
+ */
 #define NO_SYNC		0x01
 #define SYNC		0x02
 
@@ -105,7 +142,7 @@ static char pat[] = "-\\|/";
 
 #define LINES		(24-2)	/* error lines after which the two headlines are repeated */
 
-#define MAX_UNSYNC	(5*60)	/* allow synchronisation loss for 5 minutes */
+#define MAX_UNSYNC	(10*60)	/* allow synchronisation loss for 10 minutes */
 #define NOTICE_INTERVAL (20*60)	/* mention missing synchronisation every 20 minutes */
 
 /*
@@ -113,7 +150,7 @@ static char pat[] = "-\\|/";
  */
 
 #define USECSCALE	10
-#define TIMECONSTANT	0
+#define TIMECONSTANT	2
 #define ADJINTERVAL	0
 #define FREQ_WEIGHT	18
 #define PHASE_WEIGHT	7
@@ -129,7 +166,7 @@ static long adjustments  = 0;
 static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
 
 /*
- * state flags
+ * DCF77 state flags
  */
 #define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
 #define DCFB_DST                0x0002 /* DST in effect */
@@ -138,7 +175,7 @@ static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
 
 struct clocktime		/* clock time broken up from time code */
 {
-  long wday;
+  long wday;		/* Day of week: 1: Monday - 7: Sunday */
   long day;
   long month;
   long year;
@@ -147,18 +184,24 @@ struct clocktime		/* clock time broken up from time code */
   long second;
   long usecond;
   long utcoffset;	/* in minutes */
-  long flags;		/* current clock status */
+  long flags;		/* current clock status  (DCF77 state flags) */
 };
 
 typedef struct clocktime clocktime_t;
 
+/*
+ * (usually) quick constant multiplications
+ */
 #define TIMES10(_X_) (((_X_) << 3) + ((_X_) << 1))	/* *8 + *2 */
 #define TIMES24(_X_) (((_X_) << 4) + ((_X_) << 3))      /* *16 + *8 */
 #define TIMES60(_X_) ((((_X_) << 4)  - (_X_)) << 2)     /* *(16 - 1) *4 */
+/*
+ * generic abs() function
+ */
 #define abs(_x_)     (((_x_) < 0) ? -(_x_) : (_x_))
 
 /*
- * parser related return/error codes
+ * conversion related return/error codes
  */
 #define CVT_MASK	0x0000000F /* conversion exit code */
 #define   CVT_NONE	0x00000001 /* format not applicable */
@@ -216,6 +259,14 @@ typedef struct clocktime clocktime_t;
  * 59		      - usually missing (minute indication), except for leap insertion
  */
 
+/*-----------------------------------------------------------------------
+ * conversion table to map DCF77 bit stream into data fields.
+ * Encoding:
+ *   Each field of the DCF77 code is described with two adjacent entries in
+ *   this table. The first entry specifies the offset into the DCF77 data stream
+ *   while the length is given as the difference between the start index and
+ *   the start index of the following field.
+ */
 static struct rawdcfcode 
 {
   char offset;			/* start bit */
@@ -225,6 +276,10 @@ static struct rawdcfcode
   { 33 }, { 35 }, { 36 }, { 40 }, { 42 }, { 45 }, { 49 }, { 50 }, { 54 }, { 58 }, { 59 }
 };
 
+/*-----------------------------------------------------------------------
+ * symbolic names for the fields of DCF77 describes in "rawdcfcode".
+ * see comment above for the structure of the DCF77 data
+ */
 #define DCF_M	0
 #define DCF_R	1
 #define DCF_A1	2
@@ -246,6 +301,11 @@ static struct rawdcfcode
 #define DCF_Y10	18
 #define DCF_P3	19
 
+/*-----------------------------------------------------------------------
+ * parity field table (same encoding as rawdcfcode)
+ * This table describes the sections of the DCF77 code that are
+ * parity protected
+ */
 static struct partab
 {
   char offset;			/* start bit of parity field */
@@ -254,6 +314,22 @@ static struct partab
   { 21 }, { 29 }, { 36 }, { 59 }
 };
 
+/*-----------------------------------------------------------------------
+ * offsets for parity field descriptions
+ */
+#define DCF_P_P1	0
+#define DCF_P_P2	1
+#define DCF_P_P3	2
+
+/*-----------------------------------------------------------------------
+ * legal values for time zone information
+ */
+#define DCF_Z_MET 0x2
+#define DCF_Z_MED 0x1
+
+/*-----------------------------------------------------------------------
+ * symbolic representation if the DCF77 data stream
+ */
 static struct dcfparam
 {
   unsigned char onebits[60];
@@ -264,13 +340,13 @@ static struct dcfparam
   "--------------------s-------p------p----------------------p"  /* 'ZERO' representation */
 };
 
-#define DCF_P_P1	0
-#define DCF_P_P2	1
-#define DCF_P_P3	2
-
-#define DCF_Z_MET 0x2
-#define DCF_Z_MED 0x1
-
+/*-----------------------------------------------------------------------
+ * extract a bitfield from DCF77 datastream
+ * All numeric field are LSB first.
+ * buf holds a pointer to a DCF77 data buffer in symbolic
+ *     representation
+ * idx holds the index to the field description in rawdcfcode
+ */
 static unsigned long ext_bf(buf, idx)
   register unsigned char *buf;
   register int   idx;
@@ -288,6 +364,13 @@ static unsigned long ext_bf(buf, idx)
   return sum;
 }
 
+/*-----------------------------------------------------------------------
+ * check even parity integrity for a bitfield
+ *
+ * buf holds a pointer to a DCF77 data buffer in symbolic
+ *     representation
+ * idx holds the index to the field description in partab
+ */
 static unsigned pcheck(buf, idx)
   register unsigned char *buf;
   register int   idx;
@@ -303,6 +386,15 @@ static unsigned pcheck(buf, idx)
   return psum;
 }
 
+/*-----------------------------------------------------------------------
+ * convert a DCF77 data buffer into wall clock time + flags
+ *
+ * buffer holds a pointer to a DCF77 data buffer in symbolic
+ *        representation
+ * size   describes the length of DCF77 information in bits (represented
+ *        as chars in symbolic notation
+ * clock  points to a wall clock time description of the DCF77 data (result)
+ */
 static unsigned long convert_rawdcf(buffer, size, clock)
   register unsigned char   *buffer;
   register int              size;
@@ -323,7 +415,7 @@ static unsigned long convert_rawdcf(buffer, size, clock)
       pcheck(buffer, DCF_P_P3))
     {
       /*
-       * buffer OK
+       * buffer OK - extract all fields and build wall clock time from them
        */
 
       clock->flags  = 0;
@@ -341,6 +433,9 @@ static unsigned long convert_rawdcf(buffer, size, clock)
       clock->year   = TIMES10(clock->year)   + ext_bf(buffer, DCF_Y1);
       clock->wday   = ext_bf(buffer, DCF_DW);
 
+      /*
+       * determine offset to UTC by examining the time zone
+       */
       switch (ext_bf(buffer, DCF_Z))
 	{
 	case DCF_Z_MET:
@@ -357,6 +452,9 @@ static unsigned long convert_rawdcf(buffer, size, clock)
 	  return CVT_FAIL|CVT_BADFMT;
 	}
 
+      /*
+       * extract various warnings from DCF77
+       */
       if (ext_bf(buffer, DCF_A1))
 	clock->flags |= DCFB_ANNOUNCE;
 
@@ -378,7 +476,7 @@ static unsigned long convert_rawdcf(buffer, size, clock)
     }
 }
 
-/*
+/*-----------------------------------------------------------------------
  * raw dcf input routine - fix up 50 baud
  * characters for 1/0 decision
  */
@@ -402,8 +500,20 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
    * a 100ms pulse would generate a 4 bit train (20ms per bit and
    * start bit)
    * a 200ms pulse would create all zeroes (and probably a frame error)
+   *
+   * The basic idea is that on corret reception we must have two
+   * maxima in the pulse length distribution histogram. (one for
+   * the zero representing pulses and one for the one representing
+   * pulses)
+   * There will always be ones in the datastream, thus we have to see
+   * two maxima.
+   * The best point to cut for a 1/0 decision is the minimum between those
+   * between the maxima. The following code tries to find this cutoff point.
    */
 
+  /*
+   * clear histogram buffer
+   */
   for (i = 0; i < BITS; i++)
     {
       histbuf[i] = 0;
@@ -412,15 +522,21 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
   cutoff = 0;
   lowmax = 0;
 
+  /*
+   * convert sequences of set bits into bits counts updating
+   * the histogram alongway
+   */
   while (s < e)
     {
       register unsigned int ch = *s ^ 0xFF;
       /*
-       * these lines are left as an excercise to the reader 8-)
+       * check integrity and update histogramm
        */
       if (!((ch+1) & ch) || !*s)
 	{
-
+	  /*
+	   * character ok
+	   */
 	  for (i = 0; ch; i++)
 	    {
 	      ch >>= 1;
@@ -433,6 +549,9 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
 	}
       else
 	{
+	  /*
+	   * invalid character (no consecutive bit sequence)
+	   */
 	  dprintf(("parse: cvt_rawdcf: character check for 0x%x@%d FAILED\n", *s, s - buffer));
 	  *s = ~0;
 	  rtc = CVT_FAIL|CVT_BADFMT;
@@ -440,6 +559,10 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
       s++;
     }
 
+  /*
+   * first cutoff estimate (average bit count - must be between both
+   * maxima)
+   */
   if (lowmax)
     {
       cutoff /= lowmax;
@@ -451,20 +574,31 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
 
   dprintf(("parse: cvt_rawdcf: average bit count: %d\n", cutoff));
 
-  lowmax = 0;
-  highmax = 0;
+  lowmax = 0;  /* weighted sum */
+  highmax = 0; /* bitcount */
 
+  /*
+   * collect weighted sum of lower bits (left of initial guess)
+   */
   dprintf(("parse: cvt_rawdcf: histogram:"));
   for (i = 0; i <= cutoff; i++)
     {
-      lowmax+=histbuf[i] * i;
+      lowmax  += histbuf[i] * i;
       highmax += histbuf[i];
       dprintf((" %d", histbuf[i]));
     }
   dprintf((" <M>"));
 
+  /*
+   * round up
+   */
   lowmax += highmax / 2;
 
+  /*
+   * calculate lower bit maximum (weighted sum / bit count)
+   *
+   * avoid divide by zero
+   */
   if (highmax)
     {
       lowmax /= highmax;
@@ -474,9 +608,12 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
       lowmax = 0;
     }
 
-  highmax = 0;
-  cutoff = 0;
+  highmax = 0; /* weighted sum of upper bits counts */
+  cutoff = 0;  /* bitcount */
 
+  /*
+   * collect weighted sum of lower bits (right of initial guess)
+   */
   for (; i < BITS; i++)
     {
       highmax+=histbuf[i] * i;
@@ -485,6 +622,9 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
     }
   dprintf(("\n"));
 
+  /*
+   * determine upper maximum (weighted sum / bit count)
+   */
   if (cutoff)
     {
       highmax /= cutoff;
@@ -494,34 +634,64 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
       highmax = BITS-1;
     }
 
+  /*
+   * following now holds:
+   * lowmax <= cutoff(initial guess) <= highmax
+   * best cutoff is the minimum nearest to higher bits
+   */
+
+  /*
+   * find the minimum between lowmax and highmax (detecting
+   * possibly a minimum span)
+   */
   span = cutoff = lowmax;
   for (i = lowmax; i <= highmax; i++)
     {
       if (histbuf[cutoff] > histbuf[i])
 	{
-	  cutoff = i;
-	  span = i;
+	  /*
+	   * got a new minimum move beginning of minimum (cutoff) and
+	   * end of minimum (span) there
+	   */
+	  cutoff = span = i;
 	}
       else
         if (histbuf[cutoff] == histbuf[i])
 	  {
+	    /*
+	     * minimum not better yet - but it spans more than
+	     * one bit value - follow it
+	     */
 	    span = i;
 	  }
     }
 
+  /*
+   * cutoff point for 1/0 decision is the middle of the minimum section
+   * in the histogram
+   */
   cutoff = (cutoff + span) / 2;
 
   dprintf(("parse: cvt_rawdcf: lower maximum %d, higher maximum %d, cutoff %d\n", lowmax, highmax, cutoff));
 
+  /*
+   * convert the bit counts to symbolic 1/0 information for data conversion
+   */
   s = buffer;
   while ((s < e) && *c && *b)
     {
       if (*s == (unsigned char)~0)
 	{
+	  /*
+	   * invalid character
+	   */
 	  *s = '?';
 	}
       else
 	{
+	  /*
+	   * symbolic 1/0 representation
+	   */
 	  *s = (*s >= cutoff) ? *b : *c;
 	}
       s++;
@@ -529,11 +699,19 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
       c++;
     }
 
+  /*
+   * if everything went well so far return the result of the symbolic
+   * conversion routine else just the accumulated errors
+   */
   return (rtc == CVT_NONE) ? convert_rawdcf(buffer, size, clock) : rtc;
 }
 
+/*-----------------------------------------------------------------------
+ * convert a wall clock time description of DCF77 to a Unix time (seconds
+ * since 1.1. 1970 UTC)
+ */
 time_t
-parse_to_unixtime(clock, cvtrtc)
+dcf_to_unixtime(clock, cvtrtc)
   register clocktime_t   *clock;
   register unsigned long *cvtrtc;
 {
@@ -545,12 +723,22 @@ parse_to_unixtime(clock, cvtrtc)
   register int i;
   time_t t;
   
+  /*
+   * map 2 digit years to 19xx (DCF77 is a 20th century item)
+   */
   if (clock->year < 100)
     clock->year += 1900;
 
-  if (clock->year < 1970)
-    clock->year += 100;		/* XXX this will do it till <2070 */
+  /*
+   * assume that we convert timecode within the unix/UTC epoch -
+   * prolonges validity of 2 digit years
+   */
+  if (clock->year < 1994)
+    clock->year += 100;		/* XXX this will do it till <2094 */
 
+  /*
+   * must have been a really negative year code - drop it
+   */
   if (clock->year < 0)
     {
       SETRTC(CVT_FAIL|CVT_BADDATE);
@@ -559,6 +747,10 @@ parse_to_unixtime(clock, cvtrtc)
   
   /*
    * sorry, slow section here - but it's not time critical anyway
+   */
+
+  /*
+   * calculate days since 1970 (watching leap years)
    */
   t =  (clock->year - 1970) * 365;
   t += (clock->year >> 2) - (1970 >> 2);
@@ -570,10 +762,13 @@ parse_to_unixtime(clock, cvtrtc)
       SETRTC(CVT_FAIL|CVT_BADDATE);
       return -1;		/* bad month */
     }
-				/* adjust leap year */
+				/* adjust current leap year */
   if (clock->month >= 3 && dysize(clock->year) == 366)
       t++;
 
+  /*
+   * collect days from months excluding the current one
+   */
   for (i = 1; i < clock->month; i++)
     {
       t += days_of_month[i];
@@ -586,7 +781,11 @@ parse_to_unixtime(clock, cvtrtc)
       return -1;		/* bad day */
     }
 
+  /*
+   * collect days from date excluding the current one
+   */
   t += clock->day - 1;
+
 				/* hour */
   if (clock->hour < 0 || clock->hour >= 24)
     {
@@ -594,6 +793,9 @@ parse_to_unixtime(clock, cvtrtc)
       return -1;		/* bad hour */
     }
 
+  /*
+   * calculate hours from 1. 1. 1970
+   */
   t = TIMES24(t) + clock->hour;
 
   				/* min */
@@ -603,10 +805,16 @@ parse_to_unixtime(clock, cvtrtc)
       return -1;		/* bad min */
     }
 
+  /*
+   * calculate minutes from 1. 1. 1970
+   */
   t = TIMES60(t) + clock->minute;
 				/* sec */
   
-  t += clock->utcoffset;	/* warp to UTC */
+  /*
+   * calculate UTC in minutes
+   */
+  t += clock->utcoffset;
 
   if (clock->second < 0 || clock->second > 60)	/* allow for LEAPs */
     {
@@ -614,12 +822,15 @@ parse_to_unixtime(clock, cvtrtc)
       return -1;		/* bad sec */
     }
 
+  /*
+   * calculate UTC in seconds - phew !
+   */
   t  = TIMES60(t) + clock->second;
 				/* done */
   return t;
 }
 
-/*
+/*-----------------------------------------------------------------------
  * cheap half baked 1/0 decision - for interactive operation only
  */
 static char type(c)
@@ -629,6 +840,9 @@ unsigned char c;
   return (c > 0xF);
 }
 
+/*-----------------------------------------------------------------------
+ * week day representation
+ */
 static char *wday[8] =
 {
   "??",
@@ -641,6 +855,9 @@ static char *wday[8] =
   "Su"
 };
 
+/*-----------------------------------------------------------------------
+ * generate a string representation for a timeval
+ */
 static char * pr_timeval(val)
   struct timeval *val;
 {
@@ -653,11 +870,20 @@ static char * pr_timeval(val)
   return buf;
 }
 
+/*-----------------------------------------------------------------------
+ * correct the current time by an offset by setting the time rigorously
+ */
 static void set_time(offset)
   struct timeval *offset;
 {
   struct timeval the_time;
-  /*XXX*/ if (loop_filter_debug) printf("set_time: %s ", pr_timeval(offset));
+
+  if (no_set)
+    return;
+
+  LPRINTF("set_time: %s ", pr_timeval(offset));
+  syslog(LOG_NOTICE, "setting time (offset %s)", pr_timeval(offset));
+
   if (gettimeofday(&the_time, 0L) == -1)
     {
       perror("gettimeofday()");
@@ -672,20 +898,28 @@ static void set_time(offset)
     }
 }
 
+/*-----------------------------------------------------------------------
+ * slew the time by a given offset
+ */
 static void adj_time(offset)
   register long offset;
 {
   struct timeval time_offset;
 
+  if (no_set)
+    return;
+
   time_offset.tv_sec  = offset / 1000000;
   time_offset.tv_usec = offset % 1000000;
 
-  /*XXX*/ if (loop_filter_debug)
-	    printf("adj_time: %d us ", offset);
+  LPRINTF("adj_time: %d us ", offset);
   if (adjtime(&time_offset, 0L) == -1)
     perror("adjtime()");
 }
 
+/*-----------------------------------------------------------------------
+ * read in a possibly previously written drift value
+ */
 static void read_drift(drift_file)
   char *drift_file;
 {
@@ -698,17 +932,18 @@ static void read_drift(drift_file)
 
       fscanf(df, "%4d.%03d", &idrift, &fdrift);
       fclose(df);
-  /*XXX*/ if (loop_filter_debug)
-	    printf("read_drift: %d.%03d ppm ", idrift, fdrift);
+      LPRINTF("read_drift: %d.%03d ppm ", idrift, fdrift);
 
       drift_comp = idrift << USECSCALE;
       fdrift     = (fdrift << USECSCALE) / 1000;
       drift_comp += fdrift & (1<<USECSCALE);
-  /*XXX*/ if (loop_filter_debug)
-	    printf("read_drift: drift_comp %d ", drift_comp);
+      LPRINTF("read_drift: drift_comp %d ", drift_comp);
     }
 }
 
+/*-----------------------------------------------------------------------
+ * write out the current drift value
+ */
 static void update_drift(drift_file, offset, reftime)
   char *drift_file;
   long offset;
@@ -722,18 +957,20 @@ static void update_drift(drift_file, offset, reftime)
       int idrift = R_SHIFT(drift_comp, USECSCALE);
       int fdrift = drift_comp & ((1<<USECSCALE)-1);
 
-  /*XXX*/ if (loop_filter_debug)
-	    printf("update_drift: drift_comp %d ", drift_comp);
+      LPRINTF("update_drift: drift_comp %d ", drift_comp);
       fdrift = (fdrift * 1000) / (1<<USECSCALE);
       fprintf(df, "%4d.%03d %c%d.%06d %.24s\n", idrift, fdrift,
 	      (offset < 0) ? '-' : '+', abs(offset) / 1000000, abs(offset) % 1000000,
 	      asctime(localtime(&reftime)));
       fclose(df);
-  /*XXX*/ if (loop_filter_debug)
-	    printf("update_drift: %d.%03d ppm ", idrift, fdrift);
+      LPRINTF("update_drift: %d.%03d ppm ", idrift, fdrift);
     }
 }
 
+/*-----------------------------------------------------------------------
+ * process adjustments derived from the DCF77 observation
+ * (controls clock PLL)
+ */
 static void adjust_clock(offset, drift_file, reftime)
   struct timeval *offset;
   char *drift_file;
@@ -742,6 +979,9 @@ static void adjust_clock(offset, drift_file, reftime)
   struct timeval toffset;
   register long usecoffset;
   int tmp;
+
+  if (no_set)
+    return;
 
   if (skip_adjust)
     {
@@ -783,11 +1023,13 @@ static void adjust_clock(offset, drift_file, reftime)
       drift_comp = -MAX_DRIFT;
 
   update_drift(drift_file, usecoffset, reftime);
-  /*XXX*/ if (loop_filter_debug)
-	    printf("clock_adjust: %s, clock_adjust %d, drift_comp %d(%d) ",
+  LPRINTF("clock_adjust: %s, clock_adjust %d, drift_comp %d(%d) ",
 		  pr_timeval(offset), R_SHIFT(clock_adjust, USECSCALE) , R_SHIFT(drift_comp, USECSCALE), drift_comp);
 }
 
+/*-----------------------------------------------------------------------
+ * adjust the clock by a small mount to simulate frequency correction
+ */
 static void periodic_adjust()
 {
   register long adjustment;
@@ -803,9 +1045,13 @@ static void periodic_adjust()
   adj_time(adjustment);
 }
 
+/*-----------------------------------------------------------------------
+ * control synchronisation status (warnings) and do periodic adjusts
+ * (frequency control simulation)
+ */
 static void tick()
 {
-  static unsigned long last_notice;
+  static unsigned long last_notice = 0;
 
 #ifndef SV_ONSTACK
   (void)signal(SIGALRM, tick);
@@ -815,11 +1061,29 @@ static void tick()
 
   ticks += 1<<ADJINTERVAL;
 
-  if ((sync_state == NO_SYNC) && ((ticks - last_sync) > MAX_UNSYNC) &&
-      ((last_notice - ticks) > NOTICE_INTERVAL))
+  if ((ticks - last_sync) > MAX_UNSYNC)
     {
-      syslog(LOG_NOTICE, "still not synchronized - check receiver/signal");
-      last_notice = ticks;
+      /*
+       * not getting time for a while
+       */
+      if (sync_state == SYNC)
+	{
+	  /*
+	   * completely lost information
+	   */
+	  sync_state = NO_SYNC;
+	  syslog(LOG_INFO, "DCF77 reception lost (timeout)");
+	  last_notice = ticks;
+	}
+      else
+	/*
+	 * in NO_SYNC state - look whether its time to speak up again
+	 */
+	if ((ticks - last_notice) > NOTICE_INTERVAL)
+	  {
+	    syslog(LOG_NOTICE, "still not synchronized to DCF77 - check receiver/signal");
+	    last_notice = ticks;
+	  }
     }
 
 #ifndef ITIMER_REAL
@@ -827,6 +1091,10 @@ static void tick()
 #endif
 }
 
+/*-----------------------------------------------------------------------
+ * break association from terminal to avaoid catching terminal
+ * or process group related signals (-> daemon operation)
+ */
 static void detach()
 {
   int s;
@@ -855,18 +1123,26 @@ static void detach()
 #endif /* hpux */
 }
 
+/*-----------------------------------------------------------------------
+ * list possible arguments and options
+ */
 static void usage(program)
   char *program;
 {
   fprintf(stderr, "usage: %s [-f] [-l] [-t] [-i] [-o] [-d <drift_file>] <device>\n", program);
+  fprintf(stderr, "\t-n              do not change time\n");
   fprintf(stderr, "\t-i              interactive\n");
   fprintf(stderr, "\t-t              trace (print all datagrams)\n");
   fprintf(stderr, "\t-f              print all databits (includes PTB private data)\n");
   fprintf(stderr, "\t-l              print loop filter debug information\n");
   fprintf(stderr, "\t-o              print offet average for current minute\n");
   fprintf(stderr, "\t-d <drift_file> specify alternate drift file\n");
+  fprintf(stderr, "\t-D <input delay>specify delay from input edge to processing in micro seconds\n");
 }
 
+/*-----------------------------------------------------------------------
+ * main loop - argument interpreter / setup / main loop
+ */
 int
 main(argc, argv)
   int argc;
@@ -880,9 +1156,13 @@ main(argc, argv)
   int fd;
   int offset = 15;
   int offsets = 0;
+  int delay = DEFAULT_DELAY;	/* average delay from input edge to time stamping */
   int trace = 0;
   int errs = 0;
 
+  /*
+   * process arguments
+   */
   while (--ac)
     {
       char *arg = *++a;
@@ -906,6 +1186,10 @@ main(argc, argv)
 		    interactive = 1;
 		    break;
 
+              case 'n':
+		    no_set = 1;
+		    break;
+
 	      case 'o':
 		    offsets = 1;
 		    interactive = 1;
@@ -915,6 +1199,19 @@ main(argc, argv)
 		    interactive = 1;
 		    break;
 
+	      case 'D':
+		    if (ac > 1)
+		      {
+			delay = atoi(*++a);
+			ac--;
+		      }
+		    else
+		      {
+			fprintf(stderr, "%s: -D requires integer argument\n", argv[0]);
+			errs=1;
+		      }
+		    break;
+	      
 	      case 'd':
 		    if (ac > 1)
 		      {
@@ -958,6 +1255,9 @@ main(argc, argv)
 
   errs = LINES+1;
 
+  /*
+   * get access to DCF77 tty port
+   */
   fd = open(file, O_RDONLY);
   if (fd == -1)
     {
@@ -975,6 +1275,7 @@ main(argc, argv)
       char buf[61];		/* raw data */
       clocktime_t clock;	/* wall clock time */
       time_t utc_time = 0;
+      time_t last_utc_time = 0;
       long usecerror = 0;
       long lasterror = 0;
 #if defined(HAVE_TERMIOS) || defined(STREAM)
@@ -989,8 +1290,11 @@ main(argc, argv)
       timeout.tv_usec = 500000;
 
       phase.tv_sec    = 0;
-      phase.tv_usec   = 230000;
+      phase.tv_usec   = delay;
 
+      /*
+       * setup TTY (50 Baud, Read, 8Bit, No Hangup, 1 character IO)
+       */
       if (TTY_GETATTR(fd,  &term) == -1)
 	{
 	  perror("tcgetattr");
@@ -1010,15 +1314,24 @@ main(argc, argv)
 	  exit(1);
 	}
 
+      /*
+       * loose terminal if in daemon operation
+       */
       if (!interactive)
 	detach();
       
+      /*
+       * get syslog() initialized
+       */
 #ifdef LOG_DAEMON
       openlog("dcfd", LOG_PID, LOG_DAEMON);
 #else
       openlog("dcfd", LOG_PID);
 #endif
 
+      /*
+       * setup periodic operations (state control / frequency control)
+       */
 #ifdef SV_ONSTACK
       {
 	struct sigvec vec;
@@ -1064,10 +1377,19 @@ main(argc, argv)
 
       read_drift(drift_file);
 
+      /*
+       * what time is it now (for interval measurement)
+       */
       gettimeofday(&tlast, 0L);
       i = 0;
+      /*
+       * loop until input trouble ...
+       */
       do
 	{
+	  /*
+	   * get an impulse
+	   */
 	  while ((rrc = read(fd, &c, 1)) == 1)
 	    {
 	      gettimeofday(&t, 0L);
@@ -1081,23 +1403,32 @@ main(argc, argv)
 		  errs = 0;
 		}
 
+	      /*
+	       * timeout -> possible minute mark -> interpretation
+	       */
 	      if (timercmp(&t, &timeout, >))
 		{
 		  PRINTF("%c %.*s ", pat[i % (sizeof(pat)-1)], 59 - offset, &pbuf[offset]);
 
 		  if ((rtc = cvt_rawdcf(buf, i, &clock)) != CVT_OK)
 		    {
+		      /*
+		       * this data was bad - well - forget synchronisation for now
+		       */
 		      PRINTF("\n");
 		      if (sync_state == SYNC)
 			{
 			  sync_state = NO_SYNC;
-			  syslog(LOG_DEBUG, "DCF77 reception lost");
+			  syslog(LOG_INFO, "DCF77 reception lost (bad data)");
 			}
 		      errs++;
 		    }
 
 		  buf[0] = c;
 
+		  /*
+		   * collect first character
+		   */
 		  if (((c^0xFF)+1) & (c^0xFF))
 		    pbuf[0] = '?';
 		  else
@@ -1110,6 +1441,9 @@ main(argc, argv)
 		}
 	      else
 		{
+		  /*
+		   * collect character
+		   */
 		  buf[i] = c;
 
 		  /*
@@ -1125,12 +1459,34 @@ main(argc, argv)
 
 	      if (i == 0 && rtc == CVT_OK)
 		{
-		  if ((utc_time = parse_to_unixtime(&clock, &rtc)) == -1)
+		  /*
+		   * we got a good time code here - try to convert it to
+		   * UTC
+		   */
+		  if ((utc_time = dcf_to_unixtime(&clock, &rtc)) == -1)
 		    {
 		      PRINTF("*** BAD CONVERSION\n");
 		    }
 
-		  usecerror = 0;
+		  if (utc_time != (last_utc_time + 60))
+		    {
+		      /*
+		       * well, two successive sucessful telegrams are not 60 seconds
+		       * apart
+		       */
+		      PRINTF("*** NO MINUTE INC\n");
+		      if (sync_state == SYNC)
+			{
+			  sync_state = NO_SYNC;
+			  syslog(LOG_INFO, "DCF77 reception lost (data mismatch)");
+			}
+		      errs++;
+		      rtc = CVT_FAIL|CVT_BADTIME|CVT_BADDATE;
+		    }
+		  else
+		    usecerror = 0;
+
+		  last_utc_time = utc_time;
 		}
 
 	      if (rtc == CVT_OK)
@@ -1142,13 +1498,24 @@ main(argc, argv)
 
 		  if (i == 0)
 		    {
-		      time_offset.tv_sec  = lasterror / 1000000;
-		      time_offset.tv_usec = lasterror % 1000000;
-		      adjust_clock(&time_offset, drift_file, utc_time+i);
+		      /*
+		       * valid time code - determine offset and
+		       * note regained reception
+		       */
 		      last_sync = ticks;
 		      if (sync_state == NO_SYNC)
 			{
 			  syslog(LOG_INFO, "receiving DCF77");
+			}
+		      else
+			{
+			  /*
+			   * we had at least one minute SYNC - thus
+			   * last error is valid
+			   */
+			  time_offset.tv_sec  = lasterror / 1000000;
+			  time_offset.tv_usec = lasterror % 1000000;
+			  adjust_clock(&time_offset, drift_file, utc_time);
 			}
 		      sync_state = SYNC;
 		    }
@@ -1161,6 +1528,9 @@ main(argc, argv)
 		  usecerror += (time_offset.tv_sec - tt.tv_sec) * 1000000 + time_offset.tv_usec
 		    -tt.tv_usec;
 
+		  /*
+		   * output interpreted DCF77 data
+		   */
 		  PRINTF(offsets ? "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s> (%c%d.%06ds)" :
 			 "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
 			 wday[clock.wday],
@@ -1180,6 +1550,10 @@ main(argc, argv)
 		    }
 		  lasterror = usecerror / (i+1);
 		}
+	      else
+		{
+                  lasterror = 0; /* we cannot calculate phase errors on bad reception */
+		}
 
 	      PRINTF("\r");
 
@@ -1195,7 +1569,10 @@ main(argc, argv)
 	    }
 	} while ((rrc == -1) && (errno == EINTR));
       
-      syslog(LOG_ERR, "TERMINATING - cannot read from device %s", file);
+      /*
+       * lost IO - sorry guys
+       */
+      syslog(LOG_ERR, "TERMINATING - cannot read from device %s (%m)", file);
 
       (void)close(fd);
     }

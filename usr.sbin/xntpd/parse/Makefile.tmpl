@@ -92,7 +92,7 @@ depend:
 
 clean:
 	-@rm -f $(LIBNAME).a $(KLIBNAME).a *.o *.out *.ln make.log Makefile.bak \
-		lintlib.errs lint.errs genassym assym.s parsestreams parse
+		lintlib.errs lint.errs genassym assym.s parsestreams parse parsestreams.o.*
 	-@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl clean
 
 distclean:	clean

@@ -20,8 +20,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(AS2201CLK)
 #include <sys/clkdefs.h>
@@ -248,8 +250,8 @@ as2201_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)gpsunits, sizeof gpsunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)gpsunits, 0, sizeof gpsunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -324,9 +326,9 @@ as2201_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The AS2201CLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -359,22 +361,24 @@ as2201_start(unit, peer)
 		    "as2201_start: tcflush(%s): %m", as2201dev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(AS2201CLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "as2201_start: ioctl(%s, I_PUSH, clk): %m", as2201dev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "as2201_start: ioctl(%s, CLK_SETSTR): %m", as2201dev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"as2201_start: ioctl(%s, I_PUSH, clk): %m", as2201dev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"as2201_start: ioctl(%s, CLK_SETSTR): %m", as2201dev);
 #endif /* AS2201CLK */
 #if defined(AS2201PPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "as2201_start: ioctl(%s, I_PUSH, ppsclock): %m", as2201dev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"as2201_start: ioctl(%s, I_PUSH, ppsclock): %m", as2201dev);
+    else
+	    fdpps = fd232;
 #endif /* AS2201PPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -437,7 +441,7 @@ as2201_start(unit, peer)
 			    emalloc(sizeof(struct gpsunit));
 		}
 	}
-	bzero((char *)gps, sizeof(struct gpsunit));
+	memset((char *)gps, 0, sizeof(struct gpsunit));
 	gpsunits[unit] = gps;
 
 	/*
@@ -475,7 +479,7 @@ as2201_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-	    bcopy(GPSREFID, (char *)&peer->refid, 4);
+	    memmove((char *)&peer->refid, GPSREFID, 4);
 	else
 	    peer->refid = htonl(GPSHSREFID);
 	unitinuse[unit] = 1;
@@ -903,8 +907,8 @@ as2201_control(unit, in, out)
 				peer = gps->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(GPSREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						GPSREFID, 4);
 				else
 					peer->refid = htonl(GPSHSREFID);
 			}

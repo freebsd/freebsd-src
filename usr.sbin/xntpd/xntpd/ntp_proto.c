@@ -1078,7 +1078,7 @@ clock_update(peer)
 		sys_refid = peer->refid;
 	else {
 		if (pps_control)
-		    bcopy(PPSREFID, (char *)&sys_refid, 4);
+		    memmove((char *)&sys_refid, PPSREFID, 4);
 		else
 		    sys_refid = peer->srcadr.sin_addr.s_addr;
 	}
@@ -1127,7 +1127,7 @@ clock_update(peer)
 		if (peer->flags & FLAG_REFCLOCK)
 			sys_refid = peer->refid;
 		else
-			bcopy(PPSREFID, (char *)&sys_refid, 4);
+			memmove((char *)&sys_refid, PPSREFID, 4);
 	}
 }
 
@@ -1250,7 +1250,7 @@ peer_clear(peer)
 	if (debug)
 		printf("clear(%s)\n", ntoa(&peer->srcadr));
 #endif
-	bzero(CLEAR_TO_ZERO(peer), LEN_CLEAR_TO_ZERO);
+	memset(CLEAR_TO_ZERO(peer), 0, LEN_CLEAR_TO_ZERO);
 	peer->hpoll = peer->minpoll;
 	peer->dispersion = NTP_MAXDISPERSE;
 	for (i = 0; i < NTP_SHIFT; i++)
