@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.34 1998/05/31 17:57:43 peter Exp $
+ * $Id: nfs_socket.c,v 1.35 1998/05/31 18:00:46 peter Exp $
  */
 
 /*
@@ -640,6 +640,9 @@ errout:
 				error = nfs_reconnect(rep);
 			if (!error)
 				goto tryagain;
+			else
+				nfs_sndunlock(&rep->r_nmp->nm_flag,
+					&rep->r_nmp->nm_state);
 		}
 	} else {
 		if ((so = rep->r_nmp->nm_so) == NULL)
