@@ -142,6 +142,7 @@ struct disk {
 	u_char		*boot1;
 	u_char		*boot2;
 	struct chunk	*chunks;
+	u_long		sector_size;
 };
 .Ed
 The only flag value by now is
