@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire-test.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
+ * $Id: wire-test.c,v 1.2 1998/08/23 22:52:09 obrien Exp $
  *
  */
 
@@ -69,7 +69,7 @@ main(int argc, char **argv)
   mypid = getpid();
   orig_umask = umask(0);
 
-  if (gethostname(hostname, sizeof hostname) < 0) {
+  if (gethostname(hostname, sizeof(hostname)) < 0) {
     perror(argv[0]);
     exit(1);
   }
