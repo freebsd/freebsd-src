@@ -1003,6 +1003,10 @@ syscall(frame)
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame.tf_edx;
 
+		/*
+		 * XXX: This grabs the process lock.  A bad thing in
+		 * the system call path.
+		 */
 		STOPEVENT(p, S_SCE, narg);
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
@@ -1064,6 +1068,10 @@ syscall(frame)
 		ktrsysret(code, error, td->td_retval[0]);
 #endif
 
+	/*
+	 * XXX: This grabs the process lock.  A bad thing in
+	 * the system call path.
+	 */
 	/*
 	 * This works because errno is findable through the
 	 * register set.  If we ever support an emulation where this
