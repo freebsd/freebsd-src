@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.28 1994/11/11 08:34:03 jkh Exp $
+# $Id: bininst,v 1.29 1994/11/11 10:55:02 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -489,7 +489,7 @@ install_set()
 		if ! cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -v 'ftp://'; then
 			message "Fetching distribution using ncftp.  Use ALT-F2 to see output, ALT-F1 to return."
-			if ! ncftp $media_device/* > /dev/ttyv1 2>&1; then
+			if ! ncftp $media_device/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
 				extract_dist
