@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: hosts.5,v 1.3 1997/03/07 03:28:02 jmg Exp $
 .\"
 .Dd December 11, 1993
 .Dt HOSTS 5
@@ -58,11 +58,11 @@ not interpreted by routines which search the file.
 .Pp
 When using the name server
 .Xr named 8 ,
-this file provides a backup when the name server
+this file provides a backup used when the name server
 is not running.
 For the name server, it is suggested that only a few addresses
 be included in this file.
-These include  address for the local interfaces that 
+These include addresses for the local interfaces that 
 .Xr ifconfig 8
 needs at boot time and a few machines on the local network.
 .Pp

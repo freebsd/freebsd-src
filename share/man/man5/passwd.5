@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: passwd.5,v 1.19 1998/05/15 09:19:03 jkoshy Exp $
+.\"	$Id: passwd.5,v 1.20 1998/06/13 19:14:11 steve Exp $
 .\"
 .Dd September 29, 1994
 .Dt PASSWD 5
@@ -88,7 +88,7 @@ that manipulate these files will often return only one of the multiple
 entries, and that one by random selection.
 .Pp
 The login name must never begin with a hyphen (``-''); also, it is strongly
-suggested that neither upper-case characters or dots (``.'') be part
+suggested that neither upper-case characters nor dots (``.'') be part
 of the name, as this tends to confuse mailers.  No field may contain a
 colon (``:'') as this has been used historically to separate the fields
 in the user database.
@@ -109,7 +109,7 @@ which disallows normal logins.
 The group field is the group that the user will be placed in upon login.
 Although this system supports multiple groups (see
 .Xr groups 1 )
-this field nominates the user's primary groups.
+this field indicates the user's primary group.
 Secondary group memberships are selected in
 .Pa /etc/group .
 .Pp
@@ -157,7 +157,7 @@ This information is used by the
 program, and the first field used by the system mailer.
 If an ampersand
 .Ql \&&
-character appears within the fullname field, programs which
+character appears within the fullname field, programs that
 use this field will substitute it with a capitalized version
 of the account's login name.
 .Pp
@@ -222,7 +222,7 @@ entry, because it matches all users (the `+' without any other information
 matches everybody) and allows all NIS password data to be retrieved
 unaltered. However, by
 specifying a username or netgroup next to the `+' in the NIS
-entry, the administrator can affect what data is extracted from the
+entry, the administrator can affect what data are extracted from the
 NIS passwd maps and how it is interpreted. Here are a few example
 records that illustrate this feature (note that you can have several
 NIS entries in a single
@@ -277,7 +277,7 @@ users who are allowed access and omit the rest.
 .Pp
 Note that the plus and minus entries are evaluated in order from
 first to last with the first match taking precedence. This means
-that the system will only use the first entry which matches a particular user.
+the system will only use the first entry that matches a particular user.
 If, for instance, we have a user ``foo'' who is a member of both the ``staff''
 netgroup and the ``rejected-users'' netgroup, he will be admitted to
 the system because the above example lists the entry for ``staff'' 
@@ -508,7 +508,7 @@ Again, note that the NIS '+' and '-' entries
 themselves are handled in the order in which they were specified
 in the
 .Pa /etc/master.passwd
-file since doing otherwise would lead to unpredicable behavior.
+file since doing otherwise would lead to unpredictable behavior.
 .Pp
 The end result is that
 .Tn FreeBSD Ns 's
@@ -517,7 +517,7 @@ of
 .Tn SunOS Ns 's
 behavior while maintaining the database paradigm, though the
 .Xr getpwent 3
-functions do behave somewhat differently that their
+functions do behave somewhat differently from their
 .Tn SunOS
 counterparts.
 The primary differences are:
@@ -549,7 +549,7 @@ is specified as:
 
 .Ed
 the system will first try to match users against a netgroup called
-`operator.' If an `operator' netgroup doesn't exist, the system
+`operator'. If an `operator' netgroup doesn't exist, the system
 will try to match users against the normal `operator' group
 instead. 
 .Ss Changes in behavior from older versions of
