@@ -56,6 +56,8 @@
  * it from the hash table.
  */
 
+#include "opt_turnstile_profiling.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -69,8 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/resourcevar.h>
-#include <sys/turnstile.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
+#include <sys/turnstile.h>
 
 /*
  * Constants for the hash table of turnstile chains.  TC_SHIFT is a magic
@@ -116,8 +119,20 @@ struct turnstile {
 struct turnstile_chain {
 	LIST_HEAD(, turnstile) tc_turnstiles;	/* List of turnstiles. */
 	struct mtx tc_lock;			/* Spin lock for this chain. */
+#ifdef TURNSTILE_PROFILING
+	u_int	tc_depth;			/* Length of tc_queues. */
+	u_int	tc_max_depth;			/* Max length of tc_queues. */
+#endif
 };
 
+#ifdef TURNSTILE_PROFILING
+u_int turnstile_max_depth;
+SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0, "turnstile profiling");
+SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
+    "turnstile chain stats");
+SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
+    &turnstile_max_depth, 0, "maxmimum depth achieved of a single chain");
+#endif
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
 
@@ -292,12 +307,28 @@ propagate_priority(struct thread *td)
 void
 init_turnstiles(void)
 {
+#ifdef TURNSTILE_PROFILING
+	struct sysctl_oid *chain_oid;
+	char chain_name[10];
+#endif
 	int i;
 
 	for (i = 0; i < TC_TABLESIZE; i++) {
 		LIST_INIT(&turnstile_chains[i].tc_turnstiles);
 		mtx_init(&turnstile_chains[i].tc_lock, "turnstile chain",
 		    NULL, MTX_SPIN);
+#ifdef TURNSTILE_PROFILING
+		snprintf(chain_name, sizeof(chain_name), "%d", i);
+		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		    SYSCTL_STATIC_CHILDREN(_debug_turnstile_chains), OID_AUTO,
+		    chain_name, CTLFLAG_RD, NULL, "turnstile chain stats");
+		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "depth", CTLFLAG_RD, &turnstile_chains[i].tc_depth, 0,
+		    NULL);
+		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "max_depth", CTLFLAG_RD, &turnstile_chains[i].tc_max_depth,
+		    0, NULL);
+#endif
 	}
 	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
 	thread0.td_turnstile = NULL;
@@ -438,6 +469,14 @@ turnstile_wait(struct turnstile *ts, struct lock_object *lock,
 
 	/* If the passed in turnstile is NULL, use this thread's turnstile. */
 	if (ts == NULL) {
+#ifdef TURNSTILE_PROFILING
+		tc->tc_depth++;
+		if (tc->tc_depth > tc->tc_max_depth) {
+			tc->tc_max_depth = tc->tc_depth;
+			if (tc->tc_max_depth > turnstile_max_depth)
+				turnstile_max_depth = tc->tc_max_depth;
+		}
+#endif
 		ts = td->td_turnstile;
 		LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
 		KASSERT(TAILQ_EMPTY(&ts->ts_pending),
@@ -551,9 +590,12 @@ turnstile_signal(struct turnstile *ts)
 	 * turnstile from the free list and give it to the thread.
 	 */
 	empty = TAILQ_EMPTY(&ts->ts_blocked);
-	if (empty)
+	if (empty) {
 		MPASS(LIST_EMPTY(&ts->ts_free));
-	else
+#ifdef TURNSTILE_PROFILING
+		tc->tc_depth--;
+#endif
+	} else
 		ts = LIST_FIRST(&ts->ts_free);
 	MPASS(ts != NULL);
 	LIST_REMOVE(ts, ts_hash);
@@ -594,6 +636,9 @@ turnstile_broadcast(struct turnstile *ts)
 		if (LIST_EMPTY(&ts->ts_free)) {
 			MPASS(TAILQ_NEXT(td, td_lockq) == NULL);
 			ts1 = ts;
+#ifdef TURNSTILE_PROFILING
+			tc->tc_depth--;
+#endif
 		} else
 			ts1 = LIST_FIRST(&ts->ts_free);
 		MPASS(ts1 != NULL);
