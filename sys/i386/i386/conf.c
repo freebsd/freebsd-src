@@ -33,30 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.c	5.8 (Berkeley) 5/12/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         5       00160
- * --------------------         -----   ----------------------
- *
- * 10 Feb 93	Jordan K. Hubbard	Added select entry for com driver
- * 10 Feb 93    Julian Elischer		Add empty table entries
- *					so we can allocate numbers
- * 15 Feb 93    Julian Elischer		Add basic SCSI device entries
- * 16 Feb 93    Julian Elischer		add entries for scsi media changer
- * 01 Mar 93	Jordan K. Hubbard	Reserve major numbers for codrv, fd, bpf
- * 10 Mar 83	Rodney W. Grimes	General clean up of the above patches
- * 06 Apr 93	Rodney W. Grimes	Fixed NLPT for LPA driver case, added
- *					spkr, dcfclock
- * 23 Apr 93	Holger Veit		added codrv
- * 25 May 93	Bruce Evans		New fast interrupt serial driver (sio)
- * 		Gene Stark		Xten power controller info added (tw)
- *		Rick Macklem		Bus mouse driver (mse)
- * 28 Jul 93	Jordan K. Hubbard	Free codrv's slot again
- *
+ *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.7 1993/09/15 23:29:11 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -419,7 +398,7 @@ struct cdevsw	cdevsw[] =
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  enodev,	nullop,		nullop,		NULL,	/* tw */
 	  twselect,	enodev,		enodev },
-	{ sbopen,	sbclose,	sbread,		sbwrite,		/*20*/
+	{ sbopen,	sbclose,	sbread,		sbwrite,	/*20*/
 	  sbioctl,	enodev,		enodev,		NULL,	/* soundblaster*/
 	  sbselect,	enodev,		NULL },
 	{ enxio,	enxio,		enxio,		enxio,		/*21*/
