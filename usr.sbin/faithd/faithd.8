@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd May 17, 1998
 .Dt FAITHD 8
@@ -41,13 +41,11 @@
 .Op Fl f Ar configfile
 .Ar service
 .Op Ar serverpath Op Ar serverargs
-.Nm ""
 .Sh DESCRIPTION
 The
 .Nm
 utility provides IPv6-to-IPv4 TCP relay.
-.Nm
-must be used on an IPv4/v6 dual stack router.
+It must be used on an IPv4/v6 dual stack router.
 .Pp
 When
 .Nm
@@ -67,7 +65,7 @@ destination.
 For example, if
 .Li 3ffe:0501:4819:ffff::
 is reserved for
-.Nm Ns ,
+.Nm ,
 and the
 .Tn TCPv6
 destination address is
@@ -148,7 +146,7 @@ or other standard mechanisms.
 By specifying
 .Ar serverpath
 to
-.Nm Ns ,
+.Nm ,
 you can run local daemons on the router.
 The
 .Nm
@@ -172,7 +170,7 @@ See below.
 Use privileged TCP port number as source port,
 for IPv4 TCP connection toward final destination.
 For relaying
-.Xr ftp 1
+.Xr ftp 1 ,
 this flag is not necessary as special program code is supplied.
 .El
 .Pp
@@ -195,7 +193,7 @@ commands.
 Inactive sessions will be disconnected in 30 minutes,
 to avoid stale sessions from chewing up resources.
 This may be inappropriate for some of the services
-.Pq should this be configurable? .
+(should this be configurable?).
 .Ss inetd mode
 When
 .Nm
@@ -233,12 +231,10 @@ To prevent malicious accesses,
 implements a simple address-based access control.
 With
 .Pa /etc/faithd.conf
-.Po
-or
+(or
 .Ar configfile
 specified by
-.Fl f
-.Pc ,
+.Fl f ) ,
 .Nm
 will avoid relaying unwanted traffic.
 The
@@ -246,39 +242,36 @@ The
 contains directives with the following format:
 .Bl -bullet
 .It
-.Xo
-.Ic Ar src/slen Li deny Ar dst/dlen
-.Xc
+.Ar src Ns / Ns Ar slen Cm deny Ar dst Ns / Ns Ar dlen
 .Pp
 If the source address of a query matches
-.Ar src/slen ,
+.Ar src Ns / Ns Ar slen ,
 and the translated destination address matches
-.Ar dst/dlen ,
+.Ar dst Ns / Ns Ar dlen ,
 deny the connection.
 .It
-.Xo
-.Ic Ar src/slen Li permit Ar dst/dlen
-.Xc
+.Ar src Ns / Ns Ar slen Cm permit Ar dst Ns / Ns Ar dlen
 .Pp
 If the source address of a query matches
-.Ar src/slen ,
+.Ar src Ns / Ns Ar slen ,
 and the translated destination address matches
-.Ar dst/dlen ,
+.Ar dst Ns / Ns Ar dlen ,
 permit the connection.
 .El
 .Pp
 The directives are evaluated in sequence,
 and the first matching entry will be effective.
 If there is no match
-.Pq if we reach the end of the ruleset
+(if we reach the end of the ruleset)
 the traffic will be denied.
 .Pp
 With inetd mode,
 traffic may be filtered by using access control functionality in
 .Xr inetd 8 .
-.Sh RETURN VALUES
+.Sh DIAGNOSTICS
+The
 .Nm
-exits with
+utility exits with
 .Dv EXIT_SUCCESS
 .Pq 0
 on success, and
@@ -287,7 +280,7 @@ on success, and
 on error.
 .Sh EXAMPLES
 Before invoking
-.Nm Ns ,
+.Nm ,
 .Xr faith 4
 interface has to be configured properly.
 .Bd -literal -offset
@@ -392,7 +385,7 @@ was initially integrated into
 .Fx 4.0
 .Sh SECURITY CONSIDERATIONS
 It is very insecure to use IP-address based authentication, for connections relayed by
-.Nm Ns ,
+.Nm ,
 and any other TCP relaying services.
 .Pp
 Administrators are advised to limit accesses to
