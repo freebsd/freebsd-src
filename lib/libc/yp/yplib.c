@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.22 1996/06/04 17:35:15 jraynard Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.7 1996/11/08 01:10:35 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -229,7 +229,7 @@ _yp_dobind(dom, ypdb)
 	if( !(pid==-1 || pid==gpid) ) {
 		ysd = _ypbindlist;
 		while(ysd) {
-			if(ysd->dom_client)
+			if(ysd->dom_client != NULL)
 				clnt_destroy(ysd->dom_client);
 			ysd2 = ysd->dom_pnext;
 			free(ysd);
@@ -266,7 +266,8 @@ _yp_dobind(dom, ypdb)
 
 			sock = ysd->dom_socket;
 			save = dup(ysd->dom_socket);
-			clnt_destroy(ysd->dom_client);
+			if (ysd->dom_client != NULL)
+				clnt_destroy(ysd->dom_client);
 			ysd->dom_vers = 0;
 			ysd->dom_client = NULL;
 			sock = dup2(save, sock);
@@ -287,7 +288,7 @@ again:
 		 * We're trying to make a new binding: zorch the
 		 * existing handle now (if any).
 		 */
-		if(ysd->dom_client) {
+		if(ysd->dom_client != NULL) {
 			clnt_destroy(ysd->dom_client);
 			ysd->dom_client = NULL;
 			ysd->dom_socket = -1;
@@ -341,7 +342,7 @@ skipit:
 		 * We're trying to make a new binding: zorch the
 		 * existing handle now (if any).
 		 */
-		if(ysd->dom_client) {
+		if(ysd->dom_client != NULL) {
 			clnt_destroy(ysd->dom_client);
 			ysd->dom_client = NULL;
 			ysd->dom_socket = -1;
@@ -375,7 +376,8 @@ skipit:
 		 * ypbind with the portmapper and is trying to trick us.
 		 */
 		if (ntohs(clnt_sin.sin_port) >= IPPORT_RESERVED) {
-			clnt_destroy(client);
+			if (client != NULL)
+				clnt_destroy(client);
 			if (new)
 				free(ysd);
 			return(YPERR_YPBIND);
@@ -472,8 +474,25 @@ static void
 _yp_unbind(ypb)
 	struct dom_binding *ypb;
 {
-	if (ypb->dom_client)
-		clnt_destroy(ypb->dom_client);
+	struct sockaddr_in check;
+	int checklen = sizeof(struct sockaddr_in);
+
+	if (ypb->dom_client != NULL) {
+		/* Check the socket -- may have been hosed by the caller. */
+		if (getsockname(ypb->dom_socket, (struct sockaddr *)&check,
+	    	&checklen) == -1 || check.sin_family != AF_INET ||
+	    	check.sin_port != ypb->dom_local_port) {
+			int save, sock;
+
+			sock = ypb->dom_socket;
+			save = dup(ypb->dom_socket);
+			clnt_destroy(ypb->dom_client);
+			sock = dup2(save, sock);
+			close(save);
+		} else
+			clnt_destroy(ypb->dom_client);
+	}
+
 	ypb->dom_client = NULL;
 	ypb->dom_socket = -1;
 	ypb->dom_vers = -1;
@@ -805,6 +824,15 @@ again:
 
 	r = clnt_call(ysd->dom_client, YPPROC_ORDER,
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_order, &ypro, tv);
+
+	/*
+	 * NIS+ in YP compat mode doesn't support the YPPROC_ORDER
+	 * procedure.
+	 */
+	if (r == RPC_PROCUNAVAIL) {
+		return(YPERR_YPERR);
+	}
+		
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_order: clnt_call");
 		_yp_unbind(ysd);
