@@ -42,6 +42,7 @@
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
@@ -120,9 +121,12 @@ struct ip6protosw in6_gif_protosw =
 };
 #endif
 
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
+    "Generic Tunnel Interface");
 #ifndef MAX_GIF_NEST
 /*
- * This macro controls the upper limitation on nesting of gif tunnels.
+ * This macro controls the default upper limitation on nesting of gif tunnels.
  * Since, setting a large value to this macro with a careless configuration
  * may introduce system crash, we don't allow any nestings by default.
  * If you need to configure nested gif tunnels, you can define this macro
@@ -132,6 +136,21 @@ struct ip6protosw in6_gif_protosw =
 #define MAX_GIF_NEST 1
 #endif
 static int max_gif_nesting = MAX_GIF_NEST;
+SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
+    &max_gif_nesting, 0, "Max nested tunnels");
+
+/*
+ * By default, we disallow creation of multiple tunnels between the same
+ * pair of addresses.  Some applications require this functionality so
+ * we allow control over this check here.
+ */
+#ifdef XBONEHACK
+static int parallel_tunnels = 1;
+#else
+static int parallel_tunnels = 0;
+#endif
+SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
+    &parallel_tunnels, 0, "Allow parallel tunnels?");
 
 int
 gif_clone_create(ifc, unit)
@@ -649,14 +668,17 @@ gif_ioctl(ifp, cmd, data)
 			    sc2->gif_psrc->sa_family != src->sa_family ||
 			    sc2->gif_psrc->sa_len != src->sa_len)
 				continue;
-#ifndef XBONEHACK
-			/* can't configure same pair of address onto two gifs */
-			if (bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
+
+			/*
+			 * Disallow parallel tunnels unless instructed
+			 * otherwise.
+			 */
+			if (!parallel_tunnels &&
+			    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
 			    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
 				error = EADDRNOTAVAIL;
 				goto bad;
 			}
-#endif
 
 			/* can't configure multiple multi-dest interfaces */
 #define multidest(x) \
