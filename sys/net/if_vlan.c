@@ -245,6 +245,7 @@ static moduledata_t vlan_mod = {
 }; 
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_DEPEND(if_vlan, miibus, 1, 1, 1);
 
 static int
 vlan_clone_create(struct if_clone *ifc, int unit)
