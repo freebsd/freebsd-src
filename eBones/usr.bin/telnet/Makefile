@@ -38,7 +38,8 @@ PROG=	telnet
 CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO
 CFLAGS+=-DENV_HACK
 CFLAGS+=-I${.CURDIR}/../../lib
-LDADD+= -ltermcap -ltelnet
+LDADD+= -L${TELNETOBJDIR} -ltermcap -ltelnet
+DPADD+= ${TELNETOBJDIR}/libtelnet.a
 
 #ifdef	ENCRYPTION
 
