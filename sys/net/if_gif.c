@@ -253,7 +253,6 @@ gif_output(ifp, m, dst, rt)
 		goto end;
 	}
 
-	getmicrotime(&ifp->if_lastchange);
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (!(ifp->if_flags & IFF_UP) ||
 	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
