@@ -2,7 +2,7 @@
 
 PROG=	fortune
 MAN6=	fortune.6
-CFLAGS+=-I${.CURDIR}/../strfile
+CFLAGS+=-DDEBUG -Wall -I${.CURDIR}/../strfile
 DPADD=	${COMPAT}
 LDADD=	-lcompat
 

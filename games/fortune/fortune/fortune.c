@@ -35,13 +35,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)fortune.c	8.1 (Berkeley) 5/31/93";
+static const char sccsid[] = "@(#)fortune.c   8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 # include	<sys/param.h>
@@ -55,6 +55,8 @@ static char sccsid[] = "@(#)fortune.c	8.1 (Berkeley) 5/31/93";
 # include	<ctype.h>
 # include	<stdlib.h>
 # include	<string.h>
+# include       <locale.h>
+# include       <time.h>
 # include	"strfile.h"
 # include	"pathnames.h"
 
@@ -66,11 +68,11 @@ static char sccsid[] = "@(#)fortune.c	8.1 (Berkeley) 5/31/93";
 # define	CPERS	20		/* # of chars for each sec */
 # define	SLEN	160		/* # of chars in short fortune */
 
-# define	POS_UNKNOWN	((off_t) -1)	/* pos for file unknown */
+# define        POS_UNKNOWN     ((long) -1)     /* pos for file unknown */
 # define	NO_PROB		(-1)		/* no prob specified for file */
 
 # ifdef DEBUG
-# define	DPRINTF(l,x)	if (Debug >= l) fprintf x; else
+# define        DPRINTF(l,x)    { if (Debug >= l) fprintf x; }
 # undef		NDEBUG
 # else
 # define	DPRINTF(l,x)
@@ -80,7 +82,7 @@ static char sccsid[] = "@(#)fortune.c	8.1 (Berkeley) 5/31/93";
 typedef struct fd {
 	int		percent;
 	int		fd, datfd;
-	off_t		pos;
+	long            pos;
 	FILE		*inf;
 	char		*name;
 	char		*path;
@@ -112,7 +114,7 @@ char	*Fortbuf = NULL;			/* fortune buffer for -m */
 
 int	Fort_len = 0;
 
-off_t	Seekpts[2];			/* seek pointers to fortunes */
+long    Seekpts[2];                     /* seek pointers to fortunes */
 
 FILEDESC	*File_list = NULL,	/* Head of file list */
 		*File_tail = NULL;	/* Tail of file list */
@@ -186,6 +188,8 @@ char	*av[];
 	int	fd;
 #endif	/* OK_TO_WRITE_DISK */
 
+	(void) setlocale(LC_CTYPE, "");
+
 	getargs(ac, av);
 
 #ifndef NO_REGEX
@@ -194,7 +198,7 @@ char	*av[];
 #endif
 
 	init_prob();
-	srandom((int)(time((time_t *) NULL) + getpid()));
+	srandom((int)(time((time_t *) NULL) ^ getpid()));
 	do {
 		get_fort();
 	} while ((Short_only && fortlen() > SLEN) ||
@@ -235,19 +239,23 @@ void
 display(fp)
 FILEDESC	*fp;
 {
-	register char	*p, ch;
+	register char   *p;
+	register unsigned char ch;
 	char	line[BUFSIZ];
 
 	open_fp(fp);
-	(void) fseek(fp->inf, (long)Seekpts[0], 0);
+	(void) fseek(fp->inf, Seekpts[0], 0);
 	for (Fort_len = 0; fgets(line, sizeof line, fp->inf) != NULL &&
 	    !STR_ENDSTRING(line, fp->tbl); Fort_len++) {
 		if (fp->tbl.str_flags & STR_ROTATED)
-			for (p = line; ch = *p; ++p)
-				if (isupper(ch))
-					*p = 'A' + (ch - 'A' + 13) % 26;
-				else if (islower(ch))
-					*p = 'a' + (ch - 'a' + 13) % 26;
+			for (p = line; (ch = *p) != '\0'; ++p) {
+				if (isascii(ch)) {
+					if (isupper(ch))
+						*p = 'A' + (ch - 'A' + 13) % 26;
+					else if (islower(ch))
+						*p = 'a' + (ch - 'a' + 13) % 26;
+				}
+			}
 		fputs(line, stdout);
 	}
 	(void) fflush(stdout);
@@ -267,7 +275,7 @@ fortlen()
 		nchar = (Seekpts[1] - Seekpts[0] <= SLEN);
 	else {
 		open_fp(Fortfile);
-		(void) fseek(Fortfile->inf, (long)Seekpts[0], 0);
+		(void) fseek(Fortfile->inf, Seekpts[0], 0);
 		nchar = 0;
 		while (fgets(line, sizeof line, Fortfile->inf) != NULL &&
 		       !STR_ENDSTRING(line, Fortfile->tbl))
@@ -399,11 +407,11 @@ register int	file_cnt;
 					&File_list, &File_tail, NULL);
 	for (i = 0; i < file_cnt; i++) {
 		percent = NO_PROB;
-		if (!isdigit(files[i][0]))
+		if (!isdigit((unsigned char)files[i][0]))
 			sp = files[i];
 		else {
 			percent = 0;
-			for (sp = files[i]; isdigit(*sp); sp++)
+			for (sp = files[i]; isdigit((unsigned char)*sp); sp++)
 				percent = percent * 10 + *sp - '0';
 			if (percent > 100) {
 				fprintf(stderr, "percentages must be <= 100\n");
@@ -791,12 +799,14 @@ int	check_for_offend;
 		*datp = datfile;
 	else
 		free(datfile);
-#ifdef	OK_TO_WRITE_DISK
 	if (posp != NULL) {
+#ifdef	OK_TO_WRITE_DISK
 		*posp = copy(file, (unsigned int) (strlen(file) + 4)); /* +4 for ".dat" */
 		(void) strcat(*posp, ".pos");
-	}
+#else
+		*posp = NULL;
 #endif	/* OK_TO_WRITE_DISK */
+	}
 	DPRINTF(2, (stderr, "TRUE\n"));
 	return TRUE;
 }
@@ -856,7 +866,7 @@ void	*ptr;
 void
 init_prob()
 {
-	register FILEDESC	*fp, *last;
+	register FILEDESC       *fp, *last = NULL;
 	register int		percent, num_noprob, frac;
 
 	/*
@@ -955,17 +965,17 @@ get_fort()
 		if (fp->next != NULL) {
 			sum_noprobs(fp);
 			choice = random() % Noprob_tbl.str_numstr;
-			DPRINTF(1, (stderr, "choice = %d (of %d) \n", choice,
+			DPRINTF(1, (stderr, "choice = %d (of %ld) \n", choice,
 				    Noprob_tbl.str_numstr));
 			while (choice >= fp->tbl.str_numstr) {
 				choice -= fp->tbl.str_numstr;
 				fp = fp->next;
 				DPRINTF(1, (stderr,
-					    "    skip \"%s\", %d (choice = %d)\n",
+					    "    skip \"%s\", %ld (choice = %d)\n",
 					    fp->name, fp->tbl.str_numstr,
 					    choice));
 			}
-			DPRINTF(1, (stderr, "using \"%s\", %d\n", fp->name,
+			DPRINTF(1, (stderr, "using \"%s\", %ld\n", fp->name,
 				    fp->tbl.str_numstr));
 		}
 		get_tbl(fp);
@@ -1007,15 +1017,15 @@ FILEDESC	*parent;
 	else {
 		get_tbl(parent);
 		choice = random() % parent->tbl.str_numstr;
-		DPRINTF(1, (stderr, "    choice = %d (of %d)\n",
+		DPRINTF(1, (stderr, "    choice = %d (of %ld)\n",
 			    choice, parent->tbl.str_numstr));
 		for (fp = parent->child; choice >= fp->tbl.str_numstr;
 		     fp = fp->next) {
 			choice -= fp->tbl.str_numstr;
-			DPRINTF(1, (stderr, "\tskip %s, %d (choice = %d)\n",
+			DPRINTF(1, (stderr, "\tskip %s, %ld (choice = %d)\n",
 				    fp->name, fp->tbl.str_numstr, choice));
 		}
-		DPRINTF(1, (stderr, "    using %s, %d\n", fp->name,
+		DPRINTF(1, (stderr, "    using %s, %ld\n", fp->name,
 			    fp->tbl.str_numstr));
 		return fp;
 	}
@@ -1106,7 +1116,7 @@ FILEDESC	*fp;
 	}
 	if (++(fp->pos) >= fp->tbl.str_numstr)
 		fp->pos -= fp->tbl.str_numstr;
-	DPRINTF(1, (stderr, "pos for %s is %qd\n", fp->name, fp->pos));
+	DPRINTF(1, (stderr, "pos for %s is %ld\n", fp->name, fp->pos));
 }
 
 /*
@@ -1159,7 +1169,7 @@ register STRFILE	*tp;
 {
 	tp->str_numstr = 0;
 	tp->str_longlen = 0;
-	tp->str_shortlen = -1;
+	tp->str_shortlen = ~((unsigned long)0);
 }
 
 /*
@@ -1207,7 +1217,6 @@ int			lev;
 		fprintf(stderr, " %s", STR(list->name));
 		DPRINTF(1, (stderr, " (%s, %s, %s)\n", STR(list->path),
 			    STR(list->datfile), STR(list->posfile)));
-		putc('\n', stderr);
 		if (list->child != NULL)
 			print_list(list->child, lev + 1);
 		list = list->next;
@@ -1229,7 +1238,7 @@ register char	*orig;
 
 	cnt = 1;	/* allow for '\0' */
 	for (sp = orig; *sp != '\0'; sp++)
-		if (isalpha(*sp))
+		if (isalpha((unsigned char)*sp))
 			cnt += 4;
 		else
 			cnt++;
@@ -1239,16 +1248,16 @@ register char	*orig;
 	}
 
 	for (sp = new; *orig != '\0'; orig++) {
-		if (islower(*orig)) {
+		if (islower((unsigned char)*orig)) {
 			*sp++ = '[';
 			*sp++ = *orig;
-			*sp++ = toupper(*orig);
+			*sp++ = toupper((unsigned char)*orig);
 			*sp++ = ']';
 		}
-		else if (isupper(*orig)) {
+		else if (isupper((unsigned char)*orig)) {
 			*sp++ = '[';
 			*sp++ = *orig;
-			*sp++ = tolower(*orig);
+			*sp++ = tolower((unsigned char)*orig);
 			*sp++ = ']';
 		}
 		else
@@ -1310,9 +1319,10 @@ void
 matches_in_list(list)
 FILEDESC	*list;
 {
-	register char		*sp;
+	register char           *sp, *p;
 	register FILEDESC	*fp;
 	int			in_file;
+	unsigned char           ch;
 
 	for (fp = list; fp != NULL; fp = fp->next) {
 		if (fp->child != NULL) {
@@ -1328,6 +1338,15 @@ FILEDESC	*list;
 				sp += strlen(sp);
 			else {
 				*sp = '\0';
+				if (fp->tbl.str_flags & STR_ROTATED)
+					for (p = Fortbuf; (ch = *p) != '\0'; ++p) {
+						if (isascii(ch)) {
+							if (isupper(ch))
+								*p = 'A' + (ch - 'A' + 13) % 26;
+							else if (islower(ch))
+								*p = 'a' + (ch - 'a' + 13) % 26;
+						}
+					}
 				if (RE_EXEC(Fortbuf)) {
 					printf("%c%c", fp->tbl.str_delim,
 					    fp->tbl.str_delim);
