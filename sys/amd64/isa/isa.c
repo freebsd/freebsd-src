@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.111 1998/02/06 12:13:17 eivind Exp $
+ *	$Id: isa.c,v 1.112 1998/04/17 22:36:36 des Exp $
  */
 
 /*
@@ -868,6 +868,8 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
 
+	if ((dma_auto_mode & (1 << chan)) == 0)
+		outb(chan & 4 ? DMA2_SMSK : DMA1_SMSK, (chan & 3) | 4);
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
