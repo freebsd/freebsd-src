@@ -29,6 +29,7 @@ char *piece_dir = NULL;		/* Where to store pieces of deltas. */
 char *delta_dir = NULL;		/* Where to store completed deltas. */
 char *base_dir = NULL;		/* The tree to apply deltas to. */
 int delete_after = 0;		/* Delete deltas after ctm applies them. */
+int apply_verbose = 0;		/* Run with '-v' */
 
 void apply_complete(void);
 int read_piece(char *input_file);
@@ -63,6 +64,7 @@ main(int argc, char **argv)
     OPTIONS("[-Df] [-p piecedir] [-d deltadir] [-b basedir] [-l log] [file ...]")
 	FLAG('D', delete_after)
 	FLAG('f', fork_ctm)
+	FLAG('v', apply_verbose)
 	STRING('p', piece_dir)
 	STRING('d', delta_dir)
 	STRING('b', base_dir)
@@ -194,7 +196,8 @@ apply_complete()
 	if (stat(fname, &sb) < 0)
 	    break;
 
-	sprintf(buf, "(cd %s && ctm %s%s) 2>&1", base_dir, here, fname);
+	sprintf(buf, "(cd %s && ctm %s%s%s) 2>&1", base_dir,
+				apply_verbose ? "-v " : "", here, fname);
 	if ((ctm = popen(buf, "r")) == NULL)
 	    {
 	    err("ctm failed to apply %s", delta);
