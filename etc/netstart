@@ -1,8 +1,9 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.11 1994/05/04 08:59:52 rgrimes Exp $
+#	$Id: netstart,v 1.12 1994/06/17 19:29:05 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
+defaultrouter=NO
 routedflags=-q
 timedflags=NO
 xntpdflags="NO"
@@ -20,24 +21,26 @@ sendmail_flags="-bd -q30m"
 hostname=`cat /etc/myname`
 hostname $hostname
 
-if [ -e /etc/hostname.ed0 ]; then
-	ifconfig ed0 `cat /etc/hostname.ed0`
-fi
-if [ -e /etc/hostname.ed1 ]; then
-	ifconfig ed1 `cat /etc/hostname.ed1`
-fi
-if [ -e /etc/hostname.ie0 ]; then
-	ifconfig ie0 `cat /etc/hostname.ie0`
-fi
-if [ -e /etc/hostname.is0 ]; then
-	ifconfig is0 `cat /etc/hostname.is0`
-fi
-if [ -e /etc/hostname.ze0 ]; then
-	ifconfig ze0 `cat /etc/hostname.ze0`
-fi
+for i in /etc/hostname.*
+do
+	ifn=`expr $i : '/etc/hostname\.\(.*\)'`
+	if [ -e /etc/hostname.$ifn ]; then
+		if [ -e /etc/start_if.$ifn ]; then
+			sh /etc/start_if.$ifn $ifn
+		fi
+		ifconfig $ifn `cat /etc/hostname.$ifn`
+		ifconfig $ifn
+	fi
+done
 
 # set the address for the loopback interface
 ifconfig lo0 inet localhost
+
+if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
+	route add default $defaultrouter
+elif [ -f /etc/defaultrouter ] ; then
+	route add default `cat /etc/defaultrouter`
+fi
 
 # use loopback, not the wire
 # route add $hostname localhost
