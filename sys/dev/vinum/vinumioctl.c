@@ -57,8 +57,6 @@ jmp_buf command_fail;					    /* return on a failed command */
 int setjmp(jmp_buf);
 void longjmp(jmp_buf, int);
 
-int vinum_inactive(void);
-void free_vinum(int);
 void attachobject(struct vinum_ioctl_msg *);
 void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
@@ -84,7 +82,7 @@ vinumioctl(dev_t dev,
 
     /* First, decide what we're looking at */
     switch (device->type) {
-    case VINUM_SUPERDEV_TYPE:
+    case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* save the address to reply to */
 	error = setjmp(command_fail);			    /* come back here on error */
 	if (error)					    /* bombed out */
@@ -111,10 +109,10 @@ vinumioctl(dev_t dev,
 	    if (error)					    /* can't do it, */
 		return error;				    /* give up */
 	    error = setjmp(command_fail);		    /* come back here on error */
-	    if (error == 0) {				    /* first time, */
-		parse_user_config((char *) data, &keyword_set);	/* update the config */
-		ioctl_reply->error = 0;			    /* no error if we make it here */
-	    } else if (ioctl_reply->error == 0) {	    /* longjmp, but no error status */
+	    if (error == 0)				    /* first time, */
+		ioctl_reply->error = parse_user_config((char *) data, /* update the config */
+		    &keyword_set);
+	    else if (ioctl_reply->error == 0) {		    /* longjmp, but no error status */
 		ioctl_reply->error = EINVAL;		    /* note that something's up */
 		ioctl_reply->msg[0] = '\0';		    /* no message? */
 	    }
@@ -174,13 +172,25 @@ vinumioctl(dev_t dev,
 		sizeof(struct sd));
 	    return 0;
 
+	    /*
+	     * We get called in two places: one from the
+	     * userland config routines, which call us
+	     * to complete the config and save it.  This
+	     * call supplies the value 0 as a parameter.
+	     *
+	     * The other place is from the user "saveconfig"
+	     * routine, which can only work if we're *not*
+	     * configuring.  In this case, supply parameter 1.
+	     */
 	case VINUM_SAVECONFIG:
 	    if (VFLAGS & VF_CONFIGURING) {		    /* must be us, the others are asleep */
-		finish_config(1);			    /* finish the configuration and update it */
-		save_config();				    /* save configuration to disk */
-	    } else
-		error = EINVAL;				    /* queue up for this one, please */
-	    return error;
+		if (*(int *) data == 0)			    /* finish config */
+		    finish_config(1);			    /* finish the configuration and update it */
+		else
+		    return EBUSY;			    /* can't do it now */
+	    }
+	    save_config();				    /* save configuration to disk */
+	    return 0;
 
 	case VINUM_RELEASECONFIG:			    /* release the config */
 	    if (VFLAGS & VF_CONFIGURING) {		    /* must be us, the others are asleep */
@@ -203,7 +213,7 @@ vinumioctl(dev_t dev,
 		 */
 		int oc = vinum_conf.opencount;
 		free_vinum(1);				    /* clean up everything */
-		printf("vinum: CONFIGURATION OBLITERATED\n");
+		log(LOG_NOTICE, "vinum: CONFIGURATION OBLITERATED\n");
 		vinum_conf.opencount = oc;
 		ioctl_reply = (struct _ioctl_reply *) data; /* reinstate the address to reply to */
 		ioctl_reply->error = 0;
@@ -293,7 +303,8 @@ vinumioctl(dev_t dev,
 	}
 
     default:
-	printf("vinumioctl: invalid ioctl from process %d (%s): %lx\n",
+	log(LOG_WARNING,
+	    "vinumioctl: invalid ioctl from process %d (%s): %lx\n",
 	    curproc->p_pid,
 	    curproc->p_comm,
 	    cmd);
@@ -595,7 +606,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 	} else {					    /* valid plex number */
 	    plex = &PLEX[sd->plexno];
 	    if ((!msg->force)				    /* don't force things */
-	    &&((plex->state == plex_up)			    /* and the plex is up */
+&&((plex->state == plex_up)				    /* and the plex is up */
 	    ||((plex->state == plex_flaky) && sd->state == sd_up))) { /* or flaky with this sd up */
 		reply->error = EBUSY;			    /* we need this sd */
 		reply->msg[0] = '\0';
@@ -626,7 +637,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 	    }
 	    update_plex_config(plex->plexno, 0);
 	    if ((plex->organization == plex_striped)	    /* we've just mutilated our plex, */
-	    )
+	    ||(plex->organization == plex_raid5))	    /* the data no longer matches */
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
@@ -645,7 +656,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 
 	    vol = &VOL[volno];
 	    if ((!msg->force)				    /* don't force things */
-	    &&((vol->state == volume_up)		    /* and the volume is up */
+&&((vol->state == volume_up)				    /* and the volume is up */
 	    &&(vol->plexes == 1))) {			    /* and this is the last plex */
 		/*
 		   * XXX As elsewhere, check whether we will lose
