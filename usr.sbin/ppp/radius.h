@@ -85,7 +85,7 @@ struct radacct {
       u_char ifid[8];
     } ipv6;
 #endif
-  };
+  } addr;
 };
 
 #define descriptor2radius(d) \
