@@ -950,7 +950,16 @@ crypto_done(struct cryptop *crp)
 	if (crypto_timing)
 		crypto_tstat(&cryptostats.cs_done, &crp->crp_tstamp);
 #endif
-	if (crp->crp_flags & CRYPTO_F_CBIMM) {
+	/*
+	 * CBIMM means unconditionally do the callback immediately;
+	 * CBIFSYNC means do the callback immediately only if the
+	 * operation was done synchronously.  Both are used to avoid
+	 * doing extraneous context switches; the latter is mostly
+	 * used with the software crypto driver.
+	 */
+	if ((crp->crp_flags & CRYPTO_F_CBIMM) ||
+	    ((crp->crp_flags & CRYPTO_F_CBIFSYNC) &&
+	     (CRYPTO_SESID2CAPS(crp->crp_sid) & CRYPTOCAP_F_SYNC))) {
 		/*
 		 * Do the callback directly.  This is ok when the
 		 * callback routine does very little (e.g. the
