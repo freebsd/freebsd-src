@@ -97,7 +97,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
  *                  -- Steve Deering, Stanford University, February 1989
  */
 
-#define	UNPRIV_USER		"nobody"
+#define	UNPRIV_USER		"daemon"
 #define	UNPRIV_GROUP		"daemon"
 
 #define NO_MULTICAST		0	  /* multicast modes */
