@@ -663,8 +663,6 @@ static u_long	status_sum = 0;
 /*
  * misc. support routines.
  */
-static const struct CARDTYPE	cards[];
-static const struct TUNER	tuners[];
 static int			signCard( bktr_ptr_t bktr, int offset,
 					  int count, u_char* sig );
 static void			probeCard( bktr_ptr_t bktr, int verbose );
