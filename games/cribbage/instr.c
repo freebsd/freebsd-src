@@ -74,6 +74,10 @@ instructions()
 		if (pager = rindex(path, '/'))
 			++pager;
 		pager = path;
+		if (setuid(getuid()) < 0) {
+			(void)fprintf(stderr, "cribbage: unable to setuid\n");
+			_exit(1);
+		}
 		execlp(path, pager, _PATH_INSTR, (char *)NULL);
 		(void)fprintf(stderr, "cribbage: %s.\n", strerror(errno));
 		_exit(1);
