@@ -241,7 +241,9 @@ SYSCTL_NODE(_kern, OID_AUTO, ntp_pll, CTLFLAG_RW, 0, "");
 SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
+#ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
+#endif
 /*
  * ntp_adjtime() - NTP daemon application interface
  *
