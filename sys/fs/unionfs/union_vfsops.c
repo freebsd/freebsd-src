@@ -67,7 +67,7 @@ static int	union_unmount(struct mount *mp, int mntflags,
 				   struct thread *td);
 
 /*
- * Mount union filesystem
+ * Mount union filesystem.
  */
 static int
 union_mount(mp, ndp, td)
@@ -99,7 +99,7 @@ union_mount(mp, ndp, td)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE)
 		/*
-		 * Need to provide.
+		 * Need to provide:
 		 * 1. a way to convert between rdonly and rdwr mounts.
 		 * 2. support for nfs exports.
 		 */
@@ -227,7 +227,7 @@ union_mount(mp, ndp, td)
 
 	/*
 	 * Unless the mount is readonly, ensure that the top layer
-	 * supports whiteout operations
+	 * supports whiteout operations.
 	 */
 	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 		error = VOP_WHITEOUT(um->um_uppervp, NULL, LOOKUP);
@@ -313,7 +313,7 @@ bad:
 }
 
 /*
- * Free reference to union layer
+ * Free reference to union layer.
  */
 static int
 union_unmount(mp, mntflags, td)
@@ -359,7 +359,9 @@ union_unmount(mp, mntflags, td)
 		freeing = n;
 	}
 
-	/* If the most recent vflush failed, the filesystem is still busy. */
+	/*
+	 * If the most recent vflush failed, the filesystem is still busy.
+	 */
 	if (error)
 		return (error);
 
@@ -371,7 +373,7 @@ union_unmount(mp, mntflags, td)
 	vrele(um->um_uppervp);
 	crfree(um->um_cred);
 	/*
-	 * Finally, throw away the union_mount structure
+	 * Finally, throw away the union_mount structure.
 	 */
 	free(mp->mnt_data, M_UNIONFSMNT);	/* XXX */
 	mp->mnt_data = 0;
@@ -430,7 +432,9 @@ union_statfs(mp, sbp, td)
 			return (error);
 	}
 
-	/* now copy across the "interesting" information and fake the rest */
+	/*
+	 * Now copy across the "interesting" information and fake the rest.
+	 */
 #if 0
 	sbp->f_type = mstat.f_type;
 	sbp->f_flags = mstat.f_flags;
@@ -453,9 +457,9 @@ union_statfs(mp, sbp, td)
 	sbp->f_iosize = mstat.f_iosize;
 
 	/*
-	 * if the lower and upper blocksizes differ, then frig the
+	 * If the lower and upper blocksizes differ, then frig the
 	 * block counts so that the sizes reported by df make some
-	 * kind of sense.  none of this makes sense though.
+	 * kind of sense.  None of this makes sense though.
 	 */
 
 	if (mstat.f_bsize != lbsize)
