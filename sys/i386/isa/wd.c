@@ -37,11 +37,10 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.33 1994/02/23 11:14:26 rgrimes Exp $
+ *	$Id: wd.c,v 1.34 1994/02/25 23:17:40 ache Exp $
  */
 
 /* TODO:
- *	o Fix timeout from 2 to about 4 seconds.
  *	o Bump error count after timeout.
  *	o Satisfy ATA timing in all cases.
  *	o Finish merging berry/sos timeout code (bump error count...).
@@ -578,7 +577,7 @@ loop:
 	 * think).  Discarding them would be OK if the (special) file offset
 	 * was not advanced.
 	 */
-	du->dk_timeout = 1 + 1;
+	du->dk_timeout = 1 + 3;
 
 	/* If this is a read operation, just go away until it's done. */
 	if (bp->b_flags & B_READ)
@@ -637,9 +636,15 @@ wdintr(int unit)
 	/* is it not a transfer, but a control operation? */
 	if (du->dk_state < OPEN) {
 		wdtab[unit].b_active = 0;
-		if (wdcontrol(bp))
+		switch (wdcontrol(bp)) {
+		case 0:
+			return;
+		case 1:
 			wdstart(unit);
 		return;
+		case 2:
+			goto done;
+		}
 	}
 
 	/* have we an error? */
@@ -723,9 +728,8 @@ outt:
 				return;	/* redo xfer sector by sector */
 			}
 		}
-#ifdef B_FORMAT
+
 done: ;
-#endif
 		/* done with this transfer, with or without error */
 		du->dk_flags &= ~DKFL_SINGLE;
 		wdtab[unit].b_actf = dp->b_forw;
@@ -761,7 +765,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct partition *pp;
 	char	*msg;
 	struct disklabel save_label;
-	unsigned long save_heads;
 
 	lunit = wdunit(dev);
 	if (lunit >= NWD)
@@ -817,7 +820,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 * to the driver by resetting the state machine.
 		 */
 		save_label = du->dk_dd;
-		save_heads = du->dk_dd.d_ntracks;
 #define WDSTRATEGY	((int (*)(struct buf *)) wdstrategy)	/* XXX */
 		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
 				    (d_strategy_t *) WDSTRATEGY, &du->dk_dd,
@@ -834,11 +836,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			int	dospart;
 			unsigned long newsize, offset, size;
 
-			if (du->dk_dd.d_ntracks > 16) {
-				printf("wd%d: can't handle %lu heads from partition table (controller value (%lu) restored)\n",
-				       du->dk_lunit, du->dk_dd.d_ntracks, save_heads);
-				du->dk_dd.d_ntracks = save_heads;
-			}
 			du->dk_flags |= DKFL_BSDLABEL;
 			du->dk_flags &= ~DKFL_WRITEPROT;
 			if (du->dk_dd.d_flags & D_BADSECT)
@@ -930,7 +927,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
  * Implement operations other than read/write.
  * Called from wdstart or wdintr during opens and formats.
  * Uses finite-state-machine to track progress of operation in progress.
- * Returns 0 if operation still in progress, 1 if completed.
+ * Returns 0 if operation still in progress, 1 if completed, 2 if error.
  */
 static int
 wdcontrol(register struct buf *bp)
@@ -962,7 +959,7 @@ maybe_retry:
 				goto tryagainrecal;
 			bp->b_error = ENXIO;	/* XXX needs translation */
 			bp->b_flags |= B_ERROR;
-			return (1);
+			return (2);
 		}
 		wdtab[ctrlr].b_errcnt = 0;
 		du->dk_state = OPEN;
@@ -973,7 +970,7 @@ maybe_retry:
 		return (1);
 	}
 	panic("wdcontrol");
-	return (1);
+	return (2);
 }
 
 /*
@@ -1015,14 +1012,26 @@ wdsetctlr(struct disk *du)
 	       du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks,
 	       du->dk_dd.d_nsectors);
 #endif
-	if (du->dk_dd.d_ntracks > 16) {
-		printf("wd%d: cannot handle %lu heads (truncating to 16)\n",
+	if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
+		struct wdparams *wp;
+
+		printf("wd%d: can't handle %lu heads from partition table ",
 		       du->dk_lunit, du->dk_dd.d_ntracks);
+		/* obtain parameters */
+		wp = &du->dk_params;
+		if (wp->wdp_heads > 0 && wp->wdp_heads <= 16) {
+			printf("(controller value %lu restored)\n",
+				wp->wdp_heads);
+			du->dk_dd.d_ntracks = wp->wdp_heads;
+		}
+		else {
+			printf("(truncating to 16)\n");
 		du->dk_dd.d_ntracks = 16;
+	}
 	}
 	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
 		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
-	    || wdwait(du, WDCS_READY, TIMEOUT) != 0) {
+	    || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
 		wderror((struct buf *)NULL, du, "wdsetctlr failed");
 		return (1);
 	}
@@ -1057,7 +1066,7 @@ wdgetctlr(struct disk *du)
 	struct wdparams *wp;
 
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_READP) != 0
-	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) < 0) {
+	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
 		/* XXX need to check error status after final transfer. */
 		/*
 		 * Old drives don't support WDCC_READP.  Try a seek to 0.
