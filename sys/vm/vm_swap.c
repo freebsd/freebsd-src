@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.29 1995/12/08 11:19:42 julian Exp $
+ * $Id: vm_swap.c,v 1.30 1995/12/08 23:23:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@
 
 static struct bdevsw sw_bdevsw = 
 	{ noopen,	noclose,	swstrategy,	noioc,		/*1*/
-	  nodump,	zerosize,	NULL,	"sw",	NULL,	-1 };
+	  nodump,	nopsize,	NULL,	"sw",	NULL,	-1 };
 
 static struct cdevsw sw_cdevsw = 
 	{ nullopen,	nullclose,	rawread,	rawwrite,	/*4*/
