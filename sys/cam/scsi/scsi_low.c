@@ -115,11 +115,7 @@
 
 #include <cam/scsi/scsi_low.h>
 
-#if !defined(__FreeBSD__)
-#include <i386/i386/cons.h>
-#else
 #include <sys/cons.h>
-#endif
 #endif	/* __FreeBSD__ */
 
 /**************************************************************
