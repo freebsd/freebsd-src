@@ -117,12 +117,18 @@ Bit 4
 and Bit 3
 .Pq Li 0x08
 are used to encode router preference.
-0x01 means high, 0x00 means medium, and 0x11 means low.
-The default value is 0.
+Bits 01 means high, 00 means medium, and 11 means low.
+Bits 10 is reserved, and must not be specified.
+The default value of the entire flag is 0,
+which means no additional
+configuration methods, and the medium router preference.
 .It Cm \&rltime
 (num) Router lifetime field
 (unit: seconds).
-Its value must be no greater than 3600000.
+Its value must be either zero or between
+the value of
+.Cm maxinterval
+and 9000.
 When
 .Nm rtadvd
 runs on a host, this value must explicitly set 0 on all the
