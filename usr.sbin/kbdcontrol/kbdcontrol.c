@@ -204,6 +204,8 @@ get_entry()
 		return HALT | 0x100;
 	case TPDWN:
 		return PDWN | 0x100;
+	case TPASTE:
+		return PASTE | 0x100;
 	case TACC:
 		if (ACC(number) > L_ACC)
 			return -1;
@@ -441,6 +443,9 @@ print_entry(FILE *fp, int value)
 	case PDWN | 0x100:
 		fprintf(fp, " pdwn  ");
 		break;
+	case PASTE | 0x100:
+		fprintf(fp, " paste ");
+		break;
 	default:
 		if (value & 0x100) {
 		 	if (val >= F_FN && val <= L_FN)
@@ -639,6 +644,9 @@ dump_entry(int value)
 			break;
 		case PDWN:
 			printf(" PDWN, ");
+			break;
+		case PASTE:
+			printf("PASTE, ");
 			break;
 		default:
 	 		if (value >= F_FN && value <= L_FN)
