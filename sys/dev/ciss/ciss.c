@@ -458,8 +458,6 @@ ciss_detach(device_t dev)
     /* flush adapter cache */
     ciss_flush_adapter(sc);
 
-    destroy_dev(sc->ciss_dev_t);
-
     /* release all resources */
     ciss_free(sc);
 
@@ -1502,6 +1500,10 @@ ciss_free(struct ciss_softc *sc)
     ciss_notify_abort(sc);
 
     ciss_kill_notify_thread(sc);
+
+    /* remove the control device */
+    if (sc->ciss_dev_t != NULL)
+	destroy_dev(sc->ciss_dev_t);
 
     /* free the controller data */
     if (sc->ciss_id != NULL)
@@ -3412,9 +3414,15 @@ static void
 ciss_spawn_notify_thread(struct ciss_softc *sc)
 {
 
+#if __FreeBSD_version > 500005
     if (kthread_create((void(*)(void *))ciss_notify_thread, sc,
 		       &sc->ciss_notify_thread, 0, 0, "ciss_notify%d",
 		       device_get_unit(sc->ciss_dev)))
+#else
+    if (kthread_create((void(*)(void *))ciss_notify_thread, sc,
+		       &sc->ciss_notify_thread, "ciss_notify%d",
+		       device_get_unit(sc->ciss_dev)))
+#endif
 	panic("Could not create notify thread\n");
 }
 
