@@ -589,10 +589,10 @@ trap(int vector, struct trapframe *framep)
 		rv = 0;
 		va = trunc_page(framep->tf_special.ifa);
 
-		if (va >= VM_MIN_KERNEL_ADDRESS) {
+		if (va >= VM_MAX_ADDRESS) {
 			/*
 			 * Don't allow user-mode faults for kernel virtual
-			 * addresses
+			 * addresses, including the gateway page.
 			 */
 			if (user)
 				goto no_fault_in;
