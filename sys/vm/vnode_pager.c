@@ -198,7 +198,7 @@ vnode_pager_dealloc(object)
 	}
 	ASSERT_VOP_LOCKED(vp, "vnode_pager_dealloc");
 	vp->v_object = NULL;
-	vp->v_vflag &= ~(VV_TEXT | VV_OBJBUF);
+	vp->v_vflag &= ~VV_TEXT;
 }
 
 static boolean_t

@@ -419,7 +419,6 @@ vop_stdcreatevobject(ap)
 	}
 
 	KASSERT(vp->v_object != NULL, ("vop_stdcreatevobject: NULL object"));
-	vp->v_vflag |= VV_OBJBUF;
 
 	return (error);
 }
@@ -549,7 +548,7 @@ loop2:
 		VI_UNLOCK(vp);
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("fsync: not dirty");
-		if ((vp->v_vflag & VV_OBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
+		if ((vp->v_object != NULL) && (bp->b_flags & B_CLUSTEROK)) {
 			vfs_bio_awrite(bp);
 			splx(s);
 		} else {
