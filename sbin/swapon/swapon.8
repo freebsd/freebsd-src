@@ -32,11 +32,11 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd December 28, 2002
 .Dt SWAPON 8
 .Os
 .Sh NAME
-.Nm swapon , swapoff
+.Nm swapon , swapoff , swapctl
 .Nd "specify devices for paging and swapping"
 .Sh SYNOPSIS
 .Nm swapon Ar
@@ -102,10 +102,10 @@ The
 utility exists primarily for those familiar with other
 .Bx Ns s
 and may be
-used to add, remove, or list swap.
+used to add, remove, or list swap devices.
 Note that the
 .Fl a
-option is used diferently in
+option is used differently in
 .Nm swapctl
 and indicates that a specific list of devices should be added.
 The
@@ -130,7 +130,7 @@ utility,
 .Fl s ,
 or
 .Nm swapctl
-.Fl lshk .
+.Fl l .
 The
 .Nm swapctl
 utility has the following options for listing swap:
@@ -177,5 +177,7 @@ utility appeared in
 .Bx 4.0 .
 The
 .Nm swapoff
-utility appeared in
+and
+.Nm swapctl
+utilities appeared in
 .Fx 5.1 .
