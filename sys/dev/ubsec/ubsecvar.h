@@ -188,6 +188,7 @@ struct ubsec_softc {
 	SIMPLEQ_HEAD(,ubsec_q)	sc_queue;	/* packet queue, mcr1 */
 	int			sc_nqueue;	/* count enqueued, mcr1 */
 	SIMPLEQ_HEAD(,ubsec_q)	sc_qchip;	/* on chip, mcr1 */
+	int			sc_nqchip;	/* count on chip, mcr1 */
 	SIMPLEQ_HEAD(,ubsec_q)	sc_freequeue;	/* list of free queue elements */
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_queue2;	/* packet queue, mcr2 */
 	int			sc_nqueue2;	/* count enqueued, mcr2 */
@@ -220,7 +221,11 @@ struct ubsec_stats {
 	u_int64_t hst_obytes;
 	u_int32_t hst_ipackets;
 	u_int32_t hst_opackets;
-	u_int32_t hst_invalid;
+	u_int32_t hst_invalid;		/* invalid argument */
+	u_int32_t hst_badsession;	/* invalid session id */
+	u_int32_t hst_badflags;		/* flags indicate !(mbuf | uio) */
+	u_int32_t hst_nodesc;		/* op submitted w/o descriptors */
+	u_int32_t hst_badalg;		/* unsupported algorithm */
 	u_int32_t hst_nomem;
 	u_int32_t hst_queuefull;
 	u_int32_t hst_dmaerr;
@@ -237,6 +242,9 @@ struct ubsec_stats {
 	u_int32_t hst_nomcl;		/* MCLGET* failed */
 	u_int32_t hst_totbatch;		/* ops submitted w/o interrupt */
 	u_int32_t hst_maxbatch;		/* max ops submitted together */
+	u_int32_t hst_maxqueue;		/* max ops queued for submission */
+	u_int32_t hst_maxqchip;		/* max mcr1 ops out for processing */
+	u_int32_t hst_mcr1full;		/* MCR1 too busy to take ops */
 	u_int32_t hst_rng;		/* RNG requests */
 	u_int32_t hst_modexp;		/* MOD EXP requests */
 	u_int32_t hst_modexpcrt;	/* MOD EXP CRT requests */
