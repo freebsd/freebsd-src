@@ -46,10 +46,10 @@ METHOD int maxslots {
 #
 METHOD u_int32_t read_config {
 	device_t	dev;
-	int		bus;
-	int		slot;
-	int		func;
-	int		reg;
+	u_int		bus;
+	u_int		slot;
+	u_int		func;
+	u_int		reg;
 	int		width;
 };
 
@@ -62,10 +62,10 @@ METHOD u_int32_t read_config {
 #
 METHOD void write_config {
 	device_t	dev;
-	int		bus;
-	int		slot;
-	int		func;
-	int		reg;
+	u_int		bus;
+	u_int		slot;
+	u_int		func;
+	u_int		reg;
 	u_int32_t	value;
 	int		width;
 };
