@@ -158,8 +158,8 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 }
 
 void
-ath_rate_tx_complete(struct ath_softc *sc,
-	struct ath_node *an, const struct ath_desc *ds)
+ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
+	const struct ath_desc *ds, const struct ath_desc *ds0)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
