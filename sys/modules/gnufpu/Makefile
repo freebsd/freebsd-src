@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.3 1997/02/22 12:47:52 peter Exp $
+#       $Id: Makefile,v 1.4 1997/07/20 08:46:30 bde Exp $
 
 .PATH:  ${.CURDIR}/../../sys/gnu/i386/fpemul
 KMOD=   gnufpu_mod
@@ -9,7 +9,7 @@ SRCS=   div_small.s errors.c fpu_arith.c fpu_aux.c fpu_entry.c fpu_etc.c \
 	reg_ld_str.c reg_u_mul.s reg_u_sub.s wm_shrx.s wm_sqrt.s
 NOMAN=
 PSEUDO_LKM=
-CFLAGS+= -DLKM -I${.CURDIR}/../../sys/sys
+CFLAGS+= -DLKM
 
 .s.o:
 	${CC} -x assembler-with-cpp -DLOCORE ${CFLAGS} -c \
