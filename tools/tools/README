@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: README,v 1.8 1997/02/22 14:08:16 peter Exp $
 
 This directory is for tools.
 
@@ -15,3 +15,4 @@ tcl_bmake	generates a bmake Makefile for src/lib/libtcl
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
+portsinfo 	Generate list of new ports for last two weeks.
