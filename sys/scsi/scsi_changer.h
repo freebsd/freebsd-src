@@ -1,4 +1,16 @@
 /*
+ * HISTORY
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ * 
+ */
+
+/*
  * SCSI changer interface description
  */
 
@@ -29,17 +41,15 @@
 struct scsi_read_element_status
 {
         u_char  op_code;
-	u_char	element_type_code:4;
-	u_char  voltag:1;
-        u_char  lun:3;
+	u_char	byte2;
+#define	SRES_ELEM_TYPE_CODE 	0x0F
+#define	SRES_ELEM_VOLTAG 	0x10
 	u_char	starting_element_addr[2];
 	u_char	number_of_elements[2];
 	u_char	resv1;
 	u_char	allocation_length[3];
 	u_char	resv2;
-        u_char  link:1;
-        u_char  flag:1;
-        u_char  :6;
+	u_char	control;
 };
 #define RE_ALL_ELEMENTS			0
 #define RE_MEDIUM_TRANSPORT_ELEMENT	1
@@ -50,32 +60,24 @@ struct scsi_read_element_status
 struct scsi_move_medium
 {
 	u_char  op_code;
-	u_char	:5;
-	u_char	lun:3;
+	u_char	byte2;
 	u_char  transport_element_address[2];
 	u_char  source_address[2];
 	u_char  destination_address[2];
 	u_char  rsvd[2];
-	u_char  invert:1;
-	u_char	:7;
-        u_char  link:1;
-        u_char  flag:1;
-        u_char  :6;
+	u_char  invert;
+	u_char	control;
 };
 
 struct scsi_position_to_element
 {
 	u_char  op_code;
-	u_char	:5;
-	u_char	lun:3;
+        u_char  byte2;
 	u_char  transport_element_address[2];
 	u_char  source_address[2];
 	u_char  rsvd[2];
-	u_char  invert:1;
-	u_char	:7;
-        u_char  link:1;
-        u_char  flag:1;
-        u_char  :6;
+	u_char  invert;
+	u_char	control;
 };
 	
 /*
@@ -96,9 +98,9 @@ struct scsi_element_status_data
 struct element_status_page 
 {
 	u_char	element_type_code;
-	u_char	:5;
-	u_char avoltag:1;
-	u_char pvoltag:1;
+	u_char	flags;
+#define	ESP_AVOLTAG	0x40
+#define	ESP_PVOLTAG	0x80
 	u_char element_descriptor_length[2];
 	u_char rsvd;
 	u_char byte_count_of_descriptor_data[3];

@@ -13,11 +13,17 @@
  * functioning of this software in any circumstances.
  *
  */
-static	char rev[] = "$Revision: 1.2 $";
+static	char rev[] = "$Revision: 1.5 $";
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 #define SPLCD splbio
@@ -703,8 +709,8 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct	cd_mode_data data;
 			if(error = cd_get_mode(unit,&data,AUDIO_PAGE))
 				break;
-			data.page.audio.sotc = 0;
-			data.page.audio.immed = 1;
+			data.page.audio.flags &= ~CD_PA_SOTC;
+			data.page.audio.flags |= CD_PA_IMMED;
 			if(error = cd_set_mode(unit,&data))
 				break;
 			return(cd_play_tracks(unit
@@ -722,8 +728,8 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct	cd_mode_data data;
 			if(error = cd_get_mode(unit,&data,AUDIO_PAGE))
 				break;
-			data.page.audio.sotc = 0;
-			data.page.audio.immed = 1;
+			data.page.audio.flags &= ~CD_PA_SOTC;
+			data.page.audio.flags |= CD_PA_IMMED;
 			if(error = cd_set_mode(unit,&data))
 				break;
 			return(cd_play(unit,args->blk,args->len));
@@ -876,10 +882,10 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct	cd_mode_data data;
 			if(error = cd_get_mode(unit,&data,AUDIO_PAGE))
 				break;
-			data.page.audio.port[LEFT_PORT].channels = 15;
-			data.page.audio.port[RIGHT_PORT].channels = 15;
-			data.page.audio.port[2].channels = 15;
-			data.page.audio.port[3].channels = 15;
+			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL;
+			data.page.audio.port[RIGHT_PORT].channels = LEFT_CHANNEL;
+			data.page.audio.port[2].channels = 0;
+			data.page.audio.port[3].channels = 0;
 			if(error = cd_set_mode(unit,&data))
 				break;
 		}
@@ -1070,7 +1076,7 @@ int	page;
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	bzero(data,sizeof(*data));
 	scsi_cmd.op_code = MODE_SENSE;
-	scsi_cmd.page_code = page;
+	scsi_cmd.page = page;
 	scsi_cmd.length = sizeof(*data) & 0xff;
 	retval = cd_scsi_cmd(unit,
 			&scsi_cmd,
@@ -1092,7 +1098,7 @@ struct	cd_mode_data *data;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MODE_SELECT;
-	scsi_cmd.pf = 1;
+	scsi_cmd.byte2 |= SMS_PF;
 	scsi_cmd.length = sizeof(*data) & 0xff;
 	data->header.data_length = 0;
 	/*show_mem(data,sizeof(*data));/**/
@@ -1224,8 +1230,8 @@ cd_start_unit(unit,part,type)
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = START_STOP;
-	scsi_cmd.start = type==CD_START?1:0;
-	scsi_cmd.loej  = type==CD_EJECT?1:0;
+	scsi_cmd.how |= (type==CD_START)?SSS_START:0;
+	scsi_cmd.how |= (type==CD_EJECT)?SSS_LOEJ:0;
 
 	if (cd_scsi_cmd(unit,
 			&scsi_cmd,
@@ -1249,7 +1255,7 @@ int     unit,type,flags;
         if(type==CD_EJECT || type==PR_PREVENT || cd_data[unit].openparts == 0 ) {
                 bzero(&scsi_cmd, sizeof(scsi_cmd));
                 scsi_cmd.op_code = PREVENT_ALLOW;
-                scsi_cmd.prevent=type==CD_EJECT?PR_ALLOW:type;
+                scsi_cmd.how = (type==CD_EJECT)?PR_ALLOW:type;
                 if (cd_scsi_cmd(unit,
                         &scsi_cmd,
                         sizeof(struct   scsi_prevent),
@@ -1281,8 +1287,8 @@ struct cd_sub_channel_info *data;
 
 	scsi_cmd.op_code=READ_SUBCHANNEL;
         if(mode==CD_MSF_FORMAT)
-		scsi_cmd.msf=1;
-	scsi_cmd.subQ=1;
+		scsi_cmd.byte2 |= CD_MSF;
+	scsi_cmd.byte3=SRS_SUBQ;
 	scsi_cmd.subchan_format=format;
 	scsi_cmd.track=track;
 	scsi_cmd.data_len[0]=(len)>>8;
@@ -1315,7 +1321,7 @@ struct cd_toc_entry *data;
 
 	scsi_cmd.op_code=READ_TOC;
         if(mode==CD_MSF_FORMAT)
-                scsi_cmd.msf=1;
+                scsi_cmd.byte2 |= CD_MSF;
 	scsi_cmd.from_track=start;
 	scsi_cmd.data_len[0]=(ntoc)>>8;
 	scsi_cmd.data_len[1]=(ntoc)&0xff;
@@ -1521,11 +1527,11 @@ struct	scsi_xfer *xs;
 	silent = (xs->flags & SCSI_SILENT);
 
 	sense = &(xs->sense);
-	switch(sense->error_class)
+	switch(sense->error_code & SSD_ERRCODE)
 	{
-	case 7:
+	case 0x70:
 		{
-		key=sense->ext.extended.sense_key;
+		key=sense->ext.extended.flags & SSD_KEY;
 		switch(key)
 		{
 		case	0x0:
@@ -1534,7 +1540,7 @@ struct	scsi_xfer *xs;
 			if(!silent)
 			{
 				printf("cd%d: soft error(corrected) ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1553,7 +1559,7 @@ struct	scsi_xfer *xs;
 			if(!silent)
 			{
 				printf("cd%d: medium error ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1585,7 +1591,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("cd%d: attempted protection violation ",
 						unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 			  	{
 					printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1601,7 +1607,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("cd%d: block wrong state (worm)\n ",
 				unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1629,7 +1635,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("cd%d: search returned\n ",
 					unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1649,7 +1655,7 @@ struct	scsi_xfer *xs;
 			{
 				printf("cd%d: verify miscompare\n ",
 				unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			  		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1667,19 +1673,12 @@ struct	scsi_xfer *xs;
 		}
 		break;
 	}
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
+	default:
 		{
-			if(!silent)printf("cd%d: error class %d code %d\n",
+			if(!silent)printf("cd%d: error code %d\n",
 				unit,
-				sense->error_class,
-				sense->error_code);
-		if(sense->valid)
+				sense->error_code & SSD_ERRCODE);
+		if(sense->error_code & SSD_ERRCODE_VALID)
 			if(!silent)printf("block no. %d (decimal)\n",
 			(sense->ext.unextended.blockhi <<16)
 			+ (sense->ext.unextended.blockmed <<8)

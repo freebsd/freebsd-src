@@ -1,5 +1,16 @@
+/* 
+ */
 /*
- * Written by Julian Elischer (julian@tfs.com)
+ * HISTORY
+ * 
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ * 
  */
 
 #include	<sys/types.h>
@@ -89,7 +100,7 @@ struct	scsi_switch *scsi_switch;
 	unit = next_ch_unit++;
 	if( unit >= NCH)
 	{
-		printf("Too many scsi changers..(%d > %d) reconfigure kernel",(unit + 1),NCH);
+		printf("Too many scsi changers..(%d > %d) reconfigure kernel\n",(unit + 1),NCH);
 		return(0);
 	}
 	/*******************************************************\
@@ -359,7 +370,7 @@ char *data;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = READ_ELEMENT_STATUS;
-	scsi_cmd.element_type_code=type;
+	scsi_cmd.byte2 = type;
 	scsi_cmd.starting_element_addr[0]=(from>>8)&0xff;
 	scsi_cmd.starting_element_addr[1]=from&0xff;
 	scsi_cmd.number_of_elements[1]=1;
@@ -518,8 +529,8 @@ int	unit,flags;
 	for(l=1;l>=0;l--) {
 		bzero(&scsi_cmd, sizeof(scsi_cmd));
 		scsi_cmd.op_code = MODE_SENSE;
-		scsi_cmd.dbd = l;
-		scsi_cmd.page_code = 0x3f;	/* All Pages */
+		scsi_cmd.byte2 = SMS_DBD;
+		scsi_cmd.page = 0x3f;	/* All Pages */
 		scsi_cmd.length = sizeof(scsi_sense);
 	/*******************************************************\
 	* do the command, but we don't need the results		*
@@ -750,42 +761,41 @@ struct	scsi_xfer	*xs;
 	* Get the sense fields and work out what CLASS			*
 	\***************************************************************/
 	sense = &(xs->sense);
-	switch(sense->error_class)
+	switch(sense->error_code & SSD_ERRCODE)
 	{
 	/***************************************************************\
 	* If it's class 7, use the extended stuff and interpret the key	*
 	\***************************************************************/
-	case 7:
+	case 0x70:
 		{
-		key=sense->ext.extended.sense_key;
-		if(sense->ext.extended.ili)
+		key=sense->ext.extended.flags & SSD_KEY;
+		if(sense->ext.extended.flags & SSD_ILI)
 			if(!silent)
 			{
 				printf("length error ");
 			}
-			if(sense->valid)
+			if(sense->error_code & SSD_ERRCODE_VALID)
 				xs->resid = ntohl(*((long *)sense->ext.extended.info));
 				if(xs->bp)
 				{
 					xs->bp->b_flags |= B_ERROR;
 					return(ESUCCESS);
 				}
-		if(sense->ext.extended.eom)
+		if(sense->ext.extended.flags & SSD_EOM)
 			if(!silent) printf("end of medium ");
-		if(sense->ext.extended.filemark)
+		if(sense->ext.extended.flags & SSD_FILEMARK)
 			if(!silent) printf("filemark ");
 		if(ch_debug)
 		{
-			printf("code%x class%x valid%x\n"
-					,sense->error_code
-					,sense->error_class
-					,sense->valid);
+			printf("code%x valid%x\n"
+					,sense->error_code & SSD_ERRCODE
+					,sense->error_code & SSD_ERRCODE_VALID);
 			printf("seg%x key%x ili%x eom%x fmark%x\n"
 					,sense->ext.extended.segment
-					,sense->ext.extended.sense_key
-					,sense->ext.extended.ili
-					,sense->ext.extended.eom
-					,sense->ext.extended.filemark);
+					,sense->ext.extended.flags & SSD_KEY
+					,sense->ext.extended.flags & SSD_ILI
+					,sense->ext.extended.flags & SSD_EOM
+					,sense->ext.extended.flags & SSD_FILEMARK);
 			printf("info: %x %x %x %x followed by %d extra bytes\n"
 					,sense->ext.extended.info[0]
 					,sense->ext.extended.info[1]
@@ -819,7 +829,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 				printf("st%d: soft error(corrected) ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -842,7 +852,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 				printf("st%d: medium error ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -881,7 +891,7 @@ struct	scsi_xfer	*xs;
 			{
 				printf("st%d: attempted protection violation "
 								, unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -900,7 +910,7 @@ struct	scsi_xfer	*xs;
 			{
 				printf("st%d: block wrong state (worm)\n "
 							, unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -932,7 +942,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 				printf("st%d: search returned\n ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -954,7 +964,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 			 	printf("st%d: verify miscompare\n ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -978,19 +988,12 @@ struct	scsi_xfer	*xs;
 	/***************************************************************\
 	* If it's NOT class 7, just report it.				*
 	\***************************************************************/
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
+	default:
 		{
-			if(!silent) printf("st%d: error class %d code %d\n",
+			if(!silent) printf("st%d: error code %d\n",
 				unit,
-				sense->error_class,
-				sense->error_code);
-		if(sense->valid)
+				sense->error_code & SSD_ERRCODE);
+		if(sense->error_code & SSD_ERRCODE_VALID)
 			if(!silent) printf("block no. %d (decimal)\n",
 			(sense->ext.unextended.blockhi <<16),
 			+ (sense->ext.unextended.blockmed <<8),

@@ -12,6 +12,13 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
@@ -19,11 +26,9 @@
  */
 
 /*
- * $Log:
- * 23 May 93  Rodney W. Grimes        ADDED Pioneer DRM-600 cd changer
- *
- */
-
+$Log:
+*
+*/
 #include <sys/types.h>
 #include "st.h"
 #include "sd.h"
@@ -131,8 +136,6 @@ knowndevs[] = {
 #if NCD > 0
 	{ T_READONLY,T_REMOV,"SONY    ","CD-ROM CDU-8012 "
 			,"3.1a",cdattach,"cd",SC_ONE_LU },
-	{ T_READONLY,T_REMOV,"PIONEER ","CD-ROM DRM-600  "
-			,"any",cdattach,"cd",SC_MORE_LUS },
 #endif NCD
 #if NBLL > 0
 	{ T_PROCESSOR,T_FIXED,"AEG     ","READER          "
@@ -174,7 +177,7 @@ struct	scsi_switch	*scsi_switch;
 #if 	SCSI_DELAY > 2
 	printf("waiting for scsi devices to settle\n");
 #else	SCSI_DELAY > 2
-#define	SCSI_DELAY 15
+#define	SCSI_DELAY 2
 #endif	SCSI_DELAY > 2
 #else
 #define SCSI_DELAY 2
@@ -339,19 +342,10 @@ int *maybe_more;
 		desc[12]);
 	}
 
-	type = inqbuf.device_type;
-	qualifier = inqbuf.device_qualifier;
-	remov = inqbuf.removable;
+	type = inqbuf.device & SID_TYPE;
+	qualifier = inqbuf.device & SID_QUAL;
+	remov = inqbuf.dev_qual2 & SID_REMOVABLE;
 
-	/* Check for a non-existent unit.  If the device is returning
-	 * this much, then we must set the flag that has
-	 * the searcher keep looking on other luns.
-	 */
-	if (qualifier == 3 && type == T_NODEVICE)
-	{
-		*maybe_more = 1;
-		return (struct scsidevs *)0;
-	}
 
 	/* Any device qualifier that has
 	 * the top bit set (qualifier&4 != 0) is vendor specific and
@@ -360,20 +354,31 @@ int *maybe_more;
 
 	switch(qualifier)
 	{
-		case 0:
+	case SID_QUAL_LU_OK:
 		qtype="";
 		break;
-		case 1:
+
+	case SID_QUAL_LU_OFFLINE:
 		qtype=", Unit not Connected!";
 		break;
-		case 2:
+
+	case SID_QUAL_RSVD:
 		qtype=", Reserved Peripheral Qualifier!";
-		break;
-		case 3:
-		qtype=", The Target can't support this Unit!";
+		*maybe_more = 1;
+		return (struct scsidevs *)0;
 		break;
 
-		default:
+	case SID_QUAL_BAD_LU:
+		/*
+		 * Check for a non-existent unit.  If the device is returning
+	 	 * this much, then we must set the flag that has
+	 	 * the searcher keep looking on other luns.
+	 	 */
+		qtype=", The Target can't support this Unit!";
+		*maybe_more = 1;
+		return (struct scsidevs *)0;
+
+	default:
 		dtype="vendor specific";
 		qtype="";
 		*maybe_more = 1;
@@ -381,48 +386,53 @@ int *maybe_more;
 	}
 
 	if (dtype == 0)
+	{
 		switch(type)
 		{
-			case T_DIRECT:
-				dtype="direct";
-				break;
-			case T_SEQUENTIAL:
-				dtype="sequential";
-				break;
-			case T_PRINTER:
-				dtype="printer";
-				break;
-			case T_PROCESSOR:
-				dtype="processor";
-				break;
-			case T_READONLY:
-				dtype="readonly";
-				break;
-			case T_WORM:
-				dtype="worm";
-				break;
-			case T_SCANNER:
-				dtype="scanner";
-				break;
-			case T_OPTICAL:
-				dtype="optical";
-				break;
-			case T_CHANGER:
-				dtype="changer";
-				break;
-			case T_COMM:
-				dtype="communication";
-				break;
-			default:
-				dtype="unknown";
-				break;
+		case T_DIRECT:
+			dtype="direct";
+			break;
+		case T_SEQUENTIAL:
+			dtype="sequential";
+			break;
+		case T_PRINTER:
+			dtype="printer";
+			break;
+		case T_PROCESSOR:
+			dtype="processor";
+			break;
+		case T_READONLY:
+			dtype="readonly";
+			break;
+		case T_WORM:
+			dtype="worm";
+			break;
+		case T_SCANNER:
+			dtype="scanner";
+			break;
+		case T_OPTICAL:
+			dtype="optical";
+			break;
+		case T_CHANGER:
+			dtype="changer";
+			break;
+		case T_COMM:
+			dtype="communication";
+			break;
+		case T_NODEVICE:
+			*maybe_more = 1;
+			return (struct scsidevs *)0;
+		default:
+			dtype="unknown";
+			break;
 		}
 
+	}
 	/***********************************************\
 	* Then if it's advanced enough, more detailed	*
 	* information					*
 	\***********************************************/
-	if(inqbuf.ansii_version > 0) 
+	if((inqbuf.version & SID_ANSII) > 0) 
 	{
 		if ((len = inqbuf.additional_length 
 				+ ( (char *)inqbuf.unused
@@ -454,14 +464,14 @@ int *maybe_more;
 		,manu
 		,model
 		,version
-		,inqbuf.ansii_version
+		,inqbuf.version & SID_ANSII
 	);
 	/***********************************************\
 	* Try make as good a match as possible with	*
 	* available sub drivers	 			*
 	\***********************************************/
 	bestmatch = (selectdev(unit,target,lu,&scsi_switch,
-		qualifier,type,remov,manu,model,version));
+		qualifier,type,remov?T_REMOV:T_FIXED,manu,model,version));
 	if((bestmatch) && (bestmatch->flags & SC_MORE_LUS))
 	{
 		*maybe_more = 1;
@@ -486,7 +496,7 @@ char	*manu,*model,*rev;
 	struct	scsidevs	*bestmatch = (struct scsidevs *)0;
 	struct	scsidevs	*thisentry = knowndevs;
 
-	type |= (qualifier << 5);
+	type |= qualifier;	/* why? */
 
 	thisentry--;
 	while( count++ < numents)
@@ -605,9 +615,10 @@ retry:	scsi_xfer.error=0;
 		* correct response.					*
 		*( especially exabytes)					*
 		\*******************************************************/
-			if(scsi_xfer.sense.error_class == 7 )
+			if(((scsi_xfer.sense.error_code & SSD_ERRCODE) == 0x70 )
+			||((scsi_xfer.sense.error_code & SSD_ERRCODE) == 0x71 ))
 			{
-				key = scsi_xfer.sense.ext.extended.sense_key ;
+				key = scsi_xfer.sense.ext.extended.flags & SSD_KEY ;
 				switch(key)
 				{ 
 				case	2:	/* not ready BUT PRESENT! */
@@ -690,8 +701,8 @@ retry:	scsi_xfer.error=0;
 		* correct response.					*
 		*( especially exabytes)					*
 		\*******************************************************/
-			if((scsi_xfer.sense.error_class == 7 )
-			 && (scsi_xfer.sense.ext.extended.sense_key == 6))
+			if(((scsi_xfer.sense.error_code & SSD_ERRCODE) == 0x70 )
+			 && ((scsi_xfer.sense.ext.extended.flags & SSD_KEY) == 6))
 			{ /* it's changed so it's there */
 				spinwait(1000);
 				{

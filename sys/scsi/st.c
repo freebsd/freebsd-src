@@ -12,6 +12,13 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
+ *
+ * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+ * --------------------         -----   ----------------------
+ * CURRENT PATCH LEVEL:         1       00098
+ * --------------------         -----   ----------------------
+ *
+ * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
@@ -205,7 +212,7 @@ struct	scsi_switch *scsi_switch;
 	unit = next_st_unit++;
 	if( unit >= NST)
 	{
-		printf("Too many scsi tapes..(%d > %d) reconfigure kernel",
+		printf("Too many scsi tapes..(%d > %d) reconfigure kernel\n",
 				(unit + 1),NST);
 		return(0);
 	}
@@ -240,17 +247,17 @@ struct	scsi_switch *scsi_switch;
 	{
 		if(st_test_ready(unit,SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT))
 		{
-			printf("st%d: tape present: %d blocks of %d bytes\n",
+			printf("\tst%d: tape present: %d blocks of %d bytes\n",
 				unit, st->numblks, st->media_blksiz);
 		}
 		else
 		{
-			printf("st%d: drive empty\n", unit);
+			printf("\tst%d: drive empty\n", unit);
 		}
 	}
 	else
 	{
-		printf("st%d: drive offline\n", unit);
+		printf("\tst%d: drive offline\n", unit);
 	}
 	/*******************************************************\
 	* Set up the bufs for this device			*
@@ -301,10 +308,10 @@ int	unit;
 	if (scsi_inquire(st->ctlr, st->targ, st->lu, st->sc_sw, &inqbuf,
 		SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT) != COMPLETE)
 	{
-		printf("st%d: couldn't get device type, using default\n", unit);
+		printf("	st%d: couldn't get device type, using default\n", unit);
 		return;
 	}
-	if(inqbuf.ansii_version == 0)
+	if((inqbuf.version & SID_ANSII) == 0)
 	{
 		/***********************************************\
 		* If not advanced enough, use default values    *
@@ -339,7 +346,7 @@ int	unit;
 		if ((strcmp(manu, finger->manu) == 0 )
 		&& (strcmp(model2, finger->model) == 0 ))
 		{
-			printf("st%d: %s is a known rogue\n", unit,finger->name);
+			printf("	st%d: %s is a known rogue\n", unit,finger->name);
 			st->modes[0]	=	finger->modes[0];
 			st->modes[1]	=	finger->modes[1];
 			st->modes[2]	=	finger->modes[2];
@@ -872,7 +879,7 @@ trynext:
 	\*******************************************************/
 	if(st->flags & ST_FIXEDBLOCKS)
 	{
-		cmd.fixed = 1;
+		cmd.byte2 |= SRWT_FIXED;
 		lto3b(bp->b_bcount/st->blksiz,cmd.len);
 	}
 	else
@@ -1004,7 +1011,7 @@ struct	scsi_xfer	*xs;
 				* again for more data... we have it all	*
 				* SO SET THE ERROR BIT!			*
 				*					*
-				* UNDER MACH:(CMU)			*
+				* UNDER MACH (CMU) and NetBSD:		*
 				* To indicate the same as above, we	*
 				* need only have a non 0 resid that is	*
 				* less than the b_bcount, but the	*
@@ -1026,6 +1033,7 @@ struct	scsi_xfer	*xs;
 				* for EOM and resid == count for EOF).	*
 				* We will report the EOx NEXT time..	*
 				\***************************************/
+/* how do I distinguish NetBSD? at present it's wrong for NetBsd */
 #ifdef	MACH /*osf and cmu varieties */
 #ifdef	OSF
 				bp->b_flags |= B_ERROR;
@@ -1139,7 +1147,7 @@ caddr_t arg;
 	unsigned int opri;
 	int errcode = 0;
 	unsigned char unit;
-	int number,flags,ret;
+	int number,flags;
         struct  st_data *st;
 
 	/*******************************************************\
@@ -1166,7 +1174,6 @@ caddr_t arg;
 		g->mt_dns_high		= st->modes[HIGH_DSTY].density;
 		g->mt_dns_medium 	= st->modes[MED_DSTY].density;
 		g->mt_dns_low		= st->modes[LOW_DSTY].density;
-		ret=TRUE;
 		break;
 	    }
 
@@ -1186,29 +1193,29 @@ caddr_t arg;
 		switch ((short)(mt->mt_op))
 		{
 		case MTWEOF:	/* write an end-of-file record */
-			ret = st_write_filemarks(unit,number,flags);
+			if(!st_write_filemarks(unit,number,flags)) errcode = EIO;
 			st_data[unit].flags &= ~ST_WRITTEN;
 			break;
 		case MTFSF:	/* forward space file */
-			ret = st_space(unit,number,SP_FILEMARKS,flags);
+			if(!st_space(unit,number,SP_FILEMARKS,flags)) errcode = EIO;
 			break;
 		case MTBSF:	/* backward space file */
-			ret = st_space(unit,-number,SP_FILEMARKS,flags);
+			if(!st_space(unit,-number,SP_FILEMARKS,flags)) errcode = EIO;
 			break;
 		case MTFSR:	/* forward space record */
-			ret = st_space(unit,number,SP_BLKS,flags);
+			if(!st_space(unit,number,SP_BLKS,flags)) errcode = EIO;
 			break;
 		case MTBSR:	/* backward space record */
-			ret = st_space(unit,-number,SP_BLKS,flags);
+			if(!st_space(unit,-number,SP_BLKS,flags)) errcode = EIO;
 			break;
 		case MTREW:	/* rewind */
-			ret = st_rewind(unit,FALSE,flags);
+			if(!st_rewind(unit,FALSE,flags)) errcode = EIO;
 			break;
 		case MTOFFL:	/* rewind and put the drive offline */
-			if((ret = st_rewind(unit,FALSE,flags)))
+			if(st_rewind(unit,FALSE,flags))
 			{
 				st_prevent(unit,PR_ALLOW,0);
-				ret = st_load(unit,LD_UNLOAD,flags);
+				st_load(unit,LD_UNLOAD,flags);
 			}
 			else
 			{
@@ -1218,14 +1225,13 @@ caddr_t arg;
 		case MTNOP:	/* no operation, sets status only */
 		case MTCACHE:	/* enable controller cache */
 		case MTNOCACHE:	/* disable controller cache */
-			ret = TRUE;;
 			break;
                 case MTSETBSIZ: /* Set block size for device */
                         if (st->blkmin == st->blkmax)
 			{
                                 /* This doesn't make sense for a */
                                 /* real fixed block device */
-                                ret = FALSE;
+				errcode = EINVAL;
                         }
 			else
 			{
@@ -1238,14 +1244,13 @@ caddr_t arg;
 				else
 				{
                                         if (number < st->blkmin || number > st->blkmax)
-					{                                                  ret = FALSE;
-                                                ret = FALSE;
+					{ 
+						errcode = EINVAL;
                                         }
 					else
 					{
                                                 st->blksiz = number;
                                                 st->flags |= ST_FIXEDBLOCKS;
-                                                ret = TRUE;
                                         }
                                 }
                         }
@@ -1257,51 +1262,49 @@ caddr_t arg;
                 case MTSETHDNSTY: /* Set high density defaults for device */
 			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
 			{
-				ret = EINVAL;
+				errcode = EINVAL;
 			}
 			else
 			{ 
 				st->modes[HIGH_DSTY].density = number;
-				ret = TRUE;
 			}
 			break;
 
                 case MTSETMDNSTY: /* Set medium density defaults for device */
 			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
 			{
-				ret = EINVAL;
+				errcode = EINVAL;
 			}
 			else
 			{
 				st->modes[MED_DSTY].density = number;
-				ret = TRUE;
 			}
 			break;
 
                 case MTSETLDNSTY: /* Set low density defaults for device */
 			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
 			{
-				ret = FALSE;
+				errcode = EINVAL;
 			}
 			else
 			{
 				st->modes[LOW_DSTY].density = number;
-				ret = TRUE;
 			}
                         break;
 
 		default:
-			return EINVAL;
+			errcode = EINVAL;
 		}
 		break;
 	    }
 	case MTIOCIEOT:
 	case MTIOCEEOT:
-		ret=TRUE;
 		break;
+	default:
+		errcode = EINVAL;
 	}
 
-	return(ret?ESUCCESS:EIO);
+	return errcode;
 }
 
 
@@ -1427,13 +1430,13 @@ int	unit,flags;
 	struct scsi_mode_sense		scsi_cmd;
 	struct scsi_sense
 	{
-		struct	scsi_mode_header_tape header;
+		struct	scsi_mode_header header;
 		struct	blk_desc	blk_desc;
 	}scsi_sense;
 
 	struct scsi_sense_page_0
 	{
-		struct	scsi_mode_header_tape header;
+		struct	scsi_mode_header header;
 		struct	blk_desc	blk_desc;
                 unsigned char   sense_data[PAGE_0_SENSE_DATA_SIZE];
                         /* Tandberg tape drives returns page 00 */
@@ -1499,9 +1502,11 @@ int	unit,flags;
 			unit,
 			st->numblks,
 			st->media_blksiz,
-			(((struct scsi_sense *)scsi_sense_ptr)->header.write_protected ?
+			((((struct scsi_sense *)scsi_sense_ptr)->header.dev_spec
+				& SMH_DSP_WRITE_PROT) ?
 				"protected" : "enabled"),
-			(((struct scsi_sense *)scsi_sense_ptr)->header.buf_mode ?
+			((((struct scsi_sense *)scsi_sense_ptr)->header.dev_spec
+				 & SMH_DSP_BUFF_MODE)?
 				"" : "un")
 			);
 	}
@@ -1526,12 +1531,12 @@ int	unit,flags,dsty_code;
 	struct scsi_mode_select scsi_cmd;
 	struct dat
 	{
-		struct	scsi_mode_header_tape header;
+		struct	scsi_mode_header header;
 		struct	blk_desc	blk_desc;
 	}dat;
 	struct dat_page_0
 	{
-		struct	scsi_mode_header_tape header;
+		struct	scsi_mode_header header;
 		struct	blk_desc	blk_desc;
                 unsigned char   sense_data[PAGE_0_SENSE_DATA_SIZE];
 	}dat_page_0;
@@ -1559,7 +1564,7 @@ int	unit,flags,dsty_code;
 	scsi_cmd.op_code = MODE_SELECT;
 	scsi_cmd.length = dat_len;
 	((struct dat *)dat_ptr)->header.blk_desc_len = sizeof(struct  blk_desc);
-	((struct dat *)dat_ptr)->header.buf_mode = 1;
+	((struct dat *)dat_ptr)->header.dev_spec |= SMH_DSP_BUFF_MODE_ON;
         ((struct dat *)dat_ptr)->blk_desc.density = dsty_code;
 	if(st->flags & ST_FIXEDBLOCKS)
 	{
@@ -1603,7 +1608,7 @@ int	unit,number,what,flags;
 	st_data[unit].flags &= ~(ST_AT_FILEMARK | ST_AT_EOM);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = SPACE;
-	scsi_cmd.code = what;
+	scsi_cmd.byte2 = what & SS_CODE;
 	lto3b(number,scsi_cmd.number);
 	if (st_scsi_cmd(unit,
 			&scsi_cmd,
@@ -1658,15 +1663,10 @@ int	unit,type,flags;
 	st_data[unit].flags &= ~(ST_AT_FILEMARK | ST_AT_EOM);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = LOAD_UNLOAD;
-	scsi_cmd.load=type;
+	scsi_cmd.how=type;
 	if (type == LD_LOAD)
 	{
-		/*scsi_cmd.reten=TRUE;*/
-		scsi_cmd.reten=FALSE;
-	}
-	else
-	{
-		scsi_cmd.reten=FALSE;
+		/*scsi_cmd.how |= LD_RETEN;*/
 	}
 	if (st_scsi_cmd(unit,
 			&scsi_cmd,
@@ -1693,7 +1693,7 @@ int	unit,type,flags;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PREVENT_ALLOW;
-	scsi_cmd.prevent=type;
+	scsi_cmd.how=type;
 	if (st_scsi_cmd(unit,
 			&scsi_cmd,
 			sizeof(scsi_cmd),
@@ -1720,7 +1720,7 @@ int	unit,immed,flags;
 	st_data[unit].flags &= ~(ST_AT_FILEMARK | ST_AT_EOM);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = REWIND;
-	scsi_cmd.immed=immed;
+	scsi_cmd.byte2=immed?SR_IMMED:0?SR_IMMED:0;
 	if (st_scsi_cmd(unit,
 			&scsi_cmd,
 			sizeof(scsi_cmd),
@@ -1899,16 +1899,15 @@ struct	scsi_xfer	*xs;
 	if(st_debug)
 	{
 		int count = 0;
-		printf("code%x class%x valid%x\n"
-				,sense->error_code
-				,sense->error_class
-				,sense->valid);
+		printf("code%x valid%x\n"
+				,sense->error_code & SSD_ERRCODE
+				,sense->error_code & SSD_ERRCODE_VALID ? 1 : 0);
 		printf("seg%x key%x ili%x eom%x fmark%x\n"
 				,sense->ext.extended.segment
-				,sense->ext.extended.sense_key
-				,sense->ext.extended.ili
-				,sense->ext.extended.eom
-				,sense->ext.extended.filemark);
+				,sense->ext.extended.flags & SSD_KEY
+				,sense->ext.extended.flags & SSD_ILI ? 1 : 0
+				,sense->ext.extended.flags & SSD_EOM ? 1 : 0
+				,sense->ext.extended.flags & SSD_FILEMARK ? 1 : 0);
 		printf("info: %x %x %x %x followed by %d extra bytes\n"
 				,sense->ext.extended.info[0]
 				,sense->ext.extended.info[1]
@@ -1922,26 +1921,26 @@ struct	scsi_xfer	*xs;
 		}
 		printf("\n");
 	}
-	switch(sense->error_class)
+	switch(sense->error_code & SSD_ERRCODE)
 	{
 	/***************************************************************\
 	* If it's class 7, use the extended stuff and interpret the key	*
 	\***************************************************************/
-	case 7:
+	case 0x70:
 	{
-		if(sense->ext.extended.eom)
+		if(sense->ext.extended.flags & SSD_EOM)
 		{
 			st_data[unit].flags |= ST_AT_EOM;
 		}
 
-		if(sense->ext.extended.filemark)
+		if(sense->ext.extended.flags & SSD_FILEMARK)
 		{
 			st_data[unit].flags |= ST_AT_FILEMARK;
 		}
 
-		if(sense->ext.extended.ili)
+		if(sense->ext.extended.flags & SSD_ILI)
 		{
-			if(sense->valid)
+			if(sense->error_code & SSD_ERRCODE_VALID)
 			{
 				/*******************************\
 				* In all ili cases, note that	*
@@ -1970,18 +1969,18 @@ struct	scsi_xfer	*xs;
 			}
 		}/* there may be some other error. check the rest */
 
-		key=sense->ext.extended.sense_key;
+		key=sense->ext.extended.flags & SSD_KEY;
 		switch(key)
 		{
 		case	0x0:
-			if(!(sense->ext.extended.ili))
+			if(!(sense->ext.extended.flags & SSD_ILI))
 				xs->resid = 0; /* XXX check this */
 			return(ESUCCESS);
 		case	0x1:
 			if(!silent)
 			{
 				printf("st%d: soft error(corrected) ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -1994,7 +1993,7 @@ struct	scsi_xfer	*xs;
 			 		printf("\n");
 				}
 			}
-			if(!(sense->ext.extended.ili))
+			if(!(sense->ext.extended.flags & SSD_ILI))
 				xs->resid = 0; /* XXX check this */
 			return(ESUCCESS);
 		case	0x2:
@@ -2004,7 +2003,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 				printf("st%d: medium error ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -2038,7 +2037,7 @@ struct	scsi_xfer	*xs;
 			{
 				printf("st%d: attempted protection violation "
 								, unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -2057,7 +2056,7 @@ struct	scsi_xfer	*xs;
 			{
 				printf("st%d: fixed block wrong size \n "
 							, unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("requested size: %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -2087,7 +2086,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 				printf("st%d: search returned\n ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -2109,7 +2108,7 @@ struct	scsi_xfer	*xs;
 			if(!silent)
 			{
 			 	printf("st%d: verify miscompare\n ", unit); 
-				if(sense->valid)
+				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
 			   		printf("block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
@@ -2133,19 +2132,12 @@ struct	scsi_xfer	*xs;
 	/***************************************************************\
 	* If it's NOT class 7, just report it.				*
 	\***************************************************************/
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
+	default:
 		{
-			if(!silent) printf("st%d: error class %d code %d\n",
+			if(!silent) printf("st%d: error code %d\n",
 				unit,
-				sense->error_class,
-				sense->error_code);
-		if(sense->valid)
+				sense->error_code & SSD_ERRCODE);
+		if(sense->error_code & SSD_ERRCODE_VALID)
 			if(!silent) printf("block no. %d (decimal)\n",
 			(sense->ext.unextended.blockhi <<16),
 			+ (sense->ext.unextended.blockmed <<8),
