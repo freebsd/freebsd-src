@@ -649,9 +649,10 @@ ufs_extattr_set(struct vnode *vp, char *name, struct uio *uio,
 	if (error)
 		goto vopunlock_exit;
 
-	if (local_aio.uio_resid != 0)
+	if (local_aio.uio_resid != 0) {
 		error = ENXIO;
 		goto vopunlock_exit;
+	}
 
 	/*
 	 * Write out user data
@@ -663,7 +664,9 @@ ufs_extattr_set(struct vnode *vp, char *name, struct uio *uio,
 
 vopunlock_exit:
 	uio->uio_offset = 0;
-	VOP_UNLOCK(attribute->uele_backing_vnode, 0, p);
+
+	if (attribute->uele_backing_vnode != vp)
+		VOP_UNLOCK(attribute->uele_backing_vnode, 0, p);
 
 	return (error);
 }
