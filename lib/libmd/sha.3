@@ -36,7 +36,7 @@
 .Ft void
 .Fn SHA_Init "SHA_CTX *context"
 .Ft void
-.Fn SHA_Update "SHA_CTX *context" "const unsigned char *data" "unsigned int len"
+.Fn SHA_Update "SHA_CTX *context" "const unsigned char *data" "size_t len"
 .Ft void
 .Fn SHA_Final "unsigned char digest[20]" "SHA_CTX *context"
 .Ft "char *"
@@ -50,7 +50,7 @@
 .Ft void
 .Fn SHA1_Init "SHA_CTX *context"
 .Ft void
-.Fn SHA1_Update "SHA_CTX *context" "const unsigned char *data" "unsigned int len"
+.Fn SHA1_Update "SHA_CTX *context" "const unsigned char *data" "size_t len"
 .Ft void
 .Fn SHA1_Final "unsigned char digest[20]" "SHA_CTX *context"
 .Ft "char *"
