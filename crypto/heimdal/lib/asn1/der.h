@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: der.h,v 1.20 2001/01/29 08:31:27 assar Exp $ */
+/* $Id: der.h,v 1.22 2001/09/27 16:20:35 assar Exp $ */
 
 #ifndef __DER_H__
 #define __DER_H__
@@ -45,11 +45,13 @@ typedef enum {PRIM = 0, CONS = 1} Der_type;
 /* Universal tags */
 
 enum {
-     UT_Integer		= 2,	
+     UT_Boolean		= 1,
+     UT_Integer		= 2,
      UT_BitString	= 3,
      UT_OctetString	= 4,
      UT_Null		= 5,
-     UT_ObjID		= 6,
+     UT_OID		= 6,
+     UT_Enumerated	= 10,
      UT_Sequence	= 16,
      UT_Set		= 17,
      UT_PrintableString	= 19,
@@ -75,6 +77,8 @@ int der_get_general_string (const unsigned char *p, size_t len,
 			    general_string *str, size_t *size);
 int der_get_octet_string (const unsigned char *p, size_t len, 
 			  octet_string *data, size_t *size);
+int der_get_oid (const unsigned char *p, size_t len,
+		 oid *data, size_t *size);
 int der_get_tag (const unsigned char *p, size_t len, 
 		 Der_class *class, Der_type *type,
 		 int *tag, size_t *size);
@@ -88,8 +92,11 @@ int der_match_tag_and_length (const unsigned char *p, size_t len,
 
 int decode_integer (const unsigned char*, size_t, int*, size_t*);
 int decode_unsigned (const unsigned char*, size_t, unsigned*, size_t*);
+int decode_enumerated (const unsigned char*, size_t, unsigned*, size_t*);
 int decode_general_string (const unsigned char*, size_t,
 			   general_string*, size_t*);
+int decode_oid (const unsigned char *p, size_t len, 
+		oid *k, size_t *size);
 int decode_octet_string (const unsigned char*, size_t, octet_string*, size_t*);
 int decode_generalized_time (const unsigned char*, size_t, time_t*, size_t*);
 
@@ -99,6 +106,8 @@ int der_put_general_string (unsigned char *p, size_t len,
 			    const general_string *str, size_t*);
 int der_put_octet_string (unsigned char *p, size_t len,
 			  const octet_string *data, size_t*);
+int der_put_oid (unsigned char *p, size_t len,
+		 const oid *data, size_t *size);
 int der_put_tag (unsigned char *p, size_t len, Der_class class, Der_type type,
 		 int tag, size_t*);
 int der_put_length_and_tag (unsigned char*, size_t, size_t, 
@@ -108,29 +117,36 @@ int encode_integer (unsigned char *p, size_t len,
 		    const int *data, size_t*);
 int encode_unsigned (unsigned char *p, size_t len,
 		     const unsigned *data, size_t*);
+int encode_enumerated (unsigned char *p, size_t len,
+		       const unsigned *data, size_t*);
 int encode_general_string (unsigned char *p, size_t len, 
 			   const general_string *data, size_t*);
 int encode_octet_string (unsigned char *p, size_t len,
 			 const octet_string *k, size_t*);
+int encode_oid (unsigned char *p, size_t len,
+		const oid *k, size_t*);
 int encode_generalized_time (unsigned char *p, size_t len,
 			     const time_t *t, size_t*);
 
 void free_integer (int *num);
 void free_general_string (general_string *str);
 void free_octet_string (octet_string *k);
+void free_oid (oid *k);
 void free_generalized_time (time_t *t);
 
 size_t length_len (size_t len);
 size_t length_integer (const int *data);
 size_t length_unsigned (const unsigned *data);
+size_t length_enumerated (const unsigned *data);
 size_t length_general_string (const general_string *data);
 size_t length_octet_string (const octet_string *k);
+size_t length_oid (const oid *k);
 size_t length_generalized_time (const time_t *t);
 
 int copy_general_string (const general_string *from, general_string *to);
 int copy_octet_string (const octet_string *from, octet_string *to);
+int copy_oid (const oid *from, oid *to);
 
 int fix_dce(size_t reallen, size_t *len);
 
 #endif /* __DER_H__ */
-

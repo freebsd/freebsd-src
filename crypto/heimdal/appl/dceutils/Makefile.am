@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.6 2001/02/07 22:45:37 assar Exp $
+# $Id: Makefile.am,v 1.7 2001/08/23 22:42:44 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -14,8 +14,8 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDFLAGS = @dpagaix_LDFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 
-dpagaix: $(dpagaix_OBJECTS)
-	ld -edpagaix -o dpagaix $(dpagaix_OBJECTS) $(srcdir)/dfspag.exp
+dpagaix$(EXEEXT): $(dpagaix_OBJECTS)
+	ld -edpagaix -o dpagaix$(EXEEXT) $(dpagaix_OBJECTS) $(srcdir)/dfspag.exp
 
 LIB_dce = -ldce
 

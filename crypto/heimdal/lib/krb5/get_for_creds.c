@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.29 2001/05/14 22:49:55 assar Exp $");
+RCSID("$Id: get_for_creds.c,v 1.31 2001/07/19 17:33:22 assar Exp $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -79,7 +79,10 @@ fail:
 }
 
 /*
- *
+ * Forward credentials for `client' to host `hostname`,
+ * making them forwardable if `forwardable', and returning the
+ * blob of data to sent in `out_data'.
+ * If hostname == NULL, pick it from `server'
  */
 
 krb5_error_code
@@ -95,16 +98,39 @@ krb5_fwd_tgt_creds (krb5_context	context,
     krb5_flags flags = 0;
     krb5_creds creds;
     krb5_error_code ret;
+    krb5_const_realm client_realm;
 
     flags |= KDC_OPT_FORWARDED;
 
     if (forwardable)
 	flags |= KDC_OPT_FORWARDABLE;
 
+    if (hostname == NULL &&
+	krb5_principal_get_type(context, server) == KRB5_NT_SRV_HST) {
+	const char *inst = krb5_principal_get_comp_string(context, server, 0);
+	const char *host = krb5_principal_get_comp_string(context, server, 1);
+
+	if (inst != NULL &&
+	    strcmp(inst, "host") == 0 &&
+	    host != NULL && 
+	    krb5_principal_get_comp_string(context, server, 2) == NULL)
+	    hostname = host;
+    }
+
+    client_realm = krb5_principal_get_realm(context, client);
     
     memset (&creds, 0, sizeof(creds));
     creds.client = client;
-    creds.server = server;
+
+    ret = krb5_build_principal(context,
+			       &creds.server,
+			       strlen(client_realm),
+			       client_realm,
+			       KRB5_TGS_NAME,
+			       client_realm,
+			       NULL);
+    if (ret)
+	return ret;
 
     ret = krb5_get_forwarded_creds (context,
 				    auth_context,
@@ -214,12 +240,20 @@ krb5_get_forwarded_creds (krb5_context	    context,
     *enc_krb_cred_part.usec      = usec;
 
     if (auth_context->local_address && auth_context->local_port) {
-	ret = krb5_make_addrport (context,
-				  &enc_krb_cred_part.s_address,
-				  auth_context->local_address,
-				  auth_context->local_port);
-	if (ret)
-	    goto out4;
+	krb5_boolean noaddr;
+	const krb5_realm *realm;
+
+	realm = krb5_princ_realm(context, out_creds->server);
+	krb5_appdefault_boolean(context, NULL, *realm, "no-addresses", FALSE,
+				&noaddr);
+	if (!noaddr) {
+	    ret = krb5_make_addrport (context,
+				      &enc_krb_cred_part.s_address,
+				      auth_context->local_address,
+				      auth_context->local_port);
+	    if (ret)
+		goto out4;
+	}
     }
 
     if (auth_context->remote_address) {

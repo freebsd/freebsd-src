@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.25 2001/05/17 00:01:26 assar Exp $
+# $Id: Makefile.am,v 1.26 2001/09/02 16:56:21 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -17,7 +17,7 @@ libcom_err_la_SOURCES = error.c com_err.c roken_rename.h
 
 CLEANFILES = lex.c parse.c parse.h
 
-$(compile_et_OBJECTS): parse.h
+$(compile_et_OBJECTS): parse.h parse.c ## XXX broken automake 1.4s
 
 compile_et_LDADD = \
 	$(LIB_roken) \

@@ -39,7 +39,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.47 2001/02/20 01:44:45 assar Exp $");
+RCSID("$Id: login.c,v 1.52 2001/09/17 02:34:31 assar Exp $");
 
 static int login_timeout = 60;
 
@@ -174,10 +174,29 @@ krb5_verify(struct passwd *pwd, const char *password)
 static krb5_error_code
 krb5_to4 (krb5_ccache id)
 {
-    if (krb5_config_get_bool(context, NULL,
-			     "libdefaults",
-			     "krb4_get_tickets",
-			     NULL)) {
+    krb5_error_code ret;
+    krb5_principal princ;
+
+    int get_v4_tgt;
+
+    get_v4_tgt = krb5_config_get_bool(context, NULL,
+				      "libdefaults",
+				      "krb4_get_tickets",
+				      NULL);
+
+    ret = krb5_cc_get_principal(context, id, &princ);
+    if (ret == 0) {
+	get_v4_tgt = krb5_config_get_bool_default(context, NULL,
+						  get_v4_tgt,
+						  "realms",
+						  *krb5_princ_realm(context,
+								    princ),
+						  "krb4_get_tickets",
+						  NULL);
+	krb5_free_principal(context, princ);
+    }
+
+    if (get_v4_tgt) {
         CREDENTIALS c;
         krb5_creds mcred, cred;
         char krb4tkfile[MAXPATHLEN];
@@ -199,7 +218,7 @@ krb5_to4 (krb5_ccache id)
 
 	ret = krb5_cc_retrieve_cred(context, id, 0, &mcred, &cred);
 	if(ret == 0) {
-	    ret = krb524_convert_creds_kdc(context, id, &cred, &c);
+	    ret = krb524_convert_creds_kdc_ccache(context, id, &cred, &c);
 	    if(ret == 0) {
 		snprintf(krb4tkfile,sizeof(krb4tkfile),"%s%d",TKT_ROOT,
 			 getuid());
@@ -449,6 +468,10 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 	    exit(1);
     }
 #endif
+#ifdef HAVE_SETPCRED
+    if (setpcred (pwd->pw_name, NULL) == -1)
+	warn("setpcred(%s)", pwd->pw_name);
+#endif /* HAVE_SETPCRED */
 #ifdef HAVE_INITGROUPS
     if(initgroups(pwd->pw_name, pwd->pw_gid)){
 	warn("initgroups(%s, %u)", pwd->pw_name, (unsigned)pwd->pw_gid);
@@ -456,6 +479,8 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 	    exit(1);
     }
 #endif
+    if(do_osfc2_magic(pwd->pw_uid))
+	exit(1);
     if(setgid(pwd->pw_gid)){
 	warn("setgid(%u)", (unsigned)pwd->pw_gid);
 	if(rootlogin == 0)
@@ -472,8 +497,6 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
     check_shadow(pwd, sp);
 #endif
 
-    if(do_osfc2_magic(pwd->pw_uid))
-	exit(1);
 #if defined(HAVE_GETUDBNAM) && defined(HAVE_SETLIM)
     {
 	struct udb *udb;

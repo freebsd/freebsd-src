@@ -92,6 +92,7 @@ main(int argc, char **argv)
 	char *targ;
 	int optind = 0;
 
+	setprogname(argv[0]);
 	if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
 		    &optind))
 	    usage (1);
@@ -133,8 +134,9 @@ main(int argc, char **argv)
 
 	remin = remout = -1;
 	/* Command to be executed on remote system using "rsh". */
-	 sprintf(cmd, "rcp%s%s%s", iamrecursive ? " -r" : "", 
-		       pflag ? " -p" : "", targetshouldbedirectory ? " -d" : "");
+	snprintf(cmd, sizeof(cmd),
+		 "rcp%s%s%s", iamrecursive ? " -r" : "", 
+		 pflag ? " -p" : "", targetshouldbedirectory ? " -d" : "");
 
 	signal(SIGPIPE, lostconn);
 
@@ -151,7 +153,7 @@ main(int argc, char **argv)
 void
 toremote(char *targ, int argc, char **argv)
 {
-	int i, len;
+	int i;
 	char *bp, *host, *src, *suser, *thost, *tuser;
 
 	*targ++ = 0;
@@ -178,37 +180,34 @@ toremote(char *targ, int argc, char **argv)
 			if (*src == 0)
 				src = ".";
 			host = strchr(argv[i], '@');
-			len = strlen(_PATH_RSH) + strlen(argv[i]) +
-			    strlen(src) + (tuser ? strlen(tuser) : 0) +
-			    strlen(thost) + strlen(targ) + CMDNEEDS + 20;
-			if (!(bp = malloc(len)))
-				err(1, "malloc");
 			if (host) {
-				*host++ = 0;
+				*host++ = '\0';
 				suser = argv[i];
 				if (*suser == '\0')
 					suser = pwd->pw_name;
 				else if (!okname(suser))
 					continue;
-				snprintf(bp, len,
+				asprintf(&bp,
 				    "%s %s -l %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, host, suser, cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
 				    thost, targ);
-			} else
-				snprintf(bp, len,
+			} else {
+				asprintf(&bp,
 				    "exec %s %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, argv[i], cmd, src,
 				    tuser ? tuser : "", tuser ? "@" : "",
 				    thost, targ);
+			}
+			if (bp == NULL)
+				err (1, "malloc");
 			susystem(bp, userid);
 			free(bp);
 		} else {			/* local to remote */
 			if (remin == -1) {
-				len = strlen(targ) + CMDNEEDS + 20;
-				if (!(bp = malloc(len)))
-					err(1, "malloc");
-				snprintf(bp, len, "%s -t %s", cmd, targ);
+				asprintf(&bp, "%s -t %s", cmd, targ);
+				if (bp == NULL)
+					err (1, "malloc");
 				host = thost;
 
 				if (do_cmd(host, tuser, bp, &remin, &remout) < 0)
@@ -227,18 +226,16 @@ toremote(char *targ, int argc, char **argv)
 void
 tolocal(int argc, char **argv)
 {
-	int i, len;
+	int i;
 	char *bp, *host, *src, *suser;
 
 	for (i = 0; i < argc - 1; i++) {
 		if (!(src = colon(argv[i]))) {		/* Local to local. */
-			len = strlen(_PATH_CP) + strlen(argv[i]) +
-			    strlen(argv[argc - 1]) + 20;
-			if (!(bp = malloc(len)))
-				err(1, "malloc");
-			snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
+			asprintf(&bp, "exec %s%s%s %s %s", _PATH_CP,
 			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
+			if (bp == NULL)
+				err (1, "malloc");
 			if (susystem(bp, userid))
 				++errs;
 			free(bp);
@@ -258,10 +255,9 @@ tolocal(int argc, char **argv)
 			else if (!okname(suser))
 				continue;
 		}
-		len = strlen(src) + CMDNEEDS + 20;
-		if ((bp = malloc(len)) == NULL)
-			err(1, "malloc");
-		snprintf(bp, len, "%s -f %s", cmd, src);
+		asprintf(&bp, "%s -f %s", cmd, src);
+		if (bp == NULL)
+			err (1, "malloc");
 		if (do_cmd(host, suser, bp, &remin, &remout) < 0) {
 			free(bp);
 			++errs;
@@ -274,22 +270,6 @@ tolocal(int argc, char **argv)
 		remin = remout = -1;
 	}
 }
-
-static char *
-sizestr(off_t size)
-{
-    static char ss[32];
-    char *p;
-    ss[sizeof(ss) - 1] = '\0';
-    for(p = ss + sizeof(ss) - 2; p >= ss; p--) {
-	*p = '0' + size % 10;
-	size /= 10;
-	if(size == 0)
-	    break;
-    }
-    return ss;
-}
-		    
 
 void
 source(int argc, char **argv)
@@ -339,8 +319,10 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 				goto next;
 		}
 #define	MODEMASK	(S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
-		snprintf(buf, sizeof(buf), "C%04o %s %s\n",
-			 stb.st_mode & MODEMASK, sizestr(stb.st_size), last);
+		snprintf(buf, sizeof(buf), "C%04o %lu %s\n",
+			 stb.st_mode & MODEMASK,
+			 (unsigned long)stb.st_size,
+			 last);
 		write(remout, buf, strlen(buf));
 		if (response() < 0)
 			goto next;
@@ -531,7 +513,7 @@ sink(int argc, char **argv)
 		if (*cp++ != ' ')
 			SCREWUP("mode not delimited");
 
-		for (size = 0; isdigit(*cp);)
+		for (size = 0; isdigit((unsigned char)*cp);)
 			size = size * 10 + (*cp++ - '0');
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
@@ -702,21 +684,23 @@ run_err(const char *fmt, ...)
 {
 	static FILE *fp;
 	va_list ap;
-	va_start(ap, fmt);
 
 	++errs;
 	if (fp == NULL && !(fp = fdopen(remout, "w")))
 		return;
+	va_start(ap, fmt);
 	fprintf(fp, "%c", 0x01);
 	fprintf(fp, "rcp: ");
 	vfprintf(fp, fmt, ap);
 	fprintf(fp, "\n");
 	fflush(fp);
-
-	if (!iamremote)
-		vwarnx(fmt, ap);
-
 	va_end(ap);
+
+	if (!iamremote) {
+	    va_start(ap, fmt);
+	    vwarnx(fmt, ap);
+	    va_end(ap);
+	}
 }
 
 /*

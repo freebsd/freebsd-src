@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mcache.c,v 1.13 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: mcache.c,v 1.14 2001/06/17 23:13:02 assar Exp $");
 
 typedef struct krb5_mcache {
     char *name;
@@ -294,7 +294,7 @@ mcc_remove_cred(krb5_context context,
     for(q = &m->creds, p = *q; p; p = *q) {
 	if(krb5_compare_creds(context, which, mcreds, &p->cred)) {
 	    *q = p->next;
-	    krb5_free_cred_contents(context, &p->cred);
+	    krb5_free_creds_contents(context, &p->cred);
 	    free(p);
 	} else
 	    q = &p->next;

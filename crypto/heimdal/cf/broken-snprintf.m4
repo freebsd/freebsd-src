@@ -1,4 +1,4 @@
-dnl $Id: broken-snprintf.m4,v 1.3 1999/03/01 09:52:22 joda Exp $
+dnl $Id: broken-snprintf.m4,v 1.4 2001/09/01 11:56:05 assar Exp $
 dnl
 AC_DEFUN(AC_BROKEN_SNPRINTF, [
 AC_CACHE_CHECK(for working snprintf,ac_cv_func_snprintf_working,
@@ -8,9 +8,7 @@ AC_TRY_RUN([
 #include <string.h>
 int main()
 {
-changequote(`,')dnl
-	char foo[3];
-changequote([,])dnl
+	char foo[[3]];
 	snprintf(foo, 2, "12");
 	return strcmp(foo, "1");
 }],:,ac_cv_func_snprintf_working=no,:))
@@ -33,9 +31,7 @@ AC_TRY_RUN([
 
 int foo(int num, ...)
 {
-changequote(`,')dnl
-	char bar[3];
-changequote([,])dnl
+	char bar[[3]];
 	va_list arg;
 	va_start(arg, num);
 	vsnprintf(bar, 2, "%s", arg);

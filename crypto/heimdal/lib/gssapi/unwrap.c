@@ -33,21 +33,21 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: unwrap.c,v 1.17 2001/05/11 09:16:47 assar Exp $");
+RCSID("$Id: unwrap.c,v 1.19 2001/08/23 04:35:55 assar Exp $");
 
 OM_uint32
-gss_krb5_getsomekey(const gss_ctx_id_t context_handle,
-		    krb5_keyblock **key)
+gss_krb5_get_remotekey(const gss_ctx_id_t context_handle,
+		       krb5_keyblock **key)
 {
-    /* XXX this is ugly, and probably incorrect... */
     krb5_keyblock *skey;
-    krb5_auth_con_getlocalsubkey(gssapi_krb5_context,
-				 context_handle->auth_context, 
-				 &skey);
+
+    krb5_auth_con_getremotesubkey(gssapi_krb5_context,
+				  context_handle->auth_context, 
+				  &skey);
     if(skey == NULL)
-	krb5_auth_con_getremotesubkey(gssapi_krb5_context,
-				      context_handle->auth_context, 
-				      &skey);
+	krb5_auth_con_getlocalsubkey(gssapi_krb5_context,
+				     context_handle->auth_context, 
+				     &skey);
     if(skey == NULL)
 	krb5_auth_con_getkey(gssapi_krb5_context,
 			     context_handle->auth_context, 
@@ -176,7 +176,7 @@ unwrap_des
     return GSS_S_BAD_MIC;
   }
 
-  krb5_auth_setremoteseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setremoteseqnumber (gssapi_krb5_context,
 				context_handle->auth_context,
 				++seq_number);
 
@@ -222,8 +222,10 @@ unwrap_des3
   ret = gssapi_krb5_verify_header (&p,
 				   input_message_buffer->length,
 				   "\x02\x01");
-  if (ret)
+  if (ret) {
+      *minor_status = 0;
       return ret;
+  }
 
   if (memcmp (p, "\x04\x00", 2) != 0) /* HMAC SHA1 DES3_KD */
     return GSS_S_BAD_SIG;
@@ -327,7 +329,7 @@ unwrap_des3
       return GSS_S_BAD_MIC;
   }
 
-  krb5_auth_setremoteseqnumber (gssapi_krb5_context,
+  krb5_auth_con_setremoteseqnumber (gssapi_krb5_context,
 				context_handle->auth_context,
 				++seq_number);
 
@@ -386,7 +388,7 @@ OM_uint32 gss_unwrap
   OM_uint32 ret;
   krb5_keytype keytype;
 
-  ret = gss_krb5_getsomekey(context_handle, &key);
+  ret = gss_krb5_get_remotekey(context_handle, &key);
   if (ret) {
       gssapi_krb5_set_error_string ();
       *minor_status = ret;

@@ -41,7 +41,7 @@
 #include <fnmatch.h>
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.74 2001/05/14 06:14:50 assar Exp $");
+RCSID("$Id: principal.c,v 1.78 2001/09/20 09:46:20 joda Exp $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)
@@ -57,6 +57,30 @@ krb5_free_principal(krb5_context context,
 	free_Principal(p);
 	free(p);
     }
+}
+
+int
+krb5_principal_get_type(krb5_context context,
+			krb5_principal principal)
+{
+    return princ_type(principal);
+}
+
+const char *
+krb5_principal_get_realm(krb5_context context,
+			 krb5_principal principal)
+{
+    return princ_realm(principal);
+}			 
+
+const char *
+krb5_principal_get_comp_string(krb5_context context,
+			       krb5_principal principal,
+			       unsigned int component)
+{
+    if(component >= princ_num_comp(principal))
+       return NULL;
+    return princ_ncomp(principal, component);
 }
 
 krb5_error_code
@@ -599,6 +623,7 @@ struct v4_name_convert {
     { "pop",	"pop" },
     { "imap",	"imap" },
     { "rcmd",	"host" },
+    { "smtp",	"smtp" },
     { NULL, NULL }
 };
 
@@ -665,6 +690,7 @@ krb5_425_conv_principal_ext(krb5_context context,
     krb5_error_code ret;
     krb5_principal pr;
     char host[MAXHOSTNAMELEN];
+    char local_hostname[MAXHOSTNAMELEN];
 
     /* do the following: if the name is found in the
        `v4_name_convert:host' part, is is assumed to be a `host' type
@@ -739,6 +765,30 @@ krb5_425_conv_principal_ext(krb5_context context,
 	    dns_free_data(r);
 #endif
     }
+    if(func != NULL) {
+	snprintf(host, sizeof(host), "%s.%s", instance, realm);
+	strlwr(host);
+	ret = krb5_make_principal(context, &pr, realm, name, host, NULL);
+	if((*func)(context, pr)){
+	    *princ = pr;
+	    return 0;
+	}
+	krb5_free_principal(context, pr);
+    }
+
+    /*
+     * if the instance is the first component of the local hostname,
+     * the converted host should be the long hostname.
+     */
+
+    if (func == NULL && 
+        gethostname (local_hostname, sizeof(local_hostname)) == 0 &&
+        strncmp(instance, local_hostname, strlen(instance)) == 0 && 
+	local_hostname[strlen(instance)] == '.') {
+	strlcpy(host, local_hostname, sizeof(host));
+	goto local_host;
+    }
+
     {
 	char **domains, **d;
 	domains = krb5_config_get_strings(context, NULL, "realms", realm,
@@ -755,7 +805,7 @@ krb5_425_conv_principal_ext(krb5_context context,
 	}
 	krb5_config_free_strings(domains);
     }
-    
+
     
     p = krb5_config_get_string(context, NULL, "realms", realm, 
 			       "default_domain", NULL);
@@ -768,6 +818,7 @@ krb5_425_conv_principal_ext(krb5_context context,
     if (*p == '.')
 	++p;
     snprintf(host, sizeof(host), "%s.%s", instance, p);
+local_host:
     ret = krb5_make_principal(context, &pr, realm, name, host, NULL);
     if(func == NULL || (*func)(context, pr)){
 	*princ = pr;

@@ -1,3 +1,8 @@
+2002-01-23  Assar Westerlund  <assar@sics.se>
+
+	* k5dfspag.c: use SIG_DFL and not SIG_IGN for SIGCHLD.
+	from "Todd C. Miller" <Todd.Miller@courtesan.com>
+
 2001-02-07  Assar Westerlund  <assar@sics.se>
 
 	* k5dfspag.c: add config.h

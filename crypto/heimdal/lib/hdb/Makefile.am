@@ -1,13 +1,13 @@
-# $Id: Makefile.am,v 1.44 2001/05/16 23:50:57 assar Exp $
+# $Id: Makefile.am,v 1.51 2001/08/28 08:31:31 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += -I../asn1 -I$(srcdir)/../asn1
+INCLUDES += -I../asn1 -I$(srcdir)/../asn1 $(INCLUDE_des)
 
 BUILT_SOURCES = asn1_Key.c asn1_Event.c asn1_HDBFlags.c asn1_hdb_entry.c \
-	asn1_Salt.c hdb_err.c hdb_err.h
+	asn1_Salt.c hdb_err.c hdb_err.h asn1_GENERATION.c
 
-foo = asn1_Key.x asn1_Event.x asn1_HDBFlags.x asn1_hdb_entry.x asn1_Salt.x
+foo = asn1_Key.x asn1_GENERATION.x asn1_Event.x asn1_HDBFlags.x asn1_hdb_entry.x asn1_Salt.x
 
 CLEANFILES = $(BUILT_SOURCES) $(foo) hdb_asn1.h asn1_files
 
@@ -17,11 +17,10 @@ LDADD = libhdb.la \
 	../krb5/libkrb5.la \
 	../asn1/libasn1.la \
 	$(LIB_des) \
-	$(LIB_roken) \
-	$(DBLIB)
+	$(LIB_roken)
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 7:1:0
+libhdb_la_LDFLAGS = -version-info 7:4:0
 
 libhdb_la_SOURCES =				\
 	common.c				\
@@ -39,7 +38,7 @@ INCLUDES += $(INCLUDE_openldap)
 
 include_HEADERS = hdb.h hdb_err.h hdb_asn1.h hdb-protos.h hdb-private.h
 
-libhdb_la_LIBADD = $(LIB_openldap)
+libhdb_la_LIBADD = ../krb5/libkrb5.la ../asn1/libasn1.la ../roken/libroken.la $(LIB_openldap) $(DBLIB) $(LIB_NDBM)
 
 $(libhdb_la_OBJECTS): $(srcdir)/hdb-protos.h $(srcdir)/hdb-private.h
 

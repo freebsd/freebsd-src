@@ -1,7 +1,8 @@
 /* include/config.h.in.  Generated automatically from configure.in by autoheader.  */
 
 #ifndef RCSID
-#define RCSID(msg) static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
+#define RCSID(msg) \
+static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 #endif
 
 #undef BINDIR 
@@ -82,6 +83,9 @@
 /* Define if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
 
+/* Define if you have the `atexit' function. */
+#undef HAVE_ATEXIT
+
 /* Define if you have the <bind/bitypes.h> header file. */
 #undef HAVE_BIND_BITYPES_H
 
@@ -124,6 +128,12 @@
 /* Define if you have the `daemon' function. */
 #undef HAVE_DAEMON
 
+/* define if you have a berkeley db1/2 library */
+#undef HAVE_DB1
+
+/* define if you have a berkeley db3 library */
+#undef HAVE_DB3
+
 /* Define if you have the `dbm_firstkey' function. */
 #undef HAVE_DBM_FIRSTKEY
 
@@ -142,8 +152,8 @@
 /* Define if you have the <db.h> header file. */
 #undef HAVE_DB_H
 
-/* Define if you have the `des_cbc_encrypt' function. */
-#undef HAVE_DES_CBC_ENCRYPT
+/* define if you have ndbm compat in db */
+#undef HAVE_DB_NDBM
 
 /* Define if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
@@ -157,11 +167,20 @@
 /* Define if you have the `dn_expand' function. */
 #undef HAVE_DN_EXPAND
 
+/* Define if you have the `ecalloc' function. */
+#undef HAVE_ECALLOC
+
 /* Define if you have the `el_init' function. */
 #undef HAVE_EL_INIT
 
+/* Define if you have the `emalloc' function. */
+#undef HAVE_EMALLOC
+
 /* define if your system declares environ */
 #undef HAVE_ENVIRON_DECLARATION
+
+/* Define if you have the `erealloc' function. */
+#undef HAVE_EREALLOC
 
 /* Define if you have the `err' function. */
 #undef HAVE_ERR
@@ -174,6 +193,9 @@
 
 /* Define if you have the <err.h> header file. */
 #undef HAVE_ERR_H
+
+/* Define if you have the `estrdup' function. */
+#undef HAVE_ESTRDUP
 
 /* Define if you have the `fchown' function. */
 #undef HAVE_FCHOWN
@@ -323,6 +345,9 @@
 /* Define if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
+/* Define if you have the in6addr_loopback variable */
+#undef HAVE_IN6ADDR_LOOPBACK
+
 /* Define if you have the `inet_aton' function. */
 #undef HAVE_INET_ATON
 
@@ -335,8 +360,23 @@
 /* Define if you have the `initgroups' function. */
 #undef HAVE_INITGROUPS
 
+/* Define if you have the `initstate' function. */
+#undef HAVE_INITSTATE
+
 /* Define if you have the `innetgr' function. */
 #undef HAVE_INNETGR
+
+/* Define if the system has the type `int16_t'. */
+#undef HAVE_INT16_T
+
+/* Define if the system has the type `int32_t'. */
+#undef HAVE_INT32_T
+
+/* Define if the system has the type `int64_t'. */
+#undef HAVE_INT64_T
+
+/* Define if the system has the type `int8_t'. */
+#undef HAVE_INT8_T
 
 /* Define if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -350,6 +390,9 @@
 /* Define if you have the `iruserok' function. */
 #undef HAVE_IRUSEROK
 
+/* Define if you have the `issetugid' function. */
+#undef HAVE_ISSETUGID
+
 /* Define if you have the `krb_disable_debug' function. */
 #undef HAVE_KRB_DISABLE_DEBUG
 
@@ -359,8 +402,17 @@
 /* Define if you have the `krb_get_our_ip_for_realm' function. */
 #undef HAVE_KRB_GET_OUR_IP_FOR_REALM
 
+/* Define if you have the <libutil.h> header file. */
+#undef HAVE_LIBUTIL_H
+
 /* Define if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
+
+/* Define if you have the `localtime_r' function. */
+#undef HAVE_LOCALTIME_R
+
+/* Define if you have the `logout' function. */
+#undef HAVE_LOGOUT
 
 /* Define if you have the `logwtmp' function. */
 #undef HAVE_LOGWTMP
@@ -374,20 +426,20 @@
 /* Define if you have the <maillock.h> header file. */
 #undef HAVE_MAILLOCK_H
 
-/* Define if you have the `MD4_Init' function. */
-#undef HAVE_MD4_INIT
-
-/* Define if you have the `MD5_Init' function. */
-#undef HAVE_MD5_INIT
-
 /* Define if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
+
+/* Define if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
 
 /* Define if you have the `mkstemp' function. */
 #undef HAVE_MKSTEMP
 
 /* Define if you have the `mktime' function. */
 #undef HAVE_MKTIME
+
+/* define if you have a ndbm library */
+#undef HAVE_NDBM
 
 /* Define if you have the <ndbm.h> header file. */
 #undef HAVE_NDBM_H
@@ -431,20 +483,17 @@
 /* Define if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
-/* Define if you have the <openssl/des.h> header file. */
-#undef HAVE_OPENSSL_DES_H
+/* Define if NDBM really is DB (creates files *.db) */
+#undef HAVE_NEW_DB
 
-/* Define if you have the <openssl/md4.h> header file. */
-#undef HAVE_OPENSSL_MD4_H
+/* Define if you have the `on_exit' function. */
+#undef HAVE_ON_EXIT
 
-/* Define if you have the <openssl/md5.h> header file. */
-#undef HAVE_OPENSSL_MD5_H
+/* Define if you have the `openpty' function. */
+#undef HAVE_OPENPTY
 
-/* Define if you have the <openssl/rc4.h> header file. */
-#undef HAVE_OPENSSL_RC4_H
-
-/* Define if you have the <openssl/sha.h> header file. */
-#undef HAVE_OPENSSL_SHA_H
+/* define to use openssl's libcrypto */
+#undef HAVE_OPENSSL
 
 /* define if your system declares optarg */
 #undef HAVE_OPTARG_DECLARATION
@@ -488,9 +537,6 @@
 /* Define if you have the `random' function. */
 #undef HAVE_RANDOM
 
-/* Define if you have the `RC4' function. */
-#undef HAVE_RC4
-
 /* Define if you have the `rcmd' function. */
 #undef HAVE_RCMD
 
@@ -511,9 +557,6 @@
 
 /* Define if you have the `revoke' function. */
 #undef HAVE_REVOKE
-
-/* Define if you have the <rpcsvc/dbm.h> header file. */
-#undef HAVE_RPCSVC_DBM_H
 
 /* Define if you have the <rpcsvc/ypclnt.h> header file. */
 #undef HAVE_RPCSVC_YPCLNT_H
@@ -581,6 +624,9 @@
 /* Define if you have the `setsockopt' function. */
 #undef HAVE_SETSOCKOPT
 
+/* Define if you have the `setstate' function. */
+#undef HAVE_SETSTATE
+
 /* Define if you have the `setutent' function. */
 #undef HAVE_SETUTENT
 
@@ -589,9 +635,6 @@
 
 /* Define if you have the <sgtty.h> header file. */
 #undef HAVE_SGTTY_H
-
-/* Define if you have the `SHA1_Init' function. */
-#undef HAVE_SHA1_INIT
 
 /* Define if you have the <shadow.h> header file. */
 #undef HAVE_SHADOW_H
@@ -617,6 +660,12 @@
 /* Define if you have the <standards.h> header file. */
 #undef HAVE_STANDARDS_H
 
+/* Define if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
 /* Define if you have the `strcasecmp' function. */
 #undef HAVE_STRCASECMP
 
@@ -628,6 +677,12 @@
 
 /* Define if you have the `strftime' function. */
 #undef HAVE_STRFTIME
+
+/* Define if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <string.h> header file. */
+#undef HAVE_STRING_H
 
 /* Define if you have the `strlcat' function. */
 #undef HAVE_STRLCAT
@@ -851,6 +906,9 @@
 /* Define if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
 
+/* Define if you have the <termcap.h> header file. */
+#undef HAVE_TERMCAP_H
+
 /* Define if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
@@ -887,6 +945,18 @@
 /* Define if you have the <udb.h> header file. */
 #undef HAVE_UDB_H
 
+/* Define if the system has the type `uint16_t'. */
+#undef HAVE_UINT16_T
+
+/* Define if the system has the type `uint32_t'. */
+#undef HAVE_UINT32_T
+
+/* Define if the system has the type `uint64_t'. */
+#undef HAVE_UINT64_T
+
+/* Define if the system has the type `uint8_t'. */
+#undef HAVE_UINT8_T
+
 /* Define if you have the `umask' function. */
 #undef HAVE_UMASK
 
@@ -919,6 +989,18 @@
 
 /* Define if you have the <utmp.h> header file. */
 #undef HAVE_UTMP_H
+
+/* Define if the system has the type `u_int16_t'. */
+#undef HAVE_U_INT16_T
+
+/* Define if the system has the type `u_int32_t'. */
+#undef HAVE_U_INT32_T
+
+/* Define if the system has the type `u_int64_t'. */
+#undef HAVE_U_INT64_T
+
+/* Define if the system has the type `u_int8_t'. */
+#undef HAVE_U_INT8_T
 
 /* Define if you have the `vasnprintf' function. */
 #undef HAVE_VASNPRINTF
@@ -959,9 +1041,6 @@
 /* Define if you have the `warnx' function. */
 #undef HAVE_WARNX
 
-/* Define if you have the <winsock.h> header file. */
-#undef HAVE_WINSOCK_H
-
 /* Define if you have the `writev' function. */
 #undef HAVE_WRITEV
 
@@ -1000,12 +1079,6 @@
 
 /* Define if you have the hesiod package. */
 #undef HESIOD
-
-/* Define if you want to use the KDC as a kaserver. */
-#undef KASERVER
-
-/* Define if you want support in hprop for reading kaserver databases */
-#undef KASERVER_DB
 
 /* Define if you have the krb4 package. */
 #undef KRB4
@@ -1184,17 +1257,6 @@
 #endif
 
 
-#ifdef VOID_RETSIGTYPE
-#define SIGRETURN(x) return
-#else
-#define SIGRETURN(x) return (RETSIGTYPE)(x)
-#endif
-
-#ifdef BROKEN_REALLOC
-#define realloc(X, Y) isoc_realloc((X), (Y))
-#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
-#endif
-
 #undef BINDIR 
 #undef LIBDIR
 #undef LIBEXECDIR
@@ -1246,14 +1308,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "\100(#)" msg }
 
 #if defined(HAVE_SGTTY_H) && defined(__NeXT__)
 #define SGTTY
-#endif
-
-/*
- * Define NDBM if you are using the 4.3 ndbm library (which is part of
- * libc).  If not defined, 4.2 dbm will be assumed.
- */
-#if defined(HAVE_DBM_FIRSTKEY)
-#define NDBM
 #endif
 
 /* telnet stuff ----------------------------------------------- */

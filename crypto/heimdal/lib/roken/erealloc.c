@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: erealloc.c,v 1.4 1999/12/02 16:58:45 joda Exp $");
+RCSID("$Id: erealloc.c,v 1.5 2001/06/17 12:08:05 assar Exp $");
 #endif
 
 #include <stdlib.h>
@@ -51,6 +51,6 @@ erealloc (void *ptr, size_t sz)
     void *tmp = realloc (ptr, sz);
 
     if (tmp == NULL && sz != 0)
-	err (1, "realloc %lu", (unsigned long)sz);
+	errx (1, "realloc %lu failed", (unsigned long)sz);
     return tmp;
 }

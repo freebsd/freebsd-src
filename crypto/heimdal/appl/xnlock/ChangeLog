@@ -1,3 +1,7 @@
+2001-06-24  Assar Westerlund  <assar@sics.se>
+
+	* xnlock.c (verify_krb5): remove unused variable
+
 2001-03-15  Johan Danielsson  <joda@pdc.kth.se>
 
 	* xnlock.c: don't explicitly set the krb4 ticket file
@@ -5,6 +9,10 @@
 2000-12-31  Assar Westerlund  <assar@sics.se>
 
 	* xnlock.c (main): handle krb5_init_context failure consistently
+
+2000-07-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: use conditional for X
 
 2000-04-09  Assar Westerlund  <assar@sics.se>
 

@@ -25,7 +25,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-RCSID("$Id: editline.c,v 1.9 1999/12/23 21:27:00 assar Exp $");
+RCSID("$Id: editline.c,v 1.10 2001/09/13 01:19:54 assar Exp $");
 
 /*
 **  Manifest constants.
@@ -47,9 +47,9 @@ RCSID("$Id: editline.c,v 1.9 1999/12/23 21:27:00 assar Exp $");
 /*
 **  Command status codes.
 */
-typedef enum _STATUS {
+typedef enum _el_STATUS {
     CSdone, CSeof, CSmove, CSdispatch, CSstay
-} STATUS;
+} el_STATUS;
 
 /*
 **  The type of case-changing to perform.
@@ -63,7 +63,7 @@ typedef enum _CASE {
 */
 typedef struct _KEYMAP {
     unsigned char	Key;
-    STATUS	(*Function)();
+    el_STATUS	(*Function)();
 } KEYMAP;
 
 /*
@@ -316,7 +316,7 @@ reposition()
 }
 
 static void
-left(STATUS Change)
+left(el_STATUS Change)
 {
     TTYback();
     if (Point) {
@@ -332,14 +332,14 @@ left(STATUS Change)
 }
 
 static void
-right(STATUS Change)
+right(el_STATUS Change)
 {
     TTYshow(Line[Point]);
     if (Change == CSmove)
 	Point++;
 }
 
-static STATUS
+static el_STATUS
 ring_bell()
 {
     TTYput('\07');
@@ -347,7 +347,7 @@ ring_bell()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 do_macro(unsigned char c)
 {
     unsigned char		name[4];
@@ -364,8 +364,8 @@ do_macro(unsigned char c)
     return CSstay;
 }
 
-static STATUS
-do_forward(STATUS move)
+static el_STATUS
+do_forward(el_STATUS move)
 {
     int		i;
     unsigned char	*p;
@@ -388,7 +388,7 @@ do_forward(STATUS move)
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 do_case(CASE type)
 {
     int		i;
@@ -416,13 +416,13 @@ do_case(CASE type)
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 case_down_word()
 {
     return do_case(TOlower);
 }
 
-static STATUS
+static el_STATUS
 case_up_word()
 {
     return do_case(TOupper);
@@ -463,7 +463,7 @@ clear_line()
     Line[0] = '\0';
 }
 
-static STATUS
+static el_STATUS
 insert_string(unsigned char *p)
 {
     size_t	len;
@@ -507,7 +507,7 @@ prev_hist()
     return H.Pos == 0 ? NULL : H.Lines[--H.Pos];
 }
 
-static STATUS
+static el_STATUS
 do_insert_hist(unsigned char *p)
 {
     if (p == NULL)
@@ -519,7 +519,7 @@ do_insert_hist(unsigned char *p)
     return insert_string(p);
 }
 
-static STATUS
+static el_STATUS
 do_hist(unsigned char *(*move)())
 {
     unsigned char	*p;
@@ -533,25 +533,25 @@ do_hist(unsigned char *(*move)())
     return do_insert_hist(p);
 }
 
-static STATUS
+static el_STATUS
 h_next()
 {
     return do_hist(next_hist);
 }
 
-static STATUS
+static el_STATUS
 h_prev()
 {
     return do_hist(prev_hist);
 }
 
-static STATUS
+static el_STATUS
 h_first()
 {
     return do_insert_hist(H.Lines[H.Pos = 0]);
 }
 
-static STATUS
+static el_STATUS
 h_last()
 {
     return do_insert_hist(H.Lines[H.Pos = H.Size - 1]);
@@ -612,7 +612,7 @@ search_hist(unsigned char *search, unsigned char *(*move)())
     return NULL;
 }
 
-static STATUS
+static el_STATUS
 h_search()
 {
     static int	Searching;
@@ -638,7 +638,7 @@ h_search()
     return do_insert_hist(p);
 }
 
-static STATUS
+static el_STATUS
 fd_char()
 {
     int		i;
@@ -669,7 +669,7 @@ save_yank(int begin, int i)
     }
 }
 
-static STATUS
+static el_STATUS
 delete_string(int count)
 {
     int		i;
@@ -711,7 +711,7 @@ delete_string(int count)
     return CSmove;
 }
 
-static STATUS
+static el_STATUS
 bk_char()
 {
     int		i;
@@ -726,7 +726,7 @@ bk_char()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 bk_del_char()
 {
     int		i;
@@ -741,7 +741,7 @@ bk_del_char()
     return delete_string(i);
 }
 
-static STATUS
+static el_STATUS
 redisplay()
 {
     TTYputs(NEWLINE);
@@ -750,7 +750,7 @@ redisplay()
     return CSmove;
 }
 
-static STATUS
+static el_STATUS
 kill_line()
 {
     int		i;
@@ -776,10 +776,10 @@ kill_line()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 insert_char(int c)
 {
-    STATUS	s;
+    el_STATUS	s;
     unsigned char	buff[2];
     unsigned char	*p;
     unsigned char	*q;
@@ -802,7 +802,7 @@ insert_char(int c)
     return s;
 }
 
-static STATUS
+static el_STATUS
 meta()
 {
     unsigned int	c;
@@ -838,10 +838,10 @@ meta()
     return ring_bell();
 }
 
-static STATUS
+static el_STATUS
 emacs(unsigned int c)
 {
-    STATUS		s;
+    el_STATUS		s;
     KEYMAP		*kp;
 
     if (ISMETA(c)) {
@@ -859,7 +859,7 @@ emacs(unsigned int c)
     return s;
 }
 
-static STATUS
+static el_STATUS
 TTYspecial(unsigned int c)
 {
     if (ISMETA(c))
@@ -999,7 +999,7 @@ add_history(char *p)
 }
 
 
-static STATUS
+static el_STATUS
 beg_line()
 {
     if (Point) {
@@ -1009,13 +1009,13 @@ beg_line()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 del_char()
 {
     return delete_string(Repeat == NO_ARG ? 1 : Repeat);
 }
 
-static STATUS
+static el_STATUS
 end_line()
 {
     if (Point != End) {
@@ -1047,13 +1047,13 @@ find_word()
     return new;
 }
 
-static STATUS
+static el_STATUS
 c_complete()
 {
     unsigned char	*p;
     unsigned char	*word;
     int		unique;
-    STATUS	s;
+    el_STATUS	s;
 
     word = find_word();
     p = (unsigned char *)rl_complete((char *)word, &unique);
@@ -1069,7 +1069,7 @@ c_complete()
     return ring_bell();
 }
 
-static STATUS
+static el_STATUS
 c_possible()
 {
     unsigned char	**av;
@@ -1090,14 +1090,14 @@ c_possible()
     return ring_bell();
 }
 
-static STATUS
+static el_STATUS
 accept_line()
 {
     Line[End] = '\0';
     return CSdone;
 }
 
-static STATUS
+static el_STATUS
 transpose()
 {
     unsigned char	c;
@@ -1115,7 +1115,7 @@ transpose()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 quote()
 {
     unsigned int	c;
@@ -1123,7 +1123,7 @@ quote()
     return (c = TTYget()) == EOF ? CSeof : insert_char((int)c);
 }
 
-static STATUS
+static el_STATUS
 wipe()
 {
     int		i;
@@ -1141,14 +1141,14 @@ wipe()
     return delete_string(Mark - Point);
 }
 
-static STATUS
+static el_STATUS
 mk_set()
 {
     Mark = Point;
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 exchange()
 {
     unsigned int	c;
@@ -1164,7 +1164,7 @@ exchange()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 yank()
 {
     if (Yanked && *Yanked)
@@ -1172,7 +1172,7 @@ yank()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 copy_region()
 {
     if (Mark > End)
@@ -1186,7 +1186,7 @@ copy_region()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 move_to_char()
 {
     unsigned int	c;
@@ -1203,13 +1203,13 @@ move_to_char()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 fd_word()
 {
     return do_forward(CSmove);
 }
 
-static STATUS
+static el_STATUS
 fd_kill_word()
 {
     int		i;
@@ -1223,7 +1223,7 @@ fd_kill_word()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 bk_word()
 {
     int		i;
@@ -1244,7 +1244,7 @@ bk_word()
     return CSstay;
 }
 
-static STATUS
+static el_STATUS
 bk_kill_word()
 {
     bk_word();
@@ -1297,12 +1297,12 @@ argify(unsigned char *line, unsigned char ***avp)
     return ac;
 }
 
-static STATUS
+static el_STATUS
 last_argument()
 {
     unsigned char	**av;
     unsigned char	*p;
-    STATUS	s;
+    el_STATUS	s;
     int		ac;
 
     if (H.Size == 1 || (p = H.Lines[H.Size - 2]) == NULL)

@@ -33,7 +33,7 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: common.c,v 1.8 2001/01/30 01:22:17 assar Exp $");
+RCSID("$Id: common.c,v 1.10 2001/07/13 06:30:41 assar Exp $");
 
 int
 hdb_principal2key(krb5_context context, krb5_principal p, krb5_data *key)
@@ -50,6 +50,7 @@ hdb_principal2key(krb5_context context, krb5_principal p, krb5_data *key)
     len = length_Principal(&new);
     buf  = malloc(len);
     if(buf == NULL){
+	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
 	goto out;
     }
@@ -80,8 +81,10 @@ hdb_entry2value(krb5_context context, hdb_entry *ent, krb5_data *value)
 
     len = length_hdb_entry(ent);
     buf = malloc(len);
-    if(buf == NULL)
+    if(buf == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     ret = encode_hdb_entry(buf + len - 1, len, ent, &len);
     if(ret){
 	free(buf);
@@ -125,6 +128,19 @@ _hdb_store(krb5_context context, HDB *db, unsigned flags, hdb_entry *entry)
     krb5_data key, value;
     int code;
 
+    if(entry->generation == NULL) {
+	struct timeval t;
+	entry->generation = malloc(sizeof(*entry->generation));
+	if(entry->generation == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
+	    return ENOMEM;
+	}
+	gettimeofday(&t, NULL);
+	entry->generation->time = t.tv_sec;
+	entry->generation->usec = t.tv_usec;
+	entry->generation->gen = 0;
+    } else
+	entry->generation->gen++;
     hdb_principal2key(context, entry->principal, &key);
     code = hdb_seal_keys(context, db, entry);
     if (code) {

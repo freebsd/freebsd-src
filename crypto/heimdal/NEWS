@@ -1,3 +1,74 @@
+Changes in release 0.4e
+
+ * improve libcrypto and database autoconf tests
+
+ * do not care about salting of server principals when serving v4 requests
+
+ * some improvements to gssapi library
+
+ * test for existing compile_et/libcom_err
+
+ * portability fixes
+
+ * bug fixes
+
+Changes in release 0.4d
+
+ * fix some problems when using libcrypto from openssl
+
+ * handle /dev/ptmx `unix98' ptys on Linux
+
+ * add some forgotten man pages
+
+ * rsh: clean-up and add man page
+
+ * fix -A and -a in builtin-ls in tpd
+
+ * fix building problem on Irix
+
+ * make `ktutil get' more efficient
+
+ * bug fixes
+
+Changes in release 0.4c
+
+ * fix buffer overrun in telnetd
+
+ * repair some of the v4 fallback code in kinit
+
+ * add more shared library dependencies
+
+ * simplify and fix hprop handling of v4 databases
+
+ * fix some building problems (osf's sia and osfc2 login)
+
+ * bug fixes
+
+Changes in release 0.4b
+
+ * update the shared library version numbers correctly
+
+Changes in release 0.4a
+
+ * corrected key used for checksum in mk_safe, unfortunately this
+   makes it backwards incompatible
+
+ * update to autoconf 2.50, libtool 1.4
+
+ * re-write dns/config lookups (krb5_krbhst API)
+
+ * make order of using subkeys consistent
+
+ * add man page links
+
+ * add more man pages
+
+ * remove rfc2052 support, now only rfc2782 is supported
+
+ * always build with kaserver protocol support in the KDC (assuming
+   KRB4 is enabled) and support for reading kaserver databases in
+   hprop
+
 Changes in release 0.3f
 
  * change default keytab to ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab,

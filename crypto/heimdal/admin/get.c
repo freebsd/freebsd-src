@@ -33,14 +33,55 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: get.c,v 1.18 2001/05/10 15:42:01 assar Exp $");
+RCSID("$Id: get.c,v 1.21 2001/10/29 12:53:52 nectar Exp $");
+
+static void*
+open_kadmin_connection(char *principal,
+		       const char *realm, 
+		       char *admin_server, 
+		       int server_port)
+{
+    static kadm5_config_params conf;
+    krb5_error_code ret;
+    void *kadm_handle;
+    memset(&conf, 0, sizeof(conf));
+
+    if(realm) {
+	conf.realm = (char*)realm;
+	conf.mask |= KADM5_CONFIG_REALM;
+    }
+    
+    if (admin_server) {
+	conf.admin_server = admin_server;
+	conf.mask |= KADM5_CONFIG_ADMIN_SERVER;
+    }
+
+    if (server_port) {
+	conf.kadmind_port = htons(server_port);
+	conf.mask |= KADM5_CONFIG_KADMIND_PORT;
+    }
+
+    /* should get realm from each principal, instead of doing
+       everything with the same (local) realm */
+
+    ret = kadm5_init_with_password_ctx(context, 
+				       principal,
+				       NULL,
+				       KADM5_ADMIN_SERVICE,
+				       &conf, 0, 0, 
+				       &kadm_handle);
+    if(ret) {
+	krb5_warn(context, ret, "kadm5_init_with_password");
+	return NULL;
+    }
+    return kadm_handle;
+}
 
 int
 kt_get(int argc, char **argv)
 {
     krb5_error_code ret = 0;
     krb5_keytab keytab;
-    kadm5_config_params conf;
     void *kadm_handle = NULL;
     char *principal = NULL;
     char *realm = NULL;
@@ -78,29 +119,24 @@ kt_get(int argc, char **argv)
     args[4].value = &server_port;
     args[5].value = &help_flag;
 
-    memset(&conf, 0, sizeof(conf));
-
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind)
        || help_flag) {
 	arg_printusage(args, sizeof(args) / sizeof(args[0]), 
 		       "ktutil get", "principal...");
 	return 1;
     }
-    
-    if (keytab_string == NULL) {
-	ret = krb5_kt_default_modify_name (context, keytab_buf,
-					   sizeof(keytab_buf));
-	if (ret) {
-	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
-	    return 1;
-	}
-	keytab_string = keytab_buf;
-    }
-    ret = krb5_kt_resolve(context, keytab_string, &keytab);
-    if (ret) {
-	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+    if(optind == argc) {
+	krb5_warnx(context, "no principals specified");
+	arg_printusage(args, sizeof(args) / sizeof(args[0]), 
+		       "ktutil get", "principal...");
 	return 1;
     }
+    
+    if((keytab = ktutil_open_keytab()) == NULL)
+	return 1;
+
+    if(realm)
+	krb5_set_default_realm(context, realm);
 
     if (etype_strs.num_strings) {
 	int i;
@@ -123,33 +159,6 @@ kt_get(int argc, char **argv)
 	}
     }
 
-    if(realm) {
-	krb5_set_default_realm(context, realm); /* XXX should be fixed
-						   some other way */
-	conf.realm = realm;
-	conf.mask |= KADM5_CONFIG_REALM;
-    }
-    
-    if (admin_server) {
-	conf.admin_server = admin_server;
-	conf.mask |= KADM5_CONFIG_ADMIN_SERVER;
-    }
-
-    if (server_port) {
-	conf.kadmind_port = htons(server_port);
-	conf.mask |= KADM5_CONFIG_KADMIND_PORT;
-    }
-
-    ret = kadm5_init_with_password_ctx(context, 
-				       principal,
-				       NULL,
-				       KADM5_ADMIN_SERVICE,
-				       &conf, 0, 0, 
-				       &kadm_handle);
-    if(ret) {
-	krb5_warn(context, ret, "kadm5_init_with_password");
-	goto out;
-    }
     
     for(i = optind; i < argc; i++){
 	krb5_principal princ_ent;
@@ -168,6 +177,21 @@ kt_get(int argc, char **argv)
 	mask |= KADM5_ATTRIBUTES;
 	princ.princ_expire_time = 0;
 	mask |= KADM5_PRINC_EXPIRE_TIME;
+
+	if(kadm_handle == NULL) {
+	    const char *r;
+	    if(realm != NULL)
+		r = realm;
+	    else
+		r = krb5_principal_get_realm(context, princ_ent);
+	    kadm_handle = open_kadmin_connection(principal, 
+						 r, 
+						 admin_server, 
+						 server_port);
+	    if(kadm_handle == NULL) {
+		break;
+	    }
+	}
 	
 	ret = kadm5_create_principal(kadm_handle, &princ, mask, "x");
 	if(ret == 0)

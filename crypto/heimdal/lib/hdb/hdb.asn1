@@ -1,4 +1,4 @@
--- $Id: hdb.asn1,v 1.8 2000/06/19 15:22:22 joda Exp $
+-- $Id: hdb.asn1,v 1.9 2001/06/21 14:54:53 joda Exp $
 HDB DEFINITIONS ::=
 BEGIN
 
@@ -7,7 +7,7 @@ IMPORTS EncryptionKey, KerberosTime, Principal FROM krb5;
 HDB_DB_FORMAT INTEGER ::= 2	-- format of database, 
 				-- update when making changes
 
--- these should have the same value as the pa-* counterparts
+-- these must have the same value as the pa-* counterparts
 hdb-pw-salt	INTEGER	::= 3
 hdb-afs3-salt	INTEGER	::= 10
 
@@ -44,6 +44,12 @@ HDBFlags ::= BIT STRING {
 	immutable(13)		-- may not be deleted
 }
 
+GENERATION ::= SEQUENCE {
+	time[0]		KerberosTime,	-- timestamp
+	usec[1]		INTEGER,	-- microseconds
+	gen[2]		INTEGER		-- generation number
+}
+
 hdb_entry ::= SEQUENCE {
 	principal[0]	Principal  OPTIONAL, -- this is optional only 
 					     -- for compatibility with libkrb5
@@ -57,7 +63,8 @@ hdb_entry ::= SEQUENCE {
 	max-life[8]	INTEGER OPTIONAL,
 	max-renew[9]	INTEGER OPTIONAL,
 	flags[10]	HDBFlags,
-	etypes[11]	SEQUENCE OF INTEGER OPTIONAL
+	etypes[11]	SEQUENCE OF INTEGER OPTIONAL,
+	generation[12]	GENERATION OPTIONAL
 }
 
 END

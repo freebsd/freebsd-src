@@ -1,4 +1,4 @@
-@c $Id: win2k.texi,v 1.13 2001/02/24 05:09:24 assar Exp $
+@c $Id: win2k.texi,v 1.15 2001/07/19 16:44:41 assar Exp $
 
 @node Windows 2000 compatability, Programming with Kerberos, Kerberos 4 issues, Top
 @comment  node-name,  next,  previous,  up
@@ -130,7 +130,7 @@ similar to the following if you have it, at least while adding the
 principals that are going to share keys with Windows 2000.
 
 @example
-	[kadmin]default_keys = des3:pw-salt des:pw-salt des:pw-salt:
+	[kadmin]default_keys = v5 v4
 @end example
 
 You must also set:
@@ -239,6 +239,10 @@ unsupported types are generated.
 @node Useful links when reading about the Windows 2000,  , Quirks of Windows 2000 KDC, Windows 2000 compatability
 @comment  node-name,  next,  previous,  up
 @section Useful links when reading about the Windows 2000
+
+See also our paper presented at the 2001 usenix Annual Technical
+Conference, available in the proceedings or at
+@url{http://www.usenix.org/publications/library/proceedings/usenix01/freenix01/westerlund.html}.
 
 There are lots of text about Kerberos on Microsoft's web site, here is a
 short list of the interesting documents that we have managed to find.

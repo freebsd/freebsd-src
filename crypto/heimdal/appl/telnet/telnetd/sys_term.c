@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: sys_term.c,v 1.100 2001/04/24 23:11:43 assar Exp $");
+RCSID("$Id: sys_term.c,v 1.104 2001/09/17 02:09:04 assar Exp $");
 
 #if defined(_CRAY) || (defined(__hpux) && !defined(HAVE_UTMPX_H))
 # define PARENT_DOES_UTMP
@@ -102,6 +102,8 @@ char	wtmpf[]	= "/etc/wtmp";
 
 #endif /* STREAMSPTY */
 
+#undef NOERROR
+
 #ifdef	HAVE_SYS_STREAM_H
 #ifdef  HAVE_SYS_UIO_H
 #include <sys/uio.h>
@@ -141,6 +143,9 @@ char	wtmpf[]	= "/etc/wtmp";
 
 #ifdef HAVE_UTIL_H
 #include <util.h>
+#endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
 #endif
 
 # ifndef	TCSANOW
@@ -398,7 +403,7 @@ int getpty(int *ptynum)
 #if SunOS == 40
     int dummy;
 #endif
-#if 0 /* && defined(HAVE_OPENPTY) */
+#if __linux
     int master;
     int slave;
     if(openpty(&master, &slave, line, 0, 0) == 0){
@@ -822,8 +827,6 @@ void getptyslave(void)
     int t = -1;
 
     struct winsize ws;
-    extern int def_row, def_col;
-    extern int def_tspeed, def_rspeed;
     /*
      * Opening the slave side may cause initilization of the
      * kernel tty structure.  We need remember the state of
