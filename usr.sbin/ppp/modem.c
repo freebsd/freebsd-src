@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.44 1997/06/23 23:10:13 brian Exp $
+ * $Id: modem.c,v 1.45 1997/07/14 01:41:29 brian Exp $
  *
  *  TODO:
  */
@@ -788,10 +788,11 @@ ShowModemStatus()
     fprintf(VarTerm, "fd = %d, modem control = %o\n", modem, mbits);
   fprintf(VarTerm, "connect count: %d\n", connect_count);
 #ifdef TIOCOUTQ
-  if (ioctl(modem, TIOCOUTQ, &nb) > 0)
-     fprintf(VarTerm, "outq: %d\n", nb);
-  else
-     fprintf(VarTerm, "outq: ioctl probe failed.\n");
+  if (modem >= 0)
+    if (ioctl(modem, TIOCOUTQ, &nb) > 0)
+      fprintf(VarTerm, "outq: %d\n", nb);
+    else
+      fprintf(VarTerm, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
   fprintf(VarTerm, "outqlen: %d\n", ModemQlen());
   fprintf(VarTerm, "DialScript  = %s\n", VarDialScript);
