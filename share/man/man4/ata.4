@@ -86,7 +86,7 @@ The following tunables are settable from the loader:
 .It Va hw.ata.ata_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.atapi_dma
-set to 1 for DMA access, 0 for PIO (default is PIO).
+set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.wc
 set to 1 to enable Write Caching, 0 to disable (default is enabled).
 .Em WARNING :
@@ -161,7 +161,10 @@ or could not be detected properly,
 or that one of the devices on the channel only accepts up
 to UDMA2/ATA33.
 .Pp
-ATAPI devices are set to PIO mode by default because severe DMA problems are
+Unknown ATAPI devices are initialized to DMA mode if the
+.Va hw.ata.atapi_dma
+tunable is set to 1 and they support at least UDMA33 transfers.
+Otherwise they are set to PIO mode because severe DMA problems are
 common even if the device capabilities indicate support.
 You can always try to set DMA mode on an ATAPI device using
 .Xr atacontrol 8 ,
