@@ -50,11 +50,14 @@
 #include <string.h>
 #include <unistd.h>
 
+extern int dvrecv(int, char *, char, int);
+extern int dvsend(int, char *, char, int);
+
 static void
 usage(void)
 {
 	printf("fwcontrol [-g gap_count] [-b pri_req] [-c node]"
-		" [-r] [-t] [-d node] [-l file]\n");
+		" [-r] [-t] [-d node] [-l file] [-R file] [-S file]\n");
 	printf("\t-g: broadcast gap_count by phy_config packet\n");
 	printf("\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
 	printf("\t-c: read configuration ROM\n");
@@ -62,6 +65,8 @@ usage(void)
 	printf("\t-t: read topology map\n");
 	printf("\t-d: hex dump of configuration ROM\n");
 	printf("\t-l: load and parse hex dump file of configuration ROM\n");
+	printf("\t-R: Receive DV stream\n");
+	printf("\t-S: Send DV stream\n");
 	exit(0);
 }
 
@@ -353,7 +358,7 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:")) != -1)
+	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:R:S:")) != -1)
 		switch(ch) {
 		case 'g':
 			/* gap count */
@@ -384,6 +389,14 @@ main(int argc, char **argv)
 		case 'l':
 			load_crom(optarg, crom_buf);
 			show_crom(crom_buf);
+			break;
+#define TAG	(1<<6)
+#define CHANNEL	63
+		case 'R':
+			dvrecv(fd, optarg, TAG | CHANNEL, -1);
+			break;
+		case 'S':
+			dvsend(fd, optarg, TAG | CHANNEL, -1);
 			break;
 		default:
 			usage();

@@ -39,6 +39,8 @@
 .Op Fl l Ar file
 .Op Fl g Ar gap_count
 .Op Fl b Ar pri_req
+.Op Fl R Ar filename
+.Op Fl S Ar filename
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,7 +63,39 @@ Load hex dump file of the configuration ROM and parse it.
 Broadcast gap_count by phy_config packet.
 .It Fl i Ar pri_req
 Set PRIORITY_BUDGET register on all supported nodes.
+.It Fl R Ar filename
+Receive DV stream and dump it to a file. Use Ctl-C to stop the receiving.
+Some DV cameras seem not to send the stream if a bus manager exits.
+If you cannot get the stream, try the following commands.
+.Bd -literal -offset indent
+sysctl hw.firewire.try_bmr=0; fwcontrol -r
+.Ed
+.It Fl S Ar filename
+Send a DV file as isochronus stream.
 .El
+.Sh EXAMPLES
+Each DV frame has fixed size and it is easy to edit those frame order.
+.Bd -literal -offset indent
+fwcontrol -R original.dv
+.Ed
+.Pp
+Receive stream.
+.Bd -literal -offset indent
+dd if=original.dv of=first.dv bs=120000 count=30
+.Ed
+.Pp
+Get first 30 frames(NTSC).
+.Bd -literal -offset indent
+dd if=original.dv of=second.dv bs=120000 skip=30 count=30
+.Ed
+.Pp
+Get second 30 frames(NTSC).
+.Bd -literal -offset indent
+cat second.dv first.dv | fwcontrol -S /dev/stdin
+.Ed
+.Pp
+Swap first and second 30 frames and send them to DV recorder.
+For PAL, replace 'bs=120000' with 'bs=144000'.
 
 .Sh FILES
 .Bl -tag -width indent
