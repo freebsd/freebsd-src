@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 # include	<sys/endian.h>
 # include	<stdio.h>
 # include	<ctype.h>
+# include	<err.h>
 # include	<stdlib.h>
 # include       <string.h>
 # include	"strfile.h"
@@ -75,49 +76,37 @@ char	*Infile,			/* name of input file */
 
 FILE	*Inf, *Dataf;
 
-void getargs(char *[]), order_unstr(STRFILE *);
+void order_unstr(STRFILE *);
 
 /* ARGSUSED */
 int main(int ac, char **av)
 {
 	static STRFILE	tbl;		/* description table */
 
-	getargs(av);
-	if ((Inf = fopen(Infile, "r")) == NULL) {
-		perror(Infile);
+	if (ac != 2) {
+		(void)fprintf(stderr, "usage: unstr datafile\n");
 		exit(1);
 	}
-	if ((Dataf = fopen(Datafile, "r")) == NULL) {
-		perror(Datafile);
-		exit(1);
-	}
+	Infile = av[1];
+	(void) strcpy(Datafile, Infile);
+	(void) strcat(Datafile, ".dat");
+	if ((Inf = fopen(Infile, "r")) == NULL)
+		err(1, "%s", Infile);
+	if ((Dataf = fopen(Datafile, "r")) == NULL)
+		err(1, "%s", Datafile);
 	(void) fread((char *) &tbl, sizeof tbl, 1, Dataf);
 	tbl.str_version = be32toh(tbl.str_version);
 	tbl.str_numstr = be32toh(tbl.str_numstr);
 	tbl.str_longlen = be32toh(tbl.str_longlen);
 	tbl.str_shortlen = be32toh(tbl.str_shortlen);
 	tbl.str_flags = be32toh(tbl.str_flags);
-	if (!(tbl.str_flags & (STR_ORDERED | STR_RANDOM))) {
-		fprintf(stderr, "nothing to do -- table in file order\n");
-		exit(1);
-	}
+	if (!(tbl.str_flags & (STR_ORDERED | STR_RANDOM)))
+		errx(1, "nothing to do -- table in file order");
 	Delimch = tbl.str_delim;
 	order_unstr(&tbl);
 	(void) fclose(Inf);
 	(void) fclose(Dataf);
 	exit(0);
-}
-
-void getargs(av)
-char	*av[];
-{
-	if (!*++av) {
-		(void) fprintf(stderr, "usage: unstr datafile\n");
-		exit(1);
-	}
-	Infile = *av;
-	(void) strcpy(Datafile, Infile);
-	(void) strcat(Datafile, ".dat");
 }
 
 void order_unstr(tbl)
