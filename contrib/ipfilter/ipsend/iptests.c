@@ -1,16 +1,8 @@
 /*
  * Copyright (C) 1993-1998 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
- *
- * $FreeBSD$
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1 1999/08/04 17:31:09 darrenr Exp $";
-#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -82,6 +74,11 @@ static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1 1999/08/04 17:31:09 darren
 # include <sys/sysmacros.h>
 #endif
 #include "ipsend.h"
+
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$FreeBSD$";
+#endif
 
 
 #define	PAUSE()	tv.tv_sec = 0; tv.tv_usec = 10000; \
