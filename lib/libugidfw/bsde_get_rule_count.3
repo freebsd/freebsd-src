@@ -1,12 +1,12 @@
 .\" Copyright (c) 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and Network Associates
 .\" Laboratories, the Security Research Division of Network Associates,
 .\" Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part
 .\" of the DARPA CHATS research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -15,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,15 +27,16 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.Dd JANUARY 7, 2003
+.\"
+.Dd January 7, 2003
 .Os
 .Dt BSDE_GET_RULE_COUNT 3
 .Sh NAME
 .Nm bsde_get_rule_count ,
 .Nm bsde_get_rule_slots
-.Nd file system firewall statistics
+.Nd "file system firewall statistics"
 .Sh LIBRARY
 .Lb libugidfw
 .Sh SYNOPSIS
@@ -49,6 +50,7 @@ The
 .Fn bsde_get_rule_count
 and
 .Fn bsde_get_rule_slots
+functions
 return the total number of enforced rules
 and the total number of used rule slots, respectively.
 If an error occurs,
@@ -56,7 +58,8 @@ If an error occurs,
 is filled in with the error string
 (up to
 .Fa errlen
-characters, including the terminating NUL).
+characters, including the terminating
+.Dv NUL ) .
 .Sh RETURN VALUES
 The
 .Fn bsde_get_rule_count
@@ -65,9 +68,7 @@ and
 functions return
 the number of enforced rules and rule slots (respectively)
 if successful;
-otherwise the value
-.Li \&-1
-is returned and the value of
+otherwise the value \-1 is returned and the value of
 .Fa *errstr
 is filled in as documented in
 .Sx DESCRIPTION .
@@ -86,5 +87,6 @@ This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
