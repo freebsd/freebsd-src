@@ -32,7 +32,6 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/sysctl.h>
 
 #include <sys/devicestat.h>
@@ -227,23 +226,6 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 		printf("devstat_end_transaction: HELP!! busy_count "
 		       "for %s%d is < 0 (%d)!\n", ds->device_name,
 		       ds->unit_number, ds->busy_count);
-}
-
-void
-devstat_end_transaction_buf(struct devstat *ds, struct buf *bp)
-{
-	devstat_trans_flags flg;
-
-	if (bp->b_iocmd == BIO_DELETE)
-		flg = DEVSTAT_FREE;
-	else if (bp->b_iocmd == BIO_READ)
-		flg = DEVSTAT_READ;
-	else
-		flg = DEVSTAT_WRITE;
-
-	devstat_end_transaction(ds, bp->b_bcount - bp->b_resid,
-				(bp->b_ioflags & BIO_ORDERED) ?
-				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE, flg);
 }
 
 void
