@@ -438,14 +438,20 @@ hatm_stop_tpds(struct hatm_softc *sc)
 static void
 hatm_destroy(struct hatm_softc *sc)
 {
+	u_int cid;
+
 	bus_teardown_intr(sc->dev, sc->irqres, sc->ih);
 
 	hatm_destroy_rmaps(sc);
 	hatm_destroy_smbufs(sc);
 	hatm_destroy_tpds(sc);
 
-	if (sc->vcc_zone != NULL)
+	if (sc->vcc_zone != NULL) {
+		for (cid = 0; cid < HE_MAX_VCCS; cid++)
+			if (sc->vccs[cid] != NULL)
+				uma_zfree(sc->vcc_zone, sc->vccs[cid]);
 		uma_zdestroy(sc->vcc_zone);
+	}
 
 	/*
 	 * Release all memory allocated to the various queues and
@@ -1954,6 +1960,7 @@ void
 hatm_initialize(struct hatm_softc *sc)
 {
 	uint32_t v;
+	u_int cid;
 	static const u_int layout[2][7] = HE_CONFIG_MEM_LAYOUT;
 
 	if (sc->ifatm.ifnet.if_flags & IFF_RUNNING)
@@ -2231,6 +2238,11 @@ hatm_initialize(struct hatm_softc *sc)
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
 
+	/* reopen vccs */
+	for (cid = 0; cid < HE_MAX_VCCS; cid++)
+		if (sc->vccs[cid] != NULL)
+			hatm_load_vc(sc, cid, 1);
+
 	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
 	    sc->utopia.carrier == UTP_CARR_OK);
 }
@@ -2343,19 +2355,23 @@ hatm_stop(struct hatm_softc *sc)
 	 */
 	for (cid = 0; cid < HE_MAX_VCCS; cid++) {
 		if (sc->vccs[cid] != NULL) {
-			if (sc->vccs[cid]->chain != NULL)
+			if (sc->vccs[cid]->chain != NULL) {
 				m_freem(sc->vccs[cid]->chain);
-			uma_zfree(sc->vcc_zone, sc->vccs[cid]);
+				sc->vccs[cid]->chain = NULL;
+				sc->vccs[cid]->last = NULL;
+			}
+			if (!(sc->vccs[cid]->vflags & (HE_VCC_RX_OPEN |
+			    HE_VCC_TX_OPEN))) {
+				hatm_tx_vcc_closed(sc, cid);
+				uma_zfree(sc->vcc_zone, sc->vccs[cid]);
+				sc->vccs[cid] = NULL;
+				sc->open_vccs--;
+			} else {
+				sc->vccs[cid]->vflags = 0;
+				sc->vccs[cid]->ntpds = 0;
+			}
 		}
 	}
-	bzero(sc->vccs, sizeof(sc->vccs));
-	sc->cbr_bw = 0;
-	sc->open_vccs = 0;
-
-	/*
-	 * Reset CBR rate groups
-	 */
-	bzero(sc->rate_ctrl, sizeof(sc->rate_ctrl));
 
 	if (sc->rbp_s0.size != 0)
 		bzero(sc->rbp_s0.mem.base, sc->rbp_s0.mem.size);
