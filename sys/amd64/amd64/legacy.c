@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -132,30 +133,23 @@ legacy_attach(device_t dev)
 {
 	device_t child;
 	int i;
-	struct pcpu *pc;
+
+	/* First, attach the CPU pseudo-driver. */
+	for (i = 0; i <= mp_maxid; i++)
+		if (!CPU_ABSENT(i)) {
+			child = BUS_ADD_CHILD(dev, 0, "cpu", i);
+			if (child == NULL)
+				panic("legacy_attach cpu");
+			device_probe_and_attach(child);
+		}
 
 	/*
-	 * First, let our child driver's identify any child devices that
+	 * Second, let our child driver's identify any child devices that
 	 * they can find.  Once that is done attach any devices that we
 	 * found.
 	 */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-
-	/* Attach CPU pseudo-driver. */
-	if (!devclass_get_device(devclass_find("cpu"), 0)) {
-		for (i = 0; i <= mp_maxid; i++)
-			if (!CPU_ABSENT(i)) {
-				pc = pcpu_find(i);
-				KASSERT(pc != NULL, ("pcpu_find failed"));
-				child = BUS_ADD_CHILD(dev, 0, "cpu", i);
-				if (child == NULL)
-					panic("legacy_attach cpu");
-				device_probe_and_attach(child);
-				pc->pc_device = child;
-				device_set_ivars(child, pc);
-			}
-	}
 
 	/*
 	 * If we didn't see ISA on a pci bridge, create some
@@ -244,6 +238,14 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  */
 static int	cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
+static device_t cpu_add_child(device_t bus, int order, const char *name,
+		    int unit);
+static struct resource_list *cpu_get_rlist(device_t dev, device_t child);
+
+struct cpu_device {
+	struct resource_list cd_rl;
+	struct pcpu *cd_pcpu;
+};
 
 static device_method_t cpu_methods[] = {
 	/* Device interface */
@@ -255,10 +257,15 @@ static device_method_t cpu_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_add_child,	cpu_add_child),
 	DEVMETHOD(bus_read_ivar,	cpu_read_ivar),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_get_resource_list, cpu_get_rlist),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
@@ -275,16 +282,46 @@ static driver_t cpu_driver = {
 static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
 
+static device_t
+cpu_add_child(device_t bus, int order, const char *name, int unit)
+{
+	struct cpu_device *cd;
+	device_t child;
+	struct pcpu *pc;
+
+	if ((cd = malloc(sizeof(*cd), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL)
+		return (NULL);
+
+	resource_list_init(&cd->cd_rl);
+	pc = pcpu_find(device_get_unit(bus));
+	cd->cd_pcpu = pc;
+
+	child = device_add_child_ordered(bus, order, name, unit);
+	if (child != NULL) {
+		pc->pc_device = child;
+		device_set_ivars(child, cd);
+	} else
+		free(cd, M_DEVBUF);
+	return (child);
+}
+
+static struct resource_list *
+cpu_get_rlist(device_t dev, device_t child)
+{
+	struct cpu_device *cpdev;
+
+	cpdev = device_get_ivars(child);
+	return (&cpdev->cd_rl);
+}
+
 static int
 cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
-	struct pcpu *pc;
+	struct cpu_device *cpdev;
 
-	if (index != 0)
+	if (index != CPU_IVAR_PCPU)
 		return (ENOENT);
-	pc = device_get_ivars(child);
-	if (pc == NULL)
-		return (ENOENT);
-	*result = (uintptr_t)pc;
+	cpdev = device_get_ivars(child);
+	*result = (uintptr_t)cpdev->cd_pcpu;
 	return (0);
 }
