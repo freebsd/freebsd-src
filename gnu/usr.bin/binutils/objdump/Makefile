@@ -8,6 +8,7 @@ PROG=		objdump
 SRCS=		objdump.c prdbg.c
 CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+=	-I${SRCDIR}/binutils
+CFLAGS+=	-DBFD_VERSION=\"${VERSION}\"
 DPADD=		${RELTOP}/libbinutils/libbinutils.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
 DPADD+=		${RELTOP}/libbfd/libbfd.a

@@ -12,6 +12,7 @@ SRCS=		argv.c basename.c choose-temp.c concat.c cplus-dem.c \
 		hex.c floatformat.c objalloc.c obstack.c spaces.c \
 		strerror.c strsignal.c xatexit.c xexit.c xmalloc.c \
 		xstrdup.c xstrerror.c insque.c
+CFLAGS+=	-DHAVE_CONFIG_H
 NOPROFILE=	true
 NOPIC=		true
 INTERNALLIB=	true
