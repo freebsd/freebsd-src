@@ -2708,11 +2708,11 @@ dbxout_function (decl)
      tree decl;
 {
 #ifndef DBX_FUNCTION_FIRST
-  dbxout_really_begin_function (decl);
-#else
 #ifdef DBX_CHECK_FUNCTION_FIRST
   if (!(DBX_CHECK_FUNCTION_FIRST))
     dbxout_really_begin_function (decl);
+#else
+  dbxout_really_begin_function (decl);
 #endif
 #endif
   dbxout_block (DECL_INITIAL (decl), 0, DECL_ARGUMENTS (decl));
