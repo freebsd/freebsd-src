@@ -110,7 +110,9 @@ and places the results in the
 .Ft regex_t
 structure pointed to by
 .Fa preg .
-.Fa Cflags
+The
+.Fa cflags
+argument
 is the bitwise OR of zero or more of the following flags:
 .Bl -tag -width REG_EXTENDED
 .It Dv REG_EXTENDED
@@ -669,7 +671,9 @@ The
 function
 performance is poor.
 This will improve with later releases.
-.Fa Nmatch
+The
+.Fa nmatch
+argument
 exceeding 0 is expensive;
 .Fa nmatch
 exceeding 1 is worse.

@@ -90,7 +90,9 @@ Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EPERM
 The caller is not the super-user.
 .It Bq Er EFAULT
-.Fa Special
+The
+.Fa special
+argument
 points outside the process's allocated address space.
 .El
 .Pp
@@ -103,7 +105,9 @@ The system has reached the boot-time limit on the number of
 swap devices,
 .Va vm.nswapdev .
 .It Bq Er ENOTBLK
-.Fa Special
+The
+.Fa special
+argument
 is not a block device.
 .It Bq Er EBUSY
 The device specified by

@@ -96,7 +96,9 @@ The file is a pure procedure (shared text) file that is being executed.
 .It Bq Er EIO
 An I/O error occurred updating the inode.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .El
 .Pp
@@ -108,14 +110,17 @@ succeeds unless:
 .It Bq Er EBADF
 The
 .Fa fd
+argument
 is not a valid descriptor.
 .It Bq Er EINVAL
 The
 .Fa fd
+argument
 references a socket, not a file.
 .It Bq Er EINVAL
 The
 .Fa fd
+descriptor
 is not open for writing.
 .El
 .Sh SEE ALSO

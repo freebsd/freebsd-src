@@ -118,7 +118,9 @@ on success or
 .Li -1
 on an error.
 .Pp
+The
 .Fa bp
+argument
 is a pointer to previously allocated space that will contain the
 ancillary data object.
 It must be large enough to contain all the
@@ -127,17 +129,23 @@ individual options to be added by later calls to
 and
 .Fn inet6_option_alloc .
 .Pp
+The
 .Fa cmsgp
+argument
 is a pointer to a pointer to a
 .Li cmsghdr
 structure.
+The
 .Fa *cmsgp
+argument
 is initialized by this function to point to the
 .Li cmsghdr
 structure constructed by this function in the buffer pointed to by
 .Fa bp .
 .Pp
+The
 .Fa type
+argument
 is either
 .Dv IPV6_HOPOPTS
 or
@@ -161,14 +169,18 @@ if it succeeds or
 .Li -1
 on an error.
 .Pp
+The
 .Fa cmsg
+argument
 is a pointer to the
 .Li cmsghdr
 structure that must have been
 initialized by
 .Fn inet6_option_init .
 .Pp
+The
 .Fa typep
+argument
 is a pointer to the 8-bit option type.
 It is assumed that this
 field is immediately followed by the 8-bit option data length field,
@@ -198,7 +210,9 @@ and
 .Li 255 ,
 inclusive, and is the length of the option data that follows.
 .Pp
+The
 .Fa multx
+argument
 is the value
 .Li x
 in the alignment term
@@ -210,7 +224,9 @@ It must have a value of
 or
 .Li 8 .
 .Pp
+The
 .Fa plusy
+argument
 is the value
 .Li y
 in the alignment term
@@ -237,14 +253,18 @@ the ancillary data object while the current function returns a
 pointer to the space in the data object where the option's TLV must
 then be built by the caller.
 .Pp
+The
 .Fa cmsg
+argument
 is a pointer to the
 .Li cmsghdr
 structure that must have been
 initialized by
 .Fn inet6_option_init .
 .Pp
+The
 .Fa datalen
+argument
 is the value of the option data length byte for this option.
 This value is required as an argument to allow the function to
 determine if padding must be appended at the end of the option.
@@ -253,7 +273,9 @@ determine if padding must be appended at the end of the option.
 function does not need a data length argument
 since the option data length must already be stored by the caller.)
 .Pp
+The
 .Fa multx
+argument
 is the value
 .Li x
 in the alignment term
@@ -265,7 +287,9 @@ It must have a value of
 or
 .Li 8 .
 .Pp
+The
 .Fa plusy
+argument
 is the value
 .Li y
 in the alignment term
@@ -302,7 +326,9 @@ and
 is not
 .Dv NULL .
 .Pp
+The
 .Fa cmsg
+argument
 is a pointer to
 .Li cmsghdr
 structure of which
@@ -316,7 +342,9 @@ equals either
 or
 .Dv IPV6_DSTOPTS .
 .Pp
+The
 .Fa tptrp
+argument
 is a pointer to a pointer to an 8-bit byte and
 .Fa *tptrp
 is used
@@ -339,7 +367,9 @@ This function is similar to the previously described
 function, except this function lets the caller
 specify the option type to be searched for, instead of always
 returning the next option in the ancillary data object.
+The
 .Fa cmsg
+argument
 is a
 pointer to
 .Li cmsghdr
@@ -354,7 +384,9 @@ equals either
 or
 .Dv IPV6_DSTOPTS .
 .Pp
+The
 .Fa tptrp
+argument
 is a pointer to a pointer to an 8-bit byte and
 .Fa *tptrp
 is used

@@ -68,10 +68,14 @@ The
 fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid descriptor.
 .It Bq Er EINVAL
+The
 .Fa fd
+argument
 refers to a socket, not to a file.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.

@@ -45,7 +45,9 @@ delivered, or the
 .Fa timeout
 has passed.
 .Pp
+The
 .Fa iocbs
+argument
 is an array of
 .Fa niocb
 pointers to asynchronous I/O requests.  Array members containing
@@ -77,7 +79,9 @@ the
 .Fa timeout
 expired before any I/O requests completed.
 .It Bq Er EINVAL
+The
 .Fa iocbs
+argument
 contains more than
 .Dv AIO_LISTIO_MAX
 asynchronous I/O requests, or at least one of the requests is not

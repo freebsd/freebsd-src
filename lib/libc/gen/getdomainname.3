@@ -54,8 +54,9 @@ function
 returns the standard domain name for the current processor, as
 previously set by
 .Fn setdomainname .
-The parameter
+The
 .Fa namelen
+argument
 specifies the size of the
 .Fa name
 array.  The returned name is null-terminated unless insufficient
@@ -80,7 +81,7 @@ The
 .Fa name
 or
 .Fa namelen
-parameter gave an
+argument gave an
 invalid address.
 .It Bq Er EPERM
 The caller tried to set the hostname and was not the super-user.

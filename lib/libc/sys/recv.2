@@ -65,8 +65,10 @@ If
 .Fa from
 is non-nil, and the socket is not connection-oriented,
 the source address of the message is filled in.
-.Fa Fromlen
-is a value-result parameter, initialized to the size of
+The
+.Fa fromlen
+argument
+is a value-result argument, initialized to the size of
 the buffer associated with
 .Fa from ,
 and modified on return to indicate the actual size of the
@@ -82,7 +84,7 @@ and is identical to
 .Fn recvfrom
 with a nil
 .Fa from
-parameter.
+argument.
 As it is redundant, it may not be supported in future releases.
 .Pp
 All three routines return the length of the message on successful
@@ -148,7 +150,7 @@ The
 .Fn recvmsg
 system call uses a
 .Fa msghdr
-structure to minimize the number of directly supplied parameters.
+structure to minimize the number of directly supplied arguments.
 This structure has the following form, as defined in
 .Ao Pa sys/socket.h Ac :
 .Pp
@@ -171,12 +173,16 @@ and
 specify the destination address if the socket is unconnected;
 .Fa msg_name
 may be given as a null pointer if no names are desired or required.
-.Fa Msg_iov
+The
+.Fa msg_iov
 and
 .Fa msg_iovlen
+arguments
 describe scatter gather locations, as discussed in
 .Xr read 2 .
-.Fa Msg_control ,
+The
+.Fa msg_control
+argument,
 which has length
 .Fa msg_controllen ,
 points to a buffer for other protocol control related messages

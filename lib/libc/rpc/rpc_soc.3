@@ -156,8 +156,9 @@ Create and return an
 authentication handle that contains
 .Ux
 authentication information.
-The parameter
+The
 .Fa host
+argument
 is the name of the machine on which the information was
 created;
 .Fa uid
@@ -179,7 +180,7 @@ It is easy to impersonate a user.
 .Pp
 Calls
 .Fn authunix_create
-with the appropriate parameters.
+with the appropriate arguments.
 .Pp
 .It Xo
 .Ft int
@@ -202,13 +203,14 @@ and
 .Fa procnum
 on the machine
 .Fa host .
-The parameter
+The
 .Fa in
+argument
 is the address of the procedure's argument(s), and
 .Fa out
 is the address of where to place the result(s);
 .Fa inproc
-is used to encode the procedure's parameters, and
+is used to encode the procedure's arguments, and
 .Fa outproc
 is used to decode the procedure's results.
 This routine returns zero if it succeeds, or the value of
@@ -300,13 +302,14 @@ which is obtained with an
 .Tn RPC
 client creation routine such as
 .Fn clnt_create .
-The parameter
+The
 .Fa in
+argument
 is the address of the procedure's argument(s), and
 .Fa out
 is the address of where to place the result(s);
 .Fa inproc
-is used to encode the procedure's parameters, and
+is used to encode the procedure's arguments, and
 .Fa outproc
 is used to decode the procedure's results;
 .Fa tout
@@ -341,10 +344,14 @@ Otherwise, the socket remains open.
 .Xc
 .Pp
 Generic client creation routine.
+The
 .Fa host
+argument
 identifies the name of the remote host where the server
 is located.
+The
 .Fa proto
+argument
 indicates which kind of transport protocol to use.
 The
 currently supported values for this field are
@@ -373,7 +380,9 @@ large arguments or return huge results.
 .Pp
 A macro used to change or retrieve various information
 about a client object.
+The
 .Fa req
+argument
 indicates the type of operation, and
 .Fa info
 is a pointer to the information.
@@ -395,7 +404,7 @@ and their argument types and what they do are:
 .Pp
 Note: if you set the timeout using
 .Fn clnt_control ,
-the timeout parameter passed to
+the timeout argument passed to
 .Fn clnt_call
 will be ignored in all future calls.
 .Bl -column "CLSET_RETRY_TIMEOUT" "struct sockaddr_in"
@@ -431,8 +440,9 @@ A macro that frees any data allocated by the
 system when it decoded the results of an
 .Tn RPC
 call.
-The parameter
+The
 .Fa out
+argument
 is the address of the results, and
 .Fa outproc
 is the
@@ -637,8 +647,9 @@ is zero, then it is set to the actual port that the remote
 program is listening on (the remote
 .Xr rpcbind 8
 service is consulted for this information).
-The parameter
+The
 .Fa sockp
+argument
 is a socket; if it is
 .Dv RPC_ANYSOCK ,
 then this routine opens a new one and sets
@@ -649,10 +660,11 @@ Since
 uses buffered
 .Tn I/O ,
 the user may specify the size of the send and receive buffers
-with the parameters
+with the
 .Fa sendsz
 and
-.Fa recvsz ;
+.Fa recvsz
+arguments;
 values of zero choose suitable defaults.
 This routine returns
 .Dv NULL
@@ -689,8 +701,9 @@ is zero, then it is set to actual port that the remote
 program is listening on (the remote
 .Xr rpcbind 8
 service is consulted for this information).
-The parameter
+The
 .Fa sockp
+argument
 is a socket; if it is
 .Dv RPC_ANYSOCK ,
 then this routine opens a new one and sets
@@ -744,8 +757,9 @@ is zero, then it is set to actual port that the remote
 program is listening on (the remote
 .Xr rpcbind 8
 service is consulted for this information).
-The parameter
+The
 .Fa sockp
+argument
 is a socket; if it is
 .Dv RPC_ANYSOCK ,
 then this routine opens a new one and sets
@@ -791,8 +805,9 @@ the client uses
 sockets as a transport.
 The local program is located at the
 .Fa *raddr .
-The parameter
+The
 .Fa sockp
+argument
 is a socket; if it is
 .Dv RPC_ANYSOCK ,
 then this routine opens a new one and sets
@@ -803,10 +818,11 @@ Since
 uses buffered
 .Tn I/O ,
 the user may specify the size of the send and receive buffers
-with the parameters
+with the
 .Fa sendsz
 and
-.Fa recvsz ;
+.Fa recvsz
+arguments;
 values of zero choose suitable defaults.
 This routine returns
 .Dv NULL
@@ -920,12 +936,13 @@ address
 to make an
 .Tn RPC
 call on your behalf to a procedure on that host.
-The parameter
+The
 .Fa portp
+argument
 will be modified to the program's port number if the
 procedure
 succeeds.
-The definitions of other parameters are discussed
+The definitions of other arguments are discussed
 in
 .Fn callrpc
 and
@@ -1002,11 +1019,11 @@ version
 and procedure
 .Fa procnum ,
 .Fa procname
-is called with a pointer to its parameter(s);
+is called with a pointer to its argument(s);
 .Fa progname
 should return a pointer to its static result(s);
 .Fa inproc
-is used to decode the parameters while
+is used to decode the arguments while
 .Fa outproc
 is used to encode the results.
 This routine returns zero if the registration succeeded, \-1
@@ -1055,7 +1072,7 @@ is undefined after calling this routine.
 A global variable reflecting the
 .Tn RPC
 service side's
-read file descriptor bit mask; it is suitable as a template parameter
+read file descriptor bit mask; it is suitable as a template argument
 to the
 .Xr select 2
 system call.
@@ -1112,8 +1129,9 @@ associated with the
 .Tn RPC
 service transport handle,
 .Fa xprt .
-The parameter
+The
 .Fa in
+argument
 is the address where the arguments will be placed;
 .Fa inproc
 is the
@@ -1241,8 +1259,9 @@ Called by an
 .Tn RPC
 service's dispatch routine to send the results of a
 remote procedure call.
-The parameter
+The
 .Fa xprt
+argument
 is the request's associated transport handle;
 .Fa outproc
 is the
@@ -1283,7 +1302,7 @@ a remote procedure call due to an authentication error.
 .Xc
 .Pp
 Called by a service dispatch routine that cannot successfully
-decode its parameters.
+decode its arguments.
 See also
 .Fn svc_getargs .
 .Pp
@@ -1344,7 +1363,7 @@ it may call this routine.
 .Pp
 Called by a service dispatch routine that refuses to perform
 a remote procedure call due to insufficient
-authentication parameters.
+authentication arguments.
 The routine calls
 .Fn svcerr_auth xprt AUTH_TOOWEAK .
 .Pp
@@ -1427,7 +1446,9 @@ The transport is associated with the socket
 which may be
 .Dv RPC_ANYSOCK ,
 in which case a new socket is created.
+The
 .Fa *path
+argument
 is a variable-length file system pathname of
 at most 104 characters.
 This file is
@@ -1457,9 +1478,11 @@ choose suitable defaults.
 .Xc
 .Pp
 Create a service on top of any open descriptor.
+The
 .Fa sendsize
 and
 .Fa recvsize
+arguments
 indicate sizes for the send and receive buffers.
 If they are
 zero, a reasonable default is chosen.
@@ -1477,9 +1500,11 @@ this
 descriptor is a connected socket for a stream protocol such
 as
 .Tn TCP .
+The
 .Fa sendsize
 and
 .Fa recvsize
+arguments
 indicate sizes for the send and receive buffers.
 If they are
 zero, a reasonable default is chosen.
@@ -1600,11 +1625,11 @@ package.
 .Fn xdr_pmap "XDR *xdrs" "struct pmap *regs"
 .Xc
 .Pp
-Used for describing parameters to various
+Used for describing arguments to various
 .Xr rpcbind 8
 procedures, externally.
 This routine is useful for users who wish to generate
-these parameters without using the
+these arguments without using the
 .Fn pmap_*
 interface.
 .Pp
@@ -1615,7 +1640,7 @@ interface.
 .Pp
 Used for describing a list of port mappings, externally.
 This routine is useful for users who wish to generate
-these parameters without using the
+these arguments without using the
 .Fn pmap_*
 interface.
 .Pp

@@ -94,10 +94,14 @@ The
 call fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa s
+argument
 is not a valid descriptor.
 .It Bq Er ENOTTY
+The
 .Fa s
+argument
 is a descriptor for a file, not a socket.
 .El
 .Sh SEE ALSO

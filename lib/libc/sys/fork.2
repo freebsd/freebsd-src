@@ -114,7 +114,9 @@ MIB variable
 .Dv KERN_MAXPROCPERUID .
 .It Bq Er EAGAIN
 The user is not the super user, and
-the soft resource limit corresponding to the resource parameter
+the soft resource limit corresponding to the
+.Fa resource
+argument
 .Dv RLIMIT_NPROC
 would be exceeded (see
 .Xr getrlimit 2 ) .

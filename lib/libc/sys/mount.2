@@ -128,7 +128,9 @@ argument names the file system.
 The types of file systems known to the system can be obtained with
 .Xr lsvfs 1 .
 .Pp
-.Fa Data
+The
+.Fa data
+argument
 is a pointer to a structure that contains the type
 specific arguments to mount.
 The format for these argument structures is described in the
@@ -197,7 +199,9 @@ is not a directory.
 Another process currently holds a reference to
 .Fa dir .
 .It Bq Er EFAULT
-.Fa Dir
+The
+.Fa dir
+argument
 points outside the process's allocated address space.
 .El
 .Pp
@@ -210,7 +214,9 @@ A component of ufs_args
 .Fa fspec
 does not exist.
 .It Bq Er ENOTBLK
+The
 .Fa fspec
+argument
 is not a block device.
 .It Bq Er ENXIO
 The major device number of
@@ -232,7 +238,9 @@ group information for the file system.
 An I/O error occurred while reading the super block or
 cylinder group information.
 .It Bq Er EFAULT
+The
 .Fa fspec
+argument
 points outside the process's allocated address space.
 .El
 .Pp
@@ -269,7 +277,9 @@ on the file system.
 .It Bq Er EIO
 An I/O error occurred while writing cached file system information.
 .It Bq Er EFAULT
-.Fa Dir
+The
+.Fa dir
+argument
 points outside the process's allocated address space.
 .El
 .Pp

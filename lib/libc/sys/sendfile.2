@@ -111,25 +111,39 @@ is "zero-copy", meaning that it has been optimized so that copying of the file d
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid file descriptor.
 .It Bq Er EBADF
+The
 .Fa s
+argument
 is not a valid socket descriptor.
 .It Bq Er ENOTSOCK
+The
 .Fa s
+argument
 is not a socket.
 .It Bq Er EINVAL
+The
 .Fa fd
+argument
 is not a regular file.
 .It Bq Er EINVAL
+The
 .Fa s
+argument
 is not a SOCK_STREAM type socket.
 .It Bq Er EINVAL
+The
 .Fa offset
+argument
 is negative or out of range.
 .It Bq Er ENOTCONN
+The
 .Fa s
+argument
 points to an unconnected socket.
 .It Bq Er EPIPE
 The socket peer has closed the connection.
@@ -137,7 +151,7 @@ The socket peer has closed the connection.
 An error occurred while reading from
 .Fa fd .
 .It Bq Er EFAULT
-An invalid address was specified for a parameter.
+An invalid address was specified for an argument.
 .It Bq Er EAGAIN
 The socket is marked for non-blocking I/O and not all data was sent due to the socket buffer being filled.
 If specified, the number of bytes successfully sent will be returned in

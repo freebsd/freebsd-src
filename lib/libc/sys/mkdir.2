@@ -100,7 +100,9 @@ An I/O error occurred while making the directory entry or allocating the inode.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .El
 .Sh SEE ALSO

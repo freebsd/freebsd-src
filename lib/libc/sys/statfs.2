@@ -52,11 +52,15 @@ The
 .Fn statfs
 system call
 returns information about a mounted file system.
-.Fa Path
+The
+.Fa path
+argument
 is the path name of any file within the mounted file system.
-.Fa Buf
+The
+.Fa buf
+argument
 is a pointer to a
-.Fn statfs
+.Vt statfs
 structure defined as follows:
 .Bd -literal
 typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
@@ -138,7 +142,7 @@ fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix of
-.Fa Path
+.Fa path
 is not a directory.
 .It Bq Er ENAMETOOLONG
 The length of a component of
@@ -158,9 +162,11 @@ Search permission is denied for a component of the path prefix of
 Too many symbolic links were encountered in translating
 .Fa path .
 .It Bq Er EFAULT
-.Fa Buf
+The
+.Fa buf
 or
 .Fa path
+argument
 points to an invalid address.
 .It Bq Er EIO
 An
@@ -174,10 +180,14 @@ system call
 fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa fd
+argument
 is not a valid open file descriptor.
 .It Bq Er EFAULT
-.Fa Buf
+The
+.Fa buf
+argument
 points to an invalid address.
 .It Bq Er EIO
 An

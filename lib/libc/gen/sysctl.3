@@ -109,7 +109,9 @@ should be set to NULL.
 .Pp
 The size of the available data can be determined by calling
 .Fn sysctl
-with a NULL parameter for
+with the
+.Dv NULL
+argument for
 .Fa oldp .
 The size of the available data will be returned in the location pointed to by
 .Fa oldlenp .
