@@ -107,6 +107,7 @@ tun_clone(arg, name, namelen, dev)
 		return;
 	*dev = make_dev(&tun_cdevsw, unit2minor(u),
 	    UID_ROOT, GID_WHEEL, 0600, "tun%d", u);
+	(*dev)->si_flags |= SI_CHEAPCLONE;
 }
 
 static int
