@@ -173,7 +173,6 @@ SUBDIR+=3dfx \
 	linprocfs \
 	linux \
 	lnc \
-	lomac \
 	ncv \
 	netgraph \
 	nsp \
