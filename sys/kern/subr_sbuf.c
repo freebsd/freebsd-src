@@ -93,8 +93,8 @@ _assert_sbuf_state(char *fun, struct sbuf *s, int state)
 	    ("%s called with %sfinished or corrupt sbuf", fun,
 	    (state ? "un" : "")));
 }
-#define assert_sbuf_integrity(s) _assert_sbuf_integrity(__FUNCTION__, (s))
-#define assert_sbuf_state(s, i)	 _assert_sbuf_state(__FUNCTION__, (s), (i))
+#define assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
+#define assert_sbuf_state(s, i)	 _assert_sbuf_state(__func__, (s), (i))
 #else /* _KERNEL && INVARIANTS */
 #define assert_sbuf_integrity(s) do { } while (0)
 #define assert_sbuf_state(s, i)	 do { } while (0)
@@ -111,7 +111,7 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	KASSERT(length >= 0,
 	    ("attempt to create an sbuf of negative length (%d)", length));
 	KASSERT(flags == 0,
-	    (__FUNCTION__ " called with non-zero flags"));
+	    ("%s called with non-zero flags", __func__));
 
 	if (s == NULL) {
 		s = (struct sbuf *)SBMALLOC(sizeof *s);
@@ -145,9 +145,9 @@ struct sbuf *
 sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 {
 	KASSERT(uio != NULL,
-	    (__FUNCTION__ " called with NULL uio pointer"));
+	    ("%s called with NULL uio pointer", __func__));
 	KASSERT(error != NULL,
-	    (__FUNCTION__ " called with NULL error pointer"));
+	    ("%s called with NULL error pointer", __func__));
 
 	s = sbuf_new(s, NULL, uio->uio_resid + 1, 0);
 	if (s == NULL) {
@@ -337,7 +337,7 @@ sbuf_printf(struct sbuf *s, const char *fmt, ...)
 	assert_sbuf_state(s, 0);
 	
 	KASSERT(fmt != NULL,
-	    (__FUNCTION__ " called with a NULL format string"));
+	    ("%s called with a NULL format string", __func__));
 	
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
