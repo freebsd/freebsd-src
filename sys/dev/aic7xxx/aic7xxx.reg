@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#15 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#17 $
  *
  * $FreeBSD$
  */
@@ -970,6 +970,7 @@ register SCSIPHASE {
 	bit	MSG_OUT_PHASE	0x04
 	bit	DATA_IN_PHASE	0x02
 	bit	DATA_OUT_PHASE	0x01
+	mask	DATA_PHASE_MASK	0x03
 }
 
 /*
