@@ -139,12 +139,12 @@ one or more of the following values:
 If
 .Fn syslog
 cannot pass the message to
-.Xr syslogd
+.Xr syslogd 8
 it will attempt to write the message to the console
 .Pq Dq Pa /dev/console.
 .It Dv LOG_NDELAY 
 Open the connection to
-.Xr syslogd
+.Xr syslogd 8
 immediately.
 Normally the open is delayed until the first message is logged.
 Useful for programs that need to manage the order in which file

@@ -57,7 +57,7 @@ control until a call to
 .Xr execve 2
 or an exit (either by a call to
 .Xr exit 3
-or abnormally.)
+or abnormally).
 The parent process is suspended while the child is using its resources.
 .Pp
 .Fn Vfork
@@ -66,7 +66,7 @@ the parent's context.
 .Pp
 .Fn Vfork
 can normally be used just like
-.Xr fork .
+.Xr fork 2 .
 It does not work, however, to return while running in the childs context
 from the procedure that called
 .Fn vfork
