@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.29 1996/03/11 02:24:21 hsu Exp $
+ * $Id: kern_exit.c,v 1.30 1996/03/11 06:03:22 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -65,7 +65,6 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 
-#include <machine/cpu.h>
 #ifdef COMPAT_43
 #include <machine/reg.h>
 #include <machine/psl.h>

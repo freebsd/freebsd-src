@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: wd82371.c,v 1.1 1996/01/28 22:15:47 wollman Exp $
+ *	$Id: wd82371.c,v 1.2 1996/01/30 19:04:09 wollman Exp $
  */
 
 #include "pci.h"
@@ -42,7 +42,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/cpu.h>
 #include <machine/pmap.h>	/* for vtophys */
 
 #include <i386/isa/wdreg.h>

@@ -37,8 +37,6 @@
 #endif /*DEVFS*/
 #include <sys/conf.h>
 
-#include <machine/cpu.h>
-
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/route.h>

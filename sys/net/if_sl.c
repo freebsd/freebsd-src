@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.35 1995/12/14 09:53:14 phk Exp $
+ * $Id: if_sl.c,v 1.36 1996/02/06 18:51:14 wollman Exp $
  */
 
 /*
@@ -84,8 +84,6 @@
 #include <sys/clist.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-
-#include <machine/cpu.h>
 
 #include <net/if.h>
 #include <net/if_types.h>

@@ -39,7 +39,6 @@
 #if NQCAM > 0
 
 #include	<sys/param.h>
-#include	<machine/cpu.h>
 #include	<machine/cpufunc.h>
 #include	<machine/clock.h>
 #ifdef	KERNEL

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.13 1995/12/20 21:53:40 wollman Exp $
+ * $Id: if_ethersubr.c,v 1.14 1996/01/24 21:09:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -45,8 +45,6 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-
-#include <machine/cpu.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
