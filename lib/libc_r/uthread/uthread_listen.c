@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	listen=_listen
+__weak_reference(_listen, listen);
 
 int
 _listen(int fd, int backlog)

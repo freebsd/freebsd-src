@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	accept=_accept
+__weak_reference(_accept, accept);
 
 int
 _accept(int fd, struct sockaddr * name, socklen_t *namelen)

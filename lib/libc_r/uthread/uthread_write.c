@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	write=__write
+__weak_reference(__write, write);
 
 ssize_t
 _write(int fd, const void *buf, size_t nbytes)

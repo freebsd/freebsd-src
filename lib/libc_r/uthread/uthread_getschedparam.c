@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_getschedparam=_pthread_getschedparam
+__weak_reference(_pthread_getschedparam, pthread_getschedparam);
 
 int
 _pthread_getschedparam(pthread_t pthread, int *policy, 

@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setscope=_pthread_attr_setscope
+__weak_reference(_pthread_attr_setscope, pthread_attr_setscope);
 
 int
 _pthread_attr_setscope(pthread_attr_t *attr, int contentionscope)

@@ -44,12 +44,12 @@ static inline pthread_t	cond_queue_deq(pthread_cond_t);
 static inline void	cond_queue_remove(pthread_cond_t, pthread_t);
 static inline void	cond_queue_enq(pthread_cond_t, pthread_t);
 
-#pragma weak	pthread_cond_init=_pthread_cond_init
-#pragma weak	pthread_cond_destroy=_pthread_cond_destroy
-#pragma weak	pthread_cond_wait=_pthread_cond_wait
-#pragma weak	pthread_cond_timedwait=_pthread_cond_timedwait
-#pragma weak	pthread_cond_signal=_pthread_cond_signal
-#pragma weak	pthread_cond_broadcast=_pthread_cond_broadcast
+__weak_reference(_pthread_cond_init, pthread_cond_init);
+__weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
+__weak_reference(_pthread_cond_wait, pthread_cond_wait);
+__weak_reference(_pthread_cond_timedwait, pthread_cond_timedwait);
+__weak_reference(_pthread_cond_signal, pthread_cond_signal);
+__weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
 
 
 /* Reinitialize a condition variable to defaults. */

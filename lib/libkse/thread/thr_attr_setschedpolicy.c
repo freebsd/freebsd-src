@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setschedpolicy=_pthread_attr_setschedpolicy
+__weak_reference(_pthread_attr_setschedpolicy, pthread_attr_setschedpolicy);
 
 int
 _pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy)

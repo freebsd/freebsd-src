@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_getstackaddr=_pthread_attr_getstackaddr
+__weak_reference(_pthread_attr_getstackaddr, pthread_attr_getstackaddr);
 
 int
 _pthread_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr)

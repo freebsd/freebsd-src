@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	system=_system
+__weak_reference(_system, system);
 
 int
 _system(const char *string)

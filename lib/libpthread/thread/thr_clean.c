@@ -37,8 +37,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_cleanup_push=_pthread_cleanup_push
-#pragma weak	pthread_cleanup_pop=_pthread_cleanup_pop
+__weak_reference(_pthread_cleanup_push, pthread_cleanup_push);
+__weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);
 
 void
 _pthread_cleanup_push(void (*routine) (void *), void *routine_arg)

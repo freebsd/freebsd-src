@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sleep=_sleep
+__weak_reference(_sleep, sleep);
 
 unsigned int
 _sleep(unsigned int seconds)

@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fork=_fork
+__weak_reference(_fork, fork);
 
 pid_t
 _fork(void)

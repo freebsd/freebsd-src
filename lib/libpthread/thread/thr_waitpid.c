@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	waitpid=_waitpid
+__weak_reference(_waitpid, waitpid);
 
 pid_t
 _waitpid(pid_t wpid, int *status, int options)

@@ -43,7 +43,7 @@
 #define FLAGS_IN_SCHEDQ	\
 	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
 
-#pragma weak	pthread_exit=_pthread_exit
+__weak_reference(_pthread_exit, pthread_exit);
 
 void _exit(int status)
 {

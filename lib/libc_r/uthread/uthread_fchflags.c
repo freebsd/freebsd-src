@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fchflags=_fchflags
+__weak_reference(_fchflags, fchflags);
 int
 _fchflags(int fd, u_long flags)
 {

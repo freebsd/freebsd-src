@@ -35,10 +35,10 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_mutexattr_setkind_np=_pthread_mutexattr_setkind_np
-#pragma weak	pthread_mutexattr_getkind_np=_pthread_mutexattr_getkind_np
-#pragma weak	pthread_mutexattr_gettype=_pthread_mutexattr_gettype
-#pragma weak	pthread_mutexattr_settype=_pthread_mutexattr_settype
+__weak_reference(_pthread_mutexattr_setkind_np, pthread_mutexattr_setkind_np);
+__weak_reference(_pthread_mutexattr_getkind_np, pthread_mutexattr_getkind_np);
+__weak_reference(_pthread_mutexattr_gettype, pthread_mutexattr_gettype);
+__weak_reference(_pthread_mutexattr_settype, pthread_mutexattr_settype);
 
 int
 _pthread_mutexattr_setkind_np(pthread_mutexattr_t *attr, int kind)

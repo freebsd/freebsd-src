@@ -29,7 +29,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fpathconf=_fpathconf
+__weak_reference(_fpathconf, fpathconf);
 
 long
 _fpathconf(int fd, int name)

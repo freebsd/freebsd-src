@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pipe=_pipe
+__weak_reference(_pipe, pipe);
 
 int
 _pipe(int fds[2])

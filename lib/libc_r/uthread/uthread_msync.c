@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	msync=__msync
+__weak_reference(__msync, msync);
 
 int
 _msync(void *addr, size_t len, int flags)

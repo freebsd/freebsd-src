@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_init=_pthread_attr_init
+__weak_reference(_pthread_attr_init, pthread_attr_init);
 
 int
 _pthread_attr_init(pthread_attr_t *attr)

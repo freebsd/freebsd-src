@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	recvmsg=_recvmsg
+__weak_reference(_recvmsg, recvmsg);
 
 ssize_t
 _recvmsg(int fd, struct msghdr *msg, int flags)

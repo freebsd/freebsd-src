@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_join=_pthread_join
+__weak_reference(_pthread_join, pthread_join);
 
 int
 _pthread_join(pthread_t pthread, void **thread_return)

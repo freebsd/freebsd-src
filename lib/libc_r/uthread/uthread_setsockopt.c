@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	setsockopt=_setsockopt
+__weak_reference(_setsockopt, setsockopt);
 
 int
 _setsockopt(int fd, int level, int optname, const void *optval, socklen_t

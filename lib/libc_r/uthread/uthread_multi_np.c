@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_multi_np=_pthread_multi_np
+__weak_reference(_pthread_multi_np, pthread_multi_np);
 
 int
 _pthread_multi_np()

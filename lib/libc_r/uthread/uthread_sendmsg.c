@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sendmsg=_sendmsg
+__weak_reference(_sendmsg, sendmsg);
 
 ssize_t
 _sendmsg(int fd, const struct msghdr *msg, int flags)

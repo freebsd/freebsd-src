@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_getdetachstate=_pthread_attr_getdetachstate
+__weak_reference(_pthread_attr_getdetachstate, pthread_attr_getdetachstate);
 
 int
 _pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)

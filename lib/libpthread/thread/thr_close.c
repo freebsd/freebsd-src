@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	close=__close
+__weak_reference(__close, close);
 
 int
 _close(int fd)

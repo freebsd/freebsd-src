@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setschedparam=_pthread_attr_setschedparam
+__weak_reference(_pthread_attr_setschedparam, pthread_attr_setschedparam);
 
 int
 _pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param)

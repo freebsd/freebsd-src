@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sigprocmask=_sigprocmask
+__weak_reference(_sigprocmask, sigprocmask);
 
 int
 _sigprocmask(int how, const sigset_t *set, sigset_t *oset)

@@ -34,8 +34,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sched_yield=_sched_yield
-#pragma weak	pthread_yield=_pthread_yield
+__weak_reference(_sched_yield, sched_yield);
+__weak_reference(_pthread_yield, pthread_yield);
 
 int
 _sched_yield(void)

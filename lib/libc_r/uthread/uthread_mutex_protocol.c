@@ -37,8 +37,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_mutexattr_getprotocol=_pthread_mutexattr_getprotocol
-#pragma weak	pthread_mutexattr_setprotocol=_pthread_mutexattr_setprotocol
+__weak_reference(_pthread_mutexattr_getprotocol, pthread_mutexattr_getprotocol);
+__weak_reference(_pthread_mutexattr_setprotocol, pthread_mutexattr_setprotocol);
 
 int
 _pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)

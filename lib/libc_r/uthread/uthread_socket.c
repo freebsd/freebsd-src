@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	socket=_socket
+__weak_reference(_socket, socket);
 
 int
 _socket(int af, int type, int protocol)
