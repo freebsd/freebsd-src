@@ -154,7 +154,7 @@ statf(int indent, FTSENT *p)
 	escaped_name = calloc(1, p->fts_namelen * 4  +  1);
 	if (escaped_name == NULL)
 		errx(1, "statf(): calloc() failed");
-	strvis(escaped_name, p->fts_name, VIS_WHITE | VIS_OCTAL);
+	strvis(escaped_name, p->fts_name, VIS_WHITE | VIS_OCTAL | VIS_GLOB);
 
 	if (iflag || S_ISDIR(p->fts_statp->st_mode))
 		offset = printf("%*s%s", indent, "", escaped_name);
