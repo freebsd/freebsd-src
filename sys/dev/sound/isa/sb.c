@@ -418,12 +418,14 @@ sb_alloc_resources(struct sb_info *sb, device_t dev)
 					      RF_ACTIVE);
 
     	if (sb->io_base && sb->drq1 && sb->irq) {
+		int bs = (sb->bd_flags & BD_F_ESS)? ESS_BUFFSIZE : DSP_BUFFSIZE;
+
 		isa_dma_acquire(rman_get_start(sb->drq1));
-		isa_dmainit(rman_get_start(sb->drq1), DSP_BUFFSIZE);
+		isa_dmainit(rman_get_start(sb->drq1), bs);
 
 		if (sb->drq2) {
 			isa_dma_acquire(rman_get_start(sb->drq2));
-			isa_dmainit(rman_get_start(sb->drq2), DSP_BUFFSIZE);
+			isa_dmainit(rman_get_start(sb->drq2), bs);
 		}
 
 		return 0;

@@ -313,12 +313,12 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 	if (ok) {
 		mss->pdma = rman_get_start(mss->drq1);
 		isa_dma_acquire(mss->pdma);
-		isa_dmainit(mss->pdma, DSP_BUFFSIZE);
+		isa_dmainit(mss->pdma, MSS_BUFFSIZE);
 		mss->bd_flags &= ~BD_F_DUPLEX;
 		if (mss->drq2) {
 			mss->rdma = rman_get_start(mss->drq2);
 			isa_dma_acquire(mss->rdma);
-			isa_dmainit(mss->rdma, DSP_BUFFSIZE);
+			isa_dmainit(mss->rdma, MSS_BUFFSIZE);
 			mss->bd_flags |= BD_F_DUPLEX;
 		} else mss->rdma = mss->pdma;
 	}
