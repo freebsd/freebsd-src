@@ -550,8 +550,9 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		error = __semctl(td, &bsd_args);
 		if (error)
 			return error;
-		td->td_retval[0] = IXSEQ_TO_IPCID(bsd_args.semid,
-							unptr->buf->sem_perm);
+		td->td_retval[0] = (bsd_args.cmd == SEM_STAT) ?
+		    IXSEQ_TO_IPCID(bsd_args.semid, unptr->buf->sem_perm) :
+		    0;
 		bsd_to_linux_semid_ds(unptr->buf, &linux_semid);
 		return (linux_semid_pushdown(args->cmd & LINUX_IPC_64,
 		    &linux_semid, (caddr_t)PTRIN(args->arg.buf)));
