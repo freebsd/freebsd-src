@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20040922:
+	PFIL_HOOKS are a fixed part of the network stack now and do not
+	need to be specified in the kernel configuration file anymore.
+	Remove 'options PFIL_HOOKS' from your kernel config file.
+
 20040914:
 	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
 	architectures that have a 64 bit long type to make it compatible to
