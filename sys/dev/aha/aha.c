@@ -223,12 +223,11 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 		}
 	}
 
-	aha = malloc(sizeof(struct aha_softc), M_DEVBUF, M_NOWAIT);
+	aha = malloc(sizeof(struct aha_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!aha) {
 		printf("aha%d: cannot malloc!\n", unit);
 		return NULL;    
 	}
-	bzero(aha, sizeof(struct aha_softc));
 	SLIST_INIT(&aha->free_aha_ccbs);
 	LIST_INIT(&aha->pending_ccbs);
 	SLIST_INIT(&aha->sg_maps);
