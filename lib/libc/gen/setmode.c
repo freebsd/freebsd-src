@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
@@ -83,13 +84,13 @@ static void	 dumpmode(BITCMD *);
  */
 mode_t
 getmode(bbox, omode)
-	void *bbox;
+	const void *bbox;
 	mode_t omode;
 {
-	BITCMD *set;
+	const BITCMD *set;
 	mode_t clrval, newmode, value;
 
-	set = (BITCMD *)bbox;
+	set = (const BITCMD *)bbox;
 	newmode = omode;
 	for (value = 0;; set++)
 		switch(set->cmd) {
@@ -168,7 +169,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 
 void *
 setmode(p)
-	char *p;
+	const char *p;
 {
 	int perm, who;
 	char op;
@@ -366,7 +367,7 @@ addcmd(set, op, who, oparg, mask)
 			set->cmd2 = ((who & S_IRUSR) ? CMD2_UBITS : 0) |
 				    ((who & S_IRGRP) ? CMD2_GBITS : 0) |
 				    ((who & S_IROTH) ? CMD2_OBITS : 0);
-			set->bits = ~0;
+			set->bits = (mode_t)~0;
 		} else {
 			set->cmd2 = CMD2_UBITS | CMD2_GBITS | CMD2_OBITS;
 			set->bits = mask;
