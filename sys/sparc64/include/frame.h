@@ -34,6 +34,7 @@
 struct	trapframe {
 	u_long	tf_global[8];
 	u_long	tf_out[8];
+	u_long	tf_pil;
 	u_long	tf_tnpc;
 	u_long	tf_tpc;
 	u_long	tf_tstate;
