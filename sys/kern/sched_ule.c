@@ -266,6 +266,7 @@ kseq_print(int cpu)
 static void
 kseq_add(struct kseq *kseq, struct kse *ke)
 {
+	mtx_assert(&sched_lock, MA_OWNED);
 	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]++;
 	kseq->ksq_load++;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
@@ -282,6 +283,7 @@ kseq_add(struct kseq *kseq, struct kse *ke)
 static void
 kseq_rem(struct kseq *kseq, struct kse *ke)
 {
+	mtx_assert(&sched_lock, MA_OWNED);
 	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]--;
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
@@ -295,9 +297,10 @@ kseq_rem(struct kseq *kseq, struct kse *ke)
 static void
 kseq_nice_add(struct kseq *kseq, int nice)
 {
+	mtx_assert(&sched_lock, MA_OWNED);
 	/* Normalize to zero. */
 	kseq->ksq_nice[nice + SCHED_PRI_NHALF]++;
-	if (nice < kseq->ksq_nicemin || kseq->ksq_loads[PRI_TIMESHARE] == 0)
+	if (nice < kseq->ksq_nicemin || kseq->ksq_loads[PRI_TIMESHARE] == 1)
 		kseq->ksq_nicemin = nice;
 }
 
@@ -306,6 +309,7 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 {
 	int n;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	/* Normalize to zero. */
 	n = nice + SCHED_PRI_NHALF;
 	kseq->ksq_nice[n]--;
@@ -337,6 +341,7 @@ kseq_load_highest(void)
 	int cpu;
 	int i;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	cpu = 0;
 	load = 0;
 
@@ -362,6 +367,7 @@ kseq_choose(struct kseq *kseq)
 	struct kse *ke;
 	struct runq *swap;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	swap = NULL;
 
 	for (;;) {
@@ -599,6 +605,7 @@ sched_pickcpu(void)
 	int cpu;
 	int i;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (!smp_started)
 		return (0);
 
@@ -963,11 +970,15 @@ int
 sched_runnable(void)
 {
 	struct kseq *kseq;
+	int load;
 
+	load = 1;
+
+	mtx_lock_spin(&sched_lock);
 	kseq = KSEQ_SELF();
 
 	if (kseq->ksq_load)
-		return (1);
+		goto out;
 #ifdef SMP
 	/*
 	 * For SMP we may steal other processor's KSEs.  Just search until we
@@ -981,11 +992,14 @@ sched_runnable(void)
 				continue;
 			kseq = KSEQ_CPU(i);
 			if (kseq->ksq_load > 1)
-				return (1);
+				goto out;
 		}
 	}
 #endif
-	return (0);
+	load = 0;
+out:
+	mtx_unlock_spin(&sched_lock);
+	return (load);
 }
 
 void
@@ -1008,6 +1022,7 @@ sched_choose(void)
 	struct kseq *kseq;
 	struct kse *ke;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef SMP
 retry:
 #endif
@@ -1132,6 +1147,7 @@ sched_pctcpu(struct kse *ke)
 
 	pctcpu = 0;
 
+	mtx_lock_spin(&sched_lock);
 	if (ke->ke_ticks) {
 		int rtick;
 
@@ -1144,7 +1160,6 @@ sched_pctcpu(struct kse *ke)
 		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
 	}
 
-	mtx_lock_spin(&sched_lock);
 	ke->ke_proc->p_swtime = ke->ke_ltick - ke->ke_ftick;
 	mtx_unlock_spin(&sched_lock);
 
