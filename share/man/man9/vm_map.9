@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map 9
+.Dt VM_MAP 9
 .Sh NAME
 .Nm vm_map
 .Nd virtual address space portion of virtual memory subsystem
@@ -66,37 +66,37 @@ struct vm_map {
 .Ed
 .Pp
 The fields of
-.Fa struct vm_map
+.Vt struct vm_map
 are as follows:
 .Bl -tag -width needs_wakeupXXX
-.It header
+.It Va header
 Head node of a circular, doubly linked list of
-.Fa struct vm_map_entry
+.Vt struct vm_map_entry
 objects.
 Each object defines a particular region within this map's address space.
-.It lock
+.It Va lock
 Used to serialize access to the structure.
-.It system_mtx
+.It Va system_mtx
 A mutex which is used if the map is a system map.
-.It nentries
+.It Va nentries
 A count of the members in use within the circular map entry list.
-.It size
+.It Va size
 Specifies the size of the virtual address space.
-.It infork
+.It Va infork
 Indicates if the map structure is currently undergoing fork processing.
-.It needs_wakeup
+.It Va needs_wakeup
 Indicates if a thread is waiting for an allocation within the map.
 Used only by system maps.
-.It system_map
+.It Va system_map
 Set to TRUE to indicate that map is a system map; otherwise, it belongs
 to a user process.
-.It root
+.It Va root
 Root node of a binary search tree used for fast lookup of map entries.
-.It timestamp
+.It Va timestamp
 Used to determine if the map has changed since its last access.
-.It first_free
+.It Va first_free
 Provides a hint to the first free space within the map.
-.It pmap
+.It Va pmap
 Pointer to the underlying physical map with which this virtual map
 is associated.
 .El
@@ -107,29 +107,29 @@ and
 .Xr vm_map_insert 9
 to specify the copy-on-write properties of regions within the map:
 .Bl -tag -width MAP_PREFAULT_MADVISEXXX
-.It MAP_COPY_ON_WRITE
+.It Dv MAP_COPY_ON_WRITE
 The mapping is copy-on-write.
-.It MAP_NOFAULT
+.It Dv MAP_NOFAULT
 The mapping should not generate page faults.
-.It MAP_PREFAULT
+.It Dv MAP_PREFAULT
 The mapping should be prefaulted into physical memory.
-.It MAP_PREFAULT_PARTIAL
+.It Dv MAP_PREFAULT_PARTIAL
 The mapping should be partially prefaulted into physical memory.
-.It MAP_DISABLE_SYNCER
+.It Dv MAP_DISABLE_SYNCER
 Do not periodically flush dirty pages; only flush them when absolutely
 necessary.
-.It MAP_DISABLE_COREDUMP
+.It Dv MAP_DISABLE_COREDUMP
 Do not include the mapping in a core dump.
-.It MAP_PREFAULT_MADVISE
+.It Dv MAP_PREFAULT_MADVISE
 Specify that the request from a user process calling
 .Xr madvise 2 .
 .El
 .Pp
 The
-.Fa struct vm_map_entry
+.Vt struct vm_map_entry
 is a generic representation of a region.
 The region managed by each entry is associated with a
-.Fa union vm_map_object ,
+.Vt union vm_map_object ,
 described below.
 .Bd -literal -offset indent
 struct vm_map_entry {
@@ -153,55 +153,55 @@ struct vm_map_entry {
 .Ed
 .Pp
 The fields of
-.Fa struct vm_map_entry
+.Vt struct vm_map_entry
 are as follows:
 .Bl -tag -width struct_vm_map_objectXXX
-.It prev
+.It Va prev
 Pointer to the previous node in a doubly-linked, circular list.
-.It next
+.It Va next
 Pointer to the next node in a doubly-linked, circular list.
-.It left
+.It Va left
 Pointer to the left node in a binary search tree.
-.It right
+.It Va right
 Pointer to the right node in a binary search tree.
-.It start
+.It Va start
 Lower address bound of this entry's region.
-.It end
+.It Va end
 Upper address bound of this entry's region.
-.It avail_ssize
+.It Va avail_ssize
 If the entry is for a process stack, specifies how much the entry can grow.
-.It object
+.It Va object
 Pointer to the
-.Fa struct vm_map_object
+.Vt struct vm_map_object
 with which this entry is associated.
-.It offset
+.It Va offset
 Offset within the
-.Fa object
+.Va object
 which is mapped from
-.Fa start
+.Va start
 onwards.
-.It eflags
+.It Vt eflags
 Flags applied to this entry, described below.
 .El
 .Pp
 The following five members are only valid for entries forming part of
 a user process's address space:
 .Bl -tag -width struct_vm_map_objectXXX
-.It protection
+.It Va protection
 Memory protection bits applied to this region.
 These are identical to those defined for
 .Xr vm_page_protect 9 .
-.It max_protection
+.It Va max_protection
 Mask for the memory protection bits which may be actually be applied to
 this region.
 These are identical to those defined for
 .Xr vm_page_protect 9 .
-.It inheritance
+.It Va inheritance
 Contains flags which specify how this entry should be treated
 during fork processing.
-.It wired_count
+.It Va wired_count
 Count of how many times this entry has been wired into physical memory.
-.It lastr
+.It Va lastr
 Contains the address of the last read which caused a page fault.
 .El
 .Pp
@@ -210,71 +210,71 @@ as a mask within the
 .Fa eflags
 member:
 .Bl -tag -width MAP_ENTRY_BEHAV_SEQUENTIALXXX
-.It MAP_ENTRY_NOSYNC
+.It Dv MAP_ENTRY_NOSYNC
 The system should not flush the data associated with this map
 periodically, but only when it needs to.
-.It MAP_ENTRY_IS_SUB_MAP
+.It Dv MAP_ENTRY_IS_SUB_MAP
 If set, then the
-.Fa object
+.Va object
 member specifies a subordinate map.
-.It MAP_ENTRY_COW
+.It Dv MAP_ENTRY_COW
 Indicate that this is a copy-on-write region.
-.It MAP_ENTRY_NEEDS_COPY
+.It Dv MAP_ENTRY_NEEDS_COPY
 Indicate that a copy-on-write region needs to be copied.
-.It MAP_ENTRY_NOFAULT
+.It Dv MAP_ENTRY_NOFAULT
 Specifies that accesses within this region should never cause a page fault.
 If a page fault occurs within this region, the system will panic.
-.It MAP_ENTRY_USER_WIRED
+.It Dv MAP_ENTRY_USER_WIRED
 Indicate that this region was wired on behalf of a user process.
-.It MAP_ENTRY_BEHAV_NORMAL
+.It Dv MAP_ENTRY_BEHAV_NORMAL
 The system should use the default paging behaviour for this region.
-.It MAP_ENTRY_BEHAV_SEQUENTIAL
+.It Dv MAP_ENTRY_BEHAV_SEQUENTIAL
 The system should depress the priority of pages immediately preceding
 each page within this region when faulted in.
-.It MAP_ENTRY_BEHAV_RANDOM
+.It Dv MAP_ENTRY_BEHAV_RANDOM
 Is a hint that pages within this region will be accessed randomly,
 and that prefetching is likely not advantageous.
-.It MAP_ENTRY_IN_TRANSITION
+.It Dv MAP_ENTRY_IN_TRANSITION
 Indicate that wiring or unwiring of an entry is in progress, and that
 other kernel threads should not attempt to modify fields in the structure.
-.It MAP_ENTRY_NEEDS_WAKEUP
+.It Dv MAP_ENTRY_NEEDS_WAKEUP
 Indicate that there are kernel threads waiting for this region to become
 available.
-.It MAP_ENTRY_NOCOREDUMP
+.It Dv MAP_ENTRY_NOCOREDUMP
 The region should not be included in a core dump.
 .El
 .Pp
 The
 .Fa inheritance
 member has type
-.Fa vm_inherit_t .
+.Vt vm_inherit_t .
 This governs the inheritance behaviour for a map entry during fork processing.
 The following values are defined for
-.Fa vm_inherit_t :
+.Vt vm_inherit_t :
 .Bl -tag -width VM_INHERIT_DEFAULTXXX
-.It VM_INHERIT_SHARE
+.It Dv VM_INHERIT_SHARE
 The object associated with the entry should be cloned and shared
 with the new map.
 A new
-.Fa struct vm_object
+.Vt struct vm_object
 will be created if necessary.
-.It VM_INHERIT_COPY
+.It Dv VM_INHERIT_COPY
 The object associated with the entry should be copied to the new map.
-.It VM_INHERIT_NONE
+.It Dv VM_INHERIT_NONE
 The entry should not be copied to the new map.
-.It VM_INHERIT_DEFAULT
+.It Dv VM_INHERIT_DEFAULT
 Specifies the default behaviour,
-.Fa VM_INHERIT_COPY .
+.Dv VM_INHERIT_COPY .
 .El
 .Pp
 The
-.Fa union vm_map_object
+.Vt union vm_map_object
 is used to specify the structure which a
-.Fa struct vm_map_entry
+.Vt struct vm_map_entry
 is associated with.
 .Pp
 The fields of
-.Fa union vm_map_object
+.Vt union vm_map_object
 are as follows:
 .Bd -literal -offset indent
 union vm_map_object {
@@ -284,13 +284,13 @@ union vm_map_object {
 .Pp
 .Ed
 Normally, the
-.Fa sub_map
+.Va sub_map
 member is only used by system maps to indicate that a memory range
 is managed by a subordinate system map.
 Within a user process map, each
-.Fa struct vm_map_entry
+.Vt struct vm_map_entry
 is backed by a
-.Fa struct vm_object .
+.Vt struct vm_object .
 .Sh SEE ALSO
 .Xr pmap 9 ,
 .Xr vm_map_check_protection 9 ,
@@ -316,5 +316,5 @@ is backed by a
 .Xr vm_map_wire 9 ,
 .Xr vm_page_protect 9
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Bruce M Simpson Aq bms@spc.org .
