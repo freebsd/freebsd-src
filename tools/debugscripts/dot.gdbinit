@@ -105,7 +105,6 @@ Display kldstat information for the target machine and invite user to paste it b
 end
 
 source gdbinit.kernel
-source gdbinit.vinum
 source gdbinit.machine
 
 echo Ready to go.  Enter 'tr' to connect to the remote target\n
