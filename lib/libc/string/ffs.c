@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 
 /*
- * ffs -- vax ffs instruction
+ * Find First Set bit
  */
 int
 ffs(int mask)
@@ -50,6 +50,6 @@ ffs(int mask)
 	if (mask == 0)
 		return(0);
 	for (bit = 1; !(mask & 1); bit++)
-		mask >>= 1;
-	return(bit);
+		(unsigned int)mask >>= 1;
+	return (bit);
 }

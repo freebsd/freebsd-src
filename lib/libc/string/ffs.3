@@ -38,23 +38,44 @@
 .Dt FFS 3
 .Os
 .Sh NAME
-.Nm ffs
-.Nd find first bit set in a bit string
+.Nm ffs ,
+.Nm ffsl ,
+.Nm fls ,
+.Nm flsl
+.Nd find first or last bit set in a bit string
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In strings.h
 .Ft int
 .Fn ffs "int value"
+.Ft int
+.Fn ffsl "long value"
+.Ft int
+.Fn fls "int value"
+.Ft int
+.Fn flsl "long value"
 .Sh DESCRIPTION
 The
 .Fn ffs
-function finds the first bit set in
+and
+.Fn ffsl
+functions find the first bit set in
 .Fa value
-and returns the index of that bit.
+and return the index of that bit.
+.Pp
+The
+.Fn fls
+and
+.Fn flsl
+functions find the last bit set in
+.Fa value
+and return the index of that bit.
+.Pp
 Bits are numbered starting from 1, starting at the right-most
-bit.
-A return value of 0 means that the argument was zero.
+(least significant) bit.
+A return value of zero from any of these functions means that the
+argument was zero.
 .Sh SEE ALSO
 .Xr bitstring 3
 .Sh HISTORY
@@ -69,3 +90,11 @@ before it was moved to
 for
 .St -p1003.1-2001
 compliance.
+.Pp
+The
+.Fn ffsl ,
+.Fn fls
+and
+.Fn flsl
+functions appeared in
+.Fx 5.3 .
