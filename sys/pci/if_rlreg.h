@@ -369,6 +369,9 @@ struct rl_softc {
 	struct rl_chain_data	rl_cdata;
 	struct callout_handle	rl_stat_ch;
  	int			suspended;	/* 0 = normal  1 = suspended */
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif /* DEVICE_POLLING */
  
  	u_int32_t		saved_maps[5];	/* pci data */
  	u_int32_t		saved_biosaddr;
