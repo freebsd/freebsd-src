@@ -93,11 +93,11 @@ gw_ret:
 	mov		ar.rnat=r22
 	;;
 	mov		ar.rsc=r24
-	mov		ar.pfs=r28
+	mov		ar.pfs=r20
 }
 {	.mib
 	mov		ar.fpsr=r25
-	mov		b0=r29
+	mov		b0=r18
 	br.sptk		b6
 	;;
 }
@@ -196,24 +196,24 @@ ENTRY(epc_sigtramp, 0)
 {	.mmi
 	mov		r17=ar.bsp
 	mov		r18=ar.rnat
-	add		r14=32,r16
+	add		r14=14*8,r16
 	;;
 }
 {	.mmi
 (p15)	mov		ar.bspstore=gp
-	ld8		r19=[r14],8
-	add		r15=48,r16
+	ld8		r19=[r14],-9*8		// cfm
+	add		r15=6*8,r16
 	;;
 }
 {	.mmi
-	st8		[r14]=r17,64		// bspstore
-	st8		[r15]=r18,-16		// rnat
+	st8		[r14]=r17,8*8		// bspstore
+	st8		[r15]=r18,8*8		// rnat
 	dep		r19=r19,r19,7,7
 	;;
 }
 {	.mmi
 	st8		[r14]=r0		// ndirty
-	st8		[r15]=r19		// pfs
+	st8		[r15]=r19		// cfm
 	nop		0
 	;;
 }
@@ -300,13 +300,13 @@ ENTRY(epc_syscall, 8)
 	;;
 }
 {	.mmi
-	st8		[r30]=r24,16		// rp (syscall stub)
+	st8		[r30]=r10,16		// rp (syscall caller)
 	st8		[r31]=r25,16		// pr
 	mov		r26=ar.pfs
 	;;
 }
 {	.mmi
-	st8		[r30]=r26,16		// pfs (syscall stub)
+	st8		[r30]=r9,16		// pfs (syscall caller)
 	st8		[r31]=r18,16		// bspstore
 	sub		r27=r23,r15
 	;;
@@ -336,8 +336,8 @@ ENTRY(epc_syscall, 8)
 	;;
 }
 {	.mmi
-	st8		[r30]=r9,16		// pfs (syscall caller)
-	st8		[r31]=r10,16		// rp (syscall caller)
+	st8		[r30]=r26,16		// pfs (syscall stub)
+	st8		[r31]=r24,16		// rp (syscall stub)
 	nop		0
 	;;
 }
@@ -425,14 +425,14 @@ epc_syscall_return:
 }
 {	.mmi
 	ld8		r17=[r15],16		// unat (before)
-	ld8		r18=[r14],16		// rp (syscall stub)
+	ld8		r18=[r14],16		// rp (syscall caller)
 	add		r31=r31,sp
 	;;
 }
-{	.mmi
+{	.mmb
 	ld8		r19=[r15],16		// pr
-	ld8		r20=[r14],16		// pfs (syscall stub)
-	mov		b6=r18
+	ld8		r20=[r14],16		// pfs (syscall caller)
+	nop		0
 	;;
 }
 {	.mmi
@@ -450,7 +450,7 @@ epc_syscall_return:
 {	.mmi
 	ld8		r25=[r15],16		// fpsr
 	ld8		r26=[r14],16		// psr
-	mov		ar.pfs=r20
+	nop		0
 	;;
 }
 {	.mmi
@@ -460,15 +460,15 @@ epc_syscall_return:
 	;;
 }
 {	.mmi
-	ld8		r28=[r15],56		// pfs (syscall caller)
-	ld8		r29=[r14],56		// rp (syscall caller)
+	ld8		r28=[r15],56		// pfs (syscall stub)
+	ld8		r29=[r14],56		// rp (syscall stub)
 	shl		r27=r27,16
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8		r8=[r15],16		// r8
 	mov		ar.rsc=r27
-	nop		0
+	mov		b6=r29
 	;;
 }
 {	.mmb
@@ -485,21 +485,25 @@ epc_syscall_return:
 }
 {	.mmi
 	mov		r30=ar.bspstore
-	;;
 	mov		r14=ar.k5
-	dep		r30=0,r30,0,13		// 8KB aligned.
+	mov		ar.pfs=r28
 	;;
 }
 {	.mmi
-	mov		ar.k6=r30
 	mov		ar.bspstore=r21
-	mov		r13=r23
+	add		r14=gw_ret-ia64_gateway_page,r14
+	dep		r30=0,r30,0,13		// 8KB aligned.
 	;;
+}
+{	.mib
+	mov		ar.k6=r30
+	mov		r13=r23
+	nop		0
 }
 {	.mmi
 	mov		psr.l=r26
 	mov		ar.unat=r17
-	add		r14=gw_ret-ia64_gateway_page,r14
+	nop		0
 	;;
 }
 {	.mib
