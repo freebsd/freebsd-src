@@ -44,7 +44,7 @@ KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
 FILESYSTEM_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
 FILESYSTEM_FILES=	${COPYRIGHT}
-FILESYSTEM_FILES+=	bin/[ bin/expr bin/ls bin/mkdir
+FILESYSTEM_FILES+=	bin/[ bin/df bin/expr bin/ls bin/mkdir
 FILESYSTEM_FILES+=	bin/sh bin/sync bin/test
 FILESYSTEM_FILES+=	dev/MAKEDEV
 FILESYSTEM_FILES+=	etc/group
@@ -71,7 +71,8 @@ CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
 CPIO_CPIO+=	var
 
-DOS_FILES=	bin/cat bin/dd bin/df bin/ed
+DOS_FILES=	${COPYRIGHT}
+DOS_FILES+=	bin/cat bin/dd bin/ed
 DOS_FILES+=	usr/bin/cksum usr/bin/mt 
 DOS_FILES+=	sbin/mknod sbin/ping sbin/shutdown sbin/st sbin/reboot
 
@@ -239,8 +240,8 @@ filesystem-floppy:
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1
-	    rm -f ${DESTDIR}/dev/rfd1[b-z] ${DESTDIR}/dev/fd1[b-z])
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1; \
+	    rm -f rfd1[b-z] fd1[b-z])
 	(cd ${DESTDIR}/; \
 	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
