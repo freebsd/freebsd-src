@@ -846,10 +846,9 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, siginfo_t *info,
 	struct sigacts *ps;
 	sigset_t savedmask, sigset;
 	struct proc *p;
-	int error;
-	int sig;
-	int hz;
-	int i;
+	int error, sig, hz, i, timevalid = 0;
+	struct timespec rts, ets, ts;
+	struct timeval tv;
 
 	p = td->td_proc;
 	error = 0;
@@ -859,6 +858,14 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, siginfo_t *info,
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	savedmask = td->td_sigmask;
+	if (timeout) {
+		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
+			timevalid = 1;
+			getnanouptime(&rts);
+		 	ets = rts;
+			timespecadd(&ets, timeout);
+		}
+	}
 
 again:
 	for (i = 1; i <= _SIG_MAXSIG; ++i) {
@@ -909,17 +916,18 @@ again:
 	 * signals.
 	 */
 	if (timeout) {
-		struct timeval tv;
-
-		if (timeout->tv_nsec < 0 || timeout->tv_nsec > 1000000000) {
+		if (!timevalid) {
 			error = EINVAL;
 			goto out;
 		}
-		if (timeout->tv_sec == 0 && timeout->tv_nsec == 0) {
+		getnanouptime(&rts);
+		if (timespeccmp(&rts, &ets, >=)) {
 			error = EAGAIN;
 			goto out;
 		}
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		ts = ets;
+		timespecsub(&ts, &rts);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
 		hz = tvtohz(&tv);
 	} else
 		hz = 0;
@@ -927,8 +935,15 @@ again:
 	td->td_waitset = &waitset;
 	error = msleep(&ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
 	td->td_waitset = NULL;
-	if (error == 0) /* surplus wakeup ? */
-		error = EINTR;
+	if (timeout) {
+		if (error == ERESTART) {
+			/* timeout can not be restarted. */
+			error = EINTR;
+		} else if (error == EAGAIN) {
+			/* will calculate timeout by ourself. */
+			error = 0;
+		}
+	}
 	goto again;
 
 out:
@@ -946,6 +961,7 @@ out:
 		_STOPEVENT(p, S_SIG, sig);
 
 		SIGDELSET(td->td_siglist, sig);
+		bzero(info, sizeof(*info));
 		info->si_signo = sig;
 		info->si_code = 0;
 	}
