@@ -113,7 +113,7 @@ valid_shells() {
 		esac
 	done
 
-	# /sbin/nologin is a special case
+	# /usr/sbin/nologin is a special case
 	[ -x "${NOLOGIN_PATH}" ] && echo -n " ${NOLOGIN}"
 }
 
@@ -139,7 +139,7 @@ fullpath_from_shell() {
 		esac
 	done
 
-	# /sbin/nologin is a special case
+	# /usr/sbin/nologin is a special case
 	if [ "$_shell" = "${NOLOGIN}" ]; then
 		echo ${NOLOGIN_PATH}
 		return 0;
@@ -799,7 +799,7 @@ MAILCMD="${MAILCMD:-mail}"
 ETCSHELLS="${ETCSHELLS:-/etc/shells}"
 NOHOME="/nonexistent"
 NOLOGIN="nologin"
-NOLOGIN_PATH="/sbin/nologin"
+NOLOGIN_PATH="/usr/sbin/nologin"
 GREPCMD="/usr/bin/grep"
 DATECMD="/bin/date"
 
