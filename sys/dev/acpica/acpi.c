@@ -379,6 +379,11 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
+	&sc->acpi_verbose, 0, "verbose mode");
+    if (bootverbose)
+	sc->acpi_verbose = 1;
     
     /*
      * Dispatch the default sleep state to devices.

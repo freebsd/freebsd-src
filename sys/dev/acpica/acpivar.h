@@ -60,6 +60,8 @@ struct acpi_softc {
     int			acpi_standby_sx;
     int			acpi_suspend_sx;
 
+    int			acpi_verbose;
+
     bus_dma_tag_t	acpi_waketag;
     bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
@@ -300,6 +302,14 @@ acpi_device_get_parent_softc(device_t child)
 	return(NULL);
     }
     return(device_get_softc(parent));
+}
+
+static __inline int
+acpi_get_verbose(struct acpi_softc *sc)
+{
+    if (sc)
+	return(sc->acpi_verbose);
+    return(0);
 }
 
 extern char	*acpi_name(ACPI_HANDLE handle);
