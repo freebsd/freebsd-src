@@ -550,6 +550,7 @@ int 	getnewvnode __P((enum vtagtype tag,
 int	lease_check __P((struct vop_lease_args *ap));
 int	spec_vnoperate __P((struct vop_generic_args *));
 int	speedup_syncer __P((void));
+int	textvp_fullpath __P((struct proc *p, char **retbuf, char **retfreebuf));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));

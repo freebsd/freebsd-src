@@ -587,3 +587,97 @@ __getcwd(p, uap)
 	return (error);
 }
 
+/*
+ * Thus begins the fullpath magic.
+ */
+
+#undef STATNODE
+#define STATNODE(name)							\
+	static u_int name;						\
+	SYSCTL_INT(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, "")
+
+static int disablefullpath;
+SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW,
+    &disablefullpath, 0, "");
+
+STATNODE(numfullpathcalls);
+STATNODE(numfullpathfail1);
+STATNODE(numfullpathfail2);
+STATNODE(numfullpathfail3);
+STATNODE(numfullpathfail4);
+STATNODE(numfullpathfound);
+
+int
+textvp_fullpath(struct proc *p, char **retbuf, char **retfreebuf) {
+	char *bp, *buf;
+	int i, slash_prefixed;
+	struct filedesc *fdp;
+	struct namecache *ncp;
+	struct vnode *vp, *textvp;
+
+	numfullpathcalls++;
+	if (disablefullpath)
+		return (ENODEV);
+	textvp = p->p_textvp;
+	if (textvp == NULL)
+		return (EINVAL);
+	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	bp = buf + MAXPATHLEN - 1;
+	*bp = '\0';
+	fdp = p->p_fd;
+	slash_prefixed = 0;
+	for (vp = textvp; vp != fdp->fd_rdir && vp != rootvnode;) {
+		if (vp->v_flag & VROOT) {
+			if (vp->v_mount == NULL) {	/* forced unmount */
+				free(buf, M_TEMP);
+				return (EBADF);
+			}
+			vp = vp->v_mount->mnt_vnodecovered;
+			continue;
+		}
+		if (vp != textvp && vp->v_dd->v_id != vp->v_ddid) {
+			numfullpathfail1++;
+			free(buf, M_TEMP);
+			return (ENOTDIR);
+		}
+		ncp = TAILQ_FIRST(&vp->v_cache_dst);
+		if (!ncp) {
+			numfullpathfail2++;
+			free(buf, M_TEMP);
+			return (ENOENT);
+		}
+		if (vp != textvp && ncp->nc_dvp != vp->v_dd) {
+			numfullpathfail3++;
+			free(buf, M_TEMP);
+			return (EBADF);
+		}
+		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
+			if (bp == buf) {
+				numfullpathfail4++;
+				free(buf, M_TEMP);
+				return (ENOMEM);
+			}
+			*--bp = ncp->nc_name[i];
+		}
+		if (bp == buf) {
+			numfullpathfail4++;
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+		*--bp = '/';
+		slash_prefixed = 1;
+		vp = ncp->nc_dvp;
+	}
+	if (!slash_prefixed) {
+		if (bp == buf) {
+			numfullpathfail4++;
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+		*--bp = '/';
+	}
+	numfullpathfound++;
+	*retbuf = bp; 
+	*retfreebuf = buf;
+	return (0);
+}
