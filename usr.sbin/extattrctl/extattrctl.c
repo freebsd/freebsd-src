@@ -39,6 +39,9 @@
 #include <string.h>
 #include <unistd.h>
 
+extern char	*optarg;
+extern int	optind;
+
 void
 usage(void)
 {
@@ -47,68 +50,129 @@ usage(void)
 	    "usage:\n"
 	    "  extattrctl start [path]\n"
 	    "  extattrctl stop [path]\n"
-	    "  extattrctl initattr [attrsize] [attrfile]\n"
+	    "  extattrctl initattr [-p] [-r [kroa]] [-w [kroa]] [attrsize] "
+	    "[attrfile]\n"
 	    "  extattrctl enable [path] [attrname] [attrfile]\n"
 	    "  extattrctl disable [path] [attrname]\n");
+	exit(-1);
+}
+
+/*
+ * Return a level, or -1
+ */
+int
+extattr_level_from_string(char *string)
+{
+
+	if (strlen(string) != 1)
+		return (-1);
+
+	switch(string[0]) {
+	case 'k':
+	case 'K':
+		return (UFS_EXTATTR_PERM_KERNEL);
+	case 'r':
+	case 'R':
+		return (UFS_EXTATTR_PERM_ROOT);
+	case 'o':
+	case 'O':
+		return (UFS_EXTATTR_PERM_OWNER);
+	case 'a':
+	case 'A':
+		return (UFS_EXTATTR_PERM_ANYONE);
+	default:
+		return (-1);
+	}
+}
+
+int
+initattr(int argc, char *argv[])
+{
+	struct ufs_extattr_fileheader	uef;
+	int	initattr_pflag = 0;
+	int	initattr_rlevel = UFS_EXTATTR_PERM_OWNER;
+	int	initattr_wlevel = UFS_EXTATTR_PERM_OWNER;
+	int	ch, i, error;
+
+	while ((ch = getopt(argc, argv, "prw")) != -1)
+		switch (ch) {
+		case 'p':
+			initattr_pflag = 1;
+			break;
+		case 'r':
+			initattr_rlevel = extattr_level_from_string(optarg);
+			if (initattr_rlevel == -1)
+				usage();
+			break;
+		case 'w':
+			initattr_wlevel = extattr_level_from_string(optarg);
+			if (initattr_wlevel == -1)
+				usage();
+			break;
+		case '?':
+		default:
+			usage();
+		}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 2)
+		usage();
+
+	error = 0;
+	if ((i = open(argv[1], O_CREAT | O_EXCL | O_WRONLY, 0600)) != -1) {
+		uef.uef_magic = UFS_EXTATTR_MAGIC;
+		uef.uef_version = UFS_EXTATTR_VERSION;
+		uef.uef_write_perm = initattr_wlevel;
+		uef.uef_read_perm = initattr_rlevel;
+		uef.uef_size = atoi(argv[0]);
+		if (write(i, &uef, sizeof(uef)) == -1)
+			error = -1;
+		else if (initattr_pflag) {
+
+		}
+	}
+	if (i == -1 || error == -1) {
+		perror("argv[1]");
+		return (-1);
+	}
+
+	return (0);
 }
 
 int
 main(int argc, char *argv[])
 {
-	struct ufs_extattr_fileheader	uef;
-	int	error = 0, i;
+	int	error = 0;
 
-	if (argc < 2) {
+	if (argc < 2)
 		usage();
-		return(-1);
-	}
 
 	if (!strcmp(argv[1], "start")) {
-		if (argc != 3) {
+		if (argc != 3)
 			usage();
-			return(-1);
-		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_START, 0, 0);
 	} else if (!strcmp(argv[1], "stop")) {
-		if (argc != 3) {
+		if (argc != 3)
 			usage();
-			return(-1);
-		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_STOP, 0, 0);
 	} else if (!strcmp(argv[1], "enable")) {
-		if (argc != 5) {
+		if (argc != 5)
 			usage();
-			return(-1);
-		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[3],
 		    argv[4]);
 	} else if (!strcmp(argv[1], "disable")) {
-		if (argc != 4) {
+		if (argc != 4)
 			usage();
-			return(-1);
-		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, argv[3],
 		    NULL);
 	} else if (!strcmp(argv[1], "initattr")) {
-		if (argc != 4) {
-			usage();
-			return(-1);
-		}
-		if ((i = open(argv[3], O_CREAT | O_EXCL | O_WRONLY, 0600)) !=
-		    -1) {
-			uef.uef_write_perm = UFS_EXTATTR_PERM_OWNER;
-			uef.uef_read_perm = UFS_EXTATTR_PERM_ANYONE;
-			uef.uef_size = atoi(argv[2]);
-			if (write(i, &uef, sizeof(uef)) == -1) {
-				error = -1;
-			} else
-				error = close(i);
-		} else 
-			error = -1;
-	} else {
+		argc -= 2;
+		argv += 2;
+		error = initattr(argc, argv);
+	} else
 		usage();
-		return(-1);
-	}
 
 	if (error)
 		perror(argv[1]);
