@@ -71,6 +71,7 @@ ep_pccard_probe(device_t dev)
 	struct ep_softc *	sc = device_get_softc(dev);
 	struct ep_board *	epb = &sc->epb;
 	const char *		desc;
+	u_int16_t		result;
 	int			error;
 
 	error = ep_alloc(dev);
@@ -86,13 +87,17 @@ ep_pccard_probe(device_t dev)
 	 */
 
 	epb->cmd_off = 0;
-	epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+
+	error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+	epb->prod_id = result;
+
 	if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 		if (bootverbose) 
 			device_printf(dev, "Pass 1 of 2 detection "
 			    "failed (nonfatal) id 0x%x\n", epb->prod_id);
 		epb->cmd_off = 2;
-		epb->prod_id = get_e(sc, EEPROM_PROD_ID);
+		error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+		epb->prod_id = result;
 		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 			device_printf(dev, "Unit failed to come ready or "
 			    "product ID unknown! (id 0x%x)\n", epb->prod_id);
@@ -105,7 +110,7 @@ ep_pccard_probe(device_t dev)
 	/*
 	 * For some reason the 3c574 needs this.
 	 */
-	ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
+	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
 
 	ep_free(dev);
 	return (0);
@@ -159,6 +164,7 @@ static int
 ep_pccard_attach(device_t dev)
 {
 	struct ep_softc *	sc = device_get_softc(dev);
+	u_int16_t		result;
 	int			error = 0;
 
 	if ((error = ep_alloc(dev))) {
@@ -167,11 +173,16 @@ ep_pccard_attach(device_t dev)
 	}
 
 	sc->epb.cmd_off = 0;
-	sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
+
+	error = get_e(sc, EEPROM_PROD_ID, &result);	/* XXX check return */
+	sc->epb.prod_id = result;
+
 	if (!ep_pccard_card_attach(&sc->epb)) {
 		sc->epb.cmd_off = 2;
-		sc->epb.prod_id = get_e(sc, EEPROM_PROD_ID);
-		sc->epb.res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
+		error = get_e(sc, EEPROM_PROD_ID, &result);
+		sc->epb.prod_id = result;
+		error = get_e(sc, EEPROM_RESOURCE_CFG, &result);
+		sc->epb.res_cfg = result;
 		if (!ep_pccard_card_attach(&sc->epb)) {
 			device_printf(dev,
 			    "Probe found ID, attach failed so ignore card!\n");
@@ -180,9 +191,11 @@ ep_pccard_attach(device_t dev)
 		}
 	}
 
+	error = get_e(sc, EEPROM_ADDR_CFG, &result);
+
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
-	outw(BASE + EP_W0_ADDRESS_CFG, get_e(sc, EEPROM_ADDR_CFG) & 0xc000);
+	outw(BASE + EP_W0_ADDRESS_CFG, result & 0xc000);
 
 	/* Fake IRQ must be 3 */
 	outw(BASE + EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
