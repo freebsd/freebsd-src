@@ -67,7 +67,6 @@ struct bio {
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
 	u_int	bio_flags;		/* BIO_ flags. */
-	struct buf	*_bio_buf;	/* Parent buffer. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/0 in bytes. */
 	void	(*bio_done)(struct bio *);
