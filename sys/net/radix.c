@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id$
+ *	$Id: radix.c,v 1.13 1997/02/22 09:41:12 peter Exp $
  */
 
 /*
@@ -51,14 +51,10 @@
 #include <net/radix.h>
 #endif
 
-static struct radix_node *
-		rn_lookup __P((void *v_arg, void *m_arg,
-			       struct radix_node_head *head));
 static int	rn_walktree_from __P((struct radix_node_head *h, void *a,
 				      void *m, walktree_f_t *f, void *w));
 static int rn_walktree __P((struct radix_node_head *, walktree_f_t *, void *));
 static struct radix_node
-	 *rn_delete __P((void *, void *, struct radix_node_head *)),
 	 *rn_insert __P((void *, struct radix_node_head *, int *,
 			struct radix_node [2])),
 	 *rn_newpair __P((void *, int, struct radix_node[2])),
@@ -132,7 +128,7 @@ rn_search(v_arg, head)
 			x = x->rn_l;
 	}
 	return (x);
-};
+}
 
 static struct radix_node *
 rn_search_m(v_arg, head, m_arg)
@@ -150,7 +146,7 @@ rn_search_m(v_arg, head, m_arg)
 			x = x->rn_l;
 	}
 	return x;
-};
+}
 
 int
 rn_refines(m_arg, n_arg)
@@ -321,7 +317,7 @@ on1:
 		}
 	} while (t != top);
 	return 0;
-};
+}
 
 #ifdef RN_DEBUG
 int	rn_nodenum;
@@ -673,7 +669,7 @@ on2:
 	return tt;
 }
 
-static struct radix_node *
+struct radix_node *
 rn_delete(v_arg, netmask_arg, head)
 	void *v_arg, *netmask_arg;
 	struct radix_node_head *head;
