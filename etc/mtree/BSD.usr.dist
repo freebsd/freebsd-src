@@ -329,6 +329,8 @@
             ..
             meteor
             ..
+            netgraph
+            ..
             perfmon
             ..
             portal
