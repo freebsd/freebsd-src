@@ -2,6 +2,9 @@
 .\" Must use  --  tbl  --  with this one
 .\"
 .\" @(#)nfs.rfc.ms	2.2 88/08/05 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..
@@ -10,7 +13,7 @@
 .if n .fp 2 R
 .OH 'Network File System: Version 2 Protocol Specification''Page %'
 .EH 'Page %''Network File System: Version 2 Protocol Specification'
-.if \\n%=1 .bp
+.if \n%=1 .bp
 .SH
 \&Network File System: Version 2 Protocol Specification
 .IX NFS "" "" "" PAGE MAJOR

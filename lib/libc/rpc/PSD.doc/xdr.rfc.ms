@@ -2,6 +2,9 @@
 .\"  Must use -- tbl -- with this one
 .\"
 .\" @(#)xdr.rfc.ms	2.2 88/08/05 4.0 RPCSRC
+.\" $FreeBSD$
+.\"
+.so stubs
 .de BT
 .if \\n%=1 .tl ''- % -''
 ..
@@ -10,10 +13,10 @@
 .if n .fp 2 R
 .OH 'External Data Representation Standard''Page %'
 .EH 'Page %''External Data Representation Standard'
-.IX "External Data Representation"
-.if \\n%=1 .bp
+.if \n%=1 .bp
 .SH
 \&External Data Representation Standard: Protocol Specification
+.IX "External Data Representation"
 .IX XDR RFC
 .IX XDR "protocol specification"
 .LP
