@@ -245,15 +245,12 @@ accept1(td, uap, compat)
 	if (error)
 		goto done2;
 	s = splnet();
-	SOCK_LOCK(head);
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
-		SOCK_UNLOCK(head);
 		splx(s);
 		error = EINVAL;
 		goto done;
 	}
 	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
-		SOCK_UNLOCK(head);
 		splx(s);
 		error = EWOULDBLOCK;
 		goto done;
@@ -263,16 +260,13 @@ accept1(td, uap, compat)
 			head->so_error = ECONNABORTED;
 			break;
 		}
-		error = msleep((caddr_t)&head->so_timeo, 
-		    SOCK_MTX(head), PSOCK | PCATCH,
+		error = tsleep((caddr_t)&head->so_timeo, PSOCK | PCATCH,
 		    "accept", 0);
 		if (error) {
-			SOCK_UNLOCK(head);
 			splx(s);
 			goto done;
 		}
 	}
-	SOCK_UNLOCK(head);
 	if (head->so_error) {
 		error = head->so_error;
 		head->so_error = 0;
@@ -311,17 +305,13 @@ accept1(td, uap, compat)
 	/* connection has been removed from the listen queue */
 	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
 
-	SOCK_LOCK(so);
 	so->so_state &= ~SS_COMP;
-	SOCK_UNLOCK(so);
 	so->so_head = NULL;
 	if (head->so_sigio != NULL)
 		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
 	FILE_LOCK(nfp);
-	SOCK_LOCK(so);
 	soref(so);			/* file descriptor reference */
-	SOCK_UNLOCK(so);
 	nfp->f_data = (caddr_t)so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
@@ -442,30 +432,24 @@ connect(td, uap)
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done2;
-	SOCK_LOCK(so);
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
-		SOCK_UNLOCK(so);
 		error = EALREADY;
 		goto done1;
 	}
-	SOCK_UNLOCK(so);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
 		goto done1;
 	error = soconnect(so, sa, td);
 	if (error)
 		goto bad;
-	SOCK_LOCK(so);
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
-		SOCK_UNLOCK(so);
 		FREE(sa, M_SONAME);
 		error = EINPROGRESS;
 		goto done1;
 	}
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = msleep((caddr_t)&so->so_timeo, 
-			SOCK_MTX(so), PSOCK | PCATCH, "connec", 0);
+		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH, "connec", 0);
 		if (error)
 			break;
 	}
@@ -473,12 +457,9 @@ connect(td, uap)
 		error = so->so_error;
 		so->so_error = 0;
 	}
-	SOCK_UNLOCK(so);
 	splx(s);
 bad:
-	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTING;
-	SOCK_UNLOCK(so);
 	FREE(sa, M_SONAME);
 	if (error == ERESTART)
 		error = EINTR;
@@ -1431,13 +1412,10 @@ getpeername1(td, uap, compat)
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
 		goto done2;
-	SOCK_LOCK(so);
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
-		SOCK_UNLOCK(so);
 		error = ENOTCONN;
 		goto done1;
 	}
-	SOCK_UNLOCK(so);
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error)
 		goto done1;
@@ -1695,13 +1673,10 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	SOCK_LOCK(so);
 	if ((so->so_state & SS_ISCONNECTED) == 0) {
-		SOCK_UNLOCK(so);
 		error = ENOTCONN;
 		goto done;
 	}
-	SOCK_UNLOCK(so);
 	if (uap->offset < 0) {
 		error = EINVAL;
 		goto done;
@@ -1764,17 +1739,14 @@ retry_lookup:
 		 * Optimize the non-blocking case by looking at the socket space
 		 * before going to the extra work of constituting the sf_buf.
 		 */
-		SOCK_LOCK(so);
 		if ((so->so_state & SS_NBIO) && sbspace(&so->so_snd) <= 0) {
 			if (so->so_state & SS_CANTSENDMORE)
 				error = EPIPE;
 			else
 				error = EAGAIN;
-			SOCK_UNLOCK(so);
 			sbunlock(&so->so_snd);
 			goto done;
 		}
-		SOCK_UNLOCK(so);
 		/*
 		 * Attempt to look up the page.  
 		 *
@@ -1897,7 +1869,6 @@ retry_space:
 		 * blocks before the pru_send (or more accurately, any blocking
 		 * results in a loop back to here to re-check).
 		 */
-		SOCK_LOCK(so);
 		if ((so->so_state & SS_CANTSENDMORE) || so->so_error) {
 			if (so->so_state & SS_CANTSENDMORE) {
 				error = EPIPE;
@@ -1905,7 +1876,6 @@ retry_space:
 				error = so->so_error;
 				so->so_error = 0;
 			}
-			SOCK_UNLOCK(so);
 			m_freem(m);
 			sbunlock(&so->so_snd);
 			splx(s);
@@ -1918,14 +1888,12 @@ retry_space:
 		 */
 		if (sbspace(&so->so_snd) < so->so_snd.sb_lowat) {
 			if (so->so_state & SS_NBIO) {
-				SOCK_UNLOCK(so);
 				m_freem(m);
 				sbunlock(&so->so_snd);
 				splx(s);
 				error = EAGAIN;
 				goto done;
 			}
-			SOCK_UNLOCK(so);
 			error = sbwait(&so->so_snd);
 			/*
 			 * An error from sbwait usually indicates that we've
@@ -1940,7 +1908,6 @@ retry_space:
 			}
 			goto retry_space;
 		}
-		SOCK_UNLOCK(so);
 		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, td);
 		splx(s);
 		if (error) {

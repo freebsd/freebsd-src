@@ -182,16 +182,9 @@ rip6_input(mp, offp, proto)
 			} else
 #endif /*IPSEC*/
 			if (n) {
-				if (last->in6p_flags & IN6P_CONTROLOPTS)
+				if (last->in6p_flags & IN6P_CONTROLOPTS ||
+				    last->in6p_socket->so_options & SO_TIMESTAMP)
 					ip6_savecontrol(last, &opts, ip6, n);
-				else {
-					SOCK_LOCK(last->in6p_socket);
-					if (last->in6p_socket->so_options & SO_TIMESTAMP) {
-						SOCK_UNLOCK(last->in6p_socket);
-						ip6_savecontrol(last, &opts, ip6, n);
-					} else
-						SOCK_UNLOCK(last->in6p_socket);
-				}
 				/* strip intermediate headers */
 				m_adj(n, *offp);
 				if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -201,11 +194,8 @@ rip6_input(mp, offp, proto)
 					if (opts)
 						m_freem(opts);
 					rip6stat.rip6s_fullsock++;
-				} else {
-					SOCK_LOCK(last->in6p_socket);
+				} else
 					sorwakeup(last->in6p_socket);
-					SOCK_UNLOCK(last->in6p_socket);
-				}
 				opts = NULL;
 			}
 		}
@@ -223,16 +213,9 @@ rip6_input(mp, offp, proto)
 	} else
 #endif /*IPSEC*/
 	if (last) {
-		if (last->in6p_flags & IN6P_CONTROLOPTS)
+		if (last->in6p_flags & IN6P_CONTROLOPTS ||
+		    last->in6p_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, &opts, ip6, m);
-		else {
-			SOCK_LOCK(last->in6p_socket);
-			if (last->in6p_socket->so_options & SO_TIMESTAMP) {
-				SOCK_UNLOCK(last->in6p_socket);
-				ip6_savecontrol(last, &opts, ip6, m);
-			} else
-				SOCK_UNLOCK(last->in6p_socket);
-		}
 		/* strip intermediate headers */
 		m_adj(m, *offp);
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -241,11 +224,8 @@ rip6_input(mp, offp, proto)
 			if (opts)
 				m_freem(opts);
 			rip6stat.rip6s_fullsock++;
-		} else {
-			SOCK_LOCK(last->in6p_socket);
+		} else
 			sorwakeup(last->in6p_socket);
-			SOCK_UNLOCK(last->in6p_socket);
-		}
 	} else {
 		rip6stat.rip6s_nosock++;
 		if (m->m_flags & M_MCAST)
@@ -611,9 +591,7 @@ rip6_detach(struct socket *so)
 static int
 rip6_abort(struct socket *so)
 {
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 	return rip6_detach(so);
 }
 
@@ -622,12 +600,8 @@ rip6_disconnect(struct socket *so)
 {
 	struct inpcb *inp = sotoinpcb(so);
 
-	SOCK_LOCK(so);
-	if ((so->so_state & SS_ISCONNECTED) == 0) {
-		SOCK_UNLOCK(so);
+	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
-	}
-	SOCK_UNLOCK(so);
 	inp->in6p_faddr = in6addr_any;
 	return rip6_abort(so);
 }
@@ -695,9 +669,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error ? error : EADDRNOTAVAIL);
 	inp->in6p_laddr = *in6a;
 	inp->in6p_faddr = addr->sin6_addr;
-	SOCK_LOCK(so);
 	soisconnected(so);
-	SOCK_UNLOCK(so);
 	return 0;
 }
 
@@ -717,9 +689,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct sockaddr_in6 *dst;
 
 	/* always copy sockaddr to avoid overwrites */
-	SOCK_LOCK(so);
 	if (so->so_state & SS_ISCONNECTED) {
-		SOCK_UNLOCK(so);
 		if (nam) {
 			m_freem(m);
 			return EISCONN;
@@ -732,7 +702,6 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		      sizeof(struct in6_addr));
 		dst = &tmp;
 	} else {
-		SOCK_UNLOCK(so);
 		if (nam == NULL) {
 			m_freem(m);
 			return ENOTCONN;

@@ -1836,18 +1836,15 @@ ip_savecontrol(inp, mp, ip, m)
 	register struct ip *ip;
 	register struct mbuf *m;
 {
-	SOCK_LOCK(inp->inp_socket);
 	if (inp->inp_socket->so_options & SO_TIMESTAMP) {
 		struct timeval tv;
 
-		SOCK_UNLOCK(inp->inp_socket);
 		microtime(&tv);
 		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
 			SCM_TIMESTAMP, SOL_SOCKET);
 		if (*mp)
 			mp = &(*mp)->m_next;
-	} else
-		SOCK_UNLOCK(inp->inp_socket);
+	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
 		*mp = sbcreatecontrol((caddr_t) &ip->ip_dst,
 		    sizeof(struct in_addr), IP_RECVDSTADDR, IPPROTO_IP);

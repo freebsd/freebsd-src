@@ -30,8 +30,6 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
@@ -59,15 +57,11 @@ static void
 sohasdata(struct socket *so, void *arg, int waitflag)
 {
 
-	SOCK_LOCK(so);
-	if (!soreadable(so)) {
-		SOCK_UNLOCK(so);
+	if (!soreadable(so))
 		return;
-	}
 
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	SOCK_UNLOCK(so);
+	soisconnected_locked(so);
 	return;
 }

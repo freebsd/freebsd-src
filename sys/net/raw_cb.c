@@ -36,9 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/domain.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -100,7 +98,6 @@ raw_detach(rp)
 	struct socket *so = rp->rcb_socket;
 
 	so->so_pcb = 0;
-	SOCK_LOCK(so);
 	sotryfree(so);
 	LIST_REMOVE(rp, list);
 #ifdef notdef
@@ -124,12 +121,8 @@ raw_disconnect(rp)
 		m_freem(dtom(rp->rcb_faddr));
 	rp->rcb_faddr = 0;
 #endif
-	SOCK_LOCK(rp->rcb_socket);
-	if (rp->rcb_socket->so_state & SS_NOFDREF) {
-		SOCK_UNLOCK(rp->rcb_socket);
+	if (rp->rcb_socket->so_state & SS_NOFDREF)
 		raw_detach(rp);
-	} else
-		SOCK_UNLOCK(rp->rcb_socket);
 }
 
 #ifdef notdef

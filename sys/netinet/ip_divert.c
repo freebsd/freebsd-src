@@ -228,11 +228,8 @@ divert_packet(struct mbuf *m, int incoming, int port)
 		if (sbappendaddr(&sa->so_rcv, (struct sockaddr *)&divsrc,
 				m, (struct mbuf *)0) == 0)
 			m_freem(m);
-		else {
-			SOCK_LOCK(sa);
+		else
 			sorwakeup(sa);
-			SOCK_UNLOCK(sa);
-		}
 	} else {
 		m_freem(m);
 		ipstat.ips_noproto++;
@@ -258,7 +255,6 @@ div_output(so, m, addr, control)
 	register struct ip *const ip = mtod(m, struct ip *);
 	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
 	int error = 0;
-	int soopts;
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -304,11 +300,8 @@ div_output(so, m, addr, control)
 
 		/* Send packet to output processing */
 		ipstat.ips_rawout++;			/* XXX */
-		SOCK_LOCK(so);
-		soopts = so->so_options & SO_DONTROUTE;
-		SOCK_UNLOCK(so);
 		error = ip_output(m, inp->inp_options, &inp->inp_route,
-			soopts |
+			(so->so_options & SO_DONTROUTE) |
 			IP_ALLOWBROADCAST | IP_RAWOUTPUT,
 			inp->inp_moptions);
 	} else {
@@ -372,9 +365,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	inp->inp_flags |= INP_HDRINCL;
 	/* The socket is always "connected" because
 	   we always know "where" to send the packet */
-	SOCK_LOCK(so);
 	so->so_state |= SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
 	return 0;
 }
 
@@ -393,21 +384,15 @@ div_detach(struct socket *so)
 static int
 div_abort(struct socket *so)
 {
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 	return div_detach(so);
 }
 
 static int
 div_disconnect(struct socket *so)
 {
-	SOCK_LOCK(so);
-	if ((so->so_state & SS_ISCONNECTED) == 0) {
-		SOCK_UNLOCK(so);
+	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
-	}
-	SOCK_UNLOCK(so);
 	return div_abort(so);
 }
 
