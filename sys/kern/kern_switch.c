@@ -450,7 +450,6 @@ critical_exit(void)
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
 	if (td->td_critnest == 1) {
-#if 0
 #ifdef PREEMPTION
 		mtx_assert(&sched_lock, MA_NOTOWNED);
 		if (td->td_pflags & TDP_OWEPREEMPT) {
@@ -458,7 +457,6 @@ critical_exit(void)
 			mi_switch(SW_INVOL, NULL);
 			mtx_unlock_spin(&sched_lock);
 		}
-#endif
 #endif
 		td->td_critnest = 0;
 		cpu_critical_exit();
