@@ -42,13 +42,13 @@ is always set to UTC, and the CMOS clock, which may be set to local
 time.
 .Nm Adjkerntz
 also informs the kernel about machine timezone shifts to
-maintain proper timestamps for local time file systems such as the MS-DOS
-file system.
+maintain proper timestamps for local time filesystems such as the MS-DOS
+filesystem.
 The main purpose of this thing is not general fixing of
 initially broken MS-DOS file timestamp idea but keeping
 the same timestamps between
 .Fx
-MS-DOS file system
+MS-DOS filesystem
 and MS-DOS operating system installed on the same
 machine.
 If the file
@@ -84,7 +84,7 @@ also stores the local time zone offset into the
 .Pa machdep.adjkerntz
 kernel variable, for use by subsequent invocations of
 .Em "'adjkerntz -a'"
-and by local time file systems.
+and by local time filesystems.
 .Pp
 For a local time CMOS clock
 .Em "'adjkerntz -i'"

@@ -219,7 +219,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	updjcg(osblock.fs_ncg-1, utime, fsi, fso, Nflag);
 
 	/*
-	 * Dump out summary information about file system.
+	 * Dump out summary information about filesystem.
 	 */
 	printf("growfs:\t%d sectors in %d %s of %d tracks, %d sectors\n",
 	    sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
@@ -763,7 +763,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	 * the  rotational  layout tables and the cluster summary.  This  is
 	 * also  done per fragment for the first new block if the  old  file
 	 * system end was not on a block boundary, per fragment for the  new
-	 * last block if the new file system end is not on a block boundary,
+	 * last block if the new filesystem end is not on a block boundary,
 	 * and per block for all space in between.
 	 *
 	 * Handle the first new block here if it was partially available
@@ -787,7 +787,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 			/*
 			 * Check  if the fragment just created could join  an
 			 * already existing fragment at the former end of the
-			 * file system.
+			 * filesystem.
 			 */
 			if(isblock(&sblock, cg_blksfree(&acg),
 			    ((osblock.fs_size - cgbase(&sblock, cylno))/
@@ -1296,7 +1296,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		/*
 		 * No cluster handling is needed here, as there was at least
 		 * one  fragment in use by the cylinder summary in  the  old
-		 * file system.
+		 * filesystem.
 		 * No block-free counter handling here as this block was not
 		 * a free block.
 		 */
@@ -1921,7 +1921,7 @@ charsperline(void)
  * growfs(8)  is a utility which allows to increase the size of  an  existing
  * ufs filesystem. Currently this can only be done on unmounted file  system.
  * It  recognizes some command line options to specify the new desired  size,
- * and  it does some basic checkings. The old file system size is  determined
+ * and  it does some basic checkings. The old filesystem size is  determined
  * and  after some more checks like we can really access the new  last  block
  * on the disk etc. we calculate the new parameters for the superblock. After
  * having  done  this we just call growfs() which will do  the  work.  Before
@@ -1937,7 +1937,7 @@ charsperline(void)
  * fsck(8) is still able to restore any lost data.
  * The  foreseen last step then will be to provide for growing  even  mounted
  * file  systems. There we have to extend the mount() system call to  provide
- * userland access to the file system locking facility.
+ * userland access to the filesystem locking facility.
  */
 int
 main(int argc, char **argv)
@@ -2063,7 +2063,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Check if that partition looks suited for growing a file system.
+	 * Check if that partition looks suited for growing a filesystem.
 	 */
 	if (pp->p_size < 1) {
 		errx(1, "partition is unavailable");
@@ -2149,7 +2149,7 @@ main(int argc, char **argv)
 
 	/*
 	 * Now calculate new superblock values and check for reasonable
-	 * bound for new file system size:
+	 * bound for new filesystem size:
 	 *     fs_size:    is derived from label or user input
 	 *     fs_dsize:   should get updated in the routines creating or
 	 *                 updating the cylinder groups on the fly

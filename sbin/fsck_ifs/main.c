@@ -220,7 +220,7 @@ checkfilesys(char *filesys, char *mntpt, long auxdata, int child)
 	if (preen == 0) {
 		printf("** Last Mounted on %s\n", sblock.fs_fsmnt);
 		if (mntbuf != NULL && mntbuf->f_flags & MNT_ROOTFS)
-			printf("** Root file system\n");
+			printf("** Root filesystem\n");
 		printf("** Phase 1 - Check Blocks and Sizes\n");
 	}
 	pass1();

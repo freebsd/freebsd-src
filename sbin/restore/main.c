@@ -197,7 +197,7 @@ main(int argc, char *argv[])
 		runcmdshell();
 		break;
 	/*
-	 * Incremental restoration of a file system.
+	 * Incremental restoration of a filesystem.
 	 */
 	case 'r':
 		setup();
@@ -234,7 +234,7 @@ main(int argc, char *argv[])
 		dumpsymtable(symtbl, (long)1);
 		break;
 	/*
-	 * Resume an incremental file system restoration.
+	 * Resume an incremental filesystem restoration.
 	 */
 	case 'R':
 		initsymtable(symtbl);

@@ -101,7 +101,7 @@ struct fileusage {
 #define FUHASH 1024	/* must be power of two */
 struct fileusage *fuhead[MAXQUOTAS][FUHASH];
 
-int	aflag;			/* all file systems */
+int	aflag;			/* all filesystems */
 int	gflag;			/* check group quotas */
 int	uflag;			/* check user quotas */
 int	vflag;			/* verbose */
