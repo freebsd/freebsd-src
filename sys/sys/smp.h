@@ -74,11 +74,17 @@ extern u_int mp_maxid;
  * executed and a simple message will be output to the console.  Finally,
  * cpu_mp_announce() will be called so that machine dependent messages about
  * the MP support may be output to the console if desired.
+ *
+ * The cpu_setmaxid() function is called very early during the boot process
+ * so that the MD code may set mp_maxid to provide an upper bound on CPU IDs
+ * that other subsystems may use.  If a platform is not able to determine
+ * the exact maximum ID that early, then it may set mp_maxid to MAXCPU.
  */
 struct thread;
 
 void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
+void	cpu_mp_setmaxid(void);
 void	cpu_mp_start(void);
 
 void	forward_signal(struct thread *);

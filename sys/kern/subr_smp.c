@@ -92,17 +92,16 @@ static void (*smp_rv_teardown_func)(void *arg);
 static void *smp_rv_func_arg;
 static volatile int smp_rv_waiters[2];
 static struct mtx smp_rv_mtx;
-static int mp_probe_status;
 
 /*
- * Initialize MI SMP variables.
+ * Let the MD SMP code initialize mp_maxid very early if it can.
  */
 static void
-mp_probe(void *dummy)
+mp_setmaxid(void *dummy)
 {
-	mp_probe_status = cpu_mp_probe();
+	cpu_mp_setmaxid();
 }
-SYSINIT(cpu_mp_probe, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_probe, NULL)
+SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL)
 
 /*
  * Call the MD SMP initialization code.
@@ -112,8 +111,9 @@ mp_start(void *dummy)
 {
 
 	/* Probe for MP hardware. */
-	if (mp_probe_status == 0 || smp_disabled != 0) {
+	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
 		mp_ncpus = 1;
+		all_cpus = PCPU_GET(cpumask);
 		return;
 	}
 
