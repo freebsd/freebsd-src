@@ -81,11 +81,11 @@ enum {
 };
 
 static struct nlist nl[] = {
-	{ "_constty", 0 },
-	{ "_maxfiles", 0 },
-	{ "_nfiles", 0 },
-	{ "_tty_list", 0 },
-	{ "" }
+	{ .n_name = "_constty" },
+	{ .n_name = "_maxfiles" },
+	{ .n_name = "_nfiles" },
+	{ .n_name = "_tty_list" },
+	{ .n_name = "" }
 };
 
 static int	humanflag;
