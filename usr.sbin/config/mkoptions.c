@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkoptions.c,v 1.10 1999/04/18 13:36:29 peter Exp $";
+	"$Id: mkoptions.c,v 1.11 1999/04/24 18:59:19 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -125,11 +125,13 @@ do_option(name)
 	char *name;
 {
 	char *file, *inw;
+	struct opt_list *ol;
 	struct opt *op, *op_head, *topp;
 	FILE *inf, *outf;
 	char *value;
 	char *oldvalue;
 	int seen;
+	int tidy;
 
 	file = tooption(name);
 
@@ -169,6 +171,7 @@ do_option(name)
 	oldvalue = NULL;
 	op_head = NULL;
 	seen = 0;
+	tidy = 0;
 	for (;;) {
 		char *cp;
 		char *invalue;
@@ -180,8 +183,8 @@ do_option(name)
 		if ((inw = get_word(inf)) == 0 || inw == (char *)EOF)
 			break;
 		inw = ns(inw);
-		cp = get_word(inf);
-		if (cp == 0 || cp == (char *)EOF)
+		/* get the option value */
+		if ((cp = get_word(inf)) == 0 || cp == (char *)EOF)
 			break;
 		/* option value */
 		invalue = ns(cp); /* malloced */
@@ -190,12 +193,21 @@ do_option(name)
 			invalue = value;
 			seen++;
 		}
-		op = (struct opt *) malloc(sizeof *op);
-		bzero(op, sizeof(*op));
-		op->op_name = inw;
-		op->op_value = invalue;
-		op->op_next = op_head;
-		op_head = op;
+		for (ol = otab; ol != 0; ol = ol->o_next)
+			if (eq(inw, ol->o_name))
+				break;
+		if (!seen && !ol) {
+			printf("WARNING: unknown option `%s' removed from %s\n",
+				inw, file);
+			tidy++;
+		} else {
+			op = (struct opt *) malloc(sizeof *op);
+			bzero(op, sizeof(*op));
+			op->op_name = inw;
+			op->op_value = invalue;
+			op->op_next = op_head;
+			op_head = op;
+		}
 
 		/* EOL? */
 		cp = get_word(inf);
@@ -203,8 +215,8 @@ do_option(name)
 			break;
 	}
 	(void) fclose(inf);
-	if ((value == NULL && oldvalue == NULL) ||
-	    (value && oldvalue && eq(value,oldvalue))) {	
+	if (!tidy && ((value == NULL && oldvalue == NULL) ||
+	    (value && oldvalue && eq(value, oldvalue)))) {	
 		for (op = op_head; op != NULL; op = topp) {
 			topp = op->op_next;
 			free(op->op_name);
