@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.40 1999/02/25 00:03:51 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.41 1999/05/02 23:56:24 alc Exp $
  */
 
 
@@ -772,7 +772,7 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
 	nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(cache);
 	*tl++ = txdr_unsigned(nfsd->nd_duration);
-	txdr_hyper(&frev, tl);
+	txdr_hyper(frev, tl);
 	nfsm_build(fp, struct nfs_fattr *, NFSX_V3FATTR);
 	nfsm_srvfillattr(vap, fp);
 	nfsm_srvdone;
@@ -893,7 +893,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 	cachable = fxdr_unsigned(int, *tl++);
 	reqtime += fxdr_unsigned(int, *tl++);
 	if (reqtime > time_second) {
-		fxdr_hyper(tl, &frev);
+		frev = fxdr_hyper(tl);
 		nqnfs_clientlease(nmp, np, rwflag, cachable, reqtime, frev);
 		nfsm_loadattr(vp, (struct vattr *)0);
 	} else

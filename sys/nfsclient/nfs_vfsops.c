@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.82 1999/02/16 10:49:54 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.83 1999/04/10 18:53:29 peter Exp $
  */
 
 #include <sys/param.h>
@@ -291,11 +291,11 @@ nfs_statfs(mp, sbp, p)
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
 		sbp->f_bsize = NFS_FABLKSIZE;
-		fxdr_hyper(&sfp->sf_tbytes, &tquad);
+		tquad = fxdr_hyper(&sfp->sf_tbytes);
 		sbp->f_blocks = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		fxdr_hyper(&sfp->sf_fbytes, &tquad);
+		tquad = fxdr_hyper(&sfp->sf_fbytes);
 		sbp->f_bfree = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
-		fxdr_hyper(&sfp->sf_abytes, &tquad);
+		tquad = fxdr_hyper(&sfp->sf_abytes);
 		sbp->f_bavail = (long)(tquad / ((u_quad_t)NFS_FABLKSIZE));
 		sbp->f_files = (fxdr_unsigned(int32_t,
 		    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
@@ -375,7 +375,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 			if (nmp->nm_readdirsize == 0)
 				nmp->nm_readdirsize = max;
 		}
-		fxdr_hyper(&fsp->fs_maxfilesize, &maxfsize);
+		maxfsize = fxdr_hyper(&fsp->fs_maxfilesize);
 		if (maxfsize > 0 && maxfsize < nmp->nm_maxfilesize)
 			nmp->nm_maxfilesize = maxfsize;
 		nmp->nm_state |= NFSSTA_GOTFSINFO;
