@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.38 1994/11/15 13:40:00 jkh Exp $
+# $Id: netinst.sh,v 1.1 1994/11/16 07:51:45 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -63,7 +63,7 @@ network_setup_slip()
 	serial_speed=$answer
 	clear="--clear"
 
-	if dialog $clear --title "Dial" --yesno "Do you need to dial the phone or otherwise talk to the modem?"; then
+	if dialog $clear --title "Dial" --yesno "Do you need to dial the phone or otherwise talk to the modem?" -1 -1; then
 		mkdir -p /var/log
 		touch -f /var/log/aculog	> /dev/null 2>&1
 		chmod 666 /var/log/aculog	> /dev/null 2>&1
