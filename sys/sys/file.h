@@ -90,10 +90,10 @@ struct file {
 		int	(*fo_ioctl)(struct file *fp, u_long com, void *data,
 			    struct thread *td);
 		int	(*fo_poll)(struct file *fp, int events,
-			    struct ucred *cred, struct thread *td);
+			    struct ucred *active_cred, struct thread *td);
 		int	(*fo_kqfilter)(struct file *fp, struct knote *kn);
 		int	(*fo_stat)(struct file *fp, struct stat *sb,
-			    struct thread *td);
+			    struct ucred *active_cred, struct thread *td);
 		int	(*fo_close)(struct file *fp, struct thread *td);
 	} *f_ops;
 	int	f_seqcount;	/*
@@ -182,9 +182,9 @@ static __inline int fo_write(struct file *fp, struct uio *uio,
 static __inline int fo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static __inline int fo_poll(struct file *fp, int events,
-    struct ucred *cred, struct thread *td);
+    struct ucred *active_cred, struct thread *td);
 static __inline int fo_stat(struct file *fp, struct stat *sb,
-    struct thread *td);
+    struct ucred *active_cred, struct thread *td);
 static __inline int fo_close(struct file *fp, struct thread *td);
 static __inline int fo_kqfilter(struct file *fp, struct knote *kn);
 struct proc;
@@ -225,24 +225,25 @@ fo_ioctl(fp, com, data, td)
 }
 
 static __inline int
-fo_poll(fp, events, cred, td)
+fo_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 
-	return ((*fp->f_ops->fo_poll)(fp, events, cred, td));
+	return ((*fp->f_ops->fo_poll)(fp, events, active_cred, td));
 }
 
 static __inline int
-fo_stat(fp, sb, td)
+fo_stat(fp, sb, active_cred, td)
 	struct file *fp;
 	struct stat *sb;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 
-	return ((*fp->f_ops->fo_stat)(fp, sb, td));
+	return ((*fp->f_ops->fo_stat)(fp, sb, active_cred, td));
 }
 
 static __inline int

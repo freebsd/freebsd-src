@@ -103,9 +103,10 @@ static int badfo_readwrite(struct file *fp, struct uio *uio,
 static int badfo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static int badfo_poll(struct file *fp, int events,
-    struct ucred *cred, struct thread *td);
+    struct ucred *active_cred, struct thread *td);
 static int badfo_kqfilter(struct file *fp, struct knote *kn);
-static int badfo_stat(struct file *fp, struct stat *sb, struct thread *td);
+static int badfo_stat(struct file *fp, struct stat *sb,
+    struct ucred *active_cred, struct thread *td);
 static int badfo_close(struct file *fp, struct thread *td);
 
 /*
@@ -831,7 +832,7 @@ ofstat(td, uap)
 	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	error = fo_stat(fp, &ub, td);
+	error = fo_stat(fp, &ub, td->td_ucred, td);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
 		error = copyout(&oub, uap->sb, sizeof (oub));
@@ -868,7 +869,7 @@ fstat(td, uap)
 	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	error = fo_stat(fp, &ub, td);
+	error = fo_stat(fp, &ub, td->td_ucred, td);
 	if (error == 0)
 		error = copyout(&ub, uap->sb, sizeof (ub));
 	fdrop(fp, td);
@@ -903,7 +904,7 @@ nfstat(td, uap)
 	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	error = fo_stat(fp, &ub, td);
+	error = fo_stat(fp, &ub, td->td_ucred, td);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout(&nub, uap->sb, sizeof (nub));
@@ -2169,10 +2170,10 @@ badfo_ioctl(fp, com, data, td)
 }
 
 static int
-badfo_poll(fp, events, cred, td)
+badfo_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 
@@ -2189,9 +2190,10 @@ badfo_kqfilter(fp, kn)
 }
 
 static int
-badfo_stat(fp, sb, td)
+badfo_stat(fp, sb, active_cred, td)
 	struct file *fp;
 	struct stat *sb;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 

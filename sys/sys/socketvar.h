@@ -352,9 +352,10 @@ int	soo_write(struct file *fp, struct uio *uio,
 int	soo_close(struct file *fp, struct thread *td);
 int	soo_ioctl(struct file *fp, u_long cmd, void *data,
 	    struct thread *td);
-int	soo_poll(struct file *fp, int events, struct ucred *cred,
+int	soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	    struct thread *td);
-int	soo_stat(struct file *fp, struct stat *ub, struct thread *td);
+int	soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
+	    struct thread *td);
 int	sokqfilter(struct file *fp, struct knote *kn);
 
 /*
@@ -418,7 +419,7 @@ int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);
 int	soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
 int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
 
-int	sopoll(struct socket *so, int events, struct ucred *cred,
+int	sopoll(struct socket *so, int events, struct ucred *active_cred,
 	    struct thread *td);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);

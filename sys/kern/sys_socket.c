@@ -157,20 +157,22 @@ soo_ioctl(fp, cmd, data, td)
 }
 
 int
-soo_poll(fp, events, cred, td)
+soo_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct socket *so = (struct socket *)fp->f_data;
-	return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, td);
+	return so->so_proto->pr_usrreqs->pru_sopoll(so, events,
+	    fp->f_cred, td);
 }
 
 int
-soo_stat(fp, ub, td)
+soo_stat(fp, ub, active_cred, td)
 	struct file *fp;
 	struct stat *ub;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct socket *so = (struct socket *)fp->f_data;
