@@ -39,10 +39,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.116 1999/04/29 22:51:59 dt Exp $
+ * $Id: init_main.c,v 1.117 1999/05/03 23:57:19 billf Exp $
  */
 
 #include "opt_devfs.h"
+#include "opt_init_path.h"
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -589,7 +590,11 @@ kthread_init(dummy)
  * List of paths to try when searching for "init".
  */
 static char init_path[MAXPATHLEN] =
+#ifdef	INIT_PATH
+    __XSTRING(INIT_PATH);
+#else
     "/sbin/init;/sbin/oinit;/sbin/init.bak;/stand/sysinstall";
+#endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
 
 /*
@@ -623,10 +628,10 @@ start_init(p)
 		init_path[sizeof init_path - 1] = 0;
 	}
 	
-	for (path = init_path; path != '\0'; path = next) {
+	for (path = init_path; *path != '\0'; path = next) {
 		while (*path == ';')
 			path++;
-		if (path == '\0')
+		if (*path == '\0')
 			break;
 		for (next = path; *next != '\0' && *next != ';'; next++)
 			/* nothing */ ;
