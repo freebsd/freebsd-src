@@ -313,7 +313,9 @@ int
 mediaSetFTP(dialogMenuItem *self)
 {
     static Device ftpDevice;
-    char *cp, hostname[MAXHOSTNAMELEN], *dir;
+    char *cp, hbuf[MAXHOSTNAMELEN], *hostname, *dir;
+    struct addrinfo hints, *res;
+    int af;
     extern int FtpPort;
     static Device *networkDev = NULL;
 
@@ -352,7 +354,8 @@ mediaSetFTP(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     SAFE_STRCPY(ftpDevice.name, cp);
-    SAFE_STRCPY(hostname, cp + 6);
+    SAFE_STRCPY(hbuf, cp + 6);
+    hostname = hbuf;
 
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
 				"would you like to skip over it now?") != 0) {
@@ -369,7 +372,14 @@ mediaSetFTP(dialogMenuItem *self)
 	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE;
     }
-    if ((cp = index(hostname, ':')) != NULL) {
+    if (*hostname == '[' && (cp = index(hostname + 1, ']')) != NULL &&
+	(*++cp == '\0' || *cp == '/' || *cp == ':')) {
+	++hostname;
+	*(cp - 1) = '\0';
+    }
+    else
+	cp = index(hostname, ':');
+    if (cp != NULL && *cp == ':') {
 	*(cp++) = '\0';
 	FtpPort = strtol(cp, 0, 0);
     }
@@ -388,12 +398,18 @@ mediaSetFTP(dialogMenuItem *self)
 	    msgDebug("Starting DNS.\n");
 	kickstart_dns();
     	if (isDebug())
-	    msgDebug("Looking up hostname, %s, using inet_addr().\n", hostname);
-	if (inet_addr(hostname) == INADDR_NONE) {
-    	    if (isDebug())
-		msgDebug("Looking up hostname, %s, using gethostbyname().\n",
-			hostname);
-	    if (gethostbyname(hostname) == NULL) {
+	    msgDebug("Looking up hostname, %s, using getaddrinfo(AI_NUMERICHOST).\n", hostname);
+	af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
+	    if (isDebug())
+		msgDebug("Looking up hostname, %s, using getaddrinfo().\n",
+			 hostname);
+	    hints.ai_flags = AI_PASSIVE;
+	    if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
 		msgConfirm("Cannot resolve hostname `%s'!  Are you sure that"
 			" your\nname server, gateway and network interface are"
 			" correctly configured?", hostname);
@@ -404,6 +420,7 @@ mediaSetFTP(dialogMenuItem *self)
 		return DITEM_FAILURE;
 	    }
 	}
+	freeaddrinfo(res);
 	if (isDebug())
 	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
@@ -436,8 +453,8 @@ mediaSetFTPPassive(dialogMenuItem *self)
 int mediaSetHTTP(dialogMenuItem *self)
 {
     int result;
-    char *cp, *idx, hostname[MAXHOSTNAMELEN], *var_hostname;
-    extern int HttpPort;
+    char *cp, *idx, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
+    int HttpPort;
     int what = DITEM_RESTORE;
 
 
@@ -454,8 +471,15 @@ int mediaSetHTTP(dialogMenuItem *self)
 	" hostname:port (the ':port' is optional, default is 3128)",0);
     if (!cp)
 	return DITEM_FAILURE;
-    SAFE_STRCPY(hostname, cp);
-    if (!(idx = index(hostname, ':')))
+    SAFE_STRCPY(hbuf, cp);
+    hostname = hbuf;
+    if (*hostname == '[' && (idx = index(hostname + 1, ']')) != NULL &&
+	(*++idx == '\0' || *idx == ':')) {
+	++hostname;
+	*(idx - 1) = '\0';
+    } else
+	idx = index(hostname, ':');
+    if (idx == NULL || *cp != ':')
 	HttpPort = 3128;		/* try this as default */
     else {
 	*(idx++) = '\0';

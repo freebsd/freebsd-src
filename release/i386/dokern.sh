@@ -9,9 +9,10 @@ sed	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/apm0/d' \
 	-e '/ppp/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
 	-e '/gzip/d' \
 	-e '/splash/d' \
-	-e '/IPv6/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
@@ -31,9 +32,10 @@ sed	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/apm0/d' \
 	-e '/ppp/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
 	-e '/gzip/d' \
 	-e '/splash/d' \
-	-e '/IPv6/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
