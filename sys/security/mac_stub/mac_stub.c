@@ -439,12 +439,6 @@ stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  * Labeling event operations: processes.
  */
 static void
-stub_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-
-}
-
-static void
 stub_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vnodelabel,
     struct label *interpvnodelabel, struct image_params *imgp,
@@ -1055,6 +1049,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_socket_label = stub_destroy_label,
 	.mpo_destroy_socket_peer_label = stub_destroy_label,
 	.mpo_destroy_vnode_label = stub_destroy_label,
+	.mpo_copy_cred_label = stub_copy_label,
 	.mpo_copy_mbuf_label = stub_copy_label,
 	.mpo_copy_pipe_label = stub_copy_label,
 	.mpo_copy_socket_label = stub_copy_label,
@@ -1109,7 +1104,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_relabel_ifnet = stub_relabel_ifnet,
 	.mpo_update_ipq = stub_update_ipq,
 	.mpo_inpcb_sosetlabel = stub_inpcb_sosetlabel,
-	.mpo_create_cred = stub_create_cred,
 	.mpo_execve_transition = stub_execve_transition,
 	.mpo_execve_will_transition = stub_execve_will_transition,
 	.mpo_create_proc0 = stub_create_proc0,

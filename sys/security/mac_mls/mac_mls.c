@@ -1258,18 +1258,6 @@ mac_mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  * Labeling event operations: processes.
  */
 static void
-mac_mls_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred_parent->cr_label);
-	dest = SLOT(cred_child->cr_label);
-
-	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
-}
-
-static void
 mac_mls_create_proc0(struct ucred *cred)
 {
 	struct mac_mls *dest;
@@ -2440,6 +2428,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_socket_label = mac_mls_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_mls_destroy_label,
 	.mpo_destroy_vnode_label = mac_mls_destroy_label,
+	.mpo_copy_cred_label = mac_mls_copy_label,
 	.mpo_copy_mbuf_label = mac_mls_copy_label,
 	.mpo_copy_pipe_label = mac_mls_copy_label,
 	.mpo_copy_socket_label = mac_mls_copy_label,
@@ -2491,7 +2480,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_relabel_ifnet = mac_mls_relabel_ifnet,
 	.mpo_update_ipq = mac_mls_update_ipq,
 	.mpo_inpcb_sosetlabel = mac_mls_inpcb_sosetlabel,
-	.mpo_create_cred = mac_mls_create_cred,
 	.mpo_create_proc0 = mac_mls_create_proc0,
 	.mpo_create_proc1 = mac_mls_create_proc1,
 	.mpo_relabel_cred = mac_mls_relabel_cred,
