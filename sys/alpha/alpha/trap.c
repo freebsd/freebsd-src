@@ -923,7 +923,7 @@ unaligned_fixup(va, opcode, reg, p)
 	int doprint, dofix, dosigbus;
 	int signal, size;
 	const char *type;
-	unsigned long *regptr, longdata;
+	unsigned long *regptr, longdata, uac;
 	int intdata;		/* signed to get extension when storing */
 	struct {
 		const char *type;	/* opcode name */
@@ -950,12 +950,16 @@ unaligned_fixup(va, opcode, reg, p)
 	/*
 	 * Figure out what actions to take.
 	 *
-	 * XXX In the future, this should have a per-process component
-	 * as well.
 	 */
-	doprint = alpha_unaligned_print;
-	dofix = alpha_unaligned_fix;
-	dosigbus = alpha_unaligned_sigbus;
+
+	if (p)
+		uac = p->p_md.md_flags & MDP_UAC_MASK;
+	else
+		uac = 0;
+
+	doprint = alpha_unaligned_print && !(uac & MDP_UAC_NOPRINT);
+	dofix = alpha_unaligned_fix && !(uac & MDP_UAC_NOFIX);
+	dosigbus = alpha_unaligned_sigbus | (uac & MDP_UAC_SIGBUS);
 
 	/*
 	 * Find out which opcode it is.  Arrange to have the opcode

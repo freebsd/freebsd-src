@@ -50,3 +50,8 @@ struct mdproc {
 #define MDP_STEP1	0x0002		/* Single step normal instruction */
 #define MDP_STEP2	0x0004		/* Single step branch instruction */
 #define MDP_HAEUSED	0x0008		/* Process used the HAE */
+#define MDP_UAC_NOPRINT	0x0010		/* Don't print unaligned traps */
+#define MDP_UAC_NOFIX	0x0020		/* Don't fixup unaligned traps */
+#define MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
+					   unalinged access */
+#define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
