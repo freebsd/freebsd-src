@@ -1,7 +1,10 @@
 /* maketree.c -- make inffixed.h table for decoding fixed codes
- * Copyright (C) 1998 Mark Adler
+ * Copyright (C) 1995-2002 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* WARNING: this file should *not* be used by applications. It is
    part of the implementation of the compression library and is
