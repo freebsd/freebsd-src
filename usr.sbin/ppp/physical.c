@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.14 1999/05/24 16:39:12 brian Exp $
+ *  $Id: physical.c,v 1.15 1999/06/01 19:08:58 brian Exp $
  *
  */
 
@@ -595,8 +595,11 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
       p->handler = (struct device *)(long)p->handler->type;
     }
 
-    if (tcgetpgrp(p->fd) == getpgrp())
+    if (Enabled(p->dl->bundle, OPT_KEEPSESSION) ||
+        tcgetpgrp(p->fd) == getpgrp())
       p->session_owner = getpid();      /* So I'll eventually get HUP'd */
+    else
+      p->session_owner = (pid_t)-1;
     timer_Stop(&p->link.throughput.Timer);
     physical_ChangedPid(p, newpid);
   }
@@ -618,7 +621,7 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
 void
 physical_ChangedPid(struct physical *p, pid_t newpid)
 {
-  if (p->fd >= 0 && p->type != PHYS_DIRECT) {
+  if (p->fd >= 0 && *p->name.full == '/' && p->type != PHYS_DIRECT) {
     int res;
 
     if ((res = ID0uu_lock_txfr(p->name.base, newpid)) != UU_LOCK_OK)

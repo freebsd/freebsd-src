@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.194 1999/05/15 02:24:16 brian Exp $
+ * $Id: command.c,v 1.195 1999/05/31 23:57:35 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,7 +143,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.21";
-const char VersionDate[] = "$Date: 1999/05/15 02:24:16 $";
+const char VersionDate[] = "$Date: 1999/05/31 23:57:35 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2271,6 +2271,8 @@ static struct cmdtab const NegotiateCommands[] = {
   {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
    "retain interface addresses", "disable|enable",
    (const void *)OPT_IFACEALIAS},
+  {"keep-session", NULL, OptSet, LOCAL_AUTH, "Retain device session leader",
+  "disable|enable", (const void *)OPT_KEEPSESSION},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
   "disable|enable", (const void *)OPT_LOOPBACK},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
@@ -2286,7 +2288,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
 
-#define OPT_MAX 9	/* accept/deny allowed below and not above */
+#define OPT_MAX 10	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
