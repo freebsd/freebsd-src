@@ -623,6 +623,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * If we are the first time, and a normal thread,
 	 * then trnasfer all the signals back to the 'process'.
 	 * SA threading will make a special thread to handle them.
+	 */
 	if (first && sa) {
 		SIGSETOR(p->p_siglist, td->td_siglist);
 		SIGEMPTYSET(td->td_siglist);
