@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.10 1997/02/22 09:46:05 peter Exp $
+ * $Id: syslog.h,v 1.11 1997/02/26 06:03:20 mpp Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_
@@ -60,7 +60,7 @@
 #define	LOG_PRIMASK	0x07	/* mask to extract priority part (internal) */
 				/* extract priority */
 #define	LOG_PRI(p)	((p) & LOG_PRIMASK)
-#define	LOG_MAKEPRI(fac, pri)	(((fac) << 3) | (pri))
+#define	LOG_MAKEPRI(fac, pri)	((fac) | (pri))
 
 #ifdef SYSLOG_NAMES
 #define	INTERNAL_NOPRI	0x10	/* the "no priority" priority */
