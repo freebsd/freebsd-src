@@ -86,6 +86,7 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }
 #endif /* KLD_MODULE */
 
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR_ > 9)
 ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
 ATOMIC_ASM(add,	     char,  "addb %2,%0",  v)
@@ -105,5 +106,27 @@ ATOMIC_ASM(set,	     long,  "orl %2,%0",   v)
 ATOMIC_ASM(clear,    long,  "andl %2,%0", ~v)
 ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
 ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
+
+#else
+#define atomic_set_char(P, V)		(*(u_char*)(P) |= (V))
+#define atomic_clear_char(P, V)		(*(u_char*)(P) &= ~(V))
+#define atomic_add_char(P, V)		(*(u_char*)(P) += (V))
+#define atomic_subtract_char(P, V)	(*(u_char*)(P) -= (V))
+
+#define atomic_set_short(P, V)		(*(u_short*)(P) |= (V))
+#define atomic_clear_short(P, V)	(*(u_short*)(P) &= ~(V))
+#define atomic_add_short(P, V)		(*(u_short*)(P) += (V))
+#define atomic_subtract_short(P, V)	(*(u_short*)(P) -= (V))
+
+#define atomic_set_int(P, V)		(*(u_int*)(P) |= (V))
+#define atomic_clear_int(P, V)		(*(u_int*)(P) &= ~(V))
+#define atomic_add_int(P, V)		(*(u_int*)(P) += (V))
+#define atomic_subtract_int(P, V)	(*(u_int*)(P) -= (V))
+
+#define atomic_set_long(P, V)		(*(u_long*)(P) |= (V))
+#define atomic_clear_long(P, V)		(*(u_long*)(P) &= ~(V))
+#define atomic_add_long(P, V)		(*(u_long*)(P) += (V))
+#define atomic_subtract_long(P, V)	(*(u_long*)(P) -= (V))
+#endif
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
