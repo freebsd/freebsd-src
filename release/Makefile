@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.196 1995/12/30 21:15:45 joerg Exp $
+#	$Id: Makefile,v 1.197 1995/12/31 17:10:04 joerg Exp $
 #
 # How to roll a release:
 #
@@ -542,7 +542,7 @@ doFS:
 	@umount ${MNT} 2>/dev/null || true
 	@vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 	dd of=fs-image if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
-	vnconfig -c /dev/r${VNDEVICE} fs-image
+	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 .if defined(FSLABEL)
 	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
