@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.91 1995/01/28 01:18:36 jkh Exp $
+#	$Id: Makefile,v 1.92 1995/01/28 05:33:52 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -360,6 +360,7 @@ src:	srcbase-tarball srcbin-tarball srcetc-tarball \
 	srcebones-tarball srclkm-tarball srcrelease-tarball
 	( cd ${RELEASEDIR}/tarballs/src; \
 		sh -e ${.CURDIR}/scripts/mkchecksums.sh )
-	cp ${.CURDIR}/scripts/extract_src.sh ${RELEASEDIR}/tarballs/extract.sh
+	cp ${.CURDIR}/scripts/extract_src.sh \
+		${RELEASEDIR}/tarballs/src/extract.sh
 
 .include <bsd.prog.mk>
