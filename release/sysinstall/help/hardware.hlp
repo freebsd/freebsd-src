@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9 1996/10/04 13:33:48 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.1 1996/11/13 11:49:40 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -93,7 +93,8 @@ ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
-fe0     300     dyn     n/a     n/a     Fujitsu MB86960A/MB86965A cards
+fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
+					Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210

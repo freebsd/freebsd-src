@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1996/06/24 04:24:19 jkh Exp $
+#	$Id: Makefile,v 1.9.2.1 1996/11/28 21:55:43 phk Exp $
 
 NOBIN=
 CLEANFILES+=	yearistype
@@ -35,7 +35,7 @@ afterinstall:	yearistype
 	zic -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
 		${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
 	chown -R bin.bin ${DESTDIR}/usr/share/zoneinfo/*
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/zone.tab \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/zone.tab \
 		${DESTDIR}/usr/share/zoneinfo
 
 .include <bsd.prog.mk>
