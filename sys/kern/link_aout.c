@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.11 1998/08/16 04:19:03 jdp Exp $
+ *	$Id: link_aout.c,v 1.12 1998/09/11 08:45:32 dfr Exp $
  */
+
+#ifndef __alpha__
 
 #define FREEBSD_AOUT	1
 
@@ -40,17 +42,18 @@
 #include <a.out.h>
 #include <link.h>
 
-#ifndef __alpha__
+static int		link_aout_load_module(const char*, linker_file_t*);
 
 static int		link_aout_load_file(const char*, linker_file_t*);
 
 static int		link_aout_lookup_symbol(linker_file_t, const char*,
 						linker_sym_t*);
-static void		link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
+static int		link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
 						linker_symval_t* symval);
 static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
 						linker_sym_t* sym, long* diffp);
-static void		link_aout_unload(linker_file_t);
+static void		link_aout_unload_file(linker_file_t);
+static void		link_aout_unload_module(linker_file_t);
 
 /*
  * The file representing the currently running kernel.  This contains
@@ -60,14 +63,20 @@ static void		link_aout_unload(linker_file_t);
 static linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_aout_class_ops = {
-    link_aout_load_file,
+    link_aout_load_module,
 };
 
 static struct linker_file_ops link_aout_file_ops = {
     link_aout_lookup_symbol,
     link_aout_symbol_values,
     link_aout_search_symbol,
-    link_aout_unload,
+    link_aout_unload_file,
+};
+static struct linker_file_ops link_aout_module_ops = {
+    link_aout_lookup_symbol,
+    link_aout_symbol_values,
+    link_aout_search_symbol,
+    link_aout_unload_module,
 };
 
 typedef struct aout_file {
@@ -86,10 +95,13 @@ extern struct _dynamic _DYNAMIC;
 static void
 link_aout_init(void* arg)
 {
+#ifndef __ELF__
     struct _dynamic* dp = &_DYNAMIC;
+#endif
 
     linker_add_class("a.out", NULL, &link_aout_class_ops);
 
+#ifndef __ELF__
     if (dp) {
 	aout_file_t af;
 
@@ -110,9 +122,63 @@ link_aout_init(void* arg)
 	linker_kernel_file->size = -0xf0100000;
 	linker_current_file = linker_kernel_file;
     }
+#endif
 }
 
-SYSINIT(link_aout, SI_SUB_KMEM, SI_ORDER_THIRD, link_aout_init, 0);
+SYSINIT(link_aout, SI_SUB_KLD, SI_ORDER_SECOND, link_aout_init, 0);
+
+static int
+link_aout_load_module(const char* filename, linker_file_t* result)
+{
+    caddr_t		modptr, baseptr;
+    char		*type;
+    struct exec		*ehdr;
+    aout_file_t		af;
+    linker_file_t	lf;
+    int			error;
+    
+    /* Look to see if we have the module preloaded. */
+    if ((modptr = preload_search_by_name(filename)) == NULL)
+	return(link_aout_load_file(filename, result));
+
+    /* It's preloaded, check we can handle it and collect information. */
+    if (((type = (char *)preload_search_info(modptr, MODINFO_TYPE)) == NULL) ||
+	strcmp(type, "a.out module") ||
+	((baseptr = preload_search_info(modptr, MODINFO_ADDR)) == NULL) ||
+	((ehdr = (struct exec *)preload_search_info(modptr, MODINFO_METADATA | MODINFOMD_AOUTEXEC)) == NULL))
+	return(0);			/* we can't handle this */
+
+    /* Looks like we can handle this one */
+    af = malloc(sizeof(struct aout_file), M_LINKER, M_WAITOK);
+    af->address = baseptr;
+
+    /* Assume _DYNAMIC is the first data item. */
+    af->dynamic = (struct _dynamic*)(af->address + ehdr->a_text);
+    if (af->dynamic->d_version != LD_VERSION_BSD) {
+	free(af, M_LINKER);
+	return(0);			/* we can't handle this */
+    }
+    af->dynamic->d_un.d_sdt = (struct section_dispatch_table *)
+	((char *)af->dynamic->d_un.d_sdt + (vm_offset_t)af->address);
+
+    /* Register with kld */
+    lf = linker_make_file(filename, af, &link_aout_module_ops);
+    if (lf == NULL) {
+	free(af, M_LINKER);
+	return(ENOMEM);
+    }
+    lf->address = af->address;
+    lf->size = ehdr->a_text + ehdr->a_data + ehdr->a_bss;
+
+    /* Try to load dependancies */
+    if (((error = load_dependancies(lf)) != 0) ||
+	((error = relocate_file(lf)) != 0)) {
+	linker_file_unload(lf);
+	return(error);
+    }
+    *result = lf;
+    return(0);
+}
 
 static int
 link_aout_load_file(const char* filename, linker_file_t* result)
@@ -124,9 +190,14 @@ link_aout_load_file(const char* filename, linker_file_t* result)
     struct exec header;
     aout_file_t af;
     linker_file_t lf;
+    char *pathname;
 
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
+    pathname = linker_search_path(filename);
+    if (pathname == NULL)
+	return ENOENT;
+    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, pathname, p);
     error = vn_open(&nd, FREAD, 0);
+    free(pathname, M_LINKER);
     if (error)
 	return error;
 
@@ -196,7 +267,7 @@ out:
 }
 
 static void
-link_aout_unload(linker_file_t file)
+link_aout_unload_file(linker_file_t file)
 {
     aout_file_t af = file->priv;
 
@@ -205,6 +276,17 @@ link_aout_unload(linker_file_t file)
 	    free(af->address, M_LINKER);
 	free(af, M_LINKER);
     }
+}
+
+static void
+link_aout_unload_module(linker_file_t file)
+{
+    aout_file_t af = file->priv;
+
+    if (af)
+	free(af, M_LINKER);
+    if (file->filename)
+	preload_delete_name(file->filename);
 }
 
 #define AOUT_RELOC(af, type, off) (type*) ((af)->address + (off))
@@ -235,29 +317,6 @@ load_dependancies(linker_file_t lf)
 	sodp = AOUT_RELOC(af, struct sod, off);
 	name = AOUT_RELOC(af, char, sodp->sod_name);
 
-	/*
-	 * Prepend pathname if dep is not an absolute filename.
-	 */
-	if (name[0] != '/') {
-	    char* p;
-	    if (!filename) {
-		filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		if (!filename) {
-		    error = ENOMEM;
-		    goto out;
-		}
-	    }
-	    p = lf->filename + strlen(lf->filename) - 1;
-	    while (p >= lf->filename && *p != '/')
-		p--;
-	    if (p >= lf->filename) {
-		strncpy(filename, lf->filename, p - lf->filename);
-		filename[p - lf->filename] = '\0';
-		strcat(filename, "/");
-		strcat(filename, name);
-		name = filename;
-	    }
-	}
 	error = linker_load_file(name, &lfdep);
 	if (error)
 	    goto out;
@@ -459,13 +518,22 @@ restart:
 }
 
 
-static void
+static int
 link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
 			linker_symval_t* symval)
 {
     aout_file_t af = file->priv;
     struct nzlist* np = (struct nzlist*) sym;
     char* stringbase;
+    long numsym = LD_STABSZ(af->dynamic) / sizeof(struct nzlist);
+    struct nzlist *symbase;
+
+    /* Is it one of ours?  It could be another module... */
+    symbase = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic));
+    if (np < symbase)
+	return ENOENT;
+    if ((np - symbase) > numsym)
+	return ENOENT;
 
     stringbase = AOUT_RELOC(af, char, LD_STRINGS(af->dynamic));
 
@@ -477,6 +545,7 @@ link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
 	symval->value = AOUT_RELOC(af, char, np->nz_value);
 	symval->size = np->nz_size;
     }
+    return 0;
 }
 
 static int
@@ -517,4 +586,3 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 }
 
 #endif /* !__alpha__ */
-
