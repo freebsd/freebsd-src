@@ -12,16 +12,17 @@
  * This file contains various auxiliary functions related to multiple
  * precision integers.
  * 
+ * $FreeBSD$
 */
 
 #include "includes.h"
 RCSID("$Id: mpaux.c,v 1.9 1999/12/08 22:37:42 markus Exp $");
 
-#include <ssl/bn.h>
+#include <openssl/bn.h>
 #include "getput.h"
 #include "xmalloc.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 void
 compute_session_id(unsigned char session_id[16],
