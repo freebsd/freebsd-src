@@ -830,6 +830,7 @@ extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
 extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0 */
 extern struct kse kse0;			/* Primary kse in proc0 */
+extern struct vmspace vmspace0;		/* VM space for proc0. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
