@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.18 1995/04/05 10:32:14 olah Exp $
+ *	$Id: tcp_input.c,v 1.19 1995/04/09 01:29:24 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -522,7 +522,7 @@ findpcb:
 			 *	congestion avoidance sender won't send more until
 			 *	he gets an ACK.
 			 */
-			if (ti->ti_flags & TH_PUSH) {
+			if (tiflags & TH_PUSH) {
 				tp->t_flags |= TF_ACKNOW;
 				tcp_output(tp);
 			} else {
@@ -1561,7 +1561,7 @@ dodata:							/* XXX */
 	 *      congestion avoidance sender won't send more until
 	 *      he gets an ACK.
 	 */
-	if (ti->ti_flags & TH_PUSH)
+	if (tiflags & TH_PUSH)
 		tp->t_flags |= TF_ACKNOW;
 
 	/*
