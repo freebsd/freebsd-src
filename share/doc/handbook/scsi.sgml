@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.11 1996/01/31 14:26:17 mpp Exp $ -->
+<!-- $Id: scsi.sgml,v 1.12 1996/01/31 19:03:02 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -712,8 +712,6 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
             (especially with external terminators.
           <item>
             Check if no double target IDs are used.
-          <item>
-            Check if at least one device provides terminator power to the bus.
           <item>
             Check if all devices to be used are powered up. 
           <item>
