@@ -42,6 +42,11 @@ device		atpic			# Optional legacy pic support
 device		mptable			# Optional MPSPEC mptable support
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
+#
+# Watchdog routines.
+#
+options 	MP_WATCHDOG
+
 
 #####################################################################
 # CPU OPTIONS
