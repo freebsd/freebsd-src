@@ -98,7 +98,7 @@ main(argc, argv)
 {
 	int ch, options = 0, action = CCD_CONFIG;
 
-	while ((ch = getopt(argc, argv, "cCf:gM:N:uUv")) != -1) {
+	while ((ch = getopt(argc, argv, "cCf:guUv")) != -1) {
 		switch (ch) {
 		case 'c':
 			action = CCD_CONFIG;
