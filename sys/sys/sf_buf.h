@@ -38,7 +38,7 @@ extern  int nsfbufspeak;                /* Peak of nsfbufsused */
 extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
 
 struct sf_buf *
-	sf_buf_alloc(struct vm_page *m);
+	sf_buf_alloc(struct vm_page *m, int pri);
 void	sf_buf_free(struct sf_buf *sf);
 void	sf_buf_mext(void *addr, void *args);
 
