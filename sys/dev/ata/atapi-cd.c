@@ -79,12 +79,13 @@ static void acd_read_toc(struct acd_softc *);
 static int acd_play(struct acd_softc *, int, int);
 static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
-static int acd_open_disk(struct acd_softc *);
-static int acd_close_disk(struct acd_softc *, int);
-static int acd_open_track(struct acd_softc *, struct cdr_track *);
-static int acd_close_track(struct acd_softc *);
+static int acd_init_writer(struct acd_softc *, int);
+static int acd_fixate(struct acd_softc *, int);
+static int acd_init_track(struct acd_softc *, struct cdr_track *);
+static int acd_flush(struct acd_softc *);
 static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info *);
 static int acd_get_progress(struct acd_softc *, int *);
+static int acd_send_cue(struct acd_softc *, struct cdr_cuesheet *);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
@@ -95,7 +96,7 @@ static int acd_start_stop(struct acd_softc *, int);
 static int acd_pause_resume(struct acd_softc *, int);
 static int acd_mode_sense(struct acd_softc *, int, caddr_t, int);
 static int acd_mode_select(struct acd_softc *, caddr_t, int);
-static int acd_set_speed(struct acd_softc *, int);
+static int acd_set_speed(struct acd_softc *, int, int);
 static void acd_get_cap(struct acd_softc *);
 
 /* internal vars */
@@ -975,24 +976,28 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	}
 	break;
  
-    case CDRIOCOPENDISK:
-	error = acd_open_disk(cdp);
+    case CDRIOCINITWRITER:
+	error = acd_init_writer(cdp, (*(int *)addr));
 	break;
 
-    case CDRIOCOPENTRACK:
-	error = acd_open_track(cdp, (struct cdr_track *)addr);
+    case CDRIOCINITTRACK:
+	error = acd_init_track(cdp, (struct cdr_track *)addr);
 	break;
 
-    case CDRIOCCLOSETRACK:
-	error = acd_close_track(cdp);
+    case CDRIOCFLUSH:
+	error = acd_flush(cdp);
 	break;
 
-    case CDRIOCCLOSEDISK:
-	error = acd_close_disk(cdp, (*(int *)addr));
+    case CDRIOCFIXATE:
+	error = acd_fixate(cdp, (*(int *)addr));
+	break;
+
+    case CDRIOCREADSPEED:
+	error = acd_set_speed(cdp, 177 * (*(int *)addr), -1);
 	break;
 
     case CDRIOCWRITESPEED:
-	error = acd_set_speed(cdp, (*(int *)addr));
+	error = acd_set_speed(cdp, -1, 177 * (*(int *)addr));
 	break;
 
     case CDRIOCGETBLOCKSIZE:
@@ -1005,6 +1010,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
     case CDRIOCGETPROGRESS:
         error = acd_get_progress(cdp, (int *)addr);
+	break;
+
+    case CDRIOCSENDCUE:
+        error = acd_send_cue(cdp, (struct cdr_cuesheet *)addr);
 	break;
 
     case DVDIOCREPORTKEY:
@@ -1115,6 +1124,7 @@ acd_start(struct atapi_softc *atp)
 
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
+printf("reject due to media change\n");
 	biofinish(bp, NULL, EIO);
 	return;
     }
@@ -1167,8 +1177,9 @@ acd_start(struct atapi_softc *atp)
 	    ccb[9] = 0x10;
 	}
     }
-    else
+    else 
 	ccb[0] = ATAPI_WRITE_BIG;
+    
     ccb[1] = 0;
     ccb[2] = lba>>24;
     ccb[3] = lba>>16;
@@ -1251,7 +1262,7 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_READ_CAPACITY;
     if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)sizes, sizeof(sizes),
-			ATPR_F_READ, 30, NULL, NULL)) {
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
@@ -1394,9 +1405,11 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int
-acd_open_disk(struct acd_softc *cdp)
+acd_init_writer(struct acd_softc *cdp, int test_write)
 {
+    struct write_param param;
     int8_t ccb[16];
+    int error;
 
     bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_REZERO;
@@ -1404,11 +1417,27 @@ acd_open_disk(struct acd_softc *cdp)
     ccb[0] = ATAPI_SEND_OPC_INFO;
     ccb[1] = 0x01;
     atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 30, NULL, NULL);
-    return 0;
+
+    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
+				(caddr_t)&param, sizeof(param))))
+	return error;
+    param.data_length = 0;
+    param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
+    param.page_length = 0x32;
+    param.test_write = test_write ? 1 : 0;
+    param.write_type = CDR_WTYPE_SESSION;
+    param.session_type = CDR_SESS_NONE;
+    param.fp = 0;
+    param.packet_size = 0;
+    param.track_mode = CDR_TMODE_AUDIO;
+    param.datablock_type = CDR_DB_RAW;
+    param.session_format = CDR_SESS_CDROM;
+
+    return acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10);
 }
 
 static int
-acd_close_disk(struct acd_softc *cdp, int multisession)
+acd_fixate(struct acd_softc *cdp, int multisession)
 {
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
@@ -1449,7 +1478,7 @@ acd_close_disk(struct acd_softc *cdp, int multisession)
 }
 
 static int
-acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
+acd_init_track(struct acd_softc *cdp, struct cdr_track *track)
 {
     struct write_param param;
     int error;
@@ -1529,12 +1558,12 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 }
 
 static int
-acd_close_track(struct acd_softc *cdp)
+acd_flush(struct acd_softc *cdp)
 {
     int8_t ccb[16] = { ATAPI_SYNCHRONIZE_CACHE, 0, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60, NULL, NULL);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 60, NULL,NULL);
 }
 
 static int
@@ -1579,6 +1608,35 @@ acd_get_progress(struct acd_softc *cdp, int *finished)
     else
 	*finished = 0;
     return 0;
+}
+
+static int
+acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
+{
+    int8_t ccb[16] = { ATAPI_SEND_CUE_SHEET, 0, 0, 0, 0, 0, 
+		       cuesheet->len>>16, cuesheet->len>>8, cuesheet->len,
+		       0, 0, 0, 0, 0, 0, 0 };
+    int8_t *buffer;
+    int32_t error;
+#ifdef ACD_DEBUG
+    int i;
+#endif
+    buffer = malloc(cuesheet->len, M_ACD, M_NOWAIT);
+    if (!buffer)
+	return ENOMEM;
+    if ((error = copyin(cuesheet->entries, buffer, cuesheet->len)))
+	return error;
+#ifdef ACD_DEBUG
+    printf("acd: cuesheet lenght = %d\n", cuesheet->len);
+    for (i=0; i<cuesheet->len; i++)
+	if (i%8) printf(" %02x", buffer[i]);
+	else printf("\n%02x", buffer[i]);
+    printf("\n");
+#endif
+    error = atapi_queue_cmd(cdp->atp, ccb, buffer, cuesheet->len, 0, 30,
+			    NULL, NULL);
+    free(buffer, M_ACD);
+    return error;
 }
 
 static int
@@ -1917,11 +1975,10 @@ acd_mode_select(struct acd_softc *cdp, caddr_t pagebuf, int pagesize)
 }
 
 static int
-acd_set_speed(struct acd_softc *cdp, int speed)
+acd_set_speed(struct acd_softc *cdp, int rdspeed, int wrspeed)
 {
-    int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff,
-		       (speed * 177) >> 8, (speed * 177), 
-		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    int8_t ccb[16] = { ATAPI_SET_SPEED, 0, rdspeed >> 8, rdspeed, 
+		       wrspeed >> 8, wrspeed, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
