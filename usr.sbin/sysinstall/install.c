@@ -1073,7 +1073,7 @@ installVarDefaults(dialogMenuItem *self)
 	variable_set2(SYSTEM_STATE,		"update", 0);
     else
 	variable_set2(SYSTEM_STATE,		"init", 0);
-    variable_set2(VAR_NEWFS_ARGS,		"-b 8192 -f 1024", 0);
+    variable_set2(VAR_NEWFS_ARGS,		"-b 8192 -f 1024 -c 22", 0);
     return DITEM_SUCCESS;
 }
 
