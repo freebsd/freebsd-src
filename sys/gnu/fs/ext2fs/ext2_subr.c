@@ -88,6 +88,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 	return (0);
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
 static void
 ext2_checkoverlap(bp, ip)
