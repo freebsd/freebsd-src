@@ -68,6 +68,13 @@ _thread_critical_enter(pthread_t pthread)
 	 * acquired the giant lock.
 	 */
 	_SPINLOCK(&pthread->lock);
+
+	/* If we are already in a critical section, just up the refcount */
+	if (++curthread->crit_ref > 1)
+		return;
+	PTHREAD_ASSERT(curthread->crit_ref == 1,
+	    ("Critical section reference count must be 1!"));
+
 	if (__sys_sigprocmask(SIG_SETMASK, &set, &sav)) {
 		_thread_printf(STDERR_FILENO, "Critical Enter: sig err %d\n",
 		    errno);
@@ -80,6 +87,12 @@ void
 _thread_critical_exit(pthread_t pthread)
 {
 	sigset_t set;
+
+	/* We might be in a nested critical section */
+	if (--curthread->crit_ref > 0)
+		return;
+	PTHREAD_ASSERT(curthread->crit_ref == 0,
+	    ("Non-Zero critical section reference count."));
 
 	/*
 	 * Restore signals.

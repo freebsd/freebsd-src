@@ -426,6 +426,7 @@ struct pthread {
 	u_int64_t		uniqueid; /* for gdb */
 	thr_id_t		thr_id;
 	sigset_t		savedsig;
+	int			crit_ref; /* crit. section netsting level */
 
 	/*
 	 * Lock for accesses to this thread structure.
