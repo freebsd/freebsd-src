@@ -146,6 +146,7 @@ struct	pargs {
  * for write access.
  */
 struct ithd;
+struct nlminfo;
 
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
@@ -235,6 +236,8 @@ struct	proc {
 	struct	mtx *p_blocked;		/* (j) Mutex process is blocked on. */
 	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
 	LIST_HEAD(, mtx) p_contested;	/* (j) Contested locks. */
+
+	struct nlminfo	*p_nlminfo;	/* (?) only used by/for lockd */
 	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
 	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
