@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.6 1994/09/18 20:39:46 wollman Exp $
+ * $Id: kern_clock.c,v 1.7 1994/09/25 19:33:34 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -467,15 +467,10 @@ hardclock(frame)
 		long ltemp;
 
 		if (timedelta == 0) {
-		  time_update = tick;
+			time_update = tick;
 		} else {
-			if (timedelta < 0) {
-				time_update = tick - tickdelta;
-				timedelta += tickdelta;
-			} else {
-				time_update = tick + tickdelta;
-				timedelta -= tickdelta;
-			}
+			time_update = tick + tickdelta;
+			timedelta -= tickdelta;
 		}
 		BUMPTIME(&mono_time, time_update);
 
