@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.37 1997/10/08 07:46:27 charnier Exp $";
+	"$Id: perform.c,v 1.38 1997/10/13 15:03:51 jkh Exp $";
 #endif
 
 /*
@@ -96,11 +96,6 @@ pkg_perform(char **pkgs)
     /* Slurp in the packing list */
     read_plist(&plist, pkg_in);
 
-    /* Prefix should override the packing list */
-    if (Prefix) {
-	delete_plist(&plist, FALSE, PLIST_CWD, NULL);
-	add_plist_top(&plist, PLIST_CWD, Prefix);
-    }
     /*
      * Run down the list and see if we've named it, if not stick in a name
      * at the top.
