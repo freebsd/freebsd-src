@@ -25,6 +25,24 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Nov 22, 2003:
+	fixed a bug in regular expressions that dates (so help me) from 1977;
+	it's been there from the beginning.  an anchored longest match that
+	was longer than the number of states triggered a failure to initialize
+	the machine properly.  many thanks to moinak ghosh for not only finding
+	this one but for providing a fix, in some of the most mysterious
+	code known to man.
+
+	fixed a storage leak in call() that appears to have been there since
+	1983 or so -- a function without an explicit return that assigns a 
+	string to a parameter leaked a Cell.  thanks to moinak ghosh for 
+	spotting this very subtle one.
+
+Jul 31, 2003:
+	fixed, thanks to andrey chernov and ruslan ermilov, a bug in lex.c
+	that mis-handled the character 255 in input.  (it was being compared
+	to EOF with a signed comparison.)
+
 Jul 29, 2003:
 	fixed (i think) the long-standing botch that included the beginning of
 	line state ^ for RE's in the set of valid characters; this led to a

@@ -219,6 +219,7 @@ Cell *call(Node **a, int n)	/* function call.  very kludgy and fragile */
 {
 	static Cell newcopycell = { OCELL, CCOPY, 0, "", 0.0, NUM|STR|DONTFREE };
 	int i, ncall, ndef;
+	int freed = 0; /* handles potential double freeing when fcn & param share a tempcell */
 	Node *x;
 	Cell *args[NARGS], *oargs[NARGS];	/* BUG: fixed size arrays */
 	Cell *y, *z, *fcn;
@@ -296,12 +297,18 @@ Cell *call(Node **a, int n)	/* function call.  very kludgy and fragile */
 		} else if (t != y) {	/* kludge to prevent freeing twice */
 			t->csub = CTEMP;
 			tempfree(t);
+		} else if (t == y && t->csub == CCOPY) {
+			t->csub = CTEMP;
+			tempfree(t);
+			freed = 1;
 		}
 	}
 	tempfree(fcn);
 	if (isexit(y) || isnext(y))
 		return y;
-	tempfree(y);		/* this can free twice! */
+	if (freed == 0) {
+		tempfree(y);	/* don't free twice! */
+	}
 	z = fp->retval;			/* return value */
 	   dprintf( ("%s returns %g |%s| %o\n", s, getfval(z), getsval(z), z->tval) );
 	fp--;

@@ -482,7 +482,12 @@ int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 	uschar *q;
 	int i, k;
 
-	s = f->reset ? makeinit(f,1) : f->initstat;
+	/* s = f->reset ? makeinit(f,1) : f->initstat; */
+	if (f->reset) {
+		f->initstat = s = makeinit(f,1);
+	} else {
+		s = f->initstat;
+	}
 	patbeg = (char *) p;
 	patlen = -1;
 	do {
@@ -535,7 +540,12 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 	uschar *q;
 	int i, k;
 
-	s = f->reset ? makeinit(f,1) : f->initstat;
+	/* s = f->reset ? makeinit(f,1) : f->initstat; */
+	if (f->reset) {
+		f->initstat = s = makeinit(f,1);
+	} else {
+		s = f->initstat;
+	}
 	patlen = -1;
 	while (*p) {
 		q = p;
