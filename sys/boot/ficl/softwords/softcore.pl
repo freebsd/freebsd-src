@@ -77,10 +77,7 @@ print <<EOF
 
 void ficlCompileSoftCore(FICL_VM *pVM)
 {
-    int ret = ficlExec(pVM, softWords);
-    if (ret == VM_ERREXIT)
-        assert(FALSE);
-    return;
+    assert(ficlExec(pVM, softWords) != VM_ERREXIT);
 }
 
 
