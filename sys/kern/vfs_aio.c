@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.17 1997/12/01 07:01:45 dyson Exp $
+ * $Id: vfs_aio.c,v 1.18 1997/12/01 18:41:08 dyson Exp $
  */
 
 /*
@@ -1577,7 +1577,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 int
 aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 {
-	return AIO_NOTCANCELLED;
+      return ENOSYS;
 }
 
 /*
