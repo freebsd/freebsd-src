@@ -31,32 +31,15 @@
 #ifndef __PC98_PC98_30LINE_H__
 #define __PC98_PC98_30LINE_H__
 
-#include <pc98/pc98/module.h>
-
-#ifndef	LINE30_ROW
-#define LINE30_ROW	30
-#endif
+#define	LINE30_ROW	30
+#define	_HS	1 + 1
+#define	_VS	2
+#define	_HFP	3 + 1
+#define	_HBP	14 + 1
+#define	_VFP	11
+#define	_VBP	44
 
 #define	_CR	80
-#ifndef	_VS
-#define	_VS	2
-#endif
-#ifndef	_HS
-#define	_HS	1 + 1
-#endif
-#ifndef	_HFP
-#define	_HFP	3 + 1
-#endif
-#ifndef	_HBP
-#define	_HBP	14 + 1
-#endif
-#ifndef	_VFP
-#define _VFP	11
-#endif
-#ifndef	_VBP
-#define _VBP	44
-#endif
-
 #define _LF	LINE30_ROW*16
 
 #define	_GDC_RESET	0x00
@@ -94,28 +77,21 @@
 static void master_gdc_cmd(unsigned int);
 static void master_gdc_prm(unsigned int);
 static void master_gdc_word_prm(unsigned int);
-#ifdef LINE30
 static void master_gdc_fifo_empty(void);
-#endif
 static void master_gdc_wait_vsync(void);
 
 static void gdc_cmd(unsigned int);
-#ifdef LINE30
 static void gdc_prm(unsigned int);
 static void gdc_word_prm(unsigned int);
 static void gdc_fifo_empty(void);
-#endif
 static void gdc_wait_vsync(void);
 
-#ifdef LINE30
 static int check_gdc_clock(void);
 
 static int gdc_INFO = _25L;
-#endif
 static int gdc_FH = _24KHZ;
 static void initialize_gdc(unsigned int, int);
 
-#ifdef LINE30
 static unsigned int master_param[2][2][8] = {
 {{78,	 8,	7,	9,	7,	7,	25,	400},	/* 400/24k */
  {_CR-2, _VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}},	/* 480/24k */
@@ -142,6 +118,5 @@ static unsigned int slave_param[2][6][8] = {
 static int SlavePCH[2] = {40,80};
 static int MasterPCH = 80;
 static int SlaveScrlLF[3] = {400,400,_LF};
-#endif
 
 #endif /* __PC98_PC98_30LINE_H__ */
