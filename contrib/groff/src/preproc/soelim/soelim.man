@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -17,12 +17,14 @@ translations approved by the Free Software Foundation instead of in
 the original English.
 ..
 .TH @G@SOELIM @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
 .SH NAME
 @g@soelim \- interpret .so requests in groff input
+.
 .SH SYNOPSIS
 .B @g@soelim
 [
-.B \-Cv
+.B \-Crtv
 ]
 [
 .BI \-I dir
@@ -30,10 +32,12 @@ the original English.
 [
 .IR files \|.\|.\|.\|
 ]
+.
 .PP
 It is possible to have whitespace between the
 .B \-I
 command line option and its parameter.
+.
 .SH DESCRIPTION
 .B @g@soelim
 reads
@@ -53,6 +57,7 @@ should be invoked with the
 .B \-s
 option of
 .BR groff .
+.
 .PP
 Note that there must be no whitespace between the leading dot and
 the two characters `s' and `o'.  Otherwise, only
@@ -62,12 +67,14 @@ interprets the
 request (and
 .B soelim
 ignores it).
+.
 .SH OPTIONS
 .TP
 .B \-C
 Recognize
 .B .so
 even when followed by a character other than space or newline.
+.
 .TP
 .BI \-I dir
 This option may be used to specify a directory to search for
@@ -78,9 +85,20 @@ The current directory is always searched first.
 This option may be specified more than once,
 the directories will be searched in the order specified.
 No directory search is performed for files specified using an absolute path.
+.
+.TP
+.B \-r
+Do not add .lf requests (for general use, with non-groff files).
+.
+.TP
+.B \-t
+Don't emit .lf requests but TeX comment lines (starting with `%') giving
+the current file and line number.
+.
 .TP
 .B \-v
 Print the version number.
+.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@)
 .

@@ -1,4 +1,4 @@
-LIBCLEAN=lib$(LIB).a
+LIBCLEAN=lib$(LIB).$(LIBEXT)
 MAKEFILEPARTS=\
   $(top_srcdir)/Makefile.comm \
   $(top_builddir)/Makefile.cfg \
@@ -6,9 +6,9 @@ MAKEFILEPARTS=\
   $(top_srcdir)/Makefile.lib \
   Makefile.dep
 
-all: lib$(LIB).a
+all: lib$(LIB).$(LIBEXT)
 
-lib$(LIB).a: $(OBJS)
+lib$(LIB).$(LIBEXT): $(OBJS)
 	$(AR) r $@ $?
 	$(RANLIB) $@
 

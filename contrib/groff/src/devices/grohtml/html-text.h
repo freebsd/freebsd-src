@@ -1,7 +1,7 @@
 // -*- C++ -*-
-/* Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
  *
- *  Gaius Mulley (gaius@glam.ac.uk) wrote html-text.cc
+ *  Gaius Mulley (gaius@glam.ac.uk) wrote html-text.h
  *
  *  html-text.h
  *
@@ -47,7 +47,7 @@ typedef struct tag_definition {
 
 /*
  *  the state of the current paragraph.
- *  It allows post-html.cc to request font changes, paragraph start/end
+ *  It allows post-html.cpp to request font changes, paragraph start/end
  *  and emits balanced tags with a small amount of peephole optimization.
  */
 
@@ -116,7 +116,7 @@ private:
   char  *shutdown            (HTML_TAG t);
   void   check_emit_text     (tag_definition *t);
   int    remove_break        (void);
-  void   issue_tag           (char *tagname, char *arg);
+  void   issue_tag           (const char *tagname, const char *arg);
   void   issue_color_begin   (color *c);
   void   remove_def          (tag_definition *t);
   html_indent *remove_indent (HTML_TAG tag);

@@ -1,3 +1,43 @@
+*Sun Feb 16 2003
+
+o Added James Ramsey's proposed CHAPTER_TITLE macro, along with his
+  rewritten START macro and his utility macros to make START easier
+  to read.
+
+o Expanded handling of CHAPTER_TITLE to encompass TYPEWRITE, as well as
+  plugging it into the docheaders.  Made CHAPTER_TITLE backwardly
+  compatible so that pre-1.1.5 docs using CHAPTER_STRING to create a
+  chapter title remain unaffected when groffed with 1.1.5.
+
+o Created control macros for CHAPTER_TITLE FAMILY, FONT and SIZE.
+  Added defaults for handling of CHAPTER title to DEFAULTS.  Documented
+  CHAPTER_TITLE and everything that goes along with it.
+
+o Fixed broken draft and revision in headers/footers.
+
+o Fixed \*[RULE] so that it behaves properly with indents and justified
+  copy.
+
+o Fixed/tweaked handling of epigraph spacing in TYPEWRITE.
+
+o Fixed broken spacing of docheaders in TYPEWRITE.
+
+*Mon Feb 3 2003
+
+o Fixed an oversight in CLOSING for DOCTYPE LETTER (closing wasn't
+  being set flush left)
+
+*Sun Sep 29 2002
+
+o Changed .ne in .HEAD when PRINTSTYLE TYPESET from 5 to 4.  With 5,
+  heads required at least 2 lines of text underneath or they'd be
+  defered to the next page, which created too much whitespace at the
+  end of the page.  Heads will now be processed on the same page if the
+  head plus at least one line of text underneath fits.  I figure it's
+  easier for the user to break to a new page manually if this behaviour
+  is unsatisfactory than to massage the page to fix the excess
+  whitespace.
+
 *Sun Aug 25 2002
 
 o Changed .IX to .IQ.  The older form still works, but emits a message

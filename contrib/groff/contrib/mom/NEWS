@@ -1,3 +1,29 @@
+Release 1.1.5
+-------------
+
+***NEW***
+
+Added James Ramsey's CHAPTER_TITLE macro as well as control macros to
+go with it.  Thanks James.  Also from James came a patch to handle
+START differenty which has been incorporated into om.tmac.  Thanks
+again, James.
+
+Some bits and pieces of the docs have been tweaked, but nothing
+changed.  Hopefully, the changes will make parts of the docs easier to
+read and navigate.
+
+***FIXES***
+
+o \*[RULE]
+
+o broken draft and revision in docheaders
+
+o post-epigraph spacing in TYPEWRITE
+
+o header spacing in TYPEWRITE
+
+------------------------------------------------------------------------
+
 Release 1.1.4
 -------------
 

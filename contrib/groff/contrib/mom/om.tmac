@@ -2,7 +2,7 @@
 .\"
 .\" Mom -- a typesetting/document-processing macro set for groff.
 .\"
-.\" Copyright (C) 2002 Free Software Foundation, Inc.
+.\" Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 .\"      Written by Peter Schaffter (df191@ncf.ca)
 .\"
 .\" This file is part of groff.
@@ -23,7 +23,7 @@
 .\"
 .
 .
-\# Version 1.1.4
+\# Version 1.1.5
 \# -------------
 \#
 .if (\n[.x]\n[.y] < 118) \
@@ -441,10 +441,6 @@
 .ds BDI  \Ef(BI
 .ds PREV \EfP
 .ds S    \Es
-\#
-\# ADDITIONAL STRINGS
-\# ------------------
-.ds RULE \El'\En(.lu'
 \#
 \#
 \# =====================================================================
@@ -1629,7 +1625,7 @@
         \[`a] \[^a] \['a] \[:a] \[oa] \[~a] \[ae] \[`e] \[^e] \['e] \[:e] \[`i] \
         \[^i] \['i] \[:i] \[`o] \[^o] \['o] \[:o] \[~o] \[/o] \[`u] \[^u] \['u] \
         \[:u] \[,c] \[Sd] \[~n] \[Tp] \['y] \[:y] \[ss] \
-        1 2 3 4 5 6 7 8 9 0
+        ' 1 2 3 4 5 6 7 8 9 0
 .    \}
 .END
 \#
@@ -1788,7 +1784,7 @@
      \[`a] \[^a] \['a] \[:a] \[oa] \[~a] \[ae] \[`e] \[^e] \['e] \[:e] \[`i] \
      \[^i] \['i] \[:i] \[`o] \[^o] \['o] \[:o] \[~o] \[/o] \[`u] \[^u] \['u] \
      \[:u] \[,c] \[Sd] \[~n] \[Tp] \['y] \[:y] \[ss] \
-     1 2 3 4 5 6 7 8 9 0
+     ' 1 2 3 4 5 6 7 8 9 0
 .END
 \#
 \#
@@ -2281,6 +2277,35 @@
 '    in \\n[#RESTORE_INDENT]u
 .END
 \#
+\#
+\# RULE
+\# ----
+\# *Argument:
+\#   <none>
+\# *Function:
+\#   Draws a rule the length of the current measure.
+\# *Notes:
+\#
+.MAC RULE END
+.    if \\n(.j=1 \{\
+.       ds $CURRENT_QUAD \\*[$QUAD_VALUE]
+.       nf
+.    \}
+.    ie \\n[#INDENT_ACTIVE] \{\
+.       nr #RESTORE_L_LENGTH \\n(.l
+.       if \\n[#INDENT_BOTH_ACTIVE] \{ .ll \\n(.lu-\\n[#BL_INDENT]u \}
+.       if \\n[#INDENT_LEFT_ACTIVE] \{ .ll \\n(.lu-\\n[#L_INDENT]u \}
+.       PRINT \El'\En(.lu'
+.       ll \\n[#RESTORE_L_LENGTH]u
+.       rr #RESTORE_L_LENGTH]u
+.    \}
+.    el \{\
+.       PRINT \El'\En(.lu'
+.    \}
+.    QUAD \\*[$CURRENT_QUAD]
+.    rm $CURRENT_QUAD
+.    EL
+.END
 \#
 \# =====================================================================
 \#
@@ -3201,7 +3226,7 @@ y\\R'#DESCENDER \\n[.cdp]'
 .       nr #COPY_STYLE 1
 .       if !r#DRAFT \{ .DRAFT 1 \}
 .    \}
-.    if '\\*[$COPY_STYLE]'FINAL' \{ .nr #COPY_STYLE 2 \}
+.    if '\\*[$COPY_STYLE]'FINAL' \{ .nr #COPY_STYLE 2         \}
 .    if !d$CHAPTER_STRING        \{ .CHAPTER_STRING "Chapter" \}
 .    if !d$DRAFT_STRING          \{ .DRAFT_STRING "Draft"     \}
 .    if !d$REVISION_STRING       \{ .REVISION_STRING "Rev."   \}
@@ -3235,49 +3260,106 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    \}
 \# Chapter
 .    if \\n[#DOC_TYPE]=2 \{\
+\# Copystyle DRAFT
 .       ie \\n[#COPY_STYLE]=1 \{\
 .          ie \\n[#PAGENUM_STYLE_SET] \{ .PAGENUM_STYLE \\*[$PAGENUM_STYLE] \}
 .          el \{ .PAGENUM_STYLE roman \}
 .          if \\n[#USER_DEF_HDRFTR_CENTER]=0 \{\
 .             ie \\n[#DRAFT_WITH_PAGENUM] \{\
-.                ie '\\*[$CHAPTER]'' \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \\*[$CHAPTER] \}
-.                el \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \}
+.                ie '\\*[$CHAPTER]'' \{\
+.                   ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                      ds $HDRFTR_CENTER \\*[$CHAPTER_TITLE]
+.                   \}
+.                   el \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \}
+.                \}
+.                el \{\
+.                   ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                      ds \\*[$CHAPTER_TITLE]
+.                   \}
+.                   el \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \\*[$CHAPTER] \}
+.                \}
 .             \}
 .             el \{\
 .                ie !\\n[#REVISION] \{\
 .                   ie '\\*[$CHAPTER]'' \{\
-.                      ds $HDRFTR_CENTER \
-                       \\*[$CHAPTER_STRING], \
-                       \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_TITLE], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      \}
+.                      el \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_STRING], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      \}
 .                   \}
 .                   el \{\
-.                      ds $HDRFTR_CENTER \
-                       \\*[$CHAPTER_STRING] \\*[$CHAPTER], \
-                       \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_TITLE], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      \}
+.                      el \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_STRING] \\*[$CHAPTER], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT]
+.                      \}
 .                   \}
 .                \}
 .                el \{\
 .                   ie '\\*[$CHAPTER]'' \{\
-.                   el \{\
-                       \\*[$CHAPTER_STRING], \
-                       \\*[$DRAFT_STRING] \\n[#DRAFT], \
-                       \\*[$REVISION_STRING] \\n[#REVISION]
+.                      ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_TITLE], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT], \
+                          \\*[$REVISION_STRING] \\n[#REVISION] 
+.                      \}
+.                      el \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_STRING], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT], \
+                          \\*[$REVISION_STRING] \\n[#REVISION] 
+.                      \}
 .                   \}
-.                   ds $HDRFTR_CENTER \
-                       \\*[$CHAPTER_STRING] \\*[$CHAPTER], \
-                       \\*[$DRAFT_STRING] \\n[#DRAFT], \
-                       \\*[$REVISION_STRING] \\n[#REVISION]
+.                   el \{\
+.                      ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_TITLE], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT], \
+                          \\*[$REVISION_STRING] \\n[#REVISION] 
+.                      \}
+.                      el \{\
+.                         ds $HDRFTR_CENTER \
+                          \\*[$CHAPTER_STRING] \\*[$CHAPTER], \
+                          \\*[$DRAFT_STRING] \\n[#DRAFT], \
+                          \\*[$REVISION_STRING] \\n[#REVISION] 
+.                      \}
 .                   \}
 .                \}
 .             \}
 .          \}
 .       \}
+\# Copystyle FINAL
 .       el \{\
 .          if \\n[#USER_DEF_HDRFTR_CENTER]=0 \{\
 .             ie \\n[#PAGENUM_STYLE_SET] \{ .PAGENUM_STYLE \\*[$PAGENUM_STYLE] \}
 .             el \{ .PAGENUM_STYLE DIGIT \}
-.             ie '\\*[$CHAPTER]'' \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \}
-.             el \{ .ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \\*[$CHAPTER] \}
+.             ie '\\*[$CHAPTER]'' \{\
+.                ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                   ds $HDRFTR_CENTER \\*[$CHAPTER_TITLE]
+.                \}
+.                el \{\
+.                   ds $HDRFTR_CENTER \\*[$CHAPTER_STRING]
+.                \}
+.             \}
+.             el \{\
+.                ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                   ds $HDRFTR_CENTER \\*[$CHAPTER_TITLE]
+.                \}
+.                el \{\
+.                   ds $HDRFTR_CENTER \\*[$CHAPTER_STRING] \\*[$CHAPTER]
+.                \}
+.             \}
 .          \}
 .       \}
 .    \}
@@ -3339,6 +3421,11 @@ y\\R'#DESCENDER \\n[.cdp]'
 .END
 \#
 \#
+.MAC CHAPTER_TITLE END \" This defines what comes after Chapter #
+.    ds $CHAPTER_TITLE \\$1
+.END
+\#
+\#
 .MAC DRAFT END \"Draft number
 .    nr #DRAFT \\$1
 .END
@@ -3354,7 +3441,7 @@ y\\R'#DESCENDER \\n[.cdp]'
 .END
 \#
 \#
-.MAC AUTHOR END \"Author.  Use "..." with this macro.
+.MAC AUTHOR END \"Author.  Enclose all args fully in double quotes.
 .    nr #AUTHOR_NUM -1 1
 .    while \\n[#NUM_ARGS]>\\n[#AUTHOR_NUM] \{\
 .       ds $AUTHOR_\\n+[#AUTHOR_NUM] \\$\\n[#AUTHOR_NUM]
@@ -3492,6 +3579,7 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    br
 .    nr #CLOSING 1
 .    di CLOSING
+.    LEFT
 .END
 \#
 \#
@@ -3662,13 +3750,24 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    \}
 \# Defaults for printstyle TYPESET
 .    if \\n[#PRINT_STYLE]=2 \{\
-.       if !#DOCHEADER_LEAD \{ .DOCHEADER_LEAD +0            \}
+.       if !r#DOCHEADER_LEAD_ADJ \{\
+.          ie !'\\*[$CHAPTER_TITLE]'' \{\
+.             ie !'\\*[$CHAPTER_STRING]'' \{\
+.                DOCHEADER_LEAD +4p
+.             \}
+.             el \{ .DOCHEADER_LEAD +0 \}
+.          \}
+.          el \{ .DOCHEADER_LEAD +0 \}
+.       \}
 .       if !d$TITLE_FAM     \{ .TITLE_FAMILY   \\*[$DOC_FAM] \}
 .       if !d$TITLE_FT      \{ .TITLE_FONT     B             \}
 .       if !d$TITLE_SIZE_CHANGE \{\
 .          ie \\n[#DOC_TYPE]=2 \{ .TITLE_SIZE +4 \}
 .          el \{ .TITLE_SIZE +3.5 \}
 .       \}
+.       if !d$CHAPTER_TITLE_FAM         \{ .CHAPTER_TITLE_FAMILY \\*[$DOC_FAM] \}
+.       if !d$CHAPTER_TITLE_FT          \{ .CHAPTER_TITLE_FONT   BI            \}
+.       if !d$CHAPTER_TITLE_SIZE_CHANGE \{ .CHAPTER_TITLE_SIZE  +4             \}
 .       if !d$SUBTITLE_FAM         \{ .SUBTITLE_FAMILY    \\*[$DOC_FAM] \}
 .       if !d$SUBTITLE_FT          \{ .SUBTITLE_FONT      R             \}
 .       if !d$SUBTITLE_SIZE_CHANGE \{ .SUBTITLE_SIZE      +0            \}
@@ -3762,6 +3861,113 @@ y\\R'#DESCENDER \\n[.cdp]'
 \#   are stored in #DOC_L_LENGTH, $DOC_FAM, and #DOC_PT_SIZE for
 \#   use in the HEADER and FOOTER macros.
 \#
+.\"  First, define some strings for point sizes
+\#
+.ds $TITLE_PT_SIZE         \\n[#DOC_PT_SIZE]u\\*[$TITLE_SIZE_CHANGE]
+.ds $CHAPTER_TITLE_PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$CHAPTER_TITLE_SIZE_CHANGE]
+.ds $SUBTITLE_PT_SIZE      \\n[#DOC_PT_SIZE]u\\*[$SUBTITLE_SIZE_CHANGE]
+.ds $AUTHOR_PT_SIZE        \\n[#DOC_PT_SIZE]u\\*[$AUTHOR_SIZE_CHANGE]
+.ds $DOCTYPE_PT_SIZE       \\n[#DOC_PT_SIZE]u\\*[$DOCTYPE_SIZE_CHANGE]
+\#
+.\" Next, some utility macros for various routines to prevent repetition
+\#
+.MAC PRINT_AUTHORS END
+.   nr #AUTHORS \\n[#AUTHOR_NUM]
+.   nr #NEXT_AUTHOR 0 1
+.   while \\n[#AUTHORS]>\\n[#NEXT_AUTHOR] \{\
+.      PRINT \\*[$AUTHOR_\\n+[#NEXT_AUTHOR]]
+.   \}
+.END
+\#
+.MAC DEFAULT_DOCHEADER END
+.          CENTER
+.          FAMILY  \\*[$TITLE_FAM]
+.          FT      \\*[$TITLE_FT]
+.          PT_SIZE \\*[$TITLE_PT_SIZE]
+.          LS      \\n[#DOCHEADER_LEAD]u
+.          PRINT   \\*[$TITLE]
+.          if !'\\*[$SUBTITLE]'' \{\
+.             FAMILY  \\*[$SUBTITLE_FAM]
+.             FT      \\*[$SUBTITLE_FT]
+.             PT_SIZE \\*[$SUBTITLE_PT_SIZE]
+.             PRINT   \\*[$SUBTITLE]
+.          \}
+.          if !'\\*[$AUTHOR_1]'' \{\
+.             FAMILY  \\*[$AUTHOR_FAM]
+.             FT      \\*[$AUTHOR_FT]
+.             PT_SIZE \\*[$AUTHOR_PT_SIZE]
+.             PRINT   \\*[$ATTRIBUTE_STRING]
+.             PRINT_AUTHORS
+.          \}
+.END
+\#
+\#
+.MAC CHAPTER_DOCHEADER END
+.    CENTER
+.    FAMILY  \\*[$TITLE_FAM]
+.    FT      \\*[$TITLE_FT]
+.    PT_SIZE \\*[$TITLE_PT_SIZE]
+.    LS      \\n[#DOCHEADER_LEAD]u
+.    ie '\\*[$CHAPTER]'' \{\
+.       ie !'\\*[$CHAPTER_TITLE]'' \{\
+.          if \\n[#PRINT_STYLE]=2 \{\
+.             FAMILY  \\*[$CHAPTER_TITLE_FAM]
+.             FT      \\*[$CHAPTER_TITLE_FT]
+.             PT_SIZE \\*[$CHAPTER_TITLE_PT_SIZE]
+.             LS      \\n[#DOCHEADER_LEAD]u
+.          \}
+.          PRINT \\*[$CHAPTER_TITLE]
+.       \}
+.       el \{\
+.          PRINT \\*[$CHAPTER_STRING]
+.       \}
+.    \}
+.    el \{\
+.       PRINT \\*[$CHAPTER_STRING] \\*[$CHAPTER]
+.       if !'\\*[$CHAPTER_TITLE]'' \{\
+.       if \\n[#PRINT_STYLE]=1 \{ .PRINT   \\*[$CHAPTER_TITLE] \}
+.          if \\n[#PRINT_STYLE]=2 \{\
+.             FAMILY  \\*[$CHAPTER_TITLE_FAM]
+.             FT      \\*[$CHAPTER_TITLE_FT]
+.             PT_SIZE \\*[$CHAPTER_TITLE_PT_SIZE]
+.             LS      \\n[#DOCHEADER_LEAD]u
+.             PRINT   \\*[$CHAPTER_TITLE]
+.             RLD \\n[#DOC_LEAD]u \" Just looks better this way
+.          \}
+.       \}
+.    \}
+.END
+\#
+\#
+.MAC NAMED_DOCHEADER END
+.          CENTER
+.          FAMILY  \\*[$TITLE_FAM]
+.          FT      \\*[$TITLE_FT]
+.          PT_SIZE \\*[$TITLE_PT_SIZE]
+.          LS      \\n[#DOCHEADER_LEAD]u
+.          PRINT   \\*[$TITLE]
+.          if !'\\*[$SUBTITLE]'' \{\
+.             FAMILY  \\*[$SUBTITLE_FAM]
+.             FT      \\*[$SUBTITLE_FT]
+.             PT_SIZE \\*[$SUBTITLE_PT_SIZE]
+.             PRINT   \\*[$SUBTITLE]
+.          \}
+.          if !'\\*[$AUTHOR_1]'' \{\
+.             FAMILY  \\*[$AUTHOR_FAM]
+.             FT      \\*[$AUTHOR_FT]
+.             PT_SIZE \\*[$AUTHOR_PT_SIZE]
+.             PRINT   \\*[$ATTRIBUTE_STRING]
+.             PRINT_AUTHORS
+.          \}
+.          FAMILY  \\*[$DOCTYPE_FAM]
+.          FT      \\*[$DOCTYPE_FT]
+.          PT_SIZE \\*[$DOCTYPE_PT_SIZE]
+.          LS      \\n[#DOCHEADER_LEAD]u
+.          ALD     \\n[#DOCHEADER_LEAD]u
+.          UNDERSCORE "\\*[$DOC_TYPE]
+.END
+\#
+\#
 .MAC START END
 .    if !\\n[#PRINT_STYLE] \{\
 .       PRINTSTYLE TYPEWRITE
@@ -3805,7 +4011,6 @@ y\\R'#DESCENDER \\n[.cdp]'
 .       if r#ADVANCE_FROM_TOP \{ .rr #ADVANCE_FROM_TOP \}
 .    \}
 .    el \{\
-.       nr #DOCHEADER_LINES 0 1
 .       if \\n[#PRINT_STYLE]=2 \{ .LS \\n[#DOC_LEAD]u+\\n[#DOCHEADER_LEAD_ADJ]u \}
 .       nr #DOCHEADER_LEAD \\n[#LEAD]
 \# Default
@@ -3813,11 +4018,11 @@ y\\R'#DESCENDER \\n[.cdp]'
 .          PRINT \&
 .          sp |\\n[#DOCHEADER_ADVANCE]u-1v
 .          ev TITLE
-.          CENTER
 .          L_MARGIN \\n[#DOC_L_MARGIN]u
 .          LL       \\n[#DOC_L_LENGTH]u
 .          ta \\n(.lu
 .          if \\n[#PRINT_STYLE]=1 \{\
+.             CENTER
 .             fam C
 .             ft  R
 .             ps  12
@@ -3826,82 +4031,53 @@ y\\R'#DESCENDER \\n[.cdp]'
 .             CAPS
 .             if !'\\*[$TITLE]'' \{ .UNDERSCORE "\\*[$TITLE]\}
 .             CAPS OFF
-.          \}
-.          if \\n[#PRINT_STYLE]=2 \{\
-.             FAMILY  \\*[$TITLE_FAM]
-.             FT      \\*[$TITLE_FT]
-.             PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$TITLE_SIZE_CHANGE]
-.             LS      \\n[#DOCHEADER_LEAD]u
-.             PRINT   \\*[$TITLE]
-.             \\n+[#DOCHEADER_LINES]
-.             CAPS OFF
-.          \}
-.          ev
-.          ev SUBTITLE
-.          CENTER
-.          L_MARGIN \\n[#DOC_L_MARGIN]u
-.          LL       \\n[#DOC_L_LENGTH]u
-.          ta \\n(.lu
-.          if !'\\*[$SUBTITLE]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
-.                fam C
-.                ft  R
-.                ps  12
+.             if !'\\*[$SUBTITLE]'' \{\
 .                ie \\n[#SINGLE_SPACE] \{ .vs \\n[#DOC_LEAD]u*2u \}
 .                el \{ .vs \\n[#DOC_LEAD]u \}
-.             \}
-.             if \\n[#PRINT_STYLE]=2 \{\
-.                FAMILY  \\*[$SUBTITLE_FAM]
-.                FT      \\*[$SUBTITLE_FT]
-.                PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$SUBTITLE_SIZE_CHANGE]
-.                LS      \\n[#DOCHEADER_LEAD]u
-.             \}
 .             PRINT \\*[$SUBTITLE]
-.             \\n+[#DOCHEADER_LINES]
-.          \}
-.          if '\\*[$SUBTITLE]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
+.             \}
+.             if '\\*[$SUBTITLE]'' \{\
 .                ALD \\n[#DOC_LEAD]u
 .             \}
-.          \}
-.          ev
-.          ev AUTHOR
-.          CENTER
-.          L_MARGIN \\n[#DOC_L_MARGIN]u
-.          LL       \\n[#DOC_L_LENGTH]u
-.          ta \\n(.lu
-.          if !'\\*[$AUTHOR_1]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
-.                fam C
-.                ft  R
-.                ps  12
+.             ie !'\\*[$AUTHOR_1]'' \{\
 .                ie \\n[#SINGLE_SPACE] \{ .vs \\n[#DOC_LEAD]u \}
 .                el \{ .vs \\n[#DOC_LEAD]u/2u \}
 .                if !d$SUBTITLE \{\
-.                ie \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
-.                el \{ .ALD \\n[#DOC_LEAD]u*2u \}
+.                   ie \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
+.                   el \{ .ALD \\n[#DOC_LEAD]u*2u \}
 .                \}
-.             \}
-.             if \\n[#PRINT_STYLE]=2 \{\
-.                FAMILY  \\*[$AUTHOR_FAM]
-.                FT      \\*[$AUTHOR_FT]
-.                PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$AUTHOR_SIZE_CHANGE]
-.                LS      \\n[#DOCHEADER_LEAD]u
-.             \}
-.             PRINT \\*[$ATTRIBUTE_STRING]
-.             \\n+[#DOCHEADER_LINES]
-.             nr #AUTHORS \\n[#AUTHOR_NUM]
-.             nr #NEXT_AUTHOR 0 1
-.             while \\n[#AUTHORS]>\\n[#NEXT_AUTHOR] \{\
-.                PRINT \\*[$AUTHOR_\\n+[#NEXT_AUTHOR]]
-.                \\n+[#DOCHEADER_LINES]
-.             \}
-.             if \\n[#PRINT_STYLE]=1 \{\
+.                PRINT \\*[$ATTRIBUTE_STRING]
+.                nr #AUTHORS \\n[#AUTHOR_NUM]
+.                nr #NEXT_AUTHOR 0 1
+.                while \\n[#AUTHORS]>\\n[#NEXT_AUTHOR] \{\
+.                   PRINT \\*[$AUTHOR_\\n+[#NEXT_AUTHOR]]
+.                \}
 .                if \\n[#AUTHOR_LINES]=1 \{\
 .                    ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u \}
-.                    el \{ .RLD \\n[#DOC_LEAD]u \}
-.                 \}
+.                    el \{ .ALD \\n[#DOC_LEAD]u/2u \}
+.                \}
 .             \}
+.             el \{\
+.                ie !d$SUBTITLE \{\
+.                   ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u*2u \}
+.                   el \{ .RLD \\n[#DOC_LEAD]u \}
+.                \}
+.                el \{\
+.                   ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u*2u \}
+.                   el \{ .ALD \\n[#DOC_LEAD]u \}
+.                \}
+.             \}
+.          \}
+.          if \\n[#PRINT_STYLE]=2 \{\
+.             DEFAULT_DOCHEADER
+.             di DOCHEADER_DIVERSION \" This diversion is only
+.             br                     \" necessary to find the depth of the
+.             DEFAULT_DOCHEADER      \" docheader
+.             br
+.             di
+.             nr #DOCHEADER_DEPTH \\n(dn-\\n[#DOCHEADER_LEAD] \"Storing the depth (height) of the diversion
+.                                                             \"in #DOCHEADER_DEPTH
+.             rm DOCHEADER_DIVERSION                          \" Removing the diversion macro
 .          \}
 .          ev
 .       \}
@@ -3913,29 +4089,44 @@ y\\R'#DESCENDER \\n[.cdp]'
 .          L_MARGIN \\n[#DOC_L_MARGIN]u
 .          LL       \\n[#DOC_L_LENGTH]u
 .          ta \\n(.lu
-.          CENTER
 .          if \\n[#PRINT_STYLE]=1 \{\
+.             CENTER
 .             fam C
 .             ft  R
 .             ps  12
-.             ie \\n[#SINGLE_SPACE] \{ .vs \\n[#DOC_LEAD]u*2u \}
-.             el \{ .vs \\n[#DOC_LEAD]u \}
+.             vs \\n[#DOC_LEAD]u
+.             ie '\\*[$CHAPTER]'' \{\
+.                CAPS
+.                ie !'\\*[$CHAPTER_TITLE]'' \{\
+.                   PRINT \\*[$CHAPTER_TITLE]
+.                \}
+.                el \{\
+.                   CAPS
+.                   PRINT \\*[$CHAPTER_STRING]
+.                \}
+.                CAPS OFF
+.             \}
+.             el \{\
+.                CAPS
+.                PRINT \\*[$CHAPTER_STRING] \\*[$CHAPTER]
+.                CAPS OFF
+.                if !'\\*[$CHAPTER_TITLE]'' \{\
+.                   if \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
+.                   UNDERSCORE "\\*[$CHAPTER_TITLE]
+.                \}
+.             \}
+.             if \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
 .          \}
 .          if \\n[#PRINT_STYLE]=2 \{\
-.             FAMILY  \\*[$TITLE_FAM]
-.             FT      \\*[$TITLE_FT]
-.             PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$TITLE_SIZE_CHANGE]
-.             LS      \\n[#DOC_LEAD]u
-.          \}
-.          if \\n[#PRINT_STYLE]=1 \{\
-.             CAPS
-.             ie '\\*[$CHAPTER]'' \{ .PRINT \\*[$CHAPTER_STRING] \}
-.             el \{ .PRINT \\*[$CHAPTER_STRING] \\*[$CHAPTER] \}
-.             CAPS OFF
-.          \}
-.          if \\n[#PRINT_STYLE]=2 \{\
-.             ie '\\*[$CHAPTER]'' \{ .PRINT \\*[$CHAPTER_STRING] \}
-.             el \{ .PRINT \\*[$CHAPTER_STRING] \\*[$CHAPTER] \}
+.             CHAPTER_DOCHEADER
+.             di DOCHEADER_DIVERSION \" This diversion is only
+.             br                     \" necessary to find the depth of the
+.             CHAPTER_DOCHEADER      \" docheader
+.             br
+.             di
+.             nr #DOCHEADER_DEPTH \\n(dn-\\n[#DOCHEADER_LEAD] \" Storing the depth (height) of the diversion
+.                                                             \" in #DOCHEADER_DEPTH
+.             rm DOCHEADER_DIVERSION                          \" Removing the diversion macro
 .          \}
 .          ev
 .       \}
@@ -3943,12 +4134,12 @@ y\\R'#DESCENDER \\n[.cdp]'
 .       if \\n[#DOC_TYPE]=3 \{\
 .          PRINT \&
 .          sp |\\n[#DOCHEADER_ADVANCE]u-1v
-.          ev TITLE
-.          CENTER
+.          ev NAMED
 .          L_MARGIN \\n[#DOC_L_MARGIN]u
 .          LL       \\n[#DOC_L_LENGTH]u
 .          ta \\n(.lu
 .          if \\n[#PRINT_STYLE]=1 \{\
+.             CENTER
 .             fam C
 .             ft  R
 .             ps  12
@@ -3957,101 +4148,40 @@ y\\R'#DESCENDER \\n[.cdp]'
 .             CAPS
 .             if !'\\*[$TITLE]'' \{ .UNDERSCORE "\\*[$TITLE]\}
 .             CAPS OFF
-.          \}
-.          if \\n[#PRINT_STYLE]=2 \{\
-.             FAMILY  \\*[$TITLE_FAM]
-.             FT      \\*[$TITLE_FT]
-.             PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$TITLE_SIZE_CHANGE]
-.             LS      \\n[#DOCHEADER_LEAD]u
-.             PRINT \\*[$TITLE]
-.             \\n+[#DOCHEADER_LINES]
-.             CAPS OFF
-.          \}
-.          ev
-.          ev SUBTITLE
-.          CENTER
-.          L_MARGIN \\n[#DOC_L_MARGIN]u
-.          LL       \\n[#DOC_L_LENGTH]u
-.          ta \\n(.lu
-.          if !'\\*[$SUBTITLE]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
-.                fam C
-.                ft  R
-.                ps  12
+.             if !'\\*[$SUBTITLE]'' \{\
 .                ie \\n[#SINGLE_SPACE] \{ .vs \\n[#DOC_LEAD]u*2u \}
 .                el \{ .vs \\n[#DOC_LEAD]u \}
+.                PRINT \\*[$SUBTITLE]
 .             \}
-.             if \\n[#PRINT_STYLE]=2 \{\
-.                FAMILY  \\*[$SUBTITLE_FAM]
-.                FT      \\*[$SUBTITLE_FT]
-.                PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$SUBTITLE_SIZE_CHANGE]
-.                LS      \\n[#DOCHEADER_LEAD]u
-.             \}
-.             PRINT \\*[$SUBTITLE]
-.             \\n+[#DOCHEADER_LINES]
-.          \}
-.          if '\\*[$SUBTITLE]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
+.             if '\\*[$SUBTITLE]'' \{\
 .                ALD \\n[#DOC_LEAD]u
 .             \}
-.          \}
-.          ev
-.          ev AUTHOR
-.          CENTER
-.          L_MARGIN \\n[#DOC_L_MARGIN]u
-.          LL       \\n[#DOC_L_LENGTH]u
-.          ta \\n(.lu
-.          if !'\\*[$AUTHOR_1]'' \{\
-.             if \\n[#PRINT_STYLE]=1 \{\
-.                fam C
-.                ft  R
-.                ps  12
+.             ie !'\\*[$AUTHOR_1]'' \{\
 .                ie \\n[#SINGLE_SPACE] \{ .vs \\n[#DOC_LEAD]u \}
 .                el \{ .vs \\n[#DOC_LEAD]u/2u \}
 .                if !d$SUBTITLE \{\
-.                ie \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
-.                el \{ .ALD \\n[#DOC_LEAD]u*2u \}
+.                   ie \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
+.                   el \{ .ALD \\n[#DOC_LEAD]u*2u \}
 .                \}
-.             \}
-.             if \\n[#PRINT_STYLE]=2 \{\
-.                FAMILY  \\*[$AUTHOR_FAM]
-.                FT      \\*[$AUTHOR_FT]
-.                PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$AUTHOR_SIZE_CHANGE]
-.                LS      \\n[#DOCHEADER_LEAD]u
-.             \}
-.             PRINT \\*[$ATTRIBUTE_STRING]
-.             \\n+[#DOCHEADER_LINES]
-.             nr #AUTHORS \\n[#AUTHOR_NUM]
-.             nr #NEXT_AUTHOR 0 1
-.             while \\n[#AUTHORS]>\\n[#NEXT_AUTHOR] \{\
-.                PRINT \\*[$AUTHOR_\\n+[#NEXT_AUTHOR]]
-.                \\n+[#DOCHEADER_LINES]
-.             \}
-.             if \\n[#PRINT_STYLE]=1 \{\
+.                PRINT \\*[$ATTRIBUTE_STRING]
+.                nr #AUTHORS \\n[#AUTHOR_NUM]
+.                nr #NEXT_AUTHOR 0 1
+.                while \\n[#AUTHORS]>\\n[#NEXT_AUTHOR] \{\
+.                   PRINT \\*[$AUTHOR_\\n+[#NEXT_AUTHOR]]
+.                \}
 .                if \\n[#AUTHOR_LINES]=1 \{\
 .                    ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u \}
-.                    el \{ .RLD \\n[#DOC_LEAD]u \}
+.                    el \{ .ALD \\n[#DOC_LEAD]u/2u \}
 .                 \}
 .             \}
-.          \}
-.          ev
-.          ev DOCTYPE
-.          CENTER
-.          L_MARGIN \\n[#DOC_L_MARGIN]u
-.          LL       \\n[#DOC_L_LENGTH]u
-.          ta \\n(.lu
-.          if \\n[#PRINT_STYLE]=1 \{\
-.             fam C
-.             ft  R
-.             ps  12
 .             vs  \\n[#DOC_LEAD]u
-.             if '\\*[$AUTHOR_1]'' \{\
+.             el \{\
 .                ie !d$SUBTITLE \{\
 .                   ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u*2u \}
 .                   el \{ .RLD \\n[#DOC_LEAD]u \}
-.             \}
+.                \}
 .                el \{\
-.                   ie \\n[#SINGLE_SPACE] \{ .RLD \\n[#DOC_LEAD]u*2u \}
+.                   ie \\n[#SINGLE_SPACE] \{ . \}
 .                   el \{ .RLD \\n[#DOC_LEAD]u \}
 .                \}
 .             \}
@@ -4061,40 +4191,24 @@ y\\R'#DESCENDER \\n[.cdp]'
 .             if \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
 .          \}
 .          if \\n[#PRINT_STYLE]=2 \{\
-.             FAMILY  \\*[$DOCTYPE_FAM]
-.             FT      \\*[$DOCTYPE_FT]
-.             PT_SIZE \\n[#DOC_PT_SIZE]u\\*[$DOCTYPE_SIZE_CHANGE]
-.             LS      \\n[#DOCHEADER_LEAD]u
-.             ALD \\n[#DOCHEADER_LEAD]u
-.             \\n+[#DOCHEADER_LINES]
-.             UNDERSCORE   "\\*[$DOC_TYPE]
-.             \\n+[#DOCHEADER_LINES]
+.             NAMED_DOCHEADER
+.             di DOCHEADER_DIVERSION \" This diversion is only
+.             br                     \" necessary to find the depth of the
+.             NAMED_DOCHEADER        \" docheader
+.             br
+.             di
+.             nr #DOCHEADER_DEPTH \\n(dn-\\n[#DOCHEADER_LEAD] \"Storing the depth (height) of the diversion
+.                                                             \"in #DOCHEADER_DEPTH
+.             rm DOCHEADER_DIVERSION                          \" Removing the diversion macro
 .          \}
 .          ev
 .       \}
 .       if !\\n[#DOC_TYPE]=4 \{\
-.          if \\n[#PRINT_STYLE]=2 \{\
-.             nr #DEPTH_1 \\n[#DOCHEADER_LINES]*\\n[#DOCHEADER_LEAD]
-.             nr #DEPTH_2 \\n[#DOCHEADER_LINES]*\\n[#DOC_LEAD]
-.             ie \\n[#DEPTH_1]<\\n[#DEPTH_2] \{\
-.                 nr #DOCHEADER_SPACE_ADJ \\n[#DEPTH_2]-\\n[#DEPTH_1]
-.             \}
-.             el \{\
-.                 nr #DOCHEADER_SPACE_ADJ \\n[#DEPTH_1]-\\n[#DEPTH_2]
-.             \}
-.             nr #DOCHEADER_EXTRA_SPACE \\n[#DOCHEADER_SPACE_ADJ] \\n[#DOC_LEAD]
-.             while \\n[#DOCHEADER_EXTRA_SPACE]>\\n[#DOC_LEAD] \{\
-.                \\n-[#DOCHEADER_EXTRA_SPACE]
-.             \}
-.             if \\n[#DOCHEADER_EXTRA_SPACE]>0 \{\
-.                ie \\n[#DOCHEADER_LEAD_ADJ]<0 \{\
-.                   ALD \\n[#DOCHEADER_EXTRA_SPACE]u
-.                \}
-.                el \{ .ALD \\n[#DOC_LEAD]u-\\n[#DOCHEADER_EXTRA_SPACE]u \}
-.             \}
-.          \}
-.          if \\n[#PRINT_STYLE]=1 \{ .ALD \\n[#DOC_LEAD]u    \}
-.          if \\n[#PRINT_STYLE]=2 \{ .ALD \\n[#DOC_LEAD]u*2u \}
+.          if \\n[#PRINT_STYLE]=1 \{ .ALD \\n[#DOC_LEAD]u \}
+.          nr #DOCHEADER_SPACE_ADJ \\n[#DOCHEADER_DEPTH]%\\n[#DOC_LEAD] \"Do we need the units?
+.          ie !\\n[#DOCHEADER_SPACE_ADJ]=0 \{ .nr #DOCHEADER_EXTRA_SPACE \\n[#DOC_LEAD]u-\\n[#DOCHEADER_SPACE_ADJ]u \}
+.          el \{ .nr #DOCHEADER_EXTRA_SPACE 0 \}
+.          if \\n[#PRINT_STYLE]=2 \{ .ALD (\\n[#DOC_LEAD]u*2u)+\\n[#DOCHEADER_EXTRA_SPACE]u \}
 .          if \\n[#COLUMNS] \{\
 .             nr #COL_NUM 0 1
 .             nr #L_LENGTH_FOR_EPI \\n[#L_LENGTH]
@@ -4112,7 +4226,6 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    rr #DOCHEADER_ADVANCE
 .    rr #ADVANCE_FROM_TOP
 .    rr #DOCHEADER_SPACE_ADJ
-.    rr #DOCHEADER_LINES
 .    rr #DOCHEADER_EXTRA_SPACE
 .    rr #AUTHORS
 .    rr #NEXT_AUTHOR
@@ -4221,6 +4334,53 @@ y\\R'#DESCENDER \\n[.cdp]'
 \#
 .MAC TITLE_SIZE END
 .    ds $TITLE_SIZE_CHANGE \\$1
+.END
+\#
+\#
+\# CHAPTER TITLE FAMILY
+\# --------------------
+\# *Argument:
+\#   <family to use for the chapter title, if there is one>
+\# *Function:
+\#   Creates or modifies string $CHAPTER_TITLE_FAM.
+\# *Notes:
+\#   Default isame as running text.
+\#
+.MAC CHAPTER_TITLE_FAMILY END
+.    ds $CHAPTER_TITLE_FAM \\$1
+.END
+\#
+\#
+\# CHAPTER TITLE FONT
+\# ------------------
+\# *Argument:
+\#   <font to use for the chapter title, if there is one>
+\# *Function:
+\#   Creates or modifies string $CHAPTER_TITLE_FT.
+\# *Notes:
+\#   Default is bold italic for TYPESET; varies in TYPEWRITE between
+\#   caps and underscored, depending on whether chapter title stands
+\#   alone or has CHAPTER # above it.
+\#
+.MAC CHAPTER_TITLE_FONT END
+.    ds $CHAPTER_TITLE_FT \\$1
+.END
+\#
+\#
+\# CHAPTER TITLE SIZE
+\# ------------------
+\# *Argument:
+\#   <+|- number of points by which to in/decrease title at start
+\#   of the document (relative to running text)>
+\# *Function:
+\#   Creates string $CHAPTER_TITLE_SIZE_CHANGE.
+\# *Notes:
+\#   Must be preceded by a +|- sign, with no space afterwards.
+\#   Fractional point sizes are allowed.
+\#   Default is +4 for printstyle TYPESET
+\#
+.MAC CHAPTER_TITLE_SIZE END
+.    ds $CHAPTER_TITLE_SIZE_CHANGE \\$1
 .END
 \#
 \#
@@ -4850,11 +5010,8 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    ie \\n[#START] \{\
 .       nr #EPI_WHITESPACE (\\n[#DOC_LEAD]*\\n[#EPI_LINES])-\\n[#EPI_DEPTH]
 .       while \\n[#EPI_WHITESPACE]>\\n[#DOC_LEAD] \{ .nr #EPI_WHITESPACE -\\n[#DOC_LEAD] \}
-.       RLD \\n[#DOC_LEAD]u
-.       ie \\n[#PRINT_STYLE]=1 \{\
-.          if \\n[#EPI_WHITESPACE]=\\n[#DOC_LEAD] \{ .ALD \\n[#EPI_WHITESPACE]u/2u \}
-.       \}
-.       el \{\
+.       if \\n[#PRINT_STYLE]=2 \{\
+.          RLD \\n[#DOC_LEAD]u
 .          if \\n[#EPI_WHITESPACE]<\\n[#DOC_LEAD] \{\
 .             ALD \\n[#EPI_LEAD_DIFF]u+(\\n[#EPI_WHITESPACE]u/2u)
 .          \}
@@ -4905,11 +5062,19 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    EPI_TEXT
 .    br
 .    ie \\n[#START] \{\
-.       if \\n[#EPI_WHITESPACE]<\\n[#DOC_LEAD] \{\
-.          ALD \\n[#EPI_WHITESPACE]u/2u
+.       if \\n[#PRINT_STYLE]=1 \{\
+.          ie \\n[#SINGLE_SPACE] \{ .ALD \\n[#DOC_LEAD]u \}
+.          el \{\
+.             if \\n[#EPI_WHITESPACE]=\\n[#DOC_LEAD] \{ .ALD \\n[#DOC_LEAD]u/2u \}
+.          \}
 .       \}
-.       if \\n[#EPI_WHITESPACE]>\\n[#DOC_LEAD] \{\
-.          ALD (\\n[#EPI_WHITESPACE]u/2u)-\\n[#DOC_LEAD]u
+.       if \\n[#PRINT_STYLE]=2 \{\
+.          if \\n[#EPI_WHITESPACE]<\\n[#DOC_LEAD] \{\
+.             ALD \\n[#EPI_WHITESPACE]u/2u
+.          \}
+.          if \\n[#EPI_WHITESPACE]>\\n[#DOC_LEAD] \{\
+.             ALD (\\n[#EPI_WHITESPACE]u/2u)-\\n[#DOC_LEAD]u
+.          \}
 .       \}
 .    \}
 .    el \{\
@@ -6382,7 +6547,7 @@ y\\R'#DESCENDER \\n[.cdp]'
 .    if r#EPIGRAPH          \{ .rr #EPIGRAPH \}
 .    if \\n[#PRINT_STYLE]=1 \{ .ne 3 \}
 .    if \\n[#PRINT_STYLE]=2 \{\
-.        ie \\n[#HEAD_SPACE] \{ .ne 5 \}
+.        ie \\n[#HEAD_SPACE] \{ .ne 4 \}
 .        el \{ .ne 3 \}
 .    \}
 .    ie \\n[#START] \{\
@@ -7492,9 +7657,13 @@ y\\R'#DESCENDER \\n[.cdp]'
 .                ie \\n[#START] \{ . \}
 .                el \{\
 .                   ie \\n[#FULLSPACE_QUOTES] \{\
-.                      ALD \\n[#DOC_LEAD]u
+.                      ie \\n[#ENDNOTE] \{ .ALD \\n[#EN_LEAD]u \}
+.                      el \{ .ALD \\n[#DOC_LEAD]u \}
 .                   \}
-.                   el \{ .ALD \\n[#DOC_LEAD]u/2u \}
+.                   el \{\
+.                      ie \\n[#ENDNOTE] \{ .ALD \\n[#EN_LEAD]u/2u \}
+.                      el \{ .ALD \\n[#DOC_LEAD]u/2u \}
+.                   \}
 .                \}
 .             \}
 .          \}
@@ -7503,7 +7672,10 @@ y\\R'#DESCENDER \\n[.cdp]'
 .             ie r#HEAD \{\
 .                if \\n[#HEAD]=1 \{ . \}
 .             \}
-.             el \{ .ALD \\n[#EN_LEAD]u \}
+.             el \{\
+.                ie \\n[#ENDNOTE] \{ .ALD \\n[#EN_LEAD]u \}
+.                el \{ .ALD \\n[#DOC_LEAD]u \}
+.             \}
 .          \}
 .       \}
 .    \}

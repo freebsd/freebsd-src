@@ -1,3 +1,56 @@
+Version 1.19 released
+=====================
+
+2003-03-03  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile.in (extraclean): Added gxditview._man.
+
+2003-01-28  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile.in (SEP): New variable; set to @PATH_SEPARATOR@.
+	(GROFF_FONTPATH): Use it.
+
+2003-01-07  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (Adobe_Symbol_map): Add `sqrt'.
+
+2003-01-06  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (Adobe_Symbol_map): Add `integral'.
+
+2002-12-29  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map): Remove `ap' and `eq'.
+
+2002-12-20  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (Adobe_Symbol_map): Don't include `or'.
+	* draw.c (AdjustCharDeltas): Apply correction only if nadj > 1.
+	(DoCharacter): Call FlushCharCache if font size and font number
+	differ.
+	Reset `dw->dvi.cache.adjustable' properly.
+
+2002-12-09  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map): Use `tno' symbol instead of `no'.
+
+2002-12-01  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile.in: Use `InstallAppDefaultsLong' instead of
+	`InstallAppDefaults' to make it work if build directory isn't
+	$srcdir.
+
+2002-11-24  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (Adobe_Symbol_map): Add glyph `braceex'.
+
+2002-11-14  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c (ISO_8859_1_map): Don't include `or'.
+
+Version 1.18.1 released
+=======================
+
 2002-09-16  Werner LEMBERG  <wl@gnu.org>
 
 	* Imakefile.in (GROFF_LOCALFONTDIR): New variable.
@@ -425,11 +478,11 @@ Sun May 26 14:14:01 1991  James Clark  (jjc at jclark)
 	* draw.c: Rewritten so as not to assume device and display
 	resolution is the same.
 	* DviP.h: Include device.h. Add device_font member to DviFontList.
-	Add adjustable arrary to DviCharCache. Add text_x_width,
+	Add adjustable array to DviCharCache. Add text_x_width,
 	text_device_width, word_flag, device_font, device_font_number,
 	device, native, device_resolution, display_resolution,
 	paperlength, paperwidth, scale_factor, sizescale members.
-	* Dvi.c (Initialize): Initialize new variable used by draw.c
+	* Dvi.c (Initialize): Initialize new variable used by draw.c.
 	(Destroy): Call device_destroy.
 	* font.c (MaxFontPosition): New function.
 	(LookupFontSizeBySize): Handle sizescale.

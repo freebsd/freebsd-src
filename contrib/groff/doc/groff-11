@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,7 +17,7 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
@@ -31,7 +32,7 @@ Concept Index
 
 * ", at end of sentence <1>:             Using Symbols.
 * ", at end of sentence:                 Sentences.
-* ", in a macro argument:                Request Arguments.
+* ", in a macro argument:                Request and Macro Arguments.
 * %, as delimiter:                       Escapes.
 * &, as delimiter:                       Escapes.
 * ', as a comment:                       Comments.
@@ -105,7 +106,7 @@ Concept Index
 * \<colon>, in \X:                       Postprocessor Access.
 * \<colon>, used as delimiter:           Escapes.
 * \<RET>, when reading text for a macro: Copy-in Mode.
-* \<SP>, difference to \~:               Request Arguments.
+* \<SP>, difference to \~:               Request and Macro Arguments.
 * \<SP>, incompatibilities with AT&T troff: Implementation Differences.
 * \<SP>, used as delimiter:              Escapes.
 * \?, in top-level diversion:            Diversions.
@@ -135,6 +136,7 @@ Concept Index
 * \C, and translations:                  Character Translations.
 * \c, incompatibilities with AT&T troff: Implementation Differences.
 * \c, used as delimiter:                 Escapes.
+* \D'f ...' and horizontal resolution:   Drawing Requests.
 * \D, allowed delimiters:                Escapes.
 * \d, used as delimiter:                 Escapes.
 * \e, and glyph definitions:             Using Symbols.
@@ -196,7 +198,7 @@ Concept Index
 * \}, incompatibilities with AT&T troff: Implementation Differences.
 * \}, used as delimiter:                 Escapes.
 * \~, and translations:                  Character Translations.
-* \~, difference to \<SP>:               Request Arguments.
+* \~, difference to \<SP>:               Request and Macro Arguments.
 * \~, used as delimiter:                 Escapes.
 * ], as part of an identifier:           Identifiers.
 * ], at end of sentence <1>:             Using Symbols.
@@ -217,6 +219,8 @@ Concept Index
 * adjusting:                             Filling and Adjusting.
 * adjusting and filling, manipulating:   Manipulating Filling and Adjusting.
 * adjustment mode register (.j):         Manipulating Filling and Adjusting.
+* adobe glyph list (AGL):                Using Symbols.
+* AGL (adobe glyph list):                Using Symbols.
 * alias, diversion, creating (als):      Strings.
 * alias, macro, creating (als):          Strings.
 * alias, number register, creating (aln): Setting Registers.
@@ -230,7 +234,7 @@ Concept Index
 * appending to a string (as):            Strings.
 * arc, drawing (\D'a ...'):              Drawing Requests.
 * argument delimiting characters:        Escapes.
-* arguments to requests:                 Request Arguments.
+* arguments to requests and macros:      Request and Macro Arguments.
 * arguments, macro (\$):                 Parameters.
 * arguments, of strings:                 Strings.
 * arithmetic operators:                  Expressions.
@@ -239,7 +243,7 @@ Concept Index
 * as, as1 requests, and warnings:        Warnings.
 * ASCII approximation output register (.A) <1>: Built-in Registers.
 * ASCII approximation output register (.A): Groff Options.
-* ASCII, encoding:                       Groff Options.
+* ASCII, output encoding:                Groff Options.
 * asciify request, and writem:           I/O.
 * assigning formats (af):                Assigning Formats.
 * assignments, indirect:                 Interpolating Registers.
@@ -276,7 +280,9 @@ Concept Index
 * bounding box:                          Miscellaneous.
 * box rule glyph (\[br]):                Drawing Requests.
 * box, boxa requests, and warnings:      Warnings.
+* boxa request, and dn (dl):             Diversions.
 * bp request, and top-level diversion:   Page Control.
+* bp request, and traps (.pe):           Page Location Traps.
 * bp request, causing implicit linebreak: Manipulating Filling and Adjusting.
 * bp request, using + and -:             Expressions.
 * br glyph, and cflags:                  Using Symbols.
@@ -319,6 +325,7 @@ Concept Index
 * character, control (.):                Requests.
 * character, control, changing (cc):     Character Translations.
 * character, defining (char):            Using Symbols.
+* character, defining fallback (fchar, fschar, schar): Using Symbols.
 * character, escape, changing (ec):      Character Translations.
 * character, escape, while defining glyph: Using Symbols.
 * character, field delimiting (fc):      Fields.
@@ -361,6 +368,7 @@ Concept Index
 * code, hyphenation (hcode):             Manipulating Hyphenation.
 * color, default:                        Colors.
 * colors:                                Colors.
+* colors, fill, unnamed (\D'F...'):      Drawing Requests.
 * command prefix:                        Environment.
 * command-line options:                  Groff Options.
 * commands, embedded:                    Embedded Commands.
@@ -373,6 +381,7 @@ Concept Index
 * comparison operators:                  Expressions.
 * compatibility mode <1>:                Implementation Differences.
 * compatibility mode:                    Warnings.
+* composite glyph names:                 Using Symbols.
 * conditional block, begin (\{):         if-else.
 * conditional block, end (\}):           if-else.
 * conditional page break (ne):           Page Control.
@@ -401,7 +410,8 @@ Concept Index
 * correction, left italic (\,):          Ligatures and Kerning.
 * cover page macros, [ms]:               ms Cover Page Macros.
 * cp request, and glyph definitions:     Using Symbols.
-* cp1047:                                Groff Options.
+* cp1047, input encoding:                Input Encodings.
+* cp1047, output encoding:               Groff Options.
 * creating alias, for diversion (als):   Strings.
 * creating alias, for macro (als):       Strings.
 * creating alias, for number register (aln): Setting Registers.
@@ -418,6 +428,7 @@ Concept Index
 * current time, hours (hours):           Built-in Registers.
 * current time, minutes (minutes):       Built-in Registers.
 * current time, seconds (seconds):       Built-in Registers.
+* da request, and dn (dl):               Diversions.
 * da request, and warnings:              Warnings.
 * date, day of the month register (dy):  Built-in Registers.
 * date, day of the week register (dw):   Built-in Registers.
@@ -433,13 +444,16 @@ Concept Index
 * default indentation, resetting [man]:  Man usage.
 * default units:                         Default Units.
 * defining character (char):             Using Symbols.
+* defining fallback character (fchar, fschar, schar): Using Symbols.
 * defining glyph (char):                 Using Symbols.
 * defining symbol (char):                Using Symbols.
 * delayed text:                          Footnotes and Annotations.
 * delimited arguments, incompatibilities with AT&T troff: Implementation Differences.
 * delimiting character, for fields (fc): Fields.
 * delimiting characters for arguments:   Escapes.
+* depth, of last glyph (.cdp):           Environments.
 * DESC file, format:                     DESC File Format.
+* device resolution:                     DESC File Format.
 * devices for output <1>:                Output Devices.
 * devices for output:                    Output device intro.
 * dg glyph, at end of sentence <1>:      Using Symbols.
@@ -459,6 +473,8 @@ Concept Index
 * directory, site-specific:              Macro Directories.
 * disabling \ (eo):                      Character Translations.
 * disabling hyphenation (\%):            Manipulating Hyphenation.
+* discardable horizontal space:          Manipulating Filling and Adjusting.
+* discarded space in traps:              Manipulating Spacing.
 * displays:                              Displays.
 * displays [ms]:                         ms Displays and Keeps.
 * distance to next trap register (.t):   Page Location Traps.
@@ -481,10 +497,13 @@ Concept Index
 * diversion, unformatting (asciify):     Diversions.
 * diversion, vertical position in, register (.d): Diversions.
 * diversions:                            Diversions.
+* diversions, and traps:                 Page Location Traps.
 * diversions, shared name space with macros and strings: Strings.
+* dl register, and da (boxa):            Diversions.
+* dn register, and da (boxa):            Diversions.
 * documents, multi-file:                 Debugging.
 * documents, structuring the source code: Requests.
-* double quote, in a macro argument:     Request Arguments.
+* double quote, in a macro argument:     Request and Macro Arguments.
 * double-spacing (ls) <1>:               Manipulating Spacing.
 * double-spacing (ls):                   Basics.
 * double-spacing (vs, pvs):              Changing Type Sizes.
@@ -501,17 +520,18 @@ Concept Index
 * drawing requests:                      Drawing Requests.
 * drawing vertical lines (\L):           Drawing Requests.
 * ds request, and comments:              Strings.
-* ds request, and double quotes:         Request Arguments.
+* ds request, and double quotes:         Request and Macro Arguments.
 * ds request, and leading spaces:        Strings.
 * ds, ds1 requests, and comments:        Comments.
 * ds, ds1 requests, and warnings:        Warnings.
 * dumping number registers (pnr):        Debugging.
 * dumping symbol table (pm):             Debugging.
 * dumping traps (ptr):                   Debugging.
-* EBCDIC encoding <1>:                   Tab Stops.
-* EBCDIC encoding:                       Groff Options.
+* EBCDIC encoding:                       Tab Stops.
 * EBCDIC encoding of a tab:              Tabs and Fields.
 * EBCDIC encoding of backspace:          Identifiers.
+* EBCDIC, input encoding:                Input Encodings.
+* EBCDIC, output encoding:               Groff Options.
 * el request, and warnings:              Warnings.
 * ellipse, drawing (\D'e ...'):          Drawing Requests.
 * ellipse, solid, drawing (\D'E ...'):   Drawing Requests.
@@ -525,12 +545,17 @@ Concept Index
 * empty space before a paragraph [man]:  Miscellaneous man macros.
 * en unit (n):                           Measurements.
 * enabling vertical position traps (vpt): Page Location Traps.
-* encoding, ASCII:                       Groff Options.
-* encoding, cp1047:                      Groff Options.
-* encoding, EBCDIC <1>:                  Tab Stops.
-* encoding, EBCDIC:                      Groff Options.
-* encoding, latin-1:                     Groff Options.
-* encoding, utf-8:                       Groff Options.
+* encoding, EBCDIC:                      Tab Stops.
+* encoding, input, cp1047:               Input Encodings.
+* encoding, input, EBCDIC:               Input Encodings.
+* encoding, input, latin-1 (ISO 8859-1): Input Encodings.
+* encoding, input, latin-2 (ISO 8859-2): Input Encodings.
+* encoding, input, latin-9 (latin-0, ISO 8859-15): Input Encodings.
+* encoding, output, ASCII:               Groff Options.
+* encoding, output, cp1047:              Groff Options.
+* encoding, output, EBCDIC:              Groff Options.
+* encoding, output, latin-1 (ISO 8859-1): Groff Options.
+* encoding, output, utf-8:               Groff Options.
 * end of conditional block (\}):         if-else.
 * end-of-input macro (em):               End-of-input Traps.
 * end-of-input trap, setting (em):       End-of-input Traps.
@@ -540,7 +565,8 @@ Concept Index
 * environment number/name register (.ev): Environments.
 * environment variables:                 Environment.
 * environment, copying (evc):            Environments.
-* environment, last glyph:               Environments.
+* environment, dimensions of last glyph (.w, .cht, .cdp, .csk): Environments.
+* environment, previous line length (.n): Environments.
 * environment, switching (ev):           Environments.
 * environments:                          Environments.
 * eqn, the program:                      geqn.
@@ -570,6 +596,8 @@ Concept Index
 * extremum operators (>?, <?):           Expressions.
 * f unit:                                Measurements.
 * f unit, and colors:                    Colors.
+* fallback character, defining (fchar, fschar, schar): Using Symbols.
+* fallback glyph, removing definition (rchar, rfschar): Using Symbols.
 * fam request, and changing fonts:       Changing Fonts.
 * fam request, and font positions:       Font Positions.
 * families, font:                        Font Families.
@@ -590,6 +618,7 @@ Concept Index
 * file, writing to (write):              I/O.
 * files, font:                           Font Files.
 * files, macro, searching:               Macro Directories.
+* fill colors, unnamed (\D'F...'):       Drawing Requests.
 * fill mode <1>:                         Warnings.
 * fill mode <2>:                         Manipulating Filling and Adjusting.
 * fill mode:                             Implicit Line Breaks.
@@ -622,7 +651,7 @@ Concept Index
 * font, mounting (fp):                   Font Positions.
 * font, previous (ft, \f[], \fP):        Changing Fonts.
 * fonts <1>:                             Changing Fonts.
-* fonts:                                 Fonts.
+* fonts:                                 Fonts and Symbols.
 * fonts, artificial:                     Artificial Fonts.
 * fonts, changing (ft, \f):              Changing Fonts.
 * fonts, PostScript:                     Font Families.
@@ -649,15 +678,18 @@ Concept Index
 * french-spacing:                        Sentences.
 * fspecial request, and font styles:     Font Families.
 * fspecial request, and font translations: Changing Fonts.
+* fspecial request, and glyph search order: Using Symbols.
 * fspecial request, and imitating bold:  Artificial Fonts.
 * ft request, and font translations:     Changing Fonts.
 * geqn, invoking:                        Invoking geqn.
 * geqn, the program:                     geqn.
+* GGL (groff glyph list):                Using Symbols.
 * ggrn, invoking:                        Invoking ggrn.
 * ggrn, the program:                     ggrn.
 * glossary-style list, example markup [ms]: Lists in ms.
 * glyph:                                 Using Symbols.
 * glyph for line drawing:                Drawing Requests.
+* glyph names, composite:                Using Symbols.
 * glyph pile (\b):                       Drawing Requests.
 * glyph properties (cflags):             Using Symbols.
 * glyph, box rule (\[br]):               Drawing Requests.
@@ -666,11 +698,12 @@ Concept Index
 * glyph, for line drawing:               Drawing Requests.
 * glyph, for margins (mc):               Miscellaneous.
 * glyph, italic correction (\/):         Ligatures and Kerning.
+* glyph, last, dimensions (.w, .cht, .cdp, .csk): Environments.
 * glyph, leader repetition (lc):         Leaders.
 * glyph, left italic correction (\,):    Ligatures and Kerning.
 * glyph, numbered (\N) <1>:              Using Symbols.
 * glyph, numbered (\N):                  Character Translations.
-* glyph, removing definition (rchar):    Using Symbols.
+* glyph, removing definition (rchar, rfschar): Using Symbols.
 * glyph, soft hyphen (hy):               Manipulating Hyphenation.
 * glyph, tab repetition (tc):            Tabs and Fields.
 * glyph, underscore (\[ru]):             Drawing Requests.
@@ -691,6 +724,7 @@ Concept Index
 * grodvi, the program:                   grodvi.
 * groff - what is it?:                   What Is groff?.
 * groff capabilities:                    groff Capabilities.
+* groff glyph list (GGL):                Using Symbols.
 * groff invocation:                      Invoking groff.
 * groff, and pi request:                 I/O.
 * GROFF_BIN_PATH, environment variable:  Environment.
@@ -730,14 +764,17 @@ Concept Index
 * headers:                               Page Layout.
 * headers [ms]:                          ms Headers and Footers.
 * height, font, changing (\H):           Artificial Fonts.
+* height, of last glyph (.cht):          Environments.
 * high-water mark register (.h):         Diversions.
 * history:                               History.
 * home directory:                        Macro Directories.
+* horizontal discardable space:          Manipulating Filling and Adjusting.
 * horizontal input line position register (hp): Page Motions.
 * horizontal input line position, saving (\k): Page Motions.
 * horizontal line, drawing (\l):         Drawing Requests.
 * horizontal motion (\h):                Page Motions.
 * horizontal output line position register (.k): Page Motions.
+* horizontal resolution:                 DESC File Format.
 * horizontal resolution register (.H):   Built-in Registers.
 * horizontal space (\h):                 Page Motions.
 * horizontal space, unformatting:        Strings.
@@ -762,7 +799,8 @@ Concept Index
 * hyphenation, manipulating:             Manipulating Hyphenation.
 * i unit:                                Measurements.
 * i/o:                                   I/O.
-* IBM cp1047:                            Groff Options.
+* IBM cp1047 input encoding:             Input Encodings.
+* IBM cp1047 output encoding:            Groff Options.
 * identifiers:                           Identifiers.
 * identifiers, undefined:                Identifiers.
 * ie request, and warnings:              Warnings.
@@ -788,6 +826,11 @@ Concept Index
 * input characters and output glyphs, compatibility with AT&T troff: Implementation Differences.
 * input characters, invalid:             Identifiers.
 * input conventions:                     Input Conventions.
+* input encoding, cp1047:                Input Encodings.
+* input encoding, EBCDIC:                Input Encodings.
+* input encoding, latin-1 (ISO 8859-1):  Input Encodings.
+* input encoding, latin-2 (ISO 8859-2):  Input Encodings.
+* input encoding, latin-9 (latin-9, ISO 8859-15): Input Encodings.
 * input file name, current, register (.F): Built-in Registers.
 * input level in delimited arguments:    Implementation Differences.
 * input line continuation (\):           Line Control.
@@ -830,6 +873,10 @@ Concept Index
 * invoking gsoelim:                      Invoking gsoelim.
 * invoking gtbl:                         Invoking gtbl.
 * invoking gxditview:                    Invoking gxditview.
+* ISO 8859-1 (latin-1), input encoding:  Input Encodings.
+* ISO 8859-1 (latin-1), output encoding: Groff Options.
+* ISO 8859-15 (latin-9, latin-0), input encoding: Input Encodings.
+* ISO 8859-2 (latin-2), input encoding:  Input Encodings.
 * italic correction (\/):                Ligatures and Kerning.
 * italic fonts [man]:                    Man font macros.
 * italic glyph, correction after roman glyph (\,): Ligatures and Kerning.
@@ -843,8 +890,13 @@ Concept Index
 * kerning enabled register (.kern):      Ligatures and Kerning.
 * kerning, activating (kern):            Ligatures and Kerning.
 * kerning, track:                        Ligatures and Kerning.
+* landscape page orientation:            Paper Size.
+* last glyph, dimensions (.w, .cht, .cdp, .csk): Environments.
 * last-requested point size registers (.psr, .sr): Fractional Type Sizes.
-* latin-1, encoding:                     Groff Options.
+* latin-1 (ISO 8859-1), input encoding:  Input Encodings.
+* latin-1 (ISO 8859-1), output encoding: Groff Options.
+* latin-2 (ISO 8859-2), input encoding:  Input Encodings.
+* latin-9 (latin-0, ISO 8859-15), input encoding: Input Encodings.
 * layout, line:                          Line Layout.
 * layout, page:                          Page Layout.
 * lc request, and glyph definitions:     Using Symbols.
@@ -862,6 +914,7 @@ Concept Index
 * length of a string (length):           Strings.
 * length of line (ll):                   Line Layout.
 * length of page (pl):                   Page Layout.
+* length of previous line (.n):          Environments.
 * length of title line (lt):             Page Layout.
 * letters, form:                         I/O.
 * level of warnings (warn):              Debugging.
@@ -883,6 +936,7 @@ Concept Index
 * line layout:                           Line Layout.
 * line length (ll):                      Line Layout.
 * line length register (.l):             Line Layout.
+* line length, previous (.n):            Environments.
 * line number, input, register (.c, c.): Built-in Registers.
 * line number, output, register (ln):    Built-in Registers.
 * line numbers, printing (nm):           Miscellaneous.
@@ -923,6 +977,7 @@ Concept Index
 * M unit:                                Measurements.
 * m unit:                                Measurements.
 * machine unit (u):                      Measurements.
+* macro arguments:                       Request and Macro Arguments.
 * macro basics:                          Basics.
 * macro directories:                     Macro Directories.
 * macro files, searching:                Macro Directories.
@@ -948,6 +1003,7 @@ Concept Index
 * major version number register (.x):    Built-in Registers.
 * man macros:                            Man usage.
 * man macros, bold face:                 Man font macros.
+* man macros, custom headers and footers: Optional man extensions.
 * man macros, default indentation:       Miscellaneous man macros.
 * man macros, empty space before a paragraph: Miscellaneous man macros.
 * man macros, hanging indentation:       Man usage.
@@ -958,10 +1014,12 @@ Concept Index
 * man macros, moving left margin:        Man usage.
 * man macros, resetting default indentation: Man usage.
 * man macros, tab stops:                 Miscellaneous man macros.
+* man macros, Ultrix-specific:           Optional man extensions.
 * man pages:                             man.
 * manipulating filling and adjusting:    Manipulating Filling and Adjusting.
 * manipulating hyphenation:              Manipulating Hyphenation.
 * manipulating spacing:                  Manipulating Spacing.
+* manmacros, BSD compatibility:          Miscellaneous man macros.
 * manual pages:                          man.
 * margin for hyphenation (hym):          Manipulating Hyphenation.
 * margin glyph (mc):                     Miscellaneous.
@@ -1099,6 +1157,7 @@ Concept Index
 * operators, unary:                      Expressions.
 * options:                               Groff Options.
 * order of evaluation in expressions:    Expressions.
+* orientation, landscape:                Paper Size.
 * orphan lines, preventing with ne:      Page Control.
 * os request, and no-space mode:         Page Control.
 * output and input requests:             I/O.
@@ -1107,6 +1166,11 @@ Concept Index
 * output device usage number register (.T): Groff Options.
 * output devices <1>:                    Output Devices.
 * output devices:                        Output device intro.
+* output encoding, ASCII:                Groff Options.
+* output encoding, cp1047:               Groff Options.
+* output encoding, EBCDIC:               Groff Options.
+* output encoding, latin-1 (ISO 8859-1): Groff Options.
+* output encoding, utf-8:                Groff Options.
 * output glyphs, and input characters,compatibility with AT&T troff: Implementation Differences.
 * output line number register (ln):      Built-in Registers.
 * output line, continuation (\c):        Line Control.
@@ -1129,6 +1193,7 @@ Concept Index
 * padding character, for fields (fc):    Fields.
 * page break, conditional (ne):          Page Control.
 * page control:                          Page Control.
+* page ejecting register (.pe):          Page Location Traps.
 * page footers:                          Page Location Traps.
 * page headers:                          Page Location Traps.
 * page layout:                           Page Layout.
@@ -1144,8 +1209,10 @@ Concept Index
 * page number character, changing (pc):  Page Layout.
 * page number register (%):              Page Layout.
 * page offset (po):                      Line Layout.
+* page orientation, landscape:           Paper Size.
 * page, new (bp):                        Page Control.
 * paper formats:                         Paper Formats.
+* paper size:                            Paper Size.
 * paragraphs:                            Paragraphs.
 * parameters:                            Parameters.
 * parentheses:                           Expressions.
@@ -1190,6 +1257,7 @@ Concept Index
 * preprocessors <1>:                     Preprocessors.
 * preprocessors:                         Preprocessor Intro.
 * previous font (ft, \f[], \fP):         Changing Fonts.
+* previous line length (.n):             Environments.
 * print current page register (.P):      Groff Options.
 * printing backslash (\\, \e, \E, \[rs]) <1>: Implementation Differences.
 * printing backslash (\\, \e, \E, \[rs]): Escapes.
@@ -1208,6 +1276,7 @@ Concept Index
 * pvs request, using + and -:            Expressions.
 * quotes, major:                         Displays.
 * quotes, trailing:                      Strings.
+* radicalex glyph, and cflags:           Using Symbols.
 * ragged-left:                           Manipulating Filling and Adjusting.
 * ragged-right:                          Manipulating Filling and Adjusting.
 * rc request, and glyph definitions:     Using Symbols.
@@ -1228,7 +1297,7 @@ Concept Index
 * registers, interpolating (\n):         Interpolating Registers.
 * registers, setting (nr, \R):           Setting Registers.
 * removing diversion (rm):               Strings.
-* removing glyph definition (rchar):     Using Symbols.
+* removing glyph definition (rchar, rfschar): Using Symbols.
 * removing macro (rm):                   Strings.
 * removing number register (rr):         Setting Registers.
 * removing request (rm):                 Strings.
@@ -1238,14 +1307,17 @@ Concept Index
 * renaming number register (rnn):        Setting Registers.
 * renaming request (rn):                 Strings.
 * renaming string (rn):                  Strings.
-* request arguments:                     Request Arguments.
+* request arguments:                     Request and Macro Arguments.
 * request, removing (rm):                Strings.
 * request, renaming (rn):                Strings.
 * request, undefined:                    Comments.
 * requests:                              Requests.
 * requests for drawing:                  Drawing Requests.
 * requests for input and output:         I/O.
+* resolution, device:                    DESC File Format.
+* resolution, horizontal:                DESC File Format.
 * resolution, horizontal, register (.H): Built-in Registers.
+* resolution, vertical:                  DESC File Format.
 * resolution, vertical, register (.V):   Built-in Registers.
 * returning to marked vertical page location (rt): Page Motions.
 * revision number register (.Y):         Built-in Registers.
@@ -1290,9 +1362,11 @@ Concept Index
 * size of sentence space register (.sss): Manipulating Filling and Adjusting.
 * size of type:                          Sizes.
 * size of word space register (.ss):     Manipulating Filling and Adjusting.
+* size, paper:                           Paper Size.
 * sizes:                                 Sizes.
 * sizes, fractional <1>:                 Implementation Differences.
 * sizes, fractional:                     Fractional Type Sizes.
+* skew, of last glyph (.csk):            Environments.
 * slant, font, changing (\S):            Artificial Fonts.
 * soelim, the program:                   gsoelim.
 * soft hyphen character, setting (shc):  Manipulating Hyphenation.
@@ -1301,6 +1375,7 @@ Concept Index
 * solid ellipse, drawing (\D'E ...'):    Drawing Requests.
 * solid polygon, drawing (\D'P ...'):    Drawing Requests.
 * sp request, and no-space mode:         Manipulating Spacing.
+* sp request, and traps:                 Manipulating Spacing.
 * sp request, causing implicit linebreak: Manipulating Filling and Adjusting.
 * space between sentences:               Sentences.
 * space between sentences register (.sss): Manipulating Filling and Adjusting.
@@ -1310,12 +1385,15 @@ Concept Index
 * space character, zero width (\&) <2>:  Ligatures and Kerning.
 * space character, zero width (\&):      Requests.
 * space characters, in expressions:      Expressions.
+* space, discardable, horizontal:        Manipulating Filling and Adjusting.
+* space, discarded, in traps:            Manipulating Spacing.
 * space, horizontal (\h):                Page Motions.
 * space, horizontal, unformatting:       Strings.
 * space, unbreakable:                    Page Motions.
 * space, vertical, unit (v):             Measurements.
 * space, width of a digit (\0):          Page Motions.
 * spaces with ds:                        Strings.
+* spaces, in a macro argument:           Request and Macro Arguments.
 * spaces, leading and trailing:          Filling and Adjusting.
 * spacing:                               Basics.
 * spacing, manipulating:                 Manipulating Spacing.
@@ -1328,8 +1406,10 @@ Concept Index
 * special fonts:                         Using Symbols.
 * special fonts, emboldening:            Artificial Fonts.
 * special request, and font translations: Changing Fonts.
+* special request, and glyph search order: Using Symbols.
 * spline, drawing (\D'~ ...'):           Drawing Requests.
 * springing a trap:                      Traps.
+* sqrtex glyph, and cflags:              Using Symbols.
 * stacking glyphs (\b):                  Drawing Requests.
 * standard input, reading from (rd):     I/O.
 * stderr, printing to (tm, tm1, tmc):    Debugging.
@@ -1431,6 +1511,8 @@ Concept Index
 * trap, planting:                        Traps.
 * trap, springing:                       Traps.
 * traps:                                 Traps.
+* traps, and discarded space:            Manipulating Spacing.
+* traps, and diversions:                 Page Location Traps.
 * traps, blank line:                     Blank Line Traps.
 * traps, diversion:                      Diversion Traps.
 * traps, dumping (ptr):                  Debugging.
@@ -1438,6 +1520,7 @@ Concept Index
 * traps, input line:                     Input Line Traps.
 * traps, input line, and interrupted lines (itc): Input Line Traps.
 * traps, page location:                  Page Location Traps.
+* traps, sprung by bp request (.pe):     Page Location Traps.
 * trf request, and invalid characters:   I/O.
 * trf request, causing implicit linebreak: Manipulating Filling and Adjusting.
 * trin request, and asciify:             Diversions.
@@ -1454,6 +1537,7 @@ Concept Index
 * uf request, and font styles:           Font Families.
 * ul glyph, and cflags:                  Using Symbols.
 * ul request, and font translations:     Changing Fonts.
+* Ultrix-specific man macros:            Optional man extensions.
 * unary operators:                       Expressions.
 * unbreakable space:                     Page Motions.
 * undefined identifiers:                 Identifiers.
@@ -1483,6 +1567,7 @@ Concept Index
 * unit, z:                               Measurements.
 * units of measurement:                  Measurements.
 * units, default:                        Default Units.
+* unnamed fill colors (\D'F...'):        Drawing Requests.
 * unnamed glyphs:                        Using Symbols.
 * unnamed glyphs, accessing with \N:     Font File Format.
 * unsafe mode <1>:                       I/O.
@@ -1491,7 +1576,7 @@ Concept Index
 * user's macro tutorial:                 Tutorial for Macro Users.
 * user's tutorial for macros:            Tutorial for Macro Users.
 * using symbols:                         Using Symbols.
-* utf-8, encoding:                       Groff Options.
+* utf-8, output encoding:                Groff Options.
 * v unit:                                Measurements.
 * valid numeric expression:              Expressions.
 * value, incrementing without changing the register: Auto-increment.
@@ -1508,6 +1593,7 @@ Concept Index
 * vertical position in diversion register (.d): Diversions.
 * vertical position trap enable register (.vpt): Page Location Traps.
 * vertical position traps, enabling (vpt): Page Location Traps.
+* vertical resolution:                   DESC File Format.
 * vertical resolution register (.V):     Built-in Registers.
 * vertical space unit (v):               Measurements.
 * vertical spacing:                      Sizes.
@@ -1521,6 +1607,7 @@ Concept Index
 * while request, operators to use with:  Operators in Conditionals.
 * whitespace characters:                 Identifiers.
 * width escape (\w):                     Page Motions.
+* width, of last glyph (.w):             Environments.
 * word space size register (.ss):        Manipulating Filling and Adjusting.
 * writing macros:                        Writing Macros.
 * writing to file (write):               I/O.

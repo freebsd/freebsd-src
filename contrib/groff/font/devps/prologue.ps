@@ -156,9 +156,12 @@
 
 % c m y k Fk -
 
-/Fk {
-	setcmykcolor fill
-} bind def
+/setcmykcolor where {
+	pop
+	/Fk {
+		setcmykcolor fill
+	} bind def
+} if
 
 % g Fg -
 
@@ -173,7 +176,10 @@
 /LW /setlinewidth load def
 
 /Cr /setrgbcolor load def
-/Ck /setcmykcolor load def
+/setcmykcolor where {
+	pop
+	/Ck /setcmykcolor load def
+} if
 /Cg /setgray load def
 
 % new_font_name encoding_vector old_font_name RE -
@@ -229,6 +235,11 @@
 	/CNT countdictstack def
 	userdict begin
 	/showpage {} def
+	%
+	%  Any included setpagedevice should be ignored.
+	%  See: http://www.w-beer.de/doc/ps/.
+	%
+	/setpagedevice {} def
 } bind def
 
 /PEND {
