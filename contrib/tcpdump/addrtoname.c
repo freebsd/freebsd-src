@@ -46,7 +46,7 @@ struct rtentry;
 #include <net/ethernet.h>
 
 #ifdef INET6
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #endif
 
 #include <arpa/inet.h>
