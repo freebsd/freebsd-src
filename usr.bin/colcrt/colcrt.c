@@ -46,7 +46,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -86,23 +85,22 @@ main(argc, argv)
 {
 	int c;
 	char *cp, *dp;
+	int ch;
 
-	argc--;
-	argv++;
-	while (argc > 0 && argv[0][0] == '-') {
-		switch (argv[0][1]) {
-			case 0:
-				suppresul = 1;
-				break;
-			case '2':
-				printall = 1;
-				break;
-			default:
-				usage();
+	while ((ch = getopt(argc, argv, "-2")) != -1)
+		switch (ch) {
+		case '-':
+			suppresul = 1;
+			break;
+		case '2':
+			printall = 1;
+			break;
+		default:
+			usage();
 		}
-		argc--;
-		argv++;
-	}
+	argc -= optind;
+	argv += optind;
+
 	do {
 		if (argc > 0) {
 			close(0);
@@ -193,7 +191,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: colcrt [ - ] [ -2 ] [ file ... ]\n");
+	fprintf(stderr, "usage: colcrt [-] [-2] [file ...]\n");
 	exit(1);
 }
 
