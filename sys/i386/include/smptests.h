@@ -35,18 +35,10 @@
 
 
 /*
- * Control the "giant lock" pushdown by logical steps.
- */
-#define PUSHDOWN_LEVEL_1
-#define PUSHDOWN_LEVEL_2
-
-/*
  * Put FAST_INTR() ISRs at an APIC priority above the regular INTs.
  * Allow the mp_lock() routines to handle FAST interrupts while spinning.
  */
-#ifdef PUSHDOWN_LEVEL_1
 #define FAST_HI
-#endif
 
 
 /*
@@ -58,15 +50,7 @@
  *	joystick lkm
  *	?
  */
-#ifdef PUSHDOWN_LEVEL_1
 #define USE_COMLOCK
-#endif
-
-
-/*
- * Portions of the old TEST_LOPRIO code, back from the grave!
- */
-#define GRAB_LOPRIO
 
 
 /*
@@ -75,13 +59,6 @@
  */
 #define CPUSTOP_ON_DDBBREAK
 
-
-/*
- * Bracket code/comments relevant to the current 'giant lock' model.
- * Everything is now the 'giant lock' model, but we will use this as
- * we start to "push down" the lock.
- */
-#define GIANT_LOCK
 
 #ifdef APIC_IO
 /*
