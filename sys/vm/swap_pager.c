@@ -1478,6 +1478,7 @@ swp_pager_async_iodone(bp)
 	 */
 	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
+	vm_page_lock_queues();
 	/*
 	 * cleanup pages.  If an error occurs writing to swap, we are in
 	 * very serious trouble.  If it happens to be a disk error, though,
@@ -1596,6 +1597,7 @@ swp_pager_async_iodone(bp)
 				vm_page_protect(m, VM_PROT_READ);
 		}
 	}
+	vm_page_unlock_queues();
 
 	/*
 	 * adjust pip.  NOTE: the original parent may still have its own
