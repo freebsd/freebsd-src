@@ -1,9 +1,0 @@
-[1mmount_cd9660[m	mount an ISO-9660 filesystem
-
-	Usage:
-
-	mount_cd9660 [-egrv] [-o options] [-s startsector] special node
-
-	Most commonly, to mount an ATAPI CD-ROM on /mnt directory:
-
-		mount_cd9660 /dev/wcd0c /mnt
