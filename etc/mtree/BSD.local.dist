@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.10 1995/05/13 12:07:08 asami Exp $
+#     $Id: BSD.local.dist,v 1.11 1995/05/17 09:31:07 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -58,5 +58,59 @@
     sbin
     ..
     share
+        nls
+	    C
+	    ..
+	    da_DK.ISO_8859-1
+            ..
+	    de_AT.ISO_8859-1
+            ..
+	    de_CH.ISO_8859-1
+            ..
+	    de_DE.ISO_8859-1
+            ..
+	    en_AU.ISO_8859-1
+            ..
+	    en_CA.ISO_8859-1
+            ..
+	    en_GB.ISO_8859-1
+            ..
+	    en_US.ISO_8859-1
+            ..
+	    es_ES.ISO_8859-1
+            ..
+	    fi_FI.ISO_8859-1
+            ..
+	    fr_BE.ISO_8859-1
+            ..
+	    fr_CA.ISO_8859-1
+            ..
+	    fr_CH.ISO_8859-1
+            ..
+	    fr_FR.ISO_8859-1
+            ..
+	    is_IS.ISO_8859-1
+            ..
+	    it_CH.ISO_8859-1
+            ..
+	    it_IT.ISO_8859-1
+            ..
+            ja_JP.EUC
+            ..
+	    lt_LN.ISO_8859-1
+            ..
+	    nl_BE.ISO_8859-1
+            ..
+	    nl_NL.ISO_8859-1
+            ..
+	    no_NO.ISO_8859-1
+            ..
+	    pt_PT.ISO_8859-1
+            ..
+            ru_SU.KOI8-R
+            ..
+	    sv_SE.ISO_8859-1
+            ..
+        ..
     ..
 ..
