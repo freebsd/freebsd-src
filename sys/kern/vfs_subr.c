@@ -82,7 +82,6 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
-static void	vgonel __P((struct vnode *vp, struct proc *p));
 static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
@@ -1820,7 +1819,7 @@ vgone(vp)
 /*
  * vgone, with the vp interlock held.
  */
-static void
+void
 vgonel(vp, p)
 	struct vnode *vp;
 	struct proc *p;
