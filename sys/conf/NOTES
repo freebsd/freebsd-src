@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.415 1998/03/09 22:09:10 eivind Exp $
+#	$Id: LINT,v 1.416 1998/03/10 15:42:13 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1375,6 +1375,7 @@ options		BOOTP		# Use BOOTP to obtain IP address/hostname
 options		BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options		"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
 options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
+options		"BOOTP_WIRED_TO=fxp0" # Use interface fxp0 for BOOTP
 
 #
 # An obsolete option to test kern_opt.c.
