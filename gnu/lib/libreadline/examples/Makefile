@@ -2,7 +2,7 @@
 #
 
 EXECUTABLES = fileman
-CFLAGS  = -g -I../..
+CFLAGS  = -g -I..
 LDFLAGS = -g -L..
 
 fileman: fileman.o

@@ -24,12 +24,17 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 #include <stdio.h>
 
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
 #include "memalloc.h"
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "readline.h"
+#include "history.h"
 
 #define STREQ(a, b)	(((a)[0] == (b)[0]) && (strcmp ((a), (b)) == 0))
 #define STREQN(a, b, n)	(((a)[0] == (b)[0]) && (strncmp ((a), (b), (n)) == 0))
@@ -175,6 +180,7 @@ rl_search_history (direction, invoking_key)
   search_string = xmalloc (search_string_size = 128);
   *search_string = '\0';
   search_string_index = 0;
+  prev_line_found = (char *)0;		/* XXX */
 
   /* Normalize DIRECTION into 1 or -1. */
   direction = (direction >= 0) ? 1 : -1;
@@ -240,10 +246,10 @@ rl_search_history (direction, invoking_key)
 	  rl_clear_message ();
 	  free (allocated_line);
 	  free (lines);
-	  return;
+	  return 0;
 
 	default:
-	  if (c < 32 || c > 126)
+	  if (CTRL_CHAR (c) || META_CHAR (c) || c == RUBOUT)
 	    {
 	      rl_execute_next (c);
 	      done = 1;
@@ -277,7 +283,7 @@ rl_search_history (direction, invoking_key)
 		    break;
 		  }
 	      else
-		line_index += reverse ? -1 : 1;
+		line_index += direction;
 	    }
 	  if (found)
 	    break;
@@ -291,7 +297,7 @@ rl_search_history (direction, invoking_key)
 	      i += direction;
 
 	      /* At limit for direction? */
-	      if ((reverse && i < 0) || (!reverse && i == hlen))
+	      if (reverse ? (i < 0) : (i == hlen))
 		{
 		  failed++;
 		  break;
@@ -319,7 +325,7 @@ rl_search_history (direction, invoking_key)
 	  /* We cannot find the search string.  Ding the bell. */
 	  ding ();
 	  i = last_found_line;
-	  break;
+	  continue; 		/* XXX - was break */
 	}
 
       /* We have found the search string.  Just display it.  But don't

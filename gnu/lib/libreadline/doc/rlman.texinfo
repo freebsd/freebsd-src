@@ -6,6 +6,15 @@
 @synindex vr fn
 @setchapternewpage odd
 
+@ignore
+last change: Thu Jul 21 16:02:40 EDT 1994
+@end ignore
+
+@set EDITION 2.0
+@set VERSION 2.0
+@set UPDATED 21 July 1994
+@set UPDATE-MONTH July 1994
+
 @ifinfo
 This document describes the GNU Readline Library, a utility which aids
 in the consistency of user interface across discrete programs that need
@@ -35,13 +44,13 @@ except that this permission notice may be stated in a translation approved
 by the Foundation.
 @end ifinfo
 
-@titlepage
+@titlepage  
 @sp 10
-@center @titlefont{GNU Readline Library}
-@center Brian Fox
-@center Free Software Foundation
-@center Version 1.1
-@center April 1991
+@title GNU Readline Library
+@subtitle Edition @value{EDITION}, for @code{Readline Library} Version @value{VERSION}.
+@subtitle @value{UPDATE-MONTH}
+@author Brian Fox, Free Software Foundation
+@author Chet Ramey, Case Western Reserve University
 
 @page
 This document describes the GNU Readline Library, a utility which aids
@@ -100,4 +109,3 @@ to provide a command line interface.
 
 @contents
 @bye
-
