@@ -161,7 +161,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * the thread (recursion here might be bad).
 	 * Hence the TDF_INMSLEEP flag.
 	 */
-	if (p->p_flag & P_THREADED) {
+	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
 		/*
 		 * Just don't bother if we are exiting
 		 * and not the exiting thread or thread was marked as

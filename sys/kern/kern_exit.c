@@ -129,15 +129,17 @@ exit1(struct thread *td, int rv)
 	}
 
 	/*
-	 * XXXKSE: MUST abort all other threads before proceeding past here.
+	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
-	if (p->p_flag & P_THREADED) {
+	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
 		/*
 		 * First check if some other thread got here before us..
 		 * if so, act apropriatly, (exit or suspend);
 		 */
+		DROP_GIANT();
 		thread_suspend_check(0);
+		PICKUP_GIANT();
 
 		/*
 		 * Kill off the other threads. This requires
