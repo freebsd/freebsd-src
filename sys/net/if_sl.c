@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.45.2.1 1997/03/11 19:40:37 bde Exp $
+ * $Id: if_sl.c,v 1.45.2.2 1997/08/18 03:17:06 ache Exp $
  */
 
 /*
@@ -397,6 +397,8 @@ sltioctl(tp, cmd, data, flag, p)
 							if_up(&nc->sc_if);
 					} else if (nc->sc_if.if_flags & IFF_UP)
 						if_down(&nc->sc_if);
+					sc->sc_flags &= ~SC_STATIC;
+					sc->sc_flags |= (nc->sc_flags & SC_STATIC);
 					tp->t_sc = sc = nc;
 					goto slfound;
 				}
