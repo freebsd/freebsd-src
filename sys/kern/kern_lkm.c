@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.48 1998/02/12 18:02:07 eivind Exp $
+ * $Id: kern_lkm.c,v 1.49 1998/06/07 17:11:34 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -701,18 +701,6 @@ _lkm_dev(lkmtp, cmd)
 		if (lkmexists(lkmtp))
 			return(EEXIST);
 		switch(args->lkm_devtype) {
-		case LM_DT_BLOCK:
-			if ((i = args->lkm_offset) == LKM_ANON)
-				descrip = (dev_t) -1;
-			else
-				descrip = makedev(args->lkm_offset,0);
-			if ( err = bdevsw_add(&descrip, args->lkm_dev.bdev,
-					&(args->lkm_olddev.bdev))) {
-				break;
-			}
-			args->lkm_offset = major(descrip) ;
-			break;
-
 		case LM_DT_CHAR:
 			if ((i = args->lkm_offset) == LKM_ANON)
 				descrip = (dev_t) -1;
@@ -737,11 +725,6 @@ _lkm_dev(lkmtp, cmd)
 		descrip = makedev(i,0);
 
 		switch(args->lkm_devtype) {
-		case LM_DT_BLOCK:
-			/* replace current slot contents with old contents */
-			bdevsw_add(&descrip, args->lkm_olddev.bdev,NULL);
-			break;
-
 		case LM_DT_CHAR:
 			/* replace current slot contents with old contents */
 			cdevsw_add(&descrip, args->lkm_olddev.cdev,NULL);

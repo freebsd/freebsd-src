@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.52 1998/02/19 12:15:06 msmith Exp $
+ * $Id: vm_swap.c,v 1.53 1998/02/23 08:22:44 dyson Exp $
  */
 
 #include "opt_devfs.h"
@@ -72,17 +72,11 @@ static void swstrategy __P((struct buf *));
 
 #define CDEV_MAJOR 4
 #define BDEV_MAJOR 26
-extern struct cdevsw sw_cdevsw ;
+static struct cdevsw sw_cdevsw;
 
 static struct bdevsw sw_bdevsw = 
 	{ noopen,	noclose,	swstrategy,	noioc,		/*1*/
 	  nodump,	nopsize,	0,	"sw",	&sw_cdevsw,	-1 };
-
-static struct cdevsw sw_cdevsw = 
-	{ nullopen,	nullclose,	rawread,	rawwrite,	/*4*/
-	  noioc,	nostop,		noreset,	nodevtotty,/* swap */
-	  seltrue,	nommap,		swstrategy,	"sw",
-	  &sw_bdevsw,	-1 };
 
 static dev_t	swapdev = makedev(BDEV_MAJOR, 0);
 
@@ -312,13 +306,15 @@ static void *drum_devfs_token;
 
 static void 	sw_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! sw_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&sw_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&sw_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sw_bdevsw);
+		/*
+		 * XXX: This is pretty gross, but it will disappear with
+		 * the blockdevices RSN.
+		 */
+		sw_cdevsw.d_open = nullopen;
+		sw_cdevsw.d_close = nullclose;
 		sw_devsw_installed = 1;
 #ifdef DEVFS
 		drum_devfs_token = devfs_add_devswf(&sw_cdevsw, 0, DV_CHR,

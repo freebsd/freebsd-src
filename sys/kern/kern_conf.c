@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.23 1997/11/22 08:35:37 bde Exp $
+ * $Id: kern_conf.c,v 1.24 1998/06/07 17:11:32 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -161,7 +161,7 @@ int TTYPE##_add(dev_t *descrip,						\
 	return 0;							\
 } \
 
-ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
+static ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
 ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
 
 /*
@@ -191,6 +191,11 @@ cdevsw_make(struct bdevsw *from)
 	to->d_name = from->d_name;
 	to->d_bdev = from;
 	to->d_maj = -1;
+	to->d_bmaj = from->d_maj;
+	to->d_maxio = from->d_maxio;
+	to->d_dump = from->d_dump;
+	to->d_psize = from->d_psize;
+	to->d_flags = from->d_flags;
 }
 
 void
