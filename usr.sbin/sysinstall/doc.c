@@ -72,14 +72,14 @@ docBrowser(dialogMenuItem *self)
 		      "not appear to be correct.   Would you like me to do that now?",
 		      browser, variable_get(VAR_BROWSER_BINARY)))
 	    vsystem("pkg_delete %s %s", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v" : "", browser);
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
     }
 
     /* Run browser on the appropriate doc */
     if (dmenuOpenSimple(&MenuHTMLDoc, FALSE))
-	return DITEM_SUCCESS | DITEM_RESTORE;
+	return DITEM_SUCCESS;
     else
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
 }
 
 /* Try to show one of the documents requested from the HTML doc menu */
@@ -114,9 +114,8 @@ docShowDocument(dialogMenuItem *self)
     }
     if (where) {
 	sprintf(tmp, "%s %s", browser, where);
-	dialog_clear();
 	systemExecute(tmp);
-	return DITEM_SUCCESS | DITEM_RESTORE;
+	return DITEM_SUCCESS;
     }
     else {
 	msgConfirm("Hmmmmm!  I can't seem to access the documentation you selected!\n"
