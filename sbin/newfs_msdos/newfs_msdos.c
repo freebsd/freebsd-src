@@ -31,7 +31,8 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/diskslice.h>
+#include <sys/fdcio.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -709,93 +710,58 @@ static void
 getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
 	    struct bpb *bpb)
 {
-    struct diskslices ds;
-    struct disklabel dl, *lp;
-    const char *s1, *s2;
-    char *s;
-    int slice, part, fd1, i, e;
+    struct disklabel *lp, dlp;
+    struct fd_type type;
+    off_t ms, hs;
 
-    slice = part = -1;
-    s1 = fname;
-    if ((s2 = strrchr(s1, '/')))
-	s1 = s2 + 1;
-    for (s2 = s1; *s2 && !isdigit(*s2); s2++);
-    if (!*s2 || s2 == s1)
-	s2 = NULL;
-    else
-	while (isdigit(*++s2));
-    s1 = s2;
-    if (s2 && (*s2 == 's' || *s2 == 'p')) {
-	slice = strtol(s2 + 1, &s, 10);
-	if (slice < 1 || slice > MAX_SLICES - BASE_SLICE)
-	    s2 = NULL;
-	else {
-	    slice = BASE_SLICE + slice - 1;
-	    s2 = s;
+    lp = NULL;
+
+    /* If the user specified a disk type, try to use that */
+    if (dtype != NULL) {
+	lp = getdiskbyname(dtype);
+	hs = 0;
+    }
+
+    /* Maybe it's a floppy drive */
+    if (lp == NULL) {
+	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1)
+	    errx(1, "Cannot get disk size, %s\n", strerror(errno));
+	if (ioctl(fd, FD_GTYPE, &type) != -1) {
+	    dlp.d_secsize = 128 << type.secsize;
+	    dlp.d_nsectors = type.sectrac;
+	    dlp.d_ntracks = type.heads;
+	    dlp.d_secperunit = ms / dlp.d_secsize;
+	    lp = &dlp;
+	    hs = 0;
 	}
     }
-    if (s2 && *s2 >= 'a' && *s2 <= 'a' + MAXPARTITIONS - 1) {
-	if (slice == -1)
-	    slice = COMPATIBILITY_SLICE;
-	part = *s2++ - 'a';
+
+    /* Maybe it's a fixed drive */
+    if (lp == NULL) {
+	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
+	    if (ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
+		errx(1, "Cannot get sector size, %s\n", strerror(errno));
+	    if (ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1)
+		errx(1, "Cannot get number of sectors, %s\n", strerror(errno));
+	    if (ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks)== -1)
+		errx(1, "Cannot get number of heads, %s\n", strerror(errno));
+	    dlp.d_secperunit = ms / dlp.d_secsize;
+	}
+
+	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;
+	lp = &dlp;
     }
-    if (!s2 || (*s2 && *s2 != '.'))
-	errx(1, "%s: can't figure out partition info", fname);
-    if (slice != -1 && (!oflag || (!bpb->bsec && part == -1))) {
-	if (ioctl(fd, DIOCGSLICEINFO, &ds) == -1) {
-	    warn("ioctl (GSLICEINFO)");
-	    errx(1, "%s: can't get slice info", fname);
-	}
-	if (slice >= ds.dss_nslices || !ds.dss_slices[slice].ds_size)
-	    errx(1, "%s: slice is unavailable", fname);
-	if (!oflag)
-	    bpb->hid = ds.dss_slices[slice].ds_offset;
-	if (!bpb->bsec && part == -1)
-	    bpb->bsec = ds.dss_slices[slice].ds_size;
-    }
-    if (((slice == -1 || part != -1) &&
-	 ((!oflag && part != -1) || !bpb->bsec)) ||
-	!bpb->bps || !bpb->spt || !bpb->hds) {
-	lp = &dl;
-	i = ioctl(fd, DIOCGDINFO, lp);
-	if (i == -1 && slice != -1 && part == -1) {
-	    e = errno;
-	    if (!(s = strdup(fname)))
-		err(1, NULL);
-	    s[s1 - fname] = 0;
-	    if ((fd1 = open(s, O_RDONLY)) != -1) {
-		i = ioctl(fd1, DIOCGDINFO, lp);
-		close(fd1);
-	    }
-	    free(s);
-	    errno = e;
-	}
-	if (i == -1) {
-	    if (!dtype) {
-		warn("ioctl (GDINFO)");
-		errx(1, "%s: can't read disk label; "
-		     "disk type must be specified", fname);
-	    } else if (!(lp = getdiskbyname(dtype)))
-		errx(1, "%s: unknown disk type", dtype);
-	}
-	if (slice == -1 || part != -1) {
-	    if (part == -1)
-		part = RAW_PART;
-	    if (part >= lp->d_npartitions ||
-		!lp->d_partitions[part].p_size)
-		errx(1, "%s: partition is unavailable", fname);
-	    if (!oflag && part != -1)
-		bpb->hid += lp->d_partitions[part].p_offset;
-	    if (!bpb->bsec)
-		bpb->bsec = lp->d_partitions[part].p_size;
-	}
-	if (!bpb->bps)
-	    bpb->bps = ckgeom(fname, lp->d_secsize, "bytes/sector");
-	if (!bpb->spt)
-	    bpb->spt = ckgeom(fname, lp->d_nsectors, "sectors/track");
-	if (!bpb->hds)
-	    bpb->hds = ckgeom(fname, lp->d_ntracks, "drive heads");
-    }
+
+    if (bpb->bps == 0)
+	bpb->bps = ckgeom(fname, lp->d_secsize, "bytes/sector");
+    if (bpb->spt == 0)
+	bpb->spt = ckgeom(fname, lp->d_nsectors, "sectors/track");
+    if (bpb->hds == 0)
+	bpb->hds = ckgeom(fname, lp->d_ntracks, "drive heads");
+    if (bpb->bsec == 0)
+	bpb->bsec = lp->d_secperunit;
+    if (bpb->hid == 0)
+	bpb->hid = hs;
 }
 
 /*
@@ -835,7 +801,7 @@ ckgeom(const char *fname, u_int val, const char *msg)
     if (!val)
 	errx(1, "%s: no default %s", fname, msg);
     if (val > MAXU16)
-	errx(1, "%s: illegal %s", fname, msg);
+	errx(1, "%s: illegal %s %d", fname, msg, val);
     return val;
 }
 
