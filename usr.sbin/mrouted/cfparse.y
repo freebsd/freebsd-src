@@ -4,11 +4,27 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: cfparse.y,v 3.6 1995/06/25 18:49:46 fenner Exp $
  */
 #include <stdio.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
 #include <varargs.h>
+#endif
 #include "defs.h"
+
+/*
+ * Local function declarations
+ */
+static void		fatal __P((char *fmt, ...));
+static void		warn __P((char *fmt, ...));
+static void		yyerror __P((char *s));
+static char *		next_word __P((void));
+static int		yylex __P((void));
+static u_int32		valid_if __P((char *s));
+static struct ifreq *	ifconfaddr __P((struct ifconf *ifcp, u_int32 a));
+int			yyparse __P((void));
 
 static FILE *f;
 
@@ -195,7 +211,17 @@ ifmods	: /* empty */
 
 ifmod	: mod
 	| DISABLE		{ v->uv_flags |= VIFF_DISABLED; }
-	| NETMASK ADDR		{ v->uv_subnetmask = $2; }
+	| NETMASK ADDR		{
+				  u_int32 subnet, mask;
+
+				  mask = $2;
+				  subnet = v->uv_lcl_addr & mask;
+				  if (!inet_valid_subnet(subnet, mask))
+					fatal("Invalid netmask");
+				  v->uv_subnet = subnet;
+				  v->uv_subnetmask = mask;
+				  v->uv_subnetbcast = subnet | ~mask;
+				}
 	| ALTNET addrmask	{
 
 		    struct phaddr *ph;
@@ -204,12 +230,13 @@ ifmod	: mod
 		    if (ph == NULL)
 			fatal("out of memory");
 		    if ($2.mask) {
-			VAL_TO_MASK(ph->pa_mask, $2.mask);
+			VAL_TO_MASK(ph->pa_subnetmask, $2.mask);
 		    } else
-			ph->pa_mask = v->uv_subnetmask;
-		    ph->pa_addr = $2.addr & ph->pa_mask;
-		    if ($2.addr & ~ph->pa_mask)
-			warn("Extra addr %s/%d has host bits set",
+			ph->pa_subnetmask = v->uv_subnetmask;
+		    ph->pa_subnet = $2.addr & ph->pa_subnetmask;
+		    ph->pa_subnetbcast = ph->pa_subnet | ~ph->pa_subnetmask;
+		    if ($2.addr & ~ph->pa_subnetmask)
+			warn("Extra subnet %s/%d has host bits set",
 				inet_fmt($2.addr,s1), $2.mask);
 		    ph->pa_next = v->uv_addrs;
 		    v->uv_addrs = ph;
@@ -305,8 +332,18 @@ addrmask	: ADDRMASK	{ $$ = $1; }
 	| ADDR			{ $$.addr = $1; $$.mask = 0; }
 	;
 %%
+#ifdef __STDC__
+static void
+fatal(char *fmt, ...)
+{
+	va_list ap;
+	char buf[200];
+
+	va_start(ap, fmt);
+#else
 /*VARARGS1*/
-static void fatal(fmt, va_alist)
+static void
+fatal(fmt, va_alist)
 char *fmt;
 va_dcl
 {
@@ -314,14 +351,25 @@ va_dcl
 	char buf[200];
 
 	va_start(ap);
+#endif
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 
 	log(LOG_ERR,0,"%s: %s near line %d", configfilename, buf, lineno);
 }
 
+#ifdef __STDC__
+static void
+warn(char *fmt, ...)
+{
+	va_list ap;
+	char buf[200];
+
+	va_start(ap, fmt);
+#else
 /*VARARGS1*/
-static void warn(fmt, va_alist)
+static void
+warn(fmt, va_alist)
 char *fmt;
 va_dcl
 {
@@ -329,19 +377,22 @@ va_dcl
 	char buf[200];
 
 	va_start(ap);
+#endif
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 
 	log(LOG_WARNING,0,"%s: %s near line %d", configfilename, buf, lineno);
 }
 
-void yyerror(s)
+static void
+yyerror(s)
 char *s;
 {
 	log(LOG_ERR, 0, "%s: %s near line %d", configfilename, s, lineno);
 }
 
-char *next_word()
+static char *
+next_word()
 {
 	static char buf[1024];
 	static char *p=NULL;
@@ -375,7 +426,8 @@ char *next_word()
 	}
 }
 
-int yylex()
+static int
+yylex()
 {
 	int n;
 	u_int32 addr;
@@ -446,7 +498,8 @@ int yylex()
 	return STRING;
 }
 
-void config_vifs_from_file()
+void
+config_vifs_from_file()
 {
 	extern FILE *f;
 
@@ -467,7 +520,7 @@ void config_vifs_from_file()
 
 	yyparse();
 
-	close(f);
+	fclose(f);
 }
 
 static u_int32

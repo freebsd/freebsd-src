@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 1.6 1994/08/24 23:53:37 thyagara Exp $
+ * $Id: kern.c,v 3.6 1995/06/25 18:57:38 fenner Exp $
  */
 
 
@@ -59,7 +59,7 @@ void k_set_loop(l)
 
 
 void k_set_if(ifa)
-    u_long ifa;
+    u_int32 ifa;
 {
     struct in_addr adr;
 
@@ -72,8 +72,8 @@ void k_set_if(ifa)
 
 
 void k_join(grp, ifa)
-    u_long grp;
-    u_long ifa;
+    u_int32 grp;
+    u_int32 ifa;
 {
     struct ip_mreq mreq;
 
@@ -88,8 +88,8 @@ void k_join(grp, ifa)
 
 
 void k_leave(grp, ifa)
-    u_long grp;
-    u_long ifa;
+    u_int32 grp;
+    u_int32 ifa;
 {
     struct ip_mreq mreq;
 
@@ -105,17 +105,24 @@ void k_leave(grp, ifa)
 
 void k_init_dvmrp()
 {
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_INIT,
+#ifdef OLD_KERNEL
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_INIT,
 		   (char *)NULL, 0) < 0)
-	log(LOG_ERR, errno, "can't enable DVMRP routing in kernel");
+#else
+    int v=1;
+
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_INIT,
+		   (char *)&v, sizeof(int)) < 0)
+#endif
+	log(LOG_ERR, errno, "can't enable Multicast routing in kernel");
 }
 
 
 void k_stop_dvmrp()
 {
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_DONE,
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_DONE,
 		   (char *)NULL, 0) < 0)
-	log(LOG_WARNING, errno, "can't disable DVMRP routing in kernel");
+	log(LOG_WARNING, errno, "can't disable Multicast routing in kernel");
 }
 
 
@@ -132,52 +139,85 @@ void k_add_vif(vifi, v)
     vc.vifc_lcl_addr.s_addr = v->uv_lcl_addr;
     vc.vifc_rmt_addr.s_addr = v->uv_rmt_addr;
 
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_ADD_VIF,
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_ADD_VIF,
 		   (char *)&vc, sizeof(vc)) < 0)
-	log(LOG_ERR, errno, "setsockopt DVMRP_ADD_VIF");
+	log(LOG_ERR, errno, "setsockopt MRT_ADD_VIF");
 }
 
 
 void k_del_vif(vifi)
     vifi_t vifi;
 {
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_DEL_VIF,
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_DEL_VIF,
 		   (char *)&vifi, sizeof(vifi)) < 0)
-	log(LOG_ERR, errno, "setsockopt DVMRP_DEL_VIF");
+	log(LOG_ERR, errno, "setsockopt MRT_DEL_VIF");
 }
 
 
 /*
  * Adds a (source, mcastgrp) entry to the kernel
  */
-void k_add_rg(kt)
-    struct ktable *kt;
+void k_add_rg(origin, g)
+    u_int32 origin;
+    struct gtable *g;
 {
     struct mfcctl mc;
+    int i;
 
     /* copy table values so that setsockopt can process it */
-    COPY_TABLES(kt, mc);
+    mc.mfcc_origin.s_addr = origin;
+#ifdef OLD_KERNEL
+    mc.mfcc_originmask.s_addr = 0xffffffff;
+#endif
+    mc.mfcc_mcastgrp.s_addr = g->gt_mcastgrp;
+    mc.mfcc_parent = g->gt_route ? g->gt_route->rt_parent : NO_VIF;
+    for (i = 0; i < numvifs; i++)
+	mc.mfcc_ttls[i] = g->gt_ttls[i];
 
     /* write to kernel space */
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_ADD_MFC,
+    if (setsockopt(igmp_socket, IPPROTO_IP, MRT_ADD_MFC,
 		   (char *)&mc, sizeof(mc)) < 0)
-	log(LOG_WARNING, errno, "setsockopt DVMRP_ADD_MFC");
+	log(LOG_WARNING, errno, "setsockopt MRT_ADD_MFC");
 }
 
 
 /*
  * Deletes a (source, mcastgrp) entry from the kernel
  */
-void k_del_rg(kt)
-    struct ktable *kt;
+int k_del_rg(origin, g)
+    u_int32 origin;
+    struct gtable *g;
 {
     struct mfcctl mc;
+    int retval;
 
     /* copy table values so that setsockopt can process it */
-    COPY_TABLES(kt, mc);
+    mc.mfcc_origin.s_addr = origin;
+#ifdef OLD_KERNEL
+    mc.mfcc_originmask.s_addr = 0xffffffff;
+#endif
+    mc.mfcc_mcastgrp.s_addr = g->gt_mcastgrp;
 
     /* write to kernel space */
-    if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_DEL_MFC,
-		   (char *)&mc, sizeof(mc)) < 0)
-	log(LOG_WARNING, errno, "setsockopt DVMRP_DEL_MFC");
+    if ((retval = setsockopt(igmp_socket, IPPROTO_IP, MRT_DEL_MFC,
+		   (char *)&mc, sizeof(mc))) < 0)
+	log(LOG_WARNING, errno, "setsockopt MRT_DEL_MFC");
+
+    return retval;
 }	
+
+/*
+ * Get the kernel's idea of what version of mrouted needs to run with it.
+ */
+int k_get_version()
+{
+    int vers;
+    int len = sizeof(vers);
+
+    if (getsockopt(igmp_socket, IPPROTO_IP, MRT_VERSION,
+			(char *)&vers, &len) < 0)
+	log(LOG_ERR, errno,
+		"getsockopt MRT_VERSION: perhaps your kernel is too old");
+
+    return vers;
+}

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 1.4 1993/05/30 01:36:38 deering Exp $
+ * $Id: inet.c,v 3.6 1995/06/25 18:54:45 fenner Exp $
  */
 
 
@@ -17,9 +17,10 @@
 /*
  * Exported variables.
  */
-char s1[16];		/* buffers to hold the string representations  */
-char s2[16];		/* of IP addresses, to be passed to inet_fmt() */
-char s3[16];		/* or inet_fmts().                             */
+char s1[19];		/* buffers to hold the string representations  */
+char s2[19];		/* of IP addresses, to be passed to inet_fmt() */
+char s3[19];		/* or inet_fmts().                             */
+char s4[19];
 
 
 /*
@@ -27,10 +28,11 @@ char s3[16];		/* or inet_fmts().                             */
  * (Without a mask, cannot detect addresses of the form {subnet,0} or
  * {subnet,-1}.)
  */
-int inet_valid_host(naddr)
-    u_long naddr;
+int
+inet_valid_host(naddr)
+    u_int32 naddr;
 {
-    register u_long addr;
+    register u_int32 addr;
 
     addr = ntohl(naddr);
 
@@ -42,29 +44,39 @@ int inet_valid_host(naddr)
 
 /*
  * Verify that a given subnet number and mask pair are credible.
+ *
+ * With CIDR, almost any subnet and mask are credible.  mrouted still
+ * can't handle aggregated class A's, so we still check that, but
+ * otherwise the only requirements are that the subnet address is
+ * within the [ABC] range and that the host bits of the subnet
+ * are all 0.
  */
-int inet_valid_subnet(nsubnet, nmask)
-    u_long nsubnet, nmask;
+int
+inet_valid_subnet(nsubnet, nmask)
+    u_int32 nsubnet, nmask;
 {
-    register u_long subnet, mask;
+    register u_int32 subnet, mask;
 
     subnet = ntohl(nsubnet);
     mask   = ntohl(nmask);
 
     if ((subnet & mask) != subnet) return (FALSE);
 
+    if (subnet == 0 && mask == 0)
+	return (TRUE);
+
     if (IN_CLASSA(subnet)) {
 	if (mask < 0xff000000 ||
-	   (subnet & 0xff000000) == 0 ||
 	   (subnet & 0xff000000) == 0x7f000000) return (FALSE);
     }
-    else if (IN_CLASSB(subnet)) {
-	if (mask < 0xffff0000) return (FALSE);
+    else if (IN_CLASSD(subnet) || IN_BADCLASS(subnet)) {
+	/* Above Class C address space */
+	return (FALSE);
     }
-    else if (IN_CLASSC(subnet)) {
-	if (mask < 0xffffff00) return (FALSE);
+    else if (subnet & ~mask) {
+	/* Host bits are set in the subnet */
+	return (FALSE);
     }
-    else return (FALSE);
 
     return (TRUE);
 }
@@ -73,8 +85,9 @@ int inet_valid_subnet(nsubnet, nmask)
 /*
  * Convert an IP address in u_long (network) format into a printable string.
  */
-char *inet_fmt(addr, s)
-    u_long addr;
+char *
+inet_fmt(addr, s)
+    u_int32 addr;
     char *s;
 {
     register u_char *a;
@@ -87,25 +100,32 @@ char *inet_fmt(addr, s)
 
 /*
  * Convert an IP subnet number in u_long (network) format into a printable
- * string.
+ * string including the netmask as a number of bits.
  */
-char *inet_fmts(addr, mask, s)
-    u_long addr, mask;
+char *
+inet_fmts(addr, mask, s)
+    u_int32 addr, mask;
     char *s;
 {
     register u_char *a, *m;
+    int bits;
 
+    if ((addr == 0) && (mask == 0)) {
+	sprintf(s, "default");
+	return (s);
+    }
     a = (u_char *)&addr;
     m = (u_char *)&mask;
+    bits = 33 - ffs(ntohl(mask));
 
-    if      (m[3] != 0) sprintf(s, "%u.%u.%u.%u", a[0], a[1], a[2], a[3]);
-    else if (m[2] != 0) sprintf(s, "%u.%u.%u",    a[0], a[1], a[2]);
-    else if (m[1] != 0) sprintf(s, "%u.%u",       a[0], a[1]);
-    else                sprintf(s, "%u",          a[0]);
+    if      (m[3] != 0) sprintf(s, "%u.%u.%u.%u/%d", a[0], a[1], a[2], a[3],
+						bits);
+    else if (m[2] != 0) sprintf(s, "%u.%u.%u/%d",    a[0], a[1], a[2], bits);
+    else if (m[1] != 0) sprintf(s, "%u.%u/%d",       a[0], a[1], bits);
+    else                sprintf(s, "%u/%d",          a[0], bits);
 
     return (s);
 }
-
 
 /*
  * Convert the printable string representation of an IP address into the
@@ -113,10 +133,11 @@ char *inet_fmts(addr, mask, s)
  * legal address with that value, you must explicitly compare the string
  * with "255.255.255.255".)
  */
-u_long inet_parse(s)
+u_int32
+inet_parse(s)
     char *s;
 {
-    u_long a;
+    u_int32 a = 0;
     u_int a0, a1, a2, a3;
     char c;
 
@@ -151,7 +172,8 @@ u_long inet_parse(s)
  * Checksum routine for Internet Protocol family headers (C Version)
  *
  */
-int inet_cksum(addr, len)
+int
+inet_cksum(addr, len)
 	u_short *addr;
 	u_int len;
 {
@@ -166,13 +188,13 @@ int inet_cksum(addr, len)
 	 *  back all the carry bits from the top 16 bits into the lower
 	 *  16 bits.
 	 */
-	while( nleft > 1 )  {
+	while (nleft > 1)  {
 		sum += *w++;
 		nleft -= 2;
 	}
 
 	/* mop up an odd byte, if necessary */
-	if( nleft == 1 ) {
+	if (nleft == 1) {
 		*(u_char *) (&answer) = *(u_char *)w ;
 		sum += answer;
 	}

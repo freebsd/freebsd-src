@@ -33,6 +33,10 @@
 #ifdef RSRR
 
 #include "defs.h"
+#include <sys/param.h>
+#if (defined(BSD) && (BSD >= 199103))
+#include <stddef.h>
+#endif
 
 /* Taken from prune.c */
 /*
@@ -64,11 +68,13 @@ int client_length = sizeof(client_addr);
 /*
  * Procedure definitions needed internally.
  */
-void rsrr_accept();
-void rsrr_accept_iq();
-int  rsrr_accept_rq();
-int  rsrr_send();
-void rsrr_cache();
+static void	rsrr_accept __P((int recvlen));
+static void	rsrr_accept_iq __P((void));
+static int	rsrr_accept_rq __P((struct rsrr_rq *route_query, int flags,
+					struct gtable *gt_notify));
+static int	rsrr_send __P((int sendlen));
+static void	rsrr_cache __P((struct gtable *gt,
+					struct rsrr_rq *route_query));
 
 /* Initialize RSRR socket */
 void
@@ -84,7 +90,13 @@ rsrr_init()
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sun_family = AF_UNIX;
     strcpy(serv_addr.sun_path, RSRR_SERV_PATH);
+#if (defined(BSD) && (BSD >= 199103))
+    servlen = offsetof(struct sockaddr_un, sun_path) +
+		strlen(serv_addr.sun_path);
+    serv_addr.sun_len = servlen;
+#else
     servlen = sizeof(serv_addr.sun_family) + strlen(serv_addr.sun_path);
+#endif
  
     if (bind(rsrr_socket, (struct sockaddr *) &serv_addr, servlen) < 0)
 	log(LOG_ERR, errno, "Can't bind RSRR socket");
@@ -95,14 +107,15 @@ rsrr_init()
 
 /* Read a message from the RSRR socket */
 void
-rsrr_read()
+rsrr_read(rfd)
+	fd_set *rfd;
 {
     register int rsrr_recvlen;
     register int omask;
     
     bzero((char *) &client_addr, sizeof(client_addr));
     rsrr_recvlen = recvfrom(rsrr_socket, rsrr_recv_buf, sizeof(rsrr_recv_buf),
-			    0, (struct sockaddr *)&client_addr,&client_length);
+			    0, (struct sockaddr *)&client_addr, &client_length);
     if (rsrr_recvlen < 0) {	
 	if (errno != EINTR)
 	    log(LOG_ERR, errno, "RSRR recvfrom");
@@ -117,7 +130,7 @@ rsrr_read()
 /* Accept a message from the reservation protocol and take
  * appropriate action.
  */
-void
+static void
 rsrr_accept(recvlen)
     int recvlen;
 {
@@ -183,7 +196,7 @@ rsrr_accept(recvlen)
 }
 
 /* Send an Initial Reply to the reservation protocol. */
-void
+static void
 rsrr_accept_iq()
 {
     struct rsrr_header *rsrr;
@@ -235,7 +248,7 @@ rsrr_accept_iq()
  * kernel table entry contains the routing info to use for a route
  * change notification.
  */
-int
+static int
 rsrr_accept_rq(route_query,flags,gt_notify)
     struct rsrr_rq *route_query;
     int flags;
@@ -355,7 +368,7 @@ rsrr_accept_rq(route_query,flags,gt_notify)
 }
 
 /* Send an RSRR message. */
-int
+static int
 rsrr_send(sendlen)
     int sendlen;
 {
@@ -368,30 +381,28 @@ rsrr_send(sendlen)
     /* Check for errors. */
     if (error < 0) {
 	log(LOG_WARNING, errno, "Failed send on RSRR socket");
-	return error;
-    }
-    if (error != sendlen) {
+    } else if (error != sendlen) {
 	log(LOG_WARNING, 0,
 	    "Sent only %d out of %d bytes on RSRR socket\n", error, sendlen);
-	return error;
     }
+    return error;
 }
 
 /* Cache a message being sent to a client.  Currently only used for
  * caching Route Reply messages for route change notification.
  */
-void
+static void
 rsrr_cache(gt,route_query)
     struct gtable *gt;
     struct rsrr_rq *route_query;
 {
-    struct rsrr_cache *rc,*rc_prev;
+    struct rsrr_cache *rc, **rcnp;
     struct rsrr_header *rsrr;
 
     rsrr = (struct rsrr_header *) rsrr_send_buf;
 
-    rc = gt->gt_rsrr_cache;
-    while (rc) {
+    rcnp = &gt->gt_rsrr_cache;
+    while ((rc = *rcnp) != NULL) {
 	if ((rc->route_query.source_addr.s_addr == 
 	     route_query->source_addr.s_addr) &&
 	    (rc->route_query.dest_addr.s_addr == 
@@ -402,22 +413,18 @@ rsrr_cache(gt,route_query)
 	     */
 	    if (!BIT_TST(rsrr->flags,RSRR_NOTIFICATION_BIT)) {
 		/* Delete cache entry. */
-		if (rc == gt->gt_rsrr_cache)
-		    /* Deleting first entry. */
-		    gt->gt_rsrr_cache = rc->next;
-		else
-		    rc_prev->next = rc->next;
+		*rcnp = rc->next;
 		free(rc);
 	    } else {
 		/* Update */
 		rc->route_query.query_id = route_query->query_id;
-		printf("Update cached query id %d from client %s\n",
-		       rc->route_query.query_id,rc->client_addr.sun_path);
+		log(LOG_DEBUG, 0,
+			"Update cached query id %ld from client %s\n",
+			rc->route_query.query_id, rc->client_addr.sun_path);
 	    }
 	    return;
 	}
-	rc_prev = rc;
-	rc = rc->next;
+	rcnp = &rc->next;
     }
 
     /* Cache entry doesn't already exist.  Create one and insert at
@@ -433,7 +440,7 @@ rsrr_cache(gt,route_query)
     rc->client_length = client_length;
     rc->next = gt->gt_rsrr_cache;
     gt->gt_rsrr_cache = rc;
-    printf("Cached query id %d from client %s\n",
+    log(LOG_DEBUG, 0, "Cached query id %ld from client %s\n",
 	   rc->route_query.query_id,rc->client_addr.sun_path);
 }
 
@@ -445,30 +452,23 @@ rsrr_cache_send(gt,notify)
     struct gtable *gt;
     int notify;
 {
-    struct rsrr_cache *rc,*rc_next,*rc_prev;
+    struct rsrr_cache *rc, **rcnp;
     int flags = 0;
 
-    rc = gt->gt_rsrr_cache;
-    while (rc) {
-	rc_next = rc->next;
+    if (notify)
+	BIT_SET(flags,RSRR_NOTIFICATION_BIT);
 
-	if (notify)
-	    BIT_SET(flags,RSRR_NOTIFICATION_BIT);
-
+    rcnp = &gt->gt_rsrr_cache;
+    while ((rc = *rcnp) != NULL) {
 	if (rsrr_accept_rq(&rc->route_query,flags,gt) < 0) {
-	    printf("Deleting cached query id %d from client %s\n",
+	    log(LOG_DEBUG, 0, "Deleting cached query id %ld from client %s\n",
 		   rc->route_query.query_id,rc->client_addr.sun_path);
 	    /* Delete cache entry. */
-	    if (rc == gt->gt_rsrr_cache)
-		/* Deleting first entry. */
-		gt->gt_rsrr_cache = rc_next;
-	    else
-		rc_prev->next = rc_next;
+	    *rcnp = rc->next;
 	    free(rc);
 	} else {
-	    rc_prev = rc;
+	    rcnp = &rc->next;
 	}
-	rc = rc_next;
     }
 }
 
