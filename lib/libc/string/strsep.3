@@ -65,10 +65,11 @@ The original value of
 .Fa *stringp
 is returned.
 .Pp
-An ``empty'' field, i.e. one caused by two adjacent delimiter characters,
-can be detected by comparing the location referenced by the pointer returned
-in
-.Fa *stringp
+An ``empty'' field (i.e., a character in the string
+.Fa delim
+occurs as the first character of
+.Fa *stringp )
+can be detected by comparing the location referenced by the returned pointer
 to
 .Ql \e0 .
 .Pp
