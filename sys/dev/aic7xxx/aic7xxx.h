@@ -184,15 +184,27 @@ typedef enum {
 	AHC_LARGE_SCBS	= 0x04000,	/* 64byte SCBs */
 	AHC_AUTORATE	= 0x08000,	/* Automatic update of SCSIRATE/OFFSET*/
 	AHC_AUTOPAUSE	= 0x10000,	/* Automatic pause on register access */
+	AHC_TARGETMODE	= 0x20000,	/* Has tested target mode support */
+	AHC_MULTIROLE	= 0x40000,	/* Space for two roles at a time */
 	AHC_AIC7770_FE	= AHC_FENONE,
-	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE,
+	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE,
 	AHC_AIC7855_FE	= AHC_AIC7850_FE,
 	AHC_AIC7860_FE	= AHC_AIC7850_FE|AHC_ULTRA,
-	AHC_AIC7870_FE	= AHC_FENONE,
-	AHC_AIC7880_FE	= AHC_ULTRA,
-	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
-			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
-			  |AHC_NEW_TERMCTL|AHC_LARGE_SCBS,
+	AHC_AIC7870_FE	= AHC_TARGETMODE,
+	AHC_AIC7880_FE	= AHC_AIC7870_FE|AHC_ULTRA,
+	/*
+	 * Although we have space for both the initiator and
+	 * target roles on ULTRA2 chips, we currently disable
+	 * the initiator role to allow multi-scsi-id target mode
+	 * configurations.  We can only respond on the same SCSI
+	 * ID as our initiator role if we allow initiator operation.
+	 * At some point, we should add a configuration knob to
+	 * allow both roles to be loaded.
+	 */
+	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2
+			  |AHC_QUEUE_REGS|AHC_SG_PRELOAD|AHC_MULTI_TID
+			  |AHC_HS_MAILBOX |AHC_NEW_TERMCTL|AHC_LARGE_SCBS
+			  |AHC_TARGETMODE,
 	AHC_AIC7892_FE	= AHC_AIC7890_FE|AHC_DT|AHC_AUTORATE|AHC_AUTOPAUSE,
 	AHC_AIC7895_FE	= AHC_AIC7880_FE|AHC_MORE_SRAM|AHC_AUTOPAUSE
 			  |AHC_CMD_CHAN|AHC_MULTI_FUNC|AHC_LARGE_SCBS,
@@ -265,6 +277,7 @@ typedef enum {
 					 * SRAM, we use the default target
 					 * settings.
 					 */
+	AHC_SEQUENCER_DEBUG	= 0x008,
 	AHC_SHARED_SRAM		= 0x010,
 	AHC_LARGE_SEEPROM	= 0x020,/* Uses C56_66 not C46 */
 	AHC_RESET_BUS_A		= 0x040,
@@ -273,11 +286,11 @@ typedef enum {
 	AHC_EXTENDED_TRANS_B	= 0x200,
 	AHC_TERM_ENB_A		= 0x400,
 	AHC_TERM_ENB_B		= 0x800,
-	AHC_INITIATORMODE	= 0x1000,/*
+	AHC_INITIATORROLE	= 0x1000,/*
 					  * Allow initiator operations on
 					  * this controller.
 					  */
-	AHC_TARGETMODE		= 0x2000,/*
+	AHC_TARGETROLE		= 0x2000,/*
 					  * Allow target operations on this
 					  * controller.
 					  */
@@ -472,6 +485,7 @@ typedef enum {
 				          */
 	SCB_DEVICE_RESET	= 0x0004,
 	SCB_SENSE		= 0x0008,
+	SCB_CDB32_PTR		= 0x0010,
 	SCB_RECOVERY_SCB	= 0x0040,
 	SCB_NEGOTIATE		= 0x0080,
 	SCB_ABORT		= 0x1000,
@@ -496,7 +510,6 @@ struct scb {
 	struct scb_platform_data *platform_data;
 	struct	ahc_dma_seg 	 *sg_list;
 	bus_addr_t		  sg_list_phys;
-	bus_addr_t		  cdb32_busaddr;
 	u_int			  sg_count;/* How full ahc_dma_seg is */
 };
 
@@ -1012,10 +1025,11 @@ int		ahc_probe_scbs(struct ahc_softc *);
 void		ahc_run_untagged_queues(struct ahc_softc *ahc);
 void		ahc_run_untagged_queue(struct ahc_softc *ahc,
 				       struct scb_tailq *queue);
-void		ahc_qinfifo_requeue(struct ahc_softc *ahc,
-				    struct scb *prev_scb,
-				    struct scb *scb);
-int		ahc_qinfifo_count(struct ahc_softc *ahc);
+void		ahc_qinfifo_requeue_tail(struct ahc_softc *ahc,
+					 struct scb *scb);
+int		ahc_match_scb(struct ahc_softc *ahc, struct scb *scb,
+			      int target, char channel, int lun,
+			      u_int tag, role_t role);
 
 /****************************** Initialization ********************************/
 void			 ahc_init_probe_config(struct ahc_probe_config *);
@@ -1074,10 +1088,14 @@ struct ahc_syncrate*	ahc_find_syncrate(struct ahc_softc *ahc, u_int *period,
 u_int			ahc_find_period(struct ahc_softc *ahc,
 					u_int scsirate, u_int maxsync);
 void			ahc_validate_offset(struct ahc_softc *ahc,
+					    struct ahc_initiator_tinfo *tinfo,
 					    struct ahc_syncrate *syncrate,
-					    u_int *offset, int wide);
+					    u_int *offset, int wide,
+					    role_t role);
 void			ahc_validate_width(struct ahc_softc *ahc,
-					   u_int *bus_width);
+					   struct ahc_initiator_tinfo *tinfo,
+					   u_int *bus_width,
+					   role_t role);
 void			ahc_set_width(struct ahc_softc *ahc,
 				      struct ahc_devinfo *devinfo,
 				      u_int width, u_int type, int paused);
@@ -1103,6 +1121,9 @@ cam_status	ahc_find_tmode_devs(struct ahc_softc *ahc,
 				    int notfound_failure);
 void		ahc_setup_target_msgin(struct ahc_softc *ahc,
 				       struct ahc_devinfo *devinfo);
+#ifndef AHC_TMODE_ENABLE
+#define AHC_TMODE_ENABLE 0
+#endif
 #endif
 /******************************* Debug ***************************************/
 void			ahc_print_scb(struct scb *scb);
