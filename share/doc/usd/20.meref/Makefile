@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 VOLUME=	usd/20.meref
-SRCS=	ref.me
+SRCS=	meref.me
 MACROS=	-me
+SRCDIR=	${.CURDIR}/../../../../contrib/groff/doc
 
 .include <bsd.doc.mk>
