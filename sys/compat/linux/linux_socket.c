@@ -343,8 +343,10 @@ struct linux_connect_args {
 	struct sockaddr * name;
 	int namelen;
 };
+int linux_connect(struct proc *, struct linux_connect_args *);
+#endif /* !__alpha__*/
 
-static int
+int
 linux_connect(struct proc *p, struct linux_connect_args *args)
 {
 	struct linux_connect_args linux_args;
@@ -355,8 +357,12 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
 	} */ bsd_args;
 	int error;
 
+#ifdef __alpha__
+	bcopy(args, &linux_args, sizeof(linux_args));
+#else
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
+#endif /* __alpha__ */
 
 	bsd_args.s = linux_args.s;
 	bsd_args.name = (caddr_t)linux_args.name;
@@ -417,6 +423,8 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
 
 	return (error);
 }
+
+#ifndef __alpha__
 
 struct linux_listen_args {
 	int s;
