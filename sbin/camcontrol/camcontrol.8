@@ -29,62 +29,62 @@
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
-.Os FreeBSD 3.0
+.Os
 .Sh NAME
 .Nm camcontrol
 .Nd CAM control program
 .Sh SYNOPSIS
 .Nm camcontrol
-.Aq command
+.Aq Ar command
 .Op device id
 .Op generic args
 .Op command args
 .Nm camcontrol
-devlist
+.Ic devlist
 .Op Fl v
 .Nm camcontrol
-periphlist
+.Ic periphlist
 .Op device id
 .Op Fl n Ar dev_name
 .Op Fl u Ar unit_number
 .Nm camcontrol
-tur
+.Ic tur
 .Op device id
 .Op generic args
 .Nm camcontrol
-inquiry 
+.Ic inquiry 
 .Op device id
 .Op generic args
 .Op Fl D
 .Op Fl S
 .Op Fl R
 .Nm camcontrol
-start
+.Ic start
 .Op device id
 .Op generic args
 .Nm camcontrol
-stop
+.Ic stop
 .Op device id
 .Op generic args
 .Nm camcontrol
-eject
+.Ic eject
 .Op device id
 .Op generic args
 .Nm camcontrol
-rescan
+.Ic rescan
 .Aq bus Ns Op :target:lun
 .Nm camcontrol
-reset
+.Ic reset
 .Aq bus Ns Op :target:lun
 .Nm camcontrol
-defects
+.Ic defects
 .Op device id
 .Op generic args
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
 .Nm camcontrol
-modepage
+.Ic modepage
 .Op device id
 .Op generic args
 .Aq Fl m Ar page
@@ -92,7 +92,7 @@ modepage
 .Op Fl e
 .Op Fl d
 .Nm camcontrol
-cmd
+.Ic cmd
 .Op device id
 .Op generic args
 .Aq Fl c Ar cmd Op args
@@ -101,21 +101,21 @@ cmd
 .Op Fl o Ar len Ar fmt Op args
 .Ek
 .Nm camcontrol
-debug
+.Ic debug
 .Op Fl I
 .Op Fl T
 .Op Fl S
 .Op Fl c
 .Aq all|off|bus Ns Op :target Ns Op :lun
 .Nm camcontrol
-tags
+.Ic tags
 .Op device id
 .Op generic args
 .Op Fl N Ar tags
 .Op Fl q
 .Op Fl v
 .Nm camcontrol
-negotiate
+.Ic negotiate
 .Op device id
 .Op generic args
 .Op Fl c
@@ -128,18 +128,18 @@ negotiate
 .Op Fl W Ar bus_width
 .Op Fl v
 .Nm camcontrol
-format
+.Ic format
 .Op device id
 .Op generic args
 .Op Fl q
 .Op Fl w
 .Op Fl y
 .Nm camcontrol
-help
+.Ic help
 .Sh DESCRIPTION
 .Nm camcontrol
 is a utility designed to provide a way for users to access and control the
-.Tn FreeBSD
+.Fx
 CAM subsystem.
 .Pp
 .Nm camcontrol
@@ -215,21 +215,21 @@ Be verbose, print out sense information for failed SCSI commands.
 .Pp
 Primary command functions:
 .Bl -tag -width periphlist
-.It devlist
+.It Ic devlist
 List all physical devices (logical units) attached to the CAM subsystem.
 This also includes a list of peripheral drivers attached to each device.
 With the
 .Fl v
 argument, SCSI bus number, adapter name and unit numbers are printed as
 well.
-.It periphlist
+.It Ic periphlist
 List all peripheral drivers attached to a given physical device (logical
 unit).
-.It tur
+.It Ic tur
 Send the SCSI test unit ready (0x00) command to the given device.
 .Nm camcontrol
 will report whether the device is ready or not.
-.It inquiry
+.It Ic inquiry
 Send a SCSI inquiry command (0x12) to a device.  By default,
 .Nm camcontrol
 will print out the standard inquiry data, device serial number, and
@@ -246,28 +246,28 @@ This is to aid in script writing.
 .It Fl R
 Print out transfer rate information.
 .El
-.It start
+.It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
-.It stop
+.It Ic stop
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared.
-.It eject
+.It Ic eject
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the eject bit set.
-.It rescan
+.It Ic rescan
 Tell the kernel to scan the given bus (XPT_SCAN_BUS), or bus:target:lun
 (XPT_SCAN_LUN) for new devices or devices that have gone away.  The user
 may only specify a bus to scan, or a lun.  Scanning all luns on a target
 isn't supported.
-.It reset
+.It Ic reset
 Tell the kernel to reset the given bus (XPT_RESET_BUS) by issuing a SCSI bus
 reset for that bus, or to reset the given bus:target:lun
 (XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
 connecting to that device.
 Note that this can have a destructive impact
 on the system.
-.It defects
+.It Ic defects
 Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
 print out any combination of: the total number of defects, the primary
 defect list (PLIST), and the grown defect list (GLIST).
@@ -305,13 +305,16 @@ is specified,
 .Nm camcontrol
 will print out the number of defects given in the READ DEFECT DATA header
 returned from the drive.
-.It modepage
+.It Ic modepage
 Allows the user to display and optionally edit a SCSI mode page.  The mode
 page formats are located in
 .Pa /usr/share/misc/scsi_modes .
 This can be overridden by specifying a different file in the
 .Ev SCSI_MODES
-environment variable.  The modepage command takes several arguments:
+environment variable.
+The
+.Ic modepage
+command takes several arguments:
 .Bl -tag -width 012345678901
 .It Fl d
 Disable block descriptors for mode sense.
@@ -333,8 +336,10 @@ Default values
 Saved values
 .El
 .El
-.It cmd
-Allows the user to send an arbitrary SCSI CDB to any device.  The cmd
+.It Ic cmd
+Allows the user to send an arbitrary SCSI CDB to any device.
+The
+.Ic cmd
 function requires the
 .Fl c
 argument to specify the CDB.  Other arguments are optional, depending on
@@ -362,13 +367,15 @@ that is to be written.  If the format is
 .Ar len
 bytes of data will be read from standard input and written to the device.
 .El
-.It debug
+.It Ic debug
 Turn on CAM debugging printfs in the kernel.  This requires options CAMDEBUG 
 in your kernel config file.  WARNING:  enabling debugging printfs currently
 causes an EXTREME number of kernel printfs.  You may have difficulty
 turning off the debugging printfs once they start, since the kernel will be
 busy printing messages and unable to service other requests quickly.
-The debug function takes a number of arguments:
+The
+.Ic debug
+function takes a number of arguments:
 .Bl -tag -width 012345678901234567
 .It Fl I
 Enable CAM_DEBUG_INFO printfs.
@@ -388,10 +395,10 @@ Turn on debugging for the given bus, target or lun.  If the lun or target
 and lun are not specified, they are wildcarded.  (i.e., just specifying a
 bus turns on debugging printfs for all devices on that bus.)
 .El
-.It tags
+.It Ic tags
 Show or set the number of "tagged openings" or simultaneous transactions
 we attempt to queue to a particular device.  By default, the
-.Sq tags
+.Ic tags
 command, with no command-specific arguments (i.e. only generic arguments)
 prints out the "soft" maximum number of transactions that can be queued to
 the device in question.  For more detailed information, use the
@@ -455,7 +462,7 @@ value cannot go above this number.  The default value for
 is 255, although it may be set higher or lower for various devices.
 .El
 .El
-.It negotiate
+.It Ic negotiate
 Show or negotiate various communication parameters.  Some controllers may
 not support setting or changing some of these values.  For instance, the
 Adaptec 174x controllers do not support changing a device's sync rate or
@@ -468,7 +475,7 @@ supports, use the
 flag.  The meaning of the
 .Fl v
 flag for the
-.Sq negotiate
+.Ic negotiate
 command is described below.  Also, some controller drivers don't support
 setting negotiation parameters, even if the underlying controller supports
 negotiation changes.  Some controllers, such as the Advansys wide
@@ -500,7 +507,7 @@ Show or set user negotiation settings.  The default is to show or set
 current negotiation settings.
 .It Fl v
 The verbose switch has special meaning for the
-.Sq negotiate
+.Ic negotiate
 subcommand.  It causes
 .Nm camcontrol
 to print out the contents of a Path Inquiry (XPT_PATH_INQ) CCB sent to the
@@ -517,7 +524,7 @@ device until a command has been sent to the device.  The
 .Fl a
 switch above will automatically send a Test Unit Ready to the device so
 negotiation parameters will take effect.
-.It format
+.It Ic format
 Issue the
 .Tn SCSI
 FORMAT UNIT command to the named device.
@@ -581,7 +588,7 @@ and also if the default format command timeout is acceptable.  The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
-.It help
+.It Ic help
 Print out verbose usage information.
 .El
 .Sh ENVIRONMENT
@@ -702,7 +709,7 @@ utility and
 library, written by Julian Elischer and Peter Dufault.  The
 .Xr scsi 8
 program first appeared in 386BSD 0.1.2.4, and first appeared in 
-.Tn FreeBSD
+.Fx
 in
 .Fx 2.0.5 .
 .Sh AUTHORS
