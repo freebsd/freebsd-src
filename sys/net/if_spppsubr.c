@@ -980,8 +980,10 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	if (! IF_HANDOFF_ADJ(ifq, m, ifp, 3)) {
 		++ifp->if_oerrors;
+		splx (s);
 		return (rv? rv: ENOBUFS);
 	}
+	splx (s);
 	/*
 	 * Unlike in sppp_input(), we can always bump the timestamp
 	 * here since sppp_output() is only called on behalf of
