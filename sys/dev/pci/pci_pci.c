@@ -52,12 +52,13 @@
 struct pcib_softc 
 {
     device_t	dev;
+    u_int16_t	command;	/* command register */
     u_int8_t	secbus;		/* secondary bus number */
     u_int8_t	subbus;		/* subordinate bus number */
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
     pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
-    u_int32_t	membase;	/* base address of memory window */
-    u_int32_t	memlimit;	/* topmost address of memory window */
+    pci_addr_t	membase;	/* base address of memory window */
+    pci_addr_t	memlimit;	/* topmost address of memory window */
     u_int32_t	iobase;		/* base address of port window */
     u_int32_t	iolimit;	/* topmost address of port window */
     u_int16_t	secstat;	/* secondary bus status register */
@@ -141,6 +142,7 @@ pcib_attach(device_t dev)
     /*
      * Get current bridge configuration.
      */
+    sc->command   = pci_read_config(dev, PCIR_COMMAND, 1);
     sc->secbus    = pci_read_config(dev, PCIR_SECBUS_1, 1);
     sc->subbus    = pci_read_config(dev, PCIR_SUBBUS_1, 1);
     sc->secstat   = pci_read_config(dev, PCIR_SECSTAT_1, 2);
@@ -150,31 +152,35 @@ pcib_attach(device_t dev)
     /*
      * Determine current I/O decode.
      */
-    iolow = pci_read_config(dev, PCIR_IOBASEL_1, 1);
-    if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
-	sc->iobase = PCI_PPBIOBASE(pci_read_config(dev, PCIR_IOBASEH_1, 2),
-				   pci_read_config(dev, PCIR_IOBASEL_1, 1));
-    } else {
-	sc->iobase = PCI_PPBIOBASE(0, pci_read_config(dev, PCIR_IOBASEL_1, 1));
-    }
+    if (sc->command & PCIM_CMD_PORTEN) {
+	iolow = pci_read_config(dev, PCIR_IOBASEL_1, 1);
+	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+	    sc->iobase = PCI_PPBIOBASE(pci_read_config(dev, PCIR_IOBASEH_1, 2),
+				       pci_read_config(dev, PCIR_IOBASEL_1, 1));
+	} else {
+	    sc->iobase = PCI_PPBIOBASE(0, pci_read_config(dev, PCIR_IOBASEL_1, 1));
+	}
 
-    iolow = pci_read_config(dev, PCIR_IOLIMITL_1, 1);
-    if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
-	sc->iolimit = PCI_PPBIOLIMIT(pci_read_config(dev, PCIR_IOLIMITH_1, 2),
-				   pci_read_config(dev, PCIR_IOLIMITL_1, 1));
-    } else {
-	sc->iolimit = PCI_PPBIOLIMIT(0, pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+	iolow = pci_read_config(dev, PCIR_IOLIMITL_1, 1);
+	if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+	    sc->iolimit = PCI_PPBIOLIMIT(pci_read_config(dev, PCIR_IOLIMITH_1, 2),
+					 pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+	} else {
+	    sc->iolimit = PCI_PPBIOLIMIT(0, pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+	}
     }
 
     /*
      * Determine current memory decode.
      */
-    sc->membase   = PCI_PPBMEMBASE(0, pci_read_config(dev, PCIR_MEMBASE_1, 2));
-    sc->memlimit  = PCI_PPBMEMLIMIT(0, pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
-    sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)pci_read_config(dev, PCIR_PMBASEH_1, 4),
-				   pci_read_config(dev, PCIR_PMBASEL_1, 2));
-    sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)pci_read_config(dev, PCIR_PMLIMITH_1, 4),
-				    pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+    if (sc->command & PCIM_CMD_MEMEN) {
+	sc->membase   = PCI_PPBMEMBASE(0, pci_read_config(dev, PCIR_MEMBASE_1, 2));
+	sc->memlimit  = PCI_PPBMEMLIMIT(0, pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
+	sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)pci_read_config(dev, PCIR_PMBASEH_1, 4),
+				       pci_read_config(dev, PCIR_PMBASEL_1, 2));
+	sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)pci_read_config(dev, PCIR_PMLIMITH_1, 4),
+					pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+    }
 
     /*
      * Quirk handling.
@@ -192,7 +198,6 @@ pcib_attach(device_t dev)
 	}
 	break;
     }
-
 
     if (bootverbose) {
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);

@@ -90,7 +90,7 @@ eisab_probe(device_t dev)
      * Some bridges don't correctly report their class.
      */
     switch (pci_get_devid(dev)) {
-    case 0x04828086:		/* reports PCI-HOST class (!) */
+    case 0x04828086:		/* may show up as PCI-HOST or 0:0 */
 	matched = 1;
 	break;
     default:
@@ -107,21 +107,20 @@ eisab_probe(device_t dev)
 static int
 eisab_attach(device_t dev)
 {
-    device_t	child;
-
     /*
      * Attach an EISA bus.  Note that we can only have one EISA bus.
      */
-    child = device_add_child(dev, "eisa", 0);
-    if (child != NULL)
-	bus_generic_attach(dev);
+    if (!devclass_get_device(devclass_find("eisa"), 0))
+	device_add_child(dev, "eisa", -1);
 
     /*
-     * Attach an ISA bus as well (should this be a child of EISA?)
+     * Attach an ISA bus as well, since the EISA bus may have ISA
+     * cards installed, and we may have no EISA support in the system.
      */
-    child = device_add_child(dev, "isa", 0);
-    if (child != NULL)
-	bus_generic_attach(dev);
+    if (!devclass_get_device(devclass_find("isa"), 0))
+	device_add_child(dev, "isa", -1);
+
+    bus_generic_attach(dev);
 
     return(0);
 }
