@@ -34,7 +34,7 @@
 .Sh DESCRIPTION
 The
 .Fx
-.Nm Ports Collection
+Ports Collection
 offers a simple way for users and
 administrators to install applications.
 Each
@@ -44,254 +44,286 @@ application source code compile and run on
 .Bx .
 Compiling an
 application is as simple as typing
-.Ic make build
-in the port directory!  The
-.Ql Pa Makefile
+.Nm make Cm build
+in the port directory!
+The
+.Pa Makefile
 automatically fetches the
-application source code, either from a local disk or via ftp, unpacks it
-on your system, applies the patches, and compiles it.  If all goes well,
+application source code, either from a local disk or via FTP, unpacks it
+on your system, applies the patches, and compiles it.
+If all goes well,
 simply type
-.Ic make install
+.Nm make Cm install
 to install the application.
 .Pp
 It is possible to download and use ports from the
 .Fx
 repository
 that are newer than the installed system; however it is important to
-install the appropriate "Upgrade Kit" from http://www.FreeBSD.org/ports/
-first!  The
+install the appropriate
+.Dq "Upgrade Kit"
+from
+.Pa http://www.FreeBSD.org/ports/
+first!
+The
 .Xr portcheckout 1
 script (also a port, of course!) will help to download new ports.
 .Pp
 For more information about using ports, see
-.Dq Packages and Ports
+.Dq "Packages and Ports"
 in
-.Nm The FreeBSD Handbook
-(file:/usr/share/doc/handbook/ports.html --or--
-http://www.FreeBSD.org/handbook/ports.html).
+.%B "The FreeBSD Handbook" ,
+.Pa ( file:/usr/share/doc/handbook/ports.html
+or
+.Pa http://www.FreeBSD.org/handbook/ports.html ) .
 For information about creating new ports, see
-.Nm The Porter's Handbook
-(file:/usr/share/doc/porters-handbook/index.html --or--
-http://www.FreeBSD.org/porters-handbook/index.html).
+.%B "The Porter's Handbook"
+.Pa ( file:/usr/share/doc/porters-handbook/index.html
+or
+.Pa http://www.FreeBSD.org/porters-handbook/index.html ) .
 .Sh TARGETS
 Some of the targets work recursively through subdirectories.
-This lets you, for example, install all of the biology
-ports.  The targets that do this are
-.Ar build , checksum , clean , configure ,
-.Ar depends , extract , fetch , install ,
+This lets you, for example, install all of the
+.Dq Li biology
+ports.
+The targets that do this are
+.Cm build , checksum , clean , configure ,
+.Cm depends , extract , fetch , install ,
 and
-.Ar package .
+.Cm package .
 .Pp
 The following targets will be run automatically by each proceeding
-target in order.  That is,
-.Ar build
+target in order.
+That is,
+.Cm build
 will be run
 (if necessary)
 by
-.Ar install ,
+.Cm install ,
 and so on all the way to
-.Ar fetch .
+.Cm fetch .
 Usually, you will only use the
-.Ar install
+.Cm install
 target.
-.Bl -tag -width configure
-.It Ar fetch
-Fetch all of the files needed to build this port from the site(s)
-listed in MASTER_SITES and PATCH_SITES.  See
-.Ev FETCH_CMD
+.Bl -tag -width ".Cm configure"
+.It Cm fetch
+Fetch all of the files needed to build this port from the sites
+listed in
+.Va MASTER_SITES
 and
-.Ev MASTER_SITE_OVERRIDE .
-.It Ar checksum
+.Va PATCH_SITES .
+See
+.Va FETCH_CMD
+and
+.Va MASTER_SITE_OVERRIDE .
+.It Cm checksum
 Verify that the fetched distfile's checksum matches the one the port was
 tested against.
 Defining
-.Ev NO_CHECKSUM
+.Va NO_CHECKSUM
 will skip this step.
-.It Ar depends
+.It Cm depends
 Install
 (or compile if only compilation is necessary)
-any dependencies of the current port.  When called by the
-.Ar extract
+any dependencies of the current port.
+When called by the
+.Cm extract
 or
-.Ar fetch
+.Cm fetch
 targets, this is run in piecemeal as
-.Ar fetch-depends ,
-.Ar build-depends ,
-etc.  Defining
-.Ev NO_DEPENDS
+.Cm fetch-depends , build-depends ,
+etc.
+Defining
+.Va NO_DEPENDS
 will skip this step.
-.It Ar extract
+.It Cm extract
 Expand the distfile into a work directory.
-.It Ar patch
+.It Cm patch
 Apply any patches that are necessary for the port.
-.It Ar configure
-Configure the port.  Some ports will ask you questions during
-this stage.  See
-.Ev INTERACTIVE
+.It Cm configure
+Configure the port.
+Some ports will ask you questions during this stage.
+See
+.Va INTERACTIVE
 and
-.Ev BATCH .
-.It Ar build
-Build the port.  This is the same as calling the
-.Ar all
+.Va BATCH .
+.It Cm build
+Build the port.
+This is the same as calling the
+.Cm all
 target.
-.It Ar install
-Install the port and register it with the package system.  This
-is all you really need to do.
+.It Cm install
+Install the port and register it with the package system.
+This is all you really need to do.
 .El
 .Pp
 The following targets are not run during the normal install process.
-.Bl -tag -width fetch-list
-.It Ar fetch-list
+.Bl -tag -width ".Cm fetch-list"
+.It Cm fetch-list
 Show list of files needed to be fetched in order to build the port.
-.It Ar pretty-print-run-depends-list pretty-print-build-depends-list
+.It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
-.It Ar clean
-Remove the expanded source code.  This recurses to dependencies unless
-.Ev NOCLEANDEPENDS
+.It Cm clean
+Remove the expanded source code.
+This recurses to dependencies unless
+.Va NOCLEANDEPENDS
 is defined.
-.It Ar distclean
-Remove the port's distfile(s) and perform the
-.Ar clean
+.It Cm distclean
+Remove the port's distfiles and perform the
+.Cm clean
 target.
 The
-.Sq clean
+.Cm clean
 portion recurses to dependencies unless
-.Ev NOCLEANDEPENDS
+.Va NOCLEANDEPENDS
 is defined, but the
-.Sq distclean
+.Cm distclean
 portion never recurses
 (this is perhaps a bug).
-.It Ar reinstall
+.It Cm reinstall
 Use this to restore a port after using
 .Xr pkg_delete 1
 when you should have used
-.Ar deinstall .
-.It Ar deinstall
+.Cm deinstall .
+.It Cm deinstall
 Remove an installed port from the system, similar to
 .Xr pkg_delete 1 .
-.It Ar package
-Make a binary package for the port.  The port will be installed if it
-hasn't already been.  The package is a .tgz file that you can use to
+.It Cm package
+Make a binary package for the port.
+The port will be installed if it has not already been.
+The package is a
+.Pa .tgz
+file that you can use to
 install the port on other machines with
 .Xr pkg_add 1 .
 If the directory specified by
-.Ev PACKAGES
-does not exist the package will be put into the current directory.
+.Va PACKAGES
+does not exist, the package will be put into the current directory.
 See
-.Ev PKGREPOSITORY
+.Va PKGREPOSITORY
 and
-.Ev PKGFILE .
-.It Ar readmes
+.Va PKGFILE .
+.It Cm readmes
 Create a port's
 .Pa README.html .
 This can be used from
 .Pa /usr/ports
 to create a browsable web of all ports on your system!
-.It Ar search
+.It Cm search
 Search the
 .Pa INDEX
 file for the pattern specified by either the
-.Ar key
+.Va key
 (searches the port name, comment, and dependencies) or
-.Ar name
-(just searches the port name) make argument.
+.Va name
+(searches the port name only)
+.Xr make 1
+variable.
 For example, one would type:
 .Pp
-.Dl cd /usr/ports && make search name=query
+.Dl "cd /usr/ports && make search name=query"
 .Pp
 to find all ports whose
 name matches
-.Ql query .
+.Dq Li query .
 Results include the matching ports' path, comment, maintainer,
 build dependencies, and run dependencies.
-.It Ar index
+.It Cm index
 Create
 .Pa /usr/ports/INDEX ,
 which is used by the
-.Ar pretty-print-*
+.Cm pretty-print-*
 and
-.Ar search
+.Cm search
 targets.
-While the master INDEX file in the CVS repository is periodically
+While the master
+.Pa INDEX
+file in the CVS repository is periodically
 updated, running the
-.Ar index
-target will ensure your INDEX file is up to date with your ports tree.
+.Cm index
+target will ensure your
+.Pa INDEX
+file is up to date with your ports tree.
 .El
 .Sh ENVIRONMENT
 You can change all of these.
-.Bl -tag -width MASTER_SITES
-.It Ev PORTSDIR
-Location of the ports tree.  This is
+.Bl -tag -width ".Va MASTER_SITES"
+.It Va PORTSDIR
+Location of the ports tree.
+This is
 .Pa /usr/ports
 on
 .Fx
 and
-.Ox
+.Ox ,
 and
 .Pa /usr/pkgsrc
 on
 .Nx .
-.It Ev WRKDIRPREFIX
-Where to create any temporary files.  Useful if
-.Ev PORTSDIR
-is read-only (perhaps mounted from a cdrom).
-.It Ev DISTDIR
+.It Va WRKDIRPREFIX
+Where to create any temporary files.
+Useful if
+.Va PORTSDIR
+is read-only (perhaps mounted from a CD-ROM).
+.It Va DISTDIR
 Where to find/put distfiles, normally
 .Pa distfiles/
 in
-.Ev PORTSDIR .
-.It Ev PACKAGES
+.Va PORTSDIR .
+.It Va PACKAGES
 Used only for the
-.Ar package
+.Cm package
 target; the base directory for the packages tree, normally
 .Pa packages/
 in
-.Ev PORTSDIR .
+.Va PORTSDIR .
 If this directory exists, the package tree will be (partially) constructed.
-This directory does not have to exist; if it doesn't packages will be
+This directory does not have to exist; if it does not, packages will be
 placed into the current directory, or you can define one of
-.Bl -tag -width PKGREPOSITORY
-.It Ev PKGREPOSITORY
+.Bl -tag -width ".Va PKGREPOSITORY"
+.It Va PKGREPOSITORY
 Directory to put the package in.
-.It Ev PKGFILE
+.It Va PKGFILE
 The full path to the package.
 .El
-.It Ev PREFIX
+.It Va PREFIX
 Where to install things in general
 (usually
 .Pa /usr/local
 or
-.Pa /usr/X11R6 )
-.It Ev MASTER_SITES
+.Pa /usr/X11R6 ) .
+.It Va MASTER_SITES
 Primary sites for distribution files if not found locally.
-.It Ev PATCH_SITES
-Primary location(s) for distribution patch files if not found
+.It Va PATCH_SITES
+Primary locations for distribution patch files if not found
 locally.
-.It Ev MASTER_SITE_FREEBSD
+.It Va MASTER_SITE_FREEBSD
 If set, go to the master
 .Fx
 site for all files.
-.It Ev MASTER_SITE_OVERRIDE
+.It Va MASTER_SITE_OVERRIDE
 Try going to this site for all files and patches, first.
-.It Ev NOCLEANDEPENDS
-If defined, don't let
-.Sq clean
+.It Va NOCLEANDEPENDS
+If defined, do not let
+.Cm clean
 recurse to dependencies.
-.It Ev FETCH_CMD
-Command to use to fetch files.  Normally
+.It Va FETCH_CMD
+Command to use to fetch files.
+Normally
 .Xr fetch 1 .
-.It Ev FORCE_PKG_REGISTER
+.It Va FORCE_PKG_REGISTER
 If set, overwrite any existing package registration on the system.
-.It Ev MOTIFLIB
-Location of libXm.{a,so}.
-.It Ev INTERACTIVE
+.It Va MOTIFLIB
+Location of
+.Pa libXm. Ns Brq Pa a , Ns Pa so .
+.It Va INTERACTIVE
 If defined, only operate on a port if it requires interaction.
-.It Ev BATCH
+.It Va BATCH
 If defined, only operate on a port if it can be installed 100% automatically.
 .El
 .Sh FILES
-.Bl -tag -width /usr/ports/xxxx -compact
+.Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
 .It Pa /usr/ports
 The default ports directory
 .No ( Fx
@@ -316,12 +348,11 @@ The following are part of the ports collection:
 .Xr pib 1 ,
 .Xr portcheckout 1 ,
 .Xr portlint 1
+.Rs
+.%B "The FreeBSD Handbook"
+.Re
 .Pp
-The
-.Fx
-handbook
-.Pp
-http://www.FreeBSD.org/ports
+.Pa http://www.FreeBSD.org/ports
 (searchable index of all ports)
 .Sh AUTHORS
 .An -nosplit
@@ -331,7 +362,7 @@ The ports collection is maintained by
 .An Satoshi Asami
 and the Awesome Ports Team.
 .Sh HISTORY
-.Nm The Ports Collection
+The Ports Collection
 appeared in
 .Fx 1.0 .
 It has since spread to
@@ -339,13 +370,13 @@ It has since spread to
 and
 .Ox .
 .Sh BUGS
-Ports documentation is split over four places ---
+Ports documentation is split over four places \(em
 .Pa /usr/ports/Mk/bsd.port.mk ,
-.Nm The Porter's Handbook ,
+.%B "The Porter's Handbook" ,
 the
-.Dq Packages and Ports
+.Dq "Packages and Ports"
 chapter of
-.Nm The FreeBSD Handbook ,
+.%B "The FreeBSD Handbook" ,
 and
 .Xr ports 7 .
 .Pp
