@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.29 1998/06/21 18:02:40 bde Exp $
+ * $Id: seagate.c,v 1.30 1998/07/15 09:38:10 bde Exp $
  */
 
 /*
@@ -366,7 +366,7 @@ static int sea_select_cmd = CMD_DRVR_ENABLE | CMD_ATTN;
 int sea_probe (struct isa_device *dev)
 {
 	adapter_t *z = &seadata[dev->id_unit];
-	static const addrtab[] = {
+	static const int addrtab[] = {
 		0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000, 0,
 	};
 	int i;
