@@ -1,5 +1,4 @@
 /* $NetBSD: hcreate.c,v 1.2 2001/02/19 21:26:04 ross Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 2001 Christopher G. Demetriou
@@ -48,9 +47,12 @@
  */
 
 #include <sys/cdefs.h>
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: hcreate.c,v 1.2 2001/02/19 21:26:04 ross Exp $");
 #endif /* LIBC_SCCS and not lint */
+#endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/queue.h>

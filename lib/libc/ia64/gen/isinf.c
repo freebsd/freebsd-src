@@ -1,5 +1,4 @@
 /*	$NetBSD: isinf.c,v 1.1 1995/02/10 17:50:23 cgd Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

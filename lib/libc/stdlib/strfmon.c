@@ -25,9 +25,8 @@
  *
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <ctype.h>

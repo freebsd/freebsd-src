@@ -40,10 +40,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fpu_compare.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_compare.c,v 1.3 2001/08/26 05:46:31 eeh Exp
- *
- * $FreeBSD$
+ *	$NetBSD: fpu_compare.c,v 1.3 2001/08/26 05:46:31 eeh Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * CMP and CMPE instructions.

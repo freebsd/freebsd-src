@@ -32,10 +32,12 @@
  */
 
 #include <sys/cdefs.h>
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strncmp.c	8.1 (Berkeley) 6/4/93";
 __RCSID("$NetBSD$");
 #endif /* LIBC_SCCS and not lint */
+#endif
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>

@@ -27,9 +27,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
-#endif /* LIBC_RCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

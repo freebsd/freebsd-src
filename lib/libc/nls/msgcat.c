@@ -30,10 +30,8 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * We need a better way of handling errors than printing text.  I need

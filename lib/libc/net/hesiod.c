@@ -45,10 +45,11 @@
 
 #include <sys/cdefs.h>
 
-#if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char *orig_rcsid = "$NetBSD: hesiod.c,v 1.9 1999/02/11 06:16:38 simonb Exp $";
-static char *rcsid = "$FreeBSD$";
-#endif /* LIBC_SCCS and not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: name6.c,v 1.25 2000/06/26 16:44:40 itojun Exp $	*/
 
 /*
@@ -93,6 +92,9 @@
  *	use mutex for _hostconf, _hostconf_init.
  *	rewrite resolvers to be thread safe
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>

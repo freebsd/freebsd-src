@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: getifaddrs.c,v 1.9 2001/08/20 02:31:20 itojun Exp $	*/
 
 /*
@@ -29,6 +28,10 @@
  * NOTE: SIOCGIFCONF case is not LP64 friendly.  it also does not perform
  * try-and-error for region size.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/ioctl.h>

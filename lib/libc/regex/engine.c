@@ -35,9 +35,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)engine.c	8.5 (Berkeley) 3/20/94
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * The matching engine and friends.  This file is #included by regexec.c

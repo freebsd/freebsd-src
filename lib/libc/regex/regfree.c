@@ -35,13 +35,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)regfree.c	8.3 (Berkeley) 3/20/94
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)regfree.c	8.3 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stdio.h>

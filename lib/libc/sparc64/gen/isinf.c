@@ -24,7 +24,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	from: NetBSD: isinf.c,v 1.1 1995/02/10 17:50:23 cgd Exp
+ *	$NetBSD: isinf.c,v 1.1 1995/02/10 17:50:23 cgd Exp $
  *	from: FreeBSD: src/lib/libc/alpha/gen/isinf.c,v 1.2 2000/05/10
  */
 

@@ -1,5 +1,4 @@
 /*	$NetBSD: twalk.c,v 1.1 1999/02/22 10:33:16 christos Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Tree search generalized from Knuth (6.2.2) Algorithm T just like
@@ -13,9 +12,12 @@
  */
 
 #include <sys/cdefs.h>
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: twalk.c,v 1.1 1999/02/22 10:33:16 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
+#endif
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #define _SEARCH_PRIVATE

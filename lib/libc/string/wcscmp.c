@@ -37,7 +37,9 @@
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strcmp.c	8.1 (Berkeley) 6/4/93";
+#if 0
 __RCSID("$NetBSD$");
+#endif
 #endif /* LIBC_SCCS and not lint */
 __FBSDID("$FreeBSD$");
 
