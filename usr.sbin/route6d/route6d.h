@@ -1,11 +1,10 @@
-/*
- * $Header: /cvsroot/kame/kame/kame/kame/route6d/route6d.h,v 1.1.1.1 1999/08/08 23:31:35 itojun Exp $
- */
+/*	$FreeBSD$	*/
+/*	$KAME: route6d.h,v 1.3 2000/02/25 06:15:06 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -17,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,15 +28,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/* not yet in use
+/* not yet in use 
 #define	ROUTE6D_CONF	"/usr/local/v6/etc/route6d.conf"
 */
 
-#define	ROUTE6D_DUMP	"/var/tmp/route6d_dump"
+#define	ROUTE6D_DUMP	"/var/run/route6d_dump"
 #define	ROUTE6D_PID	"/var/run/route6d.pid"
 
 #define	RIP6_VERSION	1
