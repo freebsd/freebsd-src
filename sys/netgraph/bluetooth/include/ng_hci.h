@@ -1,6 +1,8 @@
 /*
  * ng_hci.h
- *
+ */
+
+/*-
  * Copyright (c) 2001 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

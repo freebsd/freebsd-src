@@ -30,7 +30,8 @@
 
 
 /* +++ zutil.h */
-/* zutil.h -- internal interface and configuration of the compression library
+/*-
+ * zutil.h -- internal interface and configuration of the compression library
  * Copyright (C) 1995-1996 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */

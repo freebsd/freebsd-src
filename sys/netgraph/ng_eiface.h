@@ -1,6 +1,8 @@
 /*
  * ng_eiface.h
- *
+ */
+
+/*-
  * Copyright (c) 1999-2001, Vitaly V Belekhov
  * All rights reserved.
  *

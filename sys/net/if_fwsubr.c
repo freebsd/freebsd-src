@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Doug Rabson
  * Copyright (c) 1982, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.

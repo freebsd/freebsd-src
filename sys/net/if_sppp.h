@@ -1,6 +1,7 @@
 /*
  * Defines for synchronous PPP/Cisco/Frame Relay link level subroutines.
- *
+ */
+/*-
  * Copyright (C) 1994-2000 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
