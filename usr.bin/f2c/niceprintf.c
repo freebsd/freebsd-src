@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -24,27 +24,41 @@ this software.
 #include "defs.h"
 #include "names.h"
 #include "output.h"
+#ifndef KR_headers
+#include "stdarg.h"
+#endif
 
 #define TOO_LONG_INDENT (2 * tab_size)
 #define MAX_INDENT 44
 #define MIN_INDENT 22
 static int last_was_newline = 0;
+int sharp_line = 0;
 int indent = 0;
 int in_comment = 0;
 int in_define = 0;
  extern int gflag1;
- extern char *file_name;
+ extern char filename[];
 
- static int
+ static void ind_printf Argdcl((int, FILE*, char*, va_list));
+
+ static void
+#ifdef KR_headers
 write_indent(fp, use_indent, extra_indent, start, end)
- FILE *fp;
- int use_indent, extra_indent;
- char *start, *end;
+	FILE *fp;
+	int use_indent;
+	int extra_indent;
+	char *start;
+	char *end;
+#else
+write_indent(FILE *fp, int use_indent, int extra_indent, char *start, char *end)
+#endif
 {
     int ind, tab;
 
-    if (gflag1 && last_was_newline)
-	fprintf(fp, "#line %ld \"%s\"\n", lineno, infname ? infname : file_name);
+    if (sharp_line) {
+	fprintf(fp, "#line %ld \"%s\"\n", lineno, filename);
+	sharp_line = 0;
+	}
     if (in_define == 1) {
 	in_define = 2;
 	use_indent = 0;
@@ -76,25 +90,50 @@ write_indent(fp, use_indent, extra_indent, start, end)
 	putc (*start++, fp);
 } /* write_indent */
 
-
+#ifdef KR_headers
 /*VARARGS2*/
-int margin_printf (fp, a, b, c, d, e, f, g)
-FILE *fp;
-char *a;
-long b, c, d, e, f, g;
+  void
+ margin_printf (fp, a, b, c, d, e, f, g)
+  FILE *fp;
+  char *a;
+  long b, c, d, e, f, g;
 {
     ind_printf (0, fp, a, b, c, d, e, f, g);
 } /* margin_printf */
 
 /*VARARGS2*/
-int nice_printf (fp, a, b, c, d, e, f, g)
-FILE *fp;
-char *a;
-long b, c, d, e, f, g;
+  void
+ nice_printf (fp, a, b, c, d, e, f, g)
+  FILE *fp;
+  char *a;
+  long b, c, d, e, f, g;
 {
     ind_printf (1, fp, a, b, c, d, e, f, g);
 } /* nice_printf */
+#define SPRINTF(x,a,b,c,d,e,f,g) sprintf(x,a,b,c,d,e,f,g)
 
+#else /* if (!defined(KR_HEADERS)) */
+
+#define SPRINTF(x,a,b,c,d,e,f,g) vsprintf(x,a,ap)
+
+  void
+ margin_printf(FILE *fp, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap,fmt);
+	ind_printf(0, fp, fmt, ap);
+	va_end(ap);
+	}
+
+  void
+ nice_printf(FILE *fp, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap,fmt);
+	ind_printf(1, fp, fmt, ap);
+	va_end(ap);
+	}
+#endif
 
 #define  max_line_len c_output_line_length
  		/* 74Number of characters allowed on an output
@@ -116,15 +155,19 @@ static int cursor_pos = 0;
 static int In_string = 0;
 
  void
-np_init()
+np_init(Void)
 {
 	next_slot = output_buf = Alloc(MAX_OUTPUT_SIZE);
 	memset(output_buf, 0, MAX_OUTPUT_SIZE);
 	}
 
  static char *
+#ifdef KR_headers
 adjust_pointer_in_string(pointer)
- register char *pointer;
+	register char *pointer;
+#else
+adjust_pointer_in_string(register char *pointer)
+#endif
 {
 	register char *s, *s1, *se, *s0;
 
@@ -152,8 +195,13 @@ adjust_pointer_in_string(pointer)
  * so we roll our own fwd_strcpy: */
 
  static void
+#ifdef KR_headers
 fwd_strcpy(t, s)
- register char *t, *s;
+	register char *t;
+	register char *s;
+#else
+fwd_strcpy(register char *t, register char *s)
+#endif
 { while(*t++ = *s++); }
 
 /* isident -- true iff character could belong to a unit.  C allows
@@ -166,11 +214,16 @@ fwd_strcpy(t, s)
 #define isident(x) (Tr[x] & 1)
 #define isntident(x) (!Tr[x])
 
-int ind_printf (use_indent, fp, a, b, c, d, e, f, g)
-int use_indent;
-FILE *fp;
-char *a;
-long b, c, d, e, f, g;
+  static void
+#ifdef KR_headers
+ ind_printf (use_indent, fp, a, b, c, d, e, f, g)
+  int use_indent;
+  FILE *fp;
+  char *a;
+  long b, c, d, e, f, g;
+#else
+ ind_printf (int use_indent, FILE *fp, char *a, va_list ap)
+#endif
 {
     extern int max_line_len;
     extern FILEP c_file;
@@ -181,11 +234,11 @@ long b, c, d, e, f, g;
 
     cursor_pos += indent - last_indent;
     last_indent = indent;
-    sprintf (next_slot, a, b, c, d, e, f, g);
+    SPRINTF (next_slot, a, b, c, d, e, f, g);
 
     if (fp != c_file) {
 	fprintf (fp,"%s", next_slot);
-	return 1;
+	return;
     } /* if fp != c_file */
 
     do {
@@ -349,13 +402,14 @@ long b, c, d, e, f, g;
 		else {
 			last_was_newline = 1;
 			extra_indent = 0;
+			sharp_line = gflag1;
 			}
 		}
 	    else {
 		extra_indent = TOO_LONG_INDENT;
 		if (In_string && !string_start) {
 			if (Ansi == 1) {
-				fprintf(fp, "\"\n");
+				fprintf(fp, gflag1 ? "\"\\\n" : "\"\n");
 				use_indent = 1;
 				last_was_newline = 1;
 				}
@@ -366,7 +420,7 @@ long b, c, d, e, f, g;
 			In_string = in_string0;
 			}
 		else {
-			if (in_define)
+			if (in_define/* | gflag1*/)
 				putc('\\', fp);
 			putc ('\n', fp);
 			last_was_newline = 1;
@@ -384,5 +438,4 @@ long b, c, d, e, f, g;
 
     } while (*next_slot);
 
-    return 0;
 } /* ind_printf */

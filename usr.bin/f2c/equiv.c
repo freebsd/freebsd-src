@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993-5 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -23,14 +23,17 @@ this software.
 
 #include "defs.h"
 
-LOCAL eqvcommon(), eqveqv(), nsubs();
+static void eqvcommon Argdcl((struct Equivblock*, int, long int));
+static void eqveqv Argdcl((int, int, long int));
+static int nsubs Argdcl((struct Listblock*));
 
 /* ROUTINES RELATED TO EQUIVALENCE CLASS PROCESSING */
 
 /* called at end of declarations section to process chains
    created by EQUIVALENCE statements
  */
-doequiv()
+ void
+doequiv(Void)
 {
 	register int i;
 	int inequiv;			/* True if one namep occurs in
@@ -69,7 +72,7 @@ doequiv()
 			vardcl(np = primp->namep);
 			if(primp->argsp || primp->fcharp)
 			{
-				expptr offp, suboffset();
+				expptr offp;
 
 /* Pad ones onto the end of an array declaration when needed */
 
@@ -114,14 +117,6 @@ doequiv()
 			case STGUNKNOWN:
 			case STGBSS:
 			case STGEQUIV:
-				if (in_vector(np->cvarname, st_fields,
-						n_st_fields) >= 0) {
-					k = strlen(np->cvarname);
-					strcpy(s = mem(k+2,0), np->cvarname);
-					s[k] = '_';
-					s[k+1] = 0;
-					np->cvarname = s;
-					}
 				break;
 
 			case STGCOMMON:
@@ -239,10 +234,15 @@ doequiv()
 
 /* put equivalence chain p at common block comno + comoffset */
 
-LOCAL eqvcommon(p, comno, comoffset)
-struct Equivblock *p;
-int comno;
-ftnint comoffset;
+ LOCAL void
+#ifdef KR_headers
+eqvcommon(p, comno, comoffset)
+	struct Equivblock *p;
+	int comno;
+	ftnint comoffset;
+#else
+eqvcommon(struct Equivblock *p, int comno, ftnint comoffset)
+#endif
 {
 	int ovarno;
 	ftnint k, offq;
@@ -315,9 +315,15 @@ ftnint comoffset;
  * adjust offsets of ovarno elements and top and bottom of nvarno chain
  */
 
-LOCAL eqveqv(nvarno, ovarno, delta)
-int ovarno, nvarno;
-ftnint delta;
+ LOCAL void
+#ifdef KR_headers
+eqveqv(nvarno, ovarno, delta)
+	int nvarno;
+	int ovarno;
+	ftnint delta;
+#else
+eqveqv(int nvarno, int ovarno, ftnint delta)
+#endif
 {
 	register struct Equivblock *neweqv, *oldeqv;
 	register Namep np;
@@ -347,9 +353,13 @@ ftnint delta;
 
 
 
-
+ void
+#ifdef KR_headers
 freqchain(p)
-register struct Equivblock *p;
+	register struct Equivblock *p;
+#else
+freqchain(register struct Equivblock *p)
+#endif
 {
 	register struct Eqvchain *q, *oq;
 
@@ -368,8 +378,13 @@ register struct Equivblock *p;
 /* nsubs -- number of subscripts in this arglist (just the length of the
    list) */
 
-LOCAL nsubs(p)
-register struct Listblock *p;
+ LOCAL int
+#ifdef KR_headers
+nsubs(p)
+	register struct Listblock *p;
+#else
+nsubs(register struct Listblock *p)
+#endif
 {
 	register int n;
 	register chainp q;

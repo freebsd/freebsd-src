@@ -8,8 +8,6 @@
 */
 #include "niceprintf.h"
 
-extern int nice_printf ();
-
 
 /* Definitions for the opcode table.  The table is indexed by the macros
    which are #defined in   defines.h   */
@@ -57,9 +55,10 @@ extern int in_string;
 extern table_entry opcode_table[];
 
 
-void expr_out (), out_init (), out_addr (), out_const ();
-void out_name (), extern_out (), out_asgoto ();
-void out_if (), out_else (), elif_out ();
-void endif_out (), end_else_out ();
-void compgoto_out (), out_for ();
-void out_end_for (), out_and_free_statement ();
+void	compgoto_out Argdcl((FILEP, tagptr, tagptr));
+void	endif_out Argdcl((FILEP));
+void	expr_out Argdcl((FILEP, tagptr));
+void	out_and_free_statement Argdcl((FILEP, tagptr));
+void	out_end_for Argdcl((FILEP));
+void	out_if Argdcl((FILEP, tagptr));
+void	out_name Argdcl((FILEP, Namep));

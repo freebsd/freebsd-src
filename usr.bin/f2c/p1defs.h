@@ -51,26 +51,24 @@
 #define COMMENT_BUFFER_SIZE 255	/* max number of chars in each comment */
 #define CONSTANT_STR_MAX 1000	/* max number of chars in string constant */
 
-extern void p1put (/* int */);
-extern void p1_comment (/* char * */);
-extern void p1_label (/* int */);
-extern void p1_line_number (/* int */);
-extern void p1put_filename();
-extern void p1_expr (/* expptr */);
-extern void p1_head (/* int, char * */);
-extern void p1_if (/* expptr */);
-extern void p1_else ();
-extern void p1_elif (/* expptr */);
-extern void p1_endif ();
-extern void p1else_end ();
-extern void p1_subr_ret (/* expptr */);
-extern void p1_goto(/* long */);
-extern void p1comp_goto (/* expptr, int, struct Labelblock *[] */);
-extern void p1_for (/* expptr, expptr, expptr */);
-extern void p1for_end ();
-
-
-extern void p1puts (/* int, char * */);
+void	p1_asgoto Argdcl((Addrp));
+void	p1_comment Argdcl((char*));
+void	p1_elif Argdcl((tagptr));
+void	p1_else Argdcl((void));
+void	p1_endif Argdcl((void));
+void	p1_expr Argdcl((tagptr));
+void	p1_for Argdcl((tagptr, tagptr, tagptr));
+void	p1_goto Argdcl((long int));
+void	p1_head Argdcl((int, char*));
+void	p1_if Argdcl((tagptr));
+void	p1_label Argdcl((long int));
+void	p1_line_number Argdcl((long int));
+void	p1_subr_ret Argdcl((tagptr));
+void	p1comp_goto Argdcl((tagptr, int, struct Labelblock**));
+void	p1else_end Argdcl((void));
+void	p1for_end Argdcl((void));
+void	p1put Argdcl((int));
+void	p1puts Argdcl((int, char*));
 
 /* The pass 1 intermediate file has the following format:
 

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -35,9 +35,18 @@ this software.
 
 extern int inqmask;
 
-LOCAL void dofclose(), dofinquire(), dofinquire(), dofmove(), dofopen(),
-	doiolist(), ioset(), ioseta(), iosetc(), iosetip(), iosetlc(),
-	putio(), putiocall();
+static void dofclose Argdcl((void));
+static void dofinquire Argdcl((void));
+static void dofmove Argdcl((char*));
+static void dofopen Argdcl((void));
+static void doiolist Argdcl((chainp));
+static void ioset Argdcl((int, int, expptr));
+static void ioseta Argdcl((int, Addrp));
+static void iosetc Argdcl((int, expptr));
+static void iosetip Argdcl((int, int));
+static void iosetlc Argdcl((int, int, int));
+static void putio Argdcl((expptr, expptr));
+static void putiocall Argdcl((expptr));
 
 iob_data *iob_list;
 Addrp io_structs[9];
@@ -277,9 +286,13 @@ LOCAL io_setup io_stuff[] = {
 
 #undef zork
 
-
+ int
+#ifdef KR_headers
 fmtstmt(lp)
-register struct Labelblock *lp;
+	register struct Labelblock *lp;
+#else
+fmtstmt(register struct Labelblock *lp)
+#endif
 {
 	if(lp == NULL)
 	{
@@ -300,11 +313,16 @@ register struct Labelblock *lp;
 }
 
 
+ void
+#ifdef KR_headers
 setfmt(lp)
-struct Labelblock *lp;
+	struct Labelblock *lp;
+#else
+setfmt(struct Labelblock *lp)
+#endif
 {
-	int n;
-	char *s0, *lexline();
+	int n, parity;
+	char *s0;
 	register char *s, *se, *t;
 	register k;
 
@@ -332,25 +350,37 @@ struct Labelblock *lp;
 
 	/* fix MYQUOTES (\002's) and \\'s */
 
+	parity = 1;
 	while(s < se)
 		switch(*s++) {
 			case 2:
-				t += 3; break;
+				if ((parity ^= 1) && *s == 2) {
+					t -= 2;
+					++s;
+					}
+				else
+					t += 3;
+				break;
 			case '"':
 			case '\\':
 				t++; break;
 			}
 	s = s0;
+	parity = 1;
 	if (lp) {
 		lp->fmtstring = t = mem((int)(t - s + 1), 0);
 		while(s < se)
 			switch(k = *s++) {
 				case 2:
-					t[0] = '\\';
-					t[1] = '0';
-					t[2] = '0';
-					t[3] = '2';
-					t += 4;
+					if ((parity ^= 1) && *s == 2)
+						s++;
+					else {
+						t[0] = '\\';
+						t[1] = '0';
+						t[2] = '0';
+						t[3] = '2';
+						t += 4;
+						}
 					break;
 				case '"':
 				case '\\':
@@ -365,8 +395,12 @@ struct Labelblock *lp;
 }
 
 
-
+ void
+#ifdef KR_headers
 startioctl()
+#else
+startioctl()
+#endif
 {
 	register int i;
 
@@ -378,7 +412,7 @@ startioctl()
 }
 
  static long
-newiolabel() {
+newiolabel(Void) {
 	long rv;
 	rv = ++lastiolabno;
 	skiplabel = mklabel(rv);
@@ -386,8 +420,8 @@ newiolabel() {
 	return rv;
 	}
 
-
-endioctl()
+ void
+endioctl(Void)
 {
 	int i;
 	expptr p;
@@ -504,8 +538,8 @@ endioctl()
 }
 
 
-
-iocname()
+ int
+iocname(Void)
 {
 	register int i;
 	int found, mask;
@@ -534,9 +568,14 @@ iocname()
 }
 
 
+ void
+#ifdef KR_headers
 ioclause(n, p)
-register int n;
-register expptr p;
+	register int n;
+	register expptr p;
+#else
+ioclause(register int n, register expptr p)
+#endif
 {
 	struct Ioclist *iocp;
 
@@ -602,11 +641,14 @@ register expptr p;
 
 /* io list item */
 
+ void
+#ifdef KR_headers
 doio(list)
-chainp list;
+	chainp list;
+#else
+doio(chainp list)
+#endif
 {
-	expptr call0();
-
 	if(ioformatted == NAMEDIRECTED)
 	{
 		if(list)
@@ -616,7 +658,7 @@ chainp list;
 	{
 		doiolist(list);
 		ioroutine[0] = 'e';
-		if (skiplab || ioroutine[4] == 'l')
+		if (skiplab)
 			jumplab = 0;
 		putiocall( call0(TYINT, ioroutine) );
 	}
@@ -627,14 +669,18 @@ chainp list;
 
 
  LOCAL void
+#ifdef KR_headers
 doiolist(p0)
- chainp p0;
+	chainp p0;
+#else
+doiolist(chainp p0)
+#endif
 {
 	chainp p;
 	register tagptr q;
 	register expptr qe;
 	register Namep qn;
-	Addrp tp, mkscalar();
+	Addrp tp;
 	int range;
 	extern char *ohalign;
 
@@ -683,7 +729,6 @@ doiolist(p0)
 			{
 				if(iostmt == IOWRITE)
 				{
-					ftnint lencat();
 					expptr qvl;
 					qvl = NULL;
 					if( ISCHAR(qe) )
@@ -723,9 +768,13 @@ doiolist(p0)
 		};
 
  LOCAL void
+#ifdef KR_headers
 putio(nelt, addr)
- expptr nelt;
- register expptr addr;
+	expptr nelt;
+	register expptr addr;
+#else
+putio(expptr nelt, register expptr addr)
+#endif
 {
 	int type;
 	register expptr q;
@@ -775,11 +824,9 @@ putio(nelt, addr)
 
 
 
-
-endio()
+ void
+endio(Void)
 {
-	extern void p1_label();
-
 	if(skiplab)
 	{
 		if (ioformatted != NAMEDIRECTED)
@@ -805,8 +852,12 @@ endio()
 
 
  LOCAL void
+#ifdef KR_headers
 putiocall(q)
- register expptr q;
+	register expptr q;
+#else
+putiocall(register expptr q)
+#endif
 {
 	int tyintsave;
 
@@ -828,9 +879,13 @@ putiocall(q)
 }
 
  void
+#ifdef KR_headers
 fmtname(np, q)
- Namep np;
- register Addrp q;
+	Namep np;
+	register Addrp q;
+#else
+fmtname(Namep np, register Addrp q)
+#endif
 {
 	register int k;
 	register char *s, *t;
@@ -852,8 +907,13 @@ fmtname(np, q)
 	sprintf(t, "%s_fmt", s);
 	}
 
-LOCAL Addrp asg_addr(p)
- union Expression *p;
+ LOCAL Addrp
+#ifdef KR_headers
+asg_addr(p)
+	union Expression *p;
+#else
+asg_addr(union Expression *p)
+#endif
 {
 	register Addrp q;
 
@@ -870,14 +930,13 @@ LOCAL Addrp asg_addr(p)
 	return q;
 	}
 
-startrw()
+ void
+startrw(Void)
 {
 	register expptr p;
 	register Namep np;
 	register Addrp unitp, fmtp, recp;
 	register expptr nump;
-	Addrp mkscalar();
-	expptr mkaddcon();
 	int iostmt1;
 	flag intfile, sequential, ok, varfmt;
 	struct io_setup *ios;
@@ -1121,7 +1180,7 @@ endfmt:
 
 
  LOCAL void
-dofopen()
+dofopen(Void)
 {
 	register expptr p;
 
@@ -1155,7 +1214,7 @@ dofopen()
 
 
  LOCAL void
-dofclose()
+dofclose(Void)
 {
 	register expptr p;
 
@@ -1171,7 +1230,7 @@ dofclose()
 
 
  LOCAL void
-dofinquire()
+dofinquire(Void)
 {
 	register expptr p;
 	if(p = V(IOSUNIT))
@@ -1204,8 +1263,12 @@ dofinquire()
 
 
  LOCAL void
+#ifdef KR_headers
 dofmove(subname)
- char *subname;
+	char *subname;
+#else
+dofmove(char *subname)
+#endif
 {
 	register expptr p;
 
@@ -1221,9 +1284,14 @@ dofmove(subname)
 static int ioset_assign = OPASSIGN;
 
  LOCAL void
+#ifdef KR_headers
 ioset(type, offset, p)
- int type, offset;
- register expptr p;
+	int type;
+	int offset;
+	register expptr p;
+#else
+ioset(int type, int offset, register expptr p)
+#endif
 {
 	offset /= SZLONG;
 	if(statstruct && ISCONST(p)) {
@@ -1283,12 +1351,14 @@ ioset(type, offset, p)
 
 
  LOCAL void
+#ifdef KR_headers
 iosetc(offset, p)
- int offset;
- register expptr p;
+	int offset;
+	register expptr p;
+#else
+iosetc(int offset, register expptr p)
+#endif
 {
-	extern Addrp putchop();
-
 	if(p == NULL)
 		ioset(TYADDR, offset, ICON(0) );
 	else if(p->headblock.vtype == TYCHAR) {
@@ -1302,9 +1372,13 @@ iosetc(offset, p)
 
 
  LOCAL void
+#ifdef KR_headers
 ioseta(offset, p)
- int offset;
- register Addrp p;
+	int offset;
+	register Addrp p;
+#else
+ioseta(int offset, register Addrp p)
+#endif
 {
 	char *s, *s1;
 	static char who[] = "ioseta";
@@ -1389,8 +1463,13 @@ ioseta(offset, p)
 
 
  LOCAL void
+#ifdef KR_headers
 iosetip(i, offset)
- int i, offset;
+	int i;
+	int offset;
+#else
+iosetip(int i, int offset)
+#endif
 {
 	register expptr p;
 
@@ -1410,8 +1489,14 @@ iosetip(i, offset)
 
 
  LOCAL void
+#ifdef KR_headers
 iosetlc(i, offp, offl)
- int i, offp, offl;
+	int i;
+	int offp;
+	int offl;
+#else
+iosetlc(int i, int offp, int offl)
+#endif
 {
 	register expptr p;
 	if( (p = V(i)) && p->headblock.vtype==TYCHAR)

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -27,11 +27,14 @@ this software.
 #define MEMBSIZE	32000
 #define GMEMBSIZE	16000
 
- extern void exit();
-
  char *
+#ifdef KR_headers
 gmem(n, round)
- int n, round;
+	int n;
+	int round;
+#else
+gmem(int n, int round)
+#endif
 {
 	static char *last, *next;
 	char *rv;
@@ -70,7 +73,7 @@ gmem(n, round)
  char *mem_first, *mem_next, *mem_last, *mem0_last;
 
  void
-mem_init()
+mem_init(Void)
 {
 	curmemblock = firstmemblock = mem0
 		= (memblock *)Alloc(sizeof(memblock));
@@ -82,8 +85,13 @@ mem_init()
 	}
 
  char *
+#ifdef KR_headers
 mem(n, round)
- int n, round;
+	int n;
+	int round;
+#else
+mem(int n, int round)
+#endif
 {
 	memblock *b;
 	register char *rv, *s;
@@ -123,9 +131,13 @@ mem(n, round)
 	}
 
  char *
-tostring(s,n)
- register char *s;
- int n;
+#ifdef KR_headers
+tostring(s, n)
+	register char *s;
+	int n;
+#else
+tostring(register char *s, int n)
+#endif
 {
 	register char *s1, *se, **sf;
 	char *rv, *s0;
@@ -154,16 +166,24 @@ tostring(s,n)
 	}
 
  char *
+#ifdef KR_headers
 cpstring(s)
- register char *s;
+	register char *s;
+#else
+cpstring(register char *s)
+#endif
 {
 	return strcpy(mem(strlen(s)+1,0), s);
 	}
 
  void
+#ifdef KR_headers
 new_iob_data(ios, name)
- register io_setup *ios;
- char *name;
+	register io_setup *ios;
+	char *name;
+#else
+new_iob_data(register io_setup *ios, char *name)
+#endif
 {
 	register iob_data *iod;
 	register char **s, **se;
@@ -182,9 +202,13 @@ new_iob_data(ios, name)
 	}
 
  char *
+#ifdef KR_headers
 string_num(pfx, n)
- char *pfx;
- long n;
+	char *pfx;
+	long n;
+#else
+string_num(char *pfx, long n)
+#endif
 {
 	char buf[32];
 	sprintf(buf, "%s%ld", pfx, n);
@@ -195,9 +219,15 @@ string_num(pfx, n)
 static defines *define_list;
 
  void
+#ifdef KR_headers
 def_start(outfile, s1, s2, post)
- FILE *outfile;
- char *s1, *s2, *post;
+	FILE *outfile;
+	char *s1;
+	char *s2;
+	char *post;
+#else
+def_start(FILE *outfile, char *s1, char *s2, char *post)
+#endif
 {
 	defines *d;
 	int n, n1;
@@ -219,8 +249,12 @@ def_start(outfile, s1, s2, post)
 	}
 
  void
+#ifdef KR_headers
 other_undefs(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+other_undefs(FILE *outfile)
+#endif
 {
 	defines *d;
 	if (d = define_list) {

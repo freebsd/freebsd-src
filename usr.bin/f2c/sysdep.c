@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -37,6 +37,8 @@ char *proto_fname	= "proto_file";
 
 char link_msg[]		= "-lf2c -lm"; /* was "-lF77 -lI77 -lm -lc"; */
 
+char *outbuf = "", *outbtail;
+
 #ifndef TMPDIR
 #ifdef MSDOS
 #define TMPDIR ""
@@ -46,10 +48,23 @@ char link_msg[]		= "-lf2c -lm"; /* was "-lF77 -lI77 -lm -lc"; */
 #endif
 
 char *tmpdir = TMPDIR;
+#ifndef MSDOS
+#ifndef KR_headers
+extern int getpid(void);
+#endif
+#endif
 
  void
+#ifdef KR_headers
 Un_link_all(cdelete)
+	int cdelete;
+#else
+Un_link_all(int cdelete)
+#endif
 {
+#ifndef KR_headers
+	extern int unlink(const char *);
+#endif
 	if (!debugflag) {
 		unlink(c_functions);
 		unlink(initfname);
@@ -62,7 +77,7 @@ Un_link_all(cdelete)
 	}
 
  void
-set_tmp_names()
+set_tmp_names(Void)
 {
 	int k;
 	if (debugflag == 1)
@@ -116,7 +131,13 @@ set_tmp_names()
 	}
 
  char *
-c_name(s,ft)char *s;
+#ifdef KR_headers
+c_name(s, ft)
+	char *s;
+	int ft;
+#else
+c_name(char *s, int ft)
+#endif
 {
 	char *b, *s0;
 	int c;
@@ -130,15 +151,21 @@ c_name(s,ft)char *s;
 		infname = s0;
 		Fatal("file name must end in .f or .F");
 		}
-	*s = ft;
-	b = copys(b);
-	*s = c;
+	strcpy(outbtail, b);
+	outbtail[s-b] = ft;
+	b = copys(outbuf);
 	return b;
 	}
 
  static void
+#ifdef KR_headers
 killed(sig)
+	int sig;
+#else
+killed(int sig)
+#endif
 {
+	sig = sig;	/* shut up warning */
 	signal(SIGINT, SIG_IGN);
 #ifdef SIGQUIT
 	signal(SIGQUIT, SIG_IGN);
@@ -152,15 +179,27 @@ killed(sig)
 	}
 
  static void
+#ifdef KR_headers
 sig1catch(sig)
+	int sig;
+#else
+sig1catch(int sig)
+#endif
 {
+	sig = sig;	/* shut up warning */
 	if (signal(sig, SIG_IGN) != SIG_IGN)
 		signal(sig, killed);
 	}
 
  static void
+#ifdef KR_headers
 flovflo(sig)
+	int sig;
+#else
+flovflo(int sig)
+#endif
 {
+	sig = sig;	/* shut up warning */
 	Fatal("floating exception during constant evaluation; cannot recover");
 	/* vax returns a reserved operand that generates
 	   an illegal operand fault on next instruction,
@@ -170,8 +209,14 @@ flovflo(sig)
 }
 
  void
+#ifdef KR_headers
 sigcatch(sig)
+	int sig;
+#else
+sigcatch(int sig)
+#endif
 {
+	sig = sig;	/* shut up warning */
 	sig1catch(SIGINT);
 #ifdef SIGQUIT
 	sig1catch(SIGQUIT);
@@ -184,11 +229,14 @@ sigcatch(sig)
 	}
 
 
-dofork()
+dofork(Void)
 {
 #ifdef MSDOS
 	Fatal("Only one Fortran input file allowed under MS-DOS");
 #else
+#ifndef KR_headers
+	extern int fork(void), wait(int*);
+#endif
 	int pid, status, w;
 	extern int retcode;
 
@@ -257,7 +305,7 @@ char *chr_fmt[Table_size] = {
      };
 
  void
-fmt_init()
+fmt_init(Void)
 {
 	static char *str1fmt[6] =
 		{ "\\b", "\\t", "\\n", "\\f", "\\r", "\\%03o" };
@@ -328,6 +376,22 @@ fmt_init()
 	chr_fmt[11] = Ansi ? "\\v" : "\\13";
 	}
 
+ void
+outbuf_adjust(Void)
+{
+	int n, n1;
+	char *s;
+
+	n = n1 = strlen(outbuf);
+	if (*outbuf && outbuf[n-1] != '/')
+		n1++;
+	s = Alloc(n+64);
+	outbtail = s + n1;
+	strcpy(s, outbuf);
+	if (n != n1)
+		strcpy(s+n, "/");
+	outbuf = s;
+	}
 
 
 /* Unless SYSTEM_SORT is defined, the following gives a simple
@@ -341,8 +405,14 @@ fmt_init()
 
 #ifdef SYSTEM_SORT
 
+ int
+#ifdef KR_headers
 dsort(from, to)
- char *from, *to;
+	char *from;
+	char *to;
+#else
+dsort(char *from, char *to)
+#endif
 {
 	char buf[200];
 	sprintf(buf, "sort <%s >%s", from, to);
@@ -351,15 +421,22 @@ dsort(from, to)
 #else
 
  static int
-compare(a,b)
- char *a, *b;
+#ifdef KR_headers
+ compare(a,b)
+  char *a, *b;
+#else
+ compare(const void *a, const void *b)
+#endif
 { return strcmp(*(char **)a, *(char **)b); }
 
+#ifdef KR_headers
 dsort(from, to)
- char *from, *to;
+	char *from;
+	char *to;
+#else
+dsort(char *from, char *to)
+#endif
 {
-	extern char *Alloc();
-
 	struct Memb {
 		struct Memb *next;
 		int n;

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -24,84 +24,103 @@ this software.
 #ifndef CRAY
 #define STACKMIN 512
 #define MINBLK (2*sizeof(struct mem) + 16)
-#define MSTUFF _malloc_stuff_
-#define F MSTUFF.free
-#define B MSTUFF.busy
+#define F _malloc_free_
 #define SBGULP 8192
-char *memcpy();
+#include "string.h"	/* for memcpy */
 
-struct mem {
+#ifdef KR_headers
+#define Char char
+#define Unsigned unsigned
+#define Int /*int*/
+#else
+#define Char void
+#define Unsigned size_t
+#define Int int
+#endif
+
+typedef struct mem {
 	struct mem *next;
-	unsigned len;
-	};
+	Unsigned len;
+	} mem;
 
-struct {
-	struct mem *free;
-	char *busy;
-	} MSTUFF;
+mem *F;
 
-char *
+ Char *
+#ifdef KR_headers
 malloc(size)
-register unsigned size;
+	register Unsigned size;
+#else
+malloc(register Unsigned size)
+#endif
 {
-	register struct mem *p, *q, *r, *s;
+	register mem *p, *q, *r, *s;
 	unsigned register k, m;
-	extern char *sbrk();
+	extern Char *sbrk(Int);
 	char *top, *top1;
 
 	size = (size+7) & ~7;
-	r = (struct mem *) &F;
+	r = (mem *) &F;
 	for (p = F, q = 0; p; r = p, p = p->next) {
-		if ((k = p->len) >= size && (!q || m > k)) { m = k; q = p; s = r; }
+		if ((k = p->len) >= size && (!q || m > k)) {
+			m = k;
+			q = p;
+			s = r;
+			}
 		}
 	if (q) {
 		if (q->len - size >= MINBLK) { /* split block */
-			p = (struct mem *) (((char *) (q+1)) + size);
+			p = (mem *) (((char *) (q+1)) + size);
 			p->next = q->next;
-			p->len = q->len - size - sizeof(struct mem);
+			p->len = q->len - size - sizeof(mem);
 			s->next = p;
 			q->len = size;
 			}
-		else s->next = q->next;
+		else
+			s->next = q->next;
 		}
 	else {
-		top = B ? B : (char *)(((long)sbrk(0) + 7) & ~7);
-		if (F && (char *)(F+1) + F->len == B)
-			{ q = F; F = F->next; }
-		else q = (struct mem *) top;
-		top1 = (char *)(q+1) + size;
-		if (top1 > top) {
-			if (sbrk((int)(top1-top+SBGULP)) == (char *) -1)
-				return 0;
-			r = (struct mem *)top1;
-			r->len = SBGULP - sizeof(struct mem);
-			r->next = F;
-			F = r;
-			top1 += SBGULP;
+		top = (Char *)(((long)sbrk(0) + 7) & ~7);
+		if (F && (char *)(F+1) + F->len == top) {
+			q = F;
+			F = F->next;
 			}
+		else
+			q = (mem *) top;
+		top1 = (char *)(q+1) + size;
+		if (sbrk((int)(top1-top+SBGULP)) == (Char *) -1)
+			return 0;
+		r = (mem *)top1;
+		r->len = SBGULP - sizeof(mem);
+		r->next = F;
+		F = r;
+		top1 += SBGULP;
 		q->len = size;
-		B = top1;
 		}
-	return (char *) (q+1);
+	return (Char *) (q+1);
 	}
 
+ void
+#ifdef KR_headers
 free(f)
-char *f;
+	Char *f;
+#else
+free(Char *f)
+#endif
 {
-	struct mem *p, *q, *r;
+	mem *p, *q, *r;
 	char *pn, *qn;
 
 	if (!f) return;
-	q = (struct mem *) (f - sizeof(struct mem));
-	qn = f + q->len;
-	for (p = F, r = (struct mem *) &F; ; r = p, p = p->next) {
-		if (qn == (char *) p) {
-			q->len += p->len + sizeof(struct mem);
+	q = (mem *) ((char *)f - sizeof(mem));
+	qn = (char *)f + q->len;
+	for (p = F, r = (mem *) &F; ; r = p, p = p->next) {
+		if (qn == (Char *) p) {
+			q->len += p->len + sizeof(mem);
 			p = p->next;
 			}
 		pn = p ? ((char *) (p+1)) + p->len : 0;
-		if (pn == (char *) q) {
-			p->len += sizeof(struct mem) + q->len;
+		if (pn == (Char *) q) {
+			p->len += sizeof(mem) + q->len;
 			q->len = 0;
 			q->next = p;
 			r->next = p;
@@ -115,22 +134,27 @@ char *f;
 		}
 	}
 
-char *
+ Char *
+#ifdef KR_headers
 realloc(f, size)
-char *f;
-unsigned size;
+	Char *f;
+	Unsigned size;
+#else
+realloc(Char *f, Unsigned size)
+#endif
 {
-	struct mem *p;
-	char *q, *f1;
-	unsigned s1;
+	mem *p;
+	Char *q, *f1;
+	Unsigned s1;
 
 	if (!f) return malloc(size);
-	p = (struct mem *) (f - sizeof(struct mem));
+	p = (mem *) ((char *)f - sizeof(mem));
 	s1 = p->len;
 	free(f);
-	if (s1 > size) s1 = size + 7 & ~7;
+	if (s1 > size)
+		s1 = size + 7 & ~7;
 	if (!p->len) {
-		f1 = (char *)(p->next + 1);
+		f1 = (Char *)(p->next + 1);
 		memcpy(f1, f, s1);
 		f = f1;
 		}

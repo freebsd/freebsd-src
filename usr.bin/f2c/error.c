@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -23,26 +23,41 @@ this software.
 
 #include "defs.h"
 
-warni(s,t)
- char *s;
- int t;
+ void
+#ifdef KR_headers
+warni(s, t)
+	char *s;
+	int t;
+#else
+warni(char *s, int t)
+#endif
 {
 	char buf[100];
 	sprintf(buf,s,t);
 	warn(buf);
 	}
 
-warn1(s,t)
-char *s, *t;
+ void
+#ifdef KR_headers
+warn1(s, t)
+	char *s;
+	char *t;
+#else
+warn1(char *s, char *t)
+#endif
 {
 	char buff[100];
 	sprintf(buff, s, t);
 	warn(buff);
 }
 
-
+ void
+#ifdef KR_headers
 warn(s)
-char *s;
+	char *s;
+#else
+warn(char *s)
+#endif
 {
 	if(nowarnflag)
 		return;
@@ -55,9 +70,14 @@ char *s;
 	++nwarn;
 }
 
-
+ void
+#ifdef KR_headers
 errstr(s, t)
-char *s, *t;
+	char *s;
+	char *t;
+#else
+errstr(char *s, char *t)
+#endif
 {
 	char buff[100];
 	sprintf(buff, s, t);
@@ -65,19 +85,28 @@ char *s, *t;
 }
 
 
-
-erri(s,t)
-char *s;
-int t;
+ void
+#ifdef KR_headers
+erri(s, t)
+	char *s;
+	int t;
+#else
+erri(char *s, int t)
+#endif
 {
 	char buff[100];
 	sprintf(buff, s, t);
 	err(buff);
 }
 
-errl(s,t)
-char *s;
-long t;
+ void
+#ifdef KR_headers
+errl(s, t)
+	char *s;
+	long t;
+#else
+errl(char *s, long t)
+#endif
 {
 	char buff[100];
 	sprintf(buff, s, t);
@@ -86,8 +115,13 @@ long t;
 
  char *err_proc = 0;
 
+ void
+#ifdef KR_headers
 err(s)
-char *s;
+	char *s;
+#else
+err(char *s)
+#endif
 {
 	if (err_proc)
 		fprintf(diagfile,
@@ -102,18 +136,26 @@ char *s;
 	++nerr;
 }
 
-
+ void
+#ifdef KR_headers
 yyerror(s)
-char *s;
+	char *s;
+#else
+yyerror(char *s)
+#endif
 {
 	err(s);
 }
 
 
-
+ void
+#ifdef KR_headers
 dclerr(s, v)
-char *s;
-Namep v;
+	char *s;
+	Namep v;
+#else
+dclerr(char *s, Namep v)
+#endif
 {
 	char buff[100];
 
@@ -127,9 +169,14 @@ Namep v;
 }
 
 
-
+ void
+#ifdef KR_headers
 execerr(s, n)
-char *s, *n;
+	char *s;
+	char *n;
+#else
+execerr(char *s, char *n)
+#endif
 {
 	char buf1[100], buf2[100];
 
@@ -139,8 +186,13 @@ char *s, *n;
 }
 
 
+ void
+#ifdef KR_headers
 Fatal(t)
-char *t;
+	char *t;
+#else
+Fatal(char *t)
+#endif
 {
 	fprintf(diagfile, "Compiler error line %ld", lineno);
 	if (infname)
@@ -151,9 +203,14 @@ char *t;
 
 
 
-
-fatalstr(t,s)
-char *t, *s;
+ void
+#ifdef KR_headers
+fatalstr(t, s)
+	char *t;
+	char *s;
+#else
+fatalstr(char *t, char *s)
+#endif
 {
 	char buff[100];
 	sprintf(buff, t, s);
@@ -161,10 +218,14 @@ char *t, *s;
 }
 
 
-
-fatali(t,d)
-char *t;
-int d;
+ void
+#ifdef KR_headers
+fatali(t, d)
+	char *t;
+	int d;
+#else
+fatali(char *t, int d)
+#endif
 {
 	char buff[100];
 	sprintf(buff, t, d);
@@ -172,10 +233,15 @@ int d;
 }
 
 
-
+ void
+#ifdef KR_headers
 badthing(thing, r, t)
-char *thing, *r;
-int t;
+	char *thing;
+	char *r;
+	int t;
+#else
+badthing(char *thing, char *r, int t)
+#endif
 {
 	char buff[50];
 	sprintf(buff, "Impossible %s %d in routine %s", thing, t, r);
@@ -183,19 +249,27 @@ int t;
 }
 
 
-
+ void
+#ifdef KR_headers
 badop(r, t)
-char *r;
-int t;
+	char *r;
+	int t;
+#else
+badop(char *r, int t)
+#endif
 {
 	badthing("opcode", r, t);
 }
 
 
-
+ void
+#ifdef KR_headers
 badtag(r, t)
-char *r;
-int t;
+	char *r;
+	int t;
+#else
+badtag(char *r, int t)
+#endif
 {
 	badthing("tag", r, t);
 }
@@ -203,28 +277,41 @@ int t;
 
 
 
-
+ void
+#ifdef KR_headers
 badstg(r, t)
-char *r;
-int t;
+	char *r;
+	int t;
+#else
+badstg(char *r, int t)
+#endif
 {
 	badthing("storage class", r, t);
 }
 
 
 
-
+ void
+#ifdef KR_headers
 badtype(r, t)
-char *r;
-int t;
+	char *r;
+	int t;
+#else
+badtype(char *r, int t)
+#endif
 {
 	badthing("type", r, t);
 }
 
-
+ void
+#ifdef KR_headers
 many(s, c, n)
-char *s, c;
-int n;
+	char *s;
+	char c;
+	int n;
+#else
+many(char *s, char c, int n)
+#endif
 {
 	char buff[250];
 
@@ -234,18 +321,26 @@ int n;
 	Fatal(buff);
 }
 
-
+ void
+#ifdef KR_headers
 err66(s)
-char *s;
+	char *s;
+#else
+err66(char *s)
+#endif
 {
 	errstr("Fortran 77 feature used: %s", s);
 	--nerr;
 }
 
 
-
+ void
+#ifdef KR_headers
 errext(s)
-char *s;
+	char *s;
+#else
+errext(char *s)
+#endif
 {
 	errstr("f2c extension used: %s", s);
 	--nerr;
