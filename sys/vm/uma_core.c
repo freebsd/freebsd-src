@@ -1290,7 +1290,7 @@ uma_zdestroy(uma_zone_t zone)
 
 /* See uma.h */
 void *
-uma_zalloc_arg(uma_zone_t zone, void *udata, int wait)
+uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 {
 	void *item;
 	uma_cache_t cache;
@@ -1323,6 +1323,8 @@ zalloc_start:
 			CPU_UNLOCK(zone, cpu);
 			if (zone->uz_ctor)
 				zone->uz_ctor(item, zone->uz_size, udata);
+			if (flags & M_ZERO)
+				bzero(item, zone->uz_size);
 			return (item);
 		} else if (cache->uc_freebucket) {
 			/*
@@ -1389,7 +1391,7 @@ zalloc_start:
 
 	if (bucket == NULL)
 		bucket = uma_zalloc_internal(bucketzone,
-		    NULL, wait, NULL);
+		    NULL, flags, NULL);
 
 	if (bucket != NULL) {
 #ifdef INVARIANTS
@@ -1397,7 +1399,7 @@ zalloc_start:
 #endif
 		bucket->ub_ptr = -1;
 
-		if (uma_zalloc_internal(zone, udata, wait, bucket))
+		if (uma_zalloc_internal(zone, udata, flags, bucket))
 			goto zalloc_restart;
 		else
 			uma_zfree_internal(bucketzone, bucket, NULL, 0);
@@ -1410,7 +1412,7 @@ zalloc_start:
 	printf("uma_zalloc_arg: Bucketzone returned NULL\n");
 #endif
 
-	return (uma_zalloc_internal(zone, udata, wait, NULL));
+	return (uma_zalloc_internal(zone, udata, flags, NULL));
 }
 
 /*
@@ -1419,7 +1421,7 @@ zalloc_start:
  * Arguments
  *	zone   The zone to alloc for.
  *	udata  The data to be passed to the constructor.
- *	wait   M_WAITOK or M_NOWAIT.
+ *	flags  M_WAITOK, M_NOWAIT, M_ZERO.
  *	bucket The bucket to fill or NULL
  *
  * Returns
@@ -1434,7 +1436,7 @@ zalloc_start:
  */
 
 static void *
-uma_zalloc_internal(uma_zone_t zone, void *udata, int wait, uma_bucket_t bucket)
+uma_zalloc_internal(uma_zone_t zone, void *udata, int flags, uma_bucket_t bucket)
 {
 	uma_slab_t slab;
 	u_int8_t freei;
@@ -1503,7 +1505,7 @@ new_slab:
 		    zone->uz_pages >= zone->uz_maxpages) {
 			zone->uz_flags |= UMA_ZFLAG_FULL;
 
-			if (wait & M_WAITOK)
+			if (flags & M_WAITOK)
 				msleep(zone, &zone->uz_lock, PVM, "zonelimit", 0);
 			else 
 				goto alloc_fail;
@@ -1512,7 +1514,7 @@ new_slab:
 		}
 
 		zone->uz_recurse++;
-		slab = slab_zalloc(zone, wait);
+		slab = slab_zalloc(zone, flags);
 		zone->uz_recurse--;
 		/* 
 		 * We might not have been able to get a slab but another cpu
@@ -1565,7 +1567,8 @@ new_slab:
 	if (bucket != NULL) {
 		/* Try to keep the buckets totally full, but don't block */
 		if (bucket->ub_ptr < zone->uz_count) {
-			wait = M_NOWAIT;
+			flags |= M_NOWAIT;
+			flags &= ~M_WAITOK;
 			goto new_slab;
 		} else
 			zone->uz_fills--;
@@ -1574,8 +1577,11 @@ new_slab:
 	ZONE_UNLOCK(zone);
 
 	/* Only construct at this time if we're not filling a bucket */
-	if (bucket == NULL && zone->uz_ctor != NULL) 
+	if (bucket == NULL && zone->uz_ctor != NULL)  {
 		zone->uz_ctor(item, zone->uz_size, udata);
+		if (flags & M_ZERO)
+			bzero(item, zone->uz_size);
+	}
 
 	return (item);
 

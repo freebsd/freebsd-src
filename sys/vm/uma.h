@@ -198,8 +198,7 @@ void uma_zdestroy(uma_zone_t zone);
  * Arguments:
  *	zone  The zone we are allocating from
  *	arg   This data is passed to the ctor function
- *	wait  This flag indicates whether or not we are allowed to block while
- *		allocating memory for this zone should we run out.
+ *	flags See sys/malloc.h for available flags.
  *
  * Returns:
  *	A non null pointer to an initialized element from the zone is
@@ -207,7 +206,7 @@ void uma_zdestroy(uma_zone_t zone);
  *	returned if the zone is empty or the ctor failed.
  */
 
-void *uma_zalloc_arg(uma_zone_t zone, void *arg, int wait);
+void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
 
 /*
  * Allocates an item out of a zone without supplying an argument
@@ -215,12 +214,12 @@ void *uma_zalloc_arg(uma_zone_t zone, void *arg, int wait);
  * This is just a wrapper for uma_zalloc_arg for convenience.
  *
  */
-static __inline void *uma_zalloc(uma_zone_t zone, int wait);
+static __inline void *uma_zalloc(uma_zone_t zone, int flags);
 
 static __inline void *
-uma_zalloc(uma_zone_t zone, int wait)
+uma_zalloc(uma_zone_t zone, int flags)
 {
-	return uma_zalloc_arg(zone, NULL, wait);
+	return uma_zalloc_arg(zone, NULL, flags);
 }
 
 /*
