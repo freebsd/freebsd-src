@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.5 1995/12/07 12:47:35 davidg Exp $
+ *	$Id: if_fxp.c,v 1.6 1995/12/18 02:47:43 davidg Exp $
  */
 
 /*
@@ -134,7 +134,7 @@ static u_char fxp_cb_config_template[] = {
 	0x0, 0x0
 };
 
-static inline void fxp_scb_wait	__P((struct fxp_csr *));
+static inline int fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 static int fxp_shutdown		__P((struct kern_devconf *, int));
@@ -191,13 +191,14 @@ DATA_SET(pcidevice_set, fxp_device);
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
  */
-static inline void
+static inline int
 fxp_scb_wait(csr)
 	struct fxp_csr *csr;
 {
 	int i = 10000;
 
 	while ((csr->scb_command & FXP_SCB_COMMAND_MASK) && --i);
+	return (i);
 }
 
 /*
@@ -399,14 +400,7 @@ fxp_shutdown(kdc, force)
 {
 	struct fxp_softc *sc = fxp_sc[kdc->kdc_unit];
 	
-	/*
-	 * Cancel stats updater.
-	 */
-	untimeout(fxp_stats_update, sc);
-	/*
-	 * Issue software reset.
-	 */
-	sc->csr->port = 0;
+	fxp_stop(sc);
 
 	(void) dev_detach(kdc);
 	return 0;
@@ -518,10 +512,17 @@ tbdinit:
 		sc->cbl_first = txp;
 	}
 
+	if (!fxp_scb_wait(csr)) {
+		/*
+		 * Hmmm, card has gone out to lunch
+		 */
+		fxp_init(ifp);
+		goto txloop;
+	}
+
 	/*
 	 * Resume transmission if suspended.
 	 */
-	fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_CU_RESUME;
 
 #if NBPFILTER > 0
@@ -646,8 +647,7 @@ rcvloop:
 			if (statack & FXP_SCB_STATACK_RNR) {
 				struct fxp_csr *csr = sc->csr;
 
-				ifp->if_ierrors++;
-				fxp_scb_wait(csr);
+				(void) fxp_scb_wait(csr);
 				csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 				csr->scb_command = FXP_SCB_COMMAND_RU_START;
 			}
@@ -679,11 +679,15 @@ fxp_stats_update(arg)
 	ifp->if_opackets += sp->tx_good;
 	ifp->if_collisions += sp->tx_total_collisions;
 	ifp->if_ipackets += sp->rx_good;
+	ifp->if_ierrors +=
+	    sp->rx_crc_errors +
+	    sp->rx_alignment_errors +
+	    sp->rx_rnr_errors +
+	    sp->rx_overrun_errors +
+	    sp->rx_shortframes;
 	/*
-	 * If there is a pending command, don't wait for it to
-	 * be accepted - we'll pick up the stats the next time
-	 * around. Make sure we don't count the stats twice
-	 * however.
+	 * If there is no pending command, start another stats
+	 * dump. Otherwise punt for now.
 	 */
 	if ((sc->csr->scb_command & FXP_SCB_COMMAND_MASK) == 0) {
 		/*
@@ -692,16 +696,22 @@ fxp_stats_update(arg)
 		 * writing scb_command in other parts of the driver.
 		 */
 		sc->csr->scb_command = FXP_SCB_COMMAND_CU_DUMPRESET;
-		fxp_scb_wait(sc->csr);
+		(void) fxp_scb_wait(sc->csr);
 	} else {
 		/*
 		 * A previous command is still waiting to be accepted.
 		 * Just zero our copy of the stats and wait for the
-		 * next timer event to pdate them.
+		 * next timer event to update them.
 		 */
 		sp->tx_good = 0;
 		sp->tx_total_collisions = 0;
+
 		sp->rx_good = 0;
+		sp->rx_crc_errors = 0;
+		sp->rx_alignment_errors = 0;
+		sp->rx_rnr_errors = 0;
+		sp->rx_overrun_errors = 0;
+		sp->rx_shortframes = 0;;
 	}
 	/*
 	 * Schedule another timeout one second from now.
@@ -718,15 +728,50 @@ fxp_stop(sc)
 	struct fxp_softc *sc;
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct fxp_cb_tx *txp;
+	int i;
 
 	/*
 	 * Cancel stats updater.
 	 */
 	untimeout(fxp_stats_update, sc);
+
+	/*
+	 * Issue software reset
+	 */
 	sc->csr->port = 0;
 	DELAY(10);
 
-	ifp->if_flags &= ~IFF_RUNNING;
+	/*
+	 * Release any xmit buffers.
+	 */
+	for (txp = sc->cbl_first; txp != NULL && txp->mb_head != NULL;
+	    txp = txp->next) {
+		m_freem(txp->mb_head);
+		txp->mb_head = NULL;
+	}
+	sc->tx_queued = 0;
+
+	/*
+	 * Free all the receive buffers then reallocate/reinitialize
+	 */
+	if (sc->rfa_headm != NULL)
+		m_freem(sc->rfa_headm);
+	sc->rfa_headm = NULL;
+	sc->rfa_tailm = NULL;
+	for (i = 0; i < FXP_NRFABUFS; i++) {
+		if (fxp_add_rfabuf(sc, NULL) != 0) {
+			/*
+			 * This "can't happen" - we're at splimp()
+			 * and we just freed all the buffers we need
+			 * above.
+			 */
+			panic("fxp_stop: no buffers!");
+		}
+	}
+
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	ifp->if_timer = 0;
 }
 
 /*
@@ -756,17 +801,11 @@ fxp_init(ifp)
 	struct fxp_csr *csr = sc->csr;
 	int i, s, mcast, prm;
 
-	/*
-	 * Cancel stats updater.
-	 */
-	untimeout(fxp_stats_update, sc);
-
 	s = splimp();
 	/*
-	 * Issue software reset and wait 10us for the card to recover.
+	 * Cancel any pending I/O
 	 */
-	csr->port = 0;
-	DELAY(10);
+	fxp_stop(sc);
 
 	prm = (ifp->if_flags & IFF_PROMISC) ? 1 : 0;
 	sc->promisc_mode = prm;
@@ -784,13 +823,13 @@ fxp_init(ifp)
 	csr->scb_general = 0;
 	csr->scb_command = FXP_SCB_COMMAND_CU_BASE;
 
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_RU_BASE;
 
 	/*
 	 * Initialize base of dump-stats buffer.
 	 */
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_general = vtophys(sc->fxp_stats);
 	csr->scb_command = FXP_SCB_COMMAND_CU_DUMP_ADR;
 
@@ -838,14 +877,14 @@ fxp_init(ifp)
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
-	cbp->fdx_pin_en =	0;	/* (ignore) FDX# pin */
+	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
 	cbp->mc_all =		mcast;	/* accept all multicasts */
 
 	/*
 	 * Start the config command/DMA.
 	 */
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_general = vtophys(cbp);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 	/* ...and wait for it to complete. */
@@ -865,7 +904,7 @@ fxp_init(ifp)
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
 	 */
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 	/* ...and wait for it to complete. */
 	while (!(cb_ias->cb_status & FXP_CB_STATUS_C));
@@ -891,13 +930,13 @@ fxp_init(ifp)
 	sc->cbl_first = sc->cbl_last = txp;
 	sc->tx_queued = 0;
 
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_command = FXP_SCB_COMMAND_CU_START;
 
 	/*
 	 * Initialize receiver buffer area - RFA.
 	 */
-	fxp_scb_wait(csr);
+	(void) fxp_scb_wait(csr);
 	csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 	csr->scb_command = FXP_SCB_COMMAND_RU_START;
 
