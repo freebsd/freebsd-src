@@ -116,6 +116,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 nat_t	**nat_table[2] = { NULL, NULL },
 	*nat_instances = NULL;
 ipnat_t	*nat_list = NULL;
+u_int	ipf_nattable_max = NAT_TABLE_MAX;
 u_int	ipf_nattable_sz = NAT_TABLE_SZ;
 u_int	ipf_natrules_sz = NAT_SIZE;
 u_int	ipf_rdrrules_sz = RDR_SIZE;
@@ -779,6 +780,8 @@ caddr_t data;
 	if ((aps != NULL) && (aps->aps_data != 0)) {
 		ng.ng_sz += sizeof(ap_session_t);
 		ng.ng_sz += aps->aps_psiz;
+		if (aps->aps_psiz > 4)	/* XXX - sizeof(ipn_data) */
+			ng.ng_sz -= 4;
 	}
 
 	error = IWCOPY((caddr_t)&ng, data, sizeof(ng));
@@ -794,6 +797,7 @@ caddr_t data;
 	nat_save_t ipn, *ipnp, *ipnn = NULL;
 	register nat_t *n, *nat;
 	ap_session_t *aps;
+	size_t dsz;
 	int error;
 
 	error = IRCOPY(data, (caddr_t)&ipnp, sizeof(ipnp));
@@ -825,7 +829,6 @@ caddr_t data;
 	}
 
 	ipn.ipn_next = nat->nat_next;
-	ipn.ipn_dsize = 0;
 	bcopy((char *)nat, (char *)&ipn.ipn_nat, sizeof(ipn.ipn_nat));
 	ipn.ipn_nat.nat_data = NULL;
 
@@ -839,10 +842,13 @@ caddr_t data;
 		      sizeof(ipn.ipn_rule));
 
 	if ((aps = nat->nat_aps)) {
-		ipn.ipn_dsize = sizeof(*aps);
+		dsz = sizeof(*aps);
 		if (aps->aps_data)
-			ipn.ipn_dsize += aps->aps_psiz;
-		KMALLOCS(ipnn, nat_save_t *, sizeof(*ipnn) + ipn.ipn_dsize);
+			dsz += aps->aps_psiz;
+		ipn.ipn_dsize = dsz;
+		if (dsz > sizeof(ipn.ipn_data))
+			dsz -= sizeof(ipn.ipn_data);
+		KMALLOCS(ipnn, nat_save_t *, sizeof(*ipnn) + dsz);
 		if (ipnn == NULL)
 			return ENOMEM;
 		bcopy((char *)&ipn, (char *)ipnn, sizeof(ipn));
@@ -851,14 +857,14 @@ caddr_t data;
 		if (aps->aps_data) {
 			bcopy(aps->aps_data, ipnn->ipn_data + sizeof(*aps),
 			      aps->aps_psiz);
-			ipnn->ipn_dsize += aps->aps_psiz;
 		}
 		error = IWCOPY((caddr_t)ipnn, ipnp,
-			       sizeof(ipn) + ipn.ipn_dsize);
+			       sizeof(ipn) + dsz);
 		if (error)
 			error = EFAULT;
-		KFREES(ipnn, sizeof(*ipnn) + ipn.ipn_dsize);
+		KFREES(ipnn, sizeof(*ipnn) + dsz);
 	} else {
+		ipn.ipn_dsize = 0;
 		error = IWCOPY((caddr_t)&ipn, ipnp, sizeof(ipn));
 		if (error)
 			error = EFAULT;
@@ -886,12 +892,12 @@ caddr_t data;
 		return EFAULT;
 	nat = NULL;
 	if (ipn.ipn_dsize) {
-		KMALLOCS(ipnn, nat_save_t *, sizeof(ipn) + ipn.ipn_dsize);
+		KMALLOCS(ipnn, nat_save_t *, sizeof(*ipnn) + ipn.ipn_dsize);
 		if (ipnn == NULL)
 			return ENOMEM;
 		bcopy((char *)&ipn, (char *)ipnn, sizeof(ipn));
-		error = IRCOPY((caddr_t)ipnp, (caddr_t)ipn.ipn_data,
-			       ipn.ipn_dsize);
+		error = IRCOPY((caddr_t)ipnp + offsetof(nat_save_t, ipn_data),
+			       (caddr_t)ipnn->ipn_data, ipn.ipn_dsize);
 		if (error) {
 			error = EFAULT;
 			goto junkput;
@@ -1066,7 +1072,7 @@ struct nat *natd;
 	 * If there's a fragment table entry too for this nat entry, then
 	 * dereference that as well.
 	 */
-	ipfr_forget((void *)natd);
+	ipfr_forgetnat((void *)natd);
 	aps_free(natd->nat_aps);
 	nat_stats.ns_inuse--;
 	KFREE(natd);
@@ -1164,6 +1170,11 @@ int direction;
 	qif_t *qf = fin->fin_qif;
 #endif
 
+	if (nat_stats.ns_inuse >= ipf_nattable_max) {
+		nat_stats.ns_memfail++;
+		return NULL;
+	}
+
 	nflags = flags & np->in_flags;
 	if (flags & IPN_TCPUDP) {
 		tcp = (tcphdr_t *)fin->fin_dp;
@@ -1175,6 +1186,17 @@ int direction;
 	KMALLOC(nat, nat_t *);
 	if (nat == NULL) {
 		nat_stats.ns_memfail++;
+		/*
+		 * Try to automatically tune the max # of entries in the
+		 * table allowed to be less than what will cause kmem_alloc()
+		 * to fail and try to eliminate panics due to out of memory
+		 * conditions arising.
+		 */
+		if (ipf_nattable_max > ipf_nattable_sz) {
+			ipf_nattable_max = nat_stats.ns_inuse - 100;
+			printf("ipf_nattable_max reduced to %d\n",
+				ipf_nattable_max);
+		}
 		return NULL;
 	}
 
@@ -1431,7 +1453,7 @@ int direction;
 	CALC_SUMD(sum1, sum2, sumd);
 	nat->nat_sumd[0] = (sumd & 0xffff) + (sumd >> 16);
 #if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
-	if ((flags & IPN_TCPUDP) && dohwcksum &&
+	if ((flags & IPN_TCP) && dohwcksum &&
 	    (qf->qf_ill->ill_ick.ick_magic == ICK_M_CTL_MAGIC)) {
 		if (direction == NAT_OUTBOUND)
 			sum1 = LONG_SUM(ntohl(in.s_addr));
@@ -1683,6 +1705,7 @@ int dir;
 		return NULL;
 
 	flags = 0;
+	sumd2 = 0;
 	*nflags = IPN_ICMPERR;
 	icmp = (icmphdr_t *)fin->fin_dp;
 	oip = (ip_t *)&icmp->icmp_ip;
@@ -1736,137 +1759,75 @@ int dir;
 
 	CALC_SUMD(sum1, sum2, sumd);
 
-	if (nat->nat_dir == NAT_OUTBOUND) {
-		/*
-		 * Fix IP checksum of the offending IP packet to adjust for
-		 * the change in the IP address.
-		 *
-		 * Normally, you would expect that the ICMP checksum of the 
-		 * ICMP error message needs to be adjusted as well for the
-		 * IP address change in oip.
-		 * However, this is a NOP, because the ICMP checksum is 
-		 * calculated over the complete ICMP packet, which includes the
-		 * changed oip IP addresses and oip->ip_sum. However, these 
-		 * two changes cancel each other out (if the delta for
-		 * the IP address is x, then the delta for ip_sum is minus x), 
-		 * so no change in the icmp_cksum is necessary.
-		 *
-		 * Be careful that nat_dir refers to the direction of the
-		 * offending IP packet (oip), not to its ICMP response (icmp)
-		 */
-		fix_datacksum(&oip->ip_sum, sumd);
+	/*
+	 * Fix IP checksum of the offending IP packet to adjust for
+	 * the change in the IP address.
+	 *
+	 * Normally, you would expect that the ICMP checksum of the 
+	 * ICMP error message needs to be adjusted as well for the
+	 * IP address change in oip.
+	 * However, this is a NOP, because the ICMP checksum is 
+	 * calculated over the complete ICMP packet, which includes the
+	 * changed oip IP addresses and oip->ip_sum. However, these 
+	 * two changes cancel each other out (if the delta for
+	 * the IP address is x, then the delta for ip_sum is minus x), 
+	 * so no change in the icmp_cksum is necessary.
+	 *
+	 * Be careful that nat_dir refers to the direction of the
+	 * offending IP packet (oip), not to its ICMP response (icmp)
+	 */
+	fix_datacksum(&oip->ip_sum, sumd);
+	/* Fix icmp cksum : IP Addr + Cksum */
 
+	/*
+	 * Fix UDP pseudo header checksum to compensate for the
+	 * IP address change.
+	 */
+	if ((oip->ip_p == IPPROTO_UDP) && (dlen >= 8) && udp->uh_sum) {
 		/*
-		 * Fix UDP pseudo header checksum to compensate for the
-		 * IP address change.
+		 * The UDP checksum is optional, only adjust it 
+		 * if it has been set.
 		 */
-		if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
-			/*
-			 * The UDP checksum is optional, only adjust it 
-			 * if it has been set.
-			 */
-			sum1 = ntohs(udp->uh_sum);
-			fix_datacksum(&udp->uh_sum, sumd);
-			sum2 = ntohs(udp->uh_sum);
-
-			/*
-			 * Fix ICMP checksum to compensate the UDP 
-			 * checksum adjustment.
-			 */
-			CALC_SUMD(sum1, sum2, sumd);
-			sumd2 = sumd;
-		}
+		sum1 = ntohs(udp->uh_sum);
+		fix_datacksum(&udp->uh_sum, sumd);
+		sum2 = ntohs(udp->uh_sum);
 
 		/*
-		 * Fix TCP pseudo header checksum to compensate for the 
-		 * IP address change. Before we can do the change, we
-		 * must make sure that oip is sufficient large to hold
-		 * the TCP checksum (normally it does not!).
+		 * Fix ICMP checksum to compensate the UDP 
+		 * checksum adjustment.
 		 */
-		if (oip->ip_p == IPPROTO_TCP && dlen >= 18) {
-		
-			sum1 = ntohs(tcp->th_sum);
-			fix_datacksum(&tcp->th_sum, sumd);
-			sum2 = ntohs(tcp->th_sum);
-
-			/*
-			 * Fix ICMP checksum to compensate the TCP 
-			 * checksum adjustment.
-			 */
-			CALC_SUMD(sum1, sum2, sumd);
-			sumd2 = sumd;
-		}
-	} else {
-
-		/*
-		 * Fix IP checksum of the offending IP packet to adjust for
-		 * the change in the IP address.
-		 *
-		 * Normally, you would expect that the ICMP checksum of the 
-		 * ICMP error message needs to be adjusted as well for the
-		 * IP address change in oip.
-		 * However, this is a NOP, because the ICMP checksum is 
-		 * calculated over the complete ICMP packet, which includes the
-		 * changed oip IP addresses and oip->ip_sum. However, these 
-		 * two changes cancel each other out (if the delta for
-		 * the IP address is x, then the delta for ip_sum is minus x), 
-		 * so no change in the icmp_cksum is necessary.
-		 *
-		 * Be careful that nat_dir refers to the direction of the
-		 * offending IP packet (oip), not to its ICMP response (icmp)
-		 */
-		fix_datacksum(&oip->ip_sum, sumd);
-
-/* XXX FV : without having looked at Solaris source code, it seems unlikely
- * that SOLARIS would compensate this in the kernel (a body of an IP packet 
- * in the data section of an ICMP packet). I have the feeling that this should
- * be unconditional, but I'm not in a position to check.
- */
-#if !SOLARIS && !defined(__sgi)
-		/*
-		 * Fix UDP pseudo header checksum to compensate for the
-		 * IP address change.
-		 */
-		if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
-			/*
-			 * The UDP checksum is optional, only adjust it 
-			 * if it has been set 
-			 */
-			sum1 = ntohs(udp->uh_sum);
-			fix_datacksum(&udp->uh_sum, sumd);
-			sum2 = ntohs(udp->uh_sum);
-
-			/*
-			 * Fix ICMP checksum to compensate the UDP 
-			 * checksum adjustment.
-			 */
-			CALC_SUMD(sum1, sum2, sumd);
-			sumd2 = sumd;
-		}
-		
-		/* 
-		 * Fix TCP pseudo header checksum to compensate for the 
-		 * IP address change. Before we can do the change, we
-		 * must make sure that oip is sufficient large to hold
-		 * the TCP checksum (normally it does not!).
-		 */
-		if (oip->ip_p == IPPROTO_TCP && dlen >= 18) {
-		
-			sum1 = ntohs(tcp->th_sum);
-			fix_datacksum(&tcp->th_sum, sumd);
-			sum2 = ntohs(tcp->th_sum);
-
-			/*
-			 * Fix ICMP checksum to compensate the TCP
-			 * checksum adjustment.
-			 */
-			CALC_SUMD(sum1, sum2, sumd);
-			sumd2 = sumd;
-		}
-#endif
+		sumd2 = sumd << 1;
+		CALC_SUMD(sum1, sum2, sumd);
+		sumd2 += sumd;
 	}
 
-	if ((flags & IPN_TCPUDP) != 0) {
+	/*
+	 * Fix TCP pseudo header checksum to compensate for the 
+	 * IP address change. Before we can do the change, we
+	 * must make sure that oip is sufficient large to hold
+	 * the TCP checksum (normally it does not!).
+	 */
+	else if ((oip->ip_p == IPPROTO_TCP) && (dlen >= 18)) {
+		sum1 = ntohs(tcp->th_sum);
+		fix_datacksum(&tcp->th_sum, sumd);
+		sum2 = ntohs(tcp->th_sum);
+
+		/*
+		 * Fix ICMP checksum to compensate the TCP 
+		 * checksum adjustment.
+		 */
+		sumd2 = sumd << 1;
+		CALC_SUMD(sum1, sum2, sumd);
+		sumd2 += sumd;
+	} else {
+		sumd2 = (sumd >> 16); 
+		if (nat->nat_dir == NAT_OUTBOUND)
+			sumd2 = ~sumd2;
+		else
+			sumd2 = ~sumd2 + 1;
+	}
+
+	if (((flags & IPN_TCPUDP) != 0) && (dlen >= 4)) {
 		/*
 		 * Step 2 :
 		 * For offending TCP/UDP IP packets, translate the ports as
@@ -1886,17 +1847,14 @@ int dir;
 		 * include the TCP checksum. So we have to check if the
 		 * ip->ip_len actually holds the TCP checksum of the oip!
 		 */
-
 		if (nat->nat_oport == tcp->th_dport) {
 			if (tcp->th_sport != nat->nat_inport) {
 				/*
 				 * Fix ICMP checksum to compensate port
 				 * adjustment.
 				 */
-				sum1 = ntohs(tcp->th_sport);
-				sum2 = ntohs(nat->nat_inport);
-				CALC_SUMD(sum1, sum2, sumd);
-				sumd2 += sumd;
+				sum1 = ntohs(nat->nat_inport);
+				sum2 = ntohs(tcp->th_sport);
 				tcp->th_sport = nat->nat_inport;
 
 				/*
@@ -1908,16 +1866,18 @@ int dir;
 				 * The UDP checksum is optional, only adjust
 				 * it if it has been set.
 				 */
-				if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+				if ((oip->ip_p == IPPROTO_UDP) &&
+				    (dlen >= 8) && udp->uh_sum) {
+					sumd = sum1 - sum2;
+					sumd2 += sumd;
 
 					sum1 = ntohs(udp->uh_sum);
 					fix_datacksum(&udp->uh_sum, sumd);
 					sum2 = ntohs(udp->uh_sum);
 
 					/*
-					 * Fix ICMP checksum to 
-					 * compensate UDP checksum 
-					 * adjustment.
+					 * Fix ICMP checksum to compensate
+					 * UDP checksum adjustment.
 					 */
 					CALC_SUMD(sum1, sum2, sumd);
 					sumd2 += sumd;
@@ -1929,63 +1889,73 @@ int dir;
 				 * packet flows the other direction compared to
 				 * the ICMP message.
 				 */
-				if (oip->ip_p == IPPROTO_TCP && dlen >= 18) {
+				if (oip->ip_p == IPPROTO_TCP) {
+					if (dlen >= 18) {
+						sumd = sum1 - sum2;
+						sumd2 += sumd;
 
-					sum1 = ntohs(tcp->th_sum);
-					fix_datacksum(&tcp->th_sum, sumd);
-					sum2 = ntohs(tcp->th_sum);
+						sum1 = ntohs(tcp->th_sum);
+						fix_datacksum(&tcp->th_sum,
+							      sumd);
+						sum2 = ntohs(tcp->th_sum);
 
-					/*
-					 * Fix ICMP checksum to 
-					 * compensate TCP checksum 
-					 * adjustment.
-					 */
-					CALC_SUMD(sum1, sum2, sumd);
-					sumd2 += sumd;
+						/*
+						 * Fix ICMP checksum to 
+						 * compensate TCP checksum 
+						 * adjustment.
+						 */
+						CALC_SUMD(sum1, sum2, sumd);
+						sumd2 += sumd;
+					} else {
+						sumd = sum2 - sum1 + 1;
+						sumd2 += sumd;
+					}
 				}
 			}
-		} else {
-			if (tcp->th_dport != nat->nat_outport) {
-				/*
-				 * Fix ICMP checksum to compensate port
-				 * adjustment.
-				 */
-				sum1 = ntohs(tcp->th_dport);
-				sum2 = ntohs(nat->nat_outport);
-				CALC_SUMD(sum1, sum2, sumd);
+		} else if (tcp->th_dport != nat->nat_outport) {
+			/*
+			 * Fix ICMP checksum to compensate port
+			 * adjustment.
+			 */
+			sum1 = ntohs(nat->nat_outport);
+			sum2 = ntohs(tcp->th_dport);
+			tcp->th_dport = nat->nat_outport;
+
+			/*
+			 * Fix udp checksum to compensate port
+			 * adjustment.   NOTE : the offending IP
+			 * packet flows the other direction compared
+			 * to the ICMP message.
+			 *
+			 * The UDP checksum is optional, only adjust
+			 * it if it has been set.
+			 */
+			if ((oip->ip_p == IPPROTO_UDP) &&
+			    (dlen >= 8) && udp->uh_sum) {
+				sumd = sum1 - sum2;
 				sumd2 += sumd;
-				tcp->th_dport = nat->nat_outport;
+
+				sum1 = ntohs(udp->uh_sum);
+				fix_datacksum(&udp->uh_sum, sumd);
+				sum2 = ntohs(udp->uh_sum);
 
 				/*
-				 * Fix udp checksum to compensate port
-				 * adjustment.   NOTE : the offending IP
-				 * packet flows the other direction compared
-				 * to the ICMP message.
-				 *
-				 * The UDP checksum is optional, only adjust
-				 * it if it has been set.
+				 * Fix ICMP checksum to compensate
+				 * UDP checksum adjustment.
 				 */
-				if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+				CALC_SUMD(sum1, sum2, sumd);
+			}
 
-					sum1 = ntohs(udp->uh_sum);
-					fix_datacksum(&udp->uh_sum, sumd);
-					sum2 = ntohs(udp->uh_sum);
-
-					/*
-					 * Fix ICMP checksum to compensate
-					 * UDP checksum adjustment.
-					 */
-					CALC_SUMD(sum1, sum2, sumd);
+			/*
+			 * Fix tcp checksum (if present) to compensate
+			 * port adjustment. NOTE : the offending IP
+			 * packet flows the other direction compared to
+			 * the ICMP message.
+			 */
+			if (oip->ip_p == IPPROTO_TCP) {
+				if (dlen >= 18) {
+					sumd = sum1 - sum2;
 					sumd2 += sumd;
-				}
-
-				/*
-				 * Fix tcp checksum (if present) to compensate
-				 * port adjustment. NOTE : the offending IP
-				 * packet flows the other direction compared to
-				 * the ICMP message.
-				 */
-				if (oip->ip_p == IPPROTO_TCP && dlen >= 18) {
 
 					sum1 = ntohs(tcp->th_sum);
 					fix_datacksum(&tcp->th_sum, sumd);
@@ -1996,18 +1966,18 @@ int dir;
 					 * UDP checksum adjustment.
 					 */
 					CALC_SUMD(sum1, sum2, sumd);
-					sumd2 += sumd;
+				} else {
+					sumd = sum2 - sum1;
+					if (nat->nat_dir == NAT_OUTBOUND)
+						sumd++;
 				}
 			}
+			sumd2 += sumd;
 		}
 		if (sumd2) {
 			sumd2 = (sumd2 & 0xffff) + (sumd2 >> 16);
 			sumd2 = (sumd2 & 0xffff) + (sumd2 >> 16);
-			if (nat->nat_dir == NAT_OUTBOUND) {
-				fix_outcksum(fin, &icmp->icmp_cksum, sumd2);
-			} else {
-				fix_incksum(fin, &icmp->icmp_cksum, sumd2);
-			}
+			fix_incksum(fin, &icmp->icmp_cksum, sumd2);
 		}
 	}
 	if (oip->ip_p == IPPROTO_ICMP)
@@ -2477,13 +2447,9 @@ maskloop:
 			s1 = LONG_SUM(ntohl(fin->fin_saddr));
 			s2 = LONG_SUM(ntohl(nat->nat_outip.s_addr));
 			CALC_SUMD(s1, s2, sumd);
-
-			if (nat->nat_dir == NAT_OUTBOUND)
-				fix_outcksum(fin, &ip->ip_sum, sumd);
-			else
-				fix_incksum(fin, &ip->ip_sum, sumd);
+			fix_outcksum(fin, &ip->ip_sum, sumd);
 		}
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#if (SOLARIS || defined(__sgi)) || !defined(_KERNEL)
 		else {
 			if (nat->nat_dir == NAT_OUTBOUND)
 				fix_outcksum(fin, &ip->ip_sum, nat->nat_ipsumd);
@@ -2511,7 +2477,8 @@ maskloop:
 				if (nat->nat_age < fr_defnaticmpage)
 					nat->nat_age = fr_defnaticmpage;
 #ifdef LARGE_NAT
-				else if (nat->nat_age > fr_defnatage)
+				else if ((!np || !np->in_age[1]) &&
+				         (nat->nat_age > fr_defnatage))
 					nat->nat_age = fr_defnatage;
 #endif
 				/*
@@ -2704,19 +2671,19 @@ maskloop:
 		nat->nat_bytes += ip->ip_len;
 		nat->nat_pkts++;
 		MUTEX_EXIT(&nat->nat_lock);
-		ip->ip_dst = nat->nat_inip;
-		fin->fin_fi.fi_daddr = nat->nat_inip.s_addr;
 
 		/*
 		 * Fix up checksums, not by recalculating them, but
 		 * simply computing adjustments.
 		 */
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
 		if (nat->nat_dir == NAT_OUTBOUND)
 			fix_incksum(fin, &ip->ip_sum, nat->nat_ipsumd);
 		else
 			fix_outcksum(fin, &ip->ip_sum, nat->nat_ipsumd);
-#endif
+
+		ip->ip_dst = nat->nat_inip;
+		fin->fin_fi.fi_daddr = nat->nat_inip.s_addr;
+
 		if ((fin->fin_off == 0) && !(fin->fin_fl & FI_SHORT)) {
 
 			if ((nat->nat_inport != 0) && (tcp != NULL)) {
@@ -2732,7 +2699,8 @@ maskloop:
 				if (nat->nat_age < fr_defnaticmpage)
 					nat->nat_age = fr_defnaticmpage;
 #ifdef LARGE_NAT
-				else if (nat->nat_age > fr_defnatage)
+				else if ((!np || !np->in_age[0]) &&
+					 (nat->nat_age > fr_defnatage))
 					nat->nat_age = fr_defnatage;
 #endif
 				/*
@@ -2984,7 +2952,7 @@ u_short *csump;
 			if (&cp[1] >= ep)
 				break;
 			advance = cp[1];
-			if (&cp[advance] >= ep)
+			if (&cp[advance] > ep)
 				break;
 			switch (opt) {
 			case TCPOPT_MAXSEG:

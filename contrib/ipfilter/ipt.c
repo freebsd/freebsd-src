@@ -64,7 +64,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.24 2002/12/06 11:40:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.26 2003/11/09 17:22:21 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -72,7 +72,7 @@ extern	struct frentry	*ipfilter[2][2];
 extern	struct ipread	snoop, etherf, tcpd, pcap, iptext, iphex;
 extern	struct ifnet	*get_unit __P((char *, int));
 extern	void	init_ifp __P((void));
-extern	ipnat_t	*natparse __P((char *, int));
+extern	ipnat_t	*natparse __P((char *, int, int *));
 extern	int	fr_running;
 
 int	opts = 0;
@@ -310,6 +310,7 @@ char *file;
 	int     linenum, i;
 	void	*fr;
 	FILE	*fp;
+	int	parsestatus;
 
 	if (!strcmp(file, "-"))
 		fp = stdin;
@@ -346,7 +347,21 @@ char *file;
 		/* fake an `ioctl' call :) */
 
 		if ((opts & OPT_NAT) != 0) {
-			if (!(fr = natparse(line, linenum)))
+			parsestatus = 1;
+			fr = natparse(line, linenum, &parsestatus);
+			if (parsestatus != 0) {
+				if (*line) {
+					fprintf(stderr,
+					    "%d: syntax error in \"%s\"\n",
+					    linenum, line);
+				}
+				fprintf(stderr, "%s: %s error (%d), quitting\n",
+				    file,
+				    ((parsestatus < 0)? "parse": "internal"),
+				    parsestatus);
+				exit(1);
+			}
+			if (!fr)
 				continue;
 
 			if (rremove == 0) {
@@ -367,8 +382,19 @@ char *file;
 						fr, i);
 			}
 		} else {
-			if (!(fr = parse(line, linenum)))
+			fr = parse(line, linenum, &parsestatus);
+
+			if (parsestatus != 0) {
+			    fprintf(stderr, "%s: %s error (%d), quitting\n",
+				file,
+				((parsestatus < 0)? "parse": "internal"),
+				parsestatus);
+			    exit(1);
+			}
+
+			if (!fr) {
 				continue;
+			}
 
 			if (rremove == 0) {
 				i = IPL_EXTERN(ioctl)(0, SIOCADAFR,

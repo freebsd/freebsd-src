@@ -120,7 +120,7 @@ int dlen;
 	int inc, off;
 	nat_t *ipn;
 	mb_t *m;
-#if	SOLARIS
+#if	SOLARIS && defined(_KERNEL)
 	mb_t *m1;
 #endif
 
@@ -206,8 +206,13 @@ int dlen;
 	a1 >>= 24;
 	olen = s - f->ftps_rptr;
 	/* DO NOT change this to snprintf! */
+#if defined(OpenBSD) && (200311 >= 200311)
+	(void) snprintf(newbuf, sizeof(newbuf), "%s %u,%u,%u,%u,%u,%u\r\n",
+		        "PORT", a1, a2, a3, a4, a5, a6);
+#else
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
+#endif
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
@@ -220,7 +225,7 @@ int dlen;
 	}
 
 #if !defined(_KERNEL)
-	m = *((mb_t **)fin->fin_mp);
+	m = *fin->fin_mp;
 	bcopy(newbuf, (char *)m + off, nlen);
 #else
 # if SOLARIS
@@ -250,7 +255,7 @@ int dlen;
 	}
 	copyin_mblk(m, off, nlen, newbuf);
 # else
-	m = *((mb_t **)fin->fin_mp);
+	m = *fin->fin_mp;
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
@@ -262,7 +267,7 @@ int dlen;
 # endif
 #endif
 	if (inc != 0) {
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#if ((SOLARIS || defined(__sgi)) && defined(_KERNEL)) || !defined(_KERNEL)
 		register u_32_t	sum1, sum2;
 
 		sum1 = ip->ip_len;
@@ -541,7 +546,7 @@ int dlen;
 		return 0;
 
 #if !defined(_KERNEL)
-	m = *((mb_t **)fin->fin_mp);
+	m = *fin->fin_mp;
 	m_copyback(m, off, nlen, newbuf);
 #else
 # if SOLARIS
@@ -568,7 +573,7 @@ int dlen;
 	}
 	/*copyin_mblk(m, off, nlen, newbuf);*/
 # else /* SOLARIS */
-	m = *((mb_t **)fin->fin_mp);
+	m = *fin->fin_mp;
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
@@ -576,7 +581,7 @@ int dlen;
 # endif /* SOLARIS */
 #endif /* _KERNEL */
 	if (inc != 0) {
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#if ((SOLARIS || defined(__sgi)) && defined(_KERNEL)) || !defined(_KERNEL)
 		register u_32_t	sum1, sum2;
 
 		sum1 = ip->ip_len;
@@ -713,7 +718,8 @@ size_t len;
 
 	if (i < 5) {
 #if !defined(_KERNEL) && !defined(KERNEL)
-		fprintf(stdout, "ippr_ftp_client_valid:i(%d) < 5\n", i);
+		fprintf(stdout, "ippr_ftp_client_valid:i(%lu) < 5\n",
+			(u_long)i);
 #endif
 		return 2;
 	}
@@ -749,8 +755,8 @@ size_t len;
 bad_client_command:
 #if !defined(_KERNEL) && !defined(KERNEL)
 		fprintf(stdout,
-			"ippr_ftp_client_valid:bad cmd:len %d i %d c 0x%x\n",
-			i, len, c);
+			"ippr_ftp_client_valid:bad cmd:len %lu i %lu c 0x%x\n",
+			(u_long)i, (u_long)len, c);
 #endif
 		return 1;
 	}
@@ -811,8 +817,8 @@ size_t len;
 bad_server_command:
 #if !defined(_KERNEL) && !defined(KERNEL)
 		fprintf(stdout,
-			"ippr_ftp_server_valid:bad cmd:len %d i %d c 0x%x\n",
-			i, len, c);
+			"ippr_ftp_server_valid:bad cmd:len %lu i %lu c 0x%x\n",
+			(u_long)i, (u_long)len, c);
 #endif
 		return 1;
 	}
@@ -874,7 +880,7 @@ int rv;
 #if	SOLARIS && defined(_KERNEL)
 	m = fin->fin_qfm;
 #else
-	m = *((mb_t **)fin->fin_mp);
+	m = *fin->fin_mp;
 #endif
 
 #ifndef	_KERNEL
@@ -1024,9 +1030,9 @@ int rv;
 		printf("inc %d sel %d rv %d\n", inc, sel, rv);
 		printf("th_seq %x ftps_seq %x/%x\n", thseq, f->ftps_seq[0],
 			f->ftps_seq[1]);
-		printf("ackmin %x ackoff %d\n", aps->aps_ackmin[sel],
+		printf("ackmin %x ackoff %d\n", (u_int)aps->aps_ackmin[sel],
 			aps->aps_ackoff[sel]);
-		printf("seqmin %x seqoff %d\n", aps->aps_seqmin[sel],
+		printf("seqmin %x seqoff %d\n", (u_int)aps->aps_seqmin[sel],
 			aps->aps_seqoff[sel]);
 #endif
 

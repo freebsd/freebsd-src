@@ -84,7 +84,7 @@ all:
 	@echo "solaris	- auto-selects SunOS4.1.x/Solaris 2.3-6/Solaris2.4-6x86"
 	@echo "netbsd	- compile for NetBSD"
 	@echo "openbsd	- compile for OpenBSD"
-	@echo "freebsd	- compile for FreeBSD 2.0, 2.1 or earlier"
+	@echo "freebsd20	- compile for FreeBSD 2.0, 2.1 or earlier"
 	@echo "freebsd22	- compile for FreeBSD-2.2 or greater"
 	@echo "freebsd3	- compile for FreeBSD-3.x"
 	@echo "freebsd4	- compile for FreeBSD-4.x"
@@ -123,7 +123,7 @@ freebsd22: include
 	else \
 		ln -s `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h BSD/$(CPU) ; \
 	fi
-	make freebsd
+	make freebsd20
 
 freebsd4: include
 	if [ x$INET6 = x ] ; then \
@@ -150,7 +150,7 @@ openbsd openbsd21: include
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c"; cd ..)
 	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
 
-freebsd freebsd20 freebsd21: include
+freebsd20 freebsd21: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlf_ipl.c"; cd ..)
 	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
@@ -288,3 +288,27 @@ null:
 		exit 1; \
 	fi
 	-@echo make ok
+
+test-solaris test-sunos4 test-sunos5: solaris
+	(cd test && make clean && make)
+
+test-freebsd: freebsd
+	(cd test && make clean && make)
+
+test-freebsd22: freebsd22
+	(cd test && make clean && make)
+
+test-freebsd3: freebsd3
+	(cd test && make clean && make)
+
+test-freebsd4: freebsd4
+	(cd test && make clean && make)
+
+test-netbsd: netbsd
+	(cd test && make clean && make)
+
+test-openbsd: openbsd
+	(cd test && make clean && make)
+
+test-irix: irix
+	(cd test && make clean && make)

@@ -318,7 +318,7 @@ int *types, cnt;
 	 * rather than create a new one.
 	 */
 	MUTEX_ENTER(&ipl_mutex);
-	if (fin != NULL) {
+	if ((fin != NULL) && (fin->fin_off == 0)) {
 		if ((ipll[dev] != NULL) &&
 		    bcmp((char *)fin, (char *)&iplcrc[dev], FI_LCSIZE) == 0) {
 			ipll[dev]->ipl_count++;
@@ -434,7 +434,7 @@ struct uio *uio;
 	SPL_NET(s);
 	MUTEX_ENTER(&ipl_mutex);
 
-	while (!iplused[unit] || !iplt[unit]) {
+	while (iplt[unit] == NULL) {
 # if SOLARIS && defined(_KERNEL)
 		if (!cv_wait_sig(&iplwait, &ipl_mutex)) {
 			MUTEX_EXIT(&ipl_mutex);

@@ -46,14 +46,14 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2.2.16 2002/12/06 11:40:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2.2.18 2003/11/09 17:22:22 darrenr Exp $";
 #endif
 
 #ifdef	__sgi
 typedef	int 	kvm_t;
 
 static	int	kvm_fd = -1;
-static	char	*kvm_errstr;
+static	char	*kvm_errstr = NULL;
 
 kvm_t *kvm_open(kernel, core, swap, mode, errstr)
 char *kernel, *core, *swap;
@@ -79,8 +79,10 @@ size_t size;
 	int r;
 
 	if (lseek(*kvm, pos, 0) == -1) {
-		fprintf(stderr, "%s", kvm_errstr);
-		perror("lseek");
+		if (kvm_errstr != NULL) {
+			fprintf(stderr, "%s:", kvm_errstr);
+			perror("lseek");
+		}
 		return -1;
 	}
 
@@ -103,7 +105,7 @@ char	*kern, *core;
 		kvm_t *uk;
 	} k;
 
-	kvm_f = kvm_open(kern, core, NULL, O_RDONLY, "");
+	kvm_f = kvm_open(kern, core, NULL, O_RDONLY, NULL);
 	if (kvm_f == NULL)
 	    {
 		perror("openkmem:open");

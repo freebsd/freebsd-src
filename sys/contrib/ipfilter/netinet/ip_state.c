@@ -923,7 +923,8 @@ tcphdr_t *tcp;
 		fdata->td_wscale = wscale;
 	else if (wscale == -2)
 		fdata->td_wscale = tdata->td_wscale = 0;
-	win <<= fdata->td_wscale;
+	if (!(tcp->th_flags & TH_SYN))
+		win <<= fdata->td_wscale;
 
 	if ((fdata->td_end == 0) &&
 	    (!is->is_fsm || ((tcp->th_flags & TH_OPENING) == TH_OPENING))) {
@@ -957,14 +958,15 @@ tcphdr_t *tcp;
 	    (SEQ_GE(seq, fdata->td_end - maxwin)) &&
 /* XXX what about big packets */
 #define MAXACKWINDOW 66000
-	    (ackskew >= -MAXACKWINDOW) &&
-	    (ackskew <= MAXACKWINDOW)) {
-		/* if ackskew < 0 then this should be due to fragented
+	    (-ackskew <= (MAXACKWINDOW << tdata->td_wscale)) &&
+	    ( ackskew <= (MAXACKWINDOW << tdata->td_wscale))) {
+
+		/* if ackskew < 0 then this should be due to fragmented
 		 * packets. There is no way to know the length of the
 		 * total packet in advance.
 		 * We do know the total length from the fragment cache though.
 		 * Note however that there might be more sessions with
-		 * exactly the same source and destination paramters in the
+		 * exactly the same source and destination parameters in the
 		 * state cache (and source and destination is the only stuff
 		 * that is saved in the fragment cache). Note further that
 		 * some TCP connections in the state cache are hashed with
@@ -1210,6 +1212,10 @@ fr_info_t *fin;
 
 	oip = (ip_t *)((char *)ic + ICMPERR_ICMPHLEN);
 	ohlen = oip->ip_hl << 2;
+	/*
+	 * Check if the at least the old IP header (with options) and
+	 * 8 bytes of payload is present.
+	 */
 	if (fin->fin_plen < ICMPERR_MAXPKTLEN + ohlen - sizeof(*oip))
 		return NULL;
 
@@ -1226,7 +1232,7 @@ fr_info_t *fin;
 	 * may be too big to be in this buffer but not so big that it's
 	 * outside the ICMP packet, leading to TCP deref's causing problems.
 	 * This is possible because we don't know how big oip_hl is when we
-	 * do the pullup early in fr_check() and thus can't gaurantee it is
+	 * do the pullup early in fr_check() and thus can't guarantee it is
 	 * all here now.
 	 */
 #ifdef  _KERNEL
@@ -1253,9 +1259,43 @@ fr_info_t *fin;
 	bzero((char *)&src, sizeof(src));
 	bzero((char *)&dst, sizeof(dst));
 	bzero((char *)&ofin, sizeof(ofin));
+	/*
+	 * We make an fin entry to be able to feed it to
+	 * matchsrcdst.  Note that not all fields are encessary
+	 * but this is the cleanest way. Note further that we
+	 * fill in fin_mp such that if someone uses it we'll get
+	 * a kernel panic. fr_matchsrcdst does not use this.
+	 */
 	ofin.fin_ifp = fin->fin_ifp;
 	ofin.fin_out = !fin->fin_out;
+	ofin.fin_mp = NULL;
 	ofin.fin_v = 4;
+	/*
+	 * watch out here, as ip is in host order and oip in network
+	 * order. Any change we make must be undone afterwards, like
+	 * oip->ip_off - it is still in network byte order so fix it.
+	 */
+	savelen = oip->ip_len;
+	oip->ip_len = len;
+	oip->ip_off = ntohs(oip->ip_off);
+	(void) fr_makefrip(ohlen, oip, &ofin);
+	/*
+	 * Reset the short flag here because in fr_matchsrcdst() the flags
+	 * for the current packet (fin_fl) are compared against * those for
+	 * the existing session.
+	 */
+	ofin.fin_fl &= ~FI_SHORT;
+
+	/*
+	 * Put old values of ip_len and ip_off back as we don't know
+	 * if we have to forward the packet (or process it again.
+	 */
+	oip->ip_len = savelen;
+	oip->ip_off = htons(oip->ip_off);
+
+#if SOLARIS
+	ofin.fin_qfm = NULL;
+#endif
 	fr = NULL;
 
 	switch (oip->ip_p)
@@ -1264,7 +1304,7 @@ fr_info_t *fin;
 		icmp = (icmphdr_t *)((char *)oip + ohlen);
 
 		/*
-		 * a ICMP error can only be generated as a result of an
+		 * an ICMP error can only be generated as a result of an
 		 * ICMP query, not as the response on an ICMP error
 		 *
 		 * XXX theoretically ICMP_ECHOREP and the other reply's are
@@ -1288,18 +1328,15 @@ fr_info_t *fin;
 		hv += icmp->icmp_seq;
 		hv %= fr_statesize;
 
-		savelen = oip->ip_len;
-		oip->ip_len = len;
-		fr_makefrip(ohlen, oip, &ofin);
-		oip->ip_len = savelen;
-
 		READ_ENTER(&ipf_state);
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == 4) &&
+			    (is->is_icmppkts < is->is_pkts) &&
 			    fr_matchsrcdst(is, src, dst, &ofin, NULL) &&
-			    fr_matchicmpqueryreply(is->is_v, is, icmp, fin->fin_rev)) {
+			    fr_matchicmpqueryreply(is->is_v, is, icmp,
+						   fin->fin_rev)) {
 				ips_stats.iss_hits++;
-				is->is_pkts++;
+				is->is_icmppkts++;
 				is->is_bytes += ip->ip_len;
 				fr = is->is_rule;
 				break;
@@ -1328,20 +1365,7 @@ fr_info_t *fin;
 	hv += dport;
 	hv += sport;
 	hv %= fr_statesize;
-	/*
-	 * we make an fin entry to be able to feed it to
-	 * matchsrcdst note that not all fields are encessary
-	 * but this is the cleanest way. Note further we fill
-	 * in fin_mp such that if someone uses it we'll get
-	 * a kernel panic. fr_matchsrcdst does not use this.
-	 *
-	 * watch out here, as ip is in host order and oip in network
-	 * order. Any change we make must be undone afterwards.
-	 */
-	savelen = oip->ip_len;
-	oip->ip_len = len;
-	fr_makefrip(ohlen, oip, &ofin);
-	oip->ip_len = savelen;
+
 	READ_ENTER(&ipf_state);
 	for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext) {
 		/*
@@ -1349,13 +1373,16 @@ fr_info_t *fin;
 		 * encapsulated packet was allowed through the
 		 * other way around. Note that the minimal amount
 		 * of info present does not allow for checking against
-		 * tcp internals such as seq and ack numbers.
+		 * tcp internals such as seq and ack numbers.  Only the
+		 * ports are known to be present and can be even if the
+		 * short flag is set.
 		 */
 		if ((is->is_p == pr) && (is->is_v == 4) &&
+		    (is->is_icmppkts < is->is_pkts) &&
 		    fr_matchsrcdst(is, src, dst, &ofin, tcp)) {
 			fr = is->is_rule;
 			ips_stats.iss_hits++;
-			is->is_pkts++;
+			is->is_icmppkts++;
 			is->is_bytes += fin->fin_plen;
 			/*
 			 * we deliberately do not touch the timeouts
@@ -2082,7 +2109,7 @@ u_int type;
 	int types[1];
 
 	ipsl.isl_type = type;
-	ipsl.isl_pkts = is->is_pkts;
+	ipsl.isl_pkts = is->is_pkts + is->is_icmppkts;
 	ipsl.isl_bytes = is->is_bytes;
 	ipsl.isl_src = is->is_src;
 	ipsl.isl_dst = is->is_dst;
@@ -2110,7 +2137,11 @@ u_int type;
 	sizes[0] = sizeof(ipsl);
 	types[0] = 0;
 
-	(void) ipllog(IPL_LOGSTATE, NULL, items, sizes, types, 1);
+	if (ipllog(IPL_LOGSTATE, NULL, items, sizes, types, 1)) {
+		ATOMIC_INCL(ips_stats.iss_logged);
+	} else {
+		ATOMIC_INCL(ips_stats.iss_logfail);
+	}
 }
 #endif
 
@@ -2160,12 +2191,30 @@ fr_info_t *fin;
 	bzero((char *)&ofin, sizeof(ofin));
 	ofin.fin_out = !fin->fin_out;
 	ofin.fin_ifp = fin->fin_ifp;
+	ofin.fin_mp = NULL;
 	ofin.fin_v = 6;
+#if SOLARIS
+	ofin.fin_qfm = NULL;
+#endif
+	/*
+	 * We make a fin entry to be able to feed it to
+	 * matchsrcdst. Note that not all fields are necessary
+	 * but this is the cleanest way. Note further we fill
+	 * in fin_mp such that if someone uses it we'll get
+	 * a kernel panic. fr_matchsrcdst does not use this.
+	 *
+	 * watch out here, as ip is in host order and oip in network
+	 * order. Any change we make must be undone afterwards.
+	 */
+	savelen = oip->ip6_plen;
+	oip->ip6_plen = ip->ip6_plen - sizeof(*ip) - ICMPERR_ICMPHLEN;
+	fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
+	oip->ip6_plen = savelen;
 
 	if (oip->ip6_nxt == IPPROTO_ICMPV6) {
 		oic = (struct icmp6_hdr *)(oip + 1);
 		/*
-		 * a ICMP error can only be generated as a result of an
+		 * an ICMP error can only be generated as a result of an
 		 * ICMP query, not as the response on an ICMP error
 		 *
 		 * XXX theoretically ICMP_ECHOREP and the other reply's are
@@ -2185,10 +2234,6 @@ fr_info_t *fin;
 		hv += oic->icmp6_id;
 		hv += oic->icmp6_seq;
 		hv %= fr_statesize;
-
-		oip->ip6_plen = ntohs(oip->ip6_plen);
-		fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
-		oip->ip6_plen = htons(oip->ip6_plen);
 
 		READ_ENTER(&ipf_state);
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
@@ -2233,20 +2278,7 @@ fr_info_t *fin;
 	hv += dport;
 	hv += sport;
 	hv %= fr_statesize;
-	/*
-	 * we make an fin entry to be able to feed it to
-	 * matchsrcdst note that not all fields are encessary
-	 * but this is the cleanest way. Note further we fill
-	 * in fin_mp such that if someone uses it we'll get
-	 * a kernel panic. fr_matchsrcdst does not use this.
-	 *
-	 * watch out here, as ip is in host order and oip in network
-	 * order. Any change we make must be undone afterwards.
-	 */
-	savelen = oip->ip6_plen;
-	oip->ip6_plen = ip->ip6_plen - sizeof(*ip) - ICMPERR_ICMPHLEN;
-	fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
-	oip->ip6_plen = savelen;
+
 	READ_ENTER(&ipf_state);
 	for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext) {
 		/*

@@ -196,7 +196,7 @@ ipfr_t *table[];
 
 
 	/*
-	 * Instert the fragment into the fragment table, copy the struct used
+	 * Insert the fragment into the fragment table, copy the struct used
 	 * in the search using bcopy rather than reassign each field.
 	 * Set the ttl to the default.
 	 */
@@ -424,7 +424,26 @@ fr_info_t *fin;
 /*
  * forget any references to this external object.
  */
-void ipfr_forget(nat)
+void ipfr_forget(ptr)
+void *ptr;
+{
+	ipfr_t	*fr;
+	int	idx;
+
+	WRITE_ENTER(&ipf_frag);
+	for (idx = IPFT_SIZE - 1; idx >= 0; idx--)
+		for (fr = ipfr_heads[idx]; fr; fr = fr->ipfr_next)
+			if (fr->ipfr_data == ptr)
+				fr->ipfr_data = NULL;
+
+	RWLOCK_EXIT(&ipf_frag);
+}
+
+
+/*
+ * forget any references to this external object.
+ */
+void ipfr_forgetnat(nat)
 void *nat;
 {
 	ipfr_t	*fr;
@@ -432,7 +451,7 @@ void *nat;
 
 	WRITE_ENTER(&ipf_natfrag);
 	for (idx = IPFT_SIZE - 1; idx >= 0; idx--)
-		for (fr = ipfr_heads[idx]; fr; fr = fr->ipfr_next)
+		for (fr = ipfr_nattab[idx]; fr; fr = fr->ipfr_next)
 			if (fr->ipfr_data == nat)
 				fr->ipfr_data = NULL;
 

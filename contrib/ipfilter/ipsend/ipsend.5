@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .TH IPSEND 5
 .SH NAME
 ipsend \- IP packet description language
@@ -102,7 +103,7 @@ route installed in the kernel.
 is used to describe an IP (version 4) packet.  IP header fields can be
 specified, including options, followed by a data section which may contain
 further protocol headers.
-.SH IPV4
+.SH IPv4
 .TP
 .B hl <number>
 manually specifies the IP header length (automatically adjusts with the
@@ -116,7 +117,7 @@ set the type of service (TOS) field in the IP header.  Default is 0.
 .TP
 .B len <number>
 manually specifies the length of the IP packet.  The length will automatically
-be adjusted to accomodate data or further protocol headers.
+be adjusted to accommodate data or further protocol headers.
 .TP
 .B off <number>
 sets the fragment offset field of the IP packet.  Default is 0.
@@ -158,7 +159,7 @@ is used to indicate the a ICMP protocol header is to follow.  See the
 is used to indicate that raw data is to be included in the IP packet.  See the
 \fBDATA\fP section for details on options available.
 .SH "IPv4 Options"
-these keywords indicate that the releveant IP option should be added to the
+these keywords indicate that the relevant IP option should be added to the
 IP header (the header length field will be adjusted appropriately).
 .TP
 .B nop
@@ -210,7 +211,7 @@ Strict Source Route [RFC 791].
 Address Extension
 .TP
 .B visa
-Expermental Access Control.
+Experimental Access Control.
 .TP
 .B imitd
 IMI Traffic Descriptor.
@@ -314,7 +315,7 @@ bytes with any particular data).
 indicates that the string provided should be added to the current packet as
 data.  A string may be a consecutive list of characters and numbers (with
 no white spaces) or bounded by "'s (may not contain them, even if \\'d).
-The \\ charcater is recognised with the appropriate C escaped values, including
+The \\ character is recognised with the appropriate C escaped values, including
 octal numbers.
 .TP
 .B file <filename>

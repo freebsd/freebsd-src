@@ -992,7 +992,7 @@ int	blen;
 		p = (u_short)ip6->ip6_nxt;
 		s = (u_32_t *)&ip6->ip6_src;
 		d = (u_32_t *)&ip6->ip6_dst;
-		plen = ntohs(ip6->ip6_plen);
+		plen = hl + ntohs(ip6->ip6_plen);
 #else
 		sprintf(t, "ipv6");
 		goto printipflog;
@@ -1106,11 +1106,12 @@ int	blen;
 					ipc->ip_hl << 2, i);
 				t += strlen(t);
 				if (ipoff & IP_OFFMASK) {
-					(void) sprintf(t, " frag %s%s%hu@%hu",
-						ipoff & IP_MF ? "+" : "",
-						ipoff & IP_DF ? "-" : "",
+					(void) sprintf(t, " (frag %d:%hu@%hu%s%s)",
+						ntohs(ipc->ip_id),
 						i - (ipc->ip_hl<<2),
-						(ipoff & IP_OFFMASK) << 3);
+						(ipoff & IP_OFFMASK) << 3,
+						ipoff & IP_MF ? "+" : "",
+						ipoff & IP_DF ? "-" : "");
 				}
 			}
 		}
@@ -1121,10 +1122,11 @@ int	blen;
 			hostname(res, v, d), proto, hl, plen);
 		t += strlen(t);
 		if (off & IP_OFFMASK)
-			(void) sprintf(t, " frag %s%s%hu@%hu",
+			(void) sprintf(t, " (frag %d:%hu@%hu%s%s)",
+				ntohs(ip->ip_id),
+				plen - hl, (off & IP_OFFMASK) << 3,
 				ipoff & IP_MF ? "+" : "",
-				ipoff & IP_DF ? "-" : "",
-				plen - hl, (off & IP_OFFMASK) << 3);
+				ipoff & IP_DF ? "-" : "");
 	}
 	t += strlen(t);
 
