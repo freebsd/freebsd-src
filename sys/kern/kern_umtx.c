@@ -266,6 +266,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 
 	/* We should only ever be in here for contested locks */
 	KASSERT((owner & UMTX_CONTESTED) != 0, ("contested umtx is not."));
+	blocked = NULL;
 
 	/*
 	 * When unlocking the umtx, it must be marked as unowned if
