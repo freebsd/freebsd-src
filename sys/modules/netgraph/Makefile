@@ -35,7 +35,8 @@ SUBDIR=	UI \
 	sync_sr \
 	tee \
 	tty \
-	vjc
+	vjc \
+	vlan
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
 _mppc=		mppc
