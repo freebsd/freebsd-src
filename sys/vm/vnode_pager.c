@@ -792,8 +792,10 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * calculate the size of the transfer
 	 */
 	size = count * PAGE_SIZE;
+	KASSERT(count > 0, ("zero count"));
 	if ((foff + size) > object->un_pager.vnp.vnp_size)
 		size = object->un_pager.vnp.vnp_size - foff;
+	KASSERT(size > 0, ("zero size"));
 
 	/*
 	 * round up physical size for real devices.
