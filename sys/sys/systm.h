@@ -210,7 +210,7 @@ void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
-void	setenv(const char *name, const char *value);
+int	setenv(const char *name, const char *value);
 int	unsetenv(const char *name);
 int	testenv(const char *name);
 
