@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.49 2001/12/17 04:24:37 marka Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.52 2002/04/28 01:34:52 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -100,7 +100,6 @@ static const char copyright[] =
 
 #include <ctype.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,6 +111,8 @@ static const char copyright[] =
 #include <isc/dst.h>
 
 #include "port_after.h"
+
+#include <resolv.h>
 
 /* Global. */
 
@@ -185,9 +186,8 @@ static char		getdomain[NS_MAXDNAME];
 
 static int		parsetype(const char *s);
 static int		parseclass(const char *s);
-static void		printanswer(const struct hostent *hp);
 static void		hperror(int errnum);
-static int		addrinfo(struct in_addr addr);
+static int		addrinfo(struct sockaddr_storage *addr);
 static int		gethostinfo(char *name);
 static int		getdomaininfo(const char *name, const char *domain);
 static int		getinfo(const char *name, const char *domain,
@@ -225,12 +225,16 @@ Usage: %s [-adlrwv] [-t querytype] [-c class] host [server]\n\
 
 int
 main(int argc, char **argv) {
-	struct in_addr addr;
+	struct sockaddr_storage addr;
 	struct hostent *hp;
 	char *s;
 	int waitmode = 0;
 	int ncnames, ch;
 	int nkeychains;
+	struct addrinfo *answer = NULL;
+	struct addrinfo *cur = NULL;
+	struct addrinfo hint;
+	int ip = 0;
 
 	dst_init();
 
@@ -292,33 +296,93 @@ main(int argc, char **argv) {
 	if (argc > 1)
 		usage("extra undefined arguments");
 	if (argc == 1) {
+		union res_sockaddr_union u[MAXNS];
+		int nscount;
+
 		s = *argv++;
 		argc--;
 		server_specified++;
+		memset(&hint, 0, sizeof(hint));
+		hint.ai_flags = AI_CANONNAME;
+		hint.ai_family = PF_UNSPEC;
+		hint.ai_socktype = SOCK_DGRAM;
 		
-		if (!inet_aton(s, &addr)) {
-			hp = gethostbyname(s);
-			if (hp == NULL) {
-				fprintf(stderr,
-					"Error in looking up server name:\n");
-				hperror(res.res_h_errno);
-				exit(1);
+		if (!getaddrinfo(s, NULL, &hint, &answer)) {
+			nscount = 0;
+			if (answer->ai_canonname != NULL) {
+				printf("Using domain server:\n");
+				printf("Name: %s\n", answer->ai_canonname);
+				printf("Addresses:");
+			} else
+				printf("Using domain server");
+			
+			for (cur = answer; cur != NULL; cur = cur->ai_next) {
+				char buf[80];
+				struct sockaddr_in6 *sin6;
+				struct sockaddr_in *sin;
+				
+				switch (cur->ai_addr->sa_family) {
+				case AF_INET6:
+					sin6 = 
+					   (struct sockaddr_in6 *)cur->ai_addr;
+					inet_ntop(cur->ai_addr->sa_family,
+					          &sin6->sin6_addr,
+						  buf, sizeof(buf));
+					printf(" %s", buf);
+					if (nscount >= MAXNS)
+						break;
+					u[nscount].sin6 = *sin6;
+					u[nscount++].sin6.sin6_port =
+						htons(NAMESERVER_PORT);
+					break;
+				case AF_INET:
+					sin =
+					     (struct sockaddr_in*)cur->ai_addr;
+					inet_ntop(cur->ai_addr->sa_family,
+					          &sin->sin_addr,
+						  buf, sizeof(buf));
+					printf(" %s", buf);
+					if (nscount >= MAXNS)
+						break;
+					u[nscount].sin = *sin;
+					u[nscount++].sin6.sin6_port =
+						htons(NAMESERVER_PORT);
+					break;
+				}
 			}
-			memcpy(&res.nsaddr.sin_addr, hp->h_addr, NS_INADDRSZ);
-			printf("Using domain server:\n");
-			printanswer(hp);
+			if (nscount != 0) {
+				res_setservers(&res, u, nscount);
+			}
+			if (answer->ai_canonname != NULL)
+				printf("\n\n");
+			else
+				printf(":\n\n");
+			freeaddrinfo(answer);
 		} else {
-			res.nsaddr.sin_family = AF_INET;
-			res.nsaddr.sin_addr = addr;
-			res.nsaddr.sin_port = htons(NAMESERVER_PORT);
-			printf("Using domain server %s:\n",
-			       inet_ntoa(res.nsaddr.sin_addr));
+			fprintf(stderr, "Error in looking up server name:\n");
+			exit(1);
 		}
-		res.nscount = 1;
 		res.retry = 2;
 	}
-	if (strcmp(getdomain, ".") == 0 || !inet_aton(getdomain, &addr))
-		addr.s_addr = INADDR_NONE;
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_flags = AI_NUMERICHOST;
+	hint.ai_socktype = SOCK_DGRAM;
+	if(!getaddrinfo(getdomain, NULL, &hint, &answer)) { 
+		memset(&addr, 0, sizeof(addr));
+		switch (answer->ai_family) {
+		case AF_INET:
+			memcpy(&addr, answer->ai_addr,
+			       sizeof(struct sockaddr_in));
+			ip = 1;
+			break;
+		case AF_INET6:
+			memcpy(&addr, answer->ai_addr,
+			       sizeof(struct sockaddr_in6));
+			ip = 1;
+			break;
+		}
+		freeaddrinfo(answer);
+	} 
 	hp = NULL;
 	res.res_h_errno = TRY_AGAIN;
 /*
@@ -330,7 +394,7 @@ main(int argc, char **argv) {
 		exit(ListHosts(getdomain, querytype ? querytype : ns_t_a));
 	ncnames = 5; nkeychains = 18;
 	while (hp == NULL && res.res_h_errno == TRY_AGAIN) {
-		if (addr.s_addr == INADDR_NONE) {
+		if (!ip) {
 			cname = NULL;
 			hp = (struct hostent *)gethostinfo(getdomain);
 			getdomain[0] = 0; /* clear this query */
@@ -378,7 +442,7 @@ main(int argc, char **argv) {
 				continue;
 			}
 		} else {
-			if (addrinfo(addr) == 0)
+			if (addrinfo(&addr) == 0)
 				hp = NULL;
 			else
 				hp = (struct hostent *)1;	/* XXX */
@@ -425,21 +489,6 @@ parseclass(const char *s) {
 	fprintf(stderr, "Invalid query class: %s\n", s);
 	exit(2);
 	/*NOTREACHED*/
-}
-
-static void
-printanswer(const struct hostent *hp) {
-	struct in_addr **hptr;
-	char **cp;
-
-	printf("Name: %s\n", hp->h_name);
-	printf("Address:");
-	for (hptr = (struct in_addr **)hp->h_addr_list; *hptr; hptr++)
-		printf(" %s", inet_ntoa(**hptr));
-	printf("\nAliases:");
-	for (cp = hp->h_aliases; cp && *cp && **cp; cp++)
-		printf(" %s", *cp);
-	printf("\n\n");
 }
 
 static void
@@ -525,15 +574,50 @@ hperror(int errnum) {
 }
 
 static int
-addrinfo(struct in_addr addr) {
-	u_int32_t ha = ntohl(addr.s_addr);
+addrinfo(struct sockaddr_storage *addr) {
 	char name[NS_MAXDNAME];
+	unsigned char *p;
+	struct in6_addr *addr6;
 
-	sprintf(name, "%u.%u.%u.%u.IN-ADDR.ARPA.",
-		(ha) & 0xff,
-		(ha >> 8) & 0xff,
-		(ha >> 16) & 0xff,
-		(ha >> 24) & 0xff);
+	switch(addr->ss_family) {
+	case AF_INET:
+		p = (unsigned char*)&((struct sockaddr_in *)addr)->sin_addr;
+	mapped:
+		sprintf(name, "%u.%u.%u.%u.IN-ADDR.ARPA.",
+			p[3], p[2], p[1], p[0]);
+		break;
+	case AF_INET6:
+		addr6 = &((struct sockaddr_in6 *)addr)->sin6_addr;
+		p = (unsigned char *)addr6;
+		if (IN6_IS_ADDR_V4MAPPED(addr6) ||
+		    IN6_IS_ADDR_V4COMPAT(addr6)) {
+			p += 12;
+			goto mapped;
+		}
+		sprintf(name,
+			"%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+			"%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+			"IP6.ARPA",
+			p[15] & 0xf, (p[15] >> 4) & 0xf,
+			p[14] & 0xf, (p[14] >> 4) & 0xf,
+			p[13] & 0xf, (p[13] >> 4) & 0xf,
+			p[12] & 0xf, (p[12] >> 4) & 0xf,
+			p[11] & 0xf, (p[11] >> 4) & 0xf,
+			p[10] & 0xf, (p[10] >> 4) & 0xf,
+			p[9] & 0xf, (p[9] >> 4) & 0xf,
+			p[8] & 0xf, (p[8] >> 4) & 0xf,
+			p[7] & 0xf, (p[7] >> 4) & 0xf,
+			p[6] & 0xf, (p[6] >> 4) & 0xf,
+			p[5] & 0xf, (p[5] >> 4) & 0xf,
+			p[4] & 0xf, (p[4] >> 4) & 0xf,
+			p[3] & 0xf, (p[3] >> 4) & 0xf,
+			p[2] & 0xf, (p[2] >> 4) & 0xf,
+			p[1] & 0xf, (p[1] >> 4) & 0xf,
+			p[0] & 0xf, (p[0] >> 4) & 0xf);
+		break;
+	default:
+		abort();
+	}
 	return (getinfo(name, NULL, ns_t_ptr));
 }
 
@@ -1552,12 +1636,44 @@ pr_cdname(const u_char *cp, const u_char *msg, char *name, int namelen) {
 	return (cp + n);
 }
 
+static void
+add(union res_sockaddr_union *u, int type, void *p) {
+	memset(u, 0, sizeof(*u));
+	switch (type) {
+	case ns_t_a:
+		memcpy(&u->sin.sin_addr, p, NS_INADDRSZ);
+		u->sin.sin_family = AF_INET;
+		u->sin.sin_port = htons(NAMESERVER_PORT);
+#ifdef HAVE_SA_LEN
+		u->sin.sin_len = sizeof(u->sin);
+#endif
+		break;
+
+	case ns_t_aaaa:
+		memcpy(&u->sin6.sin6_addr, p, 16);
+		u->sin6.sin6_family = AF_INET6;
+		u->sin6.sin6_port = htons(NAMESERVER_PORT);
+#ifdef HAVE_SA_LEN
+		u->sin6.sin6_len = sizeof(u->sin6);
+#endif
+		break;
+	}
+}
+
+static int
+salen(union res_sockaddr_union *u) {
+	switch (u->sin.sin_family) {
+	case AF_INET6: return (sizeof(u->sin6));
+	case AF_INET: return (sizeof(u->sin));
+	}
+	return (0);
+}
+
 static int
 ListHosts(char *namePtr, int queryType) {
 	querybuf buf, answer;
 	struct sockaddr_in sin;
 	const HEADER *headerPtr;
-	const struct hostent *hp;
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
 		error = NO_ERRORS;
 
@@ -1570,7 +1686,7 @@ ListHosts(char *namePtr, int queryType) {
 	/* Names and addresses of name servers to try. */
 	char nsname[NUMNS][NS_MAXDNAME];
 	int nshaveaddr[NUMNS];
-	struct in_addr nsipaddr[NUMNSADDR];
+	union res_sockaddr_union nsipaddr[NUMNSADDR];
 	int numns, numnsaddr, thisns;
 	int qdcount, ancount;
 
@@ -1582,10 +1698,9 @@ ListHosts(char *namePtr, int queryType) {
 	if (namePtr[i-1] == '.')
 		namePtr[i-1] = 0;
 
-	if (server_specified) {
-		memcpy(&nsipaddr[0], &res.nsaddr.sin_addr, NS_INADDRSZ);
-		numnsaddr = 1;
-	} else {
+	if (server_specified)
+		numnsaddr = res_getservers(&res, nsipaddr, NUMNSADDR);
+	else {
 		/*
 		 * First we have to find out where to look.  This needs a NS
 		 * query, possibly followed by looking up addresses for some
@@ -1703,20 +1818,17 @@ ListHosts(char *namePtr, int queryType) {
 						}
 					}
 				}
-			} else if (type == ns_t_a) {
-				if (numnsaddr < NUMNSADDR)
-					for (i = 0; i < numns; i++) {
-						if (ns_samename(nsname[i],
+			} else if ((type == ns_t_a || type == ns_t_aaaa) &&
+				   numnsaddr < NUMNSADDR) {
+				for (i = 0; i < numns; i++) {
+					if (ns_samename(nsname[i],
 							       (char *)domain)
-						    == 1) {
-							nshaveaddr[i]++;
-							memcpy(
-							  &nsipaddr[numnsaddr],
-							  cp, NS_INADDRSZ);
-							numnsaddr++;
-							break;
-						}
-					}
+					    != 1)
+						continue;
+					nshaveaddr[i]++;
+					add(&nsipaddr[numnsaddr++], type, cp);
+					break;
+				}
 			}
 			cp += dlen;
 		}
@@ -1728,28 +1840,50 @@ ListHosts(char *namePtr, int queryType) {
 		 */
 
 		for (i = 0; i < numns; i++) {
-			if (nshaveaddr[i] == 0) {
-				struct in_addr **hptr;
-				int numaddrs = 0;
+			struct addrinfo *answer = NULL;
+			struct addrinfo *cur = NULL;
+			struct addrinfo hint;
 
-				hp = gethostbyname(nsname[i]);
-				if (hp) {
-					for (hptr = (struct in_addr **)
-					     	hp->h_addr_list;
-					     *hptr != NULL;
-					     hptr++)
-						if (numnsaddr < NUMNSADDR) {
-							memcpy(
-							  &nsipaddr[numnsaddr],
-							  *hptr, NS_INADDRSZ);
-							numnsaddr++;
-							numaddrs++;
-						}
+			memset(&hint, 0, sizeof(hint));
+			hint.ai_family = PF_UNSPEC;
+			hint.ai_socktype = SOCK_STREAM;
+
+			if (nshaveaddr[i] == 0 &&
+			    !getaddrinfo(nsname[i], NULL, &hint, &answer)) {
+				int numaddrs = 0;
+				for (cur = answer;
+				     cur != NULL;
+				     cur = cur->ai_next) {
+					union res_sockaddr_union *u;
+
+					if (numnsaddr >= NUMNSADDR)
+						break;
+
+					u = &nsipaddr[numnsaddr];
+					switch (cur->ai_addr->sa_family) {
+					case AF_INET6:
+						u->sin6 =
+					   *(struct sockaddr_in6 *)cur->ai_addr;
+						u->sin6.sin6_port =
+							htons(NAMESERVER_PORT);
+						numnsaddr++;
+						numaddrs++;
+						break;
+					case AF_INET:
+						u->sin =
+					    *(struct sockaddr_in*)cur->ai_addr;
+						u->sin6.sin6_port =
+							htons(NAMESERVER_PORT);
+						numnsaddr++;
+						numaddrs++;
+						break;
+					}
 				}
 				if (res.options & RES_DEBUG || verbose)
 					printf(
 				  "Found %d addresses for %s by extra query\n",
 					       numaddrs, nsname[i]);
+				freeaddrinfo(answer);
 			} else if (res.options & RES_DEBUG || verbose)
 				printf("Found %d addresses for %s\n",
 				       nshaveaddr[i], nsname[i]);
@@ -1786,14 +1920,31 @@ ListHosts(char *namePtr, int queryType) {
 	 */
 
 	for ((void)NULL; thisns < numnsaddr; thisns++) {
-		if ((sockFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		if ((sockFD = socket(nsipaddr[thisns].sin.sin_family,
+				     SOCK_STREAM, 0)) < 0) {
+			if (errno == EPROTONOSUPPORT)
+				continue;
 			perror("ListHosts");
 			return (ERROR);
 		}
-		memcpy(&sin.sin_addr, &nsipaddr[thisns], NS_INADDRSZ);
-		if (res.options & RES_DEBUG || verbose)
-			printf("Trying %s\n", inet_ntoa(sin.sin_addr));
-		if (connect(sockFD, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
+		if (res.options & RES_DEBUG || verbose) {
+			char buf[80];
+			switch (nsipaddr[thisns].sin.sin_family) {
+			case AF_INET:
+				inet_ntop(nsipaddr[thisns].sin.sin_family,
+					  &nsipaddr[thisns].sin.sin_addr,
+					  buf, sizeof(buf));
+				break;
+			case AF_INET6:
+				inet_ntop(nsipaddr[thisns].sin6.sin6_family,
+					  &nsipaddr[thisns].sin6.sin6_addr,
+					  buf, sizeof(buf));
+				break;
+			}
+			printf("Trying %s\n", buf);
+		}
+		if (connect(sockFD, (struct sockaddr *)&nsipaddr[thisns],
+		            salen(&nsipaddr[thisns])) >= 0)
 			break;
 		if (verbose)
 			perror("Connection failed, trying next server");

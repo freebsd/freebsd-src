@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.89 2002/01/29 03:59:36 marka Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.90 2002/02/22 05:12:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -467,6 +467,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	const char *fname;
 	int oldn, naddr, class, found_arr, potential_ns, lame_ns;
 	time_t curtime;
+	int found_auth6;
 
 	ns_debug(ns_log_default, 3, "nslookup(nsp=%p, qp=%p, \"%s\", d=%d)",
 		 nsp, qp, syslogdname, qp->q_distance);
@@ -503,19 +504,17 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			}
 		}
 
+		found_arr = 0;
+		found_auth6 = 0;
 		tmphtp = ((nsdp->d_flags & DB_F_HINT) ?fcachetab :hashtab);
 		np = nlookup(dname, &tmphtp, &fname, 0);
 		if (np == NULL) {
 			ns_debug(ns_log_default, 3, "%s: not found %s %p",
 				 dname, fname, np);
-			found_arr = 0;
 			goto need_sysquery;
 		}
-		if (fname != dname) {
-			found_arr = 0;
+		if (fname != dname)
 			goto need_sysquery;
-		}
-		found_arr = 0;
 		oldn = n;
 
 		/* look for name server addresses */
@@ -534,6 +533,13 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			}
 			if (dp->d_rcode == NXDOMAIN && dp->d_class == class)
 				goto skipserver;
+			if (dp->d_class == class && 
+			    (dp->d_type == T_AAAA || dp->d_type == ns_t_a6) &&
+			    (zones[dp->d_zone].z_type == z_master ||
+			     zones[dp->d_zone].z_type == z_slave)) {
+				found_auth6++;
+				continue;
+			}
 			if (dp->d_type != T_A || dp->d_class != class)
 				continue;
 			if (dp->d_rcode) {
@@ -683,7 +689,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 		}
 		ns_debug(ns_log_default, 8, "nslookup: %d ns addrs", n);
  need_sysquery:
-		if (found_arr == 0) {
+		if (found_arr == 0 && found_auth6 == 0) {
 			potential_ns++;
 			if (qp->q_distance < NS_MAX_DISTANCE)
 				(void) sysquery(dname, class, T_A, NULL, NULL,

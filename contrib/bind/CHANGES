@@ -1,5 +1,91 @@
 
+	--- 8.3.2-T1B released --- (Tue May  7 18:49:58 PDT 2002)
+
+1263.	[bug]		gethostans() could get out of sync parsing the
+			response if there was a very long CNAME chain.
+
+1262.	[bug]		winnt: dumpdb and stats should now work reliably.
+
+1261.	[bug]		using a valid TSIG with a compressed ownername could
+			result a INSIST() failure.
+
+1260.	[func]		"notify explicit;" from BIND 9.
+
+1259.	[misc]		leave the verification of the OPT options to the
+			caller.
+
+1258.	[func]		accept SOA MNAME field as legitimate additional
+			data.
+
+1257.	[bug]		malformed response to query w/ tsig + edns.
+
+1256.	[port]		darwin: probe for IPv6 support.
+
+1255.	[bug]		xfers_running could become out of sync if a zone
+			was removed while it was being transfered.
+
+1254.	[func]		nsupdate can now update IPv6 servers.
+
+1253.	[func]		host now accepts IPv6 addresses.
+
+1253.	[bug]		reserve space for the signature when performing a
+			zone transfer.
+
+1252.	[func]		dnsquery now accepts IPv6 addresses.
+
+1251.	[bug]		win32: it was possible to call RegCloseKey() on a
+			invalid key.
+
+1250	[func]		nslookup now accepts IPv6 addresses.
+
+1249.	[func]		dig now accepts IPv6 addresses.
+
+1248.	[doc]		correct some typos in named.conf.5 and corresponding
+			html.
+
+1247.	[bug]		get_salen() IPv6 support was broken for OSs w/o sa_len.
+
+1246.	[support]	add highly dangerous compile time option
+			NXDOMAIN_ON_DENIAL.  it should not be used
+			except in testing.
+
+1245.	[bug]		if we don't have enough file descriptors to open
+			a socket attempt to close a idle tcp client.
+
+1244.	[port]		bsdi: 4.3 has struct sockaddr_storage.
+
+1243.	[bug]		SERVFAIL can have too many other causes to be used
+			say whether a server supports EDNS or not.
+
+1242.	[port]		64k answer buffers were causing stack space to be
+			exceeded for certian OS.  Use heap space instead.
+
+1241.	[bug]		getnameinfo() failed to lookup IPv4 mapped /
+			compatible addresses.
+
+1340.	[bug]		reference after free for included conf file name.
+
+1339.	[bug]		doaddinfo would not always attempt to fetch missing
+			glue when it should have.
+
+1338.	[bug]		an IPv6 only nameserver could generate spurious
+			sysquery errors.
+
+1337.	[port]		linux: IN6ADDR_LOOPBACK_INIT, IN6ADDR_ANY_INIT and
+			sockaddr_storage not declared by early kernels.
+
+1336.	[bug]		getaddrinfo() could call freeaddrinfo() with an
+			invalid pointer.
+
+1335.	[bug]		res_nupdate() failed to update the name servers
+			addresses before sending the update.
+
+1334.	[bug]		A6 is expected in the additional section.
+
 	--- 8.3.1-REL released --- (Thu Jan 31 21:28:59 PST 2002)
+
+1333.   [bug]           cached NXDOMAIN/NODATA responses were being ignored
+			when when fetching missing additional data.
 
 1332.	[func]		"allow-query" is now supported for forward zones.
 			#define FORWARD_ALLOWS in bin/named/named.h to enable.
@@ -23,10 +109,6 @@
 1325.	[bug]		if fdopen() failed empty files could be left behind.
 
 1324.	[bug]		certian bad delegations could result in a DNS storm.
-
-1323.   [bug]           cached NXDOMAIN/NODATA responses were being ignored
-			when when fetching missing additional data.
-
 
 	--- 8.3.0-REL released --- (Fri Jan 11 04:00:00 PST 2002)
 

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.115 2002/01/29 03:59:35 marka Exp $
+ *	$Id: ns_defs.h,v 8.118 2002/04/25 05:27:06 marka Exp $
  */
 
 /*
@@ -170,10 +170,11 @@ typedef enum need {
 	main_need_qrylog,	/* toggle_qrylog() needed. */
 	main_need_debug,	/* use_desired_debug() needed. */
 	main_need_restart,	/* exec() needed. */
-	main_need_reap,		/* need to reap dead children */
-	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set */
+	main_need_reap,		/* need to reap dead children. */
+	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set. */
 	main_need_num,		/* number of needs, used for array bound. */
-	main_need_tick		/* tick every second to poll for cleanup (NT)*/
+	main_need_tick,		/* tick every second to poll for cleanup (NT) */
+	main_need_tryxfer	/* attemt to start a zone transfer. */
 } main_need;
 
 	/* What global options are set? */
@@ -182,7 +183,7 @@ typedef enum need {
 #define	OPTION_FORWARD_ONLY	0x00000004 /* Don't use NS RR's, just forward. */
 #define	OPTION_FAKE_IQUERY	0x00000008 /* Fake up bogus response to IQUERY. */
 #ifdef BIND_NOTIFY
-#define	OPTION_NONOTIFY		0x00000010 /* Turn off notify */
+/* #define	OPTION_NONOTIFY		0x00000010 */ /* Turn off notify */
 #define	OPTION_SUPNOTIFY_INITIAL 0x00000020 /* Supress initial notify */
 #endif
 #define	OPTION_NONAUTH_NXDOMAIN	0x00000040 /* Generate non-auth NXDOMAINs? */
@@ -272,7 +273,7 @@ typedef enum need {
 enum severity { ignore, warn, fail, not_set };
 
 #ifdef BIND_NOTIFY
-enum znotify { znotify_use_default=0, znotify_yes, znotify_no };
+enum notify { notify_use_default=0, notify_yes, notify_no, notify_explicit };
 #endif
 
 enum zdialup { zdialup_use_default=0, zdialup_yes, zdialup_no };
@@ -368,7 +369,7 @@ struct zoneinfo {
 					   from us */
 	long		z_max_transfer_time_in;	/* max num seconds for AXFR */
 #ifdef BIND_NOTIFY
-	enum znotify	z_notify;	/* Notify mode */
+	enum notify	z_notify;	/* Notify mode */
 	struct in_addr *z_also_notify; /* More nameservers to notify */
 	int		z_notify_count;
 #endif
@@ -496,7 +497,7 @@ struct qinfo {
 	u_int16_t	q_class;	/* class of query */
 	u_int16_t	q_type;		/* type of query */
 #ifdef BIND_NOTIFY
-	int		q_notifyzone;	/* zone which needs another znotify()
+	int		q_notifyzone;	/* zone which needs another notify()
 					 * when the reply to this comes in.
 					 */
 #endif
@@ -610,6 +611,8 @@ struct qstream {
 		ns_tcp_tsig_state *tsig_state;	/* used by ns_sign_tcp */
 		int		tsig_skip;	/* skip calling ns_sign_tcp
 						 * during the next flush */
+		int		tsig_size;	/* need to reserve this space
+						 * for the tsig. */
 		struct qs_x_lev {		/* decompose the recursion. */
 			enum {sxl_ns, sxl_all, sxl_sub}
 					state;	/* what's this level doing? */
@@ -790,6 +793,7 @@ typedef struct options {
 	u_int lame_ttl;
 	int minroots;
 	u_int16_t preferred_glue;
+	enum notify notify;
 } *options;
 
 typedef struct key_list_element {
