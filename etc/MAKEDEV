@@ -42,7 +42,6 @@
 #	vn*	"vnode disks"
 #
 # Console ports:
-#	pc*	devices for stock pccons
 #	vty*	virtual console devices for syscons/pcvt/codrv
 # 
 # Pointing devices:
@@ -71,7 +70,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.54 1994/12/04 20:15:15 phk Exp $
+#	$Id: MAKEDEV,v 1.55 1994/12/04 23:48:38 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
