@@ -163,6 +163,7 @@ enterpgrp(p, pgid, mksess)
 	int mksess;
 {
 	register struct pgrp *pgrp = pgfind(pgid);
+	struct pgrp *savegrp;
 
 	KASSERT(pgrp == NULL || !mksess,
 	    ("enterpgrp: setsid into non-empty pgrp"));
@@ -196,7 +197,9 @@ enterpgrp(p, pgid, mksess)
 			sess->s_ttyp = NULL;
 			bcopy(p->p_session->s_login, sess->s_login,
 			    sizeof(sess->s_login));
+			PROC_LOCK(p);
 			p->p_flag &= ~P_CONTROLT;
+			PROC_UNLOCK(p);
 			pgrp->pg_session = sess;
 			KASSERT(p == curproc,
 			    ("enterpgrp: mksession and p != curproc"));
@@ -220,11 +223,14 @@ enterpgrp(p, pgid, mksess)
 	fixjobc(p, pgrp, 1);
 	fixjobc(p, p->p_pgrp, 0);
 
+	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
-	if (LIST_EMPTY(&p->p_pgrp->pg_members))
-		pgdelete(p->p_pgrp);
+	savegrp = p->p_pgrp;
 	p->p_pgrp = pgrp;
 	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+	PROC_UNLOCK(p);
+	if (LIST_EMPTY(&savegrp->pg_members))
+		pgdelete(savegrp);
 	return (0);
 }
 
@@ -235,11 +241,15 @@ int
 leavepgrp(p)
 	register struct proc *p;
 {
+	struct pgrp *savegrp;
 
+	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
-	if (LIST_EMPTY(&p->p_pgrp->pg_members))
-		pgdelete(p->p_pgrp);
-	p->p_pgrp = 0;
+	savegrp = p->p_pgrp;
+	p->p_pgrp = NULL;
+	PROC_UNLOCK(p);
+	if (LIST_EMPTY(&savegrp->pg_members))
+		pgdelete(savegrp);
 	return (0);
 }
 
@@ -326,15 +336,20 @@ orphanpg(pg)
 {
 	register struct proc *p;
 
+	mtx_lock_spin(&sched_lock);
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 		if (p->p_stat == SSTOP) {
+			mtx_unlock_spin(&sched_lock);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+				PROC_LOCK(p);
 				psignal(p, SIGHUP);
 				psignal(p, SIGCONT);
+				PROC_UNLOCK(p);
 			}
 			return;
 		}
 	}
+	mtx_unlock_spin(&sched_lock);
 }
 
 #include "opt_ddb.h"
@@ -483,11 +498,9 @@ fill_kinfo_proc(p, kp)
 	if (jailed(p->p_ucred))
 		kp->ki_flag |= P_JAILED;
 	kp->ki_lock = p->p_lock;
-	PROC_UNLOCK(p);
-	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
-	PROCTREE_LOCK(PT_RELEASE);
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -659,7 +672,9 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 
 	if (p->p_args && --p->p_args->ar_ref == 0) 
 		FREE(p->p_args, M_PARGS);
+	PROC_LOCK(p);
 	p->p_args = NULL;
+	PROC_UNLOCK(p);
 
 	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
 		return (error);
@@ -669,9 +684,11 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	pa->ar_ref = 1;
 	pa->ar_length = req->newlen;
 	error = SYSCTL_IN(req, pa->ar_args, req->newlen);
-	if (!error)
+	if (!error) {
+		PROC_LOCK(p);
 		p->p_args = pa;
-	else
+		PROC_UNLOCK(p);
+	} else
 		FREE(pa, M_PARGS);
 	return (error);
 }
