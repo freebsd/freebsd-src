@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.17 1998/10/13 08:24:44 dg Exp $
+ * $Id: vm_pager.h,v 1.18 1999/01/21 08:29:12 dillon Exp $
  */
 
 /*
