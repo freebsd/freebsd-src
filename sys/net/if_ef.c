@@ -91,7 +91,7 @@ static SLIST_HEAD(ef_link_head, ef_link) efdev = {NULL};
 static int efcount;
 
 extern int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
-extern int (*ef_outputp)(struct ifnet *ifp, struct mbuf *m,
+extern int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
 		struct sockaddr *dst, short *tp);
 
 /*
@@ -103,7 +103,7 @@ static void ef_init(void *);
 static int ef_ioctl(struct ifnet *, u_long, caddr_t);
 static void ef_start(struct ifnet *);
 static int ef_input(struct ifnet*, struct ether_header *, struct mbuf *);
-static int ef_output(struct ifnet *ifp, struct mbuf *m,
+static int ef_output(struct ifnet *ifp, struct mbuf **mp,
 		struct sockaddr *dst, short *tp);
 
 static int ef_load(void);
@@ -238,11 +238,15 @@ ef_start(struct ifnet *ifp)
 			bpf_mtap(ifp, m);
 		if (IF_QFULL(&p->if_snd)) {
 			IF_DROP(&p->if_snd);
-				/* XXX stats */
+			ifp->if_oerrors++;
+			m_freem(m);
+			continue;
 		}
 		IF_ENQUEUE(&p->if_snd, m);
-		if ((p->if_flags & IFF_OACTIVE) == 0)
+		if ((p->if_flags & IFF_OACTIVE) == 0) {
 			p->if_start(p);
+			ifp->if_opackets++;
+		}
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 	return;
@@ -276,6 +280,8 @@ ef_inputEII(struct mbuf *m, struct ether_header *eh, struct llc* l,
 		*inq = &arpintrq;
 		break;
 #endif
+	    default:
+		return EPROTONOSUPPORT;
 	}
 	return 0;
 }
@@ -292,6 +298,8 @@ ef_inputSNAP(struct mbuf *m, struct ether_header *eh, struct llc* l,
 		*inq = &ipxintrq;
 		break;
 #endif
+	    default:
+		return EPROTONOSUPPORT;
 	}
 	return 0;
 }
@@ -308,6 +316,8 @@ ef_input8022(struct mbuf *m, struct ether_header *eh, struct llc* l,
 		*inq = &ipxintrq;
 		break;
 #endif
+	    default:
+		return EPROTONOSUPPORT;
 	}
 	return 0;
 }
@@ -351,7 +361,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 
 	if (ft == -1) {
 		EFDEBUG("Unrecognised ether_type %x\n", ether_type);
-		return -1;
+		return EPROTONOSUPPORT;
 	}
 
 	/*
@@ -366,11 +376,11 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	}
 	if (efp == NULL) {
 		EFDEBUG("Can't find if for %d\n", ft);
-		return -1;
+		return EPROTONOSUPPORT;
 	}
 	eifp = &efp->ef_ac.ac_if;
 	if ((eifp->if_flags & IFF_UP) == 0)
-		return -1;
+		return EPROTONOSUPPORT;
 	eifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
 	m->m_pkthdr.rcvif = eifp;
 
@@ -387,8 +397,8 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	inq = NULL;
 	switch(ft) {
 	    case ETHER_FT_EII:
-		if (ef_inputEII(m, eh, l, ether_type, &inq) == 1)
-			return 0;
+		if (ef_inputEII(m, eh, l, ether_type, &inq) != 0)
+			return EPROTONOSUPPORT;
 		break;
 #ifdef IPX
 	    case ETHER_FT_8023:		/* only IPX can be here */
@@ -397,19 +407,19 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		break;
 #endif
 	    case ETHER_FT_SNAP:
-		if (ef_inputSNAP(m, eh, l, ether_type, &inq) == 1)
-			return 0;
+		if (ef_inputSNAP(m, eh, l, ether_type, &inq) != 0)
+			return EPROTONOSUPPORT;
 		break;
 	    case ETHER_FT_8022:
-		if (ef_input8022(m, eh, l, ether_type, &inq) == 1)
-			return 0;
+		if (ef_input8022(m, eh, l, ether_type, &inq) != 0)
+			return EPROTONOSUPPORT;
 		break;
 	}
 
 	if (inq == NULL) {
 		EFDEBUG("No support for frame %d and proto %04x\n",
 			ft, ether_type);
-		return -1;
+		return EPROTONOSUPPORT;
 	}
 	s = splimp();
 	if (IF_QFULL(inq)) {
@@ -422,26 +432,41 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 }
 
 static int
-ef_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, short *tp)
+ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp)
 {
+	struct mbuf *m = *mp;
 	u_char *cp;
 	short type;
 
 	if (ifp->if_type != IFT_XETHER)
-		return 1;
+		return ENETDOWN;
 	switch (ifp->if_unit) {
 	    case ETHER_FT_EII:
 #ifdef IPX
 		type = htons(ETHERTYPE_IPX);
 #else
-		return 1;
+		return EPFNOSUPPORT;
 #endif
 		break;
 	    case ETHER_FT_8023:
 		type = htons(m->m_pkthdr.len);
 		break;
 	    case ETHER_FT_8022:
-		M_PREPEND(m, 3, M_WAIT);
+		M_PREPEND(m, ETHER_HDR_LEN + 3, M_WAIT);
+		if (m == NULL) {
+			*mp = NULL;
+			return ENOBUFS;
+		}
+		/*
+		 * Ensure that ethernet header and next three bytes
+		 * will fit into single mbuf
+		 */
+		m = m_pullup(m, ETHER_HDR_LEN + 3);
+		if (m == NULL) {
+			*mp = NULL;
+			return ENOBUFS;
+		}
+		m_adj(m, ETHER_HDR_LEN);
 		type = htons(m->m_pkthdr.len);
 		cp = mtod(m, u_char *);
 		*cp++ = 0xE0;
@@ -450,13 +475,18 @@ ef_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, short *tp)
 		break;
 	    case ETHER_FT_SNAP:
 		M_PREPEND(m, 8, M_WAIT);
+		if (m == NULL) {
+			*mp = NULL;
+			return ENOBUFS;
+		}
 		type = htons(m->m_pkthdr.len);
 		cp = mtod(m, u_char *);
 		bcopy("\xAA\xAA\x03\x00\x00\x00\x81\x37", cp, 8);
 		break;
 	    default:
-		return -1;
+		return EPFNOSUPPORT;
 	}
+	*mp = m;
 	*tp = type;
 	return 0;
 }

@@ -71,7 +71,7 @@
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
-int (*ef_outputp)(struct ifnet *ifp, struct mbuf *m,
+int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
 		struct sockaddr *dst, short *tp);
 #endif
 
@@ -220,11 +220,9 @@ ether_output(ifp, m, dst, rt0)
 #ifdef IPX
 	case AF_IPX:
 		if (ef_outputp) {
-		    error = ef_outputp(ifp, m, dst, &type);
-		    if (error < 0)
-			senderr(EPFNOSUPPORT);
-		    if (error > 0)
-			type = htons(ETHERTYPE_IPX);
+		    error = ef_outputp(ifp, &m, dst, &type);
+		    if (error)
+			goto bad;
 		} else
 		    type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
