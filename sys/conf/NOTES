@@ -1162,6 +1162,8 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 #      Qlogic ISP 2100 and ISP 2200 1Gb Fibre Channel host adapters.
 #      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
 # ispfw: Firmware module for Qlogic host adapters
+# mpt: LSI-Logic MPT/Fusion 53c1020 or 53c1030 Ultra4
+#      or FC9x9 Fibre Channel host adapters.
 # ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
@@ -1205,6 +1207,7 @@ hint.isp.0.topology="nport-only"
 hint.isp.0.portwnn="w50000000aaaa0000"
 hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
+device		mpt
 device		ncr
 device		sym
 device		trm
@@ -1244,7 +1247,7 @@ options 	ADW_ALLOW_MEMIO
 #
 #	ISP_TARGET_MODE		-	enable target mode operation
 #
-#options 	ISP_TARGET_MODE=1
+options 	ISP_TARGET_MODE=1
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 #options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
