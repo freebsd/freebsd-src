@@ -132,6 +132,7 @@ enum sysinit_sub_id {
 	SI_SUB_SOFTINTR		= 0x2800001,	/* start soft interrupt thread */
 	SI_SUB_DEVFS		= 0x2F00000,	/* devfs ready for devices */
 	SI_SUB_INIT_IF		= 0x3000000,	/* prep for net interfaces */
+	SI_SUB_NETGRAPH		= 0x3010000,	/* Let Netgraph initialize */
 	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual filesystem*/
