@@ -137,6 +137,7 @@ static char 		 cpu_cx_supported[64];
 static device_t		*cpu_devices;
 static int		 cpu_ndevices;
 static struct acpi_cpu_softc **cpu_softc;
+ACPI_SERIAL_DECL(cpu, "ACPI CPU");
 
 static struct sysctl_ctx_list	acpi_cpu_sysctl_ctx;
 static struct sysctl_oid	*acpi_cpu_sysctl_tree;
@@ -274,8 +275,6 @@ acpi_cpu_attach(device_t dev)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    ACPI_ASSERTLOCK;
-
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
@@ -385,8 +384,6 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
     ACPI_STATUS		 status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    ACPI_ASSERTLOCK;
 
     /* Get throttling parameters from the FADT.  0 means not supported. */
     if (device_get_unit(sc->cpu_dev) == 0) {
@@ -695,7 +692,6 @@ acpi_cpu_startup(void *arg)
 static void
 acpi_cpu_startup_throttling()
 {
-    ACPI_LOCK_DECL;
 
     /* Initialise throttling states */
     cpu_throttle_max = CPU_MAX_SPEED;
@@ -712,13 +708,16 @@ acpi_cpu_startup_throttling()
 		    0, acpi_cpu_throttle_sysctl, "I", "current CPU speed");
 
     /* If ACPI 2.0+, signal platform that we are taking over throttling. */
-    ACPI_LOCK;
-    if (cpu_pstate_cnt != 0)
+    if (cpu_pstate_cnt != 0) {
+	ACPI_LOCK(acpi);
 	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
+	ACPI_UNLOCK(acpi);
+    }
 
     /* Set initial speed to maximum. */
+    ACPI_SERIAL_BEGIN(cpu);
     acpi_cpu_throttle_set(cpu_throttle_max);
-    ACPI_UNLOCK;
+    ACPI_SERIAL_END(cpu);
 
     printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), "
 	   "currently %d.%d%%\n", CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1),
@@ -731,7 +730,6 @@ acpi_cpu_startup_cx()
     struct acpi_cpu_softc *sc;
     struct sbuf		 sb;
     int i;
-    ACPI_LOCK_DECL;
 
     sc = device_get_softc(cpu_devices[0]);
     sbuf_new(&sb, cpu_cx_supported, sizeof(cpu_cx_supported), SBUF_FIXEDLEN);
@@ -757,9 +755,9 @@ acpi_cpu_startup_cx()
 #ifdef notyet
     /* Signal platform that we can handle _CST notification. */
     if (cpu_cst_cnt != 0) {
-	ACPI_LOCK;
+	ACPI_LOCK(acpi);
 	AcpiOsWritePort(cpu_smi_cmd, cpu_cst_cnt, 8);
-	ACPI_UNLOCK;
+	ACPI_UNLOCK(acpi);
     }
 #endif
 
@@ -779,7 +777,7 @@ acpi_cpu_throttle_set(uint32_t speed)
     int				i;
     uint32_t			p_cnt, clk_val;
 
-    ACPI_ASSERTLOCK;
+    ACPI_SERIAL_ASSERT(cpu);
 
     /* Iterate over processors */
     for (i = 0; i < cpu_ndevices; i++) {
@@ -1017,7 +1015,6 @@ acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS)
     uint32_t	*argp;
     uint32_t	 arg;
     int		 error;
-    ACPI_LOCK_DECL;
 
     argp = (uint32_t *)oidp->oid_arg1;
     arg = *argp;
@@ -1030,12 +1027,12 @@ acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 
     /* If throttling changed, notify the BIOS of the new rate. */
-    ACPI_LOCK;
+    ACPI_SERIAL_BEGIN(cpu);
     if (*argp != arg) {
 	*argp = arg;
 	acpi_cpu_throttle_set(arg);
     }
-    ACPI_UNLOCK;
+    ACPI_SERIAL_END(cpu);
 
     return (0);
 }
@@ -1087,6 +1084,7 @@ acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     if (val < 0 || val > cpu_cx_count - 1)
 	return (EINVAL);
 
+    ACPI_SERIAL_BEGIN(cpu);
     cpu_cx_lowest = val;
 
     /* If not disabling, cache the new lowest non-C3 state. */
@@ -1100,6 +1098,7 @@ acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
 
     /* Reset the statistics counters. */
     bzero(cpu_cx_stats, sizeof(cpu_cx_stats));
+    ACPI_SERIAL_END(cpu);
 
     return (0);
 }
