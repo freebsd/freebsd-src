@@ -28,7 +28,11 @@ syscalls.h:	syscalls.master
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh syscalls.master \
 		${.CURDIR}/i386.conf
 
-ioctl.c:
-	sh ${.CURDIR}/../../usr.bin/kdump/mkioctls ${DESTDIR}/usr/include > ioctl.c
+.if make(depend)
+ioctl.c:	.PHONY
+.else
+ioctl.c:	${.CURDIR}/../kdump/mkioctls
+.endif
+	sh ${.CURDIR}/../kdump/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
 
 .include <bsd.prog.mk>
