@@ -197,9 +197,12 @@ ieee80211_chan2ieee(struct ieee80211com *ic, struct ieee80211_channel *c)
 		return c - ic->ic_channels;
 	else if (c == IEEE80211_CHAN_ANYC)
 		return IEEE80211_CHAN_ANY;
-	else {
+	else if (c != NULL) {
 		if_printf(&ic->ic_if, "invalid channel freq %u flags %x\n",
 			c->ic_freq, c->ic_flags);
+		return 0;		/* XXX */
+	} else {
+		if_printf(&ic->ic_if, "invalid channel (NULL)\n");
 		return 0;		/* XXX */
 	}
 }
