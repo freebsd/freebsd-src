@@ -2301,25 +2301,28 @@ dosansi|ANSI.SYS standard crt:\
 vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:do=2\E[B:co#80:li#24:cl=50\E[H\E[J:sf=2*\ED:\
 	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
-	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[27m:us=2\E[4m:ue=2\E[24m:\
+	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
 	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
 	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H:\
-	:if=/usr/share/tabset/vt100:nw=\EE:\
-	:as=\E(0:ae=\E(B:ac=llmmkkjjuuttvvwwqqxxnnoosspprr``aaffgg~~..--++,,hhII00yyzz:\
+	:if=/usr/share/tabset/vt100:nw=2\EE:\
+	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnoosspprr``aaffgg~~..--++,,hhII00yyzz:\
 	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
 	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=2*\EM:vt#3:xn:\
-	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
-	:LE=2\E[%dD:ct=\E[3g:st=\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:
+	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:nl=^J:eo:it#8:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7l\E[?8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7l\E[?8h:\
 	:tc=vt100-am:
 vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
-	:cl=\E[H\E[2J:sr=\EM:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
+	:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:nw=\EE:\
 	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
-	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:tc=vt100:
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:\
+	:LE=\E[%dD:ct=\E[3g:st=\EH:tc=vt100-am:
 gt42|dec gt42:\
 	:do=^J:le=^H:bs:co#72:ns:li#40:os:
 #From ts@pc.ecn.purdue.edu (Thomas Ruschak)
@@ -2397,10 +2400,9 @@ vt100-w-nam|dec-vt100-w-nam|dec vt100 132 cols (w/advanced video), no am:\
 vt102|dec-vt102-am|vt102am|vt100 w/adv. video:\
 	:al=\E[L:dl=\E[M:im=\E[4h:ei=\E[4l:mi:dc=\E[P:\
 	:k0=\EOp:k1=\EOq:k2=\EOr:k3=\EOs:k4=\EOt:k5=\EOu:\
-	:k6=\EOv:k7=\EOw:k8=\EOx:k9=\EOy:k;=\EOm:F1=\EOl:\
-	:@7=\E[K:kh=\E[H:kN=\E[Oq:kP=\E[Or:kI=\EOn:\
-	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:\
-	:tc=vt100am:
+	:k6=\EOv:k7=\EOw:k8=\EOx:k9=\EOy:k;=\EOm:F1=\EOl:F2=\EOM:\
+	:@7=\E[K:kh=\E[H:kN=\E[Oq:kP=\E[Or:kI=\EOn:kD=\ED:\
+	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:tc=vt100-np:
 vt102-nam|dec-vt102-nam|vt102nam|vt102 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7l\E[?8h\E[1;24r\E[24;1H:\
@@ -2411,17 +2413,6 @@ vt102-w|dec vt102 132 cols (w/advanced video):\
 	:is=\E>\E[?3h\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?3h\E[?4l\E[?5l\E[?7h\E[?8h:\
 	:co#132:vt@:tc=vt102:
-# (from lai@decwrl) should be a vt102, but have heard enough
-# unsubstantiated complaints to make it an alternate (obsolete) version
-vt102-obs|dec vt102:\
-	:do=^J:co#80:li#24:cl=50\E[;H\E[2J:\
-	:le=^H:bs:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
-	:ce=3\E[K:cd=50\E[J:so=2\E[7m:se=2\E[m:us=2\E[4m:ue=2\E[m:\
-	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:is=\E[1;24r\E[24;1H:\
-	:rs=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
-	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
-	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=5\EM:vt#3:\
-	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:vs=\E[?7l:ve=\E[?7h:
 vt52|dec-vt52|dec vt52:\
 	:do=^J:le=^H:bs:cd=\EJ:ce=\EK:cl=\EH\EJ:cm=\EY%+ %+ :co#80:li#24:\
 	:nd=\EC:pt:sr=\EI:up=\EA:ku=\EA:kd=\EB:kr=\EC:kl=\ED:kb=^H:
@@ -2448,7 +2439,7 @@ vt200|vt220|vt220am|SC|dec-vt220|dec vt200 series with jump scroll:\
 	:@7=\E[4~:kh=\E[1~:kI=\E[2~:k0=\E[10~:\
 	:kD=\E[3~:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:\
 	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[22~:\
-	:F2=\E[23~:kP=\E[5~:kN=\E[6~:\
+	:F2=\E[23~:kP=\E[5~:kN=\E[6~:ue=\E[24m:se=\E[27m:\
 	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:\
 	:tc=vt102:
 vt200-nam|dec-vt200-nam|vt200nam|vt200 w/no am:\
