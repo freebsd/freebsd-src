@@ -1612,10 +1612,21 @@ toicon(tn)
 				warning(56);
 			}
 		} else {
+#ifdef XXX_BROKEN_GCC
+			if (v->v_quad > INT_MAX) {
+				/* integral constant too large */
+				warning(56);
+			}
+			else if (v->v_quad < INT_MIN) {
+				/* integral constant too large */
+				warning(56);
+			}
+#else
 			if (v->v_quad > INT_MAX || v->v_quad < INT_MIN) {
 				/* integral constant too large */
 				warning(56);
 			}
+#endif
 		}
 	}
 	free(v);
