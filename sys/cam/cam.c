@@ -30,7 +30,10 @@
 #include <sys/param.h>
 
 #ifdef _KERNEL
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #else /* _KERNEL */
 #include <stdlib.h>
 #include <stdio.h>
@@ -94,6 +97,10 @@ const struct cam_status_entry cam_status_table[] = {
 
 const int num_cam_status_entries =
     sizeof(cam_status_table)/sizeof(*cam_status_table);
+
+#ifdef _KERNEL
+SYSCTL_NODE(_kern, OID_AUTO, cam, CTLFLAG_RD, 0, "CAM Subsystem");
+#endif
 
 void
 cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen)
