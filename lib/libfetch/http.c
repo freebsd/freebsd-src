@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4 1998/07/12 22:34:40 des Exp $
+ *	$Id: http.c,v 1.5 1998/08/17 09:30:19 des Exp $
  */
 
 /*
@@ -77,6 +77,7 @@
 #include <unistd.h>
 
 #include "fetch.h"
+#include "common.h"
 #include "httperr.c"
 
 #ifndef NDEBUG
@@ -101,20 +102,6 @@ struct cookie
     int b_cur, eof;
     unsigned b_len, chunksize;
 };
-
-/*
- * Look up error code
- */
-static const char *
-_http_errstring(int e)
-{
-    struct httperr *p = _http_errlist;
-
-    while ((p->num != -1) && (p->num != e))
-	p++;
-    
-    return p->string;
-}
 
 /*
  * Send a formatted line; optionally echo to terminal

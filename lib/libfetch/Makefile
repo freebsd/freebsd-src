@@ -1,8 +1,11 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1998/08/17 20:39:09 bde Exp $
 
 LIB=		fetch
-CFLAGS+=	-I. -Wall -pedantic -DNDEBUG
-SRCS=		fetch.c ftp.c http.c file.c
+CFLAGS+=	-I. -Wall -pedantic
+.if !defined(DEBUG)
+CFLAGS+=	-DNDEBUG
+.endif
+SRCS=		fetch.c common.c ftp.c http.c file.c
 DPSRCS=		ftperr.c httperr.c
 MAN3=		fetch.3
 CLEANFILES=	${DPSRCS}
@@ -17,11 +20,7 @@ beforeinstall:
 		${DESTDIR}/usr/include
 
 ftperr.c: ftp.errors
-	@echo "struct ftperr {" \ >  ${.TARGET}
-	@echo "    const int num;" \ >>  ${.TARGET}
-	@echo "    const char *string;" \ >>  ${.TARGET}
-	@echo "};" \ >>  ${.TARGET}
-	@echo "static struct ftperr _ftp_errlist[] = {" \ >>  ${.TARGET}
+	@echo "static struct fetcherr _ftp_errlist[] = {" \ >>  ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
@@ -30,13 +29,12 @@ ftperr.c: ftp.errors
 	  done >> ${.TARGET}
 	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
+	@echo "#define _ftp_errstring(n) _fetch_errstring(_ftp_errlist, n)" >> ${.TARGET}
+	@echo "#define _ftp_seterr(n) _fetch_seterr(_ftp_errlist, n)" >> ${.TARGET}
+
 
 httperr.c: http.errors
-	@echo "struct httperr {" \ >  ${.TARGET}
-	@echo "    const int num;" \ >>  ${.TARGET}
-	@echo "    const char *string;" \ >>  ${.TARGET}
-	@echo "};" \ >>  ${.TARGET}
-	@echo "static struct httperr _http_errlist[] = {" \ >>  ${.TARGET}
+	@echo "static struct fetcherr _http_errlist[] = {" \ >>  ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
@@ -45,6 +43,8 @@ httperr.c: http.errors
 	  done >> ${.TARGET}
 	@echo "    { -1, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
+	@echo "#define _http_errstring(n) _fetch_errstring(_http_errlist, n)" >> ${.TARGET}
+	@echo "#define _http_seterr(n) _fetch_seterr(_http_errlist, n)" >> ${.TARGET}
 
 .include <bsd.lib.mk>
 

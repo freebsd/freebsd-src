@@ -25,20 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.3 1998/07/11 21:29:07 des Exp $
+ *	$Id: fetch.c,v 1.4 1998/08/17 09:30:19 des Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 #include <ctype.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "fetch.h"
 
@@ -51,6 +46,10 @@
 int fetchLastErrCode;
 const char *fetchLastErrText;
 
+/*
+ * Select the appropriate protocol for the URL scheme, and return a
+ * read-only stream connected to the document referenced by the URL.
+ */
 FILE *
 fetchGet(url_t *URL, char *flags)
 {
@@ -64,6 +63,10 @@ fetchGet(url_t *URL, char *flags)
 
 }
 
+/*
+ * Select the appropriate protocol for the URL scheme, and return a
+ * write-only stream connected to the document referenced by the URL.
+ */
 FILE *
 fetchPut(url_t *URL, char *flags)
 {
@@ -76,7 +79,9 @@ fetchPut(url_t *URL, char *flags)
     else return NULL;
 }
 
-/* get URL */
+/*
+ * Attempt to parse the given URL; if successful, call fetchGet().
+ */
 FILE *
 fetchGetURL(char *URL, char *flags)
 {
@@ -88,12 +93,14 @@ fetchGetURL(char *URL, char *flags)
     
     f = fetchGet(u, flags);
     
-    fetchFreeURL(u);
+    free(u);
     return f;
 }
 
 
-/* put URL */
+/*
+ * Attempt to parse the given URL; if successful, call fetchPut().
+ */
 FILE *
 fetchPutURL(char *URL, char *flags)
 {
@@ -105,7 +112,7 @@ fetchPutURL(char *URL, char *flags)
     
     f = fetchPut(u, flags);
     
-    fetchFreeURL(u);
+    free(u);
     return f;
 }
 
@@ -171,11 +178,17 @@ fetchParseURL(char *URL)
 
 nohost:
     /* document */
-    if (*p)
-	u->doc = strdup(p);
-    u->doc = strdup(*p ? p : "/");
-    if (!u->doc)
-	goto ouch;
+    if (*p) {
+	url_t *t;
+	t = realloc(u, sizeof(*u)+strlen(p)-1);
+	if (t == NULL)
+	    goto ouch;
+	u = t;
+	strcpy(u->doc, p);
+    } else {
+	u->doc[0] = '/';
+	u->doc[1] = 0;
+    }
     
     DEBUG(fprintf(stderr,
 		  "scheme:   [\033[1m%s\033[m]\n"
@@ -192,46 +205,4 @@ nohost:
 ouch:
     free(u);
     return NULL;
-}
-
-void
-fetchFreeURL(url_t *u)
-{
-    if (u) {
-	if (u->doc)
-	    free(u->doc);
-	free(u);
-    }
-}
-
-int
-fetchConnect(char *host, int port)
-{
-    struct sockaddr_in sin;
-    struct hostent *he;
-    int sd;
-
-#ifndef NDEBUG
-    fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
-#endif
-    
-    /* look up host name */
-    if ((he = gethostbyname(host)) == NULL)
-	return -1;
-
-    /* set up socket address structure */
-    bzero(&sin, sizeof(sin));
-    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
-    sin.sin_family = he->h_addrtype;
-    sin.sin_port = htons(port);
-
-    /* try to connect */
-    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
-	return -1;
-    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1) {
-	close(sd);
-	return -1;
-    }
-
-    return sd;
 }
