@@ -140,7 +140,6 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
 #define	SCHED_PRI_NRESV		((PRIO_MAX - PRIO_MIN) + 1)
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_NTHRESH	(SCHED_PRI_NHALF - 1)
 #define	SCHED_PRI_BASE		(PRI_MIN_TIMESHARE)
 #define	SCHED_PRI_INTERACT(score)					\
     ((score) * SCHED_PRI_RANGE / SCHED_INTERACT_MAX)
@@ -169,19 +168,19 @@ struct td_sched *thread0_sched = &td_sched;
  * SLICE_RANGE:	Range of available time slices scaled by hz.
  * SLICE_SCALE:	The number slices granted per val in the range of [0, max].
  * SLICE_NICE:  Determine the amount of slice granted to a scaled nice.
+ * SLICE_NTHRESH:	The nice cutoff point for slice assignment.
  */
 #define	SCHED_SLICE_MIN			(slice_min)
 #define	SCHED_SLICE_MAX			(slice_max)
+#define	SCHED_SLICE_NTHRESH	(SCHED_PRI_NHALF - 1)
 #define	SCHED_SLICE_RANGE		(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
 #define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
 #define	SCHED_SLICE_NICE(nice)						\
-    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((nice), SCHED_PRI_NTHRESH))
+    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((nice), SCHED_SLICE_NTHRESH))
 
 /*
  * This macro determines whether or not the kse belongs on the current or
  * next run queue.
- * 
- * XXX nice value should effect how interactive a kg is.
  */
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
@@ -764,12 +763,12 @@ sched_slice(struct kse *ke)
 	 * nice kse on the run queue.  Slice size is determined by
 	 * the kse distance from the last nice ksegrp.
 	 *
-	 * If you are outside of the window you will get no slice and
-	 * you will be reevaluated each time you are selected on the
-	 * run queue.
-	 *	
+	 * If the kse is outside of the window it will get no slice
+	 * and will be reevaluated each time it is selected on the
+	 * run queue.  The exception to this is nice 0 ksegs when
+	 * a nice -20 is running.  They are always granted a minimum
+	 * slice.
 	 */
-
 	if (!SCHED_INTERACTIVE(kg)) {
 		int nice;
 
@@ -777,8 +776,10 @@ sched_slice(struct kse *ke)
 		if (kseq->ksq_loads[PRI_TIMESHARE] == 0 ||
 		    kg->kg_nice < kseq->ksq_nicemin)
 			ke->ke_slice = SCHED_SLICE_MAX;
-		else if (nice <= SCHED_PRI_NTHRESH)
+		else if (nice <= SCHED_SLICE_NTHRESH)
 			ke->ke_slice = SCHED_SLICE_NICE(nice);
+		else if (kg->kg_nice == 0)
+			ke->ke_slice = SCHED_SLICE_MIN;
 		else
 			ke->ke_slice = 0;
 	} else
