@@ -109,7 +109,6 @@ elif [ "${ARCH}" = "alpha" ]; then
 sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
-	-e '/NOBLOCKRANDOM/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
