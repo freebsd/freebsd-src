@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 
-#include "lmessages.h"
 #include "ldpart.h"
+#include "lmessages.h"
 
 #define LCMESSAGES_SIZE_FULL (sizeof(struct lc_messages_T) / sizeof(char *))
 #define LCMESSAGES_SIZE_MIN \

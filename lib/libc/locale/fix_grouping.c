@@ -34,12 +34,15 @@ __FBSDID("$FreeBSD$");
 static const char nogrouping[] = { CHAR_MAX, '\0' };
 
 /*
- * "3;3;-1" -> "\003\003\177"
+ * Internal helper used to convert grouping sequences from string
+ * representation into POSIX specified form, i.e.
+ *
+ * "3;3;-1" -> "\003\003\177\000"
  */
 
 const char *
-__fix_locale_grouping_str(const char *str) {
-
+__fix_locale_grouping_str(const char *str)
+{
 	char *src, *dst;
 	char n;
 

@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-#include "setlocale.h"
 #include "ldpart.h"
+#include "setlocale.h"
 
 static int split_lines(char *, const char *);
 
@@ -80,6 +80,7 @@ __part_load_locale(const char *name,
 	namesize = strlen(name) + 1;
 
 	/* 'PathLocale' must be already set & checked. */
+
 	/* Range checking not needed, 'name' size is limited */
 	strcpy(filename, _PathLocale);
 	strcat(filename, "/");

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
+ * Copyright (c) 2001, 2003 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,22 +27,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <locale.h>
 #include <langinfo.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../stdtime/timelocal.h"
 #include "lnumeric.h"
-#include "lmonetary.h"
 #include "lmessages.h"
+#include "lmonetary.h"
+#include "../stdtime/timelocal.h"
 
 #define _REL(BASE) ((int)item-BASE)
 
 char *
-nl_langinfo(nl_item item) {
-
+nl_langinfo(nl_item item)
+{
    char *ret, *s, *cs;
    static char *csym = NULL;
 
@@ -126,9 +126,9 @@ nl_langinfo(nl_item item) {
 		ret = (char*) __get_current_messages_locale()->noexpr;
 		break;
 	/*
-	 * All items marked with LEGACY are available, but not recomended
-	 * by SUSv2 to be used in portable applications since they're subject
-	 * to remove in future specification editions
+	 * YESSTR and NOSTR items marked with LEGACY are available, but not
+	 * recomended by SUSv2 to be used in portable applications since
+	 * they're subject to remove in future specification editions.
 	 */
 	case YESSTR:            /* LEGACY  */
 		ret = (char*) __get_current_messages_locale()->yesstr;
@@ -136,6 +136,9 @@ nl_langinfo(nl_item item) {
 	case NOSTR:             /* LEGACY  */
 		ret = (char*) __get_current_messages_locale()->nostr;
 		break;
+	/*
+	 * SUSv2 special formatted currency string 
+	 */
 	case CRNCYSTR:
 		ret = "";
 		cs = (char*) __get_current_monetary_locale()->currency_symbol;
@@ -162,7 +165,7 @@ nl_langinfo(nl_item item) {
 			}
 		}
 		break;
-	case D_MD_ORDER:        /* local extension */
+	case D_MD_ORDER:        /* FreeBSD local extension */
 		ret = (char *) __get_current_time_locale()->md_order;
 		break;
 	default:
