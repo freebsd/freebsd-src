@@ -73,7 +73,8 @@ set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
 (Only IBM DPTA, DTLA, ICxxxxxxAT, ICxxxxxxAV drives support that.)
 .El
 .Sh DESCRIPTION
-This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
+This driver provides access to ATA (IDE) and SerialATA disk drives,
+ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
 according to the ATA and ATAPI standards.
 These devices are also commonly known as IDE or EIDE devices.
@@ -121,6 +122,8 @@ Ultra DMA 100 (UDMA5), 100 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Intel ICH4
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Intel ICH5
+SATA 150, 150 MB/sec
 .It Promise Ultra/Fasttrak-33
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It Promise Ultra/Fasttrak-66
@@ -149,6 +152,8 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It VIA 8233/8235
 Ultra DMA 133 (UDMA6), 133 MB/sec (depending on model, max stated at boot)
+.It VIA 8237
+SATA 150, 150 MB/sec
 .El
 .Pp
 All unknown chipsets are supported at the maximum speed of 16 MB/sec.
