@@ -219,7 +219,6 @@ struct md_page {
 
 struct pmap {
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
-	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_long			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
