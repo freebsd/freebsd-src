@@ -28,7 +28,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: frame.h,v 1.2 1999/01/10 10:13:15 tsubai Exp $
+ *	$NetBSD: frame.h,v 1.2 1999/01/10 10:13:15 tsubai Exp $
  * $FreeBSD$
  */
 
