@@ -218,7 +218,6 @@ static int bge_miibus_writereg	(device_t, int, int, int);
 static void bge_miibus_statchg	(device_t);
 
 static void bge_reset		(struct bge_softc *);
-static void bge_phy_hack	(struct bge_softc *);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -477,7 +476,7 @@ bge_miibus_readreg(dev, phy, reg)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t val;
+	u_int32_t val, autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -491,6 +490,13 @@ bge_miibus_readreg(dev, phy, reg)
 			return(0);
 		}
 
+	/* Reading with autopolling on may trigger PCI errors */
+	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
+	if (autopoll & BGE_MIMODE_AUTOPOLL) {
+		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
+		DELAY(40);
+	}
+
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_READ|BGE_MICOMM_BUSY|
 	    BGE_MIPHY(phy)|BGE_MIREG(reg));
 
@@ -502,10 +508,17 @@ bge_miibus_readreg(dev, phy, reg)
 
 	if (i == BGE_TIMEOUT) {
 		printf("bge%d: PHY read timed out\n", sc->bge_unit);
-		return(0);
+		val = 0;
+		goto done;
 	}
 
 	val = CSR_READ_4(sc, BGE_MI_COMM);
+
+done:
+	if (autopoll & BGE_MIMODE_AUTOPOLL) {
+		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
+		DELAY(40);
+	}
 
 	if (val & BGE_MICOMM_READFAIL)
 		return(0);
@@ -519,9 +532,17 @@ bge_miibus_writereg(dev, phy, reg, val)
 	int phy, reg, val;
 {
 	struct bge_softc *sc;
+	u_int32_t autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
+
+	/* Reading with autopolling on may trigger PCI errors */
+	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
+	if (autopoll & BGE_MIMODE_AUTOPOLL) {
+		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
+		DELAY(40);
+	}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_WRITE|BGE_MICOMM_BUSY|
 	    BGE_MIPHY(phy)|BGE_MIREG(reg)|val);
@@ -529,6 +550,11 @@ bge_miibus_writereg(dev, phy, reg, val)
 	for (i = 0; i < BGE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, BGE_MI_COMM) & BGE_MICOMM_BUSY))
 			break;
+	}
+
+	if (autopoll & BGE_MIMODE_AUTOPOLL) {
+		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
+		DELAY(40);
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -561,8 +587,6 @@ bge_miibus_statchg(dev)
 	} else {
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
 	}
-
-	bge_phy_hack(sc);
 
 	return;
 }
@@ -2029,14 +2053,20 @@ bge_intr(xsc)
 			    BRGPHY_INTRS);
 		}
 	} else {
-		if (sc->bge_rdata->bge_status_block.bge_status &
-		    BGE_STATFLAG_LINKSTATE_CHANGED) {
+		if ((sc->bge_rdata->bge_status_block.bge_status &
+		    BGE_STATFLAG_UPDATED) &&
+		    (sc->bge_rdata->bge_status_block.bge_status &
+		    BGE_STATFLAG_LINKSTATE_CHANGED)) {
+			sc->bge_rdata->bge_status_block.bge_status &= ~(BGE_STATFLAG_UPDATED|BGE_STATFLAG_LINKSTATE_CHANGED);
 			sc->bge_link = 0;
 			untimeout(bge_tick, sc, sc->bge_stat_ch);
 			bge_tick(sc);
 			/* Clear the interrupt */
 			CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 			    BGE_MACSTAT_CFG_CHANGED);
+
+			/* Force flush the status block cached by PCI bridge */
+			CSR_READ_4(sc, BGE_MBX_IRQ0_LO);
 		}
 	}
 
@@ -2295,48 +2325,6 @@ bge_start(ifp)
 	return;
 }
 
-/*
- * If we have a BCM5400 or BCM5401 PHY, we need to properly
- * program its internal DSP. Failing to do this can result in
- * massive packet loss at 1Gb speeds.
- */
-static void
-bge_phy_hack(sc)
-	struct bge_softc *sc;
-{
-	struct bge_bcom_hack bhack[] = {
-	{ BRGPHY_MII_AUXCTL, 0x4C20 },
-	{ BRGPHY_MII_DSP_ADDR_REG, 0x0012 },
-	{ BRGPHY_MII_DSP_RW_PORT, 0x1804 },
-	{ BRGPHY_MII_DSP_ADDR_REG, 0x0013 },
-	{ BRGPHY_MII_DSP_RW_PORT, 0x1204 },
-	{ BRGPHY_MII_DSP_ADDR_REG, 0x8006 },
-	{ BRGPHY_MII_DSP_RW_PORT, 0x0132 },
-	{ BRGPHY_MII_DSP_ADDR_REG, 0x8006 },
-	{ BRGPHY_MII_DSP_RW_PORT, 0x0232 },
-	{ BRGPHY_MII_DSP_ADDR_REG, 0x201F },
-	{ BRGPHY_MII_DSP_RW_PORT, 0x0A20 },
-	{ 0, 0 } };
-	u_int16_t vid, did;
-	int i;
-
-	vid = bge_miibus_readreg(sc->bge_dev, 1, MII_PHYIDR1);
-	did = bge_miibus_readreg(sc->bge_dev, 1, MII_PHYIDR2);
-
-	if (MII_OUI(vid, did) == MII_OUI_xxBROADCOM &&
-	    (MII_MODEL(did) == MII_MODEL_xxBROADCOM_BCM5400 ||
-	    MII_MODEL(did) == MII_MODEL_xxBROADCOM_BCM5401)) {
-		i = 0;
-		while(bhack[i].reg) {
-			bge_miibus_writereg(sc->bge_dev, 1, bhack[i].reg,
-			    bhack[i].val);
-			i++;
-		}
-	}
-
-	return;
-}
-
 static void
 bge_init(xsc)
 	void *xsc;
@@ -2474,7 +2462,6 @@ bge_ifmedia_upd(ifp)
 		    miisc = LIST_NEXT(miisc, mii_list))
 			mii_phy_reset(miisc);
 	}
-	bge_phy_hack(sc);
 	mii_mediachg(mii);
 
 	return(0);
