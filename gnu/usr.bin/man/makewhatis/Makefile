@@ -13,5 +13,5 @@ makewhatis: makewhatis.sh
 	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' \
 	-e 's,%zcat%,${zcat},' \
 	-e 's,%compext%,${compext},' \
-	   ${.CURDIR}/makewhatis.sh > makewhatis
+	   ${.CURDIR}/makewhatis.sh > ${.CURDIR}/makewhatis
 

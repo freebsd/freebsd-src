@@ -11,5 +11,5 @@ catman: catman.sh
 	sed -e 's,%compress%,${compress},' \
 	-e 's,%compext%,${compext},' \
 	-e 's,%zcat%,${zcat},' \
-	   ${.CURDIR}/catman.sh > catman
+	   ${.CURDIR}/catman.sh > ${.CURDIR}/catman
 
