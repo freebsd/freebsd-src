@@ -48,9 +48,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "vt.h"
-#if NVT > 0
-
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 #define ISSIGVALID(sig) ((sig) > 0 && (sig) < NSIG)
@@ -2715,7 +2712,4 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 }
 #endif /* XSERVER */
 
-#endif	/* NVT > 0 */
-
 /* ------------------------- E O F ------------------------------------------*/
-

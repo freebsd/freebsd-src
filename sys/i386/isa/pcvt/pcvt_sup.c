@@ -50,9 +50,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "vt.h"
-#if NVT > 0
-
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 #include <sys/resource.h>
@@ -2059,7 +2056,5 @@ mda2egaorvga(void)
 	outb(GDC_INDEX, GDC_MISC);
 	outb(GDC_DATA, 0x0a);
 }
-
-#endif	/* NVT > 0 */
 
 /* ------------------------- E O F ------------------------------------------*/
