@@ -48,7 +48,6 @@
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <machine/bus.h>
-#include <machine/endian.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
