@@ -716,6 +716,7 @@ fs/umapfs/umap_vnops.c	optional umapfs
 fs/unionfs/union_subr.c	optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
+geom/geom_aes.c	optional geom
 geom/geom_bsd.c	optional geom
 geom/geom_dev.c	optional geom
 geom/geom_disk.c	optional geom
