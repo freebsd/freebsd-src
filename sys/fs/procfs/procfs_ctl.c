@@ -108,22 +108,12 @@ static struct namemap signames[] = {
 	{ 0 },
 };
 
-static int	procfs_control(struct proc *curp, struct proc *p, int op);
+static int	procfs_control(struct thread *td, struct proc *p, int op);
 
 static int
-procfs_control(struct proc *curp, struct proc *p, int op)
+procfs_control(struct thread *td, struct proc *p, int op)
 {
 	int error = 0;
-
-	/*
-	 * Authorization check: rely on normal debugging protection, except
-	 * allow processes to disengage debugging on a process onto which
-	 * they have previously attached, but no longer have permission to
-	 * debug.
-	 */
-	if (op != PROCFS_CTL_DETACH &&
-	    ((error = p_candebug(curp, p))))
-		return (error);
 
 	/*
 	 * Attach - attaches the target process for debugging
@@ -132,13 +122,15 @@ procfs_control(struct proc *curp, struct proc *p, int op)
 	if (op == PROCFS_CTL_ATTACH) {
 		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
+		if ((error = p_candebug(td->td_proc, p)) != 0)
+			goto out;
 		if (p->p_flag & P_TRACED) {
 			error = EBUSY;
 			goto out;
 		}
 
 		/* Can't trace yourself! */
-		if (p->p_pid == curp->p_pid) {
+		if (p->p_pid == td->td_proc->p_pid) {
 			error = EINVAL;
 			goto out;
 		}
@@ -154,9 +146,9 @@ procfs_control(struct proc *curp, struct proc *p, int op)
 		p->p_flag |= P_TRACED;
 		faultin(p);
 		p->p_xstat = 0;		/* XXX ? */
-		if (p->p_pptr != curp) {
+		if (p->p_pptr != td->td_proc) {
 			p->p_oppid = p->p_pptr->p_pid;
-			proc_reparent(p, curp);
+			proc_reparent(p, td->td_proc);
 		}
 		psignal(p, SIGSTOP);
 out:
@@ -166,7 +158,20 @@ out:
 	}
 
 	/*
-	 * Target process must be stopped, owned by (curp) and
+	 * Authorization check: rely on normal debugging protection, except
+	 * allow processes to disengage debugging on a process onto which
+	 * they have previously attached, but no longer have permission to
+	 * debug.
+	 */
+	PROC_LOCK(p);
+	if (op != PROCFS_CTL_DETACH &&
+	    ((error = p_candebug(td->td_proc, p)))) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+
+	/*
+	 * Target process must be stopped, owned by (td) and
 	 * be set up for tracing (P_TRACED flag set).
 	 * Allow DETACH to take place at any time for sanity.
 	 * Allow WAIT any time, of course.
@@ -177,15 +182,10 @@ out:
 		break;
 
 	default:
-		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
-		if (!TRACE_WAIT_P(curp, p)) {
-			mtx_unlock_spin(&sched_lock);
+		if (!TRACE_WAIT_P(td->td_proc, p)) {
 			PROC_UNLOCK(p);
 			return (EBUSY);
 		}
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
 	}
 
 
@@ -201,7 +201,6 @@ out:
 	 * To continue with a signal, just send
 	 * the signal name to the ctl file
 	 */
-	PROC_LOCK(p);
 	p->p_xstat = 0;
 
 	switch (op) {
@@ -241,7 +240,7 @@ out:
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
 
-		wakeup((caddr_t) curp);	/* XXX for CTL_WAIT below ? */
+		wakeup((caddr_t) td->td_proc);	/* XXX for CTL_WAIT below ? */
 
 		break;
 
@@ -272,31 +271,19 @@ out:
 	 */
 	case PROCFS_CTL_WAIT:
 		if (p->p_flag & P_TRACED) {
-			mtx_lock_spin(&sched_lock);
 			while (error == 0 &&
 					(p->p_stat != SSTOP) &&
 					(p->p_flag & P_TRACED) &&
-					(p->p_pptr == curp)) {
-				mtx_unlock_spin(&sched_lock);
+					(p->p_pptr == td->td_proc))
 				error = msleep((caddr_t) p, &p->p_mtx,
 						PWAIT|PCATCH, "procfsx", 0);
-				mtx_lock_spin(&sched_lock);
-			}
-			if (error == 0 && !TRACE_WAIT_P(curp, p))
+			if (error == 0 && !TRACE_WAIT_P(td->td_proc, p))
 				error = EBUSY;
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-		} else {
-			PROC_UNLOCK(p);
-			mtx_lock_spin(&sched_lock);
-			while (error == 0 && p->p_stat != SSTOP) {
-				mtx_unlock_spin(&sched_lock);
-				error = tsleep((caddr_t) p,
+		} else
+			while (error == 0 && p->p_stat != SSTOP)
+				error = msleep((caddr_t) p, &p->p_mtx,
 						PWAIT|PCATCH, "procfs", 0);
-				mtx_lock_spin(&sched_lock);
-			}
-			mtx_unlock_spin(&sched_lock);
-		}
+		PROC_UNLOCK(p);
 		return (error);
 
 	default:
@@ -346,13 +333,12 @@ procfs_doprocctl(PFS_FILL_ARGS)
 	nm = findname(ctlnames, sbuf_data(sb), sbuf_len(sb));
 	if (nm) {
 		printf("procfs: got a %s command\n", sbuf_data(sb));
-		error = procfs_control(td->td_proc, p, nm->nm_val);
+		error = procfs_control(td, p, nm->nm_val);
 	} else {
 		nm = findname(signames, sbuf_data(sb), sbuf_len(sb));
 		if (nm) {
 			printf("procfs: got a sig%s\n", sbuf_data(sb));
 			PROC_LOCK(p);
-			mtx_lock_spin(&sched_lock);
 
 			/* This is very broken XXXKSE: */
 			if (TRACE_WAIT_P(td->td_proc, p)) {
@@ -361,13 +347,12 @@ procfs_doprocctl(PFS_FILL_ARGS)
 				/* XXXKSE: */
 				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
+				mtx_lock_spin(&sched_lock);
 				/* XXXKSE: */
 				setrunnable(FIRST_THREAD_IN_PROC(p));
 				mtx_unlock_spin(&sched_lock);
-			} else {
-				mtx_unlock_spin(&sched_lock);
+			} else
 				psignal(p, nm->nm_val);
-			}
 			PROC_UNLOCK(p);
 			error = 0;
 		}
