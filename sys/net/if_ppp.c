@@ -482,6 +482,7 @@ pppioctl(sc, cmd, data, flag, p)
     case PPPIOCGNPMODE:
     case PPPIOCSNPMODE:
 	npi = (struct npioctl *) data;
+	npx = 0;	/* XXX: quiet gcc */
 	switch (npi->protocol) {
 	case PPP_IP:
 	    npx = NP_IP;
