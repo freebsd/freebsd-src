@@ -74,7 +74,7 @@ int					cur_progress_meter;
 int					sendport = -1;		/* use PORT cmd for each data connection */
 int					using_pasv;
 int					code;				/* return/reply code for ftp command */
-string				indataline;
+string				indataline;			
 int     			cpend;				/* flag: if != 0, then pending server reply */
 char				*xferbuf;			/* buffer for local and remote I/O */
 size_t				xferbufsize;		/* size in bytes, of the transfer buffer. */
@@ -341,7 +341,7 @@ int Login(char *userNamePtr, char *passWordPtr, char *accountPtr, int doInit)
 		(void) printf("Login failed.\n");
 		goto done;
 	}
-
+	
 	/* If you specified an account, and the remote-host didn't request it
 	 * (maybe it's optional), we will send the account information.
 	 */
@@ -474,7 +474,7 @@ int command_noreply(char *cmd)
 int quiet_command(char *cmd)
 {
 	register int oldverbose, result;
-
+	
 	oldverbose = verbose;
 	verbose = debug ? V_VERBOSE : V_QUIET;
 	result = command(cmd);
@@ -488,7 +488,7 @@ int quiet_command(char *cmd)
 int verbose_command(char *cmd)
 {
 	register int oldverbose, result;
-
+	
 	oldverbose = verbose;
 	verbose = V_VERBOSE;
 	result = command(cmd);
@@ -566,7 +566,7 @@ int getreply(int expecteof)
 			if (n == 0)
 				n = c;
 		}	/* end for(;;) #2 */
-
+		
 		*cp = '\0';
 		dbprintf("rsp: %s", reply_string);
 
@@ -579,7 +579,7 @@ int getreply(int expecteof)
 					dp = reply_string;
 					goto stripCode;
 				}
-				break;
+				break;	
 			case V_IMPLICITCD:
 			case V_TERSE:
 				dp = NULL;
@@ -610,14 +610,14 @@ int getreply(int expecteof)
 								dp = reply_string;
 					}
 				}
-				if (dp == NULL) break;
+				if (dp == NULL) break;			
 stripCode:
 				/* Try to strip out the code numbers, etc. */
 				if (isdigit(*dp++) && isdigit(*dp++) && isdigit(*dp++)) {
 					if (*dp == ' ' || *dp == '-') {
 						dp++;
 						if (*dp == ' ') dp++;
-					} else dp = reply_string;
+					} else dp = reply_string;			
 				} else {
 					int spaces;
 					dp = reply_string;
@@ -626,7 +626,7 @@ stripCode:
 							break;
 					if (spaces == 4)
 						dp += spaces;
-				}
+				}					
 				goto printLine;
 			case V_VERBOSE:
 				dp = reply_string;
@@ -706,7 +706,7 @@ int start_progress(int sending, char *local)
 			(void) printf("%s:       ", local);
 			goto zz;
 		case pr_philbar:
-			(void) printf("%s%s file: %s %s\n",
+			(void) printf("%s%s file: %s %s\n", 
 				tcap_boldface,
 				sending ? "Sending" : "Receiving",
 				local,
@@ -797,7 +797,7 @@ int progress_report(int finish_up)
 					(void) fflush(stdout);
 					last_dot += (file_size / 10) + 1;
 					dots++;
-				}
+				}	
 		}	/* end switch */
 		now_sec = stop.tv_sec;
 	}	/* end if we updated */
@@ -1100,7 +1100,7 @@ int sendrequest(char *cmd, char *local, char *remote)
 		if (d <= 0) {
 			if (d == 0 && !creating)
 				(void) fprintf(stderr, "netout: write returned 0?\n");
-			else if (errno != EPIPE)
+			else if (errno != EPIPE) 
 				PERROR("sendrequest", "netout");
 			bytes = -1;
 		}
@@ -1161,7 +1161,7 @@ void abortrecv SIG_PARAMS
 {
 	activemcmd = 0;
 	abrtflag = 0;
-	(void) fprintf(stderr,
+	(void) fprintf(stderr, 
 #ifdef TRY_ABOR
 	"(abort)\n");
 #else
@@ -1204,7 +1204,7 @@ void GetLSRemoteDir(char *remote, char *remote_dir)
 int AdjustLocalFileName(char *local)
 {
 	char *dir;
-
+	
 	/* See if the file exists, and if we can overwrite it. */
 	if ((access(local, 0) == 0) && (access(local, 2) < 0))
 		goto noaccess;
@@ -1249,7 +1249,7 @@ noaccess:		PERROR("AdjustLocalFileName", local);
 	}
 	return (NOERR);
 }	/* AdjustLocalFileName */
-
+	
 
 
 int SetToAsciiForLS(int is_retr, int currenttype)
@@ -1280,7 +1280,7 @@ int IssueCommand(char *ftpcmd, char *remote)
 		(void) sprintf(str, "%s %s", ftpcmd, remote);
 	else
 		(void) Strncpy(str, ftpcmd);
-
+	
 #ifdef TRY_NOREPLY
 	if (command_noreply(str) != PRELIM)
 #else
@@ -1442,7 +1442,7 @@ lineMode)
 		if (!buffer_only)
 			(void) putc(c, fout);
 		bytes++;
-
+		
 		/* Print progress indicator. */
 		if (do2 && bytes > next_report)
 			do2 = progress_report(0);
@@ -1460,7 +1460,7 @@ lineMode)
 			AddRedirLine(str2);
 			nchars = 0;
 		}
-
+       
 	}	/* while ((c = getc(din)) != EOF) */
 break2:
 	if (ferror(din)) {
@@ -1575,13 +1575,13 @@ int recvrequest(char *cmd, char *local, char *remote, char *mode)
 
 	oldtype = SetToAsciiForLS(is_retr, curtype);
 
- 	/* Issue the NLST command but don't wait for the reply.  Some FTP
- 	 * servers make the data connection before issuing the
+ 	/* Issue the NLST command but don't wait for the reply.  Some FTP 
+ 	 * servers make the data connection before issuing the 
  	 * "150 Opening ASCII mode data connection for /bin/ls" reply.
  	 */
 	if (IssueCommand(cmd, remote))
 		goto xx;
-
+	
 	if ((fout = OpenOutputFile(filetype, local, mode, &oldintp)) == NULL)
 		goto xx;
 
@@ -1621,7 +1621,7 @@ int recvrequest(char *cmd, char *local, char *remote, char *mode)
 		/* Don't interrupt us now, since we finished successfully. */
 		(void) Signal(SIGPIPE, SIG_IGN);
 		(void) Signal(SIGINT, SIG_IGN);
-	}
+	}	
 	CloseData();
 	(void) getreply(0);
 
@@ -1635,7 +1635,7 @@ Abort:
 	(void) Signal(SIGINT, SIG_IGN);
 	if (!cpend || !cout) goto xx;
 	(void) fprintf(cout,"%c%c",IAC,IP);
-	(void) fflush(cout);
+	(void) fflush(cout); 
 	msg = IAC;
 /* send IAC in urgent mode instead of DM because UNIX places oob mark */
 /* after urgent byte rather than before as now is protocol            */
@@ -1702,7 +1702,7 @@ int initconn(void)
 	char				*cp;
 	int					a1, a2, a3, a4, p1, p2;
 	unsigned char		n[6];
-
+  
   	oldintr = Signal(SIGINT, SIG_IGN);
 
 	if (using_pasv) {
@@ -1793,7 +1793,7 @@ TryPort:
 noport:
 	data_addr = myctladdr;
 	if (sendport)
-		data_addr.sin_port = 0;	/* let system pick one */
+		data_addr.sin_port = 0;	/* let system pick one */ 
 	if (data != -1)
 		(void) close (data);
 	data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1853,7 +1853,7 @@ noport:
 		goto bad;
 	}
 
-#ifdef SOCKS
+#ifdef SOCKS 
 	if (Rlisten(data, 1) < 0)
 #else
 	if (listen(data, 1) < 0)

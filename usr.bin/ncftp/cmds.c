@@ -147,9 +147,9 @@ long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time)
 	if (code >= 400 && code < 500)
 		goto aa;
 
-	/* See if this line looks like a unix-style ls line.
+	/* See if this line looks like a unix-style ls line. 
 	 * If so, we can grab the date and size from it.
-	 */
+	 */	
 	if (strpbrk(lsline, "-dlsbcp") == lsline) {
 		/* See if it looks like a typical '-rwxrwxrwx' line. */
 		cp = lsline + 1;
@@ -161,7 +161,7 @@ long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time)
 		cp += 2;
 		if (*cp != 'r' && *cp != '-')
 			goto aa;
-
+ 
  		/* skip mode, links, owner (and possibly group) */
  		for (n = 0; n < 4; n++) {
  			np = cp;
@@ -173,7 +173,7 @@ long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time)
  		if (!isdigit(*cp))
  			cp = np;	/* back up (no group) */
  		(void) sscanf(cp, "%ld%n", &size, &n);
-
+ 
  		*mod_time = UnLSDate(cp + n + 1);
 
 		if (size < 100) {
@@ -185,7 +185,7 @@ long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time)
 				/* Try the file. */
 			}
 		}
-	}
+	}	
 aa:
 	--depth;
 	return (size);
@@ -244,7 +244,7 @@ long GetDateAndSize(char *fName, unsigned long *mod_time)
 		 * we could, since some maverick ftp server may be using a non-standard
 		 * ls command, and we could parse it wrong.
 		 */
-
+		
 		if (!have_mdtm)
 			mdtm = ls_mdtm;
 		if (!have_size)
@@ -276,7 +276,7 @@ int _settype(char *typename)
 	int						comret, c;
 	string					cmd;
 	char					*cp;
-
+ 
 	c = isupper(*typename) ? tolower(*typename) : (*typename);
 	if ((cp = index(typeabbrs, c)) != NULL)
 		p = &types[(int) (cp - typeabbrs)];
@@ -286,7 +286,7 @@ int _settype(char *typename)
 	}
 	if (c == 't')
 		(void) strcpy(cmd, "TYPE L 8");
-	else
+	else	
 		(void) sprintf(cmd, "TYPE %s", p->t_mode);
 	comret = command(cmd);
 	if (comret == COMPLETE) {
@@ -365,7 +365,7 @@ usage:
 	}
 	if (argc < 3)
 		argv = re_makeargv("(remote-file) ", &argc);
-	if (argc < 3)
+	if (argc < 3) 
 		goto usage;
 	cmd = (argv[0][0] == 'a') ? "APPE" : "STOR";
 	(void) sendrequest(cmd, argv[1], argv[2]);
@@ -396,7 +396,7 @@ int mput(int argc, char **argv)
 	for (i = 1; i < argc; i++) {
 		register char **cpp, **gargs;
 		char *icopy;
-
+		
 		/* Make a copy of the argument, because glob() will just copy
 		 * the pointer you give it to the glob-arg vector, and blkfree()
 		 * will want to free each element of the glob-arg vector
@@ -536,7 +536,7 @@ int get(int argc, char **argv)
 		 * Note that ZCAT is defined to be GZCAT if you defined
 		 * GZCAT.
 		 */
-
+		
  		if (try_zcat) {
 			(void) _settype("b");
 			(void) sprintf(local_file, "|%s ", ZCAT);
@@ -554,7 +554,7 @@ int get(int argc, char **argv)
 		} else {
 			if (argc < 3)
 				argv = re_makeargv("(local-file) ", &argc);
-			if (argc < 3)
+			if (argc < 3) 
 				return USAGE;
 			(void) LocalDotPath(argv[2]);
 		}
@@ -677,7 +677,7 @@ xx:
 			return (NULL);
 		}
 	}
-	if (FGets(str, ftemp) == NULL)
+	if (FGets(str, ftemp) == NULL) 
 		goto xx;
 	if ((cp = index(str, '\n')) != NULL)
 		*cp = '\0';
@@ -770,7 +770,7 @@ int cd(int argc, char **argv)
 int implicit_cd(char *dir)
 {
 	int i, j = 0;
-
+	
 	if (connected) {
 		i = verbose;
 		/* Special verbosity level that ignores errors and prints other stuff,
@@ -842,7 +842,7 @@ int lcd(int argc, char **argv)
 		return CMDERR;
 	}
 	(void) get_cwd(lcwd, (int) sizeof(lcwd));
-	if (NOT_VQUIET)
+	if (NOT_VQUIET) 
 		(void) printf("Local directory now %s\n", lcwd);
 	return NOERR;
 }	/* lcd */
@@ -973,7 +973,7 @@ int ls(int argc, char **argv)
 
 	(void) strncpy(local, (pagemode ? pager : "-"), sizeof(local));
 	remote[0] = lsflags[0] = 0;
-
+	
 	/* Possible scenarios:
 	 *  1.	ls
 	 *  2.	ls -flags
@@ -989,7 +989,7 @@ int ls(int argc, char **argv)
 
 	for (i=1; i<argc; i++) {
 		switch (argv[i][0]) {
-			case '-':
+			case '-': 
 				/*
 				 * If you give more than one set of flags, concat the each
 				 * additional set to the first one (without the dash).
@@ -1005,7 +1005,7 @@ int ls(int argc, char **argv)
 				(void) Strncpy(local, argv[i] + 1);
 				LocalDotPath(local);
 				break;
-			default:
+			default:  
 				cp = argv[i];
 				/*
 				 * In case you want to get a remote file called '--README--'
@@ -1019,11 +1019,11 @@ int ls(int argc, char **argv)
 				} else {
 					(void) Strncpy(remote, cp);
 				}
-		}	/* end switch */
+		}	/* end switch */	
 	}		/* end loop */
 
 	/*
-	 *	If we are given an ls with some flags, make sure we use
+	 *	If we are given an ls with some flags, make sure we use 
 	 *	columnized output (-C) unless one column output (-1) is
 	 *	specified.
 	 */
@@ -1534,7 +1534,7 @@ int domacro(int argc, char **argv)
 		}
 		if (argc == 0) return (NOERR);	/* called from macdef(), above. */
 		argv = re_makeargv("(macro to run) ", &argc);
-	}
+	}			
 	if (argc < 2) {
 		return USAGE;
 	}
@@ -1718,7 +1718,7 @@ int lookup(int argc, char **argv)
 		}
 		if (host == NULL) {
 			if (NOT_VQUIET) {
-				/* gethostxxx error */
+				/* gethostxxx error */				
 				if (h_errno == HOST_NOT_FOUND) {
 	     			(void) printf("%s: lookup error (%d).\n",
 	     				argv[i], h_errno);
@@ -1727,7 +1727,7 @@ int lookup(int argc, char **argv)
 	     			(void) printf("%s \"%s\"\n",
 	     				(by_name==0 ? "unknown address" : "unknown host"),
 	     				argv[i]);
-	     			result =
+	     			result = 
 	     				h_errno != 0 ? h_errno :
 	     				-1;
 				}
@@ -1745,7 +1745,7 @@ int lookup(int argc, char **argv)
 				(void) printf("%-32s  ", *host->h_name ? host->h_name : "???");
 				if (*host->h_addr_list) {
 					unsigned long horder;
-
+	
 					horder = ntohl (*(unsigned long *) *(char **)host->h_addr_list);
 					(void) printf ("%lu.%lu.%lu.%lu\n",
 						(horder >> 24),
@@ -1972,13 +1972,13 @@ int show_version(int argc, char **argv)
 #ifdef TERMH
 	DStrs[nDStrs++] = "TERMH";
 #endif
-#ifdef NO_UNISTDH
+#ifdef NO_UNISTDH 
 	DStrs[nDStrs++] = "NO_UNISTDH";
 #endif
 #ifdef NO_STDLIBH
 	DStrs[nDStrs++] = "NO_STDLIBH";
 #endif
-#ifdef SYSLOG
+#ifdef SYSLOG 
 	DStrs[nDStrs++] = "SYSLOG";
 #endif
 #ifdef BAD_INETADDR
@@ -2002,7 +2002,7 @@ int show_version(int argc, char **argv)
 #ifdef READLINE
 	DStrs[nDStrs++] = "READLINE";
 #endif
-#ifdef GETLINE
+#ifdef GETLINE 
 	DStrs[nDStrs++] = "GETLINE";
 #endif
 #ifdef _POSIX_SOURCE
@@ -2023,13 +2023,13 @@ int show_version(int argc, char **argv)
 #ifdef TRY_NOREPLY
 	DStrs[nDStrs++] = "TRY_NOREPLY";
 #endif
-#ifdef NO_UTIMEH
+#ifdef NO_UTIMEH 
 	DStrs[nDStrs++] = "NO_UTIMEH";
 #endif
 #ifdef DB_ERRS
 	DStrs[nDStrs++] = "DB_ERRS";
 #endif
-#ifdef NO_VARARGS
+#ifdef NO_VARARGS 
 	DStrs[nDStrs++] = "NO_VARARGS";
 #endif
 #ifdef NO_STDARGH
@@ -2107,7 +2107,7 @@ int show_version(int argc, char **argv)
 void PurgeLineBuffer(void)
 {
 	register struct lslist *a, *b;
-
+		 
 	for (a = lshead; a != NULL; ) {
 		b = a->next;
 		if (a->string)

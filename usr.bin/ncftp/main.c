@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.9.4 (April 15, 1995)"
+#define FTP_VERSION "1.9.5 (October 29, 1995)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -152,7 +152,7 @@ void main(int argc, char **argv)
 	if ((cp = rindex(argv[0], '/'))) cp++;
 	else cp = argv[0];
 	(void) Strncpy(progname, cp);
-
+	
 	sptr = getservbyname("ftp", "tcp");
 	if (sptr == 0) fatal("ftp/tcp: unknown service");
 	serv = *sptr;
@@ -196,7 +196,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 #ifdef SOCKS
 	SOCKSinit("ncftp");
 #endif
-
+	
 	/*	Setup our pager variable, before we run through the rc,
 		which may change it. */
 	set_pager(getenv("PAGER"), 0);
@@ -266,7 +266,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 			case 'D':
 				debug = atoi(Optarg);
 				break;
-
+			
 			case 'V':
 				set_verbose(Optarg, 0);
 				break;
@@ -334,12 +334,12 @@ Examples:\n\
 		ReadRecentSitesFile();
 
 	(void) fix_options();	/* adjust "options" according to "debug"  */
-
+	
 	fromatty = doing_script = isatty(0);
 	toatty = isatty(1);
 	(void) UserLoggedIn();	/* Init parent-death detection. */
 	cpend = 0;  /* no pending replies */
-
+	
 	if (*logfname)
 		logf = fopen (logfname, "a");
 
@@ -374,7 +374,7 @@ For testing purposes only.  Do not re-distribute or subject to novice users."
 #endif
 
 #ifndef CURSES
-		(void) printf("%sNcFTP %s by Mike Gleason, NCEMRSoft.%s%s%s%s\n",
+		(void) printf("%sNcFTP %s by Mike Gleason, NCEMRSoft.%s%s%s%s\n", 
 			tcap_boldface,
 			FTP_VERSION,
 			tcap_normal,
@@ -384,7 +384,7 @@ For testing purposes only.  Do not re-distribute or subject to novice users."
 		);
 #else
 		char vis[256];
-		(void) sprintf(vis, "%sNcFTP %s by Mike Gleason, NCEMRSoft.%s%s%s%s\n",
+		(void) sprintf(vis, "%sNcFTP %s by Mike Gleason, NCEMRSoft.%s%s%s%s\n", 
 			tcap_boldface,
 			FTP_VERSION,
 			tcap_normal,
@@ -430,7 +430,7 @@ int getuserinfo(void)
 	struct passwd			*pw;
 	string					str;
 	extern char				*home;	/* for glob.c */
-
+	
 	home = uinfo.homedir;	/* for glob.c */
 	pw = NULL;
 #ifdef USE_GETPWUID
@@ -523,7 +523,7 @@ int init_arrays(void)
 		goto barf;
 	if ((reply_string = (char *) malloc((size_t)(RECEIVEDLINELEN))) == NULL)
 		goto barf;
-
+	
 	*macbuf = '\0';
 	init_transfer_buffer();
 	return (0);
@@ -541,7 +541,7 @@ void init_transfer_buffer(void)
 {
 	extern char *xferbuf;
 	extern size_t xferbufsize;
-
+	
 	/* Make sure we use a multiple of BUFSIZ for efficiency. */
 	xferbufsize = (MAX_XFER_BUFSIZE / BUFSIZ) * BUFSIZ;
 	while (1) {
@@ -550,7 +550,7 @@ void init_transfer_buffer(void)
 			break;
 		xferbufsize >>= 2;
 	}
-
+	
 	if (xferbuf != NULL) return;
 	fatal("out of memory for transfer buffer.");
 }	/* init_transfer_buffer */
@@ -561,7 +561,7 @@ void init_transfer_buffer(void)
 void init_prompt(void)
 {
 	register char *cp;
-
+	
 	percent_flags = at_flags = 0;
 	for (cp = prompt; *cp; cp++) {
 		if (*cp == '%') percent_flags = 1;
@@ -747,9 +747,9 @@ char *strprompt(void)
 				*q++ = *p;
 		}
 		*q = '\0';
-	} else
+	} else 
 		(void) strcpy(prompt2, prompt);
-
+	
 #ifndef NO_STRFTIME
 	if (percent_flags) {
 		/*	only strftime if the user requested it (with a %something),
@@ -936,7 +936,7 @@ help(int argc, char **argv)
 Commands may be abbreviated.  'help showall' shows aliases, invisible and\n\
 unsupported commands.  'help <command>' gives a brief description of <command>.\n\n");
 
-		for (c = cmdtab, nCmds2Print=0; c->c_name != NULL; c++)
+		for (c = cmdtab, nCmds2Print=0; c->c_name != NULL; c++) 
 			if (!c->c_hidden || showall)
 				nCmds2Print++;
 
@@ -1026,7 +1026,7 @@ void trim_log(void)
 		}
 		if (*str != '\t') break;
 	}
-
+	
 	/* copy the remaining lines in "old" to "new" */
 	(void) Strncpy(tmplogname, logfname);
 	tmplogname[strlen(tmplogname) - 1] = 'T';
@@ -1111,7 +1111,7 @@ int termcap_get(char **dest, char *attr)
 }	/* termcap_get */
 
 
-
+  
 void termcap_init(void)
 {
 	char *term;

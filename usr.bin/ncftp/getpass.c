@@ -54,7 +54,7 @@ void Echo(FILE *fp, int on)
 #endif
 	static int state = 0;
 	int fd = fileno(fp);
-
+	
 	if (!isatty(fd))
 		return;
 
