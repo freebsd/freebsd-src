@@ -88,13 +88,33 @@ m_clone(struct mbuf *m0)
 			 * Allocate a new page, copy the data to the front
 			 * and release the reference to the old page.
 			 */
-			n = m_getcl(M_DONTWAIT, m->m_type, m->m_flags);
-			if (n == NULL) {
-				m_freem(m0);
-				return (NULL);
-			}
-			if (mprev == NULL && (m->m_flags & M_PKTHDR))
+			if (mprev == NULL && (m->m_flags & M_PKTHDR)) {
+				/*
+				 * NB: if a packet header is present we
+				 * must allocate the mbuf separately from
+				 * the cluster 'cuz M_COPY_PKTHDR will
+				 * smash the data pointer and drop the
+				 * M_EXT marker.
+				 */
+				MGETHDR(n, M_DONTWAIT, m->m_type);
+				if (n == NULL) {
+					m_freem(m0);
+					return (NULL);
+				}
 				M_COPY_PKTHDR(n, m);
+				MCLGET(n, M_DONTWAIT);
+				if ((n->m_flags & M_EXT) == 0) {
+					m_free(n);
+					m_freem(m0);
+					return (NULL);
+				}
+			} else {
+				n = m_getcl(M_DONTWAIT, m->m_type, m->m_flags);
+				if (n == NULL) {
+					m_freem(m0);
+					return (NULL);
+				}
+			}
 			memcpy(mtod(n, caddr_t), mtod(m, caddr_t), m->m_len);
 			n->m_len = m->m_len;
 			n->m_next = m->m_next;
@@ -148,11 +168,12 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 	 * the contents of m as needed.
 	 */
 	remain = m->m_len - skip;		/* data to move */
-	/* XXX code doesn't handle clusters XXX */
-	KASSERT(remain < MLEN, ("m_makespace: remainder too big: %u", remain));
 	if (hlen > M_TRAILINGSPACE(m)) {
 		struct mbuf *n;
 
+		/* XXX code doesn't handle clusters XXX */
+		KASSERT(remain < MLEN,
+			("m_makespace: remainder too big: %u", remain));
 		/*
 		 * Not enough space in m, split the contents
 		 * of m, inserting new mbufs as required.
