@@ -16,7 +16,7 @@ SRC = \
 	output.c position.c prompt.c search.c signal.c \
 	tags.c ttyin.c version.c  
 DISTFILES_W = \
-	defines.ds  Makefile.dsb Makefile.dsg Makefile.dsm \
+	defines.ds  Makefile.dsb Makefile.dsg Makefile.dsu \
 	defines.o2  Makefile.o2e \
 	defines.o9  Makefile.o9c Makefile.o9u \
 	defines.wn  Makefile.wnm Makefile.wnb

@@ -61,7 +61,7 @@ CCOOMMMMAANNDD SSEECCTTIIOONN
 
 
 
-                     Version 354: 23 Mar 2000                   1
+                     Version 358: 08 Jul 2000                   1
 
 
 
@@ -127,7 +127,7 @@ LESSKEY(1)                                             LESSKEY(1)
 
 
 
-                     Version 354: 23 Mar 2000                   2
+                     Version 358: 08 Jul 2000                   2
 
 
 
@@ -193,7 +193,7 @@ EEXXAAMMPPLLEE
 
 
 
-                     Version 354: 23 Mar 2000                   3
+                     Version 358: 08 Jul 2000                   3
 
 
 
@@ -248,24 +248,33 @@ LESSKEY(1)                                             LESSKEY(1)
             H         help
             h         help
             V         version
-            q         quit
-            Q         quit
-            :q        quit
-            :Q        quit
-            ZZ        quit
+            0         digit
+            1         digit
+            2         digit
+            3         digit
+            4         digit
+            5         digit
+            6         digit
+            7         digit
 
 
 
-
-
-
-                     Version 354: 23 Mar 2000                   4
+                     Version 358: 08 Jul 2000                   4
 
 
 
 
 
 LESSKEY(1)                                             LESSKEY(1)
+
+
+            8         digit
+            9         digit
+            q         quit
+            Q         quit
+            :q        quit
+            :Q        quit
+            ZZ        quit
 
 
 PPRREECCEEDDEENNCCEE
@@ -313,6 +322,18 @@ EEXXAAMMPPLLEE
             \17       back-complete
             \e\t      back-complete
             ^L        expand
+
+
+
+                     Version 358: 08 Jul 2000                   5
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
             ^V        literal
             ^A        literal
             \el       right
@@ -322,18 +343,6 @@ EEXXAAMMPPLLEE
             \eb       word-left
             \e\kl     word-left
             \ew       word-right
-
-
-
-                     Version 354: 23 Mar 2000                   5
-
-
-
-
-
-LESSKEY(1)                                             LESSKEY(1)
-
-
             \e\kr     word-right
             \ei       insert
             \ex       delete
@@ -380,18 +389,9 @@ EEXXAAMMPPLLEE
 
 
 
-SSEEEE AALLSSOO
-       less(1)
 
 
-WWAARRNNIINNGGSS
-       It  is not possible to specify special keys, such as upar-
-       row, in a keyboard-independent manner.  The  only  way  to
-       specify  such keys is to specify the escape sequence which
-
-
-
-                     Version 354: 23 Mar 2000                   6
+                     Version 358: 08 Jul 2000                   6
 
 
 
@@ -400,6 +400,14 @@ WWAARRNNIINNGGSS
 LESSKEY(1)                                             LESSKEY(1)
 
 
+SSEEEE AALLSSOO
+       less(1)
+
+
+WWAARRNNIINNGGSS
+       It  is not possible to specify special keys, such as upar-
+       row, in a keyboard-independent manner.  The  only  way  to
+       specify  such keys is to specify the escape sequence which
        a particular keyboard sends when such a keys is pressed.
 
        On MS-DOS and OS/2 systems, certain keys send  a  sequence
@@ -449,14 +457,6 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-
-
-                     Version 354: 23 Mar 2000                   7
+                     Version 358: 08 Jul 2000                   7
 
 

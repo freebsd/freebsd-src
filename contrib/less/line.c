@@ -18,6 +18,7 @@
 #include "less.h"
 
 #define IS_CONT(c)  (((c) & 0xC0) == 0x80)
+#define LINENUM_WIDTH   8       /* Chars to use for line number */
 
 /* Buffer which holds the current output line */
 public char linebuf[LINEBUF_SIZE];
@@ -32,6 +33,7 @@ static int column;		/* Printable length, accounting for
 				   backspaces, etc. */
 static int overstrike;		/* Next char should overstrike previous char */
 static int is_null_line;	/* There is no current line */
+static int lmargin;		/* Left margin */
 static char pendc;
 static POSITION pendpos;
 static char *end_ansi_chars;
@@ -44,6 +46,7 @@ extern int linenums;
 extern int ctldisp;
 extern int twiddle;
 extern int binattr;
+extern int status_col;
 extern int auto_wrap, ignaw;
 extern int bo_s_width, bo_e_width;
 extern int ul_s_width, ul_e_width;
@@ -51,6 +54,8 @@ extern int bl_s_width, bl_e_width;
 extern int so_s_width, so_e_width;
 extern int sc_width, sc_height;
 extern int utf_mode;
+extern POSITION start_attnpos;
+extern POSITION end_attnpos;
 
 /*
  * Initialize from environment variables.
@@ -74,6 +79,11 @@ prewind()
 	overstrike = 0;
 	is_null_line = 0;
 	pendc = '\0';
+	lmargin = 0;
+	if (status_col)
+		lmargin += 1;
+	if (linenums == OPT_ONPLUS)
+		lmargin += LINENUM_WIDTH+1;
 }
 
 /*
@@ -85,42 +95,54 @@ plinenum(pos)
 {
 	register int lno;
 	register int i;
-	register int n;
+
+	if (linenums == OPT_ONPLUS)
+	{
+		/*
+		 * Get the line number and put it in the current line.
+		 * {{ Note: since find_linenum calls forw_raw_line,
+		 *    it may seek in the input file, requiring the caller 
+		 *    of plinenum to re-seek if necessary. }}
+		 * {{ Since forw_raw_line modifies linebuf, we must
+		 *    do this first, before storing anything in linebuf. }}
+		 */
+		lno = find_linenum(pos);
+	}
 
 	/*
-	 * We display the line number at the start of each line
-	 * only if the -N option is set.
+	 * Display a status column if the -J option is set.
 	 */
-	if (linenums != OPT_ONPLUS)
-		return;
-
+	if (status_col)
+	{
+		linebuf[curr] = ' ';
+		if (start_attnpos != NULL_POSITION &&
+		    pos >= start_attnpos && pos < end_attnpos)
+			attr[curr] = AT_STANDOUT;
+		else
+			attr[curr] = 0;
+		curr++;
+		column++;
+	}
 	/*
-	 * Get the line number and put it in the current line.
-	 * {{ Note: since find_linenum calls forw_raw_line,
-	 *    it may seek in the input file, requiring the caller 
-	 *    of plinenum to re-seek if necessary. }}
+	 * Display the line number at the start of each line
+	 * if the -N option is set.
 	 */
-	lno = find_linenum(pos);
-
-	sprintf(&linebuf[curr], "%6d", lno);
-	n = strlen(&linebuf[curr]);
-	column += n;
-	for (i = 0;  i < n;  i++)
-		attr[curr++] = 0;
-
+	if (linenums == OPT_ONPLUS)
+	{
+		sprintf(&linebuf[curr], "%*d", LINENUM_WIDTH, lno);
+		column += LINENUM_WIDTH;
+		for (i = 0;  i < LINENUM_WIDTH;  i++)
+			attr[curr++] = 0;
+	}
 	/*
-	 * Append enough spaces to bring us to the next tab stop.
-	 * {{ We could avoid this at the cost of adding some
-	 *    complication to the tab stop logic in pappend(). }}
+	 * Append enough spaces to bring us to the lmargin.
 	 */
-	if (tabstop == 0)
-		tabstop = 1;
-	do
+	while (column < lmargin)
 	{
 		linebuf[curr] = ' ';
 		attr[curr++] = AT_NORMAL;
 		column++;
-	} while (((column + cshift) % tabstop) != 0);
+	}
 }
 
 /*
@@ -157,23 +179,23 @@ pshift(shift)
 	int i;
 	int real_shift;
 
-	if (shift > column)
-		shift = column;
-	if (shift > curr)
-		shift = curr;
+	if (shift > column - lmargin)
+		shift = column - lmargin;
+	if (shift > curr - lmargin)
+		shift = curr - lmargin;
 
 	if (!utf_mode)
 		real_shift = shift;
 	else
 	{
-		real_shift = utf_len(linebuf, shift);
+		real_shift = utf_len(linebuf + lmargin, shift);
 		if (real_shift > curr)
 			real_shift = curr;
 	}
 	for (i = 0;  i < curr - real_shift;  i++)
 	{
-		linebuf[i] = linebuf[i + real_shift];
-		attr[i] = attr[i + real_shift];
+		linebuf[lmargin + i] = linebuf[lmargin + i + real_shift];
+		attr[lmargin + i] = attr[lmargin + i + real_shift];
 	}
 	column -= shift;
 	curr -= real_shift;
@@ -474,7 +496,7 @@ do_append(c, pos)
 			do
 			{
 				STOREC(' ', AT_NORMAL);
-			} while (((column + cshift) % tabstop) != 0);
+			} while (((column + cshift - lmargin) % tabstop) != 0);
 			break;
 		}
 	} else if (control_char(c))

@@ -139,7 +139,7 @@ AC_TRY_COMPILE([#include <time.h>], [time_t t = 0;],
 
 dnl Checks for functions and external variables.
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(memcpy popen _setjmp sigsetmask stat strchr strstr system)
+AC_CHECK_FUNCS(memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system)
 
 dnl Some systems have termios.h but not the corresponding functions.
 AC_CHECK_FUNC(tcgetattr, AC_DEFINE(HAVE_TERMIOS_FUNCS))
@@ -167,6 +167,18 @@ AC_TRY_LINK([
 AC_MSG_CHECKING(for sys_errlist)
 AC_TRY_LINK(, [extern char *sys_errlist[]; static char **x; x = sys_errlist;], 
   [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SYS_ERRLIST)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for sigset_t)
+AC_TRY_LINK([
+#include <signal.h>
+], [sigset_t s; s = 0;],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SIGSET_T)], [AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for sigemptyset)
+AC_TRY_LINK([
+#include <signal.h>
+], [sigset_t s; sigemptyset(&s);],
+  [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_SIGEMPTYSET)], [AC_MSG_RESULT(no)])
 
 have_errno=no
 AC_MSG_CHECKING(for errno)

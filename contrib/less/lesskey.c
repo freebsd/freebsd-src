@@ -101,6 +101,7 @@ struct cmdname cmdnames[] =
 	"back-search",		A_B_SEARCH,
 	"back-window",		A_B_WINDOW,
 	"debug",		A_DEBUG,
+	"digit",		A_DIGIT,
 	"display-flag",		A_DISP_OPTION,
 	"display-option",	A_DISP_OPTION,
 	"end",			A_GOEND,

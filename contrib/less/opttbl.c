@@ -44,6 +44,8 @@ public int chopline;		/* Truncate displayed lines at screen width */
 public int no_init;		/* Disable sending ti/te termcap strings */
 public int twiddle;             /* Show tildes after EOF */
 public int show_attn;		/* Hilite first unread line */
+public int shift_count;		/* Number of positions to shift horizontally */
+public int status_col;		/* Display a status column */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -68,6 +70,7 @@ static struct optname g_optname      = { "hilite-search",        NULL };
 static struct optname h_optname      = { "max-back-scroll",      NULL };
 static struct optname i_optname      = { "ignore-case",          NULL };
 static struct optname j_optname      = { "jump-target",          NULL };
+static struct optname J__optname     = { "status-column",        NULL };
 #if USERFILE
 static struct optname k_optname      = { "lesskey-file",         NULL };
 #endif
@@ -98,6 +101,7 @@ static struct optname z_optname      = { "window",               NULL };
 static struct optname quote_optname  = { "quotes",               NULL };
 static struct optname tilde_optname  = { "tilde",                NULL };
 static struct optname query_optname  = { "help",                 NULL };
+static struct optname pound_optname  = { "shift",                NULL };
 
 
 /*
@@ -184,6 +188,12 @@ static struct option option[] =
 		NUMBER, 1, &jump_sline, NULL,
 		"Target line: ",
 		"Position target at screen line %d",
+		NULL
+	},
+	{ 'J', &J__optname,
+		BOOL|REPAINT, OPT_OFF, &status_col, NULL,
+		"Don't display a status column",
+		"Display a status column",
 		NULL
 	},
 #if USERFILE
@@ -313,6 +323,12 @@ static struct option option[] =
 	{ '?', &query_optname,
 		NOVAR, 0, NULL, opt_query,
 		NULL, NULL, NULL
+	},
+	{ '#', &pound_optname,
+		NUMBER, 0, &shift_count, NULL,
+		"Horizontal shift: ",
+		"Horizontal shift %d positions",
+		NULL
 	},
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, NULL, NULL, NULL }
 };

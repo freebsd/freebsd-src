@@ -1,7 +1,7 @@
 
-                            Less, version 354
+                            Less, version 358
 
-    This is the distribution of less, version 354, released 23 Mar 2000.
+    This is the distribution of less, version 358, released 08 Jul 2000.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -106,7 +106,7 @@ INSTALLATION (MS-DOS systems only,
    Depending on your compiler, you may need to convert the source 
    to have CR-LF rather than LF as line terminators.
 
-2. If you are using Microsoft C, rename MAKEFILE.DSM to MAKEFILE.
+2. If you are using Microsoft C, rename MAKEFILE.DSU to MAKEFILE.
    If you are using Borland C, rename MAKEFILE.DSB to MAKEFILE.
    If you are using DJGPP, rename MAKEFILE.DSG to MAKEFILE.
 
