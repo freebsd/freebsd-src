@@ -423,8 +423,10 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	if (type == SYS_RES_MEMORY) {
 		if (reg & TPL_BAR_REG_PREFETCHABLE)
 			dinfo->mprefetchable |= BARBIT(bar);
+#if 0
 		if (reg & TPL_BAR_REG_BELOW1MB)
 			dinfo->mbelow1mb |= BARBIT(bar);
+#endif
 	}
 
 	/*
