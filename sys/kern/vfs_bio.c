@@ -929,12 +929,10 @@ vfs_backgroundwritedone(bp)
 	/*
 	 * Find the original buffer that we are writing.
 	 */
-#ifdef INVARIANTS
 	VI_LOCK(bp->b_vp);
 	if ((origbp = gbincore(bp->b_vp, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
 	VI_UNLOCK(bp->b_vp);
-#endif
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
