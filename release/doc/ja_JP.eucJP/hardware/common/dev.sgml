@@ -587,7 +587,7 @@
     <para arch="i386">ARNET シリアルカード (&man.ar.4; ドライバ)
       <itemizedlist>
         <listitem>
-	  <para>AST IRQ 共有機能付き 8 ポートシリアルカード</para>
+	  <para>ARNET IRQ 共有機能付き 8 ポートシリアルカード</para>
 	</listitem>
         <listitem>
 	  <para>ARNET (現在は Digiboard) Sync 570/i 高速シリアル</para>
