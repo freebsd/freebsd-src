@@ -45,15 +45,8 @@ __FBSDID("$FreeBSD$");
  * to be stored in FP registers in order to avoid incorrect results.
  * This is the default on FreeBSD, but not on many other systems.
  *
- * Tests on an Itanium 2 indicate that the hardware's FMA instruction
- * is almost twice as fast as this implementation.  The hardware
- * instruction should be used on platforms that support it.
- *
- * XXX May incur an absolute error of 0x1p-1074 for subnormal results
- *     due to double rounding induced by the final scaling operation.
- *
- * XXX On machines supporting quad precision, we should use that, but
- *     see the caveat in s_fmaf.c.
+ * Hardware instructions should be used on architectures that support it,
+ * since this implementation will likely be several times slower.
  */
 #if LDBL_MANT_DIG != 113
 double
@@ -174,8 +167,23 @@ fma(double x, double y, double z)
 	s = r - c;
 	rr = (c - (r - s)) + (zs - s) + cc;
 
-	fesetround(oround);
-	return (ldexp(r + rr, ex + ey));
+	spread = ex + ey;
+	if (spread + ilogb(r) > -1023) {
+		fesetround(oround);
+		r = r + rr;
+	} else {
+		/*
+		 * The result is subnormal, so we round before scaling to
+		 * avoid double rounding.
+		 */
+		p = ldexp(copysign(0x1p-1022, r), -spread);
+		c = r + p;
+		s = c - r;
+		cc = (r - (c - s)) + (p - s) + rr;
+		fesetround(oround);
+		r = (c + cc) - p;
+	}
+	return (ldexp(r, spread));
 }
 #else	/* LDBL_MANT_DIG == 113 */
 /*

@@ -39,9 +39,6 @@ __FBSDID("$FreeBSD$");
  *
  *	Dekker, T.  A Floating-Point Technique for Extending the
  *	Available Precision.  Numer. Math. 18, 224-242 (1971).
- *
- * XXX May incur a small error for subnormal results due to double
- *     rounding induced by the final scaling operation.
  */
 long double
 fmal(long double x, long double y, long double z)
@@ -165,6 +162,21 @@ fmal(long double x, long double y, long double z)
 	s = r - c;
 	rr = (c - (r - s)) + (zs - s) + cc;
 
-	fesetround(oround);
-	return (ldexpl(r + rr, ex + ey));
+	spread = ex + ey;
+	if (spread + ilogbl(r) > -16383) {
+		fesetround(oround);
+		r = r + rr;
+	} else {
+		/*
+		 * The result is subnormal, so we round before scaling to
+		 * avoid double rounding.
+		 */
+		p = ldexpl(copysignl(0x1p-16382L, r), -spread);
+		c = r + p;
+		s = c - r;
+		cc = (r - (c - s)) + (p - s) + rr;
+		fesetround(oround);
+		r = (c + cc) - p;
+	}
+	return (ldexpl(r, spread));
 }
