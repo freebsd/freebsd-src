@@ -4,9 +4,13 @@
 PROG=	pkill
 SRCS=	pkill.c
 MAN=	pkill.1
+WARNS?=	1
 
 LDADD+=	-lkvm
 DPADD+=	${LIBKVM}
+
+#BINGRP=	kmem
+#BINMODE=	2555
 
 LINKS+=	${BINDIR}/pkill ${BINDIR}/pgrep
 MLINKS+=pkill.1 pgrep.1

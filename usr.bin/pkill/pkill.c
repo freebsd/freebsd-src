@@ -45,15 +45,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/user.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <paths.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <regex.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <kvm.h>
 #include <err.h>
 #include <pwd.h>
@@ -64,6 +67,12 @@ __FBSDID("$FreeBSD$");
 #define	STATUS_NOMATCH	1
 #define	STATUS_BADUSAGE	2
 #define	STATUS_ERROR	3
+
+#if defined(__FreeBSD__)
+# if __FreeBSD_version < 300000
+#  define	NEED_KMEM
+# endif
+#endif
 
 enum listtype {
 	LT_GENERIC,
@@ -81,7 +90,7 @@ struct list {
 
 SLIST_HEAD(listhead, list);
 
-struct kinfo_proc2	*plist;
+struct kinfo_proc	*plist;
 char	*selected;
 char	*delim = "\n";
 int	nproc;
@@ -105,8 +114,8 @@ struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
 
 int	main(int, char **);
 void	usage(void);
-void	killact(struct kinfo_proc2 *);
-void	grepact(struct kinfo_proc2 *);
+void	killact(struct kinfo_proc *);
+void	grepact(struct kinfo_proc *);
 void	makelist(struct listhead *, enum listtype, char *);
 
 int
@@ -115,9 +124,10 @@ main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
+	char *execf, *coref, *swapf;
 	int i, j, ch, bestidx, rv, criteria;
-	void (*action)(struct kinfo_proc2 *);
-	struct kinfo_proc2 *kp;
+	void (*action)(struct kinfo_proc *);
+	struct kinfo_proc *kp;
 	struct list *li;
 	u_int32_t bestsec, bestusec;
 	regex_t reg;
@@ -151,6 +161,12 @@ main(int argc, char **argv)
 			}
 		}
 	}
+
+#if defined(NEED_KMEM)
+	execf = coref = swapf = NULL;
+#else
+	execf = coref = swapf = _PATH_DEVNULL;
+#endif
 
 	criteria = 0;
 
@@ -224,13 +240,13 @@ main(int argc, char **argv)
 	/*
 	 * Retrieve the list of running processes from the kernel.
 	 */
-	kd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, buf);
+	kd = kvm_openfiles(execf, coref, swapf, O_RDONLY, buf);
 	if (kd == NULL)
 		errx(STATUS_ERROR, "kvm_openfiles(): %s", buf);
 
-	plist = kvm_getproc2(kd, KERN_PROC_ALL, 0, sizeof(*plist), &nproc);
+	plist = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
 	if (plist == NULL)
-		errx(STATUS_ERROR, "kvm_getproc2() failed");
+		errx(STATUS_ERROR, "kvm_getprocs() failed");
 
 	/*
 	 * Allocate memory which will be used to keep track of the
@@ -250,11 +266,11 @@ main(int argc, char **argv)
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
-			if ((kp->p_flag & P_SYSTEM) != 0 || kp->p_pid == mypid)
+			if ((kp->ki_flag & P_SYSTEM) != 0 || kp->ki_pid == mypid)
 				continue;
 
 			if (matchargs) {
-				if ((pargv = kvm_getargv2(kd, kp, 0)) == NULL)
+				if ((pargv = kvm_getargv(kd, kp, 0)) == NULL)
 					continue;
 
 				j = 0;
@@ -267,7 +283,7 @@ main(int argc, char **argv)
 
 				mstr = buf;
 			} else
-				mstr = kp->p_comm;
+				mstr = kp->ki_comm;
 
 			rv = regexec(&reg, mstr, 1, &regmatch, 0);
 			if (rv == 0) {
@@ -287,11 +303,11 @@ main(int argc, char **argv)
 	}
 
 	for (i = 0, kp = plist; i < nproc; i++, kp++) {
-		if ((kp->p_flag & P_SYSTEM) != 0)
+		if ((kp->ki_flag & P_SYSTEM) != 0)
 			continue;
 
 		SLIST_FOREACH(li, &ruidlist, li_chain)
-			if (kp->p_ruid == (uid_t)li->li_number)
+			if (kp->ki_ruid == (uid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&ruidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -299,7 +315,7 @@ main(int argc, char **argv)
 		}
 	
 		SLIST_FOREACH(li, &rgidlist, li_chain)
-			if (kp->p_rgid == (gid_t)li->li_number)
+			if (kp->ki_rgid == (gid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&rgidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -307,7 +323,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &euidlist, li_chain)
-			if (kp->p_uid == (uid_t)li->li_number)
+			if (kp->ki_uid == (uid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&euidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -315,7 +331,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &ppidlist, li_chain)
-			if (kp->p_ppid == (uid_t)li->li_number)
+			if (kp->ki_ppid == (uid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&ppidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -323,7 +339,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &pgrplist, li_chain)
-			if (kp->p__pgid == (uid_t)li->li_number)
+			if (kp->ki_pgid == (uid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&pgrplist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -332,9 +348,9 @@ main(int argc, char **argv)
 
 		SLIST_FOREACH(li, &tdevlist, li_chain) {
 			if (li->li_number == -1 &&
-			    (kp->p_flag & P_CONTROLT) == 0)
+			    (kp->ki_flag & P_CONTROLT) == 0)
 				break;
-			if (kp->p_tdev == (uid_t)li->li_number)
+			if (kp->ki_tdev == (uid_t)li->li_number)
 				break;
 		}
 		if (SLIST_FIRST(&tdevlist) != NULL && li == NULL) {
@@ -343,7 +359,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &sidlist, li_chain)
-			if (kp->p_sid == (uid_t)li->li_number)
+			if (kp->ki_sid == (uid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&sidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -363,11 +379,11 @@ main(int argc, char **argv)
 			if (!selected[i])
 				continue;
 
-			if (kp->p_ustart_sec > bestsec ||
-			    (kp->p_ustart_sec == bestsec
-			    && kp->p_ustart_usec > bestusec)) {
-			    	bestsec = kp->p_ustart_sec;
-			    	bestusec = kp->p_ustart_usec;
+			if (kp->ki_start.tv_sec > bestsec ||
+			    (kp->ki_start.tv_sec == bestsec
+			    && kp->ki_start.tv_usec> bestusec)) {
+				bestsec = kp->ki_start.tv_sec;
+				bestusec = kp->ki_start.tv_usec;
 				bestidx = i;
 			}
 		}
@@ -381,7 +397,7 @@ main(int argc, char **argv)
 	 * Take the appropriate action for each matched process, if any.
 	 */
 	for (i = 0, rv = 0, kp = plist; i < nproc; i++, kp++) {
-		if (kp->p_pid == mypid)
+		if (kp->ki_pid == mypid)
 			continue;
 		if (selected[i]) {
 			if (inverse)
@@ -389,7 +405,7 @@ main(int argc, char **argv)
 		} else if (!inverse)
 			continue;
 
-		if ((kp->p_flag & P_SYSTEM) != 0)
+		if ((kp->ki_flag & P_SYSTEM) != 0)
 			continue;
 
 		rv = 1;
@@ -418,32 +434,32 @@ usage(void)
 }
 
 void
-killact(struct kinfo_proc2 *kp)
+killact(struct kinfo_proc *kp)
 {
 
-	if (kill(kp->p_pid, signum) == -1)
-		err(STATUS_ERROR, "signalling pid %d", (int)kp->p_pid);
+	if (kill(kp->ki_pid, signum) == -1)
+		err(STATUS_ERROR, "signalling pid %d", (int)kp->ki_pid);
 }
 
 void
-grepact(struct kinfo_proc2 *kp)
+grepact(struct kinfo_proc *kp)
 {
 	char **argv;
 
 	if (longfmt && matchargs) {
-		if ((argv = kvm_getargv2(kd, kp, 0)) == NULL)
+		if ((argv = kvm_getargv(kd, kp, 0)) == NULL)
 			return;
 
-		printf("%d ", (int)kp->p_pid);
+		printf("%d ", (int)kp->ki_pid);
 		for (; *argv != NULL; argv++) {
 			printf("%s", *argv);
 			if (argv[1] != NULL)
 				putchar(' ');
 		}
 	} else if (longfmt)
-		printf("%d %s", (int)kp->p_pid, kp->p_comm);
+		printf("%d %s", (int)kp->ki_pid, kp->ki_comm);
 	else
-		printf("%d", (int)kp->p_pid);
+		printf("%d", (int)kp->ki_pid);
 
 	printf("%s", delim);
 }
