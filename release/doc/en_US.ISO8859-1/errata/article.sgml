@@ -104,6 +104,11 @@
     an attacker to execute arbitrary code in the context of a setuid
     binary.  More details, as well as a fix, are described in security
     advisory FreeBSD-SA-01:42.</para>
+
+    <para>A remote buffer overflow in &man.tcpdump.1; could be
+    triggered by sending certain packets at a target machine.  More
+    details, as well as a fix, can be found in security advisory
+    FreeBSD-SA-01:48.</para>
   </sect1>
 
   <sect1>
