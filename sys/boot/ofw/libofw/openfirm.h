@@ -56,7 +56,8 @@
  *
  * $FreeBSD$
  */
-
+#ifndef _OPENFIRM_H_
+#define	_OPENFIRM_H_
 /*
  * Prototypes for Openfirmware Interface Routines
  */
@@ -64,8 +65,9 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-typedef	int	ihandle_t;
-typedef int	phandle_t;
+typedef	unsigned int		ihandle_t;
+typedef unsigned int		phandle_t;
+typedef unsigned long int	cell_t;
 
 extern phandle_t	chosen;
 
@@ -119,3 +121,4 @@ void		OF_set_symbol_lookup(void *, void *);
 
 /* Time function */
 int		OF_milliseconds(void);
+#endif /* _OPENFIRM_H_ */
