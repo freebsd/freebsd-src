@@ -8,6 +8,11 @@ o For information about the layout of the release directory, see
 o For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
   files.
 
+o It is also important to check the ERRATA.TXT file for any
+  late-breaking issues with this release.  This file contains the
+  latest information on significant bugs, security problems or 
+  other similar issues which an administrator should be aware of. 
+
 For the most up-to-date releases along the RELENG_2_2 branch (which
 is now proceeding onwards toward release 2.2.6), please install from:
 
@@ -249,10 +254,10 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 2.1.7-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 2.2-RELEASE and 3.0-SNAPSHOT CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
-        4041 Pike Lane, Suite D
+        4041 Pike Lane, Suite E
         Concord CA  94520
         1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
