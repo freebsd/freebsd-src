@@ -31,9 +31,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -84,6 +81,9 @@
 
 /* Define if you have the setlocale function.  */
 #define HAVE_SETLOCALE 1
+
+/* Define if you have the setmode function.  */
+#define HAVE_SETMODE 1
 
 /* Define if you have the stpcpy function.  */
 /* #undef HAVE_STPCPY */
@@ -140,7 +140,7 @@
 #define PACKAGE "binutils"
 
 /* Version number of package */
-/* #define VERSION "000427" */
+/* #define VERSION "2.11" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */

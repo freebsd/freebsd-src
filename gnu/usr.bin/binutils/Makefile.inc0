@@ -8,14 +8,10 @@
 # definitions before the sub-Makefile is processed.
 #
 
-VERSION=	2.10.1
+VERSION=	"2.11.2 20010719 [FreeBSD]"
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
-BINUTIL_ARCH=mips
-.else
 BINUTIL_ARCH=${TARGET_ARCH}
-.endif
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes

@@ -21,7 +21,8 @@ MAKEINFOFLAGS+= -I ${SRCDIR}/binutils
 MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/doc
 MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
 
-CLEANFILES= gdb-cfg.texi inc-hist.texi inc-hist.texi.orig
+CLEANFILES=	gdb-cfg.texi inc-hist.texi inc-hist.texi.orig \
+		gasver.texi ldver.texi
 
 as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
 ld.info:	ld.texinfo bfdsumm.texi ldver.texi

@@ -6,6 +6,9 @@
 /* Define if using alloca.c.  */
 /* #undef C_ALLOCA */
 
+/* Define to empty if the keyword does not work.  */
+/* #undef const */
+
 /* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
    This function is required for alloca.c support on those systems.  */
 /* #undef CRAY_STACKSEG_END */
@@ -16,11 +19,17 @@
 /* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
 /* #undef HAVE_ALLOCA_H */
 
+/* Define if you have a working `mmap' system call.  */
+#define HAVE_MMAP 1
+
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #define HAVE_SYS_WAIT_H 1
 
 /* Define if you have <vfork.h>.  */
 /* #undef HAVE_VFORK_H */
+
+/* Define as __inline if that's what the C compiler calls it.  */
+/* #undef inline */
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef pid_t */
@@ -40,20 +49,11 @@
 /* Define if you have the ANSI C header files.  */
 #define STDC_HEADERS 1
 
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#define TIME_WITH_SYS_TIME 1
+
 /* Define vfork as fork if vfork does not work.  */
 /* #undef vfork */
-
-/* Define if you have the sys_errlist variable.  */
-#define HAVE_SYS_ERRLIST 1
-
-/* Define if you have the sys_nerr variable.  */
-#define HAVE_SYS_NERR 1
-
-/* Define if you have the sys_siglist variable.  */
-#define HAVE_SYS_SIGLIST 1
-
-/* Define if you have the strerror function.  */
-#define HAVE_STRERROR 1
 
 /* Define if you have the asprintf function.  */
 #define HAVE_ASPRINTF 1
@@ -62,13 +62,16 @@
 #define HAVE_ATEXIT 1
 
 /* Define if you have the basename function.  */
-/* #undef HAVE_BASENAME */
+#define HAVE_BASENAME 1
 
 /* Define if you have the bcmp function.  */
 #define HAVE_BCMP 1
 
 /* Define if you have the bcopy function.  */
 #define HAVE_BCOPY 1
+
+/* Define if you have the bsearch function.  */
+#define HAVE_BSEARCH 1
 
 /* Define if you have the bzero function.  */
 #define HAVE_BZERO 1
@@ -199,6 +202,12 @@
 /* Define if you have the waitpid function.  */
 #define HAVE_WAITPID 1
 
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
+/* Define if you have the <limits.h> header file.  */
+#define HAVE_LIMITS_H 1
+
 /* Define if you have the <stdlib.h> header file.  */
 #define HAVE_STDLIB_H 1
 
@@ -210,6 +219,9 @@
 
 /* Define if you have the <sys/file.h> header file.  */
 #define HAVE_SYS_FILE_H 1
+
+/* Define if you have the <sys/mman.h> header file.  */
+#define HAVE_SYS_MMAN_H 1
 
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
@@ -223,5 +235,21 @@
 /* Define if you have the <sys/time.h> header file.  */
 #define HAVE_SYS_TIME_H 1
 
+/* Define if you have the <time.h> header file.  */
+#define HAVE_TIME_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+/* Define if errno must be declared even when <errno.h> is included. */
+/* #undef NEED_DECLARATION_ERRNO */
+
+/* Define if you have the sys_errlist variable. */
+#define HAVE_SYS_ERRLIST 1
+
+/* Define if you have the sys_nerr variable. */
+#define HAVE_SYS_NERR 1
+
+/* Define if you have the sys_siglist variable. */
+#define HAVE_SYS_SIGLIST 1
+
