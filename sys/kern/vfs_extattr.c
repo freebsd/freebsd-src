@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.21 1995/03/29 11:54:02 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.22 1995/05/02 08:44:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -319,7 +319,7 @@ sync(p, uap, retval)
 	struct sync_args *uap;
 	int *retval;
 {
-	register struct mount *mp, *nmp;
+	register struct mount *mp;
 	int asyncflag;
 
 	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
