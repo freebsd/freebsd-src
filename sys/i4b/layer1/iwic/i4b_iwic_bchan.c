@@ -454,7 +454,7 @@ iwic_bchannel_setup(int unit, int chan_no, int bprot, int activate)
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4	
-	if(!mtx_initqialized(&chan->tx_queue.ifq_mtx))
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
 		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_iwic_tx", MTX_DEF);
 #endif
 
