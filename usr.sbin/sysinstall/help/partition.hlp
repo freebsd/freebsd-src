@@ -32,7 +32,7 @@ filesystems:
         /usr    System & user files     80MB or more    Yes
 
 Note: If you do not create a /usr filesystem then your / filesystem
-will need to be bigger - at least 100MB.  This is not recommended as
+will need to be bigger - at least 200MB.  This is not recommended as
 any media errors that may occur during disk I/O to user files will
 corrupt the filesystem containing vital system files as well.  It is
 for this reason that / is generally kept on its own filesystem, where
