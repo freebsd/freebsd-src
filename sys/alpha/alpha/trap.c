@@ -662,7 +662,7 @@ syscall(code, framep)
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	if (p->p_flag & P_SA)
-		thread_user_enter(p, td);
+		thread_user_enter(td);
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(td);
 #endif

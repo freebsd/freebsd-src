@@ -1487,7 +1487,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 	p = td->td_proc;
 	if (td->td_pflags & TDP_SA) {
 		if (td->td_mailbox == NULL)
-			thread_user_enter(p, td);
+			thread_user_enter(td);
 		PROC_LOCK(p);
 		SIGDELSET(td->td_sigmask, sig);
 		mtx_lock_spin(&sched_lock);
