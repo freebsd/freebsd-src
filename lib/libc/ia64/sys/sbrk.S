@@ -40,7 +40,8 @@ EXPORT(curbrk)
 ENTRY(sbrk, 1)
 	alloc	r14=ar.pfs,1,2,0,0
 
-	add	loc0=@gprel(curbrk),gp ;;
+	add	loc0=@ltoff(curbrk),gp ;;
+	ld8	loc0=[loc0] ;;
 	ld8	loc1=[loc0]
 	cmp.eq	p6,p0=in0,r0
 (p6)	br.dpnt.few 1f
