@@ -4,7 +4,7 @@ PROG=		objformat
 NOMAN=		not yet
 CFLAGS+=	-DMAIN
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 CFLAGS+=	-DFREEBSD_ELF
 .else
 CFLAGS+=	-DFREEBSD_AOUT
