@@ -199,10 +199,6 @@ FILES		A list of non-executable files.
 		FILESGRP, FILESMODE, FILESDIR variables that can be
 		further specialized by FILES<VAR>_<file>.
 
-HIDEGAME	If HIDEGAME is defined, the binary is installed in
-		/usr/games/hide, and a symbolic link is created to
-		/usr/games/dm.
-
 LDADD		Additional loader objects.  Usually used for libraries.
 		For example, to load with the compatibility and utility
 		libraries, use:
