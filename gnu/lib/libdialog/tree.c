@@ -8,6 +8,11 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
@@ -387,7 +392,7 @@ int dialog_treemenu(unsigned char *title, unsigned char *prompt,
 	redraw_menu = TRUE;
 	break;
     case KEY_NPAGE:
-    case ' ' :
+    case 'f' :
 	if (scroll + menu_height >= item_no-1 - menu_height) { /* can we go down a full page? */
 	    scroll = item_no - menu_height;
 	    if (scroll < 0) scroll = 0;
@@ -434,6 +439,7 @@ int dialog_treemenu(unsigned char *title, unsigned char *prompt,
         }
         wrefresh(dialog);
         break;
+    case ' ':
     case '\r':
     case '\n':
         delwin(dialog);
