@@ -23,6 +23,10 @@ DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
 	      ${DESTDIR}/usr/include
+.for file in ${EXAMPLES}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	      ${.CURDIR}/TESTS/${file} ${DESTDIR}/usr/share/examples/libdialog
+.endfor
 
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 line_edit.3 dialog.3 strheight.3 \
