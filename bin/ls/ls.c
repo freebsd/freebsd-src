@@ -57,8 +57,10 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <grp.h>
 #include <limits.h>
 #include <locale.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,68 +80,67 @@ static const char rcsid[] =
  */
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
-static void	 display __P((FTSENT *, FTSENT *));
-static u_quad_t	 makenines __P((u_long));
-static int	 mastercmp __P((const FTSENT **, const FTSENT **));
-static void	 traverse __P((int, char **, int));
+static void	 display(FTSENT *, FTSENT *);
+static u_quad_t	 makenines(u_long);
+static int	 mastercmp(const FTSENT **, const FTSENT **);
+static void	 traverse(int, char **, int);
 
-static void (*printfcn) __P((DISPLAY *));
-static int (*sortfcn) __P((const FTSENT *, const FTSENT *));
+static void (*printfcn)(DISPLAY *);
+static int (*sortfcn)(const FTSENT *, const FTSENT *);
 
 long blocksize;			/* block size units */
 int termwidth = 80;		/* default terminal width */
 
 /* flags */
-int f_accesstime;		/* use time of last access */
-int f_column;			/* columnated format */
-int f_flags;			/* show flags associated with a file */
-int f_inode;			/* print inode */
-int f_kblocks;			/* print size in kilobytes */
-int f_listdir;			/* list actual directory, not contents */
-int f_listdot;			/* list files beginning with . */
-int f_longform;			/* long listing format */
-int f_nonprint;			/* show unprintables as ? */
-int f_nosort;			/* don't sort output */
-int f_notabs;			/* don't use tab-separated multi-col output */
-int f_numericonly;		/* don't convert uid/gid to name */
-int f_octal;			/* show unprintables as \xxx */
-int f_octal_escape;		/* like f_octal but use C escapes if possible */
-int f_recursive;		/* ls subdirectories also */
-int f_reversesort;		/* reverse whatever sort is used */
-int f_sectime;			/* print the real time for all files */
-int f_singlecol;		/* use single column output */
-int f_size;			/* list size in short listing */
-int f_statustime;		/* use time of last mode change */
-int f_timesort;			/* sort by time vice name */
-int f_type;			/* add type character for non-regular files */
-int f_whiteout;			/* show whiteout entries */
+       int f_accesstime;	/* use time of last access */
+       int f_flags;		/* show flags associated with a file */
+       int f_humanval;		/* show human-readable file sizes */
+       int f_inode;		/* print inode */
+static int f_kblocks;		/* print size in kilobytes */
+static int f_listdir;		/* list actual directory, not contents */
+static int f_listdot;		/* list files beginning with . */
+       int f_longform;		/* long listing format */
+       int f_nonprint;		/* show unprintables as ? */
+static int f_nosort;		/* don't sort output */
+       int f_notabs;		/* don't use tab-separated multi-col output */
+static int f_numericonly;	/* don't convert uid/gid to name */
+       int f_octal;		/* show unprintables as \xxx */
+       int f_octal_escape;	/* like f_octal but use C escapes if possible */
+static int f_recursive;		/* ls subdirectories also */
+static int f_reversesort;	/* reverse whatever sort is used */
+       int f_sectime;		/* print the real time for all files */
+static int f_singlecol;		/* use single column output */
+       int f_size;		/* list size in short listing */
+       int f_statustime;	/* use time of last mode change */
+static int f_timesort;		/* sort by time vice name */
+       int f_type;		/* add type character for non-regular files */
+static int f_whiteout;		/* show whiteout entries */
 #ifdef COLORLS
-int f_color;			/* add type in color for non-regular files */
+       int f_color;		/* add type in color for non-regular files */
 
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
 char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
 char *ansi_coloff;		/* ANSI sequence to reset colours */
+char *attrs_off;		/* ANSI sequence to turn off attributes */
+char *enter_bold;		/* ANSI sequence to set color to bold mode */
 #endif
 
-int rval;
+static int rval;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	static char dot[] = ".", *dotav[] = { dot, NULL };
+	static char dot[] = ".", *dotav[] = {dot, NULL};
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
-
 #ifdef COLORLS
-	char termcapbuf[1024];		/* termcap definition buffer */
-	char tcapbuf[512];		/* capability buffer */
+	char termcapbuf[1024];	/* termcap definition buffer */
+	char tcapbuf[512];	/* capability buffer */
 	char *bp = tcapbuf;
 #endif
 
-	(void) setlocale(LC_ALL, "");
+	(void)setlocale(LC_ALL, "");
 
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {
@@ -147,14 +148,14 @@ main(argc, argv)
 		    !win.ws_col) {
 			if ((p = getenv("COLUMNS")) != NULL)
 				termwidth = atoi(p);
-		}
-		else
+		} else
 			termwidth = win.ws_col;
-		f_column = f_nonprint = 1;
+		f_nonprint = 1;
 	} else {
 		f_singlecol = 1;
 		/* retrieve environment variable, in case of explicit -C */
-		if ((p = getenv("COLUMNS")))
+		p = getenv("COLUMNS");
+		if (p)
 			termwidth = atoi(p);
 	}
 
@@ -163,7 +164,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWabcdfgiklnoqrstu")) != -1) {
+ 	while ((ch = getopt(argc, argv, "1ABCFGHLPRTWabcdfghiklnoqrstuw")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -171,20 +172,19 @@ main(argc, argv)
 		 */
 		case '1':
 			f_singlecol = 1;
-			f_column = f_longform = 0;
+			f_longform = 0;
 			break;
 		case 'B':
 			f_nonprint = 0;
 			f_octal = 1;
-		        f_octal_escape = 0;
+			f_octal_escape = 0;
 			break;
 		case 'C':
-			f_column = 1;
 			f_longform = f_singlecol = 0;
 			break;
 		case 'l':
 			f_longform = 1;
-			f_column = f_singlecol = 0;
+			f_singlecol = 0;
 			break;
 		/* The -c and -u options override each other. */
 		case 'c':
@@ -199,7 +199,7 @@ main(argc, argv)
 			f_type = 1;
 			break;
 		case 'H':
-		        fts_options |= FTS_COMFOLLOW;
+			fts_options |= FTS_COMFOLLOW;
 			break;
 		case 'G':
 			setenv("CLICOLOR", "", 1);
@@ -209,7 +209,7 @@ main(argc, argv)
 			fts_options |= FTS_LOGICAL;
 			break;
 		case 'P':
-		        fts_options &= ~FTS_COMFOLLOW;
+			fts_options &= ~FTS_COMFOLLOW;
 			fts_options &= ~FTS_LOGICAL;
 			fts_options |= FTS_PHYSICAL;
 			break;
@@ -230,7 +230,10 @@ main(argc, argv)
 		case 'f':
 			f_nosort = 1;
 			break;
-		case 'g':		/* Compatibility with 4.3BSD. */
+		case 'g':	/* Compatibility with 4.3BSD. */
+			break;
+		case 'h':
+			f_humanval = 1;
 			break;
 		case 'i':
 			f_inode = 1;
@@ -247,7 +250,7 @@ main(argc, argv)
 		case 'q':
 			f_nonprint = 1;
 			f_octal = 0;
-		        f_octal_escape = 0;
+			f_octal_escape = 0;
 			break;
 		case 'r':
 			f_reversesort = 1;
@@ -266,8 +269,13 @@ main(argc, argv)
 			break;
 		case 'b':
 			f_nonprint = 0;
-		        f_octal = 0;
+			f_octal = 0;
 			f_octal_escape = 1;
+			break;
+		case 'w':
+			f_nonprint = 0;
+			f_octal = 0;
+			f_octal_escape = 0;
 			break;
 		default:
 		case '?':
@@ -284,6 +292,8 @@ main(argc, argv)
 		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
 			ansi_fgcol = tgetstr("AF", &bp);
 			ansi_bgcol = tgetstr("AB", &bp);
+			attrs_off = tgetstr("me", &bp);
+			enter_bold = tgetstr("md", &bp);
 
 			/* To switch colours off use 'op' if
 			 * available, otherwise use 'oc', or
@@ -306,8 +316,8 @@ main(argc, argv)
 		 * for "stty oxtabs" mode.
 		 */
 		f_notabs = 1;
-		(void) signal(SIGINT, colorquit);
-		(void) signal(SIGQUIT, colorquit);
+		(void)signal(SIGINT, colorquit);
+		(void)signal(SIGQUIT, colorquit);
 		parsecolors(getenv("LSCOLORS"));
 	}
 #endif
@@ -321,7 +331,7 @@ main(argc, argv)
 #ifdef COLORLS
 	    && !f_color
 #endif
-	   )
+	    )
 		fts_options |= FTS_NOSTAT;
 
 	/*
@@ -348,7 +358,6 @@ main(argc, argv)
 			blocksize /= 512;
 		}
 	}
-
 	/* Select a sort function. */
 	if (f_reversesort) {
 		if (!f_timesort)
@@ -357,7 +366,7 @@ main(argc, argv)
 			sortfcn = revacccmp;
 		else if (f_statustime)
 			sortfcn = revstatcmp;
-		else /* Use modification time. */
+		else		/* Use modification time. */
 			sortfcn = revmodcmp;
 	} else {
 		if (!f_timesort)
@@ -366,7 +375,7 @@ main(argc, argv)
 			sortfcn = acccmp;
 		else if (f_statustime)
 			sortfcn = statcmp;
-		else /* Use modification time. */
+		else		/* Use modification time. */
 			sortfcn = modcmp;
 	}
 
@@ -385,7 +394,7 @@ main(argc, argv)
 	exit(rval);
 }
 
-static int output;			/* If anything output. */
+static int output;		/* If anything output. */
 
 /*
  * Traverse() walks the logical directory structure specified by the argv list
@@ -394,9 +403,7 @@ static int output;			/* If anything output. */
  * a superset (may be exact set) of the files to be displayed.
  */
 static void
-traverse(argc, argv, options)
-	int argc, options;
-	char *argv[];
+traverse(int argc, char *argv[], int options)
 {
 	FTS *ftsp;
 	FTSENT *p, *chp;
@@ -442,13 +449,13 @@ traverse(argc, argv, options)
 				(void)printf("%s:\n", p->fts_path);
 				output = 1;
 			}
-
 			chp = fts_children(ftsp, ch_options);
 			display(p, chp);
 
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
+		default:
 		}
 	if (errno)
 		err(1, "fts_read");
@@ -460,16 +467,18 @@ traverse(argc, argv, options)
  * points to the parent directory of the display list.
  */
 static void
-display(p, list)
-	FTSENT *p, *list;
+display(FTSENT *p, FTSENT *list)
 {
 	struct stat *sp;
 	DISPLAY d;
 	FTSENT *cur;
 	NAMES *np;
-	u_quad_t maxsize;
+	off_t maxsize;
 	u_long btotal, maxblock, maxinode, maxlen, maxnlink;
-	int bcfile, flen, glen, ulen, maxflags, maxgroup, maxuser;
+	int bcfile, maxflags;
+	gid_t maxgroup;
+	uid_t maxuser;
+	size_t flen, ulen, glen;
 	char *initmax;
 	int entries, needstats;
 	char *user, *group, *flags;
@@ -492,6 +501,8 @@ display(p, list)
 	btotal = 0;
 	initmax = getenv("LS_COLWIDTHS");
 	/* Fields match -lios order.  New ones should be added at the end. */
+	maxblock = maxinode = maxlen = maxnlink =
+	    maxuser = maxgroup = maxflags = maxsize = 0;
 	if (initmax != NULL && *initmax != '\0') {
 		char *initmax2, *jinitmax;
 		int ninitmax;
@@ -514,34 +525,51 @@ display(p, list)
 				initmax2[1] = '\0';
 			}
 		}
-		if (initmax2[-1] == ':') strcpy(initmax2, "0");
+		if (initmax2[-1] == ':')
+			strcpy(initmax2, "0");
 
 		ninitmax = sscanf(jinitmax,
-		    " %lu : %lu : %lu : %i : %i : %i : %qu : %lu ",
+		    " %lu : %lu : %lu : %i : %i : %i : %llu : %lu ",
 		    &maxinode, &maxblock, &maxnlink, &maxuser,
 		    &maxgroup, &maxflags, &maxsize, &maxlen);
 		f_notabs = 1;
 		switch (ninitmax) {
-		 case 0: maxinode = 0;
-		 case 1: maxblock = 0;
-		 case 2: maxnlink = 0;
-		 case 3: maxuser  = 0;
-		 case 4: maxgroup = 0;
-		 case 5: maxflags = 0;
-		 case 6: maxsize  = 0;
-		 case 7: maxlen   = 0;
+		case 0:
+			maxinode = 0;
+			/* fall through */
+		case 1:
+			maxblock = 0;
+			/* fall through */
+		case 2:
+			maxnlink = 0;
+			/* fall through */
+		case 3:
+			maxuser = 0;
+			/* fall through */
+		case 4:
+			maxgroup = 0;
+			/* fall through */
+		case 5:
+			maxflags = 0;
+			/* fall through */
+		case 6:
+			maxsize = 0;
+			/* fall through */
+		case 7:
+			maxlen = 0;
+			/* fall through */
 #ifdef COLORLS
-		 if (!f_color)
+			if (!f_color)
 #endif
-			 f_notabs = 0;
+				f_notabs = 0;
+			/* fall through */
+		default:
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
 		maxnlink = makenines(maxnlink);
 		maxsize = makenines(maxsize);
-	} else if (initmax == NULL || *initmax == '\0')
-		maxblock = maxinode = maxlen = maxnlink =
-		    maxuser = maxgroup = maxflags = maxsize = 0;
+	}
 	bcfile = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
@@ -552,7 +580,6 @@ display(p, list)
 			rval = 1;
 			continue;
 		}
-
 		/*
 		 * P is NULL if list is the argv list, to which different rules
 		 * apply.
@@ -573,8 +600,10 @@ display(p, list)
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
 		if (f_octal || f_octal_escape) {
-		        int t = len_octal(cur->fts_name, cur->fts_namelen);
-			if (t > maxlen) maxlen = t;
+			u_long t = len_octal(cur->fts_name, cur->fts_namelen);
+
+			if (t > maxlen)
+				maxlen = t;
 		}
 		if (needstats) {
 			sp = cur->fts_statp;
@@ -612,7 +641,8 @@ display(p, list)
 					}
 					if (flags == NULL)
 						err(1, NULL);
-					if ((flen = strlen(flags)) > maxflags)
+					flen = strlen(flags);
+					if (flen > (size_t)maxflags)
 						maxflags = flen;
 				} else
 					flen = 0;
@@ -632,7 +662,7 @@ display(p, list)
 
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
-				  	(void)strcpy(np->flags, flags);
+					(void)strcpy(np->flags, flags);
 					free(flags);
 				}
 				cur->fts_pointer = np;
@@ -662,7 +692,6 @@ display(p, list)
 		d.s_size = strlen(buf);
 		d.s_user = maxuser;
 	}
-
 	printfcn(&d);
 	output = 1;
 
@@ -678,8 +707,7 @@ display(p, list)
  * All other levels use the sort function.  Error entries remain unsorted.
  */
 static int
-mastercmp(a, b)
-	const FTSENT **a, **b;
+mastercmp(const FTSENT **a, const FTSENT **b)
 {
 	int a_info, b_info;
 
@@ -708,8 +736,7 @@ mastercmp(a, b)
  * into a number that wide in decimal.
  */
 static u_quad_t
-makenines(n)
-	u_long n;
+makenines(u_long n)
 {
 	u_long i;
 	u_quad_t reg;

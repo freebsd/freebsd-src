@@ -4,11 +4,13 @@
 
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
+DPADD=	${LIBM}
+LDADD=	-lm
 
 .if !defined(RELEASE_BUILD_FIXIT)
 CFLAGS+= -DCOLORLS
-LDADD+= -ltermcap
-DPADD+= ${LIBTERMCAP}
+DPADD+=	${LIBTERMCAP}
+LDADD+=	-ltermcap
 .endif
 
 .include <bsd.prog.mk>

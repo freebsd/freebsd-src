@@ -34,27 +34,29 @@
  * $FreeBSD$
  */
 
-int	 acccmp __P((const FTSENT *, const FTSENT *));
-int	 revacccmp __P((const FTSENT *, const FTSENT *));
-int	 modcmp __P((const FTSENT *, const FTSENT *));
-int	 revmodcmp __P((const FTSENT *, const FTSENT *));
-int	 namecmp __P((const FTSENT *, const FTSENT *));
-int	 revnamecmp __P((const FTSENT *, const FTSENT *));
-int	 statcmp __P((const FTSENT *, const FTSENT *));
-int	 revstatcmp __P((const FTSENT *, const FTSENT *));
+int	 acccmp(const FTSENT *, const FTSENT *);
+int	 revacccmp(const FTSENT *, const FTSENT *);
+int	 modcmp(const FTSENT *, const FTSENT *);
+int	 revmodcmp(const FTSENT *, const FTSENT *);
+int	 namecmp(const FTSENT *, const FTSENT *);
+int	 revnamecmp(const FTSENT *, const FTSENT *);
+int	 statcmp(const FTSENT *, const FTSENT *);
+int	 revstatcmp(const FTSENT *, const FTSENT *);
 
-void	 printcol __P((DISPLAY *));
-void	 printlong __P((DISPLAY *));
-void	 printscol __P((DISPLAY *));
-void	 usage __P((void));
-int	 len_octal __P((const char *, int));
-int	 prn_octal __P((const char *));
-int	 prn_printable __P((const char *));
+void	 printcol(DISPLAY *);
+void	 printlong(DISPLAY *);
+void	 printscol(DISPLAY *);
+void	 usage(void);
+size_t	 len_octal(const char *, int);
+int	 prn_octal(const char *);
+int	 prn_printable(const char *);
 #ifdef COLORLS
-void	 parsecolors __P((char *cs));
-void     colorquit __P((int));
+void	 parsecolors(const char *cs);
+void     colorquit(int);
 
 extern  char    *ansi_fgcol;
 extern  char    *ansi_bgcol;
 extern  char    *ansi_coloff;
+extern  char    *attrs_off;
+extern  char    *enter_bold;
 #endif

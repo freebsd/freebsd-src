@@ -44,6 +44,7 @@ extern long blocksize;		/* block size units */
 
 extern int f_accesstime;	/* use time of last access */
 extern int f_flags;		/* show flags associated with a file */
+extern int f_humanval;		/* show human-readable file sizes */
 extern int f_inode;		/* print inode */
 extern int f_longform;		/* long listing format */
 extern int f_octal;		/* print unprintables in octal */
@@ -64,13 +65,13 @@ typedef struct {
 	int bcfile;
 	int entries;
 	int maxlen;
-	int s_block;
-	int s_flags;
-	int s_group;
-	int s_inode;
-	int s_nlink;
-	int s_size;
-	int s_user;
+	u_int s_block;
+	u_int s_flags;
+	u_int s_group;
+	u_int s_inode;
+	u_int s_nlink;
+	u_int s_size;
+	u_int s_user;
 } DISPLAY;
 
 typedef struct {
