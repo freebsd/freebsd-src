@@ -966,13 +966,8 @@ dowait(int block, struct job *job)
 				sig = WTERMSIG(status);
 		}
 		if (sig != 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (jp->foreground) {
-#if JOBS
-				if (WIFSTOPPED(status)) 
-					i = WSTOPSIG(status);
-				else
-#endif
-					i = WTERMSIG(status);
+			if (thisjob->foreground && !WIFSTOPPED(status)) {
+				i = WTERMSIG(status);
 				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
 					out1str(sys_siglist[i & 0x7F]);
 				else
