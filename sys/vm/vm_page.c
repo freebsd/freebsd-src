@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.3 1994/08/01 11:25:44 davidg Exp $
+ *	$Id: vm_page.c,v 1.4 1994/08/07 13:10:41 davidg Exp $
  */
 
 /*
@@ -711,7 +711,6 @@ void vm_page_unwire(mem)
 	splx(s);
 }
 
-#if 0
 /*
  *	vm_page_deactivate:
  *
@@ -764,52 +763,6 @@ vm_page_deactivate(m)
 	} 
 	splx(spl);
 }
-#endif
-#if 1
-/*
- *	vm_page_deactivate:
- *
- *	Returns the given page to the inactive list,
- *	indicating that no physical maps have access
- *	to this page.  [Used by the physical mapping system.]
- *
- *	The page queues must be locked.
- */
-void vm_page_deactivate(m)
-	register vm_page_t	m;
-{
-	int s;
-	VM_PAGE_CHECK(m);
-
-	s = splhigh();
-	/*
-	 *	Only move active pages -- ignore locked or already
-	 *	inactive ones.
-	 */
-
-	if ((m->flags & PG_ACTIVE) && (m->hold_count == 0)) {
-		pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-		TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-		TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
-		m->flags &= ~PG_ACTIVE;
-		m->flags |= PG_INACTIVE;
-		cnt.v_active_count--;
-		cnt.v_inactive_count++;
-#define NOT_DEACTIVATE_PROTECTS
-#ifndef NOT_DEACTIVATE_PROTECTS
-		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
-#else
-		if (pmap_is_modified(VM_PAGE_TO_PHYS(m)))
-			m->flags &= ~PG_CLEAN;
-#endif
-		if (m->flags & PG_CLEAN)
-			m->flags &= ~PG_LAUNDRY;
-		else
-			m->flags |= PG_LAUNDRY;
-	}
-	splx(s);
-}
-#endif
 /*
  *	vm_page_activate:
  *
