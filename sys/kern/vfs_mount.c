@@ -48,7 +48,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -97,17 +97,18 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-#define ROOTNAME	"root_device"
+#define	ROOTNAME		"root_device"
+#define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
 static void	checkdirs(struct vnode *olddp, struct vnode *newdp);
-static int	vfs_nmount(struct thread *td, int, struct uio *);
-static int	vfs_mountroot_try(char *mountfrom);
-static int	vfs_mountroot_ask(void);
-static int	vfs_mount_alloc(struct vnode *, struct vfsconf *,
-		    const char *, struct thread *, struct mount **);
-static int	vfs_domount(struct thread *, const char *, char *,
-    		    int fsflags, void *fsdata, int compat);
 static void	gets(char *cp);
+static int	vfs_domount(struct thread *td, const char *fstype,
+		    char *fspath, int fsflags, void *fsdata, int compat);
+static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
+		    const char *fspath, struct thread *td, struct mount **mpp);
+static int	vfs_mountroot_ask(void);
+static int	vfs_mountroot_try(char *mountfrom);
+static int	vfs_nmount(struct thread *td, int fsflags, struct uio *fsopts);
 
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
@@ -137,7 +138,7 @@ struct vnode	*rootvnode;
  *              to locate its physical store
  */
 
-/* 
+/*
  * The root specifiers we will try if RB_CDROM is specified.
  */
 static char *cdrom_rootdevnames[] = {
@@ -240,20 +241,19 @@ vfs_sanitizeopts(struct vfsoptlist *opts)
 /*
  * Build a linked list of mount options from a struct uio.
  */
-#define VFS_MOUNTARG_SIZE_MAX	(1024*64)
-
 static int
 vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 {
 	struct vfsoptlist *opts;
 	struct vfsopt *opt;
+	size_t memused;
 	unsigned int i, iovcnt;
 	int error, namelen, optlen;
-	size_t memused = 0;
 
-	iovcnt = auio->uio_iovcnt;
 	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
 	TAILQ_INIT(opts);
+	memused = 0;
+	iovcnt = auio->uio_iovcnt;
 	for (i = 0; i < iovcnt; i += 2) {
 		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
 		namelen = auio->uio_iov[i].iov_len;
@@ -264,14 +264,14 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 
 		/*
 		 * Do this early, so jumps to "bad" will free the current
-		 * option
+		 * option.
 		 */
 		TAILQ_INSERT_TAIL(opts, opt, link);
-		memused += sizeof (struct vfsopt) + optlen + namelen;
+		memused += sizeof(struct vfsopt) + optlen + namelen;
 
 		/*
 		 * Avoid consuming too much memory, and attempts to overflow
-		 * memused
+		 * memused.
 		 */
 		if (memused > VFS_MOUNTARG_SIZE_MAX ||
 		    optlen > VFS_MOUNTARG_SIZE_MAX ||
@@ -288,10 +288,10 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 			if (error)
 				goto bad;
 		}
-		/* Ensure names are null-terminated strings */
+		/* Ensure names are null-terminated strings. */
 		if (opt->name[namelen - 1] != '\0') {
-		    error = EINVAL;
-		    goto bad;
+			error = EINVAL;
+			goto bad;
 		}
 		if (optlen != 0) {
 			opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
@@ -515,6 +515,9 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	return (0);
 }
 
+/*
+ * Destroy the mount struct previously allocated by vfs_mount_alloc().
+ */
 void
 vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
@@ -541,8 +544,7 @@ vfs_nmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
 	char *fstype, *fspath;
-	int fstypelen, fspathlen;
-	int error;
+	int error, fstypelen, fspathlen;
 
 	error = vfs_buildopts(fsoptions, &optlist);
 	if (error)
@@ -637,13 +639,14 @@ mount(td, uap)
  */
 int
 vfs_mount(td, fstype, fspath, fsflags, fsdata)
-        struct thread *td;
-        const char *fstype;
-        char *fspath;
-        int fsflags;
-        void *fsdata;
+	struct thread *td;
+	const char *fstype;
+	char *fspath;
+	int fsflags;
+	void *fsdata;
 {
-	return (vfs_domount(td,fstype, fspath, fsflags, fsdata, 1));
+
+	return (vfs_domount(td, fstype, fspath, fsflags, fsdata, 1));
 }
 
 /*
@@ -651,12 +654,13 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
  */
 static int
 vfs_domount(
-	struct thread *td,
-	const char *fstype,
-	char *fspath,
-	int fsflags,
-	void *fsdata,
-	int compat)
+	struct thread *td,	/* Flags common to all filesystems. */
+	const char *fstype,	/* Filesystem type. */
+	char *fspath,		/* Mount path. */
+	int fsflags,		/* Flags common to all filesystems. */
+	void *fsdata,		/* Options local to the filesystem. */
+	int compat		/* Invocation from compat syscall. */
+	)
 {
 	linker_file_t lf;
 	struct vnode *vp;
@@ -675,7 +679,7 @@ vfs_domount(
 		return (ENAMETOOLONG);
 
 	if (usermount == 0) {
-	       	error = suser(td);
+		error = suser(td);
 		if (error)
 			return (error);
 	}
@@ -866,16 +870,16 @@ update:
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = compat? VFS_MOUNT(mp, fspath, fsdata, &nd, td) :
-	                VFS_NMOUNT(mp, &nd, td);
+	    VFS_NMOUNT(mp, &nd, td);
 	if (!error) {
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
 	}
 	/*
-	 * Prevent external consumers of mount
-	 * options to read mnt_optnew.
-	 */
+	 * Prevent external consumers of mount options from reading
+	 * mnt_optnew.
+	*/
 	mp->mnt_optnew = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
@@ -931,7 +935,6 @@ update:
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-
 		vfs_mount_destroy(mp, td);
 		vput(vp);
 	}
@@ -1180,14 +1183,11 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 			break;
 	if (vfsp == NULL)
 		return (ENODEV);
-
 	error = vfs_mount_alloc(NULLVP, vfsp, "/", td, &mp);
 	if (error)
 		return (error);
-
 	mp->mnt_flag |= MNT_RDONLY | MNT_ROOTFS;
 	strlcpy(mp->mnt_stat.f_mntfromname, devname, MNAMELEN);
-
 	*mpp = mp;
 	return (0);
 }
@@ -1198,8 +1198,8 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 void
 vfs_mountroot(void)
 {
-	char		*cp;
-	int		i, error;
+	char *cp;
+	int error, i;
 
 	g_waitidle();
 
@@ -1208,8 +1208,7 @@ vfs_mountroot(void)
 	 * booted with instructions to use it.
 	 */
 #ifdef ROOTDEVNAME
-	if ((boothowto & RB_DFLTROOT) &&
-	    !vfs_mountroot_try(ROOTDEVNAME))
+	if ((boothowto & RB_DFLTROOT) && !vfs_mountroot_try(ROOTDEVNAME))
 		return;
 #endif
 	/*
