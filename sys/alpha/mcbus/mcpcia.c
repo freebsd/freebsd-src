@@ -618,6 +618,14 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	mid = mcbus_get_mid(dev);
 	gid = mcbus_get_gid(dev);
 
+	if (slot == 0) {
+		device_t bdev; 
+		/* bridged - get slot from granparent */
+		/* note that this is broken for all but the most trival case */
+		bdev = device_get_parent(device_get_parent(child));
+		slot = pci_get_slot(bdev);
+	}
+
 	if (mid == 5 && slot == 1) {
 		irq = 16;	/* MID 5, slot 1, is the internal NCR 53c810 */
 	} else if (slot >= 2 && slot <= 5) {
