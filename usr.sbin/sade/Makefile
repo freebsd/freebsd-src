@@ -62,15 +62,18 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
-	cat ${.CURDIR}/../../share/syscons/fonts/iso-8x16.fnt | \
-		uudecode | file2c 'const u_char font_iso_8x16[] = {' '};' \
-		>> makedevs.tmp
-	cat ${.CURDIR}/../../share/syscons/fonts/cp850-8x16.fnt | \
-		uudecode | file2c 'const u_char font_cp850_8x16[] = {' '};' \
-		>> makedevs.tmp
-	cat ${.CURDIR}/../../share/syscons/fonts/koi8-r-8x16.fnt | \
-		uudecode | file2c 'const u_char font_koi8_r_8x16[] = {' '};' \
-		>> makedevs.tmp
+	uudecode < ${.CURDIR}/../../share/syscons/fonts/iso-8x16.fnt \
+		&& file2c 'const u_char font_iso_8x16[] = {' '};' \
+		< iso-8x16 >> makedevs.tmp
+	rm iso-8x16
+	uudecode < ${.CURDIR}/../../share/syscons/fonts/cp850-8x16.fnt \
+		&& file2c 'const u_char font_cp850_8x16[] = {' '};' \
+		< cp850-8x16 >> makedevs.tmp
+	rm cp850-8x16
+	uudecode < ${.CURDIR}/../../share/syscons/fonts/koi8-r-8x16.fnt \
+		&& file2c 'const u_char font_koi8_r_8x16[] = {' '};' \
+		< koi8-r-8x16 >> makedevs.tmp
+	rm koi8-r-8x16
 	mv makedevs.tmp makedevs.c
 
 rtermcap:	${.CURDIR}/rtermcap.c
