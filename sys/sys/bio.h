@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.54 1998/08/24 17:47:08 phk Exp $
+ * $Id: buf.h,v 1.55 1998/09/05 14:13:12 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -170,32 +170,34 @@ struct buf {
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
-typedef struct buf_queue_head {
+struct buf_queue_head {
 	TAILQ_HEAD(buf_queue, buf) queue;
+	daddr_t	last_pblkno;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
-} buf_queue_head, *buf_queue_head_t;
+};
 
-static __inline void bufq_init __P((buf_queue_head *head));
+static __inline void bufq_init __P((struct buf_queue_head *head));
 
-static __inline void bufq_insert_tail __P((buf_queue_head *head,
-						struct buf *bp));
-
-static __inline void bufq_remove __P((buf_queue_head *head,
+static __inline void bufq_insert_tail __P((struct buf_queue_head *head,
 					   struct buf *bp));
 
-static __inline struct buf *bufq_first __P((buf_queue_head *head));
+static __inline void bufq_remove __P((struct buf_queue_head *head,
+				      struct buf *bp));
+
+static __inline struct buf *bufq_first __P((struct buf_queue_head *head));
 
 static __inline void
-bufq_init(buf_queue_head *head)
+bufq_init(struct buf_queue_head *head)
 {
 	TAILQ_INIT(&head->queue);
+	head->last_pblkno = 0;
 	head->insert_point = NULL;
 	head->switch_point = NULL;
 }
 
 static __inline void
-bufq_insert_tail(buf_queue_head *head, struct buf *bp)
+bufq_insert_tail(struct buf_queue_head *head, struct buf *bp)
 {
 	if ((bp->b_flags & B_ORDERED) != 0) {
 		head->insert_point = bp;
@@ -205,19 +207,24 @@ bufq_insert_tail(buf_queue_head *head, struct buf *bp)
 }
 
 static __inline void
-bufq_remove(buf_queue_head *head, struct buf *bp)
+bufq_remove(struct buf_queue_head *head, struct buf *bp)
 {
-	if (bp == head->insert_point)
-		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
 	if (bp == head->switch_point)
 		head->switch_point = TAILQ_NEXT(bp, b_act);
+	if (bp == head->insert_point) {
+		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
+		if (head->insert_point == NULL)
+			head->last_pblkno = 0;
+	} else if (bp == TAILQ_FIRST(&head->queue)) {
+		head->last_pblkno = bp->b_pblkno;
+	}
 	TAILQ_REMOVE(&head->queue, bp, b_act);
 	if (TAILQ_FIRST(&head->queue) == head->switch_point)
 		head->switch_point = NULL;
 }
 
 static __inline struct buf *
-bufq_first(buf_queue_head *head)
+bufq_first(struct buf_queue_head *head)
 {
 	return (TAILQ_FIRST(&head->queue));
 }
