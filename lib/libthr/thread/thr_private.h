@@ -797,7 +797,7 @@ void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
 void	_thread_printf(int fd, const char *, ...);
-void    _thread_start(void);
+void    _thread_start(pthread_t td);
 void	_thread_seterrno(pthread_t, int);
 void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);

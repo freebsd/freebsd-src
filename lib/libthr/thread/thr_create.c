@@ -99,9 +99,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Initialise the machine context: */
 	getcontext(&new_thread->ctx);
+	new_thread->savedsig = new_thread->ctx.uc_sigmask;
 	new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
 	new_thread->ctx.uc_stack.ss_size = pattr->stacksize_attr;
-	makecontext(&new_thread->ctx, _thread_start, 0);
+	makecontext(&new_thread->ctx, (void (*)(void))_thread_start, 1, new_thread);
 	new_thread->arch_id = _set_curthread(&new_thread->ctx, new_thread, &ret);
 	if (ret != 0) {
 		if (pattr->stackaddr_attr == NULL) {
@@ -145,7 +146,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	 */
 	if (pattr->suspend == PTHREAD_CREATE_SUSPENDED)
 		new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
+	/* new thread inherits signal mask in kernel */
+	_thread_sigblock();
 	ret = thr_create(&new_thread->ctx, &new_thread->thr_id, flags);
+	/* restore my signal mask */
+	_thread_sigunblock();
 	if (ret != 0) {
 		_thread_printf(STDERR_FILENO, "thr_create() == %d\n", ret);
 		PANIC("thr_create");
@@ -160,12 +165,24 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 }
 
 void
-_thread_start(void)
+_thread_start(pthread_t td)
 {
+	int ret;
+
+	/*
+	 * for AMD64, we need to set fsbase by thread itself, before
+	 * fsbase is set, we can not run any other code, for example
+	 * signal code.
+	 */
+	_set_curthread(NULL, td, &ret);
+
+	/* restore signal mask inherited before */
+	__sys_sigprocmask(SIG_SETMASK, &td->savedsig, NULL);
+
 	if ((curthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 		_thread_suspend(curthread, NULL);
-	pthread_exit(curthread->start_routine(curthread->arg));
 
+	pthread_exit(curthread->start_routine(curthread->arg));
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
 }
