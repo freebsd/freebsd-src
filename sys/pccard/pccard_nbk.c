@@ -49,8 +49,6 @@
  * These compatibility nodes are called pccnbk.  PCCard New Bus Kludge.
  */
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -301,6 +299,27 @@ pccard_set_memory_offset(device_t bus, device_t child, int rid,
 	    offset);
 }
 
+static int
+pccard_get_function(device_t bus, device_t child, int *function)
+{
+	*function = 0;
+	return (0);
+}
+
+static int
+pccard_activate_function(device_t bus, device_t child)
+{
+	/* pccardd has alrady activated the function */
+	return (0);
+}
+
+static int
+pccard_deactivate_function(device_t bus, device_t child)
+{
+	/* pccardd will deactivate the function */
+	return (0);
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -327,6 +346,9 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
 	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
+	DEVMETHOD(card_get_function,	pccard_get_function),
+	DEVMETHOD(card_activate_function, pccard_activate_function),
+	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 
 	{ 0, 0 }
 };
