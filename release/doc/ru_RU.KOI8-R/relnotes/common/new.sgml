@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.13 2004/09/10 13:45:40 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.14 2004/09/13 09:24:01 den Exp $
 
-     Original revision: 1.771
+     Original revision: 1.774
 -->
 
 <articleinfo>
@@ -98,20 +98,10 @@
   <title>Что нового</title>
 
   <para>В этом разделе описаны
-<![ %include.historic; [
-      основные видимые пользователю добавленные или измененные с
-      &release.prev; возможности &os;.  Как правило, изменения, описанные
-      здесь, уникальны для &release.branch;, если только они не помечены
-      как &merged;.
-]]>
-<![ %no.include.historic; [
-      многие из видимых пользователю добавленных или измененных с
-      &release.prev; возможностей &os;.  Он включает информацию, уникальную
-      для &release.branch;, и информацию о некоторых возможностях, которые
-      были недавно внесены в другие ветви (после &os;
-      &release.prev.historic;).  Последние помечены как &merged;.
-]]>
-  </para>
+    основные видимые пользователю добавленные или измененные с
+    &release.prev; возможности &os;.  Как правило, изменения, описанные
+    здесь, уникальны для &release.branch;, если только они не помечены
+    как &merged;.</para>
 
   <para>Обычно в информации о релизе последовательно включены
     последние сообщения безопасности, выпущенные после
@@ -513,6 +503,12 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       драйвер более не поддерживается.  Эта запись была закомментирована
       в течение длительного времени.</para>
 
+    <para arch="alpha,amd64,i386">Был добавлен новый параметр ядра
+      <literal>PREEMPTION</literal>.  Он позволяет вытеснять потоки
+      в ядре потоками с более высокими приоритетами.  Этот параметр
+      позволяет повысить интерактивность и ускоряет работу
+      потоков.</para>
+
     <para arch="i386">Драйвер &man.psm.4; и &man.moused.8;
       теперь поддерживают Synaptics TouchPad.</para>
 
@@ -543,8 +539,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para>Был добавлен драйвер устройства &man.ubser.4; для поддержки
       управляемых с консоли последовательных адаптеров BWCT.</para>
 
-    <para>Планировщик ULE теперь используется в качестве планировщика по
-      умолчанию в ядре <filename>GENERIC</filename>.  Для большинства
+    <para>Планировщик ULE был добавлен в качестве дополнительного
+      планировщика.  Обратите внимание, что в качестве планировщика
+      по умолчанию в ядре <filename>GENERIC</filename> все еще используется
+      традиционный 4BSD.  Для большинства
       пользователей интерактивность возросла во многих случаях.
       Это означает меньшее количество <quote>пропусков</quote> и
       <quote>рывков</quote> в интерактивных приложениях, когда компьютер
@@ -557,12 +555,23 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       fine-grained kernel locking, планировщик сможет более эффективно
       использовать доступные параллельные ресурсы.</para>
 
+    <para>Был добавлен драйвер &man.ucycom.4; для поддержки
+      семейства мостов USB к RS232 Cypress CY7C637xx и CY7C640/1xx,
+      один из которых используется в DeLorme Earthmate USB GPS
+      приемнике (который и является единственным поддерживаемым
+      этим драйвером устройством на данный момент).  Этот драйвер
+      не полон, поскольку в нем еще нет поддержки вывода и контроля
+      потока.</para>
+
     <para>Линейный алгоритм поиска, использовавшийся в
       &man.vm.map.findspace.9;, был замещен на алгоритм
       O(log n), строящий карту в виде дерева.  Он значительно снижает
       нагрузку в &man.vm.map.findspace.9; для приложений, которые
       используют &man.mmap.2; во многих сотнях или тысячах
       вхождений.</para>
+
+    <para>Переменные загрузчика <varname>debug.witness_*</varname>
+      были переименованы в <varname>debug.witness.*</varname>.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -700,7 +709,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	Его функциональность была добавлена в драйвер &man.en.4;.</para>
 
       <para>Был добавлен драйвер &man.ixgb.4;, поддерживающий карты
-        Intel PRO/10GBE 10 gigabit Ethernet. &merged;</para>
+        Intel PRO/10GBE 10 Gigabit Ethernet. &merged;</para>
 
       <para arch="i386">Драйвер <devicename>lmc</devicename> (LAN Media Corp. PCI WAN adapter)
 	был удален вследствие неработоспособности и отсутствия
@@ -766,6 +775,11 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Был добавлен драйвер &man.udav.4;.  Он предоставляет поддержку
 	USB Ethernet адаптеров, основанных на Davicom DM9601 чипсете.</para>
 
+      <para>Был добавлен драйвер &man.vge.4;, поддерживающий
+	чип VIA Networking Technologies
+	VT6122 Gigabit Ethernet и интегрированный 10/100/1000 copper
+	PHY.</para>
+
       <para>Драйвер &man.vr.4; теперь поддерживает &man.polling.4;.
 	&merged;</para>
 
@@ -783,10 +797,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <sect3 id="net-proto">
       <title>Сетевые протоколы</title>
-
-      <para>Параметр ядра <literal>DA_OLD_QUIRKS</literal>,
-	предназначенный для драйвера диска CAM SCSI (&man.cam.4;)
-	был удален.  &merged;</para>
 
       <para>Драйвер туннеля &man.gre.4; теперь поддерживает WCCP версии
 	2.</para>
@@ -939,6 +949,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	</note>
       </para>
 
+      <para>Параметр ядра <literal>DA_OLD_QUIRKS</literal>,
+	предназначенный для драйвера диска CAM SCSI (&man.cam.4;)
+	был удален.  &merged;</para>
+
       <para arch="pc98">Была исправлена ошибка в коде автоматического
 	выбора плотности драйвера &man.fd.4;.</para>
 
@@ -1078,11 +1092,12 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	порт и несколько звуковых карт, был удален.  Дополнительные
 	подробности находятся на соответствующих страницах справочной
 	системы:
-	sound(4), &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	&man.snd.cs4281.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	&man.snd.es137x.4;, и &man.snd.solo.4;.</para>
+	&man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
+	&man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
+	&man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
+        &man.snd.sbc.4;, &man.snd.solo.4;, и &man.snd.uaudio.4;.</para>
 
-      <para>Драйвер sound(4) (бывший &man.pcm.4;) был модифицирован для
+      <para>Драйвер &man.sound.4; (бывший &man.pcm.4;) был модифицирован для
 	чтения <filename>/boot/device.hints</filename> при запуске, чтобы
 	восстанавливать значения каналов mixer по умолчанию.</para>
     </sect3>
@@ -1385,6 +1400,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       изменяется в окружении вложенного make).  Помимо прочего,
       это делает переменные не переписываемыми во вложенных
       make, кроме как из командной строки.</para>
+
+    <para arch="i386">Была добавлена не-GPL утилита &man.mkuzip.8;,
+      для сжатия образов файловых систем перед использованием
+      с модулем <literal>GEOM_UZIP</literal> &man.geom.4;.</para>
 
     <para>Были реализованы функции C99 &man.nearbyint.3; и
       &man.nearbyintf.3;.</para>

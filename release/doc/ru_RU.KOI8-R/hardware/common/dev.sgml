@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.7 2004/09/10 13:09:19 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.9 2004/09/13 14:20:01 den Exp $
 
-     Original revision: 1.247
+     Original revision: 1.255
 -->
 
 <!--
@@ -276,50 +276,9 @@
 
     &hwlist.ti;
 
-    <para arch="i386,pc98,alpha,amd64">AMD PCnet сетевые карты (драйверы &man.lnc.4; и
-      &man.pcn.4;s)
-      <itemizedlist>
-	<listitem arch="i386,alpha,amd64">
-	  <para>AMD PCnet/PCI (79c970 & 53c974 или 79c974)</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>AMD PCnet/FAST</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolan AT 4141-0 (16 бит)</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolink 4110 (8 бит)</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>PCnet/FAST+</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>PCnet/FAST III</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>PCnet/PRO</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>PCnet/Home</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>HomePNA</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>Contec C-NET(98)S</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>PCI NIC, использующие AMD AM79C97x (PCnet-PCI/Fast)</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>NEC SV-98/2-B05, B06 (PCI)</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>Allied-Telesis LA-PCI (PCI)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.pcn;
+
+    &hwlist.lnc;
 
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) Ethernet сетевые карты
       (драйвер &man.tx.4;)
@@ -620,12 +579,9 @@
 
     &hwlist.bge;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Gigabit Ethernet сетевые карты на
-    Intel 82542 и 82543 контроллерах (драйверы &man.gx.4; и &man.em.4;),
-    плюс сетевые карты, поддерживаемые Intel 82540EM, 82544,
-    82545EM, и 82546EB
-    контроллерами (только драйвер &man.em.4;)
-    </para>
+    &hwlist.em;
+
+    &hwlist.gx;
 
     &hwlist.hme;
 
@@ -639,6 +595,8 @@
     &hwlist.re;
 
     &hwlist.ixgb;
+
+    &hwlist.vge;
 
   </sect2>
 
@@ -1031,16 +989,7 @@
 
     &hwlist.snd.cmi;
 
-    <para arch="i386,amd64">Crystal Semiconductor (драйвер &man.csa.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>CS461x/462x аудио акселератор</para>
-	</listitem>
-	<listitem>
-	  <para>CS428x аудио контроллер</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.csa;
 
     &hwlist.snd.es137x;
 
@@ -1068,16 +1017,7 @@
 
     <para arch="i386,amd64">ForteMedia fm801</para>
 
-    <para arch="i386,amd64">Gravis (драйвер &man.gusc.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>UltraSound MAX</para>
-	</listitem>
-	<listitem>
-	  <para>UltraSound PnP</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.gusc;
 
     <para arch="i386,amd64">Intel 443MX, 810, 815, и 815E встроенные звуковые
       устройства (драйвер &man.pcm.4;)</para>
@@ -1243,10 +1183,14 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">Последовательные устройства (драйверы &man.ubsa.4;,
-      &man.ubser.4;,
-      &man.uftdi.4;, и &man.uplcom.4;)
-    </para>
+
+    &hwlist.ubsa;
+
+    &hwlist.ubser;
+
+    &hwlist.uftdi;
+
+    &hwlist.uplcom;
 
     &hwlist.uscanner;
 
@@ -1354,27 +1298,14 @@
     <para arch="i386,pc98,amd64">Аудио устройства (драйвер &man.uaudio.4;)
     </para>
 
-    <para arch="i386,pc98,amd64">Handspring Visor и другие PalmOS
-      устройства (драйвер &man.uvisor.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>Handspring Visor</para>
-	</listitem>
-	<listitem>
-	  <para>Palm M125, M500, M505</para>
-	</listitem>
-	<listitem>
-	  <para>Sony Clie 4.0 и 4.1</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.uvisor;
+
  </sect2>
 
   <sect2 id="firewire">
     <title>IEEE 1394 (Firewire) устройства</title>
 
-    <para arch="i386,sparc64,amd64">Хост контроллеры (драйвер
-      &man.fwohci.4;)</para>
+    &hwlist.fwohci;
 
     <para arch="i386,sparc64,amd64">Serial Bus Protocol 2 (SBP-2)
       устройства хранения (драйвер &man.sbp.4;)</para>
@@ -1392,45 +1323,18 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">USB хост контроллеры (драйвер &man.ng.ubt.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>3Com 3CREB96</para>
-	</listitem>
-	<listitem>
-	  <para>EPoX BT-DG02</para>
-	</listitem>
-	<listitem>
-	  <para>Mitsumi USB Bluetooth адаптер</para>
-	</listitem>
-	<listitem>
-	  <para>MSI MS-6967</para>
-	</listitem>
-	<listitem>
-	  <para>TDK Bluetooth USB адаптер</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ng.ubt;
 
   </sect2>
 
   <sect2 id="crypto-accel">
     <title>Криптографические акселераторы</title>
 
-    <para arch="i386,pc98,amd64">Акселераторы, основанные на
-      Hifn 7751, 7811, или 7951 чипсетах (драйвер &man.hifn.4;)
-     </para>
+    &hwlist.hifn;
 
-    <para arch="i386,pc98,amd64">Акселераторы, основанные на SafeNet
-      1141 или 1741 чипсетах криптографических акселераторов (драйвер
-      &man.safe.4;)</para>
+    &hwlist.safe;
 
-    <para arch="i386,pc98,amd64">Акселераторы, основанные на
-      Bluesteel 5501 или 5601 чипсетах (драйвер &man.ubsec.4;)</para>
-
-    <para arch="i386,pc98,amd64">Акселераторы, основанные на
-      Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM 5821,
-      BCM5822 чипсетах (драйвер &man.ubsec.4;)</para>
+    &hwlist.ubsec;
 
   </sect2>
 
