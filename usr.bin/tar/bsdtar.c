@@ -151,8 +151,6 @@ main(int argc, char **argv)
 	if (bsdtar->filename == NULL)
 		bsdtar->filename = _PATH_DEFTAPE;
 
-	bsdtar->bytes_per_block = 10240;
-
 	/* Default: preserve mod time on extract */
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
 

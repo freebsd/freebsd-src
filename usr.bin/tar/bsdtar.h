@@ -32,6 +32,8 @@
 #include <archive.h>
 #include <stdio.h>
 
+#define	DEFAULT_BYTES_PER_BLOCK	(20*512)
+
 /*
  * The internal state for the "bsdtar" program.
  *
