@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.334 1998/01/19 16:10:51 jkh Exp $
+#	$Id: Makefile,v 1.335 1998/01/23 20:15:54 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -531,7 +531,9 @@ cdrom.1:
 .endif
 
 doc.1:
-	for i in ${DOCPORTS}; do (cd /usr/ports/$$i; make all install); done
+	for i in ${DOCPORTS}; do \
+	  (cd /usr/ports/$$i; make all install clean); \
+	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 
 # Various "subroutine" and other supporting targets.
