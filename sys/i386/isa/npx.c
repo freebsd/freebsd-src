@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#define	ldmxcsr(__csr)		__asm __volatile("ldmxcsr %0" : : "m" (__csr))
 #endif
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
@@ -754,6 +755,9 @@ npxdna()
 {
 	struct pcb *pcb;
 	register_t s;
+#ifdef CPU_ENABLE_SSE
+	int mxcsr;
+#endif
 	u_short control;
 
 	if (!npx_exists)
@@ -788,6 +792,12 @@ npxdna()
 		fninit();
 		control = __INITIAL_NPXCW__;
 		fldcw(&control);
+#ifdef CPU_ENABLE_SSE
+		if (cpu_fxsr) {
+			mxcsr = __INITIAL_MXCSR__;
+			ldmxcsr(mxcsr);
+		}
+#endif
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 	} else {
 		/*
