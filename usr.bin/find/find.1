@@ -32,10 +32,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)find.1	8.4 (Berkeley) 4/1/94
-.\"	$Id$
+.\"	@(#)find.1	8.7 (Berkeley) 5/9/95
+.\"	$Id: find.1,v 1.6 1997/02/22 19:55:03 peter Exp $
 .\"
-.Dd April 1, 1994
+.Dd May 9, 1995
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -165,9 +165,14 @@ was executed.
 .It Ic -fstype Ar type 
 True if the file is contained in a file system of type
 .Ar type .
-Currently supported types are ``local'', ``mfs'', ``nfs'', ``msdos'',
-``rdonly'' and ``ufs''.
-The types ``local'' and ``rdonly'' are not specific file system types.
+The
+.Xr sysctl 8
+command can be used to find out the types of filesystems
+that are available on the system:
+.Bd -literal -offset indent
+sysctl vfs
+.Ed
+In addition, there are two pseudo-types, ``local'' and ``rdonly''.
 The former matches any file system physically mounted on the system where
 the
 .Nm find
@@ -204,7 +209,7 @@ True if the difference between the file last modification time and the time
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
-.It Ic \&-ok Ar utility Ns Op argument ... ; 
+.It Ic \&-ok Ar utility Op argument ... ; 
 The
 .Ic \&-ok
 primary is identical to the
@@ -273,13 +278,15 @@ Note, the first character of a symbolic mode may not be a dash (``\-'').
 .It Ic -print
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output.
-The expression is appended to the user specified expression if none of
+If none of
 .Ic -exec ,
 .Ic -ls ,
 .Ic -print0 ,
 or
 .Ic \&-ok
-are specified.
+is specified, the given expression shall be effectively replaced by
+.Cm \&( Ns Ar given\& expression Ns Cm \&) 
+.Ic -print .
 .It Ic -print0
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output, followed by a
