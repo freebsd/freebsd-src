@@ -1,19 +1,18 @@
-# $Id: bsd.info.mk,v 1.18 1996/06/24 04:23:58 jkh Exp $
+# $Id: bsd.info.mk,v 1.19 1996/09/03 15:14:45 bde Exp $
 
-BINMODE=        444
-BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
+SRCDIR?=	${.CURDIR}
 
 .MAIN: all
 
 .SUFFIXES: .gz .info .texi .texinfo
 .texi.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}
 .texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}
 
-.PATH: ${.CURDIR}
+.PATH: ${.CURDIR} ${SRCDIR}
 
 .if !defined(NOINFOCOMPRESS)
 IFILES=	${INFO:S/$/.info.gz/g}
@@ -43,7 +42,7 @@ distribute: _SUBDIR
 
 .if defined(SRCS)
 ${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${SRCS:S/^/${.CURDIR}\//g} -o ${INFO}.info
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${.SRCDIR}\//g} -o ${INFO}.info
 .endif
 
 depend: _SUBDIR
@@ -53,8 +52,8 @@ clean: _SUBDIR
 	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
 install: _SUBDIR
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${IFILES} ${DESTDIR}${BINDIR}
+	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+		${IFILES} ${DESTDIR}${INFODIR}
 
 .if !target(maninstall)
 maninstall: _SUBDIR
