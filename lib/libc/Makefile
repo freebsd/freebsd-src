@@ -22,6 +22,7 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/regex/Makefile.inc"
 .include "${.CURDIR}/stdio/Makefile.inc"
 .include "${.CURDIR}/stdlib/Makefile.inc"
+.include "${.CURDIR}/stdtime/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/rpc/Makefile.inc"
