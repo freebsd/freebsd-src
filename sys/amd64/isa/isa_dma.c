@@ -103,12 +103,20 @@ isa_dmainit(chan, bouncebufsize)
 {
 	void *buf;
 
+	/*
+	 * If a DMA channel is shared, both drivers have to call isa_dmainit
+	 * since they don't know that the other driver will do it.
+	 * Just return if we're already set up good.
+	 * XXX: this only works if they agree on the bouncebuf size.  This
+	 * XXX: is typically the case since they are multiple instances of
+	 * XXX: the same driver.
+	 */
+	if (dma_bouncebuf[chan] != NULL)
+		return;
+
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmainit: channel out of range");
-
-	if (dma_bouncebuf[chan] != NULL)
-		panic("isa_dmainit: impossible request"); 
 #endif
 
 	dma_bouncebufsize[chan] = bouncebufsize;
