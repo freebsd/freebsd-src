@@ -36,13 +36,15 @@
 .\"     @(#)getc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 10, 2003
 .Dt GETC 3
 .Os
 .Sh NAME
 .Nm fgetc ,
 .Nm getc ,
+.Nm getc_unlocked
 .Nm getchar ,
+.Nm getchar_unlocked
 .Nm getw
 .Nd get next character or word from input stream
 .Sh LIBRARY
@@ -54,7 +56,11 @@
 .Ft int
 .Fn getc "FILE *stream"
 .Ft int
+.Fn getc_unlocked "FILE *stream"
+.Ft int
 .Fn getchar
+.Ft int
+.Fn getchar_unlocked "FILE *stream"
 .Ft int
 .Fn getw "FILE *stream"
 .Sh DESCRIPTION
@@ -87,6 +93,23 @@ obtains the next
 (if present)
 from the stream pointed at by
 .Fa stream .
+.Pp
+The
+.Fn getc_unlocked
+and
+.Fn getchar_unlocked
+functions are equivalent to
+.Fn getc
+and
+.Fn getchar
+respectively,
+except that the caller is responsible for locking the stream
+with
+.Fn flockfile
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+for each character, and to avoid input being dispersed among multiple
+threads reading from the same stream.
 .Sh RETURN VALUES
 If successful, these routines return the next requested object
 from the
@@ -113,6 +136,7 @@ until the condition is cleared with
 .Xr clearerr 3 .
 .Sh SEE ALSO
 .Xr ferror 3 ,
+.Xr flockfile 3 ,
 .Xr fopen 3 ,
 .Xr fread 3 ,
 .Xr getwc 3 ,
@@ -127,6 +151,12 @@ and
 functions
 conform to
 .St -isoC .
+The
+.Fn getc_unlocked
+and
+.Fn getchar_unlocked
+functions conform to
+.St -p1003.1-2001 .
 .Sh BUGS
 Since
 .Dv EOF
