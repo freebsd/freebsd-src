@@ -209,6 +209,7 @@ ofw_pcibus_attach(device_t dev)
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
+	char *cname;
 	u_int slot, busno, func;
 
 	/*
@@ -221,14 +222,21 @@ ofw_pcibus_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
-			panic("ofw_pci_attach: OF_getprop failed");
+		if ((OF_getprop_alloc(child, "name", 1, (void **)&cname)) == -1)
+			continue;
+
+		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1) {
+			device_printf(dev, "<%s>: incomplete\n", cname);
+			free(cname, M_OFWPROP);
+			continue;
+		}
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 		ofw_pcibus_setup_device(pcib, busno, slot, func);
 		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
 		    busno, slot, func, sizeof(*dinfo));
 		if (dinfo != NULL) {
+			dinfo->opd_name = cname;
 			dinfo->opd_node = child;
 			OF_getprop_alloc(child, "compatible", 1,
 			    (void **)&dinfo->opd_compat);
@@ -236,10 +244,9 @@ ofw_pcibus_attach(device_t dev)
 			    (void **)&dinfo->opd_type);
 			OF_getprop_alloc(child, "model", 1,
 			    (void **)&dinfo->opd_model);
-			OF_getprop_alloc(child, "name", 1,
-			    (void **)&dinfo->opd_name);
 			pci_add_child(dev, (struct pci_devinfo *)dinfo);
-		}
+		} else
+			free(cname, M_OFWPROP);
 	}
 
 	return (bus_generic_attach(dev));
