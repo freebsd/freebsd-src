@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Id$
+.\"	$Id: bootpd.8,v 1.8 1998/02/03 07:30:22 charnier Exp $
 .\"
 .Dd November 06, 1993
 .Dt BOOTPD 8
@@ -105,7 +105,7 @@ value (in minutes) that a
 or
 .Nm bootpgw
 process will wait for a BOOTP packet before exiting.
-If no packets are recieved for
+If no packets are received for
 .Ar timeout
 minutes, then the program will exit.
 A timeout value of zero means "run forever".
@@ -220,7 +220,7 @@ or the dumpfile specified as a command line parameter.
 During initialization, both programs
 determine the UDP port numbers to be used by calling
 .Xr getservbyname 3
-(which nomally uses
+(which normally uses
 .Pa /etc/services Ns ).
 Two service names (and port numbers) are used:
 .Pp
