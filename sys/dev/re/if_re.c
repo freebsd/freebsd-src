@@ -1078,32 +1078,6 @@ re_attach(dev)
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-#ifndef BURN_BRIDGES
-	/*
-	 * Handle power management nonsense.
-	 */
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
-
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, RL_PCI_LOIO, 4);
-		membase = pci_read_config(dev, RL_PCI_LOMEM, 4);
-		irq = pci_read_config(dev, RL_PCI_INTLINE, 4);
-
-		/* Reset the power state. */
-		printf("re%d: chip is is in D%d power mode "
-		    "-- setting to D0\n", unit,
-		    pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, RL_PCI_LOIO, iobase, 4);
-		pci_write_config(dev, RL_PCI_LOMEM, membase, 4);
-		pci_write_config(dev, RL_PCI_INTLINE, irq, 4);
-	}
-#endif
 	/*
 	 * Map control/status registers.
 	 */
@@ -2394,24 +2368,11 @@ static int
 re_suspend(dev)
 	device_t		dev;
 {
-#ifndef BURN_BRIDGES
-	register int		i;
-#endif
 	struct rl_softc		*sc;
 
 	sc = device_get_softc(dev);
 
 	re_stop(sc);
-
-#ifndef BURN_BRIDGES
-	for (i = 0; i < 5; i++)
-		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
-	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
-	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
-	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
-#endif
-
 	sc->suspended = 1;
 
 	return (0);
@@ -2426,28 +2387,11 @@ static int
 re_resume(dev)
 	device_t		dev;
 {
-#ifndef BURN_BRIDGES
-	register int		i;
-#endif
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-
-#ifndef BURN_BRIDGES
-	/* better way to do this? */
-	for (i = 0; i < 5; i++)
-		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
-	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
-	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
-	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
-	pci_write_config(dev, PCIR_LATTIMER, sc->saved_lattimer, 1);
-
-	/* reenable busmastering */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, RL_RES);
-#endif
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
