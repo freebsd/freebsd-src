@@ -100,14 +100,14 @@ The actual profiling statistics in plain text.
 The columns are as follows, from left to right:
 .Bl -tag -width ".Va cnt_hold"
 .It Va max
-The longest continuous hold time.
+The longest continuous hold time in microseconds.
 .It Va total
-The total (accumulated) hold time.
+The total (accumulated) hold time in microseconds.
 .It Va count
 The total number of acquisitions.
 .It Va avg
-The average hold time, derived from the total hold time and the number
-of acquisitions.
+The average hold time in microseconds, derived from the total hold time
+and the number of acquisitions.
 .It Va cnt_hold
 The number of times the mutex was contested while being held.
 .It Va cnt_lock
