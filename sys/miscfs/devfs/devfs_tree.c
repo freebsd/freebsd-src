@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.20 1996/03/28 14:32:27 scrappy Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.21 1996/04/02 04:53:05 scrappy Exp $
  */
 
 #include "param.h"
@@ -909,48 +909,6 @@ void *devfs_add_devswf(
 		char *fmt,
 		...)
 {
-	va_list ap;
-	char *p, buf[256]; /* XXX */
-	int i;
-
-	va_start(ap, fmt);
-	i = kvprintf(fmt, NULL, (void*)buf, 32, ap);
-	va_end(ap);
-	buf[i] = '\0';
-	p = NULL;
-
-	for(i=strlen(buf); i>0; i--)
-		if(buf[i] == '/') {
-			p=&buf[i];
-			buf[i]=0;
-			break;
-		}
-
-	if (p) {
-		*p++ = '\0';
-		return devfs_add_devsw(buf, p, devsw, minor, chrblk,
-			uid, gid, perms);
-	} else {
-		return devfs_add_devsw("/", buf, devsw, minor, chrblk,
-			uid, gid, perms);
-	}
-}
-
-/***********************************************************************\
-* Add the named device entry into the given directory, and make it 	*
-* The appropriate type... (called (sometimes indirectly) by drivers..)	*
-* this function is exported.. see sys/devfsext.h			*
-* Possibly this should be 'unexported' in the future..			*
-\***********************************************************************/
-void *devfs_add_devsw(char *path,
-		char *name,
-		void *devsw,
-		int minor,
-		int chrblk,
-		uid_t uid,
-		gid_t gid,
-		int perms)
-{
 	int	major;
 	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
@@ -958,6 +916,31 @@ void *devfs_add_devsw(char *path,
 	struct	bdevsw *bd;
 	int	retval;
 	union	typeinfo by;
+
+	va_list ap;
+	char *name, *path, buf[256]; /* XXX */
+	int i;
+
+	va_start(ap, fmt);
+	i = kvprintf(fmt, NULL, (void*)buf, 32, ap);
+	va_end(ap);
+	buf[i] = '\0';
+	name = NULL;
+
+	for(i=strlen(buf); i>0; i--)
+		if(buf[i] == '/') {
+			name=&buf[i];
+			buf[i]=0;
+			break;
+		}
+
+	if (name) {
+		*name++ = '\0';
+		path = buf;
+	} else {
+		name = buf;
+		path = "/";
+	}
 
 	DBPRINT(("dev_add\n"));
 	retval = dev_finddir(path,NULL,1,&dnp);
