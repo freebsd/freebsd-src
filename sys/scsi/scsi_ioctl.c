@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.27 1997/12/02 21:07:01 phk Exp $
+ * $Id: scsi_ioctl.c,v 1.28 1998/02/01 04:13:00 wollman Exp $
  *
  *
  */
@@ -256,7 +256,7 @@ struct proc *p, struct scsi_link *sc_link)
 	/* If we can't write the device we can't permit much:
 	 */
 
-	if (cmd != SCIOCIDENTIFY && cmd != SCSIOCGETDEVINFO&& !(flags & FWRITE))
+	if (cmd != SCIOCIDENTIFY && cmd != SCIOCGETDEVINFO&& !(flags & FWRITE))
 		return EACCES;
 
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
@@ -367,10 +367,16 @@ struct proc *p, struct scsi_link *sc_link)
 		{
 			struct scsi_devinfo *scd = (struct scsi_devinfo *)addr;
 			struct scsi_link *scl;
-			scl = scsi_link_get(scd->addr.bus, scd->addr.target,
+			scl = scsi_link_get(scd->addr.scbus, scd->addr.target,
 				scd->addr.lun);
 			if (scl != 0) {
 				scd->dev = scl->dev;
+				/* XXX buffers better be big enough... */
+				sprintf(scd->devname, "%s%d", 
+					 scl->device->name, scl->dev_unit);
+				sprintf(scd->adname, "%s%d:%d",
+					 scl->adapter->name, scl->adapter_unit,
+					 scl->adapter_bus);
 				ret = 0;
 			} else {
 				ret = ENXIO;
