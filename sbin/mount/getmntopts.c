@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 #include <err.h>
 #include <errno.h>
@@ -137,4 +138,27 @@ checkpath(path, resolved)
 			errx(EX_USAGE, "%s: not a directory", resolved);
 	} else
 		errx(EX_USAGE, "%s: %s", resolved, strerror(errno));
+}
+
+void
+build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int len)
+{
+	int i;
+
+	if (iovlen < 0)
+		return;
+	i = *iovlen;
+	*iov = realloc(*iov, sizeof **iov * (i + 2));
+	if (*iov == NULL) {
+		*iovlen = -1;
+		return;
+	}
+	(*iov)[i].iov_base = strdup(name);
+	(*iov)[i].iov_len = strlen(name) + 1;
+	i++;
+	(*iov)[i].iov_base = val;
+	if (len < 0)
+		len = strlen(val) + 1;
+	(*iov)[i].iov_len = len;
+	*iovlen = ++i;
 }
