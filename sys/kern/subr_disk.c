@@ -128,8 +128,6 @@ bioq_disksort(bioq, bp)
 	struct bio *bn;
 	struct bio *be;
 
-	if (!atomic_cmpset_int(&bioq->busy, 0, 1))
-		panic("Recursing in bioq_disksort()");
 	be = TAILQ_LAST(&bioq->queue, bio_queue);
 	/*
 	 * If the queue is empty or we are an
@@ -137,7 +135,6 @@ bioq_disksort(bioq, bp)
 	 */
 	if ((bq = bioq_first(bioq)) == NULL) {
 		bioq_insert_tail(bioq, bp);
-		bioq->busy = 0;
 		return;
 	} else if (bioq->insert_point != NULL) {
 
@@ -166,7 +163,6 @@ bioq_disksort(bioq, bp)
 			if (bq == NULL) {
 				bioq->switch_point = bp;
 				bioq_insert_tail(bioq, bp);
-				bioq->busy = 0;
 				return;
 			}
 			/*
@@ -177,7 +173,6 @@ bioq_disksort(bioq, bp)
 			if (bp->bio_pblkno < bq->bio_pblkno) {
 				bioq->switch_point = bp;
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-				bioq->busy = 0;
 				return;
 			}
 		} else {
@@ -190,7 +185,6 @@ bioq_disksort(bioq, bp)
 			 */
 			if (bp->bio_pblkno < bq->bio_pblkno) {
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
-				bioq->busy = 0;
 				return;
 			}
 		}
@@ -202,7 +196,6 @@ bioq_disksort(bioq, bp)
 	 */
 	if (bp->bio_pblkno > be->bio_pblkno) {
 		TAILQ_INSERT_AFTER(&bioq->queue, be, bp, bio_queue);
-		bioq->busy = 0;
 		return;
 	}
 
@@ -220,7 +213,6 @@ bioq_disksort(bioq, bp)
 		bq = bn;
 	}
 	TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
-	bioq->busy = 0;
 }
 
 
