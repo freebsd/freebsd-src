@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.14 1998/09/24 15:02:46 luoqi Exp $
+ *	$Id: ffs_softdep.c,v 1.15 1998/10/03 19:17:11 nate Exp $
  */
 
 /*
@@ -982,7 +982,7 @@ softdep_mount(devvp, mp, fs, cred)
 	}
 #ifdef DEBUG
 	if (!bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
-		printf("ffs_mountfs: superblock updated\n");
+		printf("ffs_mountfs: superblock updated for soft updates\n");
 #endif
 	bcopy(&cstotal, &fs->fs_cstotal, sizeof cstotal);
 	return (0);
