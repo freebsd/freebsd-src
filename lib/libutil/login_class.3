@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: login_class.3,v 1.4 1997/02/22 15:08:20 peter Exp $
 .\"
 .Dd December 28, 1996
 .Os FreeBSD
@@ -32,7 +32,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
 .Ft int
-.Fn setclasscontext "char *classname" "unsigned int flags"
+.Fn setclasscontext "const char *classname" "unsigned int flags"
 .Ft int
 .Fn setusercontext "login_cap_t *lc" "const struct passwd *pwd" "uid_t uid" "unsigned int flags"
 .Ft void
