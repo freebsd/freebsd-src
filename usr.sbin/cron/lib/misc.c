@@ -392,7 +392,8 @@ in_file(string, file)
 	rewind(file);
 	while (fgets(line, MAX_TEMPSTR, file)) {
 		if (line[0] != '\0')
-			line[strlen(line)-1] = '\0';
+			if (line[strlen(line)-1] == '\n')
+				line[strlen(line)-1] = '\0';
 		if (0 == strcmp(line, string))
 			return TRUE;
 	}
