@@ -218,6 +218,13 @@
       <para arch="alpha">The floppy disk drive on the AlphaStation /
         AlphaServer DS10 does not work with &os; due to unfound bugs.</para>
 
+      <para arch="alpha">When installing on alphas that have QLogic 
+      Fibrechannel cards installed, disable recognition of these cards 
+      from the loader. This to avoid very long &man.isp.4; timeouts 
+      during kernel startup. For example, assume you have a system with 
+      a QLogic Fiberchannel card that would show up as isp1. You would 
+      enter at the 'ok ' prompt: set isp_disable=0x2</para>
+
     </sect3>
 
     <sect3>
