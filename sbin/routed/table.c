@@ -635,7 +635,9 @@ rtm_type_name(u_char type)
 		"RTM_RESOLVE",
 		"RTM_NEWADDR",
 		"RTM_DELADDR",
-		"RTM_IFINFO"
+		"RTM_IFINFO",
+		"RTM_NEWMADDR",
+		"RTM_DELMADDR"
 	};
 	static char name0[NAME0_LEN];
 
