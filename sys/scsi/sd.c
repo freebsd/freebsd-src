@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.40 1994/11/03 18:20:15 joerg Exp $
+ *      $Id: sd.c,v 1.41 1994/11/07 20:09:35 joerg Exp $
  */
 
 #define SPLSD splbio
@@ -43,12 +43,6 @@
 #include <sys/dkstat.h>
 
 u_int32 sdstrats, sdqueues;
-
-#ifdef	DDB
-int     Debugger(const char *);
-#else	/* DDB */
-#define Debugger(x)
-#endif	/* DDB */
 
 #define PAGESIZ 	4096
 #define SECSIZE 512
