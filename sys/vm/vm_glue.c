@@ -560,7 +560,9 @@ retry:
 			 * data structures there is a
 			 * possible deadlock.
 			 */
-			if (vm_map_try_lock(&vm->vm_map)) {
+			if (lockmgr(&vm->vm_map.lock,
+					LK_EXCLUSIVE | LK_NOWAIT,
+					NULL, curthread)) {
 				vmspace_free(vm);
 				PROC_UNLOCK(p);
 				goto nextproc;

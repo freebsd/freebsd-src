@@ -277,61 +277,73 @@ vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
 }                       
 
 void
-_vm_map_lock(vm_map_t map, const char *file, int line)
+vm_map_lock(vm_map_t map)
 {
 	vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map);
-	_sx_xlock(&map->lock, file, line);
+	if (lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread) != 0)
+		panic("vm_map_lock: failed to get lock");
 	map->timestamp++;
 }
 
-int
-_vm_map_try_lock(vm_map_t map, const char *file, int line)
-{
-	vm_map_printf("trying to lock map LK_EXCLUSIVE: %p\n", map);
-	if (_sx_try_xlock(&map->lock, file, line)) {
-		map->timestamp++;
-		return (0);
-	}
-	return (EWOULDBLOCK);
-}
-
 void
-_vm_map_unlock(vm_map_t map, const char *file, int line)
+vm_map_unlock(vm_map_t map)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
-	_sx_xunlock(&map->lock, file, line);
+	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
 }
 
 void
-_vm_map_lock_read(vm_map_t map, const char *file, int line)
+vm_map_lock_read(vm_map_t map)
 {
 	vm_map_printf("locking map LK_SHARED: %p\n", map);
-	_sx_slock(&map->lock, file, line);
+	lockmgr(&(map)->lock, LK_SHARED, NULL, curthread);
 }
 
 void
-_vm_map_unlock_read(vm_map_t map, const char *file, int line)
+vm_map_unlock_read(vm_map_t map)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
-	_sx_sunlock(&map->lock, file, line);
+	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
+}
+
+static __inline__ int
+_vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
+	int error;
+
+	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
+	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, td);
+	if (error == 0)
+		map->timestamp++;
+	return error;
 }
 
 int
-_vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
+vm_map_lock_upgrade(vm_map_t map)
 {
-	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
-	if (_sx_try_upgrade(&map->lock, file, line)) {
-		map->timestamp++;
-		return (0);
-	}
-	return (EWOULDBLOCK);
+    return (_vm_map_lock_upgrade(map, curthread));
 }
 
 void
-_vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
+vm_map_lock_downgrade(vm_map_t map)
 {
 	vm_map_printf("locking map LK_DOWNGRADE: %p\n", map);
-	_sx_downgrade(&map->lock, file, line);
+	lockmgr(&map->lock, LK_DOWNGRADE, NULL, curthread);
+}
+
+void
+vm_map_set_recursive(vm_map_t map)
+{
+	mtx_lock((map)->lock.lk_interlock);
+	map->lock.lk_flags |= LK_CANRECURSE;
+	mtx_unlock((map)->lock.lk_interlock);
+}
+
+void
+vm_map_clear_recursive(vm_map_t map)
+{
+	mtx_lock((map)->lock.lk_interlock);
+	map->lock.lk_flags &= ~LK_CANRECURSE;
+	mtx_unlock((map)->lock.lk_interlock);
 }
 
 vm_offset_t
@@ -405,7 +417,7 @@ vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->first_free = &map->header;
 	map->hint = &map->header;
 	map->timestamp = 0;
-	sx_init(&map->lock, "thrd_sleep");
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 void
@@ -413,7 +425,7 @@ vm_map_destroy(map)
 	struct vm_map *map;
 {
 	GIANT_REQUIRED;
-	sx_destroy(&map->lock);
+	lockdestroy(&map->lock);
 }
 
 /*
@@ -1470,13 +1482,17 @@ vm_map_user_pageable(
 			eend = entry->end;
 
 			/* First we need to allow map modifications */
+			vm_map_set_recursive(map);
+			vm_map_lock_downgrade(map);
 			map->timestamp++;
 
 			rv = vm_fault_user_wire(map, entry->start, entry->end);
 			if (rv) {
-				vm_map_lock(map);
+
 				entry->wired_count--;
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+
+				vm_map_clear_recursive(map);
 				vm_map_unlock(map);
 			
 				/*
@@ -1490,14 +1506,8 @@ vm_map_user_pageable(
 				return rv;
 			}
 
-			/*
-			 * XXX- This is only okay because we have the
-			 * Giant lock.  If the VM system were to be
-			 * reentrant, we'd know that we really can't 
-			 * do this.  Still, this behavior is no worse
-			 * than the old recursion...
-			 */
-			if (vm_map_try_lock(map)) {
+			vm_map_clear_recursive(map);
+			if (vm_map_lock_upgrade(map)) {
 				vm_map_lock(map);
 				if (vm_map_lookup_entry(map, estart, &entry) 
 				    == FALSE) {
@@ -1735,13 +1745,13 @@ vm_map_pageable(
 			entry = entry->next;
 		}
 
+		if (vm_map_pmap(map) == kernel_pmap) {
+			vm_map_lock(map);
+		}
 		if (rv) {
-			if (vm_map_pmap(map) != kernel_pmap)
-				vm_map_unlock_read(map);
+			vm_map_unlock(map);
 			(void) vm_map_pageable(map, start, failed, TRUE);
 			return (rv);
-		} else if (vm_map_pmap(map) == kernel_pmap) {
-			vm_map_lock(map);
 		}
 		/*
 		 * An exclusive lock on the map is needed in order to call
@@ -1750,7 +1760,6 @@ vm_map_pageable(
 		 */
 		if (vm_map_pmap(map) != kernel_pmap &&
 		    vm_map_lock_upgrade(map)) {
-			vm_map_unlock_read(map);
 			vm_map_lock(map);
 			if (vm_map_lookup_entry(map, start, &start_entry) ==
 			    FALSE) {
@@ -2528,10 +2537,8 @@ Retry:
 	 * might have intended by limiting the stack size.
 	 */
 	if (grow_amount > stack_entry->start - end) {
-		if (vm_map_lock_upgrade(map)) {
-			vm_map_unlock_read(map);
+		if (vm_map_lock_upgrade(map))
 			goto Retry;
-		}
 
 		stack_entry->avail_ssize = stack_entry->start - end;
 
@@ -2561,10 +2568,8 @@ Retry:
 		              ctob(vm->vm_ssize);
 	}
 
-	if (vm_map_lock_upgrade(map)) {
-		vm_map_unlock_read(map);
+	if (vm_map_lock_upgrade(map))
 		goto Retry;
-	}
 
 	/* Get the preliminary new entry start value */
 	addr = stack_entry->start - grow_amount;
@@ -2783,10 +2788,8 @@ RetryLookup:;
 			 * -- one just moved from the map to the new
 			 * object.
 			 */
-			if (vm_map_lock_upgrade(map)) {
-				vm_map_unlock_read(map);
+			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
-			}
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
@@ -2807,10 +2810,8 @@ RetryLookup:;
 	 */
 	if (entry->object.vm_object == NULL &&
 	    !map->system_map) {
-		if (vm_map_lock_upgrade(map)) {
-			vm_map_unlock_read(map);
+		if (vm_map_lock_upgrade(map)) 
 			goto RetryLookup;
-		}
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    atop(entry->end - entry->start));
 		entry->offset = 0;
@@ -3043,10 +3044,7 @@ vm_uiomove(
 			pmap_remove (map->pmap, uaddr, tend);
 
 			vm_object_pmap_copy_1 (srcobject, oindex, oindex + osize);
-			if (vm_map_lock_upgrade(map)) {
-				vm_map_unlock_read(map);
-				vm_map_lock(map);
-			}
+			vm_map_lock_upgrade(map);
 
 			if (entry == &map->header) {
 				map->first_free = &map->header;
