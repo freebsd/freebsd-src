@@ -221,3 +221,9 @@
 
 /* Define if you have the z library (-lz).  */
 #define HAVE_LIBZ 1
+
+#ifdef __alpha__
+#define LBL_ALIGN
+#undef SIZEOF_LONG
+#define SIZEOF_LONG 8
+#endif /*__alpha__*/
