@@ -302,7 +302,8 @@ When the specified number of packets have been sent
 or if the program is terminated with a
 .Dv SIGINT ,
 a brief summary is displayed, showing the number of packets sent and
-received, and the minimum, mean, and maximum of the round-trip times.
+received, and the minimum, mean, maximum, and standard deviation of
+the round-trip times.
 .Pp
 If
 .Nm
@@ -313,9 +314,9 @@ receives a
 argument for
 .Xr stty 1 )
 signal, the current number of packets sent and received, and the
-minimum, mean, and maximum of the round-trip times will be written to
-the standard output in the same format as the standard completion
-message.
+minimum, mean, maximum, and standard deviation of the round-trip times
+will be written to the standard output in the same format as the
+standard completion message.
 .Pp
 This program is intended for use in network testing, measurement and
 management.
