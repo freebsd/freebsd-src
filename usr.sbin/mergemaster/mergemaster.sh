@@ -144,8 +144,8 @@ diff_loop () {
     echo "  Use 'i' to install the temporary ${COMPFILE}"
     case "${NO_INSTALLED}" in
     '')
-      echo "  Use 'm' to merge the old and new versions"
-      echo "  Use 'v' to view to differences between the old and new versions again"
+      echo "  Use 'm' to merge the temporary and installed versions"
+      echo "  Use 'v' to view the diff results again"
       ;;
     esac
     echo ''
