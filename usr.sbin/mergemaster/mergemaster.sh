@@ -12,6 +12,30 @@
 
 PATH=/bin:/usr/bin:/usr/sbin
 
+# Figure out the number of columns and rows on the
+# terminal.  Use 80x24 if there is any doubt.
+#
+if test -t 0; then
+    DIFFROWS=`stty size | awk '{ print $1; }'`
+    DIFFCOLS=`stty size | awk '{ print $2; }'`
+    if [ -z "$DIFFCOLS" ]; then
+	DIFFCOLS=80
+    fi
+    if [ -z "$DIFFROWS" ]; then
+	DIFFROWS=24
+    fi
+    if [ $DIFFROWS -le 0 ]; then
+	DIFFROWS=24
+    fi
+    if [ $DIFFCOLS -le 0 ]; then
+	DIFFCOLS=80
+    fi
+else
+    DIFFCOLS=80
+    DIFFROWS=24
+fi
+DIFFROWS=$(($DIFFROWS - 8))
+DIFFCOLS=$(($DIFFCOLS - 1))
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
@@ -106,24 +130,33 @@ merge_loop () {
 diff_loop () {
 
   HANDLE_COMPFILE=v
+  FIRST_TIME=y
 
   while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o \
     "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
+	if [ "$FIRST_TIME" = "y" ]; then
+	    clear
+	    (
+	      echo "  *** Displaying differences between ${COMPFILE} and installed version:"
+	      echo ''
+	      diff "${DIFF_FLAG}" "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
+	    ) | cut -b 1-${DIFFCOLS} | head -${DIFFROWS}
+	    echo '...'
+	else
+	    clear
+	    (
+	      echo "  *** Displaying differences between ${COMPFILE} and installed version:"
+	      echo ''
+	      diff "${DIFF_FLAG}" "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
+	    ) | ${PAGER}
+	fi
 	echo ''
-	echo '   ======================================================================   '
-	echo ''
-        (
-          echo ''
-          echo "  *** Displaying differences between ${COMPFILE} and installed version:"
-          echo ''
-          diff "${DIFF_FLAG}" "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
-        ) | ${PAGER}
-        echo ''
+	FIRST_TIME=n
       fi
     else
-      echo ''
+      clear
       echo "  *** There is no installed version of ${COMPFILE}"
       echo ''
       case "${AUTO_INSTALL}" in
@@ -151,7 +184,7 @@ diff_loop () {
     case "${NO_INSTALLED}" in
     '')
       echo "  Use 'm' to merge the temporary and installed versions"
-      echo "  Use 'v' to view the diff results again"
+      echo "  Use 'v' to view the entire diff results"
       ;;
     esac
     echo ''
