@@ -1955,7 +1955,7 @@ dc_attach(dev)
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_read_config(dev, DC_PCI_CFRV, 4) & 0x000000FF;
 
-	/* Get the eeprom width, but PNIC and XIRCOM have no eeprom */
+	/* Get the eeprom width, but PNIC and XIRCOM have diff eeprom */
 	if (sc->dc_info->dc_did != DC_DEVICEID_82C168 &&
 	   sc->dc_info->dc_did != DC_DEVICEID_X3201)
 		dc_eeprom_width(sc);
