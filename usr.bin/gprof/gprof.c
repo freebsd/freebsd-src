@@ -52,6 +52,8 @@ char	*defaultEs[] = { "mcount" , "__mcleanup" , 0 };
 
 static struct gmonhdr	gmonhdr;
 static	bool	uflag;
+static int lflag;
+static int Lflag;
 
 main(argc, argv)
     int argc;
@@ -123,7 +125,15 @@ main(argc, argv)
 	    addlist( ktolist , *++argv );
 	    kflag = TRUE;
 	    break;
-	case 's':
+    case 'l':
+	    lflag = 1;
+	    Lflag = 0;
+	    break;
+    case 'L':
+	    Lflag = 1;
+	    lflag = 0;
+	    break;
+    case 's':
 	    sflag = TRUE;
 	    break;
 	case 'u':
@@ -194,11 +204,15 @@ main(argc, argv)
 	/*
 	 *	print the dynamic profile
 	 */
-    printgprof( timesortnlp );	
+    if(!lflag) {
+	    printgprof( timesortnlp );	
+    }
 	/*
 	 *	print the flat profile
 	 */
-    printprof();	
+    if(!Lflag) {
+	    printprof();
+    }
 	/*
 	 *	print the index
 	 */
