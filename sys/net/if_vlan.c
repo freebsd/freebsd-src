@@ -123,6 +123,8 @@ vlan_setmulti(struct ifnet *ifp)
 	bzero((char *)&sdl, sizeof sdl);
 	sdl.sdl_len = sizeof sdl;
 	sdl.sdl_family = AF_LINK;
+	sdl.sdl_index = ifp_p->if_index;
+	sdl.sdl_type = IFT_ETHER;
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	/* First, remove any existing filter entries. */
@@ -144,6 +146,8 @@ vlan_setmulti(struct ifnet *ifp)
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
+		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		    LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_addmulti(ifp_p, (struct sockaddr *)&sdl, &rifma);
 		if (error)
 			return(error);
@@ -177,7 +181,6 @@ vlaninit(void)
 		/* Now undo some of the damage... */
 		ifp->if_data.ifi_type = IFT_8021_VLAN;
 		ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
-		ifp->if_resolvemulti = 0;
 	}
 }
 
