@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.60 1998/05/31 19:16:08 peter Exp $
+ * $Id: nfs_subs.c,v 1.61 1998/05/31 20:08:55 peter Exp $
  */
 
 /*
@@ -2011,11 +2011,11 @@ nfs_getcookie(np, off, add)
 	register struct nfsdmap *dp, *dp2;
 	register int pos;
 
-	pos = off / NFS_DIRBLKSIZ;
-	if (pos == 0) {
+	pos = (uoff_t)off / NFS_DIRBLKSIZ;
+	if (pos == 0 || off < 0) {
 #ifdef DIAGNOSTIC
 		if (add)
-			panic("nfs getcookie add at 0");
+			panic("nfs getcookie add at <= 0");
 #endif
 		return (&nfs_nullcookie);
 	}
