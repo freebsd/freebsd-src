@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_balloc.c,v 1.4 1995/03/04 03:24:43 davidg Exp $
+ * $Id: lfs_balloc.c,v 1.5 1995/03/28 07:58:02 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -99,7 +99,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 					} else {
 						ip->i_blocks += bb;
 						ip->i_lfs->lfs_bfree -= bb;
-						clrbuf(ibp);
+						vfs_bio_clrbuf(ibp);
 						error = VOP_BWRITE(ibp);
 					}
 				} else
@@ -123,7 +123,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 				ip->i_blocks += bb;
 				ip->i_lfs->lfs_bfree -= bb;
 				if (iosize != fs->lfs_bsize)
-					clrbuf(bp);
+					vfs_bio_clrbuf(bp);
 			}
 		else if (iosize == fs->lfs_bsize)
 			bp->b_blkno = daddr;		/* Skip the I/O */

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.15 1995/03/21 01:11:43 davidg Exp $
+ * $Id: vm_object.h,v 1.16 1995/03/22 12:24:11 davidg Exp $
  */
 
 /*
@@ -113,6 +113,7 @@ struct vm_object {
 #define OBJ_ILOCKED	0x0010		/* lock from modification */
 #define OBJ_ILOCKWT	0x0020		/* wait for lock from modification */
 #define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
+#define	OBJ_WRITEABLE	0x0080	/* object has been made writeable */
 
 TAILQ_HEAD(vm_object_hash_head, vm_object_hash_entry);
 
@@ -174,6 +175,7 @@ void vm_object_deallocate __P((vm_object_t));
 void vm_object_enter __P((vm_object_t, vm_pager_t));
 void vm_object_init __P((vm_size_t));
 vm_object_t vm_object_lookup __P((vm_pager_t));
+void _vm_object_page_clean __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t));
 void vm_object_page_clean __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t));
 void vm_object_page_remove __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t));
 void vm_object_pmap_copy __P((vm_object_t, vm_offset_t, vm_offset_t));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.9 1994/11/14 13:22:52 bde Exp $
+ * $Id: spec_vnops.c,v 1.10 1995/02/03 06:46:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_vfree_desc, spec_vfree },		/* vfree */
 	{ &vop_truncate_desc, spec_truncate },		/* truncate */
 	{ &vop_update_desc, spec_update },		/* update */
-	{ &vop_bwrite_desc, spec_bwrite },		/* bwrite */
+	{ &vop_bwrite_desc, vn_bwrite },		/* bwrite */
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
 struct vnodeopv_desc spec_vnodeop_opv_desc =

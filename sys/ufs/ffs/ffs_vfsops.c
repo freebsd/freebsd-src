@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.14 1995/03/18 18:03:29 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.15 1995/03/28 07:57:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,10 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
 
 int	ffs_sbupdate __P((struct ufsmount *, int));
 int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
@@ -662,6 +666,15 @@ loop:
 		if (VOP_ISLOCKED(vp))
 			continue;
 		ip = VTOI(vp);
+		if (vp->v_vmdata &&
+		   (((vm_object_t) vp->v_vmdata)->flags & OBJ_WRITEABLE)) {
+			if (vget(vp, 1))
+				goto loop;
+			_vm_object_page_clean( (vm_object_t) vp->v_vmdata,
+						0, 0, 0);
+			vput(vp);
+		}
+			
 		if (((vp->v_type == VCHR) || ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)) &&
 		    vp->v_dirtyblkhd.lh_first == NULL)
