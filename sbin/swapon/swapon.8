@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: swapon.8,v 1.9 1998/02/01 06:46:37 steve Exp $
+.\"	$Id: swapon.8,v 1.10 1998/08/03 06:35:01 charnier Exp $
 .\"
 .Dd June 5, 1993
 .Dt SWAPON 8
@@ -76,8 +76,8 @@ available to the system for swap allocation.
 .Xr rc 8 ,
 .Xr vnconfig 8
 .Sh FILES
-.Bl -tag -width /dev/[ru][pk]?b -compact
-.It Pa /dev/[ru][pk]?b
+.Bl -tag -width "/dev/{wd,da}?s?b" -compact
+.It Pa /dev/{wd,da}?s?b
 standard paging devices
 .It Pa /etc/fstab
 ascii filesystem description table
