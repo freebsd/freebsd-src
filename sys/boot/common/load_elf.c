@@ -540,7 +540,8 @@ static char invalid_name[] = "bad";
 char *
 fake_modname(const char *name)
 {
-    char *sp, *ep;
+    const char *sp, *ep;
+    char *fp;
     size_t len;
 
     sp = strrchr(name, '/');
@@ -557,12 +558,12 @@ fake_modname(const char *name)
     } else
 	ep = name + strlen(name);
     len = ep - sp;
-    ep = malloc(len + 1);
-    if (ep == NULL)
+    fp = malloc(len + 1);
+    if (fp == NULL)
 	return NULL;
-    memcpy(ep, sp, len);
-    ep[len] = '\0';
-    return ep;
+    memcpy(fp, sp, len);
+    fp[len] = '\0';
+    return fp;
 }
 
 int
