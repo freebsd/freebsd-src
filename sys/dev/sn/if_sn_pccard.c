@@ -54,7 +54,7 @@
 #include "card_if.h"
 
 static const struct pccard_product sn_pccard_products[] = {
-	PCMCIA_CARD(MEGAHERTZ2, XJACK, 0),
+	PCMCIA_CARD(DSPSI, XJACK, 0),
 	PCMCIA_CARD(NEWMEDIA, BASICS, 0),
 #if 0
 	PCMCIA_CARD(SMC, 8020BT, 0),
