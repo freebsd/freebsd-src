@@ -61,6 +61,7 @@
  * SUCH DAMAGE. */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 
 #include <err.h>
 #include <ctype.h>
@@ -302,12 +303,21 @@ FILE *
 _http_connect(struct url *URL, char *flags)
 {
     int direct, sd = -1, verbose;
+#ifdef INET6
+    int af = AF_UNSPEC;
+#else
+    int af = AF_INET;
+#endif
     size_t len;
     char *px;
     FILE *f;
     
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
+    if ((flags && strchr(flags, '4')))
+	af = AF_INET;
+    else if ((flags && strchr(flags, '6')))
+	af = AF_INET6;
     
     /* check port */
     if (!URL->port) {
@@ -331,7 +341,12 @@ _http_connect(struct url *URL, char *flags)
 	int port = 0;
 
 	/* measure length */
-	len = strcspn(px, ":");
+#ifdef INET6
+	if (px[0] != '[' ||
+	    (len = strcspn(px, "]")) >= strlen(px) ||
+	    (px[++len] != '\0' && px[len] != ':'))
+#endif
+	    len = strcspn(px, ":");
 
 	/* get port (XXX atoi is a little too tolerant perhaps?) */
 	if (px[len] == ':') {
@@ -360,20 +375,26 @@ _http_connect(struct url *URL, char *flags)
 	}
 	
 	/* get host name */
+#ifdef INET6
+	if (len > 1 && px[0] == '[' && px[len - 1] == ']') {
+	    px++;
+	    len -= 2;
+	}
+#endif
 	if (len >= MAXHOSTNAMELEN)
 	    len = MAXHOSTNAMELEN - 1;
 	strncpy(host, px, len);
 	host[len] = 0;
 
 	/* connect */
-	sd = _fetch_connect(host, port, verbose);
+	sd = _fetch_connect(host, port, af, verbose);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
 	if (strcasecmp(URL->scheme, "ftp") == 0)
 	    goto ouch;
-	if ((sd = _fetch_connect(URL->host, URL->port, verbose)) == -1)
+	if ((sd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
 	    goto ouch;
     }
 
@@ -399,15 +420,27 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
     int e, verbose;
     char *ln, *p;
     size_t len;
+    char *host;
+#ifdef INET6
+    char hbuf[MAXHOSTNAMELEN + 1];
+#endif
     
     verbose = (flags && strchr(flags, 'v'));
+
+    host = URL->host;
+#ifdef INET6
+    if (strchr(URL->host, ':')) {
+	snprintf(hbuf, sizeof(hbuf), "[%s]", URL->host);
+	host = hbuf;
+    }
+#endif
     
     /* send request (proxies require absolute form, so use that) */
     if (verbose)
 	_fetch_info("requesting %s://%s:%d%s",
-		    URL->scheme, URL->host, URL->port, URL->doc);
+		    URL->scheme, host, URL->port, URL->doc);
     _http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
-	      op, URL->scheme, URL->host, URL->port, URL->doc);
+	      op, URL->scheme, host, URL->port, URL->doc);
 
     /* start sending headers away */
     if (URL->user[0] || URL->pwd[0]) {
@@ -417,7 +450,7 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
 	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
 	free(auth_str);
     }
-    _http_cmd(f, "Host: %s:%d" ENDL, URL->host, URL->port);
+    _http_cmd(f, "Host: %s:%d" ENDL, host, URL->port);
     _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
     if (URL->offset)
 	_http_cmd(f, "Range: bytes=%lld-" ENDL, URL->offset);

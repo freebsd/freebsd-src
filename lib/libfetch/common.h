@@ -41,7 +41,7 @@ struct fetcherr {
 void		 _fetch_seterr(struct fetcherr *p, int e);
 void		 _fetch_syserr(void);
 int		 _fetch_info(char *fmt, ...);
-int		 _fetch_connect(char *host, int port, int verbose);
+int		 _fetch_connect(char *host, int port, int af, int verbose);
 int		 _fetch_getln(int fd, char **buf, size_t *size, size_t *len);
 int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
 				  char *name, struct url_stat *stat);

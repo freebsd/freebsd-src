@@ -51,10 +51,10 @@
  * Error messages for resolver errors
  */
 static struct fetcherr _netdb_errlist[] = {
-    { HOST_NOT_FOUND,	FETCH_RESOLV,	"Host not found" },
-    { TRY_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
-    { NO_RECOVERY,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
-    { NO_DATA,		FETCH_RESOLV,	"No address record" },
+    { EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
+    { EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
+    { EAI_FAIL,		FETCH_RESOLV,	"Non-recoverable resolver failure" },
+    { EAI_NONAME,	FETCH_RESOLV,	"No address record" },
     { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
 
@@ -200,11 +200,11 @@ _fetch_info(char *fmt, ...)
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
-_fetch_connect(char *host, int port, int verbose)
+_fetch_connect(char *host, int port, int af, int verbose)
 {
-    struct sockaddr_in sin;
-    struct hostent *he;
-    int sd;
+    char pbuf[10];
+    struct addrinfo hints, *res, *res0;
+    int sd, err;
 
 #ifndef NDEBUG
     fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
@@ -213,29 +213,33 @@ _fetch_connect(char *host, int port, int verbose)
     if (verbose)
 	_fetch_info("looking up %s", host);
     
-    /* look up host name */
-    if ((he = gethostbyname(host)) == NULL) {
-	_netdb_seterr(h_errno);
+    /* look up host name and set up socket address structure */
+    snprintf(pbuf, sizeof(pbuf), "%d", port);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
+	_netdb_seterr(err);
 	return -1;
     }
 
     if (verbose)
 	_fetch_info("connecting to %s:%d", host, port);
     
-    /* set up socket address structure */
-    bzero(&sin, sizeof sin);
-    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
-    sin.sin_family = he->h_addrtype;
-    sin.sin_port = htons(port);
-
     /* try to connect */
-    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-	_fetch_syserr();
-	return -1;
-    }
-    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1) {
-	_fetch_syserr();
+    sd = -1;
+    for (res = res0; res; res = res->ai_next) {
+	if ((sd = socket(res->ai_family, res->ai_socktype,
+			 res->ai_protocol)) < 0)
+	    continue;
+	if (connect(sd, res->ai_addr, res->ai_addrlen) >= 0)
+	    break;
 	close(sd);
+	sd = -1;
+    }
+    if (sd < 0) {
+	_fetch_syserr();
 	return -1;
     }
 
