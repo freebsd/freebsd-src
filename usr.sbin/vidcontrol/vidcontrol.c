@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.21 1998/09/16 13:55:26 abial Exp $";
+	"$Id: vidcontrol.c,v 1.22 1998/09/23 10:00:15 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -262,6 +262,7 @@ video_mode(int argc, char **argv, int *index)
 		char *name;
 		unsigned long mode;
 	} modes[] = {
+#ifdef SW_TEXT_80x25
 		{ "80x25",		SW_TEXT_80x25 },
 		{ "80x30",		SW_TEXT_80x30 },
 		{ "80x43",		SW_TEXT_80x43 },
@@ -272,6 +273,7 @@ video_mode(int argc, char **argv, int *index)
 		{ "132x43",		SW_TEXT_132x43 },
 		{ "132x50",		SW_TEXT_132x50 },
 		{ "132x60",		SW_TEXT_132x60 },
+#endif
 		{ "VGA_40x25",		SW_VGA_C40x25 },
 		{ "VGA_80x25",		SW_VGA_C80x25 },
 		{ "VGA_80x30",		SW_VGA_C80x30 },
