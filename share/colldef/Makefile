@@ -28,6 +28,7 @@ LOCALES=        cs_CZ.ISO8859-2 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS = \
+	en_AU.US-ASCII en_CA.US-ASCII en_GB.US-ASCII en_NZ.US-ASCII \
 	en_US.US-ASCII ko_KR.eucKR ja_JP.eucJP ja_JP.SJIS zh_CN.eucCN
 
 ZHLINKS =    zh_TW.Big5
