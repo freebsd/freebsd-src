@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.1 1994/08/21 13:12:57 jkh Exp $
+# $Id$
 
 #
 # Supported Variables and their behaviors:
@@ -103,13 +103,6 @@ configure: extract
 			patch -d ${WRKSRC} --quiet -E -p0 < $$i; \
 		done; \
 	fi
-# We have a small convention for our local configure scripts, which
-# is that ${.CURDIR} and the package working directory get passed as
-# command-line arguments since all other methods are a little
-# problematic.
-	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		sh ${SCRIPTDIR}/configure ${.CURDIR} ${WRKSRC}; \
-	fi
 .if defined(GNU_CONFIGURE)
 .if !defined(GNU_CONFIGURE_ARGS)
 	@(cd ${WRKSRC}; ./configure i386--freebsd)
@@ -117,6 +110,13 @@ configure: extract
 	@(cd ${WRKSRC}; ./configure ${GNU_CONFIGURE_ARGS})
 .endif
 .endif
+# We have a small convention for our local configure scripts, which
+# is that ${.CURDIR} and the package working directory get passed as
+# command-line arguments since all other methods are a little
+# problematic.
+	@if [ -f ${SCRIPTDIR}/configure ]; then \
+		sh ${SCRIPTDIR}/configure ${.CURDIR} ${WRKSRC}; \
+	fi
 .endif
 
 .if !target(extract)
@@ -131,10 +131,11 @@ ${.CURDIR}/.extract_done:
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
 	@if [ ! -f ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} ]; then \
-	  echo "Sorry, can't find ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}."; \
+	  echo "Sorry, can't find: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}"; \
 	  echo "Please obtain this file from:"; \
-	  echo "	$HOME_LOCATION"; \
+	  echo "	${HOME_LOCATION}"; \
 	  echo "before proceeding."; \
+	  exit 1; \
 	fi
 	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}
 	@touch -f ${.CURDIR}/.extract_done
