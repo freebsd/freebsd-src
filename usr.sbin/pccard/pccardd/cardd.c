@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.c,v 1.10 1996/06/18 19:52:28 nate Exp $
+ * $Id: cardd.c,v 1.11 1996/06/19 01:25:37 nate Exp $
  */
 
 #include <stdio.h>
@@ -672,7 +672,7 @@ setup_slot(struct slot *sp)
 		drv.iobase = 0;
 #ifdef	DEBUG
 	fprintf(stderr, "Assign %s%d, io 0x%x, mem 0x%x, %d bytes, irq %x, flags %x\n",
-	    drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, drv.irqmask, drv.flags);
+	    drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, sp->irq, drv.flags);
 #endif	/* DEBUG */
 
 	/*
