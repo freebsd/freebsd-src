@@ -1279,7 +1279,7 @@ static	void	ncr_min_phys(struct buf *bp);
 #endif
 static	void	ncr_poll(struct cam_sim *sim);
 static	void	ncb_profile(ncb_p np, nccb_p cp);
-static	void	ncr_script_copy_and_bind(cb_p np, ncrcmd *src, ncrcmd *dst,
+static	void	ncr_script_copy_and_bind(ncb_p np, ncrcmd *src, ncrcmd *dst,
 		    int len);
 static  void    ncr_script_fill(struct script * scr, struct scripth *scrh);
 static	int	ncr_scatter(struct dsb* phys, vm_offset_t vaddr,
