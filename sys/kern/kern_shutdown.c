@@ -294,7 +294,7 @@ boot(int howto)
 			}
 			if (nbusy == 0) {
 				if (first_buf_printf)
-					printf("No buffers busy after final sync");
+					printf("All buffers synced.");
 				break;
 			}
 			if (first_buf_printf) {
