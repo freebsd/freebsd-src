@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.30 1997/05/07 18:12:14 dfr Exp $
+#	$Id: Makefile.inc,v 1.31 1997/05/12 09:59:25 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -89,7 +89,8 @@ ${SPSEUDOR}:
 .if ${LIB} == "c"
 MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/brk.2 sys/chdir.2 sys/chflags.2 sys/chmod.2 sys/chown.2 \
-	sys/chroot.2 sys/close.2 sys/connect.2 sys/dup.2 sys/execve.2 \
+	sys/chroot.2 sys/clock_gettime.2 sys/close.2 sys/connect.2 sys/dup.2 \
+	sys/execve.2 \
 	sys/_exit.2 sys/fcntl.2 sys/flock.2 sys/fork.2 sys/fsync.2 \
 	sys/getdirentries.2 sys/getdtablesize.2 sys/getfh.2 sys/getfsstat.2 \
 	sys/getgid.2 sys/getgroups.2 sys/getitimer.2 sys/getlogin.2 \
@@ -101,6 +102,7 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/minherit.2 \
 	sys/mlock.2 \
 	sys/mmap.2 sys/mount.2 sys/mprotect.2 sys/msync.2 sys/munmap.2 \
+	sys/nanosleep.2 \
 	sys/ptrace.2 sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 \
 	sys/profil.2 sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 \
 	sys/recv.2 sys/rename.2 sys/revoke.2 sys/rfork.2 sys/rmdir.2 \
@@ -122,6 +124,7 @@ MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2
 MLINKS+=chmod.2 fchmod.2
 MLINKS+=chown.2 fchown.2 chown.2 lchown.2
+MLINKS+=clock_gettime.2 clock_settime.2 clock_gettime.2 clock_getres.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 setlogin.2
