@@ -71,7 +71,6 @@ typedef struct Var {
 #define	VAR_SUB_MATCHED	0x04	/* There was a match */
 #define	VAR_MATCH_START	0x08	/* Match at start of word */
 #define	VAR_MATCH_END	0x10	/* Match at end of word */
-#define	VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
 
 typedef struct {
     char	*lhs;		/* String to match */
