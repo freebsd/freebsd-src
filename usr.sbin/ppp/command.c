@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.82 1997/09/17 23:17:52 brian Exp $
+ * $Id: command.c,v 1.83 1997/09/21 13:07:57 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1192,17 +1192,7 @@ SetNBNS(struct cmdtab const * list, int argc, char **argv)
 
 #endif				/* MS_EXT */
 
-#define	VAR_AUTHKEY	0
-#define	VAR_DIAL	1
-#define	VAR_LOGIN	2
-#define	VAR_AUTHNAME	3
-#define	VAR_DEVICE	4
-#define	VAR_ACCMAP	5
-#define	VAR_PHONE	6
-#define	VAR_HANGUP	7
-#define	VAR_ENC		8
-
-static int
+int
 SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
 {
   u_long map;
@@ -1231,11 +1221,15 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
     VarLoginScript[sizeof(VarLoginScript) - 1] = '\0';
     break;
   case VAR_DEVICE:
-    CloseModem();
-    strncpy(VarDevice, arg, sizeof(VarDevice) - 1);
-    VarDevice[sizeof(VarDevice) - 1] = '\0';
-    VarBaseDevice = rindex(VarDevice, '/');
-    VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
+    if (modem != -1)
+      LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
+                arg, VarDevice);
+    else {
+      strncpy(VarDevice, arg, sizeof(VarDevice) - 1);
+      VarDevice[sizeof(VarDevice) - 1] = '\0';
+      VarBaseDevice = rindex(VarDevice, '/');
+      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
+    }
     break;
   case VAR_ACCMAP:
     sscanf(arg, "%lx", &map);
