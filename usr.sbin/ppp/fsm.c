@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.31 1998/06/20 00:19:36 brian Exp $
+ * $Id: fsm.c,v 1.32 1998/06/20 01:55:28 brian Exp $
  *
  *  TODO:
  */
@@ -956,6 +956,18 @@ fsm_NullRecvResetAck(struct fsm *fp, u_char id)
 {
   log_Printf(fp->LogLevel, "%s: Oops - received unexpected reset ack\n",
             fp->link->name);
+}
+
+void
+fsm_Reopen(struct fsm *fp)
+{
+  if (fp->state == ST_OPENED) {
+    (*fp->fn->LayerDown)(fp);
+    FsmInitRestartCounter(fp);
+    FsmSendConfigReq(fp);
+    NewState(fp, ST_REQSENT);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
+  }
 }
 
 void

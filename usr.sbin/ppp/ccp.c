@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.33 1998/05/23 13:38:00 brian Exp $
+ * $Id: ccp.c,v 1.34 1998/06/15 19:06:02 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -306,13 +306,13 @@ CcpLayerStart(struct fsm *fp)
 }
 
 static void
-CcpLayerFinish(struct fsm *fp)
+CcpLayerDown(struct fsm *fp)
 {
-  /* We're now down */
+  /* About to come down */
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt *next;
 
-  log_Printf(LogCCP, "%s: CcpLayerFinish.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: CcpLayerDown.\n", fp->link->name);
   if (ccp->in.state != NULL) {
     (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
     ccp->in.state = NULL;
@@ -330,13 +330,14 @@ CcpLayerFinish(struct fsm *fp)
     free(ccp->out.opt);
     ccp->out.opt = next;
   }
+  ccp_Setup(ccp);
 }
 
 static void
-CcpLayerDown(struct fsm *fp)
+CcpLayerFinish(struct fsm *fp)
 {
-  /* About to come down */
-  log_Printf(LogCCP, "%s: CcpLayerDown.\n", fp->link->name);
+  /* We're now down */
+  log_Printf(LogCCP, "%s: CcpLayerFinish.\n", fp->link->name);
 }
 
 /*
