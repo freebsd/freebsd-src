@@ -23,11 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsext.h,v 1.22 1998/12/10 19:57:01 eivind Exp $
+ * $Id: devfsext.h,v 1.23 1999/08/08 18:42:59 phk Exp $
  */
 
 #ifndef _SYS_DEVFSEXT_H_
 #define	_SYS_DEVFSEXT_H_
+
+#warning "Using obsolete <sys/devfsext.h>"
+/*
+ * The old DEVFS API is obsolete and should be discontinued ASAP
+ * Please use the make_dev() function instead.  Plenty of examples
+ * to look at all over the place, contact phk@FreeBSD.org if in
+ * doubt.
+ */
 
 /*
  * Make a device at a path, and get a cookie for it in return.
