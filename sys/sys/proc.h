@@ -905,6 +905,7 @@ void	kse_free(struct kse *ke);
 void	kse_stash(struct kse *ke);
 void	cpu_set_upcall(struct thread *td, void *pcb);
 void	cpu_set_upcall_kse(struct thread *td, struct kse *ke);
+void	cpu_thread_dtor(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	kse_reassign(struct kse *ke);
