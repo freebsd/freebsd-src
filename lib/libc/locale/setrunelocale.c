@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 extern int		_none_init(_RuneLocale *);
 extern int		_UTF2_init(_RuneLocale *);
+extern int		_UTF8_init(_RuneLocale *);
 extern int		_EUC_init(_RuneLocale *);
 extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
@@ -130,6 +131,8 @@ setrunelocale(char *encoding)
 		ret = _none_init(rl);
 	else if (strcmp(rl->encoding, "UTF2") == 0)
 		ret = _UTF2_init(rl);
+	else if (strcmp(rl->encoding, "UTF-8") == 0)
+		ret = _UTF8_init(rl);
 	else if (strcmp(rl->encoding, "EUC") == 0)
 		ret = _EUC_init(rl);
 	else if (strcmp(rl->encoding, "BIG5") == 0)
