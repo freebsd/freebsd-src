@@ -1247,31 +1247,25 @@ vm_object_split(vm_map_entry_t entry)
 {
 	vm_page_t m;
 	vm_object_t orig_object, new_object, source;
-	vm_offset_t s, e;
 	vm_pindex_t offidxstart, offidxend;
 	vm_size_t idx, size;
-	vm_ooffset_t offset;
-
-	GIANT_REQUIRED;
 
 	orig_object = entry->object.vm_object;
 	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
 		return;
 	if (orig_object->ref_count <= 1)
 		return;
+	VM_OBJECT_UNLOCK(orig_object);
 
-	offset = entry->offset;
-	s = entry->start;
-	e = entry->end;
-
-	offidxstart = OFF_TO_IDX(offset);
-	offidxend = offidxstart + OFF_TO_IDX(e - s);
+	offidxstart = OFF_TO_IDX(entry->offset);
+	offidxend = offidxstart + OFF_TO_IDX(entry->end - entry->start);
 	size = offidxend - offidxstart;
 
-	new_object = vm_pager_allocate(orig_object->type,
-		NULL, IDX_TO_OFF(size), VM_PROT_ALL, 0LL);
-	if (new_object == NULL)
-		return;
+	/*
+	 * If swap_pager_copy() is later called, it will convert new_object
+	 * into a swap object.
+	 */
+	new_object = vm_object_allocate(OBJT_DEFAULT, size);
 
 	VM_OBJECT_LOCK(new_object);
 	VM_OBJECT_LOCK(orig_object);
@@ -1286,7 +1280,7 @@ vm_object_split(vm_map_entry_t entry)
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		VM_OBJECT_UNLOCK(source);
 		new_object->backing_object_offset = 
-			orig_object->backing_object_offset + offset;
+			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
 	for (idx = 0; idx < size; idx++) {
@@ -1334,6 +1328,7 @@ vm_object_split(vm_map_entry_t entry)
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
+	VM_OBJECT_LOCK(new_object);
 }
 
 #define	OBSC_TEST_ALL_SHADOWED	0x0001
