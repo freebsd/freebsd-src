@@ -173,7 +173,7 @@ ShowFile(char *filename, char *header)
 {
     char buf[256];
     if (access(filename, R_OK)) {
-	sprintf(buf, "Odd, I thought I had a file called %s around here somewhere,\nbut I can't seem to find it now that I need it.  Sorry about that!", filename);
+	sprintf(buf, "The %s file is not provided on the 1.2MB floppy image.", filename);
 	dialog_msgbox("Sorry!", buf, 6, 75, 1);
 	return;
     }
