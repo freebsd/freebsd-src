@@ -5135,7 +5135,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
     int retval, idx;
-    u_int32_t revinfo, cfdainfo, id;
+    u_int32_t revinfo, cfdainfo, id, cfcsinfo;
 #if !defined(TULIP_IOMAPPED)
     vm_offset_t pa_csrs;
 #endif
@@ -5154,6 +5154,13 @@ tulip_pci_attach(pcici_t config_id, int unit)
     revinfo  = pci_conf_read(config_id, PCI_CFRV) & 0xFF;
     id       = pci_conf_read(config_id, PCI_CFID);
     cfdainfo = pci_conf_read(config_id, PCI_CFDA);
+    cfcsinfo = pci_conf_read(config_id, PCI_CFCS);
+
+    /* turn busmaster on in case BIOS doesn't set it */
+    if(!(cfcsinfo & PCIM_CMD_BUSMASTEREN)) {
+	 cfcsinfo |= PCIM_CMD_BUSMASTEREN;
+	 pci_conf_write(config_id, PCI_CFCS, cfcsinfo);
+    }
 
     if (PCI_VENDORID(id) == DEC_VENDORID) {
 	if (PCI_CHIPID(id) == CHIPID_21040)
