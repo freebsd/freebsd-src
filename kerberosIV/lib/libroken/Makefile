@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=		roken
+INTERNALLIB=	YES
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${INCLUDEOBJDIR} \
 		-I${KRB4DIR}/lib/roken \
@@ -13,9 +14,6 @@ SRCS=		base64.c concat.c emalloc.c eread.c erealloc.c estrdup.c \
 		simple_exec.c snprintf.c socket.c strcollect.c tm2time.c \
 		verify.c warnerr.c copyhostent.c strlwr.c strndup.c \
 		strnlen.c strupr.c print_version.h
-NOPIC=		yes
-
-install:
 
 .include <bsd.lib.mk>
 

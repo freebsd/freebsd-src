@@ -14,9 +14,6 @@ SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
 SRCS+=	basename.c
 .endif
 CFLAGS+=	-DHAVE_CONFIG_H
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 
 .include <bsd.lib.mk>

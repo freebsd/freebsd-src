@@ -3,8 +3,6 @@
 LIB=		telnet
 
 INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
-NOPIC=		yes
 
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c sra.c pk.c

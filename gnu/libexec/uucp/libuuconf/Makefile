@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 LIB=		uuconf
+INTERNALLIB=	YES
 SRCS = addblk.c addstr.c allblk.c alloc.c base.c bool.c callin.c \
 	calout.c chatc.c cmdarg.c cmdfil.c cmdlin.c debfil.c deblev.c \
 	diacod.c dial.c diasub.c dnams.c errno.c errstr.c filnam.c \
@@ -18,10 +19,5 @@ SRCS = addblk.c addstr.c allblk.c alloc.c base.c bool.c callin.c \
 CFLAGS+=	-I$(.CURDIR)/../common_sources \
 		-DNEWCONFIGLIB=\"$(newconfigdir)\"\
 		-DOLDCONFIGLIB=\"$(oldconfigdir)\"
-
-NOMAN=		noman
-NOPROFILE=	noprofile
-
-install:
 
 .include <bsd.lib.mk>

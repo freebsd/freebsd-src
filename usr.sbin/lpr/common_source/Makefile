@@ -6,12 +6,8 @@
 # but the library makes it much easier to modularize them.
 #
 LIB=		lpr
-NOPROFILE=	noprofile
-NOPIC=		nopic
-NOMAN=		noman
+INTERNALLIB=	YES
 SRCS=		common.c ctlinfo.c displayq.c net.c printcap.c request.c \
 		rmjob.c startdaemon.c
-
-install:
 
 .include <bsd.lib.mk>

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=		vers
+INTERNALLIB=	YES
 
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ROKENOBJDIR} \
@@ -11,15 +12,7 @@ SRCS=		\
 		print_version.c	\
 		print_version.h
 
-install:
-
-__initialized__:
-
-.include "../../Makefile.inc"
-
 .include <bsd.lib.mk>
-
-beforedepend all:	print_version.h
 
 .PATH:		${KRB5DIR}/lib/vers
 

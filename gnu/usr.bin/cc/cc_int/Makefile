@@ -5,8 +5,7 @@
 .PATH: ../cc_tools ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
 
 LIB=		cc_int
-NOPROFILE=	YES
-NOPIC=		YES
+INTERNALLIB=	YES
 
 SRCS=	c-aux-info.c c-common.c c-convert.c c-iterate.c \
 	c-pragma.c c-typeck.c \
@@ -44,8 +43,5 @@ SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
 SRCS+=	obstack.c splay-tree.c
 
 CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
-
-install:
-	@true
 
 .include <bsd.lib.mk>

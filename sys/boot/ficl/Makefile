@@ -18,8 +18,6 @@ PROG=			testmain
 .else
 LIB=			ficl
 INTERNALLIB=		yes
-INTERNALSTATICLIB=	yes
-NOPROFILE=		yes
 SRCS+=			loader.c
 .include <bsd.lib.mk>
 .endif
