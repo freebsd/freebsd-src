@@ -808,8 +808,8 @@ AAA
 		switch(wh->eh.ether_type) {
 		case	ETHERTYPE_PPPOE_DISC:
 			/*
-			 * We need to try make sure that the tag area
-			 * is contiguous, or we could wander of the end
+			 * We need to try to make sure that the tag area
+			 * is contiguous, or we could wander off the end
 			 * of a buffer and make a mess. 
 			 * (Linux wouldn't have this problem).
 			 */
@@ -966,16 +966,15 @@ AAA
 				 */
 				init_tags(sp);
 				insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
-				if ((get_tag(ph, PTT_SRV_NAME)))
+				if ((tag = get_tag(ph, PTT_SRV_NAME)))
 					insert_tag(sp, tag);/* return service */
 				if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
 					insert_tag(sp, tag); /* return it */
 				insert_tag(sp, utag);	/* ac_cookie */
 				scan_tags(sp, ph);
 				make_packet(sp);
-				sp->state = PPPOE_NEWCONNECTED;
 				sendpacket(sp);
-				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
+				sp->state = PPPOE_NEWCONNECTED;
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to 
@@ -1142,10 +1141,11 @@ AAA
 			 * wants us to offer service.
 			 */
 			neg = sp->neg;
-			if (m->m_len < sizeof(*wh))
-				m_pullup(m, sizeof(*wh));
-			if (m == NULL) {
-				LEAVE(ENOBUFS);
+			if (m->m_len < sizeof(*wh)) {
+				m = m_pullup(m, sizeof(*wh));
+				if (m == NULL) {
+					LEAVE(ENOBUFS);
+				}
 			}
 			wh = mtod(m, struct pppoe_full_hdr *);
 			ph = &wh->ph;
