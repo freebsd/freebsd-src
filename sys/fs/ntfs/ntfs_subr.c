@@ -382,7 +382,8 @@ ntfs_ntlookup(
 	dprintf(("ntfs_ntlookup: looking for ntnode %d\n", ino));
 
 	do {
-		if ((ip = ntfs_nthashlookup(ntmp->ntm_dev, ino)) != NULL) {
+		ip = ntfs_nthashlookup(ntmp->ntm_devvp->v_rdev, ino);
+		if (ip != NULL) {
 			ntfs_ntget(ip);
 			dprintf(("ntfs_ntlookup: ntnode %d: %p, usecount: %d\n",
 				ino, ip, ip->i_usecount));
@@ -398,7 +399,6 @@ ntfs_ntlookup(
 
 	/* Generic initialization */
 	ip->i_devvp = ntmp->ntm_devvp;
-	ip->i_dev = ntmp->ntm_dev;
 	ip->i_number = ino;
 	ip->i_mp = ntmp;
 
