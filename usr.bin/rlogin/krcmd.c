@@ -93,7 +93,7 @@ krcmd(ahost, rport, remuser, cmd, fd2p, realm)
 		SERVICE_NAME,
 		realm,
 		(CREDENTIALS *)  NULL,		/* credentials not used */
-		(bit_64 *) NULL,		/* key schedule not used */
+		0,				/* key schedule not used */
 		(MSG_DAT *) NULL,		/* MSG_DAT not used */
 		(struct sockaddr_in *) NULL,	/* local addr not used */
 		(struct sockaddr_in *) NULL,	/* foreign addr not used */
