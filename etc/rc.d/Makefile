@@ -4,7 +4,7 @@
 .include <bsd.own.mk>
 
 FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
-	apm apmd atm1 atm2.sh atm3.sh archdep bgfsck bootparamd ccd cleanvar \
+	apm apmd atm1 atm2.sh atm3.sh archdep bgfsck bootparams ccd cleanvar \
 	cleartmp cron devdb devfs diskless dmesg dumpon fsck inetd \
 	initdiskless initrandom ip6fw ipfilter ipfw ipmon ipnat ipsec \
 	ipxrouted isdnd kadmind kerberos keyserv ldconfig local \
