@@ -58,12 +58,11 @@
  * The beginning of cylinder group cg in fs, is given by
  * the ``cgbase(fs, cg)'' macro.
  *
- * The first boot and super blocks are given in absolute disk addresses.
- * The byte-offset forms are preferred, as they don't imply a sector size.
+ * The size and offset of the super-block in sector-size neutral bytes.
  */
-#define BBSIZE		8192
 #define SBSIZE		8192
 #define	SBOFF		((off_t)(BBSIZE))
+#define SBLOCK		((ufs_daddr_t)(SBOFF / DEV_BSIZE))
 
 /* Max number of fragments per block, this is not tweakable */
 #define MAXFRAG 	8
