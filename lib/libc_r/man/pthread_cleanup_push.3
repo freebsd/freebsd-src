@@ -38,7 +38,7 @@
 .Sh SYNOPSIS
 .Fd #include <pthread.h>
 .Ft void
-.Fn pthread_cleanup_push "void (*cleanup_routine)(void *)" "void *arg"
+.Fn pthread_cleanup_push "void \*[lp]*cleanup_routine\*[rp]\*[lp]void *\*[rp]" "void *arg"
 .Sh DESCRIPTION
 The
 .Fn pthread_cleanup_push
@@ -48,7 +48,7 @@ to the top of the stack of cleanup handlers that
 get called when the current thread exits.
 .Pp
 When
-.Fn pthread_cleanup_push
+.Fa cleanup_routine
 is called, it is passed
 .Fa arg
 as its only argument.
