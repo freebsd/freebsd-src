@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id: signal.h,v 1.13 1998/03/28 11:50:43 dufault Exp $
+ * $Id: signal.h,v 1.14 1998/08/05 09:04:36 dfr Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -113,6 +113,50 @@
  */
 typedef void __sighandler_t __P((int));
 
+#if defined(_P1003_1B_VISIBLE_HISTORICALLY) || \
+	(!defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE))
+union sigval {
+	/* Members as suggested by Annex C of POSIX 1003.1b. */
+	int   sigval_int;
+	void *sigval_ptr;
+};
+#endif /* !_ANSI_SOURCE && _P1003_1B_VISIBLE_HISTORICALLY */
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+/* POSIX 1003.1b required values. */
+#define SI_USER       0x10001
+#define SI_QUEUE      0x10002
+#define SI_TIMER      0x10003
+#define SI_ASYNCIO    0x10004
+#define SI_MESGQ      0x10005
+
+/* Additional FreeBSD values. */
+#define SI_UNDEFINED  0
+
+struct __siginfo {
+	struct sigcontext si_sc;
+	int               si_signo;              /* signal number */
+
+	/* 
+	 * Cause of signal, one of the SI_ macros or signal-specific
+	 * values, i.e. one of the FPE_... values for SIGFPE. This
+	 * value is equivalent to the second argument to an old-style
+	 * FreeBSD signal handler.
+	 */
+	int               si_code;
+
+	union sigval      si_value;
+};
+#else /* ! _ANSI_SOURCE && ! _POSIX_SOURCE */
+struct __siginfo;
+#endif /* ! _ANSI_SOURCE && ! _POSIX_SOURCE */
+
+typedef struct __siginfo siginfo_t;
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+typedef void __siginfohandler_t __P((int, siginfo_t *, void *));
+#endif /* ! _ANSI_SOURCE && ! _POSIX_SOURCE */
+
 #define	SIG_DFL		((__sighandler_t *)0)
 #define	SIG_IGN		((__sighandler_t *)1)
 #define	SIG_ERR		((__sighandler_t *)-1)
@@ -124,16 +168,26 @@ typedef unsigned int sigset_t;
  * Signal vector "template" used in sigaction call.
  */
 struct	sigaction {
-	__sighandler_t *sa_handler;	/* signal handler */
+	union {
+		void    (*__sa_handler) __P((int));
+		void    (*__sa_sigaction) __P((int, siginfo_t *, void *));
+	} __sigaction_u;		/* signal handler */
 	sigset_t sa_mask;		/* signal mask to apply */
 	int	sa_flags;		/* see signal options below */
 };
+/* if SA_SIGINFO is set, sa_sigaction is to be used instead of sa_handler. */
+#define	sa_handler	__sigaction_u.__sa_handler
+#ifndef _POSIX_SOURCE
+#define	sa_sigaction	__sigaction_u.__sa_sigaction
+#endif
+
 #ifndef _POSIX_SOURCE
 #define SA_ONSTACK	0x0001	/* take signal on signal stack */
 #define SA_RESTART	0x0002	/* restart system call on signal return */
 #define	SA_RESETHAND	0x0004	/* reset to SIG_DFL when taking signal */
 #define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
 #define	SA_NOCLDWAIT	0x0020	/* don't keep zombies around */
+#define	SA_SIGINFO	0x0040	/* signal handler with SA_SIGINFO args */
 #ifdef COMPAT_SUNOS
 #define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
 #endif
@@ -183,6 +237,7 @@ struct	sigvec {
 #define SV_RESETHAND	SA_RESETHAND
 #define SV_NODEFER	SA_NODEFER
 #define SV_NOCLDSTOP	SA_NOCLDSTOP
+#define SV_SIGINFO	SA_SIGINFO
 #define sv_onstack sv_flags	/* isn't compatibility wonderful! */
 
 /*
@@ -204,20 +259,7 @@ struct	sigstack {
 #endif	/* !_POSIX_SOURCE */
 #endif	/* !_ANSI_SOURCE */
 
-#ifdef _P1003_1B_VISIBLE_HISTORICALLY
-
-/* sys/aio.h unconditionally defined these */
-
-union sigval {
-	int	sival_int;		/* Integer signal value */
-	void	*sival_ptr;		/* Pointer signal value */
-};
-
-typedef struct siginfo {
-	int	si_signo;		/* Signal number */
-	int	si_code;		/* Cause of the signal */
-	union sigval si_value;		/* Signal value */
-} siginfo_t;
+#if !defined(_ANSI_SOURCE) && defined(_P1003_1B_VISIBLE_HISTORICALLY)
 
 struct sigevent {
 	int	sigev_notify;		/* Notification type */
@@ -228,7 +270,7 @@ struct sigevent {
 #define	SIGEV_NONE	0		/* No async notification */
 #define	SIGEV_SIGNAL	1		/* Generate a queued signal */
 
-#endif
+#endif /* ! _ANSI_SOURCE && _P1003_1B_VISIBLE_HISTORICALLY */
 
 /*
  * For historical reasons; programs expect signal's return value to be
