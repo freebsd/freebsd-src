@@ -167,6 +167,10 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 		"\tdependency origin: %s\n", p->name);
 	    break;
 
+	case PLIST_CONFLICTS:
+	    printf(Quiet ? "@conflicts %s\n" : "Conflicts: %s\n", p->name);
+	    break;
+
 	case PLIST_MTREE:
 	    printf(Quiet ? "@mtree %s\n" : "\tPackage mtree file: %s\n", p->name);
 	    break;

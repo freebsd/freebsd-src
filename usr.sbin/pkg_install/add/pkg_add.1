@@ -208,20 +208,29 @@ ftp.
 .Sh TECHNICAL DETAILS
 The
 .Nm
-utility is fairly simple.  It extracts each package's "packing list"
-into a special staging directory, parses it,
-and then runs through the following sequence to fully extract the contents:
+utility extracts each package's "packing list" into a special staging 
+directory in /tmp (or $PKG_TMPDIR if set), parses it, and then runs 
+through the following sequence to fully extract the contents of the package:
 .Bl -enum
 .It
-Check if the package is already recorded as installed.  If so,
-terminate installation.
+A check is made to determine if the package is already recorded as installed.
+If it is, installation is terminated.
+.It
+A check is made to determine if the package conflicts (from
+.Cm @conflicts
+directives, see
+.Xr pkg_create 1 )
+with an already-installed package.
+If it is, installation is terminated.
 .It
 Scan all the package dependencies (from
 .Cm @pkgdep
 directives, see
 .Xr pkg_create 1 )
-and make sure each one is met.  If not, try and find the missing
-dependencies' packages and auto-install them; if they can't be found
+are read from the packing list.
+If any of these required packages is not currently installed,
+an attempt is made to find and install it;
+if the missing package cannot be found or installed,
 the installation is terminated.
 .It
 Search for any
@@ -388,7 +397,9 @@ period.
 .Pp
 The environment variable
 .Ev PKG_DBDIR
-specifies an alternative location for the installed package database.
+specifies an alternative location for the installed package database,
+default location is
+.Pa /var/db/pkg .
 .Pp
 The environment variables
 .Ev PKG_TMPDIR

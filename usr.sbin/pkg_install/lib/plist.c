@@ -241,6 +241,8 @@ plist_cmd(const char *s, char **arg)
 	return PLIST_DISPLAY;
     else if (!strcmp(cmd, "pkgdep"))
 	return PLIST_PKGDEP;
+    else if (!strcmp(cmd, "conflicts"))
+	return PLIST_CONFLICTS;
     else if (!strcmp(cmd, "mtree"))
 	return PLIST_MTREE;
     else if (!strcmp(cmd, "dirrm"))
@@ -361,6 +363,10 @@ write_plist(Package *pkg, FILE *fp)
 
 	case PLIST_PKGDEP:
 	    fprintf(fp, "%cpkgdep %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_CONFLICTS:
+	    fprintf(fp, "%cconflicts %s\n", CMD_CHAR, plist->name);
 	    break;
 
 	case PLIST_MTREE:

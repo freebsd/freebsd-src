@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl YNOhjvyz
+.Op Fl C Ar conflicts
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
 .Op Fl f Ar contents
@@ -142,6 +143,13 @@ executable program (or shell script).  It will be invoked automatically
 when the package is later installed.
 It will be passed the package's name as
 the first argument.
+.It Fl C Ar conflicts
+Set the initial package conflict list to
+.Ar conflicts .
+This is assumed to be a whitespace separated list of package names
+and is meant as a convenient shorthand for specifying multiple
+.Cm @conflicts
+directives in the packing list (see PACKING LIST DETAILS section below).
 .It Fl P Ar pkgs
 Set the initial package dependency list to
 .Ar pkgs .
@@ -482,6 +490,11 @@ installed, and this package must be deinstalled before the
 package is deinstalled.  Multiple
 .Cm @pkgdep
 directives may be used if the package depends on multiple other packages.
+.It Cm @conflicts Ar pkgcflname
+Declare a conflict with the
+.Ar pkgcflname
+package, as the two packages contain references to the same files,
+and so cannot co-exist on the same system.
 .El
 .Sh ENVIRONMENT
 The environment variable

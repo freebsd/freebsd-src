@@ -145,6 +145,22 @@ pkg_perform(char **pkgs)
 	    printf(".\n");
     }
 
+    /* Put the conflicts directly after the dependencies, if any */
+    if (Conflicts) {
+	if (Verbose && !PlistOnly)
+	    printf("Registering conflicts:");
+	while (Conflicts) {
+	   cp = strsep(&Conflicts, " \t\n");
+	   if (*cp) {
+		add_plist(&plist, PLIST_CONFLICTS, cp);
+		if (Verbose && !PlistOnly)
+		    printf(" %s", cp);
+	   }
+	}
+	if (Verbose && !PlistOnly)
+	    printf(".\n");
+    }
+
     /* If a SrcDir override is set, add it now */
     if (SrcDir) {
 	if (Verbose && !PlistOnly)
