@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
@@ -67,6 +68,10 @@ kthread_create(void (*func)(void *), void *arg,
 	int error;
 	va_list ap;
 	struct proc *p2;
+
+	if (!proc0.p_stats || proc0.p_stats->p_start.tv_sec == 0) {
+		panic("kthread_create called too soon");
+	}
 
 	error = fork1(&proc0, RFMEM | RFFDG | RFPROC, &p2);
 	if (error)
