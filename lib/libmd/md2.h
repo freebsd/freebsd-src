@@ -39,6 +39,7 @@ void   MD2Pad(MD2_CTX *);
 void   MD2Final(unsigned char [16], MD2_CTX *);
 char * MD2End(MD2_CTX *, char *);
 char * MD2File(const char *, char *);
+char * MD2FileChunk(const char *, char *, off_t, off_t);
 char * MD2Data(const unsigned char *, unsigned int, char *);
 __END_DECLS
 

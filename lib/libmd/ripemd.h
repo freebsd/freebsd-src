@@ -56,6 +56,10 @@
  * [including the GNU Public Licence.]
  */
 
+/*
+ * $FreeBSD$
+ */
+
 #ifndef HEADER_RIPEMD_H
 #define HEADER_RIPEMD_H
 
@@ -83,6 +87,7 @@ void	RIPEMD160_Update(RIPEMD160_CTX *c, const unsigned char *data,
 void	RIPEMD160_Final(unsigned char *md, RIPEMD160_CTX *c);
 char   *RIPEMD160_End(RIPEMD160_CTX *, char *);
 char   *RIPEMD160_File(const char *, char *);
+char   *RIPEMD160_FileChunk(const char *, char *, off_t, off_t);
 char   *RIPEMD160_Data(const unsigned char *, unsigned int, char *);
 __END_DECLS
 
