@@ -372,8 +372,7 @@ acct_load(pn, wr)
 }
 
 static u_quad_t
-decode_comp_t(comp)
-	comp_t comp;
+decode_comp_t(comp_t comp)
 {
 	u_quad_t rv;
 
