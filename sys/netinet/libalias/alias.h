@@ -134,6 +134,7 @@ void		LibAliasUninit(struct libalias *);
 /* Packet Handling functions. */
 int		LibAliasIn (struct libalias *, char *_ptr, int _maxpacketsize);
 int		LibAliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
+int		LibAliasOutTry(struct libalias *, char *_ptr, int _maxpacketsize, int _create);
 int		LibAliasUnaliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
 
 /* Port and address redirection functions. */
