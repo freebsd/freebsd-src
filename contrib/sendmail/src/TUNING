@@ -1,11 +1,11 @@
-# Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: TUNING,v 1.18 2002/03/03 03:38:21 ca Exp $
+#	$Id: TUNING,v 1.18.4.1 2003/02/07 18:19:51 ca Exp $
 #
 
 ********************************************
@@ -159,7 +159,6 @@ QUEUE_GROUP(`one', `P=/var/spool/mqueue/one, F=f, r=50, R=3')dnl
 QUEUE_GROUP(`two', `P=/var/spool/mqueue/two, F=f, r=30, R=4')dnl
 QUEUE_GROUP(`remote', `P=/var/spool/mqueue/remote, F=f, r=5, R=8, I=2m')dnl
 define(`ESMTP_MAILER_QGRP', `remote')dnl
-define(`confSPLIT_ACROSS_QUEUEGROUPS', `True')dnl
 define(`confDELIVERY_MODE', `q')dnl
 define(`confMAX_QUEUE_CHILDREN', `50')dnl
 define(`confMIN_QUEUE_AGE', `27m')dnl

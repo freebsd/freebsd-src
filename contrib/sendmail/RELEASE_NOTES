@@ -1,10 +1,30 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.100 2002/12/28 19:47:00 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.113 2003/02/11 19:17:41 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.8/8.12.8	2003/02/11
+	SECURITY: Fix a remote buffer overflow in header parsing by
+		dropping sender and recipient header comments if the
+		comments are too long.  Problem noted by Mark Dowd
+		of ISS X-Force.
+	Fix a potential non-exploitable buffer overflow in parsing the
+		.cf queue settings and potential buffer underflow in
+		parsing ident responses.  Problem noted by Yichen Xie of
+		Stanford University Compilation Group.
+	Fix ETRN #queuegroup command: actually start a queue run for
+		the selected queue group.  Problem noted by Jos Vos.
+	If MaxMimeHeaderLength is set and a malformed MIME header is fixed,
+		log the fixup as "Fixed MIME header" instead of "Truncated
+		MIME header".  Problem noted by Ian J Hart.
+	CONFIG: Fix regression bug in proto.m4 that caused a bogus
+		error message: "FEATURE() should be before MAILER()".
+	MAIL.LOCAL: Be more explicit in some error cases, i.e., whether
+		a mailbox has more than one link or whether it is not
+		a regular file.  Patch from John Beck of Sun Microsystems.
 
 8.12.7/8.12.7	2002/12/29
 	Properly clean up macros to avoid persistence of session data
@@ -60,7 +80,7 @@ summary of the changes in that release.
 	If -f "" is specified, set the sender address to "<>".  Problem
 		noted by Matthias Andree.
 	Fix formatting problem of footnotes for plain text output on some
-		versions of tmac.  Patch from Per Hedeland of Ericsson.
+		versions of tmac.  Patch from Per Hedeland.
 	Portability:
 		Berkeley DB 4.1 support (requires at least 4.1.25).
 		Some getopt(3) implementations in GNU/Linux are broken

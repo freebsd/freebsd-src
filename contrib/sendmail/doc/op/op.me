@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 .\"	All rights reserved.
 .\" Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1983, 1993
@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.609.2.17 2002/12/18 22:50:15 ca Exp $
+.\"	$Id: op.me,v 8.609.2.20 2003/01/15 19:17:16 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.609.2.17 $
+.Ve $Revision: 8.609.2.20 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -6819,6 +6819,10 @@ Note that the last mode,
 .q e ,
 is for Berknet error processing and
 should not be used in normal circumstances.
+Note, too, that mode
+.q q ,
+only applies to errors recognized before sendmail forks for
+background delivery.
 .ip FallbackMXhost=\fIfallbackhost\fP
 [V]
 If specified, the
@@ -6880,9 +6884,6 @@ If no file name is specified, "helpfile" is used.
 [c]
 If an outgoing mailer is marked as being expensive,
 don't connect immediately.
-This requires that queueing be compiled in,
-since it will depend on a queue run process to
-actually send the mail.
 .ip HostsFile=\fIpath\fP
 [no short name]
 The path to the hosts database,
@@ -10754,7 +10755,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.609.2.17 $
+.\"Version $Revision: 8.609.2.20 $
 .\".ce 0
 .bp 3
 .ce
