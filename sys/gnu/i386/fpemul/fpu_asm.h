@@ -54,13 +54,14 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id$
+ *    $Id: fpu_asm.h,v 1.6 1997/02/22 09:29:03 peter Exp $
  *
  */
 
 #ifndef _FPU_ASM_H_
 #define _FPU_ASM_H_
 
+#include <machine/asmacros.h>
 #include <gnu/i386/fpemul/fpu_emu.h>
 
 #define	EXCEPTION	_exception

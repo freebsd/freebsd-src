@@ -62,7 +62,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_u_add.s,v 1.6 1997/02/22 09:29:25 peter Exp $
  *
  */
 
@@ -81,9 +81,7 @@
 #include <gnu/i386/fpemul/control_w.h>
 
 .text
-	.align 2,144
-.globl _reg_u_add
-_reg_u_add:
+ENTRY(reg_u_add)
 	pushl	%ebp
 	movl	%esp,%ebp
 /*	subl	$16,%esp*/

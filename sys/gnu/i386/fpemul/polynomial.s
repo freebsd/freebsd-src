@@ -64,7 +64,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: polynomial.s,v 1.6 1997/02/22 09:29:19 peter Exp $
  *
  */
 
@@ -79,9 +79,7 @@
 
 
 .text
-	.align 2,144
-.globl _polynomial
-_polynomial:
+ENTRY(polynomial)
 	pushl	%ebp
 	movl	%esp,%ebp
 	subl	$32,%esp

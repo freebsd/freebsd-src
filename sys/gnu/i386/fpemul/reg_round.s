@@ -65,7 +65,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_round.s,v 1.6 1997/02/22 09:29:25 peter Exp $
  *
  */
 
@@ -128,21 +128,19 @@
 #define	UNMASKED_UNDERFLOW $2
 
 .data
-	.align 2,0
+	ALIGN_DATA
 FPU_bits_lost:
 	.byte	0
 FPU_denormal:
 	.byte	0
 
 .text
-	.align 2,144
 .globl FPU_round
 .globl FPU_round_sqrt
 .globl FPU_Arith_exit
-.globl _round_reg
 
 /* Entry point when called from C */
-_round_reg:
+ENTRY(round_reg)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi

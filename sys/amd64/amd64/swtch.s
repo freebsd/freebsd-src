@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.45 1997/04/14 18:12:05 phk Exp $
+ *	$Id: swtch.s,v 1.46 1997/04/20 06:41:26 phk Exp $
  */
 
 #include "npx.h"
@@ -233,7 +233,7 @@ rem3id:	.asciz	"remrq.id"
 	ALIGN_TEXT
 _idle:
 	xorl	%ebp,%ebp
-	movl	$tmpstk,%esp
+	movl	$HIDENAME(tmpstk),%esp
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
 

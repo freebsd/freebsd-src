@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.83 1997/04/07 07:15:49 peter Exp $
+ *	$Id: locore.s,v 1.84 1997/04/07 08:38:19 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -92,9 +92,9 @@
 	.data
 	ALIGN_DATA		/* just to be sure */
 
-	.globl	tmpstk
+	.globl	HIDENAME(tmpstk)
 	.space	0x2000		/* space for tmpstk - temporary stack */
-tmpstk:
+HIDENAME(tmpstk):
 
 	.globl	_boothowto,_bootdev
 
@@ -237,7 +237,7 @@ _pc98_system_parameter:
  * the old stack, but it need not be, since recover_bootinfo actually
  * returns via the old frame.
  */
-	movl	$R(tmpstk),%esp
+	movl	$R(HIDENAME(tmpstk)),%esp
 
 #ifdef PC98
 	testb	$0x02,0x100620		/* pc98_machine_type & M_EPSON_PC98 */
@@ -403,7 +403,7 @@ NON_GPROF_ENTRY(sigcode)
 	movl	$SYS_sigreturn,%eax		/* sigreturn() */
 	LCALL(0x7,0)				/* enter kernel with args on stack */
 	hlt					/* never gets here */
-	.align	2,0x90				/* long word text-align */
+	ALIGN_TEXT
 _esigcode:
 
 	.data

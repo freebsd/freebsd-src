@@ -61,7 +61,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_norm.s,v 1.6 1997/02/22 09:29:24 peter Exp $
  *
  */
 
@@ -71,10 +71,7 @@
 
 .text
 
-	.align 2,144
-.globl _normalize
-
-_normalize:
+ENTRY(normalize)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%ebx
@@ -141,10 +138,7 @@ L_overflow:
 
 
 /* Normalise without reporting underflow or overflow */
-	.align 2,144
-.globl _normalize_nuo
-
-_normalize_nuo:
+ENTRY(normalize_nuo)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%ebx
