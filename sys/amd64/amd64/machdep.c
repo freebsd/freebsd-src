@@ -35,14 +35,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.308 1998/09/14 11:47:40 abial Exp $
+ *	$Id: machdep.c,v 1.309 1998/09/14 22:43:32 jdp Exp $
  */
 
 #include "apm.h"
 #include "ether.h"
 #include "npx.h"
 #include "opt_atalk.h"
-#include "opt_bounce.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
@@ -149,14 +148,6 @@ static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
-
-#ifdef BOUNCE_BUFFERS
-#ifdef BOUNCEPAGES
-int	bouncepages = BOUNCEPAGES;
-#else
-int	bouncepages = 0;
-#endif
-#endif	/* BOUNCE_BUFFERS */
 
 int	_udatasel, _ucodesel;
 u_int	atdevbase;
@@ -338,19 +329,6 @@ again:
 #define	valloclim(name, type, num, lim) \
 	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
 
-#ifdef BOUNCE_BUFFERS
-	/*
-	 * If there is more than 16MB of memory, allocate some bounce buffers
-	 */
-	if (Maxmem > 4096) {
-		if (bouncepages == 0) {
-			bouncepages = 64;
-		}
-		v = (caddr_t)((vm_offset_t)round_page(v));
-		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
-	}
-#endif
-
 	valloc(callout, struct callout, ncallout);
 	valloc(callwheel, struct callout_tailq, callwheelsize);
 #ifdef SYSVSHM
@@ -397,15 +375,8 @@ again:
 	if ((vm_size_t)(v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
-#ifdef BOUNCE_BUFFERS
-	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) +
-				maxbkva + pager_map_size);
-	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva);
-#else
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
 			(nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
-#endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
 				(nbuf*BKVASIZE));
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
@@ -451,13 +422,6 @@ again:
 		userconfig();
 		cninit();	/* the preferred console may have changed */
 	}
-#endif
-
-#ifdef BOUNCE_BUFFERS
-	/*
-	 * init bounce buffers
-	 */
-	vm_bounce_init();
 #endif
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.98 1998/09/15 11:44:42 phk Exp $
+#	$Id: options,v 1.99 1998/09/18 00:46:38 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -38,7 +38,6 @@ AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
 					# targetmode operations.
 
 # Miscellaneous options.
-BOUNCE_BUFFERS	opt_bounce.h
 COMPAT_43	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
 COMPILING_LINT	opt_lint.h

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.56 1998/09/15 08:55:01 gibbs Exp $
+ * $Id: buf.h,v 1.57 1998/09/24 15:02:46 luoqi Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -162,9 +162,9 @@ struct buf {
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
-#define B_BOUNCE	0x80000000	/* bounce buffer flag */
+#define B_AVAIL1	0x80000000	/* Available flag */
 
-#define PRINT_BUF_FLAGS "\20\40bounce\37cluster\36vmio\35ram\34ordered" \
+#define PRINT_BUF_FLAGS "\20\40avail1\37cluster\36vmio\35ram\34ordered" \
 	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26avail3" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
 	"\17locked\16inval\15avail2\14error\13eintr\12done\11freebuf" \
@@ -325,10 +325,6 @@ void	pbgetvp __P((struct vnode *, struct buf *));
 void	pbrelvp __P((struct buf *));
 void	reassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((void));
-void	vm_bounce_alloc __P((struct buf *));
-void	vm_bounce_free __P((struct buf *));
-vm_offset_t	vm_bounce_kva_alloc __P((int));
-void	vm_bounce_kva_alloc_free __P((vm_offset_t, int));
 void	vfs_bio_need_satisfy __P((void));
 #endif /* KERNEL */
 
