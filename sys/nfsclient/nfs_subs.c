@@ -233,7 +233,7 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 	*tl = 0;
 	mb->m_next = mrest;
 	mreq->m_pkthdr.len = authsiz + 10 * NFSX_UNSIGNED + mrest_len;
-	mreq->m_pkthdr.rcvif = (struct ifnet *)0;
+	mreq->m_pkthdr.rcvif = NULL;
 	*mbp = mb;
 	return (mreq);
 }
@@ -406,8 +406,8 @@ nfs_init(struct vfsconf *vfsp)
 		nfs_ticks = 1;
 	/* Ensure async daemons disabled */
 	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
-		nfs_iodwant[i] = (struct proc *)0;
-		nfs_iodmount[i] = (struct nfsmount *)0;
+		nfs_iodwant[i] = NULL;
+		nfs_iodmount[i] = NULL;
 	}
 	nfs_nhinit();			/* Init the nfsnode table */
 
@@ -719,14 +719,14 @@ nfs_getcookie(struct nfsnode *np, off_t off, int add)
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
 		} else
-			return ((nfsuint64 *)0);
+			return (NULL);
 	}
 	while (pos >= NFSNUMCOOKIES) {
 		pos -= NFSNUMCOOKIES;
 		if (LIST_NEXT(dp, ndm_list)) {
 			if (!add && dp->ndm_eocookie < NFSNUMCOOKIES &&
 				pos >= dp->ndm_eocookie)
-				return ((nfsuint64 *)0);
+				return (NULL);
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
 			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
@@ -735,13 +735,13 @@ nfs_getcookie(struct nfsnode *np, off_t off, int add)
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);
 			dp = dp2;
 		} else
-			return ((nfsuint64 *)0);
+			return (NULL);
 	}
 	if (pos >= dp->ndm_eocookie) {
 		if (add)
 			dp->ndm_eocookie = pos + 1;
 		else
-			return ((nfsuint64 *)0);
+			return (NULL);
 	}
 	return (&dp->ndm_cookies[pos]);
 }
@@ -848,7 +848,7 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 	}
 	if (*f) {
 		ttvp = *v;
-		t1 = nfs_loadattrcache(&ttvp, md, dpos, (struct vattr *)0, 0);
+		t1 = nfs_loadattrcache(&ttvp, md, dpos, NULL, 0);
 		if (t1)
 			return t1;
 		*v = ttvp;
@@ -905,7 +905,7 @@ nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
 		return EBADRPC;
 	*f = fxdr_unsigned(int, *tl);
 	if (*f != 0) {
-		t1 = nfs_loadattrcache(&ttvp, md, dpos, (struct vattr *)0, 1);
+		t1 = nfs_loadattrcache(&ttvp, md, dpos, NULL, 1);
 		if (t1 != 0) {
 			*f = 0;
 			return t1;

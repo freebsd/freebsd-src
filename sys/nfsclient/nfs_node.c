@@ -285,9 +285,9 @@ nfs_inactive(struct vop_inactive_args *ap)
 		vprint("nfs_inactive: pushing active", ap->a_vp);
 	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
-		np->n_sillyrename = (struct sillyrename *)0;
+		np->n_sillyrename = NULL;
 	} else
-		sp = (struct sillyrename *)0;
+		sp = NULL;
 	if (sp) {
 		/*
 		 * We need a reference to keep the vnode from being
@@ -354,6 +354,6 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 
 	cache_purge(vp);
 	uma_zfree(nfsnode_zone, vp->v_data);
-	vp->v_data = (void *)0;
+	vp->v_data = NULL;
 	return (0);
 }
