@@ -32,7 +32,7 @@
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2005
+.Dd March 24, 2005
 .Dt MATH 3
 .Os
 .if n \{\
@@ -127,7 +127,7 @@ nearbyint	round to integer (silent)
 nextafter	next representable value
 nexttoward	next representable value
 remainder	remainder
-.\" remquo	remainder with partial quotient
+remquo	remainder with partial quotient
 rint	round to integer
 round	round to nearest integer
 trunc	integer no greater in magnitude than
@@ -223,9 +223,8 @@ values, were written for or imported into subsequent versions of FreeBSD.
 The
 .Fn exp2 ,
 .Fn log2 ,
-.Fn nan ,
 and
-.Fn remquo
+.Fn nan
 functions are missing, and many functions are not available in their
 .Vt "long double"
 variants.
