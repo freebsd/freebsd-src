@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.130 1996/11/07 14:44:01 joerg Exp $
+ *	$Id: pmap.c,v 1.131 1996/11/11 04:20:19 dyson Exp $
  */
 
 /*
@@ -1835,9 +1835,6 @@ pmap_protect(pmap, sva, eva, prot)
 		pmap_remove(pmap, sva, eva);
 		return;
 	}
-	if (prot & VM_PROT_WRITE) {
-		return;
-	}
 
 	anychanged = 0;
 
@@ -1866,7 +1863,12 @@ pmap_protect(pmap, sva, eva, prot)
 
 			unsigned pbits = ptbase[sindex];
 
-			if (pbits & PG_RW) {
+                       if (prot & VM_PROT_WRITE) {
+                               if ((pbits & (PG_RW|PG_V)) == PG_V) {
+                                       ptbase[sindex] = pbits | PG_RW;
+                                       anychanged = 1;
+                               }
+                       } else if (pbits & PG_RW) {
 				if (pbits & PG_M) {
 					vm_offset_t sva = i386_ptob(sindex);
 					if (pmap_track_modified(sva)) {
