@@ -35,8 +35,10 @@ amd_precmd()
 		if ! checkyesno nfs_client_enable ; then
 			force_depend nfsclient || return 1
 		fi
-		if [ -z "`check_process rpcbind`" \
-	    	    -a ! `checkyesno portmap_enable` ]; then
+
+		if ! checkyesno portmap_enable  && \
+		   [ -z "`check_process ${portmap_program}`" ]
+                then
 			force_depend rpcbind || return 1
 		fi
 
