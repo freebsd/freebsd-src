@@ -23,12 +23,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 1995
+.Dd September 5, 2004
 .Dt EL 4 i386
 .Os
 .Sh NAME
 .Nm el
-.Nd Ethernet driver for 3Com Etherlink 3C501 device driver
+.Nd Ethernet driver for 3Com Etherlink 3C501 devices
 .Sh SYNOPSIS
 .Cd "device el"
 .Pp
@@ -40,12 +40,16 @@ In
 .Sh DESCRIPTION
 The
 .Nm
-interface provides support for the 3Com 3c501 8bit ISA ethernet card.
-The 3c501 card is known to be quite slow, and a different ethernet card
+interface provides support for the 3Com 3c501 8bit ISA Ethernet card.
+The 3c501 card is known to be quite slow, and a different Ethernet card
 should be used if possible.
 However, they allow inexpensive access to 10 Mb/s Ethernet networks.
 .Pp
 The valid I/O ports are in the range 0x280-0x3f0.
+.Sh HARDWARE
+The
+.Nm
+driver supports the 3Com 3c501 8bit ISA Ethernet card.
 .Sh BUGS
 The driver assumes the card is configured for the same IRQ as the kernel.
 No probing or checking is done to determine if this is the case.
