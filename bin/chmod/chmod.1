@@ -42,7 +42,7 @@
 .Nm chmod
 .Nd change file modes
 .Sh SYNOPSIS
-.Nm chmod
+.Nm
 .Oo
 .Fl f
 .Fl R
@@ -138,7 +138,9 @@ will run with effective gid set to the gid of the file owner.
 (the sticky bit)  
 When set on a directory, unprivileged users can delete and rename
 only those files in the directory that are owned by them, regardless of 
-the permissions on the directory.  Under FreeBSD, the sticky bit is 
+the permissions on the directory.  Under
+.Fx ,
+the sticky bit is 
 ignored for executable files and may only be set for directories (see 
 .Xr sticky 8 ).
 .It Li 0400
@@ -187,7 +189,6 @@ The
 .Ar who
 symbol ``a'' is equivalent to ``ugo''.
 .Pp
-.ne 1i
 The
 .Ar perm
 symbols represent the portions of the mode bits as follows:
