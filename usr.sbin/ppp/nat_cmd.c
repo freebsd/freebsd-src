@@ -383,8 +383,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
 
   bp->m_len = ntohs(pip->ip_len);
   if (bp->m_len > MAX_MRU) {
-    log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%d)\n",
-               bp->m_len);
+    log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%lu)\n",
+               (unsigned long)bp->m_len);
     m_freem(bp);
     return NULL;
   }
