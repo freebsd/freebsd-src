@@ -59,7 +59,9 @@ int	maxsockets;
  * Primitive routines for operating on sockets and socket buffers
  */
 
-u_long	sb_max = SB_MAX;		/* XXX should be static */
+u_long	sb_max = SB_MAX;
+u_long	sb_max_adj =
+    SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
@@ -372,6 +374,26 @@ bad:
 	return (ENOBUFS);
 }
 
+static int
+sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
+{
+	int error = 0;
+	u_long old_sb_max = sb_max;
+
+	error = SYSCTL_OUT(req, arg1, sizeof(int));
+	if (error || !req->newptr)
+		return (error);
+	error = SYSCTL_IN(req, arg1, sizeof(int));
+	if (error)
+		return (error);
+	if (sb_max < MSIZE + MCLBYTES) {
+		sb_max = old_sb_max;
+		return (EINVAL);
+	}
+	sb_max_adj = (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES);
+	return (0);
+}
+	
 /*
  * Allot mbufs to a sockbuf.
  * Attempt to scale mbmax so that mbcnt doesn't become limiting
@@ -389,7 +411,7 @@ sbreserve(sb, cc, so, p)
 	 * p will only be NULL when we're in an interrupt
 	 * (e.g. in tcp_input())
 	 */
-	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
+	if (cc > sb_max_adj)
 		return (0);
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
 	    p ? p->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
@@ -968,9 +990,8 @@ SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
 /* This takes the place of kern.maxsockbuf, which moved to kern.ipc. */
 static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
-
-SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, 
-    &sb_max, 0, "Maximum socket buffer size");
+SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLTYPE_INT|CTLFLAG_RW, 
+    &sb_max, 0, sysctl_handle_sb_max, "I", "Maximum socket buffer size");
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD, 
     &maxsockets, 0, "Maximum number of sockets avaliable");
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
