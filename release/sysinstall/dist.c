@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.44 1997/02/07 04:25:45 jkh Exp $
+ * $Id: dist.c,v 1.36.2.45 1997/03/11 09:29:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -311,15 +311,15 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 800 ported software\n"
-		  "packages, though at the cost of around 35MB of space when \"clean\"\n"
-		  "and possibly much more than that if a lot of the distribution tarballs\n"
-		  "are loaded (unless you have the 2nd CD from a FreeBSD CDROM distribution\n"
-		  "available and can mount it on /cdrom, of course, in which case this is far\n"
-		  "less of a problem).\n\n"
+		  "This will give you ready access to over 800 ported software packages,\n"
+		  "though at a cost of around 35MB of disk space when \"clean\" and possibly\n"
+		  "much more than that if a lot of the distribution tarballs are loaded\n"
+		  "(unless you have the 2nd CD from a FreeBSD CDROM distribution available\n"
+		  "and can mount it on /cdrom, in which case this is far less of a problem).\n\n"
 		  "The ports collection is a very valuable resource and, if you have at least\n"
 		  "100MB to spare in your /usr partition, well worth having around.\n\n"
-		  "For more information on the ports collection, see http://www.freebsd.org/ports\n"))
+		  "For more information on the ports collection & the latest ports, visit:\n"
+		  "    http://www.freebsd.org/ports\n"))
 	Dists |= DIST_PORTS;
     else
 	Dists &= ~DIST_PORTS;
