@@ -94,7 +94,8 @@ ipcperm(td, perm, mode)
 	/* Check for user match. */
 	if (cred->cr_uid != perm->cuid && cred->cr_uid != perm->uid) {
 		if (mode & IPC_M)
-			return (suser(p) == 0 ? 0 : EPERM);
+			return (suser_xxx(p->p_ucred, NULL, 0) == 0 ? 0 :
+			    EPERM);
 		/* Check for group match. */
 		mode >>= 3;
 		if (!groupmember(perm->gid, cred) &&
@@ -105,5 +106,6 @@ ipcperm(td, perm, mode)
 
 	if (mode & IPC_M)
 		return (0);
-	return ((mode & perm->mode) == mode || suser(p) == 0 ? 0 : EACCES);
+	return ((mode & perm->mode) == mode ||
+	    suser_xxx(p->p_ucred, NULL, 0) == 0 ? 0 : EACCES);
 }

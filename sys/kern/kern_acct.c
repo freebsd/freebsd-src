@@ -123,7 +123,7 @@ acct(td, uap)
 	if (td != curthread)
 		panic("acct");		/* XXXKSE DIAGNOSTIC */
 	/* Make sure that the caller is root. */
-	error = suser(td->td_proc);
+	error = suser_xxx(td->td_proc->p_ucred, NULL, 0);
 	if (error)
 		goto done2;
 
