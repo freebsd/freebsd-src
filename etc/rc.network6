@@ -201,18 +201,19 @@ network6_pass1() {
 	# setup faith
 	network6_faith_setup
 
+	# ipv6_router
+	case ${ipv6_router_enable} in
+	[Yy][Ee][Ss])
+		if [ -x ${ipv6_router} ]; then
+			echo -n " ${ipv6_router}"
+			${ipv6_router} ${ipv6_router_flags}
+		fi
+		;;
+	esac
+
+
 	case ${ipv6_gateway_enable} in
 	[Yy][Ee][Ss])
-		# ipv6_router
-		case ${ipv6_router_enable} in
-		[Yy][Ee][Ss])
-			if [ -x ${ipv6_router} ]; then
-				echo -n " ${ipv6_router}"
-				${ipv6_router} ${ipv6_router_flags}
-			fi
-			;;
-		esac
-
 		# rtadvd
 		# This should enabled with a great care.
 		# You may want to fine-tune /etc/rtadvd.conf.
