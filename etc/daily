@@ -112,9 +112,16 @@ if [ -f /etc/Distfile ]; then
 	fi
 fi
 
-echo ""
-echo "Running calendar:"
-calendar -a
+
+# `calendar -a' needs to die. Why? Because it's a bad idea, particular
+# with networked home directories, but also in general.  If you want the
+# output of `calendar' mailed to you, set up a cron job to do it,
+# or run it from your ~/.profile or ~/.login.
+#
+# echo ""
+# echo "Running calendar:"
+# calendar -a
+
 
 if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
 	echo ""
