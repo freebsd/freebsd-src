@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.15.2.2 1996/12/17 20:28:06 jkh Exp $
+ * $Id: ftpio.c,v 1.15.2.3 1997/08/03 18:45:21 peter Exp $
  *
  */
 
@@ -607,8 +607,9 @@ get_a_number(FTP_t ftp, char **q)
 static int
 ftp_close(FTP_t ftp)
 {
-    int i;
+    int i, rcode;
 
+    rcode = FAILURE;
     if (ftp->con_state == isopen) {
 	ftp->con_state = quit;
 	/* If last operation timed out, don't try to quit - just close */
@@ -616,17 +617,14 @@ ftp_close(FTP_t ftp)
 	    i = cmd(ftp, "QUIT");
 	else
 	    i = FTP_QUIT_HAPPY;
+	if (!check_code(ftp, i, FTP_QUIT_HAPPY))
+	    rcode = SUCCESS;
 	close(ftp->fd_ctrl);
 	ftp->fd_ctrl = -1;
-	if (check_code(ftp, i, FTP_QUIT_HAPPY)) {
-	    ftp->errno = i;
-	    return FAILURE;
-	}
-	/* Debug("ftp_pkg: ftp_close() - proper shutdown"); */
-	return SUCCESS;
     }
-    /* Debug("ftp_pkg: ftp_close() - improper shutdown"); */
-    return FAILURE;
+    else if (ftp->con_state == quit)
+	rcode = SUCCESS;
+    return rcode;
 }
 
 static int
