@@ -445,7 +445,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 					break;
 #ifdef INET6
 				case AF_INET6:
-					printf("%23s %-19.19s(refs: %d)\n", "",
+					printf("%*s %-19.19s(refs: %d)\n",
+					       Wflag ? 27 : 25, "",
 					       inet_ntop(AF_INET6,
 							 &msa.in6.sin6_addr,
 							 ntop_buf,
@@ -465,7 +466,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 					break;
 				}
 				if (fmt)
-					printf("%23s %s\n", "", fmt);
+					printf("%*s %s\n",
+					    Wflag ? 27 : 25, "", fmt);
 			}
 		}
 	}
