@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.16 1995/06/27 11:06:53 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.17 1995/06/28 07:06:52 davidg Exp $
  */
 
 /*
@@ -2707,6 +2707,7 @@ nfs_flush(vp, cred, waitfor, p, commit)
 	int s, error = 0, slptimeo = 0, slpflag = 0, retv, bvecpos;
 	int passone = 1;
 	u_quad_t off = (u_quad_t)-1, endoff = 0, toff;
+	struct ucred* wcred = NULL;
 #ifndef NFS_COMMITBVECSIZ
 #define NFS_COMMITBVECSIZ	20
 #endif
@@ -2735,6 +2736,14 @@ again:
 				!= (B_DELWRI | B_NEEDCOMMIT))
 				continue;
 			bremfree(bp);
+			/*
+			 * Work out if all buffers are using the same cred
+			 * so we can deal with them all with one commit.
+			 */
+			if (wcred == NULL)
+				wcred = bp->b_wcred;
+			else if (wcred != bp->b_wcred)
+				wcred = NOCRED;
 			bp->b_flags |= (B_BUSY | B_WRITEINPROG);
 			vfs_busy_pages(bp, 1);
 			/*
@@ -2758,8 +2767,28 @@ again:
 	if (bvecpos > 0) {
 		/*
 		 * Commit data on the server, as required.
+		 * If all bufs are using the same wcred, then use that with
+		 * one call for all of them, otherwise commit each one
+		 * separately.
 		 */
-		retv = nfs_commit(vp, off, (int)(endoff - off), cred, p);
+		if (wcred != NOCRED)
+			retv = nfs_commit(vp, off, (int)(endoff - off),
+					  wcred, p);
+		else {
+			retv = 0;
+			for (i = 0; i < bvecpos; i++) {
+				off_t off, size;
+				bp = bvec[i];
+				off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE +
+					bp->b_dirtyoff;
+				size = (u_quad_t)(bp->b_dirtyend
+						  - bp->b_dirtyoff);
+				retv = nfs_commit(vp, off, (int)size,
+						  bp->b_wcred, p);
+				if (retv) break;
+			}
+		}
+
 		if (retv == NFSERR_STALEWRITEVERF)
 			nfs_clearcommit(vp->v_mount);
 		/*
