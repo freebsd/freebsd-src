@@ -484,6 +484,8 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
 	td->td_flags = TDF_UPCALLING;
+	if (p->p_sflag & PS_NEEDSIGCHK)
+		td->td_flags |= TDF_ASTPENDING;
 	if ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 && 
 	    (kg->kg_completed == NULL)) {
 		kg->kg_upsleeps++;
