@@ -473,6 +473,8 @@ iso88025_input(ifp, th, m)
 			break;
 
 		case ETHERTYPE_ARP:
+			if (ifp->if_flags & IFF_NOARP)
+				goto dropanyway;
 			schednetisr(NETISR_ARP);
 			inq = &arpintrq;
 			break;

@@ -542,6 +542,11 @@ ether_demux(ifp, eh, m)
 		break;
 
 	case ETHERTYPE_ARP:
+		if (ifp->if_flags & IFF_NOARP) {
+			/* Discard packet if ARP is disabled on interface */
+			m_freem(m);
+			return;
+		}
 		schednetisr(NETISR_ARP);
 		inq = &arpintrq;
 		break;
