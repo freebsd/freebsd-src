@@ -103,6 +103,17 @@ ENTRY(cpu_switch)
 	pushfq					/* PSL */
 	popq	PCB_RFLAGS(%r8)
 
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jz	1f				/* no, skip over */
+
+	/* Save segment selector numbers */
+	movl	%ds,PCB_DS(%r8)
+	movl	%es,PCB_ES(%r8)
+	movl	%fs,PCB_FS(%r8)
+	movl	%gs,PCB_GS(%r8)
+	jmp	2f
+1:
+
 	/* Save userland %fs */
 	movl	$MSR_FSBASE,%ecx
 	rdmsr
@@ -114,12 +125,7 @@ ENTRY(cpu_switch)
 	rdmsr
 	movl	%eax,PCB_GSBASE(%r8)
 	movl	%edx,PCB_GSBASE+4(%r8)
-
-	/* Save segment selector numbers */
-	movl	%ds,PCB_DS(%r8)
-	movl	%es,PCB_ES(%r8)
-	movl	%fs,PCB_FS(%r8)
-	movl	%gs,PCB_GS(%r8)
+2:
 
 	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -181,6 +187,9 @@ sw1:
 	 */
 	movq	TD_PCB(%rsi),%r8
 
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jz	1f				/* no, skip over */
+
 	/* Restore segment selector numbers */
 	movl	PCB_DS(%r8),%ds
 	movl	PCB_ES(%r8),%es
@@ -191,6 +200,8 @@ sw1:
 	rdmsr
 	movl	PCB_GS(%r8),%gs
 	wrmsr
+	jmp	2f
+1:
 
 	/* Restore userland %fs */
 	movl	$MSR_FSBASE,%ecx
@@ -203,6 +214,7 @@ sw1:
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
 	wrmsr
+2:
 
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	PCPU(TSSP), %rax
@@ -248,7 +260,6 @@ sw1:
 	orq	%rcx,%rax
 	movq	%rax,%dr7
 1:
-
 	ret
 
 /*
