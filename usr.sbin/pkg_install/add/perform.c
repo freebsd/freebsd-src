@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.50 1998/07/17 14:56:31 eivind Exp $";
+	"$Id: perform.c,v 1.51 1998/08/27 14:59:55 jkh Exp $";
 #endif
 
 /*
@@ -257,6 +257,12 @@ pkg_do(char *pkg)
 			    if (!Force)
 				++code;
 			}
+		    }
+		    else {
+			warnx("could not find package %s %s",
+			      p->name, Force ? " (proceeding anyway)" : "!");
+			if (!Force)
+			    ++code;
 		    }
 		}
 		else if ((cp = fileGetURL(pkg, p->name)) != NULL) {
