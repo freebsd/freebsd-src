@@ -1,5 +1,5 @@
    -----------------------------------------
-       FreeBSD 2.2  ---  GAMMA Version                ,        ,
+       FreeBSD 2.2  ---  GAMMA Version                 ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
 Welcome to the 2.2 GAMMA release of FreeBSD!          /- _  `-/  '
@@ -19,121 +19,43 @@ Please also note that GAMMA releases, as much      ______( (_  / \______/
 as we enjoy seeing them tested in serious        ,'  ,-----'   |
 situations, are not recommended for production   `--{__________)
 environments!
+                                                         
 
+IMPORTANT NOTE: For the most up-to-date version of 2.2-GAMMA, please
+see:
 
-***** Final note: PLEASE also read the Hardware guide, which you will
-find in the root directory of your distribution as HARDWARE.TXT.  It
-is also available in the Documentation submenu of the boot floppy, but
-it's probably a good idea to read it before even getting that far.  It
-contains important checklist information on configuring your hardware
-before starting the installation process.  ****
+        ftp://22gamma.freebsd.org/pub/FreeBSD/
 
+checking the 2.2-YYMMDD-GAMMA distribution date there against today's
+date.
 
-What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
-for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
-with a very wide variety of PC peripherals and configurations and can
-be used for everything from software development to Internet Service
-Provision.
+For the sake of convenience, and to prevent truly motivated testers
+from stumbling over bugs fixed earlier in the GAMMA test cycle, the
+2.2-release-in-progress CVS branch (RELENG_2_2) will have a full
+release distribution built from it once each day at 2AM, a successful
+build being pushed into the anonymous FTP area some 5-6 hours later.
 
-This release of FreeBSD contains everything you need to run such a
-system, including full source code for everything.  With the source
-distribution installed you can literally recompile the entire system
-from scratch with one command, making it ideal for students,
-researchers or folks who simply want to see how it all works.
+Thanks to Calweb Internet Services for making this snap-of-the-day
+service available during the 2.2-GAMMA test period.  These builds will
+continue right up until the day that 2.2-RELEASE is declared ready.
 
-A large collection of 3rd party ported software (the "ports
-collection") is also provided to make it easier for you to obtain and
-install all your favorite traditional UNIX utilities for FreeBSD.
-Over 600 ports, from editors to programming languages to graphical
-applications, make FreeBSD a powerful and comprehensive operating
-environment that extends far beyond what's provided by many commercial
-versions of UNIX.
+In order to prevent mirror overload, these releases will also only be
+uploaded to ftp.freebsd.org once or twice during the GAMMA cycle (NOT
+once a day), so for the freshest bits you should always go to
+ftp://22gamma.freebsd.org/pub/FreeBSD (also listed as ``GAMMA FTP
+Site'' in the FTP servers menu).
 
+** Most files here are also in the Documentation Menu of the boot floppy **
 
-For more documentation on this system it is recommended that you
-purchase the 4.4BSD Document Set from O'Reilly Associates and the
-USENIX Association, ISBN 1-56592-082-1.  We have no connection with
-O'Reilly, we're just satisfied customers!
+ROAD MAP:
 
-If you're new to FreeBSD then you should also read EVERYTHING listed
-in the Documentation menu on the boot floppy.  It may seem like a lot
-to read, but you should at least acquaint yourself with the types of
-information available should you later get stuck.  Once the system is
-installed, you can also revisit this menu and use a WEB browser to
-read the installed FAQ (Frequently Asked Questions) and Handbook HTML
-documentation sets for FreeBSD.  You can also use the browser to visit
-other WEB sites on the net (such as http://www.freebsd.org) if you
-have an Internet connection.
+  README.TXT            This file.
+  ABOUT.TXT             All about FreeBSD and the physical organization
+                        of this distribution.
+  INSTALL.TXT           How to install FreeBSD on your PC using the files
+                        you'll find here.
+  HARDWARE.TXT          PC Hardware information & troubleshooting guide.
+  RELNOTES.TXT          Release Notes - what's new & different in this
+                        release.
 
-
-DISCLAIMER: While FreeBSD does its best to safeguard against accidental
-loss of data, it's still more than possible to WIPE OUT YOUR ENTIRE DISK
-with this installation!  Please do not proceed to the final FreeBSD
-installation menu unless you've adequately backed up any important
-data first!  We really mean it!
-
-o E-mail addresses and tech support info:
-
-For general questions, please send email to :
-
-        questions@FreeBSD.org
-
-Please also have patience if your questions are not answered right
-away - this mailing list is staffed purely by volunteers and they also
-have real life schedules to contend with.  Questions which are asked
-intelligently (e.g. not "My system doesn't work!  What's wrong!?")
-also stand a far greater chance of being answered. If your question
-does not contain enough information to allow the responder to generate
-a meaningful answer, they generally won't.
-
-Bug reports submitted with the send-pr command are also logged and
-tracked in our bugs database, and you'll be kept informed of any
-changes in status during the life of the bug (or feature request).
-
-Technical comments on this release should be sent (in English!) to:
-
-        hackers@FreeBSD.org
-
-Bug reports should be sent using the `send-pr' command, if you were
-able to get the system installed, otherwise to:
-
-        bugs@FreeBSD.org
-
-
-PLEASE ALSO BE SURE TO INDICATE WHICH VERSION OF FREEBSD YOU'RE
-RUNNING IN ANY BUG REPORTS OR QUESTIONS!
-
-Sorry for the caps, but you'd be amazed at how many times people
-forget this and there are many different release versions of FreeBSD
-out there now.  It's imperative that we know what you're running so
-that we tell if you're suffering from a bug which has already been
-fixed.
-
-
-o WWW Resources:
-
-Our WEB site, http://www.freebsd.org, is also a very good source for
-updated information and provides a number of advanced documentation
-searching facilities.  If you wish to use Netscape as your browser,
-you may install the BSDI version from ftp://ftp.mcom.com or simply
-type:
-
-        # cd /usr/ports/www/netscape3
-        # make all install
-
-If you have the Ports collection installed on your machine (usually on
-the 2nd CDROM of a CDROM release).
-
-
-Several other non-commercial browsers are also available in
-/usr/ports/net and may be compiled and installed in the same fashion.
-Many are also available as pre-compiled packages - see the Packages
-entry in the Configuration menu for more details.
-
-The Handbook and FAQ are also available as on-line documents in
-/usr/share/doc and can be read using the ``file:/usr/share/doc''
-syntax in any HTML capable browser.
-
-We sincerely hope you enjoy this release of FreeBSD!
-
-                                        The FreeBSD Project
+---
