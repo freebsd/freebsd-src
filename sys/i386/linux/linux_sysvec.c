@@ -30,7 +30,6 @@
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
-#include "opt_kstack_pages.h"
 
 #ifndef COMPAT_43
 #error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
@@ -732,7 +731,7 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 	struct proc *p = td->td_proc;
 	struct ucred *cred = td->td_ucred;
 	struct vmspace *vm = p->p_vmspace;
-	caddr_t tempuser;
+	char *tempuser;
 	int error;
 
 	if (ctob((uarea_pages + kstack_pages) +
@@ -742,15 +741,15 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 	    M_WAITOK | M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
-	bcopy(td->td_frame,
-	    tempuser + ctob(uarea_pages) +
-	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
-	    sizeof(struct trapframe));
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
 	PROC_UNLOCK(p);
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser,
+	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+	bcopy(td->td_frame,
+	    tempuser + ctob(uarea_pages) +
+	    ((caddr_t)td->td_frame - (caddr_t)td->td_kstack),
+	    sizeof(struct trapframe));
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t)tempuser,
 	    ctob(uarea_pages + kstack_pages),
 	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
 	    (int *)NULL, td);
@@ -762,7 +761,7 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
-		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    (caddr_t)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(uarea_pages + kstack_pages) +
 		        ctob(vm->vm_dsize), UIO_USERSPACE,
