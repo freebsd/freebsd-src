@@ -568,8 +568,14 @@ pcic_probe(void)
 			sp->data = PCIC_DATA_1;
 			sp->offset = (slot - 4) * PCIC_SLOT_SIZE;
 		}
-		/* XXX - Screwed up slot 1 on the VLSI chips */
-		if (slot == 1 && is_vlsi) {
+		/* 
+		 * XXX - Screwed up slot 1 on the VLSI chips.  According to
+		 * the Linux PCMCIA code from David Hinds, working chipsets
+		 * return 0x84 from their (correct) ID ports, while the broken
+		 * ones would need to be probed at the new offset we set after
+		 * we assume it's broken.
+		 */
+		if ((slot == 1) && is_vlsi && (getb(sp, PCIC_ID_REV != 0x84)) {
 			sp->index += 4;
 			sp->data += 4;
 			sp->offset = PCIC_SLOT_SIZE << 1;
