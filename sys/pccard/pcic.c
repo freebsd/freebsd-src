@@ -291,8 +291,10 @@ int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
 		putw (cp, reg, sys_addr & 0xFFF);
 		putw (cp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
 		putw (cp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
-#if 1
-		printf("card offs = 0x%x, sys_addr = 0x%x\n", ((mp->card >> 12) - sys_addr) & 0x3FFF, sys_addr);
+#if 0
+		printf("card offs = card_adr = 0x%x 0x%x, sys_addr = 0x%x\n", 
+			mp->card, ((mp->card >> 12) - sys_addr) & 0x3FFF,
+			sys_addr);
 #endif
 /*
  *	Each 16 bit register has some flags in the upper bits.
@@ -558,6 +560,7 @@ unsigned char c;
 		if (pcic_irq < 0)
 			printf("pcic: failed to allocate IRQ\n");
 		}
+	INTREN (1 << pcic_irq);
 /*
  *	Check for a card in this slot.
  */
