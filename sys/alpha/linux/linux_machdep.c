@@ -41,7 +41,7 @@
 #include <sys/user.h>
 
 #include <alpha/linux/linux.h>
-#include <alpha/linux/linux_proto.h>
+#include <linux_proto.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
@@ -63,10 +63,9 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): execve(%s)\n", 
+	printf("Linux-emul(%d): execve(%s)\n", 
 	    p->p_pid, args->path);
 #endif
-
 	bsd.fname = args->path;
 	bsd.argv = args->argp;
 	bsd.envv = args->envp;
@@ -81,12 +80,12 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 #ifdef DEBUG
 	printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
 #endif
-
 	if ((error = fork(p, (struct fork_args *)args)) != 0)
 		return (error);
 
 	if (p->p_retval[1] == 1)
 		p->p_retval[0] = 0;
+
 	return (0);
 }
 
@@ -98,7 +97,6 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 #ifdef DEBUG
 	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
 #endif
-
 	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
 		return (error);
 	/* Are we the child? */
@@ -107,11 +105,11 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	return (0);
 }
 
-#define CLONE_VM	0x100
-#define CLONE_FS	0x200
-#define CLONE_FILES	0x400
-#define CLONE_SIGHAND	0x800
-#define CLONE_PID	0x1000
+#define	CLONE_VM	0x100
+#define	CLONE_FS	0x200
+#define	CLONE_FILES	0x400
+#define	CLONE_SIGHAND	0x800
+#define	CLONE_PID	0x1000
 
 int
 linux_clone(struct proc *p, struct linux_clone_args *args)
@@ -135,12 +133,12 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 		off_t pos;
 	} */ bsd_args;
 	int error;
+
 #ifdef DEBUG
 	printf("Linux-emul(%ld): mmap(%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx)\n",
 	    (long)p->p_pid, (void *)linux_args->addr, linux_args->len,
 	    linux_args->prot, linux_args->flags, linux_args->fd, linux_args->pos);
 #endif
-
 	bsd_args.prot = linux_args->prot | PROT_READ;	/* always required */
 
 	bsd_args.flags = 0;
@@ -232,17 +230,18 @@ linux_rt_sigsuspend(p, uap)
 	struct proc *p;
 	struct linux_rt_sigsuspend_args *uap;
 {
+	int error;
 	linux_sigset_t lmask;
 	sigset_t *bmask;
 	struct sigsuspend_args bsd;
-	caddr_t sg = stackgap_init();
-	int error;
+	caddr_t sg;
+
+	sg = stackgap_init();
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
-	       (void *)uap->newset, uap->sigsetsize);
+	    (void *)uap->newset, uap->sigsetsize);
 #endif
-
 	if (uap->sigsetsize != sizeof(linux_sigset_t))
 		return (EINVAL);
 
@@ -261,6 +260,7 @@ linux_mprotect(p, uap)
 	struct proc *p;
 	struct linux_mprotect_args *uap;
 {
+
 #ifdef DEBUG
 	printf("Linux-emul(%ld): mprotect(%p, 0x%lx, 0x%x)\n",
 	    (long)p->p_pid, (void *)uap->addr, uap->len, uap->prot);
@@ -273,6 +273,7 @@ linux_munmap(p, uap)
 	struct proc *p;
 	struct linux_munmap_args *uap;
 {
+
 #ifdef DEBUG
 	printf("Linux-emul(%ld): munmap(%p, 0x%lx)\n",
 	    (long)p->p_pid, (void *)uap->addr, uap->len);
@@ -290,67 +291,65 @@ linux_setpgid(p, uap)
 	struct proc *p;
 	struct linux_setpgid_args *uap;
 {
+
 	return (setpgid(p, (void *)uap));
 }
 
 
-static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
-{ RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
-  RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NOFILE, -1,
-  RLIMIT_NPROC, RLIMIT_MEMLOCK
+static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
+	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
+	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NOFILE, -1,
+	RLIMIT_NPROC, RLIMIT_MEMLOCK
 };
 
 int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 int
 linux_setrlimit(p, uap)
-     struct proc *p;
-     struct linux_setrlimit_args *uap;
+	struct proc *p;
+	struct linux_setrlimit_args *uap;
 {
-    struct rlimit rlim;
-    u_int which;
-    int error;
+	struct rlimit rlim;
+	u_int which;
+	int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): setrlimit(%d, %p)\n",
+	printf("Linux-emul(%ld): setrlimit(%d, %p)\n",
 	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
 #endif
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return EINVAL;
 
-    if (uap->resource >= LINUX_RLIM_NLIMITS)
-	return EINVAL;
+	which = linux_to_bsd_resource[uap->resource];
 
-    which = linux_to_bsd_resource[uap->resource];
+	if (which == -1)
+		return EINVAL;
 
-    if (which == -1)
-	return EINVAL;
-
-    if ((error =
-	copyin((caddr_t)uap->rlim, (caddr_t)&rlim, sizeof (struct rlimit))))
-	    return (error);
-    return dosetrlimit(p,  which, &rlim);
+	if ((error =
+	   copyin((caddr_t)uap->rlim, (caddr_t)&rlim, sizeof (struct rlimit))))
+		return (error);
+	return dosetrlimit(p,  which, &rlim);
 }
 
 int
 linux_getrlimit(p, uap)
-     struct proc *p;
-     struct linux_getrlimit_args *uap;
+	struct proc *p;
+	struct linux_getrlimit_args *uap;
 {
-    u_int which;
+	u_int which;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): getrlimit(%d, %p)\n",
+	printf("Linux-emul(%ld): getrlimit(%d, %p)\n",
 	   (long)p->p_pid, uap->resource, (void *)uap->rlim);
 #endif
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return EINVAL;
 
-    if (uap->resource >= LINUX_RLIM_NLIMITS)
-	return EINVAL;
+	which = linux_to_bsd_resource[uap->resource];
 
-    which = linux_to_bsd_resource[uap->resource];
+	if (which == -1)
+		return EINVAL;
 
-    if (which == -1)
-	return EINVAL;
-
-    return (copyout((caddr_t)&p->p_rlimit[which], (caddr_t)uap->rlim,
-            sizeof (struct rlimit)));
-
+	return (copyout((caddr_t)&p->p_rlimit[which], (caddr_t)uap->rlim,
+	    sizeof (struct rlimit)));
 }
