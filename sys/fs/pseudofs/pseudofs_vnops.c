@@ -79,7 +79,8 @@ static int
 pfs_getattr(struct vop_getattr_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_node *pn = (struct pfs_node *)vn->v_data;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
 	struct vattr *vap = va->a_vap;
 
 	VATTR_NULL(vap);
@@ -105,19 +106,17 @@ pfs_getattr(struct vop_getattr_args *va)
 static int
 pfs_lookup(struct vop_lookup_args *va)
 {
-	struct vnode *dvp = va->a_dvp;
+	struct vnode *vn = va->a_dvp;
 	struct vnode **vpp = va->a_vpp;
 	struct componentname *cnp = va->a_cnp;
-#if 0
-	struct pfs_info *pi = (struct pfs_info *)dvp->v_mount->mnt_data;
-#endif
-	struct pfs_node *pd = (struct pfs_node *)dvp->v_data, *pn;
-	struct proc *p;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pd = pvd->pvd_pn;
+	struct pfs_node *pn, *pdn = NULL;
+	pid_t pid = pvd->pvd_pid;
 	char *pname;
-	int error, i;
-	pid_t pid;
+	int error, i, namelen;
 
-	if (dvp->v_type != VDIR)
+	if (vn->v_type != VDIR)
 		return (ENOTDIR);
 	
 	/* don't support CREATE, RENAME or DELETE */
@@ -129,11 +128,12 @@ pfs_lookup(struct vop_lookup_args *va)
 		return (ENOENT);
 	
 	/* self */
+	namelen = cnp->cn_namelen;
 	pname = cnp->cn_nameptr;
-	if (cnp->cn_namelen == 1 && *pname == '.') {
+	if (namelen == 1 && *pname == '.') {
 		pn = pd;
-		*vpp = dvp;
-		VREF(dvp);
+		*vpp = vn;
+		VREF(vn);
 		goto got_vnode;
 	}
 
@@ -142,61 +142,48 @@ pfs_lookup(struct vop_lookup_args *va)
 		if (pd->pn_type == pfstype_root)
 			return (EIO);
 		KASSERT(pd->pn_parent, ("non-root directory has no parent"));
-		return pfs_vncache_alloc(dvp->v_mount, vpp, pd->pn_parent);
+		/*
+		 * This one is tricky.  Descendents of procdir nodes
+		 * inherit their parent's process affinity, but
+		 * there's no easy reverse mapping.  For simplicity,
+		 * we assume that if this node is a procdir, its
+		 * parent isn't (which is correct as long as
+		 * descendents of procdir nodes are never procdir
+		 * nodes themselves)
+		 */
+		if (pd->pn_type == pfstype_procdir)
+			pid = NO_PID;
+		return pfs_vncache_alloc(vn->v_mount, vpp, pd->pn_parent, pid);
 	}
 
-	/* process dependent */
-	for (i = 0, pid = 0; i < cnp->cn_namelen && isdigit(pname[i]); ++i)
-		pid = pid * 10 + pname[i] - '0';
-	/* XXX assume that 8 digits is the maximum safe length for a pid */
-	if (i == cnp->cn_namelen && i < 8) {
-		/* see if this directory has process-dependent children */
-		for (pn = pd->pn_nodes; pn->pn_type; ++pn)
-			if (pn->pn_type == pfstype_procdep)
-				break;
-		if (pn->pn_type) {
-			/* XXX pfind(0) should DTRT here */
-			p = pid ? pfind(pid) : &proc0;
-			if (p == NULL)
-				return (ENOENT);
-			if (p_can(cnp->cn_proc, p, P_CAN_SEE, NULL)) {
-				/* pretend it doesn't exist */
-				PROC_UNLOCK(p);
-				return (ENOENT);
-			}
-#if 0
-			if (!pn->pn_shadow)
-				pfs_create_shadow(pn, p);
-			pn = pn->pn_shadow;
-			PROC_UNLOCK(p);
+	/* named node */
+	for (pn = pd->pn_nodes; pn->pn_type; ++pn)
+		if (pn->pn_type == pfstype_procdir)
+			pdn = pn;
+		else if (pn->pn_name[namelen] == '\0'
+		    && bcmp(pname, pn->pn_name, namelen) == 0)
 			goto got_pnode;
-#else
-			/* not yet implemented */
-			PROC_UNLOCK(p);
-			return (EIO);
-#endif
-		}
-	}
-	
-	/* something else */
-	for (pn = pd->pn_nodes; pn->pn_type; ++pn) {
-		for (i = 0; i < cnp->cn_namelen && pn->pn_name[i]; ++i)
-			if (pname[i] != pn->pn_name[i])
+
+	/* process dependent node */
+	if ((pn = pdn) != NULL) {
+		pid = 0;
+		for (pid = 0, i = 0; i < namelen && isdigit(pname[i]); ++i)
+			if ((pid = pid * 10 + pname[i] - '0') > PID_MAX)
 				break;
 		if (i == cnp->cn_namelen)
 			goto got_pnode;
 	}
-
+		
 	return (ENOENT);
  got_pnode:
 	if (!pn->pn_parent)
 		pn->pn_parent = pd;
-	error = pfs_vncache_alloc(dvp->v_mount, vpp, pn);
+	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
 		return error;
  got_vnode:
 	if (cnp->cn_flags & MAKEENTRY)
-		cache_enter(dvp, *vpp, cnp);
+		cache_enter(vn, *vpp, cnp);
 	return (0);
 }
 
@@ -217,8 +204,10 @@ static int
 pfs_read(struct vop_read_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_node *pn = vn->v_data;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
+	struct proc *proc = NULL;
 	struct sbuf *sb = NULL;
 	char *ps;
 	int error, xlen;
@@ -226,11 +215,24 @@ pfs_read(struct vop_read_args *va)
 	if (vn->v_type != VREG)
 		return (EINVAL);
 
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			return (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+	
 	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
-	if (sb == NULL)
+	if (sb == NULL) {
+		if (proc != NULL)
+			PRELE(proc);
 		return (EIO);
+	}
 
-	error = (pn->pn_func)(pn, curproc, sb);
+	error = (pn->pn_func)(curproc, proc, pn, sb);
+
+	if (proc != NULL)
+		PRELE(proc);
 	
 	/* XXX we should possibly detect and handle overflows */
 	sbuf_finish(sb);
@@ -243,27 +245,52 @@ pfs_read(struct vop_read_args *va)
 }
 
 /*
+ * Iterate through directory entries
+ */
+static int
+pfs_iterate(struct pfs_info *pi, struct pfs_node **pn, struct proc **p)
+{
+	if ((*pn)->pn_type == pfstype_none)
+		return (-1);
+
+	if ((*pn)->pn_type != pfstype_procdir)
+		++*pn;
+	
+	while ((*pn)->pn_type == pfstype_procdir) {
+		if (*p == NULL)
+			*p = LIST_FIRST(&allproc);
+		else
+			*p = LIST_NEXT(*p, p_list);
+		if (*p != NULL)
+			return (0);
+		++*pn;
+	}
+	
+	if ((*pn)->pn_type == pfstype_none)
+		return (-1);
+	
+	return (0);
+}
+
+/*
  * Return directory entries.
  */
 static int
 pfs_readdir(struct vop_readdir_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_info *pi;
-	struct pfs_node *pd, *pn;
+	struct pfs_info *pi = (struct pfs_info *)vn->v_mount->mnt_data;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pd = pvd->pvd_pn;
+	struct pfs_node *pn;
 	struct dirent entry;
 	struct uio *uio;
-#if 0
 	struct proc *p;
-#endif
 	off_t offset;
 	int error, i, resid;
 
 	if (vn->v_type != VDIR)
 		return (ENOTDIR);
-	pi = (struct pfs_info *)vn->v_mount->mnt_data;
-	pd = (struct pfs_node *)vn->v_data;
-	pn = pd->pn_nodes;
 	uio = va->a_uio;
 
 	/* only allow reading entire entries */
@@ -273,23 +300,35 @@ pfs_readdir(struct vop_readdir_args *va)
 		return (EINVAL);
 
 	/* skip unwanted entries */
-	for (; pn->pn_type && offset > 0; ++pn, offset -= PFS_DELEN)
-		/* nothing */ ;
-
+	sx_slock(&allproc_lock);
+	for (pn = pd->pn_nodes, p = NULL; offset > 0; offset -= PFS_DELEN)
+		if (pfs_iterate(pi, &pn, &p) == -1)
+			break;
+	
 	/* fill in entries */
 	entry.d_reclen = PFS_DELEN;
-	for (; pn->pn_type && resid > 0; ++pn) {
+	while (pfs_iterate(pi, &pn, &p) != -1 && resid > 0) {
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
 		if (!pn->pn_fileno)
 			pfs_fileno_alloc(pi, pn);
-		entry.d_fileno = pn->pn_fileno;
+		if (pvd->pvd_pid != NO_PID)
+			entry.d_fileno = pn->pn_fileno * NO_PID + pvd->pvd_pid;
+		else
+			entry.d_fileno = pn->pn_fileno;
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
 		for (i = 0; i < PFS_NAMELEN - 1 && pn->pn_name[i] != '\0'; ++i)
 			entry.d_name[i] = pn->pn_name[i];
 		entry.d_name[i] = 0;
 		entry.d_namlen = i;
 		switch (pn->pn_type) {
+		case pfstype_procdir:
+			KASSERT(p != NULL,
+			    ("reached procdir node with p == NULL"));
+			entry.d_fileno = pn->pn_fileno * NO_PID + p->p_pid;
+			entry.d_namlen = snprintf(entry.d_name,
+			    PFS_NAMELEN, "%d", p->p_pid);
+			/* fall through */
 		case pfstype_root:
 		case pfstype_dir:
 		case pfstype_this:
@@ -302,32 +341,19 @@ pfs_readdir(struct vop_readdir_args *va)
 		case pfstype_symlink:
 			entry.d_type = DT_LNK;
 			break;
-		case pfstype_procdep:
-			/* don't handle process-dependent nodes here */
-			continue;
 		default:
+			sx_sunlock(&allproc_lock);
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
-		if ((error = uiomove((caddr_t)&entry, PFS_DELEN, uio)))
+		if ((error = uiomove((caddr_t)&entry, PFS_DELEN, uio))) {
+			sx_sunlock(&allproc_lock);
 			return (error);
+		}
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
 	}
-#if 0
-	for (pn = pd->pn_nodes; pn->pn_type && resid > 0; ++pn) {
-		if (pn->pn_type != pfstype_procdep)
-			continue;
-			
-		sx_slock(&allproc_lock);
-		p = LIST_FIRST(&allproc);
-		
-		sx_sunlock(&allproc_lock);
-		offset += PFS_DELEN;
-		resid -= PFS_DELEN;
-		break;
-	}
-#endif
-	
+
+	sx_sunlock(&allproc_lock);
 	uio->uio_offset += offset;
 	return (0);
 }
@@ -339,8 +365,10 @@ static int
 pfs_readlink(struct vop_readlink_args *va)
 {
 	struct vnode *vn = va->a_vp;
-	struct pfs_node *pn = vn->v_data;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
+	struct proc *proc = NULL;
 	char buf[MAXPATHLEN], *ps;
 	struct sbuf sb;
 	int error, xlen;
@@ -348,10 +376,20 @@ pfs_readlink(struct vop_readlink_args *va)
 	if (vn->v_type != VLNK)
 		return (EINVAL);
 
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			return (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+	
 	/* sbuf_new() can't fail with a static buffer */
 	sbuf_new(&sb, buf, sizeof buf, 0);
 
-	error = (pn->pn_func)(pn, curproc, &sb);
+	error = (pn->pn_func)(curproc, proc, pn, &sb);
+
+	if (proc != NULL)
+		PRELE(proc);
 	
 	/* XXX we should detect and handle overflows */
 	sbuf_finish(&sb);
@@ -378,8 +416,9 @@ pfs_reclaim(struct vop_reclaim_args *va)
 static int
 pfs_setattr(struct vop_setattr_args *va)
 {
-	if (va->a_vap->va_flags != VNOVAL)
+	if (va->a_vap->va_flags != (u_long)VNOVAL)
 		return (EOPNOTSUPP);
+	/* XXX it's a bit more complex than that, really... */
 	return (0);
 }
 

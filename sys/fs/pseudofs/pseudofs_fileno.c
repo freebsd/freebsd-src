@@ -43,12 +43,12 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
-static MALLOC_DEFINE(M_PFSFILENO, "pseudofs_fileno", "pseudofs fileno bitmap");
+static MALLOC_DEFINE(M_PFSFILENO, "pfs_fileno", "pseudofs fileno bitmap");
 
 static struct mtx pfs_fileno_mutex;
 
 #define PFS_BITMAP_SIZE	4096
-#define PFS_SLOT_BITS	(sizeof(unsigned int) * CHAR_BIT)
+#define PFS_SLOT_BITS	(int)(sizeof(unsigned int) * CHAR_BIT)
 #define PFS_BITMAP_BITS	(PFS_BITMAP_SIZE * PFS_SLOT_BITS)
 struct pfs_bitmap {
 	u_int32_t		 pb_offset;
@@ -117,8 +117,11 @@ pfs_fileno_uninit(struct pfs_info *pi)
 		used += pb->pb_used;
 		FREE(pb, M_PFSFILENO);
 	}
+#if 0
+	/* we currently don't reclaim filenos */
 	if (used > 2)
 		printf("WARNING: %d file numbers still in use\n", used);
+#endif
 }
 
 /*
@@ -202,6 +205,7 @@ pfs_free_fileno(struct pfs_info *pi, u_int32_t fileno)
 	--pb->pb_used;
 
 	mtx_unlock(&pi->pi_mutex);
+	printf("pfs_free_fileno(): reclaimed %d\n", fileno);
 }
 
 /*
@@ -219,6 +223,7 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 	case pfstype_dir:
 	case pfstype_file:
 	case pfstype_symlink:
+	case pfstype_procdir:
 		pn->pn_fileno = pfs_get_fileno(pi);
 		break;
 	case pfstype_this:
@@ -237,16 +242,13 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 		    ("pfstype_parent node has no grandparent"));
 		pn->pn_fileno = pn->pn_parent->pn_parent->pn_fileno;
 		break;
-	case pfstype_procdep:
-		KASSERT(1,
-		    ("pfs_fileno_alloc() called for pfstype_procdep node"));
-		break;
 	case pfstype_none:
-		KASSERT(1,
+		KASSERT(0,
 		    ("pfs_fileno_alloc() called for pfstype_none node"));
 		break;
  	}
-	
+
+#if 0
 	printf("pfs_fileno_alloc(): %s: ", pi->pi_name);
 	if (pn->pn_parent) {
 		if (pn->pn_parent->pn_parent) {
@@ -255,6 +257,7 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 		printf("%s/", pn->pn_parent->pn_name);
 	}
 	printf("%s -> %d\n", pn->pn_name, pn->pn_fileno);
+#endif
 }
 
 /*
@@ -268,18 +271,15 @@ pfs_fileno_free(struct pfs_info *pi, struct pfs_node *pn)
 	case pfstype_dir:
 	case pfstype_file:
 	case pfstype_symlink:
+	case pfstype_procdir:
 		pfs_free_fileno(pi, pn->pn_fileno);
 		break;
 	case pfstype_this:
 	case pfstype_parent:
 		/* ignore these, as they don't "own" their file number */
 		break;
-	case pfstype_procdep:
-		KASSERT(1,
-		    ("pfs_fileno_free() called for pfstype_procdep node"));
-		break;
 	case pfstype_none:
-		KASSERT(1,
+		KASSERT(0,
 		    ("pfs_fileno_free() called for pfstype_none node"));
 		break;
 	}

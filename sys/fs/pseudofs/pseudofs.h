@@ -45,11 +45,8 @@ typedef enum {
 	pfstype_parent,
 	pfstype_file,
 	pfstype_symlink,
-	pfstype_procdep
+	pfstype_procdir
 } pfs_type_t;
-
-/* Flags */
-#define	PFS_DYNAMIC		1
 
 /*
  * Data structures
@@ -58,7 +55,11 @@ struct pfs_info;
 struct pfs_node;
 struct pfs_bitmap;
 
-typedef int (*pfs_fill_t)(struct pfs_node *, struct proc *, struct sbuf *);
+#define PFS_FILL_ARGS \
+	struct proc *curp, struct proc *p, struct pfs_node *pn, struct sbuf *sb
+#define PFS_FILL_PROTO(name) \
+	int name(PFS_FILL_ARGS);
+typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
 
 struct pfs_bitmap;		/* opaque */
 
@@ -75,7 +76,7 @@ struct pfs_info {
 };
 
 /*
- * pfs_node: describes a  node (file or directory) within a pseudofs
+ * pfs_node: describes a node (file or directory) within a pseudofs
  */
 struct pfs_node {
 	char			 pn_name[PFS_NAMELEN];
@@ -94,12 +95,7 @@ struct pfs_node {
 #define pn_nodes	u1._pn_nodes
 	/* members below this line aren't initialized */
 	struct pfs_node		*pn_parent;
-	union {
-		u_int32_t	 _pn_fileno;
-		struct pfs_node	*_pn_shadow;
-	} u2;
-#define pn_fileno	u2._pn_fileno
-#define pn_shadow	u2._pn_shadow
+	u_int32_t		 pn_fileno;
 };
 
 #define PFS_NODE(name, type, flags, uid, gid, mode, data) \
@@ -116,6 +112,8 @@ struct pfs_node {
 	PFS_NODE(name, pfstype_file, flags, uid, gid, mode, func)
 #define PFS_SYMLINK(name, flags, uid, gid, mode, func) \
 	PFS_NODE(name, pfstype_symlink, flags, uid, gid, mode, func)
+#define PFS_PROCDIR(uid, gid, mode, nodes) \
+        PFS_NODE("", pfstype_procdir, 0, uid, gid, mode, nodes)
 #define PFS_LASTNODE \
 	PFS_NODE("", pfstype_none, 0, 0, 0, 0, NULL)
 
