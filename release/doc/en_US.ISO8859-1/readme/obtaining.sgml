@@ -14,50 +14,25 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
   <para>&os; may be obtained in a variety of ways.  This section
   focuses on those ways that are primarily of use for obtaining a
   complete &os; distribution, rather than updating an existing
-  installation.  More information can be found in the <ulink
-  url="http://www.freebsd.org/handbook/mirrors.html"><quote>Obtaining
-  FreeBSD</quote></ulink> appendix to the <ulink
-  url="http://www.freebsd.org/handbook/">FreeBSD
-  Handbook</ulink>.</para>
+  installation.</para>
 
   <sect2>
-    <title>CDROM</title>
-    <para>&os; 4.x-RELEASE and 3.x-RELEASE may be ordered on
-    CDROM from:
-    <address>
-    BSDi
-    <street>4041 Pike Lane, Suite D</street>
-    <city>Concord</city> <state>CA</state> <postcode>94520</postcode>
-    <country>USA</country>
-    <phone>+1-800-786-9907</phone>
-    <phone>+1-925-674-0783</phone>
-    <fax>+1-925-674-0821 (FAX)</fax></address>
-    </para>
+    <title>CDROM and DVD</title>
 
-    <para>Orders may also be placed via the Internet from
-    <email>orders@cdrom.com</email> or <ulink
-    url="http://www.cdrom.com/">http://www.cdrom.com/</ulink>.  A
-    current catalog can be obtained via ftp from <ulink
-    url="ftp://ftp.cdrom.com/cdrom/catalog">ftp://ftp.cdrom.com/cdrom/catalog</ulink>.</para>
+    <para>&os; -RELEASE distributions (for example, 4.3-RELEASE) may
+    be ordered on CDROM or DVD from several publishers.  This is
+    frequently the most convenient way to obtain &os; for new
+    installations, as it provides a convenient way to quickly
+    reinstall the system if necessary.  Some distributions include
+    some of the optional, precompiled <quote>packages</quote> from the
+    &os; Ports Collection.</para>
 
-    <para>As of this writing, the cost per -RELEASE CDROM set is $39.95 
-    (US Dollars) or $24.95 with a &os;
-    subscription.  &os; SNAPshot CDROM sets, when available, are $39.95 or
-    $14.95 with a &os;-SNAP subscription (-RELEASE and -SNAP
-    subscriptions are entirely separate).  With a subscription, you
-    will automatically receive updates as they are released.  Your
-    credit card will be billed when each disk is shipped and you may
-    cancel your subscription at any time without further
-    obligation.</para>
-
-    <para>Shipping (per order not per disk) is $5.00 in the United
-    States, Canada or Mexico and $9.00 overseas.  BSDi accepts Visa,
-    Mastercard, Discover, American Express or checks in U.S. Dollars
-    and ships COD within the United States.  California residents
-    please add 8.25% sales tax.</para>
-
-    <para>Should you be dissatisfied for any reason, the CDROM comes with
-    an unconditional return policy.</para>
+    <para>A list of the CDROM and DVD
+    publishers known to the project are listed in the <ulink
+    url="http://www.freebsd.org/handbook/mirrors.html"><quote>Obtaining
+    FreeBSD</quote></ulink> appendix to the <ulink
+    url="http://www.freebsd.org/handbook/">FreeBSD
+    Handbook</ulink>.</para>
   </sect2>
 
   <sect2>
