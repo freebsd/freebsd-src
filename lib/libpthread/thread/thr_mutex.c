@@ -752,7 +752,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 	} while (((*m)->m_owner != curthread) && (ret == 0) &&
 	    (curthread->interrupted == 0) && (curthread->timeout == 0));
 
-	if (ret == 0 && curthread->timeout)
+	if (ret == 0 && (*m)->m_owner != curthread && curthread->timeout)
 		ret = ETIMEDOUT;
 
 	/*
