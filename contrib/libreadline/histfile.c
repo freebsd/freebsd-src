@@ -155,7 +155,11 @@ read_history_range (filename, from, to)
     }
 
   buffer = xmalloc (file_size + 1);
+#if 0
   if (read (file, buffer, file_size) != file_size)
+#else
+  if (read (file, buffer, file_size) < 0)
+#endif
     {
   error_and_exit:
       if (file >= 0)
@@ -217,7 +221,7 @@ read_history_range (filename, from, to)
 int
 history_truncate_file (fname, lines)
      char *fname;
-     register int lines;
+     int lines;
 {
   register int i;
   int file, chars_read;
@@ -276,6 +280,12 @@ history_truncate_file (fname, lines)
   if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
       write (file, buffer + i, file_size - i);
+
+#if defined (__BEOS__)
+      /* BeOS ignores O_TRUNC. */
+      ftruncate (file, file_size - i);
+#endif
+
       close (file);
     }
 

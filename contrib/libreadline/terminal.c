@@ -232,6 +232,16 @@ _rl_set_screen_size (rows, cols)
   screenchars = screenwidth * screenheight;
 }
 
+void
+rl_resize_terminal ()
+{
+  if (readline_echoing_p)
+    {
+      _rl_get_screen_size (fileno (rl_instream), 1);
+      _rl_redisplay_after_sigwinch ();
+    }
+}
+
 struct _tc_string {
      char *tc_var;
      char **tc_value;
