@@ -449,6 +449,8 @@ udp_append(last, ip, n, off)
 	struct sockaddr *append_sa;
 	struct mbuf *opts = 0;
 
+	INP_LOCK_ASSERT(last);
+
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, last)) {
