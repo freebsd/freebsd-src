@@ -521,7 +521,6 @@ gif_ioctl(ifp, cmd, data)
 	int error = 0, size;
 	struct sockaddr *dst, *src;
 	struct sockaddr *sa;
-	int s;
 	struct ifnet *ifp2;
 	struct gif_softc *sc2;
 		
@@ -698,9 +697,6 @@ gif_ioctl(ifp, cmd, data)
 		sc->gif_pdst = sa;
 
 		ifp->if_flags |= IFF_RUNNING;
-		s = splimp();
-		if_up(ifp);	/* mark interface UP and send up RTM_IFINFO */
-		splx(s);
 
 		error = 0;
 		break;
