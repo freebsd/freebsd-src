@@ -1,12 +1,12 @@
 .\" Copyright (c) 2002 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and NAI Labs, the Security
 .\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
 .\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
 .\" research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -18,7 +18,7 @@
 .\" 3. The name of the author may not be used to endorse or promote
 .\"    products derived from this software without specific prior written
 .\"    permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,13 +30,16 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
+.\"
 .Dd January 9, 2002
 .Dt MAC_IS_PRESENT_NP 3
 .Sh NAME
 .Nm mac_is_present_np
 .Nd report whether the running system has MAC support
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .In sys/mac.h
 .Ft int
@@ -48,18 +51,18 @@ function determines whether the currently-running kernel supports MAC for
 a given policy or not.
 If
 .Fa policyname
-is non-
-.Ns Dv NULL ,
+is
+.No non- Ns Dv NULL ,
 the presence of the named policy
-(e.g.
-.Dq biba , 
-.Dq mls ,
-.Dq te )
+(e.g.\&
+.Dq Li biba ,
+.Dq Li mls ,
+.Dq Li te )
 is checked, otherwise the presence of any MAC policies at all is checked.
 .Sh RETURN VALUES
 If the system supports the given MAC policy, the value 1 is returned.
 If the specified MAC policy is not supported, the value 0 is returned.
-If an error occurs, the value -1 is returned.
+If an error occurs, the value \-1 is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
