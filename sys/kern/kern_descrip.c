@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.32 1996/09/28 16:33:21 bde Exp $
+ * $Id: kern_descrip.c,v 1.33 1996/12/19 19:41:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -322,6 +322,9 @@ fcntl(p, uap, retval)
 		error = copyin((caddr_t)uap->arg, (caddr_t)&fl, sizeof (fl));
 		if (error)
 			return (error);
+		if (fl.l_type != F_RDLCK && fl.l_type != F_WRLCK &&
+		    fl.l_type != F_UNLCK)
+			return (EINVAL);
 		if (fl.l_whence == SEEK_CUR)
 			fl.l_start += fp->f_offset;
 		if ((error = VOP_ADVLOCK(vp,(caddr_t)p,F_GETLK,&fl,F_POSIX)))
