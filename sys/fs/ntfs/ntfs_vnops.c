@@ -622,13 +622,12 @@ ntfs_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int error;
-	int lockparent = cnp->cn_flags & LOCKPARENT;
 #if NTFS_DEBUG
 	int wantparent = cnp->cn_flags & (LOCKPARENT|WANTPARENT);
 #endif
-	dprintf(("ntfs_lookup: \"%.*s\" (%ld bytes) in %d, lp: %d, wp: %d \n",
+	dprintf(("ntfs_lookup: \"%.*s\" (%ld bytes) in %d, wp: %d \n",
 		(int)cnp->cn_namelen, cnp->cn_nameptr, cnp->cn_namelen,
-		dip->i_number, lockparent, wantparent));
+		dip->i_number, wantparent));
 
 	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_thread);
 	if(error)
@@ -657,26 +656,14 @@ ntfs_lookup(ap)
 			return (error);
 
 		VOP_UNLOCK(dvp,0,cnp->cn_thread);
-		cnp->cn_flags |= PDIRUNLOCK;
-
 		dprintf(("ntfs_lookup: parentdir: %d\n",
 			 vap->va_a_name->n_pnumber));
 		error = VFS_VGET(ntmp->ntm_mountp, vap->va_a_name->n_pnumber,
 				 LK_EXCLUSIVE, ap->a_vpp); 
 		ntfs_ntvattrrele(vap);
 		if (error) {
-			if (vn_lock(dvp,LK_EXCLUSIVE|LK_RETRY,cnp->cn_thread)==0)
-				cnp->cn_flags &= ~PDIRUNLOCK;
+			vn_lock(dvp,LK_EXCLUSIVE|LK_RETRY,cnp->cn_thread);
 			return (error);
-		}
-
-		if (lockparent && (cnp->cn_flags & ISLASTCN)) {
-			error = vn_lock(dvp, LK_EXCLUSIVE, cnp->cn_thread);
-			if (error) {
-				vput( *(ap->a_vpp) );
-				return (error);
-			}
-			cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 	} else {
 		error = ntfs_ntlookupfile(ntmp, dvp, cnp, ap->a_vpp);
@@ -687,9 +674,6 @@ ntfs_lookup(ap)
 
 		dprintf(("ntfs_lookup: found ino: %d\n", 
 			VTONT(*ap->a_vpp)->i_number));
-
-		if(!lockparent || !(cnp->cn_flags & ISLASTCN))
-			VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 	}
 
 	if (cnp->cn_flags & MAKEENTRY)
