@@ -43,7 +43,7 @@
 #include <sys/user.h>
 
 #include <alpha/linux/linux.h>
-#include <linux_proto.h>
+#include <alpha/linux/linux_proto.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
