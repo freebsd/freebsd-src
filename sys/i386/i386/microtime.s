@@ -32,16 +32,16 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.20 1997/02/22 09:32:34 peter Exp $
+ *	$Id: microtime.s,v 1.21 1997/04/26 11:45:13 peter Exp $
  */
 
-#include "opt_smp.h"
 #include "opt_cpu.h"
+#include "opt_smp.h"
 
-#include <machine/asmacros.h>
 #ifdef APIC_IO
 #include <machine/apic.h>
 #endif /* APIC_IO */
+#include <machine/asmacros.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -49,7 +49,7 @@
 
 ENTRY(microtime)
 
-#if (defined(I586_CPU) || defined(I686_CPU)) & !defined(SMP)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	movl	_i586_ctr_freq, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
