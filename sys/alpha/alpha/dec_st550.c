@@ -35,6 +35,7 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -122,6 +123,7 @@ st550_cons_init()
 			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
+			boothowto |= RB_SERIAL;
 			break;
 		}
 
