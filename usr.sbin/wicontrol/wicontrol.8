@@ -38,7 +38,7 @@
 .Nd configure WaveLAN/IEEE devices
 .Sh SYNOPSIS
 .Nm wicontrol
-.Fl i Ar iface Op Fl o
+.Fl i Ar iface Op Fl oa
 .Nm wicontrol
 .Fl i Ar iface Fl t Ar tx rate
 .Nm wicontrol
@@ -105,7 +105,7 @@ device (wi0, wi1, etc...).
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width Fl
-.It Fl i Ar iface Op Fl o
+.It Fl i Ar iface Op Fl oa
 Display the current settings of the specified WaveLAN/IEEE interface.
 This retrieves the current card settings from the driver and prints them
 out.
@@ -113,7 +113,13 @@ Using the additional
 .Fl o
 flag will cause
 .Nm
-to print out the statistics counters instead of the card settings.
+to print out the statistics counters instead of the card settings. Using
+the additional
+.Fl a
+flag will cause
+.Nm
+to print out encryption keys as ascii characters instead of in hex.
+Encryption keys are only displayed if wicontrol is run as root.
 .It Fl i Ar iface Fl t Ar tx rate
 Set the transmit rate of the specified interface.
 The legal values
