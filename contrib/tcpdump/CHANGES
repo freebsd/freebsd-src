@@ -1,4 +1,46 @@
-@(#) $Header: CHANGES,v 1.42 96/07/23 14:36:37 leres Exp $ (LBL)
+@(#) $Header: CHANGES,v 1.45 96/12/07 20:38:04 leres Exp $ (LBL)
+
+v3.3 Sat Nov 30 20:56:27 PST 1996
+
+- Added Linux support.
+
+- GRE encapsulated packet printer thanks to John Hawkinson
+  (jhawk@mit.edu)
+
+- Rewrite gmt2local() to avoid problematic os dependencies.
+
+- Suppress nfs truncation message on errors.
+
+- Add missing m4 quoting in AC_LBL_UNALIGNED_ACCESS autoconf macro.
+  Reported by Joachim Ott (ott@ardala.han.de)
+
+- Enable "ip_hl vs. ip_vhl" workaround for OSF4 too.
+
+- Print arp hardware type in host order. Thanks to Onno van der Linden
+  (onno@simplex.nl)
+
+- Avoid solaris compiler warnings. Thanks to Bruce Barnett
+  (barnett@grymoire.crd.ge.com)
+
+- Fix rip printer to not print one more route than is actually in the
+  packet. Thanks to Jean-Luc Richier (Jean-Luc.Richier@imag.fr) and
+  Bill Fenner (fenner@parc.xerox.com)
+
+- Use autoconf endian detection since BYTE_ORDER isn't defined on all systems.
+
+- Fix dvmrp printer truncation checks and add a dvmrp probe printer.
+  Thanks to Danny J. Mitzel (mitzel@ipsilon.com)
+
+- Rewrite ospf printer to improve truncation checks.
+
+- Don't parse tcp options past the EOL. As noted by David Sacerdote
+  (davids@secnet.com). Also, check tcp options to make sure they ar
+  actually in the tcp header (in addition to the normal truncation
+  checks). Fix the SACK code to print the N blocks (instead of the
+  first block N times).
+
+- Don't say really small UDP packets are truncated just because they
+  aren't big enough to be a RPC. As noted by David Sacerdote.
 
 v3.2.1 Sun Jul 14 03:02:26 PDT 1996
 

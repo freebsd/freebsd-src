@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996
+ * Copyright (c) 1990, 1993, 1994, 1995, 1996
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -17,33 +17,23 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * @(#) $Header: os-ultrix4.h,v 1.19 96/11/29 15:33:19 leres Exp $ (LBL)
  */
 
-#ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: machdep.c,v 1.3 96/12/10 23:24:28 leres Exp $ (LBL)";
+/* Prototypes missing in Ultrix 4 */
+int	bcmp(const char *, const char *, u_int);
+void	bcopy(const void *, void *, u_int);
+void	bzero(void *, u_int);
+void	endservent(void);
+int	getopt(int, char * const *, const char *);
+#ifdef __STDC__
+struct timeval;
+struct timezone;
 #endif
-
-#include <sys/types.h>
-#ifdef __osf__
-#include <sys/sysinfo.h>
-#include <sys/proc.h>
-#endif
-
-#include <pcap.h>
-
-#include "machdep.h"
-
-int
-abort_on_misalignment(char *ebuf)
-{
-#ifdef __osf__
-	static int buf[2] = { SSIN_UACPROC, UAC_SIGBUS };
-
-	if (setsysinfo(SSI_NVPAIRS, (caddr_t)buf, 1, 0, 0) < 0) {
-		(void)sprintf(ebuf, "setsysinfo: %s", pcap_strerror(errno));
-		return (-1);
-	}
-#endif
-	return (0);
-}
+int	gettimeofday(struct timeval *, struct timezone *);
+int	ioctl(int, int, caddr_t);
+int	pfopen(char *, int);
+int	setlinebuf(FILE *);
+int	socket(int, int, int);
+int	strcasecmp(const char *, const char *);
