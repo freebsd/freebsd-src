@@ -490,6 +490,8 @@ acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable)
     struct acpi_prw_data prw;
     int i;
 
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
     if (consumer == NULL)
 	return (AE_BAD_PARAMETER);
 
@@ -571,6 +573,8 @@ acpi_pwr_dereference_resource(struct acpi_powerconsumer *pc)
 {
     struct acpi_powerreference *pr;
     int changed;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     changed = 0;
     while ((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
