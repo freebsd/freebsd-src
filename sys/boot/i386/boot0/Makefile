@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		boot0
+PROG?=		boot0
 NOMAN=
 STRIP=
 BINDIR?=	/boot
@@ -23,22 +23,14 @@ BOOT_BOOT0_TICKS?=	0xb6
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x600
 
-boot0: boot0.o
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o boot0.out boot0.o
-	objcopy -S -O binary boot0.out ${.TARGET}
+${PROG}: ${PROG}.o
+	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${PROG}.out ${PROG}.o
+	objcopy -S -O binary ${PROG}.out ${.TARGET}
 
-boot0.o: boot0.s
+${PROG}.o: ${PROG}.s
 	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
 		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
 
-boot0sio: boot0sio.o
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o boot0sio.out boot0sio.o
-	objcopy -S -O binary boot0sio.out ${.TARGET}
-
-boot0sio.o: boot0sio.s
-	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
-		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
-
-CLEANFILES+= boot0.out boot0.o boot0sio.out boot0sio.o
+CLEANFILES+= ${PROG}.out ${PROG}.o
 
 .include <bsd.prog.mk>
