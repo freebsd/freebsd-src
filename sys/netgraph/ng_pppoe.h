@@ -76,7 +76,8 @@ enum cmd {
 	NGM_PPPOE_CLOSE    = 7,	/* Session closed down */
 	NGM_PPPOE_SERVICE  = 8,	/* additional Service to advertise (in PADO) */
 	NGM_PPPOE_ACNAME   = 9,	/* AC_NAME for informational purposes */
-	NGM_PPPOE_GET_STATUS
+	NGM_PPPOE_GET_STATUS = 10, /* data in/out */
+	NGM_PPPOE_SESSIONID  = 11  /* Session_ID for informational purposes */
 };
 
 /***********************
