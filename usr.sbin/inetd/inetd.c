@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.10 1996/01/01 08:42:23 peter Exp $";
+	"$Id: inetd.c,v 1.11 1996/02/07 17:15:01 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -781,7 +781,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 
         }
 	if (sep->se_socktype == SOCK_STREAM)
-		listen(sep->se_fd, 10);
+		listen(sep->se_fd, 64);
 	FD_SET(sep->se_fd, &allsock);
 	nsock++;
 	if (sep->se_fd > maxsock)
