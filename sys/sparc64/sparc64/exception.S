@@ -1301,15 +1301,6 @@ ENTRY(intr_enqueue)
 	stxa	%g0, [%g0] ASI_INTR_RECEIVE
 	membar	#Sync
 
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "intr_enqueue: data=%#lx %#lx %#lx"
-	    , %g1, %g2, %g6, 7, 8, 9)
-	stx	%g3, [%g1 + KTR_PARM1]
-	stx	%g4, [%g1 + KTR_PARM2]
-	stx	%g5, [%g1 + KTR_PARM3]
-9:
-#endif
-
 	/*
 	 * If the first data word is zero this is a direct cross trap request.
 	 * The 2nd word points to code to execute and the 3rd is an argument
@@ -1317,15 +1308,6 @@ ENTRY(intr_enqueue)
 	 */
 	brnz,a,pt %g3, 1f
 	 nop
-
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "intr_enqueue: direct ipi func=%#lx arg=%#lx"
-	    , %g1, %g2, %g6, 7, 8, 9)
-	stx	%g4, [%g1 + KTR_PARM1]
-	stx	%g5, [%g1 + KTR_PARM2]
-9:
-#endif
-
 	jmpl	%g4, %g0
 	 nop
 	/* NOTREACHED */
@@ -1348,43 +1330,16 @@ ENTRY(intr_enqueue)
 	sllx	%g3, IV_SHIFT, %g4
 	add	%g2, %g4, %g2
 
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "intr_enqueue: mondo vector func=%#lx arg=%#lx pri=%#lx"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	ldx	[%g2 + IV_FUNC], %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	ldx	[%g2 + IV_ARG], %g5
-	stx	%g5, [%g4 + KTR_PARM2]
-	ldx	[%g2 + IV_PRI], %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-9:
-#endif
-
 	ldx	[%g2 + IV_FUNC], %g4
 	ldx	[%g2 + IV_ARG], %g5
 	lduw	[%g2 + IV_PRI], %g6
-
-	ba,a	%xcc, 3f
-	 nop
 
 	/*
 	 * Get a intr_request from the free list.  There should always be one
 	 * unless we are getting an interrupt storm from stray interrupts, in
 	 * which case the we will deference a NULL pointer and panic.
 	 */
-2:
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "intr_enqueue: queued ipi func=%#lx arg=%#lx pri=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%g4, [%g1 + KTR_PARM1]
-	stx	%g5, [%g1 + KTR_PARM2]
-	stx	%g6, [%g1 + KTR_PARM3]
-9:
-	clr	%g3
-#endif
-
-3:
-	ldx	[PCPU(IRFREE)], %g1
+2:	ldx	[PCPU(IRFREE)], %g1
 	ldx	[%g1 + IR_NEXT], %g2
 	stx	%g2, [PCPU(IRFREE)]
 
@@ -1410,17 +1365,6 @@ ENTRY(intr_enqueue)
 	 */
 	mov	1, %g1
 	sllx	%g1, %g6, %g1
-
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "intr_enqueue: softint pil=%#lx pri=%#lx mask=%#lx"
-	    , %g2, %g3, %g4, 7, 8, 9)
-	rdpr	%pil, %g3
-	stx	%g3, [%g2 + KTR_PARM1]
-	stx	%g6, [%g2 + KTR_PARM2]
-	stx	%g1, [%g2 + KTR_PARM3]
-9:
-#endif
-
 	wr	%g1, 0, %asr20
 
 	/*
