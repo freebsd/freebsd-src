@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: _setjmp.S,v 1.7 1998/04/29 09:14:35 jb Exp $
+ *	$Id: _setjmp.S,v 1.1 1999/02/12 17:20:19 dcs Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: _setjmp.S,v 1.7 1998/04/29 09:14:35 jb Exp $"
+	.asciz "$Id: _setjmp.S,v 1.1 1999/02/12 17:20:19 dcs Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*
@@ -62,7 +62,6 @@ ENTRY(_setjmp)
 	movl	%ebp,12(%eax)
 	movl	%esi,16(%eax)
 	movl	%edi,20(%eax)
-	fnstcw	28(%eax)
 	xorl	%eax,%eax
 	ret
 
@@ -75,8 +74,6 @@ ENTRY(_longjmp)
 	movl	12(%edx),%ebp
 	movl	16(%edx),%esi
 	movl	20(%edx),%edi
-	fninit
-	fldcw	28(%edx)
 	testl	%eax,%eax
 	jnz	1f
 	incl	%eax
