@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.9 1998/11/16 19:48:26 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.10 1998/12/04 18:44:21 rvb Exp $
  * 
  */
 
@@ -48,6 +48,9 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.10  1998/12/04 18:44:21  rvb
+ * Don't print diagnostic anymore
+ *
  * Revision 1.9  1998/11/16 19:48:26  rvb
  * A few bug fixes for Robert Watson
  *
@@ -502,7 +505,7 @@ coda_open(v)
     }
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
     if (vp->v_type == VREG) {
-    	error = vfs_object_create(vp, p, cred, 1);
+    	error = vfs_object_create(vp, p, cred);
 	if (error != 0) {
 	    printf("coda_open: vfs_object_create() returns %d\n", error);
 	    vput(vp);
@@ -662,7 +665,7 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
 		return (error);
 	    }
 	    if (vp->v_type == VREG) {
-		error = vfs_object_create(vp, p, cred, 1);
+		error = vfs_object_create(vp, p, cred);
 		if (error != 0) {
 		    printf("coda_rdwr: vfs_object_create() returns %d\n", error);
 		    vput(vp);
@@ -1885,7 +1888,7 @@ printf("coda_readdir: Internally Opening %p\n", vp);
 		return (error);
 	    }
 	    if (vp->v_type == VREG) {
-		error = vfs_object_create(vp, p, cred, 1);
+		error = vfs_object_create(vp, p, cred);
 		if (error != 0) {
 		    printf("coda_readdir: vfs_object_create() returns %d\n", error);
 		    vput(vp);

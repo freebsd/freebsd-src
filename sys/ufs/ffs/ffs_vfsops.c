@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.92 1998/10/31 15:31:27 peter Exp $
+ * $Id: ffs_vfsops.c,v 1.93 1999/01/02 01:32:36 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -460,7 +460,7 @@ ffs_reload(mp, cred, p)
 	 */
 	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		vfs_object_create(devvp, p, p->p_ucred, 1);
+		vfs_object_create(devvp, p, p->p_ucred);
 		simple_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
@@ -617,7 +617,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 */
 	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		vfs_object_create(devvp, p, p->p_ucred, 1);
+		vfs_object_create(devvp, p, p->p_ucred);
 		simple_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
