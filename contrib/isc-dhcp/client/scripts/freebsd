@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# $FreeBSD$
+
 if [ -x /usr/bin/logger ]; then
 	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
 else
@@ -111,7 +113,6 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
      [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
     ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium
-    route add $new_ip_address 127.1 >/dev/null 2>&1
     for router in $new_routers; do
       route add default $router >/dev/null 2>&1
     done
@@ -127,7 +128,6 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   if [ x$new_ip_address != x$alias_ip_address ] && [ x$alias_ip_address != x ];
    then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
-    route add $alias_ip_address 127.0.0.1
   fi
   echo search $new_domain_name >/etc/resolv.conf
   for nameserver in $new_domain_name_servers; do
@@ -159,7 +159,6 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
   fi
   if [ x$alias_ip_address != x ]; then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
-    route add $alias_ip_address 127.0.0.1
   fi
   exit_with_hooks 0
 fi
@@ -179,9 +178,7 @@ if [ x$reason = xTIMEOUT ]; then
       if [ x$new_ip_address != x$alias_ip_address ] && \
 			[ x$alias_ip_address != x ]; then
 	ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
-	route add $alias_ip_address 127.0.0.1
       fi
-      route add $new_ip_address 127.1 >/dev/null 2>&1
       for router in $new_routers; do
 	route add default $router >/dev/null 2>&1
       done
