@@ -886,7 +886,7 @@ no_kernend:
 /* install a pde recursively mapping page directory as a page table */
 	movl	R(IdlePTD), %eax
 	movl	$PTDPTDI, %ebx
-	movl	$1,%ecx
+	movl	$NPGPTD,%ecx
 	fillkpt(R(IdlePTD), $PG_RW)
 
 	ret
