@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 	eofstr = "";
 	Jflag = nflag = 0;
 
-	(void)setlocale(LC_MESSAGES, "");
+	(void)setlocale(LC_ALL, "");
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
