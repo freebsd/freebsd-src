@@ -22,12 +22,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	int __generic_finite(double x)
-#else
-	int __generic_finite(x)
-	double x;
-#endif
 {
 	int32_t hx;
 	GET_HIGH_WORD(hx,x);

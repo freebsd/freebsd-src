@@ -20,12 +20,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	float significandf(float x)
-#else
-	float significandf(x)
-	float x;
-#endif
 {
 	return __ieee754_scalbf(x,(float) -ilogbf(x));
 }

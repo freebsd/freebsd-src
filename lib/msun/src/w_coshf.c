@@ -24,12 +24,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	float coshf(float x)		/* wrapper coshf */
-#else
-	float coshf(x)			/* wrapper coshf */
-	float x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_coshf(x);

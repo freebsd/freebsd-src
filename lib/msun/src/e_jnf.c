@@ -20,27 +20,14 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float
-#else
-static float
-#endif
 invsqrtpi=  5.6418961287e-01, /* 0x3f106ebb */
 two   =  2.0000000000e+00, /* 0x40000000 */
 one   =  1.0000000000e+00; /* 0x3F800000 */
 
-#ifdef __STDC__
 static const float zero  =  0.0000000000e+00;
-#else
-static float zero  =  0.0000000000e+00;
-#endif
 
-#ifdef __STDC__
 	float __ieee754_jnf(int n, float x)
-#else
-	float __ieee754_jnf(n,x)
-	int n; float x;
-#endif
 {
 	int32_t i,hx,ix, sgn;
 	float a, b, temp, di;
@@ -172,12 +159,7 @@ static float zero  =  0.0000000000e+00;
 	if(sgn==1) return -b; else return b;
 }
 
-#ifdef __STDC__
 	float __ieee754_ynf(int n, float x)
-#else
-	float __ieee754_ynf(n,x)
-	int n; float x;
-#endif
 {
 	int32_t i,hx,ix,ib;
 	int32_t sign;

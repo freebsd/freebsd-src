@@ -20,12 +20,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	float sinf(float x)
-#else
-	float sinf(x)
-	float x;
-#endif
 {
 	float y[2],z=0.0;
 	int32_t n, ix;

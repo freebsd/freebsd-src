@@ -21,12 +21,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 #include <errno.h>
 
-#ifdef __STDC__
 	float ldexpf(float value, int exp)
-#else
-	float ldexpf(value, exp)
-	float value; int exp;
-#endif
 {
 	if(!finitef(value)||value==(float)0.0) return value;
 	value = scalbnf(value,exp);
