@@ -422,6 +422,14 @@ If they aren't found, the standard
 .Pa passwd
 maps will be used instead.
 .Sh COMPATIBILITY
+When using a non-FreeBSD NIS server for
+.Xr passwd 5
+files, it is unlikely that the default MD5-based format that FreeBSD
+uses for passwords will be accepted by it.
+If this is the case, the value of the "passwd_format" setting in
+.Xr login.conf 5
+should be changed to "des" for compatibility.
+.Pp
 Some systems, such as SunOS 4.x, need
 .Tn NIS
 to be running in order
