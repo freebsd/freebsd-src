@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ftree.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ftree.c,v 1.10 1998/05/15 06:27:42 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -508,14 +508,14 @@ next_file(arcn)
 			 * have to read the symlink path from the file
 			 */
 			if ((cnt = readlink(ftent->fts_path, arcn->ln_name,
-			    PAXPATHLEN)) < 0) {
+			    PAXPATHLEN - 1)) < 0) {
 				sys_warn(1, errno, "Unable to read symlink %s",
 				    ftent->fts_path);
 				continue;
 			}
 			/*
 			 * set link name length, watch out readlink does not
-			 * allways null terminate the link path
+			 * allways NUL terminate the link path
 			 */
 			arcn->ln_name[cnt] = '\0';
 			arcn->ln_nlen = cnt;
