@@ -44,7 +44,6 @@
 #include <sys/param.h>
 #include <sys/blist.h>
 #include <sys/dkstat.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -52,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+#include <sys/jail.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

@@ -46,6 +46,7 @@
 #include <sys/socketvar.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/jail.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -915,7 +916,8 @@ sysctl_iflist(af, w)
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
-			if (curproc->p_prison && prison_if(curproc, ifa->ifa_addr))
+			if (jailed(curproc->p_ucred) &&
+			    prison_if(curproc->p_ucred, ifa->ifa_addr))
 				continue;
 			ifaaddr = ifa->ifa_addr;
 			netmask = ifa->ifa_netmask;

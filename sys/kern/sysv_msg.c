@@ -278,7 +278,7 @@ msgsys(p, uap)
 	} */ *uap;
 {
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
@@ -334,7 +334,7 @@ msgctl(p, uap)
 	printf("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);
@@ -473,7 +473,7 @@ msgget(p, uap)
 	printf("msgget(0x%x, 0%o)\n", key, msgflg);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	if (key != IPC_PRIVATE) {
@@ -588,7 +588,7 @@ msgsnd(p, uap)
 	    msgflg);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);
@@ -915,7 +915,7 @@ msgrcv(p, uap)
 	    msgsz, msgtyp, msgflg);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);

@@ -1299,15 +1299,6 @@ loop:
 				q->p_cred = NULL;
 			}
 
-	                /*
-			 * Destroy empty prisons
-			 */
-			if (q->p_prison && !--q->p_prison->pr_ref) {
-				if (q->p_prison->pr_linux != NULL)
-					FREE(q->p_prison->pr_linux, M_PRISON);
-				FREE(q->p_prison, M_PRISON);
-			}
-
 			/*
 			 * Remove unused arguments
 			 */

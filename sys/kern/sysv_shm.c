@@ -229,7 +229,7 @@ shmdt(p, uap)
 	struct shmmap_state *shmmap_s;
 	int i;
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
@@ -266,7 +266,7 @@ shmat(p, uap)
 	vm_size_t size;
 	int rv;
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
@@ -360,7 +360,7 @@ oshmctl(p, uap)
 	struct shmid_ds *shmseg;
 	struct oshmid_ds outbuf;
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
@@ -411,7 +411,7 @@ shmctl(p, uap)
 	struct shmid_ds inbuf;
 	struct shmid_ds *shmseg;
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
@@ -590,7 +590,7 @@ shmget(p, uap)
 {
 	int segnum, mode, error;
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	mode = uap->shmflg & ACCESSPERMS;
@@ -621,7 +621,7 @@ shmsys(p, uap)
 	} */ *uap;
 {
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))

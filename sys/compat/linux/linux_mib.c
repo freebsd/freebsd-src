@@ -117,9 +117,10 @@ get_prison(struct proc *p)
 	register struct prison *pr;
 	register struct linux_prison *lpr;
 
-	pr = p->p_prison;
-	if (pr == NULL)
+	if (!jailed(p->p_ucred))
 		return (NULL);
+
+	pr = p->p_ucred->cr_prison;
 
 	if (pr->pr_linux == NULL) {
 		MALLOC(lpr, struct linux_prison *, sizeof *lpr,
@@ -137,7 +138,7 @@ linux_get_osname(p)
 	register struct prison *pr;
 	register struct linux_prison *lpr;
 
-	pr = p->p_prison;
+	pr = p->p_ucred->cr_prison;
 	if (pr != NULL && pr->pr_linux != NULL) {
 		lpr = pr->pr_linux;
 		if (lpr->pr_osname[0])
@@ -170,7 +171,7 @@ linux_get_osrelease(p)
 	register struct prison *pr;
 	register struct linux_prison *lpr;
 
-	pr = p->p_prison;
+	pr = p->p_ucred->cr_prison;
 	if (pr != NULL && pr->pr_linux != NULL) {
 		lpr = pr->pr_linux;
 		if (lpr->pr_osrelease[0])
@@ -203,7 +204,7 @@ linux_get_oss_version(p)
 	register struct prison *pr;
 	register struct linux_prison *lpr;
 
-	pr = p->p_prison;
+	pr = p->p_ucred->cr_prison;
 	if (pr != NULL && pr->pr_linux != NULL) {
 		lpr = pr->pr_linux;
 		if (lpr->pr_oss_version)

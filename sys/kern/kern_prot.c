@@ -56,6 +56,7 @@
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
+#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
@@ -941,15 +942,15 @@ SYSCTL_INT(_kern, OID_AUTO, suser_permitted, CTLFLAG_RW, &suser_permitted, 0,
  */
 int
 suser(p)
-	const struct proc *p;
+	struct proc *p;
 {
 	return suser_xxx(0, p, 0);
 }
 
 int
 suser_xxx(cred, proc, flag)
-	const struct ucred *cred;
-	const struct proc *proc;
+	struct ucred *cred;
+	struct proc *proc;
 	int flag;
 {
 	if (!suser_permitted)
@@ -962,20 +963,21 @@ suser_xxx(cred, proc, flag)
 		cred = proc->p_ucred;
 	if (cred->cr_uid != 0) 
 		return (EPERM);
-	if (proc && proc->p_prison && !(flag & PRISON_ROOT))
+	if (jailed(cred) && !(flag & PRISON_ROOT))
 		return (EPERM);
 	return (0);
 }
 
 static int
-p_cansee(const struct proc *p1, const struct proc *p2, int *privused)
+p_cansee(struct proc *p1, struct proc *p2, int *privused)
 {
+	int error;
 
 	if (privused != NULL)
 		*privused = 0;
 
-	if (!PRISON_CHECK(p1, p2))
-		return (ESRCH);
+	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+		return (error);
 
 	if (!ps_showallprocs && p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
 		if (suser_xxx(NULL, p1, PRISON_ROOT) == 0) {
@@ -990,8 +992,9 @@ p_cansee(const struct proc *p1, const struct proc *p2, int *privused)
 }
 
 static int
-p_cankill(const struct proc *p1, const struct proc *p2, int *privused)
+p_cankill(struct proc *p1, struct proc *p2, int *privused)
 {
+	int error;
 
 	if (privused != NULL)
 		*privused = 0;
@@ -999,8 +1002,8 @@ p_cankill(const struct proc *p1, const struct proc *p2, int *privused)
 	if (p1 == p2)
 		return (0);
 
-	if (!PRISON_CHECK(p1, p2))
-		return (ESRCH);
+	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+		return (error);
 
 	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
 		return (0);
@@ -1033,8 +1036,9 @@ p_cankill(const struct proc *p1, const struct proc *p2, int *privused)
 }
 
 static int
-p_cansched(const struct proc *p1, const struct proc *p2, int *privused)
+p_cansched(struct proc *p1, struct proc *p2, int *privused)
 {
+	int error;
 
 	if (privused != NULL)
 		*privused = 0;
@@ -1042,8 +1046,8 @@ p_cansched(const struct proc *p1, const struct proc *p2, int *privused)
 	if (p1 == p2)
 		return (0);
 
-	if (!PRISON_CHECK(p1, p2))
-		return (ESRCH);
+	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+		return (error);
 
 	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
 		return (0);
@@ -1076,9 +1080,9 @@ p_cansched(const struct proc *p1, const struct proc *p2, int *privused)
 }
 
 static int
-p_candebug(const struct proc *p1, const struct proc *p2, int *privused)
+p_candebug(struct proc *p1, struct proc *p2, int *privused)
 {
-	int	error;
+	int error;
 
 	if (privused != NULL)
 		*privused = 0;
@@ -1087,8 +1091,8 @@ p_candebug(const struct proc *p1, const struct proc *p2, int *privused)
 	if (p1 == p2)
 		return (0);
 
-	if (!PRISON_CHECK(p1, p2))
-		return (ESRCH);
+	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+		return (error);
 
 	/* not owned by you, has done setuid (unless you're root) */
 	/* add a CAP_SYS_PTRACE here? */
@@ -1110,7 +1114,7 @@ p_candebug(const struct proc *p1, const struct proc *p2, int *privused)
 }
 
 int
-p_can(const struct proc *p1, const struct proc *p2, int operation,
+p_can(struct proc *p1, struct proc *p2, int operation,
     int *privused)
 {
 
@@ -1180,6 +1184,11 @@ crfree(cr)
 		 */
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
+		/*
+		 * Free a prison, if any.
+		 */
+		if (jailed(cr))
+			prison_free(cr->cr_prison);
 		FREE((caddr_t)cr, M_CRED);
 	} else {
 		mtx_unlock(&cr->cr_mtx);
@@ -1219,6 +1228,8 @@ crdup(cr)
 	*newcr = *cr;
 	mtx_init(&newcr->cr_mtx, "ucred", MTX_DEF);
 	uihold(newcr->cr_uidinfo);
+	if (jailed(newcr))
+		prison_hold(newcr->cr_prison);
 	newcr->cr_ref = 1;
 	return (newcr);
 }

@@ -48,6 +48,7 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
@@ -519,6 +520,7 @@ ktrwrite(vp, kth, uio)
  * so, only root may further change it.
  *
  * XXX: These checks are stronger than for ptrace()
+ * XXX: This check should be p_can(... P_CAN_DEBUG ...);
  *
  * TODO: check groups.  use caller effective gid.
  */
@@ -529,7 +531,7 @@ ktrcanset(callp, targetp)
 	register struct pcred *caller = callp->p_cred;
 	register struct pcred *target = targetp->p_cred;
 
-	if (!PRISON_CHECK(callp, targetp))
+	if (prison_check(callp->p_ucred, targetp->p_ucred))
 		return (0);
 	if ((caller->pc_ucred->cr_uid == target->p_ruid &&
 	     target->p_ruid == target->p_svuid &&

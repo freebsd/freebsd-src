@@ -141,7 +141,7 @@ socreate(dom, aso, type, proto, p)
 	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
 		return (EPROTONOSUPPORT);
 
-	if (p->p_prison && jail_socket_unixiproute_only &&
+	if (jailed(p->p_ucred) && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
 	    prp->pr_domain->dom_family != PF_ROUTE) {

@@ -64,6 +64,7 @@
 #include <sys/proc.h>
 #include <sys/dirent.h>
 #include <sys/extattr.h>
+#include <sys/jail.h>
 
 #include <machine/limits.h>
 #include <miscfs/union/union.h>
@@ -610,7 +611,7 @@ quotactl(p, uap)
 	int error;
 	struct nameidata nd;
 
-	if (p->p_prison && !prison_quotas)
+	if (jailed(p->p_ucred) && !prison_quotas)
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
