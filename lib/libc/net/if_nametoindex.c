@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <ifaddrs.h>
@@ -59,8 +60,20 @@ __FBSDID("$FreeBSD$");
 unsigned int
 if_nametoindex(const char *ifname)
 {
+	int s;
+	struct ifreq ifr;
 	struct ifaddrs *ifaddrs, *ifa;
 	unsigned int ni;
+
+	s = _socket(AF_INET, SOCK_DGRAM, 0);
+	if (s != -1) {
+		strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+		if (_ioctl(s, SIOCGIFINDEX, &ifr) != -1) {
+			_close(s);
+			return (ifr.ifr_index);
+		}
+		_close(s);
+	}
 
 	if (getifaddrs(&ifaddrs) < 0)
 		return(0);
