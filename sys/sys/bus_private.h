@@ -93,6 +93,7 @@ struct device {
      * Device hierarchy.
      */
     TAILQ_ENTRY(device)	link;	/* list of devices in parent */
+    TAILQ_ENTRY(device)	devlink; /* global device list membership */
     device_t		parent;
     device_list_t	children; /* list of subordinate devices */
 
@@ -117,10 +118,6 @@ struct device {
 #define DF_EXTERNALSOFTC 64	/* softc not allocated by us */
     u_char		order;	/* order from device_add_child_ordered() */
     u_char		pad;
-#ifdef DEVICE_SYSCTLS
-    struct sysctl_oid	oid[4];
-    struct sysctl_oid_list oidlist[1];
-#endif
     void		*ivars;
     void		*softc;
 };
