@@ -213,7 +213,9 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #ifdef VINUMDEBUG
 	if (total_malloced) {
 	    int i;
+#ifdef INVARIANTS
 	    int *poke;
+#endif
 
 	    for (i = 0; i < malloccount; i++) {
 		if (debug & DEBUG_EXITFREE)		    /* want to hear about them */
