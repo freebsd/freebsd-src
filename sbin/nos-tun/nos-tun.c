@@ -49,24 +49,26 @@
  */
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
-#include <sys/param.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/signal.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <net/if.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /* Tunnel interface configuration stuff */
 static struct ifaliasreq ifra;
@@ -75,6 +77,8 @@ static struct ifreq ifrq;
 /* Global descriptors */
 int net;                          /* socket descriptor */
 int tun;                          /* tunnel descriptor */
+
+static void usage __P((void));
 
 int Set_address(char *addr, struct sockaddr_in *sin)
 {
@@ -241,7 +245,7 @@ int main (int argc, char **argv)
   int nfds;                         /* Return from select() */
 
 
-  while ((c = getopt(argc, argv, "d:s:t:")) != EOF) {
+  while ((c = getopt(argc, argv, "d:s:t:")) != -1) {
     switch (c) {
     case 'd':
       to_point = optarg;
@@ -259,9 +263,7 @@ int main (int argc, char **argv)
 
   if (argc != 1 || (devname == NULL) ||
       (point_to == NULL) || (to_point == NULL)) {
-    fprintf(stderr,
-      "Usage: nos_tun -t <tun_name> -s <source_addr> -d <dest_addr> <target_addr>\n");
-    exit(1);
+    usage();
   }
 
   target = *argv;
@@ -341,5 +343,13 @@ int main (int argc, char **argv)
       }
     }
   }
+}
+
+static void
+usage()
+{
+	fprintf(stderr,
+"usage: nos_tun -t <tun_name> -s <source_addr> -d <dest_addr> <target_addr>\n");
+	exit(1);
 }
 
