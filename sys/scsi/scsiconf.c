@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.34 1995/08/23 23:03:33 gibbs Exp $
+ *      $Id: scsiconf.c,v 1.35 1995/10/09 15:14:59 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include "st.h"
 #include "cd.h"
 #include "ch.h"
+#include "od.h"
 #include "worm.h"
 
 #include "su.h"
@@ -63,7 +64,8 @@ struct extend_array
 
 static errval scsi_attach_sctarg __P((void));
 
-static void *extend_alloc(size_t s)
+static void *
+extend_alloc(size_t s)
 {
 	void *p = malloc(s, M_DEVBUF, M_NOWAIT);
 	if (!p)
@@ -71,7 +73,8 @@ static void *extend_alloc(size_t s)
 	return p;
 }
 
-static void extend_free(void *p) { free(p, M_DEVBUF); }
+static void
+extend_free(void *p) { free(p, M_DEVBUF); }
 
 /* EXTEND_CHUNK: Number of extend slots to allocate whenever we need a new
  * one.
@@ -80,7 +83,8 @@ static void extend_free(void *p) { free(p, M_DEVBUF); }
 	#define EXTEND_CHUNK 8
 #endif
 
-struct extend_array *extend_new(void)
+struct extend_array *
+extend_new(void)
 {
 	struct extend_array *p = extend_alloc(sizeof(*p));
 	if (p) {
@@ -91,7 +95,8 @@ struct extend_array *extend_new(void)
 	return p;
 }
 
-void *extend_set(struct extend_array *ea, int index, void *value)
+void *
+extend_set(struct extend_array *ea, int index, void *value)
 {
 	if (index >= ea->nelem) {
 		void **space;
@@ -117,14 +122,16 @@ void *extend_set(struct extend_array *ea, int index, void *value)
 	return value;
 }
 
-void *extend_get(struct extend_array *ea, int index)
+void *
+extend_get(struct extend_array *ea, int index)
 {
 	if (ea == NULL || index >= ea->nelem || index < 0)
 		return NULL;
 	return ea->ps[index];
 }
 
-void extend_release(struct extend_array *ea, int index)
+void
+extend_release(struct extend_array *ea, int index)
 {
 	void *p = extend_get(ea, index);
 	if (p) {
@@ -149,6 +156,9 @@ struct extend_array *scbusses;
  */
 struct scsidevs {
 	u_int32 type;
+#ifdef NEW_SCSICONF
+	u_int32 driver;		/* normally the same as type */
+#endif
 	boolean removable;
 	char   *manufacturer;
 	char   *model;
@@ -165,11 +175,19 @@ struct scsidevs {
 #define	SC_ONE_LU	0x00
 #define	SC_MORE_LUS	0x02
 
+#ifdef NEW_SCSICONF
+static struct scsidevs unknowndev =
+	{
+		T_UNKNOWN, T_UNKNOWN, 0, "*", "*", "*",
+		"uk", SC_MORE_LUS
+	};
+#else /* !NEW_SCSICONF */
 static struct scsidevs unknowndev =
 	{
 		T_UNKNOWN, 0, "*", "*", "*",
 		"uk", SC_MORE_LUS
 	};
+#endif /* NEW_SCSICONF */
 
 #ifdef NEW_SCSICONF
 static st_modes mode_tandberg3600 =
@@ -219,75 +237,90 @@ static st_modes mode_unktape =
 static struct scsidevs knowndevs[] =
 #ifdef NEW_SCSICONF
 {
+/* od's must be probed before sd's since some of them identify as T_DIRECT */
+#if NOD > 0
+	{
+		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000", "*",
+		"od", SC_MORE_LUS
+	},
+	{
+		T_DIRECT, T_OPTICAL, T_REMOV, "SONY", "SMO-*", "*",
+		"od", SC_MORE_LUS
+	},
+	{
+		T_OPTICAL, T_OPTICAL, T_REMOV, "*", "*", "*",
+		"od", SC_ONE_LU
+	},
+#endif	/* NOD */
 #if NSD > 0
 	{
-		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
+		T_DIRECT, T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
 		"mx1", SC_ONE_LU
 	},
 	{
-		T_DIRECT, T_FIXED, "*", "*", "*",
+		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
 		"sd", SC_ONE_LU
 	},
 #endif	/* NSD */
 #if NST > 0
 	{
-		T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 3600", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 3600", "*",
 		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_tandberg3600
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 2525*", "-005",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 2525*", "-005",
 		"st", SC_ONE_LU, 0, mode_archive2525
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150", "*",
 		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_archive150
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "WANGTEK", "5525ES*", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "WANGTEK", "5525ES*", "*",
 		"st", SC_ONE_LU, 0, mode_wangtek5525
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "WangDAT", "Model 1300", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "WangDAT", "Model 1300", "*",
 		"st", SC_ONE_LU, 0, mode_wangdat1300
 	},
 	{
-		T_SEQUENTIAL, T_REMOV, "*", "*", "*",
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "*", "*", "*",
 		"st", SC_ONE_LU, 0, mode_unktape
 	},
 #endif	/* NST */
 #if NCH > 0
 	{
-		T_CHANGER, T_REMOV, "*", "*", "*",
+		T_CHANGER, T_CHANGER, T_REMOV, "*", "*", "*",
 		"ch", SC_ONE_LU
 	},
 #endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8012", "3.1a",
+		T_READONLY, T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8012", "3.1a",
 		"cd", SC_ONE_LU
 	},
 	{
-		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
+		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
 		"cd", SC_MORE_LUS
 	},
 	{
-		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X" ,"*",
+		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X" ,"*",
 		"cd", SC_MORE_LUS
 	},
 	{
-		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
+		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
 		"cd", SC_ONE_LU
 	},
 #endif /* !UKTEST */
 #endif	/* NCD */
 #if NWORM > 0
 	{
-		T_WORM, T_REMOV, "YAMAHA", "CDR100", "*",
+		T_WORM, T_WORM, T_REMOV, "YAMAHA", "CDR100", "*",
 		"worm", SC_ONE_LU
 	},
 	{
-		T_WORM, T_REMOV, "*", "*", "*",
+		T_WORM, T_WORM, T_REMOV, "*", "*", "*",
 		"worm", SC_ONE_LU
 	},
 #endif /* NWORM */
@@ -307,6 +340,16 @@ static struct scsidevs knowndevs[] =
 		    ,"B5A ", "mx1", SC_ONE_LU
 	},
 #endif	/* NSD */
+#if NOD > 0
+	{
+		T_OPTICAL, T_REMOV, "standard", "any"
+		    ,"any", "od", SC_ONE_LU
+	},
+	{
+		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000"
+		    ,"any", "od", SC_MORE_LUS
+	},
+#endif	/* NOD */
 #if NST > 0
 	{
 		T_SEQUENTIAL, T_REMOV, "standard", "any"
@@ -634,13 +677,16 @@ scsi_sctarg_lookup(char *name, int unit, int *target, int *lun, int *bus)
 }
 #endif /* NSCTARG > 0 */
 
-void scsi_configure_start(void)
+void
+scsi_configure_start(void)
 {
 	scsi_init();
 }
 
-void scsi_configure_finish(void)
+void
+scsi_configure_finish(void)
 {
+
 #if NSCTARG > 0
 	scsi_attach_sctarg();
 #endif
@@ -809,7 +855,7 @@ scsi_set_bus(int bus, struct scsi_link *sc_link)
  * 2. Via the minor number.  That takes precedence over the config file.
  */
 static errval
-	scsi_attach_sctarg()
+scsi_attach_sctarg()
 {
 	struct scsi_link *sc_link = NULL;
 	int dev_unit;
@@ -1214,7 +1260,12 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	if (bestmatch == &unknowndev)
 		*type_p = type;
 	else
-		*type_p = bestmatch->type;
+		*type_p =
+#ifdef NEW_SCSICONF
+			bestmatch->driver;
+#else
+			bestmatch->type;
+#endif
 
 	return bestmatch;
 }
