@@ -28,9 +28,7 @@ ldconfig_start()
 			fi
 		done
 		echo 'ELF ldconfig path:' ${_LDC}
-ldconfig -r >/tmp/ldcon.`basename $0`.0before
 		${ldconfig} -elf ${_ins} ${_LDC}
-ldconfig -r >/tmp/ldcon.`basename $0`.1after
 
 		# Legacy aout support for i386 only
 		case `sysctl -n hw.machine_arch` in
