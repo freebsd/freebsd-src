@@ -13,7 +13,7 @@
  * Erez Zadok <ezk@cs.columbia.edu>
  *
  * DO NOT EDIT BY HAND.
- * Note: accconfig.h generates config.h.in, which generates config.h.
+ * Note: acconfig.h generates config.h.in, which generates config.h.
  */
 
 #ifndef _CONFIG_H
@@ -45,7 +45,7 @@
 /* Define if have symbolic-link filesystem */
 #define HAVE_AM_FS_LINK 1
 
-/* Define if have symlink with exitence check filesystem */
+/* Define if have symlink with existence check filesystem */
 #define HAVE_AM_FS_LINKX 1
 
 /* Define if have NFS host-tree filesystem */
@@ -59,9 +59,6 @@
 
 /* Define if have union filesystem */
 #define HAVE_AM_FS_UNION 1
-
-/* Define if have Sun's autofs filesystem (NO LONGER NEEDED?) */
-/* #undef HAVE_AM_FS_AUTOFS */
 
 
 /*
@@ -446,7 +443,7 @@
  */
 
 /* asynchronous filesystem access */
-/* #undef MNT2_GEN_OPT_ASYNC */
+#define MNT2_GEN_OPT_ASYNC 0x40
 
 /* cache (what?) */
 /* #undef MNT2_GEN_OPT_CACHE */
@@ -456,6 +453,9 @@
 
 /* old (4-argument) mount (compatibility) */
 /* #undef MNT2_GEN_OPT_FSS */
+
+/* ignore mount entry in df output */
+/* #undef MNT2_GEN_OPT_IGNORE */
 
 /* journaling filesystem (AIX's UFS/FFS) */
 /* #undef MNT2_GEN_OPT_JFS */
@@ -512,7 +512,7 @@
 /* #undef MNT2_GEN_OPT_SYNC */
 
 /* synchronous filesystem access (same as SYNC) */
-/* #undef MNT2_GEN_OPT_SYNCHRONOUS */
+#define MNT2_GEN_OPT_SYNCHRONOUS 0x2
 
 /* Mount with Sys 5-specific semantics */
 /* #undef MNT2_GEN_OPT_SYS5 */
@@ -543,7 +543,7 @@
 /* #undef MNT2_NFS_OPT_AUTHERR */
 
 /* set dead server retry thresh */
-/* #undef MNT2_NFS_OPT_DEADTHRESH */
+#define MNT2_NFS_OPT_DEADTHRESH 0x4000
 
 /* Dismount in progress */
 /* #undef MNT2_NFS_OPT_DISMINPROG */
@@ -585,7 +585,7 @@
 /* #undef MNT2_NFS_OPT_KNCONF */
 
 /* set lease term (nqnfs) */
-/* #undef MNT2_NFS_OPT_LEASETERM */
+#define MNT2_NFS_OPT_LEASETERM 0x1000
 
 /* Local locking (no lock manager) */
 /* #undef MNT2_NFS_OPT_LLOCK */
@@ -618,7 +618,7 @@
 /* #undef MNT2_NFS_OPT_NQLOOKLEASE */
 
 /* Use Nqnfs protocol */
-/* #undef MNT2_NFS_OPT_NQNFS */
+#define MNT2_NFS_OPT_NQNFS 0x100
 
 /* static pathconf kludge info */
 /* #undef MNT2_NFS_OPT_POSIX */
@@ -630,12 +630,12 @@
 /* #undef MNT2_NFS_OPT_RDIRALOOK */
 
 /* set read ahead */
-/* #undef MNT2_NFS_OPT_READAHEAD */
+#define MNT2_NFS_OPT_READAHEAD 0x2000
 
 /* Allocate a reserved port */
 #define MNT2_NFS_OPT_RESVPORT 0x8000
 
-/* set number of request retrys */
+/* set number of request retries */
 #define MNT2_NFS_OPT_RETRANS 0x10
 
 /* read only */
@@ -778,7 +778,7 @@
 /* does ufs_ars_t have ufs_pgthresh field? */
 /* #undef HAVE_FIELD_UFS_ARGS_T_UFS_PGTHRESH */
 
-/* does struct fhstatus have an fhs_fh field? */
+/* does struct fhstatus have a fhs_fh field? */
 /* #undef HAVE_FIELD_STRUCT_FHSTATUS_FHS_FH */
 
 /* does struct statfs have an f_fstypename field? */
@@ -790,14 +790,20 @@
 /* does struct nfs_args have an acregmin field? */
 #define HAVE_FIELD_NFS_ARGS_T_ACREGMIN 1
 
+/* does struct nfs_args have a bsize field? */
+/* #undef HAVE_FIELD_NFS_ARGS_T_BSIZE */
+
 /* does struct nfs_args have an fh_len field? */
 /* #undef HAVE_FIELD_NFS_ARGS_T_FH_LEN */
 
 /* does struct nfs_args have an fhsize field? */
 #define HAVE_FIELD_NFS_ARGS_T_FHSIZE 1
 
-/* does struct nfs_args have an gfs_flags field? */
+/* does struct nfs_args have a gfs_flags field? */
 /* #undef HAVE_FIELD_NFS_ARGS_T_GFS_FLAGS */
+
+/* does struct nfs_args have a namlen field? */
+/* #undef HAVE_FIELD_NFS_ARGS_T_NAMLEN */
 
 /* does struct nfs_args have an optstr field? */
 /* #undef HAVE_FIELD_NFS_ARGS_T_OPTSTR */
@@ -813,6 +819,9 @@
 
 /* does struct ifreq have field ifr_addr? */
 #define HAVE_FIELD_STRUCT_IFREQ_IFR_ADDR 1
+
+/* does struct ifaddrs have field ifa_next? */
+/* #undef HAVE_FIELD_STRUCT_IFADDRS_IFA_NEXT */
 
 /* does struct sockaddr have field sa_len? */
 #define HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN 1
@@ -840,8 +849,15 @@
 /* #undef _ALL_SOURCE */
 #endif
 
+/* Define if using alloca.c.  */
+/* #undef C_ALLOCA */
+
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
+
+/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
+   This function is required for alloca.c support on those systems.  */
+/* #undef CRAY_STACKSEG_END */
 
 /* Define to the type of elements in the array set by `getgroups'.
    Usually this is either `int' or `gid_t'.  */
@@ -849,6 +865,12 @@
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef gid_t */
+
+/* Define if you have alloca, as a function or macro.  */
+#define HAVE_ALLOCA 1
+
+/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
+/* #undef HAVE_ALLOCA_H */
 
 /* Define if you support file names longer than 14 characters.  */
 #define HAVE_LONG_FILE_NAMES 1
@@ -872,14 +894,8 @@
 /* Define as __inline if that's what the C compiler calls it.  */
 /* #undef inline */
 
-/* Define to `int' if <sys/types.h> doesn't define.  */
-/* #undef mode_t */
-
 /* Define if your C compiler doesn't accept -c and -o together.  */
 /* #undef NO_MINUS_C_MINUS_O */
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-/* #undef pid_t */
 
 /* Define if you need to in order for stat and other things to work.  */
 /* #undef _POSIX_SOURCE */
@@ -887,8 +903,14 @@
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
 
-/* Define to `unsigned' if <sys/types.h> doesn't define.  */
-/* #undef size_t */
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+ STACK_DIRECTION > 0 => grows toward higher addresses
+ STACK_DIRECTION < 0 => grows toward lower addresses
+ STACK_DIRECTION = 0 => direction of growth unknown
+ */
+/* #undef STACK_DIRECTION */
 
 /* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
 /* #undef STAT_MACROS_BROKEN */
@@ -932,7 +954,7 @@
 #define PACKAGE "am-utils"
 
 /* Define version of package (must be defined by configure.in) */
-#define VERSION "6.0"
+#define VERSION "6.0.1"
 
 /* We pick some parameters from our local config file */
 #include "config_local.h"
@@ -955,6 +977,9 @@
 /* Define only version of host machine (eg. 2.5.1) */
 /* #define HOST_OS_VERSION "3.0" */
 
+/* Define the header version of (linux) hosts (eg. 2.2.10) */
+/* #define HOST_HEADER_VERSION "4.0" */
+
 /* Define name of host */
 /* #define HOST_NAME "dragon.nuxi.com" */
 
@@ -966,9 +991,6 @@
 
 /* what type of network transport type is in use?  TLI or sockets? */
 /* #undef HAVE_TRANSPORT_TYPE_TLI */
-
-/* Define to `long' if <sys/types.h> doesn't define time_t */
-/* #undef time_t */
 
 /* Define to "void *" if compiler can handle, otherwise "char *" */
 #define voidp void *
@@ -1058,7 +1080,7 @@
 #define cdfs_args_t struct iso_args
 
 /* Define a type for the mfs_args structure */
-/* #undef mfs_args_t */
+#define mfs_args_t struct mfs_args
 
 /* Define a type for the rfs_args structure */
 /* #undef rfs_args_t */
@@ -1136,6 +1158,9 @@
 
 /* Define if you have the gethostname function.  */
 #define HAVE_GETHOSTNAME 1
+
+/* Define if you have the getifaddrs function.  */
+/* #undef HAVE_GETIFADDRS */
 
 /* Define if you have the getmntinfo function.  */
 #define HAVE_GETMNTINFO 1
@@ -1464,6 +1489,9 @@
 /* Define if you have the <ctype.h> header file.  */
 #define HAVE_CTYPE_H 1
 
+/* Define if you have the <db1/ndbm.h> header file.  */
+/* #undef HAVE_DB1_NDBM_H */
+
 /* Define if you have the <dirent.h> header file.  */
 #define HAVE_DIRENT_H 1
 
@@ -1481,6 +1509,12 @@
 
 /* Define if you have the <hsfs/hsfs.h> header file.  */
 /* #undef HAVE_HSFS_HSFS_H */
+
+/* Define if you have the <ifaddrs.h> header file.  */
+/* #undef HAVE_IFADDRS_H */
+
+/* Define if you have the <irs.h> header file.  */
+/* #undef HAVE_IRS_H */
 
 /* Define if you have the <isofs/cd9660/cd9660_mount.h> header file.  */
 #define HAVE_ISOFS_CD9660_CD9660_MOUNT_H 1
@@ -1505,6 +1539,9 @@
 
 /* Define if you have the <linux/nfs_mount.h> header file.  */
 /* #undef HAVE_LINUX_NFS_MOUNT_H */
+
+/* Define if you have the <linux/posix_types.h> header file.  */
+/* #undef HAVE_LINUX_POSIX_TYPES_H */
 
 /* Define if you have the <machine/endian.h> header file.  */
 #define HAVE_MACHINE_ENDIAN_H 1
@@ -1577,6 +1614,9 @@
 
 /* Define if you have the <nfs/nfs_mount.h> header file.  */
 /* #undef HAVE_NFS_NFS_MOUNT_H */
+
+/* Define if you have the <nfs/nfsmount.h> header file.  */
+#define HAVE_NFS_NFSMOUNT_H 1
 
 /* Define if you have the <nfs/nfsproto.h> header file.  */
 #define HAVE_NFS_NFSPROTO_H 1
@@ -1833,6 +1873,9 @@
 /* Define if you have the <tmpfs/tmp.h> header file.  */
 /* #undef HAVE_TMPFS_TMP_H */
 
+/* Define if you have the <ufs/ufs/ufsmount.h> header file.  */
+#define HAVE_UFS_UFS_UFSMOUNT_H 1
+
 /* Define if you have the <ufs/ufs_mount.h> header file.  */
 #define HAVE_UFS_UFS_MOUNT_H 1
 
@@ -1841,6 +1884,9 @@
 
 /* Define if you have the <varargs.h> header file.  */
 #define HAVE_VARARGS_H 1
+
+/* Define if you have the <vfork.h> header file.  */
+/* #undef HAVE_VFORK_H */
 
 /* Define if you have the gdbm library (-lgdbm).  */
 /* #undef HAVE_LIBGDBM */
@@ -1851,11 +1897,30 @@
 /* Define if you have the mapmalloc library (-lmapmalloc).  */
 /* #undef HAVE_LIBMAPMALLOC */
 
+/* Define if you have the nsl library (-lnsl).  */
+/* #undef HAVE_LIBNSL */
+
 /* Define if you have the rpc library (-lrpc).  */
 /* #undef HAVE_LIBRPC */
 
 /* Define if you have the rpcsvc library (-lrpcsvc).  */
 #define HAVE_LIBRPCSVC 1
+
+/* Define to `int' if <sys/types.h> does not define. */
+/* #undef pid_t */
+
+/* Define to `int' if <sys/types.h> does not define. */
+/* #undef mode_t */
+
+/* Define to `int' if <sys/types.h> does not define. */
+/* #undef pid_t */
+
+/* Define to `unsigned' if <sys/types.h> does not define. */
+/* #undef size_t */
+
+/* Define to `long' if <sys/types.h> does not define. */
+/* #undef time_t */
+
 
 /**************************************************************************/
 /*** Everything below this line is part of the "BOTTOM" of acconfig.h.	***/
@@ -1870,6 +1935,9 @@
 
 /* does optarg exist? */
 #define HAVE_EXTERN_OPTARG 1
+
+/* does clnt_spcreateerror() exist? */
+#define HAVE_EXTERN_CLNT_SPCREATEERROR 1
 
 /* does clnt_sperrno() exist? */
 #define HAVE_EXTERN_CLNT_SPERRNO 1
@@ -1906,6 +1974,9 @@
 
 /* does sbrk() exist? */
 #define HAVE_EXTERN_SBRK 1
+
+/* does seteuid() exist? */
+#define HAVE_EXTERN_SETEUID 1
 
 /* does strcasecmp() exist? */
 #define HAVE_EXTERN_STRCASECMP 1
