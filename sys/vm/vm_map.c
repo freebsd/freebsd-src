@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.10 1995/01/09 16:05:45 davidg Exp $
+ * $Id: vm_map.c,v 1.11 1995/01/10 07:32:46 davidg Exp $
  */
 
 /*
@@ -313,7 +313,8 @@ vm_map_entry_create(map)
 			vm_page_t m;
 
 			m = vm_page_alloc(kmem_object,
-			    mapvm - vm_map_min(kmem_map), 0);
+			        mapvm - vm_map_min(kmem_map),
+				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 			if (m) {
 				int newentries;
 

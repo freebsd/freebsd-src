@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.11 1995/01/09 16:05:52 davidg Exp $
+ * $Id: vm_page.h,v 1.12 1995/01/10 09:19:52 davidg Exp $
  */
 
 /*
@@ -220,6 +220,9 @@ extern simple_lock_data_t vm_page_queue_free_lock; /* lock on free page queue */
 #define VM_PAGE_BITS_ALL 0xffff
 #endif
 
+#define VM_ALLOC_NORMAL 0
+#define VM_ALLOC_INTERRUPT 1
+#define VM_ALLOC_SYSTEM 2
 
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_offset_t, int));

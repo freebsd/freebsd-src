@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.14 1995/01/09 16:05:39 davidg Exp $
+ * $Id: vm_fault.c,v 1.15 1995/01/10 07:32:45 davidg Exp $
  */
 
 /*
@@ -320,7 +320,7 @@ RetryFault:;
 			 * Allocate a new page for this object/offset pair.
 			 */
 
-			m = vm_page_alloc(object, offset, 0);
+			m = vm_page_alloc(object, offset, VM_ALLOC_NORMAL);
 
 			if (m == NULL) {
 				UNLOCK_AND_DEALLOCATE;
@@ -655,7 +655,7 @@ RetryCopy:
 				 * that the copy_object's pager doesn't have
 				 * the page...
 				 */
-				copy_m = vm_page_alloc(copy_object, copy_offset, 0);
+				copy_m = vm_page_alloc(copy_object, copy_offset, VM_ALLOC_NORMAL);
 				if (copy_m == NULL) {
 					/*
 					 * Wait for a page, then retry.
@@ -839,6 +839,8 @@ RetryCopy:
 	 */
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
+	if( ((prot & VM_PROT_WRITE) == 0) && change_wiring == 0 && wired == 0)
+		pmap_prefault(map->pmap, vaddr, entry, first_object);
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
@@ -905,6 +907,11 @@ vm_fault_wire(map, start, end)
 	 */
 
 	for (va = start; va < end; va += PAGE_SIZE) {
+
+		if( curproc != pageproc &&
+			(cnt.v_free_count <= cnt.v_pageout_free_min))
+			VM_WAIT;
+
 		rv = vm_fault(map, va, VM_PROT_NONE, TRUE);
 		if (rv) {
 			if (va != start)
@@ -1019,7 +1026,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 */
 		vm_object_lock(dst_object);
 		do {
-			dst_m = vm_page_alloc(dst_object, dst_offset, 0);
+			dst_m = vm_page_alloc(dst_object, dst_offset, VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
 				vm_object_unlock(dst_object);
 				VM_WAIT;
@@ -1215,7 +1222,7 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 		 */
 		for (i = 0; i < size; i++) {
 			if (i != treqpage)
-				rtm = vm_page_alloc(object, startoffset + i * NBPG, 0);
+				rtm = vm_page_alloc(object, startoffset + i * NBPG, VM_ALLOC_NORMAL);
 			else
 				rtm = m;
 			marray[i] = rtm;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.7 1994/08/18 22:36:02 wollman Exp $
+ * $Id: vm_kern.c,v 1.8 1995/01/09 16:05:43 davidg Exp $
  */
 
 /*
@@ -177,7 +177,7 @@ kmem_alloc(map, size)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
-		while ((mem = vm_page_alloc(kernel_object, offset + i, 0)) == NULL) {
+		while ((mem = vm_page_alloc(kernel_object, offset + i, VM_ALLOC_NORMAL)) == NULL) {
 			vm_object_unlock(kernel_object);
 			VM_WAIT;
 			vm_object_lock(kernel_object);
@@ -331,7 +331,7 @@ kmem_malloc(map, size, canwait)
 	 */
 	vm_object_lock(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_alloc(kmem_object, offset + i, 1);
+		m = vm_page_alloc(kmem_object, offset + i, VM_ALLOC_INTERRUPT);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.3 1994/11/06 05:07:52 davidg Exp $
+ * $Id: vm_object.h,v 1.4 1995/01/09 16:05:50 davidg Exp $
  */
 
 /*
@@ -98,6 +98,7 @@ struct vm_object {
 	vm_offset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *shadow;	/* My shadow */
 	vm_offset_t shadow_offset;	/* Offset in shadow */
+	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
 	TAILQ_ENTRY(vm_object) cached_list; /* for persistence */
 	TAILQ_ENTRY(vm_object) reverse_shadow_list; /* chain of objects that are shadowed */
 	TAILQ_HEAD(rslist, vm_object) reverse_shadow_head; /* objects that this is a shadow for */

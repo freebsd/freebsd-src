@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.11 1995/01/09 16:05:40 davidg Exp $
+ * $Id: vm_glue.c,v 1.12 1995/01/10 07:32:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -236,12 +236,6 @@ vm_fork(p1, p2, isvfork)
 		    pmap_extract(vp->pmap, addr + NBPG * i),
 		    VM_PROT_READ | VM_PROT_WRITE, 1);
 
-	/*
-	 * and allow the UPAGES page table entry to be paged (at the vm system
-	 * level)
-	 */
-	vm_map_pageable(vp, ptaddr, ptaddr + NBPG, TRUE);
-
 	p2->p_addr = up;
 
 	/*
@@ -338,9 +332,6 @@ faultin(p)
 			    ((vm_offset_t) p->p_addr) + off,
 			    pa, VM_PROT_READ | VM_PROT_WRITE, 1);
 		}
-
-		/* and let the page table pages go (at least above pmap level) */
-		vm_map_pageable(map, ptaddr, ptaddr + NBPG, TRUE);
 
 		s = splhigh();
 
@@ -491,6 +482,7 @@ swapout(p)
 	register struct proc *p;
 {
 	vm_map_t map = &p->p_vmspace->vm_map;
+	vm_offset_t ptaddr;
 
 	++p->p_stats->p_ru.ru_nswap;
 	/*
@@ -514,6 +506,9 @@ swapout(p)
 
 	vm_map_pageable(map, (vm_offset_t) kstack,
 	    (vm_offset_t) kstack + UPAGES * NBPG, TRUE);
+
+	ptaddr = trunc_page((u_int) vtopte(kstack));
+	vm_map_pageable(map, ptaddr, ptaddr + NBPG, TRUE);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;

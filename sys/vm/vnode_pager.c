@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.19 1995/01/09 16:06:01 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.20 1995/01/11 20:00:10 davidg Exp $
  */
 
 /*
@@ -881,13 +881,15 @@ vnode_pager_input(vnp, m, count, reqpage)
 		counta = (count - reqpage) - 1;
 	bpa = 0;
 	sizea = 0;
-	if (counta) {
-		bpa = getpbuf();
-		count -= counta;
-		sizea = size - count * PAGE_SIZE;
-		size = count * PAGE_SIZE;
-	}
 	bp = getpbuf();
+	if (counta) {
+		bpa = (struct buf *) trypbuf();
+		if (bpa) {
+			count -= counta;
+			sizea = size - count * PAGE_SIZE;
+			size = count * PAGE_SIZE;
+		}
+	}
 	kva = (vm_offset_t) bp->b_data;
 
 	/*
@@ -981,10 +983,7 @@ finishup:
 			 * now tell them that it is ok to use
 			 */
 			if (!error) {
-				if (i != reqpage - 1)
-					vm_page_deactivate(m[i]);
-				else
-					vm_page_activate(m[i]);
+				vm_page_deactivate(m[i]);
 				PAGE_WAKEUP(m[i]);
 			} else {
 				vnode_pager_freepage(m[i]);
