@@ -150,17 +150,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/*
 	 * Create the thread.
-	 *
 	 */
-	if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
+	if (pattr->suspend == PTHREAD_CREATE_SUSPENDED)
 		new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
-		flags = THR_SUSPENDED;
-	} else {
-		flags = 0;
-	}
-
 	ret = thr_create(&new_thread->ctx, &new_thread->thr_id, flags);
-	    
 	if (ret != 0) {
 		_thread_printf(STDERR_FILENO, "thr_create() == %d\n", ret);
 		PANIC("thr_create");
@@ -177,8 +170,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 void
 _thread_start(void)
 {
-
-	/* Run the current thread's start routine with argument: */
+	if ((curthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
+		_thread_suspend(curthread, NULL);
 	pthread_exit(curthread->start_routine(curthread->arg));
 
 	/* This point should never be reached. */
