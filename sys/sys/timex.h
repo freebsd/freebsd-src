@@ -242,6 +242,7 @@ struct ntptimeval {
 	struct timeval time;	/* current time (ro) */
 	long maxerror;		/* maximum error (us) (ro) */
 	long esterror;		/* estimated error (us) (ro) */
+	int time_state;		/* what ntp_gettime returns */
 };
 
 /*
@@ -275,6 +276,17 @@ struct timex {
 
 };
 #ifdef __FreeBSD__
+
+/*
+ * sysctl identifiers underneath kern.ntp_pll
+ */
+#define NTP_PLL_GETTIME	1	/* used by ntp_gettime() */
+#define NTP_PLL_MAXID	2	/* number of valid ids */
+
+#define NTP_PLL_NAMES { \
+			  { 0, 0 }, \
+			  { "gettime", CTLTYPE_STRUCT }, \
+		      }
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
