@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1991 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1991, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -32,12 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: setlogin.S,v 1.2 1994/02/21 05:19:17 rgrimes Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)setlogin.s	5.2 (Berkeley) 4/12/91"
+	.asciz "@(#)setlogin.s	8.1 (Berkeley) 6/4/93"
 #endif /* LIBC_SCCS and not lint */
 
 #include "SYS.h"
@@ -45,14 +43,5 @@
 .globl	__logname_valid		/* in getlogin() */
 
 SYSCALL(setlogin)
-#ifdef PIC
-	PIC_PROLOGUE
-	pushl	%eax
-	movl	PIC_GOT(__logname_valid),%eax
-	movl	$0,(%eax)
-	popl	%eax
-	PIC_EPILOGUE
-#else
 	movl	$0,__logname_valid
-#endif
 	ret				/* setlogin(name) */

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)brk.2	8.2 (Berkeley) 12/11/93
+.\"     @(#)brk.2	8.4 (Berkeley) 5/1/95
 .\"
-.Dd December 11, 1993
+.Dd May 1, 1995
 .Dt BRK 2
 .Os BSD 4
 .Sh NAME
@@ -96,25 +96,26 @@ beyond the
 value returned from a call to
 .Xr getrlimit ,
 e.g.
-.Dq qetext + rlp\(->rlim_max.
+.Dq etext + rlp\(->rlim_max.
 (see
 .Xr end 3
 for the definition of
 .Em etext ) .
 .Sh RETURN VALUES
 .Nm Brk
-returns a pointer to the new end of memory if successful;
+returns 0 if successful;
 otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
-The
-.Nm sbrk
+.Nm Sbrk
 returns a pointer to the base of the new storage if successful;
 otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
 .Sh ERRORS
-.Xr Sbrk
+.Xr Brk
+or
+.Xr sbrk
 will fail and no additional memory will be allocated if
 one of the following are true:
 .Bl -tag -width [ENOMEM]

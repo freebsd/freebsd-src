@@ -1,5 +1,8 @@
-.\" Copyright (c) 1989, 1991, 1993
+.\" Copyright (c) 1994
 .\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,76 +32,94 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
+.\"     @(#)realpath.3	8.2 (Berkeley) 2/16/94
 .\"
-.Dd April 28, 1995
-.Dt SETMODE 3
+.Dd "February 16, 1994"
+.Dt REALPATH 3
 .Os
 .Sh NAME
-.Nm getmode ,
-.Nm setmode
-.Nd modify mode bits
+.Nm realpath
+.Nd returns the canonicalized absolute pathname
 .Sh SYNOPSIS
-.Ft mode_t
-.Fn getmode "const void *set" "mode_t mode"
-.Ft void *
-.Fn setmode "const char *mode_str"
+.Fd #include <sys/param.h>
+.Fd #include <stdlib.h>
+.Ft "char *"
+.Fn realpath "const char *pathname" "char resolvedname[MAXPATHLEN]"
 .Sh DESCRIPTION
 The
-.Fn getmode
-function
-returns a copy of the file permission bits
-.Fa mode
-as altered by the values pointed to by
-.Fa set .
-While only the mode bits are altered, other parts of the file mode
-may be examined.
-.Pp
+.Fn realpath
+function resolves all symbolic links, extra
+.Dq /
+characters and references to
+.Pa /./
+and
+.Pa /../
+in
+.Fa pathname ,
+and copies the resulting absolute pathname into
+the memory referenced by
+.Fa resolvedname .
 The
-.Fn setmode
-function
-takes an absolute (octal) or symbolic value, as described in
-.Xr chmod 1 ,
-as an argument
-and returns a pointer to mode values to be supplied to
-.Fn getmode .
-Because some of the symbolic values are relative to the file
-creation mask,
-.Fn setmode
-may call
-.Xr umask 2 .
-If this occurs, the file creation mask will be restored before
-.Fn setmode
-returns.
-If the calling program changes the value of its file creation mask
-after calling
-.Fn setmode ,
-.Fn setmode
-must be called again if
-.Fn getmode
-is to modify future file modes correctly.
+.Fa resolvedname
+argument
+.Em must
+refer to a buffer capable of storing at least
+.Dv MAXPATHLEN
+characters.
 .Pp
-If the mode passed to
-.Fn setmode
-is invalid,
-.Fn setmode
+The 
+.Fn realpath
+function will resolve both absolute and relative paths
+and return the absolute pathname corresponding to
+.Fa pathname .
+All but the last component of
+.Fa pathname
+must exist when
+.Fn realpath
+is called.
+.Sh "RETURN VALUES"
+The
+.Fn realpath
+function returns
+.Fa resolved_name
+on success.
+If an error occurs,
+.Fn realpath
 returns
-.Dv NULL . 
+.Dv NULL ,
+and
+.Fa resolved_name
+contains the pathname which caused the problem.
 .Sh ERRORS
+The function
+.Fn realpath
+may fail and set the external variable
+.Va errno
+for any of the errors specified for the library functions
+.Xr chdir 2 ,
+.Xr close 2 ,
+.Xr fchdir 2 ,
+.Xr lstat 2 ,
+.Xr open 2 ,
+.Xr readlink 2
+and
+.Xr getcwd 3 .
+.Sh CAVEATS
+This implementation of
+.Fn realpath
+differs slightly from the Solaris implementation.
 The
-.Fn setmode
-function
-may fail and set errno for any of the errors specified for the library
-routine
-.Xr malloc 3 .
-.Sh SEE ALSO
-.Xr chmod 1 ,
-.Xr stat 2 ,
-.Xr umask 2 ,
-.Xr malloc 3
+.Bx 4.4
+version always returns absolute pathnames,
+whereas the Solaris implementation will,
+under certain circumstances, return a relative
+.Fa resolved_path
+when given a relative
+.Fa pathname .
+.Sh "SEE ALSO"
+.Xr getcwd 3
 .Sh HISTORY
 The
-.Fn getmode
-and
-.Fn setmode
-functions first appeared in 4.4BSD.
+.Fn realpath
+function call first appeared in
+.Bx 4.4 .

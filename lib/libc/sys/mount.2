@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)mount.2	8.2 (Berkeley) 12/11/93
+.\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\"
-.Dd December 11, 1993
+.Dd May 24, 1995
 .Dt MOUNT 2
 .Os BSD 4
 .Sh NAME
@@ -101,46 +101,27 @@ most filesystems will not allow a change from read-write to read-only.
 .Pp
 The
 .Fa type
-argument defines the type of the filesystem.
-The types of filesystems known to the system are defined in
-.Aq Pa sys/mount.h .
+argument names the filesystem.
+The types of filesystems known to the system can be obtained with
+.Xr sysctl 8
+by using the command:
+.Bd -literal -offset indent
+sysctl vfs
+.Ed
+.Pp
 .Fa Data
 is a pointer to a structure that contains the type
 specific arguments to mount.
-The currently supported types of filesystems and
-their type specific data are:
-.Pp
-.Dv MOUNT_UFS
-.Bd -literal -offset indent -compact
-struct ufs_args {
-      char	*fspec;  /* Block special file to mount */
-      int	exflags; /* export related flags */
-      uid_t	exroot;  /* mapping for root uid */
-};
-.Ed
-.Pp
-.Dv MOUNT_NFS
-.Bd -literal -offset indent -compact
-struct nfs_args {
-      struct sockaddr_in *addr; /* file server address */
-      nfsv2fh_t *fh;       /* File handle to be mounted */
-      int       flags;     /* flags */
-      int       wsize;     /* write size in bytes */
-      int       rsize;     /* read size in bytes */
-      int       timeo;     /* initial timeout 0.1 secs */
-      int       retrans;   /* times to retry send */
-      char      *hostname; /* server's name */
-};
-.Ed
-.Pp
-.Dv MOUNT_MFS
-.Bd -literal -offset indent -compact
-struct mfs_args {
-      char	*name;	/* name of backing process */
-      caddr_t	base;	/* base address of the filesystem */
-      u_long	size;	/* size of the filesystem */
-};
-.Ed
+The format for these argument structures is described in the
+manual page for each filesystem.
+By convention filesystem manual pages are named
+by prefixing ``mount_'' to the name of the filesystem as returned by
+.Xr sysctl 8 .
+Thus the
+.Nm NFS
+filesystem is described by the
+.Xr mount_nfs 8
+manual page.
 .Pp
 The
 .Fn umount
@@ -304,7 +285,7 @@ mounted.
 .Sh SEE ALSO
 .Xr mount 8 ,
 .Xr umount 8 ,
-.Xr mfs 8
+.Xr sysctl 8
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
 .Sh HISTORY

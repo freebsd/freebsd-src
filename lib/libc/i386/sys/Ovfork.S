@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -32,12 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: Ovfork.S,v 1.3 1994/02/21 05:19:08 rgrimes Exp $
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)Ovfork.s	5.1 (Berkeley) 4/23/90"
+	.asciz "@(#)Ovfork.s	8.1 (Berkeley) 6/4/93"
 #endif /* SYSLIBC_SCCS and not lint */
 
 #include "SYS.h"
@@ -51,7 +49,6 @@
  */
 	.set	vfork,66
 .globl	_vfork
-.type	_vfork,@function
 
 _vfork:
 	popl	%ecx		/* my rta into ecx */
@@ -64,14 +61,7 @@ vforkok:
 	jmp 	parent 
 .globl	_errno
 verror:
-#ifdef PIC
-	PIC_PROLOGUE
-	movl	PIC_GOT(_errno), %edx
-	movl	%eax,(%edx)
-	PIC_EPILOGUE
-#else
 	movl	%eax,_errno
-#endif
 	movl	$-1,%eax
 	jmp	%ecx
 child:

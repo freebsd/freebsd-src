@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -32,26 +32,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ptrace.S,v 1.2 1994/02/21 05:19:14 rgrimes Exp $
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)ptrace.s	5.1 (Berkeley) 4/23/90"
+	.asciz "@(#)ptrace.s	8.1 (Berkeley) 6/4/93"
 #endif /* SYSLIBC_SCCS and not lint */
 
 #include "SYS.h"
 
 ENTRY(ptrace)
 	xorl	%eax,%eax
-#ifdef PIC
-        PIC_PROLOGUE
-        movl    PIC_GOT(_errno),%edx
-        movl    %eax,(%edx)
-        PIC_EPILOGUE
-#else
-        movl    %eax,_errno
-#endif
+	movl	%eax,_errno
 	lea	SYS_ptrace,%eax
 	LCALL(7,0)
 	jb	err

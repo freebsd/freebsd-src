@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)getsockopt.2	8.3 (Berkeley) 4/19/94
+.\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\"
-.Dd April 19, 1994
+.Dd May 2, 1995
 .Dt GETSOCKOPT 2
 .Os BSD 4.3r
 .Sh NAME
@@ -192,7 +192,7 @@ the system will block the process on the
 .Xr close
 attempt until it is able to transmit the data or until it decides it
 is unable to deliver the information (a timeout period, termed the
-linger interval, is specified in the
+linger interval, is specified in seconds in the
 .Fn setsockopt
 call when
 .Dv SO_LINGER
