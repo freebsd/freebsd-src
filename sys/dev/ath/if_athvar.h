@@ -55,13 +55,15 @@
 
 /* driver-specific node */
 struct ath_node {
-	struct ieee80211_node st_node;	/* base class */
+	struct ieee80211_node an_node;	/* base class */
 	u_int		an_tx_ok;	/* tx ok pkt */
 	u_int		an_tx_err;	/* tx !ok pkt */
 	u_int		an_tx_retr;	/* tx retry count */
 	int		an_tx_upper;	/* tx upper rate req cnt */
 	u_int		an_tx_antenna;	/* antenna for last good frame */
+	u_int		an_rx_antenna;	/* antenna for last rcvd frame */
 };
+#define	ATH_NODE(_n)	((struct ath_node *)(_n))
 
 struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;

@@ -64,9 +64,8 @@ struct ieee80211_node {
 	u_int			ni_refcnt;
 
 	/* hardware */
-	u_int8_t		ni_rssi;	/* recv ssi */
 	u_int32_t		ni_rstamp;	/* recv timestamp */
-	u_int8_t		ni_rantenna;	/* recv antenna */
+	u_int8_t		ni_rssi;	/* recv ssi */
 
 	/* header */
 	u_int8_t		ni_macaddr[IEEE80211_ADDR_LEN];

@@ -216,7 +216,6 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	memcpy(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen);
 	ni->ni_rssi = 0;
 	ni->ni_rstamp = 0;
-	ni->ni_rantenna = 0;
 	memset(ni->ni_tstamp, 0, sizeof(ni->ni_tstamp));
 	ni->ni_intval = ic->ic_lintval;
 	ni->ni_capinfo = IEEE80211_CAPINFO_IBSS;
@@ -289,7 +288,7 @@ ieee80211_end_scan(struct ifnet *ifp)
 	}
 	selbs = NULL;
 	if (ifp->if_flags & IFF_DEBUG)
-		if_printf(ifp, "\tmacaddr          bssid         chan  rssi rate ant flag  wep  essid\n");
+		if_printf(ifp, "\tmacaddr          bssid         chan  rssi rate flag  wep  essid\n");
 	for (; ni != NULL; ni = nextbs) {
 		ieee80211_ref_node(ni);
 		nextbs = TAILQ_NEXT(ni, ni_list);
@@ -344,7 +343,6 @@ ieee80211_end_scan(struct ifnet *ifp)
 			printf(" %+4d", ni->ni_rssi);
 			printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
 			    fail & 0x08 ? '!' : ' ');
-			printf(" %3d", ni->ni_rantenna);
 			printf(" %4s%c",
 			    (ni->ni_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
 			    (ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" :
@@ -497,6 +495,8 @@ ieee80211_lookup_node(struct ieee80211com *ic,
 static void
 _ieee80211_free_node(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
+	KASSERT(ni != ic->ic_bss, ("freeing bss node"));
+
 	TAILQ_REMOVE(&ic->ic_node, ni, ni_list);
 	LIST_REMOVE(ni, ni_hash);
 	if (TAILQ_EMPTY(&ic->ic_node))
@@ -507,6 +507,8 @@ _ieee80211_free_node(struct ieee80211com *ic, struct ieee80211_node *ni)
 void
 ieee80211_free_node(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
+	KASSERT(ni != ic->ic_bss, ("freeing ic_bss"));
+
 	/* XXX need equivalent of atomic_dec_and_test */
 	atomic_subtract_int(&ni->ni_refcnt, 1);
 	if (atomic_cmpset_int(&ni->ni_refcnt, 0, 1)) {
@@ -534,21 +536,22 @@ ieee80211_timeout_nodes(struct ieee80211com *ic)
 
 	mtx_lock(&ic->ic_nodelock);
 	for (ni = TAILQ_FIRST(&ic->ic_node); ni != NULL;) {
-		if (++ni->ni_inact <= IEEE80211_INACT_MAX) {
-			ni = TAILQ_NEXT(ni, ni_list);
-			continue;
-		}
-		/* NB: don't honor reference count */
-		IEEE80211_DPRINTF(("station %s timed out "
+		if (++ni->ni_inact > IEEE80211_INACT_MAX) {
+			IEEE80211_DPRINTF(("station %s timed out "
 			    "due to inactivity (%u secs)\n",
 			    ether_sprintf(ni->ni_macaddr),
 			    ni->ni_inact));
-		nextbs = TAILQ_NEXT(ni, ni_list);
-		IEEE80211_SEND_MGMT(ic, ni,
-		    IEEE80211_FC0_SUBTYPE_DEAUTH,
-		    IEEE80211_REASON_AUTH_EXPIRE);
-		_ieee80211_free_node(ic, ni);
-		ni = nextbs;
+			nextbs = TAILQ_NEXT(ni, ni_list);
+			/*
+			 * Send a deauthenticate frame.
+			 */
+			IEEE80211_SEND_MGMT(ic, ni,
+			    IEEE80211_FC0_SUBTYPE_DEAUTH,
+			    IEEE80211_REASON_AUTH_EXPIRE);
+			ieee80211_free_node(ic, ni);
+			ni = nextbs;
+		} else
+			ni = TAILQ_NEXT(ni, ni_list);
 	}
 	if (!TAILQ_EMPTY(&ic->ic_node))
 		ic->ic_inact_timer = IEEE80211_INACT_WAIT;
