@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 #include <errno.h>
 #include <stdlib.h>
@@ -1081,10 +1083,10 @@ _thread_kern_select(int wait_reqd)
 
 		/* Process according to thread state: */
 		switch (pthread->state) {
-			/*
-			 * States which do not depend on file descriptor I/O
-			 * operations or timeouts: 
-			 */
+		/*
+		 * States which do not depend on file descriptor I/O
+		 * operations or timeouts: 
+		 */
 		case PS_DEAD:
 		case PS_FDLR_WAIT:
 		case PS_FDLW_WAIT:
@@ -1099,7 +1101,7 @@ _thread_kern_select(int wait_reqd)
 			/* Nothing to do here. */
 			break;
 
-			/* File descriptor read wait: */
+		/* File descriptor read wait: */
 		case PS_FDR_WAIT:
 			/* Add the file descriptor to the read set: */
 			FD_SET(pthread->data.fd.fd, &fd_set_read);
@@ -1119,7 +1121,7 @@ _thread_kern_select(int wait_reqd)
 			settimeout = 1;
 			break;
 
-			/* File descriptor write wait: */
+		/* File descriptor write wait: */
 		case PS_FDW_WAIT:
 			/* Add the file descriptor to the write set: */
 			FD_SET(pthread->data.fd.fd, &fd_set_write);
@@ -1139,14 +1141,14 @@ _thread_kern_select(int wait_reqd)
 			settimeout = 1;
 			break;
 
-			/* States that time out: */
+		/* States that time out: */
 		case PS_SLEEP_WAIT:
 		case PS_COND_WAIT:
 			/* Flag a timeout as required: */
 			settimeout = 1;
 			break;
 
-			/* Select wait: */
+		/* Select wait: */
 		case PS_SELECT_WAIT:
 			/*
 			 * Enter a loop to process each file descriptor in
@@ -1428,10 +1430,10 @@ _thread_kern_select(int wait_reqd)
 		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
 			/* Process according to thread state: */
 			switch (pthread->state) {
-				/*
-				 * States which do not depend on file
-				 * descriptor I/O operations: 
-				 */
+			/*
+			 * States which do not depend on file
+			 * descriptor I/O operations: 
+			 */
 			case PS_RUNNING:
 			case PS_COND_WAIT:
 			case PS_DEAD:
@@ -1448,7 +1450,7 @@ _thread_kern_select(int wait_reqd)
 				/* Nothing to do here. */
 				break;
 
-				/* File descriptor read wait: */
+			/* File descriptor read wait: */
 			case PS_FDR_WAIT:
 				/*
 				 * Check if the file descriptor is available
@@ -1464,7 +1466,7 @@ _thread_kern_select(int wait_reqd)
 				}
 				break;
 
-				/* File descriptor write wait: */
+			/* File descriptor write wait: */
 			case PS_FDW_WAIT:
 				/*
 				 * Check if the file descriptor is available
@@ -1480,7 +1482,7 @@ _thread_kern_select(int wait_reqd)
 				}
 				break;
 
-				/* Select wait: */
+			/* Select wait: */
 			case PS_SELECT_WAIT:
 				/*
 				 * Reset the flag that indicates if a file
