@@ -26,16 +26,16 @@
 
 SUBDIR+=	pam_cleartext_pass_ok
 SUBDIR+=	pam_deny
-.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
+.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_kerberosIV
 .endif
-.if defined(MAKE_KERBEROS5__) && !defined(NOCRYPT)
+.if defined(MAKE_KERBEROS5__) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_kerberos5
 .endif
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey
-.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
 SUBDIR+=	pam_ssh
 .endif
 SUBDIR+=	pam_tacplus

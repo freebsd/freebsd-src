@@ -57,11 +57,11 @@ SUBDIR+= games
 SUBDIR+= gnu
 .endif
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS4)
 SUBDIR+= kerberosIV
 .endif
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS5)
 SUBDIR+= kerberos5
 .endif
 .if exists(${.CURDIR}/libexec)
@@ -203,7 +203,7 @@ INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc openssl \
 # success, regardless of how old your existing system is.
 #
 buildworld:
-.if !defined(NOSECURE) && exists(${.CURDIR}/secure) && \
+.if !defined(NOSECURE) && !defined(NO_OPENSSL) && exists(${.CURDIR}/secure) && \
 	(!defined(USA_RESIDENT) || (${USA_RESIDENT} != NO && \
 	${USA_RESIDENT} != YES))
 	@echo
