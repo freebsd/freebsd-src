@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.29 1996/09/19 19:48:38 phk Exp $
+	$Id: syscalls.master,v 1.29.2.1 1997/05/03 11:09:38 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -322,11 +322,14 @@
 ; here allows to avoid one in libc/sys/Makefile.inc.
 203	STD	BSD	{ int mlock(caddr_t addr, size_t len); }
 204	STD	BSD	{ int munlock(caddr_t addr, size_t len); }
+; problem here. Lite2/NetBSD/OpenBSD have 205 as undelete
 205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
-206	UNIMPL	NOHIDE	nosys
-207	UNIMPL	NOHIDE	nosys
-208	UNIMPL	NOHIDE	nosys
-209	UNIMPL	NOHIDE	nosys
+; problem here. NetBSD/OpenBSD have syscall 206 as futimes()
+206	UNIMPL	NOHIDE	undelete
+207	UNIMPL	NOHIDE	getpgid
+208	UNIMPL	NOHIDE	newreboot (NetBSD)
+; problem. NetBSD and OpenBSD have a different syscall number for poll()
+209	UNIMPL	NOHIDE	poll2
 
 ;
 ; The following are reserved for loadable syscalls
@@ -364,15 +367,15 @@
 230	STD	BSD	{ int shmdt(void *shmaddr); }
 231	STD	BSD	{ int shmget(key_t key, int size, int shmflg); }
 ;
-232	UNIMPL	NOHIDE	nosys
-233	UNIMPL	NOHIDE	nosys
-234	UNIMPL	NOHIDE	nosys
-235	UNIMPL	NOHIDE	nosys
-236	UNIMPL	NOHIDE	nosys
-237	UNIMPL	NOHIDE	nosys
-238	UNIMPL	NOHIDE	nosys
-239	UNIMPL	NOHIDE	nosys
-240	UNIMPL	NOHIDE	nosys
+232	UNIMPL	NOHIDE	clock_gettime
+233	UNIMPL	NOHIDE	clock_settime
+234	UNIMPL	NOHIDE	clock_getres
+235	UNIMPL	NOHIDE	timer_create
+236	UNIMPL	NOHIDE	timer_delete
+237	UNIMPL	NOHIDE	timer_settime
+238	UNIMPL	NOHIDE	timer_gettime
+239	UNIMPL	NOHIDE	timer_getoverrun
+240	UNIMPL	NOHIDE	nanosleep
 241	UNIMPL	NOHIDE	nosys
 242	UNIMPL	NOHIDE	nosys
 243	UNIMPL	NOHIDE	nosys
@@ -385,6 +388,78 @@
 ; syscall numbers initially used in OpenBSD
 250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
-252	UNIMPL	NOHIDE	poll (OpenBSD)
+252	UNIMPL	NOHIDE	poll (OpenBSD syscall number)
 253	UNIMPL	NOHIDE	issetugid (OpenBSD)
 254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
+255	UNIMPL	NOHIDE	nosys
+256	UNIMPL	NOHIDE	nosys
+257	UNIMPL	NOHIDE	nosys
+258	UNIMPL	NOHIDE	nosys
+259	UNIMPL	NOHIDE	nosys
+260	UNIMPL	NOHIDE	nosys
+261	UNIMPL	NOHIDE	nosys
+262	UNIMPL	NOHIDE	nosys
+263	UNIMPL	NOHIDE	nosys
+264	UNIMPL	NOHIDE	nosys
+265	UNIMPL	NOHIDE	nosys
+266	UNIMPL	NOHIDE	nosys
+267	UNIMPL	NOHIDE	nosys
+268	UNIMPL	NOHIDE	nosys
+269	UNIMPL	NOHIDE	nosys
+270	UNIMPL	NOHIDE	nosys
+271	UNIMPL	NOHIDE	nosys
+272	UNIMPL	NOHIDE	nosys
+273	UNIMPL	NOHIDE	nosys
+274	UNIMPL	NOHIDE	nosys
+275	UNIMPL	NOHIDE	nosys
+276	UNIMPL	NOHIDE	nosys
+277	UNIMPL	NOHIDE	nosys
+278	UNIMPL	NOHIDE	nosys
+279	UNIMPL	NOHIDE	nosys
+280	UNIMPL	NOHIDE	nosys
+281	UNIMPL	NOHIDE	nosys
+282	UNIMPL	NOHIDE	nosys
+283	UNIMPL	NOHIDE	nosys
+284	UNIMPL	NOHIDE	nosys
+285	UNIMPL	NOHIDE	nosys
+286	UNIMPL	NOHIDE	nosys
+287	UNIMPL	NOHIDE	nosys
+288	UNIMPL	NOHIDE	nosys
+289	UNIMPL	NOHIDE	nosys
+290	UNIMPL	NOHIDE	nosys
+291	UNIMPL	NOHIDE	nosys
+292	UNIMPL	NOHIDE	nosys
+293	UNIMPL	NOHIDE	nosys
+294	UNIMPL	NOHIDE	nosys
+295	UNIMPL	NOHIDE	nosys
+296	UNIMPL	NOHIDE	nosys
+297	UNIMPL	NOHIDE	nosys
+298	UNIMPL	NOHIDE	nosys
+299	UNIMPL	NOHIDE	nosys
+; syscall numbers for FreeBSD
+300	UNIMPL	NOHIDE	modnext
+301	UNIMPL	NOHIDE	modstat
+302	UNIMPL	NOHIDE	modfnext
+303	UNIMPL	NOHIDE	modfind
+304	UNIMPL	NOHIDE	kldload
+305	UNIMPL	NOHIDE	kldunload
+306	UNIMPL	NOHIDE	kldfind
+307	UNIMPL	NOHIDE	kldnext
+308	UNIMPL	NOHIDE	kldstat
+309	UNIMPL	NOHIDE	kldfirstmod
+310	UNIMPL	NOHIDE	getsid
+311	UNIMPL	NOHIDE	setresuid
+312	UNIMPL	NOHIDE	setresgid
+313	UNIMPL	NOHIDE	signanosleep
+314	UNIMPL	NOHIDE	aio_return
+315	UNIMPL	NOHIDE	aio_suspend
+316	UNIMPL	NOHIDE	aio_cancel
+317	UNIMPL	NOHIDE	aio_error
+318	UNIMPL	NOHIDE	aio_read
+319	UNIMPL	NOHIDE	aio_write
+320	UNIMPL	NOHIDE	lio_listio
+321	UNIMPL	NOHIDE	yield
+322	UNIMPL	NOHIDE	thr_sleep
+323	UNIMPL	NOHIDE	thr_wakeup
+324	UNIMPL	NOHIDE	mlockall
+325	UNIMPL	NOHIDE	munlockall
