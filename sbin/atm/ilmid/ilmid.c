@@ -846,6 +846,7 @@ parse_oids ( h, bp )
 			*bp = bufp;
 			return;
 		}
+		bzero(var, sizeof(Variable));
 		/* Link to tail */
 		if ( h->tail )
 			h->tail->next = var;
@@ -924,8 +925,13 @@ asn_get_header ( bufp )
 	/*
 	 * Allocate memory to hold the SNMP header
 	 */
-	if ( ( h = calloc(1, sizeof(Snmp_Header)) ) == NULL )
+	if ( ( h = malloc(sizeof(Snmp_Header)) ) == NULL )
 		return ( (Snmp_Header *)NULL );
+
+	/*
+	 * Ensure that we wipe the slate clean
+	 */
+	bzero(h, sizeof(Snmp_Header));
 
 	/*
 	 * PDU has to start as SEQUENCE OF
@@ -1289,6 +1295,7 @@ build_pdu ( hdr, type )
 		/* OBJID */
 		*bp++ = ASN_OBJID;
 		len++;
+
 		len += asn_put_objid ( &bp, &var->oid );
 
 		if ( erridx && varidx >= erridx ) {
@@ -1471,6 +1478,11 @@ build_cold_start()
 	Variable	*var;
 
 	hdr = malloc(sizeof(Snmp_Header));
+	if (hdr == NULL) {
+		fprintf(stderr, "malloc() failed in %s()\n", __func__);
+		exit(1);
+	}
+	bzero(hdr, sizeof(Snmp_Header));
 
 	hdr->pdulen = 0;
 	hdr->version = SNMP_VERSION_1 - 1;
@@ -1483,6 +1495,12 @@ build_cold_start()
 		sizeof(Objid) );
 
 	hdr->head = (Variable *)malloc(sizeof(Variable));
+	if (hdr == NULL) {
+		fprintf(stderr, "malloc() failed in %s()\n", __func__);
+		exit(1);
+	}
+	bzero(hdr->head, sizeof(Variable));
+
 	var = hdr->head;
 	bcopy ( (caddr_t)&Objids[UPTIME_OBJID], (caddr_t)&var->oid,
 		sizeof(Objid) );
@@ -1501,6 +1519,11 @@ build_generic_header()
 	Snmp_Header	*hdr;
 
 	hdr = malloc(sizeof(Snmp_Header));
+	if (hdr == NULL) {
+		fprintf(stderr, "malloc() failed in %s()\n", __func__);
+		exit(1);
+	}
+	bzero(hdr, sizeof(Snmp_Header));
 
 	hdr->pdulen = 0;
 	hdr->version = SNMP_VERSION_1 - 1;
@@ -1933,7 +1956,14 @@ set_address ( hdr, intf )
 	int		i, j;
 
 	PDU_Header = build_generic_header();
+
 	PDU_Header->head = malloc(sizeof(Variable));
+	if (PDU_Header->head == NULL) {
+		fprintf(stderr, "malloc() failed in %s()\n", __func__);
+		exit(1);
+	}
+	bzero(PDU_Header->head, sizeof(Variable));
+
 	var = PDU_Header->head;
 	/* Copy generic addressEntry OBJID */
 	bcopy ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
@@ -2221,7 +2251,14 @@ ilmi_do_state ()
 	 		 * received, return to COLD_START state.
 	 		 */
 			PDU_Header = build_generic_header();
+
 			PDU_Header->head = malloc(sizeof(Variable));
+			if (PDU_Header->head == NULL) {
+				fprintf(stderr, "malloc() failed in %s()\n", __func__);
+				exit(1);
+			}
+			bzero(PDU_Header->head, sizeof(Variable));
+
 			var = PDU_Header->head;
 			bcopy ( (caddr_t)&Objids[ADDRESS_OBJID], (caddr_t)&var->oid,
 	    		    sizeof(Objid) );
