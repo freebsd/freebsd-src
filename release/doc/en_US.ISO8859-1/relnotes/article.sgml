@@ -343,6 +343,9 @@
       <para><application>CVS</application> has been updated to
 	1.11.5. &merged;</para>
 
+      <para><application>GCC</application> has been updated to 
+	3.2.2 (release version).</para>
+
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11.</para>
 
@@ -357,6 +360,9 @@
         release 0.9.7.  Among other features, this release includes
         support for AES and takes advantage of &man.crypto.4;
         devices.</para>
+
+      <para><application>sendmail</application> has been updated to
+        version 8.12.7.</para>
 
       <para>&man.tcpdump.1; now supports a <option>-L</option> flag to
 	list the data link types available on an interface and a
