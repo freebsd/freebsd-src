@@ -57,6 +57,7 @@ struct ifinfo *iflist;
 struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
 int aflag = 0;
 int dflag = 0;
+char *otherconf_script;
 static int log_upto = 999;
 static int fflag = 0;
 
@@ -126,9 +127,9 @@ main(argc, argv)
 	if (argv0 && argv0[strlen(argv0) - 1] != 'd') {
 		fflag = 1;
 		once = 1;
-		opts = "adD";
+		opts = "adDO:";
 	} else
-		opts = "adDfm1";
+		opts = "adDfm1O:";
 
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
@@ -149,6 +150,9 @@ main(argc, argv)
 			break;
 		case '1':
 			once = 1;
+			break;
+		case 'O':
+			otherconf_script = optarg;
 			break;
 		default:
 			usage(argv0);
@@ -194,6 +198,11 @@ main(argc, argv)
 		openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
 		if (log_upto >= 0)
 			setlogmask(LOG_UPTO(log_upto));
+	}
+
+	if (otherconf_script && *otherconf_script != '/') {
+		errx(1, "configuration script (%s) must be an absolute path",
+		    otherconf_script);
 	}
 
 #ifndef HAVE_ARC4RANDOM
@@ -523,6 +532,13 @@ rtsol_check_timer()
 					probe = 1;
 					ifinfo->state = IFS_PROBE;
 				}
+
+				/*
+				 * If we need a probe, clear the previous
+				 * status wrt the "other" configuration.
+				 */
+				if (probe)
+					ifinfo->otherconfig = 0;
 
 				if (probe && mobile_node)
 					defrouter_probe(ifinfo->sdl->sdl_index);
