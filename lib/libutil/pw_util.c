@@ -458,7 +458,8 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 		*q = '\0';
 		fpw = pw_scan(r, PWSCAN_MASTER);
 		*q = t;
-		if (old_pw == NULL || !pw_equal(pw, old_pw)) {
+		if ((old_pw && !pw_equal(fpw, old_pw)) ||
+		    (!old_pw && strcmp(fpw->pw_name, pw->pw_name))) {
 			/* nope */
 			free(fpw);
 			if (write(tfd, p, q - p + 1) != q - p + 1)
