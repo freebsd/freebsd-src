@@ -15,6 +15,3 @@ extern void crypt_prog_1 __P(( struct svc_req *, register SVCXPRT * ));
 extern void load_des __P(( int, char * ));
 
 extern int (*_my_crypt)__P(( char *, int, struct desparams * ));
-
-extern char ROOTKEY[];
-
