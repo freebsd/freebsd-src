@@ -403,7 +403,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 	Dists |= DIST_PORTS;
     else
 	Dists &= ~DIST_PORTS;
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_REDRAW;
 }
 
 static Boolean
