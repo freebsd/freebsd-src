@@ -85,6 +85,8 @@ GLOBAL(proc0paddr)
 	.long	0			/* proc0 p_addr */
 GLOBAL(PTmap)
 	.long	0			/* PTmap */
+GLOBAL(decrnest)
+	.long	0
 
 GLOBAL(intrnames)
 	.asciz	"irq0", "irq1", "irq2", "irq3"
@@ -560,6 +562,12 @@ extsize = .-extint
 decrint:
 	mtsprg	1,1			/* save SP */
 	stmw	28,tempsave(0)		/* free r28-r31 */
+	lis	28,decrnest@ha
+	lwz	29,decrnest@l(28)
+	cmplwi	0,29,0
+	bne	2f
+	li	29,1
+	stw	29,decrnest@l(28)
 	mflr	28			/* save LR */
 	mfcr	29			/* save CR */
 	mfxer	30			/* save XER */
@@ -572,6 +580,9 @@ decrint:
 	mfsprg	1,1			/* yes, get old SP */
 1:
 	ba	decrintr
+2:
+	lmw	28,tempsave(0)
+	rfi
 decrsize = .-decrint
 
 /*
@@ -1140,6 +1151,9 @@ decrintr:
 	INTRENTER
 	addi	3,1,8			/* intr frame */
 	bl	decr_intr
+	lis	28,decrnest@ha
+	xor	29,29,29
+	stw	29,decrnest@l(28)
 	b	intr_exit
 
 #ifdef DDB
@@ -1151,7 +1165,7 @@ ddb_trap:
 	mtsprg	1,1
 	mfmsr	3
 	mtsrr1	3
-	andi.	3,3,~(PSL_EE|PSL_ME)@l
+	andi.	3,3,~(PSL_EE|PSL_ME|PSL_RI)@l
 	mtmsr	3			/* disable interrupts */
 	isync
 	stmw	28,ddbsave(0)
@@ -1196,7 +1210,7 @@ ipkdb_trap:
 	mtsprg	1,1
 	mfmsr	3
 	mtsrr1	3
-	andi.	3,3,~(PSL_EE|PSL_ME)@l
+	andi.	3,3,~(PSL_EE|PSL_ME|PSL_RI)@l
 	mtmsr	3			/* disable interrupts */
 	isync
 	stmw	28,ipkdbsave(0)
